@@ -1,37 +1,42 @@
 # TuringOS v4 — Handover State
 **Updated**: 2026-04-13
-**Session Summary**: v4 harness 从零搭建，通过 40/40 沙盒验证
+**Session Summary**: Common Law 系统从 11 判例扩展到 35 判例，宪法形式化，48/48 沙盒验证通过
 
 ## 本次 Session 完成的工作
 
-### 1. v3 深度宪法审计
-- 3 个并行 Opus agent 审计 v3 代码库 vs constitution.md
-- 发现 12 个违宪项 (V-001~V-012)，按 CRITICAL/HIGH/LOW 分级
-- 代码质量评分 6/10："结构良好但积累了显著技术债的研究原型"
-- 结论：**在 v3 基础上做宪法重构 (v3.5)，而非 v4 全部重写** — 但 harness 从零搭建
+### 1. GitHub repo 设立
+- Private repo: https://github.com/gretjia/turingosv4
+- Git identity: gretjia / noreply
 
-### 2. Harness Best Practice Research (6 篇文献)
-- [Meta-Harness (arXiv:2603.28052)](https://arxiv.org/html/2603.28052v1) — 原始 trace > 摘要，环境引导
-- [Anthropic Harness Design](https://www.anthropic.com/engineering/harness-design-long-running-apps) — Sprint 分解，生成者≠评估者
-- [Anthropic Effective Harnesses](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents) — JSON > Markdown，Git-based 状态
-- [HumanLayer CLAUDE.md Guide](https://www.humanlayer.dev/blog/writing-a-good-claude-md) — < 60 行，Progressive Disclosure
-- [HumanLayer Skill Issue](https://www.humanlayer.dev/blog/skill-issue-harness-engineering-for-coding-agents) — 最小启动，back-pressure 静默
-- [Hermes Agent](https://github.com/nousresearch/hermes-agent) — Skills 程序性记忆，FTS5 搜索
+### 2. 对齐文档统一
+- 删除 handover/bible.md，constitution.md 成为唯一对齐文档
+- 更新所有引用 (CLAUDE.md, auditor, dev-cycle, tests)
 
-### 3. v4 Harness 架构设计 (3 轮迭代)
-- v1: 直接迁移 v3 → 被双审计否决 (只实现宪法 40%)
-- v2: 架构师指出 "harness 不需要实现运行时架构" → 层次澄清
-- v3 (最终): **compression is intelligence** — 通用内核 + SDK 外层
+### 3. 宪法重构
+- 去除 Notion 4-space 缩进 (修复 Markdown 标题渲染)
+- 添加 20 个正式条款 ID [Art. I.1] ~ [Art. V.2]
+- 新增 Laws (基本法) 序言节
+- 修复重复 Boot 标题
 
-### 4. v4 Harness 搭建完成
-详见下方 Current State。
+### 4. v3 深度取证 (50 个教训)
+- 遍历 v3 的 VIA_NEGATIVA.md, CLAUDE.md, handover/, src/ 注释
+- 提取 50 个独立教训 (V3L-01~V3L-50)
+- 完整映射表: cases/V3_LESSONS.md
 
-### 5. Common Law 系统
-架构师创意升级：宪法(抽象原则) + 判例库(具体释法) = Common Law。
-11 个判例 (C-001~C-011) 从 v3 的 9 个 incident + 2 个设计决策提取。
+### 5. Common Law 系统扩展 (11 → 35)
+- 新增 24 个判例 (C-012~C-035)
+- 所有判例使用正式 Art./Law 条款引用 (消除旧 § 格式)
+- 所有判例含 source_lessons 字段链接到 V3L ID
+- 全部宪法条款实现 ≥1 判例覆盖
 
-### 6. 沙盒验证 40/40 PASS
-`tests/harness_validation.sh` — 纯 bash 模拟，零 API 费用。
+### 6. 双外部审计 (Codex + Gemini)
+- Codex 审计发现 6 项问题: 条款编号层级错误、归类错误、冗余、不可审计
+- Gemini 审计确认 Codex 全部 6 项，补充 Laws 位置建议
+- 按审计反馈修正后执行
+
+### 7. 沙盒验证 48/48 PASS
+- 扩展测试从 40 → 48 (新增 T-041~T-048)
+- 新增: 条款 ID 覆盖、source_lessons 追溯、宪法结构检查
 
 ---
 
@@ -41,72 +46,41 @@
 
 | 组件 | 数量 | 状态 |
 |------|------|------|
-| CLAUDE.md | 35 行 | DONE — Progressive Disclosure |
-| constitution.md | 从 v3 复制 | DONE |
-| Hooks | 3 个 (judge + build-check + session-end) | DONE — 40/40 验证通过 |
-| Rules Engine | engine.py (150 行纯 Python) | DONE — 正确拦截+零误报 |
-| Active Rules | 10 条 YAML | DONE — 从 v3 迁移 |
-| Agents | 3 个 (auditor + monitor + proposer) | DONE — 清洁无 GAIA |
-| Skills | 6 个 | DONE — 从 v3 迁移+升级 |
-| Docs | 5 个 (Progressive Disclosure) | DONE |
-| Cases | 11 个 (Common Law 判例库) | DONE — 全部有 constitution 链接 |
-| Incidents | 9 个 (从 v3 迁移) | DONE |
-| Traces | schema + sessions/ 目录 | DONE |
-| VIA_NEGATIVA.md | 从 v3 迁移 | DONE |
-| handover/ | directives/ + ai-direct/ | DONE |
-| Tests | 40 个验证 (harness_validation.sh) | DONE — 40/40 PASS |
+| CLAUDE.md | 35 行 | DONE |
+| constitution.md | 730 行, 20 条款 ID | DONE — 形式化 |
+| Hooks | 3 个 | DONE |
+| Rules Engine | engine.py | DONE |
+| Active Rules | 10 条 YAML | DONE |
+| Agents | 3 个 | DONE |
+| Skills | 6 个 | DONE |
+| Docs | 5 个 | DONE |
+| Cases | **35 个** (C-001~C-035) | DONE — 全条款覆盖 |
+| V3 Lessons | **50 个** (V3L-01~V3L-50) | DONE — 完整映射 |
+| Incidents | 9 个 | DONE |
+| Tests | **48 个** | DONE — 48/48 PASS |
 
-### 与 v3 的压缩对照
+### 关键架构决策 (本次 session 新增)
 
-| 维度 | v3 | v4 |
-|------|----|----|
-| CLAUDE.md | 116 行 | 35 行 (-70%) |
-| Hooks | 8 个 (~23KB) | 3 个 (~3KB, -87%) |
-| Rule engine | 10KB Python-in-Bash | 150 行纯 Python |
-| Rules | 14 条 | 10 条 (-29%) |
-| **新增** | — | cases/ (11 判例) + docs/ (5 文档) + traces/ |
+6. **不做 v3 机械迁移**: 架构师明确要求"从宪法出发重写每一行内核代码"。v3 代码是参考，不是模板。
 
-### 未迁移 (后续工作)
+7. **先判例后代码**: 在写任何运行时代码之前，必须先完善判例库。35 个判例覆盖了 v3 三个月的全部失败模式。
 
-| 组件 | 说明 | 优先级 |
-|------|------|--------|
-| `src/` Rust 代码 | kernel.rs, bus.rs, prediction_market.rs 等 | HIGH — 下一步 |
-| `experiments/` | minif2f_v2, zeta_sum_proof (活跃实验) | HIGH |
-| `Cargo.toml` | 工作区配置 | HIGH |
-| bus.rs 分解 | 999 行 → 3 模块 (~333 行/模块) | HIGH |
-| 领域知识去耦合 | bus.rs forbidden_patterns, prompt.rs lean4_tools | MEDIUM |
-| 单元测试补全 | kernel.rs, bus.rs, actor.rs 零测试覆盖 | MEDIUM |
-| `autoresearch/` | Phase 0b 自动研究管线 | LOW |
-
----
-
-## 关键设计决策 (本次 session)
-
-1. **Harness ≠ Runtime**: 宪法描述运行时架构 (信号量化/广播/屏蔽)。Harness 只做开发环境脚手架。不要在 harness 里实现运行时功能。
-
-2. **Compression is Intelligence**: 不迁移 v3 的 54 个文件。压缩为通用内核 (engine.py + judge.sh) + 外部 SDK (rules/ + docs/ + cases/)。内核零领域知识。
-
-3. **Common Law**: 宪法高度压缩导致释法困难。判例库 (cases/) 提供具体先例。每个判例: facts → ruling → precedent。Agent 不确定时查判例。
-
-4. **双审计流程**: SPEC 写完后送 Codex + 独立 Claude Agent 双审。v1 被打回 (只覆盖宪法 40%)。修正后通过。Generator ≠ Evaluator 原则贯彻。
-
-5. **Hook API 真实性**: v3 hook 使用 JSON over stdin (jq 解析)，不是 argv。v4 所有 hook 严格匹配 Claude Code 真实协议。
+8. **双外部审计制度化**: 任何重大架构决策必须经 Codex + Gemini 双审计 (Rule 23)。
 
 ---
 
 ## Next Steps (给下一个 session)
 
-1. **迁移 Rust 代码**: 从 v3 复制 src/ → v4，做宪法重构
-   - bus.rs 拆分为 bus_core.rs + bus_market.rs + bus_lifecycle.rs
-   - 移除 bus.rs 中 Lean 4 硬编码 (forbidden_payload_patterns → 配置注入)
-   - kernel.rs get_market_ticker() 展示逻辑 → 移到 SDK 层
-2. **迁移活跃实验**: minif2f_v2, zeta_sum_proof
-3. **补全测试**: kernel.rs, bus.rs, actor.rs unit tests
-4. **首次 cargo check + cargo test** 在 v4 中通过
-5. **constitutional_check.sh** 路径更新为 v4
+1. **从宪法重写内核代码**: 不是复制 v3，而是基于 constitution.md + 35 判例重新设计
+   - kernel.rs: 纯拓扑 (C-004, C-015, C-016)
+   - prediction_market.rs: CPMM 守恒 (C-001, C-002, C-006)
+   - bus.rs: 从零设计，参考 C-022, C-023, C-027, C-029, C-030
+   - sdk/protocol.rs: Postel 法则 (C-009, C-017, C-022)
+2. **Cargo.toml**: 创建 v4 workspace
+3. **首次 cargo check**: 在 v4 中通过
 
 ## Open Questions
 
-- bus.rs 领域知识 (forbidden_patterns): 注入配置 vs 保持硬编码 (pragmatic)?
-- kernel.rs presentation logic (get_market_ticker): 重构到 SDK 还是留着?
 - v3 仓库保留还是 archive?
+- 重写时是否保持 v3 的 module 结构 (14 模块)，还是重新组织?
+- sdk/membrane.rs 在 v4 是否需要?
