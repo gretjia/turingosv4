@@ -29,3 +29,5 @@
 [2026-04-13 08:42:14] WARN R-006 | src/kernel.rs | WARNING: kernel.rs 是纯拓扑层, 修改需要用户确认 + kernel-auditor 审计
 [2026-04-13 09:14:49] WARN R-008 | /home/zephryj/projects/turingosv4/experiments/minif2f_v4/src/bin/evaluator.rs | WARNING: Market constant change detected — verify LP amounts and initial balances are intentional
 [2026-04-13 09:14:49] WARN R-009 | /home/zephryj/projects/turingosv4/experiments/minif2f_v4/src/bin/evaluator.rs | WARNING: Payload limit change detected — Rule 21 (one-step-per-node) boundary, verify impact
+[2026-04-13 09:28:20] WARN R-008 | /home/zephryj/projects/turingosv4/experiments/minif2f_v4/src/bin/evaluator.rs | WARNING: Market constant change detected — verify LP amounts and initial balances are intentional
+[2026-04-13 09:28:20] WARN R-009 | /home/zephryj/projects/turingosv4/experiments/minif2f_v4/src/bin/evaluator.rs | WARNING: Payload limit change detected — Rule 21 (one-step-per-node) boundary, verify impact

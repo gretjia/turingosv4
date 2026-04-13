@@ -46,13 +46,24 @@
   - temperature ≤ 0 → fallback 0.5
   - trace_ancestors 单父 → 记录为设计决策
 
-### 5. MiniF2F v4 实验 Harness
+### 5. MiniF2F v4 实验 Harness (PPUT 驱动)
 - `experiments/minif2f_v4/` — workspace member, release binary 编译成功
 - Lean4Oracle: sorry 3层防御, identity theft, forbidden patterns
-- 评估器: oneshot / n1_turingos / n3_turingos 三模式
-- 批量运行器: `run_batch.sh [oneshot|n1|n3] [test|valid|all]`
-- 历史追踪器: `history.py` (跨 run 比较, history.jsonl 导出)
+- 评估器: oneshot / n1 / n3 三模式, 输出 PPUT_RESULT JSON
+- 批量运行器: `run_batch.sh` — 聚合 Σ PPUT, 分类统计
+- PPUT 历史追踪: `history.py` — 跨 run 比较, per-category PPUT, 自动淘汰 PPUT=0 题目
 - 数据集: 直接引用 v3 的 488 题 (磁盘不够, 不复制)
+
+### 6. PPUT 作为唯一优化目标
+```
+PPUT = Progress Per Unit Time
+  GP 存在 → PPUT = 100% / time_to_omega
+  无 GP   → PPUT = 0 (当前太难, 前期不作为研究对象)
+```
+- 所有研究和优化围绕 PPUT 提升进行
+- 前期集中攻克 PPUT > 0 的题型
+- outer loop ArchitectAI 的改进方向 = 提升 aggregate PPUT
+- PPUT=0 超过 N 轮的题暂时冻结
 
 ---
 

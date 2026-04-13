@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """
-Auto-Research Outer Loop — History Tracker
+PPUT History Tracker — Auto-Research Outer Loop
 
-Reads batch result files from logs/ and produces cross-run comparison.
-The ArchitectAI (Claude Opus) reads this to form causal hypotheses
-about what to change in the harness.
+Reads PPUT result files from logs/ and produces cross-run comparison.
+The ArchitectAI reads this to decide what harness changes will maximize PPUT.
 
-Meta-Harness insight: 10M tokens of diagnostic history > 0.002M compressed summary.
+PPUT = Progress Per Unit Time
+  - GP exists → PPUT = 100% / time_to_omega
+  - No GP    → PPUT = 0 (problem too hard for current harness, skip in early stage)
 """
 
 import json
@@ -18,10 +19,10 @@ from collections import defaultdict
 LOGS_DIR = Path(__file__).parent / "logs"
 
 
-def load_batch_results():
-    """Load all batch result JSONL files, sorted by timestamp."""
-    results = []
-    for f in sorted(LOGS_DIR.glob("batch_*.jsonl")):
+def load_pput_results():
+    """Load all PPUT JSONL files, sorted by timestamp."""
+    runs = []
+    for f in sorted(LOGS_DIR.glob("pput_*.jsonl")):
         run = {"file": f.name, "problems": []}
         with open(f) as fh:
             for line in fh:
@@ -33,61 +34,101 @@ def load_batch_results():
                         pass
         if run["problems"]:
             total = len(run["problems"])
-            solved = sum(1 for p in run["problems"] if p.get("status") == "solved")
+            solved = sum(1 for p in run["problems"] if p.get("has_golden_path"))
+            pput_sum = sum(p.get("pput", 0) for p in run["problems"])
             run["total"] = total
             run["solved"] = solved
-            run["solve_rate"] = solved / total if total > 0 else 0
-            results.append(run)
-    return results
+            run["pput_sum"] = pput_sum
+            run["avg_pput"] = pput_sum / solved if solved > 0 else 0
+            runs.append(run)
+    return runs
+
+
+def categorize_problem(name):
+    """Classify problem by type for per-category PPUT analysis."""
+    name = name.lower().replace(".lean", "")
+    if name.startswith("aime"): return "aime"
+    if name.startswith("amc"): return "amc"
+    if name.startswith("mathd_algebra"): return "mathd_algebra"
+    if name.startswith("mathd_numbertheory"): return "mathd_numtheory"
+    if name.startswith("algebra"): return "algebra"
+    if name.startswith("numbertheory"): return "numtheory"
+    if name.startswith("induction"): return "induction"
+    if name.startswith("imo"): return "imo"
+    return "other"
 
 
 def print_history():
-    """Print cross-run history for ArchitectAI consumption."""
-    runs = load_batch_results()
+    """Print PPUT-centric cross-run history."""
+    runs = load_pput_results()
 
     if not runs:
-        print("No batch results found in logs/")
+        print("No PPUT results found in logs/")
         return
 
-    print("=== MiniF2F v4 Auto-Research History ===\n")
+    print("=== PPUT Auto-Research History ===\n")
 
-    # Summary table
-    print(f"{'Run':<40} {'Total':>6} {'Solved':>7} {'Rate':>7}")
-    print("-" * 62)
+    # Run summary
+    print(f"{'Run':<45} {'Total':>5} {'GP':>4} {'PPUT=0':>6} {'Σ PPUT':>8} {'Avg PPUT':>9}")
+    print("-" * 80)
     for run in runs:
-        print(f"{run['file']:<40} {run['total']:>6} {run['solved']:>7} {run['solve_rate']:>6.1%}")
+        print(f"{run['file']:<45} {run['total']:>5} {run['solved']:>4} "
+              f"{run['total']-run['solved']:>6} {run['pput_sum']:>7.1f} {run['avg_pput']:>8.2f}")
 
     # Trend
     if len(runs) > 1:
-        first = runs[0]["solve_rate"]
-        last = runs[-1]["solve_rate"]
-        delta = last - first
-        print(f"\nTrend: {first:.1%} → {last:.1%} (Δ = {delta:+.1%})")
+        first_pput = runs[0]["pput_sum"]
+        last_pput = runs[-1]["pput_sum"]
+        delta = last_pput - first_pput
+        print(f"\nΣ PPUT trend: {first_pput:.1f} → {last_pput:.1f} (Δ = {delta:+.1f})")
 
-    # Per-problem analysis (which problems are consistently solved/unsolved)
-    problem_status = defaultdict(list)
-    for run in runs:
-        for p in run["problems"]:
-            problem_status[p["problem"]].append(p.get("status", "unknown"))
+    # Per-category analysis (which categories have highest PPUT)
+    if runs:
+        latest = runs[-1]
+        categories = defaultdict(lambda: {"total": 0, "solved": 0, "pput_sum": 0})
+        for p in latest["problems"]:
+            cat = categorize_problem(p.get("problem", ""))
+            categories[cat]["total"] += 1
+            if p.get("has_golden_path"):
+                categories[cat]["solved"] += 1
+                categories[cat]["pput_sum"] += p.get("pput", 0)
 
-    always_solved = [p for p, statuses in problem_status.items()
-                     if all(s == "solved" for s in statuses) and len(statuses) > 1]
-    never_solved = [p for p, statuses in problem_status.items()
-                    if all(s != "solved" for s in statuses) and len(statuses) > 1]
-    flaky = [p for p, statuses in problem_status.items()
-             if len(set(statuses)) > 1]
+        print(f"\n--- Latest Run: Per-Category PPUT ---")
+        print(f"{'Category':<20} {'Total':>5} {'GP':>4} {'Σ PPUT':>8} {'Avg':>8}")
+        print("-" * 48)
+        sorted_cats = sorted(categories.items(),
+                           key=lambda x: x[1]["pput_sum"], reverse=True)
+        for cat, stats in sorted_cats:
+            avg = stats["pput_sum"] / stats["solved"] if stats["solved"] > 0 else 0
+            print(f"{cat:<20} {stats['total']:>5} {stats['solved']:>4} "
+                  f"{stats['pput_sum']:>7.1f} {avg:>7.2f}")
 
-    if always_solved:
-        print(f"\nAlways solved ({len(always_solved)}): {', '.join(sorted(always_solved)[:5])}...")
-    if never_solved:
-        print(f"Never solved ({len(never_solved)}): {', '.join(sorted(never_solved)[:5])}...")
-    if flaky:
-        print(f"Flaky ({len(flaky)}): {', '.join(sorted(flaky)[:5])}...")
+    # PPUT=0 problems (frozen / too hard for current harness)
+    if runs:
+        latest = runs[-1]
+        zero_problems = [p["problem"] for p in latest["problems"]
+                        if not p.get("has_golden_path")]
+        gp_problems = sorted(
+            [(p["problem"], p["pput"]) for p in latest["problems"]
+             if p.get("has_golden_path")],
+            key=lambda x: x[1], reverse=True
+        )
+
+        if gp_problems:
+            print(f"\n--- Top PPUT Problems (focus here) ---")
+            for name, pput in gp_problems[:10]:
+                print(f"  {name:<40} PPUT={pput:.2f}%/s")
+
+        print(f"\n--- PPUT=0 Problems ({len(zero_problems)} — skip in early stage) ---")
+        for name in sorted(zero_problems)[:5]:
+            print(f"  {name}")
+        if len(zero_problems) > 5:
+            print(f"  ... and {len(zero_problems)-5} more")
 
 
 def export_jsonl():
-    """Export cross-run history as history.jsonl for ArchitectAI."""
-    runs = load_batch_results()
+    """Export cross-run PPUT history as history.jsonl for ArchitectAI."""
+    runs = load_pput_results()
     output_path = LOGS_DIR.parent / "history.jsonl"
     with open(output_path, "w") as f:
         for run in runs:
@@ -95,7 +136,8 @@ def export_jsonl():
                 "file": run["file"],
                 "total": run["total"],
                 "solved": run["solved"],
-                "solve_rate": run["solve_rate"],
+                "pput_sum": round(run["pput_sum"], 2),
+                "avg_pput": round(run["avg_pput"], 2),
             }) + "\n")
     print(f"Exported to {output_path}")
 
