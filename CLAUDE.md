@@ -17,8 +17,9 @@ Rust 2021, tokio, serde_json. Mission: MiniF2F Lean 4.
 
 ## Common Law (宪法 + 判例)
 宪法高度压缩。不确定时查判例: `cases/C-xxx.yaml`
-- 按条款查: `grep -l "Law 2" cases/*.yaml`
-- 11 个判例覆盖所有已知违宪类型 (C-001 ~ C-011)
+- 按条款查: `grep -l "Art. I.1" cases/*.yaml`
+- 35 个判例 (C-001 ~ C-035)，覆盖全部宪法条款
+- 50 个 v3 教训的完整映射: `cases/V3_LESSONS.md`
 - 每个判例: facts → ruling → precedent (事实→裁决→先例)
 
 ## Docs (按需加载)

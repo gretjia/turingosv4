@@ -1,0 +1,25 @@
+id: C-027
+title: "硬编码参数的诅咒"
+constitution:
+  - "Art. IV: Boot — 初始化必须可配置"
+source_lessons: [V3L-23, V3L-27, V3L-28, V3L-29, V3L-40, V3L-44]
+incident: null
+facts: |
+  六类硬编码导致系统性故障：
+  (1) 120s timeout — 大模型推理超时前 2 秒被杀
+  (2) 500 coin 固定税 — 通缩死锁
+  (3) SiliconFlow N=30 — API 限流崩溃
+  (4) Gemini CLI subprocess — Node.js OOM
+  (5) llama-server slot 数 < swarm 并发数
+  (6) prompt 示例值 (500, 800) 成为 Agent 锚点
+ruling: |
+  Art. IV 要求 Boot 过程"把规范编译成可执行谓词"。
+  硬编码参数 = 把运行时假设固化到编译时 = Boot 不完整。
+precedent: |
+  1. 所有影响行为的参数必须可通过环境变量/配置覆盖
+  2. Default 值 OK，但不可是 const/hardcode
+  3. prompt 中的示例值必须用占位符，不可写具体数字
+  4. API 并发数必须与 provider 能力匹配 (启动时检查)
+rule: null
+date: "2026-04-13"
+severity: high

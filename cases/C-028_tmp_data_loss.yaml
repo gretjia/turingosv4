@@ -1,0 +1,19 @@
+id: C-028
+title: "临时文件系统数据丢失"
+constitution:
+  - "Art. IV: Boot — 世界状态必须持久化"
+source_lessons: [V3L-24]
+incident: null
+facts: |
+  Run 6 达成 OMEGA (90 agents, 1748 tx)，完整 tape 存在 /tmp/。
+  后续实验覆盖了 /tmp/ 数据。架构师要求验证证明时 tape 已丢失。
+ruling: |
+  Art. IV 要求初始化 Q₀ 并保证状态可演化。/tmp/ 是临时文件系统，
+  不满足"世界状态"的持久性要求。
+precedent: |
+  1. 有历史价值的运行结果必须立即持久化到非临时路径
+  2. WAL 文件必须保存在永久存储 (不是 /tmp/)
+  3. run_experiment.py 应自动复制结果到归档目录
+rule: null
+date: "2026-04-13"
+severity: high

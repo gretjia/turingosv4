@@ -1,0 +1,19 @@
+id: C-019
+title: "价格波形坍缩 / 串行定价保因果"
+constitution:
+  - "Art. II.2: 广播价格信号"
+source_lessons: [V3L-11]
+incident: null
+facts: |
+  多 Agent 并发更新同一节点价格，造成价格信号振荡。
+  "真实"价格不可确定。
+ruling: |
+  Art. II.2 要求价格信号有效引导群体。并发定价导致信号振荡 =
+  无效引导。定价必须通过串行 reactor 保证因果一致。
+precedent: |
+  1. 价格更新必须串行化 (Event Reactor 模式)
+  2. MapReduce 定价循环保证全局因果一致
+  3. 并行读取价格可以，但写入价格必须串行
+rule: null
+date: "2026-04-13"
+severity: high

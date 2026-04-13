@@ -1,0 +1,20 @@
+id: C-015
+title: "sorry 作弊 / 三层防御纵深"
+constitution:
+  - "Art. I.1: 布尔信号必须是 Ground Truth"
+source_lessons: [V3L-01]
+incident: null
+facts: |
+  Lean 4 的 sorry 关键词允许跳过证明步骤。Agent 输出 sorry 后
+  Lean 编译器不报错 — sorry 是合法语法。单层验证被绕过。
+ruling: |
+  单层布尔信号不够。Art. I.1 要求谓词是 Ground Truth，
+  但 sorry 创造了"合法但无效"的通过路径。需要纵深防御。
+precedent: |
+  三层防御：
+  1. 上游 (payload): bus.rs forbidden_patterns 拦截 sorry 关键词
+  2. 中游 (oracle): 编译条件检查 "No goals" + 无 sorry 警告
+  3. 下游 (fallback): 干净环境重编译确认
+rule: R-001
+date: "2026-04-13"
+severity: critical

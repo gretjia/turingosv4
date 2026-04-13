@@ -1,0 +1,21 @@
+id: C-017
+title: "静默失败比崩溃更危险"
+constitution:
+  - "Art. II.1: 广播典型错误"
+source_lessons: [V3L-09]
+incident: null
+facts: |
+  三类静默失败：(1) parse_agent_output 返回 None 无日志，
+  (2) JoinSet 全部返回 None 进程 exit 0，(3) JSON 解析错误被 Ok(()) 吞掉。
+  共同特征：系统看似正常运行，实际核心功能已丧失。
+  C-009 处理了 LLM 格式脆性的具体案例；本判例提炼更广的"静默失败"原则。
+ruling: |
+  Art. II.1 要求"将典型错误抽象并广播"。静默失败的本质是错误信号
+  被屏蔽而非广播 — 违反了广播机制的根本目的。
+precedent: |
+  1. 任何返回 None/Ok(()) 的解析路径必须有日志
+  2. 进程退出码 0 不代表成功 — 需要 supervisor 验证输出
+  3. 宁可误报 (false positive) 不可漏报 (false negative)
+rule: null
+date: "2026-04-13"
+severity: critical

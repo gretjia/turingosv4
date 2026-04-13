@@ -1,7 +1,8 @@
 id: C-007
 title: "reqwest+rustls macOS 管道死锁"
 constitution:
-  - "宪法 §Boot: 工具必须可靠"
+  - "Art. IV: Boot — 工具必须可靠"
+source_lessons: [V3L-25]
 incident: V-007
 facts: |
   Rust reqwest + rustls-tls 在 macOS 上发 HTTPS 请求到中国 API 端点时

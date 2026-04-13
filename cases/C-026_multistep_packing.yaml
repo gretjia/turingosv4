@@ -1,0 +1,20 @@
+id: C-026
+title: "多步打包 / 前置运行"
+constitution:
+  - "Art. III.4: 屏蔽 Goodhart 问题"
+source_lessons: [V3L-21, V3L-48]
+incident: null
+facts: |
+  Agent 在单次 append 中打包多个证明步骤，垄断整条路径。
+  同时 Agent 全押高价节点 (无 Kelly 准则)，一次失败全灭。
+  两个问题根源相同：Agent 通过 gaming 机制绕过价格信号。
+ruling: |
+  Art. III.4 要求"度量逻辑对黑盒保密"。多步打包让 Agent
+  绕过 per-step 定价，相当于窥探并 gaming 了价格机制。
+precedent: |
+  1. max_payload_chars + max_payload_lines 强制 one-step-per-append
+  2. 原子化步骤使每步独立定价，防止路径垄断
+  3. Kelly 准则: 从不全押。系统 prompt 应包含风险管理指引
+rule: R-009
+date: "2026-04-13"
+severity: high

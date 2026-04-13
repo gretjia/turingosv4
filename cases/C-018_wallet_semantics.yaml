@@ -1,0 +1,19 @@
+id: C-018
+title: "钱包语义污染 / 假破产信号"
+constitution:
+  - "Art. II.1: 广播典型错误 — 错误信息必须精准"
+source_lessons: [V3L-10]
+incident: null
+facts: |
+  balance=5990 的 Agent 被日志标注为 "Bankrupt"。实际只是保证金不足
+  (requested 6000 > balance 5990)。日志污染导致运维误判系统状态。
+ruling: |
+  Art. II.1 要求错误广播精准，不可造成"上下文污染"。
+  混淆 "真破产" 和 "保证金不足" = 广播了错误信号。
+precedent: |
+  1. 错误消息必须 1:1 映射系统状态
+  2. "Bankrupt" 仅限 balance < 1.0 的真破产
+  3. "Margin Call" 用于余额不足但非零的情况
+rule: null
+date: "2026-04-13"
+severity: medium

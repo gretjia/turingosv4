@@ -1,0 +1,20 @@
+id: C-029
+title: "JoinSet 耗竭 / 静默退出"
+constitution:
+  - "Art. IV: Boot — 运行循环必须持续"
+source_lessons: [V3L-31]
+incident: null
+facts: |
+  Windows 上 network_test 进程静默退出 (exit 0)。所有 4 个 Agent
+  连续 502 后 JoinSet 内所有 task 返回 None。
+  while let Some(res) = set.join_next().await 自然终止。
+ruling: |
+  Art. IV 描述的运行循环 "一旦被拉起来就在既定规则下自行运行"。
+  JoinSet 耗竭 = 循环终止 = 违反 Boot 后的自主运行契约。
+precedent: |
+  1. 主循环必须是绝对 loop {}，不可依赖 JoinSet 存活
+  2. Supervisor 必须在 agent count < N 时重新 spawn
+  3. 静默 exit 0 比 panic 更危险 — 需要心跳检测
+rule: null
+date: "2026-04-13"
+severity: critical

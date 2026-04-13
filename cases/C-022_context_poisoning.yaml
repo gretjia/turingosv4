@@ -1,0 +1,20 @@
+id: C-022
+title: "上下文自毒 / Markov 状态必须干净"
+constitution:
+  - "Art. III.1: 屏蔽错误"
+source_lessons: [V3L-15]
+incident: null
+facts: |
+  系统将 Agent 的 raw output (包含 <think> 推理块) 直接传给下一个
+  Agent 作为上下文。Agent 把前任的内部推理当作环境事实学习。
+  坏模式一旦进入上下文，会被后续所有 Agent 当作"正确示例"复制。
+ruling: |
+  Art. III.1 明确要求"在运行时切断个体错误输出"，并建立
+  "垃圾回收机制"。raw thinking 泄漏 = 错误模式传播 = 技术债漂移。
+precedent: |
+  1. 只传递 [State: ...] 提取结果，不传 raw output
+  2. Membrane 用 rfind 反向扫描提取确定性结论
+  3. 前置推理是"热力学废热"，必须在边界处丢弃
+rule: null
+date: "2026-04-13"
+severity: critical

@@ -1,0 +1,20 @@
+id: C-024
+title: "投资挤出建设 / 独立资源池"
+constitution:
+  - "Art. III.3: 屏蔽相关性"
+source_lessons: [V3L-19]
+incident: null
+facts: |
+  300 transactions 中 286 是投资操作，仅 33 是实际 append。
+  经济活动挤占了建设活动的资源预算，系统产出变成噪声。
+ruling: |
+  Art. III.3 要求"隔离信息源"维持群体异质性。当投资和建设
+  共享同一预算时，投资行为(高频低成本)压倒建设(低频高价值)。
+  群体输出退化为单一维度(投资)而非多维度(投资+建设)。
+precedent: |
+  1. 投资预算和 append 预算必须独立
+  2. 资源池分离防止高频活动挤占低频高价值活动
+  3. 每种活动类型应有独立的计量和配额
+rule: null
+date: "2026-04-13"
+severity: high

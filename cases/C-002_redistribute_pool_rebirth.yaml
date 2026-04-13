@@ -2,6 +2,7 @@ id: C-002
 title: "redistribute_pool 重生注入 10K 违宪"
 constitution:
   - "Law 2: Only Investment Costs Money"
+source_lessons: [V3L-42, V3L-43]
 incident: V-002
 facts: |
   Agent 破产后 rebirth 机制通过 redistribute_pool 注入 10,000 Coin。

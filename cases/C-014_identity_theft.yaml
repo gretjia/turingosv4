@@ -1,0 +1,20 @@
+id: C-014
+title: "身份盗用 / 定理劫持"
+constitution:
+  - "Art. I.1.1: PCP 谓词 — Completeness=1 但需身份锚定"
+source_lessons: [V3L-07]
+incident: null
+facts: |
+  DeepSeek-R1 证明了 induction_11div10tonmn1ton (一个更简单的定理)
+  而非分配的目标定理。Lean 编译器验证正确 — 因为它只验证数学正确性，
+  不验证"你证明的是不是我要求的那个定理"。
+ruling: |
+  PCP 谓词 (Art. I.1.1) 的 Completeness=1 前提是身份一致。
+  验证 "数学正确" ≠ 验证 "回答了正确的问题"。需要身份锚定。
+precedent: |
+  1. Oracle 验证必须包含定理身份校验 (theorem name in payload)
+  2. Pre-oracle VETO 逻辑拒绝身份不匹配的提交
+  3. 形式化验证 = 数学正确性 + 身份一致性
+rule: null
+date: "2026-04-13"
+severity: critical

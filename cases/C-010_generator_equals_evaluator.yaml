@@ -1,8 +1,9 @@
 id: C-010
 title: "生成者自审导致 4 次违宪被放过"
 constitution:
-  - "宪法 §5.1: 三权分立"
-  - "Rule 23: Generator ≠ Evaluator"
+  - "Art. V.1: 三权分立"
+  - "Art. V.1.3: JudgeAI 必须独立于 ArchitectAI"
+source_lessons: [V3L-38]
 incident: null
 facts: |
   fund_agent 印钞 (C-001) 被同一 AI 在 4 次审计中标注 "可接受"。

@@ -1,0 +1,23 @@
+id: C-023
+title: "双腔架构 / 挤压物理层而非能力层"
+constitution:
+  - "Art. III.2: 封装细节"
+source_lessons: [V3L-16, V3L-17, V3L-18]
+incident: null
+facts: |
+  三个相关失败：(1) 严格 JSON schema 阉割 LLM 推理能力，
+  (2) 2048 token 硬限截断推理链导致 [State:] 标签永远输出不了，
+  (3) 4 agents x 8192 ctx VRAM 溢出时第一反应是降上下文。
+  共同错误：为满足约束/物理限制而牺牲认知自由。
+ruling: |
+  Art. III.2 要求"渐进式披露"而非"约束输入"。正确做法：
+  - User space: 不约束认知，允许 8192 token 自由思考
+  - Kernel space: 在膜处提取确定性结论 (rfind("[State:"))
+  - VRAM 不够时量化 KV cache，不降上下文窗口
+precedent: |
+  1. 绝不因物理约束 (VRAM/timeout) 降低算法能力 (context window)
+  2. 挤压方向: 量化 (q8_0)、统一 KV 池 (-kvu)、精度换空间
+  3. LLM 输出约束只在边界 (membrane) 执行，不在输入端执行
+rule: null
+date: "2026-04-13"
+severity: critical

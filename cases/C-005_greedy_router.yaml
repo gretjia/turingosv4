@@ -1,7 +1,8 @@
 id: C-005
 title: "贪心路由陷入局部最优"
 constitution:
-  - "宪法 §2.2: 探索与利用平衡"
+  - "Art. II.2.1: 探索与利用平衡"
+source_lessons: [V3L-14]
 incident: V-005
 facts: |
   ArgMax 贪心路由器总是选择当前最高分节点，导致所有 Agent 收敛到

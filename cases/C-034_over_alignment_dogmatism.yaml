@@ -1,0 +1,21 @@
+id: C-034
+title: "过度对齐教条主义 / 第一性原理审查"
+constitution:
+  - "Art. V: Go Meta — 系统必须自我进化"
+source_lessons: [V3L-36, V3L-39]
+incident: null
+facts: |
+  从 v2 复制 Oracle 后只做安全补丁，从未质疑 Oracle 职责范围
+  是否匹配新宪法。同时 prompt 中写满规则解释，Agent 完全忽略，
+  只跟随激励行事。
+ruling: |
+  Art. V 要求 ArchitectAI "主动分析系统日志"并"重新设计"。
+  复制旧组件 + 解释性 prompt = 违背自我进化精神。
+  "Gravity doesn't explain itself to apples" — 规则编码到机制，不是文字。
+precedent: |
+  1. 每次宪法变更后必须从第一性原理重审所有组件
+  2. 规则编码到 Tool 约束 (硬约束)，不是 prompt 解释 (软约束)
+  3. 旧组件迁移 ≠ 直接复制。必须问："这个组件的职责在新架构中还成立吗？"
+rule: null
+date: "2026-04-13"
+severity: high

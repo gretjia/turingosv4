@@ -1,0 +1,21 @@
+id: C-016
+title: "Oracle 非确定性 / 验证器必须确定性"
+constitution:
+  - "Art. I.1: 布尔信号"
+  - "Art. V.2: 核心谓词逻辑必须确定性"
+source_lessons: [V3L-02]
+incident: null
+facts: |
+  同一 Lean 4 输入在重复运行中返回不同结果。搜索空间依赖导致
+  有时走深路径、有时走浅路径，判定结果不一致。
+ruling: |
+  Art. I.1 要求布尔信号是确定性的 (f: X → {0,1})。
+  Art. V.2 明确规定"核心谓词逻辑必须是确定性的，禁止引入概率模型"。
+  非确定性 Oracle = 概率谓词 = 违宪。
+precedent: |
+  1. Oracle 调用参数必须冻结 (搜索深度、超时、随机种子)
+  2. 任何方差来源必须消除或记录
+  3. Oracle 结果不一致时必须报警而非静默接受其中一个
+rule: null
+date: "2026-04-13"
+severity: critical

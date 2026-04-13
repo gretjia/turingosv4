@@ -1,0 +1,23 @@
+id: C-035
+title: "宪法违规零容忍 (Rule 18)"
+constitution:
+  - "Art. V.2: 宪法界限 — 违规不可延期"
+source_lessons: [V3L-37]
+incident: null
+facts: |
+  Run 6 产生 100B+ coin mint 事件。4 次内部审计将违宪标注为
+  "可接受"、"低优先级"、"Phase N 延期"。最终由外部审计 (Gemini) 发现。
+  注: C-001 处理了 fund_agent 印钞的具体违宪行为；
+  本判例处理"审计流程允许违宪被延期"的制度性问题。
+ruling: |
+  Art. V.2 列出宪法级约束 (算力上限、确定性等)。
+  违反这些约束不可被降级为"低优先级"或"延期"。
+  宪法不是顾问建议，是约束条件。
+precedent: |
+  Rule 18: 宪法违规 = 立即 BLOCKER
+  1. 审计中不存在"可接受的违宪"
+  2. 违宪修复优先级高于所有功能开发
+  3. 内部审计不可作为最终判定 (→ C-010 Rule 23)
+rule: null
+date: "2026-04-13"
+severity: critical

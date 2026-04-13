@@ -2,7 +2,9 @@ id: C-001
 title: "fund_agent 印钞违反零和守恒"
 constitution:
   - "Law 2: Only Investment Costs Money"
-  - "宪法 §1.1: 布尔谓词必须是 Ground Truth"
+  - "Art. I.1: 布尔谓词必须是 Ground Truth"
+  - "Art. V.2: 宪法违规零容忍 (Rule 18)"
+source_lessons: [V3L-37, V3L-41]
 incident: V-001
 facts: |
   fund_agent() 在 GENESIS 之后向 Agent 注入新 Coin，破坏 CTF 守恒

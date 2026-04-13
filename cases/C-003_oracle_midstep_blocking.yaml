@@ -1,8 +1,9 @@
 id: C-003
 title: "Oracle 拦截中间步骤 — Engine 越权"
 constitution:
-  - "宪法 §3.2: 封装细节"
-  - "Rule 20: 禁止 Over-Alignment"
+  - "Art. III.2: 封装细节"
+  - "Law 1: Engine 分离 (每个 Engine 只做分内事)"
+source_lessons: [V3L-46, V3L-47]
 incident: V-003
 facts: |
   Lean4Oracle 不仅在 OMEGA (最终证明) 时验证，还拦截中间 append。

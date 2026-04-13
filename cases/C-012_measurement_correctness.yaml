@@ -1,0 +1,20 @@
+id: C-012
+title: "度量正确性 > 被度量对象的优化"
+constitution:
+  - "Art. I.2: 统计信号必须是确定性算法"
+source_lessons: [V3L-04, V3L-49]
+incident: null
+facts: |
+  parse_tape.py 有空行 bug，显示 novelty 始终 ~1%。团队花 10 次实验
+  优化"novelty 提升"，实际 novelty 一直是正确的，只是度量工具坏了。
+  此外 Lamarckian autopsy 让 agent "学习失败"，实际只产出幻觉合理化。
+ruling: |
+  度量工具的正确性优先级高于被度量指标的优化。如果度量本身有 bug，
+  优化方向完全错误。Karpathy 的 autoresearch 有效是因为 evaluate_bpb 被冻结。
+precedent: |
+  1. 度量工具上线前必须独立验证 (与已知正确结果交叉校验)
+  2. 度量代码一旦验证通过应冻结，不随实验迭代
+  3. 个体经验"学习"不可作为统计信号 — 只有客观群体统计 (graveyard DNA) 有效
+rule: null
+date: "2026-04-13"
+severity: high

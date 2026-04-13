@@ -1,0 +1,20 @@
+id: C-025
+title: "注意力稀释 / 同质化买清晰度"
+constitution:
+  - "Art. III.3: 屏蔽相关性"
+source_lessons: [V3L-20]
+incident: null
+facts: |
+  混合使用 Codex/Gemini/Qwen 导致输出格式碎片化，
+  解析器需要适配多种格式，认知开销大增。
+ruling: |
+  Art. III.3 要求"屏蔽个体之间的横向相关性"以维持独立性。
+  但如果个体的接口协议 (输出格式) 不一致，系统整合开销指数增长。
+  在通信协议层应同质化，在决策层应异质化。
+precedent: |
+  1. 主模型标准化 (单一输出格式)，减少解析碎片化
+  2. 异质性通过角色/温度注入，不通过模型混合
+  3. 协议层同质 + 策略层异质 = 最优组合
+rule: null
+date: "2026-04-13"
+severity: medium

@@ -2,7 +2,8 @@ id: C-004
 title: "kernel.rs 出现 'OMEGA' 字符串 — 领域知识泄漏"
 constitution:
   - "Law 1: Information is Free (kernel 零领域知识)"
-  - "宪法 §1.1: 顶层白盒不依赖语言约束黑盒"
+  - "Art. I.1: 顶层白盒不依赖语言约束黑盒"
+source_lessons: [V3L-45]
 incident: V-004
 facts: |
   kernel.rs 中硬编码了 "[OMEGA]" 字符串用于检测证明完成。

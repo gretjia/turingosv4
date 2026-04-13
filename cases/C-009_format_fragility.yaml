@@ -1,8 +1,9 @@
 id: C-009
 title: "LLM 输出格式脆性导致静默丢失"
 constitution:
-  - "宪法 §1.1: PCP 谓词 — 绝对不误杀"
-  - "宪法 §2.1: 广播典型错误"
+  - "Art. I.1.1: PCP 谓词 — 绝对不误杀 (Completeness=1)"
+  - "Art. II.1: 广播典型错误"
+source_lessons: [V3L-08]
 incident: V-009
 facts: |
   Agent 输出 JSON 时包含 LaTeX 转义 (\\frac)、前缀文本、裸 action 标签。

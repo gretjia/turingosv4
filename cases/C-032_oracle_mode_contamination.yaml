@@ -1,0 +1,21 @@
+id: C-032
+title: "Oracle 模式混淆 / Rule 22 v2"
+constitution:
+  - "Art. V.1: 三权分立"
+source_lessons: [V3L-34]
+incident: null
+facts: |
+  同一实验中混用 formal mode (Agent→Lean) 和 non-formal mode
+  (Agent→natural language)。因果链断裂：无法确定 swarm 还是
+  翻译层做了真正的数学工作。
+ruling: |
+  Art. V.1 要求 ArchitectAI/JudgeAI/Constitution 三权分立。
+  Oracle 模式混淆 = 验证标准不一致 = JudgeAI 职责模糊。
+precedent: |
+  Rule 22 v2:
+  1. 单实验必须选择一种 Oracle 模式 (formal XOR non-formal)
+  2. Swarm 输出到 Oracle 之间禁止翻译层 (除 reject-only)
+  3. 因果链必须透明可追溯：谁做了数学？
+rule: null
+date: "2026-04-13"
+severity: critical

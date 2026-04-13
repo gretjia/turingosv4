@@ -1,0 +1,20 @@
+id: C-033
+title: "因果归因缺失 / 涌现需要透明性"
+constitution:
+  - "Art. V.1: 三权分立 — 提出者和验证者的边界"
+source_lessons: [V3L-35, V3L-50]
+incident: null
+facts: |
+  宣称"swarm 产生了证明"但实际上 transpiler、wrapper、
+  Oracle 后处理器参与了数学转换。归功于 swarm 是虚假的涌现声称。
+ruling: |
+  Art. V.1 要求权力分立清晰。如果外部组件触碰了数学内容，
+  那么外部组件是 ArchitectAI 的一部分，不是中层黑盒的涌现。
+  涌现声称需要因果证明。
+precedent: |
+  1. Agent→Oracle 之间的每一步变换必须是 lossless + traceable
+  2. 如果任何中间件修改了数学内容 → 该中间件是实际贡献者
+  3. "涌现"声称需要证明：去除所有外部组件后结果是否仍然成立
+rule: null
+date: "2026-04-13"
+severity: high

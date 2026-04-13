@@ -1,0 +1,24 @@
+id: C-030
+title: "级联故障组合拳 (Run 1 Postmortem)"
+constitution:
+  - "Art. IV: Boot — 系统必须有逃生阀"
+  - "Art. II.2.1: 探索与利用平衡"
+source_lessons: [V3L-32]
+incident: null
+facts: |
+  Run 1 完全崩溃 (35 min, 51 appends, 0 OMEGA)。三个独立缺陷组合：
+  (1) 贪心路由 → 星形拓扑 (C-005)
+  (2) 无逃生机制 → Agent 卡在死分支
+  (3) 无重生 → 破产后永久死亡 → rx.changed().await 永久等待
+  单个缺陷可容忍，三个组合 = 系统死锁。
+ruling: |
+  Art. IV 的 Boot 循环要求"在既定规则下自行运行"。
+  级联故障打破了这个契约。系统需要多个逃生阀防止组合死锁。
+precedent: |
+  1. Boltzmann 路由替代贪心 (猛药一)
+  2. 代际重生 + autopsy DNA 记录 (猛药二)
+  3. 实时 MapReduce 替代阈值触发 (猛药三)
+  4. 每个子系统都需要独立的容错/恢复机制
+rule: null
+date: "2026-04-13"
+severity: critical

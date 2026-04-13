@@ -2,7 +2,8 @@ id: C-006
 title: "Falsifier 可买 YES — 经济激励扭曲"
 constitution:
   - "Law 2: Only Investment Costs Money"
-  - "宪法 §3.4: 屏蔽 Goodhart 问题"
+  - "Art. III.4: 屏蔽 Goodhart 问题"
+source_lessons: [V3L-22]
 incident: V-006
 facts: |
   Agent 在认为自己的步骤错误时仍可买 YES token（表示看好该步骤）。

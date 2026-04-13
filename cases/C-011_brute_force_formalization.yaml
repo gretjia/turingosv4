@@ -1,8 +1,8 @@
 id: C-011
 title: "Finset.range 100 让 decide 暴力穷举"
 constitution:
-  - "宪法 §1.1: 谓词必须是确定性逻辑"
-  - "Rule 23: 形式化不可引入暴力搜索空间"
+  - "Art. I.1: 谓词必须是确定性逻辑"
+source_lessons: [V3L-03]
 incident: null
 facts: |
   AIME P1 用 Finset.range 100 形式化 → Agent 用 decide 遍历 100 个数

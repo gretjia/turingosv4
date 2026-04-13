@@ -1,7 +1,8 @@
 id: C-008
 title: "单线程 proxy 在并发下返回 502"
 constitution:
-  - "宪法 §Boot: 工具必须可靠"
+  - "Art. IV: Boot — 工具必须可靠"
+source_lessons: [V3L-26]
 incident: V-008
 facts: |
   HTTP proxy 使用 HTTPServer (单线程)，15 个并发 Agent 请求时

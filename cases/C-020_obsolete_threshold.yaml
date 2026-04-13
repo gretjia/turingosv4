@@ -1,0 +1,20 @@
+id: C-020
+title: "阈值过时 / 消除过时门控"
+constitution:
+  - "Art. II.2: 广播价格信号"
+source_lessons: [V3L-12]
+incident: null
+facts: |
+  ThermodynamicHeartbeatTool 要求 1.5x 价格变动才触发 MapReduce。
+  价格涨到 9000 后冻结 (需 13500 才能触发)。死资本。
+  现代架构中 O(V+E) MapReduce 已足够廉价。
+ruling: |
+  阈值门控在早期有其合理性 (降低开销)。但当底层成本下降后，
+  旧阈值变成了正确行为的障碍。
+precedent: |
+  1. 阈值参数必须有过期审查机制
+  2. 当底层操作成本显著降低时，移除阈值而非调整
+  3. 优先选择"每次都执行"而非"条件执行" — 除非成本确实高
+rule: null
+date: "2026-04-13"
+severity: medium

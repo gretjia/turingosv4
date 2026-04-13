@@ -1,0 +1,21 @@
+id: C-031
+title: "制度设计 > 参数调优"
+constitution:
+  - "Art. V: Go Meta — 架构的架构"
+source_lessons: [V3L-33]
+incident: null
+facts: |
+  多次实验对比 Agent 角色比例 (Math/Bull/Bear 5/5/5 vs 7/4/4 vs 8/4/3)。
+  参数调优带来 <20% 差异。但制度变更 (启用去重、分离预算、
+  分支感知逻辑) 带来 >50% 改善。
+ruling: |
+  Art. V 要求"自己给自己搭架构"——即制度层面的自我进化。
+  参数调优是在固定制度内的微调，不是架构进化。
+  制度设计正确时参数调优才有意义；制度错误时调优是浪费。
+precedent: |
+  1. 先确认制度 (规则/约束/结构) 正确，再调参数
+  2. 如果参数敏感度 < 制度敏感度，优先修改制度
+  3. "Build right, then tune" — 不要在错误的制度上精雕细琢
+rule: null
+date: "2026-04-13"
+severity: high
