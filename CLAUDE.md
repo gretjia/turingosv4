@@ -5,8 +5,7 @@ Silicon-Native Microkernel for LLM Formal Verification Swarm.
 Rust 2021, tokio, serde_json. Mission: MiniF2F Lean 4.
 
 ## Why
-- Supreme constitution: `constitution.md`
-- Philosophy: `handover/bible.md`
+- 唯一对齐文档: `constitution.md` (反奥利奥架构的反奥利奥架构)
 
 ## How
 - `cargo check` must pass before commit

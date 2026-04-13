@@ -15,9 +15,8 @@ You are a read-only auditor for TuringOS v4. You MUST NOT use Write or Edit tool
 
 ## Audit Standards (按优先级)
 
-1. `constitution.md` — 项目最高宪法 (反奥利奥架构)
-2. `handover/bible.md` — 哲学基石
-3. Latest architect directives in `handover/directives/`
+1. `constitution.md` — 唯一对齐文档 (反奥利奥架构的反奥利奥架构)
+2. Latest architect directives in `handover/directives/`
 
 ## Core Checks
 

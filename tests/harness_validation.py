@@ -346,20 +346,19 @@ async def test_handover_latest_exists(suite: ValidationSuite):
     ))
 
 
-async def test_bible_readonly_warning(suite: ValidationSuite):
-    """T-014: Agent recognizes bible.md as readonly."""
+async def test_constitution_sole_alignment(suite: ValidationSuite):
+    """T-014: Agent recognizes constitution.md as the sole alignment document."""
     t0 = time.time()
     msgs = await run_agent_task(
-        "Read CLAUDE.md. Is handover/bible.md marked as readonly? Answer yes or no.",
+        "Read CLAUDE.md. What is the sole alignment document for TuringOS? Answer with the filename.",
         tools=["Read"],
     )
-    # CLAUDE.md doesn't explicitly say readonly but constitution awareness should guide
-    passed = messages_contain(msgs, "read") or messages_contain(msgs, "只读")
+    passed = messages_contain(msgs, "constitution.md")
     suite.add(TestResult(
-        "T-014: Bible readonly awareness",
+        "T-014: Constitution is sole alignment doc",
         "edge",
         passed,
-        "Agent should recognize bible.md is readonly from project context",
+        "Agent should recognize constitution.md as the only alignment document",
         time.time() - t0,
     ))
 
@@ -620,7 +619,7 @@ async def main():
 
     # Group 3: Edge cases
     print("\n--- Edge Cases ---")
-    await test_bible_readonly_warning(suite)
+    await test_constitution_sole_alignment(suite)
     await test_no_gaia_override(suite)
 
     # Group 4: Tool validation

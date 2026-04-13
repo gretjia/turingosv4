@@ -30,8 +30,8 @@ LINES=$(wc -l < "$ROOT/CLAUDE.md")
 # T-002: constitution.md exists
 [ -f "$ROOT/constitution.md" ] && pass "T-002: constitution.md exists" || fail "T-002: constitution.md missing" ""
 
-# T-003: bible.md exists
-[ -f "$ROOT/handover/bible.md" ] && pass "T-003: bible.md exists" || fail "T-003: bible.md missing" ""
+# T-003: constitution.md is the sole alignment document
+[ -f "$ROOT/constitution.md" ] && [ ! -f "$ROOT/handover/bible.md" ] && pass "T-003: constitution.md is sole alignment doc" || fail "T-003: constitution.md missing or bible.md still exists" ""
 
 # T-004: 3 hooks exist and are executable
 HOOK_COUNT=$(find "$ROOT/.claude/hooks" -name "*.sh" -executable | wc -l)

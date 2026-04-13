@@ -10,12 +10,12 @@ user_invocable: true
 
 ### 1. PLAN
 - Read `handover/ai-direct/LATEST.md` for current state
-- Read `handover/bible.md` for philosophy constraints
+- Read `constitution.md` for philosophy constraints
 - Draft implementation plan, present to user
 
 ### 2. AUDIT PLAN
 - Invoke `auditor` agent to review plan against constitution.md
-- Check Layer 1 invariants and bible.md alignment
+- Check Layer 1 invariants and constitution.md alignment
 
 ### 3. FIX PLAN
 - Revise if audit found issues

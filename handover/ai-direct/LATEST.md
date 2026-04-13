@@ -53,7 +53,7 @@
 | Incidents | 9 个 (从 v3 迁移) | DONE |
 | Traces | schema + sessions/ 目录 | DONE |
 | VIA_NEGATIVA.md | 从 v3 迁移 | DONE |
-| handover/ | bible + directives/ + ai-direct/ | DONE |
+| handover/ | directives/ + ai-direct/ | DONE |
 | Tests | 40 个验证 (harness_validation.sh) | DONE — 40/40 PASS |
 
 ### 与 v3 的压缩对照
