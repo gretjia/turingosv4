@@ -1,86 +1,104 @@
 # TuringOS v4 — Handover State
 **Updated**: 2026-04-13
-**Session Summary**: Common Law 系统从 11 判例扩展到 35 判例，宪法形式化，48/48 沙盒验证通过
+**Session Summary**: Multi-agent auto-research 团队架构完成 + 全部 Rust 代码从宪法重写 + MiniF2F v4 实验 harness 就绪 + Codex 双审计 CLEAN
 
 ## 本次 Session 完成的工作
 
-### 1. GitHub repo 设立
-- Private repo: https://github.com/gretjia/turingosv4
-- Git identity: gretjia / noreply
+### 1. 架构设计 (参考 AutoResearch + Meta-Harness + Hermes)
+- 三权分立 (Art. V.1): ArchitectAI (Claude Opus) → JudgeAI (Gemini) → Codex Auditor
+- 双循环: Outer (harness 改进, 文件系统历史) + Inner (swarm 求解)
+- 单一指标 (Karpathy 原则): MiniF2F v2 solve rate (488 题)
+- Swarm: DeepSeek V3.2 Reasoner (主力) + Claude Opus (多样性种群)
+- 计划文件: `.claude/plans/humming-tickling-sifakis.md`
 
-### 2. 对齐文档统一
-- 删除 handover/bible.md，constitution.md 成为唯一对齐文档
-- 更新所有引用 (CLAUDE.md, auditor, dev-cycle, tests)
+### 2. Rust 代码重写 — 3,762 行 (core 3,036 + experiment 726)
 
-### 3. 宪法重构
-- 去除 Notion 4-space 缩进 (修复 Markdown 标题渲染)
-- 添加 20 个正式条款 ID [Art. I.1] ~ [Art. V.2]
-- 新增 Laws (基本法) 序言节
-- 修复重复 Boot 标题
+| 模块 | 行数 | 宪法依据 | V3 教训 |
+|------|------|---------|---------|
+| ledger.rs | 470 | Law 1, Magna Carta | V3L-09 (无静默失败), V3L-24 (无/tmp) |
+| prediction_market.rs | 337 | Law 2 (CTF守恒) | V3L-41/42/43 (无铸币), V3L-44 (无固定税) |
+| kernel.rs | 274 | Law 1 (零领域知识) | V3L-45, V3L-23 |
+| bus.rs | 406 | Art. II/III | V3L-11 (串行), V3L-21, V3L-31 |
+| sdk/actor.rs | 276 | Art. II.2.1 | V3L-14 (Boltzmann非ArgMax) |
+| sdk/protocol.rs | 236 | Art. I.1.1 | V3L-08/09/15/16 |
+| sdk/tools/wallet.rs | 224 | Law 2 | V3L-22 (Goodhart), V3L-39 |
+| sdk/sandbox.rs | 203 | Art. I.1 | V3L-01/02/07 |
+| drivers/llm_http.rs | 191 | Art. IV | V3L-25/26/27 |
+| lean4_oracle.rs | 213 | Art. I.1 (布尔谓词) | V3L-01/02/07 |
+| evaluator.rs | 276 | 全部 | oneshot + n1 + n3 模式 |
+| 其余 | 656 | — | tool, prompt, snapshot, search, librarian |
 
-### 4. v3 深度取证 (50 个教训)
-- 遍历 v3 的 VIA_NEGATIVA.md, CLAUDE.md, handover/, src/ 注释
-- 提取 50 个独立教训 (V3L-01~V3L-50)
-- 完整映射表: cases/V3_LESSONS.md
+### 3. 测试 — 102 全部通过
+- Core: 93 tests (ledger 13, PM 14, kernel 10, bus 11, sdk 42, driver 3)
+- Oracle: 9 tests (sorry/identity/forbidden)
+- Harness: 48/48 PASS
+- Constitutional check: 13 passes, 0 violations
 
-### 5. Common Law 系统扩展 (11 → 35)
-- 新增 24 个判例 (C-012~C-035)
-- 所有判例使用正式 Art./Law 条款引用 (消除旧 § 格式)
-- 所有判例含 source_lessons 字段链接到 V3L ID
-- 全部宪法条款实现 ≥1 判例覆盖
+### 4. Codex + Auditor 双审计
+- **Auditor**: VERDICT: CLEAN (6/6)
+- **Codex**: 8 findings (2 CRITICAL, 4 HIGH, 2 MEDIUM) — **全部已修复**
+  - bus invest 不扣钱 → wallet debit + refund on failure
+  - wallet credit 公开 + 负数 deduct → pub(crate) + 正数验证
+  - ledger hash 不覆盖 detail → 已修复
+  - ledger verify 不检测截断 → seq 检查
+  - protocol 对畸形 action tag 走 fallback → reject
+  - BinaryMarket 字段公开 → 私有 + getters
+  - temperature ≤ 0 → fallback 0.5
+  - trace_ancestors 单父 → 记录为设计决策
 
-### 6. 双外部审计 (Codex + Gemini)
-- Codex 审计发现 6 项问题: 条款编号层级错误、归类错误、冗余、不可审计
-- Gemini 审计确认 Codex 全部 6 项，补充 Laws 位置建议
-- 按审计反馈修正后执行
-
-### 7. 沙盒验证 48/48 PASS
-- 扩展测试从 40 → 48 (新增 T-041~T-048)
-- 新增: 条款 ID 覆盖、source_lessons 追溯、宪法结构检查
+### 5. MiniF2F v4 实验 Harness
+- `experiments/minif2f_v4/` — workspace member, release binary 编译成功
+- Lean4Oracle: sorry 3层防御, identity theft, forbidden patterns
+- 评估器: oneshot / n1_turingos / n3_turingos 三模式
+- 批量运行器: `run_batch.sh [oneshot|n1|n3] [test|valid|all]`
+- 历史追踪器: `history.py` (跨 run 比较, history.jsonl 导出)
+- 数据集: 直接引用 v3 的 488 题 (磁盘不够, 不复制)
 
 ---
 
 ## Current State
 
-### Harness 组件清单
+### 组件清单
 
 | 组件 | 数量 | 状态 |
 |------|------|------|
-| CLAUDE.md | 35 行 | DONE |
-| constitution.md | 730 行, 20 条款 ID | DONE — 形式化 |
+| constitution.md | 730 行, 20 条款 | DONE |
+| Cases | 35 个 | DONE |
+| V3 Lessons | 50 个 | DONE |
+| **Rust Core** | **3,036 行, 14 模块** | **DONE** |
+| **Experiment** | **726 行, evaluator + oracle** | **DONE** |
+| **单元测试** | **102 个** | **102/102 PASS** |
 | Hooks | 3 个 | DONE |
-| Rules Engine | engine.py | DONE |
-| Active Rules | 10 条 YAML | DONE |
-| Agents | 3 个 | DONE |
-| Skills | 6 个 | DONE |
-| Docs | 5 个 | DONE |
-| Cases | **35 个** (C-001~C-035) | DONE — 全条款覆盖 |
-| V3 Lessons | **50 个** (V3L-01~V3L-50) | DONE — 完整映射 |
-| Incidents | 9 个 | DONE |
-| Tests | **48 个** | DONE — 48/48 PASS |
+| Rules | 10 条 YAML | DONE |
+| Harness Tests | 48 个 | 48/48 PASS |
+| Constitutional Check | 13 passes | 0 violations |
+| **Dual Audit** | Codex + Auditor | **CLEAN** |
 
-### 关键架构决策 (本次 session 新增)
+### 关键架构决策
 
-6. **不做 v3 机械迁移**: 架构师明确要求"从宪法出发重写每一行内核代码"。v3 代码是参考，不是模板。
-
-7. **先判例后代码**: 在写任何运行时代码之前，必须先完善判例库。35 个判例覆盖了 v3 三个月的全部失败模式。
-
-8. **双外部审计制度化**: 任何重大架构决策必须经 Codex + Gemini 双审计 (Rule 23)。
+1. **从宪法重写，不迁移 v3** — 每模块追溯到宪法条款 + V3L 教训
+2. **Generator ≠ Evaluator** — JudgeAI 用 Gemini (不同模型族)
+3. **单一指标** — solve_count / 488 (Lean 4 type-checker 是 oracle)
+4. **Meta-Harness 文件系统历史** — ArchitectAI 读全部 run 历史
+5. **MiniF2F 数据引用 v3 路径** — 磁盘不够, 不复制 (v3 保留)
+6. **DeepSeek timeout** — 120s + 3次重试 + 指数退避 (用户确认)
 
 ---
 
 ## Next Steps (给下一个 session)
 
-1. **从宪法重写内核代码**: 不是复制 v3，而是基于 constitution.md + 35 判例重新设计
-   - kernel.rs: 纯拓扑 (C-004, C-015, C-016)
-   - prediction_market.rs: CPMM 守恒 (C-001, C-002, C-006)
-   - bus.rs: 从零设计，参考 C-022, C-023, C-027, C-029, C-030
-   - sdk/protocol.rs: Postel 法则 (C-009, C-017, C-022)
-2. **Cargo.toml**: 创建 v4 workspace
-3. **首次 cargo check**: 在 v4 中通过
+### 立即可执行 (需要 API keys)
+1. **设置环境变量**: `export DEEPSEEK_API_KEY=... LLM_PROXY_URL=...`
+2. **运行 oneshot baseline**: `./experiments/minif2f_v4/run_batch.sh oneshot test`
+3. **记录 baseline 数字**: X/244 solved → 这是起点
+
+### 后续
+4. **部署 LLM proxy** on linux1-lx (Python async, ThreadingMixIn)
+5. **运行 n3 swarm**: 3 agent prediction market 协调
+6. **首次 outer loop**: ArchitectAI 读 history → 提出改进 → JudgeAI 校验
+7. **Multi-model**: DeepSeek (主力) + Claude Opus (多样性)
 
 ## Open Questions
-
-- v3 仓库保留还是 archive?
-- 重写时是否保持 v3 的 module 结构 (14 模块)，还是重新组织?
-- sdk/membrane.rs 在 v4 是否需要?
+- v3 仓库保留 (已确认: 不删除)
+- DeepSeek API 配额是否够 488 题 x 多轮? (用户确认: 可以, 注意 timeout)
+- 是否需要 llm_proxy.py 中转, 还是直接调 DeepSeek API? (取决于网络环境)

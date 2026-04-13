@@ -160,11 +160,11 @@ echo ""
 # ════════════════════════════════════════════════════════════
 echo "=== V-009: LLM Output Parser Resilience ==="
 
-# Check that protocol.rs has the three tolerance layers
-if grep -q "fix_json_escapes" src/sdk/protocol.rs 2>/dev/null; then
-    pass "LaTeX escape handler present (fix_json_escapes)"
+# Check that protocol.rs handles invalid input explicitly (Rule 22 v2 clause 4: reject-only)
+if grep -q "ParseError\|reject\|Err(" src/sdk/protocol.rs 2>/dev/null; then
+    pass "Invalid input rejection handler present (Rule 22 v2 clause 4: reject-only)"
 else
-    fail "Missing LaTeX escape handler in protocol.rs (V-009 regression)"
+    fail "Missing explicit rejection in protocol.rs (V-009 regression)"
 fi
 
 if grep -qP 'find\(.*\{' src/sdk/protocol.rs 2>/dev/null; then

@@ -1,0 +1,93 @@
+// Tier 2: Minimal prompt template — state-only, no examples
+// Constitutional basis: Art. III.2 (encapsulate details, progressive disclosure)
+// V3L-40: no example value anchoring. V3L-17: don't truncate reasoning.
+
+/// Build the agent prompt from pure state.
+///
+/// Philosophy: "Gravity doesn't explain itself to apples."
+/// - No rules explanation (V3L-39: LLMs follow incentives, not explanations)
+/// - No example values (V3L-40: examples become anchors)
+/// - State only: what exists, what's available, what's your balance
+pub fn build_agent_prompt(
+    chain_so_far: &str,
+    skill: &str,
+    market_ticker: &str,
+    recent_errors: &[String],
+    balance: f64,
+    tools_description: &str,
+) -> String {
+    let mut prompt = String::new();
+
+    // Current state (what the agent sees)
+    if !chain_so_far.is_empty() {
+        prompt.push_str("=== Current Chain ===\n");
+        prompt.push_str(chain_so_far);
+        prompt.push_str("\n\n");
+    }
+
+    // Agent's skill/role (Librarian-compressed DNA)
+    if !skill.is_empty() {
+        prompt.push_str("=== Your Skill ===\n");
+        prompt.push_str(skill);
+        prompt.push_str("\n\n");
+    }
+
+    // Market prices (Art. II.2: broadcast price signals)
+    if !market_ticker.is_empty() {
+        prompt.push_str("=== Market ===\n");
+        prompt.push_str(market_ticker);
+        prompt.push_str("\n\n");
+    }
+
+    // Recent errors (Art. II.1: broadcast typical errors)
+    if !recent_errors.is_empty() {
+        prompt.push_str("=== Recent Errors ===\n");
+        for err in recent_errors.iter().take(3) {
+            prompt.push_str("- ");
+            prompt.push_str(err);
+            prompt.push('\n');
+        }
+        prompt.push('\n');
+    }
+
+    // Balance (agent's resource awareness)
+    prompt.push_str(&format!("Balance: {:.0} Coins\n\n", balance));
+
+    // Available tools
+    prompt.push_str("=== Tools ===\n");
+    prompt.push_str(tools_description);
+    prompt.push_str("\n\n");
+
+    // Output format instruction (minimal)
+    prompt.push_str("Respond with <action>{JSON}</action>\n");
+
+    prompt
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_prompt_contains_no_example_values() {
+        // V3L-40: no hardcoded example amounts that become anchors
+        let prompt = build_agent_prompt("", "", "", &[], 10000.0, "append, invest, search");
+        assert!(!prompt.contains("50.0"), "No example amounts in prompt");
+        assert!(!prompt.contains("100.0"), "No example amounts in prompt");
+    }
+
+    #[test]
+    fn test_prompt_includes_balance() {
+        let prompt = build_agent_prompt("", "", "", &[], 5000.0, "");
+        assert!(prompt.contains("5000"));
+    }
+
+    #[test]
+    fn test_prompt_truncates_errors_to_3() {
+        let errors: Vec<String> = (0..10).map(|i| format!("error {}", i)).collect();
+        let prompt = build_agent_prompt("", "", "", &errors, 0.0, "");
+        assert!(prompt.contains("error 0"));
+        assert!(prompt.contains("error 2"));
+        assert!(!prompt.contains("error 3"));
+    }
+}

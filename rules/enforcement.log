@@ -1,2 +1,31 @@
 [2026-04-13 05:39:21] BLOCK R-001 | src/kernel.rs | BLOCKED: Domain-specific term detected in kernel.rs — kernel must remain pure topology (Law 1)
 [2026-04-13 05:39:21] WARN R-006 | src/kernel.rs | WARNING: kernel.rs 是纯拓扑层, 修改需要用户确认 + kernel-auditor 审计
+[2026-04-13 06:53:57] BLOCK R-001 | src/kernel.rs | BLOCKED: Domain-specific term detected in kernel.rs — kernel must remain pure topology (Law 1)
+[2026-04-13 06:53:57] WARN R-006 | src/kernel.rs | WARNING: kernel.rs 是纯拓扑层, 修改需要用户确认 + kernel-auditor 审计
+[2026-04-13 06:54:21] BLOCK R-001 | src/kernel.rs | BLOCKED: Domain-specific term detected in kernel.rs — kernel must remain pure topology (Law 1)
+[2026-04-13 06:54:21] WARN R-006 | src/kernel.rs | WARNING: kernel.rs 是纯拓扑层, 修改需要用户确认 + kernel-auditor 审计
+[2026-04-13 08:15:40] WARN R-006 | /home/zephryj/projects/turingosv4/src/kernel.rs | WARNING: kernel.rs 是纯拓扑层, 修改需要用户确认 + kernel-auditor 审计
+[2026-04-13 08:15:41] WARN R-007 | /home/zephryj/projects/turingosv4/src/bus.rs | WARNING: bus.rs SKILL lifecycle modification detected — review impact on agent boot/halt sequence
+[2026-04-13 08:15:41] WARN R-009 | /home/zephryj/projects/turingosv4/src/bus.rs | WARNING: Payload limit change detected — Rule 21 (one-step-per-node) boundary, verify impact
+[2026-04-13 08:16:32] BLOCK R-001 | src/kernel.rs | BLOCKED: Domain-specific term detected in kernel.rs — kernel must remain pure topology (Law 1)
+[2026-04-13 08:16:32] WARN R-006 | src/kernel.rs | WARNING: kernel.rs 是纯拓扑层, 修改需要用户确认 + kernel-auditor 审计
+[2026-04-13 08:20:35] BLOCK R-001 | /home/zephryj/projects/turingosv4/src/kernel.rs | BLOCKED: Domain-specific term detected in kernel.rs — kernel must remain pure topology (Law 1)
+[2026-04-13 08:20:35] WARN R-006 | /home/zephryj/projects/turingosv4/src/kernel.rs | WARNING: kernel.rs 是纯拓扑层, 修改需要用户确认 + kernel-auditor 审计
+[2026-04-13 08:21:16] WARN R-006 | /home/zephryj/projects/turingosv4/src/kernel.rs | WARNING: kernel.rs 是纯拓扑层, 修改需要用户确认 + kernel-auditor 审计
+[2026-04-13 08:22:11] WARN R-013 | /home/zephryj/projects/turingosv4/src/sdk/protocol.rs | {'WARNING': 'LLM output parser change detected (protocol.rs).', 'V-009 lesson': 'LLM output format varies across model sizes and serving backends.', 'Verify': '(1) prefix tolerance (2) LaTeX escape handling (3) bare tag fallback', 'Test with': 'qwen3-8b via DashScope AND local llama.cpp before deploying.'}
+[2026-04-13 08:23:37] BLOCK R-002 | /home/zephryj/projects/turingosv4/src/sdk/tools/wallet.rs | BLOCKED: Coin minting / free balance detected — economy is invest-only (Law 2, V-001/V-002)
+[2026-04-13 08:27:12] WARN R-007 | /home/zephryj/projects/turingosv4/src/bus.rs | WARNING: bus.rs SKILL lifecycle modification detected — review impact on agent boot/halt sequence
+[2026-04-13 08:27:12] WARN R-008 | /home/zephryj/projects/turingosv4/src/bus.rs | WARNING: Market constant change detected — verify LP amounts and initial balances are intentional
+[2026-04-13 08:27:12] WARN R-009 | /home/zephryj/projects/turingosv4/src/bus.rs | WARNING: Payload limit change detected — Rule 21 (one-step-per-node) boundary, verify impact
+[2026-04-13 08:27:55] BLOCK R-001 | src/kernel.rs | BLOCKED: Domain-specific term detected in kernel.rs — kernel must remain pure topology (Law 1)
+[2026-04-13 08:27:55] WARN R-006 | src/kernel.rs | WARNING: kernel.rs 是纯拓扑层, 修改需要用户确认 + kernel-auditor 审计
+[2026-04-13 08:28:16] WARN R-006 | /home/zephryj/projects/turingosv4/src/kernel.rs | WARNING: kernel.rs 是纯拓扑层, 修改需要用户确认 + kernel-auditor 审计
+[2026-04-13 08:38:59] BLOCK R-005 | /home/zephryj/projects/turingosv4/src/bus.rs | BLOCKED: Forced investment pattern detected — staking must be voluntary with PASS/NOP option (Law 2)
+[2026-04-13 08:39:33] WARN R-008 | /home/zephryj/projects/turingosv4/src/bus.rs | WARNING: Market constant change detected — verify LP amounts and initial balances are intentional
+[2026-04-13 08:40:32] WARN R-013 | /home/zephryj/projects/turingosv4/src/sdk/protocol.rs | {'WARNING': 'LLM output parser change detected (protocol.rs).', 'V-009 lesson': 'LLM output format varies across model sizes and serving backends.', 'Verify': '(1) prefix tolerance (2) LaTeX escape handling (3) bare tag fallback', 'Test with': 'qwen3-8b via DashScope AND local llama.cpp before deploying.'}
+[2026-04-13 08:41:33] WARN R-013 | /home/zephryj/projects/turingosv4/src/sdk/protocol.rs | {'WARNING': 'LLM output parser change detected (protocol.rs).', 'V-009 lesson': 'LLM output format varies across model sizes and serving backends.', 'Verify': '(1) prefix tolerance (2) LaTeX escape handling (3) bare tag fallback', 'Test with': 'qwen3-8b via DashScope AND local llama.cpp before deploying.'}
+[2026-04-13 08:41:42] WARN R-008 | /home/zephryj/projects/turingosv4/src/sdk/tools/wallet.rs | WARNING: Market constant change detected — verify LP amounts and initial balances are intentional
+[2026-04-13 08:42:14] BLOCK R-001 | src/kernel.rs | BLOCKED: Domain-specific term detected in kernel.rs — kernel must remain pure topology (Law 1)
+[2026-04-13 08:42:14] WARN R-006 | src/kernel.rs | WARNING: kernel.rs 是纯拓扑层, 修改需要用户确认 + kernel-auditor 审计
+[2026-04-13 09:14:49] WARN R-008 | /home/zephryj/projects/turingosv4/experiments/minif2f_v4/src/bin/evaluator.rs | WARNING: Market constant change detected — verify LP amounts and initial balances are intentional
+[2026-04-13 09:14:49] WARN R-009 | /home/zephryj/projects/turingosv4/experiments/minif2f_v4/src/bin/evaluator.rs | WARNING: Payload limit change detected — Rule 21 (one-step-per-node) boundary, verify impact
