@@ -11,7 +11,7 @@ facts: |
   推高价格信号，误导其他 Agent。
 ruling: |
   违宪。Law 2 要求投资行为反映真实信念。允许 Agent 在自知错误时
-  投资 YES = 允许操纵价格信号 = 违反宪法 §3.4 (Goodhart 屏蔽)。
+  投资 YES = 允许操纵价格信号 = 违反Art. III.4 (Goodhart 屏蔽)。
   解决: 强制 Falsifier 只能买 NO (SHORT 机制)。
 precedent: |
   后续标准: 经济机制中，Agent 的投资方向必须与其角色/信念一致。

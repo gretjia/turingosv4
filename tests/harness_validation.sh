@@ -57,9 +57,9 @@ DOC_COUNT=$(find "$ROOT/docs" -name "*.md" | wc -l)
 INCIDENT_COUNT=$(find "$ROOT/incidents" -maxdepth 1 -type d -name "V-*" | wc -l)
 [ "$INCIDENT_COUNT" -eq 9 ] && pass "T-009: 9 incidents migrated" || fail "T-009: Expected 9 incidents" "found $INCIDENT_COUNT"
 
-# T-010: 11 cases in library
+# T-010: 35 cases in library
 CASE_COUNT=$(find "$ROOT/cases" -name "C-*.yaml" | wc -l)
-[ "$CASE_COUNT" -eq 11 ] && pass "T-010: 11 cases in library" || fail "T-010: Expected 11 cases" "found $CASE_COUNT"
+[ "$CASE_COUNT" -eq 35 ] && pass "T-010: 35 cases in library" || fail "T-010: Expected 35 cases" "found $CASE_COUNT"
 
 # T-011: settings.json valid JSON
 python3 -c "import json; json.load(open('$ROOT/.claude/settings.json'))" 2>/dev/null \
@@ -251,10 +251,60 @@ UNIQUE_IDS=$(echo "$CASE_IDS" | sort -u)
 
 # ============================================================
 echo ""
-echo "--- 5. Cross-Reference Integrity ---"
+echo "--- 5. Article ID & Traceability ---"
 # ============================================================
 
-# T-037: Every incident with a case
+# T-041: All cases use formal Art./Law references (no legacy §)
+LEGACY_REF=$(grep -rl "宪法 §" "$ROOT/cases"/C-*.yaml 2>/dev/null | wc -l)
+[ "$LEGACY_REF" -eq 0 ] && pass "T-041: No legacy § references in cases" || fail "T-041: Legacy § refs found" "$LEGACY_REF files"
+
+# T-042: All cases have source_lessons field
+MISSING_SL=0
+for f in "$ROOT/cases"/C-*.yaml; do
+  if ! grep -q "source_lessons:" "$f"; then
+    ((MISSING_SL++))
+    echo "         Missing source_lessons: $(basename $f)"
+  fi
+done
+[ $MISSING_SL -eq 0 ] && pass "T-042: All cases have source_lessons" || fail "T-042: Cases missing source_lessons" "$MISSING_SL missing"
+
+# T-043: V3_LESSONS.md exists and has 50 entries
+[ -f "$ROOT/cases/V3_LESSONS.md" ] || { fail "T-043: V3_LESSONS.md missing" ""; }
+if [ -f "$ROOT/cases/V3_LESSONS.md" ]; then
+  V3L_COUNT=$(grep -c "^| V3L-" "$ROOT/cases/V3_LESSONS.md")
+  [ "$V3L_COUNT" -eq 50 ] && pass "T-043: V3_LESSONS.md has $V3L_COUNT entries" || fail "T-043: Expected 50 V3L entries" "found $V3L_COUNT"
+fi
+
+# T-044: Constitution has article markers
+ART_MARKERS=$(grep -c "\[Art\." "$ROOT/constitution.md")
+[ "$ART_MARKERS" -ge 18 ] && pass "T-044: Constitution has $ART_MARKERS article markers" || fail "T-044: Expected ≥18 Art. markers" "found $ART_MARKERS"
+
+# T-045: Constitution has Laws preamble
+grep -q "^## Laws" "$ROOT/constitution.md" && pass "T-045: Constitution has Laws preamble" || fail "T-045: Missing Laws section" ""
+
+# T-046: No indented headings in constitution (Notion artifact fixed)
+INDENTED_H=$(grep -cP "^    #" "$ROOT/constitution.md" || true)
+[ "$INDENTED_H" -eq 0 ] && pass "T-046: No indented headings in constitution" || fail "T-046: Found $INDENTED_H indented headings" "Notion artifact not fixed"
+
+# T-047: Every article has ≥1 case
+UNCOVERED_ART=0
+for art in "Art. I.1" "Art. I.2" "Art. II.1" "Art. II.2" "Art. III.1" "Art. III.2" "Art. III.3" "Art. III.4" "Art. IV" "Art. V.1" "Art. V.2"; do
+  if ! grep -rlq "$art" "$ROOT/cases"/C-*.yaml 2>/dev/null; then
+    ((UNCOVERED_ART++))
+    echo "         No case for: $art"
+  fi
+done
+[ $UNCOVERED_ART -eq 0 ] && pass "T-047: All articles have ≥1 case" || fail "T-047: Articles without cases" "$UNCOVERED_ART uncovered"
+
+# T-048: SCHEMA.md documents article ID scheme
+grep -q "Art\. I\.1" "$ROOT/cases/SCHEMA.md" && pass "T-048: SCHEMA.md documents Art. IDs" || fail "T-048: SCHEMA.md missing Art. ID docs" ""
+
+# ============================================================
+echo ""
+echo "--- 6. Cross-Reference Integrity ---"
+# ============================================================
+
+# T-049: Every incident with a case
 UNCOVERED=0
 for d in "$ROOT/incidents"/V-*/; do
   VID=$(basename "$d" | cut -d_ -f1)
@@ -263,17 +313,17 @@ for d in "$ROOT/incidents"/V-*/; do
     echo "         No case for: $VID"
   fi
 done
-[ $UNCOVERED -eq 0 ] && pass "T-037: All incidents have case precedent" || fail "T-037: Incidents without cases" "$UNCOVERED uncovered"
+[ $UNCOVERED -eq 0 ] && pass "T-049: All incidents have case precedent" || fail "T-049: Incidents without cases" "$UNCOVERED uncovered"
 
-# T-038: SCHEMA files exist
+# T-050: SCHEMA files exist
 [ -f "$ROOT/cases/SCHEMA.md" ] && [ -f "$ROOT/rules/SCHEMA.yaml" ] && [ -f "$ROOT/traces/schema.yaml" ] \
-  && pass "T-038: All SCHEMA files present" || fail "T-038: Missing SCHEMA files" ""
+  && pass "T-050: All SCHEMA files present" || fail "T-050: Missing SCHEMA files" ""
 
-# T-039: build-check.sh exists and is executable
-[ -x "$ROOT/.claude/hooks/build-check.sh" ] && pass "T-039: build-check.sh executable" || fail "T-039: build-check.sh missing/not executable" ""
+# T-051: build-check.sh exists and is executable
+[ -x "$ROOT/.claude/hooks/build-check.sh" ] && pass "T-051: build-check.sh executable" || fail "T-051: build-check.sh missing/not executable" ""
 
-# T-040: session-end.sh exists and is executable
-[ -x "$ROOT/.claude/hooks/session-end.sh" ] && pass "T-040: session-end.sh executable" || fail "T-040: session-end.sh missing/not executable" ""
+# T-052: session-end.sh exists and is executable
+[ -x "$ROOT/.claude/hooks/session-end.sh" ] && pass "T-052: session-end.sh executable" || fail "T-052: session-end.sh missing/not executable" ""
 
 # ============================================================
 # SUMMARY
