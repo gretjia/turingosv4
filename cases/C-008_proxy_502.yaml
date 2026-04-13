@@ -1,0 +1,17 @@
+id: C-008
+title: "单线程 proxy 在并发下返回 502"
+constitution:
+  - "宪法 §Boot: 工具必须可靠"
+incident: V-008
+facts: |
+  HTTP proxy 使用 HTTPServer (单线程)，15 个并发 Agent 请求时
+  频繁返回 502 Bad Gateway。
+ruling: |
+  工程教训。底层工具必须能承受系统设计的并发量。
+  解决: 改用 ThreadingMixIn 多线程 HTTP Server。
+precedent: |
+  后续标准: proxy/工具服务必须支持 MAX_CONCURRENT_EVALUATORS 并发。
+  新增 evaluator 时必须验证 proxy 并发能力匹配。
+rule: null
+date: "2026-04-05"
+severity: medium

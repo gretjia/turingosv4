@@ -1,0 +1,21 @@
+id: C-003
+title: "Oracle 拦截中间步骤 — Engine 越权"
+constitution:
+  - "宪法 §3.2: 封装细节"
+  - "Rule 20: 禁止 Over-Alignment"
+incident: V-003
+facts: |
+  Lean4Oracle 不仅在 OMEGA (最终证明) 时验证，还拦截中间 append。
+  中间步骤的质量判断应由 Engine 2 (市场/价格) 负责，不是 Engine 3 (Oracle)。
+  Oracle 从旧版复制后只做安全补丁，从未质疑 "Oracle 该不该管中间步骤"。
+ruling: |
+  违宪。每个 Engine 只做分内事: Engine 1=免费工具, Engine 2=市场定价,
+  Engine 3=OMEGA验证, Engine 4=物种演化。Oracle 验证中间步骤 = 越权。
+  过度安全 = 扼杀涌现 (Rule 20)。
+precedent: |
+  后续标准: 中间 append 只接受 Engine 2 (价格/投资) 的谓词判断。
+  Oracle 只在 Agent 声明 [COMPLETE] 时触发。
+  从旧版复制的组件必须从第一性原理重新审视职责范围。
+rule: null
+date: "2026-03-20"
+severity: critical

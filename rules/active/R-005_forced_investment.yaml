@@ -1,0 +1,16 @@
+id: "R-005"
+name: "forced_investment"
+source_incidents:
+  - "V-006"
+  - "Run-4/5-audit"
+axiom: "Law 2 — voluntary staking, investment must allow PASS/NOP"
+trigger: "pre_edit"
+check:
+  type: "grep"
+  pattern: "invest.*must|forced.*invest|invest.*mandatory|must.*invest|mandatory.*stake"
+file_glob: "*.rs"
+enforcement: "block"
+message: "BLOCKED: Forced investment pattern detected — staking must be voluntary with PASS/NOP option (Law 2)"
+stats:
+  times_triggered: 3
+  last_triggered: "2026-04-11T16:43:46Z"

@@ -1,0 +1,14 @@
+id: "R-007"
+name: "bus_lifecycle"
+source_incidents: []
+axiom: "Bus SKILL lifecycle is critical infrastructure — changes need review"
+trigger: "pre_edit"
+check:
+  type: "grep"
+  pattern: "Skill|lifecycle|boot|init|pre_append|post_append|halt"
+file_glob: "src/bus.rs"
+enforcement: "warn"
+message: "WARNING: bus.rs SKILL lifecycle modification detected — review impact on agent boot/halt sequence"
+stats:
+  times_triggered: 3
+  last_triggered: "2026-04-11T16:13:50Z"

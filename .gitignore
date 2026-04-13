@@ -1,0 +1,8 @@
+/target
+.env
+.venv/
+.claude/settings.local.json
+logs/
+traces/sessions/
+autoresearch/__pycache__/
+**/__pycache__/

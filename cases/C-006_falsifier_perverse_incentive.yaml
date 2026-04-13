@@ -1,0 +1,20 @@
+id: C-006
+title: "Falsifier 可买 YES — 经济激励扭曲"
+constitution:
+  - "Law 2: Only Investment Costs Money"
+  - "宪法 §3.4: 屏蔽 Goodhart 问题"
+incident: V-006
+facts: |
+  Agent 在认为自己的步骤错误时仍可买 YES token（表示看好该步骤）。
+  这创造了一个 Goodhart 漏洞: Agent 可以先产出垃圾步骤，再买 YES
+  推高价格信号，误导其他 Agent。
+ruling: |
+  违宪。Law 2 要求投资行为反映真实信念。允许 Agent 在自知错误时
+  投资 YES = 允许操纵价格信号 = 违反宪法 §3.4 (Goodhart 屏蔽)。
+  解决: 强制 Falsifier 只能买 NO (SHORT 机制)。
+precedent: |
+  后续标准: 经济机制中，Agent 的投资方向必须与其角色/信念一致。
+  检测 "SHORT:" 前缀解析逻辑是否正确实现。
+rule: R-005
+date: "2026-03-28"
+severity: high

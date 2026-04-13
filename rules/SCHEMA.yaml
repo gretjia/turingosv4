@@ -1,0 +1,19 @@
+# TuringOS v4 Rule Schema
+# Each YAML file in rules/active/ must follow this schema.
+
+# Required fields:
+#   id: string          — Unique rule identifier (e.g. R-001)
+#   name: string        — Human-readable name
+#   axiom: string       — Constitutional basis (e.g. "Law 1", "Rule 22")
+#   file_glob: string   — File pattern to match (e.g. "kernel.rs", "*.rs")
+#   check:
+#     type: string      — "grep" | "grep_inverse" | "compound"
+#     pattern: string   — Regex pattern to search for
+#   enforcement: string — "block" (exit 2) | "warn" (exit 0 + log)
+#   message: string     — Human-readable violation message
+
+# Optional fields:
+#   source_incidents: list  — Incident IDs that motivated this rule
+#   stats:
+#     triggers: int         — Total trigger count (updated by engine)
+#     last_triggered: string — ISO timestamp

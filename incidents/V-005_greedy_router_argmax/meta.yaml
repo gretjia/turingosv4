@@ -1,0 +1,10 @@
+id: V-005
+title: "Greedy ArgMax router stuck in local minima"
+pattern: design_failure
+axiom: "Exploration-exploitation"
+severity: high
+enforcement: executable
+enforcement_file: "src/engines/engine2_economy/router.rs"
+rule_id: null
+related: []
+date: "2026-03-25"

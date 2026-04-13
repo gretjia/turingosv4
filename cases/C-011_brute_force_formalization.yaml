@@ -1,0 +1,23 @@
+id: C-011
+title: "Finset.range 100 让 decide 暴力穷举"
+constitution:
+  - "宪法 §1.1: 谓词必须是确定性逻辑"
+  - "Rule 23: 形式化不可引入暴力搜索空间"
+incident: null
+facts: |
+  AIME P1 用 Finset.range 100 形式化 → Agent 用 decide 遍历 100 个数
+  暴力验证 → 看似 "证明" 实则穷举。
+  形式化本身制造了暴力搜索机会，绕过构造性推理。
+ruling: |
+  形式化层面违宪。宪法 §1.1 要求谓词依赖 "确定性逻辑校验"，
+  暴力穷举不是逻辑推理。形式化应逼迫 Agent 发现数学结构，
+  而非提供搜索空间让 Agent 暴力遍历。
+precedent: |
+  后续标准:
+  1. 禁止 Finset.range N 限定有限搜索空间
+  2. 用全称量词 (∀ b : ℕ) + 等价条件 (↔) 逼迫构造性推理
+  3. decide/omega/native_decide 应在 bus.rs forbidden_patterns 中拦截
+  4. 形式化本身需要审计，不仅仅是 Agent 输出需要审计
+rule: R-004
+date: "2026-04-06"
+severity: critical

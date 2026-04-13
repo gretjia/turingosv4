@@ -1,0 +1,21 @@
+id: C-009
+title: "LLM 输出格式脆性导致静默丢失"
+constitution:
+  - "宪法 §1.1: PCP 谓词 — 绝对不误杀"
+  - "宪法 §2.1: 广播典型错误"
+incident: V-009
+facts: |
+  Agent 输出 JSON 时包含 LaTeX 转义 (\\frac)、前缀文本、裸 action 标签。
+  严格的 JSON 解析器静默丢弃这些输出，Agent 看似"无产出"实则被误杀。
+  3 层解析失败: (1) JSON 标准解析, (2) 转义修复, (3) 前缀容忍。
+ruling: |
+  违反 PCP 谓词 "疑罪从无" 原则。宪法 §1.1 要求正确解绝对能存活
+  (Completeness=1)。严格解析器在正确内容外包裹了格式噪声时误杀。
+  解决: 3 层容忍解析 + reject-only (不修改内容)。
+precedent: |
+  后续标准: LLM 输出解析器必须最大容忍 — 前缀、LaTeX 转义、裸标签。
+  解析器可以 reject (返回 None) 但不可修改 Agent 原始字节 (Rule 22 v2)。
+  宁可漏过格式噪声，不可误杀有效内容。
+rule: R-013
+date: "2026-04-05"
+severity: critical

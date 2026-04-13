@@ -1,0 +1,10 @@
+id: V-001
+title: "fund_agent printing coins — Law 2 CTF conservation violation"
+pattern: constitutional_violation
+axiom: "Law 2"
+severity: critical
+enforcement: executable
+enforcement_file: "src/economy/mod.rs"
+rule_id: null
+related: [V-002]
+date: "2026-03-15"

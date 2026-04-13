@@ -1,0 +1,10 @@
+id: V-003
+title: "Oracle blocking mid-steps — Engine separation breach"
+pattern: architecture_violation
+axiom: "Engine separation"
+severity: critical
+enforcement: executable
+enforcement_file: "src/engines/mod.rs"
+rule_id: null
+related: []
+date: "2026-03-20"

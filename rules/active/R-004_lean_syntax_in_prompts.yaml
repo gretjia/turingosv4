@@ -1,0 +1,15 @@
+id: "R-004"
+name: "lean_syntax_in_prompts"
+source_incidents:
+  - "Rule-22"
+axiom: "Rule 22 — black-box: traditional math only, no Lean syntax in prompts"
+trigger: "pre_edit"
+check:
+  type: "grep"
+  pattern: "\\bsorry\\b|\\bsimp\\b|\\bomega\\b|\\bdecide\\b|apply\\?|exact\\?"
+file_glob: "*/prompt/*.txt|*/prompt/*.md|src/sdk/prompt.rs"
+enforcement: "block"
+message: "BLOCKED: Lean 4 syntax detected in prompt file — prompts must use traditional math only (Rule 22)"
+stats:
+  times_triggered: 3
+  last_triggered: "2026-04-03T10:21:28Z"

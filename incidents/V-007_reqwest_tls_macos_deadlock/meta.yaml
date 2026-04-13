@@ -1,0 +1,10 @@
+id: "V-007"
+title: "reqwest+rustls hangs on Chinese HTTPS endpoints (macOS pipe deadlock)"
+pattern: api_failure
+axiom: "Bitter Lesson"
+severity: high
+enforcement: executable
+enforcement_file: "src/drivers/llm_proxy.py"
+rule_id: ""
+related: []
+date: "2026-04-05"

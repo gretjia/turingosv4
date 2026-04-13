@@ -1,0 +1,15 @@
+id: "R-001"
+name: "kernel_purity"
+source_incidents:
+  - "V-004"
+axiom: "Law 1 — zero domain knowledge in kernel"
+trigger: "pre_edit"
+check:
+  type: "grep"
+  pattern: "(Lean|theorem|proof|sorry|simp|lemma|tactic|induction)|(\\[OMEGA\\])"
+file_glob: "src/kernel.rs"
+enforcement: "block"
+message: "BLOCKED: Domain-specific term detected in kernel.rs — kernel must remain pure topology (Law 1)"
+stats:
+  times_triggered: 3
+  last_triggered: "2026-04-03T10:21:27Z"

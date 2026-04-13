@@ -1,0 +1,92 @@
+schema_version: "1.0"
+
+description: |
+  TuringOS v3 Trace Vault incident schema.
+  Every incident in incidents/ must conform to this structure.
+  Machine-readable; consumed by /lesson-to-rule and harness-reflect.
+
+meta_fields:
+  id:
+    type: string
+    pattern: "V-\\d{3}"
+    required: true
+    description: "Unique violation ID, monotonically increasing"
+
+  title:
+    type: string
+    required: true
+    description: "One-line human-readable summary"
+
+  pattern:
+    type: enum
+    required: true
+    values:
+      - constitutional_violation   # Direct breach of Law 1/2/3
+      - kernel_purity              # Domain knowledge leaked into kernel.rs
+      - economic_bug               # Incentive misalignment or token flow error
+      - design_failure             # Architectural choice that fails under pressure
+      - architecture_violation     # Engine separation or lifecycle boundary crossed
+      - measurement_bug            # Metrics, scoring, or observation layer error
+      - api_failure                # External API contract broken
+      - proof_depth_regression     # Lean 4 proof depth or verification regression
+
+  axiom:
+    type: string
+    required: true
+    description: "Which axiom was violated"
+    known_values:
+      - "Law 1"                    # Kernel has zero domain knowledge
+      - "Law 2"                    # Pure Capital Economy — CTF conservation
+      - "Law 3"                    # Adversarial market as truth machine
+      - "Rule 19"                  # No post-genesis minting
+      - "Rule 20"                  # Bankruptcy is permanent death
+      - "Rule 21"                  # Generator != Evaluator
+      - "Rule 22"                  # External audit mandatory for critical paths
+      - "Rule 23"                  # Producer != Verifier
+      - "Engine separation"        # Engine 1/2/3/4 boundaries
+      - "Bitter Lesson"           # No hardcoded domain knowledge
+
+  severity:
+    type: enum
+    required: true
+    values: [critical, high, medium, low]
+    description: |
+      critical = constitutional breach, system integrity compromised
+      high     = significant design or economic flaw
+      medium   = correctness issue, contained blast radius
+      low      = style or minor inefficiency
+
+  enforcement:
+    type: enum
+    required: true
+    values: [executable, doc_only, none]
+    description: "Whether the fix is enforced by code, by documentation, or not yet enforced"
+
+  enforcement_file:
+    type: string
+    required: false
+    description: "Path to the file that enforces the fix (test, hook, or guard)"
+
+  rule_id:
+    type: string
+    required: false
+    description: "Populated by /lesson-to-rule when a rule is derived from this incident"
+
+  related:
+    type: list
+    required: false
+    description: "List of related incident IDs (e.g., [V-001, V-002])"
+
+  date:
+    type: string
+    pattern: "\\d{4}-\\d{2}-\\d{2}"
+    required: true
+    description: "Date the incident was identified"
+
+directory_structure:
+  required_files:
+    - meta.yaml        # Structured metadata conforming to this schema
+    - trace.md         # Execution trace — what happened, step by step
+    - root_cause.md    # WHY chain — 5-whys or equivalent causal analysis
+    - resolution.md    # What was fixed, how, and verification evidence
+  naming: "V-{NNN}_{snake_case_summary}/"

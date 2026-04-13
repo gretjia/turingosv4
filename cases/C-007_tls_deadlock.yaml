@@ -1,0 +1,19 @@
+id: C-007
+title: "reqwest+rustls macOS 管道死锁"
+constitution:
+  - "宪法 §Boot: 工具必须可靠"
+incident: V-007
+facts: |
+  Rust reqwest + rustls-tls 在 macOS 上发 HTTPS 请求到中国 API 端点时
+  随机死锁。原因: 管道缓冲区满导致子进程挂起。
+ruling: |
+  非宪法违规，而是工程教训。宪法 Boot 章要求底层工具 (read/write)
+  必须可靠。直接从 Rust 发 HTTPS = 把不可控的 TLS 复杂度引入内核层。
+  解决: Cloud API 全部走本地 HTTP proxy (llm_proxy.py)。
+precedent: |
+  后续标准: Rust 代码不直接发 HTTPS 到外部 API。
+  所有 Cloud API 调用必须经过本地 HTTP proxy。
+  Proxy 本身用 Python (简单可调试) 而非 Rust。
+rule: null
+date: "2026-04-05"
+severity: high

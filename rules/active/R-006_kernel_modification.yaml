@@ -1,0 +1,14 @@
+id: "R-006"
+name: "kernel_modification"
+source_incidents: []
+axiom: "kernel.rs is pure topology layer — modifications need user confirmation + audit"
+trigger: "pre_edit"
+check:
+  type: "grep"
+  pattern: ".*"
+file_glob: "src/kernel.rs"
+enforcement: "warn"
+message: "WARNING: kernel.rs 是纯拓扑层, 修改需要用户确认 + kernel-auditor 审计"
+stats:
+  times_triggered: 8
+  last_triggered: "2026-04-06T15:14:12Z"

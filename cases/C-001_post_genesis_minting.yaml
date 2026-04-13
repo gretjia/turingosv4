@@ -1,0 +1,20 @@
+id: C-001
+title: "fund_agent 印钞违反零和守恒"
+constitution:
+  - "Law 2: Only Investment Costs Money"
+  - "宪法 §1.1: 布尔谓词必须是 Ground Truth"
+incident: V-001
+facts: |
+  fund_agent() 在 GENESIS 之后向 Agent 注入新 Coin，破坏 CTF 守恒
+  (1 Coin = 1 YES + 1 NO)。该函数被 4 次内部审计标注为"可接受"。
+ruling: |
+  违宪。Law 2 规定 on_init 是唯一合法的 Coin 注入点。任何 GENESIS 后
+  创造 Coin 的函数都违反零和守恒，无论金额大小、理由多充分。
+  "可接受的违宪" 不存在 (Rule 18)。
+precedent: |
+  后续判断标准: 任何 src/ 代码中出现 fund_agent、redistribute_pool、
+  或任何在 on_init 之外增加 Agent balance 的逻辑 → 违宪。
+  审计中不可将宪法违规标注为 "可接受" 或 "低优先级"。
+rule: R-002
+date: "2026-03-15"
+severity: critical

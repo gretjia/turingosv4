@@ -1,0 +1,8 @@
+# TuringOS v4 Trace Schema
+# Each line in traces/sessions/{date}.jsonl is a JSON object:
+#
+#   ts: string       — ISO 8601 timestamp
+#   event: string    — "block" | "warn" | "pass"
+#   rule: string     — Rule ID (e.g. "R-001")
+#   file: string     — File path that triggered the rule
+#   message: string  — Human-readable description

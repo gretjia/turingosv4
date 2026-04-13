@@ -1,0 +1,20 @@
+id: C-004
+title: "kernel.rs 出现 'OMEGA' 字符串 — 领域知识泄漏"
+constitution:
+  - "Law 1: Information is Free (kernel 零领域知识)"
+  - "宪法 §1.1: 顶层白盒不依赖语言约束黑盒"
+incident: V-004
+facts: |
+  kernel.rs 中硬编码了 "[OMEGA]" 字符串用于检测证明完成。
+  这是领域知识 (Lean 4 证明术语)，违反微内核纯净性。
+ruling: |
+  违宪。kernel.rs 只做纯拓扑 + 数学运算。"OMEGA" 是领域概念，
+  应由 SKILL (bus.rs 生命周期钩子) 处理，不是 kernel 的职责。
+  即使在注释或日志中，kernel 也不应包含领域字符串。
+precedent: |
+  后续标准: kernel.rs 中出现 lean/tactic/theorem/proof/mathlib/sorry/
+  OMEGA/decide 等任何领域相关字符串 → 违宪。
+  检测方法: grep -iE "lean|tactic|theorem|proof|mathlib|sorry" src/kernel.rs
+rule: R-001
+date: "2026-03-22"
+severity: critical

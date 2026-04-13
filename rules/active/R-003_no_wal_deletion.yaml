@@ -1,0 +1,15 @@
+id: "R-003"
+name: "no_wal_deletion"
+source_incidents:
+  - "VIA_NEGATIVA"
+axiom: "Tape is append-only — WAL and experiment data are sacred"
+trigger: "pre_bash"
+check:
+  type: "grep"
+  pattern: "rm\\s.*\\.(wal|wal\\.bak)|rm\\s.*experiments/.*/data"
+file_glob: "*"
+enforcement: "block"
+message: "BLOCKED: Deletion of WAL files or experiment data requires manual confirmation"
+stats:
+  times_triggered: 0
+  last_triggered: "never"

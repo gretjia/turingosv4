@@ -1,0 +1,89 @@
+index_version: "1.0"
+last_updated: "2026-04-05"
+total_incidents: 9
+
+incidents:
+  - id: V-001
+    title: "fund_agent printing coins — Law 2 CTF conservation violation"
+    pattern: constitutional_violation
+    axiom: "Law 2"
+    severity: critical
+    date: "2026-03-15"
+    dir: V-001_fund_agent_coin_printing/
+
+  - id: V-002
+    title: "redistribute_pool rebirth 10K — post-genesis minting"
+    pattern: constitutional_violation
+    axiom: "Law 2"
+    severity: critical
+    date: "2026-03-18"
+    dir: V-002_redistribute_pool_rebirth/
+
+  - id: V-003
+    title: "Oracle blocking mid-steps — Engine separation breach"
+    pattern: architecture_violation
+    axiom: "Engine separation"
+    severity: critical
+    date: "2026-03-20"
+    dir: V-003_oracle_blocking_midsteps/
+
+  - id: V-004
+    title: "kernel.rs hardcoded [OMEGA] — domain knowledge in pure topology"
+    pattern: kernel_purity
+    axiom: "Law 1"
+    severity: critical
+    date: "2026-03-22"
+    dir: V-004_kernel_hardcoded_omega/
+
+  - id: V-005
+    title: "Greedy ArgMax router stuck in local minima"
+    pattern: design_failure
+    axiom: "Exploration-exploitation"
+    severity: high
+    date: "2026-03-25"
+    dir: V-005_greedy_router_argmax/
+
+  - id: V-006
+    title: "Falsifier agents can buy YES tokens — perverse incentive"
+    pattern: economic_bug
+    axiom: "Law 2"
+    severity: high
+    date: "2026-03-28"
+    dir: V-006_falsifier_buying_yes/
+
+  - id: V-007
+    title: "reqwest+rustls hangs on Chinese HTTPS endpoints (macOS pipe deadlock)"
+    pattern: api_failure
+    axiom: "Bitter Lesson"
+    severity: high
+    date: "2026-04-05"
+    dir: V-007_reqwest_tls_macos_deadlock/
+
+  - id: V-008
+    title: "Single-threaded HTTP proxy returns 502 under 15 concurrent agent requests"
+    pattern: api_failure
+    axiom: "Bitter Lesson"
+    severity: medium
+    date: "2026-04-05"
+    dir: V-008_proxy_single_thread_502/
+
+  - id: V-009
+    title: "LLM output format contract breaks silently — 3 layers of parse failure"
+    pattern: api_failure
+    axiom: "Bitter Lesson"
+    severity: critical
+    date: "2026-04-05"
+    dir: V-009_format_contract_fragility/
+
+by_severity:
+  critical: [V-001, V-002, V-003, V-004, V-009]
+  high: [V-005, V-006, V-007]
+  medium: [V-008]
+  low: []
+
+by_axiom:
+  "Law 1": [V-004]
+  "Law 2": [V-001, V-002, V-006]
+  "Engine separation": [V-003]
+  "Exploration-exploitation": [V-005]
+  "Bitter Lesson": [V-007, V-008, V-009]

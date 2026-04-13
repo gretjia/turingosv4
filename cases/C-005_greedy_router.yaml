@@ -1,0 +1,18 @@
+id: C-005
+title: "贪心路由陷入局部最优"
+constitution:
+  - "宪法 §2.2: 探索与利用平衡"
+incident: V-005
+facts: |
+  ArgMax 贪心路由器总是选择当前最高分节点，导致所有 Agent 收敛到
+  同一个局部最优，群体失去多样性。
+ruling: |
+  不违宪，但违反宪法精神。宪法 §2.2 明确警告：如果中层黑盒对最高分
+  信号过度敏感（过度利用），所有黑盒会收敛到同一局部最优。
+  解决: 替换为 Boltzmann softmax 概率路由 (T=0.5)。
+precedent: |
+  后续标准: 路由/选择算法不可是确定性 ArgMax。必须包含随机性以
+  维持群体异质性。Boltzmann 温度 T 是可调参数但不可为 0。
+rule: null
+date: "2026-03-25"
+severity: high

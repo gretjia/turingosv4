@@ -1,0 +1,14 @@
+id: "R-008"
+name: "market_constants"
+source_incidents: []
+axiom: "Market constants (LP, balances) define economic invariants"
+trigger: "pre_edit"
+check:
+  type: "grep"
+  pattern: "LP_AMOUNT|INITIAL_BALANCE|SYSTEM_MM|1000.*YES|1000.*NO"
+file_glob: "*.rs"
+enforcement: "warn"
+message: "WARNING: Market constant change detected — verify LP amounts and initial balances are intentional"
+stats:
+  times_triggered: 4
+  last_triggered: "2026-04-10T17:05:47Z"

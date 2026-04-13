@@ -1,0 +1,14 @@
+id: "R-009"
+name: "payload_limits"
+source_incidents: []
+axiom: "Rule 21 — one-step-per-node, payload size limits are constitutional"
+trigger: "pre_edit"
+check:
+  type: "grep"
+  pattern: "max_payload_chars|max_payload_lines|1200|payload.*limit"
+file_glob: "*.rs"
+enforcement: "warn"
+message: "WARNING: Payload limit change detected — Rule 21 (one-step-per-node) boundary, verify impact"
+stats:
+  times_triggered: 7
+  last_triggered: "2026-04-11T16:17:48Z"

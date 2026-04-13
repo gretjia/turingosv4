@@ -1,0 +1,16 @@
+id: "R-002"
+name: "no_coin_minting"
+source_incidents:
+  - "V-001"
+  - "V-002"
+axiom: "Law 2 — invest-only economy, no coin minting"
+trigger: "pre_edit"
+check:
+  type: "grep"
+  pattern: "fund_agent|mint_coins|add_balance|new_coins|rebirth.*balance|print_money"
+file_glob: "*.rs"
+enforcement: "block"
+message: "BLOCKED: Coin minting / free balance detected — economy is invest-only (Law 2, V-001/V-002)"
+stats:
+  times_triggered: 3
+  last_triggered: "2026-04-03T10:21:28Z"

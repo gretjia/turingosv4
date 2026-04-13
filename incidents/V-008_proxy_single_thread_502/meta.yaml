@@ -1,0 +1,10 @@
+id: "V-008"
+title: "Single-threaded HTTP proxy returns 502 under 15 concurrent agent requests"
+pattern: api_failure
+axiom: "Bitter Lesson"
+severity: medium
+enforcement: executable
+enforcement_file: "src/drivers/llm_proxy.py"
+rule_id: ""
+related: ["V-007"]
+date: "2026-04-05"

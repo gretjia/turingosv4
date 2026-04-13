@@ -1,0 +1,10 @@
+id: "V-009"
+title: "LLM output format contract breaks silently — 3 layers of parse failure"
+pattern: api_failure
+axiom: "Bitter Lesson"
+severity: critical
+enforcement: executable
+enforcement_file: "src/sdk/protocol.rs"
+rule_id: "R-013"
+related: ["V-007"]
+date: "2026-04-05"

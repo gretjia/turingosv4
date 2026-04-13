@@ -1,0 +1,10 @@
+id: V-006
+title: "Falsifier can buy YES tokens — perverse incentive"
+pattern: economic_bug
+axiom: "Law 2"
+severity: high
+enforcement: executable
+enforcement_file: "src/engines/engine2_economy/actions.rs"
+rule_id: null
+related: []
+date: "2026-03-28"

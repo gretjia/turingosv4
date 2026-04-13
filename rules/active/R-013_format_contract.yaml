@@ -1,0 +1,19 @@
+id: "R-013"
+name: "format_contract"
+source_incidents:
+  - "V-009"
+axiom: "Bitter Lesson — LLM output is probabilistic, parsers must be maximally tolerant"
+trigger: "pre_edit"
+check:
+  type: "grep"
+  pattern: "parse_agent_output|parse_action_json|AgentAction|<action>"
+file_glob: "src/sdk/protocol.rs"
+enforcement: "warn"
+message: |
+  WARNING: LLM output parser change detected (protocol.rs).
+  V-009 lesson: LLM output format varies across model sizes and serving backends.
+  Verify: (1) prefix tolerance (2) LaTeX escape handling (3) bare tag fallback
+  Test with: qwen3-8b via DashScope AND local llama.cpp before deploying.
+stats:
+  times_triggered: 5
+  last_triggered: "2026-04-11T16:24:36Z"

@@ -1,0 +1,10 @@
+id: V-004
+title: "kernel.rs hardcoded [OMEGA] — domain knowledge in pure topology"
+pattern: kernel_purity
+axiom: "Law 1"
+severity: critical
+enforcement: executable
+enforcement_file: "tests/kernel/purity_test.rs"
+rule_id: null
+related: []
+date: "2026-03-22"

@@ -1,0 +1,10 @@
+id: V-002
+title: "redistribute_pool rebirth 10K — post-genesis minting"
+pattern: constitutional_violation
+axiom: "Law 2"
+severity: critical
+enforcement: executable
+enforcement_file: "src/economy/mod.rs"
+rule_id: null
+related: [V-001]
+date: "2026-03-18"

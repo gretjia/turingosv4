@@ -1,0 +1,24 @@
+id: C-010
+title: "生成者自审导致 4 次违宪被放过"
+constitution:
+  - "宪法 §5.1: 三权分立"
+  - "Rule 23: Generator ≠ Evaluator"
+incident: null
+facts: |
+  fund_agent 印钞 (C-001) 被同一 AI 在 4 次审计中标注 "可接受"。
+  Oracle 中间步骤拦截 (C-003) 未被质疑。decide 暴力搜索未被发现。
+  根因: 写代码的 AI 也是审计的 AI — 同一权重、同一方向。
+ruling: |
+  系统性违宪。宪法 §5.1 要求三权分立: 提出者 (ArchitectAI) 和
+  否决者 (JudgeAI) 必须是不同实体。自审 = 三权合一 = 独裁。
+  Anthropic 工程文章确认: "tuning a standalone evaluator to be skeptical
+  is far more tractable than making a generator critical of its own work."
+precedent: |
+  后续标准:
+  1. 代码作者不可是唯一审计者
+  2. 数学审计交 Gemini，代码审计交 Codex (外部模型)
+  3. 外部审计发现必须原文呈现，生成者不可摘要/降级/否决
+  4. 内部审计可以作为初筛，但不可作为最终判定
+rule: null
+date: "2026-04-03"
+severity: critical

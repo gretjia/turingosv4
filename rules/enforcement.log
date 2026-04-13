@@ -1,0 +1,2 @@
+[2026-04-13 05:39:21] BLOCK R-001 | src/kernel.rs | BLOCKED: Domain-specific term detected in kernel.rs — kernel must remain pure topology (Law 1)
+[2026-04-13 05:39:21] WARN R-006 | src/kernel.rs | WARNING: kernel.rs 是纯拓扑层, 修改需要用户确认 + kernel-auditor 审计
