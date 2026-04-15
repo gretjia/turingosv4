@@ -1,0 +1,29 @@
+# Frozen Analysis v3.1 — N_sample=50
+# Sample seed=74677 (external source: BTC/USD @ 2026-04-15)
+
+## Primary: SolveRate (aborts counted as failures)
+
+Condition     N  Solves  Aborts  SolveRate   Agg_PPUT    Σtime
+oneshot      50      23       0      0.460      0.171    13462
+n1           50      30      20      0.600      0.126    23821
+n3           50       7      43      0.140      0.018    39538
+
+## Pairwise verdicts (SolveRate, N=50)
+
+  n3 vs oneshot: STRICT_WIN oneshot (+16)
+  n1 vs oneshot: STRICT_WIN n1 (+7)
+  n3 vs n1: STRICT_WIN n1 (+23)
+
+## Secondary: paired-subset analysis (problems where all 3 completed)
+
+Paired N: 7
+Condition   solves  solve_rate   agg_pput
+oneshot          2       0.286      0.199
+n1               7       1.000      0.594
+n3               7       1.000      0.834
+
+## Pairwise (paired-subset)
+
+  n3 vs oneshot: STRICT_WIN n3 (+5)
+  n1 vs oneshot: STRICT_WIN n1 (+5)
+  n3 vs n1: EQUIVALENT (|Δ|=0)

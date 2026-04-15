@@ -79,6 +79,29 @@ async fn main() {
             run_swarm(problem_file, &problem_statement, &theorem_name,
                      &lean_path, &proxy_url, &model, 3).await
         }
+        "hybrid_v1" => {
+            // RCA (2026-04-14): agent_0's swarm prompt (tape/market/errors/tools)
+            // underperforms oneshot's bare prompt on problems DeepSeek can 1-shot.
+            // This condition uses oneshot prompt first; only if that fails does
+            // the swarm fire. Separately named per C-032/C-033 causal attribution.
+            let start = Instant::now();
+            let r = run_oneshot(problem_file, &problem_statement, &theorem_name,
+                               &lean_path, &proxy_url, &model).await;
+            if r.has_golden_path {
+                PputResult { condition: "hybrid_v1".into(), ..r }
+            } else {
+                let r2 = run_swarm(problem_file, &problem_statement, &theorem_name,
+                                  &lean_path, &proxy_url, &model, 3).await;
+                let elapsed = start.elapsed().as_secs_f64();
+                PputResult {
+                    condition: "hybrid_v1".into(),
+                    time_secs: elapsed,
+                    pput: if r2.has_golden_path { 100.0 / elapsed } else { 0.0 },
+                    tx_count: 1 + r2.tx_count,
+                    ..r2
+                }
+            }
+        }
         other => { eprintln!("Unknown condition: {}", other); std::process::exit(1); }
     };
 
@@ -122,12 +145,12 @@ async fn run_oneshot(
         problem_statement
     );
 
-    let client = ResilientLLMClient::new(proxy_url, 120, 3);
+    let client = ResilientLLMClient::new(proxy_url, 1800, 2);
     let request = GenerateRequest {
         model: model.to_string(),
         messages: vec![Message { role: "user".into(), content: prompt }],
         temperature: Some(0.2),
-        max_tokens: Some(8000),
+        max_tokens: Some(16000),
     };
 
     match client.generate(&request).await {
@@ -153,8 +176,12 @@ async fn run_oneshot(
             }
         }
         Err(e) => {
+            // C-012: measurement failure ≠ verified failure.
+            // Do not emit PPUT_RESULT — batch runner must retry on resume.
+            // C-017: broadcast error explicitly (stderr, non-zero exit).
             error!("LLM error: {}", e);
-            make_pput(problem_file, "oneshot", model, false, start, 0, 0, 1)
+            eprintln!("MEASUREMENT_ERROR oneshot LLM: {}", e);
+            std::process::exit(2);
         }
     }
 }
@@ -194,7 +221,7 @@ async fn run_swarm(
     let agent_ids: Vec<String> = (0..n_agents).map(|i| format!("Agent_{}", i)).collect();
     bus.init(&agent_ids);
 
-    let client = ResilientLLMClient::new(proxy_url, 120, 3);
+    let client = ResilientLLMClient::new(proxy_url, 1800, 2);
     let params = BoltzmannParams::from_env();
     let max_transactions = 200;
 
@@ -222,7 +249,7 @@ async fn run_swarm(
             model: model.to_string(),
             messages: vec![Message { role: "user".into(), content: prompt }],
             temperature: Some(0.2),
-            max_tokens: Some(4000),
+            max_tokens: Some(16000),
         };
 
         match client.generate(&request).await {
@@ -257,20 +284,30 @@ async fn run_swarm(
                                     theorem_name.to_string(),
                                     lean_path.to_string(),
                                 );
-                                if let Ok(true) = oracle.verify_omega(payload) {
-                                    info!(">>> OMEGA ACCEPTED <<<");
-                                    // GP = full tape ancestry from this node
-                                    let gp: Vec<String> = bus.kernel.tape.time_arrow().to_vec();
-                                    let gp_tokens: u64 = gp.iter()
-                                        .filter_map(|id| bus.kernel.tape.get(id))
-                                        .map(|n| n.payload.len() as u64)
-                                        .sum();
-                                    let gp_nodes = gp.len();
-                                    bus.halt_and_settle(&gp).ok();
-                                    return make_pput(problem_file, &condition, model, true,
-                                                    start, gp_tokens, gp_nodes, tx as u64 + 1);
-                                } else {
-                                    warn!("[tx {}] OMEGA rejected", tx);
+                                match oracle.verify_omega(payload) {
+                                    Ok(true) => {
+                                        info!(">>> OMEGA ACCEPTED <<<");
+                                        let tape_tokens: u64 = bus.kernel.tape.time_arrow().iter()
+                                            .filter_map(|id| bus.kernel.tape.get(id))
+                                            .map(|n| n.payload.len() as u64)
+                                            .sum();
+                                        // C-012: include the winning completion's LLM tokens,
+                                        // else direct-complete wins record 0 and distort PPUT.
+                                        let gp_tokens = tape_tokens + response.completion_tokens as u64;
+                                        let gp = bus.kernel.tape.time_arrow().to_vec();
+                                        let gp_nodes = gp.len() + 1; // +1 for the completing node (off-tape)
+                                        bus.halt_and_settle(&gp).ok();
+                                        return make_pput(problem_file, &condition, model, true,
+                                                        start, gp_tokens, gp_nodes, tx as u64 + 1);
+                                    }
+                                    Ok(false) => {
+                                        // C-017/Art.II.1: broadcast *why* rejected, not just *that*
+                                        let preview: String = payload.chars().take(300).collect();
+                                        warn!("[tx {}] OMEGA rejected. payload[0..300]={:?}", tx, preview);
+                                    }
+                                    Err(e) => {
+                                        warn!("[tx {}] OMEGA oracle error: {}", tx, e);
+                                    }
                                 }
                             }
                         }

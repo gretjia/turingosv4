@@ -1,0 +1,604 @@
+=== mathd_algebra_148 @ 2026-04-15T01:38:00+00:00 condition=oneshot ===
+[2026-04-15T01:38:00Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_148.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T01:39:08Z INFO  evaluator] PPUT = 0 (no golden path in 68.1s, 1 tx)
+=== mathd_algebra_148 @ 2026-04-15T01:39:08+00:00 condition=n1 ===
+[2026-04-15T01:39:08Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_148.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T01:39:48Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T01:40:35Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T01:40:35Z INFO  evaluator] PPUT = 1.16%/s (GP: 1 nodes, 1314 tokens, 86.5s)
+=== mathd_algebra_148 @ 2026-04-15T01:40:35+00:00 condition=n3 ===
+[2026-04-15T01:40:35Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_148.lean | Condition: n3 | Model: deepseek-reasoner
+[2026-04-15T01:41:07Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T01:41:16Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T01:41:16Z INFO  evaluator] PPUT = 2.44%/s (GP: 1 nodes, 1044 tokens, 41.1s)
+=== mathd_algebra_160 @ 2026-04-15T01:41:16+00:00 condition=n1 ===
+[2026-04-15T01:41:16Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_160.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T01:41:58Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T01:42:07Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T01:42:07Z INFO  evaluator] PPUT = 1.97%/s (GP: 1 nodes, 1282 tokens, 50.7s)
+=== mathd_algebra_160 @ 2026-04-15T01:42:07+00:00 condition=n3 ===
+[2026-04-15T01:42:07Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_160.lean | Condition: n3 | Model: deepseek-reasoner
+[2026-04-15T01:42:38Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T01:42:46Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T01:42:46Z INFO  evaluator] PPUT = 2.54%/s (GP: 1 nodes, 928 tokens, 39.3s)
+=== mathd_algebra_160 @ 2026-04-15T01:42:46+00:00 condition=oneshot ===
+[2026-04-15T01:42:46Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_160.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T01:43:29Z INFO  evaluator] PPUT = 0 (no golden path in 42.6s, 1 tx)
+=== mathd_algebra_170 @ 2026-04-15T01:43:29+00:00 condition=n3 ===
+[2026-04-15T01:43:29Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_170.lean | Condition: n3 | Model: deepseek-reasoner
+[2026-04-15T01:46:31Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T01:46:40Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:20:13: error(lean.unknownIdentifier): Unknown constant `Int.abs_le.mp` | <stdin>:20:41: error: Tactic `rcases` failed: `x✝ : ?m.111` is not an inductive datatype | <stdin>:26:8: error(lean.unknownIdentifier): Unknown constant `Int.abs_le.mpr` | <stdin>:30:6: error(lean.unknownIdentifier): Unknown constant `Finset.card_Icc`
+[2026-04-15T01:46:40Z WARN  evaluator] [tx 0] OMEGA rejected. payload[0..300]="  have h_sum : (5 : ℤ) + 6/10 = 5 := by norm_num\n  have hS_eq : S = Finset.Icc (-3 : ℤ) 7 := by\n    ext n\n    constructor\n    · intro hn\n      rw [Finset.mem_Icc]\n      have h := (h₀ n).mp hn\n      have h_abs_le : abs (n - 2) ≤ 5 := by rwa [h_sum] at h\n      rcases Int.abs_le.mp h_abs_le with ⟨h1, h"
+[2026-04-15T01:48:17Z WARN  evaluator] [tx 1] parse: No <action> tag found in output
+[2026-04-15T01:51:39Z INFO  evaluator] [tx 2] OMEGA claim by Agent_2
+[2026-04-15T01:52:11Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:20:13: error(lean.unknownIdentifier): Unknown constant `Int.abs_le.mp` | <stdin>:20:35: error: Tactic `rcases` failed: `x✝ : ?m.131` is not an inductive datatype | <stdin>:25:35: error(lean.unknownIdentifier): Unknown constant `Int.abs_le.mpr`
+[2026-04-15T01:52:11Z WARN  evaluator] [tx 2] OMEGA rejected. payload[0..300]="  have hS_eq : S = Finset.Icc (-3 : ℤ) 7 := by\n    ext n\n    constructor\n    · intro h\n      have h_cond : abs (n - 2) ≤ 5 + 6 / 10 := (h₀ n).mp h\n      have h1 : abs (n - 2) ≤ 5 := by\n        have : (5 : ℤ) + 6 / 10 = 5 := by norm_num\n        rwa [this] at h_cond\n      rcases Int.abs_le.mp h1 with "
+[2026-04-15T01:54:04Z INFO  evaluator] [tx 3] OMEGA claim by Agent_0
+[2026-04-15T01:54:14Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:10:17: error: unsolved goals | <stdin>:13:2: error: unexpected token 'have'; expected command
+[2026-04-15T01:54:14Z WARN  evaluator] [tx 3] OMEGA rejected. payload[0..300]="have h1 : (5 : ℤ) + 6 / 10 = 5 := by norm_num\n  have h2 : ∀ n, n ∈ S ↔ abs (n - 2) ≤ 5 := fun n => by rw [h₀ n, h1]\n  have h3 : S = Finset.Icc (-3 : ℤ) 7 := by\n    ext n\n    rw [Finset.mem_Icc, h2 n]\n    exact ⟨fun h => by\n            have := abs_le.mp h\n            constructor <;> linarith,\n       "
+[2026-04-15T01:56:49Z INFO  evaluator] [tx 4] OMEGA claim by Agent_1
+[2026-04-15T01:56:57Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:18:13: error(lean.unknownIdentifier): Unknown constant `Int.abs_le.mp` | <stdin>:18:38: error: Tactic `rcases` failed: `x✝ : ?m.68` is not an inductive datatype | <stdin>:21:20: error: Tactic `rcases` failed: `List.map ⇑(castEmbedding.trans (addLeftEmbedding (-3)))
+[2026-04-15T01:56:57Z WARN  evaluator] [tx 4] OMEGA rejected. payload[0..300]="  have hS_eq : S = Finset.Icc (-3 : ℤ) 7 := by\n    ext n\n    constructor\n    · intro h\n      have h_abs := (h₀ n).mp h\n      norm_num at h_abs\n      rcases Int.abs_le.mp h_abs with ⟨h_left, h_right⟩\n      exact ⟨by linarith, by linarith⟩\n    · intro h\n      rcases h with ⟨h_left, h_right⟩\n      have"
+=== mathd_algebra_170 @ 2026-04-15T01:58:29+00:00 condition=oneshot ===
+[2026-04-15T01:58:29Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_170.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T02:02:36Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:19:12: error(lean.unknownIdentifier): Unknown constant `Int.abs_le.mp` | <stdin>:19:34: error: Tactic `rcases` failed: `x✝ : ?m.112` is not an inductive datatype | <stdin>:22:19: error: Tactic `rcases` failed: `List.map ⇑(castEmbedding.trans (addLeftEmbedding (-3)))
+[2026-04-15T02:02:36Z INFO  evaluator] PPUT = 0 (no golden path in 247.2s, 1 tx)
+=== mathd_algebra_170 @ 2026-04-15T02:02:36+00:00 condition=n1 ===
+[2026-04-15T02:02:36Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_170.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T02:06:04Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T02:06:15Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:24:21: error: Application type mismatch: The argument | but is expected to have type | <stdin>:30:21: error: Application type mismatch: The argument | but is expected to have type
+[2026-04-15T02:06:15Z WARN  evaluator] [tx 0] OMEGA rejected. payload[0..300]="have mem_S : ∀ n, n ∈ S ↔ abs (n - 2) ≤ 5 := by\n  intro n\n  rw [h₀ n]\n  norm_num\nhave set_eq : S = Finset.Icc (-3 : ℤ) 7 := by\n  ext n\n  rw [mem_S, Finset.mem_Icc]\n  constructor\n  · intro h\n    by_cases hpos : n - 2 ≥ 0\n    · rw [abs_of_nonneg hpos] at h\n      constructor <;> omega\n    · rw [abs_of_"
+[2026-04-15T02:09:04Z INFO  evaluator] [tx 1] OMEGA claim by Agent_0
+[2026-04-15T02:09:15Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T02:09:15Z INFO  evaluator] PPUT = 0.25%/s (GP: 1 nodes, 5066 tokens, 398.9s)
+=== mathd_algebra_171 @ 2026-04-15T02:09:15+00:00 condition=oneshot ===
+[2026-04-15T02:09:15Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_171.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T02:10:59Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T02:10:59Z INFO  evaluator] PPUT = 0.96%/s (GP: 1 nodes, 1310 tokens, 104.0s)
+=== mathd_algebra_171 @ 2026-04-15T02:11:00+00:00 condition=n1 ===
+[2026-04-15T02:11:00Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_171.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T02:12:09Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T02:12:21Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T02:12:21Z INFO  evaluator] PPUT = 1.22%/s (GP: 1 nodes, 2185 tokens, 81.8s)
+=== mathd_algebra_171 @ 2026-04-15T02:12:22+00:00 condition=n3 ===
+[2026-04-15T02:12:22Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_171.lean | Condition: n3 | Model: deepseek-reasoner
+[2026-04-15T02:13:56Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T02:14:05Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T02:14:05Z INFO  evaluator] PPUT = 0.97%/s (GP: 1 nodes, 3077 tokens, 103.2s)
+=== mathd_algebra_196 @ 2026-04-15T02:14:05+00:00 condition=n1 ===
+[2026-04-15T02:14:05Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_196.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T02:17:38Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T02:17:47Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:19:8: error: Tactic `apply` failed: could not unify the conclusion of the term | <stdin>:23:8: error: Tactic `apply` failed: could not unify the conclusion of the term
+[2026-04-15T02:17:47Z WARN  evaluator] [tx 0] OMEGA rejected. payload[0..300]="  have hS : S = ({-1, 5} : Finset ℝ) := by\n    ext x\n    constructor\n    · intro hx\n      have h_abs : abs (2 - x) = 3 := (h₀ x).mp hx\n      by_cases hpos : 0 ≤ 2 - x\n      · rw [abs_of_nonneg hpos] at h_abs\n        left\n        linarith\n      · have hnonpos : 2 - x ≤ 0 := by linarith\n        rw [ab"
+[2026-04-15T02:20:04Z INFO  evaluator] [tx 1] OMEGA claim by Agent_0
+[2026-04-15T02:20:13Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:17:35: error: unexpected token 'by'; expected '⟩' | <stdin>:17:6: error: Unexpected syntax | <stdin>:12:48: error: unsolved goals | <stdin>:10:20: error: unsolved goals
+[2026-04-15T02:20:13Z WARN  evaluator] [tx 1] OMEGA rejected. payload[0..300]="  have mem_iff : ∀ x, x ∈ S ↔ x = -1 ∨ x = 5 := by\n    intro x\n    rw [h₀ x]\n    constructor\n    · intro h\n      rcases abs_eq_iff.mp h with ⟨by norm_num, h | h⟩\n      · left; linarith\n      · right; linarith\n    · rintro (rfl|rfl)\n      · norm_num\n      · norm_num\n  have hS : S = {-1,5} := by\n    e"
+[2026-04-15T02:22:51Z INFO  evaluator] [tx 2] OMEGA claim by Agent_0
+[2026-04-15T02:23:29Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T02:23:29Z INFO  evaluator] PPUT = 0.18%/s (GP: 1 nodes, 5550 tokens, 564.1s)
+=== mathd_algebra_196 @ 2026-04-15T02:23:29+00:00 condition=n3 ===
+[2026-04-15T02:23:29Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_196.lean | Condition: n3 | Model: deepseek-reasoner
+[2026-04-15T02:26:08Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T02:26:16Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:18:13: error(lean.unknownIdentifier): Unknown identifier `abs_eq_iff.mp` | <stdin>:18:42: error: Tactic `rcases` failed: `x✝ : ?m.78` is not an inductive datatype
+[2026-04-15T02:26:16Z WARN  evaluator] [tx 0] OMEGA rejected. payload[0..300]="  have hS_eq : S = {-1, 5} := by\n    ext x\n    constructor\n    · intro hx\n      have h_abs : abs (2 - x) = 3 := (h₀ x).mp hx\n      have h3 : 0 ≤ (3 : ℝ) := by norm_num\n      rcases abs_eq_iff.mp h_abs h3 with (h | h)\n      · have hx_eq : x = -1 := by linarith\n        simp [hx_eq]\n      · have hx_eq "
+[2026-04-15T02:29:29Z INFO  evaluator] [tx 1] OMEGA claim by Agent_1
+[2026-04-15T02:29:37Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T02:29:37Z INFO  evaluator] PPUT = 0.27%/s (GP: 1 nodes, 5463 tokens, 368.3s)
+=== mathd_algebra_196 @ 2026-04-15T02:29:38+00:00 condition=oneshot ===
+[2026-04-15T02:29:38Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_196.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T02:35:01Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:21:9: error(lean.unknownIdentifier): Unknown identifier `abs_eq_iff.mp` | <stdin>:21:45: error: Tactic `rcases` failed: `x✝ : ?m.88` is not an inductive datatype
+[2026-04-15T02:35:01Z INFO  evaluator] PPUT = 0 (no golden path in 323.3s, 1 tx)
+=== mathd_algebra_208 @ 2026-04-15T02:35:01+00:00 condition=n3 ===
+[2026-04-15T02:35:01Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_208.lean | Condition: n3 | Model: deepseek-reasoner
+[2026-04-15T02:40:08Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T02:40:18Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:8:45: error: unsolved goals | <stdin>:11:2: error: unexpected token 'have'; expected command
+[2026-04-15T02:40:18Z WARN  evaluator] [tx 0] OMEGA rejected. payload[0..300]="have sqrt_eq : Real.sqrt 1000000 = 1000 := by norm_num\n  have cube_eq : (1000000 : ℝ) ^ (1/3 : ℝ) = 100 := by\n    calc\n      (1000000 : ℝ) ^ (1/3 : ℝ) = ((100 : ℝ) ^ (3 : ℝ)) ^ (1/3 : ℝ) := by norm_num\n      _ = (100 : ℝ) ^ ((3 : ℝ) * (1/3 : ℝ)) := by rw [Real.rpow_mul (by norm_num) (3:ℝ) (1/3:ℝ)]\n "
+[2026-04-15T02:42:53Z INFO  evaluator] [tx 1] OMEGA claim by Agent_1
+[2026-04-15T02:43:16Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:17:8: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-04-15T02:43:16Z WARN  evaluator] [tx 1] OMEGA rejected. payload[0..300]="have h1 : Real.sqrt (1000000 : ℝ) = 1000 := by norm_num\nhave h2 : (1000000 : ℝ) ^ (1/3 : ℝ) = 100 := by\n  calc\n    (1000000 : ℝ) ^ (1/3 : ℝ) = ((100 : ℝ) ^ (3 : ℝ)) ^ (1/3 : ℝ) := by norm_num\n    _ = (100 : ℝ) ^ ((3 : ℝ) * (1/3 : ℝ)) := by rw [Real.rpow_mul (show 0 ≤ (100 : ℝ) by norm_num) _]\n    _ "
+[2026-04-15T02:44:56Z INFO  evaluator] [tx 2] OMEGA claim by Agent_2
+[2026-04-15T02:45:05Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:17:8: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-04-15T02:45:05Z WARN  evaluator] [tx 2] OMEGA rejected. payload[0..300]="have h1 : Real.sqrt 1000000 = 1000 := by norm_num\nhave h2 : (1000000 : ℝ)^(1/3 : ℝ) = 100 := by\n  calc\n    (1000000 : ℝ)^(1/3 : ℝ) = ((100:ℝ)^(3:ℝ))^(1/3:ℝ) := by norm_num\n    _ = (100:ℝ)^((3:ℝ)*(1/3:ℝ)) := by rw [Real.rpow_mul (show 0 ≤ (100:ℝ) by norm_num) (3:ℝ) (1/3:ℝ)]\n    _ = (100:ℝ)^(1:ℝ) := b"
+[2026-04-15T02:47:27Z INFO  evaluator] [tx 3] OMEGA claim by Agent_0
+[2026-04-15T02:47:36Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:8:45: error: unsolved goals
+[2026-04-15T02:47:36Z WARN  evaluator] [tx 3] OMEGA rejected. payload[0..300]="norm_num"
+=== mathd_algebra_208 @ 2026-04-15T02:50:01+00:00 condition=oneshot ===
+[2026-04-15T02:50:01Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_208.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T02:54:32Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:14:48: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-04-15T02:54:32Z INFO  evaluator] PPUT = 0 (no golden path in 270.6s, 1 tx)
+=== mathd_algebra_208 @ 2026-04-15T02:54:32+00:00 condition=n1 ===
+[2026-04-15T02:54:32Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_208.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T02:57:14Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T02:57:22Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:13:46: error(lean.unknownIdentifier): Unknown constant `Real.rpow_rpow_of_nonneg` | <stdin>:13:39: error: unsolved goals | <stdin>:16:10: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-04-15T02:57:22Z WARN  evaluator] [tx 0] OMEGA rejected. payload[0..300]="  have h1 : Real.sqrt 1000000 = 1000 := by norm_num\n  have h2 : (1000000 : ℝ) ^ (1/3 : ℝ) = 100 := by\n    calc (1000000 : ℝ) ^ (1/3 : ℝ) = ((100:ℝ)^(3:ℝ))^(1/3:ℝ) := by norm_num\n        _ = (100:ℝ)^((3:ℝ)*(1/3:ℝ)) := by rw [Real.rpow_rpow_of_nonneg (by norm_num) (by norm_num)]\n        _ = (100:ℝ)^(1"
+[2026-04-15T02:58:45Z WARN  evaluator] [tx 1] parse: No <action> tag found in output
+[2026-04-15T03:00:47Z INFO  evaluator] [tx 2] OMEGA claim by Agent_0
+[2026-04-15T03:00:56Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:17:14: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-04-15T03:00:56Z WARN  evaluator] [tx 2] OMEGA rejected. payload[0..300]="  have h_sqrt : Real.sqrt 1000000 = 1000 := by norm_num\n  have h_cube : (1000000 : ℝ) ^ (1/3 : ℝ) = 100 := by\n    calc\n      (1000000 : ℝ) ^ (1/3 : ℝ) = ((100 : ℝ) ^ (3 : ℝ)) ^ (1/3 : ℝ) := by norm_num\n      _ = (100 : ℝ) ^ ((3 : ℝ) * (1/3 : ℝ)) := by rw [Real.rpow_mul (by norm_num : 0 ≤ (100 : ℝ)) "
+[2026-04-15T03:01:28Z INFO  evaluator] [tx 3] OMEGA claim by Agent_0
+[2026-04-15T03:01:36Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:8:45: error: unsolved goals
+[2026-04-15T03:01:36Z WARN  evaluator] [tx 3] OMEGA rejected. payload[0..300]="norm_num"
+[2026-04-15T03:03:49Z INFO  evaluator] [tx 4] OMEGA claim by Agent_0
+[2026-04-15T03:04:52Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:8:45: error: unsolved goals | <stdin>:11:2: error: unexpected token 'have'; expected command
+[2026-04-15T03:04:52Z WARN  evaluator] [tx 4] OMEGA rejected. payload[0..300]="have h_sqrt : Real.sqrt 1000000 = 1000 := by norm_num\n  have h_cube : (1000000 : ℝ) ^ (1/3 : ℝ) = 100 := by\n    calc\n      (1000000 : ℝ) ^ (1/3 : ℝ) = ((100 : ℝ) ^ (3 : ℝ)) ^ (1/3 : ℝ) := by norm_num\n      _ = (100 : ℝ) ^ ((3 : ℝ) * (1/3 : ℝ)) := by rw [← Real.rpow_mul (show 0 ≤ (100 : ℝ) by norm_nu"
+[2026-04-15T03:06:58Z INFO  evaluator] [tx 5] OMEGA claim by Agent_0
+[2026-04-15T03:07:07Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:17:14: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-04-15T03:07:07Z WARN  evaluator] [tx 5] OMEGA rejected. payload[0..300]="  have h_sqrt : Real.sqrt 1000000 = 1000 := by norm_num\n  have h_cube : (1000000 : ℝ) ^ (1/3 : ℝ) = 100 := by\n    calc\n      (1000000 : ℝ) ^ (1/3 : ℝ) = ((100 : ℝ) ^ (3 : ℝ)) ^ (1/3 : ℝ) := by norm_num\n      _ = (100 : ℝ) ^ ((3 : ℝ) * (1/3 : ℝ)) := by rw [Real.rpow_mul (show 0 ≤ (100 : ℝ) by norm_nu"
+=== mathd_algebra_246 @ 2026-04-15T03:09:32+00:00 condition=oneshot ===
+[2026-04-15T03:09:32Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_246.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T03:13:43Z INFO  evaluator] PPUT = 0 (no golden path in 251.1s, 1 tx)
+=== mathd_algebra_246 @ 2026-04-15T03:13:43+00:00 condition=n1 ===
+[2026-04-15T03:13:43Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_246.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T03:16:37Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T03:17:14Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T03:17:14Z INFO  evaluator] PPUT = 0.47%/s (GP: 1 nodes, 3241 tokens, 211.1s)
+=== mathd_algebra_246 @ 2026-04-15T03:17:14+00:00 condition=n3 ===
+[2026-04-15T03:17:14Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_246.lean | Condition: n3 | Model: deepseek-reasoner
+[2026-04-15T03:18:37Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T03:18:45Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T03:18:45Z INFO  evaluator] PPUT = 1.10%/s (GP: 1 nodes, 2698 tokens, 91.0s)
+=== mathd_algebra_270 @ 2026-04-15T03:18:45+00:00 condition=n1 ===
+[2026-04-15T03:18:45Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_270.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T03:20:32Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T03:20:41Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T03:20:41Z INFO  evaluator] PPUT = 0.87%/s (GP: 1 nodes, 3482 tokens, 115.5s)
+=== mathd_algebra_270 @ 2026-04-15T03:20:41+00:00 condition=n3 ===
+[2026-04-15T03:20:41Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_270.lean | Condition: n3 | Model: deepseek-reasoner
+[2026-04-15T03:23:04Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T03:23:13Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T03:23:13Z INFO  evaluator] PPUT = 0.66%/s (GP: 1 nodes, 4552 tokens, 151.9s)
+=== mathd_algebra_270 @ 2026-04-15T03:23:13+00:00 condition=oneshot ===
+[2026-04-15T03:23:13Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_270.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T03:25:37Z INFO  evaluator] PPUT = 0 (no golden path in 144.0s, 1 tx)
+=== mathd_algebra_293 @ 2026-04-15T03:25:37+00:00 condition=n3 ===
+[2026-04-15T03:25:37Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_293.lean | Condition: n3 | Model: deepseek-reasoner
+[2026-04-15T03:30:28Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T03:31:37Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:16:14: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern | <stdin>:26:14: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-04-15T03:31:37Z WARN  evaluator] [tx 0] OMEGA rejected. payload[0..300]="  calc\n    Real.sqrt (60 * x) * Real.sqrt (12 * x) * Real.sqrt (63 * x)\n        = Real.sqrt ((60 * x) * (12 * x)) * Real.sqrt (63 * x) := by\n          rw [← Real.sqrt_mul (by positivity : 0 ≤ (60 : ℝ) * x) (12 * x)]\n    _ = Real.sqrt (((60 * x) * (12 * x)) * (63 * x)) := by\n          rw [← Real.sqrt"
+[2026-04-15T03:35:51Z INFO  evaluator] [tx 1] OMEGA claim by Agent_1
+[2026-04-15T03:36:20Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:19:50: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-04-15T03:36:20Z WARN  evaluator] [tx 1] OMEGA rejected. payload[0..300]="  calc\n    Real.sqrt (60 * x) * Real.sqrt (12 * x) * Real.sqrt (63 * x) = (Real.sqrt (60 * x) * Real.sqrt (12 * x)) * Real.sqrt (63 * x) := by ring\n    _ = Real.sqrt ((60 * x) * (12 * x)) * Real.sqrt (63 * x) := by rw [Real.sqrt_mul (by positivity) (12 * x)]\n    _ = Real.sqrt (720 * x ^ 2) * Real.sq"
+=== mathd_algebra_293 @ 2026-04-15T03:40:37+00:00 condition=oneshot ===
+[2026-04-15T03:40:37Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_293.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T03:51:51Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T03:51:51Z INFO  evaluator] PPUT = 0.15%/s (GP: 1 nodes, 10678 tokens, 674.2s)
+=== mathd_algebra_293 @ 2026-04-15T03:51:51+00:00 condition=n1 ===
+[2026-04-15T03:51:51Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_293.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T03:57:40Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T03:58:21Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:21:51: error: unsolved goals | <stdin>:29:12: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-04-15T03:58:21Z WARN  evaluator] [tx 0] OMEGA rejected. payload[0..300]="  calc\n    Real.sqrt (60 * x) * Real.sqrt (12 * x) * Real.sqrt (63 * x) =\n        (Real.sqrt (60 * x) * Real.sqrt (12 * x)) * Real.sqrt (63 * x) := by ring\n    _ = Real.sqrt ((60 * x) * (12 * x)) * Real.sqrt (63 * x) := by\n        rw [← Real.sqrt_mul (by positivity)]\n    _ = Real.sqrt (720 * x^2) * "
+[2026-04-15T04:02:00Z INFO  evaluator] [tx 1] OMEGA claim by Agent_0
+[2026-04-15T04:02:11Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:25:46: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-04-15T04:02:11Z WARN  evaluator] [tx 1] OMEGA rejected. payload[0..300]="  calc\n    Real.sqrt (60 * x) * Real.sqrt (12 * x) * Real.sqrt (63 * x) = (Real.sqrt (60 * x) * Real.sqrt (12 * x)) * Real.sqrt (63 * x) := by ring\n    _ = Real.sqrt ((60 * x) * (12 * x)) * Real.sqrt (63 * x) := by rw [Real.sqrt_mul (by positivity) (12 * x)]\n    _ = Real.sqrt (720 * x^2) * Real.sqrt"
+=== mathd_algebra_296 @ 2026-04-15T04:06:51+00:00 condition=oneshot ===
+[2026-04-15T04:06:51Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_296.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T04:08:03Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T04:08:03Z INFO  evaluator] PPUT = 1.39%/s (GP: 1 nodes, 1410 tokens, 71.9s)
+=== mathd_algebra_296 @ 2026-04-15T04:08:04+00:00 condition=n1 ===
+[2026-04-15T04:08:04Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_296.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T04:08:27Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T04:09:12Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T04:09:12Z INFO  evaluator] PPUT = 1.46%/s (GP: 1 nodes, 658 tokens, 68.7s)
+=== mathd_algebra_296 @ 2026-04-15T04:09:13+00:00 condition=n3 ===
+[2026-04-15T04:09:13Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_296.lean | Condition: n3 | Model: deepseek-reasoner
+[2026-04-15T04:09:49Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T04:09:57Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T04:09:57Z INFO  evaluator] PPUT = 2.26%/s (GP: 1 nodes, 1130 tokens, 44.2s)
+=== mathd_algebra_332 @ 2026-04-15T04:09:57+00:00 condition=n1 ===
+[2026-04-15T04:09:57Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_332.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T04:11:56Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T04:12:05Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:22:8: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-04-15T04:12:05Z WARN  evaluator] [tx 0] OMEGA rejected. payload[0..300]="  have sum_eq : x + y = 14 := by linarith\n  have hpos : 0 ≤ x * y := by\n    by_contra! H  -- H: x * y < 0\n    have hsqrt0 : Real.sqrt (x * y) = 0 := Real.sqrt_eq_zero_of_nonpos (by linarith)\n    rw [hsqrt0] at h₁\n    have : Real.sqrt 19 > 0 := Real.sqrt_pos.mpr (by norm_num)\n    linarith\n  have prod"
+[2026-04-15T04:14:32Z INFO  evaluator] [tx 1] OMEGA claim by Agent_0
+[2026-04-15T04:14:42Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T04:14:42Z INFO  evaluator] PPUT = 0.35%/s (GP: 1 nodes, 5243 tokens, 284.8s)
+=== mathd_algebra_332 @ 2026-04-15T04:14:42+00:00 condition=oneshot ===
+[2026-04-15T04:14:42Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_332.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T04:16:59Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T04:16:59Z INFO  evaluator] PPUT = 0.73%/s (GP: 1 nodes, 3910 tokens, 136.8s)
+=== mathd_algebra_359 @ 2026-04-15T04:16:59+00:00 condition=oneshot ===
+[2026-04-15T04:16:59Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_359.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T04:17:30Z INFO  evaluator] PPUT = 0 (no golden path in 31.0s, 1 tx)
+=== mathd_algebra_359 @ 2026-04-15T04:17:30+00:00 condition=n1 ===
+[2026-04-15T04:17:30Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_359.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T04:17:59Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T04:18:07Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T04:18:07Z INFO  evaluator] PPUT = 2.70%/s (GP: 1 nodes, 821 tokens, 37.0s)
+=== mathd_algebra_398 @ 2026-04-15T04:18:07+00:00 condition=oneshot ===
+[2026-04-15T04:18:07Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_398.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T04:19:19Z INFO  evaluator] PPUT = 0 (no golden path in 71.9s, 1 tx)
+=== mathd_algebra_398 @ 2026-04-15T04:19:19+00:00 condition=n1 ===
+[2026-04-15T04:19:19Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_398.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T04:20:20Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T04:20:55Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T04:20:55Z INFO  evaluator] PPUT = 1.04%/s (GP: 1 nodes, 1748 tokens, 96.3s)
+=== mathd_algebra_44 @ 2026-04-15T04:20:55+00:00 condition=n1 ===
+[2026-04-15T04:20:55Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_44.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T04:22:17Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T04:22:25Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T04:22:25Z INFO  evaluator] PPUT = 1.11%/s (GP: 1 nodes, 1977 tokens, 90.0s)
+=== mathd_algebra_44 @ 2026-04-15T04:22:25+00:00 condition=oneshot ===
+[2026-04-15T04:22:25Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_44.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T04:23:27Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T04:23:27Z INFO  evaluator] PPUT = 1.64%/s (GP: 1 nodes, 1294 tokens, 61.2s)
+=== mathd_numbertheory_150 @ 2026-04-15T04:23:27+00:00 condition=oneshot ===
+[2026-04-15T04:23:27Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_numbertheory_150.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T04:26:11Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T04:26:11Z INFO  evaluator] PPUT = 0.61%/s (GP: 1 nodes, 3936 tokens, 164.3s)
+=== mathd_numbertheory_150 @ 2026-04-15T04:26:11+00:00 condition=n1 ===
+[2026-04-15T04:26:11Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_numbertheory_150.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T04:28:15Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T04:28:23Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:10:13: error: unexpected token 'by'; expected '{' or tactic | <stdin>:10:11: error: unsolved goals
+[2026-04-15T04:28:23Z WARN  evaluator] [tx 0] OMEGA rejected. payload[0..300]="by\n  by_cases h : n < 6\n  · exfalso; exact h₀ (by\n      interval_cases n <;> exact by native_decide)\n  · omega"
+[2026-04-15T04:30:02Z INFO  evaluator] [tx 1] OMEGA claim by Agent_0
+[2026-04-15T04:30:57Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T04:30:57Z INFO  evaluator] PPUT = 0.35%/s (GP: 1 nodes, 2772 tokens, 285.8s)
+=== mathd_numbertheory_235 @ 2026-04-15T04:30:57+00:00 condition=oneshot ===
+[2026-04-15T04:30:57Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_numbertheory_235.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T04:32:56Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T04:32:56Z INFO  evaluator] PPUT = 0.84%/s (GP: 1 nodes, 2714 tokens, 118.7s)
+=== mathd_numbertheory_235 @ 2026-04-15T04:32:56+00:00 condition=n1 ===
+[2026-04-15T04:32:56Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_numbertheory_235.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T04:33:15Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T04:33:23Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T04:33:23Z INFO  evaluator] PPUT = 3.71%/s (GP: 1 nodes, 421 tokens, 27.0s)
+=== mathd_numbertheory_254 @ 2026-04-15T04:33:23+00:00 condition=n1 ===
+[2026-04-15T04:33:23Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_numbertheory_254.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T04:33:50Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T04:33:59Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T04:33:59Z INFO  evaluator] PPUT = 2.81%/s (GP: 1 nodes, 650 tokens, 35.6s)
+=== mathd_numbertheory_254 @ 2026-04-15T04:33:59+00:00 condition=oneshot ===
+[2026-04-15T04:33:59Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_numbertheory_254.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T04:34:22Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T04:34:22Z INFO  evaluator] PPUT = 4.24%/s (GP: 1 nodes, 350 tokens, 23.6s)
+=== mathd_numbertheory_345 @ 2026-04-15T04:34:23+00:00 condition=oneshot ===
+[2026-04-15T04:34:23Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_numbertheory_345.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T04:35:57Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T04:35:57Z INFO  evaluator] PPUT = 1.06%/s (GP: 1 nodes, 2109 tokens, 94.1s)
+=== mathd_numbertheory_345 @ 2026-04-15T04:35:57+00:00 condition=n1 ===
+[2026-04-15T04:35:57Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_numbertheory_345.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T04:37:12Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T04:37:20Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T04:37:20Z INFO  evaluator] PPUT = 1.20%/s (GP: 1 nodes, 2001 tokens, 83.3s)
+=== mathd_numbertheory_427 @ 2026-04-15T04:37:20+00:00 condition=oneshot ===
+[2026-04-15T04:37:20Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_numbertheory_427.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T04:38:35Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T04:38:35Z INFO  evaluator] PPUT = 1.34%/s (GP: 1 nodes, 1871 tokens, 74.4s)
+=== mathd_numbertheory_427 @ 2026-04-15T04:38:35+00:00 condition=n1 ===
+[2026-04-15T04:38:35Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_numbertheory_427.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T04:39:21Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T04:39:30Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T04:39:30Z INFO  evaluator] PPUT = 1.82%/s (GP: 1 nodes, 1257 tokens, 55.0s)
+=== mathd_numbertheory_447 @ 2026-04-15T04:39:30+00:00 condition=n1 ===
+[2026-04-15T04:39:30Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_numbertheory_447.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T04:39:56Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T04:40:29Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T04:40:29Z INFO  evaluator] PPUT = 1.69%/s (GP: 1 nodes, 716 tokens, 59.3s)
+=== mathd_numbertheory_447 @ 2026-04-15T04:40:29+00:00 condition=oneshot ===
+[2026-04-15T04:40:29Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_numbertheory_447.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T04:41:52Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T04:41:52Z INFO  evaluator] PPUT = 1.21%/s (GP: 1 nodes, 1112 tokens, 82.5s)
+=== mathd_numbertheory_483 @ 2026-04-15T04:41:52+00:00 condition=oneshot ===
+[2026-04-15T04:41:52Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_numbertheory_483.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T04:45:04Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:25:16: error(lean.unknownIdentifier): Unknown constant `Nat.fib_succ_succ`
+[2026-04-15T04:45:04Z INFO  evaluator] PPUT = 0 (no golden path in 191.9s, 1 tx)
+=== mathd_numbertheory_483 @ 2026-04-15T04:45:04+00:00 condition=n1 ===
+[2026-04-15T04:45:04Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_numbertheory_483.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T04:50:49Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T04:51:43Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:34:31: error: unsolved goals
+[2026-04-15T04:51:43Z WARN  evaluator] [tx 0] OMEGA rejected. payload[0..300]="have h0 : a 0 = 0 := by\n  have := h₂ 0\n  rw [h₀, h₁] at this\n  omega\nhave identity : ∀ n, a (n + 6) = 4 * a (n + 3) + a n := by\n  intro n\n  calc\n    a (n + 6) = a (n + 5) + a (n + 4) := by rw [h₂]\n    _ = (a (n + 4) + a (n + 3)) + a (n + 4) := by rw [h₂]\n    _ = 2 * a (n + 4) + a (n + 3) := by ring\n"
+[2026-04-15T04:54:58Z INFO  evaluator] [tx 1] OMEGA claim by Agent_0
+[2026-04-15T04:55:09Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:26:4: error: Tactic `rfl` failed: The left-hand side
+[2026-04-15T04:55:09Z WARN  evaluator] [tx 1] OMEGA rejected. payload[0..300]="have h0 : a 0 = 0 := by\n  have h := h₂ 0\n  rw [h₀, h₁] at h\n  omega\n\nhave h_fib : ∀ n, a n = Nat.fib n := by\n  intro n\n  induction' n using Nat.strong_induction_on with k IH\n  rcases k with (_|_|k)\n  · exact h0\n  · exact h₀\n  · rw [h₂ k, IH (k+1) (by omega), IH k (by omega)]\n    rfl\n\nrw [h_fib 100]\n"
+[2026-04-15T04:57:37Z INFO  evaluator] [tx 2] OMEGA claim by Agent_0
+[2026-04-15T04:57:45Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:27:16: error(lean.unknownIdentifier): Unknown constant `Nat.fib_succ_succ`
+[2026-04-15T04:57:45Z WARN  evaluator] [tx 2] OMEGA rejected. payload[0..300]="  have h3 : a 0 = 0 := by\n    have h := h₂ 0\n    rw [h₁, h₀] at h\n    omega\n  have h4 : ∀ n, a n = Nat.fib n := by\n    intro n\n    induction' n using Nat.strong_induction_on with k IH\n    match k with\n    | 0 => exact h3\n    | 1 => exact h₀\n    | k+2 =>\n      have hk : k < k+2 := by omega\n      have"
+=== mathd_numbertheory_5 @ 2026-04-15T05:00:04+00:00 condition=oneshot ===
+[2026-04-15T05:00:04Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_numbertheory_5.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T05:05:21Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:24:59: error: failed to synthesize | <stdin>:29:8: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-04-15T05:05:21Z INFO  evaluator] PPUT = 0 (no golden path in 317.1s, 1 tx)
+=== mathd_numbertheory_5 @ 2026-04-15T05:05:21+00:00 condition=n1 ===
+[2026-04-15T05:05:21Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_numbertheory_5.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T05:07:49Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T05:07:57Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:20:4: error: omega could not prove the goal: | <stdin>:23:4: error: omega could not prove the goal: | <stdin>:28:2: error: Type mismatch | but is expected to have type
+[2026-04-15T05:07:57Z WARN  evaluator] [tx 0] OMEGA rejected. payload[0..300]="rcases h₁ with ⟨x, hx⟩\nrcases h₂ with ⟨t, ht⟩\nby_cases h : n < 64\n· have hn : n ≤ 63 := by omega\n  have hx_bound : x ≤ 7 := by\n    have : x^2 ≤ 63 := by rw [hx]; omega\n    omega\n  have ht_bound : t ≤ 3 := by\n    have : t^3 ≤ 63 := by rw [ht]; omega\n    omega\n  have h_eq : x^2 = t^3 := by rw [hx, ht]"
+[2026-04-15T05:10:26Z INFO  evaluator] [tx 1] OMEGA claim by Agent_0
+[2026-04-15T05:10:35Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:31:2: error: unsolved goals
+[2026-04-15T05:10:35Z WARN  evaluator] [tx 1] OMEGA rejected. payload[0..300]="by_cases hn : n < 64\n· rcases h₂ with ⟨t, ht⟩\n  have t_lt : t < 4 := by\n    by_contra! H\n    have : t ^ 3 ≥ 64 := by\n      calc\n        t ^ 3 ≥ 4 ^ 3 := Nat.pow_le_pow_left H 3\n        _ = 64 := by norm_num\n    rw [ht] at this\n    omega\n  interval_cases t\n  · norm_num at ht\n    omega\n  · norm_num at"
+[2026-04-15T05:13:09Z INFO  evaluator] [tx 2] OMEGA claim by Agent_0
+[2026-04-15T05:13:51Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:25:26: error: linarith failed to find a contradiction
+[2026-04-15T05:13:51Z WARN  evaluator] [tx 2] OMEGA rejected. payload[0..300]="  by_contra! H\n  rcases h₁ with ⟨x, hx⟩\n  rcases h₂ with ⟨t, ht⟩\n  have H_eq : x^2 = t^3 := by rw [hx, ht]\n  have hx_low : 4 ≤ x := by\n    by_contra! Hx\n    have : x ≤ 3 := by omega\n    have : x^2 ≤ 9 := by nlinarith\n    nlinarith [hx, h₀]\n  have ht_low : t < 4 := by\n    by_contra! Ht\n    have : t^3"
+[2026-04-15T05:16:27Z INFO  evaluator] [tx 3] OMEGA claim by Agent_0
+[2026-04-15T05:16:35Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:33:2: error: Type mismatch | but is expected to have type
+[2026-04-15T05:16:35Z WARN  evaluator] [tx 3] OMEGA rejected. payload[0..300]="by_cases hn : n < 64\n· rcases h₁ with ⟨x, hx⟩\n  rcases h₂ with ⟨t, ht⟩\n  have hx_bound : x < 8 := by\n    by_contra! H  -- H : x ≥ 8\n    have : 64 ≤ x ^ 2 := by\n      calc 64 = 8 ^ 2 := by norm_num\n          _ ≤ x ^ 2 := Nat.pow_le_pow_left H 2\n    rw [hx] at this\n    omega\n  have ht_bound : t < 4 :="
+[2026-04-15T05:19:18Z INFO  evaluator] [tx 4] OMEGA claim by Agent_0
+[2026-04-15T05:19:26Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:15:86: error: failed to synthesize
+[2026-04-15T05:19:26Z WARN  evaluator] [tx 4] OMEGA rejected. payload[0..300]="by_cases h : n < 64\n· have : ∀ k : ℕ, 10 ≤ k → k < 64 → ¬ (∃ x : ℕ, x^2 = k) ∨ ¬ (∃ t : ℕ, t^3 = k) := by decide\n  rcases this n h₀ h with (h' | h'')\n  · exact absurd h₁ h'\n  · exact absurd h₂ h''\n· omega"
+=== mathd_numbertheory_517 @ 2026-04-15T05:20:21+00:00 condition=n1 ===
+[2026-04-15T05:20:21Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_numbertheory_517.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T05:21:35Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T05:21:42Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T05:21:42Z INFO  evaluator] PPUT = 1.23%/s (GP: 1 nodes, 2204 tokens, 81.1s)
+=== mathd_numbertheory_517 @ 2026-04-15T05:21:42+00:00 condition=oneshot ===
+[2026-04-15T05:21:42Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_numbertheory_517.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T05:22:27Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T05:22:27Z INFO  evaluator] PPUT = 2.23%/s (GP: 1 nodes, 1069 tokens, 44.7s)
+=== mathd_numbertheory_728 @ 2026-04-15T05:22:27+00:00 condition=oneshot ===
+[2026-04-15T05:22:27Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_numbertheory_728.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T05:24:12Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T05:24:12Z INFO  evaluator] PPUT = 0.95%/s (GP: 1 nodes, 1708 tokens, 104.8s)
+=== mathd_numbertheory_728 @ 2026-04-15T05:24:12+00:00 condition=n1 ===
+[2026-04-15T05:24:12Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_numbertheory_728.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T05:25:02Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T05:25:11Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T05:25:11Z INFO  evaluator] PPUT = 1.70%/s (GP: 1 nodes, 1589 tokens, 58.9s)
+=== mathd_numbertheory_769 @ 2026-04-15T05:25:11+00:00 condition=oneshot ===
+[2026-04-15T05:25:11Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_numbertheory_769.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T05:25:53Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T05:25:53Z INFO  evaluator] PPUT = 2.37%/s (GP: 1 nodes, 1107 tokens, 42.2s)
+=== mathd_numbertheory_769 @ 2026-04-15T05:25:54+00:00 condition=n1 ===
+[2026-04-15T05:25:54Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_numbertheory_769.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T05:27:33Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T05:27:41Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T05:27:41Z INFO  evaluator] PPUT = 0.93%/s (GP: 1 nodes, 3498 tokens, 107.4s)
+=== mathd_numbertheory_99 @ 2026-04-15T05:27:41+00:00 condition=n1 ===
+[2026-04-15T05:27:41Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_numbertheory_99.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T05:30:09Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T05:30:17Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:13:6: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-04-15T05:30:17Z WARN  evaluator] [tx 0] OMEGA rejected. payload[0..300]="have h1 : (2 * (n % 47)) % 47 = 15 := by\n  rw [← Nat.mul_mod, h₀]\nhave h2 : ∀ k : ℕ, k < 47 → (2 * k) % 47 = 15 → k = 31 := by\n  native_decide\nexact h2 (n % 47) (Nat.mod_lt n (by norm_num)) h1"
+[2026-04-15T05:33:11Z INFO  evaluator] [tx 1] OMEGA claim by Agent_0
+[2026-04-15T05:33:29Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:23:38: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-04-15T05:33:29Z WARN  evaluator] [tx 1] OMEGA rejected. payload[0..300]="  have h1 : (48 * n) % 47 = 31 := by\n    calc\n      (48 * n) % 47 = (24 * (2 * n)) % 47 := by ring\n      _ = (24 * ((2 * n) % 47)) % 47 := by rw [Nat.mul_mod]\n      _ = (24 * 15) % 47 := by rw [h₀]\n      _ = 31 := by norm_num\n  have h2 : (48 * n) % 47 = n % 47 := by\n    calc\n      (48 * n) % 47 = (("
+=== mathd_numbertheory_99 @ 2026-04-15T05:42:41+00:00 condition=oneshot ===
+[2026-04-15T05:42:41Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_numbertheory_99.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T05:57:21Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T05:57:21Z INFO  evaluator] PPUT = 0.11%/s (GP: 1 nodes, 10601 tokens, 880.3s)
+=== amc12_2000_p12 @ 2026-04-15T05:57:22+00:00 condition=oneshot ===
+[2026-04-15T05:57:22Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/amc12_2000_p12.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T06:00:05Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T06:00:05Z INFO  evaluator] PPUT = 0.61%/s (GP: 1 nodes, 5044 tokens, 163.1s)
+=== amc12_2000_p12 @ 2026-04-15T06:00:05+00:00 condition=n1 ===
+[2026-04-15T06:00:05Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/amc12_2000_p12.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T06:03:29Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T06:03:38Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:12:0: error: Expected type must not contain free variables
+[2026-04-15T06:03:38Z WARN  evaluator] [tx 0] OMEGA rejected. payload[0..300]="decide"
+[2026-04-15T06:05:26Z WARN  evaluator] [tx 1] VETO: Forbidden pattern: native_decide
+[2026-04-15T06:08:31Z INFO  evaluator] [tx 2] OMEGA claim by Agent_0
+[2026-04-15T06:08:58Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T06:08:58Z INFO  evaluator] PPUT = 0.19%/s (GP: 1 nodes, 5475 tokens, 533.4s)
+=== amc12_2000_p20 @ 2026-04-15T06:08:59+00:00 condition=oneshot ===
+[2026-04-15T06:08:59Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/amc12_2000_p20.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T06:15:30Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T06:15:30Z INFO  evaluator] PPUT = 0.26%/s (GP: 1 nodes, 8220 tokens, 391.2s)
+=== amc12_2000_p20 @ 2026-04-15T06:15:30+00:00 condition=n1 ===
+[2026-04-15T06:15:30Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/amc12_2000_p20.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T06:21:16Z WARN  evaluator] [tx 0] VETO: Payload too long: 1508 > 1200 chars
+[2026-04-15T06:25:48Z INFO  evaluator] [tx 1] OMEGA claim by Agent_0
+[2026-04-15T06:26:30Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:13:15: error: unsolved goals | <stdin>:16:2: error: unexpected token 'have'; expected command
+[2026-04-15T06:26:30Z WARN  evaluator] [tx 1] OMEGA rejected. payload[0..300]="rcases h₀ with ⟨hx, hy, hz⟩\n  have hx0 : x ≠ 0 := by linarith\n  have hy0 : y ≠ 0 := by linarith\n  have hz0 : z ≠ 0 := by linarith\n  have hx4 : x < 4 := by\n    by_contra! H\n    have : 1 / y > 0 := div_pos zero_lt_one (by linarith)\n    linarith [h₁]\n  have hx_lb : x > 3/7 := by\n    by_contra! H\n    ha"
+=== amc12_2000_p6 @ 2026-04-15T06:30:30+00:00 condition=n1 ===
+[2026-04-15T06:30:30Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/amc12_2000_p6.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T06:32:45Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T06:33:38Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T06:33:38Z INFO  evaluator] PPUT = 0.53%/s (GP: 1 nodes, 3739 tokens, 187.5s)
+=== amc12_2000_p6 @ 2026-04-15T06:33:38+00:00 condition=oneshot ===
+[2026-04-15T06:33:38Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/amc12_2000_p6.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T06:37:04Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T06:37:04Z INFO  evaluator] PPUT = 0.48%/s (GP: 1 nodes, 5891 tokens, 206.6s)
+=== amc12a_2002_p6 @ 2026-04-15T06:37:05+00:00 condition=oneshot ===
+[2026-04-15T06:37:05Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/amc12a_2002_p6.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T06:38:34Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T06:38:34Z INFO  evaluator] PPUT = 1.12%/s (GP: 1 nodes, 2385 tokens, 89.2s)
+=== amc12a_2002_p6 @ 2026-04-15T06:38:34+00:00 condition=n1 ===
+[2026-04-15T06:38:34Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/amc12a_2002_p6.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T06:39:48Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T06:39:56Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T06:39:56Z INFO  evaluator] PPUT = 1.21%/s (GP: 1 nodes, 2135 tokens, 82.4s)
+=== amc12a_2008_p25 @ 2026-04-15T06:39:57+00:00 condition=oneshot ===
+[2026-04-15T06:39:57Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/amc12a_2008_p25.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T06:50:15Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:15:0: error: unexpected end of input; expected '{' | <stdin>:13:28: error: unsolved goals
+[2026-04-15T06:50:15Z INFO  evaluator] PPUT = 0 (no golden path in 618.2s, 1 tx)
+=== amc12a_2008_p25 @ 2026-04-15T06:50:15+00:00 condition=n1 ===
+[2026-04-15T06:50:15Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/amc12a_2008_p25.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T06:59:49Z WARN  evaluator] [tx 0] parse: No <action> tag found in output
+=== amc12a_2009_p7 @ 2026-04-15T07:05:15+00:00 condition=n1 ===
+[2026-04-15T07:05:15Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/amc12a_2009_p7.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T07:08:44Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T07:09:55Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:44:14: error: Type mismatch | but is expected to have type | <stdin>:48:8: error: linarith failed to find a contradiction
+[2026-04-15T07:09:55Z WARN  evaluator] [tx 0] OMEGA rejected. payload[0..300]="  have x_eq : x = 4 := by\n    have h1 := h₁ 1\n    rw [h₂, h₃, h₄] at h1\n    linarith\n  have a0_val : a 0 = 1 := by\n    have h0 := h₁ 0\n    rw [h₂, h₃] at h0\n    rw [x_eq] at h0\n    linarith\n  have a1_val : a 1 = 5 := by\n    rw [h₂, x_eq]\n    norm_num\n  have d_val : a 1 - a 0 = 4 := by\n    rw [a0_val"
+[2026-04-15T07:14:31Z INFO  evaluator] [tx 1] OMEGA claim by Agent_0
+[2026-04-15T07:15:11Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T07:15:11Z INFO  evaluator] PPUT = 0.17%/s (GP: 1 nodes, 6743 tokens, 595.7s)
+=== amc12a_2009_p7 @ 2026-04-15T07:15:11+00:00 condition=oneshot ===
+[2026-04-15T07:15:11Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/amc12a_2009_p7.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T07:21:21Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:52:4: error: Type mismatch | but is expected to have type
+[2026-04-15T07:21:21Z INFO  evaluator] PPUT = 0 (no golden path in 370.2s, 1 tx)
+=== amc12b_2021_p1 @ 2026-04-15T07:21:21+00:00 condition=oneshot ===
+[2026-04-15T07:21:21Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/amc12b_2021_p1.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T07:26:08Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:13:33: error(lean.unknownIdentifier): Unknown constant `Real.pi_lt_31416` | <stdin>:22:45: error: Type mismatch | but is expected to have type | <stdin>:30:37: error(lean.unknownIdentifier): Unknown constant `Int.neg_abs_le_self`
+[2026-04-15T07:26:08Z INFO  evaluator] PPUT = 0 (no golden path in 286.7s, 1 tx)
+=== amc12b_2021_p1 @ 2026-04-15T07:26:08+00:00 condition=n1 ===
+[2026-04-15T07:26:08Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/amc12b_2021_p1.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T07:30:10Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T07:30:18Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:10:17: error: unsolved goals | <stdin>:13:2: error: unexpected token 'have'; expected command
+[2026-04-15T07:30:18Z WARN  evaluator] [tx 0] OMEGA rejected. payload[0..300]="have hπ_gt_three : 3 < π := by exact Real.pi_gt_three\n  have hπ_lt : π < 3.1416 := by exact Real.pi_lt_31416\n  have hS_eq : S = Finset.Icc (-9 : ℤ) 9 := by\n    ext x\n    constructor\n    · intro hx\n      rw [h₀] at hx\n      have h : (abs x : ℝ) < 3 * π := hx\n      have h_low : -9 ≤ x := by\n        by"
+[2026-04-15T07:34:46Z INFO  evaluator] [tx 1] OMEGA claim by Agent_0
+[2026-04-15T07:35:02Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:14:14: error(lean.unknownIdentifier): Unknown constant `Real.pi_lt_31416` | <stdin>:30:24: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern | <stdin>:33:24: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-04-15T07:35:02Z WARN  evaluator] [tx 1] OMEGA rejected. payload[0..300]="\n  have hπ_upper : π < 10/3 := by\n    have h := Real.pi_lt_31416\n    linarith\n  have h3π_lower : (9 : ℝ) < 3 * π := by linarith [Real.pi_gt_three]\n  have h3π_upper : 3 * π < 10 := by linarith\n  have h_in : ∀ (x : ℤ), -9 ≤ x → x ≤ 9 → x ∈ S := by\n    intro x hx1 hx2\n    rw [h₀ x]\n    push_cast\n    ha"
+[2026-04-15T07:40:16Z INFO  evaluator] [tx 3] OMEGA claim by Agent_0
+[2026-04-15T07:40:55Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:13:33: error: linarith failed to find a contradiction | <stdin>:48:14: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-04-15T07:40:55Z WARN  evaluator] [tx 3] OMEGA rejected. payload[0..300]="  have h_low : (9 : ℝ) < 3 * π := by linarith [pi_gt_three]\n  have h_high : 3 * π < 10 := by linarith [pi_lt_four]\n  have h_eq : S = Finset.Icc (-9 : ℤ) 9 := by\n    ext x\n    constructor\n    · intro hx\n      have h_abs : |(x : ℝ)| < 3 * π := by\n        rw [← Int.cast_abs]\n        exact (h₀ x).mp hx\n"
+=== amc12b_2021_p13 @ 2026-04-15T07:41:08+00:00 condition=oneshot ===
+[2026-04-15T07:41:08Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/amc12b_2021_p13.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T07:49:10Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:12:0: error: unexpected end of input; expected '{' | <stdin>:10:16: error: unsolved goals
+[2026-04-15T07:49:10Z INFO  evaluator] PPUT = 0 (no golden path in 482.6s, 1 tx)
+=== amc12b_2021_p13 @ 2026-04-15T07:49:11+00:00 condition=n1 ===
+[2026-04-15T07:49:11Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/amc12b_2021_p13.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T07:56:48Z WARN  evaluator] [tx 0] parse: No <action> tag found in output
+[2026-04-15T08:04:08Z WARN  evaluator] [tx 1] parse: No <action> tag found in output
+=== amc12b_2021_p4 @ 2026-04-15T08:04:11+00:00 condition=n1 ===
+[2026-04-15T08:04:11Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/amc12b_2021_p4.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T08:08:10Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T08:08:45Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:11:46: error: unsolved goals | <stdin>:14:2: error: unexpected token 'have'; expected command
+[2026-04-15T08:08:45Z WARN  evaluator] [tx 0] OMEGA rejected. payload[0..300]="rcases h₀ with ⟨hm, ha⟩\n  have pos : (0 : ℝ) < a := mod_cast ha\n  have h : 4 * (m : ℝ) = 3 * (a : ℝ) := by\n    rw [div_eq_iff (ne_of_gt pos)] at h₁\n    linarith\n  have den_ne_zero : (m : ℝ) + (a : ℝ) ≠ 0 := by\n    intro H\n    nlinarith\n  field_simp [den_ne_zero]\n  nlinarith"
+[2026-04-15T08:11:42Z INFO  evaluator] [tx 1] OMEGA claim by Agent_0
+[2026-04-15T08:12:23Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T08:12:23Z INFO  evaluator] PPUT = 0.20%/s (GP: 1 nodes, 6025 tokens, 492.2s)
+=== amc12b_2021_p4 @ 2026-04-15T08:12:23+00:00 condition=oneshot ===
+[2026-04-15T08:12:23Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/amc12b_2021_p4.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T08:17:56Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T08:17:56Z INFO  evaluator] PPUT = 0.30%/s (GP: 1 nodes, 8699 tokens, 332.6s)
+=== algebra_amgm_sumasqdivbgeqsuma @ 2026-04-15T08:17:56+00:00 condition=oneshot ===
+[2026-04-15T08:17:56Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/algebra_amgm_sumasqdivbgeqsuma.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T08:22:59Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T08:22:59Z INFO  evaluator] PPUT = 0.33%/s (GP: 1 nodes, 6983 tokens, 302.9s)
+=== algebra_amgm_sumasqdivbgeqsuma @ 2026-04-15T08:22:59+00:00 condition=n1 ===
+[2026-04-15T08:22:59Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/algebra_amgm_sumasqdivbgeqsuma.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T08:26:17Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T08:26:30Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T08:26:30Z INFO  evaluator] PPUT = 0.47%/s (GP: 1 nodes, 6044 tokens, 211.1s)
+=== algebra_apbon2pownleqapownpbpowon2 @ 2026-04-15T08:26:30+00:00 condition=oneshot ===
+[2026-04-15T08:26:30Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/algebra_apbon2pownleqapownpbpowon2.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T08:33:14Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:18:25: error: unsolved goals | <stdin>:18:39: error: unsolved goals | <stdin>:18:53: error: unsolved goals | <stdin>:12:39: error: unsolved goals
+[2026-04-15T08:33:14Z INFO  evaluator] PPUT = 0 (no golden path in 404.4s, 1 tx)
+=== algebra_apbon2pownleqapownpbpowon2 @ 2026-04-15T08:33:14+00:00 condition=n1 ===
+[2026-04-15T08:33:14Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/algebra_apbon2pownleqapownpbpowon2.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T08:38:44Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T08:38:52Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:12:39: error: unsolved goals | <stdin>:15:2: error: unexpected token 'have'; expected command
+[2026-04-15T08:38:52Z WARN  evaluator] [tx 0] OMEGA rejected. payload[0..300]="rcases h₀ with ⟨ha, hb⟩\n  have hn : 1 ≤ n := by omega\n  have base : ((a + b) / 2) ^ 1 ≤ (a ^ 1 + b ^ 1) / 2 := by ring\n  have step : ∀ k : ℕ, (((a + b) / 2) ^ k ≤ (a ^ k + b ^ k) / 2) → (((a + b) / 2) ^ (k + 1) ≤ (a ^ (k + 1) + b ^ (k + 1)) / 2) := by\n    intro k h\n    have h2 : (a ^ k - b ^ k) * (a"
+[2026-04-15T08:43:10Z INFO  evaluator] [tx 1] OMEGA claim by Agent_0
+[2026-04-15T08:44:01Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:12:39: error: unsolved goals | <stdin>:15:2: error: unexpected token 'have'; expected command
+[2026-04-15T08:44:01Z WARN  evaluator] [tx 1] OMEGA rejected. payload[0..300]="rcases h₀ with ⟨ha, hb⟩\n  have hn1 : 1 ≤ n := by omega\n  refine Nat.le_induction (by simp) (fun k hk h_ind => ?_) n hn1\n  calc\n    ((a + b) / 2) ^ (k + 1) = ((a + b) / 2) ^ k * ((a + b) / 2) := by ring\n    _ ≤ ((a ^ k + b ^ k) / 2) * ((a + b) / 2) := by\n        refine mul_le_mul_of_nonneg_right h_in"
+=== algebra_bleqa_apbon2msqrtableqambsqon8b @ 2026-04-15T08:48:14+00:00 condition=n1 ===
+[2026-04-15T08:48:14Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/algebra_bleqa_apbon2msqrtableqambsqon8b.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T08:57:40Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T08:58:18Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:44:4: error(lean.unknownIdentifier): Unknown identifier `div_le_div_iff` | <stdin>:11:59: error: unsolved goals
+[2026-04-15T08:58:18Z WARN  evaluator] [tx 0] OMEGA rejected. payload[0..300]="rcases h₀ with ⟨ha, hb⟩\nset u := Real.sqrt a with hu_def\nset v := Real.sqrt b with hv_def\nhave hu : u ^ 2 = a := Real.sq_sqrt (by linarith)\nhave hv : v ^ 2 = b := Real.sq_sqrt (by linarith)\nhave u_pos : 0 < u := Real.sqrt_pos.mpr ha\nhave v_pos : 0 < v := Real.sqrt_pos.mpr hb\nhave hle : v ≤ u := by\n "
+=== algebra_bleqa_apbon2msqrtableqambsqon8b @ 2026-04-15T09:03:14+00:00 condition=oneshot ===
+[2026-04-15T09:03:14Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/algebra_bleqa_apbon2msqrtableqambsqon8b.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T09:11:09Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:22:17: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern | <stdin>:25:6: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern | <stdin>:29:19: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern | <stdin>:30:62: error: Application type mismatch: The argument
+[2026-04-15T09:11:09Z INFO  evaluator] PPUT = 0 (no golden path in 474.3s, 1 tx)
+=== algebra_sqineq_unitcircatbpamblt1 @ 2026-04-15T09:11:09+00:00 condition=oneshot ===
+[2026-04-15T09:11:09Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/algebra_sqineq_unitcircatbpamblt1.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T09:14:16Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T09:14:16Z INFO  evaluator] PPUT = 0.53%/s (GP: 1 nodes, 4273 tokens, 187.4s)
+=== algebra_sqineq_unitcircatbpamblt1 @ 2026-04-15T09:14:16+00:00 condition=n1 ===
+[2026-04-15T09:14:16Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/algebra_sqineq_unitcircatbpamblt1.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T09:16:43Z WARN  evaluator] [tx 0] parse: No <action> tag found in output
+[2026-04-15T09:19:32Z INFO  evaluator] [tx 1] OMEGA claim by Agent_0
+[2026-04-15T09:19:43Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T09:19:43Z INFO  evaluator] PPUT = 0.31%/s (GP: 1 nodes, 5175 tokens, 327.1s)
+=== imo_1962_p2 @ 2026-04-15T09:19:44+00:00 condition=oneshot ===
+[2026-04-15T09:19:44Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/imo_1962_p2.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T09:28:17Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:36:43: error: unsolved goals
+[2026-04-15T09:28:17Z INFO  evaluator] PPUT = 0 (no golden path in 513.4s, 1 tx)
+=== imo_1962_p2 @ 2026-04-15T09:28:17+00:00 condition=n1 ===
+[2026-04-15T09:28:17Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/imo_1962_p2.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T09:35:35Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T09:36:34Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:37:49: error: unsolved goals | <stdin>:47:2: error: linarith failed to find a contradiction | <stdin>:54:2: error: ring_nf made no progress on goal
+[2026-04-15T09:36:34Z WARN  evaluator] [tx 0] OMEGA rejected. payload[0..300]="have hx_lb : -1 ≤ x := by linarith [h₁]\nset a := Real.sqrt (3 - x) with ha\nset b := Real.sqrt (x + 1) with hb\nhave ha_nonneg : 0 ≤ a := Real.sqrt_nonneg _\nhave hb_nonneg : 0 ≤ b := Real.sqrt_nonneg _\nhave ha_sq : a ^ 2 = 3 - x := Real.sq_sqrt (by linarith)\nhave hb_sq : b ^ 2 = x + 1 := Real.sq_sqrt "
+=== imo_1964_p2 @ 2026-04-15T09:43:17+00:00 condition=n1 ===
+[2026-04-15T09:43:17Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/imo_1964_p2.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T09:49:46Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T09:50:33Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:27:6: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-04-15T09:50:33Z WARN  evaluator] [tx 0] OMEGA rejected. payload[0..300]="  rcases h₀ with ⟨ha0, hb0, hc0⟩\n  have hx_pos : 0 < (b + c - a) / 2 := by linarith\n  have hy_pos : 0 < (c + a - b) / 2 := by linarith\n  have hz_pos : 0 < (a + b - c) / 2 := by linarith\n  set x := (b + c - a) / 2 with hx_def\n  set y := (c + a - b) / 2 with hy_def\n  set z := (a + b - c) / 2 with hz_d"
+=== imo_1964_p2 @ 2026-04-15T09:58:17+00:00 condition=oneshot ===
+[2026-04-15T09:58:17Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/imo_1964_p2.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T10:04:51Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T10:04:51Z INFO  evaluator] PPUT = 0.25%/s (GP: 1 nodes, 10211 tokens, 393.6s)
+=== imo_1965_p2 @ 2026-04-15T10:04:51+00:00 condition=oneshot ===
+[2026-04-15T10:04:51Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/imo_1965_p2.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T10:14:17Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:22:0: error: unexpected end of input; expected '{' | <stdin>:20:27: error: unsolved goals
+[2026-04-15T10:14:17Z INFO  evaluator] PPUT = 0 (no golden path in 565.9s, 1 tx)
+=== imo_1965_p2 @ 2026-04-15T10:14:17+00:00 condition=n1 ===
+[2026-04-15T10:14:17Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/imo_1965_p2.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T10:22:39Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T10:23:11Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:20:27: error: unsolved goals | <stdin>:23:2: error: unexpected identifier; expected command
+[2026-04-15T10:23:11Z WARN  evaluator] [tx 0] OMEGA rejected. payload[0..300]="rcases h₀ with ⟨ha0, ha4, ha8⟩\n  rcases h₁ with ⟨ha1, ha2⟩\n  rcases h₂ with ⟨ha3, ha5⟩\n  rcases h₃ with ⟨ha6, ha7⟩\n  by_cases hx_max : |x| ≥ |y| ∧ |x| ≥ |z|\n  · rcases hx_max with ⟨hx_ge_y, hx_ge_z⟩\n    by_cases hx0 : |x| = 0\n    · have hx : x = 0 := abs_eq_zero.mp hx0\n      have hy : |y| ≤ 0 := by "
+=== imo_1981_p6 @ 2026-04-15T10:29:17+00:00 condition=oneshot ===
+[2026-04-15T10:29:17Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/imo_1981_p6.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T10:38:34Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:55:31: error: unsolved goals | <stdin>:56:33: error: unsolved goals | <stdin>:79:31: error: unsolved goals
+[2026-04-15T10:38:34Z INFO  evaluator] PPUT = 0 (no golden path in 557.5s, 1 tx)
+=== imo_1981_p6 @ 2026-04-15T10:38:34+00:00 condition=n1 ===
+[2026-04-15T10:38:34Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/imo_1981_p6.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T10:43:49Z WARN  evaluator] [tx 0] VETO: Payload too long: 1263 > 1200 chars
+[2026-04-15T10:52:31Z WARN  evaluator] [tx 1] parse: No <action> tag found in output
+=== induction_1pxpownlt1pnx @ 2026-04-15T10:53:34+00:00 condition=n1 ===
+[2026-04-15T10:53:34Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/induction_1pxpownlt1pnx.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T10:58:26Z INFO  evaluator] [tx 4] OMEGA claim by Agent_0
+[2026-04-15T10:59:05Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:12:32: error: unsolved goals | <stdin>:15:2: error: unexpected token 'have'; expected command
+[2026-04-15T10:59:05Z WARN  evaluator] [tx 4] OMEGA rejected. payload[0..300]="have hn1 : 1 ≤ n := by omega\n  have hpos : 0 < 1 + x := by linarith\n  refine Nat.le_induction (by norm_num) (fun k hk h_ind => ?_) n hn1\n  have hk0 : 0 ≤ (k : ℝ) := mod_cast (Nat.zero_le k)\n  calc\n    (1 : ℝ) + ↑(k + 1) * x = 1 + (↑k + 1) * x := by push_cast; ring\n    _ ≤ (1 + ↑k * x) * (1 + x) := b"
+[2026-04-15T11:02:46Z INFO  evaluator] [tx 6] OMEGA claim by Agent_0
+[2026-04-15T11:03:32Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:20:2: error: 'calc' expression has type | but is expected to have type
+[2026-04-15T11:03:32Z WARN  evaluator] [tx 6] OMEGA rejected. payload[0..300]="\n  have hx_nonneg : 0 ≤ 1 + x := by linarith [h₀]\n  have hn1 : 1 ≤ n := Nat.one_le_of_lt h₁\n  refine Nat.le_induction (by norm_num) (fun k hk1 hk_ind => ?_) n hn1\n  have hk0 : 0 ≤ (k : ℝ) := by exact mod_cast k.zero_le\n  have hx_sq_nonneg : 0 ≤ x ^ 2 := sq_nonneg x\n  calc\n    (1 + x) ^ (k + 1 : ℕ) ="
+[2026-04-15T11:03:58Z WARN  evaluator] [tx 7] parse: No <action> tag found in output
+=== induction_1pxpownlt1pnx @ 2026-04-15T11:08:35+00:00 condition=oneshot ===
+[2026-04-15T11:08:35Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/induction_1pxpownlt1pnx.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T11:10:30Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:14:6: error(lean.unknownIdentifier): Unknown constant `Real.one_add_mul_le_pow`
+[2026-04-15T11:10:30Z INFO  evaluator] PPUT = 0 (no golden path in 115.1s, 1 tx)
+=== induction_sumkexp3eqsumksq @ 2026-04-15T11:10:30+00:00 condition=oneshot ===
+[2026-04-15T11:10:30Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/induction_sumkexp3eqsumksq.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T11:16:15Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:18:53: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern | <stdin>:13:0: error: unsolved goals
+[2026-04-15T11:16:15Z INFO  evaluator] PPUT = 0 (no golden path in 345.7s, 1 tx)
+=== induction_sumkexp3eqsumksq @ 2026-04-15T11:16:15+00:00 condition=n1 ===
+[2026-04-15T11:16:15Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/induction_sumkexp3eqsumksq.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T11:21:06Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T11:21:37Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:15:53: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern | <stdin>:26:8: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-04-15T11:21:37Z WARN  evaluator] [tx 0] OMEGA rejected. payload[0..300]="  have aux : ∀ n, 2 * (∑ k ∈ Finset.range n, k) + n = n ^ 2 := by\n    intro n\n    induction' n with m IH\n    · simp\n    · rw [Finset.sum_range_succ, mul_add, add_assoc, IH]\n      ring\n  induction' n with m IH\n  · rfl\n  · rw [Finset.sum_range_succ, Finset.sum_range_succ]\n    rw [IH]\n    have H : 2 * "
+[2026-04-15T11:26:10Z INFO  evaluator] [tx 1] OMEGA claim by Agent_0
+[2026-04-15T11:26:19Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:15:53: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern | <stdin>:19:8: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern | <stdin>:24:8: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-04-15T11:26:19Z WARN  evaluator] [tx 1] OMEGA rejected. payload[0..300]="  have h_sum_sq : ∀ n, 2 * (∑ k ∈ Finset.range n, k) + n = n * n := by\n    intro n\n    induction' n with m IH\n    · simp\n    · rw [Finset.sum_range_succ, mul_add, add_assoc, IH]\n      ring\n  have h_cube : ∀ n, 2 * n * (∑ k ∈ Finset.range n, k) + n^2 = n^3 := by\n    intro n\n    rw [← mul_add, h_sum_s"
+[2026-04-15T11:30:56Z INFO  evaluator] [tx 2] OMEGA claim by Agent_0
+[2026-04-15T11:31:07Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:20:55: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-04-15T11:31:07Z WARN  evaluator] [tx 2] OMEGA rejected. payload[0..300]="  induction n with\n  | zero => simp\n  | succ m IH =>\n    rw [Finset.sum_range_succ, Finset.sum_range_succ]\n    rw [IH]\n    have h : 2 * (∑ k ∈ Finset.range m, k) + m = m * m := by\n      induction m with\n      | zero => simp\n      | succ k IHk =>\n        rw [Finset.sum_range_succ, two_mul, add_assoc,"
+=== aime_1991_p9 @ 2026-04-15T11:31:16+00:00 condition=oneshot ===
+[2026-04-15T11:31:16Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/aime_1991_p9.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T11:39:50Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:14:0: error: unexpected end of input; expected '{' | <stdin>:12:25: error: unsolved goals
+[2026-04-15T11:39:50Z INFO  evaluator] PPUT = 0 (no golden path in 514.8s, 1 tx)
+=== aime_1991_p9 @ 2026-04-15T11:39:50+00:00 condition=n1 ===
+[2026-04-15T11:39:50Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/aime_1991_p9.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T11:45:30Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T11:46:14Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T11:46:14Z INFO  evaluator] PPUT = 0.26%/s (GP: 1 nodes, 10033 tokens, 383.2s)
+=== aime_1997_p9 @ 2026-04-15T11:46:14+00:00 condition=n1 ===
+[2026-04-15T11:46:14Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/aime_1997_p9.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T11:52:41Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T11:53:38Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:20:36: error: not a positivity goal | <stdin>:21:4: error: Type mismatch | but is expected to have type | <stdin>:23:36: error: linarith failed to find a contradiction
+[2026-04-15T11:53:38Z WARN  evaluator] [tx 0] OMEGA rejected. payload[0..300]="  have a_gt_one : a > 1 := by\n    by_contra! H\n    have : a^2 ≤ 1 := by nlinarith\n    nlinarith\n  have h_floor1 : Int.floor (1 / a) = 0 := by\n    refine Int.floor_eq_iff.mpr ⟨by positivity, ?_⟩\n    exact (div_lt_one (by linarith)).mpr a_gt_one\n  have h_floor2 : Int.floor (a^2) = 2 := by\n    refine I"
+[2026-04-15T11:56:55Z INFO  evaluator] [tx 1] OMEGA claim by Agent_0
+[2026-04-15T11:57:12Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:22:6: error: linarith failed to find a contradiction | <stdin>:23:6: error: linarith failed to find a contradiction | <stdin>:27:6: error: not a positivity goal | <stdin>:28:6: error: Type mismatch
+[2026-04-15T11:57:12Z WARN  evaluator] [tx 1] OMEGA rejected. payload[0..300]="  have a_gt_one : 1 < a := by\n    by_contra! H\n    have : a ^ 2 ≤ 1 := by nlinarith\n    linarith\n  have h4 : Int.floor (a ^ 2) = 2 := by\n    apply Int.floor_eq_iff.mpr\n    constructor\n    · linarith\n    · linarith\n  have h5 : Int.floor (1 / a) = 0 := by\n    apply Int.floor_eq_iff.mpr\n    constructor"
+[2026-04-15T12:00:46Z INFO  evaluator] [tx 2] OMEGA claim by Agent_0
+[2026-04-15T12:01:02Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:21:20: error: linarith failed to find a contradiction | <stdin>:21:20: error: linarith failed to find a contradiction | <stdin>:27:15: error(lean.unknownIdentifier): Unknown identifier `one_div_lt_one` | <stdin>:50:8: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-04-15T12:01:02Z WARN  evaluator] [tx 2] OMEGA rejected. payload[0..300]="  have a_gt_one : 1 < a := by\n    by_contra! H  -- H: a ≤ 1\n    have : a ^ 2 ≤ 1 := by nlinarith\n    nlinarith\n  have floor_a2 : Int.floor (a ^ 2) = 2 := by\n    apply Int.floor_eq_iff.mpr\n    constructor <;> nlinarith\n  have floor_1a : Int.floor (1 / a) = 0 := by\n    apply Int.floor_eq_zero_iff.mpr\n"
+=== aime_1997_p9 @ 2026-04-15T12:01:14+00:00 condition=oneshot ===
+[2026-04-15T12:01:14Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/aime_1997_p9.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T12:08:33Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:24:27: error: linarith failed to find a contradiction | <stdin>:24:40: error: linarith failed to find a contradiction | <stdin>:29:4: error: linarith failed to find a contradiction | <stdin>:39:38: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-04-15T12:08:33Z INFO  evaluator] PPUT = 0 (no golden path in 438.8s, 1 tx)
+=== aime_1999_p11 @ 2026-04-15T12:08:33+00:00 condition=oneshot ===
+[2026-04-15T12:08:33Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/aime_1999_p11.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T12:18:15Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:14:0: error: unexpected end of input; expected '{' | <stdin>:12:26: error: unsolved goals
+[2026-04-15T12:18:15Z INFO  evaluator] PPUT = 0 (no golden path in 582.5s, 1 tx)
+=== aime_1999_p11 @ 2026-04-15T12:18:15+00:00 condition=n1 ===
+[2026-04-15T12:18:15Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/aime_1999_p11.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T12:25:04Z WARN  evaluator] [tx 0] parse: No <action> tag found in output
+=== numbertheory_2pownm1prime_nprime @ 2026-04-15T12:33:15+00:00 condition=oneshot ===
+[2026-04-15T12:33:15Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/numbertheory_2pownm1prime_nprime.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T12:39:02Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:37:45: error: unexpected token 'in'; expected ',' | <stdin>:16:9: error(lean.unknownIdentifier): Unknown constant `Nat.not_prime_iff.mp` | <stdin>:16:48: error: Tactic `rcases` failed: `x✝ : ?m.29` is not an inductive datatype
+[2026-04-15T12:39:02Z INFO  evaluator] PPUT = 0 (no golden path in 346.7s, 1 tx)
+=== numbertheory_2pownm1prime_nprime @ 2026-04-15T12:39:02+00:00 condition=n1 ===
+[2026-04-15T12:39:02Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/numbertheory_2pownm1prime_nprime.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T12:47:32Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T12:48:12Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:29:10: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern | <stdin>:35:12: error(lean.unknownIdentifier): Unknown constant `Nat.dvd_pow_sub_pow` | <stdin>:42:33: error: Application type mismatch: The argument | but is expected to have type
+[2026-04-15T12:48:12Z WARN  evaluator] [tx 0] OMEGA rejected. payload[0..300]="by_cases hn : Nat.Prime n\n· exact hn\n· by_cases hn1 : n = 1\n  · rw [hn1] at h₁\n    have : ¬ Nat.Prime (2 ^ 1 - 1) := by\n      simp [Nat.not_prime_one]\n    contradiction\n  · set p := Nat.minFac n with hp_def\n    have p_prime : Nat.Prime p := Nat.minFac_prime hn1\n    have p_dvd : p ∣ n := Nat.minFac_d"
+[2026-04-15T12:53:18Z INFO  evaluator] [tx 1] OMEGA claim by Agent_0
+[2026-04-15T12:53:56Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:44:35: error: unexpected token 'by'; expected '{' or tactic | <stdin>:25:23: error: omega could not prove the goal: | <stdin>:29:23: error: omega could not prove the goal: | <stdin>:43:27: error(lean.unknownIdentifier): Unknown identifier `n`
+[2026-04-15T12:53:56Z WARN  evaluator] [tx 1] OMEGA rejected. payload[0..300]="by_cases h : Nat.Prime n\n· exact h\n· have hn2 : n ≥ 2 := by\n    by_contra! H\n    have : n = 1 := by omega\n    rw [this] at h₁\n    have : ¬ Nat.Prime 1 := Nat.not_prime_one\n    contradiction\n  obtain ⟨m, hm, hm1, hm2⟩ : ∃ m, m ∣ n ∧ m ≠ 1 ∧ m ≠ n := \n    Nat.exists_dvd_of_not_prime (by omega) h\n  hav"
+=== numbertheory_notEquiv2i2jasqbsqdiv8 @ 2026-04-15T12:54:02+00:00 condition=n1 ===
+[2026-04-15T12:54:02Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/numbertheory_notEquiv2i2jasqbsqdiv8.lean | Condition: n1 | Model: deepseek-reasoner
+[2026-04-15T12:56:04Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0
+[2026-04-15T12:56:12Z INFO  evaluator] >>> OMEGA ACCEPTED <<<
+[2026-04-15T12:56:12Z INFO  evaluator] PPUT = 0.77%/s (GP: 1 nodes, 4078 tokens, 130.1s)
+=== numbertheory_notEquiv2i2jasqbsqdiv8 @ 2026-04-15T12:56:13+00:00 condition=oneshot ===
+[2026-04-15T12:56:13Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/numbertheory_notEquiv2i2jasqbsqdiv8.lean | Condition: oneshot | Model: deepseek-reasoner
+[2026-04-15T12:58:35Z INFO  evaluator] PPUT = 0 (no golden path in 142.9s, 1 tx)

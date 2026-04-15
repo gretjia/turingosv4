@@ -58,8 +58,17 @@ pub fn build_agent_prompt(
     prompt.push_str(tools_description);
     prompt.push_str("\n\n");
 
-    // Output format instruction (minimal)
-    prompt.push_str("Respond with <action>{JSON}</action>\n");
+    // Output format (C-009: explicit schema; V3L-40: no value anchors, only field shape)
+    prompt.push_str("=== Output ===\n");
+    prompt.push_str("Respond with exactly one <action>{JSON}</action> block. No prose outside.\n");
+    prompt.push_str("Schemas by tool:\n");
+    prompt.push_str("  {\"tool\":\"append\",\"payload\":\"<proof-step-text>\",\"node\":\"<optional-parent-id>\"}\n");
+    prompt.push_str("  {\"tool\":\"complete\",\"payload\":\"<tactics-only>\"}\n");
+    prompt.push_str("    payload = tactics that go AFTER `:= by` in the theorem.\n");
+    prompt.push_str("    MUST NOT start with `theorem`, `by`, or re-declare the goal.\n");
+    prompt.push_str("    Indent as body of `by`; multi-line allowed.\n");
+    prompt.push_str("  {\"tool\":\"search\",\"query\":\"<keyword>\"}\n");
+    prompt.push_str("  {\"tool\":\"invest\",\"node\":\"<node-id>\",\"amount\":<number>}\n");
 
     prompt
 }

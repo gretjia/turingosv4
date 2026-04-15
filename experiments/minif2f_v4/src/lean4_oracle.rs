@@ -34,11 +34,22 @@ pub struct Lean4Oracle {
 
 impl Lean4Oracle {
     pub fn new(problem_statement: String, theorem_name: String, lean_path: String) -> Self {
+        // Use LEAN_BINARY env or auto-detect from MiniF2F lean-toolchain version.
+        // Default: v4.24.0 (matches pre-built Mathlib oleans).
+        let lean_binary = std::env::var("LEAN_BINARY").unwrap_or_else(|_| {
+            let home = std::env::var("HOME").unwrap_or_else(|_| "/root".into());
+            let v4_24 = format!("{}/.elan/toolchains/leanprover--lean4---v4.24.0/bin/lean", home);
+            if std::path::Path::new(&v4_24).exists() {
+                v4_24
+            } else {
+                "lean".to_string()
+            }
+        });
         Lean4Oracle {
             problem_statement,
             theorem_name,
             lean_path,
-            lean_binary: "lean".to_string(),
+            lean_binary,
         }
     }
 
@@ -93,10 +104,11 @@ impl Lean4Oracle {
             return Ok(false);
         }
 
-        // Compute gas limit based on code size
+        // Compute gas limit based on code size.
+        // Mathlib import alone takes ~50s on this VM, so base must be high.
         let lines = full_code.lines().count();
-        let timeout_secs = 30 + (lines as u64 / 2);
-        let timeout = Duration::from_secs(timeout_secs.min(120));
+        let timeout_secs = 120 + (lines as u64);
+        let timeout = Duration::from_secs(timeout_secs.min(300));
 
         // Execute in sandbox
         let sandbox = LocalProcessSandbox::new(
@@ -113,6 +125,7 @@ impl Lean4Oracle {
 
                 // Check for sorry declaration (false positive filter)
                 if combined.contains("declaration uses 'sorry'") {
+                    log::warn!("oracle reject reason: declaration uses 'sorry'");
                     return Ok(false);
                 }
 
@@ -125,6 +138,14 @@ impl Lean4Oracle {
                     return Ok(true);
                 }
 
+                // C-017 / Art. II.1: broadcast typical errors — don't silently return false
+                let err_preview: String = combined.lines()
+                    .filter(|l| l.contains("error") || l.contains("unexpected") || l.contains("expected"))
+                    .take(4)
+                    .collect::<Vec<_>>()
+                    .join(" | ");
+                log::warn!("oracle reject reason (exit={}): {}", exit_code,
+                    if err_preview.is_empty() { combined.chars().take(400).collect::<String>() } else { err_preview });
                 Ok(false)
             }
             Ok(SandboxResult::Timeout) => {
@@ -168,21 +189,22 @@ fn has_word_boundary(text: &str, word: &str) -> bool {
 }
 
 /// Derive LEAN_PATH from the MiniF2F data directory.
-/// Searches .lake/packages/*/lib/lean recursively.
+/// Searches .lake/packages/*/.lake/build/lib/lean (Lake 4 layout).
 pub fn derive_lean_path(minif2f_dir: &str) -> String {
     let lake_dir = PathBuf::from(minif2f_dir).join(".lake/packages");
     let mut paths = Vec::new();
 
     if let Ok(entries) = std::fs::read_dir(&lake_dir) {
         for entry in entries.flatten() {
-            let lib_lean = entry.path().join("lib").join("lean");
-            if lib_lean.is_dir() {
-                paths.push(lib_lean.display().to_string());
-            }
-            // Also check .lake/build/lib/lean
+            // Lake 4 layout: packages/<pkg>/.lake/build/lib/lean
             let build_lib = entry.path().join(".lake/build/lib/lean");
             if build_lib.is_dir() {
                 paths.push(build_lib.display().to_string());
+            }
+            // Fallback: packages/<pkg>/lib/lean (older layout)
+            let lib_lean = entry.path().join("lib").join("lean");
+            if lib_lean.is_dir() {
+                paths.push(lib_lean.display().to_string());
             }
         }
     }
