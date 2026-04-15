@@ -20,12 +20,14 @@ Therefore: **prefer chat models** for TuringOS agents. Cheaper (~4-8×), faster 
 | Wallet (Coin budget) | Token budget |
 | Multi-agent | Multi-sampling |
 
-## Testable prediction
+## Testable prediction (pre-registration)
 
-**chat + TuringOS will use `append` more than reasoner + TuringOS**.
+**v3.2 binary verdict** uses ONLY SolveRate pairwise rule (see PLAN_V3_2_2026-04-15.md §Expected outcomes). Concrete decision boundary:
+- CONFIRMED: `|n1_chat − n1_reasoner|` ≤ 1 (i.e., `n1_chat` ∈ [29, 31]) OR strict win (≥33)
+- FALSIFIED: `n1_reasoner − n1_chat` ≥ 3 (i.e., `n1_chat` ≤ 27)
+- GRAY: difference of exactly 2
 
-Reasoning model internally produces full proof → direct `complete`, bypasses tape.  
-Chat model cannot produce full proof one-shot → forced to use tape to accumulate partial progress.
+**Append-rate is informational only** in v3.2. *Earlier framing of "append_rate(chat) > append_rate(reasoner) → confirmed" is RETRACTED* per post-audit discipline — it was a secondary hypothesis inappropriate as primary decision criterion. Append-rate remains a generator for future v3.3+ hypotheses, not a v3.2 verdict input.
 
 ## Constitutional framing
 
