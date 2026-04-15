@@ -146,11 +146,13 @@ async fn run_oneshot(
     );
 
     let client = ResilientLLMClient::new(proxy_url, 1800, 2);
+    // Model-aware max_tokens: deepseek-chat caps at 8192; reasoner needs 16000 for thinking.
+    let max_toks = if model.contains("chat") { 8000 } else { 16000 };
     let request = GenerateRequest {
         model: model.to_string(),
         messages: vec![Message { role: "user".into(), content: prompt }],
         temperature: Some(0.2),
-        max_tokens: Some(16000),
+        max_tokens: Some(max_toks),
     };
 
     match client.generate(&request).await {
@@ -245,11 +247,13 @@ async fn run_swarm(
             snap.get_balance(agent_id), "append, complete, search",
         );
 
+        // Model-aware max_tokens (same rule as oneshot branch).
+        let max_toks = if model.contains("chat") { 8000 } else { 16000 };
         let request = GenerateRequest {
             model: model.to_string(),
             messages: vec![Message { role: "user".into(), content: prompt }],
             temperature: Some(0.2),
-            max_tokens: Some(16000),
+            max_tokens: Some(max_toks),
         };
 
         match client.generate(&request).await {
