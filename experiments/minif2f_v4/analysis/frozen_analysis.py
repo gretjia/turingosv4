@@ -34,6 +34,9 @@ def load_jsonl(path: str, expected_sample: list[str]) -> dict:
             line = line.strip()
             if not line: continue
             d = json.loads(line)
+            # Skip abort markers (no 'problem' field).
+            if 'problem' not in d:
+                continue
             name = d['problem'].split('/')[-1].replace('.lean', '')
             if name in results:
                 results[name] = d
