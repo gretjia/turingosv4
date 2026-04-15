@@ -44,13 +44,13 @@ Therefore: **prefer chat models** for TuringOS agents. Cheaper (~4-8×), faster 
 - **Prompt/schema/timeout**: unchanged
 - **Abort gate**: unchanged (10-problem / 3-timeout)
 
-### New metric (v3.2 only)
+### Informational-only observables (v3.2 diagnostic)
 
-Append-usage rate: `tape_depth_at_OMEGA / total_solves`. Measures how much each condition relied on tape vs direct-complete.
+Append-usage rate: `tape_depth_at_OMEGA / total_solves`. Descriptive only in v3.2 — tracked to inform FUTURE hypotheses.
 
-- If `append_rate(chat) > append_rate(reasoner)` → thesis confirmed (scaffold activates when model is weaker)
-- If `append_rate(chat) ≈ 0` → model too weak to use scaffold meaningfully; different failure mode
-- If `append_rate(chat) < append_rate(reasoner)` → unexpected; thesis falsified
+**NOT a decision criterion for v3.2 verdict** (see §Testable prediction above for the actual pre-registered rule). Append-rate observations in v3.2 feed exclusively into post-hoc hypothesis generation for v3.3+, which would need to pre-register append as primary/secondary in its own metrics freeze before running.
+
+Retracted framing (preserved for audit trail): an earlier draft listed append_rate comparison as confirm/falsify input. That was inconsistent with the SolveRate-primary v3.2 decision rule and is superseded. Do not re-introduce binary append rules without fresh pre-registration.
 
 ## Expected wall time + cost
 
