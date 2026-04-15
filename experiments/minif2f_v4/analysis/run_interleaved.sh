@@ -52,6 +52,34 @@ OUT=$(printf 'import Mathlib\nexample : (1:ℝ) + 1 = 2 := by norm_num\n' | LEAN
 if [ $? -ne 0 ] || echo "$OUT" | grep -q "error:"; then echo "PREFLIGHT FAIL: $OUT" | head -c 400; exit 2; fi
 echo "Preflight OK."
 
+# Smoke probe (harness principle: mechanism > discipline)
+# Any config change (model, max_tokens, timeout, prompt) could break the runtime
+# contract with external APIs. Catch BEFORE burning 75 min on a broken pipeline.
+# Cost: ~30s. Failure saves hours of wasted API + compute.
+SMOKE_OUT=$(timeout 180 env CONDITION=oneshot MINIF2F_DIR="$MINIF2F_DIR" \
+    EXPERIMENT_DIR="$EXP_DIR" RUST_LOG=info ACTIVE_MODEL="$ACTIVE_MODEL" \
+    "$EVALUATOR" "$MINIF2F_DIR/MiniF2F/Test/mathd_algebra_148.lean" 2>&1)
+SMOKE_EXIT=$?
+if [ $SMOKE_EXIT -ne 0 ] && [ $SMOKE_EXIT -ne 1 ]; then
+    # exit_code 2 = MEASUREMENT_ERROR (API/env failure per our convention)
+    # any non-0/1 exit that isn't a verified-fail means env broken
+    echo "SMOKE FAIL (exit=$SMOKE_EXIT):"; echo "$SMOKE_OUT" | tail -15
+    echo ""
+    echo "Halting before full batch to save budget. Fix config and retry."
+    exit 3
+fi
+if ! echo "$SMOKE_OUT" | grep -q '^PPUT_RESULT:'; then
+    echo "SMOKE FAIL: no PPUT_RESULT emitted. Evaluator output:"; echo "$SMOKE_OUT" | tail -15
+    exit 3
+fi
+# Quick check for API-class errors even if exit was clean
+if echo "$SMOKE_OUT" | grep -qE "invalid_request_error|Invalid max_tokens|rate_limit|HTTP 4[0-9][0-9]"; then
+    echo "SMOKE FAIL: API-level error in output:"
+    echo "$SMOKE_OUT" | grep -E "invalid_request_error|Invalid max_tokens|rate_limit|HTTP 4[0-9][0-9]" | head -3
+    exit 3
+fi
+echo "Smoke probe OK (oneshot on mathd_algebra_148 emitted PPUT_RESULT with no API errors)."
+
 # Read sample (skip comments)
 mapfile -t PROBLEMS < <(grep -v '^#' "$SAMPLE" | grep -v '^$')
 N=${#PROBLEMS[@]}

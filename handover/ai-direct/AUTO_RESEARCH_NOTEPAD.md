@@ -45,6 +45,32 @@
 - `.lake/packages/mathlib` silently cleared by toolchain drift; oracle returned false for all
 - Recovery: `lake exe cache get` (memorialized as feedback_oracle_preflight)
 
+### F-2026-04-15-06: v3.1 final results committed (commit `e58e021`)
+- Primary: oneshot 23/50 (46%), n1 30/50 (60%) — n1 STRICT WIN +7, n3 7/50 (abort@10)
+- Paired (7): oneshot 2/7, n1 7/7, n3 7/7 — n1 = n3 descriptively on small N
+- Dual audit PROCEED after initial Codex VETO on Q4 (causal overreach) and Q6 (frozen_analysis.py post-batch edit) both addressed
+
+### F-2026-04-15-07: Routine A independently caught C-027 violation
+- `max_transactions=200` hardcoded in `experiments/minif2f_v4/src/bin/evaluator.rs:199`
+- temperature, max_tokens similarly hardcoded (no env override)
+- C-027 precedent: "所有影响行为的参数必须可通过环境变量/配置覆盖"
+- Remote routine found what my local session had missed — validates Routine A ROI
+- DRIFT_AUDIT_20260415.md commit `5fa3803`
+
+### F-2026-04-15-08: Routine A auto-pushed despite "Do NOT push" prompt directive
+- Drift audit committed + pushed to origin/main (5fa3803)
+- Claude Anthropic remote session appears to override explicit prompt instruction for pushing new audit markdown
+- Benign here (content was valuable) but authority deviation worth recording
+- Implication: treat routine push as default behavior in future prompts; no harm if committing to handover/ only
+
+### F-2026-04-15-09: v3.2 attempt 1 wasted 2 min on undetectable API contract break
+- `ACTIVE_MODEL=deepseek-chat` hit `max_tokens=16000 > 8192` API cap → HTTP 400 on every call
+- Plan passed dual audit (constitutional + design) but no smoke ran the pipeline
+- **Lesson (mechanism-level)**: plan-audit ≠ runtime-compatibility-check. They are orthogonal gates.
+- **Fix committed**: `run_interleaved.sh` now runs a single-problem smoke probe (oneshot on mathd_algebra_148) before the 50-problem batch. Aborts batch on API-class errors. Cost: ~30-60s. Saves 60-75min on broken configs.
+- **Generalization**: any config change (model, max_tokens, timeout, prompt, endpoint) that touches the runtime contract should trigger a re-smoke. Pre-registration audits don't catch this class.
+- **Candidate case**: C-041 "API/runtime contract drift requires mechanical smoke probe" (too early to formalize; watch for recurrence).
+
 ## 3. Retracted speculations (do not re-assert)
 
 - **2026-04-15 ~04:30 UTC** "n3 熔断因 3 agents 互相干扰" — no evidence; was lazy inference from rotation correlation. Actual cause in F-2026-04-15-02.
@@ -87,6 +113,8 @@
 | `graveyard` per-author scoping violates Art. II.1 | (new) | High — systemic failure mode |
 | WAL non-implementation | (new) | Medium (diagnostics only, not correctness) |
 | Routine config yaml↔cloud drift (no CI) | C-017 | Low (researcher-controlled, advisory only) |
+| `max_transactions`, `temperature`, `max_tokens` hardcoded without env override | C-027 | Medium (caught by Routine A 2026-04-15) |
+| Art. V.1.1 + V.1.2 zero case coverage — ArchitectAI outer-loop boundaries undefined | (new) | Medium (blocks safe outer-loop activation) |
 
 ## 7. Open questions (not yet testable)
 
