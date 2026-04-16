@@ -21,6 +21,10 @@ use turingosv4::sdk::tools::librarian::LibrarianTool;
 use std::path::PathBuf;
 use std::time::Instant;
 use log::{info, warn, error};
+use rand::SeedableRng;
+use rand::rngs::StdRng;
+
+const DEFAULT_BOLTZMANN_SEED: u64 = 74677;  // same as sample seed (BTC/USD external)
 
 const DEFAULT_MINIF2F_DIR: &str = "/home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4";
 
@@ -36,6 +40,14 @@ struct PputResult {
     gp_token_count: u64,           // token count of golden path (0 if no GP)
     gp_node_count: usize,          // nodes on golden path (0 if no GP)
     tx_count: u64,                 // total transactions attempted
+    // C-012 provenance: stamp per-row commit SHA + classifier version + RNG seed.
+    // All Optional; serialize-skip when None (backward compat with v3.1/v3.2 artifacts).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    build_sha: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    classifier_version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    boltzmann_seed: Option<u64>,
 }
 
 #[tokio::main]
@@ -225,6 +237,11 @@ async fn run_swarm(
 
     let client = ResilientLLMClient::new(proxy_url, 1800, 2);
     let params = BoltzmannParams::from_env();
+    // C-012: seed the Boltzmann RNG so A/B runs are reproducible.
+    // Only the LLM sampling remains stochastic; same-problem paired comparison absorbs that.
+    let boltzmann_seed: u64 = std::env::var("BOLTZMANN_SEED")
+        .ok().and_then(|s| s.parse().ok()).unwrap_or(DEFAULT_BOLTZMANN_SEED);
+    let mut boltz_rng = StdRng::seed_from_u64(boltzmann_seed);
     let max_transactions = 200;
 
     for tx in 0..max_transactions {
@@ -267,7 +284,7 @@ async fn run_swarm(
                                         .map(|(id, m)| (id.clone(), m.yes_price))
                                         .collect();
                                 let parent = boltzmann_select_parent(
-                                    &snap.tape, &prices, &params, &mut rand::thread_rng()
+                                    &snap.tape, &prices, &params, &mut boltz_rng
                                 );
                                 match bus.append(agent_id, payload, parent.as_deref()) {
                                     Ok(BusResult::Appended { node_id }) => {
@@ -335,6 +352,11 @@ fn make_pput(
 ) -> PputResult {
     let elapsed = start.elapsed().as_secs_f64();
     let pput = if has_gp && elapsed > 0.0 { 100.0 / elapsed } else { 0.0 };
+    // C-012 provenance: populated from env vars; None when unset (backward compat).
+    let build_sha = std::env::var("BUILD_SHA").ok();
+    let classifier_version = std::env::var("CLASSIFIER_VERSION").ok();
+    let boltzmann_seed = std::env::var("BOLTZMANN_SEED")
+        .ok().and_then(|s| s.parse::<u64>().ok());
     PputResult {
         problem: problem.to_string(),
         condition: condition.to_string(),
@@ -345,5 +367,8 @@ fn make_pput(
         gp_token_count: gp_tokens,
         gp_node_count: gp_nodes,
         tx_count,
+        build_sha,
+        classifier_version,
+        boltzmann_seed,
     }
 }
