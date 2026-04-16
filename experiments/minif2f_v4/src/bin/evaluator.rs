@@ -9,6 +9,7 @@
 
 use minif2f_v4::lean4_oracle::{Lean4Oracle, derive_lean_path, load_problem};
 use turingosv4::bus::{BusConfig, BusResult, TuringBus};
+use turingosv4::sdk::error_abstraction::{classify_lean_error, classify_parse_error, CLASSIFIER_VERSION};
 use turingosv4::drivers::llm_http::{GenerateRequest, Message, ResilientLLMClient};
 use turingosv4::kernel::Kernel;
 use turingosv4::sdk::actor::{BoltzmannParams, boltzmann_select_parent};
@@ -53,6 +54,10 @@ struct PputResult {
 #[tokio::main]
 async fn main() {
     env_logger::init();
+    // Step-B v3 treatment binary: stamp classifier version in every emitted PputResult.
+    // Control binary (main branch) has no such set_var → classifier_version serializes as None.
+    // This makes it impossible to mistake one binary for the other in post-hoc analysis.
+    std::env::set_var("CLASSIFIER_VERSION", CLASSIFIER_VERSION);
 
     let args: Vec<String> = std::env::args().collect();
     if args.len() < 2 {
@@ -318,8 +323,8 @@ async fn run_swarm(
                                     theorem_name.to_string(),
                                     lean_path.to_string(),
                                 );
-                                match oracle.verify_omega(payload) {
-                                    Ok(true) => {
+                                match oracle.verify_omega_detailed(payload) {
+                                    Ok((true, _)) => {
                                         info!(">>> OMEGA ACCEPTED <<<");
                                         let tape_tokens: u64 = bus.kernel.tape.time_arrow().iter()
                                             .filter_map(|id| bus.kernel.tape.get(id))
@@ -334,10 +339,12 @@ async fn run_swarm(
                                         return make_pput(problem_file, &condition, model, true,
                                                         start, gp_tokens, gp_nodes, tx as u64 + 1);
                                     }
-                                    Ok(false) => {
-                                        // C-017/Art.II.1: broadcast *why* rejected, not just *that*
+                                    Ok((false, err_detail)) => {
+                                        // Step-B v3: classify + record class label (C-022 shield).
+                                        let class = classify_lean_error(&err_detail);
+                                        bus.record_rejection(agent_id, class.label());
                                         let preview: String = payload.chars().take(300).collect();
-                                        warn!("[tx {}] OMEGA rejected. payload[0..300]={:?}", tx, preview);
+                                        warn!("[tx {}] OMEGA rejected ({}). payload[0..300]={:?}", tx, class.label(), preview);
                                     }
                                     Err(e) => {
                                         warn!("[tx {}] OMEGA oracle error: {}", tx, e);
@@ -398,7 +405,12 @@ async fn run_swarm(
                         }
                         _ => {}
                     },
-                    Err(e) => { warn!("[tx {}] parse: {}", tx, e); }
+                    Err(e) => {
+                        // Step-B v3: parse failures feed the class graveyard too.
+                        let class = classify_parse_error(&format!("{}", e));
+                        bus.record_rejection(agent_id, class.label());
+                        warn!("[tx {}] parse: {} ({})", tx, e, class.label());
+                    }
                 }
             }
             Err(e) => { warn!("[tx {}] LLM: {}", tx, e); }

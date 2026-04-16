@@ -96,12 +96,16 @@ impl Lean4Oracle {
     /// V3L-02: deterministic — no random elements in verification.
     /// Rule 22 v2 clause 4: proof_chain passed verbatim, no byte modification.
     pub fn verify_omega(&self, proof_chain: &str) -> Result<bool, String> {
-        // Concatenate statement + proof verbatim
-        let full_code = format!("{}\n{}", self.problem_statement, proof_chain);
+        self.verify_omega_detailed(proof_chain).map(|(ok, _)| ok)
+    }
 
-        // Check for sorry in the combined code (3rd layer of defense)
+    /// Step-B v3: return (success, error_output) so callers can classify.
+    /// Empty error string on success; raw combined stderr/stdout (truncated) on reject.
+    /// Callers MUST pass through classify_lean_error before broadcast (C-022).
+    pub fn verify_omega_detailed(&self, proof_chain: &str) -> Result<(bool, String), String> {
+        let full_code = format!("{}\n{}", self.problem_statement, proof_chain);
         if has_word_boundary(&full_code, "sorry") || has_word_boundary(&full_code, "sorryAx") {
-            return Ok(false);
+            return Ok((false, "sorry_in_proof".into()));
         }
 
         // Compute gas limit based on code size.
@@ -122,38 +126,27 @@ impl Lean4Oracle {
         match sandbox.execute(&full_code, timeout) {
             Ok(SandboxResult::Completed { stdout, stderr, exit_code }) => {
                 let combined = format!("{}\n{}", stdout, stderr);
-
-                // Check for sorry declaration (false positive filter)
                 if combined.contains("declaration uses 'sorry'") {
                     log::warn!("oracle reject reason: declaration uses 'sorry'");
-                    return Ok(false);
+                    return Ok((false, "declaration_uses_sorry".into()));
                 }
-
-                // Success: "No goals to be solved" or clean exit with no errors
                 if combined.contains("No goals to be solved") {
-                    return Ok(true);
+                    return Ok((true, String::new()));
                 }
-
                 if exit_code == 0 && !combined.contains("error:") {
-                    return Ok(true);
+                    return Ok((true, String::new()));
                 }
-
-                // C-017 / Art. II.1: broadcast typical errors — don't silently return false
                 let err_preview: String = combined.lines()
                     .filter(|l| l.contains("error") || l.contains("unexpected") || l.contains("expected"))
                     .take(4)
                     .collect::<Vec<_>>()
                     .join(" | ");
-                log::warn!("oracle reject reason (exit={}): {}", exit_code,
-                    if err_preview.is_empty() { combined.chars().take(400).collect::<String>() } else { err_preview });
-                Ok(false)
+                let detail = if err_preview.is_empty() { combined.chars().take(800).collect::<String>() } else { err_preview };
+                log::warn!("oracle reject reason (exit={}): {}", exit_code, detail);
+                Ok((false, detail))
             }
-            Ok(SandboxResult::Timeout) => {
-                Err("Lean 4 verification timed out".into())
-            }
-            Err(e) => {
-                Err(format!("Sandbox error: {}", e))
-            }
+            Ok(SandboxResult::Timeout) => Err("Lean 4 verification timed out".into()),
+            Err(e) => Err(format!("Sandbox error: {}", e)),
         }
     }
 }

@@ -48,6 +48,18 @@ pub struct TuringBus {
     graveyard: HashMap<String, Vec<String>>,
 }
 
+/// Scope for recent_rejections query.
+/// Step-B v3 Art. II.1 fix: enables global abstract-broadcast without violating C-022.
+#[derive(Debug, Clone, Copy)]
+pub enum RejectionScope {
+    /// Legacy: per-author graveyard (before-fix behavior).
+    PerAuthor,
+    /// Flattened across all authors, chronological (may leak raw content — use with caution).
+    Global,
+    /// Art. II.1 compliant: counted + top-k class labels. Requires callers to record class labels.
+    TopKClasses(usize),
+}
+
 /// Result of a bus append operation.
 #[derive(Debug)]
 pub enum BusResult {
@@ -236,7 +248,10 @@ impl TuringBus {
     }
 
     /// Record a rejection in the graveyard (for feedback to agents).
-    fn record_rejection(&mut self, author: &str, reason: &str) {
+    /// Reason SHOULD be a bounded class label from `sdk::error_abstraction`
+    /// (Art. II.1 abstraction mandate + C-022 context-poisoning shield).
+    /// Exposed publicly so evaluator.rs can populate from OMEGA-reject and parse-fail.
+    pub fn record_rejection(&mut self, author: &str, reason: &str) {
         self.graveyard
             .entry(author.to_string())
             .or_default()
@@ -244,10 +259,53 @@ impl TuringBus {
     }
 
     /// Get recent rejections for an agent (Art. II.1: broadcast typical errors).
+    /// v3 Step-B: default scope changed to TopKClasses(3) — globally abstract-and-broadcast.
+    /// Call sites that explicitly want per-author scope use `recent_rejections_scoped`.
     pub fn recent_rejections(&self, author: &str, max: usize) -> Vec<String> {
-        self.graveyard.get(author)
-            .map(|v| v.iter().rev().take(max).cloned().collect())
-            .unwrap_or_default()
+        self.recent_rejections_scoped(author, max, RejectionScope::TopKClasses(3))
+    }
+
+    /// Scoped rejection query (Step-B v3 Art. II.1 fix).
+    pub fn recent_rejections_scoped(
+        &self,
+        author: &str,
+        max: usize,
+        scope: RejectionScope,
+    ) -> Vec<String> {
+        match scope {
+            RejectionScope::PerAuthor => {
+                self.graveyard.get(author)
+                    .map(|v| v.iter().rev().take(max).cloned().collect())
+                    .unwrap_or_default()
+            }
+            RejectionScope::Global => {
+                // Flatten all authors' recent; keep most recent `max` across swarm.
+                let mut all: Vec<&String> = self.graveyard.values().flatten().collect();
+                // Heuristic: assume push-order ~= time-order; take last `max` global entries.
+                let start = all.len().saturating_sub(max);
+                all.drain(..start);
+                all.into_iter().cloned().collect()
+            }
+            RejectionScope::TopKClasses(k) => {
+                // C-022 shield: broadcast abstracted CLASSES with COUNTS, not raw strings.
+                // Expects reason strings to already be class labels (see error_abstraction).
+                let mut counts: HashMap<String, u32> = HashMap::new();
+                for v in self.graveyard.values() {
+                    for r in v {
+                        *counts.entry(r.clone()).or_insert(0) += 1;
+                    }
+                }
+                let mut sorted: Vec<(String, u32)> = counts.into_iter().collect();
+                // Sort: count DESC, then alphabetical (tiebreak stable).
+                sorted.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+                sorted.truncate(k);
+                // Emit as "label(count)" strings for prompt.
+                sorted.into_iter()
+                    .map(|(lbl, c)| format!("{}({})", lbl, c))
+                    .take(max)
+                    .collect()
+            }
+        }
     }
 
     /// Get a snapshot of the universe for agents to read.
