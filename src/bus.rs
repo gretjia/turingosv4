@@ -247,15 +247,56 @@ impl TuringBus {
         }
     }
 
-    /// Record a rejection in the graveyard (for feedback to agents).
-    /// Reason SHOULD be a bounded class label from `sdk::error_abstraction`
-    /// (Art. II.1 abstraction mandate + C-022 context-poisoning shield).
+    /// Record a rejection in the graveyard.
+    /// Step-B v3: ALL stored entries are bounded class labels (C-022 shield enforced at write).
+    /// If `reason` is already a valid class label (starts with "err:"), stored as-is.
+    /// Otherwise normalized to a bus-level class via `bus_classify`.
     /// Exposed publicly so evaluator.rs can populate from OMEGA-reject and parse-fail.
     pub fn record_rejection(&mut self, author: &str, reason: &str) {
+        let label = Self::bus_classify(reason);
         self.graveyard
             .entry(author.to_string())
             .or_default()
-            .push(reason.to_string());
+            .push(label.to_string());
+    }
+
+    /// Bus-level classifier: coerces any rejection reason to a bounded label.
+    /// This is the write-side shield that enforces Art. II.1 end-to-end.
+    /// The finite label set is the union of:
+    ///   - "err:" prefixed labels from sdk::error_abstraction (caller-classified)
+    ///   - "veto:forbidden", "veto:size", "veto:lines", "veto:wallet", "veto:tool_other"
+    ///     (bus-internal veto classes)
+    ///   - "err:other" catchall
+    pub fn bus_classify(reason: &str) -> &'static str {
+        // If caller already produced an "err:..." class label, trust it.
+        // Validate prefix; the length is bounded because the enum of labels is finite.
+        if reason.starts_with("err:") {
+            // Accept as-is but intern to static slice where possible.
+            // For simplicity we allocate a leaked &'static; safer: fixed mapping of known labels.
+            // Here we collapse unknown "err:*" to err:other to preserve finite-set invariant.
+            return match reason {
+                "err:tactic_linarith" => "err:tactic_linarith",
+                "err:tactic_simp_noprog" => "err:tactic_simp_noprog",
+                "err:tactic_ring" => "err:tactic_ring",
+                "err:tactic_norm_num" => "err:tactic_norm_num",
+                "err:tactic_other" => "err:tactic_other",
+                "err:unknown_const" => "err:unknown_const",
+                "err:unsolved_goals" => "err:unsolved_goals",
+                "err:unexpected_token" => "err:unexpected_token",
+                "err:type_mismatch" => "err:type_mismatch",
+                "err:rewrite_no_match" => "err:rewrite_no_match",
+                "err:heartbeat" => "err:heartbeat",
+                "err:other" => "err:other",
+                _ => "err:other",
+            };
+        }
+        // Bus internal veto reasons get their own bounded classes.
+        if reason.starts_with("Forbidden") { return "veto:forbidden"; }
+        if reason.starts_with("Payload too long") { return "veto:size"; }
+        if reason.starts_with("Too many lines") { return "veto:lines"; }
+        if reason.contains("wallet") || reason.contains("balance") { return "veto:wallet"; }
+        if reason.starts_with("Tool") || reason.contains("tool") { return "veto:tool_other"; }
+        "err:other"
     }
 
     /// Get recent rejections for an agent (Art. II.1: broadcast typical errors).
@@ -446,11 +487,33 @@ mod tests {
 
     #[test]
     fn test_bus_graveyard_feedback() {
+        // Step-B v3: default recent_rejections() returns TopKClasses-abstracted labels.
+        // Raw "Forbidden pattern: ..." strings are normalized to "veto:forbidden" via bus_classify.
         let mut bus = make_bus();
         bus.append("A0", "this is FORBIDDEN content", None).unwrap();
+        // TopKClasses default: returns "label(count)"
         let rejections = bus.recent_rejections("A0", 5);
         assert_eq!(rejections.len(), 1);
-        assert!(rejections[0].contains("Forbidden"));
+        assert!(
+            rejections[0].contains("veto:forbidden"),
+            "expected abstracted class label, got: {:?}", rejections[0],
+        );
+        // Per-author scope still returns raw labels without count
+        let per_author = bus.recent_rejections_scoped(
+            "A0", 5, crate::bus::RejectionScope::PerAuthor,
+        );
+        assert_eq!(per_author, vec!["veto:forbidden".to_string()]);
+    }
+
+    #[test]
+    fn test_bus_classify_bounded() {
+        // Invariant: bus_classify never returns unbounded text.
+        assert_eq!(TuringBus::bus_classify("Forbidden pattern: decide"), "veto:forbidden");
+        assert_eq!(TuringBus::bus_classify("Payload too long: 9999 > 1000"), "veto:size");
+        assert_eq!(TuringBus::bus_classify("Too many lines: 50 > 18"), "veto:lines");
+        assert_eq!(TuringBus::bus_classify("err:tactic_linarith"), "err:tactic_linarith");
+        assert_eq!(TuringBus::bus_classify("err:unknown_variant_we_dont_track"), "err:other");
+        assert_eq!(TuringBus::bus_classify("some unprecedented garbage"), "err:other");
     }
 
     #[test]
