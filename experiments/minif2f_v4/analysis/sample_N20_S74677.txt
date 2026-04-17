@@ -1,0 +1,22 @@
+# Subsample N=20 from N=50 seed=74677 (same RNG)
+# Fingerprint: 8d390ee4eef82dbb
+algebra_apbon2pownleqapownpbpowon2
+amc12b_2021_p13
+imo_1962_p2
+imo_1964_p2
+imo_1981_p6
+induction_1pxpownlt1pnx
+induction_sumkexp3eqsumksq
+mathd_algebra_160
+mathd_algebra_171
+mathd_algebra_208
+mathd_algebra_270
+mathd_algebra_332
+mathd_algebra_359
+mathd_algebra_44
+mathd_numbertheory_150
+mathd_numbertheory_235
+mathd_numbertheory_254
+mathd_numbertheory_345
+mathd_numbertheory_447
+numbertheory_notEquiv2i2jasqbsqdiv8
