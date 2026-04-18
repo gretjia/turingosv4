@@ -213,8 +213,10 @@ async fn run_swarm(
         max_payload_chars: 1200,
         max_payload_lines: 18,
         system_lp_amount: 200.0,
+        // C-011: decide/omega/native_decide forbidden (brute-force precedent)
         forbidden_patterns: vec![
-            "native_decide".into(), "#eval".into(), "IO.Process".into(),
+            "native_decide".into(), "decide".into(), "omega".into(),
+            "#eval".into(), "IO.Process".into(),
             "IO.FS".into(), "run_tac".into(), "unsafe".into(),
         ],
     };
@@ -235,6 +237,14 @@ async fn run_swarm(
     let agent_ids: Vec<String> = (0..n_agents).map(|i| format!("Agent_{}", i)).collect();
     bus.init(&agent_ids);
 
+    // Art. II.2.1: "不能抹杀群体异质性" — distinct skills per agent.
+    // V3 had Math/Bull/Bear roles. V4: tactic-strategy specialization.
+    let agent_skills: Vec<&str> = vec![
+        "Focus on algebraic simplification: ring, field_simp, linarith, nlinarith.",
+        "Focus on structural reasoning: induction, cases, rcases, constructor.",
+        "Focus on rewriting and normalization: simp, norm_num, rw, calc.",
+    ];
+
     let client = ResilientLLMClient::new(proxy_url, 1800, 2);
     let params = BoltzmannParams::from_env();
     // C-012: seed the Boltzmann RNG so A/B runs are reproducible.
@@ -245,7 +255,8 @@ async fn run_swarm(
     let max_transactions = 200;
 
     for tx in 0..max_transactions {
-        let agent_id = &agent_ids[tx % n_agents];
+        let agent_idx = tx % n_agents;
+        let agent_id = &agent_ids[agent_idx];
         let snap = bus.snapshot();
 
         let chain = if snap.tape.is_empty() {
@@ -259,9 +270,11 @@ async fn run_swarm(
         };
 
         let errors = bus.recent_rejections(agent_id, 3);
+        // Art. II.2.1: per-agent skill specialization
+        let skill = agent_skills.get(agent_idx % agent_skills.len()).unwrap_or(&"");
         let prompt = build_agent_prompt(
-            &chain, "", &snap.market_ticker, &errors,
-            snap.get_balance(agent_id), "append, complete, search",
+            &chain, skill, &snap.market_ticker, &errors,
+            snap.get_balance(agent_id), "append, complete, invest, search",
         );
 
         // Model-aware max_tokens (same rule as oneshot branch).
@@ -328,6 +341,57 @@ async fn run_swarm(
                                     }
                                     Err(e) => {
                                         warn!("[tx {}] OMEGA oracle error: {}", tx, e);
+                                    }
+                                }
+                            }
+                        }
+                        "invest" => {
+                            // Law 2: Only Investment Costs Money (1 Coin = 1 YES + 1 NO).
+                            // Agent bets on a tape node's quality. This drives price signals
+                            // (Art. II.2) which guide Boltzmann routing (Art. II.2.1).
+                            if let (Some(node_id), Some(amount)) = (&action.node, action.amount) {
+                                let amt = amount.abs();
+                                if amt > 0.0 {
+                                    let buy_yes = amount > 0.0;
+                                    // Law 2 conservation: validate market BEFORE debit (no coin-loss path)
+                                    let market_exists = bus.kernel.yes_price(node_id).is_some();
+                                    if !market_exists {
+                                        warn!("[tx {}] invest: no market for {} (hallucinated node?)", tx, node_id);
+                                    } else {
+                                        // Debit wallet → buy shares → record (atomic intent)
+                                        let wallet_ok = bus.tools.iter_mut()
+                                            .find_map(|t| t.as_any_mut().downcast_mut::<WalletTool>())
+                                            .map(|w| w.deduct(agent_id, amt).is_ok())
+                                            .unwrap_or(false);
+                                        if wallet_ok {
+                                            let result = if buy_yes {
+                                                bus.kernel.buy_yes(node_id, amt)
+                                            } else {
+                                                bus.kernel.buy_no(node_id, amt)
+                                            };
+                                            match result {
+                                                Ok(shares) => {
+                                                    info!("[tx {}] {} invested {:.0} {} on {} → {:.1} shares",
+                                                        tx, agent_id, amt,
+                                                        if buy_yes { "YES" } else { "NO" },
+                                                        node_id, shares);
+                                                    if let Some(w) = bus.tools.iter_mut()
+                                                        .find_map(|t| t.as_any_mut().downcast_mut::<WalletTool>()) {
+                                                        if buy_yes {
+                                                            w.record_shares(agent_id, node_id, shares, 0.0, 0.0);
+                                                        } else {
+                                                            w.record_shares(agent_id, node_id, 0.0, shares, 0.0);
+                                                        }
+                                                    }
+                                                }
+                                                Err(e) => {
+                                                    // Market existed at check but buy failed — should not happen
+                                                    warn!("[tx {}] invest buy error: {} (coins debited, shares not granted — Law 2 violation logged)", tx, e);
+                                                }
+                                            }
+                                        } else {
+                                            warn!("[tx {}] {} insufficient balance for invest", tx, agent_id);
+                                        }
                                     }
                                 }
                             }
