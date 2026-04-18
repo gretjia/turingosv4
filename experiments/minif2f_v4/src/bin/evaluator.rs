@@ -275,10 +275,19 @@ async fn run_swarm(
         };
 
         let errors = bus.recent_rejections(agent_id, 3);
-        // Art. II.2.1: per-agent skill specialization
-        let skill = agent_skills.get(agent_idx % agent_skills.len()).unwrap_or(&"");
+        // Art. II.2.1: per-agent skill specialization + Librarian learned memory
+        let base_skill = agent_skills.get(agent_idx % agent_skills.len()).unwrap_or(&"");
+        let learned = bus.tools.iter()
+            .find_map(|t| t.as_any().downcast_ref::<LibrarianTool>())
+            .and_then(|lib| lib.read_agent_memory(agent_id))
+            .unwrap_or_default();
+        let skill = if learned.is_empty() {
+            base_skill.to_string()
+        } else {
+            format!("{}\n\n{}", base_skill, learned)
+        };
         let prompt = build_agent_prompt(
-            &chain, skill, &snap.market_ticker, &errors,
+            &chain, &skill, &snap.market_ticker, &errors,
             snap.get_balance(agent_id), "append, complete, invest, search",
         );
 
@@ -307,6 +316,25 @@ async fn run_swarm(
                                 match bus.append(agent_id, payload, parent.as_deref()) {
                                     Ok(BusResult::Appended { node_id }) => {
                                         info!("[tx {}] {} +{}", tx, agent_id, node_id);
+                                        // Art. III.2 Librarian: every compress_interval appends,
+                                        // write mechanical summary (TopK error classes) to agent's
+                                        // learned.md. This is white-box compression (Art. I.2:
+                                        // deterministic statistical algorithm), not LLM-based.
+                                        if let Some(lib) = bus.tools.iter()
+                                            .find_map(|t| t.as_any().downcast_ref::<LibrarianTool>()) {
+                                            if lib.should_compress() {
+                                                let errors = bus.recent_rejections(agent_id, 10);
+                                                let summary = format!(
+                                                    "# Learned patterns (auto-compressed)\n\
+                                                     Common errors: {}\n\
+                                                     Tape depth: {}\n",
+                                                    errors.join(", "),
+                                                    snap.tape.time_arrow().len(),
+                                                );
+                                                let _ = lib.write_agent_memory(agent_id, &summary);
+                                                info!("[tx {}] Librarian compressed for {}", tx, agent_id);
+                                            }
+                                        }
                                     }
                                     Ok(BusResult::Vetoed { reason }) => {
                                         warn!("[tx {}] VETO: {}", tx, reason);
