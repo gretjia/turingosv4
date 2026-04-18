@@ -259,7 +259,23 @@ async fn run_swarm(
     let mut boltz_rng = StdRng::seed_from_u64(boltzmann_seed);
     let max_transactions = 200;
 
+    // Art. IV map-reduce tick: periodic tape statistics (clock → mr → map/reduce)
+    let tick_interval: usize = std::env::var("TICK_INTERVAL")
+        .ok().and_then(|s| s.parse().ok()).unwrap_or(20);
+
     for tx in 0..max_transactions {
+        // Map-reduce tick (Art. IV mermaid: clock → mr → tape)
+        if tick_interval > 0 && tx > 0 && tx % tick_interval == 0 {
+            let tape_len = bus.kernel.tape.time_arrow().len();
+            let market_count = bus.kernel.markets.len();
+            let ticker = bus.kernel.market_ticker(5);
+            let top_prices: Vec<String> = ticker.iter()
+                .map(|(id, p)| format!("{}:{:.0}%", id, p * 100.0))
+                .collect();
+            info!("[tick@tx{}] tape={} markets={} top={}", tx, tape_len, market_count,
+                top_prices.join(", "));
+        }
+
         let agent_idx = tx % n_agents;
         let agent_id = &agent_ids[agent_idx];
         let snap = bus.snapshot();
