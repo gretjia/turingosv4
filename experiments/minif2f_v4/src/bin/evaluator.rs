@@ -88,13 +88,12 @@ async fn main() {
             run_oneshot(problem_file, &problem_statement, &theorem_name,
                        &lean_path, &proxy_url, &model).await
         }
-        "n1" | "n1_turingos" => {
+        // Generic nN: parse any "n<digits>" → run_swarm with N agents.
+        // Supports N-scaling experiment (percolation curve mapping).
+        c if c.starts_with('n') && c[1..].parse::<usize>().is_ok() => {
+            let n: usize = c[1..].parse().unwrap();
             run_swarm(problem_file, &problem_statement, &theorem_name,
-                     &lean_path, &proxy_url, &model, 1).await
-        }
-        "n3" | "n3_turingos" => {
-            run_swarm(problem_file, &problem_statement, &theorem_name,
-                     &lean_path, &proxy_url, &model, 3).await
+                     &lean_path, &proxy_url, &model, n).await
         }
         "hybrid_v1" => {
             // RCA (2026-04-14): agent_0's swarm prompt (tape/market/errors/tools)
