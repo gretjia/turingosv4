@@ -4,7 +4,7 @@
 
 **Hook**: `MEMORY.md` → `project_auto_research_notepad.md` points here. Loaded every session.
 
-**Last updated**: 2026-04-19 ~01:35 UTC
+**Last updated**: 2026-04-19 ~06:20 UTC
 
 ---
 
@@ -74,6 +74,20 @@
   (line `evaluator.rs:292,305`), but agents do not behaviorally adapt
 - Art. II.2 markets receive zero `invest` calls
 - Implication: ~60% of constitutional engines (3/5) are dead code in practice
+
+### F-2026-04-19-03: TEMP_LADDER N=50 confirmation — +14pp over v3.1 baseline
+- **Data**: `logs/templadder_n8_20260419T013822.jsonl` (45 rows, 50 problems)
+- **Primary**: 37/50 SOLVED = 74.0% vs v3.1 n1 baseline 30/50 (60%) = **+7 solves +14pp**
+- **Paired 20-subset** (direct A/B vs nscaling_n8 baseline):
+  - both solved 11, treatment-only 4, baseline-only 0, neither 3
+  - McNemar stat 4.0 → one-sided exact p ≈ 0.0625 (N=20 borderline); effect is unambiguously positive
+- **Tool-dist (C-036 telemetry)**:
+  - `search: 1938` + `other:search: 359` = 2297 total, avg 51/problem (most on hard problems)
+  - `invest: 43` (markets activated, modest)
+  - `complete: 269` (one-shot solves dominate)
+  - `append: 0` ← tape still empty across entire batch
+- **1 high-correlation flag**: mathd_algebra_208 upr=0.24 (SOLVED — ladder broke through)
+- **Bernoulli gap remains**: predicted N=8 ≈ 99.9%, observed 74% → tape-emptiness is next bottleneck
 
 ### F-2026-04-19-02: Art. III.2 search engine dead at swarm layer
 - **Discovery**: C-036 telemetry on N=50 templadder batch showed `other:search: 149`
