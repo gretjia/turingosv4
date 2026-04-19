@@ -75,6 +75,16 @@
 - Art. II.2 markets receive zero `invest` calls
 - Implication: ~60% of constitutional engines (3/5) are dead code in practice
 
+### F-2026-04-19-06: Search cap mechanism validated
+- Capped retry on failed-13: **7/13 SOLVED** (vs pre-cap retry 3/13 — 2.3× improvement)
+- Both 200-search pathological problems cracked:
+  - `algebra_amgm_sumasqdivbgeqsuma`: 160 searches (= 8×20 cap), 4 completes, solved
+  - `numbertheory_2pownm1prime_nprime`: 159 searches, 1 complete, solved
+- `search_capped: 0` in telemetry — cap works by dropping search from tools list,
+  agents switch to complete/invest rather than trying search again
+- **Cumulative best-of across 3 runs**: 44/50 = 88% (only 2 problems fail all 3)
+- Fair single-run measurement pending: clean N=50 with latest binary queued
+
 ### F-2026-04-19-05: Search budget abuse (200 tx all on search)
 - Retry batch on 13 previously-failing problems with search-loop binary.
 - **3/13 recovered** (mathd_algebra_196, mathd_numbertheory_447, mathd_numbertheory_5)
