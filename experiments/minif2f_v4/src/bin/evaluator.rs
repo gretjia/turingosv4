@@ -19,6 +19,8 @@ use turingosv4::sdk::tools::wallet::WalletTool;
 use turingosv4::sdk::tools::search::SearchTool;
 use turingosv4::sdk::tools::librarian::LibrarianTool;
 
+use std::collections::{HashMap, HashSet};
+use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 use std::time::Instant;
 use log::{info, warn, error};
@@ -49,6 +51,15 @@ struct PputResult {
     classifier_version: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     boltzmann_seed: Option<u64>,
+    // C-036 harness telemetry: bypass-detection signals for multi-agent runs.
+    // tool_dist: counts per tool ({complete, append, invest, parse_fail, llm_err}).
+    //   complete=N append=0 ⇒ tape-bypass (Art. II.1 broadcast unused).
+    // unique_payload_ratio: distinct OMEGA payloads / total OMEGA attempts.
+    //   <0.30 ⇒ catastrophic agent correlation (F-2026-04-18-01).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tool_dist: Option<HashMap<String, u32>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    unique_payload_ratio: Option<f64>,
 }
 
 #[tokio::main]
@@ -175,21 +186,21 @@ async fn run_oneshot(
         Ok(response) => {
             // Rule 22 v2 clause 4: reject markdown fences
             if response.content.contains("```") {
-                return make_pput(problem_file, "oneshot", model, false, start, 0, 0, 1);
+                return make_pput(problem_file, "oneshot", model, false, start, 0, 0, 1, None, None);
             }
 
             match oracle.verify_omega(&response.content) {
                 Ok(true) => {
                     let gp_tokens = response.completion_tokens as u64;
                     info!(">>> OMEGA ACCEPTED <<<");
-                    make_pput(problem_file, "oneshot", model, true, start, gp_tokens, 1, 1)
+                    make_pput(problem_file, "oneshot", model, true, start, gp_tokens, 1, 1, None, None)
                 }
                 Ok(false) => {
-                    make_pput(problem_file, "oneshot", model, false, start, 0, 0, 1)
+                    make_pput(problem_file, "oneshot", model, false, start, 0, 0, 1, None, None)
                 }
                 Err(e) => {
                     warn!("Oracle error: {}", e);
-                    make_pput(problem_file, "oneshot", model, false, start, 0, 0, 1)
+                    make_pput(problem_file, "oneshot", model, false, start, 0, 0, 1, None, None)
                 }
             }
         }
@@ -262,6 +273,22 @@ async fn run_swarm(
     let tick_interval: usize = std::env::var("TICK_INTERVAL")
         .ok().and_then(|s| s.parse().ok()).unwrap_or(20);
 
+    // C-036 startup echo: per-agent (skill, temp) so debugging never grep-source.
+    let temp_ladder_on = std::env::var("TEMP_LADDER").ok().as_deref() == Some("1");
+    let agent_cfg: Vec<String> = (0..n_agents).map(|i| {
+        let s = i % agent_skills.len();
+        let t = if temp_ladder_on { (0.10_f64 + (i as f64) * 0.15).min(1.30) } else { 0.2 };
+        format!("Agent_{}:skill{}:t={:.2}", i, s, t)
+    }).collect();
+    info!("[swarm/{}] {}", condition, agent_cfg.join(" "));
+
+    // C-036 telemetry counters.
+    let mut tool_dist: HashMap<String, u32> = HashMap::new();
+    let mut omega_payload_hashes: HashSet<u64> = HashSet::new();
+    let mut omega_attempts: u32 = 0;
+    let mut zero_ticks_run: u32 = 0;
+    let mut zero_tick_warned = false;
+
     for tx in 0..max_transactions {
         // Map-reduce tick (Art. IV mermaid: clock → mr → tape)
         if tick_interval > 0 && tx > 0 && tx % tick_interval == 0 {
@@ -273,6 +300,17 @@ async fn run_swarm(
                 .collect();
             info!("[tick@tx{}] tape={} markets={} top={}", tx, tape_len, market_count,
                 top_prices.join(", "));
+            // C-036 zero-tick alarm: 5 consecutive ticks with no constitutional engine activity.
+            if tape_len == 0 && market_count == 0 {
+                zero_ticks_run += 1;
+                if zero_ticks_run >= 5 && !zero_tick_warned {
+                    warn!("[harness] {} consecutive zero-ticks (tape & markets idle) — \
+                           constitutional engines bypassed (Art. II.1/II.2 unused)", zero_ticks_run);
+                    zero_tick_warned = true;
+                }
+            } else {
+                zero_ticks_run = 0;
+            }
         }
 
         let agent_idx = tx % n_agents;
@@ -308,10 +346,18 @@ async fn run_swarm(
 
         // Model-aware max_tokens (same rule as oneshot branch).
         let max_toks = if model.contains("chat") { 8000 } else { 16000 };
+        // Art. II.2.1 anti-homogeneity: per-agent temperature ladder breaks
+        // sampling correlation among role-distinct agents (F-2026-04-18-03).
+        // Disabled (keep at 0.2) when TEMP_LADDER!=1 to isolate the mechanism.
+        let temp: f64 = if std::env::var("TEMP_LADDER").ok().as_deref() == Some("1") {
+            (0.10_f64 + (agent_idx as f64) * 0.15).min(1.30)
+        } else {
+            0.2
+        };
         let request = GenerateRequest {
             model: model.to_string(),
             messages: vec![Message { role: "user".into(), content: prompt }],
-            temperature: Some(0.2),
+            temperature: Some(temp),
             max_tokens: Some(max_toks),
         };
 
@@ -320,6 +366,7 @@ async fn run_swarm(
                 match parse_agent_output(&response.content) {
                     Ok(action) => match action.tool.as_str() {
                         "append" => {
+                            *tool_dist.entry("append".into()).or_insert(0) += 1;
                             if let Some(payload) = &action.payload {
                                 let prices: std::collections::HashMap<String, f64> =
                                     snap.markets.iter()
@@ -359,7 +406,13 @@ async fn run_swarm(
                             }
                         }
                         "complete" => {
+                            *tool_dist.entry("complete".into()).or_insert(0) += 1;
                             if let Some(payload) = &action.payload {
+                                // C-036: track payload diversity (catches F-2026-04-18-01 byte-identical proofs).
+                                let mut h = std::collections::hash_map::DefaultHasher::new();
+                                payload.hash(&mut h);
+                                omega_payload_hashes.insert(h.finish());
+                                omega_attempts += 1;
                                 info!("[tx {}] OMEGA claim by {}", tx, agent_id);
                                 let oracle = Lean4Oracle::new(
                                     problem_statement.to_string(),
@@ -379,8 +432,12 @@ async fn run_swarm(
                                         let gp = bus.kernel.tape.time_arrow().to_vec();
                                         let gp_nodes = gp.len() + 1; // +1 for the completing node (off-tape)
                                         bus.halt_and_settle(&gp).ok();
+                                        let upr = if omega_attempts > 0 {
+                                            Some(omega_payload_hashes.len() as f64 / omega_attempts as f64)
+                                        } else { None };
                                         return make_pput(problem_file, &condition, model, true,
-                                                        start, gp_tokens, gp_nodes, tx as u64 + 1);
+                                                        start, gp_tokens, gp_nodes, tx as u64 + 1,
+                                                        Some(tool_dist), upr);
                                     }
                                     Ok((false, err_detail)) => {
                                         // Step-B v3: classify + record class label (C-022 shield).
@@ -396,6 +453,7 @@ async fn run_swarm(
                             }
                         }
                         "invest" => {
+                            *tool_dist.entry("invest".into()).or_insert(0) += 1;
                             // Law 2: Only Investment Costs Money (1 Coin = 1 YES + 1 NO).
                             // Agent bets on a tape node's quality. This drives price signals
                             // (Art. II.2) which guide Boltzmann routing (Art. II.2.1).
@@ -446,9 +504,12 @@ async fn run_swarm(
                                 }
                             }
                         }
-                        _ => {}
+                        other => {
+                            *tool_dist.entry(format!("other:{}", other)).or_insert(0) += 1;
+                        }
                     },
                     Err(e) => {
+                        *tool_dist.entry("parse_fail".into()).or_insert(0) += 1;
                         // Step-B v3: parse failures feed the class graveyard too.
                         let class = classify_parse_error(&format!("{}", e));
                         bus.record_rejection(agent_id, class.label());
@@ -456,18 +517,27 @@ async fn run_swarm(
                     }
                 }
             }
-            Err(e) => { warn!("[tx {}] LLM: {}", tx, e); }
+            Err(e) => {
+                *tool_dist.entry("llm_err".into()).or_insert(0) += 1;
+                warn!("[tx {}] LLM: {}", tx, e);
+            }
         }
     }
 
+    let upr = if omega_attempts > 0 {
+        Some(omega_payload_hashes.len() as f64 / omega_attempts as f64)
+    } else { None };
     // No OMEGA found → PPUT = 0
-    make_pput(problem_file, &condition, model, false, start, 0, 0, max_transactions as u64)
+    make_pput(problem_file, &condition, model, false, start, 0, 0,
+              max_transactions as u64, Some(tool_dist), upr)
 }
 
 fn make_pput(
     problem: &str, condition: &str, model: &str,
     has_gp: bool, start: Instant,
     gp_tokens: u64, gp_nodes: usize, tx_count: u64,
+    tool_dist: Option<HashMap<String, u32>>,
+    unique_payload_ratio: Option<f64>,
 ) -> PputResult {
     let elapsed = start.elapsed().as_secs_f64();
     let pput = if has_gp && elapsed > 0.0 { 100.0 / elapsed } else { 0.0 };
@@ -489,5 +559,7 @@ fn make_pput(
         build_sha,
         classifier_version,
         boltzmann_seed,
+        tool_dist,
+        unique_payload_ratio,
     }
 }

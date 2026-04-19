@@ -1,0 +1,34 @@
+id: C-036
+title: "multi-agent harness 必须 emit 同质化体检指标"
+constitution:
+  - "Art. II.2.1: 不能抹杀群体异质性 (anti-homogeneity)"
+  - "Art. I.2: 白盒统计信号"
+source_lessons: [V3L-49]
+incident: F-2026-04-18-01
+facts: |
+  N-scaling 实验 (N∈{1,2,3,5,8} × 20 题) 得到 FLAT 曲线
+  (60/55/60/55/55%)。Bernoulli 预测 N=8 应 ≈99.9%，实测偏差 -45pp。
+  trace 检查显示 8 个 agent 在 hard 题目上提交 BYTE-IDENTICAL 证明。
+  根因：temperature 全部固定 0.2 + 3 个 skill 类轮询 ⇒ 数学上必然同质。
+  此问题至少存在 3 周（agent_skills 引入以来），harness 无任何指标暴露。
+ruling: |
+  multi-agent 实验 (n_agents > 1) 的 harness 必须 emit 三类体检指标：
+  (a) 工具使用分布 (tool_dist) — append=0 ⇒ tape-bypass，宪法 II.1 死代码
+  (b) 唯一 payload 比 (unique_payload_ratio) — <0.30 ⇒ 灾难性 agent 同质
+  (c) 启动配置 echo (per-agent skill+temp) — debug 不应靠 grep 源码
+  以及一个在线告警：
+  (d) 连续 5 个 zero-tick (tape=0 markets=0) 触发 WARN，提示宪法引擎闲置
+  这些是 white-box 统计信号 (Art. I.2)，不是新机制。
+  落地位置：experiments/*/src/bin/evaluator.rs PputResult 结构。
+precedent: |
+  Rule 25: multi-agent 实验 harness 必须 emit 同质化体检指标
+  1. PputResult 需含 tool_dist + unique_payload_ratio (Optional，向后兼容)
+  2. swarm 启动必须 log per-agent 配置 (skill_idx, temperature)
+  3. 5 个连续 zero-tick 必须 WARN once
+  4. 缺失任一项 = 不合格 harness，禁止用于发表性实验
+  注：本判例不增加宪法条款；Art. II.2.1 已要求异质性，
+  C-036 只是把"如何度量异质性"的工程实践写明，
+  避免 F-2026-04-18-01 类盲点 (跑了 3 周才被发现) 重演。
+rule: 25
+date: "2026-04-19"
+severity: high

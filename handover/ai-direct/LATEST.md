@@ -1,55 +1,33 @@
 # TuringOS v4 — Handover State
 
-**Updated**: 2026-04-15  
-**Session Summary**: v3.1 experiment completed — **n1 STRICT WIN over oneshot** (+7 solves/50, SolveRate 60% vs 46%). n3 aborted due to Art. II.1 broadcast mechanism break (F-2026-04-15-02, confirmed non-speculation).
+**Updated**: 2026-04-18 23:30 UTC
+**Session Summary**: N-scaling experiment complete (FLAT curve) → diagnosed catastrophic agent correlation → temp-ladder mechanism intervention launched.
 
-**Batch timestamp for audit**: `20260415T013559`
+## Current State
 
-## v3.1 Official Results (N=50 stratified, seed=74677, fp=796ead6c40351ae9)
+- **6/7 constitutional components** landed on main (Art. II.1 broadcast, Art. II.2.1 skill diversity, Art. III.2 Librarian, Art. IV map-reduce tick, oracle-cache, generic nN). Art. III.3 correlation shielding remains stub (deferred — needs tape population).
+- **N-scaling result (logs/nscaling_n*_20260418T143117.jsonl)**: PPUT(N=1,2,3,5,8) = (60%, 55%, 60%, 55%, 55%) on 20-problem sample. **FLAT** curve. Same 11 problems solved across all N; same 8 always fail. Bernoulli predicted ~99.9% at N=8 — violated by ~45pp.
+- **Root cause (F-2026-04-18-01/02/03)**:
+  - All 8 agents submit BYTE-IDENTICAL proofs (verified on `induction_1pxpownlt1pnx` n=8 trace)
+  - Tape stays empty (`tape=0`) — agents only use `complete`, never `append`/`invest`
+  - Temperature was fixed at 0.2 for all agents → no sampling decorrelation
+- **Smoke test**: with `TEMP_LADDER=1` (per-agent temp 0.10..1.30), the previously unsolvable `induction_1pxpownlt1pnx` was SOLVED at tx=155 by Agent_3.
+- **Active**: temp-ladder N=8 batch on 20 problems running (PID 3881314, log `exp_templadder.log`, results `templadder_n8_20260418T232656.jsonl`). ETA ~2-3h.
 
-### Primary metric (SolveRate, aborts = fail)
+## Next Steps
 
-| Condition | Solves / N | SolveRate | Aggregate_PPUT | Notes |
-|---|---|---|---|---|
-| oneshot | 23/50 | **46.0%** | 0.171 | 0 timeouts |
-| **n1** | **30/50** | **60.0%** | 0.126 | **+7 STRICT WIN vs oneshot**; 20 timeouts |
-| n3 | 7/50 | 14.0% | 0.018 | abort gate triggered @problem 10; 43 subsequent skipped |
+1. Monitor temp-ladder batch; record solve count vs nscaling baseline (11/20).
+2. If temp-ladder >12/20 → mechanism validated → replicate at full N=50.
+3. If temp-ladder ≈11/20 → temperature alone insufficient → escalate to tactic-disjoint role specialization (Bull/Bear analog) or sub-goal decomposition.
+4. Address dead infrastructure: agents bypass tape — consider mechanism to reward `append` (e.g., disable `complete` for first K tx).
 
-### Paired-subset (7 problems where all 3 conditions completed pre-abort)
+## Open Questions
 
-| Condition | Solves / 7 | Rate |
-|---|---|---|
-| oneshot | 2 | 29% |
-| n1 | 7 | 100% |
-| n3 | 7 | 100% |
+- Does temperature decorrelation alone restore Bernoulli scaling, or is tape-emptiness the dominant bottleneck?
+- Is the 60% scaffold ceiling (8 always-failing problems) a model limit or architecture limit?
+- After tape becomes active, does Art. II.1 broadcast (TopK error classes) actually steer agents away from repeated mistakes?
 
-**Pairwise**: n1 vs oneshot STRICT WIN (+5); n3 vs n1 EQUIVALENT; n3 vs oneshot STRICT WIN (+5).
+## Reference
 
-### Key signal (narrow, evidence-anchored)
-
-- **Primary**: n1 strict win over oneshot (+7 / +5 paired). Reproducibility of this +7 gap across seeds not tested.
-- **Paired descriptive**: n1 = n3 = 7/7 on the 7 problems where all 3 completed pre-n3-abort. This is a **descriptive** equivalence on a very small N=7.
-- **Causal claims deliberately NOT made here**:
-  - Not claiming "multi-agent gives no marginal gain" — N=7 and broken Art. II.1 (F-2026-04-15-02) disallow that inference (C-033).
-  - Not claiming "reasoner-redundancy confirmed" — that's the v3.2 hypothesis, not a v3.1 result.
-  - Safe characterization per external audit: n3 ≈ "three independent n3-style attempts with broken coordination" (different from "3 independent oneshots"; oneshot had 0 timeouts, n3 had 3/10).
-- **Open**: whether a fixed Art. II.1 (broadcast graveyard) would recover multi-agent benefit is a Step-B / v3.3 test.
-
-## Files
-- Results: `experiments/minif2f_v4/logs/v31_{oneshot,n1,n3}_20260415T013559.jsonl`
-- Stderr: `experiments/minif2f_v4/logs/v31_20260415T013559.err`
-- Analysis: `experiments/minif2f_v4/logs/frozen_analysis_20260415T013559.txt`
-- Diagnosis: `handover/ai-direct/N3_DIAGNOSIS_2026-04-15.md`
-- Notepad: `handover/ai-direct/AUTO_RESEARCH_NOTEPAD.md`
-
-## Next (post-M4 audit PASS)
-
-1. v3.2 chat-model comparison (same seed, deepseek-chat) — test "TuringOS replaces CoT" thesis
-2. Step-B protocol queued for `bus.rs recent_rejections` global-scope fix (post v3.2)
-
-## Audit request
-
-Auditors: read `AUTO_RESEARCH_NOTEPAD.md` §9 checklist first. Compare claims in this file against:
-- Raw jsonl counts (grep `"has_golden_path":true`)
-- frozen_analysis output
-- N3_DIAGNOSIS causal chain
+- v3.1 baseline (preserved for context): n1 30/50 (60%) > oneshot 23/50 (46%) STRICT WIN +7. See git log `e58e021`.
+- Notepad: `handover/ai-direct/AUTO_RESEARCH_NOTEPAD.md` — F-2026-04-18-01/02/03 finding details.

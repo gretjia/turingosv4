@@ -4,7 +4,7 @@
 
 **Hook**: `MEMORY.md` → `project_auto_research_notepad.md` points here. Loaded every session.
 
-**Last updated**: 2026-04-15 ~06:00 UTC
+**Last updated**: 2026-04-18 ~23:30 UTC
 
 ---
 
@@ -56,6 +56,30 @@
 - C-027 precedent: "所有影响行为的参数必须可通过环境变量/配置覆盖"
 - Remote routine found what my local session had missed — validates Routine A ROI
 - DRIFT_AUDIT_20260415.md commit `5fa3803`
+
+### F-2026-04-18-01: N-scaling shows FLAT curve (catastrophic correlation)
+- **Data**: PPUT(N=1,2,3,5,8) on 20 mixed problems = (60%, 55%, 60%, 55%, 55%) — flat
+- **Bernoulli predicts**: N=8 → 1-(1-0.6)^8 ≈ 99.9% (delta -45pp)
+- **Same set** of 11 problems solved across all N; same 8 always fail
+- **Trace evidence** (`logs/nscaling_20260418T143117.err`):
+  - On `induction_1pxpownlt1pnx` N=8: ALL 8 agents submit byte-identical proof
+    `induction' n with m IH ; · simp ; · rw [Finset.sum_range_succ, ..., IH] ; ring`
+  - 200 tx all → OMEGA-reject `unsolved_goals`
+- Mapped to: **constitutional infrastructure exists but agents ignore it**
+
+### F-2026-04-18-02: Tape stays empty, markets stay empty
+- All 100 problems × N=8: `[tick@txN] tape=0 markets=0 top=` throughout
+- Agents prefer `complete` (one-shot OMEGA claim) over `append`/`invest`
+- Art. II.1 broadcast (TopK error classes) IS being computed and passed to prompt
+  (line `evaluator.rs:292,305`), but agents do not behaviorally adapt
+- Art. II.2 markets receive zero `invest` calls
+- Implication: ~60% of constitutional engines (3/5) are dead code in practice
+
+### F-2026-04-18-03: Temperature is fixed at 0.2 for ALL agents (decorrelation gap)
+- `evaluator.rs:170,314` — both oneshot and swarm use `temperature: Some(0.2)`
+- 8 agents × identical temp × identical prompt (within 3 skill classes, cycled) ≈ identical output
+- Hypothesis: per-agent temperature ladder will break correlation
+- Cheapest mechanism-level intervention; testable in <1h on N=20 sample
 
 ### F-2026-04-17-04: Phase 3 incremental verified tactics — LLM granularity mismatch
 - 445 rejected, 0 verified writes. LLM outputs full proofs, not single tactics.
