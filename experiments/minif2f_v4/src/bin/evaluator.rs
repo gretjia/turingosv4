@@ -288,6 +288,8 @@ async fn run_swarm(
     let mut omega_attempts: u32 = 0;
     let mut zero_ticks_run: u32 = 0;
     let mut zero_tick_warned = false;
+    // Art. III.2: per-agent search result cache (bounded), fed into next prompt.
+    let mut search_cache: HashMap<String, Vec<String>> = HashMap::new();
 
     for tx in 0..max_transactions {
         // Map-reduce tick (Art. IV mermaid: clock → mr → tape)
@@ -339,8 +341,9 @@ async fn run_swarm(
         } else {
             format!("{}\n\n{}", base_skill, learned)
         };
+        let hits_ref: Vec<String> = search_cache.get(agent_id).cloned().unwrap_or_default();
         let prompt = build_agent_prompt(
-            &chain, &skill, &snap.market_ticker, &errors,
+            &chain, &skill, &snap.market_ticker, &errors, &hits_ref,
             snap.get_balance(agent_id), "append, complete, invest, search",
         );
 
@@ -506,19 +509,21 @@ async fn run_swarm(
                         }
                         "search" => {
                             *tool_dist.entry("search".into()).or_insert(0) += 1;
-                            // Law 1: search is free. Execute via SearchTool and surface top hits.
-                            // F-2026-04-19-02 fix: agents emit `search` calls but evaluator
-                            // had no handler — Art. III.2 search engine was dead at swarm layer.
+                            // Law 1: search is free. Execute via SearchTool, cache top hits
+                            // per agent so they surface in the next prompt (Art. III.2).
+                            // F-2026-04-19-02 fix; loop closed in this iteration.
                             if let Some(query) = &action.query {
                                 let hits = bus.tools.iter()
                                     .find_map(|t| t.as_any().downcast_ref::<SearchTool>())
                                     .map(|s| s.search(query))
                                     .unwrap_or_default();
-                                let preview: Vec<String> = hits.iter().take(3)
+                                let trimmed: Vec<String> = hits.iter().take(5)
                                     .map(|p| p.rsplit('/').next().unwrap_or(p).to_string())
                                     .collect();
                                 info!("[tx {}] {} search({:?}) → {} hits: {}",
-                                      tx, agent_id, query, hits.len(), preview.join(","));
+                                      tx, agent_id, query, hits.len(), trimmed.join(","));
+                                // Cache for next prompt (bounded: last 5 hits per agent).
+                                search_cache.insert(agent_id.clone(), trimmed);
                             }
                         }
                         other => {

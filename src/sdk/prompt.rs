@@ -13,6 +13,7 @@ pub fn build_agent_prompt(
     skill: &str,
     market_ticker: &str,
     recent_errors: &[String],
+    recent_search_hits: &[String],
     balance: f64,
     tools_description: &str,
 ) -> String {
@@ -50,6 +51,18 @@ pub fn build_agent_prompt(
         prompt.push('\n');
     }
 
+    // Art. III.2 progressive disclosure: surface recent search hits so the
+    // search tool is not a write-only sink (F-2026-04-19-02).
+    if !recent_search_hits.is_empty() {
+        prompt.push_str("=== Recent Search Hits ===\n");
+        for h in recent_search_hits.iter().take(5) {
+            prompt.push_str("- ");
+            prompt.push_str(h);
+            prompt.push('\n');
+        }
+        prompt.push('\n');
+    }
+
     // Balance (agent's resource awareness)
     prompt.push_str(&format!("Balance: {:.0} Coins\n\n", balance));
 
@@ -80,23 +93,31 @@ mod tests {
     #[test]
     fn test_prompt_contains_no_example_values() {
         // V3L-40: no hardcoded example amounts that become anchors
-        let prompt = build_agent_prompt("", "", "", &[], 10000.0, "append, invest, search");
+        let prompt = build_agent_prompt("", "", "", &[], &[], 10000.0, "append, invest, search");
         assert!(!prompt.contains("50.0"), "No example amounts in prompt");
         assert!(!prompt.contains("100.0"), "No example amounts in prompt");
     }
 
     #[test]
     fn test_prompt_includes_balance() {
-        let prompt = build_agent_prompt("", "", "", &[], 5000.0, "");
+        let prompt = build_agent_prompt("", "", "", &[], &[], 5000.0, "");
         assert!(prompt.contains("5000"));
     }
 
     #[test]
     fn test_prompt_truncates_errors_to_3() {
         let errors: Vec<String> = (0..10).map(|i| format!("error {}", i)).collect();
-        let prompt = build_agent_prompt("", "", "", &errors, 0.0, "");
+        let prompt = build_agent_prompt("", "", "", &errors, &[], 0.0, "");
         assert!(prompt.contains("error 0"));
         assert!(prompt.contains("error 2"));
         assert!(!prompt.contains("error 3"));
+    }
+
+    #[test]
+    fn test_prompt_surfaces_search_hits() {
+        let hits: Vec<String> = vec!["thm_a.lean".into(), "thm_b.lean".into()];
+        let prompt = build_agent_prompt("", "", "", &[], &hits, 0.0, "");
+        assert!(prompt.contains("Recent Search Hits"));
+        assert!(prompt.contains("thm_a.lean"));
     }
 }

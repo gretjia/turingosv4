@@ -75,6 +75,18 @@
 - Art. II.2 markets receive zero `invest` calls
 - Implication: ~60% of constitutional engines (3/5) are dead code in practice
 
+### F-2026-04-19-04: Search is filename-only; agents ask symbolic queries
+- Smoke test of search-loop closure: agent query `"abs (n - 2) ≤ 5 + 6 / 10"` → 0 hits
+- `SearchTool::search` substring-matches filenames only; queries describing lemma
+  content (inequalities, predicates) never match filenames
+- Loop-closure code works (hits flow into next prompt when non-empty),
+  but hit rate ≈0 on MiniF2F structure unless agent queries by theorem name
+- **Follow-up options** (not yet chosen):
+  (a) content grep inside `.lean` files (cheap, small index)
+  (b) Mathlib lemma-name index (needs build step)
+  (c) embedding search (out of scope — external dependency)
+- Files: `src/sdk/tools/search.rs:24` (filename-substring only)
+
 ### F-2026-04-19-03: TEMP_LADDER N=50 confirmation — +14pp over v3.1 baseline
 - **Data**: `logs/templadder_n8_20260419T013822.jsonl` (45 rows, 50 problems)
 - **Primary**: 37/50 SOLVED = 74.0% vs v3.1 n1 baseline 30/50 (60%) = **+7 solves +14pp**
