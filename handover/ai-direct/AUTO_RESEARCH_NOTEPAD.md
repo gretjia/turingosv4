@@ -75,6 +75,19 @@
 - Art. II.2 markets receive zero `invest` calls
 - Implication: ~60% of constitutional engines (3/5) are dead code in practice
 
+### F-2026-04-19-05: Search budget abuse (200 tx all on search)
+- Retry batch on 13 previously-failing problems with search-loop binary.
+- **3/13 recovered** (mathd_algebra_196, mathd_numbertheory_447, mathd_numbertheory_5)
+  - Cumulative N=50: 40/50 = 80%
+  - Cannot cleanly attribute to loop closure vs run variance (no same-sample control)
+- **New bug via telemetry**: 2 problems used 200 tx / 200 on `search`, zero complete:
+  - `algebra_amgm_sumasqdivbgeqsuma` → `{'search': 200}`
+  - `numbertheory_2pownm1prime_nprime` → `{'search': 200}`
+- Law 1 says "thinking is free" → no economic pressure to stop searching
+- Agents get stuck querying → never attempt OMEGA claim → definite fail
+- **Fix candidate**: cap search per-agent per-problem (e.g., max 20); drop tool from
+  prompt once cap exceeded. Mechanism-level (C-034), additive to search-loop closure.
+
 ### F-2026-04-19-04: Search is filename-only; agents ask symbolic queries
 - Smoke test of search-loop closure: agent query `"abs (n - 2) ≤ 5 + 6 / 10"` → 0 hits
 - `SearchTool::search` substring-matches filenames only; queries describing lemma

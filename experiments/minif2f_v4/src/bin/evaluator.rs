@@ -290,6 +290,11 @@ async fn run_swarm(
     let mut zero_tick_warned = false;
     // Art. III.2: per-agent search result cache (bounded), fed into next prompt.
     let mut search_cache: HashMap<String, Vec<String>> = HashMap::new();
+    // F-2026-04-19-05: cap searches per agent; beyond cap we remove `search`
+    // from the tool list so agents stop wasting budget on name-match misses.
+    let search_cap: u32 = std::env::var("SEARCH_CAP")
+        .ok().and_then(|s| s.parse().ok()).unwrap_or(20);
+    let mut search_count: HashMap<String, u32> = HashMap::new();
 
     for tx in 0..max_transactions {
         // Map-reduce tick (Art. IV mermaid: clock → mr → tape)
@@ -342,9 +347,14 @@ async fn run_swarm(
             format!("{}\n\n{}", base_skill, learned)
         };
         let hits_ref: Vec<String> = search_cache.get(agent_id).cloned().unwrap_or_default();
+        let tools_desc = if search_count.get(agent_id).copied().unwrap_or(0) >= search_cap {
+            "append, complete, invest"
+        } else {
+            "append, complete, invest, search"
+        };
         let prompt = build_agent_prompt(
             &chain, &skill, &snap.market_ticker, &errors, &hits_ref,
-            snap.get_balance(agent_id), "append, complete, invest, search",
+            snap.get_balance(agent_id), tools_desc,
         );
 
         // Model-aware max_tokens (same rule as oneshot branch).
@@ -508,22 +518,28 @@ async fn run_swarm(
                             }
                         }
                         "search" => {
-                            *tool_dist.entry("search".into()).or_insert(0) += 1;
-                            // Law 1: search is free. Execute via SearchTool, cache top hits
-                            // per agent so they surface in the next prompt (Art. III.2).
-                            // F-2026-04-19-02 fix; loop closed in this iteration.
-                            if let Some(query) = &action.query {
-                                let hits = bus.tools.iter()
-                                    .find_map(|t| t.as_any().downcast_ref::<SearchTool>())
-                                    .map(|s| s.search(query))
-                                    .unwrap_or_default();
-                                let trimmed: Vec<String> = hits.iter().take(5)
-                                    .map(|p| p.rsplit('/').next().unwrap_or(p).to_string())
-                                    .collect();
-                                info!("[tx {}] {} search({:?}) → {} hits: {}",
-                                      tx, agent_id, query, hits.len(), trimmed.join(","));
-                                // Cache for next prompt (bounded: last 5 hits per agent).
-                                search_cache.insert(agent_id.clone(), trimmed);
+                            // F-2026-04-19-05 cap: if over budget this agent's turn the
+                            // search slot shouldn't even be offered, but the LLM may still
+                            // emit `search` ignoring the prompt — record and skip execute.
+                            let cnt = search_count.entry(agent_id.clone()).or_insert(0);
+                            if *cnt >= search_cap {
+                                *tool_dist.entry("search_capped".into()).or_insert(0) += 1;
+                            } else {
+                                *cnt += 1;
+                                *tool_dist.entry("search".into()).or_insert(0) += 1;
+                                // Law 1: search is free. Execute and cache top hits (Art. III.2).
+                                if let Some(query) = &action.query {
+                                    let hits = bus.tools.iter()
+                                        .find_map(|t| t.as_any().downcast_ref::<SearchTool>())
+                                        .map(|s| s.search(query))
+                                        .unwrap_or_default();
+                                    let trimmed: Vec<String> = hits.iter().take(5)
+                                        .map(|p| p.rsplit('/').next().unwrap_or(p).to_string())
+                                        .collect();
+                                    info!("[tx {}] {} search({:?}) → {} hits: {}",
+                                          tx, agent_id, query, hits.len(), trimmed.join(","));
+                                    search_cache.insert(agent_id.clone(), trimmed);
+                                }
                             }
                         }
                         other => {
