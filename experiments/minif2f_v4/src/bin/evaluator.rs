@@ -421,34 +421,46 @@ async fn run_swarm(
                         "complete" => {
                             *tool_dist.entry("complete".into()).or_insert(0) += 1;
                             if let Some(payload) = &action.payload {
-                                // Art. IV: Q_t (tape) feeds ∏p (verification). Building
-                                // full_proof = tape_chain + payload closes the Turing loop —
-                                // without this, tape state is thrown away at verification
-                                // time, leaving the tape purely decorative (append=0 bug).
-                                // If tape is empty, falls back to single-payload verification.
+                                // Art. IV (∏p(output | Q_t)): Q_t (tape) feeds the verification
+                                // predicate. Dual-path: try payload-alone first (standalone proof
+                                // preserved), then tape+payload (tape-built proof). Accept whichever
+                                // succeeds. This keeps Q_t in the ∏p domain without punishing
+                                // self-contained proofs that ignored tape.
                                 let tape_chain: String = bus.kernel.tape.time_arrow().iter()
                                     .filter_map(|id| bus.kernel.tape.get(id))
                                     .map(|n| n.payload.clone())
                                     .collect::<Vec<_>>()
                                     .join("\n");
-                                let full_proof = if tape_chain.is_empty() {
-                                    payload.clone()
-                                } else {
-                                    format!("{}\n{}", tape_chain, payload)
-                                };
-                                // C-036: track payload diversity over the FULL verified artifact.
+                                let tape_len = bus.kernel.tape.time_arrow().len();
+                                // C-036: track payload diversity over what agent proposed.
                                 let mut h = std::collections::hash_map::DefaultHasher::new();
-                                full_proof.hash(&mut h);
+                                payload.hash(&mut h);
                                 omega_payload_hashes.insert(h.finish());
                                 omega_attempts += 1;
                                 info!("[tx {}] OMEGA claim by {} (tape_nodes={}, payload_len={})",
-                                      tx, agent_id, bus.kernel.tape.time_arrow().len(), payload.len());
+                                      tx, agent_id, tape_len, payload.len());
                                 let oracle = Lean4Oracle::new(
                                     problem_statement.to_string(),
                                     theorem_name.to_string(),
                                     lean_path.to_string(),
                                 );
-                                match oracle.verify_omega_detailed(&full_proof) {
+                                // Path 1: payload alone
+                                let r_alone = oracle.verify_omega_detailed(payload);
+                                let (full_proof, path_choice, r_final) = match &r_alone {
+                                    Ok((true, _)) => (payload.clone(), "alone", r_alone.clone()),
+                                    _ if !tape_chain.is_empty() => {
+                                        // Path 2: tape + payload
+                                        let combined = format!("{}\n{}", tape_chain, payload);
+                                        let r_combined = oracle.verify_omega_detailed(&combined);
+                                        if matches!(r_combined, Ok((true, _))) {
+                                            *tool_dist.entry("complete_via_tape".into()).or_insert(0) += 1;
+                                        }
+                                        (combined, "tape+payload", r_combined)
+                                    }
+                                    _ => (payload.clone(), "alone", r_alone.clone()),
+                                };
+                                let _ = (full_proof, path_choice); // retained for debug if needed
+                                match r_final {
                                     Ok((true, _)) => {
                                         info!(">>> OMEGA ACCEPTED <<<");
                                         let tape_tokens: u64 = bus.kernel.tape.time_arrow().iter()

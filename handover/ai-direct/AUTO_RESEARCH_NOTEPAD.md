@@ -75,6 +75,22 @@
 - Art. II.2 markets receive zero `invest` calls
 - Implication: ~60% of constitutional engines (3/5) are dead code in practice
 
+### F-2026-04-19-08: Tape-verification dual-path (revision of F-07)
+- F-07 strict `tape+payload` verification caused regression: 14/27 (52%) vs clean 78%.
+  Previously-easy problems timed out because agents took the bait, built tape
+  chains, and the chains had errors that failed whole-proof verification.
+- **Constitutional re-reading**: Art. IV mermaid `∏p(output | Q_t)` reads as
+  "∏p validates output, conditioned on Q_t" — tape enters via `rtool → input`,
+  so seeing tape in the prompt already satisfies Q_t → ∏p. Strict concatenation
+  overinterpreted the notation.
+- **Revised fix**: dual-path verification. Try `verify(payload)` first; if rejected
+  and tape non-empty, retry `verify(tape + payload)`. Either path counts as success.
+  New telemetry field `complete_via_tape` counts only the second-path wins.
+- **Prompt softened**: append described as "optional scratch space; use only if
+  you cannot one-shot". Agents recover one-shot behavior on easy problems
+  (smoke mathd_algebra_44: 3 tx, `tool_dist: {complete:3}`), while retaining
+  the option to build incrementally on hard ones.
+
 ### F-2026-04-19-07: CONSTITUTIONAL FIX — tape now load-bearing in ∏p
 - **Violation**: Art. IV mermaid requires Q_t (tape) → ∏p (verification).
   Previously `oracle.verify_omega_detailed(payload)` took payload ONLY,
