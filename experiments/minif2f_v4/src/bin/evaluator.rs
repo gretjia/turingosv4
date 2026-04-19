@@ -504,6 +504,23 @@ async fn run_swarm(
                                 }
                             }
                         }
+                        "search" => {
+                            *tool_dist.entry("search".into()).or_insert(0) += 1;
+                            // Law 1: search is free. Execute via SearchTool and surface top hits.
+                            // F-2026-04-19-02 fix: agents emit `search` calls but evaluator
+                            // had no handler — Art. III.2 search engine was dead at swarm layer.
+                            if let Some(query) = &action.query {
+                                let hits = bus.tools.iter()
+                                    .find_map(|t| t.as_any().downcast_ref::<SearchTool>())
+                                    .map(|s| s.search(query))
+                                    .unwrap_or_default();
+                                let preview: Vec<String> = hits.iter().take(3)
+                                    .map(|p| p.rsplit('/').next().unwrap_or(p).to_string())
+                                    .collect();
+                                info!("[tx {}] {} search({:?}) → {} hits: {}",
+                                      tx, agent_id, query, hits.len(), preview.join(","));
+                            }
+                        }
                         other => {
                             *tool_dist.entry(format!("other:{}", other)).or_insert(0) += 1;
                         }

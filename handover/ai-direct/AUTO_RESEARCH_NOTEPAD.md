@@ -4,7 +4,7 @@
 
 **Hook**: `MEMORY.md` → `project_auto_research_notepad.md` points here. Loaded every session.
 
-**Last updated**: 2026-04-18 ~23:30 UTC
+**Last updated**: 2026-04-19 ~01:35 UTC
 
 ---
 
@@ -74,6 +74,31 @@
   (line `evaluator.rs:292,305`), but agents do not behaviorally adapt
 - Art. II.2 markets receive zero `invest` calls
 - Implication: ~60% of constitutional engines (3/5) are dead code in practice
+
+### F-2026-04-19-02: Art. III.2 search engine dead at swarm layer
+- **Discovery**: C-036 telemetry on N=50 templadder batch showed `other:search: 149`
+  on `mathd_algebra_196` — agents emit `search` calls but evaluator had no handler
+  (`_ => {}` catchall silently dropped them).
+- Pre-existing bug since at least `28fa25d` (HEAD~1). SearchTool was mounted
+  but unreachable from swarm loop. Constitutional Art. III.2 (progressive disclosure)
+  partly broken.
+- **Fix**: added `"search" =>` handler that executes SearchTool and logs top hits.
+  Hits are NOT yet fed back into agent prompts — minimal fix only counts and logs.
+  Full integration (search results in next prompt) deferred until tape activation.
+- Files: `experiments/minif2f_v4/src/bin/evaluator.rs:507`
+- The N=50 templadder run started before this fix → mixed `other:search` (pre)
+  and `search` (post) labels in tool_dist. Acceptable: change is additive.
+
+### F-2026-04-19-01: TEMP_LADDER mechanism validated on N=20 sample
+- **Data**: temp ladder t_i = 0.10 + i*0.15 (clamped 1.30) per agent_idx
+- **Result**: N=8 + TEMP_LADDER=1 → 14/20 (70%)
+  - vs baseline (fixed t=0.2) → 11/20 (55%) — Δ +3 solves, +15pp
+- **3 newly solved** (all in baseline-fail set):
+  algebra_apbon2pownleqapownpbpowon2, imo_1981_p6, induction_1pxpownlt1pnx
+- **0 lost** (no regression on previously-solved)
+- McNemar (b=3,c=0) one-sided p≈0.125 on N=20 — needs N=50 for stat-sig
+- Mechanism cost: zero runtime (env var only); constitutionally aligned (Art. II.2.1)
+- Files: `logs/templadder_n8_20260418T232656.jsonl`
 
 ### F-2026-04-18-03: Temperature is fixed at 0.2 for ALL agents (decorrelation gap)
 - `evaluator.rs:170,314` — both oneshot and swarm use `temperature: Some(0.2)`
