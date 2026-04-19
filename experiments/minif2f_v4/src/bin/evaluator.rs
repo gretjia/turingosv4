@@ -421,18 +421,34 @@ async fn run_swarm(
                         "complete" => {
                             *tool_dist.entry("complete".into()).or_insert(0) += 1;
                             if let Some(payload) = &action.payload {
-                                // C-036: track payload diversity (catches F-2026-04-18-01 byte-identical proofs).
+                                // Art. IV: Q_t (tape) feeds ∏p (verification). Building
+                                // full_proof = tape_chain + payload closes the Turing loop —
+                                // without this, tape state is thrown away at verification
+                                // time, leaving the tape purely decorative (append=0 bug).
+                                // If tape is empty, falls back to single-payload verification.
+                                let tape_chain: String = bus.kernel.tape.time_arrow().iter()
+                                    .filter_map(|id| bus.kernel.tape.get(id))
+                                    .map(|n| n.payload.clone())
+                                    .collect::<Vec<_>>()
+                                    .join("\n");
+                                let full_proof = if tape_chain.is_empty() {
+                                    payload.clone()
+                                } else {
+                                    format!("{}\n{}", tape_chain, payload)
+                                };
+                                // C-036: track payload diversity over the FULL verified artifact.
                                 let mut h = std::collections::hash_map::DefaultHasher::new();
-                                payload.hash(&mut h);
+                                full_proof.hash(&mut h);
                                 omega_payload_hashes.insert(h.finish());
                                 omega_attempts += 1;
-                                info!("[tx {}] OMEGA claim by {}", tx, agent_id);
+                                info!("[tx {}] OMEGA claim by {} (tape_nodes={}, payload_len={})",
+                                      tx, agent_id, bus.kernel.tape.time_arrow().len(), payload.len());
                                 let oracle = Lean4Oracle::new(
                                     problem_statement.to_string(),
                                     theorem_name.to_string(),
                                     lean_path.to_string(),
                                 );
-                                match oracle.verify_omega_detailed(payload) {
+                                match oracle.verify_omega_detailed(&full_proof) {
                                     Ok((true, _)) => {
                                         info!(">>> OMEGA ACCEPTED <<<");
                                         let tape_tokens: u64 = bus.kernel.tape.time_arrow().iter()

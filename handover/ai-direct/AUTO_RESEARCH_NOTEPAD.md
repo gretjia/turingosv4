@@ -75,6 +75,27 @@
 - Art. II.2 markets receive zero `invest` calls
 - Implication: ~60% of constitutional engines (3/5) are dead code in practice
 
+### F-2026-04-19-07: CONSTITUTIONAL FIX — tape now load-bearing in ∏p
+- **Violation**: Art. IV mermaid requires Q_t (tape) → ∏p (verification).
+  Previously `oracle.verify_omega_detailed(payload)` took payload ONLY,
+  ignoring all tape state. Tape was decorative; `append=0` across 4 N=50 runs
+  proved agents correctly inferred that and bypassed tape.
+- **Fix** (`experiments/minif2f_v4/src/bin/evaluator.rs`):
+  ```
+  full_proof = tape_chain_payloads.join("\n") + "\n" + payload
+  oracle.verify_omega_detailed(&full_proof)
+  ```
+  When tape is empty, fallback preserves old behavior (no regression).
+- **Prompt update** (`src/sdk/prompt.rs`): schema section now explains that
+  `append` writes into Q_t and `complete` verifies `tape_chain + payload`.
+- **Smoke test**:
+  - `mathd_algebra_44` (easy): solved in 7 tx with `tool_dist: {append:4, search:2, complete:1}` —
+    first-ever observation of agents actually using append in this session
+  - `mathd_algebra_170` (hard): agents ran with `tape_nodes=3` per OMEGA claim;
+    natural `err:unknown_const` rejects, not regression from the fix
+- This closes the single most fundamental constitutional bug in the stack.
+  Without this, the system was N-parallel-retry, not a Turing machine.
+
 ### F-2026-04-19-06: Search cap mechanism validated
 - Capped retry on failed-13: **7/13 SOLVED** (vs pre-cap retry 3/13 — 2.3× improvement)
 - Both 200-search pathological problems cracked:

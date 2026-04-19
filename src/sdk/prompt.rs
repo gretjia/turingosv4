@@ -76,8 +76,12 @@ pub fn build_agent_prompt(
     prompt.push_str("Respond with exactly one <action>{JSON}</action> block. No prose outside.\n");
     prompt.push_str("Schemas by tool:\n");
     prompt.push_str("  {\"tool\":\"append\",\"payload\":\"<proof-step-text>\",\"node\":\"<optional-parent-id>\"}\n");
+    prompt.push_str("    Art. IV: appended payloads become tape-state (Q_t). At `complete` time,\n");
+    prompt.push_str("    the tape joins with your complete payload and is verified as a whole.\n");
+    prompt.push_str("    Use append to land partial tactics incrementally; use complete to bind them.\n");
     prompt.push_str("  {\"tool\":\"complete\",\"payload\":\"<tactics-only>\"}\n");
     prompt.push_str("    payload = tactics that go AFTER `:= by` in the theorem.\n");
+    prompt.push_str("    If tape has nodes, final proof = (tape payloads joined by \\n) + payload.\n");
     prompt.push_str("    MUST NOT start with `theorem`, `by`, or re-declare the goal.\n");
     prompt.push_str("    Indent as body of `by`; multi-line allowed.\n");
     prompt.push_str("  {\"tool\":\"search\",\"query\":\"<keyword>\"}\n");
