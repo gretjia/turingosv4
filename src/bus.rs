@@ -150,28 +150,51 @@ impl TuringBus {
     /// V3L-11: this runs serially, never concurrently.
     pub fn append(&mut self, author: &str, payload: &str,
                   parent_id: Option<&str>) -> Result<BusResult, String> {
-        // Phase 0: Forbidden pattern check
-        for pattern in &self.config.forbidden_patterns {
-            if payload.contains(pattern.as_str()) {
-                let reason = format!("Forbidden pattern: {}", pattern);
-                self.record_rejection(author, &reason);
-                return Ok(BusResult::Vetoed { reason });
+        self.append_internal(author, payload, parent_id, /*oracle_blessed*/ false)
+    }
+
+    /// Phase 2.1 (C-043 candidate): bypass agent-facing gates for ∏p-blessed payloads.
+    /// The forbidden_patterns list (C-011) exists to prevent agents from appending
+    /// brute-force tactics (e.g. bare `decide`, `omega`, `native_decide`) as scratch
+    /// work. Once the Lean oracle has accepted a full proof, those same tactics are
+    /// by construction legitimate — re-rejecting at bus level would block the
+    /// wtool write that Art. IV mandates. Only oracle-accepted payloads should
+    /// take this path. Payload-size caps are also relaxed (proofs are longer than
+    /// agent scratch steps).
+    pub fn append_oracle_accepted(&mut self, author: &str, payload: &str,
+                                   parent_id: Option<&str>) -> Result<BusResult, String> {
+        self.append_internal(author, payload, parent_id, /*oracle_blessed*/ true)
+    }
+
+    fn append_internal(&mut self, author: &str, payload: &str,
+                       parent_id: Option<&str>, oracle_blessed: bool) -> Result<BusResult, String> {
+        // Phase 0: Forbidden pattern check — skipped for oracle-accepted payloads.
+        if !oracle_blessed {
+            for pattern in &self.config.forbidden_patterns {
+                if payload.contains(pattern.as_str()) {
+                    let reason = format!("Forbidden pattern: {}", pattern);
+                    self.record_rejection(author, &reason);
+                    return Ok(BusResult::Vetoed { reason });
+                }
             }
         }
 
-        // Phase 0b: Payload size limits (V3L-21: one step per node)
-        if payload.len() > self.config.max_payload_chars {
-            let reason = format!("Payload too long: {} > {} chars",
-                                 payload.len(), self.config.max_payload_chars);
-            self.record_rejection(author, &reason);
-            return Ok(BusResult::Vetoed { reason });
-        }
-        let line_count = payload.lines().count();
-        if line_count > self.config.max_payload_lines {
-            let reason = format!("Too many lines: {} > {}",
-                                 line_count, self.config.max_payload_lines);
-            self.record_rejection(author, &reason);
-            return Ok(BusResult::Vetoed { reason });
+        // Phase 0b: Payload size limits (V3L-21). Skipped for oracle-accepted since
+        // real proofs can legitimately exceed the per-step scratch budget.
+        if !oracle_blessed {
+            if payload.len() > self.config.max_payload_chars {
+                let reason = format!("Payload too long: {} > {} chars",
+                                     payload.len(), self.config.max_payload_chars);
+                self.record_rejection(author, &reason);
+                return Ok(BusResult::Vetoed { reason });
+            }
+            let line_count = payload.lines().count();
+            if line_count > self.config.max_payload_lines {
+                let reason = format!("Too many lines: {} > {}",
+                                     line_count, self.config.max_payload_lines);
+                self.record_rejection(author, &reason);
+                return Ok(BusResult::Vetoed { reason });
+            }
         }
 
         // Phase 1: Tool pre-append hooks

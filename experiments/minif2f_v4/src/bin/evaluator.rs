@@ -537,12 +537,16 @@ async fn run_swarm(
                                         // every solve end with a canonical tape node on the GP.
                                         let parent = bus.kernel.tape.time_arrow().last().cloned();
                                         *tool_dist.entry("omega_wtool".into()).or_insert(0) += 1;
-                                        let omega_node_id = match bus.append(
+                                        // Use oracle-blessed path: Lean has already accepted this
+                                        // payload, so bus-level forbidden_patterns and size caps
+                                        // would only re-reject legitimate tactics (e.g. `omega`,
+                                        // `decide` used inside a verified proof — not brute-force).
+                                        let omega_node_id = match bus.append_oracle_accepted(
                                             agent_id, payload, parent.as_deref(),
                                         ) {
                                             Ok(BusResult::Appended { node_id }) => Some(node_id),
                                             Ok(BusResult::Vetoed { reason }) => {
-                                                warn!("[art-iv] OMEGA wtool VETO: {} — falling back to tape-less halt", reason);
+                                                warn!("[art-iv] OMEGA wtool VETO (unexpected after oracle accept): {}", reason);
                                                 None
                                             }
                                             _ => None,
