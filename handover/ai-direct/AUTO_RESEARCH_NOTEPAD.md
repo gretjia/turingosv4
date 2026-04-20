@@ -75,6 +75,29 @@
 - Art. II.2 markets receive zero `invest` calls
 - Implication: ~60% of constitutional engines (3/5) are dead code in practice
 
+### F-2026-04-20-02: Variance run (seed=31415) = 41/50 (82%)
+- Second dual-path N=50 on main with BOLTZMANN_SEED=31415
+- 41/50 vs the first dual-path's 43/50 (seed=74677)
+- **Mean across 2 seeds: 42/50 = 84%** (range ±1 solve = ±2pp)
+- 86% was slightly lucky but within normal variance; 82% floor is firm
+- Same persistent-fail set: mathd_algebra_293, mathd_algebra_332, induction_sumkexp3eqsumksq
+- File: logs/templadder_n8_20260420T020239.jsonl
+
+### F-2026-04-20-03: Tape Economy v1 @ fee=500 — economic mechanism too soft
+- Branch `feat/tape-economy-v1` (worktree), N=20 sample
+- **Result**: 16/20 (80%) vs control 18/20 (90%) — slight regression
+- **Telemetry smoking gun**: tool_dist `complete_cold_fee: 51` matches `complete: 51`
+  — every complete attempt paid the fee; `append: 0` still
+- Agents are price-insensitive at 500 Coins (5% of 10000 balance):
+  they prefer to brute-force pay than build tape
+- Hypothesis NOT confirmed at this fee level. Next: test COMPLETE_COLD_FEE=2000
+  (20% of balance) to see if higher pressure flips behavior, or if the
+  economic mechanism fundamentally doesn't activate tape without structural gate.
+- Files: logs/templadder_n8_20260420T044330.jsonl, TAPE_ECONOMY_v1_2026-04-20.md
+- **Constitutional note**: "complete requires tape non-empty" would be a
+  structural gate — stronger but closer to 奥利奥/micromanagement. Prefer
+  economic if it can work.
+
 ### F-2026-04-19-08: Tape-verification dual-path (revision of F-07)
 - F-07 strict `tape+payload` verification caused regression: 14/27 (52%) vs clean 78%.
   Previously-easy problems timed out because agents took the bait, built tape
