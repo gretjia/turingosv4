@@ -60,6 +60,17 @@ struct PputResult {
     tool_dist: Option<HashMap<String, u32>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     unique_payload_ratio: Option<f64>,
+    // Phase 0 (C-039 candidate): persisted full proof + path so external verifiers can
+    // re-run `lean --stdin` from disk artifacts alone, without trusting in-memory runtime.
+    // gp_payload = the exact text fed to oracle.verify_omega_detailed at OMEGA accept.
+    // gp_path = "alone" (payload self-contained) or "tape+payload" (Art. IV dual-path 2).
+    // gp_proof_file = relative path to the standalone .lean archive (problem + proof).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    gp_payload: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    gp_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    gp_proof_file: Option<String>,
 }
 
 #[tokio::main]
@@ -186,21 +197,31 @@ async fn run_oneshot(
         Ok(response) => {
             // Rule 22 v2 clause 4: reject markdown fences
             if response.content.contains("```") {
-                return make_pput(problem_file, "oneshot", model, false, start, 0, 0, 1, None, None);
+                return make_pput(problem_file, "oneshot", model, false, start, 0, 0, 1,
+                                 None, None, None, None, None);
             }
 
             match oracle.verify_omega(&response.content) {
                 Ok(true) => {
                     let gp_tokens = response.completion_tokens as u64;
-                    info!(">>> OMEGA ACCEPTED <<<");
-                    make_pput(problem_file, "oneshot", model, true, start, gp_tokens, 1, 1, None, None)
+                    let preview: String = response.content.chars().take(500).collect();
+                    info!(">>> OMEGA ACCEPTED <<< (path=alone, payload[0..500]={:?})", preview);
+                    let proof_file = persist_proof_artifact(
+                        problem_file, theorem_name, problem_statement,
+                        &response.content, "alone", "oneshot",
+                    );
+                    make_pput(problem_file, "oneshot", model, true, start, gp_tokens, 1, 1,
+                              None, None, Some(response.content.clone()),
+                              Some("alone".to_string()), proof_file)
                 }
                 Ok(false) => {
-                    make_pput(problem_file, "oneshot", model, false, start, 0, 0, 1, None, None)
+                    make_pput(problem_file, "oneshot", model, false, start, 0, 0, 1,
+                              None, None, None, None, None)
                 }
                 Err(e) => {
                     warn!("Oracle error: {}", e);
-                    make_pput(problem_file, "oneshot", model, false, start, 0, 0, 1, None, None)
+                    make_pput(problem_file, "oneshot", model, false, start, 0, 0, 1,
+                              None, None, None, None, None)
                 }
             }
         }
@@ -459,10 +480,17 @@ async fn run_swarm(
                                     }
                                     _ => (payload.clone(), "alone", r_alone.clone()),
                                 };
-                                let _ = (full_proof, path_choice); // retained for debug if needed
                                 match r_final {
                                     Ok((true, _)) => {
-                                        info!(">>> OMEGA ACCEPTED <<<");
+                                        // Phase 0 (C-039): persist the winning artifact so external
+                                        // verifiers can re-run lean from disk alone.
+                                        let preview: String = full_proof.chars().take(500).collect();
+                                        info!(">>> OMEGA ACCEPTED <<< (path={}, payload[0..500]={:?})",
+                                              path_choice, preview);
+                                        let proof_file = persist_proof_artifact(
+                                            problem_file, &theorem_name, &problem_statement,
+                                            &full_proof, path_choice, agent_id,
+                                        );
                                         let tape_tokens: u64 = bus.kernel.tape.time_arrow().iter()
                                             .filter_map(|id| bus.kernel.tape.get(id))
                                             .map(|n| n.payload.len() as u64)
@@ -478,7 +506,10 @@ async fn run_swarm(
                                         } else { None };
                                         return make_pput(problem_file, &condition, model, true,
                                                         start, gp_tokens, gp_nodes, tx as u64 + 1,
-                                                        Some(tool_dist), upr);
+                                                        Some(tool_dist), upr,
+                                                        Some(full_proof.clone()),
+                                                        Some(path_choice.to_string()),
+                                                        proof_file);
                                     }
                                     Ok((false, err_detail)) => {
                                         // Step-B v3: classify + record class label (C-022 shield).
@@ -595,7 +626,8 @@ async fn run_swarm(
     } else { None };
     // No OMEGA found → PPUT = 0
     make_pput(problem_file, &condition, model, false, start, 0, 0,
-              max_transactions as u64, Some(tool_dist), upr)
+              max_transactions as u64, Some(tool_dist), upr,
+              None, None, None)
 }
 
 fn make_pput(
@@ -604,6 +636,9 @@ fn make_pput(
     gp_tokens: u64, gp_nodes: usize, tx_count: u64,
     tool_dist: Option<HashMap<String, u32>>,
     unique_payload_ratio: Option<f64>,
+    gp_payload: Option<String>,
+    gp_path: Option<String>,
+    gp_proof_file: Option<String>,
 ) -> PputResult {
     let elapsed = start.elapsed().as_secs_f64();
     let pput = if has_gp && elapsed > 0.0 { 100.0 / elapsed } else { 0.0 };
@@ -627,5 +662,53 @@ fn make_pput(
         boltzmann_seed,
         tool_dist,
         unique_payload_ratio,
+        gp_payload,
+        gp_path,
+        gp_proof_file,
+    }
+}
+
+/// Phase 0 (C-039 candidate): persist a self-contained, re-verifiable proof artifact.
+/// Writes <EXPERIMENT_DIR>/proofs/<theorem>_<timestamp>_<short_hash>.lean containing
+/// the exact code that the Lean oracle accepted. An external verifier can run
+/// `lean --stdin < <file>` with the matching toolchain + Mathlib and reproduce the result.
+/// Returns the relative path (for embedding in PputResult) or None on I/O failure.
+fn persist_proof_artifact(
+    problem_file: &str, theorem_name: &str, problem_statement: &str,
+    full_proof: &str, path_choice: &str, agent_id: &str,
+) -> Option<String> {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let exp_dir = std::env::var("EXPERIMENT_DIR").unwrap_or_else(|_| ".".into());
+    let proofs_dir = std::path::Path::new(&exp_dir).join("proofs");
+    if let Err(e) = std::fs::create_dir_all(&proofs_dir) {
+        log::warn!("[audit] cannot create proofs dir {:?}: {}", proofs_dir, e);
+        return None;
+    }
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+    let mut h = DefaultHasher::new();
+    full_proof.hash(&mut h);
+    let short = format!("{:x}", h.finish() & 0xFFFFFFFF);
+    let fname = format!("{}_{}_{}.lean", theorem_name, ts, short);
+    let path = proofs_dir.join(&fname);
+    let header = format!(
+        "-- TuringOS v4 Phase 0 audit artifact (C-039 candidate)\n\
+         -- problem_file: {}\n\
+         -- theorem: {}\n\
+         -- path_choice: {} (alone | tape+payload)\n\
+         -- accepted_by_agent: {}\n\
+         -- timestamp_unix: {}\n\
+         -- Reproduce: LEAN_PATH=<mathlib paths> lean --stdin < this_file\n\
+         --\n",
+        problem_file, theorem_name, path_choice, agent_id, ts
+    );
+    let body = format!("{}\n{}\n{}", header, problem_statement, full_proof);
+    match std::fs::write(&path, body) {
+        Ok(_) => Some(format!("proofs/{}", fname)),
+        Err(e) => {
+            log::warn!("[audit] cannot write proof artifact {:?}: {}", path, e);
+            None
+        }
     }
 }
