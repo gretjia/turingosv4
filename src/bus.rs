@@ -256,6 +256,28 @@ impl TuringBus {
         self.kernel.create_market(&node_id, self.config.system_lp_amount)
             .ok(); // Market creation failure is non-fatal
 
+        // Phase 2 (C-042 candidate): founder grant — the author of this tape
+        // node auto-receives γ·system_lp YES shares. No Coin is minted: the
+        // market's redeem math pays out at most `lp_coins` on the winning side,
+        // so these shares draw from pre-committed ghost liquidity (same as how
+        // agent `invest` does). Gated by TAPE_ECONOMY_V2=1; γ via
+        // FOUNDER_GRANT_GAMMA env (experimental) → constitutional default at merge.
+        if std::env::var("TAPE_ECONOMY_V2").ok().as_deref() == Some("1") {
+            let gamma: f64 = std::env::var("FOUNDER_GRANT_GAMMA")
+                .ok().and_then(|s| s.parse().ok()).unwrap_or(0.05);
+            let grant_shares = gamma * self.config.system_lp_amount;
+            for tool in &mut self.tools {
+                if tool.manifest() == "wallet" {
+                    if let Some(wallet) = tool.as_any_mut()
+                        .downcast_mut::<crate::sdk::tools::wallet::WalletTool>()
+                    {
+                        wallet.record_shares(author, &node_id, grant_shares, 0.0, 0.0);
+                        break;
+                    }
+                }
+            }
+        }
+
         // Phase 5: Tool post-append hooks
         for tool in &mut self.tools {
             tool.on_post_append(author, &node_id);
@@ -282,6 +304,15 @@ impl TuringBus {
         // Resolve all markets
         self.kernel.resolve_all(golden_path).map_err(|e| e.to_string())?;
 
+        // Phase 2: pay out every agent's YES/NO positions against resolved markets.
+        // Shares redeem 1:1 against the winning side; losing shares redeem to 0.
+        // Conservation: LP that backed the market flows to winners; total Coin
+        // across the system is preserved (LP-side only). Gated behind the same
+        // TAPE_ECONOMY_V2 toggle so baseline runs keep historical behaviour.
+        if std::env::var("TAPE_ECONOMY_V2").ok().as_deref() == Some("1") {
+            self.settle_portfolios();
+        }
+
         // Tool halt hooks
         let gp: Vec<String> = golden_path.to_vec();
         for tool in &mut self.tools {
@@ -295,6 +326,43 @@ impl TuringBus {
             }
         }
         Ok(())
+    }
+
+    /// Phase 2: redeem every agent's portfolio against resolved markets.
+    /// Walks wallet.portfolios, finds matching resolved market, credits wallet
+    /// with share count on the winning side (0 on the losing side). Resolved
+    /// positions are zeroed to prevent double-redemption on a second call.
+    /// Conservation: pays only from LP already committed at market creation.
+    fn settle_portfolios(&mut self) {
+        use crate::sdk::tools::wallet::WalletTool;
+        // Snapshot resolved outcomes so we can borrow kernel + wallet disjointly.
+        let outcomes: HashMap<String, bool> = self.kernel.markets.iter()
+            .filter_map(|(id, m)| m.resolved.map(|w| (id.clone(), w)))
+            .collect();
+        let wallet: &mut WalletTool = match self.tools.iter_mut()
+            .find_map(|t| t.as_any_mut().downcast_mut::<WalletTool>())
+        {
+            Some(w) => w,
+            None => return,
+        };
+        let mut credits: Vec<(String, f64)> = Vec::new();
+        for (agent, portfolio) in wallet.portfolios.iter_mut() {
+            for (node_id, entry) in portfolio.iter_mut() {
+                let (yes, no, _lp) = *entry;
+                if let Some(yes_wins) = outcomes.get(node_id) {
+                    let payout = if *yes_wins { yes } else { no };
+                    if payout > 0.0 {
+                        credits.push((agent.clone(), payout));
+                    }
+                    // Zero out settled positions to make settle_portfolios idempotent.
+                    entry.0 = 0.0;
+                    entry.1 = 0.0;
+                }
+            }
+        }
+        for (agent, amount) in credits {
+            wallet.credit(&agent, amount);
+        }
     }
 
     /// Debit an agent's wallet. Finds the WalletTool among mounted tools.
