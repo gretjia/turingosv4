@@ -246,8 +246,12 @@ async fn run_swarm(
 
     let kernel = Kernel::new();
     let config = BusConfig {
-        max_payload_chars: 1200,
-        max_payload_lines: 18,
+        // Phase 2.1 (C-043 candidate): OMEGA-accepted proofs are auto-written
+        // as tape nodes (mandatory wtool per Art. IV). Full proofs can be
+        // long; raise bus caps so winning nodes don't get size-vetoed. Agent
+        // partials still typically <1200; no behavioural regression.
+        max_payload_chars: 8000,
+        max_payload_lines: 200,
         system_lp_amount: 200.0,
         // C-011: decide/omega/native_decide forbidden (brute-force precedent)
         forbidden_patterns: vec![
@@ -525,15 +529,36 @@ async fn run_swarm(
                                             problem_file, &theorem_name, &problem_statement,
                                             &full_proof, path_choice, agent_id,
                                         );
+                                        // Phase 2.1 (C-043 candidate): mandatory wtool. Art. IV says
+                                        // `∏p = 1 ⟹ Q_{t+1} = wtool(output)`. Before halting, write
+                                        // the winning payload as a tape node through the standard
+                                        // append pipeline. This automatically fires founder grant
+                                        // (Phase 2 reward-pull) for the winning author and makes
+                                        // every solve end with a canonical tape node on the GP.
+                                        let parent = bus.kernel.tape.time_arrow().last().cloned();
+                                        *tool_dist.entry("omega_wtool".into()).or_insert(0) += 1;
+                                        let omega_node_id = match bus.append(
+                                            agent_id, payload, parent.as_deref(),
+                                        ) {
+                                            Ok(BusResult::Appended { node_id }) => Some(node_id),
+                                            Ok(BusResult::Vetoed { reason }) => {
+                                                warn!("[art-iv] OMEGA wtool VETO: {} — falling back to tape-less halt", reason);
+                                                None
+                                            }
+                                            _ => None,
+                                        };
                                         let tape_tokens: u64 = bus.kernel.tape.time_arrow().iter()
                                             .filter_map(|id| bus.kernel.tape.get(id))
                                             .map(|n| n.payload.len() as u64)
                                             .sum();
-                                        // C-012: include the winning completion's LLM tokens,
-                                        // else direct-complete wins record 0 and distort PPUT.
-                                        let gp_tokens = tape_tokens + response.completion_tokens as u64;
+                                        // C-012: gp_tokens reflects the actual tape (now containing
+                                        // the winner), no double-count needed.
+                                        let gp_tokens = tape_tokens.max(response.completion_tokens as u64);
                                         let gp = bus.kernel.tape.time_arrow().to_vec();
-                                        let gp_nodes = gp.len() + 1; // +1 for the completing node (off-tape)
+                                        let gp_nodes = gp.len();
+                                        if omega_node_id.is_some() {
+                                            info!("[art-iv] OMEGA written as tape node; gp_nodes={}", gp_nodes);
+                                        }
                                         bus.halt_and_settle(&gp).ok();
                                         let upr = if omega_attempts > 0 {
                                             Some(omega_payload_hashes.len() as f64 / omega_attempts as f64)
