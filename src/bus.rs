@@ -46,6 +46,8 @@ pub struct TuringBus {
     pub tx_count: u64,
     pub generation: u32,
     graveyard: HashMap<String, Vec<String>>,
+    // Phase 1 (C-037 candidate): durable Q_t. None = legacy in-memory mode.
+    wal: Option<crate::wal::Wal>,
 }
 
 /// Scope for recent_rejections query.
@@ -79,7 +81,44 @@ impl TuringBus {
             tx_count: 0,
             generation: 0,
             graveyard: HashMap::new(),
+            wal: None,
         }
+    }
+
+    /// Phase 1: open with WAL persistence. If the path exists, replay it to
+    /// rebuild tape + ledger state (resume mode). If not, start fresh and append
+    /// to the WAL going forward (durable mode). Either way, the Wal handle is
+    /// retained and every successful tape.append / ledger.append persists.
+    pub fn with_wal_path(
+        kernel: Kernel,
+        config: BusConfig,
+        wal_path: impl Into<std::path::PathBuf>,
+    ) -> Result<Self, std::io::Error> {
+        let wal_path = wal_path.into();
+        let mut bus = Self::new(kernel, config);
+        // Replay first (if file exists), then open in append mode.
+        let (nodes, events) = crate::wal::Wal::replay(&wal_path)?;
+        let resumed_nodes = nodes.len();
+        let resumed_events = events.len();
+        for n in nodes {
+            // Replay errors are tolerable — duplicates and dangling cites can
+            // happen if the WAL was concurrently appended at a stale point. We
+            // log and skip; the surviving prefix is canonical Q_t.
+            if let Err(e) = bus.kernel.append(n.clone()) {
+                eprintln!("[wal/replay] skip node {}: {}", n.id, e);
+            }
+        }
+        for e in events {
+            // Re-append events through the ledger so hash chain is recomputed
+            // from this process's perspective. Original hashes are discarded.
+            bus.ledger.append(e.event_type, e.node_id, e.agent, e.detail).ok();
+        }
+        if resumed_nodes > 0 || resumed_events > 0 {
+            eprintln!("[wal/replay] resumed {} nodes, {} events from {:?}",
+                      resumed_nodes, resumed_events, wal_path);
+        }
+        bus.wal = Some(crate::wal::Wal::open(&wal_path)?);
+        Ok(bus)
     }
 
     /// Mount a tool into the bus. Tools execute in mount order.
@@ -99,7 +138,12 @@ impl TuringBus {
         for tool in &mut self.tools {
             tool.on_init(agent_ids);
         }
-        self.ledger.append(EventType::RunStart, None, None, None).ok();
+        if let Ok(evt) = self.ledger.append(EventType::RunStart, None, None, None) {
+            let evt_clone = evt.clone();
+            if let Some(w) = self.wal.as_mut() {
+                let _ = w.write_event(&evt_clone);
+            }
+        }
     }
 
     /// The main append pipeline — 6 phases.
@@ -164,8 +208,13 @@ impl TuringBus {
                 e.to_string()
             })?;
 
-            self.ledger.append(EventType::Invest, Some(target_node.clone()),
-                               Some(author.to_string()), None).ok();
+            if let Ok(evt) = self.ledger.append(EventType::Invest, Some(target_node.clone()),
+                               Some(author.to_string()), None) {
+                let evt_clone = evt.clone();
+                if let Some(w) = self.wal.as_mut() {
+                    let _ = w.write_event(&evt_clone);
+                }
+            }
             self.tx_count += 1;
             return Ok(BusResult::Invested { node_id: target_node, shares });
         }
@@ -186,7 +235,19 @@ impl TuringBus {
             completion_tokens: 0,
         };
 
-        self.kernel.append(node).map_err(|e| e.to_string())?;
+        self.kernel.append(node.clone()).map_err(|e| e.to_string())?;
+
+        // Phase 1 WAL: persist node AFTER successful in-memory append, BEFORE
+        // any downstream effects. At-most-one-loss-on-crash semantics: if the
+        // process dies between in-memory insert and this write, the node is
+        // lost on replay but every prior node survives. Log+continue on I/O
+        // error rather than aborting the run (Q_t durability is best-effort
+        // when disk is the failing component).
+        if let Some(w) = self.wal.as_mut() {
+            if let Err(e) = w.write_node(&node) {
+                log::warn!("[wal] write_node({}) failed: {}", node.id, e);
+            }
+        }
 
         // Phase 4: System Market Maker (Magna Carta Rule #19 exemption)
         // System MM injects liquidity from a dedicated pool, NOT from agent wallets.
@@ -200,8 +261,16 @@ impl TuringBus {
             tool.on_post_append(author, &node_id);
         }
 
-        self.ledger.append(EventType::Append, Some(node_id.clone()),
-                           Some(author.to_string()), None).ok();
+        if let Ok(evt) = self.ledger.append(EventType::Append, Some(node_id.clone()),
+                                             Some(author.to_string()), None) {
+            // Phase 1 WAL: persist ledger event for full hash-chain recovery.
+            if let Some(w) = self.wal.as_mut() {
+                let evt_clone = evt.clone();
+                if let Err(e) = w.write_event(&evt_clone) {
+                    log::warn!("[wal] write_event(Append) failed: {}", e);
+                }
+            }
+        }
         self.tx_count += 1;
         self.clock += 1;
 
@@ -219,7 +288,12 @@ impl TuringBus {
             tool.on_halt(&gp);
         }
 
-        self.ledger.append(EventType::RunEnd, None, None, None).ok();
+        if let Ok(evt) = self.ledger.append(EventType::RunEnd, None, None, None) {
+            let evt_clone = evt.clone();
+            if let Some(w) = self.wal.as_mut() {
+                let _ = w.write_event(&evt_clone);
+            }
+        }
         Ok(())
     }
 
