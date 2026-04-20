@@ -83,6 +83,25 @@
 - Same persistent-fail set: mathd_algebra_293, mathd_algebra_332, induction_sumkexp3eqsumksq
 - File: logs/templadder_n8_20260420T020239.jsonl
 
+### F-2026-04-20-04: Tape Economy v2 @ fee=2000 — same result, hypothesis refuted
+- Raised COMPLETE_COLD_FEE from 500 → 2000 (20% of 10000 balance)
+- **Result**: 16/20 solved — identical to v1@500
+- Telemetry: `complete_cold_fee: 54` matches `complete: 54` — agents paid every time
+- `append: 0` again — zero tape usage even at 2000 Coin fee
+- Mechanism analysis: 8 agents × 10000 start + 54 completes × 2000 = fees deplete budget
+  mid-batch, after which the "skip fee if insufficient balance" path kicks in and
+  agents complete for free. Softly degrades but never switches to append.
+- **Bold hypothesis REFUTED**: economic cold fee alone cannot activate tape, at
+  any tested fee level. Rational agents treat append as net cost (time + complexity)
+  vs. simpler direct-complete, and prefer bankruptcy to tape use.
+- **Remaining hypotheses for next session**:
+  a. Structural gate — forbid `complete` on empty tape (harsh)
+  b. Progressive gate — first K tx cannot complete (softer)
+  c. Reward-pull — bonus Coins for tape-based solves, not penalty for direct
+  d. Different model / stronger LLM — maybe current agents are too greedy-short-sighted
+- Branch `feat/tape-economy-v1` has full impl; NOT merged to main.
+- Files: logs/templadder_n8_20260420T063054.jsonl
+
 ### F-2026-04-20-03: Tape Economy v1 @ fee=500 — economic mechanism too soft
 - Branch `feat/tape-economy-v1` (worktree), N=20 sample
 - **Result**: 16/20 (80%) vs control 18/20 (90%) — slight regression
