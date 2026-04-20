@@ -64,6 +64,17 @@ def find_lean_binary() -> str | None:
     return None
 
 
+# F-2026-04-20-05: external audit must enforce C-011 forbidden patterns
+# independent of Lean (Lean accepts `native_decide` but we don't).
+# Mirror lean4_oracle.rs FORBIDDEN_PATTERNS.
+FORBIDDEN_PATTERNS = (
+    "#eval", "#check", "#reduce", "#exec", "#print",
+    "native_decide",
+    "IO.Process", "IO.FS", "System.FilePath",
+    "run_tac", "unsafe", "dbg_trace", "IO.println",
+)
+
+
 def reverify(lean_bin: str, lean_path: str, proof_file: Path, timeout_s: int = 300) -> tuple[bool, str]:
     """Spawn lean --stdin < proof_file and return (ok, detail)."""
     try:
@@ -71,6 +82,10 @@ def reverify(lean_bin: str, lean_path: str, proof_file: Path, timeout_s: int = 3
             code = f.read()
     except Exception as e:
         return False, f"cannot read artifact: {e}"
+    # Check forbidden patterns before Lean runs (C-011 / F-20-05 parity with oracle).
+    for pat in FORBIDDEN_PATTERNS:
+        if pat in code:
+            return False, f"forbidden_pattern: {pat}"
     env = dict(os.environ)
     env["LEAN_PATH"] = lean_path
     try:

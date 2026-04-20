@@ -83,6 +83,44 @@
 - Same persistent-fail set: mathd_algebra_293, mathd_algebra_332, induction_sumkexp3eqsumksq
 - File: logs/templadder_n8_20260420T020239.jsonl
 
+### F-2026-04-20-05: CRITICAL — `complete` bypassed forbidden_patterns; native_decide brute-force has been inflating solve counts
+- **Bypass**: `Lean4Oracle::verify_omega_detailed` is invoked directly by the
+  evaluator's `complete` handler — not via `bus.append`, so `on_pre_append →
+  check_payload` never ran on winning payloads. C-011's `native_decide` ban
+  (`FORBIDDEN_PATTERNS` in `lean4_oracle.rs`) was enforced ONLY on the
+  `append` path, not on the more common direct-complete path.
+- **Impact**: agents learned to emit `by native_decide` on certain number-
+  theory propositions. Lean accepts (bytecode brute force), ∏p returns true,
+  evaluator logs OMEGA ACCEPTED. Across 5 post-Phase-0 batches, 17 solves
+  were tainted:
+  - `mathd_numbertheory_235` and `254`: literally `native_decide`, every run
+  - `mathd_numbertheory_150/345` and `mathd_algebra_208`: intermittent
+- **Honest impact on prior headlines**:
+  - Phase 0 baseline (15/20) → 11/20 = 55% real
+  - Phase 1 WAL (17/20) → 13/20 = 65% real
+  - Phase 2 reward-pull (13/20) → 10/20 = 50% real
+  - Phase 2.1 mandatory wtool (16/20) → 13/20 = 65% real
+  - Phase 2.1b oracle-accepted (17/20) → 14/20 = 70% real
+  - Dual-path N=50 (43/50, 86%) and variance (41/50) — unknown, only 5 recent
+    runs had gp_payload saved, earlier solves can't be audited after the fact
+- **Root cause discovery**: Phase 2.1 telemetry surfaced it. The `omega_wtool`
+  count matched solved count (17 each) but 8/17 WAL files had zero `node`
+  records, because `bus.append` re-checked forbidden_patterns and rejected
+  the write. Phase 2.1b fixed bus (added `append_oracle_accepted`) — then 3
+  remaining zero-WAL cases pointed at `native_decide` specifically.
+- **Fix**: `verify_omega_detailed` now calls `check_payload` at the very
+  start (pre-Lean). Mirror in `audit_proof.py` so external verifier catches
+  the same policy. Past jsonl rows with `native_decide` in `gp_payload` are
+  now flagged as FAILED by the audit.
+- **Action taken**: oracle fix committed on main + worktree; audit_proof.py
+  updated. Re-running Phase 2.1c to measure honest solve rate.
+- **C-039 refinement note**: persisting gp_payload (Phase 0) is what let this
+  audit happen in the first place. Pre-Phase-0 runs claimed solves without
+  the payload, so their "verified" status relied on runtime trust alone.
+- **C-011 corollary**: forbidden patterns must be enforced at every ∏p entry
+  point, not just at the bus gate. Any future oracle API must call
+  `check_payload` internally.
+
 ### F-2026-04-20-04: Tape Economy v2 @ fee=2000 — same result, hypothesis refuted
 - Raised COMPLETE_COLD_FEE from 500 → 2000 (20% of 10000 balance)
 - **Result**: 16/20 solved — identical to v1@500

@@ -102,7 +102,18 @@ impl Lean4Oracle {
     /// Step-B v3: return (success, error_output) so callers can classify.
     /// Empty error string on success; raw combined stderr/stdout (truncated) on reject.
     /// Callers MUST pass through classify_lean_error before broadcast (C-022).
+    ///
+    /// F-2026-04-20-05 fix: run check_payload here too. Previously this was only
+    /// enforced via on_pre_append when the payload traversed bus.append. The
+    /// `complete` action calls this function directly and historically bypassed
+    /// the forbidden-pattern check, allowing `native_decide` brute-force bytecode
+    /// bypass to register as OMEGA. Enforcing here closes the hole without
+    /// breaking bus-path callers (idempotent double-check).
     pub fn verify_omega_detailed(&self, proof_chain: &str) -> Result<(bool, String), String> {
+        if let Err(reason) = self.check_payload(proof_chain) {
+            log::warn!("[oracle] payload rejected pre-Lean: {}", reason);
+            return Ok((false, format!("forbidden_payload: {}", reason)));
+        }
         let full_code = format!("{}\n{}", self.problem_statement, proof_chain);
         if has_word_boundary(&full_code, "sorry") || has_word_boundary(&full_code, "sorryAx") {
             return Ok((false, "sorry_in_proof".into()));
