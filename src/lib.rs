@@ -4,3 +4,4 @@ pub mod kernel;
 pub mod bus;
 pub mod sdk;
 pub mod drivers;
+pub mod wal;

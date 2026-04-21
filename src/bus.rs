@@ -46,6 +46,8 @@ pub struct TuringBus {
     pub tx_count: u64,
     pub generation: u32,
     graveyard: HashMap<String, Vec<String>>,
+    // Phase 1 (C-037 candidate): durable Q_t. None = legacy in-memory mode.
+    wal: Option<crate::wal::Wal>,
 }
 
 /// Scope for recent_rejections query.
@@ -79,7 +81,44 @@ impl TuringBus {
             tx_count: 0,
             generation: 0,
             graveyard: HashMap::new(),
+            wal: None,
         }
+    }
+
+    /// Phase 1: open with WAL persistence. If the path exists, replay it to
+    /// rebuild tape + ledger state (resume mode). If not, start fresh and append
+    /// to the WAL going forward (durable mode). Either way, the Wal handle is
+    /// retained and every successful tape.append / ledger.append persists.
+    pub fn with_wal_path(
+        kernel: Kernel,
+        config: BusConfig,
+        wal_path: impl Into<std::path::PathBuf>,
+    ) -> Result<Self, std::io::Error> {
+        let wal_path = wal_path.into();
+        let mut bus = Self::new(kernel, config);
+        // Replay first (if file exists), then open in append mode.
+        let (nodes, events) = crate::wal::Wal::replay(&wal_path)?;
+        let resumed_nodes = nodes.len();
+        let resumed_events = events.len();
+        for n in nodes {
+            // Replay errors are tolerable — duplicates and dangling cites can
+            // happen if the WAL was concurrently appended at a stale point. We
+            // log and skip; the surviving prefix is canonical Q_t.
+            if let Err(e) = bus.kernel.append(n.clone()) {
+                eprintln!("[wal/replay] skip node {}: {}", n.id, e);
+            }
+        }
+        for e in events {
+            // Re-append events through the ledger so hash chain is recomputed
+            // from this process's perspective. Original hashes are discarded.
+            bus.ledger.append(e.event_type, e.node_id, e.agent, e.detail).ok();
+        }
+        if resumed_nodes > 0 || resumed_events > 0 {
+            eprintln!("[wal/replay] resumed {} nodes, {} events from {:?}",
+                      resumed_nodes, resumed_events, wal_path);
+        }
+        bus.wal = Some(crate::wal::Wal::open(&wal_path)?);
+        Ok(bus)
     }
 
     /// Mount a tool into the bus. Tools execute in mount order.
@@ -99,35 +138,63 @@ impl TuringBus {
         for tool in &mut self.tools {
             tool.on_init(agent_ids);
         }
-        self.ledger.append(EventType::RunStart, None, None, None).ok();
+        if let Ok(evt) = self.ledger.append(EventType::RunStart, None, None, None) {
+            let evt_clone = evt.clone();
+            if let Some(w) = self.wal.as_mut() {
+                let _ = w.write_event(&evt_clone);
+            }
+        }
     }
 
     /// The main append pipeline — 6 phases.
     /// V3L-11: this runs serially, never concurrently.
     pub fn append(&mut self, author: &str, payload: &str,
                   parent_id: Option<&str>) -> Result<BusResult, String> {
-        // Phase 0: Forbidden pattern check
-        for pattern in &self.config.forbidden_patterns {
-            if payload.contains(pattern.as_str()) {
-                let reason = format!("Forbidden pattern: {}", pattern);
-                self.record_rejection(author, &reason);
-                return Ok(BusResult::Vetoed { reason });
+        self.append_internal(author, payload, parent_id, /*oracle_blessed*/ false)
+    }
+
+    /// Phase 2.1 (C-043 candidate): bypass agent-facing gates for ∏p-blessed payloads.
+    /// The forbidden_patterns list (C-011) exists to prevent agents from appending
+    /// brute-force tactics (e.g. bare `decide`, `omega`, `native_decide`) as scratch
+    /// work. Once the Lean oracle has accepted a full proof, those same tactics are
+    /// by construction legitimate — re-rejecting at bus level would block the
+    /// wtool write that Art. IV mandates. Only oracle-accepted payloads should
+    /// take this path. Payload-size caps are also relaxed (proofs are longer than
+    /// agent scratch steps).
+    pub fn append_oracle_accepted(&mut self, author: &str, payload: &str,
+                                   parent_id: Option<&str>) -> Result<BusResult, String> {
+        self.append_internal(author, payload, parent_id, /*oracle_blessed*/ true)
+    }
+
+    fn append_internal(&mut self, author: &str, payload: &str,
+                       parent_id: Option<&str>, oracle_blessed: bool) -> Result<BusResult, String> {
+        // Phase 0: Forbidden pattern check — skipped for oracle-accepted payloads.
+        if !oracle_blessed {
+            for pattern in &self.config.forbidden_patterns {
+                if payload.contains(pattern.as_str()) {
+                    let reason = format!("Forbidden pattern: {}", pattern);
+                    self.record_rejection(author, &reason);
+                    return Ok(BusResult::Vetoed { reason });
+                }
             }
         }
 
-        // Phase 0b: Payload size limits (V3L-21: one step per node)
-        if payload.len() > self.config.max_payload_chars {
-            let reason = format!("Payload too long: {} > {} chars",
-                                 payload.len(), self.config.max_payload_chars);
-            self.record_rejection(author, &reason);
-            return Ok(BusResult::Vetoed { reason });
-        }
-        let line_count = payload.lines().count();
-        if line_count > self.config.max_payload_lines {
-            let reason = format!("Too many lines: {} > {}",
-                                 line_count, self.config.max_payload_lines);
-            self.record_rejection(author, &reason);
-            return Ok(BusResult::Vetoed { reason });
+        // Phase 0b: Payload size limits (V3L-21). Skipped for oracle-accepted since
+        // real proofs can legitimately exceed the per-step scratch budget.
+        if !oracle_blessed {
+            if payload.len() > self.config.max_payload_chars {
+                let reason = format!("Payload too long: {} > {} chars",
+                                     payload.len(), self.config.max_payload_chars);
+                self.record_rejection(author, &reason);
+                return Ok(BusResult::Vetoed { reason });
+            }
+            let line_count = payload.lines().count();
+            if line_count > self.config.max_payload_lines {
+                let reason = format!("Too many lines: {} > {}",
+                                     line_count, self.config.max_payload_lines);
+                self.record_rejection(author, &reason);
+                return Ok(BusResult::Vetoed { reason });
+            }
         }
 
         // Phase 1: Tool pre-append hooks
@@ -164,8 +231,13 @@ impl TuringBus {
                 e.to_string()
             })?;
 
-            self.ledger.append(EventType::Invest, Some(target_node.clone()),
-                               Some(author.to_string()), None).ok();
+            if let Ok(evt) = self.ledger.append(EventType::Invest, Some(target_node.clone()),
+                               Some(author.to_string()), None) {
+                let evt_clone = evt.clone();
+                if let Some(w) = self.wal.as_mut() {
+                    let _ = w.write_event(&evt_clone);
+                }
+            }
             self.tx_count += 1;
             return Ok(BusResult::Invested { node_id: target_node, shares });
         }
@@ -186,7 +258,19 @@ impl TuringBus {
             completion_tokens: 0,
         };
 
-        self.kernel.append(node).map_err(|e| e.to_string())?;
+        self.kernel.append(node.clone()).map_err(|e| e.to_string())?;
+
+        // Phase 1 WAL: persist node AFTER successful in-memory append, BEFORE
+        // any downstream effects. At-most-one-loss-on-crash semantics: if the
+        // process dies between in-memory insert and this write, the node is
+        // lost on replay but every prior node survives. Log+continue on I/O
+        // error rather than aborting the run (Q_t durability is best-effort
+        // when disk is the failing component).
+        if let Some(w) = self.wal.as_mut() {
+            if let Err(e) = w.write_node(&node) {
+                log::warn!("[wal] write_node({}) failed: {}", node.id, e);
+            }
+        }
 
         // Phase 4: System Market Maker (Magna Carta Rule #19 exemption)
         // System MM injects liquidity from a dedicated pool, NOT from agent wallets.
@@ -195,13 +279,43 @@ impl TuringBus {
         self.kernel.create_market(&node_id, self.config.system_lp_amount)
             .ok(); // Market creation failure is non-fatal
 
+        // Phase 2 (C-042 candidate): founder grant — the author of this tape
+        // node auto-receives γ·system_lp YES shares. No Coin is minted: the
+        // market's redeem math pays out at most `lp_coins` on the winning side,
+        // so these shares draw from pre-committed ghost liquidity (same as how
+        // agent `invest` does). Gated by TAPE_ECONOMY_V2=1; γ via
+        // FOUNDER_GRANT_GAMMA env (experimental) → constitutional default at merge.
+        if std::env::var("TAPE_ECONOMY_V2").ok().as_deref() == Some("1") {
+            let gamma: f64 = std::env::var("FOUNDER_GRANT_GAMMA")
+                .ok().and_then(|s| s.parse().ok()).unwrap_or(0.05);
+            let grant_shares = gamma * self.config.system_lp_amount;
+            for tool in &mut self.tools {
+                if tool.manifest() == "wallet" {
+                    if let Some(wallet) = tool.as_any_mut()
+                        .downcast_mut::<crate::sdk::tools::wallet::WalletTool>()
+                    {
+                        wallet.record_shares(author, &node_id, grant_shares, 0.0, 0.0);
+                        break;
+                    }
+                }
+            }
+        }
+
         // Phase 5: Tool post-append hooks
         for tool in &mut self.tools {
             tool.on_post_append(author, &node_id);
         }
 
-        self.ledger.append(EventType::Append, Some(node_id.clone()),
-                           Some(author.to_string()), None).ok();
+        if let Ok(evt) = self.ledger.append(EventType::Append, Some(node_id.clone()),
+                                             Some(author.to_string()), None) {
+            // Phase 1 WAL: persist ledger event for full hash-chain recovery.
+            if let Some(w) = self.wal.as_mut() {
+                let evt_clone = evt.clone();
+                if let Err(e) = w.write_event(&evt_clone) {
+                    log::warn!("[wal] write_event(Append) failed: {}", e);
+                }
+            }
+        }
         self.tx_count += 1;
         self.clock += 1;
 
@@ -213,14 +327,65 @@ impl TuringBus {
         // Resolve all markets
         self.kernel.resolve_all(golden_path).map_err(|e| e.to_string())?;
 
+        // Phase 2: pay out every agent's YES/NO positions against resolved markets.
+        // Shares redeem 1:1 against the winning side; losing shares redeem to 0.
+        // Conservation: LP that backed the market flows to winners; total Coin
+        // across the system is preserved (LP-side only). Gated behind the same
+        // TAPE_ECONOMY_V2 toggle so baseline runs keep historical behaviour.
+        if std::env::var("TAPE_ECONOMY_V2").ok().as_deref() == Some("1") {
+            self.settle_portfolios();
+        }
+
         // Tool halt hooks
         let gp: Vec<String> = golden_path.to_vec();
         for tool in &mut self.tools {
             tool.on_halt(&gp);
         }
 
-        self.ledger.append(EventType::RunEnd, None, None, None).ok();
+        if let Ok(evt) = self.ledger.append(EventType::RunEnd, None, None, None) {
+            let evt_clone = evt.clone();
+            if let Some(w) = self.wal.as_mut() {
+                let _ = w.write_event(&evt_clone);
+            }
+        }
         Ok(())
+    }
+
+    /// Phase 2: redeem every agent's portfolio against resolved markets.
+    /// Walks wallet.portfolios, finds matching resolved market, credits wallet
+    /// with share count on the winning side (0 on the losing side). Resolved
+    /// positions are zeroed to prevent double-redemption on a second call.
+    /// Conservation: pays only from LP already committed at market creation.
+    fn settle_portfolios(&mut self) {
+        use crate::sdk::tools::wallet::WalletTool;
+        // Snapshot resolved outcomes so we can borrow kernel + wallet disjointly.
+        let outcomes: HashMap<String, bool> = self.kernel.markets.iter()
+            .filter_map(|(id, m)| m.resolved.map(|w| (id.clone(), w)))
+            .collect();
+        let wallet: &mut WalletTool = match self.tools.iter_mut()
+            .find_map(|t| t.as_any_mut().downcast_mut::<WalletTool>())
+        {
+            Some(w) => w,
+            None => return,
+        };
+        let mut credits: Vec<(String, f64)> = Vec::new();
+        for (agent, portfolio) in wallet.portfolios.iter_mut() {
+            for (node_id, entry) in portfolio.iter_mut() {
+                let (yes, no, _lp) = *entry;
+                if let Some(yes_wins) = outcomes.get(node_id) {
+                    let payout = if *yes_wins { yes } else { no };
+                    if payout > 0.0 {
+                        credits.push((agent.clone(), payout));
+                    }
+                    // Zero out settled positions to make settle_portfolios idempotent.
+                    entry.0 = 0.0;
+                    entry.1 = 0.0;
+                }
+            }
+        }
+        for (agent, amount) in credits {
+            wallet.credit(&agent, amount);
+        }
     }
 
     /// Debit an agent's wallet. Finds the WalletTool among mounted tools.
