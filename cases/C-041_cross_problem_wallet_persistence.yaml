@@ -1,0 +1,36 @@
+id: C-041
+title: "Wallet + portfolio 必须可跨问题持久；genesis_done 一次且仅一次"
+constitution:
+  - "Law 2: 1 Coin = 1 YES + 1 NO; CTF conservation; no post-genesis mint"
+  - "Art. IV: Q 无 process-lifetime 语义"
+source_lessons: [V3L-41, V3L-42, V3L-43]
+incident: C-001 (historical fund_agent leak risk)
+facts: |
+  v3/v4 早期的每个 evaluator 进程都 `WalletTool::on_init(agent_ids)` 重新
+  genesis，10000 coin/agent。跨问题运行时，reputation 完全失效 —
+  agent 在问题 1 赚的钱在问题 2 开始时归零 → Hayek 价格信号不连续 →
+  agent 无法通过经验学到 "solve (via mandatory wtool → founder grant)
+  earns coin"。同时，若允许进程间"重新 genesis"，每次启动就是一次
+  post-genesis mint (C-001 历史教训)。
+ruling: |
+  Wallet + portfolio 状态必须 opt-in 持久化：
+  1. WalletTool 实现 save_to_disk / load_from_disk (serde JSON 往返)
+  2. genesis_done 标志随 serde 一起持久 → 加载后 on_init 自动 no-op
+     (不会发生第二次 mint)
+  3. 新的 agent_id 加入已有钱包：ensure_agents() 看 genesis_done；
+     已完成则新 agent 零余额进入（C-038 candidate），未完成则按
+     genesis_coins 首次 mint
+  4. 保存时机：每次 OMEGA accept 后 + 每次 max_transactions 用尽后
+     (agent 可能在失败批次里 invest 亏损，状态仍需持久)
+precedent: |
+  Rule 28: 钱包状态跨问题必须可持久且不得重铸
+  1. WALLET_STATE env 指向 json 文件 = 持久模式；缺省 = 每次 genesis
+  2. 持久模式下：genesis_done 标志透传，on_init 不重铸
+  3. 新 agent 入场：若 genesis_done 为 true → 零余额（由 sponsor/earn
+     获得 coin）；否则首次 genesis
+  4. 任何会在进程退出时"静默清算"未结算 market 的代码 = veto 触发
+     （silent mint via share-evaporation，见红线 #2）
+  5. 配套测试：总 Coin 数在跨问题 batch 前后守恒
+rule: 28
+date: "2026-04-21"
+severity: high

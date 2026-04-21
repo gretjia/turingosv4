@@ -1,0 +1,35 @@
+id: C-039
+title: "OMEGA 必须留下可独立复验的证明 artifact"
+constitution:
+  - "Art. I.1: boolean predicate — pass/fail only"
+  - "Art. V.2: 宪法违规零容忍"
+source_lessons: [V3L-02]
+incident: F-2026-04-20-04
+facts: |
+  Phase 0 前：PputResult 仅保存 {problem, has_golden_path, tx_count,
+  gp_token_count...}，不保存证明文本本身。Stderr 日志在 OMEGA ACCEPTED
+  时也只写 ">>> OMEGA ACCEPTED <<<" 一行，不写 payload preview。
+  用户追问："之前的结果如何被验证有效？如何证明不是 llm 自己编的 OMEGA？"
+  诚实回答：运行时 Lean 4 真的跑过；但事后拿着 jsonl + 问题文件 + Mathlib
+  不能独立复验任一已声称的解。审计链仅为"信我运行时 Lean 说 yes"。
+  当外部 agent 进入、需要可信对账时，这个漏洞是致命的。
+ruling: |
+  每个 OMEGA accept 必须产出一个自包含的、可独立运行的 artifact：
+  1. PputResult 新增 gp_payload: Option<String> (∏p 接受的 payload 原文)
+  2. PputResult 新增 gp_path: Option<String> ("alone" | "tape+payload")
+  3. PputResult 新增 gp_proof_file: Option<String> (指向 proofs/*.lean)
+  4. proofs/<theorem>_<ts>_<hash>.lean 为 self-contained（含 problem +
+     proof + reproduction header），可直接 lean --stdin < file 跑通
+  5. 配套 audit_proof.py 读 jsonl + proofs/ 离线复验，执行 Lean 并检查
+     同样的 FORBIDDEN_PATTERNS（F-2026-04-20-05 教训）
+  旧 jsonl 无这些字段 → 优雅报告 "cannot reverify, legacy row"
+precedent: |
+  Rule 27: ∏p=1 必须 persist 可复验 artifact
+  1. gp_payload / gp_path / gp_proof_file 三字段齐全
+  2. proofs/*.lean 文件必须包含 problem_statement + 接受的 payload
+  3. audit_proof.py 必须独立检查 FORBIDDEN_PATTERNS（不能只信 Lean）
+  4. 缺失任一项 = 不合格 run，不可用于对外发表或数据对比
+  5. "ran but not saved" = 宪法层面等同于未曾运行 (C-035 零容忍延伸)
+rule: 27
+date: "2026-04-20"
+severity: critical

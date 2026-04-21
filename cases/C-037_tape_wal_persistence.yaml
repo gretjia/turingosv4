@@ -1,0 +1,32 @@
+id: C-037
+title: "Tape WAL 强制持久化：Q_t 必须跨进程存活"
+constitution:
+  - "Art. IV: Q_t → rtool → input → AI(δ) → output → ∏p → wtool → Q_{t+1}"
+  - "Law 1: information is free (reads never charged)"
+source_lessons: [V3L-24, F-2026-04-15-03]
+incident: F-2026-04-19-07
+facts: |
+  Phase 1 之前所有 run 的 tape 都是纯内存。进程退出 / 崩溃 → Q 全失。
+  用户原话："how to resume and memory any tasks" — 指出这是图灵机 violation：
+  Q 不演化、不持久 = 根本不是图灵机。F-2026-04-19-07 的 tape-verification
+  修复只解决了"∏p 要见到 Q_t"的一半；"Q_t 要活过进程"是另一半。
+ruling: |
+  Bus 需暴露 `with_wal_path` 构造路径。每个 tape.append 与 ledger.append
+  成功后同步写入 WAL（JSON 行，fsync + sync_data）。启动时若 WAL 存在，
+  先 replay 重建 tape+ledger 再开始接收新 append。
+  Crash 语义：at-most-one-loss-on-crash（WAL 写发生在 in-memory append
+  成功之后；若进程在这两步之间死掉，丢失的节点最多一个，之前所有节点
+  与事件都可恢复）。
+  对内核拓扑不引入新结构；仅把 Q_t 的"存储介质"从 RAM 换成"RAM+磁盘"。
+precedent: |
+  Rule 26: Tape + Ledger 必须可持久化
+  1. src/wal.rs 提供 append-only JSONL writer
+  2. Bus::with_wal_path 构造 ⇒ 既 replay 又持续写
+  3. 所有通过 bus 的 tape/ledger 变更必须被持久化
+  4. 进程崩溃 + 重启后 tape state 必须可完整还原 (除最多 1 个未 fsync 的节点)
+  5. WAL 写失败不得阻断 in-memory 运行 (log warn, continue)
+  注：此判例并不强迫所有 run 都开 WAL（性能代价），但对面向未来的
+  external-agents 世界是强制的；当前 opt-in via WAL_DIR env。
+rule: 26
+date: "2026-04-20"
+severity: high

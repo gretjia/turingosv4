@@ -1,0 +1,38 @@
+id: C-043
+title: "∏p = 1 必须触发 wtool：Q_{t+1} 无条件演化"
+constitution:
+  - "Art. IV: Q_{t+1} = wtool(output) if ∏p = 1; Q_{t+1} = Q_t if ∏p = 0"
+source_lessons: []
+incident: F-2026-04-19-07 (tape bypass at verification), F-2026-04-20-05 (append=0 persistence)
+facts: |
+  v3/v4 早期的 `complete` action 直接走 halt，跳过 wtool。
+  Art. IV mermaid 明确写 "Q_{t+1} = wtool(output) if ∏p = 1"，
+  而实现里 ∏p=1 后 system halts，wtool 从未触发，Q_{t+1} 不存在。
+  结果：append=0 在所有 43 solves N=50 dual-path 中。
+  架构"是图灵机"，运行时"退化成 N 路并行 LLM 调用" — 这是最深的
+  Art. IV violation。
+ruling: |
+  ∏p = 1 必须无条件触发 wtool，即 complete 接受后，payload 必须通过
+  bus.append_oracle_accepted 写入 tape 作为一个节点：
+  1. complete 接受 → evaluator 调 bus.append_oracle_accepted(agent, payload, parent)
+  2. bus.append_oracle_accepted 跳过 agent-facing forbidden_patterns / size
+     caps（∏p 已经判过，不可重复否决）
+  3. 写成功后再调 halt_and_settle，使该节点在 golden_path 内
+  4. 配合 C-042 founder grant: 该节点自动给作者 γ·lp YES → halt 结算
+     时作者 wallet += γ·lp → 每一次解题必然产生经济反馈回路
+  这不是"鼓励 agent 用 tape"；是"系统保证 Q 演化"。C-034：mechanism
+  not prompt，不通过提示约束行为。
+precedent: |
+  Rule 29: Complete-accept 必须经 wtool 写 tape
+  1. evaluator.rs complete 接受分支：append_oracle_accepted 在 halt_and_settle
+     之前执行
+  2. bus.rs 提供 append_oracle_accepted 区分于 append（跳过 C-011 等
+     agent-facing 门）
+  3. 每次 omega_wtool telemetry counter == solved count (PputResult 级别
+     可观测不变量)
+  4. 若 append_oracle_accepted 失败 (极端边缘情况)，fall back 到原 halt
+     但 log WARN，不静默跳过
+  注：此判例强化宪法 Art. IV，不引入新条款；仅把已有拓扑"真正落地"。
+rule: 29
+date: "2026-04-20"
+severity: critical
