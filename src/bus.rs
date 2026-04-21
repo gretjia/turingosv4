@@ -138,6 +138,16 @@ impl TuringBus {
         for tool in &mut self.tools {
             tool.on_init(agent_ids);
         }
+        // Phase 3A (Hayek): open the bounty market at genesis if the feature
+        // is enabled. Seed from ghost-liquidity pool (same exemption as per-
+        // node markets — pre-committed LP, not a mint). BOUNTY_LP env tunable
+        // for experimentation; constitutional default lands later.
+        if std::env::var("HAYEK_BOUNTY").ok().as_deref() == Some("1") {
+            let lp: f64 = std::env::var("BOUNTY_LP")
+                .ok().and_then(|s| s.parse().ok())
+                .unwrap_or(self.config.system_lp_amount);
+            let _ = self.kernel.open_bounty_market(lp);
+        }
         if let Ok(evt) = self.ledger.append(EventType::RunStart, None, None, None) {
             let evt_clone = evt.clone();
             if let Some(w) = self.wal.as_mut() {
@@ -336,6 +346,20 @@ impl TuringBus {
             self.settle_portfolios();
         }
 
+        // Phase 3A (Hayek): resolve the bounty market and distribute its
+        // committed LP to GP-node authors by occurrence count. This creates
+        // the cross-agent reward that makes appending a lemma EV-positive
+        // independently of whether the lemma-author also closes the proof.
+        if std::env::var("HAYEK_BOUNTY").ok().as_deref() == Some("1") {
+            let gp_authors: Vec<String> = golden_path.iter()
+                .filter_map(|nid| self.kernel.tape.get(nid).map(|n| n.author.clone()))
+                .collect();
+            let payouts = self.kernel.resolve_bounty(&gp_authors);
+            for (agent, amount) in payouts {
+                self.credit_wallet(&agent, amount);
+            }
+        }
+
         // Tool halt hooks
         let gp: Vec<String> = golden_path.to_vec();
         for tool in &mut self.tools {
@@ -528,10 +552,17 @@ impl TuringBus {
                 .collect();
 
         let ticker = self.kernel.market_ticker(10);
-        let ticker_str = ticker.iter()
+        let mut ticker_lines: Vec<String> = ticker.iter()
             .map(|(id, price)| format!("{}: {:.1}%", id, price * 100.0))
-            .collect::<Vec<_>>()
-            .join(", ");
+            .collect();
+        // Phase 3A: surface the bounty price first so agents see the pre-
+        // existing signal. No prose, no rule — just price-as-state (Hayek).
+        if let Some(bp) = self.kernel.bounty_yes_price() {
+            ticker_lines.insert(0,
+                format!("__bounty__: {:.1}% (LP={:.0})", bp * 100.0,
+                        self.kernel.bounty_lp_seed));
+        }
+        let ticker_str = ticker_lines.join(", ");
 
         crate::sdk::snapshot::UniverseSnapshot {
             tape: self.kernel.tape.clone(),

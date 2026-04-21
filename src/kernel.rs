@@ -19,6 +19,16 @@ use std::collections::HashMap;
 pub struct Kernel {
     pub tape: Tape,
     pub markets: HashMap<NodeId, BinaryMarket>,
+    /// Phase 3A (Hayek): bounty market opened at run start, seeded with
+    /// pre-committed LP from the same ghost-liquidity pool as per-node markets.
+    /// Liquid from tx 0 → gives agents a price signal BEFORE any behaviour.
+    /// Resolves YES if golden path exists; pool distributed to GP-node authors.
+    #[serde(default)]
+    pub bounty_market: Option<BinaryMarket>,
+    /// Seed LP committed to the bounty market at open time (separate from
+    /// BinaryMarket's internal CPMM book). Used for payout distribution.
+    #[serde(default)]
+    pub bounty_lp_seed: f64,
 }
 
 /// Result of an append operation.
@@ -41,7 +51,55 @@ impl Kernel {
         Kernel {
             tape: Tape::new(),
             markets: HashMap::new(),
+            bounty_market: None,
+            bounty_lp_seed: 0.0,
         }
+    }
+
+    /// Phase 3A (Hayek): open a run-level bounty market seeded with `lp_coins`.
+    /// Agents see its YES price from tx 0; price pre-exists behaviour,
+    /// breaking the Phase 2.5 bootstrap deadlock where no signal existed until
+    /// some agent had already acted.
+    pub fn open_bounty_market(&mut self, lp_coins: f64) -> Result<(), KernelError> {
+        if self.bounty_market.is_some() {
+            return Err(KernelError::MarketExists("__bounty__".to_string()));
+        }
+        let market = BinaryMarket::create("__bounty__".to_string(), lp_coins)
+            .map_err(KernelError::Market)?;
+        self.bounty_market = Some(market);
+        self.bounty_lp_seed = lp_coins;
+        Ok(())
+    }
+
+    pub fn bounty_yes_price(&self) -> Option<f64> {
+        self.bounty_market.as_ref().map(|m| m.yes_price())
+    }
+
+    /// Resolve the bounty market. `gp_authors` lists the author of each node
+    /// on the golden path (duplicates allowed — occurrences proxy contribution
+    /// count). Empty list → YES loses, seed returned to ghost pool, no payout.
+    /// Non-empty → YES wins, LP distributed equally across entries (so an
+    /// author with 2 GP nodes gets twice the share of one with 1).
+    pub fn resolve_bounty(&mut self, gp_authors: &[String]) -> HashMap<String, f64> {
+        let mut payouts: HashMap<String, f64> = HashMap::new();
+        let market = match self.bounty_market.as_mut() {
+            Some(m) => m,
+            None => return payouts,
+        };
+        if market.resolved.is_some() {
+            return payouts;
+        }
+        let yes_wins = !gp_authors.is_empty();
+        let _ = market.resolve(yes_wins);
+        if !yes_wins {
+            return payouts;
+        }
+        let lp = self.bounty_lp_seed;
+        let n = gp_authors.len() as f64;
+        for a in gp_authors {
+            *payouts.entry(a.clone()).or_insert(0.0) += lp / n;
+        }
+        payouts
     }
 
     /// Append a node to the tape.

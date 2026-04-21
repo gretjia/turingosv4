@@ -386,6 +386,53 @@ async fn run_swarm(
                 .collect();
             info!("[tick@tx{}] tape={} markets={} top={}", tx, tape_len, market_count,
                 top_prices.join(", "));
+            // Phase 6-emergent: refresh shared team board from facts only.
+            // Per-agent cumulative balance + recent tape-node authorship counts
+            // + top market prices. No instructions, no "should" — just state.
+            if std::env::var("EMERGENT_ROLES").ok().as_deref() == Some("1") {
+                let agents_sorted: Vec<String> = agent_ids.clone();
+                let mut author_counts: std::collections::HashMap<String, u32> =
+                    std::collections::HashMap::new();
+                for nid in bus.kernel.tape.time_arrow() {
+                    if let Some(n) = bus.kernel.tape.get(nid) {
+                        *author_counts.entry(n.author.clone()).or_insert(0) += 1;
+                    }
+                }
+                let wallet_balances: std::collections::HashMap<String, f64> =
+                    bus.tools.iter()
+                        .find_map(|t| t.as_any().downcast_ref::<WalletTool>())
+                        .map(|w| w.balances.clone())
+                        .unwrap_or_default();
+                let mut board = format!("# tick@tx{} (tape_nodes={})\n", tx, tape_len);
+                for a in &agents_sorted {
+                    let bal = wallet_balances.get(a).copied().unwrap_or(10000.0);
+                    let delta = bal - 10000.0;
+                    let nodes = author_counts.get(a).copied().unwrap_or(0);
+                    board.push_str(&format!(
+                        "- {}: balance={:.0} (Δ{:+.0}), tape_nodes_authored={}\n",
+                        a, bal, delta, nodes));
+                }
+                if !top_prices.is_empty() {
+                    board.push_str(&format!("markets: {}\n", top_prices.join(", ")));
+                }
+                // Preserve any agent posts that were already in the file (append-only).
+                if let Some(lib) = bus.tools.iter()
+                    .find_map(|t| t.as_any().downcast_ref::<LibrarianTool>())
+                {
+                    let existing = lib.read_board();
+                    // Keep only the POST lines (they carry agent-originated intent).
+                    let posts: String = existing.lines()
+                        .filter(|l| l.starts_with("## POST") || (l.starts_with(" ") == false && !l.starts_with("#") && !l.starts_with("-") && !l.starts_with("markets:")))
+                        .collect::<Vec<_>>()
+                        .join("\n");
+                    let full = if posts.is_empty() {
+                        board
+                    } else {
+                        format!("{}\n{}\n", board, posts)
+                    };
+                    let _ = lib.write_board(&full);
+                }
+            }
             // C-036 zero-tick alarm: 5 consecutive ticks with no constitutional engine activity.
             if tape_len == 0 && market_count == 0 {
                 zero_ticks_run += 1;
@@ -431,9 +478,20 @@ async fn run_swarm(
         } else {
             "append, complete, invest, search"
         };
+        // Phase 6-emergent: read the shared team board. Gated by EMERGENT_ROLES=1
+        // so baseline behaviour is untouched. Board content is built by
+        // Librarian at periodic ticks (see refresh_board below).
+        let team_board: String = if std::env::var("EMERGENT_ROLES").ok().as_deref() == Some("1") {
+            bus.tools.iter()
+                .find_map(|t| t.as_any().downcast_ref::<LibrarianTool>())
+                .map(|l| l.read_board())
+                .unwrap_or_default()
+        } else {
+            String::new()
+        };
         let prompt = build_agent_prompt(
             &chain, &skill, &snap.market_ticker, &errors, &hits_ref,
-            snap.get_balance(agent_id), tools_desc,
+            snap.get_balance(agent_id), tools_desc, &team_board,
         );
 
         // Model-aware max_tokens (same rule as oneshot branch).
@@ -692,6 +750,23 @@ async fn run_swarm(
                                     info!("[tx {}] {} search({:?}) → {} hits: {}",
                                           tx, agent_id, query, hits.len(), trimmed.join(","));
                                     search_cache.insert(agent_id.clone(), trimmed);
+                                }
+                            }
+                        }
+                        "post" => {
+                            *tool_dist.entry("post".into()).or_insert(0) += 1;
+                            // Phase 6-emergent: agent posts a short message to the
+                            // shared Librarian board. Other agents see it on next
+                            // prompt. State-only; no central role planner.
+                            if let Some(msg) = &action.payload {
+                                if let Some(lib) = bus.tools.iter()
+                                    .find_map(|t| t.as_any().downcast_ref::<LibrarianTool>())
+                                {
+                                    if let Err(e) = lib.post_to_board(agent_id, msg) {
+                                        warn!("[tx {}] post failed: {}", tx, e);
+                                    } else {
+                                        info!("[tx {}] {} posted to board", tx, agent_id);
+                                    }
                                 }
                             }
                         }
