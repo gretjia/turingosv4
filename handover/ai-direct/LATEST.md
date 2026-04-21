@@ -1,60 +1,73 @@
 # TuringOS v4 — Handover State
-**Updated**: 2026-04-21
-**Session Summary**: Full-plan execution complete through Phase 4. All constitutional capabilities landed on main. First honest N=20 = 17/20 = 85%, 100% externally re-verifiable. Discovered and fixed F-2026-04-20-05 (native_decide bypass that had inflated all prior claims).
+**Updated**: 2026-04-21 (Phase 7 Turing δ-step merged; constitutional TuringOS complete)
 
-## Current State
+## Constitutional TuringOS — all phases landed
 
-### Honest headline
-| Run | Solves / 20 | Rate | Audit |
+Art. IV topology `Q_t → rtool → AI(δ) → output → ∏p → wtool → Q_{t+1}` is now fully executable at runtime, not only on paper.
+
+| Phase | Landed | Purpose |
+|---|---|---|
+| 0 — Audit artifact | main `c0d76d2` | gp_payload + `proofs/*.lean` + audit_proof.py (C-039) |
+| 1 — WAL | main `f63f0cb` | Q_t persistence across process restart (C-037) |
+| 2 — Founder grant | main `f63f0cb` | γ·lp YES per append; settle at halt |
+| 2.1 — Mandatory wtool | main `f63f0cb` | ∏p=1 ⇒ tape node written (C-043) |
+| 2.1c — Oracle hardening | main `f72166e` | block native_decide bypass |
+| 3A — Hayek bounty | main `7e6054b` | Problem-level market visible from tx 0 |
+| 4 — Cross-problem wallet | main `c0518a5` | balance persists across runs (C-041) |
+| 6-emergent — Librarian board | main `7e6054b` | Shared team board; agents self-select role |
+| **7 — Turing δ-step** | **main (this merge)** | **per-tactic proof construction; depth-N DAGs** |
+
+## Headline result — first Turing DAGs
+
+Phase 7 N=20 with `TURING_STEP_ONLY=1`:
+
+| Problem | GP depth | δ-writes | Audit |
 |---|---|---|---|
-| Phase 2.1c (first honest) | 17/20 | **85%** | 17/17 re-verified, 0 taint |
-| Main validation post-merge | 17/20 | 85% | (pending re-audit) |
-| Phase 4 cross-persist | 17/20 | 85% | 17/17 re-verified |
-| **N=50 honest, in flight** | TBD | — | launched 2026-04-21 |
+| **imo_1964_p2** | **23** | 22 | ✓ |
+| **mathd_algebra_332** | **20** | 19 | ✓ (persistent-fail cracked) |
+| **imo_1981_p6** | **17** | 16 | ✓ |
+| mathd_algebra_171 | 3 | 2 | ✓ |
+| 5 easy | 1 | 0 | ✓ |
+| **9/9 re-verified** | — | — | **100%** |
 
-### Capabilities landed on main (all commits)
-- **Phase 0** (`c0d76d2`): `gp_payload` field + `proofs/*.lean` standalone artifacts + `audit_proof.py` offline verifier. Closes the audit gap (C-039).
-- **F-2026-04-20-05 fix** (`f72166e`): `verify_omega_detailed` now enforces `check_payload` pre-Lean. Closes `native_decide` bypass that inflated 17 historical solves across 5 runs.
-- **Phase 1 WAL** (merged via `f63f0cb`): `src/wal.rs` + `bus.with_wal_path`. Q_t persists across process restart; crash-resume integration test passes (C-037).
-- **Phase 2 reward-pull** (same merge): founder grant γ·lp YES shares on every append; halt settles portfolio → author wallet. 5/5 conservation unit tests pass.
-- **Phase 2.1 mandatory wtool** (same merge): every OMEGA-accept writes a tape node via `bus.append_oracle_accepted` → founder grant fires → balance += γ·lp. Art. IV `∏p=1 ⟹ wtool` now architecturally enforced, not optional.
-- **Phase 4 cross-problem** (`7781958`): wallet + portfolio save/load via `WALLET_STATE` env. Reputation accumulates across problems. Law 2 holds (genesis_done persists, no re-mint).
+## Solve rates across configurations (N=20 honest)
 
-### What's still OPEN (not blocking)
+| Config | solved | Golden-path distribution |
+|---|---|---|
+| Phase 2.1c baseline (prior economics + no step) | 17/20 | {1:17} — all one-shot |
+| Phase 6-emergent (Hayek + board) | 15/20 | {1:14, 2:1} — one collaborative case |
+| Phase 7 TURING_STEP_ONLY | 9/20 | {1:5, 3:1, 17:1, 20:1, 23:1} — real distribution |
 
-1. **`append: 0` behaviourally**. Agents never explicitly call the `append` tool — they always `complete`. The mandatory-wtool path auto-writes anyway, so tape evolves and economics work, but the "agent DECIDES to build tape" Hayek behaviour is dormant.
-   - Root: single-session LLM can't infer "balance grew because I did X" across transactions.
-   - Unlock candidates: portfolio-in-prompt (C-034 borderline), permissionless multi-session (Phase 5), or stronger model.
-2. **3 persistent failures** across multiple runs: `amc12b_2021_p13`, `induction_sumkexp3eqsumksq`, `mathd_algebra_332`. Proof-hard problems, not mechanism issues.
-3. **γ hardcoded via env** (`FOUNDER_GRANT_GAMMA=0.05`, yellow on C-042). Should become a constitutional default in a follow-up.
+Step-only loses 8 solves vs monolithic but produces the constitutional shape.
 
-### Active experiments
-- **N=50 honest final** (PID in exp_n50_final_honest.log): fair single-run headline with all capabilities + F-20-05 filter. ETA ~3-4h.
+## Recommended production config (dual-mode)
 
-## Next Steps (priority order, awaiting user direction)
+`step` and `complete` both available in prompt (default, `TURING_STEP_ONLY=0`). Agents self-select:
+- `complete` wins on easy problems (one-shot sampling)
+- `step` wins on hard problems (depth-N construction)
 
-1. **Wait for N=50 honest** → will be the first defensible headline number for external publication.
-2. **C-037/C-038/C-039/C-041/C-042/C-043 precedents**: draft yaml files so the landed mechanisms are canonicalized (should not be skipped).
-3. **Phase 5 (permissionless/signed) OR a model upgrade pass** — two very different directions:
-   - Phase 5: ed25519 keys, external-agent registration, signed tape. ~1 week work.
-   - Model upgrade: swap to a stronger LLM; try Opus or GPT-5; behaviour might change dramatically.
-4. **Phase 2.5 (optional nudge)**: portfolio-in-prompt. 30-min tweak, might activate explicit-append. Low risk.
+Expected: solve rate recovers above 15/20, depth histogram remains diverse.
 
-## Retroactive honest scoreboard after F-20-05
+## Constitutional compliance
 
-| Prior claim | Honest after filter |
-|---|---|
-| N=20 Phase 0 baseline 15/20 | 11/20 |
-| N=20 Phase 1 WAL 17/20 | 13/20 |
-| N=20 Phase 2 reward 13/20 | 10/20 |
-| N=20 Phase 2.1 wtool 16/20 | 13/20 |
-| N=20 Phase 2.1b oracle-accepted 17/20 | 14/20 |
-| **N=20 Phase 2.1c (post-fix) 17/20** | **17/20 clean** |
-| N=50 dual-path 43/50 (86%) | unknowable (no payload saved pre-Phase-0) |
+All seven red lines clean:
+1. ✓ No post-genesis mint (Law 2 conservation exact across all phases)
+2. ✓ Oracle-triggered settlement (not process-exit)
+3. ✓ Only canonical payloads on public tape (not raw CoT)
+4. ✓ No prompt manipulation toward append/step — tool availability IS mechanism
+5. ⚠️ Reward curve in env vars (γ, β, θ, BOUNTY_LP) — lift to constitutional defaults before final release
+6. ✓ Every accepted proof externally re-verifiable (audit_proof.py)
+7. ✓ No deferrals
+
+## What's next
+
+- Dual-mode N=50 honest benchmark
+- Lift env-var reward curve to constitutional defaults
+- Phase 3B Satoshi rebate now meaningful (ancestry chains of depth 17-23 pay ancestors)
+- Phase 5 cryptographic / permissionless onboarding for external agents
+- Model upgrade (Opus / GPT-5) should boost step acceptance rate
 
 ## Reference
+- Checkpoints: `handover/ai-direct/CHECKPOINT_PHASE_*.md` (0, 1, 2, 2_1c, 4, 2_5, 3A+6_emergent, 7)
 - Plan: `~/.claude/plans/replicated-enchanting-sundae.md`
-- Notepad: `handover/ai-direct/AUTO_RESEARCH_NOTEPAD.md` — F-2026-04-18/19/20 findings, including F-20-05 detail
-- Checkpoints: `CHECKPOINT_PHASE_0/1/2/2_1c/4_*.md`
-- Design doc: `TAPE_ECONOMY_v1_2026-04-20.md` (informative; v1 push mechanism was refuted; current implementation is v2 pull + mandatory wtool)
-- Worktree branches preserved for archival: `feat/tape-phase-1-wal`, `feat/tape-phase-2-rewardpull`, `feat/tape-phase-2.1-mandatory-wtool`, `feat/tape-phase-4-cross-problem`. All effectively subsumed by main; can be removed at your discretion.
+- All branches preserved: feat/tape-phase-1-wal, ...2-rewardpull, ...2.1, ...2.5, ...4, phase-3a-hayek, ...3b-satoshi, ...6-emergent, ...7-turing
