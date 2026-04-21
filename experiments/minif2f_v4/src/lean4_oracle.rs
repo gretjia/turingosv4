@@ -160,6 +160,101 @@ impl Lean4Oracle {
             Err(e) => Err(format!("Sandbox error: {}", e)),
         }
     }
+
+    /// Phase 7 (Turing δ-step): three-way classification for partial proofs.
+    /// Elaborates `problem_statement + proof_prefix` (the accumulated tactic
+    /// chain) and returns:
+    ///   Complete   — Lean accepts, no remaining goals → OMEGA, halt the run
+    ///   PartialOk  — tactics elaborate without type errors but goals remain →
+    ///                the prefix is a valid computation path, write Q_{t+1} and
+    ///                continue
+    ///   Reject(r)  — any true elaboration error → prefix is invalid, do NOT
+    ///                write; agent must try a different step
+    ///
+    /// This is the constitutional δ that Art. IV mermaid demands: a single
+    /// transition rule that updates Q_t one step at a time, with ∏p as the
+    /// pass/fail on that single step — not on the whole computation.
+    pub fn verify_partial(&self, proof_prefix: &str) -> PartialVerdict {
+        if let Err(reason) = self.check_payload(proof_prefix) {
+            log::warn!("[oracle/partial] rejected pre-Lean: {}", reason);
+            return PartialVerdict::Reject(format!("forbidden_payload: {}", reason));
+        }
+        let full_code = format!("{}\n{}", self.problem_statement, proof_prefix);
+        if has_word_boundary(&full_code, "sorry") || has_word_boundary(&full_code, "sorryAx") {
+            return PartialVerdict::Reject("sorry_in_proof".into());
+        }
+
+        let lines = full_code.lines().count();
+        let timeout_secs = 120 + (lines as u64);
+        let timeout = Duration::from_secs(timeout_secs.min(300));
+
+        let sandbox = LocalProcessSandbox::new(
+            &self.lean_binary,
+            &["--stdin"],
+        );
+        std::env::set_var("LEAN_PATH", &self.lean_path);
+
+        match sandbox.execute(&full_code, timeout) {
+            Ok(SandboxResult::Completed { stdout, stderr, exit_code }) => {
+                let combined = format!("{}\n{}", stdout, stderr);
+                if combined.contains("declaration uses 'sorry'") {
+                    return PartialVerdict::Reject("declaration_uses_sorry".into());
+                }
+                if combined.contains("No goals to be solved") {
+                    return PartialVerdict::Complete;
+                }
+                // Lean reports "unsolved goals" when a proof compiles but does
+                // not discharge all obligations. This is EXACTLY the partial-
+                // OK case: the tactics ran without type errors, but more work
+                // remains. Under the old semantics this was a REJECT; under
+                // Phase 7, it is the signal that Q_{t+1} is well-formed.
+                if combined.contains("unsolved goals") && !combined.contains("error: unknown") && !combined.contains("error: type mismatch") {
+                    // Only accept as partial if there are no OTHER errors.
+                    // Distinguish unsolved-goals (partial OK) from actual bugs.
+                    let hard_errors: Vec<&str> = combined.lines()
+                        .filter(|l| l.contains("error:") && !l.contains("unsolved goals"))
+                        .collect();
+                    if hard_errors.is_empty() {
+                        return PartialVerdict::PartialOk;
+                    }
+                    // Has both unsolved-goals and a hard error → reject
+                    let detail = hard_errors.iter().take(3).cloned().collect::<Vec<_>>().join(" | ");
+                    return PartialVerdict::Reject(format!("hard_error_with_unsolved: {}", detail));
+                }
+                if exit_code == 0 && !combined.contains("error:") {
+                    // Clean compile, no "No goals to be solved" marker, no
+                    // error. Edge case: treat as Complete (same rule as
+                    // verify_omega_detailed path 2).
+                    return PartialVerdict::Complete;
+                }
+                let err_preview: String = combined.lines()
+                    .filter(|l| l.contains("error") || l.contains("unexpected") || l.contains("expected"))
+                    .take(4)
+                    .collect::<Vec<_>>()
+                    .join(" | ");
+                let detail = if err_preview.is_empty() {
+                    combined.chars().take(400).collect::<String>()
+                } else {
+                    err_preview
+                };
+                PartialVerdict::Reject(detail)
+            }
+            Ok(SandboxResult::Timeout) => PartialVerdict::Reject("lean_timeout".into()),
+            Err(e) => PartialVerdict::Reject(format!("sandbox_error: {}", e)),
+        }
+    }
+}
+
+/// Phase 7 three-way verdict on a partial proof prefix.
+#[derive(Debug, Clone)]
+pub enum PartialVerdict {
+    /// All goals solved → OMEGA reached, halt the run.
+    Complete,
+    /// Tactics elaborate without type errors but goals remain → Q_{t+1} valid,
+    /// append this step as a tape node and continue.
+    PartialOk,
+    /// Elaboration failed → Q_{t+1} = Q_t, agent tries a different step.
+    Reject(String),
 }
 
 impl TuringTool for Lean4Oracle {

@@ -7,7 +7,7 @@
 //
 // Constitutional basis: Art. I.1 (boolean predicate), Art. I.2 (statistical signal = PPUT)
 
-use minif2f_v4::lean4_oracle::{Lean4Oracle, derive_lean_path, load_problem};
+use minif2f_v4::lean4_oracle::{Lean4Oracle, PartialVerdict, derive_lean_path, load_problem};
 use turingosv4::bus::{BusConfig, BusResult, TuringBus};
 use turingosv4::sdk::error_abstraction::{classify_lean_error, classify_parse_error, CLASSIFIER_VERSION};
 use turingosv4::drivers::llm_http::{GenerateRequest, Message, ResilientLLMClient};
@@ -766,6 +766,87 @@ async fn run_swarm(
                                         warn!("[tx {}] post failed: {}", tx, e);
                                     } else {
                                         info!("[tx {}] {} posted to board", tx, agent_id);
+                                    }
+                                }
+                            }
+                        }
+                        "step" => {
+                            // Phase 7 (C-043+ Turing δ-step): submit ONE tactic,
+                            // oracle classifies the accumulated tape+tactic prefix
+                            // as Complete / PartialOk / Reject. Writes a tape node
+                            // on PartialOk and Complete so the DAG grows one cell
+                            // at a time — the Art. IV semantics Turing 1936 defines.
+                            *tool_dist.entry("step".into()).or_insert(0) += 1;
+                            if let Some(tactic) = &action.payload {
+                                let tape_chain: String = bus.kernel.tape.time_arrow().iter()
+                                    .filter_map(|id| bus.kernel.tape.get(id))
+                                    .map(|n| n.payload.clone())
+                                    .collect::<Vec<_>>()
+                                    .join("\n");
+                                let prefix = if tape_chain.is_empty() {
+                                    tactic.clone()
+                                } else {
+                                    format!("{}\n{}", tape_chain, tactic)
+                                };
+                                let oracle = Lean4Oracle::new(
+                                    problem_statement.to_string(),
+                                    theorem_name.to_string(),
+                                    lean_path.to_string(),
+                                );
+                                match oracle.verify_partial(&prefix) {
+                                    PartialVerdict::Complete => {
+                                        info!(">>> OMEGA ACCEPTED <<< via step (depth={} after this write)",
+                                              bus.kernel.tape.time_arrow().len() + 1);
+                                        let proof_file = persist_proof_artifact(
+                                            problem_file, &theorem_name, &problem_statement,
+                                            &prefix, "per_tactic", agent_id,
+                                        );
+                                        let parent = bus.kernel.tape.time_arrow().last().cloned();
+                                        *tool_dist.entry("omega_wtool".into()).or_insert(0) += 1;
+                                        let _ = bus.append_oracle_accepted(
+                                            agent_id, tactic, parent.as_deref(),
+                                        );
+                                        let tape_tokens: u64 = bus.kernel.tape.time_arrow().iter()
+                                            .filter_map(|id| bus.kernel.tape.get(id))
+                                            .map(|n| n.payload.len() as u64)
+                                            .sum();
+                                        let gp_tokens = tape_tokens.max(response.completion_tokens as u64);
+                                        let gp = bus.kernel.tape.time_arrow().to_vec();
+                                        let gp_nodes = gp.len();
+                                        bus.halt_and_settle(&gp).ok();
+                                        let upr = if omega_attempts > 0 {
+                                            Some(omega_payload_hashes.len() as f64 / omega_attempts as f64)
+                                        } else { None };
+                                        return make_pput(problem_file, &condition, model, true,
+                                                        start, gp_tokens, gp_nodes, tx as u64 + 1,
+                                                        Some(tool_dist), upr,
+                                                        Some(prefix.clone()),
+                                                        Some("per_tactic".to_string()),
+                                                        proof_file);
+                                    }
+                                    PartialVerdict::PartialOk => {
+                                        let parent = bus.kernel.tape.time_arrow().last().cloned();
+                                        match bus.append_oracle_accepted(
+                                            agent_id, tactic, parent.as_deref(),
+                                        ) {
+                                            Ok(BusResult::Appended { node_id }) => {
+                                                *tool_dist.entry("step_partial_ok".into()).or_insert(0) += 1;
+                                                info!("[tx {}] {} step+{} partial OK (depth={})",
+                                                      tx, agent_id, node_id,
+                                                      bus.kernel.tape.time_arrow().len());
+                                            }
+                                            Ok(BusResult::Vetoed { reason }) => {
+                                                warn!("[tx {}] step partial OK but bus vetoed: {}", tx, reason);
+                                            }
+                                            _ => {}
+                                        }
+                                    }
+                                    PartialVerdict::Reject(reason) => {
+                                        let class = classify_lean_error(&reason);
+                                        bus.record_rejection(agent_id, class.label());
+                                        *tool_dist.entry("step_reject".into()).or_insert(0) += 1;
+                                        let preview = reason.chars().take(200).collect::<String>();
+                                        warn!("[tx {}] step rejected ({}): {}", tx, class.label(), preview);
                                     }
                                 }
                             }

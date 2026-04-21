@@ -87,13 +87,33 @@ pub fn build_agent_prompt(
     prompt.push_str("=== Output ===\n");
     prompt.push_str("Respond with exactly one <action>{JSON}</action> block. No prose outside.\n");
     prompt.push_str("Schemas by tool:\n");
-    prompt.push_str("  {\"tool\":\"append\",\"payload\":\"<proof-step-text>\",\"node\":\"<optional-parent-id>\"}\n");
-    prompt.push_str("    Optional scratch space (tape Q_t). Use only if you cannot one-shot the proof.\n");
-    prompt.push_str("  {\"tool\":\"complete\",\"payload\":\"<tactics-only>\"}\n");
-    prompt.push_str("    Verified as payload alone first. If rejected and tape has nodes, we retry\n");
-    prompt.push_str("    with (tape joined by \\n) + payload. Either path counts as success.\n");
-    prompt.push_str("    payload = tactics after `:= by`. MUST NOT re-declare the goal.\n");
-    prompt.push_str("    Indent as body of `by`; multi-line allowed.\n");
+    // Phase 7 (TURING_STEP_ONLY=1): only `step` is available as the proof-
+    // progression tool. Art. IV strict: δ writes one square. No monolithic
+    // complete; no free-form append. Agents emit one Lean tactic per call,
+    // and the oracle classifies the accumulated prefix as Complete /
+    // PartialOk / Reject. Unchanged: search, invest, post.
+    let step_only = std::env::var("TURING_STEP_ONLY").ok().as_deref() == Some("1");
+    if step_only {
+        prompt.push_str("  {\"tool\":\"step\",\"payload\":\"<one Lean tactic>\"}\n");
+        prompt.push_str("    THE proof-progression tool. Submit ONE tactic (e.g. `intro h`,\n");
+        prompt.push_str("    `rw [h₀]`, `linarith`, `induction' n with m IH`). The oracle\n");
+        prompt.push_str("    elaborates (problem_statement ++ accumulated_tape ++ this_tactic):\n");
+        prompt.push_str("      - all goals solved → OMEGA, run halts\n");
+        prompt.push_str("      - goals remain, no type errors → tactic joins tape as Q_{t+1}\n");
+        prompt.push_str("      - Lean errors → tape unchanged, try a different tactic\n");
+        prompt.push_str("    Build the proof incrementally. Cite prior tape nodes by reading the\n");
+        prompt.push_str("    === Current Chain === section; your next tactic operates on the\n");
+        prompt.push_str("    proof state that already follows from those steps.\n");
+    } else {
+        prompt.push_str("  {\"tool\":\"step\",\"payload\":\"<one Lean tactic>\"}\n");
+        prompt.push_str("    Phase 7 Art. IV δ-step: the system appends payload to tape, then\n");
+        prompt.push_str("    Lean elaborates (problem + accumulated_tape + this_tactic).\n");
+        prompt.push_str("    Goals-solved → OMEGA; partial-ok → tape grows; error → reject.\n");
+        prompt.push_str("  {\"tool\":\"append\",\"payload\":\"<proof-step-text>\",\"node\":\"<optional-parent-id>\"}\n");
+        prompt.push_str("    Raw scratch write (no oracle check). Use `step` instead when possible.\n");
+        prompt.push_str("  {\"tool\":\"complete\",\"payload\":\"<tactics-only>\"}\n");
+        prompt.push_str("    Legacy one-shot: full proof. Payload alone, then tape+payload fallback.\n");
+    }
     prompt.push_str("  {\"tool\":\"search\",\"query\":\"<keyword>\"}\n");
     prompt.push_str("  {\"tool\":\"invest\",\"node\":\"<node-id>\",\"amount\":<number>}\n");
     prompt.push_str("  {\"tool\":\"post\",\"payload\":\"<short message to team board>\"}\n");
