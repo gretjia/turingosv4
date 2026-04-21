@@ -4,7 +4,15 @@
 
 **Hook**: `MEMORY.md` → `project_auto_research_notepad.md` points here. Loaded every session.
 
-**Last updated**: 2026-04-19 ~06:20 UTC
+**Last updated**: 2026-04-21 (four-doctor synthesis + emergent-roles correction)
+
+## Active roadmap (post four-doctor synthesis, post user correction)
+
+1. **Phase 3A — Hayek Problem Bounty Market** (IMPLEMENTED, N=20 running)
+2. **Phase 3B — Satoshi Citation Rebate** (queued; depends on 3A producing ancestry)
+3. **Phase 6-emergent — Librarian Message Board + self-select roles** (replaces original Drucker hard-role proposal per user rejection 2026-04-21; see feedback_emergent_roles.md)
+4. **Phase 7 — Turing per-tactic δ-step** (last, highest risk + infra cost)
+
 
 ---
 
