@@ -24,7 +24,7 @@ pub type Portfolio = HashMap<String, (f64, f64, f64)>;
 pub struct WalletTool {
     pub balances: HashMap<String, f64>,
     pub portfolios: HashMap<String, Portfolio>,
-    genesis_done: bool,
+    pub genesis_done: bool,
     genesis_coins: f64,
 }
 
@@ -74,6 +74,40 @@ impl WalletTool {
         entry.0 += yes_delta;
         entry.1 += no_delta;
         entry.2 += lp_delta;
+    }
+
+    /// Phase 4 (C-041 candidate): persist wallet + portfolio state to disk for
+    /// cross-problem continuity. Law 2 preserved: `genesis_done` is serialised
+    /// too, so a load round-trip carries the original genesis flag and prevents
+    /// any second mint (`on_init` skips when `genesis_done == true`).
+    pub fn save_to_disk(&self, path: &std::path::Path) -> std::io::Result<()> {
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        let json = serde_json::to_string_pretty(self)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+        std::fs::write(path, json)
+    }
+
+    /// Load a previously-persisted wallet. Returns None if missing/corrupt —
+    /// caller falls back to fresh genesis.
+    pub fn load_from_disk(path: &std::path::Path) -> Option<Self> {
+        let raw = std::fs::read_to_string(path).ok()?;
+        serde_json::from_str(&raw).ok()
+    }
+
+    /// Phase 4 helper: initialise any agents that aren't yet in the wallet
+    /// WITHOUT re-minting existing ones. Only mints for never-seen agents IF
+    /// genesis has not yet run (first-ever boot). Post-genesis, new agents
+    /// enter at zero balance (C-001 / C-038: no post-genesis mint).
+    pub fn ensure_agents(&mut self, agent_ids: &[String]) {
+        for agent in agent_ids {
+            if !self.balances.contains_key(agent) {
+                let bal = if self.genesis_done { 0.0 } else { self.genesis_coins };
+                self.balances.insert(agent.clone(), bal);
+                self.portfolios.insert(agent.clone(), HashMap::new());
+            }
+        }
     }
 }
 

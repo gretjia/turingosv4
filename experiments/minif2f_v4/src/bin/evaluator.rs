@@ -296,7 +296,20 @@ async fn run_swarm(
     } else {
         TuringBus::new(kernel, config)
     };
-    bus.mount_tool(Box::new(WalletTool::new(10000.0)));
+    // Phase 4 (C-041 candidate): cross-problem wallet persistence. WALLET_STATE
+    // env points to a json file; if it exists we load agents' carried-over
+    // balances/portfolios, otherwise fresh genesis. No second mint under Law 2:
+    // genesis_done is serialised, so on_init is a no-op post first boot.
+    let wallet_state_path: Option<std::path::PathBuf> = std::env::var("WALLET_STATE")
+        .ok().map(std::path::PathBuf::from);
+    let wallet = wallet_state_path.as_ref()
+        .and_then(|p| WalletTool::load_from_disk(p))
+        .unwrap_or_else(|| WalletTool::new(10000.0));
+    if wallet_state_path.is_some() && wallet.genesis_done {
+        info!("[wallet] resumed from {:?}; existing agents carry balances",
+              wallet_state_path);
+    }
+    bus.mount_tool(Box::new(wallet));
     bus.mount_tool(Box::new(Lean4Oracle::new(
         problem_statement.to_string(), theorem_name.to_string(), lean_path.to_string(),
     )));
@@ -310,6 +323,13 @@ async fn run_swarm(
 
     let agent_ids: Vec<String> = (0..n_agents).map(|i| format!("Agent_{}", i)).collect();
     bus.init(&agent_ids);
+    // Phase 4: top-up ensure_agents for any IDs not in the loaded state (zero
+    // balance if post-genesis, genesis_coins only on first-ever boot).
+    if let Some(wallet) = bus.tools.iter_mut()
+        .find_map(|t| t.as_any_mut().downcast_mut::<WalletTool>())
+    {
+        wallet.ensure_agents(&agent_ids);
+    }
 
     // Art. II.2.1: "不能抹杀群体异质性" — distinct skills per agent.
     // V3 had Math/Bull/Bear roles. V4: tactic-strategy specialization.
@@ -564,6 +584,17 @@ async fn run_swarm(
                                             info!("[art-iv] OMEGA written as tape node; gp_nodes={}", gp_nodes);
                                         }
                                         bus.halt_and_settle(&gp).ok();
+                                        // Phase 4: persist wallet state so next problem's run
+                                        // inherits carried-over balances (reputation).
+                                        if let Some(ref wp) = wallet_state_path {
+                                            if let Some(w) = bus.tools.iter()
+                                                .find_map(|t| t.as_any().downcast_ref::<WalletTool>())
+                                            {
+                                                if let Err(e) = w.save_to_disk(wp) {
+                                                    warn!("[wallet] save failed to {:?}: {}", wp, e);
+                                                }
+                                            }
+                                        }
                                         let upr = if omega_attempts > 0 {
                                             Some(omega_payload_hashes.len() as f64 / omega_attempts as f64)
                                         } else { None };
@@ -687,6 +718,15 @@ async fn run_swarm(
     let upr = if omega_attempts > 0 {
         Some(omega_payload_hashes.len() as f64 / omega_attempts as f64)
     } else { None };
+    // Phase 4: also save wallet state on no-OMEGA exit. Agents may have
+    // invested/lost Coin during the run; durability should not depend on a win.
+    if let Some(ref wp) = wallet_state_path {
+        if let Some(w) = bus.tools.iter()
+            .find_map(|t| t.as_any().downcast_ref::<WalletTool>())
+        {
+            let _ = w.save_to_disk(wp);
+        }
+    }
     // No OMEGA found → PPUT = 0
     make_pput(problem_file, &condition, model, false, start, 0, 0,
               max_transactions as u64, Some(tool_dist), upr,
