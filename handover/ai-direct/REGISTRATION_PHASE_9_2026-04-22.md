@@ -6,12 +6,48 @@
 
 ---
 
+## § 0. Pre-batch readiness (blocks 9.A/B run)
+
+**Discovered 2026-04-22 during auto-research**: current `PputResult` struct
+(`experiments/minif2f_v4/src/bin/evaluator.rs:36-74`) emits `pput`,
+`tool_dist`, `unique_payload_ratio`, `gp_*` but **does NOT emit** the
+following Report Standard fields that Gate 9 requires:
+
+- `reputation_distribution` (C-053)
+- `halt_reason_distribution` (C-061; derivable from WAL but not in jsonl row)
+- `pairwise_payload_diversity_mean` (C-059)
+- `parent_selection_entropy` (Art. II.2.1)
+
+**9.0 readiness tasks** (must complete BEFORE launching 9.A/B batch):
+
+- [ ] **9.0.1** Extend `PputResult` with:
+  - `reputation_at_end: Option<HashMap<String, u32>>`
+  - `halt_reason: Option<String>` (rendered from ledger's last Halt event)
+  - `pairwise_diversity_mean: Option<f64>` (computed from omega_payload_hashes)
+  - `parent_selection_entropy: Option<f64>` (from Boltzmann routing log)
+- [ ] **9.0.2** Populate at OMEGA accept / run end in `run_swarm`
+  - Read `bus.kernel.tape.reputation()` into snapshot
+  - Scan `bus.ledger.events()` for last Halt event
+  - Compute pairwise diversity over recorded OMEGA payload hashes
+- [ ] **9.0.3** Add regression test `tests/pput_result_report_standard.rs`
+  asserting all 4 new fields present after a minimal swarm run
+- [ ] **9.0.4** Update `phase2_ab_analyze.py` + `phase9_aggregate.py` to
+  read these new fields and include them in Gate verdict computation
+
+**Cost**: ~2h dev + ~15 min test. **Blocks**: 9.A/B batch launch (without
+these, Gate 9 auxiliary criteria cannot be measured from jsonl alone).
+
+**Fallback (not recommended)**: post-process WAL files per seed to extract
+halt_reason + reputation. Brittle, couples analysis to WAL schema. Prefer
+9.0.X field extension.
+
 ## § 1. Scope
 
 Phase 9 establishes the **论文级统计基线** for Paper 1 post-Phase-8 binary.
 
 **Prerequisite**: Phase 2 A/B (Gate 8→9) PASS — experiment ΣPPUT ≥ 90% baseline.
 If Phase 2 A/B FAILs, Phase 9 does not run until Phase 8 regressions are resolved.
+**AND** § 0 pre-batch readiness tasks done.
 
 Four sub-experiments:
 - **9.A** 6 seeds × N=50 dual-mode (primary PPUT baseline)
