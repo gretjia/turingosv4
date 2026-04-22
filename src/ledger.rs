@@ -40,6 +40,10 @@ pub struct Node {
 /// The append-only DAG tape.
 /// Invariant: once appended, a node is NEVER modified or removed.
 /// V3L-24: all data persisted to experiments/, never /tmp.
+///
+/// TRACE_MATRIX FC1-N4 / FC3-N38: `tape_t` — the `Q_t.tape` of Art. IV
+/// mermaid. All successful wtool writes append here; ∏p=0 preserves
+/// the tape unchanged (FC1-E18).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Tape {
     nodes: HashMap<NodeId, Node>,
@@ -143,8 +147,19 @@ impl Tape {
         self.nodes.is_empty()
     }
 
+    /// TRACE_MATRIX FC1-N3: chronological sequence of appended node ids.
+    /// `time_arrow().last()` materializes `HEAD_t` — the pointer to the
+    /// current tip of the tape per Art. IV mermaid.
     pub fn time_arrow(&self) -> &[NodeId] {
         &self.time_arrow
+    }
+
+    /// TRACE_MATRIX FC1-N3 helper: return current `HEAD_t` (last appended
+    /// node id) or `None` if the tape is empty. Introduced in Stage 3 to
+    /// replace the scattered `tape.time_arrow().last()` idiom with a
+    /// named, single-source-of-truth accessor.
+    pub fn head(&self) -> Option<&NodeId> {
+        self.time_arrow.last()
     }
 
     pub fn nodes(&self) -> &HashMap<NodeId, Node> {

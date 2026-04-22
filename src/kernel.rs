@@ -15,14 +15,25 @@ use std::collections::HashMap;
 /// The pure topology manager.
 /// It knows about nodes, edges (citations), and markets.
 /// It does NOT know what the nodes contain or what domain they belong to.
+///
+/// TRACE_MATRIX FC1-N1 / FC3-N38 / FC2-N21: Kernel holds `tape` (tape_t
+/// node of Art. IV mermaid). `tape.time_arrow().last()` materializes
+/// HEAD_t (FC1-N3). `Kernel::new()` initializes `Q_0` per
+/// `initAI --once→ Q0` edge (FC2-N21).
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Kernel {
+    /// TRACE_MATRIX FC1-N4 / FC3-N38: `tape_t` — the append-only DAG carrying
+    /// all agent outputs and mr-tick reductions. This is the `t_t` / `Q_t.tape`
+    /// of Art. IV mermaid.
     pub tape: Tape,
     pub markets: HashMap<NodeId, BinaryMarket>,
     /// Phase 3A (Hayek): bounty market opened at run start, seeded with
     /// pre-committed LP from the same ghost-liquidity pool as per-node markets.
     /// Liquid from tx 0 → gives agents a price signal BEFORE any behaviour.
     /// Resolves YES if golden path exists; pool distributed to GP-node authors.
+    ///
+    /// TRACE_MATRIX orphan: constitutional extension of Art. II.2 (price signal),
+    /// not depicted in FC-1/2/3. See TRACE_MATRIX § 3.
     #[serde(default)]
     pub bounty_market: Option<BinaryMarket>,
     /// Seed LP committed to the bounty market at open time (separate from
@@ -47,6 +58,9 @@ pub struct ResolutionResult {
 // ── Implementation ──────────────────────────────────────────────
 
 impl Kernel {
+    /// TRACE_MATRIX FC2-N21: the `initAI --once→ Q0` edge — materializes the
+    /// initial machine state (empty tape, empty markets) that the bus then
+    /// iterates through rtool/δ/∏p/wtool cycles (FC-1).
     pub fn new() -> Self {
         Kernel {
             tape: Tape::new(),

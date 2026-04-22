@@ -283,6 +283,25 @@ async fn run_oneshot(
                     if let Err(e) = oneshot_bus.register_oracle(oracle.public_key()) {
                         warn!("[art-iv] oneshot register_oracle: {}", e);
                     }
+                    // TRACE_MATRIX FC2-N19 (initAI --once→ predicates):
+                    // register the 3 default ∏p predicates at init time so
+                    // the evaluate_predicates() path has a non-empty chain.
+                    // These complement (do not replace) the hard-coded checks
+                    // in append_internal during the Phase Z' migration window.
+                    oneshot_bus.register_predicate(Box::new(
+                        turingosv4::sdk::predicate::ForbiddenPatternPredicate {
+                            patterns: oneshot_bus.config.forbidden_patterns.clone(),
+                        },
+                    ));
+                    oneshot_bus.register_predicate(Box::new(
+                        turingosv4::sdk::predicate::SorryPredicate,
+                    ));
+                    oneshot_bus.register_predicate(Box::new(
+                        turingosv4::sdk::predicate::PayloadSizePredicate {
+                            max_chars: oneshot_bus.config.max_payload_chars,
+                            max_lines: oneshot_bus.config.max_payload_lines,
+                        },
+                    ));
                     oneshot_bus.init(&["oneshot_agent".into()]);
                     let receipt = oracle.issue_complete_receipt(&response.content, None);
                     match oneshot_bus.append_oracle_accepted(
@@ -427,7 +446,28 @@ async fn run_swarm(
         return make_pput(problem_file, &condition, model, false, start, 0, 0, 0,
                          None, None, None, None, None);
     }
+    // TRACE_MATRIX FC2-N19 (initAI --once→ predicates):
+    // register the 3 default ∏p predicates at init time so
+    // the evaluate_predicates() path has a non-empty chain.
+    // These complement (do not replace) the hard-coded checks
+    // in append_internal during the Phase Z' migration window.
+    bus.register_predicate(Box::new(
+        turingosv4::sdk::predicate::ForbiddenPatternPredicate {
+            patterns: bus.config.forbidden_patterns.clone(),
+        },
+    ));
+    bus.register_predicate(Box::new(
+        turingosv4::sdk::predicate::SorryPredicate,
+    ));
+    bus.register_predicate(Box::new(
+        turingosv4::sdk::predicate::PayloadSizePredicate {
+            max_chars: bus.config.max_payload_chars,
+            max_lines: bus.config.max_payload_lines,
+        },
+    ));
 
+    // TRACE_MATRIX FC3-N36 (agents): swarm agent identities allocated
+    // at init; selected round-robin for each tx.
     let agent_ids: Vec<String> = (0..n_agents).map(|i| format!("Agent_{}", i)).collect();
     bus.init(&agent_ids);
     // Phase 4: top-up ensure_agents for any IDs not in the loaded state (zero

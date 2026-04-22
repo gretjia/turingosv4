@@ -49,6 +49,9 @@ impl Default for BusConfig {
 ///
 /// Phase 8.E (C-061): makes `q_t` a first-class field. Previously halting
 /// was implicit (halt_and_settle called → downstream code infers halted).
+/// TRACE_MATRIX FC1-N2 / FC2-N22: `q_t` — the machine state component of
+/// `Q_t = ⟨q_t, HEAD_t, tape_t⟩`. `Running` is the normal execution state;
+/// `Halted` is the dbl-circ terminal node of FC-2 with an explicit reason.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum QState {
     Running,
@@ -58,15 +61,26 @@ pub enum QState {
 /// The serial event reactor.
 /// V3L-11: ALL state mutations go through this single-threaded reactor.
 /// No concurrent access to kernel/markets — causal ordering guaranteed.
+///
+/// TRACE_MATRIX: `TuringBus` aggregates the runtime surface for Q_t
+/// (FC1-N1), its predicates (FC1-N11), its tools (FC2-N28 / FC3-N37),
+/// the clock (FC2-N24), and the halt reason (FC2-N23).
 pub struct TuringBus {
     pub kernel: Kernel,
     pub ledger: Ledger,
+    /// TRACE_MATRIX FC2-N28 / FC3-N37: `tools_other` — the mounted ancillary
+    /// TuringTools (Wallet, Librarian, Search, ...) whose on_pre_append
+    /// hooks participate in each wtool write as per Art. IV mermaid.
     pub tools: Vec<Box<dyn TuringTool>>,
     pub config: BusConfig,
+    /// TRACE_MATRIX FC2-N24: `clock` — monotone tick counter. The evaluator
+    /// loop increments tx every LLM round; `clock` is the committed-event
+    /// counter used by WAL replay and mr-tick scheduling.
     pub clock: u64,
     pub tx_count: u64,
     pub generation: u32,
     /// Phase 8.E (C-061): explicit `q_t` ∈ {Running, Halted}.
+    /// TRACE_MATRIX FC1-N2 / FC2-N22 — the `q` component of `Q_t`.
     pub q_state: QState,
     /// Phase 8.C v3 (C-067 R1-α): Ed25519 verifying keys of oracles trusted
     /// to bless writes. A receipt is only honoured if its `issuer_pub` is in
@@ -104,6 +118,11 @@ pub enum RejectionScope {
 }
 
 /// Result of a bus append operation.
+///
+/// TRACE_MATRIX FC1-N14 / FC1-N15: `Appended` materializes `Q_{t+1}` on
+/// successful wtool path (∏p = 1); `Vetoed` materializes `Q_{t+1} = Q_t`
+/// on predicate failure (∏p = 0, FC1-E18). `Invested` is a bus-internal
+/// route that preserves tape while updating market prices (Art. II.2).
 #[derive(Debug)]
 pub enum BusResult {
     Appended { node_id: NodeId },
@@ -418,6 +437,11 @@ impl TuringBus {
         Ok(node_id)
     }
 
+    /// TRACE_MATRIX FC1-N14 + FC1-E16 + FC1-E17: the write path that
+    /// materializes `Q_{t+1} = wtool(output)` when ∏p = 1. Called by
+    /// `append` (Law 1 free path) and `append_oracle_accepted` (C-043
+    /// blessed path); both enter after predicate gating. Tool
+    /// pre-hooks run inside this fn (FC2-N28 tools_other).
     fn append_internal(&mut self, author: &str, payload: &str,
                        parent_id: Option<&str>, oracle_blessed: bool) -> Result<BusResult, String> {
         // Phase 0: Forbidden pattern check — skipped for oracle-accepted payloads.
