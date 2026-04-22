@@ -146,32 +146,62 @@ def paired_delta(baseline: list[dict], experiment: list[dict]) -> dict:
 
 
 def gate_verdict(s_b: dict, s_e: dict, p: dict) -> str:
-    """Gate 8→9 verdict: PPUT 不降 >10%."""
-    # Primary: experiment ΣPPUT not below 90% of baseline
-    threshold = 0.9 * s_b["sigma_pput"]
-    sigma_pass = s_e["sigma_pput"] >= threshold
-    # Secondary: mean PPUT CI lower bound doesn't overlap <90% of baseline mean
-    mean_threshold = 0.9 * s_b["mean_pput_solved"]
-    mean_pass = s_e["mean_pput_solved_ci"][0] >= mean_threshold
-    # depth≥10 PPUT must not regress to 0 if baseline had any
-    depth_pass = (s_b["sigma_depth10_pput"] == 0.0) or (s_e["sigma_depth10_pput"] > 0)
+    """Gate 8→9 verdict — aligned with DECISION_TREE_GATE_8_TO_PHASE_9_2026-04-22.md § 4.1.
 
-    if sigma_pass and mean_pass and depth_pass:
-        return "PASS"
+    PASS:
+      - Paired ΔPPUT CI does NOT fully lie below -0.05
+      - AND one of:
+        (a) ΣPPUT_exp >= 0.90 * ΣPPUT_main
+        (b) solve_count_exp >= solve_count_main - 1 (1-solve tolerance)
+
+    INCONCLUSIVE:
+      - Paired ΔPPUT CI crosses 0 AND ΣPPUT gap > 10%
+      - → re-run seed 2
+
+    FAIL:
+      - Paired ΔPPUT CI lies entirely below -0.10
+      - OR ΣPPUT gap > 25%
+      - → HOLD + diagnose
+    """
+    delta_lo, delta_hi = p["mean_pput_delta_ci"]
+    sigma_main = s_b["sigma_pput"]
+    sigma_exp = s_e["sigma_pput"]
+    sigma_ratio = sigma_exp / sigma_main if sigma_main > 0 else 1.0
+    sigma_gap = 1 - sigma_ratio
+    solve_delta = s_e["solved"] - s_b["solved"]
+
+    # FAIL first (strongest signal)
+    if delta_hi < -0.10:
+        return (f"FAIL: Paired ΔPPUT CI upper {delta_hi:+.3f} < -0.10 (severe regression)")
+    if sigma_gap > 0.25:
+        return (f"FAIL: ΣPPUT gap {sigma_gap*100:.1f}% > 25% (severe regression)")
+
+    # PASS: delta CI not fully below -0.05 AND (sigma OK OR solve count OK)
+    delta_not_below = delta_hi >= -0.05
+    sigma_ok = sigma_ratio >= 0.90
+    solves_ok = solve_delta >= -1
+    if delta_not_below and (sigma_ok or solves_ok):
+        reasons = []
+        if sigma_ok:
+            reasons.append(f"ΣPPUT ratio {sigma_ratio*100:.1f}% ≥ 90%")
+        if solves_ok:
+            reasons.append(f"solves Δ {solve_delta:+d} ≥ -1")
+        return f"PASS: Δ CI upper {delta_hi:+.3f} ≥ -0.05; " + " OR ".join(reasons)
+
+    # INCONCLUSIVE: CI crosses 0 + sigma gap > 10%
+    if delta_lo < 0 < delta_hi and sigma_gap > 0.10:
+        return (f"INCONCLUSIVE: Δ CI crosses 0 ({delta_lo:+.3f}, {delta_hi:+.3f}) + "
+                f"ΣPPUT gap {sigma_gap*100:.1f}% > 10% → re-run seed 2")
+
+    # Default: borderline — report what failed
     reasons = []
-    if not sigma_pass:
-        reasons.append(
-            f"ΣPPUT {s_e['sigma_pput']:.2f} < {threshold:.2f} (90% of baseline {s_b['sigma_pput']:.2f})"
-        )
-    if not mean_pass:
-        reasons.append(
-            f"Mean PPUT CI lower {s_e['mean_pput_solved_ci'][0]:.2f} < 90% of baseline mean {mean_threshold:.2f}"
-        )
-    if not depth_pass:
-        reasons.append(
-            f"depth≥10 PPUT regressed: baseline {s_b['sigma_depth10_pput']:.2f} → exp {s_e['sigma_depth10_pput']:.2f}"
-        )
-    return "FAIL: " + "; ".join(reasons)
+    if not delta_not_below:
+        reasons.append(f"Δ CI upper {delta_hi:+.3f} < -0.05")
+    if not sigma_ok:
+        reasons.append(f"ΣPPUT ratio {sigma_ratio*100:.1f}% < 90%")
+    if not solves_ok:
+        reasons.append(f"solves Δ {solve_delta:+d} < -1")
+    return "INCONCLUSIVE (borderline): " + "; ".join(reasons) + " → re-run seed 2"
 
 
 def main(argv: list[str]) -> int:

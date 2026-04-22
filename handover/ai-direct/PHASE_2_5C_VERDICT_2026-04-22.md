@@ -56,60 +56,47 @@ Interpretation: exp is slightly slower on shared easy algebra (chat-model timing
 
 **Action**: file C-068-b as doc-level follow-up — align analyzer script with DECISION_TREE before seed 2 run.
 
-## § 5. Measurement caveat: fence-leak common-mode
+## § 5. Measurement caveat (corrected 2026-04-22): native_decide forbidden-pattern rejection
 
-Both conditions exhibited identical sub-3s silent FAILs on the same 5 problems:
-- `mathd_algebra_208` (1-2 s, 1 tx, no oracle reject warn)
-- `mathd_numbertheory_235 / _254 / _345 / _447`
+**Initial (wrong) diagnosis**: "fence leak" based on sub-3s FAILs with no oracle reject warn.
 
-Per err log inspection, these entered via the Rule 22 v2 clause 4 silent-reject path — hardened prompt eliminated ~75% of fence responses but ~25% still leak through in this sample. Common-mode pollution **does NOT bias the paired Δ** (both sides affected identically) but reduces effective N from 20 to 15.
+**Actual root cause**: chat's go-to tactic for numeric problems is `native_decide` (Lean bytecode brute-force). Per F-2026-04-20-05 + C-011 + C-050, `native_decide` and bare `decide` are **correctly forbidden** (they trivially discharge arithmetic goals without mathematical content). Oracle's `check_payload` catches this pre-Lean and emits `[oracle] payload rejected pre-Lean: Forbidden pattern: 'native_decide'` warn. Earlier grep missed this because I searched for "oracle reject" string literal.
 
-**Action** (C-068-a, already filed as F-2026-04-22-08 follow-up):
-- Add `warn!` log on fence reject path (fix silent-reject debt)
-- Consider 2-shot retry pattern: if first response has fence, resubmit with even stronger instruction (still Rule 22 v2 compliant: reject-only, no byte mod)
-- Before seed 2 run, aim for < 5% silent-reject rate
+**Actual failure-mode breakdown**:
 
-## § 6. Recommended next step
+| Outcome | Main (baseline) | Exp (Phase 8) |
+|---|---|---|
+| OMEGA ACCEPTED | 5 | **6** |
+| Oracle reject (real Lean error) | 9 | 6 |
+| Pre-Lean `native_decide`/`decide` | 6 | 8 |
+| **Σ** | **20** | **20** |
 
-### Option A: Pre-reg strict — proceed now (default)
-Per DECISION_TREE § 4.1 PASS, immediately:
-1. Update DECISIONS_2026-04-22.md with PASS verdict
-2. Launch Phase 9.A baseline (N=50 × 6 seeds on current exp binary)
-3. Fix fence-leak + analyzer discrepancy in parallel (before 9.B)
+Across 40 attempts: 12× `native_decide`, 2× `decide` bare. All correctly forbidden.
 
-**Pro**: fastest path to Paper 1 preprint
-**Con**: N=20 with 25% fence-leak contamination → low statistical power; seed 2 re-run would boost confidence
+**Solve rate among judge-able (non-forbidden) attempts**:
+- Main: 5/14 = 35.7%
+- Exp: **6/12 = 50.0%**
 
-### Option B: Conservative — one seed 2 confirmation first (recommended)
-Per DECISION_TREE Step 2 "optional confidence-building seed":
-1. Fix fence-leak ≥ 95% (1 session, ~30 min code + smoke)
-2. Fix analyzer script (10 min)
-3. Run Phase 2.5c-seed2 (chat A/B on seed 31415, ~60 min compute, ~$2)
-4. If seed 2 also PASS → high-confidence gate → Phase 9.A
-5. If seed 2 fails or INCONCLUSIVE → file F-finding, decide
+Exp's ratio is notably higher, suggesting Phase 8 changes either produce better tactic choices OR chat coincidentally tried `native_decide` more often on exp (low N, hard to say).
 
-**Pro**: confirms not seed-dependent before burning $30 on 9.A baseline
-**Con**: +1 hour elapsed
+**Constitutional implication**: this is not harness noise — it's chat's preferred oneshot tactic being correctly blocked. Options:
+- **Accept as reality**: oneshot chat on numeric problems has a ~35% floor-loss to forbidden patterns. Swarm (n1/n3) mode likely recovers because agents can try alternate tactics.
+- **Soft prompt hint**: "Use norm_num/omega/linarith/Decidable.decide; do NOT use bare `decide` or `native_decide` — they are forbidden per constitutional rule." **Risk**: C-031/C-034 hierarchy (机制 > 参数 > 提示); also chat might over-avoid legitimate `decide` uses.
+- **Relax forbidden list**: NO — this is a Paper 1 bypass; F-2026-04-20-05 was explicit about preventing bytecode free-wins.
 
-### Option C: Paranoid — re-run same seed post fence-fix
-Purely artifact-elimination re-run on seed 74677 after fence-leak fix.
+**Decision**: accept for now. Swarm-mode tests (Phase 9.B-D) should demonstrate recovery.
 
-**Pro**: directly isolates fence-leak impact
-**Con**: not seed-diverse, adds little info over option B; $2 + 60 min
+## § 6. Option B executed (revised post-correction)
 
-## § 7. Recommendation
+**User approved Option B 2026-04-22**. Revised plan after § 5 correction:
 
-**Option B**. One seed of confirmation + artifact fix is cheap ($2, 1 hour) and addresses two known issues:
-- Under-powered N=20 with fence contamination
-- Analyzer script misalignment with DECISION_TREE
+- ~~Fix fence leak~~ **SKIP** — not a real issue; silent rejects were forbidden-pattern rejections with proper warn logs
+- **Align analyzer script** to DECISION_TREE § 4.1 criteria (legacy Mean-PPUT-CI check removed)
+- **Defer soft prompt hint** about `native_decide` — C-031 constraint + likely hurts swarm mode
+- **Run seed 2** (31415) to confirm gate PASS is not seed-dependent
 
-Both issues would come up again at 9.B onwards. Fixing them now is strictly cheaper than later.
-
----
-
-**Prep checklist for Option B (if approved)**:
-- [ ] Enhance oneshot prompt v3 (stronger no-fence) + add `warn!` on reject path
+**Prep checklist**:
+- [x] Correct verdict diagnosis (this doc revision)
 - [ ] Align `phase2_ab_analyze.py` gate criteria to DECISION_TREE § 4.1
-- [ ] Build main + exp binaries with fix
-- [ ] Launch seed 31415 chat A/B on same sample
+- [ ] Launch seed 31415 chat A/B on same sample (no binary rebuild needed; same prompt)
 - [ ] Run aligned analyzer + write Phase 2.5c-seed2 verdict
