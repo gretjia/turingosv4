@@ -32,6 +32,12 @@ pub struct Tape {
     nodes: HashMap<NodeId, Node>,
     reverse_citations: HashMap<NodeId, Vec<NodeId>>,
     time_arrow: Vec<NodeId>,
+    /// Phase 8.F (C-053, Art. I.2 信誉累积): count of times each author's
+    /// nodes have been cited by subsequent appends. Rebuilt from
+    /// reverse_citations on WAL replay; maintained incrementally on append.
+    /// Serialized with #[serde(default)] so old WAL files load with empty map.
+    #[serde(default)]
+    reputation_by_author: HashMap<String, u32>,
 }
 
 impl Tape {
@@ -40,7 +46,19 @@ impl Tape {
             nodes: HashMap::new(),
             reverse_citations: HashMap::new(),
             time_arrow: Vec::new(),
+            reputation_by_author: HashMap::new(),
         }
+    }
+
+    /// Reputation snapshot: how many times each author's nodes have been
+    /// cited by subsequent appends. Art. I.2 信誉累积信号.
+    pub fn reputation(&self) -> &HashMap<String, u32> {
+        &self.reputation_by_author
+    }
+
+    /// Convenience: reputation count for a specific author (0 if absent).
+    pub fn reputation_of(&self, author: &str) -> u32 {
+        self.reputation_by_author.get(author).copied().unwrap_or(0)
     }
 
     /// Append a node to the tape.
@@ -61,6 +79,18 @@ impl Tape {
                     node_id: node.id.clone(),
                     missing_parent: parent_id.clone(),
                 });
+            }
+        }
+
+        // Phase 8.F (C-053): bump reputation of each cited node's author.
+        // Self-citation is disallowed upstream (evaluator selects parents
+        // before author is known), but guard anyway: still count it — we
+        // measure "your work was built upon", not "peer vs self".
+        for parent_id in &node.citations {
+            if let Some(parent) = self.nodes.get(parent_id) {
+                *self.reputation_by_author
+                    .entry(parent.author.clone())
+                    .or_insert(0) += 1;
             }
         }
 
@@ -143,6 +173,38 @@ impl Default for Tape {
 
 // ── Ledger event log ────────────────────────────────────────────
 
+/// Why the machine halted.
+///
+/// Phase 8.E (C-061): constitutional Art. IV requires `q ∈ {run, halt}` as
+/// the first component of Q_t. The `Halt` ledger event encodes WHY halted.
+/// `halt_reason_distribution` (CLAUDE.md Report Standard) is derived from
+/// these events post-run.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum HaltReason {
+    /// Golden path verified; terminal success.
+    OmegaAccepted,
+    /// Per-problem transaction budget exhausted.
+    MaxTxExhausted,
+    /// Wall-clock cap hit (Art. V.2 "必须在 24 小时内给出结果").
+    WallClockCap,
+    /// Global compute-unit cap hit (Art. V.2 "总算力消耗不得超过 10000").
+    ComputeCapViolated,
+    /// Fatal runtime / measurement error; run abandoned without verdict.
+    ErrorHalt,
+}
+
+impl fmt::Display for HaltReason {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            HaltReason::OmegaAccepted => write!(f, "OmegaAccepted"),
+            HaltReason::MaxTxExhausted => write!(f, "MaxTxExhausted"),
+            HaltReason::WallClockCap => write!(f, "WallClockCap"),
+            HaltReason::ComputeCapViolated => write!(f, "ComputeCapViolated"),
+            HaltReason::ErrorHalt => write!(f, "ErrorHalt"),
+        }
+    }
+}
+
 /// Event types for the append-only event ledger.
 /// V3L-09: explicit vocabulary — only OmegaAccepted is a true OMEGA event.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -157,6 +219,11 @@ pub enum EventType {
     OmegaRejected,
     OmegaError,
     RunEnd,
+    /// Phase 8.E (C-061): explicit q=halt state transition.
+    /// Emitted by `TuringBus::halt_with_reason` (called by halt_and_settle
+    /// with OmegaAccepted; by future compute/wallclock enforcement with
+    /// the other variants).
+    Halt { reason: HaltReason },
 }
 
 impl fmt::Display for EventType {
@@ -172,6 +239,7 @@ impl fmt::Display for EventType {
             EventType::OmegaRejected => write!(f, "OmegaRejected"),
             EventType::OmegaError => write!(f, "OmegaError"),
             EventType::RunEnd => write!(f, "RunEnd"),
+            EventType::Halt { reason } => write!(f, "Halt({})", reason),
         }
     }
 }

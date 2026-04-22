@@ -19,6 +19,10 @@ pub struct BusConfig {
     pub max_payload_lines: usize,
     pub system_lp_amount: f64,
     pub forbidden_patterns: Vec<String>,
+    /// Phase 8.G (C-055): only broadcast a rejection class once ≥ this many
+    /// distinct agents hit it. Enforces Art. II.1 "多个 Agent 都在同一个
+    /// 地方跌倒" literal reading — single-instance ≠ typical error.
+    pub min_class_count_to_broadcast: u32,
 }
 
 impl Default for BusConfig {
@@ -28,11 +32,22 @@ impl Default for BusConfig {
             max_payload_lines: 24,
             system_lp_amount: 200.0,
             forbidden_patterns: Vec::new(),
+            min_class_count_to_broadcast: 3,
         }
     }
 }
 
 // ── Core Bus ────────────────────────────────────────────────────
+
+/// Machine state (Art. IV mermaid: `Q_t = ⟨q_t, HEAD_t, tape_t⟩`).
+///
+/// Phase 8.E (C-061): makes `q_t` a first-class field. Previously halting
+/// was implicit (halt_and_settle called → downstream code infers halted).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum QState {
+    Running,
+    Halted { reason: crate::ledger::HaltReason },
+}
 
 /// The serial event reactor.
 /// V3L-11: ALL state mutations go through this single-threaded reactor.
@@ -45,6 +60,8 @@ pub struct TuringBus {
     pub clock: u64,
     pub tx_count: u64,
     pub generation: u32,
+    /// Phase 8.E (C-061): explicit `q_t` ∈ {Running, Halted}.
+    pub q_state: QState,
     graveyard: HashMap<String, Vec<String>>,
     // Phase 1 (C-037 candidate): durable Q_t. None = legacy in-memory mode.
     wal: Option<crate::wal::Wal>,
@@ -80,8 +97,29 @@ impl TuringBus {
             clock: 0,
             tx_count: 0,
             generation: 0,
+            q_state: QState::Running,
             graveyard: HashMap::new(),
             wal: None,
+        }
+    }
+
+    /// Transition `q_t` to Halted and emit a Halt ledger event with reason.
+    /// Idempotent: repeat calls overwrite the reason but only emit the first
+    /// Halt event (subsequent calls record no new event to avoid WAL pollution).
+    /// Phase 8.E (C-061).
+    pub fn halt_with_reason(&mut self, reason: crate::ledger::HaltReason) {
+        let was_running = matches!(self.q_state, QState::Running);
+        self.q_state = QState::Halted { reason: reason.clone() };
+        if was_running {
+            if let Ok(evt) = self.ledger.append(
+                crate::ledger::EventType::Halt { reason },
+                None, None, None,
+            ) {
+                let evt_clone = evt.clone();
+                if let Some(w) = self.wal.as_mut() {
+                    let _ = w.write_event(&evt_clone);
+                }
+            }
         }
     }
 
@@ -343,7 +381,12 @@ impl TuringBus {
     }
 
     /// Halt and settle — triggered by Oracle verification.
+    /// Phase 8.E (C-061): emits explicit Halt{OmegaAccepted} event before
+    /// market resolution so the ledger records the q-state transition even
+    /// if downstream settlement partially fails.
     pub fn halt_and_settle(&mut self, golden_path: &[NodeId]) -> Result<(), String> {
+        self.halt_with_reason(crate::ledger::HaltReason::OmegaAccepted);
+
         // Resolve all markets
         self.kernel.resolve_all(golden_path).map_err(|e| e.to_string())?;
 
@@ -529,13 +572,21 @@ impl TuringBus {
             RejectionScope::TopKClasses(k) => {
                 // C-022 shield: broadcast abstracted CLASSES with COUNTS, not raw strings.
                 // Expects reason strings to already be class labels (see error_abstraction).
+                //
+                // Phase 8.G (C-055): apply config.min_class_count_to_broadcast
+                // threshold so we only broadcast once ≥N hits of the same class
+                // (宪法 Art. II.1 "多个 Agent 都在同一个地方跌倒" literal reading).
+                // A single-instance class = one agent's slip, not a "typical" error.
+                let min_count: u32 = self.config.min_class_count_to_broadcast;
                 let mut counts: HashMap<String, u32> = HashMap::new();
                 for v in self.graveyard.values() {
                     for r in v {
                         *counts.entry(r.clone()).or_insert(0) += 1;
                     }
                 }
-                let mut sorted: Vec<(String, u32)> = counts.into_iter().collect();
+                let mut sorted: Vec<(String, u32)> = counts.into_iter()
+                    .filter(|(_, c)| *c >= min_count)
+                    .collect();
                 // Sort: count DESC, then alphabetical (tiebreak stable).
                 sorted.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
                 sorted.truncate(k);
@@ -594,6 +645,10 @@ impl TuringBus {
             .map(|w| (w.balances.clone(), w.portfolios.clone()))
             .unwrap_or_default();
 
+        // Phase 8.F (C-053): surface reputation alongside balances/portfolios
+        // so Art. I.2 三大统计信号 都对 agent 可见 (PPUT + reputation + markets).
+        let reputation = self.kernel.tape.reputation().clone();
+
         crate::sdk::snapshot::UniverseSnapshot {
             tape: self.kernel.tape.clone(),
             balances,
@@ -602,6 +657,7 @@ impl TuringBus {
             market_ticker: ticker_str,
             generation: self.generation,
             tx_count: self.tx_count,
+            reputation,
         }
     }
 }
@@ -620,6 +676,7 @@ mod tests {
             max_payload_lines: 10,
             system_lp_amount: 200.0,
             forbidden_patterns: vec!["FORBIDDEN".to_string()],
+            min_class_count_to_broadcast: 1,  // lowered so single-instance broadcasts stay testable
         };
         let mut bus = TuringBus::new(kernel, config);
         bus.mount_tool(Box::new(WalletTool::new(10000.0)));

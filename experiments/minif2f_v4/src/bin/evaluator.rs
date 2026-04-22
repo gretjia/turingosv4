@@ -225,6 +225,7 @@ async fn run_oneshot(
                             max_payload_lines: usize::MAX,
                             system_lp_amount: 0.0,
                             forbidden_patterns: vec![],
+                            min_class_count_to_broadcast: 3,
                         },
                     );
                     oneshot_bus.init(&["oneshot_agent".into()]);
@@ -278,11 +279,14 @@ async fn run_swarm(
         max_payload_lines: 200,
         system_lp_amount: 200.0,
         // C-011: decide/omega/native_decide forbidden (brute-force precedent)
+        // NB: bus-level substring match catches cases like `native_decide`;
+        // lean4_oracle also enforces C-050 (Mathlib-qualified allow, bare ban).
         forbidden_patterns: vec![
-            "native_decide".into(), "decide".into(), "omega".into(),
+            "native_decide".into(),
             "#eval".into(), "IO.Process".into(),
             "IO.FS".into(), "run_tac".into(), "unsafe".into(),
         ],
+        min_class_count_to_broadcast: 3,
     };
 
     // Phase 1: opt-in tape persistence via env. WAL_DIR=<dir> enables WAL
@@ -310,10 +314,11 @@ async fn run_swarm(
                     max_payload_chars: 1200, max_payload_lines: 18,
                     system_lp_amount: 200.0,
                     forbidden_patterns: vec![
-                        "native_decide".into(), "decide".into(), "omega".into(),
+                        "native_decide".into(),
                         "#eval".into(), "IO.Process".into(), "IO.FS".into(),
                         "run_tac".into(), "unsafe".into(),
                     ],
+                    min_class_count_to_broadcast: 3,
                 })
             }
         }

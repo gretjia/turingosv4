@@ -23,6 +23,7 @@ fn make_config() -> BusConfig {
         max_payload_lines: 18,
         system_lp_amount: 200.0,
         forbidden_patterns: vec![],
+        min_class_count_to_broadcast: 3,
     }
 }
 

@@ -21,6 +21,7 @@ fn make_bus(genesis: f64) -> TuringBus {
         max_payload_lines: 20,
         system_lp_amount: 200.0,
         forbidden_patterns: vec![],
+        min_class_count_to_broadcast: 3,
     };
     let mut bus = TuringBus::new(kernel, config);
     bus.mount_tool(Box::new(WalletTool::new(genesis)));
@@ -197,6 +198,7 @@ fn snapshot_empty_when_no_wallet_mounted() {
         max_payload_lines: 5,
         system_lp_amount: 100.0,
         forbidden_patterns: vec![],
+        min_class_count_to_broadcast: 3,
     };
     let bus = TuringBus::new(kernel, config);
     let snap = bus.snapshot();

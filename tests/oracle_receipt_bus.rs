@@ -16,6 +16,7 @@ fn make_bus() -> TuringBus {
         max_payload_lines: 20,
         system_lp_amount: 200.0,
         forbidden_patterns: vec!["native_decide".into()],
+        min_class_count_to_broadcast: 3,
     };
     let mut bus = TuringBus::new(kernel, config);
     bus.mount_tool(Box::new(WalletTool::new(10_000.0)));

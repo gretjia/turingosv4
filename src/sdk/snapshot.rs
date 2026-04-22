@@ -27,6 +27,10 @@ pub struct UniverseSnapshot {
     pub market_ticker: String,
     pub generation: u32,
     pub tx_count: u64,
+    /// Phase 8.F (C-053, Art. I.2): per-author citation count.
+    /// "被其他 Agent 成功调用的总次数" — reputation statistical signal.
+    #[serde(default)]
+    pub reputation: HashMap<String, u32>,
 }
 
 impl UniverseSnapshot {
@@ -36,6 +40,11 @@ impl UniverseSnapshot {
 
     pub fn get_portfolio(&self, agent: &str) -> Option<&HashMap<NodeId, (f64, f64, f64)>> {
         self.portfolios.get(agent)
+    }
+
+    /// Art. I.2 信誉累积信号 — how many times `agent`'s nodes have been cited.
+    pub fn get_reputation(&self, agent: &str) -> u32 {
+        self.reputation.get(agent).copied().unwrap_or(0)
     }
 }
 
@@ -56,6 +65,7 @@ mod tests {
             market_ticker: String::new(),
             generation: 0,
             tx_count: 0,
+            reputation: HashMap::new(),
         };
 
         assert_eq!(snap.get_balance("Agent_0"), 10000.0);
