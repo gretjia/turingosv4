@@ -76,6 +76,13 @@ pub struct TuringBus {
     graveyard: HashMap<String, Vec<String>>,
     // Phase 1 (C-037 candidate): durable Q_t. None = legacy in-memory mode.
     wal: Option<crate::wal::Wal>,
+    /// Phase Z (2026-04-22): the ∏p top-management of Art. IV.
+    /// Predicates are evaluated as a product (AND) by
+    /// `evaluate_predicates`. Registered predicates SUPPLEMENT the
+    /// legacy hard-coded checks in `append_internal` — during the
+    /// migration window both fire. Once all callers route through
+    /// `evaluate_predicates`, the hard-coded checks can be removed.
+    predicates: Vec<Box<dyn crate::sdk::predicate::Predicate>>,
 }
 
 /// Scope for recent_rejections query.
@@ -113,7 +120,38 @@ impl TuringBus {
             oracles_frozen: false,
             graveyard: HashMap::new(),
             wal: None,
+            predicates: Vec::new(),
         }
+    }
+
+    /// Phase Z: register a predicate into the ∏p chain. Predicates are
+    /// evaluated as a product (AND) by `evaluate_predicates`. Order of
+    /// registration = order of evaluation; short-circuits on first Reject.
+    pub fn register_predicate(&mut self, p: Box<dyn crate::sdk::predicate::Predicate>) {
+        self.predicates.push(p);
+    }
+
+    /// Phase Z: evaluate ∏p for a given (context, payload).
+    /// Returns:
+    /// - Verdict::Complete if all applicable predicates accept.
+    /// - Verdict::Reject(reason) on first failing applicable predicate.
+    /// - Verdict::PartialOk { min_confidence } if any applicable predicate
+    ///   returns PartialOk and none reject.
+    ///
+    /// Empty predicate list ⇒ Complete (free pass, preserves Law 1).
+    pub fn evaluate_predicates(
+        &self,
+        ctx: &crate::sdk::predicate::PredicateContext,
+        payload: &str,
+    ) -> crate::sdk::predicate::Verdict {
+        let mut acc = crate::sdk::predicate::Verdict::Complete;
+        for p in &self.predicates {
+            if !p.applies_to(ctx) { continue; }
+            let v = p.verify(payload);
+            acc = acc.product(&v);
+            if matches!(acc, crate::sdk::predicate::Verdict::Reject(_)) { break; }
+        }
+        acc
     }
 
     /// Register an oracle's Ed25519 verifying key as trusted. Only receipts
