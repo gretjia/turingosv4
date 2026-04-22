@@ -1,0 +1,93 @@
+id: C-069
+title: "宪法 flowchart 与 Rust 代码的逐行双向对齐必须有 reproducible trace matrix"
+constitution:
+  - "Art. I 严格合宪（ground truth: constitution.md）"
+  - "Art. IV Turing 拓扑（3 个 flowchart 是主图）"
+  - "Art. V.1 Generator ≠ Evaluator (宪法为 law, 代码为 implementation)"
+  - "C-004 Code Standard"
+  - "C-023 Generator ≠ Evaluator"
+  - "C-010 Audit Standard"
+source_lessons: []
+incident: |
+  2026-04-22 晚: 用户要求严格逐行宪法对齐。Claude 初版 Phase Z 已落地
+  ∏p trait, ReadTool, WriteTool, emit_mr_tick_node, AgentOutput 等核心
+  constructs，但缺乏 reproducible 双向验证：
+  (a) 宪法 flowchart 元素 → Rust 符号 映射散落在代码注释里，无统一登记
+  (b) Rust 符号 → 宪法 flowchart 元素 没有 orphan-detection
+  (c) ✅/⚠️/❌ 状态无权威索引，每次审计都要重新扫描
+
+  此外审计发现 `constitution.md` FC-2 / FC-3 的 ```mermaid 开头 fence
+  缺失（只有结尾 ```），只有 FC-1 能在 GitHub 正确 render —— 这是宪法
+  文档 hygiene 问题，不是代码问题。
+
+facts: |
+  根因:
+  1. 没有正式的 traceability matrix（DO-178C / MDE 标准做法缺席）
+  2. 没有 per-row conformance test（任一宪法元素是否真有 runtime 见证？）
+  3. 没有 doc-comment backlink（grep 出 "FC1-N11" 应该能跳到预期符号）
+  4. 没有 orphan-symbol detection（哪些 pub fn 是宪法扩展 vs 实现 auxiliary vs
+     未归类漂移？）
+
+  现状: Phase Z' Stage 1-5 已建立:
+  - `handover/alignment/FC_ELEMENTS_2026-04-22.md`: 134 条 flowchart 原子元素
+  - `handover/alignment/CODE_CANDIDATES_2026-04-22.md`: 43 条核心 mapping
+  - `handover/alignment/TRACE_MATRIX_v0_2026-04-22.md`: 统一矩阵
+    (15 ✅ + 22 ⚠️ + 1 🔨 + 7 📅 + 3 📄 + 8 orphans)
+  - `tests/fc_alignment_conformance.rs`: 26 实测 + 5 deferred stub tests
+  - Doc-comment backlinks `// TRACE_MATRIX FC1-Nx:` 标记在 src/ 关键符号
+
+ruling: |
+  **一般原则**: 任何影响 runtime 行为的 src/ 修改都必须维护 TRACE_MATRIX
+  同步；宪法 flowchart 必须有 code witness，代码必须有 flowchart 归属
+  或显式 justification。
+
+  **具体要求**:
+  1. **TRACE_MATRIX 是审计权威文件**，位于 `handover/alignment/`。每次
+     架构性修改 (bus.rs / kernel.rs / wallet.rs / ledger.rs / sdk/*) 必须
+     在 PR commit 里更新相关行的状态（✅/⚠️/🔨/📅/📄）。
+  2. **新增 pub 符号必须归类**:
+     - 宪法 flowchart 元素 → 添加 TRACE_MATRIX 行 + doc-comment backlink
+     - 宪法扩展（Art. II.2 Hayek bounty 等）→ 标 orphan 类别 + justification
+     - 不属于任何 → **不允许 merge**（要么删除，要么提交宪法修订申请）
+  3. **宪法 flowchart 新增 / 修改**（仅 human architect 有此权限）→
+     必须同步发 Phase Z''/Z'''... 对齐任务，执行完整 6-stage 流程。
+  4. **Conformance test** 覆盖: 每个 ✅ 行至少 1 个 witness test；📅 行
+     用 `#[ignore = "Phase 11+"]` stub 保留行→测试对应。
+  5. **Doc-comment backlink 规范**: `/// TRACE_MATRIX <FC-id>: <one-line role>`
+     — grep-friendly，单行即可，多行只用于结构性/跨文件引用。
+  6. **宪法文档 hygiene 观察** 不等于宪法修订：任何对 constitution.md
+     的非 author 改动都是 BLOCKER。语法/fence 问题登记到
+     "Constitutional Observation Parking Lot" (handover/alignment/OBS_*.md)
+     等 human architect 决定。
+
+  **适用范围**:
+  - 全部 Rust src/ 修改（不限于 bus/kernel/wallet）
+  - 新增 trait, struct, pub fn
+  - 修改宪法 flowchart 语义 (仅 human 可触发)
+
+  **不适用**:
+  - 纯 test/ 修改（不触碰 runtime semantics）
+  - experiments/minif2f_v4 下的 analysis script / doc / jsonl artifact
+  - 性能优化而不改变语义的 refactor
+
+precedent: |
+  后续标准:
+  1. **CI lint**（优先级: 高; 实现: Phase 11+）: PR 必须 (a) 更新
+     TRACE_MATRIX 如果 src/ 变化, (b) 每个 ✅ 行必须 ≥1 green test,
+     (c) 新 pub 符号必须在矩阵或 orphan-justification section 里。
+  2. **CLAUDE.md 加一节 "Alignment Standard"** 指向本 case 和 TRACE_MATRIX。
+  3. **Paper 1 reproducibility bundle** 必须包含 TRACE_MATRIX +
+     conformance test output (`cargo test --test fc_alignment_conformance`).
+  4. **Phase 11+ 运行时权限**: 当 JudgeAI/ArchitectAI runtime 实现时，
+     本 protocol 升级成 runtime enforcer（JudgeAI 在 PR merge 前自动
+     cross-check 矩阵）。
+  5. **Codex 调用 vs. 手工审计**: Stage 1 (audit) 并行 Claude Code + Codex
+     是 defensible 做法（两路独立 → 交叉核对减少 hallucination）。Stage 3+
+     (code 修改) 推荐顺序执行或严格文件 orthogonal，并行容易 merge conflict。
+  6. **Bad-record**: 2026-04-22 Phase 2.5 0/20 事件（F-2026-04-22-08）
+     和 Agent A 数字伪造（C-066）提示 — 外部 agent 输出的 trace matrix
+     行必须 Claude 独立核验至少 1 行。
+
+rule: R-ALIGN-001
+date: "2026-04-22"
+severity: high

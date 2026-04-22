@@ -31,6 +31,16 @@ Rust 2021, tokio, serde_json. Mission: MiniF2F Lean 4.
 - 度量工具上线即冻结；Oracle 参数冻结；实验禁混 Oracle 模式
 - 中间件若修改数学内容 → 是 ArchitectAI 贡献，不是 swarm 涌现（C-023）
 
+## Alignment Standard (Art. IV + C-069)
+- 权威对齐文件: `handover/alignment/TRACE_MATRIX_v0_2026-04-22.md`
+  (后续 rev: `TRACE_MATRIX_vN.md`)
+- 每个 src/ pub 符号必须映射到宪法 flowchart 元素、标 orphan+justification、
+  或 BLOCK merge。doc-comment backlink 格式: `/// TRACE_MATRIX <FC-id>: <role>`
+- Conformance tests: `tests/fc_alignment_conformance.rs` — 每个 ✅ 行 ≥1
+  witness test；`#[ignore]` stub 覆盖 📅 deferred rows
+- 宪法 flowchart 修改仅 human architect 可触发，需重跑 Phase Z′ 6-stage
+- constitution.md hygiene 观察登记到 `handover/alignment/OBS_*.md`，不改宪法
+
 ## Common Law (宪法 + 判例)
 宪法高度压缩，具体裁决查 `cases/C-xxx.yaml` (facts → ruling → precedent)
 - 按条款查: `grep -l "Art. I.1" cases/*.yaml`
