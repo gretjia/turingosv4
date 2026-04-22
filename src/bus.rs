@@ -539,6 +539,11 @@ impl TuringBus {
     }
 
     /// Get a snapshot of the universe for agents to read.
+    /// Phase 8.A (C-049): balances/portfolios now enumerated from mounted
+    /// WalletTool. Prior `HashMap::new()` made every agent prompt show
+    /// `Balance: 0 Coins` even when wallet held funds → Art. II.2 economic
+    /// signal falsified across all prior TAPE_ECONOMY / Hayek bounty runs.
+    /// See Codex audit N-2 (handover/audits/EXT_CODEX_2026-04-22.md).
     pub fn snapshot(&self) -> crate::sdk::snapshot::UniverseSnapshot {
         let markets: HashMap<NodeId, crate::sdk::snapshot::MarketSnapshot> =
             self.kernel.markets.iter()
@@ -564,10 +569,25 @@ impl TuringBus {
         }
         let ticker_str = ticker_lines.join(", ");
 
+        // C-049 fix: enumerate from mounted WalletTool. Absent wallet → empty
+        // (keeps tool-less unit tests compiling).
+        //
+        // Clone cost (Codex 2026-04-22 CHALLENGE-A): balances is
+        // HashMap<String, f64> (≤ N agents × ~20B), portfolios is
+        // HashMap<String, HashMap<String, (f64,f64,f64)>> (≤ N agents ×
+        // M markets × ~40B). At current paper-phase scale (N ≤ 32, M ≤ 200)
+        // per-call copy is ≤ ~260KB → negligible vs per-tx Lean oracle
+        // latency (~10-100ms). Revisit if scale exceeds N > 100 or
+        // snapshot() moves onto a tighter hot-loop.
+        let (balances, portfolios) = self.tools.iter()
+            .find_map(|t| t.as_any().downcast_ref::<crate::sdk::tools::wallet::WalletTool>())
+            .map(|w| (w.balances.clone(), w.portfolios.clone()))
+            .unwrap_or_default();
+
         crate::sdk::snapshot::UniverseSnapshot {
             tape: self.kernel.tape.clone(),
-            balances: HashMap::new(), // filled by wallet tool query
-            portfolios: HashMap::new(),
+            balances,
+            portfolios,
             markets,
             market_ticker: ticker_str,
             generation: self.generation,
