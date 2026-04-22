@@ -12,6 +12,7 @@
 // These assertions operationalize Law 2 under the reward-pull extension.
 // Running TAPE_ECONOMY_V2=0 (the baseline) must leave balances unchanged.
 
+use serial_test::serial;
 use turingosv4::bus::{BusConfig, BusResult, TuringBus};
 use turingosv4::kernel::Kernel;
 use turingosv4::sdk::tools::wallet::WalletTool;
@@ -57,6 +58,7 @@ fn wallet_yes(bus: &TuringBus, agent: &str, node: &str) -> f64 {
 }
 
 #[test]
+#[serial]
 fn phase2_founder_grant_credits_yes_on_append() {
     with_env("TAPE_ECONOMY_V2", "1", || {
         let mut bus = setup_bus();
@@ -73,6 +75,7 @@ fn phase2_founder_grant_credits_yes_on_append() {
 }
 
 #[test]
+#[serial]
 fn phase2_no_grant_when_flag_off() {
     // Ensure the env var is off for this test (conservative; other tests set it).
     std::env::remove_var("TAPE_ECONOMY_V2");
@@ -87,6 +90,7 @@ fn phase2_no_grant_when_flag_off() {
 }
 
 #[test]
+#[serial]
 fn phase2_settle_pays_out_on_golden_path() {
     with_env("TAPE_ECONOMY_V2", "1", || {
         let mut bus = setup_bus();
@@ -113,6 +117,7 @@ fn phase2_settle_pays_out_on_golden_path() {
 }
 
 #[test]
+#[serial]
 fn phase2_settle_zero_on_losing_side() {
     with_env("TAPE_ECONOMY_V2", "1", || {
         let mut bus = setup_bus();
@@ -130,6 +135,7 @@ fn phase2_settle_zero_on_losing_side() {
 }
 
 #[test]
+#[serial]
 fn phase2_conservation_total_coins_bounded() {
     // Global conservation check: across one append + resolve, total Coins
     // across all wallets + unmovable LP ghost liquidity is bounded by

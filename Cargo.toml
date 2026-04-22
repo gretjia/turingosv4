@@ -19,6 +19,9 @@ tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "macros", 
 
 [dev-dependencies]
 tokio-test = "0.4"
+# Phase 8.Z (2026-04-22): serialize env-var-manipulating tests to fix
+# pre-existing reward_pull_conservation flakiness under parallel cargo test.
+serial_test = "3"
 
 [workspace]
 members = [".", "experiments/minif2f_v4"]
