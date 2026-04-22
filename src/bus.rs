@@ -217,13 +217,18 @@ impl TuringBus {
         if resumed_nodes > 0 || resumed_events > 0 {
             eprintln!("[wal/replay] resumed {} nodes, {} events from {:?}; q_state={:?}",
                       resumed_nodes, resumed_events, wal_path, bus.q_state);
-            // Post-replay: freeze oracle registration (C-067 R1-α). If this
-            // bus resumes from a prior run that had already run init(), the
-            // trusted-pub set was frozen there; caller must pre-register
-            // oracles BEFORE calling with_wal_path. Avoid post-resume
-            // injection of new pubkeys.
-            bus.oracles_frozen = true;
         }
+        // Do NOT freeze oracles here (Codex availability note, 2026-04-22):
+        // the trusted_oracle_pubs set is in-memory only, not persisted in WAL.
+        // Replaying a non-empty WAL produces an empty trusted set; freezing
+        // would make crash-resumed runs unable to register their oracle ever.
+        // Freeze is set only by `init()` — caller pattern on resume is:
+        //     let bus = TuringBus::with_wal_path(...)?;
+        //     bus.register_oracle(oracle.public_key())?;  // allowed
+        //     bus.init(...);                              // freeze
+        // The window between with_wal_path and init is 1-2 lines of
+        // controlled setup code; Codex's `&mut Bus` attack model does not
+        // apply here because the caller IS the trusted initializer.
         bus.wal = Some(crate::wal::Wal::open(&wal_path)?);
         Ok(bus)
     }

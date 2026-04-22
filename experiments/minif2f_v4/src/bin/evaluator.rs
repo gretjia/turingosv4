@@ -246,6 +246,11 @@ async fn run_oneshot(
                     // skip the wtool step, record measurement error, return
                     // solved-but-unverified. Downstream batch runner can
                     // investigate filesystem / disk space / permissions.
+                    // R2 v2 (Codex CHALLENGE): batch runners only treat the
+                    // run as retry-worthy when NO `PPUT_RESULT` is emitted
+                    // (mirrors the existing LLM-error pattern below). So we
+                    // exit(2) with MEASUREMENT_ERROR on stderr — never call
+                    // make_pput, never emit PPUT_RESULT.
                     let mut oneshot_bus = match TuringBus::with_wal_path(
                         Kernel::new(), config, &wal_path,
                     ) {
@@ -253,17 +258,9 @@ async fn run_oneshot(
                         Err(e) => {
                             error!("[art-iv] oneshot WAL open failed ({}); \
                                     refusing to degrade to in-memory bus \
-                                    (C-067 durability requirement). \
-                                    Emitting MEASUREMENT_ERROR for this problem.", e);
+                                    (C-067 durability requirement).", e);
                             eprintln!("MEASUREMENT_ERROR oneshot WAL: {}", e);
-                            // Return a non-result PputResult so batch runner
-                            // treats this as retry-worthy rather than a true
-                            // non-solve. Keep solve=true because Lean oracle
-                            // did accept the proof — we just can't durably
-                            // record it this attempt.
-                            return make_pput(problem_file, "oneshot", model, false, start,
-                                             0, 0, 1, None, None, None,
-                                             Some("measurement_error".to_string()), None);
+                            std::process::exit(2);
                         }
                     };
                     // R1-α: register oracle Ed25519 pubkey BEFORE init so
@@ -356,20 +353,16 @@ async fn run_swarm(
         let wal_path = std::path::Path::new(&wal_dir)
             .join(format!("{}_{}.jsonl", problem_stem, id));
         info!("[wal] using {:?}", wal_path);
+        // R2 v2 (Gemini + Codex residual CHALLENGE): same as oneshot —
+        // don't silently degrade; don't emit PPUT_RESULT; exit(2) so batch
+        // runners treat as retry-worthy (see run_batch.sh:162-180 semantics).
         match TuringBus::with_wal_path(kernel, config, wal_path) {
             Ok(b) => b,
             Err(e) => {
-                error!("[wal] open failed: {} — falling back to in-memory", e);
-                TuringBus::new(Kernel::new(), BusConfig {
-                    max_payload_chars: 1200, max_payload_lines: 18,
-                    system_lp_amount: 200.0,
-                    forbidden_patterns: vec![
-                        "native_decide".into(),
-                        "#eval".into(), "IO.Process".into(), "IO.FS".into(),
-                        "run_tac".into(), "unsafe".into(),
-                    ],
-                    min_class_count_to_broadcast: 3,
-                })
+                error!("[wal] open failed: {} — refusing to degrade to in-memory \
+                        (C-067 durability).", e);
+                eprintln!("MEASUREMENT_ERROR swarm WAL: {}", e);
+                std::process::exit(2);
             }
         }
     } else {
