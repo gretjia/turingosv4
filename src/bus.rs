@@ -715,9 +715,16 @@ impl TuringBus {
                 }))
                 .collect();
 
-        let ticker = self.kernel.market_ticker(10);
+        // Extended ticker (Art. II.2 bidirectional price signal):
+        //   up to 50 unresolved markets with YES/NO price + reserves.
+        // Bigger cap reduces Matthew-effect; reserves let agents estimate
+        // price impact before investing (market depth visibility).
+        let ticker = self.kernel.market_ticker_full(50);
         let mut ticker_lines: Vec<String> = ticker.iter()
-            .map(|(id, price)| format!("{}: {:.1}%", id, price * 100.0))
+            .map(|(id, yes_p, no_p, yes_r, no_r)| {
+                format!("{}: YES={:.1}% NO={:.1}% (Y={:.0} N={:.0})",
+                    id, yes_p * 100.0, no_p * 100.0, yes_r, no_r)
+            })
             .collect();
         // Phase 3A: surface the bounty price first so agents see the pre-
         // existing signal. No prose, no rule — just price-as-state (Hayek).

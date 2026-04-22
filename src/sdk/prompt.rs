@@ -121,7 +121,12 @@ pub fn build_agent_prompt(
         prompt.push_str("    Legacy one-shot: full proof. Payload alone, then tape+payload fallback.\n");
     }
     prompt.push_str("  {\"tool\":\"search\",\"query\":\"<keyword>\"}\n");
-    prompt.push_str("  {\"tool\":\"invest\",\"node\":\"<node-id>\",\"amount\":<number>}\n");
+    prompt.push_str("  {\"tool\":\"invest\",\"node\":\"<node-id>\",\"amount\":<number>,\"direction\":\"long|short\"}\n");
+    prompt.push_str("    Bet on a tape node's quality (Art. II.2 price signal).\n");
+    prompt.push_str("    direction=\"long\" buys YES shares (this node is on the winning path);\n");
+    prompt.push_str("    direction=\"short\" buys NO shares (this node is a dead end).\n");
+    prompt.push_str("    Use short to price-signal dissent — silence != disagreement.\n");
+    prompt.push_str("    amount is coins deducted from your balance.\n");
     prompt.push_str("  {\"tool\":\"post\",\"payload\":\"<short message to team board>\"}\n");
 
     prompt

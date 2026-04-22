@@ -192,6 +192,18 @@ impl Kernel {
         prices.truncate(top_n);
         prices
     }
+
+    /// Extended ticker with both sides + reserves, enabling bidirectional price signals
+    /// (Art. II.2) and market-depth visibility. Sorted by YES price descending.
+    pub fn market_ticker_full(&self, top_n: usize) -> Vec<(NodeId, f64, f64, f64, f64)> {
+        let mut rows: Vec<(NodeId, f64, f64, f64, f64)> = self.markets.iter()
+            .filter(|(_, m)| m.resolved.is_none())
+            .map(|(id, m)| (id.clone(), m.yes_price(), m.no_price(), m.yes_reserve(), m.no_reserve()))
+            .collect();
+        rows.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        rows.truncate(top_n);
+        rows
+    }
 }
 
 impl Default for Kernel {

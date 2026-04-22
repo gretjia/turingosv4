@@ -796,10 +796,17 @@ async fn run_swarm(
                             // Law 2: Only Investment Costs Money (1 Coin = 1 YES + 1 NO).
                             // Agent bets on a tape node's quality. This drives price signals
                             // (Art. II.2) which guide Boltzmann routing (Art. II.2.1).
+                            // Direction: prefer explicit `direction` field (long/short);
+                            // fall back to sign of amount (positive=long, negative=short).
+                            // Bidirectional signals let agents express dissent (Art. II.2).
                             if let (Some(node_id), Some(amount)) = (&action.node, action.amount) {
                                 let amt = amount.abs();
                                 if amt > 0.0 {
-                                    let buy_yes = amount > 0.0;
+                                    let buy_yes = match action.direction.as_deref() {
+                                        Some("long") | Some("yes") | Some("LONG") | Some("YES") => true,
+                                        Some("short") | Some("no") | Some("SHORT") | Some("NO") => false,
+                                        _ => amount > 0.0,  // sign-based fallback
+                                    };
                                     // Law 2 conservation: validate market BEFORE debit (no coin-loss path)
                                     let market_exists = bus.kernel.yes_price(node_id).is_some();
                                     if !market_exists {

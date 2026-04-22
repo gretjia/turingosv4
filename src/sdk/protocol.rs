@@ -20,6 +20,11 @@ pub struct AgentAction {
     pub node: Option<String>,
     #[serde(default)]
     pub query: Option<String>,
+    /// Bet direction for `invest` tool. Valid values: "long"/"yes" (buy YES)
+    /// or "short"/"no" (buy NO). If absent, falls back to sign of `amount`:
+    /// positive ⇒ long, negative ⇒ short. See Art. II.2 bidirectional price signal.
+    #[serde(default)]
+    pub direction: Option<String>,
 }
 
 /// Parse error with explicit reason. V3L-09: NEVER silently return None.
