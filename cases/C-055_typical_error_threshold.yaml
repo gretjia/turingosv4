@@ -1,0 +1,45 @@
+id: C-055
+title: "Art. II.1 典型错误频率阈值缺失（单次错误被当作群体模式广播）"
+constitution:
+  - "Art. II.1 广播典型错误 — 原文: '如果顶层发现多个 Agent 都在同一个地方跌倒...'"
+source_lessons: []
+incident: |
+  2026-04-22 宪法盲点审计（B-04）：
+  `src/bus.rs:519-537` `recent_rejections_scoped(TopKClasses)` 的实现：
+  ```
+  let mut sorted: Vec<(String, u32)> = counts.into_iter().collect();
+  sorted.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+  sorted.truncate(k);
+  ```
+  **对所有 count ≥ 1 的类别排序取 top-k**，无频率门槛。**一个** agent 的
+  错误 = 百分之百被广播，这与宪法 Art. II.1 "多个 Agent 都在同一个地方跌倒"
+  字面冲突。
+facts: |
+  实操影响：在 N=8 swarm 里，某个 agent 一次 unique 错误（可能是它自己的
+  one-off bug）立即被其他 7 个 agent 在下一 tick 的 prompt 里看到，成为
+  in-context "所有 agent 都应该避免 X" 学习信号 → C-022 context poisoning
+  的精确机制。
+
+  宪法意图明显：典型错误的"典型"性必须先由频率证明，否则单人嫌疑就
+  被当作群体共识 → 单点故障。
+ruling: |
+  合规实现：
+  1. `BusConfig.min_class_count_to_broadcast: u32`（默认 3）
+  2. TopKClasses 分支 `filter(|(_, c)| *c >= min_count)` 在 sort 之前
+  3. 配置化（非 env var）保证并行测试 deterministic（env var approach
+     在 8.A CHALLENGE-B 已证明 flaky）
+
+  Phase 8.G 已修复 via commit 3ff4f70 + 5 regression tests。
+precedent: |
+  后续标准：
+  1. 任何"选择性广播"机制（Art. II 系列）必须有 frequency / count 阈值
+     — 缺失即违 II.1 literal reading
+  2. env var 用于"实验性 override"可以，但**默认值不能靠 env var**
+     （C-027 硬编码禁令 + 并行测试 deterministic 要求）
+  3. 未来加新 `RejectionScope::XxxYyy` 必须：(a) 思考阈值 (b) 配对 test
+  4. "更新全局架构文档"（宪法 Art. II.1 步骤 2）目前只存内存，不持久化；
+     见 C-055 姊妹议题 B-05（Phase 10 任务）
+
+rule: R-BROADCAST-001
+date: "2026-04-22"
+severity: high

@@ -1,0 +1,44 @@
+id: C-048
+title: "oneshot 路径绕过 C-043 mandatory wtool（Art. IV 违宪）"
+constitution:
+  - "Art. IV: ∏p=1 → wtool → Q_{t+1}（所有 OMEGA 必写入 tape）"
+  - "C-043: mandatory wtool on OMEGA"
+source_lessons: []
+incident: |
+  2026-04-22 Codex 外部审计（N-1，EXT_CODEX_2026-04-22.md）：
+  `experiments/minif2f_v4/src/bin/evaluator.rs:108-143,196-215` 的 oneshot
+  条件在 `oracle.verify_omega` 返回 true 后直接构造 PputResult 返回，**不
+  经过任何 bus write 或 settlement**。
+
+  Claude 内审（SYNTHESIS_2026-04-22.md 最初版）误把 "all Art. IV topology
+  mechanisms landed on main" 当成已完全对齐。实际上 oneshot 是 v3 遗留
+  通道，仍在宪法外飞地。
+facts: |
+  影响范围：oneshot 条件下的每一个 solve（本项目 100+ batch）都未生成
+  ledger Event，未写 WAL。这让：
+  - 独立第三方无法从 WAL 重放 oneshot 的 solve 历史
+  - halt_reason_distribution 无法计算
+  - Paper C1 "Art. IV 100% 实现"论据被削弱
+ruling: |
+  Oneshot 必须走 `bus.append_oracle_accepted`（带 OracleReceipt）完成
+  Q_t→Q_{t+1} 转移。由于 oneshot 是 stateless per-problem，用 ephemeral
+  bus（per-solve 新建 kernel + 不挂 wallet）保留单步语义。
+
+  修复：`evaluator.rs` run_oneshot 内 OMEGA accept 后构造 ephemeral
+  TuringBus + OracleReceipt::for_lean4_complete + append_oracle_accepted。
+precedent: |
+  后续标准：
+  1. **任何**新增条件（hybrid_v1, dual-path, step-only 等）的 OMEGA
+     accept 路径必须调 `bus.append_oracle_accepted` — 不是可选项
+  2. `persist_proof_artifact`（写 proofs/*.lean）**不等同于** wtool；
+     前者是 Paper 3 reproducibility bundle，后者是 constitutional ledger
+  3. PR diff 若新增 `verify_omega` 调用但未配对 `append_oracle_accepted`
+     → 自动 VETO（可编入 CI linter）
+  4. LATEST.md "Art. IV topology complete" 陈述每次必须以 grep 证据
+     (`grep -c append_oracle_accepted evaluator.rs` ≥ 所有 OMEGA path)
+     支撑
+
+  Phase 8.B 已修复 via commit 4eea992。
+rule: R-WTOOL-001
+date: "2026-04-22"
+severity: critical

@@ -1,0 +1,51 @@
+id: C-049
+title: "bus.snapshot() 硬编码空 balances/portfolios（Art. II.2 经济信号失真）"
+constitution:
+  - "Art. II.2: 价格信号必须对 agent 可见（广播价格信号）"
+  - "Art. II.2.1: 探索/利用平衡需要 agent 感知经济状态"
+source_lessons: []
+incident: |
+  2026-04-22 Codex 外部审计（N-2，EXT_CODEX_2026-04-22.md）独立发现：
+  `src/bus.rs:567-570`:
+    UniverseSnapshot {
+        tape: self.kernel.tape.clone(),
+        balances: HashMap::new(), // filled by wallet tool query
+        portfolios: HashMap::new(),
+        ...
+    }
+  注释 "filled by wallet tool query" 是谎言 — **没有任何代码**完成这步
+  填充。链路：`evaluator.rs:492` `snap.get_balance(agent_id)` → 永远返回 0
+  → `src/sdk/prompt.rs:78` 渲染为 `Balance: 0 Coins`。
+facts: |
+  这个 bug 从 2026-04-16 左右存在，影响：
+  - F-2026-04-18-02 "Tape stays empty, markets stay empty" 的根因**很可能
+    就是这个**，不是激励曲线或 cold fee 不够（错误归因）
+  - TAPE_ECONOMY v1/v2 实验（F-2026-04-20-03/04）全部在错误 baseline
+    上运行 — agent 根本没看到市场信号
+  - Phase 2.5 portfolio、Phase 3A Hayek bounty 的 "0 invest" 观察全部
+    结论不可信
+
+  Agent 看到 0 余额 → rational strategy = 只用 complete（不冒险 append/
+  invest）→ 符合所有 "complete 主导" 的历史观察。这是一个**叙事级别的
+  误诊**：我们把机制失败归因给"激励设计"，实际是 IO bug。
+ruling: |
+  `bus.snapshot()` 必须从 mounted WalletTool enumerate balances + portfolios，
+  无挂载 wallet 时返回空（不 panic）。修复：`.find_map()` + `.clone()`。
+
+  此 bug 暴露的元教训：**"filled by X" 注释必须配对 `#[test]` 证明 X
+  真的填充**。否则注释会"说谎"。
+precedent: |
+  后续标准：
+  1. 任何 `HashMap::new()` 伴随 "filled by X" 注释的代码 → 必须有 test
+     断言 non-empty（Clippy 可加 lint）
+  2. Art. I/II/III 强制的 agent-visible 信号必须有 regression test
+     证明 snapshot surface 它（见 C-053 reputation 的 7 个测试 pattern）
+  3. 历史归因判断（F-finding）需要核心 I/O 正确性前置验证：
+     "这个结论是否依赖 agent 能看到 X？若是，grep X in snapshot。"
+  4. **所有早于 2026-04-22 的 TAPE_ECONOMY / Hayek bounty 实验结论**
+     需在 Phase 9 复现验证前打 "需复查" 标签
+
+  Phase 8.A 已修复 via commit a4d744c + 6 regression tests。
+rule: R-SNAPSHOT-001
+date: "2026-04-22"
+severity: critical

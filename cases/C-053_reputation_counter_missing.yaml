@@ -1,0 +1,50 @@
+id: C-053
+title: "信誉累积计数器缺失（Art. I.2 三大统计信号之一不全）"
+constitution:
+  - "Art. I.2 统计信号 — 信誉累积（计数器）是三大信号之一"
+  - "原文：'统计某个 Agent 提出的方案在后续流程中被其他 Agent 成功调用的总次数'"
+source_lessons: []
+incident: |
+  2026-04-22 宪法盲点审计（B-01，CONSTITUTIONAL_BLINDSPOT_AUDIT_2026-04-22.md）：
+  Art. I.2 明文列 3 大统计信号：
+    1. 共识提取（众数/中位数）
+    2. 信誉累积（计数器）← 完全缺失
+    3. 效用评分（期望/方差）← PPUT 覆盖
+
+  `grep -rn "citation.count\|cite_count\|reputation" src/` 零匹配。
+  `ledger.rs:31-44` Tape 只有 `reverse_citations: HashMap<NodeId, Vec<NodeId>>`
+  按节点聚合，**不按 author 聚合**。
+facts: |
+  缺失信誉信号的影响：
+  - Art. II.2.1 探索/利用无法参考"信誉高的 agent 倾向更可信"
+  - Paper C2 的"multi-agent collaboration"无法量化（没 metric）
+  - C-052 Report Standard 要求的 "三大信号必需" 不满足
+
+  CLAUDE.md Report Standard 2026-04-22 升格条款之一：
+  "Art. I.2 三大统计信号不可缺: 信誉(reputation_distribution p50/p90/max)
+  + 效用(PPUT) + 共识(如适用)"
+ruling: |
+  修复必须：
+  1. `Tape.reputation_by_author: HashMap<String, u32>` 字段
+  2. 每次 `Tape.append` 时，对每个 cited parent 的 author count +1
+  3. `#[serde(default)]` 保证老 WAL 文件 backward compat
+  4. `UniverseSnapshot.reputation: HashMap<String, u32>` 暴露给 agent prompt
+  5. 自引用 counts（实现选择）：measure "work was built upon"，非
+     "peer-vs-self" voting（C-053 ruling 固化此决定）
+
+  CHECKPOINT / LATEST 报告必须列 reputation p50/p90/max（Report Standard
+  升格条款）。
+precedent: |
+  后续标准：
+  1. Art. I.2 的 "共识提取" 信号是 C-054 候选（Phase 10 任务）
+  2. Paper Claim C2 emergent depth 分析必须附 reputation 分布图
+     （证明非单人单节点贡献）
+  3. 女巫防御（P0-2 sigmoid γ 曲线）的设计输入必须是 reputation（不是
+     solve count），否则就错位了
+  4. 任何新加的 Art. I.2 "第 N 大信号" 需有 `Tape.*` 或 `UniverseSnapshot.*`
+     字段 + 对应 per-agent accessor + 对应 regression test
+
+  Phase 8.F 已修复 via commit 3ff4f70 + 7 regression tests。
+rule: R-REPUTATION-001
+date: "2026-04-22"
+severity: critical

@@ -1,0 +1,49 @@
+id: C-050
+title: "C-011 decide/omega 仅部分执行（Mathlib 语境白名单缺失）"
+constitution:
+  - "Art. I.1: 谓词必须是确定性逻辑"
+  - "Art. I.1.1 Completeness=1: 正确解必须始终接受"
+  - "C-011: 禁止 decide/omega/native_decide 暴力形式化"
+source_lessons: [V3L-03]
+incident: |
+  2026-04-22 Codex 外部审计（N-3，EXT_CODEX_2026-04-22.md）：
+  `experiments/minif2f_v4/src/lean4_oracle.rs:13-20` FORBIDDEN_PATTERNS 只
+  列 `native_decide`；bare `decide` 和 `omega` 未禁。
+
+  更糟：`lean4_oracle.rs:395-399` 原有 `test_decide_tactic_permitted` 测试
+  **显式 assert `decide` 被允许** — 与 C-011 ruling "decide/omega/
+  native_decide 应在 bus.rs forbidden_patterns 中拦截" 直接冲突。
+facts: |
+  完全 ban `decide` 子串违反 Art. I.1.1 Completeness=1：合法 Mathlib API
+  使用（`Decidable.decide`, `Nat.decide_lt` 等 qualified 形式）会被误拒。
+
+  完全不管又开了 brute-force 后门，复刻 F-2026-04-20-05 class 攻击（17
+  solves 被 native_decide 污染后整批回溯）。
+ruling: |
+  正确的 C-011 完整执行：区分 **bare tactic invocation** vs
+  **qualified Mathlib reference**。
+
+  实现（`has_bare_tactic_invocation` 函数）：
+  - 字 word boundary + 前序字符 NOT `.` 且 NOT `:` → bare（禁）
+  - 前序字符 `.` 或 `:` → qualified（允许）
+  - 前序字符 `_` → identifier containing（允许，如 `native_decide`
+    已在 substring FORBIDDEN 列，独立覆盖）
+
+  反例模式：
+  - `by decide` → 前序 = ' ' → 禁（bare）
+  - `Decidable.decide` → 前序 = '.' → 允许
+  - `Nat.decide_lt` → 前序 = '.' → 允许
+  - `native_decide` → 前序 = '_' → 不是 bare（匹配已有 substring 规则）
+precedent: |
+  后续标准：
+  1. 任何"禁 X 但需允许 Mathlib qualified 用法"模式都走 bare_tactic 机制
+  2. 添加新 forbidden tactic → 必须配对 whitelist 测试用例（至少 3 个
+     qualified 形式），参考 `tactic_whitelist_tests` 模块 6 个测试
+  3. `test_decide_tactic_permitted`-style 显式打脸宪法的测试必须立即删除
+     或改名为 `test_*_forbidden`（不是静默改断言）
+  4. 将来加新 bare-tactic 词到 `BARE_TACTIC_FORBIDDEN` 需在本 case 追加
+
+  Phase 8.D 已修复 via commit 4eea992。
+rule: R-C011-001
+date: "2026-04-22"
+severity: critical

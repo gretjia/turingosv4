@@ -1,0 +1,46 @@
+id: C-044
+title: "Art. V 三权分立未实现（ArchitectAI/JudgeAI 仅 prompt 空壳）"
+constitution:
+  - "Art. V.1: 三权分立 — 系统必须实现宪法/ArchitectAI/JudgeAI 三角博弈"
+  - "Art. V.1.2: ArchitectAI — 激进改革派，提出架构变更"
+  - "Art. V.1.3: JudgeAI — 保守守门人，veto 违宪提案"
+source_lessons: []
+incident: |
+  2026-04-22 三路外部审计（Codex+Gemini+DeepSeek）+ Claude 内审一致发现：
+  Art. V 三权分立在 v4 代码中 **不存在实体实现**。
+  - `grep -rn "ArchitectAI|JudgeAI|architect_ai|judge_ai" src/` 零匹配
+  - `.claude/agents/proposer.md` 和 `.claude/agents/auditor.md` 仅是
+    Claude Code sub-agent prompt 定义，不入 Rust runtime / CI
+  - `handover/directives/` 和 `handover/audits/` 目录长期为空（审计当时）
+  - `routines/daily_drift.yaml` 有 JudgeAI-advisory 外部 routine，但
+    无 veto wiring 到 bus 或 git pre-merge
+facts: |
+  宪法 Art. V 明文要求："内部必须实现严格的三权分立机制 ... 系统演化的
+  本质是：机制、突变、选择，这恰恰对应元架构层中的三个角色及其永恒博弈。"
+
+  Codex 裁决（Q1 VETO，EXT_CODEX_2026-04-22.md）："Net: the repo has thin,
+  manual, advisory governance scaffolding, not a literal zero-state shell,
+  but it still does not satisfy Art. V as an implemented separation-of-powers
+  mechanism."
+
+  LATEST.md 2026-04-21 声称 "Constitutional TuringOS complete" — Art. IV 层面
+  基本成立，**Art. V 层面不成立**（见 SYNTHESIS § 2 V-2）。
+ruling: |
+  Art. V 三权分立的"合规"定义：
+  1. ArchitectAI 和 JudgeAI 必须是**不同进程 + 不同模型**（避免 persona 退化）
+  2. JudgeAI 的 veto 必须有**可执行 wiring**（e.g. git pre-merge CI gate）
+  3. 宪法文件必须是 ground truth（物理只读 + GPG 签名，见 C-046）
+  4. 至少需要 **1 次 runtime 实证 veto trace** 证明机制活的
+
+  Phase 8 **未修复**本项（最小改动不碰 meta architecture）。Phase 10a
+  Wave C 实施：InitAI + ArchitectAI(Codex) + JudgeAI(Gemini+DeepSeek 共决)
+  按 DEEPSEEK_MECHANISM_DESIGN § Q1 架构图。
+precedent: |
+  后续标准：
+  1. 任何声称 "Art. V 已落地" 的文档必须引用至少 1 次 veto 实证 trace
+  2. JudgeAI 为 Claude（同一 provider 的同一角色）不成立—C-023 Generator≠Evaluator
+  3. Art. V veto 必须可阻断 merge，不是事后报告
+  4. Paper 1 claim C4 正是本条的实证要求
+rule: R-META-001
+date: "2026-04-22"
+severity: high

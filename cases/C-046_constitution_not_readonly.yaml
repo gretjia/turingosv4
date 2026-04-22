@@ -1,0 +1,42 @@
+id: C-046
+title: "宪法文件未物理保护（Art. V.1.1 违宪）"
+constitution:
+  - "Art. V.1.1: 宪法是唯一基准真相 — 存放在只读文件系统，只有人类架构师才拥有修改它的 sudo 权限"
+source_lessons: []
+incident: |
+  2026-04-22 三路外部审计一致发现：
+  - `ls -la /home/zephryj/projects/turingosv4/constitution.md` = mode 644（可写）
+  - `git config --get core.hooksPath` unset
+  - `.git/hooks/` 只有 sample hooks，无 pre-commit 对 constitution.md 的保护
+  - 无 CI workflow 检查 constitution.md 变更
+  - `routines/daily_drift.yaml` 对 constitution.md 是 advisory-only，非 blocking
+
+  Codex Q3 PASS（Claude 声明属实）：当前状态与 Art. V.1.1 要求不一致。
+facts: |
+  "宪法是 ground truth" 是 Art. V 三权分立的物理基础。如果 ArchitectAI 能
+  直接改宪法，或 merge 流程能静默改宪法，整个 JudgeAI 否决机制就失去锚点
+  — JudgeAI 核对违宪时，违宪的定义本身已被修改。
+
+  攻击 scenario（Paper 2/3 外部 agent 接入后）：
+  - 恶意 patch 修改 constitution.md 放宽某条款 + 同时提交一个"合乎新宪法"的
+    违宪架构变更 → JudgeAI 在"新宪法"下 approve → 系统被 take over
+ruling: |
+  合规要求：
+  1. `chmod 444 constitution.md`
+  2. Git pre-commit hook：拒绝非 GPG-signed commit 修改 constitution.md
+  3. CI workflow：PR 若 diff touches constitution.md 必须有 human review
+  4. GPG signer pubkey 进宪法附件（自引用：宪法记录它自己的修改者身份）
+
+  Phase 8 **未修复**本项。Phase 10a W-B.1 实施（与 γ/β/θ 编译期化同步）。
+precedent: |
+  后续标准：
+  1. 任何操作 constitution.md 的 PR 必须人工 + GPG 双签，否则 CI block
+  2. JudgeAI 在 veto 时必须记录所引用宪法条款的版本（commit hash），
+     防止宪法变更前后的判决混淆
+  3. 若 human 因紧急情况需改宪法（e.g. 发现根本性错误），流程：
+     (a) 断开系统运行 (b) GPG-sign patch (c) 立新宪法判例 C-xxx (d) 重启
+  4. Paper 1 claim C1 "Art. IV 100% 实现" 必须伴随 Art. V.1.1 物理保护
+     （否则 claim 无根基）
+rule: R-CONSTITUTION-001
+date: "2026-04-22"
+severity: high

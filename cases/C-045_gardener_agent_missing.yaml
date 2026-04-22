@@ -1,0 +1,41 @@
+id: C-045
+title: "园丁 Agent 缺失（Art. III.1 违宪）"
+constitution:
+  - "Art. III.1: 屏蔽错误 — 顶层白盒必须像园丁一样定期 GC 陈旧错误模式"
+source_lessons: []
+incident: |
+  2026-04-22 宪法盲点扫描 (B-10) + 外部三审一致发现：
+  宪法 Art. III.1 明文 "顶层白盒需要像清理内存一样，部署后台'园丁 Agent'，
+  定期扫描并屏蔽那些偏离黄金原则的陈旧代码与过期文档，确保系统熵值
+  不会随时间失控"。但 repo：
+  - `grep -rn "gardener|prune|evict|tape_gc|garbage|tombstone|tape.remove" src/` 零
+  - `src/ledger.rs:27-35` 注释："Invariant: once appended, a node is NEVER
+    modified or removed" (append-only 不等于 GC)
+  - `src/sdk/tools/librarian.rs` 写 agent 个人 memory，不做全局架构清理
+facts: |
+  Append-only 语义 ≠ 宪法 GC。宪法要求"清理"，代码只保证"不遗忘"。这是
+  两个正交的性质，不可相互替代。
+
+  实操场景：2026-04-19 `librarian.rs:62-67` 学习文件被持续覆盖写入；过时
+  的错误模式（例如 Phase 2 pre-fix "append 无经济激励"的教训）永远留存
+  在 learned memory 里，污染后续 agent 的 in-context learning（C-022 类型）。
+ruling: |
+  "园丁"合规需要：
+  1. Tape 节点可标 tombstone（不删除，标软删；原始数据 WAL 仍留）
+  2. 园丁 agent 定期运行（crontab 或 routine）识别 tombstone 候选：
+     - age > 24h
+     - citations == 0（无后继引用）
+     - 非 golden-path 一部分
+  3. learned.md / skills/ 文件有 TTL 或 version（过期内容不进 prompt）
+  4. Tape append 需 stake ε Coin，tombstone 时 stake 没收（经济激励）
+
+  Phase 8 **未修复**本项（改动最大、风险最高）。Phase 10a Wave A W-A.3 实施。
+precedent: |
+  后续标准：
+  1. 任何无界增长的 HashMap/Vec 在宪法框架下都违宪（见 C-062 类型）
+  2. Tape 上限 `MAX_TAPE_NODES`（默认 1000）必配合园丁，否则只是 cap 不是 GC
+  3. librarian.rs 的 learned.md 同样需要园丁（B-10 扩展；见 C-058 姊妹案）
+  4. Paper 1 可声称"Art. III.1 deferred"不阻塞；但 Phase 10 前必须修
+rule: R-GC-001
+date: "2026-04-22"
+severity: medium

@@ -1,0 +1,52 @@
+id: C-061
+title: "q-halt 状态机缺失（Art. IV 三元组 q_t 未 first-class 存在）"
+constitution:
+  - "Art. IV: Q_t = ⟨q_t, HEAD_t, tape_t⟩ 三元组"
+  - "Art. IV mermaid: q1 ==>|if q = halt| halt (双圈终态)"
+source_lessons: []
+incident: |
+  2026-04-22 宪法盲点审计（B-14, CONSTITUTIONAL_BLINDSPOT_AUDIT.md）：
+  宪法 Art. IV 的图灵机三元组明确 `Q_t = ⟨q_t, HEAD_t, tape_t⟩`。
+  tape_t 有（`Tape`），HEAD_t 有（`time_arrow.last()`），但 **q_t 缺失**：
+  - `src/ledger.rs:148-160` EventType 有 RunStart/RunEnd/OmegaAccepted/...
+    **没有 Halt 事件**
+  - `grep -rn "q_halt\|q_state" src/` 零匹配
+  - `halt_and_settle` 只是函数调用；没有显式"机器已进入 halt 状态"的
+    first-class 字段
+facts: |
+  报告层面缺失：
+  - halt_reason_distribution (CLAUDE.md Report Standard 2026-04-22 升格)
+    无法从 ledger 计算
+  - 三种终态无法区分：OMEGA accepted / tx_cap exhausted / wall-clock cap
+    → 用 solve count 汇报时全部混为"失败"
+
+  外部可证伪性缺失：Paper 3rd-party 跑 audit_proof.py 时，无 Halt 事件
+  意味着"run 是否合法完成"只能靠缺失的 RunEnd 推断 — 这违反 Art. IV 的
+  构造性图灵机定义。
+ruling: |
+  合规实现：
+  1. `HaltReason` enum (OmegaAccepted / MaxTxExhausted / WallClockCap /
+     ComputeCapViolated / ErrorHalt) + Display
+  2. `EventType::Halt { reason: HaltReason }` 变体
+  3. `QState` enum (Running / Halted{reason}) 作为 `TuringBus.q_state`
+     pub field
+  4. `halt_with_reason()` 方法：
+     - 首次调用：ledger emit Halt event (+ WAL persist)
+     - 后续调用：q_state 更新但不重复 emit event（避免 WAL 污染）
+     - 记录的是 FIRST reason（"why q 最初 flip"的真相）
+  5. `halt_and_settle` 在 resolve_all 之前调 `halt_with_reason
+     (OmegaAccepted)` — 即使 settle 部分失败，q-transition 记录仍在
+precedent: |
+  后续标准：
+  1. 任何新"halt 入口"（e.g. C-064 compute cap / wall-clock cap 实装）
+     必须调 `halt_with_reason(<对应 reason>)`
+  2. CHECKPOINT 必列 halt_reason_distribution 表（Report Standard 强制）
+  3. Paper C1 "Art. IV 100% 实现" 必须以 q-halt state + Halt event 存在
+     作为证据
+  4. 测量错误（API 超时、LLM provider down）仍应走 `ErrorHalt` 而非静默
+     — 区分"未尝试"和"尝试失败"
+
+  Phase 8.E 已修复 via commit 3ff4f70 + 6 regression tests。
+rule: R-QSTATE-001
+date: "2026-04-22"
+severity: critical
