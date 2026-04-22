@@ -50,6 +50,13 @@
 
 ## 2. Confirmed findings (evidence-backed, non-speculation)
 
+### F-2026-04-22-07: M8/M7 spec self-audit caught Law 2 violations in pseudocode (doc-only fix)
+- 刚写完 M1/M4/M7/M8 四个 mechanism spec；立刻做一轮 self-audit
+- M8 § 3.1/§ 4 原写 symmetric injection (`yes += N; no += N; shares = 2N`) — § 5 证明这违反 Law 2 (净 +N Coin) 并改为 CPMM-preserving asymmetric，但 § 3.1 和 § 4 的 pseudo/Rust 没同步更新
+- M7 § 3.1 原写 `refund(stake × multiplier)` — § 5 改为 bonus 来自 bounty_LP (否则铸币)，但 § 3.1 没同步
+- Fix `2cf2836`: doc-only, 两个 spec 内部现在一致
+- **教训**: spec 里 "proof" 部分修正后要 back-propagate 到 API/pseudo；审计/implementer 只看 § 3-4 会被误导。后续 spec 写完立即自审 cross-section consistency
+
 ### F-2026-04-22-01: Phase 7 handover's "all Art. IV topology landed" claim was only 80% true (4 BLOCKER + 3 Critical missed)
 - 三路外部审计 (Codex+Gemini+DeepSeek) on commit `e0a75ec` 发现：
   - Codex V-1: `append_oracle_accepted` 是 public unguarded blessed-write API
