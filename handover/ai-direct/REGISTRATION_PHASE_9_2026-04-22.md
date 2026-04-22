@@ -10,13 +10,33 @@
 
 **Triggered by**: dual-audit (Codex + Gemini) on Phase 2 A/B on reasoner. Codex ITERATE, Gemini proceed; conservative→ITERATE (F-2026-04-22-06).
 
+### Revision 0: Model/prompt drift pre-check (added after F-2026-04-22-08 / C-068)
+
+2026-04-22 afternoon: Phase 2.5 chat A/B first attempt returned 0/20 on both branches due to DeepSeek-chat starting to wrap responses in ` ``` ` fences — `evaluator.rs:199` Rule 22 v2 clause 4 silently rejected every response. Fix: prompt hardened to explicitly forbid markdown fences (`5499a01` main + `e86e712` exp).
+
+**Pre-batch smoke requirement (BLOCKING)**:
+1. Before every Phase 9 batch (A/B or multi-seed), run **1 smoke problem** through the target binary
+2. If smoke solve count == 0 on a problem that reasoner-baseline solved → **BLOCK** batch launch
+3. Investigate prompt / parser / proxy / model drift
+4. Record in batch log: `MODEL_SNAPSHOT_DATE`, `PROMPT_SHA = sha256(run_oneshot.prompt_template)`, `PARSER_REJECT_RULES` (list of byte patterns that silent-reject)
+
+**LLM compatibility matrix** (updated 2026-04-22):
+
+| Model | Fence behavior (no explicit instruction) | Fence behavior (with "DO NOT wrap") | Last smoke date |
+|---|---|---|---|
+| deepseek-chat | Wraps in ` ```lean ``` ` (~100%) | Returns bare tactic | 2026-04-22 (mathd_algebra_359 PPUT=2.36) |
+| deepseek-reasoner | Mostly bare | Same | 2026-04-22 (8/20 sample) |
+
+Paper 1 must include this matrix in reproducibility bundle.
+
 ### Revision 1: path change
 原 § 1 Scope 说 "Prerequisite: Phase 2 A/B PASS"。由于 reasoner run archived (scope-inappropriate), pre-condition 重写：
 
 **New prerequisite**:
-1. Phase 2.5 chat A/B (seed 74677, sample_N20) PASS per `DECISION_TREE_GATE_8_TO_PHASE_9_2026-04-22.md` § 4.1
+1. Phase 2.5c chat A/B (seed 74677, sample_N20, **prompt-hardened**) PASS per `DECISION_TREE_GATE_8_TO_PHASE_9_2026-04-22.md` § 4.1
 2. OR 2 seeds chat A/B both PASS (Step 2 of tree)
 3. 9.0 readiness (this § 0) complete — STILL required
+4. **NEW (C-068)**: every batch pre-flight smoke + matrix check passes
 
 ### Revision 2: scope additions (parallel tracks)
 
