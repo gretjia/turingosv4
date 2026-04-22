@@ -50,6 +50,21 @@
 
 ## 2. Confirmed findings (evidence-backed, non-speculation)
 
+### F-2026-04-22-08: Phase 2.5 chat A/B 0/20 = external model drift + silent harness reject (C-068)
+- Phase 2.5 (bvgzyfuqf main + b7i2tuohu exp) 结束 2026-04-22 14:37 UTC：**两批都 0/22**
+- 同一 N=20 sample 同一天早些的 Phase 8 reasoner baseline: 8/20 solves（reasoner）
+- 原始数据揭示共模故障：全部 tx_count=1 + has_golden_path=false + 仅 1/20 有 oracle reject warn → 19/20 根本没走到 oracle
+- Root cause: deepseek-chat 行为漂移，现在默认把 tactic body 包在 ```lean ... ``` fence 里；`evaluator.rs:199` Rule 22 v2 clause 4 **静默** reject 所有含 ``` 的 response → 整个 oneshot A/B 在测"agent 能不能避开 markdown"，不测 PPUT
+- 诊断路径: curl proxy 简单提示正常；curl 复现 evaluator 提示 → 返回 ```lean fence；改提示加显式 "DO NOT wrap in markdown code fences" → chat 返回 `linarith` / `native_decide` 纯 tactic
+- Fix `5499a01` (main) + `e86e712` (experiment/phase-8a-snapshot-fix)：evaluator.rs oneshot prompt 硬化
+- Smoke test mathd_algebra_359 chat oneshot: 42s OMEGA accepted PPUT=2.36（之前 4.3s 静默 reject 0/20）
+- 重跑 Phase 2.5c（bkqdjqcqr main + btopzkvr1 exp）：已确认 imo_1962_p2 SOLVED 32s PPUT=3.11 （fix 生效）
+- **教训**（沉淀为 C-068）:
+  1. 外部 model 的"默认行为"不是契约，随版本漂移；Phase 9 pre-reg 必须记录 model snapshot + 格式期望
+  2. 任何 harness parser constraint（reject pattern X）必须 prompt 里显式呼应
+  3. 所有 silent reject path 必须 warn + 附响应摘要（evaluator.rs:199 之前有 warn，后被换为 silent return，是 harness debt）
+  4. 每批前 smoke 1 题是必须而非可选（已进 `feedback_smoke_before_batch.md`；本 case 加强：smoke 结果与历史 baseline 偏差 > 50% 禁止启动）
+
 ### F-2026-04-22-07: M8/M7 spec self-audit caught Law 2 violations in pseudocode (doc-only fix)
 - 刚写完 M1/M4/M7/M8 四个 mechanism spec；立刻做一轮 self-audit
 - M8 § 3.1/§ 4 原写 symmetric injection (`yes += N; no += N; shares = 2N`) — § 5 证明这违反 Law 2 (净 +N Coin) 并改为 CPMM-preserving asymmetric，但 § 3.1 和 § 4 的 pseudo/Rust 没同步更新
