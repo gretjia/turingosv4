@@ -178,8 +178,12 @@ async fn run_oneshot(
         problem_statement.to_string(), theorem_name.to_string(), lean_path.to_string(),
     );
 
+    // R-22 v2 clause 4 stays reject-only; the prompt must prevent fences at the source.
+    // Chat models (deepseek-chat, 2026-04-22) default to ```lean fences; verifier hard-rejects
+    // any response containing ``` so the instruction must be explicit. See F-2026-04-22-08.
     let prompt = format!(
-        "Complete the following Lean 4 proof. Output ONLY the tactic proof body.\n\n{}",
+        "Complete the following Lean 4 proof. Output ONLY the tactic proof body as raw Lean \
+         tokens. DO NOT wrap in markdown code fences (no ```). No prose, no backticks.\n\n{}",
         problem_statement
     );
 
