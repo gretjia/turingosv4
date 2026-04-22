@@ -71,6 +71,17 @@ struct PputResult {
     gp_path: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     gp_proof_file: Option<String>,
+    // Phase 9 § 0 (2026-04-22): Report Standard fields required for Gate 9
+    // auxiliary criteria (CLAUDE.md + C-053 + C-055 + C-061 + C-059).
+    // `skip_serializing_if` preserves backward compat with pre-9.0 jsonl rows.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reputation_at_end: Option<HashMap<String, u32>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    halt_reason: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pairwise_diversity_mean: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    parent_selection_entropy: Option<f64>,
 }
 
 #[tokio::main]
@@ -282,9 +293,17 @@ async fn run_oneshot(
                         Ok(other) => warn!("[art-iv] oneshot wtool unexpected: {:?}", other),
                         Err(e) => warn!("[art-iv] oneshot wtool failed (receipt validation): {}", e),
                     }
-                    make_pput(problem_file, "oneshot", model, true, start, gp_tokens, 1, 1,
-                              None, None, Some(response.content.clone()),
-                              Some("alone".to_string()), proof_file)
+                    // Phase 9 § 0: surface Report Standard aux fields from bus state.
+                    let reputation = Some(oneshot_bus.kernel.tape.reputation().clone());
+                    let halt_reason = extract_halt_reason(&oneshot_bus);
+                    make_pput_full(
+                        problem_file, "oneshot", model, true, start, gp_tokens, 1, 1,
+                        None, None, Some(response.content.clone()),
+                        Some("alone".to_string()), proof_file,
+                        reputation, halt_reason,
+                        None,  // pairwise_diversity: oneshot = 1 agent, N/A
+                        None,  // parent_selection_entropy: N/A
+                    )
                 }
                 Ok(false) => {
                     make_pput(problem_file, "oneshot", model, false, start, 0, 0, 1,
@@ -740,12 +759,20 @@ async fn run_swarm(
                                         let upr = if omega_attempts > 0 {
                                             Some(omega_payload_hashes.len() as f64 / omega_attempts as f64)
                                         } else { None };
-                                        return make_pput(problem_file, &condition, model, true,
-                                                        start, gp_tokens, gp_nodes, tx as u64 + 1,
-                                                        Some(tool_dist), upr,
-                                                        Some(full_proof.clone()),
-                                                        Some(path_choice.to_string()),
-                                                        proof_file);
+                                        // Phase 9 § 0: Report Standard aux fields.
+                                        let reputation = Some(bus.kernel.tape.reputation().clone());
+                                        let halt_reason = extract_halt_reason(&bus);
+                                        let diversity = pairwise_diversity_by_hash(&omega_payload_hashes, omega_attempts as usize);
+                                        return make_pput_full(
+                                            problem_file, &condition, model, true,
+                                            start, gp_tokens, gp_nodes, tx as u64 + 1,
+                                            Some(tool_dist), upr,
+                                            Some(full_proof.clone()),
+                                            Some(path_choice.to_string()),
+                                            proof_file,
+                                            reputation, halt_reason, diversity,
+                                            None,  // parent_selection_entropy: TODO Phase 10 (needs Boltzmann trace)
+                                        );
                                     }
                                     Ok((false, err_detail)) => {
                                         // Step-B v3: classify + record class label (C-022 shield).
@@ -898,12 +925,20 @@ async fn run_swarm(
                                         let upr = if omega_attempts > 0 {
                                             Some(omega_payload_hashes.len() as f64 / omega_attempts as f64)
                                         } else { None };
-                                        return make_pput(problem_file, &condition, model, true,
-                                                        start, gp_tokens, gp_nodes, tx as u64 + 1,
-                                                        Some(tool_dist), upr,
-                                                        Some(prefix.clone()),
-                                                        Some("per_tactic".to_string()),
-                                                        proof_file);
+                                        // Phase 9 § 0: Report Standard aux fields.
+                                        let reputation = Some(bus.kernel.tape.reputation().clone());
+                                        let halt_reason = extract_halt_reason(&bus);
+                                        let diversity = pairwise_diversity_by_hash(&omega_payload_hashes, omega_attempts as usize);
+                                        return make_pput_full(
+                                            problem_file, &condition, model, true,
+                                            start, gp_tokens, gp_nodes, tx as u64 + 1,
+                                            Some(tool_dist), upr,
+                                            Some(prefix.clone()),
+                                            Some("per_tactic".to_string()),
+                                            proof_file,
+                                            reputation, halt_reason, diversity,
+                                            None,  // parent_selection_entropy: TODO Phase 10
+                                        );
                                     }
                                     PartialVerdict::PartialOk => {
                                         let parent = bus.kernel.tape.time_arrow().last().cloned();
@@ -981,6 +1016,29 @@ fn make_pput(
     gp_path: Option<String>,
     gp_proof_file: Option<String>,
 ) -> PputResult {
+    make_pput_full(
+        problem, condition, model, has_gp, start, gp_tokens, gp_nodes, tx_count,
+        tool_dist, unique_payload_ratio, gp_payload, gp_path, gp_proof_file,
+        None, None, None, None,
+    )
+}
+
+/// Phase 9 § 0: extended make_pput that accepts Report Standard aux fields.
+/// `make_pput` retained as convenience for callers that don't track these.
+fn make_pput_full(
+    problem: &str, condition: &str, model: &str,
+    has_gp: bool, start: Instant,
+    gp_tokens: u64, gp_nodes: usize, tx_count: u64,
+    tool_dist: Option<HashMap<String, u32>>,
+    unique_payload_ratio: Option<f64>,
+    gp_payload: Option<String>,
+    gp_path: Option<String>,
+    gp_proof_file: Option<String>,
+    reputation_at_end: Option<HashMap<String, u32>>,
+    halt_reason: Option<String>,
+    pairwise_diversity_mean: Option<f64>,
+    parent_selection_entropy: Option<f64>,
+) -> PputResult {
     let elapsed = start.elapsed().as_secs_f64();
     let pput = if has_gp && elapsed > 0.0 { 100.0 / elapsed } else { 0.0 };
     // C-012 provenance: populated from env vars; None when unset (backward compat).
@@ -1006,7 +1064,35 @@ fn make_pput(
         gp_payload,
         gp_path,
         gp_proof_file,
+        reputation_at_end,
+        halt_reason,
+        pairwise_diversity_mean,
+        parent_selection_entropy,
     }
+}
+
+/// Extract halt_reason as a display string from the bus's ledger (latest
+/// Halt event). Returns None if no Halt event was emitted. Phase 9 § 0.
+fn extract_halt_reason(bus: &turingosv4::bus::TuringBus) -> Option<String> {
+    for event in bus.ledger.events().iter().rev() {
+        if let turingosv4::ledger::EventType::Halt { reason } = &event.event_type {
+            return Some(format!("{}", reason));
+        }
+    }
+    None
+}
+
+/// Pairwise payload diversity via hash identity: 1 - (identical_pairs/max_pairs).
+/// 0.0 = all identical hashes, 1.0 = fully distinct hashes. Phase 9 § 0 (C-059).
+///
+/// This is a fast proxy; full token-level Jaccard would catch near-duplicates
+/// with minor spacing/formatting changes. F-2026-04-18-01 warns that hash
+/// uniqueness can overstate diversity (byte-identical proofs differ by 1 char).
+/// For Gate 9 the proxy suffices; Paper 2+ should use full Jaccard.
+fn pairwise_diversity_by_hash(hashes: &std::collections::HashSet<u64>, total_attempts: usize) -> Option<f64> {
+    if total_attempts < 2 { return None; }
+    // Unique hashes / total attempts = diversity proxy. 1.0 = all distinct.
+    Some(hashes.len() as f64 / total_attempts as f64)
 }
 
 /// Phase 0 (C-039 candidate): persist a self-contained, re-verifiable proof artifact.
