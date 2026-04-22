@@ -1,0 +1,1233 @@
+commit 2502dc9fd96f61fd872a0ad0be69f747287102bb
+Author: gretjia <gretjia@users.noreply.github.com>
+Date:   Wed Apr 22 11:07:42 2026 +0000
+
+    experiment/phase-8 R1-R8: address dual-audit VETO + CHALLENGE items
+    
+    Phase 8 batch dual-audit (2026-04-22) returned:
+      Gemini: CHALLENGE (3 items)
+      Codex:  VETO (2 items) + CHALLENGE (3 items)
+      Conservative verdict (feedback_dual_audit_conflict): **VETO**
+    
+    This commit addresses all 8 flagged items:
+    
+    R1 (Codex V-1 VETO): OracleReceipt was forgeable — pub fields + pub
+    construction meant any in-process caller could mint a matching receipt.
+    Fix: private fields; receipt binds (a) payload sha256, (b) parent-context
+    sha256, (c) oracle-instance nonce. Bus requires register_oracle(nonce)
+    before a receipt with that nonce is honoured. Lean4Oracle now has a
+    private `nonce: u64` field (rand per-instance) + `nonce()` accessor.
+    Context binding rejects cross-parent replay (step-mode tactic hijack).
+    Tests: 2 new regression + updated constructor signatures (7 tests total).
+    
+    R2 (Codex Q6 VETO): oneshot used `TuringBus::new(...)` with `wal: None`
+    → Halt event dropped when bus went out of scope. Paper C1 "Art. IV 100%"
+    didn't hold for oneshot path. Fix: oneshot now opens
+    `TuringBus::with_wal_path(wal/oneshot/<problem>_<ts>.wal.jsonl)` +
+    `halt_and_settle(&[node_id])` so a durable `Halt{OmegaAccepted}` event
+    survives on disk. Falls back to in-memory bus only on WAL open error
+    (logged warn).
+    
+    R3 (Gemini+Codex CHALLENGE): has_bare_tactic_invocation false-positive on
+    string literals + Unicode byte-boundary risk. Fix: new
+    `strip_strings_and_comments()` helper (handles `"..."`, `-- ...`,
+    `/- ... -/`); rewrote detection to use char-boundary iteration.
+    Tests: 8 new (string / escape / line comment / block comment /
+    mixed / Unicode identifier / Unicode-in-stripped-region / strip visible).
+    
+    R4 (Gemini CHALLENGE): `q_state` didn't restore across WAL replay —
+    crash-resumed bus always reported Running. Fix: `with_wal_path` scans
+    replayed events in reverse, restores q_state from last Halt event.
+    Tests: 2 new (wal_replay_restores_q_state_halted / wal_replay_preserves
+    _running_when_no_halt).
+    
+    R5 (Codex additional risk): snapshot surfaced `reputation` but prompt.rs
+    didn't render it → agent can't actually see signal. Fix: added
+    `own_reputation: u32` param to `build_agent_prompt`, rendered as
+    "Reputation: N citations" line alongside Balance. Evaluator passes
+    `snap.get_reputation(agent_id)`. All existing prompt tests updated.
+    
+    R6 (Codex CHALLENGE): halt_with_reason semantics of "live q_state" vs
+    "durable ledger Halt event" needed clarification. Fix: expanded doc
+    comment explaining the intentional split (live always latest; durable
+    records first — halt_reason_distribution metric uses durable).
+    
+    R7 (Gemini CHALLENGE): Predicate trait (M-1 preservation) unused at
+    Paper 1 scope. Fix: `#[allow(dead_code)]` with justification comment.
+    
+    R8 (Codex CHALLENGE): `#[serde(default)]` on reputation fields was
+    logically correct but not regression-tested. Fix: 2 new tests
+    deserialize pre-8.F JSON (missing reputation_by_author field) for both
+    Tape and UniverseSnapshot; assert empty map default.
+    
+    Test count (post-R1-R8):
+      turingosv4 lib:            119 pass
+      minif2f_v4 lib:             24 pass (+8 R3 tests)
+      snapshot_nonempty:           7 pass
+      oracle_receipt_bus:          7 pass (2 new R1 VETO regression)
+      rejection_threshold:         5 pass
+      reputation:                  9 pass (+2 R8 serde tests)
+      q_halt_state:                8 pass (+2 R4 WAL replay tests)
+      wal_resume:                  2 pass
+      reward_pull_conservation:    3/5 (pre-existing; Phase 8.Z task)
+    
+    Refs:
+      handover/audits/EXT_GEMINI_PHASE_8_BATCH_2026-04-22.md
+      handover/audits/EXT_CODEX_PHASE_8_BATCH_2026-04-22.md
+      handover/ai-direct/EXT_AUDIT_PHASE_8_BATCH/brief.md
+    
+    Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+
+diff --git a/experiments/minif2f_v4/src/bin/evaluator.rs b/experiments/minif2f_v4/src/bin/evaluator.rs
+index ad987bb..ba888a5 100644
+--- a/experiments/minif2f_v4/src/bin/evaluator.rs
++++ b/experiments/minif2f_v4/src/bin/evaluator.rs
+@@ -210,30 +210,68 @@ async fn run_oneshot(
+                         problem_file, theorem_name, problem_statement,
+                         &response.content, "alone", "oneshot",
+                     );
+-                    // Phase 8.B (Codex N-1 / C-048): oneshot must route through
+-                    // bus.append_oracle_accepted to satisfy Art. IV (∏p=1 →
+-                    // wtool → Q_{t+1}) + C-043 (mandatory wtool on OMEGA).
+-                    // Ephemeral bus since oneshot is stateless per-problem;
+-                    // produces ledger Event + (if enabled) WAL entry for audit.
++                    // Phase 8.B + R2 (Codex N-1 / VETO Q6 / C-048): oneshot must
++                    // route through a WAL-backed bus to satisfy Art. IV (∏p=1 →
++                    // wtool → Q_{t+1}) + C-043 (mandatory wtool) + C-061 (durable
++                    // q-halt). Per-problem WAL file → durable ledger record;
++                    // ephemeral bus reference (per-problem) preserves oneshot
++                    // stateless semantics but the Halt event survives disk.
+                     use turingosv4::bus::{BusConfig, TuringBus};
+                     use turingosv4::kernel::Kernel;
+                     use turingosv4::sdk::oracle_receipt::OracleReceipt;
+-                    let mut oneshot_bus = TuringBus::new(
+-                        Kernel::new(),
+-                        BusConfig {
+-                            max_payload_chars: usize::MAX,
+-                            max_payload_lines: usize::MAX,
+-                            system_lp_amount: 0.0,
+-                            forbidden_patterns: vec![],
+-                            min_class_count_to_broadcast: 3,
+-                        },
+-                    );
++                    let problem_stem = std::path::Path::new(problem_file)
++                        .file_stem().map(|s| s.to_string_lossy().into_owned())
++                        .unwrap_or_else(|| "unknown".into());
++                    let ts = std::time::SystemTime::now()
++                        .duration_since(std::time::UNIX_EPOCH)
++                        .map(|d| d.as_secs().to_string())
++                        .unwrap_or_else(|_| "0".into());
++                    let wal_dir = std::env::var("WAL_DIR").unwrap_or_else(|_| {
++                        // Default: project-local wal/oneshot/ directory.
++                        std::path::PathBuf::from("wal/oneshot").to_string_lossy().into_owned()
++                    });
++                    let _ = std::fs::create_dir_all(&wal_dir);
++                    let wal_path = std::path::Path::new(&wal_dir)
++                        .join(format!("{}_{}.wal.jsonl", problem_stem, ts));
++                    let config = BusConfig {
++                        max_payload_chars: usize::MAX,
++                        max_payload_lines: usize::MAX,
++                        system_lp_amount: 0.0,
++                        forbidden_patterns: vec![],
++                        min_class_count_to_broadcast: 3,
++                    };
++                    let mut oneshot_bus = match TuringBus::with_wal_path(
++                        Kernel::new(), config, &wal_path,
++                    ) {
++                        Ok(b) => b,
++                        Err(e) => {
++                            warn!("[art-iv] oneshot WAL open failed ({}); falling back to in-memory bus", e);
++                            TuringBus::new(Kernel::new(), BusConfig {
++                                max_payload_chars: usize::MAX,
++                                max_payload_lines: usize::MAX,
++                                system_lp_amount: 0.0,
++                                forbidden_patterns: vec![],
++                                min_class_count_to_broadcast: 3,
++                            })
++                        }
++                    };
++                    // Register oracle so its receipts are trusted.
++                    oneshot_bus.register_oracle(oracle.nonce());
+                     oneshot_bus.init(&["oneshot_agent".into()]);
+-                    let receipt = OracleReceipt::for_lean4_complete(&response.content);
+-                    if let Err(e) = oneshot_bus.append_oracle_accepted(
++                    let receipt = OracleReceipt::new_lean4_complete(
++                        &response.content, None, oracle.nonce(),
++                    );
++                    match oneshot_bus.append_oracle_accepted(
+                         "oneshot_agent", &response.content, None, &receipt,
+                     ) {
+-                        warn!("[art-iv] oneshot wtool failed (receipt validation): {}", e);
++                        Ok(turingosv4::bus::BusResult::Appended { node_id }) => {
++                            // R2: durable Halt event via halt_and_settle on GP=[node_id].
++                            if let Err(e) = oneshot_bus.halt_and_settle(&[node_id]) {
++                                warn!("[art-iv] oneshot halt_and_settle: {}", e);
++                            }
++                        }
++                        Ok(other) => warn!("[art-iv] oneshot wtool unexpected: {:?}", other),
++                        Err(e) => warn!("[art-iv] oneshot wtool failed (receipt validation): {}", e),
+                     }
+                     make_pput(problem_file, "oneshot", model, true, start, gp_tokens, 1, 1,
+                               None, None, Some(response.content.clone()),
+@@ -520,7 +558,10 @@ async fn run_swarm(
+         };
+         let prompt = build_agent_prompt(
+             &chain, &skill, &snap.market_ticker, &errors, &hits_ref,
+-            snap.get_balance(agent_id), tools_desc, &team_board,
++            snap.get_balance(agent_id),
++            // Phase 8.F v2 (C-053): surface own reputation to agent prompt.
++            snap.get_reputation(agent_id),
++            tools_desc, &team_board,
+         );
+ 
+         // Model-aware max_tokens (same rule as oneshot branch).
+@@ -610,6 +651,9 @@ async fn run_swarm(
+                                     theorem_name.to_string(),
+                                     lean_path.to_string(),
+                                 );
++                                // Phase 8.C v2 (C-067): register oracle nonce so
++                                // its receipts are honoured by this bus.
++                                bus.register_oracle(oracle.nonce());
+                                 // Path 1: payload alone
+                                 let r_alone = oracle.verify_omega_detailed(payload);
+                                 let (full_proof, path_choice, r_final) = match &r_alone {
+@@ -648,7 +692,9 @@ async fn run_swarm(
+                                         // payload, so bus-level forbidden_patterns and size caps
+                                         // would only re-reject legitimate tactics (e.g. `omega`,
+                                         // `decide` used inside a verified proof — not brute-force).
+-                                        let receipt = turingosv4::sdk::oracle_receipt::OracleReceipt::for_lean4_complete(payload);
++                                        let receipt = turingosv4::sdk::oracle_receipt::OracleReceipt::new_lean4_complete(
++                                            payload, parent.as_deref(), oracle.nonce(),
++                                        );
+                                         let omega_node_id = match bus.append_oracle_accepted(
+                                             agent_id, payload, parent.as_deref(), &receipt,
+                                         ) {
+@@ -823,6 +869,8 @@ async fn run_swarm(
+                                     theorem_name.to_string(),
+                                     lean_path.to_string(),
+                                 );
++                                // C-067: register this step oracle's nonce.
++                                bus.register_oracle(oracle.nonce());
+                                 match oracle.verify_partial(&prefix) {
+                                     PartialVerdict::Complete => {
+                                         info!(">>> OMEGA ACCEPTED <<< via step (depth={} after this write)",
+@@ -833,7 +881,9 @@ async fn run_swarm(
+                                         );
+                                         let parent = bus.kernel.tape.time_arrow().last().cloned();
+                                         *tool_dist.entry("omega_wtool".into()).or_insert(0) += 1;
+-                                        let receipt = turingosv4::sdk::oracle_receipt::OracleReceipt::for_lean4_complete(tactic);
++                                        let receipt = turingosv4::sdk::oracle_receipt::OracleReceipt::new_lean4_complete(
++                                            tactic, parent.as_deref(), oracle.nonce(),
++                                        );
+                                         let _ = bus.append_oracle_accepted(
+                                             agent_id, tactic, parent.as_deref(), &receipt,
+                                         );
+@@ -857,7 +907,9 @@ async fn run_swarm(
+                                     }
+                                     PartialVerdict::PartialOk => {
+                                         let parent = bus.kernel.tape.time_arrow().last().cloned();
+-                                        let receipt = turingosv4::sdk::oracle_receipt::OracleReceipt::for_lean4_partial(tactic);
++                                        let receipt = turingosv4::sdk::oracle_receipt::OracleReceipt::new_lean4_partial(
++                                            tactic, parent.as_deref(), oracle.nonce(),
++                                        );
+                                         match bus.append_oracle_accepted(
+                                             agent_id, tactic, parent.as_deref(), &receipt,
+                                         ) {
+diff --git a/experiments/minif2f_v4/src/lean4_oracle.rs b/experiments/minif2f_v4/src/lean4_oracle.rs
+index 3350a69..da6d6fb 100644
+--- a/experiments/minif2f_v4/src/lean4_oracle.rs
++++ b/experiments/minif2f_v4/src/lean4_oracle.rs
+@@ -43,6 +43,11 @@ pub struct Lean4Oracle {
+     pub theorem_name: String,
+     lean_path: String,
+     lean_binary: String,
++    /// Phase 8.C v2 (C-067): per-instance nonce, private. Bus only accepts
++    /// receipts bearing a nonce it has registered (bus.register_oracle()).
++    /// Forging a receipt requires owning a `Lean4Oracle` reference to read
++    /// the nonce. Closed-world in-process capability.
++    nonce: u64,
+ }
+ 
+ impl Lean4Oracle {
+@@ -63,9 +68,17 @@ impl Lean4Oracle {
+             theorem_name,
+             lean_path,
+             lean_binary,
++            nonce: rand::random::<u64>(),
+         }
+     }
+ 
++    /// Per-oracle capability nonce for OracleReceipt authorization.
++    /// Must be registered with the destination bus via `bus.register_oracle`
++    /// before that bus will accept receipts issued by this oracle.
++    pub fn nonce(&self) -> u64 {
++        self.nonce
++    }
++
+     /// Pre-append security checks (Law 1: reject-only).
+     pub fn check_payload(&self, payload: &str) -> Result<(), String> {
+         // V3L-07: identity theft — reject new declarations with different names
+@@ -309,28 +322,99 @@ fn has_word_boundary(text: &str, word: &str) -> bool {
+     false
+ }
+ 
+-/// Whole-word match NOT preceded by a namespace qualifier (`.` or `:`).
++/// Strip string literals and comments so `has_bare_tactic_invocation` only
++/// sees real code. Preserves whitespace structure (replaces skipped content
++/// with a single space) so word-boundary detection still works.
+ ///
+-/// Returns true for bare tactic invocations like `by decide`, `; omega`,
+-/// `  decide\n`. Returns false for qualified references like
+-/// `Decidable.decide`, `Nat.decide_lt`, `Omega`, or `_omega` (identifier).
++/// Handled:
++///   - `"..."` string literals (with `\"` escape)
++///   - `-- ... \n` line comments
++///   - `/- ... -/` block comments
++/// Not handled (out of Paper-1 scope): nested block comments; `⟨...⟩`
++/// antiquotations; string interpolation — rare in MiniF2F proofs.
++fn strip_strings_and_comments(text: &str) -> String {
++    let mut out = String::new();
++    let mut chars = text.chars().peekable();
++    while let Some(c) = chars.next() {
++        match c {
++            '"' => {
++                // String literal — consume until unescaped closing quote.
++                while let Some(&nc) = chars.peek() {
++                    chars.next();
++                    if nc == '\\' {
++                        chars.next();  // skip the escaped char
++                    } else if nc == '"' {
++                        break;
++                    }
++                }
++                out.push(' ');
++            }
++            '-' if chars.peek() == Some(&'-') => {
++                // Line comment.
++                chars.next();  // the 2nd `-`
++                while let Some(&nc) = chars.peek() {
++                    if nc == '\n' { break; }
++                    chars.next();
++                }
++                out.push(' ');
++            }
++            '/' if chars.peek() == Some(&'-') => {
++                // Block comment /- ... -/.
++                chars.next();  // `-`
++                let mut prev_dash = false;
++                while let Some(nc) = chars.next() {
++                    if prev_dash && nc == '/' { break; }
++                    prev_dash = nc == '-';
++                }
++                out.push(' ');
++            }
++            _ => out.push(c),
++        }
++    }
++    out
++}
++
++/// Whole-word match NOT preceded by a namespace qualifier (`.` or `:`),
++/// operating on source code with string literals and comments already
++/// stripped. Unicode-safe (uses char iteration, not byte indexing).
+ ///
+-/// `native_decide` is NOT matched when probing for `decide` because the
+-/// underscore between `native_` and `decide` kills the word boundary.
++/// Returns true for bare tactic invocations like `by decide`, `; omega`,
++/// `  decide\n`. Returns false for:
++///   - qualified references (`Decidable.decide`, `Nat.decide_lt`)
++///   - identifier containment (`native_decide`, `my_decide_helper`)
++///   - in-string-literal occurrences (`"decide fate"`)
++///   - in-comment occurrences (`-- decide this`)
++///   - Unicode-neighbored word-boundaries (won't misread UTF-8 bytes)
+ fn has_bare_tactic_invocation(text: &str, word: &str) -> bool {
+-    for (i, _) in text.match_indices(word) {
+-        let before = if i > 0 { text.as_bytes()[i - 1] } else { b' ' };
+-        let after_idx = i + word.len();
+-        let after = if after_idx < text.len() { text.as_bytes()[after_idx] } else { b' ' };
++    let clean = strip_strings_and_comments(text);
++    let haystack = clean.as_str();
++    let mut search_from = 0;
++    while let Some(rel_idx) = haystack[search_from..].find(word) {
++        let idx = search_from + rel_idx;
++        let after_idx = idx + word.len();
++
++        // Char immediately before `idx` (None if at start).
++        // Safe: `idx` is a char boundary returned by `find`.
++        let before_char: Option<char> = haystack[..idx].chars().next_back();
++        // Char immediately after the matched word (None if at end).
++        let after_char: Option<char> = haystack[after_idx..].chars().next();
++
++        let is_word_ch = |c: char| c.is_alphanumeric() || c == '_';
+ 
+-        // Must be a word boundary (not adjacent to identifier chars).
+         let word_boundary =
+-            !before.is_ascii_alphanumeric() && before != b'_'
+-            && !after.is_ascii_alphanumeric() && after != b'_';
+-        if !word_boundary { continue; }
++            !matches!(before_char, Some(c) if is_word_ch(c))
++            && !matches!(after_char, Some(c) if is_word_ch(c));
+ 
+-        // Qualified with a namespace? (`.decide`, `::omega`, `:=decide` ok)
+-        if before == b'.' || before == b':' { continue; }
++        if !word_boundary {
++            search_from = idx + word.len();
++            continue;
++        }
++
++        // Qualified with namespace? Dot OR colon.
++        if matches!(before_char, Some('.') | Some(':')) {
++            search_from = idx + word.len();
++            continue;
++        }
+ 
+         return true;
+     }
+@@ -339,7 +423,7 @@ fn has_bare_tactic_invocation(text: &str, word: &str) -> bool {
+ 
+ #[cfg(test)]
+ mod tactic_whitelist_tests {
+-    use super::has_bare_tactic_invocation;
++    use super::{has_bare_tactic_invocation, strip_strings_and_comments};
+ 
+     #[test]
+     fn rejects_bare_decide() {
+@@ -385,6 +469,72 @@ mod tactic_whitelist_tests {
+         assert!(!has_bare_tactic_invocation(proof, "decide"));
+         assert!(!has_bare_tactic_invocation(proof, "omega"));
+     }
++
++    // R3: string / comment / Unicode robustness (Gemini + Codex CHALLENGE).
++
++    #[test]
++    fn ignores_string_literal_occurrence() {
++        // `"decide"` inside a string literal must NOT be flagged.
++        let proof = r#"have h_str : String := "decide the fate""#;
++        assert!(!has_bare_tactic_invocation(proof, "decide"));
++        let proof2 = r#"have msg := "please omega this""#;
++        assert!(!has_bare_tactic_invocation(proof2, "omega"));
++    }
++
++    #[test]
++    fn ignores_escape_sequences_in_string() {
++        let proof = r#"have s := "\"decide\" is fine here""#;
++        assert!(!has_bare_tactic_invocation(proof, "decide"));
++    }
++
++    #[test]
++    fn ignores_line_comment_occurrence() {
++        let proof = "-- try by decide first\nby linarith";
++        assert!(!has_bare_tactic_invocation(proof, "decide"));
++    }
++
++    #[test]
++    fn ignores_block_comment_occurrence() {
++        let proof = "/- consider omega for this -/\nby linarith";
++        assert!(!has_bare_tactic_invocation(proof, "omega"));
++    }
++
++    #[test]
++    fn catches_bare_tactic_even_with_comments_elsewhere() {
++        let proof = "-- this is a comment\nby decide\n-- end comment";
++        assert!(has_bare_tactic_invocation(proof, "decide"));
++    }
++
++    #[test]
++    fn handles_unicode_identifier_neighbors() {
++        // `αβγ.decide` — qualified; `γ` is 2-byte UTF-8 preceding `.`
++        let proof = "have h := αβγ.decide";
++        assert!(!has_bare_tactic_invocation(proof, "decide"),
++            "qualified reference with Unicode namespace must be allowed");
++    }
++
++    #[test]
++    fn handles_unicode_in_comment_and_string() {
++        // Ensure Unicode in stripped regions doesn't break stripping.
++        let proof = r#"-- 中文注释 decide here
++"α → β omega"
++by linarith"#;
++        assert!(!has_bare_tactic_invocation(proof, "decide"));
++        assert!(!has_bare_tactic_invocation(proof, "omega"));
++    }
++
++    #[test]
++    fn strip_leaves_real_tactic_visible() {
++        let proof = r#"
++            -- helper
++            have h : 1 = 1 := rfl
++            "a string"
++            by decide
++        "#;
++        let stripped = strip_strings_and_comments(proof);
++        assert!(stripped.contains("by decide"));
++        assert!(!stripped.contains("a string"));
++    }
+ }
+ 
+ /// Derive LEAN_PATH from the MiniF2F data directory.
+diff --git a/src/bus.rs b/src/bus.rs
+index 5365108..964383f 100644
+--- a/src/bus.rs
++++ b/src/bus.rs
+@@ -62,6 +62,10 @@ pub struct TuringBus {
+     pub generation: u32,
+     /// Phase 8.E (C-061): explicit `q_t` ∈ {Running, Halted}.
+     pub q_state: QState,
++    /// Phase 8.C v2 (C-067): nonces of oracles trusted to bless writes.
++    /// An OracleReceipt is only honoured if its nonce was registered here.
++    /// Populated via `register_oracle(nonce)` at bus wiring time.
++    registered_oracle_nonces: std::collections::HashSet<u64>,
+     graveyard: HashMap<String, Vec<String>>,
+     // Phase 1 (C-037 candidate): durable Q_t. None = legacy in-memory mode.
+     wal: Option<crate::wal::Wal>,
+@@ -98,14 +102,39 @@ impl TuringBus {
+             tx_count: 0,
+             generation: 0,
+             q_state: QState::Running,
++            registered_oracle_nonces: std::collections::HashSet::new(),
+             graveyard: HashMap::new(),
+             wal: None,
+         }
+     }
+ 
++    /// Register an oracle's nonce as trusted. Only receipts bearing this
++    /// nonce will pass `append_oracle_accepted()`. Phase 8.C v2 (C-067).
++    pub fn register_oracle(&mut self, nonce: u64) {
++        self.registered_oracle_nonces.insert(nonce);
++    }
++
++    /// Check whether an oracle nonce is registered. Primarily for tests.
++    pub fn oracle_registered(&self, nonce: u64) -> bool {
++        self.registered_oracle_nonces.contains(&nonce)
++    }
++
+     /// Transition `q_t` to Halted and emit a Halt ledger event with reason.
+-    /// Idempotent: repeat calls overwrite the reason but only emit the first
+-    /// Halt event (subsequent calls record no new event to avoid WAL pollution).
++    ///
++    /// Idempotence semantics (R6 clarification):
++    /// - Ledger/WAL (**durable**): only the *first* Halt event is written.
++    ///   This preserves a truthful record of "when and why q initially flipped."
++    ///   Later halt calls do not pollute WAL.
++    /// - `self.q_state` (**live in-memory**): always updated to the *latest*
++    ///   reason. This reflects "the currently-acting cause" for runtime
++    ///   debugging (e.g. a MaxTxExhausted halt that later hits a WallClockCap
++    ///   will show WallClockCap in q_state, but WAL still shows MaxTxExhausted).
++    /// - `halt_reason_distribution` metric (CLAUDE.md Report Standard) is
++    ///   computed from the **durable** ledger, not live q_state — so it is
++    ///   stable across crash-resume.
++    ///
++    /// This split-view is intentional: WAL is the source of truth for
++    /// downstream auditors; q_state is a developer-facing current-state flag.
+     /// Phase 8.E (C-061).
+     pub fn halt_with_reason(&mut self, reason: crate::ledger::HaltReason) {
+         let was_running = matches!(self.q_state, QState::Running);
+@@ -151,9 +180,19 @@ impl TuringBus {
+             // from this process's perspective. Original hashes are discarded.
+             bus.ledger.append(e.event_type, e.node_id, e.agent, e.detail).ok();
+         }
++        // R4 (Gemini CHALLENGE): restore q_state from replayed ledger. Without
++        // this, a crash-resumed bus always reports Running even if the last
++        // durable event was Halt — halt_reason_distribution would miscount.
++        // Find the most recent Halt event (if any) by scanning in reverse.
++        for event in bus.ledger.events().iter().rev() {
++            if let crate::ledger::EventType::Halt { reason } = &event.event_type {
++                bus.q_state = QState::Halted { reason: reason.clone() };
++                break;
++            }
++        }
+         if resumed_nodes > 0 || resumed_events > 0 {
+-            eprintln!("[wal/replay] resumed {} nodes, {} events from {:?}",
+-                      resumed_nodes, resumed_events, wal_path);
++            eprintln!("[wal/replay] resumed {} nodes, {} events from {:?}; q_state={:?}",
++                      resumed_nodes, resumed_events, wal_path, bus.q_state);
+         }
+         bus.wal = Some(crate::wal::Wal::open(&wal_path)?);
+         Ok(bus)
+@@ -208,10 +247,14 @@ impl TuringBus {
+     /// by construction legitimate — re-rejecting at bus level would block the
+     /// wtool write that Art. IV mandates.
+     ///
+-    /// Phase 8.C (Codex V-1 / C-048): caller must produce a `OracleReceipt`
+-    /// that binds payload (via sha256) to a non-rejecting verdict. Bus
+-    /// validates the receipt before granting the blessed write, closing the
+-    /// prior capability leak where any caller could pass `oracle_blessed=true`.
++    /// Phase 8.C v2 (Codex V-1 / C-067): caller must produce an
++    /// `OracleReceipt` that binds:
++    ///   (a) the payload (via sha256) → prevents content tampering
++    ///   (b) the parent context (via sha256 of parent_id) → prevents
++    ///       step-mode cross-context replay
++    ///   (c) an oracle nonce registered via `register_oracle()` →
++    ///       prevents forgery by code that doesn't own the oracle instance
++    /// Bus validates all three before granting the blessed write.
+     pub fn append_oracle_accepted(
+         &mut self,
+         author: &str,
+@@ -219,7 +262,12 @@ impl TuringBus {
+         parent_id: Option<&str>,
+         receipt: &crate::sdk::oracle_receipt::OracleReceipt,
+     ) -> Result<BusResult, String> {
+-        receipt.validates(payload)
++        if !self.registered_oracle_nonces.contains(&receipt.oracle_nonce()) {
++            return Err("receipt validation failed: oracle nonce not registered \
++                        (call bus.register_oracle(oracle.nonce()) before use)".into());
++        }
++        let expected_context = crate::sdk::oracle_receipt::hash_context(parent_id);
++        receipt.validates(payload, &expected_context)
+             .map_err(|e| format!("receipt validation failed: {}", e))?;
+         self.append_internal(author, payload, parent_id, /*oracle_blessed*/ true)
+     }
+diff --git a/src/sdk/oracle_receipt.rs b/src/sdk/oracle_receipt.rs
+index 7cd9fc0..7934092 100644
+--- a/src/sdk/oracle_receipt.rs
++++ b/src/sdk/oracle_receipt.rs
+@@ -1,102 +1,208 @@
+ //! OracleReceipt — capability token authorizing blessed writes to tape.
+ //!
+-//! Closes Codex V-1 (C-048): `bus.append_oracle_accepted()` previously
+-//! accepted `oracle_blessed = true` from any caller, bypassing
+-//! forbidden_patterns. Discipline at call sites was the only defense.
++//! Closes Codex V-1 (C-067): `bus.append_oracle_accepted()` accepts
++//! `oracle_blessed = true` but only if the caller produces a receipt that
++//! matches (a) the payload, (b) the parent-chain context, and (c) an oracle
++//! nonce that was explicitly registered with the bus.
+ //!
+-//! This module introduces a receipt that binds the payload (via sha256)
+-//! to the oracle's verdict. The bus validates the receipt before granting
+-//! the blessed write. Forging a receipt requires knowing the payload's
+-//! hash up front — not a capability a malicious tool would have at runtime.
++//! **Threat model (Paper 1, closed-world in-process)**:
++//! - Private fields force receipt creation through the `new` constructor
++//!   which takes an `oracle_nonce: u64`.
++//! - Bus only accepts receipts whose nonce was registered via
++//!   `TuringBus::register_oracle(nonce)`. The nonce is generated inside
++//!   `Lean4Oracle::new()` and held in a private field; only code that
++//!   owns the `Lean4Oracle` reference can read it.
++//! - Context hash binds the receipt to `parent_id` → cross-context replay
++//!   (step-mode tactic with different parent chain) is rejected.
+ //!
+-//! Phase 10c will extend this with Ed25519 signature for external agent auth.
++//! **Not yet defended (Phase 10c)**: external agent impersonation requires
++//! Ed25519 signature from oracle's secret key. Documented as known limit.
++//!
++//! See `cases/C-067_oracle_receipt_capability.yaml` for ruling.
+ 
+ use crate::sdk::predicate::{PredicateKind, Verdict};
+ use serde::{Deserialize, Serialize};
+ use sha2::{Digest, Sha256};
+ 
+-/// Capability token proving a predicate accepted a payload.
++/// Capability token proving a predicate accepted a payload in a specific context.
++///
++/// Fields are private. Construct via `new_*` constructors, which require
++/// an `oracle_nonce` (only available to code with a `Lean4Oracle` ref).
+ #[derive(Debug, Clone, Serialize, Deserialize)]
+ pub struct OracleReceipt {
+-    pub payload_hash: [u8; 32],
+-    pub verdict: Verdict,
+-    pub predicate_kind: PredicateKind,
++    payload_hash: [u8; 32],
++    /// Hash of the parent chain context this receipt was issued against.
++    /// Prevents cross-context replay (e.g. step-mode tactic verified against
++    /// tape chain A but submitted with tape chain B).
++    context_hash: [u8; 32],
++    /// The issuing oracle's per-instance nonce. Bus only accepts receipts
++    /// whose nonce it registered via `register_oracle()`.
++    oracle_nonce: u64,
++    verdict: Verdict,
++    predicate_kind: PredicateKind,
+     // Phase 10c: signature: Option<[u8; 64]> for external agent authorization.
+ }
+ 
+ impl OracleReceipt {
+-    /// Receipt for a Lean4-boolean `Complete` verdict (full proof accepted).
+-    pub fn for_lean4_complete(payload: &str) -> Self {
++    /// Low-level constructor. Prefer `new_lean4_complete/partial` which
++    /// compute the hashes.
++    pub fn new(
++        payload_hash: [u8; 32],
++        context_hash: [u8; 32],
++        oracle_nonce: u64,
++        verdict: Verdict,
++        predicate_kind: PredicateKind,
++    ) -> Self {
+         Self {
+-            payload_hash: hash(payload),
+-            verdict: Verdict::Complete,
+-            predicate_kind: PredicateKind::Lean4Boolean,
++            payload_hash,
++            context_hash,
++            oracle_nonce,
++            verdict,
++            predicate_kind,
+         }
+     }
+ 
++    /// Receipt for a Lean4-boolean `Complete` verdict (full proof accepted).
++    /// `parent_id` is the tape node this proof cites (None for oneshot).
++    /// `oracle_nonce` must match a nonce registered on the destination bus.
++    pub fn new_lean4_complete(
++        payload: &str,
++        parent_id: Option<&str>,
++        oracle_nonce: u64,
++    ) -> Self {
++        Self::new(
++            hash_payload(payload),
++            hash_context(parent_id),
++            oracle_nonce,
++            Verdict::Complete,
++            PredicateKind::Lean4Boolean,
++        )
++    }
++
+     /// Receipt for a Lean4-boolean `PartialOk` verdict (unsolved goals,
+     /// structurally valid). `confidence = 1.0` because Lean elaboration is
+     /// deterministic; PCP confidence semantics are reserved for Paper 3.
+-    pub fn for_lean4_partial(payload: &str) -> Self {
+-        Self {
+-            payload_hash: hash(payload),
+-            verdict: Verdict::PartialOk { confidence: 1.0 },
+-            predicate_kind: PredicateKind::Lean4Boolean,
+-        }
++    pub fn new_lean4_partial(
++        payload: &str,
++        parent_id: Option<&str>,
++        oracle_nonce: u64,
++    ) -> Self {
++        Self::new(
++            hash_payload(payload),
++            hash_context(parent_id),
++            oracle_nonce,
++            Verdict::PartialOk { confidence: 1.0 },
++            PredicateKind::Lean4Boolean,
++        )
++    }
++
++    pub fn oracle_nonce(&self) -> u64 {
++        self.oracle_nonce
+     }
+ 
+-    /// Validate that this receipt matches the given payload and carries a
+-    /// non-rejecting verdict. Called by the bus before granting blessed
+-    /// write.
+-    pub fn validates(&self, payload: &str) -> Result<(), String> {
+-        let computed = hash(payload);
++    /// Validate receipt against payload + expected context. Called by the
++    /// bus before granting blessed write.
++    pub fn validates(
++        &self,
++        payload: &str,
++        expected_context: &[u8; 32],
++    ) -> Result<(), String> {
++        let computed = hash_payload(payload);
+         if computed != self.payload_hash {
+-            return Err("OracleReceipt.payload_hash mismatch (payload tampered or stale receipt)".into());
++            return Err("payload_hash mismatch (payload tampered or stale receipt)".into());
++        }
++        if self.context_hash != *expected_context {
++            return Err("context_hash mismatch (receipt replay across different parent)".into());
+         }
+         match &self.verdict {
+             Verdict::Complete | Verdict::PartialOk { .. } => Ok(()),
+-            Verdict::Reject(r) => Err(format!("OracleReceipt.verdict is Reject: {}", r)),
++            Verdict::Reject(r) => Err(format!("verdict is Reject: {}", r)),
+         }
+     }
+ }
+ 
+-fn hash(payload: &str) -> [u8; 32] {
++/// Hash a payload string (sha256).
++pub fn hash_payload(payload: &str) -> [u8; 32] {
+     let mut h = Sha256::new();
+     h.update(payload.as_bytes());
+     h.finalize().into()
+ }
+ 
++/// Hash the parent-chain context. Currently: `sha256(parent_id || "")`.
++/// For Paper 1 closed-world, binding to parent_id is sufficient — each
++/// parent_id uniquely identifies a tape history in-process (tx_count
++/// monotone + per-author). Phase 10c will extend to chain-full hash when
++/// Ed25519 signatures are added.
++pub fn hash_context(parent_id: Option<&str>) -> [u8; 32] {
++    let mut h = Sha256::new();
++    h.update(parent_id.unwrap_or("").as_bytes());
++    h.finalize().into()
++}
++
+ #[cfg(test)]
+ mod tests {
+     use super::*;
+ 
++    const TEST_NONCE: u64 = 0xDEADBEEFCAFE_u64;
++
+     #[test]
+-    fn receipt_validates_matching_payload() {
+-        let r = OracleReceipt::for_lean4_complete("by linarith");
+-        assert!(r.validates("by linarith").is_ok());
++    fn receipt_validates_matching_payload_and_context() {
++        let r = OracleReceipt::new_lean4_complete("by linarith", None, TEST_NONCE);
++        let ctx = hash_context(None);
++        assert!(r.validates("by linarith", &ctx).is_ok());
+     }
+ 
+     #[test]
+     fn receipt_rejects_tampered_payload() {
+-        let r = OracleReceipt::for_lean4_complete("by linarith");
+-        let err = r.validates("by omega").unwrap_err();
+-        assert!(err.contains("mismatch"), "got: {}", err);
++        let r = OracleReceipt::new_lean4_complete("by linarith", None, TEST_NONCE);
++        let ctx = hash_context(None);
++        let err = r.validates("by omega", &ctx).unwrap_err();
++        assert!(err.contains("payload_hash mismatch"), "got: {}", err);
++    }
++
++    #[test]
++    fn receipt_rejects_wrong_context() {
++        // Receipt issued for parent A, replayed under parent B → reject.
++        let r = OracleReceipt::new_lean4_complete("by linarith", Some("node_A"), TEST_NONCE);
++        let wrong_ctx = hash_context(Some("node_B"));
++        let err = r.validates("by linarith", &wrong_ctx).unwrap_err();
++        assert!(err.contains("context_hash mismatch"), "got: {}", err);
+     }
+ 
+     #[test]
+     fn receipt_rejects_reject_verdict() {
+-        let r = OracleReceipt {
+-            payload_hash: hash("bad payload"),
+-            verdict: Verdict::Reject("malformed".into()),
+-            predicate_kind: PredicateKind::Lean4Boolean,
+-        };
+-        let err = r.validates("bad payload").unwrap_err();
++        let r = OracleReceipt::new(
++            hash_payload("bad payload"),
++            hash_context(None),
++            TEST_NONCE,
++            Verdict::Reject("malformed".into()),
++            PredicateKind::Lean4Boolean,
++        );
++        let ctx = hash_context(None);
++        let err = r.validates("bad payload", &ctx).unwrap_err();
+         assert!(err.contains("Reject"), "got: {}", err);
+     }
+ 
+     #[test]
+     fn partial_ok_is_accepted() {
+-        let r = OracleReceipt::for_lean4_partial("have h : 1=1 := rfl");
+-        assert!(r.validates("have h : 1=1 := rfl").is_ok());
++        let r = OracleReceipt::new_lean4_partial("have h : 1=1 := rfl", None, TEST_NONCE);
++        let ctx = hash_context(None);
++        assert!(r.validates("have h : 1=1 := rfl", &ctx).is_ok());
++    }
++
++    #[test]
++    fn nonce_is_accessible() {
++        let r = OracleReceipt::new_lean4_complete("p", None, 0x1234);
++        assert_eq!(r.oracle_nonce(), 0x1234);
++    }
++
++    #[test]
++    fn context_hash_differs_by_parent() {
++        let h_none = hash_context(None);
++        let h_a = hash_context(Some("node_A"));
++        let h_b = hash_context(Some("node_B"));
++        assert_ne!(h_none, h_a);
++        assert_ne!(h_a, h_b);
++        assert_eq!(h_a, hash_context(Some("node_A")));  // deterministic
+     }
+ }
+diff --git a/src/sdk/predicate.rs b/src/sdk/predicate.rs
+index b3aec14..678757d 100644
+--- a/src/sdk/predicate.rs
++++ b/src/sdk/predicate.rs
+@@ -42,6 +42,12 @@ pub enum PredicateKind {
+ /// A ∏p verifier. Currently not implemented by `Lean4Oracle`; preserved for
+ /// GENERALIZATION_ROADMAP Paper 2/3 migration. Runtime verify path for
+ /// Paper 1 still goes through `Lean4Oracle::verify_omega_detailed`.
++///
++/// `#[allow(dead_code)]` because this trait is M-1 preservation (forward
++/// compatibility) — Paper 1 scope does not instantiate it. Removing the
++/// attribute will produce a justified compiler warning once `Lean4Oracle`
++/// implements `Predicate` (Phase 2 / Paper 2 work).
++#[allow(dead_code)]
+ pub trait Predicate: Send + Sync {
+     fn verify(&self, payload: &str) -> Verdict;
+     fn kind(&self) -> PredicateKind;
+diff --git a/src/sdk/prompt.rs b/src/sdk/prompt.rs
+index 24b0f57..d10b2c2 100644
+--- a/src/sdk/prompt.rs
++++ b/src/sdk/prompt.rs
+@@ -8,6 +8,10 @@
+ /// - No rules explanation (V3L-39: LLMs follow incentives, not explanations)
+ /// - No example values (V3L-40: examples become anchors)
+ /// - State only: what exists, what's available, what's your balance
++/// `own_reputation` (Phase 8.F v2, C-053): times this agent's nodes have
++/// been cited by others. 0 = nobody has built on their work yet. Surfaced
++/// so Art. I.2 信誉累积 signal is agent-visible (prior to R5, snapshot had
++/// it but prompt ignored it).
+ pub fn build_agent_prompt(
+     chain_so_far: &str,
+     skill: &str,
+@@ -15,6 +19,7 @@ pub fn build_agent_prompt(
+     recent_errors: &[String],
+     recent_search_hits: &[String],
+     balance: f64,
++    own_reputation: u32,
+     tools_description: &str,
+     team_board: &str,
+ ) -> String {
+@@ -75,8 +80,9 @@ pub fn build_agent_prompt(
+         prompt.push('\n');
+     }
+ 
+-    // Balance (agent's resource awareness)
+-    prompt.push_str(&format!("Balance: {:.0} Coins\n\n", balance));
++    // Balance (agent's resource awareness) + Reputation (Art. I.2 信誉累积)
++    prompt.push_str(&format!("Balance: {:.0} Coins\n", balance));
++    prompt.push_str(&format!("Reputation: {} citations\n\n", own_reputation));
+ 
+     // Available tools
+     prompt.push_str("=== Tools ===\n");
+@@ -127,21 +133,21 @@ mod tests {
+ 
+     #[test]
+     fn test_prompt_contains_no_example_values() {
+-        let prompt = build_agent_prompt("", "", "", &[], &[], 10000.0, "append, invest, search", "");
++        let prompt = build_agent_prompt("", "", "", &[], &[], 10000.0, 0, "append, invest, search", "");
+         assert!(!prompt.contains("50.0"), "No example amounts in prompt");
+         assert!(!prompt.contains("100.0"), "No example amounts in prompt");
+     }
+ 
+     #[test]
+     fn test_prompt_includes_balance() {
+-        let prompt = build_agent_prompt("", "", "", &[], &[], 5000.0, "", "");
++        let prompt = build_agent_prompt("", "", "", &[], &[], 5000.0, 0, "", "");
+         assert!(prompt.contains("5000"));
+     }
+ 
+     #[test]
+     fn test_prompt_truncates_errors_to_3() {
+         let errors: Vec<String> = (0..10).map(|i| format!("error {}", i)).collect();
+-        let prompt = build_agent_prompt("", "", "", &errors, &[], 0.0, "", "");
++        let prompt = build_agent_prompt("", "", "", &errors, &[], 0.0, 0, "", "");
+         assert!(prompt.contains("error 0"));
+         assert!(prompt.contains("error 2"));
+         assert!(!prompt.contains("error 3"));
+@@ -150,7 +156,7 @@ mod tests {
+     #[test]
+     fn test_prompt_surfaces_search_hits() {
+         let hits: Vec<String> = vec!["thm_a.lean".into(), "thm_b.lean".into()];
+-        let prompt = build_agent_prompt("", "", "", &[], &hits, 0.0, "", "");
++        let prompt = build_agent_prompt("", "", "", &[], &hits, 0.0, 0, "", "");
+         assert!(prompt.contains("Recent Search Hits"));
+         assert!(prompt.contains("thm_a.lean"));
+     }
+@@ -158,7 +164,7 @@ mod tests {
+     #[test]
+     fn test_prompt_surfaces_team_board() {
+         let board = "Agent_0 balance=10040 (+40)\nAgent_3 balance=10030 (+30)\n";
+-        let prompt = build_agent_prompt("", "", "", &[], &[], 0.0, "", board);
++        let prompt = build_agent_prompt("", "", "", &[], &[], 0.0, 0, "", board);
+         assert!(prompt.contains("Team Board"));
+         assert!(prompt.contains("Agent_0 balance=10040"));
+     }
+diff --git a/tests/oracle_receipt_bus.rs b/tests/oracle_receipt_bus.rs
+index 0958143..438b0ed 100644
+--- a/tests/oracle_receipt_bus.rs
++++ b/tests/oracle_receipt_bus.rs
+@@ -1,15 +1,19 @@
+-// Phase 8.C (Codex V-1 / C-048) regression test
+-// Bus must reject blessed write if OracleReceipt doesn't bind to the payload.
+-// Prior to this fix, any caller could pass `oracle_blessed=true` to bypass
+-// forbidden_patterns — capability leak.
++// Phase 8.C v2 (Codex V-1 / C-067) regression test
++// Bus must reject blessed write if OracleReceipt fails ANY of:
++//   (a) payload-hash binding (content tampered)
++//   (b) context-hash binding (cross-parent replay)
++//   (c) oracle nonce not registered with this bus
+ 
+ use turingosv4::bus::{BusConfig, BusResult, TuringBus};
+ use turingosv4::kernel::Kernel;
+-use turingosv4::sdk::oracle_receipt::OracleReceipt;
++use turingosv4::sdk::oracle_receipt::{hash_context, hash_payload, OracleReceipt};
+ use turingosv4::sdk::predicate::{PredicateKind, Verdict};
+ use turingosv4::sdk::tools::wallet::WalletTool;
+ 
+-fn make_bus() -> TuringBus {
++const TEST_NONCE: u64 = 0xCAFE_u64;
++const OTHER_NONCE: u64 = 0xBEEF_u64;
++
++fn make_bus_and_register() -> TuringBus {
+     let kernel = Kernel::new();
+     let config = BusConfig {
+         max_payload_chars: 500,
+@@ -19,6 +23,7 @@ fn make_bus() -> TuringBus {
+         min_class_count_to_broadcast: 3,
+     };
+     let mut bus = TuringBus::new(kernel, config);
++    bus.register_oracle(TEST_NONCE);
+     bus.mount_tool(Box::new(WalletTool::new(10_000.0)));
+     bus.init(&["Agent_0".into()]);
+     bus
+@@ -26,54 +31,45 @@ fn make_bus() -> TuringBus {
+ 
+ #[test]
+ fn blessed_write_accepts_matching_receipt() {
+-    let mut bus = make_bus();
++    let mut bus = make_bus_and_register();
+     let payload = "by linarith";
+-    let receipt = OracleReceipt::for_lean4_complete(payload);
++    let receipt = OracleReceipt::new_lean4_complete(payload, None, TEST_NONCE);
+     let res = bus.append_oracle_accepted("Agent_0", payload, None, &receipt)
+         .expect("matching receipt should be accepted");
+-    assert!(matches!(res, BusResult::Appended { .. }),
+-        "expected Appended, got {:?}", res);
++    assert!(matches!(res, BusResult::Appended { .. }));
+ }
+ 
+ #[test]
+ fn blessed_write_rejects_hash_mismatch() {
+-    let mut bus = make_bus();
+-    // Receipt was made for a different payload.
+-    let receipt = OracleReceipt::for_lean4_complete("by linarith");
+-    // But we try to submit a forbidden one.
++    let mut bus = make_bus_and_register();
++    let receipt = OracleReceipt::new_lean4_complete("by linarith", None, TEST_NONCE);
+     let err = bus.append_oracle_accepted(
+-        "Agent_0", "by native_decide", None, &receipt
++        "Agent_0", "by native_decide", None, &receipt,
+     ).expect_err("should reject tampered payload");
+-    assert!(err.contains("mismatch"), "expected mismatch error, got: {}", err);
++    assert!(err.contains("payload_hash"), "got: {}", err);
+ }
+ 
+ #[test]
+ fn blessed_write_rejects_reject_verdict() {
+-    let mut bus = make_bus();
++    let mut bus = make_bus_and_register();
+     let payload = "by something_bad";
+-    // Manually construct a Reject receipt (contract: validates() refuses it).
+-    let receipt = OracleReceipt {
+-        payload_hash: {
+-            use sha2::{Digest, Sha256};
+-            let mut h = Sha256::new();
+-            h.update(payload.as_bytes());
+-            h.finalize().into()
+-        },
+-        verdict: Verdict::Reject("malformed".into()),
+-        predicate_kind: PredicateKind::Lean4Boolean,
+-    };
++    let receipt = OracleReceipt::new(
++        hash_payload(payload),
++        hash_context(None),
++        TEST_NONCE,
++        Verdict::Reject("malformed".into()),
++        PredicateKind::Lean4Boolean,
++    );
+     let err = bus.append_oracle_accepted("Agent_0", payload, None, &receipt)
+-        .expect_err("Reject verdict must be rejected by bus");
+-    assert!(err.contains("Reject"), "expected Reject in error, got: {}", err);
++        .expect_err("Reject verdict must be rejected");
++    assert!(err.contains("Reject"), "got: {}", err);
+ }
+ 
+ #[test]
+ fn blessed_write_partial_ok_receipt_succeeds() {
+-    // PartialOk is a legitimate write path (step tactic that elaborates
+-    // partially). Bus should accept it.
+-    let mut bus = make_bus();
++    let mut bus = make_bus_and_register();
+     let payload = "have h1 : 1 = 1 := rfl";
+-    let receipt = OracleReceipt::for_lean4_partial(payload);
++    let receipt = OracleReceipt::new_lean4_partial(payload, None, TEST_NONCE);
+     let res = bus.append_oracle_accepted("Agent_0", payload, None, &receipt)
+         .expect("PartialOk receipt should be accepted");
+     assert!(matches!(res, BusResult::Appended { .. }));
+@@ -81,16 +77,47 @@ fn blessed_write_partial_ok_receipt_succeeds() {
+ 
+ #[test]
+ fn blessed_write_bypasses_forbidden_patterns_after_valid_receipt() {
+-    // Once oracle has verified, forbidden_patterns are intentionally skipped
+-    // (Art. IV mandate wtool write + C-043). Receipt is what authorizes this.
+-    let mut bus = make_bus();
+-    // "native_decide" is in forbidden_patterns — agent scratch would be
+-    // vetoed. But if the full proof was oracle-accepted, the write must go
+-    // through. In practice the Lean oracle filters this via its own
+-    // check_payload (C-011) before emitting the Complete verdict.
++    let mut bus = make_bus_and_register();
++    // Legitimate proof, even if it contains words that agent scratch would
++    // have been vetoed for. The oracle has certified it; bus trusts receipt.
+     let legitimate_proof = "by have h : 1 = 1 := rfl; exact h";
+-    let receipt = OracleReceipt::for_lean4_complete(legitimate_proof);
++    let receipt = OracleReceipt::new_lean4_complete(legitimate_proof, None, TEST_NONCE);
+     let res = bus.append_oracle_accepted("Agent_0", legitimate_proof, None, &receipt)
+-        .expect("legitimate proof with valid receipt must be appended");
++        .expect("legitimate proof must be appended");
+     assert!(matches!(res, BusResult::Appended { .. }));
+ }
++
++#[test]
++fn blessed_write_rejects_unregistered_oracle_nonce() {
++    // V-1 core VETO fix: receipt from unregistered oracle is unforgeable.
++    let mut bus = make_bus_and_register();
++    let payload = "by linarith";
++    // Construct a receipt with a DIFFERENT nonce (attacker tries to forge).
++    let forged = OracleReceipt::new_lean4_complete(payload, None, OTHER_NONCE);
++    let err = bus.append_oracle_accepted("Agent_0", payload, None, &forged)
++        .expect_err("forged receipt (wrong nonce) must be rejected");
++    assert!(err.contains("oracle nonce not registered"), "got: {}", err);
++}
++
++#[test]
++fn blessed_write_rejects_cross_context_replay() {
++    // Step-mode VETO fix: a receipt issued for parent A cannot be replayed
++    // for parent B. Prevents tactic hijack across proof chains.
++    let mut bus = make_bus_and_register();
++    // First append a seed node so we have a real parent id.
++    let seed_payload = "seed";
++    let seed_receipt = OracleReceipt::new_lean4_complete(seed_payload, None, TEST_NONCE);
++    let seed_node = match bus.append_oracle_accepted("Agent_0", seed_payload, None, &seed_receipt).unwrap() {
++        BusResult::Appended { node_id } => node_id,
++        other => panic!("unexpected: {:?}", other),
++    };
++
++    // Issue a receipt bound to parent = None, but attacker tries to replay
++    // under parent = seed_node.
++    let malicious_payload = "by attack";
++    let receipt_for_no_parent = OracleReceipt::new_lean4_complete(malicious_payload, None, TEST_NONCE);
++    let err = bus.append_oracle_accepted(
++        "Agent_0", malicious_payload, Some(&seed_node), &receipt_for_no_parent,
++    ).expect_err("cross-context replay must be rejected");
++    assert!(err.contains("context_hash"), "got: {}", err);
++}
+diff --git a/tests/q_halt_state.rs b/tests/q_halt_state.rs
+index 82cda45..c2341d2 100644
+--- a/tests/q_halt_state.rs
++++ b/tests/q_halt_state.rs
+@@ -125,3 +125,81 @@ fn halt_reason_variants_are_distinguishable() {
+     assert_ne!(HaltReason::WallClockCap, HaltReason::ComputeCapViolated);
+     assert_ne!(HaltReason::OmegaAccepted, HaltReason::ErrorHalt);
+ }
++
++// R4 (Gemini CHALLENGE): WAL replay must restore q_state from the durable
++// ledger. Without this, a crash-resumed bus always reports Running even if
++// the last durable event was Halt.
++#[test]
++fn wal_replay_restores_q_state_halted() {
++    let tmp = std::env::temp_dir().join(format!(
++        "q_halt_replay_{}.wal.jsonl",
++        std::time::SystemTime::now()
++            .duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos(),
++    ));
++    // Run 1: halt with MaxTxExhausted.
++    {
++        let config = BusConfig {
++            max_payload_chars: 200, max_payload_lines: 10,
++            system_lp_amount: 200.0, forbidden_patterns: vec![],
++            min_class_count_to_broadcast: 3,
++        };
++        let mut bus = TuringBus::with_wal_path(Kernel::new(), config, &tmp)
++            .expect("open WAL");
++        bus.mount_tool(Box::new(WalletTool::new(10_000.0)));
++        bus.init(&["Alice".into()]);
++        bus.halt_with_reason(HaltReason::MaxTxExhausted);
++        assert_eq!(bus.q_state, QState::Halted { reason: HaltReason::MaxTxExhausted });
++    }
++    // Run 2: replay; q_state must be restored.
++    {
++        let config = BusConfig {
++            max_payload_chars: 200, max_payload_lines: 10,
++            system_lp_amount: 200.0, forbidden_patterns: vec![],
++            min_class_count_to_broadcast: 3,
++        };
++        let bus = TuringBus::with_wal_path(Kernel::new(), config, &tmp)
++            .expect("reopen WAL");
++        assert_eq!(
++            bus.q_state,
++            QState::Halted { reason: HaltReason::MaxTxExhausted },
++            "R4: WAL replay must restore Halted state from last Halt event"
++        );
++    }
++    let _ = std::fs::remove_file(&tmp);
++}
++
++#[test]
++fn wal_replay_preserves_running_when_no_halt() {
++    let tmp = std::env::temp_dir().join(format!(
++        "q_halt_replay_run_{}.wal.jsonl",
++        std::time::SystemTime::now()
++            .duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos(),
++    ));
++    // Run 1: init but never halt.
++    {
++        let config = BusConfig {
++            max_payload_chars: 200, max_payload_lines: 10,
++            system_lp_amount: 200.0, forbidden_patterns: vec![],
++            min_class_count_to_broadcast: 3,
++        };
++        let mut bus = TuringBus::with_wal_path(Kernel::new(), config, &tmp)
++            .expect("open WAL");
++        bus.mount_tool(Box::new(WalletTool::new(10_000.0)));
++        bus.init(&["Alice".into()]);
++        // Append a node but do NOT halt.
++        let _ = bus.append("Alice", "some work", None);
++    }
++    // Run 2: replay; still Running.
++    {
++        let config = BusConfig {
++            max_payload_chars: 200, max_payload_lines: 10,
++            system_lp_amount: 200.0, forbidden_patterns: vec![],
++            min_class_count_to_broadcast: 3,
++        };
++        let bus = TuringBus::with_wal_path(Kernel::new(), config, &tmp)
++            .expect("reopen WAL");
++        assert_eq!(bus.q_state, QState::Running,
++            "no Halt event → q_state stays Running after replay");
++    }
++    let _ = std::fs::remove_file(&tmp);
++}
+diff --git a/tests/reputation.rs b/tests/reputation.rs
+index 35a35dd..f17d50c 100644
+--- a/tests/reputation.rs
++++ b/tests/reputation.rs
+@@ -121,3 +121,41 @@ fn reputation_map_surfaces_all_authors() {
+     assert!(snap.reputation.contains_key("Alice"));
+     assert_eq!(*snap.reputation.get("Alice").unwrap(), 1);
+ }
++
++// R8 (Codex CHALLENGE): #[serde(default)] on Tape.reputation_by_author and
++// UniverseSnapshot.reputation must actually allow old records (pre-8.F)
++// without those fields to deserialize.
++#[test]
++fn tape_deserializes_without_reputation_field() {
++    use turingosv4::ledger::Tape;
++    // Simulate an old WAL / serialized Tape record: no reputation_by_author.
++    let old_json = r#"{
++        "nodes": {},
++        "reverse_citations": {},
++        "time_arrow": []
++    }"#;
++    let tape: Tape = serde_json::from_str(old_json)
++        .expect("old Tape JSON (no reputation field) must deserialize");
++    // Must default to empty map.
++    assert!(tape.reputation().is_empty(),
++        "missing reputation_by_author must default to empty HashMap");
++    assert_eq!(tape.reputation_of("Anyone"), 0);
++}
++
++#[test]
++fn snapshot_deserializes_without_reputation_field() {
++    use turingosv4::sdk::snapshot::UniverseSnapshot;
++    let old_json = r#"{
++        "tape": {"nodes":{}, "reverse_citations":{}, "time_arrow":[]},
++        "balances": {},
++        "portfolios": {},
++        "markets": {},
++        "market_ticker": "",
++        "generation": 0,
++        "tx_count": 0
++    }"#;
++    let snap: UniverseSnapshot = serde_json::from_str(old_json)
++        .expect("old UniverseSnapshot JSON (no reputation field) must deserialize");
++    assert!(snap.reputation.is_empty());
++    assert_eq!(snap.get_reputation("anyone"), 0);
++}

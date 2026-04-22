@@ -624,7 +624,15 @@ async fn run_swarm(
         match client.generate(&request).await {
             Ok(response) => {
                 match parse_agent_output(&response.content) {
-                    Ok(action) => match action.tool.as_str() {
+                    Ok(output) => {
+                        // Art. IV ⟨q_o, a_o⟩: q_delta is an OPTIONAL state hint
+                        // the agent may emit for Q_{t+1}; we currently log it but
+                        // do not gate on it (backward compat). Action is a_o.
+                        if let Some(q) = &output.q_delta {
+                            info!("[tx {}] agent q_delta={}", tx, q);
+                        }
+                        let action = output.action;
+                        match action.tool.as_str() {
                         "append" => {
                             *tool_dist.entry("append".into()).or_insert(0) += 1;
                             if let Some(payload) = &action.payload {
@@ -982,7 +990,8 @@ async fn run_swarm(
                         other => {
                             *tool_dist.entry(format!("other:{}", other)).or_insert(0) += 1;
                         }
-                    },
+                        }
+                    }
                     Err(e) => {
                         *tool_dist.entry("parse_fail".into()).or_insert(0) += 1;
                         // Step-B v3: parse failures feed the class graveyard too.

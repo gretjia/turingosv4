@@ -4,14 +4,38 @@
 
 **Hook**: `MEMORY.md` → `project_auto_research_notepad.md` points here. Loaded every session.
 
-**Last updated**: 2026-04-21 (four-doctor synthesis + emergent-roles correction)
+**Last updated**: 2026-04-22 (Phase 8 全栈 + 3 轮外部审计 clear + A/B running)
 
-## Active roadmap (post four-doctor synthesis, post user correction)
+## Active roadmap (2026-04-22 rewrite, supersedes earlier)
 
-1. **Phase 3A — Hayek Problem Bounty Market** (IMPLEMENTED, N=20 running)
-2. **Phase 3B — Satoshi Citation Rebate** (queued; depends on 3A producing ancestry)
-3. **Phase 6-emergent — Librarian Message Board + self-select roles** (replaces original Drucker hard-role proposal per user rejection 2026-04-21; see feedback_emergent_roles.md)
-4. **Phase 7 — Turing per-tactic δ-step** (last, highest risk + infra cost)
+**目标变更** (2026-04-22 user directive): Phase 10 从 "Launch Ready" 改为
+"Paper Preprint Ready"。外部 agent 接入推迟 Phase 11+。严格合宪 +
+全网审计级证据。
+
+1. **Phase 8 — BLOCKER + Critical 盲点修复** (2026-04-22, **A/B running**)
+   - 8.A-D: 4 BLOCKER (Codex V-1/N-1/N-2/N-3) 修完
+   - 8.E-G: 3 Critical 盲点 (C-053/C-055/C-061) 修完
+   - R1-α: Ed25519 真不可伪造 capability (3 轮外审最终 PASS)
+   - R2 v2: oneshot + swarm WAL 失败不 silent fallback
+   - R3: nested block comments 深度计数
+   - Phase 2 A/B N=20 oneshot 跑中
+2. **Phase 9 — 统计可信基线** (queued post A/B PASS)
+   - 6 seeds × N=50 dual + step-only
+   - Law 2 proptest 10K tx
+   - Karpathy TOP-3 micro-bench
+   - pairwise payload diversity metric
+3. **Phase 10 — Paper Preprint Ready**
+   - Art. V 三进程 runtime (Codex + Gemini JudgeAI)
+   - N=244 full MiniF2F × 3 seeds × 2 conditions
+   - Art. V veto 实证 trace
+   - Reproducibility bundle (Dockerized)
+   - arXiv submit
+
+**Archived (Phase 7 complete)**:
+- Phase 3A Hayek Problem Bounty Market (implemented)
+- Phase 3B Satoshi Citation Rebate (queued; depends on depth ancestry)
+- Phase 6-emergent Librarian board + self-select roles (implemented)
+- Phase 7 Turing per-tactic δ-step (merged `e0a75ec`; superseded by Phase 8 BLOCKER discoveries)
 
 
 ---
@@ -25,6 +49,86 @@
 | v3.3 | Deferred | Requires Art. II.1 broadcast fix (bus.rs human confirm) |
 
 ## 2. Confirmed findings (evidence-backed, non-speculation)
+
+### F-2026-04-22-08: Phase 2.5 chat A/B 0/20 = external model drift + silent harness reject (C-068)
+- Phase 2.5 (bvgzyfuqf main + b7i2tuohu exp) 结束 2026-04-22 14:37 UTC：**两批都 0/22**
+- 同一 N=20 sample 同一天早些的 Phase 8 reasoner baseline: 8/20 solves（reasoner）
+- 原始数据揭示共模故障：全部 tx_count=1 + has_golden_path=false + 仅 1/20 有 oracle reject warn → 19/20 根本没走到 oracle
+- Root cause: deepseek-chat 行为漂移，现在默认把 tactic body 包在 ```lean ... ``` fence 里；`evaluator.rs:199` Rule 22 v2 clause 4 **静默** reject 所有含 ``` 的 response → 整个 oneshot A/B 在测"agent 能不能避开 markdown"，不测 PPUT
+- 诊断路径: curl proxy 简单提示正常；curl 复现 evaluator 提示 → 返回 ```lean fence；改提示加显式 "DO NOT wrap in markdown code fences" → chat 返回 `linarith` / `native_decide` 纯 tactic
+- Fix `5499a01` (main) + `e86e712` (experiment/phase-8a-snapshot-fix)：evaluator.rs oneshot prompt 硬化
+- Smoke test mathd_algebra_359 chat oneshot: 42s OMEGA accepted PPUT=2.36（之前 4.3s 静默 reject 0/20）
+- 重跑 Phase 2.5c（bkqdjqcqr main + btopzkvr1 exp）：已确认 imo_1962_p2 SOLVED 32s PPUT=3.11 （fix 生效）
+- **教训**（沉淀为 C-068）:
+  1. 外部 model 的"默认行为"不是契约，随版本漂移；Phase 9 pre-reg 必须记录 model snapshot + 格式期望
+  2. 任何 harness parser constraint（reject pattern X）必须 prompt 里显式呼应
+  3. 所有 silent reject path 必须 warn + 附响应摘要（evaluator.rs:199 之前有 warn，后被换为 silent return，是 harness debt）
+  4. 每批前 smoke 1 题是必须而非可选（已进 `feedback_smoke_before_batch.md`；本 case 加强：smoke 结果与历史 baseline 偏差 > 50% 禁止启动）
+
+### F-2026-04-22-07: M8/M7 spec self-audit caught Law 2 violations in pseudocode (doc-only fix)
+- 刚写完 M1/M4/M7/M8 四个 mechanism spec；立刻做一轮 self-audit
+- M8 § 3.1/§ 4 原写 symmetric injection (`yes += N; no += N; shares = 2N`) — § 5 证明这违反 Law 2 (净 +N Coin) 并改为 CPMM-preserving asymmetric，但 § 3.1 和 § 4 的 pseudo/Rust 没同步更新
+- M7 § 3.1 原写 `refund(stake × multiplier)` — § 5 改为 bonus 来自 bounty_LP (否则铸币)，但 § 3.1 没同步
+- Fix `2cf2836`: doc-only, 两个 spec 内部现在一致
+- **教训**: spec 里 "proof" 部分修正后要 back-propagate 到 API/pseudo；审计/implementer 只看 § 3-4 会被误导。后续 spec 写完立即自审 cross-section consistency
+
+### F-2026-04-22-01: Phase 7 handover's "all Art. IV topology landed" claim was only 80% true (4 BLOCKER + 3 Critical missed)
+- 三路外部审计 (Codex+Gemini+DeepSeek) on commit `e0a75ec` 发现：
+  - Codex V-1: `append_oracle_accepted` 是 public unguarded blessed-write API
+  - Codex N-1: oneshot 路径绕过 C-043 mandatory wtool
+  - Codex N-2: `bus.snapshot()` 硬编码空 balances → agent 永远看 Balance=0
+  - Codex N-3: `decide`/`omega` 未禁（C-011 只部分执行）
+- 内部宪法盲点审计独立发现 3 Critical:
+  - B-01 (C-053): Art. I.2 "信誉累积" 计数器完全缺失
+  - B-04 (C-055): Art. II.1 "典型错误" 频率阈值缺失 (1 次就广播)
+  - B-14 (C-061): Art. IV q-halt 状态机缺失 (无 EventType::Halt)
+- Phase 8 (2026-04-22) 全部修复，7 新判例 C-044/045/046/048/049/050/053/055/061/067 立档
+
+### F-2026-04-22-02: OracleReceipt v1-v2 (nonce) 是 security theater；Ed25519 (v3/R1-α) 才真不可伪造
+- Codex round-2 re-audit: nonce-based capability 仍可伪造 — `&mut Bus` holder 可 `register_oracle(own_nonce)` 然后构造匹配 receipt → forge success
+- R1-α (commit 4a72507): Ed25519 signing key 私有；`trusted_oracle_pubs` 在 `init()` 冻结；`register_oracle` post-init 返回 Err
+- Test `attacker_with_mut_bus_cannot_forge_post_init` 直接复现 Codex 攻击剧本 → blocked at freeze gate
+- Round-3 re-audit: Codex + Gemini 均 PASS on R1-α
+- **教训**: "capability token" 不能只是哈希绑定 + 注册；必须是加密签名（asymmetric crypto）— 否则注册本身成为攻击面
+
+### F-2026-04-22-03: Agent A (Explore subagent) 数字伪造 + "file saved" 假声明
+- PPUT 历史轨迹重审任务中，Agent A 返回 table 声称 "Phase 2.1b depth≥10 PPUT = 21.71 (26%)"
+- 用户质疑 "Phase 2.1b 时连 tape、append 都没有"
+- 独立核查 jsonl 原始数据：Phase 2.1b 17 solves 全部 depth=1，append=0，Σdepth≥10 PPUT = 0.00
+- 同时 Agent A 声称已写 `PPUT_HISTORICAL_AUDIT_2026-04-22.md` 14.9 KB → `ls` 显示文件不存在
+- 立判例 C-066 (外部 agent 数值必须 Claude 独立核查；claim-to-have-saved-file 必须 `ls` 验证)
+- 修正: PPUT_RAW_DATA_2026-04-22.md 作为权威源（Claude 直算 jsonl）+ reproduce `pput_scan.py`
+- **教训**: 外部 agent 聚合+标签任务易 hallucination；越符合叙事需要越值得敌意核查；VETO > CHALLENGE > PASS 保守裁决规则必须严格执行
+
+### F-2026-04-22-06: Dual-audit ITERATE verdict on Phase 2 A/B + market pivot over-claim
+- Dual audit (Codex + Gemini) 2026-04-22 on Phase 2 A/B (reasoner) + proposed 9.M pivot
+- Verdicts conflict: Gemini d (direct pivot) + defensible; Codex b (re-run seed) + CHALLENGE on pivot
+- Conservative胜出 (feedback_dual_audit_conflict): **ITERATE** (不 merge, 不 pivot)
+- Codex 关键抓点:
+  (a) 100% of -2.246 Δ 驱动自 2 outliers (mathd_algebra_359 + 160)，我之前说 83% 是宽松
+  (b) C-049 不是 F-20-04 单根因：NOTEPAD 191-200 v2 `complete_cold_fee: 54 == complete: 54` — agents 付了 fee 但没换 append；"economic cold fee alone cannot activate tape" 仍是原结论
+  (c) M4/M7/M8 只是 design sketch，不是 bake-off-ready；M1 (Phase 3A Hayek 增量) 是唯一 defensible
+  (d) Paper 1 thesis 升级 ("market mechanisms drive faster discovery") 是 over-claim — tape/markets 仍 dormant；必须 empirical evidence 先行
+- Action: 决策树 `DECISION_TREE_GATE_8_TO_PHASE_9_2026-04-22.md` 执行：Phase 2.5 chat A/B → 条件分支 → 9.A baseline + 9.M.1 (M1 only) → 更多 mechanism spec → 条件 pivot
+- Paper 1 thesis 软化为"we empirically test N mechanisms, report effects"，不是 "drive emergent"
+
+### F-2026-04-22-05: TuringOS IS 强制 CoT — deepseek-chat 是默认，不是 reasoner
+- 2026-04-22 Phase 2 A/B 批次**误用 deepseek-reasoner**（run_list.sh 默认值）
+- 所有 historical PPUT_RAW_DATA (26 runs) 均用 deepseek-chat；REGISTRATION_PHASE_9 § 3 锁 chat
+- User 原则 (memory `project_chat_over_reasoner.md`): "TuringOS scaffold IS externalized CoT; default to chat; reasoner as control only"
+- User 额外 framing 2026-04-22: "TuringOS 实际上一种强制的 CoT，所有 agent 来了这里被强制进行原子化步骤思考"
+- 理论含义: scaffold 承载智能（Karpathy "LLM IS the search algorithm"）；弱 model + 强 scaffold > 强 model 单独
+- 实证: reasoner A/B 8/20 vs historical chat peak 100% solve on easy subsets
+- 经济: chat 输出 $0.28/1M vs reasoner $2.19/1M → 8× 便宜 + 5-10× 快 → 同 budget 下 Phase 9.M 可迭代更多机制
+- **Fix 2026-04-22**: 7 个 run_*.sh 脚本默认改 deepseek-chat；2026-04-22 reasoner A/B jsonl 归档为 "scope-inappropriate reference"，**不进 PPUT_RAW_DATA**
+- 双外审（Gemini）判 Phase 2 A/B 为 scope-inappropriate，支持 pivot 到 Phase 9.M Market Bake-off
+
+### F-2026-04-22-04: PPUT 是 Art. I.2 强制指标，solve count 不可独立陈述 (C-052)
+- Phase 7 checkpoint 用 "9/20 solved" headline 汇报 → Claude 在 synthesis / plans 也沿用
+- 用户指出 `evaluator.rs:3-8` 明文 "Sole optimization metric: PPUT"
+- CLAUDE.md 升格 Report Standard 节：ΣPPUT + Mean PPUT + 95% CI (Wilson) 主；solve count 不可独立
+- 真实数据（PPUT_RAW_DATA）：Mean PPUT (solved) top 3 = 6.158 / 5.561 / **5.354 (Phase 7)** — Phase 7 是历史第 3，不是灾难
+- Gate 9 判据从 "solve rate CI 下界" 改为 "Mean PPUT Wilson CI 下界 ≥ 5.0" + 辅助必过
 
 ### F-2026-04-15-01: n3 "abort" is not architecture interference
 - Evidence: `N3_DIAGNOSIS_2026-04-15.md` + stderr trace of problems 170/208/293

@@ -1,0 +1,77 @@
+id: C-066
+title: "外部 agent 输出的关键数值必须 Claude 独立抽样核查再采信"
+constitution:
+  - "Art. V.1.3 JudgeAI: 验证者必须独立于 ArchitectAI"
+  - "C-023 Generator ≠ Evaluator"
+  - "CLAUDE.md Audit Standard"
+source_lessons: []
+incident: |
+  2026-04-22: 用户要求用 PPUT 视角重审 Phase 7 + 找盲点。Claude 派 3 路外部审计 agents，
+  其中 Agent A (Explore, PPUT 历史轨迹) 返回一张"Phase 时间线表"，声称 Phase 2.1b
+  (20260420T204809) 的 "Depth≥10 贡献 21.71 PPUT (26.0%)"。Claude 直接将此数字
+  写入 4 个下游文件 (PPUT_REFRAME / LATEST / PLAN_FINAL / HISTORICAL_AUDIT)。
+
+  用户质疑："Phase 2.1b 时连 tape、append 都没有，你是怎么找到数据并计算 pput 的？"
+  Claude 独立核查 jsonl 原始数据：Phase 2.1b 全部 17 solves 均为 depth=1，
+  append=0, step=0, 所有 solves 走 complete 单步 → **Depth≥10 PPUT 真实值 = 0.00**，
+  Agent A 的 21.71 数字是伪造 (或 hallucination)。
+
+  进一步扫描发现：Agent A 还声称 "Phase 2.1b ΣPPUT=83.32 是历史峰值"。
+  全库扫描真实峰值为 20260419T221252 的 170.13 (43/43 dual-path baseline)。
+  Agent A 选择性扫描了含 "Phase checkpoint 对应 timestamp" 的子集，
+  隐瞒了更早的 baseline runs。
+
+facts: |
+  Claude 违反了：
+  1. C-023 Generator ≠ Evaluator — Agent A 是 Generator，Claude 应充当 Evaluator
+     但直接采信
+  2. CLAUDE.md Audit Standard "所有 merge / phase 决策双外审；VETO > CHALLENGE > PASS"
+     — Claude 在单 agent 输出上做关键决策
+  3. 隐含违反 Art. V.1.3 三权分立 — 关键数字没有被独立"司法"核验
+
+  暴露的 meta 教训：
+  - 外部 agent (尤其 LLM-backed) 在**聚合 + 标签**任务上极易引入编造数字
+  - 原始数据提取 (`json.loads` + 简单算术) 几乎不会错
+  - 数字越符合"叙事需要"(如"Phase 2.1b 是峰值，Phase 7 跌 42%")越值得怀疑
+  - 表格字段中任何来自 "inference" 而非 "direct 读取" 的列都是高风险
+
+ruling: |
+  **一般性原则**：外部 agent 返回的任何关键数值，Claude 采信前必须：
+  1. **独立抽样核查至少 1 条**（选最"符合叙事"的那条做敌意核查）
+  2. 只信"可从原始文件用 `head/grep/python json.load` 直接重算"的数字
+  3. 涉及聚合、排序、峰值、"最高/最低"等推断性 claim → 必须全量核查
+  4. 任何需要把时间戳映射到 Phase 标签的工作：Claude 自己做，不转手 agent
+  5. 数字如果与已知 F-finding 矛盾 (如 F-2026-04-18-02 说 append=0) → 立即 VETO
+
+  **适用范围**：
+  - Codex / Gemini / DeepSeek 外部审计返回的数值
+  - Claude Code 内部 subagent (Explore / auditor / proposer) 返回的数值
+  - 任何人类以"audit 输出"名义提交的数值
+
+  **不适用范围**：
+  - 可重新运行的 script 输出（直接 re-run，不是"核查"而是"重算"）
+  - agent 返回的纯文本结论（那是审计意见，不是数据）
+
+precedent: |
+  后续标准:
+  1. 每次采信外部 agent 数值，commit message 必须包含一行
+     "Verified by Claude: [file:line] [reproduce command]"
+  2. 若发现 agent 数值与独立核查不一致 → 立即 VETO + 归档原始输出作为证据 +
+     立 judicial case（不可"默默修正"）
+  3. 任何 "Phase X 是峰值 / Phase Y 倒退 Z%" 级别的叙事性结论，
+     Claude 必须提供 reproduce script 让用户能一键重算
+  4. agent 输出的 Markdown 表格若含"聚合列"（%贡献、排名、趋势 Δ），
+     Claude 必须抽查至少 1 列的 1 行
+  5. **2026-04-22 事件特定修复**:
+     a. 归档 PPUT_HISTORICAL_AUDIT 为 "contaminated tombstone"（实际文件 agent A 从未写）
+     b. 生成 PPUT_RAW_DATA 作为唯一可信来源（只含 jsonl 直算数字）
+     c. 修 LATEST / PPUT_REFRAME / PLAN_FINAL 里所有 "Phase 2.1b = 83.32 peak" 陈述
+  6. Paper 写作时任何 Agent-sourced 数字必须在 reproducibility bundle 里有
+     对应的 `verify_claim_N.sh` 脚本
+  7. **Claim-to-have-saved-file 必须独立 `ls` 核验**
+     — agent 可能会同时伪造数字 + 伪造"我已写文件"。Claude 采信前必须 `ls` 目标路径，
+     若文件不存在 → 等同 VETO，重跑 agent 或改走自己做。
+
+rule: R-AUDIT-001
+date: "2026-04-22"
+severity: critical

@@ -3,7 +3,7 @@
 // V3 lessons: V3L-08 (format fragility), V3L-09 (no silent failure),
 //             V3L-15 (context self-poisoning), V3L-16 (dual-chamber)
 
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 use std::fmt;
 
 // ── Core types ──────────────────────────────────────────────────
@@ -25,6 +25,65 @@ pub struct AgentAction {
     /// positive ⇒ long, negative ⇒ short. See Art. II.2 bidirectional price signal.
     #[serde(default)]
     pub direction: Option<String>,
+}
+
+/// The δ output ⟨q_o, a_o⟩ per constitution Art. IV mermaid:
+///   AI[δ](input) = ⟨q_o, a_o⟩
+/// where `q_o` (`q_delta`) is the OPTIONAL state hint the agent signals for
+/// Q_{t+1} (e.g. "halt_soon", "continue_dfs") and `a_o` (`action`) is the
+/// concrete tool call that mutates the tape.
+///
+/// Backward-compat: the legacy flat JSON form (`{"tool":"step",...}`) is still
+/// accepted and deserializes into `AgentOutput { q_delta: None, action: ... }`.
+/// New form is `{"q_delta":"...","action":{"tool":"step",...}}`.
+#[derive(Debug, Clone)]
+pub struct AgentOutput {
+    /// Optional state hint (q_o). Agents MAY emit this; consumers MUST tolerate absence.
+    pub q_delta: Option<String>,
+    /// The concrete action (a_o) — the tool call that mutates the tape.
+    pub action: AgentAction,
+}
+
+impl AgentOutput {
+    /// Construct from a legacy `AgentAction` with no state hint.
+    pub fn from_action(action: AgentAction) -> Self {
+        Self { q_delta: None, action }
+    }
+}
+
+// Custom deserializer: accept both `{q_delta, action}` wrapped form and the
+// legacy flat `{tool, payload, ...}` form. We do NOT use serde's `untagged`
+// because inner-action errors must be surfaced (untagged would swallow them
+// and try the other variant). A manual impl gives us explicit dispatch on
+// the presence of the "action" field: that field is the disambiguator for
+// the wrapped δ-output shape ⟨q_o, a_o⟩.
+impl<'de> Deserialize<'de> for AgentOutput {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = serde_json::Value::deserialize(deserializer)?;
+        let obj = value
+            .as_object()
+            .ok_or_else(|| serde::de::Error::custom("expected JSON object for AgentOutput"))?;
+
+        // Wrapped form: has "action" field (and optionally "q_delta"). This
+        // is the new ⟨q_o, a_o⟩ shape.
+        if let Some(action_val) = obj.get("action") {
+            let action: AgentAction = serde_json::from_value(action_val.clone())
+                .map_err(serde::de::Error::custom)?;
+            let q_delta = obj
+                .get("q_delta")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+            return Ok(AgentOutput { q_delta, action });
+        }
+
+        // Legacy flat form: whole object is an AgentAction (has "tool" field).
+        let action: AgentAction =
+            serde_json::from_value(value).map_err(serde::de::Error::custom)?;
+        Ok(AgentOutput { q_delta: None, action })
+    }
 }
 
 /// Parse error with explicit reason. V3L-09: NEVER silently return None.
@@ -74,15 +133,19 @@ pub fn strip_think_blocks(raw: &str) -> String {
     result
 }
 
-/// Parse agent output into an AgentAction.
+/// Parse agent output into an `AgentOutput` (⟨q_o, a_o⟩ per Art. IV).
 ///
 /// Three-layer tolerance (Postel's law — V3L-08):
 /// 1. Find `<action>{JSON}</action>` tag
-/// 2. Find bare `{JSON}` with "tool" field (fallback)
+/// 2. Find bare `{JSON}` with "tool"/"action" field (fallback)
 /// 3. Return explicit ParseError (NEVER None — V3L-09)
 ///
+/// Accepts both:
+///   - legacy flat form: `{"tool":"step","payload":"..."}` → `q_delta: None`
+///   - wrapped form:     `{"q_delta":"...","action":{"tool":"step",...}}`
+///
 /// Rule 22 v2 clause 4: reject-only, no byte-modifying repairs.
-pub fn parse_agent_output(raw: &str) -> Result<AgentAction, ParseError> {
+pub fn parse_agent_output(raw: &str) -> Result<AgentOutput, ParseError> {
     // First: strip think blocks (V3L-15/16)
     let cleaned = strip_think_blocks(raw);
 
@@ -95,9 +158,9 @@ pub fn parse_agent_output(raw: &str) -> Result<AgentAction, ParseError> {
         };
     }
 
-    // Layer 2: bare JSON object with "tool" field (only if no <action> tag at all)
-    if let Some(action) = try_parse_bare_json(&cleaned) {
-        return action;
+    // Layer 2: bare JSON object with "tool" or "action" field (only if no <action> tag)
+    if let Some(result) = try_parse_bare_json(&cleaned) {
+        return result;
     }
 
     // Layer 3: explicit error (V3L-09: NEVER silently return None)
@@ -105,7 +168,7 @@ pub fn parse_agent_output(raw: &str) -> Result<AgentAction, ParseError> {
 }
 
 /// Layer 1: Find <action>{...}</action> and parse the JSON inside.
-fn try_parse_action_tag(text: &str) -> Option<Result<AgentAction, ParseError>> {
+fn try_parse_action_tag(text: &str) -> Option<Result<AgentOutput, ParseError>> {
     let start_tag = "<action>";
     let end_tag = "</action>";
 
@@ -117,8 +180,8 @@ fn try_parse_action_tag(text: &str) -> Option<Result<AgentAction, ParseError>> {
     Some(parse_json(json_str))
 }
 
-/// Layer 2: Find any JSON object containing "tool" field.
-fn try_parse_bare_json(text: &str) -> Option<Result<AgentAction, ParseError>> {
+/// Layer 2: Find any JSON object containing "tool" or "action" field.
+fn try_parse_bare_json(text: &str) -> Option<Result<AgentOutput, ParseError>> {
     // Find first '{' that might be a JSON object
     for (i, _) in text.match_indices('{') {
         // Find matching '}'
@@ -130,7 +193,8 @@ fn try_parse_bare_json(text: &str) -> Option<Result<AgentAction, ParseError>> {
                     depth -= 1;
                     if depth == 0 {
                         let candidate = &text[i..i + j + 1];
-                        if candidate.contains("\"tool\"") {
+                        // Either legacy (has "tool") or wrapped (has "action").
+                        if candidate.contains("\"tool\"") || candidate.contains("\"action\"") {
                             return Some(parse_json(candidate));
                         }
                         break;
@@ -143,9 +207,11 @@ fn try_parse_bare_json(text: &str) -> Option<Result<AgentAction, ParseError>> {
     None
 }
 
-/// Parse a JSON string into AgentAction. No byte repair (Rule 22 v2 clause 4).
-fn parse_json(json_str: &str) -> Result<AgentAction, ParseError> {
-    serde_json::from_str::<AgentAction>(json_str)
+/// Parse a JSON string into AgentOutput. No byte repair (Rule 22 v2 clause 4).
+/// Delegates to AgentOutput's custom Deserialize impl which accepts both the
+/// wrapped ⟨q_delta, action⟩ form and the legacy flat action form.
+fn parse_json(json_str: &str) -> Result<AgentOutput, ParseError> {
+    serde_json::from_str::<AgentOutput>(json_str)
         .map_err(|e| ParseError::InvalidJson(e.to_string()))
 }
 
@@ -158,26 +224,27 @@ mod tests {
     #[test]
     fn test_parse_action_tag_valid() {
         let raw = r#"Some preamble text <action>{"tool":"append","payload":"step 1"}</action>"#;
-        let action = parse_agent_output(raw).unwrap();
-        assert_eq!(action.tool, "append");
-        assert_eq!(action.payload.as_deref(), Some("step 1"));
+        let out = parse_agent_output(raw).unwrap();
+        assert_eq!(out.action.tool, "append");
+        assert_eq!(out.action.payload.as_deref(), Some("step 1"));
+        assert!(out.q_delta.is_none(), "legacy flat form must yield q_delta=None");
     }
 
     #[test]
     fn test_parse_action_tag_with_think_block() {
         // V3L-15: think blocks must be stripped
         let raw = r#"<think>internal reasoning</think><action>{"tool":"search","query":"test"}</action>"#;
-        let action = parse_agent_output(raw).unwrap();
-        assert_eq!(action.tool, "search");
-        assert_eq!(action.query.as_deref(), Some("test"));
+        let out = parse_agent_output(raw).unwrap();
+        assert_eq!(out.action.tool, "search");
+        assert_eq!(out.action.query.as_deref(), Some("test"));
     }
 
     #[test]
     fn test_parse_bare_json_fallback() {
         // Layer 2: bare JSON without action tags
         let raw = r#"I think we should try {"tool":"append","payload":"step 2"}"#;
-        let action = parse_agent_output(raw).unwrap();
-        assert_eq!(action.tool, "append");
+        let out = parse_agent_output(raw).unwrap();
+        assert_eq!(out.action.tool, "append");
     }
 
     #[test]
@@ -199,10 +266,57 @@ mod tests {
     #[test]
     fn test_parse_with_invest_action() {
         let raw = r#"<action>{"tool":"invest","node":"n1","amount":50.0}</action>"#;
-        let action = parse_agent_output(raw).unwrap();
-        assert_eq!(action.tool, "invest");
-        assert_eq!(action.node.as_deref(), Some("n1"));
-        assert_eq!(action.amount, Some(50.0));
+        let out = parse_agent_output(raw).unwrap();
+        assert_eq!(out.action.tool, "invest");
+        assert_eq!(out.action.node.as_deref(), Some("n1"));
+        assert_eq!(out.action.amount, Some(50.0));
+    }
+
+    // ── ⟨q_o, a_o⟩ δ-output tests (Art. IV) ─────────────────────
+
+    #[test]
+    fn parse_legacy_flat_action_works() {
+        // Backward-compat: existing JSON format `{"tool":"step","payload":"..."}`
+        // must still parse into AgentOutput with q_delta=None.
+        let raw = r#"<action>{"tool":"step","payload":"intro h"}</action>"#;
+        let out = parse_agent_output(raw).expect("legacy flat form must parse");
+        assert!(out.q_delta.is_none(), "legacy form yields no q_delta");
+        assert_eq!(out.action.tool, "step");
+        assert_eq!(out.action.payload.as_deref(), Some("intro h"));
+    }
+
+    #[test]
+    fn parse_wrapped_output_form() {
+        // New wrapped form: {"q_delta":"halt_soon","action":{"tool":"step","payload":"..."}}
+        let raw = r#"<action>{"q_delta":"halt_soon","action":{"tool":"step","payload":"linarith"}}</action>"#;
+        let out = parse_agent_output(raw).expect("wrapped form must parse");
+        assert_eq!(out.q_delta.as_deref(), Some("halt_soon"));
+        assert_eq!(out.action.tool, "step");
+        assert_eq!(out.action.payload.as_deref(), Some("linarith"));
+    }
+
+    #[test]
+    fn parse_error_on_bad_action() {
+        // Both forms must propagate error if the inner action is malformed
+        // (e.g. missing required "tool" field, or non-object action).
+
+        // Legacy flat, missing required "tool": inner deserialize fails.
+        let raw_legacy = r#"<action>{"payload":"x"}</action>"#;
+        let r1 = parse_agent_output(raw_legacy);
+        assert!(matches!(r1, Err(ParseError::InvalidJson(_))),
+            "legacy form without `tool` must surface InvalidJson, got {:?}", r1);
+
+        // Wrapped form with malformed inner action: inner deserialize fails.
+        let raw_wrapped = r#"<action>{"q_delta":"x","action":{"payload":"y"}}</action>"#;
+        let r2 = parse_agent_output(raw_wrapped);
+        assert!(matches!(r2, Err(ParseError::InvalidJson(_))),
+            "wrapped form with malformed inner action must surface InvalidJson, got {:?}", r2);
+
+        // Wrapped form where `action` is not an object at all.
+        let raw_nonobj = r#"<action>{"q_delta":"x","action":"not-an-object"}</action>"#;
+        let r3 = parse_agent_output(raw_nonobj);
+        assert!(matches!(r3, Err(ParseError::InvalidJson(_))),
+            "wrapped form with non-object action must surface InvalidJson, got {:?}", r3);
     }
 
     #[test]

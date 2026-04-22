@@ -1,0 +1,93 @@
+id: C-068
+title: "外部 LLM 输出格式漂移会静默破坏 harness — 提示必须显式锁定"
+constitution:
+  - "Art. V.1 Generator ≠ Evaluator"
+  - "C-009 格式脆弱：parser 可 reject，不可 modify"
+  - "C-032 Oracle 模式混淆 / Rule 22 v2 clause 4"
+  - "C-031/C-034/C-043 机制 > 参数 > 提示（本 case 说明：即便最低 lever，prompt 也要显式契约化）"
+source_lessons: []
+incident: |
+  2026-04-22: Phase 2.5 chat A/B 两批次（main + exp）同一 N=20 sample，
+  两边都返回 0/22 solved。用户 15:07 收到 task-notification 看到 0/20 解。
+
+  独立核查：
+  - 同一天 earlier Phase 8 reasoner baseline 在相同 sample 上 8/20 solved
+  - 所有 20 条 chat oneshot jsonl: tx_count=1, has_golden_path=false
+  - 仅 1 条 stderr 出现 oracle reject warn (19/20 根本没走到 oracle)
+  - 独立 curl proxy deepseek-chat 简单提示正确返回；chat API 健康
+  - 独立 curl proxy 用 evaluator 的 oneshot 提示 → 返回 `Here's the proof:\n\n\`\`\`lean\n  norm_num\n\`\`\``
+  - evaluator.rs:199 Rule 22 v2 clause 4 静默 reject 所有含 ``` 的 response
+    → 整个 oneshot A/B 其实在测"agent 能不能避开 markdown 格式"，不测 PPUT
+
+  提示换成显式 "DO NOT wrap in markdown code fences (no ```). No prose, no backticks."
+  → chat 改返回 "native_decide" / "linarith" 等纯 tactic；smoke test mathd_algebra_359
+  42s OMEGA accepted PPUT=2.36。
+
+facts: |
+  根因分类：
+  1. **外部 model 行为漂移（DeepSeek-chat 升级）**: 同样 prompt，chat 历史
+     会返回裸 tactic，现在倾向 wrap in ```lean。不是我们代码变化，是供应商变化。
+  2. **harness 静默失败**: reject 路径无 warn 日志（只在 v3 旧版本有 warn，
+     `4651:- warn!("REJECTED: LLM output contains markdown fences");` 后来
+     被 silent return 替换）。用户看到 PPUT_RESULT 但看不到每条为什么 0。
+  3. **Rule 22 v2 clause 4 正确但孤立**: parser reject-only 没错，错在
+     prompt 和 parser 契约不同步。prompt 说 "Output ONLY tactic body"，
+     model 理解 "body = markdown-wrapped code block"，parser 理解 "bare bytes"。
+  4. **双 batch 共用一个 root cause → 整个 A/B 无效**: 主/实验两 branch
+     都读同一个 prompt 字符串，同一个 reject logic。这是共模故障，
+     不是 treatment effect。
+
+  核心教训：
+  - 外部模型的"默认行为"不是契约，是观察。随版本漂移。
+  - 任何 harness 的 parser constraint（reject 字节 X）必须在 prompt 中
+    显式呼应（instruction 明说"不要 emit X，否则 reject"）。
+  - 静默 reject 是 harness bug：每条 reject 必须 warn + 附字节前 N chars。
+
+ruling: |
+  **一般性原则**：
+  1. 任何 "parser will reject byte pattern X" 的 harness 约定必须在 prompt
+     里显式化：告诉 model "emit X → rejected"。否则 model/prompt 契约漂移时
+     harness 会沉默 0-solve。
+  2. 任何 reject 路径必须 `warn!` + 记录触发理由 + 响应前 50-100 chars 摘要。
+     Silent reject = harness debt，要还。
+  3. **供应商升级可视作攻击向量**: 至少在 paper baseline 批次前，必须
+     smoke test 1 题确认 LLM 输出格式与 harness 契约一致。
+
+  **适用范围**:
+  - evaluator oneshot prompt
+  - swarm agent prompt（src/sdk/prompt.rs 的 JSON-protocol 约束同样适用）
+  - 任何含 "reject if contains X" 的 parse 规则（payload 格式、tool name 匹配等）
+
+  **不适用**:
+  - Oracle （Lean）的拒绝：那是数学真相，不是约定。
+
+precedent: |
+  后续标准:
+  1. **Prompt 契约化 checklist**：当 evaluator/parser/bus 新增 "reject pattern X"，
+     必须同步更新对应 prompt 加入 "DO NOT emit X" 显式条款，并 cross-reference
+     判例号。
+
+  2. **每批 PPUT 运行前 smoke 1 题**（已有 `feedback_smoke_before_batch.md`
+     规则；本 case 给出更强的要求）：
+     - 若 smoke 结果与历史 baseline 偏差 > 50%，不得启动全量 batch
+     - smoke fail 必须调查 prompt/parser/proxy/model 是否飘移，不是直接加 retry
+
+  3. **Reject 路径必须 warn**: 审计 evaluator.rs + bus.rs 所有 silent `return`
+     路径，补 warn 日志。记录 PID C-068.a 作为专项清理任务。
+
+  4. **Model behavior smoke check**: Phase 9 pre-reg 应包含一张
+     "LLM format compatibility matrix"，记录 (model_name, prompt_version, expected_output_format)
+     三元组。任一变动触发重新 smoke。
+
+  5. **历史数据不做隐式 invariance 假设**: 历史 chat baseline (9+/20) 所用模型可能
+     与 2026-04-22 的 chat 模型不同版本。后续 PAPER_OUTLINE 必须声明
+     "测试时 deepseek-chat 模型 snapshot 日期/hash"，不可说"chat model 一般能 9/20"。
+
+  6. **本次事件特定修复**（已完成）：
+     a. evaluator.rs oneshot prompt 硬化："DO NOT wrap in markdown code fences"
+     b. 同 fix 推到 experiment/phase-8a-snapshot-fix 分支（commit e86e712）
+     c. 重跑 Phase 2.5 A/B 基于 hardened prompt（Phase 2.5c tag）
+
+rule: R-PROMPT-PARSER-PARITY
+date: "2026-04-22"
+severity: high

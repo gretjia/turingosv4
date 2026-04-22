@@ -1,0 +1,195 @@
+commit 54a32aff72b972b67b752217557c88626a186a64
+Author: gretjia <gretjia@users.noreply.github.com>
+Date:   Wed Apr 22 09:16:36 2026 +0000
+
+    experiment/phase-8a-snapshot-fix: fill bus.snapshot() balances + portfolios from WalletTool
+    
+    C-049 (Codex audit N-2): bus.snapshot() hardcoded empty HashMap for both
+    balances and portfolios. Every agent prompt displayed `Balance: 0 Coins`
+    even when wallet held funds → Art. II.2 economic signal falsified across
+    all prior TAPE_ECONOMY / Hayek bounty / reward-pull experiments.
+    
+    Fix: enumerate from mounted WalletTool via `as_any().downcast_ref()`.
+    Absent-wallet case preserved (returns empty, does not panic).
+    
+    Tests: tests/snapshot_nonempty.rs (4 tests, all green)
+      - snapshot_balances_nonempty_after_genesis
+      - snapshot_portfolio_appears_after_invest
+      - snapshot_reflects_wallet_mutations
+      - snapshot_empty_when_no_wallet_mounted
+    
+    Full test suite on branch: 116/118 pass. 2 pre-existing failures in
+    reward_pull_conservation.rs exist on main too; unrelated to this change
+    (to be handled in a separate Phase 8 sub-task).
+    
+    Refs: handover/audits/EXT_CODEX_2026-04-22.md (N-2)
+          handover/ai-direct/PLAN_FINAL_PHASE_8_TO_PAPER_2026-04-22.md §4 Phase 8.A
+    
+    Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+
+diff --git a/src/bus.rs b/src/bus.rs
+index 9669a54..aea00db 100644
+--- a/src/bus.rs
++++ b/src/bus.rs
+@@ -539,6 +539,11 @@ impl TuringBus {
+     }
+ 
+     /// Get a snapshot of the universe for agents to read.
++    /// Phase 8.A (C-049): balances/portfolios now enumerated from mounted
++    /// WalletTool. Prior `HashMap::new()` made every agent prompt show
++    /// `Balance: 0 Coins` even when wallet held funds → Art. II.2 economic
++    /// signal falsified across all prior TAPE_ECONOMY / Hayek bounty runs.
++    /// See Codex audit N-2 (handover/audits/EXT_CODEX_2026-04-22.md).
+     pub fn snapshot(&self) -> crate::sdk::snapshot::UniverseSnapshot {
+         let markets: HashMap<NodeId, crate::sdk::snapshot::MarketSnapshot> =
+             self.kernel.markets.iter()
+@@ -564,10 +569,17 @@ impl TuringBus {
+         }
+         let ticker_str = ticker_lines.join(", ");
+ 
++        // C-049 fix: enumerate from mounted WalletTool. Absent wallet → empty
++        // (keeps tool-less unit tests compiling).
++        let (balances, portfolios) = self.tools.iter()
++            .find_map(|t| t.as_any().downcast_ref::<crate::sdk::tools::wallet::WalletTool>())
++            .map(|w| (w.balances.clone(), w.portfolios.clone()))
++            .unwrap_or_default();
++
+         crate::sdk::snapshot::UniverseSnapshot {
+             tape: self.kernel.tape.clone(),
+-            balances: HashMap::new(), // filled by wallet tool query
+-            portfolios: HashMap::new(),
++            balances,
++            portfolios,
+             markets,
+             market_ticker: ticker_str,
+             generation: self.generation,
+diff --git a/tests/snapshot_nonempty.rs b/tests/snapshot_nonempty.rs
+new file mode 100644
+index 0000000..57ae833
+--- /dev/null
++++ b/tests/snapshot_nonempty.rs
+@@ -0,0 +1,124 @@
++// Phase 8.A regression test (C-049)
++// Constitutional basis: Art. II.2 (economic signal must be visible to agents)
++//
++// Before this fix, `bus.snapshot()` hardcoded empty balances/portfolios,
++// so every agent prompt displayed `Balance: 0 Coins` regardless of wallet
++// state. That invalidated every TAPE_ECONOMY / Hayek bounty experiment
++// (F-2026-04-18-02, TAPE_ECONOMY_v1/v2 results cannot be trusted).
++//
++// These tests lock the fix in place. We reach into `bus.tools` the same way
++// evaluator.rs does in production (invest path), since `bus.invest()` is not
++// a first-class API — invest is a ToolSignal emitted during append.
++
++use turingosv4::bus::{BusConfig, BusResult, TuringBus};
++use turingosv4::kernel::Kernel;
++use turingosv4::sdk::tools::wallet::WalletTool;
++
++fn make_bus(genesis: f64) -> TuringBus {
++    let kernel = Kernel::new();
++    let config = BusConfig {
++        max_payload_chars: 500,
++        max_payload_lines: 20,
++        system_lp_amount: 200.0,
++        forbidden_patterns: vec![],
++    };
++    let mut bus = TuringBus::new(kernel, config);
++    bus.mount_tool(Box::new(WalletTool::new(genesis)));
++    bus.init(&["Agent_0".into(), "Agent_1".into()]);
++    bus
++}
++
++/// Helper mirroring evaluator.rs:688-697 (invest handler): find wallet,
++/// deduct, buy shares, record.
++fn do_invest(bus: &mut TuringBus, agent: &str, node_id: &str, buy_yes: bool, amount: f64) {
++    let wallet = bus.tools.iter_mut()
++        .find_map(|t| t.as_any_mut().downcast_mut::<WalletTool>())
++        .expect("wallet mounted");
++    wallet.deduct(agent, amount).expect("sufficient balance");
++    let shares = if buy_yes {
++        bus.kernel.buy_yes(node_id, amount).expect("market exists, buy YES")
++    } else {
++        bus.kernel.buy_no(node_id, amount).expect("market exists, buy NO")
++    };
++    let wallet = bus.tools.iter_mut()
++        .find_map(|t| t.as_any_mut().downcast_mut::<WalletTool>())
++        .expect("wallet still mounted");
++    if buy_yes {
++        wallet.record_shares(agent, node_id, shares, 0.0, 0.0);
++    } else {
++        wallet.record_shares(agent, node_id, 0.0, shares, 0.0);
++    }
++}
++
++#[test]
++fn snapshot_balances_nonempty_after_genesis() {
++    let bus = make_bus(10_000.0);
++    let snap = bus.snapshot();
++    assert!(!snap.balances.is_empty(),
++        "C-049: balances empty after genesis — regression of Phase 8.A fix");
++    assert_eq!(snap.get_balance("Agent_0"), 10_000.0,
++        "Agent_0 should see genesis grant, not 0 (Art. II.2 signal)");
++    assert_eq!(snap.get_balance("Agent_1"), 10_000.0,
++        "Agent_1 should see genesis grant, not 0");
++}
++
++#[test]
++fn snapshot_portfolio_appears_after_invest() {
++    let mut bus = make_bus(10_000.0);
++    let node_id = match bus.append("Agent_0", "seed proof step", None).unwrap() {
++        BusResult::Appended { node_id } => node_id,
++        other => panic!("expected Appended, got {:?}", other),
++    };
++    let balance_before = bus.snapshot().get_balance("Agent_1");
++    do_invest(&mut bus, "Agent_1", &node_id, /*buy_yes=*/true, 100.0);
++
++    let snap = bus.snapshot();
++    let p = snap.get_portfolio("Agent_1")
++        .expect("Agent_1 portfolio should exist after invest");
++    let pos = p.get(&node_id).expect("position on invested node");
++    assert!(pos.0 > 0.0,
++        "C-049: YES shares must appear in snapshot.portfolios; got {:?}", pos);
++    let balance_after = snap.get_balance("Agent_1");
++    assert!(balance_after < balance_before,
++        "Agent_1 balance must decrease post-invest; before={} after={}",
++        balance_before, balance_after);
++    assert!((balance_before - balance_after - 100.0).abs() < 1e-6,
++        "Debit amount should equal invest amount; Δ={}",
++        balance_before - balance_after);
++}
++
++#[test]
++fn snapshot_reflects_wallet_mutations() {
++    // After genesis + direct manipulation, snapshot must track.
++    let mut bus = make_bus(10_000.0);
++    let s0 = bus.snapshot();
++    assert_eq!(s0.get_balance("Agent_0"), 10_000.0);
++
++    // Deduct via the tool path (evaluator-style)
++    let wallet = bus.tools.iter_mut()
++        .find_map(|t| t.as_any_mut().downcast_mut::<WalletTool>())
++        .unwrap();
++    wallet.deduct("Agent_0", 500.0).unwrap();
++
++    let s1 = bus.snapshot();
++    assert!((s1.get_balance("Agent_0") - 9_500.0).abs() < 1e-6,
++        "Snapshot must reflect direct wallet deduct; got {}", s1.get_balance("Agent_0"));
++}
++
++#[test]
++fn snapshot_empty_when_no_wallet_mounted() {
++    // Regression guard: tool-less bus must not panic, just return empty maps.
++    let kernel = Kernel::new();
++    let config = BusConfig {
++        max_payload_chars: 100,
++        max_payload_lines: 5,
++        system_lp_amount: 100.0,
++        forbidden_patterns: vec![],
++    };
++    let bus = TuringBus::new(kernel, config);
++    let snap = bus.snapshot();
++    assert!(snap.balances.is_empty(),
++        "No wallet mounted → balances empty (not panic)");
++    assert!(snap.portfolios.is_empty(),
++        "No wallet mounted → portfolios empty (not panic)");
++}

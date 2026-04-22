@@ -1,0 +1,48 @@
+id: C-052
+title: "PPUT 是宪法唯一优化指标，solve count 仅辅助"
+constitution:
+  - "Art. I.2: 统计信号 — 顶层白盒使用确定性的统计算法把海量数据压缩成简洁的连续标量"
+  - "Art. I.1: 布尔信号（solve/not-solve 只是此层）"
+source_lessons: []
+incident: "2026-04-22: 审计汇报期间 Claude 连续用 solve count (9/20 vs 17/20) 做 Phase 7 headline，完全不提 ΣPPUT。事实上 Phase 7 step-only ΣPPUT=48.19，monolithic 估计仅 3.4-5.7，架构价值被严重误报为负。"
+facts: |
+  evaluator.rs:3-8 明文：
+    // Sole optimization metric: PPUT (Progress Per Unit Time)
+    //   PPUT = 100% / time_to_omega (seconds)
+    //   No GP → PPUT = 0 → problem not worth attacking in current iteration
+    // Constitutional basis: Art. I.1 (boolean predicate), Art. I.2 (statistical signal = PPUT)
+
+  Phase 7 N=20 step-only 实测：
+    - 9 solves, ΣPPUT = 48.19
+    - 但 5 个 depth-1 trivial (pput 7-10) 贡献 91.6%
+    - 3 个 depth≥17 的"架构价值" proofs 仅贡献 1.4%
+
+  用 solve count 汇报：Phase 7 = 9/20 (45%) vs monolithic = 17/20 (85%) → "架构输 40pp"
+  用 ΣPPUT 汇报：Phase 7 = 48.19 vs monolithic ≈ 3.4-5.7 → "架构赢 8-14×"
+  两种陈述对 merge 决策的含义完全相反。
+ruling: |
+  所有实验汇报、Gate 验收、Paper claim **必须**以 ΣPPUT 为主指标。
+  Solve count 只是 Art. I.1 布尔信号的聚合，不足以支撑架构价值判断。
+  任何"X/N solved"的陈述未配对 ΣPPUT 即视为违宪汇报。
+
+  允许的例外：
+  1. 纯 debug 场景（单问题是否能跑通）可用 binary solve/fail
+  2. 失败模式分类（e.g. timeout vs API error）可用 solve count 辅助
+  3. 任何时候 PPUT=0 的问题集合需单独列出（不要求 PPUT，只要求计数）
+
+  Paper 必备 PPUT 统计：
+  - ΣPPUT per condition/seed
+  - Mean PPUT (solved-only) + 95% CI (Wilson)
+  - PPUT histogram by depth bucket（证明架构深度层的 PPUT 贡献不是零）
+  - 与对照条件的 paired ΣPPUT Δ + HAC_t（如果非独立 seed）
+precedent: |
+  后续标准：
+  1. 所有 CHECKPOINT_PHASE_* 必须以 ΣPPUT 开篇，solve count 在次节
+  2. 所有 LATEST.md "Next Steps" 里的验收条件必须以 PPUT 表达
+  3. Gate 通过标准：ΣPPUT CI 下界 ≥ baseline（不是"solve rate CI 下界"）
+  4. 审计外部 agent 时，若只给 solve count → CHALLENGE；给 ΣPPUT → 才能 PASS
+  5. 架构"价值"的定义是 PPUT 意义上的，不是 solve count 意义上的
+  6. 当 ΣPPUT 和 solve count 方向矛盾时（如 Phase 7），以 ΣPPUT 为准
+rule: R-PPUT-001
+date: "2026-04-22"
+severity: critical
