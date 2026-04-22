@@ -62,10 +62,17 @@ pub struct TuringBus {
     pub generation: u32,
     /// Phase 8.E (C-061): explicit `q_t` ∈ {Running, Halted}.
     pub q_state: QState,
-    /// Phase 8.C v2 (C-067): nonces of oracles trusted to bless writes.
-    /// An OracleReceipt is only honoured if its nonce was registered here.
-    /// Populated via `register_oracle(nonce)` at bus wiring time.
-    registered_oracle_nonces: std::collections::HashSet<u64>,
+    /// Phase 8.C v3 (C-067 R1-α): Ed25519 verifying keys of oracles trusted
+    /// to bless writes. A receipt is only honoured if its `issuer_pub` is in
+    /// this set AND its signature verifies against that key. Unforgeable
+    /// even by code with `&mut Bus` (registration is the only surface; see
+    /// `oracles_frozen`).
+    trusted_oracle_pubs: std::collections::HashSet<[u8; 32]>,
+    /// Phase 8.C v3 (C-067 R1-α): prevents post-init registration of
+    /// additional oracle pubkeys. Flipped to true by `init()` and by
+    /// `with_wal_path()` after replay. Once frozen, `register_oracle`
+    /// returns Err instead of silently trusting a new pubkey.
+    oracles_frozen: bool,
     graveyard: HashMap<String, Vec<String>>,
     // Phase 1 (C-037 candidate): durable Q_t. None = legacy in-memory mode.
     wal: Option<crate::wal::Wal>,
@@ -102,21 +109,38 @@ impl TuringBus {
             tx_count: 0,
             generation: 0,
             q_state: QState::Running,
-            registered_oracle_nonces: std::collections::HashSet::new(),
+            trusted_oracle_pubs: std::collections::HashSet::new(),
+            oracles_frozen: false,
             graveyard: HashMap::new(),
             wal: None,
         }
     }
 
-    /// Register an oracle's nonce as trusted. Only receipts bearing this
-    /// nonce will pass `append_oracle_accepted()`. Phase 8.C v2 (C-067).
-    pub fn register_oracle(&mut self, nonce: u64) {
-        self.registered_oracle_nonces.insert(nonce);
+    /// Register an oracle's Ed25519 verifying key as trusted. Only receipts
+    /// whose `issuer_pub` is in this set AND whose signature verifies
+    /// against that key will pass `append_oracle_accepted()`.
+    ///
+    /// Phase 8.C v3 (C-067 R1-α): must be called **before** `init()` or
+    /// after a clean `new()` (i.e., before any tx). Post-init registration
+    /// returns `Err("oracles_frozen")` — this closes the "attacker with
+    /// `&mut Bus` registers their own pubkey" forgery path Codex flagged.
+    pub fn register_oracle(&mut self, pub_key: [u8; 32]) -> Result<(), String> {
+        if self.oracles_frozen {
+            return Err("register_oracle called after oracles_frozen \
+                       (must register before init() or right after new())".into());
+        }
+        self.trusted_oracle_pubs.insert(pub_key);
+        Ok(())
     }
 
-    /// Check whether an oracle nonce is registered. Primarily for tests.
-    pub fn oracle_registered(&self, nonce: u64) -> bool {
-        self.registered_oracle_nonces.contains(&nonce)
+    /// Check whether an oracle pubkey is registered. For tests / audit.
+    pub fn oracle_registered(&self, pub_key: &[u8; 32]) -> bool {
+        self.trusted_oracle_pubs.contains(pub_key)
+    }
+
+    /// For tests / audit: whether oracle registration is closed.
+    pub fn oracles_frozen(&self) -> bool {
+        self.oracles_frozen
     }
 
     /// Transition `q_t` to Halted and emit a Halt ledger event with reason.
@@ -193,6 +217,12 @@ impl TuringBus {
         if resumed_nodes > 0 || resumed_events > 0 {
             eprintln!("[wal/replay] resumed {} nodes, {} events from {:?}; q_state={:?}",
                       resumed_nodes, resumed_events, wal_path, bus.q_state);
+            // Post-replay: freeze oracle registration (C-067 R1-α). If this
+            // bus resumes from a prior run that had already run init(), the
+            // trusted-pub set was frozen there; caller must pre-register
+            // oracles BEFORE calling with_wal_path. Avoid post-resume
+            // injection of new pubkeys.
+            bus.oracles_frozen = true;
         }
         bus.wal = Some(crate::wal::Wal::open(&wal_path)?);
         Ok(bus)
@@ -211,7 +241,14 @@ impl TuringBus {
     }
 
     /// Initialize all tools with agent list. Triggers GENESIS.
+    ///
+    /// Phase 8.C v3 (C-067 R1-α): freezes `trusted_oracle_pubs` so no new
+    /// oracle pubkeys can be registered after this. Call pattern:
+    ///   let oracle = Lean4Oracle::new(...);
+    ///   bus.register_oracle(oracle.public_key())?;
+    ///   bus.init(&agent_ids);   // ← freeze point
     pub fn init(&mut self, agent_ids: &[String]) {
+        self.oracles_frozen = true;
         for tool in &mut self.tools {
             tool.on_init(agent_ids);
         }
@@ -247,14 +284,17 @@ impl TuringBus {
     /// by construction legitimate — re-rejecting at bus level would block the
     /// wtool write that Art. IV mandates.
     ///
-    /// Phase 8.C v2 (Codex V-1 / C-067): caller must produce an
-    /// `OracleReceipt` that binds:
-    ///   (a) the payload (via sha256) → prevents content tampering
-    ///   (b) the parent context (via sha256 of parent_id) → prevents
-    ///       step-mode cross-context replay
-    ///   (c) an oracle nonce registered via `register_oracle()` →
-    ///       prevents forgery by code that doesn't own the oracle instance
-    /// Bus validates all three before granting the blessed write.
+    /// Phase 8.C v3 (Codex V-1 VETO → R1-α / C-067): caller produces an
+    /// `OracleReceipt` carrying an Ed25519 signature. Bus validates:
+    ///   1. `issuer_pub` is in `trusted_oracle_pubs` (registered via
+    ///      `register_oracle`, gated by `oracles_frozen`).
+    ///   2. signature verifies against `issuer_pub` for the canonical
+    ///      `(payload_hash || context_hash || kind || verdict)` message.
+    ///   3. payload binding: `sha256(payload) == receipt.payload_hash`.
+    ///   4. context binding: `sha256(parent_id) == receipt.context_hash`.
+    ///   5. verdict is non-rejecting.
+    /// Only receipts produced by a real oracle with knowledge of its
+    /// `SigningKey` can pass step 2 — **cryptographically unforgeable**.
     pub fn append_oracle_accepted(
         &mut self,
         author: &str,
@@ -262,12 +302,17 @@ impl TuringBus {
         parent_id: Option<&str>,
         receipt: &crate::sdk::oracle_receipt::OracleReceipt,
     ) -> Result<BusResult, String> {
-        if !self.registered_oracle_nonces.contains(&receipt.oracle_nonce()) {
-            return Err("receipt validation failed: oracle nonce not registered \
-                        (call bus.register_oracle(oracle.nonce()) before use)".into());
+        // Step 1: pubkey must be registered.
+        if !self.trusted_oracle_pubs.contains(receipt.issuer_pub()) {
+            return Err("receipt validation failed: issuer pubkey not registered \
+                        (call bus.register_oracle(oracle.public_key()) before init)".into());
         }
+        // Step 2-6: signature + payload + context + verdict.
+        let verifying_key =
+            ed25519_dalek::VerifyingKey::from_bytes(receipt.issuer_pub())
+                .map_err(|e| format!("receipt validation failed: invalid pubkey bytes: {}", e))?;
         let expected_context = crate::sdk::oracle_receipt::hash_context(parent_id);
-        receipt.validates(payload, &expected_context)
+        receipt.verify_and_match(payload, &expected_context, &verifying_key)
             .map_err(|e| format!("receipt validation failed: {}", e))?;
         self.append_internal(author, payload, parent_id, /*oracle_blessed*/ true)
     }

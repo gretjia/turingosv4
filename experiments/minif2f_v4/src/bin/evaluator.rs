@@ -240,27 +240,39 @@ async fn run_oneshot(
                         forbidden_patterns: vec![],
                         min_class_count_to_broadcast: 3,
                     };
+                    // R2 (Codex residual CHALLENGE): WAL open failure must
+                    // NOT silently degrade to in-memory — that would make
+                    // Art. IV "durable" conditional. Treat as ErrorHalt:
+                    // skip the wtool step, record measurement error, return
+                    // solved-but-unverified. Downstream batch runner can
+                    // investigate filesystem / disk space / permissions.
                     let mut oneshot_bus = match TuringBus::with_wal_path(
                         Kernel::new(), config, &wal_path,
                     ) {
                         Ok(b) => b,
                         Err(e) => {
-                            warn!("[art-iv] oneshot WAL open failed ({}); falling back to in-memory bus", e);
-                            TuringBus::new(Kernel::new(), BusConfig {
-                                max_payload_chars: usize::MAX,
-                                max_payload_lines: usize::MAX,
-                                system_lp_amount: 0.0,
-                                forbidden_patterns: vec![],
-                                min_class_count_to_broadcast: 3,
-                            })
+                            error!("[art-iv] oneshot WAL open failed ({}); \
+                                    refusing to degrade to in-memory bus \
+                                    (C-067 durability requirement). \
+                                    Emitting MEASUREMENT_ERROR for this problem.", e);
+                            eprintln!("MEASUREMENT_ERROR oneshot WAL: {}", e);
+                            // Return a non-result PputResult so batch runner
+                            // treats this as retry-worthy rather than a true
+                            // non-solve. Keep solve=true because Lean oracle
+                            // did accept the proof — we just can't durably
+                            // record it this attempt.
+                            return make_pput(problem_file, "oneshot", model, false, start,
+                                             0, 0, 1, None, None, None,
+                                             Some("measurement_error".to_string()), None);
                         }
                     };
-                    // Register oracle so its receipts are trusted.
-                    oneshot_bus.register_oracle(oracle.nonce());
+                    // R1-α: register oracle Ed25519 pubkey BEFORE init so
+                    // `init()` can freeze the trusted pub set.
+                    if let Err(e) = oneshot_bus.register_oracle(oracle.public_key()) {
+                        warn!("[art-iv] oneshot register_oracle: {}", e);
+                    }
                     oneshot_bus.init(&["oneshot_agent".into()]);
-                    let receipt = OracleReceipt::new_lean4_complete(
-                        &response.content, None, oracle.nonce(),
-                    );
+                    let receipt = oracle.issue_complete_receipt(&response.content, None);
                     match oneshot_bus.append_oracle_accepted(
                         "oneshot_agent", &response.content, None, &receipt,
                     ) {
@@ -377,9 +389,13 @@ async fn run_swarm(
               wallet_state_path);
     }
     bus.mount_tool(Box::new(wallet));
-    bus.mount_tool(Box::new(Lean4Oracle::new(
+    // R1-α: single Lean4Oracle for the whole run. Same instance serves (a)
+    // the bus-mounted TuringTool role and (b) receipt issuance for OMEGA /
+    // step outcomes. Clone is cheap (Strings + Ed25519 SigningKey Clone).
+    let oracle = Lean4Oracle::new(
         problem_statement.to_string(), theorem_name.to_string(), lean_path.to_string(),
-    )));
+    );
+    bus.mount_tool(Box::new(oracle.clone()));
     bus.mount_tool(Box::new(SearchTool::new(
         vec![format!("{}/MiniF2F/Test", std::env::var("MINIF2F_DIR")
             .unwrap_or_else(|_| DEFAULT_MINIF2F_DIR.into()))], 20,
@@ -387,6 +403,14 @@ async fn run_swarm(
     bus.mount_tool(Box::new(LibrarianTool::new(
         &format!("{}/skills", std::env::var("EXPERIMENT_DIR").unwrap_or_else(|_| ".".into())), 8,
     )));
+
+    // R1-α: register oracle pubkey BEFORE init so init() can freeze the
+    // trusted set. Post-init registration would return Err.
+    if let Err(e) = bus.register_oracle(oracle.public_key()) {
+        error!("[art-iv] bus.register_oracle failed: {} — aborting run", e);
+        return make_pput(problem_file, &condition, model, false, start, 0, 0, 0,
+                         None, None, None, None, None);
+    }
 
     let agent_ids: Vec<String> = (0..n_agents).map(|i| format!("Agent_{}", i)).collect();
     bus.init(&agent_ids);
@@ -646,14 +670,7 @@ async fn run_swarm(
                                 omega_attempts += 1;
                                 info!("[tx {}] OMEGA claim by {} (tape_nodes={}, payload_len={})",
                                       tx, agent_id, tape_len, payload.len());
-                                let oracle = Lean4Oracle::new(
-                                    problem_statement.to_string(),
-                                    theorem_name.to_string(),
-                                    lean_path.to_string(),
-                                );
-                                // Phase 8.C v2 (C-067): register oracle nonce so
-                                // its receipts are honoured by this bus.
-                                bus.register_oracle(oracle.nonce());
+                                // R1-α: use outer `oracle` (registered pre-init).
                                 // Path 1: payload alone
                                 let r_alone = oracle.verify_omega_detailed(payload);
                                 let (full_proof, path_choice, r_final) = match &r_alone {
@@ -692,9 +709,7 @@ async fn run_swarm(
                                         // payload, so bus-level forbidden_patterns and size caps
                                         // would only re-reject legitimate tactics (e.g. `omega`,
                                         // `decide` used inside a verified proof — not brute-force).
-                                        let receipt = turingosv4::sdk::oracle_receipt::OracleReceipt::new_lean4_complete(
-                                            payload, parent.as_deref(), oracle.nonce(),
-                                        );
+                                        let receipt = oracle.issue_complete_receipt(payload, parent.as_deref());
                                         let omega_node_id = match bus.append_oracle_accepted(
                                             agent_id, payload, parent.as_deref(), &receipt,
                                         ) {
@@ -864,13 +879,7 @@ async fn run_swarm(
                                 } else {
                                     format!("{}\n{}", tape_chain, tactic)
                                 };
-                                let oracle = Lean4Oracle::new(
-                                    problem_statement.to_string(),
-                                    theorem_name.to_string(),
-                                    lean_path.to_string(),
-                                );
-                                // C-067: register this step oracle's nonce.
-                                bus.register_oracle(oracle.nonce());
+                                // R1-α: use outer `oracle` (registered pre-init).
                                 match oracle.verify_partial(&prefix) {
                                     PartialVerdict::Complete => {
                                         info!(">>> OMEGA ACCEPTED <<< via step (depth={} after this write)",
@@ -881,9 +890,7 @@ async fn run_swarm(
                                         );
                                         let parent = bus.kernel.tape.time_arrow().last().cloned();
                                         *tool_dist.entry("omega_wtool".into()).or_insert(0) += 1;
-                                        let receipt = turingosv4::sdk::oracle_receipt::OracleReceipt::new_lean4_complete(
-                                            tactic, parent.as_deref(), oracle.nonce(),
-                                        );
+                                        let receipt = oracle.issue_complete_receipt(tactic, parent.as_deref());
                                         let _ = bus.append_oracle_accepted(
                                             agent_id, tactic, parent.as_deref(), &receipt,
                                         );
@@ -907,9 +914,7 @@ async fn run_swarm(
                                     }
                                     PartialVerdict::PartialOk => {
                                         let parent = bus.kernel.tape.time_arrow().last().cloned();
-                                        let receipt = turingosv4::sdk::oracle_receipt::OracleReceipt::new_lean4_partial(
-                                            tactic, parent.as_deref(), oracle.nonce(),
-                                        );
+                                        let receipt = oracle.issue_partial_receipt(tactic, parent.as_deref());
                                         match bus.append_oracle_accepted(
                                             agent_id, tactic, parent.as_deref(), &receipt,
                                         ) {

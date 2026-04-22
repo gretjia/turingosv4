@@ -29,14 +29,15 @@ pub enum Verdict {
 }
 
 /// Which predicate domain emitted this verdict.
+#[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PredicateKind {
     /// Boolean Lean4 oracle (Paper 1 & 2).
-    Lean4Boolean,
+    Lean4Boolean = 0,
     /// PCP predicate — statistical + OOS + external audit (Paper 3, omegav4).
-    StatisticalPCP,
+    StatisticalPCP = 1,
     /// External agent challenge audit (Phase 11+).
-    ExternalAudit,
+    ExternalAudit = 2,
 }
 
 /// A ∏p verifier. Currently not implemented by `Lean4Oracle`; preserved for

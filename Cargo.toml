@@ -5,6 +5,9 @@ edition = "2021"
 description = "Silicon-Native Microkernel for LLM Formal Verification Swarm"
 
 [dependencies]
+# Ed25519 signatures for OracleReceipt capability (Phase 8.C v3, C-067 R1-α).
+# "rand_core" feature makes SigningKey::generate accept rand 0.8's RngCore.
+ed25519-dalek = { version = "2", features = ["rand_core"] }
 libc = "0.2"
 log = "0.4"
 rand = "0.8"

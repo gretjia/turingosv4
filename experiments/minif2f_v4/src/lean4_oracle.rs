@@ -38,16 +38,22 @@ const DECLARATION_KEYWORDS: &[&str] = &[
     "structure ", "class ", "inductive ", "abbrev ",
 ];
 
+#[derive(Clone)]
 pub struct Lean4Oracle {
     pub problem_statement: String,
     pub theorem_name: String,
     lean_path: String,
     lean_binary: String,
-    /// Phase 8.C v2 (C-067): per-instance nonce, private. Bus only accepts
-    /// receipts bearing a nonce it has registered (bus.register_oracle()).
-    /// Forging a receipt requires owning a `Lean4Oracle` reference to read
-    /// the nonce. Closed-world in-process capability.
-    nonce: u64,
+    /// Phase 8.C v3 (C-067 R1-α): per-instance Ed25519 signing key.
+    /// Private to the oracle. Bus registers `public_key()` at setup and
+    /// verifies receipt signatures. Forging a receipt now requires breaking
+    /// Ed25519 — in-process attackers can't inject new trusted pubkeys
+    /// after `init()` freezes registration.
+    ///
+    /// `Clone` copies the signing key so the same oracle can be used in
+    /// both tool-mount and receipt-issue contexts (single run-wide
+    /// capability, registered once).
+    signing_key: ed25519_dalek::SigningKey,
 }
 
 impl Lean4Oracle {
@@ -63,20 +69,50 @@ impl Lean4Oracle {
                 "lean".to_string()
             }
         });
+        let signing_key = ed25519_dalek::SigningKey::generate(&mut rand::rngs::OsRng);
         Lean4Oracle {
             problem_statement,
             theorem_name,
             lean_path,
             lean_binary,
-            nonce: rand::random::<u64>(),
+            signing_key,
         }
     }
 
-    /// Per-oracle capability nonce for OracleReceipt authorization.
-    /// Must be registered with the destination bus via `bus.register_oracle`
-    /// before that bus will accept receipts issued by this oracle.
-    pub fn nonce(&self) -> u64 {
-        self.nonce
+    /// The public key this oracle's receipts verify against. Register with
+    /// `bus.register_oracle(oracle.public_key())` before `bus.init()`.
+    pub fn public_key(&self) -> [u8; 32] {
+        self.signing_key.verifying_key().to_bytes()
+    }
+
+    /// Issue a signed `Complete` receipt for a proof the caller has already
+    /// verified. Private signing key stays with the oracle — only the
+    /// produced receipt leaves.
+    pub fn issue_complete_receipt(
+        &self,
+        payload: &str,
+        parent_id: Option<&str>,
+    ) -> turingosv4::sdk::oracle_receipt::OracleReceipt {
+        turingosv4::sdk::oracle_receipt::OracleReceipt::sign_new(
+            payload, parent_id,
+            turingosv4::sdk::predicate::Verdict::Complete,
+            turingosv4::sdk::predicate::PredicateKind::Lean4Boolean,
+            &self.signing_key,
+        )
+    }
+
+    /// Issue a signed `PartialOk` receipt (step mode partial elaboration).
+    pub fn issue_partial_receipt(
+        &self,
+        payload: &str,
+        parent_id: Option<&str>,
+    ) -> turingosv4::sdk::oracle_receipt::OracleReceipt {
+        turingosv4::sdk::oracle_receipt::OracleReceipt::sign_new(
+            payload, parent_id,
+            turingosv4::sdk::predicate::Verdict::PartialOk { confidence: 1.0 },
+            turingosv4::sdk::predicate::PredicateKind::Lean4Boolean,
+            &self.signing_key,
+        )
     }
 
     /// Pre-append security checks (Law 1: reject-only).
@@ -329,9 +365,13 @@ fn has_word_boundary(text: &str, word: &str) -> bool {
 /// Handled:
 ///   - `"..."` string literals (with `\"` escape)
 ///   - `-- ... \n` line comments
-///   - `/- ... -/` block comments
-/// Not handled (out of Paper-1 scope): nested block comments; `⟨...⟩`
-/// antiquotations; string interpolation — rare in MiniF2F proofs.
+///   - `/- ... -/` block comments, **including Lean's nested form**
+///     (R3 Codex residual CHALLENGE): a depth counter tracks `/-`/`-/`
+///     openings so `/- outer /- inner -/ still outer -/` is fully stripped.
+///   - Doc/section comments `/-- ... -/` and `/-! ... -/` also enter the
+///     `/-` branch and get stripped.
+/// Not handled (out of Paper-1 scope): `⟨...⟩` antiquotations; string
+/// interpolation with code; multiline `raw""` strings — rare in MiniF2F.
 fn strip_strings_and_comments(text: &str) -> String {
     let mut out = String::new();
     let mut chars = text.chars().peekable();
@@ -359,12 +399,22 @@ fn strip_strings_and_comments(text: &str) -> String {
                 out.push(' ');
             }
             '/' if chars.peek() == Some(&'-') => {
-                // Block comment /- ... -/.
-                chars.next();  // `-`
-                let mut prev_dash = false;
-                while let Some(nc) = chars.next() {
-                    if prev_dash && nc == '/' { break; }
-                    prev_dash = nc == '-';
+                // Block comment /- ... -/ with nested depth tracking.
+                chars.next();  // the `-` after `/`
+                let mut depth: u32 = 1;
+                while depth > 0 {
+                    match chars.next() {
+                        Some('/') if chars.peek() == Some(&'-') => {
+                            chars.next();
+                            depth += 1;
+                        }
+                        Some('-') if chars.peek() == Some(&'/') => {
+                            chars.next();
+                            depth -= 1;
+                        }
+                        Some(_) => {}
+                        None => break,  // unterminated — give up
+                    }
                 }
                 out.push(' ');
             }
@@ -521,6 +571,25 @@ mod tactic_whitelist_tests {
 by linarith"#;
         assert!(!has_bare_tactic_invocation(proof, "decide"));
         assert!(!has_bare_tactic_invocation(proof, "omega"));
+    }
+
+    #[test]
+    fn handles_nested_block_comments() {
+        // R3 Codex residual: Lean nested block comments must NOT terminate
+        // stripping at the inner `-/`, which would leak `decide` into the
+        // scan. Depth counter must balance openings/closings.
+        let proof = "/- outer /- inner -/ still outer decide -/ by linarith";
+        assert!(!has_bare_tactic_invocation(proof, "decide"),
+            "nested block comment must fully strip; outer 'decide' must be ignored");
+        let proof2 = "/- depth 1 /- depth 2 /- depth 3 decide -/ -/ -/ by ring";
+        assert!(!has_bare_tactic_invocation(proof2, "decide"),
+            "3-deep nested comment must fully strip");
+    }
+
+    #[test]
+    fn handles_doc_comments() {
+        let proof = "/-- doc comment with decide -/\nby linarith";
+        assert!(!has_bare_tactic_invocation(proof, "decide"));
     }
 
     #[test]
