@@ -24,11 +24,13 @@ Agents 不能 provide liquidity. 所以：
 ### 3.1 State transitions
 
 ```
-provide_liquidity(agent, node_id, amount):
+provide_liquidity(agent, node_id, amount):    # CPMM-preserving asymmetric (see § 5.1)
+  - p = no_reserve / (yes_reserve + no_reserve)    # current price
+  - N_yes = amount * p;  N_no = amount * (1 - p)
   - debit wallet[agent] -= amount
-  - market[node_id].yes_reserve += amount
-  - market[node_id].no_reserve += amount
-  - market[node_id].lp_shares[agent] += 2 * amount (symmetric adds)
+  - market[node_id].yes_reserve += N_yes
+  - market[node_id].no_reserve += N_no
+  - market[node_id].lp_shares[agent] += amount    # 1 coin : 1 share at constant price
   - emit LiquidityProvided event
 
 withdraw_liquidity(agent, node_id, lp_shares):
@@ -81,20 +83,27 @@ impl TuringTool for LiquidityProviderTool {
 ```rust
 if let ToolSignal::ProvideLiquidity { target_node, amount } = signal {
     self.debit_wallet(author, amount)?;
-    self.kernel.add_liquidity(&target_node, amount)?;
-    self.record_lp_shares(author, &target_node, amount * 2.0);
+    let shares_issued = self.kernel.add_liquidity(&target_node, amount)?;  // CPMM-preserving
+    self.record_lp_shares(author, &target_node, shares_issued);
     self.tx_count += 1;
-    return Ok(BusResult::LiquidityProvided { node_id: target_node, shares: amount * 2.0 });
+    return Ok(BusResult::LiquidityProvided { node_id: target_node, shares: shares_issued });
 }
 ```
 
 ### 4.3 Kernel method
 ```rust
 impl BinaryMarket {
+    // CPMM-preserving asymmetric injection — total reserve increase = amount, not 2*amount.
+    // See § 5.1: split by current price so k' = k + amount*(yes+no), price invariant.
     pub fn add_liquidity(&mut self, amount: f64) -> Result<f64, KernelError> {
-        let shares_issued = amount * 2.0;  // symmetric injection
-        self.yes_reserve += amount;
-        self.no_reserve += amount;
+        let total = self.yes_reserve + self.no_reserve;
+        if total <= 0.0 { return Err(KernelError::EmptyReserves); }
+        let p = self.no_reserve / total;                 // price of YES share
+        let n_yes = amount * p;
+        let n_no  = amount * (1.0 - p);
+        self.yes_reserve += n_yes;
+        self.no_reserve  += n_no;
+        let shares_issued = amount;                      // 1 coin : 1 share at constant p
         self.lp_shares_outstanding += shares_issued;
         Ok(shares_issued)
     }

@@ -23,12 +23,21 @@ append:
   - Stake does NOT gate append (append is free per Law 1 unless agent opts-in)
 
 halt_and_settle(golden_path):
+  # See § 5 for conservation: bonus portion of refund must come from bounty_LP,
+  # NOT be minted. If bounty_LP empty → degrade to 1× refund.
+  effective_mult = min(REFUND_MULTIPLIER, 1.0 + bounty_LP_available / total_wins_stakes)
   For each escrowed_node in escrow:
     if escrowed_node ∈ golden_path OR is ancestor of golden_path:
-      refund(author, stake × REFUND_MULTIPLIER)    # e.g., 1.5×
+      principal = stake                                  # return escrow
+      bonus     = stake × (effective_mult − 1.0)         # drawn from bounty_LP
+      credit_wallet(author, principal + bonus)
+      bounty_LP -= bonus
     else:
-      # forfeit: stake goes to LP pool (NOT to any agent — Law 2)
-      LP_reserve += stake
+      # forfeit: stake augments bounty_LP (NOT to any agent — Law 2)
+      bounty_LP += stake
+
+  # Edge: MaxTxExhausted (no GP found) — refund all stakes at 1× (no bonus, no forfeit)
+  # See § 9 failure mode 4.
 ```
 
 ### 3.2 Parameters
