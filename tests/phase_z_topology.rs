@@ -1,12 +1,15 @@
-//! Phase Z integration tests — ∏p formalization, ReadTool, WriteTool.
+//! Phase Z integration tests — ∏p formalization, ReadTool, WriteTool,
+//! and map-reduce tick (tape₁ emission).
 //!
 //! Constitutional basis: Art. IV mermaid.
 //! - ∏p product evaluation through `TuringBus::evaluate_predicates`
 //! - rtool identity projection via `DefaultReadTool::project`
 //! - wtool blessed/unblessed write via `DefaultWriteTool::write`
+//! - clock → mr → tape₁ via `TuringBus::emit_mr_tick_node`
 
-use turingosv4::bus::{BusConfig, TuringBus};
+use turingosv4::bus::{BusConfig, TuringBus, MR_TICK_AUTHOR};
 use turingosv4::kernel::Kernel;
+use turingosv4::ledger::{Node, Tape};
 use turingosv4::sdk::predicate::{
     ForbiddenPatternPredicate, PayloadSizePredicate, Predicate, PredicateContext, PredicateKind,
     SorryPredicate, Verdict,
@@ -138,4 +141,90 @@ fn evaluate_predicates_with_context_different_tools() {
     let invest_v = bus.evaluate_predicates(&ctx("invest"), "x");
     assert!(matches!(step_v, Verdict::Complete));
     assert!(matches!(invest_v, Verdict::Reject(_)));
+}
+
+// ── Map-reduce tick tests (clock → mr → tape₁) ──
+
+#[test]
+fn mr_tick_appends_node_to_tape() {
+    // Given: a fresh bus (empty tape).
+    let mut bus = make_bus();
+    assert!(bus.kernel.tape.is_empty());
+
+    // When: a map-reduce tick fires and emits its reduce summary.
+    let summary = "tick@tx20 tape_nodes=7 markets=3 top_prices=[n1:60%]";
+    let node_id = bus.emit_mr_tick_node(summary)
+        .expect("emit_mr_tick_node should succeed on fresh bus");
+
+    // Then: the tape has one node, authored by MR_TICK_AUTHOR, carrying the
+    // reduce payload. This is tape₁ — the authoritative state transition,
+    // not a side channel.
+    assert_eq!(bus.kernel.tape.len(), 1);
+    let node = bus.kernel.tape.get(&node_id)
+        .expect("tick node must be retrievable by returned id");
+    assert_eq!(node.author, MR_TICK_AUTHOR);
+    assert_eq!(node.payload, summary);
+    assert!(node.citations.is_empty(),
+            "tick nodes have no parents — they're the output of clock→mr→tape1");
+
+    // The time arrow reflects the append.
+    assert_eq!(bus.kernel.tape.time_arrow(), &[node_id.clone()]);
+}
+
+#[test]
+fn mr_tick_nodes_do_not_inflate_reputation() {
+    // Scenario: one agent-authored node, one tick node that *cites* the
+    // agent's node. A naive reputation = cited-by count would credit the
+    // agent for the tick node's citation. The Art. IV topology says ticks
+    // are housekeeping, not agent evidence, so they must be excluded.
+    //
+    // We check `Tape::reputation_by_author` directly by constructing the
+    // tape and inspecting the filter. emit_mr_tick_node is exercised in
+    // the companion test above.
+    let mut tape = Tape::new();
+
+    // Agent A writes a node (no citations — it's a root).
+    tape.append(Node {
+        id: "agent_node".into(),
+        author: "Agent_A".into(),
+        payload: "lemma: foo".into(),
+        citations: vec![],
+        created_at: 0,
+        completion_tokens: 0,
+    }).unwrap();
+
+    // Map-reduce tick emits a node that cites the agent's node. In a naive
+    // reputation tally (count inbound citations per author), Agent_A would
+    // earn +1 reputation here — which is wrong because the citation is
+    // system-generated.
+    tape.append(Node {
+        id: "tick_node".into(),
+        author: MR_TICK_AUTHOR.to_string(),
+        payload: "tick@tx20 tape_nodes=1".into(),
+        citations: vec!["agent_node".into()],
+        created_at: 1,
+        completion_tokens: 0,
+    }).unwrap();
+
+    // A second agent legitimately cites Agent_A's node. That citation SHOULD
+    // credit Agent_A.
+    tape.append(Node {
+        id: "agent_b_node".into(),
+        author: "Agent_B".into(),
+        payload: "use foo".into(),
+        citations: vec!["agent_node".into()],
+        created_at: 2,
+        completion_tokens: 0,
+    }).unwrap();
+
+    let rep = tape.reputation_by_author();
+
+    // Agent_A's reputation = 1 (only Agent_B's citation counts; tick citation filtered).
+    assert_eq!(rep.get("Agent_A").copied().unwrap_or(0), 1,
+               "tick citations must not inflate Agent_A's reputation");
+    // Agent_B has no inbound citations.
+    assert_eq!(rep.get("Agent_B").copied().unwrap_or(0), 0);
+    // The tick pseudo-agent must not appear in the reputation map at all.
+    assert!(!rep.contains_key(MR_TICK_AUTHOR),
+            "__mr_tick__ must not appear in reputation tallies");
 }

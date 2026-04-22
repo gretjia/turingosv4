@@ -483,7 +483,7 @@ async fn run_swarm(
     let mut search_count: HashMap<String, u32> = HashMap::new();
 
     for tx in 0..max_transactions {
-        // Map-reduce tick (Art. IV mermaid: clock → mr → tape)
+        // Map-reduce tick (Art. IV mermaid: clock → mr → tape1)
         if tick_interval > 0 && tx > 0 && tx % tick_interval == 0 {
             let tape_len = bus.kernel.tape.time_arrow().len();
             let market_count = bus.kernel.markets.len();
@@ -493,6 +493,21 @@ async fn run_swarm(
                 .collect();
             info!("[tick@tx{}] tape={} markets={} top={}", tx, tape_len, market_count,
                 top_prices.join(", "));
+
+            // Phase Z: the reduce output lands on tape₁ as a first-class node.
+            // Constitution mermaid: clock → mr; mr ==>|map| tape0; mr ==>|reduce| tape1.
+            // Previously this summary only went to the Librarian board (a side
+            // channel); now the tape-node emitted by `emit_mr_tick_node` is
+            // authoritative (author = MR_TICK_AUTHOR, skipped in reputation
+            // accounting) and the Librarian-board write below remains as
+            // human-readable UI.
+            let mr_summary = format!(
+                "tick@tx{} tape_nodes={} markets={} top_prices=[{}]",
+                tx, tape_len, market_count, top_prices.join(",")
+            );
+            if let Err(e) = bus.emit_mr_tick_node(&mr_summary) {
+                warn!("[tick@tx{}] emit_mr_tick_node failed: {}", tx, e);
+            }
             // Phase 6-emergent: refresh shared team board from facts only.
             // Per-agent cumulative balance + recent tape-node authorship counts
             // + top market prices. No instructions, no "should" — just state.
@@ -502,6 +517,11 @@ async fn run_swarm(
                     std::collections::HashMap::new();
                 for nid in bus.kernel.tape.time_arrow() {
                     if let Some(n) = bus.kernel.tape.get(nid) {
+                        // Phase Z: skip system-generated map-reduce tick nodes
+                        // so board-level tallies reflect agent contributions only.
+                        if n.author == turingosv4::bus::MR_TICK_AUTHOR {
+                            continue;
+                        }
                         *author_counts.entry(n.author.clone()).or_insert(0) += 1;
                     }
                 }

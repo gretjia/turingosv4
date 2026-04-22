@@ -7,6 +7,19 @@ use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::fmt;
 
+// ── Constants ───────────────────────────────────────────────────
+
+/// Phase Z (Art. IV map-reduce tick): fixed author for system-generated
+/// tape nodes produced by the `clock → mr → tape1` reduce step.
+///
+/// Nodes authored by `MR_TICK_AUTHOR` are trusted by construction (no oracle
+/// bless required) and are intentionally skipped by downstream agent
+/// accounting — reputation tallies, citation-weighted rewards, parent-
+/// selection entropy — so map-reduce housekeeping cannot inflate any
+/// agent's standing. Use `Tape::reputation_by_author`, which filters them
+/// out by default.
+pub const MR_TICK_AUTHOR: &str = "__mr_tick__";
+
 // ── Core types ──────────────────────────────────────────────────
 
 /// Unique identifier for a tape node.
@@ -136,6 +149,40 @@ impl Tape {
 
     pub fn nodes(&self) -> &HashMap<NodeId, Node> {
         &self.nodes
+    }
+
+    /// Citation-based reputation by author.
+    ///
+    /// Reputation(A) = Σ over nodes n authored by A of (#nodes that cite n).
+    /// In other words: "how many times did someone cite something I wrote".
+    ///
+    /// Phase Z (Art. IV map-reduce tick): system-generated tick nodes
+    /// (`author == MR_TICK_AUTHOR`) are excluded from the numerator — ticks
+    /// are housekeeping, not agent contributions, so citing a tick must
+    /// never inflate any agent's reputation. The `__mr_tick__` pseudo-agent
+    /// is also absent from the returned map.
+    pub fn reputation_by_author(&self) -> HashMap<String, u32> {
+        let mut rep: HashMap<String, u32> = HashMap::new();
+        for (id, node) in &self.nodes {
+            // Exclude tick nodes from the *cited* side: they earn no
+            // reputation for themselves even if future nodes cite them.
+            if node.author == MR_TICK_AUTHOR {
+                continue;
+            }
+            // Exclude tick citers from the *citing* side: a citation made
+            // by the __mr_tick__ pseudo-agent is system housekeeping, not
+            // evidence that an agent found the cited node useful.
+            let cited_by = self.reverse_citations
+                .get(id)
+                .map(|citers| citers.iter()
+                    .filter(|cid| self.nodes.get(*cid)
+                        .map(|c| c.author != MR_TICK_AUTHOR)
+                        .unwrap_or(false))
+                    .count() as u32)
+                .unwrap_or(0);
+            *rep.entry(node.author.clone()).or_insert(0) += cited_by;
+        }
+        rep
     }
 
     /// Trace the PRIMARY ancestor chain from a node back to root.

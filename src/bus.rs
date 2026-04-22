@@ -11,6 +11,12 @@ use crate::sdk::tool::{BetDirection, ToolSignal, TuringTool};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+// Phase Z (Art. IV map-reduce tick): re-export the tape-author constant so
+// downstream callers (experiments, tests, evaluator) can reference it via
+// `turingosv4::bus::MR_TICK_AUTHOR` — the natural home given that this bus
+// is the producer of map-reduce tick nodes (see `emit_mr_tick_node`).
+pub use crate::ledger::MR_TICK_AUTHOR;
+
 // ── Configuration ───────────────────────────────────────────────
 
 /// Bus configuration. V3L-23: no hardcoded values, all configurable.
@@ -358,6 +364,58 @@ impl TuringBus {
         receipt.verify_and_match(payload, &expected_context, &verifying_key)
             .map_err(|e| format!("receipt validation failed: {}", e))?;
         self.append_internal(author, payload, parent_id, /*oracle_blessed*/ true)
+    }
+
+    /// Phase Z (Art. IV map-reduce tick): emit a system-generated statistics
+    /// node onto the next-state tape (tape₁ in the constitution mermaid:
+    ///   clock → mr; mr ==>|map| tape0; mr ==>|reduce| tape1 ).
+    ///
+    /// The reduce output of each map-reduce tick must become a first-class
+    /// tape node, not a side channel. Nodes emitted here carry the fixed
+    /// author `MR_TICK_AUTHOR` ("__mr_tick__") so downstream accounting
+    /// (reputation, citation weighting) can recognise and skip them — they
+    /// are trusted-by-construction system events, not agent contributions.
+    ///
+    /// The append intentionally bypasses the agent-facing gates (forbidden
+    /// patterns, payload size, tool pre-hooks, market creation, founder-
+    /// grant): tick nodes are system-generated statistics, not proof steps,
+    /// so none of those gates apply. The WAL is still written for durable
+    /// replay and a ledger `Append` event is emitted so the hash-chain
+    /// stays complete. No oracle bless is required.
+    pub fn emit_mr_tick_node(&mut self, summary_text: &str) -> Result<NodeId, String> {
+        let author = MR_TICK_AUTHOR;
+        let node_id = format!("tx_{}_by_{}", self.tx_count, author);
+        let node = Node {
+            id: node_id.clone(),
+            author: author.to_string(),
+            payload: summary_text.to_string(),
+            citations: Vec::new(),
+            created_at: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs(),
+            completion_tokens: 0,
+        };
+
+        self.kernel.append(node.clone()).map_err(|e| e.to_string())?;
+
+        if let Some(w) = self.wal.as_mut() {
+            if let Err(e) = w.write_node(&node) {
+                log::warn!("[wal] write_node({}) failed: {}", node.id, e);
+            }
+        }
+
+        if let Ok(evt) = self.ledger.append(EventType::Append, Some(node_id.clone()),
+                                            Some(author.to_string()),
+                                            Some("mr_tick".to_string())) {
+            let evt_clone = evt.clone();
+            if let Some(w) = self.wal.as_mut() {
+                let _ = w.write_event(&evt_clone);
+            }
+        }
+        self.tx_count += 1;
+        self.clock += 1;
+        Ok(node_id)
     }
 
     fn append_internal(&mut self, author: &str, payload: &str,
