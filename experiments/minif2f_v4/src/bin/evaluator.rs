@@ -210,6 +210,30 @@ async fn run_oneshot(
                         problem_file, theorem_name, problem_statement,
                         &response.content, "alone", "oneshot",
                     );
+                    // Phase 8.B (Codex N-1 / C-048): oneshot must route through
+                    // bus.append_oracle_accepted to satisfy Art. IV (∏p=1 →
+                    // wtool → Q_{t+1}) + C-043 (mandatory wtool on OMEGA).
+                    // Ephemeral bus since oneshot is stateless per-problem;
+                    // produces ledger Event + (if enabled) WAL entry for audit.
+                    use turingosv4::bus::{BusConfig, TuringBus};
+                    use turingosv4::kernel::Kernel;
+                    use turingosv4::sdk::oracle_receipt::OracleReceipt;
+                    let mut oneshot_bus = TuringBus::new(
+                        Kernel::new(),
+                        BusConfig {
+                            max_payload_chars: usize::MAX,
+                            max_payload_lines: usize::MAX,
+                            system_lp_amount: 0.0,
+                            forbidden_patterns: vec![],
+                        },
+                    );
+                    oneshot_bus.init(&["oneshot_agent".into()]);
+                    let receipt = OracleReceipt::for_lean4_complete(&response.content);
+                    if let Err(e) = oneshot_bus.append_oracle_accepted(
+                        "oneshot_agent", &response.content, None, &receipt,
+                    ) {
+                        warn!("[art-iv] oneshot wtool failed (receipt validation): {}", e);
+                    }
                     make_pput(problem_file, "oneshot", model, true, start, gp_tokens, 1, 1,
                               None, None, Some(response.content.clone()),
                               Some("alone".to_string()), proof_file)

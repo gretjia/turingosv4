@@ -10,7 +10,7 @@ use turingosv4::sdk::sandbox::{LocalProcessSandbox, SandboxEngine, SandboxResult
 use turingosv4::sdk::tool::{ToolSignal, TuringTool};
 use std::any::Any;
 
-/// Forbidden patterns in agent-submitted code.
+/// Forbidden patterns in agent-submitted code (substring match).
 /// These are checked BEFORE sending to Lean 4.
 const FORBIDDEN_PATTERNS: &[&str] = &[
     "#eval", "#check", "#reduce", "#exec", "#print",  // output/reflection
@@ -18,6 +18,19 @@ const FORBIDDEN_PATTERNS: &[&str] = &[
     "IO.Process", "IO.FS", "System.FilePath",           // system escape
     "run_tac", "unsafe", "dbg_trace", "IO.println",    // meta/debug
 ];
+
+/// Bare-tactic words forbidden as agent scratch (C-011 complete / Phase 8.D /
+/// C-050). Unlike FORBIDDEN_PATTERNS (substring), these match *bare* word
+/// usage only — qualified Mathlib references (e.g. `Decidable.decide`,
+/// `Nat.decide_lt`, `Mathlib.Tactic.Omega.…`) are ALLOWED because they are
+/// legitimate API calls, not brute-force tactic invocations.
+///
+/// Rationale (Codex N-3 / decision 1 option C):
+///   Complete ban of the substring would violate Art. I.1.1 Completeness=1
+///   (correct Mathlib-using proofs would be rejected). Allowing unqualified
+///   `by decide` / `by omega` as a proof body lets agents brute-force
+///   recurring number-theory lemmas (repeat of F-2026-04-20-05 class).
+const BARE_TACTIC_FORBIDDEN: &[&str] = &["decide", "omega"];
 
 /// Identity theft patterns — declarations that rename the target theorem.
 const DECLARATION_KEYWORDS: &[&str] = &[
@@ -78,10 +91,19 @@ impl Lean4Oracle {
             }
         }
 
-        // Forbidden patterns
+        // Forbidden patterns (substring match)
         for pattern in FORBIDDEN_PATTERNS {
             if payload.contains(pattern) {
                 return Err(format!("Forbidden pattern: '{}'", pattern));
+            }
+        }
+
+        // C-050 / Phase 8.D: bare decide/omega (allow qualified Mathlib form)
+        for word in BARE_TACTIC_FORBIDDEN {
+            if has_bare_tactic_invocation(payload, word) {
+                return Err(format!("Forbidden bare tactic: '{}' (C-011 / C-050). \
+                                    Qualified forms like Decidable.{} are allowed.",
+                                   word, word));
             }
         }
 
@@ -287,6 +309,84 @@ fn has_word_boundary(text: &str, word: &str) -> bool {
     false
 }
 
+/// Whole-word match NOT preceded by a namespace qualifier (`.` or `:`).
+///
+/// Returns true for bare tactic invocations like `by decide`, `; omega`,
+/// `  decide\n`. Returns false for qualified references like
+/// `Decidable.decide`, `Nat.decide_lt`, `Omega`, or `_omega` (identifier).
+///
+/// `native_decide` is NOT matched when probing for `decide` because the
+/// underscore between `native_` and `decide` kills the word boundary.
+fn has_bare_tactic_invocation(text: &str, word: &str) -> bool {
+    for (i, _) in text.match_indices(word) {
+        let before = if i > 0 { text.as_bytes()[i - 1] } else { b' ' };
+        let after_idx = i + word.len();
+        let after = if after_idx < text.len() { text.as_bytes()[after_idx] } else { b' ' };
+
+        // Must be a word boundary (not adjacent to identifier chars).
+        let word_boundary =
+            !before.is_ascii_alphanumeric() && before != b'_'
+            && !after.is_ascii_alphanumeric() && after != b'_';
+        if !word_boundary { continue; }
+
+        // Qualified with a namespace? (`.decide`, `::omega`, `:=decide` ok)
+        if before == b'.' || before == b':' { continue; }
+
+        return true;
+    }
+    false
+}
+
+#[cfg(test)]
+mod tactic_whitelist_tests {
+    use super::has_bare_tactic_invocation;
+
+    #[test]
+    fn rejects_bare_decide() {
+        assert!(has_bare_tactic_invocation("by decide", "decide"));
+        assert!(has_bare_tactic_invocation("  decide\n", "decide"));
+        assert!(has_bare_tactic_invocation("; decide", "decide"));
+        assert!(has_bare_tactic_invocation("decide", "decide"));
+    }
+
+    #[test]
+    fn allows_qualified_decide() {
+        assert!(!has_bare_tactic_invocation("Decidable.decide p", "decide"));
+        assert!(!has_bare_tactic_invocation("Nat.decide_lt", "decide"));
+        assert!(!has_bare_tactic_invocation("@Decidable.decide", "decide"));
+    }
+
+    #[test]
+    fn allows_identifier_containing_decide() {
+        // `native_decide` — _ kills word boundary (handled separately)
+        assert!(!has_bare_tactic_invocation("native_decide", "decide"));
+        // `my_decide_helper` — likewise
+        assert!(!has_bare_tactic_invocation("my_decide_helper", "decide"));
+        // `decideFoo` — capital after → still a word but no identifier
+        assert!(!has_bare_tactic_invocation("decideFoo", "decide"));
+    }
+
+    #[test]
+    fn rejects_bare_omega() {
+        assert!(has_bare_tactic_invocation("by omega", "omega"));
+        assert!(has_bare_tactic_invocation("; omega\n", "omega"));
+    }
+
+    #[test]
+    fn allows_qualified_omega() {
+        assert!(!has_bare_tactic_invocation("Mathlib.Tactic.Omega.omega", "omega"));
+        assert!(!has_bare_tactic_invocation("Nat.Linear.Omega", "omega"));
+    }
+
+    #[test]
+    fn allows_real_proofs() {
+        // A typical linarith-based proof with no forbidden tactic.
+        let proof = "by\n  have h : a + b > 0 := by linarith\n  exact h.le";
+        assert!(!has_bare_tactic_invocation(proof, "decide"));
+        assert!(!has_bare_tactic_invocation(proof, "omega"));
+    }
+}
+
 /// Derive LEAN_PATH from the MiniF2F data directory.
 /// Searches .lake/packages/*/.lake/build/lib/lean (Lake 4 layout).
 pub fn derive_lean_path(minif2f_dir: &str) -> String {
@@ -393,10 +493,27 @@ mod tests {
     }
 
     #[test]
-    fn test_decide_tactic_permitted() {
-        // decide is a legitimate tactic (not forbidden per se)
+    fn test_bare_decide_forbidden() {
+        // Phase 8.D (C-050, Codex N-3 / decision 1 option C):
+        // bare `decide` as agent tactic is forbidden (prevents brute-force
+        // repeat of native_decide class abuse, F-2026-04-20-05).
         let oracle = make_oracle();
-        assert!(oracle.check_payload("decide").is_ok());
+        assert!(oracle.check_payload("decide").is_err(),
+            "bare decide must be forbidden (C-011 complete)");
+        assert!(oracle.check_payload("by decide").is_err());
+        // Qualified forms (legitimate Mathlib API) must still pass.
+        assert!(oracle.check_payload("Decidable.decide p").is_ok(),
+            "qualified Decidable.decide is legitimate API use");
+        assert!(oracle.check_payload("Nat.decide_lt").is_ok());
+    }
+
+    #[test]
+    fn test_bare_omega_forbidden() {
+        // Mirrors decide policy for omega (Mathlib omega tactic).
+        let oracle = make_oracle();
+        assert!(oracle.check_payload("by omega").is_err());
+        assert!(oracle.check_payload("Nat.Linear.Omega").is_ok(),
+            "qualified Omega namespace ref is legitimate");
     }
 
     #[test]
