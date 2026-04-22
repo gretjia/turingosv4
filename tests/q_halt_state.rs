@@ -125,3 +125,81 @@ fn halt_reason_variants_are_distinguishable() {
     assert_ne!(HaltReason::WallClockCap, HaltReason::ComputeCapViolated);
     assert_ne!(HaltReason::OmegaAccepted, HaltReason::ErrorHalt);
 }
+
+// R4 (Gemini CHALLENGE): WAL replay must restore q_state from the durable
+// ledger. Without this, a crash-resumed bus always reports Running even if
+// the last durable event was Halt.
+#[test]
+fn wal_replay_restores_q_state_halted() {
+    let tmp = std::env::temp_dir().join(format!(
+        "q_halt_replay_{}.wal.jsonl",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos(),
+    ));
+    // Run 1: halt with MaxTxExhausted.
+    {
+        let config = BusConfig {
+            max_payload_chars: 200, max_payload_lines: 10,
+            system_lp_amount: 200.0, forbidden_patterns: vec![],
+            min_class_count_to_broadcast: 3,
+        };
+        let mut bus = TuringBus::with_wal_path(Kernel::new(), config, &tmp)
+            .expect("open WAL");
+        bus.mount_tool(Box::new(WalletTool::new(10_000.0)));
+        bus.init(&["Alice".into()]);
+        bus.halt_with_reason(HaltReason::MaxTxExhausted);
+        assert_eq!(bus.q_state, QState::Halted { reason: HaltReason::MaxTxExhausted });
+    }
+    // Run 2: replay; q_state must be restored.
+    {
+        let config = BusConfig {
+            max_payload_chars: 200, max_payload_lines: 10,
+            system_lp_amount: 200.0, forbidden_patterns: vec![],
+            min_class_count_to_broadcast: 3,
+        };
+        let bus = TuringBus::with_wal_path(Kernel::new(), config, &tmp)
+            .expect("reopen WAL");
+        assert_eq!(
+            bus.q_state,
+            QState::Halted { reason: HaltReason::MaxTxExhausted },
+            "R4: WAL replay must restore Halted state from last Halt event"
+        );
+    }
+    let _ = std::fs::remove_file(&tmp);
+}
+
+#[test]
+fn wal_replay_preserves_running_when_no_halt() {
+    let tmp = std::env::temp_dir().join(format!(
+        "q_halt_replay_run_{}.wal.jsonl",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos(),
+    ));
+    // Run 1: init but never halt.
+    {
+        let config = BusConfig {
+            max_payload_chars: 200, max_payload_lines: 10,
+            system_lp_amount: 200.0, forbidden_patterns: vec![],
+            min_class_count_to_broadcast: 3,
+        };
+        let mut bus = TuringBus::with_wal_path(Kernel::new(), config, &tmp)
+            .expect("open WAL");
+        bus.mount_tool(Box::new(WalletTool::new(10_000.0)));
+        bus.init(&["Alice".into()]);
+        // Append a node but do NOT halt.
+        let _ = bus.append("Alice", "some work", None);
+    }
+    // Run 2: replay; still Running.
+    {
+        let config = BusConfig {
+            max_payload_chars: 200, max_payload_lines: 10,
+            system_lp_amount: 200.0, forbidden_patterns: vec![],
+            min_class_count_to_broadcast: 3,
+        };
+        let bus = TuringBus::with_wal_path(Kernel::new(), config, &tmp)
+            .expect("reopen WAL");
+        assert_eq!(bus.q_state, QState::Running,
+            "no Halt event → q_state stays Running after replay");
+    }
+    let _ = std::fs::remove_file(&tmp);
+}

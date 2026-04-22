@@ -62,6 +62,10 @@ pub struct TuringBus {
     pub generation: u32,
     /// Phase 8.E (C-061): explicit `q_t` ∈ {Running, Halted}.
     pub q_state: QState,
+    /// Phase 8.C v2 (C-067): nonces of oracles trusted to bless writes.
+    /// An OracleReceipt is only honoured if its nonce was registered here.
+    /// Populated via `register_oracle(nonce)` at bus wiring time.
+    registered_oracle_nonces: std::collections::HashSet<u64>,
     graveyard: HashMap<String, Vec<String>>,
     // Phase 1 (C-037 candidate): durable Q_t. None = legacy in-memory mode.
     wal: Option<crate::wal::Wal>,
@@ -98,14 +102,39 @@ impl TuringBus {
             tx_count: 0,
             generation: 0,
             q_state: QState::Running,
+            registered_oracle_nonces: std::collections::HashSet::new(),
             graveyard: HashMap::new(),
             wal: None,
         }
     }
 
+    /// Register an oracle's nonce as trusted. Only receipts bearing this
+    /// nonce will pass `append_oracle_accepted()`. Phase 8.C v2 (C-067).
+    pub fn register_oracle(&mut self, nonce: u64) {
+        self.registered_oracle_nonces.insert(nonce);
+    }
+
+    /// Check whether an oracle nonce is registered. Primarily for tests.
+    pub fn oracle_registered(&self, nonce: u64) -> bool {
+        self.registered_oracle_nonces.contains(&nonce)
+    }
+
     /// Transition `q_t` to Halted and emit a Halt ledger event with reason.
-    /// Idempotent: repeat calls overwrite the reason but only emit the first
-    /// Halt event (subsequent calls record no new event to avoid WAL pollution).
+    ///
+    /// Idempotence semantics (R6 clarification):
+    /// - Ledger/WAL (**durable**): only the *first* Halt event is written.
+    ///   This preserves a truthful record of "when and why q initially flipped."
+    ///   Later halt calls do not pollute WAL.
+    /// - `self.q_state` (**live in-memory**): always updated to the *latest*
+    ///   reason. This reflects "the currently-acting cause" for runtime
+    ///   debugging (e.g. a MaxTxExhausted halt that later hits a WallClockCap
+    ///   will show WallClockCap in q_state, but WAL still shows MaxTxExhausted).
+    /// - `halt_reason_distribution` metric (CLAUDE.md Report Standard) is
+    ///   computed from the **durable** ledger, not live q_state — so it is
+    ///   stable across crash-resume.
+    ///
+    /// This split-view is intentional: WAL is the source of truth for
+    /// downstream auditors; q_state is a developer-facing current-state flag.
     /// Phase 8.E (C-061).
     pub fn halt_with_reason(&mut self, reason: crate::ledger::HaltReason) {
         let was_running = matches!(self.q_state, QState::Running);
@@ -151,9 +180,19 @@ impl TuringBus {
             // from this process's perspective. Original hashes are discarded.
             bus.ledger.append(e.event_type, e.node_id, e.agent, e.detail).ok();
         }
+        // R4 (Gemini CHALLENGE): restore q_state from replayed ledger. Without
+        // this, a crash-resumed bus always reports Running even if the last
+        // durable event was Halt — halt_reason_distribution would miscount.
+        // Find the most recent Halt event (if any) by scanning in reverse.
+        for event in bus.ledger.events().iter().rev() {
+            if let crate::ledger::EventType::Halt { reason } = &event.event_type {
+                bus.q_state = QState::Halted { reason: reason.clone() };
+                break;
+            }
+        }
         if resumed_nodes > 0 || resumed_events > 0 {
-            eprintln!("[wal/replay] resumed {} nodes, {} events from {:?}",
-                      resumed_nodes, resumed_events, wal_path);
+            eprintln!("[wal/replay] resumed {} nodes, {} events from {:?}; q_state={:?}",
+                      resumed_nodes, resumed_events, wal_path, bus.q_state);
         }
         bus.wal = Some(crate::wal::Wal::open(&wal_path)?);
         Ok(bus)
@@ -208,10 +247,14 @@ impl TuringBus {
     /// by construction legitimate — re-rejecting at bus level would block the
     /// wtool write that Art. IV mandates.
     ///
-    /// Phase 8.C (Codex V-1 / C-048): caller must produce a `OracleReceipt`
-    /// that binds payload (via sha256) to a non-rejecting verdict. Bus
-    /// validates the receipt before granting the blessed write, closing the
-    /// prior capability leak where any caller could pass `oracle_blessed=true`.
+    /// Phase 8.C v2 (Codex V-1 / C-067): caller must produce an
+    /// `OracleReceipt` that binds:
+    ///   (a) the payload (via sha256) → prevents content tampering
+    ///   (b) the parent context (via sha256 of parent_id) → prevents
+    ///       step-mode cross-context replay
+    ///   (c) an oracle nonce registered via `register_oracle()` →
+    ///       prevents forgery by code that doesn't own the oracle instance
+    /// Bus validates all three before granting the blessed write.
     pub fn append_oracle_accepted(
         &mut self,
         author: &str,
@@ -219,7 +262,12 @@ impl TuringBus {
         parent_id: Option<&str>,
         receipt: &crate::sdk::oracle_receipt::OracleReceipt,
     ) -> Result<BusResult, String> {
-        receipt.validates(payload)
+        if !self.registered_oracle_nonces.contains(&receipt.oracle_nonce()) {
+            return Err("receipt validation failed: oracle nonce not registered \
+                        (call bus.register_oracle(oracle.nonce()) before use)".into());
+        }
+        let expected_context = crate::sdk::oracle_receipt::hash_context(parent_id);
+        receipt.validates(payload, &expected_context)
             .map_err(|e| format!("receipt validation failed: {}", e))?;
         self.append_internal(author, payload, parent_id, /*oracle_blessed*/ true)
     }

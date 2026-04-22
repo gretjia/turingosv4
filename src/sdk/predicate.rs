@@ -42,6 +42,12 @@ pub enum PredicateKind {
 /// A ∏p verifier. Currently not implemented by `Lean4Oracle`; preserved for
 /// GENERALIZATION_ROADMAP Paper 2/3 migration. Runtime verify path for
 /// Paper 1 still goes through `Lean4Oracle::verify_omega_detailed`.
+///
+/// `#[allow(dead_code)]` because this trait is M-1 preservation (forward
+/// compatibility) — Paper 1 scope does not instantiate it. Removing the
+/// attribute will produce a justified compiler warning once `Lean4Oracle`
+/// implements `Predicate` (Phase 2 / Paper 2 work).
+#[allow(dead_code)]
 pub trait Predicate: Send + Sync {
     fn verify(&self, payload: &str) -> Verdict;
     fn kind(&self) -> PredicateKind;

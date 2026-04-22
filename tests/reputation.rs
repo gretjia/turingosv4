@@ -121,3 +121,41 @@ fn reputation_map_surfaces_all_authors() {
     assert!(snap.reputation.contains_key("Alice"));
     assert_eq!(*snap.reputation.get("Alice").unwrap(), 1);
 }
+
+// R8 (Codex CHALLENGE): #[serde(default)] on Tape.reputation_by_author and
+// UniverseSnapshot.reputation must actually allow old records (pre-8.F)
+// without those fields to deserialize.
+#[test]
+fn tape_deserializes_without_reputation_field() {
+    use turingosv4::ledger::Tape;
+    // Simulate an old WAL / serialized Tape record: no reputation_by_author.
+    let old_json = r#"{
+        "nodes": {},
+        "reverse_citations": {},
+        "time_arrow": []
+    }"#;
+    let tape: Tape = serde_json::from_str(old_json)
+        .expect("old Tape JSON (no reputation field) must deserialize");
+    // Must default to empty map.
+    assert!(tape.reputation().is_empty(),
+        "missing reputation_by_author must default to empty HashMap");
+    assert_eq!(tape.reputation_of("Anyone"), 0);
+}
+
+#[test]
+fn snapshot_deserializes_without_reputation_field() {
+    use turingosv4::sdk::snapshot::UniverseSnapshot;
+    let old_json = r#"{
+        "tape": {"nodes":{}, "reverse_citations":{}, "time_arrow":[]},
+        "balances": {},
+        "portfolios": {},
+        "markets": {},
+        "market_ticker": "",
+        "generation": 0,
+        "tx_count": 0
+    }"#;
+    let snap: UniverseSnapshot = serde_json::from_str(old_json)
+        .expect("old UniverseSnapshot JSON (no reputation field) must deserialize");
+    assert!(snap.reputation.is_empty());
+    assert_eq!(snap.get_reputation("anyone"), 0);
+}

@@ -210,30 +210,68 @@ async fn run_oneshot(
                         problem_file, theorem_name, problem_statement,
                         &response.content, "alone", "oneshot",
                     );
-                    // Phase 8.B (Codex N-1 / C-048): oneshot must route through
-                    // bus.append_oracle_accepted to satisfy Art. IV (∏p=1 →
-                    // wtool → Q_{t+1}) + C-043 (mandatory wtool on OMEGA).
-                    // Ephemeral bus since oneshot is stateless per-problem;
-                    // produces ledger Event + (if enabled) WAL entry for audit.
+                    // Phase 8.B + R2 (Codex N-1 / VETO Q6 / C-048): oneshot must
+                    // route through a WAL-backed bus to satisfy Art. IV (∏p=1 →
+                    // wtool → Q_{t+1}) + C-043 (mandatory wtool) + C-061 (durable
+                    // q-halt). Per-problem WAL file → durable ledger record;
+                    // ephemeral bus reference (per-problem) preserves oneshot
+                    // stateless semantics but the Halt event survives disk.
                     use turingosv4::bus::{BusConfig, TuringBus};
                     use turingosv4::kernel::Kernel;
                     use turingosv4::sdk::oracle_receipt::OracleReceipt;
-                    let mut oneshot_bus = TuringBus::new(
-                        Kernel::new(),
-                        BusConfig {
-                            max_payload_chars: usize::MAX,
-                            max_payload_lines: usize::MAX,
-                            system_lp_amount: 0.0,
-                            forbidden_patterns: vec![],
-                            min_class_count_to_broadcast: 3,
-                        },
-                    );
+                    let problem_stem = std::path::Path::new(problem_file)
+                        .file_stem().map(|s| s.to_string_lossy().into_owned())
+                        .unwrap_or_else(|| "unknown".into());
+                    let ts = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .map(|d| d.as_secs().to_string())
+                        .unwrap_or_else(|_| "0".into());
+                    let wal_dir = std::env::var("WAL_DIR").unwrap_or_else(|_| {
+                        // Default: project-local wal/oneshot/ directory.
+                        std::path::PathBuf::from("wal/oneshot").to_string_lossy().into_owned()
+                    });
+                    let _ = std::fs::create_dir_all(&wal_dir);
+                    let wal_path = std::path::Path::new(&wal_dir)
+                        .join(format!("{}_{}.wal.jsonl", problem_stem, ts));
+                    let config = BusConfig {
+                        max_payload_chars: usize::MAX,
+                        max_payload_lines: usize::MAX,
+                        system_lp_amount: 0.0,
+                        forbidden_patterns: vec![],
+                        min_class_count_to_broadcast: 3,
+                    };
+                    let mut oneshot_bus = match TuringBus::with_wal_path(
+                        Kernel::new(), config, &wal_path,
+                    ) {
+                        Ok(b) => b,
+                        Err(e) => {
+                            warn!("[art-iv] oneshot WAL open failed ({}); falling back to in-memory bus", e);
+                            TuringBus::new(Kernel::new(), BusConfig {
+                                max_payload_chars: usize::MAX,
+                                max_payload_lines: usize::MAX,
+                                system_lp_amount: 0.0,
+                                forbidden_patterns: vec![],
+                                min_class_count_to_broadcast: 3,
+                            })
+                        }
+                    };
+                    // Register oracle so its receipts are trusted.
+                    oneshot_bus.register_oracle(oracle.nonce());
                     oneshot_bus.init(&["oneshot_agent".into()]);
-                    let receipt = OracleReceipt::for_lean4_complete(&response.content);
-                    if let Err(e) = oneshot_bus.append_oracle_accepted(
+                    let receipt = OracleReceipt::new_lean4_complete(
+                        &response.content, None, oracle.nonce(),
+                    );
+                    match oneshot_bus.append_oracle_accepted(
                         "oneshot_agent", &response.content, None, &receipt,
                     ) {
-                        warn!("[art-iv] oneshot wtool failed (receipt validation): {}", e);
+                        Ok(turingosv4::bus::BusResult::Appended { node_id }) => {
+                            // R2: durable Halt event via halt_and_settle on GP=[node_id].
+                            if let Err(e) = oneshot_bus.halt_and_settle(&[node_id]) {
+                                warn!("[art-iv] oneshot halt_and_settle: {}", e);
+                            }
+                        }
+                        Ok(other) => warn!("[art-iv] oneshot wtool unexpected: {:?}", other),
+                        Err(e) => warn!("[art-iv] oneshot wtool failed (receipt validation): {}", e),
                     }
                     make_pput(problem_file, "oneshot", model, true, start, gp_tokens, 1, 1,
                               None, None, Some(response.content.clone()),
@@ -520,7 +558,10 @@ async fn run_swarm(
         };
         let prompt = build_agent_prompt(
             &chain, &skill, &snap.market_ticker, &errors, &hits_ref,
-            snap.get_balance(agent_id), tools_desc, &team_board,
+            snap.get_balance(agent_id),
+            // Phase 8.F v2 (C-053): surface own reputation to agent prompt.
+            snap.get_reputation(agent_id),
+            tools_desc, &team_board,
         );
 
         // Model-aware max_tokens (same rule as oneshot branch).
@@ -610,6 +651,9 @@ async fn run_swarm(
                                     theorem_name.to_string(),
                                     lean_path.to_string(),
                                 );
+                                // Phase 8.C v2 (C-067): register oracle nonce so
+                                // its receipts are honoured by this bus.
+                                bus.register_oracle(oracle.nonce());
                                 // Path 1: payload alone
                                 let r_alone = oracle.verify_omega_detailed(payload);
                                 let (full_proof, path_choice, r_final) = match &r_alone {
@@ -648,7 +692,9 @@ async fn run_swarm(
                                         // payload, so bus-level forbidden_patterns and size caps
                                         // would only re-reject legitimate tactics (e.g. `omega`,
                                         // `decide` used inside a verified proof — not brute-force).
-                                        let receipt = turingosv4::sdk::oracle_receipt::OracleReceipt::for_lean4_complete(payload);
+                                        let receipt = turingosv4::sdk::oracle_receipt::OracleReceipt::new_lean4_complete(
+                                            payload, parent.as_deref(), oracle.nonce(),
+                                        );
                                         let omega_node_id = match bus.append_oracle_accepted(
                                             agent_id, payload, parent.as_deref(), &receipt,
                                         ) {
@@ -823,6 +869,8 @@ async fn run_swarm(
                                     theorem_name.to_string(),
                                     lean_path.to_string(),
                                 );
+                                // C-067: register this step oracle's nonce.
+                                bus.register_oracle(oracle.nonce());
                                 match oracle.verify_partial(&prefix) {
                                     PartialVerdict::Complete => {
                                         info!(">>> OMEGA ACCEPTED <<< via step (depth={} after this write)",
@@ -833,7 +881,9 @@ async fn run_swarm(
                                         );
                                         let parent = bus.kernel.tape.time_arrow().last().cloned();
                                         *tool_dist.entry("omega_wtool".into()).or_insert(0) += 1;
-                                        let receipt = turingosv4::sdk::oracle_receipt::OracleReceipt::for_lean4_complete(tactic);
+                                        let receipt = turingosv4::sdk::oracle_receipt::OracleReceipt::new_lean4_complete(
+                                            tactic, parent.as_deref(), oracle.nonce(),
+                                        );
                                         let _ = bus.append_oracle_accepted(
                                             agent_id, tactic, parent.as_deref(), &receipt,
                                         );
@@ -857,7 +907,9 @@ async fn run_swarm(
                                     }
                                     PartialVerdict::PartialOk => {
                                         let parent = bus.kernel.tape.time_arrow().last().cloned();
-                                        let receipt = turingosv4::sdk::oracle_receipt::OracleReceipt::for_lean4_partial(tactic);
+                                        let receipt = turingosv4::sdk::oracle_receipt::OracleReceipt::new_lean4_partial(
+                                            tactic, parent.as_deref(), oracle.nonce(),
+                                        );
                                         match bus.append_oracle_accepted(
                                             agent_id, tactic, parent.as_deref(), &receipt,
                                         ) {

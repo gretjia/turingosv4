@@ -43,6 +43,11 @@ pub struct Lean4Oracle {
     pub theorem_name: String,
     lean_path: String,
     lean_binary: String,
+    /// Phase 8.C v2 (C-067): per-instance nonce, private. Bus only accepts
+    /// receipts bearing a nonce it has registered (bus.register_oracle()).
+    /// Forging a receipt requires owning a `Lean4Oracle` reference to read
+    /// the nonce. Closed-world in-process capability.
+    nonce: u64,
 }
 
 impl Lean4Oracle {
@@ -63,7 +68,15 @@ impl Lean4Oracle {
             theorem_name,
             lean_path,
             lean_binary,
+            nonce: rand::random::<u64>(),
         }
+    }
+
+    /// Per-oracle capability nonce for OracleReceipt authorization.
+    /// Must be registered with the destination bus via `bus.register_oracle`
+    /// before that bus will accept receipts issued by this oracle.
+    pub fn nonce(&self) -> u64 {
+        self.nonce
     }
 
     /// Pre-append security checks (Law 1: reject-only).
@@ -309,28 +322,99 @@ fn has_word_boundary(text: &str, word: &str) -> bool {
     false
 }
 
-/// Whole-word match NOT preceded by a namespace qualifier (`.` or `:`).
+/// Strip string literals and comments so `has_bare_tactic_invocation` only
+/// sees real code. Preserves whitespace structure (replaces skipped content
+/// with a single space) so word-boundary detection still works.
+///
+/// Handled:
+///   - `"..."` string literals (with `\"` escape)
+///   - `-- ... \n` line comments
+///   - `/- ... -/` block comments
+/// Not handled (out of Paper-1 scope): nested block comments; `⟨...⟩`
+/// antiquotations; string interpolation — rare in MiniF2F proofs.
+fn strip_strings_and_comments(text: &str) -> String {
+    let mut out = String::new();
+    let mut chars = text.chars().peekable();
+    while let Some(c) = chars.next() {
+        match c {
+            '"' => {
+                // String literal — consume until unescaped closing quote.
+                while let Some(&nc) = chars.peek() {
+                    chars.next();
+                    if nc == '\\' {
+                        chars.next();  // skip the escaped char
+                    } else if nc == '"' {
+                        break;
+                    }
+                }
+                out.push(' ');
+            }
+            '-' if chars.peek() == Some(&'-') => {
+                // Line comment.
+                chars.next();  // the 2nd `-`
+                while let Some(&nc) = chars.peek() {
+                    if nc == '\n' { break; }
+                    chars.next();
+                }
+                out.push(' ');
+            }
+            '/' if chars.peek() == Some(&'-') => {
+                // Block comment /- ... -/.
+                chars.next();  // `-`
+                let mut prev_dash = false;
+                while let Some(nc) = chars.next() {
+                    if prev_dash && nc == '/' { break; }
+                    prev_dash = nc == '-';
+                }
+                out.push(' ');
+            }
+            _ => out.push(c),
+        }
+    }
+    out
+}
+
+/// Whole-word match NOT preceded by a namespace qualifier (`.` or `:`),
+/// operating on source code with string literals and comments already
+/// stripped. Unicode-safe (uses char iteration, not byte indexing).
 ///
 /// Returns true for bare tactic invocations like `by decide`, `; omega`,
-/// `  decide\n`. Returns false for qualified references like
-/// `Decidable.decide`, `Nat.decide_lt`, `Omega`, or `_omega` (identifier).
-///
-/// `native_decide` is NOT matched when probing for `decide` because the
-/// underscore between `native_` and `decide` kills the word boundary.
+/// `  decide\n`. Returns false for:
+///   - qualified references (`Decidable.decide`, `Nat.decide_lt`)
+///   - identifier containment (`native_decide`, `my_decide_helper`)
+///   - in-string-literal occurrences (`"decide fate"`)
+///   - in-comment occurrences (`-- decide this`)
+///   - Unicode-neighbored word-boundaries (won't misread UTF-8 bytes)
 fn has_bare_tactic_invocation(text: &str, word: &str) -> bool {
-    for (i, _) in text.match_indices(word) {
-        let before = if i > 0 { text.as_bytes()[i - 1] } else { b' ' };
-        let after_idx = i + word.len();
-        let after = if after_idx < text.len() { text.as_bytes()[after_idx] } else { b' ' };
+    let clean = strip_strings_and_comments(text);
+    let haystack = clean.as_str();
+    let mut search_from = 0;
+    while let Some(rel_idx) = haystack[search_from..].find(word) {
+        let idx = search_from + rel_idx;
+        let after_idx = idx + word.len();
 
-        // Must be a word boundary (not adjacent to identifier chars).
+        // Char immediately before `idx` (None if at start).
+        // Safe: `idx` is a char boundary returned by `find`.
+        let before_char: Option<char> = haystack[..idx].chars().next_back();
+        // Char immediately after the matched word (None if at end).
+        let after_char: Option<char> = haystack[after_idx..].chars().next();
+
+        let is_word_ch = |c: char| c.is_alphanumeric() || c == '_';
+
         let word_boundary =
-            !before.is_ascii_alphanumeric() && before != b'_'
-            && !after.is_ascii_alphanumeric() && after != b'_';
-        if !word_boundary { continue; }
+            !matches!(before_char, Some(c) if is_word_ch(c))
+            && !matches!(after_char, Some(c) if is_word_ch(c));
 
-        // Qualified with a namespace? (`.decide`, `::omega`, `:=decide` ok)
-        if before == b'.' || before == b':' { continue; }
+        if !word_boundary {
+            search_from = idx + word.len();
+            continue;
+        }
+
+        // Qualified with namespace? Dot OR colon.
+        if matches!(before_char, Some('.') | Some(':')) {
+            search_from = idx + word.len();
+            continue;
+        }
 
         return true;
     }
@@ -339,7 +423,7 @@ fn has_bare_tactic_invocation(text: &str, word: &str) -> bool {
 
 #[cfg(test)]
 mod tactic_whitelist_tests {
-    use super::has_bare_tactic_invocation;
+    use super::{has_bare_tactic_invocation, strip_strings_and_comments};
 
     #[test]
     fn rejects_bare_decide() {
@@ -384,6 +468,72 @@ mod tactic_whitelist_tests {
         let proof = "by\n  have h : a + b > 0 := by linarith\n  exact h.le";
         assert!(!has_bare_tactic_invocation(proof, "decide"));
         assert!(!has_bare_tactic_invocation(proof, "omega"));
+    }
+
+    // R3: string / comment / Unicode robustness (Gemini + Codex CHALLENGE).
+
+    #[test]
+    fn ignores_string_literal_occurrence() {
+        // `"decide"` inside a string literal must NOT be flagged.
+        let proof = r#"have h_str : String := "decide the fate""#;
+        assert!(!has_bare_tactic_invocation(proof, "decide"));
+        let proof2 = r#"have msg := "please omega this""#;
+        assert!(!has_bare_tactic_invocation(proof2, "omega"));
+    }
+
+    #[test]
+    fn ignores_escape_sequences_in_string() {
+        let proof = r#"have s := "\"decide\" is fine here""#;
+        assert!(!has_bare_tactic_invocation(proof, "decide"));
+    }
+
+    #[test]
+    fn ignores_line_comment_occurrence() {
+        let proof = "-- try by decide first\nby linarith";
+        assert!(!has_bare_tactic_invocation(proof, "decide"));
+    }
+
+    #[test]
+    fn ignores_block_comment_occurrence() {
+        let proof = "/- consider omega for this -/\nby linarith";
+        assert!(!has_bare_tactic_invocation(proof, "omega"));
+    }
+
+    #[test]
+    fn catches_bare_tactic_even_with_comments_elsewhere() {
+        let proof = "-- this is a comment\nby decide\n-- end comment";
+        assert!(has_bare_tactic_invocation(proof, "decide"));
+    }
+
+    #[test]
+    fn handles_unicode_identifier_neighbors() {
+        // `αβγ.decide` — qualified; `γ` is 2-byte UTF-8 preceding `.`
+        let proof = "have h := αβγ.decide";
+        assert!(!has_bare_tactic_invocation(proof, "decide"),
+            "qualified reference with Unicode namespace must be allowed");
+    }
+
+    #[test]
+    fn handles_unicode_in_comment_and_string() {
+        // Ensure Unicode in stripped regions doesn't break stripping.
+        let proof = r#"-- 中文注释 decide here
+"α → β omega"
+by linarith"#;
+        assert!(!has_bare_tactic_invocation(proof, "decide"));
+        assert!(!has_bare_tactic_invocation(proof, "omega"));
+    }
+
+    #[test]
+    fn strip_leaves_real_tactic_visible() {
+        let proof = r#"
+            -- helper
+            have h : 1 = 1 := rfl
+            "a string"
+            by decide
+        "#;
+        let stripped = strip_strings_and_comments(proof);
+        assert!(stripped.contains("by decide"));
+        assert!(!stripped.contains("a string"));
     }
 }
 

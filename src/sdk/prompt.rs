@@ -8,6 +8,10 @@
 /// - No rules explanation (V3L-39: LLMs follow incentives, not explanations)
 /// - No example values (V3L-40: examples become anchors)
 /// - State only: what exists, what's available, what's your balance
+/// `own_reputation` (Phase 8.F v2, C-053): times this agent's nodes have
+/// been cited by others. 0 = nobody has built on their work yet. Surfaced
+/// so Art. I.2 信誉累积 signal is agent-visible (prior to R5, snapshot had
+/// it but prompt ignored it).
 pub fn build_agent_prompt(
     chain_so_far: &str,
     skill: &str,
@@ -15,6 +19,7 @@ pub fn build_agent_prompt(
     recent_errors: &[String],
     recent_search_hits: &[String],
     balance: f64,
+    own_reputation: u32,
     tools_description: &str,
     team_board: &str,
 ) -> String {
@@ -75,8 +80,9 @@ pub fn build_agent_prompt(
         prompt.push('\n');
     }
 
-    // Balance (agent's resource awareness)
-    prompt.push_str(&format!("Balance: {:.0} Coins\n\n", balance));
+    // Balance (agent's resource awareness) + Reputation (Art. I.2 信誉累积)
+    prompt.push_str(&format!("Balance: {:.0} Coins\n", balance));
+    prompt.push_str(&format!("Reputation: {} citations\n\n", own_reputation));
 
     // Available tools
     prompt.push_str("=== Tools ===\n");
@@ -127,21 +133,21 @@ mod tests {
 
     #[test]
     fn test_prompt_contains_no_example_values() {
-        let prompt = build_agent_prompt("", "", "", &[], &[], 10000.0, "append, invest, search", "");
+        let prompt = build_agent_prompt("", "", "", &[], &[], 10000.0, 0, "append, invest, search", "");
         assert!(!prompt.contains("50.0"), "No example amounts in prompt");
         assert!(!prompt.contains("100.0"), "No example amounts in prompt");
     }
 
     #[test]
     fn test_prompt_includes_balance() {
-        let prompt = build_agent_prompt("", "", "", &[], &[], 5000.0, "", "");
+        let prompt = build_agent_prompt("", "", "", &[], &[], 5000.0, 0, "", "");
         assert!(prompt.contains("5000"));
     }
 
     #[test]
     fn test_prompt_truncates_errors_to_3() {
         let errors: Vec<String> = (0..10).map(|i| format!("error {}", i)).collect();
-        let prompt = build_agent_prompt("", "", "", &errors, &[], 0.0, "", "");
+        let prompt = build_agent_prompt("", "", "", &errors, &[], 0.0, 0, "", "");
         assert!(prompt.contains("error 0"));
         assert!(prompt.contains("error 2"));
         assert!(!prompt.contains("error 3"));
@@ -150,7 +156,7 @@ mod tests {
     #[test]
     fn test_prompt_surfaces_search_hits() {
         let hits: Vec<String> = vec!["thm_a.lean".into(), "thm_b.lean".into()];
-        let prompt = build_agent_prompt("", "", "", &[], &hits, 0.0, "", "");
+        let prompt = build_agent_prompt("", "", "", &[], &hits, 0.0, 0, "", "");
         assert!(prompt.contains("Recent Search Hits"));
         assert!(prompt.contains("thm_a.lean"));
     }
@@ -158,7 +164,7 @@ mod tests {
     #[test]
     fn test_prompt_surfaces_team_board() {
         let board = "Agent_0 balance=10040 (+40)\nAgent_3 balance=10030 (+30)\n";
-        let prompt = build_agent_prompt("", "", "", &[], &[], 0.0, "", board);
+        let prompt = build_agent_prompt("", "", "", &[], &[], 0.0, 0, "", board);
         assert!(prompt.contains("Team Board"));
         assert!(prompt.contains("Agent_0 balance=10040"));
     }
