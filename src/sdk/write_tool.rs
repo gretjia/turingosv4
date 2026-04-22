@@ -34,6 +34,45 @@ pub trait WriteTool: Send + Sync {
         parent: Option<&str>,
         receipt: Option<&OracleReceipt>,
     ) -> Result<BusResult, String>;
+
+    /// Art. IV explicit form: wtool(output | tape_t, HEAD_t, tools_other).
+    ///
+    /// The `tools_other` slice names the ancillary TuringTools (Wallet,
+    /// Librarian, Search, …) whose on_pre_append hooks must run before
+    /// the commit. Its semantic role is **contract clarity**: the Art. IV
+    /// mermaid lists tools_other as an explicit input to wtool, but in
+    /// the default implementation bus.append_internal already iterates
+    /// over `bus.tools` so the parameter does not change behavior.
+    ///
+    /// API caveat: this method is **assertive, not selective** — it
+    /// verifies every requested tool is currently mounted and returns
+    /// `Err("…tool '<name>' not mounted")` if any are missing. It does
+    /// NOT filter the bus's actual hook dispatch to only the named
+    /// subset; selective hook dispatch would require a bus-level change
+    /// and is out of scope for Phase Z. Callers who need selective
+    /// dispatch should open a follow-up against bus.append_internal.
+    ///
+    /// Default impl delegates to `write` after the presence check, so
+    /// existing WriteTool implementations get the contract for free.
+    fn write_with_tools(
+        &self,
+        bus: &mut crate::bus::TuringBus,
+        author: &str,
+        payload: &str,
+        parent: Option<&str>,
+        receipt: Option<&OracleReceipt>,
+        tools_other: &[&str],
+    ) -> Result<BusResult, String> {
+        for name in tools_other {
+            if !bus.tools.iter().any(|t| t.manifest() == *name) {
+                return Err(format!(
+                    "write_with_tools: tool '{}' not mounted",
+                    name
+                ));
+            }
+        }
+        self.write(bus, author, payload, parent, receipt)
+    }
 }
 
 /// Default policy: delegates to existing bus methods.
