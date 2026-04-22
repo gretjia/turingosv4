@@ -86,6 +86,15 @@ pub fn build_agent_prompt(
     // Output format (C-009: explicit schema; V3L-40: no value anchors, only field shape)
     prompt.push_str("=== Output ===\n");
     prompt.push_str("Respond with exactly one <action>{JSON}</action> block. No prose outside.\n");
+    // Art. IV ⟨q_o, a_o⟩: δ produces a next-state hint (q_o) and an action (a_o).
+    // OPTIONAL wrapped form lets you signal q_o explicitly:
+    //   {"q_delta":"<hint>","action":{<tool-schema-below>}}
+    // where q_delta is a short state hint (e.g. "halt_soon", "continue_dfs",
+    // "need_search"). If omitted, emit the flat action JSON directly — both
+    // forms are accepted (backward compat).
+    prompt.push_str("Optional wrapped form: {\"q_delta\":\"<state-hint>\",\"action\":{...tool JSON...}}\n");
+    prompt.push_str("  q_delta is an OPTIONAL next-state hint (e.g. \"halt_soon\", \"continue_dfs\").\n");
+    prompt.push_str("  You may also emit the inner action JSON directly — both forms work.\n");
     prompt.push_str("Schemas by tool:\n");
     // Phase 7 (TURING_STEP_ONLY=1): only `step` is available as the proof-
     // progression tool. Art. IV strict: δ writes one square. No monolithic
