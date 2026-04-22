@@ -78,6 +78,17 @@
 - 修正: PPUT_RAW_DATA_2026-04-22.md 作为权威源（Claude 直算 jsonl）+ reproduce `pput_scan.py`
 - **教训**: 外部 agent 聚合+标签任务易 hallucination；越符合叙事需要越值得敌意核查；VETO > CHALLENGE > PASS 保守裁决规则必须严格执行
 
+### F-2026-04-22-05: TuringOS IS 强制 CoT — deepseek-chat 是默认，不是 reasoner
+- 2026-04-22 Phase 2 A/B 批次**误用 deepseek-reasoner**（run_list.sh 默认值）
+- 所有 historical PPUT_RAW_DATA (26 runs) 均用 deepseek-chat；REGISTRATION_PHASE_9 § 3 锁 chat
+- User 原则 (memory `project_chat_over_reasoner.md`): "TuringOS scaffold IS externalized CoT; default to chat; reasoner as control only"
+- User 额外 framing 2026-04-22: "TuringOS 实际上一种强制的 CoT，所有 agent 来了这里被强制进行原子化步骤思考"
+- 理论含义: scaffold 承载智能（Karpathy "LLM IS the search algorithm"）；弱 model + 强 scaffold > 强 model 单独
+- 实证: reasoner A/B 8/20 vs historical chat peak 100% solve on easy subsets
+- 经济: chat 输出 $0.28/1M vs reasoner $2.19/1M → 8× 便宜 + 5-10× 快 → 同 budget 下 Phase 9.M 可迭代更多机制
+- **Fix 2026-04-22**: 7 个 run_*.sh 脚本默认改 deepseek-chat；2026-04-22 reasoner A/B jsonl 归档为 "scope-inappropriate reference"，**不进 PPUT_RAW_DATA**
+- 双外审（Gemini）判 Phase 2 A/B 为 scope-inappropriate，支持 pivot 到 Phase 9.M Market Bake-off
+
 ### F-2026-04-22-04: PPUT 是 Art. I.2 强制指标，solve count 不可独立陈述 (C-052)
 - Phase 7 checkpoint 用 "9/20 solved" headline 汇报 → Claude 在 synthesis / plans 也沿用
 - 用户指出 `evaluator.rs:3-8` 明文 "Sole optimization metric: PPUT"

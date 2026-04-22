@@ -16,7 +16,7 @@
 # Prerequisites:
 #   export DEEPSEEK_API_KEY=...
 #   export LLM_PROXY_URL=http://localhost:8080  (default)
-#   export ACTIVE_MODEL=deepseek-reasoner       (default)
+#   export ACTIVE_MODEL=deepseek-chat           (default — TuringOS IS the CoT, project memory chat_over_reasoner)
 #
 # Auto-loads v3 .env if DEEPSEEK_API_KEY not set
 
@@ -28,7 +28,7 @@ if [ -z "${DEEPSEEK_API_KEY:-}" ] && [ -f "$HOME/projects/turingosv3/.env" ]; th
     source "$HOME/projects/turingosv3/.env"
 fi
 export LLM_PROXY_URL="${LLM_PROXY_URL:-http://localhost:8080}"
-export ACTIVE_MODEL="${ACTIVE_MODEL:-deepseek-reasoner}"
+export ACTIVE_MODEL="${ACTIVE_MODEL:-deepseek-chat}"
 
 CONDITION="${1:-oneshot}"
 SPLIT="${2:-test}"
