@@ -493,7 +493,11 @@ async fn run_swarm(
     let boltzmann_seed: u64 = std::env::var("BOLTZMANN_SEED")
         .ok().and_then(|s| s.parse().ok()).unwrap_or(DEFAULT_BOLTZMANN_SEED);
     let mut boltz_rng = StdRng::seed_from_u64(boltzmann_seed);
-    let max_transactions = 200;
+    // C-027: env-configurable (CLAUDE.md Code Standard forbids hardcoding
+    // behavior-affecting parameters). Default 200 preserves REGISTRATION §3
+    // pre-reg; reduce via MAX_TRANSACTIONS=N for shorter-spiral runs.
+    let max_transactions: usize = std::env::var("MAX_TRANSACTIONS")
+        .ok().and_then(|s| s.parse().ok()).unwrap_or(200);
 
     // Art. IV map-reduce tick: periodic tape statistics (clock → mr → map/reduce)
     let tick_interval: usize = std::env::var("TICK_INTERVAL")
