@@ -50,6 +50,21 @@
 
 ## 2. Confirmed findings (evidence-backed, non-speculation)
 
+### F-2026-04-22-09: Phase Z′ strict line-by-line constitutional alignment complete (C-069)
+- 2026-04-22 evening, user autonomous directive after plan approval
+- 3 flowcharts extracted to 134 atomic elements (FC1: 40, FC2: 61, FC3: 33) — `handover/alignment/FC_ELEMENTS_2026-04-22.md`
+- Multi-agent code-scan (Claude A + Codex B) produced candidate Rust mappings for 43 core items
+- Unified TRACE_MATRIX v0 covers 51 alignment rows: 15✅ / 22⚠️ / 1🔨 / 7📅 / 3📄 + 8 orphans
+- Stage 2+3 fixes landed:
+  - Doc-comment backlinks `/// TRACE_MATRIX <FC-id>:` on `Kernel::{new,tape}`, `Tape::{time_arrow,head new helper}`, `QState`, `TuringBus::{tools,clock,q_state,append_internal}`, `BusResult`
+  - **FC2-N19 🔨→✅**: `bus.register_predicate(...)` × 3 wired at init in `run_swarm` + `run_oneshot` (ForbiddenPattern + Sorry + PayloadSize default predicates)
+  - New `Tape::head()` accessor replacing scattered `time_arrow().last()` idiom
+- Stage 4 conformance battery: `tests/fc_alignment_conformance.rs` 26 tests pass + 5 `#[ignore]` Phase-11+ stubs; full lib 131 pass
+- Stage 5 real-problem validation on `mathd_numbertheory_99` n8: 18/19 active ✅ rows fired in single run; only HALT (FC2-N22) didn't fire (external timeout beat internal q=halt cap) — covered by unit test instead
+- Stage 6 judicial case C-069: Constitutional Alignment Audit Protocol; `CLAUDE.md` § Alignment Standard added; `handover/alignment/OBS_CONSTITUTION_MERMAID_FENCE` filed (FC-2/FC-3 missing ```mermaid opener — for human architect to fix, Claude does NOT modify constitution per 宪法不能改)
+- **Post Z′ TRACE_MATRIX state**: 37✅ / 7📅 / 3📄 / 0🔨
+- Phase 9.A seed 74677 N=50 n8 launched on aligned binary (post-Z′). PID 516816, log `/tmp/phase9a_aligned.log`, expected 2-5h wallclock
+
 ### F-2026-04-22-08: Phase 2.5 chat A/B 0/20 = external model drift + silent harness reject (C-068)
 - Phase 2.5 (bvgzyfuqf main + b7i2tuohu exp) 结束 2026-04-22 14:37 UTC：**两批都 0/22**
 - 同一 N=20 sample 同一天早些的 Phase 8 reasoner baseline: 8/20 solves（reasoner）
