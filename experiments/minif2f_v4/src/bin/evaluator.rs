@@ -619,8 +619,9 @@ async fn run_swarm(
                                         // payload, so bus-level forbidden_patterns and size caps
                                         // would only re-reject legitimate tactics (e.g. `omega`,
                                         // `decide` used inside a verified proof — not brute-force).
+                                        let receipt = turingosv4::sdk::oracle_receipt::OracleReceipt::for_lean4_complete(payload);
                                         let omega_node_id = match bus.append_oracle_accepted(
-                                            agent_id, payload, parent.as_deref(),
+                                            agent_id, payload, parent.as_deref(), &receipt,
                                         ) {
                                             Ok(BusResult::Appended { node_id }) => Some(node_id),
                                             Ok(BusResult::Vetoed { reason }) => {
@@ -803,8 +804,9 @@ async fn run_swarm(
                                         );
                                         let parent = bus.kernel.tape.time_arrow().last().cloned();
                                         *tool_dist.entry("omega_wtool".into()).or_insert(0) += 1;
+                                        let receipt = turingosv4::sdk::oracle_receipt::OracleReceipt::for_lean4_complete(tactic);
                                         let _ = bus.append_oracle_accepted(
-                                            agent_id, tactic, parent.as_deref(),
+                                            agent_id, tactic, parent.as_deref(), &receipt,
                                         );
                                         let tape_tokens: u64 = bus.kernel.tape.time_arrow().iter()
                                             .filter_map(|id| bus.kernel.tape.get(id))
@@ -826,8 +828,9 @@ async fn run_swarm(
                                     }
                                     PartialVerdict::PartialOk => {
                                         let parent = bus.kernel.tape.time_arrow().last().cloned();
+                                        let receipt = turingosv4::sdk::oracle_receipt::OracleReceipt::for_lean4_partial(tactic);
                                         match bus.append_oracle_accepted(
-                                            agent_id, tactic, parent.as_deref(),
+                                            agent_id, tactic, parent.as_deref(), &receipt,
                                         ) {
                                             Ok(BusResult::Appended { node_id }) => {
                                                 *tool_dist.entry("step_partial_ok".into()).or_insert(0) += 1;

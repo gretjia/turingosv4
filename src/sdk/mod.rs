@@ -6,3 +6,5 @@ pub mod actor;
 pub mod sandbox;
 pub mod tools;
 pub mod error_abstraction;
+pub mod predicate;
+pub mod oracle_receipt;

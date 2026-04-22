@@ -168,11 +168,21 @@ impl TuringBus {
     /// brute-force tactics (e.g. bare `decide`, `omega`, `native_decide`) as scratch
     /// work. Once the Lean oracle has accepted a full proof, those same tactics are
     /// by construction legitimate — re-rejecting at bus level would block the
-    /// wtool write that Art. IV mandates. Only oracle-accepted payloads should
-    /// take this path. Payload-size caps are also relaxed (proofs are longer than
-    /// agent scratch steps).
-    pub fn append_oracle_accepted(&mut self, author: &str, payload: &str,
-                                   parent_id: Option<&str>) -> Result<BusResult, String> {
+    /// wtool write that Art. IV mandates.
+    ///
+    /// Phase 8.C (Codex V-1 / C-048): caller must produce a `OracleReceipt`
+    /// that binds payload (via sha256) to a non-rejecting verdict. Bus
+    /// validates the receipt before granting the blessed write, closing the
+    /// prior capability leak where any caller could pass `oracle_blessed=true`.
+    pub fn append_oracle_accepted(
+        &mut self,
+        author: &str,
+        payload: &str,
+        parent_id: Option<&str>,
+        receipt: &crate::sdk::oracle_receipt::OracleReceipt,
+    ) -> Result<BusResult, String> {
+        receipt.validates(payload)
+            .map_err(|e| format!("receipt validation failed: {}", e))?;
         self.append_internal(author, payload, parent_id, /*oracle_blessed*/ true)
     }
 
