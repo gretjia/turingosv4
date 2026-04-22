@@ -22,8 +22,12 @@ def wilson_ci(successes: int, n: int, z: float = 1.96) -> tuple[float, float]:
     return (max(0.0, center - half), min(1.0, center + half))
 
 
-def mean_ci(values: list[float], z: float = 1.96) -> tuple[float, float, float]:
-    """Mean + Wilson-like CI via normal approximation. Returns (mean, lo, hi)."""
+def mean_ci(values: list[float], z: float = 1.96, clamp_to_nonneg: bool = True) -> tuple[float, float, float]:
+    """Mean + normal-approximation CI. Returns (mean, lo, hi).
+
+    `clamp_to_nonneg=True` is for proportion-like metrics (PPUT ≥ 0) where
+    lower bound should not go negative. Set to False for signed deltas.
+    """
     n = len(values)
     if n == 0:
         return (0.0, 0.0, 0.0)
@@ -32,7 +36,10 @@ def mean_ci(values: list[float], z: float = 1.96) -> tuple[float, float, float]:
         return (mean, mean, mean)
     variance = sum((v - mean) ** 2 for v in values) / (n - 1)
     se = math.sqrt(variance / n)
-    return (mean, max(0.0, mean - z * se), mean + z * se)
+    lo = mean - z * se
+    if clamp_to_nonneg:
+        lo = max(0.0, lo)
+    return (mean, lo, mean + z * se)
 
 
 def load_jsonl(path: Path) -> list[dict]:
@@ -124,7 +131,8 @@ def paired_delta(baseline: list[dict], experiment: list[dict]) -> dict:
         else:
             neither += 1
     total_delta = sum(pput_deltas)
-    mean_delta, d_lo, d_hi = mean_ci(pput_deltas)
+    # Paired Δ is signed; don't clamp lower bound to 0.
+    mean_delta, d_lo, d_hi = mean_ci(pput_deltas, clamp_to_nonneg=False)
     return {
         "n_paired": len(common),
         "total_pput_delta": total_delta,
