@@ -5,22 +5,37 @@ Silicon-Native Microkernel for LLM Formal Verification Swarm.
 Rust 2021, tokio, serde_json. Mission: MiniF2F Lean 4.
 
 ## Why
-- 唯一对齐文档: `constitution.md` (反奥利奥架构的反奥利奥架构)
+- 唯一对齐文档: `constitution.md` (反奥利奥架构)
+- 压缩即智能: 抽象原则进宪法 / 具体情境进 `cases/`
+- 机制 > 参数 > 提示 (Art. V + C-021/C-031/C-034/C-043)
 
-## How
-- `cargo check` must pass before commit
-- `cargo test` must pass before deploy
-- `.env` never committed
-- kernel.rs / bus.rs / wallet.rs edits: human confirm
-- Economic changes: grep experiments/ (Run 6 lesson)
-- Generator ≠ Evaluator: code author cannot be sole auditor
+## Code Standard (Art. I.1 + C-004 + C-027)
+- `cargo check` / `cargo test` 必过；`.env` 永不 commit
+- `src/{kernel,bus,wallet}.rs` 改动走 STEP_B_PROTOCOL（不直接编辑 main）
+- 任何影响行为的参数必须 env/config 可覆盖，不可硬编码
+
+## Audit Standard (Art. V.1 + C-010 + C-023 + C-035)
+- Generator ≠ Evaluator：代码作者不可是唯一审计者
+- 所有 merge / phase 决策双外审（Codex + Gemini）；VETO > CHALLENGE > PASS
+- 宪法违规立即 BLOCKER，不可延期、不可"可接受"
+
+## Report Standard (Art. I.2 + Art. II.2.1 + Art. IV 强制, C-052 + C-053 + C-057 + C-059 + C-061)
+- **主指标**（每报必填）: ΣPPUT + Mean PPUT (solved) + 95% CI (Wilson)
+- Art. I.2 三大统计信号不可缺: **信誉** (reputation_distribution p50/p90/max) + 效用 (PPUT) + 共识 (如适用)
+- Art. IV 终态区分: `halt_reason_distribution` {OmegaAccepted, MaxTxExhausted, WallClockCap, ComputeCapViolated, ErrorHalt}
+- 多 agent (n≥2) 专用: `parent_selection_entropy` + `pairwise_payload_diversity_mean`；任一 < 0.25 = Art. II.2.1 告警
+- solve count 不可独立陈述，必须配对 PPUT；以 solve count 起头 = 违宪
+
+## Reproducibility Standard (Art. I + C-012/C-016/C-032/C-039)
+- OMEGA accept 必留 self-contained artifact (`proofs/*.lean` + `gp_payload`)
+- 度量工具上线即冻结；Oracle 参数冻结；实验禁混 Oracle 模式
+- 中间件若修改数学内容 → 是 ArchitectAI 贡献，不是 swarm 涌现（C-023）
 
 ## Common Law (宪法 + 判例)
-宪法高度压缩。不确定时查判例: `cases/C-xxx.yaml`
+宪法高度压缩，具体裁决查 `cases/C-xxx.yaml` (facts → ruling → precedent)
 - 按条款查: `grep -l "Art. I.1" cases/*.yaml`
-- 35 个判例 (C-001 ~ C-035)，覆盖全部宪法条款
-- 50 个 v3 教训的完整映射: `cases/V3_LESSONS.md`
-- 每个判例: facts → ruling → precedent (事实→裁决→先例)
+- 映射：`cases/V3_LESSONS.md` (50 v3 教训 → 现行判例)
+- 编号跳号：C-038 / C-042 为 reserved（见 C-041/C-043 预引用）
 
 ## Docs (按需加载)
 | 文档 | 何时加载 |

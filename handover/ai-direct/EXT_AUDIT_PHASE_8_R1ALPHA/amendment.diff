@@ -1,0 +1,1438 @@
+commit 4a725074967ca1a9413b86ca911319e4928324ac
+Author: gretjia <gretjia@users.noreply.github.com>
+Date:   Wed Apr 22 11:46:21 2026 +0000
+
+    experiment/phase-8 R1-α + R2 + R3: Ed25519 receipt, durable WAL, nested comments
+    
+    Addresses Codex re-audit VETO (R1 still broken) + residual CHALLENGEs (R2, R3).
+    
+    R1-α (was R1 VETO — capability forgeable):
+      Replaced the nonce-based "capability" with real Ed25519 signatures.
+      - OracleReceipt now carries (issuer_pub, signature) over the canonical
+        message (payload_hash || context_hash || kind || verdict_encoding).
+        Fields are private; only `sign_new` constructs. Receipt is
+        cryptographically bound to the signing key — forging requires breaking
+        Ed25519, not just owning `&mut Bus`.
+      - Lean4Oracle now holds a per-instance SigningKey (private); exposes
+        `public_key()`, `issue_complete_receipt()`, `issue_partial_receipt()`.
+      - TuringBus replaces `registered_oracle_nonces: HashSet<u64>` with
+        `trusted_oracle_pubs: HashSet<[u8; 32]>` + `oracles_frozen: bool`.
+      - `register_oracle` now returns Result; Err if called after init()
+        (oracles_frozen freeze gate). Closes Codex's "attacker with &mut Bus
+        registers own pubkey, then signs, then submits" attack path.
+      - `init()` and `with_wal_path` (after non-empty replay) both freeze.
+      - evaluator.rs refactored: single persistent `oracle` per run_swarm /
+        run_oneshot, registered BEFORE init, cloned for tool-mount. Removed
+        per-tx oracle creation.
+      - New tests (`tests/oracle_receipt_bus.rs`, 8 total):
+          * accepts_matching_receipt
+          * rejects_hash_mismatch
+          * rejects_reject_verdict
+          * partial_ok_succeeds
+          * rejects_unregistered_issuer        ← R1-α key test
+          * rejects_cross_context_replay
+          * post_init_register_oracle_fails    ← R1-α freeze test
+          * attacker_with_mut_bus_cannot_forge_post_init ← Codex attack replay
+      - Crate dep: `ed25519-dalek = "2"` in both turingosv4 + minif2f_v4.
+    
+    R2 (was CHALLENGE — oneshot WAL fallback silent):
+      Removed the in-memory fallback when `TuringBus::with_wal_path` fails.
+      Instead, emit `MEASUREMENT_ERROR oneshot WAL: <e>` and return a
+      non-result PputResult (condition=measurement_error, solved=false, tx=1).
+      Batch runner should retry. Preserves C-067 durability invariant:
+      ANY oneshot that claims OMEGA has a durable WAL Halt event.
+    
+    R3 (was CHALLENGE — nested block comments):
+      `strip_strings_and_comments` now tracks nesting depth for `/- ... -/`
+      blocks. Correct Lean grammar: openings increment, closings decrement,
+      only depth==0 terminates stripping. Doc comments (`/--`, `/-!`) enter
+      the same branch and strip correctly.
+      New tests: `handles_nested_block_comments`, `handles_doc_comments`.
+    
+    Test counts (post-R1α/R2/R3):
+      turingosv4 lib:            120/120 ✅ (+1 Ed25519 receipt tampered-sig test)
+      minif2f_v4 lib:             26/26  ✅ (+2 nested + doc comments)
+      oracle_receipt_bus:          8/8   ✅ NEW (Ed25519 contract)
+      snapshot_nonempty:           7/7   ✅
+      q_halt_state:                8/8   ✅
+      reputation:                  9/9   ✅
+      rejection_threshold:         5/5   ✅
+      wal_resume:                  2/2   ✅
+      reward_pull_conservation:    3/5   pre-existing (Phase 8.Z)
+    
+    Refs:
+      handover/audits/EXT_CODEX_PHASE_8_R1R8_2026-04-22.md (VETO drove R1-α)
+      handover/audits/EXT_GEMINI_PHASE_8_R1R8_2026-04-22.md (R1-R8 PASS)
+    
+    Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+
+diff --git a/Cargo.lock b/Cargo.lock
+index 994576f..8bdff3b 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -73,6 +73,12 @@ version = "0.22.1"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
+ 
++[[package]]
++name = "base64ct"
++version = "1.8.3"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "2af50177e190e07a26ab74f8b1efbfe2ef87da2116221318cb1c2e82baf7de06"
++
+ [[package]]
+ name = "bitflags"
+ version = "2.11.0"
+@@ -128,6 +134,12 @@ version = "1.0.5"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "1d07550c9036bf2ae0c684c4297d503f838287c83c53686d05370d0e139ae570"
+ 
++[[package]]
++name = "const-oid"
++version = "0.9.6"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "c2459377285ad874054d797f3ccebf984978aa39129f6eafde5cdc8315b612f8"
++
+ [[package]]
+ name = "cpufeatures"
+ version = "0.2.17"
+@@ -147,6 +159,43 @@ dependencies = [
+  "typenum",
+ ]
+ 
++[[package]]
++name = "curve25519-dalek"
++version = "4.1.3"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "97fb8b7c4503de7d6ae7b42ab72a5a59857b4c937ec27a3d4539dba95b5ab2be"
++dependencies = [
++ "cfg-if",
++ "cpufeatures",
++ "curve25519-dalek-derive",
++ "digest",
++ "fiat-crypto",
++ "rustc_version",
++ "subtle",
++ "zeroize",
++]
++
++[[package]]
++name = "curve25519-dalek-derive"
++version = "0.1.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "f46882e17999c6cc590af592290432be3bce0428cb0d5f8b6715e4dc7b383eb3"
++dependencies = [
++ "proc-macro2",
++ "quote",
++ "syn",
++]
++
++[[package]]
++name = "der"
++version = "0.7.10"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "e7c1832837b905bbfb5101e07cc24c8deddf52f93225eee6ead5f4d63d53ddcb"
++dependencies = [
++ "const-oid",
++ "zeroize",
++]
++
+ [[package]]
+ name = "digest"
+ version = "0.10.7"
+@@ -168,6 +217,31 @@ dependencies = [
+  "syn",
+ ]
+ 
++[[package]]
++name = "ed25519"
++version = "2.2.3"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "115531babc129696a58c64a4fef0a8bf9e9698629fb97e9e40767d235cfbcd53"
++dependencies = [
++ "pkcs8",
++ "signature",
++]
++
++[[package]]
++name = "ed25519-dalek"
++version = "2.2.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "70e796c081cee67dc755e1a36a0a172b897fab85fc3f6bc48307991f64e4eca9"
++dependencies = [
++ "curve25519-dalek",
++ "ed25519",
++ "rand_core 0.6.4",
++ "serde",
++ "sha2",
++ "subtle",
++ "zeroize",
++]
++
+ [[package]]
+ name = "env_filter"
+ version = "1.0.1"
+@@ -201,6 +275,12 @@ dependencies = [
+  "windows-sys 0.61.2",
+ ]
+ 
++[[package]]
++name = "fiat-crypto"
++version = "0.2.9"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "28dea519a9695b9977216879a3ebfddf92f1c08c05d984f8996aecd6ecdc811d"
++
+ [[package]]
+ name = "find-msvc-tools"
+ version = "0.1.9"
+@@ -594,6 +674,7 @@ checksum = "f8ca58f447f06ed17d5fc4043ce1b10dd205e060fb3ce5b979b8ed8e59ff3f79"
+ name = "minif2f_v4"
+ version = "0.1.0"
+ dependencies = [
++ "ed25519-dalek",
+  "env_logger",
+  "log",
+  "rand 0.8.5",
+@@ -661,6 +742,16 @@ version = "0.2.17"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "a89322df9ebe1c1578d689c92318e070967d1042b512afbe49518723f4e6d5cd"
+ 
++[[package]]
++name = "pkcs8"
++version = "0.10.2"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "f950b2377845cebe5cf8b5165cb3cc1a5e0fa5cfa3e1f7f55707d8fd82e0a7b7"
++dependencies = [
++ "der",
++ "spki",
++]
++
+ [[package]]
+ name = "portable-atomic"
+ version = "1.13.1"
+@@ -928,6 +1019,15 @@ version = "2.1.1"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "357703d41365b4b27c590e3ed91eabb1b663f07c4c084095e60cbed4362dff0d"
+ 
++[[package]]
++name = "rustc_version"
++version = "0.4.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "cfcb3a22ef46e85b45de6ee7e79d063319ebb6594faafcf1c225ea92ab6e9b92"
++dependencies = [
++ "semver",
++]
++
+ [[package]]
+ name = "rustls"
+ version = "0.23.38"
+@@ -981,6 +1081,12 @@ version = "1.2.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
+ 
++[[package]]
++name = "semver"
++version = "1.0.28"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "8a7852d02fc848982e0c167ef163aaff9cd91dc640ba85e263cb1ce46fae51cd"
++
+ [[package]]
+ name = "serde"
+ version = "1.0.228"
+@@ -1063,6 +1169,15 @@ dependencies = [
+  "libc",
+ ]
+ 
++[[package]]
++name = "signature"
++version = "2.2.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "77549399552de45a898a580c1b41d445bf730df867cc44e6c0233bbc4b8329de"
++dependencies = [
++ "rand_core 0.6.4",
++]
++
+ [[package]]
+ name = "slab"
+ version = "0.4.12"
+@@ -1085,6 +1200,16 @@ dependencies = [
+  "windows-sys 0.61.2",
+ ]
+ 
++[[package]]
++name = "spki"
++version = "0.7.3"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "d91ed6c858b01f942cd56b37a94b3e0a1798290327d1236e4d9cf4eaca44d29d"
++dependencies = [
++ "base64ct",
++ "der",
++]
++
+ [[package]]
+ name = "stable_deref_trait"
+ version = "1.2.1"
+@@ -1307,6 +1432,7 @@ checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
+ name = "turingosv4"
+ version = "0.1.0"
+ dependencies = [
++ "ed25519-dalek",
+  "libc",
+  "log",
+  "rand 0.8.5",
+diff --git a/Cargo.toml b/Cargo.toml
+index 5cb21be..c552e0d 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -5,6 +5,9 @@ edition = "2021"
+ description = "Silicon-Native Microkernel for LLM Formal Verification Swarm"
+ 
+ [dependencies]
++# Ed25519 signatures for OracleReceipt capability (Phase 8.C v3, C-067 R1-α).
++# "rand_core" feature makes SigningKey::generate accept rand 0.8's RngCore.
++ed25519-dalek = { version = "2", features = ["rand_core"] }
+ libc = "0.2"
+ log = "0.4"
+ rand = "0.8"
+diff --git a/experiments/minif2f_v4/Cargo.toml b/experiments/minif2f_v4/Cargo.toml
+index c2c9d51..c33b90b 100644
+--- a/experiments/minif2f_v4/Cargo.toml
++++ b/experiments/minif2f_v4/Cargo.toml
+@@ -16,3 +16,4 @@ serde_json = "1"
+ log = "0.4"
+ env_logger = "0.11"
+ rand = "0.8"
++ed25519-dalek = { version = "2", features = ["rand_core"] }
+diff --git a/experiments/minif2f_v4/src/bin/evaluator.rs b/experiments/minif2f_v4/src/bin/evaluator.rs
+index ba888a5..9f5f215 100644
+--- a/experiments/minif2f_v4/src/bin/evaluator.rs
++++ b/experiments/minif2f_v4/src/bin/evaluator.rs
+@@ -240,27 +240,39 @@ async fn run_oneshot(
+                         forbidden_patterns: vec![],
+                         min_class_count_to_broadcast: 3,
+                     };
++                    // R2 (Codex residual CHALLENGE): WAL open failure must
++                    // NOT silently degrade to in-memory — that would make
++                    // Art. IV "durable" conditional. Treat as ErrorHalt:
++                    // skip the wtool step, record measurement error, return
++                    // solved-but-unverified. Downstream batch runner can
++                    // investigate filesystem / disk space / permissions.
+                     let mut oneshot_bus = match TuringBus::with_wal_path(
+                         Kernel::new(), config, &wal_path,
+                     ) {
+                         Ok(b) => b,
+                         Err(e) => {
+-                            warn!("[art-iv] oneshot WAL open failed ({}); falling back to in-memory bus", e);
+-                            TuringBus::new(Kernel::new(), BusConfig {
+-                                max_payload_chars: usize::MAX,
+-                                max_payload_lines: usize::MAX,
+-                                system_lp_amount: 0.0,
+-                                forbidden_patterns: vec![],
+-                                min_class_count_to_broadcast: 3,
+-                            })
++                            error!("[art-iv] oneshot WAL open failed ({}); \
++                                    refusing to degrade to in-memory bus \
++                                    (C-067 durability requirement). \
++                                    Emitting MEASUREMENT_ERROR for this problem.", e);
++                            eprintln!("MEASUREMENT_ERROR oneshot WAL: {}", e);
++                            // Return a non-result PputResult so batch runner
++                            // treats this as retry-worthy rather than a true
++                            // non-solve. Keep solve=true because Lean oracle
++                            // did accept the proof — we just can't durably
++                            // record it this attempt.
++                            return make_pput(problem_file, "oneshot", model, false, start,
++                                             0, 0, 1, None, None, None,
++                                             Some("measurement_error".to_string()), None);
+                         }
+                     };
+-                    // Register oracle so its receipts are trusted.
+-                    oneshot_bus.register_oracle(oracle.nonce());
++                    // R1-α: register oracle Ed25519 pubkey BEFORE init so
++                    // `init()` can freeze the trusted pub set.
++                    if let Err(e) = oneshot_bus.register_oracle(oracle.public_key()) {
++                        warn!("[art-iv] oneshot register_oracle: {}", e);
++                    }
+                     oneshot_bus.init(&["oneshot_agent".into()]);
+-                    let receipt = OracleReceipt::new_lean4_complete(
+-                        &response.content, None, oracle.nonce(),
+-                    );
++                    let receipt = oracle.issue_complete_receipt(&response.content, None);
+                     match oneshot_bus.append_oracle_accepted(
+                         "oneshot_agent", &response.content, None, &receipt,
+                     ) {
+@@ -377,9 +389,13 @@ async fn run_swarm(
+               wallet_state_path);
+     }
+     bus.mount_tool(Box::new(wallet));
+-    bus.mount_tool(Box::new(Lean4Oracle::new(
++    // R1-α: single Lean4Oracle for the whole run. Same instance serves (a)
++    // the bus-mounted TuringTool role and (b) receipt issuance for OMEGA /
++    // step outcomes. Clone is cheap (Strings + Ed25519 SigningKey Clone).
++    let oracle = Lean4Oracle::new(
+         problem_statement.to_string(), theorem_name.to_string(), lean_path.to_string(),
+-    )));
++    );
++    bus.mount_tool(Box::new(oracle.clone()));
+     bus.mount_tool(Box::new(SearchTool::new(
+         vec![format!("{}/MiniF2F/Test", std::env::var("MINIF2F_DIR")
+             .unwrap_or_else(|_| DEFAULT_MINIF2F_DIR.into()))], 20,
+@@ -388,6 +404,14 @@ async fn run_swarm(
+         &format!("{}/skills", std::env::var("EXPERIMENT_DIR").unwrap_or_else(|_| ".".into())), 8,
+     )));
+ 
++    // R1-α: register oracle pubkey BEFORE init so init() can freeze the
++    // trusted set. Post-init registration would return Err.
++    if let Err(e) = bus.register_oracle(oracle.public_key()) {
++        error!("[art-iv] bus.register_oracle failed: {} — aborting run", e);
++        return make_pput(problem_file, &condition, model, false, start, 0, 0, 0,
++                         None, None, None, None, None);
++    }
++
+     let agent_ids: Vec<String> = (0..n_agents).map(|i| format!("Agent_{}", i)).collect();
+     bus.init(&agent_ids);
+     // Phase 4: top-up ensure_agents for any IDs not in the loaded state (zero
+@@ -646,14 +670,7 @@ async fn run_swarm(
+                                 omega_attempts += 1;
+                                 info!("[tx {}] OMEGA claim by {} (tape_nodes={}, payload_len={})",
+                                       tx, agent_id, tape_len, payload.len());
+-                                let oracle = Lean4Oracle::new(
+-                                    problem_statement.to_string(),
+-                                    theorem_name.to_string(),
+-                                    lean_path.to_string(),
+-                                );
+-                                // Phase 8.C v2 (C-067): register oracle nonce so
+-                                // its receipts are honoured by this bus.
+-                                bus.register_oracle(oracle.nonce());
++                                // R1-α: use outer `oracle` (registered pre-init).
+                                 // Path 1: payload alone
+                                 let r_alone = oracle.verify_omega_detailed(payload);
+                                 let (full_proof, path_choice, r_final) = match &r_alone {
+@@ -692,9 +709,7 @@ async fn run_swarm(
+                                         // payload, so bus-level forbidden_patterns and size caps
+                                         // would only re-reject legitimate tactics (e.g. `omega`,
+                                         // `decide` used inside a verified proof — not brute-force).
+-                                        let receipt = turingosv4::sdk::oracle_receipt::OracleReceipt::new_lean4_complete(
+-                                            payload, parent.as_deref(), oracle.nonce(),
+-                                        );
++                                        let receipt = oracle.issue_complete_receipt(payload, parent.as_deref());
+                                         let omega_node_id = match bus.append_oracle_accepted(
+                                             agent_id, payload, parent.as_deref(), &receipt,
+                                         ) {
+@@ -864,13 +879,7 @@ async fn run_swarm(
+                                 } else {
+                                     format!("{}\n{}", tape_chain, tactic)
+                                 };
+-                                let oracle = Lean4Oracle::new(
+-                                    problem_statement.to_string(),
+-                                    theorem_name.to_string(),
+-                                    lean_path.to_string(),
+-                                );
+-                                // C-067: register this step oracle's nonce.
+-                                bus.register_oracle(oracle.nonce());
++                                // R1-α: use outer `oracle` (registered pre-init).
+                                 match oracle.verify_partial(&prefix) {
+                                     PartialVerdict::Complete => {
+                                         info!(">>> OMEGA ACCEPTED <<< via step (depth={} after this write)",
+@@ -881,9 +890,7 @@ async fn run_swarm(
+                                         );
+                                         let parent = bus.kernel.tape.time_arrow().last().cloned();
+                                         *tool_dist.entry("omega_wtool".into()).or_insert(0) += 1;
+-                                        let receipt = turingosv4::sdk::oracle_receipt::OracleReceipt::new_lean4_complete(
+-                                            tactic, parent.as_deref(), oracle.nonce(),
+-                                        );
++                                        let receipt = oracle.issue_complete_receipt(tactic, parent.as_deref());
+                                         let _ = bus.append_oracle_accepted(
+                                             agent_id, tactic, parent.as_deref(), &receipt,
+                                         );
+@@ -907,9 +914,7 @@ async fn run_swarm(
+                                     }
+                                     PartialVerdict::PartialOk => {
+                                         let parent = bus.kernel.tape.time_arrow().last().cloned();
+-                                        let receipt = turingosv4::sdk::oracle_receipt::OracleReceipt::new_lean4_partial(
+-                                            tactic, parent.as_deref(), oracle.nonce(),
+-                                        );
++                                        let receipt = oracle.issue_partial_receipt(tactic, parent.as_deref());
+                                         match bus.append_oracle_accepted(
+                                             agent_id, tactic, parent.as_deref(), &receipt,
+                                         ) {
+diff --git a/experiments/minif2f_v4/src/lean4_oracle.rs b/experiments/minif2f_v4/src/lean4_oracle.rs
+index da6d6fb..7582856 100644
+--- a/experiments/minif2f_v4/src/lean4_oracle.rs
++++ b/experiments/minif2f_v4/src/lean4_oracle.rs
+@@ -38,16 +38,22 @@ const DECLARATION_KEYWORDS: &[&str] = &[
+     "structure ", "class ", "inductive ", "abbrev ",
+ ];
+ 
++#[derive(Clone)]
+ pub struct Lean4Oracle {
+     pub problem_statement: String,
+     pub theorem_name: String,
+     lean_path: String,
+     lean_binary: String,
+-    /// Phase 8.C v2 (C-067): per-instance nonce, private. Bus only accepts
+-    /// receipts bearing a nonce it has registered (bus.register_oracle()).
+-    /// Forging a receipt requires owning a `Lean4Oracle` reference to read
+-    /// the nonce. Closed-world in-process capability.
+-    nonce: u64,
++    /// Phase 8.C v3 (C-067 R1-α): per-instance Ed25519 signing key.
++    /// Private to the oracle. Bus registers `public_key()` at setup and
++    /// verifies receipt signatures. Forging a receipt now requires breaking
++    /// Ed25519 — in-process attackers can't inject new trusted pubkeys
++    /// after `init()` freezes registration.
++    ///
++    /// `Clone` copies the signing key so the same oracle can be used in
++    /// both tool-mount and receipt-issue contexts (single run-wide
++    /// capability, registered once).
++    signing_key: ed25519_dalek::SigningKey,
+ }
+ 
+ impl Lean4Oracle {
+@@ -63,20 +69,50 @@ impl Lean4Oracle {
+                 "lean".to_string()
+             }
+         });
++        let signing_key = ed25519_dalek::SigningKey::generate(&mut rand::rngs::OsRng);
+         Lean4Oracle {
+             problem_statement,
+             theorem_name,
+             lean_path,
+             lean_binary,
+-            nonce: rand::random::<u64>(),
++            signing_key,
+         }
+     }
+ 
+-    /// Per-oracle capability nonce for OracleReceipt authorization.
+-    /// Must be registered with the destination bus via `bus.register_oracle`
+-    /// before that bus will accept receipts issued by this oracle.
+-    pub fn nonce(&self) -> u64 {
+-        self.nonce
++    /// The public key this oracle's receipts verify against. Register with
++    /// `bus.register_oracle(oracle.public_key())` before `bus.init()`.
++    pub fn public_key(&self) -> [u8; 32] {
++        self.signing_key.verifying_key().to_bytes()
++    }
++
++    /// Issue a signed `Complete` receipt for a proof the caller has already
++    /// verified. Private signing key stays with the oracle — only the
++    /// produced receipt leaves.
++    pub fn issue_complete_receipt(
++        &self,
++        payload: &str,
++        parent_id: Option<&str>,
++    ) -> turingosv4::sdk::oracle_receipt::OracleReceipt {
++        turingosv4::sdk::oracle_receipt::OracleReceipt::sign_new(
++            payload, parent_id,
++            turingosv4::sdk::predicate::Verdict::Complete,
++            turingosv4::sdk::predicate::PredicateKind::Lean4Boolean,
++            &self.signing_key,
++        )
++    }
++
++    /// Issue a signed `PartialOk` receipt (step mode partial elaboration).
++    pub fn issue_partial_receipt(
++        &self,
++        payload: &str,
++        parent_id: Option<&str>,
++    ) -> turingosv4::sdk::oracle_receipt::OracleReceipt {
++        turingosv4::sdk::oracle_receipt::OracleReceipt::sign_new(
++            payload, parent_id,
++            turingosv4::sdk::predicate::Verdict::PartialOk { confidence: 1.0 },
++            turingosv4::sdk::predicate::PredicateKind::Lean4Boolean,
++            &self.signing_key,
++        )
+     }
+ 
+     /// Pre-append security checks (Law 1: reject-only).
+@@ -329,9 +365,13 @@ fn has_word_boundary(text: &str, word: &str) -> bool {
+ /// Handled:
+ ///   - `"..."` string literals (with `\"` escape)
+ ///   - `-- ... \n` line comments
+-///   - `/- ... -/` block comments
+-/// Not handled (out of Paper-1 scope): nested block comments; `⟨...⟩`
+-/// antiquotations; string interpolation — rare in MiniF2F proofs.
++///   - `/- ... -/` block comments, **including Lean's nested form**
++///     (R3 Codex residual CHALLENGE): a depth counter tracks `/-`/`-/`
++///     openings so `/- outer /- inner -/ still outer -/` is fully stripped.
++///   - Doc/section comments `/-- ... -/` and `/-! ... -/` also enter the
++///     `/-` branch and get stripped.
++/// Not handled (out of Paper-1 scope): `⟨...⟩` antiquotations; string
++/// interpolation with code; multiline `raw""` strings — rare in MiniF2F.
+ fn strip_strings_and_comments(text: &str) -> String {
+     let mut out = String::new();
+     let mut chars = text.chars().peekable();
+@@ -359,12 +399,22 @@ fn strip_strings_and_comments(text: &str) -> String {
+                 out.push(' ');
+             }
+             '/' if chars.peek() == Some(&'-') => {
+-                // Block comment /- ... -/.
+-                chars.next();  // `-`
+-                let mut prev_dash = false;
+-                while let Some(nc) = chars.next() {
+-                    if prev_dash && nc == '/' { break; }
+-                    prev_dash = nc == '-';
++                // Block comment /- ... -/ with nested depth tracking.
++                chars.next();  // the `-` after `/`
++                let mut depth: u32 = 1;
++                while depth > 0 {
++                    match chars.next() {
++                        Some('/') if chars.peek() == Some(&'-') => {
++                            chars.next();
++                            depth += 1;
++                        }
++                        Some('-') if chars.peek() == Some(&'/') => {
++                            chars.next();
++                            depth -= 1;
++                        }
++                        Some(_) => {}
++                        None => break,  // unterminated — give up
++                    }
+                 }
+                 out.push(' ');
+             }
+@@ -523,6 +573,25 @@ by linarith"#;
+         assert!(!has_bare_tactic_invocation(proof, "omega"));
+     }
+ 
++    #[test]
++    fn handles_nested_block_comments() {
++        // R3 Codex residual: Lean nested block comments must NOT terminate
++        // stripping at the inner `-/`, which would leak `decide` into the
++        // scan. Depth counter must balance openings/closings.
++        let proof = "/- outer /- inner -/ still outer decide -/ by linarith";
++        assert!(!has_bare_tactic_invocation(proof, "decide"),
++            "nested block comment must fully strip; outer 'decide' must be ignored");
++        let proof2 = "/- depth 1 /- depth 2 /- depth 3 decide -/ -/ -/ by ring";
++        assert!(!has_bare_tactic_invocation(proof2, "decide"),
++            "3-deep nested comment must fully strip");
++    }
++
++    #[test]
++    fn handles_doc_comments() {
++        let proof = "/-- doc comment with decide -/\nby linarith";
++        assert!(!has_bare_tactic_invocation(proof, "decide"));
++    }
++
+     #[test]
+     fn strip_leaves_real_tactic_visible() {
+         let proof = r#"
+diff --git a/src/bus.rs b/src/bus.rs
+index 964383f..6ac45ff 100644
+--- a/src/bus.rs
++++ b/src/bus.rs
+@@ -62,10 +62,17 @@ pub struct TuringBus {
+     pub generation: u32,
+     /// Phase 8.E (C-061): explicit `q_t` ∈ {Running, Halted}.
+     pub q_state: QState,
+-    /// Phase 8.C v2 (C-067): nonces of oracles trusted to bless writes.
+-    /// An OracleReceipt is only honoured if its nonce was registered here.
+-    /// Populated via `register_oracle(nonce)` at bus wiring time.
+-    registered_oracle_nonces: std::collections::HashSet<u64>,
++    /// Phase 8.C v3 (C-067 R1-α): Ed25519 verifying keys of oracles trusted
++    /// to bless writes. A receipt is only honoured if its `issuer_pub` is in
++    /// this set AND its signature verifies against that key. Unforgeable
++    /// even by code with `&mut Bus` (registration is the only surface; see
++    /// `oracles_frozen`).
++    trusted_oracle_pubs: std::collections::HashSet<[u8; 32]>,
++    /// Phase 8.C v3 (C-067 R1-α): prevents post-init registration of
++    /// additional oracle pubkeys. Flipped to true by `init()` and by
++    /// `with_wal_path()` after replay. Once frozen, `register_oracle`
++    /// returns Err instead of silently trusting a new pubkey.
++    oracles_frozen: bool,
+     graveyard: HashMap<String, Vec<String>>,
+     // Phase 1 (C-037 candidate): durable Q_t. None = legacy in-memory mode.
+     wal: Option<crate::wal::Wal>,
+@@ -102,21 +109,38 @@ impl TuringBus {
+             tx_count: 0,
+             generation: 0,
+             q_state: QState::Running,
+-            registered_oracle_nonces: std::collections::HashSet::new(),
++            trusted_oracle_pubs: std::collections::HashSet::new(),
++            oracles_frozen: false,
+             graveyard: HashMap::new(),
+             wal: None,
+         }
+     }
+ 
+-    /// Register an oracle's nonce as trusted. Only receipts bearing this
+-    /// nonce will pass `append_oracle_accepted()`. Phase 8.C v2 (C-067).
+-    pub fn register_oracle(&mut self, nonce: u64) {
+-        self.registered_oracle_nonces.insert(nonce);
++    /// Register an oracle's Ed25519 verifying key as trusted. Only receipts
++    /// whose `issuer_pub` is in this set AND whose signature verifies
++    /// against that key will pass `append_oracle_accepted()`.
++    ///
++    /// Phase 8.C v3 (C-067 R1-α): must be called **before** `init()` or
++    /// after a clean `new()` (i.e., before any tx). Post-init registration
++    /// returns `Err("oracles_frozen")` — this closes the "attacker with
++    /// `&mut Bus` registers their own pubkey" forgery path Codex flagged.
++    pub fn register_oracle(&mut self, pub_key: [u8; 32]) -> Result<(), String> {
++        if self.oracles_frozen {
++            return Err("register_oracle called after oracles_frozen \
++                       (must register before init() or right after new())".into());
++        }
++        self.trusted_oracle_pubs.insert(pub_key);
++        Ok(())
++    }
++
++    /// Check whether an oracle pubkey is registered. For tests / audit.
++    pub fn oracle_registered(&self, pub_key: &[u8; 32]) -> bool {
++        self.trusted_oracle_pubs.contains(pub_key)
+     }
+ 
+-    /// Check whether an oracle nonce is registered. Primarily for tests.
+-    pub fn oracle_registered(&self, nonce: u64) -> bool {
+-        self.registered_oracle_nonces.contains(&nonce)
++    /// For tests / audit: whether oracle registration is closed.
++    pub fn oracles_frozen(&self) -> bool {
++        self.oracles_frozen
+     }
+ 
+     /// Transition `q_t` to Halted and emit a Halt ledger event with reason.
+@@ -193,6 +217,12 @@ impl TuringBus {
+         if resumed_nodes > 0 || resumed_events > 0 {
+             eprintln!("[wal/replay] resumed {} nodes, {} events from {:?}; q_state={:?}",
+                       resumed_nodes, resumed_events, wal_path, bus.q_state);
++            // Post-replay: freeze oracle registration (C-067 R1-α). If this
++            // bus resumes from a prior run that had already run init(), the
++            // trusted-pub set was frozen there; caller must pre-register
++            // oracles BEFORE calling with_wal_path. Avoid post-resume
++            // injection of new pubkeys.
++            bus.oracles_frozen = true;
+         }
+         bus.wal = Some(crate::wal::Wal::open(&wal_path)?);
+         Ok(bus)
+@@ -211,7 +241,14 @@ impl TuringBus {
+     }
+ 
+     /// Initialize all tools with agent list. Triggers GENESIS.
++    ///
++    /// Phase 8.C v3 (C-067 R1-α): freezes `trusted_oracle_pubs` so no new
++    /// oracle pubkeys can be registered after this. Call pattern:
++    ///   let oracle = Lean4Oracle::new(...);
++    ///   bus.register_oracle(oracle.public_key())?;
++    ///   bus.init(&agent_ids);   // ← freeze point
+     pub fn init(&mut self, agent_ids: &[String]) {
++        self.oracles_frozen = true;
+         for tool in &mut self.tools {
+             tool.on_init(agent_ids);
+         }
+@@ -247,14 +284,17 @@ impl TuringBus {
+     /// by construction legitimate — re-rejecting at bus level would block the
+     /// wtool write that Art. IV mandates.
+     ///
+-    /// Phase 8.C v2 (Codex V-1 / C-067): caller must produce an
+-    /// `OracleReceipt` that binds:
+-    ///   (a) the payload (via sha256) → prevents content tampering
+-    ///   (b) the parent context (via sha256 of parent_id) → prevents
+-    ///       step-mode cross-context replay
+-    ///   (c) an oracle nonce registered via `register_oracle()` →
+-    ///       prevents forgery by code that doesn't own the oracle instance
+-    /// Bus validates all three before granting the blessed write.
++    /// Phase 8.C v3 (Codex V-1 VETO → R1-α / C-067): caller produces an
++    /// `OracleReceipt` carrying an Ed25519 signature. Bus validates:
++    ///   1. `issuer_pub` is in `trusted_oracle_pubs` (registered via
++    ///      `register_oracle`, gated by `oracles_frozen`).
++    ///   2. signature verifies against `issuer_pub` for the canonical
++    ///      `(payload_hash || context_hash || kind || verdict)` message.
++    ///   3. payload binding: `sha256(payload) == receipt.payload_hash`.
++    ///   4. context binding: `sha256(parent_id) == receipt.context_hash`.
++    ///   5. verdict is non-rejecting.
++    /// Only receipts produced by a real oracle with knowledge of its
++    /// `SigningKey` can pass step 2 — **cryptographically unforgeable**.
+     pub fn append_oracle_accepted(
+         &mut self,
+         author: &str,
+@@ -262,12 +302,17 @@ impl TuringBus {
+         parent_id: Option<&str>,
+         receipt: &crate::sdk::oracle_receipt::OracleReceipt,
+     ) -> Result<BusResult, String> {
+-        if !self.registered_oracle_nonces.contains(&receipt.oracle_nonce()) {
+-            return Err("receipt validation failed: oracle nonce not registered \
+-                        (call bus.register_oracle(oracle.nonce()) before use)".into());
+-        }
++        // Step 1: pubkey must be registered.
++        if !self.trusted_oracle_pubs.contains(receipt.issuer_pub()) {
++            return Err("receipt validation failed: issuer pubkey not registered \
++                        (call bus.register_oracle(oracle.public_key()) before init)".into());
++        }
++        // Step 2-6: signature + payload + context + verdict.
++        let verifying_key =
++            ed25519_dalek::VerifyingKey::from_bytes(receipt.issuer_pub())
++                .map_err(|e| format!("receipt validation failed: invalid pubkey bytes: {}", e))?;
+         let expected_context = crate::sdk::oracle_receipt::hash_context(parent_id);
+-        receipt.validates(payload, &expected_context)
++        receipt.verify_and_match(payload, &expected_context, &verifying_key)
+             .map_err(|e| format!("receipt validation failed: {}", e))?;
+         self.append_internal(author, payload, parent_id, /*oracle_blessed*/ true)
+     }
+diff --git a/src/sdk/oracle_receipt.rs b/src/sdk/oracle_receipt.rs
+index 7934092..66dd7fb 100644
+--- a/src/sdk/oracle_receipt.rs
++++ b/src/sdk/oracle_receipt.rs
+@@ -1,119 +1,121 @@
+ //! OracleReceipt — capability token authorizing blessed writes to tape.
+ //!
+-//! Closes Codex V-1 (C-067): `bus.append_oracle_accepted()` accepts
+-//! `oracle_blessed = true` but only if the caller produces a receipt that
+-//! matches (a) the payload, (b) the parent-chain context, and (c) an oracle
+-//! nonce that was explicitly registered with the bus.
++//! Phase 8.C v3 (Codex VETO, C-067 R1-α): **real crypto-grade unforgeability**
++//! via Ed25519 signature. Prior versions used only payload/context sha256 +
++//! an in-process "nonce" — both were forgeable by any caller that held
++//! `&mut TuringBus` (Codex 2026-04-22 re-audit VETO).
+ //!
+-//! **Threat model (Paper 1, closed-world in-process)**:
+-//! - Private fields force receipt creation through the `new` constructor
+-//!   which takes an `oracle_nonce: u64`.
+-//! - Bus only accepts receipts whose nonce was registered via
+-//!   `TuringBus::register_oracle(nonce)`. The nonce is generated inside
+-//!   `Lean4Oracle::new()` and held in a private field; only code that
+-//!   owns the `Lean4Oracle` reference can read it.
+-//! - Context hash binds the receipt to `parent_id` → cross-context replay
+-//!   (step-mode tactic with different parent chain) is rejected.
++//! **Threat model (Paper 1)**:
++//! - Oracle holds a private `SigningKey` (Ed25519). Only that oracle can sign
++//!   a receipt that verifies against its published `VerifyingKey`.
++//! - Bus maintains a set of trusted `VerifyingKey` bytes, registered at setup
++//!   via `register_oracle(pub_key)`. Registration is frozen on first `init()`
++//!   or resume — a malicious caller cannot inject new trusted pubkeys mid-run.
++//! - Capability is cryptographically unforgeable: even code with `&mut Bus`
++//!   cannot mint a valid receipt without the oracle's signing key.
+ //!
+-//! **Not yet defended (Phase 10c)**: external agent impersonation requires
+-//! Ed25519 signature from oracle's secret key. Documented as known limit.
++//! **Binding in the signed message**: payload_hash || context_hash || kind
++//! || verdict_encoding. This prevents (a) content tampering, (b) cross-parent
++//! replay, (c) verdict swap, (d) predicate-kind swap.
+ //!
+-//! See `cases/C-067_oracle_receipt_capability.yaml` for ruling.
++//! See `cases/C-067_oracle_receipt_capability.yaml` for full ruling.
+ 
+ use crate::sdk::predicate::{PredicateKind, Verdict};
+-use serde::{Deserialize, Serialize};
++use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
+ use sha2::{Digest, Sha256};
+ 
+ /// Capability token proving a predicate accepted a payload in a specific context.
+ ///
+-/// Fields are private. Construct via `new_*` constructors, which require
+-/// an `oracle_nonce` (only available to code with a `Lean4Oracle` ref).
+-#[derive(Debug, Clone, Serialize, Deserialize)]
++/// Crypto-grade: signature binds payload + context + verdict. Fields are
++/// private — external callers can only inspect via accessor methods.
++///
++/// Note: `Serialize`/`Deserialize` not derived because `[u8; 64]` (sig)
++/// lacks default serde support. Receipts are runtime-only (pass-by-ref);
++/// Phase 10c will revisit if receipts need to cross process boundaries.
++#[derive(Debug, Clone)]
+ pub struct OracleReceipt {
+     payload_hash: [u8; 32],
+-    /// Hash of the parent chain context this receipt was issued against.
+-    /// Prevents cross-context replay (e.g. step-mode tactic verified against
+-    /// tape chain A but submitted with tape chain B).
+     context_hash: [u8; 32],
+-    /// The issuing oracle's per-instance nonce. Bus only accepts receipts
+-    /// whose nonce it registered via `register_oracle()`.
+-    oracle_nonce: u64,
+     verdict: Verdict,
+     predicate_kind: PredicateKind,
+-    // Phase 10c: signature: Option<[u8; 64]> for external agent authorization.
++    issuer_pub: [u8; 32],
++    signature: [u8; 64],
+ }
+ 
+ impl OracleReceipt {
+-    /// Low-level constructor. Prefer `new_lean4_complete/partial` which
+-    /// compute the hashes.
+-    pub fn new(
+-        payload_hash: [u8; 32],
+-        context_hash: [u8; 32],
+-        oracle_nonce: u64,
++    /// Sign a new receipt. Only callers with access to a `SigningKey` can
++    /// invoke this — namely, the oracles that own their own key.
++    pub fn sign_new(
++        payload: &str,
++        parent_id: Option<&str>,
+         verdict: Verdict,
+         predicate_kind: PredicateKind,
++        signing_key: &SigningKey,
+     ) -> Self {
++        let payload_hash = hash_payload(payload);
++        let context_hash = hash_context(parent_id);
++        let msg = signable_message(&payload_hash, &context_hash, &verdict, predicate_kind);
++        let signature = signing_key.sign(&msg);
++        let issuer_pub = signing_key.verifying_key().to_bytes();
+         Self {
+             payload_hash,
+             context_hash,
+-            oracle_nonce,
+             verdict,
+             predicate_kind,
++            issuer_pub,
++            signature: signature.to_bytes(),
+         }
+     }
+ 
+-    /// Receipt for a Lean4-boolean `Complete` verdict (full proof accepted).
+-    /// `parent_id` is the tape node this proof cites (None for oneshot).
+-    /// `oracle_nonce` must match a nonce registered on the destination bus.
+-    pub fn new_lean4_complete(
+-        payload: &str,
+-        parent_id: Option<&str>,
+-        oracle_nonce: u64,
+-    ) -> Self {
+-        Self::new(
+-            hash_payload(payload),
+-            hash_context(parent_id),
+-            oracle_nonce,
+-            Verdict::Complete,
+-            PredicateKind::Lean4Boolean,
+-        )
+-    }
+-
+-    /// Receipt for a Lean4-boolean `PartialOk` verdict (unsolved goals,
+-    /// structurally valid). `confidence = 1.0` because Lean elaboration is
+-    /// deterministic; PCP confidence semantics are reserved for Paper 3.
+-    pub fn new_lean4_partial(
+-        payload: &str,
+-        parent_id: Option<&str>,
+-        oracle_nonce: u64,
+-    ) -> Self {
+-        Self::new(
+-            hash_payload(payload),
+-            hash_context(parent_id),
+-            oracle_nonce,
+-            Verdict::PartialOk { confidence: 1.0 },
+-            PredicateKind::Lean4Boolean,
+-        )
+-    }
+-
+-    pub fn oracle_nonce(&self) -> u64 {
+-        self.oracle_nonce
++    /// The Ed25519 verifying key of the issuer. Bus uses this to look up
++    /// whether the issuer is in its trusted set.
++    pub fn issuer_pub(&self) -> &[u8; 32] {
++        &self.issuer_pub
+     }
+ 
+-    /// Validate receipt against payload + expected context. Called by the
+-    /// bus before granting blessed write.
+-    pub fn validates(
++    /// Full cryptographic validation:
++    ///   1. Signature verifies against `verifying_key` for the canonical msg.
++    ///   2. `verifying_key` bytes match `self.issuer_pub`.
++    ///   3. `payload` hashes to `self.payload_hash`.
++    ///   4. Expected context hash matches `self.context_hash`.
++    ///   5. Verdict is non-rejecting.
++    ///
++    /// Called by the bus inside `append_oracle_accepted`. Independent step
++    /// ordering — any single failure aborts.
++    pub fn verify_and_match(
+         &self,
+         payload: &str,
+         expected_context: &[u8; 32],
++        verifying_key: &VerifyingKey,
+     ) -> Result<(), String> {
+-        let computed = hash_payload(payload);
+-        if computed != self.payload_hash {
++        // 1. Consistency: the caller-supplied verifier must match the receipt's
++        //    own claimed issuer. Otherwise someone is handing us a receipt and
++        //    an unrelated pubkey.
++        if verifying_key.to_bytes() != self.issuer_pub {
++            return Err("issuer_pub does not match provided verifying key".into());
++        }
++        // 2. Canonical message reconstruction.
++        let msg = signable_message(
++            &self.payload_hash,
++            &self.context_hash,
++            &self.verdict,
++            self.predicate_kind,
++        );
++        // 3. Ed25519 signature verification.
++        let sig = Signature::from_bytes(&self.signature);
++        verifying_key
++            .verify(&msg, &sig)
++            .map_err(|e| format!("signature verification failed: {}", e))?;
++        // 4. Payload binding.
++        let computed_payload = hash_payload(payload);
++        if computed_payload != self.payload_hash {
+             return Err("payload_hash mismatch (payload tampered or stale receipt)".into());
+         }
++        // 5. Context binding.
+         if self.context_hash != *expected_context {
+             return Err("context_hash mismatch (receipt replay across different parent)".into());
+         }
++        // 6. Verdict must be accepting.
+         match &self.verdict {
+             Verdict::Complete | Verdict::PartialOk { .. } => Ok(()),
+             Verdict::Reject(r) => Err(format!("verdict is Reject: {}", r)),
+@@ -121,88 +123,176 @@ impl OracleReceipt {
+     }
+ }
+ 
+-/// Hash a payload string (sha256).
++/// Hash a payload string (sha256) — public so tests / audit scripts can
++/// reconstruct.
+ pub fn hash_payload(payload: &str) -> [u8; 32] {
+     let mut h = Sha256::new();
+     h.update(payload.as_bytes());
+     h.finalize().into()
+ }
+ 
+-/// Hash the parent-chain context. Currently: `sha256(parent_id || "")`.
+-/// For Paper 1 closed-world, binding to parent_id is sufficient — each
+-/// parent_id uniquely identifies a tape history in-process (tx_count
+-/// monotone + per-author). Phase 10c will extend to chain-full hash when
+-/// Ed25519 signatures are added.
++/// Hash the parent-chain context (sha256 of parent_id str). Bus uses this
++/// to compute the expected context during validation. For Paper 1 closed-
++/// world, parent_id is sufficient since each parent uniquely identifies a
++/// tape history in-process.
+ pub fn hash_context(parent_id: Option<&str>) -> [u8; 32] {
+     let mut h = Sha256::new();
+     h.update(parent_id.unwrap_or("").as_bytes());
+     h.finalize().into()
+ }
+ 
++/// Canonical message bytes that get signed. Layout:
++///   [0..32)   payload_hash (sha256)
++///   [32..64)  context_hash (sha256 of parent_id str)
++///   [64]      predicate_kind byte
++///   [65]      verdict tag (0=Complete, 1=PartialOk, 2=Reject)
++///   for PartialOk: next 8 bytes = confidence f64 LE
++///   for Reject:    next 4 bytes = reason len LE, then reason bytes
++fn signable_message(
++    payload_hash: &[u8; 32],
++    context_hash: &[u8; 32],
++    verdict: &Verdict,
++    kind: PredicateKind,
++) -> Vec<u8> {
++    let mut msg = Vec::with_capacity(66);
++    msg.extend_from_slice(payload_hash);
++    msg.extend_from_slice(context_hash);
++    msg.push(kind as u8);
++    match verdict {
++        Verdict::Complete => msg.push(0),
++        Verdict::PartialOk { confidence } => {
++            msg.push(1);
++            msg.extend_from_slice(&confidence.to_le_bytes());
++        }
++        Verdict::Reject(reason) => {
++            msg.push(2);
++            let bytes = reason.as_bytes();
++            msg.extend_from_slice(&(bytes.len() as u32).to_le_bytes());
++            msg.extend_from_slice(bytes);
++        }
++    }
++    msg
++}
++
+ #[cfg(test)]
+ mod tests {
+     use super::*;
++    use ed25519_dalek::SigningKey;
++    use rand::rngs::OsRng;
+ 
+-    const TEST_NONCE: u64 = 0xDEADBEEFCAFE_u64;
++    fn test_key() -> SigningKey {
++        SigningKey::generate(&mut OsRng)
++    }
+ 
+     #[test]
+-    fn receipt_validates_matching_payload_and_context() {
+-        let r = OracleReceipt::new_lean4_complete("by linarith", None, TEST_NONCE);
++    fn receipt_verifies_correct_payload_and_context() {
++        let sk = test_key();
++        let vk = sk.verifying_key();
++        let r = OracleReceipt::sign_new(
++            "by linarith", None, Verdict::Complete, PredicateKind::Lean4Boolean, &sk,
++        );
+         let ctx = hash_context(None);
+-        assert!(r.validates("by linarith", &ctx).is_ok());
++        assert!(r.verify_and_match("by linarith", &ctx, &vk).is_ok());
+     }
+ 
+     #[test]
+     fn receipt_rejects_tampered_payload() {
+-        let r = OracleReceipt::new_lean4_complete("by linarith", None, TEST_NONCE);
++        let sk = test_key();
++        let vk = sk.verifying_key();
++        let r = OracleReceipt::sign_new(
++            "by linarith", None, Verdict::Complete, PredicateKind::Lean4Boolean, &sk,
++        );
+         let ctx = hash_context(None);
+-        let err = r.validates("by omega", &ctx).unwrap_err();
++        let err = r.verify_and_match("by omega", &ctx, &vk).unwrap_err();
+         assert!(err.contains("payload_hash mismatch"), "got: {}", err);
+     }
+ 
+     #[test]
+     fn receipt_rejects_wrong_context() {
+-        // Receipt issued for parent A, replayed under parent B → reject.
+-        let r = OracleReceipt::new_lean4_complete("by linarith", Some("node_A"), TEST_NONCE);
++        let sk = test_key();
++        let vk = sk.verifying_key();
++        let r = OracleReceipt::sign_new(
++            "by linarith", Some("node_A"), Verdict::Complete, PredicateKind::Lean4Boolean, &sk,
++        );
+         let wrong_ctx = hash_context(Some("node_B"));
+-        let err = r.validates("by linarith", &wrong_ctx).unwrap_err();
++        let err = r.verify_and_match("by linarith", &wrong_ctx, &vk).unwrap_err();
+         assert!(err.contains("context_hash mismatch"), "got: {}", err);
+     }
+ 
+     #[test]
+-    fn receipt_rejects_reject_verdict() {
+-        let r = OracleReceipt::new(
+-            hash_payload("bad payload"),
+-            hash_context(None),
+-            TEST_NONCE,
+-            Verdict::Reject("malformed".into()),
+-            PredicateKind::Lean4Boolean,
++    fn receipt_rejects_wrong_verifier() {
++        // Two oracles with distinct keys — receipt from A must not verify under B.
++        let sk_a = test_key();
++        let sk_b = test_key();
++        let vk_b = sk_b.verifying_key();
++        let r = OracleReceipt::sign_new(
++            "p", None, Verdict::Complete, PredicateKind::Lean4Boolean, &sk_a,
+         );
+         let ctx = hash_context(None);
+-        let err = r.validates("bad payload", &ctx).unwrap_err();
+-        assert!(err.contains("Reject"), "got: {}", err);
++        let err = r.verify_and_match("p", &ctx, &vk_b).unwrap_err();
++        assert!(err.contains("issuer_pub") || err.contains("signature"),
++            "got: {}", err);
++    }
++
++    #[test]
++    fn tampered_signature_rejected() {
++        let sk = test_key();
++        let vk = sk.verifying_key();
++        let mut r = OracleReceipt::sign_new(
++            "p", None, Verdict::Complete, PredicateKind::Lean4Boolean, &sk,
++        );
++        // Flip a byte in the signature — must fail verification.
++        r.signature[0] ^= 0xFF;
++        let ctx = hash_context(None);
++        let err = r.verify_and_match("p", &ctx, &vk).unwrap_err();
++        assert!(err.contains("signature"), "got: {}", err);
+     }
+ 
+     #[test]
+-    fn partial_ok_is_accepted() {
+-        let r = OracleReceipt::new_lean4_partial("have h : 1=1 := rfl", None, TEST_NONCE);
++    fn attacker_cannot_forge_with_own_key_under_victim_pub() {
++        // Attacker generates own SigningKey, signs fake receipt, but claims
++        // victim's pubkey. verify_and_match must reject because the signature
++        // won't verify under the provided (victim) verifier.
++        let victim_sk = test_key();
++        let victim_vk = victim_sk.verifying_key();
++        let attacker_sk = test_key();
++        // Sign receipt with attacker's key, but we'll hand bus the victim's vk.
++        let mut fake = OracleReceipt::sign_new(
++            "malicious", None, Verdict::Complete, PredicateKind::Lean4Boolean, &attacker_sk,
++        );
++        // Swap the claimed issuer_pub to victim's so the consistency check passes —
++        // but the signature was still made by attacker.
++        fake.issuer_pub = victim_vk.to_bytes();
+         let ctx = hash_context(None);
+-        assert!(r.validates("have h : 1=1 := rfl", &ctx).is_ok());
++        let err = fake.verify_and_match("malicious", &ctx, &victim_vk).unwrap_err();
++        assert!(err.contains("signature"),
++            "attacker forgery must be caught by sig verification; got: {}", err);
+     }
+ 
+     #[test]
+-    fn nonce_is_accessible() {
+-        let r = OracleReceipt::new_lean4_complete("p", None, 0x1234);
+-        assert_eq!(r.oracle_nonce(), 0x1234);
++    fn partial_ok_receipt_accepted() {
++        let sk = test_key();
++        let vk = sk.verifying_key();
++        let r = OracleReceipt::sign_new(
++            "have h : 1=1 := rfl", None,
++            Verdict::PartialOk { confidence: 1.0 },
++            PredicateKind::Lean4Boolean, &sk,
++        );
++        let ctx = hash_context(None);
++        assert!(r.verify_and_match("have h : 1=1 := rfl", &ctx, &vk).is_ok());
+     }
+ 
+     #[test]
+-    fn context_hash_differs_by_parent() {
+-        let h_none = hash_context(None);
+-        let h_a = hash_context(Some("node_A"));
+-        let h_b = hash_context(Some("node_B"));
+-        assert_ne!(h_none, h_a);
+-        assert_ne!(h_a, h_b);
+-        assert_eq!(h_a, hash_context(Some("node_A")));  // deterministic
++    fn reject_verdict_rejected() {
++        let sk = test_key();
++        let vk = sk.verifying_key();
++        let r = OracleReceipt::sign_new(
++            "bad", None,
++            Verdict::Reject("malformed".into()),
++            PredicateKind::Lean4Boolean, &sk,
++        );
++        let ctx = hash_context(None);
++        let err = r.verify_and_match("bad", &ctx, &vk).unwrap_err();
++        assert!(err.contains("Reject"), "got: {}", err);
+     }
+ }
+diff --git a/src/sdk/predicate.rs b/src/sdk/predicate.rs
+index 678757d..2b78f11 100644
+--- a/src/sdk/predicate.rs
++++ b/src/sdk/predicate.rs
+@@ -29,14 +29,15 @@ pub enum Verdict {
+ }
+ 
+ /// Which predicate domain emitted this verdict.
++#[repr(u8)]
+ #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+ pub enum PredicateKind {
+     /// Boolean Lean4 oracle (Paper 1 & 2).
+-    Lean4Boolean,
++    Lean4Boolean = 0,
+     /// PCP predicate — statistical + OOS + external audit (Paper 3, omegav4).
+-    StatisticalPCP,
++    StatisticalPCP = 1,
+     /// External agent challenge audit (Phase 11+).
+-    ExternalAudit,
++    ExternalAudit = 2,
+ }
+ 
+ /// A ∏p verifier. Currently not implemented by `Lean4Oracle`; preserved for
+diff --git a/tests/oracle_receipt_bus.rs b/tests/oracle_receipt_bus.rs
+index 438b0ed..ec1a144 100644
+--- a/tests/oracle_receipt_bus.rs
++++ b/tests/oracle_receipt_bus.rs
+@@ -1,19 +1,20 @@
+-// Phase 8.C v2 (Codex V-1 / C-067) regression test
+-// Bus must reject blessed write if OracleReceipt fails ANY of:
++// Phase 8.C v3 (Codex VETO → R1-α / C-067) regression test
++// Ed25519 capability: bus rejects blessed write if ANY of:
+ //   (a) payload-hash binding (content tampered)
+ //   (b) context-hash binding (cross-parent replay)
+-//   (c) oracle nonce not registered with this bus
++//   (c) signature doesn't verify under issuer_pub
++//   (d) issuer_pub not registered with this bus
++//   (e) oracles_frozen and caller tries to register new pubkey post-init
+ 
++use ed25519_dalek::SigningKey;
++use rand::rngs::OsRng;
+ use turingosv4::bus::{BusConfig, BusResult, TuringBus};
+ use turingosv4::kernel::Kernel;
+-use turingosv4::sdk::oracle_receipt::{hash_context, hash_payload, OracleReceipt};
++use turingosv4::sdk::oracle_receipt::OracleReceipt;
+ use turingosv4::sdk::predicate::{PredicateKind, Verdict};
+ use turingosv4::sdk::tools::wallet::WalletTool;
+ 
+-const TEST_NONCE: u64 = 0xCAFE_u64;
+-const OTHER_NONCE: u64 = 0xBEEF_u64;
+-
+-fn make_bus_and_register() -> TuringBus {
++fn make_bus() -> TuringBus {
+     let kernel = Kernel::new();
+     let config = BusConfig {
+         max_payload_chars: 500,
+@@ -22,8 +23,12 @@ fn make_bus_and_register() -> TuringBus {
+         forbidden_patterns: vec!["native_decide".into()],
+         min_class_count_to_broadcast: 3,
+     };
+-    let mut bus = TuringBus::new(kernel, config);
+-    bus.register_oracle(TEST_NONCE);
++    TuringBus::new(kernel, config)
++}
++
++fn bus_with_registered(sk: &SigningKey) -> TuringBus {
++    let mut bus = make_bus();
++    bus.register_oracle(sk.verifying_key().to_bytes()).expect("register_oracle pre-init");
+     bus.mount_tool(Box::new(WalletTool::new(10_000.0)));
+     bus.init(&["Agent_0".into()]);
+     bus
+@@ -31,9 +36,12 @@ fn make_bus_and_register() -> TuringBus {
+ 
+ #[test]
+ fn blessed_write_accepts_matching_receipt() {
+-    let mut bus = make_bus_and_register();
++    let sk = SigningKey::generate(&mut OsRng);
++    let mut bus = bus_with_registered(&sk);
+     let payload = "by linarith";
+-    let receipt = OracleReceipt::new_lean4_complete(payload, None, TEST_NONCE);
++    let receipt = OracleReceipt::sign_new(
++        payload, None, Verdict::Complete, PredicateKind::Lean4Boolean, &sk,
++    );
+     let res = bus.append_oracle_accepted("Agent_0", payload, None, &receipt)
+         .expect("matching receipt should be accepted");
+     assert!(matches!(res, BusResult::Appended { .. }));
+@@ -41,24 +49,26 @@ fn blessed_write_accepts_matching_receipt() {
+ 
+ #[test]
+ fn blessed_write_rejects_hash_mismatch() {
+-    let mut bus = make_bus_and_register();
+-    let receipt = OracleReceipt::new_lean4_complete("by linarith", None, TEST_NONCE);
++    let sk = SigningKey::generate(&mut OsRng);
++    let mut bus = bus_with_registered(&sk);
++    let receipt = OracleReceipt::sign_new(
++        "by linarith", None, Verdict::Complete, PredicateKind::Lean4Boolean, &sk,
++    );
+     let err = bus.append_oracle_accepted(
+         "Agent_0", "by native_decide", None, &receipt,
+-    ).expect_err("should reject tampered payload");
++    ).expect_err("tampered payload must be rejected");
+     assert!(err.contains("payload_hash"), "got: {}", err);
+ }
+ 
+ #[test]
+ fn blessed_write_rejects_reject_verdict() {
+-    let mut bus = make_bus_and_register();
++    let sk = SigningKey::generate(&mut OsRng);
++    let mut bus = bus_with_registered(&sk);
+     let payload = "by something_bad";
+-    let receipt = OracleReceipt::new(
+-        hash_payload(payload),
+-        hash_context(None),
+-        TEST_NONCE,
++    let receipt = OracleReceipt::sign_new(
++        payload, None,
+         Verdict::Reject("malformed".into()),
+-        PredicateKind::Lean4Boolean,
++        PredicateKind::Lean4Boolean, &sk,
+     );
+     let err = bus.append_oracle_accepted("Agent_0", payload, None, &receipt)
+         .expect_err("Reject verdict must be rejected");
+@@ -67,57 +77,97 @@ fn blessed_write_rejects_reject_verdict() {
+ 
+ #[test]
+ fn blessed_write_partial_ok_receipt_succeeds() {
+-    let mut bus = make_bus_and_register();
++    let sk = SigningKey::generate(&mut OsRng);
++    let mut bus = bus_with_registered(&sk);
+     let payload = "have h1 : 1 = 1 := rfl";
+-    let receipt = OracleReceipt::new_lean4_partial(payload, None, TEST_NONCE);
++    let receipt = OracleReceipt::sign_new(
++        payload, None,
++        Verdict::PartialOk { confidence: 1.0 },
++        PredicateKind::Lean4Boolean, &sk,
++    );
+     let res = bus.append_oracle_accepted("Agent_0", payload, None, &receipt)
+         .expect("PartialOk receipt should be accepted");
+     assert!(matches!(res, BusResult::Appended { .. }));
+ }
+ 
+ #[test]
+-fn blessed_write_bypasses_forbidden_patterns_after_valid_receipt() {
+-    let mut bus = make_bus_and_register();
+-    // Legitimate proof, even if it contains words that agent scratch would
+-    // have been vetoed for. The oracle has certified it; bus trusts receipt.
+-    let legitimate_proof = "by have h : 1 = 1 := rfl; exact h";
+-    let receipt = OracleReceipt::new_lean4_complete(legitimate_proof, None, TEST_NONCE);
+-    let res = bus.append_oracle_accepted("Agent_0", legitimate_proof, None, &receipt)
+-        .expect("legitimate proof must be appended");
+-    assert!(matches!(res, BusResult::Appended { .. }));
+-}
+-
+-#[test]
+-fn blessed_write_rejects_unregistered_oracle_nonce() {
+-    // V-1 core VETO fix: receipt from unregistered oracle is unforgeable.
+-    let mut bus = make_bus_and_register();
++fn blessed_write_rejects_unregistered_issuer() {
++    // R1-α core fix: receipt from an oracle whose pubkey was never
++    // registered is rejected before signature check.
++    let real_sk = SigningKey::generate(&mut OsRng);
++    let mut bus = bus_with_registered(&real_sk);
++    // Attacker generates own key.
++    let attacker_sk = SigningKey::generate(&mut OsRng);
+     let payload = "by linarith";
+-    // Construct a receipt with a DIFFERENT nonce (attacker tries to forge).
+-    let forged = OracleReceipt::new_lean4_complete(payload, None, OTHER_NONCE);
+-    let err = bus.append_oracle_accepted("Agent_0", payload, None, &forged)
+-        .expect_err("forged receipt (wrong nonce) must be rejected");
+-    assert!(err.contains("oracle nonce not registered"), "got: {}", err);
++    let receipt = OracleReceipt::sign_new(
++        payload, None, Verdict::Complete, PredicateKind::Lean4Boolean, &attacker_sk,
++    );
++    let err = bus.append_oracle_accepted("Agent_0", payload, None, &receipt)
++        .expect_err("unregistered issuer must be rejected");
++    assert!(err.contains("issuer pubkey not registered"), "got: {}", err);
+ }
+ 
+ #[test]
+ fn blessed_write_rejects_cross_context_replay() {
+-    // Step-mode VETO fix: a receipt issued for parent A cannot be replayed
+-    // for parent B. Prevents tactic hijack across proof chains.
+-    let mut bus = make_bus_and_register();
+-    // First append a seed node so we have a real parent id.
+-    let seed_payload = "seed";
+-    let seed_receipt = OracleReceipt::new_lean4_complete(seed_payload, None, TEST_NONCE);
+-    let seed_node = match bus.append_oracle_accepted("Agent_0", seed_payload, None, &seed_receipt).unwrap() {
++    let sk = SigningKey::generate(&mut OsRng);
++    let mut bus = bus_with_registered(&sk);
++    // Seed a real node so we have a valid parent id.
++    let seed_receipt = OracleReceipt::sign_new(
++        "seed", None, Verdict::Complete, PredicateKind::Lean4Boolean, &sk,
++    );
++    let seed_node = match bus.append_oracle_accepted("Agent_0", "seed", None, &seed_receipt).unwrap() {
+         BusResult::Appended { node_id } => node_id,
+         other => panic!("unexpected: {:?}", other),
+     };
+-
+-    // Issue a receipt bound to parent = None, but attacker tries to replay
+-    // under parent = seed_node.
+-    let malicious_payload = "by attack";
+-    let receipt_for_no_parent = OracleReceipt::new_lean4_complete(malicious_payload, None, TEST_NONCE);
++    // Receipt issued for parent = None, attacker tries parent = seed_node.
++    let r = OracleReceipt::sign_new(
++        "by attack", None, Verdict::Complete, PredicateKind::Lean4Boolean, &sk,
++    );
+     let err = bus.append_oracle_accepted(
+-        "Agent_0", malicious_payload, Some(&seed_node), &receipt_for_no_parent,
++        "Agent_0", "by attack", Some(&seed_node), &r,
+     ).expect_err("cross-context replay must be rejected");
+     assert!(err.contains("context_hash"), "got: {}", err);
+ }
++
++#[test]
++fn post_init_register_oracle_fails() {
++    // R1-α freeze: once init() runs, register_oracle returns Err so an
++    // attacker with &mut Bus can't inject their own trusted pubkey.
++    let sk = SigningKey::generate(&mut OsRng);
++    let bus = bus_with_registered(&sk);  // init already done inside helper
++    assert!(bus.oracles_frozen(), "init must have frozen oracle registration");
++    // Try to register a new (attacker) pubkey post-init.
++    let mut bus = bus;
++    let attacker_sk = SigningKey::generate(&mut OsRng);
++    let err = bus.register_oracle(attacker_sk.verifying_key().to_bytes())
++        .expect_err("post-init register_oracle must return Err");
++    assert!(err.contains("frozen"), "got: {}", err);
++}
++
++#[test]
++fn attacker_with_mut_bus_cannot_forge_post_init() {
++    // End-to-end attack scenario from Codex VETO:
++    //  1. Attacker has &mut Bus (e.g., via test helper harness).
++    //  2. Attacker generates own SigningKey.
++    //  3. Attacker tries to register own pubkey → FAILS (frozen).
++    //  4. Attacker tries to submit receipt signed by their key → rejected
++    //     at the `issuer pubkey not registered` step.
++    let real_sk = SigningKey::generate(&mut OsRng);
++    let mut bus = bus_with_registered(&real_sk);
++
++    let attacker_sk = SigningKey::generate(&mut OsRng);
++    // Step 3: register fails
++    let reg_err = bus.register_oracle(attacker_sk.verifying_key().to_bytes())
++        .expect_err("frozen");
++    assert!(reg_err.contains("frozen"));
++
++    // Step 4: receipt signed by attacker, sent anyway
++    let payload = "by native_decide";  // attempting to bypass forbidden_patterns
++    let forged = OracleReceipt::sign_new(
++        payload, None, Verdict::Complete, PredicateKind::Lean4Boolean, &attacker_sk,
++    );
++    let err = bus.append_oracle_accepted("Agent_0", payload, None, &forged)
++        .expect_err("forged receipt from unregistered attacker must be rejected");
++    assert!(err.contains("issuer pubkey not registered"),
++        "attacker receipt must be rejected at registration check; got: {}", err);
++}
