@@ -135,6 +135,41 @@ Paper 写作时在 Future Work 节写：
 
 ---
 
+## § 5.5 追加决策（2026-04-22 late session，dual-audit ITERATE 后）
+
+### 决策 6：ACTIVE_MODEL 默认 = deepseek-chat（修正 session 失误）
+- **背景**：run_list.sh 默认值 `deepseek-reasoner` 导致 2026-04-22 Phase 2 A/B 偏离 pre-reg + memory
+- **修正**：4 main 脚本 + 3 worktree 副本全部改 `deepseek-chat`
+- **理由**：
+  1. REGISTRATION_PHASE_9 § 3 锁 chat
+  2. project_chat_over_reasoner memory 明文 "TuringOS scaffold IS externalized CoT"
+  3. User 2026-04-22 重申："TuringOS 实际上一种强制的 CoT，所有 agent 被强制原子化步骤思考"
+  4. 26 历史 PPUT_RAW_DATA 全部 chat
+  5. Chat 输出 8× 便宜 + 5-10× 快
+- **不可逆转条件**: 只有 paper Appendix 实证 reasoner 在 step-only 模式上有 ≥15% PPUT 优势才回切
+
+### 决策 7：Phase 9 路径 = ITERATE（不直接 pivot 到 9.M）
+- **背景**：Codex dual audit VETO 了 direct pivot；Paper thesis over-claim
+- **锁定路径**：
+  1. Phase 2.5 chat A/B 重跑 seed 74677 on chat
+  2. 按 `DECISION_TREE_GATE_8_TO_PHASE_9_2026-04-22.md` § 2 分支
+  3. Gate 过后才 merge experiment → main
+  4. 进 9.A pre-reg baseline（6 seeds × N=50 dual + step）
+  5. 并行 9.M.1（仅 M1 dynamic γ，Codex defensible）
+  6. M4/M7/M8 需先写 spec 并过 dual audit 后才加入
+- **Paper thesis 软化**：从 "drives emergent faster discovery" 改为 "we empirically test N mechanisms, report effects"
+
+### 决策 8：Mechanism spec 必须 pre-register + dual audit 后才实装
+- 每个 M-N 需要独立文档 (M1/M4/M7/M8) 含：
+  - 具体 Rust 签名 + 调用点
+  - 守恒证明（Law 2）
+  - 回归测试 spec
+  - 经济假设 + 失败模式
+- Dual audit (Codex + Gemini) on spec 后才进 9.M pipeline
+- 防止 "design sketch" 水平机制进入实装（Codex Q2.2 关切）
+
+---
+
 ## § 6. 决策链的可追溯性保证
 
 本文件作为 **source of truth** for 本次 session 决策。后续文件：

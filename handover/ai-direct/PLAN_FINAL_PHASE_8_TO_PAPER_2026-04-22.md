@@ -48,6 +48,17 @@
 
 ## § 4. Phase 结构
 
+### Phase 2.5 — Chat A/B Gate 8→9 retry (2026-04-22 late addition)
+
+Post dual-audit ITERATE on reasoner A/B (archived), re-run on **deepseek-chat**.
+
+- Sample: `sample_N20_S74677.txt`, seed 74677
+- Binary: main (pre-Phase-8, 50924c1) rebuilt with chat default + exp tip
+- Condition: oneshot, chat, temperature 0.2
+- Gate: see `DECISION_TREE_GATE_8_TO_PHASE_9_2026-04-22.md` § 4.1
+- Analysis: `phase2_ab_analyze.py` (post-bug-fix, clamp_to_nonneg aware)
+- Outcomes + branches: see DECISION_TREE § 2
+
 ### Phase 8 — BLOCKER 修复 + 宪法盲点实装 (T+5d)
 
 #### 原 BLOCKER 4 项
@@ -119,6 +130,19 @@
 **违反任一 → Gate 9 NOT PASS**。不以 solve count 做判据（违 C-052）。不以 ΣPPUT 做主判据（违 C-066）。
 
 ---
+
+### Phase 9.M: Market Mechanism Bake-off (conditional)
+
+Prerequisite: Phase 2.5 chat A/B PASS (per DECISION_TREE § 4.1) + 9.0 readiness.
+
+- **9.M.0** Per-mechanism spec dual audit (M1/M4/M7/M8) — blocks implementation
+- **9.M.1** M1 dynamic γ A/B (N=20 chat paired), incremental change only
+- **9.M.2-4** M4/M7/M8 A/Bs (after 9.M.0 PASS each)
+- **9.M.5** Best-combination N=50 × 3 seeds (conditional on 9.M.1-4 signal)
+
+Paper thesis revision (post Codex Q2.3 over-claim CHALLENGE): "We empirically test N mechanisms and report effects" — no "drives emergent" framing.
+
+Budget: +$240 max (Phase 9 total now ~$770).
 
 ### Phase 10 — Paper Preprint Ready (T+35d)
 

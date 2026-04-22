@@ -6,6 +6,56 @@
 
 ---
 
+## § -1. Registration revision 2026-04-22 (post dual-audit ITERATE)
+
+**Triggered by**: dual-audit (Codex + Gemini) on Phase 2 A/B on reasoner. Codex ITERATE, Gemini proceed; conservative→ITERATE (F-2026-04-22-06).
+
+### Revision 1: path change
+原 § 1 Scope 说 "Prerequisite: Phase 2 A/B PASS"。由于 reasoner run archived (scope-inappropriate), pre-condition 重写：
+
+**New prerequisite**:
+1. Phase 2.5 chat A/B (seed 74677, sample_N20) PASS per `DECISION_TREE_GATE_8_TO_PHASE_9_2026-04-22.md` § 4.1
+2. OR 2 seeds chat A/B both PASS (Step 2 of tree)
+3. 9.0 readiness (this § 0) complete — STILL required
+
+### Revision 2: scope additions (parallel tracks)
+
+9.A-9.D original tracks: **unchanged** (primary baseline).
+
+**NEW track: 9.M Market Mechanism Bake-off** (subject to § 0 + prerequisite § -1.1)
+
+- **9.M.0** Prerequisite spec dual-audit:
+  - Each mechanism (M1/M4/M7/M8) needs its own pre-registration doc
+  - M1 spec: `M1_DYNAMIC_GAMMA_SPEC_2026-04-22.md`
+  - M4 spec: `M4_SATOSHI_REBATE_SPEC_2026-04-22.md`
+  - M7 spec: `M7_APPEND_STAKING_SPEC_2026-04-22.md`
+  - M8 spec: `M8_BONDING_CURVE_LP_SPEC_2026-04-22.md`
+  - Dual audit on each → PASS → enters 9.M pipeline; CHALLENGE/VETO → hold
+
+- **9.M.1** M1 dynamic γ A/B (Codex deemed operational, Phase 3A Hayek incremental):
+  - 2 × N=20 chat paired A/B: Phase-8 baseline vs Phase-8+M1
+  - Gate per DECISION_TREE § 4.3
+  - Budget ~$30
+
+- **9.M.2-4** M4 / M7 / M8 A/Bs (only after 9.M.0 spec dual audit PASS each):
+  - Each 2 × N=20 chat paired
+  - Budget ~$30 each
+
+- **9.M.5** Best-combination N=50 × 3 seeds:
+  - Only if 9.M.1-4 yields ≥ 1 mechanism with signal
+  - Gate per DECISION_TREE § 3.2
+
+### Revision 3: budget impact
+
+- 原 § 8 总预算 $370
+- Revision: 9.A/B/C/D 不变 ($590 as listed)
+- +9.M.1 ~$30
+- +9.M.2-4 ~$90 (after dual-audit)
+- +9.M.5 ~$90 (conditional)
+- Total max: **$770 (Phase 9)**, 仍在 $2000 overall hard cap
+
+---
+
 ## § 0. Pre-batch readiness (blocks 9.A/B run)
 
 **Discovered 2026-04-22 during auto-research**: current `PputResult` struct

@@ -78,6 +78,18 @@
 - 修正: PPUT_RAW_DATA_2026-04-22.md 作为权威源（Claude 直算 jsonl）+ reproduce `pput_scan.py`
 - **教训**: 外部 agent 聚合+标签任务易 hallucination；越符合叙事需要越值得敌意核查；VETO > CHALLENGE > PASS 保守裁决规则必须严格执行
 
+### F-2026-04-22-06: Dual-audit ITERATE verdict on Phase 2 A/B + market pivot over-claim
+- Dual audit (Codex + Gemini) 2026-04-22 on Phase 2 A/B (reasoner) + proposed 9.M pivot
+- Verdicts conflict: Gemini d (direct pivot) + defensible; Codex b (re-run seed) + CHALLENGE on pivot
+- Conservative胜出 (feedback_dual_audit_conflict): **ITERATE** (不 merge, 不 pivot)
+- Codex 关键抓点:
+  (a) 100% of -2.246 Δ 驱动自 2 outliers (mathd_algebra_359 + 160)，我之前说 83% 是宽松
+  (b) C-049 不是 F-20-04 单根因：NOTEPAD 191-200 v2 `complete_cold_fee: 54 == complete: 54` — agents 付了 fee 但没换 append；"economic cold fee alone cannot activate tape" 仍是原结论
+  (c) M4/M7/M8 只是 design sketch，不是 bake-off-ready；M1 (Phase 3A Hayek 增量) 是唯一 defensible
+  (d) Paper 1 thesis 升级 ("market mechanisms drive faster discovery") 是 over-claim — tape/markets 仍 dormant；必须 empirical evidence 先行
+- Action: 决策树 `DECISION_TREE_GATE_8_TO_PHASE_9_2026-04-22.md` 执行：Phase 2.5 chat A/B → 条件分支 → 9.A baseline + 9.M.1 (M1 only) → 更多 mechanism spec → 条件 pivot
+- Paper 1 thesis 软化为"we empirically test N mechanisms, report effects"，不是 "drive emergent"
+
 ### F-2026-04-22-05: TuringOS IS 强制 CoT — deepseek-chat 是默认，不是 reasoner
 - 2026-04-22 Phase 2 A/B 批次**误用 deepseek-reasoner**（run_list.sh 默认值）
 - 所有 historical PPUT_RAW_DATA (26 runs) 均用 deepseek-chat；REGISTRATION_PHASE_9 § 3 锁 chat

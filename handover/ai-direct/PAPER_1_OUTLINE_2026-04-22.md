@@ -2,7 +2,13 @@
 
 **Status**: draft (2026-04-22), pre-Phase-9 data
 **Target**: arXiv preprint, adversarial-audit defensible
-**Core thesis**: **First implementation of a Turing-machine-topology constitutional layer for LLM swarms, with cryptographic capability tokens and runtime-verified three-process governance.**
+**Core thesis (2026-04-22 revision post Codex CHALLENGE)**: **First implementation of a Turing-machine-topology constitutional substrate for LLM swarms, with cryptographic capability tokens and runtime-verified three-process governance. We empirically test N Hayek-inspired market mechanisms on this substrate and report observed effects on PPUT (Progress Per Unit Time).**
+
+Key revisions from earlier draft:
+- "drives emergent faster proof discovery" → "we empirically test ... and report observed effects"
+- Scope limited to *tested mechanisms*, *tested seeds*, *this benchmark*
+- No unjustified generalization claims
+- Results sections report null or negative findings honestly
 
 ---
 
