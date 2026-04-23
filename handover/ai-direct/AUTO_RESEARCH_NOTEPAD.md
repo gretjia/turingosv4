@@ -50,6 +50,20 @@
 
 ## 2. Confirmed findings (evidence-backed, non-speculation)
 
+### F-2026-04-23-01: Phase 9.A 深度 chain 首次激活 + n8 swarm 对 mathd_* 的 coordination 损失
+- 2026-04-22 夜→2026-04-23 凌晨, Phase 9.A seed 74677 (aborted) + seed 31415 (N=50 n8, 进行中)
+- **历史性**: mathd_algebra_208 在 2 次独立 seed 下都达到 **depth=20**（20 连续 partial-OK writes, Agent_0→Agent_7 round-robin）
+  - 历史 26 次 chat oneshot runs max_depth=1，这是首次 >2
+  - 证实 Phase Z + Phase Z' + 经济制度修复联合作用产生真 Art. IV tape topology
+  - 但 depth=20 这题未 OMEGA (timeout) → PPUT 贡献 0，但 **机制已激活** 可复现
+- **反直觉发现**: n8 swarm 对 chat-self-sufficient easy problem (mathd_algebra_44) 反而**损害** PPUT
+  - 同 problem: chat oneshot 12s SOLVED，n8 swarm 471s FAIL
+  - 原因假设: swarm 每 tx 要 8 agents parent-select + board refresh + tool hooks, effective tx 只有 ~10-15 个
+  - `hybrid_v1` condition (evaluator.rs) 已设计来 address 此问题：oneshot first, fallback swarm。未来 Phase 9.E 候选。
+- **Mathd solve rate 微降 ~10pp** (~70%→~60%) — 需要 Phase 9.B 对比确认是 swarm overhead 还是 cap=50 偏紧
+- **C-027 违规修好** `d721506`: `max_transactions` hardcoded 200 → env 可配 via `MAX_TRANSACTIONS`
+- **Paper 1 叙事更新**: 核心定量 claim 从 "solve rate" 转向 "Σdepth≥10 PPUT activation" — 即便 depth=20 没 OMEGA, 从 0→non-zero partial 是质的跃迁
+
 ### F-2026-04-22-09: Phase Z′ strict line-by-line constitutional alignment complete (C-069)
 - 2026-04-22 evening, user autonomous directive after plan approval
 - 3 flowcharts extracted to 134 atomic elements (FC1: 40, FC2: 61, FC3: 33) — `handover/alignment/FC_ELEMENTS_2026-04-22.md`
