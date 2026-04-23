@@ -480,11 +480,30 @@ async fn run_swarm(
 
     // Art. II.2.1: "不能抹杀群体异质性" — distinct skills per agent.
     // V3 had Math/Bull/Bear roles. V4: tactic-strategy specialization.
-    let agent_skills: Vec<&str> = vec![
+    // E1 experiment (2026-04-23): add Meta-Planner 4th role that targets
+    // depth-spiral patterns (e.g. mathd_algebra_208 reaches depth=20 of
+    // repeated same-family tactics without OMEGA — a Meta-Planner breaks
+    // the loop by proposing a tactic family SHIFT).
+    //
+    // HOMOGENEOUS_AGENTS=1 forces all agents to use skill[0] (A/B control).
+    // Default (unset / 0): 4-way heterogeneity (treatment).
+    let homogeneous = std::env::var("HOMOGENEOUS_AGENTS").ok().as_deref() == Some("1");
+    let agent_skills_all: Vec<&str> = vec![
         "Focus on algebraic simplification: ring, field_simp, linarith, nlinarith.",
         "Focus on structural reasoning: induction, cases, rcases, constructor.",
         "Focus on rewriting and normalization: simp, norm_num, rw, calc.",
+        "You are the Meta-Planner. Review the chain so far. If the current \
+         tactic family (linarith/induction/rw/etc) has produced many rejects \
+         or a linear spiral of small-step partial-OKs without closing goals, \
+         propose a high-level TACTIC FAMILY SHIFT (e.g. `by_contra` → `push_neg`, \
+         `induction' ... with`, `apply And.intro; · ...; · ...`, `refine ⟨?_, ?_⟩`). \
+         Your step should re-shape the proof strategy, not add another small step.",
     ];
+    let agent_skills: Vec<&str> = if homogeneous {
+        vec![agent_skills_all[0]]
+    } else {
+        agent_skills_all.clone()
+    };
 
     let client = ResilientLLMClient::new(proxy_url, 1800, 2);
     let params = BoltzmannParams::from_env();
