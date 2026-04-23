@@ -1084,10 +1084,24 @@ async fn run_swarm(
             let _ = w.save_to_disk(wp);
         }
     }
+    // TRACE_MATRIX FC2-N22 / CLAUDE.md Report Standard: emit a Halt
+    // event with MaxTxExhausted reason so the jsonl carries a non-None
+    // halt_reason. Previously FAIL paths left halt_reason=None, which
+    // violated the Art. IV 终态区分 requirement {OmegaAccepted,
+    // MaxTxExhausted, WallClockCap, ComputeCapViolated, ErrorHalt}.
+    if matches!(bus.q_state, turingosv4::bus::QState::Running) {
+        bus.halt_with_reason(turingosv4::ledger::HaltReason::MaxTxExhausted);
+    }
+    let halt_reason = extract_halt_reason(&bus);
+    let reputation = bus.kernel.tape.reputation_by_author();
+    let reputation_opt = if reputation.is_empty() { None } else { Some(reputation) };
+    // Diversity: unique OMEGA attempts / total attempts (same proxy as success path).
+    let diversity = pairwise_diversity_by_hash(&omega_payload_hashes, omega_attempts as usize);
     // No OMEGA found → PPUT = 0
-    make_pput(problem_file, &condition, model, false, start, 0, 0,
-              max_transactions as u64, Some(tool_dist), upr,
-              None, None, None)
+    make_pput_full(problem_file, &condition, model, false, start, 0, 0,
+                   max_transactions as u64, Some(tool_dist), upr,
+                   None, None, None,
+                   reputation_opt, halt_reason, diversity, None)
 }
 
 fn make_pput(
