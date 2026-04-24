@@ -1,0 +1,165 @@
+id: C-070
+title: "Pre-registration + multiplicity declaration 必须 precede 任何发表级 claim"
+constitution:
+  - "Art. I.2 效用评分: PPUT 是 Art. I.1 boolean + 统计信号"
+  - "Art. V.1 Generator ≠ Evaluator: 作者不可是唯一审计者"
+  - "C-023 Generator ≠ Evaluator"
+  - "C-010 Audit Standard (双外审 VETO > CHALLENGE > PASS)"
+  - "CLAUDE.md § Audit Standard"
+source_lessons:
+  - "C-066 (Agent A 数字伪造): 外部 agent 输出必须 Claude 独立核验"
+  - "C-068 (external model drift): 供应商升级是 attack vector, smoke 必做"
+  - "C-069 (constitutional alignment audit protocol): TRACE_MATRIX 是必须"
+incident: |
+  2026-04-23 夜: Paper 1 v1 draft (E1 emergence 论文) 派 Codex + Gemini 独立
+  adversarial audit, **两者独立返回 CHALLENGE**:
+
+  ### Codex 6-category 扫 + Gemini 2.5 Pro 独立 6-category 扫
+  两者同时命中 5 P0 blocker:
+
+  1. **Problem selection bias**: hard10 sample 从 36 hard 题里挑了 10 个,
+     但没有 pre-registered 随机-sampling script + seed. Gemini 明确:
+     "如果不是 verifiably random and pre-registered, 整个 statistical
+     framework is invalid (p-hacking)"
+
+  2. **McNemar stat mislabeling**: 论文报 p=0.0195 作为 'exact test',
+     实际是 one-sided directional test. Two-sided = 0.0391.
+     若 4 个独立测试 (hard, easy, per-seed, ablation) 做 Bonferroni,
+     阈值 α=0.0125, 0.0195 不显著.
+
+  3. **"Emergence" / "swarm intelligence" 过度宣称**: 证据级别只够
+     "portfolio effect from prompt heterogeneity". 多个 B 解实际
+     是 gp_node_count=1 (单 agent 一步完成), 不是 multi-agent chain.
+
+  4. **Mechanism claim from N=1 seed ablation**: 我们基于单个 seed
+     141421 的 3-skill 对 4-skill 对比 (只 1 solve 差), 声称
+     "Meta-Planner is the mechanism". 这是 N=1 anecdotal 证据.
+
+  5. **Ablation 需全 seeds 或移 Future Work**: 单 seed ablation 不
+     允许做 causal claim.
+
+  **根本原因**: Phase Z/Z' 把宪法合规对齐做得极好, 但没有 governance
+  结构管理 "发表级 claim 的证据门槛". 我们不小心用了 CHALLENGE-able
+  language ("emergence"), 不小心把一个 N=1 ablation 当 mechanism 证据,
+  不小心用了 un-pre-reg'd 选题 sample.
+
+  这不是 data integrity 问题 (16/16 Lean reverify 证明 data 干净);
+  是 claim integrity 问题.
+
+facts: |
+  违反原则:
+  1. **C-010 Audit Standard**: "所有 merge / phase 决策双外审" — 我们
+     做得很好 (Codex + Gemini), 但审计是 POST-draft. 应该 PRE-draft
+     声明 endpoint + multiplicity family, 避免 post-hoc claim inflation.
+
+  2. **未有声明的 multiplicity testing**: 我们同时跑 hard-set + easy-set
+     control + per-seed + ablation, 把 hard-set 主 p-value 当作 standalone.
+     如果 declare test family, 0.0195 可能 non-significant 在 Bonferroni.
+
+  3. **N=1 ablation 被当作 causal证据**: 单 seed 一个 solve 的差别
+     被包装成 "Meta-Planner is the mechanism". 这是本次最严重的
+     overclaim, 两个 reviewer 都单独指出.
+
+  4. **"Emergence" 门槛**: 文献的 emergence 定义是 "irreducible
+     group-level behavior absent from parts". 我们显示的是 "diverse
+     prompts do better than uniform prompts" — 这是 portfolio effect,
+     不是 emergence.
+
+  5. **Hard-set 选法不透明**: 10/36 怎么挑的? Paper § 4.1 没讲.
+     Gemini 质疑 "Was it random sampling? Or were these 10 problems
+     chosen after exploratory analysis?"
+
+  暴露的 meta 教训:
+  - 宪法对齐不等于 claim alignment
+  - Data integrity 审计 (ADVERSARIAL_AUDIT) 不能替代 claim-strength
+    审计 (dual-audit)
+  - Auto research 产出要 pre-reg endpoint / sample / stats declaration
+    BEFORE 开始 run, 否则 post-hoc 任何 "看数据挑 10 道" 都是 p-hack
+
+ruling: |
+  **一般原则**: 任何准备投稿 peer review 或 public preprint 的 claim
+  必须:
+
+  1. **Pre-registration** (REGISTRATION_*.md 格式):
+     - 主 endpoint 声明 (which statistic, which sample, which threshold)
+     - Multiplicity family 声明 (how many tests 会做, Bonferroni/FDR
+       correction 规则)
+     - Sample selection rule (random with seed, 或 exhaustive, 或
+       pre-defined inclusion criteria; 任何 "exploratory 后 narrow down"
+       都要 flag)
+     - Stopping rule (多 seed? 多久停?)
+
+  2. **Claim-strength gate** before draft:
+     - 任何 "emergence" / "mechanism" / "first" / "strictly dominates"
+       级别语言必须过 claim-strength audit 才能写进 paper
+     - 单 seed / 单 run 证据禁止 causal claim
+     - N=1 ablation = exploratory, 不能 mechanism identify
+
+  3. **Dual-audit at draft stage**:
+     - 现行做法: 数据完成 → adversarial internal audit → 双外审 → revise
+     - 新做法: pre-reg → 数据完成 → internal adversarial → DRAFT v1
+       → 双外审 v1 → revise → DRAFT v2 → 双外审 v2 → arXiv
+
+  4. **Multiplicity correction 默认开启**:
+     - 报任何 p-value 必须说明 one-sided/two-sided + test family size
+     - 报多个 subgroup 必须 Bonferroni/Holm correction
+     - 不允许 silent "look at the one significant subgroup"
+
+  5. **"Symmetry" 类 defense 必须 token-level 可验证**:
+     - 我们 Paper § 7.1.6 说 Meta-Planner prompt 跟 skill_0 prompt
+       "symmetric in specificity". Gemini 一眼看穿是 false — 前者是
+       meta-instruction, 后者是 object-level. 任何 "symmetric"
+       claim 必须 token-count / structure-type 实际对比.
+
+  **适用范围**:
+  - arXiv preprint 草稿
+  - 会议 / 期刊投稿
+  - Public-facing claim (博客 / twitter / GitHub README claim)
+  - 给 chief human architect 的 report (更宽松, 但强 claim 仍要 caveats)
+
+  **不适用**:
+  - 内部 handover docs, notepad findings, judicial cases (这些本身
+    就是 exploratory 阶段的)
+  - Work-in-progress 中间 summary
+
+precedent: |
+  后续标准:
+
+  1. **REGISTRATION_*.md 模板** (新建): 每次新 auto research 必开
+     `REGISTRATION_EXPERIMENT_<tag>_<date>.md` 包含:
+     - primary endpoint + secondary endpoints
+     - sample construction method (random seed, inclusion criteria)
+     - multiplicity family size + correction rule
+     - stopping rule (N seeds, N problems, time budget)
+     - hypothesis + directional (one-sided vs two-sided)
+
+  2. **HARNESS 升级提议** (见 `HARNESS_UPGRADE_PROPOSAL_2026-04-23.md`):
+     a. `handover/preregistration/` 目录 + pre-reg check script
+     b. claim-strength linter (grep preprint draft for "emergence",
+        "first", "strictly dominates", "mechanism" — 每个要 citation)
+     c. ablation N ≥ 3 seeds 默认 policy
+     d. `build_sha` per-row 强制 (已部分修 — `run_list.sh` 第 10 行
+        加入, 但旧 80 行没有)
+
+  3. **Paper 1 rework 按 DUAL_AUDIT_PAPER1_VERDICT_2026-04-23.md § 6**:
+     P0 blocker 全修, 然后 2nd dual-audit round. 只在 round 2
+     PASS / minor-fix-CHALLENGE 后投 arXiv.
+
+  4. **C-066 教训组合**: "外部 agent 数字不可盲信" + "claim 也不可盲写".
+     前者约束 input integrity, 后者约束 output integrity.
+     现在两个都有判例.
+
+  5. **Auto research 新增 checkpoint**:
+     - ✅ pre-reg before run
+     - ✅ data clean via internal adversarial audit (ADVERSARIAL_AUDIT)
+     - ✅ claim clean via dual-audit (CODEX + GEMINI)
+     - ✅ second-round audit after revision
+     - 只在 4/4 checkpoint 都过, 才是"可发表"状态
+
+  6. **本次事件 specific fix**:
+     Paper 1 v1 (commit `2687882`) 公开 marked NOT ARXIV-READY
+     直到 round 2 dual-audit PASS. 当前状态 CHALLENGE.
+
+rule: R-CLAIM-INTEGRITY-001
+date: "2026-04-23"
+severity: critical

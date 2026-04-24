@@ -50,6 +50,24 @@
 
 ## 2. Confirmed findings (evidence-backed, non-speculation)
 
+### F-2026-04-23-02: Paper 1 dual-audit CHALLENGE — pre-reg discipline + multiplicity + overclaim risks (C-070 candidate)
+- 2026-04-23 夜: Paper 1 v1 draft (commit `2687882`) 派 Codex + Gemini 2.5 Pro 独立 adversarial audit
+- 两者独立返回 **CHALLENGE** (无 PASS, 无 VETO); per VETO > CHALLENGE > PASS 保守规则 → 双确认 CHALLENGE
+- 审计 artifacts:
+  - `handover/audits/CODEX_PAPER1_AUDIT_2026-04-23.md`
+  - `handover/audits/GEMINI_PAPER1_AUDIT_2026-04-23.md`
+  - `handover/audits/DUAL_AUDIT_PAPER1_VERDICT_2026-04-23.md` (merged verdict)
+  - `handover/audits/run_gemini_paper1_audit.py` (reproduction script)
+- **5 P0 blockers** 两者都提, 说明是真 weakness 不是 reviewer 个人口味:
+  1. Problem selection bias (10/36 hard set 没 pre-reg 文档) → p-hacking 风险
+  2. McNemar p=0.0195 mis-labeled (one-sided 当 exact test; multiplicity family 没声明)
+  3. "emergence"/"swarm intelligence" 过度宣称 (证据只够 "portfolio effect from heterogeneity")
+  4. Mechanism claim from N=1 seed ablation (数据不足 causal attribution)
+  5. Ablation 需扩到 4 seeds 否则移 Future Work
+- **教训归类**: 这些都是 harness pre-reg discipline 和 claim-strength governance 的缺陷, 不是 data 问题 (data 本身 clean: 16/16 Lean reverify, 0 forbidden pattern)
+- **下一阶段 rework**: ~10h + $22 per § 5 of DUAL_AUDIT_PAPER1_VERDICT. 执行后二次 dual-audit, PASS 才投 arXiv
+- **判例候选**: C-070 "Pre-submission dual-audit + mandatory pre-reg of hard-set selection + multiplicity declaration + N≥3 for any causal ablation claim"
+
 ### F-2026-04-23-01: Phase 9.A 深度 chain 首次激活 + n8 swarm 对 mathd_* 的 coordination 损失
 - 2026-04-22 夜→2026-04-23 凌晨, Phase 9.A seed 74677 (aborted) + seed 31415 (N=50 n8, 进行中)
 - **历史性**: mathd_algebra_208 在 2 次独立 seed 下都达到 **depth=20**（20 连续 partial-OK writes, Agent_0→Agent_7 round-robin）
