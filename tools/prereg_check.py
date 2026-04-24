@@ -47,14 +47,22 @@ def main() -> int:
 
     text = prereg.read_text()
 
-    # Check top-level mandatory keys
-    missing = [k for k in MANDATORY if not re.search(rf"^{re.escape(k)}\s*:", text, re.M)]
+    # Check top-level mandatory keys (either `key:` at line start OR `## key` markdown header)
+    def has_key(k: str) -> bool:
+        return bool(
+            re.search(rf"^{re.escape(k)}\s*:", text, re.M)
+            or re.search(rf"^##\s+{re.escape(k)}\b", text, re.M)
+        )
+    missing = [k for k in MANDATORY if not has_key(k)]
     if missing:
         print(f"MISSING mandatory keys: {missing}", file=sys.stderr)
         return 1
 
     # Check primary_endpoint subkeys
-    pri_block_match = re.search(r"^primary_endpoint\s*:(.+?)(?=^\w+\s*:|\Z)", text, re.M | re.S)
+    pri_block_match = (
+        re.search(r"^##\s+primary_endpoint\b(.+?)(?=^##\s+\w+|\Z)", text, re.M | re.S)
+        or re.search(r"^primary_endpoint\s*:(.+?)(?=^\w+\s*:|\Z)", text, re.M | re.S)
+    )
     if pri_block_match:
         pri = pri_block_match.group(1)
         miss = [k for k in PRIMARY_SUBKEYS if not re.search(rf"\b{k}\s*:", pri)]
@@ -63,7 +71,10 @@ def main() -> int:
             return 1
 
     # Check sample_construction subkeys + fingerprint
-    samp_block_match = re.search(r"^sample_construction\s*:(.+?)(?=^\w+\s*:|\Z)", text, re.M | re.S)
+    samp_block_match = (
+        re.search(r"^##\s+sample_construction\b(.+?)(?=^##\s+\w+|\Z)", text, re.M | re.S)
+        or re.search(r"^sample_construction\s*:(.+?)(?=^\w+\s*:|\Z)", text, re.M | re.S)
+    )
     if samp_block_match:
         samp = samp_block_match.group(1)
         miss = [k for k in SAMPLE_SUBKEYS if not re.search(rf"\b{k}\s*:", samp)]
@@ -92,7 +103,9 @@ def main() -> int:
                     return 2
 
     print(f"PREREG check PASS: {prereg.name}")
-    print(f"  experiment_id: {re.search(r'experiment_id\s*:\s*([^\n#]+)', text).group(1).strip()}")
+    eid_match = re.search(r"experiment_id\s*:\s*([^\n#]+)", text)
+    if eid_match:
+        print(f"  experiment_id: {eid_match.group(1).strip()}")
     return 0
 
 
