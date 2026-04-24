@@ -1,0 +1,13 @@
+# E1 negative control: 10 easy problems SOLVED in all 3 Phase 9.A seeds (31415 + 2718 + 141421)
+# Expected result: no A/B delta (both solve ~all), confirms emergence effect is compositional-specific
+# Fingerprint: e1_easy10_v1
+mathd_algebra_160
+mathd_algebra_171
+mathd_algebra_296
+mathd_algebra_359
+mathd_algebra_398
+mathd_numbertheory_235
+mathd_numbertheory_254
+mathd_numbertheory_345
+mathd_numbertheory_517
+mathd_numbertheory_728

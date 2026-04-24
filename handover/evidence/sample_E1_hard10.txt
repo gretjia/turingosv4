@@ -1,0 +1,13 @@
+# E1 heterogeneity A/B sample — 10 problems FAILed in both Phase 9.A seeds (31415 + 2718)
+# Stratified: 3 mathd_algebra + 1 mathd_numbertheory + 2 amc + 1 imo + 1 induction + 1 algebra + 1 olympiad mix
+# Fingerprint: e1_hard10_v1
+mathd_algebra_208
+mathd_algebra_246
+mathd_algebra_332
+mathd_algebra_44
+mathd_numbertheory_99
+amc12_2000_p12
+amc12b_2021_p13
+imo_1962_p2
+induction_1pxpownlt1pnx
+algebra_apbon2pownleqapownpbpowon2
