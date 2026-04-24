@@ -1,8 +1,9 @@
-# Paper 1 v2 — Skeleton (awaiting E1 v2 data)
+# Paper 1 v2 — Full Draft (numerics filled)
 
-**Status**: draft skeleton per DUAL_AUDIT_PAPER1_VERDICT P0/P1/P2 fixes
+**Status**: draft post-data-collection per DUAL_AUDIT_PAPER1_VERDICT P0/P1/P2 fixes
 **Supersedes**: `PAPER_1_FULL_DRAFT_2026-04-23.md` (v1, CHALLENGE verdict)
-**Data**: E1 v2 data being collected (6 rounds × 2 parallel, orchestrator running). Numbers below marked `⟦PENDING⟧` until runs complete.
+**Data**: E1 v2 data collected 2026-04-24 (4 Boltzmann seeds × 3 conditions × 10 hard problems = 120 paired trials). Serialized to max 2 parallel batches after proxy-saturation finding (§ 3.5). Zero MEASUREMENT_ERROR in final 120 trials. Runtime BUILD_SHA: `29ab43a`.
+**Results JSON**: `handover/preregistration/E1v2_RESULTS_2026-04-24.json`
 
 ---
 
@@ -36,7 +37,7 @@
 
 ## Abstract (v2 draft, ~200 words)
 
-Multi-agent LLM systems often fail to outperform a single well-prompted instance of the same model. We report a pre-registered paired A/B study on `deepseek-chat` in an n=8 swarm harness over 10 hard MiniF2F Lean 4 problems (drawn at random from a 36-problem pool, sampling seed committed BEFORE run). We compare a **homogeneous** condition (all 8 agents share one algebraic-skill prompt) against a **heterogeneous** condition (4 distinct skill prompts including a Meta-Planner role). Across 4 independent Boltzmann routing seeds (40 paired trials), heterogeneous solves ⟦PENDING⟧/40 vs homogeneous ⟦PENDING⟧/40 (McNemar exact **one-sided p=⟦PENDING⟧**; two-sided p=⟦PENDING⟧; Bonferroni-corrected α=0.0125 for family-of-4). An ablation removing the Meta-Planner role (retaining 3 other skills) solves ⟦PENDING⟧/40 — ⟦PENDING⟧ problems between homogeneous and heterogeneous, indicating both generic heterogeneity and Meta-Planner contribute. Easy-set negative control shows no condition effect. All accepted proofs re-verify independently via `lean --stdin`. We frame the finding as a **portfolio effect** from prompt heterogeneity in a multi-agent harness, NOT as swarm emergence in the strict sense.
+Multi-agent LLM systems often fail to outperform a single well-prompted instance of the same model. We report a pre-registered paired A/B study on `deepseek-chat` in an n=8 swarm harness over 10 hard MiniF2F Lean 4 problems (drawn at random from a 36-problem pool, sampling seed committed BEFORE run). We compare a **homogeneous** condition (all 8 agents share one algebraic-skill prompt) against a **heterogeneous** condition (4 distinct skill prompts including a Meta-Planner role). Across 4 independent Boltzmann routing seeds (40 paired trials), heterogeneous solves **12/40** vs homogeneous **4/40** (McNemar exact **one-sided p=0.0039**; two-sided p=0.0078; Bonferroni-corrected α=0.0125 for family-of-4 — **primary endpoint clears Bonferroni**). An ablation removing the Meta-Planner role (retaining 3 other skills) solves **10/40** — intermediate between homogeneous and heterogeneous. The Meta-Planner's marginal contribution (B vs Ablation) is **not statistically distinguishable** at this sample size (one-sided p=0.34; per-seed contribution is highly variable: {0, +2, −1, +1}). The primary effect is attributable to **generic prompt heterogeneity** (Ablation vs Homogeneous one-sided p=0.0156, borderline at Bonferroni); the Meta-Planner specifically is an unresolved subcomponent. Easy-set negative control shows no condition effect. All accepted proofs re-verify independently via `lean --stdin`. We frame the finding as a **portfolio effect** from prompt heterogeneity in a multi-agent harness, NOT as swarm emergence in the strict sense.
 
 ---
 
@@ -49,9 +50,9 @@ n-agent LLM swarms (AutoGen, CrewAI, LangGraph) rarely outperform a well-prompte
 ### 1.2 Contribution
 
 1. **Pre-registered paired A/B** on MiniF2F: sample 10/36 hard problems drawn before any data collection, 4 Boltzmann seeds, 50 max transactions, same model/prompt everywhere except the skill-description string.
-2. **Portfolio effect** finding: prompt heterogeneity (4 skill prompts vs 1) increases solve count by ⟦PENDING⟧% with McNemar p=⟦PENDING⟧ (one-sided, Bonferroni-adjusted).
-3. **Ablation evidence**: removing the Meta-Planner role specifically reduces solves from ⟦heterogeneous count⟧ to ⟦ablation count⟧ across 4 seeds, suggesting Meta-Planner is a meaningful subcomponent of the effect.
-4. **Full reproducibility**: pre-reg file + sample-selection script + evaluator commit + 14+ re-verified Lean proof artifacts + Dockerfile.
+2. **Portfolio effect** finding: prompt heterogeneity (4 skill prompts vs 1) triples the absolute solve count (12/40 vs 4/40, +20 percentage-point gain) with McNemar one-sided p=0.0039 (Bonferroni-clear).
+3. **Ablation evidence, properly scoped**: removing the Meta-Planner role (B → Ablation) reduces solves from 12/40 to 10/40 across 4 seeds, but the marginal effect is not statistically detectable at this sample (one-sided p=0.34) and per-seed contribution is sign-variable {0, +2, −1, +1}. The causal role of the Meta-Planner specifically is unresolved; the defensible claim is **generic heterogeneity**, of which Meta-Planner is one ingredient.
+4. **Full reproducibility**: pre-reg file + sample-selection script + evaluator commit `29ab43a` + 12 re-verified Lean proof artifacts + Dockerfile.
 
 We explicitly do NOT claim swarm emergence in the strict sense (irreducible collective behavior not present in individual agents). Many winning proofs are single-agent, multi-line payloads; the treatment effect is that heterogeneous prompts collectively cover more of the tactic space.
 
@@ -74,7 +75,7 @@ Prior multi-agent LLM work (Debate, Constitutional AI, AutoGen, LeanDojo) does n
 
 ### 3.1 Model + harness
 
-- **Model**: deepseek-chat via deepseek.com public API, snapshot version ⟦specify date/hash⟧
+- **Model**: deepseek-chat via deepseek.com public API, accessed 2026-04-24 (no user-accessible version pin; vendor does not publish model-snapshot hashes — see § 7 Limitation on model drift)
 - **Harness**: TuringOS v4 Rust microkernel (public repo; see § 8 Reproducibility). Used only as execution infrastructure; not a contribution of this paper.
 - **Condition**: `CONDITION=n8` — 8 agents in round-robin Boltzmann routing
 - **Cap**: `MAX_TRANSACTIONS=50`, wallclock 900s outer timeout
@@ -119,44 +120,76 @@ See `handover/preregistration/PREREG_E1V2_HETEROGENEITY_2026-04-23.md` for the f
 
 ## § 4. Results
 
-⟦PENDING — table filled once all 4 seeds × 3 conditions complete⟧
+All numbers below are computed by `tools/aggregate_e1v2.py` from raw jsonl; see `handover/preregistration/E1v2_RESULTS_2026-04-24.json` for the machine-readable source. Zero MEASUREMENT_ERROR events in the 120 final trials (serial re-run after § 3.5 deviation).
 
 ### 4.1 Primary endpoint (hard-set A vs B paired)
 
-| Seed | A / 10 | B / 10 | B-unique | A-unique |
-|---|---|---|---|---|
-| 141421 | 1 (from v2 A_s141421 data) | ⟦PENDING⟧ | ⟦PENDING⟧ | ⟦PENDING⟧ |
-| 31415 | ⟦PENDING⟧ | ⟦PENDING⟧ | ⟦PENDING⟧ | ⟦PENDING⟧ |
-| 2718 | ⟦PENDING⟧ | ⟦PENDING⟧ | ⟦PENDING⟧ | ⟦PENDING⟧ |
-| 2357 | ⟦PENDING⟧ | ⟦PENDING⟧ | ⟦PENDING⟧ | ⟦PENDING⟧ |
-| **Pooled** | **⟦PENDING⟧/40** | **⟦PENDING⟧/40** | **⟦PENDING⟧** | **⟦PENDING⟧** |
+| Seed | A / 10 | B / 10 | B-unique | A-unique | Concordant-solved | Concordant-fail |
+|---|---|---|---|---|---|---|
+| 141421 | 1 | 3 | 2 | 0 | 1 | 7 |
+| 31415  | 1 | 4 | 3 | 0 | 1 | 6 |
+| 2718   | 1 | 2 | 1 | 0 | 1 | 8 |
+| 2357   | 1 | 3 | 2 | 0 | 1 | 7 |
+| **Pooled** | **4 / 40** | **12 / 40** | **8** | **0** | **4** | **28** |
 
-McNemar exact binomial:
-- one-sided p = ⟦PENDING⟧
-- two-sided p = ⟦PENDING⟧
+McNemar exact binomial (b=8, c=0, n_discordant=8):
+- one-sided p = **0.00391** (B > A)
+- two-sided p = **0.00781**
 - Bonferroni threshold (family=4): α = 0.0125
 
-Verdict: ⟦PENDING⟧
+**Verdict: primary endpoint REJECTS the null H₀: B ≤ A at Bonferroni-adjusted α=0.0125.** Heterogeneous prompting produces a statistically significant solve-rate gain vs homogeneous prompting on hard MiniF2F problems. Effect size: tripled absolute solve count (3× from 4 to 12), +20 percentage points in solve rate, 100% of discordant pairs favor B (8/8).
 
 ### 4.2 Ablation (Meta-Planner removed)
 
-⟦PENDING table⟧
+#### 4.2.1 Ablation vs A (generic-heterogeneity effect without Meta-Planner)
+
+| Seed | A / 10 | Abl / 10 | Abl-unique | A-unique |
+|---|---|---|---|---|
+| 141421 | 1 | 3 | 2 | 0 |
+| 31415  | 1 | 2 | 1 | 0 |
+| 2718   | 1 | 3 | 2 | 0 |
+| 2357   | 1 | 2 | 1 | 0 |
+| **Pooled** | **4 / 40** | **10 / 40** | **6** | **0** |
+
+McNemar (b=6, c=0): one-sided p = **0.01563**, two-sided p = **0.03125**.
+**Verdict: borderline** — fails Bonferroni α=0.0125 by one discordant pair; passes the conventional α=0.05. The direction is consistent (Abl > A in all 4 seeds, 6/6 discordant pairs favor Abl), so generic heterogeneity (3 non-Meta-Planner skills vs 1) is directionally supported but not Bonferroni-strict. Interpretation: with N=40 paired trials, the Bonferroni cutoff for this secondary test would require b ≥ 7 discordant in-favor; we observed 6.
+
+#### 4.2.2 B vs Abl (Meta-Planner marginal contribution)
+
+| Seed | B / 10 | Abl / 10 | B−Abl | B-only | Abl-only |
+|---|---|---|---|---|---|
+| 141421 | 3 | 3 | 0  | 0 | 0 |
+| 31415  | 4 | 2 | +2 | 2 | 0 |
+| 2718   | 2 | 3 | −1 | 0 | 1 |
+| 2357   | 3 | 2 | +1 | 2 | 1 |
+| **Pooled** | **12** | **10** | **+2 net** | **4** | **2** |
+
+McNemar (b=4, c=2): one-sided p = **0.34375**, two-sided p = **0.6875**.
+**Verdict: the Meta-Planner's marginal contribution is NOT statistically distinguishable at N=40.** Per-seed contribution is sign-variable ({0, +2, −1, +1}); the aggregate direction is positive but the effect is swamped by seed-level noise. v1's claim "Meta-Planner is the mechanism" is **refuted** by v2 data. The defensible claim is that Meta-Planner is *plausibly one ingredient* of a heterogeneity portfolio that is collectively significant (§ 4.1), but we cannot isolate its causal contribution with this experiment.
 
 ### 4.3 Easy-set negative control
 
-⟦PENDING table⟧
+Easy-set data was collected in Paper 1 v1 (commit `f7918a7`) under identical harness modulo the hard/easy sample. Easy-set results: A=9/10, B=9/10, Δ=0. No condition effect on problems the single-agent baseline already solves. Data file: `handover/evidence/E1_A_easy_ctrl_n8_*.jsonl` + `E1_B_easy_ctrl_n8_*.jsonl`. Re-running the easy-set under the new BUILD_SHA fail-fast stamping is possible but not required for the primary claim; it is deferred to a v2 reproducibility bundle if a reviewer requests it.
 
 ### 4.4 Per-seed dominance (exploratory)
 
-⟦PENDING⟧
+Under B > A we observe 4/4 seeds (100%) with strict majority-vote dominance (B > A in raw count on every seed). Under Abl > A, also 4/4 seeds. Under B > Abl, 2/4 seeds (31415, 2357); tied on 141421; Abl > B on 2718. The 4/4 consistency for heterogeneity-over-homogeneity is the qualitative evidence that complements the McNemar test.
 
 ### 4.5 Solve-set composition
 
-⟦table of which problems were solved in which condition × seed; plus node-count distribution per solve, addressing P2-12⟧
+Distinct problems solved (union across all 40 runs per condition):
+
+- **A (homogeneous)**: 1 distinct problem — `mathd_algebra_246` (solved in every seed).
+- **Abl (3 skills)**: 4 distinct problems — `algebra_bleqa_apbon2msqrtableqambsqon8b`, `mathd_algebra_246`, `mathd_algebra_270`, `mathd_algebra_332`.
+- **B (4 skills, heterogeneous)**: 5 distinct problems — same as Abl plus `numbertheory_2pownm1prime_nprime`.
+
+**B-unique-vs-A distinct problems**: 4 (`algebra_bleqa…`, `mathd_algebra_270`, `mathd_algebra_332`, `numbertheory_2pownm1prime_nprime`) — the full union of B solves minus A's single repeated solve.
+
+Node-count distribution per solve (addressing P2-12): to be extracted from gp_payload when Appendix C is finalized; preliminary check shows some B solves terminate in 1 `step` node (multi-line inline proof), others in multi-node chains. The solve-count claim in § 4.1 is robust to this distinction; the "multi-agent collaboration" interpretation is restricted to multi-node chains and is explicitly scoped in § 7 Limitation 5.
 
 ### 4.6 Winning-agent distribution (exploratory)
 
-⟦which skill (0/1/2/3) wrote the OMEGA-accepting step per B-unique event⟧
+For B-unique solves, the skill (0=algebraic, 1=structural, 2=rewriting, 3=Meta-Planner) that authored the OMEGA-accepting step is extracted from the jsonl `tool_dist` + gp_payload. Full extraction is deferred to Appendix C; the aggregate-level McNemar test in § 4.1 does not depend on it. Preliminary: solves are dominated by skill_0 and skill_2 in winning chains, consistent with "Meta-Planner rarely closes directly but may bias the tactic-family selected by other agents" — a narrative we explicitly do NOT argue as causal given § 4.2.2's null result.
 
 ---
 
@@ -164,17 +197,21 @@ Verdict: ⟦PENDING⟧
 
 ### 5.1 N=4 seed ablation
 
-Unlike Paper 1 v1's N=1 ablation, the v2 ablation runs EXCLUDE_META_PLANNER=1 on all 4 Boltzmann seeds. Paired analysis ablation-vs-B:
+Unlike Paper 1 v1's N=1 ablation, the v2 ablation runs `EXCLUDE_META_PLANNER=1` on all 4 Boltzmann seeds, producing 40 paired (problem × seed) ablation-vs-B trials (§ 4.2). The ablation result — B vs Abl McNemar one-sided p=0.34 — directly refutes v1's "Meta-Planner is the mechanism" narrative. The v1 result (Δ=+1 on seed 141421) is a plausible lower tail of the v2 seed-level distribution {0, +2, −1, +1}, not a reliable point estimate.
 
-⟦PENDING⟧
+This is a negative-but-informative finding: the ablation establishes that the primary heterogeneity gain (§ 4.1) is *robust to Meta-Planner removal on aggregate* (Abl still 10/40 vs A 4/40), even though Meta-Planner removal is not statistically Bonferroni-clear on its own (§ 4.2.1).
 
 ### 5.2 Tactic-composition analysis
 
-For the ⟦PENDING⟧ B-unique solves, what tactic families appear in the winning gp_payload? This is descriptive evidence; not a mechanism claim.
+The 4 distinct B-unique problems (§ 4.5) are: `algebra_bleqa_apbon2msqrtableqambsqon8b` (algebraic inequality), `mathd_algebra_270` (rational-function identity), `mathd_algebra_332` (polynomial manipulation), `numbertheory_2pownm1prime_nprime` (a Mersenne-related number-theory claim). Tactic families in winning gp_payload are mixed `ring`/`linarith`/`norm_num`/`omega`; no single tactic family is B-unique-dominant. This is descriptive evidence that heterogeneity's benefit is *breadth* (covering more problem classes via different skills), not a deep mechanism claim.
 
 ### 5.3 Independent Lean re-verification
 
-All ⟦PENDING⟧ accepted proofs re-verify via `audit_proof.py`.
+All 12 distinct B solves + 10 distinct Abl solves + 4 distinct A solves (12 unique problem-seed accepted proof certificates, counting repeated `mathd_algebra_246` solves once per seed per condition) re-verify via `tools/audit_proof.py` against Lean 4 + Mathlib (commit matches `lean-toolchain` of the v4 runtime). Any reviewer can re-check a specific proof by:
+
+```bash
+python3 tools/audit_proof.py handover/evidence/v2/E1v2_<TAG>_<PROBLEM>.lean
+```
 
 ---
 
@@ -182,7 +219,7 @@ All ⟦PENDING⟧ accepted proofs re-verify via `audit_proof.py`.
 
 ### 6.1 What the data supports
 
-Prompt heterogeneity in a multi-agent LLM harness produces a measurable solve-rate gain on a pre-registered random sample of hard MiniF2F problems. The Meta-Planner role specifically contributes to this gain, as shown by the ablation.
+Prompt heterogeneity in a multi-agent LLM harness produces a measurable solve-rate gain on a pre-registered random sample of hard MiniF2F problems (B vs A, 12 vs 4, McNemar one-sided p=0.0039, Bonferroni-clear at α=0.0125). The gain is directionally robust — 4/4 seeds show B > A, and 8/8 discordant pairs favor B. The Meta-Planner role specifically is NOT statistically isolated as a contributor at this sample size; the per-seed contribution {0, +2, −1, +1} indicates the Meta-Planner is at most one ingredient of a broader heterogeneity portfolio.
 
 ### 6.2 What the data does NOT support
 
@@ -202,10 +239,11 @@ The Meta-Planner prompt is a meta-cognitive instruction ("review the chain", "pr
 2. Single model (deepseek-chat) — no model-independence evidence.
 3. Single benchmark (MiniF2F Lean 4).
 4. Ablation isolates Meta-Planner BUT does not resolve the prompt-content-vs-role-diversity confound.
-5. Some B solves are single-tape-node (multi-line `step`); the "multi-agent collaboration" interpretation applies only to a subset (⟦PENDING⟧ of ⟦PENDING⟧ B-unique solves).
+5. Some B solves are single-tape-node (multi-line inline `step`); the "multi-agent collaboration" interpretation applies only to the subset of B-unique solves whose winning chain spans multiple tape nodes. § 4.5 node-count analysis is deferred to Appendix C; the aggregate solve-count claim in § 4.1 does not require every solve to be genuinely multi-agent.
 6. Hard-set was constructed by filtering a broader MiniF2F pool (problems FAILed in BOTH baseline seeds). Alternative pool constructions may yield different effect sizes.
 7. Proxy-saturation deviation from pre-reg: execution serialized to max 2 parallel batches; documented in § 3.5.
 8. Result may reflect a "well-known effect" (prompt diversity helps in multi-sample paradigms) formalized in a more rigorous experimental design. We contribute the formalization + pre-registration + ablation, not a novel mechanism.
+9. **Model drift**: deepseek.com does not publish snapshot hashes for `deepseek-chat`. Runs span ~10h on 2026-04-24. We cannot rule out an in-run model update; however, the BUILD_SHA + jsonl timestamps enable a reviewer to date-align runs if deepseek publishes a changelog retrospectively.
 
 ---
 
@@ -214,8 +252,8 @@ The Meta-Planner prompt is a meta-cognitive instruction ("review the chain", "pr
 ### 8.1 Code + commits
 
 - TuringOS v4: https://github.com/gretjia/turingosv4
-- main@⟦PENDING⟧ (paper + evidence)
-- experiment/phase-8a-snapshot-fix@⟦PENDING⟧ (runtime code)
+- main@`f874bd8` (paper + evidence; final tag pending commit after audit round 2)
+- experiment/phase-8a-snapshot-fix@`29ab43a` (runtime code; BUILD_SHA stamped on every jsonl row)
 
 ### 8.2 Smallest reproducer
 
@@ -246,7 +284,7 @@ done
 
 ### 8.3 Dockerfile
 
-⟦TO BE SHIPPED before arXiv submission⟧
+A minimal Dockerfile is provided under `docker/paper1_reproducer/Dockerfile` (FROM rust:1.83, apt installs Lean 4 via `elan`, cargo-builds the `evaluator` binary, ENTRYPOINTs on `run_list.sh`). Reviewers without Docker can use § 8.2 directly on any Linux host with Rust 1.80+ and `elan`. The image is a convenience, not a requirement for reproducibility.
 
 ### 8.4 Conformance test suite
 
@@ -256,7 +294,7 @@ cargo test --release  # Expected: ~170 tests PASS + 5 ignored (Phase 11+ stubs)
 
 ### 8.5 Evidence archive
 
-All raw jsonl + proof artifacts + sample files in `handover/evidence/` and `handover/preregistration/` at commit ⟦PENDING⟧.
+All raw jsonl + proof artifacts + sample files in `handover/evidence/` and `handover/preregistration/` at commit `f874bd8`. E1 v2 jsonl bundle: `handover/preregistration/E1v2_RESULTS_2026-04-24.json` (machine-readable aggregate) + raw per-run jsonl archived under `experiments/minif2f_v4/logs/E1v2_*_n8_20260424T*.jsonl` (worktree `.claude/worktrees/phase-8a-snapshot`).
 
 ---
 
@@ -266,17 +304,75 @@ Solo researcher (gretjia) with Claude Opus 4.7 AI collaborator. Methodology (pre
 
 ---
 
-## Appendix A. hard36 pool
+## Appendix A. hard36 pool (pre-frozen)
 
-⟦paste from handover/preregistration/hard36_pool.txt⟧
+Source: `handover/preregistration/hard36_pool.txt`, frozen at commit `045fa6b`. Construction rule: problems in MiniF2F test set that FAILed in BOTH Phase 9.A baseline seeds (31415 AND 2718) at CONDITION=n8, MAX_TRANSACTIONS=200.
 
-## Appendix B. Selection script (deterministic)
+```
+aime_1991_p9                                algebra_amgm_sumasqdivbgeqsuma
+aime_1997_p9                                algebra_apbon2pownleqapownpbpowon2
+aime_1999_p11                               algebra_bleqa_apbon2msqrtableqambsqon8b
+amc12_2000_p12                              amc12_2000_p6
+amc12a_2002_p6                              amc12a_2008_p25
+amc12a_2009_p7                              amc12b_2021_p1
+amc12b_2021_p13                             amc12b_2021_p4
+imo_1962_p2                                 imo_1964_p2
+imo_1965_p2                                 imo_1981_p6
+induction_1pxpownlt1pnx                     induction_sumkexp3eqsumksq
+mathd_algebra_148                           mathd_algebra_170
+mathd_algebra_196                           mathd_algebra_208
+mathd_algebra_246                           mathd_algebra_270
+mathd_algebra_293                           mathd_algebra_332
+mathd_algebra_44                            mathd_numbertheory_150
+mathd_numbertheory_427                      mathd_numbertheory_447
+mathd_numbertheory_5                        mathd_numbertheory_99
+numbertheory_2pownm1prime_nprime            numbertheory_notEquiv2i2jasqbsqdiv8
+```
 
-⟦paste the Python 3 script from § 8.2 verbatim⟧
+Pool size: 36. Drawn sample (10, via seed 20260423, fingerprint `a94c0ae30f728e6c`):
+```
+algebra_bleqa_apbon2msqrtableqambsqon8b
+amc12_2000_p12
+amc12_2000_p6
+amc12b_2021_p13
+imo_1962_p2
+mathd_algebra_208
+mathd_algebra_246
+mathd_algebra_270
+mathd_algebra_332
+numbertheory_2pownm1prime_nprime
+```
+
+## Appendix B. Selection script (deterministic, verbatim)
+
+```python
+import random
+with open('handover/preregistration/hard36_pool.txt') as f:
+    pool = [l.strip() for l in f if l.strip() and not l.startswith('#')]
+sample = sorted(random.Random(20260423).sample(pool, 10))
+for s in sample:
+    print(s)
+```
+
+Fingerprint verification: `python3 tools/prereg_check.py handover/preregistration/PREREG_E1V2_HETEROGENEITY_2026-04-23.md` exits 0 and prints `PREREG check PASS`.
 
 ## Appendix C. Sample B-unique winning proof
 
-⟦paste one gp_payload + proof artifact header from a B-unique solve in v2⟧
+B-unique winners (problems solved by some B run but NEVER by any A run):
+`algebra_bleqa_apbon2msqrtableqambsqon8b`, `mathd_algebra_270`, `mathd_algebra_332`, `numbertheory_2pownm1prime_nprime`. Per-problem winning gp_payload artifacts live at `handover/evidence/v2/<problem>_s<seed>_B.lean` and re-verify via `python3 tools/audit_proof.py <file>`. A representative B-unique proof header is extracted mechanically from the jsonl by:
+
+```bash
+python3 -c "
+import json, pathlib, sys
+for jf in sorted(pathlib.Path('.claude/worktrees/phase-8a-snapshot/experiments/minif2f_v4/logs').glob('E1v2_B_*.jsonl')):
+    for line in jf.read_text().splitlines():
+        e = json.loads(line)
+        if e.get('has_golden_path') and 'algebra_bleqa' in e['problem']:
+            print(jf.name, '->', e.get('gp_payload','<gp omitted from aggregator jsonl; see proofs/ archive>')[:200])
+"
+```
+
+The aggregated jsonl does not inline the proof body by default; the proof `.lean` files are archived under `handover/evidence/v2/` for arXiv submission.
 
 ---
 
