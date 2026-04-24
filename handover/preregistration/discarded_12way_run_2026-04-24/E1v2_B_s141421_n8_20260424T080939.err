@@ -1,0 +1,74 @@
+=== algebra_bleqa_apbon2msqrtableqambsqon8b @ 2026-04-24T08:12:06+00:00 ===
+[2026-04-24T08:12:06Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/algebra_bleqa_apbon2msqrtableqambsqon8b.lean | Condition: n8 | Model: deepseek-chat
+[2026-04-24T08:12:06Z INFO  evaluator] [swarm/n8] Agent_0:skill0:t=0.10 Agent_1:skill1:t=0.25 Agent_2:skill2:t=0.40 Agent_3:skill3:t=0.55 Agent_4:skill0:t=0.70 Agent_5:skill1:t=0.85 Agent_6:skill2:t=1.00 Agent_7:skill3:t=1.15
+[2026-04-24T08:12:58Z WARN  evaluator] [tx 0] step rejected (err:tactic_linarith): <stdin>:13:0: error: linarith failed to find a contradiction
+[2026-04-24T08:13:39Z INFO  evaluator] [tx 1] Agent_1 step+tx_0_by_Agent_1 partial OK (depth=1)
+[2026-04-24T08:14:22Z WARN  evaluator] [tx 2] step rejected (err:tactic_linarith): <stdin>:14:0: error: linarith failed to find a contradiction
+[2026-04-24T08:15:12Z WARN  evaluator] [tx 3] step rejected (err:other): <stdin>:14:16: error: push made no progress at hle
+[2026-04-24T08:16:01Z WARN  evaluator] [tx 4] step rejected (err:tactic_linarith): <stdin>:14:0: error: linarith failed to find a contradiction
+[2026-04-24T08:16:48Z INFO  evaluator] [tx 5] Agent_5 step+tx_1_by_Agent_5 partial OK (depth=2)
+[2026-04-24T08:17:38Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=3 after this write)
+[2026-04-24T08:17:38Z INFO  evaluator] PPUT = 0.30%/s (GP: 3 nodes, 393 tokens, 331.4s)
+=== amc12_2000_p12 @ 2026-04-24T08:17:39+00:00 ===
+[2026-04-24T08:17:39Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/amc12_2000_p12.lean | Condition: n8 | Model: deepseek-chat
+[2026-04-24T08:17:39Z INFO  evaluator] [swarm/n8] Agent_0:skill0:t=0.10 Agent_1:skill1:t=0.25 Agent_2:skill2:t=0.40 Agent_3:skill3:t=0.55 Agent_4:skill0:t=0.70 Agent_5:skill1:t=0.85 Agent_6:skill2:t=1.00 Agent_7:skill3:t=1.15
+[2026-04-24T08:18:24Z WARN  evaluator] [tx 0] step rejected (err:tactic_linarith): <stdin>:12:0: error: linarith failed to find a contradiction
+[2026-04-24T08:20:35Z WARN  evaluator] [tx 1] step rejected (err:tactic_linarith): <stdin>:30:4: error: linarith failed to find a contradiction
+[2026-04-24T08:20:38Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-04-24T08:20:38Z WARN  evaluator] [tx 2] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-04-24T08:21:35Z WARN  evaluator] [tx 3] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:10:37: error: unexpected token 'by'; expected '{' or tactic
+[2026-04-24T08:22:26Z WARN  evaluator] [tx 4] step rejected (err:tactic_linarith): <stdin>:12:0: error: linarith failed to find a contradiction
+[2026-04-24T08:22:28Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden bare tactic: 'omega' (C-011 / C-050). Qualified forms like Decidable.omega are allowed.
+[2026-04-24T08:22:28Z WARN  evaluator] [tx 5] step rejected (err:other): forbidden_payload: Forbidden bare tactic: 'omega' (C-011 / C-050). Qualified forms like Decidable.omega are allowed.
+[2026-04-24T08:23:25Z WARN  evaluator] [tx 6] step rejected (err:tactic_linarith): <stdin>:12:0: error: linarith failed to find a contradiction
+[2026-04-24T08:23:31Z INFO  evaluator] [tx 7] OMEGA claim by Agent_7 (tape_nodes=0, payload_len=1197)
+[2026-04-24T08:23:31Z WARN  minif2f_v4::lean4_oracle] [oracle] payload rejected pre-Lean: Forbidden bare tactic: 'omega' (C-011 / C-050). Qualified forms like Decidable.omega are allowed.
+[2026-04-24T08:23:31Z WARN  evaluator] [tx 7] OMEGA rejected (err:other). payload[0..300]="\n  -- Use by_contra to assume the inequality is false\n  by_contra! h\n  -- Then h says a*m*c + a*m + m*c + a*c > 112\n  -- Since a,m,c are nonnegative integers summing to 12, we can bound each variable\n  have ha : a ≤ 12 := by omega\n  have hm : m ≤ 12 := by omega\n  have hc : c ≤ 12 := by omega\n  -- Th"
+[2026-04-24T08:24:12Z WARN  evaluator] [tx 8] step rejected (err:tactic_linarith): <stdin>:12:0: error: linarith failed to find a contradiction
+[2026-04-24T08:24:50Z WARN  evaluator] [tx 9] step rejected (err:tactic_linarith): <stdin>:12:0: error: linarith failed to find a contradiction
+[2026-04-24T08:24:54Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-04-24T08:24:54Z WARN  evaluator] [tx 10] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-04-24T08:25:49Z WARN  evaluator] [tx 11] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:10:37: error: unexpected token 'by'; expected '{' or tactic
+[2026-04-24T08:26:32Z WARN  evaluator] [tx 12] step rejected (err:tactic_linarith): <stdin>:12:0: error: linarith failed to find a contradiction
+[2026-04-24T08:27:11Z WARN  evaluator] [tx 13] step rejected (err:tactic_linarith): <stdin>:12:0: error: linarith failed to find a contradiction
+[2026-04-24T08:28:10Z INFO  evaluator] [tx 14] OMEGA claim by Agent_6 (tape_nodes=0, payload_len=829)
+[2026-04-24T08:28:10Z WARN  minif2f_v4::lean4_oracle] [oracle] payload rejected pre-Lean: Forbidden pattern: 'native_decide'
+[2026-04-24T08:28:10Z WARN  evaluator] [tx 14] OMEGA rejected (err:other). payload[0..300]="  have ha : a ≤ 12 := by omega\n  have hm : m ≤ 12 := by omega\n  have hc : c ≤ 12 := by omega\n  have h_all : (Finset.filter (λ ((x,y,z) : ℕ×ℕ×ℕ) => x+y+z = 12) \n    (Finset.Ico 0 13 ×ˢ Finset.Ico 0 13 ×ˢ Finset.Ico 0 13)).all \n    (λ (x,y,z) => (x+1)*(y+1)*(z+1) ≤ 125) := by\n    native_decide\n  have "
+[2026-04-24T08:28:15Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden bare tactic: 'omega' (C-011 / C-050). Qualified forms like Decidable.omega are allowed.
+[2026-04-24T08:28:15Z WARN  evaluator] [tx 15] step rejected (err:other): forbidden_payload: Forbidden bare tactic: 'omega' (C-011 / C-050). Qualified forms like Decidable.omega are allowed.
+[2026-04-24T08:28:53Z WARN  evaluator] [tx 16] step rejected (err:tactic_linarith): <stdin>:12:0: error: linarith failed to find a contradiction
+[2026-04-24T08:29:47Z WARN  evaluator] [tx 17] step rejected (err:tactic_linarith): <stdin>:12:0: error: linarith failed to find a contradiction
+[2026-04-24T08:29:53Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden bare tactic: 'omega' (C-011 / C-050). Qualified forms like Decidable.omega are allowed.
+[2026-04-24T08:29:53Z WARN  evaluator] [tx 18] step rejected (err:other): forbidden_payload: Forbidden bare tactic: 'omega' (C-011 / C-050). Qualified forms like Decidable.omega are allowed.
+[2026-04-24T08:31:16Z WARN  evaluator] [tx 19] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:10:37: error: unexpected token 'by'; expected '{' or tactic
+[2026-04-24T08:31:16Z INFO  evaluator] [tick@tx20] tape=0 markets=0 top=
+[2026-04-24T08:31:56Z WARN  evaluator] [tx 20] step rejected (err:unsolved_goals): <stdin>:12:1: error: unknown tactic | <stdin>:10:35: error: unsolved goals
+[2026-04-24T08:32:35Z WARN  evaluator] [tx 21] step rejected (err:unsolved_goals): <stdin>:12:1: error: unknown tactic | <stdin>:10:35: error: unsolved goals
+=== amc12_2000_p6 @ 2026-04-24T08:32:39+00:00 ===
+[2026-04-24T08:32:39Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/amc12_2000_p6.lean | Condition: n8 | Model: deepseek-chat
+[2026-04-24T08:32:39Z INFO  evaluator] [swarm/n8] Agent_0:skill0:t=0.10 Agent_1:skill1:t=0.25 Agent_2:skill2:t=0.40 Agent_3:skill3:t=0.55 Agent_4:skill0:t=0.70 Agent_5:skill1:t=0.85 Agent_6:skill2:t=1.00 Agent_7:skill3:t=1.15
+[2026-04-24T08:33:22Z WARN  evaluator] [tx 0] step rejected (err:tactic_linarith): <stdin>:14:0: error: linarith failed to find a contradiction
+[2026-04-24T08:33:59Z INFO  evaluator] [tx 1] Agent_1 step+tx_0_by_Agent_1 partial OK (depth=1)
+[2026-04-24T08:34:38Z INFO  evaluator] [tx 2] Agent_2 step+tx_1_by_Agent_2 partial OK (depth=2)
+[2026-04-24T08:34:39Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden bare tactic: 'omega' (C-011 / C-050). Qualified forms like Decidable.omega are allowed.
+[2026-04-24T08:34:39Z WARN  evaluator] [tx 3] step rejected (err:other): forbidden_payload: Forbidden bare tactic: 'omega' (C-011 / C-050). Qualified forms like Decidable.omega are allowed.
+[2026-04-24T08:35:20Z WARN  evaluator] [tx 4] step rejected (err:tactic_linarith): <stdin>:16:0: error: linarith failed to find a contradiction
+[2026-04-24T08:36:06Z INFO  evaluator] [tx 5] Agent_5 step+tx_2_by_Agent_5 partial OK (depth=3)
+[2026-04-24T08:36:09Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-04-24T08:36:09Z WARN  evaluator] [tx 6] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-04-24T08:36:13Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-04-24T08:36:13Z WARN  evaluator] [tx 7] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-04-24T08:36:56Z WARN  evaluator] [tx 8] step rejected (err:tactic_linarith): <stdin>:17:0: error: linarith failed to find a contradiction
+[2026-04-24T08:37:34Z INFO  evaluator] [tx 9] Agent_1 step+tx_3_by_Agent_1 partial OK (depth=4)
+[2026-04-24T08:38:15Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=5 after this write)
+[2026-04-24T08:38:15Z INFO  evaluator] PPUT = 0.30%/s (GP: 5 nodes, 318 tokens, 335.9s)
+=== amc12b_2021_p13 @ 2026-04-24T08:38:15+00:00 ===
+[2026-04-24T08:38:15Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/amc12b_2021_p13.lean | Condition: n8 | Model: deepseek-chat
+[2026-04-24T08:38:15Z INFO  evaluator] [swarm/n8] Agent_0:skill0:t=0.10 Agent_1:skill1:t=0.25 Agent_2:skill2:t=0.40 Agent_3:skill3:t=0.55 Agent_4:skill0:t=0.70 Agent_5:skill1:t=0.85 Agent_6:skill2:t=1.00 Agent_7:skill3:t=1.15
+[2026-04-24T08:38:22Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-04-24T08:38:22Z WARN  evaluator] [tx 0] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-04-24T08:38:57Z WARN  evaluator] [tx 1] step rejected (err:tactic_other): <stdin>:12:15: error: Tactic `rcases` failed: `h₀ : ∀ (x : ℝ),
+[2026-04-24T08:39:41Z WARN  evaluator] [tx 2] step rejected (err:tactic_linarith): <stdin>:12:0: error: linarith failed to find a contradiction
+[2026-04-24T08:41:31Z WARN  evaluator] [tx 3] parse: No <action> tag found in output (err:unexpected_token)
+[2026-04-24T08:42:57Z WARN  evaluator] [tx 4] step rejected (err:tactic_linarith): <stdin>:12:0: error: linarith failed to find a contradiction
+[2026-04-24T08:43:39Z WARN  evaluator] [tx 5] step rejected (err:unknown_const): <stdin>:12:7: error(lean.unknownIdentifier): Unknown constant `Finset.card_congr`

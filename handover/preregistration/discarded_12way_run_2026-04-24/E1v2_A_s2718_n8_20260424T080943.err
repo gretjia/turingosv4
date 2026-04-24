@@ -1,0 +1,51 @@
+=== algebra_bleqa_apbon2msqrtableqambsqon8b @ 2026-04-24T08:12:07+00:00 ===
+[2026-04-24T08:12:07Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/algebra_bleqa_apbon2msqrtableqambsqon8b.lean | Condition: n8 | Model: deepseek-chat
+[2026-04-24T08:12:07Z INFO  evaluator] [swarm/n8] Agent_0:skill0:t=0.10 Agent_1:skill0:t=0.25 Agent_2:skill0:t=0.40 Agent_3:skill0:t=0.55 Agent_4:skill0:t=0.70 Agent_5:skill0:t=0.85 Agent_6:skill0:t=1.00 Agent_7:skill0:t=1.15
+[2026-04-24T08:12:58Z WARN  evaluator] [tx 0] step rejected (err:tactic_linarith): <stdin>:13:0: error: linarith failed to find a contradiction
+[2026-04-24T08:13:40Z WARN  evaluator] [tx 1] step rejected (err:tactic_linarith): <stdin>:13:0: error: linarith failed to find a contradiction
+[2026-04-24T08:14:21Z WARN  evaluator] [tx 2] step rejected (err:tactic_linarith): <stdin>:13:0: error: linarith failed to find a contradiction
+[2026-04-24T08:15:02Z WARN  evaluator] [tx 3] step rejected (err:tactic_linarith): <stdin>:13:0: error: linarith failed to find a contradiction
+[2026-04-24T08:16:01Z WARN  evaluator] [tx 4] step rejected (err:tactic_linarith): <stdin>:13:0: error: linarith failed to find a contradiction
+[2026-04-24T08:16:52Z WARN  evaluator] [tx 5] step rejected (err:tactic_linarith): <stdin>:13:0: error: linarith failed to find a contradiction
+[2026-04-24T08:18:10Z INFO  evaluator] [tx 6] Agent_6 step+tx_0_by_Agent_6 partial OK (depth=1)
+[2026-04-24T08:18:56Z WARN  evaluator] [tx 7] step rejected (err:tactic_linarith): <stdin>:14:0: error: linarith failed to find a contradiction
+[2026-04-24T08:20:22Z WARN  evaluator] [tx 8] step rejected (err:tactic_linarith): <stdin>:14:0: error: linarith failed to find a contradiction
+[2026-04-24T08:21:42Z WARN  evaluator] [tx 9] step rejected (err:tactic_linarith): <stdin>:14:0: error: linarith failed to find a contradiction
+[2026-04-24T08:22:31Z WARN  evaluator] [tx 10] step rejected (err:tactic_linarith): <stdin>:14:0: error: linarith failed to find a contradiction
+[2026-04-24T08:23:28Z WARN  evaluator] [tx 11] step rejected (err:tactic_linarith): <stdin>:14:0: error: linarith failed to find a contradiction
+[2026-04-24T08:24:09Z WARN  evaluator] [tx 12] step rejected (err:tactic_linarith): <stdin>:14:0: error: linarith failed to find a contradiction
+[2026-04-24T08:24:48Z WARN  evaluator] [tx 13] step rejected (err:tactic_linarith): <stdin>:14:0: error: linarith failed to find a contradiction
+[2026-04-24T08:25:37Z WARN  evaluator] [tx 14] step rejected (err:tactic_linarith): <stdin>:14:0: error: linarith failed to find a contradiction
+[2026-04-24T08:26:21Z WARN  evaluator] [tx 15] step rejected (err:tactic_linarith): <stdin>:14:0: error: linarith failed to find a contradiction
+[2026-04-24T08:27:04Z WARN  evaluator] [tx 16] step rejected (err:tactic_linarith): <stdin>:14:0: error: linarith failed to find a contradiction
+=== amc12_2000_p12 @ 2026-04-24T08:27:07+00:00 ===
+[2026-04-24T08:27:07Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/amc12_2000_p12.lean | Condition: n8 | Model: deepseek-chat
+[2026-04-24T08:27:07Z INFO  evaluator] [swarm/n8] Agent_0:skill0:t=0.10 Agent_1:skill0:t=0.25 Agent_2:skill0:t=0.40 Agent_3:skill0:t=0.55 Agent_4:skill0:t=0.70 Agent_5:skill0:t=0.85 Agent_6:skill0:t=1.00 Agent_7:skill0:t=1.15
+[2026-04-24T08:27:49Z WARN  evaluator] [tx 0] step rejected (err:tactic_linarith): <stdin>:12:0: error: linarith failed to find a contradiction
+[2026-04-24T08:28:21Z WARN  evaluator] [tx 1] step rejected (err:tactic_linarith): <stdin>:12:0: error: linarith failed to find a contradiction
+[2026-04-24T08:28:59Z WARN  evaluator] [tx 2] step rejected (err:tactic_linarith): <stdin>:12:0: error: linarith failed to find a contradiction
+[2026-04-24T08:29:44Z WARN  evaluator] [tx 3] step rejected (err:tactic_linarith): <stdin>:12:0: error: linarith failed to find a contradiction
+[2026-04-24T08:30:30Z WARN  evaluator] [tx 4] step rejected (err:tactic_linarith): <stdin>:12:0: error: linarith failed to find a contradiction
+[2026-04-24T08:31:50Z WARN  evaluator] [tx 5] step rejected (err:tactic_linarith): <stdin>:12:0: error: linarith failed to find a contradiction
+[2026-04-24T08:31:53Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-04-24T08:31:53Z WARN  evaluator] [tx 6] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-04-24T08:32:32Z WARN  evaluator] [tx 7] step rejected (err:tactic_linarith): <stdin>:12:0: error: linarith failed to find a contradiction
+[2026-04-24T08:33:14Z WARN  evaluator] [tx 8] step rejected (err:tactic_linarith): <stdin>:12:0: error: linarith failed to find a contradiction
+[2026-04-24T08:33:55Z WARN  evaluator] [tx 9] step rejected (err:tactic_linarith): <stdin>:12:0: error: linarith failed to find a contradiction
+[2026-04-24T08:34:32Z WARN  evaluator] [tx 10] step rejected (err:tactic_linarith): <stdin>:12:0: error: linarith failed to find a contradiction
+[2026-04-24T08:35:12Z WARN  evaluator] [tx 11] step rejected (err:tactic_linarith): <stdin>:12:0: error: linarith failed to find a contradiction
+[2026-04-24T08:35:56Z WARN  evaluator] [tx 12] step rejected (err:tactic_linarith): <stdin>:12:0: error: linarith failed to find a contradiction
+[2026-04-24T08:36:44Z INFO  evaluator] [tx 13] Agent_5 step+tx_0_by_Agent_5 partial OK (depth=1)
+[2026-04-24T08:37:25Z WARN  evaluator] [tx 14] step rejected (err:tactic_linarith): <stdin>:14:0: error: linarith failed to find a contradiction
+[2026-04-24T08:38:05Z WARN  evaluator] [tx 15] step rejected (err:tactic_linarith): <stdin>:14:0: error: linarith failed to find a contradiction
+[2026-04-24T08:38:39Z WARN  evaluator] [tx 16] step rejected (err:tactic_linarith): <stdin>:14:0: error: linarith failed to find a contradiction
+[2026-04-24T08:39:18Z WARN  evaluator] [tx 17] step rejected (err:tactic_linarith): <stdin>:14:0: error: linarith failed to find a contradiction
+[2026-04-24T08:39:58Z WARN  evaluator] [tx 18] step rejected (err:tactic_linarith): <stdin>:14:0: error: linarith failed to find a contradiction
+[2026-04-24T08:40:40Z WARN  evaluator] [tx 19] step rejected (err:tactic_linarith): <stdin>:14:0: error: linarith failed to find a contradiction
+[2026-04-24T08:40:40Z INFO  evaluator] [tick@tx20] tape=1 markets=1 top=tx_0_by_Agent_5:50%
+[2026-04-24T08:41:53Z WARN  evaluator] [tx 20] step rejected (err:unsolved_goals): <stdin>:14:1: error: unknown tactic | <stdin>:10:35: error: unsolved goals
+=== amc12_2000_p6 @ 2026-04-24T08:42:07+00:00 ===
+[2026-04-24T08:42:07Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/amc12_2000_p6.lean | Condition: n8 | Model: deepseek-chat
+[2026-04-24T08:42:07Z INFO  evaluator] [swarm/n8] Agent_0:skill0:t=0.10 Agent_1:skill0:t=0.25 Agent_2:skill0:t=0.40 Agent_3:skill0:t=0.55 Agent_4:skill0:t=0.70 Agent_5:skill0:t=0.85 Agent_6:skill0:t=1.00 Agent_7:skill0:t=1.15
+[2026-04-24T08:42:57Z WARN  evaluator] [tx 0] step rejected (err:tactic_linarith): <stdin>:14:0: error: linarith failed to find a contradiction
+[2026-04-24T08:43:41Z WARN  evaluator] [tx 1] step rejected (err:tactic_linarith): <stdin>:14:0: error: linarith failed to find a contradiction
