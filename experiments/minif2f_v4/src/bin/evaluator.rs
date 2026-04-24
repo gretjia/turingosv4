@@ -487,7 +487,10 @@ async fn run_swarm(
     //
     // HOMOGENEOUS_AGENTS=1 forces all agents to use skill[0] (A/B control).
     // Default (unset / 0): 4-way heterogeneity (treatment).
+    // EXCLUDE_META_PLANNER=1 uses the first 3 skills only (no skill_3 Meta-Planner);
+    //   ablation for Paper 1 § 5 to isolate the Meta-Planner mechanism.
     let homogeneous = std::env::var("HOMOGENEOUS_AGENTS").ok().as_deref() == Some("1");
+    let exclude_meta = std::env::var("EXCLUDE_META_PLANNER").ok().as_deref() == Some("1");
     let agent_skills_all: Vec<&str> = vec![
         "Focus on algebraic simplification: ring, field_simp, linarith, nlinarith.",
         "Focus on structural reasoning: induction, cases, rcases, constructor.",
@@ -501,6 +504,8 @@ async fn run_swarm(
     ];
     let agent_skills: Vec<&str> = if homogeneous {
         vec![agent_skills_all[0]]
+    } else if exclude_meta {
+        agent_skills_all[..3].to_vec()
     } else {
         agent_skills_all.clone()
     };
@@ -1158,8 +1163,23 @@ fn make_pput_full(
 ) -> PputResult {
     let elapsed = start.elapsed().as_secs_f64();
     let pput = if has_gp && elapsed > 0.0 { 100.0 / elapsed } else { 0.0 };
-    // C-012 provenance: populated from env vars; None when unset (backward compat).
-    let build_sha = std::env::var("BUILD_SHA").ok();
+    // C-012 provenance: BUILD_SHA required after C-070 (pre-reg discipline).
+    // Fall back to git rev-parse so run_list.sh can stamp it automatically.
+    // Only emit None if STRICT_BUILD_SHA=0 (explicit opt-out for legacy tests).
+    let build_sha = std::env::var("BUILD_SHA").ok().or_else(|| {
+        std::process::Command::new("git")
+            .args(["rev-parse", "--short", "HEAD"])
+            .output().ok()
+            .and_then(|o| if o.status.success() {
+                String::from_utf8(o.stdout).ok().map(|s| s.trim().to_string())
+            } else { None })
+    });
+    if build_sha.is_none() && std::env::var("STRICT_BUILD_SHA").ok().as_deref() != Some("0") {
+        eprintln!("ERROR: BUILD_SHA unset and `git rev-parse --short HEAD` failed. \
+                   Set BUILD_SHA env or run inside git working tree. \
+                   Override via STRICT_BUILD_SHA=0 (discouraged).");
+        std::process::exit(3);
+    }
     let classifier_version = std::env::var("CLASSIFIER_VERSION").ok();
     let boltzmann_seed = std::env::var("BOLTZMANN_SEED")
         .ok().and_then(|s| s.parse::<u64>().ok());

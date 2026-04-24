@@ -9,6 +9,10 @@ if [ -z "${DEEPSEEK_API_KEY:-}" ] && [ -f "$HOME/projects/turingosv3/.env" ]; th
 fi
 export LLM_PROXY_URL="${LLM_PROXY_URL:-http://localhost:8080}"
 export ACTIVE_MODEL="${ACTIVE_MODEL:-deepseek-chat}"
+# C-012 provenance: stamp per-row commit SHA so post-hoc audits can match
+# each jsonl row to the binary that produced it. Overridable; falls back
+# to `git rev-parse --short HEAD` evaluated at runner start.
+export BUILD_SHA="${BUILD_SHA:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && git rev-parse --short HEAD 2>/dev/null || echo unknown)}"
 
 CONDITION="${1:-oneshot}"
 LIST_FILE="${2:?usage: $0 <condition> <list-file> [tag]}"
