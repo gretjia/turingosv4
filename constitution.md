@@ -582,6 +582,8 @@ graph TD
 
 人类不再规定"系统应该怎么做"，而是规定"最顶层的目标与价值观"。这构成了整个系统的绝对底层根基。
 
+> [2026-04-25 架构师补充] **sudo 权限的精确范围**：人类 sudo 权限**仅且只**作用于 `constitution.md` 本身。Trust Root 清单中的其他载荷文件（如 kernel.rs / lean4_oracle.rs / 预注册 / 评分管线 / cases/* 等）属于 ArchitectAI 的合法升级范围 —— 见 V.1.2。系统因此采用两层防御：(i) **提案时**由 Veto-AI 校核违宪与否（V.1.3）；(ii) **运行时**由 Boot 的 SHA-256 manifest 保证"实际加载的字节 == 已 commit 的字节"。这两层与本节的 sudo 形成**三段守护**：宪法 sudo（少数）+ Veto-AI 提案闸（多数）+ Boot 整合性闸（全部）。
+
 ---
 
 ### 2. ArchitectAI（架构师 AI）——提出者 [Art. V.1.2]
@@ -601,25 +603,36 @@ ArchitectAI 会主动分析系统日志，进而：
 
 它是系统熵减的引擎。
 
+> [2026-04-25 架构师补充] **ArchitectAI 拥有架构升级的 commit 权限**，而非仅止于"提出"。任何**不涉及 `constitution.md`** 的修改 —— 包括 Trust Root 清单（`genesis_payload.toml`）本身的载荷条目增减与 SHA-256 重算 —— 经 Veto-AI（V.1.3）校核未发现违宪后，由 ArchitectAI 直接落盘并更新 manifest 对应字段。此过程**不需要人类 sudo**。理由：宪法已经是 ground truth，ArchitectAI 的修改若未违宪则属于宪法允许的演化空间；强制 sudo 反而把人类拉回工程细节，违反 V.1.1 "人类只立宪法"的 Meta 原则。
+
 ---
 
-### 3. JudgeAI（大法官 AI）——验证者 [Art. V.1.3]
+### 3. Veto-AI（违宪否决 AI）——验证者 [Art. V.1.3]
+
+> [2026-04-25 架构师补充] 此前称 JudgeAI；本次重命名为 **Veto-AI**，以精确反映其唯一职责：单一的"违宪否决权"，无任何主观评判维度。命名变更已贯穿至下方 FC3 流程图节点 `vetoAI`。
 
 它是系统中的"保守守门人"。
 
-ArchitectAI 提出的任何架构变更，都**不能**直接上线。必须经过 JudgeAI 的冷酷审查。
+ArchitectAI 提出的任何架构变更，都**不能**直接上线。必须经过 Veto-AI 的冷酷审查。
 
-JudgeAI 唯一的工作是：
+Veto-AI 唯一的工作是：
 
 > 拿着宪法，反复逐条校验 ArchitectAI 生成的新架构代码是否"违宪"。
 > 
 
-虽然名字叫"法官"，但它并不负责做全面主观判断。它只做一件事：
+它**不**做（白名单严格排除）：
+
+- 主观质量评价（代码可读性 / 工程口味）
+- 性能或效率评判
+- 测试覆盖率主观打分
+- 任何与"违宪与否"**无关**的判定
+
+它只做一件事：
 
 > 否决违宪提案。
 > 
 
-也就是说，它只负责是否违宪的（偏）客观判定，而不承担其他主观评价。
+也就是说，它只负责（偏）客观的违宪判定 —— 输出域 = `{PASS, VETO}` —— 不承担其他主观评价。任何把 Veto-AI 用于"代码评审"或"质量审计"的尝试都属于范畴越界，应由独立的非 Veto-AI 审计者承担。
 
 ---
 
@@ -658,6 +671,18 @@ JudgeAI 唯一的工作是：
 
 ---
 
+## 5.3 宪法修订日志 [Art. V.3]
+
+> 宪法的修改唯一触发条件 = 人类架构师的显式 sudo 授权。每次修订必须在此处留痕，注明日期、变更摘要、动机，以便所有后续 ArchitectAI / Veto-AI / 审计者可独立复原"宪法在某时刻的形态"。
+
+| 日期 | 触发者 | 章节 | 摘要 |
+|---|---|---|---|
+| 2026-04-25 | 人类架构师 | V.1.1 | 明确 sudo 权限**仅**作用于 `constitution.md` 本身；Trust Root 清单中其他文件归 ArchitectAI 升级范围；说明"sudo + Veto-AI + Boot manifest"三段守护结构。 |
+| 2026-04-25 | 人类架构师 | V.1.2 | 明确 ArchitectAI 拥有 commit 权限（不止"提出"）；任何不动 `constitution.md` 的修改经 Veto-AI PASS 后由 ArchitectAI 直接落盘并更新 Trust Root manifest，无需人类 sudo。 |
+| 2026-04-25 | 人类架构师 | V.1.3 + FC3 | JudgeAI 重命名为 **Veto-AI**；增加白名单严格排除（不做主观质量、性能、可读性评判）；FC3 流程图节点 `judgeAI` 同步重命名为 `vetoAI`。 |
+
+---
+
 > "损之又损，以至于无为，无为而无不为……"
 > 
 
@@ -683,7 +708,7 @@ JudgeAI 唯一的工作是：
                     constitution:::white@{ shape: doc, label: "constitution as ground truth" }
                     logs:::white@{ shape: docs, label: "logs archive as ground truth" }
                 end
-                judgeAI[JudgeAI]:::black
+                vetoAI[Veto-AI]:::black
                 architectAI[ArchitectAI]:::black
             end
     
@@ -694,7 +719,7 @@ JudgeAI 唯一的工作是：
             end
     
             top ==>|manage| agents ==>|use| tools
-            judgeAI & architectAI -.->|use| tools
+            vetoAI & architectAI -.->|use| tools
     
             tape["Q"]
             log:::white@{ shape: doc, label: "log" }
@@ -709,8 +734,8 @@ JudgeAI 唯一的工作是：
         tools ==>|write| log
         logs -->|feedback| architectAI
         init ==> error ==========>|re-init| boot
-        constitution -->|abide| judgeAI & architectAI
-        judgeAI -->|veto| architectAI
+        constitution -->|abide| vetoAI & architectAI
+        vetoAI -->|veto| architectAI
     ```
 
 ---
