@@ -65,7 +65,12 @@ The constitutional FC3-S3 `readonly` subgraph contains FC3-N3 (`constitution as 
 
 `genesis_payload.toml` itself is **not** self-hashed (chicken-and-egg). The semantic anchor is the `[pput_accounting_0]` section content, not its hash. Section 6 below records this limitation.
 
-**Total manifest size**: 16 files as of 2026-04-25 (15 from B7 + `rollback_sim.rs` from B7-extra). Manifest size will grow by 1 more file when B7-extra calibration lands (the `experiments/minif2f_v4/logs/p0_calibration_*.jsonl` data file becomes part of Trust Root per PREREG § 5.5 freeze step).
+**Total manifest size**: **20 files** as of 2026-04-25 post-audit-fix. Composition:
+- 15 from B7 (PREREG § 1.8 base 8 + audit accounting 6 + B6 prompt_guard)
+- 1 from B7-extra (`rollback_sim.rs`)
+- 4 from 2026-04-25 dual-audit fixes (`src/main.rs`, `Cargo.lock`, `handover/preregistration/scripts/run_p0_calibration.sh`, `handover/preregistration/scripts/compute_p0.py`)
+
+Will grow by 1 more file when B7-extra calibration lands (the `experiments/minif2f_v4/logs/p0_calibration_*.jsonl` data file becomes part of Trust Root per PREREG § 5.5 freeze step). Final size after Phase B → C exit: 21 files.
 
 ---
 

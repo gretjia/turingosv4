@@ -131,6 +131,30 @@ if echo "$PREFLIGHT_OUT" | grep -q "error:"; then
 fi
 echo "Oracle preflight OK."
 
+# Audit-fix 2026-04-25 round-2 (Codex re-audit VETO): evaluator boot preflight.
+# Run the evaluator binary on a trivial fixture path BEFORE the batch starts,
+# specifically to catch TRUST_ROOT_TAMPERED at boot. If Trust Root is tampered,
+# the in-loop crash-vs-timeout discrimination would still catch it, but a
+# preflight surfaces the failure with the clean diagnostic and zero wasted
+# API spend.
+echo "[$(date -Is)] Evaluator boot preflight (Trust Root verify)..."
+PREFLIGHT_PROBE=$(timeout 30 "$EVALUATOR" /nonexistent_problem_path.lean 2>&1 || true)
+if echo "$PREFLIGHT_PROBE" | grep -q "TRUST_ROOT_TAMPERED"; then
+    echo "PREFLIGHT FAIL: TRUST_ROOT_TAMPERED at evaluator boot. ABORTING."
+    echo "$PREFLIGHT_PROBE" | head -c 800
+    exit 2
+fi
+# Expected: evaluator exits with usage error or problem-not-found (non-zero,
+# but no panic). Anything containing "panicked at" except expected-args
+# error is suspicious.
+if echo "$PREFLIGHT_PROBE" | grep -q "panicked at" && \
+   ! echo "$PREFLIGHT_PROBE" | grep -q "Usage:"; then
+    echo "PREFLIGHT FAIL: evaluator panicked unexpectedly:"
+    echo "$PREFLIGHT_PROBE" | head -c 800
+    exit 2
+fi
+echo "Evaluator boot preflight OK."
+
 # Run loop. Each (mode, seed, problem) combination = 1 run.
 TOTAL_PROBLEMS=$(echo "$ADAPTATION_IDS" | wc -l)
 TOTAL_RUNS=$((TOTAL_PROBLEMS * ${#SEEDS[@]} * ${#MODES[@]}))
@@ -153,6 +177,12 @@ echo ""
 # UNSOLVED.
 emit_synthetic_unsolved() {
     # args: out_file mode seed pid reason exit_code
+    # Emits a v2 RunAggregate-conformant row — Codex re-audit CHALLENGE 2:
+    # `golden_path_token_count` is required by jsonl_schema.rs RunAggregate
+    # when schema_version == "v2.0". Synthetic rows MUST set it explicitly
+    # so downstream v2 tooling parses cleanly.
+    # USED ONLY for legitimate timeout (exit 124). Crash paths now ABORT
+    # the batch instead — see in-loop comment on the elif branch.
     python3 - <<EOF >> "$1"
 import json, time
 print(json.dumps({
@@ -173,6 +203,7 @@ print(json.dumps({
     "build_sha": "$BUILD_SHA",
     "boltzmann_seed": $3,
     "tx_count": 0,
+    "golden_path_token_count": 0,
     "total_run_token_count": 0,
     "total_wall_time_ms": 0,
     "pput_runtime": 0.0,
@@ -251,15 +282,36 @@ print(json.dumps(row))
                 else
                     echo "UNSOLVED (tx=$TX)"
                 fi
+            elif [ "$EXIT" -eq 124 ]; then
+                # Audit-fix Gemini Q7.b: timeout is a legitimate UNSOLVED outcome
+                # under a fixed wall-clock budget. Emit synthetic row with
+                # synthetic_timeout_or_crash=true disambiguator.
+                echo "TIMEOUT (exit=124) — emitting synthetic UNSOLVED row"
+                emit_synthetic_unsolved "$OUT_FILE" "$MODE" "$SEED" "$PID" "timeout_2400s" 124
             else
-                # Audit-fix Gemini Q7.b: emit valid UNSOLVED row instead of drop.
-                if [ "$EXIT" -eq 124 ]; then
-                    echo "TIMEOUT (exit=124) — emitting synthetic UNSOLVED row"
-                    emit_synthetic_unsolved "$OUT_FILE" "$MODE" "$SEED" "$PID" "timeout_2400s" 124
-                else
-                    echo "CRASH (exit=$EXIT) — emitting synthetic UNSOLVED row"
-                    emit_synthetic_unsolved "$OUT_FILE" "$MODE" "$SEED" "$PID" "evaluator_crash" "$EXIT"
+                # Audit-fix Codex re-audit VETO 2026-04-25: any non-timeout
+                # non-zero exit (Rust panic 101, segfault 139, OOM 137, etc.) is
+                # NOT a legitimate UNSOLVED outcome. It indicates batch corruption.
+                # Especially TRUST_ROOT_TAMPERED panics MUST abort the batch
+                # rather than be silently absorbed as UNSOLVED data — otherwise
+                # the entire calibration could complete with all-crash rows
+                # and produce a "valid" p_0=0 that gets frozen into Trust Root.
+                # No synthetic row emitted; partial calibration is forfeited.
+                echo "CRASH (exit=$EXIT) — ABORTING BATCH"
+                if grep -q "TRUST_ROOT_TAMPERED" "$STDERR_LOG"; then
+                    echo ""
+                    echo "  ✗ DETECTED: TRUST_ROOT_TAMPERED in evaluator stderr"
+                    echo "  ✗ Boot integrity check failed; investigate manifest vs filesystem state."
+                    echo "  ✗ Diagnostic stderr (tail):"
+                    grep "TRUST_ROOT_TAMPERED" "$STDERR_LOG" | head -3 | sed 's/^/    /'
+                    exit 3
                 fi
+                echo ""
+                echo "  ✗ Evaluator crashed with exit=$EXIT (not a timeout)."
+                echo "  ✗ Calibration data NOT trusted; partial jsonl preserved at $OUT_FILE for diagnosis."
+                echo "  ✗ Last 5 stderr lines:"
+                tail -5 "$STDERR_LOG" | sed 's/^/    /'
+                exit 4
             fi
         done <<< "$ADAPTATION_IDS"
     done
