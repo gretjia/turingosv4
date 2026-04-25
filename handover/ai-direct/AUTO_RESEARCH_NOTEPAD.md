@@ -68,6 +68,32 @@ this cycle in favor of the longer arc. Architect directive verbatim archived at
 
 ## 2. Confirmed findings (evidence-backed, non-speculation)
 
+### F-2026-04-25-03: Phase B B2/B3/B4 mid-term dual audit — CHALLENGE/CHALLENGE → 2 P0s fixed, 3 deferred to B5
+- 2026-04-25: user requested mid-term dual audit at the B2 (cost) + B3 (wall-clock) + B4 (dual PPUT) midpoint, BEFORE B5 (conformance battery) builds tests against potentially-broken foundations.
+- **Codex (274s, 67K char prompt) and Gemini (62s, 67K char prompt) both returned CHALLENGE with high conviction.** Per `feedback_dual_audit_conflict` (VETO > CHALLENGE > PASS): merged verdict CHALLENGE.
+- **Convergent P0s (both flagged)**:
+  - **P0-A — B4 not Phase-C-safe by construction**: `make_pput` derived `post_hoc_verified = has_gp` internally; a future Soft Law implementer setting fake `has_gp=true` would silently launder fake-accepts into the North Star `pput_verified`. Architecture relied on future discipline, not construction.
+  - **P0-B — Schema not v2-aligned**: PputResult lacks `schema_version`, `progress: u8`, `run_id`, `split`, `rollback_count`, `mode`, etc. Codex frame: B1's `RunRecord::from_json` would dispatch new B2-B4 rows as Legacy + extras (because no `schema_version`). Gemini frame: `verified: Option<bool>` should be `progress_verified: Option<u8>` per B1 contract.
+- **Codex-only P0s (conservative reading takes them too)**:
+  - **P0-C — B3 first-read placement undercounts T_i**: `mark_first_read` fired AFTER prompt construction in both run_oneshot and run_swarm; conformance test was relaxed `≥7100ms → ≥7000ms` to accommodate, which itself was a tell of spec divergence.
+  - **P0-D — hybrid_v1 drops failed-leg C_i**: hybrid_v1 condition's `..r2` field-spread keeps only the swarm leg's cost; the failed oneshot's tokens vanish from the run total.
+  - **P0-E — `flip_last_failed_to_accepted` silent saturation**: saturating subtraction at 0 silently masks over-flip wiring bugs.
+- **Both auditors agree on B7 recommendation (not blocking)**: add `cost_aggregator.rs`, `wall_clock.rs`, `post_hoc_verifier.rs` to PREREG § 1.8 Trust Root manifest. Codex adds: `evaluator.rs`, `jsonl_schema.rs`, `src/drivers/llm_http.rs`.
+- **User directive**: option 2 — fix P0-A + P0-C now (architectural + clean code-level), defer P0-B/D/E to B5 follow-up scope.
+- **Fixes landed 2026-04-25**:
+  - **P0-A**: refactored `make_pput(runtime_accepted: bool, post_hoc_verified: bool, ...)` — caller MUST declare both legs explicitly. All 7 call sites updated. Phase C Soft Law diverges at the Soft Law mode call site, not inside make_pput.
+  - **P0-C**: moved `wc.mark_first_read()` BEFORE prompt construction in both run_oneshot (before `let prompt = format!(...)`) and run_swarm (top of for-loop body, before chain/skill/board build). Tightened conformance test from `7000-7100ms` slack to strict `≥7100ms` per plan B3 spec.
+  - 143/143 cargo test --workspace PASS post-fix.
+- **Deferred to B5 scope** (tracked in `handover/audits/B5_DEFERRED_FROM_MIDTERM_AUDIT_2026-04-25.md`):
+  - P0-B: schema v2 emit alignment (switch evaluator emit to `RunAggregate` OR add `schema_version` + missing fields to PputResult). B5's natural scope since B5 writes conformance tests against schema.
+  - P0-D: hybrid_v1 cost aggregation (sum r1+r2 OR disable hybrid_v1 for PPUT-CCL).
+  - P0-E: `flip_last_failed_to_accepted` → fallible/assert.
+- **Audit reports**:
+  - `handover/audits/CODEX_PPUT_CCL_B2_B4_AUDIT_2026-04-25.md`
+  - `handover/audits/GEMINI_PPUT_CCL_B2_B4_AUDIT_2026-04-25.md`
+- **Compute spent**: ~$3-5 (Codex 274s + Gemini 62s, ~67K char prompt each). Phase B audit budget: ~$15-20 reserved across remaining B5/B6/B7 audits + Phase C transition gate; B2-B4 mid-term consumed ~25%.
+- **Lesson**: mid-term audits at design-foundation boundaries catch architectural fragility (Phase-C-safety of make_pput) that would have been written-into the conformance battery at B5 — Goodhart shield holes that B5 tests would have validated FOR rather than AGAINST.
+
 ### F-2026-04-25-02: Architect FULL PASS upgrade → PPUT-driven CCL arc launched (supersedes Paper 1 arc)
 - 2026-04-25: user transmitted architect directive granting **FULL PASS upgraded to "PPUT-driven version"**. North Star pivots from solve-rate / WBCG_VTR to **Held-out Verified PPUT (H-VPPUT)**.
 - Architect formalization: `Progress_i = 1[GroundTruth(G_i)=1]`; `VPPUT_i = Progress_i / (C_i × T_i)` where `C_i` = ALL token cost (every agent × branch × failed proposal × tool stdout), `T_i` = first-read → final-accept.
