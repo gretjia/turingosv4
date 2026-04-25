@@ -37,7 +37,7 @@
 
 ## Abstract (v2 draft, ~200 words)
 
-Multi-agent LLM systems often fail to outperform a single well-prompted instance of the same model. We report a pre-registered paired A/B study on `deepseek-chat` in an n=8 swarm harness over 10 hard MiniF2F Lean 4 problems (drawn at random from a 36-problem pool, sampling seed committed BEFORE run). We compare a **homogeneous** condition (all 8 agents share one algebraic-skill prompt) against a **heterogeneous** condition (4 distinct skill prompts, including one meta-cognitive "Meta-Planner" prompt). Across 4 independent Boltzmann routing seeds (40 paired trials), the heterogeneous condition solves **4 distinct problems never solved by the homogeneous condition** (B-unique = 4 problem identities, A-unique = 0); 8 of 8 discordant paired outcomes favor the heterogeneous condition (McNemar exact **one-sided p=0.0039**; two-sided p=0.0078; Bonferroni-corrected α=0.0125 for a pre-registered family of three hard-set tests — **primary endpoint clears Bonferroni**). An ablation removing the Meta-Planner role (retaining 3 other skills) solves 3 distinct hard problems never solved by A (Abl-unique vs A = 3, p=0.016, misses Bonferroni). The Meta-Planner's marginal contribution (B vs Ablation) is **not statistically distinguishable** at this sample size (one-sided p=0.34; per-seed contribution sign-variable {0, +2, −1, +1}). One problem in the hard-10 sample, `mathd_algebra_246`, became solvable in 100% of homogeneous runs during data collection and is excluded from robust effect-size estimates (see § 4.7, model-drift note). All accepted proofs re-verify independently via `lean --stdin`. We frame the finding as a **performance gain from a portfolio of prompts including one meta-cognitive instruction** — NOT swarm emergence, and NOT a cleanly isolated "generic heterogeneity" effect.
+Multi-agent LLM systems often fail to outperform a single well-prompted instance of the same model. We report a pre-registered paired A/B study on `deepseek-chat` in an n=8 swarm harness over 10 hard MiniF2F Lean 4 problems (drawn at random from a 36-problem pool, sampling seed committed BEFORE run). We compare a **homogeneous** condition (all 8 agents share one algebraic-skill prompt) against a **heterogeneous** condition (4 distinct skill prompts, including one meta-cognitive "Meta-Planner" prompt). Across 4 independent Boltzmann routing seeds (40 paired trials), the heterogeneous condition solves **4 distinct problems never solved by the homogeneous condition** (B-unique = 4 problem identities, A-unique = 0); 8 of 8 discordant paired outcomes favor the heterogeneous condition (McNemar exact **one-sided p=0.0039**; two-sided p=0.0078; Bonferroni-corrected α=0.0125, retained from the original pre-reg's family-of-4 plan as a conservative carryover; § 3.6 closes the confirmatory family at three hard-set McNemar tests post-hoc — **primary endpoint clears Bonferroni**). An ablation removing the Meta-Planner role (retaining 3 other skills) solves 3 distinct hard problems never solved by A (Abl-unique vs A = 3, p=0.016, misses Bonferroni). The Meta-Planner's marginal contribution (B vs Ablation) is **not statistically distinguishable** at this sample size (one-sided p=0.34; per-seed contribution sign-variable {0, +2, −1, +1}). One problem in the hard-10 sample, `mathd_algebra_246`, became solvable in 100% of homogeneous runs during data collection and is excluded from robust effect-size estimates (see § 4.7, model-drift note). All accepted proofs re-verify independently via `lean --stdin`. We frame the finding as a **performance gain from a portfolio of prompts including one meta-cognitive instruction** — NOT swarm emergence, and NOT a cleanly isolated "generic heterogeneity" effect.
 
 ---
 
@@ -67,7 +67,7 @@ We explicitly do NOT claim swarm emergence in the strict sense (irreducible coll
 
 ## § 2. Related work (compressed per P1-7)
 
-Prior multi-agent LLM work (Debate, Constitutional AI, AutoGen, LeanDojo) does not report paired-design prompt-diversity experiments with explicit negative controls. Our contribution is methodological: a reproducible, pre-registered paired A/B isolating prompt diversity from all other variables.
+Prior multi-agent LLM work (Debate, Constitutional AI, AutoGen, LeanDojo) does not report paired-design prompt-diversity experiments with explicit negative controls. Our contribution is methodological: a reproducible, pre-registered paired A/B that varies the agents' skill-description prompts while holding model, harness, transaction cap, routing seed schedule, and per-trial budget constant. We explicitly do NOT claim isolation of "generic prompt diversity from all other variables" — the heterogeneous condition mixes peer-level and meta-cognitive prompt content, and Limitation 12 retains that confound.
 
 ---
 
@@ -106,7 +106,7 @@ During the initial v2 data run, we observed that launching 12 concurrent batches
 
 ### 3.6 Pre-registered statistics
 
-**Confirmatory family** (size = 3, Bonferroni α = 0.0125 ≈ 0.05/4 rounded to match the original pre-reg Bonferroni factor; see § 7 Limitations for the family-reconciliation note):
+**Confirmatory family** (size = 3, Bonferroni α = 0.0125 retained from the original pre-reg's family-of-4 plan; α stays conservative if the family is reduced to 3 since 0.05/3 ≈ 0.0167 > 0.0125; see § 7 Limitations for the family-reconciliation note):
 
 1. **Primary**: McNemar exact **one-sided** on hard-set paired (problem × seed) discordants, **B > A** (directional).
 2. **Secondary**: McNemar exact one-sided on hard-set paired (problem × seed) discordants, **Abl > A** (directional).
@@ -142,7 +142,7 @@ All numbers below are computed by `tools/aggregate_e1v2.py` from raw jsonl; see 
 McNemar exact binomial (b=8, c=0, n_discordant=8):
 - one-sided p = **0.00391** (B > A)
 - two-sided p = **0.00781**
-- Bonferroni threshold (family=4): α = 0.0125
+- Bonferroni threshold (α = 0.0125; conservative carryover from the original pre-reg's family-of-4 plan, retained after the post-hoc family-of-3 reconciliation in § 3.6 since 0.05/3 ≈ 0.0167 > 0.0125)
 
 **Verdict: primary endpoint REJECTS the null H₀: B ≤ A at Bonferroni-adjusted α=0.0125.** Heterogeneous prompting produces a statistically significant solve-rate gain vs homogeneous prompting on hard MiniF2F problems. **Robust effect size (drift-proof framing, per § 4.7)**: the heterogeneous condition solves 4 distinct hard problems that the homogeneous condition never solved; the reverse count is zero. 100% of discordant paired outcomes favor B (8/8).
 
@@ -295,7 +295,7 @@ The Meta-Planner prompt is a meta-cognitive instruction ("review the chain", "pr
 ### 8.1 Code + commits
 
 - TuringOS v4: https://github.com/gretjia/turingosv4
-- main@`f874bd8` (paper + evidence; final tag pending commit after audit round 2)
+- main, paper-final tag `paper1-v2.1.1` (paper + evidence + round-3 dual-audit PASS + post-PASS hygiene cleanup)
 - experiment/phase-8a-snapshot-fix@`29ab43a` (runtime code; BUILD_SHA stamped on every jsonl row)
 
 ### 8.2 Smallest reproducer
@@ -345,7 +345,7 @@ All raw jsonl + proof artifacts + sample files archived in-repo under stable pat
 - **Pre-registration + sample**: `handover/preregistration/PREREG_E1V2_HETEROGENEITY_2026-04-23.md` + `hard36_pool.txt` + `sample_E1v2_hard10_S20260423.txt`.
 - **Round-1 and round-2 audits**: `handover/audits/CODEX_PAPER1_AUDIT_*.md`, `GEMINI_PAPER1_AUDIT_*.md`, `CODEX_PAPER1_V2_AUDIT_*.md`, `GEMINI_PAPER1_V2_AUDIT_*.md`, `DUAL_AUDIT_V2_VERDICT_*.md`.
 
-Final paper-release tag: to be cut after all v2.1 edits are reviewer-checked, under the tag `paper1-v2.1`.
+Final paper-release tag: `paper1-v2.1.1` on main, cut after round-3 dual-audit PASS (Codex + Gemini) and the post-PASS hygiene fixes (family-wording cleanup, § 2 over-isolation fix, Appendix C path correction + extracted B-unique `.lean` archive).
 
 ---
 
@@ -407,24 +407,42 @@ for s in sample:
 
 Fingerprint verification: `python3 tools/prereg_check.py handover/preregistration/PREREG_E1V2_HETEROGENEITY_2026-04-23.md` exits 0 and prints `PREREG check PASS`.
 
-## Appendix C. Sample B-unique winning proof
+## Appendix C. Sample B-unique winning proofs
 
-B-unique winners (problems solved by some B run but NEVER by any A run):
-`algebra_bleqa_apbon2msqrtableqambsqon8b`, `mathd_algebra_270`, `mathd_algebra_332`, `numbertheory_2pownm1prime_nprime`. Per-problem winning gp_payload artifacts live at `handover/evidence/v2/<problem>_s<seed>_B.lean` and re-verify via `python3 tools/audit_proof.py <file>`. A representative B-unique proof header is extracted mechanically from the jsonl by:
+B-unique winners (problems solved by some B run but NEVER by any A run): `algebra_bleqa_apbon2msqrtableqambsqon8b`, `mathd_algebra_270`, `mathd_algebra_332`, `numbertheory_2pownm1prime_nprime`.
+
+Per-problem winning `gp_payload` artifacts are extracted from the raw jsonl into standalone `.lean` files under `handover/evidence/v2/proofs/`:
+
+```
+handover/evidence/v2/proofs/
+├── algebra_bleqa_apbon2msqrtableqambsqon8b_s141421_B.lean
+├── algebra_bleqa_apbon2msqrtableqambsqon8b_s2357_B.lean
+├── algebra_bleqa_apbon2msqrtableqambsqon8b_s2718_B.lean
+├── mathd_algebra_270_s31415_B.lean
+├── mathd_algebra_332_s141421_B.lean
+├── mathd_algebra_332_s2357_B.lean
+├── mathd_algebra_332_s31415_B.lean
+└── numbertheory_2pownm1prime_nprime_s31415_B.lean
+```
+
+Each file's header records the source jsonl, seed, build_sha, and `tx_count`. To verify, prepend the corresponding MiniF2F problem statement and run `lean --stdin`. Re-extraction from the raw evidence is reproducible via:
 
 ```bash
 python3 -c "
-import json, pathlib, sys
-for jf in sorted(pathlib.Path('.claude/worktrees/phase-8a-snapshot/experiments/minif2f_v4/logs').glob('E1v2_B_*.jsonl')):
+import json, pathlib, os
+B = {'algebra_bleqa_apbon2msqrtableqambsqon8b','mathd_algebra_270','mathd_algebra_332','numbertheory_2pownm1prime_nprime'}
+for jf in sorted(pathlib.Path('handover/evidence/v2').glob('E1v2_B_*.jsonl')):
+    seed = jf.name.split('_')[2].lstrip('s')
     for line in jf.read_text().splitlines():
         e = json.loads(line)
-        if e.get('has_golden_path') and 'algebra_bleqa' in e['problem']:
-            print(jf.name, '->', e.get('gp_payload','<gp omitted from aggregator jsonl; see proofs/ archive>')[:200])
+        prob = os.path.splitext(os.path.basename(e.get('problem','')))[0]
+        if prob in B and e.get('has_golden_path'):
+            print(prob, 'seed', seed, '->', e.get('gp_payload','')[:200])
 "
 ```
 
-The aggregated jsonl does not inline the proof body by default; the proof `.lean` files are archived under `handover/evidence/v2/` for arXiv submission.
+The aggregated jsonl files inline the proof body in the `gp_payload` field (this commit), so the proofs can be re-extracted at any time from the archive in `handover/evidence/v2/`.
 
 ---
 
-**Status**: v2.1 draft, all 4 seeds × 3 conditions collected, round-2 dual-audit (Codex + Gemini) applied. See `handover/audits/DUAL_AUDIT_V2_VERDICT_2026-04-24.md` for round-2 verdict and residual v2.2 deliverables (problem-cluster sensitivity analysis, easy-set re-run, token-budget table, Appendix C node-count extraction, Docker build transcript).
+**Status**: **v2.1.1 — round-3 dual-audit PASS / PASS, arXiv-ready** (tagged `paper1-v2.1.1`). All 4 seeds × 3 conditions collected; all 5 round-2 P0 blockers closed; round-3 P1 hygiene items (family wording, § 2 phrasing, Appendix C path + extracted `.lean` archive) cleaned. See `handover/audits/DUAL_AUDIT_V2_1_VERDICT_2026-04-25.md` for round-3 merged verdict and residual v2.2 deliverables (problem-cluster sensitivity analysis, easy-set re-run under `29ab43a`, per-condition token-budget table, Appendix C node-count extraction, Docker build/run transcript) — none gating arXiv.

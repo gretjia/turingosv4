@@ -4,7 +4,7 @@
 
 **Hook**: `MEMORY.md` → `project_auto_research_notepad.md` points here. Loaded every session.
 
-**Last updated**: 2026-04-22 (Phase 8 全栈 + 3 轮外部审计 clear + A/B running)
+**Last updated**: 2026-04-25 (Paper 1 v2.1 round-3 dual-audit **PASS/PASS** — first PASS in 3 rounds, arXiv-ready)
 
 ## Active roadmap (2026-04-22 rewrite, supersedes earlier)
 
@@ -49,6 +49,24 @@
 | v3.3 | Deferred | Requires Art. II.1 broadcast fix (bus.rs human confirm) |
 
 ## 2. Confirmed findings (evidence-backed, non-speculation)
+
+### F-2026-04-25-01: Paper 1 v2.1 round-3 dual-audit PASS/PASS — arXiv-ready
+- 2026-04-25: Paper 1 v2.1 (commit `d349a86`, post round-2 P0 fixes) sent to Codex + Gemini 2.5 Pro for **independent** round-3 adversarial audit
+- **Both returned PASS**; per VETO > CHALLENGE > PASS conservative merge → **PASS**
+- First PASS in the 3-round dual-audit arc:
+  - R1 (v1 `2687882`): CHALLENGE / CHALLENGE
+  - R2 (v2 `210f19b`): CHALLENGE / CHALLENGE (Gemini caught `mathd_algebra_246` drift)
+  - R3 (v2.1 `d349a86`): **PASS / PASS**
+- All 5 round-2 P0 blockers (drift documentation, generic-heterogeneity claim cut, 3× headline cut, family reconciliation, artifact stabilization) confirmed closed by both auditors
+- Codex flagged 3 new P1 hygiene items (family wording inconsistency, § 2 over-isolation phrase, Appendix C path mismatch) — explicitly NOT gating, optional v2.1.1 cleanup before tagging `paper1-v2.1`
+- Gemini explicitly says "Top 3 must-fix items: None. The paper is arXiv-ready." Both agree v2.2 deferred items (cluster sensitivity, token table, Docker, Appendix C) should remain deferred
+- Audit artifacts:
+  - `handover/audits/CODEX_PAPER1_V2_1_AUDIT_2026-04-25.md` (PASS)
+  - `handover/audits/GEMINI_PAPER1_V2_1_AUDIT_2026-04-25.md` (PASS)
+  - `handover/audits/DUAL_AUDIT_V2_1_VERDICT_2026-04-25.md` (merged PASS + decision tree)
+  - `handover/audits/run_gemini_paper1_v2_1_audit.py` (reproducer)
+- **C-070 validated**: pre-submission dual-audit + pre-reg + N≥3 ablation + drift disclosure regime survived 3 rounds of independent adversarial audit ending in PASS
+- **Next step**: user decision — Path A (tag `paper1-v2.1` + arXiv now) vs Path B (~30 min v2.1.1 cleanup → tag → arXiv). Both auditors say either is defensible.
 
 ### F-2026-04-23-02: Paper 1 dual-audit CHALLENGE — pre-reg discipline + multiplicity + overclaim risks (C-070 candidate)
 - 2026-04-23 夜: Paper 1 v1 draft (commit `2687882`) 派 Codex + Gemini 2.5 Pro 独立 adversarial audit
