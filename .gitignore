@@ -2,9 +2,27 @@
 .env
 .venv/
 .claude/settings.local.json
+.claude/scheduled_tasks.lock
+.claude/worktrees/
+.codex
 logs/
 proofs/
 wal/
 traces/sessions/
 autoresearch/__pycache__/
 **/__pycache__/
+
+# Experiment scratch (interim run logs / WAL caches / wallet snapshots).
+# Paper-cited evidence lives under handover/evidence/ and handover/preregistration/.
+experiments/minif2f_v4/*.log
+experiments/minif2f_v4/wal_*/
+experiments/minif2f_v4/wallet_*.json
+experiments/minif2f_v4/history.jsonl
+experiments/minif2f_v4/skills/
+experiments/minif2f_v4/combined50.txt
+experiments/minif2f_v4/stratified_new.txt
+experiments/minif2f_v4/analysis/resume_v32*
+experiments/minif2f_v4/analysis/run_nscaling.sh
+experiments/minif2f_v4/analysis/run_temp_ladder.sh
+experiments/minif2f_v4/analysis/sample_E1_hard10.txt
+experiments/minif2f_v4/analysis/sample_failed13.txt
