@@ -43,10 +43,7 @@ pub const ROLLBACK_ENV_VAR: &str = "SIMULATE_ROLLBACK_AT_TX_50";
 /// True iff the calibration treatment toggle is enabled in the current
 /// process environment.
 pub fn rollback_simulation_enabled() -> bool {
-    std::env::var(ROLLBACK_ENV_VAR)
-        .ok()
-        .as_deref()
-        == Some("1")
+    matches!(std::env::var(ROLLBACK_ENV_VAR).as_deref(), Ok("1"))
 }
 
 /// True iff the swarm loop should short-circuit at this `tx` index. The

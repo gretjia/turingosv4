@@ -173,7 +173,7 @@ async fn main() {
     // Repo root: CARGO_MANIFEST_DIR is `experiments/minif2f_v4`; repo root
     // is two levels up. canonicalize so a deployed binary still resolves
     // the genesis path it was built against.
-    let repo_root: std::path::PathBuf = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    let repo_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("..")
         .join("..")
         .canonicalize()

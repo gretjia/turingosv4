@@ -75,19 +75,17 @@ pub fn verify_trust_root(repo_root: &Path) -> Result<(), TrustRootError> {
     if !has_section(&genesis_text, "pput_accounting_0") {
         return Err(TrustRootError::SectionMissing("pput_accounting_0"));
     }
-    for (rel_path, expected_hash) in &manifest {
+    for (rel_path, expected) in &manifest {
         let full = repo_root.join(rel_path);
         let bytes = fs::read(&full).map_err(|err| TrustRootError::FileRead {
             path: full.clone(),
             err,
         })?;
-        let mut hasher = Sha256::new();
-        hasher.update(&bytes);
-        let actual = hex_lower(&hasher.finalize());
-        if actual != *expected_hash {
+        let actual = hex_lower(&Sha256::digest(&bytes));
+        if actual != *expected {
             return Err(TrustRootError::Tampered {
                 path: full,
-                expected: expected_hash.clone(),
+                expected: expected.clone(),
                 actual,
             });
         }
@@ -163,9 +161,10 @@ fn unquote(s: &str) -> Option<&str> {
 }
 
 fn hex_lower(bytes: &[u8]) -> String {
+    use std::fmt::Write;
     let mut out = String::with_capacity(bytes.len() * 2);
     for b in bytes {
-        out.push_str(&format!("{:02x}", b));
+        write!(out, "{b:02x}").unwrap();
     }
     out
 }
@@ -223,27 +222,24 @@ mod tests {
         verify_trust_root(&repo_root()).expect("intact repo verifies");
     }
 
+    /// Write a single-entry [trust_root] manifest pointing at `only.txt`
+    /// with the given hex hash. Used by both tamper and match tests.
+    fn write_single_entry_repo(tmp: &Path, only_txt: &str, manifest_hash: &str) {
+        let genesis = format!(
+            "[pput_accounting_0]\nschema_version = \"1.0\"\n\n\
+             [trust_root]\n\"only.txt\" = \"{manifest_hash}\"\n"
+        );
+        fs::write(tmp.join("genesis_payload.toml"), genesis).unwrap();
+        fs::write(tmp.join("only.txt"), only_txt).unwrap();
+    }
+
     #[test]
     fn verify_trust_root_detects_tamper_in_tempdir() {
-        // Build a fake repo: copy genesis_payload.toml + the smallest tracked
-        // file (cases/MANIFEST.sha256 is short), tamper the file, expect
-        // Tampered error.
+        // Manifest claims a zero hash; on-disk content "tampered" hashes to
+        // anything else, so verify must surface Tampered.
         let tmp = tempdir();
-        let genesis_src = repo_root().join("genesis_payload.toml");
-        let genesis_dst = tmp.join("genesis_payload.toml");
-        // Trim the manifest down to a single-entry section so the test does
-        // not need to mirror every tracked file.
-        let single_entry = r#"[pput_accounting_0]
-schema_version = "1.0"
-
-[trust_root]
-"only.txt" = "0000000000000000000000000000000000000000000000000000000000000000"
-"#;
-        fs::write(&genesis_dst, single_entry).unwrap();
-        fs::write(tmp.join("only.txt"), "tampered").unwrap();
-
-        let err = verify_trust_root(&tmp).expect_err("tamper must be detected");
-        match err {
+        write_single_entry_repo(&tmp, "tampered", &"0".repeat(64));
+        match verify_trust_root(&tmp).expect_err("tamper must be detected") {
             TrustRootError::Tampered { path, expected, actual } => {
                 assert!(path.ends_with("only.txt"));
                 assert_eq!(expected, "0".repeat(64));
@@ -251,22 +247,14 @@ schema_version = "1.0"
             }
             other => panic!("expected Tampered, got {other:?}"),
         }
-        // suppress unused
-        let _ = genesis_src;
     }
 
     #[test]
     fn verify_trust_root_passes_when_hash_matches_in_tempdir() {
         let tmp = tempdir();
         let payload = "hello";
-        let mut hasher = Sha256::new();
-        hasher.update(payload.as_bytes());
-        let hash = hex_lower(&hasher.finalize());
-        let genesis = format!(
-            "[pput_accounting_0]\nschema_version = \"1.0\"\n\n[trust_root]\n\"only.txt\" = \"{hash}\"\n"
-        );
-        fs::write(tmp.join("genesis_payload.toml"), genesis).unwrap();
-        fs::write(tmp.join("only.txt"), payload).unwrap();
+        let hash = hex_lower(&Sha256::digest(payload.as_bytes()));
+        write_single_entry_repo(&tmp, payload, &hash);
         verify_trust_root(&tmp).expect("matching hash verifies");
     }
 
