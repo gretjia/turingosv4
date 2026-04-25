@@ -4,32 +4,48 @@
 
 **Hook**: `MEMORY.md` → `project_auto_research_notepad.md` points here. Loaded every session.
 
-**Last updated**: 2026-04-25 (Paper 1 v2.1 round-3 dual-audit **PASS/PASS** — first PASS in 3 rounds, arXiv-ready)
+**Last updated**: 2026-04-26 (PPUT-CCL arc launched; Paper 1 v2.1.1 deferred per user 2026-04-25)
 
-## Active roadmap (2026-04-22 rewrite, supersedes earlier)
+## Active roadmap (2026-04-26 rewrite, **supersedes Phase 8/9/10 Paper Preprint arc**)
 
-**目标变更** (2026-04-22 user directive): Phase 10 从 "Launch Ready" 改为
-"Paper Preprint Ready"。外部 agent 接入推迟 Phase 11+。严格合宪 +
-全网审计级证据。
+**目标变更** (2026-04-25 user directive received via architect FULL PASS): pivot to
+PPUT-driven Capability Compilation Loop (CCL) research. Paper 1 v2.1.1 (commit
+`c1d7e7c`) reached dual-audit PASS/PASS 2026-04-25 — arXiv submission **deferred**
+this cycle in favor of the longer arc. Architect directive verbatim archived at
+`handover/architect-insights/PPUT_DRIVEN_FULL_PASS_2026-04-25.md`. Pre-reg at
+`handover/preregistration/PREREG_PPUT_CCL_2026-04-26.md`.
 
-1. **Phase 8 — BLOCKER + Critical 盲点修复** (2026-04-22, **A/B running**)
-   - 8.A-D: 4 BLOCKER (Codex V-1/N-1/N-2/N-3) 修完
-   - 8.E-G: 3 Critical 盲点 (C-053/C-055/C-061) 修完
-   - R1-α: Ed25519 真不可伪造 capability (3 轮外审最终 PASS)
-   - R2 v2: oneshot + swarm WAL 失败不 silent fallback
-   - R3: nested block comments 深度计数
-   - Phase 2 A/B N=20 oneshot 跑中
-2. **Phase 9 — 统计可信基线** (queued post A/B PASS)
-   - 6 seeds × N=50 dual + step-only
-   - Law 2 proptest 10K tx
-   - Karpathy TOP-3 micro-bench
-   - pairwise payload diversity metric
-3. **Phase 10 — Paper Preprint Ready**
-   - Art. V 三进程 runtime (Codex + Gemini JudgeAI)
-   - N=244 full MiniF2F × 3 seeds × 2 conditions
-   - Art. V veto 实证 trace
-   - Reproducibility bundle (Dockerized)
-   - arXiv submit
+**North Star**: Held-out Verified PPUT (`H-VPPUT`) + WBCG_PPUT > 0 on heldout-54.
+
+1. **Phase A — Pre-flight** (days 1-3, 2026-04-26 → 2026-04-28, **in progress**)
+   - A1 ✅ PREREG_PPUT_CCL_2026-04-26.md drafted (this commit)
+   - A2 frozen 60/20/20 split + sealed hash (script + JSON)
+   - A3 ✅ this notepad pivot
+   - A4 dual external audit (Codex + Gemini); conservative VETO>CHALLENGE>PASS
+   - A5 commit gate; no Phase B before PASS/PASS
+2. **Phase B — Kernel instrumentation + PPUT accounting** (days 4-10)
+   - JSONL schema v2 (proposal + run-level per architect § 14)
+   - C_i full-cost aggregator (all agents × branches × failures × tool stdout)
+   - T_i = first-read → final-accept (incl. Lean verify time)
+   - `pput_verified` vs `pput_runtime` dual-field separation
+   - 10-test anti-Goodhart conformance battery
+   - PPUT-context-leak gate (PPUT must not enter agent prompt)
+   - Boot freeze: `pput_accounting_0` block in `genesis_payload.toml`
+3. **Phase C — Ablation smoke tests** (days 11-17)
+   - 5 modes: Full / Panopticon / Amnesia / Soft Law / Homogeneous
+   - hard-10 adaptation × N=20 paired
+   - Verify H1-H4: violations show on PPUT axis
+4. **Phase D — CCL shadow mode** (days 18-24)
+   - ArchitectAI (shadow) → AuditorAI (meta-predicates)
+   - Per-artifact attribution; meta_val PPUT measurement
+   - Raw L_t isolation conformance
+5. **Phase E — Controlled activation + heldout sealed eval** (days 25-30)
+   - Auto-loop: ArchitectAI → AuditorAI → user_space write
+   - **Single sealed heldout-54 eval, 3 pre-committed seeds**
+   - WBCG_PPUT computation; final dual external audit
+   - **FINAL PASS = Gates A-H all hold (pre-reg § 7)**
+
+**Caps**: 30 wall-clock days + USD 500 API budget. Hard stops both.
 
 **Archived (Phase 7 complete)**:
 - Phase 3A Hayek Problem Bounty Market (implemented)
@@ -42,13 +58,39 @@
 
 ## 1. Active experiments
 
-| ID | Status | Details |
-|---|---|---|
-| v3.1 | Running ~27/50 | Batch ts=20260415T013559; conditions oneshot/n1/n3; seed=74677; started 01:35 UTC |
-| v3.2 | Queued post-M4 | Chat-model test (deepseek-chat replacing deepseek-reasoner); same sample |
-| v3.3 | Deferred | Requires Art. II.1 broadcast fix (bus.rs human confirm) |
+| ID | Phase | Status | Details |
+|---|---|---|---|
+| PPUT-CCL Phase A | Pre-flight | A1 ✅ + A3 ✅ done; A2 next | PREREG drafted, notepad pivoted; Phase A2 (60/20/20 split) + A4 (dual audit) pending; backbone `deepseek-v4-flash` thinking-off |
+
+**Archived (v3.x + Phase 8/9/10 complete or superseded)**:
+- v3.1/v3.2/v3.3 — closed by Paper 1 v2.1.1 PASS/PASS arc 2026-04-25
+- Phase 8/9/10 Paper Preprint Ready arc — superseded by PPUT-CCL per F-2026-04-25-02
 
 ## 2. Confirmed findings (evidence-backed, non-speculation)
+
+### F-2026-04-25-02: Architect FULL PASS upgrade → PPUT-driven CCL arc launched (supersedes Paper 1 arc)
+- 2026-04-25: user transmitted architect directive granting **FULL PASS upgraded to "PPUT-driven version"**. North Star pivots from solve-rate / WBCG_VTR to **Held-out Verified PPUT (H-VPPUT)**.
+- Architect formalization: `Progress_i = 1[GroundTruth(G_i)=1]`; `VPPUT_i = Progress_i / (C_i × T_i)` where `C_i` = ALL token cost (every agent × branch × failed proposal × tool stdout), `T_i` = first-read → final-accept.
+- Capability compilation success criterion redefined: `WBCG_PPUT > 0` on heldout (an artifact must be used ≥3 times, raise ΔPPUT_heldout > 0, not raise FAR/RR/CPR, be rollback-able).
+- Three constitutional ablations restated in PPUT terms: Soft Law (post-hoc Lean reject → progress=0), Panopticon (CPR↑+IAC↑→PPUT↓), Amnesia (ERR↓→PPUT↓).
+- 30-day phased plan: A pre-flight → B kernel instrumentation → C ablation → D shadow CCL → E controlled activation + sealed heldout eval. FINAL PASS = Gates A-H all hold.
+- **Paper 1 v2.1.1 arXiv submission deferred** this cycle per user directive 2026-04-25 — paper is at PASS/PASS, ready, but the longer arc takes precedence.
+- Artifacts:
+  - Architect directive verbatim: `handover/architect-insights/PPUT_DRIVEN_FULL_PASS_2026-04-25.md`
+  - Pre-registration: `handover/preregistration/PREREG_PPUT_CCL_2026-04-26.md`
+  - 60/20/20 split + sealed hash: pending Phase A2
+- **Compute env (2026-04-25 user directive)**: in-system backbone pinned to **`deepseek-v4-flash`** (thinking off; `deepseek-chat` alias deprecating). 1M context, ¥0.2/¥1/¥2 cache/miss/output per 1M tok. Thinking-on used only as ablation control.
+- **Heterogeneous-LLM timing (Claude decided 2026-04-26)**: introduce at **Phase D**, not earlier. Phases B+C stay single-model so ablation axes are not confounded by model identity. Phase D meta-loop: ArchitectAI=v4-flash thinking-on, AuditorAI=Gemini 2.5 Pro (constitutional motivation: C-010 Generator≠Evaluator at meta-loop level). Phase D-optional candidate: real heterogeneous swarm (4× v4-flash + 4× gemini-2.5-flash) testing model-diversity-vs-skill-diversity contribution to IAC.
+- **Anti-Goodhart guardrails frozen**: 10 conformance tests (token accounting / no PPUT in prompt / failed branches in C_i / heldout sealed inaccessibility / etc.) MUST PASS at every Phase gate.
+- Status: Phase A **COMPLETE 2026-04-26** — A1 ✅ PREREG drafted, A2 ✅ split generated (heldout sealed hash `51440807c9...`), A3 ✅ notepad pivot, A4 ✅ **PASS/PASS round 4** after 4 dual-audit rounds, A5 commit gate cleared. **Phase B (kernel instrumentation + PPUT accounting) cleared to start.**
+- A4 dual-audit chain (4 rounds; verdicts at `handover/audits/`):
+  - Round 1: Gemini CHALLENGE / Codex CHALLENGE → CHALLENGE. 10 fixes applied (M1-M7 + H1-H2 + TR).
+  - Round 2: Gemini PASS / Codex CHALLENGE → CHALLENGE. 3 Codex P0s (family timing, p_0 spec, sealing leak) + § 10 marginal-contribution caveat applied.
+  - Round 3: Gemini PASS / Codex CHALLENGE → CHALLENGE. Codex caught patch-stacking inconsistencies + j-RR mathematically unwinnable (0.9^54 > Holm threshold) + hash defense too literal. **Clean rewrite of § 5 + § 9 + § 2.3** in round 4.
+  - Round 4: **Gemini PASS / Codex PASS → PASS/PASS** (Codex even ran exact-binomial Python to verify power tables — 10/10 Phase C, ≥39/54 Phase E).
+- Final PREREG state (round 4): per-problem unit (n=10 / n=54), j-RR descriptive guardrail (not inferential), family size `4+3k`, N_max=34, k_max=10 frozen, 5-layer sealing, full p_0 calibration protocol, 11 anti-Goodhart + 8 doc-content meta-predicates, Trust Root with fallback enforcement.
+- Compute spent on Phase A: ~$15-20 (Codex 4×62-174K tokens, Gemini 4×140-604K chars). Within $500 arc cap.
+- Final merged verdict: `handover/audits/DUAL_AUDIT_PPUT_CCL_VERDICT_ROUND4_2026-04-26.md`
 
 ### F-2026-04-25-01: Paper 1 v2.1 round-3 dual-audit PASS/PASS — arXiv-ready
 - 2026-04-25: Paper 1 v2.1 (commit `d349a86`, post round-2 P0 fixes) sent to Codex + Gemini 2.5 Pro for **independent** round-3 adversarial audit
