@@ -6,43 +6,31 @@
 
 ## Pending (block forward execution)
 
-### D1 — Phase B 启动节奏
-- **Question**: 现在直接开 Phase B (B1 JSONL schema 半天破冰)？还是收 session / 新 session 起？
-- **Default if no response**: 新 session 起 — Phase B 是 ~7 天 wall-clock 持续工作，不适合疲劳状态启动。
-- **Reversibility**: fully reversible (nothing committed yet for Phase B)
-- **Blocks**: Phase B B1 start
-
-### D2 — `p_0` calibration toggle 设计 (PREREG § 5.5)
-- **Question**: 当前 toggle = `--simulate-rollback-at-tx-50`. 这是 Claude pre-reg 起草的占位实现。push-back 余地：
-  - tx-50 太晚 (大多数 problem 在 tx 50 之前已完成)？候选: tx-25 / tx-10 / per-call probabilistic corruption / agent-state reset
-  - rollback 形式：完全重置 Tape vs 部分污染上下文 vs 注入 fake error trace
-- **Default if no response**: 保留 `--simulate-rollback-at-tx-50`，但 B7-extra 实际跑前先做 1-题 smoke：如果 p_0 = 0/144 (toggle 无效)，redesign。
-- **Reversibility**: fully reversible (toggle code 还没写)
-- **Blocks**: B7-extra calibration runs (但不 block B1-B6)
-
-### D3 — Phase B 是否走轻量外审？
-- **Question**: PREREG § 6 Phase B 没强制 dual external audit。Phase C 起每 phase 末尾必双审。Phase B 是基建：
-  - (a) 内审够 (cargo test 全过 + 11 anti-Goodhart 全过) → 直接进 Phase C
-  - (b) Phase B 末做轻量外审 (仅 schema + Trust Root immutability test 结果)
-- **Default if no response**: (a) — Phase B 末 audit packet 并入 Phase C 启动时的 dual audit
-- **Reversibility**: fully reversible
-- **Blocks**: only Phase B → C transition timing (~6 hours either way)
-
-### D4 — Hermes-Agent ingest 提议 (NEW 2026-04-26)
-- **Question** (用户原话): "能否用现在的 turingos 架构去做升级自己的项目, 学习一下 nousresearch/hermes-agent"。
-- **Claude 提案**: `handover/proposals/HERMES_AGENT_INGEST_PROPOSAL_2026-04-26.md` (已写)
-  - 推荐 **Option F + E**: F = 在 arc 内做 agentskills.io 兼容 frontmatter (~1 day + $5 round-5 audit)；E = post-arc Phase F 用 hermes-agent 跑同 heldout 做 external-validity benchmark (Paper 2 material)
-  - 不推荐 A/C/D（违反 PREREG 锁定决策 / 短路 CCL 假设 / 不可逆架构改动）
-- **Sub-decisions**:
-  - **D4-a**: 批准 Option F (artifact schema alignment in-arc)? Default 跳过.
-  - **D4-b**: 批准 Option E (post-arc Phase F benchmark)? Default 推迟 review.
-  - **D4-c**: Hermes 还有什么值得吸收的（FTS5 memory search? subagent spawn pattern?）
-- **Reversibility**: F 高 (单轮 audit); E 完全独立 (post-arc).
-- **Blocks**: 不 block Phase B start; 若 D4-a 批准，需在 Phase D ArchitectAI artifact emitter 完工前 PREREG 加 addendum.
+(none — D1-D4 resolved 2026-04-26 with default acceptance; new items go here)
 
 ## Resolved (record only; do not delete)
 
-(empty so far this session)
+### D1 — Phase B 启动节奏 [RESOLVED 2026-04-26]
+- **Decision**: default — 收 session，新 session 起 Phase B B1
+- **User input**: "同意default" 2026-04-26
+- **Action**: next session opens with `LATEST.md` + `PHASE_B_IMPLEMENTATION_PLAN.md` and starts B1 (JSONL schema v2)
+
+### D2 — `p_0` calibration toggle 设计 [RESOLVED 2026-04-26]
+- **Decision**: default — 保留 `--simulate-rollback-at-tx-50`，B7-extra 实际跑前先做 1-题 smoke；p_0 = 0/144 时 redesign
+- **User input**: "同意default" 2026-04-26
+- **Implementation hook**: `PHASE_B_IMPLEMENTATION_PLAN.md` § B7-extra; smoke gate added implicitly (Claude must confirm non-zero before launching 288-run batch)
+
+### D3 — Phase B 是否走轻量外审 [RESOLVED 2026-04-26]
+- **Decision**: default — 不外审；Phase B audit packet 并入 Phase C 启动时的 dual external audit (per PREREG § 6 Phase C C4)
+- **User input**: "同意default" 2026-04-26
+- **Implementation hook**: Phase C C4 audit packet 必须包含: Phase B Gate B 通过证据 + p_0 calibration 结果 + 11 anti-Goodhart conformance + 5-layer sealing tests + Trust Root immutability tests
+
+### D4 — Hermes-Agent ingest [RESOLVED 2026-04-26]
+- **D4-a Option F (in-arc agentskills.io alignment)**: default — 跳过
+- **D4-b Option E (post-arc Phase F benchmark)**: default — 推迟 review，Phase E 完成后再决定
+- **D4-c (其他可吸收的)**: default — 无新输入；保留 `handover/proposals/HERMES_AGENT_INGEST_PROPOSAL_2026-04-26.md` 作为后续参考
+- **User input**: "同意default" 2026-04-26
+- **Implication**: PREREG 不需 addendum；TuringOS-native artifact schema 保持；Phase F 候选项延后到 Phase E 结果之后再做去留判断
 
 ## Architectural decisions already locked (NOT re-openable without formal addendum)
 

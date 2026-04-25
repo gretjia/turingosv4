@@ -50,7 +50,14 @@ Items (all expanded with file paths + acceptance criteria in plan doc):
 - 不 gate PPUT-CCL arc; 用户可任意时间回头处理
 
 ## Open Questions for User
-**等用户回**: `handover/ai-direct/OPEN_DECISIONS_2026-04-26.md` 第 1-3 项 (Phase B 启动节奏 / p_0 toggle 设计 / Phase B 是否轻量外审)
+**全部 D1-D4 已 resolved 2026-04-26 default 接受** — 见 `handover/ai-direct/OPEN_DECISIONS_2026-04-26.md` Resolved 区。本 session 关闭；下一 session 在 Phase B B1 起步（JSONL schema v2）。
+
+## Next session — first action
+1. Read `LATEST.md` (this file) + `PHASE_B_IMPLEMENTATION_PLAN.md` § B1
+2. Smoke check: `cargo test` 全部 PASS（确认 Paper 1 时代代码无 regression）
+3. Start B1: 建 `experiments/minif2f_v4/src/jsonl_schema.rs` + 在 evaluator.rs 改 emit 路径
+4. B1 完成判据: `cargo test test_jsonl_schema_v2_round_trip` PASS + 历史 jsonl 仍可读
+5. 半天破冰后再决定要不要继续 B2-B7 / 收 session
 
 ## Reference (canonical sources of truth)
 
