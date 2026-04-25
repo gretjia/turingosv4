@@ -138,6 +138,21 @@ struct PputResult {
     gp_path: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     gp_proof_file: Option<String>,
+    /// PPUT-CCL B7-extra (PREREG § 5.5 calibration treatment): set to
+    /// `Some(true)` iff the synthetic rollback short-circuit fired in
+    /// this run — i.e. SIMULATE_ROLLBACK_AT_TX_50=1 AND the run reached
+    /// `rollback_sim::ROLLBACK_TX_THRESHOLD`. Distinguishes calibration
+    /// treatment exits from natural max-tx exhaustions (both stamp the
+    /// same legacy halt path; this field is the disambiguator).
+    ///
+    /// Crucially: when `synthetic_short_circuit == Some(true)`, the run's
+    /// `total_run_token_count` (C_i) is **understated** vs a true 150-tx
+    /// vetoed loop, because the LLM calls for tx 51-199 never happened.
+    /// `compute_p0.py` ignores cost (only joins on SOLVED/UNSOLVED), so
+    /// p_0 estimation is unaffected; downstream PPUT analysis on these
+    /// rows MUST honor this flag and exclude or specially treat them.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    synthetic_short_circuit: Option<bool>,
     // Note (mid-term audit P0-B fix 2026-04-25): the prior Option versions of
     // total_run_token_count / failed_branch_count / total_wall_time_ms /
     // verified / pput_runtime / pput_verified / pput_m_verified were promoted
@@ -520,13 +535,19 @@ async fn run_swarm(
             info!("[rollback_sim] firing at tx={} — synthetic ∏p=0 from this tx, \
                    short-circuit to MaxTxExhausted exit", tx);
             wc.mark_final_accept();
-            return make_pput(problem_file, &condition, model,
-                             false, false, start, 0, 0,
-                             tx as u64, Some(tool_dist), None,
-                             None, None, None,
-                             Some(acc.total_run_token_count()),
-                             Some(acc.failed_branch_count),
-                             wc.elapsed_ms());
+            let mut result = make_pput(problem_file, &condition, model,
+                                       false, false, start, 0, 0,
+                                       tx as u64, Some(tool_dist), None,
+                                       None, None, None,
+                                       Some(acc.total_run_token_count()),
+                                       Some(acc.failed_branch_count),
+                                       wc.elapsed_ms());
+            // B7-extra disambiguator: distinguish this calibration-treatment
+            // exit from a natural max-tx exhaustion in downstream PPUT
+            // analysis. See PputResult::synthetic_short_circuit doc-comment
+            // for the cost-asymmetry note.
+            result.synthetic_short_circuit = Some(true);
+            return result;
         }
 
         // PPUT-CCL B3 (mid-term audit P0-C fix 2026-04-25): open the wall-clock
@@ -1228,6 +1249,9 @@ fn make_pput(
         gp_payload,
         gp_path,
         gp_proof_file,
+        // B7-extra: only the calibration-treatment short-circuit site mutates
+        // this to Some(true). Default = None (most callers).
+        synthetic_short_circuit: None,
     }
 }
 

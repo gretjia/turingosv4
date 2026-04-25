@@ -1,6 +1,6 @@
 # TuringOS v4 — Handover State
-**Updated**: 2026-04-25 (B7 close — Trust Root + Boot freeze)
-**Session Summary**: Fresh-context session re-derived Trust Root manifest from PREREG § 1.8 + B2-B4 mid-term audit recommendation + B6 prompt_guard add (15 files, independently re-derived to honor C-035). Wrote `genesis_payload.toml` ([pput_accounting_0] + [trust_root]); added `src/boot.rs` (verify_trust_root + hand-rolled minimal TOML parser, ~30 LOC, no new deps); wired panic into `src/main.rs`; unsealed 4 `#[ignore]` `trust_root_immutability` stubs. **181/181 cargo test --workspace PASS** + 20 deferred-stub `#[ignore]` (was 171/171 + 24 — added 6 boot unit tests, unsealed 4 trust_root). 剩余 Phase B：B7-extra (p_0 calibration overnight, 576 runs).
+**Updated**: 2026-04-25 (B7-extra toggle + alignment landed; smoke probe running)
+**Session Summary**: B7 (Trust Root + Boot freeze) → user架构 critique (atomic alignment to 3 flowcharts) → B7 alignment fix (TRACE_MATRIX v1, FC3-N34 ⚠️→✅, OBS_BOOT_FAIL_NOT_HALT) → B7-extra constitution-clean toggle (synthetic ∏p=0 from tx 50, FC1-E18 + FC2-N22-MaxTxExhausted, no new HaltReason) → calibration runner + p_0 estimator. **187/187 cargo test --workspace PASS** + 20 deferred-stub `#[ignore]`. Trust Root manifest 16 files (was 15, +rollback_sim.rs). 剩余 Phase B：smoke 通过 + 用户授权 → 576-run batch → freeze p_0 进 genesis → Gate B 双审。
 
 > **新 session 入口**: 读这个文件 + `handover/preregistration/PHASE_B_IMPLEMENTATION_PLAN.md` § B7-extra + `handover/audits/B5_DEFERRED_FROM_MIDTERM_AUDIT_2026-04-25.md` (历史) + `handover/ai-direct/AUTO_RESEARCH_NOTEPAD.md` § F-2026-04-25-03 (mid-term audit lessons)。这 4 个文件足以无 context 接手当前工作。
 
@@ -42,7 +42,14 @@ Items (all expanded with file paths + acceptance criteria in plan doc):
   - `src/main.rs`: pre-Boot `verify_trust_root(env!("CARGO_MANIFEST_DIR"))` panics with `TRUST_ROOT_TAMPERED: ...` on any error; replaces previous placeholder
   - `experiments/minif2f_v4/tests/trust_root_immutability.rs`: 4 `#[ignore]` stubs unsealed → 4 PASS (immutable_at_boot / simulated_write_aborts / manifest_includes_b2_b4_files / pput_accounting_0_section_present); manifest test enforces the union list (PREREG § 1.8 base + audit add + B6) — any reduction breaks the test
   - **181/181 workspace test PASS** (171 pre-B7 + 6 boot unit + 4 unsealed)
-- B7-extra **p_0 calibration** (288 paired adaptation-144 × 2 seeds; freeze 进 `[pput_accounting_0].baseline_regression_rate` + `.baseline_regression_jsonl_sha256`) — **next entry point**
+- **B7-extra ⚙ IN PROGRESS** rollback toggle landed (commit `973a9fd`) + calibration runner/estimator (commit `b0ae03e`) + smoke probe running (1 problem × 4 runs):
+  - `experiments/minif2f_v4/src/rollback_sim.rs`: `ROLLBACK_TX_THRESHOLD = 50` (PREREG-frozen), `ROLLBACK_ENV_VAR = "SIMULATE_ROLLBACK_AT_TX_50"`, `should_simulate_rollback(tx, enabled)` — 6 unit tests
+  - evaluator.rs run_swarm reads toggle, short-circuits at tx == 50 to existing max-tx exhaustion exit (FC2-N22 HALT via MaxTxExhausted, no new variant)
+  - `handover/preregistration/scripts/run_p0_calibration.sh`: iterates adaptation-144 × seeds [31415, 2718] × {control, treatment} = 576 runs; `--smoke` flag = 4-run probe
+  - `handover/preregistration/scripts/compute_p0.py`: control/treatment pair → regression_p_seed → max-over-seeds → p_0; PREREG § 5.5 ceiling = 0.10
+  - **Smoke verified 2026-04-25**: easy problem mathd_algebra_107 (4 runs, 39s) — infra + jsonl V2 + calibration tags ✓; hard problem aime_1983_p2 with toggle ON (8.5 min) — tx_count=50 + synthetic_short_circuit=true + stderr "[rollback_sim] firing at tx=50" ✓. Field cost-asymmetry doc-comment warns downstream PPUT analysis to honor flag.
+  - **Next**: user GO → 576-run batch (~$3-5, ~8h overnight) → compute_p0.py → write p_0 to genesis_payload.toml [pput_accounting_0] → recompute Trust Root + commit jsonl into manifest → Gate B dual-audit Phase B → Phase C transition
+- **B7-alignment ✅ DONE** (commit `0cc48bc`) — TRACE_MATRIX v1 (FC3-N34 promoted ✅, B7-extra rows added), src/boot.rs + src/main.rs FC backlinks, OBS_BOOT_FAIL_NOT_HALT (boot panic ≠ FC2-N22, closer to FC3-E14)
 
 ### Active background processes
 - 无运行中实验 (Phase A 双审已全部完成)
