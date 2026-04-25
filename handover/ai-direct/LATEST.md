@@ -1,8 +1,8 @@
 # TuringOS v4 — Handover State
-**Updated**: 2026-04-25 (B6 close — context-leak runtime gate)
-**Session Summary**: Phase B 一个 session 推进 B2 → B3 → B4 → mid-term dual audit (CHALLENGE/CHALLENGE) → P0-A/P0-C fix → P0-B/D/E pickup → B5 conformance battery (10 anti-Goodhart + 5 sealing layers + 24 Phase C/D/B7 stubs) → B6 PPUT-context-leak runtime gate (`src/sdk/prompt_guard.rs` + 10 unit tests; wired before every client.generate). **171/171 cargo test --workspace PASS** + 24 deferred-stub `#[ignore]`。剩余 Phase B：B7 (Trust Root + Boot freeze) + B7-extra (p_0 calibration overnight)。
+**Updated**: 2026-04-25 (B7 close — Trust Root + Boot freeze)
+**Session Summary**: Fresh-context session re-derived Trust Root manifest from PREREG § 1.8 + B2-B4 mid-term audit recommendation + B6 prompt_guard add (15 files, independently re-derived to honor C-035). Wrote `genesis_payload.toml` ([pput_accounting_0] + [trust_root]); added `src/boot.rs` (verify_trust_root + hand-rolled minimal TOML parser, ~30 LOC, no new deps); wired panic into `src/main.rs`; unsealed 4 `#[ignore]` `trust_root_immutability` stubs. **181/181 cargo test --workspace PASS** + 20 deferred-stub `#[ignore]` (was 171/171 + 24 — added 6 boot unit tests, unsealed 4 trust_root). 剩余 Phase B：B7-extra (p_0 calibration overnight, 576 runs).
 
-> **新 session 入口**: 读这个文件 + `handover/preregistration/PHASE_B_IMPLEMENTATION_PLAN.md` § B6-B7 + `handover/audits/B5_DEFERRED_FROM_MIDTERM_AUDIT_2026-04-25.md` (历史) + `handover/ai-direct/AUTO_RESEARCH_NOTEPAD.md` § F-2026-04-25-03 (mid-term audit lessons)。这 4 个文件足以无 context 接手当前工作。
+> **新 session 入口**: 读这个文件 + `handover/preregistration/PHASE_B_IMPLEMENTATION_PLAN.md` § B7-extra + `handover/audits/B5_DEFERRED_FROM_MIDTERM_AUDIT_2026-04-25.md` (历史) + `handover/ai-direct/AUTO_RESEARCH_NOTEPAD.md` § F-2026-04-25-03 (mid-term audit lessons)。这 4 个文件足以无 context 接手当前工作。
 
 ## Current State
 
@@ -35,8 +35,14 @@ Items (all expanded with file paths + acceptance criteria in plan doc):
   - 5/5 heldout operational sealing (PREREG § 2.3 L1-L5): `experiments/minif2f_v4/tests/heldout_operational_sealing.rs` — file-path read isolation / agent prompt context blacklist / tool-call hash-invocation gate / hash + seed substring co-occurrence / source-pool enumeration block
   - 24 Phase C/D/B7 stubs scaffolded (`#[ignore]` with contract docs): artifact_content_predicates (4) + artifact_lookup_evasion (4) + architect_sole_lt_reader (3) + auditor_sees_candidate_only (3) + mode_flag_binary_purity (6) + trust_root_immutability (4)
 - **B6 ✅ DONE** PPUT-context-leak runtime gate — `src/sdk/prompt_guard.rs` (separate module so prompt.rs stays pure for B5 static-grep): `assert_no_metric_leak(prompt)` panics with `PPUT_CONTEXT_LEAK_DETECTED` on any of 8 forbidden substrings (case-insensitive); wired before every `client.generate` call site in evaluator (oneshot + swarm). 10 unit tests (clean prompt + 9 leak fixtures including substring/case-insensitive/middle-of-text variants). Static side already covered by B5 `test_no_pput_in_agent_prompt`.
-- B7 Boot freeze: `pput_accounting_0` in genesis_payload.toml + Trust Root immutability tests; Trust Root manifest must include `cost_aggregator.rs`, `wall_clock.rs`, `post_hoc_verifier.rs`, `jsonl_schema.rs`, `evaluator.rs`, `src/drivers/llm_http.rs`, `src/sdk/prompt_guard.rs` per audit recommendation — **next entry point**
-- B7-extra **p_0 calibration** (288 paired adaptation-144 × 2 seeds; freeze 进 Trust Root)
+- **B7 ✅ DONE** Trust Root + Boot freeze:
+  - `genesis_payload.toml` (new): `[pput_accounting_0]` (PREREG § 1.8 invariants — schema_version, progress/cost/time defs, verified_predicate, heldout_sealed_hash, source_pool_sha256, k_max=10, n_max=34, baseline_regression_rate placeholder); `[trust_root]` (15 SHA-256 entries — independently re-derived: PREREG § 1.8 base 8 + audit accounting 6 + B6 prompt_guard 1)
+  - `cases/MANIFEST.sha256` (new): 45-entry sorted SHA-256 manifest of `cases/C-*.yaml`, hashed-once into Trust Root as proxy for the case-law glob
+  - `src/boot.rs` (new, +pub in lib.rs): `verify_trust_root(repo_root)` parses [trust_root] section (hand-rolled minimal TOML parser, no new dep — compression principle), recomputes SHA-256 per path, returns `TrustRootError::Tampered{path,expected,actual}` on mismatch; 6 unit tests (parse/blank/comment/missing-section/intact-repo/tempdir-tamper)
+  - `src/main.rs`: pre-Boot `verify_trust_root(env!("CARGO_MANIFEST_DIR"))` panics with `TRUST_ROOT_TAMPERED: ...` on any error; replaces previous placeholder
+  - `experiments/minif2f_v4/tests/trust_root_immutability.rs`: 4 `#[ignore]` stubs unsealed → 4 PASS (immutable_at_boot / simulated_write_aborts / manifest_includes_b2_b4_files / pput_accounting_0_section_present); manifest test enforces the union list (PREREG § 1.8 base + audit add + B6) — any reduction breaks the test
+  - **181/181 workspace test PASS** (171 pre-B7 + 6 boot unit + 4 unsealed)
+- B7-extra **p_0 calibration** (288 paired adaptation-144 × 2 seeds; freeze 进 `[pput_accounting_0].baseline_regression_rate` + `.baseline_regression_jsonl_sha256`) — **next entry point**
 
 ### Active background processes
 - 无运行中实验 (Phase A 双审已全部完成)
@@ -44,12 +50,11 @@ Items (all expanded with file paths + acceptance criteria in plan doc):
 
 ## What's broken / incomplete
 
-### PPUT-CCL Phase B — to-do (after B6 close)
-- B7 (Trust Root + Boot freeze) + B7-extra (p_0 calibration) 未做
-- p_0 baseline 未 calibrate (`pput_accounting_0.baseline_regression_rate` 在 genesis_payload.toml 未填)
-- Trust Root 集成未实现 (genesis_payload.toml `[trust_root]` SHA-256 表未生成；B7 需挂上 cost_aggregator/wall_clock/post_hoc_verifier/jsonl_schema/evaluator/llm_http 6 个文件)
-- 24 Phase C/D/B7 conformance stubs `#[ignore]` 待对应 phase 解封 (artifact_content/lookup_evasion/architect_sole_lt/auditor_sees_candidate/mode_flag_binary_purity/trust_root_immutability)
+### PPUT-CCL Phase B — to-do (after B7 close)
+- B7-extra (p_0 calibration) 未跑：576 runs (288 control + 288 treatment) on adaptation-144 × seeds [31415, 2718], `--simulate-rollback-at-tx-50` toggle 待加；p_0 ∈ (0, 0.10] sanity gate；冻结进 `[pput_accounting_0].baseline_regression_rate` + `.baseline_regression_jsonl_sha256` + 把 jsonl 加入 [trust_root]
+- 20 Phase C/D conformance stubs `#[ignore]` 待对应 phase 解封 (artifact_content 4 / lookup_evasion 4 / architect_sole_lt 3 / auditor_sees_candidate 3 / mode_flag_binary_purity 6) — B7 解封了 trust_root_immutability 4 个
 - `--mode` flag 未在 evaluator binary 实现 (Phase C C5 工作)
+- Trust Root 自身不自哈希 (chicken-and-egg)：`genesis_payload.toml` 自身 tamper 不会被 Boot 检测；语义锚点 = `[pput_accounting_0]` 字段值；如要更强保证，未来可在编译时把 [trust_root] 哈希常量 inline 进 binary（Phase C+ 议题，非 Gate B 阻塞）
 
 ### Mid-term dual audit (2026-04-25) deferred items — 必须 B5 起步先解决
 binding checklist: `handover/audits/B5_DEFERRED_FROM_MIDTERM_AUDIT_2026-04-25.md`
@@ -64,19 +69,19 @@ binding checklist: `handover/audits/B5_DEFERRED_FROM_MIDTERM_AUDIT_2026-04-25.md
 - arXiv 投稿延后 (tag `paper1-v2.1.1` 待 LaTeX 转换 + 元数据)
 - 不 gate PPUT-CCL arc; 用户可任意时间回头处理
 
-### Paper 1 — separate stack
-- arXiv 投稿延后 (tag `paper1-v2.1.1` 待 LaTeX 转换 + 元数据)
-- 不 gate PPUT-CCL arc; 用户可任意时间回头处理
-
 ## Open Questions for User
 **全部 D1-D4 已 resolved 2026-04-26 default 接受** — 见 `handover/ai-direct/OPEN_DECISIONS_2026-04-26.md` Resolved 区。本 session 关闭；下一 session 在 Phase B B5 起步（先 pickup deferred P0-B/D/E，再写 conformance battery）。
 
 ## Next session — first action
-1. Read `LATEST.md` (this file) + `PHASE_B_IMPLEMENTATION_PLAN.md` § B7 + § B7-extra
-2. Smoke check: `cargo test --workspace` 全部 PASS (B6 close 后基线 = **171/171 parallel green** + 24 ignored stubs)
-3. Start B7 (Trust Root + Boot freeze, 1 day): genesis_payload.toml `[pput_accounting_0]` + `[trust_root]` SHA-256 manifest + Boot integration (panic on TRUST_ROOT_TAMPERED). Manifest list per audit recommendation: cost_aggregator.rs, wall_clock.rs, post_hoc_verifier.rs, jsonl_schema.rs, evaluator.rs, llm_http.rs, prompt_guard.rs.
-4. Then B7-extra (p_0 calibration overnight): 288 control + 288 treatment runs on adaptation-144 × 2 seeds; freeze p_0 ∈ (0, 0.10].
-5. Then Gate B exit: dual-audit Phase B → Phase C transition.
+
+> **Why session paused at B7/B7-extra boundary**: B7-extra needs the `--simulate-rollback-at-tx-50` toggle in evaluator binary + 576 runs overnight (~$3-5 API spend, ~8 wall-hours). Toggle is a small change but the runs are real money — let user explicitly green-light before kicking off. Also C-035 still applies: dual-audit Phase B → C transition will read this LATEST + B7 commit + p_0 jsonl, and a fresh session writes that audit packet cleanly.
+
+1. Read `LATEST.md` (this file) + `PHASE_B_IMPLEMENTATION_PLAN.md` § B7-extra + smoke `cargo test --workspace` (baseline = **181/181 parallel green** + 20 ignored stubs)
+2. **Confirm with user** before starting 576-run calibration (cost gate)
+3. Implement `--simulate-rollback-at-tx-50` toggle in `experiments/minif2f_v4/src/bin/evaluator.rs` (per PHASE_B § B7-extra) — small change, can land before the runs
+4. Run B7-extra: 288 control + 288 treatment on adaptation-144 × seeds [31415, 2718]; compute p_0 = sum_p max_seed(SOLVED_control AND UNSOLVED_treatment) / 144; sanity gate p_0 ∈ (0, 0.10]
+5. Freeze: write p_0 to `genesis_payload.toml [pput_accounting_0].baseline_regression_rate`; SHA-256 the calibration jsonl → `.baseline_regression_jsonl_sha256`; add jsonl path to `[trust_root]`; recompute every Trust Root hash (genesis itself changed); commit
+6. Then Gate B exit: dual-audit Phase B → Phase C transition packet (Codex + Gemini)
 
 ## Mid-term audit (2026-04-25) summary
 - Codex (274s, 67K char prompt) + Gemini (62s, 67K char prompt): both **CHALLENGE**, high conviction
@@ -110,8 +115,9 @@ binding checklist: `handover/audits/B5_DEFERRED_FROM_MIDTERM_AUDIT_2026-04-25.md
 | `handover/audits/DUAL_AUDIT_V2_1_VERDICT_2026-04-25.md` | Paper 1 R3 PASS/PASS verdict |
 
 ### Repo state
-- HEAD: B2-B4 close + mid-term audit close (post `c6087f7`; two new commits — code + audit infrastructure — local SHA stamped at commit time)
-- origin/main HEAD: `fd291d7` (Paper 1 hygiene; PPUT-CCL chain `913255d`/`4e4afc7`/`47b3dba`/`2a8921b`/`c6087f7` + B2-B4 close 仍 **local-only**, not pushed)
+- HEAD: B7 close commit (Trust Root + Boot freeze; SHA stamped at commit time, ahead of `fa93943`)
+- origin/main HEAD: `fd291d7`; **11 local commits ahead, none pushed** — `913255d`/`4e4afc7`/`47b3dba`/`2a8921b`/`c6087f7`/`34b71c0`/`c30ca81`/`282a459`/`06e1b25`/`fa93943` + B7
+- Working tree: `rules/enforcement.log` modified (session-runtime artifact, do not stage)
 - Tags pushed: `paper1-v2.1.1`, `archive/art-ii1-v3-abandoned-20260416`
 - Branches: `main` (active), 23 archive refs preserved
 

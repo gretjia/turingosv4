@@ -1,3 +1,4 @@
+pub mod boot;
 pub mod ledger;
 pub mod prediction_market;
 pub mod kernel;

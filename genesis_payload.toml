@@ -1,0 +1,70 @@
+# TuringOS v4 — Genesis payload (Phase B7).
+#
+# Frozen at Phase B B7 (2026-04-25). Two binding sections:
+#
+#   [pput_accounting_0] — semantic invariants of the PPUT measure
+#                         (PREREG § 1.8). baseline_regression_rate +
+#                         baseline_regression_jsonl_sha256 are placeholders
+#                         until B7-extra (p_0 calibration) lands.
+#
+#   [trust_root]        — SHA-256 of every load-bearing file. Boot
+#                         (`turingosv4::boot::verify_trust_root`) recomputes
+#                         each hash and aborts with TRUST_ROOT_TAMPERED on
+#                         mismatch.
+#
+# Manifest derivation (independently re-derived in B7 from PREREG § 1.8 +
+# B2-B4 mid-term audit recommendation + B6 prompt_guard add):
+#
+#   PREREG § 1.8 base (8):
+#     src/kernel.rs, src/wal.rs, src/bus.rs,
+#     experiments/minif2f_v4/src/lean4_oracle.rs,
+#     constitution.md, cases/MANIFEST.sha256 (proxy for cases/*.yaml glob),
+#     handover/preregistration/PPUT_CCL_SPLITS_2026-04-26.json,
+#     handover/preregistration/PREREG_PPUT_CCL_2026-04-26.md
+#
+#   Mid-term audit add (PPUT accounting layer, 6):
+#     src/drivers/llm_http.rs (cost source of truth),
+#     experiments/minif2f_v4/src/cost_aggregator.rs (B2),
+#     experiments/minif2f_v4/src/wall_clock.rs (B3),
+#     experiments/minif2f_v4/src/post_hoc_verifier.rs (B4),
+#     experiments/minif2f_v4/src/jsonl_schema.rs (B1),
+#     experiments/minif2f_v4/src/bin/evaluator.rs (the wiring)
+#
+#   B6 add (1):
+#     src/sdk/prompt_guard.rs (PPUT-context-leak runtime gate)
+#
+# Total: 15 files. genesis_payload.toml itself is conceptually frozen but
+# not self-hashed (chicken-and-egg) — the [pput_accounting_0] section
+# values are the semantic anchor.
+#
+# Tampering with any tracked file → Boot aborts with TRUST_ROOT_TAMPERED.
+
+[pput_accounting_0]
+schema_version = "1.0"
+progress_definition = "1 iff Lean ground-truth verifies golden_path_payload"
+cost_definition = "sum(prompt_tokens + completion_tokens + tool_tokens) over all proposals in the run"
+time_definition = "wall_clock from first agent prompt construction to final Lean accept or external timeout"
+verified_predicate = "experiments/minif2f_v4/src/lean4_oracle.rs::verify_omega_detailed"
+heldout_sealed_hash = "51440807c9ecc5c366d1adb640afcc96fcd227d18e4a35c7f85aaec78475086b"
+source_pool_sha256 = "77179cf2598b0df707d78a6663e763121dfe8e73a6538073155f488feab95093"
+baseline_regression_rate = 0.0  # PLACEHOLDER until Phase B7-extra calibration
+baseline_regression_jsonl_sha256 = ""  # PLACEHOLDER until Phase B7-extra
+k_max = 10
+n_max = 34
+
+[trust_root]
+"src/kernel.rs" = "893fd67534caf7a3d9abd6efbd202556348b6491cd6d4c6bdb224d2ad75b1af0"
+"src/wal.rs" = "1ac7637aa09531b1c7232163f5df48f7193251594c4ed20e0d0fc85cea8f84dc"
+"src/bus.rs" = "df28ffe514a3272a3d10fca4568fd424a76e754e9785c109a5459f163f7fd14c"
+"src/drivers/llm_http.rs" = "615596b68956b4a8925110edc99aa746a5543527724ec394bb9dda163147ed7a"
+"src/sdk/prompt_guard.rs" = "b4f7b164770d1a7203b8143f773c66f748994d60a42ece38471f2f7f2839f4f1"
+"experiments/minif2f_v4/src/lean4_oracle.rs" = "70fae24cd17f410c10a092e797fcdedea962db3d7cb20f218d02303edae9e98c"
+"experiments/minif2f_v4/src/cost_aggregator.rs" = "896b6905dbca9e9736f8896cd5725c16b6e87c6ad3ff822e044975febed46a03"
+"experiments/minif2f_v4/src/wall_clock.rs" = "2c9197f8f93b7d130dc7b094a6664f8ece351ec85668921c5beb6d100a1a77ee"
+"experiments/minif2f_v4/src/post_hoc_verifier.rs" = "9a93ae5548827b60543df779c67a5f1201b49a681a55e2cbc6a8532e8bb131a2"
+"experiments/minif2f_v4/src/jsonl_schema.rs" = "7647a2ea842f4394d55e1ce85032642c18ba61f962bd2c5c8714c618e743777c"
+"experiments/minif2f_v4/src/bin/evaluator.rs" = "d341a67f772425f67fb6fc3945a140dd0110291525b2950747421cb7e74e22fc"
+"constitution.md" = "b304b431b7d3fbb8d1630f76ac4bc3eaa80383dde41fb3bc69fbe5bb263658ef"
+"cases/MANIFEST.sha256" = "3759631afae97c631be9a4038479b8d3681af25885f9758c32ad88c22f17fc3f"
+"handover/preregistration/PPUT_CCL_SPLITS_2026-04-26.json" = "69be702e3e0a4bb33c62bd02056495309289fd9271972dc733b4a1ba3dd908e1"
+"handover/preregistration/PREREG_PPUT_CCL_2026-04-26.md" = "64d565b4451d1f770425530bb7ffa874da602ddfd9d714ce7f7db6bbfab69463"
