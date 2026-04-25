@@ -69,7 +69,7 @@ n_max = 34
 [trust_root]
 "src/main.rs" = "622fee2d96a980d24f9fbaab3d0531c195a0a337fc3ddd2efb60bca90a1cfbf9"
 "Cargo.lock" = "577446e8fe11e91bc8751bf13e5ddca6c5faa64d3309b878768c550d3e6feb98"
-"handover/preregistration/scripts/run_p0_calibration.sh" = "92701c2876a69968a4f570a67d39c56e15da0a45d44720d4fe1b6174ecdbd821"
+"handover/preregistration/scripts/run_p0_calibration.sh" = "323c7f9d23209447b253048c7017f394b6b6ac24f162057863da331e54a148bb"
 "handover/preregistration/scripts/compute_p0.py" = "fd1dff97d582f4f509249852be500cba7d81efc9bab8fcb9872b2d85bb4e3052"
 "src/kernel.rs" = "893fd67534caf7a3d9abd6efbd202556348b6491cd6d4c6bdb224d2ad75b1af0"
 "src/wal.rs" = "1ac7637aa09531b1c7232163f5df48f7193251594c4ed20e0d0fc85cea8f84dc"

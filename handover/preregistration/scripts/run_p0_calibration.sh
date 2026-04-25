@@ -131,29 +131,72 @@ if echo "$PREFLIGHT_OUT" | grep -q "error:"; then
 fi
 echo "Oracle preflight OK."
 
-# Audit-fix 2026-04-25 round-2 (Codex re-audit VETO): evaluator boot preflight.
-# Run the evaluator binary on a trivial fixture path BEFORE the batch starts,
-# specifically to catch TRUST_ROOT_TAMPERED at boot. If Trust Root is tampered,
-# the in-loop crash-vs-timeout discrimination would still catch it, but a
-# preflight surfaces the failure with the clean diagnostic and zero wasted
-# API spend.
+# Audit-fix 2026-04-25 round-2 (Codex VETO) + round-3 (Codex P0 #2):
+# evaluator boot preflight with EXIT-CODE assertion + content grep.
+# A nonexistent problem MUST cause evaluator to exit non-zero AND not
+# timeout. Round-3 Codex caught: if preflight times out (124) or exits 0
+# (impossible-but-defensive), runner falsely printed "OK" because grep
+# alone doesn't surface those failure modes.
 echo "[$(date -Is)] Evaluator boot preflight (Trust Root verify)..."
-PREFLIGHT_PROBE=$(timeout 30 "$EVALUATOR" /nonexistent_problem_path.lean 2>&1 || true)
+PREFLIGHT_EXIT=0
+PREFLIGHT_PROBE=$(timeout 30 "$EVALUATOR" /nonexistent_problem_path.lean 2>&1) || PREFLIGHT_EXIT=$?
+if [ "$PREFLIGHT_EXIT" -eq 0 ]; then
+    echo "PREFLIGHT FAIL: evaluator exited 0 on nonexistent problem path"
+    echo "  (expected: non-zero exit due to problem-not-found OR Trust Root"
+    echo "   panic). exit=0 means a code path silently succeeded with bad input."
+    echo "$PREFLIGHT_PROBE" | head -c 800
+    exit 2
+fi
+if [ "$PREFLIGHT_EXIT" -eq 124 ]; then
+    echo "PREFLIGHT FAIL: evaluator timed out (exit 124) at boot."
+    echo "  Trust Root verify or env_logger init may be hanging. Investigate."
+    echo "$PREFLIGHT_PROBE" | head -c 800
+    exit 2
+fi
 if echo "$PREFLIGHT_PROBE" | grep -q "TRUST_ROOT_TAMPERED"; then
     echo "PREFLIGHT FAIL: TRUST_ROOT_TAMPERED at evaluator boot. ABORTING."
     echo "$PREFLIGHT_PROBE" | head -c 800
     exit 2
 fi
 # Expected: evaluator exits with usage error or problem-not-found (non-zero,
-# but no panic). Anything containing "panicked at" except expected-args
-# error is suspicious.
+# not 124, no Trust Root panic). Other panics indicate boot regression.
 if echo "$PREFLIGHT_PROBE" | grep -q "panicked at" && \
    ! echo "$PREFLIGHT_PROBE" | grep -q "Usage:"; then
-    echo "PREFLIGHT FAIL: evaluator panicked unexpectedly:"
+    echo "PREFLIGHT FAIL: evaluator panicked unexpectedly (exit=$PREFLIGHT_EXIT):"
     echo "$PREFLIGHT_PROBE" | head -c 800
     exit 2
 fi
-echo "Evaluator boot preflight OK."
+echo "Evaluator boot preflight OK (exit=$PREFLIGHT_EXIT, no Trust Root panic, no timeout)."
+
+# Round-3 Codex P0 #1 fix: pre-loop adaptation-file existence preflight.
+# A missing problem file MUST abort the batch, not produce a synthetic
+# UNSOLVED row. Codex verified a 144×2 all-missing dataset returned
+# p0=0.0 — same silent-absorption class as the round-2 VETO. The
+# correct posture: every (problem, seed, mode) coordinate that the
+# strict-complete estimator expects must come from a real evaluator run
+# (or a legitimate timeout). Missing problem file = setup error =
+# operator must investigate before launching.
+echo "[$(date -Is)] Adaptation file existence preflight..."
+MISSING_FILES=()
+while IFS= read -r PID; do
+    [ -z "$PID" ] && continue
+    PROBLEM="$MINIF2F_DIR/MiniF2F/Test/${PID}.lean"
+    if [ ! -f "$PROBLEM" ]; then
+        MISSING_FILES+=("$PID")
+    fi
+done <<< "$ADAPTATION_IDS"
+if [ "${#MISSING_FILES[@]}" -gt 0 ]; then
+    echo "PREFLIGHT FAIL: ${#MISSING_FILES[@]} adaptation problem file(s) missing:"
+    for pid in "${MISSING_FILES[@]:0:10}"; do
+        echo "  - $pid (expected at $MINIF2F_DIR/MiniF2F/Test/${pid}.lean)"
+    done
+    [ "${#MISSING_FILES[@]}" -gt 10 ] && echo "  ... and $((${#MISSING_FILES[@]} - 10)) more"
+    echo ""
+    echo "Refuse to launch batch with incomplete adaptation set."
+    echo "Investigate MINIF2F_DIR ($MINIF2F_DIR) and re-verify file presence."
+    exit 2
+fi
+echo "Adaptation file existence preflight OK ($(echo "$ADAPTATION_IDS" | wc -l) files present)."
 
 # Run loop. Each (mode, seed, problem) combination = 1 run.
 TOTAL_PROBLEMS=$(echo "$ADAPTATION_IDS" | wc -l)
@@ -244,9 +287,14 @@ for MODE in "${MODES[@]}"; do
             RUN_IDX=$((RUN_IDX + 1))
             PROBLEM="$MINIF2F_DIR/MiniF2F/Test/${PID}.lean"
             if [ ! -f "$PROBLEM" ]; then
-                echo "[$RUN_IDX/$TOTAL_RUNS] $MODE seed=$SEED $PID — PROBLEM_NOT_FOUND"
-                emit_synthetic_unsolved "$OUT_FILE" "$MODE" "$SEED" "$PID" "problem_file_missing" 99
-                continue
+                # Round-3 Codex P0 #1 fix: this should never trigger now —
+                # the pre-loop adaptation-file existence preflight (above)
+                # already aborted the batch if any file was missing. Race
+                # condition (file deleted mid-batch) = abort, no synthetic
+                # row. Silent absorption class.
+                echo "[$RUN_IDX/$TOTAL_RUNS] $MODE seed=$SEED $PID — PROBLEM_NOT_FOUND mid-batch (race)"
+                echo "  ✗ File disappeared between preflight and run. ABORTING."
+                exit 6
             fi
             echo -n "[$RUN_IDX/$TOTAL_RUNS] $MODE seed=$SEED $PID ... "
             echo "=== $MODE seed=$SEED $PID @ $(date -Is) ===" >> "$STDERR_LOG"
@@ -265,7 +313,21 @@ for MODE in "${MODES[@]}"; do
                 RUST_LOG=info \
                 "$EVALUATOR" "$PROBLEM" 2>>"$STDERR_LOG") || EXIT=$?
             PPUT_JSON=$(echo "$OUTPUT" | grep "^PPUT_RESULT:" | sed 's/^PPUT_RESULT://' | head -1 || true)
-            if [ -n "$PPUT_JSON" ] && [ "$EXIT" -eq 0 ]; then
+            # Round-3 Gemini CHALLENGE fix: explicitly handle the EXIT=0 +
+            # empty PPUT_JSON case (e.g., evaluator silently exits 0 without
+            # emitting PPUT_RESULT — malformed run, not a legitimate UNSOLVED).
+            # Without this branch the malformed run falls into the generic
+            # crash branch with a misleading "exit=0" message.
+            if [ "$EXIT" -eq 0 ] && [ -z "$PPUT_JSON" ]; then
+                echo "MALFORMED (exit=0 but no PPUT_RESULT line) — ABORTING BATCH"
+                echo ""
+                echo "  ✗ Evaluator returned 0 but emitted no PPUT_RESULT line."
+                echo "  ✗ This indicates a code bug (silent success path missing emit)"
+                echo "  ✗ rather than a runtime failure. Calibration data NOT trusted."
+                echo "  ✗ Last 5 stderr lines:"
+                tail -5 "$STDERR_LOG" | sed 's/^/    /'
+                exit 5
+            elif [ -n "$PPUT_JSON" ] && [ "$EXIT" -eq 0 ]; then
                 ENRICHED=$(printf '%s' "$PPUT_JSON" | MODE_ENV="$MODE" SEED_ENV="$SEED" PID_ENV="$PID" python3 -c "
 import json, os, sys
 row = json.loads(sys.stdin.read())
