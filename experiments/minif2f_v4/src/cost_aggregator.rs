@@ -73,13 +73,23 @@ impl RunCostAccumulator {
     /// Convert the most-recent failed proposal into an accepted one. Used at
     /// the OMEGA-accept return path: every tx records as failed at parse time
     /// (since acceptance isn't known yet), then the verified-success branch
-    /// flips the last record before returning. Idempotent on an empty
-    /// failed bucket — this guards against wiring mistakes that would
-    /// otherwise underflow.
+    /// flips the last record before returning.
+    ///
+    /// Mid-term audit P0-E fix 2026-04-25: prior implementation saturated
+    /// silently at 0, which masked over-flip wiring bugs (Codex finding).
+    /// Now panics if called with no failed proposal to flip — surfaces
+    /// the bug at debug time. A correctly-wired evaluator pairs every flip
+    /// with a prior record_proposal(false), so this assertion can never
+    /// fire on a clean code path.
     pub fn flip_last_failed_to_accepted(&mut self) {
-        if self.failed_branch_count > 0 {
-            self.failed_branch_count -= 1;
-        }
+        assert!(
+            self.failed_branch_count > 0,
+            "flip_last_failed_to_accepted called with no failed proposal to flip — \
+             wiring bug: caller fired flip more times than record_proposal(false). \
+             A correct path records every parsed proposal as failed at parse time, \
+             then flips the most recent on OMEGA-accept return."
+        );
+        self.failed_branch_count -= 1;
     }
 
     /// C_i — total tokens summed across every proposal in the run.
@@ -138,6 +148,16 @@ mod tests {
         assert_eq!(acc.total_run_token_count(), 0);
         assert_eq!(acc.proposal_count, 0);
         assert_eq!(acc.failed_branch_count, 0);
+    }
+
+    #[test]
+    #[should_panic(expected = "flip_last_failed_to_accepted called with no failed proposal")]
+    fn test_flip_underflow_panics() {
+        // Mid-term audit P0-E: over-flipping must surface as a panic, not
+        // silent saturation. A test fixture that calls flip without a prior
+        // record_proposal(false) simulates the wiring bug Codex flagged.
+        let mut acc = RunCostAccumulator::new();
+        acc.flip_last_failed_to_accepted(); // BUG: no failed proposal in flight
     }
 
     #[test]

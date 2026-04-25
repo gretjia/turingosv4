@@ -37,15 +37,76 @@ const DEFAULT_BOLTZMANN_SEED: u64 = 74677;  // same as sample seed (BTC/USD exte
 const DEFAULT_MINIF2F_DIR: &str = "/home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4";
 
 /// PPUT result for a single problem — the only output that matters.
+///
+/// Mid-term audit P0-B fix 2026-04-25: this struct now carries every B1
+/// `RunAggregate` v2 field as a non-Optional, so emitted jsonl rows are
+/// dispatched as `RunRecord::V2` by `RunRecord::from_json` (presence of
+/// `schema_version` is the discriminant). Legacy diagnostic fields below
+/// are kept as Option/skip-if-None for downstream tooling that already
+/// reads them; serde silently drops them when parsing as `RunAggregate`
+/// (no `deny_unknown_fields`), so V2-tooling reads the v2 contract while
+/// PputResult-tooling sees the full diagnostic envelope.
 #[derive(Debug, serde::Serialize)]
 struct PputResult {
+    // ── B1 RunAggregate v2 schema fields (all REQUIRED — non-Optional) ──
+    /// Always "v2.0" — RunRecord::from_json discriminator.
+    schema_version: String,
+    /// Per-run identifier: condition + problem + timestamp.
+    run_id: String,
+    /// Problem identifier: theorem stem (basename of .lean without extension).
+    problem_id: String,
+    /// Legacy "did the run reach OMEGA" boolean (= runtime_accepted in B4 vocab).
+    /// B1 v2 mandates this as `solved: bool`.
+    solved: bool,
+    /// "adaptation" | "meta_validation" | "heldout" — read from SPLIT env;
+    /// default "adaptation" with stderr warning per Phase B convention.
+    split: String,
+    /// B4 dual-PPUT: post-hoc Lean verified result. Phase B == solved.
+    verified: bool,
+    /// Token count of the winning golden path (0 if no GP).
+    golden_path_token_count: u64,
+    /// B2 C_i — full-run token cost across all proposals.
+    total_run_token_count: u64,
+    /// B3 T_i — first agent prompt → final Lean call, in milliseconds.
+    total_wall_time_ms: u64,
+    /// 0 or 1 — Lean ground truth (= 1 iff runtime_accepted AND post_hoc_verified).
+    progress: u8,
+    /// B4 dual-PPUT: pput_runtime = progress_runtime / (C_i × T_i / 1000).
+    pput_runtime: f64,
+    /// B4 dual-PPUT: pput_verified = progress_verified / (C_i × T_i / 1000).
+    pput_verified: f64,
+    /// 10^6 × pput_verified — display unit per PREREG § 5.
+    pput_m_verified: f64,
+    /// B2 C_i sub-counter: count of proposals that did NOT verify.
+    failed_branch_count: u32,
+    /// Phase B always 0; Phase C+ when ArtifactState rollbacks land.
+    rollback_count: u32,
+    /// FAR guardrail (Phase B not yet computed; emit 0.0 placeholder).
+    far: f64,
+    /// ERR guardrail (Phase B not yet computed).
+    err: f64,
+    /// IAC guardrail (Phase B not yet computed).
+    iac: f64,
+    /// CPR guardrail (Phase B not yet computed).
+    cpr: f64,
+    /// Exact model id + API revision (drift defense per F-2026-04-22-08).
+    model_snapshot: String,
+    /// Trust Root provenance — git commit SHA at boot.
+    git_sha: String,
+    /// Trust Root binary fingerprint — Phase B placeholder; B7 fills.
+    binary_sha256: String,
+    /// "full" | "panopticon" | "amnesia" | "soft_law" | "homogeneous" — from
+    /// MODE env, default "full" Phase B.
+    mode: String,
+
+    // ── Legacy diagnostic fields (preserved for downstream tooling) ──
     problem: String,
     condition: String,
     model: String,
-    has_golden_path: bool,         // true = OMEGA reached
-    time_secs: f64,                // wall time elapsed
-    pput: f64,                     // 100/time if GP, 0 otherwise
-    gp_token_count: u64,           // token count of golden path (0 if no GP)
+    has_golden_path: bool,         // alias of `solved`; legacy field name
+    time_secs: f64,                // wall time elapsed (function-entry bracket; legacy)
+    pput: f64,                     // 100/time if GP, 0 otherwise (legacy display)
+    gp_token_count: u64,           // alias of golden_path_token_count
     gp_node_count: usize,          // nodes on golden path (0 if no GP)
     tx_count: u64,                 // total transactions attempted
     // C-012 provenance: stamp per-row commit SHA + classifier version + RNG seed.
@@ -76,31 +137,10 @@ struct PputResult {
     gp_path: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     gp_proof_file: Option<String>,
-    // PPUT-CCL Phase B B2 (cost aggregator): full-run token count C_i =
-    // Σ over all proposals (winning + failed) of api prompt + completion +
-    // tool stdout. None on legacy/control binaries that pre-date B2.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    total_run_token_count: Option<u64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    failed_branch_count: Option<u32>,
-    // PPUT-CCL Phase B B3 (wall-clock): T_i = first agent prompt construction
-    // → final Lean call returns. Excludes evaluator preflight (kernel ctor,
-    // tool mounting). Distinct from legacy `time_secs` which brackets from
-    // function entry.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    total_wall_time_ms: Option<u64>,
-    // PPUT-CCL Phase B B4 (dual PPUT): runtime accept vs Lean post-hoc
-    // verified. Field names align with B1 RunAggregate v2 schema. In Phase B,
-    // runtime IS Lean so the two agree; Phase C Soft Law is the divergence
-    // call site that makes pput_runtime - pput_verified > 0 the H1 signal.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    verified: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pput_runtime: Option<f64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pput_verified: Option<f64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pput_m_verified: Option<f64>,
+    // Note (mid-term audit P0-B fix 2026-04-25): the prior Option versions of
+    // total_run_token_count / failed_branch_count / total_wall_time_ms /
+    // verified / pput_runtime / pput_verified / pput_m_verified were promoted
+    // to non-Optional v2 fields above. Phase B always has values for them.
 }
 
 #[tokio::main]
@@ -148,27 +188,21 @@ async fn main() {
                      &lean_path, &proxy_url, &model, n).await
         }
         "hybrid_v1" => {
-            // RCA (2026-04-14): agent_0's swarm prompt (tape/market/errors/tools)
-            // underperforms oneshot's bare prompt on problems DeepSeek can 1-shot.
-            // This condition uses oneshot prompt first; only if that fails does
-            // the swarm fire. Separately named per C-032/C-033 causal attribution.
-            let start = Instant::now();
-            let r = run_oneshot(problem_file, &problem_statement, &theorem_name,
-                               &lean_path, &proxy_url, &model).await;
-            if r.has_golden_path {
-                PputResult { condition: "hybrid_v1".into(), ..r }
-            } else {
-                let r2 = run_swarm(problem_file, &problem_statement, &theorem_name,
-                                  &lean_path, &proxy_url, &model, 3).await;
-                let elapsed = start.elapsed().as_secs_f64();
-                PputResult {
-                    condition: "hybrid_v1".into(),
-                    time_secs: elapsed,
-                    pput: if r2.has_golden_path { 100.0 / elapsed } else { 0.0 },
-                    tx_count: 1 + r2.tx_count,
-                    ..r2
-                }
-            }
+            // Mid-term audit P0-D fix 2026-04-25: hybrid_v1 was a Paper 1 era
+            // condition that ran run_oneshot, then on failure ran run_swarm,
+            // and merged via `..r2` field-spread. Codex flagged that the spread
+            // dropped the failed oneshot's C_i (failed_branch_count and
+            // total_run_token_count from r1 were silently discarded). PPUT-CCL
+            // arc does NOT use hybrid_v1 — it operates exclusively on `oneshot`
+            // and `n<N>` conditions per PREREG. Disabling here forces any
+            // pipeline that ships a stale hybrid_v1 invocation to surface the
+            // deprecation immediately rather than emit a corrupt C_i.
+            eprintln!("hybrid_v1 condition is deprecated for PPUT-CCL arc and was \
+                       disabled in mid-term audit P0-D fix 2026-04-25. The prior \
+                       implementation dropped the failed oneshot leg's C_i via a \
+                       `..r2` field-spread, corrupting full-run cost accounting. \
+                       Use `oneshot` or `n<N>` instead.");
+            std::process::exit(1);
         }
         other => { eprintln!("Unknown condition: {}", other); std::process::exit(1); }
     };
@@ -1071,26 +1105,71 @@ fn make_pput(
     let boltzmann_seed = std::env::var("BOLTZMANN_SEED")
         .ok().and_then(|s| s.parse::<u64>().ok());
 
-    let (verified, pput_runtime, pput_verified, pput_m_verified) =
-        match (total_run_token_count, total_wall_time_ms) {
-            (Some(c_i), Some(t_i)) => {
-                let progress_runtime = compute_progress_runtime(runtime_accepted);
-                let progress_verified =
-                    compute_progress_verified(runtime_accepted, post_hoc_verified);
-                (
-                    Some(post_hoc_verified),
-                    Some(compute_pput(progress_runtime, c_i, t_i)),
-                    Some(compute_pput(progress_verified, c_i, t_i)),
-                    Some(compute_pput_m(progress_verified, c_i, t_i)),
-                )
-            }
-            // Missing C_i or T_i → can't compute dual PPUT honestly; emit None
-            // rather than fabricate a zero that would be confused with a real
-            // unsolved run.
-            _ => (None, None, None, None),
-        };
+    // Mid-term audit P0-B fix 2026-04-25: collapse Optional accumulator/clock
+    // values into required v2 fields. Phase B always has values for these
+    // (B2 + B3 wire them at every emit site); the prior Option wrapping was
+    // overly defensive and let the v2 schema slip from the contract.
+    let c_i = total_run_token_count.unwrap_or(0);
+    let t_i = total_wall_time_ms.unwrap_or(0);
+    let failed_count = failed_branch_count.unwrap_or(0);
+
+    let progress_runtime = compute_progress_runtime(runtime_accepted);
+    let progress_verified =
+        compute_progress_verified(runtime_accepted, post_hoc_verified);
+    let pput_runtime = compute_pput(progress_runtime, c_i, t_i);
+    let pput_verified = compute_pput(progress_verified, c_i, t_i);
+    let pput_m_verified = compute_pput_m(progress_verified, c_i, t_i);
+
+    // V2 fields read from env (per-process globals).
+    let split = std::env::var("SPLIT").unwrap_or_else(|_| {
+        eprintln!("[v2-emit] SPLIT env unset; defaulting to 'adaptation' \
+                   (Phase B convention; pre-registration requires SPLIT \
+                   for Phase C+ ablation runs)");
+        "adaptation".to_string()
+    });
+    let mode = std::env::var("MODE").unwrap_or_else(|_| "full".to_string());
+    let model_snapshot = std::env::var("MODEL_SNAPSHOT")
+        .unwrap_or_else(|_| model.to_string());
+    let git_sha = build_sha.clone().unwrap_or_default();
+    let binary_sha256 = std::env::var("BINARY_SHA256").unwrap_or_default();
+
+    // problem_id = basename without .lean
+    let problem_id = std::path::Path::new(problem)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or(problem)
+        .to_string();
+    // run_id = condition + problem_id + ts (collision-free for sequential runs)
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let run_id = format!("{}_{}_{}", condition, problem_id, ts);
 
     PputResult {
+        // ── B1 v2 schema fields ──
+        schema_version: "v2.0".to_string(),
+        run_id,
+        problem_id,
+        solved: runtime_accepted,
+        split,
+        verified: post_hoc_verified,
+        golden_path_token_count: gp_tokens,
+        total_run_token_count: c_i,
+        total_wall_time_ms: t_i,
+        progress: progress_verified,
+        pput_runtime,
+        pput_verified,
+        pput_m_verified,
+        failed_branch_count: failed_count,
+        // Phase B placeholders — Phase C+ wires these as the modes activate.
+        rollback_count: 0,
+        far: 0.0, err: 0.0, iac: 0.0, cpr: 0.0,
+        model_snapshot,
+        git_sha,
+        binary_sha256,
+        mode,
+        // ── Legacy diagnostic fields ──
         problem: problem.to_string(),
         condition: condition.to_string(),
         model: model.to_string(),
@@ -1108,13 +1187,6 @@ fn make_pput(
         gp_payload,
         gp_path,
         gp_proof_file,
-        total_run_token_count,
-        failed_branch_count,
-        total_wall_time_ms,
-        verified,
-        pput_runtime,
-        pput_verified,
-        pput_m_verified,
     }
 }
 
@@ -1160,5 +1232,108 @@ fn persist_proof_artifact(
             log::warn!("[audit] cannot write proof artifact {:?}: {}", path, e);
             None
         }
+    }
+}
+
+#[cfg(test)]
+mod v2_emit_tests {
+    use super::*;
+    use minif2f_v4::jsonl_schema::RunRecord;
+    use std::sync::Mutex;
+
+    // Per feedback_env_var_test_lock: tests that mutate process-global env
+    // vars must serialize to survive cargo's parallel runner.
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    /// Mid-term audit P0-B fix conformance:
+    /// Every emitted PputResult row must dispatch as `RunRecord::V2(_)`,
+    /// not `RunRecord::Legacy(_)`. The pre-fix evaluator emitted rows with
+    /// no `schema_version` field, which forced B1's dispatcher to classify
+    /// new B2-B4 output as Legacy + extras, silently breaking the v2 schema
+    /// contract. This test fails the build if a future change drops the
+    /// `schema_version` stamp or any required v2 field.
+    #[test]
+    fn test_emit_dispatches_as_v2() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        std::env::set_var("SPLIT", "adaptation");
+        std::env::set_var("MODE", "full");
+
+        // Phase B success path: runtime + post-hoc both fired.
+        let result = make_pput(
+            "test_problem.lean", "oneshot", "deepseek-v4-flash",
+            true, true, Instant::now(),
+            500, 1, 1,
+            None, None, None, None, None,
+            Some(2000), Some(0), Some(15_000),
+        );
+
+        let line = serde_json::to_string(&result).expect("serialize PputResult");
+
+        // Schema discriminator must be present.
+        assert!(
+            line.contains("\"schema_version\":\"v2.0\""),
+            "v2 emit must stamp schema_version=v2.0; got: {}",
+            line
+        );
+
+        // Round-trip via RunRecord::from_json — must dispatch to V2.
+        match RunRecord::from_json(&line).expect("v2 line parses") {
+            RunRecord::V2(agg) => {
+                assert_eq!(agg.schema_version, "v2.0");
+                assert_eq!(agg.split, "adaptation");
+                assert_eq!(agg.mode, "full");
+                assert_eq!(agg.solved, true);
+                assert_eq!(agg.verified, true);
+                assert_eq!(agg.progress, 1u8);
+                assert_eq!(agg.total_run_token_count, 2000);
+                assert_eq!(agg.total_wall_time_ms, 15_000);
+                assert!(agg.pput_verified > 0.0);
+                assert_eq!(agg.pput_runtime, agg.pput_verified,
+                    "Phase B: runtime IS Lean — pput_runtime must equal pput_verified");
+            }
+            RunRecord::Legacy(_) => panic!(
+                "v2 emit MUST dispatch to RunRecord::V2, not Legacy. \
+                 Schema-v2 contract regression — see B5 deferral checklist P0-B. \
+                 Line was: {}", line
+            ),
+        }
+
+        std::env::remove_var("SPLIT");
+        std::env::remove_var("MODE");
+    }
+
+    /// Mid-term audit P0-B fix conformance (Soft Law H1 detection at the
+    /// emit boundary): when runtime accepts but post-hoc Lean rejects, the
+    /// emitted v2 row must show progress=0 and pput_verified=0 even with
+    /// pput_runtime > 0. This is the divergence signal Phase C will scan.
+    #[test]
+    fn test_emit_soft_law_divergence_signal() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        std::env::set_var("SPLIT", "adaptation");
+        std::env::set_var("MODE", "soft_law");
+
+        // Synthetic Soft Law-style emit: runtime says yes, Lean says no.
+        let result = make_pput(
+            "test_problem.lean", "oneshot", "deepseek-v4-flash",
+            /*runtime_accepted=*/ true,
+            /*post_hoc_verified=*/ false,
+            Instant::now(),
+            500, 1, 1,
+            None, None, None, None, None,
+            Some(2000), Some(0), Some(15_000),
+        );
+
+        assert_eq!(result.progress, 0u8,
+            "Lean rejected → progress MUST be 0 (North Star truth)");
+        assert_eq!(result.verified, false);
+        assert!(result.pput_runtime > 0.0,
+            "pput_runtime inflates under runtime accept (the divergence signal)");
+        assert_eq!(result.pput_verified, 0.0,
+            "pput_verified MUST collapse to 0 when Lean rejects");
+        assert!(result.pput_runtime - result.pput_verified > 0.0,
+            "(pput_runtime - pput_verified) > 0 ⟺ Soft Law divergence detected");
+
+        std::env::remove_var("SPLIT");
+        std::env::remove_var("MODE");
     }
 }
