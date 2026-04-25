@@ -497,8 +497,38 @@ async fn run_swarm(
     let search_cap: u32 = std::env::var("SEARCH_CAP")
         .ok().and_then(|s| s.parse().ok()).unwrap_or(20);
     let mut search_count: HashMap<String, u32> = HashMap::new();
+    // PPUT-CCL B7-extra (PREREG § 5.5): calibration treatment toggle.
+    // When enabled, every proposal at tx >= ROLLBACK_TX_THRESHOLD is
+    // synthetically vetoed. Constitutionally that is FC1-E18 (∏p=0 → Q_t)
+    // applied repeatedly; the run then exhausts at FC2-N22 HALT via
+    // `HaltReason::MaxTxExhausted`. We short-circuit at the threshold tx
+    // for efficiency — see `rollback_sim.rs` module header for why this
+    // is observably equivalent to running the loop to natural exhaustion.
+    let rollback_sim_on = minif2f_v4::rollback_sim::rollback_simulation_enabled();
+    if rollback_sim_on {
+        info!("[rollback_sim] PREREG § 5.5 calibration treatment ON \
+               (synthetic veto at tx >= {})", minif2f_v4::rollback_sim::ROLLBACK_TX_THRESHOLD);
+    }
 
     for tx in 0..max_transactions {
+        // PPUT-CCL B7-extra: short-circuit guard. Constitutional anchor
+        // FC1-E18 + FC2-N22 (existing MaxTxExhausted variant). Stamps
+        // tx_count at the threshold, not at max_transactions, so jsonl
+        // analysis can distinguish a calibration treatment exit from a
+        // real natural exhaustion.
+        if minif2f_v4::rollback_sim::should_simulate_rollback(tx as u64, rollback_sim_on) {
+            info!("[rollback_sim] firing at tx={} — synthetic ∏p=0 from this tx, \
+                   short-circuit to MaxTxExhausted exit", tx);
+            wc.mark_final_accept();
+            return make_pput(problem_file, &condition, model,
+                             false, false, start, 0, 0,
+                             tx as u64, Some(tool_dist), None,
+                             None, None, None,
+                             Some(acc.total_run_token_count()),
+                             Some(acc.failed_branch_count),
+                             wc.elapsed_ms());
+        }
+
         // PPUT-CCL B3 (mid-term audit P0-C fix 2026-04-25): open the wall-clock
         // bracket at the top of the FIRST tx (before chain/skill/board build
         // and before build_agent_prompt). Idempotent — only the first tx's

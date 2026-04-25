@@ -33,7 +33,12 @@
 #   B6 add (1):
 #     src/sdk/prompt_guard.rs (PPUT-context-leak runtime gate)
 #
-# Total: 15 files. genesis_payload.toml itself is conceptually frozen but
+#   B7-extra add (1):
+#     experiments/minif2f_v4/src/rollback_sim.rs (PPUT-CCL § 5.5
+#       calibration treatment toggle — synthetic ∏p=0 from tx 50,
+#       constitutionally FC1-E18 + FC2-N22-MaxTxExhausted)
+#
+# Total: 16 files. genesis_payload.toml itself is conceptually frozen but
 # not self-hashed (chicken-and-egg) — the [pput_accounting_0] section
 # values are the semantic anchor.
 #
@@ -63,7 +68,8 @@ n_max = 34
 "experiments/minif2f_v4/src/wall_clock.rs" = "2c9197f8f93b7d130dc7b094a6664f8ece351ec85668921c5beb6d100a1a77ee"
 "experiments/minif2f_v4/src/post_hoc_verifier.rs" = "9a93ae5548827b60543df779c67a5f1201b49a681a55e2cbc6a8532e8bb131a2"
 "experiments/minif2f_v4/src/jsonl_schema.rs" = "7647a2ea842f4394d55e1ce85032642c18ba61f962bd2c5c8714c618e743777c"
-"experiments/minif2f_v4/src/bin/evaluator.rs" = "d341a67f772425f67fb6fc3945a140dd0110291525b2950747421cb7e74e22fc"
+"experiments/minif2f_v4/src/rollback_sim.rs" = "0c4dd5a922edddd43769915f0d2c13332331ecbee74e09294f6b2243ec7607cd"
+"experiments/minif2f_v4/src/bin/evaluator.rs" = "b10969506dd8572ed86485555b57153300ac7c066f81d838de2e92c4c52d786d"
 "constitution.md" = "b304b431b7d3fbb8d1630f76ac4bc3eaa80383dde41fb3bc69fbe5bb263658ef"
 "cases/MANIFEST.sha256" = "3759631afae97c631be9a4038479b8d3681af25885f9758c32ad88c22f17fc3f"
 "handover/preregistration/PPUT_CCL_SPLITS_2026-04-26.json" = "69be702e3e0a4bb33c62bd02056495309289fd9271972dc733b4a1ba3dd908e1"

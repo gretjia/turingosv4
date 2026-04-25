@@ -5,7 +5,7 @@
 // mismatch = `TRUST_ROOT_TAMPERED` abort.
 //
 // Trust Root manifest (PREREG § 1.8 + B2-B4 mid-term audit recommendation
-// + B6 prompt_guard add) — independently re-derived in B7:
+// + B6 prompt_guard add + B7-extra rollback_sim add):
 //   src/kernel.rs
 //   src/wal.rs
 //   src/bus.rs
@@ -16,6 +16,7 @@
 //   experiments/minif2f_v4/src/wall_clock.rs          (B3)
 //   experiments/minif2f_v4/src/post_hoc_verifier.rs   (B4)
 //   experiments/minif2f_v4/src/jsonl_schema.rs        (B1)
+//   experiments/minif2f_v4/src/rollback_sim.rs        (B7-extra)
 //   experiments/minif2f_v4/src/bin/evaluator.rs       (the wiring)
 //   constitution.md
 //   handover/preregistration/PPUT_CCL_SPLITS_2026-04-26.json
@@ -97,6 +98,8 @@ fn test_trust_root_manifest_includes_b2_b4_files() {
         "experiments/minif2f_v4/src/bin/evaluator.rs",
         // B6 add
         "src/sdk/prompt_guard.rs",
+        // B7-extra add
+        "experiments/minif2f_v4/src/rollback_sim.rs",
     ];
 
     for path in required {
