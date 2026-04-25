@@ -1,6 +1,6 @@
 # TuringOS v4 — Handover State
-**Updated**: 2026-04-26
-**Session Summary**: PPUT-CCL arc Phase A 完整收尾 — PREREG + split + 4-round dual-audit PASS/PASS + A5 commit gate (commit `913255d`). Phase B (kernel instrumentation + PPUT accounting) cleared to start. Paper 1 v2.1.1 arXiv 投稿延后, 但仓库就绪 (tag `paper1-v2.1.1` 已推 origin).
+**Updated**: 2026-04-26 (B1 close)
+**Session Summary**: PPUT-CCL arc Phase A 完整收尾 — PREREG + split + 4-round dual-audit PASS/PASS + A5 commit gate (commit `913255d`). Phase B B1 (JSONL schema v2) 半天破冰完成，3/3 acceptance tests PASS，全套 131/131 parallel green。Phase B B2 (cost aggregator, ~1 day) cleared as next entry point. Paper 1 v2.1.1 arXiv 投稿延后, 但仓库就绪 (tag `paper1-v2.1.1` 已推 origin).
 
 > **新 session 入口**: 读这个文件 + `handover/preregistration/PREREG_PPUT_CCL_2026-04-26.md` § 6 + `handover/preregistration/PHASE_B_IMPLEMENTATION_PLAN.md` + `handover/ai-direct/OPEN_DECISIONS_2026-04-26.md`. 这 4 个文件足以无 context 接手当前工作。
 
@@ -20,11 +20,11 @@
 - **A4 ✅** Dual external audit PASS/PASS (Codex + Gemini, round 4)
 - **A5 ✅** Commit gate cleared — commit `913255d`
 
-### Phase B — READY TO START (days 4-10 of 30-day arc)
+### Phase B — IN PROGRESS (days 4-10 of 30-day arc)
 Detailed plan: `handover/preregistration/PHASE_B_IMPLEMENTATION_PLAN.md`
 Items (all expanded with file paths + acceptance criteria in plan doc):
-- B1 JSONL schema v2 (proposal + run-level)
-- B2 C_i 全成本聚合器 (all agents × branches × failures × tool stdout)
+- **B1 ✅ DONE** JSONL schema v2 (proposal + run-level) — `experiments/minif2f_v4/src/jsonl_schema.rs`; 3 acceptance tests green; legacy `PputResult` shape readable via `RunRecord::from_json` schema_version dispatcher; evaluator emit wiring deferred to B2/B3/B4 (no fields to populate yet)
+- B2 C_i 全成本聚合器 (all agents × branches × failures × tool stdout) — **next entry point**
 - B3 T_i wall-clock = first-read → final-accept
 - B4 `pput_verified` vs `pput_runtime` 双字段
 - B5 11 anti-Goodhart conformance + 5-layer sealing tests
@@ -38,12 +38,13 @@ Items (all expanded with file paths + acceptance criteria in plan doc):
 
 ## What's broken / incomplete
 
-### PPUT-CCL Phase B — to-do
-- 无任何代码改动 (PREREG 是 spec; 实际 Rust 代码 / 测试 / genesis_payload.toml 整合未开始)
+### PPUT-CCL Phase B — to-do (after B1 close)
+- B2-B7 + B7-extra: 全套 evaluator emit-path 改造 + 测试电池 + Trust Root 未做
 - p_0 baseline 未 calibrate (`pput_accounting_0.baseline_regression_rate` 在 genesis_payload.toml 未填)
 - Trust Root 集成未实现 (genesis_payload.toml `[trust_root]` SHA-256 表未生成)
 - conformance test battery 未写: 11 anti-Goodhart + 5-layer sealing + 4 doc/artifact content + 4 lookup-table evasion
 - `--mode` flag 未在 evaluator binary 实现
+- B1 的 `ProposalRow` / `RunAggregate` 还没在 evaluator 任何 emit path 上线 — 由 B2 负责 wire-in
 
 ### Paper 1 — separate stack
 - arXiv 投稿延后 (tag `paper1-v2.1.1` 待 LaTeX 转换 + 元数据)
@@ -53,11 +54,11 @@ Items (all expanded with file paths + acceptance criteria in plan doc):
 **全部 D1-D4 已 resolved 2026-04-26 default 接受** — 见 `handover/ai-direct/OPEN_DECISIONS_2026-04-26.md` Resolved 区。本 session 关闭；下一 session 在 Phase B B1 起步（JSONL schema v2）。
 
 ## Next session — first action
-1. Read `LATEST.md` (this file) + `PHASE_B_IMPLEMENTATION_PLAN.md` § B1
-2. Smoke check: `cargo test` 全部 PASS（确认 Paper 1 时代代码无 regression）
-3. Start B1: 建 `experiments/minif2f_v4/src/jsonl_schema.rs` + 在 evaluator.rs 改 emit 路径
-4. B1 完成判据: `cargo test test_jsonl_schema_v2_round_trip` PASS + 历史 jsonl 仍可读
-5. 半天破冰后再决定要不要继续 B2-B7 / 收 session
+1. Read `LATEST.md` (this file) + `PHASE_B_IMPLEMENTATION_PLAN.md` § B2
+2. Smoke check: `cargo test --workspace` 全部 PASS（B1 close 后基线 = 131/131 parallel green；env-var flake 已 fix，无需 --test-threads=1）
+3. Start B2 (cost aggregator, est. 1 day): 建 `src/cost_aggregator.rs` + 改 `experiments/minif2f_v4/src/bin/evaluator.rs` 主循环 + 各 tool `execute` 加 `tool_stdout` 返回
+4. B2 完成判据: `cargo test test_failed_branches_counted_in_total_cost` PASS + 3 个历史 Phase 1 run 手动 spot-check (重算 C_i 与 jsonl emit 一致)
+5. B2 完成后：B3 (wall-time, half day, 可与 B2 并行) → B4 → B5 → B6 → B7 → B7-extra (overnight calibration)
 
 ## Reference (canonical sources of truth)
 
@@ -84,8 +85,8 @@ Items (all expanded with file paths + acceptance criteria in plan doc):
 | `handover/audits/DUAL_AUDIT_V2_1_VERDICT_2026-04-25.md` | Paper 1 R3 PASS/PASS verdict |
 
 ### Repo state
-- HEAD: `913255d` (PPUT-CCL arc launch)
-- origin/main HEAD: `fd291d7` (Paper 1 hygiene; PPUT-CCL commit `913255d` is **local-only**, not pushed)
+- HEAD: B1 close commit (post `47b3dba`; SHA stamped at commit time)
+- origin/main HEAD: `fd291d7` (Paper 1 hygiene; PPUT-CCL chain `913255d`/`4e4afc7`/`47b3dba` + B1 close 仍 **local-only**, not pushed)
 - Tags pushed: `paper1-v2.1.1`, `archive/art-ii1-v3-abandoned-20260416`
 - Branches: `main` (active), 23 archive refs preserved
 
