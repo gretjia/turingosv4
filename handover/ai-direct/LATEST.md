@@ -1,6 +1,6 @@
 # TuringOS v4 — Handover State
-**Updated**: 2026-04-25 (B5 close — conformance battery + deferred P0s)
-**Session Summary**: Phase B 一个 session 推进 B2 → B3 → B4 → mid-term dual audit (CHALLENGE/CHALLENGE) → P0-A/P0-C fix → P0-B/D/E pickup → B5 conformance battery (10 anti-Goodhart + 5 sealing layers) + 24 Phase C/D/B7 stub scaffolded。**161/161 cargo test --workspace PASS** + 24 deferred-stub `#[ignore]`。剩余 Phase B：B6 (context-leak runtime gate) + B7 (Trust Root + Boot freeze) + B7-extra (p_0 calibration overnight)。
+**Updated**: 2026-04-25 (B6 close — context-leak runtime gate)
+**Session Summary**: Phase B 一个 session 推进 B2 → B3 → B4 → mid-term dual audit (CHALLENGE/CHALLENGE) → P0-A/P0-C fix → P0-B/D/E pickup → B5 conformance battery (10 anti-Goodhart + 5 sealing layers + 24 Phase C/D/B7 stubs) → B6 PPUT-context-leak runtime gate (`src/sdk/prompt_guard.rs` + 10 unit tests; wired before every client.generate). **171/171 cargo test --workspace PASS** + 24 deferred-stub `#[ignore]`。剩余 Phase B：B7 (Trust Root + Boot freeze) + B7-extra (p_0 calibration overnight)。
 
 > **新 session 入口**: 读这个文件 + `handover/preregistration/PHASE_B_IMPLEMENTATION_PLAN.md` § B6-B7 + `handover/audits/B5_DEFERRED_FROM_MIDTERM_AUDIT_2026-04-25.md` (历史) + `handover/ai-direct/AUTO_RESEARCH_NOTEPAD.md` § F-2026-04-25-03 (mid-term audit lessons)。这 4 个文件足以无 context 接手当前工作。
 
@@ -34,8 +34,8 @@ Items (all expanded with file paths + acceptance criteria in plan doc):
   - 10/10 anti-Goodhart conformance (PREREG § 3): `experiments/minif2f_v4/tests/pput_anti_goodhart.rs` — all_model_tokens_counted / tool_stdout_hash_logged / no_hidden_unmetered_generation / no_problem_id_hardcode / no_metric_file_access_by_agents / no_pput_in_agent_prompt / golden_path_requires_ground_truth / failed_branches_in_total_cost / wall_clock_first_read_to_final_accept / heldout_ids_inaccessible
   - 5/5 heldout operational sealing (PREREG § 2.3 L1-L5): `experiments/minif2f_v4/tests/heldout_operational_sealing.rs` — file-path read isolation / agent prompt context blacklist / tool-call hash-invocation gate / hash + seed substring co-occurrence / source-pool enumeration block
   - 24 Phase C/D/B7 stubs scaffolded (`#[ignore]` with contract docs): artifact_content_predicates (4) + artifact_lookup_evasion (4) + architect_sole_lt_reader (3) + auditor_sees_candidate_only (3) + mode_flag_binary_purity (6) + trust_root_immutability (4)
-- B6 PPUT-context-leak audit (静态分析 + 运行时门) — **next entry point**
-- B7 Boot freeze: `pput_accounting_0` in genesis_payload.toml + Trust Root immutability tests; Trust Root manifest must include `cost_aggregator.rs`, `wall_clock.rs`, `post_hoc_verifier.rs`, `jsonl_schema.rs`, `evaluator.rs`, `src/drivers/llm_http.rs` per audit recommendation
+- **B6 ✅ DONE** PPUT-context-leak runtime gate — `src/sdk/prompt_guard.rs` (separate module so prompt.rs stays pure for B5 static-grep): `assert_no_metric_leak(prompt)` panics with `PPUT_CONTEXT_LEAK_DETECTED` on any of 8 forbidden substrings (case-insensitive); wired before every `client.generate` call site in evaluator (oneshot + swarm). 10 unit tests (clean prompt + 9 leak fixtures including substring/case-insensitive/middle-of-text variants). Static side already covered by B5 `test_no_pput_in_agent_prompt`.
+- B7 Boot freeze: `pput_accounting_0` in genesis_payload.toml + Trust Root immutability tests; Trust Root manifest must include `cost_aggregator.rs`, `wall_clock.rs`, `post_hoc_verifier.rs`, `jsonl_schema.rs`, `evaluator.rs`, `src/drivers/llm_http.rs`, `src/sdk/prompt_guard.rs` per audit recommendation — **next entry point**
 - B7-extra **p_0 calibration** (288 paired adaptation-144 × 2 seeds; freeze 进 Trust Root)
 
 ### Active background processes
@@ -44,8 +44,8 @@ Items (all expanded with file paths + acceptance criteria in plan doc):
 
 ## What's broken / incomplete
 
-### PPUT-CCL Phase B — to-do (after B5 close)
-- B6 (PPUT-context-leak audit) + B7 (Trust Root + Boot freeze) + B7-extra (p_0 calibration) 未做
+### PPUT-CCL Phase B — to-do (after B6 close)
+- B7 (Trust Root + Boot freeze) + B7-extra (p_0 calibration) 未做
 - p_0 baseline 未 calibrate (`pput_accounting_0.baseline_regression_rate` 在 genesis_payload.toml 未填)
 - Trust Root 集成未实现 (genesis_payload.toml `[trust_root]` SHA-256 表未生成；B7 需挂上 cost_aggregator/wall_clock/post_hoc_verifier/jsonl_schema/evaluator/llm_http 6 个文件)
 - 24 Phase C/D/B7 conformance stubs `#[ignore]` 待对应 phase 解封 (artifact_content/lookup_evasion/architect_sole_lt/auditor_sees_candidate/mode_flag_binary_purity/trust_root_immutability)
@@ -72,12 +72,11 @@ binding checklist: `handover/audits/B5_DEFERRED_FROM_MIDTERM_AUDIT_2026-04-25.md
 **全部 D1-D4 已 resolved 2026-04-26 default 接受** — 见 `handover/ai-direct/OPEN_DECISIONS_2026-04-26.md` Resolved 区。本 session 关闭；下一 session 在 Phase B B5 起步（先 pickup deferred P0-B/D/E，再写 conformance battery）。
 
 ## Next session — first action
-1. Read `LATEST.md` (this file) + `PHASE_B_IMPLEMENTATION_PLAN.md` § B6
-2. Smoke check: `cargo test --workspace` 全部 PASS (B5 close 后基线 = **161/161 parallel green** + 24 ignored stubs)
-3. Start B6 (PPUT-context-leak audit, half day): 静态 grep + runtime gate. PREREG § 3 #6 + B5 prep already covered the static grep (`test_no_pput_in_agent_prompt`) — B6 work is the runtime gate `PromptBuilder::assert_no_metric_leak()` in `src/sdk/prompt.rs`.
-4. Then B7 (Trust Root + Boot freeze, 1 day): genesis_payload.toml `[pput_accounting_0]` + `[trust_root]` SHA-256 manifest + Boot integration (panic on TRUST_ROOT_TAMPERED). Manifest list per audit recommendation.
-5. Then B7-extra (p_0 calibration overnight): 288 control + 288 treatment runs on adaptation-144 × 2 seeds; freeze p_0 ∈ (0, 0.10].
-6. Then Gate B exit: dual-audit Phase B → Phase C transition.
+1. Read `LATEST.md` (this file) + `PHASE_B_IMPLEMENTATION_PLAN.md` § B7 + § B7-extra
+2. Smoke check: `cargo test --workspace` 全部 PASS (B6 close 后基线 = **171/171 parallel green** + 24 ignored stubs)
+3. Start B7 (Trust Root + Boot freeze, 1 day): genesis_payload.toml `[pput_accounting_0]` + `[trust_root]` SHA-256 manifest + Boot integration (panic on TRUST_ROOT_TAMPERED). Manifest list per audit recommendation: cost_aggregator.rs, wall_clock.rs, post_hoc_verifier.rs, jsonl_schema.rs, evaluator.rs, llm_http.rs, prompt_guard.rs.
+4. Then B7-extra (p_0 calibration overnight): 288 control + 288 treatment runs on adaptation-144 × 2 seeds; freeze p_0 ∈ (0, 0.10].
+5. Then Gate B exit: dual-audit Phase B → Phase C transition.
 
 ## Mid-term audit (2026-04-25) summary
 - Codex (274s, 67K char prompt) + Gemini (62s, 67K char prompt): both **CHALLENGE**, high conviction

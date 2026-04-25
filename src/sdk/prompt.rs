@@ -126,6 +126,11 @@ pub fn build_agent_prompt(
     prompt
 }
 
+// PPUT-CCL B6 runtime PPUT-context-leak gate lives in `prompt_guard.rs`
+// (separate module). The B5 conformance test `test_no_pput_in_agent_prompt`
+// scans this file specifically — keeping the gate elsewhere preserves
+// prompt.rs purity while the runtime defense remains active.
+
 #[cfg(test)]
 mod tests {
     use super::*;

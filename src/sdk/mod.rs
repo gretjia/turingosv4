@@ -1,6 +1,7 @@
 pub mod protocol;
 pub mod snapshot;
 pub mod prompt;
+pub mod prompt_guard;
 pub mod tool;
 pub mod actor;
 pub mod sandbox;

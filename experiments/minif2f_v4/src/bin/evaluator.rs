@@ -19,6 +19,7 @@ use turingosv4::drivers::llm_http::{GenerateRequest, Message, ResilientLLMClient
 use turingosv4::kernel::Kernel;
 use turingosv4::sdk::actor::{BoltzmannParams, boltzmann_select_parent};
 use turingosv4::sdk::prompt::build_agent_prompt;
+use turingosv4::sdk::prompt_guard::assert_no_metric_leak;
 use turingosv4::sdk::protocol::parse_agent_output;
 use turingosv4::sdk::tools::wallet::WalletTool;
 use turingosv4::sdk::tools::search::SearchTool;
@@ -270,6 +271,10 @@ async fn run_oneshot(
         max_tokens: Some(max_toks),
     };
 
+    // PPUT-CCL B6 runtime gate: scan the assembled prompt for PPUT scalars
+    // before the call goes out. Any leak aborts deterministically — Goodhart
+    // shield at the LLM-call boundary.
+    assert_no_metric_leak(&request.messages[0].content);
     match client.generate(&request).await {
         Ok(response) => {
             acc.record_llm_call(response.prompt_tokens, response.completion_tokens);
@@ -637,6 +642,12 @@ async fn run_swarm(
             max_tokens: Some(max_toks),
         };
 
+        // PPUT-CCL B6 runtime gate (swarm path): swarm prompts include
+        // tape contents, board posts, search hits, and learned memory —
+        // any of these state surfaces could in principle inject a PPUT
+        // value at runtime even when the prompt builder is clean. Gate
+        // every tx, every agent, every iteration.
+        assert_no_metric_leak(&request.messages[0].content);
         match client.generate(&request).await {
             Ok(response) => {
                 acc.record_llm_call(response.prompt_tokens, response.completion_tokens);
