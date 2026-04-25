@@ -1,22 +1,29 @@
 // PPUT-CCL Phase B B7-extra — synthetic rollback simulation.
 //
-// Constitutional anchor (TRACE_MATRIX_v1 § 7.2): the
-// `--simulate-rollback-at-tx-50` toggle (PREREG § 5.5) is realized as
-// "every proposal from tx 50 onward is vetoed", which is constitutionally
-// the **FC1-E18** edge (∏p=0 → Q_t preservation) repeated for tx
-// 50..max_transactions. The run then exhausts naturally and exits via
-// the existing **FC2-N22 HALT** with `HaltReason::MaxTxExhausted` — no
-// new HaltReason variant is introduced and no new constitutional surface
-// is created.
+// Constitutional anchor (TRACE_MATRIX_v1 § 7.2, status ⚠️ partial after
+// 2026-04-25 dual-audit re-review): the `--simulate-rollback-at-tx-50`
+// toggle (PREREG § 5.5) MAPS TO the conjunction of **FC1-E18** (∏p=0 →
+// Q_t preservation) repeated for tx 50..max_transactions and the
+// resulting natural **FC2-N22 HALT** with `HaltReason::MaxTxExhausted`.
+// No new HaltReason variant is introduced and no new constitutional
+// surface is created.
 //
-// For efficiency, the swarm loop short-circuits at tx == threshold
-// instead of running ~150 guaranteed-vetoed iterations. The short-circuit
-// is observably equivalent: identical exit state, identical cost
-// accumulator (no extra LLM calls would have happened in vetoed tx),
-// identical wall-clock close. The only observable difference is
-// `tx_count` stamped at threshold rather than `max_transactions` — a
-// useful diagnostic signal that distinguishes a calibration-treatment
-// run from a real exhaustion.
+// **Equivalence is narrow** (audit-fix 2026-04-25, Codex Q1 + Gemini
+// Q1.a): the short-circuit at tx == threshold is equivalent to the
+// 150-tx vetoed loop on a *single* observable — the final
+// `(problem_id, seed, solved)` tuple consumed by `compute_p0.py` for
+// the PREREG § 5.5 estimator. It is **NOT** equivalent on:
+//   - cost accumulator C_i (skips ~150 LLM calls × ~250 tokens each)
+//   - wall-clock T_i (skips ~150 × per-tx wall-clock contribution)
+//   - WAL ledger event sequence (skips ~150 Append/Reject events)
+//   - bus-level predicate traversal (the synthetic ∏p=0 is asserted at
+//     evaluator layer, not registered with bus.evaluate_predicates)
+//   - `tx_count` field (stamped at threshold = 50, not at max_transactions)
+//
+// Consumers that touch any non-(problem, seed, solved) field on rows
+// where `synthetic_short_circuit == Some(true)` MUST disclaim the
+// non-equivalence. `compute_p0.py` honors this by reading only the
+// `progress` field and the PREREG-frozen seed/problem grid.
 //
 // Threat model: the threshold is fixed at 50 per PREREG § 5.5 frozen
 // spec. The env var `SIMULATE_ROLLBACK_AT_TX_50` is a binary toggle

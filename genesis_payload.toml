@@ -38,7 +38,16 @@
 #       calibration treatment toggle — synthetic ∏p=0 from tx 50,
 #       constitutionally FC1-E18 + FC2-N22-MaxTxExhausted)
 #
-# Total: 16 files. genesis_payload.toml itself is conceptually frozen but
+#   2026-04-25 dual-audit fixes (4):
+#     src/main.rs (audit Q2.b VETO — verify_trust_root call site must be
+#       in manifest; comment-out = silent bypass)
+#     Cargo.lock (audit Q2.e VETO — supply-chain dep-version swap defense)
+#     handover/preregistration/scripts/run_p0_calibration.sh (audit Q2 +
+#       DO-178C tool qualification — runner is a frozen production tool)
+#     handover/preregistration/scripts/compute_p0.py (same — estimator is
+#       a frozen production tool)
+#
+# Total: 20 files. genesis_payload.toml itself is conceptually frozen but
 # not self-hashed (chicken-and-egg) — the [pput_accounting_0] section
 # values are the semantic anchor.
 #
@@ -58,6 +67,10 @@ k_max = 10
 n_max = 34
 
 [trust_root]
+"src/main.rs" = "622fee2d96a980d24f9fbaab3d0531c195a0a337fc3ddd2efb60bca90a1cfbf9"
+"Cargo.lock" = "577446e8fe11e91bc8751bf13e5ddca6c5faa64d3309b878768c550d3e6feb98"
+"handover/preregistration/scripts/run_p0_calibration.sh" = "9a1e216301eb5dba72351a49a5a4c799e4bbf0dee79646467d28d972f8196cf8"
+"handover/preregistration/scripts/compute_p0.py" = "fd1dff97d582f4f509249852be500cba7d81efc9bab8fcb9872b2d85bb4e3052"
 "src/kernel.rs" = "893fd67534caf7a3d9abd6efbd202556348b6491cd6d4c6bdb224d2ad75b1af0"
 "src/wal.rs" = "1ac7637aa09531b1c7232163f5df48f7193251594c4ed20e0d0fc85cea8f84dc"
 "src/bus.rs" = "df28ffe514a3272a3d10fca4568fd424a76e754e9785c109a5459f163f7fd14c"
@@ -68,8 +81,8 @@ n_max = 34
 "experiments/minif2f_v4/src/wall_clock.rs" = "2c9197f8f93b7d130dc7b094a6664f8ece351ec85668921c5beb6d100a1a77ee"
 "experiments/minif2f_v4/src/post_hoc_verifier.rs" = "9a93ae5548827b60543df779c67a5f1201b49a681a55e2cbc6a8532e8bb131a2"
 "experiments/minif2f_v4/src/jsonl_schema.rs" = "7647a2ea842f4394d55e1ce85032642c18ba61f962bd2c5c8714c618e743777c"
-"experiments/minif2f_v4/src/rollback_sim.rs" = "0c4dd5a922edddd43769915f0d2c13332331ecbee74e09294f6b2243ec7607cd"
-"experiments/minif2f_v4/src/bin/evaluator.rs" = "265314baa700ce0c795e3ec7efed5a77ebc81a01884bae33592d1a0e8d8ce32c"
+"experiments/minif2f_v4/src/rollback_sim.rs" = "a4909a2a1fd6369853fced10c654d305f9e51357241ee4acdbee59380d226a03"
+"experiments/minif2f_v4/src/bin/evaluator.rs" = "d48b9783ae7b5a95a3e6858a04dfe934b0eb7e968a1c3a9bbe8b87216b8ff7c8"
 "constitution.md" = "91e5913603eebaf134ac93d0f9ed7bb2b7916132203f6c2fae84d73329056ad6"
 "cases/MANIFEST.sha256" = "3759631afae97c631be9a4038479b8d3681af25885f9758c32ad88c22f17fc3f"
 "handover/preregistration/PPUT_CCL_SPLITS_2026-04-26.json" = "69be702e3e0a4bb33c62bd02056495309289fd9271972dc733b4a1ba3dd908e1"

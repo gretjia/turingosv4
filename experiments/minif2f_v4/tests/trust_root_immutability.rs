@@ -4,13 +4,14 @@
 // compares against the genesis_payload.toml [trust_root] manifest. Any
 // mismatch = `TRUST_ROOT_TAMPERED` abort.
 //
-// Trust Root manifest (PREREG § 1.8 + B2-B4 mid-term audit recommendation
-// + B6 prompt_guard add + B7-extra rollback_sim add):
+// Trust Root manifest (PREREG § 1.8 + audit additions through 2026-04-25):
+//   src/main.rs                                       (audit-fix Q2.b)
 //   src/kernel.rs
 //   src/wal.rs
 //   src/bus.rs
 //   src/drivers/llm_http.rs                           (B2-B4 audit add)
 //   src/sdk/prompt_guard.rs                           (B6 add)
+//   Cargo.lock                                        (audit-fix Q2.e)
 //   experiments/minif2f_v4/src/lean4_oracle.rs
 //   experiments/minif2f_v4/src/cost_aggregator.rs     (B2)
 //   experiments/minif2f_v4/src/wall_clock.rs          (B3)
@@ -21,6 +22,8 @@
 //   constitution.md
 //   handover/preregistration/PPUT_CCL_SPLITS_2026-04-26.json
 //   handover/preregistration/PREREG_PPUT_CCL_2026-04-26.md
+//   handover/preregistration/scripts/run_p0_calibration.sh   (audit-fix Q2)
+//   handover/preregistration/scripts/compute_p0.py           (audit-fix Q2)
 //   cases/MANIFEST.sha256                             (proxy for cases/*.yaml)
 
 use std::fs;
@@ -100,6 +103,11 @@ fn test_trust_root_manifest_includes_b2_b4_files() {
         "src/sdk/prompt_guard.rs",
         // B7-extra add
         "experiments/minif2f_v4/src/rollback_sim.rs",
+        // 2026-04-25 dual-audit fixes
+        "src/main.rs",
+        "Cargo.lock",
+        "handover/preregistration/scripts/run_p0_calibration.sh",
+        "handover/preregistration/scripts/compute_p0.py",
     ];
 
     for path in required {

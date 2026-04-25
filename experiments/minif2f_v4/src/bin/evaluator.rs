@@ -162,6 +162,27 @@ struct PputResult {
 #[tokio::main]
 async fn main() {
     env_logger::init();
+
+    // Audit-fix 2026-04-25 (Codex B1 + Q2 — both auditors flagged): the
+    // production batch runs *this* binary, not `src/main.rs`. Without a
+    // verify_trust_root call here, the FC3-S3 readonly subgraph + FC2-N16
+    // InitAI Trust Root enforcement does NOT actually fire on the calibration
+    // batch. Boot must happen here, at the production entry point, before
+    // any LLM call or jsonl emit.
+    //
+    // Repo root: CARGO_MANIFEST_DIR is `experiments/minif2f_v4`; repo root
+    // is two levels up. canonicalize so a deployed binary still resolves
+    // the genesis path it was built against.
+    let repo_root: std::path::PathBuf = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("..")
+        .canonicalize()
+        .expect("evaluator: repo root resolves at build time");
+    if let Err(e) = turingosv4::boot::verify_trust_root(&repo_root) {
+        // FC3-E14 immediate-abort variant. See OBS_BOOT_FAIL_NOT_HALT.
+        panic!("TRUST_ROOT_TAMPERED at evaluator boot: {e}");
+    }
+
     // Step-B v3 treatment binary: stamp classifier version in every emitted PputResult.
     // Control binary (main branch) has no such set_var → classifier_version serializes as None.
     // This makes it impossible to mistake one binary for the other in post-hoc analysis.
@@ -532,8 +553,10 @@ async fn run_swarm(
         // analysis can distinguish a calibration treatment exit from a
         // real natural exhaustion.
         if minif2f_v4::rollback_sim::should_simulate_rollback(tx as u64, rollback_sim_on) {
-            info!("[rollback_sim] firing at tx={} — synthetic ∏p=0 from this tx, \
-                   short-circuit to MaxTxExhausted exit", tx);
+            warn!("[rollback_sim] firing at tx={} — synthetic ∏p=0 from this tx, \
+                   short-circuit to MaxTxExhausted exit (cost-asymmetric: skips \
+                   ~150 LLM calls vs honest vetoed loop; downstream PPUT analysis \
+                   MUST honor synthetic_short_circuit=true on this row)", tx);
             wc.mark_final_accept();
             let mut result = make_pput(problem_file, &condition, model,
                                        false, false, start, 0, 0,

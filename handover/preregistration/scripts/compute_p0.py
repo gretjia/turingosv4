@@ -37,34 +37,90 @@ def load_jsonl(path: Path) -> list[dict]:
 def solved(row: dict) -> bool:
     """PREREG § 1.3 progress = 1 iff Lean ground-truth verifies golden_path.
 
-    The B4 split (`progress_runtime` vs `progress_verified`) frames the verified
-    leg as authoritative. Fall back to `has_golden_path` for legacy rows.
+    Reads the v2 RunAggregate field `progress` (jsonl_schema.rs:96). Falls
+    back to legacy `has_golden_path` for pre-v2 rows. The earlier audit
+    found this function was reading a non-existent `progress_verified`
+    field — Codex Q3, fixed 2026-04-25.
     """
-    if "progress_verified" in row and row["progress_verified"] is not None:
-        return int(row["progress_verified"]) == 1
+    if "progress" in row and row["progress"] is not None:
+        return int(row["progress"]) == 1
     return bool(row.get("has_golden_path", False))
 
 
-def compute(control_rows: list[dict], treatment_rows: list[dict]) -> dict:
-    # Index by (problem_id, seed). calibration_problem_id and calibration_seed
-    # are stamped by run_p0_calibration.sh. Be defensive: skip rows missing
-    # either tag.
-    def index(rows):
-        out = {}
-        for r in rows:
+PREREG_SEEDS = (31415, 2718)
+PREREG_N_PROBLEMS = 144
+
+
+def compute(
+    control_rows: list[dict],
+    treatment_rows: list[dict],
+    *,
+    expected_n_problems: int = PREREG_N_PROBLEMS,
+    expected_seeds: tuple[int, ...] = PREREG_SEEDS,
+) -> dict:
+    """PREREG § 5.5 estimator. Strict-complete: requires every (problem, seed)
+    pair present in BOTH control and treatment, exact seed set, no missing
+    `calibration_*` tags. Audit-fix 2026-04-25 (Codex B2 + Gemini Q3.d): the
+    prior silently-skip behaviour biased p_0 by dropping incomplete pairs.
+    """
+    def index(rows: list[dict], mode: str) -> dict[tuple[str, int], dict]:
+        out: dict[tuple[str, int], dict] = {}
+        for i, r in enumerate(rows):
             pid = r.get("calibration_problem_id")
             seed = r.get("calibration_seed")
             if pid is None or seed is None:
-                continue
-            out[(pid, seed)] = r
+                sys.exit(
+                    f"ERROR: {mode} row {i} missing calibration_problem_id/seed — "
+                    "runner stamping bug; refuse to compute p_0 on incomplete data"
+                )
+            key = (pid, seed)
+            if key in out:
+                sys.exit(
+                    f"ERROR: {mode} duplicate row for (problem={pid}, seed={seed}) — "
+                    "runner emitted twice; refuse to compute p_0 on duplicated data"
+                )
+            out[key] = r
         return out
 
-    c = index(control_rows)
-    t = index(treatment_rows)
+    c = index(control_rows, "control")
+    t = index(treatment_rows, "treatment")
 
-    pairs = sorted(set(c.keys()) & set(t.keys()))
-    if not pairs:
-        sys.exit("ERROR: no overlapping (problem, seed) pairs between control and treatment")
+    # Strict completeness: control and treatment key sets must be identical
+    # AND must equal expected pre-registered (problem × seed) grid.
+    expected_seed_set = set(expected_seeds)
+    c_seeds = {seed for _, seed in c.keys()}
+    t_seeds = {seed for _, seed in t.keys()}
+    if c_seeds != expected_seed_set or t_seeds != expected_seed_set:
+        sys.exit(
+            f"ERROR: seed mismatch — expected {sorted(expected_seed_set)}; "
+            f"control={sorted(c_seeds)}, treatment={sorted(t_seeds)}"
+        )
+
+    c_problems = {pid for pid, _ in c.keys()}
+    t_problems = {pid for pid, _ in t.keys()}
+    if c_problems != t_problems:
+        only_c = c_problems - t_problems
+        only_t = t_problems - c_problems
+        sys.exit(
+            f"ERROR: problem set mismatch between control and treatment — "
+            f"only_in_control={sorted(only_c)[:5]}{'...' if len(only_c) > 5 else ''}, "
+            f"only_in_treatment={sorted(only_t)[:5]}{'...' if len(only_t) > 5 else ''}"
+        )
+
+    if len(c_problems) != expected_n_problems:
+        sys.exit(
+            f"ERROR: expected exactly {expected_n_problems} problems per PREREG § 5.5; "
+            f"got {len(c_problems)}. Refuse to compute p_0 on partial batch."
+        )
+
+    expected_pair_count = expected_n_problems * len(expected_seed_set)
+    if len(c) != expected_pair_count or len(t) != expected_pair_count:
+        sys.exit(
+            f"ERROR: expected exactly {expected_pair_count} pairs per mode; "
+            f"got control={len(c)}, treatment={len(t)}."
+        )
+
+    pairs = sorted(c.keys())
 
     # Per-problem worst-case regression (max over seeds).
     per_problem_regression: dict[str, int] = defaultdict(int)
@@ -88,8 +144,13 @@ def compute(control_rows: list[dict], treatment_rows: list[dict]) -> dict:
         if regression > per_problem_regression[pid]:
             per_problem_regression[pid] = regression
 
-    n_problems = len({pid for pid, _ in pairs})
-    p0 = sum(per_problem_regression.values()) / n_problems if n_problems else 0.0
+    # Denominator is the pre-registered count (audit-fix 2026-04-25 Codex
+    # B2): if strict-completeness above passed, len(pairs)/len(seeds) ==
+    # expected_n_problems by construction. Using the PREREG constant
+    # makes the divide-by intent unambiguous.
+    n_problems = expected_n_problems
+    assert len({pid for pid, _ in pairs}) == n_problems
+    p0 = sum(per_problem_regression.values()) / n_problems
 
     return {
         "n_problems": n_problems,
