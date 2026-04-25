@@ -16,6 +16,18 @@ use turingosv4::bus::{BusConfig, BusResult, TuringBus};
 use turingosv4::kernel::Kernel;
 use turingosv4::sdk::tools::wallet::WalletTool;
 
+use std::sync::{Mutex, MutexGuard};
+
+// All 5 tests in this file mutate the process-global TAPE_ECONOMY_V2 env var.
+// Cargo runs tests in parallel by default → without serialization, a test that
+// expects the flag OFF can race with a peer's `with_env(...,"1",...)` window.
+// Acquire ENV_LOCK at the top of every test that touches the var.
+static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+fn env_lock() -> MutexGuard<'static, ()> {
+    ENV_LOCK.lock().unwrap_or_else(|p| p.into_inner())
+}
+
 fn make_config() -> BusConfig {
     BusConfig {
         max_payload_chars: 1200,
@@ -57,6 +69,7 @@ fn wallet_yes(bus: &TuringBus, agent: &str, node: &str) -> f64 {
 
 #[test]
 fn phase2_founder_grant_credits_yes_on_append() {
+    let _g = env_lock();
     with_env("TAPE_ECONOMY_V2", "1", || {
         let mut bus = setup_bus();
         let r = bus.append("A0", "step 1", None).unwrap();
@@ -73,6 +86,7 @@ fn phase2_founder_grant_credits_yes_on_append() {
 
 #[test]
 fn phase2_no_grant_when_flag_off() {
+    let _g = env_lock();
     // Ensure the env var is off for this test (conservative; other tests set it).
     std::env::remove_var("TAPE_ECONOMY_V2");
     let mut bus = setup_bus();
@@ -87,6 +101,7 @@ fn phase2_no_grant_when_flag_off() {
 
 #[test]
 fn phase2_settle_pays_out_on_golden_path() {
+    let _g = env_lock();
     with_env("TAPE_ECONOMY_V2", "1", || {
         let mut bus = setup_bus();
         let initial = wallet_balance(&bus, "A0");
@@ -113,6 +128,7 @@ fn phase2_settle_pays_out_on_golden_path() {
 
 #[test]
 fn phase2_settle_zero_on_losing_side() {
+    let _g = env_lock();
     with_env("TAPE_ECONOMY_V2", "1", || {
         let mut bus = setup_bus();
         let initial = wallet_balance(&bus, "A0");
@@ -133,6 +149,7 @@ fn phase2_conservation_total_coins_bounded() {
     // Global conservation check: across one append + resolve, total Coins
     // across all wallets + unmovable LP ghost liquidity is bounded by
     // (initial wallet total) + system_lp_amount per created market.
+    let _g = env_lock();
     with_env("TAPE_ECONOMY_V2", "1", || {
         let mut bus = setup_bus();
         let initial: f64 = bus.tools.iter()
