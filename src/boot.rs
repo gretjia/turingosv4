@@ -1,5 +1,14 @@
 // PPUT-CCL Phase B B7 — Trust Root + Boot freeze (PREREG § 1.8 + § 7).
 //
+// Constitutional anchor: FC3-S3 `readonly` subgraph (constitution.md
+// line 670, system-level flowchart). The constitutional readonly base
+// is {constitution-as-ground-truth, logs-archive-as-ground-truth}; B7
+// extends this base per PREREG § 1.8 to also cover the case-law glob,
+// pre-registration spec, heldout splits, and the PPUT accounting layer.
+// TRACE_MATRIX_v0 row FC3-N34 was 📅 Phase 11+ ("FS-level readonly
+// check at init") — B7 implements it via SHA-256 manifest verification.
+// See `handover/alignment/TRACE_MATRIX_v1_2026-04-25.md`.
+//
 // At Boot we hash every tracked file and compare against the
 // `[trust_root]` manifest in `genesis_payload.toml`. Any mismatch =>
 // `TrustRootError::Tampered { .. }`. `src/main.rs` panics with
@@ -18,6 +27,11 @@ use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::{Path, PathBuf};
 
+/// TRACE_MATRIX FC3-N34: failure variants of the readonly-guard verification.
+/// Constitutional role = the diagnostic surface that distinguishes
+/// `TRUST_ROOT_TAMPERED` (real readonly violation) from `GenesisRead` /
+/// `GenesisParse` (manifest itself unreadable, also a violation but a
+/// different fix path).
 #[derive(Debug)]
 pub enum TrustRootError {
     GenesisRead(std::io::Error),
@@ -45,8 +59,12 @@ impl std::fmt::Display for TrustRootError {
 
 impl std::error::Error for TrustRootError {}
 
-/// Verify Trust Root against `<repo_root>/genesis_payload.toml`. Hashes every
-/// path under `[trust_root]` and compares to the recorded SHA-256.
+/// TRACE_MATRIX FC3-N34: implementation of the constitutional `readonly`
+/// subgraph (constitution.md FC3, system-level flowchart). Verifies every
+/// tracked file's SHA-256 against the `genesis_payload.toml [trust_root]`
+/// manifest at Boot. Mismatch => Boot abort; the readonly guarantee that
+/// the constitution requires of {constitution, logs} (extended per PREREG
+/// § 1.8 to the full PPUT-accounting base) is enforced here.
 ///
 /// `repo_root` is the directory containing `genesis_payload.toml` (typically
 /// the workspace root). Paths in the manifest are interpreted relative to it.
@@ -77,7 +95,12 @@ pub fn verify_trust_root(repo_root: &Path) -> Result<(), TrustRootError> {
     Ok(())
 }
 
-/// Parse the `[trust_root]` section of `genesis_payload.toml` into ordered
+/// TRACE_MATRIX FC3-N34: helper for `verify_trust_root` — exposed because
+/// the trust_root_immutability conformance battery (Phase B7) reads the
+/// manifest directly to assert it includes the audit-recommended PPUT
+/// accounting layer.
+///
+/// Parses the `[trust_root]` section of `genesis_payload.toml` into ordered
 /// `(path, sha256)` pairs. Hand-rolled — accepts the narrow subset we emit
 /// (quoted-key = quoted-value, comments, blank lines).
 pub fn parse_trust_root_section(text: &str) -> Result<Vec<(String, String)>, TrustRootError> {
