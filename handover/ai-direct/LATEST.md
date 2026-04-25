@@ -1,8 +1,8 @@
 # TuringOS v4 — Handover State
-**Updated**: 2026-04-25 (B2-B4 close + mid-term dual audit P0-A/P0-C fixes)
-**Session Summary**: Phase B B2 (cost aggregator) + B3 (wall-clock) + B4 (dual PPUT) 全部落地 + 完成 mid-term external dual audit (Codex + Gemini, both CHALLENGE)，**P0-A (Phase-C-safety) + P0-C (first-read placement) 当场修完**，P0-B (schema v2) + P0-D (hybrid_v1 cost) + P0-E (flip assert) 正式 deferred 到 B5 起步先 pickup。**143/143 cargo test --workspace PASS** (was 131 baseline; +12 from B2-B4 unit tests)。`test_wall_clock_first_read_to_final_accept` 已恢复严格 ≥7100ms 断言 (mid-term P0-C fix)。
+**Updated**: 2026-04-25 (B5 close — conformance battery + deferred P0s)
+**Session Summary**: Phase B 一个 session 推进 B2 → B3 → B4 → mid-term dual audit (CHALLENGE/CHALLENGE) → P0-A/P0-C fix → P0-B/D/E pickup → B5 conformance battery (10 anti-Goodhart + 5 sealing layers) + 24 Phase C/D/B7 stub scaffolded。**161/161 cargo test --workspace PASS** + 24 deferred-stub `#[ignore]`。剩余 Phase B：B6 (context-leak runtime gate) + B7 (Trust Root + Boot freeze) + B7-extra (p_0 calibration overnight)。
 
-> **新 session 入口**: 读这个文件 + `handover/audits/B5_DEFERRED_FROM_MIDTERM_AUDIT_2026-04-25.md` (B5 起步必先解决 P0-B/D/E) + `handover/preregistration/PHASE_B_IMPLEMENTATION_PLAN.md` § B5-B7 + `handover/ai-direct/AUTO_RESEARCH_NOTEPAD.md` § F-2026-04-25-03 (mid-term audit lessons)。这 4 个文件足以无 context 接手当前工作。
+> **新 session 入口**: 读这个文件 + `handover/preregistration/PHASE_B_IMPLEMENTATION_PLAN.md` § B6-B7 + `handover/audits/B5_DEFERRED_FROM_MIDTERM_AUDIT_2026-04-25.md` (历史) + `handover/ai-direct/AUTO_RESEARCH_NOTEPAD.md` § F-2026-04-25-03 (mid-term audit lessons)。这 4 个文件足以无 context 接手当前工作。
 
 ## Current State
 
@@ -27,8 +27,14 @@ Items (all expanded with file paths + acceptance criteria in plan doc):
 - **B2 ✅ DONE** C_i 全成本聚合器 — `experiments/minif2f_v4/src/cost_aggregator.rs`; `RunCostAccumulator` records prompt+completion+tool_stdout across all proposals (winning + failed); `test_failed_branches_counted_in_total_cost` PASS; `GenerateResponse.prompt_tokens` exposed for post-hoc API counts
 - **B3 ✅ DONE** T_i wall-clock — `experiments/minif2f_v4/src/wall_clock.rs`; `RunWallClock.mark_first_read` (idempotent) + `mark_final_accept` (last-call-wins for B4 post-hoc); `test_wall_clock_first_read_to_final_accept` PASS at strict ≥7100ms (mid-term P0-C fix moved mark_first_read BEFORE prompt construction)
 - **B4 ✅ DONE** `pput_verified` vs `pput_runtime` — `experiments/minif2f_v4/src/post_hoc_verifier.rs`; `compute_progress_runtime` / `compute_progress_verified` / `verify_post_hoc`; `make_pput(runtime_accepted, post_hoc_verified, ...)` caller declares both legs explicitly (mid-term P0-A fix); `test_pput_verified_zero_when_lean_rejects` PASS
-- B5 11 anti-Goodhart conformance + 5-layer sealing tests — **next entry point** (must pickup deferred P0-B/D/E first per `B5_DEFERRED_FROM_MIDTERM_AUDIT_2026-04-25.md`)
-- B6 PPUT-context-leak audit (静态分析 + 运行时门)
+- **B5 ✅ DONE** Conformance battery + deferred P0s closed:
+  - P0-B (schema v2 emit alignment): PputResult now carries every B1 RunAggregate v2 field as non-Optional; emitted rows dispatch via `RunRecord::V2`; `test_emit_dispatches_as_v2` + `test_emit_soft_law_divergence_signal` PASS
+  - P0-D (hybrid_v1): disabled with deprecation message — was dropping failed-leg C_i via `..r2` spread
+  - P0-E (flip saturation): replaced with `assert!`; `test_flip_underflow_panics` covers
+  - 10/10 anti-Goodhart conformance (PREREG § 3): `experiments/minif2f_v4/tests/pput_anti_goodhart.rs` — all_model_tokens_counted / tool_stdout_hash_logged / no_hidden_unmetered_generation / no_problem_id_hardcode / no_metric_file_access_by_agents / no_pput_in_agent_prompt / golden_path_requires_ground_truth / failed_branches_in_total_cost / wall_clock_first_read_to_final_accept / heldout_ids_inaccessible
+  - 5/5 heldout operational sealing (PREREG § 2.3 L1-L5): `experiments/minif2f_v4/tests/heldout_operational_sealing.rs` — file-path read isolation / agent prompt context blacklist / tool-call hash-invocation gate / hash + seed substring co-occurrence / source-pool enumeration block
+  - 24 Phase C/D/B7 stubs scaffolded (`#[ignore]` with contract docs): artifact_content_predicates (4) + artifact_lookup_evasion (4) + architect_sole_lt_reader (3) + auditor_sees_candidate_only (3) + mode_flag_binary_purity (6) + trust_root_immutability (4)
+- B6 PPUT-context-leak audit (静态分析 + 运行时门) — **next entry point**
 - B7 Boot freeze: `pput_accounting_0` in genesis_payload.toml + Trust Root immutability tests; Trust Root manifest must include `cost_aggregator.rs`, `wall_clock.rs`, `post_hoc_verifier.rs`, `jsonl_schema.rs`, `evaluator.rs`, `src/drivers/llm_http.rs` per audit recommendation
 - B7-extra **p_0 calibration** (288 paired adaptation-144 × 2 seeds; freeze 进 Trust Root)
 
@@ -38,12 +44,12 @@ Items (all expanded with file paths + acceptance criteria in plan doc):
 
 ## What's broken / incomplete
 
-### PPUT-CCL Phase B — to-do (after B2-B4 close)
-- B5/B6/B7 + B7-extra: 测试电池 + context-leak gate + Trust Root 未做
+### PPUT-CCL Phase B — to-do (after B5 close)
+- B6 (PPUT-context-leak audit) + B7 (Trust Root + Boot freeze) + B7-extra (p_0 calibration) 未做
 - p_0 baseline 未 calibrate (`pput_accounting_0.baseline_regression_rate` 在 genesis_payload.toml 未填)
-- Trust Root 集成未实现 (genesis_payload.toml `[trust_root]` SHA-256 表未生成；新 B2-B4 模块需进 manifest)
-- conformance test battery 未写: 11 anti-Goodhart + 5-layer sealing + 4 doc/artifact content + 4 lookup-table evasion
-- `--mode` flag 未在 evaluator binary 实现 (Phase C 工作；安排在 B5)
+- Trust Root 集成未实现 (genesis_payload.toml `[trust_root]` SHA-256 表未生成；B7 需挂上 cost_aggregator/wall_clock/post_hoc_verifier/jsonl_schema/evaluator/llm_http 6 个文件)
+- 24 Phase C/D/B7 conformance stubs `#[ignore]` 待对应 phase 解封 (artifact_content/lookup_evasion/architect_sole_lt/auditor_sees_candidate/mode_flag_binary_purity/trust_root_immutability)
+- `--mode` flag 未在 evaluator binary 实现 (Phase C C5 工作)
 
 ### Mid-term dual audit (2026-04-25) deferred items — 必须 B5 起步先解决
 binding checklist: `handover/audits/B5_DEFERRED_FROM_MIDTERM_AUDIT_2026-04-25.md`
@@ -66,11 +72,12 @@ binding checklist: `handover/audits/B5_DEFERRED_FROM_MIDTERM_AUDIT_2026-04-25.md
 **全部 D1-D4 已 resolved 2026-04-26 default 接受** — 见 `handover/ai-direct/OPEN_DECISIONS_2026-04-26.md` Resolved 区。本 session 关闭；下一 session 在 Phase B B5 起步（先 pickup deferred P0-B/D/E，再写 conformance battery）。
 
 ## Next session — first action
-1. Read `LATEST.md` (this file) + `B5_DEFERRED_FROM_MIDTERM_AUDIT_2026-04-25.md` + `PHASE_B_IMPLEMENTATION_PLAN.md` § B5
-2. Smoke check: `cargo test --workspace` 全部 PASS（B2-B4 close 后基线 = 143/143 parallel green）
-3. Pickup deferred P0s (in order): P0-B (schema v2 switch — evaluator emit `RunAggregate` not `PputResult`) → P0-D (hybrid_v1 disable or aggregate) → P0-E (flip assert)
-4. Then B5 conformance battery: 11 anti-Goodhart + 5-layer sealing + 4 content + 4 lookup-evasion + isolation + binary purity tests per `PHASE_B_IMPLEMENTATION_PLAN.md` § B5
-5. Then B6 (context-leak audit, half day) → B7 (Trust Root + Boot freeze) → B7-extra (p_0 calibration overnight)
+1. Read `LATEST.md` (this file) + `PHASE_B_IMPLEMENTATION_PLAN.md` § B6
+2. Smoke check: `cargo test --workspace` 全部 PASS (B5 close 后基线 = **161/161 parallel green** + 24 ignored stubs)
+3. Start B6 (PPUT-context-leak audit, half day): 静态 grep + runtime gate. PREREG § 3 #6 + B5 prep already covered the static grep (`test_no_pput_in_agent_prompt`) — B6 work is the runtime gate `PromptBuilder::assert_no_metric_leak()` in `src/sdk/prompt.rs`.
+4. Then B7 (Trust Root + Boot freeze, 1 day): genesis_payload.toml `[pput_accounting_0]` + `[trust_root]` SHA-256 manifest + Boot integration (panic on TRUST_ROOT_TAMPERED). Manifest list per audit recommendation.
+5. Then B7-extra (p_0 calibration overnight): 288 control + 288 treatment runs on adaptation-144 × 2 seeds; freeze p_0 ∈ (0, 0.10].
+6. Then Gate B exit: dual-audit Phase B → Phase C transition.
 
 ## Mid-term audit (2026-04-25) summary
 - Codex (274s, 67K char prompt) + Gemini (62s, 67K char prompt): both **CHALLENGE**, high conviction
