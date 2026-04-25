@@ -8,6 +8,11 @@
 // Constitutional basis: Art. I.1 (boolean predicate), Art. I.2 (statistical signal = PPUT)
 
 use minif2f_v4::lean4_oracle::{Lean4Oracle, PartialVerdict, derive_lean_path, load_problem};
+use minif2f_v4::cost_aggregator::RunCostAccumulator;
+use minif2f_v4::wall_clock::RunWallClock;
+use minif2f_v4::post_hoc_verifier::{
+    compute_progress_runtime, compute_progress_verified, compute_pput, compute_pput_m,
+};
 use turingosv4::bus::{BusConfig, BusResult, TuringBus};
 use turingosv4::sdk::error_abstraction::{classify_lean_error, classify_parse_error, CLASSIFIER_VERSION};
 use turingosv4::drivers::llm_http::{GenerateRequest, Message, ResilientLLMClient};
@@ -71,6 +76,31 @@ struct PputResult {
     gp_path: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     gp_proof_file: Option<String>,
+    // PPUT-CCL Phase B B2 (cost aggregator): full-run token count C_i =
+    // Σ over all proposals (winning + failed) of api prompt + completion +
+    // tool stdout. None on legacy/control binaries that pre-date B2.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    total_run_token_count: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    failed_branch_count: Option<u32>,
+    // PPUT-CCL Phase B B3 (wall-clock): T_i = first agent prompt construction
+    // → final Lean call returns. Excludes evaluator preflight (kernel ctor,
+    // tool mounting). Distinct from legacy `time_secs` which brackets from
+    // function entry.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    total_wall_time_ms: Option<u64>,
+    // PPUT-CCL Phase B B4 (dual PPUT): runtime accept vs Lean post-hoc
+    // verified. Field names align with B1 RunAggregate v2 schema. In Phase B,
+    // runtime IS Lean so the two agree; Phase C Soft Law is the divergence
+    // call site that makes pput_runtime - pput_verified > 0 the H1 signal.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    verified: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pput_runtime: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pput_verified: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pput_m_verified: Option<f64>,
 }
 
 #[tokio::main]
@@ -173,10 +203,19 @@ async fn run_oneshot(
     lean_path: &str, proxy_url: &str, model: &str,
 ) -> PputResult {
     let start = Instant::now();
+    let mut acc = RunCostAccumulator::new();
+    let mut wc = RunWallClock::new();
 
     let oracle = Lean4Oracle::new(
         problem_statement.to_string(), theorem_name.to_string(), lean_path.to_string(),
     );
+
+    // PPUT-CCL B3 (mid-term audit P0-C fix 2026-04-25): open the wall-clock
+    // bracket BEFORE prompt construction. PREREG § 5 / plan B3 define T_i
+    // as "first agent prompt construction → final Lean call". Marking after
+    // the construction (prior wiring) under-counted prompt-build time and
+    // forced the conformance test to relax its 7100ms assertion.
+    wc.mark_first_read();
 
     // R-22 v2 clause 4 stays reject-only; the prompt must prevent fences at the source.
     // Chat models (deepseek-chat, 2026-04-22) default to ```lean fences; verifier hard-rejects
@@ -199,14 +238,29 @@ async fn run_oneshot(
 
     match client.generate(&request).await {
         Ok(response) => {
+            acc.record_llm_call(response.prompt_tokens, response.completion_tokens);
+            acc.record_proposal(false);
             // Rule 22 v2 clause 4: reject markdown fences
             if response.content.contains("```") {
-                return make_pput(problem_file, "oneshot", model, false, start, 0, 0, 1,
-                                 None, None, None, None, None);
+                wc.mark_final_accept();
+                // P0-A: caller declares both runtime + post-hoc legs.
+                // Fence reject = neither leg fired.
+                return make_pput(problem_file, "oneshot", model,
+                                 false, false, start, 0, 0, 1,
+                                 None, None, None, None, None,
+                                 Some(acc.total_run_token_count()),
+                                 Some(acc.failed_branch_count),
+                                 wc.elapsed_ms());
             }
 
-            match oracle.verify_omega(&response.content) {
+            let verdict = oracle.verify_omega(&response.content);
+            // B3: close the bracket AFTER the Lean call returns, regardless of
+            // verdict. Soft Law mode (Phase C) cannot escape the verify-time
+            // accounting by short-circuiting on runtime accept.
+            wc.mark_final_accept();
+            match verdict {
                 Ok(true) => {
+                    acc.flip_last_failed_to_accepted();
                     let gp_tokens = response.completion_tokens as u64;
                     let preview: String = response.content.chars().take(500).collect();
                     info!(">>> OMEGA ACCEPTED <<< (path=alone, payload[0..500]={:?})", preview);
@@ -214,18 +268,37 @@ async fn run_oneshot(
                         problem_file, theorem_name, problem_statement,
                         &response.content, "alone", "oneshot",
                     );
-                    make_pput(problem_file, "oneshot", model, true, start, gp_tokens, 1, 1,
+                    // P0-A: Phase B oneshot success — runtime gate IS the
+                    // Lean verify call (oracle.verify_omega returned Ok(true)),
+                    // so both legs hold. Phase C Soft Law would inject a
+                    // separate `verify_post_hoc(&oracle, &response.content)`
+                    // call here and pass its result as post_hoc_verified.
+                    make_pput(problem_file, "oneshot", model,
+                              true, true, start, gp_tokens, 1, 1,
                               None, None, Some(response.content.clone()),
-                              Some("alone".to_string()), proof_file)
+                              Some("alone".to_string()), proof_file,
+                              Some(acc.total_run_token_count()),
+                              Some(acc.failed_branch_count),
+                              wc.elapsed_ms())
                 }
                 Ok(false) => {
-                    make_pput(problem_file, "oneshot", model, false, start, 0, 0, 1,
-                              None, None, None, None, None)
+                    // Lean rejected → neither leg.
+                    make_pput(problem_file, "oneshot", model,
+                              false, false, start, 0, 0, 1,
+                              None, None, None, None, None,
+                              Some(acc.total_run_token_count()),
+                              Some(acc.failed_branch_count),
+                              wc.elapsed_ms())
                 }
                 Err(e) => {
                     warn!("Oracle error: {}", e);
-                    make_pput(problem_file, "oneshot", model, false, start, 0, 0, 1,
-                              None, None, None, None, None)
+                    // Lean error → measurement failure → neither leg.
+                    make_pput(problem_file, "oneshot", model,
+                              false, false, start, 0, 0, 1,
+                              None, None, None, None, None,
+                              Some(acc.total_run_token_count()),
+                              Some(acc.failed_branch_count),
+                              wc.elapsed_ms())
                 }
             }
         }
@@ -371,6 +444,13 @@ async fn run_swarm(
     let mut omega_attempts: u32 = 0;
     let mut zero_ticks_run: u32 = 0;
     let mut zero_tick_warned = false;
+    // PPUT-CCL B2: full-run cost C_i — every LLM call + tool stdout summed
+    // across all proposals (winning + failed branches). Read at terminal
+    // make_pput sites and stamped on the emitted jsonl row.
+    let mut acc = RunCostAccumulator::new();
+    // PPUT-CCL B3: full-run wall-clock T_i — first agent prompt → final Lean
+    // call. Opened on first tx's prompt build, closed before each return.
+    let mut wc = RunWallClock::new();
     // Art. III.2: per-agent search result cache (bounded), fed into next prompt.
     let mut search_cache: HashMap<String, Vec<String>> = HashMap::new();
     // F-2026-04-19-05: cap searches per agent; beyond cap we remove `search`
@@ -380,6 +460,14 @@ async fn run_swarm(
     let mut search_count: HashMap<String, u32> = HashMap::new();
 
     for tx in 0..max_transactions {
+        // PPUT-CCL B3 (mid-term audit P0-C fix 2026-04-25): open the wall-clock
+        // bracket at the top of the FIRST tx (before chain/skill/board build
+        // and before build_agent_prompt). Idempotent — only the first tx's
+        // call sticks; subsequent calls no-op. PREREG § 5 / plan B3 define
+        // T_i as "first agent prompt construction"; this is the earliest
+        // moment the agent begins constructing its prompt.
+        wc.mark_first_read();
+
         // Map-reduce tick (Art. IV mermaid: clock → mr → tape)
         if tick_interval > 0 && tx > 0 && tx % tick_interval == 0 {
             let tape_len = bus.kernel.tape.time_arrow().len();
@@ -517,6 +605,10 @@ async fn run_swarm(
 
         match client.generate(&request).await {
             Ok(response) => {
+                acc.record_llm_call(response.prompt_tokens, response.completion_tokens);
+                // PPUT-CCL B2: every parsed proposal default-records as failed.
+                // OMEGA-accept return paths flip the last record before returning.
+                acc.record_proposal(false);
                 match parse_agent_output(&response.content) {
                     Ok(action) => match action.tool.as_str() {
                         "append" => {
@@ -600,8 +692,14 @@ async fn run_swarm(
                                     }
                                     _ => (payload.clone(), "alone", r_alone.clone()),
                                 };
+                                // PPUT-CCL B3: close bracket AFTER both Lean verify paths return.
+                                // Soft Law (Phase C) cannot exit ahead of verify-time accounting.
+                                wc.mark_final_accept();
                                 match r_final {
                                     Ok((true, _)) => {
+                                        // PPUT-CCL B2: this proposal verified — flip the failed
+                                        // record made at parse time into the run's accepted slot.
+                                        acc.flip_last_failed_to_accepted();
                                         // Phase 0 (C-039): persist the winning artifact so external
                                         // verifiers can re-run lean from disk alone.
                                         let preview: String = full_proof.chars().take(500).collect();
@@ -660,17 +758,29 @@ async fn run_swarm(
                                         let upr = if omega_attempts > 0 {
                                             Some(omega_payload_hashes.len() as f64 / omega_attempts as f64)
                                         } else { None };
-                                        return make_pput(problem_file, &condition, model, true,
+                                        // P0-A: Phase B swarm complete — runtime gate IS the
+                                        // Lean verify_omega_detailed call we just consumed
+                                        // (Ok((true, _))). Both legs hold. Phase C Soft Law
+                                        // would inject `verify_post_hoc(&oracle, &full_proof)`
+                                        // here and pass its result as post_hoc_verified.
+                                        return make_pput(problem_file, &condition, model,
+                                                        true, true,
                                                         start, gp_tokens, gp_nodes, tx as u64 + 1,
                                                         Some(tool_dist), upr,
                                                         Some(full_proof.clone()),
                                                         Some(path_choice.to_string()),
-                                                        proof_file);
+                                                        proof_file,
+                                                        Some(acc.total_run_token_count()),
+                                                        Some(acc.failed_branch_count),
+                                                        wc.elapsed_ms());
                                     }
                                     Ok((false, err_detail)) => {
                                         // Step-B v3: classify + record class label (C-022 shield).
                                         let class = classify_lean_error(&err_detail);
                                         bus.record_rejection(agent_id, class.label());
+                                        // PPUT-CCL B2: rejection error feeds back into next prompt's
+                                        // recent_rejections — count those bytes against C_i.
+                                        acc.record_tool_stdout(&err_detail);
                                         let preview: String = payload.chars().take(300).collect();
                                         warn!("[tx {}] OMEGA rejected ({}). payload[0..300]={:?}", tx, class.label(), preview);
                                     }
@@ -758,6 +868,9 @@ async fn run_swarm(
                                     let trimmed: Vec<String> = hits.iter().take(5)
                                         .map(|p| p.rsplit('/').next().unwrap_or(p).to_string())
                                         .collect();
+                                    // PPUT-CCL B2: search hits feed `hits_ref` into next prompt —
+                                    // count the cached bytes against C_i.
+                                    acc.record_tool_stdout(&trimmed.join("\n"));
                                     info!("[tx {}] {} search({:?}) → {} hits: {}",
                                           tx, agent_id, query, hits.len(), trimmed.join(","));
                                     search_cache.insert(agent_id.clone(), trimmed);
@@ -804,8 +917,12 @@ async fn run_swarm(
                                     theorem_name.to_string(),
                                     lean_path.to_string(),
                                 );
-                                match oracle.verify_partial(&prefix) {
+                                let verdict = oracle.verify_partial(&prefix);
+                                // PPUT-CCL B3: close bracket after step-verify returns.
+                                wc.mark_final_accept();
+                                match verdict {
                                     PartialVerdict::Complete => {
+                                        acc.flip_last_failed_to_accepted();
                                         info!(">>> OMEGA ACCEPTED <<< via step (depth={} after this write)",
                                               bus.kernel.tape.time_arrow().len() + 1);
                                         let proof_file = persist_proof_artifact(
@@ -828,12 +945,19 @@ async fn run_swarm(
                                         let upr = if omega_attempts > 0 {
                                             Some(omega_payload_hashes.len() as f64 / omega_attempts as f64)
                                         } else { None };
-                                        return make_pput(problem_file, &condition, model, true,
+                                        // P0-A: Phase B swarm step Complete — runtime gate IS
+                                        // the Lean verify_partial call (PartialVerdict::Complete).
+                                        // Both legs hold. Phase C Soft Law diverges here.
+                                        return make_pput(problem_file, &condition, model,
+                                                        true, true,
                                                         start, gp_tokens, gp_nodes, tx as u64 + 1,
                                                         Some(tool_dist), upr,
                                                         Some(prefix.clone()),
                                                         Some("per_tactic".to_string()),
-                                                        proof_file);
+                                                        proof_file,
+                                                        Some(acc.total_run_token_count()),
+                                                        Some(acc.failed_branch_count),
+                                                        wc.elapsed_ms());
                                     }
                                     PartialVerdict::PartialOk => {
                                         let parent = bus.kernel.tape.time_arrow().last().cloned();
@@ -855,6 +979,8 @@ async fn run_swarm(
                                     PartialVerdict::Reject(reason) => {
                                         let class = classify_lean_error(&reason);
                                         bus.record_rejection(agent_id, class.label());
+                                        // PPUT-CCL B2: step rejection reason flows into next prompt.
+                                        acc.record_tool_stdout(&reason);
                                         *tool_dist.entry("step_reject".into()).or_insert(0) += 1;
                                         let preview = reason.chars().take(200).collect::<String>();
                                         warn!("[tx {}] step rejected ({}): {}", tx, class.label(), preview);
@@ -871,6 +997,8 @@ async fn run_swarm(
                         // Step-B v3: parse failures feed the class graveyard too.
                         let class = classify_parse_error(&format!("{}", e));
                         bus.record_rejection(agent_id, class.label());
+                        // PPUT-CCL B2: classifier label flows into next prompt's errors.
+                        acc.record_tool_stdout(class.label());
                         warn!("[tx {}] parse: {} ({})", tx, e, class.label());
                     }
                 }
@@ -895,21 +1023,46 @@ async fn run_swarm(
         }
     }
     // No OMEGA found → PPUT = 0
-    make_pput(problem_file, &condition, model, false, start, 0, 0,
+    // B3: close bracket on max-tx exhaustion path.
+    // P0-A: max-tx exhaustion → neither leg fired.
+    wc.mark_final_accept();
+    make_pput(problem_file, &condition, model,
+              false, false, start, 0, 0,
               max_transactions as u64, Some(tool_dist), upr,
-              None, None, None)
+              None, None, None,
+              Some(acc.total_run_token_count()),
+              Some(acc.failed_branch_count),
+              wc.elapsed_ms())
 }
 
 fn make_pput(
     problem: &str, condition: &str, model: &str,
-    has_gp: bool, start: Instant,
+    runtime_accepted: bool, post_hoc_verified: bool, start: Instant,
     gp_tokens: u64, gp_nodes: usize, tx_count: u64,
     tool_dist: Option<HashMap<String, u32>>,
     unique_payload_ratio: Option<f64>,
     gp_payload: Option<String>,
     gp_path: Option<String>,
     gp_proof_file: Option<String>,
+    total_run_token_count: Option<u64>,
+    failed_branch_count: Option<u32>,
+    total_wall_time_ms: Option<u64>,
 ) -> PputResult {
+    // PPUT-CCL Phase B B4 (mid-term audit P0-A fix 2026-04-25):
+    // make_pput is now PURELY computational. The caller MUST decide both
+    // `runtime_accepted` (did the evaluator's runtime gate fire?) and
+    // `post_hoc_verified` (did Lean independently confirm the proof?). The
+    // prior implementation derived `post_hoc_verified = has_gp` internally,
+    // which would have laundered Phase C Soft Law fake-accepts into the
+    // North Star pput_verified. Forcing the caller to pass both legs makes
+    // Soft Law's design point unmissable: any caller that fakes runtime
+    // accept must explicitly pass post_hoc_verified=verify_post_hoc(...)
+    // or the divergence will surface immediately.
+    //
+    // Phase B all callers pass `(runtime_accepted, post_hoc_verified) = (X, X)`
+    // because runtime IS Lean today. Phase C diverges at the Soft Law
+    // mode call site, not inside this function.
+    let has_gp = runtime_accepted; // legacy `has_golden_path` field semantics
     let elapsed = start.elapsed().as_secs_f64();
     let pput = if has_gp && elapsed > 0.0 { 100.0 / elapsed } else { 0.0 };
     // C-012 provenance: populated from env vars; None when unset (backward compat).
@@ -917,6 +1070,26 @@ fn make_pput(
     let classifier_version = std::env::var("CLASSIFIER_VERSION").ok();
     let boltzmann_seed = std::env::var("BOLTZMANN_SEED")
         .ok().and_then(|s| s.parse::<u64>().ok());
+
+    let (verified, pput_runtime, pput_verified, pput_m_verified) =
+        match (total_run_token_count, total_wall_time_ms) {
+            (Some(c_i), Some(t_i)) => {
+                let progress_runtime = compute_progress_runtime(runtime_accepted);
+                let progress_verified =
+                    compute_progress_verified(runtime_accepted, post_hoc_verified);
+                (
+                    Some(post_hoc_verified),
+                    Some(compute_pput(progress_runtime, c_i, t_i)),
+                    Some(compute_pput(progress_verified, c_i, t_i)),
+                    Some(compute_pput_m(progress_verified, c_i, t_i)),
+                )
+            }
+            // Missing C_i or T_i → can't compute dual PPUT honestly; emit None
+            // rather than fabricate a zero that would be confused with a real
+            // unsolved run.
+            _ => (None, None, None, None),
+        };
+
     PputResult {
         problem: problem.to_string(),
         condition: condition.to_string(),
@@ -935,6 +1108,13 @@ fn make_pput(
         gp_payload,
         gp_path,
         gp_proof_file,
+        total_run_token_count,
+        failed_branch_count,
+        total_wall_time_ms,
+        verified,
+        pput_runtime,
+        pput_verified,
+        pput_m_verified,
     }
 }
 

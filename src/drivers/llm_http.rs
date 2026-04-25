@@ -31,6 +31,10 @@ pub struct Message {
 pub struct GenerateResponse {
     pub content: String,
     pub completion_tokens: u32,
+    /// API-reported prompt tokens. Falls back to 0 if `usage.prompt_tokens` is
+    /// absent in the proxy response (older proxies). Surfaced for PPUT-CCL
+    /// Phase B C_i accounting (post-hoc, not estimation — plan B2 default).
+    pub prompt_tokens: u32,
     pub model: String,
 }
 
@@ -127,6 +131,9 @@ impl ResilientLLMClient {
                     let tokens = body["usage"]["completion_tokens"]
                         .as_u64()
                         .unwrap_or(0) as u32;
+                    let prompt_tokens = body["usage"]["prompt_tokens"]
+                        .as_u64()
+                        .unwrap_or(0) as u32;
                     let model = body["model"]
                         .as_str()
                         .unwrap_or(&request.model)
@@ -135,6 +142,7 @@ impl ResilientLLMClient {
                     return Ok(GenerateResponse {
                         content,
                         completion_tokens: tokens,
+                        prompt_tokens,
                         model,
                     });
                 }
