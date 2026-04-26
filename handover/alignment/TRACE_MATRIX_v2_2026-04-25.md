@@ -141,6 +141,7 @@ Manifest size milestones:
 - C1b apply_mode_to_accept wiring (re-hash only — same 41 TR entries; SoftLaw runtime live at all 8 make_pput call sites) → **41**
 - C1c skill_index_for_agent wiring (re-hash only — same 41 TR entries; Homogeneous runtime live at startup echo + per-tx skill resolution; H4 detection via single-skill reachability) → **41**
 - C1d is_panopticon predicate + cross-agent learned-memory merge wiring (re-hash only — same 41 TR entries; Panopticon runtime live at per-tx prompt construction; H2 detection via context O(N) cost dilution) → **41**
+- C1e is_amnesia predicate + L_t chain suppression wiring (re-hash only — same 41 TR entries; Amnesia runtime live at agent-facing chain construction; ERR=0 detection via forced re-derivation each tx) → **41**
 - (planned) B7-extra calibration freeze → 42+
 - (planned) Phase C mode-flag binary → 40+
 

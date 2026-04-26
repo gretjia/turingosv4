@@ -247,8 +247,7 @@ async fn main() {
     if args.len() < 2 {
         eprintln!("Usage: evaluator [--mode <mode>] <problem_file.lean>");
         eprintln!("  --mode: full|panopticon|amnesia|soft_law|homogeneous (default: full)");
-        eprintln!("          Phase A scope = full only; the other 4 are declared");
-        eprintln!("          but startup-fatal until Phase C C1b/c/d/e wires them.");
+        eprintln!("          All 5 modes wired post-C1e for Phase C ablation per PREREG § 6 C1.");
         eprintln!("  CONDITION env: oneshot|n1|n3 (default: oneshot)");
         eprintln!("  MINIF2F_DIR, LLM_PROXY_URL, ACTIVE_MODEL env vars");
         std::process::exit(1);
@@ -920,7 +919,15 @@ async fn run_swarm(
         let agent_id = &agent_ids[agent_idx];
         let snap = bus.snapshot();
 
-        let chain = if snap.tape.is_empty() {
+        // C1e Amnesia: agent loses memory of L_t. Force the chain
+        // projection to problem-statement-only (the same shape used
+        // when snap.tape is genuinely empty), so every proposal is
+        // re-derived from scratch every tx — ERR=0 + time/token
+        // inflation are the H detection mechanisms. Internal
+        // verification paths (tape+payload Lean re-verify) below
+        // are NOT gated on is_amnesia; that's verifier mechanics,
+        // not agent memory.
+        let chain = if minif2f_v4::experiment_mode::is_amnesia(mode) || snap.tape.is_empty() {
             problem_statement.to_string()
         } else {
             let nodes: Vec<String> = snap.tape.time_arrow().iter()

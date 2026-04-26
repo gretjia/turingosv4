@@ -22,22 +22,26 @@
 //   - C1a: implement `Full` only; declare other 4 startup-fatal so
 //     misconfigured runs abort before the first LLM call instead of
 //     silently falling back to Full.
-//   - C1b: wire `SoftLaw` runtime via `apply_mode_to_accept`. Soft
-//     Law's defining property: runtime gate fakes acceptance
-//     regardless of Lean verdict; post-hoc `verified` still records
-//     the Lean truth. Detection mechanism (PREREG § 5.2 H1):
-//     `pput_runtime > 0` but `pput_verified = 0` for Lean-rejected
-//     proofs.
+//   - C1b: wire `SoftLaw` runtime via `apply_mode_to_accept`. H1
+//     detection: `pput_runtime > 0` + `pput_verified = 0` gap on
+//     Lean-rejected proofs.
 //   - C1c: wire `Homogeneous` runtime via `skill_index_for_agent`.
-//     Force every swarm agent to use skill[0] (algebraic) instead
-//     of cycling through the 3-role pool. Paper-1 era's A condition.
-//     Detection (H4): solve set narrows to single-skill reachability.
-//   - C1d (this commit): wire `Panopticon` via `is_panopticon`. In
-//     cognitive-isolation-breach mode, every agent's prompt gains
-//     the merged learned-memory of ALL agents (not just its own).
-//     Detection (H2): context-length / tokens grow O(N) per tx → IAC↑,
-//     CPR↑, prompt_length↑ → PPUT↓.
-//   - C1e (TBD): wire Amnesia.
+//     H4 detection: solve set narrows to single-skill reachability.
+//   - C1d: wire `Panopticon` via `is_panopticon`. H2 detection:
+//     context-length / tokens grow O(N) per tx → cost dilution.
+//   - C1e (this commit): wire `Amnesia` via `is_amnesia`. The
+//     agent-facing proof chain projection (L_t) is suppressed
+//     each tx — agent sees only the problem statement, no prior
+//     nodes. Forces re-derivation from scratch every proposal.
+//     Detection: ERR=0 (Effective Recall Rate); time/token inflation
+//     per tx. Internal verification paths (tape+payload Lean
+//     re-verify in run_swarm) are NOT touched — those are not
+//     agent memory.
+//
+// All 5 modes wired post-C1e. Phase C C2 100-row batch + C3 H1-H4
+// stat tests + C4 CHECKPOINT_PHASE_C dual audit are the next
+// milestones; C5 binary purity test now has all 5 modes available
+// for cross-mode comparison.
 //
 // Pattern mirrors `budget_regime.rs` (Phase A atom A5):
 //   - pure parser  (parse_experiment_mode)
@@ -85,8 +89,14 @@ pub enum ExperimentMode {
     /// signal.
     Panopticon,
     /// L_t injection suppressed: agents have no memory of prior
-    /// tactics. Detection: ERR↓ on the descriptive secondary endpoint
-    /// (PREREG § 5.2). Phase C C1e will wire the runtime; C1a declares.
+    /// tactics. C1e wires the runtime via `is_amnesia` — at the
+    /// per-tx agent prompt-construction site, the chain is forced
+    /// to the problem-statement-only form (the same form used when
+    /// `snap.tape.is_empty()`), so every proposal is generated from
+    /// scratch with no carry-forward of prior partial tactics or
+    /// rejected payloads. Detection: ERR=0 (PREREG § 5.2 secondary
+    /// endpoint); time/token inflation per tx because agents must
+    /// re-derive what previous tx already established.
     Amnesia,
     /// Runtime-accept gate fakes acceptance regardless of Lean
     /// verdict; Lean still runs post-hoc and the verified flag
@@ -183,21 +193,25 @@ pub fn parse_experiment_mode(s: &str) -> Result<ExperimentMode, ModeError> {
 /// of C1c/d/e progressively deletes one branch from the
 /// declared-unimplemented list.
 ///
-/// Currently wired (this commit, post-C1d):
+/// All 5 modes wired (post-C1e):
 ///   - Full        (Phase B baseline; pass-through everywhere)
-///   - SoftLaw     (C1b — fakes runtime accept; pput_runtime/verified gap)
-///   - Homogeneous (C1c — all agents use skill[0]; H4 detection)
-///   - Panopticon  (C1d — cross-agent learned-memory leak; H2 detection)
+///   - SoftLaw     (C1b — apply_mode_to_accept)
+///   - Homogeneous (C1c — skill_index_for_agent)
+///   - Panopticon  (C1d — is_panopticon)
+///   - Amnesia     (C1e — is_amnesia)
 ///
-/// Still declared-unimplemented (startup-fatal):
-///   - Amnesia     (C1e)
+/// `ensure_implemented` is now total — no UnimplementedMode return.
+/// The function shape is preserved for forward-compatibility (a
+/// future Phase F mode can re-introduce the gate without renaming
+/// the helper) and to satisfy the API contract `--mode` already
+/// validates against.
 pub fn ensure_implemented(mode: ExperimentMode) -> Result<ExperimentMode, ModeError> {
     match mode {
         ExperimentMode::Full
         | ExperimentMode::SoftLaw
         | ExperimentMode::Homogeneous
-        | ExperimentMode::Panopticon => Ok(mode),
-        ExperimentMode::Amnesia => Err(ModeError::UnimplementedMode(mode)),
+        | ExperimentMode::Panopticon
+        | ExperimentMode::Amnesia => Ok(mode),
     }
 }
 
@@ -262,6 +276,23 @@ pub fn apply_mode_to_accept(
 /// the caller branch cleanly.
 pub fn is_panopticon(mode: ExperimentMode) -> bool {
     matches!(mode, ExperimentMode::Panopticon)
+}
+
+/// TRACE_MATRIX FC3 + Art. III.2: predicate flagging Amnesia mode for
+/// the L_t (proof chain) suppression call site. Pure.
+///
+/// Phase C atom C1e uses this at the per-tx agent-prompt
+/// construction site to force `chain = problem_statement.to_string()`
+/// regardless of `snap.tape` contents. Internal verification paths
+/// that build `tape+payload` for Lean re-verify are NOT gated on
+/// this predicate — Amnesia is about agent memory, not the verifier.
+///
+/// Detection mechanism (PREREG § 5.2 secondary endpoint, ERR):
+/// Effective Recall Rate drops to 0 because the agent cannot recall
+/// any prior partial tactic; time/token inflation per tx because
+/// each proposal must re-derive what earlier tx already established.
+pub fn is_amnesia(mode: ExperimentMode) -> bool {
+    matches!(mode, ExperimentMode::Amnesia)
 }
 
 /// TRACE_MATRIX FC1-N7 + Art. II.2.1: select the skill index for a
@@ -415,26 +446,21 @@ mod tests {
     }
 
     #[test]
-    fn ensure_implemented_post_c1d_only_amnesia_unwired() {
-        // C1d deletes Panopticon from the unimplemented list.
+    fn ensure_implemented_post_c1e_all_modes_pass() {
+        // C1e completes the 5-mode wiring; ensure_implemented is now total.
         for m in [
             ExperimentMode::Full,
             ExperimentMode::SoftLaw,
             ExperimentMode::Homogeneous,
             ExperimentMode::Panopticon,
+            ExperimentMode::Amnesia,
         ] {
             assert_eq!(ensure_implemented(m).unwrap(), m);
-        }
-        match ensure_implemented(ExperimentMode::Amnesia) {
-            Err(ModeError::UnimplementedMode(ExperimentMode::Amnesia)) => {}
-            other => panic!("expected UnimplementedMode(Amnesia), got {:?}", other),
         }
     }
 
     #[test]
     fn is_panopticon_predicate() {
-        // Single-mode predicate. Pure boolean for branching at the
-        // cognitive-isolation-breach call site.
         assert!(is_panopticon(ExperimentMode::Panopticon));
         for m in [
             ExperimentMode::Full,
@@ -443,6 +469,37 @@ mod tests {
             ExperimentMode::Amnesia,
         ] {
             assert!(!is_panopticon(m), "is_panopticon should be false for {:?}", m);
+        }
+    }
+
+    #[test]
+    fn is_amnesia_predicate() {
+        assert!(is_amnesia(ExperimentMode::Amnesia));
+        for m in [
+            ExperimentMode::Full,
+            ExperimentMode::SoftLaw,
+            ExperimentMode::Homogeneous,
+            ExperimentMode::Panopticon,
+        ] {
+            assert!(!is_amnesia(m), "is_amnesia should be false for {:?}", m);
+        }
+    }
+
+    #[test]
+    fn predicates_are_mutually_exclusive() {
+        // No mode should satisfy both is_panopticon and is_amnesia.
+        // (They're orthogonal axes: cognitive isolation vs memory.)
+        for m in [
+            ExperimentMode::Full,
+            ExperimentMode::SoftLaw,
+            ExperimentMode::Homogeneous,
+            ExperimentMode::Panopticon,
+            ExperimentMode::Amnesia,
+        ] {
+            assert!(
+                !(is_panopticon(m) && is_amnesia(m)),
+                "is_panopticon and is_amnesia must be mutually exclusive (mode {:?})", m
+            );
         }
     }
 
@@ -700,26 +757,19 @@ mod tests {
     }
 
     #[test]
-    fn resolve_env_unimplemented_aborts() {
-        // Post-C1d, only amnesia remains unimplemented.
-        let _guard = ENV_LOCK.lock().unwrap();
-        std::env::set_var(EXPERIMENT_MODE_ENV_VAR, "amnesia");
-        match resolve_experiment_mode(None) {
-            Err(ModeError::UnimplementedMode(ExperimentMode::Amnesia)) => {}
-            other => panic!("expected UnimplementedMode(Amnesia), got {:?}", other),
-        }
-        std::env::remove_var(EXPERIMENT_MODE_ENV_VAR);
-    }
-
-    #[test]
-    fn resolve_env_implemented_modes_post_c1d() {
-        // Companion: full / soft_law / homogeneous / panopticon all pass.
+    fn resolve_env_all_modes_implemented_post_c1e() {
+        // Post-C1e all 5 modes pass the implementation gate. The
+        // pre-C1e UnimplementedMode-via-env tests are gone — there
+        // is no longer any mode that aborts startup. Unknown spellings
+        // still abort (resolve_cli_unknown_aborts and
+        // resolve_cli_empty_aborts_no_default_fallback below).
         let _guard = ENV_LOCK.lock().unwrap();
         for (label, expected) in [
             ("full", ExperimentMode::Full),
             ("soft_law", ExperimentMode::SoftLaw),
             ("homogeneous", ExperimentMode::Homogeneous),
             ("panopticon", ExperimentMode::Panopticon),
+            ("amnesia", ExperimentMode::Amnesia),
         ] {
             std::env::set_var(EXPERIMENT_MODE_ENV_VAR, label);
             assert_eq!(resolve_experiment_mode(None).unwrap(), expected);
@@ -740,16 +790,11 @@ mod tests {
         std::env::remove_var(EXPERIMENT_MODE_ENV_VAR);
     }
 
-    #[test]
-    fn resolve_cli_unimplemented_aborts() {
-        // Post-C1d only Amnesia remains unwired.
-        let _guard = ENV_LOCK.lock().unwrap();
-        std::env::remove_var(EXPERIMENT_MODE_ENV_VAR);
-        match resolve_experiment_mode(Some("amnesia")) {
-            Err(ModeError::UnimplementedMode(ExperimentMode::Amnesia)) => {}
-            other => panic!("expected UnimplementedMode(Amnesia), got {:?}", other),
-        }
-    }
+    // resolve_cli_unimplemented_aborts removed in C1e — there are no
+    // longer any unimplemented modes; the UnimplementedMode error
+    // variant is preserved on `ModeError` for forward-compat (a future
+    // Phase F mode would land in declared-but-not-wired state) but is
+    // unreachable via the production code path in Phase C.
 
     #[test]
     fn resolve_cli_unknown_aborts() {
