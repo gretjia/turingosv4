@@ -153,7 +153,42 @@ The C2 smoke (`--smoke`) takes ~5-25 min; should be re-run before launching
 2. At least 1 mode (Homogeneous baseline) completes a real run
 3. Cell timeout policy hasn't drifted
 
-### Empirical backbone-comparison (post-smoke 2026-04-26 11:21 UTC)
+### Resolution of the smoke-timeout: thinking-off via correct DeepSeek flag (commit 63c3b40)
+
+Root cause was the proxy used the wrong `enable_thinking` field shape for DeepSeek API. Per official docs https://api-docs.deepseek.com/zh-cn/guides/thinking_mode, DeepSeek expects `extra_body={"thinking":{"type":"disabled"}}` (Qwen uses `enable_thinking=false`; DeepSeek silently ignores the Qwen-style flag). After the proxy fix:
+- C2 smoke at MAX_TX=2: **5/5 cells PASS in 87s** (was 4/5 timeout in 25 min)
+- Per cell ~17s; Lean verify dominates ~88% of cell wall-clock
+- **SoftLaw H1 detection signal observed end-to-end**: solved=True, verified=False, pput_runtime > 0, pput_verified = 0 — the (true, false) leg gap on Lean-rejected proof exactly per design
+
+Path B (keep `deepseek-v4-flash`, no PREREG amendment) is now the recommended C2 launch backbone. The empirical backbone-comparison table below is preserved for the historical record.
+
+### Parallel runner upgrade (commit c9ba7ed)
+
+`run_c2_phase_c_ablation.sh` extended with `CONCURRENCY` env (default 1 = serial; backwards-compatible). Pool dispatcher: spawn-then-drain pattern with POSIX-portable per-pid wait (avoids bash 4.3+ `wait -n` exit-code race). Per-cell semantics unchanged.
+
+Smoke verified K=2 (5 cells in 55s, 1.6x speedup vs serial 87s; 0 failures; SoftLaw H1 signal preserved).
+
+100-cell batch estimates on 4-core hardware (this machine):
+| Concurrency | Wall-clock | DeepSeek keys needed |
+|---|---|---|
+| K=1 (serial, default) | ~25-50 hr | 1 |
+| K=2 | ~12-25 hr | 1 (safe at ~0.6 RPS aggregate LLM) |
+| K=4 | ~6-13 hr | ≥2 (saturates 4 cores; needs rate-limit margin via DEEPSEEK_API_KEY + DEEPSEEK_API_KEY_SECONDARY) |
+
+The first DeepSeek key handles K=2 comfortably. A second key is the prerequisite for K=4.
+
+### C3 analyzer shipped (commit 6fa725d)
+
+`handover/preregistration/scripts/analyze_c3_h1_h4.py` ready. Reads the C2 jsonl glob, applies the PREREG § 5.2 + § 9 statistical procedure end-to-end:
+- Per-mode descriptive endpoints (mean PPUT, tokens, wall-clock, verifier-wait, solve/verify rates)
+- SoftLaw H1 detection signal report (gap = pput_runtime - pput_verified)
+- 4 hypotheses H1-H4 each get a McNemar one-sided exact binomial p-value on n=10 paired-binary
+- Holm-Bonferroni at family-wise α=0.05, N_max=34 (PREREG § 9.2 conservative)
+- Phase C Gate C decision (4/4 = PASS, partial = report negative finding per `feedback_phased_checkpoint`)
+
+Stat math verified against PREREG § 9.4 worked example: b=10/10 → p=0.000977 (matches), required for rejection at smallest Holm threshold 0.001471. Pure stdlib (no numpy/scipy dep). In Trust Root per C-075 DO-178C.
+
+### Empirical backbone-comparison (post-smoke 2026-04-26 11:21 UTC, pre-thinking-off-fix)
 
 Direct smoke comparison on aime_1987_p5 oneshot, n3 swarm, MAX_TX=2:
 

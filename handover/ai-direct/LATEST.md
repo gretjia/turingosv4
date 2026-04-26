@@ -1,7 +1,7 @@
 # TuringOS v4 — Handover State
 
-**Updated**: 2026-04-26 (Phase C scaffolding 100% complete; ready to launch C2 100-row batch)
-**HEAD commit**: `4f981cd` (C5: mode_flag_binary_purity test) — C2 runner add still uncommitted at writing
+**Updated**: 2026-04-26 (Phase C 8/9 atoms shipped; C2 batch ready to launch with K=2 single-key OR K=4 dual-key)
+**HEAD commit**: `6fa725d` (C3: H1-H4 McNemar analyzer)
 **Origin**: `origin/main` synced through `4f981cd` (60+ commits pushed this UTC date across two phases)
 
 ## Session Summary
@@ -146,6 +146,9 @@ Next session reads `PREREG_PPUT_CCL_2026-04-26.md` § 2 + § 5 + § 6 (Phase C p
 
 1. Read 4-file list at top of this doc (HANDOVER_PHASE_C_SCAFFOLD + this LATEST + PREREG § 6/9 + run_c2 runner)
 2. Re-verify state: `cargo test --workspace` (expect **298 PASS**), `bash scripts/smoke_siliconflow.sh` (expect 3/3 PASS)
-3. Read `HANDOVER_PHASE_C_SCAFFOLD_2026-04-26.md` § 3 (C2 launch decision tree) + § 4 (open questions)
-4. Smoke-then-launch C2: re-run `bash handover/preregistration/scripts/run_c2_phase_c_ablation.sh --smoke` (~5-25 min); if Homogeneous succeeds end-to-end, decide between **Path A serial overnight** (~25-50 hours, ~$13-25), **Path B parallel-runner upgrade** (~5-10 hours after engineering), or **Path C reduced scope** (lower stat power)
-5. After C2 batch: C3 (H1-H4 McNemar paired sign tests on 100 rows) + C4 (CHECKPOINT_PHASE_C dual external audit)
+3. Re-smoke (optional, ~90s): `LLM_PROXY_URL=http://localhost:18080 bash handover/preregistration/scripts/run_c2_phase_c_ablation.sh --smoke` (expect 5/5 cells succeed; SoftLaw shows solved=True, verified=False)
+4. Launch C2 batch:
+   - **Single-key K=2** (~12-25 hr, ~$2-5): `CONCURRENCY=2 LLM_PROXY_URL=http://localhost:18080 bash handover/preregistration/scripts/run_c2_phase_c_ablation.sh --full`
+   - **Dual-key K=4** (~6-13 hr, ~$2-5): set `DEEPSEEK_API_KEY_SECONDARY` first, then `CONCURRENCY=4 LLM_PROXY_URL=... --full`
+5. Analyze: `python3 handover/preregistration/scripts/analyze_c3_h1_h4.py "experiments/minif2f_v4/logs/c2_phase_c_ablation_<TIMESTAMP>__*.jsonl"` (expect 4 H1-H4 McNemar p-values + Holm-Bonferroni decisions + Phase C Gate C verdict)
+6. After C2+C3: C4 (CHECKPOINT_PHASE_C dual external audit packet)
