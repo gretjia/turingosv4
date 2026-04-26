@@ -110,6 +110,10 @@ fn test_trust_root_manifest_includes_b2_b4_files() {
         "experiments/minif2f_v4/src/budget_regime.rs",
         // Phase A atom A6: FC-trace structured-event meta-witness
         "experiments/minif2f_v4/src/fc_trace.rs",
+        // Phase A atom A7: heterogeneous-LLM provider plumbing (proxy + smoke)
+        "src/drivers/llm_proxy.py",
+        "scripts/smoke_siliconflow.sh",
+        "scripts/_smoke_siliconflow.py",
         // 2026-04-25 dual-audit fixes
         "src/main.rs",
         "Cargo.lock",
