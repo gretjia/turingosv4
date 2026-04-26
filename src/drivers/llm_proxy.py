@@ -292,16 +292,29 @@ class Handler(BaseHTTPRequestHandler):
             client, key_idx = get_client_round_robin(provider)
 
             extra = {}
+            model_lower = model.lower()
+            is_qwen3 = "qwen3" in model_lower
+            is_deepseek_thinking = ("deepseek-v4" in model_lower
+                                    or "deepseek-reasoner" in model_lower)
             if enable_thinking:
-                extra["extra_body"] = {"enable_thinking": True}
-            elif "qwen3" in model.lower() or "deepseek-v4" in model.lower():
-                # Phase C smoke-timeout fix: PHASE_B_IMPLEMENTATION_PLAN
-                # specifies "deepseek-v4-flash thinking-off backbone"; the
-                # API defaults to thinking-on, so the proxy must inject
-                # the disable flag explicitly. Without this fix, an n3
-                # swarm at MAX_TX=2 takes >5min wall-clock per cell because
-                # reasoning_content blows up token count + latency.
+                # Caller explicitly opts in. Both providers use this same
+                # short-circuit; the per-provider field shape diverges only
+                # in the disable branch.
+                if is_deepseek_thinking:
+                    extra["extra_body"] = {"thinking": {"type": "enabled"}}
+                else:
+                    extra["extra_body"] = {"enable_thinking": True}
+            elif is_qwen3:
+                # Qwen3 family disable flag (Qwen-API convention).
                 extra["extra_body"] = {"enable_thinking": False}
+            elif is_deepseek_thinking:
+                # DeepSeek-API convention per
+                # https://api-docs.deepseek.com/zh-cn/guides/thinking_mode
+                # extra_body={"thinking":{"type":"disabled"}}. The earlier
+                # fix tried Qwen-style enable_thinking=false which DeepSeek
+                # silently ignores — every Phase C smoke cell hit the 5-min
+                # cap because reasoning_content kept blowing up.
+                extra["extra_body"] = {"thinking": {"type": "disabled"}}
 
             max_retries = 8
             content = ""
