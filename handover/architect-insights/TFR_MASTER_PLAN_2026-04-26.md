@@ -1,6 +1,21 @@
 # TFR_MASTER_PLAN_2026-04-26.md
 
-> **TuringOS Foundation Refactor — Master Plan (Path B: Real Git Substrate)**
+> ⚠️ **LEGACY / SUPERSEDED — preserve for history only** ⚠️
+>
+> **As of 2026-04-26 night** (per CO_P0_AMENDMENT_v1, D3=A): this TFR v1 plan is **deprecated**.
+> Successor: `handover/architect-insights/CO_MEGA_PLAN_v3.1_2026-04-26.md`
+> Authoritative blueprint: `handover/whitepapers/TURINGOS_v4_FINAL_BLUEPRINT_2026-04-26.md`
+> Tri-model orchestration: `handover/architect-insights/TRI_MODEL_ORCHESTRATION_PROTOCOL_2026-04-26.md`
+>
+> **Why deprecated**: TFR v1 covered ~20% of the 2026-04-26 white paper scope (only tape/git substrate + Anti-Oreo partial). v3.1 expands to full 反奥利奥 + 6-layer ChainTape + 9-component Q_t + 12 economic invariants + RSP-1 9 modules + DO-178C bidirectional trace matrix.
+>
+> **Do not implement against this plan.** Read v3.1 instead.
+>
+> Original content preserved below for archaeological reference.
+
+---
+
+# TuringOS Foundation Refactor — Master Plan (Path B: Real Git Substrate)
 > **Status**: Architectural design, awaiting external dual-audit gate (Codex + Gemini) before sprint S0 commit.
 > **Author**: ArchitectAI (Claude Opus 4.7, 1M context) — v1 draft, 2026-04-26.
 > **Scope**: 6–8 wall-clock weeks; freezes Phase C C2 batch; reopens at S3 exit.

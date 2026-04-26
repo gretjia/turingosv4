@@ -154,3 +154,14 @@ n_max = 34
 "handover/preregistration/scripts/draw_hard10_pput_ccl.py" = "dd19b1396d2f235ddd412db58802412356b9e100b1d6fcba701833327eaf33d6"
 "handover/preregistration/scripts/run_c2_phase_c_ablation.sh" = "d26c64e2bc667e677ecf129ed369847a7956b701755863c70483e8ef958bf8c4"
 "handover/preregistration/scripts/analyze_c3_h1_h4.py" = "04658a4c1f28308580cdcb900db1b7501d003b1f305d2599ea09cbf653bd084b"
+
+# 2026-04-26 night-shift CO P0 manifest expansion (43 -> 49 entries; +6).
+# White papers (architecture + economic) authored by user 2026-04-26 ultrathink;
+# blueprint synthesizes both into file-level v4 spec; plan v3.1 atomizes; protocol
+# codifies tri-model co-execution; amendment v1 records D-decisions + cost adjustment.
+"handover/whitepapers/TURINGOS_WHITEPAPER_v1_2026-04-26.md" = "952fbddbb1f290a677996ee31188eed81ec1768fe2fd71b0add0ec0b098f455a"
+"handover/whitepapers/TURINGOS_WHITEPAPER_v1_ECONOMIC_2026-04-26.md" = "baf4657879cc9b1e8d1e5531436836cc64129e203f8de17ae433e03760ef63c3"
+"handover/whitepapers/TURINGOS_v4_FINAL_BLUEPRINT_2026-04-26.md" = "4a47bb22dd307eab8fa500affa8e417bd11e946f18dc852621a5c96c2b7f4ef8"
+"handover/architect-insights/CO_MEGA_PLAN_v3.1_2026-04-26.md" = "7e525bca1d3376268c84e3948e70b45603620e11f53597bb3c4ae2a469211577"
+"handover/architect-insights/TRI_MODEL_ORCHESTRATION_PROTOCOL_2026-04-26.md" = "a8dd63bc481700614e9952ab4aba6c8366a0f1732b6915e08413a0cc78a09519"
+"handover/architect-insights/CO_P0_AMENDMENT_v1_2026-04-26.md" = "65d46f446803d61986469f6d315278725a5c4c0c58b3f7710130712ed45473f8"
