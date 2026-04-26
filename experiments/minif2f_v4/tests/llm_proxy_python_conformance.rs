@@ -10,8 +10,11 @@
 // `cargo test --workspace` so it runs on every Rust test invocation
 // and on every CI pipeline that already exercises Rust tests. The
 // test depends on the system `python3` interpreter being available;
-// if not, it skips with a clear diagnostic so the absence-of-Python
-// case doesn't masquerade as a real failure.
+// if not, it FAILS CLOSED with a clear diagnostic (A8e3 fix H6 —
+// Codex round-3 caught the prior soft-skip behavior that masqueraded
+// as a passing gate when Python was missing). Explicit opt-out:
+// `SKIP_LLM_PROXY_PYTHON_CONFORMANCE=1` (must be set deliberately;
+// the bypass is logged loudly to make the gate's absence visible).
 //
 // Constitutional anchor: meta-witness for atom A7 (case C-027 +
 // V3L-27 mitigation — multi-key round-robin avoiding single-key

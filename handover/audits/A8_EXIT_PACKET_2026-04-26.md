@@ -1,7 +1,7 @@
-# Phase A → B Exit Audit Packet (A8) — round 2
+# Phase A → B Exit Audit Packet (A8) — running through rounds 1–N
 
 **Arc**: PPUT-CCL (`PREREG_PPUT_CCL_2026-04-26.md` round-4 PASS/PASS + amendment).
-**Date**: 2026-04-26 (round 2, post A8e fixes).
+**Date**: 2026-04-26 (cumulative — most recent round noted at the bottom of the document; readers should consult § "Round-N outcome" for the latest verdict + § "Round-N fixes shipped" for the latest in-cycle delta).
 **Authority**: ArchitectAI commit (Art. V.1.2). This packet is the input to dual external audit (Codex + Gemini) per Art. V.1.3 + memory `feedback_dual_audit`. Decision rule: PASS → Phase B (kernel instrumentation) authorized; CHALLENGE → in-cycle fixes; VETO → Phase A redesign.
 
 **FC-trace**: meta-witness across FC1 / FC2 / FC3 (atoms instrument all three subgraphs).
@@ -166,14 +166,14 @@ A7 added no new Rust tests (plumbing + integration gate; acceptance via `scripts
 - **FC-trace**: FC2-N22 (HALT decomposition by budget regime) + FC1-N7 (δ instances determining the per-agent share under PerAgent regime).
 - Tests: 16 (15 budget_regime unit + 1 jsonl_schema A5 round-trip).
 - PREREG_AMENDMENT § 3 condition 3 cleared.
-- Trust Root manifest 25 → 26.
+- Trust Root manifest 26 → 27. (A8e3 fix H4 corrected the prior 25→26 claim — A3's `agent_models.rs` had already raised the count to 26 before A5; per the corrected milestone chain in `genesis_payload.toml` header.)
 
 ### A6 (FC tracing)
 - New module `experiments/minif2f_v4/src/fc_trace.rs`. Pure stdlib (zero new deps). 7-variant `FcId` enum (FC1-N7 / FC1-N11 / FC1-N12 / FC1-E18 / FC2-N20 / FC2-N22 / FC3-N31). `FC_TRACE=1` gate cached in `OnceLock`; `FC_TRACE_FILE=<path>` redirects emit to file.
 - 9 wired anchor sites total (round-1 had 6 — A8e fix F4 added 3 swarm verify sites): synthetic short-circuit / mr tick / OMEGA full-proof / OMEGA per-tactic / natural MaxTxExhausted (with budget_regime payload from A5) / oneshot FC1-N12 verify bracket / **swarm `verify_omega_detailed` × 2 paths (alone + tape+payload retry)** / **swarm `verify_partial`**.
 - **FC-trace**: meta-witness for the 5-step compile loop.
 - Tests: 7 (6 unit + 1 end-to-end smoke `tests/fc_trace_smoke.rs` exercising `FC_TRACE=1` in a child process — required because the gate is `OnceLock`-cached).
-- Trust Root manifest 26 → 27.
+- Trust Root manifest 27 → 28. (Same off-by-one correction as A5's delta; chain matches `genesis_payload.toml` header.)
 - Resolves TRACE_MATRIX_v2 § 5 item 7.
 
 ### A7 (SiliconFlow plumbing)
@@ -183,7 +183,7 @@ A7 added no new Rust tests (plumbing + integration gate; acceptance via `scripts
 - **FC-trace**: FC1-N7 (δ/AI provider expansion).
 - No new Rust tests (integration plumbing).
 - Memory: `reference_siliconflow.md` records SiliconFlow as the Phase D heterogeneous lane (NOT a probe-only target) and the context-loss anti-pattern (check `.env` + project files BEFORE asking for credentials).
-- Trust Root manifest 27 → 30.
+- Trust Root manifest 28 → 31 (3 entries: `llm_proxy.py` + 2 smoke scripts).
 
 ## § 4. Phase B → C exit checklist (from PREREG_AMENDMENT § 4) — Phase A side
 
