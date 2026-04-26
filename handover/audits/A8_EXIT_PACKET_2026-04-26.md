@@ -43,7 +43,7 @@
 - Gemini R2: **CHALLENGE / high** — 2 findings convergent with Codex (F2 needs CI integration; packet § 5 risk #5 stale).
 - Merged: **CHALLENGE** (no VETO this round; both auditors confirm fixes are letter-correct, gaps are procedural/documentary).
 
-## Round-3 fixes shipped (`A8e2`, commit `<pending>`)
+## Round-3 fixes shipped (`A8e2`, commit `0af47b7`)
 
 - **G1** (Codex R2#1 + Gemini R2#1, hardened by A8e3 H6): `experiments/minif2f_v4/tests/llm_proxy_python_conformance.rs` — Rust integration test that shells to `python3 scripts/test_llm_proxy.py` + asserts exit 0 + checks for the unittest "OK" trailer. Now exercised on every `cargo test --workspace` (PASS in A8e2/A8e3 verification). The Python suite is no longer "manual only" — it runs whenever the Rust tests run, which is every commit that touches Rust + every CI pipeline that already exercises Rust tests. **A8e3 H6 fail-closed**: missing `python3` is now a hard test failure (not a soft skip — Codex R3#3 caught the silent-pass risk). Explicit opt-out only via `SKIP_LLM_PROXY_PYTHON_CONFORMANCE=1` and the bypass is logged loudly. Closes the round-2 "recurring conformance gate" finding.
 - **G2** (Codex R2#2): `PREREG_AMENDMENT § 8` audit-requirements paragraph reworded to remove the residual "strictest plausible bar is conservative" phrase that contradicted § 2's wording correction. Re-hashed in Trust Root.
@@ -62,7 +62,7 @@
 - Gemini R3: **CHALLENGE / high** — 1 narrow finding convergent with Codex (Q4.d stale) + non-blocking observation about `make_pput` arg count (21 args; deferred to Phase B+ refactor).
 - Merged: **CHALLENGE**. Both auditors said code is sound + ready for Phase B; only the packet itself failed final-pass rigor.
 
-## Round-4 fixes shipped (`A8e3`, commit `<pending>`)
+## Round-4 fixes shipped (`A8e3`, commit `3d38ba5`)
 
 Six narrow cleanup items. ALL documentary except H6 which adds a runtime fail-closed assertion.
 
@@ -73,7 +73,7 @@ Six narrow cleanup items. ALL documentary except H6 which adds a runtime fail-cl
 - **H5** (Codex R3#2): TRACE_MATRIX § 5 item 7 now says "CLOSED" with explicit anchor count of 9 (was "commit pending" + "6 wired").
 - **H6** (Codex R3#3): G1 wrapper test fails closed when `python3` is missing — was a soft skip via `eprintln + return`. Explicit opt-out `SKIP_LLM_PROXY_PYTHON_CONFORMANCE=1` for deliberate downgraded runs (logged loudly).
 
-Note (Gemini R3 Finding 2, non-blocking): `make_pput` signature is now 21 positional args. Deferred to Phase B+ refactor (e.g. `PputResultBuilder` struct or named-arg pattern). Tracked here for the record but does NOT block Phase A → B exit.
+Note (Gemini R3 Finding 2, non-blocking; updated A8e5 J5 — Gemini R5 spot-check): `make_pput` signature was 21 positional args at round-3; A8e fix F1 added the `run_id` parameter, bringing the post-A8e count to **24**. Deferred to Phase B+ refactor (e.g. `PputResultBuilder` struct or named-arg pattern). Tracked here for the record but does NOT block Phase A → B exit.
 
 ## Round-4 questions (in addition to § 6 + round-2 + round-3)
 
@@ -81,6 +81,41 @@ Note (Gemini R3 Finding 2, non-blocking): `make_pput` signature is now 21 positi
 - (RQ11) Verify H2: re-count anchor sites in `experiments/minif2f_v4/src/bin/evaluator.rs` by grepping `fc_trace::emit_event(`; expect 9 production sites (synthetic short-circuit + mr tick + OMEGA full-proof + OMEGA per-tactic + max-tx + oneshot verify + 2 swarm `verify_omega_detailed` + swarm `verify_partial`).
 - (RQ12) Verify H6: cause `python3` to be missing (e.g. `PATH=/tmp cargo test --test llm_proxy_python_conformance`) and confirm the test FAILS rather than silently passes.
 - (RQ13) Verify packet self-consistency: any other "conservative" claims about the substitution? Any other anchor-count mismatches? Any other contradictions between round-1 questions and round-2/3 closures?
+
+## Round-4 outcome (2026-04-26)
+
+- Codex R4: **CHALLENGE / high** — 3 narrow documentary defects (packet title still "round 2"; § 3 per-atom Trust Root deltas A5/A6/A7 stale; G1 wrapper docstring still said "skip" while body fails-closed).
+- Gemini R4: **PASS / high → PROCEED** + 1 non-blocking note (`make_pput` arg count 21 → 24 after F1 added `run_id`).
+- Merged (per memory `feedback_dual_audit_conflict`, VETO > CHALLENGE > PASS): **CHALLENGE**. First round where one auditor reached PASS.
+
+## Round-5 fixes shipped (`A8e4`, commit `8693789`)
+
+Three documentary fixes (no source-code changes apart from a wrapper docstring):
+- **I1** packet metadata "round 2" → "running through rounds 1–N" with reader pointer to the latest section.
+- **I2** § 3 per-atom Trust Root deltas corrected: A5 25→26 → 26→27, A6 26→27 → 27→28, A7 27→30 → 28→31; TRACE_MATRIX § 1 line 11 anchor location: "Six anchor sites wired in `run_swarm`" → "Six anchor sites wired (5 in `run_swarm` + 1 in `run_oneshot`)".
+- **I3** wrapper docstring `tests/llm_proxy_python_conformance.rs:13` "if not, it skips with a clear diagnostic" → "FAILS CLOSED with a clear diagnostic"; explicit opt-out env var documented.
+
+## Round-5 outcome (2026-04-26)
+
+- Codex R5: **CHALLENGE / high** — 2 narrow defects (packet still missed Round-4 outcome + A8e4 fixes section; `<pending>` commit placeholders for A8e2/A8e3 never replaced; § 6 Q6 question text + TRACE_MATRIX top-bullet TR-deltas still stale).
+- Gemini R5: **PASS / high → PROCEED** + 1 non-blocking note (`make_pput` arg count is now 24 not 21 in the round-3 retrospective text).
+- Merged: **CHALLENGE**. Same split as R4. Code is sound; convergence on the procedural axis.
+
+## Round-6 fixes shipped (`A8e5`, this commit)
+
+Five narrow doc/source-text fixes; zero source-code changes:
+- **J1** Round-4 outcome + A8e4 fixes shipped section added (this section).
+- **J2** `<pending>` placeholders replaced with actual SHAs: A8e2 → `0af47b7`; A8e3 → `3d38ba5`; A8e4 → `8693789`.
+- **J3** Q6 question text reworded to reflect 24 → 34 manifest (was "24 → 30 / 6 new entries"); list of new entries updated to 10.
+- **J4** TRACE_MATRIX A5/A6/A7 top-bullet TR-deltas corrected: A5 `25 → 26` → `26 → 27`; A6 `26 → 27` → `27 → 28`; A7 `28 → 31` (already correct).
+- **J5** Round-3 retrospective text about `make_pput` arg count: 21 → 24 (Gemini R5 spot-check).
+
+## Round-6 questions (in addition to § 6 + round-2 + round-3 + round-4)
+
+- (RQ14) Verify J1+J2: re-grep `A8_EXIT_PACKET_2026-04-26.md` for any remaining `<pending>` placeholder; the only acceptable matches are inside the round-5 outcome paragraph describing what Codex caught (lexical reference, not a live placeholder). The round-6 fixes header now uses "this commit" instead.
+- (RQ15) Verify J3+J4: confirm § 6 Q6 + TRACE_MATRIX § 1 A5/A6/A7 paragraphs all match the canonical chain `A0=24 → A1=25 → A3=26 → A5=27 → A6=28 → A7=31 → A8e=33 → A8e2=34` per `genesis_payload.toml` header.
+- (RQ16) Verify J5: confirm the round-3 retrospective text about `make_pput` arg count says **24** (the post-A8e count) not 21.
+- (RQ17) Holistic packet read: spot any new staleness introduced by A8e5 itself.
 
 ---
 
@@ -234,8 +269,8 @@ The PREREG amendment shifted the Phase B → C gate. From the Phase A perspectiv
 - (Q5.d) `LLM_PROXY_CONCURRENCY` defaults to 5. With 3 SF keys, that's 5 concurrent calls split across 3 keys ≈ 1.67 per key. Is this low enough to avoid V3L-27 collapse, or should Phase D recommend `LLM_PROXY_CONCURRENCY=15` (5 per key)?
 - (Q5.e) Smoke is a single direct-SDK probe per key — bypasses the proxy. This is intentional (per-key verdict). But should there ALSO be a proxy-routed smoke as a follow-up (to catch routing bugs)?
 
-### Q6 — Trust Root manifest expansion 24 → 30
-6 new entries this Phase A: PREREG amendment (A1) + budget_regime.rs (A5) + fc_trace.rs (A6) + llm_proxy.py + smoke_siliconflow.sh + _smoke_siliconflow.py (A7).
+### Q6 — Trust Root manifest expansion 24 → 34 (round-5 corrected count)
+~~6 new entries this Phase A: PREREG amendment (A1) + budget_regime.rs (A5) + fc_trace.rs (A6) + llm_proxy.py + smoke_siliconflow.sh + _smoke_siliconflow.py (A7).~~ **CORRECTED A8e3 H4 + A8e4 I2 + A8e5 J3**: 10 new entries this Phase A: PREREG amendment (A1) + agent_models.rs (A3 — was already in TR before A1; round-1 packet undercounted by 1) + budget_regime.rs (A5) + fc_trace.rs (A6) + llm_proxy.py + smoke_siliconflow.sh + _smoke_siliconflow.py (A7) + run_id.rs + test_llm_proxy.py (A8e) + llm_proxy_python_conformance.rs (A8e2). Final count 34.
 - (Q6.a) Are all 6 truly load-bearing? E.g., does tampering with `_smoke_siliconflow.py` actually weaken the constitutional gate, or is it a one-shot acceptance script?
 - (Q6.b) `llm_proxy.py` is in Python — Trust Root verifies SHA-256, but does NOT verify Python interpreter behavior. A subtle algorithmic tamper (e.g., always-key-0 instead of round-robin) would change the SHA but a no-op cosmetic edit wouldn't trigger any acceptance test. Is the smoke script's `[2,2,2]` invariant codified anywhere as a recurring conformance test?
 - (Q6.c) `.env` (containing live API keys) is gitignored and NOT in Trust Root. Should the absence of `.env` be a Trust Root constraint (boot fails if `.env` is missing OR if it's tracked)?
