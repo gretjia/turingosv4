@@ -1,12 +1,27 @@
 # TuringOS v4 — Handover State
 
-**Updated**: 2026-04-26 (Phase C 8/9 atoms shipped; C2 batch ready to launch with K=2 single-key OR K=4 dual-key)
-**HEAD commit**: `6fa725d` (C3: H1-H4 McNemar analyzer)
+**Updated**: 2026-04-26 (Constitutional Art. 0 + 0.4 amendment shipped; Phase C C2 batch KILLED for kernel refactor; **PENDING: user decision on Art. 0.4 path A/B/C**)
+**HEAD commit**: `273b362` (Art. 0 + 0.4: 图灵机原教旨 + Tape Canonical 公理 + version-control gap 暴露)
 **Origin**: `origin/main` synced through `4f981cd` (60+ commits pushed this UTC date across two phases)
 
-## Session Summary
+## Session Summary (2026-04-26 latest)
 
-This session continued from Phase A→B exit (commits 60292dc..136b7f5) into Phase C scaffolding (1d04f6a..4f981cd + uncommitted C2 runner). **Phase C 7/9 atoms shipped + C2 runner ready**:
+⚠️ **EVENT**: Phase C C2 batch (commit `56875c1`) was KILLED at user direction after architectural critique exposed `Node.completion_tokens` dormant + `gp_token_count = payload.len()` byte-hack + 24 total tape-canonical violations. User invoked Turing 1948 axiom — tape must be canonical signal carrier. Commits `a80d999..56875c1` remain in repo as historical Phase C scaffold but C2 batch is FROZEN until kernel refactor completes.
+
+**Constitutional response (273b362)**:
+- New Art. 0 图灵机原教旨 (Turing fundamentalism) + Art. 0.1 四要素映射 + Art. 0.2 Tape Canonical 公理 + Art. 0.3 区块链化保留 + Art. 0.4 Q_t version-controlled (ultrathink discovery: constitutional Q_t=⟨q_t,HEAD_t,tape_t⟩ "as path"/"as files" implies git substrate; runtime grep `Repository::|git2::|libgit2` = 0 hits → fundamental gap)
+- Two independent auditors (claude `auditor` subagent + `codex:codex-rescue`) cross-validated 24 violations + 10-commit atomization
+- Audit reports: `handover/architect-insights/TAPE_CANONICAL_AUDIT_2026-04-26_{AUDITOR,CODEX}.md`
+
+**PENDING: Art. 0.4 path decision (A/B/C)**:
+- A. 语义版 (~3 weeks) — Vec<Node> + hash field + HEAD_t pointer; partial alignment
+- B. 真 git substrate (~6-8 weeks) — libgit2 integration; full alignment + 30-year battle-tested tooling free
+- C. Hybrid — A now (Phase C unblock), B at Phase E gate
+- ArchitectAI recommendation: **C** (preserves 30-day arc; Phase E gate forces B anyway)
+- Awaiting explicit user GO
+
+**Earlier session work** (still valid; Phase A→B exit + Phase C scaffold):
+This session continued from Phase A→B exit (commits 60292dc..136b7f5) into Phase C scaffolding (1d04f6a..4f981cd + C2 runner + parallel runner + C3 analyzer). **Phase C 8/9 atoms shipped + C2 runner ready** (BUT BATCH FROZEN, see above):
 - C-pre1: hard-10 deterministic freeze (sealed sha256 `6667e6bdd2aa381c…`)
 - C1a-e: 5 ablation modes wired (Full/SoftLaw/Homogeneous/Panopticon/Amnesia) via 4 pure helpers (apply_mode_to_accept / skill_index_for_agent / is_panopticon / is_amnesia)
 - C5: mode_flag_binary_purity inline test (binary-identity discipline)
@@ -142,13 +157,19 @@ Next session reads `PREREG_PPUT_CCL_2026-04-26.md` § 2 + § 5 + § 6 (Phase C p
 - **Cumulative arc spend**: ~$100 / $500 cap = 20%
 - Remaining: ~$400 for Phase C ablation (5 modes × 10 problems × 2 seeds = 100 jsonl rows + audit) + Phase D shadow CCL + Phase E sealed eval + B7-extra calibration if/when § 3 conditions complete
 
-## Next-session boot sequence
+## Next-session boot sequence (POST CONSTITUTIONAL AMENDMENT)
 
-1. Read 4-file list at top of this doc (HANDOVER_PHASE_C_SCAFFOLD + this LATEST + PREREG § 6/9 + run_c2 runner)
-2. Re-verify state: `cargo test --workspace` (expect **298 PASS**), `bash scripts/smoke_siliconflow.sh` (expect 3/3 PASS)
-3. Re-smoke (optional, ~90s): `LLM_PROXY_URL=http://localhost:18080 bash handover/preregistration/scripts/run_c2_phase_c_ablation.sh --smoke` (expect 5/5 cells succeed; SoftLaw shows solved=True, verified=False)
-4. Launch C2 batch:
-   - **Single-key K=2** (~12-25 hr, ~$2-5): `CONCURRENCY=2 LLM_PROXY_URL=http://localhost:18080 bash handover/preregistration/scripts/run_c2_phase_c_ablation.sh --full`
-   - **Dual-key K=4** (~6-13 hr, ~$2-5): set `DEEPSEEK_API_KEY_SECONDARY` first, then `CONCURRENCY=4 LLM_PROXY_URL=... --full`
-5. Analyze: `python3 handover/preregistration/scripts/analyze_c3_h1_h4.py "experiments/minif2f_v4/logs/c2_phase_c_ablation_<TIMESTAMP>__*.jsonl"` (expect 4 H1-H4 McNemar p-values + Holm-Bonferroni decisions + Phase C Gate C verdict)
-6. After C2+C3: C4 (CHECKPOINT_PHASE_C dual external audit packet)
+1. Read constitution.md Art. 0 (lines ~33-200) — 图灵机原教旨 + Tape Canonical 公理 + Art. 0.4 git substrate gap
+2. Read TAPE_CANONICAL_AUDIT_{AUDITOR,CODEX}.md — 24 violations + 10-commit atomization
+3. Re-verify state: `cargo test --workspace` (expect **298 PASS**), `bash scripts/smoke_siliconflow.sh` (expect 3/3 PASS)
+4. **DECISION: Pick Art. 0.4 path (A/B/C)** — the next architectural commit MUST mark this choice (per Art. 0.4 obligation)
+   - ArchitectAI recommends **C (hybrid)** — A now / B at Phase E gate
+   - User GO required before kernel refactor begins
+5. Once path chosen, execute 10-commit atomization (Commit 1 = tape schema upgrade + WAL v2; this Commit must use STEP_B parallel branch protocol per `feedback_step_b_protocol`)
+6. Phase C C2 batch RESTART after Commit 1-4 done (per Art. 0.2 修复义务 gating)
+7. C3 analyzer + C4 dual audit packet remain valid post-refactor
+
+### Frozen Phase C artifacts (kept for reference, NOT current state)
+
+- C2 batch was killed at `56875c1`; runner + smoke + analyzer survive in repo
+- Re-using runner post-refactor: `CONCURRENCY=4 LLM_PROXY_URL=http://localhost:18080 bash handover/preregistration/scripts/run_c2_phase_c_ablation.sh --full`
