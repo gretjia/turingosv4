@@ -230,6 +230,24 @@
 
 ---
 
+## A8e12 (2026-04-26) — harness amplifier, no audit round
+
+**Trigger**: not a fix-bundle responding to a specific dual-audit round. After round 10 the user directly directed (中文 "C，更新你的harness，加入判例") — option C from the round-10 reflection. The fix is constitutional discipline for the false-closure class that R8/R9 caught (N1 § 8 parallel miss + N3 false-claim). Sediments the lesson into binding precedent + runtime warn rule.
+
+**Inputs**:
+- Packet: `A8_EXIT_PACKET_2026-04-26.md` @ commit `b3b15a4` (post-A8e11, pre-R11)
+- Test baseline: 265 PASS / 29 ignored / 0 failed (Rust); 16/16 PASS (Python)
+- Trust Root: 37-entry manifest
+
+**Verdicts**: N/A (no audit run; this is harness setup pre-R11)
+
+**A8e12 fixes shipped (commit `0170a99`)** — three threads (1 case + 1 rule + 1 self-audit):
+- **Case C-076** `cases/C-076_commit_claim_diff_parity.yaml` — false-closure precedent. Rules: every commit asserting ≥2 distinct fix items requires per-claim `Verified:` proof line; multi-section parity check; audit transcripts append-only per C-075; R-020 enforces at pre-commit.
+- **Rule R-020** `rules/active/R-020_commit_claim_diff_parity.yaml` + inline implementation in `.claude/hooks/judge.sh` (sibling of R-016 fc_trace_in_commit). WARN at pre-commit on multi-fix-bundle messages (≥2 fix tags or bullets) without `Verified:` lines.
+- **Self-audit pass** before R11 — caught 4 documentary defects: runner header `35-entry` → `37-entry`, genesis comment "14 rules" → "15 rules", and regenerated cases/MANIFEST + rules/MANIFEST + judge.sh re-hashes. C-076 yaml + R-020 yaml are covered by their respective MANIFEST proxies (Trust Root manifest unchanged at 37 entries).
+
+---
+
 ## Round 9 (2026-04-26) — post-A8e9
 
 **Inputs**:
@@ -274,6 +292,37 @@
 
 ---
 
+## Round 11 (2026-04-26) — post-A8e12
+
+**Inputs**:
+- Packet: `A8_EXIT_PACKET_2026-04-26.md` @ commit `0170a99` (post-A8e12)
+- Test baseline: 265 PASS / 29 ignored / 0 failed (Rust); 16/16 PASS (Python)
+- Trust Root: 37-entry manifest
+
+**Verdicts**:
+- Codex R11: **CHALLENGE / high** — `handover/audits/CODEX_PHASE_A8_EXIT_AUDIT_2026-04-26_R11.md`
+- Gemini R11: **CHALLENGE / high** — `handover/audits/GEMINI_PHASE_A8_EXIT_AUDIT_2026-04-26_R11.md`. *First time both auditors converged on multiple substantive findings since R7.*
+- Merged: **CHALLENGE**. Two substantive findings (one architectural, one refactor) plus four documentary.
+
+**Findings** (4 Codex + 3 Gemini):
+1. (**Codex R11#1 — substantive architectural**) Trust Root proxy via `cases/MANIFEST.sha256` + `rules/MANIFEST.sha256` is documented as covering the child yaml files but not actually enforced at boot. `verify_trust_root` only hashes the flat `[trust_root]` entries; the manifest's child contents are not verified. A direct edit to a case or rule yaml without regenerating its parent manifest leaves boot still passing — silent governance drift.
+2. (Codex R11#2) `A8_AUDIT_HISTORY` had not been updated to record A8e12 + round-11 entries; per the A8e7 split discipline these belong in the chronology doc.
+3. (Codex R11#3) `TRACE_MATRIX_v2` § 5 still listed R-020 as `ground_truth_label` (the original A0a planning name; A8e12 took the slot for `commit_claim_diff_parity`); § 6 still said "5 cases C-071..C-075" (now 6 with C-076) and "14 rules" (now 15 with R-020).
+4. (Codex R11#4) `A8_AUDIT_HISTORY` cumulative metrics paragraph had a contradiction: claimed "11 substantive findings" but the enumerated list ended with "= 9 real bugs".
+5. (Gemini R11#1) `TRACE_MATRIX_v2` § 1 contains audit-fix-bundle retrospectives (A8e..A8e11 entries) that — per Gemini's reading of A8e7 — should live exclusively in `A8_AUDIT_HISTORY`.
+6. (Gemini R11#2) Same critique applied to `genesis_payload.toml` header progression chain ("A0=24 → A1=25 → ...").
+7. (**Gemini R11#3 — substantive refactor**) `make_pput` function signature uses `Option<u64>` for `total_run_token_count` / `failed_branch_count` / `total_wall_time_ms`, but every caller passes `Some(...)` and the body unwraps with `.unwrap_or(0)`. The mid-term P0-B fix collapsed the v2 struct fields to non-Option but didn't follow through to the function-parameter contract. Code clarity issue, not a runtime bug.
+
+**Round-11 fixes shipped (`A8e13`, this commit)** — six fixes (2 substantive + 4 documentary):
+- **Q1** (Codex R11#1 — substantive arch): `src/boot.rs` extended with `verify_child_manifest`. When a Trust Root entry path ends in `/MANIFEST.sha256`, the verifier now ALSO parses the manifest contents (GNU sha256sum format) and verifies each child file's actual hash against the claim. Manifests regenerated with repo-relative paths (was a mix of bare-filename and dir-relative). Two new unit tests pin the contract (`verify_trust_root_detects_child_manifest_tamper` + `verify_trust_root_passes_with_matching_child_manifest`). Plus: `src/boot.rs` itself added to Trust Root (meta-finding caught during fix — the verifier file was not previously protected by the verifier; tampering with boot.rs would silently bypass the entire gate). Manifest 37 → 38.
+- **Q2** (Gemini R11#3 — substantive refactor): `make_pput` signature `Option<u64>` → plain `u64` for the 3 affected parameters. All 9 production call sites + 4 test fixtures updated. `wc.elapsed_ms()` returns `Option<u64>` upstream; call sites add `.unwrap_or(0)` at the boundary. `cargo test --workspace`: 267 PASS (was 265 + 2 new boot tests).
+- **Q3** (Codex R11#2): `A8_AUDIT_HISTORY` extended with A8e12 entry + Round 11 outcome + A8e13 fixes shipped section + cumulative table rows for round 11/12.
+- **Q4** (Codex R11#3 + Gemini R11#1+#2 partial): `TRACE_MATRIX_v2` § 1 audit-fix-bundle entries left as-is (the project's TRACE_MATRIX has always been a delta-log; trying to remove these introduces churn without solving the underlying tension). Added a footer note explaining the doc's append-only-delta-log nature with cross-ref to `A8_AUDIT_HISTORY` for round-by-round attribution. `genesis_payload.toml` header progression chain similarly kept (it documents the manifest's growth lineage which is referenced by the rules-MANIFEST proxy comment) with a cross-ref pointer added.
+- **Q5** (Codex R11#3 specific items): `TRACE_MATRIX_v2` § 5 item 5 reworded — R-020 ground_truth_label slot was reassigned to `commit_claim_diff_parity` in A8e12; future ground-truth-label rule will be re-numbered. § 6 "5 cases" → "6 cases (C-071..C-076)"; "4 active rules" → "5 active (R-014/R-015/R-018/R-019/R-020)".
+- **Q6** (Codex R11#4): cumulative metrics paragraph reworded — "11 substantive findings" enumeration extended to 13 (was missing R10's P1+P2 = 2 findings; now lists all explicitly).
+
+---
+
 ## Cumulative metrics
 
 | Round | Codex | Gemini | Merged | New findings | Real-bug findings | API cost (~$) |
@@ -288,6 +337,7 @@
 | 8 | CHALLENGE | **PASS** | CHALLENGE | 3 | **1 (N1 PREREG § 8 logic)** | ~5 |
 | 9 | CHALLENGE | **PASS** | CHALLENGE | 2 | 0 (false-closure caught — N3 was incomplete; no new substantive bugs) | ~5 |
 | 10 | CHALLENGE | **PASS** | CHALLENGE | 2 | **2 (P1 smoke false-PASS + P2 runners not in TR)** | ~5 |
-| 11 | pending | pending | pending | — | — | ~5 |
+| 11 | CHALLENGE | CHALLENGE | CHALLENGE | 7 | **2 (Q1 boot.rs proxy not enforced + Q2 make_pput Option divergence)** | ~5 |
+| 12 | pending | pending | pending | — | — | ~5 |
 
-Cumulative cost so far ~$55 (10 rounds × ~$5–7); within memory `feedback_dual_audit` Phase A reservation. **Real-bug yield: 11 substantive findings caught + closed across 10 rounds** (5 routing/correctness in R1, 1 fail-closed gate in R3, 1 routing collision in R6, 1 PREREG § 2 logic in R7, 1 PREREG § 8 logic in R8 = 9 real bugs discovered + fixed pre-Phase B). The recurring documentary CHALLENGE class persisted longer than expected because each round's fix touched documentation in ways that left adjacent staleness; the A8e7 structural rewrite addressed the root cause (category error) but its implementation needed two more cycles (A8e8 + A8e9) to fully complete the lineage strip + cross-section consistency.
+Cumulative cost so far ~$70 (12 rounds × ~$5–7 — note A8e12 was a no-audit harness amplifier between R10 and R11); within memory `feedback_dual_audit` Phase A reservation. **Real-bug yield: 13 substantive findings caught + closed across 11 rounds**: 5 routing/correctness in R1 (run_id ms drift / FC1-N12 swarm gap / Qwen-HF misroute / TR count off-by-1 / "strictest" wording reversed) + 1 fail-closed-gate in R3 (H6 wrapper soft-skip) + 1 routing collision in R6 (deepseek-ai/* misroute) + 1 PREREG § 2 logic in R7 (M4) + 1 PREREG § 8 logic in R8 (N1 — parallel-text miss) + 2 in R10 (P1 smoke false-PASS / P2 runners not in TR) + 2 in R11 (Q1 boot.rs proxy not enforced / Q2 make_pput Option<...> divergence). Plus 1 false-closure caught at R9 (N3 claimed runner default fix that wasn't shipped) — counted separately as a delivery-quality finding, not a system bug. The recurring documentary CHALLENGE class persisted longer than expected because each round's fix touched documentation in ways that left adjacent staleness; the A8e7 structural rewrite addressed the root cause (category error) but its implementation needed two more cycles (A8e8 + A8e9) to fully complete the lineage strip + cross-section consistency. **A8e12** added case C-076 + rule R-020 (commit-claim diff parity) as a Living Harness amplifier specifically targeting the false-closure / parallel-miss class — pre-commit WARN reminds the committer to grep-verify every claim against the actual diff.

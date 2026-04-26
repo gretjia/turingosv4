@@ -105,7 +105,7 @@ Per case **C-075 (DO-178C tool qualification)**: governance instrumentation is i
 2. **rules/SCHEMA.yaml** — defines rule format but engine.py doesn't validate against it. Lower priority; add to Trust Root if SCHEMA itself is referenced by automated tests.
 3. **build-check.sh + session-end.sh** — sister hooks of judge.sh. Lower-priority gates (build verification, session telemetry); add to Trust Root in next harness cycle.
 4. **R-016 fc_trace_in_commit upgrade** — currently WARN-level. If post-Phase-D evidence shows FC-trace discipline still slipping, promote to BLOCK-level.
-5. **R-020 ground_truth_label** — sketched in A0a planning but not implemented (grep on PputResult/RunAggregate field additions to enforce thesis claim 7 ground-truth source). Defer to next harness cycle.
+5. **Ground-truth-label rule (was provisionally labeled R-020 in A0a planning)** — sketched but not implemented (grep on PputResult/RunAggregate field additions to enforce thesis claim 7 ground-truth source). Note: A8e12 took the R-020 slot for `commit_claim_diff_parity_warn` (case C-076); the ground-truth-label rule will be re-numbered when it lands. Defer to next harness cycle.
 6. **FC2-N23 HaltReason full taxonomy as Rust enum** — currently only OmegaAccepted is typed; other 4 variants live as jsonl strings. Phase C+ Soft Law mode work may force this typing.
 7. ~~**Per-line FC tagging via tracing crate** — Plan agent's recommendation in N-experiments brainstorm. Phase A6 deferred; will land before Phase B (homogeneous experiments).~~ **CLOSED**: A6 (`89994c7`) shipped `fc_trace.rs` + 6 production emit sites (5 in `run_swarm` + 1 in `run_oneshot`); A8e fix F4 added 3 more in `run_swarm` (`verify_omega_detailed` alone + tape+payload retry, plus `verify_partial`), bringing the post-A8e total to **9 wired anchor sites**. Implementation chose pure stdlib over the `tracing` crate to avoid a new dep tree; the macro surface (`emit_event` + `FcId` enum) was kept small so Phase D+ can swap to a real `tracing-subscriber` bridge locally.
 
@@ -115,8 +115,8 @@ Compared to v1:
 - ✅ count: 16 → **33** (+17 from fc_alignment_conformance.rs witness battery; +4 from new symbols/rules; +4 from manifest expansion; +5 case-law entries; -3 stale)
 - 📅/📄 count: 9 → **9** (Phase 11+ deferred unchanged; some clarified with case references)
 - 🔨/⚠️ count: 0 → **0** (no actionable rows pending in v2 scope)
-- New cases: 5 (C-071..C-075)
-- New rules: 4 active (R-014/R-015/R-018/R-019) + 1 hook-level (R-016)
+- New cases: 6 (C-071..C-076; C-076 added in A8e12 — see `A8_AUDIT_HISTORY_2026-04-26.md` for derivation)
+- New rules: 5 active (R-014/R-015/R-018/R-019/R-020) + 1 hook-level (R-016); rules-yaml total now 15
 
 Manifest size milestones:
 - B7 → 15

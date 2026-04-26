@@ -88,6 +88,10 @@ fn test_trust_root_manifest_includes_b2_b4_files() {
         "src/kernel.rs",
         "src/wal.rs",
         "src/bus.rs",
+        // A8e13 fix Q1: src/boot.rs implements verify_trust_root itself
+        // (per Codex R11#1 + C-075 — the verifier must be qualifiable;
+        // tampering with boot.rs would silently bypass the entire gate).
+        "src/boot.rs",
         "experiments/minif2f_v4/src/lean4_oracle.rs",
         "constitution.md",
         "cases/MANIFEST.sha256",

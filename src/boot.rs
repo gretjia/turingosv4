@@ -89,6 +89,84 @@ pub fn verify_trust_root(repo_root: &Path) -> Result<(), TrustRootError> {
                 actual,
             });
         }
+        // A8e13 fix Q1 (Codex R11#1): the manifest entry covers the
+        // MANIFEST.sha256 file itself, but its proxy semantics —
+        // "this manifest stands in for the N child files it covers"
+        // — were previously enforced only by convention. A direct
+        // edit to a child yaml could leave the parent manifest
+        // unchanged, and boot would still pass even though the child
+        // diverges from its asserted hash. Now: when the entry path
+        // ends in `/MANIFEST.sha256`, recursively verify each child
+        // file the manifest claims.
+        if rel_path.ends_with("/MANIFEST.sha256") {
+            verify_child_manifest(repo_root, rel_path, &bytes)?;
+        }
+    }
+    Ok(())
+}
+
+/// TRACE_MATRIX FC3-N34 + case C-075: recursive verification of a
+/// `MANIFEST.sha256`-style child manifest. The manifest format is GNU
+/// `sha256sum` output (`<64-hex>  <path>` per line, two-space
+/// separator). Paths in the project's manifests are **repo-relative**
+/// (regenerated from the repo root with `sha256sum cases/C-*.yaml`
+/// or `sha256sum rules/active/R-*.yaml`), so children are resolved
+/// from `repo_root`, not from the manifest's parent directory. This
+/// keeps the recursive verifier symmetric across manifests whose
+/// children live under a subdirectory (e.g. `rules/active/`).
+///
+/// Any child whose actual SHA disagrees with the manifest claim →
+/// `TrustRootError::Tampered`.
+fn verify_child_manifest(
+    repo_root: &Path,
+    manifest_rel_path: &str,
+    manifest_bytes: &[u8],
+) -> Result<(), TrustRootError> {
+    let manifest_text = std::str::from_utf8(manifest_bytes).map_err(|e| {
+        TrustRootError::GenesisParse(format!(
+            "{}: not valid UTF-8: {}",
+            manifest_rel_path, e
+        ))
+    })?;
+    for (lineno, raw) in manifest_text.lines().enumerate() {
+        let line = raw.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        // GNU sha256sum format: `<64-hex>  <path>` (two spaces).
+        let (hex, child_rel) = match line.split_once("  ") {
+            Some(parts) => parts,
+            None => {
+                return Err(TrustRootError::GenesisParse(format!(
+                    "{}:{}: malformed sha256sum line: {:?}",
+                    manifest_rel_path,
+                    lineno + 1,
+                    line
+                )));
+            }
+        };
+        if hex.len() != 64 || !hex.chars().all(|c| c.is_ascii_hexdigit()) {
+            return Err(TrustRootError::GenesisParse(format!(
+                "{}:{}: hash field is not 64 hex chars: {:?}",
+                manifest_rel_path,
+                lineno + 1,
+                hex
+            )));
+        }
+        let child_full = repo_root.join(child_rel);
+        let child_bytes = fs::read(&child_full).map_err(|err| TrustRootError::FileRead {
+            path: child_full.clone(),
+            err,
+        })?;
+        let actual = hex_lower(&Sha256::digest(&child_bytes));
+        let expected = hex.to_ascii_lowercase();
+        if actual != expected {
+            return Err(TrustRootError::Tampered {
+                path: child_full,
+                expected,
+                actual,
+            });
+        }
     }
     Ok(())
 }
@@ -268,5 +346,59 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("turingosv4-boot-test-{pid}-{nano}"));
         fs::create_dir_all(&dir).unwrap();
         dir
+    }
+
+    /// A8e13 fix Q1 conformance: child manifest tamper is detected even
+    /// when the parent manifest hash itself is unchanged. This is the
+    /// scenario Codex R11#1 surfaced — pre-Q1, an attacker (or careless
+    /// developer) could edit a `cases/*.yaml` without regenerating
+    /// `cases/MANIFEST.sha256`, and boot would still pass because boot
+    /// only checked the manifest file's own hash, not its child entries.
+    #[test]
+    fn verify_trust_root_detects_child_manifest_tamper() {
+        let tmp = tempdir();
+        // Lay out a fake repo with a child manifest pointing at one
+        // child file. The PARENT manifest is hashed correctly into the
+        // [trust_root] section, but the CHILD file's actual content is
+        // tampered relative to what the parent manifest claims.
+        // Manifest paths are repo-relative per the project convention.
+        fs::create_dir_all(tmp.join("subdir")).unwrap();
+        fs::write(tmp.join("subdir/child.txt"), "tampered_content").unwrap();
+        let parent_text = format!("{}  subdir/child.txt\n", "0".repeat(64));
+        fs::write(tmp.join("subdir/MANIFEST.sha256"), &parent_text).unwrap();
+        let parent_hash = hex_lower(&Sha256::digest(parent_text.as_bytes()));
+        let genesis = format!(
+            "[pput_accounting_0]\nschema_version = \"1.0\"\n\n\
+             [trust_root]\n\"subdir/MANIFEST.sha256\" = \"{parent_hash}\"\n"
+        );
+        fs::write(tmp.join("genesis_payload.toml"), genesis).unwrap();
+        match verify_trust_root(&tmp).expect_err("child tamper must be detected") {
+            TrustRootError::Tampered { path, expected, actual } => {
+                assert!(path.ends_with("subdir/child.txt"),
+                    "expected error on child.txt, got: {path:?}");
+                assert_eq!(expected, "0".repeat(64));
+                assert_ne!(actual, expected);
+            }
+            other => panic!("expected Tampered on child, got {other:?}"),
+        }
+    }
+
+    /// Q1 conformance: child manifest with matching hashes verifies cleanly.
+    #[test]
+    fn verify_trust_root_passes_with_matching_child_manifest() {
+        let tmp = tempdir();
+        fs::create_dir_all(tmp.join("subdir")).unwrap();
+        let child_content = "the actual child content";
+        fs::write(tmp.join("subdir/child.txt"), child_content).unwrap();
+        let child_hash = hex_lower(&Sha256::digest(child_content.as_bytes()));
+        let parent_text = format!("{child_hash}  subdir/child.txt\n");
+        fs::write(tmp.join("subdir/MANIFEST.sha256"), &parent_text).unwrap();
+        let parent_hash = hex_lower(&Sha256::digest(parent_text.as_bytes()));
+        let genesis = format!(
+            "[pput_accounting_0]\nschema_version = \"1.0\"\n\n\
+             [trust_root]\n\"subdir/MANIFEST.sha256\" = \"{parent_hash}\"\n"
+        );
+        fs::write(tmp.join("genesis_payload.toml"), genesis).unwrap();
+        verify_trust_root(&tmp).expect("matching parent + child verifies");
     }
 }

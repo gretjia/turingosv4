@@ -386,9 +386,9 @@ async fn run_oneshot(
                 return make_pput(problem_file, "oneshot", model,
                                  false, false, start, 0, 0, 1,
                                  None, None, None, None, None,
-                                 Some(acc.total_run_token_count()),
-                                 Some(acc.failed_branch_count),
-                                 wc.elapsed_ms(),
+                                 acc.total_run_token_count(),
+                                 acc.failed_branch_count,
+                                 wc.elapsed_ms().unwrap_or(0),
                                  false, 1, 1, verifier_wait_ms,
                                  oneshot_regime, oneshot_budget_base, &run_id);
             }
@@ -442,9 +442,9 @@ async fn run_oneshot(
                               true, true, start, gp_tokens, 1, 1,
                               None, None, Some(response.content.clone()),
                               Some("alone".to_string()), proof_file,
-                              Some(acc.total_run_token_count()),
-                              Some(acc.failed_branch_count),
-                              wc.elapsed_ms(),
+                              acc.total_run_token_count(),
+                              acc.failed_branch_count,
+                              wc.elapsed_ms().unwrap_or(0),
                               false, 1, 1, verifier_wait_ms,
                               oneshot_regime, oneshot_budget_base, &run_id)
                 }
@@ -453,9 +453,9 @@ async fn run_oneshot(
                     make_pput(problem_file, "oneshot", model,
                               false, false, start, 0, 0, 1,
                               None, None, None, None, None,
-                              Some(acc.total_run_token_count()),
-                              Some(acc.failed_branch_count),
-                              wc.elapsed_ms(),
+                              acc.total_run_token_count(),
+                              acc.failed_branch_count,
+                              wc.elapsed_ms().unwrap_or(0),
                               false, 1, 1, verifier_wait_ms,
                               oneshot_regime, oneshot_budget_base, &run_id)
                 }
@@ -465,9 +465,9 @@ async fn run_oneshot(
                     make_pput(problem_file, "oneshot", model,
                               false, false, start, 0, 0, 1,
                               None, None, None, None, None,
-                              Some(acc.total_run_token_count()),
-                              Some(acc.failed_branch_count),
-                              wc.elapsed_ms(),
+                              acc.total_run_token_count(),
+                              acc.failed_branch_count,
+                              wc.elapsed_ms().unwrap_or(0),
                               false, 1, 1, verifier_wait_ms,
                               oneshot_regime, oneshot_budget_base, &run_id)
                 }
@@ -734,9 +734,9 @@ async fn run_swarm(
                                        false, false, start, 0, 0,
                                        tx as u64, Some(tool_dist), None,
                                        None, None, None,
-                                       Some(acc.total_run_token_count()),
-                                       Some(acc.failed_branch_count),
-                                       wc.elapsed_ms(),
+                                       acc.total_run_token_count(),
+                                       acc.failed_branch_count,
+                                       wc.elapsed_ms().unwrap_or(0),
                                        false,
                                        proposal_hashes.len() as u64,
                                        proposal_count,
@@ -1145,9 +1145,9 @@ async fn run_swarm(
                                                         Some(full_proof.clone()),
                                                         Some(path_choice.to_string()),
                                                         proof_file,
-                                                        Some(acc.total_run_token_count()),
-                                                        Some(acc.failed_branch_count),
-                                                        wc.elapsed_ms(),
+                                                        acc.total_run_token_count(),
+                                                        acc.failed_branch_count,
+                                                        wc.elapsed_ms().unwrap_or(0),
                                                         false,
                                                         proposal_hashes.len() as u64,
                                                         proposal_count,
@@ -1374,9 +1374,9 @@ async fn run_swarm(
                                                         Some(prefix.clone()),
                                                         Some("per_tactic".to_string()),
                                                         proof_file,
-                                                        Some(acc.total_run_token_count()),
-                                                        Some(acc.failed_branch_count),
-                                                        wc.elapsed_ms(),
+                                                        acc.total_run_token_count(),
+                                                        acc.failed_branch_count,
+                                                        wc.elapsed_ms().unwrap_or(0),
                                                         false,
                                                         proposal_hashes.len() as u64,
                                                         proposal_count,
@@ -1471,9 +1471,9 @@ async fn run_swarm(
               false, false, start, 0, 0,
               max_transactions as u64, Some(tool_dist), upr,
               None, None, None,
-              Some(acc.total_run_token_count()),
-              Some(acc.failed_branch_count),
-              wc.elapsed_ms(),
+              acc.total_run_token_count(),
+              acc.failed_branch_count,
+              wc.elapsed_ms().unwrap_or(0),
               true,
               proposal_hashes.len() as u64,
               proposal_count,
@@ -1490,9 +1490,9 @@ fn make_pput(
     gp_payload: Option<String>,
     gp_path: Option<String>,
     gp_proof_file: Option<String>,
-    total_run_token_count: Option<u64>,
-    failed_branch_count: Option<u32>,
-    total_wall_time_ms: Option<u64>,
+    total_run_token_count: u64,
+    failed_branch_count: u32,
+    total_wall_time_ms: u64,
     // Phase A atom A4 (decomposed metrics). All callers must pass
     // explicit values — the v2 fields are non-Optional.
     hit_max_tx: bool,
@@ -1532,13 +1532,16 @@ fn make_pput(
     let boltzmann_seed = std::env::var("BOLTZMANN_SEED")
         .ok().and_then(|s| s.parse::<u64>().ok());
 
-    // Mid-term audit P0-B fix 2026-04-25: collapse Optional accumulator/clock
-    // values into required v2 fields. Phase B always has values for these
-    // (B2 + B3 wire them at every emit site); the prior Option wrapping was
-    // overly defensive and let the v2 schema slip from the contract.
-    let c_i = total_run_token_count.unwrap_or(0);
-    let t_i = total_wall_time_ms.unwrap_or(0);
-    let failed_count = failed_branch_count.unwrap_or(0);
+    // A8e13 fix Q2 (Gemini R11#3): the v2 schema fields are non-Option;
+    // every caller already passed Some(...). Mid-term audit P0-B fix
+    // 2026-04-25 collapsed the struct fields but left the Option<...>
+    // function-parameter shape behind, creating a divergence between
+    // the function contract and its actual usage. Q2 removes the
+    // Option wrapping at the parameter boundary too — every call site
+    // now passes the bare value directly.
+    let c_i = total_run_token_count;
+    let t_i = total_wall_time_ms;
+    let failed_count = failed_branch_count;
 
     let progress_runtime = compute_progress_runtime(runtime_accepted);
     let progress_verified =
@@ -1775,7 +1778,7 @@ mod v2_emit_tests {
             true, true, Instant::now(),
             500, 1, 1,
             None, None, None, None, None,
-            Some(2000), Some(0), Some(15_000),
+            2000, 0, 15_000,
             // A4: oneshot success — no max-tx, 1/1 unique, 4500ms in Lean.
             false, 1, 1, 4_500,
             // A5: oneshot stamps total_proposal + base=1 (single LLM call).
@@ -1842,7 +1845,7 @@ mod v2_emit_tests {
             Instant::now(),
             500, 1, 1,
             None, None, None, None, None,
-            Some(2000), Some(0), Some(15_000),
+            2000, 0, 15_000,
             // A4: same shape as success path; A4 fields are independent
             // of the H1 divergence signal we're testing here.
             false, 1, 1, 4_500,
@@ -1883,7 +1886,7 @@ mod v2_emit_tests {
             false, false, Instant::now(),
             0, 0, 200,
             None, None, None, None, None,
-            Some(8_000), Some(199), Some(120_000),
+            8_000, 199, 120_000,
             true, 50, 200, 90_000,
             // A5: canonical Phase B baseline = total_proposal × 200.
             minif2f_v4::budget_regime::BudgetRegime::TotalProposal, 200,
@@ -1941,7 +1944,7 @@ mod v2_emit_tests {
             false, false, Instant::now(),
             0, 0, 50,
             None, None, None, None, None,
-            Some(2_000), Some(49), Some(40_000),
+            2_000, 49, 40_000,
             false, 20, 50, 25_000,
             minif2f_v4::budget_regime::BudgetRegime::TotalProposal, 200,
             "test_run_id",
