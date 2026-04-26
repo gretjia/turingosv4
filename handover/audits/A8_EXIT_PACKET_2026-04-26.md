@@ -1,10 +1,60 @@
-# Phase A → B Exit Audit Packet (A8)
+# Phase A → B Exit Audit Packet (A8) — round 2
 
 **Arc**: PPUT-CCL (`PREREG_PPUT_CCL_2026-04-26.md` round-4 PASS/PASS + amendment).
-**Date**: 2026-04-26.
+**Date**: 2026-04-26 (round 2, post A8e fixes).
 **Authority**: ArchitectAI commit (Art. V.1.2). This packet is the input to dual external audit (Codex + Gemini) per Art. V.1.3 + memory `feedback_dual_audit`. Decision rule: PASS → Phase B (kernel instrumentation) authorized; CHALLENGE → in-cycle fixes; VETO → Phase A redesign.
 
 **FC-trace**: meta-witness across FC1 / FC2 / FC3 (atoms instrument all three subgraphs).
+
+## Round-1 outcome (2026-04-26)
+
+- Codex: **CHALLENGE / high** — 5 findings (run_id ms drift; sparse FC1-N12 swarm coverage; routing matrix Qwen-HF misroute; Trust Root count off-by-1; PREREG amendment "strictest substitute" wording reversed).
+- Gemini: **VETO / high** — same join-key + routing-conformance themes; emphasized Q6 absence of automated round-robin conformance test as REDESIGN-level for atom A7.
+- Merged (per memory `feedback_dual_audit_conflict`, VETO > CHALLENGE > PASS): VETO. FIX-THEN-PROCEED cycle authorized.
+
+## Round-2 fixes shipped (`A8e`, commit `5a56ff6`)
+
+- **F1** unified `run_id` (new `run_id.rs` module + threaded into `make_pput`); oneshot stops using `oneshot_{problem_file}` placeholder. Closes Codex#2 + Gemini Q4.
+- **F2** `scripts/test_llm_proxy.py` — 15-test Python suite pinning the round-robin invariant `[2,2,2]` across 6 calls (no live API). Closes Gemini VETO Q6.
+- **F3** routing matrix bug fixed: slash-form ⇒ `siliconflow` FIRST in `detect_provider`; bare-qwen ⇒ `dashscope` only without slash. Closes Codex#4.
+- **F4** swarm FC1-N12 emit at all 3 verify sites (`verify_omega_detailed` × 2 + `verify_partial`). Closes Codex#3.
+- **F5** Trust Root count + header reconciled: actual 31 entries → 33 after A8e (was off-by-1 because `agent_models.rs` from A3 was already in TR before A1). Closes Codex#5.
+- **F6** PREREG_AMENDMENT § 2 wording corrected: `p_0=0.10` is the **least-strict admissible ceiling** (max tolerated value), NOT the "strictest possible substitute". No Type-I inflation since `j-RR` is descriptive; explicit statistical-implications paragraph added. Closes Codex#1.
+
+## Round-2 state to audit
+
+- Cumulative tests: **264 PASS / 29 ignored / 0 failed** (was 261; +3 run_id unit tests).
+- Python tests: 15/15 PASS in `scripts/test_llm_proxy.py`.
+- Live smoke: `bash scripts/smoke_siliconflow.sh` PASS (3/3 keys responding 2026-04-26 05:0X UTC).
+- Trust Root manifest: **33 entries** (was 31 before A8e; +run_id.rs + test_llm_proxy.py).
+- Round-1 audit transcripts committed at `handover/audits/{CODEX,GEMINI}_PHASE_A8_EXIT_AUDIT_2026-04-26.md` for round-2 reviewers to verify the closures.
+
+## Round-2 questions (in addition to § 6 of round-1)
+
+- (RQ1) For each of the 6 fixes, verify the closure is complete: re-read F1's `run_id.rs` + `evaluator.rs` for any remaining `run_corr_id` / placeholder use; re-read F4's 3 emit sites for verdict-string correctness; re-read F6's amendment wording for any remaining "strictest" claim.
+- (RQ2) Are there NEW defects introduced by the fixes? E.g., does F1's `run_id` parameter break the `make_pput` test fixtures (literal `"test_run_id"`)? Does F3 routing change misroute any model that DID work before?
+- (RQ3) Is the 15-test `test_llm_proxy.py` battery actually load-bearing? Specifically: does it run in any CI pipeline, or only manually? If only manual, is its presence in Trust Root + the trust_root_immutability required-paths list enough to satisfy the "recurring conformance" bar Gemini's VETO required?
+- (RQ4) F5 reconciles the count to 33. Verify by re-counting `^"` lines under `[trust_root]` in `genesis_payload.toml` and matching against the `required[]` array in `experiments/minif2f_v4/tests/trust_root_immutability.rs:79+`.
+- (RQ5) F6 changed an immutable-by-convention amendment doc. Verify the amendment's NEW SHA-256 is in `[trust_root]` and the v0/v1 round-trip protocol still holds (the original PREREG round-4 doc is unchanged).
+
+## Round-2 outcome (2026-04-26)
+
+- Codex R2: **CHALLENGE / high** — 3 findings (F2 not recurring; PREREG_AMENDMENT § 8 still says "strictest plausible bar" contradicting § 2; A8 packet + TRACE_MATRIX stale on counts + risk #5 + run_corr_id symbol row + "in CI" claim).
+- Gemini R2: **CHALLENGE / high** — 2 findings convergent with Codex (F2 needs CI integration; packet § 5 risk #5 stale).
+- Merged: **CHALLENGE** (no VETO this round; both auditors confirm fixes are letter-correct, gaps are procedural/documentary).
+
+## Round-3 fixes shipped (`A8e2`, commit `<pending>`)
+
+- **G1** (Codex R2#1 + Gemini R2#1): `experiments/minif2f_v4/tests/llm_proxy_python_conformance.rs` — Rust integration test that shells to `python3 scripts/test_llm_proxy.py` + asserts exit 0 + checks for the unittest "OK" trailer. Now exercised on every `cargo test --workspace` (PASS in A8e2 verification). The Python suite is no longer "manual only" — it runs whenever the Rust tests run, which is every commit that touches Rust + every CI pipeline that already exercises Rust tests. Closes the round-2 "recurring conformance gate" finding.
+- **G2** (Codex R2#2): `PREREG_AMENDMENT § 8` audit-requirements paragraph reworded to remove the residual "strictest plausible bar is conservative" phrase that contradicted § 2's wording correction. Re-hashed in Trust Root.
+- **G3** (Codex R2#3 + Gemini R2#2): A8 packet § 2 cumulative-test table extended with A8e + A8e2 columns; § 4 Trust-Root-clean assertion bumped 30→34; § 5 Risk #5 removed (closed by F4); § 6 Q7.a 261→265 + Q7.b 30→34. TRACE_MATRIX stale `run_corr_id` symbol row replaced; "in CI" softened to "via Rust wrapper post-A8e2".
+
+## Round-3 questions (in addition to § 6 + round-2)
+
+- (RQ6) Verify G1: run `cargo test -p minif2f_v4 --test llm_proxy_python_conformance` and confirm exit 0. Verify the test is added to TRACE_MATRIX_v2 § 2 with FC trace + closure rationale.
+- (RQ7) Verify G2: re-grep `PREREG_AMENDMENT_p0_defer_2026-04-25.md` for any remaining "strictest" / "conservative" claim; the only acceptable use is the round-1 wording-correction note in § 2.
+- (RQ8) Verify G3: re-count `genesis_payload.toml` `[trust_root]` entries (expect 34) and check TRACE_MATRIX_v2 manifest milestones list matches A0=24 → A1=25 → A3=26 → A5=27 → A6=28 → A7=31 → A8e=33 → A8e2=34.
+- (RQ9) Look for any NEW staleness introduced by G3 — e.g., does the round-2 outcome paragraph accurately summarize the round-2 verdicts?
 
 ---
 
@@ -41,12 +91,15 @@ a5c78e4  A4:  decomposed metrics (hit_max_tx + tactic_diversity + verifier_wait_
 
 ## § 2. Test count and Trust Root deltas
 
-|        | A0a baseline | A0e PASS | A4 land | A5 land | A6 land | A7 land |
-|---|---|---|---|---|---|---|
-| `cargo test --workspace` PASS | 187 | 204 | 234 | 254 | 261 | 261 |
-| ignored | 20 | 29 | 29 | 29 | 29 | 29 |
-| failed | 0 | 0 | 0 | 0 | 0 | 0 |
-| Trust Root manifest entries | 20 | 24 | 24 | 26 | 27 | 30 |
+|        | A0a baseline | A0e PASS | A4 land | A5 land | A6 land | A7 land | A8e | A8e2 |
+|---|---|---|---|---|---|---|---|---|
+| `cargo test --workspace` PASS | 187 | 204 | 234 | 254 | 261 | 261 | 264 | 265 |
+| ignored | 20 | 29 | 29 | 29 | 29 | 29 | 29 | 29 |
+| failed | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Trust Root manifest entries | 20 | 24 | 24 | 27 | 28 | 31 | 33 | 34 |
+| Python `test_llm_proxy.py` | — | — | — | — | — | — | 15/15 | 15/15 |
+
+(Trust Root counts re-tabulated in A8e2 fix G3: A3's `agent_models.rs` was already in TR before A1, which the round-1 packet undercounted by 1. A8e2 adds `tests/llm_proxy_python_conformance.rs` to TR, raising the count to 34.)
 
 A7 added no new Rust tests (plumbing + integration gate; acceptance via `scripts/smoke_siliconflow.sh` PASS verified 2026-04-26 04:58 UTC).
 
@@ -114,15 +167,16 @@ The PREREG amendment shifted the Phase B → C gate. From the Phase A perspectiv
 - ✅ B1–B7 + B7-extra mode toggle infrastructure complete (pre-Phase A baseline; round-4 PASS/PASS).
 - ✅ Phase A0 harness modernization complete (`62c4e14`).
 - ✅ Tools qualified per case C-075 (DO-178C tool qualification): `runner.sh`, `compute_p0.py`, evaluator boot enforcement, etc.
-- ✅ Trust Root verifies clean (`boot::tests::verify_trust_root_passes_on_intact_repo` PASS at 30-entry manifest).
+- ✅ Trust Root verifies clean (`boot::tests::verify_trust_root_passes_on_intact_repo` PASS at 34-entry manifest post-A8e2).
 
 ## § 5. Risks and known limitations entering Phase B
 
 1. **`per_agent` budget regime untested at runtime**. A5 unit tests verify the scaling math (`base × N`) and env-coupled resolver. No live-LLM run with `BUDGET_REGIME=per_agent` has been smoked. Phase B kernel instrumentation will be the first opportunity to observe its behavior on a real problem; defer treatment to PREREG re-calibration if any anomaly surfaces.
-2. **FC-trace coverage is sparse**. 6 wired anchor sites cover the HALT decomposition (FC2-N22 in 4 distinct exit paths) and one verify bracket. FC1-N11 ∏p decision diversity, FC1-E18 preserve-Q_t, and FC3-N31 WAL append are NOT yet emitting events — the `FcId` enum reserves the variants but no call site uses them. Phase B+ kernel instrumentation should fill these in as the Phase B emit boundary lands.
+2. **FC-trace coverage still partial after A8e**. 9 wired anchor sites now cover HALT decomposition (FC2-N22 × 4 exit paths) + mr tick (FC2-N20) + Lean oracle scope (FC1-N12 × 4 sites: oneshot + swarm `verify_omega_detailed` × 2 + swarm `verify_partial`). Still NOT emitting: FC1-N7 prompt-build, FC1-N11 ∏p decision diversity (per-proposal), FC1-E18 preserve-Q_t (per ∏p=0), FC3-N31 WAL append. The `FcId` enum reserves these variants. Phase B+ kernel instrumentation should fill them in as the Phase B emit boundary lands.
 3. **SiliconFlow rate-limit at scale**. A7 verified 3 keys responding individually at N=1 concurrency. V3L-27 demonstrates collapse at N=30 single-key. The v4 multi-key round-robin should triple the safe N envelope but the actual sweet spot for our hetero swarm is unmeasured. Phase D heterogeneous-batch design should land a `--max-concurrency` knob (currently `LLM_PROXY_CONCURRENCY=5` env in proxy) tuned per provider.
 4. **Heterogeneous swarm = Phase D, not B/C**. Per F-2026-04-25-02 + the `agent_models.rs` `PHASE_D_HETERO_GATE_ENV_VAR` invariant, Phases B and C MUST stay single-model so ablation axes are not confounded. A7's plumbing exists for future Phase D work; Phase B uses the existing `deepseek-v4-flash` thinking-off backbone unchanged.
-5. **No FC1-N12 emit in `run_swarm` verify path**. A6 wired FC1-N12 only in `run_oneshot`. The two `verify_omega_detailed` and one `verify_partial` brackets in `run_swarm` still increment `verifier_wait_ms` (A4) but don't emit FC events. Phase B kernel instrumentation should add these (one event per Lean call, with verdict + elapsed_ms).
+
+(Round-1 risk #5 "No FC1-N12 emit in run_swarm verify path" was CLOSED by A8e fix F4 — both auditors flagged the staleness in round-2 (Codex R2#3, Gemini R2#2). Removed from this list.)
 
 ## § 6. Specific questions for auditors
 
@@ -161,8 +215,8 @@ The PREREG amendment shifted the Phase B → C gate. From the Phase A perspectiv
 - (Q6.c) `.env` (containing live API keys) is gitignored and NOT in Trust Root. Should the absence of `.env` be a Trust Root constraint (boot fails if `.env` is missing OR if it's tracked)?
 
 ### Q7 — Phase A → B exit decision
-- (Q7.a) Verify `cargo test --workspace` PASS count: 261 / 29 ignored / 0 failed. Spot-check by re-running.
-- (Q7.b) Verify `boot::tests::verify_trust_root_passes_on_intact_repo` PASS at 30-entry manifest.
+- (Q7.a) Verify `cargo test --workspace` PASS count: 265 / 29 ignored / 0 failed (post-A8e2; +1 over A8e from the new Python-conformance Rust wrapper). Spot-check by re-running.
+- (Q7.b) Verify `boot::tests::verify_trust_root_passes_on_intact_repo` PASS at 34-entry manifest (post-A8e2; +1 over A8e from `tests/llm_proxy_python_conformance.rs`).
 - (Q7.c) Verify `scripts/smoke_siliconflow.sh` PASS (live API; cost ~$0.005).
 - (Q7.d) Are there OPEN P0 defects from any earlier Phase A audit (A0e CHALLENGE/CHALLENGE → 7 fixes)? Re-read the A0e audit + verify each of the 7 items closed.
 - (Q7.e) Phase B's first sub-atom is "JSONL schema v2 + C_i full-cost aggregator" (notepad). Are there any Phase A artifacts that would BLOCK that scope? E.g., schema fields needed by B1 that aren't yet in `RunAggregate`?

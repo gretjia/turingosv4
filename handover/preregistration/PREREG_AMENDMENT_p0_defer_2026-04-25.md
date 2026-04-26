@@ -92,8 +92,8 @@ Manifest size: 24 → 25 entries.
 Per case C-073 ArchitectAI commit workflow: this amendment requires dual audit (Codex + Gemini, conservative VETO > CHALLENGE > PASS) before commit lands. Audit packet should specifically test:
 
 - Does the amendment violate any PREREG § 5.5 constraint? (Should not — defer is operationally permitted given § 5.5 ceiling.)
-- Does substitution of `p_0 = 0.10` invalidate any Gate H statistical claim? (Should not — strictest plausible bar is conservative; no Type-I inflation.)
-- Does deferral leave any phase blocked indefinitely? (Should not — § 3 lists explicit re-calibration conditions; if those never met, Phase E proceeds with the conservative substitution per § 2 final paragraph.)
+- Does substitution of `p_0 = 0.10` invalidate any Gate H statistical claim? (Should not — `j-RR` is descriptive (PREREG § 5.4), outside the inferential family, so no Type-I inflation. Per § 2 wording correction: 0.10 is the LEAST-strict admissible ceiling, NOT a tighter-than-original substitute — the substitution may be less protective than an eventual calibrated `p_0 < 0.10`, accepted because Gate H is Phase E and § 3 conditions ensure calibration runs first.)
+- Does deferral leave any phase blocked indefinitely? (Should not — § 3 lists explicit re-calibration conditions; if those never met, Phase E proceeds with the operationally-permitted ceiling substitution per § 2 final paragraph.)
 
 ## § 9. Cross-references
 

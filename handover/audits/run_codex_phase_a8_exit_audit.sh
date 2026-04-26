@@ -4,7 +4,10 @@
 set -euo pipefail
 
 ROOT="/home/zephryj/projects/turingosv4"
-OUT="${ROOT}/handover/audits/CODEX_PHASE_A8_EXIT_AUDIT_2026-04-26.md"
+# Round-2 output (post-A8e fixes). Round-1 transcript is at
+# CODEX_PHASE_A8_EXIT_AUDIT_2026-04-26.md (without the _R2 suffix).
+ROUND="${A8_AUDIT_ROUND:-R2}"
+OUT="${ROOT}/handover/audits/CODEX_PHASE_A8_EXIT_AUDIT_2026-04-26_${ROUND}.md"
 TMP_PROMPT="$(mktemp /tmp/codex_a8_exit.XXXXXX.md)"
 trap 'rm -f "$TMP_PROMPT"' EXIT
 
@@ -42,11 +45,13 @@ for f in \
     experiments/minif2f_v4/src/agent_models.rs \
     experiments/minif2f_v4/src/budget_regime.rs \
     experiments/minif2f_v4/src/fc_trace.rs \
+    experiments/minif2f_v4/src/run_id.rs \
     experiments/minif2f_v4/src/jsonl_schema.rs \
     experiments/minif2f_v4/src/bin/evaluator.rs \
     src/drivers/llm_proxy.py \
     scripts/smoke_siliconflow.sh \
     scripts/_smoke_siliconflow.py \
+    scripts/test_llm_proxy.py \
     experiments/minif2f_v4/tests/fc_trace_smoke.rs \
     experiments/minif2f_v4/tests/trust_root_immutability.rs \
     experiments/minif2f_v4/examples/fc_trace_emit_one.rs \
@@ -72,11 +77,12 @@ echo "[codex a8 exit] prompt size: ${prompt_size} chars" >&2
 
 t0=$(date +%s)
 {
-  printf '# Codex Phase A → B Exit Audit (PPUT-CCL arc)\n'
-  printf '**Date**: 2026-04-26\n'
-  printf '**Commits**: 2e7f75a / d8950ee / 2a65339 / e94e1b9 / 62c4e14 / 6be6eb4 / 180a300 / 7f4bc0c / a5c78e4 / 30f2a14 / 89994c7 / 90953d6\n'
-  printf '**Test baseline**: 261 PASS + 29 ignored + 0 failed (cumulative across A0–A7)\n'
-  printf '**Trust Root**: 30-entry manifest verifies clean\n'
+  printf '# Codex Phase A → B Exit Audit (PPUT-CCL arc) — round 2\n'
+  printf '**Date**: 2026-04-26 (post A8e fixes)\n'
+  printf '**Round**: %s\n' "$ROUND"
+  printf '**Commits**: 2e7f75a / d8950ee / 2a65339 / e94e1b9 / 62c4e14 / 6be6eb4 / 180a300 / 7f4bc0c / a5c78e4 / 30f2a14 / 89994c7 / 90953d6 / 60292dc / 5a56ff6\n'
+  printf '**Test baseline**: 264 PASS + 29 ignored + 0 failed (Rust); 15/15 PASS (Python proxy tests)\n'
+  printf '**Trust Root**: 33-entry manifest verifies clean\n'
   printf '**Prompt size**: %s chars\n\n---\n\n' "$prompt_size"
   codex exec --skip-git-repo-check < "$TMP_PROMPT" 2>&1
 } > "$OUT"

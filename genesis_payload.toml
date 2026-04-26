@@ -64,11 +64,11 @@
 #       conservative ceiling until 5 re-calibration conditions met;
 #       per case C-073 ArchitectAI commit authority)
 #
-# Total: 31 files. Progression A0=24 → A1=25 (PREREG amendment) → A3=26
+# Total: 34 files. Progression A0=24 → A1=25 (PREREG amendment) → A3=26
 # (agent_models.rs) → A5=27 (budget_regime.rs) → A6=28 (fc_trace.rs) →
-# A7=31 (llm_proxy.py + 2 smoke scripts). The A8e fixes re-hash but do
-# not add new files; A8e's run_id.rs + scripts/test_llm_proxy.py move
-# the count to 33. genesis_payload.toml itself is conceptually frozen but
+# A7=31 (llm_proxy.py + 2 smoke scripts) → A8e=33 (run_id.rs +
+# test_llm_proxy.py) → A8e2=34 (llm_proxy_python_conformance.rs Rust
+# wrapper). genesis_payload.toml itself is conceptually frozen but
 # not self-hashed (chicken-and-egg) — the [pput_accounting_0] section
 # values are the semantic anchor.
 #
@@ -120,4 +120,5 @@ n_max = 34
 "cases/MANIFEST.sha256" = "dbe48bc11cac18ad1164c55b11aefd5be4a7b546e31c3df08fb4403c7f41e90d"
 "handover/preregistration/PPUT_CCL_SPLITS_2026-04-26.json" = "69be702e3e0a4bb33c62bd02056495309289fd9271972dc733b4a1ba3dd908e1"
 "handover/preregistration/PREREG_PPUT_CCL_2026-04-26.md" = "64d565b4451d1f770425530bb7ffa874da602ddfd9d714ce7f7db6bbfab69463"
-"handover/preregistration/PREREG_AMENDMENT_p0_defer_2026-04-25.md" = "313994c629729cc7ac0882de981444a5cfb3fdd5d3c9566c82ba5d3fe5626911"
+"handover/preregistration/PREREG_AMENDMENT_p0_defer_2026-04-25.md" = "820645d2a5cc8aaeda3d68b923a874934206bb1c0ae7b4356e94148b90c28b4c"
+"experiments/minif2f_v4/tests/llm_proxy_python_conformance.rs" = "ed42a2dc7f6c74ea184ebb2a24296f322a717b6bfbadf2b97060882ab98217f2"

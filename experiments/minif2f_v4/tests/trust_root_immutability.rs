@@ -118,6 +118,8 @@ fn test_trust_root_manifest_includes_b2_b4_files() {
         "experiments/minif2f_v4/src/run_id.rs",
         // A8e fix F2/F3: routing matrix + round-robin Python conformance tests
         "scripts/test_llm_proxy.py",
+        // A8e2 fix G1: Rust wrapper that runs the Python suite on every cargo test
+        "experiments/minif2f_v4/tests/llm_proxy_python_conformance.rs",
         // 2026-04-25 dual-audit fixes
         "src/main.rs",
         "Cargo.lock",
