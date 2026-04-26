@@ -83,12 +83,12 @@ echo "[codex a8 exit] prompt size: ${prompt_size} chars" >&2
 
 t0=$(date +%s)
 {
-  printf '# Codex Phase A → B Exit Audit (PPUT-CCL arc) — round 2\n'
-  printf '**Date**: 2026-04-26 (post A8e fixes)\n'
+  printf '# Codex Phase A → B Exit Audit (PPUT-CCL arc)\n'
   printf '**Round**: %s\n' "$ROUND"
-  printf '**Commits**: 2e7f75a / d8950ee / 2a65339 / e94e1b9 / 62c4e14 / 6be6eb4 / 180a300 / 7f4bc0c / a5c78e4 / 30f2a14 / 89994c7 / 90953d6 / 60292dc / 5a56ff6\n'
-  printf '**Test baseline**: 264 PASS + 29 ignored + 0 failed (Rust); 15/15 PASS (Python proxy tests)\n'
-  printf '**Trust Root**: 33-entry manifest verifies clean\n'
+  printf '**Date**: 2026-04-26\n'
+  printf '**Reference**: see `handover/audits/A8_AUDIT_HISTORY_2026-04-26.md` for full chronology including atom commit chain + per-round verdicts/fixes.\n'
+  printf '**Test baseline**: 265 PASS + 29 ignored + 0 failed (Rust); 16/16 PASS (Python proxy tests)\n'
+  printf '**Trust Root**: 35-entry manifest verifies clean\n'
   printf '**Prompt size**: %s chars\n\n---\n\n' "$prompt_size"
   codex exec --skip-git-repo-check < "$TMP_PROMPT" 2>&1
 } > "$OUT"

@@ -122,15 +122,15 @@ round_label = _os.environ.get("A8_AUDIT_ROUND", "R2")
 text = data["candidates"][0]["content"]["parts"][0]["text"]
 out = ROOT / f"handover/audits/GEMINI_PHASE_A8_EXIT_AUDIT_2026-04-26_{round_label}.md"
 header = (
-    f"# Gemini Phase A → B Exit Audit (PPUT-CCL arc) — round 2\n"
-    f"**Date**: 2026-04-26 (post A8e fixes)\n"
+    f"# Gemini Phase A → B Exit Audit (PPUT-CCL arc)\n"
     f"**Round**: {round_label}\n"
-    f"**Commits**: 2e7f75a / d8950ee / 2a65339 / e94e1b9 / 62c4e14 / "
-    f"6be6eb4 / 180a300 / 7f4bc0c / a5c78e4 / 30f2a14 / 89994c7 / 90953d6 / "
-    f"60292dc / 5a56ff6\n"
-    f"**Test baseline**: 264 PASS + 29 ignored + 0 failed (Rust); "
-    f"15/15 PASS (Python proxy tests)\n"
-    f"**Trust Root**: 33-entry manifest verifies clean\n"
+    f"**Date**: 2026-04-26\n"
+    f"**Reference**: see `handover/audits/A8_AUDIT_HISTORY_2026-04-26.md` "
+    f"for full chronology including atom commit chain + per-round "
+    f"verdicts/fixes.\n"
+    f"**Test baseline**: 265 PASS + 29 ignored + 0 failed (Rust); "
+    f"16/16 PASS (Python proxy tests)\n"
+    f"**Trust Root**: 35-entry manifest verifies clean\n"
     f"**Elapsed**: {elapsed:.1f}s\n"
     f"**Prompt size**: {len(brief):,} chars\n\n---\n\n"
 )

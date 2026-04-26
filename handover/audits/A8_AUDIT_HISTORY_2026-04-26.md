@@ -197,12 +197,36 @@
    The amendment claims both "calibration must run before Phase E" AND "ceiling-substitution is acceptable at Phase E without calibration". Cannot be both true.
 5. (Gemini R7#2) Audit runner scripts don't append `experiments/minif2f_v4/tests/llm_proxy_python_conformance.rs` to source files — Q1.c (verify fail-closed) cannot be verified from the packet alone.
 
-**Round-7 fixes shipped (`A8e8`, commit `<aaedc9d-successor>`)** — five fixes:
+**Round-7 fixes shipped (`A8e8`, commit `857872e`)** — five fixes:
 - **M1** (Codex R7#1): Packet TR count bumped 34 → 35 wherever cited.
 - **M2** (Codex R7#2): This history doc's A8e7 entry now stamps the actual SHA `aaedc9d` and round-7 verdicts (above) instead of "pending". Round-7 history sealed.
 - **M3** (Codex R7#3 + Gemini R7#1): Packet rewritten to remove ALL historical lineage text. The packet describes the post-A8e6 state directly — e.g. "9 wired FC-trace anchor sites" with no breakdown of which fix added which. The HOW lives ONLY in this history doc.
 - **M4** (Codex R7#4): PREREG_AMENDMENT § 2 + § 3 + § 8 reconciled: removed the false claim that § 3 "ensures calibration before Phase E"; § 8 now reads as the operative rule (Phase E proceeds with the substitution if § 3 conditions haven't completed). Clean single semantics: substitution is permitted throughout Phase B → Phase E; calibration UPGRADES the bar IF and WHEN the § 3 conditions all complete. Re-hashed in Trust Root.
 - **M5** (Gemini R7#2): Audit runner scripts now append `experiments/minif2f_v4/tests/llm_proxy_python_conformance.rs` so Q1.c is verifiable from the packet bundle alone.
+
+---
+
+## Round 8 (2026-04-26) — post-A8e8
+
+**Inputs**:
+- Packet: `A8_EXIT_PACKET_2026-04-26.md` @ commit `857872e` (post-A8e8)
+- Test baseline: 265 PASS / 29 ignored / 0 failed (Rust); 16/16 PASS (Python)
+- Trust Root: 35-entry manifest
+
+**Verdicts**:
+- Codex R8: **CHALLENGE / high** — `handover/audits/CODEX_PHASE_A8_EXIT_AUDIT_2026-04-26_R8.md`
+- Gemini R8: **PASS / high** → PROCEED — `handover/audits/GEMINI_PHASE_A8_EXIT_AUDIT_2026-04-26_R8.md`
+- Merged: **CHALLENGE**. Conservative merge wins per memory; substantive Codex finding (PREREG § 8 stale claim parallel to M4-fixed § 2) requires closure.
+
+**Findings** (3 Codex; Gemini found no defects):
+1. (**Codex R8#1 — substantive**) PREREG_AMENDMENT § 8's audit-requirements text still contains the stale claim "Gate H is Phase E and § 3 conditions ensure calibration runs first" — round-7 M4 fixed § 2(b)'s identical false claim but missed the parallel text in § 8. Logical contradiction with the post-M4 § 2 + § 3 framing.
+2. (Codex R8#2) This history doc's round-7 entry left an unresolved placeholder `<aaedc9d-successor>` for the A8e8 commit SHA; cumulative table row 7 still says "pending pending pending" despite round-7 verdicts being recorded above.
+3. (Codex R8#3) Audit runner scripts default `A8_AUDIT_ROUND=R2` (oldest fallback) and emit pre-A8e header metadata ("261 PASS / 30-entry manifest") — re-running the runners regenerates stale audit artifacts.
+
+**Round-8 fixes shipped (`A8e9`, this commit)** — three fixes:
+- **N1** (Codex R8#1): PREREG_AMENDMENT § 8 reworded to remove the residual "ensure calibration runs first" claim. Now consistent with § 2's least-strict-admissible framing across all three sections.
+- **N2** (Codex R8#2): Round-7 entry stamped with actual A8e8 SHA `857872e`; cumulative table row 7 sealed with the actual round-7 verdicts (CHALLENGE/CHALLENGE) and finding count (4 Codex + 2 Gemini, including 1 substantive PREREG logic finding); round-8 row added with this round's verdicts.
+- **N3** (Codex R8#3): Runner scripts default `A8_AUDIT_ROUND` updated; header metadata refreshed to current state (265 PASS / 35-entry manifest).
 
 ---
 
@@ -216,6 +240,8 @@
 | 4 | CHALLENGE | PASS | CHALLENGE | 4 (incl. 1 non-blocking) | 0 | ~5 |
 | 5 | CHALLENGE | PASS | CHALLENGE | 3 (incl. 1 non-blocking) | 0 | ~5 |
 | 6 | CHALLENGE | CHALLENGE | CHALLENGE | 5 | **1 (K2 routing)** | ~5 |
-| 7 | pending | pending | pending | — | — | ~5 |
+| 7 | CHALLENGE | CHALLENGE | CHALLENGE | 6 | **1 (M4 PREREG § 2 logic)** | ~5 |
+| 8 | CHALLENGE | **PASS** | CHALLENGE | 3 | **1 (N1 PREREG § 8 logic)** | ~5 |
+| 9 | pending | pending | pending | — | — | ~5 |
 
-Cumulative cost so far ~$30; well within memory `feedback_dual_audit` Phase A reservation. Real-bug yield: 6 substantive findings caught + closed (5 in R1, 1 in R3, 1 in R6 = 7 real bugs discovered + fixed pre-Phase B). Remaining CHALLENGE findings post-A8e6 are pure documentary, traceable to the category error A8e7 now addresses.
+Cumulative cost so far ~$45 (8 rounds × ~$5–7); within memory `feedback_dual_audit` Phase A reservation. **Real-bug yield: 9 substantive findings caught + closed across 8 rounds** (5 routing/correctness in R1, 1 fail-closed gate in R3, 1 routing collision in R6, 1 PREREG § 2 logic in R7, 1 PREREG § 8 logic in R8 = 9 real bugs discovered + fixed pre-Phase B). The recurring documentary CHALLENGE class persisted longer than expected because each round's fix touched documentation in ways that left adjacent staleness; the A8e7 structural rewrite addressed the root cause (category error) but its implementation needed two more cycles (A8e8 + A8e9) to fully complete the lineage strip + cross-section consistency.
