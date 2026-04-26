@@ -1,0 +1,32 @@
+id: "R-020"
+name: "commit_claim_diff_parity_warn"
+source_incidents:
+  - "A8 round-9 audit Codex finding R9#1 (false-closure on A8e9 N3)"
+  - "A8 round-10 substantive findings R10#1 + R10#2 (gaps the prior commit's fix-claims missed)"
+  - "Cumulative across rounds 7–10 of Phase A→B exit audit: ≥3 rounds dominated by false-closure findings"
+fc_trace: "FC3 (read-only / log subgraph) — commit messages are governance artifacts per case C-073; misrepresenting fix coverage is silent governance drift"
+axiom: "Case C-076 (this rule's parent precedent) — every commit message asserting ≥2 distinct fix items requires per-fix `Verified:` line proving the diff actually contains the asserted change. WARN at pre-commit reminds the committer; verification itself is the committer's responsibility."
+
+trigger: "pre_commit"
+# Implementation: inline in `.claude/hooks/judge.sh`, not via Python
+# rule engine. R-020 fires on `git commit` invocations and detects
+# multi-fix-bundle messages by looking for ≥2 of these patterns:
+#   - Fix-tag pattern: `\b[A-Z][0-9]+\b` (F1, F2, M1, N1, K2, P1, etc)
+#   - Bullet "fixed:" / "closed:" / "corrected:" / "updated:" headers
+# WHEN ≥2 detected: warn that every claim needs a `Verified:` proof
+# line per C-076 Rule 1.
+
+check:
+  type: "noop_yaml"  # actual logic is in judge.sh; this yaml is the
+                     # constitutional reference + Trust Root anchor
+                     # (rules/MANIFEST.sha256 → genesis_payload.toml).
+  pattern: "n/a — see judge.sh inline implementation under R-016 sibling block"
+
+file_glob: "n/a"  # not file-Edit-triggered; git-commit-triggered
+enforcement: "warn"
+
+message: "R-020 (FC3 / case C-076): multi-fix-bundle commit detected (≥2 fix tags / bullets). Per C-076 Rule 1, every fix-claim in the message body MUST be paired with a `Verified:` proof line (typically `grep -n` or `sed -n` showing the diff contains the asserted change). Missing verification = false-closure risk; round-9 of the A8 audit caught one (A8e9 N3 claimed runner-default fix that wasn't shipped). Cost of a Verified line: ~30s. Cost of a false-closure: ~$5–7 in next-round dual-audit + 1 round delay."
+
+stats:
+  times_triggered: 0
+  last_triggered: ""

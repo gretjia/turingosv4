@@ -48,7 +48,7 @@
 #       a frozen production tool)
 #
 #   2026-04-25 Phase A0 harness modernization (4):
-#     rules/MANIFEST.sha256 (proxy for 14 rules/active/R-*.yaml — governance
+#     rules/MANIFEST.sha256 (proxy for 15 rules/active/R-*.yaml as of A8e12 — governance
 #       rules that must not be silently weakened; per case C-075 DO-178C
 #       tool qualification)
 #     rules/engine.py (rule engine; tampering = silent rule bypass)
@@ -99,9 +99,9 @@ n_max = 34
 "Cargo.lock" = "577446e8fe11e91bc8751bf13e5ddca6c5faa64d3309b878768c550d3e6feb98"
 "handover/preregistration/scripts/run_p0_calibration.sh" = "5f4a57dd8b8280ffe04bec89350a57d876d06cc179d9f8841a522e7bdcf1b8b7"
 "handover/preregistration/scripts/compute_p0.py" = "fd1dff97d582f4f509249852be500cba7d81efc9bab8fcb9872b2d85bb4e3052"
-"rules/MANIFEST.sha256" = "a84d114a12680c596e1a5458a954a5829b21baa4530f197b9aba65f95443be14"
+"rules/MANIFEST.sha256" = "67410511787a2b9f6e276542ec5fd5f47e91daf0e307714f157fd28dd3a4f232"
 "rules/engine.py" = "932d9a2b7a3249a7eb5825c0b5c714a9913cd9aa9e058f789e64992b140e40b3"
-".claude/hooks/judge.sh" = "a2be9e6ed51e39f2e9cfd302d62a0234a772abc41f145702143d2557dd6fda3e"
+".claude/hooks/judge.sh" = "f1f8f5094057dcea3c345951f7e73fd4d269f074a407829f19e4d75830a55fc2"
 "tests/fc_alignment_conformance.rs" = "b3e75979ad2d175b9c45135be6ea1d94ce95184c6896468330c12dbfc1f719db"
 "src/kernel.rs" = "893fd67534caf7a3d9abd6efbd202556348b6491cd6d4c6bdb224d2ad75b1af0"
 "src/wal.rs" = "1ac7637aa09531b1c7232163f5df48f7193251594c4ed20e0d0fc85cea8f84dc"
@@ -124,11 +124,11 @@ n_max = 34
 "experiments/minif2f_v4/src/run_id.rs" = "5ff9db039131eaf4efeb65303d886265ef4c4f7e0e0f743467a7cbf22061781c"
 "experiments/minif2f_v4/src/bin/evaluator.rs" = "290b2f0be3edc43b7f439506bf650743cd268a0b76ddd489fb3e5cc1da9a24ba"
 "constitution.md" = "91e5913603eebaf134ac93d0f9ed7bb2b7916132203f6c2fae84d73329056ad6"
-"cases/MANIFEST.sha256" = "dbe48bc11cac18ad1164c55b11aefd5be4a7b546e31c3df08fb4403c7f41e90d"
+"cases/MANIFEST.sha256" = "c839f6f950f5f779d2679de8a2fef3d1ac0a30cd584adf754d2cc0b99855d353"
 "handover/preregistration/PPUT_CCL_SPLITS_2026-04-26.json" = "69be702e3e0a4bb33c62bd02056495309289fd9271972dc733b4a1ba3dd908e1"
 "handover/preregistration/PREREG_PPUT_CCL_2026-04-26.md" = "64d565b4451d1f770425530bb7ffa874da602ddfd9d714ce7f7db6bbfab69463"
 "handover/preregistration/PREREG_AMENDMENT_p0_defer_2026-04-25.md" = "e1a0c97921fd77bd5a1268589bafbdc90e18e26a4feb6c86c6d8a91048d095e1"
 "experiments/minif2f_v4/tests/llm_proxy_python_conformance.rs" = "d62ee67cb564355fa26959c1f92a1152f95ab55d987c005abf7810e2da7b83b8"
 "handover/audits/A8_AUDIT_HISTORY_2026-04-26.md" = "460426fb6d8962f47b3ac3370e2d35c09f5f4cec74b38c8124a87224d8e8a1e2"
-"handover/audits/run_codex_phase_a8_exit_audit.sh" = "db1000236b79b53148eec431276089cd268ade29d7cff9ca6547b49a758e63b9"
-"handover/audits/run_gemini_phase_a8_exit_audit.py" = "250503d547cfd71354a9e11582d7e4e5bbefabc50c974f6e1014fa5b9386034c"
+"handover/audits/run_codex_phase_a8_exit_audit.sh" = "a4555bd097eedc611a10692b91c26bfa4c0a9e76ef3087dba88f21bf5b2c7742"
+"handover/audits/run_gemini_phase_a8_exit_audit.py" = "529a1b7ea8c870bec8083d0177854c41a8cc1c2c64836027bad9c71f55b441cc"

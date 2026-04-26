@@ -103,7 +103,7 @@ t0=$(date +%s)
   printf '**Date**: 2026-04-26\n'
   printf '**Reference**: see `handover/audits/A8_AUDIT_HISTORY_2026-04-26.md` for full chronology including atom commit chain + per-round verdicts/fixes.\n'
   printf '**Test baseline**: 265 PASS + 29 ignored + 0 failed (Rust); 16/16 PASS (Python proxy tests)\n'
-  printf '**Trust Root**: 35-entry manifest verifies clean\n'
+  printf '**Trust Root**: 37-entry manifest verifies clean\n'
   printf '**Prompt size**: %s chars\n\n---\n\n' "$prompt_size"
   codex exec --skip-git-repo-check < "$TMP_PROMPT" 2>&1
 } > "$OUT"

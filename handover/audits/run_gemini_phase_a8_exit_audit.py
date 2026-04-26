@@ -152,7 +152,7 @@ header = (
     f"verdicts/fixes.\n"
     f"**Test baseline**: 265 PASS + 29 ignored + 0 failed (Rust); "
     f"16/16 PASS (Python proxy tests)\n"
-    f"**Trust Root**: 35-entry manifest verifies clean\n"
+    f"**Trust Root**: 37-entry manifest verifies clean\n"
     f"**Elapsed**: {elapsed:.1f}s\n"
     f"**Prompt size**: {len(brief):,} chars\n\n---\n\n"
 )
