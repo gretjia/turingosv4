@@ -19,16 +19,21 @@
 //                     A condition). Heterogeneity gain disappears.
 //
 // Phase C atom progression:
-//   - C1a (initial commit): implement `Full` only; declare other 4
-//     startup-fatal so misconfigured runs abort before the first LLM
-//     call instead of silently falling back to Full.
-//   - C1b (this commit): wire `SoftLaw` runtime via
-//     `apply_mode_to_accept`. Soft Law's defining property: runtime
-//     gate fakes acceptance regardless of Lean verdict; post-hoc
-//     `verified` still records the Lean truth. Detection mechanism
-//     (PREREG § 5.2 H1): `pput_runtime > 0` but `pput_verified = 0`
-//     for Lean-rejected proofs.
-//   - C1c/d/e (TBD): wire Homogeneous, Panopticon, Amnesia.
+//   - C1a: implement `Full` only; declare other 4 startup-fatal so
+//     misconfigured runs abort before the first LLM call instead of
+//     silently falling back to Full.
+//   - C1b: wire `SoftLaw` runtime via `apply_mode_to_accept`. Soft
+//     Law's defining property: runtime gate fakes acceptance
+//     regardless of Lean verdict; post-hoc `verified` still records
+//     the Lean truth. Detection mechanism (PREREG § 5.2 H1):
+//     `pput_runtime > 0` but `pput_verified = 0` for Lean-rejected
+//     proofs.
+//   - C1c (this commit): wire `Homogeneous` runtime via
+//     `skill_index_for_agent`. Force every swarm agent to use
+//     skill[0] (algebraic) instead of cycling through the 3-role
+//     pool. Paper-1 era's A condition. Detection mechanism (H4):
+//     solve set narrows to single-skill reachability.
+//   - C1d/e (TBD): wire Panopticon, Amnesia.
 //
 // Pattern mirrors `budget_regime.rs` (Phase A atom A5):
 //   - pure parser  (parse_experiment_mode)
@@ -85,7 +90,10 @@ pub enum ExperimentMode {
     SoftLaw,
     /// All swarm agents share one skill prompt (Paper-1 era A
     /// condition). Detection: solve set narrows to single-skill
-    /// reachability. Phase C C1c will wire the runtime; C1a declares.
+    /// reachability per H4. C1c wires the runtime via
+    /// `skill_index_for_agent(Homogeneous, _, _) = 0` — every agent
+    /// resolves to `agent_skills[0]` (algebraic) regardless of
+    /// agent_idx, and the startup echo log shows `skill0` for all N.
     Homogeneous,
 }
 
@@ -165,20 +173,18 @@ pub fn parse_experiment_mode(s: &str) -> Result<ExperimentMode, ModeError> {
 /// of C1c/d/e progressively deletes one branch from the
 /// declared-unimplemented list.
 ///
-/// Currently wired (this commit, post-C1b):
-///   - Full      (Phase B baseline; pass-through at apply_mode_to_accept)
-///   - SoftLaw   (C1b — fakes runtime accept; pput_runtime/verified gap)
+/// Currently wired (this commit, post-C1c):
+///   - Full        (Phase B baseline; pass-through everywhere)
+///   - SoftLaw     (C1b — fakes runtime accept; pput_runtime/verified gap)
+///   - Homogeneous (C1c — all agents use skill[0]; H4 detection)
 ///
 /// Still declared-unimplemented (startup-fatal):
-///   - Homogeneous (C1c)
 ///   - Panopticon  (C1d)
 ///   - Amnesia     (C1e)
 pub fn ensure_implemented(mode: ExperimentMode) -> Result<ExperimentMode, ModeError> {
     match mode {
-        ExperimentMode::Full | ExperimentMode::SoftLaw => Ok(mode),
-        ExperimentMode::Panopticon
-        | ExperimentMode::Amnesia
-        | ExperimentMode::Homogeneous => Err(ModeError::UnimplementedMode(mode)),
+        ExperimentMode::Full | ExperimentMode::SoftLaw | ExperimentMode::Homogeneous => Ok(mode),
+        ExperimentMode::Panopticon | ExperimentMode::Amnesia => Err(ModeError::UnimplementedMode(mode)),
     }
 }
 
@@ -222,6 +228,43 @@ pub fn apply_mode_to_accept(
         | ExperimentMode::Panopticon
         | ExperimentMode::Amnesia
         | ExperimentMode::Homogeneous => (lean_runtime_accepted, lean_post_hoc_verified),
+    }
+}
+
+/// TRACE_MATRIX FC1-N7 + Art. II.2.1: select the skill index for a
+/// swarm agent given the experiment mode. Pure.
+///
+/// The full skill pool (currently 3: algebraic / structural /
+/// rewriting) is owned by the caller (run_swarm); this helper just
+/// chooses the index.
+///
+/// Mode behaviors:
+///   - **Homogeneous**: always 0 (every agent resolves to skill[0]
+///     regardless of agent_idx). Forces single-skill reachability —
+///     PREREG § 5.2 H4's defining axis. Paper-1 era's A condition.
+///   - **Full / SoftLaw / Panopticon / Amnesia**: cycle through the
+///     pool by `agent_idx % n_skills`. Heterogeneity per Art. II.2.1
+///     ("不能抹杀群体异质性"); SoftLaw doesn't change skill axis,
+///     only the accept axis; Panopticon and Amnesia diverge at
+///     prompt construction (still TBD per C1d/e).
+///
+/// Edge case: `n_skills == 0` returns 0 (caller's lookup will return
+/// the empty-string default; equivalent to no-skill prompt). The
+/// production path always has n_skills == 3 today.
+pub fn skill_index_for_agent(
+    mode: ExperimentMode,
+    agent_idx: usize,
+    n_skills: usize,
+) -> usize {
+    if n_skills == 0 {
+        return 0;
+    }
+    match mode {
+        ExperimentMode::Homogeneous => 0,
+        ExperimentMode::Full
+        | ExperimentMode::SoftLaw
+        | ExperimentMode::Panopticon
+        | ExperimentMode::Amnesia => agent_idx % n_skills,
     }
 }
 
@@ -339,16 +382,16 @@ mod tests {
     }
 
     #[test]
-    fn ensure_implemented_post_c1b_full_and_soft_law() {
-        // C1b deletes SoftLaw from the unimplemented list.
-        for m in [ExperimentMode::Full, ExperimentMode::SoftLaw] {
-            assert_eq!(ensure_implemented(m).unwrap(), m);
-        }
+    fn ensure_implemented_post_c1c_full_soft_law_homogeneous() {
+        // C1c deletes Homogeneous from the unimplemented list.
         for m in [
-            ExperimentMode::Panopticon,
-            ExperimentMode::Amnesia,
+            ExperimentMode::Full,
+            ExperimentMode::SoftLaw,
             ExperimentMode::Homogeneous,
         ] {
+            assert_eq!(ensure_implemented(m).unwrap(), m);
+        }
+        for m in [ExperimentMode::Panopticon, ExperimentMode::Amnesia] {
             match ensure_implemented(m) {
                 Err(ModeError::UnimplementedMode(got)) => assert_eq!(got, m),
                 other => panic!("expected UnimplementedMode({:?}), got {:?}", m, other),
@@ -454,6 +497,76 @@ mod tests {
         }
     }
 
+    // --- skill_index_for_agent ---
+
+    #[test]
+    fn skill_idx_full_cycles_modulo() {
+        // Full mode preserves the heterogeneous cycling pattern.
+        for n_skills in [1usize, 2, 3, 5] {
+            for idx in 0..(2 * n_skills) {
+                assert_eq!(
+                    skill_index_for_agent(ExperimentMode::Full, idx, n_skills),
+                    idx % n_skills,
+                    "Full should cycle modulo n_skills (idx={}, n={})", idx, n_skills,
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn skill_idx_homogeneous_always_zero() {
+        // Homogeneous mode resolves every agent to skill[0]. This
+        // is H4's defining axis — Paper-1 era's A condition.
+        for n_skills in [1usize, 2, 3, 5, 13] {
+            for idx in 0..20 {
+                assert_eq!(
+                    skill_index_for_agent(ExperimentMode::Homogeneous, idx, n_skills),
+                    0,
+                    "Homogeneous must return 0 (idx={}, n={})", idx, n_skills,
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn skill_idx_other_modes_passthrough() {
+        // SoftLaw / Panopticon / Amnesia don't change the skill axis;
+        // they diverge at the accept axis (SoftLaw) or prompt context
+        // (Panopticon / Amnesia, when wired).
+        for m in [
+            ExperimentMode::SoftLaw,
+            ExperimentMode::Panopticon,
+            ExperimentMode::Amnesia,
+        ] {
+            for n_skills in [1usize, 2, 3, 5] {
+                for idx in 0..(2 * n_skills) {
+                    assert_eq!(
+                        skill_index_for_agent(m, idx, n_skills),
+                        idx % n_skills,
+                        "mode {:?} should be passthrough (idx={}, n={})", m, idx, n_skills,
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn skill_idx_zero_n_returns_zero() {
+        // Edge case: empty skill pool. Caller's pool lookup falls
+        // through to the empty-string default. Production has
+        // n_skills == 3 today.
+        for m in [
+            ExperimentMode::Full,
+            ExperimentMode::SoftLaw,
+            ExperimentMode::Homogeneous,
+            ExperimentMode::Panopticon,
+            ExperimentMode::Amnesia,
+        ] {
+            assert_eq!(skill_index_for_agent(m, 0, 0), 0);
+            assert_eq!(skill_index_for_agent(m, 99, 0), 0);
+        }
+    }
+
     // --- CLI argv extractor ---
 
     #[test]
@@ -541,26 +654,28 @@ mod tests {
 
     #[test]
     fn resolve_env_unimplemented_aborts() {
-        // Picks an unimplemented mode (post-C1b: homogeneous remains
-        // unimplemented along with panopticon and amnesia).
+        // Post-C1c, panopticon and amnesia remain unimplemented.
         let _guard = ENV_LOCK.lock().unwrap();
-        std::env::set_var(EXPERIMENT_MODE_ENV_VAR, "homogeneous");
+        std::env::set_var(EXPERIMENT_MODE_ENV_VAR, "panopticon");
         match resolve_experiment_mode(None) {
-            Err(ModeError::UnimplementedMode(ExperimentMode::Homogeneous)) => {}
-            other => panic!("expected UnimplementedMode(Homogeneous), got {:?}", other),
+            Err(ModeError::UnimplementedMode(ExperimentMode::Panopticon)) => {}
+            other => panic!("expected UnimplementedMode(Panopticon), got {:?}", other),
         }
         std::env::remove_var(EXPERIMENT_MODE_ENV_VAR);
     }
 
     #[test]
-    fn resolve_env_soft_law_implemented_post_c1b() {
-        // Companion to the above: soft_law passes as of C1b.
+    fn resolve_env_implemented_modes_post_c1c() {
+        // Companion: full / soft_law / homogeneous all pass startup gate.
         let _guard = ENV_LOCK.lock().unwrap();
-        std::env::set_var(EXPERIMENT_MODE_ENV_VAR, "soft_law");
-        assert_eq!(
-            resolve_experiment_mode(None).unwrap(),
-            ExperimentMode::SoftLaw
-        );
+        for (label, expected) in [
+            ("full", ExperimentMode::Full),
+            ("soft_law", ExperimentMode::SoftLaw),
+            ("homogeneous", ExperimentMode::Homogeneous),
+        ] {
+            std::env::set_var(EXPERIMENT_MODE_ENV_VAR, label);
+            assert_eq!(resolve_experiment_mode(None).unwrap(), expected);
+        }
         std::env::remove_var(EXPERIMENT_MODE_ENV_VAR);
     }
 

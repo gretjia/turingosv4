@@ -720,9 +720,14 @@ async fn run_swarm(
         .ok().and_then(|s| s.parse().ok()).unwrap_or(20);
 
     // C-036 startup echo: per-agent (skill, temp) so debugging never grep-source.
+    // C1c: skill resolution flows through experiment_mode::skill_index_for_agent
+    // so the startup echo + per-tx skill lookup share one source of truth.
+    // Homogeneous mode pins every agent to skill[0]; other modes cycle.
     let temp_ladder_on = std::env::var("TEMP_LADDER").ok().as_deref() == Some("1");
     let agent_cfg: Vec<String> = (0..n_agents).map(|i| {
-        let s = i % agent_skills.len();
+        let s = minif2f_v4::experiment_mode::skill_index_for_agent(
+            mode, i, agent_skills.len(),
+        );
         let t = if temp_ladder_on { (0.10_f64 + (i as f64) * 0.15).min(1.30) } else { 0.2 };
         format!("Agent_{}:skill{}:t={:.2}", i, s, t)
     }).collect();
@@ -926,8 +931,13 @@ async fn run_swarm(
         };
 
         let errors = bus.recent_rejections(agent_id, 3);
-        // Art. II.2.1: per-agent skill specialization + Librarian learned memory
-        let base_skill = agent_skills.get(agent_idx % agent_skills.len()).unwrap_or(&"");
+        // Art. II.2.1: per-agent skill specialization + Librarian learned memory.
+        // C1c: route skill index through experiment_mode helper so Homogeneous
+        // mode pins every agent_idx to 0 (Paper-1 era A condition; H4 detection).
+        let skill_idx = minif2f_v4::experiment_mode::skill_index_for_agent(
+            mode, agent_idx, agent_skills.len(),
+        );
+        let base_skill = agent_skills.get(skill_idx).unwrap_or(&"");
         let learned = bus.tools.iter()
             .find_map(|t| t.as_any().downcast_ref::<LibrarianTool>())
             .and_then(|lib| lib.read_agent_memory(agent_id))
