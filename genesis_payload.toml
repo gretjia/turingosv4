@@ -84,6 +84,6 @@ n_max = 34
 "experiments/minif2f_v4/src/rollback_sim.rs" = "9ccdf177813452bb83221bd780f2f7f10da619117aca8e44d3ecb355505fe561"
 "experiments/minif2f_v4/src/bin/evaluator.rs" = "2caf3f66ce26a0ef8233e21f6c730a34e369d308671c195c5abcbe7c46034665"
 "constitution.md" = "91e5913603eebaf134ac93d0f9ed7bb2b7916132203f6c2fae84d73329056ad6"
-"cases/MANIFEST.sha256" = "3759631afae97c631be9a4038479b8d3681af25885f9758c32ad88c22f17fc3f"
+"cases/MANIFEST.sha256" = "dbe48bc11cac18ad1164c55b11aefd5be4a7b546e31c3df08fb4403c7f41e90d"
 "handover/preregistration/PPUT_CCL_SPLITS_2026-04-26.json" = "69be702e3e0a4bb33c62bd02056495309289fd9271972dc733b4a1ba3dd908e1"
 "handover/preregistration/PREREG_PPUT_CCL_2026-04-26.md" = "64d565b4451d1f770425530bb7ffa874da602ddfd9d714ce7f7db6bbfab69463"

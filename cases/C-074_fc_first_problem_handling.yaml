@@ -1,0 +1,97 @@
+id: C-074
+title: "FC-first problem handling — 任何问题先 trace 到 FC1/FC2/FC3 再设计 fix"
+constitution:
+  - "FC1 (basic cycle line 326) + FC2 (init/halt/tick line 441) + FC3 (system topology line 670)"
+  - "CLAUDE.md Alignment Standard — '每个 src/ pub 符号必须映射到宪法 flowchart 元素'"
+  - "Art. V.1.3 amendment: Veto-AI 只判断违宪与否, FC anchor 是 audit 输入"
+source_lessons:
+  - "F-2026-04-25-04: B7 alignment retroactive fix (pub symbols 无 backlink)"
+  - "F-2026-04-25-08: round-3 audit lesson (fixes can introduce regressions; FC-first prevents symptom-fix)"
+
+incident: |
+  本 session 5 个明确"症状-fix"导致回归的 case:
+
+  1. B7 ship pub symbols 无 TRACE_MATRIX backlink (commit be42f43)
+     — 用户 critique → 0cc48bc 补
+     根因: ship 时没 trace 到 FC3-N34, fix 是"加 doc-comment" 而不是
+     "确认 FC anchor 后再 ship"
+
+  2. B7-extra "halt at tx 50" 无 FC 锚 → 用户"原子化对齐"critique
+     → 重 design 为 synthetic ∏p=0 + FC2-N22 MaxTxExhausted
+     根因: 设计阶段没 trace 到 FC1-E18 + FC2-N22, fix 是"找最简实现"
+     不是"先确定 FC mapping"
+
+  3. Round-1 Q7.b fix "任何非零 exit 发 synthetic UNSOLVED"
+     → round-2 Codex VETO (TRUST_ROOT_TAMPERED 被 silent absorb)
+     根因: fix 没 trace 到 thesis claim 7 (ground-truth feedback
+     不可被 silent suppress), fix 是"消除 sampling bias 症状"
+
+  4. Round-2 同类 problem_file_missing silent absorb (round-3 CHALLENGE)
+     根因: 同 (3) — 没 systematic 应用 ground-truth-feedback FC anchor
+
+  5. 576-run batch 用 deepseek-chat (alias) 而非 PREREG-pinned
+     deepseek-v4-flash (canonical) — 用户怒
+     根因: MODEL_SNAPSHOT 字段没 trace 到 FC1-N7 (δ/AI canonical
+     identity) — 把"能跑"当成"对的", 没追问"label 是否 canonical"
+
+  共同 pattern: 没 FC-trace 的 fix 倾向于"消除症状"而非"修复架构".
+
+facts: |
+  本 session 用户在 mid-session 直接提出 rule:
+    "出现问题你先对齐宪法和宪法中三个flowchart"
+
+  Memory feedback_fc_first_problem_handling.md 已永久化:
+    - Step 1: trace 问题到 FC1 / FC2 / FC3 元素
+    - Step 2: 判断 (a) 映射到具体 node/edge → fix derive from anchor
+              (b) orphan → cite cases/Cxxx 或 PREREG-§n.m 显式 justify
+              (c) 映射不到任何 FC → ESCALATE for sudo
+    - Step 3: commit message 含 `FC-trace: <FC?-N?> [role]` 或
+              `FC-trace: orphan / <ref>`
+    - Step 4: Phase 边界 7 red-line check 加第 8 条 (every commit 含 FC-trace)
+
+  R-016 fc_trace_in_commit hook 已实装 (commit 2e7f75a) — git commit
+  无 "FC-trace:" → judge.sh WARN.
+
+ruling: |
+  **本案 FC-first 流程 frozen**:
+
+  Rule 1 — Triggers (任一即触发):
+    - cargo test failure mid-atom
+    - dual audit VETO/CHALLENGE finding
+    - smoke 异常 / 假设强反
+    - cost / time / API drift 异常
+    - 未列入 failure-mode list 的新 failure mode
+
+  Rule 2 — STOP 在 patch 之前. 不允许"快速 fix":
+    在 trace 到 FC anchor 之前, 不写 code, 不 commit.
+
+  Rule 3 — Trace mechanism (优先级):
+    1. 问题"事关什么 invariant"? 找 invariant 对应 FC element
+    2. 问题"破坏了什么 edge"? 找 edge 对应 FC arrow
+    3. 问题"在哪个 subgraph 内"? 找 subgraph 对应 FCx-Sn
+
+  Rule 4 — Commit message 格式:
+    ```
+    <title>
+    FC-trace: <FC?-N?> [role: ...]  OR  FC-trace: orphan / <Cxxx | PREREG-§n.m>
+    <body>
+    ```
+
+  Rule 5 — Phase 边界 7 red-line 加第 8 条:
+    本 phase 每个 fix commit 都有 FC-trace.
+
+  Rule 6 — Escalation:
+    - Step 2 落入 (c) (无法 trace) → ESCALATE for sudo
+    - Audit 反复 (≥3 rounds) 还围绕同一 FC element → re-trace,
+      trace 本身错了, 需 redesign
+
+precedent: |
+  - **本案应用范围**: 所有 ArchitectAI commit. C-071 sudo 流程已隐含
+    FC-trace (因为 constitution amendment 自身就是 FC 元素改动).
+
+  - **FC-trace 不是 documentation overhead** — 是 architecture
+    discipline. 不能 trace 的 fix 通常是错的 fix.
+
+  - **Cross-ref**: C-073 (ArchitectAI commit 流程包含 FC-trace),
+    C-072 (Veto-AI 的"违宪与否"判定 input 就是 FC-trace),
+    memory feedback_fc_first_problem_handling.md.

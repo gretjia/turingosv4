@@ -1,0 +1,86 @@
+id: C-072
+title: "Veto-AI 范围窄化 — 输出域 {PASS, VETO}, 不做主观评判"
+constitution:
+  - "Art. V.1.3 amendment 2026-04-25: JudgeAI → Veto-AI rename"
+  - "Art. V.1.3 (post-amendment): 白名单严格排除 — 主观质量 / 性能 / 可读性 等不属 Veto-AI 职责"
+  - "FC3-N5 / FC3-E17: Veto-AI veto edge to ArchitectAI"
+source_lessons:
+  - "C-010 Audit Standard: VETO > CHALLENGE > PASS"
+  - "C-035 Generator ≠ Evaluator (现在加: ≠ Quality Reviewer)"
+
+incident: |
+  本 session round-2 dual audit 出现关键不一致:
+  - Codex: VETO (caught self-inflicted regression — TRUST_ROOT_TAMPERED 被
+           silent absorb)
+  - Gemini: PASS (没看出此 defect)
+
+  Codex VETO 是基于"违宪"判定 — round-1 fix 引入新缺陷使 ground-truth
+  feedback 被 silent suppress, 违反 thesis claim 7 (white-box predicates
+  settle on ground truth). 这是合法的 Veto-AI 输出.
+
+  Gemini PASS 也是合法 — 它没观察到该违宪.
+
+  问题是: 之前 JudgeAI 命名容易让人理解为"全面质量评审", 包括 code style /
+  performance / readability. 那样 Veto-AI 会有大量 false-positive
+  (CHALLENGE 不该 VETO) 或 false-negative (该 VETO 的真违宪被淹没在主观
+  judgment 噪声中).
+
+facts: |
+  Art. V.1.3 amendment 文字 (post-2026-04-25) 明确:
+
+    Veto-AI 唯一的工作是:
+      "拿着宪法, 反复逐条校验 ArchitectAI 生成的新架构代码是否'违宪'."
+
+    它**不**做 (白名单严格排除):
+    - 主观质量评价 (代码可读性 / 工程口味)
+    - 性能或效率评判
+    - 测试覆盖率主观打分
+    - 任何与"违宪与否"**无关**的判定
+
+    它只做一件事:
+      "否决违宪提案."
+
+    输出域 = `{PASS, VETO}` — 不承担其他主观评价.
+
+ruling: |
+  **本案 Veto-AI 行为约束 frozen**:
+
+  当前 manual Veto-AI proxy = Codex + Gemini dual audit. 每次 audit 必须
+  按以下 rule:
+
+  Rule 1 — Output domain MUST be 2-class only:
+    PASS: 没违宪发现
+    VETO: 至少一处违宪 (cite which Article / FC element)
+
+    **NOT allowed**: CHALLENGE-as-third-class, "code quality concern", "style
+    suggestion", "performance recommendation". 这些属 ArchitectAI scope
+    (Art. V.1.2), 不属 Veto-AI scope.
+
+  Rule 2 — Memory feedback_dual_audit_conflict 仍生效:
+    Codex VETO + Gemini PASS = 保守裁决 = VETO (本 session round-2 用例).
+
+  Rule 3 — CHALLENGE 是 INFORMATIONAL 不是 BLOCKING:
+    Audit 输出 CHALLENGE 提示有改进空间但**不违宪** → ArchitectAI 可选择:
+    (a) 同 commit fix (推荐), (b) 后续 sprint 处理, (c) 显式接受不修.
+    本 session round-3 Gemini CHALLENGE (EXIT=0+empty PPUT_RESULT) 选了 (a).
+
+  Rule 4 — Veto-AI 不是 product reviewer:
+    用户产品体验 / API 设计 / 工程 ergonomics → 不在 Veto-AI 职责. 这些
+    需要单独 review pipeline 或人类 architect 决策.
+
+precedent: |
+  - **判定边界 test**: 当 audit 报告写 "I think this could be cleaner..."
+    或 "Performance might suffer because..." → 不是 VETO 信号. 不算入
+    feedback_dual_audit_conflict 的保守裁决计算.
+
+  - **判定边界 test 2**: 当 audit 报告 trace 到具体 Article (Art. I.1
+    bool signal / Art. V.1.1 sudo / FC3-S3 readonly / etc.) → 是合法
+    VETO 锚点.
+
+  - **future Veto-AI runtime** (FC3-N32, 📅 Phase 11+): 实装时必须
+    enforce 输出域 2-class. 设计阶段任何 multi-class output schema
+    (e.g., severity levels, confidence scores) 违反本案 ruling.
+
+  - **Cross-ref**: C-073 (ArchitectAI commit authority — 接受 CHALLENGE
+    或自行优化属 ArchitectAI 权限), C-071 (constitution amendment
+    process — 修 Art. V 本身需 sudo).

@@ -1,0 +1,107 @@
+id: C-075
+title: "DO-178C tool qualification — 任何产生 frozen 数据的工具自身必须进 Trust Root"
+constitution:
+  - "PREREG § 1.8 Trust Root composition"
+  - "Art. V.1.1 amendment: sudo 仅 constitution; ArchitectAI 管 Trust Root manifest"
+  - "FC3-S3 readonly subgraph"
+  - "FC1-N7 (δ/AI) + FC1-N11 (∏p ground-truth) — 测量工具的 ground-truth 锚定"
+source_lessons:
+  - "C-012 (oracle preflight): 工具运行前必须验证可用"
+  - "C-070 (preregistration discipline): pre-reg precedes claim"
+
+incident: |
+  本 session B7-extra round-1 dual audit 发现 7 处 silent absorption
+  defect (Codex B1+B2+B3 + Gemini Q2.b/Q2.e + Q7.b). 共同 root cause:
+
+  PREREG § 1.8 frozen 16 文件 Trust Root, 但**漏了 3 类生产工具**:
+  1. src/main.rs — verify_trust_root call site (Q2.b VETO)
+  2. Cargo.lock — 依赖锁文件 (Q2.e VETO)
+  3. Calibration scripts (run_p0_calibration.sh + compute_p0.py) —
+     生产 frozen 数据 (p_0) 的工具自身
+
+  Codex round-3 又抓到 (B1): "evaluator binary 不调 verify_trust_root —
+  只 src/main.rs 调, 但 batch 不跑 main.rs". 即生产 binary 的 boot
+  路径没 enforce Trust Root, 仅 src/main.rs (开发 binary) 走完整流程.
+
+  这是经典 DO-178C tool qualification 缺位 — 资格化的工具 (Lean
+  compiler ground-truth oracle) 进了 Trust Root, 但调用 / 运行 /
+  分析 这些工具的 wrapper (evaluator boot, runner.sh, compute_p0.py)
+  没有.
+
+  16-file → 20-file 扩展在 commit 15b87fb 落地. 然后 d0d474e 把
+  problem_file_missing 路径也 hardened.
+
+facts: |
+  DO-178C 视角的 5 项原则 vs 本项目对照:
+
+  1. **Requirements traceability**:
+     ✓ TRACE_MATRIX_v0/v1 (FC ↔ symbol mapping)
+     ✓ tests/fc_alignment_conformance.rs (mechanical witness, A0b 此案前)
+
+  2. **Multiple-level review**:
+     ✓ Codex + Gemini dual audit (4 rounds 本 session 验证流程)
+
+  3. **Tool qualification** ← **本案焦点**:
+     ✓ Lean compiler (∏p ground truth) — 一直在
+     ✓ B7 拉伸到: cost_aggregator + wall_clock + post_hoc_verifier +
+       jsonl_schema + evaluator + llm_http (mid-term audit add)
+     ✓ B7-extra round-1 拉伸到: main.rs + Cargo.lock + runner.sh +
+       compute_p0.py (此案 ruling)
+
+  4. **Configuration management**:
+     ✓ git + Trust Root SHA-256 manifest
+     ⚠️ rules/active/*.yaml 自身**未在 Trust Root** — A0d (TRACE_MATRIX_v2)
+        预留扩展点
+
+  5. **Problem reporting**:
+     ✓ handover/architect-insights/ + handover/audits/
+
+ruling: |
+  **本案 tool qualification 范围 frozen**:
+
+  Rule 1 — Trust Root MUST 包含产生 frozen 数据的工具自身:
+    - 工具产生数据被未来 dual-audit 引用 → 工具进 Trust Root
+    - 工具产生 PREREG 冻结值 → 工具进 Trust Root
+    - 工具产生 calibration / baseline / threshold → 工具进 Trust Root
+
+  Rule 2 — Trust Root MUST 包含每个 production binary 的 boot
+            integrity check call site:
+    - evaluator binary 必须 startup 调 verify_trust_root (B7-extra
+      round-2 fix)
+    - 任何新 binary 同此规则
+
+  Rule 3 — 工具的 fail-fast 是必须的:
+    - set -euo pipefail 强制
+    - 子进程 exit code 必须 propagate
+    - 不允许 silent absorption (Codex round-2/3 lesson)
+
+  Rule 4 — Manifest 添加新工具的工作流 (per C-073 ArchitectAI scope):
+    a. 写或修改工具
+    b. sha256sum tool_path → 添加 genesis_payload.toml [trust_root]
+    c. 重算 cases/MANIFEST.sha256 (如果工具是 case yaml)
+    d. cargo test boot::tests::verify_trust_root_passes_on_intact_repo
+    e. commit with FC-trace
+
+  Rule 5 — 工具升级也要走 Trust Root 流程:
+    每次工具改动重算 sha256 + 更新 manifest. R-014 hook 提醒.
+
+precedent: |
+  - **当前 Trust Root 20 entries** (commit d0d474e+ 状态):
+    8 PREREG 基础 + 6 mid-term audit add + 1 B6 prompt_guard +
+    1 B7-extra rollback_sim + 4 round-1 audit-fix tool qualification.
+
+  - **下一步 (A0d TRACE_MATRIX_v2 计划)**:
+    - rules/active/*.yaml 应进 Trust Root (governance instrumentation
+      tampering prevention)
+    - .claude/hooks/judge.sh 应进 Trust Root (hook itself is governance)
+    - tests/fc_alignment_conformance.rs 进 Trust Root (witness battery
+      tampering = silent constitutional drift)
+    扩展后 manifest size 推估: 20 → 23-25.
+
+  - **判定边界 test**: 一个新建 script 是否进 Trust Root?
+    - 如果它产生数据被 dual audit / freeze / claim 引用 → 是
+    - 如果它仅是临时探索 / 本地 utility → 否, 但 commit message 必须
+      显式说"non-frozen utility, not in Trust Root"
+
+  - **Cross-ref**: C-073 (ArchitectAI 管 manifest), C-074 (FC-trace
+    每 commit), R-014 hook (Trust Root drift reminder).

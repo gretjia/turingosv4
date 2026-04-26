@@ -1,0 +1,88 @@
+id: C-073
+title: "ArchitectAI commit 权限 — 非宪法变更经 Veto-AI PASS 后 commit, 无需 sudo"
+constitution:
+  - "Art. V.1.2 amendment 2026-04-25: ArchitectAI 拥有架构升级的 commit 权限"
+  - "Art. V.1.1 amendment: 人类 sudo 权限**仅且只**作用于 constitution.md"
+  - "FC3-N6 ArchitectAI"
+source_lessons:
+  - "C-071 (constitution amendment process): 区分 ArchitectAI vs human-architect 权限边界"
+  - "C-072 (Veto-AI scope): 输出 PASS 即开门"
+
+incident: |
+  本 session 大量 ArchitectAI commit 实际发生 (本 session 共 19 个 commits
+  in main branch by Claude as ArchitectAI):
+  - B7 Trust Root + Boot freeze (be42f43)
+  - B7 alignment fix (0cc48bc)
+  - B7-extra rollback toggle + calibration scripts (973a9fd, b0ae03e, ...)
+  - 4 round audit fixes (15b87fb, 1df1f62, d0d474e, 2e7f75a, ...)
+  - Constitution amendment (c061450) — 这一个走 sudo
+
+  之前的 ambiguity (Phase 8 era): 不清楚 Claude (作为 ArchitectAI proxy)
+  能否直接 commit 还是必须 wait user. 实际多次出现 "等用户 confirm" 又没
+  实质收益的 round-trip.
+
+  Art. V.1.2 amendment 解决该 ambiguity: ArchitectAI 有 commit 权限,
+  仅 constitution.md 例外.
+
+facts: |
+  Art. V.1.2 amendment 文字 (post-2026-04-25):
+
+    ArchitectAI 不仅"提出", 更具有**升级架构的 commit 权限**.
+    任何**不涉及 `constitution.md`** 的修改 — 包括 Trust Root 清单
+    (`genesis_payload.toml`) 本身的载荷条目增减与 SHA-256 重算 —
+    经 Veto-AI (V.1.3) 校核未发现违宪后, 由 ArchitectAI 直接落盘并
+    更新 manifest 对应字段. 此过程**不需要人类 sudo**.
+
+    理由: 宪法已经是 ground truth, ArchitectAI 的修改若未违宪则属于
+    宪法允许的演化空间; 强制 sudo 反而把人类拉回工程细节, 违反
+    V.1.1 "人类只立宪法"的 Meta 原则.
+
+ruling: |
+  **ArchitectAI commit 权限 frozen**:
+
+  Rule 1 — Scope:
+    ArchitectAI commit 权限覆盖 ALL files EXCEPT constitution.md.
+    包括但不限于:
+    - src/{kernel,wal,bus,boot,main}.rs + 子模块
+    - experiments/ 全部
+    - genesis_payload.toml 本身 (载荷条目增减 + hash 重算)
+    - rules/ + .claude/hooks/ (governance instrumentation)
+    - cases/*.yaml (案例沉淀)
+    - handover/ (alignment / preregistration / audits / etc.)
+    - tests/ (含 fc_alignment_conformance.rs)
+    - PREREG_*.md amendment (PREREG 不是宪法)
+
+  Rule 2 — Required workflow:
+    a. ArchitectAI 设计 fix
+    b. FC-trace 锚点 (per memory feedback_fc_first_problem_handling)
+    c. (理想) Veto-AI proposal-time gate — 当前 manual via dual audit
+    d. cargo test --workspace + smoke (按 feedback_smoke_before_batch)
+    e. commit message 含 "FC-trace: <FC?-N?>"
+    f. (大改动) 双外审 (Codex + Gemini) Phase 边界 dual audit
+    g. (Trust Root manifest 涉及) sha256sum 重算 + genesis update
+
+  Rule 3 — Distinction from sudo workflow (C-071):
+    constitution.md 改动: 必须 4-step sudo 流程
+    其它任何文件: ArchitectAI commit, no sudo
+
+  Rule 4 — Audit 反复仍未 PASS (3+ rounds):
+    可能 fix 不当 — escalate to human, 不要继续 round 4 round 5.
+    人类 review 后可以 (a) 撤回 fix, (b) 接受 CHALLENGE, (c)
+    sudo amendment 改 constitution 让原 fix 合规.
+
+precedent: |
+  - **本 session 19 commits 验证**: 全程 ArchitectAI commit, 仅 1 个
+    (c061450) 走 sudo. 流程 work.
+
+  - **Trust Root manifest 是 ArchitectAI scope** — 这是关键判定. 加新
+    文件 (e.g., A0c 加 5 cases/C-071..C-075) 时:
+      sha256sum cases/*.yaml | sort > cases/MANIFEST.sha256
+      sha256sum cases/MANIFEST.sha256 → genesis_payload.toml
+    由 ArchitectAI 直接 commit, 不 wait sudo.
+
+  - **PREREG amendment 是 ArchitectAI scope** — PREREG 是研究协议
+    (pre-registration document), 不是宪法. PREREG 修订经 dual audit
+    PASS 后 ArchitectAI commit. 本案 frozen 此判定.
+
+  - **Cross-ref**: C-071 (constitution sudo flow), C-072 (Veto-AI
+    PASS 是开门 trigger).

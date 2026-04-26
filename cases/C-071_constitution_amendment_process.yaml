@@ -1,0 +1,76 @@
+id: C-071
+title: "Constitution amendment process — sudo + V.3 log entry + manifest hash recompute"
+constitution:
+  - "Art. V.1.1 amendment 2026-04-25: sudo applies *only* to constitution.md"
+  - "Art. V.3 (NEW 2026-04-25): Constitutional Amendment Log"
+  - "Art. V.1.2 amendment: ArchitectAI has commit authority on non-constitution files"
+  - "FC3-N3 constitution-as-ground-truth + FC3-S3 readonly subgraph"
+source_lessons:
+  - "C-069 (constitutional alignment audit protocol): TRACE_MATRIX 是必须"
+  - "C-070 (preregistration discipline): governance precedes commit"
+
+incident: |
+  2026-04-25 session: 用户 sudo-authorize 3 处 Art. V 修订:
+  V.1.1 (sudo 范围窄化), V.1.2 (ArchitectAI commit 权限), V.1.3 (JudgeAI →
+  Veto-AI 重命名 + 范围窄化). 同时新增 Art. V.3 修订日志子节. Commit
+  c061450.
+
+  执行后发现 R-018 constitution_amendment_sudo (rules/active/) **未触发** —
+  原因: judge.sh:54 skip-list pattern '*.md' 在 engine.py 评估之前
+  silently skipped constitution.md. 即 ArchitectAI 当时 silently
+  amended ground truth file without governance gate.
+
+  Root cause: harness rule 集冻结于 Phase 8 (2026-04-13), 没规则覆盖
+  constitution.md. 新加 R-018 (2026-04-25 commit 2e7f75a) + judge.sh
+  special-case constitution.md before skip-list 才修好.
+
+facts: |
+  Art. V.1.1 amendment 文字明确规定:
+    "人类 sudo 权限**仅且只**作用于 constitution.md 本身. Trust Root
+     清单中的其他载荷文件 (kernel.rs / oracle / accounting / 预注册等)
+     属于 ArchitectAI 的合法升级范围"
+
+  实际执行需要 3 段守护 (per Art. V.1.1 final paragraph):
+    (i)  Veto-AI 提案时校核违宪与否 (proposal-time)
+    (ii) Boot SHA-256 manifest 保证运行时一致 (run-time)
+    (iii) 人类 sudo 限定 constitution.md 范围 (commit-time, 仅这一类)
+
+  本次 incident 暴露: 没有 (i)+(iii) hook 保护，仅靠 Claude 自律. 不可
+  接受 — Art. V.1.3 amendment 明确 Veto-AI 必须 enforce.
+
+ruling: |
+  **本案宪法修订流程 frozen**:
+
+  Step 1 — 用户在 chat 显式 type 完整短语:
+    "I authorize this constitution amendment"
+    (verbatim, 不可省略, 不可改动 — R-018 grep 此短语作 sudo gate)
+
+  Step 2 — 修订必须包含 V.3 修订日志条目:
+    | 日期 | 触发者 | 章节 | 摘要 |
+    每修订强制添加, 无 V.3 entry → R-018 BLOCK
+
+  Step 3 — Commit 必须同时:
+    (a) 修订 constitution.md 本身
+    (b) 修订 V.3 表 (添加 entry)
+    (c) 重算 sha256sum constitution.md → 更新 genesis_payload.toml [trust_root]
+    (d) cargo test boot::tests::verify_trust_root_passes_on_intact_repo
+    (e) commit message 含 "FC-trace: <FC?-N?> [role: constitutional amendment]"
+
+  Step 4 — 修订后 dual audit (Codex + Gemini) 显式审"修订是否符合 Art. V":
+    重 round 持续到 PASS/PASS. CHALLENGE 可 documented + accepted by user.
+    VETO 必须 fix.
+
+precedent: |
+  - **R-018 BLOCK** is hard gate — 不可绕过. 即使 Claude 知道 user
+    意图, 没有 verbatim "I authorize this constitution amendment"
+    短语 → Edit 工具 reject (exit 2).
+
+  - **判例适用范围**: 仅 constitution.md. Trust Root 其它文件 (载荷
+    源码 / 预注册 / 案例 / 评分管线) 属 ArchitectAI commit 权限范围
+    (C-073), 不需要 Step 1 的 sudo 短语.
+
+  - **后续 incident 复盘 trigger**: 任何"我们修了 constitution 但没
+    走 4 step 流程" → 本案 reopen + R-018 严格化.
+
+  - **Cross-ref**: C-072 (Veto-AI 范围), C-073 (ArchitectAI 权限),
+    C-074 (FC-first), C-075 (DO-178C tool qualification).
