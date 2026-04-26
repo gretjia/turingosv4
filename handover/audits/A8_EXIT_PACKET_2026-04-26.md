@@ -132,7 +132,7 @@ The PREREG amendment shifted the Phase B → C gate. From the Phase A perspectiv
 
 ## § 6. Specific questions for auditors
 
-(All round-1..round-7 questions and their closures are recorded in `A8_AUDIT_HISTORY_2026-04-26.md`. The questions below are for the current-round reviewer pass.)
+(All prior-round questions and their closures are recorded in `A8_AUDIT_HISTORY_2026-04-26.md` — see that doc's chronological round-N entries for the current count + verdicts. The questions below are for the current-round reviewer pass.)
 
 ### Q1 — Code correctness spot-checks
 - (Q1.a) Does `experiments/minif2f_v4/src/bin/evaluator.rs` mint a single `run_id` at function entry and pass it to BOTH `fc_trace::emit_event` and `make_pput` so FC events and v2 jsonl rows share one identifier? Verify by reading `run_swarm` and `run_oneshot` entry points + `make_pput` signature.

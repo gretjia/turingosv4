@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Gemini Phase A → B exit audit — covers A0–A7 deliverables. Independent of Codex."""
 import json
+import os
 import sys
 import time
 import urllib.request
@@ -11,6 +12,28 @@ ENV_FILES = [
     ROOT / ".env",
     Path("/home/zephryj/projects/turingosv3/.env"),
 ]
+
+# A8e10 fix O1 (Codex R9#1): A8_AUDIT_ROUND is REQUIRED. Fail fast
+# BEFORE the API call so we never spend money on an unattended re-run
+# that would silently overwrite a prior transcript. Round suffix
+# becomes the file suffix in handover/audits/GEMINI_PHASE_A8_EXIT_AUDIT_2026-04-26_<round>.md.
+round_label = os.environ.get("A8_AUDIT_ROUND")
+if not round_label:
+    print(
+        "[run_gemini_a8_exit] error: A8_AUDIT_ROUND env var is required\n"
+        "    usage: A8_AUDIT_ROUND=R<n> python3 handover/audits/run_gemini_phase_a8_exit_audit.py",
+        file=sys.stderr,
+    )
+    sys.exit(2)
+_out_path = ROOT / f"handover/audits/GEMINI_PHASE_A8_EXIT_AUDIT_2026-04-26_{round_label}.md"
+if _out_path.exists():
+    print(
+        f"[run_gemini_a8_exit] error: {_out_path} already exists; refusing to overwrite\n"
+        f"    (prior audit transcripts are append-only governance artifacts;\n"
+        f"    delete the file explicitly if you really intend to re-run round {round_label})",
+        file=sys.stderr,
+    )
+    sys.exit(2)
 
 
 def load_env() -> dict[str, str]:
@@ -116,11 +139,10 @@ except Exception as e:
 elapsed = time.time() - t0
 print(f"[gemini a8 exit] API returned in {elapsed:.1f}s", file=sys.stderr)
 
-import os as _os
-round_label = _os.environ.get("A8_AUDIT_ROUND", "R2")
-
 text = data["candidates"][0]["content"]["parts"][0]["text"]
-out = ROOT / f"handover/audits/GEMINI_PHASE_A8_EXIT_AUDIT_2026-04-26_{round_label}.md"
+# A8e10 fix O1: round_label + _out_path were validated at script start
+# (before API call) so we don't burn API budget on a misconfigured run.
+out = _out_path
 header = (
     f"# Gemini Phase A → B Exit Audit (PPUT-CCL arc)\n"
     f"**Round**: {round_label}\n"

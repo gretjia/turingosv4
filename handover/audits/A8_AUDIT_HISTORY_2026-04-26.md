@@ -226,7 +226,29 @@
 **Round-8 fixes shipped (`A8e9`, this commit)** — three fixes:
 - **N1** (Codex R8#1): PREREG_AMENDMENT § 8 reworded to remove the residual "ensure calibration runs first" claim. Now consistent with § 2's least-strict-admissible framing across all three sections.
 - **N2** (Codex R8#2): Round-7 entry stamped with actual A8e8 SHA `857872e`; cumulative table row 7 sealed with the actual round-7 verdicts (CHALLENGE/CHALLENGE) and finding count (4 Codex + 2 Gemini, including 1 substantive PREREG logic finding); round-8 row added with this round's verdicts.
-- **N3** (Codex R8#3): Runner scripts default `A8_AUDIT_ROUND` updated; header metadata refreshed to current state (265 PASS / 35-entry manifest).
+- **N3** (Codex R8#3): Runner script header metadata refreshed to current state (265 PASS / 35-entry manifest); pre-A8e values removed.
+
+---
+
+## Round 9 (2026-04-26) — post-A8e9
+
+**Inputs**:
+- Packet: `A8_EXIT_PACKET_2026-04-26.md` @ commit `6f327b0` (post-A8e9)
+- Test baseline: 265 PASS / 29 ignored / 0 failed (Rust); 16/16 PASS (Python)
+- Trust Root: 35-entry manifest
+
+**Verdicts**:
+- Codex R9: **CHALLENGE / high** — `handover/audits/CODEX_PHASE_A8_EXIT_AUDIT_2026-04-26_R9.md`
+- Gemini R9: **PASS / high** → PROCEED — `handover/audits/GEMINI_PHASE_A8_EXIT_AUDIT_2026-04-26_R9.md`. *Second consecutive Gemini PASS with full Q1-Q5 spot-check verification + zero new findings.*
+- Merged: **CHALLENGE**. Conservative merge.
+
+**Findings** (2 Codex; Gemini 0):
+1. (**Codex R9#1 — false-closure**) A8e9 fix N3 claimed "runner default A8_AUDIT_ROUND updated" but the source still defaulted to `R2`. The actual N3 implementation only refreshed header metadata, not the default. Re-running either runner without env still targeted `_R2`, silently overwriting the round-2 transcript.
+2. (Codex R9#2) Packet § 6 says closures are recorded for "round-1..round-7" but history now contains round 8 (and round 9 about to land). Documentary drift class.
+
+**Round-9 fixes shipped (`A8e10`, this commit)** — two fixes:
+- **O1** (Codex R9#1): Both runner scripts now make `A8_AUDIT_ROUND` env var REQUIRED. No silent default; fail fast with usage message. Additionally, both runners refuse to overwrite an existing transcript at the resolved output path (round-N transcripts are append-only governance artifacts per C-075). Verified: invoking either without the env var prints the usage message and exits 2; invoking with `A8_AUDIT_ROUND=R2` (where the R2 transcript already exists) prints the overwrite refusal and exits 2.
+- **O2** (Codex R9#2): Packet § 6 pointer reworded from "round-1..round-7" to "all prior rounds — see chronological round-N entries in history doc for current count". No longer ages.
 
 ---
 
@@ -242,6 +264,7 @@
 | 6 | CHALLENGE | CHALLENGE | CHALLENGE | 5 | **1 (K2 routing)** | ~5 |
 | 7 | CHALLENGE | CHALLENGE | CHALLENGE | 6 | **1 (M4 PREREG § 2 logic)** | ~5 |
 | 8 | CHALLENGE | **PASS** | CHALLENGE | 3 | **1 (N1 PREREG § 8 logic)** | ~5 |
-| 9 | pending | pending | pending | — | — | ~5 |
+| 9 | CHALLENGE | **PASS** | CHALLENGE | 2 | 0 (false-closure caught — N3 was incomplete; no new substantive bugs) | ~5 |
+| 10 | pending | pending | pending | — | — | ~5 |
 
 Cumulative cost so far ~$45 (8 rounds × ~$5–7); within memory `feedback_dual_audit` Phase A reservation. **Real-bug yield: 9 substantive findings caught + closed across 8 rounds** (5 routing/correctness in R1, 1 fail-closed gate in R3, 1 routing collision in R6, 1 PREREG § 2 logic in R7, 1 PREREG § 8 logic in R8 = 9 real bugs discovered + fixed pre-Phase B). The recurring documentary CHALLENGE class persisted longer than expected because each round's fix touched documentation in ways that left adjacent staleness; the A8e7 structural rewrite addressed the root cause (category error) but its implementation needed two more cycles (A8e8 + A8e9) to fully complete the lineage strip + cross-section consistency.

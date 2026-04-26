@@ -4,10 +4,25 @@
 set -euo pipefail
 
 ROOT="/home/zephryj/projects/turingosv4"
-# Round-2 output (post-A8e fixes). Round-1 transcript is at
-# CODEX_PHASE_A8_EXIT_AUDIT_2026-04-26.md (without the _R2 suffix).
-ROUND="${A8_AUDIT_ROUND:-R2}"
+# A8_AUDIT_ROUND is REQUIRED (A8e10 fix O1, Codex R9#1). Earlier the
+# script defaulted to R2, which silently overwrote the round-2
+# transcript on unattended re-runs. Now: explicit env var or fail
+# fast. Round-1 (no suffix) lives at the un-suffixed transcript;
+# round 2+ uses _R2/_R3/... per chronology.
+if [ -z "${A8_AUDIT_ROUND:-}" ]; then
+    echo "[run_codex_a8_exit] error: A8_AUDIT_ROUND env var is required" >&2
+    echo "    usage: A8_AUDIT_ROUND=R<n> bash $0" >&2
+    echo "    sets the suffix for handover/audits/CODEX_PHASE_A8_EXIT_AUDIT_2026-04-26_<round>.md" >&2
+    exit 2
+fi
+ROUND="$A8_AUDIT_ROUND"
 OUT="${ROOT}/handover/audits/CODEX_PHASE_A8_EXIT_AUDIT_2026-04-26_${ROUND}.md"
+if [ -f "$OUT" ]; then
+    echo "[run_codex_a8_exit] error: $OUT already exists; refusing to overwrite" >&2
+    echo "    (prior audit transcripts are append-only governance artifacts;" >&2
+    echo "    delete the file explicitly if you really intend to re-run round $ROUND)" >&2
+    exit 2
+fi
 TMP_PROMPT="$(mktemp /tmp/codex_a8_exit.XXXXXX.md)"
 trap 'rm -f "$TMP_PROMPT"' EXIT
 
