@@ -1,8 +1,63 @@
 # TuringOS v4 — Handover State
 
-**Updated**: 2026-04-26 (Path B confirmed by user; **TFR (TuringOS Foundation Refactor) launched** — 7-sprint, ~7-10 weeks; S0.1 master plan committed; S0 exit gate = dual external audit pending)
-**HEAD commit**: `0dd0d35` (LATEST/Phase-C-frozen update) — TFR S0.1 plan commit follows this turn
-**Origin**: `origin/main` synced through `4f981cd` (60+ commits pushed this UTC date across two phases)
+**Updated**: 2026-04-26 NIGHT SHIFT (auto-research mode; user asleep) — **CO Phase 0 doc-only execution complete**; CO P0.7 Gemini audit returned + must-fix patches applied; Codex audit `task-mofzpcnq-4v764c` in flight (poll via `/codex:status` on wake).
+**HEAD commit (pre-shift)**: `f74e081` — CO P0 night shift bundle
+**HEAD commit (post-shift, after this final commit)**: see latest `git log -1`
+**Origin**: synced; tonight's ~5-6 commits pushed.
+
+> **TFR v1 (older plan) is DEPRECATED 2026-04-26 night** per D3=A. Authoritative plan is now `CO_MEGA_PLAN_v3.1_2026-04-26.md` synthesized from `TURINGOS_v4_FINAL_BLUEPRINT_2026-04-26.md`.
+
+## 🌙 Night-Shift Summary (2026-04-26)
+
+**User authority**: "本项目由你负责组织 codex 和 gemini 共同完成，非常细致的原子化执行" + "我要睡了，你以 auto research 方式执行" → autonomous CO P0 doc-only execution.
+
+**Shipped tonight (HEAD = f74e081 + post-night-shift v2)**:
+1. `TURINGOS_v4_FINAL_BLUEPRINT_2026-04-26.md` (already prior commit `2c3fd84`)
+2. `CO_MEGA_PLAN_v3.1_2026-04-26.md` — 132+ atoms, 17-21 weeks, **$435-950 budget** (corrected from $250-500)
+3. `TRI_MODEL_ORCHESTRATION_PROTOCOL_2026-04-26.md` — Codex+Gemini as **co-executors** (not just auditors); per-atom workflow + Hard rule 2 (mandatory non-implementer reviewer)
+4. `CO_P0_AMENDMENT_v1_2026-04-26.md` — D1-D6 all-rec resolutions
+5. `CONSTITUTION_ART_0_5_DRAFT_2026-04-26.md` — DRAFT (user enacts via cp on wake)
+6. `PREREG_AMENDMENT_v2_2026-04-26.md` — DRAFT (D1=C MVP-pivot, reframed as sanity check)
+7. `AUDIT_LEDGER.md` — running tri-model spend; tonight ~$0.45 / $700 mid-budget
+8. `genesis_payload.toml` — TR manifest 43 → 49 entries; all 8 boot tests still PASS
+
+**D-decisions all-rec (override on wake if needed)**: D1=C MVP-pivot / D2=B pointer+6公理 / D3=A deprecate TFR v1 / D4=B v4.1 MetaTape / D5=A full RSP / D6=A full audit
+
+**CO P0.7 Gemini audit verdicts** (2 runs, conservative-wins per Protocol § 4):
+- **Blueprint**: PASS / PASS → **PASS** ✅
+- **Plan v3.1**: CHALLENGE / CHALLENGE → **CHALLENGE** (now patched; see below)
+- **Protocol**: CHALLENGE / PASS → **CHALLENGE** wins (now patched)
+- **Amendment v1**: PASS / PASS → **PASS** ✅
+
+**Gemini must-fix items applied tonight (doc-only, reversible)**:
+1. ✅ **Codex self-review loophole** (Protocol § 9 Hard rule 2): when Codex implements, fresh Claude `auditor` subagent reviews; never Codex reviewing Codex. +$22-66 to budget for ~22 mandatory reviews.
+2. ✅ **Inv 8 determinism design spike** (Plan CO2.4.0 NEW): blocking gate before any AttributionEngine implementation; 1-page algorithm spec + 3-tx adversarial worked example required.
+3. ✅ **PREREG MVP language reframe**: 50-row × 1-seed run is **post-refactor sanity check** + Phase D gate, **NOT** a hypothesis test. Forbidden claims listed.
+4. ✅ **Cost projection harmonization** (Plan v3.1 § 6): old $250-500 deprecated; new $435-950 authoritative; tri-model column added.
+5. ✅ **gix spike priority** (CO1.3.1 = FIRST atom of CO P1): 5-day time-box; failure → git2-rs pivot via Plan v3.2 amendment.
+
+**Codex audit**: forwarded to Codex runtime task `task-mofzpcnq-4v764c`. Cannot poll from this session. **User wake action**: run `/codex:status task-mofzpcnq-4v764c` to retrieve verdict; integrate into AUDIT_LEDGER.
+
+## 🌅 Wake-up Decision Items
+
+In priority order:
+
+| # | Item | Action |
+|---|---|---|
+| 1 | Review CODEX_CO_P0_AUDIT (when task-mofzpcnq lands) | merge findings into Plan v3.2 if any new must-fixes |
+| 2 | Constitution Art. 0.5 enactment | cp `CONSTITUTION_ART_0_5_DRAFT_2026-04-26.md` content into `constitution.md` after Art. 0.4; update SHA in genesis; or override D2 to A (full WP text) |
+| 3 | PREREG_v2 enactment | confirm D1=C MVP-pivot (or override A=PAUSE / B=NEGATIVE); after enactment, draft Phase D restart criteria |
+| 4 | CO P1 launch GO/NOGO | assuming Codex audit ≤ CHALLENGE, propose CO P1 entry (CO1.3.1 gix spike FIRST, 5-day time-box) |
+| 5 | Cost ledger acknowledge | $700 mid-budget approved? (or shift to MVP $300?) |
+
+## 🔁 Back-out plan
+
+If user disagrees with night-shift decisions:
+- **Revert to pre-night-shift state**: `git revert HEAD~3..HEAD` (3 commits) — recovers 2c3fd84 = blueprint + plan v3.1 + economic chapter only, no D-decisions
+- **Selective revert**: each Gemini-fix patch is small + isolated; can revert individual atoms
+- **DRAFT documents (Art 0.5, PREREG_v2)**: never enacted; safe to discard or rewrite
+
+
 
 ## Session Summary (2026-04-26 latest)
 
@@ -157,17 +212,22 @@ Next session reads `PREREG_PPUT_CCL_2026-04-26.md` § 2 + § 5 + § 6 (Phase C p
 - **Cumulative arc spend**: ~$100 / $500 cap = 20%
 - Remaining: ~$400 for Phase C ablation (5 modes × 10 problems × 2 seeds = 100 jsonl rows + audit) + Phase D shadow CCL + Phase E sealed eval + B7-extra calibration if/when § 3 conditions complete
 
-## Next-session boot sequence (POST CONSTITUTIONAL AMENDMENT)
+## Next-session boot sequence (CO P0 night-shift complete; CO P1 awaiting GO)
 
-1. Read constitution.md Art. 0 (lines ~33-200) — 图灵机原教旨 + Tape Canonical 公理 + Art. 0.4 git substrate gap
-2. Read TAPE_CANONICAL_AUDIT_{AUDITOR,CODEX}.md — 24 violations + 10-commit atomization
-3. Re-verify state: `cargo test --workspace` (expect **298 PASS**), `bash scripts/smoke_siliconflow.sh` (expect 3/3 PASS)
-4. **DECISION: Pick Art. 0.4 path (A/B/C)** — the next architectural commit MUST mark this choice (per Art. 0.4 obligation)
-   - ArchitectAI recommends **C (hybrid)** — A now / B at Phase E gate
-   - User GO required before kernel refactor begins
-5. Once path chosen, execute 10-commit atomization (Commit 1 = tape schema upgrade + WAL v2; this Commit must use STEP_B parallel branch protocol per `feedback_step_b_protocol`)
-6. Phase C C2 batch RESTART after Commit 1-4 done (per Art. 0.2 修复义务 gating)
-7. C3 analyzer + C4 dual audit packet remain valid post-refactor
+1. **Read this file top section** ("Night-Shift Summary" + "Wake-up Decision Items") FIRST
+2. Read `handover/whitepapers/TURINGOS_v4_FINAL_BLUEPRINT_2026-04-26.md` (~600 lines, file-level v4 spec)
+3. Read `handover/architect-insights/CO_MEGA_PLAN_v3.1_2026-04-26.md` (~470 lines after patches; 132+ atoms)
+4. Read `handover/architect-insights/TRI_MODEL_ORCHESTRATION_PROTOCOL_2026-04-26.md` (Hard rule 1 + Hard rule 2)
+5. Read `handover/audits/GEMINI_CO_P0_AUDIT_2026-04-26.md` (62 lines; verdicts + must-fix detail)
+6. **Action 1**: `/codex:status task-mofzpcnq-4v764c` — retrieve Codex audit; if VETO → block; if CHALLENGE → patch + re-run; if PASS → unlock CO P1
+7. **Action 2**: review Constitution Art 0.5 DRAFT (`handover/architect-insights/CONSTITUTION_ART_0_5_DRAFT_2026-04-26.md`); if approved, cp-workflow enact + update genesis SHA
+8. **Action 3**: review PREREG v2 DRAFT (now reframed as sanity check); if approved, formal enactment
+9. **Action 4**: GO/NOGO on CO P1 entry (CO1.3.1 gix spike, 5-day time-box, FIRST in P1)
+10. **Action 5**: re-verify state: `cargo test --workspace` (expect 298+ PASS post-night-shift; new TR boot tests included)
+
+### Old Phase C boot sequence (kept for reference, no longer current)
+
+The Art 0.4 path-decision item is now subsumed by Path B confirmation (constitution Art 0.4 + Plan v3.1 CO P1.3 gix substrate). The 10-commit Tape Canonical atomization is also subsumed by Plan v3.1 atoms CO P1.0–P1.9 (covers the same 24 V violations across L0-L6 ChainTape layers). Phase C C2 batch restart is gated by CO P1.14 exit (per PREREG_v2 § 2).
 
 ### Frozen Phase C artifacts (kept for reference, NOT current state)
 

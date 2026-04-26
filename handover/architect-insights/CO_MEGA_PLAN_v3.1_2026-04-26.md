@@ -77,9 +77,11 @@ WP ref: Architecture § 4 + Economic § 2.
 
 ### CO P1.3 — gix substrate integration (Path B) (3 atoms)
 
+> **Priority directive** (per Gemini CO P0.7 audit run 2 must-fix #3): CO1.3.1 is the **FIRST atom executed in CO Phase 1** (sequential, before P1.0-P1.2 atoms can finalize). Time-box: 5 working days. If spike fails (gix can't satisfy multi-parent or concurrent init requirements), **immediate pivot** to git2-rs fallback with a fresh CO1.3.1' spike atom; Plan v3.1 must be amended to v3.2 reflecting fallback before CO P1.0 begins.
+
 | Atom | Scope | Files | STEP_B? |
 |---|---|---|---|
-| CO1.3.1 | gix capability spike — multi-parent commit + concurrent runtime_repo init | `src/bottom_white/tape/git_substrate.rs` (NEW) — spike only | Yes (new restricted) |
+| **CO1.3.1 (FIRST in P1)** | gix capability spike — multi-parent commit + concurrent runtime_repo init; **5-day time-box; failure → git2-rs pivot** | `src/bottom_white/tape/git_substrate.rs` (NEW) — spike only | Yes (new restricted) |
 | CO1.3.2 | Per-cell `experiments/<problem>/<run_id>/runtime_repo/` initialization at evaluator.rs::on_cell_start | `src/bottom_white/tape/git_substrate.rs` + `experiments/.../bin/evaluator.rs` | Yes (evaluator.rs is restricted-adjacent) |
 | CO1.3.3 | Conformance test: cell init creates valid git repo + first commit = constitution root | `tests/git_substrate_runtime_repo.rs` | No |
 
@@ -260,7 +262,13 @@ WP ref: Economic § 19; Inv 3.
 
 WP ref: Economic § 6 + § 13; Inv 1, 2.
 
-### CO P2.4 — AttributionEngine — Contribution DAG (5-7 atoms)
+### CO P2.4 — AttributionEngine — Contribution DAG (6-8 atoms; +1 spike atom per Gemini CO P0.7 audit Q3)
+
+**Pre-implementation gate**: per Gemini CO P0.7 audit run 1 Q3 CHALLENGE — Inv 8 determinism is currently aspirational without a specified algorithm. CO2.4.0 spike (below) is BLOCKING for CO2.4.1+. No implementation begins until algorithm specification PASSes dual audit.
+
+| Atom | Scope | File |
+|---|---|---|
+| **CO2.4.0** (NEW) | **DESIGN SPIKE**: specify provably deterministic Contribution DAG construction algorithm. Inputs = L4 read_set/write_set tuples (deterministic) + Tx parent state roots. Outputs = canonical DAG (same inputs → byte-identical adjacency list). Must address: concurrent write_tx ordering, multi-parent merge ambiguity, citation transitivity. **Deliverable**: 1-page algorithm spec + worked example with 3-tx adversarial scenario. Dual audit gate before CO2.4.1 starts. | `handover/architect-insights/INV8_DAG_DETERMINISM_SPEC_2026-04-26.md` (drafted in CO P2.4 entry) |
 
 | Atom | Scope | File |
 |---|---|---|
@@ -376,12 +384,15 @@ Per blueprint § 7 and Economic § 20, **Phase 3-5 are v4.x or v5**:
 
 ## § 6 Atom Total + Wall Clock
 
-| Phase | Atoms | Weeks | External audit cost |
-|---|---|---|---|
-| CO P0 | 7 | 1 | $50-100 |
-| CO P1 | ~62 (this doc) | 8-10 | $100-200 |
-| CO P2 | ~63 (this doc) | 8-10 | $100-200 |
-| **v4 total** | **~132** | **17-21** | **$250-500** |
+> **Cost amendment** (per Gemini CO P0.7 audit run 2 Q7 CHALLENGE + CO_P0_AMENDMENT_v1 § 2): the original $250-500 figure assumed Codex/Gemini as auditors only. Tri-model co-execution per `TRI_MODEL_ORCHESTRATION_PROTOCOL` § 5 raises the authoritative budget to **$435-950** (+$22-66 for Hard rule 2 mandatory Claude auditor reviews on Codex-implemented atoms). The $250-500 figure below is **deprecated**; refer to the right column.
+
+| Phase | Atoms | Weeks | External audit cost (deprecated) | External audit cost (authoritative, tri-model) |
+|---|---|---|---|---|
+| CO P0 | 7 | 1 | $50-100 | $50-100 |
+| CO P1 | ~62 (this doc) | 8-10 | $100-200 | $200-400 |
+| CO P2 | ~64 (incl. CO2.4.0 spike) | 8-10 | $100-200 | $200-400 |
+| Hard rule 2 mandatory Claude reviewer ×22 STEP_B atoms | — | — | $0 | $22-66 |
+| **v4 total** | **~133** | **17-21** | ~~$250-500~~ | **$435-950 (mid $700)** |
 
 **MVP option** (D5=B): drops CO P2.5 (ChallengeCourt full), CO P2.7 partial (no Challenger role), CO P2.8 (CTF symmetry), CO P2.4 partial (no royalty edges). Estimated saving: ~20 atoms + 4-5 weeks. Risk: Inv 5, 7, 8 conformance partial → forfeits "full RSP" claim.
 

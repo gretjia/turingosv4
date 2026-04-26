@@ -95,7 +95,19 @@ Budget cap of $500 (original) is **insufficient** under MVP-pivot. Amendment v2 
 
 ## § 5 Inferential validity claim adjustments
 
-- Phase C MVP (50 rows) at α=0.05: McNemar test on H1 needs 9-10/10 wins to reject; with 1 seed instead of 2, wins are correlated to seed-specific noise. **Mitigation**: pre-register seed selection criterion; if Phase C MVP fails to reject H1-H4, re-launch with 2nd seed before declaring NEGATIVE.
+> **Reframe per Gemini CO P0.7 audit Q10 CHALLENGE (both runs)**: the 50-row × 1-seed Phase C MVP run is **NOT a hypothesis test**. It is a **post-refactor integration sanity check** with the following limited claims:
+> - Catches **catastrophic regressions** (e.g., a mode crashes on >50% of cells)
+> - Verifies **end-to-end pipeline plumbing** post-CO P1 refactor (5 modes execute, jsonl emits, kernel boots)
+> - Provides **directional signal** on whether H1-H4 are still plausible to test in Phase D
+>
+> **Forbidden claims from MVP run**:
+> - "H1-H4 are supported / rejected"
+> - "Phase C results are statistically significant"
+> - "PPUT-CCL hypothesis is validated"
+>
+> The MVP run is a **gate to Phase D**, not a substitute for Phase D.
+
+- Phase C MVP (50 rows × 1 seed) at α=0.05: McNemar test on H1 needs 9-10/10 wins to reject; with 1 seed instead of 2, wins are correlated to seed-specific noise. **Mitigation**: pre-register seed selection criterion; if Phase C MVP fails the **directional signal** check (e.g., < 6/10 wins for the "Full" mode), re-launch with a 2nd seed before declaring NEGATIVE. Phase D required for any inferential claim.
 - Phase D / E inferential validity unchanged from original PREREG.
 
 ---

@@ -165,6 +165,28 @@ Per CLAUDE.md Audit Standard + C-010 + C-023 + C-035:
 
 Hard rule: **the model that wrote the code MUST NOT write the test that gates that code**.
 
+**Hard rule 2 (added per Gemini CO P0.7 audit run 1, Q6 CHALLENGE — closes Codex self-review loophole)**: the model that **implemented** an atom MUST NOT be the **primary code reviewer** for that atom either. Specifically:
+
+| Implementer | Mandatory primary reviewer |
+|---|---|
+| Claude (orchestrator) | Codex |
+| Codex (heavy implementer) | a sandboxed Claude instance via `auditor` subagent (read-only, fresh context, no prior conversation memory) |
+| Both via STEP_B parallel branches | the LOSING-branch model casts primary review on the WINNING-branch code; Gemini casts tie-breaker if branches converge |
+
+This rule is **non-negotiable** for process integrity. The intent of "redundancy as trust restoration" requires that the same model never simultaneously generate AND validate the same artifact.
+
+**Atom lifecycle update reflecting Hard rule 2**:
+
+```
+[5] PRIMARY CODE REVIEW (mandatory non-implementer):
+    - if Step 3 implementer = Claude → Codex reviews
+    - if Step 3 implementer = Codex → fresh Claude `auditor` subagent reviews
+[5b] STRATEGIC REVIEW (Gemini): cross-§ coherence, reuses Step 2 lens
+[5c] CONFORMANCE TEST AUTHOR (Step 4): also non-implementer, may be a different model from Step 5 reviewer (so up to 3 different models touch the atom: implementer, primary reviewer, test author)
+```
+
+Cost impact: Hard rule 2 may add 1 extra Claude `auditor` invocation per Codex-implemented atom (~$1-3 each × ~22 STEP_B atoms = ~$22-66 added to budget). Budget cap remains $950 (within tolerance).
+
 ## § 10 Risk Adjustments to Plan v3.1
 
 Three risks added to v3.1 § 9 by virtue of tri-model:

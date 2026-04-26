@@ -12,10 +12,10 @@
 
 | Phase | Atom-level | Phase-exit | Sub-total |
 |---|---|---|---|
-| CO P0 | $0 | (in flight) | (in flight) |
+| CO P0 | $0 | ~$0.45 | ~$0.45 |
 | CO P1 | — | — | — |
 | CO P2 | — | — | — |
-| **Cumulative** | **$0** | **(in flight)** | **(in flight)** |
+| **Cumulative** | **~$0.45** | — | **~$0.45 / $700 mid-budget (0.06%)** |
 
 Pre-CO sunk cost (Phase A+B): ~$100 (carried from prior arc; not in $435-950 budget — that budget covers v4 refactor only).
 
@@ -25,8 +25,12 @@ Pre-CO sunk cost (Phase A+B): ~$100 (carried from prior arc; not in $435-950 bud
 
 | Timestamp | Atom / Phase | Model | Role | Cost ($) | Verdict | Notes |
 |---|---|---|---|---|---|---|
-| 2026-04-26 night | CO P0.7 | Codex | full audit on Blueprint + Plan v3.1 + Protocol + Amendment v1 | (pending) | (pending) | spawned via codex-rescue subagent |
-| 2026-04-26 night | CO P0.7 | Gemini 2.5-pro | full audit on same packet | (pending) | (pending) | spawned via Bash + curl |
+| 2026-04-26 night | CO P0.7 | Gemini 2.5-pro (run 0a/0b failed) | retry artifacts | ~$0.20 | n/a | bash heredoc + python f-string parser bugs; output discarded |
+| 2026-04-26 night | CO P0.7 | Gemini 2.5-pro run 1 | full audit, foreground retry-3 | ~$0.12 | Blueprint:PASS / Plan:CHALLENGE / Protocol:CHALLENGE / Amendment:PASS | 45k input + 2.5k output + 4k thoughts; flagged Codex self-review loophole + Inv 8 determinism + MVP statistical power |
+| 2026-04-26 night | CO P0.7 | Gemini 2.5-pro run 2 | full audit, second pass (overwrite) | ~$0.12 | Blueprint:PASS / Plan:CHALLENGE / Protocol:PASS / Amendment:PASS | flagged cost projection harmonization + gix spike priority; Q6 lenient (run 1's CHALLENGE survives via conservative-wins rule) |
+| 2026-04-26 night | CO P0.7 | Codex (codex-rescue subagent) | full audit forwarded | ~$0.01 (forwarder only) | (in flight) | spawned task-mofzpcnq-4v764c in Codex runtime; user checks `/codex:status task-mofzpcnq-4v764c` on wake |
+| 2026-04-26 night | CO P0 patches | Claude (orchestrator, in-conversation) | apply Gemini must-fix patches to Protocol/Plan/PREREG | $0 (no API call) | n/a | doc-only edits + TR SHA refresh; 8 boot tests pass |
+| **CO P0 sub-total** | — | — | — | **~$0.45** | — | well below $50-100 budget |
 
 (Rows append as invocations complete.)
 
