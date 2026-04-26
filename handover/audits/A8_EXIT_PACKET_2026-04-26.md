@@ -44,7 +44,7 @@ Atom commit chain (atomic, FC-traced, all under ArchitectAI commit authority —
 | `cargo test --workspace` ignored | 29 | Phase B+ deferred stubs |
 | `cargo test --workspace` failed | **0** | — |
 | `python3 scripts/test_llm_proxy.py` | **16/16 PASS** | proxy routing + round-robin conformance (also wrapped by `experiments/minif2f_v4/tests/llm_proxy_python_conformance.rs` so it runs every `cargo test --workspace`) |
-| Trust Root manifest entries | **35** | `genesis_payload.toml [trust_root]` count + matches `trust_root_immutability::test_trust_root_manifest_includes_b2_b4_files` required-paths list |
+| Trust Root manifest entries | **37** | `genesis_payload.toml [trust_root]` count + matches `trust_root_immutability::test_trust_root_manifest_includes_b2_b4_files` required-paths list |
 | `boot::tests::verify_trust_root_passes_on_intact_repo` | **PASS** | re-hashes match the manifest |
 | `bash scripts/smoke_siliconflow.sh` | **PASS (3/3 keys)** | live API; cost ~$0.005 per run |
 | FC-trace anchor sites in `evaluator.rs` | **9** | grep `fc_trace::emit_event(`; 8 in `run_swarm` + 1 in `run_oneshot` |
@@ -120,7 +120,7 @@ The PREREG amendment shifted the Phase B → C gate. From the Phase A perspectiv
 - ✅ B1–B7 + B7-extra mode toggle infrastructure complete (pre-Phase A baseline; round-4 PASS/PASS).
 - ✅ Phase A0 harness modernization complete (`62c4e14`).
 - ✅ Tools qualified per case C-075 (DO-178C tool qualification): `runner.sh`, `compute_p0.py`, evaluator boot enforcement, etc.
-- ✅ Trust Root verifies clean (`boot::tests::verify_trust_root_passes_on_intact_repo` PASS at 35-entry manifest).
+- ✅ Trust Root verifies clean (`boot::tests::verify_trust_root_passes_on_intact_repo` PASS at 37-entry manifest).
 
 ## § 5. Risks and known limitations entering Phase B
 
@@ -147,7 +147,7 @@ The PREREG amendment shifted the Phase B → C gate. From the Phase A perspectiv
 ### Q3 — Atomicity, FC-trace discipline, governance
 - (Q3.a) Each of A1–A7 was committed as one atomic commit with `FC-trace: <FC?-N?>` in the message. Verify by re-reading commit messages. Any commit missing FC-trace? Any commit that touched `constitution.md`?
 - (Q3.b) 5 cases C-071..C-075 sediment 2026-04-25 session decisions as constitutional precedent. Are the rulings standalone-readable + correctly cross-referenced?
-- (Q3.c) Trust Root manifest 35 entries. Are all entries load-bearing (i.e., does tampering each one weaken the constitutional gate)?
+- (Q3.c) Trust Root manifest 37 entries. Are all entries load-bearing (i.e., does tampering each one weaken the constitutional gate)?
 
 ### Q4 — Phase A → B exit decision
 - (Q4.a) Spot-check: re-run `cargo test --workspace`; expect 265 PASS / 29 ignored / 0 failed.

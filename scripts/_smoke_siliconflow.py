@@ -68,26 +68,59 @@ def main() -> int:
         f"[A7-smoke] SiliconFlow probe — model={PROBE_MODEL} "
         f"max_tokens={PROBE_MAX_TOKENS}"
     )
+    # A8e11 fix P1 (Codex R10#1): the V3L-27 mitigation requires THREE
+    # keys for high-concurrency rate-limit pool splitting (case C-027).
+    # Pre-P1 the smoke would PASS if only the primary key was set,
+    # silently degrading the gate to a single-key probe and matching
+    # exactly the V3L-27 collapse pattern.
+    # Post-P1: ALL THREE keys must be set AND respond. Missing OR
+    # failing key = FAIL. Explicit env-var opt-out
+    # `SILICONFLOW_SMOKE_ALLOW_PARTIAL=1` lets a developer probe a
+    # subset (e.g. for credential rotation testing); the bypass is
+    # logged loudly and the result is downgraded to a partial-PASS
+    # exit code that callers can distinguish.
     any_failed = False
-    any_present = False
+    missing: list[str] = []
+    failed: list[str] = []
+    succeeded: list[str] = []
     for label, env_name in KEY_ENVS:
         key = os.environ.get(env_name, "").strip()
         if not key:
-            print(f"  [{label:9s}] {env_name}: NOT SET — skipping")
+            missing.append(label)
+            print(f"  [{label:9s}] {env_name}: NOT SET")
             continue
-        any_present = True
         ok, summary = probe_one(label, env_name, key)
         verdict = "OK  " if ok else "FAIL"
         print(f"  [{label:9s}] {env_name}: {verdict} {summary}")
-        if not ok:
+        if ok:
+            succeeded.append(label)
+        else:
+            failed.append(label)
             any_failed = True
-    if not any_present:
-        print("[A7-smoke] FAIL: no SiliconFlow keys configured")
-        return 2
-    if any_failed:
-        print("[A7-smoke] result: FAIL (one or more keys failed)")
+
+    allow_partial = os.environ.get("SILICONFLOW_SMOKE_ALLOW_PARTIAL", "") == "1"
+
+    if missing or any_failed:
+        print(
+            f"[A7-smoke] result: FAIL — "
+            f"missing={missing or '(none)'} failed={failed or '(none)'} "
+            f"ok={succeeded or '(none)'}"
+        )
+        if missing:
+            print(
+                "[A7-smoke] V3L-27 mitigation requires ALL 3 SiliconFlow "
+                "keys configured (primary + secondary + tertiary). "
+                "A single-key probe replicates the very collapse pattern "
+                "the 3-key pool was meant to mitigate."
+            )
+        if allow_partial and not failed:
+            print(
+                "[A7-smoke] SILICONFLOW_SMOKE_ALLOW_PARTIAL=1 — explicit "
+                "downgrade accepted. Exit code 3 = partial-PASS (not full)."
+            )
+            return 3
         return 1
-    print("[A7-smoke] result: PASS (all configured keys responded)")
+    print("[A7-smoke] result: PASS (3/3 keys configured + responded)")
     return 0
 
 

@@ -252,6 +252,28 @@
 
 ---
 
+## Round 10 (2026-04-26) — post-A8e10
+
+**Inputs**:
+- Packet: `A8_EXIT_PACKET_2026-04-26.md` @ commit `92d30f7` (post-A8e10)
+- Test baseline: 265 PASS / 29 ignored / 0 failed (Rust); 16/16 PASS (Python)
+- Trust Root: 35-entry manifest
+
+**Verdicts**:
+- Codex R10: **CHALLENGE / high** — `handover/audits/CODEX_PHASE_A8_EXIT_AUDIT_2026-04-26_R10.md`
+- Gemini R10: **PASS / high** → PROCEED — `handover/audits/GEMINI_PHASE_A8_EXIT_AUDIT_2026-04-26_R10.md`. *Third consecutive Gemini PASS.*
+- Merged: **CHALLENGE**. Codex caught two real defects in gate machinery (smoke + runner Trust Root coverage); Gemini did not.
+
+**Findings** (2 Codex; Gemini 0):
+1. (**Codex R10#1 — substantive**) `_smoke_siliconflow.py` doesn't fail closed on missing keys: the script skipped unset secondary/tertiary and returned PASS if any configured key responded. The packet's "PASS (3/3 keys)" claim was strictly stronger than what the smoke verified — a primary-only setup would silently PASS, replicating exactly the V3L-27 single-key collapse pattern the 3-key pool was meant to mitigate.
+2. (**Codex R10#2 — substantive**) Audit runner scripts (`run_codex_phase_a8_exit_audit.sh` + `run_gemini_phase_a8_exit_audit.py`) are load-bearing gate tools (demonstrated by R8/R9's runner-default + false-closure defects) but were NOT in Trust Root. Per case C-075 (DO-178C tool qualification): tools producing data used by future dual audit must enter Trust Root.
+
+**Round-10 fixes shipped (`A8e11`, this commit)** — two fixes (both substantive):
+- **P1** (Codex R10#1): `_smoke_siliconflow.py` reworked to require ALL THREE keys configured AND respond. Missing OR failing key = FAIL (exit 1). Explicit opt-out `SILICONFLOW_SMOKE_ALLOW_PARTIAL=1` for credential-rotation testing returns exit 3 (partial-PASS, callers can distinguish). Verified: full-keys → exit 0; primary-only → exit 1 with diagnostic; primary-only + ALLOW_PARTIAL=1 → exit 3.
+- **P2** (Codex R10#2): `run_codex_phase_a8_exit_audit.sh` + `run_gemini_phase_a8_exit_audit.py` added to Trust Root manifest. `trust_root_immutability` test required-paths list extended. Manifest 35 → 37.
+
+---
+
 ## Cumulative metrics
 
 | Round | Codex | Gemini | Merged | New findings | Real-bug findings | API cost (~$) |
@@ -265,6 +287,7 @@
 | 7 | CHALLENGE | CHALLENGE | CHALLENGE | 6 | **1 (M4 PREREG § 2 logic)** | ~5 |
 | 8 | CHALLENGE | **PASS** | CHALLENGE | 3 | **1 (N1 PREREG § 8 logic)** | ~5 |
 | 9 | CHALLENGE | **PASS** | CHALLENGE | 2 | 0 (false-closure caught — N3 was incomplete; no new substantive bugs) | ~5 |
-| 10 | pending | pending | pending | — | — | ~5 |
+| 10 | CHALLENGE | **PASS** | CHALLENGE | 2 | **2 (P1 smoke false-PASS + P2 runners not in TR)** | ~5 |
+| 11 | pending | pending | pending | — | — | ~5 |
 
-Cumulative cost so far ~$45 (8 rounds × ~$5–7); within memory `feedback_dual_audit` Phase A reservation. **Real-bug yield: 9 substantive findings caught + closed across 8 rounds** (5 routing/correctness in R1, 1 fail-closed gate in R3, 1 routing collision in R6, 1 PREREG § 2 logic in R7, 1 PREREG § 8 logic in R8 = 9 real bugs discovered + fixed pre-Phase B). The recurring documentary CHALLENGE class persisted longer than expected because each round's fix touched documentation in ways that left adjacent staleness; the A8e7 structural rewrite addressed the root cause (category error) but its implementation needed two more cycles (A8e8 + A8e9) to fully complete the lineage strip + cross-section consistency.
+Cumulative cost so far ~$55 (10 rounds × ~$5–7); within memory `feedback_dual_audit` Phase A reservation. **Real-bug yield: 11 substantive findings caught + closed across 10 rounds** (5 routing/correctness in R1, 1 fail-closed gate in R3, 1 routing collision in R6, 1 PREREG § 2 logic in R7, 1 PREREG § 8 logic in R8 = 9 real bugs discovered + fixed pre-Phase B). The recurring documentary CHALLENGE class persisted longer than expected because each round's fix touched documentation in ways that left adjacent staleness; the A8e7 structural rewrite addressed the root cause (category error) but its implementation needed two more cycles (A8e8 + A8e9) to fully complete the lineage strip + cross-section consistency.

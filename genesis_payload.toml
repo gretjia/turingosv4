@@ -65,12 +65,16 @@
 #       § 2 wording correction A8e fix F6; per case C-073 ArchitectAI
 #       commit authority)
 #
-# Total: 35 files. Progression A0=24 → A1=25 (PREREG amendment) → A3=26
+# Total: 37 files. Progression A0=24 → A1=25 (PREREG amendment) → A3=26
 # (agent_models.rs) → A5=27 (budget_regime.rs) → A6=28 (fc_trace.rs) →
 # A7=31 (llm_proxy.py + 2 smoke scripts) → A8e=33 (run_id.rs +
 # test_llm_proxy.py) → A8e2=34 (llm_proxy_python_conformance.rs Rust
-# wrapper) → A8e7=35 (A8_AUDIT_HISTORY append-only chronology — per
-# C-075 the gate machinery itself must be tamper-evident).
+# wrapper) → A8e7=35 (A8_AUDIT_HISTORY append-only chronology) →
+# A8e11=37 (audit runner scripts run_codex_phase_a8_exit_audit.sh +
+# run_gemini_phase_a8_exit_audit.py — per C-075 gate-machinery
+# tooling that produces audit transcripts must be Trust Root, both
+# round-8 N3 false-closure and round-9 N3-followup defects
+# demonstrated these are load-bearing gate tools).
 # genesis_payload.toml itself is conceptually frozen but
 # not self-hashed (chicken-and-egg) — the [pput_accounting_0] section
 # values are the semantic anchor.
@@ -105,7 +109,7 @@ n_max = 34
 "src/drivers/llm_http.rs" = "615596b68956b4a8925110edc99aa746a5543527724ec394bb9dda163147ed7a"
 "src/drivers/llm_proxy.py" = "22f632234a6d3e1a0547651537cf26846c64c47b85f5b1c3a1bcd1ae1f139997"
 "scripts/smoke_siliconflow.sh" = "6ad54e7c0ab8221f475360dcad80eeeb0d6da0fd55c27acdb1cefb2b390f5341"
-"scripts/_smoke_siliconflow.py" = "778eea2988312f250efa47fcfe620d86187d01b96f07a98501f9795a333726ca"
+"scripts/_smoke_siliconflow.py" = "858d3b219c7e2d01cc370beb000e107b0abb8a211a63b6bf09d072afd02aeb24"
 "scripts/test_llm_proxy.py" = "e1dd0306609fb3d2578b078bb21f0090c23978981f674ca0c6e3a60485ebf273"
 "src/sdk/prompt_guard.rs" = "b4f7b164770d1a7203b8143f773c66f748994d60a42ece38471f2f7f2839f4f1"
 "experiments/minif2f_v4/src/lean4_oracle.rs" = "70fae24cd17f410c10a092e797fcdedea962db3d7cb20f218d02303edae9e98c"
@@ -125,4 +129,6 @@ n_max = 34
 "handover/preregistration/PREREG_PPUT_CCL_2026-04-26.md" = "64d565b4451d1f770425530bb7ffa874da602ddfd9d714ce7f7db6bbfab69463"
 "handover/preregistration/PREREG_AMENDMENT_p0_defer_2026-04-25.md" = "e1a0c97921fd77bd5a1268589bafbdc90e18e26a4feb6c86c6d8a91048d095e1"
 "experiments/minif2f_v4/tests/llm_proxy_python_conformance.rs" = "d62ee67cb564355fa26959c1f92a1152f95ab55d987c005abf7810e2da7b83b8"
-"handover/audits/A8_AUDIT_HISTORY_2026-04-26.md" = "529c551416b3a93eccacf760006248c71f8cac4489144e1c1aed98078f0d02e5"
+"handover/audits/A8_AUDIT_HISTORY_2026-04-26.md" = "460426fb6d8962f47b3ac3370e2d35c09f5f4cec74b38c8124a87224d8e8a1e2"
+"handover/audits/run_codex_phase_a8_exit_audit.sh" = "db1000236b79b53148eec431276089cd268ade29d7cff9ca6547b49a758e63b9"
+"handover/audits/run_gemini_phase_a8_exit_audit.py" = "250503d547cfd71354a9e11582d7e4e5bbefabc50c974f6e1014fa5b9386034c"

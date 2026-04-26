@@ -124,6 +124,12 @@ fn test_trust_root_manifest_includes_b2_b4_files() {
         // gate machinery is constitutional — tampering with the chronology = silent
         // governance drift).
         "handover/audits/A8_AUDIT_HISTORY_2026-04-26.md",
+        // A8e11 fix P2: audit runner scripts that assemble the packet, append
+        // sources, and produce dual-audit transcripts. Per C-075 + Codex R10#2
+        // these are load-bearing gate machinery (R8/R9 runner defects
+        // demonstrated they are not incidental); silent tamper = silent gate bypass.
+        "handover/audits/run_codex_phase_a8_exit_audit.sh",
+        "handover/audits/run_gemini_phase_a8_exit_audit.py",
         // 2026-04-25 dual-audit fixes
         "src/main.rs",
         "Cargo.lock",
