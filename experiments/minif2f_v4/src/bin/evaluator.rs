@@ -82,6 +82,24 @@ struct PputResult {
     failed_branch_count: u32,
     /// Phase B always 0; Phase C+ when ArtifactState rollbacks land.
     rollback_count: u32,
+    /// Phase A atom A4 (FC2-N22 HALT decomposition): true iff the run
+    /// reached `max_transactions` without OMEGA. Distinguishes a real
+    /// budget-exhausted run from an OMEGA-accept exit at the same
+    /// `tx_count`. False on B7-extra synthetic short-circuit (which
+    /// exits EARLY at the rollback threshold; that path is tagged via
+    /// `synthetic_short_circuit` instead). False on oneshot (no max-tx
+    /// concept). Co-reported with `solved` so analysis can split
+    /// `(solve_rate)` from `(PPUT on solved)` per Gemini brainstorm.
+    hit_max_tx: bool,
+    /// Phase A atom A4 (FC1-N11 ∏p decision diversity): distinct /
+    /// total over every parsed proposal payload (append/complete/step)
+    /// in the run. 0 proposals → 0.0 by convention.
+    tactic_diversity: f64,
+    /// Phase A atom A4 (FC1-N12 oracle scope): cumulative wall-clock
+    /// inside Lean verifier calls in milliseconds. Strict sub-interval
+    /// of `total_wall_time_ms`. Enables Amdahl/USL serial-vs-parallel
+    /// decomposition per Codex brainstorm § C.
+    verifier_wait_ms: u64,
     /// FAR guardrail (Phase B not yet computed; emit 0.0 placeholder).
     far: f64,
     /// ERR guardrail (Phase B not yet computed).
@@ -288,6 +306,11 @@ async fn run_oneshot(
     let start = Instant::now();
     let mut acc = RunCostAccumulator::new();
     let mut wc = RunWallClock::new();
+    // Phase A atom A4 (FC1-N12 oracle scope): cumulative wall-clock
+    // inside Lean for this oneshot run. A single verify_omega call,
+    // but bracket so future Phase C Soft Law mode that double-verifies
+    // accumulates correctly.
+    let mut verifier_wait_ms: u64 = 0;
 
     let oracle = Lean4Oracle::new(
         problem_statement.to_string(), theorem_name.to_string(), lean_path.to_string(),
@@ -332,15 +355,22 @@ async fn run_oneshot(
                 wc.mark_final_accept();
                 // P0-A: caller declares both runtime + post-hoc legs.
                 // Fence reject = neither leg fired.
+                // A4: no Lean call reached → verifier_wait_ms=0;
+                // 1 proposal made (the LLM response), 1 distinct.
                 return make_pput(problem_file, "oneshot", model,
                                  false, false, start, 0, 0, 1,
                                  None, None, None, None, None,
                                  Some(acc.total_run_token_count()),
                                  Some(acc.failed_branch_count),
-                                 wc.elapsed_ms());
+                                 wc.elapsed_ms(),
+                                 false, 1, 1, verifier_wait_ms);
             }
 
+            // Phase A atom A4 (FC1-N12): bracket every Lean call so verifier
+            // wait is observable in the emitted v2 row.
+            let v_t0 = Instant::now();
             let verdict = oracle.verify_omega(&response.content);
+            verifier_wait_ms += v_t0.elapsed().as_millis() as u64;
             // B3: close the bracket AFTER the Lean call returns, regardless of
             // verdict. Soft Law mode (Phase C) cannot escape the verify-time
             // accounting by short-circuiting on runtime accept.
@@ -366,7 +396,8 @@ async fn run_oneshot(
                               Some("alone".to_string()), proof_file,
                               Some(acc.total_run_token_count()),
                               Some(acc.failed_branch_count),
-                              wc.elapsed_ms())
+                              wc.elapsed_ms(),
+                              false, 1, 1, verifier_wait_ms)
                 }
                 Ok(false) => {
                     // Lean rejected → neither leg.
@@ -375,7 +406,8 @@ async fn run_oneshot(
                               None, None, None, None, None,
                               Some(acc.total_run_token_count()),
                               Some(acc.failed_branch_count),
-                              wc.elapsed_ms())
+                              wc.elapsed_ms(),
+                              false, 1, 1, verifier_wait_ms)
                 }
                 Err(e) => {
                     warn!("Oracle error: {}", e);
@@ -385,7 +417,8 @@ async fn run_oneshot(
                               None, None, None, None, None,
                               Some(acc.total_run_token_count()),
                               Some(acc.failed_branch_count),
-                              wc.elapsed_ms())
+                              wc.elapsed_ms(),
+                              false, 1, 1, verifier_wait_ms)
                 }
             }
         }
@@ -562,6 +595,16 @@ async fn run_swarm(
     let mut omega_attempts: u32 = 0;
     let mut zero_ticks_run: u32 = 0;
     let mut zero_tick_warned = false;
+    // Phase A atom A4 (FC1-N11 ∏p decision diversity): hash every parsed
+    // proposal payload (append/complete/step) — broader than `omega_*`
+    // which only counts OMEGA attempts. Cheap proxy for semantic
+    // diversity (full embedding distance is Phase D+ work).
+    let mut proposal_hashes: HashSet<u64> = HashSet::new();
+    let mut proposal_count: u64 = 0;
+    // Phase A atom A4 (FC1-N12 oracle scope): cumulative wall-clock
+    // inside Lean for THIS run. Each verify_omega_detailed and
+    // verify_partial call brackets its own elapsed and adds it here.
+    let mut verifier_wait_ms: u64 = 0;
     // PPUT-CCL B2: full-run cost C_i — every LLM call + tool stdout summed
     // across all proposals (winning + failed branches). Read at terminal
     // make_pput sites and stamped on the emitted jsonl row.
@@ -601,13 +644,21 @@ async fn run_swarm(
                    ~150 LLM calls vs honest vetoed loop; downstream PPUT analysis \
                    MUST honor synthetic_short_circuit=true on this row)", tx);
             wc.mark_final_accept();
+            // A4: synthetic short-circuit is NOT a max-tx exhaustion (it
+            // exits ~150 tx EARLY at the rollback threshold). hit_max_tx
+            // stays false — synthetic_short_circuit is the disambiguator
+            // for this calibration-treatment path.
             let mut result = make_pput(problem_file, &condition, &run_model_label,
                                        false, false, start, 0, 0,
                                        tx as u64, Some(tool_dist), None,
                                        None, None, None,
                                        Some(acc.total_run_token_count()),
                                        Some(acc.failed_branch_count),
-                                       wc.elapsed_ms());
+                                       wc.elapsed_ms(),
+                                       false,
+                                       proposal_hashes.len() as u64,
+                                       proposal_count,
+                                       verifier_wait_ms);
             // B7-extra disambiguator: distinguish this calibration-treatment
             // exit from a natural max-tx exhaustion in downstream PPUT
             // analysis. See PputResult::synthetic_short_circuit doc-comment
@@ -782,6 +833,11 @@ async fn run_swarm(
                         "append" => {
                             *tool_dist.entry("append".into()).or_insert(0) += 1;
                             if let Some(payload) = &action.payload {
+                                // A4: record proposal for tactic_diversity.
+                                let mut ph = std::collections::hash_map::DefaultHasher::new();
+                                payload.hash(&mut ph);
+                                proposal_hashes.insert(ph.finish());
+                                proposal_count += 1;
                                 let prices: std::collections::HashMap<String, f64> =
                                     snap.markets.iter()
                                         .map(|(id, m)| (id.clone(), m.yes_price))
@@ -838,6 +894,10 @@ async fn run_swarm(
                                 payload.hash(&mut h);
                                 omega_payload_hashes.insert(h.finish());
                                 omega_attempts += 1;
+                                // A4: also record into the broader proposal set
+                                // for tactic_diversity (covers append/complete/step).
+                                proposal_hashes.insert(h.finish());
+                                proposal_count += 1;
                                 info!("[tx {}] OMEGA claim by {} (tape_nodes={}, payload_len={})",
                                       tx, agent_id, tape_len, payload.len());
                                 let oracle = Lean4Oracle::new(
@@ -845,14 +905,18 @@ async fn run_swarm(
                                     theorem_name.to_string(),
                                     lean_path.to_string(),
                                 );
-                                // Path 1: payload alone
+                                // Path 1: payload alone (A4 verifier_wait bracket)
+                                let v_t0 = Instant::now();
                                 let r_alone = oracle.verify_omega_detailed(payload);
+                                verifier_wait_ms += v_t0.elapsed().as_millis() as u64;
                                 let (full_proof, path_choice, r_final) = match &r_alone {
                                     Ok((true, _)) => (payload.clone(), "alone", r_alone.clone()),
                                     _ if !tape_chain.is_empty() => {
-                                        // Path 2: tape + payload
+                                        // Path 2: tape + payload (A4 verifier_wait bracket)
                                         let combined = format!("{}\n{}", tape_chain, payload);
+                                        let v_t1 = Instant::now();
                                         let r_combined = oracle.verify_omega_detailed(&combined);
+                                        verifier_wait_ms += v_t1.elapsed().as_millis() as u64;
                                         if matches!(r_combined, Ok((true, _))) {
                                             *tool_dist.entry("complete_via_tape".into()).or_insert(0) += 1;
                                         }
@@ -940,7 +1004,11 @@ async fn run_swarm(
                                                         proof_file,
                                                         Some(acc.total_run_token_count()),
                                                         Some(acc.failed_branch_count),
-                                                        wc.elapsed_ms());
+                                                        wc.elapsed_ms(),
+                                                        false,
+                                                        proposal_hashes.len() as u64,
+                                                        proposal_count,
+                                                        verifier_wait_ms);
                                     }
                                     Ok((false, err_detail)) => {
                                         // Step-B v3: classify + record class label (C-022 shield).
@@ -1070,6 +1138,11 @@ async fn run_swarm(
                             // at a time — the Art. IV semantics Turing 1936 defines.
                             *tool_dist.entry("step".into()).or_insert(0) += 1;
                             if let Some(tactic) = &action.payload {
+                                // A4: record proposal for tactic_diversity.
+                                let mut ph = std::collections::hash_map::DefaultHasher::new();
+                                tactic.hash(&mut ph);
+                                proposal_hashes.insert(ph.finish());
+                                proposal_count += 1;
                                 let tape_chain: String = bus.kernel.tape.time_arrow().iter()
                                     .filter_map(|id| bus.kernel.tape.get(id))
                                     .map(|n| n.payload.clone())
@@ -1085,7 +1158,10 @@ async fn run_swarm(
                                     theorem_name.to_string(),
                                     lean_path.to_string(),
                                 );
+                                // A4: bracket the Lean partial-verify call.
+                                let v_t0 = Instant::now();
                                 let verdict = oracle.verify_partial(&prefix);
+                                verifier_wait_ms += v_t0.elapsed().as_millis() as u64;
                                 // PPUT-CCL B3: close bracket after step-verify returns.
                                 wc.mark_final_accept();
                                 match verdict {
@@ -1125,7 +1201,11 @@ async fn run_swarm(
                                                         proof_file,
                                                         Some(acc.total_run_token_count()),
                                                         Some(acc.failed_branch_count),
-                                                        wc.elapsed_ms());
+                                                        wc.elapsed_ms(),
+                                                        false,
+                                                        proposal_hashes.len() as u64,
+                                                        proposal_count,
+                                                        verifier_wait_ms);
                                     }
                                     PartialVerdict::PartialOk => {
                                         let parent = bus.kernel.tape.time_arrow().last().cloned();
@@ -1193,6 +1273,9 @@ async fn run_swarm(
     // No OMEGA found → PPUT = 0
     // B3: close bracket on max-tx exhaustion path.
     // P0-A: max-tx exhaustion → neither leg fired.
+    // A4: this is the canonical hit_max_tx=true site (ran the full
+    // for-loop without OMEGA and without firing the synthetic
+    // short-circuit, which would have returned earlier).
     wc.mark_final_accept();
     make_pput(problem_file, &condition, &run_model_label,
               false, false, start, 0, 0,
@@ -1200,7 +1283,11 @@ async fn run_swarm(
               None, None, None,
               Some(acc.total_run_token_count()),
               Some(acc.failed_branch_count),
-              wc.elapsed_ms())
+              wc.elapsed_ms(),
+              true,
+              proposal_hashes.len() as u64,
+              proposal_count,
+              verifier_wait_ms)
 }
 
 fn make_pput(
@@ -1215,6 +1302,12 @@ fn make_pput(
     total_run_token_count: Option<u64>,
     failed_branch_count: Option<u32>,
     total_wall_time_ms: Option<u64>,
+    // Phase A atom A4 (decomposed metrics). All callers must pass
+    // explicit values — the v2 fields are non-Optional.
+    hit_max_tx: bool,
+    distinct_proposals: u64,
+    total_proposals: u64,
+    verifier_wait_ms: u64,
 ) -> PputResult {
     // PPUT-CCL Phase B B4 (mid-term audit P0-A fix 2026-04-25):
     // make_pput is now PURELY computational. The caller MUST decide both
@@ -1298,6 +1391,11 @@ fn make_pput(
         failed_branch_count: failed_count,
         // Phase B placeholders — Phase C+ wires these as the modes activate.
         rollback_count: 0,
+        hit_max_tx,
+        tactic_diversity: minif2f_v4::jsonl_schema::compute_tactic_diversity(
+            distinct_proposals, total_proposals,
+        ),
+        verifier_wait_ms,
         far: 0.0, err: 0.0, iac: 0.0, cpr: 0.0,
         model_snapshot,
         git_sha,
@@ -1479,6 +1577,8 @@ mod v2_emit_tests {
             500, 1, 1,
             None, None, None, None, None,
             Some(2000), Some(0), Some(15_000),
+            // A4: oneshot success — no max-tx, 1/1 unique, 4500ms in Lean.
+            false, 1, 1, 4_500,
         );
 
         let line = serde_json::to_string(&result).expect("serialize PputResult");
@@ -1504,6 +1604,12 @@ mod v2_emit_tests {
                 assert!(agg.pput_verified > 0.0);
                 assert_eq!(agg.pput_runtime, agg.pput_verified,
                     "Phase B: runtime IS Lean — pput_runtime must equal pput_verified");
+                // A4 fields round-trip through emit.
+                assert_eq!(agg.hit_max_tx, false);
+                assert_eq!(agg.tactic_diversity, 1.0);
+                assert_eq!(agg.verifier_wait_ms, 4_500);
+                assert!(agg.verifier_wait_ms <= agg.total_wall_time_ms,
+                    "A4 invariant: verifier_wait_ms must not exceed total_wall_time_ms");
             }
             RunRecord::Legacy(_) => panic!(
                 "v2 emit MUST dispatch to RunRecord::V2, not Legacy. \
@@ -1535,6 +1641,9 @@ mod v2_emit_tests {
             500, 1, 1,
             None, None, None, None, None,
             Some(2000), Some(0), Some(15_000),
+            // A4: same shape as success path; A4 fields are independent
+            // of the H1 divergence signal we're testing here.
+            false, 1, 1, 4_500,
         );
 
         assert_eq!(result.progress, 0u8,
@@ -1546,6 +1655,105 @@ mod v2_emit_tests {
             "pput_verified MUST collapse to 0 when Lean rejects");
         assert!(result.pput_runtime - result.pput_verified > 0.0,
             "(pput_runtime - pput_verified) > 0 ⟺ Soft Law divergence detected");
+
+        std::env::remove_var("SPLIT");
+        std::env::remove_var("MODE");
+    }
+
+    /// Phase A atom A4 conformance: max-tx exhaustion path stamps
+    /// `hit_max_tx=true` AND splits `solve_rate` from `tokens_per_solve`
+    /// + `time_per_solve` correctly (per Gemini brainstorm 2026-04-25
+    /// § A.4). This is the "swarm spent the budget but didn't solve"
+    /// row that downstream analysis must distinguish from OMEGA accept.
+    #[test]
+    fn test_a4_emit_max_tx_exhaustion_row() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        std::env::set_var("SPLIT", "adaptation");
+        std::env::set_var("MODE", "full");
+
+        // Synthetic max-tx exhaustion: 200 tx, neither leg fired, swarm
+        // proposed 50 unique payloads out of 200 tries (collision rate
+        // typical of mid-N swarm on a hard problem).
+        let result = make_pput(
+            "test_problem.lean", "n3", "deepseek-v4-flash",
+            false, false, Instant::now(),
+            0, 0, 200,
+            None, None, None, None, None,
+            Some(8_000), Some(199), Some(120_000),
+            true, 50, 200, 90_000,
+        );
+
+        let line = serde_json::to_string(&result).expect("serialize PputResult");
+        match RunRecord::from_json(&line).expect("v2 line parses") {
+            RunRecord::V2(agg) => {
+                // Decomposed-metric rule (Gemini brainstorm): on a max-tx
+                // exhaustion, solve_rate=0 but tokens_per_solve / time_per_solve
+                // are UNDEFINED (not 0). The contract here is that progress=0
+                // → pput_verified=0, and downstream analysis must filter on
+                // progress before averaging tokens/time.
+                assert_eq!(agg.hit_max_tx, true);
+                assert_eq!(agg.solved, false);
+                assert_eq!(agg.progress, 0u8);
+                assert_eq!(agg.pput_verified, 0.0);
+                // tactic_diversity = 50/200 = 0.25 (notable correlation,
+                // worth flagging — see C-036 unique_payload_ratio < 0.30
+                // catastrophic-correlation threshold; A4 generalizes it).
+                assert!((agg.tactic_diversity - 0.25).abs() < 1e-9);
+                // verifier_wait_ms ≤ total_wall_time_ms invariant.
+                assert!(agg.verifier_wait_ms <= agg.total_wall_time_ms);
+                assert_eq!(agg.verifier_wait_ms, 90_000);
+                assert_eq!(agg.total_wall_time_ms, 120_000);
+            }
+            RunRecord::Legacy(_) => panic!(
+                "A4 max-tx row MUST dispatch to RunRecord::V2"
+            ),
+        }
+
+        std::env::remove_var("SPLIT");
+        std::env::remove_var("MODE");
+    }
+
+    /// Phase A atom A4 conformance: B7-extra synthetic short-circuit
+    /// MUST NOT set hit_max_tx=true. The two exit paths look identical
+    /// at `tx_count` time but mean different things — synthetic exits
+    /// EARLY at the rollback threshold (~50 tx) and is tagged via
+    /// `synthetic_short_circuit`; natural exhaustion runs the full
+    /// 200 tx and is tagged via `hit_max_tx`. Conflating them
+    /// neutralizes the calibration-treatment vs production split.
+    #[test]
+    fn test_a4_synthetic_short_circuit_does_not_set_hit_max_tx() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        std::env::set_var("SPLIT", "adaptation");
+        std::env::set_var("MODE", "full");
+
+        // Mirror the synthetic short-circuit return shape (evaluator.rs
+        // line ~622): hit_max_tx=false, then caller sets
+        // synthetic_short_circuit=Some(true) on the result.
+        let mut result = make_pput(
+            "test_problem.lean", "n3", "deepseek-v4-flash",
+            false, false, Instant::now(),
+            0, 0, 50,
+            None, None, None, None, None,
+            Some(2_000), Some(49), Some(40_000),
+            false, 20, 50, 25_000,
+        );
+        result.synthetic_short_circuit = Some(true);
+
+        let line = serde_json::to_string(&result).expect("serialize PputResult");
+        match RunRecord::from_json(&line).expect("v2 line parses") {
+            RunRecord::V2(agg) => {
+                // The disambiguator: hit_max_tx stays false on the
+                // synthetic-treatment row even though the run did not
+                // OMEGA. synthetic_short_circuit lives in the legacy
+                // diagnostic envelope (not in v2 RunAggregate); the
+                // raw `line` carries it for downstream tools.
+                assert_eq!(agg.hit_max_tx, false,
+                    "synthetic short-circuit MUST NOT set hit_max_tx — it exits EARLY");
+            }
+            RunRecord::Legacy(_) => panic!("A4 short-circuit row must dispatch as v2"),
+        }
+        assert!(line.contains("\"synthetic_short_circuit\":true"),
+            "synthetic short-circuit must remain visible on the raw row");
 
         std::env::remove_var("SPLIT");
         std::env::remove_var("MODE");

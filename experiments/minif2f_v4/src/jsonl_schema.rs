@@ -104,6 +104,31 @@ pub struct RunAggregate {
     pub failed_branch_count: u32,
     pub rollback_count: u32,
 
+    /// Phase A atom A4: did the run reach `max_transactions` without OMEGA?
+    /// True iff the natural max-tx exhaustion path fired. False on OMEGA
+    /// accept, on the B7-extra synthetic short-circuit (which exits
+    /// EARLY at the rollback threshold — counted under
+    /// `synthetic_short_circuit`, not here), and on oneshot (no max-tx
+    /// concept; only one LLM call). Co-reported with `solved` so
+    /// downstream analysis can split `(solve_rate)` from `(PPUT on solved)`
+    /// per Gemini N-agents brainstorm 2026-04-25 § A.4.
+    pub hit_max_tx: bool,
+    /// Phase A atom A4: distinct-payload-hash / total-proposal ratio
+    /// across every parsed `append`/`complete`/`step` payload in the run.
+    /// Range [0.0, 1.0]; 1.0 = every proposal unique; 0 proposals → 0.0
+    /// by convention (synthetic / measurement-failure runs). Cheap proxy
+    /// for the semantic-diversity metric proposed in the N-agents
+    /// brainstorms (Gemini § A "Search Party"); embedding distance is
+    /// Phase D+ work.
+    pub tactic_diversity: f64,
+    /// Phase A atom A4: cumulative wall-clock spent inside Lean verifier
+    /// calls (`verify_omega` / `verify_omega_detailed` / `verify_partial`)
+    /// across the full run, in milliseconds. By construction
+    /// `verifier_wait_ms ≤ total_wall_time_ms`. Enables the Amdahl /
+    /// USL decomposition Codex N-agents brainstorm § C proposed
+    /// (parallel LLM time vs serial Lean time).
+    pub verifier_wait_ms: u64,
+
     pub far: f64,
     pub err: f64,
     pub iac: f64,
@@ -134,6 +159,18 @@ impl RunAggregate {
     pub fn compute_pput_m_verified(progress: u8, c_i: u64, t_i_ms: u64) -> f64 {
         1.0e6 * Self::compute_pput_verified(progress, c_i, t_i_ms)
     }
+}
+
+/// Phase A atom A4 (FC1-N11 ∏p decision diversity): tactic_diversity
+/// = distinct / total. 0 proposals → 0.0 by convention (no signal to
+/// report). All-distinct → 1.0; all-identical → 1/total.
+pub fn compute_tactic_diversity(distinct_proposals: u64, total_proposals: u64) -> f64 {
+    if total_proposals == 0 {
+        return 0.0;
+    }
+    let r = (distinct_proposals as f64) / (total_proposals as f64);
+    // distinct must not exceed total (caller bug); clamp to [0, 1].
+    r.clamp(0.0, 1.0)
 }
 
 /// Legacy v1 run row — mirrors the pre-v2 `PputResult` shape emitted by the
@@ -205,6 +242,9 @@ mod tests {
             pput_m_verified: RunAggregate::compute_pput_m_verified(1, 4096, 12_000),
             failed_branch_count: 3,
             rollback_count: 0,
+            hit_max_tx: false,
+            tactic_diversity: 1.0,
+            verifier_wait_ms: 4_500,
             far: 0.0, err: 0.0, iac: 0.0, cpr: 0.0,
             model_snapshot: "deepseek-v4-flash@2026-04-26".into(),
             git_sha: "913255d".into(),
@@ -270,5 +310,51 @@ mod tests {
             RunRecord::V2(_) => {}
             RunRecord::Legacy(_) => panic!("v2 line misclassified as legacy"),
         }
+    }
+
+    // Phase A atom A4: decomposed metrics (Codex / Gemini N-agents brainstorm).
+    // The 3 new fields (hit_max_tx, tactic_diversity, verifier_wait_ms) must
+    // round-trip and obey their invariants; every emitted v2 row carries them
+    // (they are non-Optional in the schema).
+
+    #[test]
+    fn test_a4_decomposed_metrics_round_trip() {
+        let mut r = sample_run();
+        r.hit_max_tx = true;
+        r.tactic_diversity = 0.42;
+        r.verifier_wait_ms = 1234;
+        let line = serde_json::to_string(&r).unwrap();
+        assert!(line.contains("\"hit_max_tx\":true"));
+        assert!(line.contains("\"tactic_diversity\":0.42"));
+        assert!(line.contains("\"verifier_wait_ms\":1234"));
+        let parsed: RunAggregate = serde_json::from_str(&line).unwrap();
+        assert_eq!(parsed, r);
+    }
+
+    #[test]
+    fn test_a4_tactic_diversity_helper() {
+        // All-distinct → 1.0
+        assert_eq!(compute_tactic_diversity(8, 8), 1.0);
+        // All-identical → 1/N
+        assert!((compute_tactic_diversity(1, 8) - 0.125).abs() < 1e-12);
+        // 0 proposals → 0.0 (no signal)
+        assert_eq!(compute_tactic_diversity(0, 0), 0.0);
+        assert_eq!(compute_tactic_diversity(0, 5), 0.0);
+        // Caller bug (distinct > total) clamps to 1.0, never panics — keeps
+        // emit path crash-free under accumulator wiring regression.
+        assert_eq!(compute_tactic_diversity(9, 8), 1.0);
+    }
+
+    #[test]
+    fn test_a4_verifier_wait_bounded_by_total_wall_time() {
+        // Invariant required at every emit site: verifier wait is a strict
+        // sub-interval of total wall time. Test the contract; emit-site
+        // wiring is asserted in the conformance battery.
+        let r = sample_run();
+        assert!(
+            r.verifier_wait_ms <= r.total_wall_time_ms,
+            "verifier_wait_ms ({}) must be <= total_wall_time_ms ({})",
+            r.verifier_wait_ms, r.total_wall_time_ms
+        );
     }
 }
