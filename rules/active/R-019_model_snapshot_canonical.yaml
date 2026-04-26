@@ -7,10 +7,10 @@ axiom: "PREREG and Trust Root pin canonical model names (e.g., deepseek-v4-flash
 trigger: "pre_edit"
 check:
   type: "grep"
-  pattern: "(deepseek-chat|ACTIVE_MODEL.*deepseek-chat)"
+  pattern: "(deepseek-chat|deepseek-reasoner|deepseek-v3-1)"
 file_glob: "*"
 enforcement: "warn"
-message: "REMINDER (R-019 / FC1-N7): edit introduces 'deepseek-chat' literal. Per PREREG § 1.8 the canonical model name for Phase B+C is 'deepseek-v4-flash' (thinking-off mode). 'deepseek-chat' is an API alias that currently routes to v4-flash thinking-off but may silently drift to a different backend in the future (memory project_deepseek_drift_2026-04-24). Use 'deepseek-v4-flash' as the canonical label in MODEL_SNAPSHOT, ACTIVE_MODEL defaults, scripts, and jsonl emit. If this edit is intentionally testing the alias path, document explicitly in commit message."
+message: "REMINDER (R-019 / FC1-N7): edit introduces a deprecated DeepSeek alias ('deepseek-chat', 'deepseek-reasoner', or 'deepseek-v3-1'). Per PREREG § 1.8 the canonical model name for Phase B+C is **'deepseek-v4-flash'** (thinking-off backend). Aliases currently route to v4-flash but may silently drift to different backends (memory project_deepseek_drift_2026-04-24 documents this exact failure mode mid-experiment). A0e-fix 2026-04-25 expanded this rule from deepseek-chat-only to cover all deprecated aliases after Codex caught evaluator.rs:203 default 'deepseek-reasoner' + runner.sh:43 default 'deepseek-chat'. Use 'deepseek-v4-flash' as the canonical label in MODEL_SNAPSHOT, ACTIVE_MODEL defaults, scripts, and jsonl emit. If this edit is intentionally testing an alias path, document explicitly in commit message."
 stats:
   times_triggered: 0
   last_triggered: ""

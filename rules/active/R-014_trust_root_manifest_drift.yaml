@@ -8,9 +8,15 @@ trigger: "pre_edit"
 check:
   type: "grep"
   pattern: ".*"
+# A0e-fix 2026-04-25: tried narrowing file_glob via brace expansion but
+# Python fnmatch doesn't support {a,b,c}. Reverted to *.rs with TIGHTER
+# message (one-line glance instead of verbose paragraph) to mitigate
+# alert-fatigue. False-positive cost (warns on non-Trust-Root .rs edits)
+# accepted in exchange for false-negative protection (any future .rs file
+# added to manifest is auto-covered).
 file_glob: "*.rs"
 enforcement: "warn"
-message: "REMINDER (R-014 / FC3-S3): if this file is in genesis_payload.toml [trust_root] (20 manifest entries: src/{kernel,wal,bus,main,boot}.rs / src/drivers/llm_http.rs / src/sdk/prompt_guard.rs / experiments/minif2f_v4/src/{lean4_oracle,cost_aggregator,wall_clock,post_hoc_verifier,jsonl_schema,rollback_sim}.rs / experiments/minif2f_v4/src/bin/evaluator.rs), you MUST: (1) recompute sha256sum after edit, (2) update the entry in genesis_payload.toml [trust_root], (3) cargo test boot::tests::verify_trust_root_passes_on_intact_repo to verify. Otherwise next process boot will panic with TRUST_ROOT_TAMPERED."
+message: "R-014 (FC3-S3 Trust Root): if this file IS in genesis_payload.toml [trust_root] (24 entries as of A0d), recompute sha256sum + update manifest + cargo test boot::verify_trust_root_passes_on_intact_repo. Otherwise next boot panics TRUST_ROOT_TAMPERED."
 stats:
   times_triggered: 0
   last_triggered: ""

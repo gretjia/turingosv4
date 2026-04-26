@@ -200,7 +200,11 @@ async fn main() {
     let condition = std::env::var("CONDITION").unwrap_or_else(|_| "oneshot".into());
     let minif2f_dir = std::env::var("MINIF2F_DIR").unwrap_or_else(|_| DEFAULT_MINIF2F_DIR.into());
     let proxy_url = std::env::var("LLM_PROXY_URL").unwrap_or_else(|_| "http://localhost:8080".into());
-    let model = std::env::var("ACTIVE_MODEL").unwrap_or_else(|_| "deepseek-reasoner".into());
+    // A0e-fix 2026-04-25 (Codex finding 3 + R-019): canonical name per
+    // PREREG § 1.8. Was "deepseek-reasoner" (deprecated alias). Phase B+C
+    // pinned model = deepseek-v4-flash thinking-off backend.
+    // FC-trace: FC1-N7 (δ/AI canonical identity) + memory project_deepseek_drift_2026-04-24.
+    let model = std::env::var("ACTIVE_MODEL").unwrap_or_else(|_| "deepseek-v4-flash".into());
 
     // Resolve problem path
     let problem_path = resolve_problem_path(problem_file, &minif2f_dir);

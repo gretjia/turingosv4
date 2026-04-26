@@ -40,7 +40,10 @@ if [ -z "${DEEPSEEK_API_KEY:-}" ] && [ -f "$HOME/projects/turingosv3/.env" ]; th
     source "$HOME/projects/turingosv3/.env"
 fi
 export LLM_PROXY_URL="${LLM_PROXY_URL:-http://localhost:8080}"
-export ACTIVE_MODEL="${ACTIVE_MODEL:-deepseek-chat}"
+# A0e-fix 2026-04-25 (Codex finding 3 + R-019): canonical name per PREREG § 1.8.
+# Was "deepseek-chat" (deprecated alias routing to v4-flash thinking-off backend).
+# FC-trace: FC1-N7 (δ/AI canonical identity).
+export ACTIVE_MODEL="${ACTIVE_MODEL:-deepseek-v4-flash}"
 
 MINIF2F_DIR="${MINIF2F_DIR:-/home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4}"
 LOG_DIR="$PROJECT_ROOT/experiments/minif2f_v4/logs"

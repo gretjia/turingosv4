@@ -45,9 +45,9 @@ AGENT_COUNT=$(find "$ROOT/.claude/agents" -name "*.md" | wc -l)
 SKILL_COUNT=$(find "$ROOT/.claude/skills" -name "SKILL.md" | wc -l)
 [ "$SKILL_COUNT" -eq 6 ] && pass "T-006: 6 skill definitions" || fail "T-006: Expected 6 skills" "found $SKILL_COUNT"
 
-# T-007: 10 active rules
+# T-007: 14 active rules (A0e-fix 2026-04-25: was 10 pre-A0a; +R-014/R-015/R-018/R-019)
 RULE_COUNT=$(find "$ROOT/rules/active" -name "*.yaml" | wc -l)
-[ "$RULE_COUNT" -eq 10 ] && pass "T-007: 10 active rules" || fail "T-007: Expected 10 rules" "found $RULE_COUNT"
+[ "$RULE_COUNT" -eq 14 ] && pass "T-007: 14 active rules (post A0a)" || fail "T-007: Expected 14 rules (post A0a)" "found $RULE_COUNT"
 
 # T-008: 5 docs
 DOC_COUNT=$(find "$ROOT/docs" -name "*.md" | wc -l)
@@ -57,9 +57,9 @@ DOC_COUNT=$(find "$ROOT/docs" -name "*.md" | wc -l)
 INCIDENT_COUNT=$(find "$ROOT/incidents" -maxdepth 1 -type d -name "V-*" | wc -l)
 [ "$INCIDENT_COUNT" -eq 9 ] && pass "T-009: 9 incidents migrated" || fail "T-009: Expected 9 incidents" "found $INCIDENT_COUNT"
 
-# T-010: 35 cases in library
+# T-010: 50 cases in library (A0e-fix 2026-04-25: was 35 pre-A0c; +C-071..C-075 from A0c, plus accumulated others between Phase 8 and Phase B)
 CASE_COUNT=$(find "$ROOT/cases" -name "C-*.yaml" | wc -l)
-[ "$CASE_COUNT" -eq 35 ] && pass "T-010: 35 cases in library" || fail "T-010: Expected 35 cases" "found $CASE_COUNT"
+[ "$CASE_COUNT" -eq 50 ] && pass "T-010: 50 cases in library (post A0c)" || fail "T-010: Expected 50 cases (post A0c)" "found $CASE_COUNT"
 
 # T-011: settings.json valid JSON
 python3 -c "import json; json.load(open('$ROOT/.claude/settings.json'))" 2>/dev/null \

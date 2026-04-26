@@ -29,11 +29,19 @@ use turingosv4::wal::Wal;
 // ─── FC1: basic cycle Q_t → rtool → input → AI(δ) → output → ∏p → wtool → Q_{t+1} ───
 
 #[test]
-fn fc1_n1_q_state_carrier_present() {
+fn fc1_n1_q_state_carrier_constructible_with_default_config() {
     // FC1-N1 Q_t = ⟨q_t, HEAD_t, tape_t⟩ — TuringBus is the constitutional
-    // Q_t carrier. Witness: type exists.
-    let _ = std::any::type_name::<TuringBus>();
-    let _ = std::any::type_name::<BusConfig>();
+    // Q_t carrier. A0e-fix 2026-04-25: strengthened from type_name witness
+    // (Codex Q2 + Gemini Q2.a — weak compile-only witness doesn't catch
+    // behavioral regression). Now actually constructs the carrier.
+    let kernel = Kernel::new();
+    let bus = TuringBus::new(kernel, BusConfig::default());
+    // Witness: behavioral — bus.kernel.tape exists + has empty time-arrow
+    // on fresh construction (i.e., FC1-N3 HEAD = None).
+    assert!(
+        bus.kernel.tape.time_arrow().is_empty(),
+        "FC1-N1: fresh bus must have empty time-arrow"
+    );
 }
 
 #[test]
@@ -46,15 +54,24 @@ fn fc1_n4_tape_constructible_with_time_arrow() {
 }
 
 #[test]
-fn fc1_n7_delta_ai_client_type() {
-    // FC1-N7 δ / AI = ResilientLLMClient::generate. Witness: type exists.
-    let _ = std::any::type_name::<ResilientLLMClient>();
+fn fc1_n7_delta_ai_client_constructible() {
+    // FC1-N7 δ / AI = ResilientLLMClient. A0e-fix 2026-04-25: strengthened
+    // from type_name to actual construction. Witness: ResilientLLMClient::new
+    // exists + accepts (proxy_url, timeout, max_retries).
+    let _client = ResilientLLMClient::new("http://localhost:8080", 30, 3);
 }
 
 #[test]
-fn fc1_n6_input_universe_snapshot_present() {
+fn fc1_n6_input_universe_snapshot_via_bus() {
     // FC1-N6 input = ⟨q_i, s_i⟩ realized as UniverseSnapshot.
-    let _ = std::any::type_name::<UniverseSnapshot>();
+    // A0e-fix 2026-04-25: strengthened from type_name. Witness: bus.snapshot()
+    // returns a UniverseSnapshot with FC1-N3 HEAD-equivalent (empty tape).
+    let kernel = Kernel::new();
+    let bus = TuringBus::new(kernel, BusConfig::default());
+    let snap: UniverseSnapshot = bus.snapshot();
+    // Witness: snapshot exposes get_balance API (per FC1-N6 ⟨q_i, s_i⟩
+    // signature — agent state is part of the input).
+    let _balance = snap.get_balance("Agent_Test");
 }
 
 #[test]
@@ -156,9 +173,20 @@ fn fc3_n34_parse_trust_root_section_helper() {
 }
 
 #[test]
-fn fc3_n31_logs_archive_wal_present() {
-    // FC3-N31 logs archive = Wal append-only ledger.
-    let _ = std::any::type_name::<Wal>();
+fn fc3_n31_logs_archive_wal_open_in_tempdir() {
+    // FC3-N31 logs archive = Wal append-only ledger. A0e-fix 2026-04-25:
+    // strengthened from type_name to actual Wal::open call (the
+    // append-only API surface).
+    let tmp = std::env::temp_dir().join(format!(
+        "fc_alignment_conformance_wal_{}_{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+    ));
+    let wal = Wal::open(&tmp);
+    assert!(wal.is_ok(), "FC3-N31: Wal::open must succeed at fresh tempdir path");
+    // Cleanup
+    let _ = std::fs::remove_file(&tmp);
 }
 
 #[test]
