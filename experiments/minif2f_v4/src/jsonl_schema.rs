@@ -129,6 +129,22 @@ pub struct RunAggregate {
     /// (parallel LLM time vs serial Lean time).
     pub verifier_wait_ms: u64,
 
+    /// Phase A atom A5 (FC2-N22 HALT decomposition): which
+    /// budget-regime governed the loop bound for this run. Stable
+    /// label string (`total_proposal` | `per_agent` | `token_total` |
+    /// `wall_clock`). PREREG_AMENDMENT_p0_defer § 3 condition 3 names
+    /// this stamp as a re-calibration prerequisite — without it,
+    /// `MaxTxExhausted` rows are ambiguous about which budget
+    /// partitioning rule produced them. Oneshot runs (no swarm loop)
+    /// stamp `total_proposal` + `budget_max_transactions=1`.
+    pub budget_regime: String,
+    /// Phase A atom A5: base transaction budget BEFORE the regime's
+    /// scaling rule was applied. Under `total_proposal` the loop bound
+    /// equals this; under `per_agent` the loop bound = base × n_agents.
+    /// Stamping the base (not the effective bound) keeps cross-N
+    /// comparisons interpretable in downstream analysis.
+    pub budget_max_transactions: u32,
+
     pub far: f64,
     pub err: f64,
     pub iac: f64,
@@ -245,6 +261,8 @@ mod tests {
             hit_max_tx: false,
             tactic_diversity: 1.0,
             verifier_wait_ms: 4_500,
+            budget_regime: "total_proposal".into(),
+            budget_max_transactions: 200,
             far: 0.0, err: 0.0, iac: 0.0, cpr: 0.0,
             model_snapshot: "deepseek-v4-flash@2026-04-26".into(),
             git_sha: "913255d".into(),
@@ -343,6 +361,22 @@ mod tests {
         // Caller bug (distinct > total) clamps to 1.0, never panics — keeps
         // emit path crash-free under accumulator wiring regression.
         assert_eq!(compute_tactic_diversity(9, 8), 1.0);
+    }
+
+    #[test]
+    fn test_a5_budget_regime_round_trip() {
+        // Phase A atom A5: every emitted v2 row must carry the budget
+        // regime + base. The stable string labels and the u32 base
+        // both serialize/deserialize cleanly, including the
+        // non-default `per_agent` regime that scales with N.
+        let mut r = sample_run();
+        r.budget_regime = "per_agent".into();
+        r.budget_max_transactions = 50;
+        let line = serde_json::to_string(&r).unwrap();
+        assert!(line.contains("\"budget_regime\":\"per_agent\""));
+        assert!(line.contains("\"budget_max_transactions\":50"));
+        let parsed: RunAggregate = serde_json::from_str(&line).unwrap();
+        assert_eq!(parsed, r);
     }
 
     #[test]

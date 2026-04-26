@@ -100,6 +100,18 @@ struct PputResult {
     /// of `total_wall_time_ms`. Enables Amdahl/USL serial-vs-parallel
     /// decomposition per Codex brainstorm § C.
     verifier_wait_ms: u64,
+    /// Phase A atom A5 (FC2-N22 HALT decomposition): label of the
+    /// budget regime that governed this run's loop bound. One of
+    /// `total_proposal` | `per_agent` | `token_total` | `wall_clock`
+    /// (the latter two declared but startup-fatal in Phase A). Required
+    /// by PREREG_AMENDMENT_p0_defer § 3 condition 3 to disambiguate
+    /// `MaxTxExhausted` rows across N values.
+    budget_regime: String,
+    /// Phase A atom A5: base transaction budget BEFORE regime scaling.
+    /// Under `total_proposal` the effective loop bound = this value;
+    /// under `per_agent` = this value × n_agents. Oneshot stamps 1
+    /// (single LLM call, no loop concept).
+    budget_max_transactions: u32,
     /// FAR guardrail (Phase B not yet computed; emit 0.0 placeholder).
     far: f64,
     /// ERR guardrail (Phase B not yet computed).
@@ -311,6 +323,13 @@ async fn run_oneshot(
     // but bracket so future Phase C Soft Law mode that double-verifies
     // accumulates correctly.
     let mut verifier_wait_ms: u64 = 0;
+    // Phase A atom A5 (FC2-N22 budget regime stamp): oneshot has no
+    // transaction loop — it issues exactly one LLM call and returns.
+    // Stamp `total_proposal` + base=1 so downstream PPUT analysis can
+    // join oneshot rows on the same regime axis as swarm rows without
+    // a special case. The regime is informational here; no scaling.
+    let oneshot_regime = minif2f_v4::budget_regime::BudgetRegime::TotalProposal;
+    let oneshot_budget_base: u32 = 1;
 
     let oracle = Lean4Oracle::new(
         problem_statement.to_string(), theorem_name.to_string(), lean_path.to_string(),
@@ -363,7 +382,8 @@ async fn run_oneshot(
                                  Some(acc.total_run_token_count()),
                                  Some(acc.failed_branch_count),
                                  wc.elapsed_ms(),
-                                 false, 1, 1, verifier_wait_ms);
+                                 false, 1, 1, verifier_wait_ms,
+                                 oneshot_regime, oneshot_budget_base);
             }
 
             // Phase A atom A4 (FC1-N12): bracket every Lean call so verifier
@@ -397,7 +417,8 @@ async fn run_oneshot(
                               Some(acc.total_run_token_count()),
                               Some(acc.failed_branch_count),
                               wc.elapsed_ms(),
-                              false, 1, 1, verifier_wait_ms)
+                              false, 1, 1, verifier_wait_ms,
+                              oneshot_regime, oneshot_budget_base)
                 }
                 Ok(false) => {
                     // Lean rejected → neither leg.
@@ -407,7 +428,8 @@ async fn run_oneshot(
                               Some(acc.total_run_token_count()),
                               Some(acc.failed_branch_count),
                               wc.elapsed_ms(),
-                              false, 1, 1, verifier_wait_ms)
+                              false, 1, 1, verifier_wait_ms,
+                              oneshot_regime, oneshot_budget_base)
                 }
                 Err(e) => {
                     warn!("Oracle error: {}", e);
@@ -418,7 +440,8 @@ async fn run_oneshot(
                               Some(acc.total_run_token_count()),
                               Some(acc.failed_branch_count),
                               wc.elapsed_ms(),
-                              false, 1, 1, verifier_wait_ms)
+                              false, 1, 1, verifier_wait_ms,
+                              oneshot_regime, oneshot_budget_base)
                 }
             }
         }
@@ -574,7 +597,24 @@ async fn run_swarm(
     let boltzmann_seed: u64 = std::env::var("BOLTZMANN_SEED")
         .ok().and_then(|s| s.parse().ok()).unwrap_or(DEFAULT_BOLTZMANN_SEED);
     let mut boltz_rng = StdRng::seed_from_u64(boltzmann_seed);
-    let max_transactions = 200;
+
+    // Phase A atom A5 (FC2-N22 budget regime resolution): read
+    // BUDGET_REGIME + MAX_TRANSACTIONS env, validate at startup, and
+    // compute the loop bound. Errors abort BEFORE any LLM call so a
+    // misconfigured run cannot consume API budget. Default
+    // (env unset) = TotalProposal × 200, preserving Phase B baseline
+    // bit-for-bit. PREREG_AMENDMENT_p0_defer § 3 condition 3.
+    let (budget_regime, budget_max_tx_base, max_transactions) =
+        match minif2f_v4::budget_regime::resolve_budget(n_agents) {
+            Ok(t) => t,
+            Err(e) => {
+                eprintln!("BUDGET_REGIME resolution failed: {}", e);
+                std::process::exit(1);
+            }
+        };
+    info!("[budget] regime={} base={} effective_max_tx={} (n_agents={})",
+          budget_regime.label(), budget_max_tx_base, max_transactions, n_agents);
+    let max_transactions = max_transactions as usize;
 
     // Art. IV map-reduce tick: periodic tape statistics (clock → mr → map/reduce)
     let tick_interval: usize = std::env::var("TICK_INTERVAL")
@@ -658,7 +698,8 @@ async fn run_swarm(
                                        false,
                                        proposal_hashes.len() as u64,
                                        proposal_count,
-                                       verifier_wait_ms);
+                                       verifier_wait_ms,
+                                       budget_regime, budget_max_tx_base);
             // B7-extra disambiguator: distinguish this calibration-treatment
             // exit from a natural max-tx exhaustion in downstream PPUT
             // analysis. See PputResult::synthetic_short_circuit doc-comment
@@ -1008,7 +1049,8 @@ async fn run_swarm(
                                                         false,
                                                         proposal_hashes.len() as u64,
                                                         proposal_count,
-                                                        verifier_wait_ms);
+                                                        verifier_wait_ms,
+                                                        budget_regime, budget_max_tx_base);
                                     }
                                     Ok((false, err_detail)) => {
                                         // Step-B v3: classify + record class label (C-022 shield).
@@ -1205,7 +1247,8 @@ async fn run_swarm(
                                                         false,
                                                         proposal_hashes.len() as u64,
                                                         proposal_count,
-                                                        verifier_wait_ms);
+                                                        verifier_wait_ms,
+                                                        budget_regime, budget_max_tx_base);
                                     }
                                     PartialVerdict::PartialOk => {
                                         let parent = bus.kernel.tape.time_arrow().last().cloned();
@@ -1287,7 +1330,8 @@ async fn run_swarm(
               true,
               proposal_hashes.len() as u64,
               proposal_count,
-              verifier_wait_ms)
+              verifier_wait_ms,
+              budget_regime, budget_max_tx_base)
 }
 
 fn make_pput(
@@ -1308,6 +1352,11 @@ fn make_pput(
     distinct_proposals: u64,
     total_proposals: u64,
     verifier_wait_ms: u64,
+    // Phase A atom A5 (FC2-N22 budget regime stamp). Caller declares
+    // the regime + base BEFORE the loop so MaxTxExhausted rows are
+    // unambiguous about which partitioning rule produced them.
+    budget_regime: minif2f_v4::budget_regime::BudgetRegime,
+    budget_max_transactions: u32,
 ) -> PputResult {
     // PPUT-CCL Phase B B4 (mid-term audit P0-A fix 2026-04-25):
     // make_pput is now PURELY computational. The caller MUST decide both
@@ -1396,6 +1445,8 @@ fn make_pput(
             distinct_proposals, total_proposals,
         ),
         verifier_wait_ms,
+        budget_regime: budget_regime.label().to_string(),
+        budget_max_transactions,
         far: 0.0, err: 0.0, iac: 0.0, cpr: 0.0,
         model_snapshot,
         git_sha,
@@ -1579,6 +1630,8 @@ mod v2_emit_tests {
             Some(2000), Some(0), Some(15_000),
             // A4: oneshot success — no max-tx, 1/1 unique, 4500ms in Lean.
             false, 1, 1, 4_500,
+            // A5: oneshot stamps total_proposal + base=1 (single LLM call).
+            minif2f_v4::budget_regime::BudgetRegime::TotalProposal, 1,
         );
 
         let line = serde_json::to_string(&result).expect("serialize PputResult");
@@ -1644,6 +1697,7 @@ mod v2_emit_tests {
             // A4: same shape as success path; A4 fields are independent
             // of the H1 divergence signal we're testing here.
             false, 1, 1, 4_500,
+            minif2f_v4::budget_regime::BudgetRegime::TotalProposal, 1,
         );
 
         assert_eq!(result.progress, 0u8,
@@ -1681,6 +1735,8 @@ mod v2_emit_tests {
             None, None, None, None, None,
             Some(8_000), Some(199), Some(120_000),
             true, 50, 200, 90_000,
+            // A5: canonical Phase B baseline = total_proposal × 200.
+            minif2f_v4::budget_regime::BudgetRegime::TotalProposal, 200,
         );
 
         let line = serde_json::to_string(&result).expect("serialize PputResult");
@@ -1736,6 +1792,7 @@ mod v2_emit_tests {
             None, None, None, None, None,
             Some(2_000), Some(49), Some(40_000),
             false, 20, 50, 25_000,
+            minif2f_v4::budget_regime::BudgetRegime::TotalProposal, 200,
         );
         result.synthetic_short_circuit = Some(true);
 

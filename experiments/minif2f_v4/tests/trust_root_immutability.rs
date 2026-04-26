@@ -106,6 +106,8 @@ fn test_trust_root_manifest_includes_b2_b4_files() {
         "experiments/minif2f_v4/src/rollback_sim.rs",
         // Phase A atom A3: per-agent AGENT_MODELS env var resolver
         "experiments/minif2f_v4/src/agent_models.rs",
+        // Phase A atom A5: budget regime + MAX_TRANSACTIONS resolver
+        "experiments/minif2f_v4/src/budget_regime.rs",
         // 2026-04-25 dual-audit fixes
         "src/main.rs",
         "Cargo.lock",
