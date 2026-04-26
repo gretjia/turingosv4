@@ -1,14 +1,20 @@
 # TuringOS v4 — Handover State
 
-**Updated**: 2026-04-26 (Phase A → B exit complete; 13-round dual-audit cycle closed; Phase B authorization recommended on cumulative evidence)
-**HEAD commit**: `50b5afc` (A8e15: round-13 closure)
-**Origin**: `origin/main` synced to HEAD (54 commits pushed this session)
+**Updated**: 2026-04-26 (Phase C scaffolding 100% complete; ready to launch C2 100-row batch)
+**HEAD commit**: `4f981cd` (C5: mode_flag_binary_purity test) — C2 runner add still uncommitted at writing
+**Origin**: `origin/main` synced through `4f981cd` (60+ commits pushed this UTC date across two phases)
 
 ## Session Summary
 
-13-round Phase A → B dual-audit cycle. **Real-bug yield: 14 substantive findings caught + closed** across rounds (5 R1 + 1 R3 + 1 R6 + 1 R7 + 1 R8 + 2 R10 + 2 R11 + 1 R12 + 0 R13). Plus 1 false-closure caught at R9 (counted separately as delivery-quality finding). Latest verdicts: R13 = Codex CHALLENGE / Gemini PASS — second consecutive Gemini PASS at zero substantive findings; the audit gate has reached its asymptote. New harness amplifier shipped at A8e12: case **C-076** (commit-claim diff parity) + rule **R-020** (judge.sh hook) sediment the false-closure pattern lessons.
+This session continued from Phase A→B exit (commits 60292dc..136b7f5) into Phase C scaffolding (1d04f6a..4f981cd + uncommitted C2 runner). **Phase C 7/9 atoms shipped + C2 runner ready**:
+- C-pre1: hard-10 deterministic freeze (sealed sha256 `6667e6bdd2aa381c…`)
+- C1a-e: 5 ablation modes wired (Full/SoftLaw/Homogeneous/Panopticon/Amnesia) via 4 pure helpers (apply_mode_to_accept / skill_index_for_agent / is_panopticon / is_amnesia)
+- C5: mode_flag_binary_purity inline test (binary-identity discipline)
+- C2 runner: `run_c2_phase_c_ablation.sh` — `--smoke` validated 1/5 modes end-to-end (Homogeneous, 4 min wall-clock); 4/5 modes timeout at 5 min cell limit (heterogeneous-skill thinking-on path is slower)
 
-> **新 session 入口**: read this file + `handover/ai-direct/HANDOVER_PHASE_A_EXIT_2026-04-26.md` (this session's full handover) + `handover/audits/A8_EXIT_PACKET_2026-04-26.md` (current-state Phase A exit packet) + `handover/audits/A8_AUDIT_HISTORY_2026-04-26.md` (append-only 13-round chronology) + `handover/preregistration/PREREG_PPUT_CCL_2026-04-26.md` § 2 + § 5 (Phase C ablation conditions + H1-H4 hypotheses). 这 5 个文件足以无 context 接手。
+**Phase A→B exit (prior portion of session)**: 13-round dual-audit cycle, 14 substantive findings caught + closed; latest R13 verdicts CHALLENGE/PASS — audit gate at asymptote. Harness amplifier C-076 + R-020 sedimented.
+
+> **新 session 入口**: read this file + `handover/ai-direct/HANDOVER_PHASE_C_SCAFFOLD_2026-04-26.md` (this session's Phase C handover with C2 launch decision tree) + `handover/preregistration/PREREG_PPUT_CCL_2026-04-26.md` § 6 (Phase C protocol) + § 9 (statistical plan) + `handover/preregistration/scripts/run_c2_phase_c_ablation.sh` (the C2 batch runner). 这 4 个文件足以无 context 接手。Phase A handover (`HANDOVER_PHASE_A_EXIT_2026-04-26.md`) + A8 audit history + EXIT_PACKET remain authoritative for prior context.
 
 ## Current State
 
@@ -138,7 +144,8 @@ Next session reads `PREREG_PPUT_CCL_2026-04-26.md` § 2 + § 5 + § 6 (Phase C p
 
 ## Next-session boot sequence
 
-1. Read 5-file list at top of this doc (HANDOVER + EXIT_PACKET + AUDIT_HISTORY + PREREG + AMENDMENT)
-2. Re-verify state: `cargo test --workspace` (expect 267 PASS), `bash scripts/smoke_siliconflow.sh` (expect 3/3 PASS)
-3. Decide: jump to Phase C (recommended), OR run Phase B Gate B exit audit packet first (lower priority since B1-B7 already DONE per `PHASE_B_IMPLEMENTATION_PLAN.md`)
-4. If Phase C: read `PREREG_PPUT_CCL_2026-04-26.md` § 2 + § 5 + § 6 + scaffold the 5 mode toggles (Full / Panopticon / Amnesia / Soft Law / Homogeneous) per `RunAggregate.mode` field already in the v2 schema
+1. Read 4-file list at top of this doc (HANDOVER_PHASE_C_SCAFFOLD + this LATEST + PREREG § 6/9 + run_c2 runner)
+2. Re-verify state: `cargo test --workspace` (expect **298 PASS**), `bash scripts/smoke_siliconflow.sh` (expect 3/3 PASS)
+3. Read `HANDOVER_PHASE_C_SCAFFOLD_2026-04-26.md` § 3 (C2 launch decision tree) + § 4 (open questions)
+4. Smoke-then-launch C2: re-run `bash handover/preregistration/scripts/run_c2_phase_c_ablation.sh --smoke` (~5-25 min); if Homogeneous succeeds end-to-end, decide between **Path A serial overnight** (~25-50 hours, ~$13-25), **Path B parallel-runner upgrade** (~5-10 hours after engineering), or **Path C reduced scope** (lower stat power)
+5. After C2 batch: C3 (H1-H4 McNemar paired sign tests on 100 rows) + C4 (CHECKPOINT_PHASE_C dual external audit)

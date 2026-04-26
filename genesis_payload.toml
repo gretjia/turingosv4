@@ -65,7 +65,7 @@
 #       § 2 wording correction A8e fix F6; per case C-073 ArchitectAI
 #       commit authority)
 #
-# Total: 41 files. Progression A0=24 → A1=25 (PREREG amendment) → A3=26
+# Total: 42 files. Progression A0=24 → A1=25 (PREREG amendment) → A3=26
 # (agent_models.rs) → A5=27 (budget_regime.rs) → A6=28 (fc_trace.rs) →
 # A7=31 (llm_proxy.py + 2 smoke scripts) → A8e=33 (run_id.rs +
 # test_llm_proxy.py) → A8e2=34 (llm_proxy_python_conformance.rs Rust
@@ -79,10 +79,14 @@
 # qualification) → C1a=41 (experiment_mode.rs — Phase C ablation
 # mode resolver + UnimplementedMode startup-fatal gate; tampering
 # could weaken the gate that prevents misconfigured --mode runs from
-# burning budget under the wrong constitutional regime). Per A8e13
-# Q1 the {cases,rules}/MANIFEST.sha256 entries are now ENFORCED
-# proxies: verify_trust_root recursively hashes each child file the
-# manifest claims (was convention-only before).
+# burning budget under the wrong constitutional regime) → C2
+# runner=42 (run_c2_phase_c_ablation.sh — Phase C batch runner per
+# C-075 DO-178C; tampering with the cell ordering, timeout, or
+# synthetic-failure-row policy could silently corrupt the 100-row
+# ablation evidence collection). Per A8e13 Q1 the
+# {cases,rules}/MANIFEST.sha256 entries are now ENFORCED proxies:
+# verify_trust_root recursively hashes each child file the manifest
+# claims (was convention-only before).
 # genesis_payload.toml itself is conceptually frozen but
 # not self-hashed (chicken-and-egg) — the [pput_accounting_0] section
 # values are the semantic anchor.
@@ -144,3 +148,4 @@ n_max = 34
 "handover/audits/run_gemini_phase_a8_exit_audit.py" = "33abd4c0679856719ac38ecd00dc7763b85d30f8c90e83db366c1acdc907a473"
 "handover/preregistration/PPUT_CCL_HARD10_2026-04-26.json" = "0a906708941835bb56c0af7c6c8fdabf6747911f97d5108ff7a4d76abfadba01"
 "handover/preregistration/scripts/draw_hard10_pput_ccl.py" = "dd19b1396d2f235ddd412db58802412356b9e100b1d6fcba701833327eaf33d6"
+"handover/preregistration/scripts/run_c2_phase_c_ablation.sh" = "c99f58f1e3a3cd72dbac50c7427e93e92a6796dc78eb4c91f1055d33c7211749"

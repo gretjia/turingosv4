@@ -158,6 +158,11 @@ fn test_trust_root_manifest_includes_b2_b4_files() {
         // generator script is a frozen production tool.
         "handover/preregistration/PPUT_CCL_HARD10_2026-04-26.json",
         "handover/preregistration/scripts/draw_hard10_pput_ccl.py",
+        // Phase C C2: ablation batch runner. Per C-075 the runner is
+        // gate machinery — its cell-ordering / timeout / synthetic-
+        // failure policy directly shapes the 100-row evidence
+        // collection. Tampering = silent ablation corruption.
+        "handover/preregistration/scripts/run_c2_phase_c_ablation.sh",
     ];
 
     for path in required {
