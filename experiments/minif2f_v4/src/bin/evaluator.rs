@@ -495,6 +495,37 @@ async fn run_swarm(
         wallet.ensure_agents(&agent_ids);
     }
 
+    // Phase A atom A3 (FC1-N7 δ/AI): per-agent model assignment via the
+    // `AGENT_MODELS` env var. Default (unset/empty) broadcasts the global
+    // `model` to every Agent_i. Heterogeneous payloads require
+    // `PHASE_D_HETERO_OK=1` (Phase B+C single-model invariant — see
+    // `agent_models.rs` module header). Failure is fatal at startup so a
+    // misconfigured swarm cannot burn LLM budget on bad model identity.
+    let agent_models = match minif2f_v4::agent_models::resolve_agent_models(model, n_agents) {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("AGENT_MODELS resolution failed: {}", e);
+            std::process::exit(1);
+        }
+    };
+    // Stamp on jsonl: uniform → single canonical name; heterogeneous (Phase D
+    // only, gated) → `hetero:{m1|m2|...}` so downstream PPUT analysis can
+    // distinguish single-model runs from heterogeneous swarm runs without
+    // having to crack open the genesis_payload model_snapshot field.
+    let run_model_label: String = {
+        let first = &agent_models[0];
+        if agent_models.iter().all(|m| m == first) {
+            first.clone()
+        } else {
+            let mut sorted: Vec<&str> = agent_models.iter().map(String::as_str).collect();
+            sorted.sort();
+            sorted.dedup();
+            format!("hetero:{}", sorted.join("|"))
+        }
+    };
+    info!("[swarm/{}] agent_models = [{}] (label={})", condition,
+          agent_models.join(","), run_model_label);
+
     // Art. II.2.1: "不能抹杀群体异质性" — distinct skills per agent.
     // V3 had Math/Bull/Bear roles. V4: tactic-strategy specialization.
     let agent_skills: Vec<&str> = vec![
@@ -570,7 +601,7 @@ async fn run_swarm(
                    ~150 LLM calls vs honest vetoed loop; downstream PPUT analysis \
                    MUST honor synthetic_short_circuit=true on this row)", tx);
             wc.mark_final_accept();
-            let mut result = make_pput(problem_file, &condition, model,
+            let mut result = make_pput(problem_file, &condition, &run_model_label,
                                        false, false, start, 0, 0,
                                        tx as u64, Some(tool_dist), None,
                                        None, None, None,
@@ -711,8 +742,14 @@ async fn run_swarm(
             snap.get_balance(agent_id), tools_desc, &team_board,
         );
 
-        // Model-aware max_tokens (same rule as oneshot branch).
-        let max_toks = if model.contains("chat") { 8000 } else { 16000 };
+        // Phase A atom A3: bind δ for this agent_idx (same vector resolved
+        // once at run_swarm entry from AGENT_MODELS env). In Phase B+C this
+        // is uniform across all agent_idx; in Phase D it may diverge.
+        let agent_model = &agent_models[agent_idx];
+        // Model-aware max_tokens (same rule as oneshot branch). Per-agent so
+        // a heterogeneous Phase D swarm mixing chat + reasoner backbones gets
+        // the right ceiling per-call instead of a single global heuristic.
+        let max_toks = if agent_model.contains("chat") { 8000 } else { 16000 };
         // Art. II.2.1 anti-homogeneity: per-agent temperature ladder breaks
         // sampling correlation among role-distinct agents (F-2026-04-18-03).
         // Disabled (keep at 0.2) when TEMP_LADDER!=1 to isolate the mechanism.
@@ -722,7 +759,7 @@ async fn run_swarm(
             0.2
         };
         let request = GenerateRequest {
-            model: model.to_string(),
+            model: agent_model.clone(),
             messages: vec![Message { role: "user".into(), content: prompt }],
             temperature: Some(temp),
             max_tokens: Some(max_toks),
@@ -894,7 +931,7 @@ async fn run_swarm(
                                         // (Ok((true, _))). Both legs hold. Phase C Soft Law
                                         // would inject `verify_post_hoc(&oracle, &full_proof)`
                                         // here and pass its result as post_hoc_verified.
-                                        return make_pput(problem_file, &condition, model,
+                                        return make_pput(problem_file, &condition, &run_model_label,
                                                         true, true,
                                                         start, gp_tokens, gp_nodes, tx as u64 + 1,
                                                         Some(tool_dist), upr,
@@ -1079,7 +1116,7 @@ async fn run_swarm(
                                         // P0-A: Phase B swarm step Complete — runtime gate IS
                                         // the Lean verify_partial call (PartialVerdict::Complete).
                                         // Both legs hold. Phase C Soft Law diverges here.
-                                        return make_pput(problem_file, &condition, model,
+                                        return make_pput(problem_file, &condition, &run_model_label,
                                                         true, true,
                                                         start, gp_tokens, gp_nodes, tx as u64 + 1,
                                                         Some(tool_dist), upr,
@@ -1157,7 +1194,7 @@ async fn run_swarm(
     // B3: close bracket on max-tx exhaustion path.
     // P0-A: max-tx exhaustion → neither leg fired.
     wc.mark_final_accept();
-    make_pput(problem_file, &condition, model,
+    make_pput(problem_file, &condition, &run_model_label,
               false, false, start, 0, 0,
               max_transactions as u64, Some(tool_dist), upr,
               None, None, None,

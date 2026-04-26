@@ -4,3 +4,4 @@ pub mod cost_aggregator;
 pub mod wall_clock;
 pub mod post_hoc_verifier;
 pub mod rollback_sim;
+pub mod agent_models;

@@ -18,6 +18,7 @@
 //   experiments/minif2f_v4/src/post_hoc_verifier.rs   (B4)
 //   experiments/minif2f_v4/src/jsonl_schema.rs        (B1)
 //   experiments/minif2f_v4/src/rollback_sim.rs        (B7-extra)
+//   experiments/minif2f_v4/src/agent_models.rs        (Phase A atom A3)
 //   experiments/minif2f_v4/src/bin/evaluator.rs       (the wiring)
 //   constitution.md
 //   handover/preregistration/PPUT_CCL_SPLITS_2026-04-26.json
@@ -103,6 +104,8 @@ fn test_trust_root_manifest_includes_b2_b4_files() {
         "src/sdk/prompt_guard.rs",
         // B7-extra add
         "experiments/minif2f_v4/src/rollback_sim.rs",
+        // Phase A atom A3: per-agent AGENT_MODELS env var resolver
+        "experiments/minif2f_v4/src/agent_models.rs",
         // 2026-04-25 dual-audit fixes
         "src/main.rs",
         "Cargo.lock",
