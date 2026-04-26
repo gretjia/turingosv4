@@ -70,6 +70,18 @@ this cycle in favor of the longer arc. Architect directive verbatim archived at
 
 ## 2. Confirmed findings (evidence-backed, non-speculation)
 
+### F-2026-04-26-01: deepseek-v4-flash "thinking-off backbone" claim is unfounded — DeepSeek reasoner-class API always emits reasoning_content
+**TL;DR**: PHASE_B_IMPLEMENTATION_PLAN + AUTO_RESEARCH_NOTEPAD repeatedly state "deepseek-v4-flash thinking-off backbone (Phase B+C)". Phase C smoke 2026-04-26 11:08 UTC found 4/5 cells timing out at 5min/cell limit (Homogeneous succeeded at 236s; the other 4 modes all hit 300s timeout). Investigation: the proxy's enable_thinking-disable injection only triggered for `qwen3` substrings; deepseek-v4-flash had no override. After patching the proxy to inject `extra_body={"enable_thinking": false}` for `deepseek-v4` substrings too, **the response still emits reasoning_content** (109 chars on a 5-token request). Direct comparison: deepseek-chat returns content="OK" with no reasoning; deepseek-v4-flash AND deepseek-reasoner both return content="" with reasoning_content populated and all completion_tokens consumed by reasoning. **Implication**: `deepseek-v4-flash` on api.deepseek.com is reasoner-class (no thinking-off mode at the API level — the `enable_thinking` flag is Qwen-specific, not honored by DeepSeek). The project's "thinking-off backbone" was an unverified assumption.
+
+**Operational impact on Phase C C2 batch**:
+- At thinking-on, n3 swarm cells take ~50-60s per LLM call; MAX_TX=2 = 6 calls = ~5 min wall-clock per cell.
+- Full batch (PREREG) = 5 modes × 10 problems × 2 seeds × ~30 min/cell at MAX_TX=200 → **35 days serial wall-clock**, infeasible.
+- Three remediation paths (HANDOVER_PHASE_C_SCAFFOLD § 3 + § 4): (a) switch backbone to `deepseek-chat` (V3 non-thinking, fast — ~6-10 hours batch); (b) keep thinking-on backbone but cut scope 5x; (c) implement parallel runner.
+
+**Decision required from human user (gretjia)**: which backbone for Phase C C2.
+
+**Forward action**: proxy was patched to inject `enable_thinking: false` for both `qwen3` and `deepseek-v4` model substrings. This is a no-op for deepseek API (which ignores the flag) but matches the project's stated intent and is Qwen-effective. Trust Root re-hashed for src/drivers/llm_proxy.py.
+
 ### F-2026-04-25-08: B7-extra round-3 dual audit — Codex round-2 caught self-inflicted regression in round-1 fix
 **TL;DR**: when a Q7.b "synthetic UNSOLVED on any non-zero exit" was added in round-1 fix to address sampling bias, it silently absorbed TRUST_ROOT_TAMPERED panics into "valid" calibration data — neutralizing the B1 fix that the same round was supposed to deliver. **Codex caught it in round-2; Gemini missed it (PASS).** Per CLAUDE.md "Audit Standard" + memory `feedback_dual_audit_conflict`, conservative reading wins → VETO. Round-2 fix (commit `1df1f62`) discriminates exit codes: only timeout (124) emits synthetic row; any other crash ABORT BATCH with grep for TRUST_ROOT_TAMPERED. Round-3 Gemini returned CHALLENGE on a follow-up exhaustiveness gap (EXIT=0 + empty PPUT_RESULT case fell through to generic crash branch); fixed in same notepad-update cycle. **Lesson**: when fixing a sampling-bias bug, the fix itself can become a security bypass; always re-audit fixes before promoting to PASS. The dual-audit's value is exactly in this kind of cross-checking.
 

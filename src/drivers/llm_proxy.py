@@ -294,7 +294,13 @@ class Handler(BaseHTTPRequestHandler):
             extra = {}
             if enable_thinking:
                 extra["extra_body"] = {"enable_thinking": True}
-            elif "qwen3" in model.lower():
+            elif "qwen3" in model.lower() or "deepseek-v4" in model.lower():
+                # Phase C smoke-timeout fix: PHASE_B_IMPLEMENTATION_PLAN
+                # specifies "deepseek-v4-flash thinking-off backbone"; the
+                # API defaults to thinking-on, so the proxy must inject
+                # the disable flag explicitly. Without this fix, an n3
+                # swarm at MAX_TX=2 takes >5min wall-clock per cell because
+                # reasoning_content blows up token count + latency.
                 extra["extra_body"] = {"enable_thinking": False}
 
             max_retries = 8
