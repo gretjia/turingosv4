@@ -367,6 +367,16 @@ async fn run_oneshot(
     // join FC events to v2 jsonl rows by `run_id` equality.
     let run_id = minif2f_v4::run_id::mint_run_id("oneshot", problem_file);
 
+    // Phase C atom C1b: resolve experiment mode once at function entry
+    // from the MODE env (validated by main() at startup, so this can
+    // only fail under deliberate process-global tampering after the
+    // gate; expect-unwrap is correct). Used at every make_pput call
+    // site below via `apply_mode_to_accept(mode, lean_rt, lean_ph)`.
+    let mode = minif2f_v4::experiment_mode::parse_experiment_mode(
+        &std::env::var(minif2f_v4::experiment_mode::EXPERIMENT_MODE_ENV_VAR)
+            .unwrap_or_default(),
+    ).expect("MODE env validated at main() startup");
+
     let oracle = Lean4Oracle::new(
         problem_statement.to_string(), theorem_name.to_string(), lean_path.to_string(),
     );
@@ -409,11 +419,17 @@ async fn run_oneshot(
             if response.content.contains("```") {
                 wc.mark_final_accept();
                 // P0-A: caller declares both runtime + post-hoc legs.
-                // Fence reject = neither leg fired.
+                // Fence reject = neither Lean leg fired (no proposal to verify).
+                // C1b: route through apply_mode_to_accept; Soft Law turns
+                // this into (true, false) — fakes runtime accept on garbage
+                // payload, post-hoc reflects "no Lean truth observed".
                 // A4: no Lean call reached → verifier_wait_ms=0;
                 // 1 proposal made (the LLM response), 1 distinct.
+                let (rt, ph) = minif2f_v4::experiment_mode::apply_mode_to_accept(
+                    mode, false, false,
+                );
                 return make_pput(problem_file, "oneshot", model,
-                                 false, false, start, 0, 0, 1,
+                                 rt, ph, start, 0, 0, 1,
                                  None, None, None, None, None,
                                  acc.total_run_token_count(),
                                  acc.failed_branch_count,
@@ -464,11 +480,13 @@ async fn run_oneshot(
                     );
                     // P0-A: Phase B oneshot success — runtime gate IS the
                     // Lean verify call (oracle.verify_omega returned Ok(true)),
-                    // so both legs hold. Phase C Soft Law would inject a
-                    // separate `verify_post_hoc(&oracle, &response.content)`
-                    // call here and pass its result as post_hoc_verified.
+                    // so both legs hold. C1b: apply_mode_to_accept passes
+                    // (true, true) through unchanged for Full + SoftLaw alike.
+                    let (rt, ph) = minif2f_v4::experiment_mode::apply_mode_to_accept(
+                        mode, true, true,
+                    );
                     make_pput(problem_file, "oneshot", model,
-                              true, true, start, gp_tokens, 1, 1,
+                              rt, ph, start, gp_tokens, 1, 1,
                               None, None, Some(response.content.clone()),
                               Some("alone".to_string()), proof_file,
                               acc.total_run_token_count(),
@@ -478,9 +496,14 @@ async fn run_oneshot(
                               oneshot_regime, oneshot_budget_base, &run_id)
                 }
                 Ok(false) => {
-                    // Lean rejected → neither leg.
+                    // Lean rejected → Full: (false, false). SoftLaw: (true, false).
+                    // C1b H1 DETECTION POINT — Soft Law's pput_runtime > 0 with
+                    // pput_verified = 0 originates here.
+                    let (rt, ph) = minif2f_v4::experiment_mode::apply_mode_to_accept(
+                        mode, false, false,
+                    );
                     make_pput(problem_file, "oneshot", model,
-                              false, false, start, 0, 0, 1,
+                              rt, ph, start, 0, 0, 1,
                               None, None, None, None, None,
                               acc.total_run_token_count(),
                               acc.failed_branch_count,
@@ -490,9 +513,14 @@ async fn run_oneshot(
                 }
                 Err(e) => {
                     warn!("Oracle error: {}", e);
-                    // Lean error → measurement failure → neither leg.
+                    // Lean error → measurement failure → Full: neither leg.
+                    // C1b: SoftLaw still fakes runtime accept; ph stays false
+                    // because Lean didn't deliver a verdict.
+                    let (rt, ph) = minif2f_v4::experiment_mode::apply_mode_to_accept(
+                        mode, false, false,
+                    );
                     make_pput(problem_file, "oneshot", model,
-                              false, false, start, 0, 0, 1,
+                              rt, ph, start, 0, 0, 1,
                               None, None, None, None, None,
                               acc.total_run_token_count(),
                               acc.failed_branch_count,
@@ -526,6 +554,14 @@ async fn run_swarm(
     // round-1 `run_corr_id` (FC events) ↔ make_pput-internal `run_id`
     // (v2 jsonl) split that introduced millisecond drift on the join key.
     let run_id = minif2f_v4::run_id::mint_run_id(&condition, problem_file);
+
+    // Phase C atom C1b: resolve experiment mode once at function entry
+    // from the MODE env (validated by main() at startup). Used at every
+    // make_pput call site below via apply_mode_to_accept.
+    let mode = minif2f_v4::experiment_mode::parse_experiment_mode(
+        &std::env::var(minif2f_v4::experiment_mode::EXPERIMENT_MODE_ENV_VAR)
+            .unwrap_or_default(),
+    ).expect("MODE env validated at main() startup");
 
     let kernel = Kernel::new();
     let config = BusConfig {
@@ -759,8 +795,14 @@ async fn run_swarm(
             // exits ~150 tx EARLY at the rollback threshold). hit_max_tx
             // stays false — synthetic_short_circuit is the disambiguator
             // for this calibration-treatment path.
+            // C1b: route accept legs through apply_mode_to_accept; under
+            // SoftLaw the synthetic short-circuit also flips runtime to
+            // true, contributing to the pput_runtime/pput_verified gap.
+            let (rt, ph) = minif2f_v4::experiment_mode::apply_mode_to_accept(
+                mode, false, false,
+            );
             let mut result = make_pput(problem_file, &condition, &run_model_label,
-                                       false, false, start, 0, 0,
+                                       rt, ph, start, 0, 0,
                                        tx as u64, Some(tool_dist), None,
                                        None, None, None,
                                        acc.total_run_token_count(),
@@ -1174,11 +1216,14 @@ async fn run_swarm(
                                         } else { None };
                                         // P0-A: Phase B swarm complete — runtime gate IS the
                                         // Lean verify_omega_detailed call we just consumed
-                                        // (Ok((true, _))). Both legs hold. Phase C Soft Law
-                                        // would inject `verify_post_hoc(&oracle, &full_proof)`
-                                        // here and pass its result as post_hoc_verified.
+                                        // (Ok((true, _))). Both legs hold. C1b: route through
+                                        // apply_mode_to_accept; (true, true) passes through
+                                        // unchanged for Full + SoftLaw alike at this site.
+                                        let (rt, ph) = minif2f_v4::experiment_mode::apply_mode_to_accept(
+                                            mode, true, true,
+                                        );
                                         return make_pput(problem_file, &condition, &run_model_label,
-                                                        true, true,
+                                                        rt, ph,
                                                         start, gp_tokens, gp_nodes, tx as u64 + 1,
                                                         Some(tool_dist), upr,
                                                         Some(full_proof.clone()),
@@ -1405,9 +1450,13 @@ async fn run_swarm(
                                         );
                                         // P0-A: Phase B swarm step Complete — runtime gate IS
                                         // the Lean verify_partial call (PartialVerdict::Complete).
-                                        // Both legs hold. Phase C Soft Law diverges here.
+                                        // Both legs hold. C1b: route through apply_mode_to_accept;
+                                        // (true, true) passes through unchanged for Full + SoftLaw.
+                                        let (rt, ph) = minif2f_v4::experiment_mode::apply_mode_to_accept(
+                                            mode, true, true,
+                                        );
                                         return make_pput(problem_file, &condition, &run_model_label,
-                                                        true, true,
+                                                        rt, ph,
                                                         start, gp_tokens, gp_nodes, tx as u64 + 1,
                                                         Some(tool_dist), upr,
                                                         Some(prefix.clone()),
@@ -1491,6 +1540,9 @@ async fn run_swarm(
     // A4: this is the canonical hit_max_tx=true site (ran the full
     // for-loop without OMEGA and without firing the synthetic
     // short-circuit, which would have returned earlier).
+    // C1b: route through apply_mode_to_accept; SoftLaw fakes runtime
+    // accept here too — pput_runtime registers a positive value despite
+    // the budget-exhausted no-proof outcome. pput_verified stays 0.
     wc.mark_final_accept();
     // A6 FC2-N22 (HALT — natural MaxTxExhausted): the canonical
     // budget-exhausted exit. Phase D filters reason="MaxTxExhausted"
@@ -1506,8 +1558,11 @@ async fn run_swarm(
             ("proposal_count", proposal_count.to_string()),
         ],
     );
+    let (rt, ph) = minif2f_v4::experiment_mode::apply_mode_to_accept(
+        mode, false, false,
+    );
     make_pput(problem_file, &condition, &run_model_label,
-              false, false, start, 0, 0,
+              rt, ph, start, 0, 0,
               max_transactions as u64, Some(tool_dist), upr,
               None, None, None,
               acc.total_run_token_count(),

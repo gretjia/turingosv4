@@ -18,10 +18,17 @@
 //   - Homogeneous   — all agents share one skill prompt (Paper-1 era
 //                     A condition). Heterogeneity gain disappears.
 //
-// Phase A scope (this commit): implement `Full` only. The other 4
-// variants are declared so a misconfigured invocation aborts BEFORE
-// the first LLM call instead of silently falling back to Full and
-// burning budget under the wrong constitutional regime.
+// Phase C atom progression:
+//   - C1a (initial commit): implement `Full` only; declare other 4
+//     startup-fatal so misconfigured runs abort before the first LLM
+//     call instead of silently falling back to Full.
+//   - C1b (this commit): wire `SoftLaw` runtime via
+//     `apply_mode_to_accept`. Soft Law's defining property: runtime
+//     gate fakes acceptance regardless of Lean verdict; post-hoc
+//     `verified` still records the Lean truth. Detection mechanism
+//     (PREREG § 5.2 H1): `pput_runtime > 0` but `pput_verified = 0`
+//     for Lean-rejected proofs.
+//   - C1c/d/e (TBD): wire Homogeneous, Panopticon, Amnesia.
 //
 // Pattern mirrors `budget_regime.rs` (Phase A atom A5):
 //   - pure parser  (parse_experiment_mode)
@@ -69,10 +76,12 @@ pub enum ExperimentMode {
     /// Runtime-accept gate fakes acceptance regardless of Lean
     /// verdict; Lean still runs post-hoc and the verified flag
     /// records the truth. Detection: `pput_runtime > 0` but
-    /// `pput_verified = 0` for failed proofs. Phase C C1b will wire
-    /// the runtime; C1a declares it. The make_pput two-leg signature
-    /// (mid-term P0-A fix 2026-04-25) was put in place specifically
-    /// to make Soft Law's design point unmissable here.
+    /// `pput_verified = 0` for failed proofs. C1b wires the runtime
+    /// via `apply_mode_to_accept` — every `make_pput` call site
+    /// flows the (lean_rt, lean_ph) pair through that helper, and
+    /// SoftLaw forces the first leg to true. The make_pput two-leg
+    /// signature (mid-term P0-A fix 2026-04-25) was put in place
+    /// specifically to make this design point unmissable.
     SoftLaw,
     /// All swarm agents share one skill prompt (Paper-1 era A
     /// condition). Detection: solve set narrows to single-skill
@@ -151,17 +160,68 @@ pub fn parse_experiment_mode(s: &str) -> Result<ExperimentMode, ModeError> {
     }
 }
 
-/// Phase A scope guard: only `Full` is wired today. Returns the input
-/// mode unchanged if implemented; otherwise `UnimplementedMode`.
-/// Pure. C1b/c/d/e will progressively delete branches from the
-/// declared list.
+/// Phase A→C progression scope guard. Returns the input mode unchanged
+/// if its runtime is wired; otherwise `UnimplementedMode`. Pure. Each
+/// of C1c/d/e progressively deletes one branch from the
+/// declared-unimplemented list.
+///
+/// Currently wired (this commit, post-C1b):
+///   - Full      (Phase B baseline; pass-through at apply_mode_to_accept)
+///   - SoftLaw   (C1b — fakes runtime accept; pput_runtime/verified gap)
+///
+/// Still declared-unimplemented (startup-fatal):
+///   - Homogeneous (C1c)
+///   - Panopticon  (C1d)
+///   - Amnesia     (C1e)
 pub fn ensure_implemented(mode: ExperimentMode) -> Result<ExperimentMode, ModeError> {
     match mode {
-        ExperimentMode::Full => Ok(mode),
+        ExperimentMode::Full | ExperimentMode::SoftLaw => Ok(mode),
         ExperimentMode::Panopticon
         | ExperimentMode::Amnesia
-        | ExperimentMode::SoftLaw
         | ExperimentMode::Homogeneous => Err(ModeError::UnimplementedMode(mode)),
+    }
+}
+
+/// TRACE_MATRIX FC1-N12 + Art. III.2: apply the experiment mode to
+/// the (runtime_accepted, post_hoc_verified) pair before make_pput.
+/// Pure.
+///
+/// The make_pput signature was split into two legs at the 2026-04-25
+/// mid-term audit P0-A fix specifically so Phase C ablations could
+/// diverge here without laundering fake-accepts into the North Star
+/// `pput_verified` field. Every make_pput call site funnels its
+/// (lean_runtime_accepted, lean_post_hoc_verified) pair through this
+/// helper; the mode parameter selects the divergence behavior.
+///
+/// Mode behaviors:
+///   - **Full**: pass-through (Phase B identity — runtime IS Lean).
+///   - **SoftLaw**: force runtime_accepted=true regardless of Lean.
+///     post_hoc_verified preserves the Lean truth. The (true, false)
+///     gap on Lean-rejected proofs is H1's detection mechanism. The
+///     transform is uniform across all call sites — fence-reject /
+///     max-tx-exhausted / synthetic-short-circuit also flip to
+///     runtime-accept under Soft Law. PREREG § 5.2's `pput_runtime`
+///     vs `pput_verified` gap is observed end-to-end.
+///   - **Homogeneous / Panopticon / Amnesia**: pass-through; those
+///     ablations diverge at prompt construction or skill assignment,
+///     not at the accept axis. (Will be confirmed when C1c/d/e wire.)
+///
+/// Determinism: pure function of (mode, lean_rt, lean_ph). No env
+/// reads, no I/O. Idempotent. Property: for any mode m, applying
+/// twice equals applying once: `apply(m, apply(m, rt, ph)) ==
+/// apply(m, rt, ph)`. Proven by the Soft Law branch ignoring its
+/// rt input and by all other branches being pass-through.
+pub fn apply_mode_to_accept(
+    mode: ExperimentMode,
+    lean_runtime_accepted: bool,
+    lean_post_hoc_verified: bool,
+) -> (bool, bool) {
+    match mode {
+        ExperimentMode::SoftLaw => (true, lean_post_hoc_verified),
+        ExperimentMode::Full
+        | ExperimentMode::Panopticon
+        | ExperimentMode::Amnesia
+        | ExperimentMode::Homogeneous => (lean_runtime_accepted, lean_post_hoc_verified),
     }
 }
 
@@ -279,21 +339,118 @@ mod tests {
     }
 
     #[test]
-    fn ensure_implemented_full_only_in_phase_a_scope() {
-        assert_eq!(
-            ensure_implemented(ExperimentMode::Full).unwrap(),
-            ExperimentMode::Full
-        );
+    fn ensure_implemented_post_c1b_full_and_soft_law() {
+        // C1b deletes SoftLaw from the unimplemented list.
+        for m in [ExperimentMode::Full, ExperimentMode::SoftLaw] {
+            assert_eq!(ensure_implemented(m).unwrap(), m);
+        }
         for m in [
             ExperimentMode::Panopticon,
             ExperimentMode::Amnesia,
-            ExperimentMode::SoftLaw,
             ExperimentMode::Homogeneous,
         ] {
             match ensure_implemented(m) {
                 Err(ModeError::UnimplementedMode(got)) => assert_eq!(got, m),
                 other => panic!("expected UnimplementedMode({:?}), got {:?}", m, other),
             }
+        }
+    }
+
+    // --- apply_mode_to_accept ---
+
+    #[test]
+    fn apply_full_is_passthrough() {
+        // Full mode is the identity transform on (rt, ph). Phase B
+        // baseline — runtime IS Lean today.
+        for (rt, ph) in [(true, true), (true, false), (false, true), (false, false)] {
+            assert_eq!(
+                apply_mode_to_accept(ExperimentMode::Full, rt, ph),
+                (rt, ph),
+                "Full should be passthrough for (rt={}, ph={})", rt, ph
+            );
+        }
+    }
+
+    #[test]
+    fn apply_soft_law_forces_runtime_accept() {
+        // Soft Law: rt always true; ph preserved.
+        // (true, true)   → (true, true)   — Lean accept; both legs
+        // (true, false)  → (true, false)  — Lean reject post-hoc
+        // (false, true)  → (true, true)   — runtime would have rejected
+        //                                    but Lean accepts (rare; pass-through ph)
+        // (false, false) → (true, false)  — Lean rejected; runtime fakes accept
+        //                                    THIS IS THE H1 DETECTION POINT
+        assert_eq!(
+            apply_mode_to_accept(ExperimentMode::SoftLaw, true, true),
+            (true, true)
+        );
+        assert_eq!(
+            apply_mode_to_accept(ExperimentMode::SoftLaw, true, false),
+            (true, false)
+        );
+        assert_eq!(
+            apply_mode_to_accept(ExperimentMode::SoftLaw, false, true),
+            (true, true)
+        );
+        assert_eq!(
+            apply_mode_to_accept(ExperimentMode::SoftLaw, false, false),
+            (true, false)
+        );
+    }
+
+    #[test]
+    fn apply_other_modes_passthrough_pre_implementation() {
+        // Homogeneous / Panopticon / Amnesia don't affect the accept
+        // axis (they diverge at prompt construction / skill assignment).
+        // Pre-implementation behavior: pass-through. C1c/d/e will not
+        // change this branch — they'll touch other code paths.
+        for m in [
+            ExperimentMode::Homogeneous,
+            ExperimentMode::Panopticon,
+            ExperimentMode::Amnesia,
+        ] {
+            for (rt, ph) in [(true, true), (true, false), (false, true), (false, false)] {
+                assert_eq!(
+                    apply_mode_to_accept(m, rt, ph),
+                    (rt, ph),
+                    "mode {:?} should be passthrough for (rt={}, ph={})", m, rt, ph
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn apply_idempotent_for_all_modes() {
+        // Property: apply(m, apply(m, rt, ph)) == apply(m, rt, ph).
+        // Trivially true for pass-through modes; for SoftLaw it holds
+        // because (true, ph) → (true, ph) (rt input ignored both times).
+        for m in [
+            ExperimentMode::Full,
+            ExperimentMode::SoftLaw,
+            ExperimentMode::Panopticon,
+            ExperimentMode::Amnesia,
+            ExperimentMode::Homogeneous,
+        ] {
+            for (rt, ph) in [(true, true), (true, false), (false, true), (false, false)] {
+                let once = apply_mode_to_accept(m, rt, ph);
+                let twice = apply_mode_to_accept(m, once.0, once.1);
+                assert_eq!(once, twice,
+                    "idempotence failed for mode {:?}, input ({}, {})", m, rt, ph);
+            }
+        }
+    }
+
+    #[test]
+    fn apply_soft_law_preserves_post_hoc_verified() {
+        // Critical property: SoftLaw must NEVER mutate the post-hoc
+        // (Lean truth) leg. Otherwise it could launder fake accepts
+        // into the North Star pput_verified field. This test pins
+        // that invariant against future careless edits.
+        for ph in [true, false] {
+            let (_rt, ph_out) = apply_mode_to_accept(ExperimentMode::SoftLaw, true, ph);
+            assert_eq!(ph_out, ph, "SoftLaw must preserve ph; got {}", ph_out);
+            let (_rt, ph_out) = apply_mode_to_accept(ExperimentMode::SoftLaw, false, ph);
+            assert_eq!(ph_out, ph, "SoftLaw must preserve ph; got {}", ph_out);
         }
     }
 
@@ -384,12 +541,26 @@ mod tests {
 
     #[test]
     fn resolve_env_unimplemented_aborts() {
+        // Picks an unimplemented mode (post-C1b: homogeneous remains
+        // unimplemented along with panopticon and amnesia).
+        let _guard = ENV_LOCK.lock().unwrap();
+        std::env::set_var(EXPERIMENT_MODE_ENV_VAR, "homogeneous");
+        match resolve_experiment_mode(None) {
+            Err(ModeError::UnimplementedMode(ExperimentMode::Homogeneous)) => {}
+            other => panic!("expected UnimplementedMode(Homogeneous), got {:?}", other),
+        }
+        std::env::remove_var(EXPERIMENT_MODE_ENV_VAR);
+    }
+
+    #[test]
+    fn resolve_env_soft_law_implemented_post_c1b() {
+        // Companion to the above: soft_law passes as of C1b.
         let _guard = ENV_LOCK.lock().unwrap();
         std::env::set_var(EXPERIMENT_MODE_ENV_VAR, "soft_law");
-        match resolve_experiment_mode(None) {
-            Err(ModeError::UnimplementedMode(ExperimentMode::SoftLaw)) => {}
-            other => panic!("expected UnimplementedMode(SoftLaw), got {:?}", other),
-        }
+        assert_eq!(
+            resolve_experiment_mode(None).unwrap(),
+            ExperimentMode::SoftLaw
+        );
         std::env::remove_var(EXPERIMENT_MODE_ENV_VAR);
     }
 

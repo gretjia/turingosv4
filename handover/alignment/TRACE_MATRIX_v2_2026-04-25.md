@@ -138,6 +138,7 @@ Manifest size milestones:
 - A8e13 src/boot.rs (verifier file in Trust Root per C-075) → **38**
 - C-pre1 PPUT_CCL_HARD10_2026-04-26.json + draw_hard10_pput_ccl.py (Phase C sample basis per PREREG § 6 C2) → **40**
 - C1a experiment_mode.rs (Phase C --mode CLI flag + 5-mode resolver + UnimplementedMode startup-fatal gate per PREREG § 6 C1) → **41**
+- C1b apply_mode_to_accept wiring (re-hash only — same 41 TR entries; SoftLaw runtime live at all 8 make_pput call sites) → **41**
 - (planned) B7-extra calibration freeze → 42+
 - (planned) Phase C mode-flag binary → 40+
 
