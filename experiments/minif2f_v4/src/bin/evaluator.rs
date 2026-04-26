@@ -938,10 +938,27 @@ async fn run_swarm(
             mode, agent_idx, agent_skills.len(),
         );
         let base_skill = agent_skills.get(skill_idx).unwrap_or(&"");
-        let learned = bus.tools.iter()
-            .find_map(|t| t.as_any().downcast_ref::<LibrarianTool>())
-            .and_then(|lib| lib.read_agent_memory(agent_id))
-            .unwrap_or_default();
+        // C1d Panopticon: in cognitive-isolation-breach mode, the focal
+        // agent's prompt receives the merged learned-memory of ALL agents,
+        // labeled with each source agent_id. Context grows ~O(N) per tx
+        // → tokens↑ → PPUT↓; H2 detection mechanism. Full / SoftLaw /
+        // Homogeneous / Amnesia keep the per-agent fetch.
+        let learned = if minif2f_v4::experiment_mode::is_panopticon(mode) {
+            bus.tools.iter()
+                .find_map(|t| t.as_any().downcast_ref::<LibrarianTool>())
+                .map(|lib| {
+                    agent_ids.iter()
+                        .filter_map(|a| lib.read_agent_memory(a).map(|m| format!("[{}] {}", a, m)))
+                        .collect::<Vec<_>>()
+                        .join("\n---\n")
+                })
+                .unwrap_or_default()
+        } else {
+            bus.tools.iter()
+                .find_map(|t| t.as_any().downcast_ref::<LibrarianTool>())
+                .and_then(|lib| lib.read_agent_memory(agent_id))
+                .unwrap_or_default()
+        };
         let skill = if learned.is_empty() {
             base_skill.to_string()
         } else {

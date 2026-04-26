@@ -140,6 +140,7 @@ Manifest size milestones:
 - C1a experiment_mode.rs (Phase C --mode CLI flag + 5-mode resolver + UnimplementedMode startup-fatal gate per PREREG § 6 C1) → **41**
 - C1b apply_mode_to_accept wiring (re-hash only — same 41 TR entries; SoftLaw runtime live at all 8 make_pput call sites) → **41**
 - C1c skill_index_for_agent wiring (re-hash only — same 41 TR entries; Homogeneous runtime live at startup echo + per-tx skill resolution; H4 detection via single-skill reachability) → **41**
+- C1d is_panopticon predicate + cross-agent learned-memory merge wiring (re-hash only — same 41 TR entries; Panopticon runtime live at per-tx prompt construction; H2 detection via context O(N) cost dilution) → **41**
 - (planned) B7-extra calibration freeze → 42+
 - (planned) Phase C mode-flag binary → 40+
 

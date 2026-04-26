@@ -28,12 +28,16 @@
 //     the Lean truth. Detection mechanism (PREREG § 5.2 H1):
 //     `pput_runtime > 0` but `pput_verified = 0` for Lean-rejected
 //     proofs.
-//   - C1c (this commit): wire `Homogeneous` runtime via
-//     `skill_index_for_agent`. Force every swarm agent to use
-//     skill[0] (algebraic) instead of cycling through the 3-role
-//     pool. Paper-1 era's A condition. Detection mechanism (H4):
-//     solve set narrows to single-skill reachability.
-//   - C1d/e (TBD): wire Panopticon, Amnesia.
+//   - C1c: wire `Homogeneous` runtime via `skill_index_for_agent`.
+//     Force every swarm agent to use skill[0] (algebraic) instead
+//     of cycling through the 3-role pool. Paper-1 era's A condition.
+//     Detection (H4): solve set narrows to single-skill reachability.
+//   - C1d (this commit): wire `Panopticon` via `is_panopticon`. In
+//     cognitive-isolation-breach mode, every agent's prompt gains
+//     the merged learned-memory of ALL agents (not just its own).
+//     Detection (H2): context-length / tokens grow O(N) per tx → IAC↑,
+//     CPR↑, prompt_length↑ → PPUT↓.
+//   - C1e (TBD): wire Amnesia.
 //
 // Pattern mirrors `budget_regime.rs` (Phase A atom A5):
 //   - pure parser  (parse_experiment_mode)
@@ -71,8 +75,14 @@ pub enum ExperimentMode {
     /// agent skills heterogeneous per AGENT_MODELS / role pool.
     Full,
     /// Cognitive-isolation breach: agents see each other's contexts.
-    /// Violates Art. II.2.1. Detection: prompt_length↑ + IAC↑ + CPR↑.
-    /// Phase C C1d will wire the runtime; C1a declares it.
+    /// Violates the cognitive-isolation invariant of the swarm
+    /// economic design. C1d wires the runtime via `is_panopticon` —
+    /// every agent's prompt at every tx receives the merged
+    /// learned-memory of ALL N agents (cross-agent leakage), where
+    /// Full mode would inject only the focal agent's own memory.
+    /// Detection (H2): context length grows ~O(N) per tx → tokens↑
+    /// → PPUT↓; the failure-mode is cost dilution, not loss of
+    /// signal.
     Panopticon,
     /// L_t injection suppressed: agents have no memory of prior
     /// tactics. Detection: ERR↓ on the descriptive secondary endpoint
@@ -173,18 +183,21 @@ pub fn parse_experiment_mode(s: &str) -> Result<ExperimentMode, ModeError> {
 /// of C1c/d/e progressively deletes one branch from the
 /// declared-unimplemented list.
 ///
-/// Currently wired (this commit, post-C1c):
+/// Currently wired (this commit, post-C1d):
 ///   - Full        (Phase B baseline; pass-through everywhere)
 ///   - SoftLaw     (C1b — fakes runtime accept; pput_runtime/verified gap)
 ///   - Homogeneous (C1c — all agents use skill[0]; H4 detection)
+///   - Panopticon  (C1d — cross-agent learned-memory leak; H2 detection)
 ///
 /// Still declared-unimplemented (startup-fatal):
-///   - Panopticon  (C1d)
 ///   - Amnesia     (C1e)
 pub fn ensure_implemented(mode: ExperimentMode) -> Result<ExperimentMode, ModeError> {
     match mode {
-        ExperimentMode::Full | ExperimentMode::SoftLaw | ExperimentMode::Homogeneous => Ok(mode),
-        ExperimentMode::Panopticon | ExperimentMode::Amnesia => Err(ModeError::UnimplementedMode(mode)),
+        ExperimentMode::Full
+        | ExperimentMode::SoftLaw
+        | ExperimentMode::Homogeneous
+        | ExperimentMode::Panopticon => Ok(mode),
+        ExperimentMode::Amnesia => Err(ModeError::UnimplementedMode(mode)),
     }
 }
 
@@ -229,6 +242,26 @@ pub fn apply_mode_to_accept(
         | ExperimentMode::Amnesia
         | ExperimentMode::Homogeneous => (lean_runtime_accepted, lean_post_hoc_verified),
     }
+}
+
+/// TRACE_MATRIX FC1-N7: predicate flagging Panopticon mode for
+/// cognitive-isolation-breach call sites. Pure.
+///
+/// Phase C atom C1d uses this at the per-tx prompt-construction
+/// site to expand the focal agent's learned-memory injection from
+/// "this agent's own memory" to "the merged memory of all N agents".
+/// Token cost grows ~O(N) per tx; detection mechanism for H2 (PREREG
+/// § 5.2): pput_runtime / pput_verified both drop relative to Full
+/// because cost goes up faster than signal at every N.
+///
+/// Helper exists separately from `apply_mode_to_accept` and
+/// `skill_index_for_agent` because the call site needs to make a
+/// branching choice between "fetch one agent's memory" vs "fetch
+/// every agent's memory, then join" — the former is a single I/O
+/// call, the latter is N I/O calls plus a join. A pure pred lets
+/// the caller branch cleanly.
+pub fn is_panopticon(mode: ExperimentMode) -> bool {
+    matches!(mode, ExperimentMode::Panopticon)
 }
 
 /// TRACE_MATRIX FC1-N7 + Art. II.2.1: select the skill index for a
@@ -382,20 +415,34 @@ mod tests {
     }
 
     #[test]
-    fn ensure_implemented_post_c1c_full_soft_law_homogeneous() {
-        // C1c deletes Homogeneous from the unimplemented list.
+    fn ensure_implemented_post_c1d_only_amnesia_unwired() {
+        // C1d deletes Panopticon from the unimplemented list.
         for m in [
             ExperimentMode::Full,
             ExperimentMode::SoftLaw,
             ExperimentMode::Homogeneous,
+            ExperimentMode::Panopticon,
         ] {
             assert_eq!(ensure_implemented(m).unwrap(), m);
         }
-        for m in [ExperimentMode::Panopticon, ExperimentMode::Amnesia] {
-            match ensure_implemented(m) {
-                Err(ModeError::UnimplementedMode(got)) => assert_eq!(got, m),
-                other => panic!("expected UnimplementedMode({:?}), got {:?}", m, other),
-            }
+        match ensure_implemented(ExperimentMode::Amnesia) {
+            Err(ModeError::UnimplementedMode(ExperimentMode::Amnesia)) => {}
+            other => panic!("expected UnimplementedMode(Amnesia), got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn is_panopticon_predicate() {
+        // Single-mode predicate. Pure boolean for branching at the
+        // cognitive-isolation-breach call site.
+        assert!(is_panopticon(ExperimentMode::Panopticon));
+        for m in [
+            ExperimentMode::Full,
+            ExperimentMode::SoftLaw,
+            ExperimentMode::Homogeneous,
+            ExperimentMode::Amnesia,
+        ] {
+            assert!(!is_panopticon(m), "is_panopticon should be false for {:?}", m);
         }
     }
 
@@ -654,24 +701,25 @@ mod tests {
 
     #[test]
     fn resolve_env_unimplemented_aborts() {
-        // Post-C1c, panopticon and amnesia remain unimplemented.
+        // Post-C1d, only amnesia remains unimplemented.
         let _guard = ENV_LOCK.lock().unwrap();
-        std::env::set_var(EXPERIMENT_MODE_ENV_VAR, "panopticon");
+        std::env::set_var(EXPERIMENT_MODE_ENV_VAR, "amnesia");
         match resolve_experiment_mode(None) {
-            Err(ModeError::UnimplementedMode(ExperimentMode::Panopticon)) => {}
-            other => panic!("expected UnimplementedMode(Panopticon), got {:?}", other),
+            Err(ModeError::UnimplementedMode(ExperimentMode::Amnesia)) => {}
+            other => panic!("expected UnimplementedMode(Amnesia), got {:?}", other),
         }
         std::env::remove_var(EXPERIMENT_MODE_ENV_VAR);
     }
 
     #[test]
-    fn resolve_env_implemented_modes_post_c1c() {
-        // Companion: full / soft_law / homogeneous all pass startup gate.
+    fn resolve_env_implemented_modes_post_c1d() {
+        // Companion: full / soft_law / homogeneous / panopticon all pass.
         let _guard = ENV_LOCK.lock().unwrap();
         for (label, expected) in [
             ("full", ExperimentMode::Full),
             ("soft_law", ExperimentMode::SoftLaw),
             ("homogeneous", ExperimentMode::Homogeneous),
+            ("panopticon", ExperimentMode::Panopticon),
         ] {
             std::env::set_var(EXPERIMENT_MODE_ENV_VAR, label);
             assert_eq!(resolve_experiment_mode(None).unwrap(), expected);
@@ -694,11 +742,12 @@ mod tests {
 
     #[test]
     fn resolve_cli_unimplemented_aborts() {
+        // Post-C1d only Amnesia remains unwired.
         let _guard = ENV_LOCK.lock().unwrap();
         std::env::remove_var(EXPERIMENT_MODE_ENV_VAR);
-        match resolve_experiment_mode(Some("panopticon")) {
-            Err(ModeError::UnimplementedMode(ExperimentMode::Panopticon)) => {}
-            other => panic!("expected UnimplementedMode(Panopticon), got {:?}", other),
+        match resolve_experiment_mode(Some("amnesia")) {
+            Err(ModeError::UnimplementedMode(ExperimentMode::Amnesia)) => {}
+            other => panic!("expected UnimplementedMode(Amnesia), got {:?}", other),
         }
     }
 
