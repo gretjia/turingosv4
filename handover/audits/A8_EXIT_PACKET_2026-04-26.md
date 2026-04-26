@@ -105,17 +105,41 @@ Three documentary fixes (no source-code changes apart from a wrapper docstring):
 
 Five narrow doc/source-text fixes; zero source-code changes:
 - **J1** Round-4 outcome + A8e4 fixes shipped section added (this section).
-- **J2** `<pending>` placeholders replaced with actual SHAs: A8e2 → `0af47b7`; A8e3 → `3d38ba5`; A8e4 → `8693789`.
+- **J2** placeholder commit SHAs replaced with actual values: A8e2 → `0af47b7`; A8e3 → `3d38ba5`; A8e4 → `8693789`.
 - **J3** Q6 question text reworded to reflect 24 → 34 manifest (was "24 → 30 / 6 new entries"); list of new entries updated to 10.
 - **J4** TRACE_MATRIX A5/A6/A7 top-bullet TR-deltas corrected: A5 `25 → 26` → `26 → 27`; A6 `26 → 27` → `27 → 28`; A7 `28 → 31` (already correct).
 - **J5** Round-3 retrospective text about `make_pput` arg count: 21 → 24 (Gemini R5 spot-check).
 
 ## Round-6 questions (in addition to § 6 + round-2 + round-3 + round-4)
 
-- (RQ14) Verify J1+J2: re-grep `A8_EXIT_PACKET_2026-04-26.md` for any remaining `<pending>` placeholder; the only acceptable matches are inside the round-5 outcome paragraph describing what Codex caught (lexical reference, not a live placeholder). The round-6 fixes header now uses "this commit" instead.
+- (RQ14) Verify J1+J2: re-grep `A8_EXIT_PACKET_2026-04-26.md` for any remaining placeholder commit SHAs; the only acceptable matches are inside the round-5 outcome paragraph describing what Codex caught (lexical reference inside backticks, not a live placeholder). The round-6 fixes header uses "this commit" instead.
 - (RQ15) Verify J3+J4: confirm § 6 Q6 + TRACE_MATRIX § 1 A5/A6/A7 paragraphs all match the canonical chain `A0=24 → A1=25 → A3=26 → A5=27 → A6=28 → A7=31 → A8e=33 → A8e2=34` per `genesis_payload.toml` header.
 - (RQ16) Verify J5: confirm the round-3 retrospective text about `make_pput` arg count says **24** (the post-A8e count) not 21.
 - (RQ17) Holistic packet read: spot any new staleness introduced by A8e5 itself.
+
+## Round-6 outcome (2026-04-26)
+
+- Codex R6: **CHALLENGE / high** — 3 findings, ONE of which is a real correctness bug: (1) RQ14 placeholder closure incomplete; (2) **`detect_provider` misroutes `deepseek-ai/<model>` to `api.deepseek.com`** because `"deepseek" in m` wins before the slash check; (3) TRACE_MATRIX A8e3 row still says "21 positional args" for `make_pput` while the packet was already corrected to 24 in A8e5 J5.
+- Gemini R6: **CHALLENGE / high** — 2 narrow doc defects (TRACE_MATRIX A6 paragraph leads with "Six anchor sites" then immediately self-contradicts with "9 post-A8e total"; packet § 3 A5/A6 attribute the count fix to "H4" but it was actually I2 / round-5).
+- Merged: **CHALLENGE**. Both auditors confirm code is sound; Codex's finding #2 is a real routing bug (no production failure observed because no production run has used `deepseek-ai/...` yet — A7 smoke uses `Qwen/...`).
+
+## Round-7 fixes shipped (`A8e6`, this commit)
+
+ONE real correctness fix + 4 doc fixes:
+- **K1** placeholder closure: J2 bullet + RQ14 wording reworded so they don't self-contradict the round-5 closure criterion.
+- **K2 (real bug, Codex R6#2)**: `src/drivers/llm_proxy.py::detect_provider` reordered — slash-form is now the FIRST routing heuristic (after explicit prefix), so `deepseek-ai/DeepSeek-R1-Distill-Qwen-7B` correctly routes to `siliconflow` instead of being misrouted to `api.deepseek.com`. New `test_deepseek_slash_form_routes_to_siliconflow` in `scripts/test_llm_proxy.py` pins this. **16 / 16 PASS** (was 15; +1 K2 test).
+- **K3** TRACE_MATRIX A8e3 row: "21 positional args" → "24 positional args" with explicit timeline (was 21 at round-3; F1 added `run_id`).
+- **K4** TRACE_MATRIX A6 row top-line: "Six anchor sites wired" → "9 anchor sites wired (post-A8e total — 8 in `run_swarm` + 1 in `run_oneshot`)" with the original-6 + F4-added-3 breakdown explicit.
+- **K5** packet § 3 A5/A6 fix attribution: "A8e3 fix H4 corrected" → "A8e4 fix I2 corrected" (Gemini R6 caught — H4 fixed `genesis_payload.toml`, I2 fixed THIS packet § 3).
+
+Trust Root manifest unchanged at 34 (re-hashes of `llm_proxy.py` + `scripts/test_llm_proxy.py`; no new files).
+
+## Round-7 questions (in addition to § 6 + round-2 + round-3 + round-4 + round-6)
+
+- (RQ18) Verify K2: re-run `python3 scripts/test_llm_proxy.py` and confirm `test_deepseek_slash_form_routes_to_siliconflow` passes; manually inspect `detect_provider()` to confirm slash-form check precedes deepseek-substring check.
+- (RQ19) Verify K3+K4: re-grep TRACE_MATRIX for "21 positional" / "Six anchor sites wired" — both should be absent or contextualized as historical-only.
+- (RQ20) Verify K5: re-grep packet § 3 for "A8e3 fix H4 corrected" — should be absent; replaced by "A8e4 fix I2 corrected".
+- (RQ21) Holistic packet read: confirm no contradictions between round-1 questions and round-2…6 closures; confirm all `<pending>` placeholders are either real SHAs or "this commit" or quoted lexical references.
 
 ---
 
@@ -201,14 +225,14 @@ A7 added no new Rust tests (plumbing + integration gate; acceptance via `scripts
 - **FC-trace**: FC2-N22 (HALT decomposition by budget regime) + FC1-N7 (δ instances determining the per-agent share under PerAgent regime).
 - Tests: 16 (15 budget_regime unit + 1 jsonl_schema A5 round-trip).
 - PREREG_AMENDMENT § 3 condition 3 cleared.
-- Trust Root manifest 26 → 27. (A8e3 fix H4 corrected the prior 25→26 claim — A3's `agent_models.rs` had already raised the count to 26 before A5; per the corrected milestone chain in `genesis_payload.toml` header.)
+- Trust Root manifest 26 → 27. (A8e4 fix I2 corrected the prior 25→26 claim — A3's `agent_models.rs` had already raised the count to 26 before A5; per the corrected milestone chain in `genesis_payload.toml` header. A8e3 H4 fixed the parallel `genesis_payload.toml` comment text; A8e4 I2 fixed THIS packet § 3 number — Gemini R6 caught the cross-reference error.)
 
 ### A6 (FC tracing)
 - New module `experiments/minif2f_v4/src/fc_trace.rs`. Pure stdlib (zero new deps). 7-variant `FcId` enum (FC1-N7 / FC1-N11 / FC1-N12 / FC1-E18 / FC2-N20 / FC2-N22 / FC3-N31). `FC_TRACE=1` gate cached in `OnceLock`; `FC_TRACE_FILE=<path>` redirects emit to file.
 - 9 wired anchor sites total (round-1 had 6 — A8e fix F4 added 3 swarm verify sites): synthetic short-circuit / mr tick / OMEGA full-proof / OMEGA per-tactic / natural MaxTxExhausted (with budget_regime payload from A5) / oneshot FC1-N12 verify bracket / **swarm `verify_omega_detailed` × 2 paths (alone + tape+payload retry)** / **swarm `verify_partial`**.
 - **FC-trace**: meta-witness for the 5-step compile loop.
 - Tests: 7 (6 unit + 1 end-to-end smoke `tests/fc_trace_smoke.rs` exercising `FC_TRACE=1` in a child process — required because the gate is `OnceLock`-cached).
-- Trust Root manifest 27 → 28. (Same off-by-one correction as A5's delta; chain matches `genesis_payload.toml` header.)
+- Trust Root manifest 27 → 28. (Same A8e4 I2 off-by-one correction as A5's delta; chain matches `genesis_payload.toml` header.)
 - Resolves TRACE_MATRIX_v2 § 5 item 7.
 
 ### A7 (SiliconFlow plumbing)

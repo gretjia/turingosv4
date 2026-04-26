@@ -73,6 +73,33 @@ class RoutingMatrixTests(unittest.TestCase):
             "siliconflow",
         )
 
+    def test_deepseek_slash_form_routes_to_siliconflow(self):
+        # A8e6 fix K2 (Codex R6#2): `deepseek-ai/DeepSeek-R1-Distill-*`
+        # is a SiliconFlow-catalog model — the official DeepSeek API
+        # at api.deepseek.com only serves bare `deepseek-chat` and
+        # `deepseek-v4-flash`, not the Distill variants. Pre-K2 the
+        # routing checked "deepseek" substring BEFORE the slash check
+        # and misrouted these to api.deepseek.com, which returns 404.
+        # Pinned here so the slash-vs-substring precedence never
+        # regresses.
+        self.assertEqual(
+            llm_proxy.detect_provider("deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"),
+            "siliconflow",
+        )
+        self.assertEqual(
+            llm_proxy.detect_provider("deepseek-ai/DeepSeek-V2.5"),
+            "siliconflow",
+        )
+        # Sanity: bare deepseek model ids still route to deepseek.
+        self.assertEqual(
+            llm_proxy.detect_provider("deepseek-chat"),
+            "deepseek",
+        )
+        self.assertEqual(
+            llm_proxy.detect_provider("deepseek-v4-flash"),
+            "deepseek",
+        )
+
     def test_bare_qwen_routes_to_dashscope(self):
         # Bare model ids without a slash are direct DashScope catalog.
         self.assertEqual(llm_proxy.detect_provider("qwen3-8b"), "dashscope")

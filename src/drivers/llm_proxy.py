@@ -198,33 +198,49 @@ def detect_provider(model):
     syntax (e.g. `siliconflow:Qwen/Qwen2.5-7B-Instruct`); falls back
     to model-string heuristics for backward compat with v3 callers.
 
-    Routing matrix (A8e fix F3, Codex#4):
+    Routing matrix (A8e fix F3 + A8e6 fix K2):
       explicit `provider:...`            → that provider (if known)
-      contains "deepseek"                → deepseek
       slash-separated id (huggingface-style "Org/Model")
                                           → siliconflow (dispatches the
                                             full catalog including Qwen,
-                                            openai-compat, Meta, etc.)
+                                            openai-compat, Meta, AND
+                                            `deepseek-ai/<distill>` SF-
+                                            catalog DeepSeek variants —
+                                            see K2 note below)
+      bare contains "deepseek"           → deepseek (api.deepseek.com)
       bare "qwen3-*" / "qwen-*"          → dashscope (Aliyun Qwen direct)
       else                                → dashscope (default fallback)
 
     Round-1 audit caught a routing inversion: `Qwen/Qwen2.5-7B-Instruct`
     used to misroute to dashscope because `m.startswith("qwen")` won
-    after the slash check. The slash-form is now the FIRST heuristic
-    (after explicit prefix + deepseek substring), so any HuggingFace-
-    style id routes to siliconflow as the catalog provider.
+    after the slash check. F3 promoted slash-form above bare-qwen.
+
+    Round-6 audit (Codex R6#2) caught a related collision: HuggingFace-
+    style `deepseek-ai/DeepSeek-R1-Distill-Qwen-7B` is a SiliconFlow-
+    catalog model (the official DeepSeek API only serves the canonical
+    `deepseek-chat` / `deepseek-v4-flash` family, not the Distill
+    variants). The pre-K2 logic checked `"deepseek" in m` BEFORE the
+    slash check, so `deepseek-ai/...` misrouted to api.deepseek.com
+    and 404'd. K2 swaps the order: slash-form is now the FIRST routing
+    heuristic (after explicit prefix), and bare-deepseek substring
+    only fires when there's no slash.
     """
     if ":" in model:
         prefix = model.split(":", 1)[0].lower()
         if prefix in PROVIDERS:
             return prefix
+    if "/" in model:
+        # Any slash-form (Qwen/..., openai/..., meta-llama/...,
+        # deepseek-ai/...) goes to the heterogeneous catalog provider.
+        # K2: this branch is FIRST so HuggingFace-style identifiers
+        # never silently fall through to a bare-string provider that
+        # doesn't actually serve them.
+        return "siliconflow"
     m = model.lower()
     if "deepseek" in m:
+        # Bare "deepseek-chat", "deepseek-v4-flash" → official endpoint.
+        # Slash-form like "deepseek-ai/..." won't reach here per K2.
         return "deepseek"
-    if "/" in model:
-        # Any slash-form (Qwen/..., openai/..., meta-llama/...) goes to
-        # the heterogeneous catalog provider.
-        return "siliconflow"
     if m.startswith("qwen"):
         # Bare qwen3-*, qwen-* without slash = direct DashScope catalog.
         return "dashscope"
