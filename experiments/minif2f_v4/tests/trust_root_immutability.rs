@@ -108,6 +108,8 @@ fn test_trust_root_manifest_includes_b2_b4_files() {
         "experiments/minif2f_v4/src/agent_models.rs",
         // Phase A atom A5: budget regime + MAX_TRANSACTIONS resolver
         "experiments/minif2f_v4/src/budget_regime.rs",
+        // Phase A atom A6: FC-trace structured-event meta-witness
+        "experiments/minif2f_v4/src/fc_trace.rs",
         // 2026-04-25 dual-audit fixes
         "src/main.rs",
         "Cargo.lock",

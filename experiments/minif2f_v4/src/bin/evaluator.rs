@@ -390,7 +390,25 @@ async fn run_oneshot(
             // wait is observable in the emitted v2 row.
             let v_t0 = Instant::now();
             let verdict = oracle.verify_omega(&response.content);
-            verifier_wait_ms += v_t0.elapsed().as_millis() as u64;
+            let v_elapsed = v_t0.elapsed().as_millis() as u64;
+            verifier_wait_ms += v_elapsed;
+            // A6 FC1-N12 (Lean oracle scope): per-call event with verdict
+            // + elapsed_ms. Phase D consumer derives the verifier-cost
+            // distribution and the verify-success rate. Run-level emit
+            // (no agent_id; oneshot has only one virtual agent).
+            let verdict_str = match &verdict {
+                Ok(true) => "Ok(true)",
+                Ok(false) => "Ok(false)",
+                Err(_) => "Err",
+            };
+            minif2f_v4::fc_trace::emit_event(
+                minif2f_v4::fc_trace::FcId::Fc1N12,
+                &format!("oneshot_{}", problem_file), None, None,
+                &[
+                    ("verdict", minif2f_v4::fc_trace::json_str(verdict_str)),
+                    ("elapsed_ms", v_elapsed.to_string()),
+                ],
+            );
             // B3: close the bracket AFTER the Lean call returns, regardless of
             // verdict. Soft Law mode (Phase C) cannot escape the verify-time
             // accounting by short-circuiting on runtime accept.
@@ -463,6 +481,21 @@ async fn run_swarm(
 ) -> PputResult {
     let start = Instant::now();
     let condition = format!("n{}", n_agents);
+
+    // Phase A atom A6 (FC-trace correlation): pin a stable identifier at
+    // run_swarm entry so every fc_event from this run shares one
+    // correlation key. Format mirrors make_pput's run_id (condition +
+    // problem_id + unix-ms) so Phase D joins via simple equality. The
+    // value is read at every emit site below; cheap (clone of small
+    // String).
+    let run_corr_id = {
+        let problem_id = std::path::Path::new(problem_file)
+            .file_stem().and_then(|s| s.to_str()).unwrap_or(problem_file);
+        let ts = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis()).unwrap_or(0);
+        format!("{}_{}_{}", condition, problem_id, ts)
+    };
 
     let kernel = Kernel::new();
     let config = BusConfig {
@@ -683,6 +716,14 @@ async fn run_swarm(
                    short-circuit to MaxTxExhausted exit (cost-asymmetric: skips \
                    ~150 LLM calls vs honest vetoed loop; downstream PPUT analysis \
                    MUST honor synthetic_short_circuit=true on this row)", tx);
+            // A6 FC2-N22 (HALT): synthetic short-circuit path. Phase D
+            // join key: reason="SyntheticShortCircuit" disambiguates from
+            // natural MaxTxExhausted (which exits at tx=max_transactions).
+            minif2f_v4::fc_trace::emit_event(
+                minif2f_v4::fc_trace::FcId::Fc2N22,
+                &run_corr_id, Some(tx as u64), None,
+                &[("reason", minif2f_v4::fc_trace::json_str("SyntheticShortCircuit"))],
+            );
             wc.mark_final_accept();
             // A4: synthetic short-circuit is NOT a max-tx exhaustion (it
             // exits ~150 tx EARLY at the rollback threshold). hit_max_tx
@@ -726,6 +767,18 @@ async fn run_swarm(
                 .collect();
             info!("[tick@tx{}] tape={} markets={} top={}", tx, tape_len, market_count,
                 top_prices.join(", "));
+            // A6 FC2-N20 (mr tick): clock → mr → tape per Art. IV.
+            // Phase D consumer joins on (run_corr_id, tx) to derive the
+            // tape-growth curve and detect zero-tick stalls before they
+            // become C-036 alarm events.
+            minif2f_v4::fc_trace::emit_event(
+                minif2f_v4::fc_trace::FcId::Fc2N20,
+                &run_corr_id, Some(tx as u64), None,
+                &[
+                    ("tape_len", tape_len.to_string()),
+                    ("market_count", market_count.to_string()),
+                ],
+            );
             // Phase 6-emergent: refresh shared team board from facts only.
             // Per-agent cumulative balance + recent tape-node authorship counts
             // + top market prices. No instructions, no "should" — just state.
@@ -1017,6 +1070,19 @@ async fn run_swarm(
                                             info!("[art-iv] OMEGA written as tape node; gp_nodes={}", gp_nodes);
                                         }
                                         bus.halt_and_settle(&gp).ok();
+                                        // A6 FC2-N22 (HALT — OmegaAccepted via full proof): the
+                                        // canonical success-path event. Phase D filters on
+                                        // reason="OmegaAccepted" + gp_path="alone|tape+payload" to
+                                        // build the OMEGA accept-rate timeseries.
+                                        minif2f_v4::fc_trace::emit_event(
+                                            minif2f_v4::fc_trace::FcId::Fc2N22,
+                                            &run_corr_id, Some(tx as u64), Some(agent_id.as_str()),
+                                            &[
+                                                ("reason", minif2f_v4::fc_trace::json_str("OmegaAccepted")),
+                                                ("gp_path", minif2f_v4::fc_trace::json_str(path_choice)),
+                                                ("gp_nodes", gp_nodes.to_string()),
+                                            ],
+                                        );
                                         // Phase 4: persist wallet state so next problem's run
                                         // inherits carried-over balances (reputation).
                                         if let Some(ref wp) = wallet_state_path {
@@ -1231,6 +1297,19 @@ async fn run_swarm(
                                         let upr = if omega_attempts > 0 {
                                             Some(omega_payload_hashes.len() as f64 / omega_attempts as f64)
                                         } else { None };
+                                        // A6 FC2-N22 (HALT — OmegaAccepted via per-tactic
+                                        // PartialVerdict::Complete). Distinguished from the
+                                        // full-proof OMEGA path by gp_path="per_tactic"; both
+                                        // share reason="OmegaAccepted".
+                                        minif2f_v4::fc_trace::emit_event(
+                                            minif2f_v4::fc_trace::FcId::Fc2N22,
+                                            &run_corr_id, Some(tx as u64), Some(agent_id.as_str()),
+                                            &[
+                                                ("reason", minif2f_v4::fc_trace::json_str("OmegaAccepted")),
+                                                ("gp_path", minif2f_v4::fc_trace::json_str("per_tactic")),
+                                                ("gp_nodes", gp_nodes.to_string()),
+                                            ],
+                                        );
                                         // P0-A: Phase B swarm step Complete — runtime gate IS
                                         // the Lean verify_partial call (PartialVerdict::Complete).
                                         // Both legs hold. Phase C Soft Law diverges here.
@@ -1320,6 +1399,20 @@ async fn run_swarm(
     // for-loop without OMEGA and without firing the synthetic
     // short-circuit, which would have returned earlier).
     wc.mark_final_accept();
+    // A6 FC2-N22 (HALT — natural MaxTxExhausted): the canonical
+    // budget-exhausted exit. Phase D filters reason="MaxTxExhausted"
+    // to compute solve_rate-vs-budget curves; pairs with the A5
+    // budget_regime stamp on the v2 jsonl row.
+    minif2f_v4::fc_trace::emit_event(
+        minif2f_v4::fc_trace::FcId::Fc2N22,
+        &run_corr_id, Some(max_transactions as u64), None,
+        &[
+            ("reason", minif2f_v4::fc_trace::json_str("MaxTxExhausted")),
+            ("budget_regime", minif2f_v4::fc_trace::json_str(budget_regime.label())),
+            ("budget_max_transactions", budget_max_tx_base.to_string()),
+            ("proposal_count", proposal_count.to_string()),
+        ],
+    );
     make_pput(problem_file, &condition, &run_model_label,
               false, false, start, 0, 0,
               max_transactions as u64, Some(tool_dist), upr,
