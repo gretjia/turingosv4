@@ -28,8 +28,8 @@ PREREG § 5.5 calibration **DEFERRED** indefinitely with the following operative
 
 **Statistical implications** (re-stated cleanly):
 - No Type-I inflation. `j-RR` is a descriptive guardrail (PREREG § 5.4), not part of the inferential family — its threshold doesn't enter Holm-Bonferroni adjustment.
-- The substitution may be LESS protective than an eventual calibrated `p_0 < 0.10`. When calibration runs (per § 3 conditions), the empirical estimate likely tightens the bar; until then we operate at the ceiling.
-- Acceptable trade-off because (a) Phase B and C don't gate on `j-RR` (Gate H is a Phase E artifact gate), and (b) the conditions in § 3 ensure calibration runs *before* Phase E, so the loose substitution never reaches the artifact-acceptance moment.
+- The substitution may be LESS protective than an eventual calibrated `p_0 < 0.10`. If/when calibration runs (per § 3 conditions, which are PRE-REQUISITES — they do not by themselves *guarantee* calibration completes before any specific phase), the empirical estimate may tighten the bar; until then Gate H operates at the ceiling.
+- Acceptable trade-off because (a) Phase B and C don't gate on `j-RR` (Gate H is a Phase E artifact gate), and (b) the substitution is **operationally permitted at any phase including Phase E** — see § 8 for the operative rule. If § 3 conditions complete before Phase E, calibration UPGRADES the bar; if not, Phase E proceeds with the ceiling substitution. There is no path under this amendment where Phase E is blocked by absence of calibration — that was an earlier draft's misclaim, removed by A8e8 fix M4 after Codex round-7 audit.
 
 **`genesis_payload.toml [pput_accounting_0].baseline_regression_rate`**: setting deferred to ArchitectAI commit window. Current value `0.0` is recognized as INVALID PLACEHOLDER (would auto-fail any artifact with any regression). Until calibration runs, **Gate H consumers MUST hardcode `p_0 = 0.10`** at the consumption site, not read from `genesis_payload.toml`.
 

@@ -75,6 +75,7 @@ source_paths = [
     "scripts/test_llm_proxy.py",
     "experiments/minif2f_v4/tests/fc_trace_smoke.rs",
     "experiments/minif2f_v4/tests/trust_root_immutability.rs",
+    "experiments/minif2f_v4/tests/llm_proxy_python_conformance.rs",
     "experiments/minif2f_v4/examples/fc_trace_emit_one.rs",
     "handover/alignment/TRACE_MATRIX_v2_2026-04-25.md",
     "genesis_payload.toml",

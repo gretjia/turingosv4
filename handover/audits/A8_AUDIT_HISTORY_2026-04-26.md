@@ -172,11 +172,37 @@
 
 ---
 
-## Round 7 — A8e7 structural rewrite + relaunch
+## Round 7 (2026-04-26) — post-A8e7 structural rewrite
 
-**Trigger**: rounds 2–6 produced a recurring documentary CHALLENGE pattern that single-point fixes could not close. **Diagnosis**: `A8_EXIT_PACKET` was conflating stable-snapshot artifact + append-only chronology in one document. **Fix** (commit `<this commit's SHA>` — A8e7): split into two docs following the project's existing constitutional pattern (stable spec + delta log; cf. constitution.md + Art. V.3 amendment log; PREREG + PREREG_AMENDMENT; TRACE_MATRIX_v0 + v1 + v2). The packet becomes current-state only; THIS history doc becomes append-only chronology.
+**Trigger for A8e7**: rounds 2–6 produced a recurring documentary CHALLENGE pattern that single-point fixes could not close. **Diagnosis**: `A8_EXIT_PACKET` was conflating stable-snapshot artifact + append-only chronology in one document. **Fix (`A8e7`, commit `aaedc9d`)**: split into two docs following the project's existing constitutional pattern (stable spec + delta log; cf. constitution.md + Art. V.3 amendment log; PREREG + PREREG_AMENDMENT; TRACE_MATRIX_v0 + v1 + v2). The packet becomes current-state only; THIS history doc becomes append-only chronology.
 
-**Round 7 dual audit pending after this commit lands.**
+**Inputs**:
+- Packet: `A8_EXIT_PACKET_2026-04-26.md` @ commit `aaedc9d` (post-A8e7)
+- Test baseline: 265 PASS / 29 ignored / 0 failed; 16/16 Python proxy tests
+- Trust Root: 35-entry manifest (A8_AUDIT_HISTORY added)
+
+**Verdicts**:
+- Codex R7: **CHALLENGE / high** — `handover/audits/CODEX_PHASE_A8_EXIT_AUDIT_2026-04-26_R7.md`
+- Gemini R7: **CHALLENGE / high** — `handover/audits/GEMINI_PHASE_A8_EXIT_AUDIT_2026-04-26_R7.md`
+- Merged: **CHALLENGE**. Both auditors agree the split pattern is right; the implementation left lineage text in the packet that should have moved to the history doc only.
+
+**Findings** (4 Codex + 2 Gemini):
+1. (Codex R7#1) Packet § 2 + § 4 still report 34 Trust Root entries; actual is 35 after A8e7 added `A8_AUDIT_HISTORY_2026-04-26.md`. Stale reference at multiple sites in the packet.
+2. (Codex R7#2) This history doc says A8e7 commit is `<this commit's SHA>` and "Round 7 dual audit pending after this commit lands" — but A8e7 is already in Trust Root as landed. Same placeholder-staleness pattern earlier rounds tried to eliminate.
+3. (**Codex R7#3 + Gemini R7#1 — convergent**) Packet § 1 + § 3 still contain historical lineage text: "(post-A8e F6 + A8e2 G2)", "(added by A8e F4)", "(+ A8e fix F4)", "A8e6 fix K2", "(chain position 33 via A8e)". The A8e7 split's intent was that the packet describes WHAT IS (current state) without explaining HOW (round-N derivation); HOW belongs only in this history doc.
+4. (**Codex R7#4 — substantive logic finding**) PREREG_AMENDMENT § 2 vs § 8 internal contradiction:
+   - § 2 (b) claims "the conditions in § 3 ensure calibration runs *before* Phase E, so the loose substitution never reaches the artifact-acceptance moment"
+   - § 3 lists 5 PRE-REQUISITES for calibration to run AT ALL (not guarantees of calibration completing before Phase E)
+   - § 8 says "if those conditions never met, Phase E proceeds with the operationally-permitted ceiling substitution"
+   The amendment claims both "calibration must run before Phase E" AND "ceiling-substitution is acceptable at Phase E without calibration". Cannot be both true.
+5. (Gemini R7#2) Audit runner scripts don't append `experiments/minif2f_v4/tests/llm_proxy_python_conformance.rs` to source files — Q1.c (verify fail-closed) cannot be verified from the packet alone.
+
+**Round-7 fixes shipped (`A8e8`, commit `<aaedc9d-successor>`)** — five fixes:
+- **M1** (Codex R7#1): Packet TR count bumped 34 → 35 wherever cited.
+- **M2** (Codex R7#2): This history doc's A8e7 entry now stamps the actual SHA `aaedc9d` and round-7 verdicts (above) instead of "pending". Round-7 history sealed.
+- **M3** (Codex R7#3 + Gemini R7#1): Packet rewritten to remove ALL historical lineage text. The packet describes the post-A8e6 state directly — e.g. "9 wired FC-trace anchor sites" with no breakdown of which fix added which. The HOW lives ONLY in this history doc.
+- **M4** (Codex R7#4): PREREG_AMENDMENT § 2 + § 3 + § 8 reconciled: removed the false claim that § 3 "ensures calibration before Phase E"; § 8 now reads as the operative rule (Phase E proceeds with the substitution if § 3 conditions haven't completed). Clean single semantics: substitution is permitted throughout Phase B → Phase E; calibration UPGRADES the bar IF and WHEN the § 3 conditions all complete. Re-hashed in Trust Root.
+- **M5** (Gemini R7#2): Audit runner scripts now append `experiments/minif2f_v4/tests/llm_proxy_python_conformance.rs` so Q1.c is verifiable from the packet bundle alone.
 
 ---
 
