@@ -146,6 +146,13 @@ fn test_trust_root_manifest_includes_b2_b4_files() {
         "tests/fc_alignment_conformance.rs",
         // 2026-04-25 Phase A1 PREREG amendment
         "handover/preregistration/PREREG_AMENDMENT_p0_defer_2026-04-25.md",
+        // Phase C C-pre1: hard-10 sample basis (PREREG § 6 C2). The 10
+        // problem IDs + their fingerprint are the per-mode test sample
+        // for Phase C ablation; immutability is what makes the
+        // pre-registered McNemar tests honest. Per C-075 DO-178C the
+        // generator script is a frozen production tool.
+        "handover/preregistration/PPUT_CCL_HARD10_2026-04-26.json",
+        "handover/preregistration/scripts/draw_hard10_pput_ccl.py",
     ];
 
     for path in required {

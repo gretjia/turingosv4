@@ -65,7 +65,7 @@
 #       § 2 wording correction A8e fix F6; per case C-073 ArchitectAI
 #       commit authority)
 #
-# Total: 38 files. Progression A0=24 → A1=25 (PREREG amendment) → A3=26
+# Total: 40 files. Progression A0=24 → A1=25 (PREREG amendment) → A3=26
 # (agent_models.rs) → A5=27 (budget_regime.rs) → A6=28 (fc_trace.rs) →
 # A7=31 (llm_proxy.py + 2 smoke scripts) → A8e=33 (run_id.rs +
 # test_llm_proxy.py) → A8e2=34 (llm_proxy_python_conformance.rs Rust
@@ -73,7 +73,10 @@
 # A8e11=37 (audit runner scripts) → A8e13=38 (src/boot.rs — the
 # verifier file itself; pre-A8e13 it wasn't Trust-Rooted, so a
 # tamper to verify_trust_root would silently bypass the gate;
-# Codex R11#1 caught + C-075 ratifies). Per A8e13 Q1 the
+# Codex R11#1 caught + C-075 ratifies) → C-pre1=40 (hard-10 sample
+# JSON + draw script — Phase C C2 sample basis, immutable per PREREG
+# § 6 C2; tampering = Phase C respin per C-075 DO-178C tool
+# qualification). Per A8e13 Q1 the
 # {cases,rules}/MANIFEST.sha256 entries are now ENFORCED proxies:
 # verify_trust_root recursively hashes each child file the manifest
 # claims (was convention-only before).
@@ -135,3 +138,5 @@ n_max = 34
 "handover/audits/A8_AUDIT_HISTORY_2026-04-26.md" = "ef7ccdb2f39795707ab84b4f97c1346da96c6315419183411a194dd21ac26618"
 "handover/audits/run_codex_phase_a8_exit_audit.sh" = "3115ec86339621c6a608f72b837a1004804abf4824ecfc34049edc08c833be39"
 "handover/audits/run_gemini_phase_a8_exit_audit.py" = "33abd4c0679856719ac38ecd00dc7763b85d30f8c90e83db366c1acdc907a473"
+"handover/preregistration/PPUT_CCL_HARD10_2026-04-26.json" = "0a906708941835bb56c0af7c6c8fdabf6747911f97d5108ff7a4d76abfadba01"
+"handover/preregistration/scripts/draw_hard10_pput_ccl.py" = "dd19b1396d2f235ddd412db58802412356b9e100b1d6fcba701833327eaf33d6"

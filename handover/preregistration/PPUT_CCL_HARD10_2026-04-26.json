@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "preregistered_in": "handover/preregistration/PREREG_PPUT_CCL_2026-04-26.md",
+  "preregistered_section": "§ 6 Phase C C2",
+  "generator_script": "handover/preregistration/scripts/draw_hard10_pput_ccl.py",
+  "seed": "hard10_pput_ccl_seed",
+  "draw_function": "random.Random(seed).sample(sorted(adaptation_problem_ids), 10)",
+  "source_split_file": "handover/preregistration/PPUT_CCL_SPLITS_2026-04-26.json",
+  "source_split_bucket": "adaptation",
+  "source_adaptation_count": 144,
+  "source_adaptation_sha256": "90896bbe46ef7afe10b1c640e9555a58dfb0850b0354420db1bf44ad0a541252",
+  "hard_k": 10,
+  "hard_sample_sha256": "6667e6bdd2aa381c6757f83322eab2226666564085388c7e591c22b378d713f6",
+  "problem_ids": [
+    "aime_1987_p5",
+    "aime_1994_p3",
+    "algebra_absapbon1pabsapbleqsumabsaon1pabsa",
+    "amc12_2000_p20",
+    "amc12a_2020_p9",
+    "amc12b_2021_p18",
+    "mathd_algebra_139",
+    "mathd_algebra_160",
+    "mathd_algebra_275",
+    "mathd_numbertheory_430"
+  ],
+  "boltzmann_seeds": [
+    31415,
+    2718
+  ],
+  "boltzmann_seeds_provenance": "PREREG § 6 C2 — frozen at PREREG round-4 commit",
+  "trust_root_note": "This file + hard_sample_sha256 are part of Trust Root per PREREG_PPUT_CCL_2026-04-26.md § 6 C2. Tampering = BLOCKER + Phase C respin."
+}
