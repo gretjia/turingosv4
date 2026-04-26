@@ -1,8 +1,14 @@
 # TuringOS v4 — Handover State
-**Updated**: 2026-04-25 (B7-extra round-4 audit in flight; batch pending PASS/PASS)
-**Session Summary**: B7 (Trust Root + Boot freeze) → 用户 atomic-alignment critique (3 flowcharts) → B7 alignment fix → B7-extra rollback toggle + calibration scripts → dual audit round-1 VETO/VETO → 13-fix landing → simplifier pass → **constitution amendment (sudo)**: V.1.1 sudo scope + V.1.2 ArchitectAI commit authority + V.1.3 JudgeAI→Veto-AI + V.3 amendment log → re-audit round 2 VETO/PASS (Codex caught self-inflicted regression: Q7.b silently absorbed TRUST_ROOT_TAMPERED panics) → round-2 fix → re-audit round 3 CHALLENGE/CHALLENGE (problem_file_missing absorption + boot preflight `||true` exit-discard + EXIT=0+empty PPUT_RESULT non-exhaustive) → round-3 fix (commit `d0d474e`) → **round-4 audit in flight**. **187/187 cargo test PASS** + 20 ignored. Trust Root manifest **20 files** (was 15 — added main.rs / Cargo.lock / runner.sh / compute_p0.py per audit). User authorized auto-research overnight to PROCEED on PASS/PASS.
 
-> **新 session 入口**: 读这个文件 + `handover/preregistration/PHASE_B_IMPLEMENTATION_PLAN.md` § B7-extra + `handover/architect-insights/THESIS_V2_GROUND_TRUTH_AUDIT_2026-04-25.md` (claim-7 ground-truth feedback findings C+D for Phase D) + `handover/architect-insights/B7_EXTRA_ABSTRACTION_DEPTH_FINDINGS_2026-04-25.md` (findings A+B abstraction depth) + `handover/ai-direct/AUTO_RESEARCH_NOTEPAD.md` § F-2026-04-25-04..-08 (this session's findings)。这 5 个文件足以无 context 接手。
+**Updated**: 2026-04-26 (Phase A → B exit complete; 13-round dual-audit cycle closed; Phase B authorization recommended on cumulative evidence)
+**HEAD commit**: `50b5afc` (A8e15: round-13 closure)
+**Origin**: `origin/main` synced to HEAD (54 commits pushed this session)
+
+## Session Summary
+
+13-round Phase A → B dual-audit cycle. **Real-bug yield: 14 substantive findings caught + closed** across rounds (5 R1 + 1 R3 + 1 R6 + 1 R7 + 1 R8 + 2 R10 + 2 R11 + 1 R12 + 0 R13). Plus 1 false-closure caught at R9 (counted separately as delivery-quality finding). Latest verdicts: R13 = Codex CHALLENGE / Gemini PASS — second consecutive Gemini PASS at zero substantive findings; the audit gate has reached its asymptote. New harness amplifier shipped at A8e12: case **C-076** (commit-claim diff parity) + rule **R-020** (judge.sh hook) sediment the false-closure pattern lessons.
+
+> **新 session 入口**: read this file + `handover/ai-direct/HANDOVER_PHASE_A_EXIT_2026-04-26.md` (this session's full handover) + `handover/audits/A8_EXIT_PACKET_2026-04-26.md` (current-state Phase A exit packet) + `handover/audits/A8_AUDIT_HISTORY_2026-04-26.md` (append-only 13-round chronology) + `handover/preregistration/PREREG_PPUT_CCL_2026-04-26.md` § 2 + § 5 (Phase C ablation conditions + H1-H4 hypotheses). 这 5 个文件足以无 context 接手。
 
 ## Current State
 
@@ -11,128 +17,128 @@
 - North Star: Held-out Verified PPUT (H-VPPUT) on heldout-54
 - Success criterion: WBCG_PPUT > 0 (≥1 Certified user-space artifact)
 - Caps: 30 wall-clock days + USD 500 API budget (硬停)
-- Backbone: `deepseek-v4-flash` thinking-off (Phase B+C); 异构 LLM at Phase D (v4-flash thinking-on + Gemini 2.5 Pro)
+- Backbone: `deepseek-v4-flash` thinking-off (Phase B+C); 异构 LLM at Phase D (v4-flash thinking-on + Gemini 2.5 Pro + SiliconFlow catalog via A7 plumbing)
 
-### Phase A — COMPLETE (Phase B 待启动)
-- **A1 ✅** PREREG drafted, 4 rounds revised — `handover/preregistration/PREREG_PPUT_CCL_2026-04-26.md` (922 行 round 4)
-- **A2 ✅** 60/20/20 split frozen — adaptation 144 / meta_val 46 / heldout 54; sealed hash `51440807c9ecc5c366d1adb640afcc96fcd227d18e4a35c7f85aaec78475086b`
-- **A3 ✅** Notepad pivoted (F-2026-04-25-02 entry)
-- **A4 ✅** Dual external audit PASS/PASS (Codex + Gemini, round 4)
-- **A5 ✅** Commit gate cleared — commit `913255d`
+### Phase A — COMPLETE (atoms A0–A7) + A8 audit gate cleared
+Phase A engineering atoms shipped in prior mid-stream session (commits 6be6eb4 .. 90953d6):
+- **A0a–e ✅** harness modernization (rules + cases + TRACE_MATRIX_v2)
+- **A1 ✅** PREREG amendment p_0 calibration deferral
+- **A2 ✅** swarm_N=1 mode + parse_swarm_condition_n
+- **A3 ✅** AGENT_MODELS env var + Phase B+C single-model gate
+- **A4 ✅** decomposed metrics (hit_max_tx + tactic_diversity + verifier_wait_ms)
+- **A5 ✅** BUDGET_REGIME + MAX_TRANSACTIONS env vars
+- **A6 ✅** fc_trace.rs + 7-variant FcId enum + 9 wired anchor sites
+- **A7 ✅** SiliconFlow heterogeneous-LLM plumbing (proxy + 3-key smoke)
 
-### Phase B — IN PROGRESS (days 4-10 of 30-day arc)
-Detailed plan: `handover/preregistration/PHASE_B_IMPLEMENTATION_PLAN.md`
-Items (all expanded with file paths + acceptance criteria in plan doc):
-- **B1 ✅ DONE** JSONL schema v2 (proposal + run-level) — `experiments/minif2f_v4/src/jsonl_schema.rs`; 3 acceptance tests green; legacy `PputResult` shape readable via `RunRecord::from_json` schema_version dispatcher
-- **B2 ✅ DONE** C_i 全成本聚合器 — `experiments/minif2f_v4/src/cost_aggregator.rs`; `RunCostAccumulator` records prompt+completion+tool_stdout across all proposals (winning + failed); `test_failed_branches_counted_in_total_cost` PASS; `GenerateResponse.prompt_tokens` exposed for post-hoc API counts
-- **B3 ✅ DONE** T_i wall-clock — `experiments/minif2f_v4/src/wall_clock.rs`; `RunWallClock.mark_first_read` (idempotent) + `mark_final_accept` (last-call-wins for B4 post-hoc); `test_wall_clock_first_read_to_final_accept` PASS at strict ≥7100ms (mid-term P0-C fix moved mark_first_read BEFORE prompt construction)
-- **B4 ✅ DONE** `pput_verified` vs `pput_runtime` — `experiments/minif2f_v4/src/post_hoc_verifier.rs`; `compute_progress_runtime` / `compute_progress_verified` / `verify_post_hoc`; `make_pput(runtime_accepted, post_hoc_verified, ...)` caller declares both legs explicitly (mid-term P0-A fix); `test_pput_verified_zero_when_lean_rejects` PASS
-- **B5 ✅ DONE** Conformance battery + deferred P0s closed:
-  - P0-B (schema v2 emit alignment): PputResult now carries every B1 RunAggregate v2 field as non-Optional; emitted rows dispatch via `RunRecord::V2`; `test_emit_dispatches_as_v2` + `test_emit_soft_law_divergence_signal` PASS
-  - P0-D (hybrid_v1): disabled with deprecation message — was dropping failed-leg C_i via `..r2` spread
-  - P0-E (flip saturation): replaced with `assert!`; `test_flip_underflow_panics` covers
-  - 10/10 anti-Goodhart conformance (PREREG § 3): `experiments/minif2f_v4/tests/pput_anti_goodhart.rs` — all_model_tokens_counted / tool_stdout_hash_logged / no_hidden_unmetered_generation / no_problem_id_hardcode / no_metric_file_access_by_agents / no_pput_in_agent_prompt / golden_path_requires_ground_truth / failed_branches_in_total_cost / wall_clock_first_read_to_final_accept / heldout_ids_inaccessible
-  - 5/5 heldout operational sealing (PREREG § 2.3 L1-L5): `experiments/minif2f_v4/tests/heldout_operational_sealing.rs` — file-path read isolation / agent prompt context blacklist / tool-call hash-invocation gate / hash + seed substring co-occurrence / source-pool enumeration block
-  - 24 Phase C/D/B7 stubs scaffolded (`#[ignore]` with contract docs): artifact_content_predicates (4) + artifact_lookup_evasion (4) + architect_sole_lt_reader (3) + auditor_sees_candidate_only (3) + mode_flag_binary_purity (6) + trust_root_immutability (4)
-- **B6 ✅ DONE** PPUT-context-leak runtime gate — `src/sdk/prompt_guard.rs` (separate module so prompt.rs stays pure for B5 static-grep): `assert_no_metric_leak(prompt)` panics with `PPUT_CONTEXT_LEAK_DETECTED` on any of 8 forbidden substrings (case-insensitive); wired before every `client.generate` call site in evaluator (oneshot + swarm). 10 unit tests (clean prompt + 9 leak fixtures including substring/case-insensitive/middle-of-text variants). Static side already covered by B5 `test_no_pput_in_agent_prompt`.
-- **B7 ✅ DONE** Trust Root + Boot freeze:
-  - `genesis_payload.toml` (new): `[pput_accounting_0]` (PREREG § 1.8 invariants — schema_version, progress/cost/time defs, verified_predicate, heldout_sealed_hash, source_pool_sha256, k_max=10, n_max=34, baseline_regression_rate placeholder); `[trust_root]` (15 SHA-256 entries — independently re-derived: PREREG § 1.8 base 8 + audit accounting 6 + B6 prompt_guard 1)
-  - `cases/MANIFEST.sha256` (new): 45-entry sorted SHA-256 manifest of `cases/C-*.yaml`, hashed-once into Trust Root as proxy for the case-law glob
-  - `src/boot.rs` (new, +pub in lib.rs): `verify_trust_root(repo_root)` parses [trust_root] section (hand-rolled minimal TOML parser, no new dep — compression principle), recomputes SHA-256 per path, returns `TrustRootError::Tampered{path,expected,actual}` on mismatch; 6 unit tests (parse/blank/comment/missing-section/intact-repo/tempdir-tamper)
-  - `src/main.rs`: pre-Boot `verify_trust_root(env!("CARGO_MANIFEST_DIR"))` panics with `TRUST_ROOT_TAMPERED: ...` on any error; replaces previous placeholder
-  - `experiments/minif2f_v4/tests/trust_root_immutability.rs`: 4 `#[ignore]` stubs unsealed → 4 PASS (immutable_at_boot / simulated_write_aborts / manifest_includes_b2_b4_files / pput_accounting_0_section_present); manifest test enforces the union list (PREREG § 1.8 base + audit add + B6) — any reduction breaks the test
-  - **181/181 workspace test PASS** (171 pre-B7 + 6 boot unit + 4 unsealed)
-- **B7-extra ⚙ IN PROGRESS** rollback toggle landed (commit `973a9fd`) + calibration runner/estimator (commit `b0ae03e`) + smoke probe running (1 problem × 4 runs):
-  - `experiments/minif2f_v4/src/rollback_sim.rs`: `ROLLBACK_TX_THRESHOLD = 50` (PREREG-frozen), `ROLLBACK_ENV_VAR = "SIMULATE_ROLLBACK_AT_TX_50"`, `should_simulate_rollback(tx, enabled)` — 6 unit tests
-  - evaluator.rs run_swarm reads toggle, short-circuits at tx == 50 to existing max-tx exhaustion exit (FC2-N22 HALT via MaxTxExhausted, no new variant)
-  - `handover/preregistration/scripts/run_p0_calibration.sh`: iterates adaptation-144 × seeds [31415, 2718] × {control, treatment} = 576 runs; `--smoke` flag = 4-run probe
-  - `handover/preregistration/scripts/compute_p0.py`: control/treatment pair → regression_p_seed → max-over-seeds → p_0; PREREG § 5.5 ceiling = 0.10
-  - **Smoke verified 2026-04-25**: easy problem mathd_algebra_107 (4 runs, 39s) — infra + jsonl V2 + calibration tags ✓; hard problem aime_1983_p2 with toggle ON (8.5 min) — tx_count=50 + synthetic_short_circuit=true + stderr "[rollback_sim] firing at tx=50" ✓. Field cost-asymmetry doc-comment warns downstream PPUT analysis to honor flag.
-  - **Next**: user GO → 576-run batch (~$3-5, ~8h overnight) → compute_p0.py → write p_0 to genesis_payload.toml [pput_accounting_0] → recompute Trust Root + commit jsonl into manifest → Gate B dual-audit Phase B → Phase C transition
-- **B7-alignment ✅ DONE** (commit `0cc48bc`) — TRACE_MATRIX v1 (FC3-N34 promoted ✅, B7-extra rows added), src/boot.rs + src/main.rs FC backlinks, OBS_BOOT_FAIL_NOT_HALT (boot panic ≠ FC2-N22, closer to FC3-E14)
+A8 audit gate (this session, commits 60292dc .. 50b5afc):
+- **A8 prep + 13 dual-audit rounds + 15 in-cycle fix bundles (A8e..A8e15)**
+- Real-bug yield: 14 substantive findings caught + closed
+- Documentary lessons sedimented: case C-076 + rule R-020 (commit-claim diff parity)
+- Trust Root hardened: recursive child-manifest verification (A8e13 Q1); src/boot.rs ALSO in TR
+- Cost: ~$80 / $500 cap = 16% spend
 
-### Active background processes
-- 无运行中实验 (Phase A 双审已全部完成)
-- Codex CLI broker (legacy `pid 348391` → phase-8a-snapshot worktree) — Paper 1 残留, 与 PPUT-CCL 不相关
+### Phase B — DONE (B1-B7 from prior session; B7-extra deferred per amendment)
+Per `handover/preregistration/PHASE_B_IMPLEMENTATION_PLAN.md`:
+- **B1–B7 ✅** all green; tests + Trust Root + smoke + conformance battery passing
+- **B7-extra ⏸ DEFERRED** per `PREREG_AMENDMENT_p0_defer_2026-04-25.md` (5 conditions must complete first; operationally pushed to post-Phase D)
 
-## What's broken / incomplete
+### Phase C — STARTING POINT for next session
+Per `AUTO_RESEARCH_NOTEPAD.md` § Active roadmap:
+> **Phase C — Ablation smoke tests** (days 11-17)
+> - 5 modes: Full / Panopticon / Amnesia / Soft Law / Homogeneous
+> - hard-10 adaptation × N=20 paired
+> - Verify H1–H4: violations show on PPUT axis
 
-### PPUT-CCL Phase B — to-do (after B7 close)
-- B7-extra (p_0 calibration) 未跑：576 runs (288 control + 288 treatment) on adaptation-144 × seeds [31415, 2718], `--simulate-rollback-at-tx-50` toggle 待加；p_0 ∈ (0, 0.10] sanity gate；冻结进 `[pput_accounting_0].baseline_regression_rate` + `.baseline_regression_jsonl_sha256` + 把 jsonl 加入 [trust_root]
-- 20 Phase C/D conformance stubs `#[ignore]` 待对应 phase 解封 (artifact_content 4 / lookup_evasion 4 / architect_sole_lt 3 / auditor_sees_candidate 3 / mode_flag_binary_purity 6) — B7 解封了 trust_root_immutability 4 个
-- `--mode` flag 未在 evaluator binary 实现 (Phase C C5 工作)
-- Trust Root 自身不自哈希 (chicken-and-egg)：`genesis_payload.toml` 自身 tamper 不会被 Boot 检测；语义锚点 = `[pput_accounting_0]` 字段值；如要更强保证，未来可在编译时把 [trust_root] 哈希常量 inline 进 binary（Phase C+ 议题，非 Gate B 阻塞）
+Next session reads `PREREG_PPUT_CCL_2026-04-26.md` § 2 + § 5 + § 6 (Phase C protocol + H1-H4 hypotheses + statistical plan), then implements + smokes the 5 mode toggles.
 
-### Mid-term dual audit (2026-04-25) deferred items — 必须 B5 起步先解决
-binding checklist: `handover/audits/B5_DEFERRED_FROM_MIDTERM_AUDIT_2026-04-25.md`
-- **P0-B**: schema v2 emit alignment — evaluator emit 仍是 legacy `PputResult` 而非 v2 `RunAggregate` (no `schema_version`, missing `progress: u8` / `run_id` / `split` / `mode` / model_snapshot 等); B1 dispatcher 把新行误判为 Legacy
-- **P0-D**: hybrid_v1 condition `..r2` field-spread 丢弃失败 oneshot 的 C_i (Codex 发现)
-- **P0-E**: `RunCostAccumulator::flip_last_failed_to_accepted` 静默饱和 — 应改为 `assert!` 暴露 over-flip wiring bug
+## Verified state at HEAD
 
-### B1 evaluator emit gap (still open after B2-B4 mid-term audit)
-- B1 的 `RunAggregate` v2 schema 仍未在任何 emit path 上线；B2-B4 加的字段都打在 legacy `PputResult` 上。P0-B 处理这个差距 — B5 第一步。
+| Metric | Value |
+|---|---|
+| `cargo test --workspace` | **267 PASS / 29 ignored / 0 failed** |
+| `python3 scripts/test_llm_proxy.py` | **16/16 PASS** (also wrapped in cargo test) |
+| `bash scripts/smoke_siliconflow.sh` | **PASS (3/3 keys live)** |
+| Trust Root manifest | **38 entries**, recursive child-manifest enforcement live |
+| `boot::tests::verify_trust_root_passes_on_intact_repo` | **PASS** |
+| Cases (C-001..C-076) | 76 (C-076 added in A8e12) |
+| Active rules (R-001..R-020 with gaps) | 15 (R-020 added in A8e12) |
+| FC-trace anchor sites (evaluator.rs) | 9 (run_swarm × 8 + run_oneshot × 1) |
+| `make_pput` arity | 24 positional args (Phase B+ refactor candidate) |
+| Git commits ahead of `origin/main` | 0 (synced 2026-04-26) |
 
-### Paper 1 — separate stack
-- arXiv 投稿延后 (tag `paper1-v2.1.1` 待 LaTeX 转换 + 元数据)
-- 不 gate PPUT-CCL arc; 用户可任意时间回头处理
+## What this session did NOT do (per user honest-framing question)
 
-## Open Questions for User
-**全部 D1-D4 已 resolved 2026-04-26 default 接受** — 见 `handover/ai-direct/OPEN_DECISIONS_2026-04-26.md` Resolved 区。本 session 关闭；下一 session 在 Phase B B5 起步（先 pickup deferred P0-B/D/E，再写 conformance battery）。
-
-## Next session — first action
-
-> **Why session paused at B7/B7-extra boundary**: B7-extra needs the `--simulate-rollback-at-tx-50` toggle in evaluator binary + 576 runs overnight (~$3-5 API spend, ~8 wall-hours). Toggle is a small change but the runs are real money — let user explicitly green-light before kicking off. Also C-035 still applies: dual-audit Phase B → C transition will read this LATEST + B7 commit + p_0 jsonl, and a fresh session writes that audit packet cleanly.
-
-1. Read `LATEST.md` (this file) + `PHASE_B_IMPLEMENTATION_PLAN.md` § B7-extra + smoke `cargo test --workspace` (baseline = **181/181 parallel green** + 20 ignored stubs)
-2. **Confirm with user** before starting 576-run calibration (cost gate)
-3. Implement `--simulate-rollback-at-tx-50` toggle in `experiments/minif2f_v4/src/bin/evaluator.rs` (per PHASE_B § B7-extra) — small change, can land before the runs
-4. Run B7-extra: 288 control + 288 treatment on adaptation-144 × seeds [31415, 2718]; compute p_0 = sum_p max_seed(SOLVED_control AND UNSOLVED_treatment) / 144; sanity gate p_0 ∈ (0, 0.10]
-5. Freeze: write p_0 to `genesis_payload.toml [pput_accounting_0].baseline_regression_rate`; SHA-256 the calibration jsonl → `.baseline_regression_jsonl_sha256`; add jsonl path to `[trust_root]`; recompute every Trust Root hash (genesis itself changed); commit
-6. Then Gate B exit: dual-audit Phase B → Phase C transition packet (Codex + Gemini)
-
-## Mid-term audit (2026-04-25) summary
-- Codex (274s, 67K char prompt) + Gemini (62s, 67K char prompt): both **CHALLENGE**, high conviction
-- Convergent P0s on architectural fragility (Phase-C-safety) + schema v2 drift; Codex-only on first-read placement, hybrid_v1, flip saturation
-- **Fixed in B2-B4 commit**: P0-A (make_pput refactored — caller MUST declare runtime + post_hoc legs), P0-C (mark_first_read moved before prompt construction; conformance test back to ≥7100ms strict)
-- **Deferred to B5**: P0-B/D/E (binding checklist `B5_DEFERRED_FROM_MIDTERM_AUDIT_2026-04-25.md`)
-- **Compute spent on mid-term audit**: ~$3-5 (~67K char prompt × 2). Phase B audit budget remaining for B5/B6/B7/B7-extra transition: ~$10-15.
+- **Not DO-178C**: 13 rounds were adversarial dual external review (Codex + Gemini, skeptical-reviewer mandate). Case C-075 invokes DO-178C tool-qualification *as analogy*; the cycle did not produce DO-178C planning artifacts (PSAC/SDP/SVP), DAL declarations, structural coverage analysis, or formal TQL-1..TQL-5 tool qualification. Research-grade rigor, not certified-avionics rigor.
+- **Not just "no constitution.md edits"**: zero edits is necessary but not sufficient. Constitutional alignment per substantive fix verified against FC1/FC2/FC3 invariants and Article rules — see `HANDOVER_PHASE_A_EXIT_2026-04-26.md` § 6 for per-fix retrospective.
 
 ## Reference (canonical sources of truth)
 
-### PPUT-CCL arc
+### A8 audit gate (this session)
 | 文件 | 用途 |
 |---|---|
-| `handover/preregistration/PREREG_PPUT_CCL_2026-04-26.md` | 完整 pre-registration spec (round 4 frozen) — 总章法 |
+| `handover/ai-direct/HANDOVER_PHASE_A_EXIT_2026-04-26.md` | **This session's handover** — full Phase A→B exit retrospective |
+| `handover/audits/A8_EXIT_PACKET_2026-04-26.md` | Current-state Phase A exit packet (post-A8e15) |
+| `handover/audits/A8_AUDIT_HISTORY_2026-04-26.md` | Append-only 13-round chronology + per-round verdicts/fixes |
+| `handover/audits/{CODEX,GEMINI}_PHASE_A8_EXIT_AUDIT_2026-04-26[_R2..R13].md` | 13 rounds × 2 auditors = 26 audit transcripts |
+| `handover/audits/run_codex_phase_a8_exit_audit.sh` + `run_gemini_phase_a8_exit_audit.py` | Audit runners (in Trust Root per A8e11; require A8_AUDIT_ROUND env per A8e10) |
+| `cases/C-076_commit_claim_diff_parity.yaml` | A8e12 false-closure prevention precedent |
+| `rules/active/R-020_commit_claim_diff_parity.yaml` | A8e12 pre-commit WARN rule |
+
+### Phase A engineering atom code (mid-stream session)
+| 文件 | 用途 |
+|---|---|
+| `experiments/minif2f_v4/src/agent_models.rs` (A3) | Per-agent model assignment + Phase B+C single-model gate |
+| `experiments/minif2f_v4/src/budget_regime.rs` (A5) | BUDGET_REGIME enum + MAX_TRANSACTIONS resolver |
+| `experiments/minif2f_v4/src/fc_trace.rs` (A6) | Structured JSON event emitter + FcId enum |
+| `experiments/minif2f_v4/src/run_id.rs` (A8e F1) | Single per-run identifier minted once, threaded everywhere |
+| `experiments/minif2f_v4/src/jsonl_schema.rs` (A4) | v2 schema with hit_max_tx + tactic_diversity + verifier_wait_ms + budget_regime + budget_max_transactions fields |
+| `src/boot.rs` (A8e13 Q1) | Trust Root verifier; recursive child-manifest enforcement |
+| `src/drivers/llm_proxy.py` (A7) | Multi-key round-robin OpenAI-compatible proxy (in TR per A8e11) |
+| `scripts/smoke_siliconflow.sh` + `_smoke_siliconflow.py` (A7) | 3-key fail-closed smoke (in TR per A7) |
+| `scripts/test_llm_proxy.py` (A8e F2) | 16-test routing + round-robin conformance (in TR per A8e2) |
+
+### PPUT-CCL arc (frozen contracts)
+| 文件 | 用途 |
+|---|---|
+| `handover/preregistration/PREREG_PPUT_CCL_2026-04-26.md` | Round-4 frozen pre-registration; 总章法 |
+| `handover/preregistration/PREREG_AMENDMENT_p0_defer_2026-04-25.md` | p_0 calibration deferral; § 2 + § 8 wording corrected via A8e F6 + G2 + M4 + N1 |
 | `handover/preregistration/PPUT_CCL_SPLITS_2026-04-26.json` | 三 split frozen output + sealed hash |
-| `handover/preregistration/scripts/split_pput_ccl.py` | 可重现 split 生成 (seed = `20260426_PPUT_CCL`) |
-| `handover/preregistration/PHASE_B_IMPLEMENTATION_PLAN.md` | **Phase B 详细实施计划** — 新 session 接手 Phase B 必读 |
-| `handover/architect-insights/PPUT_DRIVEN_FULL_PASS_2026-04-25.md` | 架构师 v1 测度论 FULL PASS (verbatim) |
-| `handover/architect-insights/GEMINI_DEEPTHINK_FULL_PASS_2026-04-26.md` | 架构师 v2 本体论 FULL PASS (verbatim) |
-| `handover/audits/DUAL_AUDIT_PPUT_CCL_VERDICT_ROUND4_2026-04-26.md` | 最终 round-4 PASS/PASS verdict + 4-round 演化总结 |
-| `handover/audits/DUAL_AUDIT_PPUT_CCL_VERDICT_2026-04-26.md` | round-1 CHALLENGE verdict (历史) |
-| `handover/audits/{CODEX,GEMINI}_PPUT_CCL_AUDIT*_2026-04-26.md` | 4 rounds × 2 auditors = 8 audit files |
-| `handover/audits/run_{codex,gemini}_pput_ccl_audit*.{py,sh}` | 可重现双审 (4 rounds) |
-| `handover/ai-direct/OPEN_DECISIONS_2026-04-26.md` | 待用户回的决策点 |
-| `handover/ai-direct/AUTO_RESEARCH_NOTEPAD.md` (F-2026-04-25-02) | arc launch finding |
+| `handover/preregistration/scripts/split_pput_ccl.py` | 可重现 split 生成 |
+| `handover/preregistration/PHASE_B_IMPLEMENTATION_PLAN.md` | Phase B detailed implementation (B1-B7 DONE; B7-extra deferred) |
+| `handover/architect-insights/PPUT_DRIVEN_FULL_PASS_2026-04-25.md` | Architect v1 measure-theoretic FULL PASS |
+| `handover/architect-insights/GEMINI_DEEPTHINK_FULL_PASS_2026-04-26.md` | Architect v2 ontological FULL PASS |
+| `handover/audits/DUAL_AUDIT_PPUT_CCL_VERDICT_ROUND4_2026-04-26.md` | PREREG round-4 PASS/PASS verdict |
 
-### Paper 1 (separate, lower priority)
+### Constitutional alignment + handover meta
 | 文件 | 用途 |
 |---|---|
-| `handover/ai-direct/PAPER_1_v2_DRAFT_SKELETON_2026-04-24.md` | Paper 1 final draft (tag `paper1-v2.1.1`) |
-| `handover/audits/DUAL_AUDIT_V2_1_VERDICT_2026-04-25.md` | Paper 1 R3 PASS/PASS verdict |
+| `handover/alignment/TRACE_MATRIX_v2_2026-04-25.md` | FC↔code alignment; § 1 has A0a..A8e14 trigger entries |
+| `handover/alignment/FC_ELEMENTS_2026-04-22.md` | Canonical FC node IDs |
+| `handover/ai-direct/AUTO_RESEARCH_NOTEPAD.md` | Active research state (memory `project_auto_research_notepad` points here) |
+| `handover/ai-direct/OPEN_DECISIONS_2026-04-26.md` | Pending user decisions (D1-D4 all RESOLVED 2026-04-26) |
 
-### Repo state
-- HEAD: B7 close commit (Trust Root + Boot freeze; SHA stamped at commit time, ahead of `fa93943`)
-- origin/main HEAD: `fd291d7`; **11 local commits ahead, none pushed** — `913255d`/`4e4afc7`/`47b3dba`/`2a8921b`/`c6087f7`/`34b71c0`/`c30ca81`/`282a459`/`06e1b25`/`fa93943` + B7
+### Memory entry points (auto-loaded per session)
+- `MEMORY.md` indexes `project_pput_ccl_arc.md` → points here (`LATEST.md`)
+- `feedback_phased_checkpoint.md`, `feedback_dual_audit*.md`, `feedback_step_b_protocol.md` are critical for Phase B+ execution discipline
+- `reference_siliconflow.md` (NEW this session) — SiliconFlow as Phase D heterogeneous lane + context-loss anti-pattern lesson
+
+## Repo state
+- HEAD: `50b5afc` (A8e15)
+- origin/main: `50b5afc` (synced; 54 commits pushed this session)
 - Working tree: `rules/enforcement.log` modified (session-runtime artifact, do not stage)
-- Tags pushed: `paper1-v2.1.1`, `archive/art-ii1-v3-abandoned-20260416`
+- Tags pushed (prior): `paper1-v2.1.1`, `archive/art-ii1-v3-abandoned-20260416`
 - Branches: `main` (active), 23 archive refs preserved
 
-### Memory entry points (auto-loaded每 session)
-- `MEMORY.md` indexes `project_pput_ccl_arc.md` → points here (`LATEST.md`)
-- `feedback_phased_checkpoint.md`, `feedback_dual_audit*.md`, `feedback_step_b_protocol.md` are critical for Phase B execution discipline
+## Compute spent (cumulative across all sessions)
+- Phase A PREREG dual-audit (4 rounds, mid-stream session): ~$15-20
+- Phase B B2-B4 mid-term audit (mid-stream session): ~$3-5
+- Phase A → B exit dual-audit (this session, 13 rounds): ~$80
+- **Cumulative arc spend**: ~$100 / $500 cap = 20%
+- Remaining: ~$400 for Phase C ablation (5 modes × 10 problems × 2 seeds = 100 jsonl rows + audit) + Phase D shadow CCL + Phase E sealed eval + B7-extra calibration if/when § 3 conditions complete
 
-## Compute spent
-- Phase A4 dual audit: ~$15-20 across 4 rounds (~440K Codex tokens + ~310K Gemini tokens)
-- B2-B4 mid-term dual audit: ~$3-5 (~67K char prompt × 2; Codex 274s + Gemini 62s)
-- Remaining budget: ~$475-480 for Phase B-E (288 p_0 runs + Phase C ablation N=20 × 5 modes + Phase D shadow CCL + Phase E sealed eval + remaining B5/B6/B7 audits)
+## Next-session boot sequence
+
+1. Read 5-file list at top of this doc (HANDOVER + EXIT_PACKET + AUDIT_HISTORY + PREREG + AMENDMENT)
+2. Re-verify state: `cargo test --workspace` (expect 267 PASS), `bash scripts/smoke_siliconflow.sh` (expect 3/3 PASS)
+3. Decide: jump to Phase C (recommended), OR run Phase B Gate B exit audit packet first (lower priority since B1-B7 already DONE per `PHASE_B_IMPLEMENTATION_PLAN.md`)
+4. If Phase C: read `PREREG_PPUT_CCL_2026-04-26.md` § 2 + § 5 + § 6 + scaffold the 5 mode toggles (Full / Panopticon / Amnesia / Soft Law / Homogeneous) per `RunAggregate.mode` field already in the v2 schema
