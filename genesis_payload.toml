@@ -148,4 +148,4 @@ n_max = 34
 "handover/audits/run_gemini_phase_a8_exit_audit.py" = "33abd4c0679856719ac38ecd00dc7763b85d30f8c90e83db366c1acdc907a473"
 "handover/preregistration/PPUT_CCL_HARD10_2026-04-26.json" = "0a906708941835bb56c0af7c6c8fdabf6747911f97d5108ff7a4d76abfadba01"
 "handover/preregistration/scripts/draw_hard10_pput_ccl.py" = "dd19b1396d2f235ddd412db58802412356b9e100b1d6fcba701833327eaf33d6"
-"handover/preregistration/scripts/run_c2_phase_c_ablation.sh" = "c99f58f1e3a3cd72dbac50c7427e93e92a6796dc78eb4c91f1055d33c7211749"
+"handover/preregistration/scripts/run_c2_phase_c_ablation.sh" = "d26c64e2bc667e677ecf129ed369847a7956b701755863c70483e8ef958bf8c4"

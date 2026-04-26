@@ -76,13 +76,26 @@ case "$MODE_ARG" in
         cat <<'USAGE'
 Usage: bash handover/preregistration/scripts/run_c2_phase_c_ablation.sh [--smoke|--full]
 
-  --smoke   n3 × 1 problem × 5 modes × 1 seed × MAX_TRANSACTIONS=10
-            (~5 min wall-clock, ~$0.05 API cost)
+  --smoke   n3 × 1 problem × 5 modes × 1 seed × MAX_TRANSACTIONS=2
+            (~90s wall-clock at thinking-off; ~$0.05 API cost)
             Verifies all 5 modes complete a swarm run end-to-end.
 
   --full    Full Phase C batch: 5 modes × 10 problems × 2 seeds = 100 rows
-            (~8 hours wall-clock, ~$1-2 API cost — explicit GO required)
             Hard-10 from PPUT_CCL_HARD10_2026-04-26.json; seeds [31415, 2718].
+
+Concurrency:
+  CONCURRENCY env var sets the parallel-cell pool size (default 1 = serial).
+  Recommended on 4-core hardware (this machine):
+    CONCURRENCY=1  serial — ~25-50 hr wall-clock, 1 DeepSeek key fine
+    CONCURRENCY=2  ~12-25 hr; 1 key safe (~0.6 RPS aggregate LLM)
+    CONCURRENCY=4  ~6-13 hr; needs >=2 DeepSeek keys for rate-limit margin
+                   (proxy round-robins across DEEPSEEK_API_KEY +
+                   DEEPSEEK_API_KEY_SECONDARY) and saturates 4 cores
+  Examples:
+    CONCURRENCY=2 LLM_PROXY_URL=http://localhost:18080 \\
+      bash handover/preregistration/scripts/run_c2_phase_c_ablation.sh --full
+    CONCURRENCY=4 LLM_PROXY_URL=http://localhost:18080 \\
+      bash handover/preregistration/scripts/run_c2_phase_c_ablation.sh --full
 
 Phase C atom C2 (PREREG § 6 C2). C-pre1 + C1a-e + C5 are this runner's
 preconditions; verify cargo test --workspace = 298 PASS before launching.
@@ -193,7 +206,26 @@ if echo "$PREFLIGHT_PROBE" | grep -q "TRUST_ROOT_TAMPERED"; then
 fi
 echo "[preflight] Evaluator boot OK (exit=$PREFLIGHT_EXIT)."
 
-# Per-cell run loop. Cell = (mode, problem, seed).
+# Per-cell run loop. Cell = (mode, problem, seed). Cells run independently;
+# CONCURRENCY env var enables parallel-pool execution (default 1 = serial,
+# matches pre-parallel behavior).
+#
+# Concurrency notes (4-core test machine, 2026-04-26 measurement):
+#   - Each cell = 1 evaluator process + 1 Lean child + N LLM calls
+#   - Lean verify dominates (~88% of cell wall-clock at thinking-off)
+#   - K=1: serial (matches Path A serial overnight estimate)
+#   - K=2: safe with 1 DeepSeek key (~0.6 RPS aggregate, well under typical
+#          150 RPM single-key limit)
+#   - K=4: saturates 4 CPU cores; needs ≥2 DeepSeek keys for rate-limit margin
+#          (round-robin across keys handled by llm_proxy.py)
+#   - K>4: oversubscribes CPU (Lean processes thrash); not recommended on
+#          this hardware
+CONCURRENCY="${CONCURRENCY:-1}"
+if ! [[ "$CONCURRENCY" =~ ^[1-9][0-9]*$ ]]; then
+    echo "FATAL: CONCURRENCY=$CONCURRENCY must be a positive integer"
+    exit 2
+fi
+
 TOTAL_CELLS=0
 for m in "${MODES[@]}"; do
     for pid in $HARD10_IDS; do
@@ -202,57 +234,102 @@ for m in "${MODES[@]}"; do
         done
     done
 done
-echo "[batch] $TOTAL_CELLS total cells; output = ${OUT_PREFIX}__<mode>_<problem>_<seed>.jsonl"
+echo "[batch] $TOTAL_CELLS total cells; concurrency=$CONCURRENCY"
+echo "[batch] output = ${OUT_PREFIX}__<mode>_<problem>_<seed>.jsonl"
 
+# Cell timeout: smoke 5 min, full 30 min (inherited from serial design).
+CELL_TIMEOUT=$([ "$SMOKE" -eq 1 ] && echo 300 || echo 1800)
+
+# Single-cell runner — backgroundable; each invocation produces exactly
+# one jsonl row (real or synthetic-failure stub) for cell-completeness.
+# All env vars used inside are exported in the parent shell + the
+# function reads them on each invocation, so subshells inherit cleanly.
+run_cell() {
+    local cell_idx=$1
+    local m=$2
+    local pid=$3
+    local seed=$4
+    local out_file="${OUT_PREFIX}__${m}_${pid}_seed${seed}.jsonl"
+    local cell_ts cell_exit cell_output pput_line solved verified
+    cell_ts=$(date -Is)
+    echo "[$cell_ts] cell $cell_idx/$TOTAL_CELLS START  mode=$m  problem=$pid  seed=$seed"
+
+    cell_exit=0
+    cell_output=$(BOLTZMANN_SEED="$seed" CONDITION="$CONDITION" SPLIT="adaptation" \
+        timeout "$CELL_TIMEOUT" "$EVALUATOR" --mode="$m" "${pid}.lean" 2>&1) || cell_exit=$?
+
+    pput_line=$(echo "$cell_output" | grep "^PPUT_RESULT:" | sed 's/^PPUT_RESULT://' || true)
+
+    if [ -z "$pput_line" ]; then
+        # Audit-fix Gemini Q7.b: every cell must produce a row.
+        echo "[$(date -Is)] cell $cell_idx FAIL  mode=$m  problem=$pid  seed=$seed  exit=$cell_exit"
+        echo "$cell_output" | tail -c 4000 > "${out_file}.err"
+        printf '{"schema_version":"v2.0","problem_id":"%s","mode":"%s","split":"adaptation","solved":false,"verified":false,"progress":0,"_synthetic_failure":true,"_exit_code":%d}\n' \
+            "$pid" "$m" "$cell_exit" > "$out_file"
+        return 1
+    fi
+    echo "$pput_line" > "$out_file"
+    solved=$(echo "$pput_line" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('solved'))" 2>/dev/null || echo "?")
+    verified=$(echo "$pput_line" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('verified'))" 2>/dev/null || echo "?")
+    echo "[$(date -Is)] cell $cell_idx DONE  mode=$m  problem=$pid  seed=$seed  solved=$solved  verified=$verified"
+    return 0
+}
+
+# Pool dispatcher: run cells with up to CONCURRENCY concurrent children.
+# `wait -n` (bash 4.3+) waits for the next finished job — true pool, no
+# K-batch-of-K stragglers. FAIL_COUNT incremented atomically by reading
+# child exit status via wait.
+declare -A CHILD_EXITS=()
+declare -a CHILD_PIDS=()
 CELL_IDX=0
 FAIL_COUNT=0
 BATCH_START=$(date +%s)
+
 for m in "${MODES[@]}"; do
     for pid in $HARD10_IDS; do
         for seed in "${SEEDS[@]}"; do
             CELL_IDX=$((CELL_IDX + 1))
-            OUT_FILE="${OUT_PREFIX}__${m}_${pid}_seed${seed}.jsonl"
-            CELL_TS=$(date -Is)
-            echo "[$CELL_TS] cell $CELL_IDX/$TOTAL_CELLS  mode=$m  problem=$pid  seed=$seed"
-
-            # Per memory feedback_phased_checkpoint: log start so a kill-9
-            # mid-batch is surface-able by inspecting the missing tail.
-            export BOLTZMANN_SEED="$seed"
-            export CONDITION="$CONDITION"
-            export SPLIT="adaptation"
-
-            # Run with a per-cell timeout (smoke: 5 min; full: 30 min).
-            CELL_TIMEOUT=$([ "$SMOKE" -eq 1 ] && echo 300 || echo 1800)
-            CELL_EXIT=0
-            CELL_OUTPUT=$(timeout "$CELL_TIMEOUT" "$EVALUATOR" \
-                --mode="$m" "${pid}.lean" 2>&1) || CELL_EXIT=$?
-
-            # Extract PPUT_RESULT line (machine-readable jsonl).
-            PPUT_LINE=$(echo "$CELL_OUTPUT" | grep "^PPUT_RESULT:" | sed 's/^PPUT_RESULT://' || true)
-
-            if [ -z "$PPUT_LINE" ]; then
-                # No PPUT_RESULT emitted — record as synthetic failure.
-                # Audit-fix Gemini Q7.b: every cell must produce a row.
-                FAIL_COUNT=$((FAIL_COUNT + 1))
-                echo "  WARN: no PPUT_RESULT (exit=$CELL_EXIT). Saving stderr to ${OUT_FILE}.err"
-                echo "$CELL_OUTPUT" | tail -c 4000 > "${OUT_FILE}.err"
-                # Synthetic UNSOLVED row for cell-completeness invariant.
-                printf '{"schema_version":"v2.0","problem_id":"%s","mode":"%s","split":"adaptation","solved":false,"verified":false,"progress":0,"_synthetic_failure":true,"_exit_code":%d}\n' \
-                    "$pid" "$m" "$CELL_EXIT" > "$OUT_FILE"
-            else
-                echo "$PPUT_LINE" > "$OUT_FILE"
-                # Quick parse to extract solve flag (informational).
-                SOLVED=$(echo "$PPUT_LINE" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('solved'))" 2>/dev/null || echo "?")
-                VERIFIED=$(echo "$PPUT_LINE" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('verified'))" 2>/dev/null || echo "?")
-                echo "  cell done: solved=$SOLVED verified=$VERIFIED"
-            fi
+            # Drain one slot if at capacity. -n waits for ANY child.
+            while [ "${#CHILD_PIDS[@]}" -ge "$CONCURRENCY" ]; do
+                # Reap completed children (POSIX-portable scan; bash wait -n
+                # caveats around lost exit codes when multiple finish
+                # simultaneously avoided by per-pid wait).
+                NEW_PIDS=()
+                for p in "${CHILD_PIDS[@]}"; do
+                    if kill -0 "$p" 2>/dev/null; then
+                        NEW_PIDS+=("$p")
+                    else
+                        wait "$p"
+                        rc=$?
+                        if [ "$rc" -ne 0 ]; then
+                            FAIL_COUNT=$((FAIL_COUNT + 1))
+                        fi
+                    fi
+                done
+                CHILD_PIDS=("${NEW_PIDS[@]}")
+                if [ "${#CHILD_PIDS[@]}" -ge "$CONCURRENCY" ]; then
+                    sleep 1
+                fi
+            done
+            # Spawn new cell.
+            run_cell "$CELL_IDX" "$m" "$pid" "$seed" &
+            CHILD_PIDS+=("$!")
         done
     done
 done
 
+# Drain remaining children.
+for p in "${CHILD_PIDS[@]}"; do
+    wait "$p"
+    rc=$?
+    if [ "$rc" -ne 0 ]; then
+        FAIL_COUNT=$((FAIL_COUNT + 1))
+    fi
+done
+
 BATCH_END=$(date +%s)
 BATCH_ELAPSED=$((BATCH_END - BATCH_START))
-echo "[batch] complete. cells=$TOTAL_CELLS fail=$FAIL_COUNT elapsed=${BATCH_ELAPSED}s"
+echo "[batch] complete. cells=$TOTAL_CELLS fail=$FAIL_COUNT elapsed=${BATCH_ELAPSED}s concurrency=$CONCURRENCY"
 echo "[batch] output prefix: $OUT_PREFIX"
 ls -1 "${OUT_PREFIX}"*.jsonl 2>/dev/null | head -5
 echo "[batch] ..."
