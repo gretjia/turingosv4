@@ -113,6 +113,8 @@ fn test_trust_root_manifest_includes_b2_b4_files() {
         "rules/engine.py",
         ".claude/hooks/judge.sh",
         "tests/fc_alignment_conformance.rs",
+        // 2026-04-25 Phase A1 PREREG amendment
+        "handover/preregistration/PREREG_AMENDMENT_p0_defer_2026-04-25.md",
     ];
 
     for path in required {

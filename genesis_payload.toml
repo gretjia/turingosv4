@@ -58,7 +58,13 @@
 #       witness test"; tampering = silent constitutional drift, defeats
 #       FC1/2/3 ↔ symbol mapping enforcement)
 #
-# Total: 24 files. genesis_payload.toml itself is conceptually frozen but
+#   2026-04-25 Phase A1 PREREG amendment (1):
+#     handover/preregistration/PREREG_AMENDMENT_p0_defer_2026-04-25.md
+#       (defers PREREG § 5.5 calibration; substitutes p_0 = 0.10
+#       conservative ceiling until 5 re-calibration conditions met;
+#       per case C-073 ArchitectAI commit authority)
+#
+# Total: 25 files. genesis_payload.toml itself is conceptually frozen but
 # not self-hashed (chicken-and-egg) — the [pput_accounting_0] section
 # values are the semantic anchor.
 #
@@ -102,3 +108,4 @@ n_max = 34
 "cases/MANIFEST.sha256" = "dbe48bc11cac18ad1164c55b11aefd5be4a7b546e31c3df08fb4403c7f41e90d"
 "handover/preregistration/PPUT_CCL_SPLITS_2026-04-26.json" = "69be702e3e0a4bb33c62bd02056495309289fd9271972dc733b4a1ba3dd908e1"
 "handover/preregistration/PREREG_PPUT_CCL_2026-04-26.md" = "64d565b4451d1f770425530bb7ffa874da602ddfd9d714ce7f7db6bbfab69463"
+"handover/preregistration/PREREG_AMENDMENT_p0_defer_2026-04-25.md" = "737af38d4b5690d2ac0b3f818ea90ce0e2142fe2d4e444ce44819eadaa6c31d0"
