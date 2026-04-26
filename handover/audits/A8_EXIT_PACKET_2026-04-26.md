@@ -147,7 +147,7 @@ The PREREG amendment shifted the Phase B → C gate. From the Phase A perspectiv
 ### Q3 — Atomicity, FC-trace discipline, governance
 - (Q3.a) Each of A1–A7 was committed as one atomic commit with `FC-trace: <FC?-N?>` in the message. Verify by re-reading commit messages. Any commit missing FC-trace? Any commit that touched `constitution.md`?
 - (Q3.b) 5 cases C-071..C-075 sediment 2026-04-25 session decisions as constitutional precedent. Are the rulings standalone-readable + correctly cross-referenced?
-- (Q3.c) Trust Root manifest 37 entries. Are all entries load-bearing (i.e., does tampering each one weaken the constitutional gate)?
+- (Q3.c) Trust Root manifest 38 entries. Are all entries load-bearing (i.e., does tampering each one weaken the constitutional gate)?
 
 ### Q4 — Phase A → B exit decision
 - (Q4.a) Spot-check: re-run `cargo test --workspace`; expect 267 PASS / 29 ignored / 0 failed.

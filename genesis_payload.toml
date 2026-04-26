@@ -132,6 +132,6 @@ n_max = 34
 "handover/preregistration/PREREG_PPUT_CCL_2026-04-26.md" = "64d565b4451d1f770425530bb7ffa874da602ddfd9d714ce7f7db6bbfab69463"
 "handover/preregistration/PREREG_AMENDMENT_p0_defer_2026-04-25.md" = "e1a0c97921fd77bd5a1268589bafbdc90e18e26a4feb6c86c6d8a91048d095e1"
 "experiments/minif2f_v4/tests/llm_proxy_python_conformance.rs" = "d62ee67cb564355fa26959c1f92a1152f95ab55d987c005abf7810e2da7b83b8"
-"handover/audits/A8_AUDIT_HISTORY_2026-04-26.md" = "6a3835d9d4bf5445f1b6ada7d099d0f40b0239f21a5252b411e84e6d19c131c6"
+"handover/audits/A8_AUDIT_HISTORY_2026-04-26.md" = "ef7ccdb2f39795707ab84b4f97c1346da96c6315419183411a194dd21ac26618"
 "handover/audits/run_codex_phase_a8_exit_audit.sh" = "3115ec86339621c6a608f72b837a1004804abf4824ecfc34049edc08c833be39"
 "handover/audits/run_gemini_phase_a8_exit_audit.py" = "33abd4c0679856719ac38ecd00dc7763b85d30f8c90e83db366c1acdc907a473"
