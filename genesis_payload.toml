@@ -64,7 +64,11 @@
 #       conservative ceiling until 5 re-calibration conditions met;
 #       per case C-073 ArchitectAI commit authority)
 #
-# Total: 25 files. genesis_payload.toml itself is conceptually frozen but
+# Total: 31 files. Progression A0=24 → A1=25 (PREREG amendment) → A3=26
+# (agent_models.rs) → A5=27 (budget_regime.rs) → A6=28 (fc_trace.rs) →
+# A7=31 (llm_proxy.py + 2 smoke scripts). The A8e fixes re-hash but do
+# not add new files; A8e's run_id.rs + scripts/test_llm_proxy.py move
+# the count to 33. genesis_payload.toml itself is conceptually frozen but
 # not self-hashed (chicken-and-egg) — the [pput_accounting_0] section
 # values are the semantic anchor.
 #
@@ -96,9 +100,10 @@ n_max = 34
 "src/wal.rs" = "1ac7637aa09531b1c7232163f5df48f7193251594c4ed20e0d0fc85cea8f84dc"
 "src/bus.rs" = "df28ffe514a3272a3d10fca4568fd424a76e754e9785c109a5459f163f7fd14c"
 "src/drivers/llm_http.rs" = "615596b68956b4a8925110edc99aa746a5543527724ec394bb9dda163147ed7a"
-"src/drivers/llm_proxy.py" = "c1bc508c64e39fbaad246b2c36781e8f37bc216c6d8a207ee25f37c2e8b13fcb"
+"src/drivers/llm_proxy.py" = "79493c3fdd2403933464e32e6fc02a56cbca3c4c6f9a704dc3be68dc765ae8a9"
 "scripts/smoke_siliconflow.sh" = "6ad54e7c0ab8221f475360dcad80eeeb0d6da0fd55c27acdb1cefb2b390f5341"
 "scripts/_smoke_siliconflow.py" = "778eea2988312f250efa47fcfe620d86187d01b96f07a98501f9795a333726ca"
+"scripts/test_llm_proxy.py" = "7e2c31b1a288e09161d1ae44fd4bcef6b5e3b3893c931635b99e11f57750dda9"
 "src/sdk/prompt_guard.rs" = "b4f7b164770d1a7203b8143f773c66f748994d60a42ece38471f2f7f2839f4f1"
 "experiments/minif2f_v4/src/lean4_oracle.rs" = "70fae24cd17f410c10a092e797fcdedea962db3d7cb20f218d02303edae9e98c"
 "experiments/minif2f_v4/src/cost_aggregator.rs" = "896b6905dbca9e9736f8896cd5725c16b6e87c6ad3ff822e044975febed46a03"
@@ -109,9 +114,10 @@ n_max = 34
 "experiments/minif2f_v4/src/agent_models.rs" = "b736b91efb8a93d884b64028da79d5d6af0525e8c7e8f7222055118f43dc26ce"
 "experiments/minif2f_v4/src/budget_regime.rs" = "e0c2ba6533444e6178d9e12d0f182d29c3203a929ea0914d3098efd0397948ea"
 "experiments/minif2f_v4/src/fc_trace.rs" = "8578edf61148e50abdf8d29a2efdc5114ee20ab727c1ccd6c5a88ad07e7ffa09"
-"experiments/minif2f_v4/src/bin/evaluator.rs" = "149f058b14e0ca414ffe57143fc7a7744b997242fe65cd078596d1b2f9d20422"
+"experiments/minif2f_v4/src/run_id.rs" = "5ff9db039131eaf4efeb65303d886265ef4c4f7e0e0f743467a7cbf22061781c"
+"experiments/minif2f_v4/src/bin/evaluator.rs" = "290b2f0be3edc43b7f439506bf650743cd268a0b76ddd489fb3e5cc1da9a24ba"
 "constitution.md" = "91e5913603eebaf134ac93d0f9ed7bb2b7916132203f6c2fae84d73329056ad6"
 "cases/MANIFEST.sha256" = "dbe48bc11cac18ad1164c55b11aefd5be4a7b546e31c3df08fb4403c7f41e90d"
 "handover/preregistration/PPUT_CCL_SPLITS_2026-04-26.json" = "69be702e3e0a4bb33c62bd02056495309289fd9271972dc733b4a1ba3dd908e1"
 "handover/preregistration/PREREG_PPUT_CCL_2026-04-26.md" = "64d565b4451d1f770425530bb7ffa874da602ddfd9d714ce7f7db6bbfab69463"
-"handover/preregistration/PREREG_AMENDMENT_p0_defer_2026-04-25.md" = "737af38d4b5690d2ac0b3f818ea90ce0e2142fe2d4e444ce44819eadaa6c31d0"
+"handover/preregistration/PREREG_AMENDMENT_p0_defer_2026-04-25.md" = "313994c629729cc7ac0882de981444a5cfb3fdd5d3c9566c82ba5d3fe5626911"

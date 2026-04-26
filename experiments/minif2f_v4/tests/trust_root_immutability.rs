@@ -114,6 +114,10 @@ fn test_trust_root_manifest_includes_b2_b4_files() {
         "src/drivers/llm_proxy.py",
         "scripts/smoke_siliconflow.sh",
         "scripts/_smoke_siliconflow.py",
+        // A8e fix F1: unified run_id minted once per run (was run_corr_id ms drift)
+        "experiments/minif2f_v4/src/run_id.rs",
+        // A8e fix F2/F3: routing matrix + round-robin Python conformance tests
+        "scripts/test_llm_proxy.py",
         // 2026-04-25 dual-audit fixes
         "src/main.rs",
         "Cargo.lock",

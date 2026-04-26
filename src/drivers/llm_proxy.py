@@ -195,8 +195,24 @@ def _trigger_cooldown(seconds):
 
 def detect_provider(model):
     """Route by model identifier. v4 prefers explicit `provider:model`
-    syntax (e.g. `siliconflow:Qwen/Qwen2.5-7B-Instruct`), but also
-    handles legacy bare names for backward compat with v3 callers.
+    syntax (e.g. `siliconflow:Qwen/Qwen2.5-7B-Instruct`); falls back
+    to model-string heuristics for backward compat with v3 callers.
+
+    Routing matrix (A8e fix F3, Codex#4):
+      explicit `provider:...`            → that provider (if known)
+      contains "deepseek"                → deepseek
+      slash-separated id (huggingface-style "Org/Model")
+                                          → siliconflow (dispatches the
+                                            full catalog including Qwen,
+                                            openai-compat, Meta, etc.)
+      bare "qwen3-*" / "qwen-*"          → dashscope (Aliyun Qwen direct)
+      else                                → dashscope (default fallback)
+
+    Round-1 audit caught a routing inversion: `Qwen/Qwen2.5-7B-Instruct`
+    used to misroute to dashscope because `m.startswith("qwen")` won
+    after the slash check. The slash-form is now the FIRST heuristic
+    (after explicit prefix + deepseek substring), so any HuggingFace-
+    style id routes to siliconflow as the catalog provider.
     """
     if ":" in model:
         prefix = model.split(":", 1)[0].lower()
@@ -205,9 +221,12 @@ def detect_provider(model):
     m = model.lower()
     if "deepseek" in m:
         return "deepseek"
-    if "/" in model and not m.startswith("qwen"):
+    if "/" in model:
+        # Any slash-form (Qwen/..., openai/..., meta-llama/...) goes to
+        # the heterogeneous catalog provider.
         return "siliconflow"
     if m.startswith("qwen"):
+        # Bare qwen3-*, qwen-* without slash = direct DashScope catalog.
         return "dashscope"
     return "dashscope"
 

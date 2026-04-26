@@ -331,6 +331,13 @@ async fn run_oneshot(
     let oneshot_regime = minif2f_v4::budget_regime::BudgetRegime::TotalProposal;
     let oneshot_budget_base: u32 = 1;
 
+    // A8e fix F1 (Codex#2 + Gemini Q4): one run_id minted at function
+    // entry, passed to both fc_event!s and make_pput. Eliminates the
+    // millisecond drift between `run_corr_id` (was generated here) and
+    // make_pput's internal recomputation. Phase D consumers can now
+    // join FC events to v2 jsonl rows by `run_id` equality.
+    let run_id = minif2f_v4::run_id::mint_run_id("oneshot", problem_file);
+
     let oracle = Lean4Oracle::new(
         problem_statement.to_string(), theorem_name.to_string(), lean_path.to_string(),
     );
@@ -383,7 +390,7 @@ async fn run_oneshot(
                                  Some(acc.failed_branch_count),
                                  wc.elapsed_ms(),
                                  false, 1, 1, verifier_wait_ms,
-                                 oneshot_regime, oneshot_budget_base);
+                                 oneshot_regime, oneshot_budget_base, &run_id);
             }
 
             // Phase A atom A4 (FC1-N12): bracket every Lean call so verifier
@@ -403,7 +410,10 @@ async fn run_oneshot(
             };
             minif2f_v4::fc_trace::emit_event(
                 minif2f_v4::fc_trace::FcId::Fc1N12,
-                &format!("oneshot_{}", problem_file), None, None,
+                // A8e fix F1: stamp the unified run_id (not the
+                // round-1 `oneshot_{problem_file}` placeholder) so
+                // Phase D can join by equality.
+                &run_id, None, None,
                 &[
                     ("verdict", minif2f_v4::fc_trace::json_str(verdict_str)),
                     ("elapsed_ms", v_elapsed.to_string()),
@@ -436,7 +446,7 @@ async fn run_oneshot(
                               Some(acc.failed_branch_count),
                               wc.elapsed_ms(),
                               false, 1, 1, verifier_wait_ms,
-                              oneshot_regime, oneshot_budget_base)
+                              oneshot_regime, oneshot_budget_base, &run_id)
                 }
                 Ok(false) => {
                     // Lean rejected → neither leg.
@@ -447,7 +457,7 @@ async fn run_oneshot(
                               Some(acc.failed_branch_count),
                               wc.elapsed_ms(),
                               false, 1, 1, verifier_wait_ms,
-                              oneshot_regime, oneshot_budget_base)
+                              oneshot_regime, oneshot_budget_base, &run_id)
                 }
                 Err(e) => {
                     warn!("Oracle error: {}", e);
@@ -459,7 +469,7 @@ async fn run_oneshot(
                               Some(acc.failed_branch_count),
                               wc.elapsed_ms(),
                               false, 1, 1, verifier_wait_ms,
-                              oneshot_regime, oneshot_budget_base)
+                              oneshot_regime, oneshot_budget_base, &run_id)
                 }
             }
         }
@@ -482,20 +492,11 @@ async fn run_swarm(
     let start = Instant::now();
     let condition = format!("n{}", n_agents);
 
-    // Phase A atom A6 (FC-trace correlation): pin a stable identifier at
-    // run_swarm entry so every fc_event from this run shares one
-    // correlation key. Format mirrors make_pput's run_id (condition +
-    // problem_id + unix-ms) so Phase D joins via simple equality. The
-    // value is read at every emit site below; cheap (clone of small
-    // String).
-    let run_corr_id = {
-        let problem_id = std::path::Path::new(problem_file)
-            .file_stem().and_then(|s| s.to_str()).unwrap_or(problem_file);
-        let ts = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_millis()).unwrap_or(0);
-        format!("{}_{}_{}", condition, problem_id, ts)
-    };
+    // A8e fix F1 (Codex#2 + Gemini Q4): single run_id minted ONCE per
+    // run, threaded into both fc_event!s and make_pput. Replaces the
+    // round-1 `run_corr_id` (FC events) ↔ make_pput-internal `run_id`
+    // (v2 jsonl) split that introduced millisecond drift on the join key.
+    let run_id = minif2f_v4::run_id::mint_run_id(&condition, problem_file);
 
     let kernel = Kernel::new();
     let config = BusConfig {
@@ -721,7 +722,7 @@ async fn run_swarm(
             // natural MaxTxExhausted (which exits at tx=max_transactions).
             minif2f_v4::fc_trace::emit_event(
                 minif2f_v4::fc_trace::FcId::Fc2N22,
-                &run_corr_id, Some(tx as u64), None,
+                &run_id, Some(tx as u64), None,
                 &[("reason", minif2f_v4::fc_trace::json_str("SyntheticShortCircuit"))],
             );
             wc.mark_final_accept();
@@ -740,7 +741,7 @@ async fn run_swarm(
                                        proposal_hashes.len() as u64,
                                        proposal_count,
                                        verifier_wait_ms,
-                                       budget_regime, budget_max_tx_base);
+                                       budget_regime, budget_max_tx_base, &run_id);
             // B7-extra disambiguator: distinguish this calibration-treatment
             // exit from a natural max-tx exhaustion in downstream PPUT
             // analysis. See PputResult::synthetic_short_circuit doc-comment
@@ -768,12 +769,12 @@ async fn run_swarm(
             info!("[tick@tx{}] tape={} markets={} top={}", tx, tape_len, market_count,
                 top_prices.join(", "));
             // A6 FC2-N20 (mr tick): clock → mr → tape per Art. IV.
-            // Phase D consumer joins on (run_corr_id, tx) to derive the
+            // Phase D consumer joins on (run_id, tx) to derive the
             // tape-growth curve and detect zero-tick stalls before they
             // become C-036 alarm events.
             minif2f_v4::fc_trace::emit_event(
                 minif2f_v4::fc_trace::FcId::Fc2N20,
-                &run_corr_id, Some(tx as u64), None,
+                &run_id, Some(tx as u64), None,
                 &[
                     ("tape_len", tape_len.to_string()),
                     ("market_count", market_count.to_string()),
@@ -1002,7 +1003,26 @@ async fn run_swarm(
                                 // Path 1: payload alone (A4 verifier_wait bracket)
                                 let v_t0 = Instant::now();
                                 let r_alone = oracle.verify_omega_detailed(payload);
-                                verifier_wait_ms += v_t0.elapsed().as_millis() as u64;
+                                let v_alone_elapsed = v_t0.elapsed().as_millis() as u64;
+                                verifier_wait_ms += v_alone_elapsed;
+                                // A8e fix F4 (Codex#3): emit FC1-N12 for the swarm
+                                // verify_omega_detailed call. Round-1 audit showed
+                                // FC1-N12 was only emitted in oneshot, leaving the
+                                // primary swarm verify path invisible to Phase D.
+                                let r_alone_verdict = match &r_alone {
+                                    Ok((true, _)) => "Ok(true)",
+                                    Ok((false, _)) => "Ok(false)",
+                                    Err(_) => "Err",
+                                };
+                                minif2f_v4::fc_trace::emit_event(
+                                    minif2f_v4::fc_trace::FcId::Fc1N12,
+                                    &run_id, Some(tx as u64), Some(agent_id.as_str()),
+                                    &[
+                                        ("verdict", minif2f_v4::fc_trace::json_str(r_alone_verdict)),
+                                        ("elapsed_ms", v_alone_elapsed.to_string()),
+                                        ("path", minif2f_v4::fc_trace::json_str("alone")),
+                                    ],
+                                );
                                 let (full_proof, path_choice, r_final) = match &r_alone {
                                     Ok((true, _)) => (payload.clone(), "alone", r_alone.clone()),
                                     _ if !tape_chain.is_empty() => {
@@ -1010,7 +1030,23 @@ async fn run_swarm(
                                         let combined = format!("{}\n{}", tape_chain, payload);
                                         let v_t1 = Instant::now();
                                         let r_combined = oracle.verify_omega_detailed(&combined);
-                                        verifier_wait_ms += v_t1.elapsed().as_millis() as u64;
+                                        let v_combined_elapsed = v_t1.elapsed().as_millis() as u64;
+                                        verifier_wait_ms += v_combined_elapsed;
+                                        // A8e fix F4: FC1-N12 for the tape+payload retry.
+                                        let r_combined_verdict = match &r_combined {
+                                            Ok((true, _)) => "Ok(true)",
+                                            Ok((false, _)) => "Ok(false)",
+                                            Err(_) => "Err",
+                                        };
+                                        minif2f_v4::fc_trace::emit_event(
+                                            minif2f_v4::fc_trace::FcId::Fc1N12,
+                                            &run_id, Some(tx as u64), Some(agent_id.as_str()),
+                                            &[
+                                                ("verdict", minif2f_v4::fc_trace::json_str(r_combined_verdict)),
+                                                ("elapsed_ms", v_combined_elapsed.to_string()),
+                                                ("path", minif2f_v4::fc_trace::json_str("tape+payload")),
+                                            ],
+                                        );
                                         if matches!(r_combined, Ok((true, _))) {
                                             *tool_dist.entry("complete_via_tape".into()).or_insert(0) += 1;
                                         }
@@ -1076,7 +1112,7 @@ async fn run_swarm(
                                         // build the OMEGA accept-rate timeseries.
                                         minif2f_v4::fc_trace::emit_event(
                                             minif2f_v4::fc_trace::FcId::Fc2N22,
-                                            &run_corr_id, Some(tx as u64), Some(agent_id.as_str()),
+                                            &run_id, Some(tx as u64), Some(agent_id.as_str()),
                                             &[
                                                 ("reason", minif2f_v4::fc_trace::json_str("OmegaAccepted")),
                                                 ("gp_path", minif2f_v4::fc_trace::json_str(path_choice)),
@@ -1116,7 +1152,7 @@ async fn run_swarm(
                                                         proposal_hashes.len() as u64,
                                                         proposal_count,
                                                         verifier_wait_ms,
-                                                        budget_regime, budget_max_tx_base);
+                                                        budget_regime, budget_max_tx_base, &run_id);
                                     }
                                     Ok((false, err_detail)) => {
                                         // Step-B v3: classify + record class label (C-022 shield).
@@ -1269,7 +1305,25 @@ async fn run_swarm(
                                 // A4: bracket the Lean partial-verify call.
                                 let v_t0 = Instant::now();
                                 let verdict = oracle.verify_partial(&prefix);
-                                verifier_wait_ms += v_t0.elapsed().as_millis() as u64;
+                                let v_partial_elapsed = v_t0.elapsed().as_millis() as u64;
+                                verifier_wait_ms += v_partial_elapsed;
+                                // A8e fix F4 (Codex#3): FC1-N12 emit for the
+                                // step-verify path. Closes the swarm-side gap
+                                // round-1 audit flagged.
+                                let partial_verdict_str = match &verdict {
+                                    PartialVerdict::Complete => "Complete",
+                                    PartialVerdict::PartialOk => "PartialOk",
+                                    PartialVerdict::Reject(_) => "Reject",
+                                };
+                                minif2f_v4::fc_trace::emit_event(
+                                    minif2f_v4::fc_trace::FcId::Fc1N12,
+                                    &run_id, Some(tx as u64), Some(agent_id.as_str()),
+                                    &[
+                                        ("verdict", minif2f_v4::fc_trace::json_str(partial_verdict_str)),
+                                        ("elapsed_ms", v_partial_elapsed.to_string()),
+                                        ("path", minif2f_v4::fc_trace::json_str("partial")),
+                                    ],
+                                );
                                 // PPUT-CCL B3: close bracket after step-verify returns.
                                 wc.mark_final_accept();
                                 match verdict {
@@ -1303,7 +1357,7 @@ async fn run_swarm(
                                         // share reason="OmegaAccepted".
                                         minif2f_v4::fc_trace::emit_event(
                                             minif2f_v4::fc_trace::FcId::Fc2N22,
-                                            &run_corr_id, Some(tx as u64), Some(agent_id.as_str()),
+                                            &run_id, Some(tx as u64), Some(agent_id.as_str()),
                                             &[
                                                 ("reason", minif2f_v4::fc_trace::json_str("OmegaAccepted")),
                                                 ("gp_path", minif2f_v4::fc_trace::json_str("per_tactic")),
@@ -1327,7 +1381,7 @@ async fn run_swarm(
                                                         proposal_hashes.len() as u64,
                                                         proposal_count,
                                                         verifier_wait_ms,
-                                                        budget_regime, budget_max_tx_base);
+                                                        budget_regime, budget_max_tx_base, &run_id);
                                     }
                                     PartialVerdict::PartialOk => {
                                         let parent = bus.kernel.tape.time_arrow().last().cloned();
@@ -1405,7 +1459,7 @@ async fn run_swarm(
     // budget_regime stamp on the v2 jsonl row.
     minif2f_v4::fc_trace::emit_event(
         minif2f_v4::fc_trace::FcId::Fc2N22,
-        &run_corr_id, Some(max_transactions as u64), None,
+        &run_id, Some(max_transactions as u64), None,
         &[
             ("reason", minif2f_v4::fc_trace::json_str("MaxTxExhausted")),
             ("budget_regime", minif2f_v4::fc_trace::json_str(budget_regime.label())),
@@ -1424,7 +1478,7 @@ async fn run_swarm(
               proposal_hashes.len() as u64,
               proposal_count,
               verifier_wait_ms,
-              budget_regime, budget_max_tx_base)
+              budget_regime, budget_max_tx_base, &run_id)
 }
 
 fn make_pput(
@@ -1450,6 +1504,10 @@ fn make_pput(
     // unambiguous about which partitioning rule produced them.
     budget_regime: minif2f_v4::budget_regime::BudgetRegime,
     budget_max_transactions: u32,
+    // A8e fix F1 (Codex#2 + Gemini Q4): run_id minted by caller (run_swarm
+    // or run_oneshot) at function entry; passed in here so the v2 jsonl
+    // row stamps the SAME identifier the FC events used. No more ms drift.
+    run_id: &str,
 ) -> PputResult {
     // PPUT-CCL Phase B B4 (mid-term audit P0-A fix 2026-04-25):
     // make_pput is now PURELY computational. The caller MUST decide both
@@ -1508,17 +1566,14 @@ fn make_pput(
         .and_then(|s| s.to_str())
         .unwrap_or(problem)
         .to_string();
-    // run_id = condition + problem_id + ts (collision-free for sequential runs)
-    let ts = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_millis())
-        .unwrap_or(0);
-    let run_id = format!("{}_{}_{}", condition, problem_id, ts);
 
     PputResult {
         // ── B1 v2 schema fields ──
         schema_version: "v2.0".to_string(),
-        run_id,
+        // A8e fix F1: caller-supplied run_id (matches the FC-trace
+        // correlation key emitted at every fc_event! site). No more
+        // ms drift between the two identifiers.
+        run_id: run_id.to_string(),
         problem_id,
         solved: runtime_accepted,
         split,
@@ -1725,6 +1780,7 @@ mod v2_emit_tests {
             false, 1, 1, 4_500,
             // A5: oneshot stamps total_proposal + base=1 (single LLM call).
             minif2f_v4::budget_regime::BudgetRegime::TotalProposal, 1,
+            "test_run_id",
         );
 
         let line = serde_json::to_string(&result).expect("serialize PputResult");
@@ -1791,6 +1847,7 @@ mod v2_emit_tests {
             // of the H1 divergence signal we're testing here.
             false, 1, 1, 4_500,
             minif2f_v4::budget_regime::BudgetRegime::TotalProposal, 1,
+            "test_run_id",
         );
 
         assert_eq!(result.progress, 0u8,
@@ -1830,6 +1887,7 @@ mod v2_emit_tests {
             true, 50, 200, 90_000,
             // A5: canonical Phase B baseline = total_proposal × 200.
             minif2f_v4::budget_regime::BudgetRegime::TotalProposal, 200,
+            "test_run_id",
         );
 
         let line = serde_json::to_string(&result).expect("serialize PputResult");
@@ -1886,6 +1944,7 @@ mod v2_emit_tests {
             Some(2_000), Some(49), Some(40_000),
             false, 20, 50, 25_000,
             minif2f_v4::budget_regime::BudgetRegime::TotalProposal, 200,
+            "test_run_id",
         );
         result.synthetic_short_circuit = Some(true);
 

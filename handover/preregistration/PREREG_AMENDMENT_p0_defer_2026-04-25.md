@@ -22,7 +22,14 @@ PREREG § 5.5 specifies p_0 calibration via 576 paired runs (144 adaptation × 2
 
 PREREG § 5.5 calibration **DEFERRED** indefinitely with the following operative substitution for Phase B → C transition and Phase E Gate H requirements:
 
-**`p_0` for guardrail purposes**: take the **PREREG § 5.5 ceiling itself = 0.10** as the conservative upper bound. Any artifact j whose `j-RR` regression rate exceeds 0.10 fails Gate H per the original guardrail logic; setting `p_0 = 0.10` (the maximum tolerated value) is the strictest possible substitute when no calibrated tighter value exists. This is mathematically conservative: artifacts must clear the strictest plausible bar, not a narrower data-derived bar.
+**`p_0` for guardrail purposes**: take the **PREREG § 5.5 ceiling itself = 0.10** and use it as `p_0` directly. Any artifact j whose `j-RR` regression rate exceeds 0.10 fails Gate H per the original guardrail logic.
+
+**Wording correction (A8 round-1 audit, Codex finding 1)**: an earlier draft of this section claimed `p_0 = 0.10` was the *strictest possible substitute*. That was backwards. The Gate H test is `j-RR ≤ p_0`, so a SMALLER `p_0` is stricter. `0.10` is the **maximum tolerated value** the PREREG admits — i.e., the LEAST strict admissible ceiling, not the strictest. Substituting it is the equivalent of running Gate H at the weakest threshold the PREREG ever sanctioned. The substitution is *operationally permitted* (the PREREG explicitly allows up to 0.10), but it is NOT a tighter-than-original guarantee.
+
+**Statistical implications** (re-stated cleanly):
+- No Type-I inflation. `j-RR` is a descriptive guardrail (PREREG § 5.4), not part of the inferential family — its threshold doesn't enter Holm-Bonferroni adjustment.
+- The substitution may be LESS protective than an eventual calibrated `p_0 < 0.10`. When calibration runs (per § 3 conditions), the empirical estimate likely tightens the bar; until then we operate at the ceiling.
+- Acceptable trade-off because (a) Phase B and C don't gate on `j-RR` (Gate H is a Phase E artifact gate), and (b) the conditions in § 3 ensure calibration runs *before* Phase E, so the loose substitution never reaches the artifact-acceptance moment.
 
 **`genesis_payload.toml [pput_accounting_0].baseline_regression_rate`**: setting deferred to ArchitectAI commit window. Current value `0.0` is recognized as INVALID PLACEHOLDER (would auto-fail any artifact with any regression). Until calibration runs, **Gate H consumers MUST hardcode `p_0 = 0.10`** at the consumption site, not read from `genesis_payload.toml`.
 
