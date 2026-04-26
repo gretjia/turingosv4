@@ -1,0 +1,16 @@
+id: "R-018"
+name: "constitution_amendment_sudo"
+source_incidents:
+  - "F-2026-04-25-07"  # constitution amendment 2026-04-25 (sudo authorized)
+fc_trace: "Art. V.1.1 amendment — sudo applies *only* to constitution.md"
+axiom: "Constitution amendments require explicit human-architect sudo authorization. Per Art. V.1.1 + V.3 amendment log: every constitution.md modification must be (1) explicitly authorized by user in chat, (2) logged in V.3 amendment table with date / trigger / section / summary, (3) followed by genesis_payload.toml constitution.md SHA-256 recompute. ArchitectAI MUST NOT silently amend."
+trigger: "pre_edit"
+check:
+  type: "grep"
+  pattern: ".*"
+file_glob: "constitution.md"
+enforcement: "block"
+message: "BLOCKED (R-018 / Art. V.1.1): constitution.md is the only sudo-required file in the system. To proceed: (1) USER must explicitly type 'I authorize this constitution amendment' in chat (verbatim), (2) the amendment must add an entry to Art. V.3 amendment log with date / trigger / section / summary, (3) commit must trigger genesis_payload.toml constitution.md SHA-256 recompute. ArchitectAI does NOT have authority here — see Art. V.1.2 for the (non-constitution) commit-authority scope."
+stats:
+  times_triggered: 0
+  last_triggered: ""

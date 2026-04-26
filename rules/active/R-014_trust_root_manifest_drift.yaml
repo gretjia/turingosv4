@@ -1,0 +1,16 @@
+id: "R-014"
+name: "trust_root_manifest_drift_warn"
+source_incidents:
+  - "F-2026-04-25-05"  # B7-extra round-1 dual VETO including Trust Root manifest gaps
+fc_trace: "FC3-S3 (readonly subgraph) — manifest consistency"
+axiom: "PREREG § 1.8 + Art. V.1.1 amendment — Trust Root frozen at boot; any tracked-file edit requires SHA-256 recompute + genesis_payload.toml entry update, otherwise boot::verify_trust_root will panic at next start"
+trigger: "pre_edit"
+check:
+  type: "grep"
+  pattern: ".*"
+file_glob: "*.rs"
+enforcement: "warn"
+message: "REMINDER (R-014 / FC3-S3): if this file is in genesis_payload.toml [trust_root] (20 manifest entries: src/{kernel,wal,bus,main,boot}.rs / src/drivers/llm_http.rs / src/sdk/prompt_guard.rs / experiments/minif2f_v4/src/{lean4_oracle,cost_aggregator,wall_clock,post_hoc_verifier,jsonl_schema,rollback_sim}.rs / experiments/minif2f_v4/src/bin/evaluator.rs), you MUST: (1) recompute sha256sum after edit, (2) update the entry in genesis_payload.toml [trust_root], (3) cargo test boot::tests::verify_trust_root_passes_on_intact_repo to verify. Otherwise next process boot will panic with TRUST_ROOT_TAMPERED."
+stats:
+  times_triggered: 0
+  last_triggered: ""

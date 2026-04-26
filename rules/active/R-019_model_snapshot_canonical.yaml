@@ -1,0 +1,16 @@
+id: "R-019"
+name: "model_snapshot_canonical_warn"
+source_incidents:
+  - "session-2026-04-25"  # 576-run batch launched with deepseek-chat label instead of PREREG-pinned deepseek-v4-flash; user caught
+fc_trace: "FC1-N7 (δ/AI) + thesis claim 6 (black-box = proposal generators) — model identity must be canonically labeled, not via API alias"
+axiom: "PREREG and Trust Root pin canonical model names (e.g., deepseek-v4-flash thinking-off for Phase B+C). API aliases (e.g., deepseek-chat) may route to the same backend today but their identity can drift. Every emitted MODEL_SNAPSHOT field + every script's ACTIVE_MODEL default must use the canonical name, not the alias."
+trigger: "pre_edit"
+check:
+  type: "grep"
+  pattern: "(deepseek-chat|ACTIVE_MODEL.*deepseek-chat)"
+file_glob: "*"
+enforcement: "warn"
+message: "REMINDER (R-019 / FC1-N7): edit introduces 'deepseek-chat' literal. Per PREREG § 1.8 the canonical model name for Phase B+C is 'deepseek-v4-flash' (thinking-off mode). 'deepseek-chat' is an API alias that currently routes to v4-flash thinking-off but may silently drift to a different backend in the future (memory project_deepseek_drift_2026-04-24). Use 'deepseek-v4-flash' as the canonical label in MODEL_SNAPSHOT, ACTIVE_MODEL defaults, scripts, and jsonl emit. If this edit is intentionally testing the alias path, document explicitly in commit message."
+stats:
+  times_triggered: 0
+  last_triggered: ""

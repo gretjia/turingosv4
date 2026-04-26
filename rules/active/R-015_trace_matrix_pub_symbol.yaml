@@ -1,0 +1,16 @@
+id: "R-015"
+name: "trace_matrix_pub_symbol_warn"
+source_incidents:
+  - "F-2026-04-25-04"  # B7 alignment retroactive fix — pub symbols shipped without TRACE_MATRIX backlink
+fc_trace: "CLAUDE.md Alignment Standard — every src/ pub symbol must map to FC1/FC2/FC3 element"
+axiom: "Every pub fn / struct / enum / trait / const in src/ must carry /// TRACE_MATRIX FCx-Nx: <role> doc-comment OR be filed as orphan with explicit cases/Cxxx or PREREG-§n.m justification in TRACE_MATRIX_v?.md"
+trigger: "pre_edit"
+check:
+  type: "grep"
+  pattern: "pub (fn|struct|enum|trait|const|mod) "
+file_glob: "*.rs"
+enforcement: "warn"
+message: "REMINDER (R-015 / Alignment Standard): edit touches a pub symbol in a Rust file. New OR modified pub items MUST carry `/// TRACE_MATRIX FC?-N?: <role>` doc-comment AND have an entry in handover/alignment/TRACE_MATRIX_v?.md (current: v1_2026-04-25). If this is genuinely orphan, file under TRACE_MATRIX § 3 with explicit Constitutional Justification (cases/Cxxx or PREREG-§n.m). Untraced pub symbols cause silent constitutional drift."
+stats:
+  times_triggered: 0
+  last_triggered: ""
