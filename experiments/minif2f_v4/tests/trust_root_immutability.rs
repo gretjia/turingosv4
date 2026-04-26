@@ -120,6 +120,10 @@ fn test_trust_root_manifest_includes_b2_b4_files() {
         "scripts/test_llm_proxy.py",
         // A8e2 fix G1: Rust wrapper that runs the Python suite on every cargo test
         "experiments/minif2f_v4/tests/llm_proxy_python_conformance.rs",
+        // A8e7: append-only audit history (companion to A8_EXIT_PACKET; per C-075
+        // gate machinery is constitutional — tampering with the chronology = silent
+        // governance drift).
+        "handover/audits/A8_AUDIT_HISTORY_2026-04-26.md",
         // 2026-04-25 dual-audit fixes
         "src/main.rs",
         "Cargo.lock",

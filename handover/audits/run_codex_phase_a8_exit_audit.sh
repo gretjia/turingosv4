@@ -12,6 +12,7 @@ TMP_PROMPT="$(mktemp /tmp/codex_a8_exit.XXXXXX.md)"
 trap 'rm -f "$TMP_PROMPT"' EXIT
 
 PACKET="${ROOT}/handover/audits/A8_EXIT_PACKET_2026-04-26.md"
+HISTORY="${ROOT}/handover/audits/A8_AUDIT_HISTORY_2026-04-26.md"
 
 cat > "$TMP_PROMPT" <<'BRIEF_EOF'
 # Codex Phase A → B Exit Audit (PPUT-CCL arc)
@@ -33,8 +34,12 @@ Cite §/file:line for every finding. Be specific about which atom and which line
 
 BRIEF_EOF
 
-# Append the packet itself.
+# Append the packet itself + the audit history (append-only chronology
+# companion document — reviewers needing round-N closure context find it
+# there; the packet is current-state only post-A8e7 structural rewrite).
 cat "$PACKET" >> "$TMP_PROMPT"
+printf '\n\n---\n\n# Audit history (append-only chronology)\n\n' >> "$TMP_PROMPT"
+cat "$HISTORY" >> "$TMP_PROMPT"
 
 # Append source files referenced by the packet so the auditor can verify
 # without round-tripping to the repo. Order: most-load-bearing first.

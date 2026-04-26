@@ -51,9 +51,12 @@ Cite §/file:line for every finding. Be specific about which atom and which line
 
 """
 
-# ── Packet ──
+# ── Packet + history (A8e7 split) ──
 packet_path = ROOT / "handover/audits/A8_EXIT_PACKET_2026-04-26.md"
+history_path = ROOT / "handover/audits/A8_AUDIT_HISTORY_2026-04-26.md"
 brief += packet_path.read_text()
+brief += "\n\n---\n\n# Audit history (append-only chronology)\n\n"
+brief += history_path.read_text()
 
 # ── Source files appended ──
 brief += "\n\n---\n\n# Appended source files\n\n"
