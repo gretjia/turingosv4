@@ -323,6 +323,41 @@
 
 ---
 
+## A8e13b (2026-04-26) — Karpathy elegance pass, no audit round
+
+**Trigger**: not a fix-bundle in response to a specific dual-audit round. After A8e13 the user directed (in English) "make sure the code is simple, elegant like any elegant rust kernel". Two compressions on top of A8e13 with no behavior change.
+
+**A8e13b fixes shipped (commit `c5b3711`)**:
+- `src/boot.rs::verify_child_manifest` 50 → 33 LOC. Signature 3-arg → 2-arg (dropped `manifest_rel_path` parameter; only used in error messages, replaced with generic line-N form). Match-Some-None → `ok_or_else`. Verbose 10-line docstring → 4 lines. Verbose 6-line inline-call comment → 3 lines. `Sha256::digest` inlined into the comparison expression (was a redundant let bind).
+- `experiments/minif2f_v4/src/bin/evaluator.rs::make_pput` body: dropped `let failed_count = failed_branch_count` rename (pre-Q2 vestige). Replaced 6-line A8e13-rationale comment with 1-line PREREG cite (`PREREG § 5 constitutional notation: C_i (full-run cost) + T_i (wall clock)`). C_i / T_i renames retained — they let the math read like PREREG § 1.2 spec. Struct-shorthand `failed_branch_count` instead of `failed_branch_count: failed_count`.
+- Net diff: **+39 / −72 LOC** (33 LOC saved). 267 PASS / 29 ignored / 0 failed unchanged.
+
+---
+
+## Round 12 (2026-04-26) — post-A8e13b
+
+**Inputs**:
+- Packet: `A8_EXIT_PACKET_2026-04-26.md` @ commit `c5b3711` (post-A8e13b)
+- Test baseline: 267 PASS / 29 ignored / 0 failed (Rust); 16/16 PASS (Python)
+- Trust Root: 38-entry manifest
+
+**Verdicts**:
+- Codex R12: **CHALLENGE / high** — `handover/audits/CODEX_PHASE_A8_EXIT_AUDIT_2026-04-26_R12.md`
+- Gemini R12: **CHALLENGE / high** — `handover/audits/GEMINI_PHASE_A8_EXIT_AUDIT_2026-04-26_R12.md`. *Independent run_swarm review surfaced one new substantive bug.*
+- Merged: **CHALLENGE**. One substantive run_swarm behavior bug (Gemini) + cascade of stale 37/265 documentary references after A8e13 (Codex).
+
+**Findings** (3 Codex + 1 Gemini):
+1. (Codex R12#1) Packet still reports 37-entry manifest + 265 PASS (was current at A8e12; A8e13 bumped both to 38 / 267 but didn't propagate to the packet's metric table at § 2, § 4 checklist, § 6 Q4.a question).
+2. (Codex R12#2) Audit runner script header `printf` blocks still emit "265 PASS + 37-entry manifest" — Trust-Rooted gate machinery emitting stale baselines into every R12+ transcript.
+3. (Codex R12#3) TRACE_MATRIX § 6 chain ended at A8e11 → 37 (B7-extra calibration shown as → 38, but A8e13 already used entry 38 for src/boot.rs); § 3 "rules/MANIFEST.sha256 (proxy for 14 rules)" stale (15 since A8e12).
+4. (**Gemini R12 — substantive run_swarm bug**) When an agent's `search_count >= search_cap` (default 20), the search tool is correctly stripped from `tools_desc` (line 870), but `search_cache[agent_id]` is not cleared. The cached results from the agent's last successful search keep being injected into every subsequent prompt's `hits_ref` (line 869) for the rest of the run. The agent reasons from stale data forever; uncontrolled experimental variable that would confound any swarm experiment that exercises the cap.
+
+**Round-12 fixes shipped (`A8e14`, this commit)** — two threads:
+- **R1 (Codex R12#1+#2+#3)**: bulk update of 37→38 / 265→267 across packet § 2 metric table, § 4 checklist, § 6 Q4.a; both audit runner `printf` blocks (Trust-Rooted, so re-hash + manifest update propagates); TRACE_MATRIX § 3 "14 rules" → "15 rules + Q1 ENFORCED proxy" note; § 6 chain extended with A8e13 → 38; milestones bullet list extended; genesis_payload.toml header chain extended with A8e13=38 + recursive-enforcement note.
+- **R2 (Gemini R12 — substantive)**: `experiments/minif2f_v4/src/bin/evaluator.rs:869–885` reworked to gate both `hits_ref` AND `tools_desc` through a single `cap_hit` boolean. When `cap_hit` is true, the prompt receives `hits_ref = Vec::new()` (was the cached old hits). Single source of truth; can't drift. FC-trace: FC1-N7 (δ/AI prompt construction).
+
+---
+
 ## Cumulative metrics
 
 | Round | Codex | Gemini | Merged | New findings | Real-bug findings | API cost (~$) |
@@ -338,6 +373,7 @@
 | 9 | CHALLENGE | **PASS** | CHALLENGE | 2 | 0 (false-closure caught — N3 was incomplete; no new substantive bugs) | ~5 |
 | 10 | CHALLENGE | **PASS** | CHALLENGE | 2 | **2 (P1 smoke false-PASS + P2 runners not in TR)** | ~5 |
 | 11 | CHALLENGE | CHALLENGE | CHALLENGE | 7 | **2 (Q1 boot.rs proxy not enforced + Q2 make_pput Option divergence)** | ~5 |
-| 12 | pending | pending | pending | — | — | ~5 |
+| 12 | CHALLENGE | CHALLENGE | CHALLENGE | 4 | **1 (R2 search_cache stale after SEARCH_CAP)** | ~5 |
+| 13 | pending | pending | pending | — | — | ~5 |
 
 Cumulative cost so far ~$70 (12 rounds × ~$5–7 — note A8e12 was a no-audit harness amplifier between R10 and R11); within memory `feedback_dual_audit` Phase A reservation. **Real-bug yield: 13 substantive findings caught + closed across 11 rounds**: 5 routing/correctness in R1 (run_id ms drift / FC1-N12 swarm gap / Qwen-HF misroute / TR count off-by-1 / "strictest" wording reversed) + 1 fail-closed-gate in R3 (H6 wrapper soft-skip) + 1 routing collision in R6 (deepseek-ai/* misroute) + 1 PREREG § 2 logic in R7 (M4) + 1 PREREG § 8 logic in R8 (N1 — parallel-text miss) + 2 in R10 (P1 smoke false-PASS / P2 runners not in TR) + 2 in R11 (Q1 boot.rs proxy not enforced / Q2 make_pput Option<...> divergence). Plus 1 false-closure caught at R9 (N3 claimed runner default fix that wasn't shipped) — counted separately as a delivery-quality finding, not a system bug. The recurring documentary CHALLENGE class persisted longer than expected because each round's fix touched documentation in ways that left adjacent staleness; the A8e7 structural rewrite addressed the root cause (category error) but its implementation needed two more cycles (A8e8 + A8e9) to fully complete the lineage strip + cross-section consistency. **A8e12** added case C-076 + rule R-020 (commit-claim diff parity) as a Living Harness amplifier specifically targeting the false-closure / parallel-miss class — pre-commit WARN reminds the committer to grep-verify every claim against the actual diff.

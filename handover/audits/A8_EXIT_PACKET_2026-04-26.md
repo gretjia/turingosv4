@@ -40,11 +40,11 @@ Atom commit chain (atomic, FC-traced, all under ArchitectAI commit authority —
 
 | Metric | Value | Source / verification |
 |---|---|---|
-| `cargo test --workspace` PASS | **265** | re-runnable; all suites green |
+| `cargo test --workspace` PASS | **267** | re-runnable; all suites green |
 | `cargo test --workspace` ignored | 29 | Phase B+ deferred stubs |
 | `cargo test --workspace` failed | **0** | — |
 | `python3 scripts/test_llm_proxy.py` | **16/16 PASS** | proxy routing + round-robin conformance (also wrapped by `experiments/minif2f_v4/tests/llm_proxy_python_conformance.rs` so it runs every `cargo test --workspace`) |
-| Trust Root manifest entries | **37** | `genesis_payload.toml [trust_root]` count + matches `trust_root_immutability::test_trust_root_manifest_includes_b2_b4_files` required-paths list |
+| Trust Root manifest entries | **38** | `genesis_payload.toml [trust_root]` count + matches `trust_root_immutability::test_trust_root_manifest_includes_b2_b4_files` required-paths list |
 | `boot::tests::verify_trust_root_passes_on_intact_repo` | **PASS** | re-hashes match the manifest |
 | `bash scripts/smoke_siliconflow.sh` | **PASS (3/3 keys)** | live API; cost ~$0.005 per run |
 | FC-trace anchor sites in `evaluator.rs` | **9** | grep `fc_trace::emit_event(`; 8 in `run_swarm` + 1 in `run_oneshot` |
@@ -120,7 +120,7 @@ The PREREG amendment shifted the Phase B → C gate. From the Phase A perspectiv
 - ✅ B1–B7 + B7-extra mode toggle infrastructure complete (pre-Phase A baseline; round-4 PASS/PASS).
 - ✅ Phase A0 harness modernization complete (`62c4e14`).
 - ✅ Tools qualified per case C-075 (DO-178C tool qualification): `runner.sh`, `compute_p0.py`, evaluator boot enforcement, etc.
-- ✅ Trust Root verifies clean (`boot::tests::verify_trust_root_passes_on_intact_repo` PASS at 37-entry manifest).
+- ✅ Trust Root verifies clean (`boot::tests::verify_trust_root_passes_on_intact_repo` PASS at 38-entry manifest with recursive child-manifest verification per A8e13 Q1).
 
 ## § 5. Risks and known limitations entering Phase B
 
@@ -150,7 +150,7 @@ The PREREG amendment shifted the Phase B → C gate. From the Phase A perspectiv
 - (Q3.c) Trust Root manifest 37 entries. Are all entries load-bearing (i.e., does tampering each one weaken the constitutional gate)?
 
 ### Q4 — Phase A → B exit decision
-- (Q4.a) Spot-check: re-run `cargo test --workspace`; expect 265 PASS / 29 ignored / 0 failed.
+- (Q4.a) Spot-check: re-run `cargo test --workspace`; expect 267 PASS / 29 ignored / 0 failed.
 - (Q4.b) Spot-check: re-run `python3 scripts/test_llm_proxy.py`; expect 16/16 PASS.
 - (Q4.c) Spot-check: re-run `bash scripts/smoke_siliconflow.sh`; expect PASS (3/3 keys; live API; cost ~$0.005).
 - (Q4.d) Are there any open P0 defects from any prior round? Cross-reference `A8_AUDIT_HISTORY_2026-04-26.md` to verify each in-cycle fix bundle's closures hold against current source.

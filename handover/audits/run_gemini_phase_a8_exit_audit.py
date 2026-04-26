@@ -150,9 +150,9 @@ header = (
     f"**Reference**: see `handover/audits/A8_AUDIT_HISTORY_2026-04-26.md` "
     f"for full chronology including atom commit chain + per-round "
     f"verdicts/fixes.\n"
-    f"**Test baseline**: 265 PASS + 29 ignored + 0 failed (Rust); "
+    f"**Test baseline**: 267 PASS + 29 ignored + 0 failed (Rust); "
     f"16/16 PASS (Python proxy tests)\n"
-    f"**Trust Root**: 37-entry manifest verifies clean\n"
+    f"**Trust Root**: 38-entry manifest verifies clean\n"
     f"**Elapsed**: {elapsed:.1f}s\n"
     f"**Prompt size**: {len(brief):,} chars\n\n---\n\n"
 )

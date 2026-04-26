@@ -866,8 +866,18 @@ async fn run_swarm(
         } else {
             format!("{}\n\n{}", base_skill, learned)
         };
-        let hits_ref: Vec<String> = search_cache.get(agent_id).cloned().unwrap_or_default();
-        let tools_desc = if search_count.get(agent_id).copied().unwrap_or(0) >= search_cap {
+        // A8e14 R2 (Gemini R12): when an agent hits SEARCH_CAP we strip the
+        // search tool — but pre-R2 the cached hits from its last search kept
+        // appearing in every subsequent prompt, leaving the agent reasoning
+        // from stale results for the rest of the run. Single cap_hit gate
+        // for both the tool list AND the cache injection.
+        let cap_hit = search_count.get(agent_id).copied().unwrap_or(0) >= search_cap;
+        let hits_ref: Vec<String> = if cap_hit {
+            Vec::new()
+        } else {
+            search_cache.get(agent_id).cloned().unwrap_or_default()
+        };
+        let tools_desc = if cap_hit {
             "append, complete, invest"
         } else {
             "append, complete, invest, search"
