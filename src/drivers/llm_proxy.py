@@ -57,7 +57,15 @@ PROVIDERS = {
     ),
     "deepseek": (
         "https://api.deepseek.com",
-        ["DEEPSEEK_API_KEY"],
+        [
+            "DEEPSEEK_API_KEY",
+            # Phase C C2 dual-key launch (2026-04-26): user provided a 2nd
+            # key to enable K=4 parallel-pool runs without single-key
+            # rate-limit margin risk. Mirrors the 3-key SiliconFlow pattern
+            # from A7. The proxy round-robins across whichever subset is
+            # configured at startup.
+            "DEEPSEEK_API_KEY_SECONDARY",
+        ],
     ),
     "volcengine": (
         "https://ark.cn-beijing.volces.com/api/v3",
