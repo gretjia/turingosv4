@@ -223,8 +223,16 @@ async fn main() {
         }
         // Generic nN: parse any "n<digits>" → run_swarm with N agents.
         // Supports N-scaling experiment (percolation curve mapping).
-        c if c.starts_with('n') && c[1..].parse::<usize>().is_ok() => {
-            let n: usize = c[1..].parse().unwrap();
+        // **swarm_N=1** (CONDITION=n1) is the critical baseline for the
+        // 2026-04-25 N-experiments arc: same code path as n3/n8 swarm
+        // but with a single agent. NOT the same as `oneshot` (which
+        // skips the swarm loop, tape, mr ticks, ∏p product, etc.).
+        // Per Plan-agent NEXT-1 / Codex E0 / Gemini E1-Prime: every
+        // N-curve experiment MUST use n1 (not oneshot) as the N=1
+        // baseline to avoid code-path confound. Validated by unit
+        // test below: parse_swarm_condition_n("n1") == Some(1).
+        c if parse_swarm_condition_n(c).is_some() => {
+            let n = parse_swarm_condition_n(c).unwrap();
             run_swarm(problem_file, &problem_statement, &theorem_name,
                      &lean_path, &proxy_url, &model, n).await
         }
@@ -1324,6 +1332,83 @@ fn persist_proof_artifact(
             log::warn!("[audit] cannot write proof artifact {:?}: {}", path, e);
             None
         }
+    }
+}
+
+/// A2 (Phase A engineering atom 2 of 8): swarm-condition parser.
+///
+/// Returns `Some(N)` if `condition` matches `n<digits>` for any positive
+/// integer N (including N=1, the swarm_N=1 baseline). Returns `None` for
+/// `oneshot`, `hybrid_v1`, malformed (`n-1`, `nfoo`, ``, etc).
+///
+/// Per Plan-agent NEXT-1 / Codex E0 / Gemini E1-Prime brainstorm
+/// (handover/brainstorms/): EVERY N-curve experiment in the 2026-04-25
+/// N-experiments arc MUST use `n1` (not `oneshot`) as the N=1 baseline,
+/// because `oneshot` skips the swarm loop, tape, mr ticks, and ∏p
+/// product. Without this discrimination, any N→PPUT curve confounds
+/// "agent count effect" with "different runtime architecture".
+///
+/// FC-trace: FC2-N16 InitAI orchestration entry — discriminates between
+/// the two registered InitAI shapes (oneshot vs swarm). FC1-N11 ∏p path
+/// is reached only via swarm (n*) condition.
+pub(crate) fn parse_swarm_condition_n(condition: &str) -> Option<usize> {
+    if !condition.starts_with('n') { return None; }
+    let rest = &condition[1..];
+    if rest.is_empty() { return None; }
+    rest.parse::<usize>().ok().filter(|&n| n >= 1)
+}
+
+#[cfg(test)]
+mod swarm_condition_tests {
+    use super::parse_swarm_condition_n;
+
+    #[test]
+    fn parses_valid_n_swarm_conditions() {
+        assert_eq!(parse_swarm_condition_n("n1"), Some(1));   // swarm_N=1 baseline
+        assert_eq!(parse_swarm_condition_n("n3"), Some(3));   // current default swarm size
+        assert_eq!(parse_swarm_condition_n("n8"), Some(8));   // hetero candidate size
+        assert_eq!(parse_swarm_condition_n("n16"), Some(16)); // upper N for stress test
+        assert_eq!(parse_swarm_condition_n("n100"), Some(100));
+    }
+
+    #[test]
+    fn rejects_oneshot_condition() {
+        // Critical: 'oneshot' MUST NOT parse as a swarm condition.
+        // It's a different code path (single LLM call, no tape, no
+        // ∏p product). The N-experiments arc relies on this distinction.
+        assert_eq!(parse_swarm_condition_n("oneshot"), None);
+    }
+
+    #[test]
+    fn rejects_hybrid_v1_and_other_named_conditions() {
+        assert_eq!(parse_swarm_condition_n("hybrid_v1"), None);
+        assert_eq!(parse_swarm_condition_n("full"), None);
+        assert_eq!(parse_swarm_condition_n("soft_law"), None);
+        assert_eq!(parse_swarm_condition_n("panopticon"), None);
+        assert_eq!(parse_swarm_condition_n("amnesia"), None);
+        assert_eq!(parse_swarm_condition_n("homogeneous"), None);
+    }
+
+    #[test]
+    fn rejects_malformed_n_conditions() {
+        assert_eq!(parse_swarm_condition_n(""), None);          // empty
+        assert_eq!(parse_swarm_condition_n("n"), None);         // just prefix
+        assert_eq!(parse_swarm_condition_n("nfoo"), None);      // non-digit
+        assert_eq!(parse_swarm_condition_n("n-1"), None);       // negative (parses fail on usize)
+        assert_eq!(parse_swarm_condition_n("n0"), None);        // zero (filter rejects)
+        assert_eq!(parse_swarm_condition_n("n 3"), None);       // whitespace
+        assert_eq!(parse_swarm_condition_n("3"), None);         // missing 'n' prefix
+        assert_eq!(parse_swarm_condition_n("N3"), None);        // case-sensitive
+    }
+
+    #[test]
+    fn n1_is_distinct_from_oneshot() {
+        // The discriminant test: n1 and oneshot are different conditions
+        // even though both run with effectively 1 agent. The PARSER
+        // returns Some(1) for n1 and None for oneshot, which routes
+        // them to different code paths in main().
+        assert_eq!(parse_swarm_condition_n("n1"), Some(1));
+        assert_eq!(parse_swarm_condition_n("oneshot"), None);
     }
 }
 
