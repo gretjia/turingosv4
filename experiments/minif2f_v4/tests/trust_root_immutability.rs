@@ -108,6 +108,11 @@ fn test_trust_root_manifest_includes_b2_b4_files() {
         "Cargo.lock",
         "handover/preregistration/scripts/run_p0_calibration.sh",
         "handover/preregistration/scripts/compute_p0.py",
+        // 2026-04-25 Phase A0 harness modernization
+        "rules/MANIFEST.sha256",
+        "rules/engine.py",
+        ".claude/hooks/judge.sh",
+        "tests/fc_alignment_conformance.rs",
     ];
 
     for path in required {

@@ -47,7 +47,18 @@
 #     handover/preregistration/scripts/compute_p0.py (same — estimator is
 #       a frozen production tool)
 #
-# Total: 20 files. genesis_payload.toml itself is conceptually frozen but
+#   2026-04-25 Phase A0 harness modernization (4):
+#     rules/MANIFEST.sha256 (proxy for 14 rules/active/R-*.yaml — governance
+#       rules that must not be silently weakened; per case C-075 DO-178C
+#       tool qualification)
+#     rules/engine.py (rule engine; tampering = silent rule bypass)
+#     .claude/hooks/judge.sh (PreToolUse hook that invokes engine.py +
+#       implements R-016 fc_trace_in_commit + constitution.md special-case)
+#     tests/fc_alignment_conformance.rs (per CLAUDE.md "每个 ✅ 行 ≥1
+#       witness test"; tampering = silent constitutional drift, defeats
+#       FC1/2/3 ↔ symbol mapping enforcement)
+#
+# Total: 24 files. genesis_payload.toml itself is conceptually frozen but
 # not self-hashed (chicken-and-egg) — the [pput_accounting_0] section
 # values are the semantic anchor.
 #
@@ -71,6 +82,10 @@ n_max = 34
 "Cargo.lock" = "577446e8fe11e91bc8751bf13e5ddca6c5faa64d3309b878768c550d3e6feb98"
 "handover/preregistration/scripts/run_p0_calibration.sh" = "323c7f9d23209447b253048c7017f394b6b6ac24f162057863da331e54a148bb"
 "handover/preregistration/scripts/compute_p0.py" = "fd1dff97d582f4f509249852be500cba7d81efc9bab8fcb9872b2d85bb4e3052"
+"rules/MANIFEST.sha256" = "b081f62e4e1a733fc19fa2b7a374171201b5be799b0119c051b3ef503f0b76ab"
+"rules/engine.py" = "932d9a2b7a3249a7eb5825c0b5c714a9913cd9aa9e058f789e64992b140e40b3"
+".claude/hooks/judge.sh" = "76d2ca421a19ac8bf84b465b3cc2e4590fea127c50dcf12787665066852eea78"
+"tests/fc_alignment_conformance.rs" = "5df4b8dfc3aa932a477c10d6e61a061a0ce10b16fe545b8862793782176936a1"
 "src/kernel.rs" = "893fd67534caf7a3d9abd6efbd202556348b6491cd6d4c6bdb224d2ad75b1af0"
 "src/wal.rs" = "1ac7637aa09531b1c7232163f5df48f7193251594c4ed20e0d0fc85cea8f84dc"
 "src/bus.rs" = "df28ffe514a3272a3d10fca4568fd424a76e754e9785c109a5459f163f7fd14c"
