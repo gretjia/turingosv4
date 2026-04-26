@@ -173,6 +173,13 @@ Hard rule: **the model that wrote the code MUST NOT write the test that gates th
 | Codex (heavy implementer) | a sandboxed Claude instance via `auditor` subagent (read-only, fresh context, no prior conversation memory) |
 | Both via STEP_B parallel branches | the LOSING-branch model casts primary review on the WINNING-branch code; Gemini casts tie-breaker if branches converge |
 
+**STEP_B refinement (Codex CO P0.7 audit fix)**: Codex flagged that in STEP_B, if Codex implements Branch B and then performs final review, Generator = Evaluator. Resolution:
+
+- STEP_B Step [4] cross-comparison: if branches converge, Gemini casts strategic tie-breaker AND a fresh Claude `auditor` subagent reviews the chosen branch (not the model that authored either branch)
+- STEP_B Step [5] conformance test: written by Gemini (it did not implement; it only strategically reviewed)
+- STEP_B Step [6] Codex final review: REPLACED — final review now goes to a fresh Claude `auditor` subagent OR a separate Codex invocation with no prior context (`codex exec` from clean state, no conversation memory)
+- Cost impact: +$5-10 per STEP_B atom for fresh-context final review; ~22 STEP_B atoms × $5-10 = ~$110-220 added to budget (already covered in $435-950 range)
+
 This rule is **non-negotiable** for process integrity. The intent of "redundancy as trust restoration" requires that the same model never simultaneously generate AND validate the same artifact.
 
 **Atom lifecycle update reflecting Hard rule 2**:

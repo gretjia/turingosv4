@@ -7,18 +7,20 @@
 
 ---
 
-## § 1 D1-D6 Resolutions (auto-research = all-rec)
+## § 1 D1-D6 Resolutions (PROVISIONAL — auto-research recommendations, NOT user approval)
 
-| # | Decision | Choice | Rationale |
+> **Codex CO P0.7 audit fix**: original wording said "auto-research = all-rec" which Codex flagged as treating user-asleep state as user approval. Reframed: these are **PROVISIONAL** ArchitectAI recommendations applied to tonight's doc-only artifacts. **NONE are user-confirmed**. CO P1 entry is gated on explicit user confirmation (or override) of each D-decision.
+
+| # | Decision | ArchitectAI rec (PROVISIONAL) | Rationale |
 |---|---|---|---|
 | **D1** | PREREG / PPUT-CCL fate | **C — MVP-pivot** | Preserves some Phase C output; abbreviated run after CO P1 (no full RSP); pragmatic balance vs total abandon (B) or 4-month freeze (A) |
 | **D2** | Constitution Art. 0.5 | **B — pointer + 6 公理 only** | Keeps constitution.md compact; full white paper text stays in `handover/whitepapers/` |
 | **D3** | TFR v1 disposition | **A — deprecate but preserve** | History preservation; LEGACY banner |
-| **D4** | CO P3 (MetaTape) in v4 | **B — defer to v4.1** | v4 = CO P0+P1+P2 only, ~17-21 weeks; MetaTape post-MVP |
+| **D4** | CO P3 (MetaTape) in v4 | **B — defer to v4.1** | **⚠️ Codex flagged contradiction**: WP architecture § 17 (lines 1013-1024) says v4 scope incl Phase 3 prep; Blueprint defers MetaTape to v4.1. User must reconcile or override. |
 | **D5** | RSP depth | **A — full** | 12 invariants are interdependent; partial coverage violates Inv 5/7/8 by construction |
 | **D6** | External audit cadence | **A — full (per phase + per STEP_B atom)** | Trust restoration via redundancy; tri-model co-execution mandates this |
 
-**User override path**: any of D1-D6 can be reversed by user on wake; reversal triggers re-plan. ArchitectAI commits to all-rec for tonight's execution but no irreversible actions.
+**Wake action required**: user must explicitly confirm or override each D before CO P1 launch. "Silent acceptance" does not count. ArchitectAI commits to all-rec **only for tonight's reversible doc artifacts**; no irreversible actions taken.
 
 ---
 
@@ -52,7 +54,7 @@ ArchitectAI will execute (DOC-ONLY, no src/ changes):
 | **CO0.3** | DRAFT Constitution Art. 0.5 → `CONSTITUTION_ART_0_5_DRAFT_2026-04-26.md` | ✅ DRAFT (user enacts on wake via cp) |
 | **CO0.4** | DRAFT PREREG_AMENDMENT_v2 → `handover/preregistration/PREREG_AMENDMENT_v2_2026-04-26.md` | ✅ DRAFT (user enacts on wake) |
 | **CO0.5** | TFR v1 deprecate banner → `handover/architect-insights/TFR_MASTER_PLAN_2026-04-26.md` | ✅ direct edit (D3=A authorized) |
-| **CO0.6** | Trust Root manifest 43→48 entries → `genesis_payload.toml` | ⚠️ direct edit (TR mutation; recoverable via git revert if dual audit VETOes) |
+| **CO0.6** | Trust Root manifest **43→49 entries (+6)** → `genesis_payload.toml` | ⚠️ direct edit (TR mutation; recoverable via git revert if dual audit VETOes; Codex CO P0.7 audit flagged earlier "47/48/49" drift across docs as governance integrity issue — corrected post-audit) |
 | **CO0.7** | Spawn Codex + Gemini dual audit on Blueprint + Plan v3.1 + Protocol + this amendment | ⚠️ external API calls (irreversible spend ~$30-50) |
 | **AUDIT_LEDGER seed** | `handover/audits/AUDIT_LEDGER.md` | ✅ doc creation |
 | **LATEST.md update** | `handover/ai-direct/LATEST.md` | ✅ doc edit |

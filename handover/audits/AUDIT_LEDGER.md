@@ -30,7 +30,9 @@ Pre-CO sunk cost (Phase A+B): ~$100 (carried from prior arc; not in $435-950 bud
 | 2026-04-26 night | CO P0.7 | Gemini 2.5-pro run 2 | full audit, second pass (overwrite) | ~$0.12 | Blueprint:PASS / Plan:CHALLENGE / Protocol:PASS / Amendment:PASS | flagged cost projection harmonization + gix spike priority; Q6 lenient (run 1's CHALLENGE survives via conservative-wins rule) |
 | 2026-04-26 night | CO P0.7 | Codex (codex-rescue subagent) | full audit forwarded | ~$0.01 (forwarder only) | (in flight) | spawned task-mofzpcnq-4v764c in Codex runtime; user checks `/codex:status task-mofzpcnq-4v764c` on wake |
 | 2026-04-26 night | CO P0 patches | Claude (orchestrator, in-conversation) | apply Gemini must-fix patches to Protocol/Plan/PREREG | $0 (no API call) | n/a | doc-only edits + TR SHA refresh; 8 boot tests pass |
-| **CO P0 sub-total** | — | — | — | **~$0.45** | — | well below $50-100 budget |
+| 2026-04-26 night /loop poll | CO P0.7 | Codex (codex-rescue → task-mofzpcnq-4v764c) | full audit landed | est ~$5-10 (codex runtime; not directly observable from this session) | **Blueprint:CHALLENGE / Plan:VETO / Protocol:CHALLENGE / Amendment:VETO** | 38KB report; 7 D-VETOs surfaced; mechanical fixes auto-applied; design VETOs surfaced to user via LATEST.md |
+| 2026-04-26 night /loop poll | CO P0 patches v2 | Claude (orchestrator, in-conversation) | Codex mechanical fixes (TR count harmonize / L4 task_id / agent role / D-PROVISIONAL / Hard rule 2 STEP_B / CO2.4.0 strengthen) | $0 (no API call) | n/a | doc-only |
+| **CO P0 sub-total** | — | — | — | **~$5.45-10.45** | — | well below $50-100 budget; cumulative ~0.8-1.5% of $700 mid-budget |
 
 (Rows append as invocations complete.)
 

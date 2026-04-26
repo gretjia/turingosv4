@@ -31,7 +31,7 @@ Goal: get plan v3.1, blueprint, constitutional amendment, and TR migration **fro
 | **CO0.3** | Constitution Art. 0.5 (white paper integration) per D2 | `constitution.md` (cp workflow per R-018 V.3) | No (constitution lives outside src/) | `tests/constitution_root_amendment.rs` | Dual audit on Art. 0.5 text |
 | **CO0.4** | PREREG amendment v2 per D1 | `handover/preregistration/PREREG_AMENDMENT_v2_2026-04-26.md` | No | n/a (doc) | Internal review |
 | **CO0.5** | TFR v1 deprecate (rename + LEGACY banner) | `handover/architect-insights/TFR_MASTER_PLAN_2026-04-26.md` (add deprecate banner only — preserve content per D3) | No | n/a (doc) | n/a |
-| **CO0.6** | Trust Root migration — TR manifest 43 → 47 entries (add blueprint, plan v3.1, prereg v2, white paper economic chapter) | `genesis_payload.toml` | No | `tests/trust_root_v4_manifest.rs` | n/a |
+| **CO0.6** | Trust Root migration — TR manifest **43 → 49 entries (+6)**: 2 white papers (architecture + economic) + blueprint + plan v3.1 + protocol + amendment v1. Constitution Art 0.5 DRAFT and PREREG v2 DRAFT are NOT Trust-Rooted until user-enacted. | `genesis_payload.toml` | No | `tests/trust_root_v4_manifest.rs` | n/a |
 | **CO0.7** | External dual audit on blueprint + plan v3.1 — PASS/PASS gate | (audit reports written to `handover/audits/`) | No | n/a | **DUAL AUDIT GATE** |
 
 **CO P0 exit criteria**: PASS/PASS from Codex + Gemini on blueprint + plan v3.1; user formally answers D1-D6; constitution Art. 0.5 SHA frozen.
@@ -131,7 +131,7 @@ WP ref: § 5.L2.
 
 | Atom | Scope | Files | STEP_B? |
 |---|---|---|---|
-| CO1.7.1 | `TransitionTx` 11-field struct (parent_state_root, agent_id, read_set, write_set, proposal_cid, predicate_results, stake, signature, timestamp, status, tx_id) | `src/bottom_white/ledger/transition.rs` (NEW) | Yes |
+| CO1.7.1 | `TransitionTx` **12-field struct** (tx_id, **task_id**, parent_state_root, agent_id, read_set, write_set, proposal_cid, predicate_results, stake, signature, timestamp, status). **Codex CO P0.7 audit fix**: white paper Architecture § 5.L4 (lines 357-369) requires `task_id` linking each tx to a TaskMarket entry. Earlier "11-field" wording omitted it; now corrected. | `src/bottom_white/ledger/transition.rs` (NEW) | Yes |
 | CO1.7.2 | Append API + WAL fsync semantics | `src/bottom_white/ledger/transition.rs` | Yes |
 | CO1.7.3 | Replay from L4 reconstructs L5 + L6 | `src/bottom_white/materializer/state_db.rs` | No (new file) |
 | CO1.7.4 | Migrate existing 5 EventType variants → TransitionTx subtypes (V-05 detail closure) | `src/bottom_white/ledger/transition.rs` | Yes |
@@ -268,7 +268,7 @@ WP ref: Economic § 6 + § 13; Inv 1, 2.
 
 | Atom | Scope | File |
 |---|---|---|
-| **CO2.4.0** (NEW) | **DESIGN SPIKE**: specify provably deterministic Contribution DAG construction algorithm. Inputs = L4 read_set/write_set tuples (deterministic) + Tx parent state roots. Outputs = canonical DAG (same inputs → byte-identical adjacency list). Must address: concurrent write_tx ordering, multi-parent merge ambiguity, citation transitivity. **Deliverable**: 1-page algorithm spec + worked example with 3-tx adversarial scenario. Dual audit gate before CO2.4.1 starts. | `handover/architect-insights/INV8_DAG_DETERMINISM_SPEC_2026-04-26.md` (drafted in CO P2.4 entry) |
+| **CO2.4.0** (NEW) | **DESIGN SPIKE**: specify provably deterministic Contribution DAG **CONSTRUCTION** algorithm (not just weight function — Codex CO P0.7 audit Q3 flagged that "same DAG → same weights" tests the easy half; the hard half is "same inputs → same DAG"). Inputs = L4 read_set/write_set tuples (deterministic) + Tx parent state roots + chronological tx ordering by (timestamp, tx_id) tiebreak. Outputs = canonical DAG (same inputs → byte-identical adjacency list AND byte-identical weights). Must address: (a) concurrent write_tx ordering, (b) multi-parent merge ambiguity, (c) citation transitivity, (d) edge type discrimination (builds-on vs cites vs reuses) from L4 fields ONLY (no agent self-declaration), (e) cycle detection (DAG must be acyclic). **Deliverable**: 1-page algorithm spec + 3-tx adversarial worked example with byte-identical expected output for two independent runs. Dual audit gate (Codex + Gemini PASS/PASS) before CO2.4.1 starts. | `handover/architect-insights/INV8_DAG_DETERMINISM_SPEC_2026-04-26.md` (drafted in CO P2.4 entry) |
 
 | Atom | Scope | File |
 |---|---|---|

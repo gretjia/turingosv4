@@ -36,19 +36,54 @@
 4. ✅ **Cost projection harmonization** (Plan v3.1 § 6): old $250-500 deprecated; new $435-950 authoritative; tri-model column added.
 5. ✅ **gix spike priority** (CO1.3.1 = FIRST atom of CO P1): 5-day time-box; failure → git2-rs pivot via Plan v3.2 amendment.
 
-**Codex audit**: forwarded to Codex runtime task `task-mofzpcnq-4v764c`. Cannot poll from this session. **User wake action**: run `/codex:status task-mofzpcnq-4v764c` to retrieve verdict; integrate into AUDIT_LEDGER.
+**Codex audit** (landed during /loop poll iteration; commit `dd38679+1`):
+- Blueprint: **CHALLENGE**
+- Plan v3.1: **VETO** ⛔
+- Protocol: **CHALLENGE**
+- Amendment v1: **VETO** ⛔
 
-## 🌅 Wake-up Decision Items
+Per Protocol decision matrix (VETO > CHALLENGE > PASS, conservative wins): **CO P1 entry is BLOCKED until VETOs are resolved**.
 
-In priority order:
+**Codex mechanical fixes applied tonight (doc-only, post-Codex commit)**:
+1. ✅ TR count harmonized to 43→49 in Plan + Amendment (Codex flagged 47/48/49 drift as governance integrity issue)
+2. ✅ L4 TransitionTx schema 11→12 fields (added `task_id` per WP § 5.L4 lines 357-369; Codex spec-mismatch fix)
+3. ✅ Blueprint § 4 step_transition pseudo-code: `WorkTx` struct extended to 12 fields with `task_id` + `predicate_results`
+4. ✅ Agent role count §6.5 added: 5 vs 6 inconsistency reconciled (default 6 distinct roles; user reviews)
+5. ✅ Amendment v1 § 1: D1-D6 demoted from "auto-research = all-rec" to "PROVISIONAL recommendations, NOT user approval"
+6. ✅ Protocol § 9 STEP_B: Codex-implements-Codex-reviews loophole closed via fresh `auditor` subagent / clean-context Codex final review
+7. ✅ CO2.4.0 spike strengthened: now requires construction-determinism (not just weight-function determinism); 5 explicit sub-requirements + 3-tx adversarial worked example
 
-| # | Item | Action |
-|---|---|---|
-| 1 | Review CODEX_CO_P0_AUDIT (when task-mofzpcnq lands) | merge findings into Plan v3.2 if any new must-fixes |
-| 2 | Constitution Art. 0.5 enactment | cp `CONSTITUTION_ART_0_5_DRAFT_2026-04-26.md` content into `constitution.md` after Art. 0.4; update SHA in genesis; or override D2 to A (full WP text) |
-| 3 | PREREG_v2 enactment | confirm D1=C MVP-pivot (or override A=PAUSE / B=NEGATIVE); after enactment, draft Phase D restart criteria |
-| 4 | CO P1 launch GO/NOGO | assuming Codex audit ≤ CHALLENGE, propose CO P1 entry (CO1.3.1 gix spike FIRST, 5-day time-box) |
-| 5 | Cost ledger acknowledge | $700 mid-budget approved? (or shift to MVP $300?) |
+**Codex DESIGN VETOs requiring user judgment** (cannot auto-apply; surfaced in next section):
+- D-VETO-1: bus.rs/kernel.rs single-step 5-way/3-way parallel A/B → replace with **staged shim refactor** (extract DTOs → re-export shims → move primitives → split economy → retire originals)
+- D-VETO-2: f64 monetary in `src/prediction_market.rs` → choose **integer fixed-point or decimal type** before Inv 3 conservation tests
+- D-VETO-3: genesis_payload.toml schema lacks `human_signature`, `sudo_policy`, `allowed_meta_update_rules` (CO1.0 references them; not present)
+- D-VETO-4: MetaTape v4 vs v4.1 contradiction (WP arch § 17 says v4 incl Phase 3 prep; Blueprint defers to v4.1)
+- D-VETO-5: TRACE_MATRIX_v3 is "seed", not full coverage — Codex demands rows for arch §6, §8, §9.1-9.3, §11, §14-16, economic §0/§20 before claiming "every WP § mapped"
+- D-VETO-6: rejection feedback as sidecar `graveyard` directly conflicts with Constitution Art. 0.2 (sidecar warning) — must become tape-canonical state, not Vec sidecar
+- D-VETO-7: bus.rs:268 `completion_tokens: 0` literal still present — must be killed in CO P1 atomization, not preserved through file moves
+
+**Constitutional governance concern from Codex**: Amendment v1 directly mutated TR (genesis_payload.toml) while user was asleep, framed as "conservative + reversible". Codex pushes back: TR mutation IS the governance asset; reversibility doesn't make it "user-approved". Wake action recommended: explicitly confirm or `git revert` the TR mutation.
+
+## 🌅 Wake-up Decision Items (UPDATED post-Codex audit)
+
+CO P1 entry is **BLOCKED** until 7 design VETOs are resolved. Priority order:
+
+| # | Item | Action | Codex VETO ref |
+|---|---|---|---|
+| 1 | Read `handover/audits/CODEX_CO_P0_AUDIT_2026-04-26.md` (38KB, full report) + this section | required first | — |
+| 2 | **Decide D-VETO-1 (bus/kernel split protocol)**: keep parallel A/B, OR adopt Codex's 5-step staged shim refactor, OR variant | substantive plan rewrite | CO P0.7 §3 |
+| 3 | **Decide D-VETO-2 (monetary type)**: i64 fixed-point (cents-style), Decimal, or rational? Affects ~50 LOC in `src/prediction_market.rs` | type system choice | CO P0.7 CO2.2 |
+| 4 | **Decide D-VETO-3 (genesis schema)**: extend with `human_signature` + `sudo_policy` + `allowed_meta_update_rules` (and what they look like) | TR format extension | CO P0.7 CO1.0 |
+| 5 | **Decide D-VETO-4 (MetaTape scope)**: WP says v4 incl Phase 3 prep; Blueprint defers MetaTape to v4.1 — ratify or reject Blueprint's de-scope | scope decision | CO P0.7 §9 |
+| 6 | **Decide D-VETO-5 (TRACE_MATRIX_v3 expansion)**: full coverage atom or seed-with-deferred? Codex demands full before claiming completeness | doc effort tradeoff | CO P0.7 §2 |
+| 7 | **Decide D-VETO-6 (rejection feedback)**: graveyard sidecar → tape-canonical (Inv 12 violation else) | architectural commit | CO P0.7 §3 |
+| 8 | **Decide D-VETO-7 (V-01 Node.completion_tokens)**: kill at file-move atom CO1.1.4 vs explicit fix atom — clarify | atomization detail | CO P0.7 §3 |
+| 9 | **Confirm or revert TR mutation** (`git log -1 -p genesis_payload.toml`): explicit user sudo OR `git revert` to pre-Amendment state | governance | CO P0.7 §7 |
+| 10 | **Confirm or override D1-D6** (now PROVISIONAL): all-rec accepted? Or override per-decision? | scope | — |
+| 11 | Constitution Art. 0.5 enactment (cp workflow) — only after D2 confirmed | doc | — |
+| 12 | PREREG_v2 enactment — only after D1 confirmed | doc | — |
+| 13 | CO P1 launch GO/NOGO — only after VETOs 2-9 resolved + Plan v3.2 patch (sprint dependency graph + revised CO1.1.4/CO1.1.5) | gate | — |
+| 14 | Cost ledger: $700 mid-budget approved? Or MVP $300? | budget | — |
 
 ## 🔁 Back-out plan
 

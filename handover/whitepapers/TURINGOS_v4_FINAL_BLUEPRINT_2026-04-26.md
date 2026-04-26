@@ -239,16 +239,19 @@ pub fn step_transition(
 
     //  2. PROPOSE — Agent submits work_tx
     let work_tx = WorkTx {
+        tx_id: TxId::new(),
+        task_id: proposal.task_id,                   // CRITICAL: links to TaskMarket entry (WP § 5.L4 lines 357-369; Codex CO P0.7 fix)
         parent_state_root: q.state_root_t,
         agent_id: agent,
         read_set:  proposal.read_set,
         write_set: proposal.write_set,
         proposal_cid: cas::put(&proposal.payload)?,  // L3 CAS write
+        predicate_results: PredicateResults::pending(),
         stake: proposal.stake,                       // YES_E stake (Inv 5)
         signature: agent.sign(&work_tx_digest),
         timestamp: now(),
         status: TxStatus::Pending,
-    };
+    };  // 12 fields per WP L4 schema
 
     //  3. PREDICATE GATE — Top White acceptance predicates (Inv 6)
     let acceptance = top_white::predicates::runner::run_acceptance(
@@ -370,6 +373,17 @@ Constitution / White paper paragraph → code symbol(s). DO-178C standard. Bidir
 **Bidirectional check**: every `pub` symbol in `src/{top_white,middle_black,bottom_white,economy,state,transition}/*.rs` MUST carry a `/// TRACE_MATRIX <C-art|WP-arch-§|WP-econ-§>: <role>` doc-comment, validated by `tests/trace_matrix_v3_bidirectional.rs`.
 
 ---
+
+## § 6.5 Agent Role Count Reconciliation (Codex CO P0.7 fix)
+
+White paper Economic chapter § 7 is titled "Agent **5** 经济角色" but lists **6** roles (Solver / Verifier / Challenger / Builder / ArchitectAI / JudgeAI). Blueprint § 2 Middle Black Layer carries the 6-role list. Codex audit flagged the 5-vs-6 inconsistency.
+
+**Resolution** (PROVISIONAL — user reviews on wake): treat as **5 object-level roles** (Solver / Verifier / Challenger / Builder + one fused ArchitectAI/JudgeAI) **OR** **6 distinct roles** (split Architect from Judge). ArchitectAI defaults to **6 distinct roles** because:
+- ArchitectAI proposes (Constitution Art. V.1.2)
+- JudgeAI vetoes (Constitution Art. V.1.3)
+- Different reward functions: Architect = "新架构提案的下游收益"; Judge = "低误判 + 低漏判 + 长期稳定"
+
+If user prefers 5 fused, the fused role's reward function must combine both signals. Plan v3.1 CO2.7.* has 6 atoms (one per role); fused interpretation drops to 5.
 
 ## § 7 v4 Scope = Phase 1 + Phase 2 (per Economic § 20)
 
