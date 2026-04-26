@@ -2091,4 +2091,86 @@ mod v2_emit_tests {
         std::env::remove_var("SPLIT");
         std::env::remove_var("MODE");
     }
+
+    /// Phase C atom C5 conformance (PREREG § 6 C5): mode-purity test.
+    ///
+    /// "Running all 5 modes on the same problem produces jsonl with
+    /// **identical `git_sha`, `binary_sha256`, and `model_snapshot`
+    /// fields** — only the `mode` field differs. Any drift = BLOCKER
+    /// (rules out 'Soft Law happened to use a different binary' confound)."
+    ///
+    /// We test the schema discipline at the make_pput layer: with all
+    /// other inputs held identical (model arg, env vars BINARY_SHA256
+    /// + MODEL_SNAPSHOT, build_sha provided by the build), only varying
+    /// the MODE env var should change the `mode` field — never the
+    /// build/binary/model identity fields. The C2 100-row batch is the
+    /// integration-level companion (5 modes × 10 problems × 2 seeds);
+    /// post-hoc analysis on those 100 rows verifies the same property
+    /// end-to-end.
+    #[test]
+    fn c5_mode_flag_binary_purity() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        std::env::set_var("SPLIT", "adaptation");
+        std::env::set_var("BINARY_SHA256", "sha256:c5_test_pin_binary_identity");
+        std::env::set_var("MODEL_SNAPSHOT", "deepseek-v4-flash@2026-04-26");
+
+        let modes = ["full", "soft_law", "homogeneous", "panopticon", "amnesia"];
+        let mut results = Vec::with_capacity(modes.len());
+
+        for m in modes {
+            std::env::set_var("MODE", m);
+            // All inputs to make_pput identical across modes; only MODE
+            // env differs. Note: this test exercises the schema discipline
+            // directly — apply_mode_to_accept's runtime transform is NOT
+            // exercised here, since the test asserts the binary-identity
+            // axis (orthogonal to the accept axis).
+            let r = make_pput(
+                "test_problem.lean", "oneshot", "deepseek-v4-flash",
+                true, true, Instant::now(),
+                500, 1, 1,
+                None, None, None, None, None,
+                2000, 0, 15_000,
+                false, 1, 1, 4_500,
+                minif2f_v4::budget_regime::BudgetRegime::TotalProposal, 1,
+                "test_run_id",
+            );
+            results.push(r);
+        }
+
+        // Sanity: 5 distinct mode labels observed.
+        let modes_observed: std::collections::HashSet<String> =
+            results.iter().map(|r| r.mode.clone()).collect();
+        assert_eq!(modes_observed.len(), 5,
+            "expected 5 distinct mode labels stamped on the rows; got {:?}",
+            modes_observed);
+
+        // Mode-invariant identity fields: every row's (git_sha, binary_sha256,
+        // model_snapshot, split) must be identical to row 0's.
+        let r0 = &results[0];
+        for r in &results[1..] {
+            assert_eq!(r.git_sha, r0.git_sha,
+                "git_sha must be mode-invariant; mode '{}' differs (got {:?} vs {:?})",
+                r.mode, r.git_sha, r0.git_sha);
+            assert_eq!(r.binary_sha256, r0.binary_sha256,
+                "binary_sha256 must be mode-invariant; mode '{}' differs (got {:?} vs {:?})",
+                r.mode, r.binary_sha256, r0.binary_sha256);
+            assert_eq!(r.model_snapshot, r0.model_snapshot,
+                "model_snapshot must be mode-invariant; mode '{}' differs",
+                r.mode);
+            assert_eq!(r.split, r0.split,
+                "split must be mode-invariant; mode '{}' differs", r.mode);
+        }
+
+        // Confirm the env-pinned values actually flowed through to the rows
+        // (otherwise the equality above would be vacuously true on empty strings).
+        assert_eq!(r0.binary_sha256, "sha256:c5_test_pin_binary_identity",
+            "BINARY_SHA256 env did not flow to the row");
+        assert_eq!(r0.model_snapshot, "deepseek-v4-flash@2026-04-26",
+            "MODEL_SNAPSHOT env did not flow to the row");
+
+        std::env::remove_var("SPLIT");
+        std::env::remove_var("MODE");
+        std::env::remove_var("BINARY_SHA256");
+        std::env::remove_var("MODEL_SNAPSHOT");
+    }
 }
