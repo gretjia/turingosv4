@@ -45,7 +45,7 @@
 
 ## Round-3 fixes shipped (`A8e2`, commit `<pending>`)
 
-- **G1** (Codex R2#1 + Gemini R2#1): `experiments/minif2f_v4/tests/llm_proxy_python_conformance.rs` — Rust integration test that shells to `python3 scripts/test_llm_proxy.py` + asserts exit 0 + checks for the unittest "OK" trailer. Now exercised on every `cargo test --workspace` (PASS in A8e2 verification). The Python suite is no longer "manual only" — it runs whenever the Rust tests run, which is every commit that touches Rust + every CI pipeline that already exercises Rust tests. Closes the round-2 "recurring conformance gate" finding.
+- **G1** (Codex R2#1 + Gemini R2#1, hardened by A8e3 H6): `experiments/minif2f_v4/tests/llm_proxy_python_conformance.rs` — Rust integration test that shells to `python3 scripts/test_llm_proxy.py` + asserts exit 0 + checks for the unittest "OK" trailer. Now exercised on every `cargo test --workspace` (PASS in A8e2/A8e3 verification). The Python suite is no longer "manual only" — it runs whenever the Rust tests run, which is every commit that touches Rust + every CI pipeline that already exercises Rust tests. **A8e3 H6 fail-closed**: missing `python3` is now a hard test failure (not a soft skip — Codex R3#3 caught the silent-pass risk). Explicit opt-out only via `SKIP_LLM_PROXY_PYTHON_CONFORMANCE=1` and the bypass is logged loudly. Closes the round-2 "recurring conformance gate" finding.
 - **G2** (Codex R2#2): `PREREG_AMENDMENT § 8` audit-requirements paragraph reworded to remove the residual "strictest plausible bar is conservative" phrase that contradicted § 2's wording correction. Re-hashed in Trust Root.
 - **G3** (Codex R2#3 + Gemini R2#2): A8 packet § 2 cumulative-test table extended with A8e + A8e2 columns; § 4 Trust-Root-clean assertion bumped 30→34; § 5 Risk #5 removed (closed by F4); § 6 Q7.a 261→265 + Q7.b 30→34. TRACE_MATRIX stale `run_corr_id` symbol row replaced; "in CI" softened to "via Rust wrapper post-A8e2".
 
@@ -55,6 +55,32 @@
 - (RQ7) Verify G2: re-grep `PREREG_AMENDMENT_p0_defer_2026-04-25.md` for any remaining "strictest" / "conservative" claim; the only acceptable use is the round-1 wording-correction note in § 2.
 - (RQ8) Verify G3: re-count `genesis_payload.toml` `[trust_root]` entries (expect 34) and check TRACE_MATRIX_v2 manifest milestones list matches A0=24 → A1=25 → A3=26 → A5=27 → A6=28 → A7=31 → A8e=33 → A8e2=34.
 - (RQ9) Look for any NEW staleness introduced by G3 — e.g., does the round-2 outcome paragraph accurately summarize the round-2 verdicts?
+
+## Round-3 outcome (2026-04-26)
+
+- Codex R3: **CHALLENGE / high** — 3 narrow findings (A8 packet line 118 still calls substitution "conservative"; packet § 3 A6 atom + Q4.a still say "FC1-N12 only in oneshot" + Q4.d still describes ms drift; G1 wrapper soft-skips on missing python3).
+- Gemini R3: **CHALLENGE / high** — 1 narrow finding convergent with Codex (Q4.d stale) + non-blocking observation about `make_pput` arg count (21 args; deferred to Phase B+ refactor).
+- Merged: **CHALLENGE**. Both auditors said code is sound + ready for Phase B; only the packet itself failed final-pass rigor.
+
+## Round-4 fixes shipped (`A8e3`, commit `<pending>`)
+
+Six narrow cleanup items. ALL documentary except H6 which adds a runtime fail-closed assertion.
+
+- **H1** (Codex R3#1): A8 packet § 3 A1 atom description rewritten — removed "Mathematically conservative (strictest plausible bar)" + replaced with explicit "least-strict admissible value" + Type-I implications + cross-ref to PREREG_AMENDMENT § 2 wording correction.
+- **H2** (Codex R3#2 + Gemini R3#1): A8 packet § 3 A6 atom description bumped 6 → 9 anchor sites; explicitly lists the 3 swarm-side FC1-N12 sites added by F4.
+- **H3** (Codex R3#1): A8 packet § 6 Q2.a + Q4.a + Q4.d marked CLOSED with closure-rationale text and round-N origin; questions are no longer "open" for round-4 reviewers.
+- **H4** (Codex R3#1): `genesis_payload.toml` Trust Root header comment about A1 PREREG amendment reworded — "conservative ceiling" → "max-tolerated ceiling — least-strict admissible".
+- **H5** (Codex R3#2): TRACE_MATRIX § 5 item 7 now says "CLOSED" with explicit anchor count of 9 (was "commit pending" + "6 wired").
+- **H6** (Codex R3#3): G1 wrapper test fails closed when `python3` is missing — was a soft skip via `eprintln + return`. Explicit opt-out `SKIP_LLM_PROXY_PYTHON_CONFORMANCE=1` for deliberate downgraded runs (logged loudly).
+
+Note (Gemini R3 Finding 2, non-blocking): `make_pput` signature is now 21 positional args. Deferred to Phase B+ refactor (e.g. `PputResultBuilder` struct or named-arg pattern). Tracked here for the record but does NOT block Phase A → B exit.
+
+## Round-4 questions (in addition to § 6 + round-2 + round-3)
+
+- (RQ10) Verify H1: re-grep `A8_EXIT_PACKET_2026-04-26.md` for any remaining "conservative" / "strictest" claim about `p_0`. Acceptable uses: round-1/2/3 retrospective text describing what the packet USED to say.
+- (RQ11) Verify H2: re-count anchor sites in `experiments/minif2f_v4/src/bin/evaluator.rs` by grepping `fc_trace::emit_event(`; expect 9 production sites (synthetic short-circuit + mr tick + OMEGA full-proof + OMEGA per-tactic + max-tx + oneshot verify + 2 swarm `verify_omega_detailed` + swarm `verify_partial`).
+- (RQ12) Verify H6: cause `python3` to be missing (e.g. `PATH=/tmp cargo test --test llm_proxy_python_conformance`) and confirm the test FAILS rather than silently passes.
+- (RQ13) Verify packet self-consistency: any other "conservative" claims about the substitution? Any other anchor-count mismatches? Any other contradictions between round-1 questions and round-2/3 closures?
 
 ---
 
@@ -115,7 +141,7 @@ A7 added no new Rust tests (plumbing + integration gate; acceptance via `scripts
 
 ### A1 (PREREG amendment)
 - File: `handover/preregistration/PREREG_AMENDMENT_p0_defer_2026-04-25.md`.
-- Substitutes `p_0 = 0.10` (PREREG § 5.5 ceiling) for the calibration-derived value at every Gate H consumer. Mathematically conservative (strictest plausible bar; no Type-I inflation). Re-calibration conditions in § 3 list 5 items (N-experiments arc complete / swarm_N=1 mode landed / per-agent budget normalization landed / hetero-LLM exp complete / Phase D ArchitectAI runtime exists).
+- Substitutes `p_0 = 0.10` (PREREG § 5.5 ceiling) for the calibration-derived value at every Gate H consumer. The substitution is operationally permitted (the PREREG explicitly admits up to 0.10 as the ceiling) but is the **least-strict admissible value** since `j-RR ≤ p_0` makes a SMALLER `p_0` stricter — see PREREG_AMENDMENT § 2 wording correction (round-1 audit Codex#1, A8e fix F6) for full statistical implications. No Type-I inflation since `j-RR` is descriptive (PREREG § 5.4), outside the inferential family. May be less protective than an eventual calibrated `p_0 < 0.10`; acceptable because Gate H is Phase E and § 3 conditions ensure calibration runs first. Re-calibration conditions in § 3 list 5 items (N-experiments arc complete / swarm_N=1 mode landed / per-agent budget normalization landed / hetero-LLM exp complete / Phase D ArchitectAI runtime exists).
 - **FC-trace**: FC1-N12 (∏p ground-truth oracle scope unchanged) + Art. V.1.2 (commit authority) + cases C-073 + C-075.
 - Trust Root manifest 24 → 25.
 
@@ -144,7 +170,7 @@ A7 added no new Rust tests (plumbing + integration gate; acceptance via `scripts
 
 ### A6 (FC tracing)
 - New module `experiments/minif2f_v4/src/fc_trace.rs`. Pure stdlib (zero new deps). 7-variant `FcId` enum (FC1-N7 / FC1-N11 / FC1-N12 / FC1-E18 / FC2-N20 / FC2-N22 / FC3-N31). `FC_TRACE=1` gate cached in `OnceLock`; `FC_TRACE_FILE=<path>` redirects emit to file.
-- 6 wired anchor sites in `run_swarm` + 1 in `run_oneshot`: synthetic short-circuit / mr tick / OMEGA full-proof / OMEGA per-tactic / natural MaxTxExhausted (with budget_regime payload from A5) / oneshot verify bracket.
+- 9 wired anchor sites total (round-1 had 6 — A8e fix F4 added 3 swarm verify sites): synthetic short-circuit / mr tick / OMEGA full-proof / OMEGA per-tactic / natural MaxTxExhausted (with budget_regime payload from A5) / oneshot FC1-N12 verify bracket / **swarm `verify_omega_detailed` × 2 paths (alone + tape+payload retry)** / **swarm `verify_partial`**.
 - **FC-trace**: meta-witness for the 5-step compile loop.
 - Tests: 7 (6 unit + 1 end-to-end smoke `tests/fc_trace_smoke.rs` exercising `FC_TRACE=1` in a child process — required because the gate is `OnceLock`-cached).
 - Trust Root manifest 26 → 27.
@@ -186,7 +212,7 @@ The PREREG amendment shifted the Phase B → C gate. From the Phase A perspectiv
 - (Q1.c) Are there code changes outside the listed atoms — e.g., drift from un-committed tweaks — that should have been their own atom?
 
 ### Q2 — PREREG amendment soundness (A1)
-- (Q2.a) Substituting `p_0 = 0.10` at the Gate H consumer (the PREREG § 5.5 ceiling) is described as conservative. Verify: does this introduce any Type-I inflation, multiplicity hazard, or family-construction inconsistency vs the original 576-run calibration protocol?
+- (Q2.a) ~~Substituting `p_0 = 0.10` at the Gate H consumer (the PREREG § 5.5 ceiling) is described as conservative.~~ **CLOSED A8e F6 + A8e2 G2 + A8e3 H1**: the substitution is the LEAST-strict admissible ceiling (max tolerated value for `j-RR ≤ p_0`), NOT conservative. No Type-I inflation since `j-RR` is descriptive (PREREG § 5.4). Wording fixed in PREREG_AMENDMENT § 2 (A8e F6) + § 8 (A8e2 G2) + this packet's A1-atom description (A8e3 H1). No further verification needed.
 - (Q2.b) Re-calibration conditions list 5 items (notepad ref + per-atom commits). Does this implicitly couple Phase B → C to Phase D readiness in a way that would block forward progress if Phase D slips?
 - (Q2.c) The amendment doc itself is in Trust Root (entry 25). Is the amendment's own SHA-256 referenced anywhere that would prevent a silent re-edit?
 
@@ -196,10 +222,10 @@ The PREREG amendment shifted the Phase B → C gate. From the Phase A perspectiv
 - (Q3.c) The default (env unset) preserves Phase B baseline `total_proposal × 200` bit-for-bit. Verify this is true under all code paths — including the synthetic short-circuit and error/timeout exits.
 
 ### Q4 — FC tracing coverage (A6)
-- (Q4.a) 6 wired anchor sites cover only FC2-N22 (HALT, 4 paths) + FC2-N20 (mr tick) + FC1-N12 (oneshot verify only). FcId enum has 7 variants but only 3 are emitted. Is the partial coverage acceptable for Phase A exit, or does this block Phase B (where the kernel instrumentation needs the full 5-step compile loop visible)?
+- (Q4.a) ~~6 wired anchor sites cover only FC2-N22 (HALT, 4 paths) + FC2-N20 (mr tick) + FC1-N12 (oneshot verify only).~~ **PARTIALLY CLOSED A8e F4**: anchor count is now **9** (added swarm `verify_omega_detailed` × 2 + swarm `verify_partial`); FC1-N12 now covers the swarm path. FcId enum still has 4 unwired variants (FC1-N7, FC1-N11, FC1-E18, FC3-N31) — kept as Phase B+ kernel-instrumentation work. Verify the 9-site coverage is sufficient for the round-3 acceptance bar.
 - (Q4.b) `OnceLock`-cached gate read means a process started with `FC_TRACE=0` (or unset) ignores any later runtime change. Acceptable for evaluator's one-process-per-problem model, but does it pose a risk for any test or runner that mutates the env mid-process?
 - (Q4.c) Hand-rolled JSON encoder vs the `serde_json` already in deps. Was there a real reason to avoid `serde_json::to_string` here, or is this premature dep avoidance?
-- (Q4.d) `run_corr_id` format = `condition_problem_id_unix-ms`. `make_pput`'s `run_id` independently re-computes this with its own ts. The two will differ by milliseconds. Is the join semantics for Phase D consumers documented anywhere?
+- (Q4.d) ~~`run_corr_id` format = `condition_problem_id_unix-ms`. `make_pput`'s `run_id` independently re-computes this with its own ts. The two will differ by milliseconds. Is the join semantics for Phase D consumers documented anywhere?~~ **CLOSED A8e F1**: `run_corr_id` was renamed to `run_id`, lifted to `experiments/minif2f_v4/src/run_id.rs::mint_run_id`, and threaded into both `emit_event` and `make_pput` so they stamp the same identifier (zero ms drift). Phase D joins by `run_id` equality. No further work.
 
 ### Q5 — SiliconFlow plumbing (A7)
 - (Q5.a) `detect_provider` model-prefix logic: a model id with `/` and not starting with "qwen" routes to `siliconflow`. Edge cases: `openai/gpt-4o`, `Qwen/Qwen2.5-7B-Instruct` (capital Q), `siliconflow:Qwen/...`. Verify the routing matrix is complete.

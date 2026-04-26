@@ -40,19 +40,33 @@ fn proxy_python_conformance_suite_passes() {
         script
     );
 
-    // Resolve `python3`. If the system has no `python3` we treat the
-    // missing interpreter as a soft skip (printed for visibility) —
-    // we do not silently pass. A future hardening could promote this
-    // to a hard failure.
-    let python_check = Command::new("python3").arg("--version").output();
-    if python_check.is_err() {
+    // A8e3 fix H6 (Codex R3#3): the wrapper MUST fail closed when
+    // `python3` is missing. A "soft skip" is exactly the silent-pass
+    // failure mode that Gemini's round-1 VETO targeted — a gate that
+    // disappears under environmental drift is not a gate. If a runner
+    // environment lacks Python, that's a CI configuration bug, not an
+    // acceptable-skip case. Explicit opt-out:
+    // `SKIP_LLM_PROXY_PYTHON_CONFORMANCE=1` — must be set deliberately,
+    // never set by default. The bypass is logged loudly so the gate's
+    // absence is visible in test output.
+    let opt_out = std::env::var("SKIP_LLM_PROXY_PYTHON_CONFORMANCE")
+        .as_deref() == Ok("1");
+    if opt_out {
         eprintln!(
-            "[G1] python3 not found on PATH; skipping llm_proxy Python \
-             conformance suite. Install python3 + the openai SDK to enable \
-             this gate (see scripts/test_llm_proxy.py header)."
+            "[G1] SKIP_LLM_PROXY_PYTHON_CONFORMANCE=1 — gate explicitly \
+             bypassed. This is a downgraded run; the V3L-27 round-robin \
+             conformance battery did NOT execute."
         );
         return;
     }
+    let python_check = Command::new("python3").arg("--version").output();
+    assert!(
+        python_check.is_ok(),
+        "python3 not found on PATH; G1 conformance gate requires it. \
+         Install python3 + the openai SDK (see scripts/test_llm_proxy.py \
+         header) or — only with deliberate intent — set \
+         SKIP_LLM_PROXY_PYTHON_CONFORMANCE=1 to bypass."
+    );
 
     let output = Command::new("python3")
         .arg(&script)

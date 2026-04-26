@@ -61,8 +61,9 @@
 #   2026-04-25 Phase A1 PREREG amendment (1):
 #     handover/preregistration/PREREG_AMENDMENT_p0_defer_2026-04-25.md
 #       (defers PREREG § 5.5 calibration; substitutes p_0 = 0.10
-#       conservative ceiling until 5 re-calibration conditions met;
-#       per case C-073 ArchitectAI commit authority)
+#       max-tolerated ceiling — least-strict admissible per amendment
+#       § 2 wording correction A8e fix F6; per case C-073 ArchitectAI
+#       commit authority)
 #
 # Total: 34 files. Progression A0=24 → A1=25 (PREREG amendment) → A3=26
 # (agent_models.rs) → A5=27 (budget_regime.rs) → A6=28 (fc_trace.rs) →
@@ -121,4 +122,4 @@ n_max = 34
 "handover/preregistration/PPUT_CCL_SPLITS_2026-04-26.json" = "69be702e3e0a4bb33c62bd02056495309289fd9271972dc733b4a1ba3dd908e1"
 "handover/preregistration/PREREG_PPUT_CCL_2026-04-26.md" = "64d565b4451d1f770425530bb7ffa874da602ddfd9d714ce7f7db6bbfab69463"
 "handover/preregistration/PREREG_AMENDMENT_p0_defer_2026-04-25.md" = "820645d2a5cc8aaeda3d68b923a874934206bb1c0ae7b4356e94148b90c28b4c"
-"experiments/minif2f_v4/tests/llm_proxy_python_conformance.rs" = "ed42a2dc7f6c74ea184ebb2a24296f322a717b6bfbadf2b97060882ab98217f2"
+"experiments/minif2f_v4/tests/llm_proxy_python_conformance.rs" = "ba38edc71cc847ca20e6e1d16e4dc15320065ed20623f6f24806c5057b87bab1"
