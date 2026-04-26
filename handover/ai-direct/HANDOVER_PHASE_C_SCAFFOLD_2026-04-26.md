@@ -153,6 +153,19 @@ The C2 smoke (`--smoke`) takes ~5-25 min; should be re-run before launching
 2. At least 1 mode (Homogeneous baseline) completes a real run
 3. Cell timeout policy hasn't drifted
 
+### Empirical backbone-comparison (post-smoke 2026-04-26 11:21 UTC)
+
+Direct smoke comparison on aime_1987_p5 oneshot, n3 swarm, MAX_TX=2:
+
+| Backbone | Wall-clock | Tokens used | Lean-verify share | Estimated per-cell @ MAX_TX=200 |
+|---|---|---|---|---|
+| deepseek-v4-flash (thinking-on, reasoner-class, current PREREG) | >300s (timeout) | ~18624 (Homogeneous baseline) | ~25% | ~120 min/cell, ~200 hours batch |
+| deepseek-chat (V3, non-thinking) | 45s | 946 | 95% (~42s in Lean) | ~36 min/cell, ~60 hours batch serial; ~12 hours with 5-cell parallel runner |
+
+**The ~36 min/cell estimate at MAX_TX=200 matches PREREG_AMENDMENT § 1's "~15-30 min average" empirical** — but only when using the V3 backbone. Reasoner-class models multiply per-cell time 3-4x because thinking expansion is ~50s/call vs ~0.5s/call.
+
+Per F-2026-04-26-01 (NOTEPAD § 2), `deepseek-v4-flash thinking-off` is unfounded as a backbone claim — DeepSeek API doesn't honor `enable_thinking=false` for reasoner-class models. The PREREG-stated backbone is therefore operationally a thinking-on model on api.deepseek.com.
+
 ---
 
 ## § 4. Open questions for next session
