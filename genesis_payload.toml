@@ -65,7 +65,7 @@
 #       § 2 wording correction A8e fix F6; per case C-073 ArchitectAI
 #       commit authority)
 #
-# Total: 42 files. Progression A0=24 → A1=25 (PREREG amendment) → A3=26
+# Total: 43 files. Progression A0=24 → A1=25 (PREREG amendment) → A3=26
 # (agent_models.rs) → A5=27 (budget_regime.rs) → A6=28 (fc_trace.rs) →
 # A7=31 (llm_proxy.py + 2 smoke scripts) → A8e=33 (run_id.rs +
 # test_llm_proxy.py) → A8e2=34 (llm_proxy_python_conformance.rs Rust
@@ -83,7 +83,11 @@
 # runner=42 (run_c2_phase_c_ablation.sh — Phase C batch runner per
 # C-075 DO-178C; tampering with the cell ordering, timeout, or
 # synthetic-failure-row policy could silently corrupt the 100-row
-# ablation evidence collection). Per A8e13 Q1 the
+# ablation evidence collection) → C3 analyzer=43
+# (analyze_c3_h1_h4.py — H1-H4 McNemar paired sign test +
+# Holm-Bonferroni decision per PREREG § 9; tampering could
+# weaken the inferential-family gate that mints the Phase C
+# rejection decisions). Per A8e13 Q1 the
 # {cases,rules}/MANIFEST.sha256 entries are now ENFORCED proxies:
 # verify_trust_root recursively hashes each child file the manifest
 # claims (was convention-only before).
@@ -149,3 +153,4 @@ n_max = 34
 "handover/preregistration/PPUT_CCL_HARD10_2026-04-26.json" = "0a906708941835bb56c0af7c6c8fdabf6747911f97d5108ff7a4d76abfadba01"
 "handover/preregistration/scripts/draw_hard10_pput_ccl.py" = "dd19b1396d2f235ddd412db58802412356b9e100b1d6fcba701833327eaf33d6"
 "handover/preregistration/scripts/run_c2_phase_c_ablation.sh" = "d26c64e2bc667e677ecf129ed369847a7956b701755863c70483e8ef958bf8c4"
+"handover/preregistration/scripts/analyze_c3_h1_h4.py" = "04658a4c1f28308580cdcb900db1b7501d003b1f305d2599ea09cbf653bd084b"

@@ -163,6 +163,11 @@ fn test_trust_root_manifest_includes_b2_b4_files() {
         // failure policy directly shapes the 100-row evidence
         // collection. Tampering = silent ablation corruption.
         "handover/preregistration/scripts/run_c2_phase_c_ablation.sh",
+        // Phase C C3: H1-H4 McNemar + Holm-Bonferroni analyzer.
+        // Per C-075 the analyzer is gate machinery — its stat
+        // computation directly mints the Phase C rejection decisions.
+        // Tampering = silent inferential-family corruption.
+        "handover/preregistration/scripts/analyze_c3_h1_h4.py",
     ];
 
     for path in required {
