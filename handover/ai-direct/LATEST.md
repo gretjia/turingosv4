@@ -1,7 +1,7 @@
 # TuringOS v4 — Handover State
 
-**Updated**: 2026-04-26 (Constitutional Art. 0 + 0.4 amendment shipped; Phase C C2 batch KILLED for kernel refactor; **PENDING: user decision on Art. 0.4 path A/B/C**)
-**HEAD commit**: `273b362` (Art. 0 + 0.4: 图灵机原教旨 + Tape Canonical 公理 + version-control gap 暴露)
+**Updated**: 2026-04-26 (Path B confirmed by user; **TFR (TuringOS Foundation Refactor) launched** — 7-sprint, ~7-10 weeks; S0.1 master plan committed; S0 exit gate = dual external audit pending)
+**HEAD commit**: `0dd0d35` (LATEST/Phase-C-frozen update) — TFR S0.1 plan commit follows this turn
 **Origin**: `origin/main` synced through `4f981cd` (60+ commits pushed this UTC date across two phases)
 
 ## Session Summary (2026-04-26 latest)
