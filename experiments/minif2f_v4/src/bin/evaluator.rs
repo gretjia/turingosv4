@@ -218,9 +218,37 @@ async fn main() {
     // This makes it impossible to mistake one binary for the other in post-hoc analysis.
     std::env::set_var("CLASSIFIER_VERSION", CLASSIFIER_VERSION);
 
-    let args: Vec<String> = std::env::args().collect();
+    let mut args: Vec<String> = std::env::args().collect();
+
+    // Phase C atom C1a (PREREG § 6 C1): extract --mode flag BEFORE
+    // problem_file positional parsing. Resolve + validate against the
+    // 5-mode enum + Phase A scope (Full only) BEFORE the first LLM
+    // call, so a misconfigured --mode=soft_law (etc.) aborts startup
+    // with a typed error instead of burning budget under the wrong
+    // constitutional regime. CLI > MODE env > default Full.
+    let mode_cli = minif2f_v4::experiment_mode::extract_mode_flag(&mut args);
+    let resolved_mode = match minif2f_v4::experiment_mode::resolve_experiment_mode(
+        mode_cli.as_deref(),
+    ) {
+        Ok(m) => m,
+        Err(e) => {
+            eprintln!("evaluator: --mode validation failed: {e}");
+            std::process::exit(1);
+        }
+    };
+    // Stamp the resolved label back onto the MODE env var so the
+    // existing make_pput reader (lib jsonl emit site) picks up the
+    // validated value without further plumbing changes.
+    std::env::set_var(
+        minif2f_v4::experiment_mode::EXPERIMENT_MODE_ENV_VAR,
+        resolved_mode.label(),
+    );
+
     if args.len() < 2 {
-        eprintln!("Usage: evaluator <problem_file.lean>");
+        eprintln!("Usage: evaluator [--mode <mode>] <problem_file.lean>");
+        eprintln!("  --mode: full|panopticon|amnesia|soft_law|homogeneous (default: full)");
+        eprintln!("          Phase A scope = full only; the other 4 are declared");
+        eprintln!("          but startup-fatal until Phase C C1b/c/d/e wires them.");
         eprintln!("  CONDITION env: oneshot|n1|n3 (default: oneshot)");
         eprintln!("  MINIF2F_DIR, LLM_PROXY_URL, ACTIVE_MODEL env vars");
         std::process::exit(1);
@@ -244,7 +272,8 @@ async fn main() {
     };
 
     let lean_path = derive_lean_path(&minif2f_dir);
-    info!("Problem: {} | Condition: {} | Model: {}", problem_file, condition, model);
+    info!("Problem: {} | Condition: {} | Model: {} | Mode: {}",
+          problem_file, condition, model, resolved_mode.label());
 
     let result = match condition.as_str() {
         "oneshot" => {

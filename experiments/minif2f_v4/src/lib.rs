@@ -6,5 +6,6 @@ pub mod post_hoc_verifier;
 pub mod rollback_sim;
 pub mod agent_models;
 pub mod budget_regime;
+pub mod experiment_mode;
 pub mod fc_trace;
 pub mod run_id;

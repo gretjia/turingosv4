@@ -88,7 +88,7 @@ Per case **C-075 (DO-178C tool qualification)**: governance instrumentation is i
 | `.claude/hooks/judge.sh` | The PreToolUse hook that invokes engine.py + implements R-016 fc_trace + constitution.md special-case. Tampering = bypass entire gate stack. |
 | `tests/fc_alignment_conformance.rs` | Witness battery for TRACE_MATRIX ✅ rows. Tampering = false PASS hides drift. |
 
-**Total: 24 entries** (15 from B7 + 1 B7-extra rollback_sim + 4 dual-audit fixes + 4 A0 harness). A1 (PREREG amendment) → 25; A3 (agent_models.rs) → 26; A5 (budget_regime.rs) → 27; A6 (fc_trace.rs) → 28; A7 (llm_proxy.py + smoke_siliconflow.sh + _smoke_siliconflow.py) → 31; A8e (run_id.rs + test_llm_proxy.py) → 33; A8e2 (llm_proxy_python_conformance.rs) → 34; A8e7 (A8_AUDIT_HISTORY_2026-04-26.md append-only chronology) → 35; A8e11 (audit runner scripts run_codex/run_gemini per C-075 gate-machinery rule) → 37; A8e13 (src/boot.rs added — verifier file must be qualifiable per C-075 + Codex R11#1) → 38; C-pre1 (PPUT_CCL_HARD10_2026-04-26.json + draw_hard10_pput_ccl.py — Phase C ablation sample basis per PREREG § 6 C2; tampering = Phase C respin per C-075) → 40. When B7-extra calibration eventually runs, its jsonl + p_0 source toml will follow.
+**Total: 24 entries** (15 from B7 + 1 B7-extra rollback_sim + 4 dual-audit fixes + 4 A0 harness). A1 (PREREG amendment) → 25; A3 (agent_models.rs) → 26; A5 (budget_regime.rs) → 27; A6 (fc_trace.rs) → 28; A7 (llm_proxy.py + smoke_siliconflow.sh + _smoke_siliconflow.py) → 31; A8e (run_id.rs + test_llm_proxy.py) → 33; A8e2 (llm_proxy_python_conformance.rs) → 34; A8e7 (A8_AUDIT_HISTORY_2026-04-26.md append-only chronology) → 35; A8e11 (audit runner scripts run_codex/run_gemini per C-075 gate-machinery rule) → 37; A8e13 (src/boot.rs added — verifier file must be qualifiable per C-075 + Codex R11#1) → 38; C-pre1 (PPUT_CCL_HARD10_2026-04-26.json + draw_hard10_pput_ccl.py — Phase C ablation sample basis per PREREG § 6 C2; tampering = Phase C respin per C-075) → 40; C1a (experiment_mode.rs — Phase C `--mode` CLI flag + 5-mode resolver + UnimplementedMode startup-fatal gate; tampering with `ensure_implemented` could let `--mode=soft_law` silently fall back to Full and corrupt Phase C ablation) → 41. When B7-extra calibration eventually runs, its jsonl + p_0 source toml will follow.
 
 ## § 4. New constitutional case-law (A0c)
 
@@ -137,7 +137,8 @@ Manifest size milestones:
 - A8e11 audit runner scripts (run_codex_phase_a8_exit_audit.sh + run_gemini_phase_a8_exit_audit.py) → 37
 - A8e13 src/boot.rs (verifier file in Trust Root per C-075) → **38**
 - C-pre1 PPUT_CCL_HARD10_2026-04-26.json + draw_hard10_pput_ccl.py (Phase C sample basis per PREREG § 6 C2) → **40**
-- (planned) B7-extra calibration freeze → 41+
+- C1a experiment_mode.rs (Phase C --mode CLI flag + 5-mode resolver + UnimplementedMode startup-fatal gate per PREREG § 6 C1) → **41**
+- (planned) B7-extra calibration freeze → 42+
 - (planned) Phase C mode-flag binary → 40+
 
 ## § 7. Cross-references

@@ -62,7 +62,7 @@ this cycle in favor of the longer arc. Architect directive verbatim archived at
 |---|---|---|---|
 | PPUT-CCL Phase A | Pre-flight | ✅ COMPLETE 2026-04-26 | atoms A0–A7 shipped (engineering harness modernization + amendments + per-agent budget + FC tracing + SiliconFlow plumbing); A8 audit gate cleared after 13-round dual-audit cycle (~$80) — case C-076 + rule R-020 sedimented |
 | PPUT-CCL Phase B | Kernel instrumentation + PPUT accounting | ✅ COMPLETE (mid-stream session) | B1–B7 green; tests + Trust Root + smoke + conformance all PASS; B7-extra calibration ⏸ DEFERRED per AMENDMENT |
-| PPUT-CCL Phase C | Ablation smoke tests | 🚧 STARTED 2026-04-26 — C-pre1 done | hard-10 sample frozen (`PPUT_CCL_HARD10_2026-04-26.json` sealed `6667e6bdd2aa381c…`); --mode CLI scaffold + 4 ablation modes + 100-row batch + H1-H4 stat tests + CHECKPOINT_PHASE_C dual audit pending |
+| PPUT-CCL Phase C | Ablation smoke tests | 🚧 IN PROGRESS 2026-04-26 — C-pre1 + C1a done | hard-10 sample frozen (`PPUT_CCL_HARD10_2026-04-26.json` sealed `6667e6bdd2aa381c…`); `--mode` CLI flag + 5-mode resolver + UnimplementedMode startup-fatal gate (`experiment_mode.rs`, 286 PASS, smoke verified 5 paths); 4 ablation modes (C1b soft_law / C1c homogeneous / C1d panopticon / C1e amnesia) + C5 binary purity test + C2 100-row batch + C3 H1-H4 stat tests + C4 CHECKPOINT_PHASE_C dual audit pending |
 
 **Archived (v3.x + Phase 8/9/10 complete or superseded)**:
 - v3.1/v3.2/v3.3 — closed by Paper 1 v2.1.1 PASS/PASS arc 2026-04-25

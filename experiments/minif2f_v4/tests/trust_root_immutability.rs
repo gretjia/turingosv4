@@ -112,6 +112,11 @@ fn test_trust_root_manifest_includes_b2_b4_files() {
         "experiments/minif2f_v4/src/agent_models.rs",
         // Phase A atom A5: budget regime + MAX_TRANSACTIONS resolver
         "experiments/minif2f_v4/src/budget_regime.rs",
+        // Phase C atom C1a: --mode CLI flag + 5-mode resolver +
+        // UnimplementedMode startup-fatal gate. Tampering with
+        // ensure_implemented could allow a misconfigured --mode=soft_law
+        // to silently fall back to Full and corrupt Phase C ablation.
+        "experiments/minif2f_v4/src/experiment_mode.rs",
         // Phase A atom A6: FC-trace structured-event meta-witness
         "experiments/minif2f_v4/src/fc_trace.rs",
         // Phase A atom A7: heterogeneous-LLM provider plumbing (proxy + smoke)
