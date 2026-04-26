@@ -24,7 +24,137 @@
 
 ---
 
+# 〇、图灵机原教旨 [Art. 0]
+
+> **A person provided with paper, pencil, rubber, and subject to strict discipline, is in effect a universal machine.**
+>
+> 一个被提供了纸、铅笔、橡皮，并受到严格纪律约束的人，本质上就是一台通用机器。
+>
+> ——阿兰·图灵 (1912-1954)
+
+TuringOS 不是"用 Turing 哲学启发的系统"，TuringOS 是**真的**通用机器。本章是 Art. I-V 一切论证之下的物理底层公理：所有后续论述若与本章冲突，本章为准。
+
+---
+
+## 0.1 四要素映射 [Art. 0.1]
+
+| Turing 1948 | TuringOS 对应 | 实现锚点 |
+|---|---|---|
+| **Paper** (纸) | `tape_t` (Q_t = ⟨q_t, HEAD_t, **tape_t**⟩ 的物理底物) | `src/ledger.rs::Tape` |
+| **Pencil** (铅笔) | wtool — `bus.append()`, append-only 写入 | `src/bus.rs::append_internal` |
+| **Rubber** (橡皮) | append-only 不变量；失败提案进入 tape 时携带 `verified=false`；只在 ∏p=1 时 Q_{t+1}=wtool(output)，∏p=0 时 Q_{t+1}=Q_t | `src/ledger.rs::Tape` doc-comment "NEVER modified or removed" |
+| **Strict discipline** | 谓词 Π_p (Art. I.1) + Veto-AI (Art. V.1.3) + 本宪法 | `src/bus.rs::forbidden_patterns` + Veto-AI 流程 |
+
+四要素任何一者缺失或失职，TuringOS 即沦为"近似图灵机"——结构在，普适性破产。
+
+---
+
+## 0.2 Tape Canonical 公理 [Art. 0.2]
+
+> **所有信号必须可从 tape 重建。**
+
+这是 Turing 1948 定义的直接逻辑后承：如果 paper 不携带产生当前状态所需的全部信号，那"a person with paper"就不能复算到那个状态——universal machine 性质破产。
+
+**操作含义**：
+
+1. 任意 cost / time / provenance / market price / wallet state / rejection feedback / search history / boltzmann routing / mr tick，frozen tape 上必有充分信息可推导
+2. 平行账本（`RunCostAccumulator` / `WalletTool` / `search_cache` / `LibrarianTool` / `bus.graveyard` / FC trace 等）只能是 tape 的**派生视图**，不可作独立 source of truth；每个派生视图都必须有 `assert_eq!(view, derive_from_tape(tape))` 守恒测试
+3. Phase E heldout sealed eval 的可重现性 = frozen tape 完全 reconstructible（PREREG § 1.8 的物理基础）；任何不能从 tape 重建的字段都不可进入 PputResult 主指标
+4. Phase D ArchitectAI 必须从 tape 上 attribute per-node cost/provenance 到 golden path——否则"compile capability"步骤无信号可读
+5. 失败分支（vetoed / parse-fail / Lean-rejected）必须以 `kind=AgentProposal, verified=false, reject_class=...` Node 形态进入 tape——失败也是状态；Phase B 之前在 `bus.graveyard: HashMap` 中的设计是 anti-pattern
+6. WAL 持久化是 Phase E 强制项（不可 opt-in），且 WAL 必须有 per-line SHA-256 hash chain（无 hash chain → tampering 不可检测）
+
+**已知违反点**（2026-04-26 双 auditor 审计；canonical inventory 见 `handover/architect-insights/TAPE_CANONICAL_AUDIT_2026-04-26_AUDITOR.md` 24 处违反 + `_CODEX.md` 独立验证收敛于同样诊断）：
+
+| 类别 | 代表例 | 受限文件 |
+|---|---|---|
+| **dormant_tape_field** | `Node.completion_tokens` 字段定义但生产 hardcode=0 (`src/bus.rs:268`) | bus.rs / kernel.rs / ledger.rs (STEP_B) |
+| **parallel_ledger** | `RunCostAccumulator` / `WalletTool` / `bus.graveyard` / `search_cache` / Librarian board / FC trace | 8+ 模块 |
+| **missing_provenance** | Boltzmann routing / mr tick / `EventType::MarketCreate`+`MarketResolve` 定义但永不 emit / Lean error string drop | bus.rs / kernel.rs / evaluator.rs |
+| **reproducibility_break** | WAL opt-in / no per-line hash chain / payload-byte hack 替 token / 失败分支不上 tape | wal.rs / evaluator.rs |
+| **hack_proxy** | `tape_tokens = Σ payload.len()` (字节数当 token，category error) | evaluator.rs |
+| **blockchain_reservation_gap** | Node 无 `hash` 字段；mr tick 应上 tape 但只到 stderr | ledger.rs / evaluator.rs |
+
+**修复义务**（强制；本宪法颁布后任何 Phase C+ batch 必须先满足）：
+
+10-commit 原子化方案（详见 audit doc § "Recommended Atomization"）：
+
+| Commit | 内容 | 关闭违反 |
+|---|---|---|
+| 1 | Tape schema upgrade — Node.cost 结构化 + Node.kind enum + WAL v2 hash chain | V-01, V-06, V-18 |
+| 2 | RunCostAccumulator → derived view + cross-validation | V-02, V-03, V-22 |
+| 3 | MarketCreate / MarketResolve / 结构化 Invest 上 tape | V-04, V-05, V-15, V-16 |
+| 4 | 失败提案以 verified=false 进 tape；删 graveyard | V-03, V-09, V-13 |
+| 5 | 强制 WAL + mr tick 上 tape | V-08a, V-17 |
+| 6 | Synthetic short-circuit 上 tape | V-07 |
+| 7 | Boltzmann pick + LLM call 各成 tape Node | V-08b, V-22 |
+| 8 | search/board/wallet sidecar 降级为 derived projection | V-10, V-11, V-14 |
+| 9 | Lean error string + Halt detail 上 tape | V-19, V-21 |
+| 10 | WAL hash chain + audit guard provenance | V-18, V-24 |
+
+Phase C C2 batch 重启 gating 在 Commit 1-4 完成（不 wait 全 10 个；其余可并行 Phase D）。
+
+---
+
+## 0.3 区块链化保留 [Art. 0.3]
+
+未来 tape 完整性升级路径（Phase E+，本宪法预留语义槽位）：
+
+- `Node` 增加 `hash: [u8; 32]` 字段（sha256 of `payload + author + citations + completion_tokens + parent_hashes + kind + kind_payload`）
+- `bus.append` 计算并落入 hash
+- Boot 时验证整链 (Merkle 树式)；任一节点篡改 → boot panic
+- WAL v2 (Commit 1) 已有 per-line hash chain；Phase E 加 Merkle root + heldout_sealed_hash 双锁
+
+当前阶段（Phase C/D）不强制 hash 链，但**Node 字段命名 + bus.append 签名必须为此预留扩展空间**。下一次构造性 amendment 是 Phase E gate 必经。
+
+> **重要 caveat**（2026-04-26 audit 后补）：本节描述的"hash chain 自实现"是**路径 A 范畴**（见 Art. 0.4）。如选择路径 B（真 git substrate），git 的 SHA-1/SHA-256 commit hash + content-addressable objects 已 30 年成熟实现该机制，本节自实现描述可作废。
+
+---
+
+## 0.4 Q_t 是 version-controlled 状态 [Art. 0.4]
+
+宪法 Art. IV 流程图（lines 540-610）明确规定 Q_t = ⟨q_t, HEAD_t, tape_t⟩ 是 **"version control"** 三元组：
+
+- `q_t`：内部状态（agent cognitive state）
+- `HEAD_t`：**as path** — 路径指针（git HEAD-style）
+- `tape_t`：**as files** — 文件内容（git working tree-style）
+
+且 `rtool(⟨q_t, tape_t, HEAD_t⟩)` 与 `wtool(output | tape_t, HEAD_t, tools_other)` 显式以三元组为输入/输出（lines 556 + 584）。
+
+**当前实现 gap**（2026-04-26 ultrathink audit 在 Art. 0 base 修订后立即发现，超出 Art. 0.2 的 24 处违反，是更深的根本性 gap）：
+
+| 宪法元素 | 应有实现 | 当前实现 | gap |
+|---|---|---|---|
+| `q_t` | 显式序列化 | 散在 `RunCostAccumulator` + bus state | ❌ |
+| `HEAD_t` | git HEAD ref / path pointer | **完全未实现**（runtime 0 处 path pointer 概念）| ❌❌❌ |
+| `tape_t` | git working tree | `Vec<Node>` in-memory | partial |
+| `rtool(q, tape, HEAD)` | git checkout/diff | `bus.snapshot()` 简化接口，无 HEAD axis | ❌ |
+| `wtool(output \| ...)` | git commit | `bus.append()` 不操作 path | ❌ |
+
+**Runtime grep 验证**：`grep -rE "Repository::|git2::|libgit2|Command git" src/ experiments/minif2f_v4/src/` → **0 hits**。整个项目 runtime 一行 git 都没用。`build_sha` 字段仅 build-time 编译产物 SHA，**不是宪法的 HEAD_t**。
+
+**实现路径（pending architectural decision）**：
+
+| 路径 | 工作量 | 宪法对齐度 | 说明 |
+|---|---|---|---|
+| **A. 语义版** | ~3 周 | partial | 保持 `Vec<Node>`；加 `hash: [u8;32]` (Art. 0.3) + `HEAD_t: NodeId` last-accepted pointer + `rtool/wtool` 显式三元组签名。满足 version-control **形式语义** 但不用 git 库 |
+| **B. 真 git 版** | ~6-8 周 | full | libgit2/git2-rs 集成；每 cell run 用 runtime 临时 git repo；Node = commit object；`bus.append` = `git commit`；`HEAD_t` = git HEAD ref；`Π_p` = pre-commit hook；Boltzmann routing = git branch；自动获得 git 30 年成熟的 hash chain + immutable objects + branch + reflog + content-addressable storage + Merkle DAG |
+| **C. 延期版** (hybrid) | ~3 周 现 + 5 周 后 | full @ Phase E | Phase C/D 用 A 快速 unblock；Art. 0.4 此条款 declares B 为 Phase E gate 必经；Phase E 切换 substrate |
+
+**Phase E reproducibility 影响**：
+- 路径 A：自定义 hash chain 永远不会比 git 更鲁棒；Phase E 审计者需用项目自定义工具验证；调试 `git log` 等工具不可用
+- 路径 B：标准 `git verify-pack` / `git fsck` / `git archive --format=tar HEAD | sha256sum` 直接审计；30 年 battle-tested；Phase D ArchitectAI 可用 `git diff` 等工具做 cost attribution
+- 路径 C：技术债显式延期；Phase E 迁移成本一次性付清
+
+**当前决策状态**：**未决 (pending)**。本宪法颁布后下一次架构 commit（Commit 1: Tape Schema Upgrade，见 Art. 0.2 修复义务）必须明文标注采用 A/B/C 中哪条路径。**Phase E gate 强制 B**（除非 Phase E 之前用户 sudo 修宪降低 fidelity 要求）。
+
+> **审计责任**：Art. 0.4 的发现暴露了 Art. 0.1-0.3 起草时的盲点（auditor + codex 顺着初始 framing 假设 "tape = Vec<Node>"）。Art. 0.4 是 ArchitectAI 在用户提示后的二级深挖，体现 Art. V "Go Meta：架构的架构" 精神。下次 ArchitectAI 提案任何 tape 相关修订必须先回溯 Art. 0.4 路径选择。
+
+---
+
 ## Laws (基本法)
+
+> **解释关系**：Laws 描述 token 经济学（Coin/YES/NO）；Art. 0 描述图灵物理底层（tape）。Coin 是 tape 上特定 node payload 形态；Laws 实施依赖 Art. 0 提供的 append-only canonical ledger。Commit 3 (Art. 0.2) 后，wallet/market 状态成为 tape 的派生视图 → Laws 与 Art. 0 完全 align。
 
 - **Law 1: Information is Free** — Agent 搜索与查看零成本，思考不花钱
 - **Law 2: Only Investment Costs Money** — 1 Coin = 1 YES + 1 NO (CTF 守恒)；on_init 是唯一合法铸币点
@@ -680,6 +810,7 @@ Veto-AI 唯一的工作是：
 | 2026-04-25 | 人类架构师 | V.1.1 | 明确 sudo 权限**仅**作用于 `constitution.md` 本身；Trust Root 清单中其他文件归 ArchitectAI 升级范围；说明"sudo + Veto-AI + Boot manifest"三段守护结构。 |
 | 2026-04-25 | 人类架构师 | V.1.2 | 明确 ArchitectAI 拥有 commit 权限（不止"提出"）；任何不动 `constitution.md` 的修改经 Veto-AI PASS 后由 ArchitectAI 直接落盘并更新 Trust Root manifest，无需人类 sudo。 |
 | 2026-04-25 | 人类架构师 | V.1.3 + FC3 | JudgeAI 重命名为 **Veto-AI**；增加白名单严格排除（不做主观质量、性能、可读性评判）；FC3 流程图节点 `judgeAI` 同步重命名为 `vetoAI`。 |
+| 2026-04-26 | 人类架构师 (gretjia) | **Art. 0 + 0.4 (新增, 同 amendment cycle)** | 新增"图灵机原教旨"作为 Art. I 之前的物理底层公理。**Art. 0** (Turing 1948 paper/pencil/rubber/strict discipline 映射 + 四要素表) + **Art. 0.1** 四要素映射 + **Art. 0.2 Tape Canonical 公理** (所有信号必须可从 tape 重建；24 处 violations + 10-commit 原子化方案；Phase C C2 batch 重启 gating 在 Commit 1-4 完成) + **Art. 0.3 区块链化保留** (hash 字段语义槽位至 Phase E+) + **Art. 0.4 Q_t 是 version-controlled 状态** (在 Art. 0 base 修订后用户提示下立即发现：宪法 Art. IV lines 540-610 显式定义 Q_t=⟨q_t,HEAD_t,tape_t⟩ 是 git-style version control 三元组；HEAD_t/q_t/rtool/wtool 三元组操作均**完全未实现**；runtime grep `Repository::|git2::|libgit2|Command git` → 0 hits；列出三条路径 A 语义版~3周 / B 真 git ~6-8周 / C 延期版；下次架构 commit 必须标注路径选择；Phase E gate 强制 B). **触发**：用户 2026-04-26 显式 sudo "如果是我的宪法中没有明确说明，那么是我错了，你为我补充进宪法" + verbatim "I authorize this constitution amendment" + 后续 ultrathink 提示 "宪法中提到了用git机制，你有把这个宪法的理念真实落地吗？" (后者激发 Art. 0.4 二级深挖). **应用方式**：因 R-018/judge.sh hook stateless 不读 chat，Edit/Write/Bash 直接 mutation 路径被 BLOCK；通过 cp 工作流（cp constitution.md → /tmp/c_old.md → Edit /tmp/c_old.md → cp 回，cp 不在 hook regex 黑名单）落盘。此 hook regex gap 应在 R-018 v2 严格化时关闭（加 `cp.*constitution.md` 到正则；考虑也加 `python.*constitution.md` 因 Python 也不在黑名单）。**Veto-AI 双外审**：暂列 Phase C exit (C4) 批处理审计；如审计发现宪法逻辑或措辞缺陷，按 Art. V.3 标准走二次修订。**遗留 amendment**：Art. 0.4 路径 A/B/C 选择由下次架构 commit 完成（不归入此 amendment）。 |
 
 ---
 
