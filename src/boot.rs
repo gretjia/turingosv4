@@ -89,81 +89,44 @@ pub fn verify_trust_root(repo_root: &Path) -> Result<(), TrustRootError> {
                 actual,
             });
         }
-        // A8e13 fix Q1 (Codex R11#1): the manifest entry covers the
-        // MANIFEST.sha256 file itself, but its proxy semantics —
-        // "this manifest stands in for the N child files it covers"
-        // — were previously enforced only by convention. A direct
-        // edit to a child yaml could leave the parent manifest
-        // unchanged, and boot would still pass even though the child
-        // diverges from its asserted hash. Now: when the entry path
-        // ends in `/MANIFEST.sha256`, recursively verify each child
-        // file the manifest claims.
+        // Recurse into MANIFEST.sha256 children: the parent file's hash
+        // alone doesn't bind the children it claims (proxy was convention,
+        // not enforcement, before A8e13 fix Q1).
         if rel_path.ends_with("/MANIFEST.sha256") {
-            verify_child_manifest(repo_root, rel_path, &bytes)?;
+            verify_child_manifest(repo_root, &bytes)?;
         }
     }
     Ok(())
 }
 
-/// TRACE_MATRIX FC3-N34 + case C-075: recursive verification of a
-/// `MANIFEST.sha256`-style child manifest. The manifest format is GNU
-/// `sha256sum` output (`<64-hex>  <path>` per line, two-space
-/// separator). Paths in the project's manifests are **repo-relative**
-/// (regenerated from the repo root with `sha256sum cases/C-*.yaml`
-/// or `sha256sum rules/active/R-*.yaml`), so children are resolved
-/// from `repo_root`, not from the manifest's parent directory. This
-/// keeps the recursive verifier symmetric across manifests whose
-/// children live under a subdirectory (e.g. `rules/active/`).
-///
-/// Any child whose actual SHA disagrees with the manifest claim →
-/// `TrustRootError::Tampered`.
-fn verify_child_manifest(
-    repo_root: &Path,
-    manifest_rel_path: &str,
-    manifest_bytes: &[u8],
-) -> Result<(), TrustRootError> {
-    let manifest_text = std::str::from_utf8(manifest_bytes).map_err(|e| {
-        TrustRootError::GenesisParse(format!(
-            "{}: not valid UTF-8: {}",
-            manifest_rel_path, e
-        ))
-    })?;
-    for (lineno, raw) in manifest_text.lines().enumerate() {
+/// TRACE_MATRIX FC3-N34 + case C-075: child-manifest recursion.
+/// Format = GNU `sha256sum` (`<64-hex>  <repo-relative-path>`).
+/// Paths resolve from `repo_root` (manifests are regenerated from
+/// the repo root, not from each manifest's parent dir).
+fn verify_child_manifest(repo_root: &Path, bytes: &[u8]) -> Result<(), TrustRootError> {
+    let text = std::str::from_utf8(bytes)
+        .map_err(|e| TrustRootError::GenesisParse(format!("manifest not utf-8: {e}")))?;
+    for (i, raw) in text.lines().enumerate() {
         let line = raw.trim();
         if line.is_empty() || line.starts_with('#') {
             continue;
         }
-        // GNU sha256sum format: `<64-hex>  <path>` (two spaces).
-        let (hex, child_rel) = match line.split_once("  ") {
-            Some(parts) => parts,
-            None => {
-                return Err(TrustRootError::GenesisParse(format!(
-                    "{}:{}: malformed sha256sum line: {:?}",
-                    manifest_rel_path,
-                    lineno + 1,
-                    line
-                )));
-            }
-        };
-        if hex.len() != 64 || !hex.chars().all(|c| c.is_ascii_hexdigit()) {
+        let (hex, child_rel) = line.split_once("  ").ok_or_else(|| {
+            TrustRootError::GenesisParse(format!("manifest line {}: {line:?}", i + 1))
+        })?;
+        if hex.len() != 64 || !hex.bytes().all(|b| b.is_ascii_hexdigit()) {
             return Err(TrustRootError::GenesisParse(format!(
-                "{}:{}: hash field is not 64 hex chars: {:?}",
-                manifest_rel_path,
-                lineno + 1,
-                hex
+                "manifest line {}: bad hex {hex:?}", i + 1
             )));
         }
-        let child_full = repo_root.join(child_rel);
-        let child_bytes = fs::read(&child_full).map_err(|err| TrustRootError::FileRead {
-            path: child_full.clone(),
-            err,
-        })?;
-        let actual = hex_lower(&Sha256::digest(&child_bytes));
-        let expected = hex.to_ascii_lowercase();
-        if actual != expected {
+        let path = repo_root.join(child_rel);
+        let actual = hex_lower(&Sha256::digest(
+            &fs::read(&path).map_err(|err| TrustRootError::FileRead { path: path.clone(), err })?,
+        ));
+        if actual != hex.to_ascii_lowercase() {
             return Err(TrustRootError::Tampered {
-                path: child_full,
-                expected,
+                path,
+                expected: hex.to_ascii_lowercase(),
                 actual,
             });
         }

@@ -1532,16 +1532,9 @@ fn make_pput(
     let boltzmann_seed = std::env::var("BOLTZMANN_SEED")
         .ok().and_then(|s| s.parse::<u64>().ok());
 
-    // A8e13 fix Q2 (Gemini R11#3): the v2 schema fields are non-Option;
-    // every caller already passed Some(...). Mid-term audit P0-B fix
-    // 2026-04-25 collapsed the struct fields but left the Option<...>
-    // function-parameter shape behind, creating a divergence between
-    // the function contract and its actual usage. Q2 removes the
-    // Option wrapping at the parameter boundary too — every call site
-    // now passes the bare value directly.
+    // PREREG § 5 constitutional notation: C_i (full-run cost) + T_i (wall clock).
     let c_i = total_run_token_count;
     let t_i = total_wall_time_ms;
-    let failed_count = failed_branch_count;
 
     let progress_runtime = compute_progress_runtime(runtime_accepted);
     let progress_verified =
@@ -1588,7 +1581,7 @@ fn make_pput(
         pput_runtime,
         pput_verified,
         pput_m_verified,
-        failed_branch_count: failed_count,
+        failed_branch_count,
         // Phase B placeholders — Phase C+ wires these as the modes activate.
         rollback_count: 0,
         hit_max_tx,
