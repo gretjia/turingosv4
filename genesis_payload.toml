@@ -143,7 +143,7 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 "src/kernel.rs" = "893fd67534caf7a3d9abd6efbd202556348b6491cd6d4c6bdb224d2ad75b1af0"
 "src/wal.rs" = "1ac7637aa09531b1c7232163f5df48f7193251594c4ed20e0d0fc85cea8f84dc"
 "src/boot.rs" = "92d39c2b40e3104bcb76f5a1e7fad72aa608ad8ce2f9564a6d01a70fa64093b6"
-"src/bus.rs" = "df28ffe514a3272a3d10fca4568fd424a76e754e9785c109a5459f163f7fd14c"
+"src/bus.rs" = "f79632bbb5d0bf1df8deb8c9f40e61c2b85d7b8575c30919fcc8c80312e47573"
 "src/drivers/llm_http.rs" = "615596b68956b4a8925110edc99aa746a5543527724ec394bb9dda163147ed7a"
 "src/drivers/llm_proxy.py" = "0a756098056503b1eb379c452c8bda8ff20835020d509dbdfc14850fb46b6fe2"
 "scripts/smoke_siliconflow.sh" = "6ad54e7c0ab8221f475360dcad80eeeb0d6da0fd55c27acdb1cefb2b390f5341"
@@ -236,7 +236,7 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 "handover/audits/CODEX_T_S_REVIEW_2026-04-27.md" = "249309ac1f9db36a602abbe62e56105a14c0c1f05a2e00a21bf34235b30db223"
 "handover/audits/GEMINI_V32_REVIEW_2026-04-27.md" = "73f940b137d7de32bbc0a829fa422b93407ca92f684b6659d38e3becb14284c4"
 "handover/architect-insights/RATIFICATION_2026-04-27.md" = "d1f25eea0242a2cbdedc2eb46a25c45c166368419a0a3a470cc5f66304722e25"
-"handover/architect-insights/PROJECT_DECISION_MAP_2026-04-27.md" = "da55b34a6020231c8979f7e70201e85aa4f6984a3944dc9caf05a3c25c3ae6d5"
+"handover/architect-insights/PROJECT_DECISION_MAP_2026-04-27.md" = "d8e5268e229d9c985005f092a2282d7d0dfe8e697578e653032caad2955d584c"
 
 # 2026-04-27 auto-research bundle (post-ratification; +3 entries; 58 → 61).
 # All doc-only, all reversible, all within ratified Plan v3.2-fix1 scope:

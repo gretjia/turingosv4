@@ -146,7 +146,7 @@ Format: `<Date> <Decision-ID>: <Question>` → table of options with fate.
 |---|---|
 | **A. Pre-split single ceremonial commit (CO1.1.4-pre1)** | ✅ CHOSEN |
 
-**Status**: ⏳ NOT YET DONE. `bus.rs:268` still has the literal. Reserved for first CO P1 commit.
+**Status**: ✅ DONE 2026-04-27 Wave 5-C ceremonial commit. `bus.rs:268` literal `0` replaced by `pub(crate) const PENDING_COMPLETION_TOKENS_CO1_1_4: u32 = 0` (named symbol with FC1-Cost / FC3-Cost TRACE doc-comment + STEP_B rename target). Canonical fixture corpus deferred to CO1.1.4-pre1.b (Wave 6).
 
 #### B-1 — TR mutation governance
 

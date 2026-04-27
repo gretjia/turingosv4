@@ -11,6 +11,19 @@ use crate::sdk::tool::{BetDirection, ToolSignal, TuringTool};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+// ── Symbolic constants (V-01 ceremonial kill per D-VETO-7 ratified A) ──────────
+
+/// TRACE_MATRIX FC1-Cost / FC3-Cost: placeholder until CO1.1.4 STEP_B propagates
+/// real LLM completion tokens from `drivers::llm_http::LlmResponse` through to
+/// `Node::completion_tokens`. CO1.1.4-pre1 ceremonial commit replaces the magic
+/// literal `0` at `bus.rs:268` with this named constant; the value is unchanged
+/// (still 0), but the literal is killed so the STEP_B refactor has a clear
+/// rename target rather than an anonymous integer.
+///
+/// See `handover/architect-insights/PROJECT_DECISION_MAP_2026-04-27.md` § 2.2
+/// D-VETO-7 for the ratified disposition.
+pub(crate) const PENDING_COMPLETION_TOKENS_CO1_1_4: u32 = 0;
+
 // ── Configuration ───────────────────────────────────────────────
 
 /// Bus configuration. V3L-23: no hardcoded values, all configurable.
@@ -265,7 +278,7 @@ impl TuringBus {
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_secs(),
-            completion_tokens: 0,
+            completion_tokens: PENDING_COMPLETION_TOKENS_CO1_1_4,
         };
 
         self.kernel.append(node.clone()).map_err(|e| e.to_string())?;
