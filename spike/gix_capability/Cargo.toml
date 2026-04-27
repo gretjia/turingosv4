@@ -1,0 +1,17 @@
+[package]
+name = "gix_capability_spike"
+version = "0.0.1"
+edition = "2021"
+description = "CO1.3.1 spike: verify a git substrate (gix attempted; pivoted to git2-rs per pre-flight § 4) can back TuringOS v4 ChainTape Path B"
+publish = false
+
+[dependencies]
+git2 = { version = "0.20", default-features = false }
+sha2 = "0.10"
+tempfile = "3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
+
+[lib]
+path = "src/lib.rs"

@@ -112,7 +112,7 @@ n_max = 34
 
 [trust_root]
 "src/main.rs" = "622fee2d96a980d24f9fbaab3d0531c195a0a337fc3ddd2efb60bca90a1cfbf9"
-"Cargo.lock" = "577446e8fe11e91bc8751bf13e5ddca6c5faa64d3309b878768c550d3e6feb98"
+"Cargo.lock" = "1cf41e5e6f6bfd77c023fa4c4834f351b3ade63aba30be01278aac485a698ffb"
 "handover/preregistration/scripts/run_p0_calibration.sh" = "5f4a57dd8b8280ffe04bec89350a57d876d06cc179d9f8841a522e7bdcf1b8b7"
 "handover/preregistration/scripts/compute_p0.py" = "fd1dff97d582f4f509249852be500cba7d81efc9bab8fcb9872b2d85bb4e3052"
 "rules/MANIFEST.sha256" = "6d6fd54d46352213a857fdaf5cf70e8a893bbbd5467e5da45a3ed3314d01b0c2"
@@ -173,6 +173,10 @@ n_max = 34
 "handover/audits/GEMINI_SPEC_FREEZE_AUDIT_2026-04-27.md" = "a2e5d954b061cb43e17e6f66f2fe94a71cfd8160194dfa96789da02e8e633225"
 "handover/audits/CODEX_SPEC_FREEZE_AUDIT_2026-04-27.md" = "4cb0ba5b5665a98c9601852f48ebfbb40fc2f3e9fe67bd7e7c104eac25019aab"
 "handover/audits/CODEX_SPEC_V12_REAUDIT_2026-04-27.md" = "57dc9d19944b8257ddb159f284b389938bc541996607df95989af4f76a6bbf81"
+
+# 2026-04-27 CO1.3.1 git substrate spike result (8/8 PASS via git2-rs after gix pivot)
+"spike/gix_capability/results/SPIKE_RESULT_2026-04-27.md" = "1fd869619ae4dd3e3a89dd80f118f57ece8a6260643dd4c7a8c7bf0ec141bd28"
+"spike/gix_capability/Cargo.toml" = "a0e91c97cd18e9ffb8566d2bc901325cb680b728493eef37d8ac02ae2f03c76c"
 "handover/whitepapers/TURINGOS_v4_FINAL_BLUEPRINT_2026-04-26.md" = "66de2382248042023538d65fcd04b99cb5f33110727bcebe723ed40cc9c845fa"
 "handover/architect-insights/CO_MEGA_PLAN_v3.1_2026-04-26.md" = "d275597dd83d79c0459093f2b3ee4a7a882a444f1c58a5f1c7688af920c82afc"
 "handover/architect-insights/TRI_MODEL_ORCHESTRATION_PROTOCOL_2026-04-26.md" = "6b1e142d1608cf1ca1d193ec30a95c96fb133ac3f196dca30a58e91e647ce772"

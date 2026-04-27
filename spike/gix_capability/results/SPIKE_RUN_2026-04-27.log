@@ -1,0 +1,71 @@
+warning: variable does not need to be mutable
+  --> spike/gix_capability/src/c1_init.rs:21:13
+   |
+21 |         let mut index = repo.index()?;
+   |             ----^^^^^
+   |             |
+   |             help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `gix_capability_spike` (lib) generated 1 warning (run `cargo fix --lib -p gix_capability_spike` to apply 1 suggestion)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.16s
+     Running `target/debug/gix_capability_spike`
+# Git Substrate Capability Spike (CO1.3.1) — Result
+
+Substrate library: **git2-rs 0.20** (libgit2 binding; pivoted from gix per pre-flight § 4)
+Workdir: /tmp/.tmpgJIphw
+
+---
+
+## C1 — Init
+- pass: true
+- repo: /tmp/.tmpgJIphw/c1_repo
+- initial_commit_sha: 61b12feb071a9d35ede8a14cf664570d7ac33c19
+
+## C2 — Multi-parent commit
+- pass: true
+- merge_commit_sha: 9b87c96a6637af655ef70781a4cb2e99bd11d08e
+- parent_count: 2
+
+## C3 — Tree + parent read deterministic
+- pass: true
+- commit_sha: c6efa10a319815cb3c47a60e29a8ed31e833606c
+- tree_sha: a9388f901c826af49b6c944a4a0be6cd02ff35e1
+- parent_shas: []
+- deterministic_two_runs: true
+
+## C4 — Concurrent init (4 threads)
+- pass: true
+- successes: 4 / 4
+- elapsed_ms: 14
+
+## C5 — CAS blob round-trip
+- pass: true
+- blob_count: 5
+- round_trip_match: true
+- git_sha1_oid (hello world): 95d09f2b10159347eece71399a7e2e907ea3df4f
+- external_sha256 (hello world): b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9
+
+## C6 — Perf 100 commits in <1s
+- pass: true (target <1000ms)
+- elapsed_ms: 139
+- commits_per_sec: 716.1
+
+## C7 — Replay deterministic
+- pass: true
+- walk1 len: 10
+- walk2 len: 10
+- identical: true
+
+## C8 — Hook compat (separate repos)
+- pass: true
+- user_repo_has_hook: true
+- runtime_repo_commit_succeeded: true
+- git2_invoked_hook (should be false): false
+
+---
+
+# Final Tally: 8/8 PASS
+
+✅ ALL CAPABILITIES PASS — git2-rs is fit for purpose for v4 ChainTape Path B substrate.
