@@ -159,8 +159,9 @@ n_max = 34
 # White papers (architecture + economic) authored by user 2026-04-26 ultrathink;
 # blueprint synthesizes both into file-level v4 spec; plan v3.1 atomizes; protocol
 # codifies tri-model co-execution; amendment v1 records D-decisions + cost adjustment.
-"handover/whitepapers/TURINGOS_WHITEPAPER_v1_2026-04-26.md" = "952fbddbb1f290a677996ee31188eed81ec1768fe2fd71b0add0ec0b098f455a"
-"handover/whitepapers/TURINGOS_WHITEPAPER_v1_ECONOMIC_2026-04-26.md" = "baf4657879cc9b1e8d1e5531436836cc64129e203f8de17ae433e03760ef63c3"
+"handover/whitepapers/TURINGOS_WHITEPAPER_v1_2026-04-26.md" = "5c17819b6f574a384d894c801322e056fcd869ff9526794238888cc0741e6d88"
+"handover/whitepapers/TURINGOS_WHITEPAPER_v1_ECONOMIC_2026-04-26.md" = "d059a0bd2e95fb13c112d8ed6acc9adc32c63a8c89206dd5fcfa77bfb8d5aa44"
+"handover/whitepapers/REVISION_NOTES_2026-04-27.md" = "d6252b9f57a571489c68d98d8b23a1238edc70543f319deb826c919a1928cb9b"
 "handover/whitepapers/TURINGOS_v4_FINAL_BLUEPRINT_2026-04-26.md" = "66de2382248042023538d65fcd04b99cb5f33110727bcebe723ed40cc9c845fa"
 "handover/architect-insights/CO_MEGA_PLAN_v3.1_2026-04-26.md" = "d275597dd83d79c0459093f2b3ee4a7a882a444f1c58a5f1c7688af920c82afc"
 "handover/architect-insights/TRI_MODEL_ORCHESTRATION_PROTOCOL_2026-04-26.md" = "6b1e142d1608cf1ca1d193ec30a95c96fb133ac3f196dca30a58e91e647ce772"

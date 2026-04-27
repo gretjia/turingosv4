@@ -238,6 +238,8 @@ tool_registry_root_t      工具注册表根
 
 注意：`tape_view_t` 不是完整账本。Agent 不应直接读取全量历史。Agent 只能读取经过索引、权限过滤、摘要与去污染处理后的局部视图。
 
+> **§ 4 amendment 注**（修订 2026-04-27 — 与经济章 § 2 amendment 对齐）：经济章 § 2 加入 `economic_state_t` 作为第 **9 个 component**（9 个子字段：`balances_t / escrows_t / stakes_t / claims_t / reputations_t / task_markets_t / royalty_graph_t / challenge_cases_t / price_index_t`）。Conceptual core 仍是 **Constitution Art 0.4 三元组** ⟨q_t, HEAD_t, tape_t⟩；本节 8-component 扩展 + 经济章 § 2 的 9-component 是其逐层 operationalization。
+
 ---
 
 ## 5. ChainTape：可验证 tape，而非普通区块链
@@ -902,6 +904,29 @@ on_init 唯一铸币点
 人类宪法 sudo
 ```
 
+### 12.4 v4 vs v4.1 实施边界（修订 2026-04-27）
+
+> 本节为 D-VETO-4 ratified 决议（详见 `handover/architect-insights/RATIFICATION_2026-04-27.md`）的 WP 回灌。
+
+**v4 scope（"Phase 3 prep"，不是 runtime 实装）**：
+- ArchitectAI 离线工作流（人类 + Claude 协作；产出 `MetaProposalDraft` CAS 对象）
+- `MetaTx` typed schema spec（`META_TX_SCHEMA_v1`）
+- `meta_validator` library（offline; validate_meta_proposal R1-R8 rules）
+- `MetaTransitionInterface` Rust trait（v4 ships trait + 0 implementor）
+- `AmendmentFlow` format（Art V.3 修订结构化记录）
+- v4.1 atomization plan + interface contract
+
+**v4.1 scope（runtime 实装）**：
+- `RuntimeArchitectActor` + `RuntimeJudgeActor` + `RuntimeMetaCoordinator`
+- L4 acceptance of `MetaTx`（extends step_transition with `meta_transition` arm）
+- M-of-N judge quorum + 人类签名 gate（宪法变更必须）
+- 历史 v4 cp-amendment 自动 ingest
+
+**为什么不一次到位 runtime ArchitectAI**：
+- Anti-Oreo 时间维度：把"改架构"和"按架构跑 tx"塞进同一 runtime 是新违 Anti-Oreo
+- Bitcoin 经验：BIP 流程在链外，矿工链上信号，节点链外升级
+- 治理稳定优先：v4 需要先用人类 + 离线双外审（Codex/Gemini）的修宪 + 共审循环跑通；待经验积累后 v4.1 再 promote 为 runtime
+
 ---
 
 ## 13. 区块链在 TuringOS 中的位置
@@ -1022,6 +1047,17 @@ Phase 5: Public Settlement — 开放生态
 
 turingosv4 scope: Phase 1 + Phase 2 + Phase 3 prep. Phase 4-5 are post-v4.
 
+> **Phase 3 prep concrete deliverables**（修订 2026-04-27 — 闭合"prep"模糊性，per Codex CO P0.7 + Gemini v3.2 审计）:
+> 1. `META_TX_SCHEMA_v1_2026-04-27.md` — typed MetaTx schema (12 fields)
+> 2. `meta_validator` library (offline; R1-R8 validation rules)
+> 3. `MetaTransitionInterface` Rust trait (v4 ships trait + 0 implementor)
+> 4. `AmendmentFlow` format (Art V.3 amendments structured)
+> 5. `MetaProposalDraft` CAS storage format (v4 ArchitectAI offline output)
+> 6. `V4_1_METATAPE_PLAN_v1_2026-04-27.md` — v4.1 atomization plan
+> 7. `meta_validator` conformance test
+>
+> 见 `handover/specs/META_TX_SCHEMA_v1_2026-04-27.md` 等具体 spec docs；CO_MEGA_PLAN_v3.2 § 5 CO P3-PREP track 跟踪所有 7 个 atom 实施。
+
 ---
 
 ## 18. 结论
@@ -1055,7 +1091,7 @@ Agent 可以生成智能，但不能拥有最终写入权。
 >
 > **最短公式**: `reward_i = Finalize(Escrow(task) × Accept(tx_i) × Attribution(tx_i, DAG) × Survival(challenge_window) × Utility(post_acceptance_metrics))`
 >
-> **核心架构组件** (须在 CO_MEGA_PLAN S2-S4 实现): TaskMarket / EscrowVault / ContributionLedger / PredicateRunner / AttributionEngine / ChallengeCourt / SettlementEngine / ReputationIndex
+> **核心架构组件** (须在 CO_MEGA_PLAN_v3.2 CO P2.* atoms 实现; 共 9 modules): TaskMarket / EscrowVault / ContributionLedger / PredicateRunner / AttributionEngine / ChallengeCourt / SettlementEngine / ReputationIndex / **PriceIndex**（修订 2026-04-27 — 与经济章 § 19 对齐；PriceIndex 同时是 ChainTape L6 entry，但作为 RSP-1 module 显式列出）
 >
 > **核心数据结构** (用于 sprint S3 schema): Task Contract / Work Tx / Verify Tx / Challenge Tx / Settlement Tx
 >
