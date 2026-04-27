@@ -170,7 +170,7 @@ n_max = 34
 # Trigger: Codex T+S re-review (3 VETOs) + Gemini v3.2 cross-review (2 VETOs).
 # 4 new specs (state transition / genesis schema / Art 0.2 reinterpretation / system keypair / metatx) +
 # Plan v3.2 + 2 audit artifacts (Codex T+S, Gemini v3.2) trust-rooted as load-bearing.
-"handover/specs/STATE_TRANSITION_SPEC_v1_2026-04-27.md" = "d5a19f02bd26b9ee9e455220fc07def0832e9cc3af39d5a043a82126f91bee02"
+"handover/specs/STATE_TRANSITION_SPEC_v1_2026-04-27.md" = "f7a45de3dc922661940a1f7743119e787ad8e35696e93e444eb68d04f85a3771"
 "handover/specs/GENESIS_MINIMAL_WITH_ANCHOR_v1_2026-04-27.md" = "fc82ef00874d8d8dba887ad7d8939a14253b080c71f55537fa1d20c7b0a7c113"
 "handover/specs/ART_0_2_REINTERPRETATION_2026-04-27.md" = "6f869c0ba212a0a80cb8e1765d17833ee35392cc3bd9ccaf5553696b0b7f938a"
 "handover/specs/SYSTEM_KEYPAIR_SECURITY_v1_2026-04-27.md" = "3dcaba85c31f834a00ea56591f4a663fb74b7b5643895fb96099f3d0de7fa38d"
@@ -201,3 +201,8 @@ n_max = 34
 "handover/specs/SPEC_WALKTHROUGH_v1_2026-04-27.md" = "6b9727515c7b1d2ca33f2aebcda50370743bb050b14d79d2d15b0b642988af0c"
 "handover/architect-insights/SPRINT_DEPENDENCY_GRAPH_v1_2026-04-27.md" = "9b540636098f978d45067dc07f7f040c4c970cf14b2dd13b0f8c70452be4bc25"
 "handover/specs/PRE_COMMIT_HOOKS_R022_R023_v1_2026-04-27.md" = "b155e87f8bd9ff0b44808347a00327c9297e636718cd1323928545570bb452cb"
+
+# 2026-04-27 auto-research wave 4 (+2 entries; 68 → 70).
+# STATE_TRANSITION_SPEC v1.1 patches in place + 2 new docs (INV8 spike pre-draft, enactment procedure).
+"handover/specs/INV8_DAG_DETERMINISM_SPEC_v1_2026-04-27.md" = "0b56bc7690aa65ba12f8cd050d5f80ade7965078806c2b228e2b191e975fc7ac"
+"handover/architect-insights/ENACTMENT_PROCEDURE_2026-04-27.md" = "b23e1bc10430ead88ffbbeb22c83bd0b37b0b5ed6f134697a3d98e3deb6896cb"

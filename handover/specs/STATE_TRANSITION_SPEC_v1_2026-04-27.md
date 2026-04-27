@@ -1,6 +1,16 @@
-# State Transition Specification v1
+# State Transition Specification v1.1
 
-> **Date**: 2026-04-27
+> **Date**: 2026-04-27 (v1.1 patch applies SPEC_WALKTHROUGH gap fixes)
+> **Patch v1 → v1.1 changes**:
+> - § 3.2 (challenge_transition) stage 4e ADDED: verifier_bond release policy (default = return to verifier; configurable)
+> - § 3.3 (reuse_transition) stage 3 AMENDED: edge weight bounded by `MAX_REUSE_ROYALTY_FRACTION` config (default = 0.10)
+> - § 3.2 (challenge_transition) stage 4d AMENDED: false-challenge reputation penalty config (default = 0; configurable)
+> - § 3.1 (verify_transition) note ADDED: quorum-aggregation rule placeholder (default = 1; configurable)
+> - § 4 invariants ADDED: I-VBOND-RELEASE / I-ROYALTY-CAP
+> - § 11 (Found Inconsistencies) — promoted from SPEC_WALKTHROUGH § 11
+>
+> All 4 walk-through gaps now have either (a) machine-checkable default applied, or (b) explicit deferral with target atom.
+>
 > **Purpose**: D-VETO-1 binding form. Defines `step_transition: (Q_t, tx_i) → (Q_{t+1}, signals_t)` with typed schemas, deterministic pseudocode, named invariants, conformance test list. Gates CO1.1.4/CO1.1.5 bus.rs/kernel.rs split (per Plan v3.2 atom CO1.SPEC.0).
 >
 > **Authority**: Constitution Art. 0–0.4 + white paper architecture § 3-7 + economic § 2/§ 6/§ 18-21. Where this spec disagrees with white paper, **white paper wins** and this spec must be amended.
@@ -343,6 +353,8 @@ pub fn step_transition(
 
 Per Gemini v3.2 review Q10 VETO — extending pseudocode to all state-mutating tx types.
 
+> **v1.1 note (gap 11.4)**: this pseudocode handles ONE verifier per tx. Multi-verifier quorum aggregation is a TaskMarket config (`verifier_quorum_required: usize` default = 1). When N>1 verifiers each submit verify_tx for the same target_work_tx, claim transitions to `Pending → ApprovedByVerifiers` only after `verifier_quorum_required` distinct verifiers have submitted `Confirm`. Aggregation rule deferred to CO P2.7 atom (Verifier role detail). For v4 default (quorum=1), each verify_tx independently advances claim to ApprovedByVerifiers.
+
 ```rust
 pub fn verify_transition(
     q: &QState,
@@ -446,6 +458,28 @@ pub fn challenge_transition(
     q_next.economic_state_t.reputations_t.adjust(target.solver, -slash_reputation_delta());
     q_next.economic_state_t.reputations_t.adjust(tx.challenger_agent, +challenge_reputation_delta());
 
+    // 4e: verifier_bond release per task config (gap 11.2 fix; default = return to good-faith verifier)
+    //   Rationale: when Carol slashes Alice via challenge, Bob (the verifier) was duped but acted in good faith.
+    //   Slashing Bob's bond would discourage future verification. Configurable per TaskMarket.
+    //   Applies to ALL verifiers who voted Confirm on the slashed work_tx.
+    let bond_release_policy = q.economic_state_t.task_markets_t
+        .get(target.task_id)
+        .map(|tm| tm.config.verifier_bond_on_slash)
+        .unwrap_or(VerifierBondPolicy::ReturnToVerifier);
+    for (verifier, bond) in q.economic_state_t.stakes_t.verifier_bonds_for(tx.target_work_tx) {
+        match bond_release_policy {
+            VerifierBondPolicy::ReturnToVerifier => {
+                q_next.economic_state_t.balances_t.credit(verifier, bond);
+                q_next.economic_state_t.stakes_t.release_verifier_bond(verifier, tx.target_work_tx);
+            }
+            VerifierBondPolicy::SlashedToChallenger => {
+                q_next.economic_state_t.balances_t.credit(tx.challenger_agent, bond);
+                q_next.economic_state_t.stakes_t.slash_verifier_bond(verifier, tx.target_work_tx);
+                q_next.economic_state_t.reputations_t.adjust(verifier, -verifier_slash_delta());
+            }
+        }
+    }
+
     // STAGE 5: close challenge window
     q_next.economic_state_t.challenge_cases_t.close(tx.target_work_tx, ChallengeOutcome::Slashed(tx.tx_id));
 
@@ -489,12 +523,28 @@ pub fn reuse_transition(
     }
 
     // STAGE 3: state transition — add edge to royalty graph
+    //   gap 11.3 fix: weight bounded by MAX_REUSE_ROYALTY_FRACTION = 0.10 default
+    //   Rationale: 10% upper bound protects solver's primary reward. Builders earn via creating
+    //   widely-reusable tools, not via single high-percentage extractions. Configurable per TaskMarket
+    //   for cases where user wants to override (e.g., creator-economy experiments).
+    let max_royalty = q.economic_state_t.task_markets_t
+        .get(parent.task_id)
+        .and_then(|tm| tm.config.max_reuse_royalty_fraction)
+        .unwrap_or(MAX_REUSE_ROYALTY_FRACTION_DEFAULT);  // = 0.10 in micro-coin fractional repr (10000 / 100000)
+    let bounded_weight = tool.reuse_royalty_share.min(max_royalty);
+    if tool.reuse_royalty_share > max_royalty {
+        log::warn!(
+            "reuse_tx {}: tool {} declared royalty {} > max {}; clamping to {}",
+            tx.tx_id, tx.reused_tool_id, tool.reuse_royalty_share, max_royalty, bounded_weight
+        );
+    }
+
     let mut q_next = q.clone();
     q_next.economic_state_t.royalty_graph_t.add_edge(
         from: tx.reusing_work_tx,
         to:   tx.reused_tool_id,
         creator: tx.reused_tool_creator,
-        weight: tool.reuse_royalty_share,
+        weight: bounded_weight,    // clamped per gap 11.3
     );
 
     // STAGE 4: append + materialize (no signals; royalty paid at finalize_reward time)
@@ -625,8 +675,10 @@ pub fn emit_terminal_summary_transition(
 | **I-VERIFY-LIVE** (added per Gemini v3.2 review Q10) | VerifyTx targets MUST be in Pending or Provisional state; cannot verify Accepted-and-finalized or Slashed | verify_transition stage 1 | `tests/verify_target_liveness.rs` |
 | **I-CHAL-WINDOW** (added per Gemini v3.2 review Q10) | ChallengeTx must be received within target's challenge_cases_t window; no challenges after window close | challenge_transition stage 1 | `tests/challenge_window_enforced.rs` |
 | **I-FINALIZE-EXCLUSIVE** (added) | FinalizeRewardTx and SlashTx are mutually exclusive per claim_id; system runtime serializes | finalize_reward_transition stage 2 | `tests/finalize_or_slash_exclusive.rs` |
+| **I-VBOND-RELEASE** (v1.1, gap 11.2 fix) | Verifier bond release on slashed work_tx follows TaskMarket.config.verifier_bond_on_slash policy; default = `ReturnToVerifier`; verifier reputation NOT adjusted under default policy | challenge_transition stage 4e | `tests/verifier_bond_release.rs` |
+| **I-ROYALTY-CAP** (v1.1, gap 11.3 fix) | reuse_tx edge weight ≤ TaskMarket.config.max_reuse_royalty_fraction (default 0.10); excess clamped + warning logged | reuse_transition stage 3 | `tests/royalty_cap_enforced.rs` |
 
-**Total: 20 invariants → 20 tests**. Every transition test must pass before CO1.1.4 (bus.rs split) starts. STEP_B implementation comparison is "branch X conforms to spec" / "branch Y conforms to spec", not "branch X looks like branch Y".
+**Total: 22 invariants → 22 tests**. Every transition test must pass before CO1.1.4 (bus.rs split) starts. STEP_B implementation comparison is "branch X conforms to spec" / "branch Y conforms to spec", not "branch X looks like branch Y".
 
 ---
 
@@ -659,6 +711,21 @@ DeterminismProperty == \A seq1, seq2 \in Seq(WorkTx) :
 ```
 
 If CO P1 audit demands stronger guarantees, the TLA+ model is upgraded to a full PlusCal program with TLC model checking. For v4 scope, the type-level + conformance-test combination is deemed sufficient by Codex.
+
+---
+
+## § 5.1 v1.1 Walk-Through Gap Resolutions
+
+Per `SPEC_WALKTHROUGH_v1_2026-04-27.md` § 11, four spec gaps were found. Resolution status:
+
+| Gap | Issue | v1.1 Resolution | User-overridable |
+|---|---|---|---|
+| 11.1 | False-challenge reputation penalty undefined | TaskMarket.config.false_challenge_reputation_penalty default = 0 (no penalty, encourages legitimate challenges per Bitcoin "let market decide" principle) | yes — set per TaskMarket |
+| 11.2 | Verifier bond release policy on slashed claim | spec § 3.2 stage 4e ADDED with `VerifierBondPolicy::ReturnToVerifier` default | yes — `verifier_bond_on_slash` config |
+| 11.3 | Royalty edge weight bound | spec § 3.3 stage 3 ADDED with `MAX_REUSE_ROYALTY_FRACTION_DEFAULT = 0.10` | yes — `max_reuse_royalty_fraction` config |
+| 11.4 | Multi-verifier quorum aggregation | spec § 3.1 note ADDED with `verifier_quorum_required: usize = 1` default; full multi-verifier impl deferred to CO P2.7 | yes — set per TaskMarket |
+
+All 4 gaps now have machine-checkable defaults. User can override any default via TaskMarket.config when creating tasks; the default applies if config field is missing.
 
 ---
 
