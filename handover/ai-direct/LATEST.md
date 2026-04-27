@@ -47,14 +47,20 @@ Any phrase in v1 / Blueprint / Deepthink that asserts "ledger / blockchain is th
 - **Phase 4 entry blocker**: full constitutional merge OR formal retirement required before Permissioned ChainTape phase
 - **Conflict count**: N=3 § 10 escalations within 90 days → automatic suspension
 
-### Orphan finding (NOT caused by v2 work)
-`test_trust_root_simulated_write_aborts` at `experiments/minif2f_v4/tests/trust_root_immutability.rs:74` is **pre-existing failure at clean HEAD `fb63053`** — error: `expected Tampered, got Err(SectionMissing("constitution_root"))`. Likely test assertion outdated post-A8e13 boot.rs error-enum split. Deserves separate Wave 6 sweep atom; unrelated to v2.
+### Orphan finding (NOT caused by v2 work) — ✅ CLOSED 2026-04-27 (commit `9f42fb5`)
+`test_trust_root_simulated_write_aborts` at `experiments/minif2f_v4/tests/trust_root_immutability.rs:74` was **pre-existing failure at HEAD `fb63053`** — error: `expected Tampered, got Err(SectionMissing("constitution_root"))`.
+
+**Actual root cause** (corrects original "enum split" hypothesis): A8e13 added `verify_constitution_root_section` (CO1.0 v1) which short-circuits on missing `[constitution_root]` section before reaching the `Tampered` check. The fake genesis in this test predates A8e13 and only had `[pput_accounting_0]` + `[trust_root]`. Fix lifts the 8-key `[constitution_root]` block from `src/boot.rs::tests::write_single_entry_repo` (line 413-430).
+
+**Verification**: full workspace `cargo test --workspace` = **388/0/145** PASS (turingosv4 + minif2f_v4 + gix_capability spike). FC-trace `FC3-N34` (readonly subgraph; constitution.md line 670).
 
 ---
 
-**Updated**: 2026-04-27 — **Wave 5 path-α minimal closeout**: V-01 ceremonial kill (CO1.1.4-pre1.a) + INV8 dual audit closure (conservative VETO). 246/0 tests. ~$15-20 wave spend.
-**HEAD commit**: `fb63053` Wave 5 closeout (synced with origin/main).
-**Origin**: Wave 4 + Wave 5 all pushed.
+**Updated**: 2026-04-27 — **Wave 6-prep closeout**: Whitepaper v2.2 ratification (3-round dual audit) + Wave 6 hygiene orphan test fix + `/schedule` v2 sunset reminder (`trig_01QBPVhF3x6HXu5sVnWxSKok` fires 2026-12-18T09:00:00Z, T-14 before 2027-01-01 hard sunset).
+**HEAD commit**: `9f42fb5` Wave 6 hygiene (synced with origin/main).
+**Origin**: Wave 4 + Wave 5 + Wave 6-prep + Wave 6 hygiene all pushed.
+
+**Next-session entry**: 🔥 **CO1.7 transition_ledger spec v1** (Wave 6 #1 core; ChainTape Layer 4 spine; fills `OBS_QT_FIVE_ROOT_EXTENSION` ledger_root_t; unblocks #2 fixture corpus). Working tree clean for cold start.
 
 ## 🌊 Wave 5 Summary (2026-04-27 — path α)
 
