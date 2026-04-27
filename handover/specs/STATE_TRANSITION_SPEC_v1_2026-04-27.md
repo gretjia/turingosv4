@@ -1,6 +1,12 @@
-# State Transition Specification v1.3
+# State Transition Specification v1.4
 
-> **Date**: 2026-04-27 (v1.3 closes Codex CO1.SPEC.0.5 round-2 re-audit residuals)
+> **Date**: 2026-04-27 (v1.4 closes 4 cosmetic Codex round-3 PARTIAL items)
+>
+> **Patch v1.3 → v1.4 changes** (per Codex round-3 re-audit at `handover/audits/CODEX_SPEC_V13_REAUDIT_2026-04-27.md`):
+> - **§ 5.3 grep list cleanup** (Q1.1): patch log no longer claims `TaskMarketPublishTx` is RETIRED; it's a NEW transition deferred to CO P2.1. Conformance test grep includes only actually-retired symbols.
+> - **§ 3.2 challenge_transition + § 3.4 finalize_reward** (Q2.4): both now invoke `ChallengeWindow::is_open(now)` method (defined § 5.2.5 NEW); pseudocode no longer hand-codes the inequality.
+> - **§ 5.2.1 sequencer tie-break** (Q6): `next_logical_t()` is atomic; assigned `logical_t` IS the canonical tie-break for concurrent submissions; explicit prose added.
+> - **§ 2.5 + § 7 fixture corpus defer-ack** (Q5/NEW-5): canonical serialization RULE frozen v1.4; full golden fixture corpus + differential fuzz seed lands in CO1.1.4-pre1 + CO1.7 atoms (not v1.x spec scope).
 >
 > **Patch v1.2 → v1.3 changes** (per Codex re-audit verdict CHALLENGE/NO-GO at `handover/audits/CODEX_SPEC_V12_REAUDIT_2026-04-27.md`):
 > - **§ 3.6 task_expire_transition refactored** — removed runtime side effects from pure transition; runtime constructs+signs `TaskExpireTx` BEFORE pure entry; restores § 2 + § 3 pure-boundary discipline (Codex new-issue #1 fix)
@@ -315,7 +321,7 @@ fn bincode_canonical_config() -> bincode::config::Configuration {
 
 **STEP_B implication**: branches A and B both use this exact `bincode_canonical_config`; signature verification works cross-branch by construction.
 
-**Out of scope for v1.2** (deferred to CO P1 atom): full golden fixture corpus + differential fuzzing seed in fixtures. v1.2 specifies the FORMAT; CO1.1.4 atom generates the FIXTURES.
+**Out of scope for v1.x spec** (deferred per Codex Q5/NEW-5 round-3 PARTIAL acknowledgment): full golden fixture corpus + differential fuzzing seed + complete runner ABI for QState/SignalBundle/TransitionError. v1.4 freezes the SERIALIZATION RULE (bincode v2 big-endian + BTreeMap lex); fixtures + ABI land in **CO1.1.4-pre1** (canonical fixture corpus) + **CO1.7** (full ABI surface). This is an **explicit deferral** — not unresolved spec ambiguity. STEP_B branch A and branch B both implement the SAME bincode rule; per-tx digest matching is mechanical from v1.4. Full corpus generation is a downstream code task, not spec scope.
 
 ---
 
@@ -483,7 +489,8 @@ pub fn challenge_transition(
         .ok_or(TransitionError::TargetWorkTxNotFound)?;
     let window = q.economic_state_t.challenge_cases_t.get(tx.target_work_tx)
         .ok_or(TransitionError::ChallengeWindowClosed)?;
-    if tx.timestamp_logical >= window.opens_at + window.duration_ticks {
+    // v1.4: use ChallengeWindow::is_open(now) per § 5.2.5; same rule used by finalize_reward
+    if !window.is_open(tx.timestamp_logical) {
         return Err(TransitionError::ChallengeWindowClosed);
     }
 
@@ -636,8 +643,10 @@ pub fn finalize_reward_transition(
     let window = q.economic_state_t.challenge_cases_t.get(claim.target_work_tx);
 
     // STAGE 1: window must be expired AND no open slash
+    // v1.4: invoke ChallengeWindow::is_open(now) per § 5.2.5 with explicit `now` arg;
+    // same rule as challenge_transition stage 1
     if let Some(w) = window {
-        if w.is_open() {
+        if w.is_open(q.q_t.current_round) {
             return Err(TransitionError::ChallengeWindowStillOpen);
         }
         if w.outcome == Some(ChallengeOutcome::Slashed(_)) {
@@ -972,7 +981,35 @@ When N claims expire at the same `logical_t`:
 - `tests/cross_cell_isolation.rs` — 5 cells run; assert disjoint state_roots; no cross-contamination
 - `tests/finalize_batch_order.rs` — 3 claims expire same tick; assert ordering by (expires_at, claim_id); 2 runs byte-identical
 
-### 5.2.5 What This Does NOT Specify
+### 5.2.5 ChallengeWindow::is_open (v1.4 NEW per Codex Q2.4)
+
+```rust
+impl ChallengeWindow {
+    /// Half-open interval `[opens_at, opens_at + duration_ticks)`.
+    /// Both challenge_transition stage 1 AND finalize_reward stage 1 MUST invoke this method
+    /// (NOT hand-code the inequality) to guarantee consistent edge semantics.
+    pub fn is_open(&self, now: u64) -> bool {
+        now >= self.opens_at && now < self.opens_at + self.duration_ticks
+    }
+}
+```
+
+**Invariant binding**: `I-CHALLENGE-WINDOW-EDGE` enforces that BOTH transition functions call `is_open(now)` rather than hand-coding the boundary check. STEP_B branch A vs branch B both implement the same `is_open()`; cross-branch comparison verifies identical results for all (opens_at, duration_ticks, now) triples.
+
+### 5.2.6 Sequencer Tie-Break (v1.4 NEW per Codex Q6)
+
+When multiple agent threads concurrently call sequencer's `submit(tx)`, the sequencer's atomic `next_logical_t()` (§ 5.2.1 step 2) provides the **canonical tie-breaker**:
+
+- `logical_t` assignments are produced by atomic increment (e.g., `AtomicU64::fetch_add`)
+- The order in which threads receive their `logical_t` values IS the canonical ordering
+- "Submission order" = the order of `logical_t` assignment, NOT wall-clock arrival order
+- For two `tx` arriving at the same nanosecond on different threads, whichever thread wins the atomic gets the lower `logical_t`; the other gets the next higher
+
+This means: STEP_B branch A and branch B may serialize threads differently (depending on OS scheduler), but as long as both branches use atomic logical_t assignment + replay from the SAME logical_t sequence, they produce byte-identical state_roots.
+
+**Conformance test addition** (extends `tests/l4_sequencer_serialization.rs`): submit 100 tx concurrently from 8 threads; assert `(logical_t, tx_id_hash)` is a strict total order; replay produces deterministic state_root regardless of thread interleaving.
+
+### 5.2.7 What This Does NOT Specify
 
 - Async runtime choice (tokio vs std::thread): runtime concern, not spec; spec only requires sequencer property
 - Sequencer implementation: lock-free queue, mutex, channel — implementation detail

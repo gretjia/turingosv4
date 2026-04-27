@@ -200,10 +200,17 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 
 # 2026-04-27 Wave 1 — CO1.0a MicroCoin + CO1.0 [constitution_root] + walkthrough Inv 3 e2e.
 # Real Rust code; 27/27 tests PASS; data validates Inv 3 monetary conservation closure.
-"src/lib.rs" = "d0d206681c8b7abbbacd08a260db9680c9d8629e4a1b917138d1af2cd182138e"
+"src/lib.rs" = "d1472e038d326d73275ded7b63105869da0c0f03dc7f17a5550bab05d1c4d230"
 "src/economy/mod.rs" = "179e6991fea594a1bb40a4a5eab953cf282c9a135b53b23da7688adf0d12c28c"
 "src/economy/money.rs" = "5004a61712a5a1759c0ad3079c2b85a09116c39148afdc3c583812210294648c"
 "tests/walkthrough_inv3_conservation.rs" = "e1e7bc1130dfb3edb4eb1a7aa458557f1134879ae297eecb3e8d46a269434198"
+"src/top_white/mod.rs" = "69b18a5d4c33954c81dccd41d48de770ac1d951daaf655f3a76857d7b492a4af"
+"src/top_white/predicates/mod.rs" = "3d04c1eaa09c65faf9afc038b275df5d2d7fa23b983ec38c1ad8f910f2841e28"
+"src/top_white/predicates/visibility.rs" = "b423f13c7b5b64909d9859901190517b529697fcce400c6ba100d0c48ca57b82"
+"src/top_white/predicates/registry.rs" = "d993e60c499f69ae2ae74e87a25a59595176ad4e43451bd1024c7d3e78b8d581"
+"src/bottom_white/mod.rs" = "8e66a00b6d3a3e93f320d4c6ce0fc5cf62a25a79d88cd1d8dead109d9be0add8"
+"src/bottom_white/tools/mod.rs" = "3d04d5f8309fdf949334e00e949681545f21f150a4bdbcdf86b32c2f54122180"
+"src/bottom_white/tools/registry.rs" = "4ed18dcd2a7d7641663ccbdb66c895cb31cd68f4de3bddad8b5d4902633cc387"
 "handover/audits/CODEX_SPEC_V13_REAUDIT_2026-04-27.md" = "494600e0d0e01a8d128e46e6272e2d4dd691a3d4089cca02b400ad4e3d9bc94e"
 "handover/whitepapers/TURINGOS_v4_FINAL_BLUEPRINT_2026-04-26.md" = "66de2382248042023538d65fcd04b99cb5f33110727bcebe723ed40cc9c845fa"
 "handover/architect-insights/CO_MEGA_PLAN_v3.1_2026-04-26.md" = "d275597dd83d79c0459093f2b3ee4a7a882a444f1c58a5f1c7688af920c82afc"
@@ -214,7 +221,7 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 # Trigger: Codex T+S re-review (3 VETOs) + Gemini v3.2 cross-review (2 VETOs).
 # 4 new specs (state transition / genesis schema / Art 0.2 reinterpretation / system keypair / metatx) +
 # Plan v3.2 + 2 audit artifacts (Codex T+S, Gemini v3.2) trust-rooted as load-bearing.
-"handover/specs/STATE_TRANSITION_SPEC_v1_2026-04-27.md" = "bda052e76392f37039759361acc0bbe7b8b9b1a7bc17c2438d01ee7b4ffbe497"
+"handover/specs/STATE_TRANSITION_SPEC_v1_2026-04-27.md" = "977d2dec9136a158b6361cb1a900913ab3f83dac39b084cde5c575d1787550a0"
 "handover/specs/GENESIS_MINIMAL_WITH_ANCHOR_v1_2026-04-27.md" = "fc82ef00874d8d8dba887ad7d8939a14253b080c71f55537fa1d20c7b0a7c113"
 "handover/specs/ART_0_2_REINTERPRETATION_2026-04-27.md" = "ec94a937abd3c5380bef4d40de7f589a1752942ac70a6f8a80b26a7ffb79236e"
 "handover/specs/SYSTEM_KEYPAIR_SECURITY_v1_2026-04-27.md" = "3dcaba85c31f834a00ea56591f4a663fb74b7b5643895fb96099f3d0de7fa38d"
