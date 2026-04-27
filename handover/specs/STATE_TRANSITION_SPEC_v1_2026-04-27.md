@@ -1,6 +1,15 @@
-# State Transition Specification v1.2
+# State Transition Specification v1.3
 
-> **Date**: 2026-04-27 (v1.2 closes BOTH Codex + Gemini final freeze audit findings)
+> **Date**: 2026-04-27 (v1.3 closes Codex CO1.SPEC.0.5 round-2 re-audit residuals)
+>
+> **Patch v1.2 → v1.3 changes** (per Codex re-audit verdict CHALLENGE/NO-GO at `handover/audits/CODEX_SPEC_V12_REAUDIT_2026-04-27.md`):
+> - **§ 3.6 task_expire_transition refactored** — removed runtime side effects from pure transition; runtime constructs+signs `TaskExpireTx` BEFORE pure entry; restores § 2 + § 3 pure-boundary discipline (Codex new-issue #1 fix)
+> - **§ 3.6 stage 3 expiry guard broadened** — refund only if NO claim of ANY status exists for task; prevents race with Pending/Provisional claims (Codex new-issue #2 fix)
+> - **§ 3.6.5 agent_implicit_init refactored** — introduce `HasSubmitter` trait with per-tx `submitter_id()` methods; resolves WorkTx vs VerifyTx vs ChallengeTx vs ReuseTx field-name divergence; `ReuseTx` returns None (intentional; reuse facts have no submitter) (Codex new-issue #3 fix)
+> - **I-FINALIZE-BATCH-ORDER + § 5.2.3 + test all use `claim_id`** consistently (was 3-way contradiction with `target_work_tx`) (Codex new-issue #4 fix)
+> - **I-CHALLENGE-WINDOW-EDGE binding** — `is_open(now)` defined as `now < opens_at + duration_ticks`; both challenge_transition AND finalize_reward MUST use same `is_open()` rule (Codex Q2.4 fix)
+> - **§ 5.1 false-challenge prose cleanup** — removed "User can override any default" generality where 11.1 is in fact NOT overridable in v4
+> - **§ 6 (NEW) Legacy economic tx disposition** — InvestTx / TaskMarketPublishTx / MarketCreateTx / MarketResolveTx explicitly retired in CO1.1.4 atom (Codex Q1.1 NOT-CLOSED fix)
 >
 > **Patch v1.1 → v1.2 changes** (per Codex+Gemini CO1.SPEC.0.5 dual audit, 2026-04-27):
 > - **§ 2 hidden-input table EXPANDED** — added HAYEK_BOUNTY, BOUNTY_LP, Boltzmann params, BOLTZMANN_SEED, async ordering boundary, WAL/git commit boundary, full HashMap scope, f64 royalty math
@@ -16,7 +25,7 @@
 > **Patch v1 → v1.1 changes** (per SPEC_WALKTHROUGH gap fixes, 2026-04-27):
 > - § 3.2 (challenge_transition) stage 4e ADDED: verifier_bond release policy (default = return to verifier; configurable)
 > - § 3.3 (reuse_transition) stage 3 AMENDED: edge weight bounded by `MAX_REUSE_ROYALTY_FRACTION` config (default = 0.10)
-> - § 3.2 (challenge_transition) stage 4d AMENDED: false-challenge reputation penalty config (default = 0; configurable)
+> - § 3.2 (challenge_transition) stage 4d AMENDED: false-challenge reputation penalty (v1.3 update: **fixed to 0 in v4; NOT configurable**; previous v1.1 patch log saying "configurable" is OBSOLETE)
 > - § 3.1 (verify_transition) note ADDED: quorum-aggregation rule placeholder (default = 1; configurable)
 > - § 4 invariants ADDED: I-VBOND-RELEASE / I-ROYALTY-CAP
 > - § 11 (Found Inconsistencies) — promoted from SPEC_WALKTHROUGH § 11
@@ -686,79 +695,117 @@ pub fn finalize_reward_transition(
 }
 ```
 
-### 3.6 task_expire_transition (v1.2 NEW per Gemini + Codex Q1/Q2)
+### 3.6 task_expire_transition (v1.3 refactored: pure boundary preserved per Codex re-audit)
 
 **Why**: a TaskMarket entry has a deadline; if no work_tx is accepted by deadline, the bounty MUST refund to task creator (otherwise Inv 3 monetary conservation broken: bounty trapped in escrow forever).
 
+**v1.3 fix**: split runtime side effects (signing, logical time assignment) from pure transition. Runtime constructs `TaskExpireTx` BEFORE entering pure transition; pure `task_expire_transition` takes already-signed tx as argument. This restores § 2 + § 3 pure-boundary discipline (Codex Q1.3 + new-issue #1 fix).
+
 ```rust
+// PURE transition (used by both branch A and branch B in STEP_B)
 pub fn task_expire_transition(
     q: &QState,
-    task_id: TaskId,
-    runtime: &Runtime,
+    tx: &TaskExpireTx,    // v1.3: already-signed by runtime BEFORE entry
 ) -> Result<(QState, SignalBundle), TransitionError> {
-    let task = q.economic_state_t.task_markets_t.get(task_id)
+    let task = q.economic_state_t.task_markets_t.get(tx.task_id)
         .ok_or(TransitionError::TaskNotFound)?;
 
-    // STAGE 1: expiry check — task must be expired AND have no finalized claim
+    // STAGE 1: signature verification (system signature; not agent)
+    if !verify_system_signature(&tx.system_signature, &tx, q.system_pubkey_at_epoch(tx.epoch)) {
+        return Err(TransitionError::InvalidSystemSignature);
+    }
+
+    // STAGE 2: parent_state_root match (stale view rejection)
+    if tx.parent_state_root != q.state_root_t {
+        return Err(TransitionError::StaleParent);
+    }
+
+    // STAGE 3: expiry check — task must be expired AND have NO Pending OR Provisional OR Finalized claim
+    // v1.3 fix (Codex new-issue #2): broaden race-protection from "Finalized only" to all claim statuses
     if task.deadline_logical_t > q.q_t.current_round {
         return Err(TransitionError::TaskNotExpired);
     }
-    if q.economic_state_t.claims_t.has_finalized_for_task(task_id) {
-        return Err(TransitionError::TaskAlreadyFinalized);
+    if q.economic_state_t.claims_t.any_claim_for_task(tx.task_id) {
+        return Err(TransitionError::TaskHasOpenClaim);    // refund only if NO claim exists at all
     }
 
-    // STAGE 2: refund bounty from escrow to task creator
+    // STAGE 4: refund bounty from escrow to task creator
     let mut q_next = q.clone();
-    let bounty = q.economic_state_t.escrows_t.get(task_id);
-    q_next.economic_state_t.escrows_t.refund(task_id);
+    let bounty = q.economic_state_t.escrows_t.get(tx.task_id);
+    q_next.economic_state_t.escrows_t.refund(tx.task_id);
     q_next.economic_state_t.balances_t.credit(task.creator, bounty);
 
-    // STAGE 3: also refund any solver stakes still locked on expired task
-    // (solvers who attempted but didn't win; their stakes were locked at work_tx submission)
-    for (agent, locked_stake) in q.economic_state_t.stakes_t.all_locked_for_task(task_id) {
-        q_next.economic_state_t.stakes_t.unlock(agent, task_id);
+    // STAGE 5: refund any solver stakes still locked on expired task
+    for (agent, locked_stake) in q.economic_state_t.stakes_t.all_locked_for_task(tx.task_id) {
+        q_next.economic_state_t.stakes_t.unlock(agent, tx.task_id);
         q_next.economic_state_t.balances_t.credit(agent, locked_stake);
     }
 
-    // STAGE 4: remove task from active markets
-    q_next.economic_state_t.task_markets_t.remove(task_id);
+    // STAGE 6: remove task from active markets
+    q_next.economic_state_t.task_markets_t.remove(tx.task_id);
 
-    // STAGE 5: append + materialize + emit signal
-    let expire_tx = TaskExpireTx {
-        tx_id: TxId::derive(task_id, "expire"),
-        task_id,
-        bounty_refunded: bounty,
-        timestamp_logical: runtime.next_logical_t(),
-        system_signature: runtime.system_keypair().sign(canonical_digest(&...)),
-    };
-    q_next.ledger_root_t = ledger::append(&q.ledger_root_t, &expire_tx);
-    q_next.state_root_t = materializer::apply(&q.state_root_t, &expire_tx);
-    q_next.head_t = NodeId::from_state_root(q_next.state_root_t);
+    // STAGE 7: append + materialize + signal (purely on tx, q)
+    q_next.ledger_root_t = ledger::append(&q.ledger_root_t, tx);
+    q_next.state_root_t  = materializer::apply(&q.state_root_t, tx);
+    q_next.head_t        = NodeId::from_state_root(q_next.state_root_t);
 
-    let signals = SignalBundle::task_expired(task_id, bounty);
+    let signals = SignalBundle::task_expired(tx.task_id, bounty);
 
     Ok((q_next, signals))
 }
+
+// TaskExpireTx schema (v1.3 NEW typed schema):
+pub struct TaskExpireTx {
+    pub tx_id: TxId,
+    pub task_id: TaskId,
+    pub parent_state_root: Hash,
+    pub bounty_refunded: MicroCoin,         // for ledger summary; runtime computes from q
+    pub epoch: SystemEpoch,                  // which keypair signed
+    pub timestamp_logical: u64,              // assigned by runtime BEFORE pure transition
+    pub system_signature: SystemSignature,   // computed by runtime BEFORE pure transition
+}
 ```
 
-**Trigger**: `task_expire_transition` is emitted by runtime when its tick crosses `task.deadline_logical_t`. NOT submitted by any agent.
+**Trigger**: runtime tick scans for expired tasks; for each, runtime:
+1. Calls `runtime.next_logical_t()` to get next logical_t
+2. Constructs `TaskExpireTx` with current `q.state_root_t` as parent
+3. Signs `TaskExpireTx` via `runtime.system_keypair().sign(canonical_digest(&tx))`
+4. Submits signed tx to L4 sequencer (§ 5.2.1)
+5. Sequencer calls pure `task_expire_transition(q, &tx)`
 
-### 3.6.5 Agent Implicit Init (v1.2 NEW per Gemini Q2 sub-finding I-AGENT-INIT)
+This split is identical to how `WorkTx` is constructed by agent BEFORE submitting to pure `step_transition`. Agents construct + sign; runtime constructs + sign for system tx. Pure transition fn is `(q, tx) → (q', signals)` in BOTH cases.
+
+### 3.6.5 Agent Implicit Init (v1.3 fixed: trait-based submitter resolution per Codex re-audit Q1.4)
 
 **Where**: applies to ALL agent-submitted transitions (work_transition / verify_transition / challenge_transition / reuse_transition). Inline at stage 4 of each, before user-state mutations.
 
-**Rule**: an agent's first appearance in L4 IMPLICITLY initializes their state in `q_t.agents`:
+**v1.3 fix**: WorkTx has `agent_id`; VerifyTx has `verifier_agent`; ChallengeTx has `challenger_agent`; ReuseTx has no submitting-agent field (it's a fact-tx). Introduce a `Tx::submitter_id() -> Option<AgentId>` trait method that each tx implements explicitly:
 
 ```rust
-// Insert at start of stage 4 of every agent-submitted transition:
-if !q_next.q_t.agents.contains_key(&tx.agent_id) {
-    q_next.q_t.agents.insert(tx.agent_id.clone(), PerAgentState {
-        reputation_snapshot: Reputation::default_initial(),    // = 0
-        last_accepted_tx: None,
-        retry_counter_for_current_task: 0,
-    });
+pub trait HasSubmitter {
+    fn submitter_id(&self) -> Option<AgentId>;
+}
+
+impl HasSubmitter for WorkTx       { fn submitter_id(&self) -> Option<AgentId> { Some(self.agent_id.clone()) } }
+impl HasSubmitter for VerifyTx     { fn submitter_id(&self) -> Option<AgentId> { Some(self.verifier_agent.clone()) } }
+impl HasSubmitter for ChallengeTx  { fn submitter_id(&self) -> Option<AgentId> { Some(self.challenger_agent.clone()) } }
+impl HasSubmitter for ReuseTx      { fn submitter_id(&self) -> Option<AgentId> { None }    // ReuseTx has no submitting agent; reuse facts derive from L4 read_set }
+
+// In each agent-submitted transition's stage 4, INLINE this snippet:
+fn implicit_init_agent_if_new(q_next: &mut QState, tx: &impl HasSubmitter) {
+    if let Some(submitter) = tx.submitter_id() {
+        if !q_next.q_t.agents.contains_key(&submitter) {
+            q_next.q_t.agents.insert(submitter, PerAgentState {
+                reputation_snapshot: Reputation::default_initial(),    // = 0
+                last_accepted_tx: None,
+                retry_counter_for_current_task: 0,
+            });
+        }
+    }
 }
 ```
+
+**Rule**: each transition function MUST call `implicit_init_agent_if_new(&mut q_next, tx)` as the FIRST statement of stage 4 (after stage 3 predicate gate, before any user-state mutation). For `ReuseTx`, `submitter_id()` returns None; no init happens; that's intentional (ReuseTx has no submitting agent to init).
 
 **Why implicit (not explicit `register_agent_transition`)**:
 - Satoshi parallel: Bitcoin addresses are implicitly created at first use; no separate register step
@@ -832,8 +879,8 @@ pub fn emit_terminal_summary_transition(
 | **I-ROYALTY-CAP** (v1.1, gap 11.3 fix) | reuse_tx edge weight ≤ TaskMarket.config.max_reuse_royalty_fraction (default 0.10); excess clamped + warning logged | reuse_transition stage 3 | `tests/royalty_cap_enforced.rs` |
 | **I-STAKE-RETURN** (v1.2 NEW per Gemini Q2 + Codex Q2) | Successful unchallenged finalize_reward returns + unlocks solver's locked stake exactly once (in addition to reward credit). Test attempts double-claim. | finalize_reward_transition stage 3a | `tests/stake_return_on_finalize.rs` |
 | **I-BOUNTY-REFUND** (v1.2 NEW per Gemini Q2 + Codex Q2) | task_expire_transition refunds full bounty to creator + refunds any locked solver stakes when no claim finalized by deadline | task_expire_transition stages 2-3 | `tests/bounty_refund_on_expire.rs` |
-| **I-FINALIZE-BATCH-ORDER** (v1.2 NEW per Codex Q2) | When N claims become finalizable at the same logical_t, finalize_tx emit order is `(expires_at ASC, claim_id ASC)`; deterministic + reproducible | runtime finalize loop | `tests/finalize_batch_order.rs` |
-| **I-CHALLENGE-WINDOW-EDGE** (v1.2 NEW per Codex Q2) | Challenge window is `[opens_at, opens_at + duration_ticks)` — left-inclusive, right-exclusive. Same rule used by both challenge_transition stage 1 + finalize_reward stage 1. | challenge_transition + finalize_reward_transition | `tests/challenge_window_edge.rs` |
+| **I-FINALIZE-BATCH-ORDER** (v1.3 corrected: single key throughout) | When N claims become finalizable at the same logical_t, finalize_tx emit order is `(expires_at_logical ASC, claim_id ASC)` — `claim_id` (NOT `target_work_tx`) used everywhere: invariant + § 5.2.3 + conformance test all consistent. | runtime finalize loop + § 5.2.3 | `tests/finalize_batch_order.rs` |
+| **I-CHALLENGE-WINDOW-EDGE** (v1.3 finalize binding fixed) | Challenge window is `[opens_at, opens_at + duration_ticks)` — left-inclusive, right-exclusive. `is_open(now)` defined as `now < opens_at + duration_ticks`. **Both** challenge_transition stage 1 AND finalize_reward stage 1 MUST use `is_open(q.q_t.current_round)` (NOT a different rule). | challenge_transition + finalize_reward_transition | `tests/challenge_window_edge.rs` |
 | **I-AGENT-INIT** (v1.2 NEW per Gemini Q2) | First appearance of agent in L4 transition tx implicitly initializes q_t.agents[id] with reputation=0; subsequent appearances do not re-initialize | work/verify/challenge/reuse_transition stage 4 | `tests/agent_implicit_init.rs` |
 
 **Total: 27 invariants → 27 tests** (was 22 in v1.1; +5 in v1.2). Every transition test must pass before CO1.1.4 (bus.rs split) starts. STEP_B implementation comparison is "branch X conforms to spec" / "branch Y conforms to spec", not "branch X looks like branch Y".
@@ -883,7 +930,7 @@ Per `SPEC_WALKTHROUGH_v1_2026-04-27.md` § 11, four spec gaps were found. Resolu
 | 11.3 | Royalty edge weight bound | spec § 3.3 stage 3 ADDED with `MAX_REUSE_ROYALTY_FRACTION_DEFAULT = 0.10` | yes — `max_reuse_royalty_fraction` config |
 | 11.4 | Multi-verifier quorum aggregation | spec § 3.1 note ADDED with `verifier_quorum_required: usize = 1` default; full multi-verifier impl deferred to CO P2.7 | yes — set per TaskMarket |
 
-All 4 gaps now have machine-checkable defaults. User can override any default via TaskMarket.config when creating tasks; the default applies if config field is missing.
+All 4 gaps now have machine-checkable defaults. User can override 11.2/11.3/11.4 defaults via TaskMarket.config when creating tasks; the default applies if config field is missing. **11.1 (false-challenge penalty) is NOT user-overridable in v4** (fixed to 0; v4.1+ may introduce a separate `failed_challenge_penalty_transition` if needed).
 
 ---
 
@@ -915,7 +962,7 @@ If a future deployment shares runtime_repo across cells (e.g., multi-tenant): MU
 ### 5.2.3 Finalize Batch Order
 
 When N claims expire at the same `logical_t`:
-- Order = `(claim.expires_at ASC, claim.target_work_tx ASC)` (stable, deterministic)
+- Order = `(claim.expires_at_logical ASC, claim.claim_id ASC)` (stable, deterministic) — v1.3 fix: uses `claim_id` consistently (NOT `target_work_tx`) to align with `I-FINALIZE-BATCH-ORDER` invariant + conformance test
 - Sequencer emits `finalize_reward_transition` ONE AT A TIME in this order
 - Each finalize advances state_root before next finalize starts
 
@@ -930,6 +977,24 @@ When N claims expire at the same `logical_t`:
 - Async runtime choice (tokio vs std::thread): runtime concern, not spec; spec only requires sequencer property
 - Sequencer implementation: lock-free queue, mutex, channel — implementation detail
 - Cross-cell sharing pattern (post-v4): future v4.x extension
+
+## § 5.3 Legacy Economic Tx Disposition (v1.3 NEW per Codex Q1.1)
+
+The current pre-CO-P1 codebase contains economic mutation surfaces in `src/bus.rs` and `src/kernel.rs` that have NO direct equivalent in v1.x typed transitions:
+
+| Legacy mutation | Current location | v4 disposition |
+|---|---|---|
+| `Invest` event (agent stakes Coin to YES/NO market position) | `src/bus.rs:229-252,285-290` `handle_invest_only` + market interactions | **RETIRED in CO1.1.4** — agent staking now goes through `WorkTx.stake` (YES_E) or `ChallengeTx.stake` (NO_E); no separate InvestTx. |
+| `TaskMarketPublish` (task creator publishes new task) | implicit in current code; tasks hardcoded | **NEW v1 transition (deferred to CO P2.1)** — `TaskMarketPublishTx` lands in CO P2.1 atom; v1.x spec stubs the schema only |
+| `MarketCreate` (per-node market on each tape append) | `src/bus.rs:285-290` + `src/kernel.rs:114-126` `Kernel::create_market` | **RETIRED in CO1.1.5** — per-node markets are an artifact of the Phase A "every node = market" pattern; CO P2.1 TaskMarket replaces with per-task markets only |
+| `MarketResolve` (settle markets at OMEGA accept) | `src/kernel.rs:156-206` `Kernel::resolve_all` | **RETIRED in CO1.1.5** — market resolution becomes part of `finalize_reward_transition` (per-task, per-claim); no separate market-resolve event |
+| `RunEnd` / `halt_and_settle` (run-level settlement) | `src/bus.rs:355-375` `TuringBus::halt_and_settle` | **RETIRED in CO1.1.4** — run-end becomes implicit via `TerminalSummaryTx` (§ 3.7) for no-accept runs OR `finalize_reward_transition` for accepted runs |
+| WAL append side effect | `src/bus.rs:273-282` + `:319-327` | **MOVED to runtime layer**, not transition: spec § 5.2.1 sequencer commits L4 entries AFTER pure `step_transition` returns |
+| Tool post-append hook | `src/bus.rs:312-318` `tool.on_post_append()` | **RETIRED**: tool hooks become explicit ToolInvocation field in `WorkTx.write_set` (read by predicate runner); no separate hook |
+
+**Conformance test**: `tests/legacy_economic_tx_retired.rs` greps post-CO1.1.4/CO1.1.5 codebase for: `Invest` event variant, `Kernel::create_market`, `Kernel::resolve_all`, `halt_and_settle`, `tool.on_post_append`. Each must return 0 hits in the new `src/{top_white,middle_black,bottom_white,economy,state,transition}/*` dirs (matches in old `src/{bus,kernel}.rs` ARE expected if those files still exist as legacy markers; CO1.1.4 atom retires them).
+
+**Why retired-not-renamed**: each legacy operation is either (a) absorbed into a v1.x typed transition (Invest → WorkTx.stake; Resolve → finalize_reward) OR (b) moved to runtime layer (WAL append; tool hook). Direct rename would preserve the old monolithic semantics.
 
 ## § 6 What This Spec DOES NOT Specify
 

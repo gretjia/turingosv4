@@ -172,6 +172,7 @@ n_max = 34
 # Codex audit in flight; will commit additional entry when complete.
 "handover/audits/GEMINI_SPEC_FREEZE_AUDIT_2026-04-27.md" = "a2e5d954b061cb43e17e6f66f2fe94a71cfd8160194dfa96789da02e8e633225"
 "handover/audits/CODEX_SPEC_FREEZE_AUDIT_2026-04-27.md" = "4cb0ba5b5665a98c9601852f48ebfbb40fc2f3e9fe67bd7e7c104eac25019aab"
+"handover/audits/CODEX_SPEC_V12_REAUDIT_2026-04-27.md" = "57dc9d19944b8257ddb159f284b389938bc541996607df95989af4f76a6bbf81"
 "handover/whitepapers/TURINGOS_v4_FINAL_BLUEPRINT_2026-04-26.md" = "66de2382248042023538d65fcd04b99cb5f33110727bcebe723ed40cc9c845fa"
 "handover/architect-insights/CO_MEGA_PLAN_v3.1_2026-04-26.md" = "d275597dd83d79c0459093f2b3ee4a7a882a444f1c58a5f1c7688af920c82afc"
 "handover/architect-insights/TRI_MODEL_ORCHESTRATION_PROTOCOL_2026-04-26.md" = "6b1e142d1608cf1ca1d193ec30a95c96fb133ac3f196dca30a58e91e647ce772"
@@ -181,12 +182,12 @@ n_max = 34
 # Trigger: Codex T+S re-review (3 VETOs) + Gemini v3.2 cross-review (2 VETOs).
 # 4 new specs (state transition / genesis schema / Art 0.2 reinterpretation / system keypair / metatx) +
 # Plan v3.2 + 2 audit artifacts (Codex T+S, Gemini v3.2) trust-rooted as load-bearing.
-"handover/specs/STATE_TRANSITION_SPEC_v1_2026-04-27.md" = "bc6008f008679bf97b88a5f31cb9594264bcbbf494fd9e7b0e01c17809fb7dcc"
+"handover/specs/STATE_TRANSITION_SPEC_v1_2026-04-27.md" = "bda052e76392f37039759361acc0bbe7b8b9b1a7bc17c2438d01ee7b4ffbe497"
 "handover/specs/GENESIS_MINIMAL_WITH_ANCHOR_v1_2026-04-27.md" = "fc82ef00874d8d8dba887ad7d8939a14253b080c71f55537fa1d20c7b0a7c113"
 "handover/specs/ART_0_2_REINTERPRETATION_2026-04-27.md" = "ec94a937abd3c5380bef4d40de7f589a1752942ac70a6f8a80b26a7ffb79236e"
 "handover/specs/SYSTEM_KEYPAIR_SECURITY_v1_2026-04-27.md" = "3dcaba85c31f834a00ea56591f4a663fb74b7b5643895fb96099f3d0de7fa38d"
 "handover/specs/META_TX_SCHEMA_v1_2026-04-27.md" = "d614b05894948cacd3329ad5208018988110a23669663d7c605d718cb5e7fcf1"
-"handover/architect-insights/CO_MEGA_PLAN_v3.2_2026-04-27.md" = "d7d1321c31c6b856bfcc8ec216cf56683a8d56e1751398d666853cc105cdde51"
+"handover/architect-insights/CO_MEGA_PLAN_v3.2_2026-04-27.md" = "a6419e8d227da6b8466189612d4b88aeb22ae1fb4547b6b96062ba58677f6e25"
 "handover/audits/CODEX_T_S_REVIEW_2026-04-27.md" = "249309ac1f9db36a602abbe62e56105a14c0c1f05a2e00a21bf34235b30db223"
 "handover/audits/GEMINI_V32_REVIEW_2026-04-27.md" = "73f940b137d7de32bbc0a829fa422b93407ca92f684b6659d38e3becb14284c4"
 "handover/architect-insights/RATIFICATION_2026-04-27.md" = "d1f25eea0242a2cbdedc2eb46a25c45c166368419a0a3a470cc5f66304722e25"

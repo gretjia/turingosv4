@@ -200,25 +200,26 @@ Total: 4 atoms; ~1 day.
    └─→ [CO P1 entry GATE]
 
 [CO P1]
- ├─ CO1.SPEC.0 state-transition spec gate (3-5 d)
+ ├─ CO1.SPEC.0 state-transition spec gate (3-5 d) — v1.3 PASS/PASS GATE before code starts
  │   └─ BLOCKS → CO1.1.4 / CO1.1.5
  ├─ CO1.3.1 gix substrate spike FIRST (5 d, time-boxed)
  │   └─ failure → git2-rs pivot Plan v3.3
  ├─ CO1.0 minimal-with-anchor genesis (~1 wk, 6 atoms)
+ ├─ **CO1.0a i64 MicroCoin money type (v3.2-fix2 promoted from P2.0a; ~3-5 d; BLOCKING for CO1.7)** ← critical path
+ │   └─ BLOCKS → CO1.7 + all later monetary work
  ├─ CO1.1.1-3 skeleton + safe moves (~3 d)
  ├─ CO1.1.4-pre1 kill completion_tokens (~half d) — single ceremonial commit
- ├─ CO1.1.4 bus split (STEP_B against spec) (~1.5 wk)
- ├─ CO1.1.5 kernel split (STEP_B against spec) (~1.5 wk)
+ ├─ CO1.1.4 bus split (STEP_B against spec) (~1.5 wk) — RETIRES legacy InvestTx / MarketCreate / RunEnd / WAL hook (per spec § 5.3)
+ ├─ CO1.1.5 kernel split (STEP_B against spec) (~1.5 wk) — RETIRES legacy MarketCreate / MarketResolve (per spec § 5.3)
  ├─ CO1.2-1.6 standard atoms (~4-5 wk)
- ├─ CO1.7 transition ledger + retry metadata (~2 wk)
+ ├─ CO1.7 transition ledger + retry metadata (~2 wk; depends on CO1.0a MicroCoin)
  ├─ CO1.8-1.13 standard atoms
  └─ CO1.14 P1 exit dual audit
    │
    └─→ [CO P2 entry GATE]
 
 [CO P2]
- ├─ CO P2.0a i64 micro-coin (BLOCKING; ~3-5 d)
- │   └─ BLOCKS → CO P2.1+
+ ├─ ~~CO P2.0a i64 micro-coin~~ DEPRECATED — promoted to CO1.0a (P1)
  ├─ CO P2.0 Inv 4 precondition
  ├─ CO P2.1-2.10 standard
  ├─ CO P2.4.0 spike (Inv 8 DAG determinism) BLOCKS CO P2.4.1+
