@@ -229,7 +229,7 @@ Format: `<Date> <Decision-ID>: <Question>` → table of options with fate.
 | **CO1.10 Signal dichotomy** | 🟢 ready | new module |
 | **CO1.11 Safety vs Creation** | 🟢 ready | uses PredicateRegistry |
 | **CO1.13 TRACE_MATRIX impl + R-022 hook** | 🟢 ready | tooling layer |
-| **CO P2.4.0 INV8 DAG spike** | 🟢 ready | independent spike |
+| **CO P2.4.0 INV8 DAG spike** | 🚫 **VETOED 2026-04-27 Wave 5-A** (Codex 4 VETO + 5 CHALLENGE; Gemini PASS; conservative VETO wins). Spec v1 NOT cleared. v2 revision required. | independent spike (post-revision) |
 | **CO P3-prep.2 MetaProposalDraft CAS** | 🟢 ready (CAS done) | uses CO1.4 |
 
 **Subtotal**: ~14 atoms can start; 1 still blocked (CO1.1.2 wal/ledger move — STEP_B file).
@@ -440,7 +440,7 @@ gix as substrate library                       ⛔ pivoted to git2-rs (spike dat
 
 ## § 9 One-Sentence Status (TL;DR)
 
-> v4 has finished CO P0 + Wave 1-4 (gix→git2-rs spike + CO1.0 + 1.0a + 1.4 + 1.5 + 1.6 + walkthrough Inv 3 e2e + **CO1.2 Q_t + CO1.7.0a-f keypair + spec v1.4 round-4 PASS/PASS**); 244/0 lib+integration tests PASS; constitutional + WP authority chain ratified; spec round-4 PASS unblocks CO1.1.4 / 1.1.5 / 1.7 / 1.7.5 STEP_B atoms; ~14 green-field atoms unblocked; 4 constitutional ceremonies AVAILABLE pending user; budget at ~5-9% of $890 (Wave 4 audits ~$22-25).
+> v4 has finished CO P0 + Wave 1-4 + Wave 5-C (V-01 ceremonial kill); 246/0 tests PASS; constitutional + WP chain ratified; spec round-4 PASS unblocks CO1.1.4 / 1.1.5 / 1.7 STEP_B; **Wave 5-A INV8 dual audit RESULT: Codex VETO / Gemini PASS → conservative VETO** (4 VETO: concurrent parent tie-break SILENT / multi-parent weight contradiction / assert_acyclic broken / not implement-ready). INV8 spec v2 revision required before CO P2.4 implementation. Wave 5-B CO1.7 transition_ledger NOT started this session (deferred Wave 6 with D/E STEP_B). Budget ~$70-110 of $890 cumulative.
 
 ---
 

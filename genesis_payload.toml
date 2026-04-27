@@ -236,7 +236,7 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 "handover/audits/CODEX_T_S_REVIEW_2026-04-27.md" = "249309ac1f9db36a602abbe62e56105a14c0c1f05a2e00a21bf34235b30db223"
 "handover/audits/GEMINI_V32_REVIEW_2026-04-27.md" = "73f940b137d7de32bbc0a829fa422b93407ca92f684b6659d38e3becb14284c4"
 "handover/architect-insights/RATIFICATION_2026-04-27.md" = "d1f25eea0242a2cbdedc2eb46a25c45c166368419a0a3a470cc5f66304722e25"
-"handover/architect-insights/PROJECT_DECISION_MAP_2026-04-27.md" = "d8e5268e229d9c985005f092a2282d7d0dfe8e697578e653032caad2955d584c"
+"handover/architect-insights/PROJECT_DECISION_MAP_2026-04-27.md" = "411dab4b92c1c65586b9751b6e08114e142546c251707ae51373c66b65d7ab0b"
 
 # 2026-04-27 auto-research bundle (post-ratification; +3 entries; 58 → 61).
 # All doc-only, all reversible, all within ratified Plan v3.2-fix1 scope:
@@ -288,3 +288,6 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 "handover/audits/run_gemini_spec_v14_round4_audit.py" = "723a219675ca7848f44097bd790de69fd04d63ab9149977a5bd89d3a6f4af889"
 "handover/audits/CODEX_CO1_2_QSTATE_AUDIT_2026-04-27.md" = "668efc2ceb1eb903448ee80be8fa0faf7ea0c36f28c900acc76e772834224515"
 "handover/audits/CLAUDE_AUDITOR_CO1_7_0AF_KEYPAIR_2026-04-27.md" = "b25ec54386eb9de22ef8552ee9f251c27f51e43c86058f2dda858dc368d0ceb6"
+
+# 2026-04-27 Wave 5-A INV8 dual external audit (Codex VETO / Gemini PASS → conservative VETO; spec v1 NOT cleared).
+"handover/audits/CODEX_INV8_DAG_AUDIT_2026-04-27.md" = "680dbea2083e6eccd697d3f56752898b5c4ae582c7375b6467e265dc3a721216"
