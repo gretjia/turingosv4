@@ -29,8 +29,10 @@ use crate::economy::money::MicroCoin;
 pub struct Hash(pub [u8; 32]);
 
 impl Hash {
+    /// TRACE_MATRIX § 1.1 — additive identity (genesis state-root, ledger-root, etc.).
     pub const ZERO: Hash = Hash([0u8; 32]);
 
+    /// TRACE_MATRIX § 1.1 — construct from a 32-byte digest (sha256 output).
     pub fn from_bytes(b: [u8; 32]) -> Self {
         Hash(b)
     }
@@ -158,9 +160,14 @@ pub struct BalancesIndex(pub BTreeMap<AgentId, MicroCoin>);
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct EscrowsIndex(pub BTreeMap<TxId, EscrowEntry>);
 
+/// TRACE_MATRIX WP § 2 — escrow entry shape (stub). Full fields land CO P2.2.
+/// `#[serde(default)]` on each field gives forward-compat: future atoms can add
+/// fields without breaking deserialization of historical ledger rows.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EscrowEntry {
+    #[serde(default = "MicroCoin::zero")]
     pub amount: MicroCoin,
+    #[serde(default)]
     pub depositor: AgentId,
 }
 
@@ -174,9 +181,12 @@ impl Default for EscrowEntry {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct StakesIndex(pub BTreeMap<TxId, StakeEntry>);
 
+/// TRACE_MATRIX WP § 2 — stake entry shape (stub). Full fields land CO P2.5.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StakeEntry {
+    #[serde(default = "MicroCoin::zero")]
     pub amount: MicroCoin,
+    #[serde(default)]
     pub staker: AgentId,
 }
 
@@ -190,9 +200,12 @@ impl Default for StakeEntry {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct ClaimsIndex(pub BTreeMap<TxId, ClaimEntry>);
 
+/// TRACE_MATRIX WP § 2 — claim entry shape (stub). Full fields land CO P2.6.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ClaimEntry {
+    #[serde(default = "MicroCoin::zero")]
     pub amount: MicroCoin,
+    #[serde(default)]
     pub claimant: AgentId,
 }
 
@@ -210,12 +223,26 @@ pub struct ReputationsIndex(pub BTreeMap<AgentId, Reputation>);
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct TaskMarketsIndex(pub BTreeMap<TxId, TaskMarketEntry>);
 
+/// TRACE_MATRIX WP § 2 — task market entry shape (stub). Full fields land CO P2.1.
+/// Default values (verifier_quorum=1, max_reuse_royalty_fraction=0.10) match the
+/// PROJECT_DECISION_MAP § 2.3 spec gap defaults.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TaskMarketEntry {
+    #[serde(default)]
     pub publisher: AgentId,
+    #[serde(default = "MicroCoin::zero")]
     pub bounty: MicroCoin,
+    #[serde(default = "task_market_default_quorum")]
     pub verifier_quorum: u32,
+    #[serde(default = "task_market_default_royalty_bp")]
     pub max_reuse_royalty_fraction_basis_points: u16,
+}
+
+fn task_market_default_quorum() -> u32 {
+    1
+}
+fn task_market_default_royalty_bp() -> u16 {
+    1000
 }
 
 impl Default for TaskMarketEntry {
@@ -234,9 +261,12 @@ impl Default for TaskMarketEntry {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct RoyaltyGraph(pub BTreeMap<TxId, Vec<RoyaltyEdge>>);
 
+/// TRACE_MATRIX WP § 2 — single royalty edge (ancestor → reuse weight). Stub; CO P2.4.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct RoyaltyEdge {
+    #[serde(default)]
     pub ancestor: TxId,
+    #[serde(default)]
     pub fraction_basis_points: u16,
 }
 
@@ -244,10 +274,14 @@ pub struct RoyaltyEdge {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct ChallengeCasesIndex(pub BTreeMap<TxId, ChallengeCase>);
 
+/// TRACE_MATRIX WP § 2 — challenge case shape (stub). Full fields land CO P2.5.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ChallengeCase {
+    #[serde(default)]
     pub challenger: AgentId,
+    #[serde(default = "MicroCoin::zero")]
     pub bond: MicroCoin,
+    #[serde(default)]
     pub opened_at_round: u64,
 }
 

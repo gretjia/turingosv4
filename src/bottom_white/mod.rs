@@ -6,4 +6,6 @@
 //! /// TRACE_MATRIX Const-Art-I.1 + WP-arch-§3 + WP-arch-§5.L0-L6: Bottom White layer root
 
 pub mod cas;
+/// TRACE_MATRIX FC1-Sig+FC3-Sig: Bottom White ledger crypto modules.
+pub mod ledger;
 pub mod tools;
