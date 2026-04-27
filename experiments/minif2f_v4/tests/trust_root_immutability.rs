@@ -59,8 +59,19 @@ fn test_trust_root_simulated_write_aborts() {
     // the file content; assert verify_trust_root returns Tampered.
     let tmp = make_tempdir("trust_root_tamper");
     let zero_hash = "0".repeat(64);
+    let empty_hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
     let genesis = format!(
-        "[pput_accounting_0]\nschema_version = \"1.0\"\n\n[trust_root]\n\"only.txt\" = \"{zero_hash}\"\n"
+        "[pput_accounting_0]\nschema_version = \"1.0\"\n\n\
+         [constitution_root]\n\
+         constitution_hash = \"{empty_hash}\"\n\
+         creator_signature = \"TEST_PLACEHOLDER\"\n\
+         signed_at = \"2026-04-27T00:00:00+00:00\"\n\
+         schema_version = 1\n\
+         amendment_predicate_hash = \"{empty_hash}\"\n\
+         initial_predicate_registry_root = \"{empty_hash}\"\n\
+         initial_tool_registry_root = \"{empty_hash}\"\n\
+         boot_attestation_hash = \"TEST_PLACEHOLDER\"\n\n\
+         [trust_root]\n\"only.txt\" = \"{zero_hash}\"\n"
     );
     fs::write(tmp.join("genesis_payload.toml"), genesis).unwrap();
     fs::write(tmp.join("only.txt"), "tampered content").unwrap();
