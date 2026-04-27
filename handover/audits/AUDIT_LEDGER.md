@@ -51,6 +51,9 @@ Pre-CO sunk cost (Phase A+B): ~$100 (carried from prior arc; not in $435-950 bud
 | 2026-04-27 | Gemini WP-Revision audit (final) | Gemini 2.5-pro | Independent constitutional alignment + numeric drift + missed-revisions check on 9 surgical edits | ~$0.30 | **9/9 edits PASS bundle; PASS holistic; "GO with caveat" on finalization** | flagged Boot block drift as Top-3 must-fix #1 (Constitution Art IV vs WP § 11 vs GENESIS spec); correctly noted as FROZEN technical debt; recommended user signs v4-whitepaper-finalized-* tag |
 | 2026-04-27 | CO P0 EXIT REPORT | Claude (orchestrator) | Comprehensive close-out doc: 33 doc-only artifacts complete; 5 audit rounds summarized; user pending actions enumerated; CO P1 entry conditions all green | $0 | n/a | doc-only; TR 74 → 76 |
 | **CO P0 final cumulative** | — | — | — | **~$11-21** (1.2-2.4% of $890 mid) | All audit gates closed | 11/11 TR mutations ratified; 8 boot tests PASS throughout |
+| 2026-04-27 | WP finalization | gretjia (auto-signed via path A) | SSH-signed `v4-whitepaper-finalized-2026-04-27-ab77097` | $0 | RATIFIED | Unfreezes Constitution Art 0.5 + Art 0.2 amendments; 12/12 TR ratified; verify-tag PASS |
+| 2026-04-27 | CO1.SPEC.0.5 spec freeze audit (Gemini) | Gemini 2.5-pro | Final freeze audit on STATE_TRANSITION_SPEC v1.1 | ~$0.34 (78201 tokens incl 3934 thoughts; 1 retry due to 503) | **CHALLENGE / NEEDS-FIX**; Q2 + Q3 + Q9 CHALLENGE; rest PASS | 3 must-fix: I-STAKE-RETURN + I-BOUNTY-REFUND + v4 predicate bootstrap clarification + (sub) I-AGENT-INIT. v1.2 patch required before CO P1 launch. |
+| 2026-04-27 | CO1.SPEC.0.5 spec freeze audit (Codex) | Codex (codex-rescue → background task) | Final freeze audit; code-grounded | (in flight) | (pending) | will bundle with Gemini fixes into v1.2 patch |
 
 (Rows append as invocations complete.)
 

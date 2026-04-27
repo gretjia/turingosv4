@@ -68,26 +68,32 @@
 - Art 0.2 reinterpretation: user picks Option A (interp only) / B (cosmetic edit, default rec) / C (formal sub-section) / X (revert D-VETO-6)
 - Cost cap: $890 mid OK or shift down to $600 by dropping CO P3-PREP / shrinking CO1.7 keypair tools?
 
-# 🧊 2026-04-27 Constitution Amendment Freeze
+# ✅ 2026-04-27 Constitution Amendment UNFROZEN
 
-User directive 2026-04-27: **「现在不能修改宪法，因为白皮书还没正式定稿，现阶段不作任何宪法修订」**
+WP finalization tag `v4-whitepaper-finalized-2026-04-27-ab77097` signed + pushed; Constitution amendments now ELIGIBLE for enactment.
 
-**Frozen items**:
-- Constitution Art 0.5 enactment (Ceremony B) — DRAFT remains, NOT to be applied to constitution.md
-- Art 0.2 line 64 cosmetic edit (Option B in Reading Y reinterpretation) — proposal remains, NOT to be applied to constitution.md
-- Any other constitution.md modification
+**Now AVAILABLE** (per `ENACTMENT_PROCEDURE_2026-04-27.md` recommended order):
+- B'' Boot block field reconciliation (FIRST — repairs Const Art IV + WP § 11 + GENESIS spec drift; per Gemini Top-3 fix #1)
+- B' Art 0.2 line 64 cosmetic edit (Reading Y Option B)
+- B Constitution Art 0.5 enactment (white paper integration + 6 axioms)
 
-**NOT frozen**:
-- ✅ Spec / plan / audit docs (not constitution.md)
-- ✅ Trust Root mutations (governance ratification continues)
-- ✅ PREREG_AMENDMENT_v2 enactment (research-arc spec, not constitution)
-- ✅ White paper revisions (user-driven; these will trigger unfreeze)
-- ✅ Auto-research waves (doc-only; not touching constitution.md)
-- ✅ CO P1 launch when ready (uses spec docs as authority, not pending constitution amendments)
+Each is independent; user picks order; each gets its own signed tag.
 
-**Unfreeze trigger**: user signs `v4-whitepaper-finalized-2026-XX-XX` tag covering both architecture + economic WP chapters. Then Ceremony B + Option B may run; spec docs still authoritative.
+---
 
-**Implication for code (CO P1+P2)**: STATE_TRANSITION_SPEC v1.1 already implements Reading Y interpretation (failure SIGNAL on tape via system-stamped retry metadata). Code follows spec; constitutional text catches up later. This is allowed because spec is more recent + author identical (gretjia). v4 ship gate may proceed without constitutional cosmetic edits.
+# ⚠️ CO1.SPEC.0.5 Spec Freeze Audit — NEEDS-FIX
+
+**Gemini final freeze audit verdict (2026-04-27)**: STATE_TRANSITION_SPEC v1.1 = **CHALLENGE**; CO P1 launch = **NEEDS-FIX**.
+
+3 must-fix lifecycle gaps require **v1.2 patch** before CO P1 launch:
+1. **I-STAKE-RETURN** — Solver stake unlock + return on successful finalize_reward (currently spec only credits reward, not stake unlock)
+2. **I-BOUNTY-REFUND** — New `task_expire_transition` for bounty refund when task expires unsolved
+3. **Predicate bootstrap path** — explicitly state v4 initial predicates populated via offline cp + MetaProposalDraft (not runtime MetaTx)
+4. (Gemini sub-finding) **I-AGENT-INIT** — agent onboarding / initial reputation behavior
+
+**Codex spec freeze audit**: in flight (background task). Will bundle with Gemini fixes into single v1.2 patch.
+
+**Recommendation**: do NOT GO CO P1 launch until v1.2 patch lands + dual re-audit PASS/PASS.
 
 ---
 

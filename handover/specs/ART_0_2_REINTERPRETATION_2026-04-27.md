@@ -1,17 +1,13 @@
 # Art 0.2 Operation Item 5 — Reinterpretation Proposal
 
-> **🧊 ENACTMENT FROZEN 2026-04-27**: User directive: 现在不作任何宪法修订（白皮书未定稿）。
-> Reading Y interpretation is RATIFIED conceptually (D-VETO-6 = B + retry metadata),
-> and `STATE_TRANSITION_SPEC_v1.1` already implements Reading Y. But the cosmetic
-> Art 0.2 line 64 edit (Option B) is **PAUSED** until white paper finalization.
-> Until then, code follows Reading Y; constitution.md text retains original Reading X
-> wording with this proposal as the documented bridge.
+> **✅ UNFROZEN 2026-04-27** via `v4-whitepaper-finalized-2026-04-27-ab77097` SSH-signed tag.
 >
-> Trigger to unfreeze: same as Art 0.5 — `v4-whitepaper-finalized-*` tag.
+> Cosmetic edit (Option B) is now ELIGIBLE for enactment via cp-workflow.
+> Reading Y is already implemented in `STATE_TRANSITION_SPEC_v1.1`; constitution.md text catches up on enactment.
 >
 > **Date**: 2026-04-27
 > **Purpose**: Resolve tension between user's D-VETO-6 = B (don't record reject details on tape) and Codex CHALLENGE that flagged Constitution Art. 0.2 line 64 as currently requiring it.
-> **Status**: PROPOSAL (FROZEN at Reading Y conceptual ratification; cosmetic edit pending white paper finalization).
+> **Status**: PROPOSAL (AVAILABLE for enactment; recommended after Boot block reconciliation per Gemini Top-3 fix #1).
 > **Authority**: Per Constitution Art. V.3, any constitutional amendment requires explicit human architect sudo. ArchitectAI cannot self-enact.
 
 ---

@@ -1,11 +1,12 @@
 # Constitution Amendment Draft — Art. 0.5
 
-> **🧊 FROZEN 2026-04-27**: User directive: "现在不能修改宪法，因为白皮书还没正式定稿，现阶段不作任何宪法修订"
-> Enactment is **PAUSED** until white paper is formally finalized. The text below remains the canonical proposal but is NOT to be applied via cp-workflow at this time.
+> **✅ UNFROZEN 2026-04-27** via `v4-whitepaper-finalized-2026-04-27-ab77097` SSH-signed tag.
 >
-> Trigger to unfreeze: user signs a `v4-whitepaper-finalized-*` tag covering both architecture + economic chapters; THEN Ceremony B in `ENACTMENT_PROCEDURE_2026-04-27.md` may run.
+> White papers (architecture + economic) ratified as final at HEAD `ab77097`. Constitution amendments are now ELIGIBLE for enactment.
 >
-> **Status**: DRAFT (FROZEN) awaiting white paper finalization.
+> **Status**: DRAFT (AVAILABLE for enactment via Ceremony B in `ENACTMENT_PROCEDURE_2026-04-27.md`).
+>
+> **Recommended order**: Gemini WP-Revision audit Top-3 fix #1 (Boot block reconciliation across Const Art IV + WP § 11 + GENESIS_MINIMAL_WITH_ANCHOR spec) should be addressed FIRST as the inaugural post-finalization amendment, BEFORE Art 0.5 enactment. Reason: Art 0.5 inserts new content; Boot block fix REPAIRS existing drift — fixing repairs first preserves orderly governance.
 >
 > **Authority required**: per Art. V.3, constitution amendments require human architect explicit sudo. ArchitectAI cannot self-enact.
 >
