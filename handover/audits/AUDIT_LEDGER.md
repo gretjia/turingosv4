@@ -39,6 +39,7 @@ Pre-CO sunk cost (Phase A+B): ~$100 (carried from prior arc; not in $435-950 bud
 | 2026-04-27 | CO P0.7' v3.2 cross-review | Gemini 2.5-pro | Strategic review of 4 new artifacts (state transition spec / genesis / Art 0.2 / Plan v3.2) | ~$0.30 (78963 tokens incl 5320 thoughts) | **STATE_TRANSITION:CHALLENGE / GENESIS:PASS / ART_0_2:PASS / PLAN_v3.2:VETO** | flagged 2 substantive VETOs: incomplete spec § 3 (only WorkTx) + system keypair security void; 1 CHALLENGE: Phase 3 prep weasel wording |
 | 2026-04-27 | CO P0.7' v3.2-fix1 patches | Claude (orchestrator) | Apply VerifyTx/ChallengeTx/ReuseTx/finalize_reward/terminal_summary pseudocode + 4 new invariants + system keypair security spec + 7 Phase 3 prep concrete atoms | $0 (no API call) | n/a | doc-only edits; 8 boot tests still PASS |
 | **2026-04-27 sub-total** | — | — | — | **~$5.30-10.30** | — | running total ~$10.75-20.75 / $700 mid (1.5-3.0%); 5 VETOs + 5 CHALLENGES surfaced + addressed |
+| 2026-04-27 | B-1 governance gate | gretjia (user) | SSH-signed git tag ratification of v3.2-fix1 bundle | $0 | RATIFIED | tag `v4-ratify-2026-04-27-b6b6c25` covering commit `b6b6c25`; signer fingerprint `SHA256:GreuFZEkNxBHp5mf0Er/T5EFQ9pr9IFpfe+usJJqOTc` (ed25519 omega-vm-github-2026-02-23); `git verify-tag` → `Good "git" signature for gretjia@users.noreply.github.com`; pushed to origin; ratification doc at `handover/architect-insights/RATIFICATION_2026-04-27.md` |
 
 (Rows append as invocations complete.)
 
