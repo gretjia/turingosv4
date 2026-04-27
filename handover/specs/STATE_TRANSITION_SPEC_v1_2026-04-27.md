@@ -1,7 +1,19 @@
-# State Transition Specification v1.1
+# State Transition Specification v1.2
 
-> **Date**: 2026-04-27 (v1.1 patch applies SPEC_WALKTHROUGH gap fixes)
-> **Patch v1 → v1.1 changes**:
+> **Date**: 2026-04-27 (v1.2 closes BOTH Codex + Gemini final freeze audit findings)
+>
+> **Patch v1.1 → v1.2 changes** (per Codex+Gemini CO1.SPEC.0.5 dual audit, 2026-04-27):
+> - **§ 2 hidden-input table EXPANDED** — added HAYEK_BOUNTY, BOUNTY_LP, Boltzmann params, BOLTZMANN_SEED, async ordering boundary, WAL/git commit boundary, full HashMap scope, f64 royalty math
+> - **§ 2.5 (NEW) canonical serialization** — defines byte-level format for all signed tx + state roots
+> - **§ 3.4 finalize_reward** — added stage 3a (solver stake unlock + return); royalty math now uses integer floor rule
+> - **§ 3.6 (NEW) task_expire_transition** — handles unsolved task bounty refund
+> - **§ 3.7 (NEW) agent_register implicit-init** — first appearance in L4 = default reputation 0
+> - **§ 5.1 false-challenge resolution** — fixed to "v4 default 0, NOT configurable" (resolves prose-vs-pseudocode contradiction)
+> - **§ 4 invariants** — 22 → 27 (added I-STAKE-RETURN, I-BOUNTY-REFUND, I-FINALIZE-BATCH-ORDER, I-CHALLENGE-WINDOW-EDGE, I-AGENT-INIT)
+> - **§ 6.1 (NEW) concurrency rule** — L4 sequencer per (runtime_repo, run_id); deterministic ordering key
+> - **§ 8 count fix** — "16 invariants" → "27 invariants"
+>
+> **Patch v1 → v1.1 changes** (per SPEC_WALKTHROUGH gap fixes, 2026-04-27):
 > - § 3.2 (challenge_transition) stage 4e ADDED: verifier_bond release policy (default = return to verifier; configurable)
 > - § 3.3 (reuse_transition) stage 3 AMENDED: edge weight bounded by `MAX_REUSE_ROYALTY_FRACTION` config (default = 0.10)
 > - § 3.2 (challenge_transition) stage 4d AMENDED: false-challenge reputation penalty config (default = 0; configurable)
@@ -243,14 +255,58 @@ The current `src/bus.rs` and `src/kernel.rs` mix four categories of inputs. The 
 | `self.graveyard: HashMap<String, Vec<String>>` | `bus.rs:48` | **ILLEGAL sidecar** (Art. 0.2 explicitly anti-patterned) | retire; replace with `RejectedAttemptSummary` stamped on next accepted tx + `TerminalSummaryTx` |
 | Tool list iteration order | `bus.rs:312-319` Vec | **`Q_t.tool_registry_root_t` derived** | runner queries L2 in deterministic order |
 | Wallet "magic search" | `bus.rs:312-319` `manifest() == "wallet"` | **EXPLICIT capability lookup** | runner queries L2 by `Capability::EconomicWallet` tag, not by string match |
+| `HAYEK_BOUNTY` env var (v1.2 added per Codex Q3) | `src/bus.rs:141-150` (init), `src/bus.rs:349-360` (settle) | **`Q_t.economic_state_t.task_markets_t.config.hayek_bounty_enabled`** | promote to typed task config; bound at task creation |
+| `BOUNTY_LP` env var (v1.2 added per Codex Q3) | `src/bus.rs:141-150`, `src/bus.rs:349-360` | **`Q_t.economic_state_t.task_markets_t.config.bounty_lp_seed: MicroCoin`** | promote to typed task config |
+| `BOLTZMANN_TEMP` / `FRONTIER_CAP` / `DEPTH_WEIGHT` / `PRICE_GATE_ALPHA` / `BOLTZMANN_SEED` env (v1.2 added per Codex Q3) | `src/sdk/actor.rs:22-39` (params), `experiments/.../bin/evaluator.rs:693-697` (seed) | **OFF-TAPE proposal-generation only**; NOT part of `Q_t`; routing seed visible in `proposal_cid` payload (CAS); transition pseudocode does NOT consume these | classified as "agent-side proposal entropy"; the SAMPLED outcome is on tape via proposal_cid; the sampling RNG state is NOT |
+| HashMap iteration order broadly (v1.2 added per Codex Q3) | `src/kernel.rs:19-21` (markets), `src/kernel.rs:165-204` (resolve + ticker), any new code | **BANNED in any module reachable from `step_transition` call tree** | runtime test grep extends to ALL `src/` files reachable transitively; not just modules containing "q_state" or "transition" |
+| Async tokio task completion ordering (v1.2 added per Codex Q3 + Q6) | `experiments/.../bin/evaluator.rs:192-193` (#[tokio::main]) | **L4 sequencer (§ 6.1) defines deterministic ordering key (logical_t, tx_id)**; async completion order is NOT used | sequencer enforces serialization point per (runtime_repo, run_id); see § 6.1 |
+| WAL / git commit filesystem effects (v1.2 added per Codex Q3) | `src/bus.rs:279-282` (WAL Node), `src/bus.rs:319-327` (WAL event) | **explicit boundary: pure `step_transition(q, tx)` returns `(q', signals)` PURELY; runtime layer commits side effects to WAL/git AFTER pure result** | step_transition is pure function of (q, tx); commit is runtime concern; § 6.1 specifies commit point |
+| `f64` arithmetic in monetary / royalty math (v1.2 added per Codex Q3 + Q10) | `src/prediction_market.rs:21-27,87-133` (reserves, trades) + spec § 3.3 royalty `reward * edge.weight` | **i64 MicroCoin only; royalty rounding rule = integer floor (`micro_reward * weight_micro / 1_000_000`)** | promote `prediction_market.rs` to MicroCoin; spec § 3.3 stage 3b adds explicit rounding |
+| Future tokio::spawn introduction (v1.2 hypothesis per Codex Q3) | (none currently) | **BANNED in `src/transition/*` and `src/economy/*` call trees** | cargo-deny rule + transitive grep |
 
 After this classification, every step_transition input is either part of `Q_t`, part of `tx_i`, or part of the runtime config bound at genesis (which is itself in `Q_t`).
 
 **Conformance test for § 2** (`tests/no_hidden_inputs.rs`):
 - grep src/ for `SystemTime::now()` → must return 0 hits in non-runtime-bootstrap code
-- grep src/ for `std::env::var(` → must return 0 hits in step_transition path
-- grep src/ for `HashMap` in any module containing `q_state` or `transition` → must return 0 hits
-- assert all monetary fields are typed `MicroCoin` (a newtype around `i64`), no `f64`
+- grep src/ for `std::env::var(` → must return 0 hits in step_transition path **AND** in any module transitively reachable from `transition::*`, `economy::*`, `top_white::predicates::*` (v1.2 expanded scope per Codex Q3)
+- grep src/ for `HashMap` → must return 0 hits in **ALL modules reachable from `step_transition` call tree** (v1.2 expanded scope; was: only "q_state" or "transition" modules; new scope: full transitive reach)
+- assert all monetary fields are typed `MicroCoin` (a newtype around `i64`), no `f64` — **including `src/prediction_market.rs` and any RSP module**
+- grep src/ for `tokio::spawn` → must return 0 hits in `src/{transition,economy,top_white::predicates}/*` (v1.2 added per Codex Q3 hypothesis)
+
+## § 2.5 Canonical Serialization (v1.2 NEW per Codex Q5)
+
+> **Required because**: `tx.canonical_digest()` is called in spec § 3 stages 2 of WorkTx / VerifyTx / ChallengeTx, but byte-level format is undefined. STEP_B branch A vs branch B may pick different serialization (JSON sorted keys vs bincode vs Rust derive order) → cross-branch signature verification fails. Mandatory canonical format closes this.
+
+**Format**: **bincode v2** (`bincode::serde`) with the following constraints:
+- **Big-endian byte order** for all multi-byte integers (network order; deterministic across platforms)
+- **`BTreeMap` keys serialized in lexicographic byte order** (this is bincode default; verified by test)
+- **Strings serialized as UTF-8 with explicit length prefix u32-BE**
+- **Optional fields: `0x00` prefix for `None`, `0x01` + value for `Some`**
+- **Enum discriminant: u8 (variant index in declaration order)**
+- **No padding bytes; no implicit alignment**
+
+**Application**:
+```rust
+pub fn canonical_digest<T: Serialize>(value: &T) -> [u8; 32] {
+    let bytes = bincode::serde::encode_to_vec(value, bincode_canonical_config()).expect("serialize");
+    sha256(&bytes)
+}
+
+fn bincode_canonical_config() -> bincode::config::Configuration {
+    bincode::config::standard()
+        .with_big_endian()
+        .with_fixed_int_encoding()    // no varint; fixed-width for determinism
+}
+```
+
+**Conformance**: `tests/canonical_serialization.rs` MUST verify:
+- 1 golden tx fixture per tx type (WorkTx / VerifyTx / ChallengeTx / ReuseTx / TerminalSummaryTx); each has known input → known SHA-256 output
+- Round-trip: `decode(encode(x)) == x` byte-identical for 100 random inputs
+- Stability: 2 independent runs on same input → same bytes
+
+**STEP_B implication**: branches A and B both use this exact `bincode_canonical_config`; signature verification works cross-branch by construction.
+
+**Out of scope for v1.2** (deferred to CO P1 atom): full golden fixture corpus + differential fuzzing seed in fixtures. v1.2 specifies the FORMAT; CO1.1.4 atom generates the FIXTURES.
 
 ---
 
@@ -593,16 +649,33 @@ pub fn finalize_reward_transition(
     // STAGE 3: state transition
     let mut q_next = q.clone();
     let target = claim.target_work_tx_data;
+
+    // 3a (v1.2 NEW; gap 11.A per Gemini + Codex Q2): unlock + return solver's stake
+    // Without this, every successful solver permanently loses their stake → Inv 3 violation.
+    let solver_stake_locked = q.economic_state_t.stakes_t.get(target.solver, target.task_id);
+    q_next.economic_state_t.stakes_t.unlock(target.solver, target.task_id);
+    q_next.economic_state_t.balances_t.credit(target.solver, solver_stake_locked);
+
+    // 3b: credit reward + finalize claim + debit escrow
     q_next.economic_state_t.balances_t.credit(target.solver, reward);
     q_next.economic_state_t.claims_t.finalize(claim_id, reward);
     q_next.economic_state_t.escrows_t.debit(claim.task_id, reward);
 
-    // pay royalties to tool creators along royalty_graph_t edges
+    // 3c: pay royalties along royalty_graph_t edges (v1.2 explicit rounding rule per Codex Q3 + Q10)
+    // Royalty math uses i64 micro-coin throughout; rounding = integer floor (round-down) to preserve Inv 3.
+    // No f64; no implicit casts. weight stored as MicroFraction (i64 in 1_000_000 units representing 0.0..1.0).
+    let reward_micro = reward.to_micro_units();    // i64
     for edge in q.economic_state_t.royalty_graph_t.edges_from(claim.target_work_tx) {
-        let royalty = reward * edge.weight;
+        let royalty_micro = reward_micro
+            .checked_mul(edge.weight.micro_units())
+            .expect("overflow")
+            / 1_000_000;    // integer floor; deterministic across platforms
+        let royalty = MicroCoin::from_micro_units(royalty_micro);
         q_next.economic_state_t.balances_t.credit(edge.creator, royalty);
         q_next.economic_state_t.balances_t.debit(target.solver, royalty);  // royalty comes from solver's reward, not extra mint (Inv 4)
     }
+    // Note: integer floor means total royalty payments may be < `reward × Σ weights` by up to `n` micro-units (1 per edge);
+    // the dust remains in solver's balance. This is intentional and consistent with Bitcoin satoshi rounding.
 
     // STAGE 4: emit terminal signals
     q_next.ledger_root_t = ledger::append(&q.ledger_root_t, &FinalizeTx::from(claim_id, reward));
@@ -613,7 +686,87 @@ pub fn finalize_reward_transition(
 }
 ```
 
-### 3.5 emit_terminal_summary (run-end without acceptance)
+### 3.6 task_expire_transition (v1.2 NEW per Gemini + Codex Q1/Q2)
+
+**Why**: a TaskMarket entry has a deadline; if no work_tx is accepted by deadline, the bounty MUST refund to task creator (otherwise Inv 3 monetary conservation broken: bounty trapped in escrow forever).
+
+```rust
+pub fn task_expire_transition(
+    q: &QState,
+    task_id: TaskId,
+    runtime: &Runtime,
+) -> Result<(QState, SignalBundle), TransitionError> {
+    let task = q.economic_state_t.task_markets_t.get(task_id)
+        .ok_or(TransitionError::TaskNotFound)?;
+
+    // STAGE 1: expiry check — task must be expired AND have no finalized claim
+    if task.deadline_logical_t > q.q_t.current_round {
+        return Err(TransitionError::TaskNotExpired);
+    }
+    if q.economic_state_t.claims_t.has_finalized_for_task(task_id) {
+        return Err(TransitionError::TaskAlreadyFinalized);
+    }
+
+    // STAGE 2: refund bounty from escrow to task creator
+    let mut q_next = q.clone();
+    let bounty = q.economic_state_t.escrows_t.get(task_id);
+    q_next.economic_state_t.escrows_t.refund(task_id);
+    q_next.economic_state_t.balances_t.credit(task.creator, bounty);
+
+    // STAGE 3: also refund any solver stakes still locked on expired task
+    // (solvers who attempted but didn't win; their stakes were locked at work_tx submission)
+    for (agent, locked_stake) in q.economic_state_t.stakes_t.all_locked_for_task(task_id) {
+        q_next.economic_state_t.stakes_t.unlock(agent, task_id);
+        q_next.economic_state_t.balances_t.credit(agent, locked_stake);
+    }
+
+    // STAGE 4: remove task from active markets
+    q_next.economic_state_t.task_markets_t.remove(task_id);
+
+    // STAGE 5: append + materialize + emit signal
+    let expire_tx = TaskExpireTx {
+        tx_id: TxId::derive(task_id, "expire"),
+        task_id,
+        bounty_refunded: bounty,
+        timestamp_logical: runtime.next_logical_t(),
+        system_signature: runtime.system_keypair().sign(canonical_digest(&...)),
+    };
+    q_next.ledger_root_t = ledger::append(&q.ledger_root_t, &expire_tx);
+    q_next.state_root_t = materializer::apply(&q.state_root_t, &expire_tx);
+    q_next.head_t = NodeId::from_state_root(q_next.state_root_t);
+
+    let signals = SignalBundle::task_expired(task_id, bounty);
+
+    Ok((q_next, signals))
+}
+```
+
+**Trigger**: `task_expire_transition` is emitted by runtime when its tick crosses `task.deadline_logical_t`. NOT submitted by any agent.
+
+### 3.6.5 Agent Implicit Init (v1.2 NEW per Gemini Q2 sub-finding I-AGENT-INIT)
+
+**Where**: applies to ALL agent-submitted transitions (work_transition / verify_transition / challenge_transition / reuse_transition). Inline at stage 4 of each, before user-state mutations.
+
+**Rule**: an agent's first appearance in L4 IMPLICITLY initializes their state in `q_t.agents`:
+
+```rust
+// Insert at start of stage 4 of every agent-submitted transition:
+if !q_next.q_t.agents.contains_key(&tx.agent_id) {
+    q_next.q_t.agents.insert(tx.agent_id.clone(), PerAgentState {
+        reputation_snapshot: Reputation::default_initial(),    // = 0
+        last_accepted_tx: None,
+        retry_counter_for_current_task: 0,
+    });
+}
+```
+
+**Why implicit (not explicit `register_agent_transition`)**:
+- Satoshi parallel: Bitcoin addresses are implicitly created at first use; no separate register step
+- Avoids gatekeeping: any agent submitting a valid signed tx joins the system
+- v4 single-user friendly: gretjia + Codex/Gemini auto-discoverable
+- v4.1+: if needed, can add explicit `agent_register_tx` later WITHOUT breaking implicit-init (new tx is purely additive)
+
+### 3.7 emit_terminal_summary (run-end without acceptance)
 
 ```rust
 pub fn emit_terminal_summary_transition(
@@ -677,8 +830,13 @@ pub fn emit_terminal_summary_transition(
 | **I-FINALIZE-EXCLUSIVE** (added) | FinalizeRewardTx and SlashTx are mutually exclusive per claim_id; system runtime serializes | finalize_reward_transition stage 2 | `tests/finalize_or_slash_exclusive.rs` |
 | **I-VBOND-RELEASE** (v1.1, gap 11.2 fix) | Verifier bond release on slashed work_tx follows TaskMarket.config.verifier_bond_on_slash policy; default = `ReturnToVerifier`; verifier reputation NOT adjusted under default policy | challenge_transition stage 4e | `tests/verifier_bond_release.rs` |
 | **I-ROYALTY-CAP** (v1.1, gap 11.3 fix) | reuse_tx edge weight ≤ TaskMarket.config.max_reuse_royalty_fraction (default 0.10); excess clamped + warning logged | reuse_transition stage 3 | `tests/royalty_cap_enforced.rs` |
+| **I-STAKE-RETURN** (v1.2 NEW per Gemini Q2 + Codex Q2) | Successful unchallenged finalize_reward returns + unlocks solver's locked stake exactly once (in addition to reward credit). Test attempts double-claim. | finalize_reward_transition stage 3a | `tests/stake_return_on_finalize.rs` |
+| **I-BOUNTY-REFUND** (v1.2 NEW per Gemini Q2 + Codex Q2) | task_expire_transition refunds full bounty to creator + refunds any locked solver stakes when no claim finalized by deadline | task_expire_transition stages 2-3 | `tests/bounty_refund_on_expire.rs` |
+| **I-FINALIZE-BATCH-ORDER** (v1.2 NEW per Codex Q2) | When N claims become finalizable at the same logical_t, finalize_tx emit order is `(expires_at ASC, claim_id ASC)`; deterministic + reproducible | runtime finalize loop | `tests/finalize_batch_order.rs` |
+| **I-CHALLENGE-WINDOW-EDGE** (v1.2 NEW per Codex Q2) | Challenge window is `[opens_at, opens_at + duration_ticks)` — left-inclusive, right-exclusive. Same rule used by both challenge_transition stage 1 + finalize_reward stage 1. | challenge_transition + finalize_reward_transition | `tests/challenge_window_edge.rs` |
+| **I-AGENT-INIT** (v1.2 NEW per Gemini Q2) | First appearance of agent in L4 transition tx implicitly initializes q_t.agents[id] with reputation=0; subsequent appearances do not re-initialize | work/verify/challenge/reuse_transition stage 4 | `tests/agent_implicit_init.rs` |
 
-**Total: 22 invariants → 22 tests**. Every transition test must pass before CO1.1.4 (bus.rs split) starts. STEP_B implementation comparison is "branch X conforms to spec" / "branch Y conforms to spec", not "branch X looks like branch Y".
+**Total: 27 invariants → 27 tests** (was 22 in v1.1; +5 in v1.2). Every transition test must pass before CO1.1.4 (bus.rs split) starts. STEP_B implementation comparison is "branch X conforms to spec" / "branch Y conforms to spec", not "branch X looks like branch Y".
 
 ---
 
@@ -718,9 +876,9 @@ If CO P1 audit demands stronger guarantees, the TLA+ model is upgraded to a full
 
 Per `SPEC_WALKTHROUGH_v1_2026-04-27.md` § 11, four spec gaps were found. Resolution status:
 
-| Gap | Issue | v1.1 Resolution | User-overridable |
+| Gap | Issue | v1.2 Resolution | User-overridable |
 |---|---|---|---|
-| 11.1 | False-challenge reputation penalty undefined | TaskMarket.config.false_challenge_reputation_penalty default = 0 (no penalty, encourages legitimate challenges per Bitcoin "let market decide" principle) | yes — set per TaskMarket |
+| 11.1 | False-challenge reputation penalty undefined | **v1.2 (Codex Q10 fix)**: false_challenge_reputation_penalty is **fixed to 0 in v4** (NOT configurable). Pseudocode resolves contradiction: challenge_transition stage 3 returns `Err(CounterexampleInsufficient)` BEFORE any state mutation; no executable path for nonzero penalty → "configurable" prose retired. v4.1+ MAY add explicit `failed_challenge_penalty_transition` if needed. | NO (v4) |
 | 11.2 | Verifier bond release policy on slashed claim | spec § 3.2 stage 4e ADDED with `VerifierBondPolicy::ReturnToVerifier` default | yes — `verifier_bond_on_slash` config |
 | 11.3 | Royalty edge weight bound | spec § 3.3 stage 3 ADDED with `MAX_REUSE_ROYALTY_FRACTION_DEFAULT = 0.10` | yes — `max_reuse_royalty_fraction` config |
 | 11.4 | Multi-verifier quorum aggregation | spec § 3.1 note ADDED with `verifier_quorum_required: usize = 1` default; full multi-verifier impl deferred to CO P2.7 | yes — set per TaskMarket |
@@ -728,6 +886,50 @@ Per `SPEC_WALKTHROUGH_v1_2026-04-27.md` § 11, four spec gaps were found. Resolu
 All 4 gaps now have machine-checkable defaults. User can override any default via TaskMarket.config when creating tasks; the default applies if config field is missing.
 
 ---
+
+## § 5.2 Concurrency Rules (v1.2 NEW per Codex Q6)
+
+**Why**: spec § 3 pseudocode is single-threaded; CO P1 may parallelize Phase C 5 modes × N seeds. Without explicit serialization rule, two work_tx can race on same parent_state_root, both pass `I-PARENT`, but produce different (logical_t, tx_id) sequences across STEP_B branches → state_root divergence.
+
+### 5.2.1 L4 Sequencer
+
+**Per (runtime_repo, run_id)** there is exactly ONE L4 sequencer instance. The sequencer:
+1. **Receives** tx submissions in any order (concurrent-safe queue)
+2. **Assigns** monotonic `(logical_t, tx_id)` ordering key:
+   - `logical_t = sequencer.next_logical_t()` (atomic counter; starts at 1 per genesis)
+   - `tx_id = TxId::derive(logical_t, agent_id, payload_hash)` (deterministic from above)
+3. **Serializes** transition execution: takes 1 tx at a time from queue in submission order; calls pure `step_transition`
+4. **Commits** result to L4 (WAL write + git commit) BEFORE accepting next tx
+
+**Async completion order is NEVER an ordering source**. Even if async tasks finish out-of-order, sequencer enforces submission-order ingestion.
+
+### 5.2.2 Cross-Cell Isolation
+
+**Phase C 5-mode × 10-problem × N-seed cells** (per `CO1_3_1_GIX_SPIKE_PREFLIGHT § 1` C4) MUST use:
+- **Disjoint `runtime_repo`** (different filesystem path; no shared state)
+- **Disjoint `QState`** (each cell has its own genesis_payload + Q_t replay)
+- **No shared L4 sequencer** (each cell has its own)
+
+If a future deployment shares runtime_repo across cells (e.g., multi-tenant): MUST add **ref locks** (gix branch refs serve as atomic guards) + **deterministic retry semantics** (failed lock → wait 100ms × n_attempts; deterministic seed from `(run_id, tx_id)`).
+
+### 5.2.3 Finalize Batch Order
+
+When N claims expire at the same `logical_t`:
+- Order = `(claim.expires_at ASC, claim.target_work_tx ASC)` (stable, deterministic)
+- Sequencer emits `finalize_reward_transition` ONE AT A TIME in this order
+- Each finalize advances state_root before next finalize starts
+
+### 5.2.4 Conformance Tests
+
+- `tests/l4_sequencer_serialization.rs` — concurrent submit; assert single-threaded execution by sequencer; same input order → same state_root
+- `tests/cross_cell_isolation.rs` — 5 cells run; assert disjoint state_roots; no cross-contamination
+- `tests/finalize_batch_order.rs` — 3 claims expire same tick; assert ordering by (expires_at, claim_id); 2 runs byte-identical
+
+### 5.2.5 What This Does NOT Specify
+
+- Async runtime choice (tokio vs std::thread): runtime concern, not spec; spec only requires sequencer property
+- Sequencer implementation: lock-free queue, mutex, channel — implementation detail
+- Cross-cell sharing pattern (post-v4): future v4.x extension
 
 ## § 6 What This Spec DOES NOT Specify
 
@@ -761,7 +963,7 @@ These deferrals are **explicit and named**. Future atoms reference this list to 
 What this spec is:
 - A typed, deterministic, side-effect-free state transition definition
 - A binding contract for STEP_B branch A/B comparison
-- A list of 16 named invariants each backed by a conformance test path
+- A list of **27 named invariants** (was 16 in v1; 22 in v1.1; +5 in v1.2: I-STAKE-RETURN / I-BOUNTY-REFUND / I-FINALIZE-BATCH-ORDER / I-CHALLENGE-WINDOW-EDGE / I-AGENT-INIT) each backed by a conformance test path
 
 What this spec is NOT:
 - A full formal proof (no Lean/Coq)

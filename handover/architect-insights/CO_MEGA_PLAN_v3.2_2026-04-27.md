@@ -134,9 +134,15 @@ Adds retry-metadata derivation to the L6 unification work:
 
 Total: 7 atoms (was 5).
 
-### CO P2.0a (NEW) — i64 Micro-Coin Money Type
+### CO P2.0a (NEW) — i64 Micro-Coin Money Type ❌ DEPRECATED — promoted to CO P1 prerequisite (CO1.0a) per Codex spec freeze audit Q7
 
-BLOCKING precondition for CO P2.2 EscrowVault:
+> **2026-04-27 v3.2-fix2**: Codex CO1.SPEC.0.5 audit (Q7 CHALLENGE) demanded MicroCoin land BEFORE CO1.7 transition ledger (which uses MicroCoin in WorkTx/VerifyTx/ChallengeTx schemas). Putting it after CO1.7 = "implement TransitionTx with f64 then migrate to i64 = breaks serialization + hashes for already-written records". Promoted to **CO1.0a** (immediately after CO1.0 genesis, before any other P1 atom).
+>
+> CO P2.0a entry below preserved for historical reference.
+
+### CO1.0a (NEW v3.2-fix2; promoted from CO P2.0a) — i64 Micro-Coin Money Type
+
+BLOCKING precondition for CO1.7 transition ledger AND CO P2.2 EscrowVault:
 
 | Atom | Scope | File |
 |---|---|---|
@@ -164,12 +170,17 @@ Total: 4 atoms; ~1 day.
 
 ## § 4 Updated Atom Total
 
-| Phase | v3.1 atoms | v3.2 atoms | v3.2-fix1 atoms | Δ vs v3.1 |
-|---|---|---|---|---|
-| CO P0 | 7 | 14 | 14 + 1 (CO P0.9 MetaTx schema) = 15 | +8 |
-| CO P1 | ~62 | 77 | 77 + 4 keypair (CO1.7.0a/c/d/e/f as 4 atoms grouped) + 1 CO P3-prep.2 = 82 | +20 |
-| CO P2 | ~64 | 68 | 68 + 5 CO P3-prep (.3/.4/.5/.6/.7) = 73 | +9 |
-| **v4 total** | **~133** | **~159** | **~170** | **+37 atoms** |
+| Phase | v3.1 atoms | v3.2 atoms | v3.2-fix1 atoms | v3.2-fix2 atoms | Δ vs v3.1 |
+|---|---|---|---|---|---|
+| CO P0 | 7 | 14 | 14 + 1 (CO P0.9 MetaTx schema) = 15 | 15 | +8 |
+| CO P1 | ~62 | 77 | 77 + 4 keypair + 1 CO P3-prep.2 = 82 | 82 + 4 (CO1.0a MicroCoin promoted from P2.0a; counts +4 net here +0 net total) + 5 (CO1.SPEC.0 v1.2 patches) = 91 | +29 |
+| CO P2 | ~64 | 68 | 68 + 5 CO P3-prep (.3/.4/.5/.6/.7) = 73 | 73 - 4 (CO P2.0a removed; promoted to P1) = 69 | +5 |
+| **v4 total** | **~133** | **~159** | **~170** | **~175** | **+42 atoms** |
+
+**v3.2-fix2 (2026-04-27)** — closes Codex+Gemini CO1.SPEC.0.5 spec freeze audit findings:
+- **+5 spec v1.2 patches** in CO1.SPEC.0 (canonical serialization / concurrency / lifecycle invariants / hidden inputs / false-challenge resolution)
+- **MicroCoin promoted P2.0a → CO1.0a** (BLOCKING for CO1.7 per Codex Q7; not removed — moved earlier in critical path)
+- Wall clock effect: ~+1 wk for spec patches + Plan amendment review; net ~22-28 wk (was 22-27 wk)
 
 **Wall clock**: 17-21 weeks → **22-27 weeks** (added ~2 more weeks beyond v3.2 for keypair security + Phase 3 prep concrete artifacts; v3.2-fix1 closes Gemini Q9 VETO + Q7 CHALLENGE)
 
