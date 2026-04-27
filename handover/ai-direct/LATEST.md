@@ -1,5 +1,10 @@
 # TuringOS v4 — Handover State
 
+> 📍 **PROJECT DECISION MAP** (read this first if cold-starting): `handover/architect-insights/PROJECT_DECISION_MAP_2026-04-27.md`
+> Tracks every decision + every skipped option + every atom status + forward roadmap.
+> Anti-forget pledge: no skipped option is silently retired without explicit fate logged.
+
+
 **Updated**: 2026-04-26 NIGHT SHIFT (auto-research mode; user asleep) — **CO Phase 0 doc-only execution complete**; CO P0.7 Gemini audit returned + must-fix patches applied; Codex audit `task-mofzpcnq-4v764c` in flight (poll via `/codex:status` on wake).
 **HEAD commit (pre-shift)**: `f74e081` — CO P0 night shift bundle
 **HEAD commit (post-shift, after this final commit)**: see latest `git log -1`
