@@ -36,6 +36,40 @@
 4. ✅ **Cost projection harmonization** (Plan v3.1 § 6): old $250-500 deprecated; new $435-950 authoritative; tri-model column added.
 5. ✅ **gix spike priority** (CO1.3.1 = FIRST atom of CO P1): 5-day time-box; failure → git2-rs pivot via Plan v3.2 amendment.
 
+# 🆕 2026-04-27 v3.2-fix1 Update (post-Codex T+S re-review + Gemini v3.2 cross-review)
+
+**Two more audit cycles ran**:
+
+1. **Codex T+S re-review** (`CODEX_T_S_REVIEW_2026-04-27.md`): on Claude's "T+S" recommendations
+   - D-VETO-1 spec-first: **CHALLENGE** — needs binding form, not slogan
+   - D-VETO-3 hyper-minimal: **CHALLENGE** — needs content-anchor, not just ID
+   - **D-VETO-4 permanent abandon: VETO** — WP § 12+§ 17 require Phase 3 prep; Claude over-extended Satoshi
+   - B-1 PGP tag: **PASS**
+   - D-VETO-6 retry: **CHALLENGE** — must be system-signed not agent-self-report
+
+2. **Gemini v3.2 cross-review** (`GEMINI_V32_REVIEW_2026-04-27.md`): on the 4 new spec docs
+   - STATE_TRANSITION_SPEC: **CHALLENGE** — pseudocode only WorkTx, missing VerifyTx/ChallengeTx
+   - GENESIS_MINIMAL_WITH_ANCHOR: **PASS**
+   - ART_0_2_REINTERPRETATION: **PASS** (Option B clear improvement)
+   - **CO_MEGA_PLAN_v3.2: VETO** — system keypair security void (Q9) + spec/plan scope contradiction (Q10)
+
+**v3.2-fix1 patches applied** (this commit):
+- ✅ STATE_TRANSITION_SPEC § 3 extended: VerifyTx + ChallengeTx + ReuseTx + finalize_reward + terminal_summary pseudocode (5 new transition functions)
+- ✅ STATE_TRANSITION_SPEC § 4: 4 new invariants (I-NORANDOM / I-VERIFY-LIVE / I-CHAL-WINDOW / I-FINALIZE-EXCLUSIVE) → 20 total
+- ✅ NEW spec: `SYSTEM_KEYPAIR_SECURITY_v1_2026-04-27.md` — closes Gemini Q9 VETO with full lifecycle (gen / encrypt-at-rest / sign API / rotation / emergency response / threat model A1-A5)
+- ✅ NEW spec: `META_TX_SCHEMA_v1_2026-04-27.md` — closes Gemini Q7 CHALLENGE on "Phase 3 prep" being weasel; concrete typed schema + validator library + 7-atom CO P3-PREP track
+- ✅ Plan v3.2 expanded: CO1.7.0a-f keypair atoms (5 new) + CO P3-PREP 7 atoms; total 159 → ~170 atoms; budget $520-1100 → $580-1200 (mid $890)
+- ✅ TR manifest: 49 → 57 entries (+8: 5 specs + Plan v3.2 + 2 audit reports). 8 boot tests still PASS.
+- ✅ AUDIT_LEDGER: 2 new audit rows + cumulative ~$10.75-20.75 (1.2-2.3% of $890 mid)
+
+**v3.2-fix1 wake-up decision items** (additions to existing):
+- D-VETO-4 reverted from "permanently abandon" to "**defer v4.1 + ship Phase 3 prep**"; user reviews CO P3-PREP 7 concrete artifacts — accept / want fewer / want more?
+- System keypair: user approves SYSTEM_KEYPAIR_SECURITY_v1 spec? Or wants different algorithm / KDF / rotation interval?
+- Art 0.2 reinterpretation: user picks Option A (interp only) / B (cosmetic edit, default rec) / C (formal sub-section) / X (revert D-VETO-6)
+- Cost cap: $890 mid OK or shift down to $600 by dropping CO P3-PREP / shrinking CO1.7 keypair tools?
+
+---
+
 **Codex audit** (landed during /loop poll iteration; commit `dd38679+1`):
 - Blueprint: **CHALLENGE**
 - Plan v3.1: **VETO** ⛔

@@ -12,10 +12,12 @@
 
 | Phase | Atom-level | Phase-exit | Sub-total |
 |---|---|---|---|
-| CO P0 | $0 | ~$0.45 | ~$0.45 |
+| CO P0 | ~$0.30 (Gemini v3.2) | ~$10.45 (4 dual audit invocations) | ~$10.75 |
 | CO P1 | — | — | — |
 | CO P2 | — | — | — |
-| **Cumulative** | **~$0.45** | — | **~$0.45 / $700 mid-budget (0.06%)** |
+| **Cumulative** | **~$10.75** | — | **~$10.75-20.75 / $890 mid-budget (1.2-2.3%)** |
+
+> Budget mid revised from $700 → $890 per CO_MEGA_PLAN_v3.2 § 4 cost amendment (Gemini Q9 keypair atoms + Phase 3 prep atoms add ~$80-100).
 
 Pre-CO sunk cost (Phase A+B): ~$100 (carried from prior arc; not in $435-950 budget — that budget covers v4 refactor only).
 
@@ -33,6 +35,10 @@ Pre-CO sunk cost (Phase A+B): ~$100 (carried from prior arc; not in $435-950 bud
 | 2026-04-26 night /loop poll | CO P0.7 | Codex (codex-rescue → task-mofzpcnq-4v764c) | full audit landed | est ~$5-10 (codex runtime; not directly observable from this session) | **Blueprint:CHALLENGE / Plan:VETO / Protocol:CHALLENGE / Amendment:VETO** | 38KB report; 7 D-VETOs surfaced; mechanical fixes auto-applied; design VETOs surfaced to user via LATEST.md |
 | 2026-04-26 night /loop poll | CO P0 patches v2 | Claude (orchestrator, in-conversation) | Codex mechanical fixes (TR count harmonize / L4 task_id / agent role / D-PROVISIONAL / Hard rule 2 STEP_B / CO2.4.0 strengthen) | $0 (no API call) | n/a | doc-only |
 | **CO P0 sub-total** | — | — | — | **~$5.45-10.45** | — | well below $50-100 budget; cumulative ~0.8-1.5% of $700 mid-budget |
+| 2026-04-27 (date roll) | CO P0.7' T+S re-review | Codex (codex-rescue → task-mofzpcnq...) | Codex's review of Claude's T+S re-recommendations | est ~$5-10 | **D-VETO-1=CHALLENGE / D-VETO-3=CHALLENGE / D-VETO-4=VETO / B-1=PASS / D-VETO-6-retry=CHALLENGE** | 24KB report; reverted permanent-MetaTape-abandon (D4 back to defer); demanded binding spec form; demanded content-anchored genesis |
+| 2026-04-27 | CO P0.7' v3.2 cross-review | Gemini 2.5-pro | Strategic review of 4 new artifacts (state transition spec / genesis / Art 0.2 / Plan v3.2) | ~$0.30 (78963 tokens incl 5320 thoughts) | **STATE_TRANSITION:CHALLENGE / GENESIS:PASS / ART_0_2:PASS / PLAN_v3.2:VETO** | flagged 2 substantive VETOs: incomplete spec § 3 (only WorkTx) + system keypair security void; 1 CHALLENGE: Phase 3 prep weasel wording |
+| 2026-04-27 | CO P0.7' v3.2-fix1 patches | Claude (orchestrator) | Apply VerifyTx/ChallengeTx/ReuseTx/finalize_reward/terminal_summary pseudocode + 4 new invariants + system keypair security spec + 7 Phase 3 prep concrete atoms | $0 (no API call) | n/a | doc-only edits; 8 boot tests still PASS |
+| **2026-04-27 sub-total** | — | — | — | **~$5.30-10.30** | — | running total ~$10.75-20.75 / $700 mid (1.5-3.0%); 5 VETOs + 5 CHALLENGES surfaced + addressed |
 
 (Rows append as invocations complete.)
 

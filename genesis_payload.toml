@@ -165,3 +165,16 @@ n_max = 34
 "handover/architect-insights/CO_MEGA_PLAN_v3.1_2026-04-26.md" = "d275597dd83d79c0459093f2b3ee4a7a882a444f1c58a5f1c7688af920c82afc"
 "handover/architect-insights/TRI_MODEL_ORCHESTRATION_PROTOCOL_2026-04-26.md" = "6b1e142d1608cf1ca1d193ec30a95c96fb133ac3f196dca30a58e91e647ce772"
 "handover/architect-insights/CO_P0_AMENDMENT_v1_2026-04-26.md" = "fdd6dc13a9a3e25532f6c6a12b100931896316e1d14e3eeb056c49e76c85bd0a"
+
+# 2026-04-27 CO P0.7 → CO P0 spec gate expansion (v3.2-fix1; +8 entries; 49 → 57).
+# Trigger: Codex T+S re-review (3 VETOs) + Gemini v3.2 cross-review (2 VETOs).
+# 4 new specs (state transition / genesis schema / Art 0.2 reinterpretation / system keypair / metatx) +
+# Plan v3.2 + 2 audit artifacts (Codex T+S, Gemini v3.2) trust-rooted as load-bearing.
+"handover/specs/STATE_TRANSITION_SPEC_v1_2026-04-27.md" = "d5a19f02bd26b9ee9e455220fc07def0832e9cc3af39d5a043a82126f91bee02"
+"handover/specs/GENESIS_MINIMAL_WITH_ANCHOR_v1_2026-04-27.md" = "fc82ef00874d8d8dba887ad7d8939a14253b080c71f55537fa1d20c7b0a7c113"
+"handover/specs/ART_0_2_REINTERPRETATION_2026-04-27.md" = "6f869c0ba212a0a80cb8e1765d17833ee35392cc3bd9ccaf5553696b0b7f938a"
+"handover/specs/SYSTEM_KEYPAIR_SECURITY_v1_2026-04-27.md" = "3dcaba85c31f834a00ea56591f4a663fb74b7b5643895fb96099f3d0de7fa38d"
+"handover/specs/META_TX_SCHEMA_v1_2026-04-27.md" = "d614b05894948cacd3329ad5208018988110a23669663d7c605d718cb5e7fcf1"
+"handover/architect-insights/CO_MEGA_PLAN_v3.2_2026-04-27.md" = "b28bcc8ab4219ff7e26ce8154b7a5403ff8e931cea21462285e827b5ea41afb2"
+"handover/audits/CODEX_T_S_REVIEW_2026-04-27.md" = "249309ac1f9db36a602abbe62e56105a14c0c1f05a2e00a21bf34235b30db223"
+"handover/audits/GEMINI_V32_REVIEW_2026-04-27.md" = "73f940b137d7de32bbc0a829fa422b93407ca92f684b6659d38e3becb14284c4"
