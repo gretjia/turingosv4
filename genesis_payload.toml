@@ -236,7 +236,7 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 "handover/audits/CODEX_T_S_REVIEW_2026-04-27.md" = "249309ac1f9db36a602abbe62e56105a14c0c1f05a2e00a21bf34235b30db223"
 "handover/audits/GEMINI_V32_REVIEW_2026-04-27.md" = "73f940b137d7de32bbc0a829fa422b93407ca92f684b6659d38e3becb14284c4"
 "handover/architect-insights/RATIFICATION_2026-04-27.md" = "d1f25eea0242a2cbdedc2eb46a25c45c166368419a0a3a470cc5f66304722e25"
-"handover/architect-insights/PROJECT_DECISION_MAP_2026-04-27.md" = "e456d075291c447f7ae90bb721e7814949c4157701d171529271dd056dbe0807"
+"handover/architect-insights/PROJECT_DECISION_MAP_2026-04-27.md" = "da55b34a6020231c8979f7e70201e85aa4f6984a3944dc9caf05a3c25c3ae6d5"
 
 # 2026-04-27 auto-research bundle (post-ratification; +3 entries; 58 → 61).
 # All doc-only, all reversible, all within ratified Plan v3.2-fix1 scope:

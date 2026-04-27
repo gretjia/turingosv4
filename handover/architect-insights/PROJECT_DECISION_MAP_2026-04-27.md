@@ -19,6 +19,7 @@
 | Budget | $890 mid ($580-1200 range); spent ~$25-50 (3-6%) |
 | Timeline | 22-28 weeks (v4); v4.1 MetaTape runtime separate |
 | HEAD at this doc creation | `0a791f6` |
+| HEAD post-Wave-4 | `a44184b` (Wave 4-B+C-fix); preceded by `c2f94c6` (Wave 4-A+C) |
 
 ---
 
@@ -177,7 +178,8 @@ Format: `<Date> <Decision-ID>: <Question>` → table of options with fate.
 | Wave 1 sub-choice | 2026-04-27 | 1=CO1.3.2 evaluator / 2=audit only / 3=CO1.0a only / **hybrid (1.0a + 1.0 + walkthrough + bg audit)** | **hybrid** |
 | Wave 2 sub-choice | 2026-04-27 | A=audit / **B=CO1.5 + CO1.6 + bg v1.4 patches** / C=暂停 | **B** |
 | Wave 3 sub-choice | 2026-04-27 | A=audit / **B=CO1.4 CAS** / C=INV8 spike / D=evaluator / E=暂停 | **B** |
-| Wave 4 (next) | TBD | A=CO1.7 / B=INV8 spike / C=CO1.3.2 / D=audit / E=暂停 | ⏳ user picks |
+| Wave 4 | 2026-04-27 | A=spec round-4 audit / B=CO1.7.0a-f keypair (Codex impl) / C=CO1.2 Q_t (Claude impl) / D=INV8 / E=evaluator / F=ceremonies / G=暂停 | **A+C+B 三轨并行** (D/E deferred Wave 5; F user-async; G not-chosen) |
+| Wave 5 (next) | TBD | A=D INV8 spike / B=CO1.7 transition_ledger / C=CO1.1.4-pre1 (V-01 kill) / D=CO1.1.4 bus split / E=CO1.1.5 kernel split / F=ceremonies | ⏳ user picks |
 
 ---
 
@@ -197,6 +199,9 @@ Format: `<Date> <Decision-ID>: <Question>` → table of options with fate.
 | CO P1 | **1.4 CAS layer (git2-rs)** | src/bottom_white/cas/ | 16/16 ✅ |
 | CO P1 | **1.5 PredicateRegistry** | src/top_white/predicates/ | 14/14 ✅ |
 | CO P1 | **1.6 ToolRegistry** | src/bottom_white/tools/ | 7/7 ✅ |
+| CO P1 | **1.2 Q_t struct** (Wave 4-C; Claude impl + Codex audit CHALLENGE→fix) | src/state/{mod,q_state}.rs | 27 (5 inline + 22 conformance) ✅ |
+| CO P1 | **1.7.0a-f system_keypair** (Wave 4-B; Codex impl + Claude auditor PASS) | src/bottom_white/ledger/system_keypair.rs | 7 (5 conformance + 2 inline) ✅ |
+| CO P1 | **1.SPEC.0 spec v1.4 round-4 dual external audit** (Wave 4-A) | handover/audits/{CODEX,GEMINI}_SPEC_V14_ROUND4_*.md | PASS/PASS ✅ |
 | CO P1 | 1.SPEC.0.4 TLA+ skeleton (optional) | handover/specs/STATE_TRANSITION_SPEC_TLA_*.tla | n/a (not run) |
 | CO P3-prep | .1 META_TX_SCHEMA | (covered by CO0.9) | n/a |
 | CO P3-prep | .4 AmendmentFlow format | handover/specs/AMENDMENT_FLOW_FORMAT_v1_*.md | doc |
@@ -205,18 +210,20 @@ Format: `<Date> <Decision-ID>: <Question>` → table of options with fate.
 | Walk-through | Inv 3 e2e | tests/walkthrough_inv3_conservation.rs | 3/3 ✅ |
 | Spec | v1.4 with 4 patches | handover/specs/STATE_TRANSITION_SPEC_v1_*.md | n/a |
 
-**Subtotal**: ~30 atoms done; 80 new tests; 0 failures.
+**Subtotal**: ~33 atoms done; 102 new tests since CO P0 (37 since Wave 3 closeout); 0 failures.
 
 ### 3.2 🔄 IN-FLIGHT / 🟢 unblocked but not started
 
 | Atom | Status | Why available now |
 |---|---|---|
-| **CO1.1.1 skeleton dirs** | partial done (top_white, bottom_white, economy created); 🟢 finish later | independent of restricted files |
+| **CO1.1.1 skeleton dirs** | partial done (top_white, bottom_white, economy, state, ledger created); 🟢 finish later | independent of restricted files |
 | **CO1.1.3 sandbox move** | 🟢 ready | not STEP_B-restricted |
-| **CO1.1.4-pre1 V-01 kill** (1-line fix to bus.rs:268) | 🟢 ready | small surgical fix; symbolic |
-| **CO1.2 Q_t struct** (9-component QState) | 🟢 ready | uses MicroCoin + types from done atoms |
+| **CO1.1.4-pre1 V-01 kill** (1-line fix to bus.rs:268) | 🟢 ready (spec round-4 PASS unblocked) | small surgical fix; symbolic |
+| **CO1.1.4 bus.rs split (STEP_B)** | 🟢 **NEWLY UNBLOCKED** (spec round-4 PASS/PASS) | restricted file; spec gate cleared |
+| **CO1.1.5 kernel.rs split (STEP_B)** | 🟢 **NEWLY UNBLOCKED** | restricted file; spec gate cleared |
 | **CO1.3.2 evaluator runtime_repo** | 🟢 ready (touches evaluator.rs but not STEP_B) | git2-rs validated |
-| **CO1.7.0a-f system_keypair** | 🟢 ready | independent of bus/kernel |
+| **CO1.7 transition_ledger** | 🟢 **NEWLY UNBLOCKED** | needs CO1.1.4+1.1.5 + system_keypair (now done) |
+| **CO1.7.5 step_transition fn** | 🟢 ready post-1.7 | depends on 1.7 schema |
 | **CO1.8 Materialized State (L5)** | 🟢 ready | new module |
 | **CO1.9 Signal Indices (L6)** | 🟢 ready | new module |
 | **CO1.10 Signal dichotomy** | 🟢 ready | new module |
@@ -225,20 +232,16 @@ Format: `<Date> <Decision-ID>: <Question>` → table of options with fate.
 | **CO P2.4.0 INV8 DAG spike** | 🟢 ready | independent spike |
 | **CO P3-prep.2 MetaProposalDraft CAS** | 🟢 ready (CAS done) | uses CO1.4 |
 
-**Subtotal**: ~12 atoms can start; 0 blocked.
+**Subtotal**: ~14 atoms can start; 1 still blocked (CO1.1.2 wal/ledger move — STEP_B file).
 
-### 3.3 ⏸ BLOCKED (NO-GO until spec v1.4 round-4 PASS)
+### 3.3 ⏸ BLOCKED (remaining)
 
 | Atom | Why blocked | Unblocks |
 |---|---|---|
-| **CO1.1.2 wal/ledger move (STEP_B)** | restricted file move; needs spec PASS | spec round-4 |
-| **CO1.1.4 bus.rs split (STEP_B)** | restricted; spec NO-GO | spec round-4 |
-| **CO1.1.5 kernel.rs split (STEP_B)** | restricted; spec NO-GO | spec round-4 |
-| **CO1.7 transition_ledger** | depends on bus/kernel split | spec round-4 + 1.1.4 + 1.1.5 |
-| **CO1.7.5 step_transition fn** | depends on 1.7 schema | 1.7 |
+| **CO1.1.2 wal/ledger move (STEP_B)** | restricted file move; needs STEP_B parallel-branch ceremony | user runs STEP_B_PROTOCOL on wal.rs + ledger.rs |
 | **CO1.14 P1 exit dual audit** | depends on all P1 atoms | all P1 done |
 
-**Subtotal**: 6 atoms blocked. Spec round-4 audit is the bottleneck — Codex's last verdict expects ≤1 PARTIAL after v1.4 patches.
+**Subtotal**: 2 atoms blocked. Spec round-4 dual audit (Wave 4-A) PASSed → CO1.1.4 / 1.1.5 / 1.7 / 1.7.5 are now in § 3.2 (newly unblocked).
 
 ### 3.4 ⏳ Pending CO P2 (after CO P1 exit)
 
@@ -437,7 +440,7 @@ gix as substrate library                       ⛔ pivoted to git2-rs (spike dat
 
 ## § 9 One-Sentence Status (TL;DR)
 
-> v4 has finished CO P0 + Wave 1-3 (gix→git2-rs spike + CO1.0 + 1.0a + 1.4 + 1.5 + 1.6 + walkthrough Inv 3 e2e; 183/183 lib tests PASS; constitutional + WP authority chain ratified; spec at v1.4 with 5 PARTIAL items pending audit round-4; CO1.1.4/1.1.5/1.7 NO-GO until spec PASS; ~12 green-field atoms remain unblocked; 4 constitutional ceremonies AVAILABLE pending user; budget at 3-6% of $890.
+> v4 has finished CO P0 + Wave 1-4 (gix→git2-rs spike + CO1.0 + 1.0a + 1.4 + 1.5 + 1.6 + walkthrough Inv 3 e2e + **CO1.2 Q_t + CO1.7.0a-f keypair + spec v1.4 round-4 PASS/PASS**); 244/0 lib+integration tests PASS; constitutional + WP authority chain ratified; spec round-4 PASS unblocks CO1.1.4 / 1.1.5 / 1.7 / 1.7.5 STEP_B atoms; ~14 green-field atoms unblocked; 4 constitutional ceremonies AVAILABLE pending user; budget at ~5-9% of $890 (Wave 4 audits ~$22-25).
 
 ---
 

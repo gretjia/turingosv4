@@ -5,10 +5,28 @@
 > Anti-forget pledge: no skipped option is silently retired without explicit fate logged.
 
 
-**Updated**: 2026-04-26 NIGHT SHIFT (auto-research mode; user asleep) — **CO Phase 0 doc-only execution complete**; CO P0.7 Gemini audit returned + must-fix patches applied; Codex audit `task-mofzpcnq-4v764c` in flight (poll via `/codex:status` on wake).
-**HEAD commit (pre-shift)**: `f74e081` — CO P0 night shift bundle
-**HEAD commit (post-shift, after this final commit)**: see latest `git log -1`
-**Origin**: synced; tonight's ~5-6 commits pushed.
+**Updated**: 2026-04-27 — **Wave 4 complete**: spec v1.4 round-4 PASS/PASS + CO1.2 Q_t struct + CO1.7.0a-f system_keypair. STEP_B atoms (CO1.1.4 / 1.1.5 / 1.7 / 1.7.5) NEWLY UNBLOCKED. 244/0 tests (was 183 baseline, +61). ~$38 wave spend; cumulative ~5-9% of $890.
+**HEAD commit**: `a44184b` Wave 4-B + 4-C-fix (preceded by `c2f94c6` Wave 4-A+C).
+**Origin**: not yet pushed; user can `git push origin main` when ready.
+
+## 🌊 Wave 4 Summary (2026-04-27)
+
+**Three-track parallel execution** (per ultrathink plan path 1):
+- **A (spec audit)**: Codex round-4 PASS + Gemini round-4 PASS → conservative PASS / GO. STEP_B unblocked.
+- **B (keypair)**: Codex implementer + Claude auditor (15/15 gates PASS, no must-fix). 846 LoC + 5 conformance tests.
+- **C (Q_t struct)**: Claude implementer + Codex audit CHALLENGE (Q4 TRACE coverage + Q9 serde forward-compat) → resolved in C-fix (`a44184b`).
+
+**Wave 5 candidates** (user picks):
+- D INV8 DAG determinism spike (independent; toughest math; Wave 5 highest-value)
+- CO1.1.4-pre1 V-01 1-line kill (symbolic; small; quick warm-up)
+- CO1.1.4 bus.rs split (STEP_B; 1.5 wk; first STEP_B ceremony)
+- CO1.1.5 kernel.rs split (STEP_B; 1.5 wk)
+- CO1.7 transition_ledger
+- F ceremonies (B/B'/B''/C — user-led; safe now that working tree is clean)
+
+---
+
+## 🌙 Night-Shift Summary (2026-04-26 — historical)
 
 > **TFR v1 (older plan) is DEPRECATED 2026-04-26 night** per D3=A. Authoritative plan is now `CO_MEGA_PLAN_v3.1_2026-04-26.md` synthesized from `TURINGOS_v4_FINAL_BLUEPRINT_2026-04-26.md`.
 
