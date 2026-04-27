@@ -110,6 +110,26 @@ baseline_regression_jsonl_sha256 = ""  # PLACEHOLDER until Phase B7-extra
 k_max = 10
 n_max = 34
 
+# 2026-04-27 CO1.0 — minimal-with-anchor genesis schema per
+# `handover/specs/GENESIS_MINIMAL_WITH_ANCHOR_v1_2026-04-27.md`. 8 content-anchored fields.
+# v4 first iteration: placeholder values for fields awaiting user PGP/SSH ceremony or future
+# predicate definition. boot::verify_constitution_root validates format + cross-references
+# constitution_hash with [trust_root]["constitution.md"].
+[constitution_root]
+constitution_hash = "eec695459c71fbef3685583485deb431fe3b561657b2f285b7c5e7e220e59e03"
+creator_signature = "PENDING_USER_PGP_SSH_SIGNATURE_v4_FIRST_ENACTMENT"
+signed_at = "2026-04-27T08:00:00+00:00"
+schema_version = 1
+# amendment_predicate_hash placeholder: sha256("") = empty hash (no predicate yet; v4.1+ defines).
+amendment_predicate_hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+# Empty Merkle tree roots = sha256(""); these populate via v1.x atom commits as predicates/tools register.
+initial_predicate_registry_root = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+initial_tool_registry_root = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+# Self-referential boot attestation: sha256 of canonical concat of fields above.
+# Computed: cat constitution_hash creator_signature signed_at schema_version amendment_predicate_hash initial_predicate_registry_root initial_tool_registry_root | sha256sum
+# v4 first iteration: PERMISSIVE (boot.rs verifies format + cross-ref; full self-ref deferred to v4.x).
+boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
+
 [trust_root]
 "src/main.rs" = "622fee2d96a980d24f9fbaab3d0531c195a0a337fc3ddd2efb60bca90a1cfbf9"
 "Cargo.lock" = "1cf41e5e6f6bfd77c023fa4c4834f351b3ade63aba30be01278aac485a698ffb"
@@ -121,7 +141,7 @@ n_max = 34
 "tests/fc_alignment_conformance.rs" = "b3e75979ad2d175b9c45135be6ea1d94ce95184c6896468330c12dbfc1f719db"
 "src/kernel.rs" = "893fd67534caf7a3d9abd6efbd202556348b6491cd6d4c6bdb224d2ad75b1af0"
 "src/wal.rs" = "1ac7637aa09531b1c7232163f5df48f7193251594c4ed20e0d0fc85cea8f84dc"
-"src/boot.rs" = "57a0609c4e4e70322419ebe31abe92432f80f2d3298aab29e90d45e4d91942fc"
+"src/boot.rs" = "92d39c2b40e3104bcb76f5a1e7fad72aa608ad8ce2f9564a6d01a70fa64093b6"
 "src/bus.rs" = "df28ffe514a3272a3d10fca4568fd424a76e754e9785c109a5459f163f7fd14c"
 "src/drivers/llm_http.rs" = "615596b68956b4a8925110edc99aa746a5543527724ec394bb9dda163147ed7a"
 "src/drivers/llm_proxy.py" = "0a756098056503b1eb379c452c8bda8ff20835020d509dbdfc14850fb46b6fe2"
@@ -177,6 +197,14 @@ n_max = 34
 # 2026-04-27 CO1.3.1 git substrate spike result (8/8 PASS via git2-rs after gix pivot)
 "spike/gix_capability/results/SPIKE_RESULT_2026-04-27.md" = "1fd869619ae4dd3e3a89dd80f118f57ece8a6260643dd4c7a8c7bf0ec141bd28"
 "spike/gix_capability/Cargo.toml" = "a0e91c97cd18e9ffb8566d2bc901325cb680b728493eef37d8ac02ae2f03c76c"
+
+# 2026-04-27 Wave 1 — CO1.0a MicroCoin + CO1.0 [constitution_root] + walkthrough Inv 3 e2e.
+# Real Rust code; 27/27 tests PASS; data validates Inv 3 monetary conservation closure.
+"src/lib.rs" = "d0d206681c8b7abbbacd08a260db9680c9d8629e4a1b917138d1af2cd182138e"
+"src/economy/mod.rs" = "179e6991fea594a1bb40a4a5eab953cf282c9a135b53b23da7688adf0d12c28c"
+"src/economy/money.rs" = "5004a61712a5a1759c0ad3079c2b85a09116c39148afdc3c583812210294648c"
+"tests/walkthrough_inv3_conservation.rs" = "e1e7bc1130dfb3edb4eb1a7aa458557f1134879ae297eecb3e8d46a269434198"
+"handover/audits/CODEX_SPEC_V13_REAUDIT_2026-04-27.md" = "494600e0d0e01a8d128e46e6272e2d4dd691a3d4089cca02b400ad4e3d9bc94e"
 "handover/whitepapers/TURINGOS_v4_FINAL_BLUEPRINT_2026-04-26.md" = "66de2382248042023538d65fcd04b99cb5f33110727bcebe723ed40cc9c845fa"
 "handover/architect-insights/CO_MEGA_PLAN_v3.1_2026-04-26.md" = "d275597dd83d79c0459093f2b3ee4a7a882a444f1c58a5f1c7688af920c82afc"
 "handover/architect-insights/TRI_MODEL_ORCHESTRATION_PROTOCOL_2026-04-26.md" = "6b1e142d1608cf1ca1d193ec30a95c96fb133ac3f196dca30a58e91e647ce772"

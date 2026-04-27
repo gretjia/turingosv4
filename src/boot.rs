@@ -75,6 +75,10 @@ pub fn verify_trust_root(repo_root: &Path) -> Result<(), TrustRootError> {
     if !has_section(&genesis_text, "pput_accounting_0") {
         return Err(TrustRootError::SectionMissing("pput_accounting_0"));
     }
+
+    // CO1.0 v1 constitution_root verification (per GENESIS_MINIMAL_WITH_ANCHOR_v1).
+    // Permissive in v4 first iteration: format + cross-ref check; full self-ref deferred to v4.x.
+    verify_constitution_root_section(&genesis_text, &manifest)?;
     for (rel_path, expected) in &manifest {
         let full = repo_root.join(rel_path);
         let bytes = fs::read(&full).map_err(|err| TrustRootError::FileRead {
@@ -97,6 +101,146 @@ pub fn verify_trust_root(repo_root: &Path) -> Result<(), TrustRootError> {
         }
     }
     Ok(())
+}
+
+/// CO1.0 (v3.2-fix3): verify `[constitution_root]` section per
+/// `handover/specs/GENESIS_MINIMAL_WITH_ANCHOR_v1_2026-04-27.md`.
+///
+/// 5 sub-checks (v4 first iteration is PERMISSIVE for placeholder fields):
+/// 1. Section exists with all 8 expected keys
+/// 2. `schema_version` == 1
+/// 3. Hash-format fields are 64-char lowercase hex (or recognized placeholder)
+/// 4. `constitution_hash` cross-references `[trust_root]["constitution.md"]`
+/// 5. `signed_at` parses as ISO-8601-ish (basic format check)
+///
+/// Full self-referential `boot_attestation_hash` check is deferred to v4.x
+/// once the user PGP/SSH ceremony completes (placeholder is valid in v4).
+///
+/// /// TRACE_MATRIX WP-spec-genesis-minimal-with-anchor + WP-arch-§5.L0: constitution_root verify
+fn verify_constitution_root_section(
+    genesis_text: &str,
+    manifest: &[(String, String)],
+) -> Result<(), TrustRootError> {
+    if !has_section(genesis_text, "constitution_root") {
+        return Err(TrustRootError::SectionMissing("constitution_root"));
+    }
+
+    let cr = parse_constitution_root_section(genesis_text)?;
+    let required_keys = [
+        "constitution_hash",
+        "creator_signature",
+        "signed_at",
+        "schema_version",
+        "amendment_predicate_hash",
+        "initial_predicate_registry_root",
+        "initial_tool_registry_root",
+        "boot_attestation_hash",
+    ];
+    for key in required_keys {
+        if !cr.iter().any(|(k, _)| k == key) {
+            return Err(TrustRootError::GenesisParse(format!(
+                "constitution_root: missing key '{key}'"
+            )));
+        }
+    }
+
+    let get = |key: &str| -> Option<&str> {
+        cr.iter().find(|(k, _)| k == key).map(|(_, v)| v.as_str())
+    };
+
+    // Sub-check 1: schema_version == 1
+    let sv = get("schema_version").unwrap();
+    if sv != "1" {
+        return Err(TrustRootError::GenesisParse(format!(
+            "constitution_root: schema_version expected '1', got '{sv}'"
+        )));
+    }
+
+    // Sub-check 2: constitution_hash cross-ref with trust_root[constitution.md]
+    let const_hash_root = get("constitution_hash").unwrap();
+    // Cross-ref only when trust_root contains constitution.md (real repo; not tempdir tests).
+    if let Some(const_hash_tr) = manifest
+        .iter()
+        .find(|(p, _)| p == "constitution.md")
+        .map(|(_, h)| h.as_str())
+    {
+        if const_hash_root != const_hash_tr {
+            return Err(TrustRootError::Tampered {
+                path: PathBuf::from("constitution.md"),
+                expected: const_hash_tr.to_string(),
+                actual: format!("constitution_root.constitution_hash={const_hash_root}"),
+            });
+        }
+    }
+
+    // Sub-check 3: hex hash fields are 64-char lowercase hex (or recognized placeholder)
+    for hash_key in [
+        "constitution_hash",
+        "amendment_predicate_hash",
+        "initial_predicate_registry_root",
+        "initial_tool_registry_root",
+    ] {
+        let v = get(hash_key).unwrap();
+        let is_hex = v.len() == 64 && v.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'));
+        if !is_hex {
+            return Err(TrustRootError::GenesisParse(format!(
+                "constitution_root: '{hash_key}' must be 64 lowercase hex chars; got len={} value={v:?}",
+                v.len()
+            )));
+        }
+    }
+
+    // Sub-check 4: signed_at format basic check (YYYY-MM-DDThh:mm:ss±HH:MM at minimum)
+    let signed_at = get("signed_at").unwrap();
+    if signed_at.len() < 19 || !signed_at.chars().nth(4).map(|c| c == '-').unwrap_or(false) {
+        return Err(TrustRootError::GenesisParse(format!(
+            "constitution_root: signed_at not ISO-8601-like; got {signed_at:?}"
+        )));
+    }
+
+    // Sub-check 5: creator_signature + boot_attestation_hash format permissive
+    // (allow placeholder strings; v4.1+ enforces stricter when ceremony runs)
+    let _creator_sig = get("creator_signature").unwrap();  // any non-empty string OK
+    let _boot_att = get("boot_attestation_hash").unwrap(); // any non-empty string OK in v4
+
+    Ok(())
+}
+
+/// Parse `[constitution_root]` section as ordered (key, value) pairs.
+/// Hand-rolled to match existing `parse_trust_root_section` style; values
+/// can be strings (quoted) or integers (unquoted; we preserve as string).
+fn parse_constitution_root_section(text: &str) -> Result<Vec<(String, String)>, TrustRootError> {
+    let mut in_section = false;
+    let mut entries = Vec::new();
+    for (lineno, raw) in text.lines().enumerate() {
+        let line = strip_comment(raw).trim();
+        if line.is_empty() {
+            continue;
+        }
+        if let Some(header) = line.strip_prefix('[').and_then(|s| s.strip_suffix(']')) {
+            in_section = header.trim() == "constitution_root";
+            continue;
+        }
+        if !in_section {
+            continue;
+        }
+        let (key, value) = line.split_once('=').ok_or_else(|| {
+            TrustRootError::GenesisParse(format!("line {}: missing '=' in [constitution_root]", lineno + 1))
+        })?;
+        let key = key.trim();
+        let value_raw = value.trim();
+        // Accept either quoted strings or unquoted integers
+        let value = if let Some(unq) = unquote(value_raw) {
+            unq.to_string()
+        } else {
+            value_raw.to_string()
+        };
+        entries.push((key.to_string(), value));
+    }
+    if entries.is_empty() {
+        return Err(TrustRootError::SectionMissing("constitution_root"));
+    }
+    Ok(entries)
 }
 
 /// TRACE_MATRIX FC3-N34 + case C-075: child-manifest recursion.
@@ -265,9 +409,20 @@ mod tests {
 
     /// Write a single-entry [trust_root] manifest pointing at `only.txt`
     /// with the given hex hash. Used by both tamper and match tests.
+    /// Includes minimal [constitution_root] section per CO1.0 (v3.2-fix3).
     fn write_single_entry_repo(tmp: &Path, only_txt: &str, manifest_hash: &str) {
+        let empty_hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
         let genesis = format!(
             "[pput_accounting_0]\nschema_version = \"1.0\"\n\n\
+             [constitution_root]\n\
+             constitution_hash = \"{empty_hash}\"\n\
+             creator_signature = \"TEST_PLACEHOLDER\"\n\
+             signed_at = \"2026-04-27T00:00:00+00:00\"\n\
+             schema_version = 1\n\
+             amendment_predicate_hash = \"{empty_hash}\"\n\
+             initial_predicate_registry_root = \"{empty_hash}\"\n\
+             initial_tool_registry_root = \"{empty_hash}\"\n\
+             boot_attestation_hash = \"TEST_PLACEHOLDER\"\n\n\
              [trust_root]\n\"only.txt\" = \"{manifest_hash}\"\n"
         );
         fs::write(tmp.join("genesis_payload.toml"), genesis).unwrap();
@@ -330,8 +485,18 @@ mod tests {
         let parent_text = format!("{}  subdir/child.txt\n", "0".repeat(64));
         fs::write(tmp.join("subdir/MANIFEST.sha256"), &parent_text).unwrap();
         let parent_hash = hex_lower(&Sha256::digest(parent_text.as_bytes()));
+        let empty_hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
         let genesis = format!(
             "[pput_accounting_0]\nschema_version = \"1.0\"\n\n\
+             [constitution_root]\n\
+             constitution_hash = \"{empty_hash}\"\n\
+             creator_signature = \"TEST_PLACEHOLDER\"\n\
+             signed_at = \"2026-04-27T00:00:00+00:00\"\n\
+             schema_version = 1\n\
+             amendment_predicate_hash = \"{empty_hash}\"\n\
+             initial_predicate_registry_root = \"{empty_hash}\"\n\
+             initial_tool_registry_root = \"{empty_hash}\"\n\
+             boot_attestation_hash = \"TEST_PLACEHOLDER\"\n\n\
              [trust_root]\n\"subdir/MANIFEST.sha256\" = \"{parent_hash}\"\n"
         );
         fs::write(tmp.join("genesis_payload.toml"), genesis).unwrap();
@@ -357,8 +522,18 @@ mod tests {
         let parent_text = format!("{child_hash}  subdir/child.txt\n");
         fs::write(tmp.join("subdir/MANIFEST.sha256"), &parent_text).unwrap();
         let parent_hash = hex_lower(&Sha256::digest(parent_text.as_bytes()));
+        let empty_hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
         let genesis = format!(
             "[pput_accounting_0]\nschema_version = \"1.0\"\n\n\
+             [constitution_root]\n\
+             constitution_hash = \"{empty_hash}\"\n\
+             creator_signature = \"TEST_PLACEHOLDER\"\n\
+             signed_at = \"2026-04-27T00:00:00+00:00\"\n\
+             schema_version = 1\n\
+             amendment_predicate_hash = \"{empty_hash}\"\n\
+             initial_predicate_registry_root = \"{empty_hash}\"\n\
+             initial_tool_registry_root = \"{empty_hash}\"\n\
+             boot_attestation_hash = \"TEST_PLACEHOLDER\"\n\n\
              [trust_root]\n\"subdir/MANIFEST.sha256\" = \"{parent_hash}\"\n"
         );
         fs::write(tmp.join("genesis_payload.toml"), genesis).unwrap();
