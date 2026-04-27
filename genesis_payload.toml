@@ -179,3 +179,12 @@ n_max = 34
 "handover/audits/CODEX_T_S_REVIEW_2026-04-27.md" = "249309ac1f9db36a602abbe62e56105a14c0c1f05a2e00a21bf34235b30db223"
 "handover/audits/GEMINI_V32_REVIEW_2026-04-27.md" = "73f940b137d7de32bbc0a829fa422b93407ca92f684b6659d38e3becb14284c4"
 "handover/architect-insights/RATIFICATION_2026-04-27.md" = "d1f25eea0242a2cbdedc2eb46a25c45c166368419a0a3a470cc5f66304722e25"
+
+# 2026-04-27 auto-research bundle (post-ratification; +3 entries; 58 → 61).
+# All doc-only, all reversible, all within ratified Plan v3.2-fix1 scope:
+# - TRACE_MATRIX_v3 full N/M/D coverage (CO0.8 atom)
+# - gix substrate spike pre-flight doc (CO1.3.1 atom prep)
+# - MetaTransitionInterface trait spec (CO P3-prep.5 atom)
+"handover/alignment/TRACE_MATRIX_v3_2026-04-27.md" = "0e6e42172401edadfb62a743176a32aa2d1fc5d1259dae8d07ef1d47a6387c77"
+"handover/specs/CO1_3_1_GIX_SPIKE_PREFLIGHT_v1_2026-04-27.md" = "ddf6456633603d5ae04252cbaa700aceb61cac2c278da1f91b8cf28aa4ba8839"
+"handover/specs/META_TRANSITION_INTERFACE_v1_2026-04-27.md" = "f02d83e989be664faea660f10a746b04f986f9b13321ca16f63b470a95b96d4e"
