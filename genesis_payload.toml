@@ -195,3 +195,9 @@ n_max = 34
 "handover/specs/AMENDMENT_FLOW_FORMAT_v1_2026-04-27.md" = "65879c3124661a361fc45f0662af3bf72cefcb0bee30ff7413b28d88f1932a5e"
 "handover/architect-insights/V4_1_METATAPE_PLAN_v1_2026-04-27.md" = "8f77e3a4fe012ea5cb0bef51d3ea19828bb96383de9b096bf3bfdaa339e3bd9d"
 "handover/specs/STATE_TRANSITION_SPEC_TLA_2026-04-27.tla" = "85f8d30966e79926635d82e5cda717b889d8308f191749aaeeb0e5c881effbc4"
+
+# 2026-04-27 auto-research wave 3 (+3 entries; 65 → 68).
+# Doc-only validations + planning artifacts within ratified scope.
+"handover/specs/SPEC_WALKTHROUGH_v1_2026-04-27.md" = "6b9727515c7b1d2ca33f2aebcda50370743bb050b14d79d2d15b0b642988af0c"
+"handover/architect-insights/SPRINT_DEPENDENCY_GRAPH_v1_2026-04-27.md" = "9b540636098f978d45067dc07f7f040c4c970cf14b2dd13b0f8c70452be4bc25"
+"handover/specs/PRE_COMMIT_HOOKS_R022_R023_v1_2026-04-27.md" = "b155e87f8bd9ff0b44808347a00327c9297e636718cd1323928545570bb452cb"
