@@ -1,0 +1,105 @@
+//! TRACE_MATRIX WP § 2 economic — EconomicState 9 sub-fields reconstructibility.
+//!
+//! Atom CO1.2.2: each sub-index round-trips and is insertion-order independent.
+
+use turingosv4::economy::money::MicroCoin;
+use turingosv4::state::{
+    AgentId, BalancesIndex, ChallengeCase, ChallengeCasesIndex, ClaimEntry, ClaimsIndex,
+    EconomicState, EscrowEntry, EscrowsIndex, PriceIndex, Reputation, ReputationsIndex,
+    RoyaltyEdge, RoyaltyGraph, StakeEntry, StakesIndex, TaskMarketEntry, TaskMarketsIndex, TxId,
+};
+
+#[test]
+fn nine_sub_fields_present() {
+    let e = EconomicState::default();
+    let v = serde_json::to_value(&e).unwrap();
+    let obj = v.as_object().unwrap();
+    let names = [
+        "balances_t",
+        "escrows_t",
+        "stakes_t",
+        "claims_t",
+        "reputations_t",
+        "task_markets_t",
+        "royalty_graph_t",
+        "challenge_cases_t",
+        "price_index_t",
+    ];
+    assert_eq!(obj.len(), 9);
+    for n in names.iter() {
+        assert!(obj.contains_key(*n), "missing sub-field {}", n);
+    }
+}
+
+#[test]
+fn populated_economic_state_round_trip() {
+    let mut e = EconomicState::default();
+    e.balances_t.0.insert(AgentId("a".into()), MicroCoin::from_coin(10).unwrap());
+    e.escrows_t.0.insert(
+        TxId("t1".into()),
+        EscrowEntry { amount: MicroCoin::from_coin(5).unwrap(), depositor: AgentId("a".into()) },
+    );
+    e.stakes_t.0.insert(
+        TxId("t2".into()),
+        StakeEntry { amount: MicroCoin::from_coin(3).unwrap(), staker: AgentId("b".into()) },
+    );
+    e.claims_t.0.insert(
+        TxId("t3".into()),
+        ClaimEntry { amount: MicroCoin::from_coin(7).unwrap(), claimant: AgentId("c".into()) },
+    );
+    e.reputations_t.0.insert(AgentId("a".into()), Reputation(100));
+    e.task_markets_t.0.insert(
+        TxId("t4".into()),
+        TaskMarketEntry {
+            publisher: AgentId("p".into()),
+            bounty: MicroCoin::from_coin(50).unwrap(),
+            verifier_quorum: 1,
+            max_reuse_royalty_fraction_basis_points: 1000,
+        },
+    );
+    e.royalty_graph_t.0.insert(
+        TxId("t5".into()),
+        vec![RoyaltyEdge { ancestor: TxId("t4".into()), fraction_basis_points: 500 }],
+    );
+    e.challenge_cases_t.0.insert(
+        TxId("t6".into()),
+        ChallengeCase {
+            challenger: AgentId("ch".into()),
+            bond: MicroCoin::from_coin(2).unwrap(),
+            opened_at_round: 5,
+        },
+    );
+    e.price_index_t.0.insert(TxId("t7".into()), MicroCoin::from_coin(9).unwrap());
+
+    let s = serde_json::to_string(&e).unwrap();
+    let back: EconomicState = serde_json::from_str(&s).unwrap();
+    assert_eq!(e, back);
+}
+
+#[test]
+fn balances_insertion_order_independence() {
+    let mut a = BalancesIndex::default();
+    let mut b = BalancesIndex::default();
+    let names = ["zeta", "alpha", "mu", "beta", "gamma"];
+    for (i, n) in names.iter().enumerate() {
+        a.0.insert(AgentId(n.to_string()), MicroCoin::from_coin(i as i64).unwrap());
+    }
+    for n in names.iter().rev() {
+        let i = names.iter().position(|x| x == n).unwrap();
+        b.0.insert(AgentId(n.to_string()), MicroCoin::from_coin(i as i64).unwrap());
+    }
+    assert_eq!(serde_json::to_string(&a).unwrap(), serde_json::to_string(&b).unwrap());
+}
+
+#[test]
+fn empty_indices_serialize_to_empty_objects() {
+    assert_eq!(serde_json::to_string(&BalancesIndex::default()).unwrap(), "{}");
+    assert_eq!(serde_json::to_string(&EscrowsIndex::default()).unwrap(), "{}");
+    assert_eq!(serde_json::to_string(&StakesIndex::default()).unwrap(), "{}");
+    assert_eq!(serde_json::to_string(&ClaimsIndex::default()).unwrap(), "{}");
+    assert_eq!(serde_json::to_string(&ReputationsIndex::default()).unwrap(), "{}");
+    assert_eq!(serde_json::to_string(&TaskMarketsIndex::default()).unwrap(), "{}");
+    assert_eq!(serde_json::to_string(&RoyaltyGraph::default()).unwrap(), "{}");
+    assert_eq!(serde_json::to_string(&ChallengeCasesIndex::default()).unwrap(), "{}");
+    assert_eq!(serde_json::to_string(&PriceIndex::default()).unwrap(), "{}");
+}

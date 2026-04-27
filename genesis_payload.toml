@@ -200,7 +200,7 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 
 # 2026-04-27 Wave 1 — CO1.0a MicroCoin + CO1.0 [constitution_root] + walkthrough Inv 3 e2e.
 # Real Rust code; 27/27 tests PASS; data validates Inv 3 monetary conservation closure.
-"src/lib.rs" = "d1472e038d326d73275ded7b63105869da0c0f03dc7f17a5550bab05d1c4d230"
+"src/lib.rs" = "bff2012e8027ca905051f01e2cc39588453bca5a50104c37e7cefc15f7d93523"
 "src/economy/mod.rs" = "179e6991fea594a1bb40a4a5eab953cf282c9a135b53b23da7688adf0d12c28c"
 "src/economy/money.rs" = "5004a61712a5a1759c0ad3079c2b85a09116c39148afdc3c583812210294648c"
 "tests/walkthrough_inv3_conservation.rs" = "e1e7bc1130dfb3edb4eb1a7aa458557f1134879ae297eecb3e8d46a269434198"
@@ -214,6 +214,8 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 "src/bottom_white/cas/store.rs" = "c77976fec2bc8d2d3b2b5e93e3b9ac39339942eae3c8fd1c9822ee4c6fe07ad6"
 "src/bottom_white/tools/mod.rs" = "3d04d5f8309fdf949334e00e949681545f21f150a4bdbcdf86b32c2f54122180"
 "src/bottom_white/tools/registry.rs" = "4ed18dcd2a7d7641663ccbdb66c895cb31cd68f4de3bddad8b5d4902633cc387"
+"src/state/mod.rs" = "ca3026c414910419d42c312a93556a25bde7c035ca0feb9ba5abe4adc3ac535a"
+"src/state/q_state.rs" = "50b9ac1df3f38a370348ef0e87b1190e41e2ace6d82da405b64dc134e17e3cb4"
 "handover/audits/CODEX_SPEC_V13_REAUDIT_2026-04-27.md" = "494600e0d0e01a8d128e46e6272e2d4dd691a3d4089cca02b400ad4e3d9bc94e"
 "handover/whitepapers/TURINGOS_v4_FINAL_BLUEPRINT_2026-04-26.md" = "66de2382248042023538d65fcd04b99cb5f33110727bcebe723ed40cc9c845fa"
 "handover/architect-insights/CO_MEGA_PLAN_v3.1_2026-04-26.md" = "d275597dd83d79c0459093f2b3ee4a7a882a444f1c58a5f1c7688af920c82afc"
