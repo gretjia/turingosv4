@@ -4,10 +4,57 @@
 > Tracks every decision + every skipped option + every atom status + forward roadmap.
 > Anti-forget pledge: no skipped option is silently retired without explicit fate logged.
 
+---
+
+## 📜 v2 Whitepaper — Tactical Constitutional-Level Alignment (2026-04-27, RATIFIED ✅)
+
+**Status**: **RATIFIED** after 3-round dual external audit converged (R1 VETO → R2 CHALLENGE → R3 PASS). Constitution.md unchanged; v2 acts as supreme校准 mirror over all derivative docs (Plan v3.2 / Blueprint / v1 / Deepthink).
+
+**Subject (v2.2 in-place)**: `handover/whitepapers/TURINGOS_v4_WHITEPAPER_v2_2026-04-27_ANTI_OREO_RESTORATION.md` (filename unchanged; content patched to v2.2 via 7 must-fix + 1 single-line fix)
+**Alignment note**: `handover/alignment/WHITEPAPER_v2_TACTICAL_ALIGNMENT_2026-04-27.md` (with new § 9 sunset clause + § 10 conflict-resolution)
+
+**Core ruling**: TuringOS = **反奥利奥架构 (body) + ChainTape (tape implementation)**. Blockchain is NOT the body; ChainTape is one possible implementation of the verifiable state-ledger tape, living within Anti-Oreo's three-layer structure (top-white predicates / middle-black agents / bottom-white tools).
+
+**ChainTape Directive**: 项目全面向区块链前进 = ChainTape vertical (**Trust Anchor Layer 0 + ChainTape Layers 1–6**) becomes primary engineering thrust for Wave 6+. NOT "blockchain becomes body" (would invalidate v2 § 公理 5).
+
+### Dual-audit history (3 rounds, conservative-wins)
+| Round | Codex | Gemini | Conservative | Outcome |
+|---|---|---|---|---|
+| R1 | VETO (Q3 sudo scope drift; 7 must-fix) | CHALLENGE (Q10 governance debt) | **VETO** | v2.1 patch in same session |
+| R2 | CHALLENGE (1/7 PARTIAL: stale "Layers 0–5") | PASS | **CHALLENGE** | v2.2 single-line patch |
+| R3 | **PASS** (R2-NEW-1 CLOSED) | **PASS** (Q10 mitigated) | **PASS** ✅ | RATIFICATION HOLDS |
+
+Total v2 audit cost: ~$20 (R1 $8.50 + R2 $8.50 + R3 $3.50). Cumulative project ~$100–150 / $890 mid-budget (~11–17%).
+
+### Wave 6 priorities re-ordered under ChainTape lens
+1. **CO1.7 transition_ledger** (Layer 4) — promoted: central artifact connecting agents → state
+2. **CO1.1.4-pre1.b fixture corpus** — STEP_B byte-comparison engineering pre-req
+3. **INV8 spec v2 revision** — close 4 VETO + 5 CHALLENGE; now scoped under Layer 4
+4. **CO1.1.4 / CO1.1.5 STEP_B** — pair with #2 fixtures
+5. **F ceremonies** — user-led; independent of critical path
+
+### Sedimented OBS files (4)
+- `OBS_WHITEPAPER_V2_DUAL_DOMAIN_2026-04-27.md` — 创造域 vs 安全域 dual rejection mode
+- `OBS_WHITEPAPER_V2_PREDICATE_VISIBILITY_TRINITY_2026-04-27.md` — Public/Private/Commit-Reveal
+- `OBS_WHITEPAPER_V2_QT_FIVE_ROOT_EXTENSION_2026-04-27.md` — Q_t 5-root extension (CO1.2 v2 candidate)
+- `OBS_WHITEPAPER_V2_INITAI_PLACEHOLDER_2026-04-27.md` — InitAI as conceptual placeholder
+
+### v2 retires (semantically only; not physically deleted)
+Any phrase in v1 / Blueprint / Deepthink that asserts "ledger / blockchain is the body of TuringOS." Such phrases are **historical drafting language** superseded by v2 § 公理 5.
+
+### Sunset triggers (per tactical alignment note § 9)
+- **Hard date**: 2027-01-01 mandatory review
+- **Phase 4 entry blocker**: full constitutional merge OR formal retirement required before Permissioned ChainTape phase
+- **Conflict count**: N=3 § 10 escalations within 90 days → automatic suspension
+
+### Orphan finding (NOT caused by v2 work)
+`test_trust_root_simulated_write_aborts` at `experiments/minif2f_v4/tests/trust_root_immutability.rs:74` is **pre-existing failure at clean HEAD `fb63053`** — error: `expected Tampered, got Err(SectionMissing("constitution_root"))`. Likely test assertion outdated post-A8e13 boot.rs error-enum split. Deserves separate Wave 6 sweep atom; unrelated to v2.
+
+---
 
 **Updated**: 2026-04-27 — **Wave 5 path-α minimal closeout**: V-01 ceremonial kill (CO1.1.4-pre1.a) + INV8 dual audit closure (conservative VETO). 246/0 tests. ~$15-20 wave spend.
-**HEAD commit**: `5261340` Wave 5-A INV8 closure (preceded by `0d82e16` V-01 kill).
-**Origin**: Wave 4 (4 commits) pushed; Wave 5 (2 commits) pending push.
+**HEAD commit**: `fb63053` Wave 5 closeout (synced with origin/main).
+**Origin**: Wave 4 + Wave 5 all pushed.
 
 ## 🌊 Wave 5 Summary (2026-04-27 — path α)
 
