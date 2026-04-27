@@ -1,0 +1,162 @@
+//! CAS object schema per WP architecture § 5.L3.
+//!
+//! /// TRACE_MATRIX WP-arch-§5.L3: CAS object schema
+
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+
+/// Content-addressed identifier — sha256 of payload bytes.
+///
+/// Distinct from git's SHA-1 OID (which is an internal storage detail of
+/// the git2-rs backend). `Cid` is the v4-canonical identifier; spec § 1.2
+/// `WorkTx.proposal_cid: Cid` references this.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct Cid(pub [u8; 32]);
+
+impl Cid {
+    /// Compute Cid from content bytes.
+    pub fn from_content(content: &[u8]) -> Self {
+        let mut h = Sha256::new();
+        h.update(content);
+        Self(h.finalize().into())
+    }
+
+    /// Hex-encoded representation (lowercase; 64 chars).
+    pub fn hex(&self) -> String {
+        let mut s = String::with_capacity(64);
+        for b in self.0 {
+            s.push_str(&format!("{:02x}", b));
+        }
+        s
+    }
+}
+
+impl std::fmt::Display for Cid {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "cid:{}", self.hex())
+    }
+}
+
+/// Type tag for CAS objects (replaces inline string-typed kind).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ObjectType {
+    /// Agent's work_tx proposal payload (Lean proof, code patch, etc.).
+    ProposalPayload,
+    /// Challenger's counterexample for a slashed claim.
+    CounterexamplePayload,
+    /// Predicate bytecode (Lean tactic, WASM module, Rust source bytes).
+    PredicateBytecode,
+    /// Tool bytecode.
+    ToolBytecode,
+    /// Constitution diff (for amendment proposals).
+    AmendmentDiff,
+    /// Reversibility plan attached to a meta_tx.
+    ReversibilityPlan,
+    /// Generic / unclassified blob.
+    Generic,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CasObjectMetadata {
+    /// Content-addressed identifier (sha256 of content).
+    pub cid: Cid,
+    /// Backend-specific OID (git sha-1 for git2-rs backend); informational only.
+    /// Different backends may have different OID schemes; Cid is canonical.
+    pub backend_oid_hex: String,
+    pub object_type: ObjectType,
+    /// Submitter / author. Use "system" for runtime-emitted objects.
+    pub creator: String,
+    /// Logical time at insertion (assigned by sequencer; not wall clock).
+    pub created_at_logical_t: u64,
+    /// Optional schema identifier (JSON Schema URI, type tag, etc.).
+    pub schema_id: Option<String>,
+    /// Size of content in bytes (informational; not part of canonical hash).
+    pub size_bytes: u64,
+}
+
+impl CasObjectMetadata {
+    /// Canonical hash of metadata for Merkle tree inclusion.
+    pub fn canonical_hash(&self) -> [u8; 32] {
+        let mut h = Sha256::new();
+        h.update(self.cid.0);
+        h.update(self.backend_oid_hex.as_bytes());
+        h.update(serde_json::to_vec(&self.object_type).expect("object_type serialize"));
+        h.update(self.creator.as_bytes());
+        h.update(self.created_at_logical_t.to_be_bytes());
+        if let Some(s) = &self.schema_id {
+            h.update(b"\x01");
+            h.update(s.as_bytes());
+        } else {
+            h.update(b"\x00");
+        }
+        h.update(self.size_bytes.to_be_bytes());
+        h.finalize().into()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cid_from_empty_content() {
+        let cid = Cid::from_content(b"");
+        // SHA-256 of empty input = e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+        assert_eq!(
+            cid.hex(),
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        );
+    }
+
+    #[test]
+    fn cid_deterministic() {
+        let cid_a = Cid::from_content(b"hello");
+        let cid_b = Cid::from_content(b"hello");
+        assert_eq!(cid_a, cid_b);
+    }
+
+    #[test]
+    fn cid_differs_on_content() {
+        let cid_a = Cid::from_content(b"hello");
+        let cid_b = Cid::from_content(b"world");
+        assert_ne!(cid_a, cid_b);
+    }
+
+    #[test]
+    fn cid_display_format() {
+        let cid = Cid::from_content(b"x");
+        let s = cid.to_string();
+        assert!(s.starts_with("cid:"));
+        assert_eq!(s.len(), 4 + 64);
+    }
+
+    #[test]
+    fn metadata_canonical_hash_deterministic() {
+        let m = CasObjectMetadata {
+            cid: Cid::from_content(b"x"),
+            backend_oid_hex: "abc123".to_string(),
+            object_type: ObjectType::ProposalPayload,
+            creator: "alice".to_string(),
+            created_at_logical_t: 100,
+            schema_id: Some("v1/proposal".to_string()),
+            size_bytes: 1,
+        };
+        assert_eq!(m.canonical_hash(), m.canonical_hash());
+    }
+
+    #[test]
+    fn metadata_canonical_hash_differs_on_object_type() {
+        let base = CasObjectMetadata {
+            cid: Cid::from_content(b"x"),
+            backend_oid_hex: "abc".to_string(),
+            object_type: ObjectType::ProposalPayload,
+            creator: "alice".to_string(),
+            created_at_logical_t: 100,
+            schema_id: None,
+            size_bytes: 1,
+        };
+        let mut variant = base.clone();
+        variant.object_type = ObjectType::CounterexamplePayload;
+        assert_ne!(base.canonical_hash(), variant.canonical_hash());
+    }
+}

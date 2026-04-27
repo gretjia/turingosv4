@@ -5,6 +5,7 @@ edition = "2021"
 description = "Silicon-Native Microkernel for LLM Formal Verification Swarm"
 
 [dependencies]
+git2 = { version = "0.20", default-features = false }
 libc = "0.2"
 log = "0.4"
 rand = "0.8"
@@ -15,6 +16,7 @@ sha2 = "0.10"
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "macros", "process", "io-util", "sync"] }
 
 [dev-dependencies]
+tempfile = "3"
 tokio-test = "0.4"
 
 [workspace]
