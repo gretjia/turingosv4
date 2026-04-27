@@ -172,7 +172,7 @@ n_max = 34
 # Plan v3.2 + 2 audit artifacts (Codex T+S, Gemini v3.2) trust-rooted as load-bearing.
 "handover/specs/STATE_TRANSITION_SPEC_v1_2026-04-27.md" = "f7a45de3dc922661940a1f7743119e787ad8e35696e93e444eb68d04f85a3771"
 "handover/specs/GENESIS_MINIMAL_WITH_ANCHOR_v1_2026-04-27.md" = "fc82ef00874d8d8dba887ad7d8939a14253b080c71f55537fa1d20c7b0a7c113"
-"handover/specs/ART_0_2_REINTERPRETATION_2026-04-27.md" = "6f869c0ba212a0a80cb8e1765d17833ee35392cc3bd9ccaf5553696b0b7f938a"
+"handover/specs/ART_0_2_REINTERPRETATION_2026-04-27.md" = "f6040931726edb9fbcd47735d32665557c10fd08081a11dfaee50a818be6513d"
 "handover/specs/SYSTEM_KEYPAIR_SECURITY_v1_2026-04-27.md" = "3dcaba85c31f834a00ea56591f4a663fb74b7b5643895fb96099f3d0de7fa38d"
 "handover/specs/META_TX_SCHEMA_v1_2026-04-27.md" = "d614b05894948cacd3329ad5208018988110a23669663d7c605d718cb5e7fcf1"
 "handover/architect-insights/CO_MEGA_PLAN_v3.2_2026-04-27.md" = "b28bcc8ab4219ff7e26ce8154b7a5403ff8e931cea21462285e827b5ea41afb2"
@@ -205,4 +205,10 @@ n_max = 34
 # 2026-04-27 auto-research wave 4 (+2 entries; 68 → 70).
 # STATE_TRANSITION_SPEC v1.1 patches in place + 2 new docs (INV8 spike pre-draft, enactment procedure).
 "handover/specs/INV8_DAG_DETERMINISM_SPEC_v1_2026-04-27.md" = "0b56bc7690aa65ba12f8cd050d5f80ade7965078806c2b228e2b191e975fc7ac"
-"handover/architect-insights/ENACTMENT_PROCEDURE_2026-04-27.md" = "b23e1bc10430ead88ffbbeb22c83bd0b37b0b5ed6f134697a3d98e3deb6896cb"
+"handover/architect-insights/ENACTMENT_PROCEDURE_2026-04-27.md" = "a43a0aaec349d73212b2cf250683ad2990acbd8c721050d6e1f2fc485234fc7b"
+
+# 2026-04-27 auto-research wave 5 (+3 entries; 70 → 73).
+# Constitution amendment freeze + conformance test scaffolding + legacy migration + onboarding doc.
+"tests/conformance_stubs.rs" = "1ff21cbbe6b1a305f00470ba8a6763cbbadaf27627de0dda586a5b5ae36bff79"
+"handover/architect-insights/AMENDMENT_2026-04-26_art-0-turing-fundamentalism.md" = "94e86f25ff02a02e7a5c9dd37db0f6bd29f63c7754f445d43d9b39e61f689fdc"
+"handover/ai-direct/V4_PROJECT_OVERVIEW_2026-04-27.md" = "4dada8ab6d5914a458429fe841c2fbcb54b6806eb5e5fa02d7a2e451bef3982f"

@@ -10,12 +10,20 @@
 ## § 1 Ceremony Order (any can run independently)
 
 ```
-A. Ratify auto-research wave 1+2+3 (HIGHEST priority — closes governance chain gap)
-B. Constitution Art 0.5 enactment
-C. PREREG_AMENDMENT_v2 enactment
+A. Ratify auto-research waves (HIGHEST priority — closes governance chain gap)  → ✅ DONE 2026-04-27 via v4-ratify-2026-04-27-49981a3
+B. Constitution Art 0.5 enactment                                                → 🧊 FROZEN (white paper not yet finalized)
+B'. Art 0.2 line 64 cosmetic edit (Reading Y Option B)                           → 🧊 FROZEN (white paper not yet finalized)
+C. PREREG_AMENDMENT_v2 enactment                                                  → ✅ AVAILABLE (PREREG is research-arc spec, not constitution)
 ```
 
-If short on time: do A first (cheapest, biggest governance value); B + C can wait days/weeks.
+> **🧊 Constitution amendment freeze (2026-04-27)**: per user directive 「现在不能修改宪法，因为白皮书还没正式定稿，现阶段不作任何宪法修订」.
+>
+> Affects: Ceremonies B + B'. Does NOT affect:
+> - Ceremony A (governance ratification of TR mutations — already done)
+> - Ceremony C (PREREG enactment — research-arc spec, not constitution.md)
+> - Auto-research wave docs (specs, plans, audits — not constitution.md)
+>
+> **Unfreeze trigger**: user signs `v4-whitepaper-finalized-*` tag covering both architecture + economic white paper chapters as final. Then Ceremonies B + B' may run.
 
 ---
 

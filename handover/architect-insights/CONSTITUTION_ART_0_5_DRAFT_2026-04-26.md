@@ -1,6 +1,11 @@
 # Constitution Amendment Draft — Art. 0.5
 
-> **Status**: DRAFT awaiting user formal sudo + cp workflow enactment.
+> **🧊 FROZEN 2026-04-27**: User directive: "现在不能修改宪法，因为白皮书还没正式定稿，现阶段不作任何宪法修订"
+> Enactment is **PAUSED** until white paper is formally finalized. The text below remains the canonical proposal but is NOT to be applied via cp-workflow at this time.
+>
+> Trigger to unfreeze: user signs a `v4-whitepaper-finalized-*` tag covering both architecture + economic chapters; THEN Ceremony B in `ENACTMENT_PROCEDURE_2026-04-27.md` may run.
+>
+> **Status**: DRAFT (FROZEN) awaiting white paper finalization.
 >
 > **Authority required**: per Art. V.3, constitution amendments require human architect explicit sudo. ArchitectAI cannot self-enact.
 >

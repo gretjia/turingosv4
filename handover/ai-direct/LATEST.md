@@ -68,6 +68,27 @@
 - Art 0.2 reinterpretation: user picks Option A (interp only) / B (cosmetic edit, default rec) / C (formal sub-section) / X (revert D-VETO-6)
 - Cost cap: $890 mid OK or shift down to $600 by dropping CO P3-PREP / shrinking CO1.7 keypair tools?
 
+# 🧊 2026-04-27 Constitution Amendment Freeze
+
+User directive 2026-04-27: **「现在不能修改宪法，因为白皮书还没正式定稿，现阶段不作任何宪法修订」**
+
+**Frozen items**:
+- Constitution Art 0.5 enactment (Ceremony B) — DRAFT remains, NOT to be applied to constitution.md
+- Art 0.2 line 64 cosmetic edit (Option B in Reading Y reinterpretation) — proposal remains, NOT to be applied to constitution.md
+- Any other constitution.md modification
+
+**NOT frozen**:
+- ✅ Spec / plan / audit docs (not constitution.md)
+- ✅ Trust Root mutations (governance ratification continues)
+- ✅ PREREG_AMENDMENT_v2 enactment (research-arc spec, not constitution)
+- ✅ White paper revisions (user-driven; these will trigger unfreeze)
+- ✅ Auto-research waves (doc-only; not touching constitution.md)
+- ✅ CO P1 launch when ready (uses spec docs as authority, not pending constitution amendments)
+
+**Unfreeze trigger**: user signs `v4-whitepaper-finalized-2026-XX-XX` tag covering both architecture + economic WP chapters. Then Ceremony B + Option B may run; spec docs still authoritative.
+
+**Implication for code (CO P1+P2)**: STATE_TRANSITION_SPEC v1.1 already implements Reading Y interpretation (failure SIGNAL on tape via system-stamped retry metadata). Code follows spec; constitutional text catches up later. This is allowed because spec is more recent + author identical (gretjia). v4 ship gate may proceed without constitutional cosmetic edits.
+
 ---
 
 **Codex audit** (landed during /loop poll iteration; commit `dd38679+1`):
