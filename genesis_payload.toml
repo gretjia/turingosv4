@@ -162,6 +162,10 @@ n_max = 34
 "handover/whitepapers/TURINGOS_WHITEPAPER_v1_2026-04-26.md" = "5c17819b6f574a384d894c801322e056fcd869ff9526794238888cc0741e6d88"
 "handover/whitepapers/TURINGOS_WHITEPAPER_v1_ECONOMIC_2026-04-26.md" = "d059a0bd2e95fb13c112d8ed6acc9adc32c63a8c89206dd5fcfa77bfb8d5aa44"
 "handover/whitepapers/REVISION_NOTES_2026-04-27.md" = "d6252b9f57a571489c68d98d8b23a1238edc70543f319deb826c919a1928cb9b"
+
+# 2026-04-27 wave 6 (CO P0 closeout; +2 entries; 74 → 76).
+"handover/audits/GEMINI_WP_REVISION_AUDIT_2026-04-27.md" = "6a6f35399af4a959a20d8fbb88196fa2755b709403c91abb0a7d4fdbaa2673b4"
+"handover/architect-insights/CO_P0_EXIT_REPORT_2026-04-27.md" = "4634842fc0aa382bdce417ff0eb0fdf523ad7b77719586c96ac6b7e6f74074eb"
 "handover/whitepapers/TURINGOS_v4_FINAL_BLUEPRINT_2026-04-26.md" = "66de2382248042023538d65fcd04b99cb5f33110727bcebe723ed40cc9c845fa"
 "handover/architect-insights/CO_MEGA_PLAN_v3.1_2026-04-26.md" = "d275597dd83d79c0459093f2b3ee4a7a882a444f1c58a5f1c7688af920c82afc"
 "handover/architect-insights/TRI_MODEL_ORCHESTRATION_PROTOCOL_2026-04-26.md" = "6b1e142d1608cf1ca1d193ec30a95c96fb133ac3f196dca30a58e91e647ce772"
