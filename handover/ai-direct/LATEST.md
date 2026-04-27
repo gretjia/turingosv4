@@ -5,9 +5,39 @@
 > Anti-forget pledge: no skipped option is silently retired without explicit fate logged.
 
 
-**Updated**: 2026-04-27 — **Wave 4 complete**: spec v1.4 round-4 PASS/PASS + CO1.2 Q_t struct + CO1.7.0a-f system_keypair. STEP_B atoms (CO1.1.4 / 1.1.5 / 1.7 / 1.7.5) NEWLY UNBLOCKED. 244/0 tests (was 183 baseline, +61). ~$38 wave spend; cumulative ~5-9% of $890.
-**HEAD commit**: `a44184b` Wave 4-B + 4-C-fix (preceded by `c2f94c6` Wave 4-A+C).
-**Origin**: not yet pushed; user can `git push origin main` when ready.
+**Updated**: 2026-04-27 — **Wave 5 path-α minimal closeout**: V-01 ceremonial kill (CO1.1.4-pre1.a) + INV8 dual audit closure (conservative VETO). 246/0 tests. ~$15-20 wave spend.
+**HEAD commit**: `5261340` Wave 5-A INV8 closure (preceded by `0d82e16` V-01 kill).
+**Origin**: Wave 4 (4 commits) pushed; Wave 5 (2 commits) pending push.
+
+## 🌊 Wave 5 Summary (2026-04-27 — path α)
+
+**Completed**:
+- ✅ **5-A**: INV8 DAG spec v1 dual external audit. Gemini PASS / Codex VETO (4 VETO + 5 CHALLENGE; concurrent-parent tie-break SILENT, weight formula contradiction, assert_acyclic broken, not implement-ready). **Conservative VETO**. Codex/Gemini divergence = 50% > 20% threshold → AUDIT_LEDGER § 5 spec-tightening signal triggered.
+- ✅ **5-C / CO1.1.4-pre1.a**: V-01 ceremonial kill at `bus.rs:268`; literal `0` → named `pub(crate) const PENDING_COMPLETION_TOKENS_CO1_1_4` with FC1-Cost+FC3-Cost TRACE doc-comment. D-VETO-7 status closed.
+
+**Deferred to Wave 6**:
+- 🔄 **INV8 spec v2 revision** (NEW Wave 6 priority — close 4 VETO + 5 CHALLENGE; re-audit dual external; both PASS required for CO P2.4.0 spike clearance; CO P2.4.1+ atoms remain BLOCKED until then)
+- 🔄 **5-B CO1.7 transition_ledger** (large atom; deserves dedicated session)
+- 🔄 **5-C.b canonical fixture corpus** (bincode v2 fixtures for QState + WorkTx + ...; pre-requisite for STEP_B byte-comparison)
+- 🔄 **D CO1.1.4 bus.rs split (STEP_B)** + **E CO1.1.5 kernel.rs split (STEP_B)** — pair with 5-C.b
+- 🔄 **F ceremonies** (B''/B'/B/C — user-led; working tree clean)
+
+---
+
+## 🌊 Wave 4 Summary (2026-04-27)
+
+**Three-track parallel execution** (per ultrathink plan path 1):
+- **A (spec audit)**: Codex round-4 PASS + Gemini round-4 PASS → conservative PASS / GO. STEP_B unblocked.
+- **B (keypair)**: Codex implementer + Claude auditor (15/15 gates PASS, no must-fix). 846 LoC + 5 conformance tests.
+- **C (Q_t struct)**: Claude implementer + Codex audit CHALLENGE (Q4 TRACE coverage + Q9 serde forward-compat) → resolved in C-fix (`a44184b`).
+
+**Wave 5 candidates** (user picks):
+- D INV8 DAG determinism spike (independent; toughest math; Wave 5 highest-value)
+- CO1.1.4-pre1 V-01 1-line kill (symbolic; small; quick warm-up)
+- CO1.1.4 bus.rs split (STEP_B; 1.5 wk; first STEP_B ceremony)
+- CO1.1.5 kernel.rs split (STEP_B; 1.5 wk)
+- CO1.7 transition_ledger
+- F ceremonies (B/B'/B''/C — user-led; safe now that working tree is clean)
 
 ## 🌊 Wave 4 Summary (2026-04-27)
 
