@@ -597,8 +597,9 @@ impl TerminalSummaryTx {
 // ────────────────────────────────────────────────────────────────────────────
 
 /// TRACE_MATRIX § 8 dispatch_transition — typed-tx outer enum.
-/// 7 variants (K5 closed: NO `Slash`).
-/// `TerminalSummaryTx` is imported from `system_keypair.rs` (already shipped).
+/// 7 variants (K5 closed: NO `Slash`). All variants are defined in this
+/// module (`state::typed_tx`); v1.1 P3 migrated `TerminalSummaryTx` here
+/// from a 3-field placeholder previously in `system_keypair.rs`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TypedTx {
     Work(WorkTx),

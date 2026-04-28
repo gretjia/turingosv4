@@ -564,13 +564,16 @@ pub(crate) mod predicate_runner {
     }
 }
 
-/// TRACE_MATRIX FC1-Sig+FC3-Sig: crate-only signing surface for terminal summary emission.
+/// TRACE_MATRIX FC1-Sig+FC3-Sig: crate-only signing surface for system-emitted
+/// transition signatures (terminal summary, finalize reward, task expire).
 ///
-/// **CO1.1.4-pre1 v1.1 round-1 closure (C-3)**: signs an opaque `[u8; 32]`
-/// digest produced by `state::typed_tx::TerminalSummaryTx::canonical_digest()`
-/// (same opaque-digest pattern as `transition_ledger_emitter::sign_ledger_entry`)
-/// rather than the typed struct directly — keeps `system_keypair` oblivious
-/// to the typed-tx schema, no `bottom_white ↔ state` circular dep.
+/// **CO1.1.4-pre1 v1.1 round-1 closure (C-3) + v1.2 round-2 closure (R2-2)**:
+/// signs an opaque `[u8; 32]` digest produced by
+/// `state::typed_tx::TerminalSummaryTx::to_signing_payload().canonical_digest()`
+/// (and the parallel paths via `FinalizeRewardSigningPayload::canonical_digest()` /
+/// `TaskExpireSigningPayload::canonical_digest()`). Same opaque-digest pattern
+/// as `transition_ledger_emitter::sign_ledger_entry` — keeps `system_keypair`
+/// oblivious to the typed-tx schema; no `bottom_white ↔ state` circular dep.
 pub(crate) mod terminal_summary_emitter {
     use super::{
         sign_system_message_inner, CanonicalMessage, Ed25519Keypair, EpochRotationProof,
