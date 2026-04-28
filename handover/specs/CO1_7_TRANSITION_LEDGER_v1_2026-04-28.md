@@ -382,6 +382,9 @@ The following are deliberately under-specified; round-1 audit input requested:
 - **Q5** (Gemini): is the `dispatch_transition` enum-match pattern the right shape, or should we use the `MetaTransitionInterface` trait pattern (CO P3-prep.5)? Trade-off is v4/v4.1 boundary cleanliness.
 - **Q6** (Codex): `replay` rejects on first error (current). Should it instead collect all errors for diagnostic completeness? Trade-off is error-mode complexity.
 - **Q7** (Gemini): genesis ledger_root_t — `Hash::ZERO` (current) or sha256 of the genesis_payload.toml content? The latter binds replay to a specific genesis; the former is simpler but loses that anchor.
+- **Q8** (BOTH; surfaced post type-skeleton smoke 2026-04-28): existing `system_keypair::CanonicalMessage` has 3 fixed variants (RejectedAttemptSummary / TerminalSummaryTx / EpochRotationProof). LedgerEntry is NOT among them. Two paths: (a) extend `CanonicalMessage` enum with `LedgerEntry(LedgerEntry)` variant — touches Wave 4-B shipped code (additive, not breaking); (b) introduce a sibling sign primitive specifically for LedgerEntry that does not go through `CanonicalMessage`. Trade-off: (a) preserves single-canonical-digest principle but couples ledger to the enum; (b) decouples but introduces a second signing pathway with parallel canonical digest discipline.
+- **Q9** (BOTH; surfaced post type-skeleton smoke 2026-04-28): spec v1 § 1 said `canonical_digest_unsigned` "covers fields 1-7 (excludes signature)" but did NOT explicitly state that `resulting_ledger_root` (field 6) must ALSO be excluded. Skeleton's first replay test failed immediately — including `resulting_ledger_root` creates a circular dependency (`ledger_root_t+1 = append(ledger_root_t, digest)` where `digest ⊃ ledger_root_t+1`). Skeleton fixed: digest now covers `{logical_t, parent_state_root, tx_kind, tx_payload_cid, resulting_state_root, timestamp_logical, epoch}` — 7 fields, NOT including `resulting_ledger_root` and NOT including `system_signature`. Spec v1.1 must make this exclusion explicit at § 1.
+- **Q10** (BOTH; surfaced post smoke): spec missed `epoch: SystemEpoch` field on LedgerEntry. Without it, `verify_system_signature(sig, msg, epoch, pinned_pubkeys)` cannot resolve the pubkey to use. Skeleton added it (now field 7 of 8). Spec v1.1 must add this field.
 
 ---
 
@@ -406,9 +409,27 @@ The following are deliberately under-specified; round-1 audit input requested:
 
 ## § 14 Honest acknowledgements
 
-1. This spec presumes CO1.4 CAS layer's API surface; if `CasReader::get` or `CasWriter::put_canonical` shape changes, § 4-5 need re-touching.
+1. ~~This spec presumes CO1.4 CAS layer's API surface~~ — verified post type-skeleton smoke 2026-04-28: `CasStore::get(&Cid) → Result<Vec<u8>, CasError>` matches; `CasStore::put` has wider signature than expected (5 params: `content`, `object_type`, `creator`, `created_at_logical_t`, `schema_id`) — sequencer must build full CAS metadata. **DIV-5** flagged.
 2. The SubmissionQueue type is a tokio choice; if the project pivots to a different async runtime, § 3 Sequencer.run() rewrites.
-3. § 11 Q4 + Q7 are real design forks I do not have a strong opinion on; round-1 audit settles them.
-4. system_signature integration relies on CO1.7.0a-f's API exactly as shipped; if the sign API takes different bytes, § 1 LedgerEntry.system_signature semantics shift.
+3. § 11 Q4 + Q7 + Q8 + Q9 + Q10 are real design forks; round-1 audit settles them.
+4. ~~system_signature integration relies on CO1.7.0a-f's API exactly as shipped~~ — verified post smoke: `SystemSignature::from_bytes`, `SystemEpoch::new/get`, `verify_system_signature(sig, msg, epoch, pinned_pubkeys)` all public. The actual `CanonicalMessage` enum has 3 fixed variants, LedgerEntry is NOT among them. **Q8** (NEW) surfaced.
+5. **Spec ↔ skeleton divergences sedimented** (post 2026-04-28 smoke):
+   - **DIV-1**: `CanonicalMessage` enum integration → Q8 (NEW)
+   - **DIV-2**: Q_t mutation API not yet present → state-mutation paths in skeleton are `unimplemented!()` until CO P2.x economy atoms
+   - **DIV-3**: missing `epoch: SystemEpoch` field → Q10 (NEW); skeleton already added
+   - **DIV-4**: `CasReader` trait → narrowed to `LedgerCasView` (CasStore impls in CO1.7.5+)
+   - **DIV-5**: `CasStore::put` 5-param signature → sequencer responsibility documented in § 1
+6. **Spec v1 bug found by skeleton smoke** (Q9, NEW): `canonical_digest_unsigned` must EXCLUDE `resulting_ledger_root`, not just `system_signature`. Spec v1 § 1 wording was ambiguous; first replay test caught the cycle. Skeleton fixed; spec v1.1 must explicit.
 
-— ArchitectAI, session 2026-04-28.
+## § 15 Pre-audit smoke verification (2026-04-28)
+
+| Smoke item | Result | What it proved |
+|---|---|---|
+| `cargo check` on `src/bottom_white/ledger/transition_ledger.rs` | PASS | LedgerEntry / TxKind / append / replay_chain_integrity / InMemoryLedgerWriter all type-check against existing `Cid` (CO1.4) + `SystemSignature`/`SystemEpoch` (CO1.7.0a-f) + `Hash` (Q_t) |
+| `cargo test --lib bottom_white::ledger::transition_ledger::` | 6/6 PASS | append byte-stable; canonical_digest stable across clones; in-memory writer enforces logical_t monotonic; replay validates parent chain; replay rejects parent_state_root tamper; replay rejects ledger_root tamper |
+| `cargo test --lib boot::tests::verify_trust_root_passes_on_intact_repo` | PASS post TR refresh | new file `transition_ledger.rs` + modified `mod.rs` added to `genesis_payload.toml [trust_root]` |
+| `cargo test --lib` (full workspace) | 196/0 PASS | no regression in 190 pre-existing tests |
+
+**Audit-ready artifact set**: spec v1 (this file) + skeleton (`src/bottom_white/ledger/transition_ledger.rs`, ~370 lines incl. 6 inline tests) + 5 cataloged divergences + 4 new round-1 audit Qs (Q8/Q9/Q10/Q11). Round-1 audit has both paper + code to inspect — higher signal density than spec-only review.
+
+— ArchitectAI, session 2026-04-28; smoke-verified 2026-04-28.
