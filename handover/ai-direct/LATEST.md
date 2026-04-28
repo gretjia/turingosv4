@@ -69,6 +69,61 @@ CO1.7 audit cost: ~$25-42 (3 rounds; cumulative project ~$135-202 / $890 mid). W
 
 ---
 
+## 🌊 2026-04-28 Session-2 Final — Wave 6 #1 IMPLEMENTATION PHASE COMPLETE ✅
+
+**Updated**: 2026-04-28 14:12 UTC
+**Session summary**: Auto-execute mode shipped CO1.1.4-pre1 ABI atom (PASS/PASS) + CO1.7-impl A1+A2+A3+A4 bundle (PASS/PASS-equivalent) + CO1.4-extra in one continuous run. 17 commits pushed. 199/0 → 239/0 lib PASS + 1 ignored (CO1.7.5-stage). Audit spend ~$40-75. Single carry-forward: G-1 head_t Art 0.4 alignment closes in CO1.7.5.
+
+### Current State
+
+**Wave 6 #1 (L4 Transition Ledger family) — 80% complete**:
+- ✅ CO1.7 spec PASS/PASS (3 rounds, prior session, ~$25-42)
+- ✅ **CO1.1.4-pre1 v1.2.2 ABI surface PASS/PASS** (5 rounds, ~$26-50; commit `c1226e2`) — 7-variant TypedTx + 6 SigningPayload + 13 locked golden hex + ClaimId + 22-variant TransitionError
+- ✅ **CO1.7-impl A1+A2+A3+A4 bundle PASS/PASS-equivalent** (3 rounds, ~$14-25; commit `2461fe6`) — Git2LedgerWriter + Sequencer + dispatch_transition stubs + replay_full_transition (9-stage I-DETHASH witness with tx_kind + decode separation)
+- ✅ **CO1.4-extra** sidecar JSONL CAS index persistence (commit `b6b7574`) — closes Art 0.2 cold-replay gate
+- 📅 **CO1.7.5** (per-kind transition bodies + STEP_B bus.rs/kernel.rs wiring) — final L4 atom, NOT STARTED
+
+**ChainTape vertical position**:
+- L0 Trust Anchor ✅ / L1 PredicateRegistry ✅ / L2 ToolRegistry ✅ / L3 CAS ✅ (incl. cold-replay) / L4 ⏳ 80% (storage + ABI + machinery done; transition bodies pending) / L5 📅 NOT STARTED / L6 📅 NOT STARTED
+
+**Cumulative project audit spend**: ~$175-273 / $890 mid-budget (~20-31%).
+
+### Next Steps
+
+1. **CO1.7.5** (single critical path) — final L4 atom. Inherits frozen ABI + Sequencer machinery; must deliver:
+   - Real per-kind transition bodies for 7 TypedTx variants (currently `Err(NotYetImplemented)` stubs)
+   - Close G-1 head_t Art 0.4: wire `q.head_t = NodeId(commit_oid_hex)` after Git2LedgerWriter.commit (`head_commit_oid()` already exposed)
+   - STEP_B parallel-branch ceremony for bus.rs/kernel.rs wiring (per CLAUDE.md "Code Standard")
+   - Remove `#[ignore]` from `sequencer_serial_replay_byte_identity` test; verify end-to-end state_root reconstruction
+   - Estimated: ~5-9 days; ~$25-50 audit
+2. **Then** Wave 6 #2/#3 unblocks (CO1.8 L5 materializer + CO1.9 L6 signal indices)
+3. **PPUT-CCL Phase C unfreeze** at TFR S3.9 — still ~5-7 weeks out
+
+### Open Questions
+
+- **Q1 (architectural drift)**: TFR_MASTER_PLAN_2026-04-26 uses old paths (`src/tape/`, `src/wal.rs`, `src/ledger.rs`); actual work is under `src/bottom_white/ledger/` + `src/state/` per Anti-Oreo restoration. Worth a one-line "SUPERSEDED by Wave 6 framing" header, or leave as historical artifact?
+- **Q2 (process)**: 7 sedimented lessons across CO1.1.4-pre1 + CO1.7-impl bundle audits (esp. "claim-vs-code parity drift recurs" — caught 2× this session). Should pre-audit grep be codified into `validate` skill, or stay informal habit?
+- **Q3 (next-session entry)**: CO1.7.5 directly, or pause for handover review first?
+- **Q4 (head_t closure binding)**: G-1 deferred to CO1.7.5 per spec K3 v1.2 + Gemini bundle r1 #1 carry-forward. Both bound to that atom — but if CO1.7.5 slips, head_t Art 0.4 violation persists. Worth a preemptive "head_t patched to commit_oid_hex via Git2LedgerWriter::commit return value" mini-atom while CO1.7.5 transition bodies are designed?
+
+### Key commits this session (chronological)
+- `a03cc52` CO1.7-impl A1: Git2LedgerWriter + bincode codec
+- `227de72` CO1.1.4-pre1 v1: Typed Tx ABI surface
+- `df548c5` CO1.1.4-pre1 R1 audit (CHALLENGE/CHALLENGE)
+- `e0e4565` CO1.1.4-pre1 v1.1 (10 patches)
+- `f4649a9` CO1.1.4-pre1 v1.2 (5 patches + 3 GR)
+- `33e75b8` v1.2.1 + R3 (2 doc fixes)
+- `4d917ac` v1.2.2 + R4 (2 more doc fixes)
+- `c1226e2` **CO1.1.4-pre1 PASS/PASS** (R5)
+- `609d8d5` A2+A3 Sequencer + dispatch
+- `b6b7574` CO1.4-extra
+- `272fcf4` A4 replay_full_transition
+- `1a921e5` Bundle v1.1 (4 patches)
+- `1bc8887` Bundle v1.1.1 (2 missing tests)
+- `2461fe6` **Bundle PASS/PASS-equivalent**
+
+---
+
 ## 📊 Project Completion Snapshot — 2026-04-28
 
 > **Two parallel tracks** (re-confirmed): **CO refactor** (kernel architectural rewrite) and **PPUT-CCL experiment** (real minif2f benchmark on heldout-49). Per PREREG, neither blocks the other; CO1.7 transition_ledger does NOT block minif2f experiment runs.
