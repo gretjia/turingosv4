@@ -1332,6 +1332,122 @@ mod tests {
         assert!(matches!(err, ReplayError::Transition { at: 0, .. }));
     }
 
+    /// 18b. v1.1 C-3 closure: tx_kind mismatch — envelope claims one variant,
+    ///      CAS payload decodes as another. Replay MUST reject before stage 7.
+    #[test]
+    fn replay_rejects_tx_kind_mismatch() {
+        let (_tmp, mut cas, kp, epoch, pinned, preds, tools) = replay_test_setup();
+        // Build a real entry whose envelope tx_kind matches the payload (Work).
+        let mut entry = build_signed_entry(
+            1,
+            Hash::ZERO,
+            Hash::ZERO,
+            h(1),
+            epoch,
+            &kp,
+            &mut cas,
+            &dummy_typed_tx(),
+        );
+        // Tamper: claim a different tx_kind on the envelope, RE-SIGN with the
+        // tampered envelope so signature still verifies.
+        let tampered_signing = LedgerEntrySigningPayload {
+            logical_t: entry.logical_t,
+            parent_state_root: entry.parent_state_root,
+            parent_ledger_root: entry.parent_ledger_root,
+            tx_kind: TxKind::Verify, // ← lies about the payload kind
+            tx_payload_cid: entry.tx_payload_cid,
+            resulting_state_root: entry.resulting_state_root,
+            timestamp_logical: entry.timestamp_logical,
+            epoch: entry.epoch,
+            extensions: entry.extensions.clone(),
+        };
+        let tampered_digest = tampered_signing.canonical_digest();
+        let tampered_sig =
+            transition_ledger_emitter::sign_ledger_entry(&kp, tampered_digest.0).expect("sign");
+        entry.tx_kind = TxKind::Verify;
+        entry.system_signature = tampered_sig;
+        // Recompute resulting_ledger_root with the tampered signing digest so
+        // chain check (stage 9) wouldn't be the failure path.
+        entry.resulting_ledger_root = append(&Hash::ZERO, &tampered_digest);
+
+        let err = replay_full_transition(
+            &crate::state::q_state::QState::genesis(),
+            &[entry],
+            &cas,
+            &pinned,
+            &preds,
+            &tools,
+        )
+        .unwrap_err();
+        assert!(
+            matches!(
+                err,
+                ReplayError::TxKindMismatch {
+                    at: 0,
+                    envelope_kind: TxKind::Verify,
+                    decoded_kind: TxKind::Work
+                }
+            ),
+            "expected TxKindMismatch(Verify vs Work), got {err:?}"
+        );
+    }
+
+    /// 18c. v1.1 closure (Codex Q-K secondary): payload decode failure
+    ///      reports as PayloadDecode (NOT CasMissing).
+    #[test]
+    fn replay_rejects_payload_decode_failure() {
+        let (_tmp, mut cas, kp, epoch, pinned, preds, tools) = replay_test_setup();
+
+        // Manually put NON-canonical bytes into CAS, then build an entry
+        // pointing at them. Signature verifies because envelope binds the
+        // cid, not the cid's contents.
+        let bad_bytes = b"\xff\xff this is not a valid bincode TypedTx";
+        let bad_cid = cas
+            .put(bad_bytes, ObjectType::ProposalPayload, "test", 1, None)
+            .expect("cas put");
+        let signing = LedgerEntrySigningPayload {
+            logical_t: 1,
+            parent_state_root: Hash::ZERO,
+            parent_ledger_root: Hash::ZERO,
+            tx_kind: TxKind::Work,
+            tx_payload_cid: bad_cid,
+            resulting_state_root: h(1),
+            timestamp_logical: 1,
+            epoch,
+            extensions: BTreeMap::new(),
+        };
+        let digest = signing.canonical_digest();
+        let sig =
+            transition_ledger_emitter::sign_ledger_entry(&kp, digest.0).expect("sign");
+        let entry = LedgerEntry {
+            logical_t: 1,
+            parent_state_root: Hash::ZERO,
+            parent_ledger_root: Hash::ZERO,
+            tx_kind: TxKind::Work,
+            tx_payload_cid: bad_cid,
+            resulting_state_root: h(1),
+            resulting_ledger_root: append(&Hash::ZERO, &digest),
+            timestamp_logical: 1,
+            epoch,
+            extensions: BTreeMap::new(),
+            system_signature: sig,
+        };
+
+        let err = replay_full_transition(
+            &crate::state::q_state::QState::genesis(),
+            &[entry],
+            &cas,
+            &pinned,
+            &preds,
+            &tools,
+        )
+        .unwrap_err();
+        assert!(
+            matches!(err, ReplayError::PayloadDecode { at: 0, .. }),
+            "expected PayloadDecode at 0, got {err:?}"
+        );
+    }
+
     /// 18. sequencer_serial_replay_byte_identity — gated behind #[ignore]
     ///     until CO1.7.5 fills dispatch bodies. The skeleton of the
     ///     test is here so CO1.7.5 just removes the #[ignore].
