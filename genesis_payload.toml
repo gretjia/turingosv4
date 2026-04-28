@@ -249,7 +249,7 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 
 # 2026-04-28 Wave 6 #1 — CO1.7 transition_ledger spec v1 DRAFT outline.
 # Awaiting round-1 dual external audit (Codex + Gemini) before implementation.
-"handover/specs/CO1_7_TRANSITION_LEDGER_v1_2026-04-28.md" = "1c9fba2cf54ee6f08bf869f592a60518df87ed6756d806adc6fd0cd3ade32d9f"
+"handover/specs/CO1_7_TRANSITION_LEDGER_v1_2026-04-28.md" = "00ad743c162bdef2bc9c30ccd6ee7673522214b6be8e33f748e0f8fba625772a"
 
 # 2026-04-27 auto-research wave 2 (+4 entries; 61 → 65).
 # Doc-only, all within ratified Plan v3.2-fix1 scope.
@@ -279,9 +279,9 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 # Runtime ed25519 keypair lifecycle, encrypted-at-rest keystore, public verification,
 # scoped crate-only signing surfaces, and five mandated conformance tests.
 "src/bottom_white/ledger/mod.rs" = "edb4cda94b80dceb85a414de58139fde4f6f4635867141e31c14720ab06148ea"
-"src/bottom_white/ledger/system_keypair.rs" = "d68e1d3403128b26f6fe6d8f4b3686b77b13cb4a6cb360965909a638d653bc8a"
+"src/bottom_white/ledger/system_keypair.rs" = "ab0a63ca9fad9b9f931e8a3082c70ce6b4ff6432ae96013b03a19bda7c180c82"
 # 2026-04-28 CO1.7 type skeleton (pre-audit) — caught spec § 1 circular-digest bug.
-"src/bottom_white/ledger/transition_ledger.rs" = "7ce0f403db06f6fa437e0e94228e100ba2f4295a90cb3d22023f26b3ff50771e"
+"src/bottom_white/ledger/transition_ledger.rs" = "4b1a15546e7d33d85e45b74b61063d21af63594efc6c60ee3ed783393ab108d1"
 "tests/system_keypair_generation.rs" = "94d2de928a0f32e71860cbf9125a85a89bb0ded53f6e55c2e16b6370b9dcaa4b"
 "tests/system_keypair_load_and_decrypt.rs" = "460ce3e0b13d523e62b0818285a414a69a91b1afc51c0e0eba7a521674dfaa55"
 "tests/system_keypair_sign_only_from_runner.rs" = "b0874933f684ba47a254728939d30327a0b59392221e51ec4b2207b901bbe65c"

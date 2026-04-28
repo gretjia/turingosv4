@@ -192,6 +192,13 @@ pub enum CanonicalMessage {
     TerminalSummaryTx(TerminalSummaryTx),
     /// TRACE_MATRIX FC3-Sig: system key epoch continuity proof.
     EpochRotationProof(EpochRotationProof),
+    /// TRACE_MATRIX FC2-Append (CO1.7 v1.2 round-2 closure C3): L4 transition_ledger
+    /// signing payload digest. Opaque [u8; 32] — full canonical_digest of
+    /// `LedgerEntrySigningPayload` is computed in `transition_ledger`; this variant
+    /// only carries the 32-byte digest into the typed sign API. Avoids a circular
+    /// `system_keypair ↔ transition_ledger` module dependency while preserving the
+    /// "all sign goes through CanonicalMessage" invariant.
+    LedgerEntrySigning([u8; 32]),
 }
 
 /// TRACE_MATRIX FC1-Sig+FC3-Sig: epoch-indexed public keys pinned by genesis and rotation history.
@@ -425,6 +432,10 @@ pub fn canonical_digest(message: &CanonicalMessage) -> [u8; 32] {
             h.update(proof.new_pubkey.as_bytes());
             h.update(proof.signed_at_unix.to_be_bytes());
         }
+        CanonicalMessage::LedgerEntrySigning(digest) => {
+            h.update(b"LedgerEntrySigning");
+            h.update(digest);
+        }
     }
     h.finalize().into()
 }
@@ -529,6 +540,31 @@ pub(crate) mod terminal_summary_emitter {
         message: &CanonicalMessage,
     ) -> Result<SystemSignature, KeypairError> {
         sign_system_message_inner(keypair, message)
+    }
+}
+
+/// TRACE_MATRIX FC2-Append + FC1-Sig: crate-only signing surface for the L4
+/// transition ledger sequencer (CO1.7 v1.2). Authorized emitter pattern per
+/// round-1 audit Q-G recommendation: the ledger sequencer calls
+/// `sign_ledger_entry` with the canonical digest of `LedgerEntrySigningPayload`
+/// and gets back a `SystemSignature` bound through `CanonicalMessage`. No raw
+/// digest signer escapes this module.
+pub(crate) mod transition_ledger_emitter {
+    use super::{
+        sign_system_message_inner, CanonicalMessage, Ed25519Keypair, KeypairError, SystemSignature,
+    };
+
+    /// TRACE_MATRIX FC2-Append: sign only the canonical-digest of a
+    /// `LedgerEntrySigningPayload`. Caller (sequencer in CO1.7) is responsible
+    /// for computing the digest; this fn only wraps in the typed enum.
+    pub(crate) fn sign_ledger_entry(
+        keypair: &Ed25519Keypair,
+        signing_payload_digest: [u8; 32],
+    ) -> Result<SystemSignature, KeypairError> {
+        sign_system_message_inner(
+            keypair,
+            &CanonicalMessage::LedgerEntrySigning(signing_payload_digest),
+        )
     }
 }
 

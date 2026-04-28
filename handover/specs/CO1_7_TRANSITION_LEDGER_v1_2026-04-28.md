@@ -1,6 +1,8 @@
-# CO1.7 Transition Ledger v1.1 — Round-1 closure
+# CO1.7 Transition Ledger v1.2 — Round-2 closure
 
-**Status**: v1.1 — round-1 dual external audit (Codex + Gemini) returned CHALLENGE/CHALLENGE; this version closes 11 must-fix items, awaiting round-2.
+**Status**: v1.2 — round-2 returned PASS (Gemini, high) + CHALLENGE (Codex, high; 3 narrow patch blockers). Conservative merged CHALLENGE. v1.2 closes the 3 v1.1→v1.2 patches: (a) C3 actually wired in code (`CanonicalMessage::LedgerEntrySigning([u8;32])` + `transition_ledger_emitter::sign_ledger_entry`); (b) K3 head_t mutation explicitly deferred to CO1.7.5+ (no longer claimed in v1.x); (c) `ObjectType::Transition` replaced with shipped `ObjectType::ProposalPayload`. Plus typo fix and 1 new test. Awaiting round-3.
+
+**Status (v1.1)**: v1.1 — round-1 dual external audit (Codex + Gemini) returned CHALLENGE/CHALLENGE; this version closes 11 must-fix items, awaiting round-2.
 **Author**: ArchitectAI (Claude); session 2026-04-28.
 **Supersedes**: v1 (2026-04-28 morning DRAFT outline).
 **Round-1 verdicts**: `handover/audits/CODEX_CO1_7_ROUND1_AUDIT_2026-04-28.md` + `handover/audits/GEMINI_CO1_7_ROUND1_AUDIT_2026-04-28.md`; merged in `handover/audits/CO1_7_DUAL_AUDIT_VERDICT_R1_2026-04-28.md`.
@@ -12,6 +14,19 @@
 - `TURINGOS_v4_WHITEPAPER_v2_2026-04-27_ANTI_OREO_RESTORATION.md` § 5.L4 — ChainTape Layer 4 axioms
 
 **Single sentence**: implement the L4 transition_ledger module so that `ledger::append(parent_root, signing_digest) → new_root` (called from sequencer) is real code, the L4 sequencer (§ 5.2.1) is real code, and `Q_t.ledger_root_t` is no longer a placeholder.
+
+---
+
+## v1.2 patch log (vs. v1.1) — round-2 closure
+
+| ID | v1.1 issue | v1.2 fix | Source |
+|---|---|---|---|
+| **R2-C3** | Spec claimed "C3 CLOSED" but `system_keypair.rs` had no LedgerEntry path; skeleton itself said "deferred to CO1.7.5+" | Wave 4-B additive extension shipped: `CanonicalMessage::LedgerEntrySigning([u8;32])` (opaque digest variant; avoids transition_ledger ↔ system_keypair circular dep) + `canonical_digest` match arm + new `pub(crate) mod transition_ledger_emitter` with `sign_ledger_entry(keypair, digest)`. Skeleton test 9 (`signature_round_trip_and_transplant_defense`) now exercises the real roundtrip + K2 + D1 defenses. | Codex round-2 must-fix #1 |
+| **R2-K3** | Spec § 3 / § 5 said "CO1.7 owns head_t = NodeId(commit_sha)" but `LedgerWriter::commit` returns `Hash` not commit SHA; v1.1 InMemoryLedgerWriter has no commit_sha to return at all → contradiction | head_t mutation explicitly **deferred to CO1.7.5+** (when Git2LedgerWriter exists and can return both Hash + commit SHA). v1.x ledger owns `ledger_root_t` only; `head_t` continues to be set elsewhere (currently QState placeholder; CO1.7.5 wiring concern). Spec § 0 / § 3 / § 5 updated. | Codex round-2 must-fix #2 |
+| **R2-C2-CAS** | Spec § 3 sequencer pseudocode used `ObjectType::Transition` but shipped `ObjectType` has no such variant | Spec § 3 changed to `ObjectType::ProposalPayload` (the existing variant for agent work_tx payloads — semantically correct, no schema extension needed) | Codex round-2 must-fix #3 |
+| **R2-typo** | Spec § 1.1 said "8-field bytes-on-the-wire" but `LedgerEntrySigningPayload` actually has 9 fields | Updated to "9-field" | Codex Q-C2 |
+
+3 must-fix + 1 typo = **4 closures** integrated.
 
 ---
 
@@ -40,19 +55,19 @@
 
 ### In scope (CO1.7 atom)
 - **LedgerEntry schema**: canonical envelope wrapping each typed transition (WorkTx / VerifyTx / ChallengeTx / ReuseTx / FinalizeRewardTx / TaskExpireTx / TerminalSummaryTx) before append to L4. **Note**: `Slash` is NOT in v4 (deferred to CO P2.5 ChallengeCourt atom — K5).
-- **LedgerEntrySigningPayload**: the 8-field bytes-on-the-wire that the system keypair actually signs (distinct from LedgerEntry-the-stored-record).
+- **LedgerEntrySigningPayload**: the 9-field bytes-on-the-wire that the system keypair actually signs (distinct from LedgerEntry-the-stored-record).
 - **LedgerRoot computation**: deterministic Merkle accumulation over signed digests; this is the value of `Q_t.ledger_root_t`.
 - **Sequencer**: per-(runtime_repo, run_id) single-writer instance enforcing § 5.2.1 (dual-counter `submit_id`/`logical_t`, submission-order serialization, post-commit `logical_t` assignment).
 - **append(parent_root, signing_digest)**: pure function returning the new ledger_root.
 - **replay (two-mode)**: `ChainOnly` (chain integrity; skeleton-stage; v1) vs `FullTransition` (rerun pure transitions + verify state_root + verify signatures; CO1.7.5+; THE I-DETHASH witness).
-- **Storage backend**: git2-rs commit chain (built on CO1.4 CAS); each LedgerEntry = one git commit on `refs/transitions/main`; commit_sha is the canonical `head_t`.
-- **CanonicalMessage extension**: extends shipped `CanonicalMessage` enum with `LedgerEntrySigning(LedgerEntrySigningPayload)` variant; new sign API `keypair.sign_ledger_entry(payload)`.
+- **Storage backend**: git2-rs commit chain (built on CO1.4 CAS); each LedgerEntry = one git commit on `refs/transitions/main`. **R2-K3**: head_t mutation deferred to CO1.7.5+ — v1.x ledger does NOT mutate `Q_t.head_t` directly. Once `Git2LedgerWriter::commit` exists and returns commit_sha alongside Hash, CO1.7.5 wiring will set `head_t = NodeId(commit_sha)` outside the L4 sequencer apply path.
+- **CanonicalMessage extension**: extends shipped `CanonicalMessage` enum with `LedgerEntrySigning([u8; 32])` opaque-digest variant (R2 design — avoids circular module dep); new typed sign API `transition_ledger_emitter::sign_ledger_entry(keypair, signing_payload_digest)`.
 
 ### Out of scope (handled by other atoms)
 - WorkTx / VerifyTx / ChallengeTx / ReuseTx / FinalizeRewardTx / TaskExpireTx / TerminalSummaryTx schemas — frozen in `STATE_TRANSITION_SPEC § 1`.
 - step_transition / verify_transition / challenge_transition logic — frozen in `STATE_TRANSITION_SPEC § 3`.
 - system_keypair signing primitives — done @ CO1.7.0a-f; CO1.7 only adds a typed extension.
-- L5 materializer (state_root computation) — deferred to **CO1.8**. **K3 boundary**: CO1.7 owns `ledger_root_t` + `head_t`; CO1.8 owns `state_root_t`. Sequencer does NOT mutate `state_root_t` directly; it accepts `q_next.state_root_t` as returned by the transition function.
+- L5 materializer (state_root computation) — deferred to **CO1.8**. **K3 boundary (revised v1.2)**: CO1.7 owns `ledger_root_t` only; CO1.8 owns `state_root_t`; **head_t mutation is deferred to CO1.7.5+ wiring** (when `Git2LedgerWriter` exists). Sequencer does NOT mutate `state_root_t` or `head_t` directly; it accepts `q_next.state_root_t` as returned by the transition function and persists `ledger_root_t`.
 - L6 signal indices — deferred to **CO1.9**.
 - AttributionEngine DAG — deferred to CO P2.4.0 spike (Inv 8 design).
 - MetaTx full schema — v4.1 only; v4 emits `MetaProposalDraft` to L3 CAS, not L4.
@@ -187,32 +202,42 @@ impl LedgerEntrySigningPayload {
 }
 ```
 
-### § 1.2 CanonicalMessage extension (per C3)
+### § 1.2 CanonicalMessage extension (per C3; **shipped in v1.2**)
 
-CO1.7 extends shipped `system_keypair::CanonicalMessage` with one new variant:
+CO1.7 extends shipped `system_keypair::CanonicalMessage` with one new variant. **R2-C3 design choice**: variant carries the **opaque 32-byte canonical_digest** of `LedgerEntrySigningPayload`, NOT the full payload struct. This avoids a circular `system_keypair ↔ transition_ledger` module dependency (the payload struct needs `Cid` from CAS module + `SystemEpoch` from system_keypair; carrying the precomputed digest sidesteps the cycle entirely). The signature still binds the full payload because `canonical_digest()` is deterministic in `transition_ledger`.
 
 ```rust
-// In src/bottom_white/ledger/system_keypair.rs (additive Wave 4-B extension):
+// In src/bottom_white/ledger/system_keypair.rs (additive Wave 4-B extension; SHIPPED v1.2):
 pub enum CanonicalMessage {
     RejectedAttemptSummary(RejectedAttemptSummary),  // existing
     TerminalSummaryTx(TerminalSummaryTx),            // existing
     EpochRotationProof(EpochRotationProof),          // existing
-    LedgerEntrySigning(LedgerEntrySigningPayload),   // NEW (C3)
+    LedgerEntrySigning([u8; 32]),                     // NEW v1.2 (C3) — opaque digest
 }
 
-// canonical_digest() in system_keypair.rs adds match arm:
-//   CanonicalMessage::LedgerEntrySigning(payload) => {
+// canonical_digest() match arm (SHIPPED v1.2):
+//   CanonicalMessage::LedgerEntrySigning(digest) => {
 //       h.update(b"LedgerEntrySigning");
-//       h.update(payload.canonical_digest().0);
+//       h.update(digest);
 //   }
 
-// New typed sign API (added to Ed25519Keypair impl block):
-impl Ed25519Keypair {
-    pub fn sign_ledger_entry(&self, payload: &LedgerEntrySigningPayload, epoch: SystemEpoch) -> SystemSignature;
+// Authorized emitter module (SHIPPED v1.2):
+pub(crate) mod transition_ledger_emitter {
+    pub(crate) fn sign_ledger_entry(
+        keypair: &Ed25519Keypair,
+        signing_payload_digest: [u8; 32],
+    ) -> Result<SystemSignature, KeypairError>;
 }
 ```
 
-**Forward-compat clause** (per Gemini Q4 + the audit response): if v4.x adds new ledger-side message variants, they MUST add new `CanonicalMessage::*` variants (NOT extend `LedgerEntrySigningPayload` in-place). v4-shipped extensions go in the `LedgerEntry::extensions` BTreeMap (G1) which IS bound in this signed digest.
+**Sequencer call site** (in transition_ledger.rs, illustrative):
+
+```rust
+let digest = signing_payload.canonical_digest();
+let sig = transition_ledger_emitter::sign_ledger_entry(&keypair, digest.0)?;
+```
+
+**Forward-compat clause**: if v4.x adds new ledger-side message variants, they MUST add new `CanonicalMessage::*` variants (NOT extend the LedgerEntrySigning variant in-place; opaque digest is committed to `[u8; 32]`). v4-shipped extensions go in the `LedgerEntry::extensions` BTreeMap (G1) which IS bound in `LedgerEntrySigningPayload::canonical_digest()`.
 
 ---
 
@@ -292,7 +317,7 @@ impl Sequencer {
         let cas_bytes = canonical_serialize(&tx);  // bincode v2 per § 2.5 of STATE spec
         let payload_cid = cas_w.put(
             &cas_bytes,
-            ObjectType::Transition,
+            ObjectType::ProposalPayload,  // R2 fix: shipped CAS variant (NOT Transition)
             &format!("sequencer-{}", self.epoch.get()),
             self.next_logical_t.load(Ordering::SeqCst) + 1,  // tentative; final below
             Some("LedgerEntrySigningPayload.v1".to_string()),
@@ -315,8 +340,13 @@ impl Sequencer {
             extensions: BTreeMap::new(),                     // G1 empty in v1
         };
 
-        // 6. **C3 NEW SIGN API**: typed sign through CanonicalMessage extension
-        let system_signature = self.keypair.sign_ledger_entry(&signing_payload, self.epoch);
+        // 6. **C3 NEW SIGN API (v1.2)**: typed sign through CanonicalMessage extension.
+        // Compute payload digest in transition_ledger; pass opaque [u8; 32] to emitter.
+        let signing_payload_digest = signing_payload.canonical_digest();
+        let system_signature = transition_ledger_emitter::sign_ledger_entry(
+            &self.keypair,
+            signing_payload_digest.0,
+        )?;
 
         // 7. Compute resulting_ledger_root via append() (pure)
         let signing_digest = signing_payload.canonical_digest();
@@ -344,11 +374,11 @@ impl Sequencer {
         drop(writer_w);
         *q_w = q_next;
         q_w.ledger_root_t = entry.resulting_ledger_root;
-        // **K3**: do NOT mutate q_w.head_t here. CO1.7's ownership is `ledger_root_t` only;
-        // `head_t = NodeId(commit_sha)` is set by `Git2LedgerWriter::commit` returning the
-        // commit_sha through the writer's `Hash` return + sequencer assigning to head_t
-        // under the same write lock. (Skeleton uses InMemoryLedgerWriter; head_t mutation
-        // path is CO1.7.5+ wiring concern.)
+        // **K3 (v1.2 revised)**: do NOT mutate q_w.head_t here. v1.x ledger owns
+        // `ledger_root_t` only. head_t mutation is **deferred to CO1.7.5+ wiring**
+        // (when `Git2LedgerWriter::commit` is implemented and can return commit_sha
+        // alongside Hash). Until then, head_t remains at QState placeholder; replay
+        // and chain-integrity tests do NOT depend on head_t.
 
         Ok(entry)
     }
@@ -357,7 +387,7 @@ impl Sequencer {
 
 **Why dual counter (K1)**: rejection of a submission must NOT consume a logical_t, because (a) skeleton's `InMemoryLedgerWriter::commit` enforces `expected_logical_t = len + 1` and would reject a gap; (b) replay enforces `entry.logical_t == (i+1)` and would reject a gap. Submitter IDs (`submit_id`) are returned from `submit()` immediately for receipt; logical_t is observable only on the committed entry.
 
-**Why no head_t mutation in apply_one (K3)**: CO1.7 owns `ledger_root_t` and the commit-chain `head_t`; CO1.8 (L5 materializer) owns `state_root_t` mutation. Sequencer accepts `q_next.state_root_t` as the transition function returns it; sequencer does NOT call `NodeId::from_state_root(...)`.
+**Why no head_t mutation in apply_one (K3, revised v1.2)**: v1.x CO1.7 owns `ledger_root_t` only. CO1.8 owns `state_root_t`. **head_t mutation deferred to CO1.7.5+** when `Git2LedgerWriter` provides a commit_sha return alongside Hash; the InMemoryLedgerWriter used by the v1 skeleton has no commit_sha to expose, so the trait keeps a single `Hash` return and head_t wiring is a separate downstream concern. Sequencer never calls `NodeId::from_state_root(...)`.
 
 **Q3 (Gemini)**: `Sequencer` vs `LedgerWriter + OrderingCoordinator` split — v1.1 keeps `Sequencer` as the abstraction; trait-segregation refactor is a v4.x consideration (the current single-writer constraint per § 5.2.1 makes the split synthetic for v1).
 
@@ -428,7 +458,7 @@ pub fn replay_full_transition(
 - One `LedgerEntry` = one git commit on `refs/transitions/main`.
 - Commit message = canonical-serialized `LedgerEntry` (bincode v2 per `STATE_TRANSITION_SPEC § 2.5`).
 - Commit tree = `(payload_cid_blob, signature_blob)` (state_root NOT a tree blob — per K3, L5 owns state_root materialization).
-- **K3**: `head_t = NodeId(commit_sha)` is the canonical convention. `NodeId::from_state_root(...)` is NOT used by L4. (q_state.rs:54 keeps the helper for cross-reference but L4 sequencer does NOT call it.)
+- **K3 (v1.2)**: `head_t = NodeId(commit_sha)` is the canonical convention WHEN head_t is wired (CO1.7.5+). v1.x sequencer does NOT mutate head_t — `Git2LedgerWriter` is needed to surface commit_sha. `NodeId::from_state_root(...)` is NOT used by L4 in any version.
 - **C2**: cold-replay availability requires `CasStore` index persistence; deferred to CO1.4-extra. Until then, full-mode replay errors with `CasMissing` if CAS state is not warm.
 - Genesis: `refs/transitions/main` is created at the empty-tree commit corresponding to `genesis_payload.toml` (CO1.0). `genesis_ledger_root_t = sha256("turingosv4.ledger_root.v1.genesis" || sha256(genesis_payload.toml))` — **Q7 resolution** (NOT `Hash::ZERO`; both auditors agreed).
 

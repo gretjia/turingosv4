@@ -503,4 +503,70 @@ mod tests {
         let digest_after_signed = e_signed_change.to_signing_payload().canonical_digest();
         assert_ne!(digest_clean, digest_after_signed);
     }
+
+    // 9. C3 closure (round-2): real signature roundtrip via system_keypair extension.
+    // Verifies: (a) typed sign API works; (b) signature verifies via CanonicalMessage::LedgerEntrySigning;
+    // (c) signature does NOT verify after mutating a signed field (parent_ledger_root — K2 transplant defense).
+    #[test]
+    fn signature_round_trip_and_transplant_defense() {
+        use crate::bottom_white::ledger::system_keypair::{
+            transition_ledger_emitter, CanonicalMessage, Ed25519Keypair, PinnedSystemPubkeys,
+            SystemEpoch, verify_system_signature,
+        };
+
+        let keypair = Ed25519Keypair::generate_with_secure_entropy().expect("keypair gen");
+        let epoch = SystemEpoch::new(1);
+        let mut pinned = PinnedSystemPubkeys::new();
+        pinned.insert(epoch, keypair.public_key());
+
+        // Build a clean signing payload (e1's worth)
+        let payload = LedgerEntrySigningPayload {
+            logical_t: 1,
+            parent_state_root: Hash::ZERO,
+            parent_ledger_root: Hash::ZERO,
+            tx_kind: TxKind::Work,
+            tx_payload_cid: Cid([42u8; 32]),
+            resulting_state_root: h(1),
+            timestamp_logical: 1,
+            epoch,
+            extensions: BTreeMap::new(),
+        };
+        let digest = payload.canonical_digest();
+
+        // Real sign through the typed CanonicalMessage extension
+        let sig = transition_ledger_emitter::sign_ledger_entry(&keypair, digest.0)
+            .expect("sign_ledger_entry");
+
+        // Verify (clean) — must succeed
+        let msg_clean = CanonicalMessage::LedgerEntrySigning(digest.0);
+        assert!(
+            verify_system_signature(&sig, &msg_clean, epoch, &pinned),
+            "clean signature must verify"
+        );
+
+        // Verify (tamper parent_ledger_root) — K2 transplant defense
+        let mut payload_tamper = payload.clone();
+        payload_tamper.parent_ledger_root = h(0xff);
+        let digest_tamper = payload_tamper.canonical_digest();
+        let msg_tamper = CanonicalMessage::LedgerEntrySigning(digest_tamper.0);
+        assert!(
+            !verify_system_signature(&sig, &msg_tamper, epoch, &pinned),
+            "transplanted parent_ledger_root MUST fail signature verify (K2)"
+        );
+
+        // Verify (cross-epoch transplant) — D1 defense via epoch IN payload digest.
+        // Attacker scenario: sig was made for payload with epoch=1; attacker forges a
+        // NEW payload claiming epoch=2 reusing the old sig. Since epoch is in the
+        // canonical digest, digest_v2 ≠ digest_v1, so the sig on digest_v1 cannot
+        // verify against digest_v2.
+        let mut payload_other_epoch = payload.clone();
+        payload_other_epoch.epoch = SystemEpoch::new(2);
+        let digest_other_epoch = payload_other_epoch.canonical_digest();
+        assert_ne!(digest, digest_other_epoch, "epoch is bound in canonical digest");
+        let msg_other_epoch = CanonicalMessage::LedgerEntrySigning(digest_other_epoch.0);
+        assert!(
+            !verify_system_signature(&sig, &msg_other_epoch, epoch, &pinned),
+            "cross-epoch transplant MUST fail signature verify (D1 epoch binding)"
+        );
+    }
 }
