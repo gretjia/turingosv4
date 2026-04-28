@@ -110,6 +110,8 @@ runtime-budget concern, not a wiring bug.
 
 ## § 3. C2 batch launch decision tree (next session)
 
+> **STATUS 2026-04-28 — RESOLVED**: backbone decision = `deepseek-v4-flash` thinking-off via correct DeepSeek injection (see "Resolution" subsection below at line 156). Path A (`deepseek-chat` fallback) and Path C (scope cut) preserved as historical-record only. The remaining knob is `CONCURRENCY` (K=1/2/4 per parallel runner commit `c9ba7ed`); no path-level rework is open.
+
 The full C2 batch is the natural next atom after this scaffolding session.
 Three executable paths from current state:
 
