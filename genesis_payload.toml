@@ -132,8 +132,8 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 
 [trust_root]
 "src/main.rs" = "622fee2d96a980d24f9fbaab3d0531c195a0a337fc3ddd2efb60bca90a1cfbf9"
-"Cargo.lock" = "d16efbca64e1bc67d7d069d2be2f77c8d1922b283f6fccba12ab1b8ff8f3eb51"
-"Cargo.toml" = "8ffe3984fa26a8789c21223b14a4c2f99c0a0e0d3cef7b209c42c658414d5af3"
+"Cargo.lock" = "e1afff633f71ce6fd94240c0102449bcb869978af826e59380e844323373f405"
+"Cargo.toml" = "d9cb276d49b0afd1ac9246057fc86b84d18a10dc64ca50be5f6f0959bb63efb7"
 "handover/preregistration/scripts/run_p0_calibration.sh" = "5f4a57dd8b8280ffe04bec89350a57d876d06cc179d9f8841a522e7bdcf1b8b7"
 "handover/preregistration/scripts/compute_p0.py" = "fd1dff97d582f4f509249852be500cba7d81efc9bab8fcb9872b2d85bb4e3052"
 "rules/MANIFEST.sha256" = "6d6fd54d46352213a857fdaf5cf70e8a893bbbd5467e5da45a3ed3314d01b0c2"
@@ -279,9 +279,9 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 # Runtime ed25519 keypair lifecycle, encrypted-at-rest keystore, public verification,
 # scoped crate-only signing surfaces, and five mandated conformance tests.
 "src/bottom_white/ledger/mod.rs" = "edb4cda94b80dceb85a414de58139fde4f6f4635867141e31c14720ab06148ea"
-"src/bottom_white/ledger/system_keypair.rs" = "ab0a63ca9fad9b9f931e8a3082c70ce6b4ff6432ae96013b03a19bda7c180c82"
+"src/bottom_white/ledger/system_keypair.rs" = "59be5c9a321e75f3e3f2f9523628b8b7871d30337ae464182b30fb225a7df762"
 # 2026-04-28 CO1.7 type skeleton (pre-audit) — caught spec § 1 circular-digest bug.
-"src/bottom_white/ledger/transition_ledger.rs" = "4b1a15546e7d33d85e45b74b61063d21af63594efc6c60ee3ed783393ab108d1"
+"src/bottom_white/ledger/transition_ledger.rs" = "a0914f16d1652d0118a880b93eb6aa6f3c1a69bdcc086eed362fee7ebd70162a"
 "tests/system_keypair_generation.rs" = "94d2de928a0f32e71860cbf9125a85a89bb0ded53f6e55c2e16b6370b9dcaa4b"
 "tests/system_keypair_load_and_decrypt.rs" = "460ce3e0b13d523e62b0818285a414a69a91b1afc51c0e0eba7a521674dfaa55"
 "tests/system_keypair_sign_only_from_runner.rs" = "b0874933f684ba47a254728939d30327a0b59392221e51ec4b2207b901bbe65c"

@@ -31,7 +31,10 @@
 //! - D1: epoch is bound in signing payload (Codex security wins over Gemini orthogonality).
 
 use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
 
+use git2::{ObjectType as Git2ObjectType, Repository, Signature as GitSignature};
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::bottom_white::cas::schema::Cid;
@@ -45,7 +48,7 @@ use crate::state::q_state::Hash;
 /// TRACE_MATRIX FC2-Append: discriminator for the typed payload behind a CAS Cid.
 /// **K6**: `#[repr(u8)]` + explicit discriminants for stable cast in canonical digest.
 /// **K5**: NO `Slash` variant — ChallengeCourt slash event deferred to CO P2.5 atom.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[repr(u8)]
 pub enum TxKind {
     Work            = 0,
@@ -62,7 +65,7 @@ pub enum TxKind {
 /// Distinct from `LedgerEntrySigningPayload`: this is the FULL stored record
 /// (includes derivatives + signature); the signing payload is the subset that
 /// the system keypair attests.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LedgerEntry {
     /// **K1**: assigned ONLY at commit (sequencer dual-counter design); rejected
     /// submissions never get a logical_t.
@@ -101,7 +104,7 @@ pub struct LedgerEntry {
 ///
 /// **Includes** (9 non-derivative bound fields). Domain-separation prefix is
 /// part of the digest to prevent cross-namespace collision.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LedgerEntrySigningPayload {
     pub logical_t: u64,
     pub parent_state_root: Hash,
@@ -342,6 +345,286 @@ pub fn replay_chain_integrity(
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// § 2.5 Canonical serialization (bincode v2; STATE_TRANSITION_SPEC § 2.5)
+// ────────────────────────────────────────────────────────────────────────────
+
+/// `bincode::config` used for the canonical `LedgerEntry` wire format.
+///
+/// **Frozen choices** (per STATE_TRANSITION_SPEC § 2.5):
+/// - **Big-endian** byte order (network order; deterministic across platforms).
+/// - **Fixed-int encoding** (no varint; fixed-width for byte-stable round-trip).
+/// - **`BTreeMap` keys**: bincode iterates the map in serde-supplied order; we
+///   only ever encode `BTreeMap` (sorted by construction) so key order is lex.
+/// - **No padding, no implicit alignment.**
+fn bincode_canonical_config() -> impl bincode::config::Config {
+    bincode::config::standard()
+        .with_big_endian()
+        .with_fixed_int_encoding()
+}
+
+/// Canonical encode any serde-Serialize value to bytes (CO1.7 wire format).
+/// Used by `Git2LedgerWriter` for commit-message bodies and by future callers
+/// needing byte-stable signatures over typed payloads.
+pub fn canonical_encode<T: Serialize>(value: &T) -> Result<Vec<u8>, CanonicalCodecError> {
+    bincode::serde::encode_to_vec(value, bincode_canonical_config())
+        .map_err(|e| CanonicalCodecError::Encode(e.to_string()))
+}
+
+/// Canonical decode the inverse of `canonical_encode`. Returns the value plus
+/// the number of bytes consumed (entire input must be consumed for a clean decode).
+pub fn canonical_decode<T: serde::de::DeserializeOwned>(
+    bytes: &[u8],
+) -> Result<T, CanonicalCodecError> {
+    let (value, consumed) =
+        bincode::serde::decode_from_slice::<T, _>(bytes, bincode_canonical_config())
+            .map_err(|e| CanonicalCodecError::Decode(e.to_string()))?;
+    if consumed != bytes.len() {
+        return Err(CanonicalCodecError::TrailingBytes {
+            consumed,
+            total: bytes.len(),
+        });
+    }
+    Ok(value)
+}
+
+#[derive(Debug)]
+pub enum CanonicalCodecError {
+    Encode(String),
+    Decode(String),
+    TrailingBytes { consumed: usize, total: usize },
+}
+
+impl std::fmt::Display for CanonicalCodecError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Encode(s) => write!(f, "canonical encode failed: {s}"),
+            Self::Decode(s) => write!(f, "canonical decode failed: {s}"),
+            Self::TrailingBytes { consumed, total } => {
+                write!(f, "trailing bytes after decode: consumed {consumed} of {total}")
+            }
+        }
+    }
+}
+impl std::error::Error for CanonicalCodecError {}
+
+// ────────────────────────────────────────────────────────────────────────────
+// § 5 Git2LedgerWriter — git2-rs commit chain on `refs/transitions/main`
+// ────────────────────────────────────────────────────────────────────────────
+
+/// Spec § 5 production storage backend.
+///
+/// **Mapping**:
+/// - One `LedgerEntry` = one git commit on `refs/transitions/main`.
+/// - **Commit tree** = three named blobs:
+///     - `payload_cid`     = entry.tx_payload_cid.0 (32 bytes)
+///     - `signature`       = entry.system_signature.as_bytes() (64 bytes)
+///     - `entry_canonical` = bincode v2 BE + fixed-int encoding of the full
+///       `LedgerEntry` (deterministic, byte-stable; this blob IS the
+///       canonical record — `read_at` decodes it directly).
+/// - **Commit message** = human-readable `"transition logical_t=<N>\n"` (the
+///   canonical record lives in the tree blob, not the message — git
+///   normalizes message bytes in ways that break round-trip).
+/// - **Parent**: `head_t-1` commit (or none at genesis).
+/// - **Author/committer identity**: fixed `("turingosv4 sequencer", "system@turingos")`
+///   with `time = (logical_t as i64, 0)` to keep commit OIDs deterministic. NO
+///   wall-clock leakage (`I-NOENV` + `I-LOGTIME`).
+///
+/// **K3 (revised v1.2)**: this writer surfaces `commit_oid` for callers that
+/// need it (CO1.7.5+ `head_t` wiring), but the `LedgerWriter::commit` trait
+/// returns only `Hash` (entry.resulting_ledger_root). Callers requesting the
+/// commit OID use [`Git2LedgerWriter::head_commit_oid`] post-commit.
+pub struct Git2LedgerWriter {
+    repo_path: PathBuf,
+    /// Last commit OID on `refs/transitions/main`; `None` at empty-chain genesis.
+    head_oid: Option<git2::Oid>,
+    /// Number of entries committed = highest assigned `logical_t` (0 at genesis).
+    len: u64,
+}
+
+const TRANSITIONS_REF: &str = "refs/transitions/main";
+const TREE_BLOB_PAYLOAD_CID: &str = "payload_cid";
+const TREE_BLOB_SIGNATURE: &str = "signature";
+const TREE_BLOB_ENTRY_CANONICAL: &str = "entry_canonical";
+
+impl Git2LedgerWriter {
+    /// Open or initialize a `Git2LedgerWriter` rooted at `repo_path`.
+    /// Creates the underlying git repo if it doesn't exist; resolves the
+    /// existing `refs/transitions/main` if present and seeds `head_oid` + `len`.
+    pub fn open(repo_path: &Path) -> Result<Self, LedgerWriterError> {
+        let repo_path = repo_path.to_path_buf();
+        let repo = match Repository::open(&repo_path) {
+            Ok(r) => r,
+            Err(_) => Repository::init(&repo_path).map_err(|e| {
+                LedgerWriterError::BackendCorruption(format!("repo init: {e}"))
+            })?,
+        };
+
+        // Resolve refs/transitions/main if it exists.
+        let (head_oid, len) = match repo.find_reference(TRANSITIONS_REF) {
+            Ok(reference) => {
+                let oid = reference
+                    .target()
+                    .ok_or_else(|| {
+                        LedgerWriterError::BackendCorruption(format!(
+                            "{TRANSITIONS_REF} has no direct target"
+                        ))
+                    })?;
+                // Walk parents to count chain length.
+                let mut n: u64 = 0;
+                let mut cursor = Some(oid);
+                while let Some(c) = cursor {
+                    n += 1;
+                    let commit = repo.find_commit(c).map_err(|e| {
+                        LedgerWriterError::BackendCorruption(format!("walk parent: {e}"))
+                    })?;
+                    cursor = commit.parent(0).ok().map(|p| p.id());
+                }
+                (Some(oid), n)
+            }
+            Err(_) => (None, 0),
+        };
+
+        Ok(Self {
+            repo_path,
+            head_oid,
+            len,
+        })
+    }
+
+    fn open_repo(&self) -> Result<Repository, LedgerWriterError> {
+        Repository::open(&self.repo_path)
+            .map_err(|e| LedgerWriterError::BackendCorruption(format!("repo open: {e}")))
+    }
+
+    /// Commit OID of the most recent appended entry (None if chain is empty).
+    /// CO1.7.5+ `head_t` wiring uses this to surface commit_sha alongside Hash.
+    pub fn head_commit_oid(&self) -> Option<git2::Oid> {
+        self.head_oid
+    }
+
+    /// Read raw canonical-encoded `LedgerEntry` bytes (the `entry_canonical`
+    /// tree blob) for the entry at `logical_t`. `logical_t` is 1-indexed.
+    fn read_canonical_bytes(&self, logical_t: u64) -> Result<Vec<u8>, LedgerWriterError> {
+        if logical_t == 0 || logical_t > self.len {
+            return Err(LedgerWriterError::NotFound { logical_t });
+        }
+        let repo = self.open_repo()?;
+        // Walk back (len - logical_t) parents from head.
+        let mut cursor = self.head_oid.ok_or(LedgerWriterError::NotFound { logical_t })?;
+        let mut steps_back = self.len - logical_t;
+        while steps_back > 0 {
+            let commit = repo.find_commit(cursor).map_err(|e| {
+                LedgerWriterError::BackendCorruption(format!("find_commit: {e}"))
+            })?;
+            cursor = commit
+                .parent(0)
+                .map_err(|e| LedgerWriterError::BackendCorruption(format!("parent: {e}")))?
+                .id();
+            steps_back -= 1;
+        }
+        let commit = repo
+            .find_commit(cursor)
+            .map_err(|e| LedgerWriterError::BackendCorruption(format!("find_commit: {e}")))?;
+        let tree = commit
+            .tree()
+            .map_err(|e| LedgerWriterError::BackendCorruption(format!("tree: {e}")))?;
+        let entry_obj = tree
+            .get_name(TREE_BLOB_ENTRY_CANONICAL)
+            .ok_or_else(|| {
+                LedgerWriterError::BackendCorruption(format!(
+                    "missing {TREE_BLOB_ENTRY_CANONICAL} blob at logical_t={logical_t}"
+                ))
+            })?;
+        let blob = repo
+            .find_blob(entry_obj.id())
+            .map_err(|e| LedgerWriterError::BackendCorruption(format!("find_blob: {e}")))?;
+        Ok(blob.content().to_vec())
+    }
+}
+
+impl LedgerWriter for Git2LedgerWriter {
+    fn commit(&mut self, entry: &LedgerEntry) -> Result<Hash, LedgerWriterError> {
+        let expected = self.len + 1;
+        if entry.logical_t != expected {
+            return Err(LedgerWriterError::LogicalTGap {
+                expected,
+                got: entry.logical_t,
+            });
+        }
+
+        let repo = self.open_repo()?;
+        let canonical = canonical_encode(entry).map_err(|e| {
+            LedgerWriterError::BackendCorruption(format!("canonical_encode: {e}"))
+        })?;
+
+        let mut tb = repo
+            .treebuilder(None)
+            .map_err(|e| LedgerWriterError::BackendCorruption(format!("treebuilder: {e}")))?;
+        let cid_blob = repo
+            .blob(&entry.tx_payload_cid.0)
+            .map_err(|e| LedgerWriterError::BackendCorruption(format!("cid blob: {e}")))?;
+        tb.insert(TREE_BLOB_PAYLOAD_CID, cid_blob, 0o100644)
+            .map_err(|e| LedgerWriterError::BackendCorruption(format!("tree insert cid: {e}")))?;
+        let sig_blob = repo
+            .blob(entry.system_signature.as_bytes())
+            .map_err(|e| LedgerWriterError::BackendCorruption(format!("sig blob: {e}")))?;
+        tb.insert(TREE_BLOB_SIGNATURE, sig_blob, 0o100644)
+            .map_err(|e| LedgerWriterError::BackendCorruption(format!("tree insert sig: {e}")))?;
+        let entry_blob = repo
+            .blob(&canonical)
+            .map_err(|e| LedgerWriterError::BackendCorruption(format!("entry blob: {e}")))?;
+        tb.insert(TREE_BLOB_ENTRY_CANONICAL, entry_blob, 0o100644)
+            .map_err(|e| LedgerWriterError::BackendCorruption(format!("tree insert entry: {e}")))?;
+        let tree_oid = tb
+            .write()
+            .map_err(|e| LedgerWriterError::BackendCorruption(format!("tree write: {e}")))?;
+        let tree = repo
+            .find_tree(tree_oid)
+            .map_err(|e| LedgerWriterError::BackendCorruption(format!("find_tree: {e}")))?;
+
+        // Determinism: time = (logical_t, 0). NO wall clock.
+        let time = git2::Time::new(entry.logical_t as i64, 0);
+        let author = GitSignature::new("turingosv4 sequencer", "system@turingos", &time)
+            .map_err(|e| LedgerWriterError::BackendCorruption(format!("git sig: {e}")))?;
+        let committer = author.clone();
+
+        let parents: Vec<git2::Commit<'_>> = match self.head_oid {
+            Some(oid) => vec![repo.find_commit(oid).map_err(|e| {
+                LedgerWriterError::BackendCorruption(format!("parent commit: {e}"))
+            })?],
+            None => Vec::new(),
+        };
+        let parent_refs: Vec<&git2::Commit<'_>> = parents.iter().collect();
+        let message = format!("transition logical_t={}\n", entry.logical_t);
+        let new_oid = repo
+            .commit(
+                Some(TRANSITIONS_REF),
+                &author,
+                &committer,
+                &message,
+                &tree,
+                &parent_refs,
+            )
+            .map_err(|e| LedgerWriterError::BackendCorruption(format!("commit: {e}")))?;
+
+        self.head_oid = Some(new_oid);
+        self.len += 1;
+        Ok(entry.resulting_ledger_root)
+    }
+
+    fn read_at(&self, logical_t: u64) -> Result<LedgerEntry, LedgerWriterError> {
+        let bytes = self.read_canonical_bytes(logical_t)?;
+        canonical_decode::<LedgerEntry>(&bytes).map_err(|e| {
+            LedgerWriterError::BackendCorruption(format!("canonical_decode at {logical_t}: {e}"))
+        })
+    }
+
+    fn len(&self) -> u64 {
+        self.len
+    }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // Tests — 8 conformance items (4 NEW vs v1 skeleton: K2 / Q9 / repr(u8) / extensions)
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -568,5 +851,118 @@ mod tests {
             !verify_system_signature(&sig, &msg_other_epoch, epoch, &pinned),
             "cross-epoch transplant MUST fail signature verify (D1 epoch binding)"
         );
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // 10–13. Git2LedgerWriter — git2-rs commit chain backend (§ 5)
+    // ──────────────────────────────────────────────────────────────────────
+
+    use tempfile::TempDir;
+
+    fn fresh_git_writer() -> (TempDir, Git2LedgerWriter) {
+        let tmp = TempDir::new().expect("tempdir");
+        let w = Git2LedgerWriter::open(tmp.path()).expect("open");
+        (tmp, w)
+    }
+
+    // 10. Empty repo: len()=0, head_commit_oid=None.
+    #[test]
+    fn git2_writer_empty_chain() {
+        let (_tmp, w) = fresh_git_writer();
+        assert_eq!(w.len(), 0);
+        assert!(w.head_commit_oid().is_none());
+    }
+
+    // 11. Append three entries; len + head_commit_oid advance per commit;
+    //     read_at recovers each entry byte-identically (canonical encode/decode round-trip).
+    #[test]
+    fn git2_writer_append_and_read_back() {
+        let (_tmp, mut w) = fresh_git_writer();
+        let e1 = entry_at(1, Hash::ZERO, Hash::ZERO, h(1));
+        let e2 = entry_at(2, e1.resulting_state_root, e1.resulting_ledger_root, h(2));
+        let e3 = entry_at(3, e2.resulting_state_root, e2.resulting_ledger_root, h(3));
+
+        let r1 = w.commit(&e1).expect("commit 1");
+        assert_eq!(r1, e1.resulting_ledger_root);
+        assert_eq!(w.len(), 1);
+        let oid_1 = w.head_commit_oid().expect("head after 1");
+
+        let r2 = w.commit(&e2).expect("commit 2");
+        assert_eq!(r2, e2.resulting_ledger_root);
+        assert_eq!(w.len(), 2);
+        let oid_2 = w.head_commit_oid().expect("head after 2");
+        assert_ne!(oid_1, oid_2, "head must advance after second commit");
+
+        w.commit(&e3).expect("commit 3");
+        assert_eq!(w.len(), 3);
+
+        // read_at returns each entry byte-identically.
+        assert_eq!(w.read_at(1).expect("read 1"), e1);
+        assert_eq!(w.read_at(2).expect("read 2"), e2);
+        assert_eq!(w.read_at(3).expect("read 3"), e3);
+    }
+
+    // 12. Skipping a logical_t triggers LogicalTGap; chain state is unchanged.
+    #[test]
+    fn git2_writer_rejects_logical_t_gap() {
+        let (_tmp, mut w) = fresh_git_writer();
+        let e1 = entry_at(1, Hash::ZERO, Hash::ZERO, h(1));
+        w.commit(&e1).expect("commit 1");
+        let pre_oid = w.head_commit_oid();
+
+        // Try to commit a logical_t=3 entry (gap: expected 2)
+        let e_skip = entry_at(3, e1.resulting_state_root, e1.resulting_ledger_root, h(2));
+        let err = w.commit(&e_skip).unwrap_err();
+        assert!(matches!(err, LedgerWriterError::LogicalTGap { expected: 2, got: 3 }));
+        // Chain unchanged.
+        assert_eq!(w.len(), 1);
+        assert_eq!(w.head_commit_oid(), pre_oid);
+    }
+
+    // 13. Reopening the same repo path resurrects the chain (head + len recovered
+    //     from refs/transitions/main). Crucial for runtime cold-restart.
+    #[test]
+    fn git2_writer_reopen_recovers_chain() {
+        let tmp = TempDir::new().expect("tempdir");
+        let e1 = entry_at(1, Hash::ZERO, Hash::ZERO, h(1));
+        let e2 = entry_at(2, e1.resulting_state_root, e1.resulting_ledger_root, h(2));
+        let oid_after_two;
+        {
+            let mut w = Git2LedgerWriter::open(tmp.path()).expect("open");
+            w.commit(&e1).expect("commit 1");
+            w.commit(&e2).expect("commit 2");
+            oid_after_two = w.head_commit_oid().expect("head");
+        }
+        // Reopen — fresh struct, same on-disk repo.
+        let w2 = Git2LedgerWriter::open(tmp.path()).expect("reopen");
+        assert_eq!(w2.len(), 2);
+        assert_eq!(w2.head_commit_oid(), Some(oid_after_two));
+        assert_eq!(w2.read_at(1).expect("read 1"), e1);
+        assert_eq!(w2.read_at(2).expect("read 2"), e2);
+
+        // Continue chain after reopen.
+        let mut w3 = Git2LedgerWriter::open(tmp.path()).expect("reopen 2");
+        let e3 = entry_at(3, e2.resulting_state_root, e2.resulting_ledger_root, h(3));
+        w3.commit(&e3).expect("commit 3");
+        assert_eq!(w3.len(), 3);
+    }
+
+    // 14. canonical_encode/decode round-trip for LedgerEntry (foundation of read_at).
+    #[test]
+    fn canonical_codec_round_trip() {
+        let e1 = entry_at(7, h(0xaa), h(0xbb), h(0xcc));
+        let bytes = canonical_encode(&e1).expect("encode");
+        let e1_back: LedgerEntry = canonical_decode(&bytes).expect("decode");
+        assert_eq!(e1, e1_back);
+
+        // Two encodes of the same value must produce byte-identical bytes (I-DET).
+        let bytes_again = canonical_encode(&e1).expect("encode again");
+        assert_eq!(bytes, bytes_again);
+
+        // Trailing garbage rejected.
+        let mut bytes_extra = bytes.clone();
+        bytes_extra.push(0xff);
+        let err = canonical_decode::<LedgerEntry>(&bytes_extra).unwrap_err();
+        assert!(matches!(err, CanonicalCodecError::TrailingBytes { .. }));
     }
 }

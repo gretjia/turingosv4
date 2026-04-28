@@ -14,6 +14,7 @@ use chacha20poly1305::aead::{Aead, KeyInit};
 use chacha20poly1305::{ChaCha20Poly1305, Nonce};
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use secrecy::{ExposeSecret, SecretString};
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 use std::env;
@@ -37,7 +38,7 @@ const FORMAT_MAGIC: &[u8; 11] = b"TOS4SYSKEY1";
 const FORMAT_VERSION: u8 = 1;
 
 /// TRACE_MATRIX FC1-Sig+FC3-Sig: system signature epoch identifier.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct SystemEpoch(u64);
 
 impl SystemEpoch {
@@ -80,8 +81,50 @@ impl SystemPublicKey {
 }
 
 /// TRACE_MATRIX FC1-Sig+FC3-Sig: ed25519 detached signature over a canonical system message digest.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct SystemSignature([u8; SIGNATURE_LEN]);
+///
+/// `[u8; 64]` serde via `serde_bytes_64` (serde-derive default doesn't support
+/// arrays > 32). With `bincode` + `fixed_int_encoding` this writes 64 raw bytes —
+/// deterministic, platform-stable.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SystemSignature(#[serde(with = "serde_bytes_64")] [u8; SIGNATURE_LEN]);
+
+/// Serde adapter for `[u8; 64]`: serializes as a length-64 byte sequence
+/// (deterministic under bincode `fixed_int_encoding` → 64 raw bytes; no length prefix
+/// because the ARRAY type encodes its length statically).
+mod serde_bytes_64 {
+    use serde::de::{SeqAccess, Visitor};
+    use serde::ser::SerializeTuple;
+    use serde::{Deserializer, Serializer};
+    use std::fmt;
+
+    pub fn serialize<S: Serializer>(bytes: &[u8; 64], s: S) -> Result<S::Ok, S::Error> {
+        let mut tup = s.serialize_tuple(64)?;
+        for b in bytes {
+            tup.serialize_element(b)?;
+        }
+        tup.end()
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<[u8; 64], D::Error> {
+        struct ArrVisitor;
+        impl<'de> Visitor<'de> for ArrVisitor {
+            type Value = [u8; 64];
+            fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                write!(f, "byte array of length 64")
+            }
+            fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
+                let mut out = [0u8; 64];
+                for (i, slot) in out.iter_mut().enumerate() {
+                    *slot = seq
+                        .next_element()?
+                        .ok_or_else(|| serde::de::Error::invalid_length(i, &self))?;
+                }
+                Ok(out)
+            }
+        }
+        d.deserialize_tuple(64, ArrVisitor)
+    }
+}
 
 impl SystemSignature {
     /// TRACE_MATRIX FC1-Sig+FC3-Sig: construct a detached system signature from raw ed25519 bytes.
