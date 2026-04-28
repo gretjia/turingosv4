@@ -174,35 +174,12 @@ impl RejectedAttemptSummary {
     }
 }
 
-/// TRACE_MATRIX FC1-Sig+FC3-Sig: typed terminal summary transaction emitted on no-accept runs.
-///
-/// **CO1.1.4-pre1 D-3 known divergence**: the field set here (run_id /
-/// terminal_state_root / rejected_attempt_count) is the placeholder shipped by
-/// the system_keypair atom; STATE_TRANSITION_SPEC § 1.5 specifies a richer
-/// 8-field schema (tx_id / task_id / run_id / run_outcome / total_attempts /
-/// failure_class_histogram / last_logical_t / system_signature). Migration
-/// to the full schema is deferred to v1.1 of CO1.1.4-pre1 if auditors flag it.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub struct TerminalSummaryTx {
-    run_id: String,
-    terminal_state_root: [u8; 32],
-    rejected_attempt_count: u64,
-}
-
-impl TerminalSummaryTx {
-    /// TRACE_MATRIX FC1-Sig+FC3-Sig: construct a typed terminal summary transaction.
-    pub fn new(
-        run_id: impl Into<String>,
-        terminal_state_root: [u8; 32],
-        rejected_attempt_count: u64,
-    ) -> Self {
-        Self {
-            run_id: run_id.into(),
-            terminal_state_root,
-            rejected_attempt_count,
-        }
-    }
-}
+// TRACE_MATRIX CO1.1.4-pre1 v1.1 round-1 closure (C-3 / Codex Q-C):
+// the typed `TerminalSummaryTx` struct (8-field per STATE § 1.5) now lives in
+// `state::typed_tx`. system_keypair signs an opaque digest via the
+// `CanonicalMessage::TerminalSummarySigning([u8; 32])` variant — same
+// opaque-digest pattern as `LedgerEntrySigning`, avoiding `bottom_white ↔ state`
+// circular dependency.
 
 /// TRACE_MATRIX FC3-Sig: typed continuity statement for system key rotation.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -248,8 +225,13 @@ impl EpochRotationProof {
 pub enum CanonicalMessage {
     /// TRACE_MATRIX FC1-Sig: predicate-runner rejection summary.
     RejectedAttemptSummary(RejectedAttemptSummary),
-    /// TRACE_MATRIX FC1-Sig+FC3-Sig: terminal summary transaction.
-    TerminalSummaryTx(TerminalSummaryTx),
+    /// TRACE_MATRIX FC1-Sig+FC3-Sig (CO1.1.4-pre1 v1.1 closure C-3): terminal
+    /// summary signing-payload digest. Opaque `[u8; 32]` — full canonical_digest
+    /// of the 8-field `state::typed_tx::TerminalSummaryTx` is computed in
+    /// typed_tx; this variant only carries the 32-byte digest into the typed
+    /// sign API. Same opaque-digest pattern as `LedgerEntrySigning`; avoids a
+    /// circular `system_keypair ↔ state` module dependency.
+    TerminalSummarySigning([u8; 32]),
     /// TRACE_MATRIX FC3-Sig: system key epoch continuity proof.
     EpochRotationProof(EpochRotationProof),
     /// TRACE_MATRIX FC2-Append (CO1.7 v1.2 round-2 closure C3): L4 transition_ledger
@@ -478,11 +460,9 @@ pub fn canonical_digest(message: &CanonicalMessage) -> [u8; 32] {
             update_len_prefixed(&mut h, summary.failure_class.as_bytes());
             h.update(summary.summary_hash);
         }
-        CanonicalMessage::TerminalSummaryTx(tx) => {
-            h.update(b"TerminalSummaryTx");
-            update_len_prefixed(&mut h, tx.run_id.as_bytes());
-            h.update(tx.terminal_state_root);
-            h.update(tx.rejected_attempt_count.to_be_bytes());
+        CanonicalMessage::TerminalSummarySigning(digest) => {
+            h.update(b"TerminalSummarySigning");
+            h.update(digest);
         }
         CanonicalMessage::EpochRotationProof(proof) => {
             h.update(b"EpochRotationProof");
@@ -569,18 +549,25 @@ pub(crate) mod predicate_runner {
 }
 
 /// TRACE_MATRIX FC1-Sig+FC3-Sig: crate-only signing surface for terminal summary emission.
+///
+/// **CO1.1.4-pre1 v1.1 round-1 closure (C-3)**: signs an opaque `[u8; 32]`
+/// digest produced by `state::typed_tx::TerminalSummaryTx::canonical_digest()`
+/// (same opaque-digest pattern as `transition_ledger_emitter::sign_ledger_entry`)
+/// rather than the typed struct directly — keeps `system_keypair` oblivious
+/// to the typed-tx schema, no `bottom_white ↔ state` circular dep.
 pub(crate) mod terminal_summary_emitter {
     use super::{
         sign_system_message_inner, CanonicalMessage, Ed25519Keypair, EpochRotationProof,
-        KeypairError, SystemSignature, TerminalSummaryTx,
+        KeypairError, SystemSignature,
     };
 
-    /// TRACE_MATRIX FC1-Sig+FC3-Sig: sign only typed terminal summary transactions.
-    pub(crate) fn sign_terminal_summary_tx(
+    /// TRACE_MATRIX FC1-Sig+FC3-Sig: sign an opaque 32-byte digest of a
+    /// terminal-summary signing payload (computed by typed_tx).
+    pub(crate) fn sign_terminal_summary(
         keypair: &Ed25519Keypair,
-        tx: &TerminalSummaryTx,
+        digest: [u8; 32],
     ) -> Result<SystemSignature, KeypairError> {
-        sign_system_message_inner(keypair, &CanonicalMessage::TerminalSummaryTx(tx.clone()))
+        sign_system_message_inner(keypair, &CanonicalMessage::TerminalSummarySigning(digest))
     }
 
     /// TRACE_MATRIX FC3-Sig: sign only typed epoch rotation proofs.

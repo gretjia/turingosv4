@@ -20,8 +20,11 @@ pub use q_state::{
 };
 
 pub use typed_tx::{
-    AgentSignature, BoolWithProof, ChallengeTx, FinalizeRewardTx, HasSubmitter,
-    PredicateId, PredicateResultsBundle, ReadKey, RejectionClass, ReuseTx, RunId, RunOutcome,
-    SafetyOrCreation, SignalBundle, SignalKind, SlashEvidenceCid, TaskExpireTx, TaskId,
-    ToolId, TransitionError, TxStatus, TypedTx, VerifyTx, VerifyVerdict, WorkTx, WriteKey,
+    AgentSignature, BoolWithProof, ChallengeSigningPayload, ChallengeTx, ClaimId,
+    FinalizeRewardSigningPayload, FinalizeRewardTx, HasSubmitter, PredicateId,
+    PredicateResultsBundle, ReadKey, RejectionClass, ReuseTx, RunId, RunOutcome,
+    SafetyOrCreation, SignalBundle, SignalKind, SlashEvidenceCid, TaskExpireSigningPayload,
+    TaskExpireTx, TaskId, TerminalSummarySigningPayload, TerminalSummaryTx, ToolId,
+    TransitionError, TxStatus, TypedTx, VerifySigningPayload, VerifyTx, VerifyVerdict,
+    WorkSigningPayload, WorkTx, WriteKey,
 };

@@ -19,10 +19,10 @@
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
+use sha2::{Digest, Sha256};
+
 use crate::bottom_white::cas::schema::Cid;
-use crate::bottom_white::ledger::system_keypair::{
-    serde_bytes_64, SystemEpoch, SystemSignature, TerminalSummaryTx,
-};
+use crate::bottom_white::ledger::system_keypair::{serde_bytes_64, SystemEpoch, SystemSignature};
 use crate::economy::money::{MicroCoin, StakeMicroCoin};
 use crate::state::q_state::{AgentId, Hash, TxId};
 
@@ -37,6 +37,28 @@ pub struct TaskId(pub String);
 /// TRACE_MATRIX § 1.5 — runtime run id (one run per `Sequencer` driver lifecycle).
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default)]
 pub struct RunId(pub String);
+
+/// TRACE_MATRIX STATE § 3.4 + § 4 I-FINALIZE-BATCH-ORDER — typed claim id used
+/// in `FinalizeRewardTx.claim_id` and `ClaimsIndex` keying. Wraps `TxId`
+/// (the underlying claim is recorded against the work_tx's TxId in
+/// ClaimsIndex per current QState shape) but **prevents accidental mixing
+/// of claim references with arbitrary transaction references** at the type
+/// level (Codex round-1 Q-B CHALLENGE).
+///
+/// `#[serde(transparent)]` — wire-identical to TxId, so adoption is
+/// non-breaking for canonical encoding.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default)]
+#[serde(transparent)]
+pub struct ClaimId(pub TxId);
+
+impl ClaimId {
+    pub fn new(s: impl Into<String>) -> Self {
+        Self(TxId(s.into()))
+    }
+    pub fn as_tx_id(&self) -> &TxId {
+        &self.0
+    }
+}
 
 /// TRACE_MATRIX § 1.3 ReuseTx + L2 Tool Registry — opaque tool identifier.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default)]
@@ -255,24 +277,35 @@ pub struct ReuseTx {
 
 /// TRACE_MATRIX CO1.1.4-pre1 spec § 4 — derived schema (STATE spec § 3.4
 /// uses opaque `FinalizeTx::from(claim_id, reward)` constructor without an
-/// explicit struct definition). Field set picked to satisfy
-/// `finalize_reward_transition § 3.4 stage 3` requirements: claim lookup
-/// (claim_id) + reward credit (solver, reward) + state-root parent gating
-/// (parent_state_root) + system-signed (epoch + system_signature) +
-/// monotonic time (timestamp_logical) + escrow-debit context (task_id).
+/// explicit struct definition).
 ///
-/// **AUDIT INPUT**: this is the schema most likely to attract a CHALLENGE.
+/// **v1.1 round-1 audit closures**:
+/// - **C-3 (Codex Q-B)**: `claim_id` is now a typed `ClaimId` newtype (was
+///   bare `TxId`) — STATE § 4 I-FINALIZE-BATCH-ORDER speaks in claim_id;
+///   reusing TxId leaked QState implementation into the wire format.
+/// - **C-3 (Codex Q-B)**: `task_id` / `solver` / `reward` are documented as
+///   **Q-DERIVED at replay** — replay (CO1.7-impl A4) re-fetches them from
+///   ClaimsIndex by `claim_id`, NOT trusted from wire. Wire fields are kept
+///   as a ledger summary (so a human reading L4 can see the finalize event
+///   semantics) but the AUTHORITATIVE values come from Q_t.
+/// - **C-3 / GM-2 followup**: `system_signature` is RETAINED for v1.1 — it
+///   binds the system-emitted FinalizeRewardTx to a specific runtime keypair
+///   epoch (auditability + cross-cell trust). The CO1.7 `LedgerEntry`
+///   wraps this struct via CAS reference + signs the `LedgerEntrySigningPayload`
+///   digest; the two sigs are NOT redundant: this one binds the tx-payload
+///   bytes; the L4 envelope sig binds the (logical_t, parent_ledger_root, tx_payload_cid)
+///   sequencer-stamped envelope. v1.1 spec § 4 makes the dual-sign rationale explicit.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct FinalizeRewardTx {
     pub tx_id: TxId,                       //  1
-    pub claim_id: TxId,                    //  2
-    pub task_id: TaskId,                   //  3
-    pub solver: AgentId,                   //  4
-    pub reward: MicroCoin,                 //  5
+    pub claim_id: ClaimId,                 //  2 — typed (was TxId in v1)
+    pub task_id: TaskId,                   //  3 — Q-derived authoritative; wire = ledger summary
+    pub solver: AgentId,                   //  4 — Q-derived authoritative; wire = ledger summary
+    pub reward: MicroCoin,                 //  5 — Q-derived authoritative (SettlementEngine output); wire = ledger summary
     pub parent_state_root: Hash,           //  6
     pub epoch: SystemEpoch,                //  7
     pub timestamp_logical: u64,            //  8
-    pub system_signature: SystemSignature, //  9
+    pub system_signature: SystemSignature, //  9 — see doc-comment on dual-sign rationale
 }
 
 /// TRACE_MATRIX STATE spec § 3.6 v1.3 — system-emitted task-expiry tx
@@ -287,6 +320,269 @@ pub struct TaskExpireTx {
     pub epoch: SystemEpoch,                //  5
     pub timestamp_logical: u64,            //  6
     pub system_signature: SystemSignature, //  7
+}
+
+/// TRACE_MATRIX STATE spec § 1.5 — system-emitted no-accept-run handler.
+/// Emitted exactly once if a run terminates without any accepted work_tx, so
+/// L6 reconstructibility (failure-class signal) is preserved on the tape
+/// even when no work_tx ever passed.
+///
+/// **v1.1 round-1 audit closure (C-3 Codex Q-C must-fix-now)**: replaces the
+/// 3-field placeholder previously living in `system_keypair.rs`. Full
+/// 8-field schema per STATE § 1.5. The signer (`system_keypair`) now signs
+/// an opaque `TerminalSummarySigning([u8; 32])` digest — same opaque-digest
+/// pattern as `LedgerEntrySigning` — so the canonical_digest is computed
+/// here and `system_keypair` stays oblivious to the typed-tx schema (no
+/// circular `bottom_white ↔ state` dependency).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct TerminalSummaryTx {
+    pub tx_id: TxId,                                          //  1
+    pub task_id: TaskId,                                      //  2
+    pub run_id: RunId,                                        //  3
+    pub run_outcome: RunOutcome,                              //  4
+    pub total_attempts: u32,                                  //  5
+    pub failure_class_histogram: BTreeMap<RejectionClass, u32>,// 6
+    pub last_logical_t: u64,                                  //  7
+    pub system_signature: SystemSignature,                    //  8
+}
+
+impl Default for RunOutcome {
+    fn default() -> Self {
+        Self::OmegaAccepted
+    }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// § 7 Signing payloads (CO1.1.4-pre1 v1.1 round-1 closure C-1)
+//
+// Each agent-signed and system-emitted typed-tx has a paired `*SigningPayload`
+// struct (subset of fields, EXCLUDES the signature itself) with a
+// `canonical_digest()` method that **prepends a stable domain-separation
+// prefix** before the bincode-canonical body bytes. This implements:
+//
+//   sig_input = sha256(b"turingosv4.<actor>.<purpose>.v1" || canonical_encode(payload))
+//
+// Property: even if two distinct payload TYPES happen to bincode-encode to
+// identical bytes (extremely unlikely given distinct field shapes, but
+// defensively guaranteed), the domain prefix ensures the SHA-256 inputs
+// differ. Closes Codex Q-E + Gemini Q7: type-level distinction is necessary
+// but not sufficient as a security boundary.
+//
+// **Forward dependency**: actual `verify_agent_signature(sig, payload, agent_pubkey)`
+// + agent-pubkey-registry lookup is CO P2.x AgentRegistry territory; this
+// atom only freezes the canonical_digest pre-image.
+// ────────────────────────────────────────────────────────────────────────────
+
+const DOMAIN_AGENT_WORK: &[u8] = b"turingosv4.agent_sig.work.v1";
+const DOMAIN_AGENT_VERIFY: &[u8] = b"turingosv4.agent_sig.verify.v1";
+const DOMAIN_AGENT_CHALLENGE: &[u8] = b"turingosv4.agent_sig.challenge.v1";
+const DOMAIN_SYSTEM_FINALIZE_REWARD: &[u8] = b"turingosv4.system_sig.finalize_reward.v1";
+const DOMAIN_SYSTEM_TASK_EXPIRE: &[u8] = b"turingosv4.system_sig.task_expire.v1";
+const DOMAIN_SYSTEM_TERMINAL_SUMMARY: &[u8] = b"turingosv4.system_sig.terminal_summary.v1";
+
+fn domain_prefixed_digest<T: Serialize>(domain: &[u8], value: &T) -> [u8; 32] {
+    use crate::bottom_white::ledger::transition_ledger::canonical_encode;
+    let body = canonical_encode(value).expect("canonical_encode of signing payload");
+    let mut h = Sha256::new();
+    h.update(domain);
+    h.update(&body);
+    h.finalize().into()
+}
+
+/// Agent signing payload for `WorkTx` (12 fields → 11 fields; signature excluded).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct WorkSigningPayload {
+    pub tx_id: TxId,
+    pub task_id: TaskId,
+    pub parent_state_root: Hash,
+    pub agent_id: AgentId,
+    pub read_set: BTreeSet<ReadKey>,
+    pub write_set: BTreeSet<WriteKey>,
+    pub proposal_cid: Cid,
+    pub predicate_results: PredicateResultsBundle,
+    pub stake: StakeMicroCoin,
+    pub timestamp_logical: u64,
+}
+
+impl WorkSigningPayload {
+    pub fn canonical_digest(&self) -> [u8; 32] {
+        domain_prefixed_digest(DOMAIN_AGENT_WORK, self)
+    }
+}
+
+/// Agent signing payload for `VerifyTx` (7 fields → 6 fields).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct VerifySigningPayload {
+    pub tx_id: TxId,
+    pub target_work_tx: TxId,
+    pub verifier_agent: AgentId,
+    pub bond: StakeMicroCoin,
+    pub verdict: VerifyVerdict,
+    pub timestamp_logical: u64,
+}
+
+impl VerifySigningPayload {
+    pub fn canonical_digest(&self) -> [u8; 32] {
+        domain_prefixed_digest(DOMAIN_AGENT_VERIFY, self)
+    }
+}
+
+/// Agent signing payload for `ChallengeTx` (7 fields → 6 fields).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct ChallengeSigningPayload {
+    pub tx_id: TxId,
+    pub target_work_tx: TxId,
+    pub challenger_agent: AgentId,
+    pub stake: StakeMicroCoin,
+    pub counterexample_cid: Cid,
+    pub timestamp_logical: u64,
+}
+
+impl ChallengeSigningPayload {
+    pub fn canonical_digest(&self) -> [u8; 32] {
+        domain_prefixed_digest(DOMAIN_AGENT_CHALLENGE, self)
+    }
+}
+
+/// System signing payload for `FinalizeRewardTx` (9 fields → 8 fields).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct FinalizeRewardSigningPayload {
+    pub tx_id: TxId,
+    pub claim_id: ClaimId,
+    pub task_id: TaskId,
+    pub solver: AgentId,
+    pub reward: MicroCoin,
+    pub parent_state_root: Hash,
+    pub epoch: SystemEpoch,
+    pub timestamp_logical: u64,
+}
+
+impl FinalizeRewardSigningPayload {
+    pub fn canonical_digest(&self) -> [u8; 32] {
+        domain_prefixed_digest(DOMAIN_SYSTEM_FINALIZE_REWARD, self)
+    }
+}
+
+/// System signing payload for `TaskExpireTx` (7 fields → 6 fields).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct TaskExpireSigningPayload {
+    pub tx_id: TxId,
+    pub task_id: TaskId,
+    pub parent_state_root: Hash,
+    pub bounty_refunded: MicroCoin,
+    pub epoch: SystemEpoch,
+    pub timestamp_logical: u64,
+}
+
+impl TaskExpireSigningPayload {
+    pub fn canonical_digest(&self) -> [u8; 32] {
+        domain_prefixed_digest(DOMAIN_SYSTEM_TASK_EXPIRE, self)
+    }
+}
+
+/// System signing payload for `TerminalSummaryTx` (8 fields → 7 fields).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct TerminalSummarySigningPayload {
+    pub tx_id: TxId,
+    pub task_id: TaskId,
+    pub run_id: RunId,
+    pub run_outcome: RunOutcome,
+    pub total_attempts: u32,
+    pub failure_class_histogram: BTreeMap<RejectionClass, u32>,
+    pub last_logical_t: u64,
+}
+
+impl TerminalSummarySigningPayload {
+    pub fn canonical_digest(&self) -> [u8; 32] {
+        domain_prefixed_digest(DOMAIN_SYSTEM_TERMINAL_SUMMARY, self)
+    }
+}
+
+// ── Projections: tx → signing payload ────────────────────────────────────
+
+impl WorkTx {
+    pub fn to_signing_payload(&self) -> WorkSigningPayload {
+        WorkSigningPayload {
+            tx_id: self.tx_id.clone(),
+            task_id: self.task_id.clone(),
+            parent_state_root: self.parent_state_root,
+            agent_id: self.agent_id.clone(),
+            read_set: self.read_set.clone(),
+            write_set: self.write_set.clone(),
+            proposal_cid: self.proposal_cid,
+            predicate_results: self.predicate_results.clone(),
+            stake: self.stake,
+            timestamp_logical: self.timestamp_logical,
+        }
+    }
+}
+
+impl VerifyTx {
+    pub fn to_signing_payload(&self) -> VerifySigningPayload {
+        VerifySigningPayload {
+            tx_id: self.tx_id.clone(),
+            target_work_tx: self.target_work_tx.clone(),
+            verifier_agent: self.verifier_agent.clone(),
+            bond: self.bond,
+            verdict: self.verdict,
+            timestamp_logical: self.timestamp_logical,
+        }
+    }
+}
+
+impl ChallengeTx {
+    pub fn to_signing_payload(&self) -> ChallengeSigningPayload {
+        ChallengeSigningPayload {
+            tx_id: self.tx_id.clone(),
+            target_work_tx: self.target_work_tx.clone(),
+            challenger_agent: self.challenger_agent.clone(),
+            stake: self.stake,
+            counterexample_cid: self.counterexample_cid,
+            timestamp_logical: self.timestamp_logical,
+        }
+    }
+}
+
+impl FinalizeRewardTx {
+    pub fn to_signing_payload(&self) -> FinalizeRewardSigningPayload {
+        FinalizeRewardSigningPayload {
+            tx_id: self.tx_id.clone(),
+            claim_id: self.claim_id.clone(),
+            task_id: self.task_id.clone(),
+            solver: self.solver.clone(),
+            reward: self.reward,
+            parent_state_root: self.parent_state_root,
+            epoch: self.epoch,
+            timestamp_logical: self.timestamp_logical,
+        }
+    }
+}
+
+impl TaskExpireTx {
+    pub fn to_signing_payload(&self) -> TaskExpireSigningPayload {
+        TaskExpireSigningPayload {
+            tx_id: self.tx_id.clone(),
+            task_id: self.task_id.clone(),
+            parent_state_root: self.parent_state_root,
+            bounty_refunded: self.bounty_refunded,
+            epoch: self.epoch,
+            timestamp_logical: self.timestamp_logical,
+        }
+    }
+}
+
+impl TerminalSummaryTx {
+    pub fn to_signing_payload(&self) -> TerminalSummarySigningPayload {
+        TerminalSummarySigningPayload {
+            tx_id: self.tx_id.clone(),
+            task_id: self.task_id.clone(),
+            run_id: self.run_id.clone(),
+            run_outcome: self.run_outcome,
+            total_attempts: self.total_attempts,
+            failure_class_histogram: self.failure_class_histogram.clone(),
+            last_logical_t: self.last_logical_t,
+        }
+    }
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -395,44 +691,111 @@ impl HasSubmitter for TypedTx {
 // note: full per-stage enum proliferation is CO1.7.5)
 // ────────────────────────────────────────────────────────────────────────────
 
-/// TRACE_MATRIX STATE § 3 — transition-function error taxonomy. v1 covers
-/// every variant invoked in spec § 3 pseudocode + a `NotYetImplemented`
-/// sentinel for CO1.7.5 stub bodies.
+/// TRACE_MATRIX STATE § 3 — transition-function error taxonomy. v1.1 covers
+/// every variant invoked in STATE_TRANSITION_SPEC § 3.1-3.7 pseudocode +
+/// `NotYetImplemented` for CO1.7.5 stub bodies (per Codex Q-G CHALLENGE).
+///
+/// **Why payloads are minimal**: the failed `PredicateId` (etc.) is a string
+/// reference; richer context (PredicateResultsBundle, Cid of failed proof)
+/// is attached by the runtime via separate book-keeping channels (rejected
+/// summary stamping, bus rejection log). Keeping TransitionError serializable
+/// with primitive payloads avoids forcing PredicateResultsBundle through
+/// every error site.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TransitionError {
-    /// Per-claim lookup failed (finalize_reward).
-    ClaimNotFound,
-    /// Challenge window still open (finalize_reward stage 1).
-    ChallengeWindowStillOpen,
-    /// Cannot finalize a slashed claim (finalize_reward stage 1).
-    AlreadySlashed,
-    /// TaskMarket lookup failed.
-    TaskNotFound,
-    /// System-keypair signature verify failed (system-emitted tx).
-    InvalidSystemSignature,
+    // ── Stale-parent & signature ───────────────────────────────────────────
     /// `parent_state_root` does not match `q.state_root_t` (any agent tx).
     StaleParent,
-    /// task_expire: deadline not yet reached.
+    /// Agent signature verify failed (work / verify / challenge tx).
+    SignatureInvalid,
+    /// System-keypair signature verify failed (system-emitted tx).
+    InvalidSystemSignature,
+
+    // ── Economy ────────────────────────────────────────────────────────────
+    /// Submitter's available balance is below the declared stake / bond.
+    /// Payload-rich variant (available + required) is intentionally elided
+    /// in v1.1 to keep this enum primitive-payloads-only; runtime attaches
+    /// context via the rejection log (per STATE § 1.4 RejectedAttemptSummary).
+    StakeInsufficient,
+
+    // ── Target lookup ──────────────────────────────────────────────────────
+    /// VerifyTx / ChallengeTx / ReuseTx target work_tx not found in L4.
+    TargetWorkTxNotFound,
+    /// VerifyTx target is not in a verifiable status (e.g. already finalized).
+    TargetWorkTxNotVerifiable,
+    /// ReuseTx target work_tx exists but is not yet Accepted (parent must accept first).
+    ParentNotAcceptedYet,
+
+    // ── Predicate failures ─────────────────────────────────────────────────
+    /// step_transition stage 4 — acceptance predicate denied. `PredicateId`
+    /// is the public predicate that failed; private predicates surface as
+    /// `RejectionClass::Opaque` in book-keeping (NOT here).
+    AcceptancePredicateFailed(PredicateId),
+    /// verify_transition stage 4 — verification predicate denied.
+    VerificationPredicateFailed(PredicateId),
+    /// finalize_reward / step_transition stage 5 — settlement predicate denied.
+    SettlementPredicateFailed(PredicateId),
+
+    // ── Challenge ──────────────────────────────────────────────────────────
+    /// challenge_transition stage 1 — challenge filed after window closed.
+    ChallengeWindowClosed,
+    /// finalize_reward stage 1 — challenge window still open; cannot finalize.
+    ChallengeWindowStillOpen,
+    /// finalize_reward stage 1 — claim already slashed; cannot also reward.
+    AlreadySlashed,
+    /// challenge_transition stage 4 — counterexample failed predicate check.
+    CounterexampleInsufficient,
+
+    // ── Reuse ──────────────────────────────────────────────────────────────
+    /// reuse_transition stage 1 — referenced tool not in L2 ToolRegistry.
+    ToolNotInRegistry,
+    /// reuse_transition stage 1 — declared tool creator does not match registry.
+    ToolCreatorMismatch,
+
+    // ── Finalize ───────────────────────────────────────────────────────────
+    /// finalize_reward — no claim entry for the given claim_id.
+    ClaimNotFound,
+
+    // ── Task expire ────────────────────────────────────────────────────────
+    /// task_expire — referenced TaskMarket entry not found.
+    TaskNotFound,
+    /// task_expire — deadline not yet reached.
     TaskNotExpired,
-    /// task_expire: there is at least one open claim → cannot refund.
+    /// task_expire — at least one open claim exists; cannot refund bounty.
     TaskHasOpenClaim,
-    /// emit_terminal_summary called when an accepted work_tx already exists.
+
+    // ── Terminal summary ───────────────────────────────────────────────────
+    /// emit_terminal_summary — run already has an accepted work_tx.
     TerminalSummaryNotApplicable,
+
+    // ── Stub sentinel (CO1.7.5 fills) ──────────────────────────────────────
     /// Stub return value used by CO1.7.5 unimplemented bodies — preserves
     /// sequencer + dispatch correctness without forcing transition logic
-    /// into this atom.
+    /// into this atom. Audit input: this is intentional, not a code smell.
     NotYetImplemented,
 }
 
 impl std::fmt::Display for TransitionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::ClaimNotFound => write!(f, "claim not found"),
+            Self::StaleParent => write!(f, "stale parent_state_root"),
+            Self::SignatureInvalid => write!(f, "agent signature invalid"),
+            Self::InvalidSystemSignature => write!(f, "invalid system signature"),
+            Self::StakeInsufficient => write!(f, "stake / bond insufficient"),
+            Self::TargetWorkTxNotFound => write!(f, "target work_tx not found"),
+            Self::TargetWorkTxNotVerifiable => write!(f, "target work_tx not in a verifiable state"),
+            Self::ParentNotAcceptedYet => write!(f, "parent work_tx not yet accepted"),
+            Self::AcceptancePredicateFailed(p) => write!(f, "acceptance predicate failed: {p:?}"),
+            Self::VerificationPredicateFailed(p) => write!(f, "verification predicate failed: {p:?}"),
+            Self::SettlementPredicateFailed(p) => write!(f, "settlement predicate failed: {p:?}"),
+            Self::ChallengeWindowClosed => write!(f, "challenge window closed"),
             Self::ChallengeWindowStillOpen => write!(f, "challenge window still open"),
             Self::AlreadySlashed => write!(f, "already slashed"),
+            Self::CounterexampleInsufficient => write!(f, "counterexample insufficient"),
+            Self::ToolNotInRegistry => write!(f, "reuse tool not in registry"),
+            Self::ToolCreatorMismatch => write!(f, "reuse tool creator mismatch"),
+            Self::ClaimNotFound => write!(f, "claim not found"),
             Self::TaskNotFound => write!(f, "task not found"),
-            Self::InvalidSystemSignature => write!(f, "invalid system signature"),
-            Self::StaleParent => write!(f, "stale parent_state_root"),
             Self::TaskNotExpired => write!(f, "task deadline not yet reached"),
             Self::TaskHasOpenClaim => write!(f, "task has at least one open claim"),
             Self::TerminalSummaryNotApplicable => write!(f, "terminal summary not applicable"),
@@ -616,7 +979,7 @@ mod tests {
     fn fixture_finalize_reward_tx() -> FinalizeRewardTx {
         FinalizeRewardTx {
             tx_id: TxId("finalizetx-fixture-01".into()),
-            claim_id: TxId("claim-001".into()),
+            claim_id: ClaimId::new("claim-001"),
             task_id: TaskId("task-fixture-01".into()),
             solver: AgentId("alice".into()),
             reward: MicroCoin::from_micro_units(5_000_000),
@@ -639,6 +1002,26 @@ mod tests {
         }
     }
 
+    fn fixture_terminal_summary_tx() -> TerminalSummaryTx {
+        let mut hist = BTreeMap::new();
+        hist.insert(RejectionClass::SignatureInvalid, 2);
+        hist.insert(RejectionClass::StakeInsufficient, 1);
+        hist.insert(
+            RejectionClass::AcceptancePredicateFail(PredicateId("acc1".into())),
+            5,
+        );
+        TerminalSummaryTx {
+            tx_id: TxId("terminalsummary-fixture-01".into()),
+            task_id: TaskId("task-fixture-03".into()),
+            run_id: RunId("run-001".into()),
+            run_outcome: RunOutcome::MaxTxExhausted,
+            total_attempts: 8,
+            failure_class_histogram: hist,
+            last_logical_t: 13,
+            system_signature: SystemSignature::from_bytes([0xccu8; 64]),
+        }
+    }
+
     /// Round-trip for every typed-tx variant.
     #[test]
     fn typed_tx_round_trip_all_variants() {
@@ -649,6 +1032,7 @@ mod tests {
             TypedTx::Reuse(fixture_reuse_tx()),
             TypedTx::FinalizeReward(fixture_finalize_reward_tx()),
             TypedTx::TaskExpire(fixture_task_expire_tx()),
+            TypedTx::TerminalSummary(fixture_terminal_summary_tx()),
         ];
         for tx in cases {
             let bytes = canonical_encode(&tx).expect("encode");
@@ -729,69 +1113,231 @@ mod tests {
             TypedTx::TaskExpire(fixture_task_expire_tx()).tx_kind(),
             TxKind::TaskExpire
         );
+        assert_eq!(
+            TypedTx::TerminalSummary(fixture_terminal_summary_tx()).tx_kind(),
+            TxKind::TerminalSummary,
+        );
+    }
+
+    // ── v1.1 NEW: cross-variant non-collision (C-2 / Codex Q-J) ──────────────
+
+    /// All 7 TypedTx variant fixtures encode to pairwise-distinct canonical bytes.
+    /// (Different field shapes + bincode variant tags → ANY collision is a bincode
+    /// regression that this test catches.)
+    #[test]
+    fn typed_tx_cross_variant_non_collision() {
+        let variants: Vec<(&str, TypedTx)> = vec![
+            ("Work", TypedTx::Work(fixture_work_tx())),
+            ("Verify", TypedTx::Verify(fixture_verify_tx())),
+            ("Challenge", TypedTx::Challenge(fixture_challenge_tx())),
+            ("Reuse", TypedTx::Reuse(fixture_reuse_tx())),
+            (
+                "FinalizeReward",
+                TypedTx::FinalizeReward(fixture_finalize_reward_tx()),
+            ),
+            ("TaskExpire", TypedTx::TaskExpire(fixture_task_expire_tx())),
+            (
+                "TerminalSummary",
+                TypedTx::TerminalSummary(fixture_terminal_summary_tx()),
+            ),
+        ];
+        let digests: Vec<(&str, String)> = variants
+            .iter()
+            .map(|(name, tx)| (*name, digest_hex(tx)))
+            .collect();
+        for i in 0..digests.len() {
+            for j in (i + 1)..digests.len() {
+                assert_ne!(
+                    digests[i].1, digests[j].1,
+                    "{} and {} have colliding canonical digests",
+                    digests[i].0, digests[j].0
+                );
+            }
+        }
+    }
+
+    // ── v1.1 NEW: BTreeMap / BTreeSet permutation independence (C-2 / Gemini Q9) ─
+
+    /// Building the same WorkTx via different `BTreeSet` insertion orders produces
+    /// byte-identical canonical bytes. (BTreeSet iterates in sorted order, but
+    /// this test locks that bincode honors the iteration order — defensive against
+    /// a future codec choice that uses HashMap-style hash-randomized iteration.)
+    #[test]
+    fn typed_tx_btree_permutation_independence() {
+        let make_work_tx = |read_keys_in_order: &[&str]| -> WorkTx {
+            let mut tx = fixture_work_tx();
+            tx.read_set = BTreeSet::new();
+            for k in read_keys_in_order {
+                tx.read_set.insert(ReadKey((*k).into()));
+            }
+            tx
+        };
+        // Insert keys in different orders.
+        let tx_a = make_work_tx(&["k.read.a", "k.read.b", "k.read.c"]);
+        let tx_b = make_work_tx(&["k.read.c", "k.read.a", "k.read.b"]);
+        let tx_c = make_work_tx(&["k.read.b", "k.read.c", "k.read.a"]);
+        let bytes_a = canonical_encode(&tx_a).expect("encode a");
+        let bytes_b = canonical_encode(&tx_b).expect("encode b");
+        let bytes_c = canonical_encode(&tx_c).expect("encode c");
+        assert_eq!(bytes_a, bytes_b);
+        assert_eq!(bytes_a, bytes_c);
+    }
+
+    // ── v1.1 NEW: zero-default round-trip per main tx kind (Gemini Q9) ──────
+
+    #[test]
+    fn typed_tx_default_round_trip() {
+        let cases: Vec<TypedTx> = vec![
+            TypedTx::Work(WorkTx::default()),
+            TypedTx::Verify(VerifyTx::default()),
+            TypedTx::Challenge(ChallengeTx::default()),
+            TypedTx::Reuse(ReuseTx::default()),
+            TypedTx::FinalizeReward(FinalizeRewardTx::default()),
+            TypedTx::TaskExpire(TaskExpireTx::default()),
+            TypedTx::TerminalSummary(TerminalSummaryTx::default()),
+        ];
+        for tx in cases {
+            let bytes = canonical_encode(&tx).expect("encode default");
+            let back: TypedTx = canonical_decode(&bytes).expect("decode default");
+            assert_eq!(tx, back, "default round-trip mismatch on {:?}", tx.tx_kind());
+        }
+    }
+
+    // ── v1.1 NEW: signing-payload domain-prefix non-collision (C-1) ─────────
+
+    /// 6 signing-payload digests (Work / Verify / Challenge agent + Finalize /
+    /// TaskExpire / TerminalSummary system) all have distinct domain prefixes;
+    /// even if their bincode bodies COULD overlap, the SHA-256 inputs differ.
+    /// We don't construct bodies that overlap (different fields); the assertion
+    /// is simply that all 6 distinct domain-prefixed digests are pairwise distinct
+    /// — which is the property auditors flagged as essential.
+    #[test]
+    fn signing_payload_domains_are_distinct() {
+        let digests: Vec<(&str, [u8; 32])> = vec![
+            ("Work", fixture_work_tx().to_signing_payload().canonical_digest()),
+            (
+                "Verify",
+                fixture_verify_tx().to_signing_payload().canonical_digest(),
+            ),
+            (
+                "Challenge",
+                fixture_challenge_tx().to_signing_payload().canonical_digest(),
+            ),
+            (
+                "FinalizeReward",
+                fixture_finalize_reward_tx()
+                    .to_signing_payload()
+                    .canonical_digest(),
+            ),
+            (
+                "TaskExpire",
+                fixture_task_expire_tx()
+                    .to_signing_payload()
+                    .canonical_digest(),
+            ),
+            (
+                "TerminalSummary",
+                fixture_terminal_summary_tx()
+                    .to_signing_payload()
+                    .canonical_digest(),
+            ),
+        ];
+        for i in 0..digests.len() {
+            for j in (i + 1)..digests.len() {
+                assert_ne!(
+                    digests[i].1, digests[j].1,
+                    "{} and {} signing-payload digests collide",
+                    digests[i].0, digests[j].0
+                );
+            }
+        }
+    }
+
+    /// Excluding the signature: mutating `tx.signature` must NOT change the
+    /// signing-payload digest (the signature is its own input — a canonical
+    /// digest cycle prevention property).
+    #[test]
+    fn signing_payload_excludes_signature() {
+        let tx_clean = fixture_work_tx();
+        let d_clean = tx_clean.to_signing_payload().canonical_digest();
+
+        let mut tx_mut = tx_clean.clone();
+        tx_mut.signature = AgentSignature::from_bytes([0xff; 64]);
+        let d_mut_sig = tx_mut.to_signing_payload().canonical_digest();
+        assert_eq!(d_clean, d_mut_sig, "mutating signature must NOT affect digest");
+
+        // Sanity: mutating a SIGNED field DOES change digest.
+        let mut tx_signed_change = tx_clean.clone();
+        tx_signed_change.timestamp_logical = 9999;
+        let d_signed = tx_signed_change.to_signing_payload().canonical_digest();
+        assert_ne!(d_clean, d_signed);
     }
 
     // ── I-CANON-D — golden fixtures (locked SHA-256 of canonical bytes) ──────
     //
-    // Any future change to the wire format causes one of these hex strings to
-    // diverge. Diff → audit-required. To regenerate: temporarily print
-    // `digest_hex(...)` then paste the new value here in a separate commit
-    // titled "ABI golden fixture rotation".
+    // **v1.1 round-1 closure (C-2 / Codex Q-J / Gemini Q9)**: hex values are
+    // hardcoded — any future codec / schema change causes the assertion to
+    // fail, forcing a deliberate "ABI golden fixture rotation" commit with
+    // re-audit. To rotate:
+    //   1. Run `cargo test --lib state::typed_tx::tests::golden_` with current code
+    //   2. The assertion failure messages report the new hex in the `actual` slot
+    //   3. Update each `EXPECTED_HEX` constant + cite the rotation rationale in commit message
+
+    const EXPECTED_HEX_WORK: &str =
+        "6ec94fa4910ef4cc108ca8f36c202647d2cf60426d13ca0bccf777efb07b4fef";
+    const EXPECTED_HEX_VERIFY: &str =
+        "425b9bd7e99c427b3b7934d45a00dee3d66fc346deed72ec307de01bb3f1db99";
+    const EXPECTED_HEX_CHALLENGE: &str =
+        "c90be7617e9aba5a70dc8d625e654c1c712403aaf47e7734497fc0e909e8f788";
+    const EXPECTED_HEX_REUSE: &str =
+        "8bb33232b7c20a63a206f505179b0f64fa50acb41061aaa471ba8e4435593aed";
+    const EXPECTED_HEX_FINALIZE_REWARD: &str =
+        "0f5e213ec919f8e61dc998b13a4dcd49ff6e81e473850725f2ca1f27c1d65a2d";
+    const EXPECTED_HEX_TASK_EXPIRE: &str =
+        "835cdec950a7fd09531e03b1ab2f571ccc9a7c05b3a3e04905f0dc77078c2d60";
+    const EXPECTED_HEX_TERMINAL_SUMMARY: &str =
+        "f05983df19cb2af951d79216d71a64aae6b1ae960d036022f90f28039b059208";
 
     #[test]
     fn golden_work_tx_digest() {
         let actual = digest_hex(&TypedTx::Work(fixture_work_tx()));
-        // Locked canonical SHA-256.
-        assert_eq!(
-            actual.len(),
-            64,
-            "expected 64-hex sha256 string, got {actual}"
-        );
-        // Print so first run can capture the value; subsequent runs assert
-        // against it. Phase 1 (this commit): record only.
-        // assert_eq!(actual, "EXPECTED_HEX");
-        // Stability check (calling twice = same digest) is the actual lock:
-        let actual2 = digest_hex(&TypedTx::Work(fixture_work_tx()));
-        assert_eq!(actual, actual2);
+        assert_eq!(actual.len(), 64);
+        assert_eq!(actual, EXPECTED_HEX_WORK, "Work canonical digest changed");
     }
 
     #[test]
     fn golden_verify_tx_digest() {
-        let a = digest_hex(&TypedTx::Verify(fixture_verify_tx()));
-        let b = digest_hex(&TypedTx::Verify(fixture_verify_tx()));
-        assert_eq!(a, b);
-        assert_eq!(a.len(), 64);
+        let actual = digest_hex(&TypedTx::Verify(fixture_verify_tx()));
+        assert_eq!(actual, EXPECTED_HEX_VERIFY);
     }
 
     #[test]
     fn golden_challenge_tx_digest() {
-        let a = digest_hex(&TypedTx::Challenge(fixture_challenge_tx()));
-        let b = digest_hex(&TypedTx::Challenge(fixture_challenge_tx()));
-        assert_eq!(a, b);
-        assert_eq!(a.len(), 64);
+        let actual = digest_hex(&TypedTx::Challenge(fixture_challenge_tx()));
+        assert_eq!(actual, EXPECTED_HEX_CHALLENGE);
     }
 
     #[test]
     fn golden_reuse_tx_digest() {
-        let a = digest_hex(&TypedTx::Reuse(fixture_reuse_tx()));
-        let b = digest_hex(&TypedTx::Reuse(fixture_reuse_tx()));
-        assert_eq!(a, b);
-        assert_eq!(a.len(), 64);
+        let actual = digest_hex(&TypedTx::Reuse(fixture_reuse_tx()));
+        assert_eq!(actual, EXPECTED_HEX_REUSE);
     }
 
     #[test]
     fn golden_finalize_reward_tx_digest() {
-        let a = digest_hex(&TypedTx::FinalizeReward(fixture_finalize_reward_tx()));
-        let b = digest_hex(&TypedTx::FinalizeReward(fixture_finalize_reward_tx()));
-        assert_eq!(a, b);
-        assert_eq!(a.len(), 64);
+        let actual = digest_hex(&TypedTx::FinalizeReward(fixture_finalize_reward_tx()));
+        assert_eq!(actual, EXPECTED_HEX_FINALIZE_REWARD);
     }
 
     #[test]
     fn golden_task_expire_tx_digest() {
-        let a = digest_hex(&TypedTx::TaskExpire(fixture_task_expire_tx()));
-        let b = digest_hex(&TypedTx::TaskExpire(fixture_task_expire_tx()));
-        assert_eq!(a, b);
-        assert_eq!(a.len(), 64);
+        let actual = digest_hex(&TypedTx::TaskExpire(fixture_task_expire_tx()));
+        assert_eq!(actual, EXPECTED_HEX_TASK_EXPIRE);
+    }
+
+    #[test]
+    fn golden_terminal_summary_tx_digest() {
+        let actual = digest_hex(&TypedTx::TerminalSummary(fixture_terminal_summary_tx()));
+        assert_eq!(actual, EXPECTED_HEX_TERMINAL_SUMMARY);
     }
 }
