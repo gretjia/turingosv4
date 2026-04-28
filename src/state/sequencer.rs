@@ -270,6 +270,17 @@ impl Sequencer {
 
     /// Per-tx critical section. Pure transition + CAS put + sign + commit +
     /// Q_t mutation. See spec § 3 stages 1-9.
+    ///
+    /// **v1.1 C-2 closure (Codex bundle Q-B)**: `next_logical_t` advances
+    /// **only on commit success** — the original spec § 3 stage-4
+    /// `fetch_add(1)` happened BEFORE sign + writer.commit, so any infra
+    /// failure (sign / commit) left `next_logical_t` advanced past a
+    /// logical_t that was never written to the ledger. The next accepted
+    /// tx would then be assigned a logical_t the writer rejects forever
+    /// (writer enforces strict `len + 1`). Fixed by `load → use → store
+    /// after commit succeeds`. Single-writer per spec § 5.2.1 makes the
+    /// load+store atomic enough; if multi-writer ever lands the AtomicU64
+    /// can be upgraded to a `compare_exchange` reservation pattern.
     pub(crate) fn apply_one(&self, tx: TypedTx) -> Result<LedgerEntry, ApplyError> {
         // Stage 1: snapshot Q_t under read lock.
         let q_snapshot = {
@@ -286,27 +297,25 @@ impl Sequencer {
             &self.tool_registry,
         )?;
 
-        // Stage 3: put payload to CAS. DIV-5 5-param put signature. The
-        // `created_at_logical_t` is the TENTATIVE logical_t (current counter +
-        // 1); the final commit logical_t is assigned at stage 4 atomically.
+        // v1.1 C-2: TENTATIVE logical_t (do NOT fetch_add yet).
+        let logical_t = self.next_logical_t.load(Ordering::SeqCst) + 1;
+
+        // Stage 3: put payload to CAS. DIV-5 5-param put signature.
         let payload_bytes = canonical_encode(&tx)
             .map_err(|e| ApplyError::PayloadEncode(e.to_string()))?;
-        let tentative_logical_t = self.next_logical_t.load(Ordering::SeqCst) + 1;
         let payload_cid = {
             let mut cas_w = self.cas.write().map_err(|_| ApplyError::QStateLockPoisoned)?;
             cas_w.put(
                 &payload_bytes,
                 ObjectType::ProposalPayload,
                 &format!("sequencer-epoch-{}", self.epoch.get()),
-                tentative_logical_t,
+                logical_t,
                 Some("TypedTx.v1".to_string()),
             )?
         };
 
-        // Stage 4: K1 — assign logical_t ONLY now (post-accept).
-        let logical_t = self.next_logical_t.fetch_add(1, Ordering::SeqCst) + 1;
-
-        // Stage 5: build LedgerEntrySigningPayload.
+        // Stage 5: build LedgerEntrySigningPayload (v1.1 — stage 4 fetch_add
+        // moved to AFTER stage 9 commit success).
         let signing_payload = LedgerEntrySigningPayload {
             logical_t,
             parent_state_root: q_snapshot.state_root_t,
@@ -345,6 +354,8 @@ impl Sequencer {
         };
 
         // Stage 9: commit + mutate Q_t under write lock.
+        // v1.1 C-2: next_logical_t.store(logical_t) HAPPENS ONLY AFTER
+        // writer.commit succeeds — preserves K1 under infra failure.
         // K3 v1.2 (revised): we set q.ledger_root_t but NOT q.head_t (head_t
         // mutation deferred to CO1.7.5+ when Git2LedgerWriter exposes
         // commit_sha alongside Hash). state_root_t comes from q_next as-is.
@@ -354,7 +365,9 @@ impl Sequencer {
                 .ledger_writer
                 .write()
                 .map_err(|_| ApplyError::QStateLockPoisoned)?;
-            writer_w.commit(&entry)?;
+            writer_w.commit(&entry)?; // ← may fail; if it does, fetch_add was NOT called
+            // commit succeeded → safe to advance counter.
+            self.next_logical_t.store(logical_t, Ordering::SeqCst);
             *q_w = q_next;
             q_w.ledger_root_t = entry.resulting_ledger_root;
         }

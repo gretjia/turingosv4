@@ -283,6 +283,21 @@ pub enum ReplayError {
         at: usize,
         inner: crate::state::typed_tx::TransitionError,
     },
+    /// CO1.7-impl A4 v1.1 (Codex bundle Q-J / C-3): the canonical-decoded
+    /// `TypedTx` variant disagrees with the entry's `tx_kind` discriminator.
+    /// Signed envelope claims one kind; CAS payload is another.
+    TxKindMismatch {
+        at: usize,
+        envelope_kind: TxKind,
+        decoded_kind: TxKind,
+    },
+    /// CO1.7-impl A4 v1.1 (Codex bundle Q-K secondary): payload bytes
+    /// retrieved from CAS but `canonical_decode` failed (corruption /
+    /// non-canonical bytes). Distinct from `CasMissing` (lookup failure).
+    PayloadDecode {
+        at: usize,
+        reason: String,
+    },
 }
 
 impl std::fmt::Display for ReplayError {
@@ -298,6 +313,11 @@ impl std::fmt::Display for ReplayError {
             Self::CasMissing { at } => write!(f, "CAS payload not retrievable at index {at}"),
             Self::StateRootMismatch { at } => write!(f, "resulting_state_root divergence at index {at}"),
             Self::Transition { at, inner } => write!(f, "dispatch_transition rejected at index {at}: {inner}"),
+            Self::TxKindMismatch { at, envelope_kind, decoded_kind } => write!(
+                f,
+                "tx_kind mismatch at index {at}: envelope claims {envelope_kind:?} but CAS payload decoded as {decoded_kind:?}"
+            ),
+            Self::PayloadDecode { at, reason } => write!(f, "payload canonical_decode failed at index {at}: {reason}"),
         }
     }
 }
@@ -336,38 +356,35 @@ impl LedgerCasView for crate::bottom_white::cas::store::CasStore {
 /// 4. system_signature verifies via CanonicalMessage::LedgerEntrySigning + pinned pubkeys
 /// 5. CAS lookup of tx_payload_cid succeeds (CO1.4-extra cold-replay capability)
 /// 6. canonical_decode of payload bytes → TypedTx
+/// 6.5 (v1.1 C-3): decoded_typed_tx.tx_kind() MUST equal entry.tx_kind
 /// 7. dispatch_transition re-run produces (q_next, _signals)
 /// 8. q_next.state_root_t matches entry.resulting_state_root
 /// 9. resulting_ledger_root recomputed via append() matches stored
 ///
+/// **v1.1 C-1 closure**: takes a full `genesis: &QState` (was `genesis_state_root`
+/// + `genesis_ledger_root` only). Caller provides the complete genesis state
+/// so dispatch_transition can read budget / registries / balances / task markets
+/// — fabricating `QState::genesis()` was dropping these fields.
+///
 /// **Stub-state caveat (CO1.7.5 unblocks)**: while `dispatch_transition`
 /// returns `NotYetImplemented` for every variant, replay errors at stage 7
-/// for any non-empty chain. Conformance tests exercising stages 1-6
+/// for any non-empty chain. Conformance tests exercising stages 1-6.5
 /// independently are `#[test]`-runnable now; full state_root reconstruction
 /// gates on CO1.7.5.
 pub fn replay_full_transition(
-    genesis_state_root: crate::state::q_state::Hash,
-    genesis_ledger_root: crate::state::q_state::Hash,
+    genesis: &crate::state::q_state::QState,
     entries: &[LedgerEntry],
     cas: &dyn LedgerCasView,
     pinned_pubkeys: &crate::bottom_white::ledger::system_keypair::PinnedSystemPubkeys,
     predicate_registry: &crate::top_white::predicates::registry::PredicateRegistry,
     tool_registry: &crate::bottom_white::tools::registry::ToolRegistry,
-) -> Result<(crate::state::q_state::Hash, crate::state::q_state::Hash), ReplayError> {
+) -> Result<crate::state::q_state::QState, ReplayError> {
     use crate::bottom_white::ledger::system_keypair::{
         verify_system_signature, CanonicalMessage,
     };
-    use crate::state::q_state::QState;
     use crate::state::sequencer::dispatch_transition;
 
-    let mut prev_state_root = genesis_state_root;
-    let mut prev_ledger_root = genesis_ledger_root;
-    // For dispatch we need a QState. Replay reconstructs it from genesis;
-    // initial state has empty agent swarm + budget defaults. The state_root_t
-    // and ledger_root_t are the load-bearing fields entries verify against.
-    let mut q = QState::genesis();
-    q.state_root_t = genesis_state_root;
-    q.ledger_root_t = genesis_ledger_root;
+    let mut q = genesis.clone();
 
     for (i, entry) in entries.iter().enumerate() {
         // Stage 1
@@ -380,11 +397,11 @@ pub fn replay_full_transition(
             });
         }
         // Stage 2
-        if entry.parent_state_root != prev_state_root {
+        if entry.parent_state_root != q.state_root_t {
             return Err(ReplayError::ParentStateMismatch { at: i });
         }
         // Stage 3
-        if entry.parent_ledger_root != prev_ledger_root {
+        if entry.parent_ledger_root != q.ledger_root_t {
             return Err(ReplayError::ParentLedgerMismatch { at: i });
         }
 
@@ -406,9 +423,26 @@ pub fn replay_full_transition(
             .get_typed_payload(&entry.tx_payload_cid)
             .map_err(|_| ReplayError::CasMissing { at: i })?;
 
-        // Stage 6: canonical_decode → TypedTx.
-        let typed_tx: crate::state::typed_tx::TypedTx = canonical_decode(&payload_bytes)
-            .map_err(|_| ReplayError::CasMissing { at: i })?;
+        // Stage 6: canonical_decode → TypedTx (v1.1 C-3-secondary: distinct
+        // error from CasMissing).
+        let typed_tx: crate::state::typed_tx::TypedTx =
+            canonical_decode(&payload_bytes).map_err(|e| ReplayError::PayloadDecode {
+                at: i,
+                reason: e.to_string(),
+            })?;
+
+        // Stage 6.5 (v1.1 C-3): tx_kind envelope vs decoded payload kind MUST match.
+        // Otherwise a signed envelope claiming `Work` could ride a CAS payload
+        // that decodes as `Verify` — sequencer would have written that
+        // mismatch but replay would have silently accepted it pre-v1.1.
+        let decoded_kind = typed_tx.tx_kind();
+        if decoded_kind != entry.tx_kind {
+            return Err(ReplayError::TxKindMismatch {
+                at: i,
+                envelope_kind: entry.tx_kind,
+                decoded_kind,
+            });
+        }
 
         // Stage 7: re-run pure dispatch_transition.
         let (q_next, _signals) =
@@ -421,7 +455,7 @@ pub fn replay_full_transition(
         }
 
         // Stage 9: ledger_root match (recompute via append).
-        let recomputed_ledger_root = append(&prev_ledger_root, &signing_digest);
+        let recomputed_ledger_root = append(&q.ledger_root_t, &signing_digest);
         if recomputed_ledger_root != entry.resulting_ledger_root {
             return Err(ReplayError::LedgerRootMismatch { at: i });
         }
@@ -429,11 +463,9 @@ pub fn replay_full_transition(
         // Advance.
         q = q_next;
         q.ledger_root_t = entry.resulting_ledger_root;
-        prev_state_root = entry.resulting_state_root;
-        prev_ledger_root = entry.resulting_ledger_root;
     }
 
-    Ok((prev_state_root, prev_ledger_root))
+    Ok(q)
 }
 
 /// Skeleton-stage entry point (v1.1).
@@ -1215,8 +1247,7 @@ mod tests {
             &dummy_typed_tx(),
         );
         let err = replay_full_transition(
-            Hash::ZERO,
-            Hash::ZERO,
+            &crate::state::q_state::QState::genesis(),
             &[entry],
             &cas,
             &pinned,
@@ -1248,8 +1279,7 @@ mod tests {
         // Tamper signature.
         entry.system_signature = SystemSignature::from_bytes([0xff; 64]);
         let err = replay_full_transition(
-            Hash::ZERO,
-            Hash::ZERO,
+            &crate::state::q_state::QState::genesis(),
             &[entry],
             &cas,
             &pinned,
@@ -1289,8 +1319,7 @@ mod tests {
         // Reopen — CO1.4-extra sidecar replay restores the CAS index.
         let cas2 = CasStore::open(tmp.path()).expect("reopen");
         let err = replay_full_transition(
-            Hash::ZERO,
-            Hash::ZERO,
+            &crate::state::q_state::QState::genesis(),
             &[entry],
             &cas2,
             &pinned,
@@ -1298,7 +1327,8 @@ mod tests {
             &tools,
         )
         .unwrap_err();
-        // Stages 1-6 (incl. CAS lookup post-reopen) PASS; stage 7 stubs.
+        // Stages 1-6.5 (incl. CAS lookup post-reopen + tx_kind match) PASS;
+        // stage 7 stubs.
         assert!(matches!(err, ReplayError::Transition { at: 0, .. }));
     }
 
