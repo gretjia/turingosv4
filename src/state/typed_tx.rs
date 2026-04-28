@@ -380,6 +380,13 @@ const DOMAIN_SYSTEM_FINALIZE_REWARD: &[u8] = b"turingosv4.system_sig.finalize_re
 const DOMAIN_SYSTEM_TASK_EXPIRE: &[u8] = b"turingosv4.system_sig.task_expire.v1";
 const DOMAIN_SYSTEM_TERMINAL_SUMMARY: &[u8] = b"turingosv4.system_sig.terminal_summary.v1";
 
+/// Reserved for v4.1 MetaTx (Gemini round-2 GR-1 recommendation).
+/// Not used in v4 — namespace placeholder so v4.1 can introduce
+/// `MetaSigningPayload` without re-rotating sibling domains. Marked
+/// `#[allow(dead_code)]` because no v4 consumer references it.
+#[allow(dead_code)]
+const DOMAIN_AGENT_META_PROPOSAL: &[u8] = b"turingosv4.agent_sig.meta_proposal.v1";
+
 fn domain_prefixed_digest<T: Serialize>(domain: &[u8], value: &T) -> [u8; 32] {
     use crate::bottom_white::ledger::transition_ledger::canonical_encode;
     let body = canonical_encode(value).expect("canonical_encode of signing payload");
@@ -820,11 +827,15 @@ pub struct SignalBundle {
 }
 
 /// Discriminator over the spec § 3 pseudocode's `SignalBundle::*` constructors.
+///
+/// **v1.2 round-2 closure (R2-1)**: `Finalize.claim_id` is `ClaimId` (was `TxId`
+/// in v1.1; round-2 caught the missed call site that leaked the old type
+/// through `SignalBundle::finalize`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SignalKind {
     Empty,
     Finalize {
-        claim_id: TxId,
+        claim_id: ClaimId,
         reward: MicroCoin,
     },
     TaskExpired {
@@ -849,7 +860,7 @@ impl SignalBundle {
             kind: SignalKind::Empty,
         }
     }
-    pub fn finalize(claim_id: TxId, reward: MicroCoin) -> Self {
+    pub fn finalize(claim_id: ClaimId, reward: MicroCoin) -> Self {
         Self {
             kind: SignalKind::Finalize { claim_id, reward },
         }
@@ -1258,13 +1269,64 @@ mod tests {
     /// digest cycle prevention property).
     #[test]
     fn signing_payload_excludes_signature() {
+        // WorkTx (agent-signed)
         let tx_clean = fixture_work_tx();
         let d_clean = tx_clean.to_signing_payload().canonical_digest();
-
         let mut tx_mut = tx_clean.clone();
         tx_mut.signature = AgentSignature::from_bytes([0xff; 64]);
         let d_mut_sig = tx_mut.to_signing_payload().canonical_digest();
-        assert_eq!(d_clean, d_mut_sig, "mutating signature must NOT affect digest");
+        assert_eq!(d_clean, d_mut_sig, "Work: mutating signature must NOT affect digest");
+
+        // VerifyTx (agent-signed)
+        let v_clean = fixture_verify_tx();
+        let dv_clean = v_clean.to_signing_payload().canonical_digest();
+        let mut v_mut = v_clean.clone();
+        v_mut.signature = AgentSignature::from_bytes([0xee; 64]);
+        assert_eq!(
+            dv_clean,
+            v_mut.to_signing_payload().canonical_digest(),
+            "Verify: mutating signature must NOT affect digest"
+        );
+
+        // ChallengeTx (agent-signed)
+        let c_clean = fixture_challenge_tx();
+        let dc_clean = c_clean.to_signing_payload().canonical_digest();
+        let mut c_mut = c_clean.clone();
+        c_mut.signature = AgentSignature::from_bytes([0xdd; 64]);
+        assert_eq!(
+            dc_clean,
+            c_mut.to_signing_payload().canonical_digest(),
+            "Challenge: mutating signature must NOT affect digest"
+        );
+
+        // FinalizeRewardTx / TaskExpireTx / TerminalSummaryTx (system-signed)
+        let f_clean = fixture_finalize_reward_tx();
+        let df_clean = f_clean.to_signing_payload().canonical_digest();
+        let mut f_mut = f_clean.clone();
+        f_mut.system_signature = SystemSignature::from_bytes([0x11; 64]);
+        assert_eq!(
+            df_clean,
+            f_mut.to_signing_payload().canonical_digest(),
+            "FinalizeReward: mutating signature must NOT affect digest"
+        );
+        let t_clean = fixture_task_expire_tx();
+        let dt_clean = t_clean.to_signing_payload().canonical_digest();
+        let mut t_mut = t_clean.clone();
+        t_mut.system_signature = SystemSignature::from_bytes([0x22; 64]);
+        assert_eq!(
+            dt_clean,
+            t_mut.to_signing_payload().canonical_digest(),
+            "TaskExpire: mutating signature must NOT affect digest"
+        );
+        let ts_clean = fixture_terminal_summary_tx();
+        let dts_clean = ts_clean.to_signing_payload().canonical_digest();
+        let mut ts_mut = ts_clean.clone();
+        ts_mut.system_signature = SystemSignature::from_bytes([0x33; 64]);
+        assert_eq!(
+            dts_clean,
+            ts_mut.to_signing_payload().canonical_digest(),
+            "TerminalSummary: mutating signature must NOT affect digest"
+        );
 
         // Sanity: mutating a SIGNED field DOES change digest.
         let mut tx_signed_change = tx_clean.clone();
@@ -1272,6 +1334,155 @@ mod tests {
         let d_signed = tx_signed_change.to_signing_payload().canonical_digest();
         assert_ne!(d_clean, d_signed);
     }
+
+    // ── v1.2 NEW (R2-4 Codex round-2): LOAD-BEARING domain test ─────────────
+
+    /// Hash the SAME body bytes with each of the 6 domain prefixes; assert all
+    /// 6 results are pairwise distinct. Without the domain prefix, this test
+    /// would FAIL — proving the prefix is load-bearing (the round-1 test
+    /// `signing_payload_domains_are_distinct` used different bodies and
+    /// would have passed even without domains).
+    #[test]
+    fn signing_payload_domain_prefix_is_load_bearing() {
+        // Identical 64-byte body across all domains; the only thing that varies
+        // is which domain prefix gets prepended before SHA-256.
+        let body: Vec<u8> = (0..64u8).collect();
+        let domains: &[&[u8]] = &[
+            DOMAIN_AGENT_WORK,
+            DOMAIN_AGENT_VERIFY,
+            DOMAIN_AGENT_CHALLENGE,
+            DOMAIN_SYSTEM_FINALIZE_REWARD,
+            DOMAIN_SYSTEM_TASK_EXPIRE,
+            DOMAIN_SYSTEM_TERMINAL_SUMMARY,
+        ];
+        let digests: Vec<[u8; 32]> = domains
+            .iter()
+            .map(|d| {
+                let mut h = Sha256::new();
+                h.update(d);
+                h.update(&body);
+                h.finalize().into()
+            })
+            .collect();
+        for i in 0..digests.len() {
+            for j in (i + 1)..digests.len() {
+                assert_ne!(
+                    digests[i], digests[j],
+                    "domains {} and {} produced identical digests on identical body",
+                    String::from_utf8_lossy(domains[i]),
+                    String::from_utf8_lossy(domains[j])
+                );
+            }
+        }
+    }
+
+    // ── v1.2 NEW (P15 Codex round-2 secondary): BTreeMap permutation ───────
+
+    /// PredicateResultsBundle's `acceptance: BTreeMap<PredicateId, BoolWithProof>`
+    /// must encode identically regardless of insertion order (matches the BTreeSet
+    /// permutation test for read_set; closes round-2 caveat that BTreeMap
+    /// fields weren't covered).
+    #[test]
+    fn typed_tx_btreemap_permutation_independence() {
+        let make_work_tx = |insertion_order: &[(&str, bool)]| -> WorkTx {
+            let mut tx = fixture_work_tx();
+            tx.predicate_results.acceptance = BTreeMap::new();
+            for (k, v) in insertion_order {
+                tx.predicate_results.acceptance.insert(
+                    PredicateId((*k).into()),
+                    BoolWithProof {
+                        value: *v,
+                        proof_cid: None,
+                    },
+                );
+            }
+            tx
+        };
+        let tx_a = make_work_tx(&[("p_a", true), ("p_b", false), ("p_c", true)]);
+        let tx_b = make_work_tx(&[("p_c", true), ("p_a", true), ("p_b", false)]);
+        let tx_c = make_work_tx(&[("p_b", false), ("p_c", true), ("p_a", true)]);
+        let bytes_a = canonical_encode(&tx_a).expect("encode a");
+        let bytes_b = canonical_encode(&tx_b).expect("encode b");
+        let bytes_c = canonical_encode(&tx_c).expect("encode c");
+        assert_eq!(bytes_a, bytes_b);
+        assert_eq!(bytes_a, bytes_c);
+    }
+
+    // ── v1.2 NEW (R2-4): signing-payload golden hex ────────────────────────
+
+    fn signing_digest_hex(bytes: &[u8; 32]) -> String {
+        hex_lower(bytes)
+    }
+
+    /// Lock SHA-256 hex of each signing-payload's canonical_digest. Any
+    /// future codec / domain / projection change diffs one of these hex strings.
+    /// Locked values captured 2026-04-28.
+    #[test]
+    fn signing_payload_golden_digests() {
+        let tests: &[(&str, [u8; 32], &str)] = &[
+            (
+                "Work",
+                fixture_work_tx().to_signing_payload().canonical_digest(),
+                EXPECTED_SIGNING_HEX_WORK,
+            ),
+            (
+                "Verify",
+                fixture_verify_tx().to_signing_payload().canonical_digest(),
+                EXPECTED_SIGNING_HEX_VERIFY,
+            ),
+            (
+                "Challenge",
+                fixture_challenge_tx().to_signing_payload().canonical_digest(),
+                EXPECTED_SIGNING_HEX_CHALLENGE,
+            ),
+            (
+                "FinalizeReward",
+                fixture_finalize_reward_tx()
+                    .to_signing_payload()
+                    .canonical_digest(),
+                EXPECTED_SIGNING_HEX_FINALIZE_REWARD,
+            ),
+            (
+                "TaskExpire",
+                fixture_task_expire_tx().to_signing_payload().canonical_digest(),
+                EXPECTED_SIGNING_HEX_TASK_EXPIRE,
+            ),
+            (
+                "TerminalSummary",
+                fixture_terminal_summary_tx()
+                    .to_signing_payload()
+                    .canonical_digest(),
+                EXPECTED_SIGNING_HEX_TERMINAL_SUMMARY,
+            ),
+        ];
+        // Collect all mismatches before panicking — useful for capturing fresh
+        // hex on first run (otherwise only the first failure prints).
+        let mut mismatches: Vec<String> = Vec::new();
+        for (name, actual, expected) in tests {
+            let actual_hex = signing_digest_hex(actual);
+            if &actual_hex != expected {
+                mismatches.push(format!("{name}: actual={actual_hex} expected={expected}"));
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "signing-payload digest mismatches:\n  {}",
+            mismatches.join("\n  ")
+        );
+    }
+
+    const EXPECTED_SIGNING_HEX_WORK: &str =
+        "534d3cf26b7419a2741fa4eb2930b37095f982cc09c75ba2ee34396675a3d685";
+    const EXPECTED_SIGNING_HEX_VERIFY: &str =
+        "7c0f5ff4423bf204d39ff17c5f4d8d65a19861140ed15c59f304b2eda167fb95";
+    const EXPECTED_SIGNING_HEX_CHALLENGE: &str =
+        "64d190a2576ba0e4a1055a0d98a7763c35f817d914ce9eb2a3a49f614b704aa4";
+    const EXPECTED_SIGNING_HEX_FINALIZE_REWARD: &str =
+        "74fd6bfb730b9d3e9828e4ebf8c3edb24aabb755813a058583949f08fbf5654b";
+    const EXPECTED_SIGNING_HEX_TASK_EXPIRE: &str =
+        "d30fcf5fd45e32975e5547e266bcc4ef16353284205009d3feb4189e8b248def";
+    const EXPECTED_SIGNING_HEX_TERMINAL_SUMMARY: &str =
+        "71143e56cbd0fc3bdc4d8b764af9572564f8d66b2f4062d57d3678d4a311ac12";
 
     // ── I-CANON-D — golden fixtures (locked SHA-256 of canonical bytes) ──────
     //

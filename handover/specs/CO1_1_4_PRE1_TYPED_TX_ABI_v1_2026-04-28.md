@@ -1,9 +1,28 @@
-# CO1.1.4-pre1 — Typed Tx ABI Surface (v1.1)
+# CO1.1.4-pre1 — Typed Tx ABI Surface (v1.2)
 
-**Status**: v1.1 — round-1 dual audit returned CHALLENGE/CHALLENGE; this version closes 10 patches (P1-P10) per the merged verdict (`handover/audits/CO1_1_4_PRE1_DUAL_AUDIT_VERDICT_R1_2026-04-28.md`). Awaiting round-2.
+**Status**: v1.2 — round-2 returned PASS (Gemini, high) + CHALLENGE (Codex, high; 4 patch-mechanical defects). Conservative merged CHALLENGE. v1.2 closes the 4 must-fix items (P11-P14 below) + 1 secondary (P15) + 3 Gemini recommendations (GR-1/2/3). Awaiting round-3.
+**Status (v1.1)**: round-1 dual audit returned CHALLENGE/CHALLENGE; v1.1 closed 10 patches (P1-P10).
 **Status (v1)**: v1 DRAFT, post-CO1.7 PASS/PASS gate (2026-04-28).
 **Author**: ArchitectAI (Claude); session 2026-04-28 (continued).
 **Round-1 verdicts**: `handover/audits/CODEX_CO1_1_4_PRE1_ROUND1_AUDIT_2026-04-28.md` (CHALLENGE/high) + `handover/audits/GEMINI_CO1_1_4_PRE1_ROUND1_AUDIT_2026-04-28.md` (CHALLENGE/high); merged in `handover/audits/CO1_1_4_PRE1_DUAL_AUDIT_VERDICT_R1_2026-04-28.md`.
+**Round-2 verdicts**: `handover/audits/CODEX_CO1_1_4_PRE1_ROUND2_AUDIT_2026-04-28.md` (CHALLENGE/high) + `handover/audits/GEMINI_CO1_1_4_PRE1_ROUND2_AUDIT_2026-04-28.md` (PASS/high); merged in `handover/audits/CO1_1_4_PRE1_DUAL_AUDIT_VERDICT_R2_2026-04-28.md`.
+
+## v1.2 patch log (vs. v1.1) — round-2 closure
+
+| ID | v1.1 issue | v1.2 fix | Source |
+|---|---|---|---|
+| **P11** | `SignalKind::Finalize` and `SignalBundle::finalize` still used `TxId` (v1.1 P2 missed call site) | `SignalKind::Finalize.claim_id: ClaimId` + `SignalBundle::finalize(claim_id: ClaimId, ...)` | R2-1 (Codex Q-2) |
+| **P12** | `FinalizeRewardTx.system_signature` and `TaskExpireTx.system_signature` retained but no `CanonicalMessage::FinalizeRewardSigning` / `::TaskExpireSigning` variants + no emitter fns. Dual-sign rationale (§ 4.2) not executable for 2 of 3 system txs | NEW `CanonicalMessage::FinalizeRewardSigning([u8; 32])` + `TaskExpireSigning([u8; 32])` variants (system_keypair.rs) + canonical_digest match arms + `transition_emitter::sign_finalize_reward` + `sign_task_expire` symmetric emitter fns | R2-2 (Codex Q-7) |
+| **P13** | Spec drift: § 0 line 47 still said "TerminalSummaryTx in system_keypair.rs"; § 6 line 210 said "imported from system_keypair"; § 9 D-3 row still present despite v1.1 P7 claiming removal | All 3 stale references cleaned: § 0 lists TerminalSummaryTx in `state::typed_tx`; § 6 inline comment updated; § 9 D-3 row REMOVED (HTML comment marker placed in its slot) | R2-3 (Codex Q-3) |
+| **P14** | Signing-payload tests not load-bearing: round-1 `signing_payload_domains_are_distinct` used different bodies (would pass even without domain prefix); `signing_payload_excludes_signature` only tested for WorkTx; no signing-payload golden hex | NEW `signing_payload_domain_prefix_is_load_bearing` test (identical 64-byte body across 6 domains → 6 pairwise-distinct digests; would FAIL without domain prefix). `signing_payload_excludes_signature` extended to all 6 signed tx kinds. NEW `signing_payload_golden_digests` test with locked SHA-256 hex per signing payload (6 EXPECTED_SIGNING_HEX_* constants). | R2-4 (Codex Q-9) |
+| **P15** | BTreeMap permutation only covered BTreeSet (read_set); BTreeMap fields (predicate_results, failure_class_histogram) untested for permutation independence | NEW `typed_tx_btreemap_permutation_independence` test using `predicate_results.acceptance` (BTreeMap<PredicateId, BoolWithProof>) | Codex round-2 secondary (Q-5 caveat) |
+| **GR-1** (Gemini PASS recommendation) | MetaTx domain prefix not reserved; v4.1 namespace might force domain rotation later | NEW `DOMAIN_AGENT_META_PROPOSAL: &[u8] = b"turingosv4.agent_sig.meta_proposal.v1"` constant (typed_tx.rs); marked `#[allow(dead_code)]` until v4.1 wires MetaTx | Gemini Q9 / GR-1 |
+| **GR-2** (Gemini recommendation) | TransitionError additive-only commitment not stated | spec § 7.2 NEW: TransitionError variants in v4 are additive-only; never reorder; new variants append at the end | Gemini Q9 / GR-2 |
+| **GR-3** (Gemini recommendation) | Domain-string rotation process not documented | spec § 7.3 NEW: domain rotation = new constant (`*.v2`) added in parallel; old `.v1` retained until all-replay window passes; bumping major version triggers a v2 spec round | Gemini Q9 / GR-3 |
+
+5 must-fix patches + 1 secondary + 3 Gemini recommendations = **9 closures** integrated below.
+
+
 
 ## v1.1 patch log (vs. v1) — round-1 closure
 
@@ -44,7 +63,7 @@
 5. **Status / class enums**: `TxStatus`, `RejectionClass`, `VerifyVerdict`, `RunOutcome`.
 6. **Slash evidence reference**: `SlashEvidenceCid(Cid)` newtype.
 7. **Money newtype**: `StakeMicroCoin(MicroCoin)` (non-negative invariant enforced at business layer; type-level newtype prevents accidental mix with general `MicroCoin`).
-8. **Typed-tx payload structs**: `WorkTx`, `VerifyTx`, `ChallengeTx`, `ReuseTx`, `FinalizeRewardTx`, `TaskExpireTx`. (`TerminalSummaryTx` already exists in `system_keypair.rs`.)
+8. **Typed-tx payload structs** (all in `state::typed_tx`): `WorkTx`, `VerifyTx`, `ChallengeTx`, `ReuseTx`, `FinalizeRewardTx`, `TaskExpireTx`, `TerminalSummaryTx` (8-field STATE § 1.5 schema; v1.1 P3 migrated from a 3-field placeholder previously in `system_keypair.rs`).
 9. **Outer enum**: `pub enum TypedTx` with the 7 variants.
 10. **Trait**: `pub trait HasSubmitter` per STATE spec § 3.6.5 v1.3.
 11. **Conformance tests**: 1 golden fixture per main tx kind (input → known SHA-256 of canonical bytes) + 100-input round-trip + cross-call byte stability.
@@ -207,7 +226,7 @@ pub enum TypedTx {
     Reuse(ReuseTx),
     FinalizeReward(FinalizeRewardTx),
     TaskExpire(TaskExpireTx),
-    TerminalSummary(TerminalSummaryTx),  // imported from system_keypair
+    TerminalSummary(TerminalSummaryTx),  // 8-field schema in state::typed_tx (v1.1 P3)
 }
 
 impl TypedTx {
@@ -255,6 +274,28 @@ STATE_TRANSITION_SPEC § 2.5 v1.4 wording is **inaccurate** for the actual codec
 
 This wording fix is a **spec-only patch**; no code change required (the codec was already correct; only the description was wrong).
 
+### § 7.2 TransitionError additive-only commitment (v1.2 GR-2 per Gemini round-2)
+
+`TransitionError` variants in **v4 are additive-only**:
+- New variants MUST be APPENDED to the existing list (no insertion that would shift downstream variant indices).
+- Existing variants MUST NOT be reordered (bincode emits variant-index-as-u32-BE; reordering changes the wire format and invalidates locked golden fixtures).
+- Variant removal is NOT permitted within v4; deprecated error classes get a doc-comment "deprecated; replaced by X" but the variant stays.
+- Bumping the major version (v4 → v5) is the only path that allows non-additive changes; that triggers an ABI rotation cycle (re-audit + re-fixture + canonical re-encoding migration).
+
+This rule applies symmetrically to other ABI enums frozen in this atom: `TxStatus` / `RejectionClass` / `VerifyVerdict` / `RunOutcome` / `SafetyOrCreation` / `SignalKind` / `CanonicalMessage` / `TxKind` (transition_ledger.rs).
+
+### § 7.3 Domain-string rotation process (v1.2 GR-3 per Gemini round-2)
+
+If a future audit finds a security defect in a domain prefix (`b"turingosv4.<actor>.<purpose>.v1"`), rotation follows this discipline:
+
+1. **Add NEW constant** (`*.v2`) **in parallel**; do NOT delete the old `*.v1` constant.
+2. **Old `*.v1` MUST remain reachable in code** until the runtime can prove no in-flight tx still uses it (replay-window quiescence).
+3. **New transitions emit only `*.v2` digests**; the runtime accepts both digests during the rotation window.
+4. **Bump the v4 spec minor version** with a "domain rotation" entry in the patch log.
+5. **Lock new golden hex** for v2-domain digests; v1-domain digests stay locked too (so historical replay still verifies).
+
+The `.v1` suffix on every current domain constant is the affordance that makes this protocol possible without ambiguity.
+
 ---
 
 ## § 8 HasSubmitter trait
@@ -281,7 +322,7 @@ Implements STATE spec § 3.6.5 v1.3 directive verbatim.
 |---|---|---|---|
 | **D-1** | § 1.2 WorkTx field 12 = `status: TxStatus` | **dropped from wire** (Codex round-1 PASS with patch note) | TxStatus is runner book-keeping, not canonical wire data. STATE § 3 transition fns do NOT read `tx.status` from received tx; status is derived from accepted-tx history + ClaimsIndex. Codex Q-A round-1: PASS. |
 | **D-2** | § 3.4 `FinalizeTx::from(claim_id, reward)` opaque constructor | **explicit `FinalizeRewardTx` struct** with Q-derived field discipline (§ 4.1) + dual-sign rationale (§ 4.2) | spec gap; derived schema. |
-| **D-3** | ~~§ 1.5 `TerminalSummaryTx` 3-field placeholder~~ | **RESOLVED v1.1 P3**: migrated to full 8-field STATE § 1.5 schema in `state::typed_tx`; system_keypair signs opaque `TerminalSummarySigning([u8;32])` digest. |
+<!-- v1.2 (R2-3 closure): D-3 row removed. Migration is complete; no divergence remains. -->
 | **D-4** (v1.1 NEW per Codex Q-J / CX-3) | QState `task_markets_t` / `escrows_t` / `stakes_t` keyed by `TxId` (q_state.rs:201/161/182) but typed_tx schemas use `TaskId` for the same task references | **NOT retrofit in this atom**. Migration owned by **CO P2.1 (TaskMarket atom)** which will rekey the QState indices to `TaskId`. CO1.1.4-pre1 documents the cross-atom debt; no wire-format consequence (the typed-tx schemas already use `TaskId` correctly per STATE § 1.2). |
 
 ---
@@ -290,9 +331,10 @@ Implements STATE spec § 3.6.5 v1.3 directive verbatim.
 
 | Round | Codex | Gemini | Conservative | Action |
 |---|---|---|---|---|
-| 1 | CHALLENGE (high) | CHALLENGE (high) | **CHALLENGE** | v1.1 patch round (P1-P10 above) — this version |
-| 2 | ⏳ pending | ⏳ pending | TBD | re-audit on v1.1; expected PASS or 1-issue CHALLENGE |
-| 3+ | … | … | … | iterate to PASS/PASS |
+| 1 | CHALLENGE (high) | CHALLENGE (high) | **CHALLENGE** | v1.1 patch round (P1-P10) |
+| 2 | CHALLENGE (high) | PASS (high) | **CHALLENGE** | v1.2 patch round (P11-P15 + GR-1/2/3) — this version |
+| 3 | ⏳ pending | ⏳ pending | TBD | re-audit on v1.2; expected PASS or 1-issue CHALLENGE |
+| 4+ | … | … | … | iterate to PASS/PASS |
 
 **Pre-implementation gate** (for CO1.7-impl A2-A4): CO1.1.4-pre1 must reach `PASS/PASS` before A2 starts.
 

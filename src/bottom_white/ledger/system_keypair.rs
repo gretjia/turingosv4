@@ -232,6 +232,14 @@ pub enum CanonicalMessage {
     /// sign API. Same opaque-digest pattern as `LedgerEntrySigning`; avoids a
     /// circular `system_keypair ↔ state` module dependency.
     TerminalSummarySigning([u8; 32]),
+    /// TRACE_MATRIX FC1-Sig+FC3-Sig (CO1.1.4-pre1 v1.2 closure R2-2): finalize
+    /// reward signing-payload digest. Opaque `[u8; 32]` produced by
+    /// `state::typed_tx::FinalizeRewardSigningPayload::canonical_digest()`.
+    FinalizeRewardSigning([u8; 32]),
+    /// TRACE_MATRIX FC1-Sig+FC3-Sig (CO1.1.4-pre1 v1.2 closure R2-2): task
+    /// expire signing-payload digest. Opaque `[u8; 32]` produced by
+    /// `state::typed_tx::TaskExpireSigningPayload::canonical_digest()`.
+    TaskExpireSigning([u8; 32]),
     /// TRACE_MATRIX FC3-Sig: system key epoch continuity proof.
     EpochRotationProof(EpochRotationProof),
     /// TRACE_MATRIX FC2-Append (CO1.7 v1.2 round-2 closure C3): L4 transition_ledger
@@ -464,6 +472,14 @@ pub fn canonical_digest(message: &CanonicalMessage) -> [u8; 32] {
             h.update(b"TerminalSummarySigning");
             h.update(digest);
         }
+        CanonicalMessage::FinalizeRewardSigning(digest) => {
+            h.update(b"FinalizeRewardSigning");
+            h.update(digest);
+        }
+        CanonicalMessage::TaskExpireSigning(digest) => {
+            h.update(b"TaskExpireSigning");
+            h.update(digest);
+        }
         CanonicalMessage::EpochRotationProof(proof) => {
             h.update(b"EpochRotationProof");
             h.update(proof.old_epoch.get().to_be_bytes());
@@ -568,6 +584,28 @@ pub(crate) mod terminal_summary_emitter {
         digest: [u8; 32],
     ) -> Result<SystemSignature, KeypairError> {
         sign_system_message_inner(keypair, &CanonicalMessage::TerminalSummarySigning(digest))
+    }
+
+    /// TRACE_MATRIX FC1-Sig+FC3-Sig (CO1.1.4-pre1 v1.2 closure R2-2): sign an
+    /// opaque 32-byte digest of a `FinalizeRewardSigningPayload` (computed by
+    /// state::typed_tx). Symmetric to `sign_terminal_summary` and
+    /// `sign_task_expire`.
+    pub(crate) fn sign_finalize_reward(
+        keypair: &Ed25519Keypair,
+        digest: [u8; 32],
+    ) -> Result<SystemSignature, KeypairError> {
+        sign_system_message_inner(keypair, &CanonicalMessage::FinalizeRewardSigning(digest))
+    }
+
+    /// TRACE_MATRIX FC1-Sig+FC3-Sig (CO1.1.4-pre1 v1.2 closure R2-2): sign an
+    /// opaque 32-byte digest of a `TaskExpireSigningPayload` (computed by
+    /// state::typed_tx). Symmetric to `sign_terminal_summary` and
+    /// `sign_finalize_reward`.
+    pub(crate) fn sign_task_expire(
+        keypair: &Ed25519Keypair,
+        digest: [u8; 32],
+    ) -> Result<SystemSignature, KeypairError> {
+        sign_system_message_inner(keypair, &CanonicalMessage::TaskExpireSigning(digest))
     }
 
     /// TRACE_MATRIX FC3-Sig: sign only typed epoch rotation proofs.
