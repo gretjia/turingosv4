@@ -1,13 +1,13 @@
-//! L4 Transition Ledger (CO1.7) — type skeleton + pure helpers.
+//! L4 Transition Ledger (CO1.7) — implementation atom.
 //!
 //! TRACE_MATRIX FC2-Append: canonical envelope appended to L4 once a transition is accepted.
 //! TRACE_MATRIX WP § 5.L4: ChainTape Layer 4 spine; one LedgerEntry per accepted transition.
-//! TRACE_MATRIX § 1 (CO1_7_TRANSITION_LEDGER_v1_2026-04-28 v1.1): schema + append() + replay_chain_integrity() pseudocode.
+//! TRACE_MATRIX § 1-§ 8 (CO1_7_TRANSITION_LEDGER_v1_2026-04-28 v1.2): schema +
+//! append() + replay_chain_integrity() + replay_full_transition() + Git2LedgerWriter.
 //!
-//! **Status**: v1.1 type skeleton — round-1 dual audit returned CHALLENGE/CHALLENGE; this
-//! version closes 11 must-fix items (C1/C2/C3 + K1-K7 + G1 + D1). Awaiting round-2.
-//! All bodies that depend on yet-to-implement transition functions or CAS index
-//! persistence are stubbed; full-mode replay is deferred to CO1.7.5+.
+//! **Status**: CO1.7 spec PASS/PASS (3 rounds) + CO1.7-impl bundle PASS/PASS
+//! (3 rounds: A1+A2+A3+A4 + CO1.4-extra). Per-kind transition function bodies
+//! deferred to CO1.7.5 (NotYetImplemented stubs in `src/state/sequencer.rs`).
 //!
 //! v1 → v1.1 changes (smoke for round-2 dual audit):
 //! - C1: two-mode replay enum (ChainOnly v1; FullTransition CO1.7.5+); skeleton now
