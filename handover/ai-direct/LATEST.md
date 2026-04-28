@@ -62,6 +62,47 @@ Any phrase in v1 / Blueprint / Deepthink that asserts "ledger / blockchain is th
 
 **Next-session entry**: 🔥 **CO1.7 transition_ledger spec v1** (Wave 6 #1 core; ChainTape Layer 4 spine; fills `OBS_QT_FIVE_ROOT_EXTENSION` ledger_root_t; unblocks #2 fixture corpus). Working tree clean for cold start.
 
+---
+
+## 📊 Project Completion Snapshot — 2026-04-28
+
+> **Two parallel tracks** (re-confirmed): **CO refactor** (kernel architectural rewrite) and **PPUT-CCL experiment** (real minif2f benchmark on heldout-49). Per PREREG, neither blocks the other; CO1.7 transition_ledger does NOT block minif2f experiment runs.
+
+### Three-angle completion %
+
+| 维度 | % | 已完成 | 关键阻塞 |
+|------|---|-------|---------|
+| **ChainTape (L0–L6)** | **48%** | L0 Trust Anchor 95% (待 ratification 签名) / L3 CAS 90% / L1 PredicateRegistry 60% / L2 ToolRegistry 50% | L4 transition_ledger **10%** (spec v1.4 PASS, code = CO1.7 未起草) → 直接卡 L5/L6 |
+| **Git substrate** | **65%** | gix→git2-rs pivot 完成 / CO1.3.1 spike 8/8 PASS / CO1.4 CAS 实现 (561 LoC + 16 tests) | runtime_repo 实例化 + evaluator 接线 = CO1.7+CO1.8 之后 |
+| **经济机制** | **code 8% / spec 100%** | MicroCoin (`src/economy/money.rs` 277 LoC + 16 tests + walkthrough Inv 3 守恒) | 6 个 transition function (WorkTx/VerifyTx/ChallengeTx/ReuseTx/finalize_reward/task_expire) 全部 spec-only；wallet/escrow/stake/royalty/slashing 9 sub-field 全部 spec-only |
+
+### Single-point bottleneck: **CO1.7 transition_ledger**
+
+CO1.7 同时阻塞 ChainTape L4-L6、Git runtime_repo 接线、经济机制 6 个 transition 函数实例化。这是单点 atom 撬动三轨道并行的最高杠杆点 → 已锁为下次 fresh session 起手任务。
+
+### 总剩余时长
+
+| 口径 | 数字 |
+|------|------|
+| 当前完成 atom | ~31 / 175 (≈ 18%) |
+| 当前花费 | ~$100-150 / $890 mid (~12-17%) |
+| 已耗时 | ~9 天（自 2026-04-19） |
+| 当前 pace | ~5 atom/day（waves 1-6 spec/小 atom 重） |
+| **乐观（pace 不变）** | ~29 天 → 2026-05 末 |
+| **现实（CO P1 STEP_B + CO1.7 + INV8 v2 单 atom 1.5-2 wk 计）** | **27-36 周 → 2026-10 至 2027-01** |
+
+⚠ **关键观察**: 现实估计上界（~2027-01）正好命中 **2027-01-01 v2 whitepaper hard sunset**——非巧合，Plan v3.2-fix2 当初规划即埋了"代码完成 ≈ v2 治理 sunset"对齐。
+
+### Phase B exit smoke test ruling
+
+**Smoke test (5 题 × 1 seed × homogeneous mode × MAX_TX=10) 不冲突 Phase C 冻结。**
+
+冻结对象是 **C2 完整批量** (100 cell × ~50hr); smoke 被显式归类为 "Phase B exit verification / C2 --smoke pre-flight" (per `HANDOVER_PHASE_C_SCAFFOLD_2026-04-26.md` § 2-3)。先例: 2026-04-26 已跑过一次 5-modes smoke (1/5 PASS, 4/5 timeout — 触发 deepseek-v4-flash thinking-on 诊断)。
+
+**约束**: smoke 必须框架成"管道活体检查"，**不能**框架成"Phase C 假设检验"——后者才是冻结对象。
+
+---
+
 ## 🌊 Wave 5 Summary (2026-04-27 — path α)
 
 **Completed**:
