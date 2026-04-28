@@ -299,8 +299,12 @@ for m in "${MODES[@]}"; do
                     if kill -0 "$p" 2>/dev/null; then
                         NEW_PIDS+=("$p")
                     else
-                        wait "$p"
-                        rc=$?
+                        # `set -e` would otherwise abort on first non-zero
+                        # cell exit (run_cell returns 1 on synthetic-failure).
+                        # `|| rc=$?` puts wait in a logical chain so set -e
+                        # is suppressed and we can branch on rc explicitly.
+                        rc=0
+                        wait "$p" || rc=$?
                         if [ "$rc" -ne 0 ]; then
                             FAIL_COUNT=$((FAIL_COUNT + 1))
                         fi
@@ -318,10 +322,10 @@ for m in "${MODES[@]}"; do
     done
 done
 
-# Drain remaining children.
+# Drain remaining children. Same set-e suppression as in the pool loop.
 for p in "${CHILD_PIDS[@]}"; do
-    wait "$p"
-    rc=$?
+    rc=0
+    wait "$p" || rc=$?
     if [ "$rc" -ne 0 ]; then
         FAIL_COUNT=$((FAIL_COUNT + 1))
     fi
