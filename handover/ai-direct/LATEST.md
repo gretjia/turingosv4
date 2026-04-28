@@ -56,11 +56,11 @@ Any phrase in v1 / Blueprint / Deepthink that asserts "ledger / blockchain is th
 
 ---
 
-**Updated**: 2026-04-27 — **Wave 6-prep closeout**: Whitepaper v2.2 ratification (3-round dual audit) + Wave 6 hygiene orphan test fix + `/schedule` v2 sunset reminder (`trig_01QBPVhF3x6HXu5sVnWxSKok` fires 2026-12-18T09:00:00Z, T-14 before 2027-01-01 hard sunset).
-**HEAD commit**: `9f42fb5` Wave 6 hygiene (synced with origin/main).
-**Origin**: Wave 4 + Wave 5 + Wave 6-prep + Wave 6 hygiene all pushed.
+**Updated**: 2026-04-28 — **Wave 6 #1 spec landed** (`330f239`): CO1.7 transition_ledger v1 DRAFT outline (~330 lines, 14 sections, 7 open questions for round-1 audit). + harness hygiene closeout (`c40b891`): backbone-language unification (NOTEPAD F-2026-04-26-01 RESOLVED + HANDOVER § 3 banner) + new memory `feedback_session_label_codification` (P0-loss prevention).
+**HEAD commit**: `330f239` CO1.7 spec v1 DRAFT.
+**Origin**: through `5829e32` pushed; `c40b891` + `330f239` local-only (push when user ready).
 
-**Next-session entry**: 🔥 **CO1.7 transition_ledger spec v1** (Wave 6 #1 core; ChainTape Layer 4 spine; fills `OBS_QT_FIVE_ROOT_EXTENSION` ledger_root_t; unblocks #2 fixture corpus). Working tree clean for cold start.
+**Next-session entry**: 🔥 **CO1.7 spec v1 round-1 dual audit** — gate is PASS/PASS before any `src/bottom_white/ledger/transition_ledger.rs` or `src/state/sequencer.rs` code. Spec at `handover/specs/CO1_7_TRANSITION_LEDGER_v1_2026-04-28.md`. Cost estimate per § 12: ~$5-15 round-1 (system_keypair was 1 round PASS; spec v1.4 took 4 rounds; CO1.7 size between). Working tree clean.
 
 ---
 
