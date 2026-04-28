@@ -4,14 +4,35 @@
 //! Objects are content-addressed by `Cid` (sha256 of content); git's sha-1
 //! OID is recorded but not canonical.
 //!
+//! **CO1.4-extra (this atom)** adds index persistence: the `Cid → metadata`
+//! map is durably persisted to a sidecar JSONL file at
+//! `<repo_path>/.turingos_cas_index.jsonl`. On `CasStore::open()` the sidecar
+//! is replayed into an in-memory BTreeMap; on `CasStore::put()` (new entries
+//! only) one JSONL line is appended + flushed. This closes the Art 0.2
+//! tape-canonicality cold-replay gate that CO1.7 spec § 0 + CO1.1.4-pre1
+//! v1.1 § 0.1 declared a hard prerequisite for `replay_full_transition`
+//! (CO1.7-impl A4).
+//!
+//! **Design choice (sidecar JSONL)**: chosen over (b) git-tag manifest /
+//! (c) bincode index + WAL because (a) is the simplest deterministic
+//! append-only artifact, replayable from scratch, easy to audit by reading.
+//! Per "压缩即智能" — pick simplest correct shape; upgrade later if profiling
+//! shows O(N)-on-restart cost is real.
+//!
 //! /// TRACE_MATRIX WP-arch-§5.L3 + spec-§5.2.2 (cell isolation): CAS store
+//! /// TRACE_MATRIX CO1.7 spec § 0 + CO1.1.4-pre1 § 0.1 cross-atom ordering:
+//! /// CAS index persistence — required by `replay_full_transition` cold-restart.
 
 use git2::{ObjectType as Git2ObjectType, Repository};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
+use std::fs::OpenOptions;
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 use super::schema::{CasObjectMetadata, Cid, ObjectType};
+
+const CAS_INDEX_FILENAME: &str = ".turingos_cas_index.jsonl";
 
 #[derive(Debug)]
 pub enum CasError {
@@ -23,6 +44,11 @@ pub enum CasError {
     MetadataMissing(Cid),
     /// Content's sha256 doesn't match the asserted Cid (corruption).
     CidMismatch { expected: Cid, computed: Cid },
+    /// I/O error reading or writing the CO1.4-extra sidecar index file.
+    IoError(io::Error),
+    /// JSON-deserialization error on a sidecar index line. Includes 1-based
+    /// line number for diagnostics.
+    IndexParse { line: usize, error: String },
 }
 
 impl std::fmt::Display for CasError {
@@ -35,6 +61,10 @@ impl std::fmt::Display for CasError {
                 f,
                 "CAS content corruption: expected {expected}, computed {computed}"
             ),
+            Self::IoError(e) => write!(f, "cas index I/O error: {e}"),
+            Self::IndexParse { line, error } => {
+                write!(f, "cas index parse error at line {line}: {error}")
+            }
         }
     }
 }
@@ -47,7 +77,62 @@ impl From<git2::Error> for CasError {
     }
 }
 
+impl From<io::Error> for CasError {
+    fn from(e: io::Error) -> Self {
+        Self::IoError(e)
+    }
+}
+
+fn cas_index_path(repo_path: &Path) -> PathBuf {
+    repo_path.join(CAS_INDEX_FILENAME)
+}
+
+/// CO1.4-extra: read the sidecar JSONL into an in-memory index.
+/// Strict mode — any malformed line aborts the load (per Art 0.2: a
+/// corrupted index means the tape is non-canonical; abort + diagnose
+/// is more honest than skip-and-warn).
+fn load_index_from_sidecar(repo_path: &Path) -> Result<BTreeMap<Cid, CasObjectMetadata>, CasError> {
+    let path = cas_index_path(repo_path);
+    let mut index = BTreeMap::new();
+    if !path.exists() {
+        return Ok(index);
+    }
+    let content = std::fs::read_to_string(&path)?;
+    for (i, line) in content.lines().enumerate() {
+        if line.is_empty() {
+            continue;
+        }
+        let meta: CasObjectMetadata =
+            serde_json::from_str(line).map_err(|e| CasError::IndexParse {
+                line: i + 1,
+                error: e.to_string(),
+            })?;
+        index.insert(meta.cid, meta);
+    }
+    Ok(index)
+}
+
+/// CO1.4-extra: append a single JSONL line for a newly-created CAS object.
+/// Followed by `sync_data` for durability (single-writer per cell per spec
+/// § 5.2.2 — concurrent-writer atomicity is out of scope).
+fn append_to_sidecar(repo_path: &Path, meta: &CasObjectMetadata) -> Result<(), CasError> {
+    let path = cas_index_path(repo_path);
+    let serialized = serde_json::to_string(meta).map_err(|e| CasError::IndexParse {
+        line: 0,
+        error: format!("serialize: {e}"),
+    })?;
+    let mut f = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)?;
+    f.write_all(serialized.as_bytes())?;
+    f.write_all(b"\n")?;
+    f.sync_data()?;
+    Ok(())
+}
+
 /// Content-addressable store backed by git's blob object database.
+#[derive(Debug)]
 pub struct CasStore {
     repo_path: PathBuf,
     /// Cid → metadata index. BTreeMap per spec § 2 I-BTREE.
@@ -56,18 +141,18 @@ pub struct CasStore {
 
 impl CasStore {
     /// Open or initialize a CAS store at the given runtime_repo path.
-    /// Creates the git repo if it doesn't exist.
+    /// Creates the git repo if it doesn't exist. **CO1.4-extra**: replays
+    /// the sidecar `.turingos_cas_index.jsonl` (if any) into the in-memory
+    /// index, restoring all metadata that was durably appended in prior
+    /// sessions.
     pub fn open(repo_path: &Path) -> Result<Self, CasError> {
         let repo_path = repo_path.to_path_buf();
-        // Init or open
         let _repo = match Repository::open(&repo_path) {
             Ok(r) => r,
             Err(_) => Repository::init(&repo_path)?,
         };
-        Ok(Self {
-            repo_path,
-            index: BTreeMap::new(),
-        })
+        let index = load_index_from_sidecar(&repo_path)?;
+        Ok(Self { repo_path, index })
     }
 
     fn open_repo(&self) -> Result<Repository, CasError> {
@@ -102,6 +187,10 @@ impl CasStore {
             schema_id,
             size_bytes: content.len() as u64,
         };
+        // CO1.4-extra: durably append BEFORE inserting into in-memory index
+        // (so a crash mid-write leaves the runtime in a consistent state —
+        // either the entry is durably recorded AND in-memory, or neither).
+        append_to_sidecar(&self.repo_path, &metadata)?;
         self.index.insert(cid, metadata);
         Ok(cid)
     }
@@ -280,5 +369,119 @@ mod tests {
         }
         assert_eq!(s.len(), 50);
         assert!(!s.is_empty());
+    }
+
+    // ── CO1.4-extra: sidecar JSONL persistence tests ─────────────────────────
+
+    /// Cold-restart: reopen recovers all metadata; get() works post-reopen
+    /// (closes the Art 0.2 cold-replay gate that CO1.7-impl A4 needs).
+    #[test]
+    fn reopen_recovers_index_and_get_works() {
+        let tmp = TempDir::new().expect("tempdir");
+        let cid_a;
+        let cid_b;
+        {
+            let mut s = CasStore::open(tmp.path()).expect("open");
+            cid_a = s
+                .put(b"alpha", ObjectType::ProposalPayload, "alice", 1, None)
+                .unwrap();
+            cid_b = s
+                .put(b"beta", ObjectType::CounterexamplePayload, "bob", 2, Some("s.v1".into()))
+                .unwrap();
+        }
+        // Reopen: in-memory store is fresh; sidecar replay is the ONLY way
+        // metadata survives.
+        let s2 = CasStore::open(tmp.path()).expect("reopen");
+        assert_eq!(s2.len(), 2);
+        assert_eq!(s2.get(&cid_a).expect("get a"), b"alpha");
+        assert_eq!(s2.get(&cid_b).expect("get b"), b"beta");
+
+        let meta_b = s2.metadata(&cid_b).expect("metadata b");
+        assert_eq!(meta_b.creator, "bob");
+        assert_eq!(meta_b.created_at_logical_t, 2);
+        assert_eq!(meta_b.schema_id.as_deref(), Some("s.v1"));
+        assert_eq!(meta_b.object_type, ObjectType::CounterexamplePayload);
+    }
+
+    /// Idempotent put: same content twice → same Cid → only ONE sidecar line.
+    #[test]
+    fn idempotent_put_does_not_duplicate_sidecar_line() {
+        let tmp = TempDir::new().expect("tempdir");
+        let mut s = CasStore::open(tmp.path()).expect("open");
+        let _ = s
+            .put(b"content", ObjectType::Generic, "alice", 1, None)
+            .unwrap();
+        let _ = s
+            .put(b"content", ObjectType::Generic, "alice", 1, None)
+            .unwrap();
+        let path = cas_index_path(tmp.path());
+        let lines: Vec<&str> = std::fs::read_to_string(&path)
+            .unwrap()
+            .lines()
+            .filter(|l| !l.is_empty())
+            .map(|l| {
+                // own the str via leak — cheap for test
+                Box::leak(l.to_string().into_boxed_str()) as &str
+            })
+            .collect();
+        assert_eq!(lines.len(), 1, "idempotent put should produce 1 sidecar line, got {}", lines.len());
+    }
+
+    /// Append-only: each NEW put adds exactly ONE line.
+    #[test]
+    fn each_new_put_appends_one_line() {
+        let tmp = TempDir::new().expect("tempdir");
+        let mut s = CasStore::open(tmp.path()).expect("open");
+        for i in 0..5 {
+            s.put(
+                format!("c{i}").as_bytes(),
+                ObjectType::Generic,
+                "system",
+                i,
+                None,
+            )
+            .unwrap();
+        }
+        let path = cas_index_path(tmp.path());
+        let line_count = std::fs::read_to_string(&path)
+            .unwrap()
+            .lines()
+            .filter(|l| !l.is_empty())
+            .count();
+        assert_eq!(line_count, 5);
+    }
+
+    /// Corrupted JSONL → strict parse error with line number (not silent skip).
+    #[test]
+    fn corrupted_sidecar_line_returns_parse_error() {
+        let tmp = TempDir::new().expect("tempdir");
+        // Init repo + ONE valid put to get a known-good first line.
+        {
+            let mut s = CasStore::open(tmp.path()).expect("open");
+            s.put(b"hello", ObjectType::Generic, "alice", 1, None).unwrap();
+        }
+        // Corrupt: append a malformed line.
+        let path = cas_index_path(tmp.path());
+        let mut f = OpenOptions::new().append(true).open(&path).unwrap();
+        f.write_all(b"this is not valid json\n").unwrap();
+        f.sync_data().unwrap();
+
+        // Reopen MUST fail with a typed IndexParse error citing the line number.
+        let err = CasStore::open(tmp.path()).unwrap_err();
+        match err {
+            CasError::IndexParse { line, .. } => {
+                assert_eq!(line, 2, "expected line 2 to be flagged");
+            }
+            other => panic!("expected IndexParse, got {other:?}"),
+        }
+    }
+
+    /// Empty / non-existent sidecar → opens fresh with empty index.
+    #[test]
+    fn missing_sidecar_opens_fresh() {
+        let tmp = TempDir::new().expect("tempdir");
+        let s = CasStore::open(tmp.path()).expect("open");
+        assert_eq!(s.len(), 0);
+        assert!(s.is_empty());
     }
 }
