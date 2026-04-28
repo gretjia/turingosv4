@@ -56,11 +56,16 @@ Any phrase in v1 / Blueprint / Deepthink that asserts "ledger / blockchain is th
 
 ---
 
-**Updated**: 2026-04-28 — **Wave 6 #1 spec landed** (`330f239`): CO1.7 transition_ledger v1 DRAFT outline (~330 lines, 14 sections, 7 open questions for round-1 audit). + harness hygiene closeout (`c40b891`): backbone-language unification (NOTEPAD F-2026-04-26-01 RESOLVED + HANDOVER § 3 banner) + new memory `feedback_session_label_codification` (P0-loss prevention).
-**HEAD commit**: `330f239` CO1.7 spec v1 DRAFT.
-**Origin**: through `5829e32` pushed; `c40b891` + `330f239` local-only (push when user ready).
+**Updated**: 2026-04-28 — **Wave 6 #1 CO1.7 spec PASS/PASS gate cleared** (`a946820` v1.2). Three rounds of dual external audit converged: R1 CHALLENGE/CHALLENGE → R2 PASS/CHALLENGE → R3 PASS/PASS. Spec + skeleton + system_keypair extension all audit-cleared; CO1.7 implementation start now unblocked.
+**HEAD commit**: `7bd02ad` round-3 audit runners (post-`a946820` v1.2).
+**Origin**: through `5829e32` pushed; rest local-only (push when user ready).
 
-**Next-session entry**: 🔥 **CO1.7 spec v1 round-1 dual audit** — gate is PASS/PASS before any `src/bottom_white/ledger/transition_ledger.rs` or `src/state/sequencer.rs` code. Spec at `handover/specs/CO1_7_TRANSITION_LEDGER_v1_2026-04-28.md`. Cost estimate per § 12: ~$5-15 round-1 (system_keypair was 1 round PASS; spec v1.4 took 4 rounds; CO1.7 size between). Working tree clean.
+**Next-session entry**: 🚀 **CO1.7 implementation** (now unblocked per `handover/audits/CO1_7_DUAL_AUDIT_VERDICT_R3_2026-04-28.md` PASS/PASS). Per spec § 13: 3 downstream atoms estimated 5-9 days total for Wave 6 #1 closure:
+1. CO1.7-impl proper (~600-900 LoC + 4 CO1.7.5-stage tests)
+2. CO1.4-extra (NEW atom; ~150-300 LoC + 3-4 tests; CAS index persistence — required for full-mode replay across cold restart)
+3. CO1.7.5+ wiring (head_t mutation; integration with bus.rs/kernel.rs — STEP_B required per CLAUDE.md "Code Standard")
+
+CO1.7 audit cost: ~$25-42 (3 rounds; cumulative project ~$135-202 / $890 mid). Working tree clean.
 
 ---
 
