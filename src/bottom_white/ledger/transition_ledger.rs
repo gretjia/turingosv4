@@ -276,6 +276,13 @@ pub enum ReplayError {
     BadSignature { at: usize },
     CasMissing { at: usize },
     StateRootMismatch { at: usize },
+    /// CO1.7-impl A4: dispatch_transition rejected the re-run. In stub state
+    /// (CO1.7.5 not yet shipped), this fires on every replay step with
+    /// `inner = NotYetImplemented`.
+    Transition {
+        at: usize,
+        inner: crate::state::typed_tx::TransitionError,
+    },
 }
 
 impl std::fmt::Display for ReplayError {
@@ -290,10 +297,144 @@ impl std::fmt::Display for ReplayError {
             Self::BadSignature { at } => write!(f, "system_signature verify failed at index {at}"),
             Self::CasMissing { at } => write!(f, "CAS payload not retrievable at index {at}"),
             Self::StateRootMismatch { at } => write!(f, "resulting_state_root divergence at index {at}"),
+            Self::Transition { at, inner } => write!(f, "dispatch_transition rejected at index {at}: {inner}"),
         }
     }
 }
 impl std::error::Error for ReplayError {}
+
+// ────────────────────────────────────────────────────────────────────────────
+// CO1.7-impl A4: LedgerCasView trait + replay_full_transition
+// ────────────────────────────────────────────────────────────────────────────
+
+/// CO1.7 spec § 4 + DIV-4 closure: narrow read-only CAS trait that replay
+/// needs. Decouples `replay_full_transition` from full `CasStore` (the
+/// production impl). Anything that can hand back the bytes for a `Cid`
+/// satisfies this — testing can mock it; cold-replay uses CasStore directly.
+pub trait LedgerCasView {
+    fn get_typed_payload(
+        &self,
+        cid: &crate::bottom_white::cas::schema::Cid,
+    ) -> Result<Vec<u8>, ReplayError>;
+}
+
+impl LedgerCasView for crate::bottom_white::cas::store::CasStore {
+    fn get_typed_payload(
+        &self,
+        cid: &crate::bottom_white::cas::schema::Cid,
+    ) -> Result<Vec<u8>, ReplayError> {
+        self.get(cid).map_err(|_| ReplayError::CasMissing { at: 0 })
+    }
+}
+
+/// CO1.7-impl A4 — full-mode replay (THE I-DETHASH witness).
+///
+/// Validates **every** stage spec § 4 + § 6 promises:
+/// 1. logical_t monotonicity
+/// 2. parent_state_root chain
+/// 3. parent_ledger_root chain (K2 transplant defense)
+/// 4. system_signature verifies via CanonicalMessage::LedgerEntrySigning + pinned pubkeys
+/// 5. CAS lookup of tx_payload_cid succeeds (CO1.4-extra cold-replay capability)
+/// 6. canonical_decode of payload bytes → TypedTx
+/// 7. dispatch_transition re-run produces (q_next, _signals)
+/// 8. q_next.state_root_t matches entry.resulting_state_root
+/// 9. resulting_ledger_root recomputed via append() matches stored
+///
+/// **Stub-state caveat (CO1.7.5 unblocks)**: while `dispatch_transition`
+/// returns `NotYetImplemented` for every variant, replay errors at stage 7
+/// for any non-empty chain. Conformance tests exercising stages 1-6
+/// independently are `#[test]`-runnable now; full state_root reconstruction
+/// gates on CO1.7.5.
+pub fn replay_full_transition(
+    genesis_state_root: crate::state::q_state::Hash,
+    genesis_ledger_root: crate::state::q_state::Hash,
+    entries: &[LedgerEntry],
+    cas: &dyn LedgerCasView,
+    pinned_pubkeys: &crate::bottom_white::ledger::system_keypair::PinnedSystemPubkeys,
+    predicate_registry: &crate::top_white::predicates::registry::PredicateRegistry,
+    tool_registry: &crate::bottom_white::tools::registry::ToolRegistry,
+) -> Result<(crate::state::q_state::Hash, crate::state::q_state::Hash), ReplayError> {
+    use crate::bottom_white::ledger::system_keypair::{
+        verify_system_signature, CanonicalMessage,
+    };
+    use crate::state::q_state::QState;
+    use crate::state::sequencer::dispatch_transition;
+
+    let mut prev_state_root = genesis_state_root;
+    let mut prev_ledger_root = genesis_ledger_root;
+    // For dispatch we need a QState. Replay reconstructs it from genesis;
+    // initial state has empty agent swarm + budget defaults. The state_root_t
+    // and ledger_root_t are the load-bearing fields entries verify against.
+    let mut q = QState::genesis();
+    q.state_root_t = genesis_state_root;
+    q.ledger_root_t = genesis_ledger_root;
+
+    for (i, entry) in entries.iter().enumerate() {
+        // Stage 1
+        let expected_logical_t = (i as u64) + 1;
+        if entry.logical_t != expected_logical_t {
+            return Err(ReplayError::LogicalTGap {
+                at: i,
+                expected: expected_logical_t,
+                got: entry.logical_t,
+            });
+        }
+        // Stage 2
+        if entry.parent_state_root != prev_state_root {
+            return Err(ReplayError::ParentStateMismatch { at: i });
+        }
+        // Stage 3
+        if entry.parent_ledger_root != prev_ledger_root {
+            return Err(ReplayError::ParentLedgerMismatch { at: i });
+        }
+
+        // Stage 4: system_signature verify (FullTransition mode only).
+        let signing_payload = entry.to_signing_payload();
+        let signing_digest = signing_payload.canonical_digest();
+        let canonical_msg = CanonicalMessage::LedgerEntrySigning(signing_digest.0);
+        if !verify_system_signature(
+            &entry.system_signature,
+            &canonical_msg,
+            entry.epoch,
+            pinned_pubkeys,
+        ) {
+            return Err(ReplayError::BadSignature { at: i });
+        }
+
+        // Stage 5: CAS lookup.
+        let payload_bytes = cas
+            .get_typed_payload(&entry.tx_payload_cid)
+            .map_err(|_| ReplayError::CasMissing { at: i })?;
+
+        // Stage 6: canonical_decode → TypedTx.
+        let typed_tx: crate::state::typed_tx::TypedTx = canonical_decode(&payload_bytes)
+            .map_err(|_| ReplayError::CasMissing { at: i })?;
+
+        // Stage 7: re-run pure dispatch_transition.
+        let (q_next, _signals) =
+            dispatch_transition(&q, &typed_tx, predicate_registry, tool_registry)
+                .map_err(|inner| ReplayError::Transition { at: i, inner })?;
+
+        // Stage 8: state_root match.
+        if q_next.state_root_t != entry.resulting_state_root {
+            return Err(ReplayError::StateRootMismatch { at: i });
+        }
+
+        // Stage 9: ledger_root match (recompute via append).
+        let recomputed_ledger_root = append(&prev_ledger_root, &signing_digest);
+        if recomputed_ledger_root != entry.resulting_ledger_root {
+            return Err(ReplayError::LedgerRootMismatch { at: i });
+        }
+
+        // Advance.
+        q = q_next;
+        q.ledger_root_t = entry.resulting_ledger_root;
+        prev_state_root = entry.resulting_state_root;
+        prev_ledger_root = entry.resulting_ledger_root;
+    }
+
+    Ok((prev_state_root, prev_ledger_root))
+}
 
 /// Skeleton-stage entry point (v1.1).
 ///
@@ -945,6 +1086,232 @@ mod tests {
         let e3 = entry_at(3, e2.resulting_state_root, e2.resulting_ledger_root, h(3));
         w3.commit(&e3).expect("commit 3");
         assert_eq!(w3.len(), 3);
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // 15-18. CO1.7-impl A4 — replay_full_transition (THE I-DETHASH witness)
+    // ──────────────────────────────────────────────────────────────────────
+
+    use crate::bottom_white::cas::schema::ObjectType;
+    use crate::bottom_white::cas::store::CasStore;
+    use crate::bottom_white::ledger::system_keypair::{
+        transition_ledger_emitter, Ed25519Keypair, PinnedSystemPubkeys,
+    };
+    use crate::bottom_white::tools::registry::ToolRegistry;
+    use crate::state::typed_tx::{
+        AgentSignature, BoolWithProof, PredicateId, PredicateResultsBundle, ReadKey,
+        SafetyOrCreation, TaskId, TypedTx, WorkTx, WriteKey,
+    };
+    use crate::state::q_state::{AgentId, TxId as QTxId};
+    use crate::top_white::predicates::registry::PredicateRegistry;
+
+    fn dummy_typed_tx() -> TypedTx {
+        let mut acceptance = std::collections::BTreeMap::new();
+        acceptance.insert(
+            PredicateId("acc1".into()),
+            BoolWithProof { value: true, proof_cid: None },
+        );
+        TypedTx::Work(WorkTx {
+            tx_id: QTxId("worktx-replay-fixture".into()),
+            task_id: TaskId("task-replay".into()),
+            parent_state_root: Hash::ZERO,
+            agent_id: AgentId("alice".into()),
+            read_set: [ReadKey("k.r".into())].into_iter().collect::<std::collections::BTreeSet<_>>(),
+            write_set: [WriteKey("k.w".into())].into_iter().collect::<std::collections::BTreeSet<_>>(),
+            proposal_cid: Cid([0; 32]),
+            predicate_results: PredicateResultsBundle {
+                acceptance,
+                settlement: std::collections::BTreeMap::new(),
+                safety_class: SafetyOrCreation::Safety,
+            },
+            stake: crate::economy::money::StakeMicroCoin::from_micro_units(1),
+            signature: AgentSignature::from_bytes([0u8; 64]),
+            timestamp_logical: 1,
+        })
+    }
+
+    /// Build a real signed LedgerEntry against the given keypair + epoch,
+    /// with the typed_tx's canonical bytes stored in CAS. Mirrors
+    /// `Sequencer::apply_one` stages 5-9 outside the runtime.
+    fn build_signed_entry(
+        logical_t: u64,
+        parent_state_root: Hash,
+        parent_ledger_root: Hash,
+        resulting_state_root: Hash,
+        epoch: SystemEpoch,
+        keypair: &Ed25519Keypair,
+        cas: &mut CasStore,
+        typed_tx: &TypedTx,
+    ) -> LedgerEntry {
+        let bytes = canonical_encode(typed_tx).expect("encode");
+        let cid = cas
+            .put(&bytes, ObjectType::ProposalPayload, "test", logical_t, None)
+            .expect("cas put");
+        let signing = LedgerEntrySigningPayload {
+            logical_t,
+            parent_state_root,
+            parent_ledger_root,
+            tx_kind: typed_tx.tx_kind(),
+            tx_payload_cid: cid,
+            resulting_state_root,
+            timestamp_logical: logical_t,
+            epoch,
+            extensions: BTreeMap::new(),
+        };
+        let digest = signing.canonical_digest();
+        let sig = transition_ledger_emitter::sign_ledger_entry(keypair, digest.0)
+            .expect("sign");
+        let resulting_ledger_root = append(&parent_ledger_root, &digest);
+        LedgerEntry {
+            logical_t,
+            parent_state_root,
+            parent_ledger_root,
+            tx_kind: typed_tx.tx_kind(),
+            tx_payload_cid: cid,
+            resulting_state_root,
+            resulting_ledger_root,
+            timestamp_logical: logical_t,
+            epoch,
+            extensions: BTreeMap::new(),
+            system_signature: sig,
+        }
+    }
+
+    fn replay_test_setup() -> (
+        TempDir,
+        CasStore,
+        Ed25519Keypair,
+        SystemEpoch,
+        PinnedSystemPubkeys,
+        PredicateRegistry,
+        ToolRegistry,
+    ) {
+        let tmp = TempDir::new().expect("tempdir");
+        let cas = CasStore::open(tmp.path()).expect("cas");
+        let kp = Ed25519Keypair::generate_with_secure_entropy().expect("kp");
+        let epoch = SystemEpoch::new(1);
+        let mut pinned = PinnedSystemPubkeys::new();
+        pinned.insert(epoch, kp.public_key());
+        let preds = PredicateRegistry::new();
+        let tools = ToolRegistry::new();
+        (tmp, cas, kp, epoch, pinned, preds, tools)
+    }
+
+    /// 15. CO1.7.5-stage: in stub mode, dispatch errors with NotYetImplemented;
+    ///     replay correctly bubbles up `Transition { at: 0, inner: NotYetImplemented }`.
+    ///     This proves stages 1-6 (chain + sig + CAS + decode) all PASS,
+    ///     leaving stage 7 (dispatch) as the only gate. CO1.7.5 fills it.
+    #[test]
+    fn replay_full_transition_reaches_dispatch_then_stubs() {
+        let (_tmp, mut cas, kp, epoch, pinned, preds, tools) = replay_test_setup();
+        let entry = build_signed_entry(
+            1,
+            Hash::ZERO,
+            Hash::ZERO,
+            h(1), // resulting state_root (won't be reached due to dispatch stub)
+            epoch,
+            &kp,
+            &mut cas,
+            &dummy_typed_tx(),
+        );
+        let err = replay_full_transition(
+            Hash::ZERO,
+            Hash::ZERO,
+            &[entry],
+            &cas,
+            &pinned,
+            &preds,
+            &tools,
+        )
+        .unwrap_err();
+        assert!(
+            matches!(err, ReplayError::Transition { at: 0, inner: crate::state::typed_tx::TransitionError::NotYetImplemented }),
+            "expected Transition(NotYetImplemented at 0); got {err:?}"
+        );
+    }
+
+    /// 16. system_signature_verifies_via_canonical_message — tampering the
+    ///     signature MUST fire BadSignature BEFORE dispatch is reached.
+    #[test]
+    fn replay_rejects_bad_system_signature() {
+        let (_tmp, mut cas, kp, epoch, pinned, preds, tools) = replay_test_setup();
+        let mut entry = build_signed_entry(
+            1,
+            Hash::ZERO,
+            Hash::ZERO,
+            h(1),
+            epoch,
+            &kp,
+            &mut cas,
+            &dummy_typed_tx(),
+        );
+        // Tamper signature.
+        entry.system_signature = SystemSignature::from_bytes([0xff; 64]);
+        let err = replay_full_transition(
+            Hash::ZERO,
+            Hash::ZERO,
+            &[entry],
+            &cas,
+            &pinned,
+            &preds,
+            &tools,
+        )
+        .unwrap_err();
+        assert!(matches!(err, ReplayError::BadSignature { at: 0 }));
+    }
+
+    /// 17. cas_payload_round_trip — replay correctly fetches CAS bytes;
+    ///     CO1.4-extra cold-restart capability test.
+    #[test]
+    fn replay_cas_payload_round_trip_after_reopen() {
+        let tmp = TempDir::new().expect("tempdir");
+        let kp = Ed25519Keypair::generate_with_secure_entropy().expect("kp");
+        let epoch = SystemEpoch::new(1);
+        let mut pinned = PinnedSystemPubkeys::new();
+        pinned.insert(epoch, kp.public_key());
+        let preds = PredicateRegistry::new();
+        let tools = ToolRegistry::new();
+
+        let entry;
+        {
+            let mut cas = CasStore::open(tmp.path()).expect("cas");
+            entry = build_signed_entry(
+                1,
+                Hash::ZERO,
+                Hash::ZERO,
+                h(1),
+                epoch,
+                &kp,
+                &mut cas,
+                &dummy_typed_tx(),
+            );
+        }
+        // Reopen — CO1.4-extra sidecar replay restores the CAS index.
+        let cas2 = CasStore::open(tmp.path()).expect("reopen");
+        let err = replay_full_transition(
+            Hash::ZERO,
+            Hash::ZERO,
+            &[entry],
+            &cas2,
+            &pinned,
+            &preds,
+            &tools,
+        )
+        .unwrap_err();
+        // Stages 1-6 (incl. CAS lookup post-reopen) PASS; stage 7 stubs.
+        assert!(matches!(err, ReplayError::Transition { at: 0, .. }));
+    }
+
+    /// 18. sequencer_serial_replay_byte_identity — gated behind #[ignore]
+    ///     until CO1.7.5 fills dispatch bodies. The skeleton of the
+    ///     test is here so CO1.7.5 just removes the #[ignore].
+    #[test]
+    #[ignore = "CO1.7.5: requires real per-kind transition bodies"]
+    fn sequencer_serial_replay_byte_identity() {
+        // CO1.7.5 plan: submit N tx through Sequencer + collect entries from
+        // ledger_writer + replay_full_transition(...) → assert final state_root
+        // matches sequencer's q.state_root_t. Dispatch must produce real
+        // (q_next, _signals) — currently all NotYetImplemented.
     }
 
     // 14. canonical_encode/decode round-trip for LedgerEntry (foundation of read_at).

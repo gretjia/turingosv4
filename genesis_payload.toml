@@ -283,7 +283,7 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 "src/bottom_white/ledger/mod.rs" = "edb4cda94b80dceb85a414de58139fde4f6f4635867141e31c14720ab06148ea"
 "src/bottom_white/ledger/system_keypair.rs" = "5d3a2e6e247e18992682c69808d02bc7cd129d42c79db1c88f24a4cc975a0843"
 # 2026-04-28 CO1.7 type skeleton (pre-audit) — caught spec § 1 circular-digest bug.
-"src/bottom_white/ledger/transition_ledger.rs" = "a0914f16d1652d0118a880b93eb6aa6f3c1a69bdcc086eed362fee7ebd70162a"
+"src/bottom_white/ledger/transition_ledger.rs" = "28de18733232f65b84fa619fdd444ad40ff6a9369a0093d99a4de580c2bad459"
 "tests/system_keypair_generation.rs" = "94d2de928a0f32e71860cbf9125a85a89bb0ded53f6e55c2e16b6370b9dcaa4b"
 "tests/system_keypair_load_and_decrypt.rs" = "460ce3e0b13d523e62b0818285a414a69a91b1afc51c0e0eba7a521674dfaa55"
 "tests/system_keypair_sign_only_from_runner.rs" = "b0874933f684ba47a254728939d30327a0b59392221e51ec4b2207b901bbe65c"
