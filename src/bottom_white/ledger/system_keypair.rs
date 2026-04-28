@@ -38,7 +38,7 @@ const FORMAT_MAGIC: &[u8; 11] = b"TOS4SYSKEY1";
 const FORMAT_VERSION: u8 = 1;
 
 /// TRACE_MATRIX FC1-Sig+FC3-Sig: system signature epoch identifier.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default)]
 pub struct SystemEpoch(u64);
 
 impl SystemEpoch {
@@ -88,10 +88,20 @@ impl SystemPublicKey {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SystemSignature(#[serde(with = "serde_bytes_64")] [u8; SIGNATURE_LEN]);
 
+impl Default for SystemSignature {
+    fn default() -> Self {
+        Self([0u8; SIGNATURE_LEN])
+    }
+}
+
 /// Serde adapter for `[u8; 64]`: serializes as a length-64 byte sequence
 /// (deterministic under bincode `fixed_int_encoding` → 64 raw bytes; no length prefix
 /// because the ARRAY type encodes its length statically).
-mod serde_bytes_64 {
+///
+/// `pub(crate)` so other in-crate types with `[u8; 64]` fields (e.g.
+/// `state::typed_tx::AgentSignature`) can reuse the same adapter — keeps the
+/// serde wire format byte-identical across all 64-byte signature types.
+pub(crate) mod serde_bytes_64 {
     use serde::de::{SeqAccess, Visitor};
     use serde::ser::SerializeTuple;
     use serde::{Deserializer, Serializer};
@@ -165,7 +175,14 @@ impl RejectedAttemptSummary {
 }
 
 /// TRACE_MATRIX FC1-Sig+FC3-Sig: typed terminal summary transaction emitted on no-accept runs.
-#[derive(Debug, Clone, PartialEq, Eq)]
+///
+/// **CO1.1.4-pre1 D-3 known divergence**: the field set here (run_id /
+/// terminal_state_root / rejected_attempt_count) is the placeholder shipped by
+/// the system_keypair atom; STATE_TRANSITION_SPEC § 1.5 specifies a richer
+/// 8-field schema (tx_id / task_id / run_id / run_outcome / total_attempts /
+/// failure_class_histogram / last_logical_t / system_signature). Migration
+/// to the full schema is deferred to v1.1 of CO1.1.4-pre1 if auditors flag it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct TerminalSummaryTx {
     run_id: String,
     terminal_state_root: [u8; 32],

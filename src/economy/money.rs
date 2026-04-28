@@ -29,7 +29,7 @@ use std::fmt;
 /// Negative values are allowed at the type level (e.g., signed deltas in tests),
 /// but balance / escrow / stake fields enforce non-negative invariants at the
 /// business logic layer (not in this type).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default)]
 #[serde(transparent)]
 pub struct MicroCoin(i64);
 
@@ -132,6 +132,50 @@ impl fmt::Display for MicroCoin {
         } else {
             write!(f, "{}.{:06} coin", coin, frac)
         }
+    }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// StakeMicroCoin — newtype for stake fields per CO1.1.4-pre1 § 3
+// ────────────────────────────────────────────────────────────────────────────
+
+/// Newtype on `MicroCoin` for `WorkTx::stake`, `VerifyTx::bond`, `ChallengeTx::stake`
+/// fields. Non-negative is a runtime invariant per Inv 3 (escrow only); the
+/// type-level newtype prevents accidental mixing with general-purpose
+/// `MicroCoin` (e.g. crediting a balance with a stake amount or vice versa).
+///
+/// `#[serde(transparent)]` — wire format identical to `MicroCoin`, so adding
+/// the newtype is non-breaking for canonical encoding.
+///
+/// /// TRACE_MATRIX I-MICROCOIN + I-STAKE: stake-typed monetary newtype.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct StakeMicroCoin(pub MicroCoin);
+
+impl Default for StakeMicroCoin {
+    fn default() -> Self {
+        Self::zero()
+    }
+}
+
+impl StakeMicroCoin {
+    pub const fn from_micro_units(micro: i64) -> Self {
+        Self(MicroCoin::from_micro_units(micro))
+    }
+    pub const fn zero() -> Self {
+        Self(MicroCoin::zero())
+    }
+    pub const fn micro_units(self) -> i64 {
+        self.0.micro_units()
+    }
+    pub const fn as_micro_coin(self) -> MicroCoin {
+        self.0
+    }
+}
+
+impl fmt::Display for StakeMicroCoin {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "stake({})", self.0)
     }
 }
 

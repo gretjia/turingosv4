@@ -10,7 +10,7 @@ use sha2::{Digest, Sha256};
 /// Distinct from git's SHA-1 OID (which is an internal storage detail of
 /// the git2-rs backend). `Cid` is the v4-canonical identifier; spec § 1.2
 /// `WorkTx.proposal_cid: Cid` references this.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default)]
 pub struct Cid(pub [u8; 32]);
 
 impl Cid {
