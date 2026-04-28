@@ -247,6 +247,10 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 "handover/specs/CO1_3_1_GIX_SPIKE_PREFLIGHT_v1_2026-04-27.md" = "ddf6456633603d5ae04252cbaa700aceb61cac2c278da1f91b8cf28aa4ba8839"
 "handover/specs/META_TRANSITION_INTERFACE_v1_2026-04-27.md" = "f02d83e989be664faea660f10a746b04f986f9b13321ca16f63b470a95b96d4e"
 
+# 2026-04-28 Wave 6 #1 — CO1.7 transition_ledger spec v1 DRAFT outline.
+# Awaiting round-1 dual external audit (Codex + Gemini) before implementation.
+"handover/specs/CO1_7_TRANSITION_LEDGER_v1_2026-04-28.md" = "2b925c67d27b41026cb2306f2b88f1d28c6bb8202cfb1bf904d1fb8684ec0472"
+
 # 2026-04-27 auto-research wave 2 (+4 entries; 61 → 65).
 # Doc-only, all within ratified Plan v3.2-fix1 scope.
 "scripts/check_tr_ratification_chain.sh" = "3206c2a975a95be99dbc7c3c40fc5052d42c4598e0c86bd8c00309692d7db37d"
