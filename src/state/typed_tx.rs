@@ -215,8 +215,10 @@ pub enum TxStatus {
 ///
 /// This is the per-tx struct that the CO1.7 sequencer hands to
 /// `step_transition` (CO1.7.5 body atom). The `signature` is over
-/// `canonical_digest(&work_tx)` where the digest pre-image excludes the
-/// signature itself (its own input).
+/// `WorkSigningPayload::canonical_digest()` — i.e. the projection produced by
+/// `WorkTx::to_signing_payload()` (excludes the signature field itself; per
+/// v1.1 P1 the digest pre-image carries the `b"turingosv4.agent_sig.work.v1"`
+/// domain prefix).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct WorkTx {
     pub tx_id: TxId,                                  //  1
@@ -331,9 +333,11 @@ pub struct TaskExpireTx {
 /// 3-field placeholder previously living in `system_keypair.rs`. Full
 /// 8-field schema per STATE § 1.5. The signer (`system_keypair`) now signs
 /// an opaque `TerminalSummarySigning([u8; 32])` digest — same opaque-digest
-/// pattern as `LedgerEntrySigning` — so the canonical_digest is computed
-/// here and `system_keypair` stays oblivious to the typed-tx schema (no
-/// circular `bottom_white ↔ state` dependency).
+/// pattern as `LedgerEntrySigning` — so the digest is computed here via
+/// `TerminalSummaryTx::to_signing_payload().canonical_digest()` (with the
+/// `b"turingosv4.system_sig.terminal_summary.v1"` domain prefix per v1.1 P1)
+/// and `system_keypair` stays oblivious to the typed-tx schema (no circular
+/// `bottom_white ↔ state` dependency).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct TerminalSummaryTx {
     pub tx_id: TxId,                                          //  1

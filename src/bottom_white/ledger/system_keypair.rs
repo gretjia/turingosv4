@@ -226,11 +226,12 @@ pub enum CanonicalMessage {
     /// TRACE_MATRIX FC1-Sig: predicate-runner rejection summary.
     RejectedAttemptSummary(RejectedAttemptSummary),
     /// TRACE_MATRIX FC1-Sig+FC3-Sig (CO1.1.4-pre1 v1.1 closure C-3): terminal
-    /// summary signing-payload digest. Opaque `[u8; 32]` — full canonical_digest
-    /// of the 8-field `state::typed_tx::TerminalSummaryTx` is computed in
-    /// typed_tx; this variant only carries the 32-byte digest into the typed
-    /// sign API. Same opaque-digest pattern as `LedgerEntrySigning`; avoids a
-    /// circular `system_keypair ↔ state` module dependency.
+    /// summary signing-payload digest. Opaque `[u8; 32]` produced by
+    /// `state::typed_tx::TerminalSummarySigningPayload::canonical_digest()`
+    /// (a/k/a `TerminalSummaryTx::to_signing_payload().canonical_digest()`);
+    /// this variant only carries the 32-byte digest into the typed sign API.
+    /// Same opaque-digest pattern as `LedgerEntrySigning`; avoids a circular
+    /// `system_keypair ↔ state` module dependency.
     TerminalSummarySigning([u8; 32]),
     /// TRACE_MATRIX FC1-Sig+FC3-Sig (CO1.1.4-pre1 v1.2 closure R2-2): finalize
     /// reward signing-payload digest. Opaque `[u8; 32]` produced by

@@ -217,7 +217,7 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 "src/bottom_white/tools/registry.rs" = "4ed18dcd2a7d7641663ccbdb66c895cb31cd68f4de3bddad8b5d4902633cc387"
 "src/state/mod.rs" = "6269ecfe8a0e7b56202281708a11ab6b03b26bb97d949525235c1e5173494717"
 "src/state/q_state.rs" = "79113811f9a37af5c38107107d1321f24c6e46a3f4f5f177b25bee59a2086342"
-"src/state/typed_tx.rs" = "9b5d79f261727f09de697ba4eefb94e60df3d5a4d3b1627d6f6bf131f99ed046"
+"src/state/typed_tx.rs" = "bf57dd6f926b7193b6cab2d115f1991397672ef4aa40e59aa4fbcaa6b74b2920"
 "handover/audits/CODEX_SPEC_V13_REAUDIT_2026-04-27.md" = "494600e0d0e01a8d128e46e6272e2d4dd691a3d4089cca02b400ad4e3d9bc94e"
 "handover/whitepapers/TURINGOS_v4_FINAL_BLUEPRINT_2026-04-26.md" = "66de2382248042023538d65fcd04b99cb5f33110727bcebe723ed40cc9c845fa"
 "handover/architect-insights/CO_MEGA_PLAN_v3.1_2026-04-26.md" = "d275597dd83d79c0459093f2b3ee4a7a882a444f1c58a5f1c7688af920c82afc"
@@ -280,7 +280,7 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 # Runtime ed25519 keypair lifecycle, encrypted-at-rest keystore, public verification,
 # scoped crate-only signing surfaces, and five mandated conformance tests.
 "src/bottom_white/ledger/mod.rs" = "edb4cda94b80dceb85a414de58139fde4f6f4635867141e31c14720ab06148ea"
-"src/bottom_white/ledger/system_keypair.rs" = "4eb2f3c178f42409fc9ce9683dc6ddab9298d017a9cdb5e64d13fddab57f6662"
+"src/bottom_white/ledger/system_keypair.rs" = "5d3a2e6e247e18992682c69808d02bc7cd129d42c79db1c88f24a4cc975a0843"
 # 2026-04-28 CO1.7 type skeleton (pre-audit) — caught spec § 1 circular-digest bug.
 "src/bottom_white/ledger/transition_ledger.rs" = "a0914f16d1652d0118a880b93eb6aa6f3c1a69bdcc086eed362fee7ebd70162a"
 "tests/system_keypair_generation.rs" = "94d2de928a0f32e71860cbf9125a85a89bb0ded53f6e55c2e16b6370b9dcaa4b"
