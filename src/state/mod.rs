@@ -12,6 +12,9 @@ pub mod q_state;
 /// TRACE_MATRIX FC2-Submit / CO1.1.4-pre1 — typed-tx ABI surface (TypedTx + per-kind structs).
 pub mod typed_tx;
 
+/// TRACE_MATRIX § 5.2.1 / CO1.7-impl A2+A3 — L4 sequencer + dispatch_transition.
+pub mod sequencer;
+
 pub use q_state::{
     AgentId, AgentSwarmState, AgentVisibleProjection, BalancesIndex, BudgetSnapshot,
     ChallengeCase, ChallengeCasesIndex, ClaimEntry, ClaimsIndex, EconomicState, EscrowEntry,
