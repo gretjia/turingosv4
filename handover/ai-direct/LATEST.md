@@ -69,7 +69,111 @@ CO1.7 audit cost: ~$25-42 (3 rounds; cumulative project ~$135-202 / $890 mid). W
 
 ---
 
-## 🌊 2026-04-29 Session — Wave 6 #1 RECALIBRATION (CO1.7.5 split → CO1.7-extra; Branch A landed)
+## 🌊 2026-04-29 Session-2 — CO1.7-extra Branch B closure + CO1.13 spec PASS-with-cap-exception (Elon-mode launch)
+
+**Updated**: 2026-04-29 (session-2)
+**Status**: spec phase **DONE** (CO1.7-extra ceremony closed + CO1.13 cleared for impl); implementation phase **READY TO START** in fresh session.
+
+### 🚀 Next-session entry point
+
+**Pick up at CO1.13 implementation phase per spec § 0.3 v1.1.1**. Three sub-atoms in dependency order:
+
+1. **CO1.13.1** TRACE_MATRIX_v3 doc completion (~200 LoC docs delta; 0.5 day target)
+   - § A complete N-rows; § B complete WP rows; § E coverage stats
+   - § F reverse-map populated for shipped atoms (CO1.0a / CO1.4 / CO1.4-extra / CO1.7-impl A1-A4 / CO1.7-extra)
+   - **NEW § J "Orphan Extensions"** with table schema (lands BEFORE script can fall back to it)
+2. **CO1.13.2** R-022 commit-time hook (~335 LoC; 1.5 day target)
+   - `rules/active/R-022_trace_matrix_pub_symbol_block.yaml` (declarative tombstone; engine.py BYPASSED)
+   - `scripts/check_trace_matrix.py` (multi-line context grep + diff parser)
+   - `scripts/hooks/pre-commit.r022` (tracked shim)
+   - `scripts/install_hooks.sh` (symlinks tracked shim → `.git/hooks/pre-commit`)
+   - **`.github/workflows/co1_13_r022_ci.yml`** (tracked CI workflow; required merge gate; closes Codex r2 fresh-clone bypass)
+   - 5-line patch to `rules/engine.py` (gracefully ignore `trigger == pre_commit`)
+3. **CO1.13.3** reverse-map § F populator (~100 LoC Python; 0.5 day target)
+   - `scripts/update_trace_matrix_reverse_map.py` shares parser with CO1.13.2 (per Codex r1 § D "one parser shared")
+
+Plus 9 shell integration tests under `tests/integration/co1_13/` + 1 Rust orchestrator (`tests/r_022_integration_orchestrator.rs`) per spec § 3 v1.1.
+
+**Authoritative spec**: `handover/specs/CO1_13_TRACE_MATRIX_IMPL_v1_2026-04-29.md` v1.1.1 (commit `813414c`). Read § 0.3 + § 1.2 + § 1.3 + § 2.1 + § 3 first; § 8 acknowledgements before coding.
+
+**Total target**: ~665 LoC; **3-day wall-clock target** (Elon-mode benchmark; first real-test of cycle-time hypothesis).
+
+**Phase drift review** fires at impl complete (per session task #7); 7-dimension check (scope / process / constraint / doc / critical-path / cycle-time / budget). Pre-flagged drift to confirm:
+- Scope drift: +60% LoC v1→v1.1.1 (audit-driven; acceptable)
+- Process drift: 3 audit rounds vs 2-round-cap (cap-exception per Codex r2 § E own recommendation; acceptable)
+- Constitution + WP alignment: STRENGTHENED (R-022 enforcement now actually works via tracked CI)
+
+### Session arc (3 commits this session-2)
+
+| # | Commit | Action |
+|---|---|---|
+| 0 | `4a978f0` | CO1.7-extra v1.2.2: STEP_B Branch B re-derivation closed at T1 executable-substance byte-identity (per amended § 2.2 tiered byte-identity). Ceremony CLOSED for `src/bus.rs`. STATE_TRANSITION_SPEC v1.5 housekeeping issue committed earlier (`5b53c6b`). |
+| 1 | `6cc5cc9` | CO1.8 L5 Materializer v1 spec drafted (300 lines, 10/10 smoke). **AUDIT DEFERRED** in favor of CO1.13 per Elon-mode ROI analysis (factory amortization 20-50x over 150+ remaining atoms). |
+| 2 | `8d88f2d` → `1423b90` → `813414c` | CO1.13 v1 → v1.1 (r1 9 patches) → v1.1.1 (r2 cap-exception 4 patches; Codex CHALLENGE-ESCALATE / Gemini PASS; conservative CHALLENGE-ESCALATE → cap-exception per Codex r2 § E recommendation). Spec at 420 lines; PASS-with-cap-exception. |
+
+### NEW Elon-mode policy framework codified this session
+
+The user authorized "Elon-mode" framing for project management (factory > scope; cycle-time > round-count; constitution + whitepaper line-by-line preserved as scope, but PROCESS streamlined). Round-1 audit on CO1.13 v1 forced the policy to be CONCRETE rather than aspirational. v1.1.1 codified:
+
+1. **Audit round cap = 2** (vs prior 4-5 rounds): r1 + 1 patch round + r2 final. Round-3+ requires cap-exception authorization.
+2. **OBS hard threshold = max 3 unresolved `OBS_*.md` files** project-wide (Gemini r1 Q4): threshold breach = factory halt + force-resolve before next atom. Prevents 2-round-cap from accumulating debt.
+3. **Ship-with-OBS NOT applicable to enforcement gates themselves** (Codex r1 § E): "If round 2 still has non-enforcing R-022, do not ship-with-OBS; that would convert a hard alignment gate into theater." → escalate to user.
+4. **Cap-exception authorized via auto-execute mode** when r2 split verdict produces a determinate-best surgical patch (not OBS theater). Codex r2 itself recommended this for v1.1.1.
+5. **Phase C smoke as living regression test** (parallel weekly): verifies architecture-in-progress hasn't broken experiment harness. First run THIS session: 5/5 cells PASS @ HEAD `8d88f2d` in 97s vs 146s baseline (33% faster); soft_law H2 ablation signal preserved. **No regression**.
+
+Memory entries created (see MEMORY.md):
+- `feedback_no_fake_menus.md` — when project plan determines next atom, state and execute; don't surface 3-5 option menus
+- `feedback_elon_mode_policy.md` — round cap + OBS threshold + cap-exception conditions (this session)
+- `project_phase_c_living_regression.md` — Phase C smoke as architecture-in-progress regression check (this session)
+
+### Constraint hierarchy (auto-execute mode interpretation)
+
+User explicit instruction 2026-04-29 session-2:
+> "我要求你在遵守宪法、白皮书和我们刚才讨论的elon-mode下自动执行，遇到选择题先检查以上约束，每个phase完成后对项目计划做review看drift，缺少做决策人来的数据就去跑真是测试找问题和解决方案"
+
+Operationalized as priority order:
+1. **Constitution** (constitution.md; load-bearing for thesis)
+2. **Whitepaper v2** (load-bearing for ChainTape + Anti-Oreo + economic mechanism coverage)
+3. **Elon-mode** (round cap, OBS threshold, factory > scope, cycle-time > round-count)
+4. **Standing memories** (dual-audit, smoke-before-batch, no-fake-menu, FC-first-problem-handling, etc.)
+
+When facing a decision: check 1→2→3→4 in order; if no resolution → state determinate-best action + execute (no fake menus). Per-phase drift review at atom-complete boundary. When lacking data: run real tests (Phase C smoke, cargo test, empirical measurements) — don't speculate.
+
+### Real-test data points produced this session
+
+| Test | Result | Significance |
+|---|---|---|
+| Phase C smoke @ HEAD `8d88f2d` | 5/5 cells PASS in 97s; soft_law H2 ablation preserved | architecture-in-progress hasn't broken experiment harness; **freeze rationale ("Node.completion_tokens=0 discovery; TFR S3.9 5-7 weeks out") is STALE** — TFR v1 was deprecated 2026-04-26 (see TFR_MASTER_PLAN_2026-04-26.md preface) and Phase C smoke was already 5/5 PASS @ 146s on 2026-04-28. Phase C is operationally unfreezable on demand. |
+| CO1.13 spec-cycle wall-clock | ~2.5 hr (vs 14-day median pre-Elon-mode = ~134x compression on spec phase) | first real-test of Elon-mode "factory IS product" hypothesis; spec phase validated; impl phase pending |
+| Backlink coverage baseline | 87/354 = 24.6% | 75% legacy gap quantified; CO1.13-extra (gap closure) MUST schedule before Phase D per Gemini r1 Q7 |
+
+### Cumulative project audit spend after CO1.13 v1.1.1
+
+- This session r1+r2 dual audits (4 calls): ~$16-24
+- Project cumulative: ~$220-340 / $890 mid-budget (~25-38%); ~$550-670 runway
+- Per atom going forward (post-CO1.13 factory deployed): expected $5-10 (single round + targeted patches; CO1.13's R-022 + scaffold devtools amortize spec-cycle prep cost)
+
+### Open follow-ups (priority order)
+
+1. **CO1.13 implementation** (next-session entry; this is THE priority)
+2. **CO1.8 spec round-1 audit** (deferred this session; spec drafted at `6cc5cc9` ready to launch; launchers exist at `handover/audits/run_{codex,gemini}_co1_8_round1_audit.sh|py` but were NOT run)
+3. **CO1.13-extra** (legacy backlink closure; ~10-15 hr; ~250 missing backlinks; MUST schedule before Phase D per Gemini r1 Q7)
+4. **CO1.13-devtools** (scaffold scripts + Trust Root rehash automation; non-spec follow-up; lands after CO1.13 PASS impl)
+5. **Phase C unfreeze decision**: smoke is now consistently passing; should we relaunch C2 full batch (5 modes × 10 problems × 2 seeds = 100 cells; ~12 hr wall-clock; ~$15-25)? **User decision required**.
+6. **CO1.7.5 future spec** (transition bodies; gated on CO P2.x substrate atoms — Wave 2 work; ~50 atoms 6-8 wk)
+7. **CO P2.x family roadmap** (TaskMarket / EscrowVault / ContributionLedger / etc.; per user requirement "宪法和白皮书逐行落地，包括但不限于经济制度")
+
+### Outstanding architectural debt acknowledged
+
+- **TFR v1 deprecated** at its own launch day (2026-04-26 night) per CO_P0_AMENDMENT_v1; successor is `CO_MEGA_PLAN_v3.1_2026-04-26.md`. AUTO_RESEARCH_NOTEPAD line 66 still describes TFR as "🚀 LAUNCHED" — STALE; needs cleanup but defer to next session.
+- **AUTO_RESEARCH_NOTEPAD bloat**: ~600 lines; per Elon-mode "delete process redundancy", target ≤ 200 lines. Defer to next session.
+- **LATEST.md bloat**: ~600+ lines; per Elon-mode, target ≤ 100 lines. Defer to next session.
+
+These are bookkeeping items; no constitutional or scientific impact.
+
+---
+
+## 🌊 2026-04-29 Session-1 — Wave 6 #1 RECALIBRATION (CO1.7.5 split → CO1.7-extra; Branch A landed)
 
 **Updated**: 2026-04-29
 **Session arc**: dual-audit drove a **scope correction** on the prior 2026-04-28 "80% complete" framing. Round-1 dual external audit on CO1.7.5 v1 (Codex+Gemini, both CHALLENGE/High) found that D1 transition bodies have heavyweight FC1 (top-white predicate execution) + FC2 (middle-black state schemas) substrate dependencies that don't exist in shipped code (CO P2.x family per `PROJECT_DECISION_MAP § 3.4`). ArchitectAI applied an Occam-driven scope split (B2 by dependency profile) under "无损压缩即智能 + Anti-Oreo + 不违宪 + 不违白皮书" principles, yielding two atoms:
