@@ -6,6 +6,61 @@
 
 ---
 
+## 🌙 OVERNIGHT 2026-04-29 — TB-1 Days 4-6 shipped autonomously; **CHALLENGE verdict, user decision needed**
+
+**Authorization**: user "进行到送双外审并收集双外审结果给我睡觉回来看" → ran TB-1 Day 4 + Day 5 + Day 6 (dual external audit) end-to-end. **Did NOT ship Day 7** — that requires user decision.
+
+### What landed (3 commits)
+| Commit | Day | Summary | Tests |
+|---|---|---|---|
+| `50a1d67` | Day 4 | P6 `h_vppu_history` instrumentation (NEW file) — capacity-3 rolling window, persisted JSON store, post-hoc stamped in evaluator main(); live verified on 2× mathd_algebra_107 n3 runs (run 2: `h_vppu=6.21`) | 9/9 unit; live signal ✅ |
+| `6c04c26` | Day 5 | Tier-A 9-acceptance battery consolidated into `tests/tb_1_acceptance.rs`; superseded `tb_1_p1_acceptance.rs` | **9/9 Tier-A green** + 4 Tier-B ignored as designed |
+| (none) | Day 6 | Dual external audit launched (Codex + Gemini parallel) | Reports landed |
+
+Full workspace: **491 passed / 0 failed / 150 ignored** at HEAD `6c04c26`.
+
+### Dual audit verdicts (round 1)
+
+| Auditor | Verdict | Conviction | Latency | Cost |
+|---|---|---|---|---|
+| Codex | **CHALLENGE** | high | ~6 min | ~$3-4 |
+| Gemini DeepThink | PASS | 5/5 | 53s | ~$1-2 |
+
+**Merged verdict** per `feedback_dual_audit_conflict` (VETO > CHALLENGE > PASS): **CHALLENGE**. TB-1 must NOT auto-ship Day-7.
+
+Full merged write-up: **`handover/audits/DUAL_AUDIT_TB_1_VERDICT_2026-04-29.md`** (read this first when reviewing).
+
+### Codex P0s (the gap)
+
+The 9 Tier-A tests are technically green and prove the **primitives**, but Codex argues they don't prove the **central ship claim** ("the v4 GitTape kernel honors the L4/L4.E split + RSP-0 invariants enforced") because:
+
+1. **Sequencer dispatch is `NotYetImplemented`** for all K5 variants → L4/L4.E disjointness is asserted at primitive level, NEVER through a real `dispatch_transition` route. Tier-A bypasses dispatch entirely.
+2. **Monetary guards (assert_no_post_init_mint / assert_total_ctf_conserved / assert_read_is_free) have no production call sites** — only unit + Tier-A tests reference them. A future dispatch path that forgets to call them would silently bypass.
+3. **`RejectedSubmissionRecord` raw shielding is convention, not type-enforced** — `pub` struct, derives `Serialize`, `pub raw_diagnostic_cid`, `records()` returns raw refs. The `PublicRejectionView` projection is correct, but any code path that goes around it leaks the raw cid.
+4. **`AcceptedLedger::load_from_path` skips `verify_chain`** — `prev_hash`/`hash`/`logical_t`-only tampers can load successfully unless caller separately verifies. Tier-A bypass test catches one specific tamper shape but misses fake-genesis, row-reorder, parent-state-root-only.
+
+Gemini explicitly disagreed on 1 + 2: "primitives ready for TB-2 wiring is the right tracer-bullet level." This is a SCOPE-OF-CLAIM divergence, not a bug-vs-no-bug divergence.
+
+### 3 paths (user decides)
+
+- **Path A (recommended; ~1h)**: narrow the central claim in recharter + commit messages — "TB-1 ships PRIMITIVES + INVARIANTS, NOT dispatch enforcement". Optional sweeteners: P0-2 (~30min, all-six-subindex Tier-A test) + P0-3 (~30min, `#[serde(skip_serializing)]` on raw_diagnostic_cid). Ship Day-7 with narrowed claim; **skip round-2** (Codex's CHALLENGE was about claim scope, not bugs; narrowing addresses it directly).
+- **Path B (heavier; ~3-6h)**: fix all 4 P0s (incl. wiring `dispatch_transition` for at least one variant + 3 more tamper tests + manifest-level shielding patch); then run round-2 audit per Elon-mode 2-round cap.
+- **Path C**: defer ship; fold dispatch_transition into TB-2 RSP-1 scope.
+
+**Default if no decision**: do nothing — TB-1 stays at HEAD `6c04c26`. No further auto-action.
+
+### Compute spend
+- TB-1 Days 4-5 (build): ~$0 (local cargo + 2 small live runs ≤ $0.10)
+- TB-1 Day 6 (dual audit r1): **~$5-6 total** (Codex 154K-token prompt + Gemini 197K-char prompt). Within TB-1 $30 audit budget; ~$24 reserved for round-2 if Path B.
+
+### Where to start when reviewing
+1. `handover/audits/DUAL_AUDIT_TB_1_VERDICT_2026-04-29.md` — merged verdict + the 3 paths
+2. Skim `handover/audits/CODEX_TB_1_AUDIT_2026-04-29.md` Section A-E (last ~100 lines of the file; preceding lines are Codex's exec investigation log, not the verdict)
+3. `handover/audits/GEMINI_TB_1_AUDIT_2026-04-29.md` (full 80 lines — concise PASS verdict)
+4. `tests/tb_1_acceptance.rs` — the 9 Tier-A tests under audit
+
+---
+
 ## 📜 v2 Whitepaper — Tactical Constitutional-Level Alignment (2026-04-27, RATIFIED ✅)
 
 **Status**: **RATIFIED** after 3-round dual external audit converged (R1 VETO → R2 CHALLENGE → R3 PASS). Constitution.md unchanged; v2 acts as supreme校准 mirror over all derivative docs (Plan v3.2 / Blueprint / v1 / Deepthink).
