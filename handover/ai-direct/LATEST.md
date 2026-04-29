@@ -69,6 +69,63 @@ CO1.7 audit cost: ~$25-42 (3 rounds; cumulative project ~$135-202 / $890 mid). W
 
 ---
 
+## 🌊 2026-04-29 Session — Wave 6 #1 RECALIBRATION (CO1.7.5 split → CO1.7-extra; Branch A landed)
+
+**Updated**: 2026-04-29
+**Session arc**: dual-audit drove a **scope correction** on the prior 2026-04-28 "80% complete" framing. Round-1 dual external audit on CO1.7.5 v1 (Codex+Gemini, both CHALLENGE/High) found that D1 transition bodies have heavyweight FC1 (top-white predicate execution) + FC2 (middle-black state schemas) substrate dependencies that don't exist in shipped code (CO P2.x family per `PROJECT_DECISION_MAP § 3.4`). ArchitectAI applied an Occam-driven scope split (B2 by dependency profile) under "无损压缩即智能 + Anti-Oreo + 不违宪 + 不违白皮书" principles, yielding two atoms:
+
+| Atom | Owns | Substrate dep | Status |
+|---|---|---|---|
+| **CO1.7-extra** (NEW bridge atom; CO1.4-extra precedent) | D2 head_t close + D3 TuringBus single-file STEP_B + 5 substrate-independent tests | None | ✅ spec PASS/PASS r4; **Branch A landed** `5ce01b1`; STEP_B Branch B awaits separate session |
+| **CO1.7.5** (restored to CO1.7 § 13 original meaning) | D1 transition bodies (7) + 3 D4 tests + un-ignore replay byte-identity | CO P2.1 / 2.2 / 2.3 / 2.5 / 2.6 / 2.7 / 2.9 + CO1.11 + (NEW) PredicateRegistry execution-methods atom | 📅 GATED on substrate atoms |
+
+### Wave 6 #1 actual progress: ~30-40% (NOT 80%)
+
+The prior 2026-04-28 "80% complete" claim was **false-precision** based on a mis-scoped atom (D1 substrate dependencies hidden inside CO1.7.5 v1 bundle). True state at HEAD `5ce01b1`:
+
+- ✅ CO1.7 spec + CO1.7-impl A1-A4 bundle + CO1.4-extra (prior session)
+- ✅ CO1.7-extra spec PASS/PASS (4 rounds; this session)
+- ✅ CO1.7-extra Branch A landed (D2 head_t close + D3 TuringBus wiring + 5 tests)
+- ⏳ CO1.7-extra Branch B pending (STEP_B re-derivation; **separate session** required)
+- 📅 CO1.7.5 gated on Wave-2 substrate (~7 prerequisite atoms + 1 NEW PredicateRegistry exec atom)
+
+ChainTape vertical: L4 ~50-55% (storage + ABI + machinery + head_t close + Sequencer entry-point; transition bodies still pending). Estimate "Wave 6 #1 fully closed" = **after CO P2.x substrate ships** (multiple atoms; weeks-to-months out).
+
+### CO1.7-extra audit arc (4 rounds)
+
+| Round | Codex | Gemini | Conservative | Action |
+|---|---|---|---|---|
+| r1 (bundled CO1.7.5 v1) | CHALLENGE/H | CHALLENGE/H | CHALLENGE | Occam scope split → CO1.7-extra carved out |
+| r2 (CO1.7-extra v1) | CHALLENGE/H | CHALLENGE/H | CHALLENGE | 10 MFs (MF1-MF10) → v1.1 |
+| r3 (v1.1) | CHALLENGE/H | PASS/H | CHALLENGE | 4 mechanical (B1-B4) → v1.2 |
+| r4 (v1.2) | **PASS/H** | **PASS/H** | ✅ **PASS/PASS** | 2 nits (N1+N2) → v1.2.1 (final) + Branch A impl |
+
+CO1.7-extra atom-only audit cost: ~$13-26 across r2+r3+r4. Cumulative project: ~$196-314 / $890 mid-budget (~22-35%).
+
+### Architectural improvements landed (vs prior bundled v1)
+
+1. **TuringBus owns Sequencer directly** (round-2 MF4) — Kernel UNTOUCHED; "pure topology" doctrine preserved. STEP_B reduced from combined-ceremony to single-file (bus.rs only).
+2. **Required trait method** (round-2 MF3) — `LedgerWriter::head_commit_oid_hex` has no default impl; Rust compiler enforces every implementation declares. Both audits' safety arguments (silent stagnation prevention + no-panic) satisfied via this third-option synthesis.
+3. **`advance_head_t` helper extraction** (round-2 MF2) — D2 logic at module level + apply_one stage 9 calls helper; makes the constitutional anchor advance directly testable via mock writer (without injecting dispatch_transition).
+4. **Kernel "pure topology" doctrine preserved** — no new fields on Kernel; runtime drivers (Sequencer + future) live at TuringBus level.
+
+### Sedimented OBS files (2 new this session)
+
+- `OBS_STEP_B_RESTRICTED_FILE_LIST_DRIFT_2026-04-29.md` — CLAUDE.md + STEP_B_PROTOCOL.md path drift (`src/wallet.rs` → `src/sdk/tools/wallet.rs`); fixed inline + sediment.
+
+### Pending follow-ups
+
+1. **CO1.7-extra Branch B** (separate session required per spec § 2.2 STEP_B procedure) — independent re-derivation of `src/bus.rs` edits; byte-identity diff vs Branch A `5ce01b1` closes the ceremony.
+2. **STATE_TRANSITION_SPEC v1.5 housekeeping issue** (per CO1.7-extra spec § 0.4 commitment) — annotation pass noting the two STATE supersessions enacted by CO1.7-extra D2 (head_t = NodeId(commit_oid_hex)) + carried-forward for CO1.7.5 (SignalKind 4-variant minimization).
+3. **Future CO1.7.5 spec drafting** — gated on CO P2.x substrate atoms reaching individual PASS/PASS.
+
+### Open Questions
+
+- **Q1 (sequencing)**: with Wave 6 #1 substrate now exposed as critical path, should the project reorder to ship CO P2.1/2.2/2.3/2.5/2.6/2.7/2.9 + CO1.11 before resuming CO1.7.5? Or continue Wave 6 #2/#3 affordances (CO1.8/CO1.9) in parallel?
+- **Q2 (PROJECT_DECISION_MAP)**: should CO1.7-extra be codified into the decision map alongside CO1.4-extra precedent (this session's bridge-atom landing pattern)?
+
+---
+
 ## 🌊 2026-04-28 Session-2 Final — Wave 6 #1 IMPLEMENTATION PHASE COMPLETE ✅
 
 **Updated**: 2026-04-28 14:12 UTC
