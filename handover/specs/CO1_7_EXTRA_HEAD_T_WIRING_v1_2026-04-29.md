@@ -256,7 +256,7 @@ fn cas_payload_round_trip_with_cid_stability_across_restart() {
 
 ### 3.2 `tests/co1_7_extra_git2_writer_head_oid_defense.rs`
 
-Round-2 MF7: `canonical_test_entry` is private to module tests at `transition_ledger.rs:813`; integration tests must construct LedgerEntry inline.
+Round-2 MF7: the private module-test helper `entry_at` (at `transition_ledger.rs:813`; Codex r2 misidentified the name as `canonical_test_entry` but substantive finding holds — helper is private and unavailable to integration tests). Integration tests must construct `LedgerEntry` inline.
 
 ```rust
 #[test]
@@ -436,7 +436,7 @@ Per memory `feedback_smoke_before_batch`. Smoke run before round-3 audit launch,
 | S7 | Wallet (`src/sdk/tools/wallet.rs`) untouched | `grep -c 'transition_ledger\|state::sequencer\|TypedTx' src/sdk/tools/wallet.rs` | 0 hits |
 | S8 | QState.head_t is `state::q_state::NodeId` (tuple struct) | `grep -B1 -A1 'pub head_t' src/state/q_state.rs` | type matches |
 | S9 | Stale comment locations (round-2 MF8) | `grep -n 'CO1.7.5+\|deferred to CO1.7.5' src/state/sequencer.rs` | hits at lines 180-184 + 359-361 (to be updated by D2 implementation) |
-| S10 | `canonical_test_entry` is private (round-2 MF7) | `grep -n 'fn canonical_test_entry' src/bottom_white/ledger/transition_ledger.rs` | hit inside `mod tests` (line ~813); no `pub` |
+| S10 | `entry_at` (private module-test helper) is private (round-2 MF7) | `sed -n '810,820p' src/bottom_white/ledger/transition_ledger.rs` | `fn entry_at(...)` at line 813 inside `mod tests`; no `pub` qualifier |
 | S11 | cargo baseline | `cargo check --workspace && cargo test --workspace --lib` | clean compile + 239 / 0 / 1 ignored |
 
 ---
@@ -449,11 +449,23 @@ Per memory `feedback_smoke_before_batch`. Smoke run before round-3 audit launch,
 
 8/8 PASS — see prior commit log. v1 spec sent to round-2 dual external audit on this baseline.
 
-### Round-3 smoke (v1.1 HEAD; populated at audit launch)
+### Round-3 smoke (HEAD `25564d7`; v1.1 patches commit)
 
-| # | Status |
-|---|---|
-| S1-S11 | ⏳ pending audit-launch smoke at v1.1 commit HEAD |
+| # | Claim | Result | Status |
+|---|---|---|---|
+| S1 | head_commit_oid signature | `pub fn head_commit_oid(&self) -> Option<git2::Oid>` (transition_ledger.rs:674) | ✅ PASS |
+| S2 | TuringBus struct | `pub struct TuringBus` at bus.rs:53 | ✅ PASS |
+| S3 | Kernel UNTOUCHED | `use crate::ledger::{Node, NodeId, Tape, TapeError}` at kernel.rs:8; **0 hits** of "sequencer" anywhere in kernel.rs (pure topology preserved per round-2 MF4) | ✅ PASS |
+| S4 | Sequencer struct line | `pub struct Sequencer` at sequencer.rs:190 | ✅ PASS |
+| S5 | Ed25519Keypair has NO Debug derive | `#[derive(Zeroize, ZeroizeOnDrop)]` precedes `pub struct Ed25519Keypair` (system_keypair.rs:282-284); no Debug → forces manual Sequencer Debug impl per MF6 | ✅ PASS |
+| S6 | CasStore put + get | `pub fn put` at line 163, `pub fn get` at line 199 | ✅ PASS |
+| S7 | wallet untouched | 0 hits in `src/sdk/tools/wallet.rs` | ✅ PASS |
+| S8 | head_t type | `pub head_t: NodeId` (q_state.rs:311) — type matches new tuple-struct | ✅ PASS |
+| S9 | stale comments confirmed | sequencer.rs:178-184 (doc on apply_one Sequencer) + :357-361 (in apply_one stage 9 inline comment) — both still say "deferred to CO1.7.5+"; will be patched by D2 implementation per atom landing checklist | ✅ PASS (with minor line cite refinement vs v1.1 spec's "180-184 + 359-361" — actual lines 178-184 + 357-361; spec patched in this commit) |
+| S10 | private module-test helper exists | `fn entry_at` at transition_ledger.rs:813 inside `mod tests`; no `pub` qualifier (Codex r2 misidentified name as `canonical_test_entry` but substantive finding holds) | ✅ PASS (with helper-name correction) |
+| S11 | cargo baseline | check pass; `239 passed; 0 failed; 1 ignored` (the ignored test is `sequencer_serial_replay_byte_identity`, deferred to future CO1.7.5 atom) | ✅ PASS |
+
+**Smoke gate**: 11 / 11 PASS at HEAD `25564d7`. Spec v1.1 ready for round-3 dual external audit.
 
 ### Patch log
 
@@ -468,8 +480,8 @@ Per memory `feedback_smoke_before_batch`. Smoke run before round-3 audit launch,
 - **MF4** Sequencer placement: TuringBus owns directly (NOT nested through Kernel). Kernel UNTOUCHED. STEP_B becomes single-file ceremony (§ 2.1 + § 2.2).
 - **MF5** test harness: flat-named `tests/co1_7_extra_*.rs` for Cargo auto-discovery (§ 3 file paths)
 - **MF6** Sequencer Debug: manual `impl Debug` with `finish_non_exhaustive()` (Ed25519Keypair has no Debug derive at system_keypair.rs:282-284 — blanket derive fails) (§ 2.1)
-- **MF7** `canonical_test_entry` private → tests construct LedgerEntry inline (§ 3.2)
-- **MF8** stale Sequencer comments (sequencer.rs:180-184 + :359-361) added to atom landing checklist (§ 1.1 + § 8 ack #8)
+- **MF7** `entry_at` private → tests construct LedgerEntry inline (§ 3.2)
+- **MF8** stale Sequencer comments (sequencer.rs:178-184 + :357-361) added to atom landing checklist (§ 1.1 + § 8 ack #8)
 - **MF9** atomicity wording: "post-commit non-failing best-effort head binding (Some path)" + "explicit no-op preservation (None path)" (§ 1.1)
 - **MF10** LoC estimate: 150-230 → 200-280 (manual Debug + helper extraction + 3rd test + harness adjustments) (§ 7)
 
