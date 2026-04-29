@@ -319,7 +319,7 @@ async fn main() {
     info!("Problem: {} | Condition: {} | Model: {} | Mode: {}",
           problem_file, condition, model, resolved_mode.label());
 
-    let result = match condition.as_str() {
+    let mut result = match condition.as_str() {
         "oneshot" => {
             run_oneshot(problem_file, &problem_statement, &theorem_name,
                        &lean_path, &proxy_url, &model).await
@@ -358,6 +358,32 @@ async fn main() {
         }
         other => { eprintln!("Unknown condition: {}", other); std::process::exit(1); }
     };
+
+    // TB-1 Day-4 (2026-04-29): stamp h_vppu by querying the persisted
+    // per-problem rolling history of pput_verified, then record the
+    // current run's pput_verified for future invocations. Order is
+    // load → query (excluding current) → stamp → record → save, so
+    // the current run does NOT self-reference its own value when
+    // computing the ratio.
+    //
+    // Storage: $EXPERIMENT_DIR/h_vppu_history.json (or cwd if unset).
+    // Failure to load/save degrades quietly — h_vppu is a P6 non-
+    // blocking metric per recharter Day-5 Tier-B. Saving failure logs
+    // a warning but never aborts the run.
+    let h_vppu_path = std::path::PathBuf::from(
+        std::env::var("EXPERIMENT_DIR").unwrap_or_else(|_| ".".into()),
+    )
+    .join("h_vppu_history.json");
+    let mut h_vppu_history =
+        minif2f_v4::h_vppu_history::HVppuHistory::load_from(&h_vppu_path);
+    result.h_vppu = h_vppu_history.h_vppu_for(&result.problem_id, result.pput_verified);
+    h_vppu_history.record(&result.problem_id, result.pput_verified);
+    if let Err(e) = h_vppu_history.save_to(&h_vppu_path) {
+        log::warn!(
+            "[h_vppu_history] save to {:?} failed: {}; next run will start without prior history",
+            h_vppu_path, e
+        );
+    }
 
     // Output PPUT result as JSON (machine-readable for batch runner)
     let json = serde_json::to_string(&result).unwrap();
