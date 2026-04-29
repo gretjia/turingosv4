@@ -2,9 +2,10 @@
 # Columns: tb_id status start_date end_date phase_id roadmap_exit_criteria_addressed kill_criteria_tested capability_metric alignment_pct articles_activated ship_commits
 # Status enum: shipped | active | failed | aborted
 # Coverage metric: scripts/alignment_coverage.py (5-line lenient; ~+0.9pp vs official strict-block walk)
-# phase_id: P0..P9 per handover/architect-insights/ROADMAP_9_PHASE_2026-04-29.md (primary; may span e.g. "P1+P3")
+# phase_id: P0..P9 per handover/architect-insights/ROADMAP_9_PHASE_2026-04-29.md (primary; may span e.g. "P1+P3+P6 (primary P1)" — primary listed first / parenthesized)
 # roadmap_exit_criteria_addressed: phase-prefixed numbered subset (e.g. "P1:7,8,9 P3:1,2,5")
-# kill_criteria_tested: phase-prefixed numbered subset of P1/P3/P5 kill clauses (e.g. "P1:1,2,3,4 P3:1")
+# kill_criteria_tested: phase-prefixed numbered subset of P1/P3/P5 kill clauses (e.g. "P1:1,2,3,4 P3:1"). P6 has no kill criteria — anchor evidence only.
+# 2026-04-29 audit-ingestion wave A: TB-1 row annotated with Tier-A/B per CF-5; TB-1 phase_id reframed as "primary P1" (P3 secondary, P6 tertiary); P6 h_vppu re-tagged as non-blocking artifact.
 tb_id	status	start_date	end_date	phase_id	roadmap_exit_criteria_addressed	kill_criteria_tested	capability_metric	alignment_pct	articles_activated	ship_commits
-TB-0	shipped	2026-04-22	2026-04-29	P6	P6:7	none (anchor evidence only)	pput=0→0.000215 (mathd_algebra_107 via nlinarith @ HEAD a906886; first v4-native solve)	~24.6%→25.47%	Art-IV.boot Art-0.1 Art-V.1.1 Art-Laws.1+2 WP-§5.L1 WP-§5.L3 WP-§5.L4	e2752e8..f0b659f
-TB-1	active	2026-04-29	TBD	P1+P3+P6	P1:5,6,7,8,9 P3:1,2,5,6,8 P6:7 (h_vppu instrumentation)	P1:1,2,3,4 P3:1,2,3,5	h_vppu=0→? + econ_balance_delta!=0 + L4_ledger_writes_per_tx [Day1✓: prompt_context_hash field flows to v2 JSONL via run_oneshot/mathd_algebra_107]	25.47%→?	Art-Laws.1+2 Art-I.1.1 Art-II.2 Art-III.4-partial WP-§21-partial	063b003..(Day1)
+TB-0	shipped	2026-04-22	2026-04-29	P6	P6:7	none (P6 anchor evidence only; no P1/P3/P5 kill criteria advanced)	pput=0→0.000215 (mathd_algebra_107 via nlinarith @ HEAD a906886; first v4-native solve)	~24.6%→25.47%	Art-IV.boot Art-0.1 Art-V.1.1 Art-Laws.1+2 WP-§5.L1 WP-§5.L3 WP-§5.L4	e2752e8..f0b659f
+TB-1	active	2026-04-29	TBD	P1+P3+P6 (primary P1; P3 secondary; P6 tertiary)	P1:5,6,7,8,9 P3:1,2,5,6,8	P1:1,2,3,4 P3:1,2,3,5 (P6 has no kill criteria; anchor only)	[Tier-A blocking] P1 kill 1-4 + P1 Exit 7 + L4.E chain + P3 RSP-0 conservation + read_is_free + no_post_init_mint. [Tier-B non-blocking] P6 h_vppu instrumentation + AT-1 mathd_algebra_107 smoke + AT-2 ledger-per-tx (deferred until WorkTx body) + AT-4 econ_balance_delta (deferred until RSP-1). Day1✓: prompt_context_hash flows to v2 JSONL via run_oneshot/mathd_algebra_107	25.47%→?	Art-Laws.1+2 Art-I.1.1 Art-II.2 Art-III.4-partial WP-§21-partial	063b003..(Day1) c82db19..(audit-ingestion wave A)
