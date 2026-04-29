@@ -2,6 +2,8 @@
 
 **Authority**: architect directive 2026-04-29 (`handover/directives/2026-04-29_9_phase_roadmap.md`) + user `gretjia` chat authorization. Canonical roadmap: `handover/architect-insights/ROADMAP_9_PHASE_2026-04-29.md`.
 
+**Amended 2026-04-29 (post-audit)**: external auditor's CF-1 / CF-3 / CF-5 incorporated per `handover/audits/2026-04-29_external_audit.md` and user authorization on 2026-04-29. Specific amendments: Day-3 wording switched to L4 / L4.E split (rejected submissions go to L4.E rejection-evidence ledger, NOT to L4 with `status=rejected`); Day-2 framing sharpened (WalletTool = read-only projection of `EconomicState.balances_t`, not "legacy adapter"); Day-5 acceptance gate downgraded so P1/P3 are blocking and P6 artifacts are non-blocking until RSP-1.
+
 **Original charter**: commit `4ecb708` body. Original GOAL was *"One MiniF2F adaptation problem solved end-to-end at HEAD with the full v4 5-step compile loop active per-tx + economy hooks firing per-tx + L4 ledger commits per-tx + h_vppu computed in PputResult."* That goal bundled four different layer-jumps (P1 ledger, P3 economy, P5 capability compilation, P6 metric) into one 7-day TB.
 
 **Re-charter (this doc)**: keeps Day 1 (already shipped at `063b003`); re-tags Days 2-7 against the 9-phase model; descopes one acceptance test (AT-5) that properly belongs to a P5 MetaTape TB after P3 is green.
@@ -47,6 +49,8 @@ This replaces the previous *"5-step compile loop active per-tx"* goal — step 4
 
 **FROZEN today**: `src/sdk/tools/wallet.rs` (STEP_B-protected); `kernel.rs`; `bus.rs`; `genesis_payload.toml [trust_root]` constitution_root entry.
 
+**WalletTool framing (sharpened post-audit 2026-04-29 CF-3)**: `src/sdk/tools/wallet.rs` is **NOT a legacy mutable adapter** — it is a *read-only projection* of `QState.economic_state_t.balances_t`. Mutations to economic state happen exclusively through the canonical RSP path (`SettlementEngine` / `EscrowVault` / `StakeManager` / `monetary_invariant`). No new RSP code may depend on `WalletTool.credit()` or on `WalletTool` mutating its `HashMap<String, f64>` to represent canonical balance state. Existing `WalletTool` tests stay temporarily as legacy behavior tests; they get removed or rewritten as RSP-1/RSP-2 lands.
+
 **Acceptance signal**: `cargo test -p turingosv4 economy::` ≥ 6 tests green; running 1 evaluator shot still produces JSONL row (no regression in P6 capability path).
 
 ### Day 3 — P1 GitTape Kernel hardening
@@ -55,18 +59,25 @@ This replaces the previous *"5-step compile loop active per-tx"* goal — step 4
 **Exit addressed**: P1:5 (state_root advances on accept), P1:6 (state_root unchanged on reject), P1:7 (ledger hash chain), P1:8 (state.db reconstruction), P1:9 (rejected-log isolation)
 **Kill tested**: P1:1 (no wtool bypass), P1:2 (rejected tx ≠ state_root advance), P1:3 (state.db reconstructable), P1:4 (no read-view pollution)
 
-**Build**:
-- `src/economy/ledger.rs` (the file the original charter named) — minimum-viable append-only ledger with:
-  - `pub fn append(tx: &TypedTx) -> Result<LedgerEntry, LedgerError>` — content-addressed, prev_hash chained
-  - `pub fn verify_chain(start: usize, end: usize) -> Result<(), ChainError>` — hash chain integrity
-  - `pub fn reconstruct_state(state_path: &Path) -> Result<QState, ReconstructError>`
-- 4 P1-kill acceptance tests:
-  - `test_p1_kill_1_no_wtool_bypass`: any direct mutation to state.db without going through wtool→ledger panics or fails to round-trip via reconstruct_state.
-  - `test_p1_kill_2_rejected_tx_no_state_advance`: simulate a tx that fails predicate; assert state_root unchanged; assert ledger entry IS appended (with status=rejected) but tx is not applied.
-  - `test_p1_kill_3_ledger_reconstructable`: drop state.db; reconstruct from ledger; bit-equal to pre-drop state_root.
-  - `test_p1_kill_4_rejected_log_isolated`: emit a rejected tx with diagnostic content; assert another Agent's read view does NOT contain the diagnostic substring (only an aggregate counter).
-- 1 hash-chain acceptance test:
-  - `test_p1_exit_7_chain_breaks_on_row_deletion`: write 5 ledger entries; delete row 3; `verify_chain(0, 5)` returns `Err(ChainError::HashMismatch { at_index: 3 })`.
+**Build** (post-audit 2026-04-29 CF-1: TWO ledgers, not one):
+- `src/economy/ledger.rs` — minimum-viable accepted-only L4 wrapper around the existing `src/bottom_white/ledger/transition_ledger.rs`. Provides:
+  - `pub fn append_accepted(tx: &TypedTx) -> Result<LedgerEntry, LedgerError>` — content-addressed, prev_hash chained, advances `logical_t`.
+  - `pub fn verify_chain(start: usize, end: usize) -> Result<(), ChainError>` — L4 hash chain integrity.
+  - `pub fn reconstruct_state(state_path: &Path) -> Result<QState, ReconstructError>` — replays L4 only (L4.E NOT consulted; rejections must not affect `state_root`).
+- `src/bottom_white/ledger/rejection_evidence.rs` (NEW, post-audit 2026-04-29 CF-1): minimum-viable rejection-evidence ledger:
+  - `RejectedSubmissionRecord` struct with `submit_id`, `parent_state_root`, `agent_id`, `tx_kind`, `tx_payload_cid`, `rejection_class`, `raw_diagnostic_cid` (Option), `public_summary` (Option), `prev_hash`, `hash`.
+  - `RejectionEvidenceWriter::append_rejected()` returns the new chain hash.
+  - `verify_chain()` returns `Err` on row deletion.
+  - **No `logical_t`** — uses `submit_id` instead.
+  - **No `state_root` advance** — `dispatch_transition` rejection path MUST NOT mutate `q.state_root_t` or `q.ledger_root_t`.
+- 5 P1-kill acceptance tests (re-tagged post-audit):
+  - `test_p1_kill_1_no_wtool_bypass`: any direct mutation to state.db without going through wtool→L4 panics or fails to round-trip via `reconstruct_state`.
+  - `test_p1_kill_2_rejected_tx_no_state_advance`: simulate a tx that fails predicate; assert `state_root` unchanged; assert **L4 logical_t NOT incremented**; assert **L4.E `submit_id`-scoped record IS appended** (one record, raw_diagnostic_cid populated).
+  - `test_p1_kill_3_ledger_reconstructable`: drop state.db; reconstruct from L4 only; bit-equal to pre-drop `state_root`. L4.E intentionally not consulted in reconstruction.
+  - `test_p1_kill_4_rejected_log_isolated`: emit a rejected tx with diagnostic content; assert another Agent's materialized read view does NOT contain the raw diagnostic (only an aggregate counter or `public_summary` is permitted).
+  - `test_p1_kill_4b_rejection_chain_breaks_on_row_deletion`: write 3 rejection-evidence records; delete row 2; `RejectionEvidenceWriter::verify_chain()` returns `Err(RejectionEvidenceError::HashMismatch { at: 2 })`.
+- 1 L4 hash-chain acceptance test:
+  - `test_p1_exit_7_l4_chain_breaks_on_row_deletion`: write 5 accepted L4 entries; delete row 3; `verify_chain(0, 5)` returns `Err(ChainError::HashMismatch { at_index: 3 })`.
 
 **FROZEN**: same as Day 2 + the new monetary_invariant.rs (no further edits today).
 
@@ -97,19 +108,28 @@ This replaces the previous *"5-step compile loop active per-tx"* goal — step 4
 **Kill tested**: cumulative — every Kill listed in Days 2-3
 
 **Build** — `tests/tb_1_acceptance.rs` (new):
-1. **(original AT-1)** evaluator runs n3 swarm on mathd_algebra_107 → solved=true (regression baseline vs `f0b659f`); phase=P6.
-2. **(original AT-2)** each tx in the run produces a `LedgerEntry` committed via `Git2LedgerWriter` (or the new `src/economy/ledger.rs`); phase=P1 Exit 5,6,7.
-3. **(original AT-3)** PputResult.h_vppu non-null on a 2nd-run row; phase=P6.
-4. **(original AT-4)** PputResult.econ_balance_delta non-zero; agent's CTF balance changed by escrow + release; reputation counter +1 on accepted Verify-tx; phase=P3 Exit 3,5.
-5. ~~**(original AT-5)**~~ **DESCOPED**: "second attempt of same problem in same session uses 1st attempt's winning tactic in prompt context" properly belongs to P5 MetaTape v1 (ArchitectAI proposal flow). Filed for a future TB after P3 RSP-3 green. Not part of TB-1 ship gate.
-6. **(NEW P1 kill 1)** `test_p1_kill_1_no_wtool_bypass` — direct state mutation outside wtool fails.
-7. **(NEW P1 kill 2)** `test_p1_kill_2_rejected_tx_no_state_advance`.
-8. **(NEW P1 kill 3)** `test_p1_kill_3_ledger_reconstructable`.
-9. **(NEW P1 kill 4)** `test_p1_kill_4_rejected_log_isolated`.
-10. **(NEW P3 RSP-0 Exit 1)** `test_p3_rsp0_exit_1_on_init_total_invariant` — sum of CTF balances after on_init = sum of CTF balances after N work_tx + verify_tx + settlement_tx sequence.
-11. **(NEW P3 RSP-0 Exit 6,8)** `test_p3_rsp0_exit_6_8_provisional_then_payout_capped` — accept produces only provisional accept; settlement_tx.payout_sum ≤ escrow_pool.
 
-**Acceptance signal**: all 10 tests green (10 = 4 originals retained + 4 P1 kill + 2 P3 Exit; AT-5 descoped). If any kill test goes RED → STOP TB-1; write `OBS_TB-1_FAILED_2026-04-29.md`; charter must change before retry. Kill-with-OBS NOT permitted.
+**Tier A — BLOCKING (P1 + P3 RSP-0 correctness; TB-1 ship requires ALL Tier-A tests green):**
+
+1. **(P1 kill 1)** `test_p1_kill_1_no_wtool_bypass` — direct state mutation outside wtool fails.
+2. **(P1 kill 2)** `test_p1_kill_2_rejected_tx_no_state_advance` — `state_root` unchanged; L4 `logical_t` NOT incremented; L4.E `submit_id`-scoped record appended.
+3. **(P1 kill 3)** `test_p1_kill_3_ledger_reconstructable` — drop state.db; reconstruct from L4 only; bit-equal pre-drop `state_root`.
+4. **(P1 kill 4)** `test_p1_kill_4_rejected_log_isolated` — raw L4.E diagnostic NOT in another Agent's materialized view (only aggregate / public_summary).
+5. **(P1 Exit 7)** `test_p1_exit_7_l4_chain_breaks_on_row_deletion`.
+6. **(P1 kill 4b)** `test_p1_kill_4b_rejection_chain_breaks_on_row_deletion` — L4.E hash chain integrity.
+7. **(P3 RSP-0 Exit 1)** `test_p3_rsp0_exit_1_on_init_total_invariant` — `total_coin(EconomicState)` sum invariant across N tx sequence.
+8. **(P3 RSP-0 Exit 2)** `test_p3_rsp0_exit_2_read_is_free` — `assert_read_is_free(fee=0)` for `rtool` / `search` / `think`; non-zero fee returns `MonetaryError::ReadCharged`.
+9. **(P3 kill 1)** `test_p3_kill_1_no_post_init_mint` — any post-`on_init` `mint_tx` returns `MonetaryError::PostInitMint`; rejection MUST be in L4.E, not L4.
+
+**Tier B — NON-BLOCKING (P6 Epistemic Lab anchor evidence + future-RSP placeholders; TB-1 ship does NOT require these green; they are artifacts to capture, not gates):**
+
+10. **(original AT-1, post-audit downgrade per CF-5)** evaluator runs n3 swarm on mathd_algebra_107 → solved=true. **Non-blocking**: this is P6 anchor smoke; TB-1's mission is P1/P3 correctness, not capability regression. If P6 regresses, file as a separate P6 anchor TB; it does NOT block TB-1 ship.
+11. **(original AT-2, post-audit re-tag)** each tx in the run produces an L4 `LedgerEntry` committed via `Git2LedgerWriter` (or the new `src/economy/ledger.rs`); rejected proposals appear in L4.E. **Non-blocking** for TB-1 ship — until WorkTx `dispatch_transition` body lands (TB-1 Day-3 minimum WorkTx slice or later TB), the evaluator path may continue using its own legacy emit path. The L4 / L4.E assertions are evaluated against synthetic test inputs in Tier-A tests #2/3/5, not against the live evaluator run.
+12. **(original AT-3, post-audit re-tag)** `PputResult.h_vppu` non-null on a 2nd-run row. **Non-blocking**: P6 instrumentation; useful artifact but not a P1/P3 gate.
+13. **(original AT-4, post-audit downgrade per CF-3)** `PputResult.econ_balance_delta` non-zero. **Non-blocking until RSP-1**: RSP-0 (Day-2) only proves the conservation invariant + scaffolds escrow/balances structures; actual non-zero deltas require RSP-1's `escrow_lock_tx` + `yes_stake_tx` to fire, which lives in TB-2.
+14. ~~**(original AT-5)**~~ **DESCOPED**: "second attempt of same problem in same session uses 1st attempt's winning tactic in prompt context" properly belongs to P5 MetaTape v1 (ArchitectAI proposal flow). Filed for a future TB after P3 RSP-3 green. Not part of TB-1 ship gate.
+
+**Acceptance signal** (post-audit 2026-04-29 CF-5 lighter option): TB-1 ships when **all Tier-A tests (1-9) green**. Tier-B tests (10-13) are captured as artifacts but do not gate ship. If any Tier-A kill test goes RED → STOP TB-1; write `OBS_TB-1_FAILED_2026-04-29.md`; charter must change before retry. Kill-with-OBS NOT permitted on Tier-A.
 
 ### Day 6 — Dual external audit (unchanged)
 
