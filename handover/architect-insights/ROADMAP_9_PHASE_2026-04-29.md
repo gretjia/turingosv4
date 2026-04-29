@@ -2,6 +2,8 @@
 
 **Authority**: architect directive 2026-04-29, archived at `handover/directives/2026-04-29_9_phase_roadmap.md`. User `gretjia` authorized full P0–P9 ordering on 2026-04-29 in chat (`我同意全部按新的phases划分和次序执行`). No Layer-1 axiom violation; no constitution.md edit.
 
+**Amended 2026-04-29 (post-audit)**: external auditor's CF-1, CF-2, CF-6 + dependency-graph clarification incorporated per `handover/audits/2026-04-29_external_audit.md` and user authorization on 2026-04-29 ("授权 6 个 items 全部执行"). Specific amendments: P0 split into P0 + P0.R (RootBox Ratification Ceremony); P1 Build adds `rejection_evidence.rs`; P1 Exit 6+9 wording updated to L4-accepted-only / L4.E-rejection-evidence split; P3 Forbidden adds per-node-auto-injection / ghost-liquidity-without-treasury-debit; § 12 dependency graph added.
+
 **Status**: canonical. Every TB charter (current + future) MUST declare `phase_id ∈ {P0..P9}` + `kill_criteria_tested` + `roadmap_exit_criteria_addressed`. Sessions inheriting work read this doc + `MEMORY.md` first.
 
 **Supersedes (as the operational ordering)**: PPUT-CCL Phase A–E roadmap as the *primary* sequencing axis. PPUT-CCL persists as the **P6 Epistemic Lab** product line (one of four; see § 5).
@@ -71,16 +73,43 @@ A phase is "green" iff every Exit Criterion has at least one passing test or evi
 
 **Forbidden**: 公链 / 真实奖金 / LLM 最终裁决 / 自然语言系统边界。
 
-**Current state (2026-04-29)**: 🟢 mostly done. constitution.md + `genesis_payload.toml [trust_root]` 24-entry manifest + `boot::verify_trust_root` + `boot::verify_constitution_root` + R-018 sudo rule + 5/5 boot tests green. Remaining gaps: explicit `forbidden_actions.json`; `invariant_registry.json` as discrete file; `no_context_cross_contamination` predicate test (currently only loosely enforced via FC1-N12 oracle scope).
+**Current state (2026-04-29)**: 🟢 engineering gate mostly done. constitution.md + `genesis_payload.toml [trust_root]` 24-entry manifest + `boot::verify_trust_root` + `boot::verify_constitution_root` + R-018 sudo rule + 5/5 boot tests green. **P0.R ceremony incomplete** — see sub-phase below. Other remaining gaps: explicit `forbidden_actions.json`; `invariant_registry.json` as discrete file; `no_context_cross_contamination` predicate test (currently only loosely enforced via FC1-N12 oracle scope).
+
+### P0.R RootBox Ratification Ceremony (sub-phase, post-audit 2026-04-29 CF-6)
+
+**Goal**: replace `[constitution_root]` placeholder strings with real human-root attestation and document the sudo rotation/revocation flow. Until P0.R is green, P0's overall status is "engineering gate done; RootBox ceremony pending" — not "fully green".
+
+**Build**:
+- Replace `creator_signature = "PENDING_USER_PGP_SSH_SIGNATURE_v4_FIRST_ENACTMENT"` in `genesis_payload.toml [constitution_root]` with a real PGP/SSH signature over the canonical constitution.md hash.
+- Replace `boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"` with the recomputed self-referential hash defined in the constitution_root computation note.
+- Document the sudo rotation/revocation flow in a new `handover/architect-insights/ROOTBOX_CEREMONY_v0.md`.
+- Add a boot-time fail-closed check: if either `creator_signature` or `boot_attestation_hash` is a `PENDING_*` placeholder AND the `TURINGOS_PRODUCTION` env is set, refuse to boot.
+
+**Transactions**: none (this is constitution-layer ceremony, not state machine).
+
+**Predicates**: `creator_signature_valid`, `boot_attestation_recomputable`, `production_no_pending_placeholders`.
+
+**Exit Criteria**:
+1. `creator_signature` is a real human-root signature, not a `PENDING_*` placeholder.
+2. `boot_attestation_hash` is recomputable per the documented formula.
+3. `root_sudo.sig` rotation/revocation flow is documented.
+4. `constitution.md` modification without valid signature fail-closed.
+5. No Agent — including ArchitectAI — can author or amend `constitution.md`.
+
+**Forbidden**: Agent-signed constitution root; auto-generated sudo; silent placeholder acceptance in production-mode boot.
+
+**Current state (2026-04-29)**: ❌ pending — both placeholders present in `genesis_payload.toml`. P0.R is **not blocking** P1/P3 development today, but P0 status MUST be reported as "P0 engineering green; P0.R pending" when reporting overall phase status.
 
 ### P1 GitTape Kernel
 
-**Goal**: 证明最小闭环 `Agent → Predicate → Commit/Reject → Ledger Append`.
+**Goal**: 证明最小闭环 `Agent → Predicate → Commit/Reject → Ledger Append`. **Two ledgers, not one**: accepted transitions go to L4; rejected submissions go to L4.E (separate hash chain, separate identifiers, no `logical_t`, no `state_root` advance).
 **Build**:
 ```text
 /ledger/{chaintape.jsonl, cas_objects/, state_roots/}
 /core_whitebox/engine/{rtool, wtool, predicate_runner, materializer, signal_router}
 /state/{current_state.db, task_index.db, view_index.db}
+src/bottom_white/ledger/transition_ledger.rs   (L4: accepted-only)
+src/bottom_white/ledger/rejection_evidence.rs  (L4.E: rejected-only; new, post-audit 2026-04-29 CF-1)
 ```
 Reference tx schema:
 ```json
@@ -97,11 +126,11 @@ Reference tx schema:
 2. Agent 不能读取完整 ledger。
 3. Agent 不能直接修改文件系统状态。
 4. wtool 是唯一合法写入口。
-5. tx 通过谓词后，state_root 改变。
-6. tx 被拒绝后，state_root 不变。
-7. ledger.jsonl 删除任意中间行后，hash chain 校验失败。
-8. state.db 删除后，可以从 ledger.jsonl 重建。
-9. rejected tx 的原始错误不进入其他 Agent 的 read view。
+5. tx 通过谓词后，accepted transition 进入 L4，`logical_t` 单调推进，`state_root` / `ledger_root` 改变。
+6. tx 被拒绝后，`state_root` 不变；accepted transition ledger (L4) 不增加 `logical_t`；rejection evidence ledger (L4.E) 增加 `submit_id`-scoped 记录。
+7. L4 ledger 删除任意中间行后，hash chain 校验失败；L4.E 同样验证：删除任意 rejection 记录后，rejection-chain 校验失败。
+8. state.db 删除后，可以从 L4 (accepted only) 重建 — L4.E 不参与 `state_root` 重建（rejection 不应改变状态）。
+9. L4.E 的 raw diagnostic 不进入其他 Agent 的 materialized read view；只允许 `aggregate counter` 或 `public_summary` 作为派生信号出现。
 
 **Forbidden**: 经济结算 / 多组织共识 / 上链 / Go Meta 自动改规则。
 **Current state**: 🟨 partial. CAS exists (`bottom_white/cas/store.rs`), `src/ledger.rs` exists, `src/sdk/tools/wallet.rs` ≈ wtool. **No Agent → PredicateRunner → wtool → Ledger flow is on the evaluator hot path; rejected-tx isolation is untested at runtime; state.db reconstruction from ledger has no test.** Exit criteria 7, 8, 9 are the immediate TB-1 Day-3 targets per re-charter.
@@ -167,7 +196,7 @@ reward_i = Finalize(
 11. Agent 自称"我贡献 90%"对结算无效。
 12. Contribution DAG 能解释每一笔奖金来源。
 
-**Forbidden**: 按 token 数发钱 / 按运行时间发钱 / 按 Agent 自评发钱 / post-init mint / 未过挑战期全额付款 / verifier 无责任盖章。
+**Forbidden**: 按 token 数发钱 / 按运行时间发钱 / 按 Agent 自评发钱 / post-init mint / 未过挑战期全额付款 / verifier 无责任盖章 / **per-node automatic liquidity injection**（任务创建时自动注入 YES + NO 做市，等同 post-init mint 化身；post-audit 2026-04-29 CF-2）/ **ghost liquidity without explicit treasury debit**（任何在 task market / risk market / AMM 中出现的流动性必须能在 `economic_state_t` 中追溯到 `balances_t` debit / sponsor escrow / LP stake；不能凭空出现）。
 **Current state**: 🔴 biggest gap. wallet basic; CTF token; on_init rule (Art-Laws.1); no escrow / YES-NO stake / challenge window / Contribution DAG / settlement engine. RSP-N micro-versions (§ 6) discharge this phase one bounded slice at a time.
 
 ### P4 Information Loom (Signal Layer)
@@ -438,9 +467,47 @@ Layer B   Architecture Translation table     Section 3.x of whitepaper, derived 
 Layer C   Implementation Roadmap (this doc)  P0–P9 with 6-field per phase + kill criteria + RSP-N + 90-day plan
 ```
 
-## 11. Cross-references
+## 11. Phase dependency graph (post-audit 2026-04-29 clarification)
+
+The narrative ordering in § 3 (P0 → P1 → P2 → P3 → P4 → P5 → P6 → P7 → P8) is the *exposition* order. The *execution-dependency* ordering is more granular and enforced as follows:
+
+```text
+P0  Constitution-to-Code               (P0.R RootBox ceremony deferred; non-blocking for P1/P3)
+ │
+ └─ P1  GitTape Kernel  (kill criteria 1–4 must be RED→GREEN before next step)
+     │
+     ├─ P3  RSP Economy Core
+     │   ├─ RSP-0 monetary invariant      (TB-1 Day-2)
+     │   ├─ RSP-1 task escrow + YES stake (TB-2 default)
+     │   ├─ P2  Agent Runtime           (depends on RSP-1: stakeless agents = no real role separation)
+     │   ├─ P4  Information Loom         (depends on P1 L4.E rejection evidence + P3 reputation/stake events)
+     │   ├─ RSP-2 Verifier bond + NO stake
+     │   ├─ RSP-3 challenge window + provisional payout
+     │   │   └─ P5  MetaTape v1          (depends on RSP-3 + P4: ArchitectAI proposal flow needs error clusters
+     │   │                                   from L4.E + economic stake to make patches accountable)
+     │   ├─ RSP-4 Contribution DAG + settlement
+     │   ├─ RSP-5 reuse royalty
+     │   └─ RSP-6 price index
+     │
+     └─ P6  Epistemic Lab v0 (PPUT-CCL / MiniF2F)
+         (out-of-order anchor evidence; allowed to advance ahead of P1+P3 but cannot
+          define infrastructure green; does NOT discharge P1/P3 kill criteria)
+```
+
+Critical reading of this graph:
+
+- **P2 Agent Runtime depends on P3 RSP-1, not on P1 alone.** A multi-Solver swarm without stake/escrow is just one Solver wearing N hats — it doesn't prove role separation. The directive's narrative had P2 immediately after P1, but the audit-driven reading is: P2's role-separation Exit criteria (Solver / Verifier / Challenger / Planner with distinct economic responsibilities) cannot be demonstrated until RSP-1 is at minimum partial-green.
+- **P4 Information Loom depends on P1 L4.E + P3 reputation events.** The clusterer / signal router / read-view compiler need real rejection-evidence records to cluster and real reputation-update events to broadcast. Without them, P4 has no input. So P4 follows P1 L4.E + RSP-2's reputation_update_tx, not the narrative position alone.
+- **P5 MetaTape v1 depends on RSP-3 + P4.** ArchitectAI proposes patches based on error clusters (P4 output) and accepts economic accountability for them via stake (RSP-3). Without both, P5 is either a recommender system that no one funds or a stake market without a signal source.
+- **P6 Epistemic Lab is permitted out-of-order** as anchor evidence (the MiniF2F / PPUT-CCL work). Per `feedback_tb_phase_tag_required`, every P6 TB MUST stamp `phase_id: P6` and explicitly disclaim that it does not advance P1/P3 kill criteria.
+
+When TB selection conflicts, the rule is: **lowest-numbered phase with a RED kill criterion wins, regardless of narrative position.** P6 anchor evidence never wins this tie-break.
+
+## 12. Cross-references
 
 - Directive archive (verbatim): `handover/directives/2026-04-29_9_phase_roadmap.md`
+- External audit (verbatim): `handover/audits/2026-04-29_external_audit.md`
+- Decision record (L4 / L4.E split): `handover/alignment/DECISION_REJECTION_EVIDENCE_LEDGER_2026-04-29.md`
 - TB methodology: `handover/ai-direct/AUTO_RESEARCH_NOTEPAD.md` § "TB methodology"
 - TB log: `handover/tracer_bullets/TB_LOG.tsv` (schema upgraded 2026-04-29)
 - TB-1 re-charter: `handover/tracer_bullets/TB-1_recharter_2026-04-29.md`
