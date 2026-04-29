@@ -33,6 +33,26 @@ use log::{info, warn, error};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
+/// TB-1 Day-1 spike (2026-04-29): hex digest of an LLM prompt body.
+/// Used as `PputResult.prompt_context_hash` so Phase D CCL can join
+/// prompt-context → outcome trajectories without leaking the prompt
+/// itself. Day-1 uses `DefaultHasher` (same non-cryptographic hash
+/// already used for proof-artifact filenames at `persist_proof_artifact`)
+/// to avoid a new direct sha2 dep that would mutate the workspace
+/// `Cargo.lock` and trip the Trust Root gate (genesis_payload.toml is
+/// STEP_B-protected). Day-4 upgrades to SHA-256 in the same commit
+/// that re-hashes the Trust Root manifest with sudo authorization.
+///
+/// TRACE_MATRIX FC1-N12: oracle scope — the prompt is the pre-Lean
+/// step-1 proposal input; this hash makes it auditable from the v2 jsonl
+/// row alone.
+fn prompt_hash_hex(prompt_body: &str) -> String {
+    use std::collections::hash_map::DefaultHasher;
+    let mut h = DefaultHasher::new();
+    prompt_body.hash(&mut h);
+    format!("{:016x}", h.finish())
+}
+
 const DEFAULT_BOLTZMANN_SEED: u64 = 74677;  // same as sample seed (BTC/USD external)
 
 const DEFAULT_MINIF2F_DIR: &str = "/home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4";
@@ -183,6 +203,31 @@ struct PputResult {
     /// rows MUST honor this flag and exclude or specially treat them.
     #[serde(skip_serializing_if = "Option::is_none")]
     synthetic_short_circuit: Option<bool>,
+    /// TB-1 Day-1 spike (2026-04-29): hex digest of the agent prompt content
+    /// delivered to the LLM in this run. Populated at the prompt-build site
+    /// (run_oneshot today; run_swarm in subsequent TB-1 days). Phase D CCL
+    /// consumer joins prompt-context → outcome trajectories on this hash;
+    /// equality across runs of the same problem indicates retrieval-equivalence
+    /// (no capability compilation occurred), inequality indicates that some
+    /// step-4 component injected new context (winning tactic, peer payload,
+    /// past gp_payload). Optional for legacy compat; emit-side guarantees
+    /// presence at every prompt-build site by TB-1 Day 4.
+    ///
+    /// Day-1 hash = DefaultHasher (16-char hex, non-cryptographic) to keep
+    /// workspace `Cargo.lock` stable for the Trust Root gate. Day-4 upgrades
+    /// to SHA-256 (64-char hex) under sudo manifest re-hash.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    prompt_context_hash: Option<String>,
+    /// TB-1 Day-1 spike (2026-04-29): held-out verified PPUT — the
+    /// PREREG North Star metric (`H-VPPUT`), computed as
+    /// `pput_verified` of this run divided by the rolling mean of
+    /// `pput_verified` across N=1-3 prior runs of the same problem
+    /// (caller-supplied history). Day-1 stamps None — actual
+    /// computation lands at TB-1 Day 4 once the per-problem history
+    /// store + windowing rule are written. Optional so absence is
+    /// explicit (vs. 0.0, which carries Goodhart-shield semantics).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    h_vppu: Option<f64>,
     // Note (mid-term audit P0-B fix 2026-04-25): the prior Option versions of
     // total_run_token_count / failed_branch_count / total_wall_time_ms /
     // verified / pput_runtime / pput_verified / pput_m_verified were promoted
@@ -396,6 +441,18 @@ async fn run_oneshot(
         problem_statement
     );
 
+    // TB-1 Day-1 spike (2026-04-29): hash the assembled prompt body BEFORE the
+    // LLM call. Stamped onto every PputResult produced below so Phase D CCL
+    // can join run rows on `prompt_context_hash` without touching the prompt
+    // body. Same hash on retried oneshot of the same problem ⟹ no step-4
+    // capability compilation occurred yet (TB-1 acceptance test 5 watches
+    // this evolve once swarm is wired).
+    let prompt_hash = prompt_hash_hex(&prompt);
+    let stamp = |mut r: PputResult| -> PputResult {
+        r.prompt_context_hash = Some(prompt_hash.clone());
+        r
+    };
+
     let client = ResilientLLMClient::new(proxy_url, 1800, 2);
     // Model-aware max_tokens: deepseek-chat caps at 8192; reasoner needs 16000 for thinking.
     let max_toks = if model.contains("chat") { 8000 } else { 16000 };
@@ -427,14 +484,14 @@ async fn run_oneshot(
                 let (rt, ph) = minif2f_v4::experiment_mode::apply_mode_to_accept(
                     mode, false, false,
                 );
-                return make_pput(problem_file, "oneshot", model,
+                return stamp(make_pput(problem_file, "oneshot", model,
                                  rt, ph, start, 0, 0, 1,
                                  None, None, None, None, None,
                                  acc.total_run_token_count(),
                                  acc.failed_branch_count,
                                  wc.elapsed_ms().unwrap_or(0),
                                  false, 1, 1, verifier_wait_ms,
-                                 oneshot_regime, oneshot_budget_base, &run_id);
+                                 oneshot_regime, oneshot_budget_base, &run_id));
             }
 
             // Phase A atom A4 (FC1-N12): bracket every Lean call so verifier
@@ -484,7 +541,7 @@ async fn run_oneshot(
                     let (rt, ph) = minif2f_v4::experiment_mode::apply_mode_to_accept(
                         mode, true, true,
                     );
-                    make_pput(problem_file, "oneshot", model,
+                    stamp(make_pput(problem_file, "oneshot", model,
                               rt, ph, start, gp_tokens, 1, 1,
                               None, None, Some(response.content.clone()),
                               Some("alone".to_string()), proof_file,
@@ -492,7 +549,7 @@ async fn run_oneshot(
                               acc.failed_branch_count,
                               wc.elapsed_ms().unwrap_or(0),
                               false, 1, 1, verifier_wait_ms,
-                              oneshot_regime, oneshot_budget_base, &run_id)
+                              oneshot_regime, oneshot_budget_base, &run_id))
                 }
                 Ok(false) => {
                     // Lean rejected → Full: (false, false). SoftLaw: (true, false).
@@ -501,14 +558,14 @@ async fn run_oneshot(
                     let (rt, ph) = minif2f_v4::experiment_mode::apply_mode_to_accept(
                         mode, false, false,
                     );
-                    make_pput(problem_file, "oneshot", model,
+                    stamp(make_pput(problem_file, "oneshot", model,
                               rt, ph, start, 0, 0, 1,
                               None, None, None, None, None,
                               acc.total_run_token_count(),
                               acc.failed_branch_count,
                               wc.elapsed_ms().unwrap_or(0),
                               false, 1, 1, verifier_wait_ms,
-                              oneshot_regime, oneshot_budget_base, &run_id)
+                              oneshot_regime, oneshot_budget_base, &run_id))
                 }
                 Err(e) => {
                     warn!("Oracle error: {}", e);
@@ -518,14 +575,14 @@ async fn run_oneshot(
                     let (rt, ph) = minif2f_v4::experiment_mode::apply_mode_to_accept(
                         mode, false, false,
                     );
-                    make_pput(problem_file, "oneshot", model,
+                    stamp(make_pput(problem_file, "oneshot", model,
                               rt, ph, start, 0, 0, 1,
                               None, None, None, None, None,
                               acc.total_run_token_count(),
                               acc.failed_branch_count,
                               wc.elapsed_ms().unwrap_or(0),
                               false, 1, 1, verifier_wait_ms,
-                              oneshot_regime, oneshot_budget_base, &run_id)
+                              oneshot_regime, oneshot_budget_base, &run_id))
                 }
             }
         }
@@ -1745,6 +1802,12 @@ fn make_pput(
         // B7-extra: only the calibration-treatment short-circuit site mutates
         // this to Some(true). Default = None (most callers).
         synthetic_short_circuit: None,
+        // TB-1 Day-1: stamped post-construction at the prompt-build site
+        // (run_oneshot today). Default None lets non-prompt-stamping
+        // callers (tests, error-path returns before prompt build) round-trip.
+        prompt_context_hash: None,
+        // TB-1 Day-1: declared field; computation lands TB-1 Day 4.
+        h_vppu: None,
     }
 }
 

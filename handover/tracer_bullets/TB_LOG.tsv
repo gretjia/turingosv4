@@ -4,4 +4,4 @@
 # Coverage metric: scripts/alignment_coverage.py (5-line lenient; ~+0.9pp vs official strict-block walk)
 tb_id	status	start_date	end_date	capability_metric	alignment_pct	articles_activated	ship_commits
 TB-0	shipped	2026-04-22	2026-04-29	pput=0→0.000215 (mathd_algebra_107 via nlinarith @ HEAD a906886; first v4-native solve)	~24.6%→25.47%	Art-IV.boot Art-0.1 Art-V.1.1 Art-Laws.1+2 WP-§5.L1 WP-§5.L3 WP-§5.L4	e2752e8..f0b659f
-TB-1	active	2026-04-29	TBD	h_vppu=0→? + econ_balance_delta!=0 + L4_ledger_writes_per_tx	25.47%→?	Art-Laws.1+2 Art-I.1.1 Art-II.2 Art-III.4-partial WP-§21-partial	-
+TB-1	active	2026-04-29	TBD	h_vppu=0→? + econ_balance_delta!=0 + L4_ledger_writes_per_tx [Day1✓: prompt_context_hash field flows to v2 JSONL via run_oneshot/mathd_algebra_107]	25.47%→?	Art-Laws.1+2 Art-I.1.1 Art-II.2 Art-III.4-partial WP-§21-partial	(Day1: pending)

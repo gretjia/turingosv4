@@ -4,7 +4,7 @@
 
 **Hook**: `MEMORY.md` → `project_auto_research_notepad.md` points here. Loaded every session.
 
-**Last updated**: 2026-04-29 session-3 (Karpathy-loop methodology install; TB-1 active)
+**Last updated**: 2026-04-29 session-3 (Karpathy-loop methodology install; TB-1 Day-1 spike shipped)
 
 ## TB methodology (Karpathy-minimal install 2026-04-29 session-3)
 
@@ -13,6 +13,14 @@
 - **Selection rule**: next TB picks highest-priority gap from {capability stub in 5-step loop, uncovered Article, uncovered WP §, layer hole}; user confirms before start
 - **Failure**: acceptance tests not all pass at timebox → revert or `handover/alignment/OBS_TB-N_FAILED.md`; charter must change before retry (no same-charter retry)
 - **Coverage metric** (alignment side-effect, NOT per-TB target): `python3 scripts/alignment_coverage.py` — install-time baseline 25.47% (94/369). 100% goal = every constitution Art + WP § + L1-L7 layer demonstrated by some TB end-to-end + every src/ pub symbol either backlinked or in `tests/orphan_registry.md` with justification.
+
+### TB-1 Day-1 spike (2026-04-29) — log
+
+- `prompt_context_hash` (Option<String>) + `h_vppu` (Option<f64>) added to `PputResult` (skip-if-none diagnostic).
+- run_oneshot prompt-build site stamps `prompt_context_hash` via `DefaultHasher`-hex (16-char). SHA-256 upgrade deferred to Day-4 to avoid Cargo.lock churn during a TB-1 scope edit (constitution.md hash inside genesis_payload.toml is sudo-protected; cleanest to re-hash both fields together at Day-4).
+- Trust Root manifest evaluator.rs entry rehashed (R-014 protocol; non-sudo per R-018). Boot tests 5/5 green; v2-dispatch tests 4/4 green.
+- 1-problem evaluator pass on `mathd_algebra_107` × oneshot × deepseek-chat: JSONL row contains `"prompt_context_hash":"a1f43584a17d1226"` ⟹ step-4 plumbing exists end-to-end. `solved=false` is the documented HEAD oneshot regression (handover/evidence/first_v4_solve_2026-04-29), unrelated to spike. n3 baseline solve at `f0b659f` (`pput_runtime=0.000215`) untouched.
+- Evidence: `handover/tracer_bullets/TB-1_day1_spike_2026-04-29.md` + `handover/tracer_bullets/TB-1_day1_oneshot.jsonl`.
 
 PPUT-CCL Phase A-E roadmap below remains as long-term **north star**; TB sequence is the **operational mechanism** to reach it.
 
