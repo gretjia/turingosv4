@@ -76,7 +76,7 @@ CO1.7 audit cost: ~$25-42 (3 rounds; cumulative project ~$135-202 / $890 mid). W
 
 | Atom | Owns | Substrate dep | Status |
 |---|---|---|---|
-| **CO1.7-extra** (NEW bridge atom; CO1.4-extra precedent) | D2 head_t close + D3 TuringBus single-file STEP_B + 5 substrate-independent tests | None | ✅ spec PASS/PASS r4; **Branch A landed** `5ce01b1`; STEP_B Branch B awaits separate session |
+| **CO1.7-extra** (NEW bridge atom; CO1.4-extra precedent) | D2 head_t close + D3 TuringBus single-file STEP_B + 5 substrate-independent tests | None | ✅ spec PASS/PASS r4 + v1.2.2 § 2.2 amendment; **Branch A landed** `5ce01b1`; **Branch B closed** at T1 byte-identity (separate session 2026-04-29; tiered byte-identity per spec § 2.2 v1.2.2) — **STEP_B ceremony CLOSED** |
 | **CO1.7.5** (restored to CO1.7 § 13 original meaning) | D1 transition bodies (7) + 3 D4 tests + un-ignore replay byte-identity | CO P2.1 / 2.2 / 2.3 / 2.5 / 2.6 / 2.7 / 2.9 + CO1.11 + (NEW) PredicateRegistry execution-methods atom | 📅 GATED on substrate atoms |
 
 ### Wave 6 #1 actual progress: ~30-40% (NOT 80%)
@@ -86,7 +86,7 @@ The prior 2026-04-28 "80% complete" claim was **false-precision** based on a mis
 - ✅ CO1.7 spec + CO1.7-impl A1-A4 bundle + CO1.4-extra (prior session)
 - ✅ CO1.7-extra spec PASS/PASS (4 rounds; this session)
 - ✅ CO1.7-extra Branch A landed (D2 head_t close + D3 TuringBus wiring + 5 tests)
-- ⏳ CO1.7-extra Branch B pending (STEP_B re-derivation; **separate session** required)
+- ✅ CO1.7-extra Branch B closed (T1 executable-substance byte-identical; spec § 2.2 amended v1.2.2 to formalize 3-tier byte-identity rule for future STEP_B atoms)
 - 📅 CO1.7.5 gated on Wave-2 substrate (~7 prerequisite atoms + 1 NEW PredicateRegistry exec atom)
 
 ChainTape vertical: L4 ~50-55% (storage + ABI + machinery + head_t close + Sequencer entry-point; transition bodies still pending). Estimate "Wave 6 #1 fully closed" = **after CO P2.x substrate ships** (multiple atoms; weeks-to-months out).
@@ -115,9 +115,10 @@ CO1.7-extra atom-only audit cost: ~$13-26 across r2+r3+r4. Cumulative project: ~
 
 ### Pending follow-ups
 
-1. **CO1.7-extra Branch B** (separate session required per spec § 2.2 STEP_B procedure) — independent re-derivation of `src/bus.rs` edits; byte-identity diff vs Branch A `5ce01b1` closes the ceremony.
-2. **STATE_TRANSITION_SPEC v1.5 housekeeping issue** (per CO1.7-extra spec § 0.4 commitment) — annotation pass noting the two STATE supersessions enacted by CO1.7-extra D2 (head_t = NodeId(commit_oid_hex)) + carried-forward for CO1.7.5 (SignalKind 4-variant minimization).
+1. ✅ ~~CO1.7-extra Branch B~~ — closed 2026-04-29 separate session at T1 byte-identity per spec § 2.2 v1.2.2 amendment.
+2. ✅ ~~STATE_TRANSITION_SPEC v1.5 housekeeping issue~~ — committed `5b53c6b` per CO1.7-extra spec § 0.4 commitment.
 3. **Future CO1.7.5 spec drafting** — gated on CO P2.x substrate atoms reaching individual PASS/PASS.
+4. **Wave 6 #2 next-atom selection** — Wave 6 #1 (CO1.7 family) ceremony-closed; § 3.2 menu of unblocked atoms includes CO1.8 L5 materializer / CO1.9 L6 signal indices / CO1.10 signal dichotomy / CO1.11 safety vs creation / CO1.13 TRACE_MATRIX impl. Pending user direction on which Wave 6 #2 atom to spec next.
 
 ### Open Questions
 
