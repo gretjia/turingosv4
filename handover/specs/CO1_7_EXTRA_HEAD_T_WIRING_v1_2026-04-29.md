@@ -1,6 +1,6 @@
-# CO1.7-extra: L4 head_t close + Sequencer entry-point wiring v1.1 (post round-2 audit patches)
+# CO1.7-extra: L4 head_t close + Sequencer entry-point wiring v1.2 (post round-3 audit patches)
 
-**Status**: v1.1 DRAFT (2026-04-29; post round-2 dual external audit on v1 at HEAD `617f01e`). Round-2 returned CHALLENGE/CHALLENGE; v1.1 applies 10 patches (MF1-MF10 per `CO1_7_EXTRA_DUAL_AUDIT_VERDICT_R2_2026-04-29.md`). Awaiting round-3 dual external audit.
+**Status**: v1.2 DRAFT (2026-04-29; post round-3 dual external audit on v1.1 at HEAD `a3952cf`). Round-3 returned CHALLENGE/PASS (Codex/Gemini); conservative-merged CHALLENGE. v1.2 applies 4 mechanical patches (B1-B4 per `CO1_7_EXTRA_DUAL_AUDIT_VERDICT_R3_2026-04-29.md`). Awaiting round-4 dual external audit.
 **Author**: ArchitectAI (Claude); session 2026-04-29.
 **Supersedes**: prior bundled `CO1_7_5_TRANSITION_BODIES_AND_RUNTIME_WIRING_v1_2026-04-29.md` (committed `334111a`; round-1 CHALLENGE/CHALLENGE; preserved in git history).
 **Pre-implementation gate**: PASS/PASS dual external audit before any code lands. Per CLAUDE.md "Audit Standard".
@@ -11,7 +11,7 @@
 - `STATE_TRANSITION_SPEC_v1_2026-04-27.md` v1.4 — referenced for K3 v1.2 supersession authority only; transition bodies are out of scope for this atom.
 - `handover/audits/CO1_7_5_DUAL_AUDIT_VERDICT_R1_2026-04-29.md` — round-1 merged verdict that drove this scope split.
 
-**Single sentence**: close the G-1 carry-forward `q.head_t = NodeId(commit_oid_hex)` after `Git2LedgerWriter.commit`, perform combined STEP_B ceremony adding a Sequencer entry-point on TuringBus + Kernel, and ship one substrate-independent CAS round-trip test — leaving transition function bodies + replay byte-identity to a future CO1.7.5 atom that depends on the Wave-2 substrate (CO P2.x family).
+**Single sentence**: close the G-1 carry-forward `q.head_t = NodeId(commit_oid_hex)` after `Git2LedgerWriter.commit`, perform a single-file STEP_B ceremony adding a Sequencer entry-point on TuringBus (Kernel UNTOUCHED), and ship substrate-independent tests — leaving transition function bodies + replay byte-identity to a future CO1.7.5 atom that depends on the Wave-2 substrate (CO P2.x family).
 
 ---
 
@@ -75,7 +75,13 @@ The D2 logic is extracted into a small helper `advance_head_t(q, writer)` callab
 /// Called from apply_one stage 9 AFTER writer.commit succeeds. Pure function
 /// (writer is &dyn so behavior depends only on writer's head_commit_oid_hex
 /// return + q's prior state).
-pub(crate) fn advance_head_t(q: &mut QState, writer: &dyn LedgerWriter) {
+///
+/// TRACE_MATRIX § 5 — L4 sequencer post-commit head_t wiring (Art 0.4).
+///
+/// **Visibility** (round-3 B2): `pub` (NOT `pub(crate)`) so that flat
+/// integration tests under `tests/co1_7_extra_*.rs` can call this helper
+/// directly; needed for round-2 MF2 closure.
+pub fn advance_head_t(q: &mut QState, writer: &dyn LedgerWriter) {
     if let Some(commit_oid_hex) = writer.head_commit_oid_hex() {
         q.head_t = crate::state::q_state::NodeId(commit_oid_hex);
     }
@@ -91,7 +97,9 @@ self.next_logical_t.store(logical_t, Ordering::SeqCst);
 *q_w = q_next;
 q_w.ledger_root_t = entry.resulting_ledger_root;
 // NEW (CO1.7-extra D2): close G-1 head_t carry-forward.
-advance_head_t(&mut *q_w, &**writer_w);
+// (round-3 B1 fix: single deref of RwLockWriteGuard<dyn LedgerWriter> →
+// &dyn LedgerWriter; double deref does not work on dyn.)
+advance_head_t(&mut *q_w, &*writer_w);
 ```
 
 **Stale comments must be updated** (round-2 MF8 — Codex Q-8 finding): `src/state/sequencer.rs:180-184` + `:359-361` currently say "head_t mutation deferred to CO1.7.5+". CO1.7-extra implementation MUST update these comments to reflect "head_t closed by CO1.7-extra D2 via `advance_head_t` helper". Added to § 9 atom landing checklist.
@@ -166,7 +174,12 @@ pub struct TuringBus {
     /// ledger-only mode (preserves back-compat with all existing tests).
     /// Marked serde-skip if TuringBus has serde derives (Sequencer holds
     /// Arc-locked runtime state that isn't serializable Q_t data).
-    #[serde(skip)]  // applied if TuringBus has Serialize/Deserialize
+    // `#[serde(skip)]` applied IFF TuringBus has Serialize/Deserialize
+    // derives at implementation time. Current `pub struct TuringBus` at
+    // src/bus.rs:53 has NO serde derives, so the attribute is omitted at
+    // first landing. If a future atom adds serde derives to TuringBus, the
+    // skip attribute MUST be added in the same patch (the Sequencer's
+    // Arc-locked runtime state is not serializable Q_t data).
     pub sequencer: Option<Arc<Sequencer>>,
 }
 
@@ -392,7 +405,7 @@ CO1.7-extra v1.1 has zero open questions — round-3 audit verifies patch correc
 | 2 (on this spec) | ⏳ pending | ⏳ pending | TBD | re-audit on CO1.7-extra v1; 1 round expected (small, focused atom) |
 | 3+ if needed | … | … | … | iterate to PASS/PASS |
 
-**Pre-implementation gate**: spec must reach PASS/PASS before any code in `src/state/sequencer.rs` D2 lines, `src/bus.rs` forwarder, `src/kernel.rs` field, or `src/bottom_white/ledger/transition_ledger.rs` trait method is written. Per CLAUDE.md "Audit Standard".
+**Pre-implementation gate**: spec must reach PASS/PASS before any code in `src/state/sequencer.rs` (D2 helper + apply_one stage 9 patch), `src/bus.rs` (TuringBus field + constructor + forwarder; single-file STEP_B), or `src/bottom_white/ledger/transition_ledger.rs` (trait method + 2 impl declarations) is written. **Kernel UNTOUCHED**. Per CLAUDE.md "Audit Standard".
 
 ---
 
@@ -465,7 +478,13 @@ Per memory `feedback_smoke_before_batch`. Smoke run before round-3 audit launch,
 | S10 | private module-test helper exists | `fn entry_at` at transition_ledger.rs:813 inside `mod tests`; no `pub` qualifier (Codex r2 misidentified name as `canonical_test_entry` but substantive finding holds) | ✅ PASS (with helper-name correction) |
 | S11 | cargo baseline | check pass; `239 passed; 0 failed; 1 ignored` (the ignored test is `sequencer_serial_replay_byte_identity`, deferred to future CO1.7.5 atom) | ✅ PASS |
 
-**Smoke gate**: 11 / 11 PASS at HEAD `25564d7`. Spec v1.1 ready for round-3 dual external audit.
+**Smoke gate v1.1**: 11 / 11 PASS at HEAD `25564d7`. Spec v1.1 sent to round-3 dual external audit.
+
+### Round-4 smoke (v1.2 HEAD; populated at audit launch)
+
+| # | Status |
+|---|---|
+| S1-S11 | ⏳ pending (will re-run at v1.2 commit HEAD; expected unchanged from v1.1 since source code did not change between v1.1 and v1.2 — only spec text patches) |
 
 ### Patch log
 
@@ -483,12 +502,21 @@ Per memory `feedback_smoke_before_batch`. Smoke run before round-3 audit launch,
 - **MF7** `entry_at` private → tests construct LedgerEntry inline (§ 3.2)
 - **MF8** stale Sequencer comments (sequencer.rs:178-184 + :357-361) added to atom landing checklist (§ 1.1 + § 8 ack #8)
 - **MF9** atomicity wording: "post-commit non-failing best-effort head binding (Some path)" + "explicit no-op preservation (None path)" (§ 1.1)
-- **MF10** LoC estimate: 150-230 → 200-280 (manual Debug + helper extraction + 3rd test + harness adjustments) (§ 7)
+- **MF10** LoC estimate: 150-230 → 210-300 (manual Debug + helper extraction + 3rd test + harness adjustments) (§ 7)
+
+**v1.2 (round-3 driven; this revision)** — 4 mechanical patches per `CO1_7_EXTRA_DUAL_AUDIT_VERDICT_R3_2026-04-29.md`:
+
+- **B1** (Codex Q2): § 1.1 stage-9 snippet `&**writer_w` → `&*writer_w` (single deref of `RwLockWriteGuard<dyn LedgerWriter>` → `&dyn LedgerWriter`; double deref does not work on `dyn`).
+- **B2** (Codex Q2): § 1.1 helper `pub(crate) fn advance_head_t` → `pub fn advance_head_t` (so flat integration tests under `tests/co1_7_extra_*.rs` per MF5 can call it). Added FC-trace doc-comment.
+- **B3** (Codex Q4): removed stale Kernel references at preface line 14 (single-sentence summary now reads "single-file STEP_B ceremony adding a Sequencer entry-point on TuringBus (Kernel UNTOUCHED)") + § 6 pre-implementation gate (removed `src/kernel.rs` from gate file list; explicitly noted "Kernel UNTOUCHED").
+- **B4** (Codex Q5+Q6, non-blocking): § 2.1 `#[serde(skip)]` made conditional with explicit comment ("applied IFF TuringBus has serde derives at implementation time"); § 7 vs patch log LoC sync (patch log "200-280" → "210-300" matches § 7).
+
+**Round-3 Codex/Gemini disagreement summary**: Gemini PASS ("model of post-audit closure"; v1.1 architecturally sound). Codex CHALLENGE (3 concrete patch blockers + 1 non-blocking, all mechanical fixes). Conservative-merged CHALLENGE (per memory `feedback_dual_audit_conflict`); v1.2 patches B1-B4 mechanically; round-4 expected PASS/PASS.
 
 ### Awaiting
 
-1. round-3 dual external audit on CO1.7-extra v1.1
-2. expected PASS/PASS (small atom, all r2 issues addressed systematically)
+1. round-4 dual external audit on CO1.7-extra v1.2
+2. expected PASS/PASS (only mechanical fixes need verification; no architectural surface change since v1.1)
 3. then CO1.7-extra-impl (D2 helper extraction + apply_one patch + trait method + TuringBus single-file STEP_B + 3 tests + stale-comment update)
 4. file STATE_TRANSITION_SPEC v1.5 housekeeping issue per § 0.4 commitment
 5. spec future CO1.7.5 (transition bodies; gated on CO P2.x substrate atoms)
