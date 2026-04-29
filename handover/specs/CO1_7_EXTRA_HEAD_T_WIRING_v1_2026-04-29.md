@@ -1,6 +1,6 @@
-# CO1.7-extra: L4 head_t close + Sequencer entry-point wiring v1.2 (post round-3 audit patches)
+# CO1.7-extra: L4 head_t close + Sequencer entry-point wiring v1.2.1 ✅ PASS/PASS
 
-**Status**: v1.2 DRAFT (2026-04-29; post round-3 dual external audit on v1.1 at HEAD `a3952cf`). Round-3 returned CHALLENGE/PASS (Codex/Gemini); conservative-merged CHALLENGE. v1.2 applies 4 mechanical patches (B1-B4 per `CO1_7_EXTRA_DUAL_AUDIT_VERDICT_R3_2026-04-29.md`). Awaiting round-4 dual external audit.
+**Status**: v1.2.1 (2026-04-29; **PASS/PASS** at round-4 — pre-implementation gate cleared per CLAUDE.md "Audit Standard"). Codex r4 PASS/High + Gemini r4 PASS/High. Verdict: `CO1_7_EXTRA_DUAL_AUDIT_VERDICT_R4_2026-04-29.md`. v1.2.1 applies 2 non-blocking editorial nits (N1+N2; not gating implementation per Codex r4 explicit framing).
 **Author**: ArchitectAI (Claude); session 2026-04-29.
 **Supersedes**: prior bundled `CO1_7_5_TRANSITION_BODIES_AND_RUNTIME_WIRING_v1_2026-04-29.md` (committed `334111a`; round-1 CHALLENGE/CHALLENGE; preserved in git history).
 **Pre-implementation gate**: PASS/PASS dual external audit before any code lands. Per CLAUDE.md "Audit Standard".
@@ -63,10 +63,10 @@ Two STATE_TRANSITION_SPEC § 3 supersessions previously declared in the prior bu
 
 ### 1.1 Code change
 
-The D2 logic is extracted into a small helper `advance_head_t(q, writer)` callable from `apply_one` stage 9 AND directly testable by the new `tests/co1_7_extra_head_t_advancement.rs` integration test (round-2 MF2 closure). Helper extraction adds zero behavior change — `apply_one` still executes identical logic.
+The D2 logic is extracted into a small helper `advance_head_t(q, writer)` callable from `apply_one` stage 9 AND directly testable by the new `tests/co1_7_extra_sequencer_head_t_advancement.rs` integration test (round-2 MF2 closure). Helper extraction adds zero behavior change — `apply_one` still executes identical logic.
 
 ```rust
-// src/state/sequencer.rs (NEW pub(crate) helper)
+// src/state/sequencer.rs (NEW pub helper; v1.2 widened from pub(crate) per round-3 B2)
 /// Closes G-1 head_t carry-forward (Art 0.4 alignment per CO1.7 K3 v1.2).
 /// Best-effort head binding: when writer surfaces a commit OID (Git2LedgerWriter
 /// always; future writers may), advance head_t. When writer returns None
@@ -480,11 +480,15 @@ Per memory `feedback_smoke_before_batch`. Smoke run before round-3 audit launch,
 
 **Smoke gate v1.1**: 11 / 11 PASS at HEAD `25564d7`. Spec v1.1 sent to round-3 dual external audit.
 
-### Round-4 smoke (v1.2 HEAD; populated at audit launch)
+### Round-4 smoke (HEAD `13bfb7e`; v1.2)
 
-| # | Status |
-|---|---|
-| S1-S11 | ⏳ pending (will re-run at v1.2 commit HEAD; expected unchanged from v1.1 since source code did not change between v1.1 and v1.2 — only spec text patches) |
+Source code unchanged from v1.1 (only spec text patches B1-B4); smoke 11/11 PASS state inherited verbatim from v1.1 round-3 footer above. Round-4 audits both verified at HEAD `13bfb7e` and converged PASS/PASS.
+
+### v1.2.1 (this revision)
+
+2 editorial nits applied (Codex r4 Q5 — non-blocking, not requiring re-audit per Codex's explicit framing):
+- **N1**: spec line 69 `NEW pub(crate) helper` → `NEW pub helper; v1.2 widened from pub(crate) per round-3 B2`
+- **N2**: spec line 66 `tests/co1_7_extra_head_t_advancement.rs` → `tests/co1_7_extra_sequencer_head_t_advancement.rs` (matches § 3.3 file name)
 
 ### Patch log
 
@@ -513,10 +517,10 @@ Per memory `feedback_smoke_before_batch`. Smoke run before round-3 audit launch,
 
 **Round-3 Codex/Gemini disagreement summary**: Gemini PASS ("model of post-audit closure"; v1.1 architecturally sound). Codex CHALLENGE (3 concrete patch blockers + 1 non-blocking, all mechanical fixes). Conservative-merged CHALLENGE (per memory `feedback_dual_audit_conflict`); v1.2 patches B1-B4 mechanically; round-4 expected PASS/PASS.
 
-### Awaiting
+### Awaiting (post PASS/PASS)
 
-1. round-4 dual external audit on CO1.7-extra v1.2
-2. expected PASS/PASS (only mechanical fixes need verification; no architectural surface change since v1.1)
-3. then CO1.7-extra-impl (D2 helper extraction + apply_one patch + trait method + TuringBus single-file STEP_B + 3 tests + stale-comment update)
-4. file STATE_TRANSITION_SPEC v1.5 housekeeping issue per § 0.4 commitment
-5. spec future CO1.7.5 (transition bodies; gated on CO P2.x substrate atoms)
+1. ✅ ~~round-4 dual external audit~~ — PASS/PASS achieved (`CO1_7_EXTRA_DUAL_AUDIT_VERDICT_R4_2026-04-29.md`)
+2. **CO1.7-extra-impl** (next step): D2 advance_head_t helper extraction + apply_one stage 9 patch + required trait method + 2 impl declarations + TuringBus single-file STEP_B (A/B branches) + 3 substrate-independent tests + stale-comment update at sequencer.rs:178-184/:357-361. ~210-300 LoC; 1-2 days.
+3. file STATE_TRANSITION_SPEC v1.5 housekeeping issue per § 0.4 commitment (post-impl-merge cleanup)
+4. spec future CO1.7.5 (transition bodies; gated on CO P2.x substrate atoms — Wave 2 work)
+5. LATEST.md correction reflecting Wave 6 #1 ~30-40% true progress (per r1 + r2 + r3 + r4 verdicts converging on this diagnosis)
