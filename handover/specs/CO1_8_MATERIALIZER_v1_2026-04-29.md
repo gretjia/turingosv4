@@ -1,6 +1,8 @@
-# CO1.8: L5 Materialized State + Agent Read View v1 ⏳ pre-audit (round-1 pending)
+# CO1.8: L5 Materialized State + Agent Read View v1 🛑 DEFERRED (post-r1 audit; capability-first pivot)
 
-**Status**: v1 (2026-04-29; **PENDING round-1 dual external audit** per CLAUDE.md "Audit Standard"). Greenfield atom — `src/bottom_white/materializer/` does not yet exist (verified). Wave 6 #2 per LATEST.md. Determinate next atom post-CO1.7-extra closure (4a978f0).
+**Status**: v1 **DEFERRED** 2026-04-29 (session-3). r1 dual external audit returned **Codex VETO/HIGH + Gemini CHALLENGE/HIGH** (conservative merge per `feedback_dual_audit_conflict` = VETO). Two real architectural P0s found (sprint-graph overclaim + apply() interface contradiction) + one Goodhart-shield P0. Per **2026-04-29 capability-first pivot** (LATEST.md session-3): **NO r2/r3 patch cycle**; spec deferred as-is, finding archived to `handover/alignment/OBS_CO1_8_V1_DEFERRED_2026-04-29.md`. Re-spec when CO1.7.5 transition bodies ship (precondition for valid apply() signature). Original v1 text preserved below as evidence of r1 finding.
+
+**Author**: ArchitectAI (Claude); session 2026-04-29.
 
 **Author**: ArchitectAI (Claude); session 2026-04-29.
 

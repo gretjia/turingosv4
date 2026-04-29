@@ -69,6 +69,105 @@ CO1.7 audit cost: ~$25-42 (3 rounds; cumulative project ~$135-202 / $890 mid). W
 
 ---
 
+## 🚨 2026-04-29 Session-3 — CAPABILITY-FIRST PIVOT (spec-craft halt; 1-week first-solve deadline)
+
+**Status**: User raised "no confidence in dev capability" challenge after 7-day atom-spec wave. Web research + internal eval confirmed the project drifted into spec-craft anti-pattern (premature infrastructure). Session-3 is the pivot. **CO1.8 v1 deferred (NOT patched)** after r1 found real architectural P0s. Capability-first work begins now.
+
+### 🚀 Next-session entry point
+
+**B: run v4 evaluator on `mathd_algebra_107` (HEAD) by 2026-05-06.**
+- Mathlib rebuild is the gating constraint (~99% complete @ 7750/7843 packages; ~20 min remaining at 11:55 launch time)
+- After Mathlib clean: `cd experiments/minif2f_v4 && cargo build --release && bash run_list.sh oneshot <list-with-mathd_algebra_107> first_v4_solve`
+- Success = `proofs/mathd_algebra_107_<ts>_<sha>.lean` written + OMEGA accept + PputResult emit. First v4-HEAD-produced solve.
+- Failure = specific wiring/regression diagnostic; debug to root cause within 24h iteration cap
+
+**Do NOT** start any new spec-atom work until B produces a signal.
+
+### Hard data that triggered the pivot (2026-04-22 → 2026-04-29, 7 days post-TRACE_MATRIX_v0 baseline)
+
+| Metric | Value | Signal |
+|---|---:|---|
+| Total commits | 203 | |
+| spec/audit | **95 (47%)** | |
+| impl/test | 24 (12%) | |
+| eval/experiment | **13 (6%)** | |
+| Audit reports total LoC | **367,555** | single audit MD ~150KB |
+| Production LoC (`src/*.rs`) | 11,701 | |
+| **Audit:Production ratio** | **31.4 : 1** | smoking gun |
+| v4-native new solves since 2026-04-22 | **0** | proofs/ are inherited pre-v4 (untracked) |
+| Last batch experiment artifact | 2026-04-24 E1v2 | used pre-v4 evaluator (build SHA `29ab43a`) |
+| 5-step compile loop wired | 3/5 | steps 4+5 (Capability Compilation, ↑H-VPPUT) deferred to v4.1 |
+| H-VPPUT empirical measurements | **0** | formula defined, never measured |
+
+### Web research evidence (full sources in session-3 transcript)
+
+- DeepSeek-Prover-V2 (88.9% MiniF2F SOTA): **2 public commits**, prototype-first
+- Goedel-Prover: 24 commits / 64 days; Kimina-Prover: 12 / 87 days. **Zero** peer LLM-prover team uses atom-spec + per-atom dual-LLM-audit
+- Porter & Votta (TSE 1997) + Jureczko 2020: **2 reviewers is empirical optimum**; rounds-per-change beyond 2 mostly surface paper tigers
+- TDD/spec-first **explicitly discouraged** for exploratory ML/research code (Manning ML Eng, CMU MLIP)
+- Atomic-decomp + dual-audit DOES work in DO-178C avionics + seL4 microkernel — **decade timelines, life-stakes**. Not solo LLM research
+
+### Pivot decisions (executed this session)
+
+**A. Stopped spec-craft loop**
+- **CO1.8 v1 DEFERRED**, not patched. r1 verdict: **Codex VETO/HIGH + Gemini CHALLENGE/HIGH** (conservative merge = VETO). Real architectural P0s found:
+  - Codex P0 #1: sprint graph overclaim — `[CO1.7.5] blocks: CO1.8` per SPRINT line 106-108; CO1.8 not unblocked by CO1.7-extra alone
+  - Codex P0 #2: `apply(prior_root: &Hash, tx: &TypedTx) -> Result<Hash, _>` interface contradiction — VerifyTx has only target+verifier, can't increment reputation without prior Work/Claim state. "Pure function with implicit BTreeMap I/O" is internally inconsistent
+  - Gemini P0: `project_for_agent` no-op stub violates Inv 10 (Goodhart shield) by default-allow
+- All findings archived to `handover/alignment/OBS_CO1_8_V1_DEFERRED_2026-04-29.md`. CO1.8 spec header updated with 🛑 DEFERRED status. **NO r2 audit run.** Original v1 text preserved as evidence.
+- **CO1.13-extra (250 backlinks; ~10-15 hr) downgraded** from "MUST before Phase D" to "v4.1 gate" — Phase D is itself v4.1 scope per PROJECT_DECISION_MAP D4
+- 1.7-impl + future spec atoms switch from per-atom dual-audit-with-rounds → **single audit round, accept-or-defer-with-OBS**, no r2/r3
+
+**C. New iteration-cap policy** (memory entry `feedback_iteration_cap_24h.md`)
+- Every PR must produce evaluator pass/fail signal (smoke or single-problem real run) within 24h
+- Spec/audit/scaffold work that doesn't shortest-path to runnable feedback loop = **default-reject** unless explicit user authorization
+- Replaces atom-only Elon-mode round-cap framing for non-spec work
+- Dual-audit + phased-checkpoint + smoke-before-batch memories still apply, but NOT as default for every change — only when capability loop is actively producing solves
+- Red flags: 3+ days without evaluator signal, 2+ days without test, "round 3+" being proposed, audit:prod LoC ratio growing weekly
+
+**B. Capability-first execution begins**
+- Target: `mathd_algebra_107` (adaptation split; pre-solved 8+ times in inherited `proofs/`; medium difficulty; regression-test-as-first-solve)
+- Constraint: Mathlib rebuild must clean first (currently 99%, ~20 min)
+- Mode: `--mode full` (baseline, no ablation), `CONDITION=oneshot`, `ACTIVE_MODEL=deepseek-chat`
+- Wall-clock budget: 24h iteration cap; if not solved in 24h, debug to specific blocker, raise to user
+- Deadline: **2026-05-06** for either first-solve confirmation OR documented infrastructure gap
+
+**D. Audit sunk-cost recovery (CO1.8 r1)**
+- Codex r1 (174s, $5-10): VETO/HIGH, 2 P0s — both real architectural defects
+- Gemini r1 (40s, $3-5): CHALLENGE/HIGH, 1 P0 — Goodhart shield (real)
+- **0 paper tigers in r1** — audit was efficient, $10-15 well-spent
+- Pivot lesson: r1 earned its keep; r2/r3 would have entered diminishing returns. The system's working at 1 round; we just stop overspending
+
+### Updated constraint hierarchy (effective session-3)
+
+1. **Constitution** (constitution.md)
+2. **Whitepaper v2** (load-bearing for ChainTape + economic mechanism)
+3. **24h iteration cap** (NEW; replaces atom-only Elon-mode framing)
+4. **Standing memories** — but with `dual_audit` + `phased_checkpoint` re-scoped to "active capability loop" only, not "every spec change"
+
+### Outstanding follow-ups (post-pivot priority order)
+
+1. **B: mathd_algebra_107 first solve attempt** (in flight; gated on Mathlib)
+2. **CO1.7-impl A5+ continuation** (real implementation work; not new spec)
+3. **CO1.7.5 spec draft** (when started: single-round audit, accept-or-defer-with-OBS)
+4. **CO1.8 v2 spec** (deferred until CO1.7.5 lands; per OBS doc)
+5. **AUTO_RESEARCH_NOTEPAD.md cleanup** (TFR stale ref; bloat ≤ 200 lines target)
+6. **LATEST.md compression** (target ≤ 100 lines; after pivot stabilizes)
+
+### Session-3 commits (chronological)
+
+| # | Commit | Action |
+|---|---|---|
+| pending | (this commit) | Session-3 pivot codification: OBS_CO1_8_V1_DEFERRED + CO1.8 spec status update + iteration_cap memory + LATEST.md session-3 entry |
+
+### CO1.8 r1 audit residue
+
+- `handover/audits/CODEX_CO1_8_ROUND1_AUDIT_2026-04-29.md` (362KB; VETO/HIGH; 2 P0s)
+- `handover/audits/GEMINI_CO1_8_ROUND1_AUDIT_2026-04-29.md` (5.8KB; CHALLENGE/HIGH; 1 P0; gemini-3.1-pro-preview after stale-model fix to launcher)
+- `handover/audits/run_gemini_co1_8_round1_audit.py`: model id patched from `gemini-2.0-flash-thinking-exp-01-21` → `gemini-3.1-pro-preview` (drift fix; same as CO1.13 r1/r2 working launchers)
+
+---
+
 ## 🎯 2026-04-29 Session-2 CLOSURE — CO1.13 atom bundle COMPLETE ✅
 
 **Status**: CO1.13.1 + CO1.13.2 + CO1.13.3 all shipped + drift review = NO MATERIAL DRIFT. Wave 6 #2 PRE-CO1.8 alignment factory now LIVE.

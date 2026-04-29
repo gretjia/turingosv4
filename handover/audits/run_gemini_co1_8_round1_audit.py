@@ -134,8 +134,9 @@ attachments.append(f"\n\n---\n\n## XREF: STATE_TRANSITION_SPEC v1.4 — 7 materi
 full_prompt = PROMPT + "".join(attachments)
 print(f"[gemini co1.8 r1] prompt size: {len(full_prompt)} chars", file=sys.stderr)
 
-# POST to Gemini
-url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-thinking-exp-01-21:generateContent?key={key}"
+# POST to Gemini (gemini-3.1-pro-preview = current strongest available 2026-04-29;
+# 2026-04-29 fix: stale gemini-2.0-flash-thinking-exp-01-21 returned NOT_FOUND)
+url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-pro-preview:generateContent?key={key}"
 body = json.dumps({
     "contents": [{"parts": [{"text": full_prompt}]}],
     "generationConfig": {
