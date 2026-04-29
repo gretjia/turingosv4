@@ -173,7 +173,7 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 "handover/audits/run_gemini_phase_a8_exit_audit.py" = "33abd4c0679856719ac38ecd00dc7763b85d30f8c90e83db366c1acdc907a473"
 "handover/preregistration/PPUT_CCL_HARD10_2026-04-26.json" = "0a906708941835bb56c0af7c6c8fdabf6747911f97d5108ff7a4d76abfadba01"
 "handover/preregistration/scripts/draw_hard10_pput_ccl.py" = "dd19b1396d2f235ddd412db58802412356b9e100b1d6fcba701833327eaf33d6"
-"handover/preregistration/scripts/run_c2_phase_c_ablation.sh" = "ca1f11dc4572eb152f7197dcd0587006508e9dd3506b18f5739c16345b12096c"
+"handover/preregistration/scripts/run_c2_phase_c_ablation.sh" = "1c4a847e7ca2d9156ecb64604aec9953cf6c73369fcec7e316c07ac8a8ee4a61"  # rehashed by CO1.13.2/3 drift review (2026-04-29): added --half mode (3 problems × 5 modes × 1 seed × MAX_TX=20) for half-real regression between --smoke and --full; FC3-N34 readonly verification
 "handover/preregistration/scripts/analyze_c3_h1_h4.py" = "04658a4c1f28308580cdcb900db1b7501d003b1f305d2599ea09cbf653bd084b"
 
 # 2026-04-26 night-shift CO P0 manifest expansion (43 -> 49 entries; +6).

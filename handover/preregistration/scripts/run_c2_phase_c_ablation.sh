@@ -68,17 +68,28 @@ HARD10_JSON="$PROJECT_ROOT/handover/preregistration/PPUT_CCL_HARD10_2026-04-26.j
 
 MODE_ARG="${1:-}"
 SMOKE=0
+HALF=0
 FULL=0
 case "$MODE_ARG" in
     --smoke)  SMOKE=1 ;;
+    --half)   HALF=1 ;;
     --full)   FULL=1 ;;
     "")
         cat <<'USAGE'
-Usage: bash handover/preregistration/scripts/run_c2_phase_c_ablation.sh [--smoke|--full]
+Usage: bash handover/preregistration/scripts/run_c2_phase_c_ablation.sh [--smoke|--half|--full]
 
   --smoke   n3 × 1 problem × 5 modes × 1 seed × MAX_TRANSACTIONS=2
             (~90s wall-clock at thinking-off; ~$0.05 API cost)
-            Verifies all 5 modes complete a swarm run end-to-end.
+            Pipeline-liveness check: verifies all 5 modes complete a swarm
+            run end-to-end. Catches harness breakage; does NOT measure
+            scientific signal.
+
+  --half    n3 × 3 problems × 5 modes × 1 seed × MAX_TRANSACTIONS=20
+            (~10-15 min wall-clock at thinking-off; ~$0.20-0.40 API cost)
+            Half-real regression: catches architectural changes that break
+            solve rate / PPUT structure on 3 hard-10 problems. Use at
+            atom-bundle phase ends as a meaningful regression check
+            between cheap --smoke and the full Phase C batch.
 
   --full    Full Phase C batch: 5 modes × 10 problems × 2 seeds = 100 rows
             Hard-10 from PPUT_CCL_HARD10_2026-04-26.json; seeds [31415, 2718].
@@ -126,6 +137,8 @@ PRE_BUILD_BINARY=""
 mkdir -p "$LOG_DIR"
 if [ "$SMOKE" -eq 1 ]; then
     OUT_PREFIX="$LOG_DIR/c2_smoke_${TIMESTAMP}"
+elif [ "$HALF" -eq 1 ]; then
+    OUT_PREFIX="$LOG_DIR/c2_half_${TIMESTAMP}"
 else
     OUT_PREFIX="$LOG_DIR/c2_phase_c_ablation_${TIMESTAMP}"
 fi
@@ -155,6 +168,19 @@ if [ "$SMOKE" -eq 1 ]; then
     export MAX_TRANSACTIONS=2
     echo "[smoke] 1 problem × 5 modes × 1 seed × MAX_TRANSACTIONS=2"
     echo "[smoke] problem: $SMOKE_ID"
+elif [ "$HALF" -eq 1 ]; then
+    # Half: 3 problems × 5 modes × 1 seed × MAX_TRANSACTIONS=20.
+    # Picks the alphabetically-first 3 hard-10 problems. MAX_TX=20 lets
+    # each cell exercise real solve attempts (vs MAX_TX=2 in --smoke
+    # which only verifies plumbing). Catches architectural regressions
+    # that change solve rate / PPUT structure without committing to the
+    # full 100-cell ~12hr Phase C batch.
+    HARD10_IDS=$(echo "$HARD10_IDS" | sort | head -3)
+    SEEDS=("${SEEDS_SMOKE[@]}")
+    export MAX_TRANSACTIONS=20
+    echo "[half] 3 problems × 5 modes × 1 seed × MAX_TRANSACTIONS=20"
+    echo "[half] problems:"
+    echo "$HARD10_IDS" | sed 's/^/[half]   /'
 else
     SEEDS=("${SEEDS_FULL[@]}")
     echo "[full] $HARD10_COUNT problems × ${#MODES[@]} modes × ${#SEEDS[@]} seeds = $((HARD10_COUNT * ${#MODES[@]} * ${#SEEDS[@]})) rows"
