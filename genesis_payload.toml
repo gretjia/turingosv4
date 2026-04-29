@@ -202,8 +202,11 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 # 2026-04-27 Wave 1 — CO1.0a MicroCoin + CO1.0 [constitution_root] + walkthrough Inv 3 e2e.
 # Real Rust code; 27/27 tests PASS; data validates Inv 3 monetary conservation closure.
 "src/lib.rs" = "bff2012e8027ca905051f01e2cc39588453bca5a50104c37e7cefc15f7d93523"
-"src/economy/mod.rs" = "179e6991fea594a1bb40a4a5eab953cf282c9a135b53b23da7688adf0d12c28c"
+"src/economy/mod.rs" = "23bc109063a2530ebebc899fd35648d3bdfa2b9b126d75b4590ab81ec9a537f8"
 "src/economy/money.rs" = "857fc6df2aefa4b26fd4b7d22ec06f1105ac3ec4393c6788a8f30370b6d7e776"
+# 2026-04-29 TB-1 Day-2 — P3 RSP-0 monetary guards + escrow vault (NEW files).
+"src/economy/monetary_invariant.rs" = "4250b1e68a2952435e5f848c95e5fec028f142551e646a2c020f038ba1c0ab2a"
+"src/economy/escrow_vault.rs" = "95d6b4ec182dd0f181785190c9e8a71a0631fad4a7e255a152938708a52c7319"
 "tests/walkthrough_inv3_conservation.rs" = "e1e7bc1130dfb3edb4eb1a7aa458557f1134879ae297eecb3e8d46a269434198"
 "src/top_white/mod.rs" = "69b18a5d4c33954c81dccd41d48de770ac1d951daaf655f3a76857d7b492a4af"
 "src/top_white/predicates/mod.rs" = "3d04c1eaa09c65faf9afc038b275df5d2d7fa23b983ec38c1ad8f910f2841e28"
