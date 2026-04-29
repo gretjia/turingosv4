@@ -245,7 +245,7 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 # - TRACE_MATRIX_v3 full N/M/D coverage (CO0.8 atom)
 # - gix substrate spike pre-flight doc (CO1.3.1 atom prep)
 # - MetaTransitionInterface trait spec (CO P3-prep.5 atom)
-"handover/alignment/TRACE_MATRIX_v3_2026-04-27.md" = "0e6e42172401edadfb62a743176a32aa2d1fc5d1259dae8d07ef1d47a6387c77"
+"handover/alignment/TRACE_MATRIX_v3_2026-04-27.md" = "6f84c56f36ad4960e36fec3fe4e66177dbb587fbc4ff37a2b94018bd5573195a"  # rehashed by CO1.13.1 (2026-04-29): § F populated + § J added + § E.2/E.3 measured stats; FC3-N34 readonly verification
 "handover/specs/CO1_3_1_GIX_SPIKE_PREFLIGHT_v1_2026-04-27.md" = "ddf6456633603d5ae04252cbaa700aceb61cac2c278da1f91b8cf28aa4ba8839"
 "handover/specs/META_TRANSITION_INTERFACE_v1_2026-04-27.md" = "f02d83e989be664faea660f10a746b04f986f9b13321ca16f63b470a95b96d4e"
 

@@ -121,6 +121,8 @@ The RSP appendix in architecture WP largely overlaps the economic chapter. Cross
 
 ## § E — Coverage Statistics
 
+### § E.1 Row coverage (matrix rows by classification)
+
 | Source | Total rows | [N] | [M] | [D] |
 |---|---|---|---|---|
 | Constitution Articles + sub-articles | 27 | 24 | 1 (Art V.2) | 2 (Art 0.3 partial Path A; Art 0.5 future) |
@@ -132,23 +134,240 @@ The RSP appendix in architecture WP largely overlaps the economic chapter. Cross
 
 **Test count from this matrix**: ~60-70 distinct conformance tests (some rows share tests; e.g., Goodhart shield).
 
-**Forbidden state**: any Normative row with empty "code symbol" or empty "conformance test" column. Pre-commit hook R-022 (added per Plan v3.2 CO P0.8) enforces.
+### § E.2 Code-side backlink coverage (CO1.13.1 measured 2026-04-29 @ HEAD `ad61798`)
+
+| Metric | Count | Notes |
+|---|---|---|
+| `pub fn / struct / enum / trait / const` items in `src/` | 354 | grep on `pub fn\|pub struct\|pub enum\|pub trait\|pub const` |
+| `/// TRACE_MATRIX` doc-comment lines (raw grep) | 154 | includes a few `//! /// TRACE_MATRIX` typos and `/// /// TRACE_MATRIX` doubled-prefix lines |
+| `/// TRACE_MATRIX` clean doc-comment lines (parsed) | 135 | strict 1-`///`-prefix item-level doc-comment lines; basis for § F manual population |
+| `pub` items with TRACE_MATRIX backlink (immediately preceding doc-block) | 87 | per CO1.13 spec § 9 S7 baseline (semantic block walk per Codex r1 P0-4 measurement at 86%) |
+| Files in `src/` containing TRACE_MATRIX reference | 22 / 42 | `grep -rln TRACE_MATRIX src/` ÷ all `src/**/*.rs` |
+| **Forward-coverage ratio** (pub items w/ backlink ÷ total pub items) | **24.6 %** (87 / 354) | quantified legacy gap; **CO1.13-extra** closes ≥75 % gap before Phase D per spec § 0.5 (Gemini r1 Q7) |
+
+### § E.3 Shipped atoms covered by § F initial population
+
+| Atom | Source path(s) | Backlinks parsed (clean) |
+|---|---|---|
+| **CO1.0 / CO1.0a** Trust Anchor + MicroCoin | `src/boot.rs`, `src/economy/money.rs` | 4 (boot.rs); module-level `//!` for money.rs |
+| **CO1.1.4-pre1** Typed-tx ABI | `src/state/typed_tx.rs` | 27 |
+| **CO1.2** Q_t struct | `src/state/q_state.rs` | 30 |
+| **CO1.4 / CO1.4-extra** CAS + sidecar JSONL | `src/bottom_white/cas/{mod,schema,store}.rs` | module-level `//!` only (auto-refresh via CO1.13.3) |
+| **CO1.7 / CO1.7-impl A1-A4** transition_ledger + Sequencer | `src/bottom_white/ledger/transition_ledger.rs`, `src/state/sequencer.rs`, `src/state/mod.rs` | 12 (6 + 3 + 3) |
+| **CO1.7.0a** system keypair | `src/bottom_white/ledger/system_keypair.rs` | 56 |
+| **CO1.7-extra** TuringBus head_t close + Sequencer entry | `src/bus.rs` | 3 |
+| Crate-root scaffolding | `src/bottom_white/mod.rs`, `src/bottom_white/ledger/mod.rs` | 3 |
+
+**Forbidden state**: any Normative row with empty "code symbol" or empty "conformance test" column. Pre-commit hook R-022 (added per Plan v3.2 **CO1.13.2** — corrects stale "CO P0.8" attribution) enforces.
 
 ---
 
 ## § F — Bidirectional Reverse: Code Symbol → Source
 
-This section is populated incrementally as code lands (currently empty for v4 since CO P1 has not started). Format:
+This section is the reverse-map: every `/// TRACE_MATRIX <id>: <role>` doc-comment in `src/` paired with the symbol (or variant/field) immediately following. It enables substance-side review (the form-vs-substance two-layer model per CO1.13 spec § 2.5): **R-022** at commit-time enforces *form* (every NEW `pub` symbol carries a backlink); § F enables eventual-consistency *substance* review (every shipped backlink → its claimed alignment row → human/AI verifier checks layer correctness).
 
-```
-src/path/to/symbol.rs::function_name
-  ↓
-  TRACE_MATRIX_v3 row: <Constitution Art X | WP arch § Y | WP econ § Z>
-```
+**Generation**:
+- Initial population done manually by **CO1.13.1** (this section, snapshot at HEAD `ad61798`, 2026-04-29) for shipped atoms (CO1.0 / CO1.0a / CO1.1.4-pre1 / CO1.2 / CO1.4 / CO1.4-extra / CO1.7 / CO1.7-impl A1-A4 / CO1.7.0a / CO1.7-extra).
+- Subsequent refresh is auto-generated idempotently by `scripts/update_trace_matrix_reverse_map.py` (lands in **CO1.13.3**), which shares its parser module with `scripts/check_trace_matrix.py` (lands in **CO1.13.2**) per CO1.13 spec § 1.2 + § 1.3.
+- **Pre-commit hook R-022** (lands in **CO1.13.2**, NOT in legacy CO P0.8 attribution that v3 doc previously claimed) enforces: every NEW `pub fn / struct / enum / trait / const / mod / type / static` (and `pub(crate)` variants) under `src/` MUST have a `/// TRACE_MATRIX <id>: <role>` doc-comment in the **immediately preceding contiguous doc/attribute/comment/blank-line block** per CO1.13 spec § 2.1 (semantic block walk; Codex r1 P0-4 empirical 86 % accuracy vs 69.4 % under raw 5-line heuristic), OR be filed in § J orphan extensions, OR cite a `[R-022-skip: …]` token in the commit message with `cases/Cxxx | PREREG-§n.m | OBS_R022_*.md` justification per CO1.13 spec § 2.2. Commit aborts (exit 2) if missing.
 
-This reverse map is auto-generated by `scripts/check_trace_matrix_updated.sh` per Plan v3.2 CO1.13.2 atom. Pre-commit hook R-022 enforces "every `pub` symbol in src/{top_white,middle_black,bottom_white,economy,state,transition,governance}/*.rs MUST have a `/// TRACE_MATRIX <id>: <role>` doc-comment". Build fails if missing.
+### § F.1 Coverage caveats (manual-population edition)
 
-**Initial state at v4 ratification (2026-04-27)**: section is **empty by design** — code does not yet exist. v4 will populate it commit-by-commit during CO P1+P2.
+Two caveats while CO1.13.3 has not yet shipped:
+
+1. **Module-level `//!` backlinks not enumerated below**. The `src/bottom_white/cas/{mod,schema,store}.rs`, `src/bottom_white/tools/{mod,registry}.rs`, `src/top_white/{mod,predicates/{mod,registry,visibility}}.rs`, `src/economy/{mod,money}.rs`, `src/main.rs` files carry module-level `//! /// TRACE_MATRIX …` lines. CO1.13.3 will pick these up via a separate query (`//!`-prefixed lines whose body matches the same `TRACE_MATRIX <id>: <role>` shape) and merge into § F. v3 manual snapshot covers item-level `///` backlinks only.
+2. **Variant/field rows present but R-022 enforcement is at enclosing-symbol granularity** per CO1.13 spec § 1.3 R-022 Scope Table. The variant/field rows below carry their own backlinks (legacy practice; preserved); R-022 itself fires on the parent `pub enum` / `pub struct`. Variant/field backlinks pass form check via the parent's preceding doc-block.
+
+### § F.2 Reverse-map snapshot (HEAD `ad61798`, 2026-04-29 manual population)
+
+#### `src/boot.rs`
+
+| Line | Symbol | TRACE_MATRIX backlink |
+|---:|---|---|
+| 30 | `pub enum TrustRootError` | FC3-N34: failure variants of the readonly-guard verification |
+| 62 | `pub fn verify_trust_root` | FC3-N34: implementation of the constitutional `readonly` |
+| 246 | `fn verify_child_manifest` | FC3-N34 + case C-075: child-manifest recursion |
+| 281 | `pub fn parse_trust_root_section` | FC3-N34: helper for `verify_trust_root` — exposed because |
+
+#### `src/bottom_white/ledger/mod.rs`
+
+| Line | Symbol | TRACE_MATRIX backlink |
+|---:|---|---|
+| 5 | `pub mod system_keypair` | FC1-Sig+FC3-Sig: system runtime signature key lifecycle |
+| 8 | `pub mod transition_ledger` | FC2-Append + WP § 5.L4: L4 transition ledger (CO1.7 type skeleton) |
+
+#### `src/bottom_white/ledger/system_keypair.rs`
+
+| Line | Symbol | TRACE_MATRIX backlink |
+|---:|---|---|
+| 40 | `pub struct SystemEpoch` | FC1-Sig+FC3-Sig: system signature epoch identifier |
+| 45 | `pub const fn` | FC1-Sig+FC3-Sig: construct a system signature epoch |
+| 50 | `pub const fn` | FC1-Sig+FC3-Sig: expose the numeric epoch for canonical encoding |
+| 62 | `pub struct SystemPublicKey` | FC1-Sig+FC3-Sig: ed25519 public key pinned by epoch |
+| 67 | `pub const fn` | FC1-Sig+FC3-Sig: construct a system public key from raw ed25519 bytes |
+| 72 | `pub const fn` | FC1-Sig+FC3-Sig: expose raw public key bytes for pinning and verification |
+| 77 | `pub fn fingerprint_sha256` | FC3-Sig: stable SHA-256 fingerprint for audit logs and rotation records |
+| 83 | `pub struct SystemSignature` | FC1-Sig+FC3-Sig: ed25519 detached signature over a canonical system message digest |
+| 140 | `pub const fn` | FC1-Sig+FC3-Sig: construct a detached system signature from raw ed25519 bytes |
+| 145 | `pub const fn` | FC1-Sig+FC3-Sig: expose raw signature bytes for tape serialization |
+| 151 | `pub struct RejectedAttemptSummary` | FC1-Sig: typed rejection summary stamped by the predicate runner |
+| 161 | `pub fn new` | FC1-Sig: construct a typed rejected-attempt summary, never a free-form sign blob |
+| 184 | `pub struct EpochRotationProof` | FC3-Sig: typed continuity statement for system key rotation |
+| 195 | `pub const fn` | FC3-Sig: construct a typed epoch-rotation continuity proof |
+| 212 | `pub const fn` | FC3-Sig: old signing epoch certified by the rotation proof |
+| 217 | `pub const fn` | FC3-Sig: new signing epoch certified by the rotation proof |
+| 223 | `pub enum CanonicalMessage` | FC1-Sig+FC3-Sig: only typed runtime messages may enter signature verification |
+| 226 | `RejectedAttemptSummary` (variant) | FC1-Sig: predicate-runner rejection summary |
+| 228 | `TerminalSummarySigning` (variant) | FC1-Sig+FC3-Sig (CO1.1.4-pre1 v1.1 closure C-3): terminal |
+| 236 | `FinalizeRewardSigning` (variant) | FC1-Sig+FC3-Sig (CO1.1.4-pre1 v1.2 closure R2-2): finalize |
+| 240 | `TaskExpireSigning` (variant) | FC1-Sig+FC3-Sig (CO1.1.4-pre1 v1.2 closure R2-2): task |
+| 244 | `EpochRotationProof` (variant) | FC3-Sig: system key epoch continuity proof |
+| 246 | `LedgerEntrySigning` (variant) | FC2-Append (CO1.7 v1.2 round-2 closure C3): L4 transition_ledger |
+| 255 | `pub struct PinnedSystemPubkeys` | FC1-Sig+FC3-Sig: epoch-indexed public keys pinned by genesis and rotation history |
+| 262 | `pub fn new` | FC1-Sig+FC3-Sig: create an empty pinned system-key map |
+| 267 | `pub fn insert` | FC1-Sig+FC3-Sig: pin a public key for a system epoch |
+| 276 | `pub fn get` | FC1-Sig+FC3-Sig: fetch the public key pinned for a system epoch |
+| 282 | `pub struct Ed25519Keypair` | FC1-Sig+FC3-Sig: in-memory ed25519 system keypair with zeroized private key on drop |
+| 291 | `pub fn generate_with_secure_entropy` | FC1-Sig+FC3-Sig: generate ed25519 key material from `getrandom(2)` entropy |
+| 306 | `pub const fn` | FC1-Sig+FC3-Sig: return the public half of the system keypair |
+| 367 | `pub enum KeypairError` | FC1-Sig+FC3-Sig: system keypair lifecycle and crypto error taxonomy |
+| 370 | `Io` (variant) | FC1-Sig+FC3-Sig: filesystem operation failed |
+| 372 | `Entropy` (variant) | FC1-Sig+FC3-Sig: secure operating-system entropy failed |
+| 374 | `KdfParam` (variant) | FC1-Sig+FC3-Sig: KDF environment parameter was absent or invalid |
+| 376 | `Kdf` (variant) | FC1-Sig+FC3-Sig: Argon2id key derivation failed |
+| 378 | `Crypto` (variant) | FC1-Sig+FC3-Sig: ChaCha20-Poly1305 encryption or authentication failed |
+| 380 | `InvalidFormat` (variant) | FC1-Sig+FC3-Sig: encrypted keystore format was malformed |
+| 382 | `HomeUnavailable` (variant) | FC1-Sig+FC3-Sig: default keystore path could not be resolved |
+| 410 | `pub fn default_system_keystore_path` | FC1-Sig+FC3-Sig: resolve `~/.turingos/keystore/system_keypair_v{epoch}.enc` |
+| 425 | `pub fn generate_or_load_system_keypair` | FC1-Sig+FC3-Sig: first-boot generate-or-second-boot decrypt lifecycle entrypoint |
+| 440 | `pub fn load_existing_keypair` | FC1-Sig+FC3-Sig: decrypt an existing encrypted system keypair keystore |
+| 460 | `pub fn canonical_digest` | FC1-Sig+FC3-Sig: canonical SHA-256 digest for typed system messages |
+| 500 | `pub fn verify_system_signature` | FC1-Sig+FC3-Sig: public system signature verification against pinned epoch keys |
+| 519 | `pub fn verify_epoch_rotation_proof` | FC3-Sig: verify old and new signatures over a rotation continuity proof |
+| 531 | `pub fn verify_system_pubkeys` | FC3-Sig: boot extension stub for genesis `[system_pubkeys]` verification |
+| 541 | `pub mod predicate_runner` | FC1-Sig: crate-only signing surface for the predicate runner |
+| 548 | `pub fn sign_rejected_attempt_summary` | FC1-Sig: sign only typed rejected-attempt summaries from the predicate runner |
+| 559 | `pub fn sign_system_message` | FC1-Sig: sign only typed canonical messages within the predicate-runner scope |
+| 568 | `pub mod terminal_summary_emitter` | FC1-Sig+FC3-Sig: crate-only signing surface for system-emitted |
+| 584 | `pub fn sign_terminal_summary` | FC1-Sig+FC3-Sig: sign an opaque 32-byte digest of a |
+| 593 | `pub fn sign_finalize_reward` | FC1-Sig+FC3-Sig (CO1.1.4-pre1 v1.2 closure R2-2): sign an |
+| 604 | `pub fn sign_task_expire` | FC1-Sig+FC3-Sig (CO1.1.4-pre1 v1.2 closure R2-2): sign an |
+| 615 | `pub fn sign_epoch_rotation_proof` | FC3-Sig: sign only typed epoch rotation proofs |
+| 626 | `pub fn sign_system_message` | FC1-Sig+FC3-Sig: sign only typed canonical messages within terminal-summary scope |
+| 635 | `pub mod transition_ledger_emitter` | FC2-Append + FC1-Sig: crate-only signing surface for the L4 |
+| 646 | `pub fn sign_ledger_entry` | FC2-Append: sign only the canonical-digest of a |
+
+#### `src/bottom_white/ledger/transition_ledger.rs`
+
+| Line | Symbol | TRACE_MATRIX backlink |
+|---:|---|---|
+| 48 | `pub enum TxKind` | FC2-Append: discriminator for the typed payload behind a CAS Cid |
+| 63 | `pub struct LedgerEntry` | FC2-Append + WP § 5.L4: stored LedgerEntry record (11 fields) |
+| 99 | `pub struct LedgerEntrySigningPayload` | FC2-Append C3: the bytes the system keypair actually signs |
+| 168 | `pub fn append` | FC2-Append + spec § 4: pure ledger-root fold over signed digests |
+| 183 | `pub trait LedgerWriter` | FC2-Append: storage abstraction for L4 |
+| 194 | `fn head_commit_oid_hex` (trait method) | § 5 — L4 sequencer post-commit head_t wiring (Art 0.4) |
+
+#### `src/bottom_white/mod.rs`
+
+| Line | Symbol | TRACE_MATRIX backlink |
+|---:|---|---|
+| 9 | `pub mod ledger` | FC1-Sig+FC3-Sig: Bottom White ledger crypto modules |
+
+#### `src/bus.rs`
+
+| Line | Symbol | TRACE_MATRIX backlink |
+|---:|---|---|
+| 19 | `pub const PENDING_COMPLETION_TOKENS_CO1_1_4` | FC1-Cost / FC3-Cost: placeholder until CO1.1.4 STEP_B propagates |
+| 116 | `pub fn with_sequencer` | § 5.2.1 — single-writer entry-point |
+| 134 | `pub async fn submit_typed_tx` | § 5.2.1 — typed-tx submission entry |
+
+#### `src/state/mod.rs`
+
+| Line | Symbol | TRACE_MATRIX backlink |
+|---:|---|---|
+| 9 | `pub mod q_state` | Art 0.4 / WP § 4 — Q_t module: implements all 9 system state fields |
+| 12 | `pub mod typed_tx` | FC2-Submit / CO1.1.4-pre1 — typed-tx ABI surface (TypedTx + per-kind structs) |
+| 15 | `pub mod sequencer` | § 5.2.1 / CO1.7-impl A2+A3 — L4 sequencer + dispatch_transition |
+
+#### `src/state/q_state.rs`
+
+| Line | Symbol | TRACE_MATRIX backlink |
+|---:|---|---|
+| 27 | `pub struct Hash` | § 1.1 — generic 32-byte hash (sha256). State / ledger / registry roots |
+| 32 | `pub const ZERO` | § 1.1 — additive identity (genesis state-root, ledger-root, etc.) |
+| 35 | `pub fn from_bytes` | § 1.1 — construct from a 32-byte digest (sha256 output) |
+| 47 | `pub struct NodeId` | Art 0.4 — `head_t` = git commit SHA in Path B substrate (40 hex chars) |
+| 52 | `pub fn from_state_root` | § 3 — pseudocode `NodeId::from_state_root(state_root)` constructor |
+| 63 | `pub struct AgentId` | § 1.1 — agent identity (string, opaque to Q_t) |
+| 67 | `pub struct TxId` | § 1.1 — accepted-transaction id (string, opaque to Q_t) |
+| 71 | `pub struct Reputation` | § 1.1 — reputation snapshot. Signed i64 to permit negative reputation |
+| 80 | `pub struct AgentSwarmState` | § 1.1 — agent swarm sub-state |
+| 88 | `pub struct PerAgentState` | § 1.1 — per-agent runtime state |
+| 101 | `pub struct AgentVisibleProjection` | § 1.1 — agent-visible projection of tape filtered by per-agent |
+| 114 | `pub struct BudgetSnapshot` | § 1.1 — global budget snapshot |
+| 138 | `pub struct EconomicState` | WP § 2 economic — 9-sub-field economic state. Each sub-index |
+| 155 | `pub struct BalancesIndex` | WP § 2 — agent → balance ledger. Concrete entry: `MicroCoin` (CO1.0a) |
+| 159 | `pub struct EscrowsIndex` | WP § 2 — tx → escrow entry. Full schema lands CO P2.2 EscrowVault |
+| 163 | `pub struct EscrowEntry` | WP § 2 — escrow entry shape (stub). Full fields land CO P2.2 |
+| 180 | `pub struct StakesIndex` | WP § 2 — tx → stake entry. Full schema lands CO P2.5 ChallengeCourt |
+| 184 | `pub struct StakeEntry` | WP § 2 — stake entry shape (stub). Full fields land CO P2.5 |
+| 199 | `pub struct ClaimsIndex` | WP § 2 — tx → reward claim. Full schema lands CO P2.6 SettlementEngine |
+| 203 | `pub struct ClaimEntry` | WP § 2 — claim entry shape (stub). Full fields land CO P2.6 |
+| 218 | `pub struct ReputationsIndex` | WP § 2 — agent → reputation ledger |
+| 222 | `pub struct TaskMarketsIndex` | WP § 2 — tx → task market. Full schema lands CO P2.1 |
+| 226 | `pub struct TaskMarketEntry` | WP § 2 — task market entry shape (stub). Full fields land CO P2.1 |
+| 259 | `pub struct RoyaltyGraph` | WP § 2 — directed royalty edges (reuse depth attribution) |
+| 264 | `pub struct RoyaltyEdge` | WP § 2 — single royalty edge (ancestor → reuse weight). Stub; CO P2.4 |
+| 273 | `pub struct ChallengeCasesIndex` | WP § 2 — tx → challenge case. Full schema lands CO P2.5 |
+| 277 | `pub struct ChallengeCase` | WP § 2 — challenge case shape (stub). Full fields land CO P2.5 |
+| 294 | `pub struct PriceIndex` | WP § 2 — tx → posted price (last accepted price index) |
+| 302 | `pub struct QState` | § 1.1 — system state Q_t. 9 fields per WP § 4 + economic § 2 amendment |
+| 329 | `pub fn genesis` | Art IV Boot — genesis Q_t. All zero / empty |
+
+#### `src/state/sequencer.rs`
+
+| Line | Symbol | TRACE_MATRIX backlink |
+|---:|---|---|
+| 40 | `pub fn dispatch_transition` | § 8 — exhaustive dispatch over `TypedTx` variants |
+| 68 | `pub fn advance_head_t` | § 5 — L4 sequencer post-commit head_t wiring (Art 0.4) |
+| 206 | `pub struct Sequencer` | § 5.2.1 — L4 sequencer; single-writer per (runtime_repo, run_id) |
+
+#### `src/state/typed_tx.rs`
+
+| Line | Symbol | TRACE_MATRIX backlink |
+|---:|---|---|
+| 33 | `pub struct TaskId` | § 1.2 — task-market entry id; opaque string |
+| 37 | `pub struct RunId` | § 1.5 — runtime run id (one run per `Sequencer` driver lifecycle) |
+| 41 | `pub struct ClaimId` | STATE § 3.4 + § 4 I-FINALIZE-BATCH-ORDER — typed claim id used |
+| 63 | `pub struct ToolId` | § 1.3 ReuseTx + L2 Tool Registry — opaque tool identifier |
+| 67 | `pub struct PredicateId` | § 1.2 PredicateResultsBundle + L1 Predicate Registry — opaque predicate id |
+| 71 | `pub struct ReadKey` | § 1.2 WorkTx field 5 — read-set key (DAG attribution / replay) |
+| 77 | `pub struct WriteKey` | § 1.2 WorkTx field 6 — write-set key (DAG attribution / replay) |
+| 85 | `pub struct AgentSignature` | § 1.2 WorkTx field 10 + I-SIG: agent-side detached Ed25519 |
+| 111 | `pub struct SlashEvidenceCid` | § 1.2 TxStatus::FinalizedSlash — typed reference |
+| 121 | `pub struct BoolWithProof` | § 1.2 PredicateResultsBundle — boolean predicate verdict |
+| 130 | `pub enum SafetyOrCreation` | § 1.2 PredicateResultsBundle — safety-class discriminator |
+| 147 | `pub struct PredicateResultsBundle` | § 1.2 WorkTx field 8 — runner-stamped predicate results |
+| 161 | `pub enum RejectionClass` | § 1.4 — classification of a rejected attempt |
+| 175 | `pub enum VerifyVerdict` | § 1.3 VerifyTx field 5 — verifier verdict |
+| 183 | `pub enum RunOutcome` | § 1.5 TerminalSummaryTx field 4 + Art. IV halt-reason taxonomy |
+| 195 | `pub enum TxStatus` | § 1.2 TxStatus — runtime book-keeping only (D-1 divergence) |
+| 212 | `pub struct WorkTx` | § 1.2 — agent-submitted work transaction (12-field schema) |
+| 238 | `pub struct VerifyTx` | § 1.3 — verifier verdict transaction |
+| 256 | `pub struct ChallengeTx` | § 1.3 — challenge transaction (counter-example posted) |
+| 269 | `pub struct ReuseTx` | § 1.3 — fact-tx recording reuse of a tool created by a prior |
+| 280 | `pub struct FinalizeRewardTx` | CO1.1.4-pre1 spec § 4 — derived schema (STATE spec § 3.4) |
+| 313 | `pub struct TaskExpireTx` | STATE spec § 3.6 v1.3 — system-emitted task-expiry tx |
+| 327 | `pub struct TerminalSummaryTx` | STATE spec § 1.5 — system-emitted no-accept-run handler |
+| 603 | `pub enum TypedTx` | § 8 dispatch_transition — typed-tx outer enum |
+| 638 | `pub trait HasSubmitter` | STATE spec § 3.6.5 v1.3 — submitter resolution trait |
+| 706 | `pub enum TransitionError` | STATE § 3 — transition-function error taxonomy |
+| 824 | `pub struct SignalBundle` | STATE § 3 — tape-emitted signal bundle |
+
+**Total**: 135 `///`-doc-comment backlinks across 10 source files (HEAD `ad61798`). Module-level `//!` backlinks (CAS, tools, predicates, economy module roots) merge in via CO1.13.3 auto-refresh; counted in § E.2 raw-grep total of 154.
+
+— end of § F manual snapshot.
 
 ---
 
@@ -312,7 +531,7 @@ What this matrix achieves:
 
 What this matrix is honest about:
 - §B/§C "Code symbol" column references modules that DON'T YET EXIST in v4 (the matrix anchors future code, which is OK per DO-178C; the test column gives the verification target)
-- §F reverse map is empty until CO P1 lands
+- §F reverse map was empty at v4 ratification (2026-04-27) and is now manually populated for shipped atoms by **CO1.13.1** at HEAD `ad61798` (2026-04-29); subsequent refresh is auto-generated by CO1.13.3
 - Some [N] rows currently fail conformance because corresponding code doesn't exist (this is BY DESIGN — tests are the spec)
 - Coverage statistics in §E count rows, not invariants; some [N] rows share invariants
 
@@ -321,4 +540,54 @@ What this matrix does NOT do:
 - Validate that tests actually catch the violation they claim (Codex/Gemini per-atom audits handle that)
 - Replace the per-atom doc-comment `/// TRACE_MATRIX <id>: <role>` in each `pub` symbol (R-022 hook enforces at commit time)
 
-— ArchitectAI, 2026-04-27
+— ArchitectAI, 2026-04-27 (§ F populated + § J added 2026-04-29 per CO1.13.1)
+
+---
+
+## § J — Orphan Extensions
+
+> **Added by CO1.13.1 (2026-04-29) per CO1_13_TRACE_MATRIX_IMPL_v1_2026-04-29.md spec § 0.3 v1.1.1 + § 1.1 (Codex r1 P0-3 + Codex r2 New-P0-2 § G→§ J rename).**
+>
+> **Purpose**: register `pub`-style symbols in `src/` whose constitutional alignment is real but does not fit the canonical § A/§ B/§ C/§ D row schema (e.g., a constitutional concept lives across multiple WP sections, or a symbol implements scaffolding/glue that supports the matrix but has no single canonical row). § J is the **non-row-bound fallback target** that R-022 falls through to in step 3 of its check (per spec § 2.1).
+>
+> **Authority**: § J is a constitutional-surface extension. Each row MUST cite a justification reference (one or more of `cases/Cxxx`, `PREREG-§n.m`, or a sedimented `OBS_R022_*.md`). The justification reference protects against the silent-bypass risk: any symbol that lands here without a justification reference is a violation; R-022 enforces this at commit time per spec § 2.1 step 3.
+>
+> **Lifecycle**: a row is **opened** when an atom ships a symbol that R-022 needs to skip (e.g., a meta-tooling helper that supports the alignment regime itself), and **closed** by either (a) graduating into a canonical § A/§ B/§ C/§ D row in a subsequent doc revision when the atom matures, or (b) being deleted alongside the symbol.
+>
+> **Audit cadence**: § J is reviewed during the quarterly R-022 enforcement-log audit (per spec § 2.2 "Quarterly audit reviews accumulated R-022-SKIP log entries"). Suspicious accumulation (≥10 entries new since prior quarter, or any row missing a valid justification reference) triggers a factory halt per Elon-mode OBS-threshold policy (CO1.13 spec § 0.5).
+
+### § J.1 Schema
+
+| Column | Required | Description |
+|---|---|---|
+| **File path** | yes | absolute path under `src/` to the file containing the symbol |
+| **Symbol** | yes | the `pub` (or `pub(crate)`) symbol exempted from row-bound matrix mapping; for variants/fields, use `EnumName::VariantName` notation |
+| **Class** | yes | one of: **scaffolding** (test/devtools surface), **cross-row** (legitimately spans ≥2 § A/§ B rows), **placeholder** (will graduate to canonical row when atom matures), **legacy** (pre-CO1.13 untraced, deferred to CO1.13-extra closure) |
+| **Justification ref** | yes | `cases/C-xxx`, `PREREG-§n.m`, or `OBS_R022_<topic>_<date>.md`. Must exist in repo at commit time; R-022 will reject if reference missing |
+| **Opened atom** | yes | the atom that introduced or registered this orphan (e.g., `CO1.13.1`) |
+| **Graduation target** | optional | atom-id where this row is expected to graduate to canonical § A/§ B/§ C/§ D row; blank if no graduation planned |
+| **Notes** | optional | any further detail (e.g., "graduates when CO P2.1 lands TaskMarket bindings") |
+
+### § J.2 Open orphan rows
+
+| File path | Symbol | Class | Justification ref | Opened atom | Graduation target | Notes |
+|---|---|---|---|---|---|---|
+| _(none registered)_ | — | — | — | — | — | § J is greenfield as of CO1.13.1 (2026-04-29). The shipped atoms covered by § F all map to canonical § A/§ B/§ C/§ D rows; no genuine orphan has been needed yet. R-022 will populate § J on first commit-time skip-token use that requires a non-row fallback target. |
+
+### § J.3 Closed / graduated rows (audit trail)
+
+| File path | Symbol | Reason closed | Closed atom | Closed date |
+|---|---|---|---|---|
+| _(none)_ | — | — | — | — |
+
+### § J.4 R-022 fallback semantics (cross-reference)
+
+When `scripts/check_trace_matrix.py --mode commit` (CO1.13.2) runs, fallback step 3 (per CO1.13 spec § 2.1) searches § J.2 for `<file_path>:<symbol_name>` matching the staged-diff NEW pub symbol. PASS criteria:
+
+1. The exact `<file_path>:<symbol_name>` must appear in § J.2 (case-sensitive; no fuzzy match).
+2. The row must have a non-empty `Justification ref` column.
+3. The justification reference must exist in the repo at commit time (file must be reachable from repo root, e.g., `cases/C-075.yaml` exists).
+
+If any of (1)/(2)/(3) fails, R-022 falls through to step 4 (commit-message `[R-022-skip: …]` token check). If both fail, R-022 BLOCKS the commit and appends a structured log entry per spec § 2.2.
+
+— end of § J Orphan Extensions (CO1.13.1 initial schema; rows populated commit-by-commit via R-022 skip-token use).
