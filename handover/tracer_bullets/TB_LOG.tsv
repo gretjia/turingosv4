@@ -1,7 +1,10 @@
-# TuringOS v4 Tracer Bullet log — Karpathy-minimal methodology install 2026-04-29 session-3
-# Columns: tb_id status start_date end_date capability_metric_baseline→after alignment_pct_baseline→after articles_activated ship_commits
+# TuringOS v4 Tracer Bullet log — TB methodology v2 (P0-P9 phase-tagged) 2026-04-29 session-3
+# Columns: tb_id status start_date end_date phase_id roadmap_exit_criteria_addressed kill_criteria_tested capability_metric alignment_pct articles_activated ship_commits
 # Status enum: shipped | active | failed | aborted
 # Coverage metric: scripts/alignment_coverage.py (5-line lenient; ~+0.9pp vs official strict-block walk)
-tb_id	status	start_date	end_date	capability_metric	alignment_pct	articles_activated	ship_commits
-TB-0	shipped	2026-04-22	2026-04-29	pput=0→0.000215 (mathd_algebra_107 via nlinarith @ HEAD a906886; first v4-native solve)	~24.6%→25.47%	Art-IV.boot Art-0.1 Art-V.1.1 Art-Laws.1+2 WP-§5.L1 WP-§5.L3 WP-§5.L4	e2752e8..f0b659f
-TB-1	active	2026-04-29	TBD	h_vppu=0→? + econ_balance_delta!=0 + L4_ledger_writes_per_tx [Day1✓: prompt_context_hash field flows to v2 JSONL via run_oneshot/mathd_algebra_107]	25.47%→?	Art-Laws.1+2 Art-I.1.1 Art-II.2 Art-III.4-partial WP-§21-partial	(Day1: pending)
+# phase_id: P0..P9 per handover/architect-insights/ROADMAP_9_PHASE_2026-04-29.md (primary; may span e.g. "P1+P3")
+# roadmap_exit_criteria_addressed: phase-prefixed numbered subset (e.g. "P1:7,8,9 P3:1,2,5")
+# kill_criteria_tested: phase-prefixed numbered subset of P1/P3/P5 kill clauses (e.g. "P1:1,2,3,4 P3:1")
+tb_id	status	start_date	end_date	phase_id	roadmap_exit_criteria_addressed	kill_criteria_tested	capability_metric	alignment_pct	articles_activated	ship_commits
+TB-0	shipped	2026-04-22	2026-04-29	P6	P6:7	none (anchor evidence only)	pput=0→0.000215 (mathd_algebra_107 via nlinarith @ HEAD a906886; first v4-native solve)	~24.6%→25.47%	Art-IV.boot Art-0.1 Art-V.1.1 Art-Laws.1+2 WP-§5.L1 WP-§5.L3 WP-§5.L4	e2752e8..f0b659f
+TB-1	active	2026-04-29	TBD	P1+P3+P6	P1:5,6,7,8,9 P3:1,2,5,6,8 P6:7 (h_vppu instrumentation)	P1:1,2,3,4 P3:1,2,3,5	h_vppu=0→? + econ_balance_delta!=0 + L4_ledger_writes_per_tx [Day1✓: prompt_context_hash field flows to v2 JSONL via run_oneshot/mathd_algebra_107]	25.47%→?	Art-Laws.1+2 Art-I.1.1 Art-II.2 Art-III.4-partial WP-§21-partial	063b003..(Day1)
