@@ -1,0 +1,8 @@
+=== mathd_algebra_107 @ 2026-04-29T12:17:03+00:00 ===
+[2026-04-29T12:17:03Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_107.lean | Condition: n3 | Model: deepseek-chat | Mode: full
+[2026-04-29T12:17:03Z INFO  evaluator] [swarm/n3] agent_models = [deepseek-chat,deepseek-chat,deepseek-chat] (label=deepseek-chat)
+[2026-04-29T12:17:03Z INFO  evaluator] [budget] regime=total_proposal base=50 effective_max_tx=50 (n_agents=3)
+[2026-04-29T12:17:03Z INFO  evaluator] [swarm/n3] Agent_0:skill0:t=0.20 Agent_1:skill1:t=0.20 Agent_2:skill2:t=0.20
+[2026-04-29T12:17:13Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=1 after this write)
+[v2-emit] SPLIT env unset; defaulting to 'adaptation' (Phase B convention; pre-registration requires SPLIT for Phase C+ ablation runs)
+[2026-04-29T12:17:13Z INFO  evaluator] PPUT = 10.04%/s (GP: 1 nodes, 12 tokens, 10.0s)

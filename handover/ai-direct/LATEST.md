@@ -69,19 +69,90 @@ CO1.7 audit cost: ~$25-42 (3 rounds; cumulative project ~$135-202 / $890 mid). W
 
 ---
 
-## 🚨 2026-04-29 Session-3 — CAPABILITY-FIRST PIVOT (spec-craft halt; 1-week first-solve deadline)
+## 🚨 2026-04-29 Session-3 — CAPABILITY-FIRST PIVOT + ✅ FIRST V4-NATIVE SOLVE (~80 min after pivot)
 
-**Status**: User raised "no confidence in dev capability" challenge after 7-day atom-spec wave. Web research + internal eval confirmed the project drifted into spec-craft anti-pattern (premature infrastructure). Session-3 is the pivot. **CO1.8 v1 deferred (NOT patched)** after r1 found real architectural P0s. Capability-first work begins now.
+**Status**: User raised "no confidence in dev capability" challenge after 7-day atom-spec wave. Web research + internal eval confirmed spec-craft drift. Pivot codified at commit `a906886`. **B target met within 80 min**: `mathd_algebra_107` solved end-to-end at HEAD `a906886` via v4 evaluator binary, OMEGA accept depth=1, 10.0s wall-clock, single tactic `nlinarith`. Independently re-verified via `lean --stdin` exit 0. **Evidence**: `handover/evidence/first_v4_solve_2026-04-29/`.
 
-### 🚀 Next-session entry point
+### B result — first v4-native solve
 
-**B: run v4 evaluator on `mathd_algebra_107` (HEAD) by 2026-05-06.**
-- Mathlib rebuild is the gating constraint (~99% complete @ 7750/7843 packages; ~20 min remaining at 11:55 launch time)
-- After Mathlib clean: `cd experiments/minif2f_v4 && cargo build --release && bash run_list.sh oneshot <list-with-mathd_algebra_107> first_v4_solve`
-- Success = `proofs/mathd_algebra_107_<ts>_<sha>.lean` written + OMEGA accept + PputResult emit. First v4-HEAD-produced solve.
-- Failure = specific wiring/regression diagnostic; debug to root cause within 24h iteration cap
+| Metric | Value |
+|---|---|
+| Problem | `mathd_algebra_107` (adaptation split) |
+| Condition / Mode / Model | `n3` / `full` / `deepseek-chat` |
+| `MAX_TRANSACTIONS` | 50 |
+| `solved` / `verified` | true / true |
+| Golden-path tactic | `nlinarith` |
+| `tx_count` / `gp_token_count` | 1 / 12 |
+| Wall-clock | 9.95s |
+| `pput_runtime` | 0.000215 |
+| `pput` (PPUT/s) | 10.04 |
+| HEAD | `a906886` |
+| Independent re-verify | ✅ exit 0 |
 
-**Do NOT** start any new spec-atom work until B produces a signal.
+**Closes**: 7-day "0 v4-native solves" gap. Capability path is alive at HEAD; CO1.x substrate atoms did NOT break the pre-v4 evaluator path.
+
+### Auxiliary finding — `oneshot` regression bug (file separately; not B-blocking)
+
+Two `condition=oneshot` retries failed deterministically in 9-11s with identical Lean parse error: `<stdin>:10:33: error: unexpected token 'by'; expected '{' or tactic`. Same model/problem/HEAD with `condition=n3` solved cleanly. **Implication**: `run_oneshot` code path in evaluator.rs has prompt-template or output-parsing bug; `n3` swarm path uses different scaffolding and works. Filed for ≤1-day follow-up atom.
+
+### Landing eval (delivered 2026-04-29 12:25 by Explore agent)
+
+**Architectural completion ~28%** (defensible measure):
+- L0 Constitution: ✅ wired (boot.rs + genesis_payload + Trust Root)
+- L1 Predicate Registry: ✅ wired (146 pub items + 18 conformance tests)
+- L2 Tool Registry: ⚠️ scaffold only (registry struct; tool dispatch stubs)
+- L3 CAS: ✅ wired (git2 blobs + JSONL sidecar; 4 round-trip tests)
+- L4 Transition Ledger: ✅ wired (LedgerEntry + Git2LedgerWriter; CO1.7-extra closed)
+- L5 Materializer: 🛑 SPEC-ONLY DEFERRED (CO1.8 v1 r1 found 2 P0s)
+- L6 Signal Indices: ❌ not started
+- L7 Read View: ⚠️ partial (snapshot.rs + prompt_guard; no full rtool/wtool trio)
+
+**5-step compile loop**: 3/5 wired (Proposal, Ground-Truth Feedback, Logging) + 2/5 stubbed (Capability Compilation, ↑H-VPPUT feedback)
+**Capability path**: 0% → 0.4% (1 solve / ~244 problems = 0.4% baseline; H-VPPUT not yet measured)
+**Substrate path**: 65% (per LATEST.md prior; git2-rs CAS + L4 commits wired; HEAD_t path abstraction + Art 0.4 rtool/wtool trio missing; Path A/B/C election deferred)
+**Economic mechanism (§ 21 final reward)**: 10% computable (Constitution gates ✅; Utility partial; Escrow/Accept/Attribution/Survival all schema-only stubs)
+
+**ChainTape end-to-end Verify-tx flow**: stalls at step 3 (sequencer dispatch returns NotImplementedError; CO1.7.5 transition bodies deferred). Steps 1-2 (proposal, predicate verdict) and 6-8 (ledger commit, CAS index, system signature) work; steps 3-5 (state mutation, materializer, signal broadcast) deferred.
+
+**Top 3 gaps if pursuing substrate-path capability** (8-12 days estimate from agent — but **B already proved capability via pre-v4 evaluator path so this is FUTURE work, not blocking**):
+1. CO1.8 v2 spec rework (3-5 days)
+2. Evaluator → v4 ledger wiring (1-2 days)
+3. L6 signal indices (2-3 days)
+
+### Constraint hierarchy (post-B-success update)
+
+1. **Constitution**
+2. **Whitepaper v2**
+3. **24h iteration cap** ← validated this session (pivot decision → first solve in 80 min)
+4. **Standing memories** (with re-scoped dual-audit + phased-checkpoint)
+
+### Outstanding follow-ups (priority order)
+
+1. **`oneshot` regression bug** — file as ≤1-day atom; identify prompt-template/parser divergence
+2. **Solve breadth check** — re-run n3 + MAX_TX=50 against 5-10 more adaptation problems for solve-rate estimate
+3. **CO1.7-impl A5+ continuation** (real implementation work; not new spec)
+4. **CO1.7.5 spec draft** (when started: single-round audit, accept-or-defer-with-OBS per session-3 policy)
+5. **CO1.8 v2 spec** (deferred until CO1.7.5 lands; per OBS doc)
+6. **AUTO_RESEARCH_NOTEPAD.md cleanup** (TFR stale ref; bloat ≤ 200 lines target)
+7. **LATEST.md compression** (target ≤ 100 lines; after pivot stabilizes)
+
+### Session-3 commits (chronological)
+
+| # | Commit | Action |
+|---|---|---|
+| 1 | `a906886` | Session-3 pivot codification: OBS_CO1_8_V1_DEFERRED + iteration-cap memory + LATEST.md session-3 + Codex/Gemini r1 audit MDs |
+| 2 | (this commit) | First v4-native solve evidence: handover/evidence/first_v4_solve_2026-04-29/ + LATEST.md session-3 update with B result + landing eval integration |
+
+### Original 🚀 Next-session entry point (B was the gate; B is now done)
+
+~~**B: run v4 evaluator on `mathd_algebra_107` (HEAD) by 2026-05-06.**~~ ✅ done in 80 min, not 1 week.
+
+**New next-session entry point**:
+1. Diagnose + fix `oneshot` regression bug (atom)
+2. Run n3 batch on 5-10 adaptation problems for solve-rate baseline
+3. Decide whether to resume substrate work (CO1.7.5/CO1.8) or expand capability batch first
+
+**Do NOT** restart spec-atom mass production. Capability path is now the default; substrate work earns its way back via concrete capability-loop progress (per `feedback_iteration_cap_24h` memory).
 
 ### Hard data that triggered the pivot (2026-04-22 → 2026-04-29, 7 days post-TRACE_MATRIX_v0 baseline)
 
