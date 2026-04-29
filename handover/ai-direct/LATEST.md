@@ -69,6 +69,92 @@ CO1.7 audit cost: ~$25-42 (3 rounds; cumulative project ~$135-202 / $890 mid). W
 
 ---
 
+## 🎯 2026-04-29 Session-2 CLOSURE — CO1.13 atom bundle COMPLETE ✅
+
+**Status**: CO1.13.1 + CO1.13.2 + CO1.13.3 all shipped + drift review = NO MATERIAL DRIFT. Wave 6 #2 PRE-CO1.8 alignment factory now LIVE.
+**HEAD commit**: `1a5849f` (CO1.13 phase drift review + --half factory upgrade).
+**Origin**: through `5829e32` pushed; rest local-only.
+
+### 🚀 Next-session entry point
+
+**Pick up at one of two priorities** (user direction required):
+
+1. **CO1.8 spec round-1 audit launch** — spec drafted at `6cc5cc9`; launchers exist at `handover/audits/run_{codex,gemini}_co1_8_round1_audit.sh|py`; not yet run. CO1.13 factory is now LIVE so audits will benefit from R-022 + § F.2 auto-refresh + § J orphan registry + the `--half` Phase C regression check.
+2. **CO1.13-extra** (legacy backlink closure; ~10-15 hr; ~250 missing backlinks) — MUST schedule before Phase D per spec § 0.5 Gemini r1 Q7. With R-022 LIVE, every NEW pub symbol since `e9c6a2b` is enforced; legacy gap is the remaining substantive debt.
+
+### Three commits this CO1.13 closure arc
+
+| # | Commit | Action |
+|---|---|---|
+| 1 | `9be22b4` | CO1.13.1 — TRACE_MATRIX_v3 doc completion (§ E.2/E.3 measured stats; § F.2 manual snapshot 135 backlinks; § J Orphan Extensions schema; cross-ref reconciliation). +283 / -14 doc delta. Trust Root rehash for TRACE_MATRIX_v3. |
+| 2 | `e9c6a2b` | CO1.13.2 + CO1.13.3 — R-022 hook (rules YAML + custom_commit_hook check_trace_matrix.py 421 LoC + tracked pre-commit shim + install_hooks.sh + .github/workflows/co1_13_r022_ci.yml + 5-line engine.py patch + 9 shell integration tests + Rust orchestrator) + auto-refreshing § F.2 reverse-map (update_trace_matrix_reverse_map.py 134 LoC; shares parser with R-022 check). +1011 / -31. Trust Root rehash for engine.py + TRACE_MATRIX_v3. |
+| 3 | `1a5849f` | CO1.13 phase drift review (`handover/architect-insights/CO1_13_PHASE_DRIFT_REVIEW_2026-04-29.md` 215 LoC) + `--half` factory upgrade to `run_c2_phase_c_ablation.sh` (3 problems × 5 modes × 1 seed × MAX_TX=20; lives between cheap `--smoke` and full Phase C batch). Trust Root rehash for runner script. |
+
+### CO1.13 final spec compliance (vs v1.1.1 § 0.3)
+
+| Sub-atom | Spec target LoC | Actual LoC | Verdict |
+|---|---:|---:|---|
+| CO1.13.1 | ~200 | +283 / -14 | ACCEPTABLE (table content + § J schema; quality spending) |
+| CO1.13.2 | ~335 | ~676 (script 421 + yaml 20 + shim 13 + installer 31 + ci 24 + 5-line engine.py + tests 297) | ACCEPTABLE (test-isolation hardening forced by real pollution incident) |
+| CO1.13.3 | ~100 | 134 | ACCEPTABLE (--check / --dry-run modes added) |
+| Bundle total | ~635 | +1011 / -31 net | ACCEPTABLE per Elon-mode "scope unchanged, process streamlined" |
+
+### Real-test data points (5)
+
+1. **Test pollution** — `r_022_ci_mode_catches_unhooked_pr.sh` initially leaked an empty `b60556d main baseline` commit + `feature` branch into the live repo because `tmp=$(setup_temp_repo)` ran `cd` in a subshell; `set -uo pipefail` (no `-e`) was silent on the failure. **Fixed**: introduced `enter_tmp_repo` (no subshell; sets TMP_DIR global; asserts `realpath $PWD` does NOT resolve inside PROJECT_ROOT before any git command). All 9 tests re-run without pollution.
+2. **Disk-space exhaustion** — `cargo test --test r_022_integration_orchestrator` triggered `ld: signal 7 (Bus error)` during link; bash subprocess infrastructure entered degraded state (every command returned non-zero with empty stdout/stderr; Write tool reported ENOSPC). User manually freed ~12G of cargo `target/`. Future drift reviews should `df -h` before launching `cargo test --workspace`.
+3. **CO1.13.3 idempotency** — `python3 scripts/update_trace_matrix_reverse_map.py --check` exits 0 immediately after first run.
+4. **Phase C smoke 5/5 PASS in 95s** post-CO1.13 (consistent with 97s baseline at `8d88f2d`); soft_law H2 fake-accept signature preserved. Per user 2026-04-29 challenge: `--smoke` is pipeline-liveness only — for CO1.13 (0 lines of `src/` changed) it confirms only that Trust Root rehashes didn't break evaluator boot.
+5. **Mathlib collateral damage** — disk-cleanup recommendation (`rm -rf .lake`) was too aggressive: `.lake/packages/Mathlib/` is a vendored dependency requiring `lake exe cache get` (~2 min) or `lake build` (30-60 min) to recover. Lake project skeleton (`lakefile.lean` / `lake-manifest.json` / `lean-toolchain`) preserved; recovery via `lake update && lake exe cache get` running in background at session-closure time. **New memory entry**: `feedback_lake_packages_vendored` codifies the `.lake/build` (regen) vs `.lake/packages` (vendored) distinction.
+
+### `--half` factory upgrade landed in this session
+
+User direction "1+2 结合，2 等大节点再做" → added `--half` mode to `handover/preregistration/scripts/run_c2_phase_c_ablation.sh`: 3 problems × 5 modes × 1 seed × MAX_TRANSACTIONS=20 (~10-15 min wall-clock; ~$0.20-0.40 API cost). Lives between `--smoke` (pipeline-liveness; ~95s) and `--full` (scientific regression; ~12 hr; 100 cells). First invocation surfaced data point #5 above; needs Mathlib recovery before next use.
+
+### Outstanding follow-ups (priority order)
+
+1. **CO1.8 spec round-1 audit launch** — drafted at `6cc5cc9`; ready under new factory regime
+2. **Mathlib recovery** — running in background via `lake update && lake exe cache get`; ETA ~5-10 min from session-2 CLOSURE start
+3. **CO1.13-extra** (legacy backlink closure; ~10-15 hr; ~250 backlinks; MUST before Phase D per Gemini r1 Q7)
+4. **CO1.13-devtools-mathlib-mirror** (new follow-up sub-atom; this session): file-mirror endpoint on linux1 hosting Mathlib v4.24.0 `.lake/packages` tarball; omega-vm hydration script; Trust Root sha256 registration. Constitutionally clean (Lean stays local). Estimated ~1-2 day work; collapses future Mathlib re-fetch from 10-30 min to ~5 min internal-network rsync. Defer to between CO1.8 and CO1.9 atoms.
+5. **CO1.13-devtools** (scaffold scripts + Trust Root rehash automation; per spec § 0.4) — non-spec; lands as separate commit
+6. **AUTO_RESEARCH_NOTEPAD.md cleanup** — TFR stale reference per LATEST.md session-2 outstanding-debt; defer to next session
+7. **CO1.7.5** (transition bodies; gated on CO P2.x substrate atoms) — Wave 2 work; weeks-to-months out
+
+### New Constitutionally-clean Mathlib mirror architecture (CO1.13-devtools-mathlib-mirror; this session candidate spec)
+
+**Why**: Today's disk-cleanup → Mathlib loss → 10+ min recovery debt is preventable. linux1-lx (128G AMD AI Max 395, primary compute node) is the natural Mathlib source-of-truth.
+**What**: tarball `.lake/packages` ~5G on linux1 → exposed via internal HTTPS (or even simpler: via existing WireGuard rsync access) → omega-vm hydrate-on-provision script.
+**Constitutionally clean**: Lean still runs locally on omega-vm (Art 0.2 oracle locality unchanged); network only used for one-time provisioning hydration.
+**Trust Root**: tarball sha256 registered in `genesis_payload.toml`; FC3-N34 verification on hydrate.
+**NOT**: a network verifier API (option B in 2026-04-29 user discussion) — that would change Art 0.2 oracle locality + raise sudo gate.
+
+### Sedimented memory entries this session
+
+- `feedback_lake_packages_vendored` (NEW; .lake/build vs .lake/packages distinction)
+- (existing memories unchanged: `feedback_oracle_preflight`, `project_phase_c_living_regression`, `feedback_elon_mode_policy`, `feedback_no_fake_menus` all reaffirmed by this session's events)
+
+### Cumulative project audit spend after CO1.13 closure
+
+- This session's CO1.13 r1+r2 dual audits + cap-exception: ~$16-24 (per drift review § 7)
+- Project cumulative: ~$220-340 / $890 mid-budget (~25-38%); ~$550-670 runway
+- Per atom going forward: $5-10 expected (single-round + targeted patches; R-022 + auto-refresh + § J registry now amortize the spec-cycle prep cost)
+
+### Constraint hierarchy (active per Elon-mode + user 2026-04-29 explicit instruction)
+
+User explicit instruction 2026-04-29 session-2:
+> "我要求你在遵守宪法、白皮书和我们刚才讨论的elon-mode下自动执行..."
+
+Operationalized priority order:
+1. Constitution
+2. Whitepaper v2
+3. Elon-mode (round cap=2, OBS threshold=3, cap-exception via auto-execute on determinate-best surgical patch)
+4. Standing memories (dual-audit, smoke-before-batch, no-fake-menus, FC-first, NEW lake-packages-vendored)
+
+When facing decision: 1→2→3→4 order; if no resolution → state determinate-best + execute (no fake menus). Per-phase drift review at atom-complete boundary. When lacking data: run real tests, don't speculate.
+
+---
+
 ## 🌊 2026-04-29 Session-2 — CO1.7-extra Branch B closure + CO1.13 spec PASS-with-cap-exception (Elon-mode launch)
 
 **Updated**: 2026-04-29 (session-2)
