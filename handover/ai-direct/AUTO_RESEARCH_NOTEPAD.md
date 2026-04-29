@@ -4,23 +4,63 @@
 
 **Hook**: `MEMORY.md` → `project_auto_research_notepad.md` points here. Loaded every session.
 
-**Last updated**: 2026-04-29 session-3 (Karpathy-loop methodology install; TB-1 Day-1 spike shipped)
+**Last updated**: 2026-04-29 session-3 (TB methodology v2 — phase tagging + kill criteria; 9-phase roadmap canonical)
 
-## TB methodology (Karpathy-minimal install 2026-04-29 session-3)
+## TB methodology v2 (P0–P9 phase-tagged; install 2026-04-29 session-3)
 
-- **Unit-of-work** = TB (tracer bullet); 5-7 days timebox; logged in `handover/tracer_bullets/TB_LOG.tsv`
-- **Each TB MUST include** capability surface (M1 metric in TSV) + ≥1 constitution Article or WP § activation; ship surface declared in commit message body; everything else FROZEN per CLAUDE.md
-- **Selection rule**: next TB picks highest-priority gap from {capability stub in 5-step loop, uncovered Article, uncovered WP §, layer hole}; user confirms before start
-- **Failure**: acceptance tests not all pass at timebox → revert or `handover/alignment/OBS_TB-N_FAILED.md`; charter must change before retry (no same-charter retry)
-- **Coverage metric** (alignment side-effect, NOT per-TB target): `python3 scripts/alignment_coverage.py` — install-time baseline 25.47% (94/369). 100% goal = every constitution Art + WP § + L1-L7 layer demonstrated by some TB end-to-end + every src/ pub symbol either backlinked or in `tests/orphan_registry.md` with justification.
+> **Authority**: architect directive 2026-04-29 + user `gretjia` chat authorization. Canonical roadmap doc: `handover/architect-insights/ROADMAP_9_PHASE_2026-04-29.md`. Directive verbatim archive: `handover/directives/2026-04-29_9_phase_roadmap.md`.
 
-### TB-1 Day-1 spike (2026-04-29) — log
+- **Unit-of-work** = TB (tracer bullet); 5-7 days timebox; logged in `handover/tracer_bullets/TB_LOG.tsv`.
+- **Each TB MUST declare** in commit message body AND TB_LOG.tsv row:
+  - `phase_id` ∈ {P0, P1, P2, P3, P4, P5, P6, P7, P8, P9} — which roadmap phase this TB advances. A TB may span 2 phases (e.g. P1+P3) but MUST pick a primary.
+  - `roadmap_exit_criteria_addressed` — subset of the phase's numbered Exit list (e.g. `P1: 7,8,9`).
+  - `kill_criteria_tested` — subset of P1/P3/P5 kill clauses this TB tries to keep green (each tested kill criterion gets ≥1 acceptance test).
+  - capability surface (M1 metric) + ship surface in commit body — same as v1.
+- **Selection rule** (v2): next TB picks the lowest-numbered phase that still has a RED kill criterion or unaddressed Exit criterion. Tie-break: prefer TBs that flip a kill criterion RED→GREEN over TBs that only add Exit-criterion evidence. User confirms before start. Same-phase TBs may run sequentially (RSP-0 → RSP-1 → …) but MUST NOT run before earlier phases are partially-green.
+- **Out-of-order TBs are allowed only as P6 anchor evidence** — i.e. running MiniF2F (P6 Epistemic Lab v0 product line) for capability data while P1/P3 are still partial. Such TBs must explicitly stamp `phase_id: P6` and acknowledge they accumulate product-line evidence, not infrastructure.
+- **Failure**: acceptance tests not all pass at timebox → revert or `handover/alignment/OBS_TB-N_FAILED.md`; charter must change before retry (no same-charter retry). **Additionally (v2)**: any TB whose run flips a kill criterion RED → DEAD must immediately stop the entire roadmap track and write `OBS_<phase>_FAILED.md`. Kill-with-OBS is NOT permitted on kill criteria themselves (they are not negotiable).
+- **Coverage metric** (alignment side-effect, NOT per-TB target): `python3 scripts/alignment_coverage.py` — install-time baseline 25.47% (94/369). 100% goal = every constitution Art + WP § + L1-L7 layer demonstrated by some TB end-to-end + every src/ pub symbol either backlinked or in `tests/orphan_registry.md` with justification. Independent of phase tagging.
+
+### Phase ordering (operative; do not reorder)
+
+```text
+P0 Constitution-to-Code   → P1 GitTape Kernel        → P2 Agent Runtime
+                          → P3 RSP Economy Core (RSP-0..RSP-7)
+                          → P4 Information Loom     → P5 MetaTape
+                          → P6 Permissioned ChainTape / Epistemic Lab
+                          → P7 Public Settlement     → P8 Autonomous Agent Economy
+                          → P9 reserved (full-release MetaTape under autonomous economy)
+```
+
+Per directive ordering principle: **不要反过来。一开始就做开放市场、公链、AGI 科研、自治公司 = 不可控的黑盒赌场。**
+
+### TB-0 / TB-1 retroactive phase tagging
+
+| TB | Status | phase_id | Exit addressed | Kill tested |
+|---|---|---|---|---|
+| TB-0 | shipped | **P6** (Epistemic Lab v0 product line; MiniF2F first v4-native solve) | P6:7 (replication via independent `lean --stdin` re-verify) | none directly — anchor evidence only |
+| TB-1 | active | **P1+P3+P6** (re-charter; see `handover/tracer_bullets/TB-1_recharter_2026-04-29.md`) | P1:5,6,7,8,9 + P3:1,2,5,6,8 + P6 (h_vppu instrumentation) | P1:1,2,3,4 + P3:1,2,3,5 |
+
+PPUT-CCL Phase A–E roadmap below remains as the **P6 Epistemic Lab v0 product-line trajectory**, but is no longer the primary sequencing axis. Phase D ("ArchitectAI shadow mode") is **deferred** until P3 RSP economy is at minimum RSP-3 green and P5 MetaTape v1 has ArchitectAI proposal flow.
+
+### TB-1 Day-1 spike (2026-04-29) — log [phase_id: P6 instrumentation]
 
 - `prompt_context_hash` (Option<String>) + `h_vppu` (Option<f64>) added to `PputResult` (skip-if-none diagnostic).
 - run_oneshot prompt-build site stamps `prompt_context_hash` via `DefaultHasher`-hex (16-char). SHA-256 upgrade deferred to Day-4 to avoid Cargo.lock churn during a TB-1 scope edit (constitution.md hash inside genesis_payload.toml is sudo-protected; cleanest to re-hash both fields together at Day-4).
 - Trust Root manifest evaluator.rs entry rehashed (R-014 protocol; non-sudo per R-018). Boot tests 5/5 green; v2-dispatch tests 4/4 green.
-- 1-problem evaluator pass on `mathd_algebra_107` × oneshot × deepseek-chat: JSONL row contains `"prompt_context_hash":"a1f43584a17d1226"` ⟹ step-4 plumbing exists end-to-end. `solved=false` is the documented HEAD oneshot regression (handover/evidence/first_v4_solve_2026-04-29), unrelated to spike. n3 baseline solve at `f0b659f` (`pput_runtime=0.000215`) untouched.
+- 1-problem evaluator pass on `mathd_algebra_107` × oneshot × deepseek-chat: JSONL row contains `"prompt_context_hash":"a1f43584a17d1226"` ⟹ JSONL plumbing exists end-to-end. (Re-framing post-directive: this is **P6 Epistemic Lab instrumentation**, NOT step-4 closure of the 5-step compile loop. Step 4 = Capability Compilation properly belongs to P5 MetaTape per the canonical roadmap.) `solved=false` is the documented HEAD oneshot regression (handover/evidence/first_v4_solve_2026-04-29), unrelated to spike. n3 baseline solve at `f0b659f` (`pput_runtime=0.000215`) untouched.
 - Evidence: `handover/tracer_bullets/TB-1_day1_spike_2026-04-29.md` + `handover/tracer_bullets/TB-1_day1_oneshot.jsonl`.
+
+### TB-1 re-charter (2026-04-29 post-directive) — log
+
+- Original TB-1 charter (commit `4ecb708`) bundled P1+P3+P6 work into one 7-day TB. Per architect directive 2026-04-29, Days 2-7 re-tagged against P0-P9 phase model:
+  - Day 2 = **P3 RSP-0** (`monetary_invariant.py` + `on_init` mint-only test)
+  - Day 3 = **P1** (3 P1 kill criteria as acceptance tests: ledger hash chain breaks on row deletion; state_root unchanged on rejected tx; rejected log not in other Agent's read view)
+  - Day 4 = **P6 instrumentation** (h_vppu retained as a P6 metric only, NOT step-4 closure)
+  - Day 5 = original 5 acceptance tests + 6 new (3 P1 kill + 3 P3 RSP-0 Exit)
+  - AT-5 (winning-tactic-in-prompt-context) **descoped** from TB-1 → moved to a future TB (P5 MetaTape v1; runs only after P3 RSP-3 green)
+- Days 6-7 (dual audit + ship) unchanged.
+- Detail: `handover/tracer_bullets/TB-1_recharter_2026-04-29.md`.
 
 PPUT-CCL Phase A-E roadmap below remains as long-term **north star**; TB sequence is the **operational mechanism** to reach it.
 
