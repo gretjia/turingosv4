@@ -1,0 +1,24 @@
+name: CO1.13 R-022 TRACE_MATRIX backlink check
+
+# Per spec § 1.2 v1.1.1 (Codex r2 New-P0-1): a CI mode is not a CI gate —
+# this workflow makes R-022 a required merge gate so PRs that bypassed
+# `scripts/install_hooks.sh` cannot land an untraced pub symbol.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/**/*.rs"
+      - "scripts/check_trace_matrix.py"
+      - "rules/active/R-022_*.yaml"
+      - "handover/alignment/TRACE_MATRIX_v3_*.md"
+
+jobs:
+  r022_check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Run R-022 CI check
+        run: python3 scripts/check_trace_matrix.py --mode ci --base-ref origin/${{ github.base_ref }}

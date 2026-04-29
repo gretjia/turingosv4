@@ -116,6 +116,14 @@ def main():
         rule_path = os.path.join(args.rules_dir, fname)
         rule = load_yaml_simple(rule_path)
 
+        # CO1.13.2 patch: engine.py is pre_edit-only. Rules with
+        # trigger: "pre_commit" (e.g., R-022) are evaluated by their own
+        # commit-time hook (scripts/hooks/pre-commit.r022 → check_trace_matrix.py)
+        # because they need cross-file diff awareness that engine.py's per-file
+        # architecture cannot provide. Skip them silently here.
+        if rule.get("trigger", "pre_edit") == "pre_commit":
+            continue
+
         # Check file_glob match
         file_glob = rule.get("file_glob", "*")
         # Normalize: match against basename and full path

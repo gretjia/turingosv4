@@ -1,0 +1,20 @@
+id: "R-022"
+name: "trace_matrix_pub_symbol_block"
+source_incidents:
+  - "F-2026-04-25-04"           # B7 alignment retroactive fix
+  - "feedback_fc_first_problem_handling"  # FC-trace required in commit msg
+  - "CO1_13_DUAL_AUDIT_R1_2026-04-29"     # this audit cycle (architectural correction)
+  - "CO1_13_DUAL_AUDIT_R2_2026-04-29"     # cap-exception CI workflow tracking
+fc_trace: "CLAUDE.md Alignment Standard — every NEW src/ pub symbol must have TRACE_MATRIX backlink AT COMMIT TIME (not retroactive)"
+axiom: "every NEW pub fn/struct/enum/trait/const/mod added under src/ in this commit must have /// TRACE_MATRIX <id>: <role> doc-comment in the immediately preceding contiguous doc/attribute/comment/blank-line block, OR be filed in TRACE_MATRIX_v3.md § J (orphan extensions) with explicit constitutional justification (cases/Cxxx | PREREG-§n.m | OBS_R022_*.md)"
+trigger: "pre_commit"
+check:
+  type: "custom_commit_hook"
+  script: "scripts/check_trace_matrix.py"
+  invocation_note: "engine.py BYPASSED for this rule because R-022 requires cross-file diff awareness which engine.py per-file architecture does not provide. The pre-commit shim at scripts/hooks/pre-commit.r022 invokes the script directly. Engine.py treats this rule as a declarative tombstone (early-continue on trigger==pre_commit per CO1.13.2 5-line patch)."
+file_glob: "*.rs"
+enforcement: "block"
+message: "BLOCK (R-022 / Alignment Standard): NEW pub symbol(s) added under src/ without TRACE_MATRIX backlink (or REMOVAL of an existing backlink). See script output for specific locations. Either (a) add /// TRACE_MATRIX <FC-id>: <role> doc-comment in the immediately preceding doc/attribute block of each new pub symbol, (b) file in handover/alignment/TRACE_MATRIX_v3_2026-04-27.md § J with orphan justification (cases/Cxxx | PREREG-§n.m | OBS_R022_*.md required), or (c) include `[R-022-skip: <reason; cases/Cxxx | PREREG-§n.m | OBS_R022_*.md REQUIRED>]` token in the commit message."
+stats:
+  times_triggered: 0
+  last_triggered: ""

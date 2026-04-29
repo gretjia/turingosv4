@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# CO1.13.2 — R-022 commit-time hook (tracked shim).
+#
+# Per spec § 1.2 v1.1.1: this shim is the canonical source of truth for the
+# pre-commit hook. `.git/hooks/pre-commit` is created as a symlink to this
+# file by `scripts/install_hooks.sh`. Any updates land here, not in the
+# untracked `.git/hooks/` directory.
+#
+# FC-trace: FC3-Alignment (TRACE_MATRIX_v3 backlink discipline).
+set -euo pipefail
+
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+exec python3 "$PROJECT_ROOT/scripts/check_trace_matrix.py" --mode commit

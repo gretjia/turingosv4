@@ -178,7 +178,7 @@ Two caveats while CO1.13.3 has not yet shipped:
 1. **Module-level `//!` backlinks not enumerated below**. The `src/bottom_white/cas/{mod,schema,store}.rs`, `src/bottom_white/tools/{mod,registry}.rs`, `src/top_white/{mod,predicates/{mod,registry,visibility}}.rs`, `src/economy/{mod,money}.rs`, `src/main.rs` files carry module-level `//! /// TRACE_MATRIX …` lines. CO1.13.3 will pick these up via a separate query (`//!`-prefixed lines whose body matches the same `TRACE_MATRIX <id>: <role>` shape) and merge into § F. v3 manual snapshot covers item-level `///` backlinks only.
 2. **Variant/field rows present but R-022 enforcement is at enclosing-symbol granularity** per CO1.13 spec § 1.3 R-022 Scope Table. The variant/field rows below carry their own backlinks (legacy practice; preserved); R-022 itself fires on the parent `pub enum` / `pub struct`. Variant/field backlinks pass form check via the parent's preceding doc-block.
 
-### § F.2 Reverse-map snapshot (HEAD `ad61798`, 2026-04-29 manual population)
+### § F.2 Reverse-map snapshot (HEAD `9be22b4`, auto-refreshed by CO1.13.3)
 
 #### `src/boot.rs`
 
@@ -186,7 +186,7 @@ Two caveats while CO1.13.3 has not yet shipped:
 |---:|---|---|
 | 30 | `pub enum TrustRootError` | FC3-N34: failure variants of the readonly-guard verification |
 | 62 | `pub fn verify_trust_root` | FC3-N34: implementation of the constitutional `readonly` |
-| 246 | `fn verify_child_manifest` | FC3-N34 + case C-075: child-manifest recursion |
+| 246 | `fn` | FC3-N34 + case C-075: child-manifest recursion |
 | 281 | `pub fn parse_trust_root_section` | FC3-N34: helper for `verify_trust_root` — exposed because |
 
 #### `src/bottom_white/ledger/mod.rs`
@@ -217,12 +217,12 @@ Two caveats while CO1.13.3 has not yet shipped:
 | 212 | `pub const fn` | FC3-Sig: old signing epoch certified by the rotation proof |
 | 217 | `pub const fn` | FC3-Sig: new signing epoch certified by the rotation proof |
 | 223 | `pub enum CanonicalMessage` | FC1-Sig+FC3-Sig: only typed runtime messages may enter signature verification |
-| 226 | `RejectedAttemptSummary` (variant) | FC1-Sig: predicate-runner rejection summary |
-| 228 | `TerminalSummarySigning` (variant) | FC1-Sig+FC3-Sig (CO1.1.4-pre1 v1.1 closure C-3): terminal |
-| 236 | `FinalizeRewardSigning` (variant) | FC1-Sig+FC3-Sig (CO1.1.4-pre1 v1.2 closure R2-2): finalize |
-| 240 | `TaskExpireSigning` (variant) | FC1-Sig+FC3-Sig (CO1.1.4-pre1 v1.2 closure R2-2): task |
-| 244 | `EpochRotationProof` (variant) | FC3-Sig: system key epoch continuity proof |
-| 246 | `LedgerEntrySigning` (variant) | FC2-Append (CO1.7 v1.2 round-2 closure C3): L4 transition_ledger |
+| 226 | `RejectedAttemptSummary` | FC1-Sig: predicate-runner rejection summary |
+| 228 | `TerminalSummarySigning` | FC1-Sig+FC3-Sig (CO1.1.4-pre1 v1.1 closure C-3): terminal |
+| 236 | `FinalizeRewardSigning` | FC1-Sig+FC3-Sig (CO1.1.4-pre1 v1.2 closure R2-2): finalize |
+| 240 | `TaskExpireSigning` | FC1-Sig+FC3-Sig (CO1.1.4-pre1 v1.2 closure R2-2): task |
+| 244 | `EpochRotationProof` | FC3-Sig: system key epoch continuity proof |
+| 246 | `LedgerEntrySigning` | FC2-Append (CO1.7 v1.2 round-2 closure C3): L4 transition_ledger |
 | 255 | `pub struct PinnedSystemPubkeys` | FC1-Sig+FC3-Sig: epoch-indexed public keys pinned by genesis and rotation history |
 | 262 | `pub fn new` | FC1-Sig+FC3-Sig: create an empty pinned system-key map |
 | 267 | `pub fn insert` | FC1-Sig+FC3-Sig: pin a public key for a system epoch |
@@ -231,13 +231,13 @@ Two caveats while CO1.13.3 has not yet shipped:
 | 291 | `pub fn generate_with_secure_entropy` | FC1-Sig+FC3-Sig: generate ed25519 key material from `getrandom(2)` entropy |
 | 306 | `pub const fn` | FC1-Sig+FC3-Sig: return the public half of the system keypair |
 | 367 | `pub enum KeypairError` | FC1-Sig+FC3-Sig: system keypair lifecycle and crypto error taxonomy |
-| 370 | `Io` (variant) | FC1-Sig+FC3-Sig: filesystem operation failed |
-| 372 | `Entropy` (variant) | FC1-Sig+FC3-Sig: secure operating-system entropy failed |
-| 374 | `KdfParam` (variant) | FC1-Sig+FC3-Sig: KDF environment parameter was absent or invalid |
-| 376 | `Kdf` (variant) | FC1-Sig+FC3-Sig: Argon2id key derivation failed |
-| 378 | `Crypto` (variant) | FC1-Sig+FC3-Sig: ChaCha20-Poly1305 encryption or authentication failed |
-| 380 | `InvalidFormat` (variant) | FC1-Sig+FC3-Sig: encrypted keystore format was malformed |
-| 382 | `HomeUnavailable` (variant) | FC1-Sig+FC3-Sig: default keystore path could not be resolved |
+| 370 | `Io` | FC1-Sig+FC3-Sig: filesystem operation failed |
+| 372 | `Entropy` | FC1-Sig+FC3-Sig: secure operating-system entropy failed |
+| 374 | `KdfParam` | FC1-Sig+FC3-Sig: KDF environment parameter was absent or invalid |
+| 376 | `Kdf` | FC1-Sig+FC3-Sig: Argon2id key derivation failed |
+| 378 | `Crypto` | FC1-Sig+FC3-Sig: ChaCha20-Poly1305 encryption or authentication failed |
+| 380 | `InvalidFormat` | FC1-Sig+FC3-Sig: encrypted keystore format was malformed |
+| 382 | `HomeUnavailable` | FC1-Sig+FC3-Sig: default keystore path could not be resolved |
 | 410 | `pub fn default_system_keystore_path` | FC1-Sig+FC3-Sig: resolve `~/.turingos/keystore/system_keypair_v{epoch}.enc` |
 | 425 | `pub fn generate_or_load_system_keypair` | FC1-Sig+FC3-Sig: first-boot generate-or-second-boot decrypt lifecycle entrypoint |
 | 440 | `pub fn load_existing_keypair` | FC1-Sig+FC3-Sig: decrypt an existing encrypted system keypair keystore |
@@ -266,7 +266,7 @@ Two caveats while CO1.13.3 has not yet shipped:
 | 99 | `pub struct LedgerEntrySigningPayload` | FC2-Append C3: the bytes the system keypair actually signs |
 | 168 | `pub fn append` | FC2-Append + spec § 4: pure ledger-root fold over signed digests |
 | 183 | `pub trait LedgerWriter` | FC2-Append: storage abstraction for L4 |
-| 194 | `fn head_commit_oid_hex` (trait method) | § 5 — L4 sequencer post-commit head_t wiring (Art 0.4) |
+| 194 | `fn` | § 5 — L4 sequencer post-commit head_t wiring (Art 0.4) |
 
 #### `src/bottom_white/mod.rs`
 
@@ -280,7 +280,7 @@ Two caveats while CO1.13.3 has not yet shipped:
 |---:|---|---|
 | 19 | `pub const PENDING_COMPLETION_TOKENS_CO1_1_4` | FC1-Cost / FC3-Cost: placeholder until CO1.1.4 STEP_B propagates |
 | 116 | `pub fn with_sequencer` | § 5.2.1 — single-writer entry-point |
-| 134 | `pub async fn submit_typed_tx` | § 5.2.1 — typed-tx submission entry |
+| 134 | `pub fn submit_typed_tx` | § 5.2.1 — typed-tx submission entry |
 
 #### `src/state/mod.rs`
 
@@ -305,7 +305,7 @@ Two caveats while CO1.13.3 has not yet shipped:
 | 80 | `pub struct AgentSwarmState` | § 1.1 — agent swarm sub-state |
 | 88 | `pub struct PerAgentState` | § 1.1 — per-agent runtime state |
 | 101 | `pub struct AgentVisibleProjection` | § 1.1 — agent-visible projection of tape filtered by per-agent |
-| 114 | `pub struct BudgetSnapshot` | § 1.1 — global budget snapshot |
+| 114 | `pub struct BudgetSnapshot` | § 1.1 — global budget snapshot: |
 | 138 | `pub struct EconomicState` | WP § 2 economic — 9-sub-field economic state. Each sub-index |
 | 155 | `pub struct BalancesIndex` | WP § 2 — agent → balance ledger. Concrete entry: `MicroCoin` (CO1.0a) |
 | 159 | `pub struct EscrowsIndex` | WP § 2 — tx → escrow entry. Full schema lands CO P2.2 EscrowVault |
@@ -323,7 +323,7 @@ Two caveats while CO1.13.3 has not yet shipped:
 | 277 | `pub struct ChallengeCase` | WP § 2 — challenge case shape (stub). Full fields land CO P2.5 |
 | 294 | `pub struct PriceIndex` | WP § 2 — tx → posted price (last accepted price index) |
 | 302 | `pub struct QState` | § 1.1 — system state Q_t. 9 fields per WP § 4 + economic § 2 amendment |
-| 329 | `pub fn genesis` | Art IV Boot — genesis Q_t. All zero / empty |
+| 329 | `pub fn genesis` | Art IV Boot — genesis Q_t. All zero / empty; |
 
 #### `src/state/sequencer.rs`
 
@@ -345,30 +345,29 @@ Two caveats while CO1.13.3 has not yet shipped:
 | 71 | `pub struct ReadKey` | § 1.2 WorkTx field 5 — read-set key (DAG attribution / replay) |
 | 77 | `pub struct WriteKey` | § 1.2 WorkTx field 6 — write-set key (DAG attribution / replay) |
 | 85 | `pub struct AgentSignature` | § 1.2 WorkTx field 10 + I-SIG: agent-side detached Ed25519 |
-| 111 | `pub struct SlashEvidenceCid` | § 1.2 TxStatus::FinalizedSlash — typed reference |
+| 111 | `pub struct SlashEvidenceCid` | § 1.2 TxStatus::FinalizedSlash — typed reference to the |
 | 121 | `pub struct BoolWithProof` | § 1.2 PredicateResultsBundle — boolean predicate verdict |
 | 130 | `pub enum SafetyOrCreation` | § 1.2 PredicateResultsBundle — safety-class discriminator |
 | 147 | `pub struct PredicateResultsBundle` | § 1.2 WorkTx field 8 — runner-stamped predicate results |
 | 161 | `pub enum RejectionClass` | § 1.4 — classification of a rejected attempt |
 | 175 | `pub enum VerifyVerdict` | § 1.3 VerifyTx field 5 — verifier verdict |
 | 183 | `pub enum RunOutcome` | § 1.5 TerminalSummaryTx field 4 + Art. IV halt-reason taxonomy |
-| 195 | `pub enum TxStatus` | § 1.2 TxStatus — runtime book-keeping only (D-1 divergence) |
-| 212 | `pub struct WorkTx` | § 1.2 — agent-submitted work transaction (12-field schema) |
+| 195 | `pub enum TxStatus` | § 1.2 TxStatus — **runtime book-keeping only** (D-1 divergence |
+| 212 | `pub struct WorkTx` | § 1.2 — agent-submitted work transaction (12-field schema; |
 | 238 | `pub struct VerifyTx` | § 1.3 — verifier verdict transaction |
-| 256 | `pub struct ChallengeTx` | § 1.3 — challenge transaction (counter-example posted) |
+| 256 | `pub struct ChallengeTx` | § 1.3 — challenge transaction (counter-example posted with |
 | 269 | `pub struct ReuseTx` | § 1.3 — fact-tx recording reuse of a tool created by a prior |
-| 280 | `pub struct FinalizeRewardTx` | CO1.1.4-pre1 spec § 4 — derived schema (STATE spec § 3.4) |
+| 280 | `pub struct FinalizeRewardTx` | CO1.1.4-pre1 spec § 4 — derived schema (STATE spec § 3.4 |
 | 313 | `pub struct TaskExpireTx` | STATE spec § 3.6 v1.3 — system-emitted task-expiry tx |
 | 327 | `pub struct TerminalSummaryTx` | STATE spec § 1.5 — system-emitted no-accept-run handler |
 | 603 | `pub enum TypedTx` | § 8 dispatch_transition — typed-tx outer enum |
-| 638 | `pub trait HasSubmitter` | STATE spec § 3.6.5 v1.3 — submitter resolution trait |
-| 706 | `pub enum TransitionError` | STATE § 3 — transition-function error taxonomy |
-| 824 | `pub struct SignalBundle` | STATE § 3 — tape-emitted signal bundle |
+| 638 | `pub trait HasSubmitter` | STATE spec § 3.6.5 v1.3 — submitter resolution trait used |
+| 706 | `pub enum TransitionError` | STATE § 3 — transition-function error taxonomy. v1.1 covers |
+| 824 | `pub struct SignalBundle` | STATE § 3 — tape-emitted signal bundle. v1 minimal: a single |
 
-**Total**: 135 `///`-doc-comment backlinks across 10 source files (HEAD `ad61798`). Module-level `//!` backlinks (CAS, tools, predicates, economy module roots) merge in via CO1.13.3 auto-refresh; counted in § E.2 raw-grep total of 154.
+**Total**: 135 `///`-doc-comment backlinks across 10 source files (HEAD `9be22b4`). Auto-refreshed by `scripts/update_trace_matrix_reverse_map.py` per CO1.13.3.
 
 — end of § F manual snapshot.
-
 ---
 
 ## § G — Deferred Items Justification

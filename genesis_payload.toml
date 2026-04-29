@@ -137,7 +137,7 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 "handover/preregistration/scripts/run_p0_calibration.sh" = "5f4a57dd8b8280ffe04bec89350a57d876d06cc179d9f8841a522e7bdcf1b8b7"
 "handover/preregistration/scripts/compute_p0.py" = "fd1dff97d582f4f509249852be500cba7d81efc9bab8fcb9872b2d85bb4e3052"
 "rules/MANIFEST.sha256" = "6d6fd54d46352213a857fdaf5cf70e8a893bbbd5467e5da45a3ed3314d01b0c2"
-"rules/engine.py" = "932d9a2b7a3249a7eb5825c0b5c714a9913cd9aa9e058f789e64992b140e40b3"
+"rules/engine.py" = "e29f062b27fa0bb486a99876438dc096f952da0f358efdca40579592c5d97713"  # rehashed by CO1.13.2 (2026-04-29): 5-line early-continue patch for trigger==pre_commit (R-022 bypass); FC3-N34 readonly verification
 ".claude/hooks/judge.sh" = "f1f8f5094057dcea3c345951f7e73fd4d269f074a407829f19e4d75830a55fc2"
 "tests/fc_alignment_conformance.rs" = "b3e75979ad2d175b9c45135be6ea1d94ce95184c6896468330c12dbfc1f719db"
 "src/kernel.rs" = "893fd67534caf7a3d9abd6efbd202556348b6491cd6d4c6bdb224d2ad75b1af0"
@@ -245,7 +245,7 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 # - TRACE_MATRIX_v3 full N/M/D coverage (CO0.8 atom)
 # - gix substrate spike pre-flight doc (CO1.3.1 atom prep)
 # - MetaTransitionInterface trait spec (CO P3-prep.5 atom)
-"handover/alignment/TRACE_MATRIX_v3_2026-04-27.md" = "6f84c56f36ad4960e36fec3fe4e66177dbb587fbc4ff37a2b94018bd5573195a"  # rehashed by CO1.13.1 (2026-04-29): § F populated + § J added + § E.2/E.3 measured stats; FC3-N34 readonly verification
+"handover/alignment/TRACE_MATRIX_v3_2026-04-27.md" = "8da3a4272bb752bd9d79b1a05ec12f22792f4c732d557cc4b3062b9db77a6a0a"  # rehashed by CO1.13.3 (2026-04-29): § F.2 auto-refreshed by scripts/update_trace_matrix_reverse_map.py; FC3-N34 readonly verification
 "handover/specs/CO1_3_1_GIX_SPIKE_PREFLIGHT_v1_2026-04-27.md" = "ddf6456633603d5ae04252cbaa700aceb61cac2c278da1f91b8cf28aa4ba8839"
 "handover/specs/META_TRANSITION_INTERFACE_v1_2026-04-27.md" = "f02d83e989be664faea660f10a746b04f986f9b13321ca16f63b470a95b96d4e"
 
