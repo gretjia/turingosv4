@@ -4,7 +4,17 @@
 
 **Hook**: `MEMORY.md` → `project_auto_research_notepad.md` points here. Loaded every session.
 
-**Last updated**: 2026-04-26 (PPUT-CCL arc launched; Paper 1 v2.1.1 deferred per user 2026-04-25)
+**Last updated**: 2026-04-29 session-3 (Karpathy-loop methodology install; TB-1 active)
+
+## TB methodology (Karpathy-minimal install 2026-04-29 session-3)
+
+- **Unit-of-work** = TB (tracer bullet); 5-7 days timebox; logged in `handover/tracer_bullets/TB_LOG.tsv`
+- **Each TB MUST include** capability surface (M1 metric in TSV) + ≥1 constitution Article or WP § activation; ship surface declared in commit message body; everything else FROZEN per CLAUDE.md
+- **Selection rule**: next TB picks highest-priority gap from {capability stub in 5-step loop, uncovered Article, uncovered WP §, layer hole}; user confirms before start
+- **Failure**: acceptance tests not all pass at timebox → revert or `handover/alignment/OBS_TB-N_FAILED.md`; charter must change before retry (no same-charter retry)
+- **Coverage metric** (alignment side-effect, NOT per-TB target): `python3 scripts/alignment_coverage.py` — install-time baseline 25.47% (94/369). 100% goal = every constitution Art + WP § + L1-L7 layer demonstrated by some TB end-to-end + every src/ pub symbol either backlinked or in `tests/orphan_registry.md` with justification.
+
+PPUT-CCL Phase A-E roadmap below remains as long-term **north star**; TB sequence is the **operational mechanism** to reach it.
 
 ## Active roadmap (2026-04-26 rewrite, **supersedes Phase 8/9/10 Paper Preprint arc**)
 
