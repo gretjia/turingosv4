@@ -202,11 +202,14 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 # 2026-04-27 Wave 1 — CO1.0a MicroCoin + CO1.0 [constitution_root] + walkthrough Inv 3 e2e.
 # Real Rust code; 27/27 tests PASS; data validates Inv 3 monetary conservation closure.
 "src/lib.rs" = "bff2012e8027ca905051f01e2cc39588453bca5a50104c37e7cefc15f7d93523"
-"src/economy/mod.rs" = "23bc109063a2530ebebc899fd35648d3bdfa2b9b126d75b4590ab81ec9a537f8"
+# 2026-04-29 TB-1 Day-3 — economy/mod.rs rehashed: + `pub mod ledger` declaration (P1 L4 wrapper).
+"src/economy/mod.rs" = "c735f92316bc5982f6ec316026d70179fb783d152b5ded2ed6ccb0775b97f069"
 "src/economy/money.rs" = "857fc6df2aefa4b26fd4b7d22ec06f1105ac3ec4393c6788a8f30370b6d7e776"
 # 2026-04-29 TB-1 Day-2 — P3 RSP-0 monetary guards + escrow vault (NEW files).
 "src/economy/monetary_invariant.rs" = "4250b1e68a2952435e5f848c95e5fec028f142551e646a2c020f038ba1c0ab2a"
 "src/economy/escrow_vault.rs" = "95d6b4ec182dd0f181785190c9e8a71a0631fad4a7e255a152938708a52c7319"
+# 2026-04-29 TB-1 Day-3 — P1 GitTape kernel hardening: L4 accepted-only ledger wrapper (NEW file).
+"src/economy/ledger.rs" = "dfebf2dc476d2e6076c5e98dcd1974291490fd4bea86d249d14f90d7340796e8"
 "tests/walkthrough_inv3_conservation.rs" = "e1e7bc1130dfb3edb4eb1a7aa458557f1134879ae297eecb3e8d46a269434198"
 "src/top_white/mod.rs" = "69b18a5d4c33954c81dccd41d48de770ac1d951daaf655f3a76857d7b492a4af"
 "src/top_white/predicates/mod.rs" = "3d04c1eaa09c65faf9afc038b275df5d2d7fa23b983ec38c1ad8f910f2841e28"
@@ -283,10 +286,13 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 # 2026-04-27 Wave 4-B — CO1.7.0a-f system_keypair atom.
 # Runtime ed25519 keypair lifecycle, encrypted-at-rest keystore, public verification,
 # scoped crate-only signing surfaces, and five mandated conformance tests.
-"src/bottom_white/ledger/mod.rs" = "edb4cda94b80dceb85a414de58139fde4f6f4635867141e31c14720ab06148ea"
+# 2026-04-29 TB-1 Day-3 — bottom_white/ledger/mod.rs rehashed: + `pub mod rejection_evidence` (L4.E).
+"src/bottom_white/ledger/mod.rs" = "4bc96dde116a05ad3cf3114f582e90d7d91c1b42fc6c526d32b121a303e29c23"
 "src/bottom_white/ledger/system_keypair.rs" = "5d3a2e6e247e18992682c69808d02bc7cd129d42c79db1c88f24a4cc975a0843"
 # 2026-04-28 CO1.7 type skeleton (pre-audit) — caught spec § 1 circular-digest bug.
 "src/bottom_white/ledger/transition_ledger.rs" = "9178de67c922086477c7946c58f4d0d43393d6f3933c8aae86e5072f7abc635e"
+# 2026-04-29 TB-1 Day-3 — P1 GitTape kernel hardening: L4.E rejection-evidence ledger (NEW file).
+"src/bottom_white/ledger/rejection_evidence.rs" = "84f8982ea94ae8bba08adf66f1d7c8a861ac702c06ff74bc11c4da63081977f8"
 "tests/system_keypair_generation.rs" = "94d2de928a0f32e71860cbf9125a85a89bb0ded53f6e55c2e16b6370b9dcaa4b"
 "tests/system_keypair_load_and_decrypt.rs" = "460ce3e0b13d523e62b0818285a414a69a91b1afc51c0e0eba7a521674dfaa55"
 "tests/system_keypair_sign_only_from_runner.rs" = "b0874933f684ba47a254728939d30327a0b59392221e51ec4b2207b901bbe65c"

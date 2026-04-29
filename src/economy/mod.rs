@@ -7,6 +7,8 @@
 
 /// TRACE_MATRIX 基本法 1 + Inv 3 + ROADMAP P3:5/P3:6/P3:8: task-keyed escrow vault (RSP-0).
 pub mod escrow_vault;
+/// TRACE_MATRIX WP § 5.L4 + Art IV + ROADMAP P1:5/P1:6/P1:7/P1:8: L4 accepted-only ledger wrapper (RSP-0).
+pub mod ledger;
 /// TRACE_MATRIX 基本法 1 + Inv 4 + ROADMAP P3:1/P3:2: monetary invariant guards (RSP-0).
 pub mod monetary_invariant;
 pub mod money;
