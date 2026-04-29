@@ -343,18 +343,20 @@ Per memory `feedback_smoke_before_batch`. Smoke run before round-2 audit launch,
 
 ## Pre-audit smoke results (footer; populated 2026-04-29 pre-round-2)
 
-Smoke to be run at the v1 commit HEAD post-rename + content rewrite. Footer populated when round-2 audit launches.
+Smoke run at HEAD `f7fc19f` (CO1.7-extra v1 spec rewrite commit).
 
-| # | Status |
-|---|---|
-| S1 | ⏳ pending audit-launch smoke |
-| S2 | ⏳ |
-| S3 | ⏳ |
-| S4 | ⏳ |
-| S5 | ⏳ |
-| S6 | ⏳ |
-| S7 | ⏳ |
-| S8 | ⏳ |
+| # | Claim | Result | Status |
+|---|---|---|---|
+| S1 | Git2LedgerWriter::head_commit_oid returns Option<git2::Oid> | `pub fn head_commit_oid(&self) -> Option<git2::Oid>` (transition_ledger.rs:674) | ✅ PASS |
+| S2 | Bus struct named TuringBus | `pub struct TuringBus` at bus.rs:53 | ✅ PASS |
+| S3 | Kernel derives Debug, Serialize, Deserialize | `#[derive(Debug, Serialize, Deserialize)]` precedes `pub struct Kernel` (kernel.rs:18) | ✅ PASS |
+| S4 | Sequencer struct exists | `pub struct Sequencer` at sequencer.rs:190 | ✅ PASS |
+| S5 | CasStore put + get exposed | `pub fn put` at store.rs:163; `pub fn get` at store.rs:199 | ✅ PASS |
+| S6 | wallet (sdk/tools/wallet.rs) untouched | 0 hits of `transition_ledger\|state::sequencer\|TypedTx` | ✅ PASS |
+| S7 | QState.head_t is state::q_state::NodeId tuple struct | `pub head_t: NodeId` (q_state.rs:311) — type matches | ✅ PASS |
+| S8 | cargo baseline | check pass + `239 passed; 0 failed; 1 ignored` (the ignored is `sequencer_serial_replay_byte_identity`, intentionally deferred to future CO1.7.5 atom) | ✅ PASS |
+
+**Smoke gate**: 8 / 8 PASS at HEAD `f7fc19f`. Spec ready for round-2 dual external audit.
 
 ### Patch log (this session)
 
