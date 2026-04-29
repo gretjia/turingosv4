@@ -8,8 +8,11 @@
 use crate::kernel::{Kernel, KernelError};
 use crate::ledger::{EventType, Ledger, Node, NodeId, TapeError};
 use crate::sdk::tool::{BetDirection, ToolSignal, TuringTool};
+use crate::state::sequencer::{Sequencer, SubmissionReceipt, SubmitError};
+use crate::state::typed_tx::TypedTx;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::Arc;
 
 // ── Symbolic constants (V-01 ceremonial kill per D-VETO-7 ratified A) ──────────
 
@@ -61,6 +64,13 @@ pub struct TuringBus {
     graveyard: HashMap<String, Vec<String>>,
     // Phase 1 (C-037 candidate): durable Q_t. None = legacy in-memory mode.
     wal: Option<crate::wal::Wal>,
+    /// CO1.7-extra D3: typed-tx Sequencer; `None` when bus runs in legacy
+    /// ledger-only mode. Spec § 2.1 + D3 STEP_B Branch A. `#[serde(skip)]`
+    /// is conditional on TuringBus having serde derives — it currently
+    /// does not (per `pub struct TuringBus` declaration above), so the
+    /// attribute is omitted at this landing. If a future atom adds serde
+    /// to TuringBus, the skip MUST be added in the same patch.
+    pub sequencer: Option<Arc<Sequencer>>,
 }
 
 /// Scope for recent_rejections query.
@@ -95,6 +105,40 @@ impl TuringBus {
             generation: 0,
             graveyard: HashMap::new(),
             wal: None,
+            sequencer: None,
+        }
+    }
+
+    /// CO1.7-extra D3: opt-in constructor wiring a typed-tx Sequencer
+    /// alongside the legacy ledger. Spec § 2.1 + § 2.2 (Sequencer lives at
+    /// TuringBus level, not nested through Kernel).
+    ///
+    /// TRACE_MATRIX § 5.2.1 — single-writer entry-point.
+    pub fn with_sequencer(
+        kernel: Kernel,
+        config: BusConfig,
+        sequencer: Arc<Sequencer>,
+    ) -> Self {
+        let mut bus = Self::new(kernel, config);
+        bus.sequencer = Some(sequencer);
+        bus
+    }
+
+    /// CO1.7-extra D3: typed-tx submission path. Returns receipt
+    /// (`submit_id`) immediately; commit happens asynchronously in
+    /// `Sequencer::run` driver loop.
+    ///
+    /// Returns `Err(SubmitError::QueueClosed)` when the bus runs in
+    /// legacy-only mode (no Sequencer wired).
+    ///
+    /// TRACE_MATRIX § 5.2.1 — typed-tx submission entry.
+    pub async fn submit_typed_tx(
+        &self,
+        tx: TypedTx,
+    ) -> Result<SubmissionReceipt, SubmitError> {
+        match self.sequencer.as_ref() {
+            Some(seq) => seq.submit(tx).await,
+            None => Err(SubmitError::QueueClosed),
         }
     }
 

@@ -62,6 +62,39 @@ pub(crate) fn dispatch_transition(
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// CO1.7-extra D2: advance_head_t — post-commit head_t close (Art 0.4)
+// ────────────────────────────────────────────────────────────────────────────
+
+/// TRACE_MATRIX § 5 — L4 sequencer post-commit head_t wiring (Art 0.4).
+///
+/// Closes the G-1 carry-forward: when `writer` surfaces a commit OID hex
+/// (Git2LedgerWriter), advance `q.head_t = state::q_state::NodeId(hex)`;
+/// when `writer` returns None (InMemoryLedgerWriter), leave `q.head_t`
+/// unchanged (no-op preservation).
+///
+/// Called from `apply_one` stage 9 AFTER `writer.commit` succeeds. Pure
+/// function (writer is `&dyn` so behavior depends only on writer's
+/// `head_commit_oid_hex` return + q's prior state).
+///
+/// **Visibility** (CO1.7-extra round-3 B2): `pub` (NOT `pub(crate)`) so that
+/// flat integration tests under `tests/co1_7_extra_*.rs` per round-2 MF5 can
+/// call this helper directly.
+///
+/// **Atomicity** (CO1.7-extra round-2 MF9): in apply_one, called under the
+/// `q_w` write lock immediately after `writer.commit` returns Ok. For Git2
+/// (Some path), this is post-commit non-failing best-effort head binding —
+/// `q.head_t`, `q.ledger_root_t`, and `next_logical_t` advance atomically.
+/// For InMemory (None path), this is explicit no-op preservation —
+/// `q.head_t` stays at the value `*q_w = q_next` left it (which equals the
+/// prior value because pure transition bodies never mutate head_t per
+/// CO1.7 K3 v1.2).
+pub fn advance_head_t(q: &mut QState, writer: &dyn LedgerWriter) {
+    if let Some(commit_oid_hex) = writer.head_commit_oid_hex() {
+        q.head_t = crate::state::q_state::NodeId(commit_oid_hex);
+    }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // Submission types — K1 dual counter
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -177,16 +210,23 @@ impl std::error::Error for SequencerError {}
 /// commit time (rejected submissions never get a logical_t — preserves
 /// `LedgerWriter`'s strict logical_t monotonicity invariant).
 ///
-/// **K3 v1.2 (revised)**: Sequencer does NOT mutate `q.head_t` or
-/// `q.state_root_t` directly; the transition function returns the new
-/// `QState` and the sequencer accepts it as-is. `head_t` mutation defers to
-/// CO1.7.5+ wiring (when `Git2LedgerWriter::commit` provides commit_sha
-/// alongside Hash).
+/// **K3 v1.2 + CO1.7-extra D2 (revised)**: the pure transition function does
+/// NOT mutate `q.head_t` or `q.state_root_t`; it returns the new `QState`
+/// and the sequencer accepts it as-is. `head_t` mutation now happens
+/// post-commit via `advance_head_t()` (CO1.7-extra D2): when
+/// `LedgerWriter::head_commit_oid_hex()` returns Some (Git2LedgerWriter),
+/// the sequencer writes `q.head_t = NodeId(commit_oid_hex)`; when None
+/// (InMemoryLedgerWriter), `head_t` is left unchanged (no-op preservation).
 ///
 /// **C3 sign API**: signs through
 /// `transition_ledger_emitter::sign_ledger_entry(keypair, digest_bytes)` —
 /// the typed `CanonicalMessage::LedgerEntrySigning([u8;32])` extension closes
 /// the C3 round-2 audit point.
+/// **CO1.7-extra D3 (round-2 MF6)**: manual `Debug` impl below — `#[derive(Debug)]`
+/// fails because `Arc<Ed25519Keypair>` field has no Debug derive (intentional;
+/// `Ed25519Keypair` derives only `Zeroize, ZeroizeOnDrop` for secret-handling).
+/// `finish_non_exhaustive()` leaks no keypair / QState / CAS contents and
+/// satisfies Debug propagation through `Arc<Sequencer>` for `TuringBus.Debug`.
 pub struct Sequencer {
     /// K1: assigned at submit; never appears in LedgerEntry.
     next_submit_id: AtomicU64,
@@ -204,6 +244,14 @@ pub struct Sequencer {
     tool_registry: Arc<ToolRegistry>,
 
     q: RwLock<QState>,
+}
+
+/// CO1.7-extra D3 (round-2 MF6): manual Debug impl. Uses `finish_non_exhaustive()`
+/// to satisfy the Debug trait without exposing keypair / QState / CAS internals.
+impl std::fmt::Debug for Sequencer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Sequencer").finish_non_exhaustive()
+    }
 }
 
 impl Sequencer {
@@ -356,9 +404,10 @@ impl Sequencer {
         // Stage 9: commit + mutate Q_t under write lock.
         // v1.1 C-2: next_logical_t.store(logical_t) HAPPENS ONLY AFTER
         // writer.commit succeeds — preserves K1 under infra failure.
-        // K3 v1.2 (revised): we set q.ledger_root_t but NOT q.head_t (head_t
-        // mutation deferred to CO1.7.5+ when Git2LedgerWriter exposes
-        // commit_sha alongside Hash). state_root_t comes from q_next as-is.
+        // CO1.7-extra D2: q.head_t = NodeId(commit_oid_hex) via advance_head_t
+        // when writer surfaces a commit OID (Git2 path); no-op preservation
+        // for writers that return None (InMemory path). state_root_t comes
+        // from q_next as-is per K3 v1.2.
         {
             let mut q_w = self.q.write().map_err(|_| ApplyError::QStateLockPoisoned)?;
             let mut writer_w = self
@@ -370,6 +419,8 @@ impl Sequencer {
             self.next_logical_t.store(logical_t, Ordering::SeqCst);
             *q_w = q_next;
             q_w.ledger_root_t = entry.resulting_ledger_root;
+            // CO1.7-extra D2: close G-1 head_t carry-forward (Art 0.4).
+            advance_head_t(&mut *q_w, &*writer_w);
         }
 
         Ok(entry)

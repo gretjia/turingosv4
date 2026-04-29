@@ -190,6 +190,20 @@ pub trait LedgerWriter: Send + Sync {
     fn commit(&mut self, entry: &LedgerEntry) -> Result<Hash, LedgerWriterError>;
     fn read_at(&self, logical_t: u64) -> Result<LedgerEntry, LedgerWriterError>;
     fn len(&self) -> u64;
+
+    /// TRACE_MATRIX § 5 — L4 sequencer post-commit head_t wiring (Art 0.4).
+    ///
+    /// Canonical 40-char lowercase hex commit OID of the most recent appended
+    /// entry, or None if the chain is empty / backend has no commit-OID notion.
+    ///
+    /// **REQUIRED** (no default impl per CO1.7-extra round-2 MF3): Rust compiler
+    /// enforces every `LedgerWriter` implementation declares this method. This
+    /// satisfies both safety arguments raised across the audit arc:
+    /// - **silent stagnation prevention**: impossible to inherit a default that
+    ///   silently leaves head_t stale; a missing impl is a compile error.
+    /// - **post-commit no-panic**: impl is free to return None at runtime if the
+    ///   backend has no OID notion (e.g. InMemoryLedgerWriter); no panic risk.
+    fn head_commit_oid_hex(&self) -> Option<String>;
 }
 
 #[derive(Debug)]
@@ -247,6 +261,13 @@ impl LedgerWriter for InMemoryLedgerWriter {
 
     fn len(&self) -> u64 {
         self.entries.len() as u64
+    }
+
+    /// CO1.7-extra D2: InMemory has no git substrate → always None.
+    /// The override is required (no trait default) per round-2 MF3, making the
+    /// choice explicit rather than implicit.
+    fn head_commit_oid_hex(&self) -> Option<String> {
+        None
     }
 }
 
@@ -716,6 +737,13 @@ impl Git2LedgerWriter {
 }
 
 impl LedgerWriter for Git2LedgerWriter {
+    /// CO1.7-extra D2: surface 40-char lowercase hex commit OID for sequencer
+    /// post-commit head_t wiring. Maps existing `head_commit_oid()` accessor
+    /// (returns Option<git2::Oid>) to canonical hex string.
+    fn head_commit_oid_hex(&self) -> Option<String> {
+        self.head_commit_oid().map(|oid| oid.to_string())
+    }
+
     fn commit(&mut self, entry: &LedgerEntry) -> Result<Hash, LedgerWriterError> {
         let expected = self.len + 1;
         if entry.logical_t != expected {
