@@ -58,6 +58,12 @@ pub enum TxKind {
     FinalizeReward  = 4,
     TaskExpire      = 5,
     TerminalSummary = 6,
+    /// TB-3 RSP-1 formal-tx-surface (charter § 4.1). Sponsor-emitted task
+    /// market registration; metadata-only (no money movement).
+    TaskOpen        = 7,
+    /// TB-3 RSP-1 formal-tx-surface (charter § 4.1). Sponsor-emitted bounty
+    /// funding; the sole RSP-1 path that grows `task_markets_t.total_escrow`.
+    EscrowLock      = 8,
 }
 
 /// TRACE_MATRIX FC2-Append + WP § 5.L4: stored LedgerEntry record (11 fields).
@@ -1160,9 +1166,9 @@ mod tests {
     use crate::bottom_white::tools::registry::ToolRegistry;
     use crate::state::typed_tx::{
         AgentSignature, BoolWithProof, PredicateId, PredicateResultsBundle, ReadKey,
-        SafetyOrCreation, TaskId, TypedTx, WorkTx, WriteKey,
+        SafetyOrCreation, TypedTx, WorkTx, WriteKey,
     };
-    use crate::state::q_state::{AgentId, TxId as QTxId};
+    use crate::state::q_state::{AgentId, TaskId, TxId as QTxId};
     use crate::top_white::predicates::registry::PredicateRegistry;
 
     fn dummy_typed_tx() -> TypedTx {

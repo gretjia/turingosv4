@@ -14,7 +14,7 @@
 //! CO1.7 transition_ledger) are intentionally minimal here — full schemas land per atom,
 //! but the *index typing* (BTreeMap newtype shells) freezes here so Q_t is total.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
@@ -67,6 +67,19 @@ pub struct AgentId(pub String);
 /// TRACE_MATRIX § 1.1 — accepted-transaction id (string, opaque to Q_t).
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default)]
 pub struct TxId(pub String);
+
+/// TRACE_MATRIX WP § 19 RSP-1 — task-market entry id; opaque string.
+///
+/// **TB-3 home migration (2026-04-30)**: previously defined at
+/// `src/state/typed_tx.rs:33-35`. Per WP § 19 RSP-1 ("TaskMarket — 发布任务、
+/// 广播价格、锁定奖金") + the TB-3 charter § 4.2 schema migration, `TaskId`
+/// is now the canonical `TaskMarketsIndex` key — it belongs alongside
+/// `AgentId` / `TxId` in the Q_t identifier layer, not in the typed-tx ABI
+/// layer. The move closes a circular-dependency that would have arisen if
+/// `q_state.rs` imported `TaskId` from `typed_tx.rs` (which already imports
+/// `AgentId` / `TxId` from `q_state.rs`).
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default)]
+pub struct TaskId(pub String);
 
 /// TRACE_MATRIX § 1.1 — reputation snapshot. Signed i64 to permit negative reputation
 /// (e.g. post-slash); ledger-of-record lives in `ReputationsIndex` (CO P2.9).
@@ -163,17 +176,24 @@ pub struct EscrowsIndex(pub BTreeMap<TxId, EscrowEntry>);
 /// TRACE_MATRIX WP § 2 — escrow entry shape (stub). Full fields land CO P2.2.
 /// `#[serde(default)]` on each field gives forward-compat: future atoms can add
 /// fields without breaking deserialization of historical ledger rows.
+///
+/// **TB-3 additive field**: `task_id` is the back-reference to the `TaskId`
+/// this escrow funds. Required by `assert_task_market_total_escrow_matches_locks`
+/// (the cache=truth invariant for `TaskMarketEntry.total_escrow`). Additive
+/// serde-default — pre-TB-3 serialized rows deserialize with the empty TaskId.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EscrowEntry {
     #[serde(default = "MicroCoin::zero")]
     pub amount: MicroCoin,
     #[serde(default)]
     pub depositor: AgentId,
+    #[serde(default)]
+    pub task_id: TaskId,
 }
 
 impl Default for EscrowEntry {
     fn default() -> Self {
-        Self { amount: MicroCoin::zero(), depositor: AgentId::default() }
+        Self { amount: MicroCoin::zero(), depositor: AgentId::default(), task_id: TaskId::default() }
     }
 }
 
@@ -182,17 +202,26 @@ impl Default for EscrowEntry {
 pub struct StakesIndex(pub BTreeMap<TxId, StakeEntry>);
 
 /// TRACE_MATRIX WP § 2 — stake entry shape (stub). Full fields land CO P2.5.
+///
+/// **TB-3 additive field**: `task_id` records the task this stake commits
+/// to. Required by the WorkTx admission gate (TB-3 § 3.4 lock-on-accept):
+/// when an accepted WorkTx commits its inline `stake` into `stakes_t`, the
+/// entry carries the task binding so future RSP-2/3 challenge resolution
+/// can route the slash/release. Additive serde-default — pre-TB-3
+/// serialized rows deserialize with the empty TaskId.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StakeEntry {
     #[serde(default = "MicroCoin::zero")]
     pub amount: MicroCoin,
     #[serde(default)]
     pub staker: AgentId,
+    #[serde(default)]
+    pub task_id: TaskId,
 }
 
 impl Default for StakeEntry {
     fn default() -> Self {
-        Self { amount: MicroCoin::zero(), staker: AgentId::default() }
+        Self { amount: MicroCoin::zero(), staker: AgentId::default(), task_id: TaskId::default() }
     }
 }
 
@@ -219,23 +248,50 @@ impl Default for ClaimEntry {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct ReputationsIndex(pub BTreeMap<AgentId, Reputation>);
 
-/// TRACE_MATRIX WP § 2 — tx → task market. Full schema lands CO P2.1.
+/// TRACE_MATRIX WP § 19 RSP-1 — task → task market. Full schema lands CO P2.1.
+///
+/// **TB-3 key migration (2026-04-30)**: keyed by `TaskId` (was `TxId`). Per
+/// WP § 19 RSP-1 + TB-3 charter § 4.2: TaskMarket is a per-task concept;
+/// keying by TaskId reflects the constitutional shape. The TB-2 P0-B option (a)
+/// bridge `TxId(task_id.0.clone())` is removed in TB-3 Atom 6.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub struct TaskMarketsIndex(pub BTreeMap<TxId, TaskMarketEntry>);
+pub struct TaskMarketsIndex(pub BTreeMap<TaskId, TaskMarketEntry>);
 
-/// TRACE_MATRIX WP § 2 — task market entry shape (stub). Full fields land CO P2.1.
-/// Default values (verifier_quorum=1, max_reuse_royalty_fraction=0.10) match the
-/// PROJECT_DECISION_MAP § 2.3 spec gap defaults.
+/// TRACE_MATRIX WP § 19 RSP-1 — task market entry. Full fields land CO P2.1.
+///
+/// **TB-3 field migration (2026-04-30)**:
+/// - REMOVED `bounty: MicroCoin` — money has migrated to `escrows_t.amount`
+///   (each accepted `EscrowLockTx` is a separate `escrows_t` row keyed by
+///   the lock tx's TxId; the TaskMarketEntry no longer holds money directly).
+/// - ADDED `total_escrow: MicroCoin` — **derived aggregate / cached index,
+///   NOT a money holding**. Equals `Σ escrows_t[e].amount where e.task_id ==
+///   <this task>`. `monetary_invariant::total_supply_micro` does NOT include
+///   this term (else it would double-count every locked bounty). The
+///   cache=truth invariant is enforced by `assert_task_market_total_escrow_matches_locks`.
+/// - ADDED `escrow_lock_tx_ids: BTreeSet<TxId>` — replay-deterministic
+///   provenance: which `EscrowLockTx`s contributed to this task's funding.
+/// - ADDED `settlement_rule_hash: Hash` — RSP-3/4 hook (opaque hash for
+///   TB-3; full settlement-rule engine lands later).
+///
+/// Default values (verifier_quorum=1, max_reuse_royalty_fraction=0.10) match
+/// the PROJECT_DECISION_MAP § 2.3 spec gap defaults.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TaskMarketEntry {
     #[serde(default)]
     pub publisher: AgentId,
+    /// Derived aggregate; NOT a holding. See doc-comment above.
     #[serde(default = "MicroCoin::zero")]
-    pub bounty: MicroCoin,
+    pub total_escrow: MicroCoin,
+    /// Replay-deterministic provenance for `total_escrow`.
+    #[serde(default)]
+    pub escrow_lock_tx_ids: BTreeSet<TxId>,
     #[serde(default = "task_market_default_quorum")]
     pub verifier_quorum: u32,
     #[serde(default = "task_market_default_royalty_bp")]
     pub max_reuse_royalty_fraction_basis_points: u16,
+    /// RSP-3/4 hook; opaque hash for TB-3.
+    #[serde(default)]
+    pub settlement_rule_hash: Hash,
 }
 
 fn task_market_default_quorum() -> u32 {
@@ -249,9 +305,11 @@ impl Default for TaskMarketEntry {
     fn default() -> Self {
         Self {
             publisher: AgentId::default(),
-            bounty: MicroCoin::zero(),
+            total_escrow: MicroCoin::zero(),
+            escrow_lock_tx_ids: BTreeSet::new(),
             verifier_quorum: 1,
             max_reuse_royalty_fraction_basis_points: 1000, // 0.10 per spec gap default
+            settlement_rule_hash: Hash::ZERO,
         }
     }
 }

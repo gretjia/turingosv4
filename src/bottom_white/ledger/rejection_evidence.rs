@@ -64,6 +64,13 @@ pub enum RejectionClass {
     InvariantViolation = 3,
     /// `canonical_decode` of the submitted bytes failed.
     MalformedPayload = 4,
+    /// **TB-3 charter § 4.5**: sponsor or solver lacked balance for the
+    /// requested debit (`EscrowLockTx` `amount` > `balances_t[sponsor]`,
+    /// or accepted `WorkTx` `stake` > `balances_t[agent]`). Distinct from
+    /// `PolicyViolation` so P4 Information Loom can cluster "余额不足" as
+    /// its own failure class. Stable repr-u8 = 5; tail-append, no
+    /// renumbering of existing variants.
+    InsufficientBalance = 5,
 }
 
 // ────────────────────────────────────────────────────────────────────────────

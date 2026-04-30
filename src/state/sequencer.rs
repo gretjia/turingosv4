@@ -35,10 +35,12 @@ use crate::bottom_white::ledger::transition_ledger::{
 };
 use crate::bottom_white::tools::registry::ToolRegistry;
 use crate::economy::monetary_invariant::{
-    assert_no_post_init_mint, assert_read_is_free, assert_total_ctf_conserved,
+    assert_no_post_init_mint, assert_read_is_free,
+    assert_task_market_total_escrow_matches_locks, assert_total_ctf_conserved,
 };
-use crate::state::q_state::{AgentId, Hash, QState, TxId};
+use crate::state::q_state::{AgentId, EscrowEntry, Hash, QState, TaskMarketEntry, TxId};
 use crate::state::typed_tx::{HasSubmitter, SignalBundle, TransitionError, TypedTx};
+use std::collections::BTreeSet;
 use crate::top_white::predicates::registry::PredicateRegistry;
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -95,6 +97,43 @@ pub fn worktx_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// TB-3 RSP-1 — TaskOpen + EscrowLock state-root domains (charter § 4.3)
+// ────────────────────────────────────────────────────────────────────────────
+
+/// TRACE_MATRIX TB-3 charter § 4.3 — TaskOpen-accept state-root domain.
+pub(crate) const TASK_OPEN_DOMAIN_V1: &[u8] = b"turingosv4.task_open.accept.v1";
+
+/// TRACE_MATRIX TB-3 charter § 4.3 — EscrowLock-accept state-root domain.
+pub(crate) const ESCROW_LOCK_DOMAIN_V1: &[u8] = b"turingosv4.escrow_lock.accept.v1";
+
+/// TRACE_MATRIX TB-3 charter § 4.3 — interim state-root mutator on
+/// `TaskOpenTx` accept. Mirror of `worktx_accept_state_root` with its own
+/// domain prefix for SHA-256 input separation. Real patch semantics for
+/// `q_next.state_root_t` land in P5; until then this is the deterministic
+/// monotonic mutation. Public single-item surface for integration tests
+/// to recompute the expected post-accept hash without re-implementing
+/// the domain composition.
+pub fn task_open_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
+    let mut h = Sha256::new();
+    h.update(TASK_OPEN_DOMAIN_V1);
+    h.update(prev.0);
+    h.update(canonical_encode(tx).expect("TypedTx is canonical-encodable"));
+    let digest: [u8; 32] = h.finalize().into();
+    Hash::from_bytes(digest)
+}
+
+/// TRACE_MATRIX TB-3 charter § 4.3 — interim state-root mutator on
+/// `EscrowLockTx` accept. Mirror of `task_open_accept_state_root`.
+pub fn escrow_lock_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
+    let mut h = Sha256::new();
+    h.update(ESCROW_LOCK_DOMAIN_V1);
+    h.update(prev.0);
+    h.update(canonical_encode(tx).expect("TypedTx is canonical-encodable"));
+    let digest: [u8; 32] = h.finalize().into();
+    Hash::from_bytes(digest)
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // TB-2 Atom 4 — rejection-path helpers (preflight v3 §3.5 + §3.7)
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -121,6 +160,15 @@ fn rejection_class_for(e: &TransitionError) -> L4ERejectionClass {
         | TE::SettlementPredicateFailed(_) => RC::PredicateFailed,
         TE::EscrowMissing => RC::EscrowMissing,
         TE::MonetaryInvariantViolation => RC::InvariantViolation,
+        // TB-3 RSP-1 formal-tx-surface mapping (charter § 4.5):
+        TE::TaskAlreadyOpen => RC::PolicyViolation,
+        // TB-3 charter § 4.5: TaskNotOpen reuses EscrowMissing semantically —
+        // "no open task = no funded admission path".
+        TE::TaskNotOpen => RC::EscrowMissing,
+        // TB-3 charter § 4.5 + § 3.5: InsufficientBalance is its OWN L4E class
+        // (do NOT fold into PolicyViolation — P4 Information Loom needs the
+        // discriminator).
+        TE::InsufficientBalance => RC::InsufficientBalance,
         // Non-WorkTx-arm variants documented per §3.7 mapping table — should
         // not occur on the WorkTx arm; conservative sentinel preserves L4.E
         // append correctness if a future TB adds new variants.
@@ -142,6 +190,10 @@ fn public_summary_for(e: &TransitionError) -> Option<String> {
         TransitionError::MonetaryInvariantViolation => Some("monetary_invariant".into()),
         TransitionError::AcceptancePredicateFailed(_)
         | TransitionError::SettlementPredicateFailed(_) => Some("predicate_failed".into()),
+        // TB-3 RSP-1 formal-tx-surface (charter § 4.5).
+        TransitionError::TaskAlreadyOpen => Some("task_already_open".into()),
+        TransitionError::TaskNotOpen => Some("task_not_open".into()),
+        TransitionError::InsufficientBalance => Some("insufficient_balance".into()),
         _ => Some("policy_violation".into()),
     }
 }
@@ -194,47 +246,72 @@ pub(crate) fn dispatch_transition(
                 return Err(TransitionError::StakeInsufficient);
             }
 
-            // Step 5: escrow presence gate (RSP-1 P3:5; P0-B option (a) — bridge
-            // at lookup site). TB-3 introduces formal task_open_tx /
-            // escrow_lock_tx / yes_stake_tx variants and DELETES this bridge.
-            //
-            // EscrowsIndex / TaskMarketsIndex are pub-tuple-struct newtypes
-            // wrapping BTreeMap<TxId, _> at q_state.rs:159-161, 222-224 —
-            // .contains_key on the wrapper would not compile; .0 reaches the
-            // inner map.
-            // TB-2 P0-B option (a): drop this when task_open_tx lands in TB-3
-            let lookup_tx_id = TxId(work.task_id.0.clone());
-            let has_escrow = q.economic_state_t.escrows_t.0.contains_key(&lookup_tx_id)
-                || q
-                    .economic_state_t
-                    .task_markets_t
-                    .0
-                    .contains_key(&lookup_tx_id);
+            // ──────────────────────────────────────────────────────────────
+            // TB-3 Atom 6 — Bridge DELETED. Structural admission via the
+            // formal RSP-1 surface: task_markets_t[task_id].total_escrow > 0.
+            // The TB-2 P0-B option (a) bridge `TxId(work.task_id.0.clone())`
+            // synthetic-ID + escrows_t fallback is GONE — its constitutional
+            // debt is now closed. Charter § 4.3 step 6 + § 5 #14 (no bridge
+            // resurrection — enforced by tests/tb_3_bridge_deletion_invariant.rs
+            // in Atom 7).
+            // ──────────────────────────────────────────────────────────────
+
+            // Step 5: escrow presence gate via formal surface (charter § 4.3
+            // step 6 NEW form). task_markets_t is now TaskId-keyed and
+            // populated only by accepted TaskOpenTx. total_escrow is the
+            // derived cache that grows only via accepted EscrowLockTx.
+            let market = q.economic_state_t.task_markets_t.0.get(&work.task_id);
+            let has_escrow = market.map_or(false, |m| m.total_escrow.micro_units() > 0);
             if !has_escrow {
                 return Err(TransitionError::EscrowMissing);
             }
 
-            // Step 6: monetary invariants. q_next initially equals q (TB-2
-            // does not yet move stake/escrow balances; RSP-1 lifecycle is
-            // TB-3+). The conservation check therefore passes trivially in
-            // TB-2 — the call is locked in shape now so future TBs that DO
-            // mutate balances cannot accidentally bypass it.
+            // Step 6: solver solvency gate (charter § 4.3 step 7 NEW). Per
+            // WP § 14.1 + § 18 Inv 5, accepted WorkTx commits stake by
+            // debiting balance — solver must hold ≥ work.stake.coin.
+            let solver_bal = q.economic_state_t.balances_t.0
+                .get(&work.agent_id)
+                .copied()
+                .unwrap_or(crate::economy::money::MicroCoin::zero());
+            if solver_bal.micro_units() < work.stake.micro_units() {
+                return Err(TransitionError::InsufficientBalance);
+            }
+
+            // Step 7: monetary invariants ordering (existing TB-2; same shape).
             assert_no_post_init_mint(tx, q)
                 .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
             assert_read_is_free(tx.tx_kind(), 0)
                 .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
 
-            // Step 7: build q_next. state_root_t advances via the interim
-            // WORKTX_ACCEPT_DOMAIN_V1 hash; economic_state_t is unchanged
-            // (real RSP-1 stake/escrow movement lands in TB-3+); ledger_root_t
-            // is set by apply_one stage 9 (we leave it == q.ledger_root_t here).
+            // Step 8: build q_next. **TB-3 NEW (charter § 3.4 lock-on-accept)**:
+            // accepted WorkTx atomically debits balance + locks stake into
+            // stakes_t. Per WP § 18 Inv 5 the YES stake is event-bound to
+            // the WorkTx itself; per Law 2 ("Only Investment Costs Money")
+            // investment is consumed at commitment. CTF is conserved
+            // (debit balance = credit stakes); no mint, no burn.
             let mut q_next = q.clone();
+            let new_bal_micro = solver_bal.micro_units() - work.stake.micro_units();
+            q_next.economic_state_t.balances_t.0.insert(
+                work.agent_id.clone(),
+                crate::economy::money::MicroCoin::from_micro_units(new_bal_micro),
+            );
+            q_next.economic_state_t.stakes_t.0.insert(
+                work.tx_id.clone(),
+                crate::state::q_state::StakeEntry {
+                    // StakeMicroCoin(pub MicroCoin) — unwrap the inner
+                    // MicroCoin (StakesIndex.amount: MicroCoin per q_state.rs).
+                    amount: work.stake.0,
+                    staker: work.agent_id.clone(),
+                    task_id: work.task_id.clone(),
+                },
+            );
+            // state_root advance (existing TB-2; WORKTX_ACCEPT_DOMAIN_V1).
             q_next.state_root_t = worktx_accept_state_root(&q.state_root_t, tx);
 
-            // Conservation must hold across the q → q_next transition. With
-            // economic_state_t unchanged this is a no-op success in TB-2,
-            // but the call MUST be present — production runtime ALWAYS passes
-            // &[] (no exempt list per §8 red line 4 / charter §5).
+            // Step 9: conservation now does REAL work — not a no-op as in
+            // TB-2. The debit-to-stakes invariant is the primary CTF check
+            // on the runtime spine. Production runtime ALWAYS passes `&[]`
+            // (charter § 5 red line 3 / TB-2 #4 inherited).
             assert_total_ctf_conserved(
                 &q.economic_state_t,
                 &q_next.economic_state_t,
@@ -250,6 +327,114 @@ pub(crate) fn dispatch_transition(
         TypedTx::FinalizeReward(_) => Err(TransitionError::NotYetImplemented),
         TypedTx::TaskExpire(_) => Err(TransitionError::NotYetImplemented),
         TypedTx::TerminalSummary(_) => Err(TransitionError::NotYetImplemented),
+        // ──────────────────────────────────────────────────────────────────
+        // TB-3 Atom 4 — TaskOpen arm (charter § 4.3 + § 3.3 metadata-only).
+        // Sponsor opens a task market entry; NO money movement; idempotent.
+        // ──────────────────────────────────────────────────────────────────
+        TypedTx::TaskOpen(open) => {
+            // Step 1: parent-root match.
+            if open.parent_state_root != q.state_root_t {
+                return Err(TransitionError::StaleParent);
+            }
+            // Step 2: idempotency — reject second-open.
+            if q.economic_state_t.task_markets_t.0.contains_key(&open.task_id) {
+                return Err(TransitionError::TaskAlreadyOpen);
+            }
+            // Step 3: q_next — insert TaskMarketEntry; total_escrow=0.
+            let mut q_next = q.clone();
+            let entry = TaskMarketEntry {
+                publisher: open.sponsor_agent.clone(),
+                total_escrow: crate::economy::money::MicroCoin::zero(),
+                escrow_lock_tx_ids: BTreeSet::new(),
+                verifier_quorum: open.verifier_quorum,
+                max_reuse_royalty_fraction_basis_points: open.max_reuse_royalty_fraction_basis_points,
+                settlement_rule_hash: open.settlement_rule_hash,
+            };
+            q_next.economic_state_t.task_markets_t.0.insert(open.task_id.clone(), entry);
+
+            // Step 4: monetary invariants. No money moved → trivially conserved.
+            assert_no_post_init_mint(tx, q)
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            assert_total_ctf_conserved(
+                &q.economic_state_t,
+                &q_next.economic_state_t,
+                &[],
+            )
+            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+
+            // Step 5: state_root advance via TASK_OPEN_DOMAIN_V1.
+            q_next.state_root_t = task_open_accept_state_root(&q.state_root_t, tx);
+
+            Ok((q_next, SignalBundle::default()))
+        }
+        // ──────────────────────────────────────────────────────────────────
+        // TB-3 Atom 5 — EscrowLock arm (charter § 4.3 + § 3.3 sole RSP-1
+        // bounty funding path). Atomically debits balances, credits escrows,
+        // updates the total_escrow cache. CTF-conserved (debit = credit).
+        // ──────────────────────────────────────────────────────────────────
+        TypedTx::EscrowLock(lock) => {
+            // Step 1: parent-root match.
+            if lock.parent_state_root != q.state_root_t {
+                return Err(TransitionError::StaleParent);
+            }
+            // Step 2: target task must exist (no ghost liquidity — charter § 5 #12).
+            if !q.economic_state_t.task_markets_t.0.contains_key(&lock.task_id) {
+                return Err(TransitionError::TaskNotOpen);
+            }
+            // Step 3: sponsor solvency.
+            let sponsor_bal = q.economic_state_t.balances_t.0
+                .get(&lock.sponsor_agent)
+                .copied()
+                .unwrap_or(crate::economy::money::MicroCoin::zero());
+            if sponsor_bal.micro_units() < lock.amount.micro_units() {
+                return Err(TransitionError::InsufficientBalance);
+            }
+            // Step 4: q_next — atomic balance → escrow transfer + cache update.
+            let mut q_next = q.clone();
+            let new_bal_micro = sponsor_bal.micro_units() - lock.amount.micro_units();
+            q_next.economic_state_t.balances_t.0.insert(
+                lock.sponsor_agent.clone(),
+                crate::economy::money::MicroCoin::from_micro_units(new_bal_micro),
+            );
+            q_next.economic_state_t.escrows_t.0.insert(
+                lock.tx_id.clone(),
+                EscrowEntry {
+                    amount: lock.amount,
+                    depositor: lock.sponsor_agent.clone(),
+                    task_id: lock.task_id.clone(),
+                },
+            );
+            // Cache update — total_escrow + escrow_lock_tx_ids.
+            {
+                let entry = q_next.economic_state_t.task_markets_t.0
+                    .get_mut(&lock.task_id)
+                    .expect("task verified to exist at step 2");
+                let new_total = entry.total_escrow.micro_units() + lock.amount.micro_units();
+                entry.total_escrow = crate::economy::money::MicroCoin::from_micro_units(new_total);
+                entry.escrow_lock_tx_ids.insert(lock.tx_id.clone());
+            }
+
+            // Step 5: monetary invariants (debit = credit).
+            assert_no_post_init_mint(tx, q)
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            assert_total_ctf_conserved(
+                &q.economic_state_t,
+                &q_next.economic_state_t,
+                &[],
+            )
+            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            // TB-3 charter § 3.2 cache=truth invariant.
+            assert_task_market_total_escrow_matches_locks(
+                &q_next.economic_state_t,
+                &lock.task_id,
+            )
+            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+
+            // Step 6: state_root advance via ESCROW_LOCK_DOMAIN_V1.
+            q_next.state_root_t = escrow_lock_accept_state_root(&q.state_root_t, tx);
+
+            Ok((q_next, SignalBundle::default()))
+        }
     }
 }
 
@@ -776,10 +961,10 @@ mod tests {
     use crate::state::typed_tx::{
         AgentSignature, BoolWithProof, ChallengeTx, ClaimId, FinalizeRewardTx, PredicateId,
         PredicateResultsBundle, ReadKey, ReuseTx, RunId, RunOutcome, SafetyOrCreation,
-        TaskExpireTx, TaskId, TerminalSummaryTx, ToolId, VerifyTx, VerifyVerdict, WorkTx,
+        TaskExpireTx, TerminalSummaryTx, ToolId, VerifyTx, VerifyVerdict, WorkTx,
         WriteKey,
     };
-    use crate::state::q_state::{AgentId, TxId};
+    use crate::state::q_state::{AgentId, TaskId, TxId};
     use crate::economy::money::{MicroCoin, StakeMicroCoin};
     use crate::bottom_white::cas::schema::Cid;
     use crate::bottom_white::ledger::system_keypair::SystemSignature;
@@ -1071,37 +1256,81 @@ mod tests {
         let preds = PredicateRegistry::new();
         let tools = ToolRegistry::new();
         let work_tx = fixture_work_tx();
-        let task_id_for_lookup = TxId(work_tx.task_id.0.clone());
+        let task_id = work_tx.task_id.clone();
+        let agent_id = work_tx.agent_id.clone();
 
-        // Seed an escrow for the task so the §3.3 step-5 bridge passes.
+        // **TB-3 Atom 6 fixture migration**: The legacy synthetic-TxId-from-TaskId
+        // escrow seed no longer satisfies the new admission gate
+        // (task_markets_t[task_id].total_escrow > 0 + balances_t[agent] >= stake).
+        // Build the QState by applying TaskOpen + EscrowLock through dispatch_transition,
+        // and seed solver balance directly (genesis-equivalent for stake commitment).
         let mut q = QState::genesis();
-        q.economic_state_t.escrows_t.0.insert(
-            task_id_for_lookup,
-            crate::state::q_state::EscrowEntry {
-                amount: MicroCoin::from_micro_units(2_000_000),
-                depositor: AgentId("treasury".into()),
-            },
+        // Seed solver balance.
+        q.economic_state_t.balances_t.0.insert(
+            agent_id.clone(),
+            MicroCoin::from_coin(10).unwrap(),
         );
+        // Seed sponsor balance.
+        q.economic_state_t.balances_t.0.insert(
+            AgentId("treasury".into()),
+            MicroCoin::from_coin(100).unwrap(),
+        );
+        // TaskOpen via formal surface.
+        let open_tx = TypedTx::TaskOpen(crate::state::typed_tx::TaskOpenTx {
+            tx_id: TxId(format!("seed-open-{}", task_id.0)),
+            task_id: task_id.clone(),
+            parent_state_root: q.state_root_t,
+            sponsor_agent: AgentId("treasury".into()),
+            verifier_quorum: 1,
+            max_reuse_royalty_fraction_basis_points: 1000,
+            settlement_rule_hash: Hash::ZERO,
+            signature: AgentSignature::from_bytes([0u8; 64]),
+            timestamp_logical: 0,
+        });
+        let (q_after_open, _) = dispatch_transition(&q, &open_tx, &preds, &tools)
+            .expect("seed TaskOpen accepts");
+        // EscrowLock via formal surface.
+        let lock_tx = TypedTx::EscrowLock(crate::state::typed_tx::EscrowLockTx {
+            tx_id: TxId(format!("seed-lock-{}", task_id.0)),
+            task_id: task_id.clone(),
+            parent_state_root: q_after_open.state_root_t,
+            sponsor_agent: AgentId("treasury".into()),
+            amount: MicroCoin::from_coin(50).unwrap(),
+            signature: AgentSignature::from_bytes([0u8; 64]),
+            timestamp_logical: 0,
+        });
+        let (q_funded, _) = dispatch_transition(&q_after_open, &lock_tx, &preds, &tools)
+            .expect("seed EscrowLock accepts");
 
+        // Now construct WorkTx with parent matching the funded state's state_root.
+        let mut work_tx = work_tx;
+        work_tx.parent_state_root = q_funded.state_root_t;
         let tx = TypedTx::Work(work_tx);
-        let (q_next, _signals) = dispatch_transition(&q, &tx, &preds, &tools)
-            .expect("predicate-passing WorkTx with seeded escrow must accept");
+        let (q_next, _signals) = dispatch_transition(&q_funded, &tx, &preds, &tools)
+            .expect("predicate-passing WorkTx with funded task + solvent solver must accept");
 
         // Expected state_root_t per the interim domain-separated hash.
         let expected = {
             let work_digest = worktx_canonical_hash(&tx);
             let mut h = Sha256::new();
             h.update(WORKTX_ACCEPT_DOMAIN_V1);
-            h.update(q.state_root_t.0);
+            h.update(q_funded.state_root_t.0);
             h.update(work_digest.0);
             let bytes: [u8; 32] = h.finalize().into();
             Hash::from_bytes(bytes)
         };
 
         assert_eq!(q_next.state_root_t, expected, "state_root_t must match WORKTX_ACCEPT_DOMAIN_V1 hash");
-        assert_ne!(q_next.state_root_t, q.state_root_t, "state_root_t must advance on accept");
-        // economic_state_t unchanged in TB-2 (real RSP-1 lifecycle is TB-3+).
-        assert_eq!(q_next.economic_state_t, q.economic_state_t, "TB-2 leaves economic_state_t unchanged on WorkTx accept");
+        assert_ne!(q_next.state_root_t, q_funded.state_root_t, "state_root_t must advance on accept");
+        // **TB-3 Atom 6 charter § 3.4 lock-on-accept**: accepted WorkTx now
+        // MUTATES economic_state_t (debits agent balance + credits stakes_t).
+        // The TB-2 "unchanged" invariant is replaced by the lock-on-accept invariant.
+        assert_ne!(q_next.economic_state_t, q_funded.economic_state_t,
+            "TB-3: accepted WorkTx commits stake (debits balance + credits stakes_t)");
+        let stake_entry = q_next.economic_state_t.stakes_t.0
+            .get(&TxId("worktx-seq-fixture".into()))
+            .expect("stakes_t entry by work_tx_id");
+        assert_eq!(stake_entry.task_id, task_id, "stake binds to task_id (event-bound)");
     }
 
     // 4. Queue saturation: submit returns QueueFull (Q1/Q2 resolution).
@@ -1142,5 +1371,331 @@ mod tests {
         drop(rx);
         let err = seq.submit(TypedTx::Work(fixture_work_tx())).await.unwrap_err();
         assert!(matches!(err, SubmitError::QueueClosed));
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // TB-3 Atom 4 — TaskOpen dispatch arm tests (charter § 4.7 U4 + U5)
+    // ──────────────────────────────────────────────────────────────────
+
+    use crate::state::typed_tx::TaskOpenTx;
+
+    fn fixture_task_open_tx_v(task: &str, sponsor: &str) -> TaskOpenTx {
+        TaskOpenTx {
+            tx_id: TxId(format!("taskopen-{task}")),
+            task_id: TaskId(task.into()),
+            parent_state_root: Hash::ZERO,
+            sponsor_agent: AgentId(sponsor.into()),
+            verifier_quorum: 1,
+            max_reuse_royalty_fraction_basis_points: 1000,
+            settlement_rule_hash: Hash::ZERO,
+            signature: AgentSignature::from_bytes([0u8; 64]),
+            timestamp_logical: 1,
+        }
+    }
+
+    /// U4 — TaskOpen dispatch inserts TaskMarketEntry; balances unchanged;
+    /// total_escrow=0; state_root advances via TASK_OPEN_DOMAIN_V1.
+    #[test]
+    fn dispatch_task_open_inserts_task_market_entry() {
+        let preds = PredicateRegistry::new();
+        let tools = ToolRegistry::new();
+        let q = QState::genesis();
+        let tx = TypedTx::TaskOpen(fixture_task_open_tx_v("task-u4", "sponsor-alice"));
+        let (q_next, _signals) = dispatch_transition(&q, &tx, &preds, &tools)
+            .expect("TaskOpen on genesis must accept");
+
+        let entry = q_next.economic_state_t.task_markets_t.0
+            .get(&TaskId("task-u4".into()))
+            .expect("TaskMarketEntry inserted");
+        assert_eq!(entry.publisher, AgentId("sponsor-alice".into()));
+        assert_eq!(entry.total_escrow.micro_units(), 0);
+        assert!(entry.escrow_lock_tx_ids.is_empty(),
+            "TaskOpen does not lock any escrow yet (charter § 3.3 metadata-only)");
+        assert_eq!(entry.verifier_quorum, 1);
+
+        // No money moved — balances stay empty (genesis baseline).
+        assert!(q_next.economic_state_t.balances_t.0.is_empty());
+        assert!(q_next.economic_state_t.escrows_t.0.is_empty());
+
+        // state_root advanced via TASK_OPEN_DOMAIN_V1.
+        let expected = task_open_accept_state_root(&Hash::ZERO, &tx);
+        assert_eq!(q_next.state_root_t, expected);
+        assert_ne!(q_next.state_root_t, Hash::ZERO);
+    }
+
+    /// U5 — TaskOpen idempotency: second open for same task_id rejects with
+    /// TaskAlreadyOpen.
+    #[test]
+    fn dispatch_task_open_rejects_when_already_open() {
+        let preds = PredicateRegistry::new();
+        let tools = ToolRegistry::new();
+        let mut q = QState::genesis();
+        // First open: q ← q_next (in test we manually compose).
+        let first = TypedTx::TaskOpen(fixture_task_open_tx_v("task-u5", "sponsor"));
+        let (q_after_first, _) = dispatch_transition(&q, &first, &preds, &tools).expect("first");
+        q = q_after_first;
+
+        // Second open for the SAME task_id but with refreshed parent_root.
+        let mut second = fixture_task_open_tx_v("task-u5", "sponsor");
+        second.tx_id = TxId("taskopen-task-u5-second".into());
+        second.parent_state_root = q.state_root_t;
+        let r = dispatch_transition(&q, &TypedTx::TaskOpen(second), &preds, &tools);
+        assert!(
+            matches!(r, Err(TransitionError::TaskAlreadyOpen)),
+            "second open for same task_id must reject TaskAlreadyOpen; got {:?}", r
+        );
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // TB-3 Atom 5 — EscrowLock dispatch arm tests (charter § 4.7 U6-U8)
+    // ──────────────────────────────────────────────────────────────────
+
+    use crate::state::typed_tx::EscrowLockTx;
+
+    fn fixture_escrow_lock_tx_v(task: &str, sponsor: &str, amount_micro: i64, parent: Hash, suffix: &str) -> EscrowLockTx {
+        EscrowLockTx {
+            tx_id: TxId(format!("escrowlock-{task}-{suffix}")),
+            task_id: TaskId(task.into()),
+            parent_state_root: parent,
+            sponsor_agent: AgentId(sponsor.into()),
+            amount: MicroCoin::from_micro_units(amount_micro),
+            signature: AgentSignature::from_bytes([0u8; 64]),
+            timestamp_logical: 1,
+        }
+    }
+
+    /// Helper: open task + seed sponsor balance, return q.
+    fn q_with_open_task_and_balance(task: &str, sponsor: &str, balance_coin: i64) -> QState {
+        let preds = PredicateRegistry::new();
+        let tools = ToolRegistry::new();
+        let mut q = QState::genesis();
+        // Seed sponsor balance.
+        q.economic_state_t.balances_t.0.insert(
+            AgentId(sponsor.into()),
+            MicroCoin::from_coin(balance_coin).unwrap(),
+        );
+        // Open task.
+        let open = TypedTx::TaskOpen(fixture_task_open_tx_v(task, sponsor));
+        let (q_next, _) = dispatch_transition(&q, &open, &preds, &tools)
+            .expect("TaskOpen on seeded balance must accept");
+        q_next
+    }
+
+    /// U6 — EscrowLock dispatch debits balance, credits escrow, updates total_escrow + escrow_lock_tx_ids.
+    #[test]
+    fn dispatch_escrow_lock_debits_balance_credits_escrow_updates_total() {
+        let preds = PredicateRegistry::new();
+        let tools = ToolRegistry::new();
+        let q = q_with_open_task_and_balance("task-u6", "sponsor-u6", 100);
+        let parent = q.state_root_t;
+        let lock_amount_micro = 30_000_000; // 30 coin
+        let lock = TypedTx::EscrowLock(fixture_escrow_lock_tx_v(
+            "task-u6", "sponsor-u6", lock_amount_micro, parent, "u6",
+        ));
+
+        let (q_next, _signals) = dispatch_transition(&q, &lock, &preds, &tools)
+            .expect("EscrowLock with sufficient balance must accept");
+
+        // Balance debited.
+        let new_bal = q_next.economic_state_t.balances_t.0
+            .get(&AgentId("sponsor-u6".into())).expect("sponsor balance still present");
+        assert_eq!(new_bal.micro_units(), 70_000_000, "30 coin debited from 100");
+
+        // Escrow credited.
+        let lock_tx_id = TxId("escrowlock-task-u6-u6".into());
+        let escrow = q_next.economic_state_t.escrows_t.0.get(&lock_tx_id)
+            .expect("escrow row keyed by escrow_lock_tx_id");
+        assert_eq!(escrow.amount.micro_units(), lock_amount_micro);
+        assert_eq!(escrow.depositor, AgentId("sponsor-u6".into()));
+        assert_eq!(escrow.task_id, TaskId("task-u6".into()));
+
+        // Cache updated: total_escrow + escrow_lock_tx_ids.
+        let market = q_next.economic_state_t.task_markets_t.0
+            .get(&TaskId("task-u6".into())).expect("market exists");
+        assert_eq!(market.total_escrow.micro_units(), lock_amount_micro);
+        assert!(market.escrow_lock_tx_ids.contains(&lock_tx_id));
+
+        // state_root advanced via ESCROW_LOCK_DOMAIN_V1.
+        let expected = escrow_lock_accept_state_root(&parent, &lock);
+        assert_eq!(q_next.state_root_t, expected);
+    }
+
+    /// U7 — EscrowLock to a task that is NOT open rejects with TaskNotOpen.
+    #[test]
+    fn dispatch_escrow_lock_rejects_when_task_not_open() {
+        let preds = PredicateRegistry::new();
+        let tools = ToolRegistry::new();
+        // Sponsor has balance but no TaskOpen has been submitted.
+        let mut q = QState::genesis();
+        q.economic_state_t.balances_t.0.insert(
+            AgentId("sponsor-u7".into()),
+            MicroCoin::from_coin(50).unwrap(),
+        );
+        let lock = TypedTx::EscrowLock(fixture_escrow_lock_tx_v(
+            "task-not-opened", "sponsor-u7", 10_000_000, Hash::ZERO, "u7",
+        ));
+        let r = dispatch_transition(&q, &lock, &preds, &tools);
+        assert!(matches!(r, Err(TransitionError::TaskNotOpen)),
+            "EscrowLock to unknown task must reject TaskNotOpen; got {:?}", r);
+    }
+
+    /// U8 — EscrowLock with sponsor balance < amount rejects with InsufficientBalance.
+    #[test]
+    fn dispatch_escrow_lock_rejects_when_insufficient_balance() {
+        let preds = PredicateRegistry::new();
+        let tools = ToolRegistry::new();
+        // Open task first, but sponsor has only 5 coin.
+        let q = q_with_open_task_and_balance("task-u8", "sponsor-u8", 5);
+        let parent = q.state_root_t;
+        let lock = TypedTx::EscrowLock(fixture_escrow_lock_tx_v(
+            "task-u8", "sponsor-u8", 100_000_000 /* 100 coin > 5 */, parent, "u8",
+        ));
+        let r = dispatch_transition(&q, &lock, &preds, &tools);
+        assert!(matches!(r, Err(TransitionError::InsufficientBalance)),
+            "EscrowLock amount > balance must reject InsufficientBalance; got {:?}", r);
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // TB-3 Atom 6 — WorkTx arm refactor tests (charter § 4.7 U9-U11)
+    // ──────────────────────────────────────────────────────────────────
+
+    /// Helper: open task + lock escrow + seed solver balance, return q.
+    fn q_with_funded_task_and_solver_balance(
+        task: &str,
+        sponsor: &str,
+        sponsor_balance_coin: i64,
+        escrow_coin: i64,
+        solver: &str,
+        solver_balance_coin: i64,
+    ) -> QState {
+        let preds = PredicateRegistry::new();
+        let tools = ToolRegistry::new();
+        let mut q = q_with_open_task_and_balance(task, sponsor, sponsor_balance_coin);
+        // Seed solver balance directly (genesis-equivalent; state_root != ZERO at this
+        // point, but assert_no_post_init_mint is permissive at genesis since on_init_tx
+        // is not yet implemented — this helper is test-only and doesn't violate Inv 4).
+        // We modify q before any further dispatch_transition so the seed is "implicit".
+        q.economic_state_t.balances_t.0.insert(
+            AgentId(solver.into()),
+            MicroCoin::from_coin(solver_balance_coin).unwrap(),
+        );
+        // Lock escrow.
+        let parent = q.state_root_t;
+        let lock = TypedTx::EscrowLock(fixture_escrow_lock_tx_v(
+            task, sponsor, escrow_coin * 1_000_000, parent, "funded",
+        ));
+        let (q_next, _) = dispatch_transition(&q, &lock, &preds, &tools)
+            .expect("EscrowLock seed must accept");
+        q_next
+    }
+
+    fn fixture_worktx_v(task: &str, agent: &str, parent: Hash, stake_micro: i64, suffix: &str, predicate_passes: bool) -> WorkTx {
+        let mut acceptance = BTreeMap::new();
+        acceptance.insert(
+            PredicateId("acc1".into()),
+            BoolWithProof { value: predicate_passes, proof_cid: None },
+        );
+        WorkTx {
+            tx_id: TxId(format!("worktx-{task}-{suffix}")),
+            task_id: TaskId(task.into()),
+            parent_state_root: parent,
+            agent_id: AgentId(agent.into()),
+            read_set: BTreeSet::new(),
+            write_set: BTreeSet::new(),
+            proposal_cid: Default::default(),
+            predicate_results: PredicateResultsBundle {
+                acceptance,
+                settlement: BTreeMap::new(),
+                safety_class: SafetyOrCreation::Safety,
+            },
+            stake: StakeMicroCoin::from_micro_units(stake_micro),
+            signature: AgentSignature::from_bytes([0u8; 64]),
+            timestamp_logical: 1,
+        }
+    }
+
+    /// U9 — WorkTx admission via formal surface (no bridge): predicate-passing
+    /// WorkTx after open + lock + balance setup is accepted; state_root advances.
+    #[test]
+    fn dispatch_worktx_admission_via_formal_surface_no_bridge() {
+        let preds = PredicateRegistry::new();
+        let tools = ToolRegistry::new();
+        let q = q_with_funded_task_and_solver_balance(
+            "task-u9", "sponsor-u9", 100, 30, "solver-u9", 10,
+        );
+        let parent = q.state_root_t;
+        let work = TypedTx::Work(fixture_worktx_v(
+            "task-u9", "solver-u9", parent, 1_000_000 /* 1 coin */, "u9", true,
+        ));
+        let result = dispatch_transition(&q, &work, &preds, &tools);
+        assert!(result.is_ok(),
+            "WorkTx with funded task + solvent solver must accept via formal surface; got {:?}", result);
+        let (q_next, _) = result.unwrap();
+        // state_root advanced via WORKTX_ACCEPT_DOMAIN_V1.
+        let expected = worktx_accept_state_root(&parent, &work);
+        assert_eq!(q_next.state_root_t, expected);
+    }
+
+    /// U10 — WorkTx admission rejects when solver balance < stake.
+    #[test]
+    fn dispatch_worktx_rejects_when_solver_balance_lt_stake() {
+        let preds = PredicateRegistry::new();
+        let tools = ToolRegistry::new();
+        // Solver has only 0 coin (no balance entry — defaults to zero).
+        let q = q_with_funded_task_and_solver_balance(
+            "task-u10", "sponsor-u10", 100, 30, "solver-other", 0,
+        );
+        let parent = q.state_root_t;
+        let work = TypedTx::Work(fixture_worktx_v(
+            "task-u10", "solver-broke", parent, 5_000_000 /* 5 coin */, "u10", true,
+        ));
+        let result = dispatch_transition(&q, &work, &preds, &tools);
+        assert!(matches!(result, Err(TransitionError::InsufficientBalance)),
+            "solver lacks balance for stake → InsufficientBalance; got {:?}", result);
+    }
+
+    /// U11 — Accepted WorkTx debits balance + credits stakes_t with task_id binding.
+    #[test]
+    fn dispatch_worktx_accept_debits_balance_credits_stakes() {
+        let preds = PredicateRegistry::new();
+        let tools = ToolRegistry::new();
+        let q = q_with_funded_task_and_solver_balance(
+            "task-u11", "sponsor-u11", 100, 30, "solver-u11", 10,
+        );
+        let parent = q.state_root_t;
+        let pre_solver_bal = q.economic_state_t.balances_t.0
+            .get(&AgentId("solver-u11".into())).copied().unwrap();
+        let work = TypedTx::Work(fixture_worktx_v(
+            "task-u11", "solver-u11", parent, 3_000_000 /* 3 coin */, "u11", true,
+        ));
+        let (q_next, _) = dispatch_transition(&q, &work, &preds, &tools)
+            .expect("accept");
+
+        // Balance debited by stake.
+        let post_solver_bal = q_next.economic_state_t.balances_t.0
+            .get(&AgentId("solver-u11".into())).copied().unwrap();
+        assert_eq!(
+            post_solver_bal.micro_units(),
+            pre_solver_bal.micro_units() - 3_000_000,
+            "solver balance debited by stake amount (10 coin -> 7 coin)"
+        );
+
+        // stakes_t populated with task_id binding.
+        let stake_entry = q_next.economic_state_t.stakes_t.0
+            .get(&TxId("worktx-task-u11-u11".into()))
+            .expect("stakes_t entry by work_tx_id");
+        assert_eq!(stake_entry.amount.micro_units(), 3_000_000);
+        assert_eq!(stake_entry.staker, AgentId("solver-u11".into()));
+        assert_eq!(stake_entry.task_id, TaskId("task-u11".into()),
+            "task_id binding (per WP § 18 Inv 5 event-bound risk right)");
+
+        // CTF conserved: balance debit (-3 coin) + stakes credit (+3 coin) = 0 delta.
+        let pre_total: i64 = q.economic_state_t.balances_t.0.values().map(|v| v.micro_units()).sum::<i64>()
+            + q.economic_state_t.escrows_t.0.values().map(|e| e.amount.micro_units()).sum::<i64>()
+            + q.economic_state_t.stakes_t.0.values().map(|e| e.amount.micro_units()).sum::<i64>();
+        let post_total: i64 = q_next.economic_state_t.balances_t.0.values().map(|v| v.micro_units()).sum::<i64>()
+            + q_next.economic_state_t.escrows_t.0.values().map(|e| e.amount.micro_units()).sum::<i64>()
+            + q_next.economic_state_t.stakes_t.0.values().map(|e| e.amount.micro_units()).sum::<i64>();
+        assert_eq!(pre_total, post_total, "CTF conserved across WorkTx accept");
     }
 }
