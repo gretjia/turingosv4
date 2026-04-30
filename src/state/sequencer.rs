@@ -37,8 +37,9 @@ use crate::bottom_white::tools::registry::ToolRegistry;
 use crate::economy::monetary_invariant::{
     assert_no_post_init_mint, assert_read_is_free, assert_total_ctf_conserved,
 };
-use crate::state::q_state::{AgentId, Hash, QState, TxId};
+use crate::state::q_state::{AgentId, Hash, QState, TaskMarketEntry, TxId};
 use crate::state::typed_tx::{HasSubmitter, SignalBundle, TransitionError, TypedTx};
+use std::collections::BTreeSet;
 use crate::top_white::predicates::registry::PredicateRegistry;
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -90,6 +91,43 @@ pub fn worktx_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
     h.update(WORKTX_ACCEPT_DOMAIN_V1);
     h.update(prev.0);
     h.update(work_digest.0);
+    let digest: [u8; 32] = h.finalize().into();
+    Hash::from_bytes(digest)
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// TB-3 RSP-1 — TaskOpen + EscrowLock state-root domains (charter § 4.3)
+// ────────────────────────────────────────────────────────────────────────────
+
+/// TRACE_MATRIX TB-3 charter § 4.3 — TaskOpen-accept state-root domain.
+pub(crate) const TASK_OPEN_DOMAIN_V1: &[u8] = b"turingosv4.task_open.accept.v1";
+
+/// TRACE_MATRIX TB-3 charter § 4.3 — EscrowLock-accept state-root domain.
+pub(crate) const ESCROW_LOCK_DOMAIN_V1: &[u8] = b"turingosv4.escrow_lock.accept.v1";
+
+/// TRACE_MATRIX TB-3 charter § 4.3 — interim state-root mutator on
+/// `TaskOpenTx` accept. Mirror of `worktx_accept_state_root` with its own
+/// domain prefix for SHA-256 input separation. Real patch semantics for
+/// `q_next.state_root_t` land in P5; until then this is the deterministic
+/// monotonic mutation. Public single-item surface for integration tests
+/// to recompute the expected post-accept hash without re-implementing
+/// the domain composition.
+pub fn task_open_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
+    let mut h = Sha256::new();
+    h.update(TASK_OPEN_DOMAIN_V1);
+    h.update(prev.0);
+    h.update(canonical_encode(tx).expect("TypedTx is canonical-encodable"));
+    let digest: [u8; 32] = h.finalize().into();
+    Hash::from_bytes(digest)
+}
+
+/// TRACE_MATRIX TB-3 charter § 4.3 — interim state-root mutator on
+/// `EscrowLockTx` accept. Mirror of `task_open_accept_state_root`.
+pub fn escrow_lock_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
+    let mut h = Sha256::new();
+    h.update(ESCROW_LOCK_DOMAIN_V1);
+    h.update(prev.0);
+    h.update(canonical_encode(tx).expect("TypedTx is canonical-encodable"));
     let digest: [u8; 32] = h.finalize().into();
     Hash::from_bytes(digest)
 }
@@ -266,9 +304,47 @@ pub(crate) fn dispatch_transition(
         TypedTx::FinalizeReward(_) => Err(TransitionError::NotYetImplemented),
         TypedTx::TaskExpire(_) => Err(TransitionError::NotYetImplemented),
         TypedTx::TerminalSummary(_) => Err(TransitionError::NotYetImplemented),
-        // TB-3 RSP-1 formal-tx-surface stubs (Atom 3 ABI introduction).
-        // Real bodies land in Atom 4 (TaskOpen) + Atom 5 (EscrowLock).
-        TypedTx::TaskOpen(_) => Err(TransitionError::NotYetImplemented),
+        // ──────────────────────────────────────────────────────────────────
+        // TB-3 Atom 4 — TaskOpen arm (charter § 4.3 + § 3.3 metadata-only).
+        // Sponsor opens a task market entry; NO money movement; idempotent.
+        // ──────────────────────────────────────────────────────────────────
+        TypedTx::TaskOpen(open) => {
+            // Step 1: parent-root match.
+            if open.parent_state_root != q.state_root_t {
+                return Err(TransitionError::StaleParent);
+            }
+            // Step 2: idempotency — reject second-open.
+            if q.economic_state_t.task_markets_t.0.contains_key(&open.task_id) {
+                return Err(TransitionError::TaskAlreadyOpen);
+            }
+            // Step 3: q_next — insert TaskMarketEntry; total_escrow=0.
+            let mut q_next = q.clone();
+            let entry = TaskMarketEntry {
+                publisher: open.sponsor_agent.clone(),
+                total_escrow: crate::economy::money::MicroCoin::zero(),
+                escrow_lock_tx_ids: BTreeSet::new(),
+                verifier_quorum: open.verifier_quorum,
+                max_reuse_royalty_fraction_basis_points: open.max_reuse_royalty_fraction_basis_points,
+                settlement_rule_hash: open.settlement_rule_hash,
+            };
+            q_next.economic_state_t.task_markets_t.0.insert(open.task_id.clone(), entry);
+
+            // Step 4: monetary invariants. No money moved → trivially conserved.
+            assert_no_post_init_mint(tx, q)
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            assert_total_ctf_conserved(
+                &q.economic_state_t,
+                &q_next.economic_state_t,
+                &[],
+            )
+            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+
+            // Step 5: state_root advance via TASK_OPEN_DOMAIN_V1.
+            q_next.state_root_t = task_open_accept_state_root(&q.state_root_t, tx);
+
+            Ok((q_next, SignalBundle::default()))
+        }
+        // TB-3 RSP-1 formal-tx-surface stub — real body lands in Atom 5.
         TypedTx::EscrowLock(_) => Err(TransitionError::NotYetImplemented),
     }
 }
@@ -1166,5 +1242,78 @@ mod tests {
         drop(rx);
         let err = seq.submit(TypedTx::Work(fixture_work_tx())).await.unwrap_err();
         assert!(matches!(err, SubmitError::QueueClosed));
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // TB-3 Atom 4 — TaskOpen dispatch arm tests (charter § 4.7 U4 + U5)
+    // ──────────────────────────────────────────────────────────────────
+
+    use crate::state::typed_tx::TaskOpenTx;
+
+    fn fixture_task_open_tx_v(task: &str, sponsor: &str) -> TaskOpenTx {
+        TaskOpenTx {
+            tx_id: TxId(format!("taskopen-{task}")),
+            task_id: TaskId(task.into()),
+            parent_state_root: Hash::ZERO,
+            sponsor_agent: AgentId(sponsor.into()),
+            verifier_quorum: 1,
+            max_reuse_royalty_fraction_basis_points: 1000,
+            settlement_rule_hash: Hash::ZERO,
+            signature: AgentSignature::from_bytes([0u8; 64]),
+            timestamp_logical: 1,
+        }
+    }
+
+    /// U4 — TaskOpen dispatch inserts TaskMarketEntry; balances unchanged;
+    /// total_escrow=0; state_root advances via TASK_OPEN_DOMAIN_V1.
+    #[test]
+    fn dispatch_task_open_inserts_task_market_entry() {
+        let preds = PredicateRegistry::new();
+        let tools = ToolRegistry::new();
+        let q = QState::genesis();
+        let tx = TypedTx::TaskOpen(fixture_task_open_tx_v("task-u4", "sponsor-alice"));
+        let (q_next, _signals) = dispatch_transition(&q, &tx, &preds, &tools)
+            .expect("TaskOpen on genesis must accept");
+
+        let entry = q_next.economic_state_t.task_markets_t.0
+            .get(&TaskId("task-u4".into()))
+            .expect("TaskMarketEntry inserted");
+        assert_eq!(entry.publisher, AgentId("sponsor-alice".into()));
+        assert_eq!(entry.total_escrow.micro_units(), 0);
+        assert!(entry.escrow_lock_tx_ids.is_empty(),
+            "TaskOpen does not lock any escrow yet (charter § 3.3 metadata-only)");
+        assert_eq!(entry.verifier_quorum, 1);
+
+        // No money moved — balances stay empty (genesis baseline).
+        assert!(q_next.economic_state_t.balances_t.0.is_empty());
+        assert!(q_next.economic_state_t.escrows_t.0.is_empty());
+
+        // state_root advanced via TASK_OPEN_DOMAIN_V1.
+        let expected = task_open_accept_state_root(&Hash::ZERO, &tx);
+        assert_eq!(q_next.state_root_t, expected);
+        assert_ne!(q_next.state_root_t, Hash::ZERO);
+    }
+
+    /// U5 — TaskOpen idempotency: second open for same task_id rejects with
+    /// TaskAlreadyOpen.
+    #[test]
+    fn dispatch_task_open_rejects_when_already_open() {
+        let preds = PredicateRegistry::new();
+        let tools = ToolRegistry::new();
+        let mut q = QState::genesis();
+        // First open: q ← q_next (in test we manually compose).
+        let first = TypedTx::TaskOpen(fixture_task_open_tx_v("task-u5", "sponsor"));
+        let (q_after_first, _) = dispatch_transition(&q, &first, &preds, &tools).expect("first");
+        q = q_after_first;
+
+        // Second open for the SAME task_id but with refreshed parent_root.
+        let mut second = fixture_task_open_tx_v("task-u5", "sponsor");
+        second.tx_id = TxId("taskopen-task-u5-second".into());
+        second.parent_state_root = q.state_root_t;
+        let r = dispatch_transition(&q, &TypedTx::TaskOpen(second), &preds, &tools);
+        assert!(
+            matches!(r, Err(TransitionError::TaskAlreadyOpen)),
+            "second open for same task_id must reject TaskAlreadyOpen; got {:?}", r
+        );
     }
 }
