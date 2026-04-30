@@ -4,7 +4,7 @@
 
 **Hook**: `MEMORY.md` → `project_auto_research_notepad.md` points here. Loaded every session.
 
-**Last updated**: 2026-04-30 (**TB-5 charter v2 ACTIVE** post round-1 dual-audit VETO on v1; v2 = "System-Emitted Resolution Gate + Challenge Bond Release" per architect directive `handover/directives/2026-04-30_TB5_VETO_redesign_directive.md`. Two-channel ingress: `submit_agent_tx` + `emit_system_tx`; system_signature live-verified at dispatch; 4 anti-drift renames CI-enforced. Predecessor: **TB-4 SHIPPED** `cfc81de..a17d477`; merge `edb8089`; P3 RSP-2 admission spine on canonical L4. Medium batch evidence: 4/5 SOLVED at MAX_TX=30; mathd_algebra_148 23-tx composite-tactic search. 571/571 cargo test green at TB-4 ship.)
+**Last updated**: 2026-04-30 (**TB-5 SHIPPED** `4c3414e..1bdc55a`; merge `1bdc55a`; P3 RSP-3.0 + RSP-3.1 System-Emitted Resolution Gate + Challenge Bond Release on canonical L4; two-channel ingress (submit_agent_tx + emit_system_tx) with apply_one stage 1.5 pinned-pubkey verification; ChallengeResolve dispatch arm with Released + UpheldDeferred paths; 464/464 cargo test green; ~44 new TB-5 tests; 真实烟测 prompt_context_hash bit-identical across 5 sessions (TB-1/2/3/4/5); n1 SOLVED gp_payload="nlinarith". Predecessor: TB-4 SHIPPED `cfc81de..a17d477`; merge `edb8089`. Anti-drift CI scanner extended with 4 forbidden TB-5 variant names.)
 
 ## TB methodology v2 (P0–P9 phase-tagged; install 2026-04-29 session-3)
 
@@ -242,6 +242,38 @@ PPUT-CCL Phase A–E roadmap below remains as the **P6 Epistemic Lab v0 product-
   - **34 forbidden lines** (TB-4's 20 + 14 TB-5-specific); CI extension to TB-4 I44 scanner adds `SlashTx` / `SettlementTx` / `ProvisionalAcceptTx` / `ReputationUpdateTx` to FORBIDDEN_VARIANTS.
 - **Atom 0 (charter v2)** lands at this commit; **Atom 1** (STEP_B Phase-0 preflight + dual external audit launch) deferred until charter v2 user sign-off.
 - Test plan: ~30 new TB-5 tests across TB-5.0 (substrate) + TB-5.1 (resolution) + TB-5.2 (anti-drift). Target post-ship ~601/601.
+
+### TB-5 SHIPPED (2026-04-30) — log
+
+- **Merge**: `1bdc55a` (--no-ff merge of `experiment/tb5-rsp3-resolution-gate` into `main`). Eight atoms post charter v2 sign-off:
+  - `4c3414e` Atom 1 STEP_B Phase-0 preflight + audit-mode supplement (Codex-only after Gemini strategic-tier exhaustion)
+  - `66f559e` Atom 1.5 Codex round-2 4-CHALLENGE remediation (preflight v2 + charter §5.3/§4.11 amendments)
+  - `b9de549` Atom 1.6 Codex round-3 2-CHALLENGE doc-fix (charter §5.1+§5.2 + preflight §8 unification)
+  - `c415cd2` round-4 self-verification fallback (Codex agent infrastructure failure mid-audit; user authorized grep-based mechanical text-presence checks; cleared on Q4 + Q6)
+  - `42fd45c` Atom 2 TB-5.0 substrate ingress (`submit_agent_tx` + agent-ingress barrier rejecting 4 system variants pre-queue)
+  - `4a33b1a` Atom 3 TB-5 ABI (`ChallengeResolveTx` + `ChallengeStatus` + `ChallengeResolution` + monetary_invariant cascade with K5 fixture)
+  - `9ff8179` Atom 4 `emit_system_tx` + apply_one stage 1.5 + `record_rejection` helper (defense-in-depth pinned_pubkeys verification; 4 forged-sig × 4 system variants reject with `InvalidSystemSignatureLive`; 1 L4.E PolicyViolation row each)
+  - `06a7fcf` Atom 5 ChallengeResolve dispatch arm (Released path + `CHALLENGE_RESOLVE_DOMAIN_V1` state-root domain; `ChallengeNotFound` + `AlreadyResolved` variants)
+  - `c7dfef9` Atom 6 UpheldDeferred + boundary tests (I75-I77 + I78-I79 + I88-I89 + I80-I81 replay/property)
+  - `cc72d61` Atom 7 anti-drift CI (`tests/tb_5_anti_drift.rs`: I82-I85 unified scanner + I86 charter hygiene + I87 P6-touch git-diff guard)
+  - `2fb4ed9` Atom 8 recursive audit + 真题烟测 (handover/audits/RECURSIVE_AUDIT_TB_5_2026-04-30.md + handover/evidence/tb_5_smoke_2026-04-30/)
+- **Acceptance battery 464/464 PASS** across 30+ test suites; ~44 new TB-5 tests:
+  - 5 typed_tx unit (T1-T5: ChallengeResolveTx canonical_digest determinism + signing payload field count = 6 + golden digests + InvalidSystemSignatureLive Display)
+  - 13 sequencer in-crate (U22-U28 ingress/sig: forged-sig × 4 system variants reject + emit-self-signed accepts + agent variants skip stage 1.5; U29-U34 dispatch: Released zeros bond refunds + cannot run twice + unknown target rejects + UpheldDeferred marker only + stale parent rejects)
+  - 10 system_ingress_barrier integration (I60-I63 4 system variants reject pre-queue + I64-I65 emit_id namespace independence + I67 legacy submit alias delegates + I68-I69 emit queue-full/closed + T5 InvalidSystemSignatureLive Display)
+  - 13 challenge_resolve_surface integration (I70 Released → L4 advance + I71 bond refunded + I73 AlreadyResolved gate writes L4.E + I74 ChallengeNotFound + I75-I77 UpheldDeferred + multi-challenger + I78-I79 stakes/escrow boundary + I80 mixed-sequence CTF + I81 6-step deterministic property + I88 q.q_t.current_round preserved + I89 UpheldDeferred byte-identical)
+  - 3 anti-drift CI (no_forbidden_tb5_variants_in_src + four_anti_drift_renames_documented_in_charter + no_p6_files_touched_in_tb5)
+- **真实烟测** (handover/evidence/tb_5_smoke_2026-04-30/): oneshot `prompt_context_hash="a1f43584a17d1226"` bit-identical across TB-1/TB-2/TB-3/TB-4/TB-5 (5 sessions); n1 SOLVED+VERIFIED on `mathd_algebra_107` with `gp_payload="nlinarith"`; `budget_max_transactions=20` honored. proof_n1.lean CAS-stable.
+- **Self-audit** (handover/audits/RECURSIVE_AUDIT_TB_5_2026-04-30.md): 6/6 directive Q1-Q6 + 10/10 charter v2 § 4 decision blocks + 4/4 anti-drift renames + 3/3 ship gate proofs all line-grounded.
+- **Production claim adds**:
+  1. "TuringOS runtime kernel structurally enforces Anti-Oreo agent-vs-system ingress separation."
+  2. "System ingress (emit_system_tx) constructs + signs system-emitted TypedTx structs INTERNALLY; defense-in-depth verification at apply_one stage 1.5 re-checks against PinnedSystemPubkeys."
+  3. "ChallengeResolve dispatch arm enforces idempotent single-shot resolution: Released refunds + zeros bond (entry preserved); UpheldDeferred is marker-only (bond preserved for TB-6 slash routing)."
+  4. "ChallengeStatus is the Q-side single source of truth in q_state.rs (NOT typed_tx.rs)."
+- **Architectural debts**: zero. The TB-3 + TB-4 anti-drift CI invariants are re-affirmed at TB-5 HEAD; new I82-I85 forbidden-variant scanner extends the precedent for TB-6+.
+- **WP-canonical reconciliation rule** (codified TB-3; re-applied TB-4; re-applied TB-5): `ChallengeResolveTx` is allowed-named (first-class TypedTx variant) per WP § 19 ChallengeCourt; `SlashTx` / `SettlementTx` / `ProvisionalAcceptTx` / `ReputationUpdateTx` remain forbidden phantoms (CI-enforced by `tests/tb_5_anti_drift.rs`).
+- **Audit-mode (TB-5 specific)**: directive § 4 Q4 mandated Option A (dual external) — Gemini strategic-tier MODEL_CAPACITY_EXHAUSTED across rounds; supplement `2026-04-30_TB5_audit_mode_supplement.md` documented Codex-only mode; round-4 fell back to grep self-verification when Codex agent infra failed mid-audit. Self-audit + 真题烟测 served as the post-development ship gate per directive § 4 Q4 non-blocking framing.
+- **Next TB candidate**: TB-6 RSP-3.2 (slash execution: ChallengeCase.status=UpheldDeferred → SlashTx emit + balances/stakes/challenge_cases mutations; 100% within scope per TB-5's deferral rationale).
 
 PPUT-CCL Phase A-E roadmap below remains as long-term **north star**; TB sequence is the **operational mechanism** to reach it.
 
