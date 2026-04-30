@@ -35,8 +35,8 @@ use turingosv4::state::sequencer::{
     worktx_accept_state_root, Sequencer, SubmissionEnvelope,
 };
 use turingosv4::state::typed_tx::{
-    AgentSignature, BoolWithProof, PredicateId, PredicateResultsBundle, ReadKey,
-    SafetyOrCreation, TypedTx, WorkTx, WriteKey,
+    AgentSignature, BoolWithProof, EscrowLockTx, PredicateId, PredicateResultsBundle, ReadKey,
+    SafetyOrCreation, TaskOpenTx, TypedTx, WorkTx, WriteKey,
 };
 use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
@@ -111,23 +111,86 @@ fn make_worktx(opts: WorkTxFixtureOpts) -> TypedTx {
     })
 }
 
-fn seed_q_with_escrow(task_id: &TaskId) -> QState {
-    // **TB-3 Atom 2 fixture migration note**: this fixture still seeds
-    // escrows_t directly via the legacy synthetic-TxId-from-TaskId pattern.
-    // The bridge in `sequencer.rs::dispatch_transition`'s WorkTx arm retains
-    // the escrows_t fallback during Atom 2 to keep TB-2 fixtures green; full
-    // bridge deletion + fixture migration to accepted-tx submission lands in
-    // TB-3 Atom 6 (after TaskOpenTx + EscrowLockTx variants exist).
+/// **TB-3 Atom 6 fixture migration**: the bridge that synthesized
+/// `TxId(task_id.0.clone())` from a TaskId is now DELETED in the WorkTx
+/// admission. The new admission requires `task_markets_t[task_id].total_escrow > 0`,
+/// populated only by accepted `TaskOpenTx` + `EscrowLockTx`.
+///
+/// This fixture now seeds ONLY balances at the genesis level (both solver
+/// "alice" and sponsor "treasury" — the latter for use by
+/// `setup_funded_task_through_formal_surface` which submits `EscrowLockTx`s
+/// debited from "treasury"). The `task_id` parameter is kept in the
+/// signature only to preserve TB-2 call-site shape; it's no longer used
+/// here (full setup happens via the formal-surface helper).
+///
+/// Direct balance seeding at genesis is the test-only equivalent of the
+/// future RSP-0 `on_init_tx`; no parallel-ledger violation per Art 0.2
+/// (balances_t IS a holding, and at genesis state_root_t == ZERO so
+/// `assert_no_post_init_mint` is permissive).
+///
+/// I3-I8 rejection tests reject before reaching the new admission gate
+/// (predicate-fail / stake-zero / stale-parent / no-escrow all fail earlier
+/// or at the new gate without escrow setup). I9-I13 acceptance tests MUST
+/// call `setup_funded_task_through_formal_surface` after `fresh_harness`
+/// to populate `task_markets_t` via accepted TaskOpen + EscrowLock.
+fn seed_q_with_escrow(_task_id: &TaskId) -> QState {
     let mut q = QState::genesis();
-    q.economic_state_t.escrows_t.0.insert(
-        TxId(task_id.0.clone()),
-        EscrowEntry {
-            amount: MicroCoin::from_micro_units(2_000_000),
-            depositor: AgentId("treasury".into()),
-            task_id: task_id.clone(),
-        },
+    q.economic_state_t.balances_t.0.insert(
+        AgentId("alice".into()),
+        MicroCoin::from_coin(10).unwrap(),
+    );
+    q.economic_state_t.balances_t.0.insert(
+        AgentId("treasury".into()),
+        MicroCoin::from_coin(100).unwrap(),
     );
     q
+}
+
+/// **TB-3 Atom 6**: drive the QState through accepted TaskOpen + EscrowLock
+/// transitions via the harness's Sequencer (charter § 5.6 — fixtures use
+/// accepted-tx submission, not direct EconomicState mutation).
+///
+/// After this helper returns, `task_markets_t[task_id]` exists and has
+/// `total_escrow > 0`, satisfying the new WorkTx admission gate. The caller
+/// MUST then read `h.seq.q_snapshot().state_root_t` and use it as the
+/// `parent_state_root` for any subsequent WorkTx submission (the seeded state
+/// has advanced two transitions past genesis).
+async fn setup_funded_task_through_formal_surface(h: &mut Harness, task_id: &TaskId) {
+    // Open the task.
+    let pre = h.seq.q_snapshot().expect("pre snap").state_root_t;
+    let open_tx = TypedTx::TaskOpen(TaskOpenTx {
+        tx_id: TxId(format!("seed-open-{}", task_id.0)),
+        task_id: task_id.clone(),
+        parent_state_root: pre,
+        sponsor_agent: AgentId("treasury".into()),
+        verifier_quorum: 1,
+        max_reuse_royalty_fraction_basis_points: 1000,
+        settlement_rule_hash: Hash::ZERO,
+        signature: AgentSignature::from_bytes([0u8; 64]),
+        timestamp_logical: 0,
+    });
+    h.seq.submit(open_tx).await.expect("seed TaskOpen submit");
+    h.seq
+        .try_apply_one(&mut h.rx)
+        .expect("seed TaskOpen envelope")
+        .expect("seed TaskOpen accepted");
+
+    // Lock escrow against it.
+    let parent = h.seq.q_snapshot().expect("post-open snap").state_root_t;
+    let lock_tx = TypedTx::EscrowLock(EscrowLockTx {
+        tx_id: TxId(format!("seed-lock-{}", task_id.0)),
+        task_id: task_id.clone(),
+        parent_state_root: parent,
+        sponsor_agent: AgentId("treasury".into()),
+        amount: MicroCoin::from_coin(50).unwrap(),
+        signature: AgentSignature::from_bytes([0u8; 64]),
+        timestamp_logical: 0,
+    });
+    h.seq.submit(lock_tx).await.expect("seed EscrowLock submit");
+    h.seq
+        .try_apply_one(&mut h.rx)
+        .expect("seed EscrowLock envelope")
+        .expect("seed EscrowLock accepted");
 }
 
 struct Harness {
@@ -518,9 +581,12 @@ async fn submit_queue_full_consumes_submit_id() {
 async fn runtime_accepted_worktx_advances_state_root_via_domain_v1() {
     let task_id = TaskId("task-i9".into());
     let mut h = fresh_harness(seed_q_with_escrow(&task_id));
+    setup_funded_task_through_formal_surface(&mut h, &task_id).await;
     let q0 = h.seq.q_snapshot().expect("q0");
+    let parent = q0.state_root_t;
 
     let tx = make_worktx(WorkTxFixtureOpts {
+        parent_state_root: parent,
         task_id: task_id.clone(),
         tx_id_suffix: "i9".into(),
         ..Default::default()
@@ -534,11 +600,8 @@ async fn runtime_accepted_worktx_advances_state_root_via_domain_v1() {
     let _ = drain;
 
     // Expected state_root_t computed via the single public TB-2 helper
-    // worktx_accept_state_root (Phase-1c r1 Codex remediation: prefer one
-    // semantic public surface over re-exporting the WORKTX_ACCEPT_DOMAIN_V1
-    // bytes + worktx_canonical_hash building blocks). Cross-checks U3
-    // (in-crate) at the integration layer.
-    let expected = worktx_accept_state_root(&q0.state_root_t, &tx);
+    // worktx_accept_state_root. Cross-checks U3 at the integration layer.
+    let expected = worktx_accept_state_root(&parent, &tx);
 
     let q1 = h.seq.q_snapshot().expect("q1");
     assert_eq!(
@@ -556,10 +619,13 @@ async fn runtime_accepted_worktx_advances_state_root_via_domain_v1() {
 async fn runtime_accepted_worktx_advances_ledger_root() {
     let task_id = TaskId("task-i10".into());
     let mut h = fresh_harness(seed_q_with_escrow(&task_id));
-    let pre_ledger = h.seq.q_snapshot().expect("q0").ledger_root_t;
+    setup_funded_task_through_formal_surface(&mut h, &task_id).await;
+    let q0 = h.seq.q_snapshot().expect("q0");
+    let pre_ledger = q0.ledger_root_t;
 
     h.seq
         .submit(make_worktx(WorkTxFixtureOpts {
+            parent_state_root: q0.state_root_t,
             task_id: task_id.clone(),
             tx_id_suffix: "i10".into(),
             ..Default::default()
@@ -586,10 +652,13 @@ async fn runtime_accepted_worktx_advances_ledger_root() {
 async fn runtime_accepted_worktx_increments_logical_t() {
     let task_id = TaskId("task-i11".into());
     let mut h = fresh_harness(seed_q_with_escrow(&task_id));
+    setup_funded_task_through_formal_surface(&mut h, &task_id).await;
+    let parent = h.seq.q_snapshot().expect("snap").state_root_t;
     let pre = h.seq.next_logical_t_peek();
 
     h.seq
         .submit(make_worktx(WorkTxFixtureOpts {
+            parent_state_root: parent,
             task_id: task_id.clone(),
             tx_id_suffix: "i11".into(),
             ..Default::default()
@@ -616,10 +685,13 @@ async fn runtime_accepted_worktx_increments_logical_t() {
 async fn runtime_accepted_worktx_does_not_append_l4e() {
     let task_id = TaskId("task-i12".into());
     let mut h = fresh_harness(seed_q_with_escrow(&task_id));
+    setup_funded_task_through_formal_surface(&mut h, &task_id).await;
+    let parent = h.seq.q_snapshot().expect("snap").state_root_t;
 
     let pre_l4e = l4e_row_count(&h.rejection_writer);
     h.seq
         .submit(make_worktx(WorkTxFixtureOpts {
+            parent_state_root: parent,
             task_id: task_id.clone(),
             tx_id_suffix: "i12".into(),
             ..Default::default()
@@ -649,10 +721,13 @@ async fn runtime_replay_from_l4_only_ignores_l4e() {
 
     let task_id = TaskId("task-i13".into());
     let mut h = fresh_harness(seed_q_with_escrow(&task_id));
+    setup_funded_task_through_formal_surface(&mut h, &task_id).await;
+    let parent_after_setup = h.seq.q_snapshot().expect("snap").state_root_t;
 
-    // Submit one accepted WorkTx (predicate-passing + escrow seeded).
+    // Submit one accepted WorkTx (predicate-passing + funded task + solvent solver).
     h.seq
         .submit(make_worktx(WorkTxFixtureOpts {
+            parent_state_root: parent_after_setup,
             task_id: task_id.clone(),
             tx_id_suffix: "i13-accept".into(),
             ..Default::default()
@@ -664,9 +739,13 @@ async fn runtime_replay_from_l4_only_ignores_l4e() {
         .expect("queued")
         .expect("accept apply_one");
 
-    // Submit one rejected WorkTx (predicate-failing).
+    // Submit one rejected WorkTx (predicate-failing). parent_state_root must
+    // match the post-accept state_root; rejection happens at predicate gate
+    // before any economic mutation.
+    let parent_after_accept = h.seq.q_snapshot().expect("snap").state_root_t;
     h.seq
         .submit(make_worktx(WorkTxFixtureOpts {
+            parent_state_root: parent_after_accept,
             acceptance_passes: false,
             task_id: task_id.clone(),
             tx_id_suffix: "i13-reject".into(),
@@ -690,10 +769,15 @@ async fn runtime_replay_from_l4_only_ignores_l4e() {
     // Reconstruct QState from canonical L4 ONLY. Read entries via
     // LedgerWriter::read_at + len(), then drive replay_full_transition with
     // genesis = the same initial_q the sequencer used.
+    // **TB-3 Atom 6 update**: now expects 3 L4 rows (TaskOpen + EscrowLock from
+    // setup_funded_task_through_formal_surface + the accepted WorkTx). Replay
+    // applies all three and reaches the same final state.
     let entries = {
         let writer_g = h.ledger_writer.read().expect("writer read");
         let n = writer_g.len();
-        assert_eq!(n, 1, "exactly 1 accepted L4 row");
+        assert_eq!(n, 3,
+            "3 accepted L4 rows: TaskOpen + EscrowLock (setup) + WorkTx (test)"
+        );
         (0..n)
             .map(|i| writer_g.read_at(i + 1).expect("read_at"))
             .collect::<Vec<_>>()

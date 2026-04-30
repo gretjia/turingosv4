@@ -11,22 +11,27 @@
 //! Atom 4 covers I20 (TaskOpen accepted appends to canonical L4).
 //! Atoms 5+ add I21-I30.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, RwLock};
 
 use tempfile::TempDir;
 
 use turingosv4::bottom_white::cas::store::CasStore;
-use turingosv4::bottom_white::ledger::rejection_evidence::RejectionEvidenceWriter;
+use turingosv4::bottom_white::ledger::rejection_evidence::{
+    RejectionClass as L4ERejectionClass, RejectionEvidenceWriter,
+};
 use turingosv4::bottom_white::ledger::system_keypair::{Ed25519Keypair, SystemEpoch};
 use turingosv4::bottom_white::ledger::transition_ledger::{InMemoryLedgerWriter, LedgerWriter, TxKind};
 use turingosv4::bottom_white::tools::registry::ToolRegistry;
-use turingosv4::economy::money::MicroCoin;
+use turingosv4::economy::money::{MicroCoin, StakeMicroCoin};
 use turingosv4::state::q_state::{AgentId, Hash, QState, TaskId, TxId};
 use turingosv4::state::sequencer::{
     escrow_lock_accept_state_root, task_open_accept_state_root, Sequencer, SubmissionEnvelope,
 };
-use turingosv4::state::typed_tx::{AgentSignature, EscrowLockTx, TaskOpenTx, TypedTx};
+use turingosv4::state::typed_tx::{
+    AgentSignature, BoolWithProof, EscrowLockTx, PredicateId, PredicateResultsBundle, ReadKey,
+    SafetyOrCreation, TaskOpenTx, TypedTx, WorkTx, WriteKey,
+};
 use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -109,6 +114,73 @@ fn genesis_with_balance(sponsor: &str, balance_coin: i64) -> QState {
         MicroCoin::from_coin(balance_coin).unwrap(),
     );
     q
+}
+
+fn genesis_with_balances(pairs: &[(&str, i64)]) -> QState {
+    let mut q = QState::genesis();
+    for (name, coin) in pairs {
+        q.economic_state_t.balances_t.0.insert(
+            AgentId((*name).into()),
+            MicroCoin::from_coin(*coin).unwrap(),
+        );
+    }
+    q
+}
+
+fn make_worktx(
+    task: &str,
+    agent: &str,
+    parent: Hash,
+    stake_micro: i64,
+    suffix: &str,
+    predicate_passes: bool,
+) -> TypedTx {
+    let mut acceptance = BTreeMap::new();
+    acceptance.insert(
+        PredicateId("acc1".into()),
+        BoolWithProof { value: predicate_passes, proof_cid: None },
+    );
+    TypedTx::Work(WorkTx {
+        tx_id: TxId(format!("worktx-{task}-{suffix}")),
+        task_id: TaskId(task.into()),
+        parent_state_root: parent,
+        agent_id: AgentId(agent.into()),
+        read_set: [ReadKey("k.read".into())].into_iter().collect::<BTreeSet<_>>(),
+        write_set: [WriteKey("k.write".into())].into_iter().collect::<BTreeSet<_>>(),
+        proposal_cid: Default::default(),
+        predicate_results: PredicateResultsBundle {
+            acceptance,
+            settlement: BTreeMap::new(),
+            safety_class: SafetyOrCreation::Safety,
+        },
+        stake: StakeMicroCoin::from_micro_units(stake_micro),
+        signature: AgentSignature::from_bytes([0u8; 64]),
+        timestamp_logical: 1,
+    })
+}
+
+/// Apply TaskOpen + EscrowLock through `Sequencer::submit` so `task_markets_t`
+/// is funded via the formal surface (charter § 5.6 — fixtures use accepted-tx
+/// submission).
+async fn apply_taskopen_and_escrowlock(
+    h: &mut Harness, task_id: &TaskId, sponsor: &str, escrow_coin: i64,
+) -> Hash {
+    let pre = h.seq.q_snapshot().expect("pre snap").state_root_t;
+    let open = make_task_open(&task_id.0, sponsor, pre, "fund");
+    h.seq.submit(open).await.expect("open submit");
+    let _ = h.seq.try_apply_one(&mut h.rx).expect("open env").expect("open accepted");
+
+    let parent = h.seq.q_snapshot().expect("post-open").state_root_t;
+    let lock = make_escrow_lock(&task_id.0, sponsor, escrow_coin * 1_000_000, parent, "fund");
+    h.seq.submit(lock).await.expect("lock submit");
+    let _ = h.seq.try_apply_one(&mut h.rx).expect("lock env").expect("lock accepted");
+
+    h.seq.q_snapshot().expect("post-lock").state_root_t
+}
+
+fn last_l4e_class(writer: &Arc<RwLock<RejectionEvidenceWriter>>) -> Option<L4ERejectionClass> {
+    let g = writer.read().expect("writer read");
+    g.records().last().map(|r| r.rejection_class)
 }
 
 fn l4e_row_count(writer: &Arc<RwLock<RejectionEvidenceWriter>>) -> usize {
@@ -265,4 +337,141 @@ async fn escrow_lock_atomic_balance_to_escrow_transfer() {
     // state_root advanced via ESCROW_LOCK_DOMAIN_V1.
     let expected = escrow_lock_accept_state_root(&parent, &lock_tx);
     assert_eq!(q_after.state_root_t, expected);
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// I23 — WorkTx via formal surface: full happy path (open → lock → work; balance
+//        debited, stakes_t populated, state_root advances)
+// ────────────────────────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn submit_worktx_via_formal_surface_advances_state_root_and_locks_stake() {
+    let mut h = fresh_harness(genesis_with_balances(&[("sponsor-i23", 100), ("solver-i23", 10)]));
+    let task = TaskId("task-i23".into());
+    let parent = apply_taskopen_and_escrowlock(&mut h, &task, "sponsor-i23", 50).await;
+
+    let work = make_worktx("task-i23", "solver-i23", parent, 3_000_000, "i23", true);
+    h.seq.submit(work.clone()).await.expect("worktx submit");
+    let entry = h.seq.try_apply_one(&mut h.rx).expect("env").expect("accepted");
+    assert_eq!(entry.tx_kind, TxKind::Work);
+
+    let q_after = h.seq.q_snapshot().expect("snap");
+    // Balance debited.
+    let bal = q_after.economic_state_t.balances_t.0
+        .get(&AgentId("solver-i23".into())).expect("solver balance");
+    assert_eq!(bal.micro_units(), 7_000_000, "10 - 3 = 7 coin after stake commitment");
+    // stakes_t populated with task binding.
+    let stake = q_after.economic_state_t.stakes_t.0
+        .get(&TxId("worktx-task-i23-i23".into())).expect("stake by work_tx_id");
+    assert_eq!(stake.amount.micro_units(), 3_000_000);
+    assert_eq!(stake.staker, AgentId("solver-i23".into()));
+    assert_eq!(stake.task_id, task);
+    // state_root advanced.
+    assert_ne!(q_after.state_root_t, parent);
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// I24 — WorkTx without TaskOpen → L4.E EscrowMissing (TaskNotOpen maps to EscrowMissing)
+// ────────────────────────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn submit_worktx_without_task_open_appends_l4e_task_not_open() {
+    let mut h = fresh_harness(genesis_with_balances(&[("solver-i24", 10)]));
+    let work = make_worktx("task-i24-unopened", "solver-i24", Hash::ZERO, 1_000_000, "i24", true);
+    h.seq.submit(work).await.expect("submit");
+    let result = h.seq.try_apply_one(&mut h.rx).expect("env");
+    assert!(result.is_err());
+    // No task_markets_t entry → admission rejects with EscrowMissing
+    // (per charter § 4.5: TaskNotOpen maps to L4ERejectionClass::EscrowMissing
+    // semantically — "no open task = no funded admission path").
+    assert_eq!(last_l4e_class(&h.rejection_writer), Some(L4ERejectionClass::EscrowMissing));
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// I25 — TaskOpen but no EscrowLock → L4.E EscrowMissing (total_escrow == 0)
+// ────────────────────────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn submit_worktx_without_escrow_lock_appends_l4e_escrow_missing() {
+    let mut h = fresh_harness(genesis_with_balances(&[("sponsor-i25", 100), ("solver-i25", 10)]));
+    // Open task only, no EscrowLock.
+    let pre = h.seq.q_snapshot().expect("snap").state_root_t;
+    let open = make_task_open("task-i25", "sponsor-i25", pre, "i25");
+    h.seq.submit(open).await.expect("open");
+    let _ = h.seq.try_apply_one(&mut h.rx).expect("env").expect("open accepted");
+
+    let parent = h.seq.q_snapshot().expect("snap").state_root_t;
+    let work = make_worktx("task-i25", "solver-i25", parent, 1_000_000, "i25", true);
+    h.seq.submit(work).await.expect("work submit");
+    let r = h.seq.try_apply_one(&mut h.rx).expect("env");
+    assert!(r.is_err());
+    assert_eq!(last_l4e_class(&h.rejection_writer), Some(L4ERejectionClass::EscrowMissing),
+        "task_markets[task].total_escrow == 0 → admission rejects with EscrowMissing");
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// I26 — Solver balance < stake → L4.E InsufficientBalance
+// ────────────────────────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn submit_worktx_with_insufficient_solver_balance_appends_l4e_insufficient_balance() {
+    let mut h = fresh_harness(genesis_with_balances(&[
+        ("sponsor-i26", 100),
+        ("solver-i26", 1), // only 1 coin
+    ]));
+    let task = TaskId("task-i26".into());
+    let parent = apply_taskopen_and_escrowlock(&mut h, &task, "sponsor-i26", 50).await;
+    // WorkTx wants 5-coin stake but solver has only 1.
+    let work = make_worktx("task-i26", "solver-i26", parent, 5_000_000, "i26", true);
+    h.seq.submit(work).await.expect("submit");
+    let r = h.seq.try_apply_one(&mut h.rx).expect("env");
+    assert!(r.is_err());
+    assert_eq!(last_l4e_class(&h.rejection_writer), Some(L4ERejectionClass::InsufficientBalance),
+        "solver balance < stake → InsufficientBalance (NEW L4E class per charter § 4.5)");
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// I27 — WorkTx.stake == 0 → L4.E PolicyViolation (StakeInsufficient maps there)
+// ────────────────────────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn submit_worktx_with_zero_stake_appends_l4e_stake_insufficient() {
+    let mut h = fresh_harness(genesis_with_balances(&[("sponsor-i27", 100), ("solver-i27", 10)]));
+    let task = TaskId("task-i27".into());
+    let parent = apply_taskopen_and_escrowlock(&mut h, &task, "sponsor-i27", 50).await;
+    let work = make_worktx("task-i27", "solver-i27", parent, 0 /* stake = 0 */, "i27", true);
+    h.seq.submit(work).await.expect("submit");
+    let r = h.seq.try_apply_one(&mut h.rx).expect("env");
+    assert!(r.is_err());
+    // StakeInsufficient maps to PolicyViolation (TB-2 inheritance).
+    assert_eq!(last_l4e_class(&h.rejection_writer), Some(L4ERejectionClass::PolicyViolation));
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// I28 — Rejected WorkTx leaves economic_state UNCHANGED (charter § 3.4 + #14)
+// ────────────────────────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn rejected_worktx_does_not_change_balances_escrows_stakes() {
+    let mut h = fresh_harness(genesis_with_balances(&[("sponsor-i28", 100), ("solver-i28", 10)]));
+    let task = TaskId("task-i28".into());
+    let parent = apply_taskopen_and_escrowlock(&mut h, &task, "sponsor-i28", 50).await;
+    let pre = h.seq.q_snapshot().expect("snap");
+
+    // Submit a predicate-failing WorkTx.
+    let bad = make_worktx("task-i28", "solver-i28", parent, 3_000_000, "i28", false);
+    h.seq.submit(bad).await.expect("submit");
+    let r = h.seq.try_apply_one(&mut h.rx).expect("env");
+    assert!(r.is_err());
+    assert_eq!(last_l4e_class(&h.rejection_writer), Some(L4ERejectionClass::PredicateFailed));
+
+    // Charter § 3.4 + user verdict #14: rejected WorkTx must NOT mutate
+    // economic_state_t. balances + escrows + stakes + task_markets all
+    // bit-identical pre/post.
+    let post = h.seq.q_snapshot().expect("snap");
+    assert_eq!(pre.economic_state_t, post.economic_state_t,
+        "rejected WorkTx leaves economic_state UNCHANGED — L4.E records evidence only");
+    // state_root and ledger_root also unchanged (rejected does not advance the spine).
+    assert_eq!(pre.state_root_t, post.state_root_t);
+    assert_eq!(pre.ledger_root_t, post.ledger_root_t);
 }
