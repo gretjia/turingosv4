@@ -19,6 +19,8 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, RwLock};
 
+use sha2::{Digest, Sha256};
+
 use crate::bottom_white::cas::schema::ObjectType;
 use crate::bottom_white::cas::store::{CasError, CasStore};
 use crate::bottom_white::ledger::system_keypair::{
@@ -29,9 +31,57 @@ use crate::bottom_white::ledger::transition_ledger::{
     LedgerWriterError,
 };
 use crate::bottom_white::tools::registry::ToolRegistry;
-use crate::state::q_state::QState;
+use crate::economy::monetary_invariant::{
+    assert_no_post_init_mint, assert_read_is_free, assert_total_ctf_conserved,
+};
+use crate::state::q_state::{Hash, QState, TxId};
 use crate::state::typed_tx::{SignalBundle, TransitionError, TypedTx};
 use crate::top_white::predicates::registry::PredicateRegistry;
+
+// ────────────────────────────────────────────────────────────────────────────
+// TB-2 — WorkTx-accept state-root domain (preflight v3 §3.4 + P1-1 r2)
+// ────────────────────────────────────────────────────────────────────────────
+
+/// TRACE_MATRIX FC3-S3: TB-2 interim WorkTx-accept state-root domain.
+///
+/// Real patch semantics for `q_next.state_root_t` land in P5; until then
+/// TB-2 advances the state root deterministically with this domain string
+/// concatenated against `q.state_root_t` and the canonical hash of the
+/// accepted WorkTx. Distinct from the TB-1 toy domain
+/// `b"turingosv4.l4_state_root.v1"` used by `AcceptedLedger` at
+/// `src/economy/ledger.rs:350, :357` (TB-1 RSP-0 primitive vs production
+/// state-root mutator separation).
+pub(crate) const WORKTX_ACCEPT_DOMAIN_V1: &[u8] = b"turingosv4.worktx.accept.v1";
+
+/// TRACE_MATRIX FC3-S3: TB-2 canonical hash helper for a `TypedTx`.
+///
+/// Defined locally (not in `bottom_white::ledger::transition_ledger`) because
+/// `canonical_hash(tx)` is NOT a generic existing helper there — only
+/// `canonical_encode` is — and TB-2 wants a single short call site that
+/// includes domain separation. Codex r2 P1-2.
+pub(crate) fn worktx_canonical_hash(tx: &TypedTx) -> Hash {
+    let mut h = Sha256::new();
+    h.update(b"turingosv4.worktx.canonical_hash.v1");
+    h.update(canonical_encode(tx).expect("TypedTx is canonical-encodable"));
+    let digest: [u8; 32] = h.finalize().into();
+    Hash::from_bytes(digest)
+}
+
+/// TRACE_MATRIX FC3-S3: TB-2 interim state-root mutator on WorkTx accept.
+///
+/// `q_next.state_root_t = sha256(WORKTX_ACCEPT_DOMAIN_V1 ‖ q.state_root_t.0
+/// ‖ worktx_canonical_hash(tx).0)`. P5 replaces this with real patch
+/// semantics; until then this is the deterministic monotonic mutation
+/// asserted by U3 / I9.
+fn worktx_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
+    let work_digest = worktx_canonical_hash(tx);
+    let mut h = Sha256::new();
+    h.update(WORKTX_ACCEPT_DOMAIN_V1);
+    h.update(prev.0);
+    h.update(work_digest.0);
+    let digest: [u8; 32] = h.finalize().into();
+    Hash::from_bytes(digest)
+}
 
 // ────────────────────────────────────────────────────────────────────────────
 // § 8 dispatch_transition — exhaustive enum match (K5: NO Slash)
@@ -45,13 +95,91 @@ use crate::top_white::predicates::registry::PredicateRegistry;
 /// itself is the contract: any future TypedTx variant addition triggers a
 /// non-exhaustive-match compile error here, forcing explicit handling.
 pub(crate) fn dispatch_transition(
-    _q: &QState,
+    q: &QState,
     tx: &TypedTx,
     _predicate_registry: &PredicateRegistry,
     _tool_registry: &ToolRegistry,
 ) -> Result<(QState, SignalBundle), TransitionError> {
     match tx {
-        TypedTx::Work(_) => Err(TransitionError::NotYetImplemented),
+        TypedTx::Work(work) => {
+            // TB-2 Atom 3: WorkTx pure validation per preflight v3 §3.3.
+            // No I/O, no side effects, no writer calls — apply_one is the
+            // only place ledger writes happen.
+
+            // Step 1: parent-root match (Inv 5; P1:5).
+            if work.parent_state_root != q.state_root_t {
+                return Err(TransitionError::StaleParent);
+            }
+
+            // Step 2: acceptance predicate bundle — every entry must be true.
+            for (pid, bwp) in work.predicate_results.acceptance.iter() {
+                if !bwp.value {
+                    return Err(TransitionError::AcceptancePredicateFailed(pid.clone()));
+                }
+            }
+
+            // Step 3: settlement predicate bundle (if applicable to RSP-1).
+            for (pid, bwp) in work.predicate_results.settlement.iter() {
+                if !bwp.value {
+                    return Err(TransitionError::SettlementPredicateFailed(pid.clone()));
+                }
+            }
+
+            // Step 4: YES stake gate (RSP-1 P3:3). StakeMicroCoin newtype
+            // intentionally has no integer comparison; use the const accessor.
+            if work.stake.micro_units() <= 0 {
+                return Err(TransitionError::StakeInsufficient);
+            }
+
+            // Step 5: escrow presence gate (RSP-1 P3:5; P0-B option (a) — bridge
+            // at lookup site). TB-3 introduces formal task_open_tx /
+            // escrow_lock_tx / yes_stake_tx variants and DELETES this bridge.
+            //
+            // EscrowsIndex / TaskMarketsIndex are pub-tuple-struct newtypes
+            // wrapping BTreeMap<TxId, _> at q_state.rs:159-161, 222-224 —
+            // .contains_key on the wrapper would not compile; .0 reaches the
+            // inner map.
+            let lookup_tx_id = TxId(work.task_id.0.clone());
+            let has_escrow = q.economic_state_t.escrows_t.0.contains_key(&lookup_tx_id)
+                || q
+                    .economic_state_t
+                    .task_markets_t
+                    .0
+                    .contains_key(&lookup_tx_id);
+            if !has_escrow {
+                return Err(TransitionError::EscrowMissing);
+            }
+
+            // Step 6: monetary invariants. q_next initially equals q (TB-2
+            // does not yet move stake/escrow balances; RSP-1 lifecycle is
+            // TB-3+). The conservation check therefore passes trivially in
+            // TB-2 — the call is locked in shape now so future TBs that DO
+            // mutate balances cannot accidentally bypass it.
+            assert_no_post_init_mint(tx, q)
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            assert_read_is_free(tx.tx_kind(), 0)
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+
+            // Step 7: build q_next. state_root_t advances via the interim
+            // WORKTX_ACCEPT_DOMAIN_V1 hash; economic_state_t is unchanged
+            // (real RSP-1 stake/escrow movement lands in TB-3+); ledger_root_t
+            // is set by apply_one stage 9 (we leave it == q.ledger_root_t here).
+            let mut q_next = q.clone();
+            q_next.state_root_t = worktx_accept_state_root(&q.state_root_t, tx);
+
+            // Conservation must hold across the q → q_next transition. With
+            // economic_state_t unchanged this is a no-op success in TB-2,
+            // but the call MUST be present — production runtime ALWAYS passes
+            // &[] (no exempt list per §8 red line 4 / charter §5).
+            assert_total_ctf_conserved(
+                &q.economic_state_t,
+                &q_next.economic_state_t,
+                &[],
+            )
+            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+
+            Ok((q_next, SignalBundle::default()))
+        }
         TypedTx::Verify(_) => Err(TransitionError::NotYetImplemented),
         TypedTx::Challenge(_) => Err(TransitionError::NotYetImplemented),
         TypedTx::Reuse(_) => Err(TransitionError::NotYetImplemented),
@@ -561,15 +689,19 @@ mod tests {
         }
     }
 
-    // 1. dispatch_transition: every variant returns NotYetImplemented (stub state).
+    // 1. dispatch_transition: every NON-WORK variant returns NotYetImplemented.
+    //
+    // TB-2 Atom 3 narrowed this from "all variants" to "non-Work variants" —
+    // the WorkTx arm is now a real pure-validation body. Charter §4 requires
+    // existing dispatch_transition_stubs to be narrowed when Work is no
+    // longer a stub. WorkTx-specific behaviour is covered by U3 + I3-I12.
     #[test]
-    fn dispatch_transition_stubs_all_variants() {
+    fn dispatch_transition_stubs_non_work_variants() {
         let q = QState::genesis();
         let preds = PredicateRegistry::new();
         let tools = ToolRegistry::new();
 
         let cases: Vec<TypedTx> = vec![
-            TypedTx::Work(fixture_work_tx()),
             TypedTx::Verify(VerifyTx {
                 tx_id: TxId("vt".into()),
                 target_work_tx: TxId("wt".into()),
@@ -650,8 +782,11 @@ mod tests {
         assert_eq!(seq.next_logical_t_peek(), 0);
     }
 
-    // 3. apply_one in stub mode: returns Transition(NotYetImplemented); no
-    //    logical_t consumed (K1 invariant: rejected submission never advances commit counter).
+    // 3. apply_one rejected: returns Transition(EscrowMissing) with the default
+    //    fixture (no escrow seeded for task-seq-fixture); no logical_t consumed
+    //    (K1 invariant: rejected submission never advances commit counter).
+    //    TB-2 Atom 3: was NotYetImplemented pre-Atom-3; now WorkTx arm runs
+    //    real validation and rejects on missing escrow.
     #[test]
     fn apply_one_stub_does_not_consume_logical_t() {
         let (_tmp, seq, _rx) = fresh_sequencer();
@@ -661,7 +796,10 @@ mod tests {
             tx: TypedTx::Work(fixture_work_tx()),
         };
         let err = seq.apply_one(envelope).unwrap_err();
-        assert!(matches!(err, ApplyError::Transition(TransitionError::NotYetImplemented)));
+        assert!(matches!(
+            err,
+            ApplyError::Transition(TransitionError::EscrowMissing)
+        ));
         let post = seq.next_logical_t_peek();
         assert_eq!(pre, post, "logical_t MUST NOT advance on rejected apply_one");
     }
@@ -680,11 +818,12 @@ mod tests {
             tx: TypedTx::Work(fixture_work_tx()),
         };
         // Compile-time: apply_one(SubmissionEnvelope) is the canonical signature.
-        // Runtime: stub state still rejects (NotYetImplemented) until Atom 3.
+        // Runtime (post-Atom-3): default fixture has no seeded escrow so the
+        // WorkTx arm rejects with EscrowMissing.
         let result = seq.apply_one(envelope);
         assert!(matches!(
             result,
-            Err(ApplyError::Transition(TransitionError::NotYetImplemented))
+            Err(ApplyError::Transition(TransitionError::EscrowMissing))
         ));
     }
 
@@ -706,11 +845,12 @@ mod tests {
             .await
             .expect("submit");
         let drained = seq.try_apply_one(&mut rx).expect("envelope was queued");
-        // Stub state: drained call returns Err(NotYetImplemented). The contract
-        // proven here is "envelope was drained from queue and apply_one ran".
+        // Default fixture lacks seeded escrow so apply_one rejects with
+        // EscrowMissing. The contract proven here is "envelope was drained
+        // from queue and apply_one ran".
         assert!(matches!(
             drained,
-            Err(ApplyError::Transition(TransitionError::NotYetImplemented))
+            Err(ApplyError::Transition(TransitionError::EscrowMissing))
         ));
         // Receipt's submit_id is still recoverable; concurrency contract (P1-D)
         // says it MAY have been allocated as 1, 2, etc. depending on prior
@@ -719,6 +859,52 @@ mod tests {
 
         // After drain, queue is empty again.
         assert!(seq.try_apply_one(&mut rx).is_none());
+    }
+
+    // TB-2 Atom 3 — U3: dispatch_transition WorkTx returns the interim
+    // domain-separated state_root_t on accept.
+    //
+    // Drives dispatch_transition directly (not apply_one — that's the in-crate
+    // pub(crate) test surface) with a predicate-passing WorkTx + stake>0 +
+    // seeded escrow. Asserts q_next.state_root_t equals exactly
+    // sha256(WORKTX_ACCEPT_DOMAIN_V1 || q.state_root_t.0 || worktx_canonical_hash(tx).0).
+    // Locks the interim hash so any future change is loud.
+    #[test]
+    fn dispatch_transition_worktx_returns_state_root_via_domain_v1() {
+        let preds = PredicateRegistry::new();
+        let tools = ToolRegistry::new();
+        let work_tx = fixture_work_tx();
+        let task_id_for_lookup = TxId(work_tx.task_id.0.clone());
+
+        // Seed an escrow for the task so the §3.3 step-5 bridge passes.
+        let mut q = QState::genesis();
+        q.economic_state_t.escrows_t.0.insert(
+            task_id_for_lookup,
+            crate::state::q_state::EscrowEntry {
+                amount: MicroCoin::from_micro_units(2_000_000),
+                depositor: AgentId("treasury".into()),
+            },
+        );
+
+        let tx = TypedTx::Work(work_tx);
+        let (q_next, _signals) = dispatch_transition(&q, &tx, &preds, &tools)
+            .expect("predicate-passing WorkTx with seeded escrow must accept");
+
+        // Expected state_root_t per the interim domain-separated hash.
+        let expected = {
+            let work_digest = worktx_canonical_hash(&tx);
+            let mut h = Sha256::new();
+            h.update(WORKTX_ACCEPT_DOMAIN_V1);
+            h.update(q.state_root_t.0);
+            h.update(work_digest.0);
+            let bytes: [u8; 32] = h.finalize().into();
+            Hash::from_bytes(bytes)
+        };
+
+        assert_eq!(q_next.state_root_t, expected, "state_root_t must match WORKTX_ACCEPT_DOMAIN_V1 hash");
+        assert_ne!(q_next.state_root_t, q.state_root_t, "state_root_t must advance on accept");
+        // economic_state_t unchanged in TB-2 (real RSP-1 lifecycle is TB-3+).
+        assert_eq!(q_next.economic_state_t, q.economic_state_t, "TB-2 leaves economic_state_t unchanged on WorkTx accept");
     }
 
     // 4. Queue saturation: submit returns QueueFull (Q1/Q2 resolution).

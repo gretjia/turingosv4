@@ -1257,10 +1257,17 @@ mod tests {
         (tmp, cas, kp, epoch, pinned, preds, tools)
     }
 
-    /// 15. CO1.7.5-stage: in stub mode, dispatch errors with NotYetImplemented;
-    ///     replay correctly bubbles up `Transition { at: 0, inner: NotYetImplemented }`.
-    ///     This proves stages 1-6 (chain + sig + CAS + decode) all PASS,
-    ///     leaving stage 7 (dispatch) as the only gate. CO1.7.5 fills it.
+    /// 15. Replay reaches dispatch_transition's WorkTx arm.
+    ///
+    /// Pre-TB-2 (CO1.7.5 stub): every variant returned `NotYetImplemented`
+    /// and this test asserted that. TB-2 Atom 3 fills the WorkTx arm with
+    /// real pure validation; for the `dummy_typed_tx()` fixture (WorkTx
+    /// with no seeded escrow in genesis) the new failure class is
+    /// `EscrowMissing`, NOT `NotYetImplemented`. The test's role
+    /// (proving stages 1-6 pass and dispatch is the only gate) is preserved;
+    /// only the expected error variant changes. Non-Work variants still
+    /// hit `NotYetImplemented` per `dispatch_transition_stubs_non_work_variants`
+    /// in `src/state/sequencer.rs`.
     #[test]
     fn replay_full_transition_reaches_dispatch_then_stubs() {
         let (_tmp, mut cas, kp, epoch, pinned, preds, tools) = replay_test_setup();
@@ -1268,7 +1275,7 @@ mod tests {
             1,
             Hash::ZERO,
             Hash::ZERO,
-            h(1), // resulting state_root (won't be reached due to dispatch stub)
+            h(1), // resulting state_root (won't be reached due to dispatch reject)
             epoch,
             &kp,
             &mut cas,
@@ -1284,8 +1291,8 @@ mod tests {
         )
         .unwrap_err();
         assert!(
-            matches!(err, ReplayError::Transition { at: 0, inner: crate::state::typed_tx::TransitionError::NotYetImplemented }),
-            "expected Transition(NotYetImplemented at 0); got {err:?}"
+            matches!(err, ReplayError::Transition { at: 0, inner: crate::state::typed_tx::TransitionError::EscrowMissing }),
+            "expected Transition(EscrowMissing at 0) post-TB-2 Atom 3; got {err:?}"
         );
     }
 
