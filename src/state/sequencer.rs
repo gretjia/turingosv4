@@ -26,6 +26,9 @@ use crate::bottom_white::cas::store::{CasError, CasStore};
 use crate::bottom_white::ledger::system_keypair::{
     transition_ledger_emitter, Ed25519Keypair, KeypairError, SystemEpoch,
 };
+use crate::bottom_white::ledger::rejection_evidence::{
+    RejectionClass as L4ERejectionClass, RejectionEvidenceWriter,
+};
 use crate::bottom_white::ledger::transition_ledger::{
     append, canonical_encode, LedgerEntry, LedgerEntrySigningPayload, LedgerWriter,
     LedgerWriterError,
@@ -34,8 +37,8 @@ use crate::bottom_white::tools::registry::ToolRegistry;
 use crate::economy::monetary_invariant::{
     assert_no_post_init_mint, assert_read_is_free, assert_total_ctf_conserved,
 };
-use crate::state::q_state::{Hash, QState, TxId};
-use crate::state::typed_tx::{SignalBundle, TransitionError, TypedTx};
+use crate::state::q_state::{AgentId, Hash, QState, TxId};
+use crate::state::typed_tx::{HasSubmitter, SignalBundle, TransitionError, TypedTx};
 use crate::top_white::predicates::registry::PredicateRegistry;
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -81,6 +84,58 @@ fn worktx_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
     h.update(work_digest.0);
     let digest: [u8; 32] = h.finalize().into();
     Hash::from_bytes(digest)
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// TB-2 Atom 4 — rejection-path helpers (preflight v3 §3.5 + §3.7)
+// ────────────────────────────────────────────────────────────────────────────
+
+/// TRACE_MATRIX FC3-S3: TB-2 sentinel `agent_id` for rejected submissions
+/// whose `HasSubmitter::submitter_id()` returns `None` (system-emitted
+/// variants — none on the WorkTx arm in TB-2; reserved for future TBs).
+///
+/// `RejectedSubmissionRecord.agent_id: AgentId` (NOT `Option<AgentId>`) per
+/// `rejection_evidence.rs:90`. The string content is internal-only and never
+/// crosses the agent boundary — only `public_summary` does, per `:89-90`.
+pub(crate) const SYSTEM_AGENT_ID_STR: &str = "__system__";
+
+/// TRACE_MATRIX FC3-S3: TB-2 `TransitionError → L4ERejectionClass` mapping
+/// (preflight v3 §3.7). Closed by enumeration via the documented table even
+/// though the `match` uses `_` for the 19-variant tail: WorkTx-arm-reachable
+/// variants are explicit; non-WorkTx-arm variants fall through to
+/// `PolicyViolation` per Codex r2 P0-4 sanction.
+fn rejection_class_for(e: &TransitionError) -> L4ERejectionClass {
+    use TransitionError as TE;
+    use L4ERejectionClass as RC;
+    match e {
+        TE::AcceptancePredicateFailed(_)
+        | TE::VerificationPredicateFailed(_)
+        | TE::SettlementPredicateFailed(_) => RC::PredicateFailed,
+        TE::EscrowMissing => RC::EscrowMissing,
+        TE::MonetaryInvariantViolation => RC::InvariantViolation,
+        // Non-WorkTx-arm variants documented per §3.7 mapping table — should
+        // not occur on the WorkTx arm; conservative sentinel preserves L4.E
+        // append correctness if a future TB adds new variants.
+        _ => RC::PolicyViolation,
+    }
+}
+
+/// TRACE_MATRIX FC3-S3: TB-2 agent-facing summary string for an L4.E record.
+///
+/// Returns a small, predicate-id-stripped class label so private predicate
+/// identities never leak (TB-1 §1.4 "Opaque" discipline). The wildcard arm
+/// matches the §3.7 mapping policy and is the documented sentinel for
+/// non-WorkTx-arm variants per Codex r2 P0-4.
+fn public_summary_for(e: &TransitionError) -> Option<String> {
+    match e {
+        TransitionError::StaleParent => Some("stale_parent_root".into()),
+        TransitionError::StakeInsufficient => Some("stake_insufficient".into()),
+        TransitionError::EscrowMissing => Some("escrow_missing".into()),
+        TransitionError::MonetaryInvariantViolation => Some("monetary_invariant".into()),
+        TransitionError::AcceptancePredicateFailed(_)
+        | TransitionError::SettlementPredicateFailed(_) => Some("predicate_failed".into()),
+        _ => Some("policy_violation".into()),
+    }
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -382,6 +437,11 @@ pub struct Sequencer {
     keypair: Arc<Ed25519Keypair>,
     epoch: SystemEpoch,
     ledger_writer: Arc<RwLock<dyn LedgerWriter>>,
+    /// TB-2 Atom 4: L4.E rejection-evidence writer. Mirrors `ledger_writer`'s
+    /// `Arc<RwLock<...>>` shape (P0-1 r2: `append_rejected` is `&mut self`).
+    /// Constructor-injected so integration tests can retain a clone of the
+    /// `Arc` for L4.E observation (P0-5 r2).
+    rejection_writer: Arc<RwLock<RejectionEvidenceWriter>>,
 
     predicate_registry: Arc<PredicateRegistry>,
     tool_registry: Arc<ToolRegistry>,
@@ -406,6 +466,7 @@ impl Sequencer {
         keypair: Arc<Ed25519Keypair>,
         epoch: SystemEpoch,
         ledger_writer: Arc<RwLock<dyn LedgerWriter>>,
+        rejection_writer: Arc<RwLock<RejectionEvidenceWriter>>,
         predicate_registry: Arc<PredicateRegistry>,
         tool_registry: Arc<ToolRegistry>,
         initial_q: QState,
@@ -420,6 +481,7 @@ impl Sequencer {
             keypair,
             epoch,
             ledger_writer,
+            rejection_writer,
             predicate_registry,
             tool_registry,
             q: RwLock::new(initial_q),
@@ -502,10 +564,10 @@ impl Sequencer {
         &self,
         envelope: SubmissionEnvelope,
     ) -> Result<LedgerEntry, ApplyError> {
-        // TB-2 Atom 2: queue payload is now SubmissionEnvelope so submit_id
-        // travels with the tx through to apply_one. Atoms 4-5 use envelope.submit_id
-        // for the L4.E rejection-evidence path; Atom 2 only plumbs it.
-        let SubmissionEnvelope { submit_id: _, tx } = envelope;
+        // TB-2 Atom 2: queue payload is SubmissionEnvelope so submit_id
+        // travels with the tx through to apply_one. Atom 4: submit_id is
+        // now actually used for the L4.E rejection-evidence path below.
+        let SubmissionEnvelope { submit_id, tx } = envelope;
 
         // Stage 1: snapshot Q_t under read lock.
         let q_snapshot = {
@@ -513,14 +575,88 @@ impl Sequencer {
             g.clone()
         };
 
-        // Stage 2: dispatch (pure). On reject (incl. NotYetImplemented stub),
-        // EARLY RETURN. K1: no logical_t consumed.
-        let (q_next, _signals) = dispatch_transition(
+        // Stage 2: dispatch (pure). On reject, route to L4.E rejection-evidence
+        // ledger and return early. K1: no logical_t consumed; Inv 7: no
+        // state_root_t / ledger_root_t advance.
+        let (q_next, _signals) = match dispatch_transition(
             &q_snapshot,
             &tx,
             &self.predicate_registry,
             &self.tool_registry,
-        )?;
+        ) {
+            Ok(ok) => ok,
+            Err(transition_err) => {
+                // TB-2 Atom 4 — rejection-writer path (preflight v3 §3.5).
+                // CAS-put canonical-encoded tx payload + diagnostic, then
+                // append_rejected to L4.E with submit_id keyed off the envelope.
+                let payload_bytes = canonical_encode(&tx)
+                    .map_err(|e| ApplyError::PayloadEncode(e.to_string()))?;
+                let creator = format!("sequencer.rejection_path.epoch-{}", self.epoch.get());
+                let rejection_logical_t = self.next_logical_t.load(Ordering::SeqCst);
+
+                let tx_payload_cid = {
+                    let mut cas_w = self
+                        .cas
+                        .write()
+                        .map_err(|_| ApplyError::QStateLockPoisoned)?;
+                    cas_w.put(
+                        &payload_bytes,
+                        ObjectType::ProposalPayload,
+                        &creator,
+                        rejection_logical_t,
+                        Some("TypedTx.v1".to_string()),
+                    )?
+                };
+
+                // raw_diagnostic_cid is structurally serde-shielded on
+                // RejectedSubmissionRecord per TB-1 P0-3
+                // (rejection_evidence.rs:108). I8 re-confirms at runtime.
+                let diag_bytes = transition_err.to_string().into_bytes();
+                let raw_diagnostic_cid = {
+                    let mut cas_w = self
+                        .cas
+                        .write()
+                        .map_err(|_| ApplyError::QStateLockPoisoned)?;
+                    Some(cas_w.put(
+                        &diag_bytes,
+                        ObjectType::Generic,
+                        &creator,
+                        rejection_logical_t,
+                        Some("TransitionError.display.v1".to_string()),
+                    )?)
+                };
+
+                // P0-2 r2: HasSubmitter::submitter_id() returns Option<AgentId>.
+                // RejectedSubmissionRecord.agent_id is AgentId (not Option).
+                // Fall back to SYSTEM_AGENT_ID_STR for variants that return None.
+                // WorkTx always returns Some so the unwrap_or_else arm is
+                // theoretical for TB-2 but covers future system-emitted variants.
+                let agent_id = tx
+                    .submitter_id()
+                    .unwrap_or_else(|| AgentId(SYSTEM_AGENT_ID_STR.to_string()));
+
+                {
+                    let mut writer_w = self
+                        .rejection_writer
+                        .write()
+                        .map_err(|_| ApplyError::QStateLockPoisoned)?;
+                    writer_w.append_rejected(
+                        submit_id,
+                        q_snapshot.state_root_t,
+                        agent_id,
+                        tx.tx_kind(),
+                        tx_payload_cid,
+                        rejection_class_for(&transition_err),
+                        raw_diagnostic_cid,
+                        public_summary_for(&transition_err),
+                    );
+                }
+
+                // No logical_t advance, no state_root advance, no ledger_root
+                // advance. Caller observes ApplyError::Transition.
+                return Err(ApplyError::Transition(transition_err));
+            }
+        };
 
         // v1.1 C-2: TENTATIVE logical_t (do NOT fetch_add yet).
         let logical_t = self.next_logical_t.load(Ordering::SeqCst) + 1;
@@ -645,6 +781,7 @@ mod tests {
         TempDir,
         Sequencer,
         tokio::sync::mpsc::Receiver<SubmissionEnvelope>,
+        Arc<RwLock<RejectionEvidenceWriter>>,
     ) {
         let tmp = TempDir::new().expect("tempdir");
         let cas = Arc::new(RwLock::new(CasStore::open(tmp.path()).expect("cas open")));
@@ -654,11 +791,22 @@ mod tests {
         let epoch = SystemEpoch::new(1);
         let writer: Arc<RwLock<dyn LedgerWriter>> =
             Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
+        let rejection_writer = Arc::new(RwLock::new(RejectionEvidenceWriter::default()));
         let preds = Arc::new(PredicateRegistry::new());
         let tools = Arc::new(ToolRegistry::new());
         let q = QState::genesis();
-        let (seq, rx) = Sequencer::new(cas, keypair, epoch, writer, preds, tools, q, 16);
-        (tmp, seq, rx)
+        let (seq, rx) = Sequencer::new(
+            cas,
+            keypair,
+            epoch,
+            writer,
+            rejection_writer.clone(),
+            preds,
+            tools,
+            q,
+            16,
+        );
+        (tmp, seq, rx, rejection_writer)
     }
 
     fn fixture_work_tx() -> WorkTx {
@@ -768,7 +916,7 @@ mod tests {
     // 2. K1 dual counter: submit advances submit_id but NOT logical_t.
     #[tokio::test]
     async fn submit_advances_submit_id_only() {
-        let (_tmp, seq, _rx) = fresh_sequencer();
+        let (_tmp, seq, _rx, _rejection_writer) = fresh_sequencer();
         assert_eq!(seq.next_submit_id_peek(), 1);
         assert_eq!(seq.next_logical_t_peek(), 0);
 
@@ -789,7 +937,7 @@ mod tests {
     //    real validation and rejects on missing escrow.
     #[test]
     fn apply_one_stub_does_not_consume_logical_t() {
-        let (_tmp, seq, _rx) = fresh_sequencer();
+        let (_tmp, seq, _rx, _rejection_writer) = fresh_sequencer();
         let pre = seq.next_logical_t_peek();
         let envelope = SubmissionEnvelope {
             submit_id: 1,
@@ -804,6 +952,46 @@ mod tests {
         assert_eq!(pre, post, "logical_t MUST NOT advance on rejected apply_one");
     }
 
+    // TB-2 Atom 4 — U2: apply_one rejected path keys L4.E by envelope.submit_id.
+    //
+    // Drives apply_one with a known submit_id and a WorkTx that fails the
+    // EscrowMissing gate (default fixture has no seeded escrow). Asserts the
+    // resulting L4.E row has the same submit_id, mapped rejection_class, and
+    // q_snapshot.state_root_t carried in. Locks P1:6 contract.
+    #[test]
+    fn apply_one_rejected_path_uses_envelope_submit_id() {
+        let (_tmp, seq, _rx, rejection_writer) = fresh_sequencer();
+        let pre = seq.q_snapshot().expect("q_snapshot").state_root_t;
+        let envelope = SubmissionEnvelope {
+            submit_id: 42,
+            tx: TypedTx::Work(fixture_work_tx()),
+        };
+        let err = seq.apply_one(envelope).unwrap_err();
+        assert!(matches!(
+            err,
+            ApplyError::Transition(TransitionError::EscrowMissing)
+        ));
+
+        let writer_g = rejection_writer.read().expect("writer read");
+        let records = writer_g.records();
+        assert_eq!(records.len(), 1, "exactly one L4.E row appended");
+        let row = &records[0];
+        assert_eq!(row.submit_id, 42, "L4.E row keyed by envelope.submit_id");
+        assert_eq!(
+            row.rejection_class,
+            L4ERejectionClass::EscrowMissing,
+            "TransitionError::EscrowMissing maps to RejectionClass::EscrowMissing"
+        );
+        assert_eq!(
+            row.parent_state_root, pre,
+            "L4.E row records pre-submit state_root_t (Inv 7)"
+        );
+        // L4.E never advances state; sequencer's state_root_t is unchanged.
+        let post = seq.q_snapshot().expect("q_snapshot").state_root_t;
+        assert_eq!(pre, post, "rejected WorkTx leaves state_root_t unchanged");
+        assert_eq!(seq.next_logical_t_peek(), 0, "no logical_t consumed");
+    }
+
     // TB-2 Atom 2 — U1: apply_one consumes SubmissionEnvelope.
     //
     // Signature-level proof that the queue payload type now carries submit_id
@@ -812,7 +1000,7 @@ mod tests {
     // plumbing.
     #[test]
     fn apply_one_consumes_submission_envelope() {
-        let (_tmp, seq, _rx) = fresh_sequencer();
+        let (_tmp, seq, _rx, _rejection_writer) = fresh_sequencer();
         let envelope = SubmissionEnvelope {
             submit_id: 12345,
             tx: TypedTx::Work(fixture_work_tx()),
@@ -834,7 +1022,7 @@ mod tests {
     // because Sequencer::run loops until close — there is no single-poll API.
     #[tokio::test]
     async fn try_apply_one_drains_one_envelope() {
-        let (_tmp, seq, mut rx) = fresh_sequencer();
+        let (_tmp, seq, mut rx, _rejection_writer) = fresh_sequencer();
 
         // Empty queue → None.
         assert!(seq.try_apply_one(&mut rx).is_none());
@@ -916,6 +1104,7 @@ mod tests {
         let keypair = Arc::new(Ed25519Keypair::generate_with_secure_entropy().expect("kp"));
         let writer: Arc<RwLock<dyn LedgerWriter>> =
             Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
+        let rejection_writer = Arc::new(RwLock::new(RejectionEvidenceWriter::default()));
         let preds = Arc::new(PredicateRegistry::new());
         let tools = Arc::new(ToolRegistry::new());
         let (seq, _rx) = Sequencer::new(
@@ -923,6 +1112,7 @@ mod tests {
             keypair,
             SystemEpoch::new(1),
             writer,
+            rejection_writer,
             preds,
             tools,
             QState::genesis(),
@@ -939,7 +1129,7 @@ mod tests {
     // 5. submit returns QueueClosed when receiver dropped.
     #[tokio::test]
     async fn submit_returns_queue_closed_after_rx_drop() {
-        let (_tmp, seq, rx) = fresh_sequencer();
+        let (_tmp, seq, rx, _rejection_writer) = fresh_sequencer();
         drop(rx);
         let err = seq.submit(TypedTx::Work(fixture_work_tx())).await.unwrap_err();
         assert!(matches!(err, SubmitError::QueueClosed));
