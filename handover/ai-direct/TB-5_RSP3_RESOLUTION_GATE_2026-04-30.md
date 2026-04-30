@@ -903,23 +903,26 @@ TB-5.1 dispatch (U29-U33):
 - U32 `dispatch_challenge_resolve_unknown_target_rejects` (ChallengeNotFound)
 - U33 `dispatch_challenge_resolve_upheld_deferred_marker_only`
 
-### §8.3 Integration tests — TB-5.0 substrate (`tests/tb_5_system_ingress_barrier.rs`; ~10 tests)
+### §8.3 Integration tests — TB-5.0 substrate (`tests/tb_5_system_ingress_barrier.rs`; ~13 tests including per-variant zero-sig coverage)
 
-Per directive § 10 TB-5.0 binding test list:
+Per directive § 10 TB-5.0 binding test list (AMENDED post Codex round-3 Q6 for full unification with charter §5.3 + preflight §10):
 - I60 `agent_submit_rejects_challenge_resolve_tx`
 - I61 `agent_submit_rejects_finalize_reward_tx`
 - I62 `agent_submit_rejects_task_expire_tx`
 - I63 `agent_submit_rejects_terminal_summary_tx`
 - I64 `emit_system_tx_accepts_challenge_resolve_with_valid_signature`
 - I65 `emit_system_tx_rejects_missing_signature` (forge a SystemEmitCommand path that produces an unsigned tx — should not be possible by API; defense via unit test that Sequencer::build_signed_system_tx always produces a signed result)
-- I66 `apply_one_rejects_zero_signature_system_variant_with_pinned_pubkey_check` (defense-in-depth scenario: simulate a queue-bypass corrupted envelope; apply_one must reject with InvalidSystemSignatureLive)
+- I66 `apply_one_rejects_zero_signature_system_variant_with_pinned_pubkey_check` (defense-in-depth scenario: simulate a queue-bypass corrupted envelope; apply_one must reject with InvalidSystemSignatureLive AND **append L4.E row** per Q2 amendment)
+  - **I66.a `apply_one_rejects_zero_signature_finalize_reward`** (per-variant zero-sig coverage per Codex round-2 Q2 remediation)
+  - **I66.b `apply_one_rejects_zero_signature_task_expire`**
+  - **I66.c `apply_one_rejects_zero_signature_terminal_summary`**
 - I67 `legacy_submit_alias_delegates_to_submit_agent_tx_and_rejects_system_variants`
 - I68 `agent_submit_then_emit_system_tx_share_queue_but_distinct_envelope_paths`
 - I69 `submit_id_and_emit_id_advance_independently`
 
-### §8.4 Integration tests — TB-5.1 resolution (`tests/tb_5_challenge_resolve_surface.rs`; ~12 tests)
+### §8.4 Integration tests — TB-5.1 resolution (`tests/tb_5_challenge_resolve_surface.rs`; ~14 tests including I88/I89 boundary)
 
-Per directive § 10 TB-5.1 binding test list:
+Per directive § 10 TB-5.1 binding test list (AMENDED post Codex round-3 Q6 + round-2 Q8 optional):
 - I70 `submit_challenge_resolve_released_appends_to_canonical_l4`
 - I71 `released_refunds_bond` (full sequence: TaskOpen → EscrowLock → Work → Challenge → emit_system_tx ChallengeResolve{Released})
 - I72 `released_conserves_ctf` (Σ holdings pre = post; bond zeroed; balances refunded)
@@ -932,8 +935,10 @@ Per directive § 10 TB-5.1 binding test list:
 - I79 `released_does_not_decrement_total_escrow` (charter § 4.8 boundary test)
 - I80 `replay_invariants_hold_across_full_rsp3_1_surface` (extends TB-4 I41 to 7-tx-kind sequence)
 - I81 `property_no_sequence_violates_total_ctf_conservation_with_resolve` (10-step deterministic mixed sequence including Released + UpheldDeferred + rejected admissions)
+- **I88 `challenge_resolve_does_not_mutate_q_t_current_round`** (NEW per Codex round-2 Q8 optional improvement; charter § 4.10 boundary)
+- **I89 `upheld_deferred_keeps_solver_verifier_stakes_byte_identical`** (NEW per Codex round-2 Q8 optional improvement; parallel to I78 boundary check for UpheldDeferred path)
 
-### §8.5 Anti-drift tests (`tests/tb_5_anti_drift.rs`; ~6 tests)
+### §8.5 Anti-drift tests (`tests/tb_5_anti_drift.rs`; 6 tests)
 
 - I82 `no_slash_tx_in_src` (extends TB-4 I44 FORBIDDEN_VARIANTS with `SlashTx`)
 - I83 `no_settlement_tx_in_src` (extends with `SettlementTx`)
@@ -942,7 +947,7 @@ Per directive § 10 TB-5.1 binding test list:
 - I86 `four_anti_drift_renames_documented` (charter § 4.11 + § 6 #29-31 verify markers exist in source comments — a "philosophy preservation" test; reads charter and asserts the four renames are still in the document; soft test for documentation hygiene)
 - I87 `no_p6_files_touched_in_tb5` (git diff scanner; ensures no h_vppu / MetaTape / experiments/minif2f_v4/* changes — uses `git diff main..HEAD --name-only` and asserts zero P6-pathed files)
 
-Acceptance battery total: **~33 new TB-5 tests** (5 typed_tx + 12 sequencer in-crate + 16 integration). Target post-ship: ~604/604 cargo test green (TB-4 baseline 571 + 33).
+Acceptance battery total: **~37 new TB-5 tests** (5 typed_tx unit T1-T5 + 12 sequencer in-crate U22-U33 + 17 integration I60-I89 + 3 per-variant zero-sig sub-tests under I66 [I66.a/b/c]). Target post-ship: **~608/608 cargo test green** (TB-4 baseline 571 + 37). Charter §5.3 mirrors this exactly per Codex round-2 + round-3 Q6 unification.
 
 ### §8.6 真实烟测 (per charter v2 § 5.4; non-blocking)
 
