@@ -590,7 +590,190 @@ async fn challenge_with_zero_stake_appends_l4e_stake_insufficient() {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Suppress unused-import warnings for symbols used by Atom 6+ tests.
+// I39 — Multi-challenger representability (DIRECTIVE Q4 BINDING)
+// Two distinct challengers submit ChallengeTx against the same target
+// work_tx; both accept; challenge_cases_t carries 2 distinct rows; the
+// target work_tx's stakes_t entry is unchanged. Pinpoint test against any
+// future creep toward "single challenge per target" semantics.
+// ────────────────────────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn multiple_challengers_same_target_all_accepted_distinct_case_rows() {
+    let mut h = fresh_harness(genesis_with_balances(&[
+        ("sponsor-i39", 100),
+        ("solver-i39", 10),
+        ("challenger-a-i39", 10),
+        ("challenger-b-i39", 10),
+    ]));
+
+    let (target_work_tx_id, parent_after_work) = apply_task_funded_with_accepted_worktx(
+        &mut h, "task-i39", "sponsor-i39", "solver-i39", 50, 3, "i39"
+    ).await;
+
+    // Snapshot pre-challenges to compare target's stakes_t entry afterwards.
+    let pre = h.seq.q_snapshot().expect("pre");
+    let pre_target_stake = pre.economic_state_t.stakes_t.0
+        .get(&target_work_tx_id).cloned()
+        .expect("target stakes_t entry must exist");
+
+    // Challenger A submits first.
+    let chal_a = make_challenge_tx(
+        &target_work_tx_id.0, "challenger-a-i39", 2_000_000,
+        Cid([0xAAu8; 32]), parent_after_work, "i39-A"
+    );
+    let chal_a_id = match &chal_a {
+        TypedTx::Challenge(c) => c.tx_id.clone(),
+        _ => unreachable!(),
+    };
+    h.seq.submit(chal_a).await.expect("submit A");
+    let _ = h.seq.try_apply_one(&mut h.rx).expect("env A").expect("A accepted");
+
+    // Get the new state root after A.
+    let after_a = h.seq.q_snapshot().expect("after A").state_root_t;
+
+    // Challenger B submits — DIFFERENT challenger, SAME target.
+    let chal_b = make_challenge_tx(
+        &target_work_tx_id.0, "challenger-b-i39", 3_000_000,
+        Cid([0xBBu8; 32]), after_a, "i39-B"
+    );
+    let chal_b_id = match &chal_b {
+        TypedTx::Challenge(c) => c.tx_id.clone(),
+        _ => unreachable!(),
+    };
+    h.seq.submit(chal_b).await.expect("submit B");
+    let _ = h.seq.try_apply_one(&mut h.rx).expect("env B").expect("B accepted");
+
+    // Both ChallengeCase rows present, distinct keys (challenge.tx_id).
+    let post = h.seq.q_snapshot().expect("post");
+    assert_eq!(post.economic_state_t.challenge_cases_t.0.len(), 2,
+               "two challenges → two challenge_cases_t rows");
+    let case_a = post.economic_state_t.challenge_cases_t.0.get(&chal_a_id).expect("A row");
+    let case_b = post.economic_state_t.challenge_cases_t.0.get(&chal_b_id).expect("B row");
+
+    // Same target, different challengers, distinct bonds.
+    assert_eq!(case_a.target_work_tx, target_work_tx_id);
+    assert_eq!(case_b.target_work_tx, target_work_tx_id,
+               "DIRECTIVE Q4: two challenges against same target_work_tx must coexist");
+    assert_eq!(case_a.challenger, AgentId("challenger-a-i39".into()));
+    assert_eq!(case_b.challenger, AgentId("challenger-b-i39".into()));
+    assert_eq!(case_a.bond.micro_units(), 2_000_000);
+    assert_eq!(case_b.bond.micro_units(), 3_000_000);
+
+    // Target work_tx's stakes_t entry is UNCHANGED by either challenge.
+    let post_target_stake = post.economic_state_t.stakes_t.0
+        .get(&target_work_tx_id).expect("target still in stakes_t");
+    assert_eq!(post_target_stake.amount, pre_target_stake.amount,
+               "target's YES stake unchanged by challenges (no slash in TB-4)");
+    assert_eq!(post_target_stake.staker, pre_target_stake.staker);
+
+    // No L4.E rows (both accepts).
+    assert_eq!(l4e_row_count(&h.rejection_writer), 0);
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// I40 — Rejected Verify or Challenge does NOT mutate economic_state
+// (charter § 5 #10 + TB-3 § 3.4 user verdict #14 inherited)
+// ────────────────────────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn rejected_verify_or_challenge_does_not_change_economic_state() {
+    let mut h = fresh_harness(genesis_with_balances(&[
+        ("sponsor-i40", 100),
+        ("solver-i40", 10),
+        ("verifier-i40", 5),
+        ("challenger-i40", 5),
+    ]));
+
+    let (target_work_tx_id, parent_after_work) = apply_task_funded_with_accepted_worktx(
+        &mut h, "task-i40", "sponsor-i40", "solver-i40", 50, 3, "i40"
+    ).await;
+
+    // Snapshot economic_state at this baseline.
+    let baseline = h.seq.q_snapshot().expect("baseline").economic_state_t.clone();
+
+    // Submit a Verify with bond=0 (rejects to L4.E with BondInsufficient).
+    let bad_verify = make_verify_tx(
+        &target_work_tx_id.0, "verifier-i40", 0, parent_after_work, "i40-bad",
+    );
+    h.seq.submit(bad_verify).await.expect("submit");
+    let drained = h.seq.try_apply_one(&mut h.rx).expect("env");
+    assert!(drained.is_err(), "bad verify must reject");
+
+    // Submit a Challenge with stake=0 (rejects to L4.E with StakeInsufficient).
+    let bad_chal = make_challenge_tx(
+        &target_work_tx_id.0, "challenger-i40", 0,
+        Cid([0xEEu8; 32]), parent_after_work, "i40-bad",
+    );
+    h.seq.submit(bad_chal).await.expect("submit");
+    let drained = h.seq.try_apply_one(&mut h.rx).expect("env");
+    assert!(drained.is_err(), "bad challenge must reject");
+
+    // L4.E grew by 2 rows; economic_state is bit-identical to baseline.
+    assert_eq!(l4e_row_count(&h.rejection_writer), 2,
+               "two rejections → two L4.E rows");
+    let post = h.seq.q_snapshot().expect("post");
+    assert_eq!(post.economic_state_t, baseline,
+               "L4.E never mutates economic_state (TB-3 § 3.4 user verdict #14 inherited)");
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// I43 — Challenge-window anchor pinpoint (charter § 3.9)
+// opened_at_round MUST equal q.q_t.current_round at the moment of accept.
+// ────────────────────────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn challenge_window_anchor_equals_q_current_round_at_accept() {
+    // Seed Q with current_round = 7 (non-zero pinpoint value); same fixture
+    // shape as I32, but Q starts with q.q_t.current_round = 7 so opened_at_round
+    // can be checked exactly.
+    let mut q = QState::genesis();
+    q.q_t.current_round = 7;
+    q.economic_state_t.balances_t.0.insert(
+        AgentId("sponsor-i43".into()), MicroCoin::from_coin(100).unwrap()
+    );
+    q.economic_state_t.balances_t.0.insert(
+        AgentId("solver-i43".into()), MicroCoin::from_coin(10).unwrap()
+    );
+    q.economic_state_t.balances_t.0.insert(
+        AgentId("challenger-i43".into()), MicroCoin::from_coin(10).unwrap()
+    );
+
+    let mut h = fresh_harness(q);
+
+    let (target_work_tx_id, parent_after_work) = apply_task_funded_with_accepted_worktx(
+        &mut h, "task-i43", "sponsor-i43", "solver-i43", 50, 3, "i43"
+    ).await;
+
+    let chal_tx = make_challenge_tx(
+        &target_work_tx_id.0, "challenger-i43", 2_000_000,
+        Cid([0xF1u8; 32]), parent_after_work, "i43"
+    );
+    let chal_id = match &chal_tx {
+        TypedTx::Challenge(c) => c.tx_id.clone(),
+        _ => unreachable!(),
+    };
+    h.seq.submit(chal_tx).await.expect("submit");
+    let _ = h.seq.try_apply_one(&mut h.rx).expect("env").expect("accepted");
+
+    let post = h.seq.q_snapshot().expect("post");
+    let case = post.economic_state_t.challenge_cases_t.0
+        .get(&chal_id).expect("ChallengeCase");
+
+    // The anchor MUST equal q.q_t.current_round AT THE TIME OF ACCEPT.
+    // dispatch_transition reads current_round from the Q-snapshot; since
+    // none of TaskOpen/EscrowLock/Work/Challenge advance current_round
+    // in TB-4 (current_round is mutated only by other future tx kinds —
+    // not in TB-4 scope), the value remains 7 throughout this test's
+    // accepted-tx sequence.
+    assert_eq!(case.opened_at_round, 7,
+               "opened_at_round must equal q.q_t.current_round at admission ({} expected, got {})",
+               7, case.opened_at_round);
+    // target back-ref correct.
+    assert_eq!(case.target_work_tx, target_work_tx_id);
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Suppress unused-import warnings for symbols used by Atom 7 tests.
 // ────────────────────────────────────────────────────────────────────────────
 
 #[allow(dead_code)]
