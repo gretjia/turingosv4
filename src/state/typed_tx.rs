@@ -988,6 +988,21 @@ pub enum TransitionError {
     /// charter § 4.5.
     EmptyCounterexample,
 
+    // ── TB-5.0 RSP-3.0 substrate (charter v2 § 4.9 + preflight § 3.5) ──────
+    /// Agent attempted to submit a system-emitted variant
+    /// (FinalizeRewardTx / TaskExpireTx / TerminalSummaryTx; ChallengeResolveTx
+    /// added in TB-5 Atom 3) through the agent ingress path. The primary
+    /// rejection happens at `Sequencer::submit_agent_tx` BEFORE dispatch
+    /// (returns `SubmitError::SystemTxForbiddenOnAgentIngress` pre-queue).
+    /// This `TransitionError` variant is the **defensive twin**: should
+    /// any code path bypass the submit_agent_tx barrier and surface a
+    /// system variant in `dispatch_transition`, this variant is the
+    /// fail-closed dispatch response. Maps to
+    /// `L4ERejectionClass::PolicyViolation` per charter § 4.5.
+    /// Anti-Oreo enforcement of "agent ≠ direct state writer" at the
+    /// constitutional level (Art V.1.3 + WP § 12.4).
+    SystemTxForbiddenOnAgentIngress,
+
     // ── Stub sentinel (CO1.7.5 fills) ──────────────────────────────────────
     /// Stub return value used by CO1.7.5 unimplemented bodies — preserves
     /// sequencer + dispatch correctness without forcing transition logic
@@ -1027,6 +1042,12 @@ impl std::fmt::Display for TransitionError {
             Self::BondInsufficient => write!(f, "verifier bond insufficient"),
             Self::TargetWorkInactive => write!(f, "target work_tx not in stakes_t (never accepted live, or already resolved)"),
             Self::EmptyCounterexample => write!(f, "challenge counterexample_cid is empty / zero"),
+            Self::SystemTxForbiddenOnAgentIngress => write!(
+                f,
+                "system-emitted tx variant forbidden on agent ingress \
+                 (Anti-Oreo dispatch-side defensive guard; primary barrier \
+                 is Sequencer::submit_agent_tx pre-queue)"
+            ),
             Self::NotYetImplemented => write!(f, "transition body not yet implemented (CO1.7.5)"),
         }
     }

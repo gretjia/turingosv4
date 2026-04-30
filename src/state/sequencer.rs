@@ -677,6 +677,13 @@ pub enum SubmitError {
     QueueFull,
     /// Receiver dropped — sequencer no longer running.
     QueueClosed,
+    /// TB-5.0 Atom 2: agent attempted to submit a system-emitted variant
+    /// (FinalizeReward / TaskExpire / TerminalSummary; ChallengeResolve
+    /// added in Atom 3) through the agent ingress path. Rejected pre-queue
+    /// per Anti-Oreo agent-ingress barrier (charter v2 § 4.9 + preflight
+    /// § 3.2; constitutional Art V.1.3 + WP § 12.4: agent ≠ direct state
+    /// writer; system-emitted variants must come through `emit_system_tx`).
+    SystemTxForbiddenOnAgentIngress,
 }
 
 impl std::fmt::Display for SubmitError {
@@ -684,6 +691,11 @@ impl std::fmt::Display for SubmitError {
         match self {
             Self::QueueFull => write!(f, "submission queue saturated"),
             Self::QueueClosed => write!(f, "submission queue closed"),
+            Self::SystemTxForbiddenOnAgentIngress => write!(
+                f,
+                "system-emitted tx variant forbidden on agent ingress; \
+                 use Sequencer::emit_system_tx (TB-5.0 Anti-Oreo barrier)"
+            ),
         }
     }
 }
@@ -856,11 +868,40 @@ impl Sequencer {
         (seq, queue_rx)
     }
 
-    /// Submit a typed transition. Returns immediately with a receipt carrying
-    /// `submit_id` (NOT `logical_t`). Per Q2 (back-pressure resolution): on
-    /// queue saturation returns `Err(SubmitError::QueueFull)` and the agent is
-    /// expected to retry with deterministic exponential backoff.
-    pub async fn submit(&self, tx: TypedTx) -> Result<SubmissionReceipt, SubmitError> {
+    /// TRACE_MATRIX FC2-Submit + § 5.2.1: TB-5.0 Atom 2 agent-only ingress
+    /// barrier (charter v2 § 4.2 + § 4.9 + preflight § 3.2; Anti-Oreo Art V.1.3).
+    ///
+    /// Accepts ONLY agent-submitted variants. System-emitted variants
+    /// (FinalizeReward / TaskExpire / TerminalSummary; ChallengeResolve added
+    /// in Atom 3) are rejected pre-queue with
+    /// `SubmitError::SystemTxForbiddenOnAgentIngress`. This is the
+    /// constitutional Anti-Oreo "agent ≠ direct state writer" boundary,
+    /// structurally enforced (was a documented norm without live enforcement
+    /// through TB-3 + TB-4; TB-5.0 retires that debt for system-tx).
+    ///
+    /// **WP-canonical reconciliation**: ChallengeResolveTx (TB-5 Atom 3) +
+    /// SlashTx / SettlementTx / ProvisionalAcceptTx / ReputationUpdateTx
+    /// (RSP-3.2+ / RSP-4 territory) will be added to the rejection match
+    /// at their respective TB landings — each new system variant extends
+    /// this list, never bypasses it.
+    pub async fn submit_agent_tx(&self, tx: TypedTx) -> Result<SubmissionReceipt, SubmitError> {
+        // TB-5.0 ingress barrier: reject 3 system-emitted variants that
+        // exist at TB-5 Atom 2 HEAD. ChallengeResolve will be added to
+        // this list in Atom 3 when its TypedTx variant lands.
+        match &tx {
+            TypedTx::FinalizeReward(_)
+            | TypedTx::TaskExpire(_)
+            | TypedTx::TerminalSummary(_) => {
+                return Err(SubmitError::SystemTxForbiddenOnAgentIngress);
+            }
+            // Agent-submitted variants — proceed to queue.
+            TypedTx::Work(_)
+            | TypedTx::Verify(_)
+            | TypedTx::Challenge(_)
+            | TypedTx::Reuse(_)
+            | TypedTx::TaskOpen(_)
+            | TypedTx::EscrowLock(_) => {}
+        }
         // TB-2 P1-D r1 concurrency contract: fetch_add precedes try_send, so
         // submit_id allocation order is NOT receiver arrival order under
         // multi-producer scheduling. submit_id is always burned (never reused)
@@ -872,6 +913,26 @@ impl Sequencer {
             Err(tokio::sync::mpsc::error::TrySendError::Full(_)) => Err(SubmitError::QueueFull),
             Err(tokio::sync::mpsc::error::TrySendError::Closed(_)) => Err(SubmitError::QueueClosed),
         }
+    }
+
+    /// TRACE_MATRIX FC2-Submit + § 5.2.1: legacy public submit alias.
+    ///
+    /// Submit a typed transition (legacy alias; delegates to `submit_agent_tx`
+    /// post-TB-5 Atom 2). Returns immediately with a receipt carrying
+    /// `submit_id` (NOT `logical_t`). Per Q2 (back-pressure resolution): on
+    /// queue saturation returns `Err(SubmitError::QueueFull)` and the agent is
+    /// expected to retry with deterministic exponential backoff.
+    ///
+    /// **TB-5.0 Atom 2 narrowing** (charter v2 § 4.2): this method now
+    /// inherits `submit_agent_tx`'s system-variant rejection. Existing
+    /// callers (e.g., bus.rs:135-141 `TuringBus::submit_typed_tx`) keep
+    /// working unchanged for agent variants. Test fixtures retain backward
+    /// compatibility — the only behavioral change is that bare `submit(tx)`
+    /// of a system-emitted variant now rejects with
+    /// `SubmitError::SystemTxForbiddenOnAgentIngress` instead of silently
+    /// queueing for dispatch.
+    pub async fn submit(&self, tx: TypedTx) -> Result<SubmissionReceipt, SubmitError> {
+        self.submit_agent_tx(tx).await
     }
 
     /// Driver loop. Drains the queue and runs `apply_one` on each tx. Errors
@@ -2152,5 +2213,160 @@ mod tests {
         let tx = TypedTx::Challenge(chal_tx);
         let err = dispatch_transition(&q, &tx, &preds, &tools).unwrap_err();
         assert!(matches!(err, TransitionError::InsufficientBalance));
+    }
+
+    // ── TB-5.0 Atom 2 — agent-ingress barrier tests (charter v2 § 5.3 U22-U26) ──
+    //
+    // Note: U22 (rejects ChallengeResolveTx) is DEFERRED to Atom 3 because
+    // ChallengeResolveTx variant doesn't exist in TypedTx until Atom 3.
+    // Atom 2 covers U23-U26: the three system variants that exist at HEAD
+    // (FinalizeReward, TaskExpire, TerminalSummary) + accept-path for the
+    // 6 agent variants (Work, Verify, Challenge, Reuse, TaskOpen, EscrowLock).
+    //
+    // When Atom 3 lands ChallengeResolveTx, it extends the submit_agent_tx
+    // rejection match to include ChallengeResolve and adds U22 alongside.
+
+    /// U23 — submit_agent_tx rejects FinalizeRewardTx pre-queue with
+    /// SystemTxForbiddenOnAgentIngress. submit_id is NOT advanced
+    /// (rejection happens before fetch_add).
+    #[tokio::test]
+    async fn submit_agent_tx_rejects_finalize_reward_pre_queue() {
+        let (_tmp, seq, _rx, _rejection_writer) = fresh_sequencer();
+        let pre_submit_id = seq.next_submit_id_peek();
+        let tx = TypedTx::FinalizeReward(FinalizeRewardTx {
+            tx_id: TxId("ft-u23".into()),
+            claim_id: ClaimId::new("cl-u23"),
+            task_id: TaskId("t-u23".into()),
+            solver: AgentId("s-u23".into()),
+            reward: MicroCoin::from_micro_units(1),
+            parent_state_root: Hash::ZERO,
+            epoch: SystemEpoch::new(1),
+            timestamp_logical: 1,
+            system_signature: SystemSignature::from_bytes([0u8; 64]),
+        });
+        let err = seq.submit_agent_tx(tx).await.unwrap_err();
+        assert!(matches!(err, SubmitError::SystemTxForbiddenOnAgentIngress));
+        // submit_id NOT advanced (rejection is pre-queue, before fetch_add).
+        assert_eq!(seq.next_submit_id_peek(), pre_submit_id,
+            "submit_id must not advance on system-tx ingress rejection");
+    }
+
+    /// U24 — submit_agent_tx rejects TaskExpireTx pre-queue.
+    #[tokio::test]
+    async fn submit_agent_tx_rejects_task_expire_pre_queue() {
+        let (_tmp, seq, _rx, _rejection_writer) = fresh_sequencer();
+        let pre_submit_id = seq.next_submit_id_peek();
+        let tx = TypedTx::TaskExpire(TaskExpireTx {
+            tx_id: TxId("et-u24".into()),
+            task_id: TaskId("t-u24".into()),
+            parent_state_root: Hash::ZERO,
+            bounty_refunded: MicroCoin::from_micro_units(1),
+            epoch: SystemEpoch::new(1),
+            timestamp_logical: 1,
+            system_signature: SystemSignature::from_bytes([0u8; 64]),
+        });
+        let err = seq.submit_agent_tx(tx).await.unwrap_err();
+        assert!(matches!(err, SubmitError::SystemTxForbiddenOnAgentIngress));
+        assert_eq!(seq.next_submit_id_peek(), pre_submit_id);
+    }
+
+    /// U25 — submit_agent_tx rejects TerminalSummaryTx pre-queue.
+    #[tokio::test]
+    async fn submit_agent_tx_rejects_terminal_summary_pre_queue() {
+        let (_tmp, seq, _rx, _rejection_writer) = fresh_sequencer();
+        let pre_submit_id = seq.next_submit_id_peek();
+        let tx = TypedTx::TerminalSummary(TerminalSummaryTx {
+            tx_id: TxId("ts-u25".into()),
+            task_id: TaskId("t-u25".into()),
+            run_id: RunId("r-u25".into()),
+            run_outcome: RunOutcome::OmegaAccepted,
+            total_attempts: 0,
+            failure_class_histogram: BTreeMap::new(),
+            last_logical_t: 0,
+            system_signature: SystemSignature::from_bytes([0u8; 64]),
+        });
+        let err = seq.submit_agent_tx(tx).await.unwrap_err();
+        assert!(matches!(err, SubmitError::SystemTxForbiddenOnAgentIngress));
+        assert_eq!(seq.next_submit_id_peek(), pre_submit_id);
+    }
+
+    /// U26 — submit_agent_tx accepts all 6 agent-submitted variants
+    /// (Work, Verify, Challenge, Reuse, TaskOpen, EscrowLock) — submit_id
+    /// advances; envelope queued.
+    #[tokio::test]
+    async fn submit_agent_tx_accepts_work_verify_challenge_taskopen_escrowlock_reuse() {
+        let (_tmp, seq, _rx, _rejection_writer) = fresh_sequencer();
+
+        // Work (existing fixture).
+        let r = seq.submit_agent_tx(TypedTx::Work(fixture_work_tx())).await;
+        assert!(r.is_ok(), "Work agent variant accepted; got {r:?}");
+
+        // Verify.
+        let r = seq.submit_agent_tx(TypedTx::Verify(VerifyTx {
+            tx_id: TxId("vt-u26".into()),
+            parent_state_root: Hash::ZERO,
+            target_work_tx: TxId("wt-u26".into()),
+            verifier_agent: AgentId("v".into()),
+            bond: StakeMicroCoin::from_micro_units(1),
+            verdict: VerifyVerdict::Confirm,
+            signature: AgentSignature::from_bytes([0; 64]),
+            timestamp_logical: 1,
+        })).await;
+        assert!(r.is_ok(), "Verify agent variant accepted; got {r:?}");
+
+        // Challenge.
+        let r = seq.submit_agent_tx(TypedTx::Challenge(ChallengeTx {
+            tx_id: TxId("ct-u26".into()),
+            parent_state_root: Hash::ZERO,
+            target_work_tx: TxId("wt-u26".into()),
+            challenger_agent: AgentId("c".into()),
+            stake: StakeMicroCoin::from_micro_units(1),
+            counterexample_cid: Cid([1; 32]),
+            signature: AgentSignature::from_bytes([0; 64]),
+            timestamp_logical: 1,
+        })).await;
+        assert!(r.is_ok(), "Challenge agent variant accepted; got {r:?}");
+
+        // Reuse.
+        let r = seq.submit_agent_tx(TypedTx::Reuse(ReuseTx {
+            tx_id: TxId("rt-u26".into()),
+            reusing_work_tx: TxId("wt-u26".into()),
+            reused_tool_id: ToolId("tool".into()),
+            reused_tool_creator: AgentId("a".into()),
+            timestamp_logical: 1,
+        })).await;
+        assert!(r.is_ok(), "Reuse agent variant accepted; got {r:?}");
+
+        // TaskOpen.
+        use crate::state::typed_tx::TaskOpenTx;
+        let r = seq.submit_agent_tx(TypedTx::TaskOpen(TaskOpenTx {
+            tx_id: TxId("ot-u26".into()),
+            task_id: TaskId("t-u26".into()),
+            parent_state_root: Hash::ZERO,
+            sponsor_agent: AgentId("sponsor".into()),
+            verifier_quorum: 1,
+            max_reuse_royalty_fraction_basis_points: 1000,
+            settlement_rule_hash: Hash::ZERO,
+            signature: AgentSignature::from_bytes([0u8; 64]),
+            timestamp_logical: 1,
+        })).await;
+        assert!(r.is_ok(), "TaskOpen agent variant accepted; got {r:?}");
+
+        // EscrowLock.
+        use crate::state::typed_tx::EscrowLockTx;
+        let r = seq.submit_agent_tx(TypedTx::EscrowLock(EscrowLockTx {
+            tx_id: TxId("lt-u26".into()),
+            task_id: TaskId("t-u26".into()),
+            parent_state_root: Hash::ZERO,
+            sponsor_agent: AgentId("sponsor".into()),
+            amount: MicroCoin::from_micro_units(1),
+            signature: AgentSignature::from_bytes([0u8; 64]),
+            timestamp_logical: 1,
+        })).await;
+        assert!(r.is_ok(), "EscrowLock agent variant accepted; got {r:?}");
+
+        // 6 successful submissions → submit_id advanced 6 times (started at 1).
+        assert_eq!(seq.next_submit_id_peek(), 7,
+            "next_submit_id should be 1 + 6 successful agent-submissions");
     }
 }
