@@ -4,7 +4,7 @@
 
 **Hook**: `MEMORY.md` → `project_auto_research_notepad.md` points here. Loaded every session.
 
-**Last updated**: 2026-04-30 (TB-1 SHIPPED `063b003..ccb01fa`; TB-2 active; Phase-0 r1 CHALLENGE/CHALLENGE → preflight v2; r2 narrowed Codex CHALLENGE on substrate compile-shape → preflight v3 with API shapes verified at HEAD `c5059a5`; round-cap=2 used; auto-execute exception → ready for STEP_B Phase-1 entry pending user authorization)
+**Last updated**: 2026-04-30 (**TB-2 SHIPPED** `d9df271..a82f73e`; runtime kernel now honors the L4 / L4.E split. 16/16 acceptance battery green. Smoke: `prompt_context_hash` bit-identical to TB-1 Day-1. Phase-1c dual audit merged-PASS / substance after r1 remediation + r2 narrowed-Codex frame-misread analysis. P1 Exit 5/6/9 + P3 Exit 3/5 → green; P2 Agent Runtime + P4 Information Loom unblocked.)
 
 ## TB methodology v2 (P0–P9 phase-tagged; install 2026-04-29 session-3)
 
@@ -40,7 +40,7 @@ Per directive ordering principle: **不要反过来。一开始就做开放市�
 |---|---|---|---|---|
 | TB-0 | shipped | **P6** (Epistemic Lab v0 product line; MiniF2F first v4-native solve) | P6:7 (replication via independent `lean --stdin` re-verify) | none directly — anchor evidence only |
 | TB-1 | shipped | **P1+P3+P6** (primary P1; P3 secondary; P6 tertiary; runtime_enforcement=deferred_TB2) | P1:5,6,7,8,9 + P3:1,2,5,6,8 (as primitives + pure functions) | P1:1,2,3,4 + P3:1,2,3,5 (Tier-A 10/10 PASS @ ccb01fa; Codex micro-audit PASS-ALL-THREE) |
-| TB-2 | active | **P1+P3** (primary P1; P3 RSP-1 secondary) | P1:5,6,9 + P3:3,5 | P1:1,2 + P3:2,3 (runtime spine via Sequencer::submit; AcceptedLedger NOT used as production L4) |
+| TB-2 | shipped | **P1+P3** (primary P1; P3 RSP-1 secondary) | P1:5,6,9 + P3:3,5 (runtime spine green) | P1:1,2 + P3:2,3 (16/16 PASS @ a82f73e; runtime kernel honors L4/L4.E split) |
 
 PPUT-CCL Phase A–E roadmap below remains as the **P6 Epistemic Lab v0 product-line trajectory**, but is no longer the primary sequencing axis. Phase D ("ArchitectAI shadow mode") is **deferred** until P3 RSP economy is at minimum RSP-3 green and P5 MetaTape v1 has ArchitectAI proposal flow.
 
@@ -111,6 +111,29 @@ PPUT-CCL Phase A–E roadmap below remains as the **P6 Epistemic Lab v0 product-
 - **5 P1s applied**: pin `WORKTX_ACCEPT_DOMAIN_V1` to sequencer.rs (was ambiguous); define `worktx_canonical_hash` locally (was invented `canonical_hash`); add `pub fn try_apply_one(&self, rx)` for tests; disambiguate two `RejectionClass` enums via `as L4ERejectionClass`; correct stale `Sequencer` struct excerpt with verified types (`cas: Arc<RwLock<CasStore>>`, `keypair: Arc<Ed25519Keypair>`, `epoch: SystemEpoch`, `q: RwLock<QState>` no Arc).
 - **Round-cap=2 used** per `feedback_elon_mode_policy`; v3 takes the auto-execute exception (cargo check inside the STEP_B Phase-1 worktree is the operative verification — substrate findings are now line-ref-grounded so v3 is determinate-best).
 - **Status**: preflight v3 + charter v3 in working tree; pending commit + Phase-1 entry authorization.
+
+### TB-2 SHIPPED (2026-04-30) — log
+
+- Merged at `a82f73e` (--no-ff merge of `experiment/tb2-sequencer-runtime-closure` into main). Five atoms: `d9df271` (Atom 2 SubmissionEnvelope plumbing) → `1b8bae5` (Atom 3 dispatch_transition WorkTx pure validation) → `e9de97a` (Atom 4 apply_one rejection-writer + I3-I8) → `deea6a1` (Atom 5 accepted canonical L4 + I1, I2, I9-I12) → `cf32735` (Atom 6 + I13 replay invariant). Plus `138d5ac` (Phase-1 smoke) + `abf3581` (Phase-1c remediation r1) + `6f01da1` (Phase-1c merged verdict).
+- **Acceptance battery 16/16 PASS**: 3 in-crate unit (U1-U3 in `src/state/sequencer.rs::tests`) + 13 integration (I1-I13 in `tests/tb_2_runtime_boundary.rs`). cargo test --workspace: 40 test suites green; zero FAILED.
+- **Three charter §8 ship proofs all green**:
+  - Proof 1 (rejection spine): predicate-failed WorkTx via `Sequencer::submit` → 1 L4.E row keyed by `submit_id`; zero state_root_t / ledger_root_t / logical_t advance. Tests I3+I7.
+  - Proof 2 (acceptance spine): predicate-passing WorkTx with stake+escrow → all three roots advance; zero L4.E rows. Tests I9+I10+I11+I12.
+  - Proof 3 (replay invariant / P1:8 / Art IV Boot): reconstruction from canonical L4 alone reaches the same state. Test I13.
+- **Smoke evidence**: `handover/evidence/tb_2_phase1_smoke_2026-04-30/` — `mathd_algebra_107` oneshot produces v2.0 PPUT row with `prompt_context_hash="a1f43584a17d1226"` bit-identical to TB-1 Day-1 spike. Pipeline-liveness PASS; harness unbroken by runtime-spine changes.
+- **Audit trail** (all in `handover/audits/`):
+  - Phase-0 r1 (CODEX + GEMINI + DUAL_AUDIT_R1) → CHALLENGE/CHALLENGE → preflight v2.
+  - Phase-0 r2 narrowed Codex (CODEX_*_R2_AUDIT) → CHALLENGE → preflight v3.
+  - Phase-1c r1: CODEX_*_PHASE1C_AUDIT (CHALLENGE 4/5) + GEMINI_*_PHASE1C_AUDIT (PASS 5/5).
+  - Phase-1c r2 narrowed Codex (CODEX_*_PHASE1C_R2_AUDIT) → strict-CHALLENGE / substance-PASS (frame misread + sandbox-blocked cargo).
+  - Merged: DUAL_AUDIT_TB_2_PHASE1C_VERDICT — PASS / substance, merge cleared.
+- **Production claim upgraded**: from TB-1's "TuringOS has the primitives required to honor the L4 / L4.E split" → "TuringOS runtime kernel honors the L4 / L4.E split."
+- **Roadmap exits flipped to green**: P1 Exit 5 (accepted advances roots) + P1 Exit 6 (rejected → L4.E + no advance) + P1 Exit 9 (raw diagnostics absent from materialized read view) + P3 Exit 3 (WorkTx admission requires YES stake) + P3 Exit 5 (escrow presence required).
+- **Roadmap kill criteria proven against runtime spine** (not just primitives): P1:1 (no bypass) + P1:2 (predicate-fail → L4.E only) + P3:2 (stakeless → L4.E) + P3:3 (post-init mint → L4.E via MonetaryInvariantViolation gate; structural representability test re-routed to a future TB).
+- **Next phases unblocked** (per ROADMAP § 12 dependency graph):
+  - P2 Agent Runtime — role separation now provable end-to-end via runtime stake/escrow gating.
+  - P4 Information Loom — clusterer now has real L4.E input to consume.
+  - TB-3 candidate: RSP-1 formal `task_open_tx` / `escrow_lock_tx` / `yes_stake_tx` variants (deletes the P0-B option (a) bridge at `sequencer.rs:205`).
 
 PPUT-CCL Phase A-E roadmap below remains as long-term **north star**; TB sequence is the **operational mechanism** to reach it.
 
