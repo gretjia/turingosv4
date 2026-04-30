@@ -11,7 +11,7 @@ Rust 2021, tokio, serde_json. Mission: MiniF2F Lean 4.
 
 ## Code Standard (Art. I.1 + C-004 + C-027)
 - `cargo check` / `cargo test` 必过；`.env` 永不 commit
-- `src/{kernel,bus}.rs` + `src/sdk/tools/wallet.rs` 改动走 STEP_B_PROTOCOL（不直接编辑 main）
+- `src/{kernel,bus}.rs` + `src/sdk/tools/wallet.rs` + `src/state/sequencer.rs` 改动走 STEP_B_PROTOCOL（不直接编辑 main）
 - 任何影响行为的参数必须 env/config 可覆盖，不可硬编码
 
 ## Audit Standard (Art. V.1 + C-010 + C-023 + C-035)

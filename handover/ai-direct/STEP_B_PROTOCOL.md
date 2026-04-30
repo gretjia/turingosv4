@@ -1,6 +1,6 @@
 # Step-B Protocol: Restricted-File Changes via Parallel Branch Experiment
 
-**Scope**: any change to files in CLAUDE.md's restricted list (currently `src/kernel.rs`, `src/bus.rs`, `src/sdk/tools/wallet.rs`). Also applicable to any proposal that touches "institution" per C-031.
+**Scope**: any change to files in CLAUDE.md's restricted list (currently `src/kernel.rs`, `src/bus.rs`, `src/sdk/tools/wallet.rs`, `src/state/sequencer.rs`). Also applicable to any proposal that touches "institution" per C-031.
 
 **Principle**: real data decides, not opinion. Parallel branch lets us test change empirically before merging.
 

@@ -4,7 +4,7 @@
 
 **Hook**: `MEMORY.md` → `project_auto_research_notepad.md` points here. Loaded every session.
 
-**Last updated**: 2026-04-30 (TB-1 SHIPPED `063b003..ccb01fa`; TB-2 active — "P1/P3 Runtime Boundary Closure + RSP-1"; charter `handover/tracer_bullets/TB-2_charter_2026-04-30.md`)
+**Last updated**: 2026-04-30 (TB-1 SHIPPED `063b003..ccb01fa`; TB-2 active — "P1/P3 Runtime Boundary Closure + RSP-1"; Phase-0 r1 dual audit CHALLENGE/CHALLENGE → preflight v2 applied 5 P0s + 5 P1s; awaiting Phase-1 entry decision)
 
 ## TB methodology v2 (P0–P9 phase-tagged; install 2026-04-29 session-3)
 
@@ -82,6 +82,20 @@ PPUT-CCL Phase A–E roadmap below remains as the **P6 Epistemic Lab v0 product-
 - **Forbidden Day-1**: ledger writes inside `dispatch_transition`; `AcceptedLedger::append_accepted` on production accepted spine; new `TypedTx` variants (`task_open_tx` / `escrow_lock_tx` / `yes_stake_tx` deferred to TB-3); non-empty `exempt_tx_kinds` at runtime; P5/P6/h_vppu/capability-metric expansion; WalletTool sink widening.
 - **Two ship proofs** (both required, both must traverse `Sequencer::submit`): (1) predicate-failed WorkTx → no `logical_t`, no `state_root_t`/`ledger_root_t` advance, exactly one L4.E row with matching `submit_id`; (2) predicate-passing WorkTx with stake+escrow → `state_root_t` + `ledger_root_t` + accepted `logical_t` all advance, zero L4.E rows.
 - **Until both proofs green**, project claim remains: "TuringOS has the primitives required to honor the L4 / L4.E split" — NOT "TuringOS runtime kernel honors the L4 / L4.E split."
+
+### TB-2 Phase-0 r1 dual audit (2026-04-30) — log
+
+- **Verdict**: CHALLENGE / 5/5 from BOTH Codex (implementer-paranoid) AND Gemini (strategic). No VETO. Both endorse architectural framing.
+- Audits: `handover/audits/CODEX_TB_2_PHASE0_AUDIT_2026-04-30.md` + `handover/audits/GEMINI_TB_2_PHASE0_AUDIT_2026-04-30.md`. Merged: `handover/audits/DUAL_AUDIT_TB_2_PHASE0_VERDICT_R1_2026-04-30.md`.
+- **5 P0s + 5 P1s applied to preflight v2 + charter v2**:
+  - P0-A: `Sequencer.rejection_writer: Arc<RejectionEvidenceWriter>` field disclosed (was missing — `Sequencer` has no L4.E writer at HEAD).
+  - **P0-B**: TaskId vs TxId mismatch resolved via **option (a) — bridge at lookup site** (`let lookup_tx_id = TxId(tx.task_id.0.clone())` inside WorkTx arm; deletion-marked for TB-3 when `task_open_tx` lands). User decision 2026-04-30. EscrowVault NOT used; single truth source preserved.
+  - P0-C: Battery split — 3 in-crate unit tests (`#[cfg(test)] mod tb2_runtime_boundary` in `sequencer.rs`) + 13 integration tests (`tests/tb_2_runtime_boundary.rs`). Test 6 (post-init mint via WorkTx) DROPPED — WorkTx carries no economic-delta field, mint-via-WorkTx not representable.
+  - P0-D: `TransitionError → RejectionClass` mapping table added; 3 new `TransitionError` variants disclosed (`StaleParentRoot`, `EscrowMissing`, `PostInitMint`) — typed_tx.rs touch ALLOWED for these only; NO new `TypedTx` variants.
+  - P0-E: Battery 12 → 16 tests (added I2 `submit_queue_full_consumes_submit_id`, I4 `runtime_stale_parent_worktx_appends_l4e`, I8 `runtime_l4e_public_view_honors_serde_shield`, I13 `runtime_replay_from_l4_only_ignores_l4e`). Charter §8 ship proofs 2 → 3 (replay invariant added).
+  - P1-A: `src/state/sequencer.rs` added to CLAUDE.md restricted list + `STEP_B_PROTOCOL.md` line 3 (no longer C-031 catch-all only).
+  - P1-B/C/D/E: §0 wording / SubmissionEnvelope rationale / submit_id concurrency note / `WORKTX_ACCEPT_DOMAIN_V1` constant + orphan-CAS partial-write contract.
+- **Status**: preflight v2 + charter v2 in working tree at HEAD `3f06d51`+; pending commit + R2 audit decision (auto-execute exception or launch R2 dual audit).
 
 PPUT-CCL Phase A-E roadmap below remains as long-term **north star**; TB sequence is the **operational mechanism** to reach it.
 
