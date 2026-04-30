@@ -4,7 +4,7 @@
 
 **Hook**: `MEMORY.md` → `project_auto_research_notepad.md` points here. Loaded every session.
 
-**Last updated**: 2026-04-30 (TB-1 SHIPPED `063b003..ccb01fa`; TB-2 active — "P1/P3 Runtime Boundary Closure + RSP-1"; Phase-0 r1 dual audit CHALLENGE/CHALLENGE → preflight v2 applied 5 P0s + 5 P1s; awaiting Phase-1 entry decision)
+**Last updated**: 2026-04-30 (TB-1 SHIPPED `063b003..ccb01fa`; TB-2 active; Phase-0 r1 CHALLENGE/CHALLENGE → preflight v2; r2 narrowed Codex CHALLENGE on substrate compile-shape → preflight v3 with API shapes verified at HEAD `c5059a5`; round-cap=2 used; auto-execute exception → ready for STEP_B Phase-1 entry pending user authorization)
 
 ## TB methodology v2 (P0–P9 phase-tagged; install 2026-04-29 session-3)
 
@@ -96,6 +96,21 @@ PPUT-CCL Phase A–E roadmap below remains as the **P6 Epistemic Lab v0 product-
   - P1-A: `src/state/sequencer.rs` added to CLAUDE.md restricted list + `STEP_B_PROTOCOL.md` line 3 (no longer C-031 catch-all only).
   - P1-B/C/D/E: §0 wording / SubmissionEnvelope rationale / submit_id concurrency note / `WORKTX_ACCEPT_DOMAIN_V1` constant + orphan-CAS partial-write contract.
 - **Status**: preflight v2 + charter v2 in working tree at HEAD `3f06d51`+; pending commit + R2 audit decision (auto-execute exception or launch R2 dual audit).
+
+### TB-2 Phase-0 r2 narrowed Codex audit (2026-04-30) — log
+
+- **Verdict**: CHALLENGE / 5/5. **6 substrate compile-shape blockers** in v2's snippets (line-by-line verified against shipped code at HEAD `c5059a5`).
+- Audit: `handover/audits/CODEX_TB_2_PHASE0_R2_AUDIT_2026-04-30.md`. Gemini r2 NOT run (Gemini r1 was strategic-PASS on 7/8; remaining live risks are substrate-class).
+- **6 P0s applied to preflight v3** with API shapes triangulated against source:
+  - P0-1: `Arc<RwLock<RejectionEvidenceWriter>>` (was `Arc<...>` — `append_rejected` is `&mut self` per `src/bottom_white/ledger/rejection_evidence.rs:258`).
+  - P0-2: `submitter_id() -> Option<AgentId>` requires `unwrap_or_else(|| AgentId(SYSTEM_AGENT_ID_STR.to_string()))` policy. WorkTx returns Some always; sentinel covers future system-emitted variants.
+  - P0-3: bridge uses `.escrows_t.0.contains_key(...)` and `.task_markets_t.0.contains_key(...)` (newtype `.0` access required); stake gate uses `tx.stake.micro_units() > 0` (StakeMicroCoin has no integer comparison).
+  - P0-4: mapping table rebuilt against actual 22-variant `TransitionError`; only TWO new variants needed (`EscrowMissing`, `MonetaryInvariantViolation`) — `StaleParent` already exists at `:720`. Display impl gets 2 new arms. Documented wildcard for the 19 non-WorkTx-arm variants.
+  - P0-5: integration tests retain `Arc<RwLock<RejectionEvidenceWriter>>` clone passed to `Sequencer::new`; no `pub(crate) rejection_writer_for_test()` accessor (was invisible to `tests/`).
+  - P0-6: rejection-path CAS-puts mirror accepted-path's `let mut cas_w = self.cas.write().await; cas_w.put(bytes, ObjectType, creator, logical_t, schema_id)` 5-arg form.
+- **5 P1s applied**: pin `WORKTX_ACCEPT_DOMAIN_V1` to sequencer.rs (was ambiguous); define `worktx_canonical_hash` locally (was invented `canonical_hash`); add `pub fn try_apply_one(&self, rx)` for tests; disambiguate two `RejectionClass` enums via `as L4ERejectionClass`; correct stale `Sequencer` struct excerpt with verified types (`cas: Arc<RwLock<CasStore>>`, `keypair: Arc<Ed25519Keypair>`, `epoch: SystemEpoch`, `q: RwLock<QState>` no Arc).
+- **Round-cap=2 used** per `feedback_elon_mode_policy`; v3 takes the auto-execute exception (cargo check inside the STEP_B Phase-1 worktree is the operative verification — substrate findings are now line-ref-grounded so v3 is determinate-best).
+- **Status**: preflight v3 + charter v3 in working tree; pending commit + Phase-1 entry authorization.
 
 PPUT-CCL Phase A-E roadmap below remains as long-term **north star**; TB sequence is the **operational mechanism** to reach it.
 

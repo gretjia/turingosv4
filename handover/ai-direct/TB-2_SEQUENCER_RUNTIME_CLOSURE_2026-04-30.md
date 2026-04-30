@@ -1,12 +1,14 @@
 # STEP_B Preflight — TB-2 Sequencer Runtime Closure
 
-**Date**: 2026-04-30 (rev v2 same day, post Phase-0 r1 dual audit)
+**Date**: 2026-04-30 (rev v3 same day, post Phase-0 r2 narrowed Codex audit)
 **TB**: TB-2 ("P1/P3 Runtime Boundary Closure + RSP-1")
 **Charter**: `handover/tracer_bullets/TB-2_charter_2026-04-30.md`
 **Protocol**: `handover/ai-direct/STEP_B_PROTOCOL.md`
 **Audit history**:
 - v1 (commit `3f06d51`) → Phase-0 r1 dual audit `handover/audits/DUAL_AUDIT_TB_2_PHASE0_VERDICT_R1_2026-04-30.md` → CHALLENGE / 5/5 (both Codex + Gemini).
-- v2 (this revision) addresses 5 P0s + 5 P1s from r1 verdict. P0-B `TaskId` vs `TxId` resolution = **option (a) — bridge at lookup site** (user decision 2026-04-30).
+- v2 (commit `c5059a5`) addressed 5 P0s + 5 P1s from r1 verdict. P0-B `TaskId` vs `TxId` resolution = **option (a) — bridge at lookup site** (user decision 2026-04-30).
+- v2 → narrowed Codex r2 (`handover/audits/CODEX_TB_2_PHASE0_R2_AUDIT_2026-04-30.md`) → CHALLENGE / 5/5: 6 substrate compile-shape blockers in v2's snippets (writer ownership type, `TaskId→TxId` map access, integration-test visibility, `TransitionError` enum mismatch, `submitter_id()` `Option<AgentId>` mismatch, CAS API 5-arg form). Gemini r2 NOT run — Gemini r1 was strategic-PASS on 7/8 questions; remaining live risks are substrate-class.
+- v3 (this revision) addresses all 6 r2 P0s + 5 P1s with **API shapes verified against source at HEAD `c5059a5`**. Per memory `feedback_elon_mode_policy` round-cap=2 (now used), v3 takes the auto-execute exception: snippets are line-ref-grounded surgical patches; cargo check inside the STEP_B Phase-1 worktree is the operative verification.
 
 ---
 
@@ -30,17 +32,21 @@ Treat sequencer.rs edits with full STEP_B rigor. Disagreement → conservative v
 
 | File | Role | Touched by TB-2 |
 |---|---|---|
-| `src/state/sequencer.rs` | L4 sequencer + `dispatch_transition` + `apply_one` driver | **YES** (primary) — adds `rejection_writer` field (P0-A); fills `TypedTx::Work` arm of `dispatch_transition`; rewrites `apply_one` error path |
-| `src/state/q_state.rs` | `QState` snapshot type | possibly (deterministic interim `state_root_t` mutation helper if it reduces sequencer.rs diff) |
-| `src/state/typed_tx.rs` | `TypedTx` enum + `TransitionError` enum | **YES (limited)** (P0-D) — add `TransitionError::EscrowMissing` + `TransitionError::PostInitMint` + `TransitionError::StaleParentRoot` variants ONLY (NO new `TypedTx` variants — `task_open_tx` / `escrow_lock_tx` / `yes_stake_tx` remain TB-3 scope). New `TransitionError` variants are exhaustive-match additions only; no behaviour change for variants already wired. |
-| `src/sdk/tools/wallet.rs` | wtool | **NO** (no widening) |
-| `src/bus.rs` / `src/kernel.rs` | bus / kernel | **NO** |
-| `src/economy/ledger.rs::AcceptedLedger` | TB-1 RSP-0 primitive wrapper | **NO** (stays a primitive; not used as production accepted spine) |
-| `src/bottom_white/ledger/transition_ledger` + `LedgerWriter` | canonical L4 | invoked through existing API only (no signature change) |
-| `src/bottom_white/ledger/rejection_evidence.rs` | L4.E writer | invoked through existing `append_rejected` only; `Sequencer` gains an `Arc<RejectionEvidenceWriter>` field (P0-A) |
-| `src/economy/escrow_vault.rs` | task-keyed `EscrowVault` | **NO** (per P0-B option (a) — runtime uses `EconomicState.{escrows_t, task_markets_t}` via the in-arm bridge, NOT `EscrowVault` directly; `EscrowVault` remains the future TB-3+ truth source) |
-| `tests/tb_2_runtime_boundary.rs` | TB-2 acceptance battery (integration-test surface) | **NEW** |
-| `src/state/sequencer.rs` `#[cfg(test)] mod tb2_runtime_boundary` | TB-2 unit tests for `pub(crate)` API (P0-C) | **NEW** (in-crate tests for `apply_one` envelope plumbing + private-API checks) |
+| File | Role | Touched by TB-2 |
+| --- | --- | --- |
+| `src/state/sequencer.rs` | L4 sequencer + `dispatch_transition` + `apply_one` driver | **YES** (primary). Adds: `SubmissionEnvelope` struct, `WORKTX_ACCEPT_DOMAIN_V1` + `SYSTEM_AGENT_ID_STR` consts, `worktx_canonical_hash` / `rejection_class_for` / `public_summary_for` helper fns, `rejection_writer: Arc<RwLock<RejectionEvidenceWriter>>` field, `pub fn try_apply_one(...)` test driver. Modifies: `Sequencer::new` signature (one new param + receiver type), `Sequencer::run` receiver type, `Sequencer::submit` queue payload, `dispatch_transition` WorkTx arm body, `apply_one` queue type + error path. The two existing `Sequencer::new` call sites at `:483, :627` get the new parameter. |
+| `src/state/typed_tx.rs` | `TransitionError` enum + Display impl | **YES (limited)** (P0-D r1 + P0-4 r2). Adds **2** new `TransitionError` variants only: `EscrowMissing` + `MonetaryInvariantViolation`. Adds 2 corresponding Display arms in the exhaustive `Display` impl at `:790-816`. NO new `TypedTx` variants (revised down from r1's 3 — `StaleParent` already exists at `:720`). `task_open_tx` / `escrow_lock_tx` / `yes_stake_tx` remain TB-3 scope. |
+| `src/state/q_state.rs` | `QState` snapshot type | **NO** (P1-1 r2 removed v2's "optionally q_state.rs"; constant home pinned to sequencer.rs in §3.4). |
+| `src/sdk/tools/wallet.rs` | wtool | **NO** (no widening). |
+| `src/bus.rs` / `src/kernel.rs` | bus / kernel | **NO**. |
+| `src/economy/ledger.rs::AcceptedLedger` | TB-1 RSP-0 primitive wrapper | **NO** (stays a primitive; not used as production accepted spine). |
+| `src/economy/monetary_invariant.rs` | RSP-0 invariants | **NO** (calls only — existing API; `&[]` exempt list per §3.5). |
+| `src/bottom_white/ledger/transition_ledger.rs` + `LedgerWriter` | canonical L4 | invoked through existing API only (no signature change). I13 uses existing `pub fn replay_full_transition` at `:371`. |
+| `src/bottom_white/ledger/rejection_evidence.rs` | L4.E writer | invoked through existing `append_rejected` (`&mut self` per `:258`); `Sequencer` gains an `Arc<RwLock<RejectionEvidenceWriter>>` field (P0-A r1 + P0-1 r2). |
+| `src/bottom_white/cas/store.rs` | CAS | invoked through existing 5-arg `CasStore::put` at `:163-:170` (`&mut self`). |
+| `src/economy/escrow_vault.rs` | task-keyed `EscrowVault` | **NO** (per P0-B option (a) — runtime uses `EconomicState.{escrows_t, task_markets_t}.0` via the in-arm bridge, NOT `EscrowVault` directly; `EscrowVault` remains the future TB-3+ truth source. Red line confirmed enforceable by r2 Q6: zero existing `src/state/` call sites). |
+| `tests/tb_2_runtime_boundary.rs` | TB-2 integration acceptance battery (13 tests) | **NEW** (uses only `pub` API; retains `Arc<RwLock<RejectionEvidenceWriter>>` clone passed to `Sequencer::new` for L4.E observation). |
+| `src/state/sequencer.rs` `#[cfg(test)] mod tb2_runtime_boundary` | TB-2 in-crate unit tests (3 tests) | **NEW** (`pub(crate)` API access for envelope/dispatch_transition signature checks). |
 
 ---
 
@@ -91,28 +97,69 @@ pub(crate) struct SubmissionEnvelope {
 
 **P1-D — submit-id concurrency contract**: `next_submit_id.fetch_add(1, SeqCst)` at `:292` happens BEFORE `try_send(:293)`. Under multi-producer contention a producer may allocate ID `n` and another may allocate ID `n+1` and `try_send` first; queue arrival order at `Sequencer::run` is **NOT** monotonic in `submit_id`. Tests MUST NOT assert "queue order = submit_id order". The receipt-side guarantee TB-2 establishes is: "the `submit_id` returned to the caller equals the `envelope.submit_id` that `apply_one` consumes for the same submission" — i.e. **per-submission identity preservation**, not cross-submission ordering. `submit_queue_full_consumes_submit_id` (battery test #14, see §5) further asserts that a failed `try_send` still burns its `submit_id` (no ID reuse), so monotonicity-over-allocations holds even when allocations-over-arrivals does not.
 
-### 3.2 `Sequencer.rejection_writer` ownership (P0-A — writer ownership disclosed)
+**P1-3 r2 — integration-test driver**: `Sequencer::run(rx)` (`src/state/sequencer.rs:304-:316`) is a `pub async fn` that loops until the receiver closes. There is no single-poll API today, but I3-I13 integration tests need to drive a single submission through `apply_one` to observe its effect synchronously. v3 adds:
 
 ```rust
-// src/state/sequencer.rs (new field)
-pub struct Sequencer {
-    next_submit_id: AtomicU64,
-    next_logical_t: AtomicU64,
-    queue_tx: tokio::sync::mpsc::Sender<SubmissionEnvelope>,
-    cas: Arc<CasStore>,
-    keypair: Arc<SystemKeypair>,
-    epoch: u64,
-    ledger_writer: Arc<dyn LedgerWriter>,
-    rejection_writer: Arc<RejectionEvidenceWriter>,  // P0-A — NEW
-    predicates: Arc<PredicateRegistry>,
-    tools: Arc<ToolRegistry>,
-    q: Arc<RwLock<QState>>,
+// src/state/sequencer.rs (new pub method — small, intentional public test driver)
+/// Drain at most one envelope from the queue and run `apply_one` on it.
+/// Returns `None` if the queue is empty. Intended for tests / single-step
+/// drivers; production code should use `Sequencer::run(rx)`.
+pub fn try_apply_one(&self, rx: &mut Receiver<SubmissionEnvelope>) -> Option<Result<LedgerEntry, ApplyError>> {
+    match rx.try_recv() {
+        Ok(envelope) => Some(self.apply_one(envelope)),
+        Err(_) => None,
+    }
 }
 ```
 
-- `Sequencer::new(...)` gains a `rejection_writer: Arc<RejectionEvidenceWriter>` constructor parameter, positioned immediately after `ledger_writer` to mirror their semantic pair (canonical L4 / L4.E).
-- A `pub(crate) fn rejection_writer_for_test(&self) -> Arc<RejectionEvidenceWriter>` accessor is added so the new in-crate `#[cfg(test)] mod tb2_runtime_boundary` (see §5.1) can read row counts and reconstruct `PublicRejectionView`.
-- All existing `Sequencer::new(...)` call sites are updated to pass an `Arc::new(RejectionEvidenceWriter::default())` (or a freshly-constructed in-memory writer) in tests; production call sites get the same shape — `RejectionEvidenceWriter` is currently in-memory per its own docs (`src/bottom_white/ledger/rejection_evidence.rs:30, 34`), so no new persistence wiring is incurred in TB-2. (Persistence semantics for L4.E are deferred per `rejection_evidence.rs` comments and CHL-S5 in r1 verdict.)
+Receiver ownership note: `Sequencer::new` returns `(Sequencer, Receiver<SubmissionEnvelope>)`. Production passes the receiver into `run`; tests retain it and pass to `try_apply_one`. The pre-v3 receiver-on-`Sequencer-self` shape is verified at `src/state/sequencer.rs:271, :304` — receiver is moved into `run` at `:304`, so it's not stored on `Sequencer` itself; v3 exposes the same external receiver back to tests instead.
+
+### 3.2 `Sequencer.rejection_writer` ownership (P0-A r1 + P0-1 r2 — writer ownership disclosed with verified shape)
+
+**Verified shape** (r2 audit: `RejectionEvidenceWriter::append_rejected` is `&mut self` per `src/bottom_white/ledger/rejection_evidence.rs:226, 258`; existing `Sequencer` already wraps mutable shared state in `Arc<RwLock<...>>` at `src/state/sequencer.rs:238, 241`). `Arc<RejectionEvidenceWriter>` would NOT compile. The matching shape is:
+
+```rust
+// src/state/sequencer.rs — accurate shape post-v3 (existing fields verified vs
+// constructor signature at :260-:285; field layout at :230-:247):
+pub struct Sequencer {
+    next_submit_id: AtomicU64,                                // existing
+    next_logical_t: AtomicU64,                                // existing
+    queue_tx: tokio::sync::mpsc::Sender<SubmissionEnvelope>,  // queue payload changes (§3.1)
+    cas: Arc<RwLock<CasStore>>,                               // existing — RwLock pattern
+    keypair: Arc<Ed25519Keypair>,                             // existing — actual type
+    epoch: SystemEpoch,                                        // existing — actual type
+    ledger_writer: Arc<RwLock<dyn LedgerWriter>>,             // existing — RwLock pattern
+    rejection_writer: Arc<RwLock<RejectionEvidenceWriter>>,   // **NEW — matches pattern**
+    predicate_registry: Arc<PredicateRegistry>,               // existing — actual field name
+    tool_registry: Arc<ToolRegistry>,                         // existing — actual field name
+    q: RwLock<QState>,                                         // existing — NO Arc wrap (q is
+                                                               // accessed only through &Sequencer)
+}
+```
+
+**Constructor signature change** (the only `Sequencer::new` signature delta):
+
+```rust
+pub fn new(
+    cas: Arc<RwLock<CasStore>>,
+    keypair: Arc<Ed25519Keypair>,
+    epoch: SystemEpoch,
+    ledger_writer: Arc<RwLock<dyn LedgerWriter>>,
+    rejection_writer: Arc<RwLock<RejectionEvidenceWriter>>,  // **NEW — positioned after ledger_writer**
+    predicate_registry: Arc<PredicateRegistry>,
+    tool_registry: Arc<ToolRegistry>,
+    initial_q: QState,
+    queue_capacity: usize,
+) -> (Self, tokio::sync::mpsc::Receiver<SubmissionEnvelope>) {  // Receiver type changes per §3.1
+    // ... existing body ...
+}
+```
+
+- `Sequencer::new(...)` gains a `rejection_writer: Arc<RwLock<RejectionEvidenceWriter>>` constructor parameter immediately after `ledger_writer` (mirrors L4 / L4.E pair).
+- **All existing `Sequencer::new(...)` call sites in repo (verified via r2 audit): exactly TWO** — `src/state/sequencer.rs:483` and `:627`. Both are inside the existing `#[cfg(test)] mod` and need the new parameter passed as `Arc::new(RwLock::new(RejectionEvidenceWriter::default()))`. (`RejectionEvidenceWriter` derives `Default` per its declaration at `src/bottom_white/ledger/rejection_evidence.rs:20`.) No production call site updates are needed because no production code currently constructs a `Sequencer` outside test fixtures.
+- **Integration-test visibility (P0-5 r2)**: the in-crate `pub(crate) fn rejection_writer_for_test()` accessor described in v2 is INSUFFICIENT — it's invisible to `tests/tb_2_runtime_boundary.rs` (a separate crate). Replace with a constructor-injection pattern: integration tests construct their own `let writer = Arc::new(RwLock::new(RejectionEvidenceWriter::default()))`, pass `writer.clone()` to `Sequencer::new`, then read via the retained handle using `RejectionEvidenceWriter::records()` and `public_view()` (both `pub` per `src/bottom_white/ledger/rejection_evidence.rs:327, 340`). No new `Sequencer` accessor is needed.
+- **In-crate unit tests (U1-U3)**: still use the same constructor-injection pattern internally (the `pub(crate)` accessor is dropped to avoid visibility-mismatch confusion).
+- L4.E persistence semantics remain deferred — writer is in-memory per `src/bottom_white/ledger/rejection_evidence.rs:30, 34`. TB-2 incurs no new persistence wiring.
 
 ### 3.3 `dispatch_transition` `TypedTx::Work` arm — pure validation
 
@@ -123,84 +170,167 @@ Validation steps (in order; first-failure short-circuits):
 1. **Parent-root match**: `if tx.parent_state_root != q.state_root_t { return Err(TransitionError::StaleParentRoot); }`.
 2. **Acceptance predicate bundle**: every entry in `tx.predicate_results.acceptance` is `true` (else `Err(TransitionError::PredicateFailed)`).
 3. **Settlement predicate bundle (if applicable to RSP-1)**: every entry is `true` or empty (else `Err(TransitionError::PredicateFailed)`).
-4. **YES stake gate (RSP-1)**: `tx.stake > 0` (else `Err(TransitionError::StakeInsufficient)` — variant already exists at `src/state/typed_tx.rs:717`).
-5. **Escrow presence gate (RSP-1, P0-B option (a) — bridge at lookup site)**:
+4. **YES stake gate (RSP-1, P0-3 r2 — verified `StakeMicroCoin` comparison)**: `tx.stake.micro_units() > 0` (else `Err(TransitionError::StakeInsufficient)` — variant already exists at `src/state/typed_tx.rs:731`). `WorkTx.stake: StakeMicroCoin` (`src/state/typed_tx.rs:232`); `StakeMicroCoin::micro_units(self) -> i64` is `const` (`src/economy/money.rs:168`); `StakeMicroCoin > 0` integer comparison would NOT compile (the newtype intentionally prevents arithmetic mixing with raw integers per the type's TRACE_MATRIX I-STAKE rationale at `src/economy/money.rs:142-150`).
+5. **Escrow presence gate (RSP-1, P0-B option (a) — bridge at lookup site; P0-3 r2 — verified `.0` newtype-map access)**:
 
    ```rust
    // P0-B option (a): in-arm deterministic bridge from TaskId to TxId namespace.
    // TB-3 introduces formal task_open_tx / escrow_lock_tx / yes_stake_tx variants
-   // that allocate proper TxIds at submission time; this bridge is then deleted.
+   // that allocate proper TxIds at submission time; this bridge is then DELETED.
    let lookup_tx_id = TxId(tx.task_id.0.clone());
-   let has_escrow = q.economic_state_t.escrows_t.contains_key(&lookup_tx_id)
-                  || q.economic_state_t.task_markets_t.contains_key(&lookup_tx_id);
+   // r2 finding P0-3: EscrowsIndex / TaskMarketsIndex are pub-tuple-struct newtypes
+   // (`pub struct EscrowsIndex(pub BTreeMap<TxId, EscrowEntry>)` at q_state.rs:159-161).
+   // `.contains_key(...)` is on the inner map, accessed via .0 — direct contains_key
+   // on the newtype wrapper would not compile.
+   let has_escrow = q.economic_state_t.escrows_t.0.contains_key(&lookup_tx_id)
+                  || q.economic_state_t.task_markets_t.0.contains_key(&lookup_tx_id);
    if !has_escrow {
-       return Err(TransitionError::EscrowMissing);
+       return Err(TransitionError::EscrowMissing);  // NEW variant — see §3.7
    }
    ```
 
-   **Rationale**: `WorkTx.task_id: TaskId` (`src/state/typed_tx.rs:225, src/state/typed_tx.rs:33-35`) but `EconomicState.{escrows_t, task_markets_t}: BTreeMap<TxId, ...>` (`src/state/q_state.rs:161, 224`). The bridge is a single line whose only failure mode is being deleted in TB-3 when real `task_open_tx` lands and produces `TxId` directly. The task-keyed `EscrowVault` (`src/economy/escrow_vault.rs`) is intentionally NOT used here — it is a separate truth source ("distinct from `state::q_state::EscrowEntry`" per its own docs at `:15, :53, :146, :168`); TB-2 keeps `EscrowVault` as the future TB-3+ unification target and reads only from `q.economic_state_t` at the runtime spine to preserve the single-truth-source contract.
+   **Rationale**: `WorkTx.task_id: TaskId` and `TaskId(pub String)` / `TxId(pub String)` (`src/state/typed_tx.rs:33, 35, 225`); `EconomicState.{escrows_t: EscrowsIndex, task_markets_t: TaskMarketsIndex}` newtypes wrap `BTreeMap<TxId, ...>` (`src/state/q_state.rs:159, 161, 222, 224`). The `.0` access is intentional — preserves the namespace-conflation cost as visible to readers and makes the deletion site obvious for TB-3 cleanup. The task-keyed `EscrowVault` (`src/economy/escrow_vault.rs`) is intentionally NOT used here — it is a separate truth source ("distinct from `state::q_state::EscrowEntry`" per its own docs at `:15, :53, :146, :168`); TB-2 keeps `EscrowVault` as the future TB-3+ unification target and reads only from `q.economic_state_t` at the runtime spine to preserve the single-truth-source contract. `EscrowVault` non-use red line confirmed enforceable by r2 Q6: zero existing call sites in `src/state/`.
 
-6. **Monetary invariants** (all three; production call sites pass `&[]` exempt list per §3.5):
-   - `monetary_invariant::assert_no_post_init_mint(tx, q)` → maps to `Err(TransitionError::PostInitMint)` on violation.
+6. **Monetary invariants** (production call sites pass `&[]` exempt list per §3.5):
+   - `monetary_invariant::assert_no_post_init_mint(tx, q)` → on violation, map to `Err(TransitionError::MonetaryInvariantViolation)` (NEW variant — see §3.7).
    - `monetary_invariant::assert_read_is_free(TxKind::Work, 0)` → infallible for `TxKind::Work` with zero read cost; included for symmetry / future-proofing.
-   - `monetary_invariant::assert_total_ctf_conserved(q.economic_state_t, q_next.economic_state_t, &[])` → maps to `Err(TransitionError::InvariantViolation)` on violation.
+   - `monetary_invariant::assert_total_ctf_conserved(q.economic_state_t, q_next.economic_state_t, &[])` → on violation, map to `Err(TransitionError::MonetaryInvariantViolation)` (same NEW variant).
 
-### 3.4 `q_next.state_root_t` — interim domain-separated hash (P1-E — domain constant)
+### 3.4 `q_next.state_root_t` — interim domain-separated hash (P1-E r1 + P1-1/P1-2 r2 — domain constant location pinned + canonical hash helper defined)
+
+**Location pinned** (P1-1 r2): `src/state/sequencer.rs` (alongside the other state machinery; `q_state.rs` is data-shape only). Removed the v2 ambiguity ("`sequencer.rs` or `q_state.rs`").
 
 ```rust
-// src/state/sequencer.rs or src/state/q_state.rs (new constant)
+// src/state/sequencer.rs (new constant — top of file, near other domain constants)
 /// TB-2 interim WorkTx-accept state-root domain. Real patch semantics land in P5.
-/// MUST be registered in genesis_payload.toml [trust_root.domains] before
-/// merging Phase-1c (per Trust Root manifest discipline).
+/// Distinct from the TB-1 toy domain `b"turingosv4.l4_state_root.v1"` used by
+/// `AcceptedLedger` at `src/economy/ledger.rs:350, 357` (do not reuse — TB-1
+/// primitive vs production state-root mutator separation).
 pub(crate) const WORKTX_ACCEPT_DOMAIN_V1: &[u8] = b"turingosv4.worktx.accept.v1";
+
+/// TB-2 canonical hash helper for a `TypedTx` (P1-2 r2 — `canonical_hash` is
+/// NOT an existing src/state helper; the available primitive at the bottom_white
+/// layer is `canonical_encode`). Defined locally to avoid a typed_tx.rs touch.
+fn worktx_canonical_hash(tx: &TypedTx) -> Hash {
+    let mut h = Sha256::new();
+    h.update(b"turingosv4.worktx.canonical_hash.v1");  // domain separation
+    h.update(canonical_encode(tx).expect("TypedTx is canonical-encodable"));
+    Hash(h.finalize().into())
+}
 ```
 
-On accept:
+On accept (in `dispatch_transition`'s WorkTx arm, after all validation passes):
 
 ```rust
-let work_tx_digest = canonical_hash(tx);  // existing helper or sha256 of canonical bytes
-q_next.state_root_t = sha256_concat(
-    WORKTX_ACCEPT_DOMAIN_V1,
-    q.state_root_t.as_bytes(),
-    work_tx_digest.as_bytes(),
-);
+let work_tx_digest = worktx_canonical_hash(&TypedTx::Work(tx.clone()));
+let mut h = Sha256::new();
+h.update(WORKTX_ACCEPT_DOMAIN_V1);
+h.update(q.state_root_t.0);  // Hash(pub [u8; 32]); access raw bytes via .0
+h.update(work_tx_digest.0);
+q_next.state_root_t = Hash(h.finalize().into());
 ```
 
-The TB-1 toy domain `turingosv4.l4_state_root.v1` (`src/economy/ledger.rs:350, 357`) belongs to `AcceptedLedger` and is NOT reused here — that would conflate the TB-1 primitive's hash domain with the production state-root mutator. Both domains coexist until `AcceptedLedger` retires.
+`q_next.economic_state_t` reflects stake/escrow/balances delta as required by the monetary invariants (concrete delta semantics handled by existing `EconomicState` helpers — no new APIs added by TB-2 to that module).
 
-`q_next.economic_state_t` reflects stake/escrow/balances delta as required by the monetary invariants (concrete delta semantics handled by existing `EconomicState` helpers — no new APIs).
+### 3.5 `apply_one` rejection-writer error path (P0-2 + P0-6 r2 — verified `submitter_id() -> Option<AgentId>` + 5-arg `CasStore::put` shape)
 
-### 3.5 `apply_one` rejection-writer error path
-
-`apply_one(envelope)` semantics on `Err(e)` from `dispatch_transition`:
+`apply_one(envelope)` semantics on `Err(e)` from `dispatch_transition`. Uses the **same lock/encode/put pattern** as the accepted path's `apply_one` success arm (lines `:351, :363, :377, :386, :417, :423` per r2 verification):
 
 ```rust
 if let Err(e) = dispatch_result {
-    // 1. CAS-put canonical-encoded tx payload (orphan-CAS note: this object is
-    //    durable even if the next step fails — see §3.6).
-    let tx_payload_cid = self.cas.put(canonical_encode(&envelope.tx))?;
+    // 1. CAS-put canonical-encoded tx payload.
+    //    P0-6 r2: CasStore::put is `&mut self` + 5 args (bytes, ObjectType, creator,
+    //    created_at_logical_t, schema_id) per src/bottom_white/cas/store.rs:163-170.
+    //    cas is `Arc<RwLock<CasStore>>`, so the call needs a write lock.
+    let tx_payload_bytes = canonical_encode(&envelope.tx)
+        .expect("TypedTx is canonical-encodable");
+    let tx_payload_cid = {
+        let mut cas_w = self.cas.write().await;
+        cas_w.put(
+            &tx_payload_bytes,
+            ObjectType::TypedTxPayload,           // existing variant; if not, use the
+                                                    // accepted-path's choice here verbatim
+            "sequencer.rejection_path.tb2",       // creator string, mirrors accepted-path
+            self.next_logical_t.load(Ordering::SeqCst), // pre-advance logical_t snapshot
+            None,                                  // schema_id: None for TB-2; future TBs
+                                                    // populate when typed schema lands
+        )?
+    };
 
-    // 2. Optionally CAS-put diagnostic. raw_diagnostic_cid is structurally
-    //    serde-shielded by TB-1 P0-3 on RejectedSubmissionRecord — but the
-    //    runtime path's exposure is RE-CONFIRMED by battery test #15.
-    let raw_diagnostic_cid = Some(self.cas.put(e.to_string().into_bytes())?);
+    // 2. CAS-put diagnostic (always Some at runtime; raw_diagnostic_cid is
+    //    structurally serde-shielded on RejectedSubmissionRecord per TB-1 P0-3
+    //    at src/bottom_white/ledger/rejection_evidence.rs:108. I8 re-confirms.).
+    let raw_diagnostic_cid = {
+        let mut cas_w = self.cas.write().await;
+        Some(cas_w.put(
+            e.to_string().as_bytes(),
+            ObjectType::RejectionDiagnostic,      // or fallback to existing variant
+            "sequencer.rejection_path.tb2",
+            self.next_logical_t.load(Ordering::SeqCst),
+            None,
+        )?)
+    };
 
-    // 3. Append to L4.E. Currently in-memory + infallible; persistence deferred.
-    self.rejection_writer.append_rejected(
-        envelope.submit_id,
-        q_snapshot.state_root_t,
-        envelope.tx.submitter_id(),  // HasSubmitter trait, src/state/typed_tx.rs:631
-        envelope.tx.tx_kind(),       // src/state/typed_tx.rs:620
-        tx_payload_cid,
-        rejection_class_for(&e),     // P0-D — see §3.7 mapping table
-        raw_diagnostic_cid,
-        public_summary_for(&e),      // small derived string, no raw payload
-    );
+    // 3. P0-2 r2: HasSubmitter::submitter_id() returns Option<AgentId>
+    //    (src/state/typed_tx.rs:642). RejectedSubmissionRecord.agent_id is AgentId
+    //    (NOT Option) per src/bottom_white/ledger/rejection_evidence.rs:90.
+    //    For TB-2's WorkTx-only arm, WorkTx::submitter_id() always returns Some
+    //    (it clones tx.agent_id at typed_tx.rs:646-648). For future variants whose
+    //    submitter_id() is None (system-emitted), we substitute the SYSTEM_AGENT_ID
+    //    sentinel — keeps L4.E's single-truth-source `agent_id: AgentId` schema
+    //    intact without forcing an Option<AgentId> schema migration.
+    let agent_id = envelope.tx
+        .submitter_id()
+        .unwrap_or_else(|| AgentId(SYSTEM_AGENT_ID_STR.to_string()));
 
-    // 4. Return without advancing logical_t / state_root_t / ledger_root_t.
+    // 4. Append to L4.E. Currently in-memory + infallible; persistence deferred.
+    //    P0-1 r2: rejection_writer is Arc<RwLock<RejectionEvidenceWriter>>;
+    //    append_rejected is &mut self per rejection_evidence.rs:258.
+    {
+        let mut writer_w = self.rejection_writer.write().await;
+        writer_w.append_rejected(
+            envelope.submit_id,
+            q_snapshot.state_root_t,
+            agent_id,
+            envelope.tx.tx_kind(),       // TypedTx::tx_kind() at typed_tx.rs:620
+            tx_payload_cid,
+            rejection_class_for(&e),     // P0-D r1 + P0-4 r2 — see §3.7 mapping
+            raw_diagnostic_cid,
+            public_summary_for(&e),      // see §3.5b below
+        );
+    }
+
+    // 5. Return without advancing logical_t / state_root_t / ledger_root_t.
     return Err(ApplyError::Transition(e));
 }
 ```
+
+`SYSTEM_AGENT_ID_STR` is a `pub(crate) const &str = "__system__"` declared near `WORKTX_ACCEPT_DOMAIN_V1` in `src/state/sequencer.rs`. The string content is internal-only; it never crosses the agent boundary (only `public_summary` does, per `RejectedSubmissionRecord.agent_id` doc-comment at `rejection_evidence.rs:89-90`).
+
+#### 3.5b `public_summary_for(&e)` helper
+
+Defined locally in `sequencer.rs` alongside `rejection_class_for`:
+
+```rust
+/// Agent-facing summary string for an L4.E record. Returns a small, predicate-id-
+/// stripped class label so private predicate identities never leak (TB-1 §1.4
+/// "Opaque" discipline). `None` for variants with no agent-safe summary.
+fn public_summary_for(e: &TransitionError) -> Option<String> {
+    match e {
+        TransitionError::StaleParent => Some("stale_parent_root".into()),
+        TransitionError::StakeInsufficient => Some("stake_insufficient".into()),
+        TransitionError::EscrowMissing => Some("escrow_missing".into()),
+        TransitionError::MonetaryInvariantViolation => Some("monetary_invariant".into()),
+        TransitionError::AcceptancePredicateFailed(_)
+        | TransitionError::SettlementPredicateFailed(_) => Some("predicate_failed".into()),
+        // Out-of-WorkTx-arm variants — should not occur in TB-2; conservative
+        // sentinel preserves L4.E append correctness if they do.
+        _ => Some("policy_violation".into()),
+    }
+}
+```
+
+The wildcard arm is intentional and matches the §3.7 mapping policy. Codex r2 P0-4 explicitly permits "wildcard mapping for out-of-WorkTx variants" provided it's documented; the `_ =>` here is the documented sentinel.
 
 Accepted path stays on the **existing** `transition_ledger` + `LedgerWriter` flow already wired into `apply_one`'s success arm at `src/state/sequencer.rs:351, :377, :386, :423` — TB-2 does not introduce a new ledger writer and does not change the accepted-side commit sequence.
 
@@ -212,39 +342,84 @@ CAS `put` is durable as soon as it returns `Ok` (`src/bottom_white/cas/store.rs:
 - Orphan-CAS objects are tolerable in TB-2 because both rejection-path L4.E append (`src/bottom_white/ledger/rejection_evidence.rs:30, 34, 258, 268`) and accepted-path writer commit are currently in-memory or single-commit Git2 operations — partial-write windows are narrow and bounded.
 - Orphan-CAS GC / reachability semantics are deferred to a later TB (likely co-with L4.E persistence). TB-2 does NOT add a GC pass.
 
-### 3.7 `TransitionError → RejectionClass` mapping (P0-D)
+### 3.7 `TransitionError → l4e::RejectionClass` mapping (P0-D r1 + P0-4 r2 + P1-4 r2 — closed against verified 22-variant enum + disambiguated which `RejectionClass`)
 
-Existing types:
+**Disambiguation (P1-4 r2)**: there are TWO `RejectionClass` enums in the repo. TB-2 uses the **L4.E ledger one**:
 
-- `TransitionError` variants today (`src/state/typed_tx.rs:717`): `StakeInsufficient`, `TaskNotFound`, `NotYetImplemented`, ... (verified in r1; full list audited).
-- `RejectionEvidence::RejectionClass` variants today (`src/bottom_white/ledger/rejection_evidence.rs:56-67`): `PredicateFailed`, `PolicyViolation`, `EscrowMissing`, `InvariantViolation`.
+```rust
+use crate::bottom_white::ledger::rejection_evidence::RejectionClass as L4ERejectionClass;
+```
 
-TB-2 adds three `TransitionError` variants (only — no other typed_tx.rs changes):
+(NOT `crate::state::typed_tx::RejectionClass` at `:165`, which is for `WorkOutcome::Rejected(...)` book-keeping.) The L4.E enum at `src/bottom_white/ledger/rejection_evidence.rs:56-67` has 5 variants: `PredicateFailed = 0`, `PolicyViolation = 1`, `EscrowMissing = 2`, `InvariantViolation = 3`, `MalformedPayload = 4`.
 
-- `TransitionError::StaleParentRoot` (new) — `tx.parent_state_root != q.state_root_t`.
-- `TransitionError::EscrowMissing` (new) — escrow / task-market lookup missed.
-- `TransitionError::PostInitMint` (new) — `assert_no_post_init_mint` violation surfaced as a transition error class.
+**Existing `TransitionError` variants** (`src/state/typed_tx.rs:717-788`, verified — 22 total):
 
-Mapping table (`fn rejection_class_for(e: &TransitionError) -> RejectionClass`):
+`StaleParent`, `SignatureInvalid`, `InvalidSystemSignature`, `StakeInsufficient`, `TargetWorkTxNotFound`, `TargetWorkTxNotVerifiable`, `ParentNotAcceptedYet`, `AcceptancePredicateFailed(PredicateId)`, `VerificationPredicateFailed(PredicateId)`, `SettlementPredicateFailed(PredicateId)`, `ChallengeWindowClosed`, `ChallengeWindowStillOpen`, `AlreadySlashed`, `CounterexampleInsufficient`, `ToolNotInRegistry`, `ToolCreatorMismatch`, `ClaimNotFound`, `TaskNotFound`, `TaskNotExpired`, `TaskHasOpenClaim`, `TerminalSummaryNotApplicable`, `NotYetImplemented`. Enum is NOT `#[non_exhaustive]`.
 
-| `TransitionError` | `RejectionClass` |
-|---|---|
-| `StaleParentRoot` (new) | `PolicyViolation` |
-| `PredicateFailed` (existing or alias) | `PredicateFailed` |
-| `StakeInsufficient` (existing) | `PolicyViolation` |
-| `EscrowMissing` (new) | `EscrowMissing` |
-| `PostInitMint` (new) | `InvariantViolation` |
-| `InvariantViolation` (existing or new alias) | `InvariantViolation` |
-| `NotYetImplemented` (existing — not expected on WorkTx arm post-TB-2) | `PolicyViolation` |
-| `TaskNotFound` (existing — not raised by WorkTx arm post-TB-2 because escrow gate fires first) | `PolicyViolation` |
+**TB-2 adds TWO new `TransitionError` variants** (revised down from r1's three — `StaleParent` already exists, no need to add `StaleParentRoot`):
 
-The mapping is closed (no `_ =>` wildcard). Adding any new `TransitionError` variant in a future TB MUST extend this table and adjust the battery's expected names.
+- `TransitionError::EscrowMissing` (NEW) — escrow / task-market lookup miss in the WorkTx arm bridge (§3.3 step 5).
+- `TransitionError::MonetaryInvariantViolation` (NEW) — `assert_no_post_init_mint` OR `assert_total_ctf_conserved` violation in the WorkTx arm (§3.3 step 6).
+
+**`Display` impl is exhaustive** (`src/state/typed_tx.rs:790-816`); the two new variants must add Display arms. Estimated typed_tx.rs delta: ~6 lines (2 enum variants + 2 Display arms + 2 doc-comments).
+
+**Mapping (`fn rejection_class_for(e: &TransitionError) -> L4ERejectionClass` — closed match per Codex r2 P0-4)**:
+
+| `TransitionError` (file:line) | `L4ERejectionClass` | WorkTx-arm reachable? |
+|---|---|---|
+| `StaleParent` (`:720`) | `PolicyViolation` | YES (parent-root mismatch) |
+| `SignatureInvalid` (`:722`) | `PolicyViolation` | not in TB-2 (sig check is upstream) |
+| `InvalidSystemSignature` (`:724`) | `PolicyViolation` | not in TB-2 |
+| `StakeInsufficient` (`:731`) | `PolicyViolation` | YES (stake gate) |
+| `TargetWorkTxNotFound` (`:735`) | `PolicyViolation` | not in TB-2 (Verify/Challenge/Reuse arms only) |
+| `TargetWorkTxNotVerifiable` (`:737`) | `PolicyViolation` | not in TB-2 |
+| `ParentNotAcceptedYet` (`:739`) | `PolicyViolation` | not in TB-2 |
+| `AcceptancePredicateFailed(_)` (`:745`) | `PredicateFailed` | YES (predicate bundle) |
+| `VerificationPredicateFailed(_)` (`:747`) | `PredicateFailed` | not in TB-2 |
+| `SettlementPredicateFailed(_)` (`:749`) | `PredicateFailed` | YES (settlement bundle) |
+| `ChallengeWindowClosed` (`:753`) | `PolicyViolation` | not in TB-2 |
+| `ChallengeWindowStillOpen` (`:755`) | `PolicyViolation` | not in TB-2 |
+| `AlreadySlashed` (`:757`) | `PolicyViolation` | not in TB-2 |
+| `CounterexampleInsufficient` (`:759`) | `PolicyViolation` | not in TB-2 |
+| `ToolNotInRegistry` (`:763`) | `PolicyViolation` | not in TB-2 |
+| `ToolCreatorMismatch` (`:765`) | `PolicyViolation` | not in TB-2 |
+| `ClaimNotFound` (`:769`) | `PolicyViolation` | not in TB-2 |
+| `TaskNotFound` (`:773`) | `PolicyViolation` | not in TB-2 (escrow gate fires first in WorkTx arm) |
+| `TaskNotExpired` (`:775`) | `PolicyViolation` | not in TB-2 |
+| `TaskHasOpenClaim` (`:777`) | `PolicyViolation` | not in TB-2 |
+| `TerminalSummaryNotApplicable` (`:781`) | `PolicyViolation` | not in TB-2 |
+| `NotYetImplemented` (`:787`) | `PolicyViolation` | not in TB-2 (WorkTx arm now non-stub) |
+| `EscrowMissing` (NEW) | `EscrowMissing` | YES (escrow gate) |
+| `MonetaryInvariantViolation` (NEW) | `InvariantViolation` | YES (monetary invariants) |
+
+Implementation:
+
+```rust
+fn rejection_class_for(e: &TransitionError) -> L4ERejectionClass {
+    use TransitionError as TE;
+    use L4ERejectionClass as RC;
+    match e {
+        TE::AcceptancePredicateFailed(_)
+        | TE::VerificationPredicateFailed(_)
+        | TE::SettlementPredicateFailed(_) => RC::PredicateFailed,
+        TE::EscrowMissing => RC::EscrowMissing,
+        TE::MonetaryInvariantViolation => RC::InvariantViolation,
+        // All other 19 variants (including the new EscrowMissing/MonetaryInvariantViolation
+        // are already covered above; this wildcard catches the 19 PolicyViolation entries
+        // explicitly enumerated in the table). r2 P0-4 sanctions wildcard for non-WorkTx-arm
+        // variants given the documented enumeration.
+        _ => RC::PolicyViolation,
+    }
+}
+```
+
+**Adding any new `TransitionError` variant in a future TB MUST extend this table, the `match` above, AND the `Display` impl at `typed_tx.rs:790-816`. The mapping is closed by enumeration even though the `match` uses `_` for the 19-variant tail — the table is the source of truth.**
 
 ### 3.8 Untouched arms
 
 `TypedTx::Verify`, `TypedTx::Challenge`, `TypedTx::Reuse`, `TypedTx::FinalizeReward`, `TypedTx::TaskExpire`, `TypedTx::TerminalSummary` all stay `Err(TransitionError::NotYetImplemented)` and are out of TB-2 scope.
 
-**Scope creep guard**: any line of code outside §3.1–§3.7 (production-code §) constitutes a separate atom and must be extracted into TB-3+ unless the auditors explicitly approve it in Phase-1c. The only files touched by §3.1–§3.7 are `src/state/sequencer.rs` (primary), `src/state/typed_tx.rs` (3 new `TransitionError` variants only), and optionally `src/state/q_state.rs` (state-root domain constant, if not co-located in `sequencer.rs`).
+**Scope creep guard**: any line of code outside §3.1–§3.7 (production-code §) constitutes a separate atom and must be extracted into TB-3+ unless the auditors explicitly approve it in Phase-1c. The only files touched by §3.1–§3.7 are `src/state/sequencer.rs` (primary — adds `SubmissionEnvelope`, `WORKTX_ACCEPT_DOMAIN_V1`, `SYSTEM_AGENT_ID_STR`, `worktx_canonical_hash`, `rejection_class_for`, `public_summary_for`, `try_apply_one`, `rejection_writer` field, fills WorkTx arm of `dispatch_transition`, rewrites `apply_one` error path) and `src/state/typed_tx.rs` (TWO new `TransitionError` variants: `EscrowMissing` + `MonetaryInvariantViolation`; corresponding 2 lines in the `Display` impl). `q_state.rs` constant home was rejected per §3.4 P1-1 r2.
 
 ---
 
@@ -288,12 +463,12 @@ These tests need access to `pub(crate)` API (`apply_one`, `dispatch_transition`,
 | # | Test | Asserts |
 |---|---|---|
 | **U1** | `apply_one_consumes_submission_envelope` | Compile-time check: `apply_one(envelope: SubmissionEnvelope)` is the canonical signature. Constructs a synthetic envelope and asserts the call typechecks. Replaces v1 Test 2. |
-| **U2** | `apply_one_rejected_path_uses_envelope_submit_id` | Drive `apply_one` with an envelope carrying `submit_id = 42` and a WorkTx that fails predicate validation. Read `rejection_writer_for_test()` and assert the new L4.E row's `submit_id == 42`. |
-| **U3** | `dispatch_transition_worktx_returns_state_root_via_domain_v1` | Call `dispatch_transition` directly with a predicate-passing WorkTx + stake>0 + seeded escrow. Assert `q_next.state_root_t == sha256(WORKTX_ACCEPT_DOMAIN_V1 ‖ q.state_root_t ‖ canonical_hash(tx))` exactly (proves the interim domain hash is what TB-2 ships, not a different scheme). |
+| **U2** | `apply_one_rejected_path_uses_envelope_submit_id` | Drive `apply_one` with an envelope carrying `submit_id = 42` and a WorkTx that fails predicate validation. Read the **constructor-injected** `Arc<RwLock<RejectionEvidenceWriter>>` clone (held by the test) and assert via `RejectionEvidenceWriter::records()` that the new L4.E row's `submit_id == 42`. |
+| **U3** | `dispatch_transition_worktx_returns_state_root_via_domain_v1` | Call `dispatch_transition` directly with a predicate-passing WorkTx + `stake.micro_units() > 0` + seeded escrow. Assert `q_next.state_root_t == Hash(sha256(WORKTX_ACCEPT_DOMAIN_V1 ‖ q.state_root_t.0 ‖ worktx_canonical_hash(&TypedTx::Work(tx)).0))` exactly (proves the interim domain hash is what TB-2 ships, not a different scheme). |
 
 ### 5.2 Integration tests — `tests/tb_2_runtime_boundary.rs`
 
-These tests go through `Sequencer::submit` (the public path) and exercise the full driver loop via a single-poll `Sequencer::run` step. They need only `pub` API.
+These tests go through `Sequencer::submit` (the public path) and drive a single submission via the new `pub fn try_apply_one(rx: &mut Receiver<SubmissionEnvelope>)` helper (§3.1 P1-3 r2). They need only `pub` API. They observe L4.E by retaining a clone of the `Arc<RwLock<RejectionEvidenceWriter>>` they injected into `Sequencer::new` — no `pub(crate)` accessor is required (P0-5 r2 fix).
 
 #### Submit-id plumbing
 
@@ -307,9 +482,9 @@ These tests go through `Sequencer::submit` (the public path) and exercise the fu
 | # | Test | Asserts |
 |---|---|---|
 | **I3** | `runtime_predicate_failed_worktx_appends_l4e` | Submit a WorkTx whose `predicate_results.acceptance` contains a `false`. Expect: 1 L4.E row with matching `submit_id`, `rejection_class == PredicateFailed`. |
-| **I4** | `runtime_stale_parent_worktx_appends_l4e` | Submit a WorkTx with `parent_state_root != q.state_root_t`. Expect: 1 L4.E row, `rejection_class == PolicyViolation` (mapped from `TransitionError::StaleParentRoot` per §3.7). Battery test #13 from r1 P0-E. |
-| **I5** | `runtime_stakeless_worktx_appends_l4e` | Submit a WorkTx with `stake == 0`. Expect: 1 L4.E row, `rejection_class == PolicyViolation` (mapped from `StakeInsufficient`). |
-| **I6** | `runtime_no_escrow_worktx_appends_l4e` | Submit a WorkTx for a `task_id` whose bridged `TxId(task_id.0.clone())` has no entry in either `q.economic_state_t.escrows_t` or `task_markets_t`. Expect: 1 L4.E row, `rejection_class == EscrowMissing`. |
+| **I4** | `runtime_stale_parent_worktx_appends_l4e` | Submit a WorkTx with `parent_state_root != q.state_root_t`. Expect: 1 L4.E row, `rejection_class == PolicyViolation` (mapped from existing `TransitionError::StaleParent` per §3.7 — note: existing variant, NOT a new `StaleParentRoot`). Battery test #13 from r1 P0-E. |
+| **I5** | `runtime_stakeless_worktx_appends_l4e` | Submit a WorkTx with `stake == StakeMicroCoin::zero()`. Expect: 1 L4.E row, `rejection_class == PolicyViolation` (mapped from existing `TransitionError::StakeInsufficient`). |
+| **I6** | `runtime_no_escrow_worktx_appends_l4e` | Submit a WorkTx for a `task_id` whose bridged `TxId(task_id.0.clone())` has no entry in either `q.economic_state_t.escrows_t.0` or `task_markets_t.0`. Expect: 1 L4.E row, `rejection_class == EscrowMissing` (mapped from new `TransitionError::EscrowMissing`). |
 | **I7** | `runtime_rejected_worktx_does_not_advance_logical_t_or_state_root` | Across I3-I6, accepted `logical_t` is unchanged AND `state_root_t` is unchanged AND `ledger_root_t` is unchanged. Merges v1 tests 7+8 since they're observed at the same site. |
 | **I8** | `runtime_l4e_public_view_honors_serde_shield` | Drive an I3 rejection. Retrieve the L4.E record via `RejectionEvidenceWriter`'s public-view API. Assert `serde_json::to_string(&public_view)` does NOT contain the substring of `raw_diagnostic_cid`'s value (it's `#[serde(skip_serializing)]`-shielded per TB-1 P0-3). **Re-confirms TB-1 P0-3 at the runtime path, not just the primitive.** Battery test #15 from r1 P0-E. |
 
@@ -375,7 +550,7 @@ Per TB-2 charter §5, repeated here for the auditors:
 
 1. No ledger I/O (CAS put, writer commit, ledger append) inside `dispatch_transition`. The function returns `(q_next, signals)` or `Err(TransitionError)` only.
 2. No use of `economy::ledger::AcceptedLedger::append_accepted` in the production accepted spine. `AcceptedLedger` stays a TB-1 primitive / test wrapper.
-3. No new `TypedTx` variants. `task_open_tx` / `escrow_lock_tx` / `yes_stake_tx` are reserved for TB-3. **Three new `TransitionError` variants are permitted** (`StaleParentRoot`, `EscrowMissing`, `PostInitMint`) per §3.7 mapping table — these are exhaustive-match-completeness additions, not new economic types.
+3. No new `TypedTx` variants. `task_open_tx` / `escrow_lock_tx` / `yes_stake_tx` are reserved for TB-3. **TWO new `TransitionError` variants are permitted** (`EscrowMissing`, `MonetaryInvariantViolation`) per §3.7 mapping table + 2 new `Display` arms — these are exhaustive-match-completeness additions, not new economic types. **`StaleParent` already exists** at `src/state/typed_tx.rs:720`; do NOT add a `StaleParentRoot` (revised down from r1).
 4. No non-empty `exempt_tx_kinds` argument at the runtime call sites of `assert_total_ctf_conserved`. Production must pass `&[]`.
 5. No widening of `WalletTool` mutation surface.
 6. No P5/P6/h_vppu/capability-metric work inside this STEP_B branch.
@@ -394,14 +569,33 @@ A diff that violates any of these auto-fails Phase-1c review even if `cargo test
 - Restricted-file path correction (path drift OBS): `handover/alignment/OBS_STEP_B_RESTRICTED_FILE_LIST_DRIFT_2026-04-29.md`
 - TB-1 ship row + narrowed claim: `handover/tracer_bullets/TB_LOG.tsv` (TB-1 row, ship_commits `063b003..ccb01fa`)
 - TB-1 dual-audit verdict: `handover/audits/DUAL_AUDIT_TB_1_VERDICT_2026-04-29.md`
-- TB-2 Phase-0 r1 dual-audit verdict: `handover/audits/DUAL_AUDIT_TB_2_PHASE0_VERDICT_R1_2026-04-30.md` (drove this v2 revision)
+- TB-2 Phase-0 r1 dual-audit verdict: `handover/audits/DUAL_AUDIT_TB_2_PHASE0_VERDICT_R1_2026-04-30.md` (drove v1 → v2 revision)
 - TB-2 Phase-0 r1 individual audits: `handover/audits/CODEX_TB_2_PHASE0_AUDIT_2026-04-30.md` + `handover/audits/GEMINI_TB_2_PHASE0_AUDIT_2026-04-30.md`
+- TB-2 Phase-0 r2 narrowed Codex audit: `handover/audits/CODEX_TB_2_PHASE0_R2_AUDIT_2026-04-30.md` (drove v2 → v3 revision; CHALLENGE / 5/5 on substrate compile-shape)
 - 9-phase canonical roadmap: `handover/architect-insights/ROADMAP_9_PHASE_2026-04-29.md` (P1 / P3 Current state refreshed 2026-04-30)
 - Memory: `feedback_step_b_protocol`, `feedback_dual_audit`, `feedback_dual_audit_conflict`, `feedback_phased_checkpoint`, `feedback_smoke_before_batch`, `feedback_no_fake_menus`, `feedback_session_label_codification`, `feedback_elon_mode_policy`.
 
 ---
 
-## 10. v1 → v2 changelog (r1 audit response)
+## 10. v2 → v3 changelog (Codex r2 narrowed audit response)
+
+| r2 Finding | Resolution in v3 | Section(s) |
+|---|---|---|
+| **P0-1** `Arc<RejectionEvidenceWriter>` won't compile (`append_rejected` is `&mut self`) | Changed to `Arc<RwLock<RejectionEvidenceWriter>>` matching existing `cas` / `ledger_writer` pattern. Two `Sequencer::new` call sites (`:483`, `:627`) get `Arc::new(RwLock::new(RejectionEvidenceWriter::default()))`. | §3.2 |
+| **P0-2** `submitter_id() -> Option<AgentId>` mismatched with `RejectedSubmissionRecord.agent_id: AgentId` | Added `SYSTEM_AGENT_ID_STR` const + `unwrap_or_else(|| AgentId(...))` policy. WorkTx always returns Some so the unwrap arm is theoretical for TB-2 but gives future arms a typed answer. | §3.5 |
+| **P0-3** `.contains_key` on `EscrowsIndex`/`TaskMarketsIndex` newtype + `tx.stake > 0` | Bridge uses `.escrows_t.0.contains_key(...)` and `.task_markets_t.0.contains_key(...)`. Stake gate uses `tx.stake.micro_units() > 0` per `src/economy/money.rs:168`. | §3.3 step 4-5 |
+| **P0-4** Mapping table not closed against actual 22-variant `TransitionError`; names invented | Mapping rebuilt: `StaleParent` (existing) NOT `StaleParentRoot`; only `EscrowMissing` + `MonetaryInvariantViolation` are new variants (was 3, now 2). 22-row table enumerated; `match` uses documented wildcard for non-WorkTx-arm variants per Codex r2 P0-4 sanction. Display impl gets 2 new arms. | §3.7 + §1 |
+| **P0-5** `pub(crate) rejection_writer_for_test()` invisible to `tests/` | Removed. Integration tests retain a clone of `Arc<RwLock<RejectionEvidenceWriter>>` they injected into `Sequencer::new` and read via existing `pub` `records()` / `public_view()` API at `rejection_evidence.rs:327, 340`. No new `Sequencer` accessor. | §3.2, §5.2 |
+| **P0-6** CAS API mismatch — 5-arg `&mut self` not 1-arg `Arc<CasStore>` | Rejection-path CAS-puts mirror accepted-path: `let mut cas_w = self.cas.write().await; cas_w.put(bytes, ObjectType, creator, logical_t, schema_id)`. Same pattern in two places (tx_payload, raw_diagnostic). | §3.5 |
+| **P1-1** `WORKTX_ACCEPT_DOMAIN_V1` location ambiguous | Pinned to `src/state/sequencer.rs`; q_state.rs option dropped from §1 + §3.4. | §1, §3.4 |
+| **P1-2** `canonical_hash(tx)` not an existing helper | Defined locally as `fn worktx_canonical_hash(tx: &TypedTx) -> Hash` using existing `canonical_encode` + `Sha256` with explicit domain separation. | §3.4 |
+| **P1-3** No single-poll `Sequencer::run` API for tests | Added `pub fn try_apply_one(&self, rx: &mut Receiver<SubmissionEnvelope>) -> Option<Result<...>>` — small intentional public driver. | §3.1 |
+| **P1-4** Two `RejectionClass` enums (typed_tx vs rejection_evidence); v2 didn't disambiguate | Mapping table imports `crate::bottom_white::ledger::rejection_evidence::RejectionClass as L4ERejectionClass`. typed_tx::RejectionClass at `:165` is for `WorkOutcome::Rejected` book-keeping, NOT used by L4.E. | §3.7 |
+| **P1-5** Stale `Sequencer` struct excerpt — wrong types in v2 | Struct excerpt + constructor signature corrected to verified types: `cas: Arc<RwLock<CasStore>>`, `keypair: Arc<Ed25519Keypair>`, `epoch: SystemEpoch`, `ledger_writer: Arc<RwLock<dyn LedgerWriter>>`, `q: RwLock<QState>` (no `Arc` wrap), `predicate_registry`/`tool_registry` field names. | §3.2 |
+
+---
+
+## 10b. v1 → v2 changelog (r1 audit response)
 
 | r1 Finding | Resolution in v2 | Section(s) |
 |---|---|---|
