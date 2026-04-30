@@ -511,7 +511,7 @@ with:
         // TB-4 Atom 5 — Challenge arm (charter § 3.5 + § 4.3 + § 3.9).
         // Challenger puts NO position in the market: stake debited from
         // balances, locked into challenge_cases_t[challenge.tx_id].
-        // opened_at_round = q.logical_t is the structural anchor (§ 3.9);
+        // opened_at_round = q.q_t.current_round is the structural anchor (§ 3.9);
         // closure / slash / resolve are RSP-3 (§ 3.7 + § 5 #11-12).
         // ──────────────────────────────────────────────────────────────────
         TypedTx::Challenge(challenge) => {
@@ -551,7 +551,7 @@ with:
                 crate::state::q_state::ChallengeCase {
                     challenger: challenge.challenger_agent.clone(),
                     bond: challenge.stake.0,
-                    opened_at_round: q.logical_t,    // ← § 3.9 anchor
+                    opened_at_round: q.q_t.current_round,    // ← § 3.9 anchor
                     target_work_tx: challenge.target_work_tx.clone(),
                 },
             );
@@ -577,7 +577,7 @@ with:
 At the top of sequencer.rs, after existing `use` block:
 
 - `Cid` for the counterexample_cid comparison: `use crate::bottom_white::cas::schema::Cid;`
-- `q.logical_t` is already a field on `QState` per `src/state/q_state.rs:382` (verified).
+- `q.q_t.current_round` is the canonical Q-derived monotonic clock available from `QState` (via `AgentSwarmState.current_round` per `src/state/q_state.rs:98`). [TB-5 directive 2026-04-30 § 4 A1 patch correction: original wording said "q.q_t.current_round is already a field on QState"; that was incorrect — Q_t has no top-level `logical_t`. Atom 5 implementation correctly used `q.q_t.current_round`; this preflight wording is now reconciled with shipped code at `src/state/sequencer.rs:480`.]
 
 ---
 
