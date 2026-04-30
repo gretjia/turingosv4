@@ -4,7 +4,7 @@
 
 **Hook**: `MEMORY.md` → `project_auto_research_notepad.md` points here. Loaded every session.
 
-**Last updated**: 2026-04-30 (**TB-4 SHIPPED** `cfc81de..a17d477`; merge `edb8089`; P3 RSP-2 Verifier Bond + Challenger NO Stake on canonical L4 — VerifyTx debits bond into stakes_t; ChallengeTx opens ChallengeCase with `opened_at_round = q.q_t.current_round` + `target_work_tx` backref; 9-sub-field EconomicState invariant + 5-holding CTF preserved; Verify verdict rides L4 only (signal+stake not judge per charter § 3.10); slashing + closure + settlement deferred RSP-3. Multi-challenger representability tested. CI-enforced anti-drift: no NoStakeTx / VerifierBondTx / ChallengeStakeTx / VerifierStakeTx in src/. 571/571 cargo test green; 30 new TB-4 tests. 真实烟测: oneshot prompt_context_hash="a1f43584a17d1226" bit-identical across TB-1/TB-2/TB-3/TB-4 (4 sessions); n1 SOLVED+VERIFIED with elevated MAX_TX=20 honored per directive "真实烟测需要加大 max-tx".)
+**Last updated**: 2026-04-30 (**TB-5 charter v2 ACTIVE** post round-1 dual-audit VETO on v1; v2 = "System-Emitted Resolution Gate + Challenge Bond Release" per architect directive `handover/directives/2026-04-30_TB5_VETO_redesign_directive.md`. Two-channel ingress: `submit_agent_tx` + `emit_system_tx`; system_signature live-verified at dispatch; 4 anti-drift renames CI-enforced. Predecessor: **TB-4 SHIPPED** `cfc81de..a17d477`; merge `edb8089`; P3 RSP-2 admission spine on canonical L4. Medium batch evidence: 4/5 SOLVED at MAX_TX=30; mathd_algebra_148 23-tx composite-tactic search. 571/571 cargo test green at TB-4 ship.)
 
 ## TB methodology v2 (P0–P9 phase-tagged; install 2026-04-29 session-3)
 
@@ -211,6 +211,37 @@ PPUT-CCL Phase A–E roadmap below remains as the **P6 Epistemic Lab v0 product-
   - **TB-5 RSP-3 (challenge window closure + slash + provisional/final)** — adds `provisional_accept_tx` + `challenge_resolve_tx` + slash execution. Builds on TB-4's `opened_at_round` + `target_work_tx` backref structural anchors directly.
   - **P2 Agent Runtime** — Solver / Verifier / Challenger admission surfaces now exist on canonical L4 (not just primitives or admission gates); role-separation Exit criteria can be demonstrated end-to-end (depends on TB-5 RSP-3 for the closure half + reputation_update_tx).
   - **P4 Information Loom** — failure clusterer now has the full RSP-2 admission rejection-class spectrum (5 L4ERejectionClass + finer-grained TransitionError variants discoverable via raw_diagnostic_cid CAS payload per preflight § 8 Q2).
+
+### TB-4 capability validation — medium-difficulty batch (2026-04-30) — log
+
+- 5-problem mixed-difficulty batch from pre-registered adaptation split: `mathd_algebra_107` + `mathd_algebra_125` + `mathd_algebra_141` + `mathd_algebra_148` + `amc12a_2003_p5`. Configuration: post-TB-4-ship binary; mode=full; CONDITION=n1; MAX_TRANSACTIONS=30 (1.5× TB-4 ship-gate ceiling); per-problem timeout 600s; deepseek-v4-flash via LLM proxy.
+- **4/5 SOLVED**: 107 + 125 + 141 + 148. The 148 was the key signal — 23 transactions with composite tactic `rw [h₀ 2] at h₁; nlinarith` (22 failed branches; tactic_diversity=0.13). Strongest validation yet that elevated MAX_TX flows through `dispatch_transition` + `apply_one` + reactor loop without short-circuit.
+- amc12a_2003_p5 hit MAX_TX=30 cleanly: tx_count=failed_branch_count=30=MAX_TRANSACTIONS, hit_max_tx=true, no false-positive solve, no system crash, no L4.E corruption. **Expected hard-problem failure mode preserved.**
+- Aggregate per Art. I.2 + C-052/C-053/C-057: ΣPPUT_m_verified=480.31; Mean PPUT (solved n=4)=120.08; Solve rate 4/5=80%; Wilson 95% CI [0.38, 0.96]; total wall time 698.4s. halt_reason: OmegaAccepted=4 + MaxTxExhausted=1.
+- 4 CAS-stable proof artifacts re-verifiable via `lean --stdin` (C-012 measurement-correctness anchor independent of TuringOS internals).
+- Evidence: `handover/evidence/tb_4_medium_batch_2026-04-30/` (commit `16121c1`).
+- **What this validates**: TB-4 ABI changes (parent_state_root schema bumps + ChallengeCase additive + 4 new TransitionError variants + Verify/Challenge dispatch arms) are serde-compatible across diverse problems at non-trivial budget regimes. Capability replication holds beyond TB-0 baseline.
+- **What this does NOT validate**: TB-4 RSP-2 admission spine is still NOT reachable from the evaluator's PPUT emit path (P2 Agent Runtime territory; out of TB-4 scope per charter § 5 #1). TB-4 dispatch arms exercised only by 30 new in-crate + integration tests under `cargo test --workspace` (571 PASS / 0 FAIL).
+
+### TB-5 charter v1 VETO + v2 redesign (2026-04-30) — log
+
+- TB-5 charter v1 was committed at `1b60237` proposing P3 RSP-3.1 Challenge Resolve (ChallengeResolveTx system-emitted; Released-only bond release; UpheldDeferred marker only).
+- **Round-1 dual external audit** launched per project convention (`feedback_dual_audit`):
+  - **Codex** (full-fidelity codex-cli 0.125.0): Part A CHALLENGE (TB-4 charter wording mismatch `q.logical_t` vs `q.q_t.current_round`; doc-only patch); **Part B VETO** (B2: `ChallengeResolveTx` is system-emitted but live `dispatch_transition` does NOT verify `system_signature`; agent forgery affordance for `ChallengeResolveTx{Released}`; `Sequencer::submit` accepts bare TypedTx from any caller — verified line-grounded). Codex ran cargo (PASS=571), sha256 Trust Root match, grep zero on phantom variants, TB-3 bridge invariant green, Lean re-verify (1 unused-var warning, non-blocking).
+  - **Gemini** (degraded-tier `gemini-2.5-flash-lite` after `gemini-2.5-pro` / `2.5-flash` / `3.1-pro-preview` returned 429 MODEL_CAPACITY_EXHAUSTED): Part A PASS / Part B PASS with minor CHALLENGE on Q3 + Q5/B7. Caveat: model not strategic-tier; fresh-eyes file reads largely failed (logged `read_file: File not found`); reasoning primarily from prompt-inline summaries; did NOT cross-validate Codex B2 finding against `sequencer.rs` source. Cannot override Codex VETO per `feedback_dual_audit_conflict`.
+- **Merged round-1 verdict**: Part A CHALLENGE (A1 doc-only patch resolves; landed at commit `89b2a25`); Part B VETO (B2 + B8 structural; charter v2 redesign required). File: `handover/audits/DUAL_AUDIT_TB_4_SHIP_TB_5_CHARTER_VERDICT_2026-04-30.md`.
+- **Architect ruling** (ultrathink directive 2026-04-30): ACCEPT VETO; constitutional-level (Anti-Oreo agent ≠ direct state writer); resolved Q1-Q6 + 11 structural rulings binding TB-5 v2. Archive: `handover/directives/2026-04-30_TB5_VETO_redesign_directive.md`.
+- **TB-5 charter v2** = "System-Emitted Resolution Gate + Challenge Bond Release"; supersedes v1 in place. Key changes per directive:
+  - **Two-channel ingress** (Option 1): `Sequencer::submit_agent_tx` accepts agent variants only; `Sequencer::emit_system_tx` accepts system variants only with live `system_signature` verification.
+  - **TB-5.0 substrate** (system ingress barrier) before TB-5.1 (resolution surface): atom plan splits Atoms 2-3 (substrate) vs Atoms 4-7 (resolution).
+  - **`SystemTxForbiddenOnAgentIngress`** TransitionError variant (renamed from v1's `SystemSignatureForbiddenAtAgentSubmit`); enforced fail-closed at agent ingress.
+  - **`ChallengeCase.status`** additive serde-default field (`Open | Released | UpheldDeferred`); Released zeros bond + flips status (no removal); UpheldDeferred preserves bond + flips status (for TB-6 slash).
+  - **Defer `accepted_at_round`** entirely (don't pollute TB-5 schema for TB-6 use).
+  - **Audit mode Option A** (dual external) — TB-3 / TB-4's Option B precedent does NOT extend to system-emitted economic mutators.
+  - **4 anti-drift renames CI-enforced**: resolve ≠ judge / release ≠ settlement / UpheldDeferred ≠ slash / system_signature ≠ schema-only field (must be live-verified or internally constructed).
+  - **34 forbidden lines** (TB-4's 20 + 14 TB-5-specific); CI extension to TB-4 I44 scanner adds `SlashTx` / `SettlementTx` / `ProvisionalAcceptTx` / `ReputationUpdateTx` to FORBIDDEN_VARIANTS.
+- **Atom 0 (charter v2)** lands at this commit; **Atom 1** (STEP_B Phase-0 preflight + dual external audit launch) deferred until charter v2 user sign-off.
+- Test plan: ~30 new TB-5 tests across TB-5.0 (substrate) + TB-5.1 (resolution) + TB-5.2 (anti-drift). Target post-ship ~601/601.
 
 PPUT-CCL Phase A-E roadmap below remains as long-term **north star**; TB sequence is the **operational mechanism** to reach it.
 
