@@ -24,15 +24,15 @@ use sha2::{Digest, Sha256};
 use crate::bottom_white::cas::schema::Cid;
 use crate::bottom_white::ledger::system_keypair::{serde_bytes_64, SystemEpoch, SystemSignature};
 use crate::economy::money::{MicroCoin, StakeMicroCoin};
-use crate::state::q_state::{AgentId, Hash, TxId};
+use crate::state::q_state::{AgentId, Hash, TaskId, TxId};
 
 // ────────────────────────────────────────────────────────────────────────────
 // § 2 Identifier newtypes (all opaque strings to Q_t)
 // ────────────────────────────────────────────────────────────────────────────
 
-/// TRACE_MATRIX § 1.2 — task-market entry id; opaque string.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default)]
-pub struct TaskId(pub String);
+// `TaskId` previously lived here; moved to `state::q_state` in TB-3 (2026-04-30)
+// to eliminate the q_state↔typed_tx circular-dependency that would have arisen
+// when q_state needs `TaskId` as the `TaskMarketsIndex` key. See q_state.rs.
 
 /// TRACE_MATRIX § 1.5 — runtime run id (one run per `Sequencer` driver lifecycle).
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default)]

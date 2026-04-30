@@ -29,8 +29,7 @@
 use std::collections::BTreeMap;
 
 use crate::economy::money::MicroCoin;
-use crate::state::q_state::AgentId;
-use crate::state::typed_tx::TaskId;
+use crate::state::q_state::{AgentId, TaskId};
 
 // ────────────────────────────────────────────────────────────────────────────
 // VaultEntry — one task's escrow record (status + payout log)

@@ -19,7 +19,8 @@ pub use q_state::{
     AgentId, AgentSwarmState, AgentVisibleProjection, BalancesIndex, BudgetSnapshot,
     ChallengeCase, ChallengeCasesIndex, ClaimEntry, ClaimsIndex, EconomicState, EscrowEntry,
     EscrowsIndex, Hash, NodeId, PerAgentState, PriceIndex, QState, Reputation, ReputationsIndex,
-    RoyaltyEdge, RoyaltyGraph, StakeEntry, StakesIndex, TaskMarketEntry, TaskMarketsIndex, TxId,
+    RoyaltyEdge, RoyaltyGraph, StakeEntry, StakesIndex, TaskId, TaskMarketEntry, TaskMarketsIndex,
+    TxId,
 };
 
 pub use typed_tx::{
@@ -27,7 +28,7 @@ pub use typed_tx::{
     FinalizeRewardSigningPayload, FinalizeRewardTx, HasSubmitter, PredicateId,
     PredicateResultsBundle, ReadKey, RejectionClass, ReuseTx, RunId, RunOutcome,
     SafetyOrCreation, SignalBundle, SignalKind, SlashEvidenceCid, TaskExpireSigningPayload,
-    TaskExpireTx, TaskId, TerminalSummarySigningPayload, TerminalSummaryTx, ToolId,
+    TaskExpireTx, TerminalSummarySigningPayload, TerminalSummaryTx, ToolId,
     TransitionError, TxStatus, TypedTx, VerifySigningPayload, VerifyTx, VerifyVerdict,
     WorkSigningPayload, WorkTx, WriteKey,
 };

@@ -195,13 +195,16 @@ pub(crate) fn dispatch_transition(
             }
 
             // Step 5: escrow presence gate (RSP-1 P3:5; P0-B option (a) — bridge
-            // at lookup site). TB-3 introduces formal task_open_tx /
-            // escrow_lock_tx / yes_stake_tx variants and DELETES this bridge.
+            // at lookup site, partial migration in TB-3 Atom 2).
             //
-            // EscrowsIndex / TaskMarketsIndex are pub-tuple-struct newtypes
-            // wrapping BTreeMap<TxId, _> at q_state.rs:159-161, 222-224 —
-            // .contains_key on the wrapper would not compile; .0 reaches the
-            // inner map.
+            // **TB-3 Atom 2 partial migration**: TaskMarketsIndex migrated
+            // from BTreeMap<TxId, _> to BTreeMap<TaskId, _> (q_state.rs).
+            // The task_markets_t lookup now uses `&work.task_id` directly
+            // (no TxId synthesis). The escrows_t fallback retains the
+            // synthetic TxId(task_id.0) lookup to keep TB-2 fixtures that
+            // seed escrows_t directly compile-green during the transition;
+            // FULL deletion of this bridge (both clauses) happens in TB-3
+            // Atom 6, replaced by `task_markets_t[task_id].total_escrow > 0`.
             // TB-2 P0-B option (a): drop this when task_open_tx lands in TB-3
             let lookup_tx_id = TxId(work.task_id.0.clone());
             let has_escrow = q.economic_state_t.escrows_t.0.contains_key(&lookup_tx_id)
@@ -209,7 +212,7 @@ pub(crate) fn dispatch_transition(
                     .economic_state_t
                     .task_markets_t
                     .0
-                    .contains_key(&lookup_tx_id);
+                    .contains_key(&work.task_id);
             if !has_escrow {
                 return Err(TransitionError::EscrowMissing);
             }
@@ -776,10 +779,10 @@ mod tests {
     use crate::state::typed_tx::{
         AgentSignature, BoolWithProof, ChallengeTx, ClaimId, FinalizeRewardTx, PredicateId,
         PredicateResultsBundle, ReadKey, ReuseTx, RunId, RunOutcome, SafetyOrCreation,
-        TaskExpireTx, TaskId, TerminalSummaryTx, ToolId, VerifyTx, VerifyVerdict, WorkTx,
+        TaskExpireTx, TerminalSummaryTx, ToolId, VerifyTx, VerifyVerdict, WorkTx,
         WriteKey,
     };
-    use crate::state::q_state::{AgentId, TxId};
+    use crate::state::q_state::{AgentId, TaskId, TxId};
     use crate::economy::money::{MicroCoin, StakeMicroCoin};
     use crate::bottom_white::cas::schema::Cid;
     use crate::bottom_white::ledger::system_keypair::SystemSignature;
@@ -1072,14 +1075,18 @@ mod tests {
         let tools = ToolRegistry::new();
         let work_tx = fixture_work_tx();
         let task_id_for_lookup = TxId(work_tx.task_id.0.clone());
+        let work_task_id = work_tx.task_id.clone();
 
         // Seed an escrow for the task so the §3.3 step-5 bridge passes.
+        // **TB-3 Atom 2 fixture migration**: EscrowEntry now carries a
+        // `task_id: TaskId` back-reference (additive serde-default field).
         let mut q = QState::genesis();
         q.economic_state_t.escrows_t.0.insert(
             task_id_for_lookup,
             crate::state::q_state::EscrowEntry {
                 amount: MicroCoin::from_micro_units(2_000_000),
                 depositor: AgentId("treasury".into()),
+                task_id: work_task_id,
             },
         );
 

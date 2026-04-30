@@ -30,13 +30,13 @@ use turingosv4::bottom_white::ledger::transition_ledger::{
 };
 use turingosv4::bottom_white::tools::registry::ToolRegistry;
 use turingosv4::economy::money::{MicroCoin, StakeMicroCoin};
-use turingosv4::state::q_state::{AgentId, EscrowEntry, Hash, QState, TxId};
+use turingosv4::state::q_state::{AgentId, EscrowEntry, Hash, QState, TaskId, TxId};
 use turingosv4::state::sequencer::{
     worktx_accept_state_root, Sequencer, SubmissionEnvelope,
 };
 use turingosv4::state::typed_tx::{
     AgentSignature, BoolWithProof, PredicateId, PredicateResultsBundle, ReadKey,
-    SafetyOrCreation, TaskId, TypedTx, WorkTx, WriteKey,
+    SafetyOrCreation, TypedTx, WorkTx, WriteKey,
 };
 use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
@@ -112,12 +112,19 @@ fn make_worktx(opts: WorkTxFixtureOpts) -> TypedTx {
 }
 
 fn seed_q_with_escrow(task_id: &TaskId) -> QState {
+    // **TB-3 Atom 2 fixture migration note**: this fixture still seeds
+    // escrows_t directly via the legacy synthetic-TxId-from-TaskId pattern.
+    // The bridge in `sequencer.rs::dispatch_transition`'s WorkTx arm retains
+    // the escrows_t fallback during Atom 2 to keep TB-2 fixtures green; full
+    // bridge deletion + fixture migration to accepted-tx submission lands in
+    // TB-3 Atom 6 (after TaskOpenTx + EscrowLockTx variants exist).
     let mut q = QState::genesis();
     q.economic_state_t.escrows_t.0.insert(
         TxId(task_id.0.clone()),
         EscrowEntry {
             amount: MicroCoin::from_micro_units(2_000_000),
             depositor: AgentId("treasury".into()),
+            task_id: task_id.clone(),
         },
     );
     q

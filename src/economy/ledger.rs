@@ -368,10 +368,10 @@ fn next_state_root(prev: &Hash, tx_payload_hash: &Hash) -> Hash {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state::q_state::{AgentId, TxId};
+    use crate::state::q_state::{AgentId, TaskId, TxId};
     use crate::state::typed_tx::{
         AgentSignature, BoolWithProof, PredicateId, PredicateResultsBundle, ReadKey,
-        SafetyOrCreation, TaskId, TypedTx, WorkTx, WriteKey,
+        SafetyOrCreation, TypedTx, WorkTx, WriteKey,
     };
     use crate::bottom_white::cas::schema::Cid;
     use crate::economy::money::StakeMicroCoin;

@@ -6,7 +6,8 @@ use turingosv4::economy::money::MicroCoin;
 use turingosv4::state::{
     AgentId, BalancesIndex, ChallengeCase, ChallengeCasesIndex, ClaimEntry, ClaimsIndex,
     EconomicState, EscrowEntry, EscrowsIndex, PriceIndex, Reputation, ReputationsIndex,
-    RoyaltyEdge, RoyaltyGraph, StakeEntry, StakesIndex, TaskMarketEntry, TaskMarketsIndex, TxId,
+    RoyaltyEdge, RoyaltyGraph, StakeEntry, StakesIndex, TaskId, TaskMarketEntry, TaskMarketsIndex,
+    TxId,
 };
 
 #[test]
@@ -37,26 +38,35 @@ fn populated_economic_state_round_trip() {
     e.balances_t.0.insert(AgentId("a".into()), MicroCoin::from_coin(10).unwrap());
     e.escrows_t.0.insert(
         TxId("t1".into()),
-        EscrowEntry { amount: MicroCoin::from_coin(5).unwrap(), depositor: AgentId("a".into()) },
+        EscrowEntry {
+            amount: MicroCoin::from_coin(5).unwrap(),
+            depositor: AgentId("a".into()),
+            task_id: TaskId("t4".into()),
+        },
     );
     e.stakes_t.0.insert(
         TxId("t2".into()),
-        StakeEntry { amount: MicroCoin::from_coin(3).unwrap(), staker: AgentId("b".into()) },
+        StakeEntry {
+            amount: MicroCoin::from_coin(3).unwrap(),
+            staker: AgentId("b".into()),
+            task_id: TaskId("t4".into()),
+        },
     );
     e.claims_t.0.insert(
         TxId("t3".into()),
         ClaimEntry { amount: MicroCoin::from_coin(7).unwrap(), claimant: AgentId("c".into()) },
     );
     e.reputations_t.0.insert(AgentId("a".into()), Reputation(100));
-    e.task_markets_t.0.insert(
-        TxId("t4".into()),
-        TaskMarketEntry {
-            publisher: AgentId("p".into()),
-            bounty: MicroCoin::from_coin(50).unwrap(),
-            verifier_quorum: 1,
-            max_reuse_royalty_fraction_basis_points: 1000,
-        },
-    );
+    // **TB-3 fixture migration**: TaskMarketEntry no longer has `bounty`;
+    // money has migrated to `escrows_t.amount`. `total_escrow` is the derived
+    // cache (matches the escrow above for round-trip determinism).
+    let mut market = TaskMarketEntry::default();
+    market.publisher = AgentId("p".into());
+    market.total_escrow = MicroCoin::from_coin(5).unwrap();
+    market.escrow_lock_tx_ids.insert(TxId("t1".into()));
+    market.verifier_quorum = 1;
+    market.max_reuse_royalty_fraction_basis_points = 1000;
+    e.task_markets_t.0.insert(TaskId("t4".into()), market);
     e.royalty_graph_t.0.insert(
         TxId("t5".into()),
         vec![RoyaltyEdge { ancestor: TxId("t4".into()), fraction_basis_points: 500 }],

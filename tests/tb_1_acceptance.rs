@@ -74,10 +74,10 @@ use turingosv4::economy::money::{MicroCoin, StakeMicroCoin, MICRO_PER_COIN};
 use turingosv4::economy::monetary_invariant::{
     assert_read_is_free, assert_total_ctf_conserved, MonetaryError,
 };
-use turingosv4::state::q_state::{AgentId, EconomicState, Hash, TxId};
+use turingosv4::state::q_state::{AgentId, EconomicState, Hash, TaskId, TxId};
 use turingosv4::state::typed_tx::{
     AgentSignature, BoolWithProof, PredicateId, PredicateResultsBundle, ReadKey,
-    SafetyOrCreation, TaskId, TypedTx, WorkTx, WriteKey,
+    SafetyOrCreation, TypedTx, WorkTx, WriteKey,
 };
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -360,7 +360,7 @@ fn test_p3_rsp0_exit_1_on_init_total_invariant() {
     s2.balances_t.0.insert(agent("alice"), coin(70));
     s2.escrows_t.0.insert(
         TxId("e-1".into()),
-        EscrowEntry { amount: coin(30), depositor: agent("bob") },
+        EscrowEntry { amount: coin(30), depositor: agent("bob"), task_id: TaskId::default() },
     );
     assert_eq!(assert_total_ctf_conserved(&s1, &s2, &[]), Ok(()));
 
@@ -481,40 +481,58 @@ fn test_p3_kill_1_no_post_init_mint() {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// (10) P3 RSP-0 — total_supply counts ALL SIX holding subindexes
-//      (Path A++ / Codex P0-2 audit 2026-04-29)
+// (10) P3 RSP-0 — total_supply counts ALL FIVE holding subindexes
+//      (Path A++ / Codex P0-2 audit 2026-04-29; TB-3 6→5 migration 2026-04-30)
 // ────────────────────────────────────────────────────────────────────────────
 
 #[test]
-fn test_p3_rsp0_total_supply_counts_all_six_subindexes() {
+fn test_p3_rsp0_total_supply_counts_all_five_subindexes() {
     // Tier-A 7 (`test_p3_rsp0_exit_1_on_init_total_invariant`) only redistributes
     // through balances + escrows. A regression that silently undercounts any
-    // OTHER holding subindex (stakes_t / claims_t / task_markets_t.bounty /
-    // challenge_cases_t.bond) would still pass test 7.
+    // OTHER holding subindex (stakes_t / claims_t / challenge_cases_t.bond)
+    // would still pass test 7.
     //
-    // This test seeds each of the six holding fields with a power-of-two amount
-    // (1, 2, 4, 8, 16, 32 → sum = 63) and asserts the conservation guard counts
-    // the FULL supply. Any single dropped subindex shows up as a unique deficit
-    // in `delta_micro` (e.g., missing claims_t alone produces 55 instead of 63).
-    use turingosv4::state::q_state::{ChallengeCase, ClaimEntry, EscrowEntry, StakeEntry, TaskMarketEntry};
+    // **TB-3 6→5 migration**: TB-1's six-holding sum (balances + escrows +
+    // stakes + claims + bounty + bond) is reduced to five (balances + escrows
+    // + stakes + claims + bond). `task_markets_t.total_escrow` is a derived
+    // cache (TB-3 charter § 3.2), NOT a holding. The 16-coin amount that
+    // previously seeded `task_markets_t.bounty` migrates to a second escrows_t
+    // entry — modeling how `EscrowLockTx` will route bounty money in TB-3
+    // Atom 5. Each remaining single-drop deficit is still unique:
+    //   drop balances → -1, drop escrows → -18, drop stakes → -4,
+    //   drop claims → -8, drop bond → -32.
+    use turingosv4::state::q_state::{ChallengeCase, ClaimEntry, EscrowEntry, StakeEntry};
 
     let mut seeded = EconomicState::default();
     seeded.balances_t.0.insert(agent("a"), coin(1));
-    seeded
-        .escrows_t
-        .0
-        .insert(TxId("e".into()), EscrowEntry { amount: coin(2), depositor: agent("a") });
-    seeded
-        .stakes_t
-        .0
-        .insert(TxId("s".into()), StakeEntry { amount: coin(4), staker: agent("a") });
+    seeded.escrows_t.0.insert(
+        TxId("e".into()),
+        EscrowEntry {
+            amount: coin(2),
+            depositor: agent("a"),
+            task_id: TaskId("task-e".into()),
+        },
+    );
+    seeded.stakes_t.0.insert(
+        TxId("s".into()),
+        StakeEntry {
+            amount: coin(4),
+            staker: agent("a"),
+            task_id: TaskId("task-s".into()),
+        },
+    );
     seeded
         .claims_t
         .0
         .insert(TxId("c".into()), ClaimEntry { amount: coin(8), claimant: agent("a") });
-    seeded.task_markets_t.0.insert(
-        TxId("m".into()),
-        TaskMarketEntry { publisher: agent("a"), bounty: coin(16), ..Default::default() },
+    // Second escrow row carries what used to live in task_markets_t.bounty.
+    seeded.escrows_t.0.insert(
+        TxId("e2".into()),
+        EscrowEntry {
+            amount: coin(16),
+            depositor: agent("a"),
+            task_id: TaskId("task-e2".into()),
+        },
     );
     let mut cc = ChallengeCase::default();
     cc.bond = coin(32);
@@ -531,11 +549,12 @@ fn test_p3_rsp0_total_supply_counts_all_six_subindexes() {
         Err(MonetaryError::PostInitMint {
             delta_micro: 63 * MICRO_PER_COIN
         }),
-        "monetary invariant must sum balances + escrows + stakes + claims + bounty + bond"
+        "monetary invariant must sum balances + escrows + stakes + claims + bond \
+         (5 holdings; task_markets_t.total_escrow is a derived cache, NOT a holding)"
     );
 
     // Inverse direction: closing the seeded state back to empty is read as a
-    // burn of the SAME magnitude — proves all six subindexes are decremented
+    // burn of the SAME magnitude — proves all five subindexes are decremented
     // symmetrically by the sum.
     let r_inv = assert_total_ctf_conserved(&seeded, &before, &[]);
     assert_eq!(
@@ -543,7 +562,7 @@ fn test_p3_rsp0_total_supply_counts_all_six_subindexes() {
         Err(MonetaryError::TotalCtfBurn {
             delta_micro: -(63 * MICRO_PER_COIN)
         }),
-        "monetary invariant must symmetrically detect a burn across all six subindexes"
+        "monetary invariant must symmetrically detect a burn across all five subindexes"
     );
 }
 

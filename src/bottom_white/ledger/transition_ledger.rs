@@ -1160,9 +1160,9 @@ mod tests {
     use crate::bottom_white::tools::registry::ToolRegistry;
     use crate::state::typed_tx::{
         AgentSignature, BoolWithProof, PredicateId, PredicateResultsBundle, ReadKey,
-        SafetyOrCreation, TaskId, TypedTx, WorkTx, WriteKey,
+        SafetyOrCreation, TypedTx, WorkTx, WriteKey,
     };
-    use crate::state::q_state::{AgentId, TxId as QTxId};
+    use crate::state::q_state::{AgentId, TaskId, TxId as QTxId};
     use crate::top_white::predicates::registry::PredicateRegistry;
 
     fn dummy_typed_tx() -> TypedTx {

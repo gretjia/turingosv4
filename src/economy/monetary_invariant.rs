@@ -24,7 +24,7 @@
 
 use crate::bottom_white::ledger::transition_ledger::TxKind;
 use crate::economy::money::{MicroCoin, MICRO_PER_COIN};
-use crate::state::q_state::{EconomicState, Hash, QState};
+use crate::state::q_state::{EconomicState, Hash, QState, TaskId};
 use crate::state::typed_tx::TypedTx;
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -50,6 +50,14 @@ pub enum MonetaryError {
     /// fee field on any variant; only stake / bond exist (locked, not
     /// consumed). A non-zero fee is a structural constitutional bug.
     ReadCharged { tx_kind: TxKind, fee: u64 },
+    /// **TB-3 cache=truth invariant violation**: `task_markets_t[task_id].total_escrow`
+    /// (a derived aggregate / cached index) does not equal `Σ escrows_t[e].amount
+    /// where e.task_id == task_id` (the source-of-truth derivation). Per
+    /// charter § 3.2: `total_escrow` is NEVER a money holding; it must always
+    /// equal the derived sum. A drift signals either a bug in `EscrowLockTx`
+    /// dispatch arm (cache update missed) or direct `EconomicState` mutation
+    /// outside an accepted transition (ghost liquidity attempt).
+    DerivedCacheMismatch { task_id: TaskId, cached_micro: i64, derived_micro: i64 },
     /// Arithmetic overflow while summing economic state (i64).
     Overflow,
 }
@@ -66,6 +74,13 @@ impl std::fmt::Display for MonetaryError {
             Self::ReadCharged { tx_kind, fee } => {
                 write!(f, "read charged: tx_kind={:?} carries fee={} (must be 0)", tx_kind, fee)
             }
+            Self::DerivedCacheMismatch { task_id, cached_micro, derived_micro } => {
+                write!(
+                    f,
+                    "task_market cache mismatch: task_id={:?} cached_total_escrow={} derived={}",
+                    task_id, cached_micro, derived_micro
+                )
+            }
             Self::Overflow => write!(f, "i64 overflow while summing economic state"),
         }
     }
@@ -79,18 +94,27 @@ impl std::error::Error for MonetaryError {}
 
 /// Sum of every coin-holding sub-index in `EconomicState`, in micro-units.
 ///
-/// Counted (each contributes its `MicroCoin` directly):
+/// Counted (each contributes its `MicroCoin` directly) — **5 holdings** post-TB-3:
 /// - `balances_t` (agent-held)
-/// - `escrows_t` (locked under task)
-/// - `stakes_t` (locked under tx)
+/// - `escrows_t` (locked under task; populated by `EscrowLockTx`)
+/// - `stakes_t` (locked under tx; populated by accepted WorkTx commitment)
 /// - `claims_t` (pending payout)
-/// - `task_markets_t.bounty` (sponsor-locked under task)
 /// - `challenge_cases_t.bond` (challenger-locked under case)
 ///
 /// NOT counted (not a holding):
 /// - `reputations_t` (signed reputation, not coin)
 /// - `royalty_graph_t` (edges, no coin)
 /// - `price_index_t` (market data, not held)
+/// - **`task_markets_t.total_escrow`** (derived aggregate / cached index per
+///   TB-3 charter § 3.2 — counting it would double-mint every locked bounty
+///   because the same money is also in `escrows_t`. Cache=truth is enforced
+///   separately by `assert_task_market_total_escrow_matches_locks`.)
+///
+/// **TB-3 6→5 holding migration** (2026-04-30): TB-1's `bounty` term over
+/// `task_markets_t[t].bounty` is removed. Bounty money has migrated to
+/// `escrows_t.amount` via accepted `EscrowLockTx`. `task_markets_t` retains
+/// only the cached aggregate `total_escrow` (NOT in supply sum) + admission
+/// metadata.
 fn total_supply_micro(s: &EconomicState) -> Result<i64, MonetaryError> {
     let mut total: i64 = 0;
     for v in s.balances_t.0.values() {
@@ -105,13 +129,64 @@ fn total_supply_micro(s: &EconomicState) -> Result<i64, MonetaryError> {
     for c in s.claims_t.0.values() {
         total = total.checked_add(c.amount.micro_units()).ok_or(MonetaryError::Overflow)?;
     }
-    for m in s.task_markets_t.0.values() {
-        total = total.checked_add(m.bounty.micro_units()).ok_or(MonetaryError::Overflow)?;
-    }
+    // task_markets_t.total_escrow is INTENTIONALLY OMITTED — derived cache,
+    // not a holding (TB-3 charter § 3.2). Counting it would double-mint
+    // every bounty: the same micro-coins are already counted in escrows_t.
     for c in s.challenge_cases_t.0.values() {
         total = total.checked_add(c.bond.micro_units()).ok_or(MonetaryError::Overflow)?;
     }
     Ok(total)
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// assert_task_market_total_escrow_matches_locks — TB-3 cache=truth invariant
+// ────────────────────────────────────────────────────────────────────────────
+
+/// TRACE_MATRIX TB-3 charter § 3.2 — cache=truth invariant for the derived
+/// `task_markets_t[task_id].total_escrow` field.
+///
+/// Asserts `cached == Σ escrows_t[e].amount where e.task_id == task_id`.
+/// MUST hold across every accepted state transition that touches escrows or
+/// task_markets (i.e., across every accepted `EscrowLockTx` and any future
+/// RSP-2/3+ transition that releases escrowed funds).
+///
+/// **Why this is a separate predicate**: per Art 0.2 ("派生视图 ... 必须有
+/// `assert_eq!(view, derive_from_tape(tape))` 守恒测试"), any cached
+/// aggregate of tape-derived data is a "派生视图" (derived view); without an
+/// explicit invariant test it becomes a parallel ledger and a ghost-liquidity
+/// surface. This predicate is the contract enforcing the cache stays in
+/// sync with the source-of-truth derivation.
+///
+/// **Caller convention**: invoked from `dispatch_transition::EscrowLock` arm
+/// (TB-3 Atom 5) on the post-mutation `q_next` and from any future arm that
+/// modifies `escrows_t` or `task_markets_t.total_escrow`. NOT invoked on
+/// rejection paths (rejected transitions don't mutate economic state).
+pub fn assert_task_market_total_escrow_matches_locks(
+    s: &EconomicState,
+    task_id: &TaskId,
+) -> Result<(), MonetaryError> {
+    let cached = s
+        .task_markets_t
+        .0
+        .get(task_id)
+        .map(|m| m.total_escrow.micro_units())
+        .unwrap_or(0);
+    let mut derived: i64 = 0;
+    for e in s.escrows_t.0.values() {
+        if &e.task_id == task_id {
+            derived = derived
+                .checked_add(e.amount.micro_units())
+                .ok_or(MonetaryError::Overflow)?;
+        }
+    }
+    if cached != derived {
+        return Err(MonetaryError::DerivedCacheMismatch {
+            task_id: task_id.clone(),
+            cached_micro: cached,
+            derived_micro: derived,
+        });
+    }
+    Ok(())
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -213,8 +288,9 @@ pub fn assert_read_is_free(tx_kind: TxKind, fee: u64) -> Result<(), MonetaryErro
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state::q_state::{AgentId, ClaimEntry, EscrowEntry, StakeEntry, TaskMarketEntry, TxId};
-    use crate::state::typed_tx::{TaskId, WorkTx};
+    use crate::state::q_state::{AgentId, ClaimEntry, EscrowEntry, StakeEntry, TxId};
+    use crate::state::typed_tx::WorkTx;
+    // TaskId is in scope from the outer-module `use crate::state::q_state::TaskId`.
 
     fn agent(s: &str) -> AgentId {
         AgentId(s.to_string())
@@ -337,7 +413,7 @@ mod tests {
         after.balances_t.0.insert(agent("alice"), coin(60));
         after.escrows_t.0.insert(
             tx("work-1"),
-            EscrowEntry { amount: coin(40), depositor: agent("alice") },
+            EscrowEntry { amount: coin(40), depositor: agent("alice"), task_id: TaskId::default() },
         );
         assert_eq!(assert_total_ctf_conserved(&before, &after, &[]), Ok(()));
     }
@@ -386,7 +462,7 @@ mod tests {
                 let key = tx(&format!("stake-step-{}", i));
                 s.stakes_t.0.insert(
                     key,
-                    StakeEntry { amount: MicroCoin::from_micro_units(amt_micro), staker: agent("alice") },
+                    StakeEntry { amount: MicroCoin::from_micro_units(amt_micro), staker: agent("alice"), task_id: TaskId::default() },
                 );
             }
             let total_now = total_supply_micro(&s).unwrap();
@@ -401,38 +477,119 @@ mod tests {
     }
 
     #[test]
-    fn ctf_counts_all_six_holding_subindexes() {
-        // Make sure we sum balances + escrows + stakes + claims + bounty + bond.
+    fn ctf_counts_all_five_holding_subindexes() {
+        // **TB-3 6→5 holding migration**: previously summed
+        // balances + escrows + stakes + claims + bounty + bond (6).
+        // Now sums balances + escrows + stakes + claims + bond (5).
+        // task_markets_t.total_escrow is a DERIVED CACHE (TB-3 charter § 3.2),
+        // not a holding — counting it would double-count every locked bounty
+        // because the same money is in escrows_t. The 16-coin amount that
+        // previously seeded task_markets_t.bounty has migrated to a second
+        // escrows_t entry (this models how EscrowLockTx will route bounty
+        // money in TB-3 Atom 5).
         let mut s = EconomicState::default();
         s.balances_t.0.insert(agent("a"), coin(1));
         s.escrows_t.0.insert(
             tx("e"),
-            EscrowEntry { amount: coin(2), depositor: agent("a") },
+            EscrowEntry { amount: coin(2), depositor: agent("a"), task_id: task("task-e") },
         );
         s.stakes_t.0.insert(
             tx("s"),
-            StakeEntry { amount: coin(4), staker: agent("a") },
+            StakeEntry { amount: coin(4), staker: agent("a"), task_id: task("task-s") },
         );
         s.claims_t.0.insert(
             tx("c"),
             ClaimEntry { amount: coin(8), claimant: agent("a") },
         );
-        s.task_markets_t.0.insert(
-            tx("m"),
-            TaskMarketEntry {
-                publisher: agent("a"),
-                bounty: coin(16),
-                ..Default::default()
-            },
+        // The 16 that used to live in task_markets_t.bounty now lives as a
+        // second escrows_t entry — same money, canonical home.
+        s.escrows_t.0.insert(
+            tx("e2"),
+            EscrowEntry { amount: coin(16), depositor: agent("a"), task_id: task("task-e2") },
         );
-        // challenge_cases_t bond
         let mut cc = crate::state::q_state::ChallengeCase::default();
         cc.bond = coin(32);
         cc.challenger = agent("a");
         s.challenge_cases_t.0.insert(tx("ch"), cc);
 
         // Each power of two distinct => sum = 63 base coin = 63_000_000 micro.
+        // (escrows_t now contributes 2 + 16 = 18; total still 63.)
         assert_eq!(total_supply_micro(&s).unwrap(), 63 * MICRO_PER_COIN);
+    }
+
+    #[test]
+    fn total_supply_does_not_double_count_total_escrow() {
+        // **TB-3 charter § 3.2 regression test**: setting BOTH
+        // escrows_t[e].amount = K and task_markets_t[t].total_escrow = K
+        // (which is the steady-state shape after an accepted EscrowLockTx)
+        // must yield total_supply_micro = K, NOT 2K. If a regression adds
+        // task_markets.total_escrow back into the holding sum, this test
+        // catches it immediately.
+        let mut s = EconomicState::default();
+        let task_id = task("task-double-count-regression");
+        s.escrows_t.0.insert(
+            tx("escrow-lock-1"),
+            EscrowEntry {
+                amount: coin(50),
+                depositor: agent("sponsor"),
+                task_id: task_id.clone(),
+            },
+        );
+        let mut entry = crate::state::q_state::TaskMarketEntry::default();
+        entry.total_escrow = coin(50);
+        entry.escrow_lock_tx_ids.insert(tx("escrow-lock-1"));
+        s.task_markets_t.0.insert(task_id, entry);
+
+        assert_eq!(
+            total_supply_micro(&s).unwrap(),
+            50 * MICRO_PER_COIN,
+            "total_supply must equal the escrows_t holding (50), not 2× (100). \
+             task_markets_t.total_escrow is a derived cache, NOT a holding."
+        );
+    }
+
+    #[test]
+    fn task_market_total_escrow_matches_sum_of_escrow_locks() {
+        // **TB-3 charter § 3.2 cache=truth invariant test**: after multiple
+        // EscrowLock-equivalent inserts to escrows_t for the same task_id,
+        // task_markets_t[task_id].total_escrow must equal the sum.
+        let mut s = EconomicState::default();
+        let t = task("task-cache-truth");
+
+        // Two escrow locks for the same task (multi-sponsor or top-up case).
+        s.escrows_t.0.insert(
+            tx("lock-A"),
+            EscrowEntry { amount: coin(30), depositor: agent("alice"), task_id: t.clone() },
+        );
+        s.escrows_t.0.insert(
+            tx("lock-B"),
+            EscrowEntry { amount: coin(20), depositor: agent("bob"), task_id: t.clone() },
+        );
+        // One escrow for a DIFFERENT task — must not contaminate the sum.
+        s.escrows_t.0.insert(
+            tx("lock-other"),
+            EscrowEntry {
+                amount: coin(7),
+                depositor: agent("carol"),
+                task_id: task("task-other"),
+            },
+        );
+
+        // Cache reflects the truth.
+        let mut entry = crate::state::q_state::TaskMarketEntry::default();
+        entry.total_escrow = coin(50);
+        entry.escrow_lock_tx_ids.insert(tx("lock-A"));
+        entry.escrow_lock_tx_ids.insert(tx("lock-B"));
+        s.task_markets_t.0.insert(t.clone(), entry);
+
+        assert_eq!(assert_task_market_total_escrow_matches_locks(&s, &t), Ok(()));
+
+        // Drift the cache (simulate a missed update or an attacker mutating
+        // EconomicState directly): cache=truth predicate must reject.
+        s.task_markets_t.0.get_mut(&t).unwrap().total_escrow = coin(60);
+        let r = assert_task_market_total_escrow_matches_locks(&s, &t);
+        assert!(matches!(r, Err(MonetaryError::DerivedCacheMismatch { .. })),
+            "drifted cache must surface as DerivedCacheMismatch; got {:?}", r);
     }
 
     // ── assert_read_is_free ─────────────────────────────────────────────────
