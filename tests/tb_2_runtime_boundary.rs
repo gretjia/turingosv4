@@ -31,7 +31,9 @@ use turingosv4::bottom_white::ledger::transition_ledger::{
 use turingosv4::bottom_white::tools::registry::ToolRegistry;
 use turingosv4::economy::money::{MicroCoin, StakeMicroCoin};
 use turingosv4::state::q_state::{AgentId, EscrowEntry, Hash, QState, TxId};
-use turingosv4::state::sequencer::{Sequencer, SubmissionEnvelope};
+use turingosv4::state::sequencer::{
+    worktx_canonical_hash, Sequencer, SubmissionEnvelope, WORKTX_ACCEPT_DOMAIN_V1,
+};
 use turingosv4::state::typed_tx::{
     AgentSignature, BoolWithProof, PredicateId, PredicateResultsBundle, ReadKey,
     SafetyOrCreation, TaskId, TypedTx, WorkTx, WriteKey,
@@ -390,4 +392,231 @@ async fn runtime_l4e_public_view_honors_serde_shield() {
     assert_eq!(public.len(), 1);
     let json_public = serde_json::to_string(&public[0]).expect("serialize public view");
     assert!(!json_public.contains("raw_diagnostic_cid"));
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// I1 — submit receipt submit_id matches the L4.E row's submit_id
+// ────────────────────────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn submit_returns_receipt_and_envelope_submit_id_matches() {
+    // Use a rejection (no escrow) so we can read the L4.E row's submit_id.
+    // Acceptance-side submit_id-matching is covered by I12 indirectly +
+    // U2 in-crate (which checks submit_id materializes in L4.E).
+    let mut h = fresh_harness(QState::genesis());
+    let receipt = h
+        .seq
+        .submit(make_worktx(WorkTxFixtureOpts {
+            task_id: TaskId("task-i1".into()),
+            tx_id_suffix: "i1".into(),
+            ..Default::default()
+        }))
+        .await
+        .expect("submit");
+    let _ = h.seq.try_apply_one(&mut h.rx).expect("queued");
+    let writer_g = h.rejection_writer.read().expect("read");
+    let row = &writer_g.records()[0];
+    assert_eq!(
+        row.submit_id, receipt.submit_id,
+        "L4.E row's submit_id must match the receipt's submit_id"
+    );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// I2 — failed try_send still consumes submit_id (no ID reuse)
+// ────────────────────────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn submit_queue_full_consumes_submit_id() {
+    use turingosv4::state::sequencer::SubmitError;
+
+    // Fresh sequencer with capacity=2, never drained.
+    let tmp = TempDir::new().expect("tempdir");
+    let cas = Arc::new(RwLock::new(CasStore::open(tmp.path()).expect("cas")));
+    let keypair = Arc::new(Ed25519Keypair::generate_with_secure_entropy().expect("kp"));
+    let writer: Arc<RwLock<dyn LedgerWriter>> =
+        Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
+    let rejection_writer = Arc::new(RwLock::new(RejectionEvidenceWriter::default()));
+    let preds = Arc::new(PredicateRegistry::new());
+    let tools = Arc::new(ToolRegistry::new());
+    let (seq, _rx) = Sequencer::new(
+        cas,
+        keypair,
+        SystemEpoch::new(1),
+        writer,
+        rejection_writer,
+        preds,
+        tools,
+        QState::genesis(),
+        2,
+    );
+
+    let r1 = seq
+        .submit(make_worktx(WorkTxFixtureOpts {
+            tx_id_suffix: "i2-1".into(),
+            ..Default::default()
+        }))
+        .await
+        .expect("first submit");
+    let r2 = seq
+        .submit(make_worktx(WorkTxFixtureOpts {
+            tx_id_suffix: "i2-2".into(),
+            ..Default::default()
+        }))
+        .await
+        .expect("second submit");
+    // Queue saturated.
+    let err = seq
+        .submit(make_worktx(WorkTxFixtureOpts {
+            tx_id_suffix: "i2-fail".into(),
+            ..Default::default()
+        }))
+        .await
+        .unwrap_err();
+    assert!(matches!(err, SubmitError::QueueFull));
+
+    // submit_id MUST have been burned even though try_send failed; the next
+    // observable state of the counter is r2.submit_id + 2 (counted as: r1=1,
+    // r2=2, failed=3, next would be 4). Read via next_submit_id_peek().
+    assert_eq!(r1.submit_id + 1, r2.submit_id);
+    assert_eq!(
+        seq.next_submit_id_peek(),
+        r2.submit_id + 2,
+        "failed try_send must still burn its submit_id (next counter = r2 + 2)"
+    );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// I9 — accepted WorkTx advances state_root_t to WORKTX_ACCEPT_DOMAIN_V1 hash
+// ────────────────────────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn runtime_accepted_worktx_advances_state_root_via_domain_v1() {
+    use sha2::{Digest, Sha256};
+
+    let task_id = TaskId("task-i9".into());
+    let mut h = fresh_harness(seed_q_with_escrow(&task_id));
+    let q0 = h.seq.q_snapshot().expect("q0");
+
+    let tx = make_worktx(WorkTxFixtureOpts {
+        task_id: task_id.clone(),
+        tx_id_suffix: "i9".into(),
+        ..Default::default()
+    });
+    h.seq.submit(tx.clone()).await.expect("submit");
+    let drain = h
+        .seq
+        .try_apply_one(&mut h.rx)
+        .expect("queued")
+        .expect("apply_one accepted");
+    let _ = drain;
+
+    // Expected state_root_t per the interim domain-separated hash. Cross-checks
+    // U3 (in-crate) at the integration layer.
+    let expected = {
+        let work_digest = worktx_canonical_hash(&tx);
+        let mut hasher = Sha256::new();
+        hasher.update(WORKTX_ACCEPT_DOMAIN_V1);
+        hasher.update(q0.state_root_t.0);
+        hasher.update(work_digest.0);
+        let bytes: [u8; 32] = hasher.finalize().into();
+        Hash::from_bytes(bytes)
+    };
+
+    let q1 = h.seq.q_snapshot().expect("q1");
+    assert_eq!(
+        q1.state_root_t, expected,
+        "state_root_t must advance to WORKTX_ACCEPT_DOMAIN_V1(prev || canonical_hash(tx))"
+    );
+    assert_ne!(q1.state_root_t, q0.state_root_t, "state_root_t advanced");
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// I10 — accepted WorkTx advances ledger_root_t (canonical L4 transition_ledger)
+// ────────────────────────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn runtime_accepted_worktx_advances_ledger_root() {
+    let task_id = TaskId("task-i10".into());
+    let mut h = fresh_harness(seed_q_with_escrow(&task_id));
+    let pre_ledger = h.seq.q_snapshot().expect("q0").ledger_root_t;
+
+    h.seq
+        .submit(make_worktx(WorkTxFixtureOpts {
+            task_id: task_id.clone(),
+            tx_id_suffix: "i10".into(),
+            ..Default::default()
+        }))
+        .await
+        .expect("submit");
+    h.seq
+        .try_apply_one(&mut h.rx)
+        .expect("queued")
+        .expect("apply_one accepted");
+
+    let post_ledger = h.seq.q_snapshot().expect("q1").ledger_root_t;
+    assert_ne!(
+        pre_ledger, post_ledger,
+        "ledger_root_t must advance via canonical transition_ledger"
+    );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// I11 — accepted WorkTx increments accepted logical_t by 1
+// ────────────────────────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn runtime_accepted_worktx_increments_logical_t() {
+    let task_id = TaskId("task-i11".into());
+    let mut h = fresh_harness(seed_q_with_escrow(&task_id));
+    let pre = h.seq.next_logical_t_peek();
+
+    h.seq
+        .submit(make_worktx(WorkTxFixtureOpts {
+            task_id: task_id.clone(),
+            tx_id_suffix: "i11".into(),
+            ..Default::default()
+        }))
+        .await
+        .expect("submit");
+    h.seq
+        .try_apply_one(&mut h.rx)
+        .expect("queued")
+        .expect("apply_one accepted");
+
+    assert_eq!(
+        h.seq.next_logical_t_peek(),
+        pre + 1,
+        "accepted logical_t must increment by exactly 1"
+    );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// I12 — accepted WorkTx writes ZERO L4.E rows
+// ────────────────────────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn runtime_accepted_worktx_does_not_append_l4e() {
+    let task_id = TaskId("task-i12".into());
+    let mut h = fresh_harness(seed_q_with_escrow(&task_id));
+
+    let pre_l4e = l4e_row_count(&h.rejection_writer);
+    h.seq
+        .submit(make_worktx(WorkTxFixtureOpts {
+            task_id: task_id.clone(),
+            tx_id_suffix: "i12".into(),
+            ..Default::default()
+        }))
+        .await
+        .expect("submit");
+    h.seq
+        .try_apply_one(&mut h.rx)
+        .expect("queued")
+        .expect("apply_one accepted");
+
+    let post_l4e = l4e_row_count(&h.rejection_writer);
+    assert_eq!(
+        post_l4e, pre_l4e,
+        "accepted WorkTx must NOT append any L4.E row"
+    );
 }

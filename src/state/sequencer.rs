@@ -54,7 +54,7 @@ use crate::top_white::predicates::registry::PredicateRegistry;
 /// `b"turingosv4.l4_state_root.v1"` used by `AcceptedLedger` at
 /// `src/economy/ledger.rs:350, :357` (TB-1 RSP-0 primitive vs production
 /// state-root mutator separation).
-pub(crate) const WORKTX_ACCEPT_DOMAIN_V1: &[u8] = b"turingosv4.worktx.accept.v1";
+pub const WORKTX_ACCEPT_DOMAIN_V1: &[u8] = b"turingosv4.worktx.accept.v1";
 
 /// TRACE_MATRIX FC3-S3: TB-2 canonical hash helper for a `TypedTx`.
 ///
@@ -62,7 +62,7 @@ pub(crate) const WORKTX_ACCEPT_DOMAIN_V1: &[u8] = b"turingosv4.worktx.accept.v1"
 /// `canonical_hash(tx)` is NOT a generic existing helper there — only
 /// `canonical_encode` is — and TB-2 wants a single short call site that
 /// includes domain separation. Codex r2 P1-2.
-pub(crate) fn worktx_canonical_hash(tx: &TypedTx) -> Hash {
+pub fn worktx_canonical_hash(tx: &TypedTx) -> Hash {
     let mut h = Sha256::new();
     h.update(b"turingosv4.worktx.canonical_hash.v1");
     h.update(canonical_encode(tx).expect("TypedTx is canonical-encodable"));
