@@ -1,6 +1,11 @@
-//! TB-1 Day-5 final acceptance battery — Tier-A 9 BLOCKING + Tier-B 4 NON-BLOCKING.
+//! TB-1 Day-5 final acceptance battery — Tier-A 10 BLOCKING + Tier-B 4 NON-BLOCKING.
 //!
 //! Charter: `handover/tracer_bullets/TB-1_recharter_2026-04-29.md` § Day-5.
+//! Path A++ amendments (2026-04-29, post Day-6 dual audit): Tier-A grew from 9
+//! to 10 (P0-2 promoted), and the limitations section was added to make TB-1's
+//! narrowed ship claim explicit. See
+//! `handover/audits/DUAL_AUDIT_TB_1_VERDICT_2026-04-29.md` § Recommended path.
+//!
 //! Tier discipline (audit CF-5 "lighter option"): TB-1 ships when ALL Tier-A
 //! tests are green. Tier-B tests are captured as artifacts but DO NOT gate
 //! ship; if a Tier-B test goes red, file as a follow-up TB rather than
@@ -16,17 +21,46 @@
 //!   7. test_p3_rsp0_exit_1_on_init_total_invariant          (P3 RSP-0 Exit 1)
 //!   8. test_p3_rsp0_exit_2_read_is_free                     (P3 RSP-0 Exit 2)
 //!   9. test_p3_kill_1_no_post_init_mint                     (P3 kill 1)
+//!  10. test_p3_rsp0_total_supply_counts_all_six_subindexes  (P0-2 path-A++)
 //!
 //! Tier-B (NON-BLOCKING — P6 anchor evidence + future-RSP placeholders):
-//!  10. test_at1_evaluator_solves_mathd_algebra_107_n3       (#[ignore]: live LLM)
-//!  11. test_at2_l4_entry_per_dispatched_tx                  (#[ignore]: WorkTx dispatch
+//!  11. test_at1_evaluator_solves_mathd_algebra_107_n3       (#[ignore]: live LLM)
+//!  12. test_at2_l4_entry_per_dispatched_tx                  (#[ignore]: WorkTx dispatch
 //!                                                           body lands TB-2 RSP-1)
-//!  12. test_at3_h_vppu_non_null_on_second_run               (UNIT form; live form
+//!  13. test_at3_h_vppu_non_null_on_second_run               (UNIT form; live form
 //!                                                           verified by Day-4 evidence)
-//!  13. test_at4_econ_balance_delta_non_zero                 (#[ignore]: RSP-1)
+//!  14. test_at4_econ_balance_delta_non_zero                 (#[ignore]: RSP-1)
 //!
 //! AT-5 (winning-tactic-in-prompt-context) is DESCOPED per recharter — moves
 //! to a future P5 MetaTape v1 TB after P3 RSP-3 lands.
+//!
+//! ─── Limitations (Path A++ narrowed claim) ──────────────────────────────────
+//!
+//! TB-1 ships **P1/P3 primitives + invariant scaffolding**, NOT runtime
+//! dispatch enforcement. The Tier-A battery PROVES:
+//!   - L4 / L4.E split as data structures (hash chains, projections, tamper
+//!     detection, type-shielded raw diagnostic).
+//!   - Monetary invariant pure functions (no_post_init_mint, total CTF
+//!     conservation across all six holding subindexes, read-is-free at
+//!     tx-level).
+//!
+//! The Tier-A battery DOES NOT prove (deferred to TB-2 RSP-1):
+//!   - That `Sequencer::dispatch_transition` actually CALLS these guards on
+//!     the production path — `dispatch_transition` returns
+//!     `NotYetImplemented` for all 7 K5 `TypedTx` variants today.
+//!   - That a real predicate-failed `WorkTx` dispatched through the sequencer
+//!     lands in L4.E (rather than aborting before any append) — `apply_one`
+//!     early-returns on transition error.
+//!   - That `assert_total_ctf_conserved` / `assert_read_is_free` /
+//!     `assert_no_post_init_mint` are wired into any production call site —
+//!     they pass module + Tier-A tests but no caller has been audited to
+//!     invoke them yet.
+//!   - SDK-boundary read-is-free (rtool / search / private think): only the
+//!     tx-level no-fee invariant is covered here.
+//!   - That CAS namespacing prevents raw diagnostic leakage if a
+//!     `raw_diagnostic_cid` is shared — the type shield prevents accidental
+//!     serialization, but capability-gated forensic access lands in a later
+//!     TB.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -446,11 +480,78 @@ fn test_p3_kill_1_no_post_init_mint() {
     ));
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// (10) P3 RSP-0 — total_supply counts ALL SIX holding subindexes
+//      (Path A++ / Codex P0-2 audit 2026-04-29)
+// ────────────────────────────────────────────────────────────────────────────
+
+#[test]
+fn test_p3_rsp0_total_supply_counts_all_six_subindexes() {
+    // Tier-A 7 (`test_p3_rsp0_exit_1_on_init_total_invariant`) only redistributes
+    // through balances + escrows. A regression that silently undercounts any
+    // OTHER holding subindex (stakes_t / claims_t / task_markets_t.bounty /
+    // challenge_cases_t.bond) would still pass test 7.
+    //
+    // This test seeds each of the six holding fields with a power-of-two amount
+    // (1, 2, 4, 8, 16, 32 → sum = 63) and asserts the conservation guard counts
+    // the FULL supply. Any single dropped subindex shows up as a unique deficit
+    // in `delta_micro` (e.g., missing claims_t alone produces 55 instead of 63).
+    use turingosv4::state::q_state::{ChallengeCase, ClaimEntry, EscrowEntry, StakeEntry, TaskMarketEntry};
+
+    let mut seeded = EconomicState::default();
+    seeded.balances_t.0.insert(agent("a"), coin(1));
+    seeded
+        .escrows_t
+        .0
+        .insert(TxId("e".into()), EscrowEntry { amount: coin(2), depositor: agent("a") });
+    seeded
+        .stakes_t
+        .0
+        .insert(TxId("s".into()), StakeEntry { amount: coin(4), staker: agent("a") });
+    seeded
+        .claims_t
+        .0
+        .insert(TxId("c".into()), ClaimEntry { amount: coin(8), claimant: agent("a") });
+    seeded.task_markets_t.0.insert(
+        TxId("m".into()),
+        TaskMarketEntry { publisher: agent("a"), bounty: coin(16), ..Default::default() },
+    );
+    let mut cc = ChallengeCase::default();
+    cc.bond = coin(32);
+    cc.challenger = agent("a");
+    seeded.challenge_cases_t.0.insert(TxId("ch".into()), cc);
+
+    // Conservation across before(empty) → after(seeded) MUST be detected as a
+    // mint of exactly 63 coin = 63 * MICRO_PER_COIN. If any subindex is missed
+    // by `total_supply_micro`, this delta will be wrong.
+    let before = EconomicState::default();
+    let r = assert_total_ctf_conserved(&before, &seeded, &[]);
+    assert_eq!(
+        r,
+        Err(MonetaryError::PostInitMint {
+            delta_micro: 63 * MICRO_PER_COIN
+        }),
+        "monetary invariant must sum balances + escrows + stakes + claims + bounty + bond"
+    );
+
+    // Inverse direction: closing the seeded state back to empty is read as a
+    // burn of the SAME magnitude — proves all six subindexes are decremented
+    // symmetrically by the sum.
+    let r_inv = assert_total_ctf_conserved(&seeded, &before, &[]);
+    assert_eq!(
+        r_inv,
+        Err(MonetaryError::TotalCtfBurn {
+            delta_micro: -(63 * MICRO_PER_COIN)
+        }),
+        "monetary invariant must symmetrically detect a burn across all six subindexes"
+    );
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 // Tier-B — NON-BLOCKING (artifacts; do not gate ship)
 // ════════════════════════════════════════════════════════════════════════════
 
-// (10) AT-1 P6 anchor — evaluator solves mathd_algebra_107 in n3 mode.
+// (11) AT-1 P6 anchor — evaluator solves mathd_algebra_107 in n3 mode.
 //
 // Verified out-of-band by the Day-4 live runs documented in commit 50a1d67:
 // RUN 1 + RUN 2 both produced solved=true with gp_payload=nlinarith. Capturing
@@ -467,7 +568,7 @@ fn test_at1_evaluator_solves_mathd_algebra_107_n3() {
     // observable Day-4 evidence in /tmp/tb1_day4_smoke_v2/run{1,2}.jsonl.
 }
 
-// (11) AT-2 — each tx in evaluator run produces an L4 LedgerEntry.
+// (12) AT-2 — each tx in evaluator run produces an L4 LedgerEntry.
 // Non-blocking until WorkTx dispatch_transition body lands at TB-2 RSP-1.
 #[test]
 #[ignore = "Tier-B: WorkTx dispatch_transition body lands TB-2 RSP-1; evaluator currently uses legacy emit path"]
@@ -478,7 +579,7 @@ fn test_at2_l4_entry_per_dispatched_tx() {
     // canonical hash; verify_chain(0, n) succeeds at the end of the run.
 }
 
-// (12) AT-3 — h_vppu non-null on a 2nd-run row.
+// (13) AT-3 — h_vppu non-null on a 2nd-run row.
 //
 // The live form (2 evaluator invocations producing JSONL rows) is verified by
 // the Day-4 evidence at /tmp/tb1_day4_smoke_v2/run2.jsonl (commit 50a1d67):
@@ -499,7 +600,7 @@ fn test_at3_h_vppu_non_null_on_second_run() {
     // No body — see ignore reason above.
 }
 
-// (13) AT-4 — PputResult.econ_balance_delta non-zero.
+// (14) AT-4 — PputResult.econ_balance_delta non-zero.
 // Non-blocking until TB-2 RSP-1's escrow_lock_tx + yes_stake_tx fire. RSP-0
 // (Day-2) only proves the conservation invariant + scaffolds escrow/balances
 // structures; actual non-zero deltas need the RSP-1 wiring.

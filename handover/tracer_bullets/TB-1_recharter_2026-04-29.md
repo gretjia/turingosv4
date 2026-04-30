@@ -4,6 +4,18 @@
 
 **Amended 2026-04-29 (post-audit)**: external auditor's CF-1 / CF-3 / CF-5 incorporated per `handover/audits/2026-04-29_external_audit.md` and user authorization on 2026-04-29. Specific amendments: Day-3 wording switched to L4 / L4.E split (rejected submissions go to L4.E rejection-evidence ledger, NOT to L4 with `status=rejected`); Day-2 framing sharpened (WalletTool = read-only projection of `EconomicState.balances_t`, not "legacy adapter"); Day-5 acceptance gate downgraded so P1/P3 are blocking and P6 artifacts are non-blocking until RSP-1.
 
+**Amended 2026-04-29 — Path A++ (post Day-6 dual audit)**: Day-6 returned Codex CHALLENGE / Gemini PASS; per the conservative merge rule (VETO > CHALLENGE > PASS) this is a CHALLENGE verdict. User ruling 2026-04-29: adopt **Path A++ = narrow the ship claim + close the three lowest-cost Codex P0s + track Day-4 evidence**. Specifically:
+
+1. **Central claim narrowed** (this section, plus § 1 GOAL, plus the Day-7 ship gate): TB-1 ships **P1/P3 RSP-0 primitives + invariant scaffolding**. TB-1 does NOT claim that the v4 runtime kernel honors L4/L4.E split — `Sequencer::dispatch_transition` is `NotYetImplemented` for all 7 K5 `TypedTx` variants and `apply_one` early-returns on transition error, so neither L4-on-accept nor L4.E-on-reject is exercised through the production path today. Runtime dispatch enforcement is **explicitly deferred to TB-2**.
+2. **P0-2 closed**: a 10th Tier-A blocking test (`test_p3_rsp0_total_supply_counts_all_six_subindexes`) covers all six holding subindexes (`balances_t` + `escrows_t` + `stakes_t` + `claims_t` + `task_markets_t.bounty` + `challenge_cases_t.bond`).
+3. **P0-3 closed**: `RejectedSubmissionRecord.raw_diagnostic_cid` carries `#[serde(skip_serializing, default)]`. Even if a future caller bypasses `PublicRejectionView` and serializes a raw record, the raw cid is structurally absent from the output. (Capability-gated forensic API is a TB-2/TB-3 follow-up.)
+4. **P0-4 closed**: `AcceptedLedger::load_from_path` now calls `verify_chain(0, len)` BEFORE `reconstruct_state` — `prev_hash` / entry `hash` / `logical_t` row-deletion tampers that `reconstruct_state` alone misses are now caught at load time.
+5. **Day-4 evidence migrated** from `/tmp/tb1_day4_smoke_v2/` to `handover/evidence/tb_1_day4_h_vppu/` (Codex P1-2). The post-hoc `h_vppu` stamping in `experiments/minif2f_v4/src/main.rs` (rather than inside `make_pput`) is registered as an **approved spec divergence**: `h_vppu` depends on history (I/O + side effect), keeping `make_pput` pure was the intentional engineering call.
+
+Day-7 ship runs a **narrowed Codex micro-audit** (no Gemini, no large prompt) on the three closed code points. Round-2 dual audit is NOT required because Codex's CHALLENGE was about claim scope, not latent bugs.
+
+**TB-2 candidate is renamed** from "P3 RSP-1" to **"P1/P3 Runtime Boundary Closure + RSP-1"**: primary scope is making `WorkTx` actually traverse `dispatch_transition` (accepted → L4 append; rejected → L4.E append; monetary guards as the admission/rejection oracle). RSP-1's escrow_lock_tx + yes_stake_tx ride that closure, not the other way around.
+
 **Original charter**: commit `4ecb708` body. Original GOAL was *"One MiniF2F adaptation problem solved end-to-end at HEAD with the full v4 5-step compile loop active per-tx + economy hooks firing per-tx + L4 ledger commits per-tx + h_vppu computed in PputResult."* That goal bundled four different layer-jumps (P1 ledger, P3 economy, P5 capability compilation, P6 metric) into one 7-day TB.
 
 **Re-charter (this doc)**: keeps Day 1 (already shipped at `063b003`); re-tags Days 2-7 against the 9-phase model; descopes one acceptance test (AT-5) that properly belongs to a P5 MetaTape TB after P3 is green.
@@ -17,15 +29,23 @@
 
 ## 1. Re-tagged GOAL
 
-> Discharge the **first slice of P1 + P3 RSP-0** by demonstrating, on a single MiniF2F problem run:
+**Path A++ narrowed reading (2026-04-29, ruling)**: TB-1 ships **P1/P3 RSP-0 primitives + invariant scaffolding** as data structures + pure functions. TB-1 does NOT claim runtime dispatch enforcement; that is TB-2's primary scope.
+
+> Discharge the **primitive scaffolding** for P1 + P3 RSP-0 by demonstrating, in unit + Tier-A integration form:
 >
-> 1. (P1 Exit 5,6) ledger advances on accept; ledger does NOT advance on reject;
-> 2. (P1 Exit 7) deleting any ledger row breaks the hash chain;
-> 3. (P1 Exit 8) state.db can be reconstructed from chaintape.jsonl;
-> 4. (P1 Exit 9) rejected tx logs do NOT appear in another Agent's read view;
-> 5. (P3 RSP-0 Exit 1,2,5) on_init mint is unique; rtool/think do not deduct CTF; an escrow lock is taken before work_tx is admitted;
-> 6. (P3 RSP-0 Exit 6,8) acceptance produces only `provisional_accept`, not full payout; `settlement_tx.payout_sum ≤ escrow_pool`;
-> 7. (P6 instrumentation) `h_vppu` field present and non-null on at least one row.
+> 1. (P1 Exit 5,6 — *as primitives*) `AcceptedLedger::append_accepted` advances `state_root` and `logical_t`; `RejectionEvidenceWriter::append_rejected` does NOT;
+> 2. (P1 Exit 7 — *as primitives*) deleting any L4 or L4.E row breaks the corresponding hash chain;
+> 3. (P1 Exit 8 — *as primitives*) `AcceptedLedger::load_from_path` reconstructs the canonical `state_root` from L4 only AND verifies the chain end-to-end (P0-4 fail-closed default);
+> 4. (P1 Exit 9 — *as type-shielded primitive*) `PublicRejectionView` carries no `raw_diagnostic_cid` field; `#[serde(skip_serializing)]` on `RejectedSubmissionRecord.raw_diagnostic_cid` extends that shield to direct-record serialization (P0-3);
+> 5. (P3 RSP-0 Exit 1,2 — *as pure functions*) `assert_total_ctf_conserved` rejects post-init mint and unauthorized burn across ALL six holding subindexes (P0-2); `assert_read_is_free` rejects any K5 `TxKind` carrying a non-zero per-tx fee;
+> 6. (P3 RSP-0 Exit 5 — *scaffolded only*) `EscrowVault::lock_escrow` / `release_escrow` exist as a minimum-viable BTreeMap; live admission of `WorkTx` against an `escrow_lock_tx` is **TB-2**, not TB-1.
+> 7. (P6 instrumentation — *anchor only, non-blocking*) `h_vppu` field present and non-null on at least one row of the Day-4 live evidence at `handover/evidence/tb_1_day4_h_vppu/`.
+
+**TB-1 explicitly does NOT prove**:
+
+- That `Sequencer::dispatch_transition` actually CALLS the monetary guards or appends to L4/L4.E on the production path. `dispatch_transition` is `NotYetImplemented` for all 7 K5 `TypedTx` variants today and `apply_one` early-returns on transition error — runtime closure is TB-2.
+- That `WorkTx` traverses an admission gate. `EscrowVault` exists as scaffolding; admission semantics live in RSP-1 (TB-2).
+- That `provisional_accept` vs full payout is enforced anywhere. The `settlement_tx.payout_sum ≤ escrow_pool` exit was downgraded to TB-2 alongside the broader runtime closure.
 
 This replaces the previous *"5-step compile loop active per-tx"* goal — step 4 (Capability Compilation) is **out of TB-1 scope** (it's P5 MetaTape work that requires a green P3).
 
@@ -131,16 +151,27 @@ This replaces the previous *"5-step compile loop active per-tx"* goal — step 4
 
 **Acceptance signal** (post-audit 2026-04-29 CF-5 lighter option): TB-1 ships when **all Tier-A tests (1-9) green**. Tier-B tests (10-13) are captured as artifacts but do not gate ship. If any Tier-A kill test goes RED → STOP TB-1; write `OBS_TB-1_FAILED_2026-04-29.md`; charter must change before retry. Kill-with-OBS NOT permitted on Tier-A.
 
-### Day 6 — Dual external audit (unchanged)
+### Day 6 — Dual external audit (executed; CHALLENGE/PASS → CHALLENGE merged)
 
-**Codex + Gemini parallel** with focus = "do these 10 tests prove the claimed P1/P3 RSP-0 properties?" — not spec wording. Apply VETO > CHALLENGE > PASS conservatism per `feedback_dual_audit_conflict`. Patches accepted as-is.
+**Codex + Gemini parallel** with focus = "do these 10 tests prove the claimed P1/P3 RSP-0 properties?" — not spec wording. Apply VETO > CHALLENGE > PASS conservatism per `feedback_dual_audit_conflict`.
 
-### Day 7 — Ship
+**Result (2026-04-29)**: Codex CHALLENGE / Gemini PASS → merged CHALLENGE per the conservative rule. See `handover/audits/DUAL_AUDIT_TB_1_VERDICT_2026-04-29.md`. Path A++ patch set (P0-2 / P0-3 / P0-4 + Day-4 evidence migration + claim narrowing) addresses Codex's three lowest-cost P0s; Codex P0-1 (runtime enforcement) is intentionally NOT addressed in TB-1 — it is the primary scope of TB-2.
 
-If Day-6 dual audit returns PASS/PASS or CHALLENGE/PASS with all challenges addressed:
+### Day 7 — Ship (Path A++ narrowed)
 
-- TB_LOG.tsv: TB-1 row → status=`shipped`; capability_metric updated with measured `h_vppu` value (or "deferred to TB-2" if the SHA-256 upgrade was deferred); ship_commits range filled.
-- Post a TB-2 candidate to user. Default candidate per directive ordering = **TB-2 = P3 RSP-1** (task escrow + work_tx + yes_stake; advances RSP-0 → RSP-1, addresses P3 Exit 3,5; tests P3 kill 2 fully green).
+Day-7 ship runs:
+
+1. **Codex micro-audit** (no Gemini, no large prompt) on three closed questions:
+   - Does Tier-A now cover all six `EconomicState` holding subindexes (P0-2)?
+   - Does `raw_diagnostic_cid` now fail closed under raw-record serialization (P0-3)?
+   - Does `AcceptedLedger::load_from_path` now reject `prev_hash` / entry-`hash` / row-deletion tampers (P0-4)?
+2. If micro-audit returns PASS on the three closed points: ship.
+3. **Ship commit must use the narrowed claim verbatim**: "TB-1 ships P1/P3 RSP-0 primitives and invariant scaffolding; runtime enforcement deferred to TB-2." NOT: "the v4 GitTape kernel honors the L4/L4.E split."
+
+On ship:
+
+- TB_LOG.tsv: TB-1 row → status=`shipped`; capability_metric updated to reference `handover/evidence/tb_1_day4_h_vppu/run2.jsonl` (`h_vppu=6.215891726697228`, deepseek-chat, mathd_algebra_107, n3) and explicitly tag `runtime_enforcement=deferred_TB2`; ship_commits range filled.
+- Post the **renamed TB-2 candidate to user**: **TB-2 = P1/P3 Runtime Boundary Closure + RSP-1**. Primary scope: real `WorkTx` traversing `dispatch_transition` (accepted → L4; rejected → L4.E; monetary guards as the admission/rejection oracle). RSP-1's `escrow_lock_tx` + `yes_stake_tx` ride that closure, not the other way around.
 
 If Day-6 returns VETO:
 

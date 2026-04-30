@@ -297,6 +297,13 @@ impl AcceptedLedger {
     /// TRACE_MATRIX P1:8 — load entries from `state_path` and recompute the
     /// canonical `state_root_t`. Used by the "drop state.db; reconstruct from L4"
     /// kill test: any direct mutation that bypassed the L4 path is washed out.
+    ///
+    /// **Fail-closed default** (TB-1 P0-4, Codex audit 2026-04-29):
+    /// `verify_chain(0, len)` runs BEFORE `reconstruct_state` so any tamper of
+    /// `prev_hash`, the entry `hash`, or `logical_t` (row reorder/duplication)
+    /// is caught at load time — `reconstruct_state` alone only checks
+    /// `parent_state_root` and re-derives `resulting_state_root`, leaving those
+    /// other fields unchecked.
     pub fn load_from_path(state_path: &Path) -> Result<(Self, Hash), ReconstructError> {
         let bytes = std::fs::read(state_path).map_err(|e| LedgerError::Io(e.to_string()))?;
         let entries: Vec<AcceptedEntry> =
@@ -305,6 +312,8 @@ impl AcceptedLedger {
             entries,
             current_state_root: Hash::ZERO,
         };
+        let len = l.entries.len();
+        l.verify_chain(0, len)?;
         let s = l.reconstruct_state()?;
         l.current_state_root = s;
         Ok((l, s))
@@ -464,5 +473,90 @@ mod tests {
         let (l2, post) = AcceptedLedger::load_from_path(tmp.path()).unwrap();
         assert_eq!(pre, post);
         assert_eq!(l2.len(), 3);
+    }
+
+    #[test]
+    fn load_from_path_rejects_prev_hash_tamper() {
+        // TB-1 P0-4 (Codex audit 2026-04-29): load_from_path MUST run
+        // verify_chain. A prev_hash-only tamper is the canonical case where
+        // reconstruct_state alone is insufficient — reconstruct_state checks
+        // parent_state_root and recomputes resulting_state_root, but does not
+        // touch prev_hash. With the fail-closed default, a load on a tampered
+        // chain MUST surface as HashMismatch BEFORE reconstruct_state runs.
+        let mut l = AcceptedLedger::new();
+        for i in 1..=3 {
+            l.append_accepted(&fixture_work_tx(i)).unwrap();
+        }
+        let tmp = tempfile::NamedTempFile::new().unwrap();
+        l.persist(tmp.path()).unwrap();
+
+        let raw = std::fs::read(tmp.path()).unwrap();
+        let mut tampered: Vec<AcceptedEntry> = serde_json::from_slice(&raw).unwrap();
+        // Mutate prev_hash on row index 1 — leaves parent_state_root and
+        // resulting_state_root chains intact, so reconstruct_state would
+        // succeed in the absence of verify_chain.
+        tampered[1].prev_hash = Hash([0xAB; 32]);
+        std::fs::write(tmp.path(), serde_json::to_vec(&tampered).unwrap()).unwrap();
+
+        let r = AcceptedLedger::load_from_path(tmp.path());
+        assert!(
+            matches!(r, Err(LedgerError::HashMismatch { at_index: 1 })),
+            "load_from_path must reject prev_hash tamper at index 1; got {:?}",
+            r
+        );
+    }
+
+    #[test]
+    fn load_from_path_rejects_entry_hash_tamper() {
+        // TB-1 P0-4: tampering the entry `hash` field directly. Same rationale
+        // as prev_hash — invisible to reconstruct_state, caught by verify_chain.
+        let mut l = AcceptedLedger::new();
+        for i in 1..=3 {
+            l.append_accepted(&fixture_work_tx(i)).unwrap();
+        }
+        let tmp = tempfile::NamedTempFile::new().unwrap();
+        l.persist(tmp.path()).unwrap();
+
+        let raw = std::fs::read(tmp.path()).unwrap();
+        let mut tampered: Vec<AcceptedEntry> = serde_json::from_slice(&raw).unwrap();
+        tampered[0].hash = Hash([0xCD; 32]);
+        std::fs::write(tmp.path(), serde_json::to_vec(&tampered).unwrap()).unwrap();
+
+        let r = AcceptedLedger::load_from_path(tmp.path());
+        assert!(
+            matches!(r, Err(LedgerError::HashMismatch { at_index: 0 })),
+            "load_from_path must reject entry-hash tamper at index 0; got {:?}",
+            r
+        );
+    }
+
+    #[test]
+    fn load_from_path_rejects_logical_t_gap() {
+        // TB-1 P0-4: logical_t row-deletion / reorder. Caught by the LogicalTGap
+        // arm of verify_chain — invisible to reconstruct_state because
+        // logical_t never enters its checks.
+        let mut l = AcceptedLedger::new();
+        for i in 1..=3 {
+            l.append_accepted(&fixture_work_tx(i)).unwrap();
+        }
+        let tmp = tempfile::NamedTempFile::new().unwrap();
+        l.persist(tmp.path()).unwrap();
+
+        let raw = std::fs::read(tmp.path()).unwrap();
+        let mut tampered: Vec<AcceptedEntry> = serde_json::from_slice(&raw).unwrap();
+        // Drop the middle row — surviving row at index 1 still claims logical_t=3.
+        tampered.remove(1);
+        std::fs::write(tmp.path(), serde_json::to_vec(&tampered).unwrap()).unwrap();
+
+        let r = AcceptedLedger::load_from_path(tmp.path());
+        assert!(
+            matches!(
+                r,
+                Err(LedgerError::LogicalTGap { at_index: 1, .. })
+                    | Err(LedgerError::HashMismatch { at_index: 1 })
+            ),
+            "load_from_path must reject row-deletion at index 1; got {:?}",
+            r
+        );
     }
 }

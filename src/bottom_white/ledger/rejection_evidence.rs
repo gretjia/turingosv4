@@ -96,6 +96,16 @@ pub struct RejectedSubmissionRecord {
     pub rejection_class: RejectionClass,
     /// CAS handle to the raw diagnostic bytes (e.g. predicate counter-example).
     /// `None` when no raw payload is captured. NEVER exposed via `PublicRejectionView`.
+    ///
+    /// **TB-1 P0-3 type shield** (Codex audit 2026-04-29): `#[serde(skip_serializing,
+    /// default)]` ensures that EVEN IF a future caller bypasses
+    /// `PublicRejectionView` and serializes a raw `RejectedSubmissionRecord`, the
+    /// raw cid is structurally absent from the output. Forensic in-memory access
+    /// continues via `RejectionEvidenceWriter::records()`. A capability-gated
+    /// audit-only API replaces this skip in a later TB; until then, the persisted
+    /// form is INTENTIONALLY incomplete (rehydration recovers `None` and the
+    /// chain hash will not re-verify — RSP-0 is in-memory only).
+    #[serde(skip_serializing, default)]
     pub raw_diagnostic_cid: Option<Cid>,
     /// Agent-facing summary string. `None` when no public summary is permitted
     /// (raw-diagnostic-only mode). The ONLY field that crosses the agent boundary.
@@ -410,6 +420,44 @@ mod tests {
         let obj = json.as_object().unwrap();
         assert!(!obj.contains_key("raw_diagnostic_cid"));
         assert_eq!(obj.get("public_summary").unwrap(), "acc1 false");
+    }
+
+    #[test]
+    fn raw_diagnostic_cid_skipped_in_record_serialization() {
+        // TB-1 P0-3 type shield (Codex audit 2026-04-29): even if a caller
+        // bypasses PublicRejectionView and serializes a raw
+        // RejectedSubmissionRecord, raw_diagnostic_cid must NOT appear in the
+        // serialized form. Forensic in-memory access still works.
+        let mut w = RejectionEvidenceWriter::new();
+        w.append_rejected(
+            1,
+            Hash::ZERO,
+            agent("alice"),
+            TxKind::Work,
+            cid(0x10),
+            RejectionClass::PredicateFailed,
+            Some(cid(0xAA)), // raw diagnostic present in-memory
+            Some("acc1 false".into()),
+        );
+        let record = &w.records()[0];
+
+        // Forensic access: in-memory field is populated.
+        assert!(
+            record.raw_diagnostic_cid.is_some(),
+            "in-memory forensic access must still see the raw cid"
+        );
+
+        // Serialization: field MUST be structurally absent.
+        let json = serde_json::to_value(record).unwrap();
+        let obj = json.as_object().expect("record serializes as object");
+        assert!(
+            !obj.contains_key("raw_diagnostic_cid"),
+            "raw_diagnostic_cid must not serialize on RejectedSubmissionRecord"
+        );
+
+        // The other shielded-but-public fields stay present.
+        assert!(obj.contains_key("submit_id"));
+        assert!(obj.contains_key("public_summary"));
     }
 
     #[test]
