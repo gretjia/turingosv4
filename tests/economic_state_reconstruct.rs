@@ -77,6 +77,7 @@ fn populated_economic_state_round_trip() {
             challenger: AgentId("ch".into()),
             bond: MicroCoin::from_coin(2).unwrap(),
             opened_at_round: 5,
+            target_work_tx: TxId("target_wt".into()), // TB-4 additive backref
         },
     );
     e.price_index_t.0.insert(TxId("t7".into()), MicroCoin::from_coin(9).unwrap());

@@ -961,6 +961,33 @@ pub enum TransitionError {
     /// P4 Information Loom needs this discriminator).
     InsufficientBalance,
 
+    // ── TB-4 RSP-2 admission (charter § 3.8 + directive Q3) ────────────────
+    /// `VerifyTx.bond` micro_units == 0. Distinct from `StakeInsufficient`
+    /// (which is reused for ChallengeTx.stake==0 to keep WP economic § 7
+    /// "Verifier 抵押 bond" naming honest). Maps to
+    /// `L4ERejectionClass::PolicyViolation` per charter § 4.5.
+    BondInsufficient,
+    /// VerifyTx / ChallengeTx target_work_tx is not in `q.economic_state_t.
+    /// stakes_t` — i.e., the target was never accepted as a live WorkTx,
+    /// OR has been resolved/finalized in a future RSP-3 path. In TB-4
+    /// minimum scope these two cases collapse since RSP-3 has not yet
+    /// introduced finalize-removes-stakes_t logic. **Distinct from**
+    /// `TargetWorkTxNotFound` (reserved for "tx_id has no L4 row at all"
+    /// — unreachable in TB-4 since dispatch_transition reads Q_t only)
+    /// and `TargetWorkTxNotVerifiable` (reserved for "target tx_id exists
+    /// but is not a WorkTx type" — also unreachable in TB-4 since the
+    /// stakes_t lookup keys by TxId without type checking; TB-3
+    /// `lock-on-accept` only inserts stakes_t entries for accepted WorkTx).
+    /// Maps to `L4ERejectionClass::PolicyViolation` per charter § 4.5.
+    TargetWorkInactive,
+    /// `ChallengeTx.counterexample_cid == Cid::ZERO`. Sanity gate against
+    /// empty challenges — distinct from `MalformedPayload` (which would
+    /// reject earlier at deserialize time) and from `PolicyViolation`
+    /// catch-all. P4 Information Loom needs this discriminator per
+    /// directive Q7. Maps to `L4ERejectionClass::PolicyViolation` per
+    /// charter § 4.5.
+    EmptyCounterexample,
+
     // ── Stub sentinel (CO1.7.5 fills) ──────────────────────────────────────
     /// Stub return value used by CO1.7.5 unimplemented bodies — preserves
     /// sequencer + dispatch correctness without forcing transition logic
@@ -997,6 +1024,9 @@ impl std::fmt::Display for TransitionError {
             Self::TaskAlreadyOpen => write!(f, "task market already open for task_id"),
             Self::TaskNotOpen => write!(f, "no open task market for task_id"),
             Self::InsufficientBalance => write!(f, "balance below required debit amount"),
+            Self::BondInsufficient => write!(f, "verifier bond insufficient"),
+            Self::TargetWorkInactive => write!(f, "target work_tx not in stakes_t (never accepted live, or already resolved)"),
+            Self::EmptyCounterexample => write!(f, "challenge counterexample_cid is empty / zero"),
             Self::NotYetImplemented => write!(f, "transition body not yet implemented (CO1.7.5)"),
         }
     }
@@ -1884,5 +1914,39 @@ mod tests {
         assert_eq!(obj.len(), 7, "ChallengeSigningPayload must have 7 fields (signature excluded), got {}", obj.len());
         assert!(!obj.contains_key("signature"));
         assert!(obj.contains_key("parent_state_root"), "TB-4 parent_state_root field missing");
+    }
+
+    /// T5 — TransitionError Display covers the 3 new TB-4 variants AND the
+    /// 2 reserved-existing variants (TargetWorkTxNotFound +
+    /// TargetWorkTxNotVerifiable) — establishing the directive's Q3 three-class
+    /// taxonomy as fully addressable from Display strings (P4 Information
+    /// Loom signal-quantization requirement per charter § 3.8).
+    #[test]
+    fn transition_error_display_covers_3_new_tb4_variants_plus_reserved() {
+        let s_bond = format!("{}", TransitionError::BondInsufficient);
+        let s_inactive = format!("{}", TransitionError::TargetWorkInactive);
+        let s_empty = format!("{}", TransitionError::EmptyCounterexample);
+        let s_not_found = format!("{}", TransitionError::TargetWorkTxNotFound);
+        let s_not_verif = format!("{}", TransitionError::TargetWorkTxNotVerifiable);
+        // Non-empty + distinct.
+        assert!(!s_bond.is_empty());
+        assert!(!s_inactive.is_empty());
+        assert!(!s_empty.is_empty());
+        assert!(!s_not_found.is_empty());
+        assert!(!s_not_verif.is_empty());
+        assert_ne!(s_bond, s_inactive);
+        assert_ne!(s_inactive, s_empty);
+        assert_ne!(s_bond, s_empty);
+        // Three-class taxonomy (Q3 directive): TargetWorkInactive,
+        // TargetWorkTxNotFound, TargetWorkTxNotVerifiable are distinct.
+        assert_ne!(s_inactive, s_not_found);
+        assert_ne!(s_inactive, s_not_verif);
+        assert_ne!(s_not_found, s_not_verif);
+        // Discriminable via keyword tokens.
+        assert!(s_bond.contains("bond"));
+        assert!(s_inactive.contains("stakes_t"));
+        assert!(s_empty.contains("counterexample"));
+        assert!(s_not_found.contains("not found"));
+        assert!(s_not_verif.contains("verifiable"));
     }
 }

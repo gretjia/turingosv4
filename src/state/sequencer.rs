@@ -169,6 +169,16 @@ fn rejection_class_for(e: &TransitionError) -> L4ERejectionClass {
         // (do NOT fold into PolicyViolation — P4 Information Loom needs the
         // discriminator).
         TE::InsufficientBalance => RC::InsufficientBalance,
+        // TB-4 RSP-2 admission mapping (charter § 4.5; directive Q3 + Q7).
+        // All 3 new TB-4 variants + 2 reserved variants cluster under
+        // PolicyViolation at the L4ERejectionClass coarser tier; finer-grained
+        // TransitionError variant name is recoverable from the L4.E
+        // raw_diagnostic_cid CAS payload (preflight § 8 Q2).
+        TE::BondInsufficient => RC::PolicyViolation,
+        TE::TargetWorkInactive => RC::PolicyViolation,
+        TE::EmptyCounterexample => RC::PolicyViolation,
+        TE::TargetWorkTxNotFound => RC::PolicyViolation,
+        TE::TargetWorkTxNotVerifiable => RC::PolicyViolation,
         // Non-WorkTx-arm variants documented per §3.7 mapping table — should
         // not occur on the WorkTx arm; conservative sentinel preserves L4.E
         // append correctness if a future TB adds new variants.
@@ -194,6 +204,12 @@ fn public_summary_for(e: &TransitionError) -> Option<String> {
         TransitionError::TaskAlreadyOpen => Some("task_already_open".into()),
         TransitionError::TaskNotOpen => Some("task_not_open".into()),
         TransitionError::InsufficientBalance => Some("insufficient_balance".into()),
+        // TB-4 RSP-2 admission (charter § 4.5; directive Q3 + Q7).
+        TransitionError::BondInsufficient => Some("bond_insufficient".into()),
+        TransitionError::TargetWorkInactive => Some("target_work_inactive".into()),
+        TransitionError::EmptyCounterexample => Some("empty_counterexample".into()),
+        TransitionError::TargetWorkTxNotFound => Some("target_work_not_found".into()),
+        TransitionError::TargetWorkTxNotVerifiable => Some("target_work_not_verifiable".into()),
         _ => Some("policy_violation".into()),
     }
 }

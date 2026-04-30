@@ -333,6 +333,17 @@ pub struct RoyaltyEdge {
 pub struct ChallengeCasesIndex(pub BTreeMap<TxId, ChallengeCase>);
 
 /// TRACE_MATRIX WP § 2 — challenge case shape (stub). Full fields land CO P2.5.
+///
+/// **TB-4 additive field**: `target_work_tx` is the back-reference to the
+/// `WorkTx.tx_id` this challenge accuses. Required by:
+/// (a) RSP-3 settlement (routing slash/release on challenge resolve must
+///     find the target's stakes_t entry via this backref);
+/// (b) Multi-challenger representability (TB-4 charter § 3.5 + directive Q4):
+///     two challenge_cases_t rows with distinct ChallengeTx tx_id keys
+///     may share the same `target_work_tx` — without the backref the
+///     index can't express that.
+/// Additive serde-default — pre-TB-4 has no production challenge_cases_t
+/// rows (dispatch arm was NotYetImplemented), so the migration is forward-only.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ChallengeCase {
     #[serde(default)]
@@ -341,11 +352,18 @@ pub struct ChallengeCase {
     pub bond: MicroCoin,
     #[serde(default)]
     pub opened_at_round: u64,
+    #[serde(default)]
+    pub target_work_tx: TxId,
 }
 
 impl Default for ChallengeCase {
     fn default() -> Self {
-        Self { challenger: AgentId::default(), bond: MicroCoin::zero(), opened_at_round: 0 }
+        Self {
+            challenger: AgentId::default(),
+            bond: MicroCoin::zero(),
+            opened_at_round: 0,
+            target_work_tx: TxId::default(),
+        }
     }
 }
 
