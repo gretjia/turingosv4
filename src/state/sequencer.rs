@@ -21,7 +21,7 @@ use std::sync::{Arc, RwLock};
 
 use sha2::{Digest, Sha256};
 
-use crate::bottom_white::cas::schema::ObjectType;
+use crate::bottom_white::cas::schema::{Cid, ObjectType};
 use crate::bottom_white::cas::store::{CasError, CasStore};
 use crate::bottom_white::ledger::system_keypair::{
     transition_ledger_emitter, Ed25519Keypair, KeypairError, SystemEpoch,
@@ -430,7 +430,72 @@ pub(crate) fn dispatch_transition(
 
             Ok((q_next, SignalBundle::default()))
         }
-        TypedTx::Challenge(_) => Err(TransitionError::NotYetImplemented),
+        // ──────────────────────────────────────────────────────────────────
+        // TB-4 Atom 5 — Challenge arm (charter § 3.5 + § 4.3 + § 3.9).
+        // Challenger locks NO stake into challenge_cases_t[challenge.tx_id].
+        // opened_at_round = q.logical_t is the structural anchor (§ 3.9);
+        // closure / slash / resolve are RSP-3 (§ 3.7 + § 5 #11-12).
+        // ──────────────────────────────────────────────────────────────────
+        TypedTx::Challenge(challenge) => {
+            // Step 1: parent-root match.
+            if challenge.parent_state_root != q.state_root_t {
+                return Err(TransitionError::StaleParent);
+            }
+            // Step 2: stake positivity.
+            if challenge.stake.micro_units() == 0 {
+                return Err(TransitionError::StakeInsufficient);
+            }
+            // Step 3: target liveness — same gate as Verify arm.
+            if !q.economic_state_t.stakes_t.0.contains_key(&challenge.target_work_tx) {
+                return Err(TransitionError::TargetWorkInactive);
+            }
+            // Step 4: challenger solvency.
+            let challenger_bal = q.economic_state_t.balances_t.0
+                .get(&challenge.challenger_agent)
+                .copied()
+                .unwrap_or(crate::economy::money::MicroCoin::zero());
+            if challenger_bal.micro_units() < challenge.stake.micro_units() {
+                return Err(TransitionError::InsufficientBalance);
+            }
+            // Step 5: counterexample non-empty (charter § 3.5 step 6 +
+            // directive Q7).
+            if challenge.counterexample_cid == Cid([0u8; 32]) {
+                return Err(TransitionError::EmptyCounterexample);
+            }
+            // Step 6: q_next — atomic balance → challenge_cases_t transfer.
+            // opened_at_round = q.logical_t (challenge-window structural
+            // anchor per § 3.9; closure / deadline / auto-finalize NOT
+            // installed in TB-4).
+            let mut q_next = q.clone();
+            let new_bal_micro = challenger_bal.micro_units() - challenge.stake.micro_units();
+            q_next.economic_state_t.balances_t.0.insert(
+                challenge.challenger_agent.clone(),
+                crate::economy::money::MicroCoin::from_micro_units(new_bal_micro),
+            );
+            q_next.economic_state_t.challenge_cases_t.0.insert(
+                challenge.tx_id.clone(),
+                crate::state::q_state::ChallengeCase {
+                    challenger: challenge.challenger_agent.clone(),
+                    bond: challenge.stake.0,
+                    opened_at_round: q.q_t.current_round, // ← § 3.9 anchor
+                    target_work_tx: challenge.target_work_tx.clone(),
+                },
+            );
+            // Step 7: monetary invariants (debit = credit; challenge_cases.bond
+            // is the 5th holding term).
+            assert_no_post_init_mint(tx, q)
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            assert_total_ctf_conserved(
+                &q.economic_state_t,
+                &q_next.economic_state_t,
+                &[],
+            )
+            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            // Step 8: state_root advance via CHALLENGE_ACCEPT_DOMAIN_V1.
+            q_next.state_root_t = challenge_accept_state_root(&q.state_root_t, tx);
+
+            Ok((q_next, SignalBundle::default()))
+        }
         TypedTx::Reuse(_) => Err(TransitionError::NotYetImplemented),
         TypedTx::FinalizeReward(_) => Err(TransitionError::NotYetImplemented),
         TypedTx::TaskExpire(_) => Err(TransitionError::NotYetImplemented),
@@ -1937,6 +2002,154 @@ mod tests {
             "vt-u16", "wt-u16", "v", 5, q.state_root_t  // requires 5 coin
         );
         let tx = TypedTx::Verify(verify_tx);
+        let err = dispatch_transition(&q, &tx, &preds, &tools).unwrap_err();
+        assert!(matches!(err, TransitionError::InsufficientBalance));
+    }
+
+    // ── TB-4 Atom 5 — Challenge dispatch arm tests (charter § 4.7 U17-U21) ──
+
+    fn fixture_challenge_tx_for_target(
+        challenge_tx_id: &str, target_work_tx_id: &str,
+        challenger: &str, stake_coin: i64, counterex_byte: u8,
+        parent_root: Hash,
+    ) -> ChallengeTx {
+        ChallengeTx {
+            tx_id: TxId(challenge_tx_id.into()),
+            parent_state_root: parent_root,
+            target_work_tx: TxId(target_work_tx_id.into()),
+            challenger_agent: AgentId(challenger.into()),
+            stake: StakeMicroCoin::from_micro_units(
+                MicroCoin::from_coin(stake_coin).unwrap().micro_units()
+            ),
+            counterexample_cid: Cid([counterex_byte; 32]),
+            signature: AgentSignature::from_bytes([0u8; 64]),
+            timestamp_logical: 1,
+        }
+    }
+
+    /// Seed Q with challenger balance + a live target stakes_t entry AND set
+    /// q.q_t.current_round to a non-zero value so we can pinpoint the
+    /// opened_at_round anchor (charter § 3.9).
+    fn seed_q_for_challenge(
+        challenger: &str, balance_coin: i64, target_work_tx_id: &str, current_round: u64,
+    ) -> (QState, TxId, TaskId) {
+        let mut q = QState::genesis();
+        q.q_t.current_round = current_round;
+        q.economic_state_t.balances_t.0.insert(
+            AgentId(challenger.into()),
+            MicroCoin::from_coin(balance_coin).unwrap(),
+        );
+        let target_tx = TxId(target_work_tx_id.into());
+        let task_id = TaskId(format!("task-of-{target_work_tx_id}"));
+        q.economic_state_t.stakes_t.0.insert(
+            target_tx.clone(),
+            crate::state::q_state::StakeEntry {
+                amount: MicroCoin::from_coin(5).unwrap(),
+                staker: AgentId("solver-x".into()),
+                task_id: task_id.clone(),
+            },
+        );
+        (q, target_tx, task_id)
+    }
+
+    /// U17 — Challenge accept opens a ChallengeCase with the target back-ref
+    /// and `opened_at_round = q.logical_t` anchor (charter § 3.5 + § 3.9).
+    #[test]
+    fn dispatch_challenge_opens_case_with_target_back_ref_and_logical_t_anchor() {
+        let preds = PredicateRegistry::new();
+        let tools = ToolRegistry::new();
+        let (q, _target, _task) =
+            seed_q_for_challenge("challenger-u17", 10, "wt-u17", 42);
+        let chal_tx = fixture_challenge_tx_for_target(
+            "ct-u17", "wt-u17", "challenger-u17", 4, 0xAB, q.state_root_t,
+        );
+        let tx = TypedTx::Challenge(chal_tx);
+        let (q_next, _) = dispatch_transition(&q, &tx, &preds, &tools)
+            .expect("Challenge with positive stake + live target + solvent challenger + non-zero counterex must accept");
+
+        // ChallengeCase opened at challenge.tx_id with target back-ref + logical_t anchor.
+        let case = q_next.economic_state_t.challenge_cases_t.0
+            .get(&TxId("ct-u17".into()))
+            .expect("ChallengeCase at challenge.tx_id");
+        assert_eq!(case.bond.micro_units(),
+                   MicroCoin::from_coin(4).unwrap().micro_units());
+        assert_eq!(case.challenger, AgentId("challenger-u17".into()));
+        assert_eq!(case.target_work_tx, TxId("wt-u17".into()),
+                   "TB-4 target_work_tx back-ref (charter § 3.3)");
+        assert_eq!(case.opened_at_round, 42,
+                   "TB-4 § 3.9 anchor: opened_at_round = q.logical_t at accept");
+
+        // Challenger balance debited.
+        let new_bal = q_next.economic_state_t.balances_t.0
+            .get(&AgentId("challenger-u17".into())).copied().unwrap();
+        assert_eq!(new_bal.micro_units(),
+                   MicroCoin::from_coin(6).unwrap().micro_units());
+
+        // state_root advanced via CHALLENGE_ACCEPT_DOMAIN_V1.
+        let expected = challenge_accept_state_root(&q.state_root_t, &tx);
+        assert_eq!(q_next.state_root_t, expected);
+    }
+
+    /// U18 — ChallengeTx with stake.micro_units() == 0 rejects with StakeInsufficient.
+    #[test]
+    fn dispatch_challenge_rejects_when_stake_zero() {
+        let preds = PredicateRegistry::new();
+        let tools = ToolRegistry::new();
+        let (q, _t, _task) = seed_q_for_challenge("c", 10, "wt-u18", 0);
+        let mut chal_tx = fixture_challenge_tx_for_target(
+            "ct-u18", "wt-u18", "c", 5, 0x01, q.state_root_t,
+        );
+        chal_tx.stake = StakeMicroCoin::from_micro_units(0);
+        let tx = TypedTx::Challenge(chal_tx);
+        let err = dispatch_transition(&q, &tx, &preds, &tools).unwrap_err();
+        assert!(matches!(err, TransitionError::StakeInsufficient));
+    }
+
+    /// U19 — ChallengeTx with target_work_tx not in stakes_t rejects with
+    /// TargetWorkInactive (charter § 3.5 step 3).
+    #[test]
+    fn dispatch_challenge_rejects_when_target_not_in_stakes_t() {
+        let preds = PredicateRegistry::new();
+        let tools = ToolRegistry::new();
+        let mut q = QState::genesis();
+        q.economic_state_t.balances_t.0.insert(
+            AgentId("c".into()), MicroCoin::from_coin(10).unwrap(),
+        );
+        let chal_tx = fixture_challenge_tx_for_target(
+            "ct-u19", "wt-not-existent", "c", 5, 0x01, q.state_root_t,
+        );
+        let tx = TypedTx::Challenge(chal_tx);
+        let err = dispatch_transition(&q, &tx, &preds, &tools).unwrap_err();
+        assert!(matches!(err, TransitionError::TargetWorkInactive),
+                "expected TargetWorkInactive, got {err:?}");
+    }
+
+    /// U20 — ChallengeTx with counterexample_cid == Cid::ZERO rejects with
+    /// EmptyCounterexample (charter § 3.5 step 6 + directive Q7).
+    #[test]
+    fn dispatch_challenge_rejects_when_counterexample_cid_zero() {
+        let preds = PredicateRegistry::new();
+        let tools = ToolRegistry::new();
+        let (q, _t, _task) = seed_q_for_challenge("c", 10, "wt-u20", 0);
+        let chal_tx = fixture_challenge_tx_for_target(
+            "ct-u20", "wt-u20", "c", 5, 0x00, q.state_root_t,  // ZERO counterex
+        );
+        let tx = TypedTx::Challenge(chal_tx);
+        let err = dispatch_transition(&q, &tx, &preds, &tools).unwrap_err();
+        assert!(matches!(err, TransitionError::EmptyCounterexample));
+    }
+
+    /// U21 — ChallengeTx with challenger balance < stake rejects with
+    /// InsufficientBalance.
+    #[test]
+    fn dispatch_challenge_rejects_when_challenger_balance_lt_stake() {
+        let preds = PredicateRegistry::new();
+        let tools = ToolRegistry::new();
+        let (q, _t, _task) = seed_q_for_challenge("c", 1, "wt-u21", 0);  // only 1 coin
+        let chal_tx = fixture_challenge_tx_for_target(
+            "ct-u21", "wt-u21", "c", 5, 0xCC, q.state_root_t,  // requires 5 coin
+        );
+        let tx = TypedTx::Challenge(chal_tx);
         let err = dispatch_transition(&q, &tx, &preds, &tools).unwrap_err();
         assert!(matches!(err, TransitionError::InsufficientBalance));
     }

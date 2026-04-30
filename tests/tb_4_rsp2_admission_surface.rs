@@ -408,15 +408,193 @@ async fn verify_with_zero_bond_appends_l4e_bond_insufficient() {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Suppress unused-import warnings for symbols used by Atom 5+ tests below.
+// I32 — ChallengeTx submitted through Sequencer::submit appends to canonical L4
+// ────────────────────────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn submit_challenge_tx_appends_to_canonical_l4_and_opens_case() {
+    let mut h = fresh_harness(genesis_with_balances(&[
+        ("sponsor-i32", 100),
+        ("solver-i32", 10),
+        ("challenger-i32", 10),
+    ]));
+
+    let (target_work_tx_id, parent_after_work) = apply_task_funded_with_accepted_worktx(
+        &mut h, "task-i32", "sponsor-i32", "solver-i32", 50, 3, "i32"
+    ).await;
+
+    let pre_l4 = l4_row_count(&h.ledger_writer);
+    let pre_l4e = l4e_row_count(&h.rejection_writer);
+
+    let counterex = Cid([0xABu8; 32]);
+    let chal_tx = make_challenge_tx(
+        &target_work_tx_id.0, "challenger-i32", 4_000_000, counterex, parent_after_work, "i32"
+    );
+    let chal_tx_id = match &chal_tx {
+        TypedTx::Challenge(c) => c.tx_id.clone(),
+        _ => unreachable!(),
+    };
+    h.seq.submit(chal_tx).await.expect("challenge submit");
+    let drained = h.seq.try_apply_one(&mut h.rx).expect("challenge env");
+    assert!(drained.is_ok(), "ChallengeTx must accept; got {:?}", drained);
+
+    assert_eq!(l4_row_count(&h.ledger_writer), pre_l4 + 1);
+    assert_eq!(l4e_row_count(&h.rejection_writer), pre_l4e);
+
+    let entry = drained.expect("entry");
+    assert_eq!(entry.tx_kind, TxKind::Challenge);
+
+    // ChallengeCase row inserted with target back-ref.
+    let q_after = h.seq.q_snapshot().expect("snap");
+    let case = q_after.economic_state_t.challenge_cases_t.0
+        .get(&chal_tx_id)
+        .expect("ChallengeCase at challenge.tx_id");
+    assert_eq!(case.target_work_tx, target_work_tx_id);
+    assert_eq!(case.bond.micro_units(), 4_000_000);
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// I34 — Challenge admission is atomic balance → challenge_cases_t transfer
+// ────────────────────────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn challenge_admission_atomic_balance_to_challenge_cases_transfer() {
+    let mut h = fresh_harness(genesis_with_balances(&[
+        ("sponsor-i34", 100),
+        ("solver-i34", 10),
+        ("challenger-i34", 8),
+    ]));
+
+    let (target_work_tx_id, parent_after_work) = apply_task_funded_with_accepted_worktx(
+        &mut h, "task-i34", "sponsor-i34", "solver-i34", 50, 3, "i34"
+    ).await;
+
+    let pre = h.seq.q_snapshot().expect("pre");
+    let pre_bal = pre.economic_state_t.balances_t.0
+        .get(&AgentId("challenger-i34".into())).copied().unwrap();
+    assert_eq!(pre_bal.micro_units(), 8_000_000);
+
+    let counterex = Cid([0xBBu8; 32]);
+    let chal_tx = make_challenge_tx(
+        &target_work_tx_id.0, "challenger-i34", 3_000_000, counterex, parent_after_work, "i34"
+    );
+    let chal_tx_id = match &chal_tx {
+        TypedTx::Challenge(c) => c.tx_id.clone(),
+        _ => unreachable!(),
+    };
+    h.seq.submit(chal_tx).await.expect("submit");
+    let _ = h.seq.try_apply_one(&mut h.rx).expect("env").expect("accepted");
+
+    let post = h.seq.q_snapshot().expect("post");
+    let post_bal = post.economic_state_t.balances_t.0
+        .get(&AgentId("challenger-i34".into())).copied().unwrap();
+    assert_eq!(post_bal.micro_units(), 8_000_000 - 3_000_000,
+               "challenger balance debited by stake amount");
+
+    let case = post.economic_state_t.challenge_cases_t.0
+        .get(&chal_tx_id)
+        .expect("ChallengeCase");
+    assert_eq!(case.bond.micro_units(), 3_000_000);
+    assert_eq!(case.challenger, AgentId("challenger-i34".into()));
+    assert_eq!(case.target_work_tx, target_work_tx_id);
+
+    // CTF conserved (debit balance = credit challenge_cases.bond).
+    let pre_total: i64 = pre.economic_state_t.balances_t.0.values().map(|v| v.micro_units()).sum::<i64>()
+        + pre.economic_state_t.stakes_t.0.values().map(|e| e.amount.micro_units()).sum::<i64>()
+        + pre.economic_state_t.escrows_t.0.values().map(|e| e.amount.micro_units()).sum::<i64>()
+        + pre.economic_state_t.challenge_cases_t.0.values().map(|e| e.bond.micro_units()).sum::<i64>();
+    let post_total: i64 = post.economic_state_t.balances_t.0.values().map(|v| v.micro_units()).sum::<i64>()
+        + post.economic_state_t.stakes_t.0.values().map(|e| e.amount.micro_units()).sum::<i64>()
+        + post.economic_state_t.escrows_t.0.values().map(|e| e.amount.micro_units()).sum::<i64>()
+        + post.economic_state_t.challenge_cases_t.0.values().map(|e| e.bond.micro_units()).sum::<i64>();
+    assert_eq!(pre_total, post_total, "CTF conserved across Challenge accept");
+
+    // state_root advanced via CHALLENGE_ACCEPT_DOMAIN_V1.
+    let expected = challenge_accept_state_root(&parent_after_work, &make_challenge_tx(
+        &target_work_tx_id.0, "challenger-i34", 3_000_000, counterex, parent_after_work, "i34"
+    ));
+    assert_eq!(post.state_root_t, expected);
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// I36 — Challenge against a target NOT in stakes_t routes to L4.E
+// ────────────────────────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn challenge_against_inactive_target_appends_l4e_target_inactive() {
+    let mut h = fresh_harness(genesis_with_balances(&[
+        ("challenger-i36", 10),
+    ]));
+
+    let pre_l4 = l4_row_count(&h.ledger_writer);
+    let pre_l4e = l4e_row_count(&h.rejection_writer);
+
+    let parent = h.seq.q_snapshot().expect("snap").state_root_t;
+    let chal_tx = make_challenge_tx(
+        "nonexistent-work-tx", "challenger-i36", 2_000_000,
+        Cid([0xCCu8; 32]), parent, "i36"
+    );
+    h.seq.submit(chal_tx).await.expect("submit");
+    let drained = h.seq.try_apply_one(&mut h.rx).expect("env");
+    assert!(drained.is_err());
+
+    assert_eq!(l4_row_count(&h.ledger_writer), pre_l4);
+    assert_eq!(l4e_row_count(&h.rejection_writer), pre_l4e + 1);
+    assert_eq!(last_l4e_class(&h.rejection_writer), Some(L4ERejectionClass::PolicyViolation));
+
+    // L4.E does NOT mutate economic_state.
+    let q_after = h.seq.q_snapshot().expect("snap");
+    let bal_after = q_after.economic_state_t.balances_t.0
+        .get(&AgentId("challenger-i36".into())).copied().unwrap();
+    assert_eq!(bal_after.micro_units(), 10_000_000, "L4.E never mutates balances_t");
+    assert!(q_after.economic_state_t.challenge_cases_t.0.is_empty(),
+            "L4.E never mutates challenge_cases_t");
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// I38 — Challenge with stake.micro_units() == 0 routes to L4.E StakeInsufficient
+// ────────────────────────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn challenge_with_zero_stake_appends_l4e_stake_insufficient() {
+    let mut h = fresh_harness(genesis_with_balances(&[
+        ("sponsor-i38", 100),
+        ("solver-i38", 10),
+        ("challenger-i38", 10),
+    ]));
+
+    let (target_work_tx_id, parent_after_work) = apply_task_funded_with_accepted_worktx(
+        &mut h, "task-i38", "sponsor-i38", "solver-i38", 50, 3, "i38"
+    ).await;
+
+    let pre_l4 = l4_row_count(&h.ledger_writer);
+    let pre_l4e = l4e_row_count(&h.rejection_writer);
+
+    let chal_tx = make_challenge_tx(
+        &target_work_tx_id.0, "challenger-i38", 0,
+        Cid([0xDDu8; 32]), parent_after_work, "i38"
+    );
+    h.seq.submit(chal_tx).await.expect("submit");
+    let drained = h.seq.try_apply_one(&mut h.rx).expect("env");
+    assert!(drained.is_err());
+
+    assert_eq!(l4_row_count(&h.ledger_writer), pre_l4);
+    assert_eq!(l4e_row_count(&h.rejection_writer), pre_l4e + 1);
+    assert_eq!(last_l4e_class(&h.rejection_writer), Some(L4ERejectionClass::PolicyViolation));
+
+    // Challenger balance untouched.
+    let q_after = h.seq.q_snapshot().expect("snap");
+    let bal_after = q_after.economic_state_t.balances_t.0
+        .get(&AgentId("challenger-i38".into())).copied().unwrap();
+    assert_eq!(bal_after.micro_units(), 10_000_000);
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Suppress unused-import warnings for symbols used by Atom 6+ tests.
 // ────────────────────────────────────────────────────────────────────────────
 
 #[allow(dead_code)]
 fn _import_anchors() {
-    let _ = Cid([0u8; 32]);
-    let _: Option<TypedTx> = None;
-    let _ = make_challenge_tx as fn(&str, &str, i64, Cid, Hash, &str) -> TypedTx;
-    let _ = challenge_accept_state_root;
     let _ = task_open_accept_state_root;
     let _ = escrow_lock_accept_state_root;
 }
