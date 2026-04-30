@@ -106,6 +106,21 @@ pub struct SubmissionReceipt {
     pub submit_id: u64,
 }
 
+/// TRACE_MATRIX FC3-S3: L4 sequencer queue payload carrying both `submit_id`
+/// and the typed tx through to `apply_one`.
+///
+/// Required by P1:6 / TB-2 charter §1: the L4.E rejection-evidence ledger
+/// keys rejected submissions by `submit_id` (NOT `logical_t`), so the
+/// sequencer driver loop must observe the same `submit_id` the caller received.
+///
+/// Pre-TB-2 the queue carried `TypedTx` only, stranding `submit_id` at
+/// `submit()`. TB-2 preflight v3 §3.1 (P1-C r1: named struct over tuple).
+#[derive(Debug)]
+pub struct SubmissionEnvelope {
+    pub submit_id: u64,
+    pub tx: TypedTx,
+}
+
 #[derive(Debug)]
 pub enum SubmitError {
     /// Bounded queue saturated (Q1/Q2 resolution: agent retries with backoff).
@@ -233,7 +248,7 @@ pub struct Sequencer {
     /// K1: advances ONLY on commit; first accepted entry gets logical_t=1.
     next_logical_t: AtomicU64,
 
-    queue_tx: tokio::sync::mpsc::Sender<TypedTx>,
+    queue_tx: tokio::sync::mpsc::Sender<SubmissionEnvelope>,
 
     cas: Arc<RwLock<CasStore>>,
     keypair: Arc<Ed25519Keypair>,
@@ -267,7 +282,7 @@ impl Sequencer {
         tool_registry: Arc<ToolRegistry>,
         initial_q: QState,
         queue_capacity: usize,
-    ) -> (Self, tokio::sync::mpsc::Receiver<TypedTx>) {
+    ) -> (Self, tokio::sync::mpsc::Receiver<SubmissionEnvelope>) {
         let (queue_tx, queue_rx) = tokio::sync::mpsc::channel(queue_capacity);
         let seq = Self {
             next_submit_id: AtomicU64::new(1),
@@ -289,8 +304,13 @@ impl Sequencer {
     /// queue saturation returns `Err(SubmitError::QueueFull)` and the agent is
     /// expected to retry with deterministic exponential backoff.
     pub async fn submit(&self, tx: TypedTx) -> Result<SubmissionReceipt, SubmitError> {
+        // TB-2 P1-D r1 concurrency contract: fetch_add precedes try_send, so
+        // submit_id allocation order is NOT receiver arrival order under
+        // multi-producer scheduling. submit_id is always burned (never reused)
+        // even when try_send fails — locked by integration test I2.
         let submit_id = self.next_submit_id.fetch_add(1, Ordering::SeqCst);
-        match self.queue_tx.try_send(tx) {
+        let envelope = SubmissionEnvelope { submit_id, tx };
+        match self.queue_tx.try_send(envelope) {
             Ok(()) => Ok(SubmissionReceipt { submit_id }),
             Err(tokio::sync::mpsc::error::TrySendError::Full(_)) => Err(SubmitError::QueueFull),
             Err(tokio::sync::mpsc::error::TrySendError::Closed(_)) => Err(SubmitError::QueueClosed),
@@ -303,21 +323,42 @@ impl Sequencer {
     /// closed and drained.
     pub async fn run(
         &self,
-        mut queue_rx: tokio::sync::mpsc::Receiver<TypedTx>,
+        mut queue_rx: tokio::sync::mpsc::Receiver<SubmissionEnvelope>,
     ) -> Result<(), SequencerError> {
-        while let Some(tx) = queue_rx.recv().await {
+        while let Some(envelope) = queue_rx.recv().await {
             // Stub state: dispatch returns NotYetImplemented; apply_one
             // bubbles up. We log and continue per spec § 3 v1.2 ordering rule
             // (rejection does not consume a logical_t — see K1).
-            if let Err(e) = self.apply_one(tx) {
+            if let Err(e) = self.apply_one(envelope) {
                 log::debug!("sequencer apply_one rejected: {e}");
             }
         }
         Ok(())
     }
 
-    /// Per-tx critical section. Pure transition + CAS put + sign + commit +
-    /// Q_t mutation. See spec § 3 stages 1-9.
+    /// TRACE_MATRIX FC3-S3: single-step driver companion to `run()` for tests.
+    ///
+    /// Drains at most one envelope from the queue and runs `apply_one` on it.
+    /// Returns `None` if the queue is empty. Production code uses `run()`
+    /// instead. Required by integration tests in `tests/tb_2_runtime_boundary.rs`
+    /// (TB-2 Atom 4+) because `run()` loops until the receiver closes — there
+    /// is no other single-poll API. TB-2 preflight v3 §3.1 (P1-3 r2).
+    pub fn try_apply_one(
+        &self,
+        queue_rx: &mut tokio::sync::mpsc::Receiver<SubmissionEnvelope>,
+    ) -> Option<Result<LedgerEntry, ApplyError>> {
+        match queue_rx.try_recv() {
+            Ok(envelope) => Some(self.apply_one(envelope)),
+            Err(_) => None,
+        }
+    }
+
+    /// TRACE_MATRIX FC3-S3: L4 sequencer per-tx critical section.
+    ///
+    /// Pure transition + CAS put + sign + commit + Q_t mutation. See spec § 3
+    /// stages 1-9. TB-2 Atom 2 changes the input type from `TypedTx` to
+    /// `SubmissionEnvelope` so `submit_id` travels in (charter §1 / P1:6);
+    /// the apply pipeline itself is unchanged in Atom 2.
     ///
     /// **v1.1 C-2 closure (Codex bundle Q-B)**: `next_logical_t` advances
     /// **only on commit success** — the original spec § 3 stage-4
@@ -329,7 +370,15 @@ impl Sequencer {
     /// after commit succeeds`. Single-writer per spec § 5.2.1 makes the
     /// load+store atomic enough; if multi-writer ever lands the AtomicU64
     /// can be upgraded to a `compare_exchange` reservation pattern.
-    pub(crate) fn apply_one(&self, tx: TypedTx) -> Result<LedgerEntry, ApplyError> {
+    pub(crate) fn apply_one(
+        &self,
+        envelope: SubmissionEnvelope,
+    ) -> Result<LedgerEntry, ApplyError> {
+        // TB-2 Atom 2: queue payload is now SubmissionEnvelope so submit_id
+        // travels with the tx through to apply_one. Atoms 4-5 use envelope.submit_id
+        // for the L4.E rejection-evidence path; Atom 2 only plumbs it.
+        let SubmissionEnvelope { submit_id: _, tx } = envelope;
+
         // Stage 1: snapshot Q_t under read lock.
         let q_snapshot = {
             let g = self.q.read().map_err(|_| ApplyError::QStateLockPoisoned)?;
@@ -467,7 +516,7 @@ mod tests {
     fn fresh_sequencer() -> (
         TempDir,
         Sequencer,
-        tokio::sync::mpsc::Receiver<TypedTx>,
+        tokio::sync::mpsc::Receiver<SubmissionEnvelope>,
     ) {
         let tmp = TempDir::new().expect("tempdir");
         let cas = Arc::new(RwLock::new(CasStore::open(tmp.path()).expect("cas open")));
@@ -607,10 +656,69 @@ mod tests {
     fn apply_one_stub_does_not_consume_logical_t() {
         let (_tmp, seq, _rx) = fresh_sequencer();
         let pre = seq.next_logical_t_peek();
-        let err = seq.apply_one(TypedTx::Work(fixture_work_tx())).unwrap_err();
+        let envelope = SubmissionEnvelope {
+            submit_id: 1,
+            tx: TypedTx::Work(fixture_work_tx()),
+        };
+        let err = seq.apply_one(envelope).unwrap_err();
         assert!(matches!(err, ApplyError::Transition(TransitionError::NotYetImplemented)));
         let post = seq.next_logical_t_peek();
         assert_eq!(pre, post, "logical_t MUST NOT advance on rejected apply_one");
+    }
+
+    // TB-2 Atom 2 — U1: apply_one consumes SubmissionEnvelope.
+    //
+    // Signature-level proof that the queue payload type now carries submit_id
+    // through to apply_one. Charter §8 Proof 1 will further verify that the
+    // submit_id materializes in an L4.E row (Atom 4); Atom 2 only locks the
+    // plumbing.
+    #[test]
+    fn apply_one_consumes_submission_envelope() {
+        let (_tmp, seq, _rx) = fresh_sequencer();
+        let envelope = SubmissionEnvelope {
+            submit_id: 12345,
+            tx: TypedTx::Work(fixture_work_tx()),
+        };
+        // Compile-time: apply_one(SubmissionEnvelope) is the canonical signature.
+        // Runtime: stub state still rejects (NotYetImplemented) until Atom 3.
+        let result = seq.apply_one(envelope);
+        assert!(matches!(
+            result,
+            Err(ApplyError::Transition(TransitionError::NotYetImplemented))
+        ));
+    }
+
+    // TB-2 Atom 2 — try_apply_one driver helper (P1-3 r2).
+    //
+    // Drains at most one envelope from the queue; returns None on empty.
+    // Required by integration tests in tests/tb_2_runtime_boundary.rs (Atom 4+)
+    // because Sequencer::run loops until close — there is no single-poll API.
+    #[tokio::test]
+    async fn try_apply_one_drains_one_envelope() {
+        let (_tmp, seq, mut rx) = fresh_sequencer();
+
+        // Empty queue → None.
+        assert!(seq.try_apply_one(&mut rx).is_none());
+
+        // Submit one tx through the public path; try_apply_one should drain it.
+        let receipt = seq
+            .submit(TypedTx::Work(fixture_work_tx()))
+            .await
+            .expect("submit");
+        let drained = seq.try_apply_one(&mut rx).expect("envelope was queued");
+        // Stub state: drained call returns Err(NotYetImplemented). The contract
+        // proven here is "envelope was drained from queue and apply_one ran".
+        assert!(matches!(
+            drained,
+            Err(ApplyError::Transition(TransitionError::NotYetImplemented))
+        ));
+        // Receipt's submit_id is still recoverable; concurrency contract (P1-D)
+        // says it MAY have been allocated as 1, 2, etc. depending on prior
+        // counter state; here pre-state is fresh so it is 1.
+        assert_eq!(receipt.submit_id, 1);
+
+        // After drain, queue is empty again.
+        assert!(seq.try_apply_one(&mut rx).is_none());
     }
 
     // 4. Queue saturation: submit returns QueueFull (Q1/Q2 resolution).
