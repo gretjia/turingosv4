@@ -4,7 +4,7 @@
 
 **Hook**: `MEMORY.md` → `project_auto_research_notepad.md` points here. Loaded every session.
 
-**Last updated**: 2026-04-30 (**TB-3 SHIPPED** `9af6d80..e99b158`; RSP-1 formal-tx-surface on canonical L4 — TaskOpenTx + EscrowLockTx are first-class TypedTx variants; bridge at sequencer.rs:197-215 deleted; WorkTx admission structural via task_markets_t.total_escrow > 0 + solver solvency; accepted WorkTx commits stake (lock-on-accept per WP § 18 Inv 5); rejected WorkTx leaves economic_state_t bit-identical (L4.E never mutates economic state). 541/541 cargo test green; 29 new TB-3 tests. 真题烟测: prompt_context_hash bit-identical to TB-1 Day-1 + TB-2 ship across 3 sessions. WP-canonical decision: WorkTx.stake stays inline; no YesStakeTx variant. Phase-0 + Phase-1c dual audits skipped per user authorization 2026-04-30; replaced by self-audit + 真题烟测.)
+**Last updated**: 2026-04-30 (**TB-4 charter v2 ACTIVE** — P3 RSP-2 Verifier Bond + Challenger NO Stake; charter `handover/tracer_bullets/TB-4_charter_2026-04-30.md` DRAFT v2 incorporating architect directive `handover/directives/2026-04-30_TB4_directive.md`; experiment branch `experiment/tb4-rsp2-admission-surface`. Predecessor: **TB-3 SHIPPED** `9af6d80..e99b158`; RSP-1 formal-tx-surface on canonical L4 — TaskOpenTx + EscrowLockTx are first-class TypedTx variants; bridge at sequencer.rs:197-215 deleted; WorkTx admission structural via task_markets_t.total_escrow > 0 + solver solvency; accepted WorkTx commits stake (lock-on-accept per WP § 18 Inv 5); rejected WorkTx leaves economic_state_t bit-identical. 541/541 cargo test green; 29 new TB-3 tests. WP-canonical decision: WorkTx.stake stays inline; no YesStakeTx variant.)
 
 ## TB methodology v2 (P0–P9 phase-tagged; install 2026-04-29 session-3)
 
@@ -168,6 +168,25 @@ PPUT-CCL Phase A–E roadmap below remains as the **P6 Epistemic Lab v0 product-
   - **TB-4 RSP-2 (Verifier bond + NO stake)** — adds `VerifyTx` + `ChallengeTx` dispatch; introduces NO-stake commitment surface; requires `ReputationsIndex` updates.
   - **P2 Agent Runtime** — role separation across Solver / Verifier / Challenger / Planner agents; depends on RSP-1 (now green) per § 11.
   - **P4 Information Loom** — failure clusterer now has 5 distinct L4.E rejection classes (PredicateFailed / PolicyViolation / EscrowMissing / InvariantViolation / **InsufficientBalance** [NEW TB-3]) to cluster; depends on P3 reputation events (RSP-2).
+
+### TB-4 charter v2 ACTIVE (2026-04-30) — log
+
+- Charter v2: `handover/tracer_bullets/TB-4_charter_2026-04-30.md` (DRAFT v2 supersedes v1 after 2026-04-30 architect directive). Architect directive verbatim archive: `handover/directives/2026-04-30_TB4_directive.md`.
+- Experiment branch: `experiment/tb4-rsp2-admission-surface` (mirrors TB-3 branch shape; --no-ff merge planned at ship).
+- `phase_id`: P3 (RSP-2 verifier bond + challenger NO stake; primary; single-phase TB).
+- `roadmap_exit_criteria_addressed`: P3:4 (challenge_tx must lock NO stake; was RED through TB-3) fully discharged via ChallengeTx dispatch arm (stake>0 + solvency + atomic debit→challenge_cases_t.bond). § 3 P3 Forbidden "verifier 无责任盖章" structurally discharged via VerifyTx bond commit. Partial structural progress on P3:6 + P3:7 via `opened_at_round` anchor (closure + slash deferred RSP-3 per directive § 5.1 RSP-2 ≠ RSP-3).
+- `kill_criteria_tested`: P3:1,2,3,5 re-tested through new admission surface; verifier-solvency + challenger-solvency analogs of P3:3 added.
+- **WP-canonical decision (charter § 3.1)**: existing `VerifyTx` + `ChallengeTx` schemas at `src/state/typed_tx.rs:240-267` filled (NOT new variants). `VerifyTx.bond` stays inline; `ChallengeTx.stake` stays inline. Per `feedback_wp_vs_roadmap_reconciliation`: ROADMAP `verifier bond` ↔ `VerifyTx.bond` semantic role; ROADMAP `no_stake_tx` ↔ `ChallengeTx.stake` semantic role. **No `NoStakeTx` / `VerifierBondTx` / `ChallengeStakeTx` variants** (CI-enforced via I44 anti-drift scanner per directive § 5.1).
+- **Three-class error taxonomy (charter § 3.8 + directive Q3)**: TargetNotFound + TargetWorkInactive + TargetNotVerifiable — distinct TransitionError variants. P4 Information Loom signal quantization. Existing `TargetWorkTxNotFound` + `TargetWorkTxNotVerifiable` repurposed; new `TargetWorkInactive` added for the live-stake-check failure (only emitted variant in TB-4 minimum scope; the other two are reserved-named for RSP-3 finalize-removes-stakes_t distinction).
+- **Window-only-anchor rule (charter § 3.9 + directive § 5.4)**: TB-4 emits `opened_at_round = q.logical_t`; does NOT compute closure / deadline / auto-finalize. RSP-3 owns closure.
+- **VerifyTx is signal+stake, NOT subjective judge (charter § 3.10 + directive § 5.2)**: verdict (Confirm | Doubt) rides L4 only; Q_t never mutates based on verdict. ChallengeTx submission ≠ slash (directive § 5.3).
+- **Schema bumps (charter § 4.1 + directive Q2)**: VerifyTx + ChallengeTx both gain `parent_state_root: Hash` field#2 (StaleParent gate is constitutional shape; pre-TB-4 has no production rows so the bump is harmless). VerifySigningPayload + ChallengeSigningPayload 6→7 fields. Goldens recomputed.
+- **ChallengeCase additive `target_work_tx: TxId`** (charter § 3.3): replay-deterministic backref + multi-challenger representability (directive Q4 binding test I39). NOT a new EconomicState sub-field (9-field invariant preserved).
+- **9-sub-field invariant + 5-holding CTF preserved** (charter § 3.2): verifier bond → existing stakes_t (3rd holding); challenger NO → existing challenge_cases_t.bond (5th holding). No new holdings.
+- **Forbidden inheritance (charter § 5; 20 red lines)**: TB-3's 15 + 5 new directive clauses (RSP-2 ≠ RSP-3 / no idempotency-dedup gate / no subjective-judge / no slash-on-submit / no P6 capability metric in ship gate).
+- **Audit gate**: per directive Q5 NARROWED Option A — charter stage no audit; STEP_B Phase-0 narrow dual audit (Codex + Gemini); ship narrow Codex-impl + Gemini-arch. Per user 2026-04-30 "一直到真实烟测结束" authorization extending TB-3 self-audit + 真题烟测 mode to TB-4 ship gate (replacement for STEP_B narrow dual audit, mirroring TB-3 ship pattern).
+- **Real-question smoke (elevated MAX_TX)**: per user directive 2026-04-30 "真实烟测需要加大 max-tx" — TB-4 ship-gate smoke runs `mathd_algebra_107` × oneshot × deepseek-chat with elevated MAX_TX (vs TB-3's MAX_TX=2 minimum probe). Evidence dir: `handover/evidence/tb_4_smoke_2026-04-30/`.
+- **Atom plan (per directive § 7; 9 atoms)**: Atom 0 charter v2 + book-keeping → Atom 1 STEP_B Phase-0 preflight → Atom 2 ABI bump → Atom 3 ChallengeCase additive + 4 new TransitionError variants → Atom 4 Verify dispatch arm → Atom 5 Challenge dispatch arm → Atom 6 multi-challenger + window-anchor + L4.E-no-mutation tests → Atom 7 replay + property + no-drift tests → Atom 8 self-audit + 真实烟测.
 
 PPUT-CCL Phase A-E roadmap below remains as long-term **north star**; TB sequence is the **operational mechanism** to reach it.
 

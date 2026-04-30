@@ -236,15 +236,22 @@ pub struct WorkTx {
 }
 
 /// TRACE_MATRIX § 1.3 — verifier verdict transaction.
+///
+/// **TB-4 (2026-04-30) schema bump**: `parent_state_root: Hash` added as
+/// field #2 (per TB-4 charter § 4.1 + directive Q2). Constitutional shape
+/// — every accepted-tx variant must carry an explicit parent_state_root
+/// for the StaleParent gate. Pre-TB-4 has no production-accepted VerifyTx
+/// rows (dispatch arm was `NotYetImplemented`), so the wire bump is harmless.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct VerifyTx {
     pub tx_id: TxId,                       //  1
-    pub target_work_tx: TxId,              //  2
-    pub verifier_agent: AgentId,           //  3
-    pub bond: StakeMicroCoin,              //  4
-    pub verdict: VerifyVerdict,            //  5
-    pub signature: AgentSignature,         //  6
-    pub timestamp_logical: u64,            //  7
+    pub parent_state_root: Hash,           //  2  (TB-4 NEW)
+    pub target_work_tx: TxId,              //  3
+    pub verifier_agent: AgentId,           //  4
+    pub bond: StakeMicroCoin,              //  5
+    pub verdict: VerifyVerdict,            //  6
+    pub signature: AgentSignature,         //  7
+    pub timestamp_logical: u64,            //  8
 }
 
 impl Default for VerifyVerdict {
@@ -255,15 +262,20 @@ impl Default for VerifyVerdict {
 
 /// TRACE_MATRIX § 1.3 — challenge transaction (counter-example posted with
 /// stake at risk).
+///
+/// **TB-4 (2026-04-30) schema bump**: `parent_state_root: Hash` added as
+/// field #2 (per TB-4 charter § 4.1 + directive Q2). Same justification as
+/// VerifyTx (constitutional shape; pre-TB-4 has no production-accepted rows).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct ChallengeTx {
     pub tx_id: TxId,                       //  1
-    pub target_work_tx: TxId,              //  2
-    pub challenger_agent: AgentId,         //  3
-    pub stake: StakeMicroCoin,             //  4
-    pub counterexample_cid: Cid,           //  5
-    pub signature: AgentSignature,         //  6
-    pub timestamp_logical: u64,            //  7
+    pub parent_state_root: Hash,           //  2  (TB-4 NEW)
+    pub target_work_tx: TxId,              //  3
+    pub challenger_agent: AgentId,         //  4
+    pub stake: StakeMicroCoin,             //  5
+    pub counterexample_cid: Cid,           //  6
+    pub signature: AgentSignature,         //  7
+    pub timestamp_logical: u64,            //  8
 }
 
 /// TRACE_MATRIX § 1.3 — fact-tx recording reuse of a tool created by a prior
@@ -477,10 +489,11 @@ impl WorkSigningPayload {
     }
 }
 
-/// Agent signing payload for `VerifyTx` (7 fields → 6 fields).
+/// Agent signing payload for `VerifyTx` (8 fields → 7 fields; TB-4 bump).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct VerifySigningPayload {
     pub tx_id: TxId,
+    pub parent_state_root: Hash,           // TB-4 NEW
     pub target_work_tx: TxId,
     pub verifier_agent: AgentId,
     pub bond: StakeMicroCoin,
@@ -494,10 +507,11 @@ impl VerifySigningPayload {
     }
 }
 
-/// Agent signing payload for `ChallengeTx` (7 fields → 6 fields).
+/// Agent signing payload for `ChallengeTx` (8 fields → 7 fields; TB-4 bump).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct ChallengeSigningPayload {
     pub tx_id: TxId,
+    pub parent_state_root: Hash,           // TB-4 NEW
     pub target_work_tx: TxId,
     pub challenger_agent: AgentId,
     pub stake: StakeMicroCoin,
@@ -624,6 +638,7 @@ impl VerifyTx {
     pub fn to_signing_payload(&self) -> VerifySigningPayload {
         VerifySigningPayload {
             tx_id: self.tx_id.clone(),
+            parent_state_root: self.parent_state_root,
             target_work_tx: self.target_work_tx.clone(),
             verifier_agent: self.verifier_agent.clone(),
             bond: self.bond,
@@ -637,6 +652,7 @@ impl ChallengeTx {
     pub fn to_signing_payload(&self) -> ChallengeSigningPayload {
         ChallengeSigningPayload {
             tx_id: self.tx_id.clone(),
+            parent_state_root: self.parent_state_root,
             target_work_tx: self.target_work_tx.clone(),
             challenger_agent: self.challenger_agent.clone(),
             stake: self.stake,
@@ -945,6 +961,33 @@ pub enum TransitionError {
     /// P4 Information Loom needs this discriminator).
     InsufficientBalance,
 
+    // ── TB-4 RSP-2 admission (charter § 3.8 + directive Q3) ────────────────
+    /// `VerifyTx.bond` micro_units == 0. Distinct from `StakeInsufficient`
+    /// (which is reused for ChallengeTx.stake==0 to keep WP economic § 7
+    /// "Verifier 抵押 bond" naming honest). Maps to
+    /// `L4ERejectionClass::PolicyViolation` per charter § 4.5.
+    BondInsufficient,
+    /// VerifyTx / ChallengeTx target_work_tx is not in `q.economic_state_t.
+    /// stakes_t` — i.e., the target was never accepted as a live WorkTx,
+    /// OR has been resolved/finalized in a future RSP-3 path. In TB-4
+    /// minimum scope these two cases collapse since RSP-3 has not yet
+    /// introduced finalize-removes-stakes_t logic. **Distinct from**
+    /// `TargetWorkTxNotFound` (reserved for "tx_id has no L4 row at all"
+    /// — unreachable in TB-4 since dispatch_transition reads Q_t only)
+    /// and `TargetWorkTxNotVerifiable` (reserved for "target tx_id exists
+    /// but is not a WorkTx type" — also unreachable in TB-4 since the
+    /// stakes_t lookup keys by TxId without type checking; TB-3
+    /// `lock-on-accept` only inserts stakes_t entries for accepted WorkTx).
+    /// Maps to `L4ERejectionClass::PolicyViolation` per charter § 4.5.
+    TargetWorkInactive,
+    /// `ChallengeTx.counterexample_cid == Cid::ZERO`. Sanity gate against
+    /// empty challenges — distinct from `MalformedPayload` (which would
+    /// reject earlier at deserialize time) and from `PolicyViolation`
+    /// catch-all. P4 Information Loom needs this discriminator per
+    /// directive Q7. Maps to `L4ERejectionClass::PolicyViolation` per
+    /// charter § 4.5.
+    EmptyCounterexample,
+
     // ── Stub sentinel (CO1.7.5 fills) ──────────────────────────────────────
     /// Stub return value used by CO1.7.5 unimplemented bodies — preserves
     /// sequencer + dispatch correctness without forcing transition logic
@@ -981,6 +1024,9 @@ impl std::fmt::Display for TransitionError {
             Self::TaskAlreadyOpen => write!(f, "task market already open for task_id"),
             Self::TaskNotOpen => write!(f, "no open task market for task_id"),
             Self::InsufficientBalance => write!(f, "balance below required debit amount"),
+            Self::BondInsufficient => write!(f, "verifier bond insufficient"),
+            Self::TargetWorkInactive => write!(f, "target work_tx not in stakes_t (never accepted live, or already resolved)"),
+            Self::EmptyCounterexample => write!(f, "challenge counterexample_cid is empty / zero"),
             Self::NotYetImplemented => write!(f, "transition body not yet implemented (CO1.7.5)"),
         }
     }
@@ -1131,6 +1177,7 @@ mod tests {
     fn fixture_verify_tx() -> VerifyTx {
         VerifyTx {
             tx_id: TxId("verifytx-fixture-01".into()),
+            parent_state_root: h(0x66), // TB-4 NEW
             target_work_tx: TxId("worktx-fixture-01".into()),
             verifier_agent: AgentId("bob".into()),
             bond: StakeMicroCoin::from_micro_units(500_000),
@@ -1143,6 +1190,7 @@ mod tests {
     fn fixture_challenge_tx() -> ChallengeTx {
         ChallengeTx {
             tx_id: TxId("challengetx-fixture-01".into()),
+            parent_state_root: h(0x77), // TB-4 NEW
             target_work_tx: TxId("worktx-fixture-01".into()),
             challenger_agent: AgentId("carol".into()),
             stake: StakeMicroCoin::from_micro_units(2_000_000),
@@ -1648,10 +1696,12 @@ mod tests {
 
     const EXPECTED_SIGNING_HEX_WORK: &str =
         "534d3cf26b7419a2741fa4eb2930b37095f982cc09c75ba2ee34396675a3d685";
+    // TB-4 rotation: VerifyTx + ChallengeTx schema bump (parent_state_root
+    // field#2; signing-payload field count 6→7).
     const EXPECTED_SIGNING_HEX_VERIFY: &str =
-        "7c0f5ff4423bf204d39ff17c5f4d8d65a19861140ed15c59f304b2eda167fb95";
+        "ac244cdbb9e26387df20c101718f40fc909b645b1b98c8627b472215ff5d8696";
     const EXPECTED_SIGNING_HEX_CHALLENGE: &str =
-        "64d190a2576ba0e4a1055a0d98a7763c35f817d914ce9eb2a3a49f614b704aa4";
+        "17c21ac8b6886e3d262925fa0942bc9a8e4e231a21e9767d0a25dd7c1ce2fbb5";
     const EXPECTED_SIGNING_HEX_FINALIZE_REWARD: &str =
         "74fd6bfb730b9d3e9828e4ebf8c3edb24aabb755813a058583949f08fbf5654b";
     const EXPECTED_SIGNING_HEX_TASK_EXPIRE: &str =
@@ -1671,10 +1721,12 @@ mod tests {
 
     const EXPECTED_HEX_WORK: &str =
         "6ec94fa4910ef4cc108ca8f36c202647d2cf60426d13ca0bccf777efb07b4fef";
+    // TB-4 rotation: VerifyTx + ChallengeTx schema bump (parent_state_root
+    // field#2; tx field count 7→8).
     const EXPECTED_HEX_VERIFY: &str =
-        "425b9bd7e99c427b3b7934d45a00dee3d66fc346deed72ec307de01bb3f1db99";
+        "287b3f501f99beaed77374f5ebc2c4df857f544500fdfa62e533d8bed4297b11";
     const EXPECTED_HEX_CHALLENGE: &str =
-        "c90be7617e9aba5a70dc8d625e654c1c712403aaf47e7734497fc0e909e8f788";
+        "d91f933ca5703865bd6bc510615527710ad681d142ad57f681543217ffbbf596";
     const EXPECTED_HEX_REUSE: &str =
         "8bb33232b7c20a63a206f505179b0f64fa50acb41061aaa471ba8e4435593aed";
     const EXPECTED_HEX_FINALIZE_REWARD: &str =
@@ -1810,5 +1862,91 @@ mod tests {
         assert!(s_already.contains("already"));
         assert!(s_not_open.contains("no open"));
         assert!(s_no_balance.contains("balance"));
+    }
+
+    // ── TB-4 Atom 2 — VerifyTx + ChallengeTx schema bump tests (T1-T4) ────
+
+    /// T1 — VerifyTx canonical_digest includes parent_state_root.
+    /// Two fixtures with different parent_state_root MUST produce different
+    /// digests (proves the field is in the canonical-encoded bytes).
+    #[test]
+    fn verify_tx_canonical_digest_includes_parent_state_root() {
+        let mut a = fixture_verify_tx();
+        let mut b = fixture_verify_tx();
+        a.parent_state_root = h(0xAA);
+        b.parent_state_root = h(0xBB);
+        let d_a = a.to_signing_payload().canonical_digest();
+        let d_b = b.to_signing_payload().canonical_digest();
+        assert_ne!(d_a, d_b, "parent_state_root must affect VerifyTx canonical digest");
+    }
+
+    /// T2 — ChallengeTx canonical_digest includes parent_state_root.
+    #[test]
+    fn challenge_tx_canonical_digest_includes_parent_state_root() {
+        let mut a = fixture_challenge_tx();
+        let mut b = fixture_challenge_tx();
+        a.parent_state_root = h(0xCC);
+        b.parent_state_root = h(0xDD);
+        let d_a = a.to_signing_payload().canonical_digest();
+        let d_b = b.to_signing_payload().canonical_digest();
+        assert_ne!(d_a, d_b, "parent_state_root must affect ChallengeTx canonical digest");
+    }
+
+    /// T3 — VerifySigningPayload excludes the signature field.
+    /// Verified by serde JSON shape: 8-field tx → 7-field payload.
+    #[test]
+    fn verify_signing_payload_excludes_signature_field_count_7() {
+        let p = fixture_verify_tx().to_signing_payload();
+        let v = serde_json::to_value(&p).unwrap();
+        let obj = v.as_object().unwrap();
+        assert_eq!(obj.len(), 7, "VerifySigningPayload must have 7 fields (signature excluded), got {}", obj.len());
+        assert!(!obj.contains_key("signature"));
+        assert!(obj.contains_key("parent_state_root"), "TB-4 parent_state_root field missing");
+    }
+
+    /// T4 — ChallengeSigningPayload excludes the signature field.
+    /// 8-field tx → 7-field payload.
+    #[test]
+    fn challenge_signing_payload_excludes_signature_field_count_7() {
+        let p = fixture_challenge_tx().to_signing_payload();
+        let v = serde_json::to_value(&p).unwrap();
+        let obj = v.as_object().unwrap();
+        assert_eq!(obj.len(), 7, "ChallengeSigningPayload must have 7 fields (signature excluded), got {}", obj.len());
+        assert!(!obj.contains_key("signature"));
+        assert!(obj.contains_key("parent_state_root"), "TB-4 parent_state_root field missing");
+    }
+
+    /// T5 — TransitionError Display covers the 3 new TB-4 variants AND the
+    /// 2 reserved-existing variants (TargetWorkTxNotFound +
+    /// TargetWorkTxNotVerifiable) — establishing the directive's Q3 three-class
+    /// taxonomy as fully addressable from Display strings (P4 Information
+    /// Loom signal-quantization requirement per charter § 3.8).
+    #[test]
+    fn transition_error_display_covers_3_new_tb4_variants_plus_reserved() {
+        let s_bond = format!("{}", TransitionError::BondInsufficient);
+        let s_inactive = format!("{}", TransitionError::TargetWorkInactive);
+        let s_empty = format!("{}", TransitionError::EmptyCounterexample);
+        let s_not_found = format!("{}", TransitionError::TargetWorkTxNotFound);
+        let s_not_verif = format!("{}", TransitionError::TargetWorkTxNotVerifiable);
+        // Non-empty + distinct.
+        assert!(!s_bond.is_empty());
+        assert!(!s_inactive.is_empty());
+        assert!(!s_empty.is_empty());
+        assert!(!s_not_found.is_empty());
+        assert!(!s_not_verif.is_empty());
+        assert_ne!(s_bond, s_inactive);
+        assert_ne!(s_inactive, s_empty);
+        assert_ne!(s_bond, s_empty);
+        // Three-class taxonomy (Q3 directive): TargetWorkInactive,
+        // TargetWorkTxNotFound, TargetWorkTxNotVerifiable are distinct.
+        assert_ne!(s_inactive, s_not_found);
+        assert_ne!(s_inactive, s_not_verif);
+        assert_ne!(s_not_found, s_not_verif);
+        // Discriminable via keyword tokens.
+        assert!(s_bond.contains("bond"));
+        assert!(s_inactive.contains("stakes_t"));
+        assert!(s_empty.contains("counterexample"));
+        assert!(s_not_found.contains("not found"));
+        assert!(s_not_verif.contains("verifiable"));
     }
 }
