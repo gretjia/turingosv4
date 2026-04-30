@@ -167,6 +167,24 @@ pub fn challenge_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
     Hash::from_bytes(digest)
 }
 
+/// TRACE_MATRIX TB-5 charter v2 § 4.6 + preflight § 7.1 —
+/// ChallengeResolve-accept state-root domain.
+pub(crate) const CHALLENGE_RESOLVE_DOMAIN_V1: &[u8] =
+    b"turingosv4.challenge_resolve.accept.v1";
+
+/// TRACE_MATRIX TB-5 charter v2 § 4.6 + preflight § 7.1 — interim state-root
+/// mutator on `ChallengeResolveTx` accept (Released or UpheldDeferred).
+/// Mirror of `challenge_accept_state_root`. Public single-item surface for
+/// integration tests to recompute the expected post-accept hash.
+pub fn challenge_resolve_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
+    let mut h = Sha256::new();
+    h.update(CHALLENGE_RESOLVE_DOMAIN_V1);
+    h.update(prev.0);
+    h.update(canonical_encode(tx).expect("TypedTx is canonical-encodable"));
+    let digest: [u8; 32] = h.finalize().into();
+    Hash::from_bytes(digest)
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // TB-2 Atom 4 — rejection-path helpers (preflight v3 §3.5 + §3.7)
 // ────────────────────────────────────────────────────────────────────────────
@@ -213,6 +231,11 @@ fn rejection_class_for(e: &TransitionError) -> L4ERejectionClass {
         TE::EmptyCounterexample => RC::PolicyViolation,
         TE::TargetWorkTxNotFound => RC::PolicyViolation,
         TE::TargetWorkTxNotVerifiable => RC::PolicyViolation,
+        // TB-5 RSP-3.0/3.1 (charter v2 § 4.5):
+        TE::SystemTxForbiddenOnAgentIngress => RC::PolicyViolation,
+        TE::InvalidSystemSignatureLive => RC::PolicyViolation,
+        TE::ChallengeNotFound => RC::PolicyViolation,
+        TE::AlreadyResolved => RC::PolicyViolation,
         // Non-WorkTx-arm variants documented per §3.7 mapping table — should
         // not occur on the WorkTx arm; conservative sentinel preserves L4.E
         // append correctness if a future TB adds new variants.
@@ -244,6 +267,11 @@ fn public_summary_for(e: &TransitionError) -> Option<String> {
         TransitionError::EmptyCounterexample => Some("empty_counterexample".into()),
         TransitionError::TargetWorkTxNotFound => Some("target_work_not_found".into()),
         TransitionError::TargetWorkTxNotVerifiable => Some("target_work_not_verifiable".into()),
+        // TB-5 RSP-3.0/3.1.
+        TransitionError::SystemTxForbiddenOnAgentIngress => Some("system_tx_forbidden_on_agent_ingress".into()),
+        TransitionError::InvalidSystemSignatureLive => Some("invalid_system_signature_live".into()),
+        TransitionError::ChallengeNotFound => Some("challenge_not_found".into()),
+        TransitionError::AlreadyResolved => Some("already_resolved".into()),
         _ => Some("policy_violation".into()),
     }
 }
@@ -594,11 +622,92 @@ pub(crate) fn dispatch_transition(
         TypedTx::FinalizeReward(_) => Err(TransitionError::NotYetImplemented),
         TypedTx::TaskExpire(_) => Err(TransitionError::NotYetImplemented),
         TypedTx::TerminalSummary(_) => Err(TransitionError::NotYetImplemented),
-        // TB-5 Atom 3 stub: ChallengeResolveTx variant exists in TypedTx ABI
-        // but dispatch arm body lands in Atom 5 (Released path) + Atom 6
-        // (UpheldDeferred path). Until those atoms ship, the dispatch path
-        // returns NotYetImplemented per the TB-2 stub-pattern.
-        TypedTx::ChallengeResolve(_) => Err(TransitionError::NotYetImplemented),
+        // ──────────────────────────────────────────────────────────────────
+        // TB-5 Atom 5+6 — ChallengeResolve arm (charter v2 § 4.6 +
+        // preflight § 7.2). Two paths:
+        //   Released:        refund challenger bond + flip status to Released
+        //                    (entry stays; bond field becomes 0 per directive § 7 Q6)
+        //   UpheldDeferred:  marker-only flip to UpheldDeferred; bond preserved
+        //                    for TB-6 RSP-3.2 slash routing (no money movement)
+        // The 5-holding CTF invariant is preserved: Released's bond-refund is
+        // a balanced transfer between holding 5 (challenge_cases.bond) and
+        // holding 1 (balances_t); UpheldDeferred touches no holding term.
+        // ──────────────────────────────────────────────────────────────────
+        TypedTx::ChallengeResolve(resolve) => {
+            // Step 1: parent-root match.
+            if resolve.parent_state_root != q.state_root_t {
+                return Err(TransitionError::StaleParent);
+            }
+            // Step 2: target ChallengeCase exists.
+            let case = match q
+                .economic_state_t
+                .challenge_cases_t
+                .0
+                .get(&resolve.target_challenge_tx_id)
+            {
+                Some(c) => c.clone(),
+                None => return Err(TransitionError::ChallengeNotFound),
+            };
+            // Step 3: idempotency — case must be Open at resolve time.
+            if case.status != crate::state::q_state::ChallengeStatus::Open {
+                return Err(TransitionError::AlreadyResolved);
+            }
+            // Step 4: build q_next.
+            let mut q_next = q.clone();
+            match resolve.resolution {
+                crate::state::typed_tx::ChallengeResolution::Released => {
+                    // Step 4a: refund challenger.
+                    let cur = q
+                        .economic_state_t
+                        .balances_t
+                        .0
+                        .get(&case.challenger)
+                        .copied()
+                        .unwrap_or_else(crate::economy::money::MicroCoin::zero);
+                    let new_bal = cur.micro_units() + case.bond.micro_units();
+                    q_next.economic_state_t.balances_t.0.insert(
+                        case.challenger.clone(),
+                        crate::economy::money::MicroCoin::from_micro_units(new_bal),
+                    );
+                    // Step 4b: zero bond + flip status (entry preserved per
+                    // directive § 7 Q6 — audit trail kept).
+                    let entry = q_next
+                        .economic_state_t
+                        .challenge_cases_t
+                        .0
+                        .get_mut(&resolve.target_challenge_tx_id)
+                        .expect("verified at step 2");
+                    entry.bond = crate::economy::money::MicroCoin::zero();
+                    entry.status = crate::state::q_state::ChallengeStatus::Released;
+                }
+                crate::state::typed_tx::ChallengeResolution::UpheldDeferred => {
+                    // Step 4c: marker only — flip status; bond preserved for
+                    // TB-6 RSP-3.2 slash routing. challenger / opened_at_round
+                    // / target_work_tx untouched.
+                    let entry = q_next
+                        .economic_state_t
+                        .challenge_cases_t
+                        .0
+                        .get_mut(&resolve.target_challenge_tx_id)
+                        .expect("verified at step 2");
+                    entry.status = crate::state::q_state::ChallengeStatus::UpheldDeferred;
+                    // bond stays > 0; intentional.
+                }
+            }
+            // Step 5: monetary invariants.
+            assert_no_post_init_mint(tx, q)
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            assert_total_ctf_conserved(
+                &q.economic_state_t,
+                &q_next.economic_state_t,
+                &[],
+            )
+            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            // Step 6: state_root advance via CHALLENGE_RESOLVE_DOMAIN_V1.
+            q_next.state_root_t = challenge_resolve_accept_state_root(&q.state_root_t, tx);
+
+            Ok((q_next, SignalBundle::default()))
+        }
         // ──────────────────────────────────────────────────────────────────
         // TB-3 Atom 4 — TaskOpen arm (charter § 4.3 + § 3.3 metadata-only).
         // Sponsor opens a task market entry; NO money movement; idempotent.
@@ -2873,7 +2982,13 @@ mod tests {
 
     /// U27: emit_system_tx round-trip — emitted ChallengeResolve survives
     /// apply_one stage 1.5 verification (constructive correctness; pinned
-    /// pubkey matches the runtime keypair's pubkey under epoch).
+    /// pubkey matches the runtime keypair's pubkey under epoch). Atom 5
+    /// updated this expectation: dispatch is now real, so a target that
+    /// does not exist in challenge_cases_t surfaces as ChallengeNotFound
+    /// (NOT NotYetImplemented). The contract the test enforces is
+    /// "stage 1.5 must NOT reject self-signed emit txns" — we assert the
+    /// observed error is downstream of stage 1.5 (any Transition variant
+    /// other than InvalidSystemSignatureLive).
     #[tokio::test]
     async fn stage_1_5_accepts_emit_system_tx_self_signed_challenge_resolve() {
         let (_tmp, seq, mut rx, _rejection) = fresh_sequencer();
@@ -2886,24 +3001,19 @@ mod tests {
             .await
             .expect("emit ok");
 
-        // Drain the queue and apply through the live pipeline. dispatch_transition
-        // for ChallengeResolve currently returns NotYetImplemented (Atom 5
-        // lands the real arm), but importantly stage 1.5 MUST PASS — i.e.
-        // the error we observe is Transition::NotYetImplemented, NOT
-        // InvalidSystemSignatureLive. That's the test: verification crosses.
         let envelope = rx.try_recv().expect("envelope queued");
-        let err = seq.apply_one(envelope).expect_err("Atom 5 implements; today stub");
+        let err = seq.apply_one(envelope).expect_err("target absent → reject");
         match err {
             ApplyError::Transition(TransitionError::InvalidSystemSignatureLive) => {
                 panic!("Self-signed emit_system_tx MUST PASS stage 1.5 verification");
             }
-            ApplyError::Transition(TransitionError::NotYetImplemented) => {
-                // Expected: stage 1.5 passed; dispatch returned NotYetImplemented.
+            ApplyError::Transition(TransitionError::ChallengeNotFound) => {
+                // Expected post-Atom-5: stage 1.5 passed; dispatch's real
+                // arm rejected with ChallengeNotFound (target_challenge_tx_id
+                // not present in challenge_cases_t — no fixture seeded).
             }
             other => {
-                // Any other Transition variant means the signature passed; that's
-                // the contract this test enforces.
-                eprintln!("non-ImplementedYet observed: {other:?} — stage 1.5 still passed");
+                eprintln!("non-ChallengeNotFound observed: {other:?} — stage 1.5 still passed");
             }
         }
     }
@@ -2925,6 +3035,233 @@ mod tests {
                 panic!("stage 1.5 must NOT trip on agent variants");
             }
             _ => {}
+        }
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // TB-5 Atom 5+6 — ChallengeResolve dispatch unit-tests (preflight § 8.2)
+    //
+    // U29-U33: dispatch_transition direct invocation; isolates the dispatch
+    // arm body from the apply_one + queue + signature pipeline.
+    // ────────────────────────────────────────────────────────────────────────
+
+    use crate::state::q_state::ChallengeStatus;
+    use crate::state::typed_tx::ChallengeResolution;
+
+    /// Seed Q with a single Open ChallengeCase so dispatch can resolve it.
+    /// Returns (q, target_challenge_tx_id, challenger_id, bond_amount).
+    fn seed_q_with_open_challenge_case(
+        challenger: &str,
+        challenger_starting_balance_micro: i64,
+        challenge_tx_id: &str,
+        bond_micro: i64,
+        target_work_tx_id: &str,
+    ) -> (QState, TxId, AgentId, MicroCoin) {
+        let mut q = QState::genesis();
+        let challenger_id = AgentId(challenger.into());
+        if challenger_starting_balance_micro > 0 {
+            q.economic_state_t.balances_t.0.insert(
+                challenger_id.clone(),
+                MicroCoin::from_micro_units(challenger_starting_balance_micro),
+            );
+        }
+        let challenge_id = TxId(challenge_tx_id.into());
+        let bond = MicroCoin::from_micro_units(bond_micro);
+        q.economic_state_t.challenge_cases_t.0.insert(
+            challenge_id.clone(),
+            crate::state::q_state::ChallengeCase {
+                challenger: challenger_id.clone(),
+                bond,
+                opened_at_round: 7,
+                target_work_tx: TxId(target_work_tx_id.into()),
+                status: ChallengeStatus::Open,
+            },
+        );
+        (q, challenge_id, challenger_id, bond)
+    }
+
+    fn make_resolve_tx(
+        target: &TxId,
+        resolution: ChallengeResolution,
+        parent_root: Hash,
+    ) -> TypedTx {
+        TypedTx::ChallengeResolve(crate::state::typed_tx::ChallengeResolveTx {
+            tx_id: TxId(format!("crt-disp-{}", target.0)),
+            parent_state_root: parent_root,
+            target_challenge_tx_id: target.clone(),
+            resolution,
+            epoch: SystemEpoch::new(1),
+            timestamp_logical: 1,
+            system_signature: SystemSignature::from_bytes([0u8; 64]),
+        })
+    }
+
+    /// U29 + U30: dispatch_challenge_resolve_released_zeros_bond_and_sets_status
+    /// + dispatch_challenge_resolve_released_refunds_balance.
+    #[test]
+    fn dispatch_challenge_resolve_released_zeros_bond_refunds_balance_and_sets_status() {
+        let preds = PredicateRegistry::new();
+        let tools = ToolRegistry::new();
+        // Pre: challenger had 100 micro pre-challenge; on challenge accept
+        // (in TB-4) bond was already debited from balances_t and credited
+        // to challenge_cases_t. Here we model the post-challenge state:
+        // challenger balance = 100 - 4 = 96; case.bond = 4.
+        let (q, target_id, challenger, bond) = seed_q_with_open_challenge_case(
+            "challenger-u29", 96, "ct-u29", 4, "wt-u29");
+        let pre_balance = q
+            .economic_state_t
+            .balances_t
+            .0
+            .get(&challenger)
+            .copied()
+            .unwrap();
+
+        let tx = make_resolve_tx(&target_id, ChallengeResolution::Released, q.state_root_t);
+        let (q_next, _) = dispatch_transition(&q, &tx, &preds, &tools)
+            .expect("Released path with valid Open case must accept");
+
+        // Refund: challenger balance += bond.
+        let post_balance = q_next
+            .economic_state_t
+            .balances_t
+            .0
+            .get(&challenger)
+            .copied()
+            .unwrap();
+        assert_eq!(
+            post_balance.micro_units(),
+            pre_balance.micro_units() + bond.micro_units(),
+            "Released must refund bond to challenger"
+        );
+
+        // Bond zeroed; status flipped; entry preserved (audit trail).
+        let entry = q_next
+            .economic_state_t
+            .challenge_cases_t
+            .0
+            .get(&target_id)
+            .expect("entry preserved per directive § 7 Q6");
+        assert_eq!(entry.bond.micro_units(), 0, "bond must be zeroed on Released");
+        assert_eq!(entry.status, ChallengeStatus::Released, "status flipped");
+        assert_eq!(entry.challenger, challenger, "challenger preserved");
+        assert_eq!(entry.target_work_tx, TxId("wt-u29".into()), "target preserved");
+
+        // state_root advanced via CHALLENGE_RESOLVE_DOMAIN_V1.
+        let expected = challenge_resolve_accept_state_root(&q.state_root_t, &tx);
+        assert_eq!(q_next.state_root_t, expected,
+            "state_root must match CHALLENGE_RESOLVE_DOMAIN_V1 hash");
+    }
+
+    /// U31: AlreadyResolved gate — second resolve with same target rejects.
+    #[test]
+    fn dispatch_challenge_resolve_released_cannot_run_twice() {
+        let preds = PredicateRegistry::new();
+        let tools = ToolRegistry::new();
+        let (q, target_id, _challenger, _bond) = seed_q_with_open_challenge_case(
+            "challenger-u31", 96, "ct-u31", 4, "wt-u31");
+
+        // First resolve succeeds.
+        let tx1 = make_resolve_tx(&target_id, ChallengeResolution::Released, q.state_root_t);
+        let (q1, _) = dispatch_transition(&q, &tx1, &preds, &tools)
+            .expect("first Released accepts");
+
+        // Second resolve on the same case (now status=Released) MUST reject
+        // with AlreadyResolved.
+        let tx2 = make_resolve_tx(&target_id, ChallengeResolution::Released, q1.state_root_t);
+        let err = dispatch_transition(&q1, &tx2, &preds, &tools)
+            .expect_err("second resolve must reject");
+        match err {
+            TransitionError::AlreadyResolved => {}
+            other => panic!("expected AlreadyResolved, got {other:?}"),
+        }
+    }
+
+    /// U32: ChallengeNotFound — target not in challenge_cases_t.
+    #[test]
+    fn dispatch_challenge_resolve_unknown_target_rejects() {
+        let preds = PredicateRegistry::new();
+        let tools = ToolRegistry::new();
+        let q = QState::genesis(); // empty challenge_cases_t.
+        let tx = make_resolve_tx(
+            &TxId("ct-u32-nonexistent".into()),
+            ChallengeResolution::Released,
+            q.state_root_t,
+        );
+        let err = dispatch_transition(&q, &tx, &preds, &tools)
+            .expect_err("unknown target must reject");
+        match err {
+            TransitionError::ChallengeNotFound => {}
+            other => panic!("expected ChallengeNotFound, got {other:?}"),
+        }
+    }
+
+    /// U33: UpheldDeferred — marker only; bond preserved.
+    #[test]
+    fn dispatch_challenge_resolve_upheld_deferred_marker_only() {
+        let preds = PredicateRegistry::new();
+        let tools = ToolRegistry::new();
+        let (q, target_id, challenger, bond) = seed_q_with_open_challenge_case(
+            "challenger-u33", 96, "ct-u33", 4, "wt-u33");
+        let pre_balance = q
+            .economic_state_t
+            .balances_t
+            .0
+            .get(&challenger)
+            .copied()
+            .unwrap();
+
+        let tx = make_resolve_tx(&target_id, ChallengeResolution::UpheldDeferred, q.state_root_t);
+        let (q_next, _) = dispatch_transition(&q, &tx, &preds, &tools)
+            .expect("UpheldDeferred path with valid Open case must accept");
+
+        // No balance mutation.
+        let post_balance = q_next
+            .economic_state_t
+            .balances_t
+            .0
+            .get(&challenger)
+            .copied()
+            .unwrap();
+        assert_eq!(
+            post_balance.micro_units(),
+            pre_balance.micro_units(),
+            "UpheldDeferred must NOT mutate challenger balance"
+        );
+
+        // Bond preserved; status flipped to UpheldDeferred.
+        let entry = q_next
+            .economic_state_t
+            .challenge_cases_t
+            .0
+            .get(&target_id)
+            .expect("entry preserved");
+        assert_eq!(
+            entry.bond.micro_units(),
+            bond.micro_units(),
+            "UpheldDeferred MUST preserve bond (TB-6 RSP-3.2 slash routing target)"
+        );
+        assert_eq!(entry.status, ChallengeStatus::UpheldDeferred);
+
+        // state_root advanced via CHALLENGE_RESOLVE_DOMAIN_V1.
+        let expected = challenge_resolve_accept_state_root(&q.state_root_t, &tx);
+        assert_eq!(q_next.state_root_t, expected);
+    }
+
+    /// U34: StaleParent — parent_state_root mismatch.
+    #[test]
+    fn dispatch_challenge_resolve_rejects_stale_parent() {
+        let preds = PredicateRegistry::new();
+        let tools = ToolRegistry::new();
+        let (q, target_id, _challenger, _bond) = seed_q_with_open_challenge_case(
+            "challenger-u34", 96, "ct-u34", 4, "wt-u34");
+        // Forge a wrong parent root.
+        let stale_root = Hash::from_bytes([0xde; 32]);
+        let tx = make_resolve_tx(&target_id, ChallengeResolution::Released, stale_root);
+        let err = dispatch_transition(&q, &tx, &preds, &tools)
+            .expect_err("stale parent must reject");
+        match err {
+            TransitionError::StaleParent => {}
+            other => panic!("expected StaleParent, got {other:?}"),
         }
     }
 }

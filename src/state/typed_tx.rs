@@ -1116,6 +1116,16 @@ pub enum TransitionError {
     /// Per directive § 11.4: "system_signature 不能只是 schema 上的字段"
     /// — this dispatch-side guard ensures it is live-verified.
     InvalidSystemSignatureLive,
+    /// TB-5 Atom 5 (charter v2 § 4.6 + preflight § 7.2): the resolution
+    /// targets a `target_challenge_tx_id` that is NOT present in
+    /// `economic_state_t.challenge_cases_t` at apply time. Maps to
+    /// `L4ERejectionClass::PolicyViolation`.
+    ChallengeNotFound,
+    /// TB-5 Atom 5 (charter v2 § 4.6 + preflight § 7.2): the targeted
+    /// `ChallengeCase` is already in a non-Open state (Released or
+    /// UpheldDeferred). Idempotency gate — re-resolution of the same
+    /// case is rejected. Maps to `L4ERejectionClass::PolicyViolation`.
+    AlreadyResolved,
 
     // ── Stub sentinel (CO1.7.5 fills) ──────────────────────────────────────
     /// Stub return value used by CO1.7.5 unimplemented bodies — preserves
@@ -1168,6 +1178,14 @@ impl std::fmt::Display for TransitionError {
                  PinnedSystemPubkeys for current epoch (apply_one stage 1.5 \
                  defense-in-depth; primary guarantee is emit_system_tx \
                  internal signing)"
+            ),
+            Self::ChallengeNotFound => write!(
+                f,
+                "ChallengeResolveTx target_challenge_tx_id not present in challenge_cases_t"
+            ),
+            Self::AlreadyResolved => write!(
+                f,
+                "ChallengeCase already resolved (status != Open); idempotent re-resolution rejected"
             ),
             Self::NotYetImplemented => write!(f, "transition body not yet implemented (CO1.7.5)"),
         }
