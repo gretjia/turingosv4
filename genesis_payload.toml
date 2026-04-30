@@ -207,7 +207,7 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 "src/economy/mod.rs" = "c735f92316bc5982f6ec316026d70179fb783d152b5ded2ed6ccb0775b97f069"
 "src/economy/money.rs" = "857fc6df2aefa4b26fd4b7d22ec06f1105ac3ec4393c6788a8f30370b6d7e776"
 # 2026-04-29 TB-1 Day-2 — P3 RSP-0 monetary guards + escrow vault (NEW files).
-"src/economy/monetary_invariant.rs" = "269909d793adb81b6119f63181b56df51779d5fe3859f9ef71f7a97c424f4f6b"
+"src/economy/monetary_invariant.rs" = "bdcedf6941b368ced72865fd1587887a6b1f68a703dd3f8440d1c7240f63d19f"
 "src/economy/escrow_vault.rs" = "1c9070bd997e4fc2569a09d1f3f6cbeff8e2150a326b191a1043e31976f76626"
 # 2026-04-29 TB-1 Day-3 — P1 GitTape kernel hardening: L4 accepted-only ledger wrapper (NEW file).
 # 2026-04-29 TB-1 Path A++ — load_from_path now calls verify_chain(0,len) before reconstruct_state (P0-4 fail-closed default); +3 tamper-detection unit tests (prev_hash, entry hash, logical_t row deletion).
@@ -225,8 +225,8 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 "src/bottom_white/tools/registry.rs" = "4ed18dcd2a7d7641663ccbdb66c895cb31cd68f4de3bddad8b5d4902633cc387"
 "src/state/mod.rs" = "c36faf0c92c5459801098fd50555b1c078620564011f42a91e97cbc8d916c9bb"
 "src/state/q_state.rs" = "bc20daf7ba48ca35f7ac168dac349fe8d1594042a885b433d07a9e73b6745e6c"
-"src/state/sequencer.rs" = "0436d8abee3ba9b2c16aeceb251376c13c1387da1e5d08e8312e9c9f7369adf1"
-"src/state/typed_tx.rs" = "fc35ff0ce0456c0d17dcd187def156cf03c18246965fcc56da2ce378cbf0aa9a"
+"src/state/sequencer.rs" = "42142c4c2de6a7da4413d5bb5289cf43a7c095a232e598f7c736de3f195ea191"
+"src/state/typed_tx.rs" = "684ac569d14354038315387641dd887c3c607de378dba1e1e3f81ffa2d5600e3"
 "handover/audits/CODEX_SPEC_V13_REAUDIT_2026-04-27.md" = "494600e0d0e01a8d128e46e6272e2d4dd691a3d4089cca02b400ad4e3d9bc94e"
 "handover/whitepapers/TURINGOS_v4_FINAL_BLUEPRINT_2026-04-26.md" = "66de2382248042023538d65fcd04b99cb5f33110727bcebe723ed40cc9c845fa"
 "handover/architect-insights/CO_MEGA_PLAN_v3.1_2026-04-26.md" = "d275597dd83d79c0459093f2b3ee4a7a882a444f1c58a5f1c7688af920c82afc"
@@ -292,10 +292,10 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 "src/bottom_white/ledger/mod.rs" = "4bc96dde116a05ad3cf3114f582e90d7d91c1b42fc6c526d32b121a303e29c23"
 "src/bottom_white/ledger/system_keypair.rs" = "5d3a2e6e247e18992682c69808d02bc7cd129d42c79db1c88f24a4cc975a0843"
 # 2026-04-28 CO1.7 type skeleton (pre-audit) — caught spec § 1 circular-digest bug.
-"src/bottom_white/ledger/transition_ledger.rs" = "5ecf34e4610ccacd69d0120b23ff8066d15e54ccb9c3b55316f5b35c232133e7"
+"src/bottom_white/ledger/transition_ledger.rs" = "29dcf468127d5dfa41c474ea4b1f9a1e17d7aad658c28a7246d7f7dbf7adb6c6"
 # 2026-04-29 TB-1 Day-3 — P1 GitTape kernel hardening: L4.E rejection-evidence ledger (NEW file).
 # 2026-04-29 TB-1 Path A++ — RejectedSubmissionRecord.raw_diagnostic_cid carries #[serde(skip_serializing, default)] type shield (P0-3); +1 unit test asserting raw cid is structurally absent from raw-record serialization.
-"src/bottom_white/ledger/rejection_evidence.rs" = "2532624348f8acd8220a78868370ed0325310f8237742fc6d31eede0c71d3ee7"
+"src/bottom_white/ledger/rejection_evidence.rs" = "617c246507c0ff77913cd36dcb94f9596a441327da1672454c85242e7290630e"
 "tests/system_keypair_generation.rs" = "94d2de928a0f32e71860cbf9125a85a89bb0ded53f6e55c2e16b6370b9dcaa4b"
 "tests/system_keypair_load_and_decrypt.rs" = "460ce3e0b13d523e62b0818285a414a69a91b1afc51c0e0eba7a521674dfaa55"
 "tests/system_keypair_sign_only_from_runner.rs" = "b0874933f684ba47a254728939d30327a0b59392221e51ec4b2207b901bbe65c"

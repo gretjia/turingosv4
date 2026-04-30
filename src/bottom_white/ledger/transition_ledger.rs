@@ -58,6 +58,12 @@ pub enum TxKind {
     FinalizeReward  = 4,
     TaskExpire      = 5,
     TerminalSummary = 6,
+    /// TB-3 RSP-1 formal-tx-surface (charter § 4.1). Sponsor-emitted task
+    /// market registration; metadata-only (no money movement).
+    TaskOpen        = 7,
+    /// TB-3 RSP-1 formal-tx-surface (charter § 4.1). Sponsor-emitted bounty
+    /// funding; the sole RSP-1 path that grows `task_markets_t.total_escrow`.
+    EscrowLock      = 8,
 }
 
 /// TRACE_MATRIX FC2-Append + WP § 5.L4: stored LedgerEntry record (11 fields).

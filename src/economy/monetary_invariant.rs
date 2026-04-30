@@ -218,7 +218,12 @@ pub fn assert_no_post_init_mint(tx: &TypedTx, q: &QState) -> Result<(), Monetary
         | TypedTx::Reuse(_)
         | TypedTx::FinalizeReward(_)
         | TypedTx::TaskExpire(_)
-        | TypedTx::TerminalSummary(_) => Ok(()),
+        | TypedTx::TerminalSummary(_)
+        // TB-3 RSP-1: TaskOpen + EscrowLock are TRANSFERS (or metadata-only),
+        // never mints — their dispatch arms (Atoms 4-5) maintain CTF
+        // conservation via assert_total_ctf_conserved with empty exempt list.
+        | TypedTx::TaskOpen(_)
+        | TypedTx::EscrowLock(_) => Ok(()),
     }
 }
 

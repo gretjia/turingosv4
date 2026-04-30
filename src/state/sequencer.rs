@@ -121,6 +121,15 @@ fn rejection_class_for(e: &TransitionError) -> L4ERejectionClass {
         | TE::SettlementPredicateFailed(_) => RC::PredicateFailed,
         TE::EscrowMissing => RC::EscrowMissing,
         TE::MonetaryInvariantViolation => RC::InvariantViolation,
+        // TB-3 RSP-1 formal-tx-surface mapping (charter § 4.5):
+        TE::TaskAlreadyOpen => RC::PolicyViolation,
+        // TB-3 charter § 4.5: TaskNotOpen reuses EscrowMissing semantically —
+        // "no open task = no funded admission path".
+        TE::TaskNotOpen => RC::EscrowMissing,
+        // TB-3 charter § 4.5 + § 3.5: InsufficientBalance is its OWN L4E class
+        // (do NOT fold into PolicyViolation — P4 Information Loom needs the
+        // discriminator).
+        TE::InsufficientBalance => RC::InsufficientBalance,
         // Non-WorkTx-arm variants documented per §3.7 mapping table — should
         // not occur on the WorkTx arm; conservative sentinel preserves L4.E
         // append correctness if a future TB adds new variants.
@@ -142,6 +151,10 @@ fn public_summary_for(e: &TransitionError) -> Option<String> {
         TransitionError::MonetaryInvariantViolation => Some("monetary_invariant".into()),
         TransitionError::AcceptancePredicateFailed(_)
         | TransitionError::SettlementPredicateFailed(_) => Some("predicate_failed".into()),
+        // TB-3 RSP-1 formal-tx-surface (charter § 4.5).
+        TransitionError::TaskAlreadyOpen => Some("task_already_open".into()),
+        TransitionError::TaskNotOpen => Some("task_not_open".into()),
+        TransitionError::InsufficientBalance => Some("insufficient_balance".into()),
         _ => Some("policy_violation".into()),
     }
 }
@@ -253,6 +266,10 @@ pub(crate) fn dispatch_transition(
         TypedTx::FinalizeReward(_) => Err(TransitionError::NotYetImplemented),
         TypedTx::TaskExpire(_) => Err(TransitionError::NotYetImplemented),
         TypedTx::TerminalSummary(_) => Err(TransitionError::NotYetImplemented),
+        // TB-3 RSP-1 formal-tx-surface stubs (Atom 3 ABI introduction).
+        // Real bodies land in Atom 4 (TaskOpen) + Atom 5 (EscrowLock).
+        TypedTx::TaskOpen(_) => Err(TransitionError::NotYetImplemented),
+        TypedTx::EscrowLock(_) => Err(TransitionError::NotYetImplemented),
     }
 }
 

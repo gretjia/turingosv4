@@ -357,6 +357,60 @@ impl Default for RunOutcome {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// § 5b TB-3 RSP-1 formal-tx-surface — TaskOpenTx + EscrowLockTx
+//
+// Per TB-3 charter v2 (`handover/tracer_bullets/TB-3_charter_2026-04-30.md`):
+// - § 3.1 WP-canonical: only TWO new TypedTx variants are introduced
+//   (TaskOpenTx + EscrowLockTx). NO YesStakeTx variant; YES stake stays
+//   inline in `WorkTx.stake` per WP § 14.1 + § 18 Inv 5.
+// - § 3.3 TaskOpen / EscrowLock semantics: TaskOpen is metadata-only (no
+//   money); EscrowLock is the sole RSP-1 bounty funding path (atomic
+//   balances → escrow transfer + total_escrow cache update).
+// ────────────────────────────────────────────────────────────────────────────
+
+/// TRACE_MATRIX TB-3 charter § 4.1 + WP § 19 RSP-1 — task-open transaction.
+///
+/// Sponsor opens a task market entry; **does not move money** (per charter
+/// § 3.3: TaskOpen is metadata-only). Idempotency: a `TaskOpenTx` for an
+/// already-open `task_id` is rejected with `TransitionError::TaskAlreadyOpen`.
+/// Funding flows through the separate `EscrowLockTx` admission gate; an
+/// opened-but-unfunded task carries `total_escrow == 0` which fails
+/// `WorkTx` admission step 2 (TB-3 charter § 3.1).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct TaskOpenTx {
+    pub tx_id: TxId,                           //  1
+    pub task_id: TaskId,                       //  2 — TaskMarketsIndex key
+    pub parent_state_root: Hash,               //  3
+    pub sponsor_agent: AgentId,                //  4 — becomes TaskMarketEntry.publisher
+    pub verifier_quorum: u32,                  //  5 — RSP-2+ field; default 1
+    pub max_reuse_royalty_fraction_basis_points: u16, //  6 — RSP-5+ cap; default 1000 (10%)
+    pub settlement_rule_hash: Hash,            //  7 — RSP-3/4 hook; opaque hash for TB-3
+    pub signature: AgentSignature,             //  8
+    pub timestamp_logical: u64,                //  9
+}
+
+/// TRACE_MATRIX TB-3 charter § 4.1 + WP § 19 RSP-1 — escrow-lock transaction.
+///
+/// **The sole RSP-1 bounty funding path**. Atomically debits
+/// `balances_t[sponsor]`, credits `escrows_t[tx_id]` with the new
+/// `EscrowEntry { amount, depositor, task_id }`, and updates the
+/// `task_markets_t[task_id]` cache (`total_escrow += amount`,
+/// `escrow_lock_tx_ids.insert(tx_id)`). Per charter § 3.2 the cache is
+/// derived; the source of truth is `escrows_t.amount`. Per § 3 P3 Forbidden
+/// CF-2 ("no ghost liquidity"): every `total_escrow` increase MUST be a
+/// single `EscrowLockTx` with paired balance debit.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct EscrowLockTx {
+    pub tx_id: TxId,                           //  1 — EscrowsIndex key
+    pub task_id: TaskId,                       //  2 — must reference an open task
+    pub parent_state_root: Hash,               //  3
+    pub sponsor_agent: AgentId,                //  4 — depositor (publisher OR third-party top-up)
+    pub amount: MicroCoin,                     //  5 — debited from balances_t[sponsor]
+    pub signature: AgentSignature,             //  6
+    pub timestamp_logical: u64,                //  7
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // § 7 Signing payloads (CO1.1.4-pre1 v1.1 round-1 closure C-1)
 //
 // Each agent-signed and system-emitted typed-tx has a paired `*SigningPayload`
@@ -380,6 +434,8 @@ impl Default for RunOutcome {
 const DOMAIN_AGENT_WORK: &[u8] = b"turingosv4.agent_sig.work.v1";
 const DOMAIN_AGENT_VERIFY: &[u8] = b"turingosv4.agent_sig.verify.v1";
 const DOMAIN_AGENT_CHALLENGE: &[u8] = b"turingosv4.agent_sig.challenge.v1";
+const DOMAIN_AGENT_TASK_OPEN: &[u8] = b"turingosv4.agent_sig.task_open.v1";       // TB-3 RSP-1
+const DOMAIN_AGENT_ESCROW_LOCK: &[u8] = b"turingosv4.agent_sig.escrow_lock.v1";   // TB-3 RSP-1
 const DOMAIN_SYSTEM_FINALIZE_REWARD: &[u8] = b"turingosv4.system_sig.finalize_reward.v1";
 const DOMAIN_SYSTEM_TASK_EXPIRE: &[u8] = b"turingosv4.system_sig.task_expire.v1";
 const DOMAIN_SYSTEM_TERMINAL_SUMMARY: &[u8] = b"turingosv4.system_sig.terminal_summary.v1";
@@ -452,6 +508,42 @@ pub struct ChallengeSigningPayload {
 impl ChallengeSigningPayload {
     pub fn canonical_digest(&self) -> [u8; 32] {
         domain_prefixed_digest(DOMAIN_AGENT_CHALLENGE, self)
+    }
+}
+
+/// TRACE_MATRIX TB-3 — agent signing payload for `TaskOpenTx` (9 fields → 8 fields; signature excluded).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct TaskOpenSigningPayload {
+    pub tx_id: TxId,
+    pub task_id: TaskId,
+    pub parent_state_root: Hash,
+    pub sponsor_agent: AgentId,
+    pub verifier_quorum: u32,
+    pub max_reuse_royalty_fraction_basis_points: u16,
+    pub settlement_rule_hash: Hash,
+    pub timestamp_logical: u64,
+}
+
+impl TaskOpenSigningPayload {
+    pub fn canonical_digest(&self) -> [u8; 32] {
+        domain_prefixed_digest(DOMAIN_AGENT_TASK_OPEN, self)
+    }
+}
+
+/// TRACE_MATRIX TB-3 — agent signing payload for `EscrowLockTx` (7 fields → 6 fields).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct EscrowLockSigningPayload {
+    pub tx_id: TxId,
+    pub task_id: TaskId,
+    pub parent_state_root: Hash,
+    pub sponsor_agent: AgentId,
+    pub amount: MicroCoin,
+    pub timestamp_logical: u64,
+}
+
+impl EscrowLockSigningPayload {
+    pub fn canonical_digest(&self) -> [u8; 32] {
+        domain_prefixed_digest(DOMAIN_AGENT_ESCROW_LOCK, self)
     }
 }
 
@@ -596,14 +688,43 @@ impl TerminalSummaryTx {
     }
 }
 
+impl TaskOpenTx {
+    pub fn to_signing_payload(&self) -> TaskOpenSigningPayload {
+        TaskOpenSigningPayload {
+            tx_id: self.tx_id.clone(),
+            task_id: self.task_id.clone(),
+            parent_state_root: self.parent_state_root,
+            sponsor_agent: self.sponsor_agent.clone(),
+            verifier_quorum: self.verifier_quorum,
+            max_reuse_royalty_fraction_basis_points: self.max_reuse_royalty_fraction_basis_points,
+            settlement_rule_hash: self.settlement_rule_hash,
+            timestamp_logical: self.timestamp_logical,
+        }
+    }
+}
+
+impl EscrowLockTx {
+    pub fn to_signing_payload(&self) -> EscrowLockSigningPayload {
+        EscrowLockSigningPayload {
+            tx_id: self.tx_id.clone(),
+            task_id: self.task_id.clone(),
+            parent_state_root: self.parent_state_root,
+            sponsor_agent: self.sponsor_agent.clone(),
+            amount: self.amount,
+            timestamp_logical: self.timestamp_logical,
+        }
+    }
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // § 6 TypedTx outer enum
 // ────────────────────────────────────────────────────────────────────────────
 
 /// TRACE_MATRIX § 8 dispatch_transition — typed-tx outer enum.
-/// 7 variants (K5 closed: NO `Slash`). All variants are defined in this
-/// module (`state::typed_tx`); v1.1 P3 migrated `TerminalSummaryTx` here
-/// from a 3-field placeholder previously in `system_keypair.rs`.
+/// **9 variants** (K5 closed: NO `Slash`). v1.1 P3 migrated `TerminalSummaryTx`
+/// here. **TB-3 (2026-04-30)**: added `TaskOpen` + `EscrowLock` (RSP-1 formal
+/// surface; charter § 4.1). YES stake stays inline in `WorkTx.stake` per
+/// WP § 14.1 + § 18 Inv 5; no separate `YesStakeTx` variant.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TypedTx {
     Work(WorkTx),
@@ -613,6 +734,8 @@ pub enum TypedTx {
     FinalizeReward(FinalizeRewardTx),
     TaskExpire(TaskExpireTx),
     TerminalSummary(TerminalSummaryTx),
+    TaskOpen(TaskOpenTx),         // TB-3 RSP-1 formal surface
+    EscrowLock(EscrowLockTx),     // TB-3 RSP-1 formal surface
 }
 
 impl TypedTx {
@@ -627,6 +750,8 @@ impl TypedTx {
             Self::FinalizeReward(_) => TxKind::FinalizeReward,
             Self::TaskExpire(_) => TxKind::TaskExpire,
             Self::TerminalSummary(_) => TxKind::TerminalSummary,
+            Self::TaskOpen(_) => TxKind::TaskOpen,
+            Self::EscrowLock(_) => TxKind::EscrowLock,
         }
     }
 }
@@ -684,6 +809,18 @@ impl HasSubmitter for TerminalSummaryTx {
     }
 }
 
+impl HasSubmitter for TaskOpenTx {
+    fn submitter_id(&self) -> Option<AgentId> {
+        Some(self.sponsor_agent.clone())
+    }
+}
+
+impl HasSubmitter for EscrowLockTx {
+    fn submitter_id(&self) -> Option<AgentId> {
+        Some(self.sponsor_agent.clone())
+    }
+}
+
 impl HasSubmitter for TypedTx {
     fn submitter_id(&self) -> Option<AgentId> {
         match self {
@@ -694,6 +831,8 @@ impl HasSubmitter for TypedTx {
             Self::FinalizeReward(t) => t.submitter_id(),
             Self::TaskExpire(t) => t.submitter_id(),
             Self::TerminalSummary(t) => t.submitter_id(),
+            Self::TaskOpen(t) => t.submitter_id(),
+            Self::EscrowLock(t) => t.submitter_id(),
         }
     }
 }
@@ -791,6 +930,21 @@ pub enum TransitionError {
     /// `L4ERejectionClass::InvariantViolation`.
     MonetaryInvariantViolation,
 
+    // ── TB-3 RSP-1 formal-tx-surface (charter § 4.4) ───────────────────────
+    /// `TaskOpenTx` admission idempotency: `task_markets_t` already
+    /// contains an entry for this `task_id`. Maps to
+    /// `L4ERejectionClass::PolicyViolation` per charter § 4.5.
+    TaskAlreadyOpen,
+    /// `EscrowLockTx` / `WorkTx` admission referenced a `task_id` not in
+    /// `task_markets_t`. Maps to `L4ERejectionClass::EscrowMissing` per
+    /// charter § 4.5 (semantic re-use: no open task = no funded admission).
+    TaskNotOpen,
+    /// `EscrowLockTx` sponsor or accepted-`WorkTx` solver lacks balance
+    /// for the requested debit. Maps to `L4ERejectionClass::InsufficientBalance`
+    /// (NEW class per charter § 4.5 — do NOT fold into `PolicyViolation`;
+    /// P4 Information Loom needs this discriminator).
+    InsufficientBalance,
+
     // ── Stub sentinel (CO1.7.5 fills) ──────────────────────────────────────
     /// Stub return value used by CO1.7.5 unimplemented bodies — preserves
     /// sequencer + dispatch correctness without forcing transition logic
@@ -824,6 +978,9 @@ impl std::fmt::Display for TransitionError {
             Self::TerminalSummaryNotApplicable => write!(f, "terminal summary not applicable"),
             Self::EscrowMissing => write!(f, "escrow / task-market entry missing for task_id"),
             Self::MonetaryInvariantViolation => write!(f, "monetary invariant violation (post-init mint or ctf-conservation break)"),
+            Self::TaskAlreadyOpen => write!(f, "task market already open for task_id"),
+            Self::TaskNotOpen => write!(f, "no open task market for task_id"),
+            Self::InsufficientBalance => write!(f, "balance below required debit amount"),
             Self::NotYetImplemented => write!(f, "transition body not yet implemented (CO1.7.5)"),
         }
     }
@@ -1568,5 +1725,90 @@ mod tests {
     fn golden_terminal_summary_tx_digest() {
         let actual = digest_hex(&TypedTx::TerminalSummary(fixture_terminal_summary_tx()));
         assert_eq!(actual, EXPECTED_HEX_TERMINAL_SUMMARY);
+    }
+
+    // ── TB-3 Atom 3 — TaskOpenTx + EscrowLockTx ABI surface tests ────────
+
+    fn fixture_task_open_tx() -> TaskOpenTx {
+        TaskOpenTx {
+            tx_id: TxId("taskopen-fixture-01".into()),
+            task_id: TaskId("task-fixture-01".into()),
+            parent_state_root: h(0x33),
+            sponsor_agent: AgentId("sponsor-alice".into()),
+            verifier_quorum: 1,
+            max_reuse_royalty_fraction_basis_points: 1000,
+            settlement_rule_hash: h(0x44),
+            signature: AgentSignature::from_bytes([0u8; 64]),
+            timestamp_logical: 7,
+        }
+    }
+
+    fn fixture_escrow_lock_tx() -> EscrowLockTx {
+        EscrowLockTx {
+            tx_id: TxId("escrowlock-fixture-01".into()),
+            task_id: TaskId("task-fixture-01".into()),
+            parent_state_root: h(0x55),
+            sponsor_agent: AgentId("sponsor-alice".into()),
+            amount: MicroCoin::from_coin(100).unwrap(),
+            signature: AgentSignature::from_bytes([0u8; 64]),
+            timestamp_logical: 8,
+        }
+    }
+
+    /// T1 — TaskOpen canonical_digest is deterministic.
+    #[test]
+    fn task_open_tx_canonical_digest_is_deterministic() {
+        let a = fixture_task_open_tx().to_signing_payload().canonical_digest();
+        let b = fixture_task_open_tx().to_signing_payload().canonical_digest();
+        assert_eq!(a, b, "canonical_digest must be deterministic");
+    }
+
+    /// T2 — EscrowLock canonical_digest is deterministic.
+    #[test]
+    fn escrow_lock_tx_canonical_digest_is_deterministic() {
+        let a = fixture_escrow_lock_tx().to_signing_payload().canonical_digest();
+        let b = fixture_escrow_lock_tx().to_signing_payload().canonical_digest();
+        assert_eq!(a, b);
+    }
+
+    /// T3 — TaskOpenSigningPayload excludes the signature field.
+    /// Verified by serde JSON shape: 9-field tx → 8-field payload.
+    #[test]
+    fn task_open_signing_payload_excludes_signature() {
+        let p = fixture_task_open_tx().to_signing_payload();
+        let v = serde_json::to_value(&p).unwrap();
+        let obj = v.as_object().unwrap();
+        assert_eq!(obj.len(), 8, "TaskOpenSigningPayload must have 8 fields (signature excluded), got {}", obj.len());
+        assert!(!obj.contains_key("signature"));
+    }
+
+    /// T4 — EscrowLockSigningPayload excludes the signature field.
+    /// 7-field tx → 6-field payload.
+    #[test]
+    fn escrow_lock_signing_payload_excludes_signature() {
+        let p = fixture_escrow_lock_tx().to_signing_payload();
+        let v = serde_json::to_value(&p).unwrap();
+        let obj = v.as_object().unwrap();
+        assert_eq!(obj.len(), 6, "EscrowLockSigningPayload must have 6 fields (signature excluded), got {}", obj.len());
+        assert!(!obj.contains_key("signature"));
+    }
+
+    /// T5 — TransitionError Display covers the 3 new TB-3 variants with
+    /// non-empty distinct strings (P4 Information Loom needs them
+    /// human-readable + discriminable per charter § 4.4).
+    #[test]
+    fn transition_error_display_covers_3_new_variants() {
+        let s_already = format!("{}", TransitionError::TaskAlreadyOpen);
+        let s_not_open = format!("{}", TransitionError::TaskNotOpen);
+        let s_no_balance = format!("{}", TransitionError::InsufficientBalance);
+        assert!(!s_already.is_empty());
+        assert!(!s_not_open.is_empty());
+        assert!(!s_no_balance.is_empty());
+        assert_ne!(s_already, s_not_open);
+        assert_ne!(s_not_open, s_no_balance);
+        assert_ne!(s_already, s_no_balance);
+        assert!(s_already.contains("already"));
+        assert!(s_not_open.contains("no open"));
+        assert!(s_no_balance.contains("balance"));
     }
 }
