@@ -32,7 +32,7 @@ use turingosv4::bottom_white::tools::registry::ToolRegistry;
 use turingosv4::economy::money::{MicroCoin, StakeMicroCoin};
 use turingosv4::state::q_state::{AgentId, EscrowEntry, Hash, QState, TxId};
 use turingosv4::state::sequencer::{
-    worktx_canonical_hash, Sequencer, SubmissionEnvelope, WORKTX_ACCEPT_DOMAIN_V1,
+    worktx_accept_state_root, Sequencer, SubmissionEnvelope,
 };
 use turingosv4::state::typed_tx::{
     AgentSignature, BoolWithProof, PredicateId, PredicateResultsBundle, ReadKey,
@@ -509,8 +509,6 @@ async fn submit_queue_full_consumes_submit_id() {
 
 #[tokio::test]
 async fn runtime_accepted_worktx_advances_state_root_via_domain_v1() {
-    use sha2::{Digest, Sha256};
-
     let task_id = TaskId("task-i9".into());
     let mut h = fresh_harness(seed_q_with_escrow(&task_id));
     let q0 = h.seq.q_snapshot().expect("q0");
@@ -528,22 +526,17 @@ async fn runtime_accepted_worktx_advances_state_root_via_domain_v1() {
         .expect("apply_one accepted");
     let _ = drain;
 
-    // Expected state_root_t per the interim domain-separated hash. Cross-checks
-    // U3 (in-crate) at the integration layer.
-    let expected = {
-        let work_digest = worktx_canonical_hash(&tx);
-        let mut hasher = Sha256::new();
-        hasher.update(WORKTX_ACCEPT_DOMAIN_V1);
-        hasher.update(q0.state_root_t.0);
-        hasher.update(work_digest.0);
-        let bytes: [u8; 32] = hasher.finalize().into();
-        Hash::from_bytes(bytes)
-    };
+    // Expected state_root_t computed via the single public TB-2 helper
+    // worktx_accept_state_root (Phase-1c r1 Codex remediation: prefer one
+    // semantic public surface over re-exporting the WORKTX_ACCEPT_DOMAIN_V1
+    // bytes + worktx_canonical_hash building blocks). Cross-checks U3
+    // (in-crate) at the integration layer.
+    let expected = worktx_accept_state_root(&q0.state_root_t, &tx);
 
     let q1 = h.seq.q_snapshot().expect("q1");
     assert_eq!(
         q1.state_root_t, expected,
-        "state_root_t must advance to WORKTX_ACCEPT_DOMAIN_V1(prev || canonical_hash(tx))"
+        "state_root_t must advance to worktx_accept_state_root(prev, tx)"
     );
     assert_ne!(q1.state_root_t, q0.state_root_t, "state_root_t advanced");
 }

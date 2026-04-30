@@ -54,7 +54,7 @@ use crate::top_white::predicates::registry::PredicateRegistry;
 /// `b"turingosv4.l4_state_root.v1"` used by `AcceptedLedger` at
 /// `src/economy/ledger.rs:350, :357` (TB-1 RSP-0 primitive vs production
 /// state-root mutator separation).
-pub const WORKTX_ACCEPT_DOMAIN_V1: &[u8] = b"turingosv4.worktx.accept.v1";
+pub(crate) const WORKTX_ACCEPT_DOMAIN_V1: &[u8] = b"turingosv4.worktx.accept.v1";
 
 /// TRACE_MATRIX FC3-S3: TB-2 canonical hash helper for a `TypedTx`.
 ///
@@ -62,7 +62,7 @@ pub const WORKTX_ACCEPT_DOMAIN_V1: &[u8] = b"turingosv4.worktx.accept.v1";
 /// `canonical_hash(tx)` is NOT a generic existing helper there — only
 /// `canonical_encode` is — and TB-2 wants a single short call site that
 /// includes domain separation. Codex r2 P1-2.
-pub fn worktx_canonical_hash(tx: &TypedTx) -> Hash {
+pub(crate) fn worktx_canonical_hash(tx: &TypedTx) -> Hash {
     let mut h = Sha256::new();
     h.update(b"turingosv4.worktx.canonical_hash.v1");
     h.update(canonical_encode(tx).expect("TypedTx is canonical-encodable"));
@@ -76,7 +76,15 @@ pub fn worktx_canonical_hash(tx: &TypedTx) -> Hash {
 /// ‖ worktx_canonical_hash(tx).0)`. P5 replaces this with real patch
 /// semantics; until then this is the deterministic monotonic mutation
 /// asserted by U3 / I9.
-fn worktx_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
+///
+/// Public single-item surface for the TB-2 accept-side state-root contract.
+/// Integration tests in `tests/tb_2_runtime_boundary.rs` (e.g. I9) use this
+/// helper directly to recompute the expected post-accept hash WITHOUT
+/// re-implementing the WORKTX_ACCEPT_DOMAIN_V1 / worktx_canonical_hash
+/// composition by hand. The composing primitives stay `pub(crate)` so the
+/// public surface is a single semantic helper, not the raw building blocks
+/// (Phase-1c r1 Codex P0-1 remediation).
+pub fn worktx_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
     let work_digest = worktx_canonical_hash(tx);
     let mut h = Sha256::new();
     h.update(WORKTX_ACCEPT_DOMAIN_V1);
@@ -194,6 +202,7 @@ pub(crate) fn dispatch_transition(
             // wrapping BTreeMap<TxId, _> at q_state.rs:159-161, 222-224 —
             // .contains_key on the wrapper would not compile; .0 reaches the
             // inner map.
+            // TB-2 P0-B option (a): drop this when task_open_tx lands in TB-3
             let lookup_tx_id = TxId(work.task_id.0.clone());
             let has_escrow = q.economic_state_t.escrows_t.0.contains_key(&lookup_tx_id)
                 || q
