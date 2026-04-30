@@ -133,7 +133,11 @@ Reference tx schema:
 9. L4.E 的 raw diagnostic 不进入其他 Agent 的 materialized read view；只允许 `aggregate counter` 或 `public_summary` 作为派生信号出现。
 
 **Forbidden**: 经济结算 / 多组织共识 / 上链 / Go Meta 自动改规则。
-**Current state**: 🟨 partial. CAS exists (`bottom_white/cas/store.rs`), `src/ledger.rs` exists, `src/sdk/tools/wallet.rs` ≈ wtool. **No Agent → PredicateRunner → wtool → Ledger flow is on the evaluator hot path; rejected-tx isolation is untested at runtime; state.db reconstruction from ledger has no test.** Exit criteria 7, 8, 9 are the immediate TB-1 Day-3 targets per re-charter.
+**Current state (2026-04-30, post-TB-1 ship)**: 🟨 primitives green / runtime closure active.
+- Primitives green (TB-1): L4 accepted-only wrapper (`src/economy/ledger.rs::AcceptedLedger`, hash-chain + `verify_chain` + load-time fail-closed verification) + L4.E rejection-evidence ledger (`src/bottom_white/ledger/rejection_evidence.rs`, `submit_id`-keyed, `raw_diagnostic_cid` `#[serde(skip_serializing)]` shielded) + monetary invariant primitives (`assert_no_post_init_mint` / `assert_total_ctf_conserved` over six holding subindexes / `assert_read_is_free`). Tier-A 10/10 PASS @ `ccb01fa`; Codex micro-audit PASS-ALL-THREE.
+- **Runtime closure NOT yet green** (deferred to TB-2): `Sequencer::dispatch_transition` is still `NotYetImplemented` for every `TypedTx` variant; `apply_one` early-returns on transition error without writing L4.E; `submit_id` is allocated at `submit()` but does not travel into `apply_one` (queue payload is `TypedTx`, not `SubmissionEnvelope`); no real `WorkTx` traverses the runtime spine; `economy::ledger::AcceptedLedger` remains a TB-1 primitive wrapper, NOT the production accepted spine.
+- **TB-2 active** (charter `handover/tracer_bullets/TB-2_charter_2026-04-30.md`): closes Exit 5 / 6 / 9 via real `WorkTx` runtime path through `Sequencer::dispatch_transition` + `apply_one` (accepted → canonical `transition_ledger` + `LedgerWriter`; rejected → L4.E with `submit_id`). STEP_B preflight at `handover/ai-direct/TB-2_SEQUENCER_RUNTIME_CLOSURE_2026-04-30.md`.
+- Exit 7 (hash-chain tamper) green via TB-1 Tier-A; Exit 8 (state.db reconstruction from L4) and full Exit 9 (read-view isolation under runtime path) covered by TB-2 acceptance battery + future TBs as needed.
 
 ### P2 Agent Runtime
 
@@ -197,7 +201,11 @@ reward_i = Finalize(
 12. Contribution DAG 能解释每一笔奖金来源。
 
 **Forbidden**: 按 token 数发钱 / 按运行时间发钱 / 按 Agent 自评发钱 / post-init mint / 未过挑战期全额付款 / verifier 无责任盖章 / **per-node automatic liquidity injection**（任务创建时自动注入 YES + NO 做市，等同 post-init mint 化身；post-audit 2026-04-29 CF-2）/ **ghost liquidity without explicit treasury debit**（任何在 task market / risk market / AMM 中出现的流动性必须能在 `economic_state_t` 中追溯到 `balances_t` debit / sponsor escrow / LP stake；不能凭空出现）。
-**Current state**: 🔴 biggest gap. wallet basic; CTF token; on_init rule (Art-Laws.1); no escrow / YES-NO stake / challenge window / Contribution DAG / settlement engine. RSP-N micro-versions (§ 6) discharge this phase one bounded slice at a time.
+**Current state (2026-04-30, post-TB-1 ship)**: 🟨 RSP-0 primitives green / RSP-1 active in TB-2.
+- RSP-0 green (TB-1): `monetary_invariant.rs` enforces `assert_no_post_init_mint` + `assert_total_ctf_conserved` over six holding subindexes (`balances_t` + `escrows_t` + `stakes_t` + `claims_t` + `task_markets_t.bounty` + `challenge_cases_t.bond`; P0-2 promotion confirmed by Codex micro-audit) + `assert_read_is_free`. Escrow scaffolding seeded in `EconomicState`. `docs/economics.md` rewritten to RSP ground rules (Information is Free / Only Investment Costs Money / 1 Coin = 1 YES_E + 1 NO_E / `on_init` unique mint; ghost-liquidity + per-node-auto-injection forbidden).
+- **RSP-1 NOT yet green** (active in TB-2): no production `WorkTx` is gated by stake or escrow at runtime; `task_open_tx` / `escrow_lock_tx` / `yes_stake_tx` are not yet `TypedTx` variants. TB-2 implements minimum RSP-1 admission inline in the `WorkTx` arm of `dispatch_transition` using existing `WorkTx.stake > 0` + seeded `EconomicState` escrow / task-market entries (formal tx variants reserved for TB-3).
+- **`exempt_tx_kinds` red line** (TB-2 hardening): production runtime MUST call `assert_total_ctf_conserved(before, after, &[])`; any non-empty exempt list at runtime is forbidden. `TxKind::FinalizeReward` is transfer (escrow → claims), not mint, and never qualifies.
+- RSP-2 through RSP-7 (verifier bond + challenge_tx NO stake + reputation_update_tx + settlement_engine + contribution_dag + challenge_court) remain RED, sequenced into TB-4 onwards per § 6.
 
 ### P4 Information Loom (Signal Layer)
 
