@@ -479,6 +479,7 @@ pub(crate) fn dispatch_transition(
                     bond: challenge.stake.0,
                     opened_at_round: q.q_t.current_round, // ← § 3.9 anchor
                     target_work_tx: challenge.target_work_tx.clone(),
+                    status: crate::state::q_state::ChallengeStatus::Open, // TB-5 ABI default
                 },
             );
             // Step 7: monetary invariants (debit = credit; challenge_cases.bond
@@ -500,6 +501,11 @@ pub(crate) fn dispatch_transition(
         TypedTx::FinalizeReward(_) => Err(TransitionError::NotYetImplemented),
         TypedTx::TaskExpire(_) => Err(TransitionError::NotYetImplemented),
         TypedTx::TerminalSummary(_) => Err(TransitionError::NotYetImplemented),
+        // TB-5 Atom 3 stub: ChallengeResolveTx variant exists in TypedTx ABI
+        // but dispatch arm body lands in Atom 5 (Released path) + Atom 6
+        // (UpheldDeferred path). Until those atoms ship, the dispatch path
+        // returns NotYetImplemented per the TB-2 stub-pattern.
+        TypedTx::ChallengeResolve(_) => Err(TransitionError::NotYetImplemented),
         // ──────────────────────────────────────────────────────────────────
         // TB-3 Atom 4 — TaskOpen arm (charter § 4.3 + § 3.3 metadata-only).
         // Sponsor opens a task market entry; NO money movement; idempotent.
@@ -885,13 +891,14 @@ impl Sequencer {
     /// at their respective TB landings — each new system variant extends
     /// this list, never bypasses it.
     pub async fn submit_agent_tx(&self, tx: TypedTx) -> Result<SubmissionReceipt, SubmitError> {
-        // TB-5.0 ingress barrier: reject 3 system-emitted variants that
-        // exist at TB-5 Atom 2 HEAD. ChallengeResolve will be added to
-        // this list in Atom 3 when its TypedTx variant lands.
+        // TB-5.0 ingress barrier: reject 4 system-emitted variants
+        // (FinalizeReward / TaskExpire / TerminalSummary added in Atom 2;
+        // ChallengeResolve added in Atom 3 when its TypedTx variant landed).
         match &tx {
             TypedTx::FinalizeReward(_)
             | TypedTx::TaskExpire(_)
-            | TypedTx::TerminalSummary(_) => {
+            | TypedTx::TerminalSummary(_)
+            | TypedTx::ChallengeResolve(_) => {
                 return Err(SubmitError::SystemTxForbiddenOnAgentIngress);
             }
             // Agent-submitted variants — proceed to queue.
@@ -2287,6 +2294,30 @@ mod tests {
         });
         let err = seq.submit_agent_tx(tx).await.unwrap_err();
         assert!(matches!(err, SubmitError::SystemTxForbiddenOnAgentIngress));
+        assert_eq!(seq.next_submit_id_peek(), pre_submit_id);
+    }
+
+    /// U22 — submit_agent_tx rejects ChallengeResolveTx pre-queue
+    /// (TB-5 Atom 3 added the variant; previously was DEFERRED in Atom 2).
+    /// charter v2 § 4.9 + § 5.3 binding.
+    #[tokio::test]
+    async fn submit_agent_tx_rejects_challenge_resolve_pre_queue() {
+        use crate::state::typed_tx::{ChallengeResolveTx, ChallengeResolution};
+        let (_tmp, seq, _rx, _rejection_writer) = fresh_sequencer();
+        let pre_submit_id = seq.next_submit_id_peek();
+        let tx = TypedTx::ChallengeResolve(ChallengeResolveTx {
+            tx_id: TxId("crt-u22".into()),
+            parent_state_root: Hash::ZERO,
+            target_challenge_tx_id: TxId("ct-target".into()),
+            resolution: ChallengeResolution::Released,
+            epoch: SystemEpoch::new(1),
+            timestamp_logical: 1,
+            system_signature: SystemSignature::from_bytes([0u8; 64]),
+        });
+        let err = seq.submit_agent_tx(tx).await.unwrap_err();
+        assert!(matches!(err, SubmitError::SystemTxForbiddenOnAgentIngress),
+            "ChallengeResolveTx must reject on agent ingress per TB-5.0 substrate");
+        // submit_id NOT advanced (pre-queue rejection per Anti-Oreo guarantee).
         assert_eq!(seq.next_submit_id_peek(), pre_submit_id);
     }
 

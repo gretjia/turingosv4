@@ -223,7 +223,14 @@ pub fn assert_no_post_init_mint(tx: &TypedTx, q: &QState) -> Result<(), Monetary
         // never mints — their dispatch arms (Atoms 4-5) maintain CTF
         // conservation via assert_total_ctf_conserved with empty exempt list.
         | TypedTx::TaskOpen(_)
-        | TypedTx::EscrowLock(_) => Ok(()),
+        | TypedTx::EscrowLock(_)
+        // TB-5 RSP-3.0/3.1: ChallengeResolve is system-emitted resolution.
+        // Released path is a TRANSFER (challenger bond → balances; CTF
+        // round-trip closes; charter v2 § 4.6). UpheldDeferred is a marker
+        // only (no economic mutation; charter v2 § 4.7). Neither mints —
+        // CTF conservation enforced by assert_total_ctf_conserved with
+        // empty exempt list at the dispatch site.
+        | TypedTx::ChallengeResolve(_) => Ok(()),
     }
 }
 
@@ -342,7 +349,8 @@ mod tests {
     #[test]
     fn no_post_init_mint_passes_for_all_k5_variants_post_init() {
         use crate::state::typed_tx::{
-            ChallengeTx, FinalizeRewardTx, ReuseTx, TaskExpireTx, TerminalSummaryTx, VerifyTx,
+            ChallengeResolveTx, ChallengeTx, EscrowLockTx, FinalizeRewardTx, ReuseTx,
+            TaskExpireTx, TaskOpenTx, TerminalSummaryTx, VerifyTx,
         };
         let q = post_init_q();
         let cases: Vec<TypedTx> = vec![
@@ -353,10 +361,15 @@ mod tests {
             TypedTx::FinalizeReward(FinalizeRewardTx::default()),
             TypedTx::TaskExpire(TaskExpireTx::default()),
             TypedTx::TerminalSummary(TerminalSummaryTx::default()),
+            // TB-3 additions to fixture (was missing per round-2 Codex Q4 note):
+            TypedTx::TaskOpen(TaskOpenTx::default()),
+            TypedTx::EscrowLock(EscrowLockTx::default()),
+            // TB-5 addition (per Codex round-2 Q4 binding cascade):
+            TypedTx::ChallengeResolve(ChallengeResolveTx::default()),
         ];
         for t in cases {
             assert_eq!(assert_no_post_init_mint(&t, &q), Ok(()),
-                "structural guard must pass for all K5 variants today");
+                "structural guard must pass for all current TypedTx variants");
         }
     }
 

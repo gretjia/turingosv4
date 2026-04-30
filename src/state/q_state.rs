@@ -344,6 +344,14 @@ pub struct ChallengeCasesIndex(pub BTreeMap<TxId, ChallengeCase>);
 ///     index can't express that.
 /// Additive serde-default — pre-TB-4 has no production challenge_cases_t
 /// rows (dispatch arm was NotYetImplemented), so the migration is forward-only.
+///
+/// **TB-5 additive field**: `status: ChallengeStatus` records resolution
+/// outcome without removing the entry from challenge_cases_t. Default = Open.
+/// Released zeros bond + flips status to Released (audit trail preserved per
+/// charter v2 § 7 Q6 — preserves slash-target reference for TB-6).
+/// UpheldDeferred preserves bond + flips status (TB-6 slash routing target).
+/// Additive serde-default — pre-TB-5 serialized rows deserialize with
+/// status = Open.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ChallengeCase {
     #[serde(default)]
@@ -354,6 +362,36 @@ pub struct ChallengeCase {
     pub opened_at_round: u64,
     #[serde(default)]
     pub target_work_tx: TxId,
+    #[serde(default)]
+    pub status: ChallengeStatus,    // ← TB-5 NEW
+}
+
+/// TRACE_MATRIX TB-5 charter v2 § 4.4 — challenge resolution status.
+///
+/// **Single source of truth** per Codex round-2 + round-3 Q4 ruling: defined
+/// HERE (not in typed_tx.rs); sequencer.rs imports via
+/// `use crate::state::q_state::ChallengeStatus;`. The on-wire resolution
+/// outcome enum (`ChallengeResolution { Released | UpheldDeferred }`) lives
+/// in typed_tx.rs alongside ChallengeResolveTx — that carries the system-
+/// emitted resolution outcome on L4. ChallengeStatus is the Q-side case-state
+/// tracker that flips on dispatch.
+///
+/// State machine:
+///   Open → Released         (via accepted ChallengeResolveTx{Released})
+///   Open → UpheldDeferred   (via accepted ChallengeResolveTx{UpheldDeferred})
+///   Released / UpheldDeferred → terminal (AlreadyResolved gate at dispatch)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[repr(u8)]
+pub enum ChallengeStatus {
+    Open = 0,
+    Released = 1,
+    UpheldDeferred = 2,
+}
+
+impl Default for ChallengeStatus {
+    fn default() -> Self {
+        Self::Open
+    }
 }
 
 impl Default for ChallengeCase {
@@ -363,6 +401,7 @@ impl Default for ChallengeCase {
             bond: MicroCoin::zero(),
             opened_at_round: 0,
             target_work_tx: TxId::default(),
+            status: ChallengeStatus::Open,
         }
     }
 }

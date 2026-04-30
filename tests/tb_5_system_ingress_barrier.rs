@@ -36,7 +36,8 @@ use turingosv4::economy::money::MicroCoin;
 use turingosv4::state::q_state::{AgentId, Hash, QState, TaskId, TxId};
 use turingosv4::state::sequencer::{Sequencer, SubmissionEnvelope, SubmitError};
 use turingosv4::state::typed_tx::{
-    ClaimId, FinalizeRewardTx, RunId, RunOutcome, TaskExpireTx, TerminalSummaryTx, TypedTx,
+    ChallengeResolution, ChallengeResolveTx, ClaimId, FinalizeRewardTx, RunId, RunOutcome,
+    TaskExpireTx, TerminalSummaryTx, TypedTx,
 };
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -81,6 +82,40 @@ fn fresh_harness() -> Harness {
         _ledger_writer: writer,
         _rejection_writer: rejection_writer,
     }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// I60 — agent-ingress rejects ChallengeResolveTx via Sequencer::submit_agent_tx
+// (TB-5 Atom 3 — ChallengeResolveTx variant landed; rejection now active.)
+// ────────────────────────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn agent_submit_rejects_challenge_resolve_tx() {
+    let h = fresh_harness();
+    let pre_submit_id = h.seq.next_submit_id_peek();
+
+    let tx = TypedTx::ChallengeResolve(ChallengeResolveTx {
+        tx_id: TxId("crt-i60".into()),
+        parent_state_root: Hash::ZERO,
+        target_challenge_tx_id: TxId("ct-target-i60".into()),
+        resolution: ChallengeResolution::Released,
+        epoch: SystemEpoch::new(1),
+        timestamp_logical: 1,
+        system_signature: SystemSignature::from_bytes([0u8; 64]),
+    });
+
+    let err = h.seq.submit_agent_tx(tx).await.unwrap_err();
+    assert!(
+        matches!(err, SubmitError::SystemTxForbiddenOnAgentIngress),
+        "ChallengeResolveTx must reject on agent ingress per TB-5.0 substrate; got {err:?}"
+    );
+
+    // submit_id NOT advanced — rejection is pre-queue, before fetch_add.
+    // This is the strongest demonstration of the Anti-Oreo agent-ingress
+    // barrier: forging system-emitted variants doesn't even consume system
+    // resources; rejection is structural and free.
+    assert_eq!(h.seq.next_submit_id_peek(), pre_submit_id,
+        "submit_id must not advance on system-tx ingress rejection");
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -182,7 +217,8 @@ async fn legacy_submit_alias_delegates_to_submit_agent_tx_and_rejects_system_var
     let h = fresh_harness();
     let pre_submit_id = h.seq.next_submit_id_peek();
 
-    // Try all 3 system variants through legacy `submit()` alias.
+    // Try all 4 system variants through legacy `submit()` alias.
+    // (ChallengeResolveTx added in TB-5 Atom 3 ABI cascade per charter v2 § 4.9.)
     let cases: Vec<TypedTx> = vec![
         TypedTx::FinalizeReward(FinalizeRewardTx {
             tx_id: TxId("ft-i67".into()),
@@ -212,6 +248,15 @@ async fn legacy_submit_alias_delegates_to_submit_agent_tx_and_rejects_system_var
             total_attempts: 0,
             failure_class_histogram: BTreeMap::new(),
             last_logical_t: 0,
+            system_signature: SystemSignature::from_bytes([0u8; 64]),
+        }),
+        TypedTx::ChallengeResolve(ChallengeResolveTx {
+            tx_id: TxId("crt-i67".into()),
+            parent_state_root: Hash::ZERO,
+            target_challenge_tx_id: TxId("ct-i67".into()),
+            resolution: ChallengeResolution::Released,
+            epoch: SystemEpoch::new(1),
+            timestamp_logical: 1,
             system_signature: SystemSignature::from_bytes([0u8; 64]),
         }),
     ];
