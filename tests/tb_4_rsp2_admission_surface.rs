@@ -773,7 +773,288 @@ async fn challenge_window_anchor_equals_q_current_round_at_accept() {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Suppress unused-import warnings for symbols used by Atom 7 tests.
+// I41 — Replay invariant: cache=truth + CTF conservation across the full
+// 5-tx-kind RSP-2 surface (TaskOpen + EscrowLock + Work + Verify + Challenge)
+// (extends TB-3 I29 to include Verify + Challenge admission)
+// ────────────────────────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn replay_invariants_hold_across_full_rsp2_surface() {
+    let mut h = fresh_harness(genesis_with_balances(&[
+        ("sponsor-i41", 200),
+        ("solver-i41", 20),
+        ("verifier-i41", 10),
+        ("challenger-i41", 10),
+    ]));
+    let initial_total: i64 =
+        200_000_000 + 20_000_000 + 10_000_000 + 10_000_000;
+
+    // Run TaskOpen → EscrowLock → Work → Verify → Challenge.
+    let (target_work_tx_id, parent_after_work) = apply_task_funded_with_accepted_worktx(
+        &mut h, "task-i41", "sponsor-i41", "solver-i41", 50, 5, "i41"
+    ).await;
+
+    // Verify (verifier locks 3 coin bond).
+    let verify_tx = make_verify_tx(
+        &target_work_tx_id.0, "verifier-i41", 3_000_000, parent_after_work, "i41"
+    );
+    h.seq.submit(verify_tx).await.expect("verify submit");
+    let _ = h.seq.try_apply_one(&mut h.rx).expect("verify env").expect("verify accept");
+
+    let parent = h.seq.q_snapshot().expect("post-verify").state_root_t;
+    // Challenge (challenger locks 4 coin NO stake).
+    let chal_tx = make_challenge_tx(
+        &target_work_tx_id.0, "challenger-i41", 4_000_000,
+        Cid([0x99u8; 32]), parent, "i41"
+    );
+    h.seq.submit(chal_tx).await.expect("challenge submit");
+    let _ = h.seq.try_apply_one(&mut h.rx).expect("challenge env").expect("challenge accept");
+
+    // 5 accepted L4 rows: open + lock + work + verify + challenge.
+    assert_eq!(l4_row_count(&h.ledger_writer), 5,
+               "5 accepted L4 rows: TaskOpen + EscrowLock + Work + Verify + Challenge");
+    assert_eq!(l4e_row_count(&h.rejection_writer), 0);
+
+    let post = h.seq.q_snapshot().expect("post");
+
+    // CTF conservation across the full RSP-2 surface (5 holdings).
+    let post_total: i64 = post.economic_state_t.balances_t.0.values().map(|v| v.micro_units()).sum::<i64>()
+        + post.economic_state_t.escrows_t.0.values().map(|e| e.amount.micro_units()).sum::<i64>()
+        + post.economic_state_t.stakes_t.0.values().map(|e| e.amount.micro_units()).sum::<i64>()
+        + post.economic_state_t.claims_t.0.values().map(|c| c.amount.micro_units()).sum::<i64>()
+        + post.economic_state_t.challenge_cases_t.0.values().map(|c| c.bond.micro_units()).sum::<i64>();
+    assert_eq!(post_total, initial_total, "CTF conserved across full RSP-2 surface");
+
+    // Cache=truth (TB-3 charter § 3.2 invariant; preserved).
+    let derived_total_escrow: i64 = post.economic_state_t.escrows_t.0.values()
+        .filter(|e| e.task_id == TaskId("task-i41".into())).map(|e| e.amount.micro_units()).sum();
+    let cached_total_escrow = post.economic_state_t.task_markets_t.0
+        .get(&TaskId("task-i41".into())).map(|m| m.total_escrow.micro_units()).unwrap_or(0);
+    assert_eq!(derived_total_escrow, cached_total_escrow);
+
+    // stakes_t now has 2 entries: target Work (5 coin) + Verify bond (3 coin).
+    assert_eq!(post.economic_state_t.stakes_t.0.len(), 2,
+               "stakes_t holds Work YES stake + Verify bond");
+    let work_stake = post.economic_state_t.stakes_t.0.get(&target_work_tx_id).expect("work stake");
+    assert_eq!(work_stake.amount.micro_units(), 5_000_000);
+    // Find the verifier bond entry.
+    let verify_stake = post.economic_state_t.stakes_t.0.values()
+        .find(|s| s.staker == AgentId("verifier-i41".into())).expect("verify stake");
+    assert_eq!(verify_stake.amount.micro_units(), 3_000_000);
+
+    // challenge_cases_t now has 1 entry.
+    assert_eq!(post.economic_state_t.challenge_cases_t.0.len(), 1,
+               "challenge_cases_t holds the Challenger NO stake");
+    let chal_case = post.economic_state_t.challenge_cases_t.0.values().next().unwrap();
+    assert_eq!(chal_case.bond.micro_units(), 4_000_000);
+    assert_eq!(chal_case.target_work_tx, target_work_tx_id);
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// I42 — Property test (deterministic 10-step sequence including Verify +
+// Challenge). Mirrors TB-3 I30 shape; extended to RSP-2 surface.
+// ────────────────────────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn property_no_sequence_violates_total_ctf_conservation_with_verify_challenge() {
+    let mut h = fresh_harness(genesis_with_balances(&[
+        ("sponsor", 1000),
+        ("solver-A", 50),
+        ("verifier-A", 30),
+        ("challenger-A", 30),
+    ]));
+    let initial_total: i64 = 1000_000_000 + 50_000_000 + 30_000_000 + 30_000_000;
+
+    fn total(h: &Harness) -> i64 {
+        let q = h.seq.q_snapshot().expect("snap");
+        q.economic_state_t.balances_t.0.values().map(|v| v.micro_units()).sum::<i64>()
+            + q.economic_state_t.escrows_t.0.values().map(|e| e.amount.micro_units()).sum::<i64>()
+            + q.economic_state_t.stakes_t.0.values().map(|e| e.amount.micro_units()).sum::<i64>()
+            + q.economic_state_t.claims_t.0.values().map(|c| c.amount.micro_units()).sum::<i64>()
+            + q.economic_state_t.challenge_cases_t.0.values().map(|c| c.bond.micro_units()).sum::<i64>()
+    }
+
+    // Step 1: TaskOpen.
+    let parent = h.seq.q_snapshot().expect("snap").state_root_t;
+    h.seq.submit(make_task_open("task-1", "sponsor", parent, "p1")).await.expect("submit");
+    h.seq.try_apply_one(&mut h.rx).expect("env").expect("accept");
+    assert_eq!(total(&h), initial_total, "step 1 (TaskOpen)");
+
+    // Step 2: EscrowLock 200.
+    let parent = h.seq.q_snapshot().expect("snap").state_root_t;
+    h.seq.submit(make_escrow_lock("task-1", "sponsor", 200_000_000, parent, "p2")).await.expect("submit");
+    h.seq.try_apply_one(&mut h.rx).expect("env").expect("accept");
+    assert_eq!(total(&h), initial_total, "step 2 (EscrowLock)");
+
+    // Step 3: WorkTx (solver-A, 5 stake).
+    let parent = h.seq.q_snapshot().expect("snap").state_root_t;
+    let work = make_worktx("task-1", "solver-A", parent, 5_000_000, "p3");
+    let work_id = match &work { TypedTx::Work(w) => w.tx_id.clone(), _ => unreachable!() };
+    h.seq.submit(work).await.expect("submit");
+    h.seq.try_apply_one(&mut h.rx).expect("env").expect("accept");
+    assert_eq!(total(&h), initial_total, "step 3 (WorkTx)");
+
+    // Step 4: Verify (verifier-A, bond=3, Confirm).
+    let parent = h.seq.q_snapshot().expect("snap").state_root_t;
+    h.seq.submit(make_verify_tx(&work_id.0, "verifier-A", 3_000_000, parent, "p4")).await.expect("submit");
+    h.seq.try_apply_one(&mut h.rx).expect("env").expect("accept");
+    assert_eq!(total(&h), initial_total, "step 4 (VerifyTx)");
+
+    // Step 5: Challenge (challenger-A, stake=4).
+    let parent = h.seq.q_snapshot().expect("snap").state_root_t;
+    h.seq.submit(make_challenge_tx(&work_id.0, "challenger-A", 4_000_000, Cid([0x11; 32]), parent, "p5")).await.expect("submit");
+    h.seq.try_apply_one(&mut h.rx).expect("env").expect("accept");
+    assert_eq!(total(&h), initial_total, "step 5 (ChallengeTx)");
+
+    // Step 6: bad Verify (bond=0) — rejects, no economic mutation.
+    let parent = h.seq.q_snapshot().expect("snap").state_root_t;
+    h.seq.submit(make_verify_tx(&work_id.0, "verifier-A", 0, parent, "p6")).await.expect("submit");
+    let r = h.seq.try_apply_one(&mut h.rx).expect("env");
+    assert!(r.is_err());
+    assert_eq!(total(&h), initial_total, "step 6 (rejected Verify; no mutation)");
+
+    // Step 7: bad Challenge (counterex zero) — rejects, no economic mutation.
+    let parent = h.seq.q_snapshot().expect("snap").state_root_t;
+    h.seq.submit(make_challenge_tx(&work_id.0, "challenger-A", 2_000_000, Cid([0u8; 32]), parent, "p7")).await.expect("submit");
+    let r = h.seq.try_apply_one(&mut h.rx).expect("env");
+    assert!(r.is_err());
+    assert_eq!(total(&h), initial_total, "step 7 (rejected Challenge; no mutation)");
+
+    // Step 8: SECOND ChallengeTx by SAME challenger (different counterex_cid)
+    // against same target — multi-challenger representability (directive Q4).
+    let parent = h.seq.q_snapshot().expect("snap").state_root_t;
+    h.seq.submit(make_challenge_tx(&work_id.0, "challenger-A", 2_000_000, Cid([0x22; 32]), parent, "p8")).await.expect("submit");
+    h.seq.try_apply_one(&mut h.rx).expect("env").expect("accept");
+    assert_eq!(total(&h), initial_total, "step 8 (second ChallengeTx by same challenger)");
+
+    // Step 9: SECOND VerifyTx by SAME verifier (different verdict) — Q1 DEFER
+    // (no idempotency dedup; verifier may submit Doubt then Confirm with
+    // different evidence in real flows).
+    let parent = h.seq.q_snapshot().expect("snap").state_root_t;
+    h.seq.submit(make_verify_tx(&work_id.0, "verifier-A", 2_000_000, parent, "p9")).await.expect("submit");
+    h.seq.try_apply_one(&mut h.rx).expect("env").expect("accept");
+    assert_eq!(total(&h), initial_total, "step 9 (second VerifyTx by same verifier)");
+
+    // Step 10: Verify against inactive target — rejects.
+    let parent = h.seq.q_snapshot().expect("snap").state_root_t;
+    h.seq.submit(make_verify_tx("nonexistent-target", "verifier-A", 1_000_000, parent, "p10")).await.expect("submit");
+    let r = h.seq.try_apply_one(&mut h.rx).expect("env");
+    assert!(r.is_err());
+    assert_eq!(total(&h), initial_total, "step 10 (TargetWorkInactive; no mutation)");
+
+    // Final state: 5 holdings, CTF still conserved.
+    let post = h.seq.q_snapshot().expect("post");
+    // 1 work YES stake + 2 verify bonds (steps 4 + 9) = 3 stakes_t entries.
+    assert_eq!(post.economic_state_t.stakes_t.0.len(), 3);
+    // 2 challenge cases (steps 5 + 8).
+    assert_eq!(post.economic_state_t.challenge_cases_t.0.len(), 2);
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// I44 — Anti-drift CI: no NoStakeTx / VerifierBondTx / ChallengeStakeTx /
+// VerifierStakeTx variant in src/ (DIRECTIVE § 5.1 + CHARTER § 5 #5)
+// Rust-native scanner; mirrors tb_3_bridge_deletion_invariant.rs shape.
+// ────────────────────────────────────────────────────────────────────────────
+
+const FORBIDDEN_VARIANTS: &[&str] = &[
+    "NoStakeTx",
+    "VerifierBondTx",
+    "ChallengeStakeTx",
+    "VerifierStakeTx",
+];
+
+fn collect_rs_files(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                collect_rs_files(&path, out);
+            } else if path.extension().and_then(|s| s.to_str()) == Some("rs") {
+                out.push(path);
+            }
+        }
+    }
+}
+
+fn project_root() -> std::path::PathBuf {
+    std::path::PathBuf::from(
+        std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR")
+    )
+}
+
+#[test]
+fn no_no_stake_tx_or_verifier_bond_tx_variant_in_src() {
+    let root = project_root();
+    let src_dir = root.join("src");
+    assert!(src_dir.exists() && src_dir.is_dir(),
+        "src/ must exist at {:?}", src_dir);
+
+    let mut files = Vec::new();
+    collect_rs_files(&src_dir, &mut files);
+    assert!(!files.is_empty(), "src/ must contain Rust files (sanity)");
+
+    let mut hits: Vec<String> = Vec::new();
+    for path in &files {
+        let content = std::fs::read_to_string(path).unwrap_or_default();
+        for (lineno, line) in content.lines().enumerate() {
+            // Skip comments — directive § 5.1 forbids the variants in code,
+            // not in doc-comments that might historically reference them.
+            let trimmed = line.trim_start();
+            if trimmed.starts_with("//") || trimmed.starts_with("///") || trimmed.starts_with("//!") {
+                continue;
+            }
+            for forbidden in FORBIDDEN_VARIANTS {
+                if line.contains(forbidden) {
+                    hits.push(format!("{}:{} | {} | matched: {}",
+                        path.display(), lineno + 1, line.trim(), forbidden));
+                }
+            }
+        }
+    }
+
+    assert!(
+        hits.is_empty(),
+        "TB-4 directive § 5.1 violated — forbidden TypedTx variant name appears in src/:\n{}",
+        hits.join("\n")
+    );
+}
+
+/// Positive control: scanner DOES find a forbidden literal when it is present.
+/// Sanity-checks that path traversal + line iteration are working.
+#[test]
+fn no_drift_scanner_positive_control_finds_known_match() {
+    use std::io::Write;
+    let tmp = TempDir::new().expect("tempdir");
+    let test_file = tmp.path().join("dummy.rs");
+    let content = format!(
+        "// known-clean test snippet (header comment skipped)\nlet x = struct {} {{}};\n",
+        FORBIDDEN_VARIANTS[0]
+    );
+    let mut f = std::fs::File::create(&test_file).expect("create");
+    f.write_all(content.as_bytes()).expect("write");
+
+    let mut files = Vec::new();
+    collect_rs_files(tmp.path(), &mut files);
+    let mut hits = 0;
+    for path in &files {
+        let content = std::fs::read_to_string(path).unwrap_or_default();
+        for line in content.lines() {
+            let trimmed = line.trim_start();
+            if trimmed.starts_with("//") || trimmed.starts_with("///") || trimmed.starts_with("//!") {
+                continue;
+            }
+            for forbidden in FORBIDDEN_VARIANTS {
+                if line.contains(forbidden) {
+                    hits += 1;
+                }
+            }
+        }
+    }
+    assert_eq!(hits, 1, "scanner must find exactly 1 hit in positive-control fixture");
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Suppress unused-import warnings.
 // ────────────────────────────────────────────────────────────────────────────
 
 #[allow(dead_code)]
