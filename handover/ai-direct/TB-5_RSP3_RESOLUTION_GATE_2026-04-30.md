@@ -37,16 +37,19 @@ This preflight pins **exact line refs against main HEAD `0b76307`** so that Phas
 
 ```text
 Touched files (4):
-  src/state/typed_tx.rs                       — +ChallengeResolveTx struct + 2 new enums
-                                                  (ChallengeResolution + ChallengeStatus) +
+  src/state/typed_tx.rs                       — +ChallengeResolveTx struct +
+                                                  ChallengeResolution enum (NOT ChallengeStatus —
+                                                  that lives in q_state.rs per Q4 amendment) +
                                                   signing payload + DOMAIN_SYSTEM_CHALLENGE_RESOLVE
                                                   + 4 new TransitionError variants + Display arms +
                                                   golden digests + HasSubmitter impl + TypedTx
                                                   variant + tx_kind arm
   src/state/q_state.rs                        — ChallengeCase: +status: ChallengeStatus
                                                   (additive serde-default; default=Open) +
-                                                  ChallengeStatus enum re-import or local def
-                                                  + Default impl extension
+                                                  ChallengeStatus enum DEFINED HERE (single
+                                                  source of truth; sequencer.rs imports from
+                                                  q_state per Q4 amendment) + Default impl
+                                                  extension
   src/state/sequencer.rs                      — submit_agent_tx() + emit_system_tx() API split
                                                   + ingress classification for system-vs-agent
                                                     variants + SystemTxForbiddenOnAgentIngress
@@ -68,8 +71,15 @@ Touched files (4):
   src/bottom_white/ledger/transition_ledger.rs  — TxKind +ChallengeResolve variant; cascading match
                                                   audits across all consumers
 
+Cascade-only touch (per Codex round-2 Q4 amendment; binding):
+  src/economy/monetary_invariant.rs            — MINIMAL CASCADE: add
+                                                  TypedTx::ChallengeResolve(_) => Ok(()) arm
+                                                  to assert_no_post_init_mint exhaustive match
+                                                  (line 214-227); update K5-test fixture at
+                                                  line 348-356 to include new variant. 5-holding
+                                                  count UNCHANGED. total_supply_micro UNCHANGED.
+
 Untouched (Phase-1c verifies absence of touch):
-  src/economy/monetary_invariant.rs            (5-holding count stays)
   src/bottom_white/ledger/rejection_evidence.rs  (no new RejectionClass variants)
   src/bottom_white/cas/*                          (no schema changes)
   src/kernel.rs / src/bus.rs / src/sdk/tools/wallet.rs   (no edits)
@@ -374,7 +384,7 @@ fn build_signed_system_tx(
 }
 ```
 
-### §4.5 Live signature verification call site (apply_one defense-in-depth)
+### §4.5 Live signature verification call site (apply_one defense-in-depth) — AMENDED post Codex round-2 Q2 CHALLENGE
 
 Per charter v2 § 4.3 + § 6 #28:
 
@@ -382,25 +392,124 @@ Per charter v2 § 4.3 + § 6 #28:
 
 The construction guarantee from § 3.3 covers ingress; the apply_one verification is **defense-in-depth** for any path that bypasses emit_system_tx (currently: none; future: hardened against accidental queue-bypass).
 
-`apply_one` (sequencer.rs:929+) gains a new stage between Stage 1 (snapshot) and Stage 2 (dispatch):
+**Round-2 Codex Q2 amendment (binding)**:
+- Stage 1.5 verification MUST be **exhaustive per-system-variant**, not just `ChallengeResolveSigning`. The four current system variants (`ChallengeResolve`, `FinalizeReward`, `TaskExpire`, `TerminalSummary`) each have their own `CanonicalMessage` arm; each must be matched correctly.
+- Stage 1.5 verification failures MUST route through the **same L4.E rejection-evidence path** that dispatch failures use (`apply_one` lines 956-1024). Direct return without recording is forbidden — that bypass would contradict charter § 4.9 + this preflight § 4.5's own L4.E routing claim.
+
+**Implementation: factor a `record_rejection` helper out of existing `apply_one` at `src/state/sequencer.rs:945-1024`** (the rejection-writer arm of the dispatch match). Both stage 1.5 sig failures AND dispatch failures call this helper before returning `ApplyError::Transition`.
 
 ```rust
-// Stage 1.5 (TB-5 NEW): if tx is system-emitted, verify system_signature
-// against pinned pubkeys for the current epoch. Fail-closed on mismatch.
-if let Some(digest) = system_signature_digest_of(&tx) {
-    let sig = system_signature_of(&tx).expect("system variants carry signature");
-    let epoch = system_epoch_of(&tx).expect("system variants carry epoch");
-    let message = CanonicalMessage::ChallengeResolveSigning(digest);  // or per-variant arm
+// New helper extracted from apply_one rejection arm (sequencer.rs:945-1024).
+// Records L4.E rejection evidence: CAS-puts canonical-encoded tx payload +
+// diagnostic + appends RejectedSubmissionRecord. K1: NO logical_t advance,
+// NO state_root_t advance. Same shape as the existing inline rejection arm.
+fn record_rejection(
+    &self,
+    submit_id: u64,
+    q_snapshot: &QState,
+    tx: &TypedTx,
+    transition_err: &TransitionError,
+) -> Result<(), ApplyError> {
+    let payload_bytes = canonical_encode(tx)
+        .map_err(|e| ApplyError::PayloadEncode(e.to_string()))?;
+    let creator = format!("sequencer.rejection_path.epoch-{}", self.epoch.get());
+    let rejection_logical_t = self.next_logical_t.load(Ordering::SeqCst);
+    let tx_payload_cid = {
+        let mut cas_w = self.cas.write().map_err(|_| ApplyError::QStateLockPoisoned)?;
+        cas_w.put(&payload_bytes, ObjectType::ProposalPayload, &creator,
+                  rejection_logical_t, Some("TypedTx.v1".to_string()))?
+    };
+    let diag_bytes = transition_err.to_string().into_bytes();
+    let raw_diagnostic_cid = {
+        let mut cas_w = self.cas.write().map_err(|_| ApplyError::QStateLockPoisoned)?;
+        Some(cas_w.put(&diag_bytes, ObjectType::Generic, &creator,
+                       rejection_logical_t, Some("TransitionError.display.v1".to_string()))?)
+    };
+    let agent_id = tx.submitter_id()
+        .unwrap_or_else(|| AgentId(SYSTEM_AGENT_ID_STR.to_string()));
+    {
+        let mut writer_w = self.rejection_writer.write()
+            .map_err(|_| ApplyError::QStateLockPoisoned)?;
+        writer_w.append_rejected(
+            submit_id,
+            q_snapshot.state_root_t,
+            agent_id,
+            tx.tx_kind(),
+            tx_payload_cid,
+            rejection_class_for(transition_err),
+            raw_diagnostic_cid,
+            public_summary_for(transition_err),
+        );
+    }
+    Ok(())
+}
+```
+
+```rust
+// Stage 1.5 (TB-5 NEW; exhaustive per-variant): if tx is system-emitted,
+// verify system_signature against pinned pubkeys for the current epoch.
+// Fail-closed on mismatch — record L4.E + return ApplyError::Transition.
+let system_check = system_message_for_verification(&tx);  // exhaustive match below
+if let Some((message, sig, epoch)) = system_check {
     let valid = verify_system_signature(&sig, &message, epoch, &self.pinned_pubkeys);
     if !valid {
-        return Err(ApplyError::Transition(TransitionError::InvalidSystemSignatureLive));
+        let transition_err = TransitionError::InvalidSystemSignatureLive;
+        // Route through SAME L4.E path as dispatch rejections per Q2 amendment.
+        self.record_rejection(submit_id, &q_snapshot, &tx, &transition_err)?;
+        return Err(ApplyError::Transition(transition_err));
     }
 }
 ```
 
-`system_signature_digest_of` / `system_signature_of` / `system_epoch_of` are tiny helper fns that pattern-match on TypedTx and extract the relevant fields for system variants; return `None` for agent variants (which skip this stage).
+**Exhaustive per-variant helper** (returns `None` for agent variants which skip this stage; returns `Some((CanonicalMessage, SystemSignature, SystemEpoch))` for each system variant matched to its OWN signing-payload digest):
 
-The TransitionError::InvalidSystemSignatureLive routes through L4.E rejection-evidence with `PolicyViolation` class.
+```rust
+fn system_message_for_verification(
+    tx: &TypedTx,
+) -> Option<(CanonicalMessage, SystemSignature, SystemEpoch)> {
+    match tx {
+        TypedTx::ChallengeResolve(t) => {
+            let digest = t.to_signing_payload().canonical_digest();
+            Some((CanonicalMessage::ChallengeResolveSigning(digest),
+                  t.system_signature, t.epoch))
+        }
+        TypedTx::FinalizeReward(t) => {
+            let digest = t.to_signing_payload().canonical_digest();
+            Some((CanonicalMessage::FinalizeRewardSigning(digest),
+                  t.system_signature, t.epoch))
+        }
+        TypedTx::TaskExpire(t) => {
+            let digest = t.to_signing_payload().canonical_digest();
+            Some((CanonicalMessage::TaskExpireSigning(digest),
+                  t.system_signature, t.epoch))
+        }
+        TypedTx::TerminalSummary(t) => {
+            // TerminalSummaryTx schema lacks an `epoch` field per current src
+            // (typed_tx.rs:341-351); use SystemEpoch::new(0) sentinel + verify
+            // path tolerates this for now. Atom-3 implementation MAY revise
+            // by reading epoch from the LedgerEntry envelope context if
+            // available, but TB-5 minimum scope keeps the verification
+            // call shape uniform across the four system variants.
+            let digest = t.to_signing_payload().canonical_digest();
+            Some((CanonicalMessage::TerminalSummarySigning(digest),
+                  t.system_signature, SystemEpoch::new(0)))
+        }
+        // All agent-submitted variants — skip this stage.
+        TypedTx::Work(_) | TypedTx::Verify(_) | TypedTx::Challenge(_)
+        | TypedTx::Reuse(_) | TypedTx::TaskOpen(_) | TypedTx::EscrowLock(_) => None,
+    }
+}
+```
+
+The `TransitionError::InvalidSystemSignatureLive` is added to the `rejection_class_for` table at sequencer.rs:154 mapping to `L4ERejectionClass::PolicyViolation`, and to `public_summary_for` returning `Some("invalid_system_signature_live".into())`.
+
+**Tests required (extends U28/I66 per Codex round-2 Q2 remediation)**:
+- U28: `apply_one_rejects_system_variant_with_zero_signature_via_pinned_pubkey_check` — verify the L4.E row IS appended (not just Q-mutation absent).
+- I66: `apply_one_rejects_zero_signature_system_variant_with_pinned_pubkey_check` — full integration: forge an envelope (test-internal queue-bypass harness) with `system_signature: SystemSignature::from_bytes([0u8; 64])` and verify L4.E row count grows by 1 + economic_state bit-identical pre/post.
+- **NEW per-variant zero-signature coverage** (added per Q2 remediation): for each of `FinalizeRewardTx`, `TaskExpireTx`, `TerminalSummaryTx`, exercise the same scenario with their respective zero-signature envelopes; verify L4.E recording + class mapping. Test names:
+  - `apply_one_rejects_zero_signature_finalize_reward`
+  - `apply_one_rejects_zero_signature_task_expire`
+  - `apply_one_rejects_zero_signature_terminal_summary`
 
 ---
 
@@ -547,9 +656,13 @@ pub struct ChallengeCase {
 }
 ```
 
-### §6.2 Atom-5 shape
+### §6.2 Atom-5 shape — AMENDED post Codex round-2 Q4 CHALLENGE
+
+**Single-source-of-truth decision (binding per Q4 amendment)**: `ChallengeStatus` is defined ONLY in `src/state/q_state.rs` next to `ChallengeCase`. `src/state/sequencer.rs` and any tests that need it import via `use crate::state::q_state::ChallengeStatus;`. **No duplicate definition** in `typed_tx.rs` or elsewhere — preflight § 2 amended to reflect this.
 
 ```rust
+// src/state/q_state.rs — single definition site for ChallengeStatus (TB-5 Q4 amendment).
+
 /// TRACE_MATRIX TB-5 charter v2 § 4.4 + § 4.6 + § 4.7 — challenge case shape.
 ///
 /// **TB-5 additive field**: `status: ChallengeStatus` records the resolution
@@ -566,6 +679,9 @@ pub struct ChallengeCase {
     #[serde(default)] pub status: ChallengeStatus,    // ← TB-5 NEW
 }
 
+/// TRACE_MATRIX TB-5 charter v2 § 4.4 — challenge resolution status.
+/// Lives in q_state.rs (single source of truth per Q4 amendment).
+/// Imported by sequencer.rs as `use crate::state::q_state::ChallengeStatus;`
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[repr(u8)]
 pub enum ChallengeStatus {
@@ -592,6 +708,36 @@ impl Default for ChallengeCase {
 The 9-sub-field `EconomicState` invariant is preserved (no new sub-fields; only entry-shape additive, mirroring TB-4 ChallengeCase +target_work_tx pattern).
 
 The 5-holding CTF invariant is preserved: `challenge_cases.bond` continues to be summed; on Released the entry's `bond` becomes 0 (entry stays; contributes 0 to CTF).
+
+### §6.3 Required `monetary_invariant.rs` cascade (per Codex round-2 Q4 CHALLENGE)
+
+Adding `TypedTx::ChallengeResolve` (10th variant) to the `TypedTx` enum **breaks** the exhaustive match in `assert_no_post_init_mint` at `src/economy/monetary_invariant.rs:214-227`. The minimum cascade required:
+
+```rust
+// src/economy/monetary_invariant.rs:214-227 — add ChallengeResolve arm.
+pub fn assert_no_post_init_mint(tx: &TypedTx, q: &QState) -> Result<(), MonetaryError> {
+    let is_post_init = q.state_root_t != Hash::ZERO;
+    if !is_post_init {
+        return Ok(());
+    }
+    match tx {
+        TypedTx::Work(_)
+        | TypedTx::Verify(_)
+        | TypedTx::Challenge(_)
+        | TypedTx::Reuse(_)
+        | TypedTx::FinalizeReward(_)
+        | TypedTx::TaskExpire(_)
+        | TypedTx::TerminalSummary(_)
+        | TypedTx::TaskOpen(_)
+        | TypedTx::EscrowLock(_)
+        | TypedTx::ChallengeResolve(_) => Ok(()),    // ← TB-5 NEW
+    }
+}
+```
+
+Plus update the K5-test fixture at `monetary_invariant.rs:348-356` to include `TypedTx::ChallengeResolve(ChallengeResolveTx::default())` for completeness coverage. (Note: this test already missed `TaskOpen + EscrowLock` from TB-3 — TB-5 may opportunistically fix that fixture-completeness gap, OR file as separate doc-debt; charter v2 amendment doesn't require it but it's a freebie.)
+
+`total_supply_micro` (`monetary_invariant.rs:95-103`) is **UNCHANGED**: 5-holding count stays. ChallengeResolveTx mutations operate on existing holdings (balances + challenge_cases.bond).
 
 ---
 
@@ -815,7 +961,7 @@ Optional n1 SOLVED reproduction. Filed as supporting evidence; **non-blocking** 
 | `src/state/sequencer.rs` | +submit_agent_tx + +emit_system_tx + legacy submit alias + Sequencer.next_emit_id + Sequencer.pinned_pubkeys + new constructor signature + apply_one stage 1.5 verification + ChallengeResolve dispatch arm + state-root domain + helper + rejection_class_for / public_summary_for arms + 12 new in-crate tests + 4 new helper fns | `git diff main..HEAD -- src/state/sequencer.rs \| wc -l` ≤ 800 net add |
 | `src/bottom_white/ledger/system_keypair.rs` | +CanonicalMessage::ChallengeResolveSigning variant + sign_challenge_resolve helper + canonical_digest arm | `git diff main..HEAD -- src/bottom_white/ledger/system_keypair.rs \| wc -l` ≤ 50 net add |
 | `src/bottom_white/ledger/transition_ledger.rs` | TxKind +ChallengeResolve variant; cascading match audits | `git diff main..HEAD -- src/bottom_white/ledger/transition_ledger.rs \| wc -l` ≤ 30 net add |
-| `src/economy/monetary_invariant.rs` | ZERO (preflight § 2) | `git diff main..HEAD -- src/economy/monetary_invariant.rs` empty |
+| `src/economy/monetary_invariant.rs` | **MINIMAL CASCADE per Q4 amendment**: +ChallengeResolve arm in `assert_no_post_init_mint` exhaustive match (line 214-227) + K5-test fixture update (line 348-356). 5-holding count + total_supply_micro UNCHANGED. | `git diff main..HEAD -- src/economy/monetary_invariant.rs \| wc -l` ≤ 30 net add |
 | `src/bottom_white/ledger/rejection_evidence.rs` | ZERO | empty |
 | `src/kernel.rs` / `src/bus.rs` / `src/sdk/tools/wallet.rs` | ZERO | empty |
 | `tests/tb_5_*.rs` | NEW files (3 — system_ingress_barrier + challenge_resolve_surface + anti_drift) | new |
@@ -824,34 +970,70 @@ Optional n1 SOLVED reproduction. Filed as supporting evidence; **non-blocking** 
 
 ## §10 Atom-by-atom deliverables (executable)
 
+**AMENDED POST CODEX ROUND-2 Q7 CHALLENGE — Atoms 3 ↔ 4 swap + monetary_invariant.rs cascade**:
+
+The original Atom 3 (emit_system_tx + apply_one stage 1.5) referenced `ChallengeResolveTx` / `ChallengeResolution` / `tx.to_signing_payload()` types that the original Atom 4 introduced. This created a compile-cycle: Atom 3 cannot land without Atom 4's types. Resolution per Codex Q7: **swap order so ABI lands first**.
+
+Plus per Codex Q4: monetary_invariant.rs MUST cascade with the new TypedTx variant; folded into Atom 3 (the ABI-introducing atom).
+
 | Atom | Files touched | Tests added | Commit subject |
 |---|---|---|---|
 | 0 (DONE @ 0b76307) | charter v2 + TB_LOG + NOTEPAD | none | TB-5 charter v2 ACTIVE |
-| 1 (THIS) | preflight + audit-mode supplement | none | Atom 1 — STEP_B Phase-0 preflight + Codex round-2 launch |
-| 2 | sequencer.rs (submit_agent_tx + ingress barrier + legacy alias narrowing) + typed_tx.rs (SystemTxForbiddenOnAgentIngress + Display arm) | U22-U26, I60-I63, I67 | Atom 2 — TB-5.0 substrate API: submit_agent_tx + ingress barrier |
-| 3 | sequencer.rs (emit_system_tx + Sequencer.pinned_pubkeys field + new constructor + apply_one stage 1.5) + system_keypair.rs (CanonicalMessage variant + sign_challenge_resolve + canonical_digest arm) + typed_tx.rs (InvalidSystemSignatureLive + Display arm) | U27-U28, I64-I66, I68-I69 | Atom 3 — TB-5.0 emit_system_tx + live signature verification |
-| 4 | typed_tx.rs (ChallengeResolveTx + ChallengeResolution enum + ChallengeStatus enum + signing payload + DOMAIN_SYSTEM_CHALLENGE_RESOLVE + HasSubmitter + TypedTx variant + tx_kind arm + golden digests) + transition_ledger.rs (TxKind +ChallengeResolve) | T1-T5 | Atom 4 — ChallengeResolveTx ABI |
-| 5 | q_state.rs (ChallengeCase +status field + ChallengeStatus + Default) + sequencer.rs (ChallengeNotFound + AlreadyResolved variants + ChallengeResolve Released arm + state-root domain + helper) + typed_tx.rs (Display arms for ChallengeNotFound + AlreadyResolved) | U29-U32, I70-I74, I78-I79 | Atom 5 — ChallengeResolve Released dispatch arm + ChallengeCase.status |
-| 6 | sequencer.rs (ChallengeResolve UpheldDeferred arm) | U33, I75-I77 | Atom 6 — ChallengeResolve UpheldDeferred dispatch arm |
-| 7 | tests/tb_5_anti_drift.rs (4 new FORBIDDEN_VARIANTS) + tests/tb_5_challenge_resolve_surface.rs (replay + property) | I80-I87 | Atom 7 — Replay + property + anti-drift CI |
-| 8 | handover/audits/RECURSIVE_AUDIT_TB_5_2026-04-30.md + handover/evidence/tb_5_smoke_2026-04-30/ | none (audit + smoke) | Atom 8 — Codex round-2 ship audit + recursive self-audit + smoke evidence |
+| 1 (DONE @ 4c3414e) | preflight v1 + audit-mode supplement | none | Atom 1 — STEP_B Phase-0 preflight + Codex round-2 launch |
+| 1.5 (NEW; pending round-3 narrow audit verdict) | preflight v1 → v2 amendment + charter v2 § 5.3 + § 4.11 amendments + Codex round-3 launch | none | Atom 1.5 — Round-2 CHALLENGE remediation (preflight v2 + charter §5.3/§4.11 amendments) |
+| **2** (UNCHANGED) | sequencer.rs (submit_agent_tx + ingress barrier + legacy alias narrowing) + typed_tx.rs (SystemTxForbiddenOnAgentIngress + Display arm) | U22-U26, I60-I63, I67 | Atom 2 — TB-5.0 substrate ingress: submit_agent_tx + agent-ingress barrier |
+| **3** (WAS Atom 4; per Q7 swap) | typed_tx.rs (ChallengeResolveTx + ChallengeResolution enum + signing payload + DOMAIN_SYSTEM_CHALLENGE_RESOLVE + HasSubmitter + TypedTx variant + tx_kind arm + canonical_hash + golden digest stubs) + q_state.rs (ChallengeCase +status field + **ChallengeStatus enum DEFINED HERE per Q4 amendment**) + transition_ledger.rs (TxKind +ChallengeResolve) + **monetary_invariant.rs (MINIMAL CASCADE per Q4: assert_no_post_init_mint exhaustive arm + K5-test fixture)** | T1-T4 | Atom 3 — TB-5 ABI: ChallengeResolveTx + ChallengeStatus + monetary_invariant cascade |
+| **4** (WAS Atom 3; per Q7 swap; now depends on Atom 3 ABI) | sequencer.rs (Sequencer.pinned_pubkeys field + new constructor + emit_system_tx + apply_one stage 1.5 with **exhaustive per-variant + record_rejection helper extracted from current apply_one:945-1024** per Q2 amendment) + system_keypair.rs (CanonicalMessage::ChallengeResolveSigning variant + sign_challenge_resolve + canonical_digest arm) + typed_tx.rs (InvalidSystemSignatureLive + Display arm) | U27-U28, T5, I64-I66, I68-I69, **per-variant zero-sig coverage (FinalizeReward + TaskExpire + TerminalSummary)** | Atom 4 — TB-5.0 emit_system_tx + apply_one stage 1.5 (exhaustive per-variant; L4.E-routed) |
+| 5 (UNCHANGED) | sequencer.rs (ChallengeNotFound + AlreadyResolved variants + ChallengeResolve Released dispatch arm + state-root domain + helper) + typed_tx.rs (Display arms for ChallengeNotFound + AlreadyResolved) | U29-U32, I70-I74, I78-I79 | Atom 5 — ChallengeResolve Released dispatch arm |
+| 6 (UNCHANGED) | sequencer.rs (ChallengeResolve UpheldDeferred arm) | U33, I75-I77, **I88 current_round_not_mutated**, **I89 upheld_deferred_byte_identical_stakes** | Atom 6 — ChallengeResolve UpheldDeferred dispatch arm + boundary tests |
+| 7 (UNCHANGED) | tests/tb_5_anti_drift.rs (4 new FORBIDDEN_VARIANTS) + tests/tb_5_challenge_resolve_surface.rs (replay + property) | I80-I87 | Atom 7 — Replay + property + anti-drift CI |
+| 8 (UNCHANGED) | handover/audits/RECURSIVE_AUDIT_TB_5_2026-04-30.md + handover/evidence/tb_5_smoke_2026-04-30/ | none (audit + smoke) | Atom 8 — Codex ship audit + recursive self-audit + smoke evidence |
 | Ship | (--no-ff merge) + book-keeping | none | TB-5 SHIPPED — merge experiment/tb5-rsp3-resolution-gate |
 
-Total acceptance: **~33 new TB-5 tests**. Target post-ship: ~604 / ~604 cargo test green.
+Total acceptance: **~37 new TB-5 tests** (5 typed_tx + 12 sequencer in-crate + ~17 integration including I78/I79 boundary + I82-I87 anti-drift + **I88/I89 optional boundary-tests added per Codex Q8 + per-variant zero-sig coverage for FinalizeReward/TaskExpire/TerminalSummary added per Q2/Q5 amendment**). Target post-ship: ~608 / ~608 cargo test green (TB-4 baseline 571 + 37).
+
+**Compile-green sequencing** (post Q7 swap):
+- Atom 2 introduces `submit_agent_tx` + ingress barrier — uses no ChallengeResolveTx types.
+- Atom 3 introduces ChallengeResolveTx ABI + ChallengeStatus + monetary_invariant cascade — adds the variant + closes the exhaustive-match cascade in one commit.
+- Atom 4 implements emit_system_tx + apply_one stage 1.5 — now the ChallengeResolveTx types it constructs ALREADY EXIST from Atom 3.
+- Atoms 5-6 implement dispatch arms.
+- Atoms 7-8 finalize testing + audit.
+
+Per `feedback_phased_checkpoint`: each atom must be compile-green and adds its named tests in red→green order. Trust Root manifest rehash (R-014; non-sudo per R-018) at every state/*.rs touching atom (Atoms 3-6).
 
 ---
 
-## §11 Resolved Atom-1 design questions (closed by directive 2026-04-30)
+## §11 Resolved design questions
+
+### §11.1 Atom-1 design questions (closed by directive 2026-04-30)
 
 | Q | Question | Resolution |
 |---|---|---|
 | Q1 | Two-channel ingress: shared queue vs separate queues? | **Shared queue, distinct entry-point fns + counters**. Variant TYPE is the canonical origin signal at dispatch (no separate origin tag). § 3.6. |
 | Q2 | emit_system_tx input shape: TypedTx vs higher-level command? | **SystemEmitCommand enum** — emit_system_tx constructs + signs internally; caller never carries a forged signature. § 3.4. |
-| Q3 | Live signature verification call site: dispatch vs apply_one? | **apply_one stage 1.5** (between snapshot and dispatch). Defense-in-depth atop the constructive emit_system_tx guarantee. § 4.5. |
+| Q3 | Live signature verification call site: dispatch vs apply_one? | **apply_one stage 1.5** (between snapshot and dispatch). Defense-in-depth atop the constructive emit_system_tx guarantee. § 4.5 (amended Q2/round-2). |
 | Q4 | Sequencer::submit alias: keep or remove? | **Keep, narrow + reject system variants**. Atom 2. § 3.2. |
 | Q5 | submit_id and emit_id: shared counter or separate? | **Separate counters**: `next_submit_id` (existing) for agent path; `next_emit_id` (new) for system path. Both push to shared queue. § 3.6. |
 | Q6 | PinnedSystemPubkeys source for tests: derive from runtime keypair? | **Yes** — tests pin `self.keypair`'s public key under `epoch`. Verification by-construction. § 4.2. |
 | Q7 | ChallengeResolve dispatch: fail-closed behavior on AlreadyResolved? | **Reject with TransitionError::AlreadyResolved**. `case.status != Open` is idempotency guard. § 7.2. |
+
+### §11.2 Codex round-2 CHALLENGE remediations (closed 2026-04-30 by `feedback_elon_mode_policy` cap-exception auto-execute on determinate-best surgical patches)
+
+Source: `handover/audits/CODEX_TB_5_PHASE0_AUDIT_2026-04-30.md`. Conservative single-auditor verdict per audit-mode supplement.
+
+| Codex Q | CHALLENGE substance | Remediation applied |
+|---|---|---|
+| Q2 (apply_one verification) | Stage 1.5 sketch only mentioned ChallengeResolveSigning + comment "or per-variant arm"; failure path direct-returned bypassing L4.E rejection-evidence writer | § 4.5 rewritten with **exhaustive `system_message_for_verification` helper** matching all 4 system variants (ChallengeResolve / FinalizeReward / TaskExpire / TerminalSummary) to their respective `CanonicalMessage` arms; **`record_rejection` helper** factored out of existing `apply_one:945-1024` and called from BOTH stage 1.5 + dispatch failure paths before `ApplyError::Transition` return |
+| Q4 (monetary_invariant cascade) | Adding TypedTx::ChallengeResolve breaks exhaustive match in `assert_no_post_init_mint:214-227`; ChallengeStatus dual-defined risk | § 2 + § 6.2 + § 6.3 (NEW) + § 9: `monetary_invariant.rs` allowed minimal cascade (+1 arm + fixture update); ChallengeStatus single-defined in `q_state.rs`; sequencer.rs imports it |
+| Q6 (test matrix drift) | Charter §5.3 ~30 tests vs preflight §8 ~33 tests; numbering I45-I58 vs I60-I87; name mismatches | Preflight §8 retained as canonical source-of-truth; charter v2 §5.3 amended in same commit to mirror preflight §8 exactly (including new I88/I89 boundary tests + per-variant zero-sig coverage). Total ~37 tests; target post-ship ~608/608. |
+| Q7 (atom executability) | Atom 3 referenced ChallengeResolveTx types from Atom 4 → compile cycle; monetary_invariant cascade omitted | § 10 atom plan **swapped Atoms 3 ↔ 4**: new Atom 3 = ABI (ChallengeResolveTx + ChallengeStatus + monetary_invariant cascade); new Atom 4 = emit_system_tx + apply_one stage 1.5 (now compile-green because ABI exists from Atom 3) |
+| Q5 (system_signature ≠ schema-only enforcement) | Carried Q2 incompleteness | Q2 remediation applies; § 4.5 + tests (per-variant zero-sig coverage) close this |
+| Q8 (charter §4 → preflight) | §4.3 + §4.4 incomplete via Q2/Q4 | Q2 + Q4 remediations close these |
+
+**Optional improvements applied** (per Codex round-2 verdict § "Optional Improvements"):
+- New test I88: `challenge_resolve_does_not_mutate_q_t_current_round` — explicit assertion that `q.q_t.current_round` is bit-identical pre/post a `ChallengeResolveTx{Released}` accept (charter v2 § 4.10 boundary).
+- New test I89: `upheld_deferred_keeps_solver_verifier_stakes_byte_identical` — parallel to I78's Released boundary check, but for UpheldDeferred. Asserts `stakes_t` is bit-identical pre/post.
+- Charter v2 § 4.11 cite fix applied in same amendment commit.
 
 ---
 
@@ -880,34 +1062,51 @@ Notable enforcements (CI-tested at TB-5.2 anti-drift extension):
 
 ---
 
-## §14 Codex round-2 audit launch instructions
+## §14 Codex audit launch history
 
-After this preflight commits:
+### §14.1 Round 2 (DONE @ 2026-04-30)
+
+- **Subjects**: charter v2 (commit `0b76307`) + preflight v1 (commit `4c3414e`)
+- **Verdict**: `handover/audits/CODEX_TB_5_PHASE0_AUDIT_2026-04-30.md` — **CHALLENGE** (not VETO; substrate sound; 4 substantive amendments needed)
+- **Per-Q**: Q1 PASS / Q2 CHALLENGE / Q3 PASS / Q4 CHALLENGE / Q5 CHALLENGE / Q6 CHALLENGE / Q7 CHALLENGE / Q8 CHALLENGE
+- **Verification anchors**: cargo PASS=571/0, Trust Root SHA match, anti-drift grep zero, TB-3 bridge invariant 2/0 — all GREEN
+- **Codex's own follow-up recommendation**: "Round-3 narrowing warranted after amendment, but narrow it to Q2, Q4, Q6, and Q7 only."
+
+### §14.2 Round 3 (PLANNED; narrow per Codex round-2 recommendation)
+
+After this preflight v2 amendment commits:
 
 ```text
 Audit subjects:
-  - handover/tracer_bullets/TB-5_charter_2026-04-30.md (charter v2 — binding spec)
-  - handover/ai-direct/TB-5_RSP3_RESOLUTION_GATE_2026-04-30.md (this preflight — binding implementation plan)
+  - handover/tracer_bullets/TB-5_charter_2026-04-30.md (charter v2 — amended §5.3 + §4.11)
+  - handover/ai-direct/TB-5_RSP3_RESOLUTION_GATE_2026-04-30.md (preflight v2 — amended §2/§4.5/§6/§9/§10/§11)
 
-Audit lens:
-  - implementer-paranoid (Codex full-fidelity)
-  - verify line-grounded src refs in this preflight against HEAD 0b76307
-  - verify ingress-barrier design closes the round-1 VETO gap (any path
-    by which an agent can push a system variant into the queue is a
-    reportable hole)
-  - verify charter v2 § 4 ten decision blocks are operationally
-    expressed by this preflight § 3-§ 7
-  - verify 4 anti-drift renames are CI-enforceable per § 8.5
+Audit lens (NARROW; round 3):
+  - Q2: verify §4.5 amendment is fail-closed exhaustively per-variant +
+    record_rejection helper extraction is correctly scoped
+  - Q4: verify §6.3 monetary_invariant cascade is minimal (just exhaustive
+    arm + fixture; no 5-holding count change; no total_supply_micro change)
+  - Q6: verify charter §5.3 ↔ preflight §8 test matrix is now identical
+    (counts, IDs, names) and post-ship target reconciled
+  - Q7: verify Atoms 3 ↔ 4 swap closes compile cycle; monetary_invariant
+    cascade folded into Atom 3
+
+Out-of-scope for round 3 (already PASS in round 2; do NOT re-audit):
+  - Q1 ingress-barrier soundness
+  - Q3 dispatch correctness
+  - (other PASS items)
 
 Verdict file path:
-  handover/audits/CODEX_TB_5_PHASE0_AUDIT_2026-04-30.md
+  handover/audits/CODEX_TB_5_PHASE0_R3_AUDIT_2026-04-30.md
 
 Mandatory verdict-header caveat (per audit-mode supplement § 6):
   "Audit Mode: Codex-only single-auditor per directive supplement
    2026-04-30_TB5_audit_mode_supplement.md..."
 
 Format:
-  Per-question PASS / CHALLENGE [reason + remediation] / VETO
-  Top-3 must-fix items if not PASS
-  Charter v2 + preflight v1 amendments if CHALLENGE
+  Per-Q (Q2/Q4/Q6/Q7 only) PASS / CHALLENGE [reason] / VETO
+  If all 4 PASS → Atom 2 implementation cleared
+  If any CHALLENGE → user authorization required (round-cap=2 already
+    consumed; round 3 is the cap-exception per `feedback_elon_mode_policy`
+    auto-execute on determinate-best surgical patches)
 ```
