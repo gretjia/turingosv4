@@ -24,7 +24,7 @@ use turingosv4::bottom_white::cas::store::CasStore;
 use turingosv4::bottom_white::ledger::rejection_evidence::{
     RejectionClass as L4ERejectionClass, RejectionEvidenceWriter,
 };
-use turingosv4::bottom_white::ledger::system_keypair::{Ed25519Keypair, SystemEpoch};
+use turingosv4::bottom_white::ledger::system_keypair::{Ed25519Keypair, PinnedSystemPubkeys, SystemEpoch};
 use turingosv4::bottom_white::ledger::transition_ledger::{
     InMemoryLedgerWriter, LedgerWriter,
 };
@@ -221,6 +221,10 @@ fn fresh_harness(initial_q: QState) -> Harness {
     let preds = Arc::new(PredicateRegistry::new());
     let tools = Arc::new(ToolRegistry::new());
     let epoch = SystemEpoch::new(1);
+    // TB-5 Atom 4: pin keypair pubkey under epoch (preflight § 4.2).
+    let mut pinned = PinnedSystemPubkeys::new();
+    pinned.insert(epoch, keypair.public_key());
+    let pinned_pubkeys = Arc::new(pinned);
     let (seq, rx) = Sequencer::new(
         cas.clone(),
         keypair.clone(),
@@ -229,6 +233,7 @@ fn fresh_harness(initial_q: QState) -> Harness {
         rejection_writer.clone(),
         preds.clone(),
         tools.clone(),
+        pinned_pubkeys,
         initial_q.clone(),
         16,
     );
@@ -526,14 +531,20 @@ async fn submit_queue_full_consumes_submit_id() {
     let rejection_writer = Arc::new(RwLock::new(RejectionEvidenceWriter::default()));
     let preds = Arc::new(PredicateRegistry::new());
     let tools = Arc::new(ToolRegistry::new());
+    let epoch = SystemEpoch::new(1);
+    // TB-5 Atom 4: pin keypair pubkey under epoch (preflight § 4.2).
+    let mut pinned = PinnedSystemPubkeys::new();
+    pinned.insert(epoch, keypair.public_key());
+    let pinned_pubkeys = Arc::new(pinned);
     let (seq, _rx) = Sequencer::new(
         cas,
         keypair,
-        SystemEpoch::new(1),
+        epoch,
         writer,
         rejection_writer,
         preds,
         tools,
+        pinned_pubkeys,
         QState::genesis(),
         2,
     );

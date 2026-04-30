@@ -26,7 +26,7 @@ use tempfile::TempDir;
 use turingosv4::bottom_white::cas::store::CasStore;
 use turingosv4::bottom_white::ledger::rejection_evidence::RejectionEvidenceWriter;
 use turingosv4::bottom_white::ledger::system_keypair::{
-    Ed25519Keypair, SystemEpoch, SystemSignature,
+    Ed25519Keypair, PinnedSystemPubkeys, SystemEpoch, SystemSignature,
 };
 use turingosv4::bottom_white::ledger::transition_ledger::{
     InMemoryLedgerWriter, LedgerWriter,
@@ -34,10 +34,12 @@ use turingosv4::bottom_white::ledger::transition_ledger::{
 use turingosv4::bottom_white::tools::registry::ToolRegistry;
 use turingosv4::economy::money::MicroCoin;
 use turingosv4::state::q_state::{AgentId, Hash, QState, TaskId, TxId};
-use turingosv4::state::sequencer::{Sequencer, SubmissionEnvelope, SubmitError};
+use turingosv4::state::sequencer::{
+    EmitSystemError, Sequencer, SubmissionEnvelope, SubmitError, SystemEmitCommand,
+};
 use turingosv4::state::typed_tx::{
     ChallengeResolution, ChallengeResolveTx, ClaimId, FinalizeRewardTx, RunId, RunOutcome,
-    TaskExpireTx, TerminalSummaryTx, TypedTx,
+    TaskExpireTx, TerminalSummaryTx, TransitionError, TypedTx,
 };
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -64,6 +66,10 @@ fn fresh_harness() -> Harness {
     let preds = Arc::new(turingosv4::top_white::predicates::registry::PredicateRegistry::new());
     let tools = Arc::new(ToolRegistry::new());
     let epoch = SystemEpoch::new(1);
+    // TB-5 Atom 4: pin keypair pubkey under epoch (preflight § 4.2).
+    let mut pinned = PinnedSystemPubkeys::new();
+    pinned.insert(epoch, keypair.public_key());
+    let pinned_pubkeys = Arc::new(pinned);
     let (seq, rx) = Sequencer::new(
         cas,
         keypair,
@@ -72,6 +78,7 @@ fn fresh_harness() -> Harness {
         rejection_writer.clone(),
         preds,
         tools,
+        pinned_pubkeys,
         QState::genesis(),
         16,
     );
@@ -273,4 +280,171 @@ async fn legacy_submit_alias_delegates_to_submit_agent_tx_and_rejects_system_var
     // unchanged — the legacy alias correctly delegates pre-queue.
     assert_eq!(h.seq.next_submit_id_peek(), pre_submit_id,
         "legacy submit() must reject pre-queue (no submit_id burn) just like submit_agent_tx");
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Atom 4 — emit_system_tx + apply_one stage 1.5 tests
+//
+// Per preflight § 8.4 and charter v2 § 5.3:
+//   I64 — emit_system_tx(ChallengeResolve{Released}) returns Ok + emit_id advances
+//   I65 — emit_id namespace independent from submit_id
+//   I66 — apply_one stage 1.5 rejects forged ChallengeResolve sig with
+//         InvalidSystemSignatureLive (record_rejection writes L4.E row;
+//         no logical_t / state_root advance)
+//   I66.a/b/c — same for forged FinalizeReward / TaskExpire / TerminalSummary
+//   I68 — emit_system_tx queue-full returns EmitSystemError::QueueFull
+//   I69 — emit_system_tx after rx-drop returns EmitSystemError::QueueClosed
+// ────────────────────────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn emit_system_tx_challenge_resolve_released_returns_emit_id() {
+    let h = fresh_harness();
+    let pre_emit = h.seq.next_emit_id_peek();
+    let pre_submit = h.seq.next_submit_id_peek();
+
+    let receipt = h
+        .seq
+        .emit_system_tx(SystemEmitCommand::ChallengeResolve {
+            target_challenge_tx_id: TxId("ct-i64".into()),
+            resolution: ChallengeResolution::Released,
+        })
+        .await
+        .expect("emit_system_tx Ok");
+    assert_eq!(receipt.emit_id, pre_emit, "emit_id == pre fetch_add");
+    assert_eq!(
+        h.seq.next_emit_id_peek(),
+        pre_emit + 1,
+        "next_emit_id advances by 1 after success"
+    );
+    // Emit-id namespace independent from submit-id (I65).
+    assert_eq!(
+        h.seq.next_submit_id_peek(),
+        pre_submit,
+        "submit_id namespace MUST NOT advance on emit_system_tx"
+    );
+}
+
+#[tokio::test]
+async fn emit_system_tx_emit_id_namespace_independent_from_submit_id() {
+    let h = fresh_harness();
+    let pre_emit = h.seq.next_emit_id_peek();
+    let pre_submit = h.seq.next_submit_id_peek();
+
+    // 3 emits in a row; submit_id MUST NOT move.
+    for i in 0..3 {
+        let _ = h
+            .seq
+            .emit_system_tx(SystemEmitCommand::ChallengeResolve {
+                target_challenge_tx_id: TxId(format!("ct-i65-{i}")),
+                resolution: ChallengeResolution::Released,
+            })
+            .await
+            .expect("emit_system_tx Ok");
+    }
+    assert_eq!(
+        h.seq.next_emit_id_peek(),
+        pre_emit + 3,
+        "emit_id advanced by 3"
+    );
+    assert_eq!(
+        h.seq.next_submit_id_peek(),
+        pre_submit,
+        "submit_id namespace fully independent — must not advance from emit"
+    );
+}
+
+#[tokio::test]
+async fn emit_system_tx_queue_full_returns_emit_system_error_queue_full() {
+    // Fresh sequencer with capacity=2, never drained.
+    let tmp = TempDir::new().expect("tempdir");
+    let cas = Arc::new(RwLock::new(
+        turingosv4::bottom_white::cas::store::CasStore::open(tmp.path()).expect("cas"),
+    ));
+    let keypair = Arc::new(Ed25519Keypair::generate_with_secure_entropy().expect("kp"));
+    let writer: Arc<RwLock<dyn LedgerWriter>> =
+        Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
+    let rejection_writer = Arc::new(RwLock::new(RejectionEvidenceWriter::default()));
+    let preds = Arc::new(turingosv4::top_white::predicates::registry::PredicateRegistry::new());
+    let tools = Arc::new(ToolRegistry::new());
+    let epoch = SystemEpoch::new(1);
+    let mut pinned = PinnedSystemPubkeys::new();
+    pinned.insert(epoch, keypair.public_key());
+    let pinned_pubkeys = Arc::new(pinned);
+    let (seq, _rx) = Sequencer::new(
+        cas,
+        keypair,
+        epoch,
+        writer,
+        rejection_writer,
+        preds,
+        tools,
+        pinned_pubkeys,
+        QState::genesis(),
+        2,
+    );
+
+    // Fill capacity.
+    seq.emit_system_tx(SystemEmitCommand::ChallengeResolve {
+        target_challenge_tx_id: TxId("ct-i68-1".into()),
+        resolution: ChallengeResolution::Released,
+    })
+    .await
+    .expect("first emit");
+    seq.emit_system_tx(SystemEmitCommand::ChallengeResolve {
+        target_challenge_tx_id: TxId("ct-i68-2".into()),
+        resolution: ChallengeResolution::Released,
+    })
+    .await
+    .expect("second emit");
+    let err = seq
+        .emit_system_tx(SystemEmitCommand::ChallengeResolve {
+            target_challenge_tx_id: TxId("ct-i68-3".into()),
+            resolution: ChallengeResolution::Released,
+        })
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(err, EmitSystemError::QueueFull),
+        "queue saturation must surface as EmitSystemError::QueueFull, got {err:?}"
+    );
+}
+
+#[tokio::test]
+async fn emit_system_tx_queue_closed_returns_emit_system_error_queue_closed() {
+    let h = fresh_harness();
+    drop(h._rx);
+    let err = h
+        .seq
+        .emit_system_tx(SystemEmitCommand::ChallengeResolve {
+            target_challenge_tx_id: TxId("ct-i69".into()),
+            resolution: ChallengeResolution::Released,
+        })
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(err, EmitSystemError::QueueClosed),
+        "rx-drop must surface as EmitSystemError::QueueClosed, got {err:?}"
+    );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// I66 / I66.a/b/c — apply_one stage-1.5 forged-sig tests are unit-tests in
+// `src/state/sequencer.rs::tests::stage_1_5_*` because `apply_one` is
+// `pub(crate)` (test isolation: stage-1.5 verifier is a crate-internal
+// boundary; integration tests reach it via emit_system_tx which constructs
+// well-signed txns by-construction). See sequencer.rs::tests for the
+// corresponding U27/U28 + I66 unit-tests.
+// ────────────────────────────────────────────────────────────────────────────
+
+// ────────────────────────────────────────────────────────────────────────────
+// T5 — TransitionError::Display covers InvalidSystemSignatureLive (Atom 4 ABI)
+// ────────────────────────────────────────────────────────────────────────────
+
+#[test]
+fn transition_error_display_covers_invalid_system_signature_live() {
+    let s = format!("{}", TransitionError::InvalidSystemSignatureLive);
+    assert!(
+        !s.is_empty(),
+        "TransitionError::InvalidSystemSignatureLive must have non-empty Display"
+    );
 }

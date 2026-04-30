@@ -225,8 +225,8 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 "src/bottom_white/tools/registry.rs" = "4ed18dcd2a7d7641663ccbdb66c895cb31cd68f4de3bddad8b5d4902633cc387"
 "src/state/mod.rs" = "c36faf0c92c5459801098fd50555b1c078620564011f42a91e97cbc8d916c9bb"
 "src/state/q_state.rs" = "917fd48967c68d7b1e60b64742af09a04f24cc9015c49f62b326acfb03d2fd5d"
-"src/state/sequencer.rs" = "724e3b482717d2b0749bcedec265f470f8d9353fe0e98ce13f7e2d2e4211e24d"
-"src/state/typed_tx.rs" = "24fe9ce2c3e346ea92861d525ab242c9facfb02ac4c08b1e39d7f736ab39da0f"
+"src/state/sequencer.rs" = "0a03b2960304d8bbca3c595405318d5555f42d8aa59bb91fd31cfb5b4bb2587e"
+"src/state/typed_tx.rs" = "0d9fa7be628dc62448add51f4a23fe1b3fba3647fa6809cb8666d6a6ec306feb"
 "handover/audits/CODEX_SPEC_V13_REAUDIT_2026-04-27.md" = "494600e0d0e01a8d128e46e6272e2d4dd691a3d4089cca02b400ad4e3d9bc94e"
 "handover/whitepapers/TURINGOS_v4_FINAL_BLUEPRINT_2026-04-26.md" = "66de2382248042023538d65fcd04b99cb5f33110727bcebe723ed40cc9c845fa"
 "handover/architect-insights/CO_MEGA_PLAN_v3.1_2026-04-26.md" = "d275597dd83d79c0459093f2b3ee4a7a882a444f1c58a5f1c7688af920c82afc"
@@ -290,7 +290,7 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 # scoped crate-only signing surfaces, and five mandated conformance tests.
 # 2026-04-29 TB-1 Day-3 — bottom_white/ledger/mod.rs rehashed: + `pub mod rejection_evidence` (L4.E).
 "src/bottom_white/ledger/mod.rs" = "4bc96dde116a05ad3cf3114f582e90d7d91c1b42fc6c526d32b121a303e29c23"
-"src/bottom_white/ledger/system_keypair.rs" = "5d3a2e6e247e18992682c69808d02bc7cd129d42c79db1c88f24a4cc975a0843"
+"src/bottom_white/ledger/system_keypair.rs" = "4b0f40598f8c8e218631c553e20fca3d126388a851e6440551eb9e14010bc092"
 # 2026-04-28 CO1.7 type skeleton (pre-audit) — caught spec § 1 circular-digest bug.
 "src/bottom_white/ledger/transition_ledger.rs" = "164f89fb15428bbb2a35bc74c4ea862ec78e808800931e47628fff492e4c2812"
 # 2026-04-29 TB-1 Day-3 — P1 GitTape kernel hardening: L4.E rejection-evidence ledger (NEW file).

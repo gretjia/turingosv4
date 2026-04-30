@@ -1102,6 +1102,20 @@ pub enum TransitionError {
     /// Anti-Oreo enforcement of "agent ≠ direct state writer" at the
     /// constitutional level (Art V.1.3 + WP § 12.4).
     SystemTxForbiddenOnAgentIngress,
+    /// TB-5 Atom 4 (charter v2 § 4.3 + preflight § 4.5): apply_one stage 1.5
+    /// live signature verification failed. Fired when a system-emitted
+    /// variant reaches apply_one with a `system_signature` that does NOT
+    /// verify against the pinned PinnedSystemPubkeys for the current epoch.
+    /// Defense-in-depth atop the constructive `Sequencer::emit_system_tx`
+    /// guarantee — under normal operation this should be unreachable
+    /// (emit_system_tx signs internally with the runtime's keypair, and
+    /// pinned_pubkeys are derived from that same keypair). This variant
+    /// fires only if some code path bypasses emit_system_tx and surfaces a
+    /// forged-signature system variant in the queue. Maps to
+    /// `L4ERejectionClass::PolicyViolation` per charter § 4.5.
+    /// Per directive § 11.4: "system_signature 不能只是 schema 上的字段"
+    /// — this dispatch-side guard ensures it is live-verified.
+    InvalidSystemSignatureLive,
 
     // ── Stub sentinel (CO1.7.5 fills) ──────────────────────────────────────
     /// Stub return value used by CO1.7.5 unimplemented bodies — preserves
@@ -1147,6 +1161,13 @@ impl std::fmt::Display for TransitionError {
                 "system-emitted tx variant forbidden on agent ingress \
                  (Anti-Oreo dispatch-side defensive guard; primary barrier \
                  is Sequencer::submit_agent_tx pre-queue)"
+            ),
+            Self::InvalidSystemSignatureLive => write!(
+                f,
+                "system_signature failed live verification against pinned \
+                 PinnedSystemPubkeys for current epoch (apply_one stage 1.5 \
+                 defense-in-depth; primary guarantee is emit_system_tx \
+                 internal signing)"
             ),
             Self::NotYetImplemented => write!(f, "transition body not yet implemented (CO1.7.5)"),
         }
