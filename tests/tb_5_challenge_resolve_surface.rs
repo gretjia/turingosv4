@@ -577,6 +577,167 @@ async fn challenge_resolve_does_not_mutate_q_t_current_round() {
     );
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// I80 — Replay invariant: CTF conservation across multiple ChallengeResolve
+// dispatches. Mirrors TB-4 I41 shape, narrowed to the resolve-arm subset:
+// seed Q with two Open ChallengeCases, resolve one Released + one
+// UpheldDeferred, assert post-state preserves CTF.
+// ────────────────────────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn replay_invariants_hold_across_full_rsp3_1_surface() {
+    let mut q = QState::genesis();
+    let chal_a = AgentId("challenger-i80-a".into());
+    let chal_b = AgentId("challenger-i80-b".into());
+    q.economic_state_t.balances_t.0.insert(chal_a.clone(), MicroCoin::from_micro_units(96));
+    q.economic_state_t.balances_t.0.insert(chal_b.clone(), MicroCoin::from_micro_units(95));
+    q.economic_state_t.challenge_cases_t.0.insert(
+        TxId("ct-i80-a".into()),
+        ChallengeCase {
+            challenger: chal_a.clone(),
+            bond: MicroCoin::from_micro_units(4),
+            opened_at_round: 7,
+            target_work_tx: TxId("wt-i80-a".into()),
+            status: ChallengeStatus::Open,
+        },
+    );
+    q.economic_state_t.challenge_cases_t.0.insert(
+        TxId("ct-i80-b".into()),
+        ChallengeCase {
+            challenger: chal_b.clone(),
+            bond: MicroCoin::from_micro_units(5),
+            opened_at_round: 9,
+            target_work_tx: TxId("wt-i80-b".into()),
+            status: ChallengeStatus::Open,
+        },
+    );
+
+    // Pre-CTF (5-holding sum).
+    let pre_total: i64 =
+        q.economic_state_t.balances_t.0.values().map(|v| v.micro_units()).sum::<i64>()
+            + q.economic_state_t.escrows_t.0.values().map(|e| e.amount.micro_units()).sum::<i64>()
+            + q.economic_state_t.stakes_t.0.values().map(|e| e.amount.micro_units()).sum::<i64>()
+            + q.economic_state_t.claims_t.0.values().map(|c| c.amount.micro_units()).sum::<i64>()
+            + q.economic_state_t.challenge_cases_t.0.values().map(|c| c.bond.micro_units()).sum::<i64>();
+
+    let mut h = fresh_harness_with(q);
+
+    // Resolve A: Released → bond refunded.
+    h.seq.emit_system_tx(SystemEmitCommand::ChallengeResolve {
+        target_challenge_tx_id: TxId("ct-i80-a".into()),
+        resolution: ChallengeResolution::Released,
+    }).await.expect("emit a");
+    let _ = h.seq.try_apply_one(&mut h.rx).expect("env a").expect("accept a");
+
+    // Resolve B: UpheldDeferred → bond preserved.
+    h.seq.emit_system_tx(SystemEmitCommand::ChallengeResolve {
+        target_challenge_tx_id: TxId("ct-i80-b".into()),
+        resolution: ChallengeResolution::UpheldDeferred,
+    }).await.expect("emit b");
+    let _ = h.seq.try_apply_one(&mut h.rx).expect("env b").expect("accept b");
+
+    let q_post = h.seq.q_snapshot().expect("post");
+    let post_total: i64 =
+        q_post.economic_state_t.balances_t.0.values().map(|v| v.micro_units()).sum::<i64>()
+            + q_post.economic_state_t.escrows_t.0.values().map(|e| e.amount.micro_units()).sum::<i64>()
+            + q_post.economic_state_t.stakes_t.0.values().map(|e| e.amount.micro_units()).sum::<i64>()
+            + q_post.economic_state_t.claims_t.0.values().map(|c| c.amount.micro_units()).sum::<i64>()
+            + q_post.economic_state_t.challenge_cases_t.0.values().map(|c| c.bond.micro_units()).sum::<i64>();
+    assert_eq!(post_total, pre_total,
+        "CTF conserved across full RSP-3.1 surface (Released + UpheldDeferred)");
+
+    // 2 accepted L4 rows.
+    assert_eq!(h.ledger_writer.read().unwrap().len(), 2,
+        "2 accepted ChallengeResolve rows on canonical L4");
+    assert_eq!(h.rejection_writer.read().unwrap().records().len(), 0,
+        "no L4.E rows on the happy path");
+
+    // Status flips correct.
+    let entry_a = q_post.economic_state_t.challenge_cases_t.0.get(&TxId("ct-i80-a".into())).unwrap();
+    let entry_b = q_post.economic_state_t.challenge_cases_t.0.get(&TxId("ct-i80-b".into())).unwrap();
+    assert_eq!(entry_a.status, ChallengeStatus::Released);
+    assert_eq!(entry_b.status, ChallengeStatus::UpheldDeferred);
+    assert_eq!(entry_a.bond.micro_units(), 0, "Released: bond zeroed");
+    assert_eq!(entry_b.bond.micro_units(), 5_i64, "UpheldDeferred: bond preserved");
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// I81 — Property test (deterministic mixed sequence including Released +
+// UpheldDeferred + rejected admissions). For each step in a 6-step
+// scripted sequence, snapshot 5-holding sum and assert CTF unchanged.
+// ────────────────────────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn property_no_sequence_violates_total_ctf_conservation_with_resolve() {
+    let mut q = QState::genesis();
+    // Seed 4 Open ChallengeCases with different challengers and bonds.
+    let challengers = ["c-i81-1", "c-i81-2", "c-i81-3", "c-i81-4"];
+    let bonds = [3_i64, 5_i64, 7_i64, 11_i64];
+    for (i, name) in challengers.iter().enumerate() {
+        let id = AgentId(name.to_string());
+        q.economic_state_t.balances_t.0.insert(id.clone(), MicroCoin::from_micro_units(100 - bonds[i]));
+        q.economic_state_t.challenge_cases_t.0.insert(
+            TxId(format!("ct-i81-{}", i)),
+            ChallengeCase {
+                challenger: id,
+                bond: MicroCoin::from_micro_units(bonds[i]),
+                opened_at_round: 1 + i as u64,
+                target_work_tx: TxId(format!("wt-i81-{}", i)),
+                status: ChallengeStatus::Open,
+            },
+        );
+    }
+
+    let initial_total: i64 = q.economic_state_t.balances_t.0.values().map(|v| v.micro_units()).sum::<i64>()
+        + q.economic_state_t.challenge_cases_t.0.values().map(|c| c.bond.micro_units()).sum::<i64>();
+
+    let mut h = fresh_harness_with(q);
+
+    // 6-step deterministic mixed sequence.
+    let resolves = [
+        (0, ChallengeResolution::Released, true),
+        (1, ChallengeResolution::UpheldDeferred, true),
+        (2, ChallengeResolution::Released, true),
+        (0, ChallengeResolution::Released, false), // already Released → AlreadyResolved
+        (3, ChallengeResolution::UpheldDeferred, true),
+        (99, ChallengeResolution::Released, false), // unknown target → ChallengeNotFound
+    ];
+
+    for (i, (target_idx, resolution, expect_accept)) in resolves.iter().enumerate() {
+        let target = if *target_idx == 99 {
+            TxId("ct-i81-nonexistent".into())
+        } else {
+            TxId(format!("ct-i81-{}", target_idx))
+        };
+        h.seq.emit_system_tx(SystemEmitCommand::ChallengeResolve {
+            target_challenge_tx_id: target.clone(),
+            resolution: resolution.clone(),
+        }).await.expect("emit");
+        let res = h.seq.try_apply_one(&mut h.rx).expect("env");
+        if *expect_accept {
+            assert!(res.is_ok(), "step {i}: expected accept on {target:?} {resolution:?}");
+        } else {
+            assert!(res.is_err(), "step {i}: expected reject");
+        }
+
+        // After every step (accept or reject), CTF must hold (5-holding sum).
+        let q_now = h.seq.q_snapshot().expect("snap");
+        let now_total: i64 = q_now.economic_state_t.balances_t.0.values().map(|v| v.micro_units()).sum::<i64>()
+            + q_now.economic_state_t.escrows_t.0.values().map(|e| e.amount.micro_units()).sum::<i64>()
+            + q_now.economic_state_t.stakes_t.0.values().map(|s| s.amount.micro_units()).sum::<i64>()
+            + q_now.economic_state_t.claims_t.0.values().map(|c| c.amount.micro_units()).sum::<i64>()
+            + q_now.economic_state_t.challenge_cases_t.0.values().map(|c| c.bond.micro_units()).sum::<i64>();
+        assert_eq!(now_total, initial_total,
+            "step {i} ({target:?} {resolution:?}, expect_accept={expect_accept}): CTF must hold");
+    }
+
+    // 4 accepted (steps 0,1,2,4) → 4 L4 rows. 2 rejected (steps 3,5) → 2 L4.E rows.
+    assert_eq!(h.ledger_writer.read().unwrap().len(), 4,
+        "4 accepted ChallengeResolve rows on canonical L4");
+    assert_eq!(h.rejection_writer.read().unwrap().records().len(), 2,
+        "2 L4.E rows for AlreadyResolved + ChallengeNotFound");
+}
+
 #[tokio::test]
 async fn upheld_deferred_keeps_solver_verifier_stakes_byte_identical() {
     // I89: parallel boundary check for UpheldDeferred — neither stakes_t nor
