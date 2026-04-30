@@ -4,7 +4,7 @@
 
 **Hook**: `MEMORY.md` → `project_auto_research_notepad.md` points here. Loaded every session.
 
-**Last updated**: 2026-04-30 (**TB-2 SHIPPED** `d9df271..a82f73e`; runtime kernel now honors the L4 / L4.E split. 16/16 acceptance battery green. Smoke: `prompt_context_hash` bit-identical to TB-1 Day-1. Phase-1c dual audit merged-PASS / substance after r1 remediation + r2 narrowed-Codex frame-misread analysis. P1 Exit 5/6/9 + P3 Exit 3/5 → green; P2 Agent Runtime + P4 Information Loom unblocked.)
+**Last updated**: 2026-04-30 (**TB-3 SHIPPED** `9af6d80..e99b158`; RSP-1 formal-tx-surface on canonical L4 — TaskOpenTx + EscrowLockTx are first-class TypedTx variants; bridge at sequencer.rs:197-215 deleted; WorkTx admission structural via task_markets_t.total_escrow > 0 + solver solvency; accepted WorkTx commits stake (lock-on-accept per WP § 18 Inv 5); rejected WorkTx leaves economic_state_t bit-identical (L4.E never mutates economic state). 541/541 cargo test green; 29 new TB-3 tests. 真题烟测: prompt_context_hash bit-identical to TB-1 Day-1 + TB-2 ship across 3 sessions. WP-canonical decision: WorkTx.stake stays inline; no YesStakeTx variant. Phase-0 + Phase-1c dual audits skipped per user authorization 2026-04-30; replaced by self-audit + 真题烟测.)
 
 ## TB methodology v2 (P0–P9 phase-tagged; install 2026-04-29 session-3)
 
@@ -41,6 +41,7 @@ Per directive ordering principle: **不要反过来。一开始就做开放市�
 | TB-0 | shipped | **P6** (Epistemic Lab v0 product line; MiniF2F first v4-native solve) | P6:7 (replication via independent `lean --stdin` re-verify) | none directly — anchor evidence only |
 | TB-1 | shipped | **P1+P3+P6** (primary P1; P3 secondary; P6 tertiary; runtime_enforcement=deferred_TB2) | P1:5,6,7,8,9 + P3:1,2,5,6,8 (as primitives + pure functions) | P1:1,2,3,4 + P3:1,2,3,5 (Tier-A 10/10 PASS @ ccb01fa; Codex micro-audit PASS-ALL-THREE) |
 | TB-2 | shipped | **P1+P3** (primary P1; P3 RSP-1 secondary) | P1:5,6,9 + P3:3,5 (runtime spine green) | P1:1,2 + P3:2,3 (16/16 PASS @ a82f73e; runtime kernel honors L4/L4.E split) |
+| TB-3 | shipped | **P3** (RSP-1 formal-tx-surface; single-phase) | P3:3,5 re-discharged via formal tx surface (TaskOpen + EscrowLock first-class TypedTx variants; bridge deleted); § 3 P3 Forbidden CF-2 (no ghost liquidity, no per-node auto-injection) structurally enforced | P3:1,2,3,5 re-proven through formal surface (541/541 PASS @ e99b158; 29 new TB-3 tests; lock-on-accept stake commit; rejected WorkTx leaves economic_state untouched) |
 
 PPUT-CCL Phase A–E roadmap below remains as the **P6 Epistemic Lab v0 product-line trajectory**, but is no longer the primary sequencing axis. Phase D ("ArchitectAI shadow mode") is **deferred** until P3 RSP economy is at minimum RSP-3 green and P5 MetaTape v1 has ArchitectAI proposal flow.
 
@@ -134,6 +135,39 @@ PPUT-CCL Phase A–E roadmap below remains as the **P6 Epistemic Lab v0 product-
   - P2 Agent Runtime — role separation now provable end-to-end via runtime stake/escrow gating.
   - P4 Information Loom — clusterer now has real L4.E input to consume.
   - TB-3 candidate: RSP-1 formal `task_open_tx` / `escrow_lock_tx` / `yes_stake_tx` variants (deletes the P0-B option (a) bridge at `sequencer.rs:205`).
+
+### TB-3 charter v2 + STEP_B Phase-0 preflight v1 (2026-04-30) — log
+
+- Charter: `handover/tracer_bullets/TB-3_charter_2026-04-30.md` (DRAFT v2 after WP-canonical reconciliation; supersedes DRAFT v1 3-variant proposal).
+- Preflight: `handover/ai-direct/TB-3_RSP1_FORMAL_TX_SURFACE_2026-04-30.md` (line-grounded snippets vs HEAD `0fb8dc3`).
+- `phase_id`: P3 (single-phase TB; RSP-1 formal-tx-surface). `roadmap_exit_criteria_addressed`: P3:3,5 re-discharged through formal surface + § 3 P3 Forbidden CF-2 structurally enforced. `kill_criteria_tested`: P3:1,2,3,5.
+- **WP-canonical decision** (charter § 3.1): `WorkTx.stake` stays inline per WP § 14.1 + § 18 Inv 5 + economic § 7. NO `YesStakeTx` TypedTx variant. ROADMAP § 3 P3 `yes_stake_tx` interpreted as semantic role of `WorkTx.stake`. Memory `feedback_wp_vs_roadmap_reconciliation` codifies this rule for future TBs.
+- **No-double-counting decision** (charter § 3.2): `task_markets_t.total_escrow` is derived aggregate / cached index, NOT a money holding. `monetary_invariant.total_supply_micro` migrates 6 → 5 holdings (drop `bounty` term). New cache=truth invariant `assert_task_market_total_escrow_matches_locks` enforces Art 0.2 派生视图 守恒测试 contract.
+- **Lock-on-accept decision** (charter § 3.4): accepted WorkTx debits `balances_t[agent_id]` by `work.stake` AND inserts `stakes_t[work.tx_id] = StakeEntry { amount, staker, task_id }`. Rejected WorkTx leaves `economic_state_t` bit-identical (L4.E never mutates economic state per user verdict #14). Slashing deferred to RSP-2/3 explicit accepted ChallengeResolveTx.
+- **Phase-0 + Phase-1c dual external audits SKIPPED** per user authorization 2026-04-30 ("我不认为需要再双审了, 可以直接进入开发, 但是开发完要对照架构师意见做 recursive audit 和真题烟测"). Replaced by self-audit + 真题烟测 as ship gate.
+
+### TB-3 SHIPPED (2026-04-30) — log
+
+- Merged at `e99b158` (--no-ff merge of `experiment/tb3-rsp1-formal-tx-surface` into main). Seven atoms: `9af6d80` (Atom 2 q_state schema migration + monetary_invariant 6→5) → `6757d40` (Atom 3 TypedTx ABI: TaskOpenTx + EscrowLockTx + 3 TransitionError + 1 L4ERejectionClass) → `7c116dd` (Atom 4 TaskOpen dispatch arm + apply_one + U4/U5 + I20) → `af807d1` (Atom 5 EscrowLock dispatch arm + U6/U7/U8 + I21/I22) → `fa85350` (Atom 6 WorkTx arm refactor: bridge deletion + structural admission + lock-on-accept) → `2eee4ee` (Atom 7 replay + property + bridge-resurrection invariants) → `0655303` (Atom 8 recursive audit + 真题烟测 evidence).
+- **Acceptance battery 541/541 PASS** across 42 test suites; zero FAILED. Includes 29 new TB-3 tests:
+  - 5 typed_tx unit (T1-T5: canonical_digest determinism + signing-payload field counts + TransitionError Display)
+  - 8 sequencer in-crate (U4-U11: TaskOpen idempotency + EscrowLock balance/escrow/cache + WorkTx admission via formal surface + lock-on-accept commit)
+  - 11 integration (I20-I30: full charter § 7 Proofs 1-3 — admission spine, bridge-deleted WorkTx admission, replay invariant, property test, cache=truth, rejection-leaves-economic-state-untouched)
+  - 2 invariant (`bridge_pattern_does_not_resurrect_in_src` + positive control)
+  - 3 monetary (`ctf_counts_all_five_holding_subindexes` rename + `total_supply_does_not_double_count_total_escrow` + `task_market_total_escrow_matches_sum_of_escrow_locks`)
+- **Three charter § 7 ship proofs all green**:
+  - Proof 1 (formal admission spine + atomic balance/escrow flow): I20 + I21 + I22.
+  - Proof 2 (bridge-deleted admission + lock-on-accept stake commitment): I23-I28 + bridge-resurrection invariant.
+  - Proof 3 (replay invariant + ghost-liquidity impossibility + cache=truth): I29 + I30 + extends TB-2 I13 to 3 L4 rows.
+- **真题烟测 evidence**: `handover/evidence/tb_3_smoke_2026-04-30/` — `mathd_algebra_107` × oneshot via LLM_PROXY_URL produces v2.0 PPUT row with `prompt_context_hash="a1f43584a17d1226"` **bit-identical to TB-1 Day-1 + TB-2 ship across 3 independent sessions**. Proves TB-3 Atom 2-7 changes are entirely on the runtime spine + state schema; the agent-facing prompt build pipeline is structurally untouched.
+- **Self-audit**: `handover/audits/RECURSIVE_AUDIT_TB_3_2026-04-30.md` — 14/14 architect decisions + 4/4 charter § 3 decision blocks + 15/15 charter § 5 forbidden lines all line-grounded to src + tests.
+- **Production claim adds**: "RSP-1 formal tx surface is on the canonical L4. `TaskOpenTx` + `EscrowLockTx` are first-class TypedTx variants. WorkTx admission is structural; bridge deleted. WorkTx.stake commits real money on accept (lock-on-accept per WP § 18 Inv 5); rejected WorkTx leaves economic state untouched. `task_market.total_escrow` is a derived cache, not a money holding."
+- **Roadmap exits / kill criteria**: P3:3 + P3:5 re-discharged via formal surface (was bridged in TB-2). § 3 P3 Forbidden CF-2 ("no ghost liquidity / no per-node auto-injection") structurally enforced. P3:1,2,3,5 kill criteria re-proven through formal surface in 11 TB-3 integration tests.
+- **Architectural debts closed**: TB-2 P0-B option (a) bridge at `src/state/sequencer.rs:197-215` DELETED; `TaskMarketsIndex<TxId, _>` migrated to `<TaskId, _>`; `bounty` field removed from `TaskMarketEntry`; bridge-resurrection forbidden as CI invariant (`tests/tb_3_bridge_deletion_invariant.rs`).
+- **Next TB candidates** (per ROADMAP § 11 dependency graph):
+  - **TB-4 RSP-2 (Verifier bond + NO stake)** — adds `VerifyTx` + `ChallengeTx` dispatch; introduces NO-stake commitment surface; requires `ReputationsIndex` updates.
+  - **P2 Agent Runtime** — role separation across Solver / Verifier / Challenger / Planner agents; depends on RSP-1 (now green) per § 11.
+  - **P4 Information Loom** — failure clusterer now has 5 distinct L4.E rejection classes (PredicateFailed / PolicyViolation / EscrowMissing / InvariantViolation / **InsufficientBalance** [NEW TB-3]) to cluster; depends on P3 reputation events (RSP-2).
 
 PPUT-CCL Phase A-E roadmap below remains as long-term **north star**; TB sequence is the **operational mechanism** to reach it.
 
