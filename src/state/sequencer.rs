@@ -134,6 +134,40 @@ pub fn escrow_lock_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// TB-4 RSP-2 — Verify + Challenge state-root domains (charter § 4.3)
+// ────────────────────────────────────────────────────────────────────────────
+
+/// TRACE_MATRIX TB-4 charter § 4.3 — Verify-accept state-root domain.
+pub(crate) const VERIFY_ACCEPT_DOMAIN_V1: &[u8] = b"turingosv4.verify.accept.v1";
+
+/// TRACE_MATRIX TB-4 charter § 4.3 — Challenge-accept state-root domain.
+pub(crate) const CHALLENGE_ACCEPT_DOMAIN_V1: &[u8] = b"turingosv4.challenge.accept.v1";
+
+/// TRACE_MATRIX TB-4 charter § 4.3 — interim state-root mutator on
+/// `VerifyTx` accept. Mirror of `task_open_accept_state_root` shape.
+/// Public single-item surface for integration tests to recompute the
+/// expected post-accept hash.
+pub fn verify_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
+    let mut h = Sha256::new();
+    h.update(VERIFY_ACCEPT_DOMAIN_V1);
+    h.update(prev.0);
+    h.update(canonical_encode(tx).expect("TypedTx is canonical-encodable"));
+    let digest: [u8; 32] = h.finalize().into();
+    Hash::from_bytes(digest)
+}
+
+/// TRACE_MATRIX TB-4 charter § 4.3 — interim state-root mutator on
+/// `ChallengeTx` accept. Mirror of `verify_accept_state_root`.
+pub fn challenge_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
+    let mut h = Sha256::new();
+    h.update(CHALLENGE_ACCEPT_DOMAIN_V1);
+    h.update(prev.0);
+    h.update(canonical_encode(tx).expect("TypedTx is canonical-encodable"));
+    let digest: [u8; 32] = h.finalize().into();
+    Hash::from_bytes(digest)
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // TB-2 Atom 4 — rejection-path helpers (preflight v3 §3.5 + §3.7)
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -337,7 +371,65 @@ pub(crate) fn dispatch_transition(
 
             Ok((q_next, SignalBundle::default()))
         }
-        TypedTx::Verify(_) => Err(TransitionError::NotYetImplemented),
+        // ──────────────────────────────────────────────────────────────────
+        // TB-4 Atom 4 — Verify arm (charter § 3.4 + § 4.3 + § 3.10).
+        // Verifier locks bond into stakes_t[verify.tx_id]. No verdict
+        // mutation in Q_t (verdict rides L4 only — § 3.10 signal-not-judge).
+        // ──────────────────────────────────────────────────────────────────
+        TypedTx::Verify(verify) => {
+            // Step 1: parent-root match.
+            if verify.parent_state_root != q.state_root_t {
+                return Err(TransitionError::StaleParent);
+            }
+            // Step 2: bond positivity (§ 3.4 step 2).
+            if verify.bond.micro_units() == 0 {
+                return Err(TransitionError::BondInsufficient);
+            }
+            // Step 3: target liveness — must be in stakes_t (live YES stake).
+            // TB-4 minimum scope: stakes_t.contains_key is a sufficient
+            // proxy for "ever accepted as live WorkTx" (charter § 4.3 step 3
+            // resolution; preflight § 8 Q1).
+            let target_stake = match q.economic_state_t.stakes_t.0.get(&verify.target_work_tx) {
+                Some(s) => s.clone(),
+                None => return Err(TransitionError::TargetWorkInactive),
+            };
+            // Step 4: verifier solvency (§ 3.4 step 5).
+            let verifier_bal = q.economic_state_t.balances_t.0
+                .get(&verify.verifier_agent)
+                .copied()
+                .unwrap_or(crate::economy::money::MicroCoin::zero());
+            if verifier_bal.micro_units() < verify.bond.micro_units() {
+                return Err(TransitionError::InsufficientBalance);
+            }
+            // Step 5: q_next — atomic balance → stakes_t transfer.
+            let mut q_next = q.clone();
+            let new_bal_micro = verifier_bal.micro_units() - verify.bond.micro_units();
+            q_next.economic_state_t.balances_t.0.insert(
+                verify.verifier_agent.clone(),
+                crate::economy::money::MicroCoin::from_micro_units(new_bal_micro),
+            );
+            q_next.economic_state_t.stakes_t.0.insert(
+                verify.tx_id.clone(),
+                crate::state::q_state::StakeEntry {
+                    amount: verify.bond.0,
+                    staker: verify.verifier_agent.clone(),
+                    task_id: target_stake.task_id.clone(),
+                },
+            );
+            // Step 6: monetary invariants (debit = credit).
+            assert_no_post_init_mint(tx, q)
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            assert_total_ctf_conserved(
+                &q.economic_state_t,
+                &q_next.economic_state_t,
+                &[],
+            )
+            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            // Step 7: state_root advance via VERIFY_ACCEPT_DOMAIN_V1.
+            q_next.state_root_t = verify_accept_state_root(&q.state_root_t, tx);
+
+            Ok((q_next, SignalBundle::default()))
+        }
         TypedTx::Challenge(_) => Err(TransitionError::NotYetImplemented),
         TypedTx::Reuse(_) => Err(TransitionError::NotYetImplemented),
         TypedTx::FinalizeReward(_) => Err(TransitionError::NotYetImplemented),
@@ -1047,39 +1139,22 @@ mod tests {
         }
     }
 
-    // 1. dispatch_transition: every NON-WORK variant returns NotYetImplemented.
+    // 1. dispatch_transition: NON-WORK / NON-RSP1 / NON-RSP2 variants
+    //    return NotYetImplemented.
     //
-    // TB-2 Atom 3 narrowed this from "all variants" to "non-Work variants" —
-    // the WorkTx arm is now a real pure-validation body. Charter §4 requires
-    // existing dispatch_transition_stubs to be narrowed when Work is no
-    // longer a stub. WorkTx-specific behaviour is covered by U3 + I3-I12.
+    // TB-2 Atom 3 narrowed this from "all variants" to "non-Work variants".
+    // TB-3 narrowed it further (Work + TaskOpen + EscrowLock are now real;
+    // their own U/I tests cover them). TB-4 Atom 4-5 narrows further
+    // (Verify + Challenge are now real; covered by U12-U21 + I31-I43).
+    // Reuse / FinalizeReward / TaskExpire / TerminalSummary remain stubs
+    // (RSP-3+ / RSP-4 territory).
     #[test]
-    fn dispatch_transition_stubs_non_work_variants() {
+    fn dispatch_transition_stubs_non_work_non_rsp1_non_rsp2_variants() {
         let q = QState::genesis();
         let preds = PredicateRegistry::new();
         let tools = ToolRegistry::new();
 
         let cases: Vec<TypedTx> = vec![
-            TypedTx::Verify(VerifyTx {
-                tx_id: TxId("vt".into()),
-                parent_state_root: Hash::ZERO, // TB-4 schema bump
-                target_work_tx: TxId("wt".into()),
-                verifier_agent: AgentId("v".into()),
-                bond: StakeMicroCoin::from_micro_units(1),
-                verdict: VerifyVerdict::Confirm,
-                signature: AgentSignature::from_bytes([0; 64]),
-                timestamp_logical: 1,
-            }),
-            TypedTx::Challenge(ChallengeTx {
-                tx_id: TxId("ct".into()),
-                parent_state_root: Hash::ZERO, // TB-4 schema bump
-                target_work_tx: TxId("wt".into()),
-                challenger_agent: AgentId("c".into()),
-                stake: StakeMicroCoin::from_micro_units(1),
-                counterexample_cid: Cid([0; 32]),
-                signature: AgentSignature::from_bytes([0; 64]),
-                timestamp_logical: 1,
-            }),
             TypedTx::Reuse(ReuseTx {
                 tx_id: TxId("rt".into()),
                 reusing_work_tx: TxId("wt".into()),
@@ -1715,5 +1790,154 @@ mod tests {
             + q_next.economic_state_t.escrows_t.0.values().map(|e| e.amount.micro_units()).sum::<i64>()
             + q_next.economic_state_t.stakes_t.0.values().map(|e| e.amount.micro_units()).sum::<i64>();
         assert_eq!(pre_total, post_total, "CTF conserved across WorkTx accept");
+    }
+
+    // ── TB-4 Atom 4 — Verify dispatch arm tests (charter § 4.7 U12-U16) ──
+
+    /// Helper: seed Q with one balance entry + one stakes_t entry (the
+    /// "live target WorkTx"). For Verify/Challenge unit tests that only
+    /// need target liveness, NOT the full TaskOpen+EscrowLock+WorkTx flow.
+    /// Returns (q, work_tx_id, task_id) so callers can target the seeded
+    /// WorkTx by tx_id.
+    fn seed_q_with_live_target(verifier: &str, balance_coin: i64, target_work_tx_id: &str)
+        -> (QState, TxId, TaskId)
+    {
+        let mut q = QState::genesis();
+        q.economic_state_t.balances_t.0.insert(
+            AgentId(verifier.into()),
+            MicroCoin::from_coin(balance_coin).unwrap(),
+        );
+        let target_tx = TxId(target_work_tx_id.into());
+        let task_id = TaskId(format!("task-of-{target_work_tx_id}"));
+        q.economic_state_t.stakes_t.0.insert(
+            target_tx.clone(),
+            crate::state::q_state::StakeEntry {
+                amount: MicroCoin::from_coin(5).unwrap(),
+                staker: AgentId("solver-x".into()),
+                task_id: task_id.clone(),
+            },
+        );
+        (q, target_tx, task_id)
+    }
+
+    fn fixture_verify_tx_for_target(verify_tx_id: &str, target_work_tx_id: &str,
+                                    verifier: &str, bond_coin: i64,
+                                    parent_root: Hash) -> VerifyTx {
+        VerifyTx {
+            tx_id: TxId(verify_tx_id.into()),
+            parent_state_root: parent_root,
+            target_work_tx: TxId(target_work_tx_id.into()),
+            verifier_agent: AgentId(verifier.into()),
+            bond: StakeMicroCoin::from_micro_units(
+                MicroCoin::from_coin(bond_coin).unwrap().micro_units()
+            ),
+            verdict: VerifyVerdict::Confirm,
+            signature: AgentSignature::from_bytes([0u8; 64]),
+            timestamp_logical: 1,
+        }
+    }
+
+    /// U12 — Verify accept locks bond into stakes_t at verify.tx_id with
+    /// task_id binding inherited from target's stakes_t entry.
+    #[test]
+    fn dispatch_verify_locks_bond_in_stakes_t_at_verify_tx_id() {
+        let preds = PredicateRegistry::new();
+        let tools = ToolRegistry::new();
+        let (q, _target, task_id) = seed_q_with_live_target("verifier-bob", 10, "wt-u12");
+        let verify_tx = fixture_verify_tx_for_target(
+            "vt-u12", "wt-u12", "verifier-bob", 3, q.state_root_t
+        );
+        let tx = TypedTx::Verify(verify_tx);
+        let (q_next, _) = dispatch_transition(&q, &tx, &preds, &tools)
+            .expect("Verify with positive bond + live target + solvent verifier must accept");
+
+        // bond locked into stakes_t at verify.tx_id
+        let entry = q_next.economic_state_t.stakes_t.0
+            .get(&TxId("vt-u12".into()))
+            .expect("stakes_t entry at verify.tx_id");
+        assert_eq!(entry.amount.micro_units(),
+                   MicroCoin::from_coin(3).unwrap().micro_units());
+        assert_eq!(entry.staker, AgentId("verifier-bob".into()));
+        // task_id binding inherited from target's stakes_t entry (charter § 3.4).
+        assert_eq!(entry.task_id, task_id, "Verify entry task_id inherits from target");
+
+        // verifier balance debited.
+        let new_bal = q_next.economic_state_t.balances_t.0
+            .get(&AgentId("verifier-bob".into())).copied().unwrap();
+        assert_eq!(new_bal.micro_units(),
+                   MicroCoin::from_coin(7).unwrap().micro_units());
+
+        // state_root advanced via VERIFY_ACCEPT_DOMAIN_V1.
+        let expected = verify_accept_state_root(&q.state_root_t, &tx);
+        assert_eq!(q_next.state_root_t, expected);
+        assert_ne!(q_next.state_root_t, q.state_root_t);
+    }
+
+    /// U13 — VerifyTx with bond.micro_units() == 0 rejects with BondInsufficient.
+    #[test]
+    fn dispatch_verify_rejects_when_bond_zero() {
+        let preds = PredicateRegistry::new();
+        let tools = ToolRegistry::new();
+        let (q, _target, _task) = seed_q_with_live_target("v", 10, "wt-u13");
+        let mut verify_tx = fixture_verify_tx_for_target(
+            "vt-u13", "wt-u13", "v", 5, q.state_root_t
+        );
+        verify_tx.bond = StakeMicroCoin::from_micro_units(0);
+        let tx = TypedTx::Verify(verify_tx);
+        let err = dispatch_transition(&q, &tx, &preds, &tools).unwrap_err();
+        assert!(matches!(err, TransitionError::BondInsufficient));
+    }
+
+    /// U14 — VerifyTx with target_work_tx not in stakes_t rejects with
+    /// TargetWorkInactive (charter § 3.8 + directive Q3).
+    #[test]
+    fn dispatch_verify_rejects_when_target_not_in_stakes_t() {
+        let preds = PredicateRegistry::new();
+        let tools = ToolRegistry::new();
+        // Q has no stakes_t entries.
+        let mut q = QState::genesis();
+        q.economic_state_t.balances_t.0.insert(
+            AgentId("v".into()), MicroCoin::from_coin(10).unwrap()
+        );
+        let verify_tx = fixture_verify_tx_for_target(
+            "vt-u14", "wt-not-existent", "v", 3, q.state_root_t
+        );
+        let tx = TypedTx::Verify(verify_tx);
+        let err = dispatch_transition(&q, &tx, &preds, &tools).unwrap_err();
+        assert!(matches!(err, TransitionError::TargetWorkInactive),
+                "expected TargetWorkInactive, got {err:?}");
+    }
+
+    /// U15 — VerifyTx with stale parent_state_root rejects with StaleParent.
+    /// (Charter § 3.4 step 1.)
+    #[test]
+    fn dispatch_verify_rejects_when_parent_stale() {
+        let preds = PredicateRegistry::new();
+        let tools = ToolRegistry::new();
+        let (q, _target, _task) = seed_q_with_live_target("v", 10, "wt-u15");
+        let mut verify_tx = fixture_verify_tx_for_target(
+            "vt-u15", "wt-u15", "v", 3, Hash::ZERO  // ZERO ≠ q.state_root_t
+        );
+        // ensure parent_state_root really differs.
+        if verify_tx.parent_state_root == q.state_root_t {
+            verify_tx.parent_state_root = Hash([0xFFu8; 32]);
+        }
+        let tx = TypedTx::Verify(verify_tx);
+        let err = dispatch_transition(&q, &tx, &preds, &tools).unwrap_err();
+        assert!(matches!(err, TransitionError::StaleParent));
+    }
+
+    /// U16 — VerifyTx with verifier balance < bond rejects with InsufficientBalance.
+    #[test]
+    fn dispatch_verify_rejects_when_verifier_balance_lt_bond() {
+        let preds = PredicateRegistry::new();
+        let tools = ToolRegistry::new();
+        let (q, _target, _task) = seed_q_with_live_target("v", 1, "wt-u16");  // only 1 coin
+        let verify_tx = fixture_verify_tx_for_target(
+            "vt-u16", "wt-u16", "v", 5, q.state_root_t  // requires 5 coin
+        );
+        let tx = TypedTx::Verify(verify_tx);
+        let err = dispatch_transition(&q, &tx, &preds, &tools).unwrap_err();
+        assert!(matches!(err, TransitionError::InsufficientBalance));
     }
 }
