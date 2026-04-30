@@ -167,6 +167,24 @@ pub fn challenge_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
     Hash::from_bytes(digest)
 }
 
+/// TRACE_MATRIX TB-5 charter v2 § 4.6 + preflight § 7.1 —
+/// ChallengeResolve-accept state-root domain.
+pub(crate) const CHALLENGE_RESOLVE_DOMAIN_V1: &[u8] =
+    b"turingosv4.challenge_resolve.accept.v1";
+
+/// TRACE_MATRIX TB-5 charter v2 § 4.6 + preflight § 7.1 — interim state-root
+/// mutator on `ChallengeResolveTx` accept (Released or UpheldDeferred).
+/// Mirror of `challenge_accept_state_root`. Public single-item surface for
+/// integration tests to recompute the expected post-accept hash.
+pub fn challenge_resolve_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
+    let mut h = Sha256::new();
+    h.update(CHALLENGE_RESOLVE_DOMAIN_V1);
+    h.update(prev.0);
+    h.update(canonical_encode(tx).expect("TypedTx is canonical-encodable"));
+    let digest: [u8; 32] = h.finalize().into();
+    Hash::from_bytes(digest)
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // TB-2 Atom 4 — rejection-path helpers (preflight v3 §3.5 + §3.7)
 // ────────────────────────────────────────────────────────────────────────────
@@ -213,6 +231,11 @@ fn rejection_class_for(e: &TransitionError) -> L4ERejectionClass {
         TE::EmptyCounterexample => RC::PolicyViolation,
         TE::TargetWorkTxNotFound => RC::PolicyViolation,
         TE::TargetWorkTxNotVerifiable => RC::PolicyViolation,
+        // TB-5 RSP-3.0/3.1 (charter v2 § 4.5):
+        TE::SystemTxForbiddenOnAgentIngress => RC::PolicyViolation,
+        TE::InvalidSystemSignatureLive => RC::PolicyViolation,
+        TE::ChallengeNotFound => RC::PolicyViolation,
+        TE::AlreadyResolved => RC::PolicyViolation,
         // Non-WorkTx-arm variants documented per §3.7 mapping table — should
         // not occur on the WorkTx arm; conservative sentinel preserves L4.E
         // append correctness if a future TB adds new variants.
@@ -244,7 +267,105 @@ fn public_summary_for(e: &TransitionError) -> Option<String> {
         TransitionError::EmptyCounterexample => Some("empty_counterexample".into()),
         TransitionError::TargetWorkTxNotFound => Some("target_work_not_found".into()),
         TransitionError::TargetWorkTxNotVerifiable => Some("target_work_not_verifiable".into()),
+        // TB-5 RSP-3.0/3.1.
+        TransitionError::SystemTxForbiddenOnAgentIngress => Some("system_tx_forbidden_on_agent_ingress".into()),
+        TransitionError::InvalidSystemSignatureLive => Some("invalid_system_signature_live".into()),
+        TransitionError::ChallengeNotFound => Some("challenge_not_found".into()),
+        TransitionError::AlreadyResolved => Some("already_resolved".into()),
         _ => Some("policy_violation".into()),
+    }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// TB-5 Atom 4 — apply_one Stage 1.5 helpers (preflight § 4.5)
+//
+// `system_message_for_verification`: exhaustively matches the 4 system-emitted
+// TypedTx variants and returns the `CanonicalMessage` whose digest the
+// system_signature should bind to. Agent variants return `None`. The
+// exhaustive match is the contract: any future system variant added to
+// `TypedTx` causes a non-exhaustive compile error here, forcing explicit
+// handling at the apply-side verification boundary.
+//
+// `system_signature_of` / `system_epoch_of`: extract the signature + epoch
+// from a system-emitted TypedTx variant. Agent variants → `None`.
+// ────────────────────────────────────────────────────────────────────────────
+
+/// TRACE_MATRIX TB-5 charter v2 § 4.5 + preflight § 4.5: exhaustively project
+/// a system-emitted `TypedTx` to its `CanonicalMessage` for live signature
+/// verification at apply_one stage 1.5. Returns `None` for agent variants
+/// (their signatures are agent-domain `AgentSignature`, verified separately
+/// at predicate-runner / admission gates).
+fn system_message_for_verification(
+    tx: &TypedTx,
+) -> Option<crate::bottom_white::ledger::system_keypair::CanonicalMessage> {
+    use crate::bottom_white::ledger::system_keypair::CanonicalMessage;
+    match tx {
+        TypedTx::FinalizeReward(t) => {
+            let digest = t.to_signing_payload().canonical_digest();
+            Some(CanonicalMessage::FinalizeRewardSigning(digest))
+        }
+        TypedTx::TaskExpire(t) => {
+            let digest = t.to_signing_payload().canonical_digest();
+            Some(CanonicalMessage::TaskExpireSigning(digest))
+        }
+        TypedTx::TerminalSummary(t) => {
+            let digest = t.to_signing_payload().canonical_digest();
+            Some(CanonicalMessage::TerminalSummarySigning(digest))
+        }
+        TypedTx::ChallengeResolve(t) => {
+            let digest = t.to_signing_payload().canonical_digest();
+            Some(CanonicalMessage::ChallengeResolveSigning(digest))
+        }
+        // Agent-submitted variants: stage 1.5 is system-only.
+        TypedTx::Work(_)
+        | TypedTx::Verify(_)
+        | TypedTx::Challenge(_)
+        | TypedTx::Reuse(_)
+        | TypedTx::TaskOpen(_)
+        | TypedTx::EscrowLock(_) => None,
+    }
+}
+
+/// TRACE_MATRIX TB-5 Atom 4: extract `&SystemSignature` from a system-emitted
+/// TypedTx variant. Agent variants → `None`.
+fn system_signature_of(
+    tx: &TypedTx,
+) -> Option<&crate::bottom_white::ledger::system_keypair::SystemSignature> {
+    match tx {
+        TypedTx::FinalizeReward(t) => Some(&t.system_signature),
+        TypedTx::TaskExpire(t) => Some(&t.system_signature),
+        TypedTx::TerminalSummary(t) => Some(&t.system_signature),
+        TypedTx::ChallengeResolve(t) => Some(&t.system_signature),
+        TypedTx::Work(_)
+        | TypedTx::Verify(_)
+        | TypedTx::Challenge(_)
+        | TypedTx::Reuse(_)
+        | TypedTx::TaskOpen(_)
+        | TypedTx::EscrowLock(_) => None,
+    }
+}
+
+/// TRACE_MATRIX TB-5 Atom 4: extract `SystemEpoch` from a system-emitted
+/// TypedTx variant for pinned-pubkey lookup. Agent variants → `None`.
+fn system_epoch_of(tx: &TypedTx) -> Option<SystemEpoch> {
+    match tx {
+        TypedTx::FinalizeReward(t) => Some(t.epoch),
+        TypedTx::TaskExpire(t) => Some(t.epoch),
+        // TerminalSummaryTx is signed via opaque digest only (no epoch field
+        // in struct per STATE § 1.5 8-field schema). Verification still uses
+        // the signing keypair's epoch — but since live verification needs
+        // the pinned pubkey for *some* epoch, we fall back to the signing
+        // keypair's currently-active epoch. Today TerminalSummary is emitted
+        // by the sequencer's runtime keypair under self.epoch; if cross-epoch
+        // replay is added the verifier will need to scan all pinned epochs.
+        TypedTx::TerminalSummary(_) => None,
+        TypedTx::ChallengeResolve(t) => Some(t.epoch),
+        TypedTx::Work(_)
+        | TypedTx::Verify(_)
+        | TypedTx::Challenge(_)
+        | TypedTx::Reuse(_)
+        | TypedTx::TaskOpen(_)
+        | TypedTx::EscrowLock(_) => None,
     }
 }
 
@@ -479,6 +600,7 @@ pub(crate) fn dispatch_transition(
                     bond: challenge.stake.0,
                     opened_at_round: q.q_t.current_round, // ← § 3.9 anchor
                     target_work_tx: challenge.target_work_tx.clone(),
+                    status: crate::state::q_state::ChallengeStatus::Open, // TB-5 ABI default
                 },
             );
             // Step 7: monetary invariants (debit = credit; challenge_cases.bond
@@ -500,6 +622,92 @@ pub(crate) fn dispatch_transition(
         TypedTx::FinalizeReward(_) => Err(TransitionError::NotYetImplemented),
         TypedTx::TaskExpire(_) => Err(TransitionError::NotYetImplemented),
         TypedTx::TerminalSummary(_) => Err(TransitionError::NotYetImplemented),
+        // ──────────────────────────────────────────────────────────────────
+        // TB-5 Atom 5+6 — ChallengeResolve arm (charter v2 § 4.6 +
+        // preflight § 7.2). Two paths:
+        //   Released:        refund challenger bond + flip status to Released
+        //                    (entry stays; bond field becomes 0 per directive § 7 Q6)
+        //   UpheldDeferred:  marker-only flip to UpheldDeferred; bond preserved
+        //                    for TB-6 RSP-3.2 slash routing (no money movement)
+        // The 5-holding CTF invariant is preserved: Released's bond-refund is
+        // a balanced transfer between holding 5 (challenge_cases.bond) and
+        // holding 1 (balances_t); UpheldDeferred touches no holding term.
+        // ──────────────────────────────────────────────────────────────────
+        TypedTx::ChallengeResolve(resolve) => {
+            // Step 1: parent-root match.
+            if resolve.parent_state_root != q.state_root_t {
+                return Err(TransitionError::StaleParent);
+            }
+            // Step 2: target ChallengeCase exists.
+            let case = match q
+                .economic_state_t
+                .challenge_cases_t
+                .0
+                .get(&resolve.target_challenge_tx_id)
+            {
+                Some(c) => c.clone(),
+                None => return Err(TransitionError::ChallengeNotFound),
+            };
+            // Step 3: idempotency — case must be Open at resolve time.
+            if case.status != crate::state::q_state::ChallengeStatus::Open {
+                return Err(TransitionError::AlreadyResolved);
+            }
+            // Step 4: build q_next.
+            let mut q_next = q.clone();
+            match resolve.resolution {
+                crate::state::typed_tx::ChallengeResolution::Released => {
+                    // Step 4a: refund challenger.
+                    let cur = q
+                        .economic_state_t
+                        .balances_t
+                        .0
+                        .get(&case.challenger)
+                        .copied()
+                        .unwrap_or_else(crate::economy::money::MicroCoin::zero);
+                    let new_bal = cur.micro_units() + case.bond.micro_units();
+                    q_next.economic_state_t.balances_t.0.insert(
+                        case.challenger.clone(),
+                        crate::economy::money::MicroCoin::from_micro_units(new_bal),
+                    );
+                    // Step 4b: zero bond + flip status (entry preserved per
+                    // directive § 7 Q6 — audit trail kept).
+                    let entry = q_next
+                        .economic_state_t
+                        .challenge_cases_t
+                        .0
+                        .get_mut(&resolve.target_challenge_tx_id)
+                        .expect("verified at step 2");
+                    entry.bond = crate::economy::money::MicroCoin::zero();
+                    entry.status = crate::state::q_state::ChallengeStatus::Released;
+                }
+                crate::state::typed_tx::ChallengeResolution::UpheldDeferred => {
+                    // Step 4c: marker only — flip status; bond preserved for
+                    // TB-6 RSP-3.2 slash routing. challenger / opened_at_round
+                    // / target_work_tx untouched.
+                    let entry = q_next
+                        .economic_state_t
+                        .challenge_cases_t
+                        .0
+                        .get_mut(&resolve.target_challenge_tx_id)
+                        .expect("verified at step 2");
+                    entry.status = crate::state::q_state::ChallengeStatus::UpheldDeferred;
+                    // bond stays > 0; intentional.
+                }
+            }
+            // Step 5: monetary invariants.
+            assert_no_post_init_mint(tx, q)
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            assert_total_ctf_conserved(
+                &q.economic_state_t,
+                &q_next.economic_state_t,
+                &[],
+            )
+            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            // Step 6: state_root advance via CHALLENGE_RESOLVE_DOMAIN_V1.
+            q_next.state_root_t = challenge_resolve_accept_state_root(&q.state_root_t, tx);
+
+            Ok((q_next, SignalBundle::default()))
+        }
         // ──────────────────────────────────────────────────────────────────
         // TB-3 Atom 4 — TaskOpen arm (charter § 4.3 + § 3.3 metadata-only).
         // Sponsor opens a task market entry; NO money movement; idempotent.
@@ -677,6 +885,13 @@ pub enum SubmitError {
     QueueFull,
     /// Receiver dropped — sequencer no longer running.
     QueueClosed,
+    /// TB-5.0 Atom 2: agent attempted to submit a system-emitted variant
+    /// (FinalizeReward / TaskExpire / TerminalSummary; ChallengeResolve
+    /// added in Atom 3) through the agent ingress path. Rejected pre-queue
+    /// per Anti-Oreo agent-ingress barrier (charter v2 § 4.9 + preflight
+    /// § 3.2; constitutional Art V.1.3 + WP § 12.4: agent ≠ direct state
+    /// writer; system-emitted variants must come through `emit_system_tx`).
+    SystemTxForbiddenOnAgentIngress,
 }
 
 impl std::fmt::Display for SubmitError {
@@ -684,10 +899,82 @@ impl std::fmt::Display for SubmitError {
         match self {
             Self::QueueFull => write!(f, "submission queue saturated"),
             Self::QueueClosed => write!(f, "submission queue closed"),
+            Self::SystemTxForbiddenOnAgentIngress => write!(
+                f,
+                "system-emitted tx variant forbidden on agent ingress; \
+                 use Sequencer::emit_system_tx (TB-5.0 Anti-Oreo barrier)"
+            ),
         }
     }
 }
 impl std::error::Error for SubmitError {}
+
+/// TRACE_MATRIX TB-5 charter v2 § 4.2 + preflight § 3.4: high-level command
+/// for `Sequencer::emit_system_tx`. Inputs that emit_system_tx accepts; the
+/// typed tx struct is constructed + signed inside emit_system_tx, never by
+/// the caller. This is the structural Anti-Oreo guarantee — callers cannot
+/// pass a forged signature because they don't construct the typed tx.
+#[derive(Debug, Clone)]
+pub enum SystemEmitCommand {
+    /// Resolve a posted ChallengeCase (TB-5.1 Atom 5+6 dispatch path).
+    /// `target_challenge_tx_id` keys the existing `challenge_cases_t` row.
+    /// `resolution` selects Released (refund + status flip) vs UpheldDeferred
+    /// (marker only; slash deferred to TB-6 RSP-3.2).
+    ChallengeResolve {
+        target_challenge_tx_id: crate::state::q_state::TxId,
+        resolution: crate::state::typed_tx::ChallengeResolution,
+    },
+    // Future RSP-3.2 / RSP-4 additions (NOT in TB-5 scope):
+    //   FinalizeReward { ... }   (RSP-4)
+    //   TaskExpire     { ... }
+    //   TerminalSummary { ... }
+    //   SlashTx        { ... }   (RSP-3.2)
+}
+
+/// TRACE_MATRIX TB-5 charter v2 § 4.2: receipt for `emit_system_tx`.
+/// Carries `emit_id` (parallel to agent-side `submit_id`); never `logical_t`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SystemEmitReceipt {
+    pub emit_id: u64,
+}
+
+/// TRACE_MATRIX TB-5 charter v2 § 4.2 + preflight § 3.5: errors specific to
+/// `emit_system_tx`. Distinct from `SubmitError` so tests can match on
+/// system-vs-agent ingress failure modes precisely.
+#[derive(Debug)]
+pub enum EmitSystemError {
+    /// Bounded queue saturated.
+    QueueFull,
+    /// Receiver dropped — sequencer no longer running.
+    QueueClosed,
+    /// Signing the constructed tx with the system keypair failed.
+    SignatureConstruction(KeypairError),
+    /// Verification of the just-signed signature failed against pinned
+    /// pubkeys for the current epoch. Should not happen in production
+    /// (tests pin the runtime keypair's pubkey by-construction); defensive
+    /// check that catches keypair/pinned-pubkey desync.
+    InvalidSystemSignatureLive,
+    /// CAS or other internal lock poisoned during emit.
+    InternalLockPoisoned,
+}
+
+impl std::fmt::Display for EmitSystemError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::QueueFull => write!(f, "system-emit queue saturated"),
+            Self::QueueClosed => write!(f, "system-emit queue closed"),
+            Self::SignatureConstruction(e) => {
+                write!(f, "system-tx signature construction failed: {e:?}")
+            }
+            Self::InvalidSystemSignatureLive => write!(
+                f,
+                "system_signature failed live verification against pinned pubkeys at emit time"
+            ),
+            Self::InternalLockPoisoned => write!(f, "internal lock poisoned during emit"),
+        }
+    }
+}
+impl std::error::Error for EmitSystemError {}
 
 /// Errors that can occur during `apply_one`. Spec § 3 implicitly assumes
 /// `Result<_, TransitionError>` but the actual `?`-propagated error chain
@@ -797,6 +1084,11 @@ pub struct Sequencer {
     next_submit_id: AtomicU64,
     /// K1: advances ONLY on commit; first accepted entry gets logical_t=1.
     next_logical_t: AtomicU64,
+    /// TB-5 Atom 4 (charter v2 § 4.2 + preflight § 3.5): emit_id is assigned
+    /// at `emit_system_tx` ingress; parallel namespace to `next_submit_id`
+    /// so agent + system ingress paths advance independently. Both push
+    /// to the shared queue via `SubmissionEnvelope`.
+    next_emit_id: AtomicU64,
 
     queue_tx: tokio::sync::mpsc::Sender<SubmissionEnvelope>,
 
@@ -813,6 +1105,14 @@ pub struct Sequencer {
     predicate_registry: Arc<PredicateRegistry>,
     tool_registry: Arc<ToolRegistry>,
 
+    /// TB-5 Atom 4 (charter v2 § 4.3 + preflight § 4.2): pinned system-key
+    /// public-key map. Used by apply_one stage 1.5 to verify
+    /// `system_signature` on system-emitted variants (defense-in-depth atop
+    /// the constructive guarantee from `emit_system_tx`). Tests pin
+    /// `self.keypair`'s pubkey under `epoch` for by-construction verification;
+    /// production sources from `genesis_payload.toml [system_pubkeys]`.
+    pinned_pubkeys: Arc<crate::bottom_white::ledger::system_keypair::PinnedSystemPubkeys>,
+
     q: RwLock<QState>,
 }
 
@@ -827,6 +1127,13 @@ impl std::fmt::Debug for Sequencer {
 impl Sequencer {
     /// Construct. Returns the `Sequencer` plus the receiver half of the
     /// internal mpsc; pass the receiver to `run()` exactly once.
+    ///
+    /// **TB-5 Atom 4 signature change** (charter v2 § 4.2 + preflight § 4.2):
+    /// added `pinned_pubkeys` parameter. Existing callers (7 src + tests
+    /// per Codex round-2 cascade) updated to pass an `Arc<PinnedSystemPubkeys>`
+    /// derived from the same keypair (test fixtures) or genesis-pinned
+    /// (production). Tests typically pin `keypair.public_key()` under
+    /// `epoch` for by-construction signature-verification correctness.
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         cas: Arc<RwLock<CasStore>>,
@@ -836,6 +1143,7 @@ impl Sequencer {
         rejection_writer: Arc<RwLock<RejectionEvidenceWriter>>,
         predicate_registry: Arc<PredicateRegistry>,
         tool_registry: Arc<ToolRegistry>,
+        pinned_pubkeys: Arc<crate::bottom_white::ledger::system_keypair::PinnedSystemPubkeys>,
         initial_q: QState,
         queue_capacity: usize,
     ) -> (Self, tokio::sync::mpsc::Receiver<SubmissionEnvelope>) {
@@ -843,6 +1151,7 @@ impl Sequencer {
         let seq = Self {
             next_submit_id: AtomicU64::new(1),
             next_logical_t: AtomicU64::new(0), // first accepted commit advances to 1
+            next_emit_id: AtomicU64::new(1),    // TB-5 Atom 4: parallel system-emit counter
             queue_tx,
             cas,
             keypair,
@@ -851,16 +1160,60 @@ impl Sequencer {
             rejection_writer,
             predicate_registry,
             tool_registry,
+            pinned_pubkeys,
             q: RwLock::new(initial_q),
         };
         (seq, queue_rx)
     }
 
-    /// Submit a typed transition. Returns immediately with a receipt carrying
-    /// `submit_id` (NOT `logical_t`). Per Q2 (back-pressure resolution): on
-    /// queue saturation returns `Err(SubmitError::QueueFull)` and the agent is
-    /// expected to retry with deterministic exponential backoff.
-    pub async fn submit(&self, tx: TypedTx) -> Result<SubmissionReceipt, SubmitError> {
+    /// TRACE_MATRIX TB-5 charter v2 § 4.2: peek pinned_pubkeys (for tests +
+    /// observability; production callers should not depend on this).
+    #[cfg(test)]
+    pub fn pinned_pubkeys(&self) -> &crate::bottom_white::ledger::system_keypair::PinnedSystemPubkeys {
+        &self.pinned_pubkeys
+    }
+
+    /// TRACE_MATRIX TB-5 charter v2 § 4.2: peek next_emit_id (parallel to
+    /// `next_submit_id_peek` for K1-style observability).
+    pub fn next_emit_id_peek(&self) -> u64 {
+        self.next_emit_id.load(Ordering::SeqCst)
+    }
+
+    /// TRACE_MATRIX FC2-Submit + § 5.2.1: TB-5.0 Atom 2 agent-only ingress
+    /// barrier (charter v2 § 4.2 + § 4.9 + preflight § 3.2; Anti-Oreo Art V.1.3).
+    ///
+    /// Accepts ONLY agent-submitted variants. System-emitted variants
+    /// (FinalizeReward / TaskExpire / TerminalSummary; ChallengeResolve added
+    /// in Atom 3) are rejected pre-queue with
+    /// `SubmitError::SystemTxForbiddenOnAgentIngress`. This is the
+    /// constitutional Anti-Oreo "agent ≠ direct state writer" boundary,
+    /// structurally enforced (was a documented norm without live enforcement
+    /// through TB-3 + TB-4; TB-5.0 retires that debt for system-tx).
+    ///
+    /// **WP-canonical reconciliation**: ChallengeResolveTx (TB-5 Atom 3) +
+    /// SlashTx / SettlementTx / ProvisionalAcceptTx / ReputationUpdateTx
+    /// (RSP-3.2+ / RSP-4 territory) will be added to the rejection match
+    /// at their respective TB landings — each new system variant extends
+    /// this list, never bypasses it.
+    pub async fn submit_agent_tx(&self, tx: TypedTx) -> Result<SubmissionReceipt, SubmitError> {
+        // TB-5.0 ingress barrier: reject 4 system-emitted variants
+        // (FinalizeReward / TaskExpire / TerminalSummary added in Atom 2;
+        // ChallengeResolve added in Atom 3 when its TypedTx variant landed).
+        match &tx {
+            TypedTx::FinalizeReward(_)
+            | TypedTx::TaskExpire(_)
+            | TypedTx::TerminalSummary(_)
+            | TypedTx::ChallengeResolve(_) => {
+                return Err(SubmitError::SystemTxForbiddenOnAgentIngress);
+            }
+            // Agent-submitted variants — proceed to queue.
+            TypedTx::Work(_)
+            | TypedTx::Verify(_)
+            | TypedTx::Challenge(_)
+            | TypedTx::Reuse(_)
+            | TypedTx::TaskOpen(_)
+            | TypedTx::EscrowLock(_) => {}
+        }
         // TB-2 P1-D r1 concurrency contract: fetch_add precedes try_send, so
         // submit_id allocation order is NOT receiver arrival order under
         // multi-producer scheduling. submit_id is always burned (never reused)
@@ -872,6 +1225,122 @@ impl Sequencer {
             Err(tokio::sync::mpsc::error::TrySendError::Full(_)) => Err(SubmitError::QueueFull),
             Err(tokio::sync::mpsc::error::TrySendError::Closed(_)) => Err(SubmitError::QueueClosed),
         }
+    }
+
+    /// TRACE_MATRIX TB-5 Atom 4 (charter v2 § 4.2 + preflight § 3.3): system-only
+    /// ingress for system-emitted variants. Constructs the typed tx + signs
+    /// internally with the runtime's `Ed25519Keypair` + verifies via
+    /// `PinnedSystemPubkeys` (defense-in-depth) before pushing to the queue.
+    /// Cannot be invoked with a forged signature because the signature is
+    /// constructed from the runtime's own keypair — this is the structural
+    /// Anti-Oreo guarantee that complements the agent-side submit_agent_tx
+    /// barrier.
+    pub async fn emit_system_tx(
+        &self,
+        command: SystemEmitCommand,
+    ) -> Result<SystemEmitReceipt, EmitSystemError> {
+        // Step 1: Build the typed tx struct from the command + sign internally.
+        let tx = self.build_signed_system_tx(command)?;
+        // Step 2: Defense-in-depth — verify the just-signed signature against
+        // pinned pubkeys for the current epoch. Tests pin runtime keypair's
+        // public key under epoch, so this MUST pass under normal operation.
+        // Catches keypair/pinned-pubkey desync.
+        self.verify_emitted_system_tx_signature(&tx)?;
+        // Step 3: Allocate emit_id (parallel to submit_id; separate counter
+        // namespace per charter v2 § 4.2 + preflight § 3.6).
+        let emit_id = self.next_emit_id.fetch_add(1, Ordering::SeqCst);
+        let envelope = SubmissionEnvelope { submit_id: emit_id, tx };
+        // Step 4: Push to shared queue (single queue for both ingress paths;
+        // dispatch_transition discriminates by variant TYPE per preflight § 3.6).
+        match self.queue_tx.try_send(envelope) {
+            Ok(()) => Ok(SystemEmitReceipt { emit_id }),
+            Err(tokio::sync::mpsc::error::TrySendError::Full(_)) => Err(EmitSystemError::QueueFull),
+            Err(tokio::sync::mpsc::error::TrySendError::Closed(_)) => {
+                Err(EmitSystemError::QueueClosed)
+            }
+        }
+    }
+
+    /// TRACE_MATRIX TB-5 Atom 4 (preflight § 4.4): construct + sign a system
+    /// tx from a high-level `SystemEmitCommand`. Internal-only; called by
+    /// `emit_system_tx`. Each command variant constructs its corresponding
+    /// typed tx struct, computes the signing-payload digest, signs with the
+    /// runtime's system keypair, and returns the signed `TypedTx`.
+    fn build_signed_system_tx(
+        &self,
+        command: SystemEmitCommand,
+    ) -> Result<TypedTx, EmitSystemError> {
+        use crate::bottom_white::ledger::system_keypair::terminal_summary_emitter::sign_challenge_resolve;
+        use crate::bottom_white::ledger::system_keypair::SystemSignature;
+        use crate::state::typed_tx::ChallengeResolveTx;
+        match command {
+            SystemEmitCommand::ChallengeResolve { target_challenge_tx_id, resolution } => {
+                let q_snap = self
+                    .q
+                    .read()
+                    .map_err(|_| EmitSystemError::InternalLockPoisoned)?;
+                let logical_t_for_id = self.next_logical_t.load(Ordering::SeqCst) + 1;
+                let mut tx = ChallengeResolveTx {
+                    tx_id: crate::state::q_state::TxId(format!(
+                        "system-challenge-resolve-{}-{}",
+                        self.epoch.get(),
+                        logical_t_for_id
+                    )),
+                    parent_state_root: q_snap.state_root_t,
+                    target_challenge_tx_id,
+                    resolution,
+                    epoch: self.epoch,
+                    timestamp_logical: logical_t_for_id,
+                    system_signature: SystemSignature::from_bytes([0u8; 64]),  // placeholder
+                };
+                drop(q_snap);
+                let payload = tx.to_signing_payload();
+                let digest = payload.canonical_digest();
+                let sig = sign_challenge_resolve(&self.keypair, digest)
+                    .map_err(EmitSystemError::SignatureConstruction)?;
+                tx.system_signature = sig;
+                Ok(TypedTx::ChallengeResolve(tx))
+            }
+        }
+    }
+
+    /// TRACE_MATRIX TB-5 Atom 4 (preflight § 4.5): defense-in-depth signature
+    /// verification at emit time. Verifies the just-signed signature against
+    /// pinned pubkeys for the current epoch.
+    fn verify_emitted_system_tx_signature(&self, tx: &TypedTx) -> Result<(), EmitSystemError> {
+        use crate::bottom_white::ledger::system_keypair::{verify_system_signature, CanonicalMessage};
+        match tx {
+            TypedTx::ChallengeResolve(t) => {
+                let digest = t.to_signing_payload().canonical_digest();
+                let msg = CanonicalMessage::ChallengeResolveSigning(digest);
+                if !verify_system_signature(&t.system_signature, &msg, t.epoch, &self.pinned_pubkeys) {
+                    return Err(EmitSystemError::InvalidSystemSignatureLive);
+                }
+                Ok(())
+            }
+            // emit_system_tx is system-only — agent variants are unreachable here.
+            _ => Ok(()),
+        }
+    }
+
+    /// TRACE_MATRIX FC2-Submit + § 5.2.1: legacy public submit alias.
+    ///
+    /// Submit a typed transition (legacy alias; delegates to `submit_agent_tx`
+    /// post-TB-5 Atom 2). Returns immediately with a receipt carrying
+    /// `submit_id` (NOT `logical_t`). Per Q2 (back-pressure resolution): on
+    /// queue saturation returns `Err(SubmitError::QueueFull)` and the agent is
+    /// expected to retry with deterministic exponential backoff.
+    ///
+    /// **TB-5.0 Atom 2 narrowing** (charter v2 § 4.2): this method now
+    /// inherits `submit_agent_tx`'s system-variant rejection. Existing
+    /// callers (e.g., bus.rs:135-141 `TuringBus::submit_typed_tx`) keep
+    /// working unchanged for agent variants. Test fixtures retain backward
+    /// compatibility — the only behavioral change is that bare `submit(tx)`
+    /// of a system-emitted variant now rejects with
+    /// `SubmitError::SystemTxForbiddenOnAgentIngress` instead of silently
+    /// queueing for dispatch.
+    pub async fn submit(&self, tx: TypedTx) -> Result<SubmissionReceipt, SubmitError> {
+        self.submit_agent_tx(tx).await
     }
 
     /// Driver loop. Drains the queue and runs `apply_one` on each tx. Errors
@@ -910,6 +1379,82 @@ impl Sequencer {
         }
     }
 
+    /// TRACE_MATRIX FC3-S3 (TB-5 Atom 4 preflight § 4.5): factor the L4.E
+    /// rejection-writer arm out of `apply_one` so it can be invoked from
+    /// BOTH dispatch failures (stage 2) AND signature-verification failures
+    /// (stage 1.5). Behavior preserved exactly per the existing TB-2 Atom 4
+    /// rejection-writer semantics: no logical_t / state_root / ledger_root
+    /// advance. Records:
+    /// - tx_payload_cid (canonical-encoded TypedTx)
+    /// - raw_diagnostic_cid (TransitionError display, structurally
+    ///   serde-shielded on RejectedSubmissionRecord per TB-1 P0-3)
+    /// - rejection_class via `rejection_class_for(err)`
+    /// - public_summary via `public_summary_for(err)`
+    /// - agent_id via `tx.submitter_id().unwrap_or(SYSTEM_AGENT_ID)`
+    fn record_rejection(
+        &self,
+        submit_id: u64,
+        tx: &TypedTx,
+        q_snapshot: &QState,
+        err: &TransitionError,
+    ) -> Result<(), ApplyError> {
+        let payload_bytes = canonical_encode(tx)
+            .map_err(|e| ApplyError::PayloadEncode(e.to_string()))?;
+        let creator = format!("sequencer.rejection_path.epoch-{}", self.epoch.get());
+        let rejection_logical_t = self.next_logical_t.load(Ordering::SeqCst);
+
+        let tx_payload_cid = {
+            let mut cas_w = self
+                .cas
+                .write()
+                .map_err(|_| ApplyError::QStateLockPoisoned)?;
+            cas_w.put(
+                &payload_bytes,
+                ObjectType::ProposalPayload,
+                &creator,
+                rejection_logical_t,
+                Some("TypedTx.v1".to_string()),
+            )?
+        };
+
+        let diag_bytes = err.to_string().into_bytes();
+        let raw_diagnostic_cid = {
+            let mut cas_w = self
+                .cas
+                .write()
+                .map_err(|_| ApplyError::QStateLockPoisoned)?;
+            Some(cas_w.put(
+                &diag_bytes,
+                ObjectType::Generic,
+                &creator,
+                rejection_logical_t,
+                Some("TransitionError.display.v1".to_string()),
+            )?)
+        };
+
+        let agent_id = tx
+            .submitter_id()
+            .unwrap_or_else(|| AgentId(SYSTEM_AGENT_ID_STR.to_string()));
+
+        {
+            let mut writer_w = self
+                .rejection_writer
+                .write()
+                .map_err(|_| ApplyError::QStateLockPoisoned)?;
+            writer_w.append_rejected(
+                submit_id,
+                q_snapshot.state_root_t,
+                agent_id,
+                tx.tx_kind(),
+                tx_payload_cid,
+                rejection_class_for(err),
+                raw_diagnostic_cid,
+                public_summary_for(err),
+            );
+        }
+        Ok(())
+    }
+
     /// TRACE_MATRIX FC3-S3: L4 sequencer per-tx critical section.
     ///
     /// Pure transition + CAS put + sign + commit + Q_t mutation. See spec § 3
@@ -942,6 +1487,29 @@ impl Sequencer {
             g.clone()
         };
 
+        // TB-5 Atom 4 (preflight § 4.5): Stage 1.5 — defense-in-depth signature
+        // verification for system-emitted variants. Even though emit_system_tx
+        // signs the message before queueing, apply_one re-verifies against
+        // pinned_pubkeys here so that any future bypass of emit_system_tx
+        // (or stale signature in a replay) is rejected at the apply boundary.
+        // On verification failure, route to L4.E with InvalidSystemSignatureLive
+        // exactly like a dispatch reject — no logical_t consumed, no state_root
+        // advance.
+        if let Some(msg) = system_message_for_verification(&tx) {
+            use crate::bottom_white::ledger::system_keypair::verify_system_signature;
+            let sig = system_signature_of(&tx)
+                .expect("system_message_for_verification implies system_signature present");
+            // TerminalSummaryTx carries no epoch field (STATE § 1.5 8-field
+            // schema is digest-only); fall back to the apply-time sequencer
+            // epoch. Other system variants carry epoch on the wire.
+            let tx_epoch = system_epoch_of(&tx).unwrap_or(self.epoch);
+            if !verify_system_signature(sig, &msg, tx_epoch, &self.pinned_pubkeys) {
+                let err = TransitionError::InvalidSystemSignatureLive;
+                self.record_rejection(submit_id, &tx, &q_snapshot, &err)?;
+                return Err(ApplyError::Transition(err));
+            }
+        }
+
         // Stage 2: dispatch (pure). On reject, route to L4.E rejection-evidence
         // ledger and return early. K1: no logical_t consumed; Inv 7: no
         // state_root_t / ledger_root_t advance.
@@ -953,72 +1521,7 @@ impl Sequencer {
         ) {
             Ok(ok) => ok,
             Err(transition_err) => {
-                // TB-2 Atom 4 — rejection-writer path (preflight v3 §3.5).
-                // CAS-put canonical-encoded tx payload + diagnostic, then
-                // append_rejected to L4.E with submit_id keyed off the envelope.
-                let payload_bytes = canonical_encode(&tx)
-                    .map_err(|e| ApplyError::PayloadEncode(e.to_string()))?;
-                let creator = format!("sequencer.rejection_path.epoch-{}", self.epoch.get());
-                let rejection_logical_t = self.next_logical_t.load(Ordering::SeqCst);
-
-                let tx_payload_cid = {
-                    let mut cas_w = self
-                        .cas
-                        .write()
-                        .map_err(|_| ApplyError::QStateLockPoisoned)?;
-                    cas_w.put(
-                        &payload_bytes,
-                        ObjectType::ProposalPayload,
-                        &creator,
-                        rejection_logical_t,
-                        Some("TypedTx.v1".to_string()),
-                    )?
-                };
-
-                // raw_diagnostic_cid is structurally serde-shielded on
-                // RejectedSubmissionRecord per TB-1 P0-3
-                // (rejection_evidence.rs:108). I8 re-confirms at runtime.
-                let diag_bytes = transition_err.to_string().into_bytes();
-                let raw_diagnostic_cid = {
-                    let mut cas_w = self
-                        .cas
-                        .write()
-                        .map_err(|_| ApplyError::QStateLockPoisoned)?;
-                    Some(cas_w.put(
-                        &diag_bytes,
-                        ObjectType::Generic,
-                        &creator,
-                        rejection_logical_t,
-                        Some("TransitionError.display.v1".to_string()),
-                    )?)
-                };
-
-                // P0-2 r2: HasSubmitter::submitter_id() returns Option<AgentId>.
-                // RejectedSubmissionRecord.agent_id is AgentId (not Option).
-                // Fall back to SYSTEM_AGENT_ID_STR for variants that return None.
-                // WorkTx always returns Some so the unwrap_or_else arm is
-                // theoretical for TB-2 but covers future system-emitted variants.
-                let agent_id = tx
-                    .submitter_id()
-                    .unwrap_or_else(|| AgentId(SYSTEM_AGENT_ID_STR.to_string()));
-
-                {
-                    let mut writer_w = self
-                        .rejection_writer
-                        .write()
-                        .map_err(|_| ApplyError::QStateLockPoisoned)?;
-                    writer_w.append_rejected(
-                        submit_id,
-                        q_snapshot.state_root_t,
-                        agent_id,
-                        tx.tx_kind(),
-                        tx_payload_cid,
-                        rejection_class_for(&transition_err),
-                        raw_diagnostic_cid,
-                        public_summary_for(&transition_err),
-                    );
-                }
-
+                self.record_rejection(submit_id, &tx, &q_snapshot, &transition_err)?;
                 // No logical_t advance, no state_root advance, no ledger_root
                 // advance. Caller observes ApplyError::Transition.
                 return Err(ApplyError::Transition(transition_err));
@@ -1162,6 +1665,13 @@ mod tests {
         let preds = Arc::new(PredicateRegistry::new());
         let tools = Arc::new(ToolRegistry::new());
         let q = QState::genesis();
+        // TB-5 Atom 4: tests pin keypair's own pubkey under the test epoch
+        // (preflight § 4.2). emit_system_tx signs with self.keypair, so
+        // verification by-construction succeeds when the pinned pubkey for
+        // `epoch` matches keypair.public_key().
+        let mut pinned = crate::bottom_white::ledger::system_keypair::PinnedSystemPubkeys::new();
+        pinned.insert(epoch, keypair.public_key());
+        let pinned_pubkeys = Arc::new(pinned);
         let (seq, rx) = Sequencer::new(
             cas,
             keypair,
@@ -1170,6 +1680,7 @@ mod tests {
             rejection_writer.clone(),
             preds,
             tools,
+            pinned_pubkeys,
             q,
             16,
         );
@@ -1503,14 +2014,20 @@ mod tests {
         let rejection_writer = Arc::new(RwLock::new(RejectionEvidenceWriter::default()));
         let preds = Arc::new(PredicateRegistry::new());
         let tools = Arc::new(ToolRegistry::new());
+        let epoch = SystemEpoch::new(1);
+        // TB-5 Atom 4: pin keypair pubkey under epoch (preflight § 4.2).
+        let mut pinned = crate::bottom_white::ledger::system_keypair::PinnedSystemPubkeys::new();
+        pinned.insert(epoch, keypair.public_key());
+        let pinned_pubkeys = Arc::new(pinned);
         let (seq, _rx) = Sequencer::new(
             cas,
             keypair,
-            SystemEpoch::new(1),
+            epoch,
             writer,
             rejection_writer,
             preds,
             tools,
+            pinned_pubkeys,
             QState::genesis(),
             2,
         );
@@ -2152,5 +2669,599 @@ mod tests {
         let tx = TypedTx::Challenge(chal_tx);
         let err = dispatch_transition(&q, &tx, &preds, &tools).unwrap_err();
         assert!(matches!(err, TransitionError::InsufficientBalance));
+    }
+
+    // ── TB-5.0 Atom 2 — agent-ingress barrier tests (charter v2 § 5.3 U22-U26) ──
+    //
+    // Note: U22 (rejects ChallengeResolveTx) is DEFERRED to Atom 3 because
+    // ChallengeResolveTx variant doesn't exist in TypedTx until Atom 3.
+    // Atom 2 covers U23-U26: the three system variants that exist at HEAD
+    // (FinalizeReward, TaskExpire, TerminalSummary) + accept-path for the
+    // 6 agent variants (Work, Verify, Challenge, Reuse, TaskOpen, EscrowLock).
+    //
+    // When Atom 3 lands ChallengeResolveTx, it extends the submit_agent_tx
+    // rejection match to include ChallengeResolve and adds U22 alongside.
+
+    /// U23 — submit_agent_tx rejects FinalizeRewardTx pre-queue with
+    /// SystemTxForbiddenOnAgentIngress. submit_id is NOT advanced
+    /// (rejection happens before fetch_add).
+    #[tokio::test]
+    async fn submit_agent_tx_rejects_finalize_reward_pre_queue() {
+        let (_tmp, seq, _rx, _rejection_writer) = fresh_sequencer();
+        let pre_submit_id = seq.next_submit_id_peek();
+        let tx = TypedTx::FinalizeReward(FinalizeRewardTx {
+            tx_id: TxId("ft-u23".into()),
+            claim_id: ClaimId::new("cl-u23"),
+            task_id: TaskId("t-u23".into()),
+            solver: AgentId("s-u23".into()),
+            reward: MicroCoin::from_micro_units(1),
+            parent_state_root: Hash::ZERO,
+            epoch: SystemEpoch::new(1),
+            timestamp_logical: 1,
+            system_signature: SystemSignature::from_bytes([0u8; 64]),
+        });
+        let err = seq.submit_agent_tx(tx).await.unwrap_err();
+        assert!(matches!(err, SubmitError::SystemTxForbiddenOnAgentIngress));
+        // submit_id NOT advanced (rejection is pre-queue, before fetch_add).
+        assert_eq!(seq.next_submit_id_peek(), pre_submit_id,
+            "submit_id must not advance on system-tx ingress rejection");
+    }
+
+    /// U24 — submit_agent_tx rejects TaskExpireTx pre-queue.
+    #[tokio::test]
+    async fn submit_agent_tx_rejects_task_expire_pre_queue() {
+        let (_tmp, seq, _rx, _rejection_writer) = fresh_sequencer();
+        let pre_submit_id = seq.next_submit_id_peek();
+        let tx = TypedTx::TaskExpire(TaskExpireTx {
+            tx_id: TxId("et-u24".into()),
+            task_id: TaskId("t-u24".into()),
+            parent_state_root: Hash::ZERO,
+            bounty_refunded: MicroCoin::from_micro_units(1),
+            epoch: SystemEpoch::new(1),
+            timestamp_logical: 1,
+            system_signature: SystemSignature::from_bytes([0u8; 64]),
+        });
+        let err = seq.submit_agent_tx(tx).await.unwrap_err();
+        assert!(matches!(err, SubmitError::SystemTxForbiddenOnAgentIngress));
+        assert_eq!(seq.next_submit_id_peek(), pre_submit_id);
+    }
+
+    /// U25 — submit_agent_tx rejects TerminalSummaryTx pre-queue.
+    #[tokio::test]
+    async fn submit_agent_tx_rejects_terminal_summary_pre_queue() {
+        let (_tmp, seq, _rx, _rejection_writer) = fresh_sequencer();
+        let pre_submit_id = seq.next_submit_id_peek();
+        let tx = TypedTx::TerminalSummary(TerminalSummaryTx {
+            tx_id: TxId("ts-u25".into()),
+            task_id: TaskId("t-u25".into()),
+            run_id: RunId("r-u25".into()),
+            run_outcome: RunOutcome::OmegaAccepted,
+            total_attempts: 0,
+            failure_class_histogram: BTreeMap::new(),
+            last_logical_t: 0,
+            system_signature: SystemSignature::from_bytes([0u8; 64]),
+        });
+        let err = seq.submit_agent_tx(tx).await.unwrap_err();
+        assert!(matches!(err, SubmitError::SystemTxForbiddenOnAgentIngress));
+        assert_eq!(seq.next_submit_id_peek(), pre_submit_id);
+    }
+
+    /// U22 — submit_agent_tx rejects ChallengeResolveTx pre-queue
+    /// (TB-5 Atom 3 added the variant; previously was DEFERRED in Atom 2).
+    /// charter v2 § 4.9 + § 5.3 binding.
+    #[tokio::test]
+    async fn submit_agent_tx_rejects_challenge_resolve_pre_queue() {
+        use crate::state::typed_tx::{ChallengeResolveTx, ChallengeResolution};
+        let (_tmp, seq, _rx, _rejection_writer) = fresh_sequencer();
+        let pre_submit_id = seq.next_submit_id_peek();
+        let tx = TypedTx::ChallengeResolve(ChallengeResolveTx {
+            tx_id: TxId("crt-u22".into()),
+            parent_state_root: Hash::ZERO,
+            target_challenge_tx_id: TxId("ct-target".into()),
+            resolution: ChallengeResolution::Released,
+            epoch: SystemEpoch::new(1),
+            timestamp_logical: 1,
+            system_signature: SystemSignature::from_bytes([0u8; 64]),
+        });
+        let err = seq.submit_agent_tx(tx).await.unwrap_err();
+        assert!(matches!(err, SubmitError::SystemTxForbiddenOnAgentIngress),
+            "ChallengeResolveTx must reject on agent ingress per TB-5.0 substrate");
+        // submit_id NOT advanced (pre-queue rejection per Anti-Oreo guarantee).
+        assert_eq!(seq.next_submit_id_peek(), pre_submit_id);
+    }
+
+    /// U26 — submit_agent_tx accepts all 6 agent-submitted variants
+    /// (Work, Verify, Challenge, Reuse, TaskOpen, EscrowLock) — submit_id
+    /// advances; envelope queued.
+    #[tokio::test]
+    async fn submit_agent_tx_accepts_work_verify_challenge_taskopen_escrowlock_reuse() {
+        let (_tmp, seq, _rx, _rejection_writer) = fresh_sequencer();
+
+        // Work (existing fixture).
+        let r = seq.submit_agent_tx(TypedTx::Work(fixture_work_tx())).await;
+        assert!(r.is_ok(), "Work agent variant accepted; got {r:?}");
+
+        // Verify.
+        let r = seq.submit_agent_tx(TypedTx::Verify(VerifyTx {
+            tx_id: TxId("vt-u26".into()),
+            parent_state_root: Hash::ZERO,
+            target_work_tx: TxId("wt-u26".into()),
+            verifier_agent: AgentId("v".into()),
+            bond: StakeMicroCoin::from_micro_units(1),
+            verdict: VerifyVerdict::Confirm,
+            signature: AgentSignature::from_bytes([0; 64]),
+            timestamp_logical: 1,
+        })).await;
+        assert!(r.is_ok(), "Verify agent variant accepted; got {r:?}");
+
+        // Challenge.
+        let r = seq.submit_agent_tx(TypedTx::Challenge(ChallengeTx {
+            tx_id: TxId("ct-u26".into()),
+            parent_state_root: Hash::ZERO,
+            target_work_tx: TxId("wt-u26".into()),
+            challenger_agent: AgentId("c".into()),
+            stake: StakeMicroCoin::from_micro_units(1),
+            counterexample_cid: Cid([1; 32]),
+            signature: AgentSignature::from_bytes([0; 64]),
+            timestamp_logical: 1,
+        })).await;
+        assert!(r.is_ok(), "Challenge agent variant accepted; got {r:?}");
+
+        // Reuse.
+        let r = seq.submit_agent_tx(TypedTx::Reuse(ReuseTx {
+            tx_id: TxId("rt-u26".into()),
+            reusing_work_tx: TxId("wt-u26".into()),
+            reused_tool_id: ToolId("tool".into()),
+            reused_tool_creator: AgentId("a".into()),
+            timestamp_logical: 1,
+        })).await;
+        assert!(r.is_ok(), "Reuse agent variant accepted; got {r:?}");
+
+        // TaskOpen.
+        use crate::state::typed_tx::TaskOpenTx;
+        let r = seq.submit_agent_tx(TypedTx::TaskOpen(TaskOpenTx {
+            tx_id: TxId("ot-u26".into()),
+            task_id: TaskId("t-u26".into()),
+            parent_state_root: Hash::ZERO,
+            sponsor_agent: AgentId("sponsor".into()),
+            verifier_quorum: 1,
+            max_reuse_royalty_fraction_basis_points: 1000,
+            settlement_rule_hash: Hash::ZERO,
+            signature: AgentSignature::from_bytes([0u8; 64]),
+            timestamp_logical: 1,
+        })).await;
+        assert!(r.is_ok(), "TaskOpen agent variant accepted; got {r:?}");
+
+        // EscrowLock.
+        use crate::state::typed_tx::EscrowLockTx;
+        let r = seq.submit_agent_tx(TypedTx::EscrowLock(EscrowLockTx {
+            tx_id: TxId("lt-u26".into()),
+            task_id: TaskId("t-u26".into()),
+            parent_state_root: Hash::ZERO,
+            sponsor_agent: AgentId("sponsor".into()),
+            amount: MicroCoin::from_micro_units(1),
+            signature: AgentSignature::from_bytes([0u8; 64]),
+            timestamp_logical: 1,
+        })).await;
+        assert!(r.is_ok(), "EscrowLock agent variant accepted; got {r:?}");
+
+        // 6 successful submissions → submit_id advanced 6 times (started at 1).
+        assert_eq!(seq.next_submit_id_peek(), 7,
+            "next_submit_id should be 1 + 6 successful agent-submissions");
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // TB-5 Atom 4 — apply_one stage 1.5 unit-tests (preflight § 8.4)
+    //
+    // U27/U28 + I66/I66.a/b/c: forged signatures on system-emitted variants
+    // are rejected with TransitionError::InvalidSystemSignatureLive at
+    // apply_one stage 1.5 BEFORE dispatch_transition is invoked. Each rejection
+    // writes 1 L4.E row (record_rejection helper, factored out of the
+    // dispatch-reject path so both reject paths share semantics). Counter
+    // invariants (next_logical_t, state_root_t) MUST NOT advance.
+    // ────────────────────────────────────────────────────────────────────────
+
+    use crate::state::typed_tx::ChallengeResolveTx;
+
+    /// Helper: forge a ChallengeResolveTx with all-zero signature.
+    fn forged_challenge_resolve() -> TypedTx {
+        TypedTx::ChallengeResolve(ChallengeResolveTx {
+            tx_id: TxId("crt-stage15-forged".into()),
+            parent_state_root: Hash::ZERO,
+            target_challenge_tx_id: TxId("ct-target".into()),
+            resolution: crate::state::typed_tx::ChallengeResolution::Released,
+            epoch: SystemEpoch::new(1),
+            timestamp_logical: 1,
+            system_signature: SystemSignature::from_bytes([0u8; 64]),
+        })
+    }
+
+    fn forged_finalize_reward() -> TypedTx {
+        TypedTx::FinalizeReward(FinalizeRewardTx {
+            tx_id: TxId("ft-stage15-forged".into()),
+            claim_id: ClaimId::new("cl-fwd"),
+            task_id: TaskId("t-fwd".into()),
+            solver: AgentId("solver".into()),
+            reward: MicroCoin::from_micro_units(100),
+            parent_state_root: Hash::ZERO,
+            epoch: SystemEpoch::new(1),
+            timestamp_logical: 1,
+            system_signature: SystemSignature::from_bytes([0u8; 64]),
+        })
+    }
+
+    fn forged_task_expire() -> TypedTx {
+        TypedTx::TaskExpire(TaskExpireTx {
+            tx_id: TxId("et-stage15-forged".into()),
+            task_id: TaskId("t-exp".into()),
+            parent_state_root: Hash::ZERO,
+            bounty_refunded: MicroCoin::from_micro_units(1),
+            epoch: SystemEpoch::new(1),
+            timestamp_logical: 1,
+            system_signature: SystemSignature::from_bytes([0u8; 64]),
+        })
+    }
+
+    fn forged_terminal_summary() -> TypedTx {
+        TypedTx::TerminalSummary(TerminalSummaryTx {
+            tx_id: TxId("ts-stage15-forged".into()),
+            task_id: TaskId("t-ts".into()),
+            run_id: RunId("r-ts".into()),
+            run_outcome: RunOutcome::OmegaAccepted,
+            total_attempts: 0,
+            failure_class_histogram: BTreeMap::new(),
+            last_logical_t: 0,
+            system_signature: SystemSignature::from_bytes([0u8; 64]),
+        })
+    }
+
+    /// I66: stage-1.5 rejects forged ChallengeResolve sig + writes L4.E.
+    #[test]
+    fn stage_1_5_rejects_forged_challenge_resolve_signature() {
+        let (_tmp, seq, _rx, rejection_writer) = fresh_sequencer();
+        let pre_l4e = rejection_writer.read().expect("read").records().len();
+        let pre_logical = seq.next_logical_t_peek();
+
+        let envelope = SubmissionEnvelope { submit_id: 4242, tx: forged_challenge_resolve() };
+        let err = seq.apply_one(envelope).expect_err("forged sig must reject");
+        match err {
+            ApplyError::Transition(TransitionError::InvalidSystemSignatureLive) => {}
+            other => panic!("expected InvalidSystemSignatureLive, got {other:?}"),
+        }
+
+        let post_l4e = rejection_writer.read().expect("read").records().len();
+        assert_eq!(post_l4e, pre_l4e + 1, "stage 1.5 reject writes 1 L4.E row");
+        assert_eq!(seq.next_logical_t_peek(), pre_logical,
+            "K1: stage 1.5 reject MUST NOT advance logical_t");
+    }
+
+    /// I66.a: stage-1.5 rejects forged FinalizeReward sig.
+    #[test]
+    fn stage_1_5_rejects_forged_finalize_reward_signature() {
+        let (_tmp, seq, _rx, rejection_writer) = fresh_sequencer();
+        let pre_l4e = rejection_writer.read().expect("read").records().len();
+        let envelope = SubmissionEnvelope { submit_id: 4243, tx: forged_finalize_reward() };
+        let err = seq.apply_one(envelope).expect_err("forged sig must reject");
+        match err {
+            ApplyError::Transition(TransitionError::InvalidSystemSignatureLive) => {}
+            other => panic!("expected InvalidSystemSignatureLive, got {other:?}"),
+        }
+        let post_l4e = rejection_writer.read().expect("read").records().len();
+        assert_eq!(post_l4e, pre_l4e + 1);
+    }
+
+    /// I66.b: stage-1.5 rejects forged TaskExpire sig.
+    #[test]
+    fn stage_1_5_rejects_forged_task_expire_signature() {
+        let (_tmp, seq, _rx, rejection_writer) = fresh_sequencer();
+        let pre_l4e = rejection_writer.read().expect("read").records().len();
+        let envelope = SubmissionEnvelope { submit_id: 4244, tx: forged_task_expire() };
+        let err = seq.apply_one(envelope).expect_err("forged sig must reject");
+        match err {
+            ApplyError::Transition(TransitionError::InvalidSystemSignatureLive) => {}
+            other => panic!("expected InvalidSystemSignatureLive, got {other:?}"),
+        }
+        let post_l4e = rejection_writer.read().expect("read").records().len();
+        assert_eq!(post_l4e, pre_l4e + 1);
+    }
+
+    /// I66.c: stage-1.5 rejects forged TerminalSummary sig.
+    #[test]
+    fn stage_1_5_rejects_forged_terminal_summary_signature() {
+        let (_tmp, seq, _rx, rejection_writer) = fresh_sequencer();
+        let pre_l4e = rejection_writer.read().expect("read").records().len();
+        let envelope = SubmissionEnvelope { submit_id: 4245, tx: forged_terminal_summary() };
+        let err = seq.apply_one(envelope).expect_err("forged sig must reject");
+        match err {
+            ApplyError::Transition(TransitionError::InvalidSystemSignatureLive) => {}
+            other => panic!("expected InvalidSystemSignatureLive, got {other:?}"),
+        }
+        let post_l4e = rejection_writer.read().expect("read").records().len();
+        assert_eq!(post_l4e, pre_l4e + 1);
+    }
+
+    /// U27: emit_system_tx round-trip — emitted ChallengeResolve survives
+    /// apply_one stage 1.5 verification (constructive correctness; pinned
+    /// pubkey matches the runtime keypair's pubkey under epoch). Atom 5
+    /// updated this expectation: dispatch is now real, so a target that
+    /// does not exist in challenge_cases_t surfaces as ChallengeNotFound
+    /// (NOT NotYetImplemented). The contract the test enforces is
+    /// "stage 1.5 must NOT reject self-signed emit txns" — we assert the
+    /// observed error is downstream of stage 1.5 (any Transition variant
+    /// other than InvalidSystemSignatureLive).
+    #[tokio::test]
+    async fn stage_1_5_accepts_emit_system_tx_self_signed_challenge_resolve() {
+        let (_tmp, seq, mut rx, _rejection) = fresh_sequencer();
+
+        let _receipt = seq
+            .emit_system_tx(SystemEmitCommand::ChallengeResolve {
+                target_challenge_tx_id: TxId("ct-u27".into()),
+                resolution: crate::state::typed_tx::ChallengeResolution::Released,
+            })
+            .await
+            .expect("emit ok");
+
+        let envelope = rx.try_recv().expect("envelope queued");
+        let err = seq.apply_one(envelope).expect_err("target absent → reject");
+        match err {
+            ApplyError::Transition(TransitionError::InvalidSystemSignatureLive) => {
+                panic!("Self-signed emit_system_tx MUST PASS stage 1.5 verification");
+            }
+            ApplyError::Transition(TransitionError::ChallengeNotFound) => {
+                // Expected post-Atom-5: stage 1.5 passed; dispatch's real
+                // arm rejected with ChallengeNotFound (target_challenge_tx_id
+                // not present in challenge_cases_t — no fixture seeded).
+            }
+            other => {
+                eprintln!("non-ChallengeNotFound observed: {other:?} — stage 1.5 still passed");
+            }
+        }
+    }
+
+    /// U28: stage 1.5 path is bypassed for agent variants — no spurious
+    /// "missing system_signature" errors when an agent variant is applied.
+    #[test]
+    fn stage_1_5_skipped_for_agent_variants() {
+        // Build a WorkTx fixture and submit through apply_one directly.
+        // We don't care that dispatch_transition succeeds — we only assert
+        // we don't observe InvalidSystemSignatureLive (which would be a
+        // false positive at the verifier).
+        let (_tmp, seq, _rx, _rejection) = fresh_sequencer();
+        let work = TypedTx::Work(super::tests::fixture_work_tx());
+        let envelope = SubmissionEnvelope { submit_id: 1, tx: work };
+        let result = seq.apply_one(envelope);
+        match result {
+            Err(ApplyError::Transition(TransitionError::InvalidSystemSignatureLive)) => {
+                panic!("stage 1.5 must NOT trip on agent variants");
+            }
+            _ => {}
+        }
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // TB-5 Atom 5+6 — ChallengeResolve dispatch unit-tests (preflight § 8.2)
+    //
+    // U29-U33: dispatch_transition direct invocation; isolates the dispatch
+    // arm body from the apply_one + queue + signature pipeline.
+    // ────────────────────────────────────────────────────────────────────────
+
+    use crate::state::q_state::ChallengeStatus;
+    use crate::state::typed_tx::ChallengeResolution;
+
+    /// Seed Q with a single Open ChallengeCase so dispatch can resolve it.
+    /// Returns (q, target_challenge_tx_id, challenger_id, bond_amount).
+    fn seed_q_with_open_challenge_case(
+        challenger: &str,
+        challenger_starting_balance_micro: i64,
+        challenge_tx_id: &str,
+        bond_micro: i64,
+        target_work_tx_id: &str,
+    ) -> (QState, TxId, AgentId, MicroCoin) {
+        let mut q = QState::genesis();
+        let challenger_id = AgentId(challenger.into());
+        if challenger_starting_balance_micro > 0 {
+            q.economic_state_t.balances_t.0.insert(
+                challenger_id.clone(),
+                MicroCoin::from_micro_units(challenger_starting_balance_micro),
+            );
+        }
+        let challenge_id = TxId(challenge_tx_id.into());
+        let bond = MicroCoin::from_micro_units(bond_micro);
+        q.economic_state_t.challenge_cases_t.0.insert(
+            challenge_id.clone(),
+            crate::state::q_state::ChallengeCase {
+                challenger: challenger_id.clone(),
+                bond,
+                opened_at_round: 7,
+                target_work_tx: TxId(target_work_tx_id.into()),
+                status: ChallengeStatus::Open,
+            },
+        );
+        (q, challenge_id, challenger_id, bond)
+    }
+
+    fn make_resolve_tx(
+        target: &TxId,
+        resolution: ChallengeResolution,
+        parent_root: Hash,
+    ) -> TypedTx {
+        TypedTx::ChallengeResolve(crate::state::typed_tx::ChallengeResolveTx {
+            tx_id: TxId(format!("crt-disp-{}", target.0)),
+            parent_state_root: parent_root,
+            target_challenge_tx_id: target.clone(),
+            resolution,
+            epoch: SystemEpoch::new(1),
+            timestamp_logical: 1,
+            system_signature: SystemSignature::from_bytes([0u8; 64]),
+        })
+    }
+
+    /// U29 + U30: dispatch_challenge_resolve_released_zeros_bond_and_sets_status
+    /// + dispatch_challenge_resolve_released_refunds_balance.
+    #[test]
+    fn dispatch_challenge_resolve_released_zeros_bond_refunds_balance_and_sets_status() {
+        let preds = PredicateRegistry::new();
+        let tools = ToolRegistry::new();
+        // Pre: challenger had 100 micro pre-challenge; on challenge accept
+        // (in TB-4) bond was already debited from balances_t and credited
+        // to challenge_cases_t. Here we model the post-challenge state:
+        // challenger balance = 100 - 4 = 96; case.bond = 4.
+        let (q, target_id, challenger, bond) = seed_q_with_open_challenge_case(
+            "challenger-u29", 96, "ct-u29", 4, "wt-u29");
+        let pre_balance = q
+            .economic_state_t
+            .balances_t
+            .0
+            .get(&challenger)
+            .copied()
+            .unwrap();
+
+        let tx = make_resolve_tx(&target_id, ChallengeResolution::Released, q.state_root_t);
+        let (q_next, _) = dispatch_transition(&q, &tx, &preds, &tools)
+            .expect("Released path with valid Open case must accept");
+
+        // Refund: challenger balance += bond.
+        let post_balance = q_next
+            .economic_state_t
+            .balances_t
+            .0
+            .get(&challenger)
+            .copied()
+            .unwrap();
+        assert_eq!(
+            post_balance.micro_units(),
+            pre_balance.micro_units() + bond.micro_units(),
+            "Released must refund bond to challenger"
+        );
+
+        // Bond zeroed; status flipped; entry preserved (audit trail).
+        let entry = q_next
+            .economic_state_t
+            .challenge_cases_t
+            .0
+            .get(&target_id)
+            .expect("entry preserved per directive § 7 Q6");
+        assert_eq!(entry.bond.micro_units(), 0, "bond must be zeroed on Released");
+        assert_eq!(entry.status, ChallengeStatus::Released, "status flipped");
+        assert_eq!(entry.challenger, challenger, "challenger preserved");
+        assert_eq!(entry.target_work_tx, TxId("wt-u29".into()), "target preserved");
+
+        // state_root advanced via CHALLENGE_RESOLVE_DOMAIN_V1.
+        let expected = challenge_resolve_accept_state_root(&q.state_root_t, &tx);
+        assert_eq!(q_next.state_root_t, expected,
+            "state_root must match CHALLENGE_RESOLVE_DOMAIN_V1 hash");
+    }
+
+    /// U31: AlreadyResolved gate — second resolve with same target rejects.
+    #[test]
+    fn dispatch_challenge_resolve_released_cannot_run_twice() {
+        let preds = PredicateRegistry::new();
+        let tools = ToolRegistry::new();
+        let (q, target_id, _challenger, _bond) = seed_q_with_open_challenge_case(
+            "challenger-u31", 96, "ct-u31", 4, "wt-u31");
+
+        // First resolve succeeds.
+        let tx1 = make_resolve_tx(&target_id, ChallengeResolution::Released, q.state_root_t);
+        let (q1, _) = dispatch_transition(&q, &tx1, &preds, &tools)
+            .expect("first Released accepts");
+
+        // Second resolve on the same case (now status=Released) MUST reject
+        // with AlreadyResolved.
+        let tx2 = make_resolve_tx(&target_id, ChallengeResolution::Released, q1.state_root_t);
+        let err = dispatch_transition(&q1, &tx2, &preds, &tools)
+            .expect_err("second resolve must reject");
+        match err {
+            TransitionError::AlreadyResolved => {}
+            other => panic!("expected AlreadyResolved, got {other:?}"),
+        }
+    }
+
+    /// U32: ChallengeNotFound — target not in challenge_cases_t.
+    #[test]
+    fn dispatch_challenge_resolve_unknown_target_rejects() {
+        let preds = PredicateRegistry::new();
+        let tools = ToolRegistry::new();
+        let q = QState::genesis(); // empty challenge_cases_t.
+        let tx = make_resolve_tx(
+            &TxId("ct-u32-nonexistent".into()),
+            ChallengeResolution::Released,
+            q.state_root_t,
+        );
+        let err = dispatch_transition(&q, &tx, &preds, &tools)
+            .expect_err("unknown target must reject");
+        match err {
+            TransitionError::ChallengeNotFound => {}
+            other => panic!("expected ChallengeNotFound, got {other:?}"),
+        }
+    }
+
+    /// U33: UpheldDeferred — marker only; bond preserved.
+    #[test]
+    fn dispatch_challenge_resolve_upheld_deferred_marker_only() {
+        let preds = PredicateRegistry::new();
+        let tools = ToolRegistry::new();
+        let (q, target_id, challenger, bond) = seed_q_with_open_challenge_case(
+            "challenger-u33", 96, "ct-u33", 4, "wt-u33");
+        let pre_balance = q
+            .economic_state_t
+            .balances_t
+            .0
+            .get(&challenger)
+            .copied()
+            .unwrap();
+
+        let tx = make_resolve_tx(&target_id, ChallengeResolution::UpheldDeferred, q.state_root_t);
+        let (q_next, _) = dispatch_transition(&q, &tx, &preds, &tools)
+            .expect("UpheldDeferred path with valid Open case must accept");
+
+        // No balance mutation.
+        let post_balance = q_next
+            .economic_state_t
+            .balances_t
+            .0
+            .get(&challenger)
+            .copied()
+            .unwrap();
+        assert_eq!(
+            post_balance.micro_units(),
+            pre_balance.micro_units(),
+            "UpheldDeferred must NOT mutate challenger balance"
+        );
+
+        // Bond preserved; status flipped to UpheldDeferred.
+        let entry = q_next
+            .economic_state_t
+            .challenge_cases_t
+            .0
+            .get(&target_id)
+            .expect("entry preserved");
+        assert_eq!(
+            entry.bond.micro_units(),
+            bond.micro_units(),
+            "UpheldDeferred MUST preserve bond (TB-6 RSP-3.2 slash routing target)"
+        );
+        assert_eq!(entry.status, ChallengeStatus::UpheldDeferred);
+
+        // state_root advanced via CHALLENGE_RESOLVE_DOMAIN_V1.
+        let expected = challenge_resolve_accept_state_root(&q.state_root_t, &tx);
+        assert_eq!(q_next.state_root_t, expected);
+    }
+
+    /// U34: StaleParent — parent_state_root mismatch.
+    #[test]
+    fn dispatch_challenge_resolve_rejects_stale_parent() {
+        let preds = PredicateRegistry::new();
+        let tools = ToolRegistry::new();
+        let (q, target_id, _challenger, _bond) = seed_q_with_open_challenge_case(
+            "challenger-u34", 96, "ct-u34", 4, "wt-u34");
+        // Forge a wrong parent root.
+        let stale_root = Hash::from_bytes([0xde; 32]);
+        let tx = make_resolve_tx(&target_id, ChallengeResolution::Released, stale_root);
+        let err = dispatch_transition(&q, &tx, &preds, &tools)
+            .expect_err("stale parent must reject");
+        match err {
+            TransitionError::StaleParent => {}
+            other => panic!("expected StaleParent, got {other:?}"),
+        }
     }
 }

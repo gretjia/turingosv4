@@ -250,6 +250,13 @@ pub enum CanonicalMessage {
     /// `system_keypair ↔ transition_ledger` module dependency while preserving the
     /// "all sign goes through CanonicalMessage" invariant.
     LedgerEntrySigning([u8; 32]),
+    /// TRACE_MATRIX FC1-Sig + FC3-Sig (TB-5 charter v2 § 4.5 + preflight § 4.3):
+    /// challenge-resolve signing payload digest. Opaque [u8; 32] from
+    /// `state::typed_tx::ChallengeResolveSigningPayload::canonical_digest()`.
+    /// Same opaque-digest pattern as `TerminalSummarySigning` /
+    /// `FinalizeRewardSigning` / `TaskExpireSigning`; avoids circular
+    /// `system_keypair ↔ state` dependency.
+    ChallengeResolveSigning([u8; 32]),
 }
 
 /// TRACE_MATRIX FC1-Sig+FC3-Sig: epoch-indexed public keys pinned by genesis and rotation history.
@@ -493,6 +500,10 @@ pub fn canonical_digest(message: &CanonicalMessage) -> [u8; 32] {
             h.update(b"LedgerEntrySigning");
             h.update(digest);
         }
+        CanonicalMessage::ChallengeResolveSigning(digest) => {
+            h.update(b"ChallengeResolveSigning");
+            h.update(digest);
+        }
     }
     h.finalize().into()
 }
@@ -610,6 +621,21 @@ pub(crate) mod terminal_summary_emitter {
         digest: [u8; 32],
     ) -> Result<SystemSignature, KeypairError> {
         sign_system_message_inner(keypair, &CanonicalMessage::TaskExpireSigning(digest))
+    }
+
+    /// TRACE_MATRIX FC1-Sig + FC3-Sig (TB-5 charter v2 § 4.5 + preflight § 4.4):
+    /// sign an opaque 32-byte digest of a `ChallengeResolveSigningPayload`
+    /// (computed by `state::typed_tx::ChallengeResolveTx::to_signing_payload().canonical_digest()`).
+    /// Symmetric to `sign_finalize_reward` / `sign_task_expire` /
+    /// `sign_terminal_summary`. Used by `Sequencer::emit_system_tx` (Atom 4)
+    /// to construct the system_signature internally — caller never carries
+    /// a forged signature; emit_system_tx signs from the runtime's own
+    /// `Ed25519Keypair`.
+    pub(crate) fn sign_challenge_resolve(
+        keypair: &Ed25519Keypair,
+        digest: [u8; 32],
+    ) -> Result<SystemSignature, KeypairError> {
+        sign_system_message_inner(keypair, &CanonicalMessage::ChallengeResolveSigning(digest))
     }
 
     /// TRACE_MATRIX FC3-Sig: sign only typed epoch rotation proofs.

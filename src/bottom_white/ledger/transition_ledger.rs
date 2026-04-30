@@ -64,6 +64,12 @@ pub enum TxKind {
     /// TB-3 RSP-1 formal-tx-surface (charter § 4.1). Sponsor-emitted bounty
     /// funding; the sole RSP-1 path that grows `task_markets_t.total_escrow`.
     EscrowLock      = 8,
+    /// TB-5 RSP-3.0/3.1 system-emitted resolution (charter v2 § 4.1 + § 4.5).
+    /// System-only: agent ingress rejected pre-queue; emit via
+    /// `Sequencer::emit_system_tx`. Released refunds challenger bond + flips
+    /// ChallengeCase.status; UpheldDeferred is a marker only (slash is
+    /// RSP-3.2 / TB-6 territory).
+    ChallengeResolve = 9,
 }
 
 /// TRACE_MATRIX FC2-Append + WP § 5.L4: stored LedgerEntry record (11 fields).

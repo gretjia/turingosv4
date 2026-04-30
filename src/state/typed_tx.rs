@@ -423,6 +423,57 @@ pub struct EscrowLockTx {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// § 5c TB-5 RSP-3.0/3.1 system-emitted resolution surface — ChallengeResolveTx
+//
+// Per TB-5 charter v2 § 4.1 + § 4.5 + preflight v2 § 5.1:
+//   - First-class allowed-named system-only TypedTx variant (per WP § 19
+//     RSP-1 ChallengeCourt module + ROADMAP § 3 P3 transactions list).
+//   - System-emitted ONLY: agent ingress (`Sequencer::submit_agent_tx`) rejects
+//     this variant pre-queue with `SubmitError::SystemTxForbiddenOnAgentIngress`
+//     (TB-5.0 Atom 2). System ingress (`Sequencer::emit_system_tx`, TB-5 Atom 4)
+//     constructs + signs internally with the runtime's system_keypair.
+//   - Released path (TB-5.1 Atom 5) refunds challenger bond + flips
+//     ChallengeCase.status to Released (no removal; audit trail preserved).
+//   - UpheldDeferred path (TB-5.1 Atom 6) is a marker only — slash is
+//     RSP-3.2 / TB-6 territory.
+// ────────────────────────────────────────────────────────────────────────────
+
+/// TRACE_MATRIX TB-5 charter v2 § 4.5 — system-emitted challenge resolution.
+/// Cannot enter Q via agent ingress (charter § 4.9 + § 5.0 substrate barrier);
+/// must come through Sequencer::emit_system_tx which signs internally.
+/// Released → challenger bond returns, case.status = Released.
+/// UpheldDeferred → marker only; ChallengeCase preserved for TB-6 slash.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct ChallengeResolveTx {
+    pub tx_id: TxId,                                //  1
+    pub parent_state_root: Hash,                    //  2
+    pub target_challenge_tx_id: TxId,               //  3 — keys challenge_cases_t lookup
+    pub resolution: ChallengeResolution,            //  4
+    pub epoch: SystemEpoch,                         //  5
+    pub timestamp_logical: u64,                     //  6
+    pub system_signature: SystemSignature,          //  7
+}
+
+/// TRACE_MATRIX TB-5 charter v2 § 4.5 — resolution outcome (per directive Q4).
+/// Released = TB-5.1 active path (CTF round-trip; bond refunded).
+/// UpheldDeferred = TB-5.1 marker-only path (slash deferred to TB-6).
+/// Lives in typed_tx.rs alongside ChallengeResolveTx; ChallengeStatus
+/// (Open/Released/UpheldDeferred for case-state tracking) lives in
+/// q_state.rs per Codex round-2 + round-3 Q4 single-source-of-truth.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[repr(u8)]
+pub enum ChallengeResolution {
+    Released = 0,
+    UpheldDeferred = 1,
+}
+
+impl Default for ChallengeResolution {
+    fn default() -> Self {
+        Self::Released
+    }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // § 7 Signing payloads (CO1.1.4-pre1 v1.1 round-1 closure C-1)
 //
 // Each agent-signed and system-emitted typed-tx has a paired `*SigningPayload`
@@ -451,6 +502,7 @@ const DOMAIN_AGENT_ESCROW_LOCK: &[u8] = b"turingosv4.agent_sig.escrow_lock.v1"; 
 const DOMAIN_SYSTEM_FINALIZE_REWARD: &[u8] = b"turingosv4.system_sig.finalize_reward.v1";
 const DOMAIN_SYSTEM_TASK_EXPIRE: &[u8] = b"turingosv4.system_sig.task_expire.v1";
 const DOMAIN_SYSTEM_TERMINAL_SUMMARY: &[u8] = b"turingosv4.system_sig.terminal_summary.v1";
+const DOMAIN_SYSTEM_CHALLENGE_RESOLVE: &[u8] = b"turingosv4.system_sig.challenge_resolve.v1"; // TB-5 Atom 3
 
 /// Reserved for v4.1 MetaTx (Gemini round-2 GR-1 recommendation).
 /// Not used in v4 — namespace placeholder so v4.1 can introduce
@@ -615,6 +667,28 @@ impl TerminalSummarySigningPayload {
     }
 }
 
+/// TRACE_MATRIX TB-5 charter v2 § 4.5 — system signing payload for
+/// `ChallengeResolveTx` (7 fields → 6 fields; signature excluded).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct ChallengeResolveSigningPayload {
+    pub tx_id: TxId,
+    pub parent_state_root: Hash,
+    pub target_challenge_tx_id: TxId,
+    pub resolution: ChallengeResolution,
+    pub epoch: SystemEpoch,
+    pub timestamp_logical: u64,
+}
+
+impl ChallengeResolveSigningPayload {
+    /// TRACE_MATRIX TB-5 charter v2 § 4.5: domain-prefixed canonical digest
+    /// for system-emitted ChallengeResolveTx signing. Domain prefix
+    /// `b"turingosv4.system_sig.challenge_resolve.v1"` mirrors the existing
+    /// 3 system-tx signing domains.
+    pub fn canonical_digest(&self) -> [u8; 32] {
+        domain_prefixed_digest(DOMAIN_SYSTEM_CHALLENGE_RESOLVE, self)
+    }
+}
+
 // ── Projections: tx → signing payload ────────────────────────────────────
 
 impl WorkTx {
@@ -732,6 +806,23 @@ impl EscrowLockTx {
     }
 }
 
+impl ChallengeResolveTx {
+    /// TRACE_MATRIX TB-5 charter v2 § 4.5: tx → signing payload projection
+    /// (excludes system_signature; 7 fields → 6 fields). Used by
+    /// `Sequencer::emit_system_tx` (Atom 4) to compute the digest the
+    /// system_keypair signs over.
+    pub fn to_signing_payload(&self) -> ChallengeResolveSigningPayload {
+        ChallengeResolveSigningPayload {
+            tx_id: self.tx_id.clone(),
+            parent_state_root: self.parent_state_root,
+            target_challenge_tx_id: self.target_challenge_tx_id.clone(),
+            resolution: self.resolution,
+            epoch: self.epoch,
+            timestamp_logical: self.timestamp_logical,
+        }
+    }
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // § 6 TypedTx outer enum
 // ────────────────────────────────────────────────────────────────────────────
@@ -752,6 +843,7 @@ pub enum TypedTx {
     TerminalSummary(TerminalSummaryTx),
     TaskOpen(TaskOpenTx),         // TB-3 RSP-1 formal surface
     EscrowLock(EscrowLockTx),     // TB-3 RSP-1 formal surface
+    ChallengeResolve(ChallengeResolveTx), // TB-5 RSP-3.0/3.1 system-emitted resolution
 }
 
 impl TypedTx {
@@ -768,6 +860,7 @@ impl TypedTx {
             Self::TerminalSummary(_) => TxKind::TerminalSummary,
             Self::TaskOpen(_) => TxKind::TaskOpen,
             Self::EscrowLock(_) => TxKind::EscrowLock,
+            Self::ChallengeResolve(_) => TxKind::ChallengeResolve,
         }
     }
 }
@@ -837,6 +930,12 @@ impl HasSubmitter for EscrowLockTx {
     }
 }
 
+impl HasSubmitter for ChallengeResolveTx {
+    fn submitter_id(&self) -> Option<AgentId> {
+        None  // system-emitted; mirror FinalizeRewardTx / TaskExpireTx / TerminalSummaryTx
+    }
+}
+
 impl HasSubmitter for TypedTx {
     fn submitter_id(&self) -> Option<AgentId> {
         match self {
@@ -849,6 +948,7 @@ impl HasSubmitter for TypedTx {
             Self::TerminalSummary(t) => t.submitter_id(),
             Self::TaskOpen(t) => t.submitter_id(),
             Self::EscrowLock(t) => t.submitter_id(),
+            Self::ChallengeResolve(t) => t.submitter_id(),
         }
     }
 }
@@ -988,6 +1088,45 @@ pub enum TransitionError {
     /// charter § 4.5.
     EmptyCounterexample,
 
+    // ── TB-5.0 RSP-3.0 substrate (charter v2 § 4.9 + preflight § 3.5) ──────
+    /// Agent attempted to submit a system-emitted variant
+    /// (FinalizeRewardTx / TaskExpireTx / TerminalSummaryTx; ChallengeResolveTx
+    /// added in TB-5 Atom 3) through the agent ingress path. The primary
+    /// rejection happens at `Sequencer::submit_agent_tx` BEFORE dispatch
+    /// (returns `SubmitError::SystemTxForbiddenOnAgentIngress` pre-queue).
+    /// This `TransitionError` variant is the **defensive twin**: should
+    /// any code path bypass the submit_agent_tx barrier and surface a
+    /// system variant in `dispatch_transition`, this variant is the
+    /// fail-closed dispatch response. Maps to
+    /// `L4ERejectionClass::PolicyViolation` per charter § 4.5.
+    /// Anti-Oreo enforcement of "agent ≠ direct state writer" at the
+    /// constitutional level (Art V.1.3 + WP § 12.4).
+    SystemTxForbiddenOnAgentIngress,
+    /// TB-5 Atom 4 (charter v2 § 4.3 + preflight § 4.5): apply_one stage 1.5
+    /// live signature verification failed. Fired when a system-emitted
+    /// variant reaches apply_one with a `system_signature` that does NOT
+    /// verify against the pinned PinnedSystemPubkeys for the current epoch.
+    /// Defense-in-depth atop the constructive `Sequencer::emit_system_tx`
+    /// guarantee — under normal operation this should be unreachable
+    /// (emit_system_tx signs internally with the runtime's keypair, and
+    /// pinned_pubkeys are derived from that same keypair). This variant
+    /// fires only if some code path bypasses emit_system_tx and surfaces a
+    /// forged-signature system variant in the queue. Maps to
+    /// `L4ERejectionClass::PolicyViolation` per charter § 4.5.
+    /// Per directive § 11.4: "system_signature 不能只是 schema 上的字段"
+    /// — this dispatch-side guard ensures it is live-verified.
+    InvalidSystemSignatureLive,
+    /// TB-5 Atom 5 (charter v2 § 4.6 + preflight § 7.2): the resolution
+    /// targets a `target_challenge_tx_id` that is NOT present in
+    /// `economic_state_t.challenge_cases_t` at apply time. Maps to
+    /// `L4ERejectionClass::PolicyViolation`.
+    ChallengeNotFound,
+    /// TB-5 Atom 5 (charter v2 § 4.6 + preflight § 7.2): the targeted
+    /// `ChallengeCase` is already in a non-Open state (Released or
+    /// UpheldDeferred). Idempotency gate — re-resolution of the same
+    /// case is rejected. Maps to `L4ERejectionClass::PolicyViolation`.
+    AlreadyResolved,
+
     // ── Stub sentinel (CO1.7.5 fills) ──────────────────────────────────────
     /// Stub return value used by CO1.7.5 unimplemented bodies — preserves
     /// sequencer + dispatch correctness without forcing transition logic
@@ -1027,6 +1166,27 @@ impl std::fmt::Display for TransitionError {
             Self::BondInsufficient => write!(f, "verifier bond insufficient"),
             Self::TargetWorkInactive => write!(f, "target work_tx not in stakes_t (never accepted live, or already resolved)"),
             Self::EmptyCounterexample => write!(f, "challenge counterexample_cid is empty / zero"),
+            Self::SystemTxForbiddenOnAgentIngress => write!(
+                f,
+                "system-emitted tx variant forbidden on agent ingress \
+                 (Anti-Oreo dispatch-side defensive guard; primary barrier \
+                 is Sequencer::submit_agent_tx pre-queue)"
+            ),
+            Self::InvalidSystemSignatureLive => write!(
+                f,
+                "system_signature failed live verification against pinned \
+                 PinnedSystemPubkeys for current epoch (apply_one stage 1.5 \
+                 defense-in-depth; primary guarantee is emit_system_tx \
+                 internal signing)"
+            ),
+            Self::ChallengeNotFound => write!(
+                f,
+                "ChallengeResolveTx target_challenge_tx_id not present in challenge_cases_t"
+            ),
+            Self::AlreadyResolved => write!(
+                f,
+                "ChallengeCase already resolved (status != Open); idempotent re-resolution rejected"
+            ),
             Self::NotYetImplemented => write!(f, "transition body not yet implemented (CO1.7.5)"),
         }
     }
@@ -1948,5 +2108,74 @@ mod tests {
         assert!(s_empty.contains("counterexample"));
         assert!(s_not_found.contains("not found"));
         assert!(s_not_verif.contains("verifiable"));
+    }
+
+    // ── TB-5 Atom 3 — ChallengeResolveTx ABI tests (T1-T4) ──────────────────
+
+    fn fixture_challenge_resolve_tx() -> ChallengeResolveTx {
+        ChallengeResolveTx {
+            tx_id: TxId("crt-fixture-01".into()),
+            parent_state_root: h(0x88),
+            target_challenge_tx_id: TxId("challengetx-fixture-01".into()),
+            resolution: ChallengeResolution::Released,
+            epoch: SystemEpoch::new(1),
+            timestamp_logical: 10,
+            system_signature: SystemSignature::from_bytes([0x99u8; 64]),
+        }
+    }
+
+    /// T1 — ChallengeResolveTx canonical_digest is deterministic.
+    /// Two identical fixtures must produce the same digest.
+    #[test]
+    fn challenge_resolve_canonical_digest_is_deterministic() {
+        let a = fixture_challenge_resolve_tx().to_signing_payload().canonical_digest();
+        let b = fixture_challenge_resolve_tx().to_signing_payload().canonical_digest();
+        assert_eq!(a, b, "canonical_digest must be deterministic");
+    }
+
+    /// T2 — ChallengeResolveSigningPayload excludes the signature field.
+    /// 7-field tx → 6-field payload.
+    #[test]
+    fn challenge_resolve_signing_payload_excludes_signature_field_count_6() {
+        let p = fixture_challenge_resolve_tx().to_signing_payload();
+        let v = serde_json::to_value(&p).unwrap();
+        let obj = v.as_object().unwrap();
+        assert_eq!(obj.len(), 6,
+            "ChallengeResolveSigningPayload must have 6 fields (signature excluded), got {}",
+            obj.len());
+        assert!(!obj.contains_key("system_signature"));
+        assert!(obj.contains_key("target_challenge_tx_id"),
+            "target_challenge_tx_id field must be in signing payload");
+        assert!(obj.contains_key("resolution"),
+            "resolution field must be in signing payload");
+    }
+
+    // TB-5 golden digest constants for ChallengeResolveTx (charter v2 § 4.5).
+    // Computed first run; rotation rule: any future codec / domain / projection
+    // change that affects these hex values requires explicit ABI golden fixture
+    // rotation commit + re-audit (per typed_tx.rs:1684-1688 protocol).
+    const EXPECTED_HEX_CHALLENGE_RESOLVE: &str =
+        "f0372b8d767bd159c991f41919eb390331347758cba98a12ede064008d5027ae";
+    const EXPECTED_SIGNING_HEX_CHALLENGE_RESOLVE: &str =
+        "6e73496903a9e99effe6c2f1a1f540e83aa1c385135a61b680a5df01c878f04e";
+
+    /// T3 — Golden TypedTx::ChallengeResolve digest hex is locked.
+    /// Any future change to ChallengeResolveTx canonical-encoded bytes
+    /// flips this hex → audit-required ABI golden fixture rotation.
+    #[test]
+    fn golden_challenge_resolve_tx_digest() {
+        let actual = digest_hex(&TypedTx::ChallengeResolve(fixture_challenge_resolve_tx()));
+        assert_eq!(actual.len(), 64);
+        assert_eq!(actual, EXPECTED_HEX_CHALLENGE_RESOLVE,
+            "ChallengeResolve TypedTx canonical digest changed");
+    }
+
+    /// T4 — Golden ChallengeResolveSigningPayload digest hex is locked.
+    #[test]
+    fn golden_challenge_resolve_signing_payload_digest() {
+        let actual = signing_digest_hex(
+            &fixture_challenge_resolve_tx().to_signing_payload().canonical_digest()
+        );
+        assert_eq!(actual, EXPECTED_SIGNING_HEX_CHALLENGE_RESOLVE);
     }
 }
