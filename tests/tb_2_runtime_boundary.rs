@@ -128,6 +128,15 @@ struct Harness {
     seq: Sequencer,
     rx: tokio::sync::mpsc::Receiver<SubmissionEnvelope>,
     rejection_writer: Arc<RwLock<RejectionEvidenceWriter>>,
+    // Retained Arc clones for tests that need to replay (I13) or otherwise
+    // observe the CAS / L4 / keypair state without going through Sequencer.
+    cas: Arc<RwLock<CasStore>>,
+    ledger_writer: Arc<RwLock<dyn LedgerWriter>>,
+    keypair: Arc<Ed25519Keypair>,
+    epoch: SystemEpoch,
+    initial_q: QState,
+    predicate_registry: Arc<PredicateRegistry>,
+    tool_registry: Arc<ToolRegistry>,
 }
 
 fn fresh_harness(initial_q: QState) -> Harness {
@@ -141,15 +150,16 @@ fn fresh_harness(initial_q: QState) -> Harness {
     let rejection_writer = Arc::new(RwLock::new(RejectionEvidenceWriter::default()));
     let preds = Arc::new(PredicateRegistry::new());
     let tools = Arc::new(ToolRegistry::new());
+    let epoch = SystemEpoch::new(1);
     let (seq, rx) = Sequencer::new(
-        cas,
-        keypair,
-        SystemEpoch::new(1),
-        writer,
+        cas.clone(),
+        keypair.clone(),
+        epoch,
+        writer.clone(),
         rejection_writer.clone(),
-        preds,
-        tools,
-        initial_q,
+        preds.clone(),
+        tools.clone(),
+        initial_q.clone(),
         16,
     );
     Harness {
@@ -157,6 +167,13 @@ fn fresh_harness(initial_q: QState) -> Harness {
         seq,
         rx,
         rejection_writer,
+        cas,
+        ledger_writer: writer,
+        keypair,
+        epoch,
+        initial_q,
+        predicate_registry: preds,
+        tool_registry: tools,
     }
 }
 
@@ -619,4 +636,91 @@ async fn runtime_accepted_worktx_does_not_append_l4e() {
         post_l4e, pre_l4e,
         "accepted WorkTx must NOT append any L4.E row"
     );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// I13 — replay from canonical L4 only ignores L4.E (P1:8 / Art IV Boot)
+// ────────────────────────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn runtime_replay_from_l4_only_ignores_l4e() {
+    use turingosv4::bottom_white::ledger::system_keypair::PinnedSystemPubkeys;
+    use turingosv4::bottom_white::ledger::transition_ledger::replay_full_transition;
+
+    let task_id = TaskId("task-i13".into());
+    let mut h = fresh_harness(seed_q_with_escrow(&task_id));
+
+    // Submit one accepted WorkTx (predicate-passing + escrow seeded).
+    h.seq
+        .submit(make_worktx(WorkTxFixtureOpts {
+            task_id: task_id.clone(),
+            tx_id_suffix: "i13-accept".into(),
+            ..Default::default()
+        }))
+        .await
+        .expect("submit accept");
+    h.seq
+        .try_apply_one(&mut h.rx)
+        .expect("queued")
+        .expect("accept apply_one");
+
+    // Submit one rejected WorkTx (predicate-failing).
+    h.seq
+        .submit(make_worktx(WorkTxFixtureOpts {
+            acceptance_passes: false,
+            task_id: task_id.clone(),
+            tx_id_suffix: "i13-reject".into(),
+            ..Default::default()
+        }))
+        .await
+        .expect("submit reject");
+    h.seq
+        .try_apply_one(&mut h.rx)
+        .expect("queued")
+        .expect_err("reject apply_one returns Err");
+
+    let post_state = h.seq.q_snapshot().expect("post").state_root_t;
+    let post_ledger = h.seq.q_snapshot().expect("post").ledger_root_t;
+    assert_eq!(
+        l4e_row_count(&h.rejection_writer),
+        1,
+        "exactly 1 L4.E row from the rejected submission"
+    );
+
+    // Reconstruct QState from canonical L4 ONLY. Read entries via
+    // LedgerWriter::read_at + len(), then drive replay_full_transition with
+    // genesis = the same initial_q the sequencer used.
+    let entries = {
+        let writer_g = h.ledger_writer.read().expect("writer read");
+        let n = writer_g.len();
+        assert_eq!(n, 1, "exactly 1 accepted L4 row");
+        (0..n)
+            .map(|i| writer_g.read_at(i + 1).expect("read_at"))
+            .collect::<Vec<_>>()
+    };
+
+    let mut pinned = PinnedSystemPubkeys::new();
+    pinned.insert(h.epoch, h.keypair.public_key());
+
+    let cas_g = h.cas.read().expect("cas read");
+    let replayed_q = replay_full_transition(
+        &h.initial_q,
+        &entries,
+        &*cas_g,
+        &pinned,
+        &h.predicate_registry,
+        &h.tool_registry,
+    )
+    .expect("replay must succeed for an accepted-only L4");
+
+    assert_eq!(
+        replayed_q.state_root_t, post_state,
+        "replay from canonical L4 must reach the same state_root_t as the live sequencer"
+    );
+    assert_eq!(
+        replayed_q.ledger_root_t, post_ledger,
+        "replay from canonical L4 must reach the same ledger_root_t"
+    );
+    // L4.E records were NOT consulted (only the 1-row L4 was). The rejected
+    // submission did not influence the canonical reconstruction — Inv 7 / P1:8.
 }
