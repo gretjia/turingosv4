@@ -1046,6 +1046,7 @@ mod tests {
         let cases: Vec<TypedTx> = vec![
             TypedTx::Verify(VerifyTx {
                 tx_id: TxId("vt".into()),
+                parent_state_root: Hash::ZERO, // TB-4 schema bump
                 target_work_tx: TxId("wt".into()),
                 verifier_agent: AgentId("v".into()),
                 bond: StakeMicroCoin::from_micro_units(1),
@@ -1055,6 +1056,7 @@ mod tests {
             }),
             TypedTx::Challenge(ChallengeTx {
                 tx_id: TxId("ct".into()),
+                parent_state_root: Hash::ZERO, // TB-4 schema bump
                 target_work_tx: TxId("wt".into()),
                 challenger_agent: AgentId("c".into()),
                 stake: StakeMicroCoin::from_micro_units(1),
