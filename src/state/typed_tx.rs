@@ -780,6 +780,17 @@ pub enum TransitionError {
     /// emit_terminal_summary — run already has an accepted work_tx.
     TerminalSummaryNotApplicable,
 
+    // ── TB-2 RSP-1 admission (preflight v3 §3.7) ───────────────────────────
+    /// WorkTx-arm escrow / task-market lookup miss. The bridged
+    /// `TxId(tx.task_id.0.clone())` did not match any entry in
+    /// `q.economic_state_t.escrows_t.0` or `task_markets_t.0`. Maps to
+    /// `L4ERejectionClass::EscrowMissing` per the §3.7 mapping table.
+    EscrowMissing,
+    /// `monetary_invariant::assert_no_post_init_mint` or
+    /// `assert_total_ctf_conserved` failed on the WorkTx arm. Maps to
+    /// `L4ERejectionClass::InvariantViolation`.
+    MonetaryInvariantViolation,
+
     // ── Stub sentinel (CO1.7.5 fills) ──────────────────────────────────────
     /// Stub return value used by CO1.7.5 unimplemented bodies — preserves
     /// sequencer + dispatch correctness without forcing transition logic
@@ -811,6 +822,8 @@ impl std::fmt::Display for TransitionError {
             Self::TaskNotExpired => write!(f, "task deadline not yet reached"),
             Self::TaskHasOpenClaim => write!(f, "task has at least one open claim"),
             Self::TerminalSummaryNotApplicable => write!(f, "terminal summary not applicable"),
+            Self::EscrowMissing => write!(f, "escrow / task-market entry missing for task_id"),
+            Self::MonetaryInvariantViolation => write!(f, "monetary invariant violation (post-init mint or ctf-conservation break)"),
             Self::NotYetImplemented => write!(f, "transition body not yet implemented (CO1.7.5)"),
         }
     }

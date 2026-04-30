@@ -1284,7 +1284,7 @@ mod tests {
         )
         .unwrap_err();
         assert!(
-            matches!(err, ReplayError::Transition { at: 0, inner: crate::state::typed_tx::TransitionError::NotYetImplemented }),
+            matches!(err, ReplayError::Transition { at: 0, inner: crate::state::typed_tx::TransitionError::EscrowMissing }),
             "expected Transition(NotYetImplemented at 0); got {err:?}"
         );
     }
