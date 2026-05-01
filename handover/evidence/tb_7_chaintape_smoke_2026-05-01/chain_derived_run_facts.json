@@ -1,0 +1,13 @@
+{
+  "solved": false,
+  "verified": false,
+  "tx_count": 7,
+  "proposal_count": 0,
+  "golden_path_token_count": 0,
+  "gp_payload": null,
+  "gp_path": null,
+  "gp_proof_file": null,
+  "tactic_diversity": 0,
+  "tool_dist": {},
+  "failed_branch_count": 6
+}
