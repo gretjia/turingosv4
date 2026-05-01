@@ -1679,7 +1679,7 @@ async fn run_swarm(
                                             // TB-7.7 D2: parent_tx for branch lineage.
                                             let parent_tx_for_pt: Option<turingosv4::state::q_state::TxId> =
                                                 last_tx_by_agent.get(agent_id).cloned();
-                                            let pt = match turingosv4::runtime::proposal_telemetry::ProposalTelemetry::build_for_evaluator_append_with_parent(
+                                            let pt_partial = match turingosv4::runtime::proposal_telemetry::ProposalTelemetry::build_for_evaluator_append_with_parent(
                                                 &mut cas_store,
                                                 &run_id,
                                                 agent_id,
@@ -1701,6 +1701,36 @@ async fn run_swarm(
                                                     std::process::exit(3);
                                                 }
                                             };
+                                            // TB-7.7 D4: build VerificationResult for the OMEGA-accept (Lean
+                                            // accepted; verified=true). Deterministic work_tx_id is
+                                            // `worktx-<task>-<suffix>` per make_real_worktx_signed_by.
+                                            let suffix = format!("omega-full-{}", proposal_count);
+                                            let work_tx_id_pre =
+                                                turingosv4::state::q_state::TxId(format!(
+                                                    "worktx-{}-{}",
+                                                    task_id_str, suffix
+                                                ));
+                                            let vr = turingosv4::runtime::verification_result::VerificationResult::from_lean_run(
+                                                work_tx_id_pre.clone(),
+                                                turingosv4::state::q_state::AgentId(agent_id.into()),
+                                                0, // OMEGA-accept = Lean exit 0
+                                                pt_partial.proposal_artifact_cid,
+                                                proof_file.as_deref().unwrap_or(""),
+                                                payload.as_bytes(),
+                                            );
+                                            let vr_cid = match turingosv4::runtime::verification_result::write_to_cas(
+                                                &mut cas_store,
+                                                &vr,
+                                                "tb7-atom3-omega-full-vr",
+                                                logical_t,
+                                            ) {
+                                                Ok(c) => c,
+                                                Err(e) => {
+                                                    error!("[chaintape/atom3-omega] FAIL-CLOSED: VerificationResult CAS put: {e}");
+                                                    std::process::exit(3);
+                                                }
+                                            };
+                                            let pt = pt_partial.with_verification_result(vr_cid);
                                             let tel_cid = match turingosv4::runtime::proposal_telemetry::write_to_cas(
                                                 &mut cas_store,
                                                 &pt,
@@ -1713,7 +1743,6 @@ async fn run_swarm(
                                                     std::process::exit(3);
                                                 }
                                             };
-                                            let suffix = format!("omega-full-{}", proposal_count);
                                             // TB-7.7 D3: stake from env (default 1000 micro-units).
                                             let stake_micro: i64 = std::env::var("TURINGOS_CHAINTAPE_PROPOSAL_STAKE_MICRO")
                                                 .ok()
@@ -2094,7 +2123,7 @@ async fn run_swarm(
                                             // TB-7.7 D2: parent_tx for branch lineage.
                                             let parent_tx_for_pt: Option<turingosv4::state::q_state::TxId> =
                                                 last_tx_by_agent.get(agent_id).cloned();
-                                            let pt = match turingosv4::runtime::proposal_telemetry::ProposalTelemetry::build_for_evaluator_append_with_parent(
+                                            let pt_partial = match turingosv4::runtime::proposal_telemetry::ProposalTelemetry::build_for_evaluator_append_with_parent(
                                                 &mut cas_store,
                                                 &run_id,
                                                 agent_id,
@@ -2116,6 +2145,34 @@ async fn run_swarm(
                                                     std::process::exit(3);
                                                 }
                                             };
+                                            // TB-7.7 D4: VerificationResult for OMEGA-pertactic accept.
+                                            let suffix = format!("omega-pertactic-{}", proposal_count);
+                                            let work_tx_id_pre =
+                                                turingosv4::state::q_state::TxId(format!(
+                                                    "worktx-{}-{}",
+                                                    task_id_str, suffix
+                                                ));
+                                            let vr = turingosv4::runtime::verification_result::VerificationResult::from_lean_run(
+                                                work_tx_id_pre.clone(),
+                                                turingosv4::state::q_state::AgentId(agent_id.into()),
+                                                0, // OMEGA-accept (PartialVerdict::Complete) = Lean exit 0
+                                                pt_partial.proposal_artifact_cid,
+                                                proof_file.as_deref().unwrap_or(""),
+                                                tactic.as_bytes(),
+                                            );
+                                            let vr_cid = match turingosv4::runtime::verification_result::write_to_cas(
+                                                &mut cas_store,
+                                                &vr,
+                                                "tb7-atom3-omega-pertactic-vr",
+                                                logical_t,
+                                            ) {
+                                                Ok(c) => c,
+                                                Err(e) => {
+                                                    error!("[chaintape/atom3-omega-pertactic] FAIL-CLOSED: VerificationResult CAS put: {e}");
+                                                    std::process::exit(3);
+                                                }
+                                            };
+                                            let pt = pt_partial.with_verification_result(vr_cid);
                                             let tel_cid = match turingosv4::runtime::proposal_telemetry::write_to_cas(
                                                 &mut cas_store,
                                                 &pt,
@@ -2128,7 +2185,6 @@ async fn run_swarm(
                                                     std::process::exit(3);
                                                 }
                                             };
-                                            let suffix = format!("omega-pertactic-{}", proposal_count);
                                             // TB-7.7 D3: stake from env (default 1000 micro-units).
                                             let stake_micro: i64 = std::env::var("TURINGOS_CHAINTAPE_PROPOSAL_STAKE_MICRO")
                                                 .ok()

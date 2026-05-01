@@ -116,6 +116,13 @@ pub struct ToolCallRecord {
 ///    `failed_branch_count` aggregator
 /// 8. `parent_tx` — `TxId` of the parent WorkTx if this proposal was
 ///    derivative; `None` for root proposals
+/// 9. **TB-7.7 D4**: `verification_result_cid` — optional CID to a
+///    `VerificationResult` CAS object recording the Lean oracle's
+///    verdict (exit code + verified flag + proof artifact hash).
+///    `None` for proposals not yet Lean-verified (append-branch
+///    intermediate steps); `Some(cid)` for OMEGA-accept proposals
+///    where the evaluator has run Lean and recorded the verdict.
+///    Replay readers use this to compute `chain_oracle_verified`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProposalTelemetry {
     pub agent_id: AgentId,
@@ -126,6 +133,12 @@ pub struct ProposalTelemetry {
     pub tool_calls: Vec<ToolCallRecord>,
     pub branch_id: String,
     pub parent_tx: Option<TxId>,
+    /// TB-7.7 D4: optional CID of the matching `VerificationResult` CAS
+    /// object (`runtime::verification_result::VerificationResult`).
+    /// Schema-additive; `None` preserves backward compat with pre-TB-7.7
+    /// telemetry.
+    #[serde(default)]
+    pub verification_result_cid: Option<Cid>,
 }
 
 impl ProposalTelemetry {
@@ -149,6 +162,7 @@ impl ProposalTelemetry {
             tool_calls: Vec::new(),
             branch_id,
             parent_tx: None,
+            verification_result_cid: None,
         }
     }
 
@@ -239,7 +253,18 @@ impl ProposalTelemetry {
             tool_calls: Vec::new(),
             branch_id: format!("{}.b{}", agent_id, proposal_index),
             parent_tx,
+            verification_result_cid: None,
         })
+    }
+
+    /// TRACE_MATRIX FC1-N14: TB-7.7 D4 — attach a `VerificationResult`
+    /// CAS object's CID after Lean has run. Used by evaluator OMEGA-accept
+    /// hot path to record the oracle verdict before the WorkTx is
+    /// submitted. Pre-existing telemetry (without this method having been
+    /// called) keeps `verification_result_cid: None`.
+    pub fn with_verification_result(mut self, cid: Cid) -> Self {
+        self.verification_result_cid = Some(cid);
+        self
     }
 }
 
@@ -391,15 +416,22 @@ mod tests {
         assert_ne!(cid1, cid2);
     }
 
-    /// U-A1.5.d — schema validity: the 8 binding fields per ruling D5 are
-    /// present and round-trip through serde JSON without loss. This is the
-    /// structural witness — analogous to TB-6 I91d but for the new shape.
+    /// U-A1.5.d — schema validity: the 8 binding fields per ruling D5 +
+    /// 1 TB-7.7 D4 additive field (`verification_result_cid`).
+    /// **TB-7.7 D4 update**: was 8 fields pre-TB-7.7; now 9 with the
+    /// schema-additive `verification_result_cid: Option<Cid>` (default
+    /// `None`). The original 8 ruling-D5 fields are unchanged; this is
+    /// purely additive.
     #[test]
-    fn schema_validity_eight_fields() {
+    fn schema_validity_nine_fields_with_verification_result() {
         let record = fresh_record("n1", "n1.b0");
         let json = serde_json::to_value(&record).expect("serialize");
         let obj = json.as_object().expect("object");
-        assert_eq!(obj.len(), 8, "ProposalTelemetry must have exactly 8 fields per ruling D5");
+        assert_eq!(
+            obj.len(),
+            9,
+            "ProposalTelemetry must have 9 fields (8 ruling-D5 + 1 TB-7.7 D4 verification_result_cid)"
+        );
         assert!(obj.contains_key("agent_id"));
         assert!(obj.contains_key("prompt_context_hash"));
         assert!(obj.contains_key("proposal_artifact_cid"));
@@ -408,6 +440,7 @@ mod tests {
         assert!(obj.contains_key("tool_calls"));
         assert!(obj.contains_key("branch_id"));
         assert!(obj.contains_key("parent_tx"));
+        assert!(obj.contains_key("verification_result_cid"));
         // Forbidden field guard: telemetry must NOT contain chain-of-thought
         // or raw deliberation per TB-6 charter §6 #11 inheritance.
         for forbidden in [

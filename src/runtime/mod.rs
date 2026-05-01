@@ -38,6 +38,9 @@ pub mod proposal_telemetry;
 /// TRACE_MATRIX FC1-N14: TB-7 Atom 5 — ChainDerivedRunFacts aggregator (renamed from chain_derived_pput per ARCHITECT_RULING D4; bit-exact §4.4 structural field set computed from L4 + L4.E + CAS alone).
 pub mod chain_derived_run_facts;
 
+/// TRACE_MATRIX FC1-N14: TB-7.7 D4 — VerificationResult CAS object recording Lean oracle verdict (target_work_tx / verifier_agent / lean_exit_code / lean_*_hash / proof_file_hash / proof_artifact_cid / verified). Linked from ProposalTelemetry.verification_result_cid.
+pub mod verification_result;
+
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 
