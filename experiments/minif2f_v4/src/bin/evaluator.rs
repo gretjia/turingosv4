@@ -1510,6 +1510,97 @@ async fn run_swarm(
                                         // every solve end with a canonical tape node on the GP.
                                         let parent = bus.kernel.tape.time_arrow().last().cloned();
                                         *tool_dist.entry("omega_wtool".into()).or_insert(0) += 1;
+
+                                        // ── TB-7 Atom 3: AUTHORITATIVE OMEGA-branch routing ──
+                                        //
+                                        // OMEGA accept (full proof) → WorkTx (predicate_passes=true)
+                                        // + VerifyTx (verdict=Confirm) pair via bus.submit_typed_tx.
+                                        // Per ARCHITECT_RULING D3 + charter §4.3: ChallengeWindow
+                                        // stays OPEN; NO FinalizeRewardTx, NO SlashTx, NO
+                                        // settlement (RSP-4 / TB-9 territory).
+                                        if let (Some(bundle), Some(reg)) =
+                                            (chaintape_bundle.as_ref(), agent_keypairs.as_ref())
+                                        {
+                                            if let Ok(q) = bundle.sequencer.q_snapshot() {
+                                                let parent_state_root = q.state_root_t;
+                                                let logical_t = bundle.sequencer.next_logical_t_peek();
+                                                let task_id_str = format!("task-{}", run_id);
+                                                let pt = turingosv4::runtime::proposal_telemetry::ProposalTelemetry::build_for_evaluator_append(
+                                                    &run_id,
+                                                    agent_id,
+                                                    proposal_count as u64,
+                                                    payload.as_bytes(),
+                                                    "complete",
+                                                    turingosv4::runtime::proposal_telemetry::TokenCounts {
+                                                        prompt_tokens: response.prompt_tokens as u64,
+                                                        completion_tokens: response.completion_tokens as u64,
+                                                        tool_tokens: 0,
+                                                    },
+                                                );
+                                                if let Ok(mut cas_store) = turingosv4::bottom_white::cas::store::CasStore::open(&bundle.cas_path) {
+                                                    if let Ok(tel_cid) = turingosv4::runtime::proposal_telemetry::write_to_cas(
+                                                        &mut cas_store,
+                                                        &pt,
+                                                        "tb7-atom3-omega-full",
+                                                        logical_t,
+                                                    ) {
+                                                        let mut reg_guard = match reg.lock() {
+                                                            Ok(g) => g,
+                                                            Err(p) => p.into_inner(),
+                                                        };
+                                                        let suffix = format!("omega-full-{}", proposal_count);
+                                                        let work_result = turingosv4::runtime::adapter::make_real_worktx_signed_by(
+                                                            &mut *reg_guard,
+                                                            &task_id_str,
+                                                            agent_id,
+                                                            parent_state_root,
+                                                            // OMEGA-accept: stake is ChallengeWindow-OPEN
+                                                            // territory. Stake = 0 here keeps Atom 3 in the
+                                                            // "L4.E baseline + ChallengeWindow OPEN" narrow
+                                                            // scope per ruling D3 (no settlement). Atom 6
+                                                            // smoke pre-seeds for accepted L4.
+                                                            0,
+                                                            &suffix,
+                                                            tel_cid,
+                                                            true,
+                                                            logical_t,
+                                                        );
+                                                        let work_tx_id = match &work_result {
+                                                            Ok(turingosv4::state::typed_tx::TypedTx::Work(w)) => Some(w.tx_id.clone()),
+                                                            _ => None,
+                                                        };
+                                                        let verify_result = if let Some(ref work_tx_id) = work_tx_id {
+                                                            turingosv4::runtime::adapter::make_real_verifytx_signed_by(
+                                                                &mut *reg_guard,
+                                                                parent_state_root,
+                                                                work_tx_id.clone(),
+                                                                agent_id,
+                                                                0,
+                                                                &suffix,
+                                                                true,
+                                                                logical_t,
+                                                            ).ok()
+                                                        } else { None };
+                                                        drop(reg_guard);
+                                                        if let Ok(work_tx) = work_result {
+                                                            if let Err(e) = bus.submit_typed_tx(work_tx).await {
+                                                                warn!("[chaintape/atom3-omega] WorkTx submit failed: {e}");
+                                                            }
+                                                        }
+                                                        if let Some(verify_tx) = verify_result {
+                                                            if let Err(e) = bus.submit_typed_tx(verify_tx).await {
+                                                                warn!("[chaintape/atom3-omega] VerifyTx submit failed: {e}");
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        // shadow_only: kernel.tape view sync for halt-and-settle +
+                                        // GP traversal. NOT authoritative state — the L4 chain above
+                                        // is canonical (WorkTx + VerifyTx pair). Per TB-7 §4.0
+                                        // option (3) + §6 #31 inheritance.
                                         // Use oracle-blessed path: Lean has already accepted this
                                         // payload, so bus-level forbidden_patterns and size caps
                                         // would only re-reject legitimate tactics (e.g. `omega`,
@@ -1771,6 +1862,90 @@ async fn run_swarm(
                                         );
                                         let parent = bus.kernel.tape.time_arrow().last().cloned();
                                         *tool_dist.entry("omega_wtool".into()).or_insert(0) += 1;
+
+                                        // ── TB-7 Atom 3: AUTHORITATIVE OMEGA-branch routing (per-tactic) ──
+                                        //
+                                        // PartialVerdict::Complete via step → WorkTx + VerifyTx pair.
+                                        // Same shape as the full-proof OMEGA path above; the only
+                                        // differences are gp_path label = "per_tactic" and the
+                                        // proposal payload bytes are `tactic` (the closing step)
+                                        // rather than `payload` (the full proof).
+                                        if let (Some(bundle), Some(reg)) =
+                                            (chaintape_bundle.as_ref(), agent_keypairs.as_ref())
+                                        {
+                                            if let Ok(q) = bundle.sequencer.q_snapshot() {
+                                                let parent_state_root = q.state_root_t;
+                                                let logical_t = bundle.sequencer.next_logical_t_peek();
+                                                let task_id_str = format!("task-{}", run_id);
+                                                let pt = turingosv4::runtime::proposal_telemetry::ProposalTelemetry::build_for_evaluator_append(
+                                                    &run_id,
+                                                    agent_id,
+                                                    proposal_count as u64,
+                                                    tactic.as_bytes(),
+                                                    "step_complete",
+                                                    turingosv4::runtime::proposal_telemetry::TokenCounts {
+                                                        prompt_tokens: response.prompt_tokens as u64,
+                                                        completion_tokens: response.completion_tokens as u64,
+                                                        tool_tokens: 0,
+                                                    },
+                                                );
+                                                if let Ok(mut cas_store) = turingosv4::bottom_white::cas::store::CasStore::open(&bundle.cas_path) {
+                                                    if let Ok(tel_cid) = turingosv4::runtime::proposal_telemetry::write_to_cas(
+                                                        &mut cas_store,
+                                                        &pt,
+                                                        "tb7-atom3-omega-pertactic",
+                                                        logical_t,
+                                                    ) {
+                                                        let mut reg_guard = match reg.lock() {
+                                                            Ok(g) => g,
+                                                            Err(p) => p.into_inner(),
+                                                        };
+                                                        let suffix = format!("omega-pertactic-{}", proposal_count);
+                                                        let work_result = turingosv4::runtime::adapter::make_real_worktx_signed_by(
+                                                            &mut *reg_guard,
+                                                            &task_id_str,
+                                                            agent_id,
+                                                            parent_state_root,
+                                                            0,
+                                                            &suffix,
+                                                            tel_cid,
+                                                            true,
+                                                            logical_t,
+                                                        );
+                                                        let work_tx_id = match &work_result {
+                                                            Ok(turingosv4::state::typed_tx::TypedTx::Work(w)) => Some(w.tx_id.clone()),
+                                                            _ => None,
+                                                        };
+                                                        let verify_result = if let Some(ref work_tx_id) = work_tx_id {
+                                                            turingosv4::runtime::adapter::make_real_verifytx_signed_by(
+                                                                &mut *reg_guard,
+                                                                parent_state_root,
+                                                                work_tx_id.clone(),
+                                                                agent_id,
+                                                                0,
+                                                                &suffix,
+                                                                true,
+                                                                logical_t,
+                                                            ).ok()
+                                                        } else { None };
+                                                        drop(reg_guard);
+                                                        if let Ok(work_tx) = work_result {
+                                                            if let Err(e) = bus.submit_typed_tx(work_tx).await {
+                                                                warn!("[chaintape/atom3-omega-pertactic] WorkTx submit failed: {e}");
+                                                            }
+                                                        }
+                                                        if let Some(verify_tx) = verify_result {
+                                                            if let Err(e) = bus.submit_typed_tx(verify_tx).await {
+                                                                warn!("[chaintape/atom3-omega-pertactic] VerifyTx submit failed: {e}");
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        // shadow_only: kernel.tape view sync; L4 chain above is
+                                        // canonical. Per TB-7 §4.0 option (3) + §6 #31.
                                         let _ = bus.append_oracle_accepted(
                                             agent_id, tactic, parent.as_deref(),
                                         );
@@ -1823,6 +1998,13 @@ async fn run_swarm(
                                     }
                                     PartialVerdict::PartialOk => {
                                         let parent = bus.kernel.tape.time_arrow().last().cloned();
+                                        // shadow_only: PartialOk is intermediate progress, not OMEGA
+                                        // accept. The authoritative routing for intermediate
+                                        // progress is the append-branch routing at evaluator.rs
+                                        // line ~1283 (Atom 2). This call writes only to kernel.tape
+                                        // for next-iteration prompt context. Per TB-7 §4.0 option
+                                        // (3) + §6 #31; will be removed when kernel.tape is
+                                        // L4-derived.
                                         match bus.append_oracle_accepted(
                                             agent_id, tactic, parent.as_deref(),
                                         ) {

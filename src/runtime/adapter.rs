@@ -24,7 +24,8 @@ use crate::runtime::agent_keypairs::{AgentKeypairError, AgentKeypairRegistry};
 use crate::state::q_state::{AgentId, Hash, QState, TaskId, TxId};
 use crate::state::typed_tx::{
     AgentSignature, BoolWithProof, EscrowLockTx, PredicateId, PredicateResultsBundle, ReadKey,
-    SafetyOrCreation, TaskOpenTx, TypedTx, WorkSigningPayload, WorkTx, WriteKey,
+    SafetyOrCreation, TaskOpenTx, TypedTx, VerifySigningPayload, VerifyTx, VerifyVerdict,
+    WorkSigningPayload, WorkTx, WriteKey,
 };
 
 /// TRACE_MATRIX FC3-N1: TB-6 Atom 2 adapter — pre-seed initial QState with sponsor balances.
@@ -206,6 +207,61 @@ pub fn make_real_worktx_signed_by(
         proposal_cid,
         predicate_results,
         stake,
+        signature,
+        timestamp_logical,
+    }))
+}
+
+/// TRACE_MATRIX FC1-N14: TB-7 Atom 3 — real-signature VerifyTx constructor for
+/// OMEGA-branch routing.
+///
+/// Builds a `VerifyTx` paired with an accepted `WorkTx` for the OMEGA path
+/// (Lean oracle accepted the proof → verifier confirms via VerifyTx). Signs
+/// via the same `AgentKeypairRegistry` as the WorkTx side. Produces a
+/// `VerifyVerdict::Confirm` when `verdict_confirms = true`.
+///
+/// **OMEGA scope NARROWED per ARCHITECT_RULING D3 + charter §4.3**: WorkTx
+/// + VerifyTx pair only; ChallengeWindow stays OPEN; NO FinalizeRewardTx,
+/// NO SlashTx, NO settlement. Settlement is RSP-4 / TB-9 territory.
+#[allow(clippy::too_many_arguments)]
+pub fn make_real_verifytx_signed_by(
+    keypairs: &mut AgentKeypairRegistry,
+    parent_state_root: Hash,
+    target_work_tx: TxId,
+    verifier_agent: &str,
+    bond_micro: i64,
+    suffix: &str,
+    verdict_confirms: bool,
+    timestamp_logical: u64,
+) -> Result<TypedTx, AgentKeypairError> {
+    let verifier_id = AgentId(verifier_agent.into());
+    let tx_id = TxId(format!("verifytx-{}-{}", verifier_agent, suffix));
+    let bond = StakeMicroCoin::from_micro_units(bond_micro);
+    let verdict = if verdict_confirms {
+        VerifyVerdict::Confirm
+    } else {
+        VerifyVerdict::Doubt
+    };
+
+    let payload = VerifySigningPayload {
+        tx_id: tx_id.clone(),
+        parent_state_root,
+        target_work_tx: target_work_tx.clone(),
+        verifier_agent: verifier_id.clone(),
+        bond,
+        verdict,
+        timestamp_logical,
+    };
+    let digest = payload.canonical_digest();
+    let signature = keypairs.sign(&verifier_id, digest)?;
+
+    Ok(TypedTx::Verify(VerifyTx {
+        tx_id,
+        parent_state_root,
+        target_work_tx,
+        verifier_agent: verifier_id,
+        bond,
+        verdict,
         signature,
         timestamp_logical,
     }))
