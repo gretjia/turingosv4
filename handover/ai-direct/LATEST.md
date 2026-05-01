@@ -6,6 +6,65 @@
 
 ---
 
+## 📋 2026-05-01 — TB-7 Atom 0.5 — Codex audit carry-forward — Atom 1.7 added + Atom 4/5 expanded + §13.4 closure path
+
+**Trigger**: Codex full-diff audit of TB-6 (commit `cc7b3dd`, 7m 36s + 5m 8s save retry) returned **SOME_CHALLENGE** — PASS 1 (A5) / CHALLENGE 6 (A1, A2, A3, A4, A6, A7) / VETO 0. 7 blocking action items; 4 of them (#2 + #5 + #6 + #7) already covered by TB-7 charter as ratified; **2 new items (#1 fail-closed bootstrap + #3 logical_t schema repair) require carry-forward** into Atom 1.7. Codex explicitly preserved TB-6 audit-pending status; closure path now encoded in §13.4.
+
+### What landed (Atom 0.5 carry-forward; no production code touched)
+
+| Commit | Files | Purpose |
+|---|---|---|
+| `cc7b3dd` (audit) | `handover/audits/CODEX_TB6_FULLDIFF_AUDIT_2026-05-01.md` (NEW; 184 lines) | Codex audit evidence — 7 dimensions A1-A7 verdicted with file:line citations; 7 action items each with file:line + suggested fix + blocking=yes; explicit non-closure recommendation. |
+| (this commit) | `handover/tracer_bullets/TB-7_charter_2026-05-01.md` (modified) | §5.1 build surface + §5.2 tests: Atom 1.7 NEW (logical_t removal + fail-closed bootstrap); Atom 4 expanded (audit-index hash from CAS + I90d/e/f/g disk-level tamper); Atom 5 expanded (strict tx_id ↔ CID correlation). §6 #28 caveat. §7 atom plan: Atom 0.5 + Atom 1.7 inserted. **§13.4 NEW** TB-6 audit-pending closure path. |
+| (this commit) | `handover/ai-direct/LATEST.md` (modified) | This entry. |
+
+### TB-6 audit findings → TB-7 charter mapping
+
+| Codex action | Closure atom | Type |
+|---|---|---|
+| #1 fail-closed bootstrap | **Atom 1.7** (b) — NEW | carry-forward |
+| #2 real proposal/OMEGA/rejection through typed ChainTape | Atom 2 + Atom 3 (§4.0 already covers) | already covered |
+| #3 AgentProposalRecord schema repair (logical_t) | **Atom 1.7** (a) — NEW | carry-forward |
+| #4 audit-index row hash from CAS | **Atom 4 expansion** | scope deepening |
+| #5 RunSummary tx_id ↔ CID ↔ AgentProposalRecord | **Atom 5 expansion** | scope deepening |
+| #6 disk-level tamper tests (CAS / Git L4 / derivative roots / pinned pubkeys) | **Atom 4 expansion** (I90d/e/f/g) | scope deepening |
+| #7 regenerate TB-6 smoke evidence | Atom 6 (chain-backed real-LLM smoke supersedes synthetic) | natural supersession |
+
+**TB-6 audit-pending closes when** all 7 action items ship green via TB-7. If any remain red at Atom 7 ship, TB-6 audit-pending stays open and rolls to follow-up TB (anti-pile-up rule).
+
+### Autonomous decisions made (per user mandate "依据宪法/白皮书/架构师意见自主决策")
+
+1. **`logical_t` handling = remove from record, keep in JSONL index row**.
+   - Constitutional grounding: Art. V (机制 > 参数), C-023 (schema additions = ArchitectAI contribution; cannot be silently migrated by implementer); architect ruling TB-6 D7 (NO constitutional amendment) preserves the 9-field spec.
+   - Why not (b) ratify as 10th field: schema ratification is architect-only per C-023; not in my decision authority.
+   - Why not (c) fold into Atom 1: Art. I.1 atomicity / C-027 — spec restoration ≠ new feature; must be independently auditable.
+
+2. **fail-closed bootstrap = Atom 1.7 (b), folded with logical_t**.
+   - TB-7 §4.0 + §6 #31: silent fallback is forbidden. Bootstrap silent fallback is the same anti-pattern.
+   - Same Atom because both touch the same subsystem hot path; opening Atom 0.5 sub-atom for 1 line of behavior change would be ceremony.
+
+3. **Codex audit commit separated from carry-forward charter commit (per C-010 Generator ≠ Evaluator)**.
+   - Audit doc = Codex evidence (Evaluator authorship)
+   - Charter amendments = my response (Generator authorship)
+   - Mixing them in one commit violates the audit-trail integrity principle.
+
+4. **Atom 4/5 expansion vs new sub-atoms**: Codex action items #4 + #5 + #6 are scope deepening, NOT new scope. They land on the same files / atoms already in the charter. Opening sub-atoms for them would inflate atom count without scope clarity.
+
+### Status
+
+- TB-6 SHIPPED on `main` @ `17c5e73`. Audit-pending status **preserved** per Codex audit cc7b3dd; closure path = §13.4.
+- TB-7 charter: 8 atoms (Atom 0 SHIPPED @ 05c5be7; Atom 0.5 = this commit; Atom 1 / 1.5 / **1.7 NEW** / 2 / 3 / 4 / 5 / 6 / 7 pending).
+- TB-7 Atom 1 paused for user re-engagement (per Atom 0 pacing decision).
+
+### What user / Claude can do next
+
+1. **Begin Atom 1** — `src/runtime/agent_keypairs.rs` + `agent_pubkeys.json` (additive; non-STEP_B). May proceed in parallel with Atom 1.5 + Atom 1.7.
+2. **Begin Atom 1.5** — `src/runtime/proposal_telemetry.rs` (additive; non-STEP_B).
+3. **Begin Atom 1.7** — `src/runtime/agent_audit_trail.rs` schema repair (logical_t removal) + `src/runtime/mod.rs` + `evaluator.rs:675-680` fail-closed bootstrap.
+4. **Atom 6 discharge gate** — chain-backed real-LLM smoke must run within 72h of Atom 0 ship per `feedback_iteration_cap_24h` production wire-up exception. Atom 0 = 2026-05-01; deadline = 2026-05-04.
+
+---
+
 ## 📋 2026-05-01 — TB-7 charter RATIFIED — Frame B authorized + 7 ship gates encoded
 
 **Session continuation**: Post-TB-6 ship dialogue surfaced "real chaintape final form" 4-frame
