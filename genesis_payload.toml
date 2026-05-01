@@ -213,7 +213,8 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 # 2026-05-01 TB-7 Atom 1 — `pub mod agent_keypairs;` declaration added (per-agent Ed25519 keypair manager + on-disk pubkey manifest; run-local identity ONLY; per ARCHITECT_RULING D2 + TB-7 charter §4.2).
 # 2026-05-01 TB-7 Atom 1.5 — `pub mod proposal_telemetry;` declaration added (ProposalTelemetry CAS object writer per ARCHITECT_RULING D5 + charter §4.5; precondition for golden_path_token_count chain-derivation).
 # 2026-05-01 TB-7 Atom 1.7 — RejectionWriter BootstrapError variant + L4.E open_jsonl now fail-closed (returns BootstrapError::RejectionWriter instead of silent in-memory fallback). Per Codex audit cc7b3dd action item #1.
-"src/runtime/mod.rs" = "62aba1c2d4756345bb3b8a4d3141056e2e2a323ce32f99a99f476e1d6e90b661"
+# 2026-05-01 TB-7 Atom 5 — `pub mod chain_derived_run_facts;` declaration added (ChainDerivedRunFacts aggregator per ARCHITECT_RULING D4 + charter §4.4 — bit-exact structural facts from L4 + L4.E + CAS alone).
+"src/runtime/mod.rs" = "d6179e58cf42917a5be72fff36e80f19e01d3db4627caed9461583f39bb84db7"
 # 2026-05-01 TB-6 Atom 2 — chaintape adapter helpers (synthetic TaskOpen/EscrowLock/WorkTx constructors + balance seeding) NEW file.
 "src/runtime/adapter.rs" = "b696c01d79852396aa58b144c650f74a959aa6a13ea7d43cb8713a7863e28494"  # rehashed by TB-7 Atom 3 (2026-05-01): added make_real_verifytx_signed_by (real-signature VerifyTx constructor; builds VerifySigningPayload, signs via AgentKeypairRegistry::sign over canonical_digest, returns TypedTx::Verify). Used by evaluator OMEGA-branch routing for the WorkTx + VerifyTx pair per ARCHITECT_RULING D3 narrowed scope (ChallengeWindow OPEN; no settlement).
 # 2026-05-01 TB-6 Atom 4 — replay verifier library (NEW file). Re-opens runtime_repo + cas + pinned_pubkeys.json, replays L4 chain via replay_full_transition, emits ReplayReport. All pub symbols carry /// TRACE_MATRIX FC3-N1 backlinks per R-022.
@@ -238,6 +239,8 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 "src/runtime/agent_keypairs.rs" = "a3b1cf2c4944d5f3903e7f8f589375ab5157f3725933241cdf85cb837bc62197"
 # 2026-05-01 TB-7 Atom 1.5 — ProposalTelemetry CAS object writer (NEW file). Per ARCHITECT_RULING D5 + charter §4.5; precondition for chain-derived golden_path_token_count. 8-field schema (agent_id / prompt_context_hash / proposal_artifact_cid / candidate_tactic / token_counts / tool_calls / branch_id / parent_tx). All pub symbols carry /// TRACE_MATRIX FC1-N14 backlinks per R-022.
 "src/runtime/proposal_telemetry.rs" = "73367be5e766287771b42d3dba0a34476e5d34f8650053a52c2f4611d4cc6455"  # rehashed by TB-7 Atom 2 (2026-05-01): added build_for_evaluator_append helper (sha2 stays internal to turingosv4; minif2f_v4 binary doesn't add direct sha2 dep).
+# 2026-05-01 TB-7 Atom 5 — chain_derived_run_facts.rs (NEW file; renamed from chain_derived_pput.rs per ARCHITECT_RULING D4). Computes bit-exact structural fact set from L4 + L4.E + CAS alone. Per charter §4.4 fields: solved / verified / tx_count / proposal_count / golden_path_token_count / gp_payload / gp_path / gp_proof_file / tactic_diversity / tool_dist / failed_branch_count. Time-sensitive fields excluded. 3 unit tests U-A5.a..c.
+"src/runtime/chain_derived_run_facts.rs" = "c4a91bf2626b97926d86fc27e55a1a5c0395157f18635871079d85e9b738351d"
 # 2026-04-29 TB-1 Day-3 — economy/mod.rs rehashed: + `pub mod ledger` declaration (P1 L4 wrapper).
 "src/economy/mod.rs" = "c735f92316bc5982f6ec316026d70179fb783d152b5ded2ed6ccb0775b97f069"
 "src/economy/money.rs" = "857fc6df2aefa4b26fd4b7d22ec06f1105ac3ec4393c6788a8f30370b6d7e776"
