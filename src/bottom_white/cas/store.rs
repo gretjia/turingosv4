@@ -113,8 +113,21 @@ fn load_index_from_sidecar(repo_path: &Path) -> Result<BTreeMap<Cid, CasObjectMe
 }
 
 /// CO1.4-extra: append a single JSONL line for a newly-created CAS object.
-/// Followed by `sync_data` for durability (single-writer per cell per spec
-/// § 5.2.2 — concurrent-writer atomicity is out of scope).
+/// Followed by `sync_data` for durability.
+///
+/// **TB-7.6 fix (2026-05-01)**: write the JSON line + trailing newline
+/// in ONE `write_all` call instead of two. POSIX `O_APPEND` guarantees
+/// atomicity for individual writes ≤ PIPE_BUF (4096 bytes typical;
+/// CasObjectMetadata serializes to ~300-400 bytes). Pre-fix used two
+/// separate `write_all` calls (`serialized` then `b"\n"`), which could
+/// interleave with another concurrent writer's append, producing
+/// corrupted lines like `{...}{...}` (no separator). Discovered during
+/// TB-7 real-LLM smoke runs 2 + 5 (mathd_algebra_171 + mathd_numbertheory_5)
+/// where evaluator opens multiple CasStore handles concurrently for
+/// per-tx writes (Atom 1.5 ProposalTelemetry CAS + Atom 5
+/// agent_audit_trail synthetic seed + Atoms 2/3 evaluator hot-path
+/// telemetry writes). See
+/// `handover/evidence/tb_7_real_smoke_5_problems_2026-05-01/README.md` §3.
 fn append_to_sidecar(repo_path: &Path, meta: &CasObjectMetadata) -> Result<(), CasError> {
     let path = cas_index_path(repo_path);
     let serialized = serde_json::to_string(meta).map_err(|e| CasError::IndexParse {
@@ -125,8 +138,10 @@ fn append_to_sidecar(repo_path: &Path, meta: &CasObjectMetadata) -> Result<(), C
         .create(true)
         .append(true)
         .open(&path)?;
-    f.write_all(serialized.as_bytes())?;
-    f.write_all(b"\n")?;
+    // Atomic single-write append: serialize + newline in one buffer.
+    let mut line = serialized.into_bytes();
+    line.push(b'\n');
+    f.write_all(&line)?;
     f.sync_data()?;
     Ok(())
 }
@@ -369,6 +384,74 @@ mod tests {
         }
         assert_eq!(s.len(), 50);
         assert!(!s.is_empty());
+    }
+
+    /// TB-7.6 regression — CAS index concurrent-write race
+    ///
+    /// **Bug discovered during TB-7 real-LLM smoke runs 2 + 5**
+    /// (commit a981317): when the production binary opens multiple
+    /// `CasStore` handles against the same on-disk repo path and writes
+    /// concurrently, the pre-TB-7.6 `append_to_sidecar` performed two
+    /// separate `write_all` calls (serialized JSON, then `b"\n"`) which
+    /// could interleave with another writer's append, producing a
+    /// corrupted index line like `{"cid":...}{"cid":...}` (no separator).
+    /// The fix combines the JSON + newline into ONE `write_all` call,
+    /// relying on POSIX `O_APPEND` atomicity for writes ≤ PIPE_BUF.
+    ///
+    /// This test fires N concurrent threads, each performing 20 puts
+    /// against a SHARED repo path via independent `CasStore` instances,
+    /// then reopens the store and verifies the on-disk index parses
+    /// cleanly (no trailing-characters error).
+    #[test]
+    fn concurrent_writers_share_index_without_race() {
+        use std::sync::Arc;
+        use std::thread;
+        let tmp = TempDir::new().expect("tempdir");
+        let repo_path: Arc<PathBuf> = Arc::new(tmp.path().to_path_buf());
+        // Initialize once to set up the git repo.
+        {
+            let _s = CasStore::open(&repo_path).expect("init");
+        }
+
+        let n_threads = 4;
+        let writes_per_thread = 20;
+        let mut handles = Vec::new();
+        for t in 0..n_threads {
+            let path = Arc::clone(&repo_path);
+            handles.push(thread::spawn(move || {
+                let mut store = CasStore::open(&path).expect("thread open");
+                for i in 0..writes_per_thread {
+                    let content = format!("thread-{t}-write-{i}");
+                    store
+                        .put(
+                            content.as_bytes(),
+                            ObjectType::Generic,
+                            &format!("agent-{t}"),
+                            (t * writes_per_thread + i) as u64,
+                            Some(format!("schema-{t}")),
+                        )
+                        .expect("put");
+                }
+            }));
+        }
+        for h in handles {
+            h.join().expect("thread join");
+        }
+
+        // Reopen — this internally calls `load_index_from_sidecar` which
+        // is strict (any malformed line aborts). Pre-TB-7.6 this would
+        // intermittently fail with `IndexParse { line: 1, error: "trailing
+        // characters at line 1 column N" }`.
+        let final_store = CasStore::open(&repo_path).expect(
+            "reopen after concurrent writes must succeed (TB-7.6 fix verifies \
+             O_APPEND atomicity prevents interleaved writes)",
+        );
+        assert!(
+            final_store.len() >= (n_threads * writes_per_thread) as usize,
+            "expected at least {} entries, got {}",
+            n_threads * writes_per_thread,
+            final_store.len()
+        );
     }
 
     // ── CO1.4-extra: sidecar JSONL persistence tests ─────────────────────────

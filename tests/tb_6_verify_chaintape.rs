@@ -164,3 +164,155 @@ async fn i90c_tampered_pinned_pubkey_breaks_signature_verification() {
     );
     assert!(!post.all_indicators_pass());
 }
+
+// ════════════════════════════════════════════════════════════════════
+// TB-7.6 / Codex audit cc7b3dd action #6 — disk-level tamper battery
+// ════════════════════════════════════════════════════════════════════
+//
+// I90d/e/f extend the I90c pattern (pinned-pubkey tampering) to cover
+// the remaining disk-level tamper surfaces flagged by the TB-6 Codex
+// audit:
+//
+// - I90d — tamper a CAS index sidecar (`.turingos_cas_index.jsonl`) →
+//   verify_chaintape returns Err(Cas) at open time (catches L4 entries
+//   whose `tx_payload_cid` references CAS objects with mutated metadata).
+// - I90e — tamper a rejections.jsonl row → RejectionEvidenceWriter chain
+//   integrity check fails on open.
+// - I90f — delete L4.E rejections.jsonl after successful chain → verify
+//   trivially passes (empty L4.E is the legitimate empty-chain case);
+//   THIS is the negative control proving the difference between "no
+//   rejections" and "tampered rejections".
+//
+// TRACE_MATRIX FC1-N14: Class 2 production wire-up tamper hardening.
+
+/// I90d — Tampering with `.turingos_cas_index.jsonl` causes
+/// `verify_chaintape` to return Err at CAS-open time. (Pre-fix, this
+/// was the EXACT symptom that runs 2 + 5 of the TB-7 real-LLM smoke
+/// hit organically; here we synthesize it.)
+#[tokio::test]
+async fn i90d_tampered_cas_index_breaks_verify_chaintape() {
+    let tmp = TempDir::new().expect("tempdir");
+    let cfg = fresh_config(&tmp, "i90d");
+    let bundle = build_chaintape_sequencer(&cfg).expect("bootstrap");
+    let bus = TuringBus::with_sequencer(
+        Kernel::new(),
+        BusConfig::default(),
+        bundle.sequencer.clone(),
+    );
+    let task_open = make_synthetic_task_open("task-i90d", "sponsor-i90d", Hash::ZERO, "i90d-1");
+    bus.submit_typed_tx(task_open).await.expect("submit");
+    bundle.shutdown().await.expect("shutdown");
+    drop(bus);
+
+    // Sanity: pre-tamper verify passes.
+    let pre = verify_chaintape(&cfg.runtime_repo_path, &cfg.cas_path, &VerifyOptions::default())
+        .expect("pre-tamper verify");
+    assert!(pre.all_indicators_pass());
+
+    // Tamper the CAS index sidecar by injecting trailing junk on the first
+    // line — same shape as the runs-2/5 corruption (concatenation without
+    // separator).
+    let cas_index = cfg.cas_path.join(".turingos_cas_index.jsonl");
+    let raw = std::fs::read_to_string(&cas_index).expect("read cas index");
+    // Concatenate first line + a bogus extra JSON object on the same line.
+    let mut lines: Vec<String> = raw.lines().map(|s| s.to_string()).collect();
+    if lines.is_empty() {
+        // Empty index — ensure there's at least one record before we tamper.
+        panic!("expected ≥1 CAS index line on Atom 3 synthetic seed run");
+    }
+    lines[0].push_str(r#"{"cid":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"backend_oid_hex":"deadbeef","object_type":"Generic","creator":"tamper","created_at_logical_t":99,"schema_id":null,"size_bytes":0}"#);
+    std::fs::write(&cas_index, lines.join("\n") + "\n").expect("write tamper");
+
+    let result =
+        verify_chaintape(&cfg.runtime_repo_path, &cfg.cas_path, &VerifyOptions::default());
+    assert!(
+        result.is_err(),
+        "tampered CAS index must break verify_chaintape at CAS-open time; got Ok({result:?})"
+    );
+}
+
+/// I90e — Tampering with `rejections.jsonl` row hash breaks the L4.E
+/// chain check at `RejectionEvidenceWriter::open_jsonl` time, surfaced
+/// as `VerifyError::L4eOpen`.
+#[tokio::test]
+async fn i90e_tampered_l4e_row_breaks_chain_open() {
+    let tmp = TempDir::new().expect("tempdir");
+    let cfg = fresh_config(&tmp, "i90e");
+    let bundle = build_chaintape_sequencer(&cfg).expect("bootstrap");
+    let bus = TuringBus::with_sequencer(
+        Kernel::new(),
+        BusConfig::default(),
+        bundle.sequencer.clone(),
+    );
+    // Submit a synthetic zero-stake WorkTx → L4.E row.
+    let bad_work = make_synthetic_worktx(
+        "task-i90e",
+        "agent-i90e",
+        Hash::ZERO,
+        0,
+        "i90e-1",
+        true,
+    );
+    bus.submit_typed_tx(bad_work).await.expect("submit");
+    bundle.shutdown().await.expect("shutdown");
+    drop(bus);
+
+    let pre = verify_chaintape(&cfg.runtime_repo_path, &cfg.cas_path, &VerifyOptions::default())
+        .expect("pre-tamper verify");
+    assert!(pre.l4e_entries >= 1, "expected ≥1 L4.E row to tamper");
+
+    // Mutate the row's `prev_hash` field to break the spine.
+    let rejections_path = cfg.runtime_repo_path.join("rejections.jsonl");
+    let raw = std::fs::read_to_string(&rejections_path).expect("read rejections");
+    let mut lines: Vec<String> = raw.lines().map(|s| s.to_string()).collect();
+    let mut row: serde_json::Value =
+        serde_json::from_str(&lines[0]).expect("parse rejection row");
+    // Replace prev_hash with all-ones (or whatever != recorded value).
+    row["prev_hash"] = serde_json::Value::Array(
+        (0..32u32).map(|_| serde_json::Value::Number(1u8.into())).collect(),
+    );
+    lines[0] = serde_json::to_string(&row).expect("reserialize");
+    std::fs::write(&rejections_path, lines.join("\n") + "\n").expect("write tamper");
+
+    let result =
+        verify_chaintape(&cfg.runtime_repo_path, &cfg.cas_path, &VerifyOptions::default());
+    assert!(
+        result.is_err(),
+        "tampered L4.E row must break verify_chaintape at L4.E-open time; got Ok({result:?})"
+    );
+}
+
+/// I90f — DELETING `rejections.jsonl` (negative control) is **NOT**
+/// the same as tampering: an absent file means "no rejections" and
+/// `verify_chaintape` treats it as an empty L4.E writer (legitimate
+/// empty-chain case). This test pins the difference between
+/// "honest absent" and "tampered present" so future refactors don't
+/// accidentally treat absence as failure (which would break legacy
+/// pre-Atom-1.2 evidence dirs).
+#[tokio::test]
+async fn i90f_absent_l4e_is_legitimate_empty_chain_not_tamper() {
+    let tmp = TempDir::new().expect("tempdir");
+    let cfg = fresh_config(&tmp, "i90f");
+    let bundle = build_chaintape_sequencer(&cfg).expect("bootstrap");
+    let bus = TuringBus::with_sequencer(
+        Kernel::new(),
+        BusConfig::default(),
+        bundle.sequencer.clone(),
+    );
+    let task_open = make_synthetic_task_open("task-i90f", "sponsor-i90f", Hash::ZERO, "i90f-1");
+    bus.submit_typed_tx(task_open).await.expect("submit");
+    bundle.shutdown().await.expect("shutdown");
+    drop(bus);
+
+    // Delete rejections.jsonl. (Production systems should never do this;
+    // the test exists to pin the "absence is legitimate" semantics.)
+    let rejections_path = cfg.runtime_repo_path.join("rejections.jsonl");
+    if rejections_path.exists() {
+        std::fs::remove_file(&rejections_path).expect("remove rejections");
+    }
+
+    let report = verify_chaintape(&cfg.runtime_repo_path, &cfg.cas_path, &VerifyOptions::default())
+        .expect("absent L4.E is legitimate empty-chain case");
+    assert_eq!(report.l4e_entries, 0);
+    assert!(report.all_indicators_pass(), "absent L4.E should NOT fail any indicator");
+}

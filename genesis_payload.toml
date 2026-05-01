@@ -222,7 +222,7 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 # 2026-05-01 TB-6 Atom 4 — `verify_chaintape` CLI thin wrapper (NEW file).
 "src/bin/verify_chaintape.rs" = "68d024d10f3ce7b76dd91ef1c911fc1da55cfef5a875040c726715587c90244b"
 # 2026-05-01 TB-6 Atom 4 — replay verifier integration tests (I90 / I90b / I90c) (NEW file).
-"tests/tb_6_verify_chaintape.rs" = "ed0dd76cebb3927d30c6188ccfdb46b7421e8342e0d66cc9ef3b9c70874183e3"
+"tests/tb_6_verify_chaintape.rs" = "ebbf1bfbf5c9ef20c98aeab8be586e3e58e2b92d47aa53ec1f7bc6127b744fac"  # rehashed by TB-7.6 (2026-05-01; Codex audit cc7b3dd action #6 closure): added I90d (tampered CAS index breaks verify_chaintape — synthesizes the runs-2/5 corruption shape), I90e (tampered L4.E row prev_hash breaks chain open via VerifyError::L4eOpen), I90f (absent L4.E is legitimate empty-chain — negative control pinning "absence ≠ tamper" semantics).
 # 2026-05-01 TB-6 Atom 5 — Agent audit trail (AgentProposalRecord + CAS storage + JSONL index) NEW file. All pub symbols carry /// TRACE_MATRIX FC3-N1 backlinks per R-022.
 "src/runtime/agent_audit_trail.rs" = "25dde31a94e0b93ce5d5751034f7caa1aee2972d752ec136a342afc1eb552e62"  # rehashed by TB-7.5 fix #4 (2026-05-01; Codex audit 492e86c action #4): cleaned the stale module-doc line that still said "9-field record (10 with logical_t for chronological ordering)" — the original Atom 1.7 logical_t-removal commit left this comment in place. (No code changes; doc-only.) Prior TB-7 Atom 1.7 hash had logical_t REMOVED + audit_hash v2 + chain_link.
 # 2026-05-01 TB-6 Atom 5 — Agent audit trail integration tests (I91 / I91b / I91d) (NEW file).
@@ -264,7 +264,7 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 "src/bottom_white/mod.rs" = "f473d8dc7b277dbf480073e1c3d4a5fb23b270576e29d16763d16e1b5d1f4f5b"
 "src/bottom_white/cas/mod.rs" = "3d2a0d00505b9a530dffb639158ee3199a5a44a7b96e0f554208a2ef1046da36"
 "src/bottom_white/cas/schema.rs" = "48a6857d94c678501ede19028d43422d4a28eec24a84e4898dfb21277e797560"
-"src/bottom_white/cas/store.rs" = "94b9e7cf710ff8d1d06ccea95f0c03b597a409499354a0f1f0917d6c8681bad0"
+"src/bottom_white/cas/store.rs" = "de86443f8e8900e5a756f44896107f659fdca258f541a901e68ca640bf99871c"  # rehashed by TB-7.6 (2026-05-01): append_to_sidecar combines JSON serialization + trailing newline into ONE write_all() call (relies on POSIX O_APPEND atomicity for writes ≤ PIPE_BUF). Pre-fix used two separate write_all calls (serialized then b"\n") which interleaved with concurrent writers, producing corrupted lines like {...}{...} (no separator). Bug discovered organically during TB-7 real-LLM smoke runs 2 + 5. NEW test concurrent_writers_share_index_without_race verifies fix (4 threads × 20 puts × shared repo path; reload must parse).
 "src/bottom_white/tools/mod.rs" = "3d04d5f8309fdf949334e00e949681545f21f150a4bdbcdf86b32c2f54122180"
 "src/bottom_white/tools/registry.rs" = "4ed18dcd2a7d7641663ccbdb66c895cb31cd68f4de3bddad8b5d4902633cc387"
 "src/state/mod.rs" = "c36faf0c92c5459801098fd50555b1c078620564011f42a91e97cbc8d916c9bb"
