@@ -298,7 +298,8 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 "src/bottom_white/ledger/transition_ledger.rs" = "164f89fb15428bbb2a35bc74c4ea862ec78e808800931e47628fff492e4c2812"
 # 2026-04-29 TB-1 Day-3 — P1 GitTape kernel hardening: L4.E rejection-evidence ledger (NEW file).
 # 2026-04-29 TB-1 Path A++ — RejectedSubmissionRecord.raw_diagnostic_cid carries #[serde(skip_serializing, default)] type shield (P0-3); +1 unit test asserting raw cid is structurally absent from raw-record serialization.
-"src/bottom_white/ledger/rejection_evidence.rs" = "617c246507c0ff77913cd36dcb94f9596a441327da1672454c85242e7290630e"
+# 2026-05-01 TB-6 Atom 1.2 — JSONL persistence backend (Backend enum + open_jsonl + JsonlRecord shadow struct + flush_jsonl_record helper). RejectionEvidenceError extended with Io + JsonlParse variants. Existing pub API preserved.
+"src/bottom_white/ledger/rejection_evidence.rs" = "205ab918dde649a4ef33be64319f53aabcd96d57d17886f98a51569080519e52"
 "tests/system_keypair_generation.rs" = "94d2de928a0f32e71860cbf9125a85a89bb0ded53f6e55c2e16b6370b9dcaa4b"
 "tests/system_keypair_load_and_decrypt.rs" = "460ce3e0b13d523e62b0818285a414a69a91b1afc51c0e0eba7a521674dfaa55"
 "tests/system_keypair_sign_only_from_runner.rs" = "b0874933f684ba47a254728939d30327a0b59392221e51ec4b2207b901bbe65c"

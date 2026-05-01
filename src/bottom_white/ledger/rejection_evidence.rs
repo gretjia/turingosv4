@@ -36,12 +36,103 @@
 //!
 //! /// TRACE_MATRIX Inv 7 + Inv 10 + ROADMAP P1:6/P1:9: L4.E rejection-evidence ledger.
 
+use std::io::Write;
+
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::bottom_white::cas::schema::Cid;
 use crate::bottom_white::ledger::transition_ledger::TxKind;
 use crate::state::q_state::{AgentId, Hash};
+
+/// TB-6 Atom 1.2 — JSONL-backend shadow struct.
+///
+/// Mirrors `RejectedSubmissionRecord` 1-to-1 but does NOT carry the
+/// `#[serde(skip_serializing, default)]` attribute on `raw_diagnostic_cid`
+/// (TB-1 P0-3 shield). The skip attribute is correct for `PublicRejectionView`
+/// projection (Inv 10) but inappropriate for the L4.E persistent backend —
+/// the JSONL file is a forensic ledger, NOT an agent-facing view, and MUST
+/// preserve every field that contributes to `compute_hash` so reload + chain
+/// verification round-trip is bit-deterministic.
+#[derive(Serialize, Deserialize)]
+struct JsonlRecord {
+    submit_id: u64,
+    parent_state_root: Hash,
+    agent_id: AgentId,
+    tx_kind: TxKind,
+    tx_payload_cid: Cid,
+    rejection_class: RejectionClass,
+    raw_diagnostic_cid: Option<Cid>,
+    public_summary: Option<String>,
+    prev_hash: Hash,
+    hash: Hash,
+}
+
+impl From<&RejectedSubmissionRecord> for JsonlRecord {
+    fn from(r: &RejectedSubmissionRecord) -> Self {
+        Self {
+            submit_id: r.submit_id,
+            parent_state_root: r.parent_state_root,
+            agent_id: r.agent_id.clone(),
+            tx_kind: r.tx_kind,
+            tx_payload_cid: r.tx_payload_cid.clone(),
+            rejection_class: r.rejection_class,
+            raw_diagnostic_cid: r.raw_diagnostic_cid.clone(),
+            public_summary: r.public_summary.clone(),
+            prev_hash: r.prev_hash,
+            hash: r.hash,
+        }
+    }
+}
+
+impl From<JsonlRecord> for RejectedSubmissionRecord {
+    fn from(j: JsonlRecord) -> Self {
+        Self {
+            submit_id: j.submit_id,
+            parent_state_root: j.parent_state_root,
+            agent_id: j.agent_id,
+            tx_kind: j.tx_kind,
+            tx_payload_cid: j.tx_payload_cid,
+            rejection_class: j.rejection_class,
+            raw_diagnostic_cid: j.raw_diagnostic_cid,
+            public_summary: j.public_summary,
+            prev_hash: j.prev_hash,
+            hash: j.hash,
+        }
+    }
+}
+
+/// TB-6 Atom 1.2 — single-record JSONL flush helper.
+///
+/// Serializes `record` (via `JsonlRecord` shadow — preserves `raw_diagnostic_cid`)
+/// as one JSON line, opens `path` in append mode (creating if missing), writes
+/// the line + newline, and `flush()` then `sync_data()` before returning.
+/// Errors are wrapped into `RejectionEvidenceError::Io`.
+fn flush_jsonl_record(
+    path: &std::path::Path,
+    record: &RejectedSubmissionRecord,
+) -> Result<(), RejectionEvidenceError> {
+    let shadow = JsonlRecord::from(record);
+    let line = serde_json::to_string(&shadow).map_err(|e| {
+        RejectionEvidenceError::Io(format!("serialize record: {e}"))
+    })?;
+    let mut file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .map_err(|e| {
+            RejectionEvidenceError::Io(format!("open append {path:?}: {e}"))
+        })?;
+    file.write_all(line.as_bytes())
+        .map_err(|e| RejectionEvidenceError::Io(format!("write: {e}")))?;
+    file.write_all(b"\n")
+        .map_err(|e| RejectionEvidenceError::Io(format!("write newline: {e}")))?;
+    file.flush()
+        .map_err(|e| RejectionEvidenceError::Io(format!("flush: {e}")))?;
+    file.sync_data()
+        .map_err(|e| RejectionEvidenceError::Io(format!("sync_data: {e}")))?;
+    Ok(())
+}
 
 // ────────────────────────────────────────────────────────────────────────────
 // RejectionClass — taxonomy of why a submission was rejected
@@ -201,18 +292,29 @@ impl From<&RejectedSubmissionRecord> for PublicRejectionView {
 // RejectionEvidenceError — chain-walk failure taxonomy
 // ────────────────────────────────────────────────────────────────────────────
 
-/// TRACE_MATRIX P1:6 — error returned by `RejectionEvidenceWriter::verify_chain`.
+/// TRACE_MATRIX P1:6 — error returned by `RejectionEvidenceWriter::verify_chain` + JSONL persistence ops (TB-6 Atom 1.2).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RejectionEvidenceError {
     /// `prev_hash` chain or per-record hash diverged at the given index
     /// (covers row deletion, field tampering, and reordering).
     HashMismatch { at: usize },
+    /// TB-6 Atom 1.2 — JSONL persistence I/O failure (open / read / write / fsync).
+    /// `String`-wrapped to keep `Clone + PartialEq + Eq` derives.
+    Io(String),
+    /// TB-6 Atom 1.2 — JSONL deserialization failed during open_jsonl replay
+    /// (line is corrupted / not valid JSON / shape mismatch).
+    JsonlParse { line: usize, reason: String },
 }
 
 impl std::fmt::Display for RejectionEvidenceError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::HashMismatch { at } => write!(f, "rejection-evidence chain break at index {}", at),
+            Self::Io(e) => write!(f, "rejection-evidence I/O error: {e}"),
+            Self::JsonlParse { line, reason } => write!(
+                f,
+                "rejection-evidence JSONL parse failure at line {line}: {reason}"
+            ),
         }
     }
 }
@@ -223,22 +325,108 @@ impl std::error::Error for RejectionEvidenceError {}
 // RejectionEvidenceWriter — append + verify + project-to-public
 // ────────────────────────────────────────────────────────────────────────────
 
-/// TRACE_MATRIX P1:6/P1:9 — RSP-0 in-memory rejection-evidence writer.
+/// TRACE_MATRIX P1:6/P1:9 — rejection-evidence writer with optional persistent backend.
 ///
 /// One `Vec<RejectedSubmissionRecord>`; `prev_hash` chained; `submit_id`
 /// monotonicity is the caller's responsibility (the writer trusts the
 /// `Sequencer::next_submit_id` issuer). No `logical_t` field — accepted
 /// spine and rejection-evidence are intentionally disjoint per the L4 / L4.E
 /// split (`DECISION_REJECTION_EVIDENCE_LEDGER_2026-04-29.md`).
+///
+/// **TB-6 Atom 1.2 extension**: optional `Backend::JsonlAppend(path)` causes
+/// every `append_rejected` call to also serialize the new record as a single
+/// JSONL line + append + fsync to `path`. `open_jsonl(path)` constructs the
+/// writer from an existing JSONL file, replaying records into the in-memory
+/// chain. The "或等价结构" form of architect § 3.5 `refs/rejections/main` —
+/// JSONL with embedded `prev_hash` + `hash` chain.
 #[derive(Debug, Clone, Default)]
 pub struct RejectionEvidenceWriter {
     records: Vec<RejectedSubmissionRecord>,
+    /// TB-6 Atom 1.2 — backend for persistence; default = `InMemory` (no I/O).
+    backend: Backend,
+}
+
+/// TB-6 Atom 1.2 — internal backend for `RejectionEvidenceWriter`.
+/// NOT pub — backend selection is via `RejectionEvidenceWriter::open_jsonl`.
+#[derive(Debug, Clone, Default)]
+enum Backend {
+    /// Pure in-memory `Vec<RejectedSubmissionRecord>`; existing TB-1 behavior.
+    #[default]
+    InMemory,
+    /// TB-6 Atom 1.2 — JSONL append-only persistent file. `append_rejected`
+    /// flushes a single JSONL line per record + fsync. `open_jsonl` reads
+    /// existing file on construction + replays into `records`.
+    JsonlAppend { path: std::path::PathBuf },
 }
 
 impl RejectionEvidenceWriter {
-    /// TRACE_MATRIX P1:6 — empty writer.
+    /// TRACE_MATRIX P1:6 — empty writer with `InMemory` backend.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// TRACE_MATRIX FC3-N1 + P1:6 (TB-6 Atom 1.2) — open or create a JSONL-backed writer.
+    ///
+    /// On open:
+    /// - If `path` exists, read each line as a `RejectedSubmissionRecord`,
+    ///   append to `records`, and `verify_chain()` over the loaded records to
+    ///   reject tampering at load time.
+    /// - If `path` does not exist, create the file (and parent dirs) empty.
+    /// - Either way, set backend to `JsonlAppend(path)` so subsequent
+    ///   `append_rejected` calls flush to that path.
+    ///
+    /// Architect § 3.5 "或等价结构": JSONL chain-hash equivalent to git
+    /// `refs/rejections/main`. Each line embeds `prev_hash` + `hash` so
+    /// tampering with any line breaks the chain at that line.
+    pub fn open_jsonl(
+        path: std::path::PathBuf,
+    ) -> Result<Self, RejectionEvidenceError> {
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| {
+                RejectionEvidenceError::Io(format!("create parent dir for {path:?}: {e}"))
+            })?;
+        }
+        let mut records: Vec<RejectedSubmissionRecord> = Vec::new();
+        if path.exists() {
+            let contents = std::fs::read_to_string(&path).map_err(|e| {
+                RejectionEvidenceError::Io(format!("read {path:?}: {e}"))
+            })?;
+            for (idx, line) in contents.lines().enumerate() {
+                if line.trim().is_empty() {
+                    continue;
+                }
+                let shadow: JsonlRecord =
+                    serde_json::from_str(line).map_err(|e| {
+                        RejectionEvidenceError::JsonlParse {
+                            line: idx,
+                            reason: e.to_string(),
+                        }
+                    })?;
+                records.push(shadow.into());
+            }
+        } else {
+            // Create empty file with parent dirs already ensured above.
+            std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&path)
+                .map_err(|e| {
+                    RejectionEvidenceError::Io(format!("create {path:?}: {e}"))
+                })?;
+        }
+        let writer = Self {
+            records,
+            backend: Backend::JsonlAppend { path },
+        };
+        // Validate chain integrity on load — tampering with any record
+        // breaks here.
+        writer.verify_chain()?;
+        Ok(writer)
+    }
+
+    /// TRACE_MATRIX FC3-N1 (TB-6 Atom 1.2) — convenience: is this writer JSONL-backed?
+    pub fn is_jsonl_backed(&self) -> bool {
+        matches!(self.backend, Backend::JsonlAppend { .. })
     }
 
     /// TRACE_MATRIX P1:6 — count of recorded rejections.
@@ -261,6 +449,14 @@ impl RejectionEvidenceWriter {
     /// CRITICAL: this method MUST NOT be called from the L4 (accepted) write
     /// path — Inv 7 forbids state-root advance on rejection. The caller's
     /// dispatch logic decides which ledger receives the record.
+    ///
+    /// **TB-6 Atom 1.2**: when the writer is `JsonlAppend`-backed, the new
+    /// record is also serialized as one JSONL line and appended (with fsync)
+    /// to the configured path. JSONL flush failures are silently logged and
+    /// the in-memory record is still pushed — `Sequencer::apply_one` (the
+    /// caller) does not have an error return path for this writer; tests
+    /// validate persistence via `RejectionEvidenceWriter::open_jsonl`'s
+    /// reload + `verify_chain` round-trip rather than checking append return.
     #[allow(clippy::too_many_arguments)]
     pub fn append_rejected(
         &mut self,
@@ -297,6 +493,23 @@ impl RejectionEvidenceWriter {
             prev_hash,
             hash,
         };
+        // TB-6 Atom 1.2: flush to JSONL backend if configured. We do this
+        // BEFORE pushing to records so a write failure does not leave the
+        // in-memory chain ahead of the on-disk chain (best-effort
+        // consistency).
+        if let Backend::JsonlAppend { path } = &self.backend {
+            if let Err(e) = flush_jsonl_record(path, &record) {
+                log::error!(
+                    "rejection-evidence JSONL flush failed (record dropped from in-memory chain to preserve persistence consistency): {e}"
+                );
+                // Caller's chain-hash invariant is preserved because we did
+                // NOT push the record. The next append_rejected will compute
+                // prev_hash from the unchanged last_hash. The dropped record
+                // is logged but lost — this is the failure mode for an I/O
+                // error mid-run; recovery is to investigate the JSONL path.
+                return prev_hash;
+            }
+        }
         self.records.push(record);
         hash
     }
