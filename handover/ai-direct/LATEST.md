@@ -6,6 +6,63 @@
 
 ---
 
+## 🚢 2026-05-01 — TB-6 SHIPPED (Atoms 4-7) — replay verifier + agent audit trail + RunSummary + ship audit
+
+**Session summary**: User authorized "TuringOS v4 — TB-6 continuation (Atoms 4-7)" with explicit
+architect ruling D1-D7 + charter § 4 + § 6 + § 8 line-grounded ship gate. **All 8 TB-6 atoms now
+shipped on `main`.** Architect's full Path A objective satisfied: production binary drives
+Sequencer to on-disk ChainTape; replay verifier reconstructs Q + EconomicState; Agent audit trail
+records what the Agent saw + submitted (NOT chain-of-thought); RunSummary aggregates
+proposal-level fork visibility.
+
+### What landed (Atoms 4-7)
+
+| Commit | Atom | Highlights |
+|---|---|---|
+| `f594f83` | 4 SHIPPED | `src/runtime/verify.rs` library + `src/bin/verify_chaintape.rs` CLI + `tests/tb_6_verify_chaintape.rs` (I90 / I90b / I90c). All 7 architect-mandated boolean indicators true on Atom 3 smoke evidence dir. Tampering-detection via I90c (tampered pinned_pubkey → signature verify fails). |
+| `fcbb827` | 5 SHIPPED | `src/runtime/agent_audit_trail.rs` with `AgentProposalRecord` 9 fields + `AcceptedOrRejected` + CAS storage + `AgentAuditTrailIndex` JSONL with prev_hash→hash chain. Synthetic-seed hook in `evaluator.rs` writes audit pair on every chain-backed smoke run. **I91d structural witness**: JSON-grep blocks any future schema migration from adding `chain_of_thought` / `model_deliberation` / `tool_transcript` / `raw_prompt` / `raw_completion` / `internal_reasoning` field names. |
+| `8e5ddb3` | 6 SHIPPED | `src/runtime/run_summary.rs` aggregator + `src/bin/gen_run_summary.rs` CLI + `tests/tb_6_run_summary.rs` (I92 / I92b / I92c). Walks L4 + L4.E + CAS at end-of-run; emits `run_summary.json` with architect-mandated fields. Production binary writes one automatically at end-of-run. |
+| **(this commit)** | **7 SHIPPED** | Recursive self-audit at `handover/audits/RECURSIVE_AUDIT_TB_6_2026-05-01.md` (7/7 D1-D7 + 7/7 § 4 + 20/20 § 6 + 3/3 § 8 GREEN). TB_LOG TB-6 row active→shipped. NOTEPAD TB-6 SHIPPED log added. Audit label `degraded` per `feedback_dual_audit` (Gemini strategic-tier exhausted; TB-5 supplement precedent). |
+
+### Test count progression
+
+- Atom 4 ship: 646/0/150 (+7 vs Atom 3)
+- Atom 5 ship: 654/0/150 (+8 vs Atom 4)
+- Atom 6 ship: 660/0/150 (+6 vs Atom 5)
+- **Atom 7 ship total**: **660 passed / 0 failed / 150 ignored across 51 suites** (+43 vs TB-5 ship 617).
+- Per architect ruling D4: `cargo test --workspace` canonical at every atom.
+
+### Smoke evidence final state
+
+`handover/evidence/tb_6_chaintape_smoke_2026-05-01/`:
+- `runtime_repo/.git/refs/transitions/main` commit `38f7112f6401067ffc66c5a00338e12ec810170b` (1 L4 entry)
+- `runtime_repo/rejections.jsonl` (1 L4.E with prev_hash→hash chain)
+- `runtime_repo/pinned_pubkeys.json` (TB-6 epoch 1 ed25519 pubkey)
+- `cas/` (CAS payloads for both txs)
+- `replay_report.json` — Atom 4 — all 7 boolean indicators true
+- `run_summary.json` — Atom 6 — 1 accepted tx_id + 1 rejected tx_id + 2 candidate proposal CIDs
+- `synthetic_rejection_label.json`, `proof.lean`, `pput_result.jsonl`, `n1_run.log`
+- `README.md` answering all 8 architect-mandated questions (charter § 5.5)
+
+### Architect ruling status (D1-D7)
+
+- ✅ D1: Path A SHIPPED (5-TB ChainTape production debt CLOSED).
+- ✅ D2: chain-backed smoke = HARD requirement. 8-condition gate satisfied; Atom 4 verify_chaintape demonstrates tampering-detection.
+- ✅ D3: hybrid-by-risk audit applied. Atom 1 had Codex round-1+2 pre-ship; Atoms 4-6 kernel-only-additive class with self-audit + targeted smoke; Atom 7 ship audit carries `degraded` label per Gemini exhaustion.
+- ✅ D4: `cargo test --workspace` canonical at every commit body in TB-6.
+- ✅ D5: smoke-evidence naming applied throughout. Pre-TB-6 dirs = "smoke evidence"; tb_6_chaintape_smoke_2026-05-01 IS chain-backed.
+- ✅ D6: 5 memory updates committed at Atom 0 ship.
+- ✅ D7: NO constitution amendment (verified by `git diff` empty).
+
+### What remains for next TB
+
+- TB-7 candidate: RSP-M0/M1 NodePosition (post-TB-6 RSP-M track per ruling § 4.5) OR RSP-3.2 Slash (now reachable since chain-backed replay exists). Architect input expected on sequencing.
+- Per-LLM-proposal main-loop wiring (run_swarm "append"/"complete" branches) deferred from Atom 5 to a future TB. Structural surface in place; main-loop hook is incremental.
+- Codex impl audit on full TB-6 diff recommended as TB-7 follow-up (audit-pending follow-up, non-blocking per charter § 9 + ruling D3).
+- 24h iteration cap reset for TB-7 per `feedback_iteration_cap_24h`.
+
+---
+
 ## 🚀 2026-05-01 — TB-6 Atoms 0-3 SHIPPED (5-TB ChainTape production debt CLOSED)
 
 **Session summary**: User authorized "继续把tb-6全部执行" after architect ruling 2026-05-01
