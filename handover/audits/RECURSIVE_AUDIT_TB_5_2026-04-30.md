@@ -6,7 +6,8 @@
 **Charter (binding)**: `handover/tracer_bullets/TB-5_charter_2026-04-30.md` v2.
 **Directive (binding)**: `handover/directives/2026-04-30_TB5_VETO_redesign_directive.md`.
 **Preflight**: `handover/ai-direct/TB-5_RSP3_RESOLUTION_GATE_2026-04-30.md` v2.
-**Test totals**: `cargo test` → 464 passed / 0 failed (TB-4 baseline 571 + TB-5 net additions). Trust Root verified.
+**Test totals**: `cargo test --workspace` → **617 passed / 0 failed** (TB-4 baseline 571 + 46 net TB-5 additions). Trust Root verified.
+**Correction note (2026-05-01)**: original ship-time figure of "464 passed" was `cargo test` (root crate only) without `--workspace`; missed 153 tests in `experiments/minif2f_v4` + `spike/gix_capability` sub-crates. See `handover/audits/SELF_AUDIT_TB_5_SMOKE_TAPE_2026-05-01.md` § 2.
 
 ---
 
@@ -114,7 +115,7 @@ The TB-5 charter § 6 carries through TB-3 + TB-4 forbidden-lines battery additi
 
 ```
 cargo test --workspace
-→ 464 tests passed / 0 failed / 1 ignored
+→ 617 tests passed / 0 failed (corrected 2026-05-01; original 464 was bare `cargo test`)
 ```
 
 Breakdown of TB-5 net additions:
@@ -141,7 +142,7 @@ Trust Root manifest (`genesis_payload.toml`) rehashed at each STEP_B-protected f
 
 ## §9 Audit verdict
 
-**TB-5 ship-ready** — all 6/6 directive Q decisions + 10/10 charter § 4 decision blocks + 4/4 anti-drift renames + ship gate proofs GREEN; 464/464 tests passing; Trust Root verified.
+**TB-5 ship-ready** — all 6/6 directive Q decisions + 10/10 charter § 4 decision blocks + 4/4 anti-drift renames + ship gate proofs GREEN; **617/617 tests passing** (corrected 2026-05-01); Trust Root verified.
 
 The TB-5 RSP-3.0 substrate (agent-ingress barrier + system-only ingress) and RSP-3.1 resolution gate (ChallengeResolve dispatch arm with Released + UpheldDeferred semantics) form a structurally Anti-Oreo system-emitted resolution surface. The defense-in-depth pinned_pubkeys verification at apply_one stage 1.5 ensures that even in the unlikely event of a queue-bypass replay, forged signatures are rejected with full L4.E provenance.
 

@@ -6,6 +6,102 @@
 
 ---
 
+## 🔍 2026-05-01 — TB-5 post-ship self-audit + chaintape gap surfaced (architect review awaiting)
+
+**Authorization**: user "没有针对烟测的tape进行审计，由你负责审计，不需要外审" → single-AI self-audit (no external auditor). Follow-up: "现在 turingos 具有真正的 chaintape 了吗？你是在 chaintape 上读取的测试全部信息进行审计的吗？" surfaced the substantive finding.
+
+### What landed
+
+| File | Purpose |
+|---|---|
+| `handover/audits/SELF_AUDIT_TB_5_SMOKE_TAPE_2026-05-01.md` | Smoke-tape self-audit. §1: 8 verified claims PASS. §2: cosmetic test-count under-report (464→617). §3: substantive chaintape gap. §4 verdict + remedy. §5 audit caveats. |
+| `handover/audits/STAGE_AUDIT_TB_1_TO_TB_5_2026-05-01.md` | Cumulative stage audit TB-1..TB-5. §1 per-TB summary table. §2 what's structurally green (kernel, Anti-Oreo, RSP-1/2/3.0/3.1, anti-drift CI). §3 what's gap (production-binary chaintape wire-up, smoke evidence is paper trail not chain, RSP-3.2/4/5/6/7 RED, P2/P4 RED). §4 5 open debts. §5 8 production claims rolling forward. |
+| `handover/directives/2026-05-01_TB6_ARCHITECT_REVIEW_REQUEST.md` | Architect review request with 5 binding decision items D1-D5 for TB-6 sequencing + audit-mode standard + chaintape gap remedy. Awaiting `2026-05-XX_TB6_DIRECTIVE.md` response. |
+| (patch) | 5 living docs corrected from 464/464 → 617/617 (`README` + `RECURSIVE_AUDIT` + `TB_LOG` × 2 + `NOTEPAD`). Merge commit `1bdc55a` body cannot be amended; superseded by reference. |
+
+### Key findings (one-liner each)
+
+1. **(cosmetic) Test-count under-report**: TB-5 ship-gate "464/464" was bare `cargo test`; actual `cargo test --workspace` is **617/617** (46 suites, 0 failed). Off by 153 tests across 5 docs. Patch commit on main.
+
+2. **(substantive) Chaintape gap**: TB-5 "smoke tape" evidence (`oneshot_run.log` + `n1_run.log` + `proof_n1.lean` + `README.md`) is **paper trail, not chain**. No production binary drives `Sequencer::apply_one`. `bus.rs` sequencer field is `None` in main.rs. The evaluator does not import `turingosv4::state::sequencer`. The chaintape machinery only runs inside `cargo test` (InMemoryLedgerWriter). No on-disk chain has ever been produced from any LLM-driven run in TuringOS history. **5-TB cumulative debt** (TB-1..TB-5 each shipped kernel improvement; none exercised by an LLM-driven binary).
+
+3. **Audit performed was paper-tape level**: I read 4 files + cross-grepped 5 evidence dirs + sha256-matched the proof artifact + re-ran Lean v4.24.0 + re-ran `cargo test --workspace`. The cargo test re-run IS a chain audit (in-memory chain) — but for the cargo test suite, not for the smoke runs themselves. The .log files are bounded by conventional file-system trust, not cryptographic chain trust.
+
+4. **"Smoke tape" naming is a v3 PaperTape-era metaphor**, not a structural property. Recommend rename → "smoke evidence" (architect review D5).
+
+### What architect needs to rule on (D1-D5 in review request)
+
+- **D1**: TB-6 = RSP-3.2 slash (current ROADMAP plan) vs P2 Agent Runtime atom (close chaintape gap first; recommended). Stake: 5-TB chaintape debt vs additional kernel-only TB.
+- **D2**: smoke gate evolution — should chaintape traversal become required from TB-X onward?
+- **D3**: audit-mode standard — TB-3/TB-4 Option B (self-audit + smoke) vs TB-5 Codex-only vs hybrid by constitutional risk class.
+- **D4**: lock down `cargo test --workspace` as canonical ship-gate test command.
+- **D5**: rename "smoke tape" → "smoke evidence" across docs.
+
+### What's substantively defensible at TB-5 ship (despite the gap)
+
+- 8 production claims (Anti-Oreo, RSP-0/1/2/3.0/3.1 chain, defense-in-depth pinned-pubkeys, CTF conservation, 9-sub-field invariant) all GREEN under `cargo test --workspace` (617 tests).
+- Lean re-verification holds end-to-end on the one proof produced.
+- Smoke runs were genuine (timestamps + run_ids verified session-fresh, not stale repeats).
+
+### What's NOT proven by smoke evidence (despite ship docs language)
+
+- That TB-5 runtime spine was reachable from the evaluator
+- That any TypedTx ever traversed `dispatch_transition` during the smoke runs
+- That any LedgerEntry was produced
+- That the runtime kernel's Anti-Oreo barriers were ever exercised at LLM-driven runtime
+
+These belong to **P2 Agent Runtime** wire-up, deferred from TB-1..TB-5 by design. Architect ruling on D1 determines when this debt closes.
+
+---
+
+## 🚢 2026-04-30 — TB-5 SHIPPED (P3 RSP-3.0 + RSP-3.1 System-Emitted Resolution Gate, WP-canonical)
+
+**Authorization**: user "继续直到本轮次所有plan中的事项完成" → executed Atoms 4-8 + ship + book-keeping in one session post-context-compaction.
+
+### What landed (12 commits)
+
+| Commit | Atom | Summary |
+|---|---|---|
+| `42fd45c` | Atom 2 | TB-5.0 substrate: `submit_agent_tx` + agent-ingress barrier (4 system variants rejected pre-queue) |
+| `4a33b1a` | Atom 3 | TB-5 ABI: `ChallengeResolveTx` + `ChallengeStatus` (q_state.rs) + `ChallengeResolution` (typed_tx.rs) + `monetary_invariant` cascade |
+| `9ff8179` | Atom 4 | `emit_system_tx` + apply_one stage 1.5 (defense-in-depth pinned-pubkey verification) + `record_rejection` helper |
+| `06a7fcf` | Atom 5 | `ChallengeResolve` dispatch arm (Released path) + `CHALLENGE_RESOLVE_DOMAIN_V1` state-root domain + 4 new TransitionError variants |
+| `c7dfef9` | Atom 6 | UpheldDeferred path + boundary tests (I75-I77 + I78-I79 + I88-I89) |
+| `cc72d61` | Atom 7 | Replay (I80) + property (I81) + anti-drift CI (I82-I87, `tests/tb_5_anti_drift.rs`) |
+| `2fb4ed9` | Atom 8 | Recursive self-audit + 真实烟测 evidence |
+| `1bdc55a` | merge | `--no-ff` merge experiment branch into main |
+| `c472823` | book-keeping | TB_LOG / NOTEPAD / ROADMAP post-merge updates |
+
+**Acceptance battery**: **617/617** `cargo test --workspace` passing, 0 failed (corrected 2026-05-01 from original 464/464 ship-time figure). 46 net new TB-5 tests vs TB-4 baseline 571.
+
+### Production claim adds
+
+1. Anti-Oreo agent-vs-system ingress separation **structurally enforced** (was documented norm without live enforcement through TB-3 + TB-4).
+2. `emit_system_tx` constructs + signs system-emitted typed txs INTERNALLY; callers cannot pass forged signatures.
+3. apply_one stage 1.5 re-verifies against `PinnedSystemPubkeys` (defense-in-depth catches stale-sig replay → `InvalidSystemSignatureLive` + 1 L4.E PolicyViolation row, no logical_t advance — K1).
+4. `ChallengeResolve` dispatch enforces idempotent single-shot resolution: Released refunds + zeros bond (entry preserved); UpheldDeferred is marker-only (bond preserved for TB-6 slash routing).
+
+### 真实烟测 (handover/evidence/tb_5_smoke_2026-04-30/) — NOTE: see 2026-05-01 audit above
+
+- oneshot `prompt_context_hash="a1f43584a17d1226"` — bit-identical across **5 sessions** (TB-1/2/3/4/5)
+- n1 `solved=true`, `verified=true`, `gp_payload="nlinarith"` on `mathd_algebra_107` with `budget_max_transactions=20`
+- ⚠️ **Per 2026-05-01 self-audit § 3**: this is paper-trail evidence, NOT chain audit. The kernel structural claims live in `cargo test --workspace`; smoke evidence proves prompt-build pipeline compat + capability replicability.
+
+### Self-audit (handover/audits/RECURSIVE_AUDIT_TB_5_2026-04-30.md)
+
+6/6 directive Q1-Q6 + 10/10 charter v2 § 4 decision blocks + 4/4 anti-drift renames + 3/3 ship gate proofs all GREEN. Test count corrected to 617/617 in-place 2026-05-01.
+
+### Audit-mode (TB-5 specific)
+
+Directive § 4 Q4 mandated Option A (dual external) — Gemini strategic-tier `MODEL_CAPACITY_EXHAUSTED` across 4 rounds; supplement `2026-04-30_TB5_audit_mode_supplement.md` documented Codex-only mode; round-4 fell back to **grep self-verification** when Codex agent infra failed mid-audit.
+
+### Next TB candidate (awaiting architect ruling D1)
+
+- **Default per ROADMAP**: TB-6 = RSP-3.2 slash execution (`SlashTx` system-emitted; balances/stakes/challenge_cases mutations conditional on `ChallengeCase.status == UpheldDeferred`)
+- **Recommended per 2026-05-01 audit**: TB-6 = P2 Agent Runtime atom (close 5-TB chaintape gap first; slash defers to TB-7)
+
+---
+
 ## 🌙 OVERNIGHT 2026-04-29 — TB-1 Days 4-6 shipped autonomously; **CHALLENGE verdict, user decision needed**
 
 **Authorization**: user "进行到送双外审并收集双外审结果给我睡觉回来看" → ran TB-1 Day 4 + Day 5 + Day 6 (dual external audit) end-to-end. **Did NOT ship Day 7** — that requires user decision.

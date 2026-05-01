@@ -4,7 +4,7 @@
 
 **Hook**: `MEMORY.md` → `project_auto_research_notepad.md` points here. Loaded every session.
 
-**Last updated**: 2026-04-30 (**TB-5 SHIPPED** `4c3414e..1bdc55a`; merge `1bdc55a`; P3 RSP-3.0 + RSP-3.1 System-Emitted Resolution Gate + Challenge Bond Release on canonical L4; two-channel ingress (submit_agent_tx + emit_system_tx) with apply_one stage 1.5 pinned-pubkey verification; ChallengeResolve dispatch arm with Released + UpheldDeferred paths; 464/464 cargo test green; ~44 new TB-5 tests; 真实烟测 prompt_context_hash bit-identical across 5 sessions (TB-1/2/3/4/5); n1 SOLVED gp_payload="nlinarith". Predecessor: TB-4 SHIPPED `cfc81de..a17d477`; merge `edb8089`. Anti-drift CI scanner extended with 4 forbidden TB-5 variant names.)
+**Last updated**: 2026-05-01 (**post-ship self-audit**: TB-5 ship test count corrected 464→617 `cargo test --workspace`; chaintape gap surfaced — smoke evidence is paper trail not chain; architect review request issued at `handover/directives/2026-05-01_TB6_ARCHITECT_REVIEW_REQUEST.md` for TB-6 sequencing D1-D5. Predecessor: 2026-04-30 **TB-5 SHIPPED** `4c3414e..1bdc55a`; merge `1bdc55a`; P3 RSP-3.0 + RSP-3.1 System-Emitted Resolution Gate + Challenge Bond Release on canonical L4; two-channel ingress (submit_agent_tx + emit_system_tx) with apply_one stage 1.5 pinned-pubkey verification; ChallengeResolve dispatch arm with Released + UpheldDeferred paths; **617/617 cargo test --workspace** green (corrected from 464 bare-cargo count); ~46 new TB-5 tests; 真实烟测 prompt_context_hash bit-identical across 5 sessions (TB-1/2/3/4/5); n1 SOLVED gp_payload="nlinarith". Predecessor: TB-4 SHIPPED `cfc81de..a17d477`; merge `edb8089`. Anti-drift CI scanner extended with 4 forbidden TB-5 variant names.)
 
 ## TB methodology v2 (P0–P9 phase-tagged; install 2026-04-29 session-3)
 
@@ -243,6 +243,25 @@ PPUT-CCL Phase A–E roadmap below remains as the **P6 Epistemic Lab v0 product-
 - **Atom 0 (charter v2)** lands at this commit; **Atom 1** (STEP_B Phase-0 preflight + dual external audit launch) deferred until charter v2 user sign-off.
 - Test plan: ~30 new TB-5 tests across TB-5.0 (substrate) + TB-5.1 (resolution) + TB-5.2 (anti-drift). Target post-ship ~601/601.
 
+### TB-5 post-ship self-audit + chaintape gap (2026-05-01) — log
+
+- **Trigger**: user instruction "没有针对烟测的tape进行审计，由你负责审计" + follow-up "现在 turingos 具有真正的 chaintape 了吗？你是在 chaintape 上读取的测试全部信息进行审计的吗？" Single-AI self-audit; no external auditor.
+- **Two findings, one cosmetic + one substantive**.
+- **Finding 1 (cosmetic)**: TB-5 ship-gate test count was reported as **464/464**; that was bare `cargo test` (root crate only). Actual `cargo test --workspace` count is **617/617** (46 suites; 0 failed; net delta from TB-4 baseline 571 = 46 new TB-5 tests). Affects 5 living docs (README, RECURSIVE_AUDIT, TB_LOG, NOTEPAD, merge commit body). 4 docs corrected by 2026-05-01 patch commit; merge commit body cannot be amended (immutable on main + tagged). Root cause: TB-3 + TB-4 baselines used `cargo test --workspace`; TB-5 inadvertently dropped `--workspace`. **Memory should codify** `cargo test --workspace` as the canonical ship-gate test command — see architect review D4.
+- **Finding 2 (substantive — chaintape gap)**: TB-5 "smoke tape" evidence at `handover/evidence/tb_5_smoke_2026-04-30/` is **NOT a chain**. It consists of `*_run.log` (stdout dump) + `proof_n1.lean` (source) + `README.md` (narrative). None traverse `Sequencer::apply_one` → `LedgerWriter::commit`. The evaluator binary at `experiments/minif2f_v4/src/bin/evaluator.rs` does **not import** `turingosv4::state::sequencer` (zero hits on grep). `bus.rs:73` `sequencer: Option<Arc<Sequencer>>` is `None` in `main.rs` (`TuringBus::new_legacy()`).
+- **Implication**: the chaintape MACHINERY exists (`transition_ledger::LedgerEntry` + `Git2LedgerWriter` + apply_one signing stages 1.5/6/7/9 + replay tests I29 + I80 reconstruct economic state). **But it only runs inside `cargo test`**. No production binary drives it; no on-disk chaintape exists from any LLM-driven run in TuringOS history. This is a **5-TB cumulative debt** (TB-1..TB-5 each ship a kernel improvement that is fully tested in cargo test --workspace but not exercised by any LLM-driven binary).
+- **Honest restatement of what TB-5 smoke proves**: (a) two real evaluator runs happened on 2026-04-30 19:30 UTC; (b) `prompt_context_hash` invariance across 5 sessions is structural compat for the **prompt-build pipeline** (NOT for the kernel); (c) Lean re-verifies the n1 proof under pinned toolchain v4.24.0; (d) bounded by conventional file-system trust, not cryptographic chain trust. The kernel structural properties (Anti-Oreo, defense-in-depth, replay determinism, CTF conservation) live entirely in `cargo test --workspace`.
+- **"Smoke tape" naming is a v3 PaperTape-era metaphor**, not a structural property. Recommend rename → "smoke evidence" in templates + retroactive (architect review D5).
+- **Architect review request issued**: `handover/directives/2026-05-01_TB6_ARCHITECT_REVIEW_REQUEST.md` with D1-D5:
+  - **D1 TB-6 sequencing**: RSP-3.2 (slash, current ROADMAP plan) vs P2 Agent Runtime atom (close chaintape gap first; recommended)
+  - **D2 smoke gate evolution**: should chaintape traversal become required from TB-X onward?
+  - **D3 audit-mode standard**: TB-3/TB-4 Option B vs TB-5 Codex-only vs hybrid by constitutional risk class
+  - **D4 test-count reporting**: lock down `cargo test --workspace` as canonical ship-gate command
+  - **D5 chaintape honest-naming**: rename "smoke tape" → "smoke evidence" across docs
+- **Audit docs landed**:
+  - `handover/audits/SELF_AUDIT_TB_5_SMOKE_TAPE_2026-05-01.md` (the smoke audit itself; § 1 8 PASS / § 2 cosmetic / § 3 substantive chaintape gap)
+  - `handover/audits/STAGE_AUDIT_TB_1_TO_TB_5_2026-05-01.md` (cumulative TB-1..TB-5 picture: per-TB summary, what's structurally green, what's gap, 8 production claims rolling forward, 5 open debts)
+
 ### TB-5 SHIPPED (2026-04-30) — log
 
 - **Merge**: `1bdc55a` (--no-ff merge of `experiment/tb5-rsp3-resolution-gate` into `main`). Eight atoms post charter v2 sign-off:
@@ -257,7 +276,7 @@ PPUT-CCL Phase A–E roadmap below remains as the **P6 Epistemic Lab v0 product-
   - `c7dfef9` Atom 6 UpheldDeferred + boundary tests (I75-I77 + I78-I79 + I88-I89 + I80-I81 replay/property)
   - `cc72d61` Atom 7 anti-drift CI (`tests/tb_5_anti_drift.rs`: I82-I85 unified scanner + I86 charter hygiene + I87 P6-touch git-diff guard)
   - `2fb4ed9` Atom 8 recursive audit + 真题烟测 (handover/audits/RECURSIVE_AUDIT_TB_5_2026-04-30.md + handover/evidence/tb_5_smoke_2026-04-30/)
-- **Acceptance battery 464/464 PASS** across 30+ test suites; ~44 new TB-5 tests:
+- **Acceptance battery 617/617 PASS** `cargo test --workspace` across 46 suites; **46 net new TB-5 tests** vs TB-4 baseline 571 (corrected 2026-05-01 from original ship-time figure of 464; root cause: bare `cargo test` missed `experiments/minif2f_v4` + `spike/gix_capability` sub-crates):
   - 5 typed_tx unit (T1-T5: ChallengeResolveTx canonical_digest determinism + signing payload field count = 6 + golden digests + InvalidSystemSignatureLive Display)
   - 13 sequencer in-crate (U22-U28 ingress/sig: forged-sig × 4 system variants reject + emit-self-signed accepts + agent variants skip stage 1.5; U29-U34 dispatch: Released zeros bond refunds + cannot run twice + unknown target rejects + UpheldDeferred marker only + stale parent rejects)
   - 10 system_ingress_barrier integration (I60-I63 4 system variants reject pre-queue + I64-I65 emit_id namespace independence + I67 legacy submit alias delegates + I68-I69 emit queue-full/closed + T5 InvalidSystemSignatureLive Display)
