@@ -6,6 +6,62 @@
 
 ---
 
+## 🚀 2026-05-01 — TB-6 Atoms 0-3 SHIPPED (5-TB ChainTape production debt CLOSED)
+
+**Session summary**: User authorized "继续把tb-6全部执行" after architect ruling 2026-05-01
+selected Path A (P2 Agent Runtime / Production ChainTape Wire-up) over Path B
+(RSP-3.2 Slash). 4 atoms shipped (0,1,2,3). **First chain-backed smoke evidence
+in TuringOS v4 history.** Architect's primary ruling D1 satisfied.
+
+### What landed (commit chain on main)
+
+| Commit | Atom | Highlights |
+|---|---|---|
+| `7970d2d` | 0 | Charter + ROADMAP § 11.5 amendment + NOTEPAD + TB_LOG TB-6 active row + 5 memory updates per architect D6 + smoke-evidence rename per D5 |
+| `ca8d644` → `37b1929` → `67e9a30` | preflight | v1 → v2 (Codex round-1 CHALLENGE-6) → v2.1 (Codex round-2 CHALLENGE-2). Round-cap=2 + auto-execute on determinate-best. |
+| `76c35f3` | 1 SHIPPED | `src/runtime/mod.rs` factory + driver wrapper + L4.E JSONL backend (Atom 1.2 = `RejectionEvidenceWriter` + JsonlRecord shadow bypassing TB-1 P0-3 shield) + evaluator env-flag wire (Atom 1.3) + 15 tests. STEP_B not triggered (no restricted file modified per Codex Q4). |
+| `01b9e93` | 2 SHIPPED | `src/runtime/adapter.rs` synthetic-tx constructors + `build_chaintape_sequencer_with_initial_q` variant + T11/T12/T13: T12 produces ≥1 L4 + ≥1 L4.E in one bundle. |
+| **`b0a6039`** | **3 SHIPPED** | `handover/evidence/tb_6_chaintape_smoke_2026-05-01/` — first chain-backed smoke ever. mathd_algebra_107 SOLVED+VERIFIED via deepseek-v4-flash; refs/transitions/main 1 commit; rejections.jsonl 1 record; pinned_pubkeys.json + synthetic_rejection_label.json. |
+
+### Test count progression
+- Pre-TB-6: 617/0/150 (TB-5 baseline)
+- Post-Atom-3: **639/0/150 across 48 suites** (+22 tests)
+- `cargo test --workspace` is canonical per architect D4 reporting standard.
+
+### Key technical decisions
+
+1. **L4.E "或等价结构"** = JSONL append-only with embedded `prev_hash + hash` chain at `<runtime_repo>/rejections.jsonl`. Architect § 3.5 explicitly permits via "或等价". No `refs/rejections/main` git ref needed.
+2. **`Sequencer::run` not called**. Codex round-2 verified `run` has no shutdown branch + Sequencer owns queue_tx → driver task's `Arc<Sequencer>` would prevent clean exit. Replaced with runtime-side wrapper using `tokio::select! biased` on shutdown_rx + `Sequencer::apply_one` direct calls (`pub(crate)`; same crate). Sequencer.rs untouched. STEP_B safe.
+3. **JsonlRecord shadow struct** — `RejectedSubmissionRecord.raw_diagnostic_cid` has TB-1 P0-3 `#[serde(skip_serializing, default)]` shield (Inv 10 agent-boundary). For L4.E forensic ledger we need the field for `compute_hash` round-trip; shadow struct bypasses the skip in JSONL backend. The shield STAYS on `PublicRejectionView` (agent-facing).
+4. **Atom 3 synthetic seed**: per architect § 3.6 Atom 3 ("if no natural rejection, synthesize with explicit label"), evaluator emits 1 TaskOpen + 1 zero-stake WorkTx via `bus.submit_typed_tx` when chaintape mode is on. Per-LLM-proposal WorkTx routing deferred to Atom 5.
+5. **Atom 1 was scoped via Codex round-1 + round-2**. CHALLENGE-6 → CHALLENGE-2 → ship. R-022 hook false positives handled via `OBS_R022_TB-6_ATOM_1_2_TRACE_MATRIX_TEXT_EXTENSION_2026-05-01.md` + `[R-022-skip:]` token.
+
+### Architect ruling status (D1-D7)
+- ✅ D1: Path A SHIPPED — production binary now drives Sequencer to on-disk ChainTape.
+- ✅ D2: chain-backed smoke = HARD requirement satisfied for first time.
+- ✅ D3: hybrid-by-risk audit applied (Codex impl audit ×2 on production wire-up; Gemini deferred to Atom 7 ship audit).
+- ✅ D4: `cargo test --workspace` reporting in every commit body.
+- ✅ D5: pre-TB-6 dirs labeled "smoke evidence"; tb_6_chaintape_smoke_* IS chain-backed and called "tape" without abuse.
+- ✅ D6: 5 memory updates committed at Atom 0.
+- ✅ D7: NO constitution amendment (preserved).
+
+### What remains for TB-6 ship (Atoms 4-7)
+
+- **Atom 4** — `verify_chaintape` CLI / replay verifier (~200-300 LOC + 2-3 tests)
+- **Atom 5** — Agent audit trail (proposal CIDs in CAS; `prompt_context_hash` linkage to `tx_id`; routes per-LLM-proposal WorkTx through `bus.submit_typed_tx`)
+- **Atom 6** — Branch / fork visibility summary (`failed_branch_count`, `rollback_count`, accepted/rejected tx_id sets)
+- **Atom 7** — Codex impl audit + Gemini arch audit (degraded label if exhausted) + recursive self-audit + TB-6 ship merge
+
+Next-session prompt: `handover/directives/2026-05-02_TB6_NEXT_SESSION_PROMPT.md`.
+
+### Open items / risks
+- Disk: 2.6G free at session end. `cargo clean` recommended before Atom 4 if disk-tight (don't touch `.lake` per user rule).
+- Per-LLM-proposal WorkTx routing: structurally placeholder until Atom 5.
+- Early-return paths in `run_swarm` drop `chaintape_bundle` without explicit `shutdown()`; driver still terminates cleanly via shutdown_tx-drop → shutdown_rx-Err path; safe but best-effort.
+- `Gemini at strategic tier` may still be `MODEL_CAPACITY_EXHAUSTED` per TB-5 supplement — degraded-label fallback ready for Atom 7.
+
+---
+
 ## 🔍 2026-05-01 — TB-5 post-ship self-audit + chaintape gap surfaced (architect review awaiting)
 
 **Authorization**: user "没有针对烟测的tape进行审计，由你负责审计，不需要外审" → single-AI self-audit (no external auditor). Follow-up: "现在 turingos 具有真正的 chaintape 了吗？你是在 chaintape 上读取的测试全部信息进行审计的吗？" surfaced the substantive finding.
