@@ -6,60 +6,96 @@
 
 ---
 
-## 📋 2026-05-01 — TB-7 charter DRAFT + audit prompt (awaiting architect ratification)
+## 📋 2026-05-01 — TB-7 charter RATIFIED — Frame B authorized + 7 ship gates encoded
 
 **Session continuation**: Post-TB-6 ship dialogue surfaced "real chaintape final form" 4-frame
 breakdown (A=narrow architect-D2 / B=LLM-on-chain / C=full economic loop / D=multi-org+public+autonomous).
-Frame A closed by TB-6; Frame B is the natural successor and the most user-observable next step
-(PputResult becomes chain-derived). User authorized charter draft authorship.
+Architect ruling 2026-05-01 (post-`/clear` reload) **re-classifies TB-6 as Frame A only** (Frame B: RED) and
+**authorizes TB-7 as Frame B** = per-LLM-proposal WorkTx routing through `bus.submit_typed_tx` as
+**AUTHORITATIVE** path (NOT "also emit"). Charter draft renamed (drop `_draft_`) and amended per
+ruling D1-D5; 7 ship gates added; post-TB-7 sequencing reset to Lean Proof Task Market MVP.
 
-### What landed (DRAFT — no production code touched)
+### What landed (RATIFICATION commit set; no production code touched)
 
 | File | Purpose |
 |---|---|
-| `handover/tracer_bullets/TB-7_charter_draft_2026-05-01.md` | TB-7 charter draft. Frame B = per-LLM-proposal WorkTx routing; 7 atoms; production wire-up class; STEP_B not anticipated; 72h-to-feedback-loop discharge gate at Atom 6. |
-| `handover/directives/2026-05-01_TB7_ARCHITECT_REVIEW_REQUEST.md` | Audit / architect review prompt. 5 binding D1-D5 decisions + 4 optional D6-D9. File-paths-to-read priority list (15 items). Recommended ruling for each D. |
+| `handover/directives/2026-05-01_TB7_ARCHITECT_RULING.md` (NEW) | Formal architect ruling. §0 verdict + §1 TB-6 Frame A acceptance + §2 TB-7 Frame B authorization + §3 charter amendment matrix (D1-D5) + §4 seven ship gates + §5 alignment to constitution+WP+roadmap + §6 post-TB-7 launch priority + §7 Class 0–4 risk-class audit + §8 process evaluation + §9 final execution order + §10 Layer 1 impact analysis (no constitutional amendment) + §11 verbatim original directive. |
+| `handover/tracer_bullets/TB-7_charter_2026-05-01.md` (renamed from `_draft_`) | TB-7 charter — RATIFIED. §4.0 authoritative path requirement (NEW; load-bearing); §4.4 ChainDerivedRunFacts (renamed from chain-derived PPUT; bit-exact on §4.4 structural field set); §4.5 ProposalTelemetry CAS (NEW per D5); §6 forbidden #31-33; §7 8-atom plan with new Atom 1.5 (proposal_telemetry.rs); §8 seven ship gates (replaces 3-proof draft); §12 Q1-Q5 RESOLVED; §13 post-TB-7 sequencing override (TB-8 audit dashboard → TB-9 minimal payout → TB-10 beta → TB-11 NodeMarket v0). |
+| `handover/tracer_bullets/TB_LOG.tsv` | TB-7 active row + ratification comment line added. 11 columns: phase_id=P2(primary; P1/P3 carry-forward); roadmap_exit_criteria=P1:5,6,7,8,9 P2:1,6 P3:carry-forward; kill_criteria=P1:1-4 P3:1-3 (P3:9 deferred TB-9). |
+| `~/.claude/projects/.../memory/feedback_risk_class_audit.md` (NEW) | Class 0–4 audit standard codified. Class 0 docs / Class 1 additive / Class 2 production wire-up / Class 3 auth-crypto-money / Class 4 constitution-sudo. |
+| `~/.claude/projects/.../memory/feedback_launch_priority.md` (NEW) | Lean Proof Task Market MVP > NodeMarket post-TB-7 sequencing codified. |
+| `~/.claude/projects/.../memory/MEMORY.md` | Two new index entries pointing to the above. |
 
-### TB-7 scope boundaries (per draft)
+### TB-7 scope boundaries (RATIFIED)
 
-**IN SCOPE (Frame B)**:
-- Per-agent Ed25519 keypair (runtime-generated; `agent_pubkeys.json` manifest mirroring TB-5 system pattern)
-- Real-signature WorkTx via `bus.submit_typed_tx` from evaluator append-branch + OMEGA-branch
-- VerifyTx for OMEGA-accept Lean verification
-- Chain-derived PPUT (`runtime::chain_derived_pput::compute_pput_from_chain` matches in-memory accumulator on time-insensitive fields within ε)
-- Extended verify_chaintape with agent-signature verification path
-- Real-LLM smoke run on `mathd_algebra_107` producing ≥N L4 entries (where N = LLM proposal count)
+**IN SCOPE (Frame B; binding)**:
+- Per-agent Ed25519 keypair, **run-local identity only** (caveat per ruling D2; not durable reputation).
+- Real-signature WorkTx via `bus.submit_typed_tx` as **authoritative path** (legacy `bus.append` removed / projected / `// shadow_only:` annotated).
+- VerifyTx for OMEGA-accept Lean verification (ChallengeWindow OPEN; no settlement).
+- `ChainDerivedRunFacts` (bit-exact on §4.4 structural field set: solved/verified/tx_count/proposal_count/golden_path_token_count/gp_payload/gp_path/gp_proof_file/tactic_diversity/tool_dist/failed_branch_count). Time-sensitive fields excluded.
+- `ProposalTelemetry` CAS objects per WorkTx (agent_id, prompt_context_hash, proposal_artifact_cid, candidate_tactic, token_counts, tool_calls, branch_id, parent_tx).
+- `verify_chaintape` extension (agent-signature path + ProposalTelemetry CAS retrieval).
+- Real-LLM smoke run on `mathd_algebra_107` producing ≥1 accepted L4 + ≥1 rejected L4.E (Gate 3; forced rejection allowed only with `forced_rejection_for_gate_3 = true` label).
 
-**OUT OF SCOPE (deferred to later TBs per architect § 4.5)**:
-- FinalizeRewardTx settlement (RSP-4 = TB-11)
-- SlashTx upheld-challenge punishment (RSP-3.2 = TB-9)
-- NodeMarket position semantics (RSP-M = TB-7+ separate sequencing)
+**OUT OF SCOPE (deferred per ruling §6 + charter §13 post-MVP sequencing)**:
+- FinalizeRewardTx settlement → TB-9 minimal payout
+- SlashTx upheld-challenge punishment → TB-9
+- NodeMarket position semantics → TB-11 NodeMarket v0 (post-MVP)
+- AMM / Polymarket trading layer → TB-12+
 - New TypedTx variants
 - Q schema mutation
-- Cross-problem agent identity continuity (would require Option B persistent keypair)
+- Persistent agent identity / cross-run reputation → separate TB
 
-### Architect decision items (D1-D5)
+### Seven ship gates (Atom 7 ship requires GREEN on all)
 
-| D | Decision | Recommended | Stake |
+| Gate | Requirement | Evidence |
+|---|---|---|
+| 1 | Authoritative path: every proposal through `bus.submit_typed_tx`; no legacy `bus.append` as authoritative state mutation | charter §4.0 + Gate 7 conformance test |
+| 2 | `chain_proposal_count == evaluator_proposal_count` (instrumented; not stdout) | `chain_derived_run_facts.json:proposal_count` == evaluator structural facts |
+| 3 | ≥1 accepted L4 + ≥1 rejected L4.E (forced rejection labeled `forced_rejection_for_gate_3 = true`) | smoke evidence ledger entries |
+| 4 | All WorkTx signatures verify against `agent_pubkeys.json`; all system tx against `PinnedSystemPubkeys` | extended `verify_chaintape` |
+| 5 | Every `WorkTx.proposal_cid` resolves to a CAS `ProposalTelemetry` object | `tests/tb_7_proposal_telemetry_cas.rs` |
+| 6 | `ChainDerivedRunFacts == evaluator_run_facts` on §4.4 bit-exact set | Atom 5 round-trip test |
+| 7 | Repo-wide regression: no proposal-producing site uses legacy append as authoritative | `tests/tb_7_legacy_append_regression.rs` |
+
+### Architect decision items — RESOLVED (D1-D5)
+
+| D | Decision | Verdict | Charter section |
 |---|---|---|---|
-| D1 | TB-7 sequencing | Frame B (Option A) over RSP-M0/M1 / RSP-3.2 | Closes "chain has 2 entries while LLM ran 20" gap |
-| D2 | Agent keypair lifecycle | Runtime-generated per-run (Option A) over persistent | Simpler + structurally proven (TB-5 PinnedSystemPubkeys) |
-| D3 | OMEGA-accept scope | Narrowed (Option A) — WorkTx+VerifyTx only, no FinalizeRewardTx/SlashTx | Stays within Frame B; respects architect § 4.5 sequencing |
-| D4 | Chain-derived PPUT tolerance | Bit-exact on time-insensitive (Option A) over numeric | Clean separation of structural facts vs wall-clock noise |
-| D5 | Audit mode + bundling | Production wire-up class (Option A) + bundle TB-6 follow-up Codex impl audit if pending | Conservative; matches TB-6 Atom 7 precedent |
+| D1 | TB-7 sequencing | **Option A (Frame B)** + authoritative-path requirement (legacy append removed/projected/shadow-only) | §4.0 NEW; §5.1 evaluator row rewrite |
+| D2 | Agent keypair lifecycle | **Runtime-generated per-run** + run-local-identity caveat | §4.2 amended |
+| D3 | OMEGA-accept scope | **Narrowed** (WorkTx+VerifyTx only; ChallengeWindow OPEN; no FinalizeRewardTx/SlashTx) | §4.3 confirmed; §6 #21-23 |
+| D4 | Chain-derived PPUT | **Renamed `ChainDerivedRunFacts`**; bit-exact on §4.4 field set; full PputResult retired | §4.4 rewrite + Atom 5 module rename |
+| D5 | Audit mode + bundling | **Class 2 production wire-up** (Codex impl + Gemini arch with degraded fallback) + ProposalTelemetry CAS | §4.6 + §4.5 NEW + Atom 1.5 NEW |
+
+### Post-TB-7 sequencing (charter §13; supersedes TB-6 ruling §4.5)
+
+```
+TB-7  (THIS) — Frame B per-LLM-proposal WorkTx routing
+TB-8         — Audit dashboard
+TB-9         — Minimal payout (single solver/verifier; no royalty; no NodeMarket)
+TB-10        — Beta launch (narrow Lean problem set; real ChainTape + payout)
+TB-10.5      — Persistent AgentRegistry + agent keystore (durable cross-run identity;
+                REQUIRED before TB-11 — NodeMarket FirstLong/Short need persistent owner)
+TB-11        — NodeMarket v0 (FirstLong/Short positions; PriceIndex v0; not tradable)
+TB-12+       — Polymarket-like full market
+```
+
+NodeMarket trading, AMM, public chain, MetaTape, multi-org, full RSP-4 settlement, royalty, P6 PPUT research expansion, h_vppu polish: **DEFERRED post-MVP**. (Long-term reputation identity is no longer deferred — it lands at TB-10.5 because TB-11 cannot ship without it.)
 
 ### Status
 
-- TB-6 SHIPPED on `main` @ `17c5e73` (8/8 atoms; cargo test --workspace 660/0/150).
-- TB-7 = **DRAFT awaiting architect ratification**. NO production code touched.
-- TB_LOG.tsv has NO TB-7 row yet (intentional — preserves "no fake activity" property).
+- TB-6 SHIPPED on `main` @ `17c5e73` (8/8 atoms; cargo test --workspace 660/0/150). **Frame A only** per ruling §1.
+- TB-7 = **RATIFIED 2026-05-01**. Atom 0 in progress (charter rename + ARCHITECT_RULING archive + TB_LOG row + LATEST.md flip + 2 memory files + MEMORY.md index). NO production code touched yet.
+- TB_LOG.tsv has TB-7 active row (status=active; ship_commits=pending).
 
-### What user / architect can do now
+### What user / Claude can do next
 
-1. Read the charter draft + audit prompt.
-2. Architect rules on D1-D5 (recommended path: all Option A → ratify charter as-is).
-3. User says "authorize TB-7" → I commit Atom 0 charter ratification + start Atom 1 (agent keypair management).
-4. Optionally: Codex impl audit on full TB-6 diff as TB-7 follow-up (audit-pending closeout per recursive audit § 7).
+1. **Commit Atom 0** — staging this ratification commit set (charter rename, ARCHITECT_RULING, TB_LOG TB-7 row, LATEST.md, 2 memory files, MEMORY.md index). User triggers commit explicitly.
+2. **Begin Atom 1** — `src/runtime/agent_keypairs.rs` + `agent_pubkeys.json` manifest (additive; non-STEP_B).
+3. **Begin Atom 1.5** (after Atom 1 lands) — `src/runtime/proposal_telemetry.rs` (additive; non-STEP_B).
+4. **Atom 6 discharge gate** — chain-backed real-LLM smoke must run within 72h of Atom 0 ship per `feedback_iteration_cap_24h` production wire-up exception.
+5. **Optionally**: Codex impl audit on full TB-6 diff as TB-7 follow-up (bundle at Atom 7 per ruling §3.5 + §4.6).
 
 ---
 
