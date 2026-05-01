@@ -1,0 +1,11 @@
+{
+  "run_id": "tb7-real-smoke-3",
+  "tb_id": "TB-6",
+  "epoch": 1,
+  "pubkeys": [
+    {
+      "epoch": 1,
+      "pubkey_hex": "a32b83e2b50ab88ac04e023c4002ea5faa3262736eab2c89ecd83f8a2ebc47f5"
+    }
+  ]
+}

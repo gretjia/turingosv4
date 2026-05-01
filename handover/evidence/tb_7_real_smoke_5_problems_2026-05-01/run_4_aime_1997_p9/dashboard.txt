@@ -1,0 +1,80 @@
+
+560 |     pub(crate) fn sign_rejected_attempt_summary(
+
+571 |     pub(crate) fn sign_system_message(
+
+597 |     pub(crate) fn sign_terminal_summary(
+
+608 |     pub(crate) fn sign_finalize_reward(
+
+619 |     pub(crate) fn sign_task_expire(
+
+642 |     pub(crate) fn sign_epoch_rotation_proof(
+
+653 |     pub(crate) fn sign_system_message(
+
+=================================================================
+ TB-8 Audit Dashboard — run_id=tb7-real-smoke-4 epoch=1
+=================================================================
+
+§1 Run metadata
+---------------
+  head_commit_oid: 34674a9d1c9df40b3d279de55e1a677cb8d811d4
+  final_state_root: 92a3e13ff8b42e921064bea371e334dfa81c8aa5891c537d41b2a73af417eaf7
+  final_ledger_root: a5ce795447c6c929895b38a3ac6bb1f9055bd2e2c6b36b6c0b2bd4c97c8589f2
+  initial_q_state_loaded_from_disk: false
+
+§2 Chain stats + 7 indicators
+------------------------------
+  L4 entries:  1
+  L4.E entries: 1
+  ledger_root_verified              : ✓
+  system_signatures_verified        : ✓
+  state_reconstructed               : ✓
+  economic_state_reconstructed      : ✓
+  cas_payloads_retrievable          : ✓
+  agent_signatures_verified [Gate 4]: ✓
+  proposal_telemetry_cas_retrievable [Gate 5]: ✓
+  ALL 7 PASS                        : GREEN
+
+§3 ChainDerivedRunFacts (§4.4 bit-exact set)
+---------------------------------------------
+  solved                  : false
+  verified                : false
+  tx_count                : 2
+  proposal_count          : 1
+  golden_path_token_count : 0
+  gp_payload (CID hex)    : -
+  gp_path                 : -
+  tactic_diversity        : 0
+  failed_branch_count     : 1
+  tool_dist:
+    (empty)
+
+§4 Per-agent activity
+---------------------
+  agent_id          | pubkey | Work✓ | Work✗ | Verify✓ | Verify✗
+  ------------------+--------+-------+-------+---------+--------
+  tb6-smoke-agent   | ✗      | 0     | 1     | 0       | 0
+
+§5 Proposal flow (chronological by logical_t)
+----------------------------------------------
+  side  | t   | tx_kind         | agent      | tactic     | branch     | reject
+  ------+-----+-----------------+------------+------------+------------+-------
+  L4.E  |   0 | Work            | tb6-smoke-agent | -          | -          | PolicyViolation
+  L4    |   1 | TaskOpen        | tb6-smoke-sponsor | -          | -          | -
+
+§6 Branch lineage (parent_tx → child_tx via ProposalTelemetry.parent_tx)
+------------------------------------------------------------------------
+  (no branch edges — proposals are root-only or telemetry parent_tx is None)
+
+§7 Cross-checks
+---------------
+  audit_trail_rows         : 2
+  chain_proposal_count     : 1
+  audit_rows == proposal_count: ✗ (gap)
+  audit_trail_chain_valid     : ✓
+  (Note: pre-TB-7.6 the agent_audit_trail.jsonl is populated only
+   by the synthetic-seed hook; full per-LLM-proposal audit-trail
+   wiring is part of TB-7.6 carry-forward action #4 / #5.)
+

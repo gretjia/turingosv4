@@ -1,0 +1,80 @@
+  --> src/bus.rs:13:13
+   |
+13 | use serde::{Deserialize, Serialize};
+   |             ^^^^^^^^^^^  ^^^^^^^^^
+
+ --> src/sdk/actor.rs:7:5
+  |
+7 | use crate::sdk::snapshot::UniverseSnapshot;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+ --> src/sdk/actor.rs:9:5
+  |
+9 | use std::collections::HashSet;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+ --> src/sdk/tools/search.rs:4:24
+  |
+4 | use crate::sdk::tool::{ToolSignal, TuringTool};
+  |                        ^^^^^^^^^^
+
+ --> src/sdk/tools/search.rs:6:5
+  |
+6 | use std::path::Path;
+  |     ^^^^^^^^^^^^^^^
+
+ --> src/sdk/tools/librarian.rs:6:13
+  |
+6 | use serde::{Deserialize, Serialize};
+  |             ^^^^^^^^^^^
+
+ --> src/sdk/tools/librarian.rs:9:17
+  |
+9 | use std::path::{Path, PathBuf};
+  |                 ^^^^
+
+  --> src/economy/monetary_invariant.rs:26:29
+   |
+26 | use crate::economy::money::{MicroCoin, MICRO_PER_COIN};
+   |                             ^^^^^^^^^  ^^^^^^^^^^^^^^
+
+  --> src/bottom_white/cas/store.rs:26:12
+   |
+26 | use git2::{ObjectType as Git2ObjectType, Repository};
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+  --> src/bottom_white/ledger/transition_ledger.rs:36:12
+   |
+36 | use git2::{ObjectType as Git2ObjectType, Repository, Signature as GitSignature};
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+  --> src/state/sequencer.rs:41:82
+   |
+41 | use crate::state::q_state::{AgentId, EscrowEntry, Hash, QState, TaskMarketEntry, TxId};
+   |                                                                                  ^^^^
+
+  --> src/runtime/agent_keypairs.rs:31:20
+   |
+31 | use sha2::{Digest, Sha256};
+   |                    ^^^^^^
+
+  --> src/runtime/agent_keypairs.rs:31:12
+   |
+31 | use sha2::{Digest, Sha256};
+   |            ^^^^^^
+
+560 |     pub(crate) fn sign_rejected_attempt_summary(
+
+571 |     pub(crate) fn sign_system_message(
+
+597 |     pub(crate) fn sign_terminal_summary(
+
+608 |     pub(crate) fn sign_finalize_reward(
+
+619 |     pub(crate) fn sign_task_expire(
+
+642 |     pub(crate) fn sign_epoch_rotation_proof(
+
+653 |     pub(crate) fn sign_system_message(
+
+audit_dashboard: build failed: verify_chaintape: Cas("cas index parse error at line 1: trailing characters at line 1 column 316")
