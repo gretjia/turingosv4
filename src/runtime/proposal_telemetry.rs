@@ -45,6 +45,7 @@
 //! - retrievable via `read_from_cas` for replay / `verify_chaintape` extension
 
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::path::Path;
 
 use crate::bottom_white::cas::schema::{Cid, ObjectType};
@@ -149,6 +150,41 @@ impl ProposalTelemetry {
             branch_id,
             parent_tx: None,
         }
+    }
+
+    /// TRACE_MATRIX FC1-N14: TB-7 Atom 2 — high-level builder for the
+    /// evaluator hot path. Computes both the prompt-context hash (binds
+    /// run_id + agent + proposal index) and the proposal-artifact CID
+    /// (sha256 over the proposal payload bytes) using only types from this
+    /// crate, so the minif2f_v4 evaluator binary doesn't need to add a
+    /// direct `sha2` dependency to the workspace.
+    pub fn build_for_evaluator_append(
+        run_id: &str,
+        agent_id: &str,
+        proposal_index: u64,
+        payload_bytes: &[u8],
+        candidate_tactic: &str,
+        token_counts: TokenCounts,
+    ) -> Self {
+        let mut hctx = Sha256::new();
+        hctx.update(b"turingosv4.tb7.atom2.prompt_context.v1");
+        hctx.update(run_id.as_bytes());
+        hctx.update(agent_id.as_bytes());
+        hctx.update(proposal_index.to_be_bytes());
+        let prompt_context_hash = Hash(hctx.finalize().into());
+
+        let mut artifact_h = Sha256::new();
+        artifact_h.update(payload_bytes);
+        let proposal_artifact_cid = Cid(artifact_h.finalize().into());
+
+        Self::new_root(
+            AgentId(agent_id.to_string()),
+            prompt_context_hash,
+            proposal_artifact_cid,
+            candidate_tactic.to_string(),
+            token_counts,
+            format!("{}.b{}", agent_id, proposal_index),
+        )
     }
 }
 

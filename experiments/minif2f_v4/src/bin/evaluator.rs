@@ -28,6 +28,7 @@ use turingosv4::sdk::tools::librarian::LibrarianTool;
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use log::{info, warn, error};
 use rand::SeedableRng;
@@ -695,6 +696,27 @@ async fn run_swarm(
         info!("[chaintape] WAL_DIR ignored when TURINGOS_CHAINTAPE_PATH is set");
     }
 
+    // TB-7 Atom 2: per-run AgentKeypairRegistry holds run-local Ed25519
+    // keypairs for every distinct agent_id that submits a real-LLM proposal
+    // through bus.submit_typed_tx. Keys auto-generate on first use; pubkeys
+    // are persisted to <runtime_repo>/agent_pubkeys.json so verify_chaintape
+    // (Atom 4) can re-verify replayed signatures. Per ARCHITECT_RULING D2,
+    // these are run-local identities, NOT durable reputation.
+    //
+    // Wrapped in Arc<Mutex<>> so the registry can be shared across the async
+    // run loop (interior mutability needed for AgentKeypairRegistry::sign).
+    let agent_keypairs: Option<Arc<Mutex<turingosv4::runtime::agent_keypairs::AgentKeypairRegistry>>> =
+        chaintape_bundle.as_ref().map(|b| {
+            let reg = turingosv4::runtime::agent_keypairs::AgentKeypairRegistry::open(
+                &b.runtime_repo_path,
+            )
+            .expect(
+                "[chaintape/atom2] agent_keypairs init must succeed (fresh runtime_repo guarantees \
+                 manifest absent; if you see this on a non-fresh dir, see TB-6 NonEmptyRuntimeRepo)",
+            );
+            Arc::new(Mutex::new(reg))
+        });
+
     // Phase 1: opt-in tape persistence via env. WAL_DIR=<dir> enables WAL
     // writes to <dir>/<problem>_<timestamp>.jsonl; resumes if file exists.
     // Default off for backward-compat baseline runs.
@@ -1258,6 +1280,97 @@ async fn run_swarm(
                                 let parent = boltzmann_select_parent(
                                     &snap.tape, &prices, &params, &mut boltz_rng
                                 );
+
+                                // ── TB-7 Atom 2: AUTHORITATIVE per-LLM-proposal routing ──
+                                //
+                                // Real LLM proposal → ProposalTelemetry CAS object →
+                                // real-signature WorkTx → bus.submit_typed_tx → Sequencer →
+                                // L4 (accepted) or L4.E (rejected). This is the Frame B
+                                // closure path per TB-7 charter §4.0 + §8 Gate 1.
+                                //
+                                // Authoritative for ChainTape state (L4 captures the
+                                // proposal byte-deterministically). The bus.append call
+                                // BELOW is shadow_only (kernel.tape view sync for the next
+                                // agent's prompt context — NOT canonical state).
+                                if let (Some(bundle), Some(reg)) =
+                                    (chaintape_bundle.as_ref(), agent_keypairs.as_ref())
+                                {
+                                    if let Ok(q) = bundle.sequencer.q_snapshot() {
+                                        let parent_state_root = q.state_root_t;
+                                        let logical_t = bundle.sequencer.next_logical_t_peek();
+                                        let task_id_str = format!("task-{}", run_id);
+
+                                        let pt = turingosv4::runtime::proposal_telemetry::ProposalTelemetry::build_for_evaluator_append(
+                                            &run_id,
+                                            agent_id,
+                                            proposal_count as u64,
+                                            payload.as_bytes(),
+                                            "append",
+                                            turingosv4::runtime::proposal_telemetry::TokenCounts {
+                                                prompt_tokens: response.prompt_tokens as u64,
+                                                completion_tokens: response.completion_tokens as u64,
+                                                tool_tokens: 0,
+                                            },
+                                        );
+
+                                        match turingosv4::bottom_white::cas::store::CasStore::open(&bundle.cas_path) {
+                                            Ok(mut cas_store) => {
+                                                match turingosv4::runtime::proposal_telemetry::write_to_cas(
+                                                    &mut cas_store,
+                                                    &pt,
+                                                    "tb7-atom2-evaluator",
+                                                    logical_t,
+                                                ) {
+                                                    Ok(tel_cid) => {
+                                                        let mut reg_guard = match reg.lock() {
+                                                            Ok(g) => g,
+                                                            Err(p) => p.into_inner(),
+                                                        };
+                                                        let suffix = format!("p{}", proposal_count);
+                                                        match turingosv4::runtime::adapter::make_real_worktx_signed_by(
+                                                            &mut *reg_guard,
+                                                            &task_id_str,
+                                                            agent_id,
+                                                            parent_state_root,
+                                                            // stake = 0 → produces L4.E `StakeInsufficient`
+                                                            // (or upstream `TaskNotOpen`). Atom 6 chain-backed
+                                                            // real-LLM smoke pre-seeds task_markets + balances
+                                                            // so a fraction of proposals reach accepted L4
+                                                            // (Gate 3 ≥1 accepted requirement).
+                                                            0,
+                                                            &suffix,
+                                                            tel_cid,
+                                                            true,
+                                                            logical_t,
+                                                        ) {
+                                                            Ok(real_worktx) => {
+                                                                drop(reg_guard);
+                                                                if let Err(e) = bus.submit_typed_tx(real_worktx).await {
+                                                                    warn!("[chaintape/atom2] submit_typed_tx failed: {e}");
+                                                                }
+                                                            }
+                                                            Err(e) => {
+                                                                drop(reg_guard);
+                                                                warn!("[chaintape/atom2] make_real_worktx_signed_by failed: {e}");
+                                                            }
+                                                        }
+                                                    }
+                                                    Err(e) => warn!("[chaintape/atom2] proposal_telemetry write failed: {e}"),
+                                                }
+                                            }
+                                            Err(e) => warn!("[chaintape/atom2] cas open failed: {e}"),
+                                        }
+                                    }
+                                }
+
+                                // shadow_only: kernel.tape view sync for next-agent prompt
+                                // context. NOT authoritative state — the L4 chain above is
+                                // canonical. This call exists so the in-memory tape used by
+                                // the next iteration's prompt builder reflects this
+                                // proposal. Per TB-7 §4.0 option (3) + §6 #31 inheritance,
+                                // this is annotated shadow_only and does NOT constitute
+                                // authoritative state mutation. Removal contingent on
+                                // kernel.tape becoming L4-derived (post-MVP refactor).
                                 match bus.append(agent_id, payload, parent.as_deref()) {
                                     Ok(BusResult::Appended { node_id }) => {
                                         info!("[tx {}] {} +{}", tx, agent_id, node_id);

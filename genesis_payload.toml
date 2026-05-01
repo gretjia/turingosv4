@@ -161,7 +161,7 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 "experiments/minif2f_v4/src/fc_trace.rs" = "8578edf61148e50abdf8d29a2efdc5114ee20ab727c1ccd6c5a88ad07e7ffa09"
 "experiments/minif2f_v4/src/run_id.rs" = "5ff9db039131eaf4efeb65303d886265ef4c4f7e0e0f743467a7cbf22061781c"
 "experiments/minif2f_v4/src/h_vppu_history.rs" = "1b83bf2993a74bcf03a89b52a37dbbfbdda5e080c8c437cae0b5e64262ec180f"  # NEW (TB-1 Day-4 2026-04-29): per-problem rolling history of pput_verified for H-VPPUT North Star regression metric (PREREG_PPUT_CCL_2026-04-26.md § 5)
-"experiments/minif2f_v4/src/bin/evaluator.rs" = "5b89a1ef3adacef2780c83394398e60d155f02ab86d8a00b831a6eed1ad89983"  # rehashed by TB-7 Atom 1.7 (2026-05-01): TURINGOS_CHAINTAPE_PATH bootstrap is now fail-closed (std::process::exit(2) on bootstrap error) per Codex audit cc7b3dd action item #1. Prior TB-6 Atom 6 hash had silent fallback to legacy mode.
+"experiments/minif2f_v4/src/bin/evaluator.rs" = "3fc80b0985daa0b845e7b3374014607822cefcacf5366c668c342e4273558a28"  # rehashed by TB-7 Atom 2 (2026-05-01): real-LLM append-branch routing — per-agent AgentKeypairRegistry init + per-proposal ProposalTelemetry CAS write + real-signature WorkTx via bus.submit_typed_tx as AUTHORITATIVE path. Legacy bus.append annotated `// shadow_only:` (kernel.tape view sync; TB-7 §4.0 option 3). Prior TB-7 Atom 1.7 hash had only the fail-closed bootstrap.
 "experiments/minif2f_v4/src/experiment_mode.rs" = "7fe34381767c58432a45f25e49c21a7b4f57ed6b4ed0fea2873753c81bccea89"
 "constitution.md" = "eec695459c71fbef3685583485deb431fe3b561657b2f285b7c5e7e220e59e03"
 "cases/MANIFEST.sha256" = "eccbe35f776c64225d50c461780d1fe75a0a8510adc62b0dd2e96b46dc2dc555"
@@ -215,7 +215,7 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 # 2026-05-01 TB-7 Atom 1.7 — RejectionWriter BootstrapError variant + L4.E open_jsonl now fail-closed (returns BootstrapError::RejectionWriter instead of silent in-memory fallback). Per Codex audit cc7b3dd action item #1.
 "src/runtime/mod.rs" = "62aba1c2d4756345bb3b8a4d3141056e2e2a323ce32f99a99f476e1d6e90b661"
 # 2026-05-01 TB-6 Atom 2 — chaintape adapter helpers (synthetic TaskOpen/EscrowLock/WorkTx constructors + balance seeding) NEW file.
-"src/runtime/adapter.rs" = "572b6287b5098c1959bf4d79c68cc4e8a590a77991e4d81e59bf860a1ebd16ae"
+"src/runtime/adapter.rs" = "707f5479b378141f1229f25bb6b6a6409c671e16c84ef9a5a8ba5ba7640593b0"  # rehashed by TB-7 Atom 2 (2026-05-01): added make_real_worktx_signed_by (real-signature WorkTx constructor — builds WorkSigningPayload, signs via AgentKeypairRegistry::sign over canonical_digest, returns TypedTx::Work with non-zero AgentSignature). 2 new in-module tests (U-A2.a / U-A2.b) verify signature is non-zero + verifiable + deterministic.
 # 2026-05-01 TB-6 Atom 4 — replay verifier library (NEW file). Re-opens runtime_repo + cas + pinned_pubkeys.json, replays L4 chain via replay_full_transition, emits ReplayReport. All pub symbols carry /// TRACE_MATRIX FC3-N1 backlinks per R-022.
 "src/runtime/verify.rs" = "4b346241ec8c83f409c6f51727873f510c1bf77ef5185f2b0002f7b537679d16"
 # 2026-05-01 TB-6 Atom 4 — `verify_chaintape` CLI thin wrapper (NEW file).
@@ -232,10 +232,12 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 "src/bin/gen_run_summary.rs" = "595677e44d31556383c901a692dae4c305bbffdd0a5cf4667a4679e07ec065b0"
 # 2026-05-01 TB-6 Atom 6 — RunSummary integration tests (I92 / I92b / I92c) (NEW file).
 "tests/tb_6_run_summary.rs" = "6efb4baa36d08dc55c1140ea3279a0088a2f14f58cc71e9283a876ffa2da68d8"
+# 2026-05-01 TB-7 Atom 2 — authoritative routing integration tests (NEW file). I100 (real-signature WorkTx verifies via manifest) + I101 (zero-stake WorkTx → L4.E) + I102 (distinct agents → distinct pubkeys). Gate 1 + Gate 4 wired evidence.
+"tests/tb_7_authoritative_routing.rs" = "c39ebfc69cb6b6013228d0e5b5cb78a6120cef76be196aa0a9cfa0d2b4e84e6e"
 # 2026-05-01 TB-7 Atom 1 — Per-agent Ed25519 keypair manager + on-disk pubkey manifest (NEW file). Run-local identity ONLY; private keys in process memory only and zeroed on drop. AgentKeypair / AgentKeypairRegistry / AgentPubkeyManifest / verify_agent_signature; mirrors PinnedSystemPubkeys structural pattern. Per ARCHITECT_RULING 2026-05-01 D2 + TB-7 charter §4.2.
 "src/runtime/agent_keypairs.rs" = "a3b1cf2c4944d5f3903e7f8f589375ab5157f3725933241cdf85cb837bc62197"
 # 2026-05-01 TB-7 Atom 1.5 — ProposalTelemetry CAS object writer (NEW file). Per ARCHITECT_RULING D5 + charter §4.5; precondition for chain-derived golden_path_token_count. 8-field schema (agent_id / prompt_context_hash / proposal_artifact_cid / candidate_tactic / token_counts / tool_calls / branch_id / parent_tx). All pub symbols carry /// TRACE_MATRIX FC1-N14 backlinks per R-022.
-"src/runtime/proposal_telemetry.rs" = "b5cf79b61c8c2cdd027f43c6991c34f1aa6e9435ae613c5934ecb0025c09f535"
+"src/runtime/proposal_telemetry.rs" = "73367be5e766287771b42d3dba0a34476e5d34f8650053a52c2f4611d4cc6455"  # rehashed by TB-7 Atom 2 (2026-05-01): added build_for_evaluator_append helper (sha2 stays internal to turingosv4; minif2f_v4 binary doesn't add direct sha2 dep).
 # 2026-04-29 TB-1 Day-3 — economy/mod.rs rehashed: + `pub mod ledger` declaration (P1 L4 wrapper).
 "src/economy/mod.rs" = "c735f92316bc5982f6ec316026d70179fb783d152b5ded2ed6ccb0775b97f069"
 "src/economy/money.rs" = "857fc6df2aefa4b26fd4b7d22ec06f1105ac3ec4393c6788a8f30370b6d7e776"
