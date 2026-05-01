@@ -161,7 +161,7 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 "experiments/minif2f_v4/src/fc_trace.rs" = "8578edf61148e50abdf8d29a2efdc5114ee20ab727c1ccd6c5a88ad07e7ffa09"
 "experiments/minif2f_v4/src/run_id.rs" = "5ff9db039131eaf4efeb65303d886265ef4c4f7e0e0f743467a7cbf22061781c"
 "experiments/minif2f_v4/src/h_vppu_history.rs" = "1b83bf2993a74bcf03a89b52a37dbbfbdda5e080c8c437cae0b5e64262ec180f"  # NEW (TB-1 Day-4 2026-04-29): per-problem rolling history of pput_verified for H-VPPUT North Star regression metric (PREREG_PPUT_CCL_2026-04-26.md § 5)
-"experiments/minif2f_v4/src/bin/evaluator.rs" = "1db33df997c74113a7ccffbf0e5ec074fb4fd1299b76354be35a98e7bcf3253a"  # rehashed by TB-1 Day-4 (2026-04-29): wired h_vppu_history load/query/record/save into main(); stamps PputResult.h_vppu post-run from rolling per-problem pput_verified history (capacity=3); constitution.md hash unchanged (R-014 non-sudo per R-018)
+"experiments/minif2f_v4/src/bin/evaluator.rs" = "15aa045ba398594689e62b104c7f63a2d224bb31eb359fd43b670f20de3cf14f"  # rehashed by TB-6 Atom 1.3 (2026-05-01): added env-flag-gated chaintape branch in run_swarm — TURINGOS_CHAINTAPE_PATH set → build_chaintape_sequencer + TuringBus::with_sequencer; WAL_DIR silently disabled if both set; bundle.shutdown() at final return; constitution.md hash unchanged (R-014 non-sudo per R-018)
 "experiments/minif2f_v4/src/experiment_mode.rs" = "7fe34381767c58432a45f25e49c21a7b4f57ed6b4ed0fea2873753c81bccea89"
 "constitution.md" = "eec695459c71fbef3685583485deb431fe3b561657b2f285b7c5e7e220e59e03"
 "cases/MANIFEST.sha256" = "eccbe35f776c64225d50c461780d1fe75a0a8510adc62b0dd2e96b46dc2dc555"
@@ -202,7 +202,10 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 
 # 2026-04-27 Wave 1 — CO1.0a MicroCoin + CO1.0 [constitution_root] + walkthrough Inv 3 e2e.
 # Real Rust code; 27/27 tests PASS; data validates Inv 3 monetary conservation closure.
-"src/lib.rs" = "bff2012e8027ca905051f01e2cc39588453bca5a50104c37e7cefc15f7d93523"
+# 2026-05-01 TB-6 Atom 1.1 — `pub mod runtime;` declaration added (production ChainTape factory) + R-022 TRACE_MATRIX backlink.
+"src/lib.rs" = "196fe13a07ce96d9c6eac8a2492c56b0f543403688220b45aa7e3b5a87a4dc1d"
+# 2026-05-01 TB-6 Atom 1.1 — production-mode runtime ChainTape factory + driver wrapper (NEW file). All pub symbols carry /// TRACE_MATRIX FC3-N1 backlinks per R-022.
+"src/runtime/mod.rs" = "2093977dd382cce884e8d3e5d6f0e711ee2cf853ce8452bca279a98f1787af5e"
 # 2026-04-29 TB-1 Day-3 — economy/mod.rs rehashed: + `pub mod ledger` declaration (P1 L4 wrapper).
 "src/economy/mod.rs" = "c735f92316bc5982f6ec316026d70179fb783d152b5ded2ed6ccb0775b97f069"
 "src/economy/money.rs" = "857fc6df2aefa4b26fd4b7d22ec06f1105ac3ec4393c6788a8f30370b6d7e776"
@@ -295,7 +298,8 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 "src/bottom_white/ledger/transition_ledger.rs" = "164f89fb15428bbb2a35bc74c4ea862ec78e808800931e47628fff492e4c2812"
 # 2026-04-29 TB-1 Day-3 — P1 GitTape kernel hardening: L4.E rejection-evidence ledger (NEW file).
 # 2026-04-29 TB-1 Path A++ — RejectedSubmissionRecord.raw_diagnostic_cid carries #[serde(skip_serializing, default)] type shield (P0-3); +1 unit test asserting raw cid is structurally absent from raw-record serialization.
-"src/bottom_white/ledger/rejection_evidence.rs" = "617c246507c0ff77913cd36dcb94f9596a441327da1672454c85242e7290630e"
+# 2026-05-01 TB-6 Atom 1.2 — JSONL persistence backend (Backend enum + open_jsonl + JsonlRecord shadow struct + flush_jsonl_record helper). RejectionEvidenceError extended with Io + JsonlParse variants. Existing pub API preserved.
+"src/bottom_white/ledger/rejection_evidence.rs" = "205ab918dde649a4ef33be64319f53aabcd96d57d17886f98a51569080519e52"
 "tests/system_keypair_generation.rs" = "94d2de928a0f32e71860cbf9125a85a89bb0ded53f6e55c2e16b6370b9dcaa4b"
 "tests/system_keypair_load_and_decrypt.rs" = "460ce3e0b13d523e62b0818285a414a69a91b1afc51c0e0eba7a521674dfaa55"
 "tests/system_keypair_sign_only_from_runner.rs" = "b0874933f684ba47a254728939d30327a0b59392221e51ec4b2207b901bbe65c"
