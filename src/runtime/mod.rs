@@ -32,6 +32,9 @@ pub mod run_summary;
 /// TRACE_MATRIX FC1-N14: TB-7 Atom 1 — Per-agent Ed25519 keypair manager + on-disk pubkey manifest (run-local identity ONLY; not durable reputation).
 pub mod agent_keypairs;
 
+/// TRACE_MATRIX FC1-N14: TB-7 Atom 1.5 — ProposalTelemetry CAS object writer (per-WorkTx LLM proposal metadata: agent_id / prompt_context_hash / proposal_artifact_cid / candidate_tactic / token_counts / tool_calls / branch_id / parent_tx; per ARCHITECT_RULING D5 + charter §4.5).
+pub mod proposal_telemetry;
+
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 
