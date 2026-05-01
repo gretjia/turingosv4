@@ -6,6 +6,84 @@
 
 ---
 
+## 🚢 2026-05-01 — TB-7 SHIPPED — Frame B authoritative routing (Atoms 1 / 1.5 / 1.7 / 2 / 3 / 4 / 5 / 6 / 7)
+
+**Session summary**: User authorized "自主执行直到 TB-7 审计结束" (autonomous execution until TB-7 audit ends).
+All 9 charter atoms shipped on `main`. Frame B authoritative routing for real-LLM proposals
+through `bus.submit_typed_tx` is structurally CLOSED. Recursive self-audit GREEN; Codex impl
+audit on full TB-7 diff to follow as Atom 7 ship-time follow-up.
+
+### Commit chain (Atoms 1–7, after Atom 0/0.5 ratification)
+
+| Commit | Atom | Highlights |
+|---|---|---|
+| `c3ad31e` | 1 | `src/runtime/agent_keypairs.rs` (430 lines) — AgentPublicKey + AgentKeypair + AgentKeypairRegistry + AgentPubkeyManifest + verify_agent_signature; 6 unit tests; run-local identity caveat per ruling D2. |
+| `eed4837` | 1.5 | `src/runtime/proposal_telemetry.rs` (280 lines) — ProposalTelemetry 8-field schema per ruling D5; TokenCounts + ToolCallRecord; build_for_evaluator_append helper; 5 unit tests with forbidden-field guard. |
+| `0414b30` | 1.7 | TB-6 carry-forward: `logical_t` REMOVED from AgentProposalRecord (architect 9-field spec restored); audit_hash domain v1 → v2; chain_link binds row-level logical_t; fail-closed bootstrap with BootstrapError::RejectionWriter + `evaluator.rs:exit(2)` on TURINGOS_CHAINTAPE_PATH set with bootstrap fail; new I91e structural witness. Closes Codex audit cc7b3dd actions #1 + #3. |
+| `2bc879c` | 2 | Evaluator append-branch authoritative routing — real-signature WorkTx via `make_real_worktx_signed_by` + `AgentKeypairRegistry::sign(canonical_digest)` + `proposal_cid` linkage to ProposalTelemetry CAS; legacy `bus.append` annotated `// shadow_only:` per §4.0 option (3); 3 integration tests I100/I101/I102. |
+| `3572141` | 3 | Evaluator OMEGA-branch routing — `make_real_verifytx_signed_by`; sites 1517 (full-proof OMEGA) + 1865 (per-tactic OMEGA) emit WorkTx + VerifyTx pair via bus.submit_typed_tx with ChallengeWindow OPEN (no settlement); site 1917 (PartialOk) annotated shadow_only; 2 integration tests I103/I104. |
+| `d03814f` | 4 | `verify_chaintape` extension — 2 NEW boolean indicators `agent_signatures_verified` (Gate 4) + `proposal_telemetry_cas_retrievable` (Gate 5); `verify_agent_artifacts` helper; `all_indicators_pass` 5 → 7 booleans. |
+| `4cfe7cb` | 5 | `src/runtime/chain_derived_run_facts.rs` (290 lines; renamed from chain_derived_pput per ruling D4) — bit-exact §4.4 field set computed from L4 + L4.E + CAS alone; time-sensitive fields excluded; 3 unit tests. |
+| `2559c84` | 6 | Chain-backed smoke (synthetic-LLM end-to-end) — I110 ship-gate test produces `handover/evidence/tb_7_chaintape_smoke_2026-05-01/` with all 7 ReplayReport indicators GREEN; real-LLM smoke documented as manual carry-forward. |
+| (this commit) | 7 | Recursive self-audit + Gate 7 conformance — `handover/audits/RECURSIVE_AUDIT_TB_7_2026-05-01.md` + `tests/tb_7_legacy_append_regression.rs` (3/3 conformance tests pass); TB-6 audit-pending closure path mapping per §13.4. |
+
+### Final ship-gate
+
+```text
+command         = cargo test --workspace
+workspace_count = 686  (+26 vs TB-6 ship 660)
+failed          = 0
+ignored         = 150  (unchanged)
+```
+
+### 7 ship gates closure
+
+| Gate | Status | Evidence |
+|---|---|---|
+| 1 (authoritative path) | GREEN | charter §4.0 + Gate 7 conformance test |
+| 2 (proposal count equality) | GREEN structurally; real-LLM = manual | I110 round-trip; chain_derived_run_facts.json |
+| 3 (≥1 L4 + ≥1 L4.E) | GREEN | smoke evidence: 1 L4 + 6 L4.E |
+| 4 (signature verification) | GREEN | replay_report.json: agent_signatures_verified + system_signatures_verified BOTH true |
+| 5 (CAS retrievability) | GREEN | replay_report.json: proposal_telemetry_cas_retrievable=true |
+| 6 (chain-derived run facts) | GREEN structurally | I110 round-trip witness |
+| 7 (legacy-bypass regression) | GREEN | 3/3 conformance tests pass |
+
+### TB-6 audit-pending closure path (§13.4)
+
+| Codex action | Closure status |
+|---|---|
+| #1 fail-closed bootstrap | **CLOSED** at Atom 1.7 |
+| #2 real proposal/OMEGA/rejection through typed ChainTape | **CLOSED** structurally (Atoms 2 + 3); real-LLM = manual |
+| #3 AgentProposalRecord schema (logical_t) | **CLOSED** at Atom 1.7 |
+| #4 audit-index row hash from CAS | PARTIAL — Gate 4 covers signature path; full hash recompute = follow-up TB |
+| #5 strict tx_id ↔ CID ↔ AgentProposalRecord | PARTIAL — chain_derived_run_facts enforces ProposalTelemetry CAS resolution; full RunSummary cross-check = follow-up TB |
+| #6 disk-level tamper tests (CAS / Git L4 / derivative roots) | PARTIAL — Gate 4 covers signature; I90d/e/f/g full battery = follow-up TB |
+| #7 regenerate TB-6 smoke | PARTIAL — synthetic-LLM smoke regenerated at Atom 6; real-LLM smoke = manual carry-forward |
+
+**TB-6 audit-pending status REMAINS OPEN** at TB-7 ship per §13.4 anti-pile-up rule. 4
+partial action items roll to a follow-up TB. This is honest accounting — TB-7 closes the
+*structural* part of the gap; the *full conformance battery* + real-LLM run remain.
+
+### Status
+
+- TB-7 SHIPPED on `main` @ `<this commit>`. Frame B (authoritative path) structurally CLOSED.
+- TB-7 Atom 7 ship-time Codex impl audit on full TB-7 diff: launches as follow-up to this commit.
+- Gemini arch audit: degraded fallback per `feedback_dual_audit` (TB-5/TB-6 supplement precedent).
+- Real-LLM smoke (mathd_algebra_107 with live DeepSeek + Lean): manual carry-forward.
+
+### What user / Claude can do next
+
+1. **Codex impl audit feedback** — review the audit verdict; if SOME_CHALLENGE or VETO,
+   remediate via micro-PR before TB-8. If ALL_PASS, proceed to TB-8.
+2. **Manual real-LLM smoke** — run `TURINGOS_CHAINTAPE_PATH=... cargo run --bin evaluator
+   -- --problem mathd_algebra_107 --max-tx 20`. Verify with `verify_chaintape` CLI.
+3. **TB-8 audit dashboard** — per charter §13.1 next: UI/CLI to inspect what the Agent
+   saw + submitted + how the system judged, on a per-run basis.
+4. **Follow-up TB for partial closure**: open a follow-up TB (TB-7.5 or TB-8 carry-forward)
+   to close the 4 partial Codex action items (#4, #5, #6, #7 full real-LLM).
+
+---
+
 ## 📋 2026-05-01 — TB-7 Atom 0.5 — Codex audit carry-forward — Atom 1.7 added + Atom 4/5 expanded + §13.4 closure path
 
 **Trigger**: Codex full-diff audit of TB-6 (commit `cc7b3dd`, 7m 36s + 5m 8s save retry) returned **SOME_CHALLENGE** — PASS 1 (A5) / CHALLENGE 6 (A1, A2, A3, A4, A6, A7) / VETO 0. 7 blocking action items; 4 of them (#2 + #5 + #6 + #7) already covered by TB-7 charter as ratified; **2 new items (#1 fail-closed bootstrap + #3 logical_t schema repair) require carry-forward** into Atom 1.7. Codex explicitly preserved TB-6 audit-pending status; closure path now encoded in §13.4.
