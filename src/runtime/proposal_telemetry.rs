@@ -153,19 +153,65 @@ impl ProposalTelemetry {
     }
 
     /// TRACE_MATRIX FC1-N14: TB-7 Atom 2 — high-level builder for the
-    /// evaluator hot path. Computes both the prompt-context hash (binds
-    /// run_id + agent + proposal index) and the proposal-artifact CID
-    /// (sha256 over the proposal payload bytes) using only types from this
-    /// crate, so the minif2f_v4 evaluator binary doesn't need to add a
-    /// direct `sha2` dependency to the workspace.
+    /// evaluator hot path.
+    ///
+    /// **TB-7.7 fix (2026-05-01)**: this function now ACTUALLY WRITES the
+    /// proposal payload bytes to CAS. Pre-TB-7.7 it computed
+    /// `proposal_artifact_cid = sha256(payload_bytes)` but never stored
+    /// the bytes — meaning a chain reader could verify "a payload with
+    /// this hash existed" but could not recover the payload content from
+    /// ChainTape + CAS alone (architect ruling 2026-05-01 ultrathink turn
+    /// flagged this as the #1 hidden hole in real chaintape).
+    ///
+    /// Now `proposal_artifact_cid` is the CID returned by
+    /// `cas.put(payload_bytes, ObjectType::ProposalPayload, ...)`. The
+    /// bytes are durably stored under that CID.
+    ///
+    /// `parent_tx` is `None` here for backward compat; callers that want
+    /// to record branch lineage should use
+    /// [`build_for_evaluator_append_with_parent`] instead.
     pub fn build_for_evaluator_append(
+        cas_store: &mut CasStore,
         run_id: &str,
         agent_id: &str,
         proposal_index: u64,
         payload_bytes: &[u8],
         candidate_tactic: &str,
         token_counts: TokenCounts,
-    ) -> Self {
+        creator: &str,
+        logical_t: u64,
+    ) -> Result<Self, ProposalTelemetryError> {
+        Self::build_for_evaluator_append_with_parent(
+            cas_store,
+            run_id,
+            agent_id,
+            proposal_index,
+            payload_bytes,
+            candidate_tactic,
+            token_counts,
+            creator,
+            logical_t,
+            None,
+        )
+    }
+
+    /// TRACE_MATRIX FC1-N14: TB-7.7 Deliverable 2 — variant that records
+    /// `parent_tx` for branch lineage / DAG-edge reconstruction.
+    /// Evaluator hot path passes `Some(last_tx_id)` for the same
+    /// (agent_id, branch_id) pair after at least one prior submission.
+    #[allow(clippy::too_many_arguments)]
+    pub fn build_for_evaluator_append_with_parent(
+        cas_store: &mut CasStore,
+        run_id: &str,
+        agent_id: &str,
+        proposal_index: u64,
+        payload_bytes: &[u8],
+        candidate_tactic: &str,
+        token_counts: TokenCounts,
+        creator: &str,
+        logical_t: u64,
+        parent_tx: Option<TxId>,
+    ) -> Result<Self, ProposalTelemetryError> {
         let mut hctx = Sha256::new();
         hctx.update(b"turingosv4.tb7.atom2.prompt_context.v1");
         hctx.update(run_id.as_bytes());
@@ -173,18 +219,27 @@ impl ProposalTelemetry {
         hctx.update(proposal_index.to_be_bytes());
         let prompt_context_hash = Hash(hctx.finalize().into());
 
-        let mut artifact_h = Sha256::new();
-        artifact_h.update(payload_bytes);
-        let proposal_artifact_cid = Cid(artifact_h.finalize().into());
+        // TB-7.7 D1: actually store the payload bytes in CAS. The returned
+        // CID IS proposal_artifact_cid — content-addressed and durably
+        // retrievable via cas_store.get(cid).
+        let proposal_artifact_cid = cas_store.put(
+            payload_bytes,
+            ObjectType::ProposalPayload,
+            creator,
+            logical_t,
+            Some("turingosv4.proposal_payload.v1".into()),
+        )?;
 
-        Self::new_root(
-            AgentId(agent_id.to_string()),
+        Ok(Self {
+            agent_id: AgentId(agent_id.to_string()),
             prompt_context_hash,
             proposal_artifact_cid,
-            candidate_tactic.to_string(),
+            candidate_tactic: candidate_tactic.to_string(),
             token_counts,
-            format!("{}.b{}", agent_id, proposal_index),
-        )
+            tool_calls: Vec::new(),
+            branch_id: format!("{}.b{}", agent_id, proposal_index),
+            parent_tx,
+        })
     }
 }
 
@@ -380,5 +435,78 @@ mod tests {
             tool_tokens: 5,
         };
         assert_eq!(tc.total(), 37);
+    }
+
+    /// TB-7.7 D1 — proposal_artifact_cid produced by build_for_evaluator_append
+    /// must resolve to the original payload bytes via cas_store.get(cid).
+    /// Pre-TB-7.7 the CID was a hash without storage; this is the structural
+    /// witness that bytes are now durably stored.
+    #[test]
+    fn build_for_evaluator_append_stores_payload_in_cas() {
+        let (_dir, mut cas) = fresh_cas();
+        let payload_bytes = b"calc\n  f 1 = 5 * 1 + 4 := by rw [h_]\n  _ = 5 + 4 := by ring\n  _ = 9 := by norm_num";
+        let pt = ProposalTelemetry::build_for_evaluator_append(
+            &mut cas,
+            "tb7-7-d1-test",
+            "Agent_0",
+            42,
+            payload_bytes,
+            "complete",
+            TokenCounts {
+                prompt_tokens: 100,
+                completion_tokens: 50,
+                tool_tokens: 0,
+            },
+            "tb7-7-d1-creator",
+            7,
+        )
+        .expect("build with cas");
+        // The CID in the telemetry must resolve in CAS to the original bytes.
+        let recovered = cas.get(&pt.proposal_artifact_cid).expect("cas get");
+        assert_eq!(recovered, payload_bytes);
+    }
+
+    /// TB-7.7 D1 — same payload bytes always yield the same CID
+    /// (content-addressing determinism). This is what makes the chain
+    /// byte-stable across reruns.
+    #[test]
+    fn build_for_evaluator_append_cid_is_deterministic_per_payload() {
+        let (_dir, mut cas) = fresh_cas();
+        let payload = b"by ring";
+        let pt1 = ProposalTelemetry::build_for_evaluator_append(
+            &mut cas, "r", "a", 1, payload, "ring", TokenCounts::default(),
+            "creator", 1,
+        )
+        .expect("p1");
+        let pt2 = ProposalTelemetry::build_for_evaluator_append(
+            &mut cas, "r", "a", 1, payload, "ring", TokenCounts::default(),
+            "creator", 1,
+        )
+        .expect("p2");
+        assert_eq!(pt1.proposal_artifact_cid, pt2.proposal_artifact_cid);
+    }
+
+    /// TB-7.7 D2 — build_for_evaluator_append_with_parent records parent_tx
+    /// when supplied; default builder leaves parent_tx = None.
+    #[test]
+    fn build_with_parent_records_parent_tx() {
+        let (_dir, mut cas) = fresh_cas();
+        let payload = b"by rfl";
+        let parent = TxId("worktx-task-r-p0".into());
+        let pt = ProposalTelemetry::build_for_evaluator_append_with_parent(
+            &mut cas, "r", "a", 1, payload, "rfl", TokenCounts::default(),
+            "creator", 1,
+            Some(parent.clone()),
+        )
+        .expect("with parent");
+        assert_eq!(pt.parent_tx, Some(parent));
+
+        // Default builder yields None.
+        let pt2 = ProposalTelemetry::build_for_evaluator_append(
+            &mut cas, "r", "a", 2, payload, "rfl", TokenCounts::default(),
+            "creator", 1,
+        )
+        .expect("without parent");
+        assert!(pt2.parent_tx.is_none());
     }
 }

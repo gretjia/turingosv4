@@ -717,6 +717,14 @@ async fn run_swarm(
             Arc::new(Mutex::new(reg))
         });
 
+    // TB-7.7 D2: last submitted tx per agent (for ProposalTelemetry.parent_tx).
+    // Map of agent_id → last tx_id submitted via bus.submit_typed_tx (Work or
+    // Verify). Root proposals leave parent_tx = None; subsequent same-agent
+    // proposals get the previous tx_id as parent. This is what unlocks
+    // citation-tree / DAG-edge analysis on chain artifacts.
+    let mut last_tx_by_agent: std::collections::HashMap<String, turingosv4::state::q_state::TxId> =
+        std::collections::HashMap::new();
+
     // Phase 1: opt-in tape persistence via env. WAL_DIR=<dir> enables WAL
     // writes to <dir>/<problem>_<timestamp>.jsonl; resumes if file exists.
     // Default off for backward-compat baseline runs.
@@ -1314,7 +1322,22 @@ async fn run_swarm(
                                     let logical_t = bundle.sequencer.next_logical_t_peek();
                                     let task_id_str = format!("task-{}", run_id);
 
-                                    let pt = turingosv4::runtime::proposal_telemetry::ProposalTelemetry::build_for_evaluator_append(
+                                    // TB-7.7 D1: open CAS FIRST so build_for_evaluator_append
+                                    // can durably store proposal_artifact_cid.
+                                    let mut cas_store = match turingosv4::bottom_white::cas::store::CasStore::open(&bundle.cas_path) {
+                                        Ok(c) => c,
+                                        Err(e) => {
+                                            error!("[chaintape/atom2] FAIL-CLOSED: cas open failed under ChainTape mode: {e}");
+                                            std::process::exit(3);
+                                        }
+                                    };
+
+                                    // TB-7.7 D2: parent_tx from last submission per agent (root if first).
+                                    let parent_tx: Option<turingosv4::state::q_state::TxId> =
+                                        last_tx_by_agent.get(agent_id).cloned();
+
+                                    let pt = match turingosv4::runtime::proposal_telemetry::ProposalTelemetry::build_for_evaluator_append_with_parent(
+                                        &mut cas_store,
                                         &run_id,
                                         agent_id,
                                         proposal_count as u64,
@@ -1325,15 +1348,17 @@ async fn run_swarm(
                                             completion_tokens: response.completion_tokens as u64,
                                             tool_tokens: 0,
                                         },
-                                    );
-
-                                    let mut cas_store = match turingosv4::bottom_white::cas::store::CasStore::open(&bundle.cas_path) {
-                                        Ok(c) => c,
+                                        "tb7-atom2-evaluator-payload",
+                                        logical_t,
+                                        parent_tx,
+                                    ) {
+                                        Ok(p) => p,
                                         Err(e) => {
-                                            error!("[chaintape/atom2] FAIL-CLOSED: cas open failed under ChainTape mode: {e}");
+                                            error!("[chaintape/atom2] FAIL-CLOSED: proposal_artifact CAS put failed: {e}");
                                             std::process::exit(3);
                                         }
                                     };
+
                                     let tel_cid = match turingosv4::runtime::proposal_telemetry::write_to_cas(
                                         &mut cas_store,
                                         &pt,
@@ -1352,17 +1377,19 @@ async fn run_swarm(
                                             Err(p) => p.into_inner(),
                                         };
                                         let suffix = format!("p{}", proposal_count);
+                                        // TB-7.7 D3: stake from env (default 1000 micro-units = 0.001 coin)
+                                        // for admission-gate clearance under pre-seeded escrow.
+                                        // Pre-TB-7.7 stake was hardcoded 0 → all WorkTx → L4.E.
+                                        let stake_micro: i64 = std::env::var("TURINGOS_CHAINTAPE_PROPOSAL_STAKE_MICRO")
+                                            .ok()
+                                            .and_then(|s| s.parse().ok())
+                                            .unwrap_or(1_000);
                                         match turingosv4::runtime::adapter::make_real_worktx_signed_by(
                                             &mut *reg_guard,
                                             &task_id_str,
                                             agent_id,
                                             parent_state_root,
-                                            // stake = 0 → produces L4.E `StakeInsufficient`
-                                            // (or upstream `TaskNotOpen`). Atom 6 chain-backed
-                                            // real-LLM smoke pre-seeds task_markets + balances
-                                            // so a fraction of proposals reach accepted L4
-                                            // (Gate 3 ≥1 accepted requirement).
-                                            0,
+                                            stake_micro,
                                             &suffix,
                                             tel_cid,
                                             true,
@@ -1375,9 +1402,18 @@ async fn run_swarm(
                                             }
                                         }
                                     };
+                                    // TB-7.7 D2: capture tx_id before move into submit_typed_tx.
+                                    let real_worktx_tx_id = match &real_worktx {
+                                        turingosv4::state::typed_tx::TypedTx::Work(w) => Some(w.tx_id.clone()),
+                                        _ => None,
+                                    };
                                     if let Err(e) = bus.submit_typed_tx(real_worktx).await {
                                         error!("[chaintape/atom2] FAIL-CLOSED: submit_typed_tx failed: {e:?}");
                                         std::process::exit(3);
+                                    }
+                                    // TB-7.7 D2: record this WorkTx as parent for next same-agent proposal.
+                                    if let Some(tx_id) = real_worktx_tx_id {
+                                        last_tx_by_agent.insert(agent_id.to_string(), tx_id);
                                     }
                                 }
 
@@ -1552,7 +1588,19 @@ async fn run_swarm(
                                             let parent_state_root = q.state_root_t;
                                             let logical_t = bundle.sequencer.next_logical_t_peek();
                                             let task_id_str = format!("task-{}", run_id);
-                                            let pt = turingosv4::runtime::proposal_telemetry::ProposalTelemetry::build_for_evaluator_append(
+                                            // TB-7.7 D1: open CAS first.
+                                            let mut cas_store = match turingosv4::bottom_white::cas::store::CasStore::open(&bundle.cas_path) {
+                                                Ok(c) => c,
+                                                Err(e) => {
+                                                    error!("[chaintape/atom3-omega] FAIL-CLOSED: cas open: {e}");
+                                                    std::process::exit(3);
+                                                }
+                                            };
+                                            // TB-7.7 D2: parent_tx for branch lineage.
+                                            let parent_tx_for_pt: Option<turingosv4::state::q_state::TxId> =
+                                                last_tx_by_agent.get(agent_id).cloned();
+                                            let pt = match turingosv4::runtime::proposal_telemetry::ProposalTelemetry::build_for_evaluator_append_with_parent(
+                                                &mut cas_store,
                                                 &run_id,
                                                 agent_id,
                                                 proposal_count as u64,
@@ -1563,11 +1611,13 @@ async fn run_swarm(
                                                     completion_tokens: response.completion_tokens as u64,
                                                     tool_tokens: 0,
                                                 },
-                                            );
-                                            let mut cas_store = match turingosv4::bottom_white::cas::store::CasStore::open(&bundle.cas_path) {
-                                                Ok(c) => c,
+                                                "tb7-atom3-omega-full-payload",
+                                                logical_t,
+                                                parent_tx_for_pt,
+                                            ) {
+                                                Ok(p) => p,
                                                 Err(e) => {
-                                                    error!("[chaintape/atom3-omega] FAIL-CLOSED: cas open: {e}");
+                                                    error!("[chaintape/atom3-omega] FAIL-CLOSED: proposal_artifact CAS put: {e}");
                                                     std::process::exit(3);
                                                 }
                                             };
@@ -1584,6 +1634,11 @@ async fn run_swarm(
                                                 }
                                             };
                                             let suffix = format!("omega-full-{}", proposal_count);
+                                            // TB-7.7 D3: stake from env (default 1000 micro-units).
+                                            let stake_micro: i64 = std::env::var("TURINGOS_CHAINTAPE_PROPOSAL_STAKE_MICRO")
+                                                .ok()
+                                                .and_then(|s| s.parse().ok())
+                                                .unwrap_or(1_000);
                                             let (work_tx, verify_tx) = {
                                                 let mut reg_guard = match reg.lock() {
                                                     Ok(g) => g,
@@ -1594,9 +1649,7 @@ async fn run_swarm(
                                                     &task_id_str,
                                                     agent_id,
                                                     parent_state_root,
-                                                    // OMEGA-accept: stake = 0 → L4.E baseline; full
-                                                    // economic settlement is RSP-4 / TB-9.
-                                                    0,
+                                                    stake_micro,
                                                     &suffix,
                                                     tel_cid,
                                                     true,
@@ -1633,6 +1686,15 @@ async fn run_swarm(
                                                 };
                                                 (w, v)
                                             };
+                                            // TB-7.7 D2: capture tx_ids before move.
+                                            let work_tx_id = match &work_tx {
+                                                turingosv4::state::typed_tx::TypedTx::Work(w) => Some(w.tx_id.clone()),
+                                                _ => None,
+                                            };
+                                            let verify_tx_id = match &verify_tx {
+                                                turingosv4::state::typed_tx::TypedTx::Verify(v) => Some(v.tx_id.clone()),
+                                                _ => None,
+                                            };
                                             if let Err(e) = bus.submit_typed_tx(work_tx).await {
                                                 error!("[chaintape/atom3-omega] FAIL-CLOSED: WorkTx submit_typed_tx: {e:?}");
                                                 std::process::exit(3);
@@ -1640,6 +1702,15 @@ async fn run_swarm(
                                             if let Err(e) = bus.submit_typed_tx(verify_tx).await {
                                                 error!("[chaintape/atom3-omega] FAIL-CLOSED: VerifyTx submit_typed_tx: {e:?}");
                                                 std::process::exit(3);
+                                            }
+                                            // TB-7.7 D2: VerifyTx is the most recent same-agent submission;
+                                            // record it as parent for any subsequent same-agent proposal.
+                                            // (For root-of-tree analysis the WorkTx is the true parent of
+                                            // child branches; VerifyTx is the latest event chronologically.
+                                            // We pick VerifyTx since it represents the latest LOGICAL_T
+                                            // advance for this agent.)
+                                            if let Some(tx_id) = verify_tx_id.or(work_tx_id) {
+                                                last_tx_by_agent.insert(agent_id.to_string(), tx_id);
                                             }
                                         }
 
@@ -1932,7 +2003,19 @@ async fn run_swarm(
                                             let parent_state_root = q.state_root_t;
                                             let logical_t = bundle.sequencer.next_logical_t_peek();
                                             let task_id_str = format!("task-{}", run_id);
-                                            let pt = turingosv4::runtime::proposal_telemetry::ProposalTelemetry::build_for_evaluator_append(
+                                            // TB-7.7 D1: open CAS first.
+                                            let mut cas_store = match turingosv4::bottom_white::cas::store::CasStore::open(&bundle.cas_path) {
+                                                Ok(c) => c,
+                                                Err(e) => {
+                                                    error!("[chaintape/atom3-omega-pertactic] FAIL-CLOSED: cas open: {e}");
+                                                    std::process::exit(3);
+                                                }
+                                            };
+                                            // TB-7.7 D2: parent_tx for branch lineage.
+                                            let parent_tx_for_pt: Option<turingosv4::state::q_state::TxId> =
+                                                last_tx_by_agent.get(agent_id).cloned();
+                                            let pt = match turingosv4::runtime::proposal_telemetry::ProposalTelemetry::build_for_evaluator_append_with_parent(
+                                                &mut cas_store,
                                                 &run_id,
                                                 agent_id,
                                                 proposal_count as u64,
@@ -1943,11 +2026,13 @@ async fn run_swarm(
                                                     completion_tokens: response.completion_tokens as u64,
                                                     tool_tokens: 0,
                                                 },
-                                            );
-                                            let mut cas_store = match turingosv4::bottom_white::cas::store::CasStore::open(&bundle.cas_path) {
-                                                Ok(c) => c,
+                                                "tb7-atom3-omega-pertactic-payload",
+                                                logical_t,
+                                                parent_tx_for_pt,
+                                            ) {
+                                                Ok(p) => p,
                                                 Err(e) => {
-                                                    error!("[chaintape/atom3-omega-pertactic] FAIL-CLOSED: cas open: {e}");
+                                                    error!("[chaintape/atom3-omega-pertactic] FAIL-CLOSED: proposal_artifact CAS put: {e}");
                                                     std::process::exit(3);
                                                 }
                                             };
@@ -1964,6 +2049,11 @@ async fn run_swarm(
                                                 }
                                             };
                                             let suffix = format!("omega-pertactic-{}", proposal_count);
+                                            // TB-7.7 D3: stake from env (default 1000 micro-units).
+                                            let stake_micro: i64 = std::env::var("TURINGOS_CHAINTAPE_PROPOSAL_STAKE_MICRO")
+                                                .ok()
+                                                .and_then(|s| s.parse().ok())
+                                                .unwrap_or(1_000);
                                             let (work_tx, verify_tx) = {
                                                 let mut reg_guard = match reg.lock() {
                                                     Ok(g) => g,
@@ -1974,7 +2064,7 @@ async fn run_swarm(
                                                     &task_id_str,
                                                     agent_id,
                                                     parent_state_root,
-                                                    0,
+                                                    stake_micro,
                                                     &suffix,
                                                     tel_cid,
                                                     true,
@@ -2011,6 +2101,15 @@ async fn run_swarm(
                                                 };
                                                 (w, v)
                                             };
+                                            // TB-7.7 D2: capture tx_ids before move.
+                                            let work_tx_id = match &work_tx {
+                                                turingosv4::state::typed_tx::TypedTx::Work(w) => Some(w.tx_id.clone()),
+                                                _ => None,
+                                            };
+                                            let verify_tx_id = match &verify_tx {
+                                                turingosv4::state::typed_tx::TypedTx::Verify(v) => Some(v.tx_id.clone()),
+                                                _ => None,
+                                            };
                                             if let Err(e) = bus.submit_typed_tx(work_tx).await {
                                                 error!("[chaintape/atom3-omega-pertactic] FAIL-CLOSED: WorkTx submit_typed_tx: {e:?}");
                                                 std::process::exit(3);
@@ -2018,6 +2117,10 @@ async fn run_swarm(
                                             if let Err(e) = bus.submit_typed_tx(verify_tx).await {
                                                 error!("[chaintape/atom3-omega-pertactic] FAIL-CLOSED: VerifyTx submit_typed_tx: {e:?}");
                                                 std::process::exit(3);
+                                            }
+                                            // TB-7.7 D2: record latest tx as parent for next same-agent proposal.
+                                            if let Some(tx_id) = verify_tx_id.or(work_tx_id) {
+                                                last_tx_by_agent.insert(agent_id.to_string(), tx_id);
                                             }
                                         }
 
