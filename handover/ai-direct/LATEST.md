@@ -6,6 +6,63 @@
 
 ---
 
+## 📋 2026-05-01 — TB-7 charter DRAFT + audit prompt (awaiting architect ratification)
+
+**Session continuation**: Post-TB-6 ship dialogue surfaced "real chaintape final form" 4-frame
+breakdown (A=narrow architect-D2 / B=LLM-on-chain / C=full economic loop / D=multi-org+public+autonomous).
+Frame A closed by TB-6; Frame B is the natural successor and the most user-observable next step
+(PputResult becomes chain-derived). User authorized charter draft authorship.
+
+### What landed (DRAFT — no production code touched)
+
+| File | Purpose |
+|---|---|
+| `handover/tracer_bullets/TB-7_charter_draft_2026-05-01.md` | TB-7 charter draft. Frame B = per-LLM-proposal WorkTx routing; 7 atoms; production wire-up class; STEP_B not anticipated; 72h-to-feedback-loop discharge gate at Atom 6. |
+| `handover/directives/2026-05-01_TB7_ARCHITECT_REVIEW_REQUEST.md` | Audit / architect review prompt. 5 binding D1-D5 decisions + 4 optional D6-D9. File-paths-to-read priority list (15 items). Recommended ruling for each D. |
+
+### TB-7 scope boundaries (per draft)
+
+**IN SCOPE (Frame B)**:
+- Per-agent Ed25519 keypair (runtime-generated; `agent_pubkeys.json` manifest mirroring TB-5 system pattern)
+- Real-signature WorkTx via `bus.submit_typed_tx` from evaluator append-branch + OMEGA-branch
+- VerifyTx for OMEGA-accept Lean verification
+- Chain-derived PPUT (`runtime::chain_derived_pput::compute_pput_from_chain` matches in-memory accumulator on time-insensitive fields within ε)
+- Extended verify_chaintape with agent-signature verification path
+- Real-LLM smoke run on `mathd_algebra_107` producing ≥N L4 entries (where N = LLM proposal count)
+
+**OUT OF SCOPE (deferred to later TBs per architect § 4.5)**:
+- FinalizeRewardTx settlement (RSP-4 = TB-11)
+- SlashTx upheld-challenge punishment (RSP-3.2 = TB-9)
+- NodeMarket position semantics (RSP-M = TB-7+ separate sequencing)
+- New TypedTx variants
+- Q schema mutation
+- Cross-problem agent identity continuity (would require Option B persistent keypair)
+
+### Architect decision items (D1-D5)
+
+| D | Decision | Recommended | Stake |
+|---|---|---|---|
+| D1 | TB-7 sequencing | Frame B (Option A) over RSP-M0/M1 / RSP-3.2 | Closes "chain has 2 entries while LLM ran 20" gap |
+| D2 | Agent keypair lifecycle | Runtime-generated per-run (Option A) over persistent | Simpler + structurally proven (TB-5 PinnedSystemPubkeys) |
+| D3 | OMEGA-accept scope | Narrowed (Option A) — WorkTx+VerifyTx only, no FinalizeRewardTx/SlashTx | Stays within Frame B; respects architect § 4.5 sequencing |
+| D4 | Chain-derived PPUT tolerance | Bit-exact on time-insensitive (Option A) over numeric | Clean separation of structural facts vs wall-clock noise |
+| D5 | Audit mode + bundling | Production wire-up class (Option A) + bundle TB-6 follow-up Codex impl audit if pending | Conservative; matches TB-6 Atom 7 precedent |
+
+### Status
+
+- TB-6 SHIPPED on `main` @ `17c5e73` (8/8 atoms; cargo test --workspace 660/0/150).
+- TB-7 = **DRAFT awaiting architect ratification**. NO production code touched.
+- TB_LOG.tsv has NO TB-7 row yet (intentional — preserves "no fake activity" property).
+
+### What user / architect can do now
+
+1. Read the charter draft + audit prompt.
+2. Architect rules on D1-D5 (recommended path: all Option A → ratify charter as-is).
+3. User says "authorize TB-7" → I commit Atom 0 charter ratification + start Atom 1 (agent keypair management).
+4. Optionally: Codex impl audit on full TB-6 diff as TB-7 follow-up (audit-pending closeout per recursive audit § 7).
+
+---
+
 ## 🚢 2026-05-01 — TB-6 SHIPPED (Atoms 4-7) — replay verifier + agent audit trail + RunSummary + ship audit
 
 **Session summary**: User authorized "TuringOS v4 — TB-6 continuation (Atoms 4-7)" with explicit
