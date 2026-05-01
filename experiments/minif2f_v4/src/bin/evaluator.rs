@@ -662,10 +662,38 @@ async fn run_swarm(
         ],
     };
 
+    // TB-6 Atom 1.3: chaintape mode (TURINGOS_CHAINTAPE_PATH).
+    // When set, build a production-mode Sequencer + Git2LedgerWriter (L4) +
+    // JSONL-backed RejectionEvidenceWriter (L4.E) + driver wrapper, and route
+    // bus construction through TuringBus::with_sequencer instead of the legacy
+    // WAL_DIR / TuringBus::new paths. Both env vars set → chain wins; WAL_DIR
+    // is silently disabled with an info!() log per preflight v2.1 §3.6.
+    // Bundle is held across the run; bundle.shutdown().await is invoked at
+    // the implicit final return to drain queued submissions.
+    let chaintape_bundle: Option<turingosv4::runtime::ChaintapeBundle> =
+        turingosv4::runtime::RuntimeChaintapeConfig::from_env().and_then(
+            |cfg| match turingosv4::runtime::build_chaintape_sequencer(&cfg) {
+                Ok(b) => Some(b),
+                Err(e) => {
+                    error!("[chaintape] bootstrap failed: {e} — falling back to legacy");
+                    None
+                }
+            },
+        );
+    if chaintape_bundle.is_some() && std::env::var("WAL_DIR").is_ok() {
+        info!("[chaintape] WAL_DIR ignored when TURINGOS_CHAINTAPE_PATH is set");
+    }
+
     // Phase 1: opt-in tape persistence via env. WAL_DIR=<dir> enables WAL
     // writes to <dir>/<problem>_<timestamp>.jsonl; resumes if file exists.
     // Default off for backward-compat baseline runs.
-    let mut bus = if let Ok(wal_dir) = std::env::var("WAL_DIR") {
+    let mut bus = if let Some(ref bundle) = chaintape_bundle {
+        info!(
+            "[chaintape] bus wired with Sequencer + on-disk ChainTape at {:?}",
+            bundle.runtime_repo_path
+        );
+        TuringBus::with_sequencer(kernel, config, bundle.sequencer.clone())
+    } else if let Ok(wal_dir) = std::env::var("WAL_DIR") {
         let problem_stem = std::path::Path::new(problem_file)
             .file_stem().map(|s| s.to_string_lossy().into_owned())
             .unwrap_or_else(|| "unknown".into());
@@ -1678,7 +1706,7 @@ async fn run_swarm(
     let (rt, ph) = minif2f_v4::experiment_mode::apply_mode_to_accept(
         mode, false, false,
     );
-    make_pput(problem_file, &condition, &run_model_label,
+    let pput_result = make_pput(problem_file, &condition, &run_model_label,
               rt, ph, start, 0, 0,
               max_transactions as u64, Some(tool_dist), upr,
               None, None, None,
@@ -1689,7 +1717,21 @@ async fn run_swarm(
               proposal_hashes.len() as u64,
               proposal_count,
               verifier_wait_ms,
-              budget_regime, budget_max_tx_base, &run_id)
+              budget_regime, budget_max_tx_base, &run_id);
+    // TB-6 Atom 1.3: drain chaintape bundle before final return so queued
+    // submissions are committed to on-disk ChainTape. shutdown_tx + driver
+    // JoinHandle wired in src/runtime/mod.rs; per preflight v2.1 §3.2 the
+    // wrapper uses tokio::select! to honor the signal and drain queue_rx.
+    // NOTE: early-return paths (timeout / max-tx exhausted with `return
+    // make_pput(...)`) drop the bundle WITHOUT explicit shutdown(); the
+    // driver still terminates cleanly via shutdown_tx-drop → shutdown_rx-Err
+    // path, but explicit drain is best-effort only on the canonical exit.
+    if let Some(bundle) = chaintape_bundle {
+        if let Err(e) = bundle.shutdown().await {
+            error!("[chaintape] driver shutdown returned error: {e}");
+        }
+    }
+    pput_result
 }
 
 fn make_pput(
