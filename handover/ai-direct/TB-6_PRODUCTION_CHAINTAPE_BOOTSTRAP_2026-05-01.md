@@ -1,7 +1,7 @@
 # TB-6 Atom 1 Preflight v2 — Production ChainTape Bootstrap (with persistent L4.E)
 
 **Date**: 2026-05-01
-**Status**: DRAFT v2 (post Codex round-1 audit `CHALLENGE-6`). Authored on `main` @ `ca8d644` (preflight v1 commit). v1 is preserved in git history.
+**Status**: DRAFT v2.1 (post Codex round-2 audit `CHALLENGE-2`; round-cap=2 hit; auto-execute exception applied per `feedback_elon_mode_policy` since both remediations are determinate-best surgical patches). v2.0 at commit `37b1929`; v1 at `ca8d644`. v2.1 deltas confined to §3.2 (driver lifecycle) + §6 (T7 split + T10 direct fixture).
 **Atom**: TB-6 Atom 1 — Production runtime repo bootstrap.
 **Binding authority**:
 - TB-6 charter § 5 + § 7 + § 12 (`handover/tracer_bullets/TB-6_charter_2026-05-01.md`)
@@ -146,52 +146,98 @@ impl RuntimeChaintapeConfig {
 }
 ```
 
-### §3.2 ChaintapeBundle (v2; Codex Q7 + F2 — driver lifecycle)
+### §3.2 ChaintapeBundle (v2.1; Codex round-2 CHALLENGE-1 applied — runtime-side driver wrapper)
+
+**Codex round-2 ground truth** (verified against `src/state/sequencer.rs`):
+- `Sequencer::run` (`:1350-1363`) is `while let Some(env) = queue_rx.recv().await { ... apply_one(env) }`. NO shutdown branch.
+- `Sequencer.queue_tx` (`:1093`) is owned by `Sequencer`. Holding `Arc<Sequencer>` keeps the sender alive → `recv()` never returns `None`.
+- `SequencerError` enum (`:1040-1043`) has only `ReceiverAlreadyTaken`. `DriverPanic` does NOT exist.
+- `Sequencer::apply_one` (`:1475`) is `pub(crate)`. `src/runtime/` lives in the same crate → callable.
+
+v2.0's shutdown_tx wiring was dead. v2.1 fix: **don't call `Sequencer::run`. Write a runtime-side driver loop in `src/runtime/mod.rs`** that owns the receiver, calls `Sequencer::apply_one` directly, and uses `tokio::select!` on a shutdown channel. Sequencer.rs untouched (no STEP_B trigger).
 
 ```rust
 // src/runtime/mod.rs
 
 use tokio::task::JoinHandle;
 use tokio::sync::oneshot;
+use crate::state::sequencer::{Sequencer, SubmissionEnvelope};
 
 pub struct ChaintapeBundle {
-    /// Wired into TuringBus via `TuringBus::with_sequencer(kernel, config, bundle.sequencer.clone())`.
     pub sequencer: Arc<Sequencer>,
-    /// Concrete L4 writer (Git-backed). Test code keeps a clone for chain-walk verification.
     pub transition_writer: Arc<RwLock<dyn LedgerWriter>>,
-    /// Concrete L4.E writer (JSONL-backed in v2; in-memory backend stays default for tests).
     pub rejection_writer: Arc<RwLock<RejectionEvidenceWriter>>,
-    /// Background handle for the Sequencer::run driver loop. Caller MUST `await` this
-    /// (or use `shutdown` below) before evaluator exit, otherwise queued txs may be
-    /// uncommitted when the runtime drops.
-    pub driver_handle: JoinHandle<Result<(), SequencerError>>,
-    /// Shutdown signal — `shutdown_tx.send(())` triggers the driver loop to drain
-    /// the queue and exit cleanly.
+    pub driver_handle: JoinHandle<Result<(), DriverError>>,
     pub shutdown_tx: oneshot::Sender<()>,
 }
 
+/// Runtime-local driver error (NOT a `Sequencer` enum addition).
+#[derive(Debug, thiserror::Error)]
+pub enum DriverError {
+    #[error("driver task panicked: {0}")]
+    JoinError(String),
+}
+
+/// Runtime-side driver wrapper. Spawned by `build_chaintape_sequencer`.
+/// Owns the queue receiver (transferred from `Sequencer::new`'s tuple return);
+/// calls `Sequencer::apply_one` directly (pub(crate); same crate).
+async fn run_chaintape_driver(
+    sequencer: Arc<Sequencer>,
+    mut queue_rx: tokio::sync::mpsc::Receiver<SubmissionEnvelope>,
+    mut shutdown_rx: oneshot::Receiver<()>,
+) {
+    loop {
+        tokio::select! {
+            biased; // shutdown wins races
+            _ = &mut shutdown_rx => {
+                queue_rx.close(); // refuse new sends from any clone of queue_tx
+                // Drain remaining envelopes synchronously
+                while let Some(env) = queue_rx.recv().await {
+                    if let Err(e) = sequencer.apply_one(env) {
+                        log::debug!("drain apply_one rejected: {e}");
+                    }
+                }
+                return;
+            }
+            env = queue_rx.recv() => {
+                match env {
+                    Some(envelope) => {
+                        if let Err(e) = sequencer.apply_one(envelope) {
+                            log::debug!("apply_one rejected: {e}");
+                        }
+                    }
+                    None => return, // all senders dropped
+                }
+            }
+        }
+    }
+}
+
 impl ChaintapeBundle {
-    /// Drain + shutdown contract.
-    /// 1. Sends shutdown signal.
-    /// 2. Awaits driver_handle (tx commits flush before return).
-    /// 3. Returns the final SequencerError if any (None on clean exit).
-    pub async fn shutdown(self) -> Result<(), SequencerError> {
+    /// Drain + shutdown contract:
+    /// 1. Send shutdown signal (consumes shutdown_tx).
+    /// 2. Driver wrapper sees signal → closes queue_rx → drains remaining → exits.
+    /// 3. `driver_handle.await` blocks until drain completes.
+    /// 4. JoinError (panic) is wrapped into DriverError::JoinError; clean exit returns Ok.
+    pub async fn shutdown(self) -> Result<(), DriverError> {
         let _ = self.shutdown_tx.send(());
         match self.driver_handle.await {
-            Ok(res) => res,
-            Err(join_err) if join_err.is_cancelled() => Ok(()),
-            Err(join_err) => Err(SequencerError::DriverPanic(join_err.to_string())),
+            Ok(()) => Ok(()),
+            Err(join_err) => Err(DriverError::JoinError(join_err.to_string())),
         }
     }
 }
 ```
 
-The factory spawns the driver loop AND returns the `JoinHandle` so the caller can `await` it. The `shutdown_tx` is the explicit drain trigger. **Codex Q7 risk** (queued txs lost at evaluator exit) is closed by:
-- The `shutdown_tx` signals `Sequencer::run` to stop accepting new envelopes + drain remaining queue
-- `driver_handle.await` blocks evaluator exit until the queue is fully committed
-- Test T9 verifies that submitted txs are committed before bundle.shutdown() returns
+**Why this works** (vs v2.0's dead wiring):
+- The runtime-side wrapper owns `queue_rx`. It can call `queue_rx.close()` to refuse further sends.
+- After `close()`, all calls to `queue_tx.send()` from anywhere (including `Sequencer.queue_tx` clones via `bus.submit_typed_tx`) return `Err(SendError(...))` — but txs already in the channel are still drained.
+- `tokio::select! biased` ensures shutdown signal wins races against pending recv (otherwise busy queues could starve shutdown).
+- `Sequencer::apply_one` is called directly. No need for `Sequencer::run` to terminate; we never call it.
 
-(**NOTE for round-2 audit**: this requires `Sequencer::run` to support shutdown signaling. If `Sequencer::run` does not currently honor a shutdown channel, Atom 1 needs to either (a) propose a sequencer.rs change → STEP_B trigger → upgrade scope, or (b) implement drain via dropping the queue sender + relying on `Sequencer::run`'s existing terminate-on-empty-queue behavior. Round-2 Codex must verify which.)
+`Sequencer.queue_tx` (`src/state/sequencer.rs:1093`) is still owned by `Sequencer` and stays alive while `Arc<Sequencer>` is held — but that's fine: `bus.submit_typed_tx` uses it, and after `queue_rx.close()` those sends fail cleanly.
+
+Tests T4 (drain) + T5 (clean exit on empty queue) verify this lifecycle. T10 (NEW; see §6) directly exercises `bus.submit_typed_tx` → `apply_one` → L4 entry path without involving evaluator.
 
 ### §3.3 RejectionEvidenceWriter — v2 JSONL backend extension (Codex F1)
 
@@ -367,12 +413,13 @@ Each Atom 1.N reports `cargo test --workspace` count delta per ruling D4. STEP_B
 - **T1** `build_chaintape_sequencer_returns_non_none_sequencer_with_git_writer`
 - **T2** `build_chaintape_sequencer_writes_pinned_pubkeys_json_to_runtime_repo`
 - **T3** `build_chaintape_sequencer_fails_on_non_empty_repo` (Codex F3)
-- **T4** `chaintape_bundle_shutdown_drains_pending_submissions_before_join` (Codex Q7+F2)
+- **T4** `chaintape_bundle_shutdown_drains_pending_submissions_before_join` (Codex Q7+F2; verifies runtime-side wrapper drains queue after shutdown signal)
 - **T5** `chaintape_bundle_shutdown_returns_clean_on_empty_queue`
-- **T6** ~~`evaluator_legacy_mode_prompt_context_hash_is_a1f43584a17d1226`~~ (DROPPED per Codex Q6 — `oneshot` doesn't traverse the bus)
-- **T7** `evaluator_chaintape_mode_constructs_bus_with_sequencer_and_runs_swarm` (NEW v2; uses `run_swarm` not `run_oneshot` so the bus is exercised)
+- **T6** ~~`evaluator_legacy_mode_prompt_context_hash_is_a1f43584a17d1226`~~ (DROPPED per Codex round-1 Q6 — `oneshot` doesn't traverse the bus)
+- **T7** `evaluator_chaintape_mode_sets_bus_sequencer_field_to_some` (v2.1 SCOPE-NARROWED per Codex round-2 Q6 — `run_swarm` does NOT call `submit_typed_tx`; T7 is now construction-only: env-flag set → `bus.sequencer.is_some()` after constructor returns)
 - **T8** `evaluator_legacy_wal_mode_unchanged_when_chaintape_off` (Codex F5 regression)
 - **T9** `chaintape_mode_silently_disables_wal_when_both_env_vars_set` (Codex F5 precedence)
+- **T10** `direct_bus_submit_typed_tx_synthetic_worktx_appends_l4_entry` (NEW v2.1 per Codex round-2 Q6) — bypasses evaluator entirely. Constructs synthetic signed `WorkTx` envelope with valid keypair + pinned pubkey + seeded EconomicState (escrow + balance fixtures from `tests/tb_3_rsp1_formal_surface.rs::I23` shape). Calls `bus.submit_typed_tx(tx).await` directly. Awaits driver. Asserts: ≥1 `LedgerEntry` in transition writer; chain root advances; replay reconstructs Q. This is the test that proves Atom 1's L4 path works WITHOUT depending on Atom 2's evaluator adapter.
 
 `tests/tb_6_l4e_jsonl_persistence.rs` (Atom 1.2):
 - **T_R1** `rejection_evidence_writer_open_jsonl_creates_empty_file`
@@ -381,15 +428,15 @@ Each Atom 1.N reports `cargo test --workspace` count delta per ruling D4. STEP_B
 - **T_R4** `tampering_with_jsonl_line_fails_verify_chain_on_reopen`
 - **T_R5** `concurrent_open_jsonl_then_append_does_not_double_write` (file-lock test if applicable; otherwise document single-writer expectation)
 
-Total Atom 1 new tests: 9 + 5 = **14 tests** (T6 dropped from v1).
+Total Atom 1 new tests: 10 + 5 = **15 tests** (v2.1; T6 dropped, T10 added per Codex round-2).
 
 ### §6.2 cargo test --workspace targets
 
 Pre-Atom 1.1: 617 (TB-5 baseline).
 Post-Atom 1.1: 617 (no new tests; module compiles).
 Post-Atom 1.2: 617 + 5 (T_R1-T_R5) = 622.
-Post-Atom 1.3: 622 + 9 (T1-T5,T7-T9; T6 dropped) = 631.
-Post-Atom 1.4: 631 (Trust Root only; no new tests).
+Post-Atom 1.3: 622 + 10 (T1-T5, T7-T10; T6 dropped) = 632.
+Post-Atom 1.4: 632 (Trust Root only; no new tests).
 
 Every commit reports `cargo test --workspace` count + delta per ruling D4.
 
@@ -430,13 +477,9 @@ Round-1 verdict (CHALLENGE-6 with high confidence) closed by this v2. Round-2 is
 
 `cargo clean` freed 8.2 GiB; disk now 7.7G free. Phase 1 unblocked.
 
-### §8.2 Sequencer::run shutdown semantics (NEW v2 risk)
+### §8.2 Sequencer::run shutdown semantics (CLOSED v2.1 — runtime-side wrapper, no STEP_B trigger)
 
-**§3.2 `ChaintapeBundle.shutdown()` requires `Sequencer::run` to terminate cleanly**. If `Sequencer::run` is `loop { rx.recv() => apply_one(...) }` with no shutdown channel, terminating it requires either (a) dropping `queue_tx` from the only sender (but `Arc<Sequencer>` keeps it alive — Codex F2), (b) adding a shutdown channel to `Sequencer::run` signature → STEP_B trigger → upgrade scope, or (c) wrapping the driver loop in a higher-level shutdown wrapper outside `Sequencer`.
-
-**Round-2 Codex audit must read `src/state/sequencer.rs:1350+` and pin down which.** If (b), Atom 1 needs to grow into a sequencer.rs touch (STEP_B Phase-0 → 1 → 2). If (a) or (c), no STEP_B trigger.
-
-Tentative v2 design favors (c): `ChaintapeBundle.shutdown()` drops `bundle.sequencer` (the only externally-held `Arc<Sequencer>`); the driver task's own `Sequencer` ref drops when `run` returns; the queue_tx held by `Sequencer` drops when the `Arc` count hits 0 — and `Sequencer::run` exits when its `rx.recv()` returns `None` (queue closed, no senders). This requires careful Arc accounting at evaluator exit; T4 verifies it.
+Codex round-2 verified `Sequencer::run` (`src/state/sequencer.rs:1350-1363`) has NO shutdown branch + `Sequencer` owns `queue_tx` (`:1093`) → option (a) "drop queue_tx via Arc count" cannot work because the driver task itself holds `Arc<Sequencer>` keeping the sender alive. Option (b) (modify `Sequencer::run` signature) would trigger STEP_B. **v2.1 picks option (c)**: replace the call to `Sequencer::run` with a runtime-side driver wrapper in `src/runtime/mod.rs` (see §3.2). The wrapper owns the receiver, uses `tokio::select!` on shutdown_rx, and calls `Sequencer::apply_one` (`pub(crate)`; same crate) directly. Sequencer.rs untouched. STEP_B safe. T4 + T10 verify lifecycle correctness.
 
 ### §8.3 ~~QState seed shape~~ (CLOSED — Codex F4)
 
