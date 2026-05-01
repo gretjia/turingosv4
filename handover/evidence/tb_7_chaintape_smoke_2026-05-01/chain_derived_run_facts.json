@@ -2,12 +2,16 @@
   "solved": false,
   "verified": false,
   "tx_count": 7,
-  "proposal_count": 0,
-  "golden_path_token_count": 0,
+  "proposal_count": 3,
+  "golden_path_token_count": 480,
   "gp_payload": null,
   "gp_path": null,
   "gp_proof_file": null,
-  "tactic_diversity": 0,
-  "tool_dist": {},
+  "tactic_diversity": 3,
+  "tool_dist": {
+    "nlinarith": 1,
+    "rfl": 1,
+    "ring": 1
+  },
   "failed_branch_count": 6
 }

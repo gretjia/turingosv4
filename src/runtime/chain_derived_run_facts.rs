@@ -18,7 +18,12 @@
 //! 2. `verified` — bool; true iff `solved` (alias for VerifyTx-confirmed)
 //! 3. `tx_count` — L4 entries + L4.E entries (total chain length)
 //! 4. `proposal_count` — number of WorkTx entries on chain (accepted +
-//!    rejected; counts every meaningful LLM proposal that was routed)
+//!    rejected; counts every meaningful LLM proposal that was routed).
+//!    **TB-7.5 fix #2 (Codex audit 492e86c action #2, BLOCKING)**: counts
+//!    BOTH accepted L4 WorkTx AND rejected L4.E records whose
+//!    `tx_kind == TxKind::Work`. Closes the prior semantic gap where the
+//!    field doc said "accepted + rejected" but the implementation counted
+//!    only the L4-side WorkTx.
 //! 5. `golden_path_token_count` — sum of `token_counts.total()` over all
 //!    WorkTx's ProposalTelemetry CAS objects; **requires** §4.5
 //!    ProposalTelemetry to be on chain (Gate 5); zero-CID legacy
@@ -47,7 +52,7 @@ use std::path::Path;
 
 use crate::bottom_white::cas::store::CasStore;
 use crate::bottom_white::ledger::rejection_evidence::RejectionEvidenceWriter;
-use crate::bottom_white::ledger::transition_ledger::{canonical_decode, Git2LedgerWriter, LedgerEntry, LedgerWriter, LedgerWriterError};
+use crate::bottom_white::ledger::transition_ledger::{canonical_decode, Git2LedgerWriter, LedgerEntry, LedgerWriter, LedgerWriterError, TxKind};
 use crate::runtime::proposal_telemetry::read_from_cas as read_proposal_telemetry;
 use crate::state::q_state::TxId;
 use crate::state::typed_tx::{TypedTx, VerifyVerdict};
@@ -225,6 +230,45 @@ pub fn compute_run_facts_from_chain(
         }
     }
 
+    // ── TB-7.5 fix #2 (Codex audit 492e86c action #2, BLOCKING): include
+    // L4.E rejected WorkTx in proposal_count + extend aggregation to
+    // ProposalTelemetry on rejected WorkTx where tx_payload_cid resolves.
+    //
+    // Field doc says proposal_count = accepted + rejected WorkTx; pre-fix
+    // implementation counted only accepted L4 WorkTx. Walk the L4.E
+    // RejectedSubmissionRecord entries; for tx_kind == Work records,
+    // increment proposal_count and (if tx_payload_cid decodes to a
+    // TypedTx::Work with non-zero proposal_cid that resolves to a CAS
+    // ProposalTelemetry object) include its tokens / tactic / tool dist.
+    for record in l4e_writer.records() {
+        if record.tx_kind != TxKind::Work {
+            continue;
+        }
+        proposal_count += 1;
+        // Try to resolve the rejected WorkTx's payload + telemetry. CAS
+        // failures here are non-fatal (the L4.E record still proves the
+        // proposal happened; missing telemetry just means we can't add
+        // its tokens / tactic to the aggregate).
+        let payload_bytes = match cas.get(&record.tx_payload_cid) {
+            Ok(b) => b,
+            Err(_) => continue,
+        };
+        let typed_tx: TypedTx = match canonical_decode(&payload_bytes) {
+            Ok(tx) => tx,
+            Err(_) => continue,
+        };
+        if let TypedTx::Work(work) = typed_tx {
+            if work.proposal_cid.0 != [0u8; 32] {
+                if let Ok(tel) = read_proposal_telemetry(&cas, &work.proposal_cid) {
+                    golden_path_token_count =
+                        golden_path_token_count.saturating_add(tel.token_counts.total());
+                    tactic_set.insert(tel.candidate_tactic.clone());
+                    *tool_dist.entry(tel.candidate_tactic.clone()).or_insert(0) += 1;
+                }
+            }
+        }
+    }
+
     // gp_payload / gp_path derivation: first VerifyTx::Confirm with a
     // matching accepted WorkTx; if none found yet (e.g. VerifyTx confirmed
     // a WorkTx not seen, or no Confirm at all), fall back to None.
@@ -356,6 +400,27 @@ mod tests {
         assert_eq!(facts.failed_branch_count, facts.tx_count); // all in L4.E
         assert!(!facts.solved);
         assert!(!facts.verified);
+        // TB-7.5 fix #2 (Codex audit 492e86c action #2 BLOCKING):
+        // proposal_count must INCLUDE L4.E WorkTx. Pre-fix this asserted 0.
+        assert!(
+            facts.proposal_count >= 1,
+            "proposal_count must include rejected L4.E WorkTx; got {}",
+            facts.proposal_count
+        );
+        // The L4.E telemetry resolution should also have populated
+        // tactic_diversity / tool_dist / golden_path_token_count.
+        assert!(
+            facts.tactic_diversity >= 1,
+            "tactic_diversity must include rejected WorkTx telemetry"
+        );
+        assert!(
+            !facts.tool_dist.is_empty(),
+            "tool_dist must include rejected WorkTx telemetry"
+        );
+        assert!(
+            facts.golden_path_token_count >= 1,
+            "golden_path_token_count must include rejected WorkTx token counts"
+        );
     }
 
     /// U-A5.c — VerifyTx with verdict=Confirm targeting a non-existent

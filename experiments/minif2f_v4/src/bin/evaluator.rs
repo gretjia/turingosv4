@@ -1292,74 +1292,92 @@ async fn run_swarm(
                                 // proposal byte-deterministically). The bus.append call
                                 // BELOW is shadow_only (kernel.tape view sync for the next
                                 // agent's prompt context — NOT canonical state).
+                                // TB-7.5 fix #1 (Codex audit 492e86c action #1, BLOCKING):
+                                // FAIL-CLOSED authoritative routing. Any failure of
+                                // q_snapshot / CAS open / proposal_telemetry write /
+                                // make_real_worktx_signed_by / submit_typed_tx exits
+                                // the evaluator with code 3 and an error message —
+                                // shadow_only kernel.tape sync MUST NOT be the only
+                                // state mutation after an authoritative-path failure
+                                // in ChainTape mode. Per TB-7 §4.0 + §6 #31.
                                 if let (Some(bundle), Some(reg)) =
                                     (chaintape_bundle.as_ref(), agent_keypairs.as_ref())
                                 {
-                                    if let Ok(q) = bundle.sequencer.q_snapshot() {
-                                        let parent_state_root = q.state_root_t;
-                                        let logical_t = bundle.sequencer.next_logical_t_peek();
-                                        let task_id_str = format!("task-{}", run_id);
-
-                                        let pt = turingosv4::runtime::proposal_telemetry::ProposalTelemetry::build_for_evaluator_append(
-                                            &run_id,
-                                            agent_id,
-                                            proposal_count as u64,
-                                            payload.as_bytes(),
-                                            "append",
-                                            turingosv4::runtime::proposal_telemetry::TokenCounts {
-                                                prompt_tokens: response.prompt_tokens as u64,
-                                                completion_tokens: response.completion_tokens as u64,
-                                                tool_tokens: 0,
-                                            },
-                                        );
-
-                                        match turingosv4::bottom_white::cas::store::CasStore::open(&bundle.cas_path) {
-                                            Ok(mut cas_store) => {
-                                                match turingosv4::runtime::proposal_telemetry::write_to_cas(
-                                                    &mut cas_store,
-                                                    &pt,
-                                                    "tb7-atom2-evaluator",
-                                                    logical_t,
-                                                ) {
-                                                    Ok(tel_cid) => {
-                                                        let mut reg_guard = match reg.lock() {
-                                                            Ok(g) => g,
-                                                            Err(p) => p.into_inner(),
-                                                        };
-                                                        let suffix = format!("p{}", proposal_count);
-                                                        match turingosv4::runtime::adapter::make_real_worktx_signed_by(
-                                                            &mut *reg_guard,
-                                                            &task_id_str,
-                                                            agent_id,
-                                                            parent_state_root,
-                                                            // stake = 0 → produces L4.E `StakeInsufficient`
-                                                            // (or upstream `TaskNotOpen`). Atom 6 chain-backed
-                                                            // real-LLM smoke pre-seeds task_markets + balances
-                                                            // so a fraction of proposals reach accepted L4
-                                                            // (Gate 3 ≥1 accepted requirement).
-                                                            0,
-                                                            &suffix,
-                                                            tel_cid,
-                                                            true,
-                                                            logical_t,
-                                                        ) {
-                                                            Ok(real_worktx) => {
-                                                                drop(reg_guard);
-                                                                if let Err(e) = bus.submit_typed_tx(real_worktx).await {
-                                                                    warn!("[chaintape/atom2] submit_typed_tx failed: {e}");
-                                                                }
-                                                            }
-                                                            Err(e) => {
-                                                                drop(reg_guard);
-                                                                warn!("[chaintape/atom2] make_real_worktx_signed_by failed: {e}");
-                                                            }
-                                                        }
-                                                    }
-                                                    Err(e) => warn!("[chaintape/atom2] proposal_telemetry write failed: {e}"),
-                                                }
-                                            }
-                                            Err(e) => warn!("[chaintape/atom2] cas open failed: {e}"),
+                                    let q = match bundle.sequencer.q_snapshot() {
+                                        Ok(q) => q,
+                                        Err(e) => {
+                                            error!("[chaintape/atom2] FAIL-CLOSED: q_snapshot failed under ChainTape mode: {e:?}");
+                                            std::process::exit(3);
                                         }
+                                    };
+                                    let parent_state_root = q.state_root_t;
+                                    let logical_t = bundle.sequencer.next_logical_t_peek();
+                                    let task_id_str = format!("task-{}", run_id);
+
+                                    let pt = turingosv4::runtime::proposal_telemetry::ProposalTelemetry::build_for_evaluator_append(
+                                        &run_id,
+                                        agent_id,
+                                        proposal_count as u64,
+                                        payload.as_bytes(),
+                                        "append",
+                                        turingosv4::runtime::proposal_telemetry::TokenCounts {
+                                            prompt_tokens: response.prompt_tokens as u64,
+                                            completion_tokens: response.completion_tokens as u64,
+                                            tool_tokens: 0,
+                                        },
+                                    );
+
+                                    let mut cas_store = match turingosv4::bottom_white::cas::store::CasStore::open(&bundle.cas_path) {
+                                        Ok(c) => c,
+                                        Err(e) => {
+                                            error!("[chaintape/atom2] FAIL-CLOSED: cas open failed under ChainTape mode: {e}");
+                                            std::process::exit(3);
+                                        }
+                                    };
+                                    let tel_cid = match turingosv4::runtime::proposal_telemetry::write_to_cas(
+                                        &mut cas_store,
+                                        &pt,
+                                        "tb7-atom2-evaluator",
+                                        logical_t,
+                                    ) {
+                                        Ok(c) => c,
+                                        Err(e) => {
+                                            error!("[chaintape/atom2] FAIL-CLOSED: proposal_telemetry CAS write failed: {e}");
+                                            std::process::exit(3);
+                                        }
+                                    };
+                                    let real_worktx = {
+                                        let mut reg_guard = match reg.lock() {
+                                            Ok(g) => g,
+                                            Err(p) => p.into_inner(),
+                                        };
+                                        let suffix = format!("p{}", proposal_count);
+                                        match turingosv4::runtime::adapter::make_real_worktx_signed_by(
+                                            &mut *reg_guard,
+                                            &task_id_str,
+                                            agent_id,
+                                            parent_state_root,
+                                            // stake = 0 → produces L4.E `StakeInsufficient`
+                                            // (or upstream `TaskNotOpen`). Atom 6 chain-backed
+                                            // real-LLM smoke pre-seeds task_markets + balances
+                                            // so a fraction of proposals reach accepted L4
+                                            // (Gate 3 ≥1 accepted requirement).
+                                            0,
+                                            &suffix,
+                                            tel_cid,
+                                            true,
+                                            logical_t,
+                                        ) {
+                                            Ok(tx) => tx,
+                                            Err(e) => {
+                                                error!("[chaintape/atom2] FAIL-CLOSED: make_real_worktx_signed_by failed: {e}");
+                                                std::process::exit(3);
+                                            }
+                                        }
+                                    };
+                                    if let Err(e) = bus.submit_typed_tx(real_worktx).await {
+                                        error!("[chaintape/atom2] FAIL-CLOSED: submit_typed_tx failed: {e:?}");
+                                        std::process::exit(3);
                                     }
                                 }
 
@@ -1518,82 +1536,110 @@ async fn run_swarm(
                                         // Per ARCHITECT_RULING D3 + charter §4.3: ChallengeWindow
                                         // stays OPEN; NO FinalizeRewardTx, NO SlashTx, NO
                                         // settlement (RSP-4 / TB-9 territory).
+                                        // TB-7.5 fix #1 (Codex audit 492e86c action #1, BLOCKING):
+                                        // FAIL-CLOSED authoritative routing for OMEGA full-proof
+                                        // branch. Any failure exits the evaluator with code 3.
                                         if let (Some(bundle), Some(reg)) =
                                             (chaintape_bundle.as_ref(), agent_keypairs.as_ref())
                                         {
-                                            if let Ok(q) = bundle.sequencer.q_snapshot() {
-                                                let parent_state_root = q.state_root_t;
-                                                let logical_t = bundle.sequencer.next_logical_t_peek();
-                                                let task_id_str = format!("task-{}", run_id);
-                                                let pt = turingosv4::runtime::proposal_telemetry::ProposalTelemetry::build_for_evaluator_append(
-                                                    &run_id,
-                                                    agent_id,
-                                                    proposal_count as u64,
-                                                    payload.as_bytes(),
-                                                    "complete",
-                                                    turingosv4::runtime::proposal_telemetry::TokenCounts {
-                                                        prompt_tokens: response.prompt_tokens as u64,
-                                                        completion_tokens: response.completion_tokens as u64,
-                                                        tool_tokens: 0,
-                                                    },
-                                                );
-                                                if let Ok(mut cas_store) = turingosv4::bottom_white::cas::store::CasStore::open(&bundle.cas_path) {
-                                                    if let Ok(tel_cid) = turingosv4::runtime::proposal_telemetry::write_to_cas(
-                                                        &mut cas_store,
-                                                        &pt,
-                                                        "tb7-atom3-omega-full",
-                                                        logical_t,
-                                                    ) {
-                                                        let mut reg_guard = match reg.lock() {
-                                                            Ok(g) => g,
-                                                            Err(p) => p.into_inner(),
-                                                        };
-                                                        let suffix = format!("omega-full-{}", proposal_count);
-                                                        let work_result = turingosv4::runtime::adapter::make_real_worktx_signed_by(
-                                                            &mut *reg_guard,
-                                                            &task_id_str,
-                                                            agent_id,
-                                                            parent_state_root,
-                                                            // OMEGA-accept: stake is ChallengeWindow-OPEN
-                                                            // territory. Stake = 0 here keeps Atom 3 in the
-                                                            // "L4.E baseline + ChallengeWindow OPEN" narrow
-                                                            // scope per ruling D3 (no settlement). Atom 6
-                                                            // smoke pre-seeds for accepted L4.
-                                                            0,
-                                                            &suffix,
-                                                            tel_cid,
-                                                            true,
-                                                            logical_t,
-                                                        );
-                                                        let work_tx_id = match &work_result {
-                                                            Ok(turingosv4::state::typed_tx::TypedTx::Work(w)) => Some(w.tx_id.clone()),
-                                                            _ => None,
-                                                        };
-                                                        let verify_result = if let Some(ref work_tx_id) = work_tx_id {
-                                                            turingosv4::runtime::adapter::make_real_verifytx_signed_by(
-                                                                &mut *reg_guard,
-                                                                parent_state_root,
-                                                                work_tx_id.clone(),
-                                                                agent_id,
-                                                                0,
-                                                                &suffix,
-                                                                true,
-                                                                logical_t,
-                                                            ).ok()
-                                                        } else { None };
-                                                        drop(reg_guard);
-                                                        if let Ok(work_tx) = work_result {
-                                                            if let Err(e) = bus.submit_typed_tx(work_tx).await {
-                                                                warn!("[chaintape/atom3-omega] WorkTx submit failed: {e}");
-                                                            }
-                                                        }
-                                                        if let Some(verify_tx) = verify_result {
-                                                            if let Err(e) = bus.submit_typed_tx(verify_tx).await {
-                                                                warn!("[chaintape/atom3-omega] VerifyTx submit failed: {e}");
-                                                            }
-                                                        }
-                                                    }
+                                            let q = match bundle.sequencer.q_snapshot() {
+                                                Ok(q) => q,
+                                                Err(e) => {
+                                                    error!("[chaintape/atom3-omega] FAIL-CLOSED: q_snapshot: {e:?}");
+                                                    std::process::exit(3);
                                                 }
+                                            };
+                                            let parent_state_root = q.state_root_t;
+                                            let logical_t = bundle.sequencer.next_logical_t_peek();
+                                            let task_id_str = format!("task-{}", run_id);
+                                            let pt = turingosv4::runtime::proposal_telemetry::ProposalTelemetry::build_for_evaluator_append(
+                                                &run_id,
+                                                agent_id,
+                                                proposal_count as u64,
+                                                payload.as_bytes(),
+                                                "complete",
+                                                turingosv4::runtime::proposal_telemetry::TokenCounts {
+                                                    prompt_tokens: response.prompt_tokens as u64,
+                                                    completion_tokens: response.completion_tokens as u64,
+                                                    tool_tokens: 0,
+                                                },
+                                            );
+                                            let mut cas_store = match turingosv4::bottom_white::cas::store::CasStore::open(&bundle.cas_path) {
+                                                Ok(c) => c,
+                                                Err(e) => {
+                                                    error!("[chaintape/atom3-omega] FAIL-CLOSED: cas open: {e}");
+                                                    std::process::exit(3);
+                                                }
+                                            };
+                                            let tel_cid = match turingosv4::runtime::proposal_telemetry::write_to_cas(
+                                                &mut cas_store,
+                                                &pt,
+                                                "tb7-atom3-omega-full",
+                                                logical_t,
+                                            ) {
+                                                Ok(c) => c,
+                                                Err(e) => {
+                                                    error!("[chaintape/atom3-omega] FAIL-CLOSED: telemetry CAS write: {e}");
+                                                    std::process::exit(3);
+                                                }
+                                            };
+                                            let suffix = format!("omega-full-{}", proposal_count);
+                                            let (work_tx, verify_tx) = {
+                                                let mut reg_guard = match reg.lock() {
+                                                    Ok(g) => g,
+                                                    Err(p) => p.into_inner(),
+                                                };
+                                                let w = match turingosv4::runtime::adapter::make_real_worktx_signed_by(
+                                                    &mut *reg_guard,
+                                                    &task_id_str,
+                                                    agent_id,
+                                                    parent_state_root,
+                                                    // OMEGA-accept: stake = 0 → L4.E baseline; full
+                                                    // economic settlement is RSP-4 / TB-9.
+                                                    0,
+                                                    &suffix,
+                                                    tel_cid,
+                                                    true,
+                                                    logical_t,
+                                                ) {
+                                                    Ok(tx) => tx,
+                                                    Err(e) => {
+                                                        error!("[chaintape/atom3-omega] FAIL-CLOSED: make_real_worktx: {e}");
+                                                        std::process::exit(3);
+                                                    }
+                                                };
+                                                let work_tx_id = match &w {
+                                                    turingosv4::state::typed_tx::TypedTx::Work(w) => w.tx_id.clone(),
+                                                    _ => {
+                                                        error!("[chaintape/atom3-omega] FAIL-CLOSED: make_real_worktx returned non-Work variant");
+                                                        std::process::exit(3);
+                                                    }
+                                                };
+                                                let v = match turingosv4::runtime::adapter::make_real_verifytx_signed_by(
+                                                    &mut *reg_guard,
+                                                    parent_state_root,
+                                                    work_tx_id,
+                                                    agent_id,
+                                                    0,
+                                                    &suffix,
+                                                    true,
+                                                    logical_t,
+                                                ) {
+                                                    Ok(tx) => tx,
+                                                    Err(e) => {
+                                                        error!("[chaintape/atom3-omega] FAIL-CLOSED: make_real_verifytx: {e}");
+                                                        std::process::exit(3);
+                                                    }
+                                                };
+                                                (w, v)
+                                            };
+                                            if let Err(e) = bus.submit_typed_tx(work_tx).await {
+                                                error!("[chaintape/atom3-omega] FAIL-CLOSED: WorkTx submit_typed_tx: {e:?}");
+                                                std::process::exit(3);
+                                            }
+                                            if let Err(e) = bus.submit_typed_tx(verify_tx).await {
+                                                error!("[chaintape/atom3-omega] FAIL-CLOSED: VerifyTx submit_typed_tx: {e:?}");
+                                                std::process::exit(3);
                                             }
                                         }
 
@@ -1870,77 +1916,108 @@ async fn run_swarm(
                                         // differences are gp_path label = "per_tactic" and the
                                         // proposal payload bytes are `tactic` (the closing step)
                                         // rather than `payload` (the full proof).
+                                        // TB-7.5 fix #1 (Codex audit 492e86c action #1, BLOCKING):
+                                        // FAIL-CLOSED authoritative routing for OMEGA per-tactic
+                                        // branch.
                                         if let (Some(bundle), Some(reg)) =
                                             (chaintape_bundle.as_ref(), agent_keypairs.as_ref())
                                         {
-                                            if let Ok(q) = bundle.sequencer.q_snapshot() {
-                                                let parent_state_root = q.state_root_t;
-                                                let logical_t = bundle.sequencer.next_logical_t_peek();
-                                                let task_id_str = format!("task-{}", run_id);
-                                                let pt = turingosv4::runtime::proposal_telemetry::ProposalTelemetry::build_for_evaluator_append(
-                                                    &run_id,
-                                                    agent_id,
-                                                    proposal_count as u64,
-                                                    tactic.as_bytes(),
-                                                    "step_complete",
-                                                    turingosv4::runtime::proposal_telemetry::TokenCounts {
-                                                        prompt_tokens: response.prompt_tokens as u64,
-                                                        completion_tokens: response.completion_tokens as u64,
-                                                        tool_tokens: 0,
-                                                    },
-                                                );
-                                                if let Ok(mut cas_store) = turingosv4::bottom_white::cas::store::CasStore::open(&bundle.cas_path) {
-                                                    if let Ok(tel_cid) = turingosv4::runtime::proposal_telemetry::write_to_cas(
-                                                        &mut cas_store,
-                                                        &pt,
-                                                        "tb7-atom3-omega-pertactic",
-                                                        logical_t,
-                                                    ) {
-                                                        let mut reg_guard = match reg.lock() {
-                                                            Ok(g) => g,
-                                                            Err(p) => p.into_inner(),
-                                                        };
-                                                        let suffix = format!("omega-pertactic-{}", proposal_count);
-                                                        let work_result = turingosv4::runtime::adapter::make_real_worktx_signed_by(
-                                                            &mut *reg_guard,
-                                                            &task_id_str,
-                                                            agent_id,
-                                                            parent_state_root,
-                                                            0,
-                                                            &suffix,
-                                                            tel_cid,
-                                                            true,
-                                                            logical_t,
-                                                        );
-                                                        let work_tx_id = match &work_result {
-                                                            Ok(turingosv4::state::typed_tx::TypedTx::Work(w)) => Some(w.tx_id.clone()),
-                                                            _ => None,
-                                                        };
-                                                        let verify_result = if let Some(ref work_tx_id) = work_tx_id {
-                                                            turingosv4::runtime::adapter::make_real_verifytx_signed_by(
-                                                                &mut *reg_guard,
-                                                                parent_state_root,
-                                                                work_tx_id.clone(),
-                                                                agent_id,
-                                                                0,
-                                                                &suffix,
-                                                                true,
-                                                                logical_t,
-                                                            ).ok()
-                                                        } else { None };
-                                                        drop(reg_guard);
-                                                        if let Ok(work_tx) = work_result {
-                                                            if let Err(e) = bus.submit_typed_tx(work_tx).await {
-                                                                warn!("[chaintape/atom3-omega-pertactic] WorkTx submit failed: {e}");
-                                                            }
-                                                        }
-                                                        if let Some(verify_tx) = verify_result {
-                                                            if let Err(e) = bus.submit_typed_tx(verify_tx).await {
-                                                                warn!("[chaintape/atom3-omega-pertactic] VerifyTx submit failed: {e}");
-                                                            }
-                                                        }
-                                                    }
+                                            let q = match bundle.sequencer.q_snapshot() {
+                                                Ok(q) => q,
+                                                Err(e) => {
+                                                    error!("[chaintape/atom3-omega-pertactic] FAIL-CLOSED: q_snapshot: {e:?}");
+                                                    std::process::exit(3);
                                                 }
+                                            };
+                                            let parent_state_root = q.state_root_t;
+                                            let logical_t = bundle.sequencer.next_logical_t_peek();
+                                            let task_id_str = format!("task-{}", run_id);
+                                            let pt = turingosv4::runtime::proposal_telemetry::ProposalTelemetry::build_for_evaluator_append(
+                                                &run_id,
+                                                agent_id,
+                                                proposal_count as u64,
+                                                tactic.as_bytes(),
+                                                "step_complete",
+                                                turingosv4::runtime::proposal_telemetry::TokenCounts {
+                                                    prompt_tokens: response.prompt_tokens as u64,
+                                                    completion_tokens: response.completion_tokens as u64,
+                                                    tool_tokens: 0,
+                                                },
+                                            );
+                                            let mut cas_store = match turingosv4::bottom_white::cas::store::CasStore::open(&bundle.cas_path) {
+                                                Ok(c) => c,
+                                                Err(e) => {
+                                                    error!("[chaintape/atom3-omega-pertactic] FAIL-CLOSED: cas open: {e}");
+                                                    std::process::exit(3);
+                                                }
+                                            };
+                                            let tel_cid = match turingosv4::runtime::proposal_telemetry::write_to_cas(
+                                                &mut cas_store,
+                                                &pt,
+                                                "tb7-atom3-omega-pertactic",
+                                                logical_t,
+                                            ) {
+                                                Ok(c) => c,
+                                                Err(e) => {
+                                                    error!("[chaintape/atom3-omega-pertactic] FAIL-CLOSED: telemetry CAS write: {e}");
+                                                    std::process::exit(3);
+                                                }
+                                            };
+                                            let suffix = format!("omega-pertactic-{}", proposal_count);
+                                            let (work_tx, verify_tx) = {
+                                                let mut reg_guard = match reg.lock() {
+                                                    Ok(g) => g,
+                                                    Err(p) => p.into_inner(),
+                                                };
+                                                let w = match turingosv4::runtime::adapter::make_real_worktx_signed_by(
+                                                    &mut *reg_guard,
+                                                    &task_id_str,
+                                                    agent_id,
+                                                    parent_state_root,
+                                                    0,
+                                                    &suffix,
+                                                    tel_cid,
+                                                    true,
+                                                    logical_t,
+                                                ) {
+                                                    Ok(tx) => tx,
+                                                    Err(e) => {
+                                                        error!("[chaintape/atom3-omega-pertactic] FAIL-CLOSED: make_real_worktx: {e}");
+                                                        std::process::exit(3);
+                                                    }
+                                                };
+                                                let work_tx_id = match &w {
+                                                    turingosv4::state::typed_tx::TypedTx::Work(w) => w.tx_id.clone(),
+                                                    _ => {
+                                                        error!("[chaintape/atom3-omega-pertactic] FAIL-CLOSED: make_real_worktx returned non-Work variant");
+                                                        std::process::exit(3);
+                                                    }
+                                                };
+                                                let v = match turingosv4::runtime::adapter::make_real_verifytx_signed_by(
+                                                    &mut *reg_guard,
+                                                    parent_state_root,
+                                                    work_tx_id,
+                                                    agent_id,
+                                                    0,
+                                                    &suffix,
+                                                    true,
+                                                    logical_t,
+                                                ) {
+                                                    Ok(tx) => tx,
+                                                    Err(e) => {
+                                                        error!("[chaintape/atom3-omega-pertactic] FAIL-CLOSED: make_real_verifytx: {e}");
+                                                        std::process::exit(3);
+                                                    }
+                                                };
+                                                (w, v)
+                                            };
+                                            if let Err(e) = bus.submit_typed_tx(work_tx).await {
+                                                error!("[chaintape/atom3-omega-pertactic] FAIL-CLOSED: WorkTx submit_typed_tx: {e:?}");
+                                                std::process::exit(3);
+                                            }
+                                            if let Err(e) = bus.submit_typed_tx(verify_tx).await {
+                                                error!("[chaintape/atom3-omega-pertactic] FAIL-CLOSED: VerifyTx submit_typed_tx: {e:?}");
+                                                std::process::exit(3);
                                             }
                                         }
 

@@ -1,9 +1,17 @@
 # Recursive self-audit — TB-7 (Per-LLM-Proposal WorkTx Routing / Frame B)
 
 **Date**: 2026-05-01
-**Diff range**: `05c5be7..` (TB-7 Atom 0 ratification → current)
-**Atoms shipped**: 0 / 0.5 / 1 / 1.5 / 1.7 / 2 / 3 / 4 / 5 / 6
-**Workspace test count**: 683 PASSED / 0 FAILED / 150 IGNORED
+**Diff range**: `05c5be7..9e74195` (Atom 7 ship). The actual diff range
+contains **11 commits** (`git log --format=%H 05c5be7..9e74195` enumeration:
+`9e74195 / 2559c84 / 4cfe7cb / d03814f / 3572141 / 2bc879c / 0414b30 / eed4837
+/ c3ad31e / 48c02e2 / cc7b3dd`). The original prompt said 9 commits — that
+was a mental count of charter atoms (0/0.5/1/1.5/1.7/2/3/4/5/6/7 = 11 atoms,
+some collapsed in commits). Codex audit 492e86c §2 action #5 flagged the
+9-vs-11 mismatch; this metadata correction is the carry-forward fix.
+**Atoms shipped**: 0 / 0.5 / 1 / 1.5 / 1.7 / 2 / 3 / 4 / 5 / 6 / 7
+**Workspace test count**: 686 PASSED / 0 FAILED / 150 IGNORED at Atom 7 ship; 686
+preserved through TB-7.5 audit-driven fixes (action #1 fail-closed
+authoritative path + action #2 proposal_count includes L4.E)
 **Audit class**: Class 2 (production wire-up)
 **Mode**: recursive self-audit; Codex impl audit launches as Atom 7 follow-up after this doc commits.
 
@@ -15,8 +23,12 @@
 end-to-end pipeline. Real-LLM smoke (mathd_algebra_107 with live DeepSeek +
 Lean) is a documented manual carry-forward.
 
-5 of 7 Codex audit (cc7b3dd) action items CLOSED at ship; 2 are partial /
-manual carry-forward.
+**3 of 7** Codex audit (cc7b3dd) action items FULLY CLOSED at ship (#1 #2 #3);
+**4 of 7** are PARTIAL and roll to a follow-up TB per §13.4 anti-pile-up rule
+(#4 #5 #6 #7). TB-6 audit-pending status REMAINS OPEN. (Corrected by TB-7.5
+audit fix per Codex audit 492e86c action #3 — earlier "5/7 closed" was a
+top-line miscount that contradicted the detailed §3 mapping; §3 was always
+correct.)
 
 ```
 Frame A (TB-6):                     GREEN (already closed at TB-6 ship)

@@ -26,8 +26,10 @@
 //! state_root); CAS + index is the right substrate.
 //!
 //! Public surface:
-//! - `pub struct AgentProposalRecord` — the 9-field record (10 with logical_t
-//!   for chronological ordering).
+//! - `pub struct AgentProposalRecord` — the 9-field architect-spec record.
+//!   (Pre-TB-7 had an extra `logical_t` field; TB-7 Atom 1.7 removed it per
+//!   architect spec restoration. Chronology now lives at the JSONL row level
+//!   via `AgentAuditTrailIndexRow.logical_t`.)
 //! - `pub enum AcceptedOrRejected` — accept/reject discriminator.
 //! - `pub fn write_to_cas(...)` — canonical-encode + CAS put.
 //! - `pub fn read_from_cas(...)` — fetch + canonical-decode.
