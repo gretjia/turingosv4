@@ -4,6 +4,8 @@
 
 **Amended 2026-04-29 (post-audit)**: external auditor's CF-1, CF-2, CF-6 + dependency-graph clarification incorporated per `handover/audits/2026-04-29_external_audit.md` and user authorization on 2026-04-29 ("授权 6 个 items 全部执行"). Specific amendments: P0 split into P0 + P0.R (RootBox Ratification Ceremony); P1 Build adds `rejection_evidence.rs`; P1 Exit 6+9 wording updated to L4-accepted-only / L4.E-rejection-evidence split; P3 Forbidden adds per-node-auto-injection / ghost-liquidity-without-treasury-debit; § 12 dependency graph added.
 
+**Amended 2026-05-01 (post-TB-5 chaintape gap)**: per architect ruling 2026-05-01 (`handover/directives/2026-05-01_TB6_ARCHITECT_RULING.md`), **TB-6 = P2 Agent Runtime / Production ChainTape Wire-up takes priority over RSP-3.2 Slash**. Closing the 5-TB ChainTape production debt (TB-1..TB-5 each shipped kernel functionality fully tested in `cargo test --workspace` but NEVER exercised by an LLM-driven binary) is now sequenced before further P3 economic surface. RSP-3.2 Slash is deferred to TB-9. RSP-M NodeMarket / Polymarket track (NodePosition / NodeMarketEntry / PriceIndex / CompleteSet / MarketOrder) is RESERVED-FUTURE inserted between TB-6 and TB-12 (see § 13). Constitution.md is NOT amended (D7 — this is a roadmap / testing-platform gap, not a constitutional gap; constitution already mandates Anti-Oreo + Information-is-Free + 1-Coin-=-1-YES-+-1-NO + on_init-sole-mint). Smoke evidence naming: pre-TB-6 `handover/evidence/tb_{1..5}_smoke_*` retain content but are corrected to **smoke evidence**; "tape" / "ChainTape smoke" reserved for evidence with on-disk ledger chain produced by production binary (D5). `cargo test --workspace` is canonical for ship-gate test count; bare `cargo test` is forbidden in TB-6+ ship reporting (D4). Audit mode is hybrid by risk class: production wire-up = Codex impl + Gemini arch with explicit `degraded` label if Gemini exhausted (D3).
+
 **Status**: canonical. Every TB charter (current + future) MUST declare `phase_id ∈ {P0..P9}` + `kill_criteria_tested` + `roadmap_exit_criteria_addressed`. Sessions inheriting work read this doc + `MEMORY.md` first.
 
 **Supersedes (as the operational ordering)**: PPUT-CCL Phase A–E roadmap as the *primary* sequencing axis. PPUT-CCL persists as the **P6 Epistemic Lab** product line (one of four; see § 5).
@@ -524,6 +526,85 @@ Critical reading of this graph:
 - **P6 Epistemic Lab is permitted out-of-order** as anchor evidence (the MiniF2F / PPUT-CCL work). Per `feedback_tb_phase_tag_required`, every P6 TB MUST stamp `phase_id: P6` and explicitly disclaim that it does not advance P1/P3 kill criteria.
 
 When TB selection conflicts, the rule is: **lowest-numbered phase with a RED kill criterion wins, regardless of narrative position.** P6 anchor evidence never wins this tie-break.
+
+## 11.5 TB-6 → TB-12 sequence amendment (2026-05-01; post-chaintape-gap)
+
+Per architect ruling 2026-05-01 § 4.5, the operative TB sequence post-TB-5-ship is:
+
+```text
+TB-6   P2 Agent Runtime: Production ChainTape Wire-up           (active 2026-05-01)
+TB-7   P2 Agent proposal/fork audit trail
+       OR RSP-M0/M1 NodePosition derived index                  (selection at TB-6 ship)
+TB-8   RSP-M2 NodeMarketEntry + PriceIndex v0
+       (statistical signal, no trading; price ≠ truth)
+TB-9   RSP-3.2 Slash execution (SlashTx system-emitted;
+       only after real on-disk ChainTape replay exists)
+TB-10  RSP-M3 CompleteSet accounting
+       (1 Coin locked = 1 YES + 1 NO; per Polymarket math)
+TB-11  RSP-4 SettlementEngine / ContributionDAG
+TB-12  RSP-M4 MarketOrder / trading layer
+```
+
+### 11.5.1 RSP-M NodeMarket / Polymarket track (RESERVED-FUTURE; post-TB-6)
+
+The architect ruling defines a `WorkTx.stake = first-long exposure` / `ChallengeTx.stake = short / NO exposure` / `VerifyTx.bond = responsibility bond` interpretation as the FUTURE shape of TuringOS NodeMarket. **Currently these are kernel admission gates only — they are NOT market positions in the codebase.** RSP-M activation requires real on-disk ChainTape (TB-6) before NodePosition / NodeMarketEntry can be replay-deterministic and audit-grade.
+
+RSP-M0 decision record (when activated): `handover/alignment/DECISION_NODE_MARKET_FIRST_LONG_2026-05-XX.md`. Contents per ruling § 4.4:
+
+```text
+1. WorkTx.stake is FirstLong exposure (semantic interpretation, not market mechanic until RSP-M1)
+2. ChallengeTx.stake is Short / NO exposure (semantic, not market)
+3. VerifyTx.bond is responsibility bond, NOT market position
+4. Price is statistical signal, NOT truth
+5. Node outcome resolved by predicates + ChallengeCourt + system-emitted resolution
+6. NO automatic liquidity injection
+7. NO ghost liquidity
+8. Positions are exposure indexes, NOT Coin holdings
+   (NodePosition.amount does NOT count toward total_supply_micro)
+```
+
+### 11.5.2 TB-6 forbidden (mirrors TB-6 charter § 6)
+
+During TB-6, the following are explicitly forbidden:
+
+- **No `SlashTx`** (RSP-3.2 / TB-9 territory)
+- **No NodeMarket** (any flavor)
+- **No NodePosition / NodeMarketEntry / PriceIndex / CompleteSet / MarketOrder / MarketResolveTx**
+- **No AMM / liquidity injection** (any flavor)
+- **No P6 capability metric expansion**
+- **No MetaTape**
+- **No public-chain anchoring** (P7)
+- **No new TypedTx variant** in TB-6
+- **No new TransitionError variant** in TB-6
+- **No new state-root domain** in TB-6
+- **No `monetary_invariant.rs` cascade** (5-holding count + total_supply_micro UNCHANGED)
+- **No agent chain-of-thought broadcast or persistence** (Atom 5 audit trail records what Agent SAW + SUBMITTED, not chain-of-thought)
+- **No calling pre-TB-6 stdout-only paper trail "smoke tape" / "chaintape" / "tape"**
+- **No bare `cargo test` count in TB-6 ship reporting** (D4)
+
+### 11.5.3 Smoke evidence vs ChainTape smoke (D5 binding)
+
+```text
+pre-TB-6  →  smoke evidence
+            (paper trail; stdout dump + proof.lean + README; no ledger chain)
+post-TB-6 →  ChainTape smoke / smoke tape
+            (chain-backed; production binary drives Sequencer::apply_one;
+             on-disk LedgerEntry chain with parent_ledger_root + system_signature
+             + tx_payload_cid; replay-verifiable; tampering detectable)
+```
+
+`handover/evidence/tb_{1..5}_smoke_*` content unchanged; references in living docs (LATEST.md / NOTEPAD / TB_LOG) corrected to **smoke evidence**. Audit / directive docs preserve historical "smoke tape" as quoted concept being criticized.
+
+### 11.5.4 Cross-references for amendment
+
+- **Architect ruling**: `handover/directives/2026-05-01_TB6_ARCHITECT_RULING.md`
+- **Architect prompt** (the prompt the ruling responds to): `handover/directives/2026-05-01_TB6_ARCHITECT_FULL_PROMPT.md`
+- **Architect review request** (the post-TB-5 5-decision request): `handover/directives/2026-05-01_TB6_ARCHITECT_REVIEW_REQUEST.md`
+- **TB-5 self-audit (gap discovery)**: `handover/audits/SELF_AUDIT_TB_5_SMOKE_TAPE_2026-05-01.md`
+- **TB-5 → TB-1 stage audit**: `handover/audits/STAGE_AUDIT_TB_1_TO_TB_5_2026-05-01.md`
+- **TB-6 charter**: `handover/tracer_bullets/TB-6_charter_2026-05-01.md`
+
+---
 
 ## 12. Cross-references
 
