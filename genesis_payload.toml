@@ -231,6 +231,8 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 "src/runtime/run_summary.rs" = "fce850fef9c9f72bdfd7a13f371f44088c98e4e7e6c99d447d8badc4fb8b1435"
 # 2026-05-01 TB-6 Atom 6 — `gen_run_summary` CLI thin wrapper (NEW file).
 "src/bin/gen_run_summary.rs" = "595677e44d31556383c901a692dae4c305bbffdd0a5cf4667a4679e07ec065b0"
+# 2026-05-01 TB-8 — `audit_dashboard` CLI (NEW file). Diagnostic dashboard over runtime_repo + cas; composes verify_chaintape + chain_derived_run_facts + agent_keypairs + agent_audit_trail libraries; outputs 7-section text or --json structured report. Per TB-7 charter §13.1 (post-TB-7 sequencing TB-8).
+"src/bin/audit_dashboard.rs" = "38dd0ef731602a733d30c03e3c517b9ffe8ff91eb827d8a26ae28d1e7c00851c"
 # 2026-05-01 TB-6 Atom 6 — RunSummary integration tests (I92 / I92b / I92c) (NEW file).
 "tests/tb_6_run_summary.rs" = "6efb4baa36d08dc55c1140ea3279a0088a2f14f58cc71e9283a876ffa2da68d8"
 # 2026-05-01 TB-7 Atom 2 — authoritative routing integration tests (NEW file). I100 (real-signature WorkTx verifies via manifest) + I101 (zero-stake WorkTx → L4.E) + I102 (distinct agents → distinct pubkeys). Gate 1 + Gate 4 wired evidence.
