@@ -1,349 +1,481 @@
-# TB-6 Atom 1 Preflight v1 — Production ChainTape Bootstrap
+# TB-6 Atom 1 Preflight v2 — Production ChainTape Bootstrap (with persistent L4.E)
 
 **Date**: 2026-05-01
-**Status**: DRAFT v1 (pre-audit). Authored on `main` @ `7970d2d` (TB-6 Atom 0 shipped).
+**Status**: DRAFT v2 (post Codex round-1 audit `CHALLENGE-6`). Authored on `main` @ `ca8d644` (preflight v1 commit). v1 is preserved in git history.
 **Atom**: TB-6 Atom 1 — Production runtime repo bootstrap.
 **Binding authority**:
 - TB-6 charter § 5 + § 7 + § 12 (`handover/tracer_bullets/TB-6_charter_2026-05-01.md`)
-- Architect ruling 2026-05-01 § 3.6 Atom 1 (`handover/directives/2026-05-01_TB6_ARCHITECT_RULING.md`)
-- STEP_B_PROTOCOL.md (necessity audit per Phase 0)
+- Architect ruling 2026-05-01 § 3.5 + § 3.6 Atom 1 (`handover/directives/2026-05-01_TB6_ARCHITECT_RULING.md`)
+- Codex round-1 audit `CHALLENGE-6` (returned 2026-05-01; verdict at task `a2c57d750d22f0eb4`)
+- STEP_B_PROTOCOL.md (necessity audit framing for Phase 0)
 
-This preflight is the Phase 0 input for an external Codex impl audit (D3 production-wire-up class). It does NOT yet authorize Phase 1 implementation; Phase 1 enters only after audit verdict.
-
----
-
-## §0 Headline (one paragraph)
-
-Atom 1 introduces a `RuntimeChaintapeConfig` + a reusable `runtime_chaintape::build_chaintape_sequencer(...)` factory, then routes the experiment evaluator binary `experiments/minif2f_v4/src/bin/evaluator.rs` through `TuringBus::with_sequencer(...)` (an existing opt-in constructor) instead of `TuringBus::new(...)`. The factory constructs a real `Git2LedgerWriter` rooted at a configurable runtime repo path + the existing `RejectionEvidenceWriter` + a fresh `Sequencer` with the same keypair / pinned_pubkeys / predicate_registry / tool_registry / initial_q shape that `cargo test --workspace` already exercises. Activation is env-flag-gated (`TURINGOS_CHAINTAPE_PATH=/path/to/runtime_repo`); legacy mode (sequencer=None, no on-disk chain) remains the default. **No `src/bus.rs`, `src/state/sequencer.rs`, or `src/kernel.rs` internals are touched** — Atom 1 only USES already-existing public surface. STEP_B parallel-branch A/B is therefore NOT triggered for Atom 1; the architect-ruling D3 production-wire-up audit IS still required.
+This v2 incorporates all 6 Codex CHALLENGE findings + an architect-aligned scope decision: Atom 1 expands to include **persistent L4.E writer** (because architect § 3.5 explicitly requires `refs/rejections/main 或等价结构` on-disk; Codex F1 surfaced that `RejectionEvidenceWriter` is currently in-memory only). atom count stays at 8 per architect § 3.6.
 
 ---
 
-## §1 Necessity (STEP_B Phase 0 question 1)
+## §0 v1 → v2 delta banner
+
+| # | Change | Driver |
+|---|---|---|
+| Δ1 | **Atom 1 includes persistent L4.E writer** (JSONL append-only with chain hashes; "等价结构" per architect § 3.5). `RejectionEvidenceWriter` gains an optional persistence backend; no `Sequencer` field-type change → no STEP_B-restricted-file touch. | Codex F1 + architect § 3.5 |
+| Δ2 | `ChaintapeBundle` includes `driver_handle: JoinHandle` + `shutdown_tx` + explicit drain/shutdown contract | Codex Q7 + F2 |
+| Δ3 | Atom 1 fail-closed on non-empty runtime_repo (counter reconstruction deferred to a future TB) | Codex F3 |
+| Δ4 | Drop §8.3 (`QState::genesis()` already exists at `src/state/q_state.rs:447-448` and equals `QState::default()`) | Codex F4 |
+| Δ5 | WAL_DIR + TURINGOS_CHAINTAPE_PATH coexistence rule + regression test (orthogonal layers; both can be on; chain_tape is on Sequencer, WAL is on TuringBus event log) | Codex F5 + Q5b |
+| Δ6 | Persist pinned pubkey alongside chain in evidence dir (`runtime_repo/pinned_pubkeys.json`) so `verify_chaintape` can re-verify signatures without separate config | Codex Q5b |
+| Δ7 | Test plan rebuilt — drop T6 (oneshot doesn't exercise bus per Codex Q6); add chaintape-on construction + drain/shutdown + reopen-fail-closed + L4.E JSONL chain-integrity + WAL coexistence | Codex Q6 |
+| Δ8 | atom 1 sub-plan: 4 commits (no atom-count change) | architect § 3.6 |
+
+---
+
+## §1 Necessity (preserved from v1; 2 line refs added)
 
 ### §1.1 Observable behavior currently broken
 
-After TB-5 ship at `cargo test --workspace 617/617`:
+After TB-5 ship (`cargo test --workspace 617/617`):
 
-- `experiments/minif2f_v4/src/bin/evaluator.rs:16-26` imports `TuringBus`, `Kernel`, `BusConfig` etc. but does NOT import `turingosv4::state::sequencer::*` or `turingosv4::bottom_white::ledger::transition_ledger::*`. The evaluator builds the bus via `TuringBus::new` (`src/bus.rs:97`); `sequencer: Option<Arc<Sequencer>>` (`src/bus.rs:73`) is therefore `None`.
-- `src/main.rs` (the v4 root binary) is 19 lines that only run `boot::verify_trust_root`. It never constructs a TuringBus, Sequencer, or any ledger writer — production-mode boot just verifies the trust root and exits.
-- The chain-backed types — `transition_ledger::LedgerEntry` with `parent_ledger_root + system_signature + tx_payload_cid`; `Git2LedgerWriter` (`src/bottom_white/ledger/transition_ledger.rs:642`); `Sequencer::apply_one` stage 1.5 / stage 6 / stage 7 / stage 9 signing+folding+commit; replay tests `tests/tb_3_rsp1_formal_surface.rs::I29` + `tests/tb_5_challenge_resolve_surface.rs::I80` reconstructing economic state — ALL exist and ALL run inside `cargo test --workspace`. `InMemoryLedgerWriter` (`transition_ledger.rs:243`) is the only writer used by tests.
+- `experiments/minif2f_v4/src/bin/evaluator.rs:16-26` imports `TuringBus`, `Kernel`, `BusConfig` etc. but does NOT import `turingosv4::state::sequencer::*` or `turingosv4::bottom_white::ledger::transition_ledger::*`. The evaluator builds the bus via `TuringBus::new` at `experiments/minif2f_v4/src/bin/evaluator.rs:698`; `sequencer: Option<Arc<Sequencer>>` (`src/bus.rs:73`) is therefore `None`. (Codex confirmed Q1.)
+- `src/main.rs` (the v4 root binary) is 19 lines that only run `boot::verify_trust_root`. It never constructs a TuringBus, Sequencer, or any ledger writer.
+- The chain-backed types (`transition_ledger::LedgerEntry`, `Git2LedgerWriter` at `src/bottom_white/ledger/transition_ledger.rs:642`, `Sequencer::apply_one` stages 1.5/6/7/9, replay tests `tests/tb_3_rsp1_formal_surface.rs::I29` + `tests/tb_5_challenge_resolve_surface.rs::I80`) all exist and run inside `cargo test --workspace`. `InMemoryLedgerWriter` (`transition_ledger.rs:243`) is the only writer used by tests.
+- **NEW v2 disclosure (Codex F1)**: `RejectionEvidenceWriter` at `src/bottom_white/ledger/rejection_evidence.rs:234` is **in-memory only**. `Vec<RejectedSubmissionRecord>` chained via `prev_hash` (line 21 doc comment + line 234 struct). Git persistence explicitly deferred per the L4 / L4.E split decision record. There is no `Git2RejectionEvidenceWriter` and no `RejectionEvidenceWriter::open(path)` constructor.
 
-**Result**: no on-disk ChainTape has ever been produced from any LLM-driven run in TuringOS history. The kernel is genuinely Anti-Oreo and replay-deterministic, but those properties only show up in cargo-test in-memory state — not in artifacts that an external auditor or the user can walk after a real evaluator run.
+### §1.2 What this means for TB-6 § 3.5 deliverable
 
-### §1.2 What the gap MEANS in failure terms
+Architect's required evidence directory shape includes both `runtime_repo/.git/refs/transitions/main` AND `runtime_repo/.git/refs/rejections/main 或等价结构`. With L4.E in-memory only, the L4.E side of the deliverable cannot be produced from a real run — **regardless of how cleanly we wire the L4 (transitions) side**. Atom 1 must therefore include L4.E persistence.
 
-If anyone tampers with two characters in the existing `handover/evidence/tb_{1..5}_smoke_*/n*_run.log`, no invariant in the codebase would catch it. There is no signature on those `.log` files; no parent-chain entry pointing to them; no replay path against them. The smoke evidence is paper trail (per `handover/audits/SELF_AUDIT_TB_5_SMOKE_TAPE_2026-05-01.md` § 3.4). Calling them "smoke tape" is an honest-naming gap that compounds with every kernel-only TB.
+### §1.3 Necessity verdict (Codex agreed Q1)
 
-### §1.3 Necessity verdict (self-recorded; pending external)
-
-**This change is necessary because**: every additional TB that adds kernel functionality without a production wire-up widens the gap between "tested in memory" and "verifiable from on-disk artifact". TB-1..TB-5 cumulative debt = 5 TBs. Without Atom 1, TB-6 itself becomes a 6th kernel-only TB; TB-7+ accumulate further. The architect ruling D1 explicitly selected Path A precisely to stop this expansion.
-
-**Less-invasive alternative considered**:
-- **(a) Only touch evaluator.rs; no new lib module**: feasible; the factory could live inline in evaluator.rs. Rejected because Atom 2's adapter + Atom 4's `verify_chaintape` CLI / test will both need the factory; placing it in an inline binary makes it unreachable from `tests/` and from a future replay-verifier CLI.
-- **(b) Use `InMemoryLedgerWriter` even in production binary, persist a JSONL snapshot**: defeats the entire point of D2. Tampering with a JSONL still wouldn't break a chain — there'd still be no chain.
-- **(c) Defer Atom 1 entirely; have evaluator emit signed `LedgerEntry`s without a Sequencer / TuringBus**: would require duplicating the apply_one stage 6 + stage 7 logic outside the kernel. Rejected as drift from "kernel-as-single-source-of-truth".
-
-**Failure mode if NOT done**: TB-6 becomes a 6th kernel-only TB; the 5-TB ChainTape debt becomes 6-TB; subsequent TBs (Slash, NodeMarket) compound the gap further; the project's "kernel claims" remain unverifiable from on-disk LLM-driven artifacts indefinitely.
+Path A (expand Atom 1 to dual-writer wire-up: `Git2LedgerWriter` for L4 + persistent `RejectionEvidenceWriter` for L4.E) is the only path that simultaneously honors:
+- Architect § 3.5 deliverable shape (both refs / both chains on disk)
+- Architect § 3.6 Atom 3 ≥1 L4 + ≥1 L4.E entry hard requirement
+- Architect § 3.6 atom count = 8
 
 ---
 
-## §2 Surface map (line-grounded src refs)
+## §2 Surface map (Codex Q3 verified all 8 line refs clean; +5 v2 additions)
 
 ### §2.1 What ALREADY exists (TB-6 Atom 1 will USE; will NOT modify)
 
-| Symbol | Location | TB-6 Atom 1 use |
-|---|---|---|
-| `TuringBus::new(kernel, config) -> TuringBus` | `src/bus.rs:97` | UNCHANGED; legacy path stays for tests / non-chaintape mode |
-| `TuringBus::with_sequencer(kernel, config, sequencer: Arc<Sequencer>) -> TuringBus` | `src/bus.rs:117` | USED by chaintape mode; **opt-in already exists** |
-| `TuringBus::sequencer: Option<Arc<Sequencer>>` field | `src/bus.rs:73` | UNCHANGED; populated by `with_sequencer` |
-| `TuringBus::submit_typed_tx(&self, tx: TypedTx) -> Result<SubmissionReceipt, SubmitError>` | `src/bus.rs:135` | USED by Atom 2 adapter |
-| `Sequencer::new(cas, keypair, epoch, ledger_writer, rejection_writer, predicate_registry, tool_registry, pinned_pubkeys, initial_q, queue_capacity)` | `src/state/sequencer.rs:1138` | USED with `Git2LedgerWriter` for chaintape; UNCHANGED API |
-| `Git2LedgerWriter::open(repo_path: &Path) -> Result<Self, LedgerWriterError>` | `src/bottom_white/ledger/transition_ledger.rs:659` | USED to bootstrap on-disk repo; auto-init if absent |
-| `InMemoryLedgerWriter` | `src/bottom_white/ledger/transition_ledger.rs:243` | UNCHANGED; remains the default for cargo-test |
-| `RejectionEvidenceWriter` | `src/bottom_white/ledger/rejection_evidence.rs` | USED with same shape as cargo-test fixtures |
-| `PinnedSystemPubkeys` | `src/bottom_white/ledger/system_keypair.rs:257` | USED with `keypair.public_key()` pinned under `epoch` |
-| `Ed25519Keypair` | (existing) | USED — same source as cargo-test fixtures (NOT genesis_payload) for Atom 1; genesis-pinned production keypair is a future refinement |
+| Symbol | Location | Codex Q3 verified | TB-6 Atom 1 use |
+|---|---|---|---|
+| `TuringBus::sequencer: Option<Arc<Sequencer>>` field | `src/bus.rs:73` | ✅ no drift | UNCHANGED; populated by `with_sequencer` |
+| `TuringBus::new(kernel, config)` | `src/bus.rs:97` | ✅ no drift | UNCHANGED; legacy default |
+| `TuringBus::with_sequencer(kernel, config, sequencer)` | `src/bus.rs:117` | ✅ no drift | USED by chaintape mode |
+| `TuringBus::submit_typed_tx(&self, tx)` | `src/bus.rs:135` | ✅ no drift | USED by Atom 2 adapter (not Atom 1) |
+| `TuringBus::with_wal_path(kernel, config, wal_path)` | `src/bus.rs:149` | (v2 add) | UNCHANGED; orthogonal layer (see §3.6 WAL coexistence) |
+| `Sequencer::new(...)` | `src/state/sequencer.rs:1138` | ✅ no drift | USED unchanged |
+| `Sequencer::run(&self, queue_rx)` | `src/state/sequencer.rs:1350` | (v2 add per Codex Q4) | USED — driver loop spawned via `tokio::spawn` |
+| `Sequencer.ledger_writer: Arc<RwLock<dyn LedgerWriter>>` | `src/state/sequencer.rs:1098` | ✅ no drift | USED with `Git2LedgerWriter` |
+| `Sequencer.rejection_writer: Arc<RwLock<RejectionEvidenceWriter>>` | (concrete type — NOT trait) | (v2 add per Codex F1) | UNCHANGED API; persistent backend lives inside the struct |
+| `Sequencer.queue_tx` | `src/state/sequencer.rs:1093` | (v2 add per Codex F2) | UNCHANGED — but `Arc<Sequencer>` keeps it alive; shutdown signals via `oneshot::Sender` |
+| `Git2LedgerWriter` struct | `src/bottom_white/ledger/transition_ledger.rs:642` | ✅ no drift | UNCHANGED |
+| `Git2LedgerWriter::open(repo_path)` | `src/bottom_white/ledger/transition_ledger.rs:659` | ✅ no drift | USED — auto-init's empty repo; non-empty repo handled via Atom 1 fail-closed (§3.4) |
+| `Git2LedgerWriter::head_commit_oid` | `src/bottom_white/ledger/transition_ledger.rs:707` | (v2 add for fail-closed check) | USED for non-empty detection |
+| `RejectionEvidenceWriter` struct | `src/bottom_white/ledger/rejection_evidence.rs:234` | (v2 add per Codex F1) | EXTENDED with optional JSONL persistence backend (see §3.3) |
+| `RejectionEvidenceWriter::append_rejected(...)` | `src/bottom_white/ledger/rejection_evidence.rs:265` | (v2 add) | UNCHANGED public signature |
+| `RejectionEvidenceWriter::verify_chain()` | `src/bottom_white/ledger/rejection_evidence.rs:309` | (v2 add) | EXTENDED to verify both in-memory + JSONL |
+| `RejectionEvidenceWriter::last_hash()` | `src/bottom_white/ledger/rejection_evidence.rs:255` | (v2 add) | UNCHANGED |
+| `CasStore::open(repo_path)` | `src/bottom_white/cas/store.rs:148` (per Codex Q5) | (v2 add per Codex Q2.a) | USED; factory opens it from `cas_path` |
+| `QState::genesis()` ≡ `QState::default()` | `src/state/q_state.rs:447-448` | (v2 add per Codex F4) | USED directly; v1's "open question" §8.3 removed |
+| `Ed25519Keypair::generate_with_secure_entropy` | `src/bottom_white/ledger/system_keypair.rs` (per Codex search) | (v2 add) | USED for per-run keypair |
+| `PinnedSystemPubkeys` | `src/bottom_white/ledger/system_keypair.rs:257` | (v2 add) | USED; pinned set persisted to `runtime_repo/pinned_pubkeys.json` (v2 Δ6) |
+| `LedgerEntry.extensions: BTreeMap<...>` | `src/bottom_white/ledger/transition_ledger.rs:99-102` (per Codex Q6) | (v2 add) | UNCHANGED; reserved for Atom 5 audit-trail back-link only |
 
-### §2.2 What Atom 1 WILL change (lib + binaries)
+### §2.2 What Atom 1 WILL change (v2 expanded)
 
 | File | Touch class | Restricted? | Justification |
 |---|---|---|---|
-| `src/runtime/mod.rs` (NEW) OR `src/runtime_chaintape.rs` (NEW) | additive new module | NO | factory + config struct + light helpers |
-| `src/lib.rs` | 1-line `pub mod runtime;` (or equivalent) | NO | re-export of new module |
-| `experiments/minif2f_v4/src/bin/evaluator.rs` | env-flag-gated branch around bus construction; if `TURINGOS_CHAINTAPE_PATH` set, build chaintape sequencer + use `TuringBus::with_sequencer`; otherwise legacy `TuringBus::new` | NO (sub-crate experiment binary) | minimal — only the bus-construction site changes |
-| `src/main.rs` | OPTIONAL — none, OR add a `--chaintape-init <path>` mode that initializes an empty runtime repo without an LLM run | NO | not on critical path; nice-to-have for `verify_chaintape` Atom 4 fixtures |
-| `tests/tb_6_runtime_chaintape_bootstrap.rs` (NEW) | additive integration tests | NO | 3-5 tests proving factory builds a non-None sequencer + opens git repo + idempotent re-bootstrap |
+| `src/runtime/mod.rs` (NEW) | additive new module | NO | factory + ChaintapeBundle + RuntimeChaintapeConfig + BootstrapError |
+| `src/lib.rs` | 1-line `pub mod runtime;` | NO | re-export |
+| **`src/bottom_white/ledger/rejection_evidence.rs` (v2 EXTENDED)** | additive: `Backend` enum + `open_jsonl(path)` constructor + JSONL append/load | **NO (not in restricted list)** | preserves struct type seen by `Sequencer.rejection_writer`; backend internal to the struct; signature of `append_rejected` unchanged |
+| `experiments/minif2f_v4/src/bin/evaluator.rs` | env-flag-gated branch around bus construction; if `TURINGOS_CHAINTAPE_PATH` set → factory + with_sequencer + driver spawn + shutdown registration; else legacy | NO | sub-crate experiment binary |
+| `src/main.rs` | UNCHANGED | — | Atom 1 does NOT need main.rs; evaluator is the production-like binary |
+| `tests/tb_6_runtime_chaintape_bootstrap.rs` (NEW) | additive integration tests | NO | T1-T9 (v2 expanded; see §6) |
 
-### §2.3 What Atom 1 will NOT touch (binding)
+### §2.3 What Atom 1 will NOT touch (v2 reaffirmed)
 
-- `src/bus.rs` — `with_sequencer` already exists; no internals modified.
-- `src/state/sequencer.rs` — `Sequencer::new` already accepts `Arc<RwLock<dyn LedgerWriter>>`; no API change.
-- `src/kernel.rs` — not on the path.
-- `src/sdk/tools/wallet.rs` — not on the path.
-- `src/state/q_state.rs` — no schema mutation (charter § 6 #10).
-- `src/state/typed_tx.rs` — no new variant (charter § 6 #6).
-- `src/economy/monetary_invariant.rs` — no cascade (charter § 6 #9).
-- `src/bottom_white/ledger/transition_ledger.rs` — no API change; `Git2LedgerWriter` used as-is.
-- `constitution.md` — D7 binding (no amendment).
+- `src/bus.rs` — `with_sequencer` already exists.
+- `src/state/sequencer.rs` — `Sequencer::new` API unchanged; `rejection_writer` field type unchanged (still concrete `Arc<RwLock<RejectionEvidenceWriter>>`).
+- `src/kernel.rs`, `src/sdk/tools/wallet.rs` — not on the path.
+- `src/state/q_state.rs` — no schema mutation; just call existing `QState::genesis()`.
+- `src/state/typed_tx.rs` — no new variant.
+- `src/economy/monetary_invariant.rs` — no cascade.
+- `src/bottom_white/ledger/transition_ledger.rs` — no API change.
+- `constitution.md` — D7 binding.
 
-### §2.4 STEP_B applicability
+### §2.4 STEP_B applicability (Codex Q4 reaffirmed)
 
-STEP_B_PROTOCOL.md scope says "any change to files in CLAUDE.md's restricted list". Atom 1 changes none of those files. Therefore:
-
-- **STEP_B Phase 0 (necessity audit)**: D3 architect ruling still requires Codex implementation audit on production-wire-up class atoms. This document IS the input for that audit. (Re-using STEP_B Phase 0 framing for the audit even though the file restriction itself is not triggered is consistent with `feedback_dual_audit` hybrid-by-risk.)
-- **STEP_B Phase 1 (parallel branch A/B)**: NOT required at the file-restriction level. However, atom-level isolation via `experiment/tb6-chaintape-bootstrap` branch is recommended for clean rollback if the evaluator changes break smoke regression.
-- **STEP_B Phase 2 (statistical A/B with N=50 paired sample on solve rate)**: NOT required. Atom 1 enables additive logging behind an env flag; with the env flag unset, evaluator behavior is bit-identical to TB-5 ship (same `prompt_context_hash`, same PputResult emit path). Atom 3's chain-backed smoke is the structural gate; solve-rate A/B is not the right test for "does the chain get written".
-
-This determination is the highest-value input the Codex audit should challenge.
+No restricted file modified. STEP_B Phase-1 parallel-branch A/B is NOT triggered. D3 production-wire-up Codex impl audit IS still required (round-1 done; round-2 narrow on the v1→v2 diff is the next gate).
 
 ---
 
-## §3 Minimum sufficient version (STEP_B Phase 0 question 3)
+## §3 Minimum sufficient version (v2 expanded)
 
-### §3.1 RuntimeChaintapeConfig (proposed shape)
+### §3.1 RuntimeChaintapeConfig (v2; refined per Codex Q2.a)
 
 ```rust
 // src/runtime/mod.rs (new file)
 
 use std::path::PathBuf;
 
-/// Runtime configuration for production / production-like ChainTape mode.
-///
-/// When `runtime_repo_path` is `Some`, the binary builds a real
-/// `Sequencer` + `Git2LedgerWriter` and routes typed-tx submissions
-/// through the on-disk chain. When `None`, the binary runs in legacy
-/// mode (sequencer=None; pre-runtime PputResult emit path only).
 #[derive(Debug, Clone)]
 pub struct RuntimeChaintapeConfig {
+    /// Filesystem path to the on-disk runtime repo.
+    /// `Git2LedgerWriter` rooted here writes refs/transitions/main.
+    /// `RejectionEvidenceWriter::open_jsonl` writes <runtime_repo_path>/rejections.jsonl.
+    /// Pinned pubkey file lives at <runtime_repo_path>/pinned_pubkeys.json.
     pub runtime_repo_path: PathBuf,
-    pub cas_path: PathBuf,                // distinct from runtime_repo_path
-    pub run_id: String,                   // for evidence dir naming
-    pub queue_capacity: usize,            // Sequencer mpsc channel; default 64
+    /// CAS root directory. `CasStore::open(cas_path)` opened by the factory
+    /// (was caller-ownership in v1; v2 factory owns it per Codex Q2.a).
+    pub cas_path: PathBuf,
+    /// Run identity for evidence dir naming + audit trail. Defaults to
+    /// timestamp if `TURINGOS_RUN_ID` env var unset.
+    pub run_id: String,
+    /// Sequencer mpsc channel capacity. Default 64.
+    pub queue_capacity: usize,
 }
 
 impl RuntimeChaintapeConfig {
-    /// Build from env vars. Returns `None` if `TURINGOS_CHAINTAPE_PATH` unset.
     pub fn from_env() -> Option<Self> {
         let runtime_repo_path = std::env::var("TURINGOS_CHAINTAPE_PATH").ok()?.into();
-        // ... cas_path defaults to <runtime_repo_path>/../cas;
-        // ... run_id defaults to env("TURINGOS_RUN_ID").unwrap_or_else(default-timestamp).
-        // ... queue_capacity from env or default 64.
+        // cas_path defaults to <runtime_repo_path>/../cas/<run_id>
+        // run_id from env or timestamp default
+        // queue_capacity from env or 64
         ...
     }
 }
 ```
 
-### §3.2 build_chaintape_sequencer factory (proposed shape)
+### §3.2 ChaintapeBundle (v2; Codex Q7 + F2 — driver lifecycle)
 
 ```rust
-// src/runtime/mod.rs (new file)
+// src/runtime/mod.rs
 
-use std::sync::Arc;
-use tokio::sync::RwLock;
+use tokio::task::JoinHandle;
+use tokio::sync::oneshot;
 
-/// Bundle returned by the factory. Caller wires `bus = TuringBus::with_sequencer(kernel, config, sequencer)`.
 pub struct ChaintapeBundle {
+    /// Wired into TuringBus via `TuringBus::with_sequencer(kernel, config, bundle.sequencer.clone())`.
     pub sequencer: Arc<Sequencer>,
-    pub ledger_writer: Arc<RwLock<dyn LedgerWriter>>,
+    /// Concrete L4 writer (Git-backed). Test code keeps a clone for chain-walk verification.
+    pub transition_writer: Arc<RwLock<dyn LedgerWriter>>,
+    /// Concrete L4.E writer (JSONL-backed in v2; in-memory backend stays default for tests).
     pub rejection_writer: Arc<RwLock<RejectionEvidenceWriter>>,
-    pub queue_rx: tokio::sync::mpsc::Receiver<SubmissionEnvelope>,
+    /// Background handle for the Sequencer::run driver loop. Caller MUST `await` this
+    /// (or use `shutdown` below) before evaluator exit, otherwise queued txs may be
+    /// uncommitted when the runtime drops.
+    pub driver_handle: JoinHandle<Result<(), SequencerError>>,
+    /// Shutdown signal — `shutdown_tx.send(())` triggers the driver loop to drain
+    /// the queue and exit cleanly.
+    pub shutdown_tx: oneshot::Sender<()>,
 }
 
-pub fn build_chaintape_sequencer(
-    config: &RuntimeChaintapeConfig,
-    keypair: Arc<Ed25519Keypair>,
-    pinned_pubkeys: Arc<PinnedSystemPubkeys>,
-    initial_q: QState,
-    cas: Arc<RwLock<CasStore>>,
-    predicate_registry: Arc<PredicateRegistry>,
-    tool_registry: Arc<ToolRegistry>,
-    epoch: SystemEpoch,
-) -> Result<ChaintapeBundle, BootstrapError> {
-    let git_writer = Git2LedgerWriter::open(&config.runtime_repo_path)?;
-    let ledger_writer: Arc<RwLock<dyn LedgerWriter>> =
-        Arc::new(RwLock::new(git_writer));
-    let rejection_writer = Arc::new(RwLock::new(RejectionEvidenceWriter::new()));
-    let (sequencer, queue_rx) = Sequencer::new(
-        cas, keypair, epoch, ledger_writer.clone(),
-        rejection_writer.clone(), predicate_registry, tool_registry,
-        pinned_pubkeys, initial_q, config.queue_capacity,
-    );
-    Ok(ChaintapeBundle {
-        sequencer: Arc::new(sequencer),
-        ledger_writer,
-        rejection_writer,
-        queue_rx,
-    })
+impl ChaintapeBundle {
+    /// Drain + shutdown contract.
+    /// 1. Sends shutdown signal.
+    /// 2. Awaits driver_handle (tx commits flush before return).
+    /// 3. Returns the final SequencerError if any (None on clean exit).
+    pub async fn shutdown(self) -> Result<(), SequencerError> {
+        let _ = self.shutdown_tx.send(());
+        match self.driver_handle.await {
+            Ok(res) => res,
+            Err(join_err) if join_err.is_cancelled() => Ok(()),
+            Err(join_err) => Err(SequencerError::DriverPanic(join_err.to_string())),
+        }
+    }
 }
 ```
 
-### §3.3 Evaluator integration sketch
+The factory spawns the driver loop AND returns the `JoinHandle` so the caller can `await` it. The `shutdown_tx` is the explicit drain trigger. **Codex Q7 risk** (queued txs lost at evaluator exit) is closed by:
+- The `shutdown_tx` signals `Sequencer::run` to stop accepting new envelopes + drain remaining queue
+- `driver_handle.await` blocks evaluator exit until the queue is fully committed
+- Test T9 verifies that submitted txs are committed before bundle.shutdown() returns
+
+(**NOTE for round-2 audit**: this requires `Sequencer::run` to support shutdown signaling. If `Sequencer::run` does not currently honor a shutdown channel, Atom 1 needs to either (a) propose a sequencer.rs change → STEP_B trigger → upgrade scope, or (b) implement drain via dropping the queue sender + relying on `Sequencer::run`'s existing terminate-on-empty-queue behavior. Round-2 Codex must verify which.)
+
+### §3.3 RejectionEvidenceWriter — v2 JSONL backend extension (Codex F1)
+
+`src/bottom_white/ledger/rejection_evidence.rs` extends `RejectionEvidenceWriter` (concrete struct; no trait conversion) with an internal optional persistence backend:
 
 ```rust
-// experiments/minif2f_v4/src/bin/evaluator.rs (around the bus-construction site)
+// src/bottom_white/ledger/rejection_evidence.rs (v2 EXTENDED)
 
-let bus = if let Some(chaintape_config) = RuntimeChaintapeConfig::from_env() {
-    let bundle = build_chaintape_sequencer(&chaintape_config, /* ... */)?;
-    // Spawn the Sequencer driver loop on a background tokio task.
-    let seq_clone = bundle.sequencer.clone();
-    tokio::spawn(async move { seq_clone.run(bundle.queue_rx).await });
-    TuringBus::with_sequencer(kernel, BusConfig::default(), bundle.sequencer)
-} else {
-    // Legacy path — bit-identical to TB-5 evaluator behavior.
-    TuringBus::new(kernel, BusConfig::default())
-};
+#[derive(Debug, Clone, Default)]
+pub struct RejectionEvidenceWriter {
+    records: Vec<RejectedSubmissionRecord>,
+    // v2 NEW (Codex F1):
+    backend: Backend,
+}
+
+#[derive(Debug, Clone, Default)]
+enum Backend {
+    #[default]
+    InMemory,
+    /// JSONL-backed: each `append_rejected` writes a chain-hashed record to <path>.
+    /// "等价结构" per architect § 3.5 (chain-hash equivalence to refs/rejections/main).
+    JsonlAppend { path: PathBuf },
+}
+
+impl RejectionEvidenceWriter {
+    /// EXISTING — InMemory backend; tests use this.
+    pub fn new() -> Self { Self::default() }
+
+    /// NEW v2 — JSONL persistent backend; production chaintape mode uses this.
+    /// On open: if file exists, replay JSONL into `records` (rebuilds chain).
+    /// If file does not exist, creates parent dirs + opens for append.
+    /// Replay validates chain integrity on load (rejects tampering).
+    pub fn open_jsonl(path: PathBuf) -> Result<Self, RejectionEvidenceError> { ... }
+
+    /// EXISTING — public signature unchanged.
+    pub fn append_rejected(...) -> Hash {
+        // 1. Compute chain hash + push to records (existing logic).
+        // 2. If backend == JsonlAppend: serialize the new record + append a single
+        //    JSONL line + fsync.
+        // 3. Return chain hash.
+    }
+}
 ```
 
-### §3.4 What Atom 1 deliberately leaves to later atoms
+The 8-arg `append_rejected` signature (`src/bottom_white/ledger/rejection_evidence.rs:265`) is unchanged. `Sequencer::new` accepts the same `Arc<RwLock<RejectionEvidenceWriter>>` — no sequencer.rs change.
 
-- **Routing PputEvent / Agent proposals → WorkTx**: Atom 2.
-- **Producing the actual on-disk smoke from a real LLM run on `mathd_algebra_107`**: Atom 3.
-- **`verify_chaintape` CLI**: Atom 4.
-- **Agent audit trail (proposal CIDs, read_set / write_set)**: Atom 5.
-- **Branch / fork visibility summary**: Atom 6.
-- **Synthetic-rejection-labelled L4.E in evidence dir**: Atom 3 (with explicit label per ruling § 3.6).
+JSONL chain integrity: each line is a single `RejectedSubmissionRecord` with embedded `prev_hash` + `hash`. Tampering with any line breaks the chain at that line; `verify_chain()` walks records (in-memory or JSONL-loaded) and detects the break.
+
+### §3.4 Fail-closed on non-empty runtime_repo (Codex F3)
+
+`Git2LedgerWriter::open` resumes `len` from existing repo; `Sequencer::new` always starts `next_logical_t` at 0. To avoid mismatch:
+
+```rust
+// src/runtime/mod.rs
+
+pub fn build_chaintape_sequencer(...) -> Result<ChaintapeBundle, BootstrapError> {
+    let writer = Git2LedgerWriter::open(&config.runtime_repo_path)?;
+    if writer.head_commit_oid().is_some() {
+        // Non-empty repo: Sequencer would re-issue logical_t=1 over an
+        // existing chain → digest mismatch on next commit.
+        return Err(BootstrapError::NonEmptyRuntimeRepo {
+            path: config.runtime_repo_path.clone(),
+            existing_head: writer.head_commit_oid_hex().unwrap_or_default(),
+            hint: "TB-6 Atom 1 fail-closes on non-empty repo. Reconstruction \
+                   from existing chain is deferred to a future TB. To start a \
+                   fresh run, point TURINGOS_CHAINTAPE_PATH at a new directory.",
+        });
+    }
+    // proceed with empty-repo bootstrap
+    ...
+}
+```
+
+Reconstruction (resume mode) is explicitly deferred — Atom 1 ships the empty-bootstrap-only path. Resume becomes a future TB enhancement.
+
+### §3.5 Pinned pubkey persistence (Codex Q5b + Δ6)
+
+Per-run keypair → `PinnedSystemPubkeys::from_iter([(epoch, kp.public_key())])`. The pinned set is serialized to `<runtime_repo_path>/pinned_pubkeys.json` at bootstrap. `verify_chaintape` Atom 4 reads this file to verify entry signatures without separate config. Format:
+
+```json
+{
+  "epoch": 1,
+  "pubkeys": [
+    {"epoch": 1, "pubkey_hex": "..."}
+  ],
+  "run_id": "tb6-smoke-2026-05-XX-...",
+  "tb_id": "TB-6"
+}
+```
+
+Genesis-pinned production keypair (sourced from `genesis_payload.toml [system_pubkeys]`) is a future refinement — Codex confirmed this is acceptable for TB-6 scope.
+
+### §3.6 WAL_DIR + TURINGOS_CHAINTAPE_PATH coexistence (Codex F5)
+
+WAL and ChainTape are **orthogonal persistence layers**:
+
+| Layer | Operates on | Persists |
+|---|---|---|
+| WAL (`WAL_DIR`, `TuringBus::with_wal_path` at `src/bus.rs:149`) | TuringBus event log (clock, tx_count, generation, graveyard) | JSONL events for replay |
+| ChainTape (`TURINGOS_CHAINTAPE_PATH`, this preflight) | Sequencer kernel ledger (`LedgerEntry` chain + L4.E) | git refs/transitions/main + rejections.jsonl |
+
+**Precedence rule**: both can be on simultaneously. Order:
+1. If `TURINGOS_CHAINTAPE_PATH` set → bus is built via `with_sequencer(kernel, config, sequencer)`, NOT `with_wal_path`. Chain mode wins for bus construction.
+2. If only `WAL_DIR` set → legacy `with_wal_path` path; chaintape mode off.
+3. If neither set → `TuringBus::new` legacy in-memory.
+4. If both set → **chain wins**; WAL writes are silently disabled for the run; warning logged at `info!("[chaintape] WAL_DIR ignored when TURINGOS_CHAINTAPE_PATH is set")`. (Codex round-2 may challenge this — alternative is to error if both set.)
+
+Regression test T8 verifies WAL_DIR-only mode still works after the env-flag branch refactor.
+
+### §3.7 Evaluator integration sketch (v2 expanded)
+
+```rust
+// experiments/minif2f_v4/src/bin/evaluator.rs (around line 668)
+
+let (mut bus, chaintape_bundle) = if let Some(chaintape_config) = RuntimeChaintapeConfig::from_env() {
+    if std::env::var("WAL_DIR").is_ok() {
+        info!("[chaintape] WAL_DIR ignored when TURINGOS_CHAINTAPE_PATH is set");
+    }
+    let keypair = Arc::new(Ed25519Keypair::generate_with_secure_entropy());
+    let bundle = build_chaintape_sequencer(&chaintape_config, keypair, /* ... */)?;
+    let bus = TuringBus::with_sequencer(kernel, config, bundle.sequencer.clone());
+    (bus, Some(bundle))
+} else if let Ok(wal_dir) = std::env::var("WAL_DIR") {
+    // existing WAL path unchanged
+    (legacy_wal_bus(&wal_dir, kernel, config)?, None)
+} else {
+    (TuringBus::new(kernel, config), None)
+};
+
+// ... evaluator main loop ...
+
+// At evaluator exit (success or panic):
+if let Some(bundle) = chaintape_bundle {
+    bundle.shutdown().await?;
+}
+```
+
+The `chaintape_bundle: Option<ChaintapeBundle>` is held across the run; the explicit `bundle.shutdown().await` at exit ensures all queued txs commit before the binary terminates.
 
 ---
 
-## §4 Phase 1 atom plan (post-audit; conditional on Codex PASS)
+## §4 Atom 1 sub-plan (v2 expanded; 4 commits, 1 atom per architect § 3.6)
 
 ```text
-Atom 1.1 — Add src/runtime/mod.rs (new module: RuntimeChaintapeConfig + ChaintapeBundle + build_chaintape_sequencer factory + BootstrapError type) + src/lib.rs re-export. Pure additive.
-Atom 1.2 — Add tests/tb_6_runtime_chaintape_bootstrap.rs covering:
-            T1 build_chaintape_sequencer_returns_non_none_sequencer_with_git_writer
-            T2 build_chaintape_sequencer_idempotent_on_existing_repo (re-open does not corrupt)
-            T3 build_chaintape_sequencer_initial_q_round_trip (initial_q persists after construction)
-            T4 RuntimeChaintapeConfig_from_env_returns_none_when_var_unset
-            T5 RuntimeChaintapeConfig_from_env_parses_when_var_set
-Atom 1.3 — Wire experiments/minif2f_v4/src/bin/evaluator.rs around the bus-construction site (env-flag-gated branch); legacy path bit-identical to TB-5 ship when var unset.
-Atom 1.4 — Add Atom 1 self-test: when env unset, evaluator's prompt_context_hash on mathd_algebra_107 oneshot stays "a1f43584a17d1226" (regression smoke; non-blocking — full chain-backed smoke is Atom 3).
+Atom 1.1 — src/runtime/mod.rs (RuntimeChaintapeConfig + ChaintapeBundle + build_chaintape_sequencer + BootstrapError) + src/lib.rs re-export. Fail-closed on non-empty repo. Pure additive. cargo test --workspace baseline preserved.
+Atom 1.2 — src/bottom_white/ledger/rejection_evidence.rs Backend enum + open_jsonl + JSONL append/load + verify_chain extension. Existing append_rejected signature unchanged. tests/tb_6_l4e_jsonl_persistence.rs T_R1-T_R5 (chain integrity, reopen, tampering detection).
+Atom 1.3 — experiments/minif2f_v4/src/bin/evaluator.rs env-flag-gated chaintape branch + WAL coexistence + ChaintapeBundle.shutdown() at evaluator exit. tests/tb_6_runtime_chaintape_bootstrap.rs T1-T9 (construction, drain, reopen-fail-closed, WAL-coexistence, pinned-pubkey persistence).
+Atom 1.4 — Trust Root manifest rehash for the new src/runtime/mod.rs file (R-014 protocol; non-sudo per R-018). cargo test --workspace 617 + ~14 new TB-6 tests = 631+ green.
 ```
 
-Each Atom 1.N is a single commit; combined commit count = 4. cargo test --workspace must remain green at 617 + new TB-6 tests at every Atom 1.N. Disk pressure: `cargo clean` likely required before Atom 1.1 (currently 178M free; target/ is 7.5G).
+Each Atom 1.N reports `cargo test --workspace` count delta per ruling D4. STEP_B not triggered (no restricted file). 24h iteration cap: production-wire-up exception applies (charter § 7.2; Atom 3 must run within 72h of Atom 0 ship).
 
 ---
 
-## §5 Charter § 12 Q1-Q6 resolutions (proposed; subject to Codex audit)
+## §5 Q1-Q6 resolutions (v2 + Codex round-1 challenges)
 
-| Q | Question | Proposed resolution |
-|---|---|---|
-| Q1 | TuringBus extension vs new constructor? | **Use existing `with_sequencer` as-is.** No new constructor. bus.rs remains untouched. |
-| Q2 | runtime_repo path — production deploy vs ship-evidence? | **Both paths configurable via `RuntimeChaintapeConfig.runtime_repo_path`.** Ship-evidence path = `handover/evidence/tb_6_chaintape_smoke_2026-05-XX/runtime_repo`. Production deploy path = caller-specified (likely `~/turingos/runtime_repo` or similar, NOT in repo). |
-| Q3 | How does main.rs / evaluator decide chaintape vs legacy? | **Env var `TURINGOS_CHAINTAPE_PATH`.** When set: chaintape mode. When unset: legacy. Optional secondary `TURINGOS_RUN_ID` (defaults to timestamp). Charter § 4.7 binding: env var is opt-in; legacy stays default. |
-| Q4 | Runtime keypair source? | **Same `Ed25519Keypair` shape as cargo-test fixtures**: a fresh per-run keypair is constructed and pinned via `PinnedSystemPubkeys::from_iter([(epoch, kp.public_key())])`. Genesis-pinned production keypair (sourced from `genesis_payload.toml [system_pubkeys]`) is a future refinement (Atom 7 or later) and is NOT required for TB-6's chain-backed smoke proof. The chain produced is verifiable against the per-run pinned pubkeys; replay verifier (Atom 4) confirms signatures using the SAME pinned set written into the evidence directory. |
-| Q5 | Synthetic rejection trigger for Atom 3 fallback? | **Stake-insufficient WorkTx submitted via the production binary.** Cleanest "natural" rejection because it doesn't require crafting a malformed envelope; the agent simply submits with `stake = 0` (or any value below required). L4.E row appended; `state_root` unchanged. If this happens naturally during the smoke run (likely — early agent proposals often miss admission requirements), no synthetic case needed. If not, Atom 3 fixture explicitly synthesizes one with `synthetic_rejection_for_l4e_gate = true` label per ruling § 3.6 Atom 3. |
-| Q6 | Agent audit trail in CAS only or ChainTape extensions? | **CAS-only with tx_id back-link.** ChainTape `LedgerEntry.extensions` field already exists for forward compat (per `transition_ledger.rs:81+`); we MIGHT use one extension key for `agent_proposal_cid` back-link (read-only; not part of `state_root`), but the audit trail proper lives in CAS payloads. This keeps `LedgerEntry` schema unchanged in TB-6 (charter § 6 #10). |
+| Q | v1 proposal | Codex round-1 verdict | v2 resolution |
+|---|---|---|---|
+| Q1 TuringBus extension | use existing `with_sequencer` | not challenged | unchanged |
+| Q2 runtime_repo path | configurable via config | challenge: `cas_path` ambiguous | factory opens `CasStore::open(&config.cas_path)`; ChaintapeBundle does NOT include CAS handle (caller already has it) |
+| Q3 env trigger | `TURINGOS_CHAINTAPE_PATH` | challenge: WAL precedence | §3.6 — chain wins; WAL silent-off if both set |
+| Q4 keypair source | per-run fresh | narrow challenge: must persist pubkey for replay | §3.5 — pinned pubkey written to `runtime_repo/pinned_pubkeys.json`; verify_chaintape (Atom 4) reads it |
+| Q5 synthetic-rejection trigger | stake-insufficient WorkTx | trigger good; **L4.E in-memory only** | §3.3 — JSONL persistence backend resolves the persistence gap; trigger choice unchanged |
+| Q6 audit trail location | CAS only | not challenged | unchanged; Atom 5 territory |
 
 ---
 
-## §6 Test plan (Atom 1.2 + Atom 1.3 + Atom 1.4)
+## §6 Test plan (v2 rebuilt per Codex Q6)
 
-### §6.1 New tests (target: 5-7 tests)
+### §6.1 New test files
 
-(See § 4 Atom 1.2 list.) Plus optional:
-- **T6** (Atom 1.4): `evaluator_legacy_mode_prompt_context_hash_is_a1f43584a17d1226` — soft regression check that the evaluator's pre-runtime emit pipeline is still bit-identical when chaintape mode is OFF.
-- **T7** (Atom 1.3 in-evaluator): `evaluator_chaintape_mode_constructs_bus_with_sequencer` — sets `TURINGOS_CHAINTAPE_PATH=<tmpdir>` and asserts the constructed bus has `sequencer.is_some()`.
+`tests/tb_6_runtime_chaintape_bootstrap.rs` (Atom 1.3):
+- **T1** `build_chaintape_sequencer_returns_non_none_sequencer_with_git_writer`
+- **T2** `build_chaintape_sequencer_writes_pinned_pubkeys_json_to_runtime_repo`
+- **T3** `build_chaintape_sequencer_fails_on_non_empty_repo` (Codex F3)
+- **T4** `chaintape_bundle_shutdown_drains_pending_submissions_before_join` (Codex Q7+F2)
+- **T5** `chaintape_bundle_shutdown_returns_clean_on_empty_queue`
+- **T6** ~~`evaluator_legacy_mode_prompt_context_hash_is_a1f43584a17d1226`~~ (DROPPED per Codex Q6 — `oneshot` doesn't traverse the bus)
+- **T7** `evaluator_chaintape_mode_constructs_bus_with_sequencer_and_runs_swarm` (NEW v2; uses `run_swarm` not `run_oneshot` so the bus is exercised)
+- **T8** `evaluator_legacy_wal_mode_unchanged_when_chaintape_off` (Codex F5 regression)
+- **T9** `chaintape_mode_silently_disables_wal_when_both_env_vars_set` (Codex F5 precedence)
 
-### §6.2 cargo test --workspace target
+`tests/tb_6_l4e_jsonl_persistence.rs` (Atom 1.2):
+- **T_R1** `rejection_evidence_writer_open_jsonl_creates_empty_file`
+- **T_R2** `append_rejected_persists_jsonl_line_and_in_memory_record`
+- **T_R3** `reopen_jsonl_replays_existing_records_into_in_memory_chain`
+- **T_R4** `tampering_with_jsonl_line_fails_verify_chain_on_reopen`
+- **T_R5** `concurrent_open_jsonl_then_append_does_not_double_write` (file-lock test if applicable; otherwise document single-writer expectation)
 
-Pre-Atom 1: 617/617 (TB-5 baseline).
-Post-Atom 1.1: 617 (no new tests yet; just the new module compiles).
-Post-Atom 1.2: 622 (T1-T5).
-Post-Atom 1.3: 622 (evaluator wiring change; no new tests at this stage).
-Post-Atom 1.4: 624 (T6 + T7).
+Total Atom 1 new tests: 9 + 5 = **14 tests** (T6 dropped from v1).
 
-Every commit reports `cargo test --workspace` count delta per ruling D4.
+### §6.2 cargo test --workspace targets
+
+Pre-Atom 1.1: 617 (TB-5 baseline).
+Post-Atom 1.1: 617 (no new tests; module compiles).
+Post-Atom 1.2: 617 + 5 (T_R1-T_R5) = 622.
+Post-Atom 1.3: 622 + 9 (T1-T5,T7-T9; T6 dropped) = 631.
+Post-Atom 1.4: 631 (Trust Root only; no new tests).
+
+Every commit reports `cargo test --workspace` count + delta per ruling D4.
 
 ### §6.3 Test isolation
 
-`tests/tb_6_runtime_chaintape_bootstrap.rs` uses `tempfile::TempDir` for runtime repo paths; concurrent tests get distinct tmpdirs; per `feedback_env_var_test_lock`, env-var-mutating tests (T4 + T5 + T7) need a static `Mutex` to survive cargo's parallel runner.
+- `tempfile::TempDir` for runtime repo + cas paths.
+- `std::sync::Mutex` static for env-var-mutating tests (T7-T9 + T_R3) per `feedback_env_var_test_lock`.
+- Each test sets its env vars under lock + clears them before drop.
 
 ---
 
-## §7 Audit gate (D3 production-wire-up class)
+## §7 Audit gate (v2 — round-2 narrow Codex on diff)
 
-### §7.1 Codex implementation audit (REQUIRED)
+Round-1 verdict (CHALLENGE-6 with high confidence) closed by this v2. Round-2 is narrow: audit the v1→v2 diff for whether the 6 remediations are correctly applied + no new findings.
 
-Audit brief for Codex:
-1. **Necessity**: do you agree TB-6 Atom 1 closes a real gap that no less-invasive alternative covers? See §1 + §3.4.
-2. **Minimal-sufficient**: is the §3 sketch over- or under-scoped? Specifically: (a) is the `RuntimeChaintapeConfig` field set right? (b) should the factory return a `ChaintapeBundle` struct or a tuple? (c) is `Arc<RwLock<dyn LedgerWriter>>` the correct trait-object shape for production?
-3. **Surface-map correctness**: are §2.1 line refs accurate against current `main` HEAD `7970d2d`? Specifically `bus.rs:117` `with_sequencer`, `sequencer.rs:1138` `Sequencer::new`, `transition_ledger.rs:659` `Git2LedgerWriter::open`.
-4. **STEP_B applicability**: do you agree §2.4 — that no restricted file is touched, so STEP_B Phase-1 parallel-branch A/B is NOT triggered? Or do you see a hidden bus.rs / sequencer.rs / kernel.rs touch we missed?
-5. **Q1-Q6 resolutions**: which proposed resolutions in §5 do you challenge? (Especially Q4 keypair source — fresh per-run vs genesis-pinned for TB-6.)
-6. **Test plan**: is §6 sufficient? Specifically: is regression smoke T6 enough to claim "chaintape mode OFF = TB-5 evaluator behavior preserved"?
-7. **Tokio lifecycle**: §3.3 spawns the Sequencer driver loop on a background tokio task. Is this safe given the evaluator's existing tokio runtime? Does the task need explicit shutdown / join at evaluator exit?
+### §7.1 Round-2 Codex audit brief
 
-### §7.2 Gemini architecture audit (REQUIRED if available; else degraded label)
+1. **F1 remediation**: does §3.3 JSONL backend correctly preserve `append_rejected` signature + `verify_chain` semantics? Does the JSONL append produce a real chain (prev_hash + hash) per record? Does reopen-replay rebuild the in-memory chain correctly?
+2. **Q7+F2 remediation**: does §3.2 `ChaintapeBundle.shutdown()` actually drain queued submissions before driver_handle returns? Does `Sequencer::run` honor a shutdown signal — and if not, what's the actual termination mechanism (drop queue_tx? wait for empty?)? Read `src/state/sequencer.rs:1350+` to verify.
+3. **F3 remediation**: does §3.4 `BootstrapError::NonEmptyRuntimeRepo` correctly fail-close before construction continues? Is the error informative enough?
+4. **F4 application**: §8.3 of v1 dropped — does §1 / §2 / §3 of v2 correctly use `QState::genesis()` (or `::default()`) without re-introducing the open question?
+5. **F5 remediation**: does §3.6 WAL precedence rule cleanly handle all 4 env-var combinations? Should "both set" be an error instead of silent-WAL-off?
+6. **Q6 remediation**: do the 14 new tests adequately exercise the chaintape path, including drain/shutdown + reopen + JSONL chain integrity? Specifically, does T7 `run_swarm` actually exercise the Sequencer (via `submit_typed_tx` or otherwise) such that L4 entries are produced — or does `run_swarm` still only emit pre-runtime PputResults?
+7. **No-new-finding check**: any hidden bus.rs / sequencer.rs / kernel.rs / wallet.rs touch we missed in v2?
 
-Audit brief for Gemini at strategic tier:
-1. Does Atom 1's factory pattern preserve the WP-canonical "Anti-Oreo agent ≠ direct state writer" property? Specifically: does adding `Sequencer` to the production path expose any new agent-write affordance that wasn't there in cargo-test-only mode?
-2. Does the proposed env-var trigger respect "production deploys MUST configure chaintape; legacy is for tests only"? Or should we go further and FAIL-CLOSED in production-mode boot when the env var is unset (analogous to P0.R production placeholder check)?
-3. Per architect ruling § 3.6 Atom 5 + § 4.2: is the §5 Q6 resolution (CAS-only audit trail; no LedgerEntry schema mutation) the right boundary?
+### §7.2 Verdict shape
 
-If Gemini at strategic tier (`gemini-2.5-pro` / `2.5-flash`) is `429 MODEL_CAPACITY_EXHAUSTED`, label the merged verdict `degraded` per `feedback_dual_audit` and proceed.
-
-### §7.3 Verdict shapes
-
-- **PASS / PASS**: proceed to Phase 1 implementation immediately.
-- **CHALLENGE (round 1)**: revise this preflight to v2; re-launch narrow Codex audit per round-cap-2.
-- **VETO** (constitutional violation; e.g. hidden bus.rs touch surfaces): redesign Atom 1 to a different factory shape, re-issue this preflight as v2.
-- **PASS / degraded-PASS**: proceed; document degraded label in Atom 1 ship audit doc.
+- **PASS**: Phase 1 implementation enters immediately.
+- **CHALLENGE-N (N ≤ 3)**: small remediations applied via auto-execute exception (Elon-mode round-cap=2).
+- **CHALLENGE-N (N ≥ 4)**: redesign needed; v3 required.
+- **VETO**: structural showstopper; user-architect escalation.
 
 ---
 
-## §8 Risks + open questions
+## §8 Risks + open questions (v2 reduced; F4 closed)
 
-### §8.1 Disk pressure (BLOCKING)
+### §8.1 Disk pressure (RESOLVED)
 
-178M free at `/dev/sda1`; `target/` is 7.5G. `cargo test --workspace` from clean WILL fail with ENOSPC. Options for unblock:
-- **(a) `cargo clean`**: frees 7.5G but loses incremental compile state — first cargo check after will rebuild from scratch (5-15 min).
-- **(b) Selective prune of `target/debug/incremental/`**: smaller savings; partial preservation of incremental state.
-- **(c) Move `target/` to another mount**: requires available external mount; not assumed.
+`cargo clean` freed 8.2 GiB; disk now 7.7G free. Phase 1 unblocked.
 
-User must approve the cleanup approach before Atom 1.1 commits.
+### §8.2 Sequencer::run shutdown semantics (NEW v2 risk)
 
-### §8.2 Tokio runtime + Sequencer driver loop
+**§3.2 `ChaintapeBundle.shutdown()` requires `Sequencer::run` to terminate cleanly**. If `Sequencer::run` is `loop { rx.recv() => apply_one(...) }` with no shutdown channel, terminating it requires either (a) dropping `queue_tx` from the only sender (but `Arc<Sequencer>` keeps it alive — Codex F2), (b) adding a shutdown channel to `Sequencer::run` signature → STEP_B trigger → upgrade scope, or (c) wrapping the driver loop in a higher-level shutdown wrapper outside `Sequencer`.
 
-The evaluator already runs in `#[tokio::main]` async. The Sequencer driver loop (`Sequencer::run(receiver)`) is a long-running async task that processes the mpsc queue. Spawning it via `tokio::spawn` is the natural pattern — but evaluator exit must drop the queue sender so the Sequencer's `run` loop terminates cleanly.
+**Round-2 Codex audit must read `src/state/sequencer.rs:1350+` and pin down which.** If (b), Atom 1 needs to grow into a sequencer.rs touch (STEP_B Phase-0 → 1 → 2). If (a) or (c), no STEP_B trigger.
 
-### §8.3 Initial QState shape
+Tentative v2 design favors (c): `ChaintapeBundle.shutdown()` drops `bundle.sequencer` (the only externally-held `Arc<Sequencer>`); the driver task's own `Sequencer` ref drops when `run` returns; the queue_tx held by `Sequencer` drops when the `Arc` count hits 0 — and `Sequencer::run` exits when its `rx.recv()` returns `None` (queue closed, no senders). This requires careful Arc accounting at evaluator exit; T4 verifies it.
 
-Cargo-test fixtures construct `initial_q: QState` via various helpers in `src/state/q_state.rs::tests` and `tests/`. For Atom 1 production wire-up we need a "first-boot" QState that's analogous but production-suitable. Likely path: a `QState::genesis(epoch, system_pubkeys) -> QState` constructor that mirrors the cargo-test fixture default — or, if such a constructor doesn't exist yet, Atom 1.1 adds one. Codex audit should validate.
+### §8.3 ~~QState seed shape~~ (CLOSED — Codex F4)
 
-### §8.4 No real LLM run in Atom 1
+`QState::genesis()` exists at `src/state/q_state.rs:447-448` and is just `QState::default()`. v2 uses it directly.
 
-Atom 1 produces NO chain entries from a real LLM run; that's Atom 3's job. Atom 1 only provides the wiring + tests that the wiring is correct. Codex audit should agree this is the right scope split (per ruling § 3.6 separation of Atom 1 vs Atom 3).
+### §8.4 No real LLM run in Atom 1 (preserved from v1)
 
-### §8.5 sequencing inside a TB-6 worktree
+Atom 1 produces NO chain entries from a real LLM run — that's Atom 3. Atom 1 ships infrastructure + tests that the wiring is correct.
 
-If we move Atom 1 into a worktree branch `experiment/tb6-chaintape-bootstrap` per `feedback_step_b_protocol` recommendation (even though STEP_B isn't strictly triggered), we maintain clean rollback. Worktree creation requires disk; with 178M free, worktree spawn may fail or be tight. Disk cleanup precedes worktree creation.
+### §8.5 Worktree creation for Phase 1
+
+Per `feedback_step_b_protocol` recommendation, atom-level isolation via `experiment/tb6-chaintape-bootstrap` worktree gives clean rollback even though STEP_B isn't strictly triggered. Disk now permits worktree creation.
 
 ---
 
-## §9 Cross-references
+## §9 Cross-references (v2)
 
+- **Codex round-1 audit verdict**: task `a2c57d750d22f0eb4`; verdict CHALLENGE-6 (preserved in this preflight § 0 / §3 / §6 / §8 by reference; raw verdict in agent transcript; full-fidelity excerpt below).
 - **TB-6 charter**: `handover/tracer_bullets/TB-6_charter_2026-05-01.md`
 - **Architect ruling**: `handover/directives/2026-05-01_TB6_ARCHITECT_RULING.md`
-- **STEP_B protocol**: `handover/ai-direct/STEP_B_PROTOCOL.md`
 - **TB-5 self-audit (gap discovery)**: `handover/audits/SELF_AUDIT_TB_5_SMOKE_TAPE_2026-05-01.md`
-- **Surface citations**:
-  - `src/bus.rs:73` `pub sequencer: Option<Arc<Sequencer>>` field
-  - `src/bus.rs:97` `TuringBus::new`
-  - `src/bus.rs:117` `TuringBus::with_sequencer`
-  - `src/bus.rs:135` `TuringBus::submit_typed_tx`
-  - `src/state/sequencer.rs:1138` `Sequencer::new`
-  - `src/state/sequencer.rs:1098` `ledger_writer: Arc<RwLock<dyn LedgerWriter>>`
-  - `src/bottom_white/ledger/transition_ledger.rs:642` `Git2LedgerWriter` struct
-  - `src/bottom_white/ledger/transition_ledger.rs:659` `Git2LedgerWriter::open`
-  - `src/bottom_white/ledger/transition_ledger.rs:243` `InMemoryLedgerWriter`
-  - `src/main.rs` (19 lines; trust-root only)
-  - `experiments/minif2f_v4/src/bin/evaluator.rs:16-26` (TuringBus import without sequencer)
+- **STEP_B protocol**: `handover/ai-direct/STEP_B_PROTOCOL.md`
+- **Surface citations** (v2 expanded):
+  - `src/bus.rs:73,97,117,135,149` (sequencer field, ctors, submit, with_wal_path)
+  - `src/state/sequencer.rs:1093,1098,1138,1350` (queue_tx, ledger_writer field, ::new, ::run)
+  - `src/bottom_white/ledger/transition_ledger.rs:99-102,243,642,659,707` (LedgerEntry.extensions, InMemoryLedgerWriter, Git2LedgerWriter, ::open, head_commit_oid)
+  - `src/bottom_white/ledger/rejection_evidence.rs:21,234,255,265,309` (in-memory comment, struct, last_hash, append_rejected, verify_chain)
+  - `src/bottom_white/cas/store.rs:148` (CasStore::open per Codex Q5)
+  - `src/state/q_state.rs:447-448` (QState::genesis ≡ default per Codex F4)
+  - `src/main.rs` (19 lines; trust-root only; UNCHANGED in Atom 1)
+  - `experiments/minif2f_v4/src/bin/evaluator.rs:16-26,665-699` (TuringBus import + WAL_DIR branch site)
 - **Memory rules consulted**:
-  - `feedback_step_b_protocol` (parallel-branch A/B; not triggered for Atom 1 per §2.4)
-  - `feedback_dual_audit` (hybrid-by-risk; production wire-up class = Codex impl + Gemini arch)
-  - `feedback_iteration_cap_24h` (production-wire-up exception: 72h-to-Atom-3)
-  - `feedback_smoke_before_batch` (env-flag changes need smoke probe; T6 covers regression smoke)
-  - `feedback_env_var_test_lock` (T4 + T5 + T7 need static Mutex)
-  - `feedback_workspace_test_canonical` (cargo test --workspace count required at every commit)
-  - `feedback_no_fake_menus` (Q1-Q6 are recommendations, not menus)
-  - `feedback_chaintape_wire_up_priority` (D1 binding — Path A precedence)
+  - `feedback_chaintape_wire_up_priority` (Path A binding)
+  - `feedback_smoke_evidence_naming` (D5)
+  - `feedback_workspace_test_canonical` (D4 reporting shape)
+  - `feedback_dual_audit` (hybrid-by-risk; round-2 narrow)
+  - `feedback_iteration_cap_24h` (production wire-up 72h-to-Atom-3)
+  - `feedback_smoke_before_batch` (T7-T9 cover regression)
+  - `feedback_env_var_test_lock` (T7-T9, T_R3 need static Mutex)
+  - `feedback_no_fake_menus` (Q1-Q6 are recommendations, not menus; Path A derived from architect § 3.5 + § 3.6 — no menu offered)
+  - `feedback_step_b_protocol` (not triggered for Atom 1 per §2.4)
+  - `feedback_elon_mode_policy` (round-cap=2; auto-execute on determinate-best surgical patch)
