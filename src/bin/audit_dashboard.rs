@@ -92,6 +92,8 @@ struct DashboardReport {
     per_agent: BTreeMap<String, AgentActivity>,
     proposal_flow: Vec<ProposalFlowEntry>,
     branch_lineage: Vec<BranchEdge>,
+    /// TB-7.7 D6: golden path steps (only populated when chain_oracle_verified=true).
+    golden_path: Vec<GoldenPathStep>,
     cross_checks: CrossCheck,
 }
 
@@ -136,6 +138,10 @@ struct ProposalFlowEntry {
     candidate_tactic: Option<String>,
     branch_id: Option<String>,
     rejection_class: Option<String>,
+    /// TB-7.7 D6: payload preview from CAS (first 80 bytes of proposal_artifact_cid content).
+    proposal_artifact_preview: Option<String>,
+    /// TB-7.7 D6: oracle_verified flag from VerificationResult (None = no VR; Some(true) = Lean accepted).
+    oracle_verified: Option<bool>,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -143,6 +149,18 @@ struct BranchEdge {
     parent_tx: String,
     child_tx: String,
     branch_id: String,
+}
+
+/// TB-7.7 D6: golden path step on a solved problem. Each entry walks from
+/// root → ... → the oracle-verified WorkTx, reading payload bytes from CAS.
+#[derive(Debug, serde::Serialize)]
+struct GoldenPathStep {
+    depth: usize,
+    tx_id: String,
+    agent_id: String,
+    candidate_tactic: String,
+    payload_preview: String,
+    oracle_verified: bool,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -231,6 +249,16 @@ fn build_report(repo: &std::path::Path, cas_path: &std::path::Path) -> Result<Da
 
     let mut proposal_flow: Vec<ProposalFlowEntry> = Vec::new();
     let mut branch_lineage: Vec<BranchEdge> = Vec::new();
+    // TB-7.7 D6: oracle_verified_worktx_ids — set of accepted L4 WorkTx
+    // tx_ids whose ProposalTelemetry.verification_result_cid resolves to
+    // VerificationResult { verified: true }. Plus their telemetry for
+    // golden-path reconstruction.
+    let mut oracle_verified_worktx: BTreeMap<
+        String,
+        (String, String, String), // (agent_id, candidate_tactic, payload_preview)
+    > = BTreeMap::new();
+    let mut work_parent_by_tx_id: BTreeMap<String, Option<String>> = BTreeMap::new();
+    use turingosv4::runtime::verification_result::read_from_cas as read_verification_result;
 
     for entry in &entries {
         let payload_bytes = match cas.get(&entry.tx_payload_cid) {
@@ -249,13 +277,40 @@ fn build_report(repo: &std::path::Path, cas_path: &std::path::Path) -> Result<Da
                 let mut tactic: Option<String> = None;
                 let mut branch_id: Option<String> = None;
                 let mut parent_tx: Option<String> = None;
+                let mut payload_preview: Option<String> = None;
+                let mut oracle_verified: Option<bool> = None;
                 if work.proposal_cid.0 != [0u8; 32] {
                     if let Ok(tel) = read_proposal_telemetry(&cas, &work.proposal_cid) {
                         tactic = Some(tel.candidate_tactic.clone());
                         branch_id = Some(tel.branch_id.clone());
                         parent_tx = tel.parent_tx.as_ref().map(|t| t.0.clone());
+                        // TB-7.7 D6: payload preview from CAS via proposal_artifact_cid.
+                        if let Ok(payload) = cas.get(&tel.proposal_artifact_cid) {
+                            let preview = String::from_utf8_lossy(&payload)
+                                .chars()
+                                .take(80)
+                                .collect::<String>();
+                            payload_preview = Some(preview);
+                        }
+                        // TB-7.7 D6: oracle_verified from VerificationResult.
+                        if let Some(vr_cid) = tel.verification_result_cid.as_ref() {
+                            if let Ok(vr) = read_verification_result(&cas, vr_cid) {
+                                oracle_verified = Some(vr.verified);
+                                if vr.verified {
+                                    oracle_verified_worktx.insert(
+                                        work.tx_id.0.clone(),
+                                        (
+                                            work.agent_id.0.clone(),
+                                            tel.candidate_tactic.clone(),
+                                            payload_preview.clone().unwrap_or_default(),
+                                        ),
+                                    );
+                                }
+                            }
+                        }
                     }
                 }
+                work_parent_by_tx_id.insert(work.tx_id.0.clone(), parent_tx.clone());
                 if let (Some(parent), Some(branch)) = (parent_tx.as_ref(), branch_id.as_ref()) {
                     branch_lineage.push(BranchEdge {
                         parent_tx: parent.clone(),
@@ -272,6 +327,8 @@ fn build_report(repo: &std::path::Path, cas_path: &std::path::Path) -> Result<Da
                     candidate_tactic: tactic,
                     branch_id,
                     rejection_class: None,
+                    proposal_artifact_preview: payload_preview,
+                    oracle_verified,
                 });
             }
             TypedTx::Verify(verify) => {
@@ -286,6 +343,8 @@ fn build_report(repo: &std::path::Path, cas_path: &std::path::Path) -> Result<Da
                     candidate_tactic: None,
                     branch_id: None,
                     rejection_class: None,
+                    proposal_artifact_preview: None,
+                    oracle_verified: None,
                 });
             }
             TypedTx::TaskOpen(task) => {
@@ -298,6 +357,8 @@ fn build_report(repo: &std::path::Path, cas_path: &std::path::Path) -> Result<Da
                     candidate_tactic: None,
                     branch_id: None,
                     rejection_class: None,
+                    proposal_artifact_preview: None,
+                    oracle_verified: None,
                 });
             }
             TypedTx::EscrowLock(lock) => {
@@ -310,6 +371,8 @@ fn build_report(repo: &std::path::Path, cas_path: &std::path::Path) -> Result<Da
                     candidate_tactic: None,
                     branch_id: None,
                     rejection_class: None,
+                    proposal_artifact_preview: None,
+                    oracle_verified: None,
                 });
             }
             _ => {
@@ -322,8 +385,65 @@ fn build_report(repo: &std::path::Path, cas_path: &std::path::Path) -> Result<Da
                     candidate_tactic: None,
                     branch_id: None,
                     rejection_class: None,
+                    proposal_artifact_preview: None,
+                    oracle_verified: None,
                 });
             }
+        }
+    }
+
+    // TB-7.7 D6: golden path reconstruction. For each oracle-verified
+    // WorkTx, walk parent_tx links upward to root; output the path.
+    // Pick the FIRST oracle_verified_worktx as the canonical golden
+    // path (deterministic per BTreeMap order).
+    let mut golden_path: Vec<GoldenPathStep> = Vec::new();
+    if let Some((winner_tx_id, (agent, tactic, payload))) = oracle_verified_worktx.iter().next() {
+        let mut chain: Vec<(String, String, String, String, bool)> = Vec::new();
+        chain.push((
+            winner_tx_id.clone(),
+            agent.clone(),
+            tactic.clone(),
+            payload.clone(),
+            true,
+        ));
+        let mut cursor = work_parent_by_tx_id
+            .get(winner_tx_id)
+            .cloned()
+            .flatten();
+        let mut safety = 0;
+        while let Some(parent) = cursor {
+            safety += 1;
+            if safety > 100 {
+                break; // cycle safety
+            }
+            // Look up parent in proposal_flow for metadata.
+            let entry = proposal_flow
+                .iter()
+                .find(|e| e.tx_id.as_deref() == Some(parent.as_str()));
+            if let Some(p) = entry {
+                chain.push((
+                    parent.clone(),
+                    p.agent_id.clone().unwrap_or_default(),
+                    p.candidate_tactic.clone().unwrap_or_default(),
+                    p.proposal_artifact_preview.clone().unwrap_or_default(),
+                    p.oracle_verified.unwrap_or(false),
+                ));
+            } else {
+                chain.push((parent.clone(), String::new(), String::new(), String::new(), false));
+            }
+            cursor = work_parent_by_tx_id.get(&parent).cloned().flatten();
+        }
+        // Reverse so root → winner.
+        chain.reverse();
+        for (depth, (tx_id, ag, tac, pl, vr)) in chain.into_iter().enumerate() {
+            golden_path.push(GoldenPathStep {
+                depth,
+                tx_id,
+                agent_id: ag,
+                candidate_tactic: tac,
+                payload_preview: pl,
+                oracle_verified: vr,
+            });
         }
     }
 
@@ -368,6 +488,8 @@ fn build_report(repo: &std::path::Path, cas_path: &std::path::Path) -> Result<Da
             candidate_tactic: tactic,
             branch_id,
             rejection_class: Some(format!("{:?}", record.rejection_class)),
+            proposal_artifact_preview: None,
+            oracle_verified: None,
         });
     }
 
@@ -421,6 +543,7 @@ fn build_report(repo: &std::path::Path, cas_path: &std::path::Path) -> Result<Da
         per_agent,
         proposal_flow,
         branch_lineage,
+        golden_path,
         cross_checks,
     })
 }
@@ -508,6 +631,15 @@ fn render_text(r: &DashboardReport) -> String {
     ));
     s.push_str(&format!("  tactic_diversity        : {}\n", r.run_facts.tactic_diversity));
     s.push_str(&format!("  failed_branch_count     : {}\n", r.run_facts.failed_branch_count));
+    s.push_str(&format!(
+        "  chain_oracle_verified   : {} {}\n",
+        r.run_facts.chain_oracle_verified,
+        if r.run_facts.chain_oracle_verified { "✓ (Lean accepted ≥1 proof; oracle-level)" } else { "(no oracle-verified WorkTx)" }
+    ));
+    s.push_str(&format!(
+        "  chain_economic_finalized: {} (always false in TB-7; settlement = TB-9 territory)\n",
+        r.run_facts.chain_economic_finalized
+    ));
     s.push_str("  tool_dist:\n");
     if r.run_facts.tool_dist.is_empty() {
         s.push_str("    (empty)\n");
@@ -546,19 +678,32 @@ fn render_text(r: &DashboardReport) -> String {
     if r.proposal_flow.is_empty() {
         s.push_str("  (no proposals)\n");
     } else {
-        s.push_str("  side  | t   | tx_kind         | agent      | tactic     | branch     | reject\n");
-        s.push_str("  ------+-----+-----------------+------------+------------+------------+-------\n");
+        s.push_str("  side  | t   | tx_kind         | agent      | tactic     | branch     | oracle | reject\n");
+        s.push_str("  ------+-----+-----------------+------------+------------+------------+--------+-------\n");
         for entry in &r.proposal_flow {
+            let oracle_marker = match entry.oracle_verified {
+                Some(true) => "✓",
+                Some(false) => "✗",
+                None => "-",
+            };
             s.push_str(&format!(
-                "  {:<5} | {:>3} | {:<15} | {:<10} | {:<10} | {:<10} | {}\n",
+                "  {:<5} | {:>3} | {:<15} | {:<10} | {:<10} | {:<10} | {:<6} | {}\n",
                 entry.side,
                 entry.logical_t,
                 entry.tx_kind,
                 entry.agent_id.as_deref().unwrap_or("-"),
                 entry.candidate_tactic.as_deref().unwrap_or("-"),
                 entry.branch_id.as_deref().unwrap_or("-"),
+                oracle_marker,
                 entry.rejection_class.as_deref().unwrap_or("-"),
             ));
+            // TB-7.7 D6: payload preview from CAS (per-Work entries that have it).
+            if let Some(prev) = entry.proposal_artifact_preview.as_deref() {
+                if !prev.is_empty() {
+                    let one_line = prev.replace('\n', " ⏎ ");
+                    s.push_str(&format!("        payload: {}\n", one_line));
+                }
+            }
         }
     }
     s.push('\n');
@@ -578,8 +723,37 @@ fn render_text(r: &DashboardReport) -> String {
     }
     s.push('\n');
 
-    // §7 Cross-checks
-    s.push_str("§7 Cross-checks\n");
+    // §7 Golden path (TB-7.7 D6)
+    s.push_str("§7 Golden path (root → oracle-verified WorkTx)\n");
+    s.push_str("------------------------------------------------\n");
+    if r.golden_path.is_empty() {
+        if r.run_facts.chain_oracle_verified {
+            s.push_str("  (chain_oracle_verified=true but golden path empty — likely VR linkage missing)\n");
+        } else {
+            s.push_str("  (no oracle-verified WorkTx on chain — chain_oracle_verified=false)\n");
+        }
+    } else {
+        for step in &r.golden_path {
+            let marker = if step.oracle_verified { "✓" } else { " " };
+            s.push_str(&format!(
+                "  {}depth={:<2} {} | agent={} | tactic={} | tx={}\n",
+                marker,
+                step.depth,
+                if step.oracle_verified { "[ORACLE]" } else { "        " },
+                step.agent_id,
+                step.candidate_tactic,
+                step.tx_id,
+            ));
+            if !step.payload_preview.is_empty() {
+                let one_line = step.payload_preview.replace('\n', " ⏎ ");
+                s.push_str(&format!("           payload: {}\n", one_line));
+            }
+        }
+    }
+    s.push('\n');
+
+    // §8 Cross-checks
+    s.push_str("§8 Cross-checks\n");
     s.push_str("---------------\n");
     s.push_str(&format!("  audit_trail_rows         : {}\n", r.cross_checks.audit_trail_rows));
     s.push_str(&format!("  chain_proposal_count     : {}\n", r.cross_checks.chain_proposal_count));
