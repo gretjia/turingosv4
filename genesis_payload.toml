@@ -161,7 +161,7 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 "experiments/minif2f_v4/src/fc_trace.rs" = "8578edf61148e50abdf8d29a2efdc5114ee20ab727c1ccd6c5a88ad07e7ffa09"
 "experiments/minif2f_v4/src/run_id.rs" = "5ff9db039131eaf4efeb65303d886265ef4c4f7e0e0f743467a7cbf22061781c"
 "experiments/minif2f_v4/src/h_vppu_history.rs" = "1b83bf2993a74bcf03a89b52a37dbbfbdda5e080c8c437cae0b5e64262ec180f"  # NEW (TB-1 Day-4 2026-04-29): per-problem rolling history of pput_verified for H-VPPUT North Star regression metric (PREREG_PPUT_CCL_2026-04-26.md § 5)
-"experiments/minif2f_v4/src/bin/evaluator.rs" = "2bfb1350488aa9b164122e5aa966fffdc98f9ef25d48886b604febd342db3e6b"  # rehashed by TB-6 Atom 3 (2026-05-01): added synthetic-seed hook (TaskOpen + zero-stake WorkTx with synthetic_rejection_for_l4e_gate=true label) when chaintape mode is on; per architect ruling 2026-05-01 § 3.6 Atom 3
+"experiments/minif2f_v4/src/bin/evaluator.rs" = "de3830af1a47e672b9f9e766924b6464472661f9b0334c54dfe40acd186dee98"  # rehashed by TB-6 Atom 5 (2026-05-01): synthetic-seed hook now also writes AgentProposalRecord pairs to CAS + appends to agent_audit_trail.jsonl via runtime::agent_audit_trail::write_synthetic_seed_audit_pair; demonstrates Atom 5 audit-trail surface end-to-end on production-binary path. Prior rehash by TB-6 Atom 3 added the seed itself.
 "experiments/minif2f_v4/src/experiment_mode.rs" = "7fe34381767c58432a45f25e49c21a7b4f57ed6b4ed0fea2873753c81bccea89"
 "constitution.md" = "eec695459c71fbef3685583485deb431fe3b561657b2f285b7c5e7e220e59e03"
 "cases/MANIFEST.sha256" = "eccbe35f776c64225d50c461780d1fe75a0a8510adc62b0dd2e96b46dc2dc555"
@@ -208,7 +208,8 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 # 2026-05-01 TB-6 Atom 2 — added build_chaintape_sequencer_with_initial_q variant + adapter sub-module declaration.
 # 2026-05-01 TB-6 Atom 3 — Step 4 rejection_writer wired to RejectionEvidenceWriter::open_jsonl(<runtime_repo>/rejections.jsonl) for L4.E persistence per architect § 3.5.
 # 2026-05-01 TB-6 Atom 4 — `pub mod verify;` declaration added (replay verifier sibling to adapter).
-"src/runtime/mod.rs" = "be868851bd1536c9ec1bea98537328f7821cba932906976ce946cb3fbba92761"
+# 2026-05-01 TB-6 Atom 5 — `pub mod agent_audit_trail;` declaration added + ChaintapeBundle.cas_path field (additive) for audit-trail re-open.
+"src/runtime/mod.rs" = "4a29ba31b8acbecb119446be95652a058bf8f8b58ba22ef33d52e0ee35c4bc60"
 # 2026-05-01 TB-6 Atom 2 — chaintape adapter helpers (synthetic TaskOpen/EscrowLock/WorkTx constructors + balance seeding) NEW file.
 "src/runtime/adapter.rs" = "572b6287b5098c1959bf4d79c68cc4e8a590a77991e4d81e59bf860a1ebd16ae"
 # 2026-05-01 TB-6 Atom 4 — replay verifier library (NEW file). Re-opens runtime_repo + cas + pinned_pubkeys.json, replays L4 chain via replay_full_transition, emits ReplayReport. All pub symbols carry /// TRACE_MATRIX FC3-N1 backlinks per R-022.
@@ -217,6 +218,10 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 "src/bin/verify_chaintape.rs" = "68d024d10f3ce7b76dd91ef1c911fc1da55cfef5a875040c726715587c90244b"
 # 2026-05-01 TB-6 Atom 4 — replay verifier integration tests (I90 / I90b / I90c) (NEW file).
 "tests/tb_6_verify_chaintape.rs" = "ed0dd76cebb3927d30c6188ccfdb46b7421e8342e0d66cc9ef3b9c70874183e3"
+# 2026-05-01 TB-6 Atom 5 — Agent audit trail (AgentProposalRecord + CAS storage + JSONL index) NEW file. All pub symbols carry /// TRACE_MATRIX FC3-N1 backlinks per R-022.
+"src/runtime/agent_audit_trail.rs" = "fb447b5800c20673cc253e73c30612bb01adfda1cd0ffaad4da3fbfdf27bffb7"
+# 2026-05-01 TB-6 Atom 5 — Agent audit trail integration tests (I91 / I91b / I91d) (NEW file).
+"tests/tb_6_agent_audit_trail.rs" = "e64e2e81cbbccca3db1429e9bde18b62cd0b08cf6168cf1a1f9f5d292c3a831a"
 # 2026-04-29 TB-1 Day-3 — economy/mod.rs rehashed: + `pub mod ledger` declaration (P1 L4 wrapper).
 "src/economy/mod.rs" = "c735f92316bc5982f6ec316026d70179fb783d152b5ded2ed6ccb0775b97f069"
 "src/economy/money.rs" = "857fc6df2aefa4b26fd4b7d22ec06f1105ac3ec4393c6788a8f30370b6d7e776"

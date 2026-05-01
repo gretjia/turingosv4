@@ -732,7 +732,14 @@ async fn run_swarm(
     // 2026-05-01 § 3.6 Atom 3). The "real LLM" aspect is the parallel evaluator
     // run on the smoke problem; the synthetic seed satisfies the architect's
     // ≥1 L4 + ≥1 L4.E minimum without requiring per-proposal WorkTx routing
-    // (deferred to a future TB; full agent audit trail is Atom 5).
+    // (deferred to a future TB).
+    //
+    // TB-6 Atom 5: each synthetic envelope is also recorded as an
+    // AgentProposalRecord in CAS + indexed under tx_id in
+    // agent_audit_trail.jsonl. This demonstrates the audit-trail surface
+    // end-to-end on the production-binary path. Per-LLM-proposal main-loop
+    // routing (run_swarm "append" branch hook) remains a deferred surface
+    // — same pattern as Atom 3's deferral.
     if let Some(ref bundle) = chaintape_bundle {
         let task_id_str = format!("smoke-{}", run_id);
         let task_open = turingosv4::runtime::adapter::make_synthetic_task_open(
@@ -741,6 +748,8 @@ async fn run_swarm(
             turingosv4::state::q_state::Hash::ZERO,
             "atom3-seed",
         );
+        let task_open_tx_id =
+            turingosv4::state::q_state::TxId(format!("taskopen-{}-atom3-seed", task_id_str));
         if let Err(e) = bus.submit_typed_tx(task_open).await {
             error!("[chaintape] synthetic TaskOpen submit failed: {e}");
         } else {
@@ -754,6 +763,10 @@ async fn run_swarm(
             "atom3-l4e-synthetic-rejection",
             true,
         );
+        let bad_worktx_tx_id = turingosv4::state::q_state::TxId(format!(
+            "worktx-{}-atom3-l4e-synthetic-rejection",
+            task_id_str
+        ));
         if let Err(e) = bus.submit_typed_tx(bad_worktx).await {
             error!("[chaintape] synthetic zero-stake WorkTx submit failed: {e}");
         } else {
@@ -773,6 +786,24 @@ async fn run_swarm(
                 run_id
             ),
         );
+
+        // TB-6 Atom 5: write AgentProposalRecord pairs to CAS + index for both
+        // synthetic envelopes. Each record carries the architect's 9 fields
+        // + logical_t. The index links L4 / L4.E tx_id → CAS record CID.
+        if let Err(e) = turingosv4::runtime::agent_audit_trail::write_synthetic_seed_audit_pair(
+            &bundle.cas_path,
+            &bundle.runtime_repo_path,
+            &run_id,
+            &task_open_tx_id,
+            &bad_worktx_tx_id,
+        ) {
+            error!("[chaintape] Atom 5 audit-trail write failed: {e}");
+        } else {
+            info!(
+                "[chaintape] Atom 5 audit-trail records written to CAS + indexed for {}",
+                task_id_str
+            );
+        }
     }
 
     // Phase 4 (C-041 candidate): cross-problem wallet persistence. WALLET_STATE

@@ -23,6 +23,9 @@ pub mod adapter;
 /// TRACE_MATRIX FC3-N1: TB-6 Atom 4 — replay verifier (re-opens runtime_repo + cas + pinned_pubkeys.json, replays L4 chain, emits replay_report.json).
 pub mod verify;
 
+/// TRACE_MATRIX FC3-N1: TB-6 Atom 5 — Agent audit trail (AgentProposalRecord + CAS storage + JSONL index linking tx_id → proposal_record_cid).
+pub mod agent_audit_trail;
+
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 
@@ -132,6 +135,10 @@ pub struct ChaintapeBundle {
     /// Resolved runtime repo path (after canonicalization). Atom 5+ writes pinned pubkey
     /// JSON + agent audit trail under this dir.
     pub runtime_repo_path: PathBuf,
+    /// Resolved CAS root directory. Atom 5 callers re-open `CasStore` here to
+    /// write `AgentProposalRecord` artifacts (mirrors `runtime_repo_path` for
+    /// the L4 / L4.E side).
+    pub cas_path: PathBuf,
     /// Driver task running `run_chaintape_driver` against the queue.
     pub driver_handle: JoinHandle<()>,
     /// Drain trigger. Caller invokes `bundle.shutdown().await` at evaluator exit.
@@ -403,6 +410,7 @@ pub fn build_chaintape_sequencer_with_initial_q(
         rejection_writer,
         epoch,
         runtime_repo_path: config.runtime_repo_path.clone(),
+        cas_path: config.cas_path.clone(),
         driver_handle,
         shutdown_tx,
     })
