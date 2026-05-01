@@ -205,7 +205,10 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 # 2026-05-01 TB-6 Atom 1.1 — `pub mod runtime;` declaration added (production ChainTape factory) + R-022 TRACE_MATRIX backlink.
 "src/lib.rs" = "196fe13a07ce96d9c6eac8a2492c56b0f543403688220b45aa7e3b5a87a4dc1d"
 # 2026-05-01 TB-6 Atom 1.1 — production-mode runtime ChainTape factory + driver wrapper (NEW file). All pub symbols carry /// TRACE_MATRIX FC3-N1 backlinks per R-022.
-"src/runtime/mod.rs" = "2093977dd382cce884e8d3e5d6f0e711ee2cf853ce8452bca279a98f1787af5e"
+# 2026-05-01 TB-6 Atom 2 — added build_chaintape_sequencer_with_initial_q variant + adapter sub-module declaration.
+"src/runtime/mod.rs" = "6663c2085a616c119169efd39e145d6de36d20d96aa5174f1a430ffc1df9f519"
+# 2026-05-01 TB-6 Atom 2 — chaintape adapter helpers (synthetic TaskOpen/EscrowLock/WorkTx constructors + balance seeding) NEW file.
+"src/runtime/adapter.rs" = "572b6287b5098c1959bf4d79c68cc4e8a590a77991e4d81e59bf860a1ebd16ae"
 # 2026-04-29 TB-1 Day-3 — economy/mod.rs rehashed: + `pub mod ledger` declaration (P1 L4 wrapper).
 "src/economy/mod.rs" = "c735f92316bc5982f6ec316026d70179fb783d152b5ded2ed6ccb0775b97f069"
 "src/economy/money.rs" = "857fc6df2aefa4b26fd4b7d22ec06f1105ac3ec4393c6788a8f30370b6d7e776"

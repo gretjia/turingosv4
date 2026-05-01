@@ -17,6 +17,9 @@
 //! See `handover/ai-direct/TB-6_PRODUCTION_CHAINTAPE_BOOTSTRAP_2026-05-01.md`
 //! v2.1 for the full preflight.
 
+/// TRACE_MATRIX FC3-N1: TB-6 Atom 2 — chaintape adapter helpers (synthetic TaskOpen/EscrowLock/WorkTx constructors + balance seeding).
+pub mod adapter;
+
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 
@@ -296,6 +299,23 @@ fn write_pinned_pubkey_manifest(
 pub fn build_chaintape_sequencer(
     config: &RuntimeChaintapeConfig,
 ) -> Result<ChaintapeBundle, BootstrapError> {
+    build_chaintape_sequencer_with_initial_q(config, QState::genesis())
+}
+
+/// TRACE_MATRIX FC3-N1: TB-6 Atom 2 — factory variant accepting a pre-seeded `initial_q`.
+///
+/// Production-mode factory variant for callers that need to pre-populate the
+/// economic state (e.g., adapter-level tests + Atom 3 smoke fixtures that
+/// seed sponsor balance for `WorkTx` admission per WP § 18 Inv 5). The base
+/// `build_chaintape_sequencer` delegates here with `QState::genesis()`.
+///
+/// All other behavior (fail-closed on non-empty repo, pinned-pubkey manifest,
+/// JSONL-backed L4.E writer, runtime-side driver wrapper, Sequencer wiring) is
+/// identical to the base factory.
+pub fn build_chaintape_sequencer_with_initial_q(
+    config: &RuntimeChaintapeConfig,
+    initial_q: QState,
+) -> Result<ChaintapeBundle, BootstrapError> {
     // Step 1: open or init runtime repo, fail-closed on existing chain.
     std::fs::create_dir_all(&config.runtime_repo_path)?;
     let git_writer = Git2LedgerWriter::open(&config.runtime_repo_path)
@@ -337,8 +357,7 @@ pub fn build_chaintape_sequencer(
     let predicate_registry = Arc::new(PredicateRegistry::new());
     let tool_registry = Arc::new(ToolRegistry::new());
 
-    // Step 6: initial QState (genesis).
-    let initial_q = QState::genesis();
+    // Step 6: initial QState (caller-provided; base factory passes QState::genesis()).
 
     // Step 7: construct Sequencer.
     let (sequencer, queue_rx) = Sequencer::new(

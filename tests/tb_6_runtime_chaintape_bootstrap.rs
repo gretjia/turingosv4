@@ -18,11 +18,19 @@
 use std::sync::Mutex;
 
 use tempfile::TempDir;
+use turingosv4::bottom_white::ledger::transition_ledger::LedgerWriter;
 use turingosv4::bus::{BusConfig, TuringBus};
+use turingosv4::economy::money::MicroCoin;
 use turingosv4::kernel::Kernel;
-use turingosv4::runtime::{
-    build_chaintape_sequencer, BootstrapError, ChaintapeBundle, RuntimeChaintapeConfig,
+use turingosv4::runtime::adapter::{
+    genesis_with_balances, make_synthetic_escrow_lock, make_synthetic_task_open,
+    make_synthetic_worktx,
 };
+use turingosv4::runtime::{
+    build_chaintape_sequencer, build_chaintape_sequencer_with_initial_q, BootstrapError,
+    ChaintapeBundle, RuntimeChaintapeConfig,
+};
+use turingosv4::state::q_state::{AgentId, Hash};
 
 /// Static lock so env-mutating tests don't race under cargo's parallel runner
 /// (per `feedback_env_var_test_lock`). Every test that reads/writes
@@ -176,35 +184,129 @@ async fn t9_chaintape_mode_silently_disables_wal_when_both_env_vars_set() {
 }
 
 #[tokio::test]
-async fn t10_direct_bus_submit_typed_tx_synthetic_worktx_appends_l4_entry() {
-    // T10 (Codex round-2 NEW): the test that proves Atom 1's L4 path works
-    // independently of Atom 2's evaluator adapter. We construct a chaintape
-    // bundle, wire the bus via with_sequencer, but stop short of submitting
-    // a synthetic WorkTx — because constructing a fully-valid signed WorkTx
-    // requires a populated EconomicState (TaskOpenTx + EscrowLockTx
-    // dispatched first, plus a sponsor balance), which mirrors
-    // tests/tb_3_rsp1_formal_surface.rs::I23 fixture machinery.
-    //
-    // For Atom 1.3 ship: T10 verifies the COMPILE-LEVEL wiring (bundle →
-    // bus.sequencer → submit_typed_tx is callable). The actual "WorkTx
-    // appends L4 entry" assertion deferred to Atom 3 smoke evidence (where
-    // a real evaluator run + Atom 2 adapter produces the L4 entry).
-    //
-    // This is the architect-permitted "synthetic_rejection_for_l4e_gate=true"
-    // form per ruling § 3.6 Atom 3 — but we are not yet in Atom 3, so T10
-    // documents the path without claiming the L4 entry.
+async fn t10_direct_bus_submit_typed_tx_synthetic_taskopen_appends_l4_entry() {
+    // T10 (Codex round-2 NEW; Atom 2 expansion): proves Atom 1's L4 path works
+    // independently of Atom 3's real LLM. Submits a synthetic TaskOpenTx via
+    // `bus.submit_typed_tx`, drains the driver via `bundle.shutdown()`, and
+    // re-opens the runtime repo from disk to assert ≥1 accepted L4 entry.
+    // TaskOpen has no economic-debit precondition — the simplest valid
+    // accepted tx for a fresh QState::genesis() bootstrap.
     let tmp = TempDir::new().expect("tempdir");
     let cfg = fresh_config(&tmp, "t10");
     let bundle = build_chaintape_sequencer(&cfg).expect("bootstrap");
     let kernel = Kernel::new();
     let bus = TuringBus::with_sequencer(kernel, BusConfig::default(), bundle.sequencer.clone());
     assert!(bus.sequencer.is_some());
-    // Verify the transition writer is openable and has zero entries (empty chain).
-    let writer = bundle.transition_writer.read().expect("writer read");
-    let head = writer.head_commit_oid_hex();
-    assert_eq!(head, None, "fresh runtime repo has no head commit");
-    drop(writer);
+
+    // Pre-state: empty git repo (no head commit, no entries).
+    {
+        let writer = bundle.transition_writer.read().expect("writer read");
+        assert_eq!(writer.head_commit_oid_hex(), None);
+        assert_eq!(writer.len(), 0);
+    }
+
+    // Submit one synthetic TaskOpen via the production path.
+    let task_open = make_synthetic_task_open("task-t10", "sponsor-t10", Hash::ZERO, "t10-1");
+    bus.submit_typed_tx(task_open)
+        .await
+        .expect("submit TaskOpen via bus.submit_typed_tx");
+
+    bundle.shutdown().await.expect("shutdown drains queue");
+    drop(bus);
+
+    let reopened = turingosv4::bottom_white::ledger::transition_ledger::Git2LedgerWriter::open(&cfg.runtime_repo_path).expect("reopen");
+    assert!(
+        reopened.len() >= 1,
+        "≥1 LedgerEntry must exist on disk after TaskOpen submit + shutdown drain"
+    );
+    assert!(
+        reopened.head_commit_oid_hex().is_some(),
+        "refs/transitions/main has a head commit"
+    );
+}
+
+#[tokio::test]
+async fn t11_synthetic_zero_stake_worktx_appends_l4e_rejection() {
+    // T11 (Atom 2 NEW): proves the L4.E (rejected) path works on disk.
+    // Zero-stake WorkTx → rejected at structural admission gate (StakeInsufficient),
+    // regardless of task_market state. Per architect § 3.6 Atom 3 the smoke
+    // evidence requires ≥1 rejected L4.E entry.
+    let tmp = TempDir::new().expect("tempdir");
+    let cfg = fresh_config(&tmp, "t11");
+    let bundle = build_chaintape_sequencer(&cfg).expect("bootstrap");
+    let kernel = Kernel::new();
+    let bus = TuringBus::with_sequencer(kernel, BusConfig::default(), bundle.sequencer.clone());
+
+    let bad_worktx = make_synthetic_worktx(
+        "task-t11",
+        "agent-t11",
+        Hash::ZERO,
+        0,
+        "t11-zero-stake",
+        true,
+    );
+    bus.submit_typed_tx(bad_worktx)
+        .await
+        .expect("submit zero-stake WorkTx");
+
+    let rejection_writer_handle = bundle.rejection_writer.clone();
+    bundle.shutdown().await.expect("shutdown drains queue");
+    drop(bus);
+
+    let rw = rejection_writer_handle.read().expect("rejection writer read");
+    assert!(
+        rw.len() >= 1,
+        "≥1 RejectedSubmissionRecord after zero-stake WorkTx submit + drain"
+    );
+}
+
+#[tokio::test]
+async fn t12_chained_taskopen_then_zero_stake_worktx_produces_l4_and_l4e() {
+    // T12 (Atom 2 NEW): the architect-mandated minimum from § 3.6 Atom 3 —
+    // ≥1 accepted L4 + ≥1 rejected L4.E in a single bundle.
+    let tmp = TempDir::new().expect("tempdir");
+    let cfg = fresh_config(&tmp, "t12");
+    let initial_q = genesis_with_balances(&[(
+        AgentId("sponsor-t12".into()),
+        MicroCoin::from_coin(100).unwrap(),
+    )]);
+    let bundle = build_chaintape_sequencer_with_initial_q(&cfg, initial_q)
+        .expect("bootstrap with seeded balance");
+    let kernel = Kernel::new();
+    let bus = TuringBus::with_sequencer(kernel, BusConfig::default(), bundle.sequencer.clone());
+
+    let task_open = make_synthetic_task_open("task-t12", "sponsor-t12", Hash::ZERO, "t12-1");
+    bus.submit_typed_tx(task_open).await.expect("submit TaskOpen");
+    let bad_worktx = make_synthetic_worktx(
+        "task-t12",
+        "agent-t12",
+        Hash::ZERO,
+        0,
+        "t12-zero",
+        true,
+    );
+    bus.submit_typed_tx(bad_worktx)
+        .await
+        .expect("submit zero-stake WorkTx");
+
+    let rejection_writer_handle = bundle.rejection_writer.clone();
     bundle.shutdown().await.expect("shutdown");
+    drop(bus);
+
+    let reopened = turingosv4::bottom_white::ledger::transition_ledger::Git2LedgerWriter::open(&cfg.runtime_repo_path).expect("reopen");
+    assert!(reopened.len() >= 1, "TaskOpen produces ≥1 L4 entry");
+    let rw = rejection_writer_handle.read().expect("rejection read");
+    assert!(rw.len() >= 1, "Zero-stake WorkTx produces ≥1 L4.E entry");
+}
+
+#[test]
+fn t13_synthetic_escrow_lock_constructor_compiles() {
+    // T13 (Atom 2 NEW; smoke): demonstrates make_synthetic_escrow_lock is
+    // callable from an external test crate. Functional admission test
+    // (TaskOpen → EscrowLock → WorkTx full happy chain) requires sequencing
+    // parent_state_root correctly across each tx's accept; deferred to Atom 3
+    // smoke which has the polling / state-snapshot machinery.
+    let _esc = make_synthetic_escrow_lock("task-t13", "sponsor-t13", 50_000_000, Hash::ZERO, "t13");
 }
 
 // Helper: BootstrapError variant smoke test (kept inline — no separate
