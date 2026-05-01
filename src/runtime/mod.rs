@@ -29,6 +29,9 @@ pub mod agent_audit_trail;
 /// TRACE_MATRIX FC3-N1: TB-6 Atom 6 — Branch / fork visibility summary (tx_count, failed_branch_count, rollback_count, accepted/rejected tx_id sets, candidate proposal CIDs).
 pub mod run_summary;
 
+/// TRACE_MATRIX FC1-N14: TB-7 Atom 1 — Per-agent Ed25519 keypair manager + on-disk pubkey manifest (run-local identity ONLY; not durable reputation).
+pub mod agent_keypairs;
+
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 
