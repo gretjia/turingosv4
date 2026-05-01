@@ -48,36 +48,48 @@ The agent's actual proof artifact (`proof.lean`) was emitted via the **legacy** 
 
 ### Q4 — What was replayed?
 
-Replay verification is Atom 4's job (`verify_chaintape` CLI; not yet implemented). For Atom 3, the structural prerequisites are confirmed in place:
-
-- `Git2LedgerWriter::open(runtime_repo)` reopens the chain and reads `len() = 1` + `head_commit_oid()` matches the ref.
-- `RejectedSubmissionRecord` JSONL parses + `verify_chain()` succeeds on reopen (per Atom 1.2 T_R3-T_R4).
-- `entry_canonical` blob content + signature are present at the git tree.
-
-Full replay-from-L4-rebuilds-Q invariant lands in Atom 4.
-
-### Q5 — What was verified by signature?
-
-The `LedgerEntry` at git commit `38f7112f` carries a `signature` blob (64 bytes) signed by the runtime's per-run `Ed25519Keypair`. The matching public key is persisted at `runtime_repo/pinned_pubkeys.json`:
+**Atom 4 verify_chaintape was applied to this directory and emitted `replay_report.json`.** All 7 architect-mandated boolean indicators pass:
 
 ```json
 {
+  "l4_entries": 1,
+  "l4e_entries": 1,
+  "ledger_root_verified": true,
+  "system_signatures_verified": true,
+  "state_reconstructed": true,
+  "economic_state_reconstructed": true,
+  "cas_payloads_retrievable": true,
   "run_id": "tb6-smoke-2026-05-01",
-  "tb_id": "TB-6",
   "epoch": 1,
-  "pubkeys": [{"epoch": 1, "pubkey_hex": "<64 hex chars>"}]
+  "detail": {
+    "final_state_root_hex": "b1ffa9aa4a3109327db70bbc1fb62c539e5ba7afc71f3715e5bb9a94763a6428",
+    "final_ledger_root_hex": "22ff4ba064d26034044eaed36409b887b45cb83ff5e8ed921fddc45408b88470",
+    "head_commit_oid_hex": "38f7112f6401067ffc66c5a00338e12ec810170b",
+    "l4e_last_hash_hex": "39dc75cb2a34fe16cd1380bfffeae98c601a09dcf9581cc5f115074b3decfd34",
+    "replay_failure": null,
+    "initial_q_state_loaded_from_disk": false
+  }
 }
 ```
 
-Atom 4 verify_chaintape will load this manifest and re-verify every entry's signature against the pinned epoch pubkey. For Atom 3, signature presence is confirmed; signature validation is structurally correct by construction (the same keypair signed and pinned).
+To re-run: `./target/debug/verify_chaintape --repo runtime_repo --cas cas --out replay_report.json`. Cross-check: the `final_state_root_hex` (`b1ffa9aa…`) matches the `parent_state_root` stamped in `rejections.jsonl` (the rejected zero-stake WorkTx was checked against state-after-TaskOpen-accept), confirming chain ↔ rejection-ledger consistency. The `head_commit_oid_hex` matches `chain_snapshot_l4.txt`.
+
+### Q5 — What was verified by signature?
+
+The `LedgerEntry` at git commit `38f7112f` carries a `signature` blob (64 bytes) signed by the runtime's per-run `Ed25519Keypair`. The matching public key is persisted at `runtime_repo/pinned_pubkeys.json` (run_id `tb6-smoke-2026-05-01`, epoch 1, single pubkey row).
+
+**Atom 4 verify_chaintape re-verified the signature on the L4 entry against this pinned pubkey** — `system_signatures_verified=true` in `replay_report.json`. Tampering with the pubkey hex in the manifest is detectable: `tests/tb_6_verify_chaintape.rs::i90c_tampered_pinned_pubkey_breaks_signature_verification` exercises the negative case end-to-end.
 
 ### Q6 — What was reconstructed (QState / EconomicState)?
 
-Atom 4's `verify_chaintape` does this end-to-end (replay each `LedgerEntry` through `apply_one`-like logic, rebuild Q). Atom 3 confirms:
+**Atom 4's `verify_chaintape` reconstructs both end-to-end** by calling `replay_full_transition` (the I-DETHASH witness from CO1.7-impl A4):
 
-- The accepted TaskOpen's `tx_payload_cid` → recoverable from CAS + decode → reconstructs the original `TypedTx::TaskOpen(TaskOpenTx { ... })` 
-- `state_root_t` advance follows the `TASK_OPEN_ACCEPT_DOMAIN_V1` hash domain; replay produces the same `resulting_state_root` recorded in the entry.
-- `task_markets_t[task_id]` is populated post-replay (since accepted TaskOpen inserts a `TaskMarketEntry`).
+- The accepted TaskOpen's `tx_payload_cid` → CAS lookup → `canonical_decode` → reconstructs `TypedTx::TaskOpen(TaskOpenTx { ... })`.
+- `dispatch_transition` re-runs the pure transition; the resulting `state_root_t = b1ffa9aa…4763a6428` matches the on-chain `entry.resulting_state_root`.
+- `EconomicState` reconstructs without divergence (`economic_state_reconstructed=true`); `task_markets_t[smoke-…]` is populated post-replay since accepted TaskOpen inserts a `TaskMarketEntry`.
+- `ledger_root_t = 22ff4ba0…b88470` reconstructs from the `append(parent_root, signing_digest)` fold.
+
+Tampering with any L4 entry (parent root, payload CID, signing payload, or resulting roots) is detectable: replay fails at the first divergent stage (1-9). The `tests/tb_6_verify_chaintape.rs` battery covers the happy path (I90), empty-chain (I90b), and tamper-detection (I90c) cases.
 
 ### Q7 — What did the Agent see / propose? Which branches were rejected? Which became accepted?
 
@@ -163,7 +175,7 @@ h_vppu               5.6924
 | `runtime_repo/.git/refs/transitions/main` | absent | absent | **present (1 commit)** |
 | `pinned_pubkeys.json` | absent | absent | **present** |
 | Tampering with run.log undetectable? | yes | yes | **yes** (run.log still paper trail) |
-| Tampering with chain entries detectable? | n/a | n/a | **yes** (Atom 4 verify_chaintape) |
+| Tampering with chain entries detectable? | n/a | n/a | **yes** (Atom 4 verify_chaintape — `replay_report.json` ✓) |
 
 ---
 
@@ -173,11 +185,11 @@ h_vppu               5.6924
 
 1. **Architect § 3.6 Atom 3 minimum satisfied**: ≥1 accepted L4 entry + ≥1 rejected L4.E entry produced from a real evaluator run on `mathd_algebra_107`. Synthetic-seed label documented per "if no natural rejection, synthesize" clause.
 2. **Architect § 3.5 deliverable shape satisfied**: `runtime_repo/.git/` ✓ + `refs/transitions/main` ✓ + `cas/` ✓ + `rejections.jsonl` (the "或等价结构" of `refs/rejections/main`) ✓ + `pinned_pubkeys.json` ✓ + `proof.lean` ✓ + `pput_result.jsonl` ✓ + `README.md` ✓ + `synthetic_rejection_label.json` ✓.
-3. **D2 hard requirement satisfied**: 8-condition gate (production binary triggers `Sequencer::apply_one` ✓; on-disk LedgerEntry chain ✓; `parent_ledger_root` / `resulting_ledger_root` ✓; `tx_payload_cid` ✓; `system_signature` ✓; CAS retrievable ✓; replay reconstructable [Atom 4]; rejected raw diagnostic absent from agent-facing view ✓).
+3. **D2 hard requirement satisfied**: 8-condition gate (production binary triggers `Sequencer::apply_one` ✓; on-disk LedgerEntry chain ✓; `parent_ledger_root` / `resulting_ledger_root` ✓; `tx_payload_cid` ✓; `system_signature` ✓; CAS retrievable ✓; replay reconstructable ✓ [Atom 4 `replay_report.json`]; rejected raw diagnostic absent from agent-facing view ✓).
 4. **D5 naming ratified**: this dir IS chain-backed; can be called "ChainTape smoke" / "smoke tape" / "tape" without abuse of terminology.
 5. **D4 reporting standard satisfied** (per ship commit body): `cargo test --workspace` workspace_count + delta + zero failures.
 
-Atom 4 next: `verify_chaintape` CLI/test that re-opens this directory + replays the chain + reconstructs Q + verifies signatures. The tampering-detection guarantee crystallizes there.
+**Atom 4 SHIPPED**: `verify_chaintape` (library + CLI + I90/I90b/I90c integration tests) re-opens this directory, replays the chain, reconstructs Q + EconomicState, verifies every signature against `pinned_pubkeys.json`, and emits `replay_report.json` (this dir). The tampering-detection guarantee is now structurally enforced.
 
 ## §6 What this smoke proves vs. does NOT prove
 
@@ -190,7 +202,6 @@ Atom 4 next: `verify_chaintape` CLI/test that re-opens this directory + replays 
 
 **Does NOT prove** (deferred):
 - Per-proposal WorkTx routing (legacy evaluator emits PputResult, not WorkTx — Atom 5 wires this).
-- Replay-rebuilds-Q invariant end-to-end from a fresh state (Atom 4 verify_chaintape CLI).
 - Agent audit trail (proposal CIDs, prompt_context_hash linkage to tx_id — Atom 5).
 - Branch / fork visibility summary (`failed_branch_count`, accepted/rejected tx_id sets — Atom 6).
 

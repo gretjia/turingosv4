@@ -207,9 +207,16 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 # 2026-05-01 TB-6 Atom 1.1 — production-mode runtime ChainTape factory + driver wrapper (NEW file). All pub symbols carry /// TRACE_MATRIX FC3-N1 backlinks per R-022.
 # 2026-05-01 TB-6 Atom 2 — added build_chaintape_sequencer_with_initial_q variant + adapter sub-module declaration.
 # 2026-05-01 TB-6 Atom 3 — Step 4 rejection_writer wired to RejectionEvidenceWriter::open_jsonl(<runtime_repo>/rejections.jsonl) for L4.E persistence per architect § 3.5.
-"src/runtime/mod.rs" = "2996eab26fd5d6dc890569c302627e2564f0ec3e909c6bd339d7c6ce5a288206"
+# 2026-05-01 TB-6 Atom 4 — `pub mod verify;` declaration added (replay verifier sibling to adapter).
+"src/runtime/mod.rs" = "be868851bd1536c9ec1bea98537328f7821cba932906976ce946cb3fbba92761"
 # 2026-05-01 TB-6 Atom 2 — chaintape adapter helpers (synthetic TaskOpen/EscrowLock/WorkTx constructors + balance seeding) NEW file.
 "src/runtime/adapter.rs" = "572b6287b5098c1959bf4d79c68cc4e8a590a77991e4d81e59bf860a1ebd16ae"
+# 2026-05-01 TB-6 Atom 4 — replay verifier library (NEW file). Re-opens runtime_repo + cas + pinned_pubkeys.json, replays L4 chain via replay_full_transition, emits ReplayReport. All pub symbols carry /// TRACE_MATRIX FC3-N1 backlinks per R-022.
+"src/runtime/verify.rs" = "4b346241ec8c83f409c6f51727873f510c1bf77ef5185f2b0002f7b537679d16"
+# 2026-05-01 TB-6 Atom 4 — `verify_chaintape` CLI thin wrapper (NEW file).
+"src/bin/verify_chaintape.rs" = "68d024d10f3ce7b76dd91ef1c911fc1da55cfef5a875040c726715587c90244b"
+# 2026-05-01 TB-6 Atom 4 — replay verifier integration tests (I90 / I90b / I90c) (NEW file).
+"tests/tb_6_verify_chaintape.rs" = "ed0dd76cebb3927d30c6188ccfdb46b7421e8342e0d66cc9ef3b9c70874183e3"
 # 2026-04-29 TB-1 Day-3 — economy/mod.rs rehashed: + `pub mod ledger` declaration (P1 L4 wrapper).
 "src/economy/mod.rs" = "c735f92316bc5982f6ec316026d70179fb783d152b5ded2ed6ccb0775b97f069"
 "src/economy/money.rs" = "857fc6df2aefa4b26fd4b7d22ec06f1105ac3ec4393c6788a8f30370b6d7e776"

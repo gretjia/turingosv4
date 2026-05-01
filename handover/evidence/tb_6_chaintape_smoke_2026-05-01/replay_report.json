@@ -1,0 +1,19 @@
+{
+  "l4_entries": 1,
+  "l4e_entries": 1,
+  "ledger_root_verified": true,
+  "system_signatures_verified": true,
+  "state_reconstructed": true,
+  "economic_state_reconstructed": true,
+  "cas_payloads_retrievable": true,
+  "run_id": "tb6-smoke-2026-05-01",
+  "epoch": 1,
+  "detail": {
+    "final_state_root_hex": "b1ffa9aa4a3109327db70bbc1fb62c539e5ba7afc71f3715e5bb9a94763a6428",
+    "final_ledger_root_hex": "22ff4ba064d26034044eaed36409b887b45cb83ff5e8ed921fddc45408b88470",
+    "head_commit_oid_hex": "38f7112f6401067ffc66c5a00338e12ec810170b",
+    "l4e_last_hash_hex": "39dc75cb2a34fe16cd1380bfffeae98c601a09dcf9581cc5f115074b3decfd34",
+    "replay_failure": null,
+    "initial_q_state_loaded_from_disk": false
+  }
+}

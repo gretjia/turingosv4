@@ -20,6 +20,9 @@
 /// TRACE_MATRIX FC3-N1: TB-6 Atom 2 — chaintape adapter helpers (synthetic TaskOpen/EscrowLock/WorkTx constructors + balance seeding).
 pub mod adapter;
 
+/// TRACE_MATRIX FC3-N1: TB-6 Atom 4 — replay verifier (re-opens runtime_repo + cas + pinned_pubkeys.json, replays L4 chain, emits replay_report.json).
+pub mod verify;
+
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 
