@@ -677,20 +677,60 @@ async fn run_swarm(
     // authoritative state mutation (TB-7 charter §4.0 + §6 #31). When the
     // operator declares ChainTape mode, we either get ChainTape or we
     // exit non-zero — never quietly degrade to legacy.
+    // TB-7.7 D3: optional pre-seed for L4 accept. Reading
+    // TURINGOS_CHAINTAPE_PRESEED=1 enables a custom genesis QState with
+    // pre-seeded balances for: (a) `tb7-7-sponsor` (for TaskOpen +
+    // EscrowLock), and (b) every Agent_i (for WorkTx.stake admission).
+    // Without preseed, real LLM WorkTx with non-zero stake would fail
+    // admission with InsufficientBalance → L4.E. With preseed, the
+    // chain shows ≥1 accepted L4 WorkTx for the first time.
+    let chaintape_preseed_enabled = std::env::var("TURINGOS_CHAINTAPE_PRESEED")
+        .ok()
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
     let chaintape_bundle: Option<turingosv4::runtime::ChaintapeBundle> =
         match turingosv4::runtime::RuntimeChaintapeConfig::from_env() {
             None => None, // env unset = legacy mode is the explicit choice
-            Some(cfg) => match turingosv4::runtime::build_chaintape_sequencer(&cfg) {
-                Ok(b) => Some(b),
-                Err(e) => {
-                    error!(
-                        "[chaintape] bootstrap failed under TURINGOS_CHAINTAPE_PATH (declared \
-                         ChainTape mode); exiting non-zero per TB-7 Atom 1.7 fail-closed \
-                         (Codex audit action #1). Error: {e}"
-                    );
-                    std::process::exit(2);
+            Some(cfg) => {
+                let result = if chaintape_preseed_enabled {
+                    // Pre-seeded genesis: sponsor + per-agent balances.
+                    // Sponsor balance = 10_000_000 micro (10 coins) — plenty
+                    // for ~100 EscrowLock at 100_000 each.
+                    // Per-agent balance = 1_000_000 micro (1 coin) — plenty
+                    // for ~1000 WorkTx.stake at 1_000 each.
+                    use turingosv4::economy::money::MicroCoin;
+                    use turingosv4::state::q_state::AgentId;
+                    let mut pairs: Vec<(AgentId, MicroCoin)> = vec![
+                        (AgentId("tb7-7-sponsor".into()),
+                         MicroCoin::from_micro_units(10_000_000)),
+                    ];
+                    // Pre-seed up to N=10 agents (covers n1, n3, n5, n10).
+                    for i in 0..10 {
+                        pairs.push((
+                            AgentId(format!("Agent_{i}")),
+                            MicroCoin::from_micro_units(1_000_000),
+                        ));
+                    }
+                    let initial_q = turingosv4::runtime::adapter::genesis_with_balances(&pairs);
+                    info!("[chaintape/d3] pre-seed enabled: sponsor + 10 agent balances");
+                    turingosv4::runtime::build_chaintape_sequencer_with_initial_q(
+                        &cfg, initial_q,
+                    )
+                } else {
+                    turingosv4::runtime::build_chaintape_sequencer(&cfg)
+                };
+                match result {
+                    Ok(b) => Some(b),
+                    Err(e) => {
+                        error!(
+                            "[chaintape] bootstrap failed under TURINGOS_CHAINTAPE_PATH (declared \
+                             ChainTape mode); exiting non-zero per TB-7 Atom 1.7 fail-closed \
+                             (Codex audit action #1). Error: {e}"
+                        );
+                        std::process::exit(2);
+                    }
                 }
-            },
+            }
         };
     if chaintape_bundle.is_some() && std::env::var("WAL_DIR").is_ok() {
         info!("[chaintape] WAL_DIR ignored when TURINGOS_CHAINTAPE_PATH is set");
@@ -782,6 +822,46 @@ async fn run_swarm(
     // routing (run_swarm "append" branch hook) remains a deferred surface
     // — same pattern as Atom 3's deferral.
     if let Some(ref bundle) = chaintape_bundle {
+        // TB-7.7 D3: when preseed is enabled, also submit a TaskOpen +
+        // EscrowLock for "task-{run_id}" (the SAME task_id that real
+        // Agent_i WorkTx submissions use in Atom 2/3 hot path). With
+        // pre-seeded sponsor balance, the EscrowLock will succeed,
+        // populating task_markets_t["task-{run_id}"].total_escrow > 0.
+        // Combined with pre-seeded Agent_i balance, real LLM WorkTx
+        // with stake > 0 can now reach L4 accepted.
+        if chaintape_preseed_enabled {
+            use turingosv4::economy::money::MicroCoin;
+            let real_task_id = format!("task-{}", run_id);
+            let task_open_real = turingosv4::runtime::adapter::make_synthetic_task_open(
+                &real_task_id,
+                "tb7-7-sponsor",
+                turingosv4::state::q_state::Hash::ZERO,
+                "tb7-7-d3-seed",
+            );
+            if let Err(e) = bus.submit_typed_tx(task_open_real).await {
+                error!("[chaintape/d3] preseed TaskOpen submit failed: {e}");
+            } else {
+                info!("[chaintape/d3] preseed TaskOpen for {real_task_id}");
+            }
+            // Read escrow amount from env (default 100_000 micro = 0.1 coin).
+            let escrow_micro: i64 = std::env::var("TURINGOS_CHAINTAPE_PRESEED_TASK_ESCROW_MICRO")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(100_000);
+            let escrow_lock = turingosv4::runtime::adapter::make_synthetic_escrow_lock(
+                &real_task_id,
+                "tb7-7-sponsor",
+                escrow_micro,
+                turingosv4::state::q_state::Hash::ZERO,
+                "tb7-7-d3-escrow",
+            );
+            if let Err(e) = bus.submit_typed_tx(escrow_lock).await {
+                error!("[chaintape/d3] preseed EscrowLock submit failed: {e}");
+            } else {
+                info!("[chaintape/d3] preseed EscrowLock {escrow_micro} micro for {real_task_id}");
+            }
+        }
+
         let task_id_str = format!("smoke-{}", run_id);
         let task_open = turingosv4::runtime::adapter::make_synthetic_task_open(
             &task_id_str,
