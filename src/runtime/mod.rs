@@ -26,6 +26,9 @@ pub mod verify;
 /// TRACE_MATRIX FC3-N1: TB-6 Atom 5 — Agent audit trail (AgentProposalRecord + CAS storage + JSONL index linking tx_id → proposal_record_cid).
 pub mod agent_audit_trail;
 
+/// TRACE_MATRIX FC3-N1: TB-6 Atom 6 — Branch / fork visibility summary (tx_count, failed_branch_count, rollback_count, accepted/rejected tx_id sets, candidate proposal CIDs).
+pub mod run_summary;
+
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 

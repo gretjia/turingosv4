@@ -191,6 +191,10 @@ h_vppu               5.6924
 
 **Atom 4 SHIPPED**: `verify_chaintape` (library + CLI + I90/I90b/I90c integration tests) re-opens this directory, replays the chain, reconstructs Q + EconomicState, verifies every signature against `pinned_pubkeys.json`, and emits `replay_report.json` (this dir). The tampering-detection guarantee is now structurally enforced.
 
+**Atom 5 SHIPPED**: `AgentProposalRecord` (9 fields per architect spec) lives in `runtime/agent_audit_trail.rs`. Stored in CAS + indexed under tx_id at `runtime_repo/agent_audit_trail.jsonl`. The Atom 3 synthetic-seed hook now emits a record pair via `write_synthetic_seed_audit_pair`. NO chain-of-thought / model deliberation persisted (I91d structural witness blocks future schema migrations).
+
+**Atom 6 SHIPPED**: `RunSummary` (`runtime/run_summary.rs`) aggregates `tx_count`, `failed_branch_count`, `rollback_count`, accepted/rejected `tx_id` sets, and candidate proposal CIDs by walking L4 + L4.E + CAS at run-exit. `run_summary.json` (this dir) shows: 1 L4 accepted (TaskOpen) + 1 L4.E rejected (zero-stake WorkTx) + 2 candidate CIDs. CLI `gen_run_summary` is the standalone backfill / forensic re-derivation entry point; the production-binary path writes one automatically at end-of-run.
+
 ## §6 What this smoke proves vs. does NOT prove
 
 **Proves**:

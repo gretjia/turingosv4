@@ -1808,8 +1808,40 @@ async fn run_swarm(
     // driver still terminates cleanly via shutdown_tx-drop → shutdown_rx-Err
     // path, but explicit drain is best-effort only on the canonical exit.
     if let Some(bundle) = chaintape_bundle {
+        // TB-6 Atom 6: build the RunSummary from the on-disk chain BEFORE the
+        // bundle is consumed by `shutdown()` (RunSummary needs the runtime_repo
+        // path + cas path + a final read of L4 / L4.E). Caller-supplied
+        // `failed_branch_count` and `rollback_count` mirror PputResult.
+        let runtime_repo_path = bundle.runtime_repo_path.clone();
+        let cas_path = bundle.cas_path.clone();
         if let Err(e) = bundle.shutdown().await {
             error!("[chaintape] driver shutdown returned error: {e}");
+        }
+        match turingosv4::runtime::run_summary::RunSummary::from_chaintape(
+            &runtime_repo_path,
+            &cas_path,
+            &run_id,
+            acc.failed_branch_count as u64,
+            // PputResult.rollback_count is hard-coded to 0 in make_pput;
+            // mirror that here so the summary stays cross-consistent until a
+            // future TB threads a real rollback counter.
+            0,
+        ) {
+            Ok(summary) => {
+                if let Err(e) = summary.write_canonical(&runtime_repo_path) {
+                    error!("[chaintape] RunSummary write failed: {e}");
+                } else {
+                    info!(
+                        "[chaintape] Atom 6 RunSummary written ({} L4 + {} L4.E entries; \
+                         {} accepted_tx_ids, {} rejected_tx_ids)",
+                        summary.l4_entries,
+                        summary.l4e_entries,
+                        summary.accepted_tx_ids.len(),
+                        summary.rejected_tx_ids.len(),
+                    );
+                }
+            }
+            Err(e) => error!("[chaintape] RunSummary build failed: {e}"),
         }
     }
     pput_result
