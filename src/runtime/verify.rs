@@ -135,6 +135,24 @@ pub struct ReplayReport {
     pub economic_state_reconstructed: bool,
     /// True iff every L4 entry's `tx_payload_cid` was retrievable from CAS.
     pub cas_payloads_retrievable: bool,
+    /// **TB-7 Atom 4 NEW**: True iff every L4 WorkTx / VerifyTx entry's
+    /// `AgentSignature` verifies against the per-run `agent_pubkeys.json`
+    /// manifest. Empty chain or chain with no Work/Verify entries → `true`
+    /// (no agent signatures to verify ≠ failure).
+    ///
+    /// This is the Gate 4 evidence (TB-7 charter §8): all WorkTx
+    /// signatures verify against agent_pubkeys.json. False on any
+    /// signature mismatch (tampering, key drift, unknown agent_id).
+    pub agent_signatures_verified: bool,
+    /// **TB-7 Atom 4 NEW**: True iff every L4 WorkTx entry's
+    /// `proposal_cid` resolves to a CAS-resident `ProposalTelemetry`
+    /// object. Empty chain or chain with zero Work entries → `true`.
+    ///
+    /// This is the Gate 5 evidence (TB-7 charter §8): every
+    /// `WorkTx.proposal_cid` resolves to a CAS `ProposalTelemetry`
+    /// object with the §4.5 schema. False if any WorkTx points to a
+    /// CID that's missing or decodes to non-ProposalTelemetry bytes.
+    pub proposal_telemetry_cas_retrievable: bool,
     /// Run-id from `pinned_pubkeys.json` manifest (echoed for forensics).
     pub run_id: String,
     /// Epoch from `pinned_pubkeys.json` manifest.
@@ -167,12 +185,16 @@ impl ReplayReport {
     /// exit code (0 when all pass, 1 otherwise).
     ///
     /// True iff every architect-mandated boolean indicator is `true`.
+    /// **TB-7 Atom 4**: also checks the new `agent_signatures_verified` (Gate 4)
+    /// and `proposal_telemetry_cas_retrievable` (Gate 5) indicators.
     pub fn all_indicators_pass(&self) -> bool {
         self.ledger_root_verified
             && self.system_signatures_verified
             && self.state_reconstructed
             && self.economic_state_reconstructed
             && self.cas_payloads_retrievable
+            && self.agent_signatures_verified
+            && self.proposal_telemetry_cas_retrievable
     }
 }
 
@@ -305,6 +327,15 @@ pub fn verify_chaintape(
         Err(err) => classify_replay_error(&err),
     };
 
+    // ── TB-7 Atom 4: agent signature verification (Gate 4) ──
+    //
+    // Walk every L4 entry; for WorkTx and VerifyTx variants, verify the
+    // AgentSignature against the per-run agent_pubkeys.json manifest.
+    // Empty chain or chain with no Work/Verify entries → trivially true
+    // (no agent signatures to fail).
+    let (agent_signatures_verified, proposal_telemetry_cas_retrievable) =
+        verify_agent_artifacts(runtime_repo_path, &cas_store, &entries);
+
     Ok(ReplayReport {
         l4_entries,
         l4e_entries,
@@ -313,6 +344,8 @@ pub fn verify_chaintape(
         state_reconstructed,
         economic_state_reconstructed,
         cas_payloads_retrievable,
+        agent_signatures_verified,
+        proposal_telemetry_cas_retrievable,
         run_id: manifest.run_id,
         epoch: manifest.epoch,
         detail: ReplayReportDetail {
@@ -324,6 +357,104 @@ pub fn verify_chaintape(
             initial_q_state_loaded_from_disk: initial_q_loaded_from_disk,
         },
     })
+}
+
+/// TRACE_MATRIX FC1-N14: TB-7 Atom 4 — verify Gate 4 + Gate 5 indicators by
+/// walking every L4 entry and (for WorkTx / VerifyTx variants) re-verifying
+/// agent signatures against the on-disk `agent_pubkeys.json` manifest, plus
+/// checking that every `WorkTx.proposal_cid` resolves to a CAS-resident
+/// ProposalTelemetry object.
+///
+/// Returns `(agent_signatures_verified, proposal_telemetry_cas_retrievable)`.
+/// Both default to `true` when the manifest doesn't exist or when no
+/// Work/Verify entries are present (no signatures to verify ≠ failure).
+fn verify_agent_artifacts(
+    runtime_repo_path: &Path,
+    cas_store: &CasStore,
+    entries: &[LedgerEntry],
+) -> (bool, bool) {
+    use crate::bottom_white::ledger::transition_ledger::canonical_decode;
+    use crate::runtime::agent_keypairs::{verify_agent_signature, AgentPubkeyManifest};
+    use crate::runtime::proposal_telemetry::read_from_cas as read_telemetry;
+    use crate::state::typed_tx::TypedTx;
+
+    let manifest_path = runtime_repo_path.join("agent_pubkeys.json");
+    if !manifest_path.exists() {
+        // No agent_pubkeys.json (legacy / pre-Atom-1 chain). Both indicators
+        // trivially true since there are no agent-side artifacts to fail.
+        return (true, true);
+    }
+    let manifest = match AgentPubkeyManifest::load(&manifest_path) {
+        Ok(m) => m,
+        Err(_) => return (false, false), // manifest unparseable = both fail
+    };
+
+    let mut agent_signatures_verified = true;
+    let mut proposal_telemetry_cas_retrievable = true;
+
+    for entry in entries {
+        // Get the typed payload from CAS.
+        let payload_bytes = match cas_store.get(&entry.tx_payload_cid) {
+            Ok(b) => b,
+            Err(_) => continue, // cas_payloads_retrievable already covers this
+        };
+        let typed_tx: TypedTx = match canonical_decode(&payload_bytes) {
+            Ok(tx) => tx,
+            Err(_) => continue, // payload decode error already covered upstream
+        };
+
+        match &typed_tx {
+            TypedTx::Work(work) => {
+                // Gate 4 — verify WorkTx signature.
+                let payload = work.to_signing_payload();
+                let digest = payload.canonical_digest();
+                let pubkey_opt = manifest.get(&work.agent_id);
+                match pubkey_opt {
+                    None => agent_signatures_verified = false,
+                    Some(pubkey) => {
+                        if verify_agent_signature(&work.signature, &digest, &pubkey).is_err() {
+                            agent_signatures_verified = false;
+                        }
+                    }
+                }
+                // Gate 5 — verify proposal_cid resolves to a ProposalTelemetry.
+                // Skip if proposal_cid is the zero-CID (legacy synthetic seed).
+                if work.proposal_cid.0 != [0u8; 32] {
+                    if read_telemetry(cas_store, &work.proposal_cid).is_err() {
+                        proposal_telemetry_cas_retrievable = false;
+                    }
+                }
+            }
+            TypedTx::Verify(verify) => {
+                // Gate 4 — verify VerifyTx signature.
+                let payload = verify.to_signing_payload();
+                let digest = payload.canonical_digest();
+                let pubkey_opt = manifest.get(&verify.verifier_agent);
+                match pubkey_opt {
+                    None => agent_signatures_verified = false,
+                    Some(pubkey) => {
+                        if verify_agent_signature(&verify.signature, &digest, &pubkey).is_err() {
+                            agent_signatures_verified = false;
+                        }
+                    }
+                }
+            }
+            // Other tx variants (TaskOpen / EscrowLock / Challenge /
+            // ChallengeResolve / ReuseTx / FinalizeReward / TaskExpire /
+            // TerminalSummary) are not covered by Gate 4 because:
+            // - Some are system-emitted (signature path is system, not agent;
+            //   covered by system_signatures_verified above).
+            // - Others are agent-emitted but their signing payloads need
+            //   per-variant signing helpers (TB-7 scope is WorkTx + VerifyTx
+            //   per ARCHITECT_RULING D3 narrowed scope).
+            _ => {}
+        }
+    }
+
+    (
+        agent_signatures_verified,
+        proposal_telemetry_cas_retrievable,
+    )
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -402,7 +533,10 @@ mod tests {
     }
 
     #[test]
-    fn replay_report_all_indicators_pass_requires_all_five_booleans() {
+    fn replay_report_all_indicators_pass_requires_all_seven_booleans() {
+        // **TB-7 Atom 4 (2026-05-01)**: indicator count 5 → 7 with the
+        // addition of `agent_signatures_verified` (Gate 4) and
+        // `proposal_telemetry_cas_retrievable` (Gate 5).
         let mut r = ReplayReport {
             l4_entries: 0,
             l4e_entries: 0,
@@ -411,6 +545,8 @@ mod tests {
             state_reconstructed: true,
             economic_state_reconstructed: true,
             cas_payloads_retrievable: true,
+            agent_signatures_verified: true,
+            proposal_telemetry_cas_retrievable: true,
             run_id: "test".into(),
             epoch: 1,
             detail: ReplayReportDetail {
@@ -424,6 +560,13 @@ mod tests {
         };
         assert!(r.all_indicators_pass());
         r.system_signatures_verified = false;
+        assert!(!r.all_indicators_pass());
+        r.system_signatures_verified = true;
+        // Atom 4 NEW indicators must also be checked.
+        r.agent_signatures_verified = false;
+        assert!(!r.all_indicators_pass());
+        r.agent_signatures_verified = true;
+        r.proposal_telemetry_cas_retrievable = false;
         assert!(!r.all_indicators_pass());
     }
 }

@@ -217,7 +217,7 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 # 2026-05-01 TB-6 Atom 2 — chaintape adapter helpers (synthetic TaskOpen/EscrowLock/WorkTx constructors + balance seeding) NEW file.
 "src/runtime/adapter.rs" = "b696c01d79852396aa58b144c650f74a959aa6a13ea7d43cb8713a7863e28494"  # rehashed by TB-7 Atom 3 (2026-05-01): added make_real_verifytx_signed_by (real-signature VerifyTx constructor; builds VerifySigningPayload, signs via AgentKeypairRegistry::sign over canonical_digest, returns TypedTx::Verify). Used by evaluator OMEGA-branch routing for the WorkTx + VerifyTx pair per ARCHITECT_RULING D3 narrowed scope (ChallengeWindow OPEN; no settlement).
 # 2026-05-01 TB-6 Atom 4 — replay verifier library (NEW file). Re-opens runtime_repo + cas + pinned_pubkeys.json, replays L4 chain via replay_full_transition, emits ReplayReport. All pub symbols carry /// TRACE_MATRIX FC3-N1 backlinks per R-022.
-"src/runtime/verify.rs" = "4b346241ec8c83f409c6f51727873f510c1bf77ef5185f2b0002f7b537679d16"
+"src/runtime/verify.rs" = "7f8bff454c875a45b1cd820d0ea358b4c6ee0011b3e5dbe9bdb2e9c8ac62c728"  # rehashed by TB-7 Atom 4 (2026-05-01): added agent_signatures_verified + proposal_telemetry_cas_retrievable indicators (Gate 4 + Gate 5); ReplayReport indicator count 5 → 7; new verify_agent_artifacts helper walks L4 entries, verifies WorkTx + VerifyTx signatures against agent_pubkeys.json + verifies WorkTx.proposal_cid resolves to CAS ProposalTelemetry. all_indicators_pass extended.
 # 2026-05-01 TB-6 Atom 4 — `verify_chaintape` CLI thin wrapper (NEW file).
 "src/bin/verify_chaintape.rs" = "68d024d10f3ce7b76dd91ef1c911fc1da55cfef5a875040c726715587c90244b"
 # 2026-05-01 TB-6 Atom 4 — replay verifier integration tests (I90 / I90b / I90c) (NEW file).
