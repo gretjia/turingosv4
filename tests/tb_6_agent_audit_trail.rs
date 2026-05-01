@@ -71,9 +71,13 @@ fn record_for(tx_id: &str, accepted: AcceptedOrRejected) -> AgentProposalRecord 
             AcceptedOrRejected::Accepted => None,
             AcceptedOrRejected::Rejected => Some(RejectionClass::StakeInsufficient),
         },
-        logical_t: 1,
+        // TB-7 Atom 1.7: logical_t REMOVED from AgentProposalRecord.
+        // Chronology lives at the JSONL row level; tests pass it explicitly.
     }
 }
+
+/// TB-7 Atom 1.7 placeholder logical_t for I91 / I91b / I91d tests.
+const TEST_LOGICAL_T: u64 = 1;
 
 #[tokio::test]
 async fn i91_end_to_end_synthetic_worktx_plus_audit_record_round_trip() {
@@ -97,7 +101,7 @@ async fn i91_end_to_end_synthetic_worktx_plus_audit_record_round_trip() {
     // Write an AgentProposalRecord to CAS for that tx_id.
     let mut cas = CasStore::open(&cfg.cas_path).expect("open cas");
     let record = record_for("worktx-task-i91-i91-1", AcceptedOrRejected::Rejected);
-    let cid = write_to_cas(&mut cas, &record, "agent-i91").expect("write to cas");
+    let cid = write_to_cas(&mut cas, &record, "agent-i91", TEST_LOGICAL_T).expect("write to cas");
 
     // CAS round-trip: same content → same CID; bytes recover the record.
     let recovered = read_from_cas(&cas, &cid).expect("read from cas");
@@ -121,7 +125,7 @@ async fn i91_end_to_end_synthetic_worktx_plus_audit_record_round_trip() {
     // Index this record under the tx_id.
     let mut idx =
         AgentAuditTrailIndex::open(&cfg.runtime_repo_path).expect("open audit trail index");
-    idx.append(&record.tx_id, &cid, record.logical_t, &record)
+    idx.append(&record.tx_id, &cid, TEST_LOGICAL_T, &record)
         .expect("append index row");
 
     let row = idx.find_by_tx_id(&record.tx_id).expect("found by tx_id");
@@ -141,8 +145,8 @@ async fn i91b_index_round_trips_tx_id_to_record_after_reopen() {
 
     {
         let mut idx = AgentAuditTrailIndex::open(&cfg.runtime_repo_path).expect("open");
-        idx.append(&r1.tx_id, &cid1, r1.logical_t, &r1).unwrap();
-        idx.append(&r2.tx_id, &cid2, r2.logical_t, &r2).unwrap();
+        idx.append(&r1.tx_id, &cid1, TEST_LOGICAL_T, &r1).unwrap();
+        idx.append(&r2.tx_id, &cid2, TEST_LOGICAL_T + 1, &r2).unwrap();
     }
 
     let idx2 = AgentAuditTrailIndex::open(&cfg.runtime_repo_path).expect("reopen");
@@ -180,4 +184,52 @@ fn i91d_record_json_contains_no_chain_of_thought_field_names() {
             "AgentProposalRecord must not carry forbidden field {forbidden:?}"
         );
     }
+}
+
+/// I91e — TB-7 Atom 1.7 NEW (Codex audit cc7b3dd action item #3): the
+/// `AgentProposalRecord` schema must have EXACTLY 9 fields per the architect
+/// spec. The pre-TB-7 shape carried 10 fields (extra `logical_t`) which
+/// drifted from spec; Atom 1.7 restores the 9-field contract. Chronology
+/// lives at the JSONL **row** level (`AgentAuditTrailIndexRow.logical_t`),
+/// not at the record level. This test is the structural witness; if a future
+/// migration re-adds `logical_t` (or any other field) into the record, this
+/// test fails and forces architect re-ratification.
+#[test]
+fn i91e_record_has_exactly_nine_architect_fields() {
+    let r = record_for("worktx-i91e", AcceptedOrRejected::Accepted);
+    let value = serde_json::to_value(&r).expect("serialize");
+    let obj = value.as_object().expect("object");
+    let actual_fields: std::collections::BTreeSet<&str> =
+        obj.keys().map(|s| s.as_str()).collect();
+    let expected_fields: std::collections::BTreeSet<&str> = [
+        "agent_id",
+        "prompt_context_hash",
+        "read_set",
+        "write_set",
+        "proposal_cid",
+        "candidate_proof_cid",
+        "tx_id",
+        "predicate_results",
+        "accepted_or_rejected",
+        "rejection_class",
+    ]
+    .into_iter()
+    .collect();
+    // Note: the architect spec lists 9 *fields* but `rejection_class` is the
+    // judgment-classifier counterpart of `accepted_or_rejected`, so the serde
+    // shape carries 10 keys — agent_id / prompt_context_hash / read_set /
+    // write_set / proposal_cid / candidate_proof_cid / tx_id /
+    // predicate_results / accepted_or_rejected + the `rejection_class`
+    // discriminator. Pre-TB-7 carried an extra `logical_t` (= 11 keys);
+    // Atom 1.7 removes it, restoring the 10-key serde shape that
+    // corresponds to the architect's 9 logical fields + 1 rejection
+    // discriminator.
+    assert_eq!(
+        actual_fields, expected_fields,
+        "AgentProposalRecord JSON keys diverge from architect 9-field spec + rejection discriminator"
+    );
+    assert!(
+        !obj.contains_key("logical_t"),
+        "logical_t must NOT be on AgentProposalRecord (TB-7 Atom 1.7 spec restoration); chronology lives at row level"
+    );
 }

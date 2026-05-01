@@ -670,16 +670,27 @@ async fn run_swarm(
     // is silently disabled with an info!() log per preflight v2.1 §3.6.
     // Bundle is held across the run; bundle.shutdown().await is invoked at
     // the implicit final return to drain queued submissions.
+    // TB-7 Atom 1.7 (Codex audit cc7b3dd action item #1): fail-closed when
+    // TURINGOS_CHAINTAPE_PATH is set but bootstrap fails. Silent fallback
+    // to legacy mode is the same anti-pattern as legacy `bus.append` as
+    // authoritative state mutation (TB-7 charter §4.0 + §6 #31). When the
+    // operator declares ChainTape mode, we either get ChainTape or we
+    // exit non-zero — never quietly degrade to legacy.
     let chaintape_bundle: Option<turingosv4::runtime::ChaintapeBundle> =
-        turingosv4::runtime::RuntimeChaintapeConfig::from_env().and_then(
-            |cfg| match turingosv4::runtime::build_chaintape_sequencer(&cfg) {
+        match turingosv4::runtime::RuntimeChaintapeConfig::from_env() {
+            None => None, // env unset = legacy mode is the explicit choice
+            Some(cfg) => match turingosv4::runtime::build_chaintape_sequencer(&cfg) {
                 Ok(b) => Some(b),
                 Err(e) => {
-                    error!("[chaintape] bootstrap failed: {e} — falling back to legacy");
-                    None
+                    error!(
+                        "[chaintape] bootstrap failed under TURINGOS_CHAINTAPE_PATH (declared \
+                         ChainTape mode); exiting non-zero per TB-7 Atom 1.7 fail-closed \
+                         (Codex audit action #1). Error: {e}"
+                    );
+                    std::process::exit(2);
                 }
             },
-        );
+        };
     if chaintape_bundle.is_some() && std::env::var("WAL_DIR").is_ok() {
         info!("[chaintape] WAL_DIR ignored when TURINGOS_CHAINTAPE_PATH is set");
     }

@@ -190,6 +190,13 @@ pub enum BootstrapError {
         path: PathBuf,
         existing_head: String,
     },
+    /// TB-7 Atom 1.7 fail-closed (Codex audit cc7b3dd action item #1):
+    /// refuse to bootstrap when the L4.E rejection writer cannot open its
+    /// JSONL file. Silent fallback to in-memory L4.E is the same
+    /// anti-pattern as legacy `bus.append` as authoritative state mutation
+    /// — a chain-backed run that secretly drops L4.E writes is worse than
+    /// a failed boot.
+    RejectionWriter(String),
 }
 
 impl std::fmt::Display for BootstrapError {
@@ -209,6 +216,7 @@ impl std::fmt::Display for BootstrapError {
                  deferred to a future TB. Point TURINGOS_CHAINTAPE_PATH at a fresh \
                  directory to start a new run."
             ),
+            Self::RejectionWriter(e) => write!(f, "rejection writer error: {e}"),
         }
     }
 }
@@ -369,18 +377,21 @@ pub fn build_chaintape_sequencer_with_initial_q(
     let pinned_pubkeys = Arc::new(pinned);
 
     // Step 4: rejection writer — JSONL-backed at <runtime_repo>/rejections.jsonl
-    // per Atom 1.2 + architect § 3.5 deliverable shape. Falls back to in-memory
-    // if open_jsonl fails (e.g. permission denied); failure is logged but does
-    // not abort bootstrap because legacy in-memory writer is still functional.
+    // per Atom 1.2 + architect § 3.5 deliverable shape.
+    //
+    // **TB-7 Atom 1.7 (Codex audit cc7b3dd action item #1)**: fail-closed
+    // when JSONL open fails. Silent in-memory fallback is the same
+    // anti-pattern as legacy `bus.append` as authoritative state mutation:
+    // a chain-backed run that secretly drops L4.E writes is worse than a
+    // failed boot. ChainTape mode is contractually a fail-closed declaration.
     let rejections_path = config.runtime_repo_path.join("rejections.jsonl");
     let rejection_writer = match RejectionEvidenceWriter::open_jsonl(rejections_path.clone()) {
         Ok(w) => Arc::new(RwLock::new(w)),
         Err(e) => {
-            log::error!(
-                "[chaintape] rejection writer open_jsonl({:?}) failed: {e} — falling back to in-memory",
+            return Err(BootstrapError::RejectionWriter(format!(
+                "open_jsonl({:?}) failed: {e}",
                 rejections_path
-            );
-            Arc::new(RwLock::new(RejectionEvidenceWriter::default()))
+            )));
         }
     };
 

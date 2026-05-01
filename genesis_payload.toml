@@ -161,7 +161,7 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 "experiments/minif2f_v4/src/fc_trace.rs" = "8578edf61148e50abdf8d29a2efdc5114ee20ab727c1ccd6c5a88ad07e7ffa09"
 "experiments/minif2f_v4/src/run_id.rs" = "5ff9db039131eaf4efeb65303d886265ef4c4f7e0e0f743467a7cbf22061781c"
 "experiments/minif2f_v4/src/h_vppu_history.rs" = "1b83bf2993a74bcf03a89b52a37dbbfbdda5e080c8c437cae0b5e64262ec180f"  # NEW (TB-1 Day-4 2026-04-29): per-problem rolling history of pput_verified for H-VPPUT North Star regression metric (PREREG_PPUT_CCL_2026-04-26.md § 5)
-"experiments/minif2f_v4/src/bin/evaluator.rs" = "fa13c9e3b29abef372f890d630b5e6e5b2c0753f582127ec7d920fce9f857df6"  # rehashed by TB-6 Atom 6 (2026-05-01): chaintape exit hook now also builds + writes RunSummary via runtime::run_summary::RunSummary::from_chaintape + write_canonical (= run_summary.json). Prior Atom 5 rehash added audit-trail emission; prior Atom 3 rehash added the synthetic seed itself.
+"experiments/minif2f_v4/src/bin/evaluator.rs" = "5b89a1ef3adacef2780c83394398e60d155f02ab86d8a00b831a6eed1ad89983"  # rehashed by TB-7 Atom 1.7 (2026-05-01): TURINGOS_CHAINTAPE_PATH bootstrap is now fail-closed (std::process::exit(2) on bootstrap error) per Codex audit cc7b3dd action item #1. Prior TB-6 Atom 6 hash had silent fallback to legacy mode.
 "experiments/minif2f_v4/src/experiment_mode.rs" = "7fe34381767c58432a45f25e49c21a7b4f57ed6b4ed0fea2873753c81bccea89"
 "constitution.md" = "eec695459c71fbef3685583485deb431fe3b561657b2f285b7c5e7e220e59e03"
 "cases/MANIFEST.sha256" = "eccbe35f776c64225d50c461780d1fe75a0a8510adc62b0dd2e96b46dc2dc555"
@@ -212,7 +212,8 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 # 2026-05-01 TB-6 Atom 6 — `pub mod run_summary;` declaration added (RunSummary fork-visibility aggregator sibling to verify + agent_audit_trail).
 # 2026-05-01 TB-7 Atom 1 — `pub mod agent_keypairs;` declaration added (per-agent Ed25519 keypair manager + on-disk pubkey manifest; run-local identity ONLY; per ARCHITECT_RULING D2 + TB-7 charter §4.2).
 # 2026-05-01 TB-7 Atom 1.5 — `pub mod proposal_telemetry;` declaration added (ProposalTelemetry CAS object writer per ARCHITECT_RULING D5 + charter §4.5; precondition for golden_path_token_count chain-derivation).
-"src/runtime/mod.rs" = "aecb7f50550abeabe540df285e97e62c49b320036a429e3f3312f08982a32150"
+# 2026-05-01 TB-7 Atom 1.7 — RejectionWriter BootstrapError variant + L4.E open_jsonl now fail-closed (returns BootstrapError::RejectionWriter instead of silent in-memory fallback). Per Codex audit cc7b3dd action item #1.
+"src/runtime/mod.rs" = "62aba1c2d4756345bb3b8a4d3141056e2e2a323ce32f99a99f476e1d6e90b661"
 # 2026-05-01 TB-6 Atom 2 — chaintape adapter helpers (synthetic TaskOpen/EscrowLock/WorkTx constructors + balance seeding) NEW file.
 "src/runtime/adapter.rs" = "572b6287b5098c1959bf4d79c68cc4e8a590a77991e4d81e59bf860a1ebd16ae"
 # 2026-05-01 TB-6 Atom 4 — replay verifier library (NEW file). Re-opens runtime_repo + cas + pinned_pubkeys.json, replays L4 chain via replay_full_transition, emits ReplayReport. All pub symbols carry /// TRACE_MATRIX FC3-N1 backlinks per R-022.
@@ -222,9 +223,9 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 # 2026-05-01 TB-6 Atom 4 — replay verifier integration tests (I90 / I90b / I90c) (NEW file).
 "tests/tb_6_verify_chaintape.rs" = "ed0dd76cebb3927d30c6188ccfdb46b7421e8342e0d66cc9ef3b9c70874183e3"
 # 2026-05-01 TB-6 Atom 5 — Agent audit trail (AgentProposalRecord + CAS storage + JSONL index) NEW file. All pub symbols carry /// TRACE_MATRIX FC3-N1 backlinks per R-022.
-"src/runtime/agent_audit_trail.rs" = "fb447b5800c20673cc253e73c30612bb01adfda1cd0ffaad4da3fbfdf27bffb7"
+"src/runtime/agent_audit_trail.rs" = "52dfbdd6a095600bf77146cb7ae6df2508c13ddba5d72b4e62195db183eca665"  # rehashed by TB-7 Atom 1.7 (2026-05-01): logical_t REMOVED from AgentProposalRecord (restore architect 9-field spec per Codex audit cc7b3dd action item #3); audit_hash domain prefix bumped v1→v2; new chain_link function binds row-level logical_t into JSONL spine; write_to_cas takes logical_t as parameter (was record field).
 # 2026-05-01 TB-6 Atom 5 — Agent audit trail integration tests (I91 / I91b / I91d) (NEW file).
-"tests/tb_6_agent_audit_trail.rs" = "e64e2e81cbbccca3db1429e9bde18b62cd0b08cf6168cf1a1f9f5d292c3a831a"
+"tests/tb_6_agent_audit_trail.rs" = "a260ac79eaf9cf462598c8200336e6c0ef17393bfd7ac0d05493247a4f3c0ea8"  # rehashed by TB-7 Atom 1.7 (2026-05-01): I91/I91b updated for logical_t-as-parameter API; new I91e structural witness asserts AgentProposalRecord has exactly 10 serde keys (9 architect fields + rejection discriminator) and explicitly rejects logical_t presence. Per Codex audit cc7b3dd action item #3.
 # 2026-05-01 TB-6 Atom 6 — RunSummary aggregator (NEW file). Walks L4 + L4.E + CAS at end-of-run; emits run_summary.json. All pub symbols carry /// TRACE_MATRIX FC3-N1 backlinks per R-022.
 "src/runtime/run_summary.rs" = "fce850fef9c9f72bdfd7a13f371f44088c98e4e7e6c99d447d8badc4fb8b1435"
 # 2026-05-01 TB-6 Atom 6 — `gen_run_summary` CLI thin wrapper (NEW file).

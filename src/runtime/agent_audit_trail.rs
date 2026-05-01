@@ -113,22 +113,31 @@ pub struct AgentProposalRecord {
     /// agent-facing classes only; private-predicate failures surface as
     /// `RejectionClass::Opaque` per WP § 3.4.
     pub rejection_class: Option<RejectionClass>,
-    /// Logical t at record write time (same as `LedgerEntry.logical_t` when
-    /// the record's tx was accepted; or the sequencer's current t at
-    /// rejection time). Bookkeeping only — not part of the architect's 9.
-    pub logical_t: u64,
+    // NOTE: `logical_t` was REMOVED from this record at TB-7 Atom 1.7
+    // (2026-05-01) per ARCHITECT_RULING D3 + Codex audit cc7b3dd action item
+    // #3 — the architect spec mandates exactly 9 fields. Chronology is now
+    // recorded at the JSONL **index row** level via
+    // `AgentAuditTrailIndexRow.logical_t`, which is the right substrate
+    // (rows are per-tx and naturally carry ordering metadata).
 }
 
 impl AgentProposalRecord {
     /// TRACE_MATRIX FC3-N1: TB-6 Atom 5 — chain-hash over the audit record's
-    /// 10 bound fields (architect's 9 + logical_t). Used by `AgentAuditTrailIndex`
-    /// to chain rows so tampering is detectable. NOT a system signature — the
-    /// audit trail index is internal book-keeping; ChainTape signature
-    /// guarantees still come from `LedgerEntry.system_signature` on the L4
-    /// side via `tx_id`.
+    /// 9 architect-spec bound fields. Used by `AgentAuditTrailIndex` to chain
+    /// rows so tampering is detectable. NOT a system signature — the audit
+    /// trail index is internal book-keeping; ChainTape signature guarantees
+    /// still come from `LedgerEntry.system_signature` on the L4 side via
+    /// `tx_id`.
+    ///
+    /// **TB-7 Atom 1.7 (2026-05-01)**: domain prefix bumped to `v2`,
+    /// `logical_t` removed from the digest. The hash now binds exactly the
+    /// 9 architect-spec fields. Chronology is bound at the JSONL row level
+    /// instead — `AgentAuditTrailIndex.append` mixes the row's `logical_t`
+    /// into the row's chain link via `chain_link`, so per-row spine
+    /// integrity still detects logical-time mutation.
     pub fn audit_hash(&self, prev_hash: &Hash) -> Hash {
         let mut h = Sha256::new();
-        h.update(b"turingosv4.agent_proposal_record.audit_hash.v1");
+        h.update(b"turingosv4.agent_proposal_record.audit_hash.v2");
         h.update(prev_hash.0);
         h.update(self.agent_id.0.as_bytes());
         h.update((self.agent_id.0.len() as u64).to_be_bytes());
@@ -153,8 +162,6 @@ impl AgentProposalRecord {
         }
         h.update(self.tx_id.0.as_bytes());
         h.update((self.tx_id.0.len() as u64).to_be_bytes());
-        // Predicate results: stable across same-bundle decoding by going
-        // through the bundle's serde representation.
         h.update(
             serde_json::to_vec(&self.predicate_results)
                 .expect("PredicateResultsBundle serialize is infallible for stable shapes"),
@@ -173,7 +180,21 @@ impl AgentProposalRecord {
             }
             None => h.update(b"\x00"),
         }
-        h.update(self.logical_t.to_be_bytes());
+        Hash(h.finalize().into())
+    }
+
+    /// TRACE_MATRIX FC3-N1: TB-7 Atom 1.7 — chain link for the JSONL index row.
+    /// Binds the record's `audit_hash(prev_hash)` PLUS the row-level
+    /// `logical_t` (chronology), so tampering with the row's logical_t is
+    /// still detectable on reload via spine check. This separates "what the
+    /// Agent saw + submitted + how the system judged" (record) from "when on
+    /// the chain it landed" (row metadata).
+    pub fn chain_link(&self, prev_hash: &Hash, logical_t: u64) -> Hash {
+        let record_hash = self.audit_hash(prev_hash);
+        let mut h = Sha256::new();
+        h.update(b"turingosv4.agent_audit_trail.chain_link.v1");
+        h.update(record_hash.0);
+        h.update(logical_t.to_be_bytes());
         Hash(h.finalize().into())
     }
 }
@@ -224,17 +245,23 @@ impl From<std::io::Error> for AgentAuditError {
 
 /// TRACE_MATRIX FC3-N1: TB-6 Atom 5 — canonical-encode the record + CAS put.
 /// Returns the content-addressed CID. Idempotent (same record → same CID).
+///
+/// **TB-7 Atom 1.7 (2026-05-01)**: takes `logical_t` as a separate parameter
+/// since it is no longer a record field (architect 9-field spec restoration
+/// per Codex audit cc7b3dd action item #3). Pass the row's `logical_t` for
+/// CAS-store provenance metadata.
 pub fn write_to_cas(
     cas: &mut CasStore,
     record: &AgentProposalRecord,
     creator: &str,
+    logical_t: u64,
 ) -> Result<Cid, AgentAuditError> {
     let bytes = canonical_encode(record).map_err(|e| AgentAuditError::Codec(e.to_string()))?;
     let cid = cas.put(
         &bytes,
         ObjectType::Generic,
         creator,
-        record.logical_t,
+        logical_t,
         Some(AUDIT_RECORD_SCHEMA_ID.to_string()),
     )?;
     Ok(cid)
@@ -330,7 +357,11 @@ impl AgentAuditTrailIndex {
         record: &AgentProposalRecord,
     ) -> Result<Hash, AgentAuditError> {
         let prev_hash = self.last_hash();
-        let hash = record.audit_hash(&prev_hash);
+        // TB-7 Atom 1.7: chain_link binds the record's audit_hash AND the
+        // row's logical_t, so tampering with logical_t at the row level is
+        // still detectable via spine-check on reload (logical_t is no longer
+        // a record-level field but row-level chronology metadata).
+        let hash = record.chain_link(&prev_hash, logical_t);
         let row = AgentAuditTrailIndexRow {
             tx_id: tx_id.clone(),
             proposal_record_cid: *proposal_record_cid,
@@ -460,13 +491,13 @@ pub fn write_synthetic_seed_audit_pair(
         },
         accepted_or_rejected: AcceptedOrRejected::Accepted,
         rejection_class: None,
-        logical_t: 1,
     };
-    let accepted_cid = write_to_cas(&mut cas, &accepted, "tb6-atom5-smoke")?;
+    let accepted_logical_t: u64 = 1;
+    let accepted_cid = write_to_cas(&mut cas, &accepted, "tb6-atom5-smoke", accepted_logical_t)?;
     idx.append(
         &accepted.tx_id,
         &accepted_cid,
-        accepted.logical_t,
+        accepted_logical_t,
         &accepted,
     )?;
 
@@ -503,13 +534,13 @@ pub fn write_synthetic_seed_audit_pair(
         // judgment branch (Atom 5 records what the agent saw + submitted, not
         // an independent re-judgment).
         rejection_class: Some(RejectionClass::StakeInsufficient),
-        logical_t: 1,
     };
-    let rejected_cid = write_to_cas(&mut cas, &rejected, "tb6-atom5-smoke")?;
+    let rejected_logical_t: u64 = 1;
+    let rejected_cid = write_to_cas(&mut cas, &rejected, "tb6-atom5-smoke", rejected_logical_t)?;
     idx.append(
         &rejected.tx_id,
         &rejected_cid,
-        rejected.logical_t,
+        rejected_logical_t,
         &rejected,
     )?;
 
@@ -551,9 +582,12 @@ mod tests {
             },
             accepted_or_rejected: AcceptedOrRejected::Accepted,
             rejection_class: None,
-            logical_t: 1,
         }
     }
+
+    /// TB-7 Atom 1.7 — placeholder logical_t for in-module tests. logical_t
+    /// is now row-level (not record-level); tests pass it explicitly.
+    const TEST_LOGICAL_T: u64 = 1;
 
     #[test]
     fn nine_required_fields_round_trip_through_canonical_encode() {
@@ -591,7 +625,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let mut cas = CasStore::open(tmp.path()).unwrap();
         let r = dummy_record();
-        let cid = write_to_cas(&mut cas, &r, "test").unwrap();
+        let cid = write_to_cas(&mut cas, &r, "test", TEST_LOGICAL_T).unwrap();
         let recovered = read_from_cas(&cas, &cid).unwrap();
         assert_eq!(recovered, r);
     }
@@ -606,7 +640,7 @@ mod tests {
             let mut idx = AgentAuditTrailIndex::open(tmp.path()).unwrap();
             assert_eq!(idx.len(), 0);
             assert_eq!(idx.last_hash(), Hash::ZERO);
-            idx.append(&r.tx_id, &cid, r.logical_t, &r).unwrap();
+            idx.append(&r.tx_id, &cid, TEST_LOGICAL_T, &r).unwrap();
             assert_eq!(idx.len(), 1);
             assert_ne!(idx.last_hash(), Hash::ZERO);
         }
@@ -624,11 +658,10 @@ mod tests {
         let cid = Cid([2u8; 32]);
         {
             let mut idx = AgentAuditTrailIndex::open(tmp.path()).unwrap();
-            idx.append(&r.tx_id, &cid, r.logical_t, &r).unwrap();
+            idx.append(&r.tx_id, &cid, TEST_LOGICAL_T, &r).unwrap();
             let mut r2 = r.clone();
             r2.tx_id = TxId("second".into());
-            r2.logical_t = 2;
-            idx.append(&r2.tx_id, &cid, r2.logical_t, &r2).unwrap();
+            idx.append(&r2.tx_id, &cid, TEST_LOGICAL_T + 1, &r2).unwrap();
         }
         // Corrupt the second row's prev_hash by editing the JSONL file.
         let path = tmp.path().join(AGENT_AUDIT_TRAIL_FILENAME);
