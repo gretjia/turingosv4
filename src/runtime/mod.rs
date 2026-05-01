@@ -407,6 +407,17 @@ pub fn build_chaintape_sequencer_with_initial_q(
     let tool_registry = Arc::new(ToolRegistry::new());
 
     // Step 6: initial QState (caller-provided; base factory passes QState::genesis()).
+    // TB-7.7 D7 fix: persist initial_q to <runtime_repo>/initial_q_state.json so
+    // verify_chaintape can replay from the same starting point. Without this,
+    // pre-seeded balances / open task markets seen at runtime are absent during
+    // replay, causing a state divergence that classifies as
+    // (state_reconstructed=false, economic_state_reconstructed=false). Per
+    // verify.rs:264-272 this file is the authoritative initial-Q manifest;
+    // omitting it forces replay to start from QState::genesis().
+    let initial_q_path = config.runtime_repo_path.join("initial_q_state.json");
+    let initial_q_json = serde_json::to_string_pretty(&initial_q)
+        .map_err(|e| BootstrapError::Cas(format!("initial_q serialize: {e}")))?;
+    std::fs::write(&initial_q_path, initial_q_json)?;
 
     // Step 7: construct Sequencer.
     let (sequencer, queue_rx) = Sequencer::new(

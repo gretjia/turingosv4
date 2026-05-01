@@ -88,7 +88,14 @@ async fn i90_end_to_end_taskopen_plus_zero_stake_worktx_replay_passes_all_indica
     assert!(report.detail.final_state_root_hex.is_some());
     assert!(report.detail.final_ledger_root_hex.is_some());
     assert!(report.detail.replay_failure.is_none());
-    assert!(!report.detail.initial_q_state_loaded_from_disk);
+    // TB-7.7 D7 (2026-05-01): build_chaintape_sequencer_with_initial_q now
+    // always persists initial_q to <runtime_repo>/initial_q_state.json so
+    // verify_chaintape replay can pick up pre-seeded balances + open task
+    // markets. The base build_chaintape_sequencer factory delegates here
+    // with QState::genesis(), so the file is now also written for genesis
+    // bundles — this assertion flipped from `false` to `true`. The
+    // genesis-equivalent initial_q is replay-idempotent.
+    assert!(report.detail.initial_q_state_loaded_from_disk);
 }
 
 #[tokio::test]

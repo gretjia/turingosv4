@@ -830,7 +830,6 @@ async fn run_swarm(
         // Combined with pre-seeded Agent_i balance, real LLM WorkTx
         // with stake > 0 can now reach L4 accepted.
         if chaintape_preseed_enabled {
-            use turingosv4::economy::money::MicroCoin;
             let real_task_id = format!("task-{}", run_id);
             let task_open_real = turingosv4::runtime::adapter::make_synthetic_task_open(
                 &real_task_id,
@@ -843,6 +842,34 @@ async fn run_swarm(
             } else {
                 info!("[chaintape/d3] preseed TaskOpen for {real_task_id}");
             }
+            // submit_typed_tx queues the tx and returns immediately; the
+            // Sequencer::run driver applies asynchronously (bus.rs:127-130).
+            // Poll q_snapshot until state_root_t advances past ZERO, then
+            // use the post-TaskOpen root as parent_state_root for the
+            // EscrowLock. Without this wait the EscrowLock would be
+            // rejected as StaleParent (lock.parent_state_root=ZERO !=
+            // q.state_root_t after TaskOpen applied).
+            let parent_for_escrow = {
+                use std::time::{Duration, Instant};
+                let deadline = Instant::now() + Duration::from_secs(5);
+                let mut root = turingosv4::state::q_state::Hash::ZERO;
+                while Instant::now() < deadline {
+                    if let Ok(q) = bundle.sequencer.q_snapshot() {
+                        if q.state_root_t != turingosv4::state::q_state::Hash::ZERO {
+                            root = q.state_root_t;
+                            break;
+                        }
+                    }
+                    tokio::time::sleep(Duration::from_millis(50)).await;
+                }
+                if root == turingosv4::state::q_state::Hash::ZERO {
+                    warn!(
+                        "[chaintape/d3] preseed TaskOpen did not advance state_root \
+                         within 5s; EscrowLock will use ZERO and likely reject"
+                    );
+                }
+                root
+            };
             // Read escrow amount from env (default 100_000 micro = 0.1 coin).
             let escrow_micro: i64 = std::env::var("TURINGOS_CHAINTAPE_PRESEED_TASK_ESCROW_MICRO")
                 .ok()
@@ -852,7 +879,7 @@ async fn run_swarm(
                 &real_task_id,
                 "tb7-7-sponsor",
                 escrow_micro,
-                turingosv4::state::q_state::Hash::ZERO,
+                parent_for_escrow,
                 "tb7-7-d3-escrow",
             );
             if let Err(e) = bus.submit_typed_tx(escrow_lock).await {

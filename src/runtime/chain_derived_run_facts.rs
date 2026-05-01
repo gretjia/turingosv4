@@ -319,14 +319,19 @@ pub fn compute_run_facts_from_chain(
     let (gp_payload, gp_path) = first_winner.unwrap_or((None, None));
 
     // TB-7.7 D5: chain_oracle_verified — true iff there exists at least
-    // one trail of (accepted L4 WorkTx) → (matching VerifyTx::Confirm in
-    // L4) → (ProposalTelemetry.verification_result_cid → CAS
-    // VerificationResult { verified: true }). Walk every confirmed
-    // accepted-WorkTx; for each, fetch its VerificationResult and check
-    // the verified flag.
+    // one accepted L4 WorkTx whose ProposalTelemetry.verification_result_cid
+    // resolves in CAS to a VerificationResult { verified: true }.
+    //
+    // VerificationResult is the on-chain oracle witness (Lean verdict);
+    // VerifyTx is the agent-verifier's economic declaration. Architect
+    // ruling D5 (2026-05-01) defines oracle-level acceptance by the
+    // VerificationResult presence, NOT the VerifyTx::Confirm — which
+    // mixes verifier economics into the oracle layer. Single-solver runs
+    // (n=1, no verifier) can therefore still flip chain_oracle_verified
+    // when OMEGA-accept attaches a verified VR.
     let mut chain_oracle_verified = false;
-    for confirmed in &confirmed_worktx_ids {
-        if let Some(Some(vr_cid)) = accepted_worktx_vr_cid.get(confirmed) {
+    for (_work_tx, vr_opt) in &accepted_worktx_vr_cid {
+        if let Some(vr_cid) = vr_opt {
             if let Ok(vr) = read_verification_result(&cas, vr_cid) {
                 if vr.verified {
                     chain_oracle_verified = true;

@@ -1,0 +1,21 @@
+{
+  "l4_entries": 3,
+  "l4e_entries": 3,
+  "ledger_root_verified": true,
+  "system_signatures_verified": true,
+  "state_reconstructed": true,
+  "economic_state_reconstructed": true,
+  "cas_payloads_retrievable": true,
+  "agent_signatures_verified": true,
+  "proposal_telemetry_cas_retrievable": true,
+  "run_id": "tb7-7-smoke-5",
+  "epoch": 1,
+  "detail": {
+    "final_state_root_hex": "9f697a9db12bbe16d5014e4328844530ab35f138bf7b8293407060174a9f855e",
+    "final_ledger_root_hex": "cebb72a2590f5f964532d571b5d6977cd16622e64fdaab3d5f3ce888012dd14c",
+    "head_commit_oid_hex": "6257d22f7445efa2c20ae69bf7e6ed0ccabd9450",
+    "l4e_last_hash_hex": "6ec440569066e4d476cdff8c660df02f4d97625977604aec259b7fece6caeec5",
+    "replay_failure": null,
+    "initial_q_state_loaded_from_disk": true
+  }
+}
