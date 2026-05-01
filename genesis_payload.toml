@@ -161,7 +161,7 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 "experiments/minif2f_v4/src/fc_trace.rs" = "8578edf61148e50abdf8d29a2efdc5114ee20ab727c1ccd6c5a88ad07e7ffa09"
 "experiments/minif2f_v4/src/run_id.rs" = "5ff9db039131eaf4efeb65303d886265ef4c4f7e0e0f743467a7cbf22061781c"
 "experiments/minif2f_v4/src/h_vppu_history.rs" = "1b83bf2993a74bcf03a89b52a37dbbfbdda5e080c8c437cae0b5e64262ec180f"  # NEW (TB-1 Day-4 2026-04-29): per-problem rolling history of pput_verified for H-VPPUT North Star regression metric (PREREG_PPUT_CCL_2026-04-26.md § 5)
-"experiments/minif2f_v4/src/bin/evaluator.rs" = "15aa045ba398594689e62b104c7f63a2d224bb31eb359fd43b670f20de3cf14f"  # rehashed by TB-6 Atom 1.3 (2026-05-01): added env-flag-gated chaintape branch in run_swarm — TURINGOS_CHAINTAPE_PATH set → build_chaintape_sequencer + TuringBus::with_sequencer; WAL_DIR silently disabled if both set; bundle.shutdown() at final return; constitution.md hash unchanged (R-014 non-sudo per R-018)
+"experiments/minif2f_v4/src/bin/evaluator.rs" = "2bfb1350488aa9b164122e5aa966fffdc98f9ef25d48886b604febd342db3e6b"  # rehashed by TB-6 Atom 3 (2026-05-01): added synthetic-seed hook (TaskOpen + zero-stake WorkTx with synthetic_rejection_for_l4e_gate=true label) when chaintape mode is on; per architect ruling 2026-05-01 § 3.6 Atom 3
 "experiments/minif2f_v4/src/experiment_mode.rs" = "7fe34381767c58432a45f25e49c21a7b4f57ed6b4ed0fea2873753c81bccea89"
 "constitution.md" = "eec695459c71fbef3685583485deb431fe3b561657b2f285b7c5e7e220e59e03"
 "cases/MANIFEST.sha256" = "eccbe35f776c64225d50c461780d1fe75a0a8510adc62b0dd2e96b46dc2dc555"
@@ -206,7 +206,8 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 "src/lib.rs" = "196fe13a07ce96d9c6eac8a2492c56b0f543403688220b45aa7e3b5a87a4dc1d"
 # 2026-05-01 TB-6 Atom 1.1 — production-mode runtime ChainTape factory + driver wrapper (NEW file). All pub symbols carry /// TRACE_MATRIX FC3-N1 backlinks per R-022.
 # 2026-05-01 TB-6 Atom 2 — added build_chaintape_sequencer_with_initial_q variant + adapter sub-module declaration.
-"src/runtime/mod.rs" = "6663c2085a616c119169efd39e145d6de36d20d96aa5174f1a430ffc1df9f519"
+# 2026-05-01 TB-6 Atom 3 — Step 4 rejection_writer wired to RejectionEvidenceWriter::open_jsonl(<runtime_repo>/rejections.jsonl) for L4.E persistence per architect § 3.5.
+"src/runtime/mod.rs" = "2996eab26fd5d6dc890569c302627e2564f0ec3e909c6bd339d7c6ce5a288206"
 # 2026-05-01 TB-6 Atom 2 — chaintape adapter helpers (synthetic TaskOpen/EscrowLock/WorkTx constructors + balance seeding) NEW file.
 "src/runtime/adapter.rs" = "572b6287b5098c1959bf4d79c68cc4e8a590a77991e4d81e59bf860a1ebd16ae"
 # 2026-04-29 TB-1 Day-3 — economy/mod.rs rehashed: + `pub mod ledger` declaration (P1 L4 wrapper).

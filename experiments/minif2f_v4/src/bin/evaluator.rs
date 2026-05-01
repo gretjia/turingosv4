@@ -725,6 +725,56 @@ async fn run_swarm(
     } else {
         TuringBus::new(kernel, config)
     };
+    // TB-6 Atom 3: when chaintape mode is on, seed the on-disk chain with a
+    // minimal pair of envelopes — one accepted TaskOpenTx (produces an L4
+    // entry) and one rejected zero-stake WorkTx (produces an L4.E entry with
+    // synthetic_rejection_for_l4e_gate=true label per architect ruling
+    // 2026-05-01 § 3.6 Atom 3). The "real LLM" aspect is the parallel evaluator
+    // run on the smoke problem; the synthetic seed satisfies the architect's
+    // ≥1 L4 + ≥1 L4.E minimum without requiring per-proposal WorkTx routing
+    // (deferred to a future TB; full agent audit trail is Atom 5).
+    if let Some(ref bundle) = chaintape_bundle {
+        let task_id_str = format!("smoke-{}", run_id);
+        let task_open = turingosv4::runtime::adapter::make_synthetic_task_open(
+            &task_id_str,
+            "tb6-smoke-sponsor",
+            turingosv4::state::q_state::Hash::ZERO,
+            "atom3-seed",
+        );
+        if let Err(e) = bus.submit_typed_tx(task_open).await {
+            error!("[chaintape] synthetic TaskOpen submit failed: {e}");
+        } else {
+            info!("[chaintape] seeded synthetic TaskOpen for {}", task_id_str);
+        }
+        let bad_worktx = turingosv4::runtime::adapter::make_synthetic_worktx(
+            &task_id_str,
+            "tb6-smoke-agent",
+            turingosv4::state::q_state::Hash::ZERO,
+            0,
+            "atom3-l4e-synthetic-rejection",
+            true,
+        );
+        if let Err(e) = bus.submit_typed_tx(bad_worktx).await {
+            error!("[chaintape] synthetic zero-stake WorkTx submit failed: {e}");
+        } else {
+            info!(
+                "[chaintape] seeded synthetic zero-stake WorkTx \
+                 (synthetic_rejection_for_l4e_gate=true) for {}",
+                task_id_str
+            );
+        }
+        // Mark the synthetic-seed in the evidence dir so verify_chaintape (Atom 4)
+        // can distinguish synthetic-rejection from natural rejection.
+        let label_path = bundle.runtime_repo_path.join("synthetic_rejection_label.json");
+        let _ = std::fs::write(
+            &label_path,
+            format!(
+                r#"{{"synthetic_rejection_for_l4e_gate": true, "run_id": "{}", "atom": "TB-6 Atom 3", "rationale": "≥1 L4.E entry seeded via zero-stake WorkTx; per architect ruling 2026-05-01 § 3.6 Atom 3"}}"#,
+                run_id
+            ),
+        );
+    }
+
     // Phase 4 (C-041 candidate): cross-problem wallet persistence. WALLET_STATE
     // env points to a json file; if it exists we load agents' carried-over
     // balances/portfolios, otherwise fresh genesis. No second mint under Law 2:

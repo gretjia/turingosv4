@@ -349,8 +349,21 @@ pub fn build_chaintape_sequencer_with_initial_q(
     pinned.insert(epoch, keypair.public_key());
     let pinned_pubkeys = Arc::new(pinned);
 
-    // Step 4: rejection writer. Atom 1.1 ships in-memory; Atom 1.2 extends to JSONL.
-    let rejection_writer = Arc::new(RwLock::new(RejectionEvidenceWriter::default()));
+    // Step 4: rejection writer — JSONL-backed at <runtime_repo>/rejections.jsonl
+    // per Atom 1.2 + architect § 3.5 deliverable shape. Falls back to in-memory
+    // if open_jsonl fails (e.g. permission denied); failure is logged but does
+    // not abort bootstrap because legacy in-memory writer is still functional.
+    let rejections_path = config.runtime_repo_path.join("rejections.jsonl");
+    let rejection_writer = match RejectionEvidenceWriter::open_jsonl(rejections_path.clone()) {
+        Ok(w) => Arc::new(RwLock::new(w)),
+        Err(e) => {
+            log::error!(
+                "[chaintape] rejection writer open_jsonl({:?}) failed: {e} — falling back to in-memory",
+                rejections_path
+            );
+            Arc::new(RwLock::new(RejectionEvidenceWriter::default()))
+        }
+    };
 
     // Step 5: predicate + tool registries (default empty registries — production-binary
     // is responsible for registering predicates / tools before submitting txs).

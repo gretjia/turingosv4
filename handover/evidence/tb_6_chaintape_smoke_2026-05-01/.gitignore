@@ -1,0 +1,11 @@
+# TB-6 Atom 3 evidence dir — runtime_repo/.git and cas/.git are real Git2-backed
+# CAS / chain repos that the production binary writes to. Tracking them as nested
+# git submodules would conflict with the parent turingosv4 repo's git management;
+# instead, we capture the canonical chain state in chain_snapshot_l4.txt + the
+# rejections.jsonl + pinned_pubkeys.json + synthetic_rejection_label.json files.
+#
+# To re-verify the chain on disk: re-run the Atom 3 smoke or invoke the (future)
+# verify_chaintape CLI from Atom 4. The chain is reproducible from the same LLM
+# proxy + Lean toolchain + commit HEAD.
+runtime_repo/
+cas/

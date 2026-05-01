@@ -1,0 +1,11 @@
+{
+  "run_id": "tb6-smoke-2026-05-01",
+  "tb_id": "TB-6",
+  "epoch": 1,
+  "pubkeys": [
+    {
+      "epoch": 1,
+      "pubkey_hex": "cc22308ca30b0ea09984a298d4029febfc1df5f8cfe1f9c0d7c995489a001e54"
+    }
+  ]
+}
