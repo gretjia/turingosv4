@@ -1,0 +1,11 @@
+{
+  "run_id": "tb7r-smoke-full",
+  "tb_id": "TB-6",
+  "epoch": 1,
+  "pubkeys": [
+    {
+      "epoch": 1,
+      "pubkey_hex": "b933e6041a89a5b7558c402630f087c5df08de71481563064e0414376b5866b7"
+    }
+  ]
+}

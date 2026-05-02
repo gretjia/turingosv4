@@ -1,0 +1,74 @@
+=================================================================
+ TB-8 Audit Dashboard — run_id=tb7r-smoke-full5-5 epoch=1
+=================================================================
+
+§1 Run metadata
+---------------
+  head_commit_oid: 724ec9d3380bf3abb577eaca5be04db25a2a8ac2
+  final_state_root: ab0a0f3103426be07b8274e9ec7c48d917d4c27248c2dd38689b874338e5bbba
+  final_ledger_root: 080c86bdf60b190fc6d156b92bd3b831649dffdff0f21cdfe7fce88c83327daf
+  initial_q_state_loaded_from_disk: true
+
+§2 Chain stats + 7 indicators
+------------------------------
+  L4 entries:  2
+  L4.E entries: 2
+  ledger_root_verified              : ✓
+  system_signatures_verified        : ✓
+  state_reconstructed               : ✓
+  economic_state_reconstructed      : ✓
+  cas_payloads_retrievable          : ✓
+  agent_signatures_verified [Gate 4]: ✓
+  proposal_telemetry_cas_retrievable [Gate 5]: ✓
+  ALL 7 PASS                        : GREEN
+
+§3 ChainDerivedRunFacts (§4.4 bit-exact set)
+---------------------------------------------
+  solved                  : false
+  verified                : false
+  tx_count                : 4
+  proposal_count          : 1
+  golden_path_token_count : 0
+  gp_payload (CID hex)    : -
+  gp_path                 : -
+  tactic_diversity        : 0
+  failed_branch_count     : 2
+  chain_oracle_verified   : false (no oracle-verified WorkTx)
+  chain_economic_finalized: false (always false in TB-7; settlement = TB-9 territory)
+  tool_dist:
+    (empty)
+
+§4 Per-agent activity
+---------------------
+  agent_id          | pubkey | Work✓ | Work✗ | Verify✓ | Verify✗
+  ------------------+--------+-------+-------+---------+--------
+  tb6-smoke-agent   | ✗      | 0     | 1     | 0       | 0
+  tb6-smoke-sponsor | ✗      | 0     | 0     | 0       | 0
+
+§5 Proposal flow (chronological by logical_t)
+----------------------------------------------
+  side  | t   | tx_kind         | agent      | tactic     | branch     | oracle | reject
+  ------+-----+-----------------+------------+------------+------------+--------+-------
+  L4.E  |   0 | TaskOpen        | tb6-smoke-sponsor | -          | -          | -      | PolicyViolation
+  L4.E  |   0 | Work            | tb6-smoke-agent | -          | -          | -      | PolicyViolation
+  L4    |   1 | TaskOpen        | tb7-7-sponsor | -          | -          | -      | -
+  L4    |   2 | EscrowLock      | tb7-7-sponsor | -          | -          | -      | -
+
+§6 Branch lineage (parent_tx → child_tx via ProposalTelemetry.parent_tx)
+------------------------------------------------------------------------
+  (no branch edges — proposals are root-only or telemetry parent_tx is None)
+
+§7 Golden path (root → oracle-verified WorkTx)
+------------------------------------------------
+  (no oracle-verified WorkTx on chain — chain_oracle_verified=false)
+
+§8 Cross-checks
+---------------
+  audit_trail_rows         : 2
+  chain_proposal_count     : 1
+  audit_rows == proposal_count: ✗ (gap)
+  audit_trail_chain_valid     : ✓
+  (Note: pre-TB-7.6 the agent_audit_trail.jsonl is populated only
+   by the synthetic-seed hook; full per-LLM-proposal audit-trail
+   wiring is part of TB-7.6 carry-forward action #4 / #5.)
+

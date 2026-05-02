@@ -1,0 +1,56 @@
+{
+  "constitution_hash": "eec695459c71fbef3685583485deb431fe3b561657b2f285b7c5e7e220e59e03",
+  "runtime_repo": "/tmp/tb7r_smoke_full_5/run_2_mathd_algebra_107/runtime_repo",
+  "cas_path": "/tmp/tb7r_smoke_full_5/run_2_mathd_algebra_107/cas",
+  "system_pubkey_hash": "a76ce9883cd8722b459ca708902f8194481e6d4220c377269962bfc924d9dcb8",
+  "agent_pubkeys_path": "agent_pubkeys.json",
+  "initial_balances": [
+    [
+      "tb7-7-sponsor",
+      10000000
+    ],
+    [
+      "Agent_0",
+      1000000
+    ],
+    [
+      "Agent_1",
+      1000000
+    ],
+    [
+      "Agent_2",
+      1000000
+    ],
+    [
+      "Agent_3",
+      1000000
+    ],
+    [
+      "Agent_4",
+      1000000
+    ],
+    [
+      "Agent_5",
+      1000000
+    ],
+    [
+      "Agent_6",
+      1000000
+    ],
+    [
+      "Agent_7",
+      1000000
+    ],
+    [
+      "Agent_8",
+      1000000
+    ],
+    [
+      "Agent_9",
+      1000000
+    ]
+  ],
+  "task_id": "task-n1_mathd_algebra_107_1777697537408",
+  "task_open_tx": "taskopen-task-n1_mathd_algebra_107_1777697537408-tb7-7-d3-seed",
+  "escrow_lock_tx": "escrowlock-task-n1_mathd_algebra_107_1777697537408-tb7-7-d3-escrow"
+}

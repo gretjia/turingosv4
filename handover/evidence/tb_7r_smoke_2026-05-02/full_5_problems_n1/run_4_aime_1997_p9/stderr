@@ -1,0 +1,19 @@
+[2026-05-02T04:52:45Z WARN  evaluator] [tx 0] step rejected (err:tactic_linarith): <stdin>:15:0: error: linarith failed to find a contradiction
+[2026-05-02T04:53:13Z WARN  evaluator] [tx 3] step rejected (err:tactic_linarith): <stdin>:21:0: error: linarith failed to find a contradiction
+[2026-05-02T04:53:23Z WARN  evaluator] [tx 4] step rejected (err:tactic_linarith): <stdin>:21:0: error: linarith failed to find a contradiction
+[2026-05-02T04:53:32Z WARN  evaluator] [tx 5] step rejected (err:tactic_linarith): <stdin>:21:0: error: linarith failed to find a contradiction
+[2026-05-02T04:53:43Z WARN  evaluator] [tx 6] step rejected (err:tactic_linarith): <stdin>:21:0: error: linarith failed to find a contradiction
+[2026-05-02T04:53:53Z WARN  evaluator] [tx 7] step rejected (err:tactic_linarith): <stdin>:21:0: error: linarith failed to find a contradiction
+[2026-05-02T04:54:03Z WARN  evaluator] [tx 8] step rejected (err:tactic_linarith): <stdin>:21:0: error: linarith failed to find a contradiction
+[2026-05-02T04:54:12Z WARN  evaluator] [tx 9] step rejected (err:tactic_linarith): <stdin>:21:0: error: linarith failed to find a contradiction
+[2026-05-02T04:54:23Z WARN  evaluator] [tx 10] step rejected (err:other): <stdin>:22:2: error: invalid 'calc' step, left-hand side is | but is expected to be
+[2026-05-02T04:54:33Z WARN  evaluator] [tx 11] step rejected (err:tactic_linarith): <stdin>:21:0: error: linarith failed to find a contradiction
+[2026-05-02T04:54:43Z WARN  evaluator] [tx 12] step rejected (err:tactic_linarith): <stdin>:21:0: error: linarith failed to find a contradiction
+[2026-05-02T04:54:53Z WARN  evaluator] [tx 13] step rejected (err:tactic_linarith): <stdin>:21:0: error: linarith failed to find a contradiction
+[2026-05-02T04:55:05Z WARN  evaluator] [tx 14] step rejected (err:tactic_linarith): <stdin>:21:0: error: linarith failed to find a contradiction
+[2026-05-02T04:55:15Z WARN  evaluator] [tx 15] step rejected (err:tactic_linarith): <stdin>:21:0: error: linarith failed to find a contradiction
+[2026-05-02T04:55:25Z WARN  evaluator] [tx 16] step rejected (err:tactic_linarith): <stdin>:21:0: error: linarith failed to find a contradiction
+[2026-05-02T04:55:35Z WARN  evaluator] [tx 17] step rejected (err:tactic_simp_noprog): <stdin>:21:0: error: field_simp made no progress at h₁
+[2026-05-02T04:55:44Z WARN  evaluator] [tx 18] step rejected (err:tactic_simp_noprog): <stdin>:21:0: error: field_simp made no progress at h₁
+[2026-05-02T04:55:54Z WARN  evaluator] [tx 19] step rejected (err:tactic_linarith): <stdin>:21:0: error: linarith failed to find a contradiction
+[v2-emit] SPLIT env unset; defaulting to 'adaptation' (Phase B convention; pre-registration requires SPLIT for Phase C+ ablation runs)

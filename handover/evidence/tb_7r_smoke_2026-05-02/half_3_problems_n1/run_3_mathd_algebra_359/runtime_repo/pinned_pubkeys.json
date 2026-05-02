@@ -1,0 +1,11 @@
+{
+  "run_id": "tb7r-smoke-half-3",
+  "tb_id": "TB-6",
+  "epoch": 1,
+  "pubkeys": [
+    {
+      "epoch": 1,
+      "pubkey_hex": "7efd66d52d5136d6b737dab5e22cddc1a029cd40ac1f3d65a917a82e109bbe7f"
+    }
+  ]
+}
