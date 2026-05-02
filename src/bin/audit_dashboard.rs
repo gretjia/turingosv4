@@ -708,15 +708,33 @@ fn render_text(r: &DashboardReport) -> String {
     }
     s.push('\n');
 
-    // §6 Branch lineage
+    // §6 Branch lineage + parent_tx state (TB-7R 2026-05-02)
+    // Per architect verdict 2026-05-02 (parent_tx ParentTx/DAG/Smoke ruling),
+    // the dashboard MUST distinguish:
+    //   - SingletonGoldenPathValid (B′ singleton solve; parent_tx=None correct)
+    //   - NoMultiAttemptObserved (DAG not exercised; conformance test demonstrates plumbing)
+    //   - MultiAttemptDagValid (≥1 multi-attempt branch with all parent_tx populated)
+    //   - MissingParentTxViolation (≥1 multi-attempt branch with missing parent_tx)
     s.push_str("§6 Branch lineage (parent_tx → child_tx via ProposalTelemetry.parent_tx)\n");
     s.push_str("------------------------------------------------------------------------\n");
+    let pt_state_label = match r.run_facts.parent_tx_state {
+        turingosv4::runtime::chain_derived_run_facts::ParentTxState::SingletonGoldenPathValid =>
+            "SingletonGoldenPathValid (B′ singleton solve — parent_tx=None correct; conformance test demonstrates plumbing)",
+        turingosv4::runtime::chain_derived_run_facts::ParentTxState::NoMultiAttemptObserved =>
+            "NoMultiAttemptObserved (DAG not exercised this run — conformance test demonstrates plumbing)",
+        turingosv4::runtime::chain_derived_run_facts::ParentTxState::MultiAttemptDagValid =>
+            "MultiAttemptDagValid ✓ (≥1 multi-attempt branch with all parent_tx edges present)",
+        turingosv4::runtime::chain_derived_run_facts::ParentTxState::MissingParentTxViolation =>
+            "MissingParentTxViolation ✗ (≥1 multi-attempt branch with missing parent_tx — wiring broken)",
+    };
+    s.push_str(&format!("  parent_tx_state: {}\n", pt_state_label));
     if r.branch_lineage.is_empty() {
-        s.push_str("  (no branch edges — proposals are root-only or telemetry parent_tx is None)\n");
+        s.push_str("  edges: (none — see parent_tx_state above for interpretation)\n");
     } else {
+        s.push_str("  edges:\n");
         for edge in &r.branch_lineage {
             s.push_str(&format!(
-                "  [{}] {} → {}\n",
+                "    [{}] {} → {}\n",
                 edge.branch_id, edge.parent_tx, edge.child_tx
             ));
         }

@@ -62,6 +62,49 @@ const REJECTIONS_JSONL_FILENAME: &str = "rejections.jsonl";
 
 // ── Output shape ────────────────────────────────────────────────────────────
 
+/// TRACE_MATRIX § 3 orphan (TB-7R 2026-05-02; see
+/// `handover/alignment/OBS_R022_TRACE_MATRIX_TB7R_ORPHANS_2026-05-02.md`):
+/// per architect verdict 2026-05-02 (parent_tx ParentTx/DAG/Smoke ruling),
+/// parent_tx is a **conditional invariant**, not an unconditional smoke
+/// requirement. The dashboard's parent_tx state distinguishes the
+/// architect-mandated three (plus a positive multi-attempt natural DAG
+/// state) so a singleton complete-tool solve under verdict A1=B′ is not
+/// mislabeled as a DAG violation merely for lacking edges.
+///
+/// `FC-trace: Art.III.4 (selective broadcasting) + Art.IV (terminate states)
+/// + WP-§5.L4 + verdict 2026-05-02 §Binding`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ParentTxState {
+    /// Run terminated via singleton complete-tool solve: exactly one
+    /// L4 accepted WorkTx with chain_oracle_verified=true. The B′-natural
+    /// success path. parent_tx=None on the root attempt is correct;
+    /// no DAG edges expected.
+    SingletonGoldenPathValid,
+    /// No (agent_id, branch_id) had ≥2 attempts. Covers: 0 L4 Work entries
+    /// (unsolved without externalized proposal), or singleton without
+    /// chain_oracle_verified (settlement deferred), or distinct-branch
+    /// multi-Work runs. parent_tx wiring not exercised by this run;
+    /// the deterministic conformance test demonstrates the plumbing.
+    NoMultiAttemptObserved,
+    /// At least one (agent_id, branch_id) had ≥2 attempts AND every
+    /// non-root attempt on each multi-attempt branch has parent_tx
+    /// populated (i.e. `Some(_)`). Natural DAG observed.
+    /// (Extends the architect-listed three states; explicitly named
+    /// to keep MissingParentTxViolation semantically distinct from
+    /// the success case.)
+    MultiAttemptDagValid,
+    /// At least one (agent_id, branch_id) had ≥2 attempts AND at least
+    /// one non-root attempt has `parent_tx == None`. This is a real
+    /// violation — parent_tx plumbing did not record the lineage edge.
+    MissingParentTxViolation,
+}
+
+impl Default for ParentTxState {
+    fn default() -> Self {
+        ParentTxState::NoMultiAttemptObserved
+    }
+}
+
 /// TRACE_MATRIX FC1-N14: TB-7 Atom 5 — bit-exact structural facts derived
 /// from L4 + L4.E + CAS alone. Time-sensitive fields are deliberately
 /// excluded per charter §4.4 (chain replay is byte-deterministic; wall
@@ -111,6 +154,77 @@ pub struct ChainDerivedRunFacts {
     /// accepted WorkTx.
     #[serde(default)]
     pub chain_economic_finalized: bool,
+    /// **TB-7R NEW (2026-05-02)**: parent_tx invariant state per architect
+    /// verdict 2026-05-02. See `ParentTxState` doc-comment. The dashboard
+    /// renders this state in §6 so a B′ singleton solve is not mislabeled
+    /// as a DAG violation; conformance tests demonstrate the plumbing.
+    #[serde(default)]
+    pub parent_tx_state: ParentTxState,
+}
+
+/// TRACE_MATRIX § 3 orphan (TB-7R 2026-05-02; see OBS_R022_TRACE_MATRIX_TB7R_ORPHANS):
+/// per-attempt summary collected during the L4 + L4.E walk for the purpose
+/// of computing `parent_tx_state`. Synthetic-seed entries (zero
+/// proposal_cid) are excluded — only telemetry-linked real proposals
+/// participate in the DAG check.
+#[derive(Debug, Clone)]
+struct WorkTxAttempt {
+    tx_id: TxId,
+    agent_id: String,
+    branch_id: String,
+    parent_tx: Option<TxId>,
+}
+
+/// TRACE_MATRIX § 3 orphan (TB-7R 2026-05-02; see OBS_R022_TRACE_MATRIX_TB7R_ORPHANS):
+/// compute parent_tx state from the per-attempt accumulator.
+///
+/// Logic per architect verdict 2026-05-02 binding decision:
+/// - 0 multi-attempt branches AND exactly 1 attempt AND chain_oracle_verified
+///   → `SingletonGoldenPathValid` (B′ success path).
+/// - 0 multi-attempt branches otherwise → `NoMultiAttemptObserved`.
+/// - ≥1 multi-attempt branch AND any non-root attempt has parent_tx=None
+///   → `MissingParentTxViolation`.
+/// - ≥1 multi-attempt branch AND every non-root attempt has parent_tx=Some(_)
+///   → `MultiAttemptDagValid`.
+fn compute_parent_tx_state(
+    attempts: &[WorkTxAttempt],
+    chain_oracle_verified: bool,
+) -> ParentTxState {
+    use std::collections::BTreeMap;
+    let mut by_branch: BTreeMap<(String, String), Vec<&WorkTxAttempt>> = BTreeMap::new();
+    for a in attempts {
+        by_branch
+            .entry((a.agent_id.clone(), a.branch_id.clone()))
+            .or_default()
+            .push(a);
+    }
+    let multi_attempt_branches: Vec<_> = by_branch
+        .iter()
+        .filter(|(_, v)| v.len() >= 2)
+        .collect();
+
+    if multi_attempt_branches.is_empty() {
+        if attempts.len() == 1 && chain_oracle_verified {
+            return ParentTxState::SingletonGoldenPathValid;
+        }
+        return ParentTxState::NoMultiAttemptObserved;
+    }
+
+    for (_, branch_attempts) in &multi_attempt_branches {
+        // Root attempt's parent_tx may legitimately point at a prior tx
+        // on a different branch (current `last_tx_by_agent` is per-agent,
+        // not per-branch). Only non-root attempts within the same branch
+        // are checked.
+        for (i, attempt) in branch_attempts.iter().enumerate() {
+            if i == 0 {
+                continue;
+            }
+            if attempt.parent_tx.is_none() {
+                return ParentTxState::MissingParentTxViolation;
+            }
+        }
+    }
+    ParentTxState::MultiAttemptDagValid
 }
 
 // ── Errors ──────────────────────────────────────────────────────────────────
@@ -201,6 +315,11 @@ pub fn compute_run_facts_from_chain(
     // VerificationResult { verified: true } in CAS → chain_oracle_verified.
     let mut accepted_worktx_vr_cid: BTreeMap<TxId, Option<crate::bottom_white::cas::schema::Cid>> =
         BTreeMap::new();
+    // TB-7R parent_tx ParentTxState accumulator: capture every
+    // telemetry-linked WorkTx (real LLM proposal, NOT synthetic seed) for
+    // post-walk DAG-state computation. Insertion order is preserved so the
+    // first attempt on a branch is the root.
+    let mut worktx_attempts: Vec<WorkTxAttempt> = Vec::new();
 
     for entry in &entries {
         let payload_bytes = match cas.get(&entry.tx_payload_cid) {
@@ -244,6 +363,13 @@ pub fn compute_run_facts_from_chain(
                         // later chain_oracle_verified check.
                         accepted_worktx_vr_cid
                             .insert(work.tx_id.clone(), tel.verification_result_cid);
+                        // TB-7R: capture for parent_tx DAG-state computation.
+                        worktx_attempts.push(WorkTxAttempt {
+                            tx_id: work.tx_id.clone(),
+                            agent_id: tel.agent_id.0.clone(),
+                            branch_id: tel.branch_id.clone(),
+                            parent_tx: tel.parent_tx.clone(),
+                        });
                     } else {
                         // ProposalTelemetry CAS lookup failed; this is a Gate
                         // 5 violation but doesn't poison run-facts aggregation
@@ -308,6 +434,17 @@ pub fn compute_run_facts_from_chain(
                         golden_path_token_count.saturating_add(tel.token_counts.total());
                     tactic_set.insert(tel.candidate_tactic.clone());
                     *tool_dist.entry(tel.candidate_tactic.clone()).or_insert(0) += 1;
+                    // TB-7R: L4.E rejected real-LLM WorkTx still counts as
+                    // an externalized proposal for parent_tx state. The
+                    // architect's verdict treats L4 + L4.E uniformly under
+                    // "every externalized proposal" — DAG state should
+                    // reflect rejections too.
+                    worktx_attempts.push(WorkTxAttempt {
+                        tx_id: work.tx_id.clone(),
+                        agent_id: tel.agent_id.0.clone(),
+                        branch_id: tel.branch_id.clone(),
+                        parent_tx: tel.parent_tx.clone(),
+                    });
                 }
             }
         }
@@ -352,6 +489,11 @@ pub fn compute_run_facts_from_chain(
     let solved = chain_economic_finalized;
     let verified = chain_economic_finalized;
 
+    // TB-7R: compute parent_tx state from accumulated WorkTxAttempt list.
+    // Per architect verdict 2026-05-02, parent_tx is a conditional
+    // invariant (singleton complete-tool solve has 0 edges legitimately).
+    let parent_tx_state = compute_parent_tx_state(&worktx_attempts, chain_oracle_verified);
+
     Ok(ChainDerivedRunFacts {
         solved,
         verified,
@@ -368,6 +510,7 @@ pub fn compute_run_facts_from_chain(
         failed_branch_count: l4e_count,
         chain_oracle_verified,
         chain_economic_finalized,
+        parent_tx_state,
     })
 }
 

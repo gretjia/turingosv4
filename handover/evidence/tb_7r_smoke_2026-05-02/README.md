@@ -107,36 +107,55 @@ Two complementary runs were captured (the verdict's `(or CONDITION=n5)` parenthe
 
 ---
 
-## §2 Open observation — `parent_tx edge` criterion structural absence
+## §2 parent_tx natural absence — architect verdict 2026-05-02
 
-**Observation**: Across all 10 runs in this smoke, `parent_tx` edges are universally absent. Dashboard §6 always reports `(no branch edges — proposals are root-only or telemetry parent_tx is None)`.
+**Architect ruling**: per `handover/directives/2026-05-02_TB7R_PARENT_TX_DAG_SMOKE_VERDICT.md`, parent_tx is a **conditional invariant**, not an unconditional smoke requirement:
 
-**Root cause analysis**:
+> "If a real LLM run solves in a single externalized proposal under B′ complete-tool semantics, then parent_tx_edges = 0 is valid; the golden path is a singleton node; there is no DAG defect."
 
-`parent_tx` edges link two proposals on the same `(agent_id, branch_id)` lineage. They appear when an agent makes ≥2 externalized proposals in the same run. Under TB-7R's architecture as defined by verdict A1=B′:
+**Observation across all 10 smoke runs**:
+
+`natural parent_tx_edges = 0 occurred because complete-tool runs solved in one externalized proposal`. This is the architect-sanctioned outcome under verdict A1=B′ + the `complete` tool's one-compound-proposal-per-turn semantics:
 
 1. The `complete` tool produces **one compound proposal per LLM turn** (whole proof in one tool call).
 2. If the proposal's Lean verification passes, OMEGA-pertactic emits **one** WorkTx and the run terminates with `chain_oracle_verified=true`.
-3. If the LLM cannot produce a working proof, current behavior is to **give up entirely** rather than emit a failed proposal followed by a retry.
+3. If the LLM cannot produce a working proof in this `complete` action, current behavior is to give up rather than emit a failed proposal — so unsolved runs likewise have 0 externalized proposals.
 
-Therefore under B′ + `complete` tool, the natural runtime shape is **1 successful proposal OR 0 proposals**, never N>1 proposals on the same branch. `parent_tx` edges are architecturally absent in the success and failure paths exercised by `mathd_*` and `aime_*` problems with DeepSeek-v4-flash + 20-tx budget.
+Per architect ruling, `do not fabricate parent_tx edges in natural smoke evidence`. The plumbing is proven separately by **deterministic conformance tests** at `tests/tb_7r_parent_tx_conformance.rs`.
 
-**Where parent_tx edges WOULD appear** (under TB-7R rules, not synthesized):
+**Dashboard's parent_tx_state field** distinguishes the architect-mandated four cases (extends architect-listed three with a positive multi-attempt state):
 
-- A problem where the LLM emits a proposal that fails Lean verification AND then makes a follow-up proposal on the same branch before giving up. This requires either (a) a model that retries on Lean errors with externalized intermediate output, or (b) a higher-level orchestration that surfaces failed proposals before retry.
-- Per-tactic decomposition where each tactic is its own externalized tool call (deferred to TB-8+ per verdict A1).
+| state | meaning | seen in this smoke? |
+|---|---|---|
+| `SingletonGoldenPathValid` | 1 L4 Work + chain_oracle_verified=true; B′ singleton solve | ✓ 8 of 10 runs |
+| `NoMultiAttemptObserved` | DAG not exercised; conformance test demonstrates plumbing | ✓ 2 of 10 runs (unsolved) |
+| `MultiAttemptDagValid` | ≥1 multi-attempt branch with all parent_tx edges present | ✗ (per architect ruling, expected absence) |
+| `MissingParentTxViolation` | ≥1 multi-attempt branch with missing parent_tx (REAL VIOLATION) | ✗ |
 
-**Why this is structural truth, not a TB-7R defect**:
+**Conformance test results** (separate from natural smoke; deterministic synthetic fixtures):
 
-The `parent_tx` plumbing is wired correctly (TB-7.7 D2 commit `a39c31b`; `last_tx_by_agent_branch` map in `evaluator.rs`; `ProposalTelemetry::new_with_parent`). When two proposals occur on the same branch, the second's `parent_tx` IS populated. The TB-7.7 D2 unit tests verify this. The smoke evidence above just doesn't trigger that scenario under B′ + the current tool surface.
+```
+running 6 tests
+test singleton_golden_path_has_zero_edges_and_is_valid          ... ok
+test second_attempt_same_branch_has_parent_tx                   ... ok
+test missing_parent_on_nonroot_attempt_is_violation             ... ok
+test dashboard_renders_singleton_golden_path                    ... ok
+test unsolved_runs_have_no_fake_accepted_nodes                  ... ok
+test proposal_count_chain_equals_externalized_proposal_count    ... ok
+test result: ok. 6 passed; 0 failed
+```
 
-**Where this OBS belongs in the audit chain**:
+These six tests prove:
+- Plumbing for `MultiAttemptDagValid` works on a synthetic 2-attempt fixture (test 2).
+- Plumbing detects `MissingParentTxViolation` on a synthetic 2-attempt fixture with attempt_2.parent_tx=None (test 3).
+- Singleton solved → `SingletonGoldenPathValid` (test 1).
+- Unsolved → `NoMultiAttemptObserved`, no fake accepted node (test 5).
+- Dashboard renders singleton golden path with depth=0 [ORACLE] (test 4).
+- proposal_count exactly matches externalized count (test 6).
 
-- This file (smoke evidence README) — surfaces the observation against verdict §F criteria.
-- Ship audit (Task #9) — auditor should explicitly assess whether the structural absence is acceptable as TB-7R-grade evidence under B′, OR whether the smoke is incomplete and a different problem class is needed.
-- TB-8+ charter — when per-tactic decomposition is reopened, parent_tx edges become natural evidence.
+Per architect ship condition: **"forced parent_tx conformance test passes" — ✓ MET.**
 
-The **honest reading** of this smoke: TB-7R Frame B is structurally complete (every solved proposal lands as L4 + VerificationResult; every dashboard regenerates from ChainTape + CAS), but the verdict §F full-smoke `parent_tx edge` criterion presupposes a runtime scenario that does not occur under verdict A1=B′. Future TB-8+ smoke design should explicitly choose a problem class that exercises multi-proposal branches (or relax the criterion).
+**Carry-forward to TB-8+**: per-tactic decomposition is deferred (verdict A1=B′). When TB-8 reopens per-tactic, multi-attempt branches will become natural in smoke evidence too. Until then, `parent_tx_state` for natural smoke is expected to be `SingletonGoldenPathValid` or `NoMultiAttemptObserved`.
 
 ---
 

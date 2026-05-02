@@ -56,7 +56,8 @@
 
 §6 Branch lineage (parent_tx → child_tx via ProposalTelemetry.parent_tx)
 ------------------------------------------------------------------------
-  (no branch edges — proposals are root-only or telemetry parent_tx is None)
+  parent_tx_state: NoMultiAttemptObserved (DAG not exercised this run — conformance test demonstrates plumbing)
+  edges: (none — see parent_tx_state above for interpretation)
 
 §7 Golden path (root → oracle-verified WorkTx)
 ------------------------------------------------
