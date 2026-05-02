@@ -1,0 +1,89 @@
+=================================================================
+ TB-8 Audit Dashboard — run_id=tb9-run_b_n1_mathd_algebra_171 epoch=1
+=================================================================
+
+§1 Run metadata
+---------------
+  head_commit_oid: 081fbc3497d929c0a7198be273fa7f3a8d0cdbdc
+  final_state_root: d8a4264c1f14ffa9b2f9020c802387b723c83f96852121a48688d1ece073fd7f
+  final_ledger_root: b710558f0fb58bfda84d89632121b24c045b31f09602402ae61a9145d747f345
+  initial_q_state_loaded_from_disk: true
+
+§2 Chain stats + 7 indicators
+------------------------------
+  L4 entries:  5
+  L4.E entries: 2
+  ledger_root_verified              : ✓
+  system_signatures_verified        : ✓
+  state_reconstructed               : ✓
+  economic_state_reconstructed      : ✓
+  cas_payloads_retrievable          : ✓
+  agent_signatures_verified [Gate 4]: ✓
+  proposal_telemetry_cas_retrievable [Gate 5]: ✓
+  ALL 7 PASS                        : GREEN
+
+§3 ChainDerivedRunFacts (§4.4 bit-exact set)
+---------------------------------------------
+  solved                  : false
+  verified                : false
+  tx_count                : 7
+  proposal_count          : 2
+  golden_path_token_count : 473
+  gp_payload (CID hex)    : b4dc54927e44123b9b0bfa7cc262609d9557cdcd750cc4903bd0ee1fe025fdf9
+  gp_path                 : step_complete
+  tactic_diversity        : 1
+  failed_branch_count     : 2
+  chain_oracle_verified   : true ✓ (Lean accepted ≥1 proof; oracle-level)
+  chain_economic_finalized: false (always false in TB-7; settlement = TB-9 territory)
+  tool_dist:
+    step_complete: 1
+
+§4 Per-agent activity
+---------------------
+  agent_id          | pubkey | Work✓ | Work✗ | Verify✓ | Verify✗
+  ------------------+--------+-------+-------+---------+--------
+  Agent_0           | ✓      | 1     | 0     | 1       | 0
+  tb6-smoke-agent   | ✗      | 0     | 1     | 0       | 0
+  tb6-smoke-sponsor | ✗      | 0     | 0     | 0       | 0
+
+§5 Proposal flow (chronological by logical_t)
+----------------------------------------------
+  side  | t   | tx_kind         | agent      | tactic     | branch     | oracle | reject
+  ------+-----+-----------------+------------+------------+------------+--------+-------
+  L4.E  |   0 | TaskOpen        | tb6-smoke-sponsor | -          | -          | -      | PolicyViolation
+  L4.E  |   0 | Work            | tb6-smoke-agent | -          | -          | -      | PolicyViolation
+  L4    |   1 | TaskOpen        | tb7-7-sponsor | -          | -          | -      | -
+  L4    |   2 | EscrowLock      | tb7-7-sponsor | -          | -          | -      | -
+  L4    |   3 | Work            | Agent_0    | step_complete | Agent_0.b1 | ✓      | -
+        payload: calc ⏎   f 1 = 5 * 1 + 4 := by ⏎     rw [h₀] ⏎   _ = 5 + 4 := by ring ⏎   _ = 9 := by no
+  L4    |   4 | Verify          | Agent_0    | -          | -          | -      | -
+  L4    |   5 | FinalizeReward  | system (solver=Agent_0) | -          | -          | -      | -
+
+§6 Branch lineage (parent_tx → child_tx via ProposalTelemetry.parent_tx)
+------------------------------------------------------------------------
+  parent_tx_state: SingletonGoldenPathValid (B′ singleton solve — parent_tx=None correct; conformance test demonstrates plumbing)
+  edges: (none — see parent_tx_state above for interpretation)
+
+§7 Golden path (root → oracle-verified WorkTx)
+------------------------------------------------
+  ✓depth=0  [ORACLE] | agent=Agent_0 | tactic=step_complete | tx=worktx-task-n1_mathd_algebra_171_1777730510922-omega-pertactic-1
+           payload: calc ⏎   f 1 = 5 * 1 + 4 := by ⏎     rw [h₀] ⏎   _ = 5 + 4 := by ring ⏎   _ = 9 := by no
+
+§8 Cross-checks
+---------------
+  audit_trail_rows         : 2
+  chain_proposal_count     : 2
+  audit_rows == proposal_count: ✓
+  audit_trail_chain_valid     : ✓
+  (Note: pre-TB-7.6 the agent_audit_trail.jsonl is populated only
+   by the synthetic-seed hook; full per-LLM-proposal audit-trail
+   wiring is part of TB-7.6 carry-forward action #4 / #5.)
+
+§9 TB-8 Claims (claim_status + payout_amount)
+----------------------------------------------
+  claim_id                          | task_id        | solver        | status     | payout_micro | created@t | finalized@t
+  ----------------------------------+----------------+---------------+------------+--------------+-----------+------------
+  claim-verifytx-Agent_0-omega-per… | task-n1_mathd… | Agent_0       | Finalized  |       100000 |         4 | 5
+
+  Aggregate: 1 claims observed | 0 Open | 1 Finalized | total_payout = 100000 micro
+

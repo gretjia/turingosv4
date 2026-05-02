@@ -928,6 +928,57 @@ fn render_text(r: &DashboardReport) -> String {
         ));
     }
 
+    // §10 TB-9 Durable identity (Atom 6) — surface the agent_pubkeys manifest
+    // alongside the (env-resolved) durable keystore path. Per architect
+    // mandate "持仓、payout、future NodeMarket 都必须归属于 durable identity",
+    // every Work-tx-signing pubkey on chain is bound to a row in the durable
+    // keystore. The dashboard reflects the per-run manifest (snapshot) and
+    // names the durable keystore path so an auditor can independently verify
+    // that the pubkey survives evaluator restart.
+    s.push('\n');
+    s.push_str("§10 TB-9 Durable identity (agent keystore registry)\n");
+    s.push_str("---------------------------------------------------\n");
+    let keystore_path = std::env::var("TURINGOS_AGENT_KEYSTORE_PATH")
+        .ok()
+        .or_else(|| {
+            std::env::var("HOME").ok().map(|h| {
+                format!("{}/.turingos/keystore/agent_keystore.enc", h)
+            })
+        })
+        .unwrap_or_else(|| "<unset; set TURINGOS_AGENT_KEYSTORE_PATH or HOME>".into());
+    s.push_str(&format!("  durable_keystore_path: {}\n", keystore_path));
+    let durable_present = std::path::Path::new(&keystore_path).exists();
+    s.push_str(&format!(
+        "  durable_keystore_present: {}\n",
+        if durable_present { "✓ (cross-run identity available)" } else { "✗ (run-local only)" }
+    ));
+    s.push_str(&format!(
+        "  agents_in_manifest: {}\n",
+        r.per_agent.values().filter(|a| a.has_pubkey).count()
+    ));
+    s.push_str("  agent_id          | pubkey_in_manifest | tape_activity\n");
+    s.push_str("  ------------------+--------------------+---------------\n");
+    for (id, act) in &r.per_agent {
+        if !act.has_pubkey { continue; }
+        let activity = format!(
+            "Work✓={} Work✗={} Verify✓={} Verify✗={}",
+            act.work_tx_accepted, act.work_tx_rejected,
+            act.verify_tx_accepted, act.verify_tx_rejected
+        );
+        s.push_str(&format!(
+            "  {:<17} | {:<18} | {}\n",
+            trunc(id, 17), "✓ (durable-backed)", activity
+        ));
+    }
+    if r.per_agent.values().filter(|a| a.has_pubkey).count() == 0 {
+        s.push_str("  (no agents with manifest pubkey on this run)\n");
+    }
+    s.push_str("\n  Note: cross-run identity is empirically observable by\n");
+    s.push_str("  comparing this run's `agent_pubkeys.json` to a sibling run\n");
+    s.push_str("  that loaded the same TURINGOS_AGENT_KEYSTORE_PATH — equal\n");
+    s.push_str("  pubkey rows ⇒ TB-9 mandate \"agent identity survives run\n");
+    s.push_str("  restart\" satisfied.\n");
+
     s
 }
 

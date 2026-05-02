@@ -753,23 +753,38 @@ async fn run_swarm(
         info!("[chaintape] WAL_DIR ignored when TURINGOS_CHAINTAPE_PATH is set");
     }
 
-    // TB-7 Atom 2: per-run AgentKeypairRegistry holds run-local Ed25519
+    // TB-7 Atom 2 + TB-9 Atom 2: per-run AgentKeypairRegistry holds Ed25519
     // keypairs for every distinct agent_id that submits a real-LLM proposal
-    // through bus.submit_typed_tx. Keys auto-generate on first use; pubkeys
-    // are persisted to <runtime_repo>/agent_pubkeys.json so verify_chaintape
-    // (Atom 4) can re-verify replayed signatures. Per ARCHITECT_RULING D2,
-    // these are run-local identities, NOT durable reputation.
+    // through bus.submit_typed_tx. Public keys are persisted per-run to
+    // <runtime_repo>/agent_pubkeys.json (TB-7 replay sidecar; unchanged).
+    //
+    // **TB-9 (2026-05-02)**: secrets are persisted across runs to an encrypted
+    // durable keystore at TURINGOS_AGENT_KEYSTORE_PATH (default
+    // ~/.turingos/keystore/agent_keystore.enc). Cross-run identity is the
+    // architect TB-9 mandate ("agent durable key registry" + "cross-run
+    // identity"; directive 2026-05-02 Part C line 1574). The keystore password
+    // is read from TURINGOS_AGENT_KEYSTORE_PASSWORD; if unset, a hardcoded
+    // local-dev fallback is used (acceptable for solo-runs per
+    // feedback_kolmogorov_compression "MVP env-var; production-grade prompt is
+    // post-v1.0 polish"). Tests / CI set the env var explicitly.
     //
     // Wrapped in Arc<Mutex<>> so the registry can be shared across the async
     // run loop (interior mutability needed for AgentKeypairRegistry::sign).
     let agent_keypairs: Option<Arc<Mutex<turingosv4::runtime::agent_keypairs::AgentKeypairRegistry>>> =
         chaintape_bundle.as_ref().map(|b| {
-            let reg = turingosv4::runtime::agent_keypairs::AgentKeypairRegistry::open(
+            let durable_path = turingosv4::runtime::agent_keystore::default_agent_keystore_path()
+                .expect("[chaintape/tb9] resolve durable agent keystore path (set HOME or TURINGOS_AGENT_KEYSTORE_PATH)");
+            let pwd = turingosv4::runtime::agent_keystore::keystore_password_from_env();
+            let reg = turingosv4::runtime::agent_keypairs::AgentKeypairRegistry::generate_or_load_durable(
                 &b.runtime_repo_path,
+                &durable_path,
+                pwd,
             )
             .expect(
-                "[chaintape/atom2] agent_keypairs init must succeed (fresh runtime_repo guarantees \
-                 manifest absent; if you see this on a non-fresh dir, see TB-6 NonEmptyRuntimeRepo)",
+                "[chaintape/tb9] agent_keypairs durable init must succeed (fresh runtime_repo guarantees \
+                 manifest absent; if you see this on a non-fresh dir, see TB-6 NonEmptyRuntimeRepo. \
+                 If you see a keystore decrypt error, check TURINGOS_AGENT_KEYSTORE_PASSWORD matches \
+                 the password used for the previous run.)",
             );
             Arc::new(Mutex::new(reg))
         });
@@ -1018,20 +1033,12 @@ async fn run_swarm(
         }
     }
 
-    // Phase 4 (C-041 candidate): cross-problem wallet persistence. WALLET_STATE
-    // env points to a json file; if it exists we load agents' carried-over
-    // balances/portfolios, otherwise fresh genesis. No second mint under Law 2:
-    // genesis_done is serialised, so on_init is a no-op post first boot.
-    let wallet_state_path: Option<std::path::PathBuf> = std::env::var("WALLET_STATE")
-        .ok().map(std::path::PathBuf::from);
-    let wallet = wallet_state_path.as_ref()
-        .and_then(|p| WalletTool::load_from_disk(p))
-        .unwrap_or_else(|| WalletTool::new(10000.0));
-    if wallet_state_path.is_some() && wallet.genesis_done {
-        info!("[wallet] resumed from {:?}; existing agents carry balances",
-              wallet_state_path);
-    }
-    bus.mount_tool(Box::new(wallet));
+    // TB-9 collapse (2026-05-02): Phase 4 cross-problem wallet persistence
+    // (WALLET_STATE env-var json file) is deleted along with the f64
+    // mutators. Per architect directive 2026-05-02 Part C line 1574,
+    // WalletTool is now a read-only projection over EconomicState; canonical
+    // ledger persistence lives on ChainTape, not in a v3-style sidecar JSON.
+    bus.mount_tool(Box::new(WalletTool::new()));
     bus.mount_tool(Box::new(Lean4Oracle::new(
         problem_statement.to_string(), theorem_name.to_string(), lean_path.to_string(),
     )));
@@ -1045,13 +1052,9 @@ async fn run_swarm(
 
     let agent_ids: Vec<String> = (0..n_agents).map(|i| format!("Agent_{}", i)).collect();
     bus.init(&agent_ids);
-    // Phase 4: top-up ensure_agents for any IDs not in the loaded state (zero
-    // balance if post-genesis, genesis_coins only on first-ever boot).
-    if let Some(wallet) = bus.tools.iter_mut()
-        .find_map(|t| t.as_any_mut().downcast_mut::<WalletTool>())
-    {
-        wallet.ensure_agents(&agent_ids);
-    }
+    // TB-9 collapse: ensure_agents removed; no f64 ledger to top-up. Agent
+    // balance state lives in EconomicState.balances_t mutated by typed_tx
+    // dispatch arms.
 
     // Phase A atom A3 (FC1-N7 δ/AI): per-agent model assignment via the
     // `AGENT_MODELS` env var. Default (unset/empty) broadcasts the global
@@ -1271,19 +1274,17 @@ async fn run_swarm(
                         *author_counts.entry(n.author.clone()).or_insert(0) += 1;
                     }
                 }
-                let wallet_balances: std::collections::HashMap<String, f64> =
-                    bus.tools.iter()
-                        .find_map(|t| t.as_any().downcast_ref::<WalletTool>())
-                        .map(|w| w.balances.clone())
-                        .unwrap_or_default();
+                // TB-9 collapse: WalletTool no longer carries owned f64 balances.
+                // For the EMERGENT_ROLES message-board view, fall back to "n/a"
+                // until balance projection is plumbed through with an EconomicState
+                // ref (post-MVP polish). Tape-node authorship counts continue to
+                // surface as the primary signal for emergent role differentiation.
                 let mut board = format!("# tick@tx{} (tape_nodes={})\n", tx, tape_len);
                 for a in &agents_sorted {
-                    let bal = wallet_balances.get(a).copied().unwrap_or(10000.0);
-                    let delta = bal - 10000.0;
                     let nodes = author_counts.get(a).copied().unwrap_or(0);
                     board.push_str(&format!(
-                        "- {}: balance={:.0} (Δ{:+.0}), tape_nodes_authored={}\n",
-                        a, bal, delta, nodes));
+                        "- {}: balance=n/a, tape_nodes_authored={}\n",
+                        a, nodes));
                 }
                 if !top_prices.is_empty() {
                     board.push_str(&format!("markets: {}\n", top_prices.join(", ")));
@@ -1990,17 +1991,10 @@ async fn run_swarm(
                                                 ("gp_nodes", gp_nodes.to_string()),
                                             ],
                                         );
-                                        // Phase 4: persist wallet state so next problem's run
-                                        // inherits carried-over balances (reputation).
-                                        if let Some(ref wp) = wallet_state_path {
-                                            if let Some(w) = bus.tools.iter()
-                                                .find_map(|t| t.as_any().downcast_ref::<WalletTool>())
-                                            {
-                                                if let Err(e) = w.save_to_disk(wp) {
-                                                    warn!("[wallet] save failed to {:?}: {}", wp, e);
-                                                }
-                                            }
-                                        }
+                                        // TB-9 collapse (2026-05-02): Phase 4 cross-problem
+                                        // wallet persistence (WALLET_STATE json sidecar) is
+                                        // deleted with the f64 mutators. Canonical ledger
+                                        // persistence is via ChainTape on disk now.
                                         let upr = if omega_attempts > 0 {
                                             Some(omega_payload_hashes.len() as f64 / omega_attempts as f64)
                                         } else { None };
@@ -2045,63 +2039,15 @@ async fn run_swarm(
                             }
                         }
                         "invest" => {
-                            *tool_dist.entry("invest".into()).or_insert(0) += 1;
-                            // Law 2: Only Investment Costs Money (1 Coin = 1 YES + 1 NO).
-                            // Agent bets on a tape node's quality. This drives price signals
-                            // (Art. II.2) which guide Boltzmann routing (Art. II.2.1).
-                            // Direction: prefer explicit `direction` field (long/short);
-                            // fall back to sign of amount (positive=long, negative=short).
-                            // Bidirectional signals let agents express dissent (Art. II.2).
-                            if let (Some(node_id), Some(amount)) = (&action.node, action.amount) {
-                                let amt = amount.abs();
-                                if amt > 0.0 {
-                                    let buy_yes = match action.direction.as_deref() {
-                                        Some("long") | Some("yes") | Some("LONG") | Some("YES") => true,
-                                        Some("short") | Some("no") | Some("SHORT") | Some("NO") => false,
-                                        _ => amount > 0.0,  // sign-based fallback
-                                    };
-                                    // Law 2 conservation: validate market BEFORE debit (no coin-loss path)
-                                    let market_exists = bus.kernel.yes_price(node_id).is_some();
-                                    if !market_exists {
-                                        warn!("[tx {}] invest: no market for {} (hallucinated node?)", tx, node_id);
-                                    } else {
-                                        // Debit wallet → buy shares → record (atomic intent)
-                                        let wallet_ok = bus.tools.iter_mut()
-                                            .find_map(|t| t.as_any_mut().downcast_mut::<WalletTool>())
-                                            .map(|w| w.deduct(agent_id, amt).is_ok())
-                                            .unwrap_or(false);
-                                        if wallet_ok {
-                                            let result = if buy_yes {
-                                                bus.kernel.buy_yes(node_id, amt)
-                                            } else {
-                                                bus.kernel.buy_no(node_id, amt)
-                                            };
-                                            match result {
-                                                Ok(shares) => {
-                                                    info!("[tx {}] {} invested {:.0} {} on {} → {:.1} shares",
-                                                        tx, agent_id, amt,
-                                                        if buy_yes { "YES" } else { "NO" },
-                                                        node_id, shares);
-                                                    if let Some(w) = bus.tools.iter_mut()
-                                                        .find_map(|t| t.as_any_mut().downcast_mut::<WalletTool>()) {
-                                                        if buy_yes {
-                                                            w.record_shares(agent_id, node_id, shares, 0.0, 0.0);
-                                                        } else {
-                                                            w.record_shares(agent_id, node_id, 0.0, shares, 0.0);
-                                                        }
-                                                    }
-                                                }
-                                                Err(e) => {
-                                                    // Market existed at check but buy failed — should not happen
-                                                    warn!("[tx {}] invest buy error: {} (coins debited, shares not granted — Law 2 violation logged)", tx, e);
-                                                }
-                                            }
-                                        } else {
-                                            warn!("[tx {}] {} insufficient balance for invest", tx, agent_id);
-                                        }
-                                    }
-                                }
-                            }
+                            // TB-9 collapse (2026-05-02): the v3 invest tool action
+                            // mutated WalletTool's f64 ledger. Per architect directive
+                            // 2026-05-02 line 1574 (no f64 mutation), invest is no
+                            // longer routed at this evaluator-level handler. Stake
+                            // commitment lives in `state::typed_tx::WorkTx.stake`
+                            // mutating `EconomicState.stakes_t` via the canonical
+                            // sequencer dispatch arm. NodeMarket trading lands in
+                            // TB-12+ via typed market transactions, not this path.
+                            *tool_dist.entry("invest_disabled_tb9".into()).or_insert(0) += 1;
                         }
                         "search" => {
                             // F-2026-04-19-05 cap: if over budget this agent's turn the
@@ -2531,14 +2477,9 @@ async fn run_swarm(
         Some(omega_payload_hashes.len() as f64 / omega_attempts as f64)
     } else { None };
     // Phase 4: also save wallet state on no-OMEGA exit. Agents may have
-    // invested/lost Coin during the run; durability should not depend on a win.
-    if let Some(ref wp) = wallet_state_path {
-        if let Some(w) = bus.tools.iter()
-            .find_map(|t| t.as_any().downcast_ref::<WalletTool>())
-        {
-            let _ = w.save_to_disk(wp);
-        }
-    }
+    // TB-9 collapse: cross-problem WALLET_STATE sidecar deleted with the
+    // f64 mutators. Canonical balance state survives across runs via
+    // ChainTape replay (EconomicState.balances_t reconstructed from L4).
     // No OMEGA found → PPUT = 0
     // B3: close bracket on max-tx exhaustion path.
     // P0-A: max-tx exhaustion → neither leg fired.

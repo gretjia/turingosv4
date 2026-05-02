@@ -1,0 +1,21 @@
+{
+  "l4_entries": 5,
+  "l4e_entries": 2,
+  "ledger_root_verified": true,
+  "system_signatures_verified": true,
+  "state_reconstructed": true,
+  "economic_state_reconstructed": true,
+  "cas_payloads_retrievable": true,
+  "agent_signatures_verified": true,
+  "proposal_telemetry_cas_retrievable": true,
+  "run_id": "tb9-regression_n1_mathd_algebra_107",
+  "epoch": 1,
+  "detail": {
+    "final_state_root_hex": "cf61b198813dba8a7edf0bdc86cb14457d30fe440dc443bb5952e1d76fd50db8",
+    "final_ledger_root_hex": "c508364d2075aa9864bfb9c7698ca24dfafe818c211b0f32328d11707587ac7e",
+    "head_commit_oid_hex": "21f9e03f4d2f00fce173584f4a0c2a96b69a560d",
+    "l4e_last_hash_hex": "664179fc8319e0674d4ac927a2f445573838b7a2615133ebe67402d6cf834d0c",
+    "replay_failure": null,
+    "initial_q_state_loaded_from_disk": true
+  }
+}

@@ -42,7 +42,7 @@ fn wal_persists_appends_across_bus_drop() {
     {
         let mut bus = TuringBus::with_wal_path(Kernel::new(), make_config(), &path)
             .expect("first open");
-        bus.mount_tool(Box::new(WalletTool::new(10000.0)));
+        bus.mount_tool(Box::new(WalletTool::new()));
         bus.init(&["A0".into(), "A1".into()]);
 
         for i in 0..5 {

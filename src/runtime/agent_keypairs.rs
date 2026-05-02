@@ -113,6 +113,30 @@ impl AgentKeypair {
         Ok(keypair)
     }
 
+    /// TRACE_MATRIX FC1-N14 (TB-9 Atom 1): reconstruct a keypair from a saved
+    /// 32-byte secret seed (durable keystore load path). Public key is
+    /// recomputed from the seed; the keystore stores secrets only.
+    pub fn from_secret_bytes(seed: [u8; AGENT_SECRET_LEN]) -> Self {
+        let signing_key = SigningKey::from_bytes(&seed);
+        let public_key = AgentPublicKey::from_bytes(signing_key.verifying_key().to_bytes());
+        let keypair = Self {
+            secret_key: Vec::from(seed).into_boxed_slice(),
+            public_key,
+        };
+        let mut s = seed;
+        s.zeroize();
+        keypair
+    }
+
+    /// TRACE_MATRIX FC1-N14 (TB-9 Atom 1): expose the 32-byte secret seed for
+    /// durable keystore persistence. Crate-private to keep secret material from
+    /// leaking outside the runtime layer.
+    pub(crate) fn secret_bytes(&self) -> [u8; AGENT_SECRET_LEN] {
+        let mut out = [0u8; AGENT_SECRET_LEN];
+        out.copy_from_slice(&self.secret_key);
+        out
+    }
+
     /// TRACE_MATRIX FC1-N14: return the public half of the keypair.
     pub const fn public_key(&self) -> AgentPublicKey {
         self.public_key
@@ -149,9 +173,24 @@ impl fmt::Debug for AgentKeypair {
 /// TRACE_MATRIX FC1-N14: per-run agent keypair registry. Holds private keypairs
 /// for in-process signing AND the on-disk public manifest path. The manifest is
 /// what `verify_chaintape` (Atom 4) reads to verify replayed agent signatures.
+///
+/// **TB-9 extension (2026-05-02)**: optional `durable` slot. When populated,
+/// every keypair generation also persists to the encrypted durable keystore
+/// (typically `~/.turingos/keystore/agent_keystore.enc`) so that a subsequent
+/// evaluator boot via `generate_or_load_durable` recovers the same
+/// AgentId → Ed25519 binding — the cross-run identity property mandated by
+/// architect directive 2026-05-02 ruling 13.
 pub struct AgentKeypairRegistry {
     keypairs: BTreeMap<AgentId, AgentKeypair>,
     manifest_path: PathBuf,
+    durable: Option<DurableConfig>,
+}
+
+/// TB-9 Atom 1: durable-mode metadata. Path + password are kept here so
+/// `persist_manifest` can re-encrypt the keystore on every new agent.
+struct DurableConfig {
+    keystore_path: PathBuf,
+    password: secrecy::SecretString,
 }
 
 impl fmt::Debug for AgentKeypairRegistry {
@@ -162,6 +201,10 @@ impl fmt::Debug for AgentKeypairRegistry {
             .field(
                 "agent_ids",
                 &self.keypairs.keys().collect::<Vec<_>>(),
+            )
+            .field(
+                "durable",
+                &self.durable.as_ref().map(|d| d.keystore_path.clone()),
             )
             .finish()
     }
@@ -182,6 +225,52 @@ impl AgentKeypairRegistry {
         let registry = Self {
             keypairs: BTreeMap::new(),
             manifest_path,
+            durable: None,
+        };
+        registry.persist_manifest()?;
+        Ok(registry)
+    }
+
+    /// TRACE_MATRIX FC1-N14 (TB-9 Atom 1): open or initialize an agent keypair
+    /// registry **with durable cross-run identity**. The encrypted keystore at
+    /// `durable_keystore_path` (typically `~/.turingos/keystore/agent_keystore.enc`
+    /// per [`crate::runtime::agent_keystore::default_agent_keystore_path`]) is
+    /// loaded if present — every saved AgentId → secret binding is reconstructed
+    /// in-memory before the first `sign()` call.
+    ///
+    /// Per-run manifest at `<runtime_repo>/agent_pubkeys.json` is still written
+    /// (defense-in-depth replay sidecar; TB-7 semantics retained). The
+    /// fail-closed-on-existing manifest gate STILL applies — runtime_repo is
+    /// supposed to be fresh per evaluator run.
+    ///
+    /// On every subsequent `sign()` that triggers a fresh keypair generation,
+    /// the durable keystore is re-encrypted and atomically written so the new
+    /// AgentId → secret binding survives evaluator exit.
+    pub fn generate_or_load_durable(
+        runtime_repo_path: &Path,
+        durable_keystore_path: &Path,
+        password: secrecy::SecretString,
+    ) -> Result<Self, AgentKeypairError> {
+        let manifest_path = runtime_repo_path.join("agent_pubkeys.json");
+        if manifest_path.exists() {
+            return Err(AgentKeypairError::ManifestAlreadyExists {
+                path: manifest_path,
+            });
+        }
+        let (secrets_map, _fresh) =
+            crate::runtime::agent_keystore::load_or_empty(durable_keystore_path, &password)
+                .map_err(|e| AgentKeypairError::Serde(format!("durable keystore: {e}")))?;
+        let mut keypairs: BTreeMap<AgentId, AgentKeypair> = BTreeMap::new();
+        for (agent_id_raw, seed) in secrets_map {
+            keypairs.insert(AgentId(agent_id_raw), AgentKeypair::from_secret_bytes(seed));
+        }
+        let registry = Self {
+            keypairs,
+            manifest_path,
+            durable: Some(DurableConfig {
+                keystore_path: durable_keystore_path.to_path_buf(),
+                password,
+            }),
         };
         registry.persist_manifest()?;
         Ok(registry)
@@ -229,6 +318,8 @@ impl AgentKeypairRegistry {
     }
 
     /// Atomic write: tmp file + rename. JSON pretty-printed for inspection.
+    /// TB-9 Atom 1: also re-encrypts + atomically writes the durable keystore
+    /// when `self.durable` is populated.
     fn persist_manifest(&self) -> Result<(), AgentKeypairError> {
         let manifest = self.manifest();
         let serialized = serde_json::to_string_pretty(&manifest)
@@ -244,6 +335,19 @@ impl AgentKeypairRegistry {
             f.sync_all()?;
         }
         std::fs::rename(&tmp, &self.manifest_path)?;
+
+        if let Some(durable) = &self.durable {
+            let mut secrets: BTreeMap<String, [u8; AGENT_SECRET_LEN]> = BTreeMap::new();
+            for (id, kp) in &self.keypairs {
+                secrets.insert(id.0.clone(), kp.secret_bytes());
+            }
+            crate::runtime::agent_keystore::save(
+                &durable.keystore_path,
+                &durable.password,
+                &secrets,
+            )
+            .map_err(|e| AgentKeypairError::Serde(format!("durable keystore: {e}")))?;
+        }
         Ok(())
     }
 }
@@ -428,5 +532,104 @@ mod tests {
         let digest = fresh_digest(6);
         let sig = kp1.sign_digest(digest).expect("sign");
         assert!(verify_agent_signature(&sig, &digest, &kp2.public_key()).is_err());
+    }
+
+    // ── TB-9 Atom 1 — durable cross-run identity tests ──────────────────────
+
+    /// U-TB9.a — fresh durable boot generates an empty registry; first sign
+    /// triggers keypair generation AND persists encrypted keystore on disk.
+    #[test]
+    fn durable_first_boot_persists_secret() {
+        let repo = fresh_repo();
+        let keystore_dir = fresh_repo();
+        let keystore_path = keystore_dir.path().join("agent_keystore.enc");
+        let pwd = secrecy::SecretString::new("tb9-durable-test".into());
+
+        let mut reg =
+            AgentKeypairRegistry::generate_or_load_durable(repo.path(), &keystore_path, pwd.clone())
+                .expect("first boot");
+        let agent = AgentId("n1".into());
+        let _sig = reg.sign(&agent, fresh_digest(11)).expect("sign");
+
+        assert!(keystore_path.exists(), "durable keystore not written");
+        let bytes = std::fs::read(&keystore_path).unwrap();
+        assert!(bytes.starts_with(b"TOS4AGTKEY1"), "magic mismatch");
+    }
+
+    /// U-TB9.b — second boot loads existing keystore; same agent_id produces
+    /// the same pubkey across the run boundary (cross-run identity).
+    #[test]
+    fn durable_second_boot_recovers_same_pubkey() {
+        let keystore_dir = fresh_repo();
+        let keystore_path = keystore_dir.path().join("agent_keystore.enc");
+        let pwd = secrecy::SecretString::new("tb9-durable-test".into());
+        let agent = AgentId("n1".into());
+
+        // Run A: generate + sign + record pubkey.
+        let pubkey_a = {
+            let repo_a = fresh_repo();
+            let mut reg_a = AgentKeypairRegistry::generate_or_load_durable(
+                repo_a.path(),
+                &keystore_path,
+                pwd.clone(),
+            )
+            .expect("run A boot");
+            let _ = reg_a.sign(&agent, fresh_digest(20)).expect("run A sign");
+            reg_a.manifest().get(&agent).expect("run A pubkey")
+        }; // reg_a drops here
+
+        // Run B: re-load + sign + verify pubkey is identical.
+        let repo_b = fresh_repo();
+        let mut reg_b = AgentKeypairRegistry::generate_or_load_durable(
+            repo_b.path(),
+            &keystore_path,
+            pwd.clone(),
+        )
+        .expect("run B boot");
+        let sig_b = reg_b.sign(&agent, fresh_digest(21)).expect("run B sign");
+        let pubkey_b = reg_b.manifest().get(&agent).expect("run B pubkey");
+
+        assert_eq!(
+            pubkey_a, pubkey_b,
+            "cross-run identity broken: pubkey changed across runs"
+        );
+        assert!(
+            verify_agent_signature(&sig_b, &fresh_digest(21), &pubkey_b).is_ok(),
+            "run B signature must verify under the durable pubkey"
+        );
+    }
+
+    /// U-TB9.c — wrong password on second boot rejects (no silent regenerate).
+    #[test]
+    fn durable_wrong_password_rejected() {
+        let keystore_dir = fresh_repo();
+        let keystore_path = keystore_dir.path().join("agent_keystore.enc");
+        let pwd_a = secrecy::SecretString::new("tb9-correct".into());
+        let pwd_b = secrecy::SecretString::new("tb9-wrong".into());
+        let agent = AgentId("n1".into());
+
+        let repo_a = fresh_repo();
+        let mut reg_a = AgentKeypairRegistry::generate_or_load_durable(
+            repo_a.path(),
+            &keystore_path,
+            pwd_a,
+        )
+        .expect("run A");
+        let _ = reg_a.sign(&agent, fresh_digest(30)).expect("sign");
+
+        let repo_b = fresh_repo();
+        let err = AgentKeypairRegistry::generate_or_load_durable(
+            repo_b.path(),
+            &keystore_path,
+            pwd_b,
+        )
+        .expect_err("wrong password must fail");
+        match err {
+            AgentKeypairError::Serde(msg) => assert!(
+                msg.contains("crypto") || msg.contains("authentication"),
+                "expected crypto authentication failure, got {msg}"
+            ),
+            other => panic!("expected Serde(crypto), got {other}"),
+        }
     }
 }

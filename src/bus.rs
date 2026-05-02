@@ -7,7 +7,7 @@
 
 use crate::kernel::{Kernel, KernelError};
 use crate::ledger::{EventType, Ledger, Node, NodeId, TapeError};
-use crate::sdk::tool::{BetDirection, ToolSignal, TuringTool};
+use crate::sdk::tool::{ToolSignal, TuringTool};
 use crate::state::sequencer::{Sequencer, SubmissionReceipt, SubmitError};
 use crate::state::typed_tx::TypedTx;
 use serde::{Deserialize, Serialize};
@@ -265,48 +265,27 @@ impl TuringBus {
         }
 
         // Phase 1: Tool pre-append hooks
-        let mut signal = ToolSignal::Pass;
+        // TB-9 collapse (2026-05-02): InvestOnly routing deleted along with the
+        // bus-level f64 wallet mutators (debit_wallet/credit_wallet/settle_portfolios).
+        // Per architect directive 2026-05-02 line 1574 ("no f64 mutation;
+        // EconomicState canonical"), the v3 share-buy path is gone. Stake
+        // commitment now lives in `state::typed_tx::WorkTx.stake` mutating
+        // `EconomicState.stakes_t` via the canonical sequencer dispatch arm.
+        // YieldReward signals continue to be observed but are not routed to a
+        // f64 mutator — they live for downstream tool hooks only.
         for tool in &mut self.tools {
             match tool.on_pre_append(author, payload) {
                 ToolSignal::Veto(reason) => {
                     self.record_rejection(author, &reason);
                     return Ok(BusResult::Vetoed { reason });
                 }
-                ToolSignal::InvestOnly { target_node, amount, direction } => {
-                    signal = ToolSignal::InvestOnly { target_node, amount, direction };
-                    break;
+                ToolSignal::InvestOnly { .. } => {
+                    let reason = "veto:invest_disabled_tb9".to_string();
+                    self.record_rejection(author, &reason);
+                    return Ok(BusResult::Vetoed { reason });
                 }
-                ToolSignal::YieldReward { reward } => {
-                    signal = ToolSignal::YieldReward { reward };
-                }
-                ToolSignal::Pass => {}
+                ToolSignal::YieldReward { .. } | ToolSignal::Pass => {}
             }
-        }
-
-        // Phase 2: InvestOnly routing (skip append, buy shares)
-        // Law 2: staking COSTS money — debit wallet before buying shares
-        if let ToolSignal::InvestOnly { target_node, amount, direction } = signal {
-            // Debit the agent's wallet BEFORE buying shares
-            self.debit_wallet(author, amount)?;
-
-            let shares = match direction {
-                BetDirection::Long => self.kernel.buy_yes(&target_node, amount),
-                BetDirection::Short => self.kernel.buy_no(&target_node, amount),
-            }.map_err(|e| {
-                // Refund on failure (Law 2: no silent burns)
-                self.credit_wallet(author, amount);
-                e.to_string()
-            })?;
-
-            if let Ok(evt) = self.ledger.append(EventType::Invest, Some(target_node.clone()),
-                               Some(author.to_string()), None) {
-                let evt_clone = evt.clone();
-                if let Some(w) = self.wal.as_mut() {
-                    let _ = w.write_event(&evt_clone);
-                }
-            }
-            self.tx_count += 1;
-            return Ok(BusResult::Invested { node_id: target_node, shares });
         }
 
         // Phase 3: Kernel append (topology validation)
@@ -343,30 +322,10 @@ impl TuringBus {
         // System MM injects liquidity from a dedicated pool, NOT from agent wallets.
         // This is the only constitutional exception to Law 2 — MM impermanent loss
         // is an expected physical cost, not minting. See C-001/C-002 for history.
+        // TB-9 retains kernel market data structures for snapshot read-views;
+        // the f64 grant path that fed `wallet.record_shares` was deleted.
         self.kernel.create_market(&node_id, self.config.system_lp_amount)
             .ok(); // Market creation failure is non-fatal
-
-        // Phase 2 (C-042 candidate): founder grant — the author of this tape
-        // node auto-receives γ·system_lp YES shares. No Coin is minted: the
-        // market's redeem math pays out at most `lp_coins` on the winning side,
-        // so these shares draw from pre-committed ghost liquidity (same as how
-        // agent `invest` does). Gated by TAPE_ECONOMY_V2=1; γ via
-        // FOUNDER_GRANT_GAMMA env (experimental) → constitutional default at merge.
-        if std::env::var("TAPE_ECONOMY_V2").ok().as_deref() == Some("1") {
-            let gamma: f64 = std::env::var("FOUNDER_GRANT_GAMMA")
-                .ok().and_then(|s| s.parse().ok()).unwrap_or(0.05);
-            let grant_shares = gamma * self.config.system_lp_amount;
-            for tool in &mut self.tools {
-                if tool.manifest() == "wallet" {
-                    if let Some(wallet) = tool.as_any_mut()
-                        .downcast_mut::<crate::sdk::tools::wallet::WalletTool>()
-                    {
-                        wallet.record_shares(author, &node_id, grant_shares, 0.0, 0.0);
-                        break;
-                    }
-                }
-            }
-        }
 
         // Phase 5: Tool post-append hooks
         for tool in &mut self.tools {
@@ -390,34 +349,15 @@ impl TuringBus {
     }
 
     /// Halt and settle — triggered by Oracle verification.
+    /// TB-9 collapse (2026-05-02): the v3 f64 settlement paths
+    /// (`settle_portfolios` under `TAPE_ECONOMY_V2`, Hayek bounty payout under
+    /// `HAYEK_BOUNTY`) were deleted. Settlement now lives entirely in the
+    /// canonical typed_tx dispatch arms (`FinalizeRewardTx` since TB-8). The
+    /// kernel still resolves markets for snapshot read-views (price ticker),
+    /// but no f64 mutates an agent ledger here.
     pub fn halt_and_settle(&mut self, golden_path: &[NodeId]) -> Result<(), String> {
-        // Resolve all markets
         self.kernel.resolve_all(golden_path).map_err(|e| e.to_string())?;
 
-        // Phase 2: pay out every agent's YES/NO positions against resolved markets.
-        // Shares redeem 1:1 against the winning side; losing shares redeem to 0.
-        // Conservation: LP that backed the market flows to winners; total Coin
-        // across the system is preserved (LP-side only). Gated behind the same
-        // TAPE_ECONOMY_V2 toggle so baseline runs keep historical behaviour.
-        if std::env::var("TAPE_ECONOMY_V2").ok().as_deref() == Some("1") {
-            self.settle_portfolios();
-        }
-
-        // Phase 3A (Hayek): resolve the bounty market and distribute its
-        // committed LP to GP-node authors by occurrence count. This creates
-        // the cross-agent reward that makes appending a lemma EV-positive
-        // independently of whether the lemma-author also closes the proof.
-        if std::env::var("HAYEK_BOUNTY").ok().as_deref() == Some("1") {
-            let gp_authors: Vec<String> = golden_path.iter()
-                .filter_map(|nid| self.kernel.tape.get(nid).map(|n| n.author.clone()))
-                .collect();
-            let payouts = self.kernel.resolve_bounty(&gp_authors);
-            for (agent, amount) in payouts {
-                self.credit_wallet(&agent, amount);
-            }
-        }
-
-        // Tool halt hooks
         let gp: Vec<String> = golden_path.to_vec();
         for tool in &mut self.tools {
             tool.on_halt(&gp);
@@ -430,67 +370,6 @@ impl TuringBus {
             }
         }
         Ok(())
-    }
-
-    /// Phase 2: redeem every agent's portfolio against resolved markets.
-    /// Walks wallet.portfolios, finds matching resolved market, credits wallet
-    /// with share count on the winning side (0 on the losing side). Resolved
-    /// positions are zeroed to prevent double-redemption on a second call.
-    /// Conservation: pays only from LP already committed at market creation.
-    fn settle_portfolios(&mut self) {
-        use crate::sdk::tools::wallet::WalletTool;
-        // Snapshot resolved outcomes so we can borrow kernel + wallet disjointly.
-        let outcomes: HashMap<String, bool> = self.kernel.markets.iter()
-            .filter_map(|(id, m)| m.resolved.map(|w| (id.clone(), w)))
-            .collect();
-        let wallet: &mut WalletTool = match self.tools.iter_mut()
-            .find_map(|t| t.as_any_mut().downcast_mut::<WalletTool>())
-        {
-            Some(w) => w,
-            None => return,
-        };
-        let mut credits: Vec<(String, f64)> = Vec::new();
-        for (agent, portfolio) in wallet.portfolios.iter_mut() {
-            for (node_id, entry) in portfolio.iter_mut() {
-                let (yes, no, _lp) = *entry;
-                if let Some(yes_wins) = outcomes.get(node_id) {
-                    let payout = if *yes_wins { yes } else { no };
-                    if payout > 0.0 {
-                        credits.push((agent.clone(), payout));
-                    }
-                    // Zero out settled positions to make settle_portfolios idempotent.
-                    entry.0 = 0.0;
-                    entry.1 = 0.0;
-                }
-            }
-        }
-        for (agent, amount) in credits {
-            wallet.credit(&agent, amount);
-        }
-    }
-
-    /// Debit an agent's wallet. Finds the WalletTool among mounted tools.
-    fn debit_wallet(&mut self, agent: &str, amount: f64) -> Result<(), String> {
-        for tool in &mut self.tools {
-            if tool.manifest() == "wallet" {
-                if let Some(wallet) = tool.as_any_mut().downcast_mut::<crate::sdk::tools::wallet::WalletTool>() {
-                    return wallet.deduct(agent, amount);
-                }
-            }
-        }
-        Err("No wallet tool mounted".into())
-    }
-
-    /// Credit an agent's wallet (for refunds only — not new coins).
-    fn credit_wallet(&mut self, agent: &str, amount: f64) {
-        for tool in &mut self.tools {
-            if tool.manifest() == "wallet" {
-                if let Some(wallet) = tool.as_any_mut().downcast_mut::<crate::sdk::tools::wallet::WalletTool>() {
-                    wallet.credit(agent, amount);
-                    return;
-                }
-            }
-        }
     }
 
     /// Record a rejection in the graveyard.
@@ -656,7 +535,7 @@ mod tests {
             forbidden_patterns: vec!["FORBIDDEN".to_string()],
         };
         let mut bus = TuringBus::new(kernel, config);
-        bus.mount_tool(Box::new(WalletTool::new(10000.0)));
+        bus.mount_tool(Box::new(WalletTool::new()));
         bus.init(&["A0".into(), "A1".into()]);
         bus
     }
@@ -708,14 +587,19 @@ mod tests {
         }
     }
 
+    /// TB-9 collapse (2026-05-02): pre-TB-9 the WalletTool's `on_pre_append`
+    /// vetoed unknown agents because they had no f64 balance row. After the
+    /// projection collapse (no f64 ledger, `on_pre_append` returns `Pass`
+    /// unconditionally), the v3 bus append path is genuinely Law 1 free for
+    /// any author — typed_tx admission gates own author/balance veto logic at
+    /// the canonical layer. Test renamed + inverted to lock in the new
+    /// invariant.
     #[test]
-    fn test_bus_unknown_agent_vetoed() {
+    fn test_bus_unknown_agent_appends_post_tb9_collapse() {
         let mut bus = make_bus();
         match bus.append("unknown", "step", None).unwrap() {
-            BusResult::Vetoed { reason } => {
-                assert!(reason.contains("Unknown"));
-            }
-            _ => panic!("Expected Vetoed"),
+            BusResult::Appended { .. } => {}
+            other => panic!("Expected Appended (post-TB-9 collapse), got {:?}", other),
         }
     }
 
