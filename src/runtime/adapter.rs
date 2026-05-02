@@ -456,6 +456,151 @@ pub async fn tb8_emit_finalize_after_verify(
         .map(|_| true)
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// TB-11 Atom 4 — Runtime emission helpers (architect §6.2 ruling 2026-05-02)
+// ────────────────────────────────────────────────────────────────────────────
+
+/// TRACE_MATRIX TB-11 Atom 4 (architect §6.2): emit a TerminalSummaryTx
+/// (≡ RunExhaustedTx) for a failed evaluator run. Caller passes the
+/// run-summary fields directly + an optional pre-written
+/// `evidence_capsule_cid` (callers should write the EvidenceCapsule first
+/// via `evidence_capsule::write_evidence_capsule`).
+///
+/// Returns `Ok(receipt)` on success; `Err` carries the same EmitSystemError
+/// taxonomy as `tb8_emit_finalize_after_verify`.
+///
+/// **Architect mandate** (TB-11 charter §3 Atom 4 + ship gate G4):
+/// evaluator on MAX_TX exhausted / timeout / solver give-up should:
+///   1. Build EvidenceCapsule via `evidence_capsule::write_evidence_capsule`.
+///   2. Call this helper with `evidence_capsule_cid = Some(capsule.capsule_id)`.
+///
+/// For OmegaAccepted runs, evidence_capsule_cid is `None` (success path
+/// has no failure evidence).
+pub async fn tb11_emit_terminal_summary_for_run(
+    sequencer: &crate::state::sequencer::Sequencer,
+    run_id: crate::state::typed_tx::RunId,
+    task_id: TaskId,
+    run_outcome: crate::state::typed_tx::RunOutcome,
+    total_attempts: u32,
+    failure_class_histogram:
+        std::collections::BTreeMap<crate::state::typed_tx::RejectionClass, u32>,
+    last_logical_t: u64,
+    solver_agent: Option<AgentId>,
+    evidence_capsule_cid: Option<crate::bottom_white::cas::schema::Cid>,
+) -> Result<crate::state::sequencer::SystemEmitReceipt, crate::state::sequencer::EmitSystemError> {
+    sequencer
+        .emit_system_tx(crate::state::sequencer::SystemEmitCommand::TerminalSummary {
+            run_id,
+            task_id,
+            run_outcome,
+            total_attempts,
+            failure_class_histogram,
+            last_logical_t,
+            solver_agent,
+            evidence_capsule_cid,
+        })
+        .await
+}
+
+/// TRACE_MATRIX TB-11 Atom 4 (architect §6.2 + §7.4 capital-must-flow):
+/// scan task_markets_t for tasks past the expiry-policy deadline + emit
+/// TaskExpire for each eligible escrow.
+///
+/// Eligibility (TB-11 MVP per charter §7 Q1):
+///   - task_markets_t[task_id].state ∈ { Open, Bankrupt }
+///   - current_logical_t - opened_at_logical_t > expiry_delta_logical_t
+///   - no Finalized claim against this task
+///   - (no open challenge_cases targeting this task — enforced by
+///     dispatch arm; helper does not pre-filter to keep policy logic
+///     centralized)
+///
+/// For each eligible (task_id, escrow_tx_id) pair, emits one
+/// TaskExpireTx via `emit_system_tx`. Returns the count of expirations
+/// emitted + the total micro-coin refunded.
+///
+/// **Reason policy**:
+///   - state == Open      → ExpireReason::Deadline
+///   - state == Bankrupt  → ExpireReason::BankruptcyTriggered
+///
+/// Returns Ok((count, total_micro)) on success.
+pub async fn tb11_emit_expire_for_eligible(
+    sequencer: &crate::state::sequencer::Sequencer,
+    current_logical_t: u64,
+    expiry_delta_logical_t: u64,
+) -> Result<(u32, i64), crate::state::sequencer::EmitSystemError> {
+    let q = match sequencer.q_snapshot() {
+        Ok(q) => q,
+        Err(_) => return Err(crate::state::sequencer::EmitSystemError::InternalLockPoisoned),
+    };
+
+    // Pre-collect candidates so we can drop the q_snapshot before emitting
+    // (avoid holding a snapshot view across the await boundary).
+    use crate::state::q_state::TaskMarketState;
+    let mut candidates: Vec<(
+        TaskId,
+        TxId,
+        crate::state::typed_tx::ExpireReason,
+    )> = Vec::new();
+    for (task_id, entry) in q.economic_state_t.task_markets_t.0.iter() {
+        // Skip terminal states.
+        let reason = match entry.state {
+            TaskMarketState::Open => crate::state::typed_tx::ExpireReason::Deadline,
+            TaskMarketState::Bankrupt => {
+                crate::state::typed_tx::ExpireReason::BankruptcyTriggered
+            }
+            TaskMarketState::Expired | TaskMarketState::Finalized => continue,
+        };
+
+        // Deadline policy.
+        let elapsed = current_logical_t.saturating_sub(entry.opened_at_logical_t);
+        if elapsed <= expiry_delta_logical_t {
+            continue;
+        }
+
+        // No Finalized claim against this task.
+        let has_finalized = q.economic_state_t.claims_t.0.values().any(|c| {
+            c.task_id == *task_id
+                && c.status == crate::state::q_state::ClaimStatus::Finalized
+        });
+        if has_finalized {
+            continue;
+        }
+
+        // For each escrow row contributing to this task, queue an expiry.
+        for escrow_tx_id in entry.escrow_lock_tx_ids.iter() {
+            candidates.push((task_id.clone(), escrow_tx_id.clone(), reason));
+        }
+    }
+    drop(q);
+
+    let mut count: u32 = 0;
+    let mut total_refunded: i64 = 0;
+    for (task_id, escrow_tx_id, reason) in candidates {
+        // Q-derive the refund amount from current escrows_t (defensive
+        // re-read after each emit; total_refunded reflects what would be
+        // refunded if the dispatch arm proceeds from the current Q).
+        if let Ok(q_now) = sequencer.q_snapshot() {
+            if let Some(esc) = q_now.economic_state_t.escrows_t.0.get(&escrow_tx_id) {
+                total_refunded += esc.amount.micro_units();
+            }
+        }
+        match sequencer
+            .emit_system_tx(crate::state::sequencer::SystemEmitCommand::TaskExpire {
+                task_id,
+                escrow_tx_id,
+                reason,
+            })
+            .await
+        {
+            Ok(_) => count += 1,
+            // ClaimNotFound here means escrow was concurrently consumed; skip.
+            Err(crate::state::sequencer::EmitSystemError::ClaimNotFound) => continue,
+            Err(other) => return Err(other),
+        }
+    }
+    Ok((count, total_refunded))
+}
+
 #[cfg(test)]
 mod adapter_tests_atom2 {
     use super::*;

@@ -235,6 +235,95 @@ async fn task_expire_refunds_escrow_to_sponsor() {
     assert_eq!(tm.total_escrow.micro_units(), 0);
 }
 
+// ── I-TB11-3a — tb11_emit_expire_for_eligible adapter scans + emits ────────
+
+#[tokio::test]
+async fn tb11_emit_expire_for_eligible_scans_and_emits() {
+    use turingosv4::runtime::adapter::tb11_emit_expire_for_eligible;
+
+    let q = genesis_with_sponsor("sponsor-T", 10);
+    let mut h = fresh_harness(q);
+    open_and_fund(&mut h, "sponsor-T", "task-T", 200_000).await;
+
+    // Open is at logical_t=1 (TaskOpen above); now at current_logical_t=10
+    // with delta=5 the task is eligible (10 - 1 > 5).
+    let (count, total_refunded) = tb11_emit_expire_for_eligible(&h.seq, 10, 5)
+        .await
+        .expect("eligible scan");
+    assert_eq!(count, 1, "exactly one task expirable");
+    assert_eq!(total_refunded, 200_000, "total refunded = escrow.amount");
+
+    // Apply the queued TaskExpireTx.
+    let _ = h
+        .seq
+        .try_apply_one(&mut h.rx)
+        .expect("env expire")
+        .expect("apply expire");
+
+    let q_after = h.seq.q_snapshot().unwrap();
+    let bal = q_after
+        .economic_state_t
+        .balances_t
+        .0
+        .get(&AgentId("sponsor-T".into()))
+        .copied()
+        .unwrap();
+    assert_eq!(bal, MicroCoin::from_coin(10).unwrap());
+    let tm = q_after
+        .economic_state_t
+        .task_markets_t
+        .0
+        .get(&TaskId("task-T".into()))
+        .unwrap();
+    assert_eq!(tm.state, TaskMarketState::Expired);
+
+    // Second call: nothing eligible (already expired).
+    let (count2, total2) = tb11_emit_expire_for_eligible(&h.seq, 20, 5)
+        .await
+        .expect("post-expire scan");
+    assert_eq!(count2, 0);
+    assert_eq!(total2, 0);
+}
+
+// ── I-TB11-3b — tb11_emit_terminal_summary_for_run helper ──────────────────
+
+#[tokio::test]
+async fn tb11_emit_terminal_summary_for_run_helper_writes_runs_index() {
+    use turingosv4::runtime::adapter::tb11_emit_terminal_summary_for_run;
+
+    let q = genesis_with_sponsor("sponsor-S", 10);
+    let mut h = fresh_harness(q);
+    open_and_fund(&mut h, "sponsor-S", "task-S", 50_000).await;
+
+    let capsule_cid = Cid([0xefu8; 32]);
+    let mut hist = BTreeMap::new();
+    hist.insert(RejectionClass::Opaque, 7);
+    let _receipt = tb11_emit_terminal_summary_for_run(
+        &h.seq,
+        RunId("run-S-001".into()),
+        TaskId("task-S".into()),
+        RunOutcome::WallClockCap,
+        7,
+        hist,
+        100,
+        Some(AgentId("solver-S".into())),
+        Some(capsule_cid),
+    )
+    .await
+    .expect("helper emits");
+    let _ = h.seq.try_apply_one(&mut h.rx).expect("env ts").expect("apply ts");
+
+    let q_after = h.seq.q_snapshot().unwrap();
+    let entry = q_after
+        .economic_state_t
+        .runs_t
+        .0
+        .get(&RunId("run-S-001".into()))
+        .expect("runs_t entry");
+    assert_eq!(entry.run_outcome, RunOutcome::WallClockCap);
+    assert_eq!(entry.evidence_capsule_cid, Some(capsule_cid));
+}
+
 // ── I-TB11-3 — TaskBankruptcy flips state to Bankrupt ──────────────────────
 
 #[tokio::test]
