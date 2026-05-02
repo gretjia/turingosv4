@@ -41,6 +41,9 @@ pub mod chain_derived_run_facts;
 /// TRACE_MATRIX FC1-N14: TB-7.7 D4 — VerificationResult CAS object recording Lean oracle verdict (target_work_tx / verifier_agent / lean_exit_code / lean_*_hash / proof_file_hash / proof_artifact_cid / verified). Linked from ProposalTelemetry.verification_result_cid.
 pub mod verification_result;
 
+/// TRACE_MATRIX FC2 (Boot / Genesis): TB-7R Deliverable C — `genesis_report.json` emitter capturing constitution_hash + runtime_repo + cas_path + system_pubkey_hash + agent_pubkeys_path + initial_balances + (preseed only) task_id / task_open_tx / escrow_lock_tx. Per architect verdict 2026-05-01 §6.1.
+pub mod genesis_report;
+
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 

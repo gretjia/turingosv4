@@ -697,6 +697,10 @@ async fn run_swarm(
         .ok()
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
         .unwrap_or(false);
+    // TB-7R Deliverable C: capture initial balances seeded into the genesis
+    // QState so the genesis_report.json can record them as the run's starting
+    // economic state. Empty when preseed disabled.
+    let mut initial_balances_for_genesis_report: Vec<(String, i64)> = Vec::new();
     let chaintape_bundle: Option<turingosv4::runtime::ChaintapeBundle> =
         match turingosv4::runtime::RuntimeChaintapeConfig::from_env() {
             None => None, // env unset = legacy mode is the explicit choice
@@ -720,6 +724,10 @@ async fn run_swarm(
                             MicroCoin::from_micro_units(1_000_000),
                         ));
                     }
+                    initial_balances_for_genesis_report = pairs
+                        .iter()
+                        .map(|(a, m)| (a.0.clone(), m.micro_units()))
+                        .collect();
                     let initial_q = turingosv4::runtime::adapter::genesis_with_balances(&pairs);
                     info!("[chaintape/d3] pre-seed enabled: sponsor + 10 agent balances");
                     turingosv4::runtime::build_chaintape_sequencer_with_initial_q(
@@ -959,6 +967,53 @@ async fn run_swarm(
             info!(
                 "[chaintape] Atom 5 audit-trail records written to CAS + indexed for {}",
                 task_id_str
+            );
+        }
+
+        // TB-7R Deliverable C (verdict 2026-05-01 §6.1): emit
+        // `<runtime_repo>/genesis_report.json` so post-hoc audits can
+        // verify the run's genesis preconditions (constitution_hash,
+        // runtime_repo, cas_path, system_pubkey, agent_pubkeys path,
+        // initial_balances) plus — when preseed is enabled — the
+        // task_id / task_open_tx / escrow_lock_tx that established the
+        // task and escrow on-chain.
+        let preseed_task_id = if chaintape_preseed_enabled {
+            Some(format!("task-{}", run_id))
+        } else {
+            None
+        };
+        let preseed_task_open_tx = preseed_task_id
+            .as_ref()
+            .map(|t| format!("taskopen-{}-tb7-7-d3-seed", t));
+        let preseed_escrow_lock_tx = preseed_task_id
+            .as_ref()
+            .map(|t| format!("escrowlock-{}-tb7-7-d3-escrow", t));
+        let report = turingosv4::runtime::genesis_report::GenesisReport {
+            constitution_hash:
+                turingosv4::runtime::genesis_report::GenesisReport::hash_constitution_md(
+                    std::path::Path::new("constitution.md"),
+                ),
+            runtime_repo: bundle.runtime_repo_path.display().to_string(),
+            cas_path: bundle.cas_path.display().to_string(),
+            system_pubkey_hash:
+                turingosv4::runtime::genesis_report::GenesisReport::hash_system_pubkey_manifest(
+                    &bundle.runtime_repo_path,
+                ),
+            agent_pubkeys_path: "agent_pubkeys.json".into(),
+            initial_balances: initial_balances_for_genesis_report.clone(),
+            task_id: preseed_task_id,
+            task_open_tx: preseed_task_open_tx,
+            escrow_lock_tx: preseed_escrow_lock_tx,
+        };
+        if let Err(e) = report.write_to_runtime_repo(&bundle.runtime_repo_path) {
+            warn!(
+                "[chaintape/d_c] genesis_report.json write failed: {e} (non-fatal — \
+                 evidence collection continues, but post-hoc audit must note absence)"
+            );
+        } else {
+            info!(
+                "[chaintape/d_c] genesis_report.json written to {:?}",
+                bundle.runtime_repo_path
             );
         }
     }
