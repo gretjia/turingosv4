@@ -1,0 +1,44 @@
+[lean_market] run-task
+  problem      = mathd_algebra_171
+  bounty       = 100000 micro (0.1000 coin)
+  chaintape    = "/home/zephryj/projects/turingosv4/handover/evidence/tb_10_lean_market_mvp_smoke_2026-05-02/run_a_n1_mathd_algebra_171/runtime_repo"
+  cas          = "/home/zephryj/projects/turingosv4/handover/evidence/tb_10_lean_market_mvp_smoke_2026-05-02/run_a_n1_mathd_algebra_171/cas_runtime_repo"
+  evaluator    = /home/zephryj/projects/turingosv4/target/release/evaluator
+  max_tx       = 10
+  max_secs     = 300
+  sponsor      = Agent_user_0
+
+[lean_market] spawning evaluator subprocess...
+[2026-05-02T15:35:37Z INFO  evaluator] Problem: mathd_algebra_171.lean | Condition: n1 | Model: deepseek-v4-flash | Mode: full
+[2026-05-02T15:35:37Z INFO  evaluator] [chaintape/d3] pre-seed enabled (TB-10 factory): 12 entries
+[2026-05-02T15:35:38Z INFO  evaluator] [chaintape] bus wired with Sequencer + on-disk ChainTape at "/home/zephryj/projects/turingosv4/handover/evidence/tb_10_lean_market_mvp_smoke_2026-05-02/run_a_n1_mathd_algebra_171/runtime_repo"
+[2026-05-02T15:35:38Z INFO  evaluator] [chaintape/tb10] user-mode TaskOpen for task-n1_mathd_algebra_171_1777736137898 sponsor=Agent_user_0
+[2026-05-02T15:35:38Z INFO  evaluator] [chaintape/tb10] user-mode EscrowLock 100000 micro for task-n1_mathd_algebra_171_1777736137898 sponsor=Agent_user_0
+[2026-05-02T15:35:38Z INFO  evaluator] [chaintape] seeded synthetic TaskOpen for smoke-n1_mathd_algebra_171_1777736137898
+[2026-05-02T15:35:38Z INFO  evaluator] [chaintape] seeded synthetic zero-stake WorkTx (synthetic_rejection_for_l4e_gate=true) for smoke-n1_mathd_algebra_171_1777736137898
+[2026-05-02T15:35:38Z INFO  evaluator] [chaintape] Atom 5 audit-trail records written to CAS + indexed for smoke-n1_mathd_algebra_171_1777736137898
+[2026-05-02T15:35:38Z INFO  evaluator] [chaintape/d_c] genesis_report.json written to "/home/zephryj/projects/turingosv4/handover/evidence/tb_10_lean_market_mvp_smoke_2026-05-02/run_a_n1_mathd_algebra_171/runtime_repo"
+[2026-05-02T15:35:38Z INFO  evaluator] [swarm/n1] agent_models = [deepseek-v4-flash] (label=deepseek-v4-flash)
+[2026-05-02T15:35:38Z INFO  evaluator] [budget] regime=total_proposal base=200 effective_max_tx=200 (n_agents=1)
+[2026-05-02T15:35:38Z INFO  evaluator] [swarm/n1] Agent_0:skill0:t=0.20
+[2026-05-02T15:37:17Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=1 after this write)
+[2026-05-02T15:37:17Z INFO  evaluator] [chaintape/tb8/atom4-pertactic] FinalizeReward emitted for verify_tx=TxId("verifytx-Agent_0-omega-pertactic-1")
+[v2-emit] SPLIT env unset; defaulting to 'adaptation' (Phase B convention; pre-registration requires SPLIT for Phase C+ ablation runs)
+PPUT_RESULT:{"schema_version":"v2.0","run_id":"n1_mathd_algebra_171_1777736137898","problem_id":"mathd_algebra_171","solved":true,"split":"adaptation","verified":true,"golden_path_token_count":88,"total_run_token_count":473,"total_wall_time_ms":98561,"progress":1,"pput_runtime":0.000021450319141065727,"pput_verified":0.000021450319141065727,"pput_m_verified":21.450319141065727,"failed_branch_count":0,"rollback_count":0,"hit_max_tx":false,"tactic_diversity":1.0,"verifier_wait_ms":97000,"budget_regime":"total_proposal","budget_max_transactions":200,"far":0.0,"err":0.0,"iac":0.0,"cpr":0.0,"model_snapshot":"deepseek-v4-flash","git_sha":"","binary_sha256":"","mode":"full","problem":"mathd_algebra_171.lean","condition":"n1","model":"deepseek-v4-flash","has_golden_path":true,"time_secs":99.583763518,"pput":1.0041797625164546,"gp_token_count":88,"gp_node_count":1,"tx_count":1,"classifier_version":"v1_2026-04-16-a","tool_dist":{"step":1,"omega_wtool":1},"gp_payload":"calc\n  f 1 = 5 * 1 + 4 := by\n    rw [h₀]\n  _ = 5 + 4 := by ring\n  _ = 9 := by norm_num","gp_path":"per_tactic","gp_proof_file":"proofs/mathd_algebra_171_1777736237_ad065177.lean","h_vppu":0.19605781652674434}
+[2026-05-02T15:37:17Z INFO  evaluator] PPUT = 1.00%/s (GP: 1 nodes, 88 tokens, 99.6s)
+
+[lean_market] evaluator exited with status exit status: 0
+
+[lean_market] post-run chain summary:
+  L4 entries   = 5
+  user-sponsored tasks: 1
+
+  ── task task-n1_mathd_algebra_171_1777736137898 ──
+    sponsor          = Agent_user_0
+    total_escrow     = 0 micro (0.0000 coin)
+    claim_id         = claim-verifytx-Agent_0-omega-pertactic-1
+    claim status     = Finalized
+    solver           = Agent_0
+    claim amount     = 100000 micro (0.1000 coin)
+    sponsor balance  = 9900000 micro (9.9000 coin)
+    solver balance   = 999000 micro (0.9990 coin)

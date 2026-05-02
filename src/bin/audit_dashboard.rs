@@ -99,6 +99,34 @@ struct DashboardReport {
     /// Populated by walking L4 entries and matching VerifyTx{Confirm} → claim
     /// derivation against any subsequent FinalizeRewardTx with the same claim_id.
     claims: Vec<ClaimAuditRow>,
+    /// TB-10 Atom 4: per-user-task audit-row. Populated by filtering TaskOpen
+    /// entries whose sponsor_agent.0 starts with "Agent_user_" (lean_market
+    /// CLI convention) and cross-referencing with claims for payout status.
+    /// The aggregate sum of bounty_micro across all rows is the user's total
+    /// committed liquidity at this snapshot.
+    user_tasks: Vec<UserTaskRow>,
+}
+
+/// TB-10 Atom 4 — per-user-task audit row for the dashboard's §11 section.
+///
+/// Filter convention: TaskOpenTx whose sponsor_agent starts with `Agent_user_`
+/// (lean_market CLI's runtime preseed factory binds Agent_user_0 as the
+/// canonical sponsor identity). Solver and payout fields are populated from
+/// the matching ClaimAuditRow whose task_id equals this row's task_id.
+#[derive(Debug, serde::Serialize)]
+struct UserTaskRow {
+    task_id: String,
+    sponsor: String,
+    bounty_micro: i64,
+    /// Solver's durable AgentId (from TB-9 keystore); "(no solver yet)" if
+    /// no Confirm-VerifyTx has been observed for this task.
+    solver: String,
+    /// "Open" or "Finalized" or "(no claim yet)".
+    claim_status: String,
+    /// Payout amount in MicroCoin if Finalized; None otherwise.
+    payout_micro: Option<i64>,
+    /// L4 logical_t of the TaskOpen.
+    opened_at_logical_t: u64,
 }
 
 /// TB-8 Atom 6 — per-claim audit row for the dashboard's claims section.
@@ -278,6 +306,10 @@ fn build_report(repo: &std::path::Path, cas_path: &std::path::Path) -> Result<Da
     // TB-8 Atom 6: claim audit rows. Built in two passes within the entry
     // walk: Confirm VerifyTx → Open row; FinalizeRewardTx → Finalized.
     let mut claims_in_progress: Vec<ClaimAuditRow> = Vec::new();
+    // TB-10 Atom 4: user-task audit rows. Built by filtering TaskOpen entries
+    // whose sponsor_agent starts with "Agent_user_" + matching EscrowLockTx
+    // for bounty amount + cross-referencing claims_in_progress for status.
+    let mut user_tasks_in_progress: Vec<UserTaskRow> = Vec::new();
     // TB-7.7 D6: oracle_verified_worktx_ids — set of accepted L4 WorkTx
     // tx_ids whose ProposalTelemetry.verification_result_cid resolves to
     // VerificationResult { verified: true }. Plus their telemetry for
@@ -440,6 +472,21 @@ fn build_report(repo: &std::path::Path, cas_path: &std::path::Path) -> Result<Da
                 });
             }
             TypedTx::TaskOpen(task) => {
+                // TB-10 Atom 4: register a user-task row when the TaskOpen
+                // sponsor matches the Agent_user_* convention. Bounty +
+                // solver + status fields are filled in by subsequent
+                // EscrowLock + Verify + FinalizeReward entries.
+                if task.sponsor_agent.0.starts_with("Agent_user_") {
+                    user_tasks_in_progress.push(UserTaskRow {
+                        task_id: task.task_id.0.clone(),
+                        sponsor: task.sponsor_agent.0.clone(),
+                        bounty_micro: 0,
+                        solver: "(no solver yet)".into(),
+                        claim_status: "(no claim yet)".into(),
+                        payout_micro: None,
+                        opened_at_logical_t: logical_t,
+                    });
+                }
                 proposal_flow.push(ProposalFlowEntry {
                     logical_t,
                     side: "L4",
@@ -454,6 +501,16 @@ fn build_report(repo: &std::path::Path, cas_path: &std::path::Path) -> Result<Da
                 });
             }
             TypedTx::EscrowLock(lock) => {
+                // TB-10 Atom 4: when an EscrowLock matches a user-task row by
+                // task_id, accumulate the bounty.
+                if lock.sponsor_agent.0.starts_with("Agent_user_") {
+                    if let Some(row) = user_tasks_in_progress
+                        .iter_mut()
+                        .find(|r| r.task_id == lock.task_id.0)
+                    {
+                        row.bounty_micro += lock.amount.micro_units();
+                    }
+                }
                 proposal_flow.push(ProposalFlowEntry {
                     logical_t,
                     side: "L4",
@@ -609,6 +666,19 @@ fn build_report(repo: &std::path::Path, cas_path: &std::path::Path) -> Result<Da
         agent_audit_trail_chain_valid,
     };
 
+    // TB-10 Atom 4: cross-reference user-task rows with claim audit rows so
+    // §11 can show solver + status + payout for each user-sponsored task.
+    for ut in user_tasks_in_progress.iter_mut() {
+        if let Some(claim) = claims_in_progress
+            .iter()
+            .find(|c| c.task_id == ut.task_id)
+        {
+            ut.solver = claim.solver.clone();
+            ut.claim_status = claim.claim_status.clone();
+            ut.payout_micro = claim.payout_amount_micro;
+        }
+    }
+
     let all_pass = replay.all_indicators_pass();
     Ok(DashboardReport {
         run_id: replay.run_id.clone(),
@@ -638,6 +708,7 @@ fn build_report(repo: &std::path::Path, cas_path: &std::path::Path) -> Result<Da
         golden_path,
         cross_checks,
         claims: claims_in_progress,
+        user_tasks: user_tasks_in_progress,
     })
 }
 
@@ -978,6 +1049,62 @@ fn render_text(r: &DashboardReport) -> String {
     s.push_str("  that loaded the same TURINGOS_AGENT_KEYSTORE_PATH — equal\n");
     s.push_str("  pubkey rows ⇒ TB-9 mandate \"agent identity survives run\n");
     s.push_str("  restart\" satisfied.\n");
+
+    // §11 TB-10 User Tasks (first user-facing product).
+    //
+    // Filter convention: TaskOpenTx whose sponsor_agent starts with
+    // `Agent_user_` (lean_market CLI binds `Agent_user_0` as the canonical
+    // sponsor identity per runtime preseed factory `default_pput_preseed_pairs`).
+    // Per TB-10 charter §3 Atom 4 + ratification §2.3.
+    s.push('\n');
+    s.push_str("§11 TB-10 User Tasks (sponsored by Agent_user_*; lean_market product surface)\n");
+    s.push_str("------------------------------------------------------------------------------\n");
+    if r.user_tasks.is_empty() {
+        s.push_str("  (no Agent_user_*-sponsored TaskOpen on chain; lean_market run-task\n");
+        s.push_str("   not invoked, or evaluator ran in self-funded preseed mode\n");
+        s.push_str("   [TURINGOS_USER_TASK_MODE unset]; n/a)\n");
+    } else {
+        s.push_str(
+            "  task_id              | sponsor      | bounty_micro | solver       | claim_status | payout_micro | opened@t\n"
+        );
+        s.push_str(
+            "  ---------------------+--------------+--------------+--------------+--------------+--------------+---------\n"
+        );
+        for ut in &r.user_tasks {
+            s.push_str(&format!(
+                "  {:<20} | {:<12} | {:>12} | {:<12} | {:<12} | {:>12} | {:>7}\n",
+                trunc(&ut.task_id, 20),
+                trunc(&ut.sponsor, 12),
+                ut.bounty_micro,
+                trunc(&ut.solver, 12),
+                ut.claim_status,
+                ut.payout_micro
+                    .map(|m| m.to_string())
+                    .unwrap_or_else(|| "—".into()),
+                ut.opened_at_logical_t,
+            ));
+        }
+        let total_bounty: i64 = r.user_tasks.iter().map(|u| u.bounty_micro).sum();
+        let total_paid: i64 = r.user_tasks.iter().filter_map(|u| u.payout_micro).sum();
+        let n_finalized = r
+            .user_tasks
+            .iter()
+            .filter(|u| u.claim_status == "Finalized")
+            .count();
+        s.push_str(&format!(
+            "\n  Aggregate: {} user task(s) | {} Finalized | total bounty = {} micro | total paid = {} micro\n",
+            r.user_tasks.len(), n_finalized, total_bounty, total_paid
+        ));
+        s.push_str(
+            "\n  Architect mandate (line 1594) ✓ when total paid > 0:\n"
+        );
+        s.push_str(
+            "    user posts task → agent solves → system verifies → system pays → dashboard auditable.\n"
+        );
+        s.push_str(
+            "    solver durable agent_id receives payout via TB-9 keystore-bound balances_t entry.\n"
+        );
+    }
 
     s
 }

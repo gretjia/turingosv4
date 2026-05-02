@@ -8,6 +8,10 @@ description = "MiniF2F v4 — Formal verification swarm experiment"
 name = "evaluator"
 path = "src/bin/evaluator.rs"
 
+[[bin]]
+name = "lean_market"
+path = "src/bin/lean_market.rs"
+
 [dependencies]
 turingosv4 = { path = "../.." }
 tokio = { version = "1", features = ["full"] }

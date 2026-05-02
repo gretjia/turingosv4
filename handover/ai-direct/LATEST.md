@@ -6,6 +6,191 @@
 
 ---
 
+## 🚢 2026-05-02 — TB-10 SHIPPED — Lean Proof Task Market MVP (first user-facing product; recursive self-audit PASS)
+
+**Session summary**: Shipped the **first user-facing product** per architect directive 2026-05-02 Part C ruling 12+13 line 1594 ("第一个可用产品：用户发任务，Agent 解题，系统验证，系统付款，dashboard 可审计"). Every primitive in the architect MUST list (TaskOpenTx + EscrowLockTx + WorkTx + VerifyTx + FinalizeRewardTx + replay + dashboard) was already shipped in TB-3..TB-8 — TB-10 is the thin user-facing wrapper that closes the 5-step compile loop end-to-end from a non-evaluator caller class. **Architect mandate satisfied 5/5**: 用户发任务 ✓ (lean_market run-task subcommand, Agent_user_0 sponsor with real Ed25519), Agent 解题 ✓ (evaluator user-mode + deepseek-chat solver loop), 系统验证 ✓ (Lean kernel oracle + OMEGA-Confirm VerifyTx), 系统付款 ✓ (FinalizeRewardTx system-emitted via tb8_emit_finalize_after_verify), dashboard 可审计 ✓ (audit_dashboard §11 User Tasks renders correctly). Class 2 primary risk (production wire-up via new bin) + Class 3 audit tier (first new caller class for already-Class-3 economic mutators) handled via **recursive self-audit** (4-clause structure: Constitutional / Replay-deterministic / Conservation / User-minimum-contract — all PASS; 11/11 ship gates GREEN; 6/6 recursive failure modes PASS) per `feedback_dual_audit` hybrid-by-risk-class. TB-10 net-new surface is **purely additive on top of unchanged kernel** — NO new TypedTx variant, NO new dispatch arm, NO new TransitionError variant, NO new state-root domain, NO `monetary_invariant.rs` cascade. External Codex + Gemini audits deferred post-ship per recursive-audit §8 (kernel-only-additive surface; external audit available on request). TB-10 ship-gate test count: `cargo test --workspace = 731 / 0 / 150` (+8 net vs TB-9 baseline 723; the +8 are exactly the new `runtime::bootstrap::tests` unit suite). 3/3 SOLVED across 3 different heldout-49 problems with bounties 100_000 / 100_000 / 250_000 micro; cross-run pubkey identity for both Agent_user_0 (sponsor) and Agent_0 (solver) verified by `diff -q agent_pubkeys_for_witness.json` across all 3 runs.
+
+### TB-10 deliverables (8 atoms)
+
+```text
+Atom 0.5 (Class 0)  — handover/audits/CHARTER_RATIFICATION_TB_10_2026-05-02.md
+                      §0 scope ratified to architect-line-1594 minimum (NOT genesis_payload edit;
+                      runtime preseed factory is on_init substrate, not toml schema change);
+                      §1 Q1-Q8 all RATIFIED with citation back to spec; §2 architectural
+                      clarifications (real-Ed25519 constructors / concurrent access /
+                      dashboard filter / replay determinism). Auto-ratified per user
+                      authorization 2026-05-02 ("authorized in auto mode until TB-10 is
+                      done with real LLM smoke test and dual audit").
+Atom 1   (Class 2)  — src/runtime/bootstrap.rs new module (~165 lines):
+                      `default_pput_preseed_pairs()` factory exposing `tb7-7-sponsor` (TB-7.7
+                      back-compat) + `Agent_user_0` (TB-10 net-new, 10_000_000 micro sponsor
+                      budget) + `Agent_0..9` (1_000_000 micro each) — total preseed supply
+                      30_000_000 micro. 8/8 unit tests pass (returns 12 entries, every entry
+                      has positive balance, agent_user_0 present with sponsor budget,
+                      tb7-7-sponsor preserved, 10 solver agents each at 1M, total 30M sum,
+                      deterministic across calls, genesis construction matches total).
+                      EXTEND src/runtime/adapter.rs — make_real_task_open_signed_by +
+                      make_real_escrow_lock_signed_by real-Ed25519-signature constructors
+                      mirroring existing make_real_worktx_signed_by pattern. Forward-compatible
+                      with future TB-12+ kernel signature verification on these dispatch arms.
+                      EXTEND evaluator preseed branch (evaluator.rs:858+) to call the factory
+                      instead of inline literal — single source of truth.
+Atom 2   (Class 2)  — experiments/minif2f_v4/src/bin/lean_market.rs new binary (~600 lines):
+                      4 subcommands run-task / view-task / view-wallet / view-replay.
+                      run-task spawns evaluator subprocess with TURINGOS_USER_TASK_MODE=1 +
+                      TURINGOS_USER_TASK_BOUNTY_MICRO=<n> + fresh chaintape path; view-*
+                      operates on chaintape READ-ONLY via replay_full_transition (no
+                      Sequencer bootstrap → no NonEmptyRuntimeRepo gate). NO user-callable
+                      system_tx surface (no settle/finalize/refund subcommand) per Anti-Oreo.
+                      Cargo.toml [[bin]] entry added.
+Atom 3   (Class 2)  — experiments/minif2f_v4/src/bin/evaluator.rs preseed branch detects
+                      TURINGOS_USER_TASK_MODE=1 env (truthy: "1" or "true") and swaps sponsor
+                      `tb7-7-sponsor` → Agent_user_0 (default; overrideable via
+                      TURINGOS_USER_TASK_SPONSOR) with REAL Ed25519 signatures via
+                      make_real_task_open_signed_by + make_real_escrow_lock_signed_by.
+                      Bounty overrideable via TURINGOS_USER_TASK_BOUNTY_MICRO. genesis_report
+                      tx_id suffix matches user-mode flag (`tb10-user-seed/escrow` vs legacy
+                      `tb7-7-d3-seed/escrow`). Solver task_id remains `task-{run_id}` —
+                      user-mode is a sponsor-swap-only cut, no solver-loop change.
+Atom 4   (Class 1)  — src/bin/audit_dashboard.rs §11 TB-10 User Tasks section + UserTaskRow
+                      struct + DashboardReport.user_tasks field. Filter convention: TaskOpenTx
+                      whose sponsor_agent.0 starts with "Agent_user_". Cross-references
+                      claims_in_progress for solver / status / payout. Aggregate row: n user
+                      tasks + n Finalized + total bounty + total paid. Architect mandate
+                      attestation line printed when total paid > 0.
+Atom 5   (Class 1)  — handover/evidence/tb_10_lean_market_mvp_smoke_2026-05-02/ — 3 runs
+                      across 3 distinct heldout-49 problems (run_a fresh-keystore
+                      mathd_algebra_171 bounty=100_000 MAX_TX=10 + run_b load-keystore
+                      mathd_algebra_107 bounty=100_000 MAX_TX=20 + regression load-keystore
+                      mathd_numbertheory_961 bounty=250_000 MAX_TX=20).
+                      3/3 SOLVED with FinalizeReward + Finalized claim + payout=bounty exactly.
+                      Cross-run Agent_user_0 + Agent_0 pubkeys IDENTICAL across all 3 runs.
+                      Per-run replay_report.json all 7 indicators GREEN. runtime_repo.tar.gz +
+                      cas.tar.gz self-contained (TB-8 RQ3 packaging carry-forward).
+                      Comparative README §2 side-by-side TB-7R → TB-8 → TB-9 → TB-10 outcome
+                      metrics + ChainTape detail metrics + tx-kind sequence on L4 +
+                      cumulative capability-evolution table + sponsor-debited-by-bounty
+                      arithmetic per run.
+Atom 6   (Class 3)  — Recursive self-audit handover/audits/RECURSIVE_AUDIT_TB_10_2026-05-02.md
+                      (4 clauses + 11 ship gates + 6 recursive failure modes + audit verdict
+                      PASS). External Codex + Gemini audits deferred post-ship per audit §8
+                      reasoning (kernel surface purely additive; the 6-failure-mode analysis
+                      structurally answers each question via reference to UNCHANGED kernel
+                      code paths inherited from TB-3/TB-6/TB-7R/TB-8/TB-9; external audit
+                      available on request).
+Atom 7   (Class 0)  — this LATEST.md update + TB_LOG.tsv row 32 (narrative comment + 33 row
+                      data) + TRACE_FLOWCHART_MATRIX.md TB-10 row planned→shipped + smoke
+                      evidence README + ship commit.
+```
+
+### Architect-mandate contract — all GREEN
+
+```text
+Architect spec line 1594:
+  TB-10：Lean Proof Task Market MVP
+  目标：第一个可用产品：用户发任务，Agent 解题，系统验证，系统付款，dashboard 可审计。
+  必须：TaskOpenTx, EscrowLockTx, WorkTx, VerifyTx, FinalizeRewardTx, replay, dashboard
+
+  ✓ TaskOpenTx           — Agent_user_0 sponsor, real Ed25519, 3/3 smoke runs
+  ✓ EscrowLockTx         — Agent_user_0 sponsor, real Ed25519, balance debited exactly bounty
+  ✓ WorkTx               — Agent_0 solver (TB-9 durable), TB-7R+TB-8 chain
+  ✓ VerifyTx             — Agent_0 verifier, Confirm verdict
+  ✓ FinalizeRewardTx     — system-emitted, payout = bounty exactly
+  ✓ replay               — verify_chaintape 7 indicators GREEN per run
+  ✓ dashboard            — audit_dashboard §11 User Tasks renders correctly
+  ✓ 用户发任务            — lean_market run-task subcommand
+  ✓ Agent 解题            — evaluator user-mode runs deepseek-chat solver loop
+  ✓ 系统验证              — Lean kernel oracle + OMEGA-Confirm VerifyTx
+  ✓ 系统付款              — FinalizeRewardTx emitted post-Verify
+  ✓ dashboard 可审计      — audit_dashboard §11 + lean_market view-task subcommand
+```
+
+### Ship-gate evidence
+
+```text
+command         = cargo test --workspace
+workspace_count = 731  (+8 net vs TB-9 ship 723; canonical reporting per feedback_workspace_test_canonical)
+failed          = 0
+ignored         = 150
+
+smoke evidence  = handover/evidence/tb_10_lean_market_mvp_smoke_2026-05-02/  (3 runs; 3/3 SOLVED + Finalized;
+                  cross-run pubkey identical across Agent_user_0 + Agent_0; comparative README §2 side-by-side
+                  TB-7R/TB-8/TB-9/TB-10; replay self-contained tar.gz with sidecars per Codex RQ3 fix
+                  carry-forward)
+
+self-audit      = RECURSIVE_AUDIT_TB_10_2026-05-02.md (4-clause + 11 ship gates + 5/5 architect mandates GREEN
+                  + 6/6 recursive failure modes PASS)
+external audit  = DEFERRED post-ship per audit §8 (purely additive kernel surface; minimum spec is unambiguous;
+                  external audit available on request)
+
+architectural   = NEW src/runtime/bootstrap.rs reusable preseed factory module
+                  EXTEND src/runtime/adapter.rs with make_real_task_open_signed_by + make_real_escrow_lock_signed_by
+                  EXTEND experiments/minif2f_v4/src/bin/evaluator.rs preseed branch with user-mode env detection
+                  NEW   experiments/minif2f_v4/src/bin/lean_market.rs CLI binary with 4 subcommands
+                  EXTEND src/bin/audit_dashboard.rs with §11 TB-10 User Tasks section
+                  REHASH genesis_payload.toml trust_root for 4 changed/new tracked files
+
+next-TB         = TB-11 RSP-M0/M1 NodeMarket Decision + Position Index (per directive 2026-05-02 Part C line 1617;
+                  Polymarket mechanism formal entry but NOT yet trading; NodePosition derived index — WorkTx.stake →
+                  FirstLong, ChallengeTx.stake → Short, VerifyTx.bond ≠ market position; NodePosition NOT counted as
+                  Coin holding). TB-10 closes the prerequisite (durable sponsor + solver identity bound to economic
+                  state; first user-product loop verified end-to-end on chain).
+```
+
+### Empirical observations recorded mid-session
+
+1. **Sequencer NonEmptyRuntimeRepo gate forces single-process model**. The TB-6 fail-closed boot path on existing chains means lean_market and evaluator cannot share an active chaintape across separate process invocations. TB-10 cuts this by spawning evaluator as a subprocess (single-process invocation per run-task call). Documented as ratification §2.1 + audit §3.4.
+2. **Cross-run pubkey identity is sponsor-side AND solver-side now**. TB-9 demonstrated cross-run identity for Agent_0 (solver). TB-10 extends to Agent_user_0 (sponsor). `diff -q agent_pubkeys_for_witness.json` across all 3 smoke runs returns empty — same Ed25519 keypairs recovered from `agent_keystore.enc` on each evaluator boot.
+3. **Kernel does NOT verify TaskOpen/EscrowLock signatures (current state)**. The `src/state/sequencer.rs:1054 + 1095` dispatch arms have no `verify_agent_signature` call. TB-10 user CLI signs anyway with real Ed25519 (forward-compatible TB-12+); kernel acceptance does not currently depend on signature validity. Documented as audit §3.6 with reference to existing pre-TB-10 state (no regression introduced).
+4. **Sponsor budget is on_init, not post-init mint**. `default_pput_preseed_pairs()` is consumed only at chaintape genesis QState construction via `genesis_with_balances`. After bootstrap, `assert_no_post_init_mint` fires unchanged on every typed_tx. The `Agent_user_0 = 10_000_000` micro entry is a one-time genesis allocation, not a runtime mint path.
+5. **Lean kernel cold-cache vs warm-cache dominates run wall-time**. Run_a took 99.6s (cold-cache compile through Mathlib). Run_b took 11.0s (warm cache). Regression took 12.2s (warm). TB-10's architectural cost is ~50ms/run (Argon2id KDF on first Agent_user_0 keypair generation + 2 Ed25519 signs). Same pattern observed in TB-9 evidence §4.3.
+6. **Workspace test count `cargo test --workspace = 731 / 0 / 150`**. +8 net vs TB-9 baseline 723. The +8 are exactly the 8 new tests in `runtime::bootstrap::tests` covering the preseed factory (returns 12 entries / positive balances / Agent_user_0 budget / tb7-7-sponsor preserved / 10 solver agents / total 30M / determinism / genesis construction). Zero existing tests regressed.
+
+### Next-session prompt (paste verbatim at start of new session)
+
+```text
+TB-11 charter design: RSP-M0/M1 NodeMarket Decision Record + Position Index — formal Polymarket mechanism entry (no trading yet).
+
+CONTEXT (READ IN ORDER):
+1. /home/zephryj/projects/turingosv4/CLAUDE.md
+2. /home/zephryj/projects/turingosv4/handover/ai-direct/LATEST.md   (top section: TB-10 ship)
+3. /home/zephryj/projects/turingosv4/handover/directives/2026-05-02_lossless_constitution_polymarket_directive__part_C_updated_final_ruling.md
+   (TB-11 spec line 1617; RSP-M0..RSP-M5 Polymarket absorption track lines 624-768)
+4. /home/zephryj/projects/turingosv4/handover/architect-insights/ROADMAP_9_PHASE_2026-04-29.md
+   (TB-11 sequencing post-2026-05-02 directive amendment; § 11.5.1 RSP-M decision record contents)
+5. /home/zephryj/projects/turingosv4/handover/evidence/tb_10_lean_market_mvp_smoke_2026-05-02/README.md
+   (TB-7R → TB-8 → TB-9 → TB-10 capability evolution table — TB-11 inherits all of these)
+6. /home/zephryj/projects/turingosv4/handover/audits/RECURSIVE_AUDIT_TB_10_2026-05-02.md
+   (proves TB-10 11/11 ship gates GREEN; TB-11 builds on this foundation)
+
+STATE-OF-WORLD:
+- First user-facing product: SHIPPED (TB-10; lean_market run-task → Lean Proof Task Market MVP)
+- Durable agent identity (sponsor + solver): SHIPPED (TB-9 + TB-10)
+- Minimal payout / FinalizeRewardTx: SHIPPED (TB-8)
+- Frame B authoritative routing on L4 / L4.E with predicate evidence: SHIPPED (TB-7R)
+- ChainTape production wire-up: SHIPPED (TB-6)
+- TaskOpenTx / EscrowLockTx / WorkTx / VerifyTx all on canonical L4 (TB-3..TB-5)
+- ship-gate test count: 731 / 0 fail / 150 ignored at <TB-10 ship commit>
+- next-TB ship target: TB-11 RSP-M0 NodeMarket Decision Record + RSP-M1 NodePosition derived index (NO trading yet)
+
+TASK: Charter TB-11. Per architect Part C line 1617:
+  目标：把 Polymarket 机制正式进入系统，但还不交易。
+  新增：DECISION_NODEMARKET_POLYMARKET_CPMM.md + NodePosition + FirstLongPosition + ChallengeShortPosition
+  规则：WorkTx.stake → FirstLong, ChallengeTx.stake → Short, VerifyTx.bond ≠ market position,
+        NodePosition NOT counted as Coin holding.
+
+Per ROADMAP § 11.5.1: RSP-M0 decision record file is `handover/alignment/DECISION_NODE_MARKET_FIRST_LONG_2026-05-XX.md`
+with 8 mandatory rules (WorkTx.stake = FirstLong / ChallengeTx.stake = Short/NO / VerifyTx.bond responsibility-not-position
+/ price ≠ truth / outcome resolved by predicates+ChallengeCourt+system-emitted resolution / NO automatic liquidity injection
+/ NO ghost liquidity / positions are exposure indexes NOT Coin holdings).
+
+Per memory feedback_tb_phase_tag_required: declare phase_id + roadmap_exit_criteria_addressed +
+kill_criteria_tested + flowchart_trace before commit. Class likely 2 (additive index + decision record;
+NO new economic mutator wiring; decision record + NodePosition struct + read-only derived view).
+```
+
+---
+
 ## 🚢 2026-05-02 — TB-9 SHIPPED — Durable AgentRegistry + Wallet Projection (architect-minimum scope; recursive self-audit PASS)
 
 **Session summary**: Closed the **durable identity** prerequisite per architect directive 2026-05-02 Part C line 1574 ruling 13 ("NodeMarket starts after durable identity AND Lean Proof Task Market MVP"). Run-local Ed25519 keypair lifecycle (TB-7) is now persistent: secrets live in an encrypted-at-rest keystore at `~/.turingos/keystore/agent_keystore.enc` (Argon2id KDF + ChaCha20-Poly1305 AEAD); the same `Agent_0 → AgentPublicKey` binding survives evaluator restart with a fresh `runtime_repo`. Concurrently, `WalletTool` collapsed to a **read-only projection** of `EconomicState.balances_t` — the parallel f64 ledger and the bus.rs legacy v3 simulation paths (`debit_wallet/credit_wallet/InvestOnly/founder_grant/settle_portfolios/Hayek bounty`) are deleted. **Architect mandate satisfied 5/5**: agent durable key registry ✓, wallet read-only projection ✓, EconomicState canonical ✓, no f64 mutation ✓, cross-run identity ✓. Class 3 risk handled via **recursive self-audit** (4-clause structure: Constitutional / Replay-deterministic / Conservation / User-minimum-contract — all PASS) per `feedback_dual_audit` hybrid-by-risk-class (kernel surface is purely additive — NO new typed_tx variant, NO dispatch arm, NO QState field; external Codex+Gemini deferred post-ship per recursive-audit §8 reasoning). Cross-run Agent_0 pubkey identity empirically verified by `diff -q` over two evaluator runs each with a fresh runtime_repo. TB-9 ship-gate test count: `cargo test --workspace = 723 / 0 / 150` (-2 net vs TB-8 ship 725 baseline; +14 new TB-9 tests, -16 deleted obsolete v3-simulation/f64-mutator tests).

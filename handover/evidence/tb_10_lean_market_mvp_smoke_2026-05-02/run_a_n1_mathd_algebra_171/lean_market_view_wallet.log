@@ -1,0 +1,20 @@
+[lean_market] view-wallet
+  chaintape    = "/home/zephryj/projects/turingosv4/handover/evidence/tb_10_lean_market_mvp_smoke_2026-05-02/run_a_n1_mathd_algebra_171/runtime_repo"
+  L4 entries   = 5
+  agent        = Agent_user_0
+  balance      = 9900000 micro (9.9000 coin)
+  total agents = 12
+
+  full balances_t:
+    Agent_0                                999000 micro
+    Agent_1                               1000000 micro
+    Agent_2                               1000000 micro
+    Agent_3                               1000000 micro
+    Agent_4                               1000000 micro
+    Agent_5                               1000000 micro
+    Agent_6                               1000000 micro
+    Agent_7                               1000000 micro
+    Agent_8                               1000000 micro
+    Agent_9                               1000000 micro
+    Agent_user_0                          9900000 micro
+    tb7-7-sponsor                        10000000 micro

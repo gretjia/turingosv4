@@ -1,0 +1,14 @@
+[lean_market] view-task
+  chaintape    = "/home/zephryj/projects/turingosv4/handover/evidence/tb_10_lean_market_mvp_smoke_2026-05-02/run_a_n1_mathd_algebra_171/runtime_repo"
+  L4 entries   = 5
+  user-sponsored tasks: 1
+
+  ── task task-n1_mathd_algebra_171_1777736137898 ──
+    sponsor          = Agent_user_0
+    total_escrow     = 0 micro (0.0000 coin)
+    claim_id         = claim-verifytx-Agent_0-omega-pertactic-1
+    claim status     = Finalized
+    solver           = Agent_0
+    claim amount     = 100000 micro (0.1000 coin)
+    sponsor balance  = 9900000 micro (9.9000 coin)
+    solver balance   = 999000 micro (0.9990 coin)

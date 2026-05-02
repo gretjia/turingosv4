@@ -706,30 +706,24 @@ async fn run_swarm(
             None => None, // env unset = legacy mode is the explicit choice
             Some(cfg) => {
                 let result = if chaintape_preseed_enabled {
-                    // Pre-seeded genesis: sponsor + per-agent balances.
-                    // Sponsor balance = 10_000_000 micro (10 coins) — plenty
-                    // for ~100 EscrowLock at 100_000 each.
-                    // Per-agent balance = 1_000_000 micro (1 coin) — plenty
-                    // for ~1000 WorkTx.stake at 1_000 each.
-                    use turingosv4::economy::money::MicroCoin;
-                    use turingosv4::state::q_state::AgentId;
-                    let mut pairs: Vec<(AgentId, MicroCoin)> = vec![
-                        (AgentId("tb7-7-sponsor".into()),
-                         MicroCoin::from_micro_units(10_000_000)),
-                    ];
-                    // Pre-seed up to N=10 agents (covers n1, n3, n5, n10).
-                    for i in 0..10 {
-                        pairs.push((
-                            AgentId(format!("Agent_{i}")),
-                            MicroCoin::from_micro_units(1_000_000),
-                        ));
-                    }
+                    // TB-10 Atom 1: preseed list extracted to runtime factory at
+                    // `src/runtime/bootstrap.rs::default_pput_preseed_pairs()`.
+                    // Single source of truth shared between evaluator and
+                    // `lean_market` user CLI so both processes bootstrap to the
+                    // same genesis QState. Includes:
+                    //   - tb7-7-sponsor (10_000_000 micro) — TB-7.7 D3 self-fund
+                    //   - Agent_user_0  (10_000_000 micro) — TB-10 user CLI sponsor
+                    //   - Agent_0..9    ( 1_000_000 micro each) — solver budgets
+                    let pairs = turingosv4::runtime::bootstrap::default_pput_preseed_pairs();
                     initial_balances_for_genesis_report = pairs
                         .iter()
                         .map(|(a, m)| (a.0.clone(), m.micro_units()))
                         .collect();
                     let initial_q = turingosv4::runtime::adapter::genesis_with_balances(&pairs);
-                    info!("[chaintape/d3] pre-seed enabled: sponsor + 10 agent balances");
+                    info!(
+                        "[chaintape/d3] pre-seed enabled (TB-10 factory): {} entries",
+                        pairs.len()
+                    );
                     turingosv4::runtime::build_chaintape_sequencer_with_initial_q(
                         &cfg, initial_q,
                     )
@@ -863,14 +857,46 @@ async fn run_swarm(
         // with stake > 0 can now reach L4 accepted.
         if chaintape_preseed_enabled {
             let real_task_id = format!("task-{}", run_id);
-            let task_open_real = turingosv4::runtime::adapter::make_synthetic_task_open(
-                &real_task_id,
-                "tb7-7-sponsor",
-                turingosv4::state::q_state::Hash::ZERO,
-                "tb7-7-d3-seed",
-            );
+            // TB-10 Atom 1+3: when TURINGOS_USER_TASK_MODE=1 (or any value parsing
+            // truthy), the preseed sponsor swaps from tb7-7-sponsor → Agent_user_0
+            // and the TaskOpen+EscrowLock are signed with REAL Ed25519 via the
+            // durable keystore (TB-9 carry). Solver task_id remains task-{run_id}
+            // — user-mode is a sponsor swap only; the solver loop flows unchanged.
+            // Per TB-10 charter §3 Atom 3 + ratification §1 Q3.
+            let user_task_mode = std::env::var("TURINGOS_USER_TASK_MODE")
+                .ok()
+                .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+                .unwrap_or(false);
+            let user_sponsor = std::env::var("TURINGOS_USER_TASK_SPONSOR")
+                .unwrap_or_else(|_| "Agent_user_0".into());
+            let task_open_real = if user_task_mode {
+                let registry_arc = agent_keypairs
+                    .as_ref()
+                    .expect("[chaintape/tb10] agent_keypairs registry required for user-mode signing");
+                let mut reg = registry_arc.lock().expect("agent_keypairs registry mutex poisoned");
+                turingosv4::runtime::adapter::make_real_task_open_signed_by(
+                    &mut reg,
+                    &real_task_id,
+                    &user_sponsor,
+                    turingosv4::state::q_state::Hash::ZERO,
+                    "tb10-user-seed",
+                    1,
+                )
+                .expect("[chaintape/tb10] sign user-mode TaskOpen with Agent_user_0 keypair")
+            } else {
+                turingosv4::runtime::adapter::make_synthetic_task_open(
+                    &real_task_id,
+                    "tb7-7-sponsor",
+                    turingosv4::state::q_state::Hash::ZERO,
+                    "tb7-7-d3-seed",
+                )
+            };
             if let Err(e) = bus.submit_typed_tx(task_open_real).await {
                 error!("[chaintape/d3] preseed TaskOpen submit failed: {e}");
+            } else if user_task_mode {
+                info!(
+                    "[chaintape/tb10] user-mode TaskOpen for {real_task_id} sponsor={user_sponsor}"
+                );
             } else {
                 info!("[chaintape/d3] preseed TaskOpen for {real_task_id}");
             }
@@ -902,20 +928,48 @@ async fn run_swarm(
                 }
                 root
             };
-            // Read escrow amount from env (default 100_000 micro = 0.1 coin).
-            let escrow_micro: i64 = std::env::var("TURINGOS_CHAINTAPE_PRESEED_TASK_ESCROW_MICRO")
+            // Read escrow amount from env. TB-10 user-mode reads
+            // TURINGOS_USER_TASK_BOUNTY_MICRO first (user's bounty); fallback to
+            // existing TB-7.7 D3 envvar; final default 100_000 micro = 0.1 coin.
+            let escrow_micro: i64 = std::env::var("TURINGOS_USER_TASK_BOUNTY_MICRO")
                 .ok()
                 .and_then(|s| s.parse().ok())
+                .or_else(|| {
+                    std::env::var("TURINGOS_CHAINTAPE_PRESEED_TASK_ESCROW_MICRO")
+                        .ok()
+                        .and_then(|s| s.parse().ok())
+                })
                 .unwrap_or(100_000);
-            let escrow_lock = turingosv4::runtime::adapter::make_synthetic_escrow_lock(
-                &real_task_id,
-                "tb7-7-sponsor",
-                escrow_micro,
-                parent_for_escrow,
-                "tb7-7-d3-escrow",
-            );
+            let escrow_lock = if user_task_mode {
+                let registry_arc = agent_keypairs
+                    .as_ref()
+                    .expect("[chaintape/tb10] agent_keypairs registry required for user-mode signing");
+                let mut reg = registry_arc.lock().expect("agent_keypairs registry mutex poisoned");
+                turingosv4::runtime::adapter::make_real_escrow_lock_signed_by(
+                    &mut reg,
+                    &real_task_id,
+                    &user_sponsor,
+                    escrow_micro,
+                    parent_for_escrow,
+                    "tb10-user-escrow",
+                    2,
+                )
+                .expect("[chaintape/tb10] sign user-mode EscrowLock with Agent_user_0 keypair")
+            } else {
+                turingosv4::runtime::adapter::make_synthetic_escrow_lock(
+                    &real_task_id,
+                    "tb7-7-sponsor",
+                    escrow_micro,
+                    parent_for_escrow,
+                    "tb7-7-d3-escrow",
+                )
+            };
             if let Err(e) = bus.submit_typed_tx(escrow_lock).await {
                 error!("[chaintape/d3] preseed EscrowLock submit failed: {e}");
+            } else if user_task_mode {
+                info!(
+                    "[chaintape/tb10] user-mode EscrowLock {escrow_micro} micro for {real_task_id} sponsor={user_sponsor}"
+                );
             } else {
                 info!("[chaintape/d3] preseed EscrowLock {escrow_micro} micro for {real_task_id}");
             }
@@ -997,12 +1051,26 @@ async fn run_swarm(
         } else {
             None
         };
-        let preseed_task_open_tx = preseed_task_id
-            .as_ref()
-            .map(|t| format!("taskopen-{}-tb7-7-d3-seed", t));
-        let preseed_escrow_lock_tx = preseed_task_id
-            .as_ref()
-            .map(|t| format!("escrowlock-{}-tb7-7-d3-escrow", t));
+        // TB-10 Atom 1+3: tx_id suffix depends on user-mode flag (mirrors the
+        // make_real_*_signed_by suffix passed in lines above).
+        let user_task_mode = std::env::var("TURINGOS_USER_TASK_MODE")
+            .ok()
+            .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+            .unwrap_or(false);
+        let preseed_task_open_tx = preseed_task_id.as_ref().map(|t| {
+            if user_task_mode {
+                format!("taskopen-{}-tb10-user-seed", t)
+            } else {
+                format!("taskopen-{}-tb7-7-d3-seed", t)
+            }
+        });
+        let preseed_escrow_lock_tx = preseed_task_id.as_ref().map(|t| {
+            if user_task_mode {
+                format!("escrowlock-{}-tb10-user-escrow", t)
+            } else {
+                format!("escrowlock-{}-tb7-7-d3-escrow", t)
+            }
+        });
         let report = turingosv4::runtime::genesis_report::GenesisReport {
             constitution_hash:
                 turingosv4::runtime::genesis_report::GenesisReport::hash_constitution_md(

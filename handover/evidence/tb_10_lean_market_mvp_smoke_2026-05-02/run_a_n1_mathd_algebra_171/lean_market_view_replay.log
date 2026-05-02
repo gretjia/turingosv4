@@ -1,0 +1,13 @@
+[lean_market] view-replay
+  chaintape    = "/home/zephryj/projects/turingosv4/handover/evidence/tb_10_lean_market_mvp_smoke_2026-05-02/run_a_n1_mathd_algebra_171/runtime_repo"
+  L4 entries   = 5
+  L4.E entries = 2
+  ledger_root_verified                 = true
+  system_signatures_verified           = true
+  state_reconstructed                  = true
+  economic_state_reconstructed         = true
+  cas_payloads_retrievable             = true
+  agent_signatures_verified            = true
+  proposal_telemetry_cas_retrievable   = true
+
+  ✓ all 7 indicators GREEN

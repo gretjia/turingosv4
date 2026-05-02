@@ -1,0 +1,118 @@
+=================================================================
+ TB-8 Audit Dashboard — run_id=1777736302 epoch=1
+=================================================================
+
+§1 Run metadata
+---------------
+  head_commit_oid: 068953077161381e64d93871e93976e3a680058a
+  final_state_root: f0e238d7269af2ba60bb7b6311a81cfdc1c51e86574346a0d21c4d6c20683a50
+  final_ledger_root: 734a98300ec238e3ee3131ed0ccb87d13cd0cec6159541745aec71fd308bd7e4
+  initial_q_state_loaded_from_disk: true
+
+§2 Chain stats + 7 indicators
+------------------------------
+  L4 entries:  5
+  L4.E entries: 2
+  ledger_root_verified              : ✓
+  system_signatures_verified        : ✓
+  state_reconstructed               : ✓
+  economic_state_reconstructed      : ✓
+  cas_payloads_retrievable          : ✓
+  agent_signatures_verified [Gate 4]: ✓
+  proposal_telemetry_cas_retrievable [Gate 5]: ✓
+  ALL 7 PASS                        : GREEN
+
+§3 ChainDerivedRunFacts (§4.4 bit-exact set)
+---------------------------------------------
+  solved                  : false
+  verified                : false
+  tx_count                : 7
+  proposal_count          : 2
+  golden_path_token_count : 448
+  gp_payload (CID hex)    : f9f5d00b0a74e8e0cad8b2e63a03758dfcfe52219e94c02f8a048c1045017681
+  gp_path                 : step_complete
+  tactic_diversity        : 1
+  failed_branch_count     : 2
+  chain_oracle_verified   : true ✓ (Lean accepted ≥1 proof; oracle-level)
+  chain_economic_finalized: false (always false in TB-7; settlement = TB-9 territory)
+  tool_dist:
+    step_complete: 1
+
+§4 Per-agent activity
+---------------------
+  agent_id          | pubkey | Work✓ | Work✗ | Verify✓ | Verify✗
+  ------------------+--------+-------+-------+---------+--------
+  Agent_0           | ✓      | 1     | 0     | 1       | 0
+  Agent_user_0      | ✓      | 0     | 0     | 0       | 0
+  tb6-smoke-agent   | ✗      | 0     | 1     | 0       | 0
+  tb6-smoke-sponsor | ✗      | 0     | 0     | 0       | 0
+
+§5 Proposal flow (chronological by logical_t)
+----------------------------------------------
+  side  | t   | tx_kind         | agent      | tactic     | branch     | oracle | reject
+  ------+-----+-----------------+------------+------------+------------+--------+-------
+  L4.E  |   0 | TaskOpen        | tb6-smoke-sponsor | -          | -          | -      | PolicyViolation
+  L4.E  |   0 | Work            | tb6-smoke-agent | -          | -          | -      | PolicyViolation
+  L4    |   1 | TaskOpen        | Agent_user_0 | -          | -          | -      | -
+  L4    |   2 | EscrowLock      | Agent_user_0 | -          | -          | -      | -
+  L4    |   3 | Work            | Agent_0    | step_complete | Agent_0.b1 | ✓      | -
+        payload: nlinarith
+  L4    |   4 | Verify          | Agent_0    | -          | -          | -      | -
+  L4    |   5 | FinalizeReward  | system (solver=Agent_0) | -          | -          | -      | -
+
+§6 Branch lineage (parent_tx → child_tx via ProposalTelemetry.parent_tx)
+------------------------------------------------------------------------
+  parent_tx_state: SingletonGoldenPathValid (B′ singleton solve — parent_tx=None correct; conformance test demonstrates plumbing)
+  edges: (none — see parent_tx_state above for interpretation)
+
+§7 Golden path (root → oracle-verified WorkTx)
+------------------------------------------------
+  ✓depth=0  [ORACLE] | agent=Agent_0 | tactic=step_complete | tx=worktx-task-n1_mathd_algebra_107_1777736302466-omega-pertactic-1
+           payload: nlinarith
+
+§8 Cross-checks
+---------------
+  audit_trail_rows         : 2
+  chain_proposal_count     : 2
+  audit_rows == proposal_count: ✓
+  audit_trail_chain_valid     : ✓
+  (Note: pre-TB-7.6 the agent_audit_trail.jsonl is populated only
+   by the synthetic-seed hook; full per-LLM-proposal audit-trail
+   wiring is part of TB-7.6 carry-forward action #4 / #5.)
+
+§9 TB-8 Claims (claim_status + payout_amount)
+----------------------------------------------
+  claim_id                          | task_id        | solver        | status     | payout_micro | created@t | finalized@t
+  ----------------------------------+----------------+---------------+------------+--------------+-----------+------------
+  claim-verifytx-Agent_0-omega-per… | task-n1_mathd… | Agent_0       | Finalized  |       100000 |         4 | 5
+
+  Aggregate: 1 claims observed | 0 Open | 1 Finalized | total_payout = 100000 micro
+
+§10 TB-9 Durable identity (agent keystore registry)
+---------------------------------------------------
+  durable_keystore_path: /home/zephryj/projects/turingosv4/handover/evidence/tb_10_lean_market_mvp_smoke_2026-05-02/agent_keystore.enc
+  durable_keystore_present: ✓ (cross-run identity available)
+  agents_in_manifest: 2
+  agent_id          | pubkey_in_manifest | tape_activity
+  ------------------+--------------------+---------------
+  Agent_0           | ✓ (durable-backed) | Work✓=1 Work✗=0 Verify✓=1 Verify✗=0
+  Agent_user_0      | ✓ (durable-backed) | Work✓=0 Work✗=0 Verify✓=0 Verify✗=0
+
+  Note: cross-run identity is empirically observable by
+  comparing this run's `agent_pubkeys.json` to a sibling run
+  that loaded the same TURINGOS_AGENT_KEYSTORE_PATH — equal
+  pubkey rows ⇒ TB-9 mandate "agent identity survives run
+  restart" satisfied.
+
+§11 TB-10 User Tasks (sponsored by Agent_user_*; lean_market product surface)
+------------------------------------------------------------------------------
+  task_id              | sponsor      | bounty_micro | solver       | claim_status | payout_micro | opened@t
+  ---------------------+--------------+--------------+--------------+--------------+--------------+---------
+  task-n1_mathd_algeb… | Agent_user_0 |       100000 | Agent_0      | Finalized    |       100000 |       1
+
+  Aggregate: 1 user task(s) | 1 Finalized | total bounty = 100000 micro | total paid = 100000 micro
+
+  Architect mandate (line 1594) ✓ when total paid > 0:
+    user posts task → agent solves → system verifies → system pays → dashboard auditable.
+    solver durable agent_id receives payout via TB-9 keystore-bound balances_t entry.
+

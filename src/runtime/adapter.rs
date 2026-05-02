@@ -23,9 +23,9 @@ use crate::economy::money::{MicroCoin, StakeMicroCoin};
 use crate::runtime::agent_keypairs::{AgentKeypairError, AgentKeypairRegistry};
 use crate::state::q_state::{AgentId, Hash, QState, TaskId, TxId};
 use crate::state::typed_tx::{
-    AgentSignature, BoolWithProof, EscrowLockTx, PredicateId, PredicateResultsBundle, ReadKey,
-    SafetyOrCreation, TaskOpenTx, TypedTx, VerifySigningPayload, VerifyTx, VerifyVerdict,
-    WorkSigningPayload, WorkTx, WriteKey,
+    AgentSignature, BoolWithProof, EscrowLockSigningPayload, EscrowLockTx, PredicateId,
+    PredicateResultsBundle, ReadKey, SafetyOrCreation, TaskOpenSigningPayload, TaskOpenTx, TypedTx,
+    VerifySigningPayload, VerifyTx, VerifyVerdict, WorkSigningPayload, WorkTx, WriteKey,
 };
 
 /// TRACE_MATRIX FC3-N1: TB-6 Atom 2 adapter — pre-seed initial QState with sponsor balances.
@@ -262,6 +262,105 @@ pub fn make_real_verifytx_signed_by(
         verifier_agent: verifier_id,
         bond,
         verdict,
+        signature,
+        timestamp_logical,
+    }))
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// TB-10 Atom 1 — Real-signature constructors for user-driven TaskOpen + EscrowLock.
+//
+// The synthetic constructors above use `AgentSignature::from_bytes([0u8; 64])`
+// because the evaluator's preseed sponsor (`tb7-7-sponsor`) is not in the
+// durable keystore — its ledger entries pre-date TB-7's Ed25519 wiring.
+//
+// TB-10 introduces a NEW caller class (a human user invoking `lean_market`)
+// who DOES carry a durable Ed25519 keypair via TB-9's keystore (Agent_user_0).
+// User-driven TaskOpen + EscrowLock SHOULD carry real signatures so the chain
+// has cryptographic attestation of sponsor identity — even though the kernel
+// dispatch arms (sequencer.rs:1054 + 1095) do not currently verify these
+// fields. This is forward-compatible with future TB-12+ kernel hardening.
+//
+// Per TB-10 charter §2.1 + ratification §2.1.
+// ────────────────────────────────────────────────────────────────────────────
+
+/// TRACE_MATRIX FC1-N14: TB-10 Atom 1 — real-signature TaskOpenTx constructor.
+///
+/// Builds a `TaskOpenTx` and signs it via `AgentKeypairRegistry::sign(&sponsor, digest)`.
+/// Mirrors `make_synthetic_task_open` shape but produces a non-zero Ed25519 signature
+/// over `TaskOpenSigningPayload::canonical_digest()`.
+#[allow(clippy::too_many_arguments)]
+pub fn make_real_task_open_signed_by(
+    keypairs: &mut AgentKeypairRegistry,
+    task: &str,
+    sponsor: &str,
+    parent_state_root: Hash,
+    suffix: &str,
+    timestamp_logical: u64,
+) -> Result<TypedTx, AgentKeypairError> {
+    let sponsor_id = AgentId(sponsor.into());
+    let task_id = TaskId(task.into());
+    let tx_id = TxId(format!("taskopen-{}-{}", task, suffix));
+    let payload = TaskOpenSigningPayload {
+        tx_id: tx_id.clone(),
+        task_id: task_id.clone(),
+        parent_state_root,
+        sponsor_agent: sponsor_id.clone(),
+        verifier_quorum: 1,
+        max_reuse_royalty_fraction_basis_points: 1000,
+        settlement_rule_hash: Hash::ZERO,
+        timestamp_logical,
+    };
+    let digest = payload.canonical_digest();
+    let signature = keypairs.sign(&sponsor_id, digest)?;
+    Ok(TypedTx::TaskOpen(TaskOpenTx {
+        tx_id,
+        task_id,
+        parent_state_root,
+        sponsor_agent: sponsor_id,
+        verifier_quorum: 1,
+        max_reuse_royalty_fraction_basis_points: 1000,
+        settlement_rule_hash: Hash::ZERO,
+        signature,
+        timestamp_logical,
+    }))
+}
+
+/// TRACE_MATRIX FC1-N14: TB-10 Atom 1 — real-signature EscrowLockTx constructor.
+///
+/// Builds an `EscrowLockTx` and signs it via `AgentKeypairRegistry::sign(&sponsor, digest)`.
+/// Mirrors `make_synthetic_escrow_lock` shape but produces a non-zero Ed25519
+/// signature over `EscrowLockSigningPayload::canonical_digest()`.
+#[allow(clippy::too_many_arguments)]
+pub fn make_real_escrow_lock_signed_by(
+    keypairs: &mut AgentKeypairRegistry,
+    task: &str,
+    sponsor: &str,
+    amount_micro: i64,
+    parent_state_root: Hash,
+    suffix: &str,
+    timestamp_logical: u64,
+) -> Result<TypedTx, AgentKeypairError> {
+    let sponsor_id = AgentId(sponsor.into());
+    let task_id = TaskId(task.into());
+    let tx_id = TxId(format!("escrowlock-{}-{}", task, suffix));
+    let amount = MicroCoin::from_micro_units(amount_micro);
+    let payload = EscrowLockSigningPayload {
+        tx_id: tx_id.clone(),
+        task_id: task_id.clone(),
+        parent_state_root,
+        sponsor_agent: sponsor_id.clone(),
+        amount,
+        timestamp_logical,
+    };
+    let digest = payload.canonical_digest();
+    let signature = keypairs.sign(&sponsor_id, digest)?;
+    Ok(TypedTx::EscrowLock(EscrowLockTx {
+        tx_id,
+        task_id,
+        parent_state_root,
+        sponsor_agent: sponsor_id,
+        amount,
         signature,
         timestamp_logical,
     }))
