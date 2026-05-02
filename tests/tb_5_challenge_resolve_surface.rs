@@ -473,6 +473,9 @@ fn q_with_full_economy(challenger: &str, bond_micro: i64) -> (QState, TxId, Agen
             verifier_quorum: 1,
             max_reuse_royalty_fraction_basis_points: 1000,
             settlement_rule_hash: turingosv4::state::q_state::Hash::ZERO,
+            state: turingosv4::state::TaskMarketState::Open,                              // TB-11
+            bankruptcy_at_logical_t: None,                                                 // TB-11
+            opened_at_logical_t: 0,                                                        // TB-11
         },
     );
     q.economic_state_t.escrows_t.0.insert(

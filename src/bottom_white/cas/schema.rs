@@ -52,6 +52,18 @@ pub enum ObjectType {
     AmendmentDiff,
     /// Reversibility plan attached to a meta_tx.
     ReversibilityPlan,
+    /// TB-11 (architect §6.1): canonical-encoded `EvidenceCapsule` bytes.
+    /// Referenced by `TerminalSummaryTx.evidence_capsule_cid` /
+    /// `TaskBankruptcyTx.evidence_capsule_cid` for O(N) audit access while
+    /// keeping L4 chain cost O(1).
+    EvidenceCapsule,
+    /// TB-11 (architect §6.1): JSON manifest enumerating sub-CAS objects
+    /// of an EvidenceCapsule (e.g. compressed log Cid + size + sha256).
+    EvidenceManifest,
+    /// TB-11 (architect §6.1): gzipped raw run log bytes (audit-only access).
+    /// Privacy default `CapsulePrivacyPolicy::AuditOnly` — never enters
+    /// Agent read view.
+    CompressedRunLog,
     /// Generic / unclassified blob.
     Generic,
 }

@@ -70,6 +70,13 @@ pub enum TxKind {
     /// ChallengeCase.status; UpheldDeferred is a marker only (slash is
     /// RSP-3.2 / TB-6 territory).
     ChallengeResolve = 9,
+    /// TB-11 (2026-05-02 architect ruling §6.2) — system-emitted task-level
+    /// failure marker. Future TB-12 NodeMarket Short / NO settlement uses
+    /// this as the canonical resolution anchor (death certificate).
+    /// System-only: agent ingress rejected pre-queue; emit via
+    /// `Sequencer::emit_system_tx`. No money movement (refund is a separate
+    /// TaskExpireTx fired by tick post-bankruptcy).
+    TaskBankruptcy  = 10,
 }
 
 /// TRACE_MATRIX FC2-Append + WP § 5.L4: stored LedgerEntry record (11 fields).

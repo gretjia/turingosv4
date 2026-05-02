@@ -257,6 +257,11 @@ pub enum CanonicalMessage {
     /// `FinalizeRewardSigning` / `TaskExpireSigning`; avoids circular
     /// `system_keypair ↔ state` dependency.
     ChallengeResolveSigning([u8; 32]),
+    /// TRACE_MATRIX FC1-Sig + FC3-Sig (TB-11 architect ruling §6.2 ruling
+    /// 2026-05-02): task-bankruptcy signing payload digest. Opaque [u8; 32]
+    /// from `state::typed_tx::TaskBankruptcySigningPayload::canonical_digest()`.
+    /// Same opaque-digest pattern as the other 4 system-tx variants.
+    TaskBankruptcySigning([u8; 32]),
 }
 
 /// TRACE_MATRIX FC1-Sig+FC3-Sig: epoch-indexed public keys pinned by genesis and rotation history.
@@ -504,6 +509,10 @@ pub fn canonical_digest(message: &CanonicalMessage) -> [u8; 32] {
             h.update(b"ChallengeResolveSigning");
             h.update(digest);
         }
+        CanonicalMessage::TaskBankruptcySigning(digest) => {
+            h.update(b"TaskBankruptcySigning");
+            h.update(digest);
+        }
     }
     h.finalize().into()
 }
@@ -636,6 +645,20 @@ pub(crate) mod terminal_summary_emitter {
         digest: [u8; 32],
     ) -> Result<SystemSignature, KeypairError> {
         sign_system_message_inner(keypair, &CanonicalMessage::ChallengeResolveSigning(digest))
+    }
+
+    /// TRACE_MATRIX FC1-Sig + FC3-Sig (TB-11 architect ruling §6.2 ruling
+    /// 2026-05-02): sign an opaque 32-byte digest of a
+    /// `TaskBankruptcySigningPayload` (computed by
+    /// `state::typed_tx::TaskBankruptcyTx::to_signing_payload().canonical_digest()`).
+    /// Symmetric to the other 4 system-tx signers. Used by
+    /// `Sequencer::emit_system_tx` (Atom 2) to construct the system_signature
+    /// internally — caller never carries a forged signature.
+    pub(crate) fn sign_task_bankruptcy(
+        keypair: &Ed25519Keypair,
+        digest: [u8; 32],
+    ) -> Result<SystemSignature, KeypairError> {
+        sign_system_message_inner(keypair, &CanonicalMessage::TaskBankruptcySigning(digest))
     }
 
     /// TRACE_MATRIX FC3-Sig: sign only typed epoch rotation proofs.

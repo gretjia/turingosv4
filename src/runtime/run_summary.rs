@@ -220,6 +220,7 @@ fn extract_tx_id(tx: &TypedTx) -> TxId {
         TypedTx::TaskOpen(t) => t.tx_id.clone(),
         TypedTx::EscrowLock(t) => t.tx_id.clone(),
         TypedTx::ChallengeResolve(t) => t.tx_id.clone(),
+        TypedTx::TaskBankruptcy(t) => t.tx_id.clone(),  // TB-11
     }
 }
 

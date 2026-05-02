@@ -308,7 +308,13 @@ pub fn assert_no_post_init_mint(tx: &TypedTx, q: &QState) -> Result<(), Monetary
         // only (no economic mutation; charter v2 § 4.7). Neither mints —
         // CTF conservation enforced by assert_total_ctf_conserved with
         // empty exempt list at the dispatch site.
-        | TypedTx::ChallengeResolve(_) => Ok(()),
+        | TypedTx::ChallengeResolve(_)
+        // TB-11 (architect §6.2 ruling 2026-05-02): TaskBankruptcy is a
+        // task-level state mutation only (task_markets_t[task_id].state →
+        // Bankrupt). No money movement, so trivially does not mint.
+        // CTF conservation enforced by assert_total_ctf_conserved with
+        // empty exempt list at the dispatch site.
+        | TypedTx::TaskBankruptcy(_) => Ok(()),
     }
 }
 

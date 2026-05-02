@@ -19,16 +19,17 @@ pub use q_state::{
     AgentId, AgentSwarmState, AgentVisibleProjection, BalancesIndex, BudgetSnapshot,
     ChallengeCase, ChallengeCasesIndex, ClaimEntry, ClaimsIndex, EconomicState, EscrowEntry,
     EscrowsIndex, Hash, NodeId, PerAgentState, PriceIndex, QState, Reputation, ReputationsIndex,
-    RoyaltyEdge, RoyaltyGraph, StakeEntry, StakesIndex, TaskId, TaskMarketEntry, TaskMarketsIndex,
-    TxId,
+    RoyaltyEdge, RoyaltyGraph, RunSummaryEntry, RunsIndex, StakeEntry, StakesIndex, TaskId,
+    TaskMarketEntry, TaskMarketState, TaskMarketsIndex, TxId,
 };
 
 pub use typed_tx::{
-    AgentSignature, BoolWithProof, ChallengeSigningPayload, ChallengeTx, ClaimId,
+    AgentSignature, BankruptcyReason, BoolWithProof, CapsulePrivacyPolicy,
+    ChallengeSigningPayload, ChallengeTx, ClaimId, ExhaustionReason, ExpireReason,
     FinalizeRewardSigningPayload, FinalizeRewardTx, HasSubmitter, PredicateId,
-    PredicateResultsBundle, ReadKey, RejectionClass, ReuseTx, RunId, RunOutcome,
-    SafetyOrCreation, SignalBundle, SignalKind, SlashEvidenceCid, TaskExpireSigningPayload,
-    TaskExpireTx, TerminalSummarySigningPayload, TerminalSummaryTx, ToolId,
-    TransitionError, TxStatus, TypedTx, VerifySigningPayload, VerifyTx, VerifyVerdict,
-    WorkSigningPayload, WorkTx, WriteKey,
+    PredicateResultsBundle, ReadKey, RejectionClass, ReuseTx, RunExhaustedTx, RunId, RunOutcome,
+    SafetyOrCreation, SignalBundle, SignalKind, SlashEvidenceCid, TaskBankruptcySigningPayload,
+    TaskBankruptcyTx, TaskExpireSigningPayload, TaskExpireTx, TerminalSummarySigningPayload,
+    TerminalSummaryTx, ToolId, TransitionError, TxStatus, TypedTx, VerifySigningPayload,
+    VerifyTx, VerifyVerdict, WorkSigningPayload, WorkTx, WriteKey,
 };

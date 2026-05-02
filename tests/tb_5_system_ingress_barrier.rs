@@ -175,6 +175,9 @@ async fn agent_submit_rejects_task_expire_tx() {
         bounty_refunded: MicroCoin::from_micro_units(50),
         epoch: SystemEpoch::new(1),
         timestamp_logical: 1,
+        sponsor_agent: turingosv4::state::AgentId("sp-i62".into()),                       // TB-11
+        escrow_tx_id: TxId("e-i62".into()),                                               // TB-11
+        reason: turingosv4::state::ExpireReason::Deadline,                                // TB-11
         system_signature: SystemSignature::from_bytes([0u8; 64]),
     });
 
@@ -203,6 +206,9 @@ async fn agent_submit_rejects_terminal_summary_tx() {
         total_attempts: 0,
         failure_class_histogram: BTreeMap::new(),
         last_logical_t: 0,
+        parent_state_root: Hash::ZERO,                                                    // TB-11
+        solver_agent: None,                                                                // TB-11
+        evidence_capsule_cid: None,                                                        // TB-11
         system_signature: SystemSignature::from_bytes([0u8; 64]),
     });
 
@@ -245,6 +251,9 @@ async fn legacy_submit_alias_delegates_to_submit_agent_tx_and_rejects_system_var
             bounty_refunded: MicroCoin::from_micro_units(1),
             epoch: SystemEpoch::new(1),
             timestamp_logical: 1,
+            sponsor_agent: turingosv4::state::AgentId("sp-i67".into()),                  // TB-11
+            escrow_tx_id: TxId("e-i67".into()),                                           // TB-11
+            reason: turingosv4::state::ExpireReason::Deadline,                            // TB-11
             system_signature: SystemSignature::from_bytes([0u8; 64]),
         }),
         TypedTx::TerminalSummary(TerminalSummaryTx {
@@ -255,6 +264,9 @@ async fn legacy_submit_alias_delegates_to_submit_agent_tx_and_rejects_system_var
             total_attempts: 0,
             failure_class_histogram: BTreeMap::new(),
             last_logical_t: 0,
+            parent_state_root: Hash::ZERO,                                                // TB-11
+            solver_agent: None,                                                            // TB-11
+            evidence_capsule_cid: None,                                                    // TB-11
             system_signature: SystemSignature::from_bytes([0u8; 64]),
         }),
         TypedTx::ChallengeResolve(ChallengeResolveTx {

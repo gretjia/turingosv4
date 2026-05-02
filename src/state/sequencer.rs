@@ -340,6 +340,13 @@ fn system_message_for_verification(
             let digest = t.to_signing_payload().canonical_digest();
             Some(CanonicalMessage::ChallengeResolveSigning(digest))
         }
+        // TB-11 Atom 1: TaskBankruptcyTx is system-emitted; verify against
+        // its signing payload digest under the TaskBankruptcySigning canonical
+        // message domain.
+        TypedTx::TaskBankruptcy(t) => {
+            let digest = t.to_signing_payload().canonical_digest();
+            Some(CanonicalMessage::TaskBankruptcySigning(digest))
+        }
         // Agent-submitted variants: stage 1.5 is system-only.
         TypedTx::Work(_)
         | TypedTx::Verify(_)
@@ -360,6 +367,7 @@ fn system_signature_of(
         TypedTx::TaskExpire(t) => Some(&t.system_signature),
         TypedTx::TerminalSummary(t) => Some(&t.system_signature),
         TypedTx::ChallengeResolve(t) => Some(&t.system_signature),
+        TypedTx::TaskBankruptcy(t) => Some(&t.system_signature),
         TypedTx::Work(_)
         | TypedTx::Verify(_)
         | TypedTx::Challenge(_)
@@ -384,6 +392,7 @@ fn system_epoch_of(tx: &TypedTx) -> Option<SystemEpoch> {
         // replay is added the verifier will need to scan all pinned epochs.
         TypedTx::TerminalSummary(_) => None,
         TypedTx::ChallengeResolve(t) => Some(t.epoch),
+        TypedTx::TaskBankruptcy(t) => Some(t.epoch),
         TypedTx::Work(_)
         | TypedTx::Verify(_)
         | TypedTx::Challenge(_)
@@ -961,6 +970,11 @@ pub(crate) fn dispatch_transition(
         }
         TypedTx::TaskExpire(_) => Err(TransitionError::NotYetImplemented),
         TypedTx::TerminalSummary(_) => Err(TransitionError::NotYetImplemented),
+        // TB-11 Atom 1 stub — full dispatch lands in TB-11 Atom 2.
+        // The variant is wired through enum / ingress / signature paths in
+        // Atom 1; the dispatch body that mutates `task_markets_t[task_id].state`
+        // to Bankrupt + writes RunsIndex anchor is Atom 2.
+        TypedTx::TaskBankruptcy(_) => Err(TransitionError::NotYetImplemented),
         // ──────────────────────────────────────────────────────────────────
         // TB-5 Atom 5+6 — ChallengeResolve arm (charter v2 § 4.6 +
         // preflight § 7.2). Two paths:
@@ -1069,6 +1083,13 @@ pub(crate) fn dispatch_transition(
                 verifier_quorum: open.verifier_quorum,
                 max_reuse_royalty_fraction_basis_points: open.max_reuse_royalty_fraction_basis_points,
                 settlement_rule_hash: open.settlement_rule_hash,
+                // TB-11 (architect §6.2 ruling 2026-05-02): default lifecycle
+                // state Open at TaskOpen dispatch; bankruptcy_at_logical_t
+                // None; opened_at_logical_t captures the open-time stamp for
+                // tb11_emit_expire_for_eligible deadline policy in Atom 2.
+                state: crate::state::q_state::TaskMarketState::Open,
+                bankruptcy_at_logical_t: None,
+                opened_at_logical_t: open.timestamp_logical,
             };
             q_next.economic_state_t.task_markets_t.0.insert(open.task_id.clone(), entry);
 
@@ -1565,7 +1586,11 @@ impl Sequencer {
             TypedTx::FinalizeReward(_)
             | TypedTx::TaskExpire(_)
             | TypedTx::TerminalSummary(_)
-            | TypedTx::ChallengeResolve(_) => {
+            | TypedTx::ChallengeResolve(_)
+            // TB-11 Atom 1 (architect §6.2 ruling 2026-05-02): TaskBankruptcyTx
+            // is system-emitted only; agent ingress must reject pre-queue per
+            // Anti-Oreo (Art V.1.3). Construction goes through emit_system_tx.
+            | TypedTx::TaskBankruptcy(_) => {
                 return Err(SubmitError::SystemTxForbiddenOnAgentIngress);
             }
             // Agent-submitted variants — proceed to queue.
@@ -2171,6 +2196,9 @@ mod tests {
                 bounty_refunded: MicroCoin::from_micro_units(1),
                 epoch: SystemEpoch::new(1),
                 timestamp_logical: 1,
+                sponsor_agent: AgentId("sponsor".into()),                          // TB-11
+                escrow_tx_id: TxId("escrow-1".into()),                              // TB-11
+                reason: crate::state::typed_tx::ExpireReason::Deadline,             // TB-11
                 system_signature: SystemSignature::from_bytes([0; 64]),
             }),
             TypedTx::TerminalSummary(TerminalSummaryTx {
@@ -2181,6 +2209,9 @@ mod tests {
                 total_attempts: 0,
                 failure_class_histogram: BTreeMap::new(),
                 last_logical_t: 0,
+                parent_state_root: Default::default(),                              // TB-11
+                solver_agent: None,                                                  // TB-11
+                evidence_capsule_cid: None,                                          // TB-11
                 system_signature: SystemSignature::from_bytes([0; 64]),
             }),
         ];
@@ -3134,6 +3165,9 @@ mod tests {
             bounty_refunded: MicroCoin::from_micro_units(1),
             epoch: SystemEpoch::new(1),
             timestamp_logical: 1,
+            sponsor_agent: AgentId("sp-u24".into()),                                 // TB-11
+            escrow_tx_id: TxId("e-u24".into()),                                      // TB-11
+            reason: crate::state::typed_tx::ExpireReason::Deadline,                  // TB-11
             system_signature: SystemSignature::from_bytes([0u8; 64]),
         });
         let err = seq.submit_agent_tx(tx).await.unwrap_err();
@@ -3154,6 +3188,9 @@ mod tests {
             total_attempts: 0,
             failure_class_histogram: BTreeMap::new(),
             last_logical_t: 0,
+            parent_state_root: Hash::ZERO,                                           // TB-11
+            solver_agent: None,                                                       // TB-11
+            evidence_capsule_cid: None,                                               // TB-11
             system_signature: SystemSignature::from_bytes([0u8; 64]),
         });
         let err = seq.submit_agent_tx(tx).await.unwrap_err();
@@ -3313,6 +3350,9 @@ mod tests {
             bounty_refunded: MicroCoin::from_micro_units(1),
             epoch: SystemEpoch::new(1),
             timestamp_logical: 1,
+            sponsor_agent: AgentId("sp-fwd".into()),                                 // TB-11
+            escrow_tx_id: TxId("e-fwd".into()),                                      // TB-11
+            reason: crate::state::typed_tx::ExpireReason::Deadline,                  // TB-11
             system_signature: SystemSignature::from_bytes([0u8; 64]),
         })
     }
@@ -3326,6 +3366,9 @@ mod tests {
             total_attempts: 0,
             failure_class_histogram: BTreeMap::new(),
             last_logical_t: 0,
+            parent_state_root: Hash::ZERO,                                           // TB-11
+            solver_agent: None,                                                       // TB-11
+            evidence_capsule_cid: None,                                               // TB-11
             system_signature: SystemSignature::from_bytes([0u8; 64]),
         })
     }

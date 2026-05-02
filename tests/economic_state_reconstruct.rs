@@ -11,7 +11,7 @@ use turingosv4::state::{
 };
 
 #[test]
-fn nine_sub_fields_present() {
+fn ten_sub_fields_present() {  // TB-11: was nine_sub_fields_present (architect §6.2 +runs_t)
     let e = EconomicState::default();
     let v = serde_json::to_value(&e).unwrap();
     let obj = v.as_object().unwrap();
@@ -25,8 +25,9 @@ fn nine_sub_fields_present() {
         "royalty_graph_t",
         "challenge_cases_t",
         "price_index_t",
+        "runs_t", // TB-11 (architect §6.2 ruling 2026-05-02)
     ];
-    assert_eq!(obj.len(), 9);
+    assert_eq!(obj.len(), 10);
     for n in names.iter() {
         assert!(obj.contains_key(*n), "missing sub-field {}", n);
     }

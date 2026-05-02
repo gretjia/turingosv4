@@ -16,6 +16,8 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use crate::bottom_white::cas::schema::Cid;
+
 use serde::{Deserialize, Serialize};
 
 use crate::economy::money::MicroCoin;
@@ -163,6 +165,14 @@ pub struct EconomicState {
     pub royalty_graph_t: RoyaltyGraph,
     pub challenge_cases_t: ChallengeCasesIndex,
     pub price_index_t: PriceIndex,
+    /// TB-11 (architect §6.2 ruling 2026-05-02): runs_t — `RunId` → run-summary
+    /// entry written by the TerminalSummaryTx dispatch arm. Anchors
+    /// architect's RunExhaustedTx semantics on chain-resident state. Each
+    /// failed evaluator run produces exactly one entry (idempotency on
+    /// run_id). `#[serde(default)]` for backward-compat with pre-TB-11
+    /// chain snapshots.
+    #[serde(default)]
+    pub runs_t: RunsIndex,
 }
 
 /// TRACE_MATRIX WP § 2 — agent → balance ledger. Concrete entry: `MicroCoin` (CO1.0a).
@@ -363,6 +373,28 @@ pub struct TaskMarketEntry {
     /// RSP-3/4 hook; opaque hash for TB-3.
     #[serde(default)]
     pub settlement_rule_hash: Hash,
+    /// TB-11 (architect §6.2): task lifecycle state. Default `Open`
+    /// (backward-compat: pre-TB-11 task_markets_t entries deserialize as
+    /// Open). Mutated by sequencer dispatch arms:
+    ///   - Open → Bankrupt   on TaskBankruptcyTx
+    ///   - Open → Expired    on TaskExpireTx (post-deadline refund)
+    ///   - any → Finalized   on FinalizeRewardTx (terminal, immutable)
+    /// `#[serde(default)]` for forward-compat.
+    #[serde(default)]
+    pub state: TaskMarketState,
+    /// TB-11: logical_t at which TaskBankruptcyTx fired, if any. `None`
+    /// while task is Open / Expired / Finalized; `Some(t)` post-bankruptcy.
+    /// Used by the bankruptcy idempotency gate in dispatch_transition.
+    #[serde(default)]
+    pub bankruptcy_at_logical_t: Option<u64>,
+    /// TB-11: TaskOpen.timestamp_logical, captured at dispatch time, used
+    /// by `tb11_emit_expire_for_eligible` to compute deadline policy
+    /// (current_logical_t - opened_at_logical_t > TASK_EXPIRY_LOGICAL_T_DELTA).
+    /// Backward-compat: pre-TB-11 entries deserialize at 0; the deadline
+    /// check then fires immediately for legacy tasks (intended — legacy
+    /// tasks SHOULD be expirable to release any locked bounties).
+    #[serde(default)]
+    pub opened_at_logical_t: u64,
 }
 
 fn task_market_default_quorum() -> u32 {
@@ -381,8 +413,72 @@ impl Default for TaskMarketEntry {
             verifier_quorum: 1,
             max_reuse_royalty_fraction_basis_points: 1000, // 0.10 per spec gap default
             settlement_rule_hash: Hash::ZERO,
+            state: TaskMarketState::Open,        // TB-11
+            bankruptcy_at_logical_t: None,        // TB-11
+            opened_at_logical_t: 0,               // TB-11
         }
     }
+}
+
+/// TRACE_MATRIX TB-11 (2026-05-02 architect ruling §6.2) — task lifecycle
+/// discriminator. `Open` is the default initial state set by the TaskOpenTx
+/// dispatch arm; transitions are uni-directional under the TB-11 dispatch
+/// rules:
+///   - `Open` → `Expired` on accepted `TaskExpireTx` (post-deadline refund)
+///   - `Open` → `Bankrupt` on accepted `TaskBankruptcyTx` (architect §6.2 death cert)
+///   - any non-Finalized → `Finalized` on accepted `FinalizeRewardTx`
+///     (terminal; immutable)
+///
+/// `Bankrupt` and `Expired` are NOT terminal — a Bankrupt task may still
+/// be Expired afterward (via `BankruptcyTriggered` reason on the Expire),
+/// to free any escrow that was not already refunded. Finalized is terminal.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[repr(u8)]
+pub enum TaskMarketState {
+    Open = 0,
+    Expired = 1,
+    Bankrupt = 2,
+    Finalized = 3,
+}
+
+impl Default for TaskMarketState {
+    fn default() -> Self {
+        Self::Open
+    }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// TB-11 (architect §6.2): RunsIndex — chain-resident anchor for
+// architect's RunExhaustedTx role.
+// ────────────────────────────────────────────────────────────────────────────
+
+/// TRACE_MATRIX TB-11 — `RunId` → `RunSummaryEntry`. Written by the
+/// `TerminalSummaryTx` dispatch arm; anchors architect §6.2 RunExhaustedTx
+/// semantics in chain-resident state.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct RunsIndex(pub BTreeMap<crate::state::typed_tx::RunId, RunSummaryEntry>);
+
+/// TRACE_MATRIX TB-11 (architect §6.2) — per-run summary. Sponsored by
+/// `task_id`; populated by the `TerminalSummaryTx` dispatch arm with
+/// fields drawn from the typed-tx wire payload (Q-derivable on replay).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct RunSummaryEntry {
+    /// Backref to the task this run was working on.
+    pub task_id: TaskId,
+    /// Architect §6.2 — terminal outcome. `OmegaAccepted` for happy-path
+    /// completion (would also produce a FinalizeReward elsewhere); the 4
+    /// failure variants for the architect's "RunExhausted" cases.
+    pub run_outcome: crate::state::typed_tx::RunOutcome,
+    /// Architect §6.2 — total LLM proposals + Lean attempts in the run.
+    pub attempt_count: u64,
+    /// Architect §6.2 — CAS reference to the rolled-up evidence bytes.
+    /// `None` for OmegaAccepted (success path needs no failure capsule);
+    /// `Some` for failure outcomes.
+    pub evidence_capsule_cid: Option<Cid>,
+    /// Which agent owned the run, if any.
+    pub solver_agent: Option<AgentId>,
+    /// Logical_t when the TerminalSummaryTx was emitted.
+    pub last_logical_t: u64,
 }
 
 /// TRACE_MATRIX WP § 2 — directed royalty edges (reuse depth attribution).
@@ -567,16 +663,21 @@ mod tests {
     }
 
     #[test]
-    fn economic_state_has_nine_sub_fields() {
+    fn economic_state_has_ten_sub_fields() {
+        // TB-11 (architect §6.2 ruling 2026-05-02): bumped from 9 → 10 sub-fields
+        // with the addition of `runs_t: RunsIndex` (run-summary anchor for
+        // architect's RunExhaustedTx role; populated by TerminalSummaryTx
+        // dispatch arm).
         let e = EconomicState::default();
         let s = serde_json::to_value(&e).unwrap();
         let obj = s.as_object().unwrap();
         assert_eq!(
             obj.len(),
-            9,
-            "EconomicState must have 9 sub-fields per WP § 2; got {}",
+            10,
+            "EconomicState must have 10 sub-fields post-TB-11 (was 9 per WP § 2; +runs_t); got {}",
             obj.len()
         );
+        assert!(obj.contains_key("runs_t"), "TB-11 runs_t sub-field missing");
     }
 
     #[test]

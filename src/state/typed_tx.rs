@@ -324,32 +324,76 @@ pub struct FinalizeRewardTx {
 
 /// TRACE_MATRIX STATE spec § 3.6 v1.3 — system-emitted task-expiry tx
 /// (refunds bounty + locked stakes when no claim finalized by deadline).
-/// Verbatim transcription.
+/// TRACE_MATRIX FC1-N1: TB-11 (2026-05-02 architect ruling §6.2 Epistemic
+/// Exhaust & Capital Liberation) — additive bump of the wire schema to
+/// carry the architect-mandated `sponsor_agent` + `escrow_tx_id` +
+/// `reason` fields needed by the dispatch arm to enact the refund.
+///
+/// **System-emitted only**: agent ingress (`Sequencer::submit_agent_tx`)
+/// rejects this variant pre-queue per Anti-Oreo (Art V.1.3); construction
+/// goes through `Sequencer::emit_system_tx`.
+///
+/// **TB-11 additive bump** (no production rows pre-TB-11; dispatch arm was
+/// `NotYetImplemented`; safe per `feedback_no_retroactive_evidence_rewrite`):
+/// adds `sponsor_agent` (depositor of the escrow being refunded) +
+/// `escrow_tx_id` (which `escrows_t` row to refund) + `reason` (taxonomy
+/// discriminator). Field 8/9/10 inserted **before** `system_signature` so
+/// the signing payload sees them in canonical position; this rotates the
+/// golden digest fixtures (TB-11 charter §6 G9 + golden-digest rotation
+/// protocol documented in this file's tests module).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct TaskExpireTx {
     pub tx_id: TxId,                       //  1
     pub task_id: TaskId,                   //  2
     pub parent_state_root: Hash,           //  3
-    pub bounty_refunded: MicroCoin,        //  4 (computed by runtime; included for ledger summary)
+    pub bounty_refunded: MicroCoin,        //  4 (computed by runtime; included for ledger summary; equals escrows_t[escrow_tx_id].amount at emit time)
     pub epoch: SystemEpoch,                //  5
     pub timestamp_logical: u64,            //  6
-    pub system_signature: SystemSignature, //  7
+    /// TB-11 NEW: depositor of `escrows_t[escrow_tx_id]`. Q-derived at
+    /// `emit_system_tx` time; wire field is ledger summary (Q is authoritative).
+    pub sponsor_agent: AgentId,            //  7  TB-11 NEW
+    /// TB-11 NEW: which `escrows_t` row to refund. Required because a single
+    /// task may have multiple `EscrowLockTx`s contributing to its
+    /// `task_markets_t.total_escrow`; the refund pathway must be per-escrow
+    /// (1 TaskExpireTx per escrow) to preserve replay-deterministic
+    /// CTF accounting.
+    pub escrow_tx_id: TxId,                //  8  TB-11 NEW
+    /// TB-11 NEW: discriminator over the policy that triggered expiry.
+    pub reason: ExpireReason,              //  9  TB-11 NEW
+    pub system_signature: SystemSignature, // 10  (was field 7 pre-TB-11)
 }
 
 /// TRACE_MATRIX STATE spec § 1.5 — system-emitted no-accept-run handler.
+/// TRACE_MATRIX FC1-N1: TB-11 (2026-05-02 architect ruling §6.2): this
+/// struct serves as the canonical anchor for the architect's
+/// `RunExhaustedTx` role in the failure path (≡ semantically equivalent;
+/// see `pub type RunExhaustedTx = TerminalSummaryTx` alias below).
+///
 /// Emitted exactly once if a run terminates without any accepted work_tx, so
 /// L6 reconstructibility (failure-class signal) is preserved on the tape
-/// even when no work_tx ever passed.
+/// even when no work_tx ever passed. **TB-11 architect-vocabulary alias**:
+/// the architect's `RunExhaustedTx` (per
+/// `handover/directives/2026-05-02_TB11_EPISTEMIC_EXHAUST_ARCHITECT_RULING.md` §6.2)
+/// is **semantically equivalent to this struct** — both anchor a run-level
+/// outcome on L4 with a system_signature.
 ///
 /// **v1.1 round-1 audit closure (C-3 Codex Q-C must-fix-now)**: replaces the
 /// 3-field placeholder previously living in `system_keypair.rs`. Full
-/// 8-field schema per STATE § 1.5. The signer (`system_keypair`) now signs
-/// an opaque `TerminalSummarySigning([u8; 32])` digest — same opaque-digest
-/// pattern as `LedgerEntrySigning` — so the digest is computed here via
-/// `TerminalSummaryTx::to_signing_payload().canonical_digest()` (with the
-/// `b"turingosv4.system_sig.terminal_summary.v1"` domain prefix per v1.1 P1)
-/// and `system_keypair` stays oblivious to the typed-tx schema (no circular
-/// `bottom_white ↔ state` dependency).
+/// 8-field schema per STATE § 1.5.
+///
+/// **TB-11 additive bump** (no production rows pre-TB-11; dispatch arm was
+/// `NotYetImplemented`; safe per `feedback_no_retroactive_evidence_rewrite`):
+/// adds `parent_state_root` (constitutional shape, mirrors VerifyTx /
+/// ChallengeTx TB-4 bumps) + `solver_agent: Option<AgentId>` (which agent
+/// owned the failed run, if any) + `evidence_capsule_cid: Option<Cid>`
+/// (architect §6.2 — references the `EvidenceCapsule` CAS bytes for O(N)
+/// auditability with O(1) chain cost). `None` for OmegaAccepted; `Some` for
+/// failure outcomes (MaxTxExhausted / WallClockCap / ComputeCap / ErrorHalt).
+/// Fields inserted **before** `system_signature` so the signing payload sees
+/// them in canonical position; this rotates the golden digest fixtures.
+///
+/// The signer (`system_keypair`) signs an opaque `TerminalSummarySigning([u8; 32])`
+/// digest — same opaque-digest pattern as `LedgerEntrySigning`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct TerminalSummaryTx {
     pub tx_id: TxId,                                          //  1
@@ -359,7 +403,182 @@ pub struct TerminalSummaryTx {
     pub total_attempts: u32,                                  //  5
     pub failure_class_histogram: BTreeMap<RejectionClass, u32>,// 6
     pub last_logical_t: u64,                                  //  7
-    pub system_signature: SystemSignature,                    //  8
+    /// TB-11 NEW: constitutional StaleParent gate (mirrors VerifyTx + ChallengeTx
+    /// TB-4 schema bump; every accepted-tx variant carries explicit
+    /// parent_state_root).
+    pub parent_state_root: Hash,                              //  8 TB-11 NEW
+    /// TB-11 NEW: which agent owned the run (None if no solver was assigned
+    /// before the run terminated, e.g. evaluator never picked up the task).
+    pub solver_agent: Option<AgentId>,                        //  9 TB-11 NEW
+    /// TB-11 NEW: architect §6.2 — references the EvidenceCapsule CAS bytes.
+    /// `None` for `RunOutcome::OmegaAccepted` (success path needs no failure
+    /// evidence). `Some` for the 4 failure outcomes (MaxTxExhausted /
+    /// WallClockCap / ComputeCap / ErrorHalt).
+    pub evidence_capsule_cid: Option<Cid>,                    // 10 TB-11 NEW
+    pub system_signature: SystemSignature,                    // 11 (was field 8 pre-TB-11)
+}
+
+/// TRACE_MATRIX FC1-N1: TB-11 (2026-05-02 architect ruling §6.2) —
+/// architect-vocabulary alias for `TerminalSummaryTx` in the failure path.
+/// The struct itself is unchanged in identity; this alias makes the
+/// architect's naming visible at API boundaries without rotating the wire
+/// format. Use `RunExhaustedTx` in new code that emphasizes the
+/// failure-anchor role; `TerminalSummaryTx` remains the primary schema
+/// name for backward-compatibility with pre-TB-11 references.
+pub type RunExhaustedTx = TerminalSummaryTx;
+
+/// TRACE_MATRIX TB-11 (2026-05-02 architect ruling §6.2) —
+/// system-emitted task-level failure marker. **NEW in TB-11**.
+///
+/// Anchors a "death certificate" on L4 for a task that has accumulated
+/// enough failed runs (or other architect-policy triggers) to be considered
+/// non-resolvable. Future TB-12 NodeMarket Short / NO settlement uses this
+/// as the canonical resolution anchor: a NO position references a
+/// TaskBankruptcyTx as its on-chain death proof.
+///
+/// **System-emitted only**: agent ingress rejects pre-queue with
+/// `SubmitError::SystemTxForbiddenOnAgentIngress`; construction goes through
+/// `Sequencer::emit_system_tx`.
+///
+/// **No money movement**: TaskBankruptcyTx records a state mutation on
+/// `task_markets_t[task_id].state = Bankrupt` but does NOT debit/credit
+/// any balance. Refund (if any) is a separate TaskExpireTx fired
+/// post-bankruptcy by the runtime tick.
+///
+/// **Constitutional preservation**: `evidence_capsule_cid` carries the
+/// rolled-up failure evidence (architect §7.1 — O(1) chain cost, O(N)
+/// auditability). `bankruptcy_reason` discriminates the policy that
+/// triggered bankruptcy (max failed run count, deadline exceeded, etc.).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct TaskBankruptcyTx {
+    pub tx_id: TxId,                       //  1
+    pub parent_state_root: Hash,           //  2
+    pub task_id: TaskId,                   //  3
+    /// Architect §6.2: rollup CAS object referencing all per-run capsules
+    /// for this task (or a single dominant capsule if only one failed run
+    /// triggered the policy threshold).
+    pub evidence_capsule_cid: Cid,         //  4
+    pub bankruptcy_reason: BankruptcyReason, //  5
+    /// Number of failed runs observed at bankruptcy time (anti-frivolous
+    /// emission; emit_system_tx checks this against
+    /// `TASK_BANKRUPTCY_FAILED_RUN_COUNT_MIN`).
+    pub failed_run_count: u32,             //  6
+    pub epoch: SystemEpoch,                //  7
+    pub timestamp_logical: u64,            //  8
+    pub system_signature: SystemSignature, //  9
+}
+
+/// TRACE_MATRIX FC1-N1: TB-11 (architect §6.2) — taxonomy of why a
+/// `TaskExpireTx` was emitted. Discriminator on the policy that
+/// triggered expiry (deadline / max-run-count / sponsor-request /
+/// post-bankruptcy refund).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[repr(u8)]
+pub enum ExpireReason {
+    /// Task open-time + TASK_EXPIRY_LOGICAL_T_DELTA exceeded without Finalized claim.
+    Deadline = 0,
+    /// Task accumulated >= MAX_RUN_COUNT_BEFORE_REFUND failed runs.
+    MaxRunCountReached = 1,
+    /// Sponsor explicitly requested expiry (privileged operator path; defer to TB-12+).
+    ManualSponsorRequest = 2,
+    /// Task was already TaskBankruptcy-marked; expiry is the post-bankruptcy
+    /// refund step.
+    BankruptcyTriggered = 3,
+}
+
+impl Default for ExpireReason {
+    fn default() -> Self {
+        Self::Deadline
+    }
+}
+
+/// TRACE_MATRIX FC1-N1: TB-11 (architect §6.2) — taxonomy of why a
+/// `TaskBankruptcyTx` was emitted. Discriminator on the policy that
+/// triggered bankruptcy (max failed run count / deadline exceeded /
+/// architect-future evidence-converged failure).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[repr(u8)]
+pub enum BankruptcyReason {
+    /// Task accumulated >= TASK_BANKRUPTCY_FAILED_RUN_COUNT_MIN RunExhausted events.
+    MaxFailedRunCount = 0,
+    /// Task open-time + TASK_BANKRUPTCY_DEADLINE_LOGICAL_T_DELTA exceeded
+    /// without Finalized claim.
+    DeadlineExceeded = 1,
+    /// Architect-future hook: EvidenceCapsule rollup convergence indicates
+    /// task is fundamentally unsolvable. Reserved for TB-15+ Markov Loom
+    /// policy.
+    EvidenceConvergedFailure = 2,
+}
+
+impl Default for BankruptcyReason {
+    fn default() -> Self {
+        Self::MaxFailedRunCount
+    }
+}
+
+/// TRACE_MATRIX FC1-N1: TB-11 (architect §6.1) — taxonomy of why an
+/// evaluator run reached terminal exhaustion. Maps 1:1 to `RunOutcome`
+/// failure variants (Art. IV halt_reason taxonomy); 5 variants vs
+/// RunOutcome's 4 because architect §6.1 distinguishes ProtocolCollapse
+/// from SolverGiveUp at the capsule level (both fold into RunOutcome::ErrorHalt
+/// at the chain level).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[repr(u8)]
+pub enum ExhaustionReason {
+    MaxTxExhausted = 0,
+    WallClockCap = 1,
+    ComputeCap = 2,
+    ProtocolCollapse = 3,
+    SolverGiveUp = 4,
+}
+
+impl Default for ExhaustionReason {
+    fn default() -> Self {
+        Self::MaxTxExhausted
+    }
+}
+
+impl ExhaustionReason {
+    /// TRACE_MATRIX Art.IV halt_reason taxonomy: project `ExhaustionReason`
+    /// to the canonical `RunOutcome` discriminator stored on
+    /// `TerminalSummaryTx.run_outcome`. ProtocolCollapse / SolverGiveUp
+    /// both map to `ErrorHalt` since `RunOutcome` is the constitutional
+    /// taxonomy and is intentionally narrower.
+    pub fn to_run_outcome(self) -> RunOutcome {
+        match self {
+            Self::MaxTxExhausted => RunOutcome::MaxTxExhausted,
+            Self::WallClockCap => RunOutcome::WallClockCap,
+            Self::ComputeCap => RunOutcome::ComputeCap,
+            Self::ProtocolCollapse | Self::SolverGiveUp => RunOutcome::ErrorHalt,
+        }
+    }
+}
+
+/// TRACE_MATRIX FC1-N1: TB-11 (architect §6.1 屏蔽规则) — privacy policy
+/// for a CAS-resident `EvidenceCapsule`. Default `AuditOnly` —
+/// public_summary may be surfaced to dashboard / read view, raw
+/// compressed evidence requires authorized audit-role access.
+/// Constitutional: 顶层白盒 quantize/broadcast/shield (Art. II.2.1) means
+/// raw failure logs cannot pollute future Agent context — only the
+/// public_summary surface broadcasts; capsule's compressed_log is shielded
+/// behind audit role.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[repr(u8)]
+pub enum CapsulePrivacyPolicy {
+    /// Default — only `public_summary` field surfaces to non-audit views;
+    /// raw compressed log requires direct CAS read.
+    AuditOnly = 0,
+    /// public_summary may also enter Librarian message_board for next-iteration
+    /// agents (TB-15 Markov Loom prep).
+    PublicSummaryBroadcast = 1,
+    /// Full evidence visible to a designated audit-role (TB-17+ ChallengeCourt prep).
+    AuthorizedCAS = 2,
+}
+
+impl Default for CapsulePrivacyPolicy {
+    fn default() -> Self {
+        Self::AuditOnly
+    }
 }
 
 impl Default for RunOutcome {
@@ -503,6 +722,7 @@ const DOMAIN_SYSTEM_FINALIZE_REWARD: &[u8] = b"turingosv4.system_sig.finalize_re
 const DOMAIN_SYSTEM_TASK_EXPIRE: &[u8] = b"turingosv4.system_sig.task_expire.v1";
 const DOMAIN_SYSTEM_TERMINAL_SUMMARY: &[u8] = b"turingosv4.system_sig.terminal_summary.v1";
 const DOMAIN_SYSTEM_CHALLENGE_RESOLVE: &[u8] = b"turingosv4.system_sig.challenge_resolve.v1"; // TB-5 Atom 3
+const DOMAIN_SYSTEM_TASK_BANKRUPTCY: &[u8] = b"turingosv4.system_sig.task_bankruptcy.v1";    // TB-11
 
 /// Reserved for v4.1 MetaTx (Gemini round-2 GR-1 recommendation).
 /// Not used in v4 — namespace placeholder so v4.1 can introduce
@@ -632,7 +852,7 @@ impl FinalizeRewardSigningPayload {
     }
 }
 
-/// System signing payload for `TaskExpireTx` (7 fields → 6 fields).
+/// System signing payload for `TaskExpireTx` (TB-11 bump: 10 fields → 9 fields).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct TaskExpireSigningPayload {
     pub tx_id: TxId,
@@ -641,6 +861,9 @@ pub struct TaskExpireSigningPayload {
     pub bounty_refunded: MicroCoin,
     pub epoch: SystemEpoch,
     pub timestamp_logical: u64,
+    pub sponsor_agent: AgentId,           // TB-11 NEW
+    pub escrow_tx_id: TxId,               // TB-11 NEW
+    pub reason: ExpireReason,             // TB-11 NEW
 }
 
 impl TaskExpireSigningPayload {
@@ -649,7 +872,7 @@ impl TaskExpireSigningPayload {
     }
 }
 
-/// System signing payload for `TerminalSummaryTx` (8 fields → 7 fields).
+/// System signing payload for `TerminalSummaryTx` (TB-11 bump: 11 fields → 10 fields).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct TerminalSummarySigningPayload {
     pub tx_id: TxId,
@@ -659,11 +882,42 @@ pub struct TerminalSummarySigningPayload {
     pub total_attempts: u32,
     pub failure_class_histogram: BTreeMap<RejectionClass, u32>,
     pub last_logical_t: u64,
+    pub parent_state_root: Hash,                  // TB-11 NEW
+    pub solver_agent: Option<AgentId>,            // TB-11 NEW
+    pub evidence_capsule_cid: Option<Cid>,        // TB-11 NEW
 }
 
 impl TerminalSummarySigningPayload {
     pub fn canonical_digest(&self) -> [u8; 32] {
         domain_prefixed_digest(DOMAIN_SYSTEM_TERMINAL_SUMMARY, self)
+    }
+}
+
+/// TRACE_MATRIX FC1-Sig + FC3-Sig: TB-11 — System signing payload for
+/// `TaskBankruptcyTx` (9 fields → 8 fields; system_signature excluded).
+/// Signed via `CanonicalMessage::TaskBankruptcySigning([u8;32])` opaque
+/// digest pattern (mirrors FinalizeRewardSigningPayload /
+/// TaskExpireSigningPayload / TerminalSummarySigningPayload).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct TaskBankruptcySigningPayload {
+    pub tx_id: TxId,
+    pub parent_state_root: Hash,
+    pub task_id: TaskId,
+    pub evidence_capsule_cid: Cid,
+    pub bankruptcy_reason: BankruptcyReason,
+    pub failed_run_count: u32,
+    pub epoch: SystemEpoch,
+    pub timestamp_logical: u64,
+}
+
+impl TaskBankruptcySigningPayload {
+    /// TRACE_MATRIX FC1-Sig: domain-prefixed canonical digest for
+    /// system-emitted TaskBankruptcyTx signing. Domain prefix
+    /// `b"turingosv4.system_sig.task_bankruptcy.v1"` mirrors the existing
+    /// 4 system-tx signing domains (TerminalSummary / FinalizeReward /
+    /// TaskExpire / ChallengeResolve).
+    pub fn canonical_digest(&self) -> [u8; 32] {
+        domain_prefixed_digest(DOMAIN_SYSTEM_TASK_BANKRUPTCY, self)
     }
 }
 
@@ -760,6 +1014,9 @@ impl TaskExpireTx {
             bounty_refunded: self.bounty_refunded,
             epoch: self.epoch,
             timestamp_logical: self.timestamp_logical,
+            sponsor_agent: self.sponsor_agent.clone(),
+            escrow_tx_id: self.escrow_tx_id.clone(),
+            reason: self.reason,
         }
     }
 }
@@ -774,6 +1031,27 @@ impl TerminalSummaryTx {
             total_attempts: self.total_attempts,
             failure_class_histogram: self.failure_class_histogram.clone(),
             last_logical_t: self.last_logical_t,
+            parent_state_root: self.parent_state_root,
+            solver_agent: self.solver_agent.clone(),
+            evidence_capsule_cid: self.evidence_capsule_cid,
+        }
+    }
+}
+
+impl TaskBankruptcyTx {
+    /// TRACE_MATRIX FC1-Sig + FC3-Sig: project the wire struct to the
+    /// signing payload subset (excludes `system_signature` to prevent
+    /// cycle-on-self).
+    pub fn to_signing_payload(&self) -> TaskBankruptcySigningPayload {
+        TaskBankruptcySigningPayload {
+            tx_id: self.tx_id.clone(),
+            parent_state_root: self.parent_state_root,
+            task_id: self.task_id.clone(),
+            evidence_capsule_cid: self.evidence_capsule_cid,
+            bankruptcy_reason: self.bankruptcy_reason,
+            failed_run_count: self.failed_run_count,
+            epoch: self.epoch,
+            timestamp_logical: self.timestamp_logical,
         }
     }
 }
@@ -828,10 +1106,13 @@ impl ChallengeResolveTx {
 // ────────────────────────────────────────────────────────────────────────────
 
 /// TRACE_MATRIX § 8 dispatch_transition — typed-tx outer enum.
-/// **9 variants** (K5 closed: NO `Slash`). v1.1 P3 migrated `TerminalSummaryTx`
-/// here. **TB-3 (2026-04-30)**: added `TaskOpen` + `EscrowLock` (RSP-1 formal
-/// surface; charter § 4.1). YES stake stays inline in `WorkTx.stake` per
-/// WP § 14.1 + § 18 Inv 5; no separate `YesStakeTx` variant.
+/// **10 variants pre-TB-11; 11 variants TB-11+** (K5 closed: NO `Slash`).
+/// v1.1 P3 migrated `TerminalSummaryTx` here. **TB-3 (2026-04-30)**: added
+/// `TaskOpen` + `EscrowLock` (RSP-1 formal surface; charter § 4.1). YES stake
+/// stays inline in `WorkTx.stake` per WP § 14.1 + § 18 Inv 5; no separate
+/// `YesStakeTx` variant. **TB-11 (2026-05-02)**: added `TaskBankruptcy`
+/// (system-emitted task-level death certificate; architect §6.2; future
+/// TB-12 NodeMarket Short / NO settlement anchor).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TypedTx {
     Work(WorkTx),
@@ -844,6 +1125,7 @@ pub enum TypedTx {
     TaskOpen(TaskOpenTx),         // TB-3 RSP-1 formal surface
     EscrowLock(EscrowLockTx),     // TB-3 RSP-1 formal surface
     ChallengeResolve(ChallengeResolveTx), // TB-5 RSP-3.0/3.1 system-emitted resolution
+    TaskBankruptcy(TaskBankruptcyTx),     // TB-11 system-emitted task-level failure marker
 }
 
 impl TypedTx {
@@ -861,6 +1143,7 @@ impl TypedTx {
             Self::TaskOpen(_) => TxKind::TaskOpen,
             Self::EscrowLock(_) => TxKind::EscrowLock,
             Self::ChallengeResolve(_) => TxKind::ChallengeResolve,
+            Self::TaskBankruptcy(_) => TxKind::TaskBankruptcy,
         }
     }
 }
@@ -936,6 +1219,12 @@ impl HasSubmitter for ChallengeResolveTx {
     }
 }
 
+impl HasSubmitter for TaskBankruptcyTx {
+    fn submitter_id(&self) -> Option<AgentId> {
+        None  // TB-11 system-emitted; mirror FinalizeRewardTx / TaskExpireTx / TerminalSummaryTx / ChallengeResolveTx
+    }
+}
+
 impl HasSubmitter for TypedTx {
     fn submitter_id(&self) -> Option<AgentId> {
         match self {
@@ -949,6 +1238,7 @@ impl HasSubmitter for TypedTx {
             Self::TaskOpen(t) => t.submitter_id(),
             Self::EscrowLock(t) => t.submitter_id(),
             Self::ChallengeResolve(t) => t.submitter_id(),
+            Self::TaskBankruptcy(t) => t.submitter_id(),
         }
     }
 }
@@ -1396,6 +1686,7 @@ mod tests {
     }
 
     fn fixture_task_expire_tx() -> TaskExpireTx {
+        // TB-11: extended with sponsor_agent + escrow_tx_id + reason
         TaskExpireTx {
             tx_id: TxId("expiretx-fixture-01".into()),
             task_id: TaskId("task-fixture-02".into()),
@@ -1403,11 +1694,15 @@ mod tests {
             bounty_refunded: MicroCoin::from_micro_units(3_000_000),
             epoch: SystemEpoch::new(1),
             timestamp_logical: 12,
+            sponsor_agent: AgentId("sponsor-tb11".into()),
+            escrow_tx_id: TxId("escrowlock-fixture-tb11-01".into()),
+            reason: ExpireReason::Deadline,
             system_signature: SystemSignature::from_bytes([0xbbu8; 64]),
         }
     }
 
     fn fixture_terminal_summary_tx() -> TerminalSummaryTx {
+        // TB-11: extended with parent_state_root + solver_agent + evidence_capsule_cid
         let mut hist = BTreeMap::new();
         hist.insert(RejectionClass::SignatureInvalid, 2);
         hist.insert(RejectionClass::StakeInsufficient, 1);
@@ -1423,7 +1718,25 @@ mod tests {
             total_attempts: 8,
             failure_class_histogram: hist,
             last_logical_t: 13,
+            parent_state_root: h(0x55),
+            solver_agent: Some(AgentId("Agent_solver_tb11".into())),
+            evidence_capsule_cid: Some(cid(0x77)),
             system_signature: SystemSignature::from_bytes([0xccu8; 64]),
+        }
+    }
+
+    fn fixture_task_bankruptcy_tx() -> TaskBankruptcyTx {
+        // TB-11 NEW
+        TaskBankruptcyTx {
+            tx_id: TxId("bankruptcy-fixture-01".into()),
+            parent_state_root: h(0x66),
+            task_id: TaskId("task-fixture-04".into()),
+            evidence_capsule_cid: cid(0x88),
+            bankruptcy_reason: BankruptcyReason::MaxFailedRunCount,
+            failed_run_count: 3,
+            epoch: SystemEpoch::new(1),
+            timestamp_logical: 14,
+            system_signature: SystemSignature::from_bytes([0xddu8; 64]),
         }
     }
 
@@ -1438,6 +1751,8 @@ mod tests {
             TypedTx::FinalizeReward(fixture_finalize_reward_tx()),
             TypedTx::TaskExpire(fixture_task_expire_tx()),
             TypedTx::TerminalSummary(fixture_terminal_summary_tx()),
+            // TB-11: TaskBankruptcy round-trip.
+            TypedTx::TaskBankruptcy(fixture_task_bankruptcy_tx()),
         ];
         for tx in cases {
             let bytes = canonical_encode(&tx).expect("encode");
@@ -1494,6 +1809,11 @@ mod tests {
             TypedTx::TaskExpire(fixture_task_expire_tx()).submitter_id(),
             None
         );
+        // TB-11: TaskBankruptcy is system-emitted; HasSubmitter → None.
+        assert_eq!(
+            TypedTx::TaskBankruptcy(fixture_task_bankruptcy_tx()).submitter_id(),
+            None
+        );
     }
 
     /// tx_kind matches the LedgerEntry TxKind enum variant.
@@ -1522,13 +1842,18 @@ mod tests {
             TypedTx::TerminalSummary(fixture_terminal_summary_tx()).tx_kind(),
             TxKind::TerminalSummary,
         );
+        // TB-11
+        assert_eq!(
+            TypedTx::TaskBankruptcy(fixture_task_bankruptcy_tx()).tx_kind(),
+            TxKind::TaskBankruptcy,
+        );
     }
 
     // ── v1.1 NEW: cross-variant non-collision (C-2 / Codex Q-J) ──────────────
 
-    /// All 7 TypedTx variant fixtures encode to pairwise-distinct canonical bytes.
+    /// All 8 TypedTx variant fixtures encode to pairwise-distinct canonical bytes.
     /// (Different field shapes + bincode variant tags → ANY collision is a bincode
-    /// regression that this test catches.)
+    /// regression that this test catches.)  TB-11 added TaskBankruptcy.
     #[test]
     fn typed_tx_cross_variant_non_collision() {
         let variants: Vec<(&str, TypedTx)> = vec![
@@ -1544,6 +1869,11 @@ mod tests {
             (
                 "TerminalSummary",
                 TypedTx::TerminalSummary(fixture_terminal_summary_tx()),
+            ),
+            // TB-11 NEW
+            (
+                "TaskBankruptcy",
+                TypedTx::TaskBankruptcy(fixture_task_bankruptcy_tx()),
             ),
         ];
         let digests: Vec<(&str, String)> = variants
@@ -1600,6 +1930,8 @@ mod tests {
             TypedTx::FinalizeReward(FinalizeRewardTx::default()),
             TypedTx::TaskExpire(TaskExpireTx::default()),
             TypedTx::TerminalSummary(TerminalSummaryTx::default()),
+            // TB-11
+            TypedTx::TaskBankruptcy(TaskBankruptcyTx::default()),
         ];
         for tx in cases {
             let bytes = canonical_encode(&tx).expect("encode default");
@@ -1721,12 +2053,100 @@ mod tests {
             ts_mut.to_signing_payload().canonical_digest(),
             "TerminalSummary: mutating signature must NOT affect digest"
         );
+        // TB-11: TaskBankruptcyTx
+        let bk_clean = fixture_task_bankruptcy_tx();
+        let dbk_clean = bk_clean.to_signing_payload().canonical_digest();
+        let mut bk_mut = bk_clean.clone();
+        bk_mut.system_signature = SystemSignature::from_bytes([0x44; 64]);
+        assert_eq!(
+            dbk_clean,
+            bk_mut.to_signing_payload().canonical_digest(),
+            "TaskBankruptcy: mutating signature must NOT affect digest"
+        );
 
         // Sanity: mutating a SIGNED field DOES change digest.
         let mut tx_signed_change = tx_clean.clone();
         tx_signed_change.timestamp_logical = 9999;
         let d_signed = tx_signed_change.to_signing_payload().canonical_digest();
         assert_ne!(d_clean, d_signed);
+    }
+
+    // ── TB-11 — TaskBankruptcy unit tests ────────────────────────────────
+
+    /// TB-11 U1: TypedTx::TaskBankruptcy round-trips through canonical_encode.
+    #[test]
+    fn task_bankruptcy_round_trip() {
+        let tx = TypedTx::TaskBankruptcy(fixture_task_bankruptcy_tx());
+        let bytes = canonical_encode(&tx).expect("encode");
+        let back: TypedTx = canonical_decode(&bytes).expect("decode");
+        assert_eq!(tx, back);
+    }
+
+    /// TB-11 U2: TaskBankruptcySigningPayload digest is deterministic
+    /// across calls + uses the domain-prefixed canonical hash.
+    #[test]
+    fn task_bankruptcy_canonical_digest_is_deterministic() {
+        let a = fixture_task_bankruptcy_tx().to_signing_payload().canonical_digest();
+        let b = fixture_task_bankruptcy_tx().to_signing_payload().canonical_digest();
+        assert_eq!(a, b);
+    }
+
+    /// TB-11 U3: signing-payload field count = 8 (9 struct fields - 1 sig).
+    #[test]
+    fn task_bankruptcy_signing_payload_field_count_8() {
+        let p = fixture_task_bankruptcy_tx().to_signing_payload();
+        let v = serde_json::to_value(&p).unwrap();
+        let obj = v.as_object().unwrap();
+        assert_eq!(
+            obj.len(),
+            8,
+            "TaskBankruptcySigningPayload must have 8 fields (system_signature excluded), got {}",
+            obj.len()
+        );
+        assert!(!obj.contains_key("system_signature"));
+        assert!(obj.contains_key("evidence_capsule_cid"));
+        assert!(obj.contains_key("bankruptcy_reason"));
+        assert!(obj.contains_key("failed_run_count"));
+    }
+
+    /// TB-11 U4: TerminalSummary additive bump preserves architect's
+    /// `evidence_capsule_cid` field (architect §6.2 RunExhaustedTx schema).
+    #[test]
+    fn terminal_summary_carries_evidence_capsule_cid() {
+        let ts = fixture_terminal_summary_tx();
+        assert_eq!(ts.evidence_capsule_cid, Some(cid(0x77)));
+        // Round-trip preserves Option<Cid> fidelity (Some <-> None discrimination).
+        let mut ts_none = ts.clone();
+        ts_none.evidence_capsule_cid = None;
+        let d_some = ts.to_signing_payload().canonical_digest();
+        let d_none = ts_none.to_signing_payload().canonical_digest();
+        assert_ne!(d_some, d_none, "evidence_capsule_cid presence must affect canonical digest");
+    }
+
+    /// TB-11 U5: TaskExpire additive bump preserves architect's
+    /// `sponsor_agent` + `escrow_tx_id` + `reason` fields (architect §6.2).
+    #[test]
+    fn task_expire_carries_sponsor_escrow_reason() {
+        let te = fixture_task_expire_tx();
+        assert_eq!(te.sponsor_agent, AgentId("sponsor-tb11".into()));
+        assert_eq!(te.escrow_tx_id, TxId("escrowlock-fixture-tb11-01".into()));
+        assert_eq!(te.reason, ExpireReason::Deadline);
+        // Mutating reason MUST change canonical digest.
+        let d_deadline = te.to_signing_payload().canonical_digest();
+        let mut te_bk = te.clone();
+        te_bk.reason = ExpireReason::BankruptcyTriggered;
+        let d_bk = te_bk.to_signing_payload().canonical_digest();
+        assert_ne!(d_deadline, d_bk);
+    }
+
+    /// TB-11 U6: ExhaustionReason → RunOutcome projection covers all 5 variants.
+    #[test]
+    fn exhaustion_reason_to_run_outcome() {
+        assert_eq!(ExhaustionReason::MaxTxExhausted.to_run_outcome(), RunOutcome::MaxTxExhausted);
+        assert_eq!(ExhaustionReason::WallClockCap.to_run_outcome(), RunOutcome::WallClockCap);
+        assert_eq!(ExhaustionReason::ComputeCap.to_run_outcome(), RunOutcome::ComputeCap);
+        assert_eq!(ExhaustionReason::ProtocolCollapse.to_run_outcome(), RunOutcome::ErrorHalt);
+        assert_eq!(ExhaustionReason::SolverGiveUp.to_run_outcome(), RunOutcome::ErrorHalt);
     }
 
     // ── v1.2 NEW (R2-4 Codex round-2): LOAD-BEARING domain test ─────────────
@@ -1875,10 +2295,19 @@ mod tests {
         "17c21ac8b6886e3d262925fa0942bc9a8e4e231a21e9767d0a25dd7c1ce2fbb5";
     const EXPECTED_SIGNING_HEX_FINALIZE_REWARD: &str =
         "74fd6bfb730b9d3e9828e4ebf8c3edb24aabb755813a058583949f08fbf5654b";
+    /// TB-11 (architect §6.2 ruling 2026-05-02) — TaskExpireSigningPayload
+    /// digest rotated due to additive schema bump: + sponsor_agent +
+    /// escrow_tx_id + reason. Rotation protocol: golden-digest constant
+    /// rotation requires explicit ABI commit + audit (TB-11 charter §6 G9).
+    /// Pre-TB-11 hex was `d30fcf5fd45e32975e5547e266bcc4ef16353284205009d3feb4189e8b248def`.
     const EXPECTED_SIGNING_HEX_TASK_EXPIRE: &str =
-        "d30fcf5fd45e32975e5547e266bcc4ef16353284205009d3feb4189e8b248def";
+        "05e47a7df499c7122ed18029304951ce7631123fbc39403264649c46b7615210";
+    /// TB-11 (architect §6.2 ruling 2026-05-02) — TerminalSummarySigningPayload
+    /// digest rotated due to additive schema bump: + parent_state_root +
+    /// solver_agent + evidence_capsule_cid. Rotation protocol same as above.
+    /// Pre-TB-11 hex was `71143e56cbd0fc3bdc4d8b764af9572564f8d66b2f4062d57d3678d4a311ac12`.
     const EXPECTED_SIGNING_HEX_TERMINAL_SUMMARY: &str =
-        "71143e56cbd0fc3bdc4d8b764af9572564f8d66b2f4062d57d3678d4a311ac12";
+        "ab9b0e82dbf007e76ddeb1312010df1f1fb0686b32f6f3098cb055e4d20617e7";
 
     // ── I-CANON-D — golden fixtures (locked SHA-256 of canonical bytes) ──────
     //
@@ -1902,10 +2331,14 @@ mod tests {
         "8bb33232b7c20a63a206f505179b0f64fa50acb41061aaa471ba8e4435593aed";
     const EXPECTED_HEX_FINALIZE_REWARD: &str =
         "0f5e213ec919f8e61dc998b13a4dcd49ff6e81e473850725f2ca1f27c1d65a2d";
+    // TB-11 (architect §6.2 ruling 2026-05-02) — TaskExpireTx + TerminalSummaryTx
+    // schema additive bumps; golden TypedTx digest rotation. Pre-TB-11 values:
+    //   TaskExpire:      835cdec950a7fd09531e03b1ab2f571ccc9a7c05b3a3e04905f0dc77078c2d60
+    //   TerminalSummary: f05983df19cb2af951d79216d71a64aae6b1ae960d036022f90f28039b059208
     const EXPECTED_HEX_TASK_EXPIRE: &str =
-        "835cdec950a7fd09531e03b1ab2f571ccc9a7c05b3a3e04905f0dc77078c2d60";
+        "8d45f5dcff4e65c6dc680add961933a8fa99f07e02885e81b14ce8594b30b811";
     const EXPECTED_HEX_TERMINAL_SUMMARY: &str =
-        "f05983df19cb2af951d79216d71a64aae6b1ae960d036022f90f28039b059208";
+        "9e568384a5cf16268900e2ac66549dc11c9a16c1b37e2ac20ddba3e0a1794578";
 
     #[test]
     fn golden_work_tx_digest() {
