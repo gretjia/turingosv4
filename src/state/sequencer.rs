@@ -35,7 +35,7 @@ use crate::bottom_white::ledger::transition_ledger::{
 };
 use crate::bottom_white::tools::registry::ToolRegistry;
 use crate::economy::monetary_invariant::{
-    assert_no_post_init_mint, assert_read_is_free,
+    assert_claim_amount_backed_by_escrow, assert_no_post_init_mint, assert_read_is_free,
     assert_task_market_total_escrow_matches_locks, assert_total_ctf_conserved,
 };
 use crate::state::q_state::{AgentId, EscrowEntry, Hash, QState, TaskMarketEntry, TxId};
@@ -185,6 +185,24 @@ pub fn challenge_resolve_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
     Hash::from_bytes(digest)
 }
 
+/// TRACE_MATRIX TB-8 charter §3 Atom 3 — FinalizeReward-accept state-root
+/// domain. Mirror of `challenge_resolve_accept_state_root`.
+pub(crate) const FINALIZE_REWARD_DOMAIN_V1: &[u8] =
+    b"turingosv4.finalize_reward.accept.v1";
+
+/// TRACE_MATRIX TB-8 charter §3 Atom 3 — interim state-root mutator on
+/// `FinalizeRewardTx` accept (single-solver MVP; debit escrow + credit
+/// balance + flip claim status to Finalized). Public single-item surface
+/// for integration tests.
+pub fn finalize_reward_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
+    let mut h = Sha256::new();
+    h.update(FINALIZE_REWARD_DOMAIN_V1);
+    h.update(prev.0);
+    h.update(canonical_encode(tx).expect("TypedTx is canonical-encodable"));
+    let digest: [u8; 32] = h.finalize().into();
+    Hash::from_bytes(digest)
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // TB-2 Atom 4 — rejection-path helpers (preflight v3 §3.5 + §3.7)
 // ────────────────────────────────────────────────────────────────────────────
@@ -236,6 +254,9 @@ fn rejection_class_for(e: &TransitionError) -> L4ERejectionClass {
         TE::InvalidSystemSignatureLive => RC::PolicyViolation,
         TE::ChallengeNotFound => RC::PolicyViolation,
         TE::AlreadyResolved => RC::PolicyViolation,
+        // TB-8 Atom 3 (charter § 4.5):
+        TE::ClaimAlreadyFinalized => RC::PolicyViolation,
+        TE::ChallengeWindowStillOpen => RC::PolicyViolation,
         // Non-WorkTx-arm variants documented per §3.7 mapping table — should
         // not occur on the WorkTx arm; conservative sentinel preserves L4.E
         // append correctness if a future TB adds new variants.
@@ -272,6 +293,9 @@ fn public_summary_for(e: &TransitionError) -> Option<String> {
         TransitionError::InvalidSystemSignatureLive => Some("invalid_system_signature_live".into()),
         TransitionError::ChallengeNotFound => Some("challenge_not_found".into()),
         TransitionError::AlreadyResolved => Some("already_resolved".into()),
+        // TB-8 Atom 3.
+        TransitionError::ClaimAlreadyFinalized => Some("claim_already_finalized".into()),
+        TransitionError::ChallengeWindowStillOpen => Some("challenge_window_still_open".into()),
         _ => Some("policy_violation".into()),
     }
 }
@@ -537,7 +561,98 @@ pub(crate) fn dispatch_transition(
                     task_id: target_stake.task_id.clone(),
                 },
             );
-            // Step 6: monetary invariants (debit = credit).
+            // ──────────────────────────────────────────────────────────────
+            // TB-8 Atom 1 — claims_t writer (charter §3 Atom 1 +
+            // ratification §1 Q1/Q3/Q5 + §2.1/§2.2).
+            //
+            // OMEGA-Confirm path: when verify.verdict == Confirm AND the
+            // target_work_tx is in stakes_t, create a ClaimEntry. Per
+            // ratification §2.1: VerifyVerdict::Confirm IS the OMEGA verdict
+            // (no separate `Omega` variant exists).
+            //
+            // Single-solver MVP: claim.amount = task_market_entry.total_escrow
+            // (ratification §1 Q5 — no fee, no factor). Multi-solver royalty
+            // splits are charter §4 forbidden #6.
+            //
+            // claim_id derivation: `claim-<verify.tx_id>` per ratification
+            // §2.2 (deterministic, replay-safe, collision-free).
+            //
+            // Idempotency: a re-OMEGA on the same target_work_tx is
+            // structurally impossible upstream — every accepted VerifyTx has
+            // a unique tx_id (sequencer enforces), so the derived claim_id is
+            // unique per VerifyTx. A second VerifyTx targeting the same
+            // WorkTx would create a SECOND claim entry (its own claim_id),
+            // not collide. In single-verifier MVP this case does not arise;
+            // multi-verifier (RSP-2) handling is post-TB-8 scope.
+            //
+            // Claim is created only if (a) verdict == Confirm, (b) the
+            // task_market entry exists (must — WorkTx admission already
+            // verified total_escrow > 0), and (c) the escrow_lock_tx_id can
+            // be resolved (single-solver MVP: pick the first lock_tx in the
+            // task_market's escrow_lock_tx_ids set; multi-lock task funding
+            // is post-TB-8). If (c) fails, the claim is NOT created — the
+            // VerifyTx still accepts (no economic regression).
+            // ──────────────────────────────────────────────────────────────
+            if verify.verdict == crate::state::typed_tx::VerifyVerdict::Confirm {
+                let task_id = target_stake.task_id.clone();
+                // TB-8 Atom 1 round-2 (Codex VETO RQ4 fix): one-claim-per-
+                // work_tx_id idempotency. A second Confirm VerifyTx targeting
+                // the same WorkTx must NOT create a second claim row — that
+                // would let aggregate Open claims exceed the backing escrow,
+                // making finalize unbackable post-mutation. The Verify itself
+                // still accepts (its bond locks; verdict rides L4); only the
+                // claim creation is suppressed.
+                let already_claimed = q
+                    .economic_state_t
+                    .claims_t
+                    .0
+                    .values()
+                    .any(|c| c.work_tx_id == verify.target_work_tx);
+                if !already_claimed {
+                if let Some(task_market) =
+                    q.economic_state_t.task_markets_t.0.get(&task_id)
+                {
+                    if let Some(escrow_lock_tx_id) =
+                        task_market.escrow_lock_tx_ids.iter().next().cloned()
+                    {
+                        let claim_id = crate::state::typed_tx::ClaimId(
+                            crate::state::q_state::TxId(format!(
+                                "claim-{}",
+                                verify.tx_id.0
+                            )),
+                        );
+                        q_next.economic_state_t.claims_t.0.insert(
+                            claim_id.0.clone(),
+                            crate::state::q_state::ClaimEntry {
+                                amount: task_market.total_escrow,
+                                claimant: target_stake.staker.clone(),
+                                task_id: task_id.clone(),
+                                escrow_lock_tx_id,
+                                work_tx_id: verify.target_work_tx.clone(),
+                                verify_tx_id: verify.tx_id.clone(),
+                                status: crate::state::q_state::ClaimStatus::Open,
+                                // Zero-window MVP per ratification §1 Q3:
+                                // value 0 is the structural marker
+                                // "window-closed-immediately" — finalize is
+                                // legal as soon as the claim exists. A
+                                // future TB introducing a real challenge
+                                // window will set this to a non-zero value
+                                // (sequencer's logical_t at accept-time + N
+                                // blocks). The Atom-3 gate fires only when
+                                // this field is > 0 AND fr.timestamp_logical
+                                // ≤ this field. agent-supplied
+                                // verify.timestamp_logical is intentionally
+                                // NOT used here — agent and sequencer
+                                // logical_t live in different namespaces.
+                                challenge_window_close_logical_t: 0,
+                            },
+                        );
+                    }
+                }
+                } // end: !already_claimed
+            }
+            // Step 6: monetary invariants (debit = credit; claim creation is
+            // a metadata write — no money moves at claim creation).
             assert_no_post_init_mint(tx, q)
                 .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
             assert_total_ctf_conserved(
@@ -546,6 +661,10 @@ pub(crate) fn dispatch_transition(
                 &[],
             )
             .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            // TB-8 Atom 1 — intent-vs-backing invariant: any new claim row
+            // must have claim.amount ≤ escrow_lock_tx_id's current escrow row.
+            assert_claim_amount_backed_by_escrow(&q_next.economic_state_t)
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
             // Step 7: state_root advance via VERIFY_ACCEPT_DOMAIN_V1.
             q_next.state_root_t = verify_accept_state_root(&q.state_root_t, tx);
 
@@ -619,7 +738,227 @@ pub(crate) fn dispatch_transition(
             Ok((q_next, SignalBundle::default()))
         }
         TypedTx::Reuse(_) => Err(TransitionError::NotYetImplemented),
-        TypedTx::FinalizeReward(_) => Err(TransitionError::NotYetImplemented),
+        // ──────────────────────────────────────────────────────────────────
+        // TB-8 Atom 3 — FinalizeReward dispatch arm (charter §3 Atom 3 +
+        // ratification §1 Q2/Q3/Q4/Q5).
+        //
+        // Single-solver MVP: debit escrows_t[claim.escrow_lock_tx_id].amount
+        // by `reward`, credit balances_t[claim.claimant] by `reward`, flip
+        // claims_t[claim_id].status to Finalized. CTF conserved (escrow →
+        // balance is a balanced transfer; both are in the post-TB-8 4
+        // holdings sum).
+        //
+        // Q-derived authority: per typed_tx.rs:300-304, task_id / solver /
+        // reward on the wire are LEDGER SUMMARY only; the authoritative
+        // values are claims_t[claim_id]. Step 4 below cross-verifies wire
+        // vs. Q-derived to catch any forgery that bypassed emit_system_tx
+        // (defense-in-depth atop the constructive guarantee).
+        //
+        // Charter forbidden lines respected:
+        // - #6 multi-solver royalty splits — single-solver MVP only.
+        // - #7 DAG-aware payout splits — claim sweeps total_escrow.
+        // - #11 RSP-4 SettlementEngine generalization — settlement_rule_hash
+        //   stays opaque; trivial settlement amount = total_escrow.
+        // - #12 Slash execution — UpheldDeferred → finalize blocked at
+        //   step 3; turning UpheldDeferred into money mutation is post-v1.0.
+        // ──────────────────────────────────────────────────────────────────
+        TypedTx::FinalizeReward(fr) => {
+            // Step 0: parent-root match (Anti-Oreo: every accepted tx
+            // commits to a frozen state root).
+            if fr.parent_state_root != q.state_root_t {
+                return Err(TransitionError::StaleParent);
+            }
+            // Step 1: lookup claim. ClaimNotFound is a structural error
+            // (caller passed an unknown claim_id; emit_system_tx would have
+            // caught this at construction time, but defense-in-depth here).
+            let claim = match q
+                .economic_state_t
+                .claims_t
+                .0
+                .get(fr.claim_id.as_tx_id())
+            {
+                Some(c) => c.clone(),
+                None => return Err(TransitionError::ClaimNotFound),
+            };
+            // Step 2: idempotency gate.
+            match claim.status {
+                crate::state::q_state::ClaimStatus::Open => { /* proceed */ }
+                crate::state::q_state::ClaimStatus::Finalized => {
+                    return Err(TransitionError::ClaimAlreadyFinalized);
+                }
+                crate::state::q_state::ClaimStatus::Slashed => {
+                    return Err(TransitionError::AlreadySlashed);
+                }
+            }
+            // Step 3: ChallengeWindow gate. Zero-window MVP per ratification
+            // §1 Q3 + Atom-1 writer: claim.challenge_window_close_logical_t
+            // is set to 0 at claim-creation as the "window-closed-immediately"
+            // structural marker. The gate fires ONLY when window > 0
+            // (forward-compat with future non-zero windows). For TB-8 MVP,
+            // the gate is a no-op; the Open→Finalized transition itself is
+            // the structural ordering guarantee.
+            if claim.challenge_window_close_logical_t > 0
+                && fr.timestamp_logical <= claim.challenge_window_close_logical_t
+            {
+                return Err(TransitionError::ChallengeWindowStillOpen);
+            }
+            // Step 4: UpheldDeferred challenge gate. If any challenge_cases_t
+            // entry targets this claim's verify_tx_id with status =
+            // UpheldDeferred, finalize is blocked. (TB-5 RSP-3.1 records
+            // UpheldDeferred markers; this gate reads them.)
+            //
+            // **Conservatism**: a challenge targets the WORK_TX, not the
+            // VERIFY_TX. The claim references work_tx_id, so we check
+            // challenge_cases_t for any UpheldDeferred entry against the
+            // work tx that produced this claim.
+            let upheld_blocking = q
+                .economic_state_t
+                .challenge_cases_t
+                .0
+                .values()
+                .any(|cc| {
+                    cc.target_work_tx == claim.work_tx_id
+                        && cc.status
+                            == crate::state::q_state::ChallengeStatus::UpheldDeferred
+                });
+            if upheld_blocking {
+                return Err(TransitionError::SettlementPredicateFailed(
+                    crate::state::typed_tx::PredicateId(
+                        "challenge_window_closed_with_no_upheld_challenge".into(),
+                    ),
+                ));
+            }
+            // Step 5: Q-derived reward consistency check (anti-forgery).
+            // The wire `fr.reward` field is summary-only; the authoritative
+            // value is `claim.amount`. A mismatch indicates either a forged
+            // tx that bypassed emit_system_tx OR a desync between the
+            // claim row at emit-time and the claim row at apply-time
+            // (impossible in single-threaded sequencer; defense-in-depth).
+            if fr.reward != claim.amount {
+                return Err(TransitionError::SettlementPredicateFailed(
+                    crate::state::typed_tx::PredicateId(
+                        "reward_matches_q_derived".into(),
+                    ),
+                ));
+            }
+            if fr.solver != claim.claimant {
+                return Err(TransitionError::SettlementPredicateFailed(
+                    crate::state::typed_tx::PredicateId(
+                        "solver_matches_q_derived".into(),
+                    ),
+                ));
+            }
+            if fr.task_id != claim.task_id {
+                return Err(TransitionError::SettlementPredicateFailed(
+                    crate::state::typed_tx::PredicateId(
+                        "task_id_matches_q_derived".into(),
+                    ),
+                ));
+            }
+            // Step 6: escrow row exists + has sufficient balance.
+            let escrow = match q
+                .economic_state_t
+                .escrows_t
+                .0
+                .get(&claim.escrow_lock_tx_id)
+            {
+                Some(e) => e.clone(),
+                None => {
+                    return Err(TransitionError::SettlementPredicateFailed(
+                        crate::state::typed_tx::PredicateId(
+                            "escrow_lock_resolves".into(),
+                        ),
+                    ));
+                }
+            };
+            if escrow.amount.micro_units() < claim.amount.micro_units() {
+                return Err(TransitionError::SettlementPredicateFailed(
+                    crate::state::typed_tx::PredicateId(
+                        "escrow_sufficient_for_reward".into(),
+                    ),
+                ));
+            }
+            // Step 7: atomic mutation — q_next.
+            let mut q_next = q.clone();
+            // 7a. Debit escrows_t[lock_id] by reward.
+            let new_escrow_micro = escrow.amount.micro_units() - claim.amount.micro_units();
+            q_next.economic_state_t.escrows_t.0.insert(
+                claim.escrow_lock_tx_id.clone(),
+                crate::state::q_state::EscrowEntry {
+                    amount: crate::economy::money::MicroCoin::from_micro_units(
+                        new_escrow_micro,
+                    ),
+                    depositor: escrow.depositor.clone(),
+                    task_id: escrow.task_id.clone(),
+                },
+            );
+            // 7b. Credit balances_t[solver].
+            let cur_solver_bal = q
+                .economic_state_t
+                .balances_t
+                .0
+                .get(&claim.claimant)
+                .copied()
+                .unwrap_or_else(crate::economy::money::MicroCoin::zero);
+            let new_solver_micro =
+                cur_solver_bal.micro_units() + claim.amount.micro_units();
+            q_next.economic_state_t.balances_t.0.insert(
+                claim.claimant.clone(),
+                crate::economy::money::MicroCoin::from_micro_units(new_solver_micro),
+            );
+            // 7c. Flip claim status to Finalized (entry preserved as
+            // historical record per `feedback_no_retroactive_evidence_rewrite`).
+            let entry = q_next
+                .economic_state_t
+                .claims_t
+                .0
+                .get_mut(fr.claim_id.as_tx_id())
+                .expect("verified at step 1");
+            entry.status = crate::state::q_state::ClaimStatus::Finalized;
+            // 7d. Update task_markets_t cache (total_escrow -= reward).
+            // Cache=truth per TB-3 charter §3.2; the escrow debit above
+            // changes the derived sum, so the cache must follow.
+            if let Some(tm) = q_next
+                .economic_state_t
+                .task_markets_t
+                .0
+                .get_mut(&claim.task_id)
+            {
+                let new_total = tm.total_escrow.micro_units() - claim.amount.micro_units();
+                tm.total_escrow =
+                    crate::economy::money::MicroCoin::from_micro_units(new_total);
+            }
+            // Step 8: monetary invariants.
+            assert_no_post_init_mint(tx, q)
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            // CTF conserved: escrow -reward + balance +reward = 0 delta on
+            // the holding sum. claims_t.status flip is metadata. No
+            // exemption needed (ratification §1 Q4 + STEP_B preflight §3).
+            assert_total_ctf_conserved(
+                &q.economic_state_t,
+                &q_next.economic_state_t,
+                &[],
+            )
+            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            // TB-3 cache=truth invariant on the affected task.
+            assert_task_market_total_escrow_matches_locks(
+                &q_next.economic_state_t,
+                &claim.task_id,
+            )
+            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            // TB-8 intent-vs-backing invariant: any remaining Open claims
+            // must still be backed (this finalize doesn't touch them; the
+            // check is fast and catches concurrent dispatch bugs).
+            assert_claim_amount_backed_by_escrow(&q_next.economic_state_t)
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            // Step 9: state_root advance via FINALIZE_REWARD_DOMAIN_V1.
+            q_next.state_root_t = finalize_reward_accept_state_root(&q.state_root_t, tx);
+
+            Ok((
+                q_next,
+                SignalBundle::finalize(fr.claim_id.clone(), claim.amount),
+            ))
+        }
         TypedTx::TaskExpire(_) => Err(TransitionError::NotYetImplemented),
         TypedTx::TerminalSummary(_) => Err(TransitionError::NotYetImplemented),
         // ──────────────────────────────────────────────────────────────────
@@ -924,8 +1263,21 @@ pub enum SystemEmitCommand {
         target_challenge_tx_id: crate::state::q_state::TxId,
         resolution: crate::state::typed_tx::ChallengeResolution,
     },
-    // Future RSP-3.2 / RSP-4 additions (NOT in TB-5 scope):
-    //   FinalizeReward { ... }   (RSP-4)
+    /// TB-8 Atom 2 — finalize a reward claim (RSP-4 MVP settlement-spine).
+    ///
+    /// Caller passes ONLY `claim_id`. The runtime constructs the
+    /// `FinalizeRewardTx` by Q-deriving `task_id` / `solver` / `reward` from
+    /// `claims_t[claim_id]` (per typed_tx.rs:300-304 anti-forgery doc-comment).
+    /// The wire fields exist as a ledger summary; the authoritative values
+    /// always come from Q_t.
+    ///
+    /// Mirrors `ChallengeResolve` shape (single typed key + system-derived
+    /// payload). NOT agent-submittable — `submit_agent_tx` rejects every
+    /// system-emitted variant per TB-5.0 Atom 2 Anti-Oreo barrier.
+    FinalizeReward {
+        claim_id: crate::state::typed_tx::ClaimId,
+    },
+    // Future RSP-3.2 / RSP-4 additions (NOT in TB-8 scope):
     //   TaskExpire     { ... }
     //   TerminalSummary { ... }
     //   SlashTx        { ... }   (RSP-3.2)
@@ -956,6 +1308,12 @@ pub enum EmitSystemError {
     InvalidSystemSignatureLive,
     /// CAS or other internal lock poisoned during emit.
     InternalLockPoisoned,
+    /// TB-8 Atom 2: `SystemEmitCommand::FinalizeReward { claim_id }` referenced
+    /// a `claim_id` not present in `claims_t`. Caller-side error (caller
+    /// asked for a finalize on a non-existent claim); never reachable from
+    /// the production evaluator path because the OMEGA caller derives
+    /// `claim_id` from the just-accepted VerifyTx.
+    ClaimNotFound,
 }
 
 impl std::fmt::Display for EmitSystemError {
@@ -971,6 +1329,10 @@ impl std::fmt::Display for EmitSystemError {
                 "system_signature failed live verification against pinned pubkeys at emit time"
             ),
             Self::InternalLockPoisoned => write!(f, "internal lock poisoned during emit"),
+            Self::ClaimNotFound => write!(
+                f,
+                "SystemEmitCommand::FinalizeReward referenced a claim_id not present in claims_t"
+            ),
         }
     }
 }
@@ -1270,9 +1632,11 @@ impl Sequencer {
         &self,
         command: SystemEmitCommand,
     ) -> Result<TypedTx, EmitSystemError> {
-        use crate::bottom_white::ledger::system_keypair::terminal_summary_emitter::sign_challenge_resolve;
+        use crate::bottom_white::ledger::system_keypair::terminal_summary_emitter::{
+            sign_challenge_resolve, sign_finalize_reward,
+        };
         use crate::bottom_white::ledger::system_keypair::SystemSignature;
-        use crate::state::typed_tx::ChallengeResolveTx;
+        use crate::state::typed_tx::{ChallengeResolveTx, FinalizeRewardTx};
         match command {
             SystemEmitCommand::ChallengeResolve { target_challenge_tx_id, resolution } => {
                 let q_snap = self
@@ -1301,6 +1665,55 @@ impl Sequencer {
                 tx.system_signature = sig;
                 Ok(TypedTx::ChallengeResolve(tx))
             }
+            // ──────────────────────────────────────────────────────────────
+            // TB-8 Atom 2 — FinalizeReward construction.
+            //
+            // Caller passes claim_id only. task_id / solver / reward are
+            // Q-derived from claims_t[claim_id] (anti-forgery per
+            // typed_tx.rs:300-304). Wire fields = ledger summary; Q is
+            // authoritative.
+            //
+            // Idempotency / window / upheld-challenge gates are enforced at
+            // the dispatch arm (Atom 3), NOT here. emit_system_tx is the
+            // construction layer; dispatch is the validation layer. This
+            // separation matches the ChallengeResolve precedent.
+            // ──────────────────────────────────────────────────────────────
+            SystemEmitCommand::FinalizeReward { claim_id } => {
+                let q_snap = self
+                    .q
+                    .read()
+                    .map_err(|_| EmitSystemError::InternalLockPoisoned)?;
+                let claim = q_snap
+                    .economic_state_t
+                    .claims_t
+                    .0
+                    .get(claim_id.as_tx_id())
+                    .ok_or(EmitSystemError::ClaimNotFound)?
+                    .clone();
+                let logical_t_for_id = self.next_logical_t.load(Ordering::SeqCst) + 1;
+                let mut tx = FinalizeRewardTx {
+                    tx_id: crate::state::q_state::TxId(format!(
+                        "system-finalize-reward-{}-{}",
+                        self.epoch.get(),
+                        logical_t_for_id
+                    )),
+                    claim_id,
+                    task_id: claim.task_id.clone(),
+                    solver: claim.claimant.clone(),
+                    reward: claim.amount,
+                    parent_state_root: q_snap.state_root_t,
+                    epoch: self.epoch,
+                    timestamp_logical: logical_t_for_id,
+                    system_signature: SystemSignature::from_bytes([0u8; 64]),  // placeholder
+                };
+                drop(q_snap);
+                let payload = tx.to_signing_payload();
+                let digest = payload.canonical_digest();
+                let sig = sign_finalize_reward(&self.keypair, digest)
+                    .map_err(EmitSystemError::SignatureConstruction)?;
+                tx.system_signature = sig;
+                Ok(TypedTx::FinalizeReward(tx))
+            }
         }
     }
 
@@ -1313,6 +1726,15 @@ impl Sequencer {
             TypedTx::ChallengeResolve(t) => {
                 let digest = t.to_signing_payload().canonical_digest();
                 let msg = CanonicalMessage::ChallengeResolveSigning(digest);
+                if !verify_system_signature(&t.system_signature, &msg, t.epoch, &self.pinned_pubkeys) {
+                    return Err(EmitSystemError::InvalidSystemSignatureLive);
+                }
+                Ok(())
+            }
+            // TB-8 Atom 2 — FinalizeReward defense-in-depth verify.
+            TypedTx::FinalizeReward(t) => {
+                let digest = t.to_signing_payload().canonical_digest();
+                let msg = CanonicalMessage::FinalizeRewardSigning(digest);
                 if !verify_system_signature(&t.system_signature, &msg, t.epoch, &self.pinned_pubkeys) {
                     return Err(EmitSystemError::InvalidSystemSignatureLive);
                 }
@@ -1715,17 +2137,19 @@ mod tests {
         }
     }
 
-    // 1. dispatch_transition: NON-WORK / NON-RSP1 / NON-RSP2 variants
-    //    return NotYetImplemented.
+    // 1. dispatch_transition: NON-WORK / NON-RSP1 / NON-RSP2 / NON-RSP4
+    //    variants return NotYetImplemented.
     //
     // TB-2 Atom 3 narrowed this from "all variants" to "non-Work variants".
     // TB-3 narrowed it further (Work + TaskOpen + EscrowLock are now real;
     // their own U/I tests cover them). TB-4 Atom 4-5 narrows further
     // (Verify + Challenge are now real; covered by U12-U21 + I31-I43).
-    // Reuse / FinalizeReward / TaskExpire / TerminalSummary remain stubs
-    // (RSP-3+ / RSP-4 territory).
+    // **TB-8 Atom 3 narrows further (2026-05-02)**: FinalizeReward is now
+    // real (covered by tests/tb_8_minimal_payout.rs I110-I121); only
+    // Reuse / TaskExpire / TerminalSummary remain stubs (post-v1.0 / RSP
+    // higher-tier territory).
     #[test]
-    fn dispatch_transition_stubs_non_work_non_rsp1_non_rsp2_variants() {
+    fn dispatch_transition_stubs_non_work_non_rsp1_non_rsp2_non_rsp4_variants() {
         let q = QState::genesis();
         let preds = PredicateRegistry::new();
         let tools = ToolRegistry::new();
@@ -1738,17 +2162,8 @@ mod tests {
                 reused_tool_creator: AgentId("a".into()),
                 timestamp_logical: 1,
             }),
-            TypedTx::FinalizeReward(FinalizeRewardTx {
-                tx_id: TxId("ft".into()),
-                claim_id: ClaimId::new("cl"),
-                task_id: TaskId("t".into()),
-                solver: AgentId("s".into()),
-                reward: MicroCoin::from_micro_units(1),
-                parent_state_root: Default::default(),
-                epoch: SystemEpoch::new(1),
-                timestamp_logical: 1,
-                system_signature: SystemSignature::from_bytes([0; 64]),
-            }),
+            // FinalizeReward is no longer a stub (TB-8 Atom 3 — see
+            // tests/tb_8_minimal_payout.rs for full dispatch coverage).
             TypedTx::TaskExpire(TaskExpireTx {
                 tx_id: TxId("et".into()),
                 task_id: TaskId("t".into()),

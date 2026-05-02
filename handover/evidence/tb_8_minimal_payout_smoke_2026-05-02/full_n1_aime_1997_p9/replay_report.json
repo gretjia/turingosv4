@@ -1,0 +1,21 @@
+{
+  "l4_entries": 2,
+  "l4e_entries": 2,
+  "ledger_root_verified": true,
+  "system_signatures_verified": true,
+  "state_reconstructed": true,
+  "economic_state_reconstructed": true,
+  "cas_payloads_retrievable": true,
+  "agent_signatures_verified": true,
+  "proposal_telemetry_cas_retrievable": true,
+  "run_id": "tb8-full_n1_aime_1997_p9",
+  "epoch": 1,
+  "detail": {
+    "final_state_root_hex": "ce75897cb9f6602b3525338da53d93c53dbc3882953dae633d255a34a3fc7b0d",
+    "final_ledger_root_hex": "38f4c9dd4bfa5c5cf75dcacdfef930ff0f78ab8fdb6f06d5456580e0f510b3a4",
+    "head_commit_oid_hex": "154652a1346fbf1bedfe50c9581ad7cbb3c38206",
+    "l4e_last_hash_hex": "0ab2e8395eaeaa20d5dd8a168c1287d14bb85325e7df79ab013885a34871cb91",
+    "replay_failure": null,
+    "initial_q_state_loaded_from_disk": true
+  }
+}

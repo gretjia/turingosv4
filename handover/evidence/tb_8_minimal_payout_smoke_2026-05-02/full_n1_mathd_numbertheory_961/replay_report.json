@@ -1,0 +1,21 @@
+{
+  "l4_entries": 5,
+  "l4e_entries": 2,
+  "ledger_root_verified": true,
+  "system_signatures_verified": true,
+  "state_reconstructed": true,
+  "economic_state_reconstructed": true,
+  "cas_payloads_retrievable": true,
+  "agent_signatures_verified": true,
+  "proposal_telemetry_cas_retrievable": true,
+  "run_id": "tb8-full_n1_mathd_numbertheory_961",
+  "epoch": 1,
+  "detail": {
+    "final_state_root_hex": "661b14cd0e35cdafb5d8d332bdec2975336258e7778a178464ba1f2509536d7e",
+    "final_ledger_root_hex": "8cfcffa7932889d837d7ab9c124fb983f96d72823121641854383761af2f03f3",
+    "head_commit_oid_hex": "2c8b66d6de13378b1df235b46d1da7b94f9cb4e6",
+    "l4e_last_hash_hex": "c8e334e984aadad320c1089ea5001f8c66163591c2655c1e016602327f7508a9",
+    "replay_failure": null,
+    "initial_q_state_loaded_from_disk": true
+  }
+}

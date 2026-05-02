@@ -481,26 +481,30 @@ fn test_p3_kill_1_no_post_init_mint() {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// (10) P3 RSP-0 — total_supply counts ALL FIVE holding subindexes
-//      (Path A++ / Codex P0-2 audit 2026-04-29; TB-3 6→5 migration 2026-04-30)
+// (10) P3 RSP-0 — total_supply counts ALL FOUR holding subindexes
+//      (Path A++ / Codex P0-2 audit 2026-04-29; TB-3 6→5 migration 2026-04-30;
+//       TB-8 5→4 migration 2026-05-02 — claims_t becomes intent registry)
 // ────────────────────────────────────────────────────────────────────────────
 
 #[test]
-fn test_p3_rsp0_total_supply_counts_all_five_subindexes() {
+fn test_p3_rsp0_total_supply_counts_all_four_subindexes() {
     // Tier-A 7 (`test_p3_rsp0_exit_1_on_init_total_invariant`) only redistributes
     // through balances + escrows. A regression that silently undercounts any
-    // OTHER holding subindex (stakes_t / claims_t / challenge_cases_t.bond)
-    // would still pass test 7.
+    // OTHER holding subindex (stakes_t / challenge_cases_t.bond) would still
+    // pass test 7.
     //
     // **TB-3 6→5 migration**: TB-1's six-holding sum (balances + escrows +
-    // stakes + claims + bounty + bond) is reduced to five (balances + escrows
+    // stakes + claims + bounty + bond) was reduced to five (balances + escrows
     // + stakes + claims + bond). `task_markets_t.total_escrow` is a derived
-    // cache (TB-3 charter § 3.2), NOT a holding. The 16-coin amount that
-    // previously seeded `task_markets_t.bounty` migrates to a second escrows_t
-    // entry — modeling how `EscrowLockTx` will route bounty money in TB-3
-    // Atom 5. Each remaining single-drop deficit is still unique:
-    //   drop balances → -1, drop escrows → -18, drop stakes → -4,
-    //   drop claims → -8, drop bond → -32.
+    // cache (TB-3 charter § 3.2), NOT a holding.
+    //
+    // **TB-8 5→4 migration** (2026-05-02): claims_t is now an intent
+    // registry, NOT a holding. Per TB-8 charter §3 Atom 3 + ratification
+    // §1 Q5: FinalizeReward dispatches escrows → balances directly; claims_t
+    // is metadata. The seeded claim row contributes 0 to the supply sum;
+    // the seeded total drops from 63 → 55. Each remaining single-drop
+    // deficit is still unique: drop balances → -1, drop escrows → -18,
+    // drop stakes → -4, drop bond → -32.
     use turingosv4::state::q_state::{ChallengeCase, ClaimEntry, EscrowEntry, StakeEntry};
 
     let mut seeded = EconomicState::default();
@@ -521,10 +525,14 @@ fn test_p3_rsp0_total_supply_counts_all_five_subindexes() {
             task_id: TaskId("task-s".into()),
         },
     );
+    // claims_t entry seeded as intent metadata; per TB-8 not in holding sum.
     seeded
         .claims_t
         .0
-        .insert(TxId("c".into()), ClaimEntry { amount: coin(8), claimant: agent("a") });
+        .insert(
+            TxId("c".into()),
+            ClaimEntry { amount: coin(8), claimant: agent("a"), ..Default::default() },
+        );
     // Second escrow row carries what used to live in task_markets_t.bounty.
     seeded.escrows_t.0.insert(
         TxId("e2".into()),
@@ -539,30 +547,27 @@ fn test_p3_rsp0_total_supply_counts_all_five_subindexes() {
     cc.challenger = agent("a");
     seeded.challenge_cases_t.0.insert(TxId("ch".into()), cc);
 
-    // Conservation across before(empty) → after(seeded) MUST be detected as a
-    // mint of exactly 63 coin = 63 * MICRO_PER_COIN. If any subindex is missed
-    // by `total_supply_micro`, this delta will be wrong.
+    // Conservation across before(empty) → after(seeded) MUST be detected as
+    // a mint of exactly 55 coin (NOT 63 — claims_t coin(8) is intent, not
+    // counted post-TB-8).
     let before = EconomicState::default();
     let r = assert_total_ctf_conserved(&before, &seeded, &[]);
     assert_eq!(
         r,
         Err(MonetaryError::PostInitMint {
-            delta_micro: 63 * MICRO_PER_COIN
+            delta_micro: 55 * MICRO_PER_COIN
         }),
-        "monetary invariant must sum balances + escrows + stakes + claims + bond \
-         (5 holdings; task_markets_t.total_escrow is a derived cache, NOT a holding)"
+        "monetary invariant must sum balances + escrows + stakes + bond \
+         (4 holdings post-TB-8; claims_t is intent registry, NOT a holding)"
     );
 
-    // Inverse direction: closing the seeded state back to empty is read as a
-    // burn of the SAME magnitude — proves all five subindexes are decremented
-    // symmetrically by the sum.
     let r_inv = assert_total_ctf_conserved(&seeded, &before, &[]);
     assert_eq!(
         r_inv,
         Err(MonetaryError::TotalCtfBurn {
-            delta_micro: -(63 * MICRO_PER_COIN)
+            delta_micro: -(55 * MICRO_PER_COIN)
         }),
-        "monetary invariant must symmetrically detect a burn across all five subindexes"
+        "monetary invariant must symmetrically detect a burn across all four subindexes"
     );
 }
 

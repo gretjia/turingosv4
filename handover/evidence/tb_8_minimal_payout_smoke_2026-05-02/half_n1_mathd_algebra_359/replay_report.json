@@ -1,0 +1,21 @@
+{
+  "l4_entries": 5,
+  "l4e_entries": 2,
+  "ledger_root_verified": true,
+  "system_signatures_verified": true,
+  "state_reconstructed": true,
+  "economic_state_reconstructed": true,
+  "cas_payloads_retrievable": true,
+  "agent_signatures_verified": true,
+  "proposal_telemetry_cas_retrievable": true,
+  "run_id": "tb8-half_n1_mathd_algebra_359",
+  "epoch": 1,
+  "detail": {
+    "final_state_root_hex": "8bd50ebd378d9895c731f4f01aeed6257da59930b0fec907dc90f1096a0e974f",
+    "final_ledger_root_hex": "c4ed096237e391b89cb063021db59ae914de3528f287fa92797d7ccae214afc5",
+    "head_commit_oid_hex": "3aeadcc3da7cb151eb8a1805889ab0624879f80f",
+    "l4e_last_hash_hex": "555cc4cdfa928396d69cd860740fd0097a0d16a8b706229651840198a7eb9af7",
+    "replay_failure": null,
+    "initial_q_state_loaded_from_disk": true
+  }
+}

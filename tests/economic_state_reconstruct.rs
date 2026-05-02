@@ -54,7 +54,11 @@ fn populated_economic_state_round_trip() {
     );
     e.claims_t.0.insert(
         TxId("t3".into()),
-        ClaimEntry { amount: MicroCoin::from_coin(7).unwrap(), claimant: AgentId("c".into()) },
+        ClaimEntry {
+            amount: MicroCoin::from_coin(7).unwrap(),
+            claimant: AgentId("c".into()),
+            ..Default::default()
+        },
     );
     e.reputations_t.0.insert(AgentId("a".into()), Reputation(100));
     // **TB-3 fixture migration**: TaskMarketEntry no longer has `bounty`;

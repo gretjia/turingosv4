@@ -267,6 +267,96 @@ pub fn make_real_verifytx_signed_by(
     }))
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// TB-8 Atom 4 — Evaluator OMEGA-branch caller helper.
+// ────────────────────────────────────────────────────────────────────────────
+
+/// TRACE_MATRIX TB-8 charter §3 Atom 4 — block until a TxId is observed
+/// in the chain via state_root advance.
+///
+/// **Why a separate helper**: the evaluator submits multiple txs in
+/// sequence (e.g., WorkTx then VerifyTx). The sequencer is async — both
+/// txs are queued, and the SECOND tx's `parent_state_root` was captured
+/// BEFORE the first tx was dispatched. If the first tx commits between
+/// queueing and dispatch, the second tx sees the OLD state_root and
+/// is rejected with `StaleParent`.
+///
+/// This helper polls `state_root_t` until it advances past the supplied
+/// pre-snapshot (or budget expires). Caller passes the pre-snapshot,
+/// awaits this helper, then captures the new state_root for the next
+/// tx's `parent_state_root` field.
+///
+/// Returns `Ok(new_state_root)` if state_root advanced; `Err(())` if the
+/// budget expired without observation.
+pub async fn tb8_await_state_root_advance(
+    sequencer: &crate::state::sequencer::Sequencer,
+    pre_state_root: crate::state::q_state::Hash,
+    poll_budget_ms: u64,
+) -> Result<crate::state::q_state::Hash, ()> {
+    use std::time::{Duration, Instant};
+    let deadline = Instant::now() + Duration::from_millis(poll_budget_ms);
+    while Instant::now() < deadline {
+        if let Ok(q) = sequencer.q_snapshot() {
+            if q.state_root_t != pre_state_root {
+                return Ok(q.state_root_t);
+            }
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    Err(())
+}
+
+/// TRACE_MATRIX TB-8 charter §3 Atom 4 — emit FinalizeReward after an
+/// OMEGA-Confirm VerifyTx commits.
+///
+/// **Why a poll-then-emit helper**: `bus.submit_typed_tx` queues; the
+/// `Sequencer::run` driver applies asynchronously. To call
+/// `emit_system_tx(SystemEmitCommand::FinalizeReward { claim_id })` we need
+/// `claims_t[claim_id]` to be populated, which requires the just-submitted
+/// VerifyTx to have been applied. We poll `q_snapshot` until the claim
+/// appears, then emit. The poll budget defaults to 5s (mirrors the
+/// pre-existing TaskOpen-poll pattern at `evaluator.rs:869-887`).
+///
+/// Returns:
+/// - `Ok(true)` when the claim was found AND finalize was emitted.
+/// - `Ok(false)` when the poll budget expired before the claim appeared
+///   (caller logs but does NOT fail the run; FinalizeReward is best-effort
+///   for solo-run MVP — the OMEGA path's L4 evidence is the durable signal).
+/// - `Err(_)` when emit_system_tx returns an unexpected error (e.g.,
+///   InvalidSystemSignatureLive — defense-in-depth).
+///
+/// Per ratification §1 Q3 zero-window MVP: no challenge window scheduling;
+/// FinalizeReward becomes legal as soon as the claim exists.
+pub async fn tb8_emit_finalize_after_verify(
+    sequencer: &crate::state::sequencer::Sequencer,
+    verify_tx_id: &TxId,
+    poll_budget_ms: u64,
+) -> Result<bool, crate::state::sequencer::EmitSystemError> {
+    use std::time::{Duration, Instant};
+    let claim_id_inner = TxId(format!("claim-{}", verify_tx_id.0));
+    let claim_id = crate::state::typed_tx::ClaimId(claim_id_inner.clone());
+    let deadline = Instant::now() + Duration::from_millis(poll_budget_ms);
+    let mut found = false;
+    while Instant::now() < deadline {
+        if let Ok(q) = sequencer.q_snapshot() {
+            if q.economic_state_t.claims_t.0.contains_key(&claim_id_inner) {
+                found = true;
+                break;
+            }
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    if !found {
+        return Ok(false);
+    }
+    sequencer
+        .emit_system_tx(crate::state::sequencer::SystemEmitCommand::FinalizeReward {
+            claim_id,
+        })
+        .await
+        .map(|_| true)
+}
+
 #[cfg(test)]
 mod adapter_tests_atom2 {
     use super::*;

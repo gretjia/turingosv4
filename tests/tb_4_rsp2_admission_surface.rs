@@ -822,11 +822,12 @@ async fn replay_invariants_hold_across_full_rsp2_surface() {
 
     let post = h.seq.q_snapshot().expect("post");
 
-    // CTF conservation across the full RSP-2 surface (5 holdings).
+    // CTF conservation across the full RSP-2 surface (4 holdings post-TB-8;
+    // claims_t is intent registry, NOT a holding — see TB-8 charter §3
+    // Atom 3 + ratification §1 Q5).
     let post_total: i64 = post.economic_state_t.balances_t.0.values().map(|v| v.micro_units()).sum::<i64>()
         + post.economic_state_t.escrows_t.0.values().map(|e| e.amount.micro_units()).sum::<i64>()
         + post.economic_state_t.stakes_t.0.values().map(|e| e.amount.micro_units()).sum::<i64>()
-        + post.economic_state_t.claims_t.0.values().map(|c| c.amount.micro_units()).sum::<i64>()
         + post.economic_state_t.challenge_cases_t.0.values().map(|c| c.bond.micro_units()).sum::<i64>();
     assert_eq!(post_total, initial_total, "CTF conserved across full RSP-2 surface");
 
@@ -871,11 +872,13 @@ async fn property_no_sequence_violates_total_ctf_conservation_with_verify_challe
     let initial_total: i64 = 1000_000_000 + 50_000_000 + 30_000_000 + 30_000_000;
 
     fn total(h: &Harness) -> i64 {
+        // 4 holdings post-TB-8: balances + escrows + stakes + bond. claims_t is
+        // intent registry (not a holding) — TB-8 charter §3 Atom 3 + Atom 0.5
+        // ratification §1 Q5.
         let q = h.seq.q_snapshot().expect("snap");
         q.economic_state_t.balances_t.0.values().map(|v| v.micro_units()).sum::<i64>()
             + q.economic_state_t.escrows_t.0.values().map(|e| e.amount.micro_units()).sum::<i64>()
             + q.economic_state_t.stakes_t.0.values().map(|e| e.amount.micro_units()).sum::<i64>()
-            + q.economic_state_t.claims_t.0.values().map(|c| c.amount.micro_units()).sum::<i64>()
             + q.economic_state_t.challenge_cases_t.0.values().map(|c| c.bond.micro_units()).sum::<i64>()
     }
 

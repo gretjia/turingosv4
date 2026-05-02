@@ -58,6 +58,15 @@ pub enum MonetaryError {
     /// dispatch arm (cache update missed) or direct `EconomicState` mutation
     /// outside an accepted transition (ghost liquidity attempt).
     DerivedCacheMismatch { task_id: TaskId, cached_micro: i64, derived_micro: i64 },
+    /// **TB-8 intent-vs-backing invariant violation**: an Open `claims_t`
+    /// entry promises a payout (`claim.amount`) that exceeds its backing
+    /// escrow row (`escrows_t[claim.escrow_lock_tx_id].amount`). Per TB-8
+    /// charter §3 Atom 1: claims are intent metadata, not holdings; the
+    /// money lives in `escrows_t` until finalize debits it. A claim
+    /// promising more than its backing is a fake-payout attempt and would
+    /// underflow at finalize-time. Reported by
+    /// [`assert_claim_amount_backed_by_escrow`].
+    ClaimUnbacked { claim_amount_micro: i64, backing_escrow_micro: i64 },
     /// Arithmetic overflow while summing economic state (i64).
     Overflow,
 }
@@ -81,6 +90,13 @@ impl std::fmt::Display for MonetaryError {
                     task_id, cached_micro, derived_micro
                 )
             }
+            Self::ClaimUnbacked { claim_amount_micro, backing_escrow_micro } => {
+                write!(
+                    f,
+                    "claim unbacked: claim.amount={} micro exceeds backing escrow={} micro",
+                    claim_amount_micro, backing_escrow_micro
+                )
+            }
             Self::Overflow => write!(f, "i64 overflow while summing economic state"),
         }
     }
@@ -94,11 +110,10 @@ impl std::error::Error for MonetaryError {}
 
 /// Sum of every coin-holding sub-index in `EconomicState`, in micro-units.
 ///
-/// Counted (each contributes its `MicroCoin` directly) — **5 holdings** post-TB-3:
+/// Counted (each contributes its `MicroCoin` directly) — **4 holdings** post-TB-8:
 /// - `balances_t` (agent-held)
 /// - `escrows_t` (locked under task; populated by `EscrowLockTx`)
 /// - `stakes_t` (locked under tx; populated by accepted WorkTx commitment)
-/// - `claims_t` (pending payout)
 /// - `challenge_cases_t.bond` (challenger-locked under case)
 ///
 /// NOT counted (not a holding):
@@ -109,12 +124,31 @@ impl std::error::Error for MonetaryError {}
 ///   TB-3 charter § 3.2 — counting it would double-mint every locked bounty
 ///   because the same money is also in `escrows_t`. Cache=truth is enforced
 ///   separately by `assert_task_market_total_escrow_matches_locks`.)
+/// - **`claims_t.amount`** (intent metadata, NOT a holding — see TB-8 5→4 below)
 ///
 /// **TB-3 6→5 holding migration** (2026-04-30): TB-1's `bounty` term over
 /// `task_markets_t[t].bounty` is removed. Bounty money has migrated to
 /// `escrows_t.amount` via accepted `EscrowLockTx`. `task_markets_t` retains
 /// only the cached aggregate `total_escrow` (NOT in supply sum) + admission
 /// metadata.
+///
+/// **TB-8 5→4 holding migration** (2026-05-02): `claims_t.amount` is removed
+/// from the holding sum. Per TB-8 charter §3 Atom 3 + ratification §1 Q5:
+/// the FinalizeReward dispatch arm moves money DIRECTLY from `escrows_t` to
+/// `balances_t` (not via claims_t as an intermediate holding). `claims_t` is
+/// the *intent registry*: claim creation at OMEGA-Confirm records "this
+/// solver is owed this amount" without moving money; the money still lives
+/// in `escrows_t` until finalize debits it. The `claim.amount` field is the
+/// cached intent (= `task_market.total_escrow` at claim creation per single-
+/// solver MVP). Counting `claims_t` here while ALSO counting the backing
+/// `escrows_t` rows would double-mint every claim. The intent-vs-backing
+/// integrity is enforced separately by
+/// [`assert_claim_amount_backed_by_escrow`].
+///
+/// **Pre-TB-8 baseline**: `claims_t` was always empty (the dispatch arm was
+/// `NotYetImplemented`); removing it from the sum changes nothing for
+/// historical L4 replay (forward-only schema migration per
+/// `feedback_no_retroactive_evidence_rewrite`).
 fn total_supply_micro(s: &EconomicState) -> Result<i64, MonetaryError> {
     let mut total: i64 = 0;
     for v in s.balances_t.0.values() {
@@ -126,9 +160,9 @@ fn total_supply_micro(s: &EconomicState) -> Result<i64, MonetaryError> {
     for e in s.stakes_t.0.values() {
         total = total.checked_add(e.amount.micro_units()).ok_or(MonetaryError::Overflow)?;
     }
-    for c in s.claims_t.0.values() {
-        total = total.checked_add(c.amount.micro_units()).ok_or(MonetaryError::Overflow)?;
-    }
+    // claims_t is INTENTIONALLY OMITTED — intent registry, not a holding
+    // (TB-8 charter §3 Atom 3 + ratification §1 Q5). The backing money lives
+    // in escrows_t; counting claims_t here would double-mint every claim.
     // task_markets_t.total_escrow is INTENTIONALLY OMITTED — derived cache,
     // not a holding (TB-3 charter § 3.2). Counting it would double-mint
     // every bounty: the same micro-coins are already counted in escrows_t.
@@ -136,6 +170,50 @@ fn total_supply_micro(s: &EconomicState) -> Result<i64, MonetaryError> {
         total = total.checked_add(c.bond.micro_units()).ok_or(MonetaryError::Overflow)?;
     }
     Ok(total)
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// TB-8 Atom 1 — assert_claim_amount_backed_by_escrow (intent-vs-backing)
+// ────────────────────────────────────────────────────────────────────────────
+
+/// TRACE_MATRIX TB-8 charter §3 Atom 1 + Atom 3 — claim-intent-vs-escrow-
+/// backing invariant.
+///
+/// Asserts that for every Open `claims_t` entry, the claim's intended payout
+/// (`claim.amount`) is ≤ the backing escrow row (`escrows_t[claim.escrow_lock_tx_id].amount`).
+/// Replaces the old "claims_t is a holding" semantics with the explicit
+/// intent-vs-backing check: a claim cannot promise more than its escrow
+/// holds. Finalized claims are excluded — once finalized, the escrow has been
+/// debited and the balance credited, so the integrity check no longer applies
+/// (claim.amount is now historical).
+///
+/// **Caller convention**: invoked from any dispatch arm that mutates
+/// `claims_t` or `escrows_t`. TB-8 dispatch sites:
+/// - Atom 1 (Verify-Confirm claim creation): post-mutation on `q_next`.
+/// - Atom 3 (FinalizeReward dispatch): post-mutation on `q_next` (the
+///   Finalized status flip means the just-finalized claim is excluded).
+pub fn assert_claim_amount_backed_by_escrow(
+    s: &EconomicState,
+) -> Result<(), MonetaryError> {
+    use crate::state::q_state::ClaimStatus;
+    for claim in s.claims_t.0.values() {
+        if claim.status != ClaimStatus::Open {
+            continue;
+        }
+        let backing = s
+            .escrows_t
+            .0
+            .get(&claim.escrow_lock_tx_id)
+            .map(|e| e.amount.micro_units())
+            .unwrap_or(0);
+        if claim.amount.micro_units() > backing {
+            return Err(MonetaryError::ClaimUnbacked {
+                claim_amount_micro: claim.amount.micro_units(),
+                backing_escrow_micro: backing,
+            });
+        }
+    }
+    Ok(())
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -495,16 +573,16 @@ mod tests {
     }
 
     #[test]
-    fn ctf_counts_all_five_holding_subindexes() {
+    fn ctf_counts_all_four_holding_subindexes() {
         // **TB-3 6→5 holding migration**: previously summed
         // balances + escrows + stakes + claims + bounty + bond (6).
-        // Now sums balances + escrows + stakes + claims + bond (5).
-        // task_markets_t.total_escrow is a DERIVED CACHE (TB-3 charter § 3.2),
-        // not a holding — counting it would double-count every locked bounty
-        // because the same money is in escrows_t. The 16-coin amount that
-        // previously seeded task_markets_t.bounty has migrated to a second
-        // escrows_t entry (this models how EscrowLockTx will route bounty
-        // money in TB-3 Atom 5).
+        // After TB-3: balances + escrows + stakes + claims + bond (5).
+        // **TB-8 5→4 holding migration** (2026-05-02): claims_t is now an
+        // intent registry, NOT a holding. Per TB-8 charter §3 Atom 3 + Atom 1
+        // ratification §1 Q5: FinalizeReward dispatches escrows → balances
+        // directly; claim.amount is cached intent metadata. Counting
+        // claims_t while ALSO counting backing escrows_t would double-mint
+        // every claim. Sums balances + escrows + stakes + bond (4).
         let mut s = EconomicState::default();
         s.balances_t.0.insert(agent("a"), coin(1));
         s.escrows_t.0.insert(
@@ -515,9 +593,19 @@ mod tests {
             tx("s"),
             StakeEntry { amount: coin(4), staker: agent("a"), task_id: task("task-s") },
         );
+        // **TB-8**: a claim_t entry is INTENT metadata. The coin(8) intent
+        // here references no escrow row (test fixture in isolation), so it
+        // is excluded from the supply sum below. The intent-vs-backing
+        // invariant `assert_claim_amount_backed_by_escrow` would catch any
+        // unbacked claim attached to a non-existent escrow row when fired
+        // from a real dispatch arm; here the seeded fixture is read-only.
         s.claims_t.0.insert(
             tx("c"),
-            ClaimEntry { amount: coin(8), claimant: agent("a") },
+            ClaimEntry {
+                amount: coin(8),
+                claimant: agent("a"),
+                ..Default::default()
+            },
         );
         // The 16 that used to live in task_markets_t.bounty now lives as a
         // second escrows_t entry — same money, canonical home.
@@ -530,9 +618,9 @@ mod tests {
         cc.challenger = agent("a");
         s.challenge_cases_t.0.insert(tx("ch"), cc);
 
-        // Each power of two distinct => sum = 63 base coin = 63_000_000 micro.
-        // (escrows_t now contributes 2 + 16 = 18; total still 63.)
-        assert_eq!(total_supply_micro(&s).unwrap(), 63 * MICRO_PER_COIN);
+        // 4 holdings post-TB-8: 1 + (2+16) + 4 + 32 = 55 (claims coin(8)
+        // is intent, NOT counted).
+        assert_eq!(total_supply_micro(&s).unwrap(), 55 * MICRO_PER_COIN);
     }
 
     #[test]

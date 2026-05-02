@@ -1839,12 +1839,17 @@ async fn run_swarm(
                                                 .ok()
                                                 .and_then(|s| s.parse().ok())
                                                 .unwrap_or(1_000);
-                                            let (work_tx, verify_tx) = {
+                                            // TB-8 Atom 4: WorkTx then VerifyTx must be sequenced — the
+                                            // VerifyTx's parent_state_root MUST reflect the post-Work state
+                                            // (else dispatch returns StaleParent and the Atom-1 writer
+                                            // never fires). Construct + submit Work; await state_root
+                                            // advance; THEN construct + submit Verify with fresh root.
+                                            let work_tx = {
                                                 let mut reg_guard = match reg.lock() {
                                                     Ok(g) => g,
                                                     Err(p) => p.into_inner(),
                                                 };
-                                                let w = match turingosv4::runtime::adapter::make_real_worktx_signed_by(
+                                                match turingosv4::runtime::adapter::make_real_worktx_signed_by(
                                                     &mut *reg_guard,
                                                     &task_id_str,
                                                     agent_id,
@@ -1860,20 +1865,43 @@ async fn run_swarm(
                                                         error!("[chaintape/atom3-omega] FAIL-CLOSED: make_real_worktx: {e}");
                                                         std::process::exit(3);
                                                     }
+                                                }
+                                            };
+                                            let work_tx_id = match &work_tx {
+                                                turingosv4::state::typed_tx::TypedTx::Work(w) => w.tx_id.clone(),
+                                                _ => {
+                                                    error!("[chaintape/atom3-omega] FAIL-CLOSED: make_real_worktx returned non-Work variant");
+                                                    std::process::exit(3);
+                                                }
+                                            };
+                                            if let Err(e) = bus.submit_typed_tx(work_tx).await {
+                                                error!("[chaintape/atom3-omega] FAIL-CLOSED: WorkTx submit_typed_tx: {e:?}");
+                                                std::process::exit(3);
+                                            }
+                                            // Await Work accept (state_root advance).
+                                            let post_work_root = match turingosv4::runtime::adapter::tb8_await_state_root_advance(
+                                                &bundle.sequencer, parent_state_root, 5000,
+                                            ).await {
+                                                Ok(r) => r,
+                                                Err(()) => {
+                                                    warn!("[chaintape/atom3-omega] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward");
+                                                    last_tx_by_agent.insert(agent_id.to_string(), work_tx_id.clone());
+                                                    continue;
+                                                }
+                                            };
+                                            // Construct VerifyTx with fresh post-work parent_state_root.
+                                            let verify_tx = {
+                                                let mut reg_guard = match reg.lock() {
+                                                    Ok(g) => g,
+                                                    Err(p) => p.into_inner(),
                                                 };
-                                                let work_tx_id = match &w {
-                                                    turingosv4::state::typed_tx::TypedTx::Work(w) => w.tx_id.clone(),
-                                                    _ => {
-                                                        error!("[chaintape/atom3-omega] FAIL-CLOSED: make_real_worktx returned non-Work variant");
-                                                        std::process::exit(3);
-                                                    }
-                                                };
-                                                let v = match turingosv4::runtime::adapter::make_real_verifytx_signed_by(
+                                                // TB-8 Atom 4: bond > 0 so VerifyTx lands on L4 (see Atom-4 doc).
+                                                match turingosv4::runtime::adapter::make_real_verifytx_signed_by(
                                                     &mut *reg_guard,
-                                                    parent_state_root,
-                                                    work_tx_id,
+                                                    post_work_root,
+                                                    work_tx_id.clone(),
                                                     agent_id,
-                                                    0,
+                                                    100_000,
                                                     &suffix,
                                                     true,
                                                     logical_t,
@@ -1883,25 +1911,29 @@ async fn run_swarm(
                                                         error!("[chaintape/atom3-omega] FAIL-CLOSED: make_real_verifytx: {e}");
                                                         std::process::exit(3);
                                                     }
-                                                };
-                                                (w, v)
-                                            };
-                                            // TB-7.7 D2: capture tx_ids before move.
-                                            let work_tx_id = match &work_tx {
-                                                turingosv4::state::typed_tx::TypedTx::Work(w) => Some(w.tx_id.clone()),
-                                                _ => None,
+                                                }
                                             };
                                             let verify_tx_id = match &verify_tx {
                                                 turingosv4::state::typed_tx::TypedTx::Verify(v) => Some(v.tx_id.clone()),
                                                 _ => None,
                                             };
-                                            if let Err(e) = bus.submit_typed_tx(work_tx).await {
-                                                error!("[chaintape/atom3-omega] FAIL-CLOSED: WorkTx submit_typed_tx: {e:?}");
-                                                std::process::exit(3);
-                                            }
                                             if let Err(e) = bus.submit_typed_tx(verify_tx).await {
                                                 error!("[chaintape/atom3-omega] FAIL-CLOSED: VerifyTx submit_typed_tx: {e:?}");
                                                 std::process::exit(3);
+                                            }
+                                            let work_tx_id = Some(work_tx_id);
+                                            // TB-8 Atom 4 — emit FinalizeReward after the VerifyTx
+                                            // commits. Best-effort poll-then-emit (zero-window MVP per
+                                            // ratification §1 Q3); failure does NOT fail the run since
+                                            // the L4 OMEGA evidence is the durable signal.
+                                            if let Some(vid) = verify_tx_id.clone() {
+                                                match turingosv4::runtime::adapter::tb8_emit_finalize_after_verify(
+                                                    &bundle.sequencer, &vid, 5000,
+                                                ).await {
+                                                    Ok(true) => info!("[chaintape/tb8/atom4] FinalizeReward emitted for verify_tx={vid:?}"),
+                                                    Ok(false) => warn!("[chaintape/tb8/atom4] FinalizeReward poll budget expired (claim not yet in claims_t) for verify_tx={vid:?}"),
+                                                    Err(e) => warn!("[chaintape/tb8/atom4] FinalizeReward emit_system_tx error: {e:?}"),
+                                                }
                                             }
                                             // TB-7.7 D2: VerifyTx is the most recent same-agent submission;
                                             // record it as parent for any subsequent same-agent proposal.
@@ -2281,12 +2313,17 @@ async fn run_swarm(
                                                 .ok()
                                                 .and_then(|s| s.parse().ok())
                                                 .unwrap_or(1_000);
-                                            let (work_tx, verify_tx) = {
+                                            // TB-8 Atom 4: WorkTx then VerifyTx must be sequenced — the
+                                            // VerifyTx's parent_state_root MUST reflect the post-Work state
+                                            // (else dispatch returns StaleParent and the Atom-1 writer
+                                            // never fires). Construct + submit Work; await state_root
+                                            // advance; THEN construct + submit Verify with fresh root.
+                                            let work_tx = {
                                                 let mut reg_guard = match reg.lock() {
                                                     Ok(g) => g,
                                                     Err(p) => p.into_inner(),
                                                 };
-                                                let w = match turingosv4::runtime::adapter::make_real_worktx_signed_by(
+                                                match turingosv4::runtime::adapter::make_real_worktx_signed_by(
                                                     &mut *reg_guard,
                                                     &task_id_str,
                                                     agent_id,
@@ -2302,20 +2339,47 @@ async fn run_swarm(
                                                         error!("[chaintape/atom3-omega-pertactic] FAIL-CLOSED: make_real_worktx: {e}");
                                                         std::process::exit(3);
                                                     }
+                                                }
+                                            };
+                                            let work_tx_id = match &work_tx {
+                                                turingosv4::state::typed_tx::TypedTx::Work(w) => w.tx_id.clone(),
+                                                _ => {
+                                                    error!("[chaintape/atom3-omega-pertactic] FAIL-CLOSED: make_real_worktx returned non-Work variant");
+                                                    std::process::exit(3);
+                                                }
+                                            };
+                                            if let Err(e) = bus.submit_typed_tx(work_tx).await {
+                                                error!("[chaintape/atom3-omega-pertactic] FAIL-CLOSED: WorkTx submit_typed_tx: {e:?}");
+                                                std::process::exit(3);
+                                            }
+                                            // Await Work accept (state_root advance).
+                                            let post_work_root = match turingosv4::runtime::adapter::tb8_await_state_root_advance(
+                                                &bundle.sequencer, parent_state_root, 5000,
+                                            ).await {
+                                                Ok(r) => r,
+                                                Err(()) => {
+                                                    warn!("[chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward");
+                                                    let work_tx_id_str = work_tx_id.clone();
+                                                    last_tx_by_agent.insert(agent_id.to_string(), work_tx_id_str);
+                                                    continue;
+                                                }
+                                            };
+                                            // Construct VerifyTx with fresh post-work parent_state_root.
+                                            let verify_tx = {
+                                                let mut reg_guard = match reg.lock() {
+                                                    Ok(g) => g,
+                                                    Err(p) => p.into_inner(),
                                                 };
-                                                let work_tx_id = match &w {
-                                                    turingosv4::state::typed_tx::TypedTx::Work(w) => w.tx_id.clone(),
-                                                    _ => {
-                                                        error!("[chaintape/atom3-omega-pertactic] FAIL-CLOSED: make_real_worktx returned non-Work variant");
-                                                        std::process::exit(3);
-                                                    }
-                                                };
-                                                let v = match turingosv4::runtime::adapter::make_real_verifytx_signed_by(
+                                                // TB-8 Atom 4: bond > 0 so VerifyTx lands on L4 (was 0
+                                                // pre-TB-8, which made it BondInsufficient → L4.E and the
+                                                // claims_t writer never fired). 100_000 micro = 0.1 coin;
+                                                // every preseed-Agent has 1_000_000 micro budget.
+                                                match turingosv4::runtime::adapter::make_real_verifytx_signed_by(
                                                     &mut *reg_guard,
-                                                    parent_state_root,
-                                                    work_tx_id,
+                                                    post_work_root,
+                                                    work_tx_id.clone(),
                                                     agent_id,
-                                                    0,
+                                                    100_000,
                                                     &suffix,
                                                     true,
                                                     logical_t,
@@ -2325,26 +2389,28 @@ async fn run_swarm(
                                                         error!("[chaintape/atom3-omega-pertactic] FAIL-CLOSED: make_real_verifytx: {e}");
                                                         std::process::exit(3);
                                                     }
-                                                };
-                                                (w, v)
-                                            };
-                                            // TB-7.7 D2: capture tx_ids before move.
-                                            let work_tx_id = match &work_tx {
-                                                turingosv4::state::typed_tx::TypedTx::Work(w) => Some(w.tx_id.clone()),
-                                                _ => None,
+                                                }
                                             };
                                             let verify_tx_id = match &verify_tx {
                                                 turingosv4::state::typed_tx::TypedTx::Verify(v) => Some(v.tx_id.clone()),
                                                 _ => None,
                                             };
-                                            if let Err(e) = bus.submit_typed_tx(work_tx).await {
-                                                error!("[chaintape/atom3-omega-pertactic] FAIL-CLOSED: WorkTx submit_typed_tx: {e:?}");
-                                                std::process::exit(3);
-                                            }
                                             if let Err(e) = bus.submit_typed_tx(verify_tx).await {
                                                 error!("[chaintape/atom3-omega-pertactic] FAIL-CLOSED: VerifyTx submit_typed_tx: {e:?}");
                                                 std::process::exit(3);
                                             }
+                                            // TB-8 Atom 4 — emit FinalizeReward (per-tactic OMEGA path).
+                                            // Best-effort poll-then-emit per zero-window MVP.
+                                            if let Some(vid) = verify_tx_id.clone() {
+                                                match turingosv4::runtime::adapter::tb8_emit_finalize_after_verify(
+                                                    &bundle.sequencer, &vid, 5000,
+                                                ).await {
+                                                    Ok(true) => info!("[chaintape/tb8/atom4-pertactic] FinalizeReward emitted for verify_tx={vid:?}"),
+                                                    Ok(false) => warn!("[chaintape/tb8/atom4-pertactic] FinalizeReward poll budget expired for verify_tx={vid:?}"),
+                                                    Err(e) => warn!("[chaintape/tb8/atom4-pertactic] FinalizeReward emit error: {e:?}"),
+                                                }
+                                            }
+                                            let work_tx_id = Some(work_tx_id);
                                             // TB-7.7 D2: record latest tx as parent for next same-agent proposal.
                                             if let Some(tx_id) = verify_tx_id.or(work_tx_id) {
                                                 last_tx_by_agent.insert(agent_id.to_string(), tx_id);

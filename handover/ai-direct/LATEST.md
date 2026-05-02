@@ -6,6 +6,121 @@
 
 ---
 
+## 🚢 2026-05-02 — TB-8 SHIPPED — Minimal Payout / FinalizeRewardTx (Class 3 dual ship audit; PASS)
+
+**Session summary**: Closed the 5-step compile loop's settlement node. Every accepted L4 WorkTx with closed challenge window + no upheld challenge produces exactly one L4 FinalizeRewardTx that atomically debits `escrows_t` + credits `balances_t` + flips `claims_t.status` to Finalized. Dual external audit at strategic tier: **Gemini PASS** round-1; **Codex VETO** round-1 (RQ3 smoke packaging + RQ4 duplicate-Confirm DoS) → surgical remediation under `feedback_elon_mode_policy` round-2 auto-execute → **Codex PASS** round-2. Both auditors clear. TB-8 ship-gate test count: `cargo test --workspace = 725 / 0 / 150` (+13 net vs TB-7R 712 baseline).
+
+### TB-8 deliverables (8 atoms)
+
+```text
+Atom 0.5 (Class 0)  — handover/audits/CHARTER_RATIFICATION_TB_8_2026-05-02.md
+                      §1 Q1-Q5 + §2.1-§2.4 architectural clarifications + window-namespace correction
+Atom 1   (Class 2)  — claims_t writer at VerifyTx OMEGA-Confirm + ClaimEntry 6-field expansion
+                      + ClaimStatus enum + 5→4 holding migration on monetary_invariant
+                      (claims_t now intent registry; assert_claim_amount_backed_by_escrow + ClaimUnbacked)
+                      + round-2 one-claim-per-work_tx_id idempotency
+Atom 2   (Class 3)  — SystemEmitCommand::FinalizeReward { claim_id } variant + build_signed_system_tx
+                      arm + verify_emitted_system_tx_signature arm + EmitSystemError::ClaimNotFound
+                      (STEP_B preflight: handover/audits/STEP_B_PREFLIGHT_TB8_2026-05-02.md)
+Atom 3   (Class 3)  — TypedTx::FinalizeReward dispatch arm 9-step body (lookup → idempotency →
+                      window gate → upheld-challenge gate → Q-derived consistency → escrow gate →
+                      atomic mutation → 4 invariants → state_root advance via FINALIZE_REWARD_DOMAIN_V1)
+                      + TransitionError::ClaimAlreadyFinalized
+Atom 4   (Class 2)  — Evaluator OMEGA-branch caller: tb8_emit_finalize_after_verify (best-effort
+                      poll-then-emit) + tb8_await_state_root_advance (sequenced WorkTx→VerifyTx
+                      via post-Work parent_state_root) + bond=0→100_000 fix
+Atom 5   (Class 1)  — handover/evidence/tb_8_minimal_payout_smoke_2026-05-02/ — 7 runs across
+                      5+ distinct heldout-49 problems (mathd_algebra_171/107/359/10/11,
+                      mathd_numbertheory_961, aime_1997_p9). 5/7 SOLVED with Finalized claim +
+                      payout_micro=100_000; 2/7 UNSOLVED with no fake Finalized.
+                      + round-2 self-contained tar.gz packaging (full runtime_repo + cas dirs;
+                      sidecars included for clean verify_chaintape replay)
+Atom 6   (Class 0/1)— src/bin/audit_dashboard.rs §9 TB-8 Claims section with claim_status +
+                      payout_amount columns + aggregate row (total_payout sum)
+Atom 7   (Class 3)  — Recursive self-audit: handover/audits/RECURSIVE_AUDIT_TB_8_2026-05-02.md
+                      Codex impl-paranoid: handover/audits/CODEX_TB_8_SHIP_AUDIT_2026-05-02.md
+                        round-1: VETO (RQ3 + RQ4) → round-2 PASS post-remediation
+                      Gemini architectural: handover/audits/GEMINI_TB_8_SHIP_AUDIT_2026-05-02.md
+                        round-1: PASS at strategic tier `gemini-3.1-pro-preview` (NOT degraded)
+Atom 8   (Class 0)  — this LATEST.md update + TB_LOG.tsv row + TRACE_FLOWCHART_MATRIX.md TB-8 row
+                      + smoke evidence README + ship commit
+```
+
+### User-minimum 12-requirement contract — all GREEN
+
+```text
+Goal:
+  ✓ accepted proof → escrow → solver balance       (Atom 3 dispatch)
+
+Scope:
+  ✓ single solver / single verifier / no royalty / no NodeMarket / no multi-solver split
+
+Must:
+  ✓ FinalizeRewardTx system-only                    (Atom 2 + TB-3 foundations)
+  ✓ agent cannot submit FinalizeRewardTx            (TB-5 RSP-3.0 inheritance + test I121)
+  ✓ payout_sum ≤ escrow                             (Atom 3 step 6 + step 8 + RQ4 idempotency)
+  ✓ CTF conserved                                   (Atom 3 step 8; 4-holding sum delta=0)
+  ✓ dashboard shows payout                          (Atom 6 §9 Claims claim_status + payout_amount)
+  ✓ economic_state replay works                     (Atom 5 smoke; verify_chaintape per run)
+```
+
+### Ship-gate evidence
+
+```text
+command         = cargo test --workspace
+workspace_count = 725  (+13 net vs TB-7R ship 712; canonical reporting per feedback_workspace_test_canonical)
+failed          = 0
+ignored         = 150
+
+smoke evidence  = handover/evidence/tb_8_minimal_payout_smoke_2026-05-02/  (7 runs; 5/7 SOLVED + Finalized;
+                  2/7 UNSOLVED + no fake Finalized; replay_report.json all 7 indicators GREEN per run;
+                  self-contained tar.gz with sidecars per Codex RQ3 fix)
+
+dual audits     = Codex round-2 PASS (CODEX_TB_8_SHIP_AUDIT_2026-05-02.md + R2 supplement)
+                  Gemini round-1 PASS strategic-tier (GEMINI_TB_8_SHIP_AUDIT_2026-05-02.md, NOT degraded)
+self-audit      = RECURSIVE_AUDIT_TB_8_2026-05-02.md (4-clause + 9 ship gates + 12 user-min all GREEN)
+
+architectural   = 5→4 holding migration on monetary_invariant (claims_t becomes intent registry;
+                  +assert_claim_amount_backed_by_escrow + ClaimUnbacked variant)
+                  zero-window MVP per ratification §1 Q3 + §2.4 namespace correction
+                  one-claim-per-work_tx_id idempotency (round-2 RQ4 fix)
+                  smoke evidence self-contained tar.gz (round-2 RQ3 fix)
+
+next-TB         = TB-9 Durable AgentRegistry + Wallet Projection (per directive 2026-05-02 ruling 13)
+```
+
+### Empirical observations recorded mid-session
+
+1. **Verify bond=0 → BondInsufficient → no claim creation**. The pre-fix smoke showed `chain_oracle_verified=true` but no Verify on L4 because both OMEGA emit sites passed `bond_micro=0` → dispatch rejected as BondInsufficient → L4.E. Fix: bond=0→100_000 micro at both sites.
+2. **WorkTx + VerifyTx parent namespace mismatch**. The post-bond-fix smoke still showed Verify hitting L4.E with `stale_parent_root` because both were constructed before either was submitted (WorkTx accept advanced state_root, queued VerifyTx became stale). Fix: split into two phases — submit WorkTx, await state_root advance via `tb8_await_state_root_advance`, THEN construct + submit VerifyTx with fresh parent.
+3. **Codex round-1 RQ4 duplicate-Confirm denial-of-payout**. Two Confirm VerifyTxs targeting the same WorkTx created two Open claims, both backed per-claim but aggregate exceeds escrow → finalize fails post-mutation. Fix: one-claim-per-work_tx_id idempotency in Atom-1 writer.
+4. **Codex round-1 RQ3 smoke evidence not replayable**. tar.gz of `.git`-only missed required verifier sidecars. Fix: tar full `runtime_repo/` + `cas/` directories.
+
+### Next-session prompt (paste verbatim at start of new session)
+
+```text
+TB-9 charter design: Durable AgentRegistry + Wallet Projection.
+
+CONTEXT (READ IN ORDER):
+1. /home/zephryj/projects/turingosv4/CLAUDE.md
+2. /home/zephryj/projects/turingosv4/handover/ai-direct/LATEST.md   (top section: TB-8 ship)
+3. /home/zephryj/projects/turingosv4/handover/tracer_bullets/TB-8_charter_2026-05-02.md §9
+   (post-TB-8 next-TB direction)
+4. /home/zephryj/projects/turingosv4/handover/architect-insights/ROADMAP_9_PHASE_2026-04-29.md
+   (TB-9 sequencing post-2026-05-02 directive amendment)
+5. /home/zephryj/projects/turingosv4/handover/directives/2026-05-02_lossless_constitution_polymarket_directive__part_C_updated_final_ruling.md
+   (ruling 13: NodeMarket starts after durable identity AND Lean Proof Task Market MVP)
+
+TASK: Charter TB-9 per ruling 13 sequencing. Run-local Ed25519 agent identity (TB-7) is
+ephemeral; TB-9 makes it persistent. Wallet collapses to read-only projection of
+EconomicState (no f64 mutation; EconomicState canonical). Class 3.
+
+Per memory feedback_tb_phase_tag_required: declare phase_id + roadmap_exit_criteria_addressed
++ kill_criteria_tested + flowchart_trace before commit.
+```
+
+---
+
 ## 📨 2026-05-02 — Architect directive ingested + TB-8 charter rewritten — READY TO START TB-8
 
 **Session summary**: Architect delivered a 3-layer directive (lossless constitution

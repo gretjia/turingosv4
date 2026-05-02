@@ -95,6 +95,32 @@ struct DashboardReport {
     /// TB-7.7 D6: golden path steps (only populated when chain_oracle_verified=true).
     golden_path: Vec<GoldenPathStep>,
     cross_checks: CrossCheck,
+    /// TB-8 Atom 6: per-claim audit-row (Open / Finalized) with payout amount.
+    /// Populated by walking L4 entries and matching VerifyTx{Confirm} → claim
+    /// derivation against any subsequent FinalizeRewardTx with the same claim_id.
+    claims: Vec<ClaimAuditRow>,
+}
+
+/// TB-8 Atom 6 — per-claim audit row for the dashboard's claims section.
+///
+/// Reflects the chain-derived claim lifecycle: a Confirm VerifyTx implies a
+/// claim creation (claim_id = "claim-<verify.tx_id>"); a subsequent
+/// FinalizeRewardTx with that claim_id flips status to Finalized and
+/// records the payout amount. Both columns satisfy the user-minimum
+/// requirement "dashboard shows payout" plus the broader status discriminator.
+#[derive(Debug, serde::Serialize)]
+struct ClaimAuditRow {
+    claim_id: String,
+    task_id: String,
+    solver: String,
+    /// "Open" or "Finalized" or "n/a" (no claim discoverable).
+    claim_status: String,
+    /// Payout amount in MicroCoin if Finalized; "—" otherwise.
+    payout_amount_micro: Option<i64>,
+    /// L4 logical_t of the Verify-Confirm that created this claim.
+    created_at_logical_t: u64,
+    /// L4 logical_t of the FinalizeReward that closed this claim, if any.
+    finalized_at_logical_t: Option<u64>,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -249,6 +275,9 @@ fn build_report(repo: &std::path::Path, cas_path: &std::path::Path) -> Result<Da
 
     let mut proposal_flow: Vec<ProposalFlowEntry> = Vec::new();
     let mut branch_lineage: Vec<BranchEdge> = Vec::new();
+    // TB-8 Atom 6: claim audit rows. Built in two passes within the entry
+    // walk: Confirm VerifyTx → Open row; FinalizeRewardTx → Finalized.
+    let mut claims_in_progress: Vec<ClaimAuditRow> = Vec::new();
     // TB-7.7 D6: oracle_verified_worktx_ids — set of accepted L4 WorkTx
     // tx_ids whose ProposalTelemetry.verification_result_cid resolves to
     // VerificationResult { verified: true }. Plus their telemetry for
@@ -340,6 +369,69 @@ fn build_report(repo: &std::path::Path, cas_path: &std::path::Path) -> Result<Da
                     tx_kind: "Verify".into(),
                     agent_id: Some(verify.verifier_agent.0.clone()),
                     tx_id: Some(verify.tx_id.0.clone()),
+                    candidate_tactic: None,
+                    branch_id: None,
+                    rejection_class: None,
+                    proposal_artifact_preview: None,
+                    oracle_verified: None,
+                });
+                // TB-8 Atom 6: a Confirm verdict creates a ClaimEntry; record
+                // the audit row here so the dashboard's claims section can
+                // flip Open → Finalized later when a matching FinalizeReward
+                // entry is observed.
+                if verify.verdict == turingosv4::state::typed_tx::VerifyVerdict::Confirm {
+                    // Best-effort solver lookup: walk back through entries
+                    // to find the WorkTx whose tx_id matches verify.target_work_tx
+                    // and read its agent_id. (Cheap O(n) linear scan; n is
+                    // small for TB-8 MVP runs.)
+                    let solver = entries
+                        .iter()
+                        .filter_map(|prev| {
+                            let bytes = cas.get(&prev.tx_payload_cid).ok()?;
+                            let tx: TypedTx = canonical_decode(&bytes).ok()?;
+                            if let TypedTx::Work(w) = tx {
+                                if w.tx_id == verify.target_work_tx {
+                                    return Some((w.agent_id.0.clone(), w.task_id.0.clone()));
+                                }
+                            }
+                            None
+                        })
+                        .next();
+                    let (solver_id, task_id) = solver.unwrap_or_else(|| ("(unknown)".into(), "(unknown)".into()));
+                    claims_in_progress.push(ClaimAuditRow {
+                        claim_id: format!("claim-{}", verify.tx_id.0),
+                        task_id,
+                        solver: solver_id,
+                        claim_status: "Open".into(),
+                        payout_amount_micro: None,
+                        created_at_logical_t: logical_t,
+                        finalized_at_logical_t: None,
+                    });
+                }
+            }
+            // TB-8 Atom 6: FinalizeRewardTx — flip the matching claim row to
+            // Finalized and record the payout amount.
+            TypedTx::FinalizeReward(fr) => {
+                if let Some(row) = claims_in_progress
+                    .iter_mut()
+                    .find(|r| r.claim_id == fr.claim_id.as_tx_id().0)
+                {
+                    row.claim_status = "Finalized".into();
+                    row.payout_amount_micro = Some(fr.reward.micro_units());
+                    row.finalized_at_logical_t = Some(logical_t);
+                    // Q-derived authoritative fields (already set at row
+                    // creation, but FinalizeReward wire fields are the
+                    // ledger-summary attestation; cross-check by overwriting
+                    // — they MUST agree by Atom 3 step 5 anti-forgery gate).
+                    row.solver = fr.solver.0.clone();
+                    row.task_id = fr.task_id.0.clone();
+                }
+                proposal_flow.push(ProposalFlowEntry {
+                    logical_t,
+                    side: "L4",
+                    tx_kind: "FinalizeReward".into(),
+                    agent_id: Some(format!("system (solver={})", fr.solver.0)),
+                    tx_id: Some(fr.tx_id.0.clone()),
                     candidate_tactic: None,
                     branch_id: None,
                     rejection_class: None,
@@ -545,6 +637,7 @@ fn build_report(repo: &std::path::Path, cas_path: &std::path::Path) -> Result<Da
         branch_lineage,
         golden_path,
         cross_checks,
+        claims: claims_in_progress,
     })
 }
 
@@ -787,5 +880,67 @@ fn render_text(r: &DashboardReport) -> String {
     s.push_str("   by the synthetic-seed hook; full per-LLM-proposal audit-trail\n");
     s.push_str("   wiring is part of TB-7.6 carry-forward action #4 / #5.)\n");
 
+    // §9 TB-8 Claims (Atom 6) — claim_status + payout_amount per row.
+    // Per user-minimum requirement: dashboard MUST show payout. The
+    // payout_amount column is populated when a FinalizeRewardTx for the
+    // claim_id appears on chain. The cross-check FinalizeRewardTx.reward
+    // == claim.amount is enforced at the dispatch arm (Atom 3 step 5);
+    // the dashboard reflects what landed on chain.
+    s.push('\n');
+    s.push_str("§9 TB-8 Claims (claim_status + payout_amount)\n");
+    s.push_str("----------------------------------------------\n");
+    if r.claims.is_empty() {
+        s.push_str("  (no Confirm-VerifyTx observed; n/a — claim_status / payout: n/a)\n");
+    } else {
+        s.push_str(
+            "  claim_id                          | task_id        | solver        | status     | payout_micro | created@t | finalized@t\n"
+        );
+        s.push_str(
+            "  ----------------------------------+----------------+---------------+------------+--------------+-----------+------------\n"
+        );
+        for c in &r.claims {
+            s.push_str(&format!(
+                "  {:<33} | {:<14} | {:<13} | {:<10} | {:>12} | {:>9} | {}\n",
+                trunc(&c.claim_id, 33),
+                trunc(&c.task_id, 14),
+                trunc(&c.solver, 13),
+                c.claim_status,
+                c.payout_amount_micro
+                    .map(|m| m.to_string())
+                    .unwrap_or_else(|| "—".into()),
+                c.created_at_logical_t,
+                c.finalized_at_logical_t
+                    .map(|t| t.to_string())
+                    .unwrap_or_else(|| "—".into()),
+            ));
+        }
+        // Aggregate: total payout sum (Finalized claims only).
+        let total_payout: i64 = r
+            .claims
+            .iter()
+            .filter_map(|c| c.payout_amount_micro)
+            .sum();
+        let n_open = r.claims.iter().filter(|c| c.claim_status == "Open").count();
+        let n_finalized = r.claims.iter().filter(|c| c.claim_status == "Finalized").count();
+        s.push_str(&format!(
+            "\n  Aggregate: {} claims observed | {} Open | {} Finalized | total_payout = {} micro\n",
+            r.claims.len(), n_open, n_finalized, total_payout
+        ));
+    }
+
     s
+}
+
+/// TB-8 Atom 6 — truncate a string to width, padding/truncating with '…'
+/// for clean dashboard alignment.
+fn trunc(s: &str, width: usize) -> String {
+    if s.len() <= width {
+        s.to_string()
+    } else if width >= 1 {
+        let mut t: String = s.chars().take(width.saturating_sub(1)).collect();
+        t.push('…');
+        t
+    } else {
+        String::new()
+    }
 }

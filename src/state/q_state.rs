@@ -229,18 +229,89 @@ impl Default for StakeEntry {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct ClaimsIndex(pub BTreeMap<TxId, ClaimEntry>);
 
-/// TRACE_MATRIX WP § 2 — claim entry shape (stub). Full fields land CO P2.6.
+/// TRACE_MATRIX WP § 2 — claim entry shape. Extended in TB-8 Atom 1
+/// (2026-05-02) per `handover/audits/CHARTER_RATIFICATION_TB_8_2026-05-02.md`
+/// §1 Q1 ratification: 6 new fields drive the Atom-3 FinalizeReward dispatch
+/// arm without re-traversing stakes_t / escrows_t / L4. All additive; every
+/// field carries `#[serde(default)]` so historical rows (TB-3..TB-7R never
+/// wrote a ClaimEntry — claims_t was a never-written stub) deserialize
+/// cleanly when re-read post-TB-8.
+///
+/// `status: ClaimStatus` is the terminal-state discriminator: `Open` at
+/// claim-creation (Atom-1 writer at VerifyTx OMEGA-Confirm), `Finalized` after
+/// the dispatch arm atomically credits the solver. `Slashed` is reserved for
+/// post-TB-15 slash-execution territory (per directive 2026-05-02 ruling 13).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ClaimEntry {
     #[serde(default = "MicroCoin::zero")]
     pub amount: MicroCoin,
     #[serde(default)]
     pub claimant: AgentId,
+    /// TB-8 Atom 1: which task's escrow funds this claim.
+    #[serde(default)]
+    pub task_id: TaskId,
+    /// TB-8 Atom 1: which `escrows_t` row to debit at finalize time.
+    #[serde(default)]
+    pub escrow_lock_tx_id: TxId,
+    /// TB-8 Atom 1: the accepted WorkTx whose OMEGA-Confirm produced this claim.
+    #[serde(default)]
+    pub work_tx_id: TxId,
+    /// TB-8 Atom 1: the OMEGA-Confirm VerifyTx that triggered claim creation.
+    #[serde(default)]
+    pub verify_tx_id: TxId,
+    /// TB-8 Atom 1: terminal-state discriminator (Open at claim-creation,
+    /// Finalized after the Atom-3 dispatch arm credits the solver).
+    #[serde(default)]
+    pub status: ClaimStatus,
+    /// TB-8 Atom 1: logical_t at which finalize becomes legal. TB-8 MVP
+    /// uses literal value 0 as the "window-closed-immediately" structural
+    /// marker per ratification §1 Q3 (corrected §2.4): the dispatch-arm
+    /// gate (`src/state/sequencer.rs::TypedTx::FinalizeReward`) fires only
+    /// when this field is > 0 AND `fr.timestamp_logical <=` this field —
+    /// at zero, the gate is trivially satisfied. agent-controlled
+    /// `verify.timestamp_logical` is intentionally NOT used as the source
+    /// (different namespace from sequencer-controlled `fr.timestamp_logical`).
+    /// A future TB introducing a real challenge window will set this to a
+    /// non-zero value in the sequencer namespace at claim-creation time.
+    #[serde(default)]
+    pub challenge_window_close_logical_t: u64,
 }
 
 impl Default for ClaimEntry {
     fn default() -> Self {
-        Self { amount: MicroCoin::zero(), claimant: AgentId::default() }
+        Self {
+            amount: MicroCoin::zero(),
+            claimant: AgentId::default(),
+            task_id: TaskId::default(),
+            escrow_lock_tx_id: TxId::default(),
+            work_tx_id: TxId::default(),
+            verify_tx_id: TxId::default(),
+            status: ClaimStatus::default(),
+            challenge_window_close_logical_t: 0,
+        }
+    }
+}
+
+/// TRACE_MATRIX TB-8 charter §3 Atom 1 + Atom 0.5 ratification §1 Q1 —
+/// claim terminal-state discriminator.
+///
+/// `Open` → `Finalized` is the cooperative settlement path (Atom-3
+/// FinalizeReward dispatch arm). `Slashed` is reserved for the adversarial
+/// path (RSP-3.2 slash, deferred to post-TB-15 territory per directive
+/// 2026-05-02 ruling 13). Idempotency at the Atom-3 dispatch arm reads this
+/// field — re-finalize on a `Finalized` claim → `ClaimAlreadyFinalized`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[repr(u8)]
+pub enum ClaimStatus {
+    Open = 0,
+    Finalized = 1,
+    /// Reserved for RSP-3.2 slash-execution (post-TB-15 per directive 2026-05-02).
+    Slashed = 2,
+}
+
+impl Default for ClaimStatus {
+    fn default() -> Self {
+        Self::Open
     }
 }
 

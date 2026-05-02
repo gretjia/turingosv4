@@ -1022,6 +1022,13 @@ pub enum TransitionError {
     // ── Finalize ───────────────────────────────────────────────────────────
     /// finalize_reward — no claim entry for the given claim_id.
     ClaimNotFound,
+    /// TB-8 Atom 3 (charter §3 Atom 3 + ratification §1 Q2): finalize_reward
+    /// idempotency — claim was already finalized by a prior accepted
+    /// FinalizeRewardTx. Distinct from `AlreadySlashed` (which marks the
+    /// adversarial-path terminal state); separate variants preserve the
+    /// reward/slash discriminator that Phase 4 Information Loom needs. Maps
+    /// to `L4ERejectionClass::PolicyViolation` per charter § 4.5.
+    ClaimAlreadyFinalized,
 
     // ── Task expire ────────────────────────────────────────────────────────
     /// task_expire — referenced TaskMarket entry not found.
@@ -1154,6 +1161,10 @@ impl std::fmt::Display for TransitionError {
             Self::ToolNotInRegistry => write!(f, "reuse tool not in registry"),
             Self::ToolCreatorMismatch => write!(f, "reuse tool creator mismatch"),
             Self::ClaimNotFound => write!(f, "claim not found"),
+            Self::ClaimAlreadyFinalized => write!(
+                f,
+                "claim already finalized (idempotent re-finalize rejected)"
+            ),
             Self::TaskNotFound => write!(f, "task not found"),
             Self::TaskNotExpired => write!(f, "task deadline not yet reached"),
             Self::TaskHasOpenClaim => write!(f, "task has at least one open claim"),
