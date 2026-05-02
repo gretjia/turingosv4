@@ -8,18 +8,21 @@
 //! swarm loop) MUST fail-closed rather than silently emitting evidence
 //! that cannot be reconstructed from ChainTape + CAS.
 //!
-//! TRACE_MATRIX FC1 (Runtime State Transition): the gate enforces that
-//! Q_t -> rtool -> Agent -> proposal -> predicates -> wtool -> Q_{t+1}
-//! is the only authoritative path under ChainTape mode.
+//! TRACE_MATRIX § 3 orphan (TB-7R 2026-05-02; see
+//! `handover/alignment/OBS_R022_TRACE_MATRIX_TB7R_ORPHANS_2026-05-02.md`):
+//! pre-routing predicate gate that fail-closes any CONDITION known to
+//! bypass `bus.submit_typed_tx` authoritative routing under ChainTape
+//! mode. No canonical TRACE_MATRIX row exists yet — promotion target
+//! is a future revision that adds an explicit row for this gate.
 //!
-//! `FC-trace: Art.I.1 + Art.III.4 + WP-§5.L3/L4`.
+//! `FC-trace: Art.I.1 + Art.III.4 + WP-§5.L3 + WP-§5.L4`.
 
 /// Conditions known to NOT route through `bus.submit_typed_tx`. In
 /// ChainTape mode these MUST fail-closed.
 const CHAINTAPE_UNSUPPORTED_CONDITIONS: &[&str] = &["oneshot"];
 
-/// TRACE_MATRIX FC1-N6 (predicate / wtool gate): result of the
-/// ChainTape mode-compatibility check.
+/// TRACE_MATRIX § 3 orphan (see module docstring + OBS_R022_TRACE_MATRIX_TB7R_ORPHANS_2026-05-02):
+/// result of the ChainTape mode-compatibility check.
 ///
 /// `Ok(())` means the condition is either compatible with ChainTape
 /// mode OR ChainTape mode is not active (legacy mode).

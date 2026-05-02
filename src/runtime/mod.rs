@@ -41,7 +41,7 @@ pub mod chain_derived_run_facts;
 /// TRACE_MATRIX FC1-N14: TB-7.7 D4 — VerificationResult CAS object recording Lean oracle verdict (target_work_tx / verifier_agent / lean_exit_code / lean_*_hash / proof_file_hash / proof_artifact_cid / verified). Linked from ProposalTelemetry.verification_result_cid.
 pub mod verification_result;
 
-/// TRACE_MATRIX FC2 (Boot / Genesis): TB-7R Deliverable C — `genesis_report.json` emitter capturing constitution_hash + runtime_repo + cas_path + system_pubkey_hash + agent_pubkeys_path + initial_balances + (preseed only) task_id / task_open_tx / escrow_lock_tx. Per architect verdict 2026-05-01 §6.1.
+/// TRACE_MATRIX § 3 orphan (see `handover/alignment/OBS_R022_TRACE_MATRIX_TB7R_ORPHANS_2026-05-02.md`): TB-7R Deliverable C — `genesis_report.json` emitter capturing constitution_hash + runtime_repo + cas_path + system_pubkey_hash + agent_pubkeys_path + initial_balances + (preseed only) task_id / task_open_tx / escrow_lock_tx. No canonical FC row exists yet (FC2 is Append/Submit, NOT Boot/Genesis); promotion target is a future TRACE_MATRIX revision under Article IV Boot. `FC-trace: Art.IV Boot + Art.I.1 + Art.III.4 + WP-§11`.
 pub mod genesis_report;
 
 use std::path::{Path, PathBuf};

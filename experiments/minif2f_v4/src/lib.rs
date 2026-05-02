@@ -15,8 +15,10 @@ pub mod run_id;
 /// evaluator binary's main() at TB-1 Day-4.
 pub mod h_vppu_history;
 
-/// TRACE_MATRIX FC1-N6 (predicate gate; runtime state transition):
-/// ChainTape-mode gate that fail-closes any CONDITION known to bypass
-/// `bus.submit_typed_tx` authoritative routing. Per architect verdict
-/// 2026-05-01 §5.6 / B3 — TB-7R Deliverable B.
+/// TRACE_MATRIX § 3 orphan (see
+/// `handover/alignment/OBS_R022_TRACE_MATRIX_TB7R_ORPHANS_2026-05-02.md`):
+/// ChainTape-mode pre-routing predicate gate that fail-closes any
+/// CONDITION known to bypass `bus.submit_typed_tx` authoritative
+/// routing. Per architect verdict 2026-05-01 §5.6 / B3 — TB-7R
+/// Deliverable B. `FC-trace: Art.I.1 + Art.III.4 + WP-§5.L3 + WP-§5.L4`.
 pub mod chaintape_mode_gate;

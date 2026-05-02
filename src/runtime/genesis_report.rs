@@ -1,5 +1,9 @@
-//! TRACE_MATRIX FC2 (Boot / Genesis): TB-7R Deliverable C — genesis-report
-//! emitter for ChainTape-mode runs.
+//! TRACE_MATRIX § 3 orphan (TB-7R 2026-05-02; see
+//! `handover/alignment/OBS_R022_TRACE_MATRIX_TB7R_ORPHANS_2026-05-02.md`):
+//! TB-7R Deliverable C — genesis-report emitter for ChainTape-mode runs.
+//! No canonical TRACE_MATRIX row exists yet (FC2 is canonically
+//! Append/Submit, NOT Boot/Genesis); promotion target is a future
+//! TRACE_MATRIX revision under the Article IV Boot heading.
 //!
 //! Per architect verdict 2026-05-01 §6.1: every ChainTape smoke must
 //! produce a `genesis_report.json` capturing the constitution + runtime
@@ -12,17 +16,21 @@
 //! fabricated `genesis_report.json`. Callers MUST construct the report
 //! at run-time, not synthesize it from a finished evidence dir.
 //!
-//! `FC-trace: FC2-Boot/Genesis + Art.I.1 + Art.III.4 + WP-§5.L3`.
+//! `FC-trace: Art.IV Boot (Bootstrap 公理 — 创世状态) + Art.I.1 + Art.III.4
+//! + WP-§5.L0 (Constitution Root) + WP-§11 Boot`.
 
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-/// TRACE_MATRIX FC2 (Boot / Genesis): on-disk shape of the run's
-/// genesis report. Written to `<runtime_repo>/genesis_report.json`
-/// after chaintape bootstrap (and after any pre-seed TaskOpen +
-/// EscrowLock submission, when applicable).
+/// TRACE_MATRIX § 3 orphan (see module docstring + OBS_R022_TRACE_MATRIX_TB7R_ORPHANS_2026-05-02):
+/// on-disk shape of the run's genesis report. Written to
+/// `<runtime_repo>/genesis_report.json` after chaintape bootstrap
+/// (and after any pre-seed TaskOpen + EscrowLock submission, when
+/// applicable). Public fields below inherit this struct's TRACE_MATRIX
+/// backlink rather than each carrying their own (per OBS § public-field
+/// doc-comment policy).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GenesisReport {
     /// SHA-256 of `constitution.md` at run time (hex). When the run is
@@ -70,8 +78,9 @@ pub struct GenesisReport {
 }
 
 impl GenesisReport {
-    /// TRACE_MATRIX FC2 (Boot / Genesis): write the report to
-    /// `<runtime_repo>/genesis_report.json` as pretty-printed JSON.
+    /// TRACE_MATRIX § 3 orphan (see module docstring + OBS_R022_TRACE_MATRIX_TB7R_ORPHANS_2026-05-02):
+    /// write the report to `<runtime_repo>/genesis_report.json` as
+    /// pretty-printed JSON.
     /// Caller MUST ensure `runtime_repo` exists. Overwrites any prior
     /// report at the same path.
     pub fn write_to_runtime_repo(&self, runtime_repo: &Path) -> std::io::Result<()> {
@@ -85,9 +94,9 @@ impl GenesisReport {
         std::fs::write(path, json)
     }
 
-    /// TRACE_MATRIX FC2 (Boot / Genesis): hash a constitution.md file
-    /// to the hex SHA-256 used in `constitution_hash`. Returns `None`
-    /// if the file cannot be read.
+    /// TRACE_MATRIX § 3 orphan (see module docstring + OBS_R022_TRACE_MATRIX_TB7R_ORPHANS_2026-05-02):
+    /// hash a constitution.md file to the hex SHA-256 used in
+    /// `constitution_hash`. Returns `None` if the file cannot be read.
     pub fn hash_constitution_md(constitution_path: &Path) -> Option<String> {
         let bytes = std::fs::read(constitution_path).ok()?;
         let mut hasher = Sha256::new();
@@ -95,9 +104,10 @@ impl GenesisReport {
         Some(hex_encode(&hasher.finalize()))
     }
 
-    /// TRACE_MATRIX FC2 (Boot / Genesis): hash the contents of
-    /// `pinned_pubkeys.json` to derive a stable identifier for the
-    /// system epoch. Returns `None` if the file cannot be read.
+    /// TRACE_MATRIX § 3 orphan (see module docstring + OBS_R022_TRACE_MATRIX_TB7R_ORPHANS_2026-05-02):
+    /// hash the contents of `pinned_pubkeys.json` to derive a stable
+    /// identifier for the system epoch. Returns `None` if the file
+    /// cannot be read.
     pub fn hash_system_pubkey_manifest(runtime_repo: &Path) -> Option<String> {
         let bytes = std::fs::read(runtime_repo.join("pinned_pubkeys.json")).ok()?;
         let mut hasher = Sha256::new();
