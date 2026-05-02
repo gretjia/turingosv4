@@ -6,6 +6,100 @@
 
 ---
 
+## 🚢 2026-05-02 — TB-7R SHIPPED — Constitution-Aligned Frame B Repair (Class 3 dual ship audit; PASS)
+
+**Session summary**: TB-7R ship-gate. Codex round-1 returned **VETO/HIGH** on
+evidence packaging defect (committed evidence omitted `runtime_repo/.git/` +
+`cas/.git/objects/`; CasStore::get failed to resolve from committed-only state;
+acceptance clause 4 + ship cond #5 violated). Gemini PASS at strategic tier
+(`gemini-3.1-pro-preview`; 4/5 conviction; NOT degraded). Per
+`feedback_dual_audit_conflict` (VETO > CHALLENGE > PASS): VETO blocked ship.
+Per `feedback_elon_mode_policy` round-2 auto-execute: determinate-best surgical
+remediation (evidence packaging via tar.gz + replay_report.json per run + OBS
+framing tightening) → Codex round-2 **PASS** (RQ1-RQ4 all green). Both auditors
+clear. TB-7R shipped at `55680bb` + `46716ae` (TB_LOG hash backfill); pushed to origin/main.
+
+### Final ship-gate
+
+```text
+command         = cargo test --workspace
+workspace_count = 712  (+26 vs TB-7 ship 686; no code change in remediation; new tests are TB-7R Deliverables A-F)
+failed          = 0
+ignored         = 150
+HEAD            = 46716ae
+ship commit     = 55680bb (4934 insertions / 17 deletions / 41 files)
+```
+
+### TB-7R commit chain (7 commits on main)
+
+| Commit | Subject | Class |
+|---|---|---|
+| `696d10f` | TB-7R A+B+E — verdict ingestion + L4 purity + ChainTape-mode fail-closed | Class 1 + 0 |
+| `392a516` | TB-7R C+D+CP2 — genesis_report.json + on-chain TaskOpen/EscrowLock verification | Class 2 |
+| `b517ae5` | TB-7R audit-fix — Codex Claim 7 remediation (orphan TRACE_MATRIX) | Class 0 |
+| `013f2ce` | TB-7R F — smoke evidence; 10 runs single/half/full | Class 1 |
+| `4470036` | TB-7R parent_tx ParentTxState 4-variant + 6 conformance tests + verdict 2026-05-02 | Class 2 |
+| `55680bb` | TB-7R SHIPPED — Class 3 dual ship audit; PASS (this session) | Class 1 |
+| `46716ae` | TB-7R TB_LOG hash backfill | Class 0 |
+
+### 4-clause acceptance + 7-condition ship gate closure
+
+| Item | Status | Evidence |
+|---|---|---|
+| Acceptance clause 1 (every externalized → L4/L4.E) | GREEN under three-node taxonomy | OBS-1 §2.1.a documents PartialOk → Complete proof-prefix as TB-8+ scope |
+| Acceptance clause 2 (predicate evidence resolves from CAS) | GREEN | Codex round-2 RQ3 walked end-to-end CID chain on single_n1: entry_payload → work_proposal → telemetry_VR → proof_artifact, all sha256-validated |
+| Acceptance clause 3 (failed shielded; auditable) | GREEN | TB-1 P0-3 serde shield holds; dashboard reads only `rejection_class` |
+| Acceptance clause 4 (dashboard regeneratable from ChainTape + CAS alone) | GREEN | 10/10 runs round-trip from committed `runtime_repo.dotgit.tar.gz` + `cas.dotgit.tar.gz` |
+| Ship cond 1-7 | ALL GREEN | per `handover/audits/RECURSIVE_AUDIT_TB_7R_2026-05-02.md` §4 |
+
+### Audit verdicts (Class 3 full dual at strategic tier; NOT degraded)
+
+| Auditor | Round 1 | Remediation | Round 2 | Final |
+|---|---|---|---|---|
+| Codex (impl-paranoid) | VETO/HIGH (evidence packaging) | tar.gz + replay_report + OBS tightening (~30 min surgical) | PASS RQ1-RQ4 | PASS |
+| Gemini `gemini-3.1-pro-preview` (architectural) | PASS 4/5; SHIP-CLEAR WITH OBS-TIGHTENING | — | — | PASS |
+
+**Round-1 finding closure**:
+- F1 Evidence packaging → tar.gz × 10 runs, 892 KB total committed (vs 4.8 MB loose; tar.gz needed because git auto-ignores nested `.git/`)
+- F2 `replay_report.json` per run → committed; 7 top-level booleans true + initial_q_state_loaded_from_disk=true on all 10
+- F3 PartialOk → Complete proof-prefix dependency → OBS-1 §2.1.a + §4.3 (deferred to TB-8+ per verdict A1=B′)
+- F4 OBS-2 prompt-pollution premise stale → closed-as-empirically-unfounded per Codex Q10 (acc.record_tool_stdout only increments token cost; raw Lean text never hits prompt)
+
+### Open follow-ups (carry-forward; NOT ship blockers)
+
+1. **OBS-1 coverage denominator** (`handover/alignment/OBS_TB7R_COVERAGE_DENOMINATOR_2026-05-02.md`) — architect-acknowledged post-TB-7R. PartialOk → Complete proof-prefix dependency: accepted L4 WorkTx `proof_artifact_cid` resolves to `tactic` only, but verify_partial uses `tape_chain + tactic`. §4.3 hardening: route PartialOk through chain OR store concatenated `tape_chain + tactic` blob in CAS. Closure → TB-8+ per-tactic decomposition or TB-8.5 dedicated atom.
+2. **OBS-R022 TRACE_MATRIX orphans** (`handover/alignment/OBS_R022_TRACE_MATRIX_TB7R_ORPHANS_2026-05-02.md`) — 2 modules (`chaintape_mode_gate.rs` + `genesis_report.rs`) registered as orphans. Closure → future TRACE_MATRIX revision adds canonical rows under Art. IV Boot.
+3. **CHECKPOINT_TB7R_2 #1** — `tb_7_chaintape_smoke_2026-05-01/README.md` annotation reverts via editor hook; investigate next session. Non-blocking.
+4. **Pre-existing dirty files** (untouched this session, predate TB-7R): `h_vppu_history.json`, `handover/evidence/tb_7_chaintape_smoke_2026-05-01/*` (3 files), `rules/enforcement.log`. Treat as background drift / runtime artifacts.
+
+### Memory updates from this session
+None — no new memory rules. The session validated existing rules:
+- `feedback_dual_audit_conflict` (VETO > CHALLENGE > PASS) drove the round-1 block
+- `feedback_elon_mode_policy` round-2 auto-execute exception covered the surgical remediation
+- `feedback_dual_audit` Class 3 hybrid + degraded-mode rules guided audit launches
+- `feedback_workspace_test_canonical` mandated reporting shape
+
+### Next-TB direction (decided 2026-05-02, end-of-session)
+
+**TB-8 = minimal payout / FinalizeRewardTx** per architect ruling 2026-05-01 §13 sequencing + memory `feedback_launch_priority` (Audit dashboard → Minimal payout → Beta launch) + memory `feedback_iteration_cap_24h` (capability-first; on-chain settlement is shortest path to H-VPPUT signal beyond proposal-acceptance).
+
+**Scope**: single-solver / single-verifier / no royalty / no DAG / no NodeMarket. First on-chain settlement primitive. Closes the basic 5-step compile loop (Proposal → Ground-Truth Feedback → **Settlement** → Logging → Capability Compilation → ↑H-VPPUT) at the settlement node.
+
+**Class**: Class 3 (auth-crypto-money — new system-emitted economic mutator). STEP_B preflight required for `src/state/sequencer.rs` (new FinalizeRewardTx dispatch arm). Full dual audit at strategic tier mandatory.
+
+**Forbidden** (carry forward + post-MVP per ruling §6/§8): NodeMarket trading, AMM, multi-solver royalty, DAG-aware payout splits, public-chain anchoring, MetaTape, multi-org, full RSP-4 settlement, P6 expansion.
+
+**Alternative directions** (if next-session redirect needed):
+- **TB-8 OBS-1 coverage hardening** — PartialOk → chain-routing + self-contained proof artifact. Tech-debt cleanup; doesn't move H-VPPUT axis. Skip unless OBS-1 starts blocking other work.
+- **TB-7.5 audit dashboard expansion** — UI / multi-run roll-ups. Lighter; pure additive; could be a session interlude before TB-8.
+
+### Repo state (post-TB-7R)
+- HEAD: `46716ae` (TB-7R TB_LOG backfill)
+- origin/main: synced (pushed 2026-05-02 end-of-session)
+- Working tree dirty (unrelated, pre-existing): `h_vppu_history.json`, `tb_7_chaintape_smoke_2026-05-01/*`, `rules/enforcement.log`
+
+---
+
 ## 🚢 2026-05-01 — TB-7 SHIPPED — Frame B authoritative routing (Atoms 1 / 1.5 / 1.7 / 2 / 3 / 4 / 5 / 6 / 7)
 
 **Session summary**: User authorized "自主执行直到 TB-7 审计结束" (autonomous execution until TB-7 audit ends).
