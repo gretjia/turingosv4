@@ -5,6 +5,8 @@
 > **Scope**: This doc is the canonical "where are we, what was decided, what was skipped, what's next" reference. Update on every decision fork.
 > **Format**: each table marks fate of each option: ✅ CHOSEN / ⛔ PERMANENTLY RETIRED / ⏸ DEFERRED / 🚫 VETOED / ⏳ PENDING USER / 🔄 IN PROGRESS
 
+> **Amended 2026-05-02 (post-TB-7R ship + lossless-constitution / Polymarket-absorption directive)**: per `handover/directives/2026-05-02_lossless_constitution_polymarket_directive.md`, the post-TB-7R sequence is now anchored to **v1.0 Lean Proof Task Market launch**. New TB chain: TB-8 Minimal Payout / FinalizeRewardTx (Class 3) → TB-9 Durable AgentRegistry → TB-10 Lean Proof Task Market MVP → TB-11 NodePosition / PriceIndex → TB-12 CompleteSet / MarketSeedTx → TB-13 CPMM Router → TB-14 Boltzmann Masking → TB-15 Lamarckian Autopsy / Markov Log Loom → TB-16 Beta → v1.0. Polymarket / CTF math formally absorbed via four decision records (POLYMARKET_CORE / CPMM_MINT_AND_SWAP / MARKET_SEED_NO_GHOST_LIQUIDITY / LAMARCKIAN_AUTOPSY_BOLTZMANN dated 2026-05-02 in `handover/alignment/`). Three flowcharts gain SHA256-anchored canonical status; see `handover/alignment/TRACE_FLOWCHART_MATRIX.md`. The literal phrase "每个新节点自动注入 100 YES + 100 NO" is REJECTED; rewritten as `MarketSeedTx` from `on_init MarketMakerBudget`. Layer 1 invariants NOT VIOLATED (kernel purity intact; Append-Only DAG and economic conservation STRENGTHENED). Constitution.md NOT amended (ruling 15: sudo-only). RSP-3.2 Slash deferred from TB-9 to post-payout territory; slash hardens the payout invariant, doesn't precede it.
+
 ---
 
 ## § 1 Project Identity

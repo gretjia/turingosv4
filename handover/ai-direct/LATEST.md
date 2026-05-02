@@ -6,6 +6,180 @@
 
 ---
 
+## 📨 2026-05-02 — Architect directive ingested + TB-8 charter rewritten — READY TO START TB-8
+
+**Session summary**: Architect delivered a 3-layer directive (lossless constitution
+integrated edition + first plan + updated final ruling, "以最后的为准") absorbing
+Polymarket / CTF math while explicitly REJECTING ghost liquidity. Per
+`/architect-ingest` SOP: archived verbatim (per `feedback_kolmogorov_compression` —
+no "distill", no store-by-reference), Layer-1 impact-detected (no violations;
+Append-Only DAG + economic conservation STRENGTHENED), four decision records
+created, TRACE_FLOWCHART_MATRIX created, TB-8 charter rewritten with `flowchart_trace`
+declarations, ROADMAP_9_PHASE + PROJECT_DECISION_MAP amended. **No code touched
+this session — only directive landing.** TB-8 ready to start.
+
+### Directive landing inventory
+
+```text
+handover/directives/   (Kolmogorov-lossless archive, ~228 KB)
+  2026-05-02_lossless_constitution_polymarket_directive.md                            (overview + Layer 1 verdict)
+  ..._part_A_lossless_integrated_edition.md                                            (Part A §0-§6 verbatim)
+  ..._part_A_appendix_B_group_intelligence.md                                          (verbatim full text)
+  ..._part_A_appendix_C_turing_machine_philosophy.md                                   (verbatim + flagged simulation-table abridgment)
+  ..._part_A_appendix_D_verification_asymmetry.md                                      (verbatim full text)
+  ..._part_B_first_plan.md                                                             (superseded plan verbatim)
+  ..._part_C_updated_final_ruling.md                                                   (canonical ruling verbatim)
+
+handover/alignment/
+  DECISION_POLYMARKET_CORE_2026-05-02.md                  1 Coin = 1 YES_E + 1 NO_E
+  DECISION_CPMM_MINT_AND_SWAP_2026-05-02.md               poolY * poolN = k math + invariants
+  DECISION_MARKET_SEED_NO_GHOST_LIQUIDITY_2026-05-02.md   no automatic injection; MarketSeedTx debit required
+  DECISION_LAMARCKIAN_AUTOPSY_BOLTZMANN_2026-05-02.md     private autopsy, read-view masking
+  TRACE_FLOWCHART_MATRIX.md                               TB ↔ Flowchart 1/2/3 mapping (TB-1..TB-7R back-fill + TB-8 forward)
+
+handover/architect-insights/   (2 new + 2 amended)
+  2026-05-02_flowchart_hashes_and_trace_matrix.md          NEW
+  2026-05-02_polymarket_absorption_guards.md               NEW
+  PROJECT_DECISION_MAP_2026-04-27.md                       +1 amendment block (post-TB-7R → v1.0 sequence)
+  ROADMAP_9_PHASE_2026-04-29.md                            +1 amendment block (TB-8 → TB-15 → v1.0 chain)
+
+handover/tracer_bullets/
+  TB-8_charter_2026-05-02.md                               REWRITTEN (376 lines) — flowchart_trace + decision-record links + updated forbidden list (20 items) + updated next-TB direction (TB-9 = Durable AgentRegistry)
+
+memory/
+  feedback_kolmogorov_compression.md                       NEW (never "distill", always lossless)
+  MEMORY.md                                                +1 index entry
+```
+
+### Layer 1 verdict (from main archive §9)
+
+```text
+kernel.rs 零领域知识        : NOT VIOLATED  (all changes route through state/predicates layers)
+Append-Only DAG             : STRENGTHENED  (Boltzmann mask is read-view only; ChainTape never deletes parent)
+Economic conservation       : STRENGTHENED  (no ghost liquidity; MarketSeedTx debit required; Laws 1-2 verified at constitution.md:159-160)
+Constitution.md edit needed : NO            (ruling 15: sudo-only)
+Sudo trigger                : NONE
+```
+
+### Post-TB-8 → v1.0 roadmap (canonical per directive Part C)
+
+```text
+TB-8   Minimal Payout / FinalizeRewardTx                    Class 3, 72h+24h-checkpoints, STEP_B on Atoms 2+3
+TB-9   Durable AgentRegistry + Wallet Projection             Class 3
+TB-10  Lean Proof Task Market MVP                            Class 3 (first user-facing product)
+TB-11  RSP-M0/M1 NodePosition + PriceIndex (no trading)      Class 1
+TB-12  CompleteSet + MarketSeedTx                            Class 3
+TB-13  CPMM Router (mint-and-swap)                           Class 3
+TB-14  PriceIndex + Boltzmann masking (read-view only)       Class 1
+TB-15  Lamarckian Autopsy + Markov Log Loom (EvidenceCapsule) Class 1
+TB-16  Beta with market signals
+v1.0   Lean Proof Task Market on ChainTape (≥100 tasks replayable)
+
+RSP-3.2 Slash re-deferred to post-TB-15 territory (slash hardens the payout invariant; payout *is* the invariant).
+NodeMarket trading (TB-17) is post-v1.0.
+```
+
+### TB-7R state remains GREEN
+
+TB-7R remains shipped at commits `55680bb` + `46716ae` + `17d69de`. No regression introduced this session (no code touched; only handover/directive/alignment files).
+
+712 / 0 fail / 150 ignored — unchanged baseline for TB-8 to extend (+20-30 expected).
+
+### Open Atom-0.5 ratification questions (TB-8 charter §7)
+
+These are NOT shipping blockers — they are charter ratification points to resolve at TB-8 Atom 0.5 before Atom 1 begins:
+
+1. **`ClaimEntry` schema extension shape** — 6-field expansion as proposed, or compact `{ amount, claimant, status, lookup_refs }` packed shape?
+2. **Idempotency error variant naming** — add `ClaimAlreadyFinalized`, broaden `ClaimAlreadySlashed`, or introduce `ClaimAlreadyResolved(ClaimStatus)`?
+3. **Zero-window MVP vs minimum-1-block window** — solo-run zero-window is the literal `feedback_launch_priority` minimal-payout, but `Art.III.4 challenge_window_closed` semantically wants a window.
+4. **Conservation invariant: `debug_assert` vs `assert`** — debug-time check + dedicated release-mode test, or always-on panic guard?
+5. **`reward_factor`** — `claim.amount = task_market_entry.total_escrow` for single-solver MVP, or reserve a platform-fee placeholder field?
+
+Proposed defaults (charter §7): 1=6-field, 2=add `ClaimAlreadyFinalized`, 3=zero-window, 4=`debug_assert` + release test, 5=total_escrow no-fee.
+
+### Next-session prompt (paste verbatim at start of new session)
+
+```text
+TB-8 Atom 0.5 + Atom 1-8 sequenced execution.
+
+CONTEXT (READ IN ORDER):
+
+1. /home/zephryj/projects/turingosv4/CLAUDE.md
+2. /home/zephryj/projects/turingosv4/handover/ai-direct/LATEST.md   (top section: 2026-05-02 directive ingest)
+3. /home/zephryj/projects/turingosv4/constitution.md                 (canonical, especially Laws 1-2 line 159-160 + Art. III.4)
+4. /home/zephryj/projects/turingosv4/handover/tracer_bullets/TB-8_charter_2026-05-02.md   (rewritten — your work order)
+5. /home/zephryj/projects/turingosv4/handover/directives/2026-05-02_lossless_constitution_polymarket_directive.md   (overview)
+6. /home/zephryj/projects/turingosv4/handover/directives/2026-05-02_lossless_constitution_polymarket_directive__part_C_updated_final_ruling.md   (canonical 15 numbered rulings)
+7. /home/zephryj/projects/turingosv4/handover/alignment/TRACE_FLOWCHART_MATRIX.md   (you must add a TB-8 row at Atom 8)
+8. /home/zephryj/projects/turingosv4/handover/alignment/DECISION_POLYMARKET_CORE_2026-05-02.md
+9. /home/zephryj/projects/turingosv4/handover/alignment/DECISION_CPMM_MINT_AND_SWAP_2026-05-02.md
+10. /home/zephryj/projects/turingosv4/handover/alignment/DECISION_MARKET_SEED_NO_GHOST_LIQUIDITY_2026-05-02.md
+11. /home/zephryj/projects/turingosv4/handover/alignment/DECISION_LAMARCKIAN_AUTOPSY_BOLTZMANN_2026-05-02.md
+   (8-11: forward decisions — they bind TB-11..TB-15 forbidden lines but hold for TB-8 too:
+    NO ghost liquidity, NO agent-submitted system tx, NO predicate override.)
+
+DO NOT RE-INGEST THE DIRECTIVE. It's already archived under /handover/directives/2026-05-02_*. Read but do not duplicate.
+
+WHAT TO DO:
+
+Step 1 — TB-8 Atom 0.5: write architect ratification document at
+handover/audits/CHARTER_RATIFICATION_TB_8_2026-05-XX.md resolving the 5 open
+questions in TB-8 charter §7. The charter's proposed defaults are reasonable;
+present them as the recommended path with brief justification, then ASK USER
+TO RATIFY before starting Atom 1. Per `feedback_no_fake_menus`: state the
+recommendation as the answer, not as one of N options.
+
+Step 2 — TB-8 Atom 1 through Atom 8 in sequence per the charter §3 + §6 plan:
+  Atom 1 — claims_t writer at VerifyTx OMEGA accept                Class 2, 24h
+  Atom 2 — SystemEmitCommand::FinalizeReward ingress                Class 3, 24h, STEP_B preflight
+  Atom 3 — TypedTx::FinalizeReward dispatch arm (load-bearing)      Class 3, 72h with 24h checkpoints, STEP_B preflight
+  Atom 4 — Evaluator OMEGA-branch caller                            Class 2, 24h
+  Atom 5 — ChainTape smoke evidence (10 runs)                       Class 1, 24h
+  Atom 6 — Audit-dashboard claim_status column                      Class 0/1, 24h
+  Atom 7 — Recursive self-audit + dual external audit               Class 3, 24-48h
+  Atom 8 — Ship handover + TB_LOG row + TRACE_FLOWCHART_MATRIX update  Class 0, <24h
+
+CONSTRAINTS (binding):
+
+- Phase tags required on every commit: phase_id=P3primary,P2carryforward;
+  roadmap_exit_criteria_addressed=P3:RSP-4-MVP,P2:carryforward;
+  kill_criteria_tested=P3:1,P3:2,P3:3.
+- Commit message MUST include FC-trace and (where applicable) flowchart_trace.
+- STEP_B preflight artifact required at handover/audits/STEP_B_PREFLIGHT_TB8_2026-05-XX.md
+  before any change to src/state/sequencer.rs (Atoms 2 + 3).
+- Smoke evidence dir: handover/evidence/tb_8_minimal_payout_smoke_2026-05-XX/
+  with replay_report.json + runtime_repo.dotgit.tar.gz + cas.dotgit.tar.gz per run.
+- Ship-gate test reporting MUST use `cargo test --workspace` canonical shape
+  per feedback_workspace_test_canonical: workspace_count = N, failed = 0, ignored = M.
+- No new memory rules expected. If you find yourself wanting to write one,
+  STOP and ask the user first.
+- NO ghost liquidity, NO agent-submitted FinalizeRewardTx, NO predicate override
+  by price, NO automatic mint without explicit collateral debit — these are
+  Class-3 hard rails from the four 2026-05-02 decision records.
+
+DUAL AUDIT (Atom 7) per feedback_dual_audit Class 3 + feedback_risk_class_audit:
+
+- Codex impl-paranoid on full TB-8 diff (RQ1-RQ4 minimum).
+- Gemini architectural at gemini-3.1-pro-preview strategic tier (NOT degraded
+  unless explicitly labeled per feedback_dual_audit `degraded` clause).
+- VETO blocks ship per feedback_dual_audit_conflict.
+- Round-2 auto-execute on determinate-best surgical patch per
+  feedback_elon_mode_policy.
+
+ITERATION CAP: 72h Atom 3 with 24h checkpoints; mandatory user escalation if
+slipped. 24h cap on every other atom.
+
+EXPECTED DELIVERABLE TIMELINE: 5-7 days realistic, 10 days pessimistic.
+
+START:
+1. Read items 1-11 above.
+2. Verify TB-7R baseline still green: `cd /home/zephryj/projects/turingosv4 && cargo test --workspace` should report 712 passed / 0 failed / 150 ignored.
+3. Run Step 1 (Atom 0.5 ratification doc; ASK USER for ratification).
+4. After ratification, proceed Atom 1 → Atom 8.
+```
+
+---
+
 ## 🚢 2026-05-02 — TB-7R SHIPPED — Constitution-Aligned Frame B Repair (Class 3 dual ship audit; PASS)
 
 **Session summary**: TB-7R ship-gate. Codex round-1 returned **VETO/HIGH** on
