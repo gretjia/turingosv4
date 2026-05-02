@@ -2,7 +2,38 @@
 
 **Class**: Observation (constitutional risk; architect verdict-silent)
 **Driver**: Claude self-assessment 2026-05-02 ultrathink turn surfaced this; architect verdict 2026-05-02 did NOT explicitly address.
-**Status**: ACTIVE — flagged for future architect ruling. NOT a TB-7R blocker per current verdict.
+**Status**: **CORRECTED — premise stale per Codex round-1 ship-audit Q10 (2026-05-02).** No Art. III.4 prompt-pollution risk; original concern is empirically unfounded. Retained for traceability + closure path. **Not a TB-7R blocker (and not a future-ruling required item either).**
+
+---
+
+## §0 Correction (2026-05-02 post Codex round-1)
+
+Codex round-1 ship audit Q10 verified the actual code paths and found:
+
+> "I found no concrete cross-agent raw Lean error pollution in full-n5
+> evidence; it contains no prompt/stdout transcript and only two synthetic
+> audit-trail rows. Code also contradicts the OBS premise:
+> `acc.record_tool_stdout` only increments token cost
+> (`cost_aggregator.rs:57`). Prompt errors come from bounded class labels
+> via `evaluator.rs:1344` and `bus.rs:576`, not raw Lean text."
+
+The remainder of this document (§1–§7 below) is preserved as the
+original concern + closure-path narrative, but the central premise —
+that `acc.record_tool_stdout(&reason)` flows raw Lean diagnostics into
+prompt context — is **incorrect**. Actual data flow:
+
+1. `PartialVerdict::Reject(reason)` → `bus.record_rejection(agent_id, class.label())` (bounded label, not raw)
+2. `PartialVerdict::Reject(reason)` → `acc.record_tool_stdout(&reason)` (token-cost accounting via `cost_aggregator.rs:57`; **does NOT write to prompt errors_history**)
+3. Next-iteration prompt errors come from `prompt_builder` reading the bounded class labels at `evaluator.rs:1344` and `bus.rs:576` — never the raw `reason`
+
+Because the raw `reason` is bounded to token-cost accounting, there is no
+agent-to-agent diagnostic leakage path even in multi-agent runs.
+Art. III.4 selective-broadcasting / shielding is honored.
+
+**Closure**: this OBS is closed-as-empirically-unfounded. The
+`coverage_denominator` OBS (companion file) absorbs the *Reject path
+not reaching chain* concern, which is a coverage question, not a
+prompt-pollution question.
 
 ---
 

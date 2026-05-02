@@ -27,6 +27,8 @@
 
 **Aggregate**: 8/10 SOLVED + chain_oracle_verified=true; 2/10 UNSOLVED + chain_oracle_verified=false. **All 7 indicators GREEN on every run.** **No fake accepted node** in any UNSOLVED run.
 
+**2026-05-02 packaging update** (post Codex ship-audit round-1 VETO on evidence reproducibility): each run subdirectory now ships with self-contained `runtime_repo.dotgit.tar.gz` + `cas.dotgit.tar.gz` + `replay_report.json`. Total committed evidence size = **892 KB** (10 runs combined; loose .git stores would be 4.8 MB but git auto-ignores nested .git directories — tar.gz keeps the artifacts tracked while compressing 18× smaller than loose objects). Each `replay_report.json` is the literal output of `target/debug/verify_chaintape --repo <run>/runtime_repo --cas <run>/cas --out replay_report.json` (run after extracting the two tar.gz files) — every run shows all 7 top-level verifier booleans true (`ledger_root_verified`, `system_signatures_verified`, `state_reconstructed`, `economic_state_reconstructed`, `cas_payloads_retrievable`, `agent_signatures_verified`, `proposal_telemetry_cas_retrievable`) plus `detail.initial_q_state_loaded_from_disk=true`, alongside the `l4_entries`/`l4e_entries` counts. Acceptance clause 4 ("dashboard regeneratable from ChainTape + CAS alone") is now strictly satisfied from committed evidence; ship condition #5 ("proposal telemetry + payload CIDs resolve") is independently checkable by any auditor via §5.1 below. Round-trip verified: extracting the tar.gz pair into a fresh dir and re-running `verify_chaintape` produces a structurally identical replay_report.json (modulo runtime-tagged `run_id`/`epoch`).
+
 ---
 
 ## §1 Verdict §F acceptance — claim by claim
@@ -178,29 +180,73 @@ The "every failed proposal" clause is satisfied for the failed-proposals that ac
 
 ## §4 Per-run artifacts
 
-Each run subdirectory contains:
+Each run subdirectory contains (committed to git after 2026-05-02 packaging update):
 
 ```text
 runtime_repo/
-  genesis_report.json    — TB-7R Deliverable C
-  initial_q_state.json   — TB-7.7 D7 (preseeded balances + task state)
+  genesis_report.json            — TB-7R Deliverable C
+  initial_q_state.json           — TB-7.7 D7 (preseeded balances + task state)
   agent_audit_trail.jsonl
   agent_pubkeys.json
   pinned_pubkeys.json
-  rejections.jsonl       — L4.E records
+  rejections.jsonl               — L4.E records (raw_diagnostic shielded per Art. III.4)
   synthetic_rejection_label.json
-  (.git refs/transitions/main = L4 chain)
+runtime_repo.dotgit.tar.gz       — compressed `.git/` containing refs/transitions/main + chain commit objects (LedgerEntry blobs); ~12 KB; expand into runtime_repo/ to enable replay
 cas/
-  .git/                  — CAS git store
-  .turingos_cas_index.jsonl  — sidecar index (TB-7.6 atomic-write)
-stdout                   — PPUT_RESULT JSON line
-stderr                   — RUST_LOG=warn output
-dashboard.txt            — `audit_dashboard --repo runtime_repo --cas cas` output
+  .turingos_cas_index.jsonl      — sidecar index (TB-7.6 atomic-write)
+cas.dotgit.tar.gz                — compressed `.git/` containing CAS payload blobs (proposal payloads + ProposalTelemetry + VerificationResult + agent audit trail records); ~12 KB; expand into cas/ to enable CID resolution
+replay_report.json               — literal `verify_chaintape` output (7 top-level booleans true + `detail.initial_q_state_loaded_from_disk` + l4/l4e counts + final_state_root_hex + final_ledger_root_hex + head_commit_oid_hex)
+stdout                           — PPUT_RESULT JSON line
+stderr                           — RUST_LOG=warn output
+dashboard.txt                    — `audit_dashboard --repo runtime_repo --cas cas` output
+```
+
+**Why tar.gz instead of loose `.git/` directories**: git automatically treats nested `.git/` directories as submodule sentinels and refuses to track their contents (would otherwise require submodule registration with external remotes). Compressed-archive packaging keeps the chain stores fully tracked under the parent repo's history while compressing 18× smaller than loose objects (892 KB total for 10 runs vs ~4.8 MB loose).
+
+Per-run replay_report indicator counts:
+```text
+SOLVED runs (8):   l4_entries=3 (TaskOpen + EscrowLock + accepted Work), l4e_entries=3 (synthetic seeds + zero-stake rejections)
+UNSOLVED runs (2): l4_entries=2 (TaskOpen + EscrowLock; no accepted Work — chain_oracle_verified=false), l4e_entries=2
 ```
 
 ---
 
 ## §5 Reproduce
+
+### §5.1 Verify committed evidence (no LLM / Lean required)
+
+Any auditor with this repo + a built `target/debug/{verify_chaintape,audit_dashboard}` can independently verify any of the 10 runs from committed evidence alone:
+
+```bash
+RUN=handover/evidence/tb_7r_smoke_2026-05-02/single_n1_mathd_algebra_171  # or any run dir
+
+# Stage a working copy with .git stores expanded:
+WORK=/tmp/audit_$$
+mkdir -p $WORK/runtime_repo $WORK/cas
+cp $RUN/runtime_repo/*.json $RUN/runtime_repo/*.jsonl $WORK/runtime_repo/
+cp $RUN/cas/.turingos_cas_index.jsonl $WORK/cas/
+tar -xzf $RUN/runtime_repo.dotgit.tar.gz -C $WORK/runtime_repo
+tar -xzf $RUN/cas.dotgit.tar.gz -C $WORK/cas
+
+# Re-derive replay_report.json from committed ChainTape + CAS:
+target/debug/verify_chaintape \
+  --repo $WORK/runtime_repo \
+  --cas  $WORK/cas \
+  --out  $WORK/replay_report.audit.json
+
+# Compare to committed (byte-identical modulo run_id + epoch):
+jq -S 'del(.run_id,.epoch)' $RUN/replay_report.json    > /tmp/orig.json
+jq -S 'del(.run_id,.epoch)' $WORK/replay_report.audit.json > /tmp/repro.json
+diff /tmp/orig.json /tmp/repro.json && echo "STRUCTURALLY IDENTICAL"
+
+# Re-derive dashboard from committed ChainTape + CAS:
+target/debug/audit_dashboard --repo $WORK/runtime_repo --cas $WORK/cas > $WORK/dashboard.audit.txt
+diff $RUN/dashboard.txt $WORK/dashboard.audit.txt   # semantic content identical (timestamps may differ)
+```
+
+This satisfies acceptance clause 4: every dashboard report is regeneratable from committed ChainTape + CAS alone.
+
+### §5.2 Generate fresh evidence (LLM + Lean required)
 
 ```bash
 mkdir -p /tmp/tb7r_repro/{runtime_repo,cas}
@@ -213,6 +259,7 @@ MAX_TRANSACTIONS=20 \
 target/debug/evaluator mathd_algebra_171.lean
 
 target/debug/audit_dashboard --repo /tmp/tb7r_repro/runtime_repo --cas /tmp/tb7r_repro/cas
+target/debug/verify_chaintape --repo /tmp/tb7r_repro/runtime_repo --cas /tmp/tb7r_repro/cas --out /tmp/tb7r_repro/replay_report.json
 ```
 
 ---

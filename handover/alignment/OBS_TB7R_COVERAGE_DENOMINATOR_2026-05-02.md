@@ -46,9 +46,47 @@ action that Lean accepts, only the Complete branch fires — and that's
 chained. For harder problems where the LLM emits intermediate `step`
 actions:
 - PartialOk → goes to kernel.tape (shadow_only) but NOT chain
-- Reject → goes to in-memory counter, AND the raw `reason` flows back
-  into the next prompt via `acc.record_tool_stdout(&reason)` (see
-  `OBS_TB7R_ART_III_4_PROMPT_POLLUTION_2026-05-02.md`)
+- Reject → goes to in-memory counter (token-cost only; see §2.1 update)
+
+### §2.1 Codex round-1 ship-audit refinement (2026-05-02)
+
+Codex round-1 ship audit Q2/Q10 surfaced a sharper framing of the gap and
+corrected one premise:
+
+**(a) PartialOk → Complete proof-prefix dependency** (Codex Q2 CHALLENGE,
+new constitutional debt #2): the issue is not just "PartialOk is unchained
+LLM activity," but specifically that a later `Complete` action verifies
+`tape_chain + tactic` (`evaluator.rs:2132`) while storing **only `tactic`**
+as the WorkTx artifact (`evaluator.rs:2222`). This means an accepted L4
+WorkTx's `proof_artifact_cid` resolves to a `tactic` payload that, on its
+own, is not Lean-verifiable — the reconstructable proof depends on
+prior unchained PartialOk steps in `kernel.tape`.
+
+Replay from L4 + CAS alone CAN reconstruct the QState + EconomicState +
+predicate_results (`replay_report.json` shows this on every TB-7R smoke
+run). What replay CANNOT reconstruct from L4 + CAS alone is the *Lean
+proof object* that justified the predicate-pass — that proof object is
+the tape_chain prefix that lived in unchained kernel.tape during the run.
+
+Under TB-7R's strict three-node taxonomy + verdict A1=B′ (proposal-level
+DAG, per-tactic deferred), this is *internally consistent* because
+"externalized" is defined as `submit_typed_tx`-routed and the WorkTx
+*acceptance signal* is on chain even if the proof *artifact* is partial.
+But under the broader Tape Canonical Axiom (Art. 0.2) + acceptance
+clause 2 ("predicate evidence resolves from CAS"), the proof artifact
+should be self-contained.
+
+**(b) Reject path correction** (Codex Q10 PASS for prompt isolation but
+clarifying premise): `PartialVerdict::Reject` records a bounded rejection
+class label via `bus.record_rejection(agent_id, class.label())` plus
+`acc.record_tool_stdout(&reason)` for token-cost accounting only
+(`cost_aggregator.rs:57`). The raw `reason` does NOT flow into the next
+prompt — `prompt_builder` reads bounded class labels from
+`evaluator.rs:1344` and `bus.rs:576`, NOT raw Lean stderr. This means
+the original OBS-2 (`OBS_TB7R_ART_III_4_PROMPT_POLLUTION_2026-05-02.md`)
+had a stale premise: there is no Art. III.4 prompt-pollution risk; only
+the Reject side of the coverage-denominator question (raw oracle output
+not reaching chain even as L4.E rejection evidence) remains.
 
 ## §3 Why this is post-TB-7R
 
@@ -74,13 +112,23 @@ A future TB (TB-7.5? TB-8?) should:
 2. Re-route `PartialVerdict::Reject` through `submit_typed_tx` with
    `predicate_passes=false`, landing in L4.E with
    `rejection_class = LeanFailed` and `raw_diagnostic_cid` shielded.
-3. Verify the strict invariant: every LLM tool-call action that runs
+3. **Self-contained proof artifact**: when a `Complete` action follows
+   prior PartialOk steps, the accepted WorkTx's `proof_artifact_cid`
+   must resolve to the *full reconstructable proof* (tape_chain + tactic),
+   not just the final tactic. Either store the full prefix on chain via
+   the §4.1 reroute, or store the concatenated `tape_chain + tactic`
+   blob in CAS as the WorkTx artifact and update verify_partial to
+   verify against that committed blob alone. (Codex round-1 §2.1.a)
+4. Verify the strict invariant: every LLM tool-call action that runs
    Lean (or any oracle) must produce exactly one chain entry — either
    L4 accepted or L4.E rejected — never an unchained tool_dist counter
-   bump.
+   bump. AND every accepted L4 WorkTx's proof artifact must be
+   Lean-verifiable from CAS alone (no kernel.tape dependency).
 
 The Sequencer's existing `apply_one` + `predicate_results` machinery
-already supports this; the change is at the evaluator dispatch site.
+already supports the routing change in §4.1+§4.2; the proof-self-containment
+change in §4.3 is at the evaluator dispatch site (or at the Lean proof
+serialization site within the `complete` tool).
 
 ## §5 Conformance criterion (post-implementation)
 

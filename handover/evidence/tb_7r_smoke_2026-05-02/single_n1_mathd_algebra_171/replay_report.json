@@ -1,0 +1,21 @@
+{
+  "l4_entries": 3,
+  "l4e_entries": 3,
+  "ledger_root_verified": true,
+  "system_signatures_verified": true,
+  "state_reconstructed": true,
+  "economic_state_reconstructed": true,
+  "cas_payloads_retrievable": true,
+  "agent_signatures_verified": true,
+  "proposal_telemetry_cas_retrievable": true,
+  "run_id": "tb7r-smoke-1",
+  "epoch": 1,
+  "detail": {
+    "final_state_root_hex": "e5199d29e268c057f197ce8492e02429ab7af0046cda510cc08bf55efc4f7647",
+    "final_ledger_root_hex": "68bd2fe6a0b9c394151fa217da3d73087de75d4f894db208ac7376243661fb69",
+    "head_commit_oid_hex": "d4d704beb5ab16782425f75194cae07d83842f5c",
+    "l4e_last_hash_hex": "d3006f954373cefa3dfc29edb8880b91f787b572d7947e5ee00cb9a149e7973f",
+    "replay_failure": null,
+    "initial_q_state_loaded_from_disk": true
+  }
+}

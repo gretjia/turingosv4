@@ -1,0 +1,21 @@
+{
+  "l4_entries": 3,
+  "l4e_entries": 3,
+  "ledger_root_verified": true,
+  "system_signatures_verified": true,
+  "state_reconstructed": true,
+  "economic_state_reconstructed": true,
+  "cas_payloads_retrievable": true,
+  "agent_signatures_verified": true,
+  "proposal_telemetry_cas_retrievable": true,
+  "run_id": "tb7r-smoke-half-3",
+  "epoch": 1,
+  "detail": {
+    "final_state_root_hex": "fae86cf05613ac59ae6d55ffa122e890ed607c60c7f818c14b022623a2c20b37",
+    "final_ledger_root_hex": "e8677c5de3e803ccdfc5ff890319c9cfdcd70bed80aa88ec1fb081cd7e0dccf1",
+    "head_commit_oid_hex": "b29696b537aa2974cdd0aa1c47374218650faa7c",
+    "l4e_last_hash_hex": "5432b5cf1a76bca71073284695994ac2994e9b0d31c1b9e3a2f37e8a15c3f1a6",
+    "replay_failure": null,
+    "initial_q_state_loaded_from_disk": true
+  }
+}
