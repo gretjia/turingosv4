@@ -105,6 +105,51 @@ struct DashboardReport {
     /// The aggregate sum of bounty_micro across all rows is the user's total
     /// committed liquidity at this snapshot.
     user_tasks: Vec<UserTaskRow>,
+    /// TB-11 Atom 5 (architect §6.2): exhausted runs from TerminalSummaryTx
+    /// L4 entries (architect's RunExhaustedTx role).
+    exhausted_runs: Vec<ExhaustedRunRow>,
+    /// TB-11 Atom 5 (architect §6.2): expired tasks from TaskExpireTx L4
+    /// entries (capital release path).
+    expired_tasks: Vec<ExpiredTaskRow>,
+    /// TB-11 Atom 5 (architect §6.2): bankrupt tasks from TaskBankruptcyTx
+    /// L4 entries (death certificate for future TB-12 NodeMarket Short / NO
+    /// settlement anchor).
+    bankrupt_tasks: Vec<BankruptTaskRow>,
+}
+
+/// TB-11 Atom 5 (architect §6.2 ruling 2026-05-02) — per-RunExhausted
+/// audit row for §12. Surfaces architect's RunExhaustedTx (≡
+/// TerminalSummaryTx in the failure path) on chain.
+#[derive(Debug, serde::Serialize)]
+struct ExhaustedRunRow {
+    run_id: String,
+    task_id: String,
+    run_outcome: String,
+    attempt_count: u32,
+    /// Hex of evidence_capsule_cid; "—" if None (OmegaAccepted path).
+    evidence_capsule_cid_hex: String,
+    solver: String,
+    last_logical_t: u64,
+}
+
+/// TB-11 Atom 5 — per-Expired-task audit row for §12 (capital release).
+#[derive(Debug, serde::Serialize)]
+struct ExpiredTaskRow {
+    task_id: String,
+    sponsor: String,
+    refund_micro: i64,
+    reason: String,
+    expired_at_logical_t: u64,
+}
+
+/// TB-11 Atom 5 — per-Bankrupt-task audit row for §12 (death certificate).
+#[derive(Debug, serde::Serialize)]
+struct BankruptTaskRow {
+    task_id: String,
+    evidence_capsule_cid_hex: String,
+    bankruptcy_reason: String,
+    failed_run_count: u32,
+    bankrupted_at_logical_t: u64,
 }
 
 /// TB-10 Atom 4 — per-user-task audit row for the dashboard's §11 section.
@@ -310,6 +355,10 @@ fn build_report(repo: &std::path::Path, cas_path: &std::path::Path) -> Result<Da
     // whose sponsor_agent starts with "Agent_user_" + matching EscrowLockTx
     // for bounty amount + cross-referencing claims_in_progress for status.
     let mut user_tasks_in_progress: Vec<UserTaskRow> = Vec::new();
+    // TB-11 Atom 5 (architect §6.2): exhausted/expired/bankrupt collectors.
+    let mut exhausted_runs_in_progress: Vec<ExhaustedRunRow> = Vec::new();
+    let mut expired_tasks_in_progress: Vec<ExpiredTaskRow> = Vec::new();
+    let mut bankrupt_tasks_in_progress: Vec<BankruptTaskRow> = Vec::new();
     // TB-7.7 D6: oracle_verified_worktx_ids — set of accepted L4 WorkTx
     // tx_ids whose ProposalTelemetry.verification_result_cid resolves to
     // VerificationResult { verified: true }. Plus their telemetry for
@@ -524,6 +573,82 @@ fn build_report(repo: &std::path::Path, cas_path: &std::path::Path) -> Result<Da
                     oracle_verified: None,
                 });
             }
+            // TB-11 Atom 5 (architect §6.2): TerminalSummary → §12 row.
+            TypedTx::TerminalSummary(ts) => {
+                exhausted_runs_in_progress.push(ExhaustedRunRow {
+                    run_id: ts.run_id.0.clone(),
+                    task_id: ts.task_id.0.clone(),
+                    run_outcome: format!("{:?}", ts.run_outcome),
+                    attempt_count: ts.total_attempts,
+                    evidence_capsule_cid_hex: ts
+                        .evidence_capsule_cid
+                        .as_ref()
+                        .map(|c| c.hex())
+                        .unwrap_or_else(|| "—".into()),
+                    solver: ts
+                        .solver_agent
+                        .as_ref()
+                        .map(|a| a.0.clone())
+                        .unwrap_or_else(|| "(none)".into()),
+                    last_logical_t: ts.last_logical_t,
+                });
+                proposal_flow.push(ProposalFlowEntry {
+                    logical_t,
+                    side: "L4",
+                    tx_kind: "TerminalSummary".into(),
+                    agent_id: ts.solver_agent.as_ref().map(|a| a.0.clone()),
+                    tx_id: Some(ts.tx_id.0.clone()),
+                    candidate_tactic: None,
+                    branch_id: None,
+                    rejection_class: None,
+                    proposal_artifact_preview: None,
+                    oracle_verified: None,
+                });
+            }
+            // TB-11 Atom 5 (architect §6.2): TaskExpire → §12 row.
+            TypedTx::TaskExpire(expire) => {
+                expired_tasks_in_progress.push(ExpiredTaskRow {
+                    task_id: expire.task_id.0.clone(),
+                    sponsor: expire.sponsor_agent.0.clone(),
+                    refund_micro: expire.bounty_refunded.micro_units(),
+                    reason: format!("{:?}", expire.reason),
+                    expired_at_logical_t: expire.timestamp_logical,
+                });
+                proposal_flow.push(ProposalFlowEntry {
+                    logical_t,
+                    side: "L4",
+                    tx_kind: "TaskExpire".into(),
+                    agent_id: Some(expire.sponsor_agent.0.clone()),
+                    tx_id: Some(expire.tx_id.0.clone()),
+                    candidate_tactic: None,
+                    branch_id: None,
+                    rejection_class: None,
+                    proposal_artifact_preview: None,
+                    oracle_verified: None,
+                });
+            }
+            // TB-11 Atom 5 (architect §6.2): TaskBankruptcy → §12 row.
+            TypedTx::TaskBankruptcy(bk) => {
+                bankrupt_tasks_in_progress.push(BankruptTaskRow {
+                    task_id: bk.task_id.0.clone(),
+                    evidence_capsule_cid_hex: bk.evidence_capsule_cid.hex(),
+                    bankruptcy_reason: format!("{:?}", bk.bankruptcy_reason),
+                    failed_run_count: bk.failed_run_count,
+                    bankrupted_at_logical_t: bk.timestamp_logical,
+                });
+                proposal_flow.push(ProposalFlowEntry {
+                    logical_t,
+                    side: "L4",
+                    tx_kind: "TaskBankruptcy".into(),
+                    agent_id: None,
+                    tx_id: Some(bk.tx_id.0.clone()),
+                    candidate_tactic: None,
+                    branch_id: None,
+                    rejection_class: None,
+                    proposal_artifact_preview: None,
+                    oracle_verified: None,
+                });
+            }
             _ => {
                 proposal_flow.push(ProposalFlowEntry {
                     logical_t,
@@ -709,6 +834,9 @@ fn build_report(repo: &std::path::Path, cas_path: &std::path::Path) -> Result<Da
         cross_checks,
         claims: claims_in_progress,
         user_tasks: user_tasks_in_progress,
+        exhausted_runs: exhausted_runs_in_progress,
+        expired_tasks: expired_tasks_in_progress,
+        bankrupt_tasks: bankrupt_tasks_in_progress,
     })
 }
 
@@ -1105,6 +1233,91 @@ fn render_text(r: &DashboardReport) -> String {
             "    solver durable agent_id receives payout via TB-9 keystore-bound balances_t entry.\n"
         );
     }
+
+    // §12 TB-11 Epistemic Exhaust + Capital Liberation (architect §6.2 ruling
+    // 2026-05-02). Surfaces architect-mandated chain-resident anchors:
+    //   - Exhausted runs (TerminalSummaryTx ≡ RunExhausted): O(N) audit via
+    //     evidence_capsule_cid → CAS bytes; raw log shielded by AuditOnly default.
+    //   - Expired tasks (TaskExpireTx): capital release path; CTF preserved.
+    //   - Bankrupt tasks (TaskBankruptcyTx): future TB-12 Short / NO settlement
+    //     death-cert anchor.
+    s.push('\n');
+    s.push_str("§12 TB-11 Epistemic Exhaust + Capital Liberation (architect §6.2; 2026-05-02)\n");
+    s.push_str("------------------------------------------------------------------------------\n");
+
+    if r.exhausted_runs.is_empty() {
+        s.push_str("  (no TerminalSummary L4 entries — no runs have been anchored as exhausted/completed yet)\n");
+    } else {
+        s.push_str("  Exhausted runs (RunExhaustedTx ≡ TerminalSummaryTx):\n");
+        s.push_str("    run_id         | task_id            | outcome         | attempts | evidence_capsule_cid (hex)\n");
+        s.push_str("    ---------------+--------------------+-----------------+----------+--------------------------------\n");
+        for er in &r.exhausted_runs {
+            let cap_short = if er.evidence_capsule_cid_hex.len() > 32 {
+                format!("{}…", &er.evidence_capsule_cid_hex[0..31])
+            } else {
+                er.evidence_capsule_cid_hex.clone()
+            };
+            s.push_str(&format!(
+                "    {:<14} | {:<18} | {:<15} | {:>8} | {}\n",
+                trunc(&er.run_id, 14),
+                trunc(&er.task_id, 18),
+                trunc(&er.run_outcome, 15),
+                er.attempt_count,
+                cap_short,
+            ));
+        }
+    }
+
+    if !r.expired_tasks.is_empty() {
+        s.push('\n');
+        s.push_str("  Expired tasks (TaskExpireTx; capital released):\n");
+        s.push_str("    task_id            | sponsor      | refund_micro | reason             | @logical_t\n");
+        s.push_str("    -------------------+--------------+--------------+--------------------+-----------\n");
+        let mut total_refund: i64 = 0;
+        for ex in &r.expired_tasks {
+            total_refund += ex.refund_micro;
+            s.push_str(&format!(
+                "    {:<18} | {:<12} | {:>12} | {:<18} | {:>9}\n",
+                trunc(&ex.task_id, 18),
+                trunc(&ex.sponsor, 12),
+                ex.refund_micro,
+                trunc(&ex.reason, 18),
+                ex.expired_at_logical_t,
+            ));
+        }
+        s.push_str(&format!(
+            "    ─── total refunded: {} micro across {} expired task(s) ───\n",
+            total_refund,
+            r.expired_tasks.len()
+        ));
+    }
+
+    if !r.bankrupt_tasks.is_empty() {
+        s.push('\n');
+        s.push_str("  Bankrupt tasks (TaskBankruptcyTx; chain-resident death certificate):\n");
+        s.push_str("    task_id            | reason                | failed_runs | evidence_capsule_cid (hex)\n");
+        s.push_str("    -------------------+-----------------------+-------------+--------------------------------\n");
+        for bk in &r.bankrupt_tasks {
+            let cap_short = if bk.evidence_capsule_cid_hex.len() > 32 {
+                format!("{}…", &bk.evidence_capsule_cid_hex[0..31])
+            } else {
+                bk.evidence_capsule_cid_hex.clone()
+            };
+            s.push_str(&format!(
+                "    {:<18} | {:<21} | {:>11} | {}\n",
+                trunc(&bk.task_id, 18),
+                trunc(&bk.bankruptcy_reason, 21),
+                bk.failed_run_count,
+                cap_short,
+            ));
+        }
+    }
+
+    s.push('\n');
+    s.push_str("  Architect mandate (§6.2 ruling 2026-05-02) ✓:\n");
+    s.push_str("    O(1) chain cost / O(N) auditability — failure evidence anchored on L4\n");
+    s.push_str("    via system-emitted system_signature; raw log requires audit-role access\n");
+    s.push_str("    (CapsulePrivacyPolicy::AuditOnly default; only public_summary surfaces here).\n");
 
     s
 }
