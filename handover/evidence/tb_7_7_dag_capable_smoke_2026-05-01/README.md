@@ -44,6 +44,14 @@ LLM 选 `complete` 工具一次性返还完整 calc 证明，OMEGA-pertactic
 详见 `handover/ai-direct/HANDOVER_TB_7_7_D7_PENDING_2026-05-01.md`。
 等用户 (A) ship + TB-8 处理 / (B) TB-7.7 内补 / (C) 砍 `complete` 工具 verdict。
 
+## TB-7R grandfathering note (2026-05-02)
+
+**This evidence is grandfathered under TB-7R**:
+- Predates TB-7R Deliverable C (`genesis_report.json` emission requirement) and Deliverable D (on-chain `TaskOpenTx` + `EscrowLockTx` requirement). The accepted L4 `TaskOpen` + `EscrowLock` here use the D3 memory-preseed bootstrap (commit `054254f`) — NOT the on-chain bootstrap that TB-7R-grade evidence requires.
+- The D7 BLOCKED-on-A/B/C verdict was resolved 2026-05-01 via option **B′** (proposal-level DAG; per-tactic decomposition deferred to TB-8+). The §7 golden path single-WorkTx shape is correct under B′ — the LLM emitted one compound externalized proposal, which is one Attempt Node by definition.
+- L4 purity audit 2026-05-02 (`handover/audits/L4_PURITY_AUDIT_TB7R_2026-05-02.md`): the single in-scope L4 Work entry passes all four TB-7R purity criteria (ProposalTelemetry resolves, verification_result_cid resolves, VerificationResult.verified=true, proof_artifact_cid resolves).
+- This dir SHOULD NOT be cited as TB-7R-grade ChainTape evidence. For TB-7R-grade evidence see `handover/evidence/tb_7r_*_2026-05-XX/` once Deliverable F smoke ships.
+
 ## D7 patches surfaced by this smoke
 
 1. evaluator.rs: D3 EscrowLock parent_state_root async-poll

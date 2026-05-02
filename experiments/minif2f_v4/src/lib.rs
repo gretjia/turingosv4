@@ -14,3 +14,9 @@ pub mod run_id;
 /// for the held-out verified PPUT regression metric. Wired into the
 /// evaluator binary's main() at TB-1 Day-4.
 pub mod h_vppu_history;
+
+/// TRACE_MATRIX FC1-N6 (predicate gate; runtime state transition):
+/// ChainTape-mode gate that fail-closes any CONDITION known to bypass
+/// `bus.submit_typed_tx` authoritative routing. Per architect verdict
+/// 2026-05-01 §5.6 / B3 — TB-7R Deliverable B.
+pub mod chaintape_mode_gate;

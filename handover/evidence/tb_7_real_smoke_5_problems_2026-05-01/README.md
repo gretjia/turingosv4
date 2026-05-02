@@ -15,6 +15,15 @@ proposals on `mathd_algebra_107` / `mathd_algebra_171` / `mathd_algebra_359`
 
 ---
 
+## TB-7R grandfathering note (2026-05-02)
+
+**This evidence is grandfathered under TB-7R**:
+- Predates TB-7R Deliverable C (`genesis_report.json`) and Deliverable D (on-chain `TaskOpenTx` + `EscrowLockTx`) requirements. Each run uses the prior memory-preseed bootstrap path.
+- All 5 runs have zero L4 Work entries (zero-stake admission rejection routes WorkTx + VerifyTx to L4.E by design — see §2 known divergence). L4 purity audit 2026-05-02 vacuously PASS.
+- Lean attestation here is **evaluator-attested** (stdout-derived), NOT chain-oracle-derived. The `chain.solved=false` in §2 is the correct chain-side reading; the LLM's actual Lean verification is captured only in evaluator stdout / heartbeat logs, not in a `VerificationResult` CAS object.
+- Runs 2 + 5 hit the pre-existing CAS index race (fixed at `c0ec514` TB-7.6).
+- Do NOT cite as TB-7R-grade ChainTape evidence. TB-7R-grade evidence requires on-chain bootstrap + VerificationResult CAS as the oracle witness.
+
 ## §0 Headline
 
 | Run | Problem | n1 swarm exit | LLM solved? | chaintape on disk? | dashboard PASS? |

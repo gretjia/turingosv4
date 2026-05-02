@@ -320,6 +320,15 @@ async fn main() {
     info!("Problem: {} | Condition: {} | Model: {} | Mode: {}",
           problem_file, condition, model, resolved_mode.label());
 
+    // TB-7R Deliverable B (verdict 2026-05-01 §5.6 / B3): in ChainTape
+    // mode, conditions that bypass bus.submit_typed_tx authoritative
+    // routing MUST fail-closed. Gate logic + tests live in
+    // `minif2f_v4::chaintape_mode_gate`.
+    if let Err(msg) = minif2f_v4::chaintape_mode_gate::chaintape_supports_condition(&condition) {
+        error!("[chaintape] FAIL-CLOSED: {msg}");
+        std::process::exit(3);
+    }
+
     let mut result = match condition.as_str() {
         "oneshot" => {
             run_oneshot(problem_file, &problem_statement, &theorem_name,
