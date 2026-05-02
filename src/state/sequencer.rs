@@ -203,6 +203,54 @@ pub fn finalize_reward_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
     Hash::from_bytes(digest)
 }
 
+/// TRACE_MATRIX TB-11 Atom 2 (architect §6.2 ruling 2026-05-02): TaskExpire
+/// state-root domain. Mirror of `finalize_reward_accept_state_root`.
+pub(crate) const TASK_EXPIRE_DOMAIN_V1: &[u8] = b"turingosv4.task_expire.accept.v1";
+
+/// TRACE_MATRIX TB-11 Atom 2: state-root mutator on `TaskExpireTx` accept
+/// (refund escrow → balances_t[sponsor]; CTF preserved bit-for-bit).
+pub fn task_expire_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
+    let mut h = Sha256::new();
+    h.update(TASK_EXPIRE_DOMAIN_V1);
+    h.update(prev.0);
+    h.update(canonical_encode(tx).expect("TypedTx is canonical-encodable"));
+    let digest: [u8; 32] = h.finalize().into();
+    Hash::from_bytes(digest)
+}
+
+/// TRACE_MATRIX TB-11 Atom 2 (architect §6.2): TerminalSummary state-root
+/// domain. Mirror of `finalize_reward_accept_state_root`.
+pub(crate) const TERMINAL_SUMMARY_DOMAIN_V1: &[u8] =
+    b"turingosv4.terminal_summary.accept.v1";
+
+/// TRACE_MATRIX TB-11 Atom 2: state-root mutator on `TerminalSummaryTx`
+/// accept (writes RunsIndex entry; no money movement).
+pub fn terminal_summary_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
+    let mut h = Sha256::new();
+    h.update(TERMINAL_SUMMARY_DOMAIN_V1);
+    h.update(prev.0);
+    h.update(canonical_encode(tx).expect("TypedTx is canonical-encodable"));
+    let digest: [u8; 32] = h.finalize().into();
+    Hash::from_bytes(digest)
+}
+
+/// TRACE_MATRIX TB-11 Atom 2 (architect §6.2): TaskBankruptcy state-root
+/// domain. Mirror of `finalize_reward_accept_state_root`.
+pub(crate) const TASK_BANKRUPTCY_DOMAIN_V1: &[u8] =
+    b"turingosv4.task_bankruptcy.accept.v1";
+
+/// TRACE_MATRIX TB-11 Atom 2: state-root mutator on `TaskBankruptcyTx`
+/// accept (mutates task_markets_t[task_id].state = Bankrupt + sets
+/// bankruptcy_at_logical_t; no money movement).
+pub fn task_bankruptcy_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
+    let mut h = Sha256::new();
+    h.update(TASK_BANKRUPTCY_DOMAIN_V1);
+    h.update(prev.0);
+    h.update(canonical_encode(tx).expect("TypedTx is canonical-encodable"));
+    let digest: [u8; 32] = h.finalize().into();
+    Hash::from_bytes(digest)
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // TB-2 Atom 4 — rejection-path helpers (preflight v3 §3.5 + §3.7)
 // ────────────────────────────────────────────────────────────────────────────
@@ -968,13 +1016,228 @@ pub(crate) fn dispatch_transition(
                 SignalBundle::finalize(fr.claim_id.clone(), claim.amount),
             ))
         }
-        TypedTx::TaskExpire(_) => Err(TransitionError::NotYetImplemented),
-        TypedTx::TerminalSummary(_) => Err(TransitionError::NotYetImplemented),
-        // TB-11 Atom 1 stub — full dispatch lands in TB-11 Atom 2.
-        // The variant is wired through enum / ingress / signature paths in
-        // Atom 1; the dispatch body that mutates `task_markets_t[task_id].state`
-        // to Bankrupt + writes RunsIndex anchor is Atom 2.
-        TypedTx::TaskBankruptcy(_) => Err(TransitionError::NotYetImplemented),
+        // ──────────────────────────────────────────────────────────────────
+        // TB-11 Atom 2 (architect §6.2 ruling 2026-05-02) — TaskExpire
+        // dispatch arm. Refunds escrow → sponsor balance for tasks that
+        // exceeded the expiry policy without a Finalized claim.
+        //
+        // Architect §7.4: "escrow 不能无限期无状态锁死" — every escrow has
+        // a deadline; if no FinalizeReward by deadline, system MUST refund.
+        //
+        // CTF invariant: pure transfer (escrow -amount + balance +amount =
+        // 0 delta on holding sum). No mint, no burn.
+        //
+        // Anti-Oreo: arm fires only when system_signature verified at
+        // apply_one stage 1.5; reaches dispatch only via emit_system_tx.
+        // ──────────────────────────────────────────────────────────────────
+        TypedTx::TaskExpire(expire) => {
+            // Step 0: parent-root match.
+            if expire.parent_state_root != q.state_root_t {
+                return Err(TransitionError::StaleParent);
+            }
+            // Step 1: task exists.
+            let task_entry = match q.economic_state_t.task_markets_t.0.get(&expire.task_id) {
+                Some(e) => e.clone(),
+                None => return Err(TransitionError::TaskNotFound),
+            };
+            // Step 2: task lifecycle gate. Already-expired or already-bankrupt-and-refunded
+            // tasks reject; finalized tasks reject (cannot refund a paid task).
+            // Open and Bankrupt (architect §7.3) ARE expirable — Bankrupt + Expire
+            // is the post-bankruptcy capital release path (`reason: BankruptcyTriggered`).
+            match task_entry.state {
+                crate::state::q_state::TaskMarketState::Open
+                | crate::state::q_state::TaskMarketState::Bankrupt => { /* proceed */ }
+                crate::state::q_state::TaskMarketState::Expired => {
+                    return Err(TransitionError::TaskAlreadyOpen);
+                    // Reusing TaskAlreadyOpen for "already-expired" idempotency
+                    // gate — same conceptual class (lifecycle terminal-marker
+                    // already set). A future refinement can split out a
+                    // TaskAlreadyExpired variant.
+                }
+                crate::state::q_state::TaskMarketState::Finalized => {
+                    return Err(TransitionError::ClaimAlreadyFinalized);
+                }
+            }
+            // Step 3: no Finalized claim against this task. Defense-in-depth
+            // for replay determinism; emit_system_tx already gates this but
+            // dispatch enforces it irrespective of emit-time state.
+            let task_has_finalized_claim = q.economic_state_t.claims_t.0.values().any(|c| {
+                c.task_id == expire.task_id
+                    && c.status == crate::state::q_state::ClaimStatus::Finalized
+            });
+            if task_has_finalized_claim {
+                return Err(TransitionError::ClaimAlreadyFinalized);
+            }
+            // Step 4: no Open challenge_cases targeting this task's WorkTxs
+            // (cannot refund while a dispute is pending). TB-5 carry — open
+            // challenge holds the bond, which is a separate holding from
+            // escrow but the policy is "wait until challenge resolves".
+            let task_has_open_challenge = q.economic_state_t.challenge_cases_t.0.values().any(|cc| {
+                let work_for_this_task = q
+                    .economic_state_t
+                    .stakes_t
+                    .0
+                    .get(&cc.target_work_tx)
+                    .map(|s| s.task_id == expire.task_id)
+                    .unwrap_or(false);
+                work_for_this_task
+                    && cc.status == crate::state::q_state::ChallengeStatus::Open
+            });
+            if task_has_open_challenge {
+                return Err(TransitionError::ChallengeWindowStillOpen);
+            }
+            // Step 5: escrow row exists + matches sponsor + matches task.
+            let escrow = match q.economic_state_t.escrows_t.0.get(&expire.escrow_tx_id) {
+                Some(e) => e.clone(),
+                None => return Err(TransitionError::EscrowMissing),
+            };
+            if escrow.task_id != expire.task_id {
+                return Err(TransitionError::EscrowMissing);
+            }
+            if escrow.depositor != expire.sponsor_agent {
+                return Err(TransitionError::EscrowMissing);
+            }
+            // Step 6: Q-derived bounty_refunded consistency. Wire field is
+            // ledger summary; Q is authoritative.
+            if expire.bounty_refunded != escrow.amount {
+                return Err(TransitionError::SettlementPredicateFailed(
+                    crate::state::typed_tx::PredicateId(
+                        "bounty_refunded_matches_q_derived".into(),
+                    ),
+                ));
+            }
+            // Step 7: atomic mutation — q_next.
+            let mut q_next = q.clone();
+            // 7a. Remove escrow row (refund consumes it; replay-deterministic).
+            q_next.economic_state_t.escrows_t.0.remove(&expire.escrow_tx_id);
+            // 7b. Credit balances_t[sponsor].
+            let cur_sponsor_bal = q
+                .economic_state_t
+                .balances_t
+                .0
+                .get(&expire.sponsor_agent)
+                .copied()
+                .unwrap_or_else(crate::economy::money::MicroCoin::zero);
+            let new_sponsor_micro = cur_sponsor_bal.micro_units() + escrow.amount.micro_units();
+            q_next.economic_state_t.balances_t.0.insert(
+                expire.sponsor_agent.clone(),
+                crate::economy::money::MicroCoin::from_micro_units(new_sponsor_micro),
+            );
+            // 7c. Update task_markets_t cache (total_escrow -= refunded amount;
+            // remove escrow_tx_id from set; flip state to Expired).
+            if let Some(tm) = q_next.economic_state_t.task_markets_t.0.get_mut(&expire.task_id) {
+                let new_total = tm.total_escrow.micro_units() - escrow.amount.micro_units();
+                tm.total_escrow =
+                    crate::economy::money::MicroCoin::from_micro_units(new_total);
+                tm.escrow_lock_tx_ids.remove(&expire.escrow_tx_id);
+                tm.state = crate::state::q_state::TaskMarketState::Expired;
+            }
+            // Step 8: monetary invariants.
+            assert_no_post_init_mint(tx, q)
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            assert_total_ctf_conserved(&q.economic_state_t, &q_next.economic_state_t, &[])
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            assert_task_market_total_escrow_matches_locks(&q_next.economic_state_t, &expire.task_id)
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            assert_claim_amount_backed_by_escrow(&q_next.economic_state_t)
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            // Step 9: state_root advance.
+            q_next.state_root_t = task_expire_accept_state_root(&q.state_root_t, tx);
+            Ok((
+                q_next,
+                SignalBundle::task_expired(expire.task_id.clone(), escrow.amount),
+            ))
+        }
+        // ──────────────────────────────────────────────────────────────────
+        // TB-11 Atom 2 (architect §6.2 ruling 2026-05-02) — TerminalSummary
+        // dispatch arm. Anchors a run-level outcome (architect's
+        // RunExhaustedTx) on L4 with `evidence_capsule_cid` carrying
+        // forward to CAS for O(N) auditability.
+        //
+        // No money movement; CTF preserved trivially.
+        //
+        // Idempotency on `run_id` — duplicate emissions for the same run
+        // are rejected.
+        // ──────────────────────────────────────────────────────────────────
+        TypedTx::TerminalSummary(ts) => {
+            // Step 0: parent-root match.
+            if ts.parent_state_root != q.state_root_t {
+                return Err(TransitionError::StaleParent);
+            }
+            // Step 1: idempotency. RunsIndex key by run_id.
+            if q.economic_state_t.runs_t.0.contains_key(&ts.run_id) {
+                return Err(TransitionError::TerminalSummaryNotApplicable);
+            }
+            // Step 2: q_next — write RunSummaryEntry.
+            let mut q_next = q.clone();
+            let entry = crate::state::q_state::RunSummaryEntry {
+                task_id: ts.task_id.clone(),
+                run_outcome: ts.run_outcome,
+                attempt_count: ts.total_attempts as u64,
+                evidence_capsule_cid: ts.evidence_capsule_cid,
+                solver_agent: ts.solver_agent.clone(),
+                last_logical_t: ts.last_logical_t,
+            };
+            q_next.economic_state_t.runs_t.0.insert(ts.run_id.clone(), entry);
+            // Step 3: monetary invariants. No money moved.
+            assert_no_post_init_mint(tx, q)
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            assert_total_ctf_conserved(&q.economic_state_t, &q_next.economic_state_t, &[])
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            // Step 4: state_root advance.
+            q_next.state_root_t = terminal_summary_accept_state_root(&q.state_root_t, tx);
+            Ok((q_next, SignalBundle::terminal_summary(ts.run_id.clone(), ts.run_outcome)))
+        }
+        // ──────────────────────────────────────────────────────────────────
+        // TB-11 Atom 2 (architect §6.2 ruling 2026-05-02) — TaskBankruptcy
+        // dispatch arm. Marks a task as Bankrupt — chain-resident "death
+        // certificate" that future TB-12 NodeMarket Short / NO settlement
+        // can reference as resolution anchor.
+        //
+        // No money movement; CTF preserved trivially. (Refund of any
+        // remaining escrow is a separate post-bankruptcy TaskExpireTx with
+        // `reason: BankruptcyTriggered`.)
+        //
+        // Idempotency: rejects if task already Bankrupt or Finalized.
+        // ──────────────────────────────────────────────────────────────────
+        TypedTx::TaskBankruptcy(bk) => {
+            // Step 0: parent-root match.
+            if bk.parent_state_root != q.state_root_t {
+                return Err(TransitionError::StaleParent);
+            }
+            // Step 1: task exists.
+            let task_entry = match q.economic_state_t.task_markets_t.0.get(&bk.task_id) {
+                Some(e) => e.clone(),
+                None => return Err(TransitionError::TaskNotFound),
+            };
+            // Step 2: idempotency + lifecycle gate.
+            match task_entry.state {
+                crate::state::q_state::TaskMarketState::Open
+                | crate::state::q_state::TaskMarketState::Expired => { /* proceed */ }
+                crate::state::q_state::TaskMarketState::Bankrupt => {
+                    return Err(TransitionError::TaskAlreadyOpen);
+                    // Idempotent re-bankruptcy refused; reuse TaskAlreadyOpen
+                    // pending dedicated TaskAlreadyBankrupt variant.
+                }
+                crate::state::q_state::TaskMarketState::Finalized => {
+                    return Err(TransitionError::ClaimAlreadyFinalized);
+                }
+            }
+            // Step 3: q_next — flip state to Bankrupt + record bankruptcy_at_logical_t.
+            let mut q_next = q.clone();
+            if let Some(tm) = q_next.economic_state_t.task_markets_t.0.get_mut(&bk.task_id) {
+                tm.state = crate::state::q_state::TaskMarketState::Bankrupt;
+                tm.bankruptcy_at_logical_t = Some(bk.timestamp_logical);
+            }
+            // Step 4: monetary invariants. No money moved.
+            assert_no_post_init_mint(tx, q)
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            assert_total_ctf_conserved(&q.economic_state_t, &q_next.economic_state_t, &[])
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            // Step 5: state_root advance.
+            q_next.state_root_t = task_bankruptcy_accept_state_root(&q.state_root_t, tx);
+            Ok((q_next, SignalBundle::empty()))
+        }
         // ──────────────────────────────────────────────────────────────────
         // TB-5 Atom 5+6 — ChallengeResolve arm (charter v2 § 4.6 +
         // preflight § 7.2). Two paths:
@@ -1298,9 +1561,56 @@ pub enum SystemEmitCommand {
     FinalizeReward {
         claim_id: crate::state::typed_tx::ClaimId,
     },
-    // Future RSP-3.2 / RSP-4 additions (NOT in TB-8 scope):
-    //   TaskExpire     { ... }
-    //   TerminalSummary { ... }
+    /// TB-11 Atom 2 (architect §6.2 ruling 2026-05-02) — refund a locked
+    /// escrow that exceeded its expiry policy without a Finalized claim.
+    ///
+    /// Caller passes `task_id` + `escrow_tx_id`; the runtime Q-derives
+    /// `sponsor_agent` (from `escrows_t[escrow_tx_id].depositor`),
+    /// `bounty_refunded` (from `escrows_t[escrow_tx_id].amount`), and
+    /// fills `parent_state_root` + `epoch` + `timestamp_logical` from
+    /// the sequencer's current state. `reason` is caller-specified
+    /// (Deadline / MaxRunCountReached / ManualSponsorRequest /
+    /// BankruptcyTriggered) so the on-chain record names the policy
+    /// that triggered expiry.
+    TaskExpire {
+        task_id: crate::state::q_state::TaskId,
+        escrow_tx_id: crate::state::q_state::TxId,
+        reason: crate::state::typed_tx::ExpireReason,
+    },
+    /// TB-11 Atom 2 (architect §6.2 ruling 2026-05-02; ≡ RunExhaustedTx) —
+    /// anchor a run-level outcome (typically failure: MaxTxExhausted /
+    /// WallClockCap / ComputeCap / ErrorHalt) on L4 with
+    /// `evidence_capsule_cid` carrying forward to CAS.
+    ///
+    /// Caller passes the run-summary fields directly; emit_system_tx fills
+    /// `parent_state_root` from current Q + `tx_id` deterministically.
+    /// No money movement; idempotent on `run_id`.
+    TerminalSummary {
+        run_id: crate::state::typed_tx::RunId,
+        task_id: crate::state::q_state::TaskId,
+        run_outcome: crate::state::typed_tx::RunOutcome,
+        total_attempts: u32,
+        failure_class_histogram:
+            std::collections::BTreeMap<crate::state::typed_tx::RejectionClass, u32>,
+        last_logical_t: u64,
+        solver_agent: Option<crate::state::q_state::AgentId>,
+        evidence_capsule_cid: Option<crate::bottom_white::cas::schema::Cid>,
+    },
+    /// TB-11 Atom 2 (architect §6.2 ruling 2026-05-02) — task-level death
+    /// certificate. Anchors a TaskBankruptcyTx on L4 referencing the
+    /// rolled-up evidence capsule.
+    ///
+    /// Caller passes `task_id` + `evidence_capsule_cid` + `bankruptcy_reason`
+    /// + `failed_run_count`; runtime fills parent_state_root + epoch +
+    /// timestamp_logical. No money movement (refund is a separate
+    /// post-bankruptcy TaskExpire with `reason: BankruptcyTriggered`).
+    TaskBankruptcy {
+        task_id: crate::state::q_state::TaskId,
+        evidence_capsule_cid: crate::bottom_white::cas::schema::Cid,
+        bankruptcy_reason: crate::state::typed_tx::BankruptcyReason,
+        failed_run_count: u32,
+    },
+    // Future RSP-3.2 additions (NOT in TB-11 scope):
     //   SlashTx        { ... }   (RSP-3.2)
 }
 
@@ -1739,6 +2049,140 @@ impl Sequencer {
                 tx.system_signature = sig;
                 Ok(TypedTx::FinalizeReward(tx))
             }
+            // ─────────────────────────────────────────────────────────────
+            // TB-11 Atom 2 (architect §6.2 ruling 2026-05-02) — TaskExpire
+            // construction. Caller passes task_id + escrow_tx_id + reason;
+            // runtime Q-derives sponsor_agent + bounty_refunded.
+            // ─────────────────────────────────────────────────────────────
+            SystemEmitCommand::TaskExpire { task_id, escrow_tx_id, reason } => {
+                use crate::bottom_white::ledger::system_keypair::terminal_summary_emitter::sign_task_expire;
+                use crate::state::typed_tx::TaskExpireTx;
+                let q_snap = self
+                    .q
+                    .read()
+                    .map_err(|_| EmitSystemError::InternalLockPoisoned)?;
+                let escrow = q_snap
+                    .economic_state_t
+                    .escrows_t
+                    .0
+                    .get(&escrow_tx_id)
+                    .ok_or(EmitSystemError::ClaimNotFound)?
+                    .clone();
+                let logical_t_for_id = self.next_logical_t.load(Ordering::SeqCst) + 1;
+                let mut tx = TaskExpireTx {
+                    tx_id: crate::state::q_state::TxId(format!(
+                        "system-task-expire-{}-{}",
+                        self.epoch.get(),
+                        logical_t_for_id
+                    )),
+                    task_id,
+                    parent_state_root: q_snap.state_root_t,
+                    bounty_refunded: escrow.amount,
+                    epoch: self.epoch,
+                    timestamp_logical: logical_t_for_id,
+                    sponsor_agent: escrow.depositor.clone(),
+                    escrow_tx_id,
+                    reason,
+                    system_signature: SystemSignature::from_bytes([0u8; 64]), // placeholder
+                };
+                drop(q_snap);
+                let payload = tx.to_signing_payload();
+                let digest = payload.canonical_digest();
+                let sig = sign_task_expire(&self.keypair, digest)
+                    .map_err(EmitSystemError::SignatureConstruction)?;
+                tx.system_signature = sig;
+                Ok(TypedTx::TaskExpire(tx))
+            }
+            // ─────────────────────────────────────────────────────────────
+            // TB-11 Atom 2 (architect §6.2 ruling 2026-05-02) —
+            // TerminalSummary construction. Caller passes the run-summary
+            // fields directly; runtime fills tx_id + parent_state_root +
+            // epoch + timestamp_logical.
+            // ─────────────────────────────────────────────────────────────
+            SystemEmitCommand::TerminalSummary {
+                run_id,
+                task_id,
+                run_outcome,
+                total_attempts,
+                failure_class_histogram,
+                last_logical_t,
+                solver_agent,
+                evidence_capsule_cid,
+            } => {
+                use crate::bottom_white::ledger::system_keypair::terminal_summary_emitter::sign_terminal_summary;
+                use crate::state::typed_tx::TerminalSummaryTx;
+                let q_snap = self
+                    .q
+                    .read()
+                    .map_err(|_| EmitSystemError::InternalLockPoisoned)?;
+                let logical_t_for_id = self.next_logical_t.load(Ordering::SeqCst) + 1;
+                let mut tx = TerminalSummaryTx {
+                    tx_id: crate::state::q_state::TxId(format!(
+                        "system-terminal-summary-{}-{}",
+                        self.epoch.get(),
+                        logical_t_for_id
+                    )),
+                    task_id,
+                    run_id,
+                    run_outcome,
+                    total_attempts,
+                    failure_class_histogram,
+                    last_logical_t,
+                    parent_state_root: q_snap.state_root_t,
+                    solver_agent,
+                    evidence_capsule_cid,
+                    system_signature: SystemSignature::from_bytes([0u8; 64]), // placeholder
+                };
+                drop(q_snap);
+                let payload = tx.to_signing_payload();
+                let digest = payload.canonical_digest();
+                let sig = sign_terminal_summary(&self.keypair, digest)
+                    .map_err(EmitSystemError::SignatureConstruction)?;
+                tx.system_signature = sig;
+                Ok(TypedTx::TerminalSummary(tx))
+            }
+            // ─────────────────────────────────────────────────────────────
+            // TB-11 Atom 2 (architect §6.2 ruling 2026-05-02) —
+            // TaskBankruptcy construction. Caller passes task_id +
+            // evidence_capsule_cid + bankruptcy_reason + failed_run_count;
+            // runtime fills tx_id + parent_state_root + epoch + ts_logical.
+            // ─────────────────────────────────────────────────────────────
+            SystemEmitCommand::TaskBankruptcy {
+                task_id,
+                evidence_capsule_cid,
+                bankruptcy_reason,
+                failed_run_count,
+            } => {
+                use crate::bottom_white::ledger::system_keypair::terminal_summary_emitter::sign_task_bankruptcy;
+                use crate::state::typed_tx::TaskBankruptcyTx;
+                let q_snap = self
+                    .q
+                    .read()
+                    .map_err(|_| EmitSystemError::InternalLockPoisoned)?;
+                let logical_t_for_id = self.next_logical_t.load(Ordering::SeqCst) + 1;
+                let mut tx = TaskBankruptcyTx {
+                    tx_id: crate::state::q_state::TxId(format!(
+                        "system-task-bankruptcy-{}-{}",
+                        self.epoch.get(),
+                        logical_t_for_id
+                    )),
+                    parent_state_root: q_snap.state_root_t,
+                    task_id,
+                    evidence_capsule_cid,
+                    bankruptcy_reason,
+                    failed_run_count,
+                    epoch: self.epoch,
+                    timestamp_logical: logical_t_for_id,
+                    system_signature: SystemSignature::from_bytes([0u8; 64]), // placeholder
+                };
+                drop(q_snap);
+                let payload = tx.to_signing_payload();
+                let digest = payload.canonical_digest();
+                let sig = sign_task_bankruptcy(&self.keypair, digest)
+                    .map_err(EmitSystemError::SignatureConstruction)?;
+                tx.system_signature = sig;
+                Ok(TypedTx::TaskBankruptcy(tx))
+            }
         }
     }
 
@@ -1760,6 +2204,37 @@ impl Sequencer {
             TypedTx::FinalizeReward(t) => {
                 let digest = t.to_signing_payload().canonical_digest();
                 let msg = CanonicalMessage::FinalizeRewardSigning(digest);
+                if !verify_system_signature(&t.system_signature, &msg, t.epoch, &self.pinned_pubkeys) {
+                    return Err(EmitSystemError::InvalidSystemSignatureLive);
+                }
+                Ok(())
+            }
+            // TB-11 Atom 2 — TaskExpire defense-in-depth verify.
+            TypedTx::TaskExpire(t) => {
+                let digest = t.to_signing_payload().canonical_digest();
+                let msg = CanonicalMessage::TaskExpireSigning(digest);
+                if !verify_system_signature(&t.system_signature, &msg, t.epoch, &self.pinned_pubkeys) {
+                    return Err(EmitSystemError::InvalidSystemSignatureLive);
+                }
+                Ok(())
+            }
+            // TB-11 Atom 2 — TerminalSummary defense-in-depth verify.
+            // TerminalSummaryTx has no `epoch` field on the wire; verify
+            // against the sequencer's current epoch (mirrors apply_one
+            // stage 1.5 behavior at system_epoch_of(TerminalSummary) -> None
+            // → falls back to current epoch).
+            TypedTx::TerminalSummary(t) => {
+                let digest = t.to_signing_payload().canonical_digest();
+                let msg = CanonicalMessage::TerminalSummarySigning(digest);
+                if !verify_system_signature(&t.system_signature, &msg, self.epoch, &self.pinned_pubkeys) {
+                    return Err(EmitSystemError::InvalidSystemSignatureLive);
+                }
+                Ok(())
+            }
+            // TB-11 Atom 2 — TaskBankruptcy defense-in-depth verify.
+            TypedTx::TaskBankruptcy(t) => {
+                let digest = t.to_signing_payload().canonical_digest();
+                let msg = CanonicalMessage::TaskBankruptcySigning(digest);
                 if !verify_system_signature(&t.system_signature, &msg, t.epoch, &self.pinned_pubkeys) {
                     return Err(EmitSystemError::InvalidSystemSignatureLive);
                 }
@@ -2170,56 +2645,27 @@ mod tests {
     // their own U/I tests cover them). TB-4 Atom 4-5 narrows further
     // (Verify + Challenge are now real; covered by U12-U21 + I31-I43).
     // **TB-8 Atom 3 narrows further (2026-05-02)**: FinalizeReward is now
-    // real (covered by tests/tb_8_minimal_payout.rs I110-I121); only
-    // Reuse / TaskExpire / TerminalSummary remain stubs (post-v1.0 / RSP
-    // higher-tier territory).
+    // real (covered by tests/tb_8_minimal_payout.rs I110-I121).
+    // **TB-11 Atom 2 narrows further (2026-05-02 architect §6.2 ruling)**:
+    // TaskExpire + TerminalSummary + TaskBankruptcy now have real
+    // dispatch bodies (covered by tests/tb_11_epistemic_exhaust.rs);
+    // ONLY Reuse remains stubbed (post-v1.0 RSP-5 territory).
     #[test]
-    fn dispatch_transition_stubs_non_work_non_rsp1_non_rsp2_non_rsp4_variants() {
+    fn dispatch_transition_stubs_reuse_only() {
         let q = QState::genesis();
         let preds = PredicateRegistry::new();
         let tools = ToolRegistry::new();
 
-        let cases: Vec<TypedTx> = vec![
-            TypedTx::Reuse(ReuseTx {
-                tx_id: TxId("rt".into()),
-                reusing_work_tx: TxId("wt".into()),
-                reused_tool_id: ToolId("tool".into()),
-                reused_tool_creator: AgentId("a".into()),
-                timestamp_logical: 1,
-            }),
-            // FinalizeReward is no longer a stub (TB-8 Atom 3 — see
-            // tests/tb_8_minimal_payout.rs for full dispatch coverage).
-            TypedTx::TaskExpire(TaskExpireTx {
-                tx_id: TxId("et".into()),
-                task_id: TaskId("t".into()),
-                parent_state_root: Default::default(),
-                bounty_refunded: MicroCoin::from_micro_units(1),
-                epoch: SystemEpoch::new(1),
-                timestamp_logical: 1,
-                sponsor_agent: AgentId("sponsor".into()),                          // TB-11
-                escrow_tx_id: TxId("escrow-1".into()),                              // TB-11
-                reason: crate::state::typed_tx::ExpireReason::Deadline,             // TB-11
-                system_signature: SystemSignature::from_bytes([0; 64]),
-            }),
-            TypedTx::TerminalSummary(TerminalSummaryTx {
-                tx_id: TxId("ts".into()),
-                task_id: TaskId("t".into()),
-                run_id: RunId("r".into()),
-                run_outcome: RunOutcome::OmegaAccepted,
-                total_attempts: 0,
-                failure_class_histogram: BTreeMap::new(),
-                last_logical_t: 0,
-                parent_state_root: Default::default(),                              // TB-11
-                solver_agent: None,                                                  // TB-11
-                evidence_capsule_cid: None,                                          // TB-11
-                system_signature: SystemSignature::from_bytes([0; 64]),
-            }),
-        ];
-
-        for tx in cases {
-            let result = dispatch_transition(&q, &tx, &preds, &tools);
-            assert!(matches!(result, Err(TransitionError::NotYetImplemented)));
-        }
+        // Reuse remains the only NotYetImplemented dispatch arm (RSP-5).
+        let tx = TypedTx::Reuse(ReuseTx {
+            tx_id: TxId("rt".into()),
+            reusing_work_tx: TxId("wt".into()),
+            reused_tool_id: ToolId("tool".into()),
+            reused_tool_creator: AgentId("a".into()),
+            timestamp_logical: 1,
+        });
+        let result = dispatch_transition(&q, &tx, &preds, &tools);
+        assert!(matches!(result, Err(TransitionError::NotYetImplemented)));
     }
 
     // 2. K1 dual counter: submit advances submit_id but NOT logical_t.
