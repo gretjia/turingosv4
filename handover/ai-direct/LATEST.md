@@ -6,6 +6,138 @@
 
 ---
 
+## 📋 2026-05-02 — Post-ship session close: TB-10 byte-audit + TB-13 preview + architectural-coverage finding
+
+**Session summary**: Post-TB-10 deepening session. Three deliverables, all on top of `6ab165c` (TB-10 ship); no new commits. (1) Byte-level audit of TB-10 chain — canonical-decoded the 5 L4 entries from run_a smoke and confirmed every architect-mandate field at the lowest evidence layer. (2) TB-13 PREVIEW off-product smoke — brand-new zeta-regularization theorem ingested via manual MiniF2F/Test/ copy (off ratified TB-10 product surface; explicitly preview-labeled), 500_000-micro bounty, MAX_TX=50 → effective 200 proposals, deepseek-chat ran 132 attempts in 22min wall, depth-32 partial proof, **0 OMEGA acceptances**, no FinalizeReward, bounty stays in escrow per Q7 — exactly the predicted Scenario B2 outcome. (3) Architectural-coverage audit triggered by user question "did the top white box predicate-check the proposals?" — surfaced that TuringOS's chain epistemic guarantee is **ONE-SIDED**: the chain proves *nothing fake was accepted* (TB-7R sorry-gate fired 14× pre-Lean; Lean kernel rejected 73× explicitly; 0 OMEGA), but does NOT prove *every fake attempt was witnessed and refused* — the 132 attempts are evaluator-private (in `lean_market.log` only); chain has zero proposal_telemetry / verification_result CAS objects from this run. PredicateRegistry is empty-by-design at runtime (TB-6 simplification; `_predicate_registry` is unused dispatch param); the actual proof-checking lives in three layers (chain dispatch arms / bus forbidden_payload / evaluator's lean4_oracle subprocess). This is consistent with `feedback_chaintape_externalized_proposal` ("1 LLM call → 1 compound payload"), but the TB-13 preview surfaced the operational consequence: **failed runs leave bare chains; failed-attempt audit currently requires non-chain artifacts**.
+
+### Byte-level TB-10 audit findings (run_a, mathd_algebra_171)
+
+```text
+L4 entry #1 TaskOpen (canonical 284B):
+  variant_tag         = 0x07 = TypedTx::TaskOpen
+  tx_id               = "taskopen-...-tb10-user-seed"           ← TB-10 net-new suffix in chain bytes
+  sponsor_agent       = "Agent_user_0"                          ← TB-10 sponsor (12 bytes)
+  AgentSignature      = NON-ZERO Ed25519 (real-sig path; make_real_task_open_signed_by)
+
+L4 entry #2 EscrowLock (canonical 258B):
+  tx_id               = "escrowlock-...-tb10-user-escrow"       ← TB-10 net-new suffix
+  amount              = 0x186a0 = 100_000 micro = 0.1 Coin      ← EXACT BOUNTY
+  parent_state_root   = NON-ZERO 32B (chains to L4#1 resulting root)
+  AgentSignature      = NON-ZERO Ed25519
+
+L4 entry #5 FinalizeReward (canonical 268B):
+  tx_id               = "system-finalize-reward-1-5"            ← system-emitted naming (epoch.logical_t)
+  claim_id            = "claim-verifytx-Agent_0-omega-pertactic-1"  ← matches L4#4 verify
+  reward              = 100_000 micro                           ← BIT-EQUAL to L4#2 amount
+  solver              = "Agent_0"                               ← TB-9 durable AgentId
+
+Cross-run pubkey identity (raw hex from agent_pubkeys.json across 3 smoke runs):
+  Agent_0:      ebefcd328a36a515cb49f80e49a514c8df964dcfe4db48aa8207fc7a69ee2504  ← IDENTICAL × 3
+  Agent_user_0: f1982a189b5befb2f4a94d1688a01676231ade20440fa80c46c455d5e7aba0c0  ← IDENTICAL × 3
+
+ALL 5 LedgerEntry system_signatures: 64-byte Ed25519, NONE zero.
+```
+
+### TB-13 preview run results (zeta-regularization heat-cosine kernel)
+
+Evidence: `handover/evidence/tb_13_preview_zeta_regularization_2026-05-02/` — README + 1 run_a directory (lean_market.log + dashboard.txt + replay_report.json + runtime_repo.tar.gz + cas.tar.gz + agent_keystore_at_exit + agent_pubkeys_for_witness).
+
+```text
+Lean theorem (precise reformulation; the literal claim ∑n=-1/12 is divergent in standard reals):
+  Tendsto (fun N : ℕ ↦ ∑' m, m·exp(-m/N)·cos(m/N))  atTop  (𝓝 (-1/12 : ℝ))
+  Mathematically true (via Bernoulli expansion + (1-i)/N phase killing real divergence)
+  Estimated proof difficulty: 200-500 Lean lines; LLM solve probability < 1%
+
+Run outcome:
+  L4 entries     : 2 (TaskOpen + EscrowLock by Agent_user_0; bounty 500_000 micro)
+  L4.E entries   : 2 (synthetic seeds; pre-existing TB-6 Atom 3 pattern; NOT this run's LLM work)
+  proposals      : 132  (truncated by 1300s outer timeout before 200 budget exhausted)
+  partial OK     : 32   (LLM accumulated 32 valid Lean tactics into proof state)
+  Lean rejected  : 73   (mostly "simp made no progress")
+  forbidden      : 14   (sorry-attempts blocked PRE-LEAN by TB-7R Atom 2)
+  parse errors   : 26   (LLM output not in <action> protocol)
+  OMEGA accepted : 0    ← proof never closed
+  FinalizeReward : NEVER FIRED  ← architect mandate negative pathway upheld
+  payout         : 0 micro; bounty stays in escrow indefinitely (Q7 limitation)
+  replay         : 7/7 indicators GREEN (chain integrity preserved despite no payout)
+  cleanup        : MiniF2F/Test/zeta_regularization.lean reverted post-run
+                    (no permanent change to heldout-49 corpus)
+```
+
+### Architectural-coverage finding
+
+```text
+"Did the top white box predicate-check the proposals?" — 3-layer answer:
+
+Layer A: Chain dispatch arm (sequencer.rs hardcoded checks; PredicateRegistry passed as _unused)
+  Reached by:  2 typed_tx (TaskOpen + EscrowLock from preseed)
+  Verdict:     2/2 PASSED → 2 L4 entries committed
+
+Layer B: Bus forbidden_payload string-match gate (TB-7R Atom 2; pre-Lean)
+  Reached by:  every LLM proposal
+  Verdict:     14/132 BLOCKED on sorry-attempts → never reached Lean kernel
+
+Layer C: Evaluator's lean4_oracle (DIRECT subprocess; not chain-mediated)
+  Reached by:  118 proposals (132 minus 14 forbidden_payload)
+  Verdict:     32 partial-tactic accepts ; 73 explicit Lean errors ;
+                26 protocol parse errors ; 0 OMEGA acceptances
+
+PredicateRegistry status: EMPTY by design (`Arc::new(PredicateRegistry::new())` at
+  src/runtime/mod.rs:415; dispatch_transition takes it as `_predicate_registry` /
+  unused param). The chain has the *socket* for top-white-box predicates, but no
+  plug currently inserted. TB-6 simplification.
+
+Chain-resident audit completeness:
+  ✓ "no fake accepted"            — proven by chain alone (no WorkTx for the 132 attempts)
+  ✗ "every fake attempt witnessed" — NOT proven by chain alone (the 132 lived in
+                                      lean_market.log; chain has 0 proposal_telemetry
+                                      and 0 verification_result CAS objects from this run)
+```
+
+### Honest limitations exposed by TB-13 preview
+
+1. **`lean_market --max-tx` flag does NOT override evaluator's swarm budget regime** (`total_proposal` base 200 from `BUDGET_REGIME` env). TB-10 charter implied this would cap; empirically it doesn't. Candidate OBS for next-TB.
+2. **Outer timeout sizing**: 1300s was insufficient for hard-analysis at 200-proposal budget × ~10-15s/Lean check. ~30 min would be needed for full budget exhaust.
+3. **Bounty indefinite-lock confirmed in real flow**: 500_000 micro now stuck in escrows_t with no refund path. Q7 limitation became operationally visible. TB-12+ scope.
+4. **L4.E does not capture LLM-proposal-rejection events**: only `submit_typed_tx`-routed rejections hit L4.E. The 73 Lean errors + 14 forbidden_payload + 26 parse errors are evaluator-private. Architectural shift needed if we want chain-resident witness of every refused attempt.
+
+### What didn't change
+
+- No new commits this session (post-ship deepening only; TB-10 stays at `6ab165c`)
+- No code changes to `src/state/sequencer.rs`, `src/state/typed_tx.rs`, `src/state/q_state.rs`, or any kernel-resident file
+- TB-10 ratification §1 Q1-Q8 stands as ratified
+- ROADMAP next-TB direction unchanged: TB-11 RSP-M0/M1 NodeMarket Decision + Position Index
+
+### Open questions for next session
+
+1. **Architectural Q (TB-13 charter shape)**: should L4.E grow to capture per-LLM-attempt rejection events (chain-resident witness of "fake-attempt refusal"), OR keep `feedback_chaintape_externalized_proposal` as-is and accept that failed-attempt audit needs non-chain artifacts? Tradeoff: chain bloat vs audit completeness. Affects TB-13 Beta + TB-14 v1.0 scope.
+2. **Operational fix**: `lean_market --max-tx` does not override `BUDGET_REGIME total_proposal base` — should the user CLI flag take precedence, or document the regime hierarchy? Small OBS or part of TB-11.
+3. **Refund mechanism for indefinite-locked bounties**: Q7 came up against real friction in TB-13 preview. Should TB-12 RSP-3.2 be brought forward, or wait for TB-14 task-expiry?
+
+### Cross-references this session produced
+
+```text
+handover/evidence/tb_13_preview_zeta_regularization_2026-05-02/
+  README.md                          (full audit narrative §0-§7)
+  agent_keystore.enc                 (durable keystore; same as TB-10 smoke pattern)
+  keystore/agent_keystore.enc
+  run_a_n1_zeta_regularization/
+    lean_market.log                  (132-proposal trace)
+    dashboard.txt                    (§1-§11; §11 shows open un-claimed user task)
+    replay_report.json               (7/7 indicators GREEN)
+    verify.log
+    runtime_repo.tar.gz              (16K self-contained)
+    cas.tar.gz                       (12K)
+    agent_keystore_at_exit.enc
+    agent_pubkeys_for_witness.json
+```
+
+### Next-session prompt
+
+Unchanged from TB-10 ship-section bottom: **TB-11 RSP-M0/M1 NodeMarket Decision Record + Position Index** (no trading; per architect Part C line 1617). Charter design should incorporate this session's architectural-coverage finding as input — specifically, decide whether TB-11/13 should expand chain-resident audit to cover failed-attempt witnesses, or keep the current 1-LLM-call=1-compound-payload externalization rule.
+
+---
+
 ## 🚢 2026-05-02 — TB-10 SHIPPED — Lean Proof Task Market MVP (first user-facing product; recursive self-audit PASS)
 
 **Session summary**: Shipped the **first user-facing product** per architect directive 2026-05-02 Part C ruling 12+13 line 1594 ("第一个可用产品：用户发任务，Agent 解题，系统验证，系统付款，dashboard 可审计"). Every primitive in the architect MUST list (TaskOpenTx + EscrowLockTx + WorkTx + VerifyTx + FinalizeRewardTx + replay + dashboard) was already shipped in TB-3..TB-8 — TB-10 is the thin user-facing wrapper that closes the 5-step compile loop end-to-end from a non-evaluator caller class. **Architect mandate satisfied 5/5**: 用户发任务 ✓ (lean_market run-task subcommand, Agent_user_0 sponsor with real Ed25519), Agent 解题 ✓ (evaluator user-mode + deepseek-chat solver loop), 系统验证 ✓ (Lean kernel oracle + OMEGA-Confirm VerifyTx), 系统付款 ✓ (FinalizeRewardTx system-emitted via tb8_emit_finalize_after_verify), dashboard 可审计 ✓ (audit_dashboard §11 User Tasks renders correctly). Class 2 primary risk (production wire-up via new bin) + Class 3 audit tier (first new caller class for already-Class-3 economic mutators) handled via **recursive self-audit** (4-clause structure: Constitutional / Replay-deterministic / Conservation / User-minimum-contract — all PASS; 11/11 ship gates GREEN; 6/6 recursive failure modes PASS) per `feedback_dual_audit` hybrid-by-risk-class. TB-10 net-new surface is **purely additive on top of unchanged kernel** — NO new TypedTx variant, NO new dispatch arm, NO new TransitionError variant, NO new state-root domain, NO `monetary_invariant.rs` cascade. External Codex + Gemini audits deferred post-ship per recursive-audit §8 (kernel-only-additive surface; external audit available on request). TB-10 ship-gate test count: `cargo test --workspace = 731 / 0 / 150` (+8 net vs TB-9 baseline 723; the +8 are exactly the new `runtime::bootstrap::tests` unit suite). 3/3 SOLVED across 3 different heldout-49 problems with bounties 100_000 / 100_000 / 250_000 micro; cross-run pubkey identity for both Agent_user_0 (sponsor) and Agent_0 (solver) verified by `diff -q agent_pubkeys_for_witness.json` across all 3 runs.

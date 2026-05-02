@@ -1,0 +1,107 @@
+=================================================================
+ TB-8 Audit Dashboard — run_id=1777740138 epoch=1
+=================================================================
+
+§1 Run metadata
+---------------
+  head_commit_oid: 08f0c1215e6d8588ba38243de0df659617a4c020
+  final_state_root: 0e162d736e14430e19545a71f71b7b12e67dce5ba3ff0aa431946d3ea4743e65
+  final_ledger_root: bcfd6a9b039fe2fcda20d3990e93074533417948b5d42d75e2c9c4494a396ba9
+  initial_q_state_loaded_from_disk: true
+
+§2 Chain stats + 7 indicators
+------------------------------
+  L4 entries:  2
+  L4.E entries: 2
+  ledger_root_verified              : ✓
+  system_signatures_verified        : ✓
+  state_reconstructed               : ✓
+  economic_state_reconstructed      : ✓
+  cas_payloads_retrievable          : ✓
+  agent_signatures_verified [Gate 4]: ✓
+  proposal_telemetry_cas_retrievable [Gate 5]: ✓
+  ALL 7 PASS                        : GREEN
+
+§3 ChainDerivedRunFacts (§4.4 bit-exact set)
+---------------------------------------------
+  solved                  : false
+  verified                : false
+  tx_count                : 4
+  proposal_count          : 1
+  golden_path_token_count : 0
+  gp_payload (CID hex)    : -
+  gp_path                 : -
+  tactic_diversity        : 0
+  failed_branch_count     : 2
+  chain_oracle_verified   : false (no oracle-verified WorkTx)
+  chain_economic_finalized: false (always false in TB-7; settlement = TB-9 territory)
+  tool_dist:
+    (empty)
+
+§4 Per-agent activity
+---------------------
+  agent_id          | pubkey | Work✓ | Work✗ | Verify✓ | Verify✗
+  ------------------+--------+-------+-------+---------+--------
+  Agent_user_0      | ✓      | 0     | 0     | 0       | 0
+  tb6-smoke-agent   | ✗      | 0     | 1     | 0       | 0
+  tb6-smoke-sponsor | ✗      | 0     | 0     | 0       | 0
+
+§5 Proposal flow (chronological by logical_t)
+----------------------------------------------
+  side  | t   | tx_kind         | agent      | tactic     | branch     | oracle | reject
+  ------+-----+-----------------+------------+------------+------------+--------+-------
+  L4.E  |   0 | TaskOpen        | tb6-smoke-sponsor | -          | -          | -      | PolicyViolation
+  L4.E  |   0 | Work            | tb6-smoke-agent | -          | -          | -      | PolicyViolation
+  L4    |   1 | TaskOpen        | Agent_user_0 | -          | -          | -      | -
+  L4    |   2 | EscrowLock      | Agent_user_0 | -          | -          | -      | -
+
+§6 Branch lineage (parent_tx → child_tx via ProposalTelemetry.parent_tx)
+------------------------------------------------------------------------
+  parent_tx_state: NoMultiAttemptObserved (DAG not exercised this run — conformance test demonstrates plumbing)
+  edges: (none — see parent_tx_state above for interpretation)
+
+§7 Golden path (root → oracle-verified WorkTx)
+------------------------------------------------
+  (no oracle-verified WorkTx on chain — chain_oracle_verified=false)
+
+§8 Cross-checks
+---------------
+  audit_trail_rows         : 2
+  chain_proposal_count     : 1
+  audit_rows == proposal_count: ✗ (gap)
+  audit_trail_chain_valid     : ✓
+  (Note: pre-TB-7.6 the agent_audit_trail.jsonl is populated only
+   by the synthetic-seed hook; full per-LLM-proposal audit-trail
+   wiring is part of TB-7.6 carry-forward action #4 / #5.)
+
+§9 TB-8 Claims (claim_status + payout_amount)
+----------------------------------------------
+  (no Confirm-VerifyTx observed; n/a — claim_status / payout: n/a)
+
+§10 TB-9 Durable identity (agent keystore registry)
+---------------------------------------------------
+  durable_keystore_path: /home/zephryj/.turingos/keystore/agent_keystore.enc
+  durable_keystore_present: ✗ (run-local only)
+  agents_in_manifest: 1
+  agent_id          | pubkey_in_manifest | tape_activity
+  ------------------+--------------------+---------------
+  Agent_user_0      | ✓ (durable-backed) | Work✓=0 Work✗=0 Verify✓=0 Verify✗=0
+
+  Note: cross-run identity is empirically observable by
+  comparing this run's `agent_pubkeys.json` to a sibling run
+  that loaded the same TURINGOS_AGENT_KEYSTORE_PATH — equal
+  pubkey rows ⇒ TB-9 mandate "agent identity survives run
+  restart" satisfied.
+
+§11 TB-10 User Tasks (sponsored by Agent_user_*; lean_market product surface)
+------------------------------------------------------------------------------
+  task_id              | sponsor      | bounty_micro | solver       | claim_status | payout_micro | opened@t
+  ---------------------+--------------+--------------+--------------+--------------+--------------+---------
+  task-n1_zeta_regula… | Agent_user_0 |       500000 | (no solver … | (no claim yet) |            — |       1
+
+  Aggregate: 1 user task(s) | 0 Finalized | total bounty = 500000 micro | total paid = 0 micro
+
+  Architect mandate (line 1594) ✓ when total paid > 0:
+    user posts task → agent solves → system verifies → system pays → dashboard auditable.
+    solver durable agent_id receives payout via TB-9 keystore-bound balances_t entry.
+

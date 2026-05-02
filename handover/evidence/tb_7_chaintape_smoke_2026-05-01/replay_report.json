@@ -13,9 +13,9 @@
   "detail": {
     "final_state_root_hex": "11f9031859af0a03a8fb4fd2a14231afabe6d7d3915bbb97a0a8e1669b93af78",
     "final_ledger_root_hex": "dc8762e9ef79a6789032052e7c79aec217bde4a9dba8bdbf50dfae0c4995d24c",
-    "head_commit_oid_hex": "ebe7b89c6b93830383ab22d350ffcbfbca1991d6",
-    "l4e_last_hash_hex": "957aca780e7903a8b7f49138f277f2a1edce31a4add13321d7a1bc1fc53a3823",
+    "head_commit_oid_hex": "e5aaa40be47dcd6fcd05fcfaa6112c4f368d6d9a",
+    "l4e_last_hash_hex": "0e35884f8482e22a786737108c1aa43be96c88f36569168230942418cbd90d4b",
     "replay_failure": null,
-    "initial_q_state_loaded_from_disk": false
+    "initial_q_state_loaded_from_disk": true
   }
 }

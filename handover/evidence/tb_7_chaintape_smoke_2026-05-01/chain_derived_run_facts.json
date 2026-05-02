@@ -13,5 +13,8 @@
     "rfl": 1,
     "ring": 1
   },
-  "failed_branch_count": 6
+  "failed_branch_count": 6,
+  "chain_oracle_verified": false,
+  "chain_economic_finalized": false,
+  "parent_tx_state": "NoMultiAttemptObserved"
 }
