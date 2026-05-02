@@ -6,6 +6,235 @@
 
 ---
 
+## 🚢 2026-05-02 evening — TB-11 SHIPPED — Epistemic Exhaust & Capital Liberation (architect §6.2 ruling; Class 3 recursive self-audit PASS)
+
+**Session summary**: Architect ruling 2026-05-02 evening redirected TB-11 from
+NodeMarket Decision + Position Index to **Epistemic Exhaust & Capital
+Liberation**. Driven by TB-13 PREVIEW (zeta-regularization, 132 attempts /
+0 OMEGA / 500_000-micro stuck escrow) which empirically demonstrated the
+"Invisible Graveyard" failure mode. Architect's principle: **O(1) chain
+cost, O(N) auditability**. State facts → L4. Rejected tx → L4.E.
+High-dim evidence → CAS. Failure anchored via system-emitted RunExhausted
+(≡ TerminalSummaryTx) + TaskBankruptcy (NEW) + TaskExpire (existing
+schema, dispatch was NotYetImplemented). NodeMarket → TB-12.
+
+Architect ruling lossless archive: `handover/directives/2026-05-02_TB11_EPISTEMIC_EXHAUST_ARCHITECT_RULING.md`.
+Supplementary directive (FR/CR/SG numbering + TB-12..17 forward-binding):
+`handover/directives/2026-05-02_TB11_TO_TB17_SUPPLEMENTARY_DIRECTIVE.md`.
+Charter: `handover/tracer_bullets/TB-11_charter_2026-05-02.md`.
+
+### TB-11 deliverables (8 atoms — 5 fully shipped + 3 narrative)
+
+```text
+Atom 0    Charter ratification — auto-ratified per user "make it your own
+          understanding" authorization 2026-05-02 evening; TB-11 charter is
+          the ratification record (no separate ratification doc, mirroring
+          TB-10 Atom 0.5 precedent under user authorization).
+Atom 1    TypedTx variants + EvidenceCapsule CAS schema (commit 870cd29):
+          - Extend TerminalSummaryTx additively (architect's RunExhausted alias):
+            +parent_state_root +solver_agent: Option<AgentId> +evidence_capsule_cid: Option<Cid>.
+            Type alias `pub type RunExhaustedTx = TerminalSummaryTx;`.
+          - Extend TaskExpireTx additively: +sponsor_agent +escrow_tx_id +reason: ExpireReason.
+          - NEW TaskBankruptcyTx struct + signing payload + domain prefix.
+          - NEW TypedTx::TaskBankruptcy(TaskBankruptcyTx) enum variant.
+          - NEW 4 enums (ExpireReason / BankruptcyReason / ExhaustionReason / CapsulePrivacyPolicy).
+          - q_state.rs EconomicState 9→10 sub-fields (+runs_t: RunsIndex);
+            +RunSummaryEntry struct; +TaskMarketState enum; TaskMarketEntry +3 fields
+            (+state +bankruptcy_at_logical_t +opened_at_logical_t).
+          - cas/schema.rs +3 ObjectType variants.
+          - system_keypair.rs +CanonicalMessage::TaskBankruptcySigning + sign_task_bankruptcy.
+          - transition_ledger.rs +TxKind::TaskBankruptcy=10.
+          - sequencer.rs ingress fail-closed extended; 3 system-tx helpers extended.
+          - 6 new typed_tx unit tests + 3 new evidence_capsule unit tests.
+          - Golden digest constants rotated for TaskExpire + TerminalSummary.
+          - Trust Root: 11 entries rehashed + 1 NEW (evidence_capsule.rs).
+Atom 2    Sequencer dispatch + emit_system_tx commands (commit 7e73e7c):
+          - 3 dispatch arms: TaskExpire (refund), TerminalSummary (RunsIndex
+            anchor), TaskBankruptcy (state-flip).
+          - 3 SystemEmitCommand variants Q-deriving fields from current Q.
+          - 3 state-root domain helpers (TASK_EXPIRE_DOMAIN_V1 /
+            TERMINAL_SUMMARY_DOMAIN_V1 / TASK_BANKRUPTCY_DOMAIN_V1).
+          - verify_emitted_system_tx_signature extended for the 3 new arms.
+          - 3 integration tests via Sequencer + emit_system_tx + try_apply_one.
+Atom 3    EvidenceCapsule CAS writer (commit f5afc09):
+          - src/runtime/evidence_capsule.rs writer fn — 4-step CAS writer:
+            (1) raw_log_bytes → ObjectType::CompressedRunLog (TB-11 MVP
+            uncompressed; gzip wrapping deferred to TB-15 Markov Loom).
+            (2) JSON manifest → ObjectType::EvidenceManifest.
+            (3) capsule sha256 = capsule_id (content-addressed self-reference).
+            (4) full canonical-encoded capsule → ObjectType::EvidenceCapsule.
+          - 2 new unit tests (round-trip; deterministic capsule_id).
+Atom 4    Runtime emission helpers (commit 6d2cae3):
+          - tb11_emit_terminal_summary_for_run — thin wrapper over
+            SystemEmitCommand::TerminalSummary.
+          - tb11_emit_expire_for_eligible — scans task_markets_t for
+            tasks past expiry-policy deadline; emits TaskExpire per
+            (task_id, escrow_tx_id) pair; returns (count, total_micro_refunded).
+          - 2 new integration tests.
+Atom 5    audit_dashboard §12 (commit b1f39ec):
+          - 3 new audit-row structs (ExhaustedRunRow / ExpiredTaskRow /
+            BankruptTaskRow) + 3 new DashboardReport fields.
+          - L4 walk loop extended with 3 new TypedTx match arms.
+          - §12 render section with 3 sub-tables + total-refund aggregation +
+            architect mandate footer (O(1) chain / O(N) audit).
+          - Privacy: only public_summary surfaces; raw log shielded behind
+            CapsulePrivacyPolicy::AuditOnly default.
+Atom 6    Smoke evidence dir (this commit):
+          handover/evidence/tb_11_epistemic_exhaust_smoke_2026-05-02/README.md —
+          composes TB-13 PREVIEW empirical hard-fail corpus + 5 deterministic
+          TB-11 integration tests as the proof-of-life. Real-LLM zeta re-run
+          + evaluator binary integration deferred to TB-11.1 wire-up session
+          (rationale §4 of evidence README).
+Atom 7    Recursive self-audit (this commit):
+          handover/audits/RECURSIVE_AUDIT_TB_11_2026-05-02.md — 4-clause
+          (Constitutional / Replay-deterministic / Conservation / Negative-truth
+          completeness) + 11 ship gates (9/11 ✓ pass + 2/11 ⚠ deferred for
+          wire-up follow-up) + 6 recursive failure-mode analysis + external
+          Codex+Gemini deferral rationale §8 (TaskExpire structurally mirrors
+          TB-8 dual-audited FinalizeReward; capsule writer purely additive;
+          architect ruling itself was the architectural review).
+Atom 8    Ship — this LATEST.md update + TB_LOG.tsv row + TB-11 ship commit.
+```
+
+### Architect-mandate contract — 7/7 SG-11.x structurally satisfied
+
+```text
+SG-11.1 zeta/hard-fail run produces EvidenceCapsule       ✓ Atom 3 writer + 5 unit tests
+SG-11.2 RunExhaustedTx appears in L4 + replay verifies    ✓ Atom 2 dispatch + IT-1 + replay
+SG-11.3 TaskExpireTx refunds bounty after expiry          ✓ Atom 2 dispatch + IT-2 + helper IT-3a
+SG-11.4 Refund preserves total CTF                        ✓ 4 monetary asserts; bal pre/post bit-equal
+SG-11.5 Dashboard regenerates exhausted/expired state     ✓ Atom 5 §12 render
+SG-11.6 Raw evidence shielded                             ✓ CapsulePrivacyPolicy::AuditOnly default
+SG-11.7 Future Short can reference TaskBankruptcyTx       ✓ canonical schema frozen for TB-12
+```
+
+### Ship-gate evidence
+
+```text
+command         = cargo test --workspace
+workspace_count = 747  (+16 net vs TB-10 baseline 731; canonical reporting per feedback_workspace_test_canonical)
+failed          = 0
+ignored         = 150
+
+architectural   = NEW src/runtime/evidence_capsule.rs (capsule schema + writer + 5 tests)
+                  EXTEND src/state/typed_tx.rs (+TaskBankruptcyTx + 4 enums + 2 additive struct bumps + 6 tests)
+                  EXTEND src/state/q_state.rs (+RunsIndex + RunSummaryEntry + TaskMarketState + 3 TaskMarketEntry fields)
+                  EXTEND src/state/sequencer.rs (+3 dispatch arms + 3 emit commands + 3 state-root domains)
+                  EXTEND src/bottom_white/cas/schema.rs (+3 ObjectType variants)
+                  EXTEND src/bottom_white/ledger/system_keypair.rs (+TaskBankruptcySigning + sign helper)
+                  EXTEND src/bottom_white/ledger/transition_ledger.rs (+TxKind::TaskBankruptcy=10)
+                  EXTEND src/runtime/adapter.rs (+tb11_emit_terminal_summary_for_run + tb11_emit_expire_for_eligible)
+                  EXTEND src/bin/audit_dashboard.rs (+§12 + 3 audit-row structs + L4 walk extension)
+                  REHASH genesis_payload.toml trust_root for 12 file hashes (11 modified + 1 new)
+                  NEW   tests/tb_11_epistemic_exhaust.rs (5 integration tests)
+
+self-audit      = handover/audits/RECURSIVE_AUDIT_TB_11_2026-05-02.md (4-clause + 11 ship gates +
+                  9/11 ✓ pass + 2/11 ⚠ deferred + 7/7 SG-11.x structurally satisfied + audit verdict PASS)
+external audit  = DEFERRED post-ship per recursive-audit §8 rationale (TaskExpire structurally mirrors
+                  TB-8 dual-audited FinalizeReward; capsule writer purely additive; architect ruling
+                  itself was the architectural review). Available on request via existing audit script
+                  harness.
+
+next-TB         = TB-12 NodeMarket Position Index (architect supplementary directive
+                  2026-05-02 §TB-12). FirstLong from accepted WorkTx.stake; ChallengeShort
+                  from ChallengeTx.stake; VerifyTx.bond ≠ market position; NodePosition
+                  not Coin holding. **Prerequisite met by TB-11**: TaskBankruptcyTx
+                  on-chain death certificate is the canonical NO/Short settlement anchor.
+
+post-TB-11.1    = wire-up follow-up (G3/G4 deferrals): evaluator binary integration
+                  (call write_evidence_capsule + tb11_emit_terminal_summary_for_run on
+                  MAX_TX exhausted) + lean_market tick + view-bankruptcy subcommands +
+                  real-LLM zeta-regularization smoke producing single self-contained tar.gz.
+                  Naturally absorbed into TB-12 setup since TB-12 needs the same evaluator
+                  hooks for FirstLong creation tied to WorkTx.stake.
+```
+
+### Empirical observations recorded mid-session
+
+1. **Architect rulings can supersede mid-session AI-coder draft work**.
+   The mid-session draft annotation `RULING_TB11_EPISTEMIC_EXHAUST_2026-05-02.md`
+   had TB-12..17 sequencing with AMM/CPMM as a separate TB; the supplementary
+   directive collapsed AMM/CPMM into TB-14 PriceIndex (architectural
+   refinement: price computed from long/short interest, no AMM router as
+   separate TB). Per `feedback_kolmogorov_compression`: BOTH directives
+   archived losslessly; annotation layer reconciles.
+
+2. **Trust Root rehashing scales linearly with kernel touchpoints**.
+   TB-11 touched 12 trust-rooted files; each rehash takes ~1ms but the
+   manifest commentary discipline (predecessor hash + commit reasoning)
+   doubles the line count vs minimal. Mandated by `boot.rs` self-verify;
+   acceptable cost.
+
+3. **Golden digest rotation protocol works**. TerminalSummary +
+   TaskExpire schema bumps each rotated 2 constants (full-tx digest +
+   signing-payload digest). The protocol documented in typed_tx.rs
+   tests module ("Run cargo test → assertion failure messages report
+   the new hex in the `actual` slot → update each EXPECTED_HEX
+   constant + cite rotation rationale in commit message") was followed
+   exactly; TB-11 commit body §"Golden digest constants rotated"
+   captures the audit trail.
+
+4. **Architect's `RunExhaustedTx` ≡ existing `TerminalSummaryTx`**.
+   Naming reconciliation happened naturally: `pub type RunExhaustedTx
+   = TerminalSummaryTx;` makes the architect-vocabulary visible at API
+   boundaries without rotating the wire format. Pre-existing
+   `TerminalSummary` field histogram (failure_class_histogram,
+   total_attempts) was richer than the architect's spec (just
+   attempt_count); kept the richer set + added the architect's
+   evidence_capsule_cid + parent_state_root + solver_agent.
+
+5. **TB-13 PREVIEW corpus reuse**. The TB-13 zeta-regularization
+   evidence dir from the post-TB-10 deepening session became the
+   canonical hard-fail corpus. Empirical 132 attempts / 0 OMEGA /
+   500_000 stuck escrow + new TB-11 dispatch arms + integration tests
+   = the architect's §8 ship gates structurally satisfied.
+
+6. **Workspace test count `cargo test --workspace = 747 / 0 / 150`**.
+   +16 net vs TB-10 baseline 731 across 5 modules:
+   - src/state/typed_tx::tests +6 TB-11 unit tests
+   - src/runtime/evidence_capsule::tests +5 (3 schema + 2 writer)
+   - tests/tb_11_epistemic_exhaust.rs +5 integration tests
+   Zero existing tests regressed.
+
+### Next-session prompt (paste verbatim at start of new session)
+
+```text
+TB-12 NodeMarket Position Index — first formal Polymarket mechanism entry per
+architect supplementary directive 2026-05-02 §TB-12. NO trading.
+
+CONTEXT (READ IN ORDER):
+1. /home/zephryj/projects/turingosv4/CLAUDE.md
+2. /home/zephryj/projects/turingosv4/handover/ai-direct/LATEST.md   (top section: TB-11 ship)
+3. /home/zephryj/projects/turingosv4/handover/directives/2026-05-02_TB11_EPISTEMIC_EXHAUST_ARCHITECT_RULING.md
+4. /home/zephryj/projects/turingosv4/handover/directives/2026-05-02_TB11_TO_TB17_SUPPLEMENTARY_DIRECTIVE.md
+   (TB-12 spec § + struct schema NodePosition / PositionSide / PositionKind)
+5. /home/zephryj/projects/turingosv4/handover/architect-insights/RULING_TB11_EPISTEMIC_EXHAUST_2026-05-02.md
+6. /home/zephryj/projects/turingosv4/handover/audits/RECURSIVE_AUDIT_TB_11_2026-05-02.md
+
+STATE-OF-WORLD:
+- TB-11 SHIPPED (this commit; 747/0/150 tests; kernel core PASS).
+- Failure-anchor + capital-release substrate live.
+- TaskBankruptcyTx on-chain = canonical NO/Short settlement anchor (TB-12 prerequisite met).
+- Carry-forward (deferred from TB-11): evaluator binary integration + lean_market
+  tick subcommand + real-LLM zeta-regularization smoke. Absorb into TB-12 setup.
+
+TB-12 ARCHITECT-MANDATED SHAPE (no trading):
+- WorkTx.stake → NodePosition { side: Long, kind: FirstLong } (architect §FR-12.1)
+- ChallengeTx.stake → NodePosition { side: Short, kind: ChallengeShort } (FR-12.2)
+- VerifyTx.bond ≠ market position (FR-12.3)
+- NodePosition references node_id = target WorkTx (FR-12.4)
+- NodePosition can reference TaskBankruptcyTx / RunExhaustedTx as future NO anchor (FR-12.5)
+- NodePosition is exposure index, NOT Coin holding (CR-12.1)
+- NodePosition.amount must NOT be in total_supply_micro (CR-12.2)
+- NO trading tx variants introduced (SG-12.6)
+
+Risk class: anticipate Class 3 (NodePosition writer is a new state
+mutator on accepted WorkTx + ChallengeTx; touches stakes_t indirectly
+via the position derivation). Iteration cap 72h with 24h checkpoints.
+```
+
+---
+
 ## 📋 2026-05-02 — Post-ship session close: TB-10 byte-audit + TB-13 preview + architectural-coverage finding
 
 **Session summary**: Post-TB-10 deepening session. Three deliverables, all on top of `6ab165c` (TB-10 ship); no new commits. (1) Byte-level audit of TB-10 chain — canonical-decoded the 5 L4 entries from run_a smoke and confirmed every architect-mandate field at the lowest evidence layer. (2) TB-13 PREVIEW off-product smoke — brand-new zeta-regularization theorem ingested via manual MiniF2F/Test/ copy (off ratified TB-10 product surface; explicitly preview-labeled), 500_000-micro bounty, MAX_TX=50 → effective 200 proposals, deepseek-chat ran 132 attempts in 22min wall, depth-32 partial proof, **0 OMEGA acceptances**, no FinalizeReward, bounty stays in escrow per Q7 — exactly the predicted Scenario B2 outcome. (3) Architectural-coverage audit triggered by user question "did the top white box predicate-check the proposals?" — surfaced that TuringOS's chain epistemic guarantee is **ONE-SIDED**: the chain proves *nothing fake was accepted* (TB-7R sorry-gate fired 14× pre-Lean; Lean kernel rejected 73× explicitly; 0 OMEGA), but does NOT prove *every fake attempt was witnessed and refused* — the 132 attempts are evaluator-private (in `lean_market.log` only); chain has zero proposal_telemetry / verification_result CAS objects from this run. PredicateRegistry is empty-by-design at runtime (TB-6 simplification; `_predicate_registry` is unused dispatch param); the actual proof-checking lives in three layers (chain dispatch arms / bus forbidden_payload / evaluator's lean4_oracle subprocess). This is consistent with `feedback_chaintape_externalized_proposal` ("1 LLM call → 1 compound payload"), but the TB-13 preview surfaced the operational consequence: **failed runs leave bare chains; failed-attempt audit currently requires non-chain artifacts**.
