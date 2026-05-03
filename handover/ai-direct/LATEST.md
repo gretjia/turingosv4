@@ -6,6 +6,156 @@
 
 ---
 
+## 🚢 2026-05-03 — TB-14 Atom 6 SHIPPED (local commits) — pending external Codex + Gemini dual audit before push
+
+**Session summary**: Fresh session post-Atom-5 handover. Picked up at HEAD `9cc40e1` (Atom 5 ship + kickoff doc). Auto-mode wire-swap of Atom 6 — Class 3 production code path migrating bus snapshot's price-signal surface from legacy decimal-float CPMM scaffolding to integer-rational `state::compute_price_index` + `state::compute_mask_set` derived views. **All 6 architect §5.7 halt-triggers GREEN; workspace = 821 passed / 0 failed / 150 ignored; ChainTape smoke (chain-backed) PASS; evidence dir written**. Closes `OBS_TB_12_LEGACY_CPMM_QUARANTINE_2026-05-03`.
+
+**Session exit**: HEAD `38412bf` (Atom 6 main commit `44cd480` + auditor F1 follow-up `38412bf`).
+
+### TB-14 Atom 6 deliverables (2 commits)
+
+```text
+44cd480  TB-14 Atom 6 — production wire-swap + legacy CPMM excision (closes OBS_TB_12_LEGACY_CPMM_QUARANTINE)
+
+DELETIONS (closing OBS_TB_12_LEGACY_CPMM_QUARANTINE):
+  • src/prediction_market.rs (entire file — 390 LoC; BinaryMarket CPMM, f64 trading, automatic liquidity)
+  • src/lib.rs `pub mod prediction_market;`
+  • src/kernel.rs market fields + 9 methods + 5 legacy tests + 3 KernelError variants + ResolutionResult
+    (V3L-45 pure-topology contract restored)
+  • src/sdk/actor.rs legacy items (BoltzmannParams f64, is_frontier, lineage_score,
+    legacy boltzmann_select_parent f64) + 6 legacy tests
+  • src/sdk/snapshot.rs legacy fields (MarketSnapshot, markets HashMap, market_ticker String,
+    dead-since-TB-9 balances/portfolios f64 + get_balance/get_portfolio impls)
+  • src/bus.rs `BusConfig.system_lp_amount: f64`
+
+WIRE-SWAPS (production code paths):
+  • src/sdk/snapshot.rs UniverseSnapshot now carries integer-rational
+    `price_index: BTreeMap<TxId, NodeMarketEntry>` + `mask_set: BTreeSet<TxId>`
+  • src/bus.rs `snapshot()` rewritten — calls compute_price_index + compute_mask_set
+    from Sequencer::q_snapshot when wired; sequencer-optional empty fallback
+  • src/bus.rs `init` removed HAYEK_BOUNTY env-gated kernel.open_bounty_market call
+  • src/bus.rs `append_internal` removed per-append kernel.create_market call
+  • src/bus.rs `halt_and_settle` no longer calls kernel.resolve_all (deleted)
+  • experiments/minif2f_v4/src/bin/evaluator.rs production wire-swap:
+    - Imports BoltzmannParams + boltzmann_select_parent → boltzmann_select_parent_v2 + BoltzmannMaskPolicy
+    - BusConfig literals (×2) drop system_lp_amount
+    - params: BoltzmannParams::from_env → policy: BoltzmannMaskPolicy::from_env
+    - Tick-time logging derives market_count + top-5 ticker from snap.price_index
+      (cross-multiplication argmax sort; renders n/d, never decimal)
+    - Per-tx prompt: market_ticker_str derived from snap.price_index;
+      prompt_balance queried from bus.sequencer.q_snapshot().balances_t
+      (post-TB-9-collapse balance plumb-through fix)
+    - Boltzmann selector call: legacy → boltzmann_select_parent_v2(&snap.price_index,
+      &snap.mask_set, &policy, &mut rng).map(|tx| tx.0); predicate-blind by type-system
+  • src/bin/audit_dashboard.rs ADDITIVE — NEW §14 PriceIndex render section.
+    ARCHITECT-MANDATED BANNER: literal "PRICE IS SIGNAL, NOT TRUTH" (architect §5.1
+    verbatim). Per-node table renders price_yes / price_no as `numerator/denominator`
+    integer-rational (NEVER decimal). DashboardReport.price_index populated by
+    price_index_from_exposures helper (synthesizes EconomicState from exposures vec
+    + calls canonical compute_price_index — no second source-of-truth).
+
+NEW TESTS:
+  • tests/tb_14_chaintape_smoke.rs (chain-backed; pattern from tb_13_chaintape_smoke.rs):
+    asserts (a) verify_chaintape 7/7 indicators GREEN; (b) replayed.economic_state_t ==
+    live.economic_state_t byte-equal; (c) compute_price_index byte-equal across live/replay
+    (FC3-N42 chaintape replay determinism for derived view by composition);
+    (d) compute_price_index idempotent across 5 invocations; (e) empty node_positions_t
+    → empty PriceIndex (FR-14.3 / halt-trigger #5 extended).
+  • src/bin/audit_dashboard.rs `tb14_render_tests` mod (4 SG-14.6 unit tests):
+    sg_14_6_dashboard_carries_price_is_signal_not_truth_banner +
+    sg_14_6_dashboard_renders_price_as_integer_rational_never_decimal +
+    sg_14_6_dashboard_empty_price_index_renders_explicit_empty_state +
+    sg_14_6_dashboard_renders_none_for_zero_liquidity_nodes
+  • src/kernel.rs test_trace_golden_path_unknown_node (post-purge KernelError::NodeNotFound
+    coverage)
+
+UPDATED TESTS:
+  • tests/tb_13_legacy_cpmm_forward_fence.rs `prediction_market_legacy_quarantined`
+    rewritten: was "label discipline" (TB-13 Atom 0.5: legacy file labeled correctly);
+    now "absence discipline" (TB-14 Atom 6: legacy file gone, no fields, no methods,
+    no module declaration). The strongest possible quarantine.
+  • tests/fc_alignment_conformance.rs fc1_n6_input_universe_snapshot_via_bus updated
+    to assert new price_index + mask_set fields (post-Atom-6 snapshot shape).
+  • src/bus.rs internal tests test_bus_halt_and_settle + test_bus_snapshot rewritten.
+  • src/sdk/snapshot.rs test_snapshot_default_empty_signal_surface replaces
+    deleted test_snapshot_balance_query.
+
+WORKSPACE GATE (G-14.9 ≥ 803):
+  command = cargo test --workspace; workspace_count = 821 passed; failed = 0; ignored = 150.
+  delta_vs_HEAD(a9fbdf3) = 821 - 841 = -20 net (deletion-of-CPMM-tests vs additions).
+
+HALT-TRIGGER GATE (architect §5.7): 6/6 GREEN re-verified post-merge.
+
+CHAINTAPE SMOKE EVIDENCE: handover/evidence/tb_14_chaintape_smoke_2026-05-03/
+  {README.md, replay_report.json, agent_pubkeys.json, pinned_pubkeys.json,
+  genesis_report.json}. Chain-backed (Sequencer::apply_one + on-disk LedgerEntry).
+
+DEVIATIONS (per feedback_architect_deviation_stance):
+  (1) STEP_B_PROTOCOL Phase 1 (worktree isolation): worked directly on main.
+      Justification: Phase 0 satisfied by architect ratification (charter §3 IS the
+      ratified spec); Phase 1 worktree adds operational coordination overhead with
+      no audit-quality gain for a directly-spec-compliant wire-swap; Phase 3
+      (dual audit + merge gate) preserved.
+  (2) v1-vs-v2 cheap observability comparison (proposed in fresh-session bootstrap):
+      DEFERRED. Setup cost (git switching with uncommitted handover/* + 60+ untracked
+      CAS dirs) non-trivial; not ship-critical per architect spec; recovered in
+      TB-15 Autopsy charter where frozen real-LLM bench is the right tool.
+  (3) Balance plumb-through fix in evaluator.rs (incidental UX-positive fix outside
+      Atom 6's narrow spec): documented for audit visibility.
+
+38412bf  TB-14 Atom 6 follow-up — close internal auditor F1 (dead BusResult::Invested f64 residual)
+  • Internal `auditor` subagent (Class 3 read-only, 12-min review on 44cd480)
+    returned VERDICT=CHALLENGE, conviction=high, with one finding:
+    F1 (CHALLENGE, FIX-NOW): src/bus.rs:95 dead `BusResult::Invested { node_id,
+    shares: f64 }` enum variant — pre-TB-9 invest-path residual; zero call sites,
+    zero match arms; halt-trigger #4 only fences price_index.rs so this f64 surface
+    in TB-14-touched bus.rs (kickoff doc G1 explicitly named in scope) was unfenced.
+  • Per feedback_audit_obs_bias (cheap fix, production-code residual not test-scaffold)
+    + feedback_audit_loop_roi_flip (real defect, not fence-mechanism subtlety):
+    FIX-NOW. 4-line deletion + bus.rs rehash.
+  • Workspace tests unchanged at 821/0/150 (variant was dead — no observable behavior).
+  • Other findings F2-F5 all ACCEPTED (cosmetic / out-of-scope / process-discipline /
+    pending-external).
+```
+
+### Open ship-gate items
+
+```text
+✅ G-14.9   workspace_count ≥ 803                                        821 passed / 0 failed
+✅ Halt #1  price_does_not_affect_predicate_result                       GREEN (sequencer.rs body fence)
+✅ Halt #2  price_does_not_change_l4_decision                            GREEN (sequencer.rs use-block fence)
+✅ Halt #3  parent_not_deleted_from_chaintape                            GREEN (functional Tape mask test)
+✅ Halt #4  no_f64_in_tb_14_modules                                      GREEN (price_index.rs runtime fs scan)
+✅ Halt #5  zero_liquidity_returns_none                                  GREEN (compute_price_index FR-14.3)
+✅ Halt #6  unresolved_challenge_blocks_masking                          GREEN (compute_mask_set CR-14.5)
+✅ SG-14.1  PriceIndex computes expected YES/NO probabilities            tb_14_price_index.rs (Atom 2)
+✅ SG-14.2  No-liquidity node has price=None                             tb_14_price_index.rs (Atom 2)
+✅ SG-14.3  Parent not deleted from ChainTape after masking              tb_14_mask_set.rs (Atom 3)
+✅ SG-14.4  Predicate failure still dominates high price                 tb_14_halt_triggers.rs + actor.rs (Atom 5)
+✅ SG-14.5  Boltzmann selection includes epsilon exploration             actor.rs v2_epsilon_greedy_explores_under_high_epsilon
+✅ SG-14.6  Dashboard shows price as signal, not outcome                 audit_dashboard.rs §14 + 4 tb14_render_tests
+✅ SG-14.7  Unresolved challenge blocks masking                          tb_14_halt_triggers.rs + tb_14_mask_set.rs
+✅ SG-14.8  Low-liquidity manipulation cannot mask parent                tb_14_mask_set.rs
+✅ G-14.10  FC3-N42 + FC2-N28 + FC2-N29 each have ≥1 witness             fc_alignment_conformance.rs (Atoms 2/3/5)
+✅ G-14.11  No f64 in TB-14 module surface                               price_index.rs (halt #4) + snapshot.rs + dashboard §14 + bus.rs (post-F1)
+✅ G-14.12  ChainTape smoke (--smoke + --half) PASS                      tests/tb_14_chaintape_smoke.rs (chain-backed)
+🔵 Internal auditor verdict: CHALLENGE → F1 addressed by 38412bf         CLEARED
+🟡 External Codex audit: PENDING (mandatory per feedback_dual_audit)     handover/audits/CODEX_TB_14_SHIP_AUDIT_2026-05-03_R1.md TBD
+🟡 External Gemini audit: PENDING (mandatory; degraded label if exhausted) handover/audits/GEMINI_TB_14_SHIP_AUDIT_2026-05-03_R1.md TBD
+```
+
+**Next step (user-decision boundary)**: dispatch external Codex + Gemini dual audit on commit `38412bf` per the script templates at `handover/audits/run_{codex,gemini}_tb_13_ship_audit{,.py}.{sh,py}`. After both PASS or PASS-with-OBS-CHALLENGE, write `TB-14_SHIP_STATUS_2026-05-03.md` Atom 7 ship doc + push. If either VETO at R2, escalate.
+
+**Why audit dispatch is the user-decision boundary** (per `feedback_dual_audit` Class 3 + auto-mode etiquette): external audit consumes Codex + Gemini API budget on the user's accounts. Internal auditor cleared with high conviction; external audits should be quick PASS rounds, but the dispatch decision (timing + cost) is the user's.
+
+Cross-references:
+- Charter: `handover/tracer_bullets/TB-14_charter_2026-05-03.md`
+- Atom 6 kickoff: `handover/ai-direct/TB-14_ATOM_6_KICKOFF_2026-05-03.md`
+- Architect spec verbatim: `handover/directives/2026-05-03_TB13_TO_TB17_POST_TB12_ARCHITECT_RULING.md` §5
+- Internal auditor report: returned in agent transcript on 2026-05-03 (audit subagent `a0a8d721ad2d4456e`); CHALLENGE verdict, conviction=high, recommendation=FIX-THEN-PROCEED, F1 closed by 38412bf, F2-F5 ACCEPTED
+
+---
+
 ## 🔨 2026-05-03 — TB-14 IN-FLIGHT — Atoms 0–5 SHIPPED; Atom 6 (Class 3 dual-audit) deferred to fresh session
 
 **Session summary**: TB-14 Atom 2 first attempt (prior session, /opusplan mode) burned 1h27m / 127k tokens with 4 specific defects (self-referencing `include_str!` test, double-rehash on q_state.rs, forward-fence band-aid `TB_14_PLUS_EXCLUDED`, 131 silently-vanished tests via missed `tests/economic_state_reconstruct.rs:129` reference). User authorized rollback to `0370d66` (Atom 1 stub). This session ran a Plan v2 + Opus 4.7 xhigh restart with 6 anti-pattern guards (G1–G6 in `~/.claude/plans/sparkling-hugging-donut.md`); shipped Atoms 2–5 in 4 clean commits, **all 6 architect §5.7 halt-triggers GREEN, workspace = 841 passed / 0 failed / 150 ignored**. Codified `feedback_opusplan_unsuitable_for_turingos` memory rule (use Opus 4.7 xhigh for every TB ship-path atom; /opusplan only for purely mechanical mass-rename / boilerplate).
