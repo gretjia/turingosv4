@@ -15,12 +15,13 @@
 //! Forbidden list and halt-trigger #4. Replay-deterministic per
 //! Art.0.2: no env input, no clock, no randomness.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
 use crate::economy::money::MicroCoin;
-use crate::state::q_state::{AgentId, EconomicState, ShareSidePair};
+use crate::ledger::Tape;
+use crate::state::q_state::{AgentId, ChallengeStatus, EconomicState, ShareSidePair};
 use crate::state::typed_tx::{EventId, NodePosition, PositionSide, ShareAmount};
 use crate::state::{TaskId, TxId};
 
@@ -205,6 +206,152 @@ pub fn compute_price_index(econ: &EconomicState) -> BTreeMap<TxId, NodeMarketEnt
     }
 
     out
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// BoltzmannMaskPolicy — architect §5.2 verbatim shape (skeleton in Atom 3;
+// `from_env()` constructor lands in Atom 4 per charter §3 split).
+// ─────────────────────────────────────────────────────────────────────────
+
+/// TRACE_MATRIX TB-14 Atom 3 (architect §5.2 verbatim; FC2-N28 + FC2-N29
+/// configuration carrier): integer-rational policy parameters for the
+/// Boltzmann scheduler mask + epsilon-greedy exploration + price-margin
+/// gate. **Atom 3 ships the data shape only**; `from_env()` env-var
+/// loader lands in Atom 4 per charter §3 (separate iter-cap tracking).
+///
+/// Field semantics:
+/// - `beta_num` / `beta_den` — rational temperature for argmax tiebreaking
+///   (Atom 5 boltzmann_select_parent_v2 uses these). Default = 1/1.
+/// - `min_liquidity` — `child.liquidity_depth` floor below which child
+///   cannot mask parent (CR-14.4). Default = 1 Coin (1_000_000 micro).
+/// - `price_margin` — minimum dominance gap for child to mask parent
+///   (FR-14.5 / SG-14.x). Default = 1/10 (10% margin).
+/// - `epsilon_exploration_num` / `epsilon_exploration_den` — random
+///   exploration probability in argmax + epsilon-greedy (SG-14.5).
+///   Default = 1/10 (10% exploration).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BoltzmannMaskPolicy {
+    pub beta_num: i64,
+    pub beta_den: i64,
+    pub min_liquidity: MicroCoin,
+    pub price_margin: RationalPrice,
+    pub epsilon_exploration_num: u64,
+    pub epsilon_exploration_den: u64,
+}
+
+impl Default for BoltzmannMaskPolicy {
+    fn default() -> Self {
+        Self {
+            beta_num: 1,
+            beta_den: 1,
+            min_liquidity: MicroCoin::from_micro_units(1_000_000),
+            price_margin: RationalPrice {
+                numerator: 1,
+                denominator: 10,
+            },
+            epsilon_exploration_num: 1,
+            epsilon_exploration_den: 10,
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// compute_mask_set — derive the parent-mask set from price_index + Tape
+// + policy + open challenges. Pure deterministic over inputs.
+// ─────────────────────────────────────────────────────────────────────────
+
+/// TRACE_MATRIX TB-14 Atom 3 (FC2-N28; architect §5.5 SG-14.3 / SG-14.5 /
+/// SG-14.7 / SG-14.8 + charter §3 Atom 3): derive the per-round
+/// `mask_set: BTreeSet<TxId>` of parent-attempt-nodes whose visibility is
+/// suppressed in the agent read-view because they are dominated by a
+/// child whose YES-price exceeds the parent's by `policy.price_margin`.
+///
+/// **Read-view mask, not deletion** (CR-14.3 + SG-14.3 + halt-trigger #3):
+/// the `Tape` itself is unchanged; this function only nominates parent
+/// IDs for filtering at the scheduler / read-view boundary. The full
+/// `tape.nodes()` iteration always yields masked parents.
+///
+/// **Algorithm** (architect §5.5 + charter §3 Atom 3):
+/// for each `(parent_id, parent_entry)` in `price_index`:
+///   for each `child_id` in `tape.children(parent_id)`:
+///     - if `child.liquidity_depth < policy.min_liquidity`: skip (CR-14.4 / SG-14.8)
+///     - if any `ChallengeCase` targets `child_id` with status `Open`:
+///       skip (CR-14.5 / SG-14.7 / halt-trigger #6)
+///     - if `child.price_yes >= parent.price_yes + policy.price_margin`
+///       (cross-multiplication; no division): insert `parent_id` and
+///       move on to next parent (one dominating child suffices).
+///
+/// **Determinism**: `BTreeMap` / `BTreeSet` ordering on `TxId` (lexicographic
+/// on inner `String`); tape children iteration is in append order; output
+/// `BTreeSet` is therefore deterministic given identical inputs.
+///
+/// **Returns parent IDs only**, not (parent, child) edges; the mask is a
+/// flat set per FR-14.5 + charter §7 auto-resolution B (global v0).
+pub fn compute_mask_set(
+    econ: &EconomicState,
+    tape: &Tape,
+    policy: &BoltzmannMaskPolicy,
+    price_index: &BTreeMap<TxId, NodeMarketEntry>,
+) -> BTreeSet<TxId> {
+    let mut mask: BTreeSet<TxId> = BTreeSet::new();
+
+    // Build a quick lookup: child_node_id → has any Open challenge targeting it?
+    // ChallengeCasesIndex shape: BTreeMap<TxId (challenge_id), ChallengeCase>.
+    // Each ChallengeCase has target_work_tx + status. We index by target_work_tx
+    // and treat Open as the only blocking status (Released / UpheldDeferred
+    // are resolved per CR-14.5 + SG-14.7 — those do not block masking).
+    let mut open_challenge_targets: BTreeSet<&TxId> = BTreeSet::new();
+    for case in econ.challenge_cases_t.0.values() {
+        if case.status == ChallengeStatus::Open {
+            open_challenge_targets.insert(&case.target_work_tx);
+        }
+    }
+
+    for (parent_id, parent_entry) in price_index.iter() {
+        // Parent without YES price is uninformative (zero-liquidity per
+        // FR-14.3); cannot be dominated by any child via price_margin.
+        let parent_price_yes = match parent_entry.price_yes.as_ref() {
+            Some(p) => p,
+            None => continue,
+        };
+
+        // Look up children via Tape parent-edges.
+        for child_node_id in tape.children(parent_id.0.as_str()) {
+            let child_tx_id = TxId(child_node_id.clone());
+
+            // Look up child's NodeMarketEntry.
+            let child_entry = match price_index.get(&child_tx_id) {
+                Some(e) => e,
+                None => continue,
+            };
+
+            // CR-14.4 / SG-14.8: low-liquidity children cannot mask parent.
+            if child_entry.liquidity_depth.micro_units()
+                < policy.min_liquidity.micro_units()
+            {
+                continue;
+            }
+
+            // CR-14.5 / SG-14.7 / halt-trigger #6: open challenge blocks masking.
+            if open_challenge_targets.contains(&child_tx_id) {
+                continue;
+            }
+
+            // FR-14.5 dominance check: child.price_yes >= parent.price_yes
+            // + price_margin (computed via cross-multiplication; no division).
+            let child_price_yes = match child_entry.price_yes.as_ref() {
+                Some(p) => p,
+                None => continue,
+            };
+
+            if child_price_yes.dominates_by(parent_price_yes, &policy.price_margin) {
+                mask.insert(parent_id.clone());
+                break; // One dominating child suffices.
+            }
+        }
+    }
+
+    mask
 }
 
 // ─────────────────────────────────────────────────────────────────────────

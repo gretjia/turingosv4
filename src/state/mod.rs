@@ -29,9 +29,13 @@ pub use q_state::{
     StakeEntry, StakesIndex, TaskId, TaskMarketEntry, TaskMarketState, TaskMarketsIndex, TxId,
 };
 
-/// TB-14 Atom 2: derived-view price types. `BoltzmannMaskPolicy` is added
-/// in Atom 4 (env loader) and re-exported here at that time.
-pub use price_index::{compute_price_index, NodeMarketEntry, RationalPrice};
+/// TB-14 Atom 2 + Atom 3: derived-view price + mask types. Atom 4 adds
+/// `BoltzmannMaskPolicy::from_env()` constructor (this re-export already
+/// covers the type itself).
+pub use price_index::{
+    compute_mask_set, compute_price_index, BoltzmannMaskPolicy, NodeMarketEntry,
+    RationalPrice,
+};
 
 pub use typed_tx::{
     AgentSignature, BankruptcyReason, BoolWithProof, CapsulePrivacyPolicy,

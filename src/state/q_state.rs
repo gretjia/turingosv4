@@ -117,9 +117,21 @@ pub struct PerAgentState {
 /// visibility policy (Inv 10 Goodhart shield; `top_white::predicates::visibility`).
 ///
 /// `views`: per-agent filtered head pointer; full filtering machinery lands in CO P2.7.
+///
+/// TB-14 Atom 3 (FC2-N28; architect §5.5 + charter §3 Atom 3): `mask_set`
+/// is the global per-round set of parent-attempt-node `TxId`s suppressed
+/// in the agent read-view because a child node dominates them by
+/// `BoltzmannMaskPolicy.price_margin` (FR-14.5 / FR-14.6). **Read-view
+/// mask only**, never deletion (CR-14.3 + halt-trigger #3): the underlying
+/// `Tape.nodes()` iteration always yields masked parents. Computed by
+/// `compute_mask_set` in `src/state/price_index.rs`. `#[serde(default)]`
+/// for backward-compat with pre-TB-14 chain snapshots (deserialize as
+/// empty set).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct AgentVisibleProjection {
     pub views: BTreeMap<AgentId, NodeId>,
+    #[serde(default)]
+    pub mask_set: BTreeSet<TxId>,
 }
 
 // ────────────────────────────────────────────────────────────────────────────

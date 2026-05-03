@@ -54,11 +54,84 @@ fn price_does_not_change_l4_decision() {
 // ────────────────────────────────────────────────────────────────────
 #[test]
 fn parent_not_deleted_from_chaintape() {
-    // Filled in Atom 3 after compute_mask_set + AgentVisibleProjection.mask_set.
-    unimplemented!(
-        "Atom 3 — tape.nodes().contains_key(parent_id) must be true \
-         even when parent_id is in compute_mask_set result"
-    )
+    // TB-14 Atom 3: CR-14.3 / SG-14.3 — masking is read-view, not deletion.
+    use turingosv4::economy::money::MicroCoin;
+    use turingosv4::ledger::{Node, Tape};
+    use turingosv4::state::q_state::AgentId;
+    use turingosv4::state::typed_tx::{NodePosition, PositionKind, PositionSide};
+    use turingosv4::state::{
+        compute_mask_set, compute_price_index, BoltzmannMaskPolicy, EconomicState,
+        TaskId, TxId,
+    };
+
+    fn node(id: &str, parents: &[&str]) -> Node {
+        Node {
+            id: id.to_string(),
+            author: "author".into(),
+            payload: format!("payload_{id}"),
+            citations: parents.iter().map(|s| s.to_string()).collect(),
+            created_at: 0,
+            completion_tokens: 0,
+        }
+    }
+    fn position(
+        pid: &str,
+        node_id: &str,
+        owner: &str,
+        side: PositionSide,
+        kind: PositionKind,
+        amount_micro: i64,
+    ) -> NodePosition {
+        NodePosition {
+            position_id: TxId(pid.into()),
+            node_id: TxId(node_id.into()),
+            task_id: TaskId("t1".into()),
+            owner: AgentId(owner.into()),
+            side,
+            kind,
+            amount: MicroCoin::from_micro_units(amount_micro),
+            source_tx: TxId(pid.into()),
+            opened_at_round: 1,
+        }
+    }
+
+    // Build parent → child Tape; parent 50/50, child 100/0 (clear dominance).
+    let mut tape = Tape::new();
+    tape.append(node("parent", &[])).expect("append parent");
+    tape.append(node("child", &["parent"])).expect("append child");
+
+    let mut econ = EconomicState::default();
+    for p in [
+        position("p1", "parent", "ag_pl", PositionSide::Long,
+                 PositionKind::FirstLong, 500_000),
+        position("p2", "parent", "ag_ps", PositionSide::Short,
+                 PositionKind::ChallengeShort, 500_000),
+        position("p3", "child", "ag_cl", PositionSide::Long,
+                 PositionKind::FirstLong, 2_000_000),
+    ] {
+        econ.node_positions_t.0.insert(p.position_id.clone(), p);
+    }
+
+    let policy = BoltzmannMaskPolicy::default();
+    let price_index = compute_price_index(&econ);
+    let mask = compute_mask_set(&econ, &tape, &policy, &price_index);
+
+    // Prerequisite: parent IS masked (so the test below is meaningful).
+    assert!(
+        mask.contains(&TxId("parent".into())),
+        "halt-trigger #3 prerequisite: parent must be masked under default policy"
+    );
+
+    // Halt-trigger #3 assertion: tape.nodes() still yields masked parent.
+    assert!(
+        tape.nodes().contains_key("parent"),
+        "halt-trigger #3: tape.nodes() MUST still contain masked parent (CR-14.3)"
+    );
+    // And the parent → child edge is preserved.
+    assert!(
+        tape.children("parent").contains(&"child".to_string()),
+        "halt-trigger #3: tape.children() edge MUST be preserved across mask"
+    );
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -172,9 +245,83 @@ fn zero_liquidity_returns_none() {
 // ────────────────────────────────────────────────────────────────────
 #[test]
 fn unresolved_challenge_blocks_masking() {
-    // Filled in Atom 3 after compute_mask_set exists.
-    unimplemented!(
-        "Atom 3 — child with ChallengeCase status=Open: \
-         parent must NOT appear in compute_mask_set result"
-    )
+    // TB-14 Atom 3: CR-14.5 / SG-14.7 — Open challenge against child blocks parent masking.
+    use turingosv4::economy::money::MicroCoin;
+    use turingosv4::ledger::{Node, Tape};
+    use turingosv4::state::q_state::{AgentId, ChallengeCase, ChallengeStatus};
+    use turingosv4::state::typed_tx::{NodePosition, PositionKind, PositionSide};
+    use turingosv4::state::{
+        compute_mask_set, compute_price_index, BoltzmannMaskPolicy, EconomicState,
+        TaskId, TxId,
+    };
+
+    fn node(id: &str, parents: &[&str]) -> Node {
+        Node {
+            id: id.to_string(),
+            author: "author".into(),
+            payload: format!("payload_{id}"),
+            citations: parents.iter().map(|s| s.to_string()).collect(),
+            created_at: 0,
+            completion_tokens: 0,
+        }
+    }
+    fn position(
+        pid: &str,
+        node_id: &str,
+        owner: &str,
+        side: PositionSide,
+        kind: PositionKind,
+        amount_micro: i64,
+    ) -> NodePosition {
+        NodePosition {
+            position_id: TxId(pid.into()),
+            node_id: TxId(node_id.into()),
+            task_id: TaskId("t1".into()),
+            owner: AgentId(owner.into()),
+            side,
+            kind,
+            amount: MicroCoin::from_micro_units(amount_micro),
+            source_tx: TxId(pid.into()),
+            opened_at_round: 1,
+        }
+    }
+
+    // Build parent → child Tape; parent 50/50, child 100/0 (would dominate
+    // under default policy if no challenge present).
+    let mut tape = Tape::new();
+    tape.append(node("parent", &[])).expect("append parent");
+    tape.append(node("child", &["parent"])).expect("append child");
+
+    let mut econ = EconomicState::default();
+    for p in [
+        position("p1", "parent", "ag_pl", PositionSide::Long,
+                 PositionKind::FirstLong, 500_000),
+        position("p2", "parent", "ag_ps", PositionSide::Short,
+                 PositionKind::ChallengeShort, 500_000),
+        position("p3", "child", "ag_cl", PositionSide::Long,
+                 PositionKind::FirstLong, 2_000_000),
+    ] {
+        econ.node_positions_t.0.insert(p.position_id.clone(), p);
+    }
+
+    // Add Open challenge against the child → parent masking MUST be blocked.
+    econ.challenge_cases_t.0.insert(
+        TxId("ch_open".into()),
+        ChallengeCase {
+            challenger: AgentId("challenger".into()),
+            bond: MicroCoin::from_micro_units(1_000),
+            opened_at_round: 1,
+            target_work_tx: TxId("child".into()),
+            status: ChallengeStatus::Open,
+        },
+    );
+
+    let policy = BoltzmannMaskPolicy::default();
+    let price_index = compute_price_index(&econ);
+    let mask = compute_mask_set(&econ, &tape, &policy, &price_index);
+
+    assert!(
+        !mask.contains(&TxId("parent".into())),
+        "halt-trigger #6: open challenge against child MUST block parent masking (CR-14.5)"
+    );
 }

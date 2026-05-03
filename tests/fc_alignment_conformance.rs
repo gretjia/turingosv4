@@ -348,3 +348,92 @@ fn fc3_n42_compute_price_index_pure_fn_witness() {
         "FC3-N42: compute_price_index must be replay-deterministic"
     );
 }
+
+// ───────────────────────────────────────────────────────────────────────
+// TB-14 Atom 3 — FC2-N28 (mask_set publication) witness.
+// TRACE_MATRIX FC2-N28 maps to AgentVisibleProjection.mask_set field
+// (src/state/q_state.rs:121-138) plus the derivation function
+// compute_mask_set in src/state/price_index.rs (architect §5.5 +
+// charter §3 Atom 3). Read-view filter; never deletes from ChainTape
+// (CR-14.3 + halt-trigger #3).
+// ───────────────────────────────────────────────────────────────────────
+
+#[test]
+fn fc2_n28_mask_set_publication_witness() {
+    use turingosv4::economy::money::MicroCoin;
+    use turingosv4::ledger::{Node, Tape};
+    use turingosv4::state::q_state::{AgentId, AgentVisibleProjection};
+    use turingosv4::state::typed_tx::{NodePosition, PositionKind, PositionSide};
+    use turingosv4::state::{
+        compute_mask_set, compute_price_index, BoltzmannMaskPolicy, EconomicState,
+        TaskId, TxId,
+    };
+
+    // FC2-N28 (a): AgentVisibleProjection has a mask_set field of the
+    // expected type, defaulting to empty.
+    let proj = AgentVisibleProjection::default();
+    assert!(
+        proj.mask_set.is_empty(),
+        "FC2-N28: AgentVisibleProjection.mask_set defaults to empty BTreeSet"
+    );
+
+    // FC2-N28 (b): compute_mask_set produces a populated set when child
+    // dominates parent under the default policy.
+    let mut tape = Tape::new();
+    tape.append(Node {
+        id: "parent_n".into(),
+        author: "a".into(),
+        payload: "p".into(),
+        citations: vec![],
+        created_at: 0,
+        completion_tokens: 0,
+    })
+    .unwrap();
+    tape.append(Node {
+        id: "child_n".into(),
+        author: "a".into(),
+        payload: "p".into(),
+        citations: vec!["parent_n".into()],
+        created_at: 0,
+        completion_tokens: 0,
+    })
+    .unwrap();
+
+    let mut econ = EconomicState::default();
+    let mk_pos = |pid: &str, node: &str, side: PositionSide, kind: PositionKind, amt: i64| -> NodePosition {
+        NodePosition {
+            position_id: TxId(pid.into()),
+            node_id: TxId(node.into()),
+            task_id: TaskId("t".into()),
+            owner: AgentId("a".into()),
+            side,
+            kind,
+            amount: MicroCoin::from_micro_units(amt),
+            source_tx: TxId(pid.into()),
+            opened_at_round: 1,
+        }
+    };
+    for p in [
+        mk_pos("p1", "parent_n", PositionSide::Long, PositionKind::FirstLong, 500_000),
+        mk_pos("p2", "parent_n", PositionSide::Short, PositionKind::ChallengeShort, 500_000),
+        mk_pos("p3", "child_n", PositionSide::Long, PositionKind::FirstLong, 2_000_000),
+    ] {
+        econ.node_positions_t.0.insert(p.position_id.clone(), p);
+    }
+
+    let policy = BoltzmannMaskPolicy::default();
+    let price_index = compute_price_index(&econ);
+    let mask = compute_mask_set(&econ, &tape, &policy, &price_index);
+
+    assert!(
+        mask.contains(&TxId("parent_n".into())),
+        "FC2-N28: compute_mask_set must mask dominated parent"
+    );
+
+    // FC2-N28 (c): determinism — repeated calls produce identical output.
+    assert_eq!(
+        compute_mask_set(&econ, &tape, &policy, &price_index),
+        mask,
+        "FC2-N28: compute_mask_set must be replay-deterministic"
+    );
+}
