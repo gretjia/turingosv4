@@ -89,10 +89,16 @@ pub enum RejectionScope {
 }
 
 /// Result of a bus append operation.
+///
+/// TB-14 Atom 6 follow-up (2026-05-03; closing internal auditor F1):
+/// dead `Invested { node_id, shares: f64 }` variant excised — was a
+/// pre-TB-9 invest-path residual with zero call sites and zero match
+/// arms (`grep -rn "BusResult::Invested\|Invested {"` returned only
+/// its own declaration site). Closes G-14.11 "no f64 in TB-14 module
+/// surface" residual flagged by the internal Class 3 audit.
 #[derive(Debug)]
 pub enum BusResult {
     Appended { node_id: NodeId },
-    Invested { node_id: NodeId, shares: f64 },
     Vetoed { reason: String },
 }
 
