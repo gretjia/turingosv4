@@ -334,10 +334,10 @@ async fn sg_12_4_node_positions_do_not_change_total_supply() {
     assert_eq!(q_after.economic_state_t.node_positions_t.0.len(), 2);
 }
 
-// ── SG-12.5 — replay_reconstructs_node_positions (Q-projection determinism) ─
+// ── SG-12.5 — replay_reconstructs_node_positions (architect §9.3 exact name) ─
 
 #[tokio::test]
-async fn sg_12_5_node_positions_replay_deterministic() {
+async fn sg_12_5_replay_reconstructs_node_positions() {
     // Two harnesses with identical inputs MUST produce identical
     // node_positions_t. NodePosition is derived from typed-tx fields with
     // no environmental input; replay-deterministic by construction.
@@ -369,14 +369,15 @@ async fn sg_12_5_node_positions_replay_deterministic() {
     assert_eq!(a, b, "node_positions_t must be replay-deterministic");
 }
 
-// ── SG-12.7 — no_market_trading_variants_introduced (compile-time + grep) ───
+// ── SG-12.7 — no_market_trading_variants_introduced (architect §9.3 exact name) ─
 
-/// SG-12.7 is enforced by grep audit at TB-12 ship; this test asserts at
-/// runtime that the only PositionKind values used in production dispatch are
-/// FirstLong + ChallengeShort. Future MarketBuy / MarketSell variants would
-/// require explicit charter ratification.
+/// SG-12.7 enforces at runtime that the only PositionKind values used in
+/// production dispatch are FirstLong + ChallengeShort. Future MarketBuy /
+/// MarketSell variants would require explicit charter ratification.
+/// Compile-time + grep audit additionally enforces the absence of Market*
+/// trading typed_tx variants.
 #[tokio::test]
-async fn sg_12_7_only_firstlong_and_challengeshort_kinds_observed() {
+async fn sg_12_7_no_market_trading_variants_introduced() {
     let q = genesis_with_balances(&[
         ("sponsor-E", 10),
         ("solver-E", 10),
@@ -501,6 +502,29 @@ async fn ctf_invariant_unchanged_across_position_derivation() {
         timestamp_logical: 1,
     });
     assert_no_post_init_mint(&dummy, &q_after).expect("no mint");
+}
+
+// ── SG-12.8 — no_node_market_entry_as_canonical_state (architect §9.3 exact name) ─
+
+/// SG-12.8 (architect 2026-05-03 ruling §3 + §9.3): the EconomicState MUST
+/// NOT have `node_market_t` as a canonical sub-field. NodeMarketEntry is
+/// TB-14 derived view, not TB-12 canonical state. This test mirrors the
+/// q_state.rs unit test but lives at the architect-mandated SG-12.8 name.
+#[test]
+fn sg_12_8_no_node_market_entry_as_canonical_state() {
+    let q = QState::genesis();
+    let s = serde_json::to_value(&q.economic_state_t).unwrap();
+    let obj = s.as_object().unwrap();
+    assert!(
+        !obj.contains_key("node_market_t"),
+        "TB-12 architect §3 ruling: node_market_t MUST NOT be a canonical \
+         EconomicState field. NodeMarketEntry is TB-14 derived view only."
+    );
+    // Positive: node_positions_t IS the canonical TB-12 sub-field.
+    assert!(
+        obj.contains_key("node_positions_t"),
+        "TB-12 canonical state: node_positions_t (flat NodePositionsIndex)"
+    );
 }
 
 #[allow(dead_code)]

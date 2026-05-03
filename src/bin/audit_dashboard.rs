@@ -1408,16 +1408,23 @@ fn render_text(r: &DashboardReport) -> String {
     s.push_str("    (CapsulePrivacyPolicy::AuditOnly default; only public_summary surfaces here).\n");
 
     // §13 TB-12 Node exposure records (architect 2026-05-03 ruling §3 + §10).
-    // ARCHITECT-MANDATED LABEL: "Exposure records", NOT "Open market balances".
-    // TB-12 is exposure index, NOT trading market — NodePosition is IMMUTABLE
-    // EXPOSURE RECORD (architect §10), not active position balance. CR-12.1:
-    // NodePosition is NOT a Coin holding. CR-12.2: NodePosition.amount NOT
-    // counted in total_supply_micro. SG-12.6 covered.
+    s.push_str(&render_section_13(&r.exposures));
+    s
+}
+
+/// TRACE_MATRIX TB-12 Atom 4 (architect 2026-05-03 ruling §8 Atom 4 + §10):
+/// §13 Node exposure records render. Pure function over Vec<ExposureRecordRow>;
+/// extracted for SG-12.6 unit-testability. ARCHITECT-MANDATED LABEL:
+/// "Exposure records", NOT "Open market balances". TB-12 is exposure
+/// index, NOT trading market — NodePosition is IMMUTABLE EXPOSURE RECORD
+/// (architect §10), not active position balance. CR-12.1 + CR-12.2.
+fn render_section_13(exposures: &[ExposureRecordRow]) -> String {
+    let mut s = String::new();
     s.push('\n');
     s.push_str("§13 TB-12 Node exposure records (architect 2026-05-03 §3 + §10)\n");
     s.push_str("------------------------------------------------------------------------------\n");
 
-    if r.exposures.is_empty() {
+    if exposures.is_empty() {
         s.push_str("  (no NodePosition records — no accepted WorkTx/ChallengeTx with stake>0 on this chaintape)\n");
     } else {
         s.push_str("  NodePosition exposure records (immutable; NOT Coin holdings; NOT in total_supply):\n");
@@ -1425,7 +1432,7 @@ fn render_text(r: &DashboardReport) -> String {
         s.push_str("    -----------------+------------------+-------+-----------------+----------------+--------------+--------\n");
         let mut total_long: i64 = 0;
         let mut total_short: i64 = 0;
-        for ex in &r.exposures {
+        for ex in exposures {
             if ex.side == "Long" {
                 total_long += ex.amount_micro;
             } else if ex.side == "Short" {
@@ -1446,13 +1453,13 @@ fn render_text(r: &DashboardReport) -> String {
             "    ─── Total Long: {} micro | Total Short: {} micro | exposure rows: {} ───\n",
             total_long,
             total_short,
-            r.exposures.len()
+            exposures.len()
         ));
 
         // Per-node aggregation.
         use std::collections::BTreeMap as RenderBTreeMap;
         let mut by_node: RenderBTreeMap<&str, (i64, i64)> = RenderBTreeMap::new();
-        for ex in &r.exposures {
+        for ex in exposures {
             let entry = by_node.entry(&ex.node_id).or_insert((0, 0));
             if ex.side == "Long" {
                 entry.0 += ex.amount_micro;
@@ -1483,7 +1490,6 @@ fn render_text(r: &DashboardReport) -> String {
     s.push_str("    NodePosition.amount is NOT a Coin holding (CR-12.1) and is NOT counted in\n");
     s.push_str("    total_supply_micro (CR-12.2). NO trading. NO price. NO settlement in TB-12.\n");
     s.push_str("    NodeMarketEntry is TB-14 derived view; flat NodePositionsIndex is canonical.\n");
-
     s
 }
 
@@ -1498,5 +1504,136 @@ fn trunc(s: &str, width: usize) -> String {
         t
     } else {
         String::new()
+    }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// TB-12 Atom 4 + Atom 6(a) — SG-12.6 dashboard rendering tests
+// (architect 2026-05-03 §9.3 ruling).
+// ────────────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tb12_render_tests {
+    use super::*;
+
+    fn make_long(position_id: &str, node_id: &str, owner: &str, amount: i64) -> ExposureRecordRow {
+        ExposureRecordRow {
+            position_id: position_id.into(),
+            node_id: node_id.into(),
+            task_id: format!("task-{position_id}"),
+            owner: owner.into(),
+            side: "Long".into(),
+            kind: "FirstLong".into(),
+            amount_micro: amount,
+            source_tx: position_id.into(),
+            opened_at_round: 1,
+        }
+    }
+
+    fn make_short(position_id: &str, node_id: &str, owner: &str, amount: i64) -> ExposureRecordRow {
+        ExposureRecordRow {
+            position_id: position_id.into(),
+            node_id: node_id.into(),
+            task_id: format!("task-{position_id}"),
+            owner: owner.into(),
+            side: "Short".into(),
+            kind: "ChallengeShort".into(),
+            amount_micro: amount,
+            source_tx: position_id.into(),
+            opened_at_round: 2,
+        }
+    }
+
+    /// SG-12.6 (architect §9.3 exact name): dashboard view-positions /
+    /// §13 rendering works. Verifies:
+    /// - empty exposures list renders empty-state message
+    /// - non-empty exposures render the architect-mandated label
+    ///   "Exposure records" (NOT "Open market balances")
+    /// - row content includes position_id / node_id / side / kind / owner /
+    ///   amount per architect §8 Atom 4 spec
+    /// - aggregation totals computed correctly (Total Long / Total Short)
+    /// - per-node aggregation when ≥2 distinct nodes
+    /// - architect mandate footer present (CR-12.1 + CR-12.2 immutability +
+    ///   non-Coin claims)
+    #[test]
+    fn sg_12_6_dashboard_view_positions_works() {
+        // Case 1: empty.
+        let s_empty = render_section_13(&[]);
+        assert!(s_empty.contains("§13 TB-12 Node exposure records"));
+        assert!(s_empty.contains("(no NodePosition records"));
+        // Architect mandate footer always present.
+        assert!(s_empty.contains("IMMUTABLE EXPOSURE RECORD"));
+        assert!(s_empty.contains("CR-12.1"));
+        assert!(s_empty.contains("CR-12.2"));
+        // LABEL DISCIPLINE: must NOT use "Open market balances".
+        assert!(
+            !s_empty.contains("Open market balances"),
+            "architect §8 Atom 4 label discipline: must NOT use 'Open market balances'"
+        );
+
+        // Case 2: single FirstLong only.
+        let exposures = vec![make_long("work-A", "work-A", "solver-A", 50_000)];
+        let s_one = render_section_13(&exposures);
+        assert!(
+            s_one.contains("exposure records"),
+            "architect §8 Atom 4 label discipline: contains 'exposure records' phrase"
+        );
+        assert!(s_one.contains("work-A"));
+        assert!(s_one.contains("solver-A"));
+        assert!(s_one.contains("FirstLong"));
+        assert!(s_one.contains("Long"));
+        assert!(s_one.contains("50000"));
+        assert!(s_one.contains("Total Long: 50000 micro"));
+        assert!(s_one.contains("Total Short: 0 micro"));
+        // Per-node aggregation only renders when ≥2 nodes; single node => no per-node section.
+        assert!(!s_one.contains("Per-node exposure aggregation"));
+
+        // Case 3: FirstLong + ChallengeShort on same node → 1 node, no per-node block.
+        let same_node = vec![
+            make_long("work-B", "work-B", "solver-B", 30_000),
+            make_short("chal-B", "work-B", "challenger-B", 20_000),
+        ];
+        let s_same = render_section_13(&same_node);
+        assert!(s_same.contains("FirstLong"));
+        assert!(s_same.contains("ChallengeShort"));
+        assert!(s_same.contains("Total Long: 30000 micro"));
+        assert!(s_same.contains("Total Short: 20000 micro"));
+        assert!(s_same.contains("exposure rows: 2"));
+
+        // Case 4: 2 nodes → per-node aggregation block renders.
+        let two_nodes = vec![
+            make_long("work-C", "work-C", "solver-C", 75_000),
+            make_long("work-D", "work-D", "solver-D", 25_000),
+            make_short("chal-D", "work-D", "challenger-D", 10_000),
+        ];
+        let s_two = render_section_13(&two_nodes);
+        assert!(s_two.contains("Per-node exposure aggregation"));
+        // node "work-C": long=75000, short=0, net=75000
+        assert!(s_two.contains("work-C"));
+        // node "work-D": long=25000, short=10000, net=15000
+        assert!(s_two.contains("work-D"));
+        assert!(s_two.contains("Total Long: 100000 micro"));
+        assert!(s_two.contains("Total Short: 10000 micro"));
+        assert!(s_two.contains("exposure rows: 3"));
+
+        // FORBIDDEN tokens (architect §9.4): must NOT appear in dashboard
+        // (this catches accidental drift if a future patch adds price/trading
+        // language to §13 rendering).
+        for forbidden in &[
+            "Open market balances",
+            "MarketBuy",
+            "MarketSell",
+            "MarketOrder",
+            "MarketTrade",
+            "price_yes",
+            "price_no",
+            "automatic liquidity",
+            "ghost liquidity",
+        ] {
+            assert!(
+                !s_two.contains(forbidden),
+                "architect §9.4 forbidden token '{forbidden}' must NOT appear in §13 render"
+            );
+        }
     }
 }

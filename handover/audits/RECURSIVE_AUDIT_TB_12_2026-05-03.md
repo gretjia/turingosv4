@@ -84,14 +84,14 @@ External Codex + Gemini audits MUST follow before SHIP per architect §5.
 
 | Gate                                                              | Status     | Evidence                                                                                          |
 | ----------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------- |
-| SG-12.1 accepted_worktx_creates_firstlong_position                | ✓ pass    | `sg_12_1_accepted_worktx_creates_firstlong_position` test                                        |
-| SG-12.2 accepted_challengetx_creates_challengeshort_position      | ✓ pass    | `sg_12_2_accepted_challengetx_creates_challengeshort_position` test                              |
-| SG-12.3 verifytx_does_not_create_node_position                    | ✓ pass    | `sg_12_3_verifytx_does_not_create_node_position` test                                            |
-| SG-12.4 node_positions_do_not_change_total_supply                 | ✓ pass    | `sg_12_4_node_positions_do_not_change_total_supply` + `ctf_invariant_unchanged_across_position_derivation` |
-| SG-12.5 replay_reconstructs_node_positions                        | ✓ pass    | `sg_12_5_node_positions_replay_deterministic`                                                    |
-| SG-12.6 dashboard_view_positions_works                            | ✓ pass    | Atom 4 §13 render + view-positions subcommand (compile-clean; manual smoke ready)                |
-| SG-12.7 no_market_trading_variants_introduced                     | ✓ pass    | `sg_12_7_only_firstlong_and_challengeshort_kinds_observed` + grep diff TB-11→TB-12: zero MarketBuy/Sell. |
-| SG-12.8 no_node_market_entry_as_canonical_state                   | ✓ pass    | `economic_state_does_not_have_node_market_t_field` test (in `src/state/q_state.rs` test module). |
+| SG-12.1 accepted_worktx_creates_firstlong_position                | ✓ pass (exact) | `sg_12_1_accepted_worktx_creates_firstlong_position` (tests/tb_12_node_exposure_index.rs)                                  |
+| SG-12.2 accepted_challengetx_creates_challengeshort_position      | ✓ pass (exact) | `sg_12_2_accepted_challengetx_creates_challengeshort_position` (tests/tb_12_node_exposure_index.rs)                       |
+| SG-12.3 verifytx_does_not_create_node_position                    | ✓ pass (exact) | `sg_12_3_verifytx_does_not_create_node_position` (tests/tb_12_node_exposure_index.rs)                                     |
+| SG-12.4 node_positions_do_not_change_total_supply                 | ✓ pass (exact) | `sg_12_4_node_positions_do_not_change_total_supply` + `ctf_invariant_unchanged_across_position_derivation`              |
+| SG-12.5 replay_reconstructs_node_positions                        | ✓ pass (exact; renamed post-ultrathink) | `sg_12_5_replay_reconstructs_node_positions` — was `sg_12_5_node_positions_replay_deterministic`     |
+| SG-12.6 dashboard_view_positions_works                            | ✓ pass (exact; added post-ultrathink) | `sg_12_6_dashboard_view_positions_works` (src/bin/audit_dashboard.rs `#[cfg(test)] mod tb12_render_tests`) — refactored §13 inline render into `render_section_13` pure fn for unit-testability; covers empty / single-Long / same-node-long+short / 2-node-aggregation cases + forbidden-token grep |
+| SG-12.7 no_market_trading_variants_introduced                     | ✓ pass (exact; renamed post-ultrathink) | `sg_12_7_no_market_trading_variants_introduced` — was `sg_12_7_only_firstlong_and_challengeshort_kinds_observed`             |
+| SG-12.8 no_node_market_entry_as_canonical_state                   | ✓ pass (exact; added post-ultrathink) | `sg_12_8_no_node_market_entry_as_canonical_state` (tests/tb_12_node_exposure_index.rs) + alias `economic_state_does_not_have_node_market_t_field` (src/state/q_state.rs unit test, defense-in-depth) |
 
 **Engineering carry-forward G1..G11** (TB-9/10/11 precedent):
 
@@ -207,3 +207,23 @@ silent regression.
 Codex CHALLENGE × 2 → both resolved as documentation/scope clarifications,
 not architectural regressions. NodePosition implementation correct;
 constitutional invariants preserved; halting triggers NOT fired.
+
+### §11 Pre-SHIP ultrathink ship-gate refinement (2026-05-03 post-Gemini PASS)
+
+User-architect requested ultrathink against architect §9.1-9.4 + §10
+spec before SHIP authorization. Strict re-audit found 4 ship-gate
+naming gaps:
+
+1. **SG-12.5 name drift**: implemented `sg_12_5_node_positions_replay_deterministic`; architect mandates `sg_12_5_replay_reconstructs_node_positions`. RENAMED.
+2. **SG-12.6 missing test**: implemented as compile-clean + Gemini-verified architectural pass; architect mandates a TEST by name. ADDED `sg_12_6_dashboard_view_positions_works` inside `src/bin/audit_dashboard.rs#[cfg(test)] mod tb12_render_tests`. Refactored §13 inline render block into `render_section_13(&[ExposureRecordRow]) -> String` pure function for unit-testability. Covers 4 cases (empty / single-Long / same-node-long+short / 2-node-aggregation) + forbidden-token grep (Open market balances / MarketBuy / Market* / price_yes / etc).
+3. **SG-12.7 name drift**: implemented `sg_12_7_only_firstlong_and_challengeshort_kinds_observed`; architect mandates `sg_12_7_no_market_trading_variants_introduced`. RENAMED.
+4. **SG-12.8 name drift**: implemented as `economic_state_does_not_have_node_market_t_field` (q_state.rs unit test); architect mandates `sg_12_8_no_node_market_entry_as_canonical_state`. ADDED at architect-exact name in tests/tb_12_node_exposure_index.rs; kept original as defense-in-depth alias.
+
+All 4 fixes ship-gate-only (zero kernel-resident behavioral change).
+Trust Root re-rehashed for src/bin/audit_dashboard.rs.
+
+Post-ultrathink workspace: 759 passed / 0 failed / 150 ignored (+2
+net vs pre-ultrathink 757 — SG-12.6 dashboard test + SG-12.8
+integration alias).
+
+All 8/8 SG-12.x ship gates now PASS by architect §9.3 EXACT names.
