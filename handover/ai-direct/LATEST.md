@@ -10,7 +10,7 @@
 
 **Session summary**: Auto-mode shipped TB-14 PriceIndex v0 + Boltzmann Masking under a single charter (NOT split per architect §8 fallback). Full ship-status doc: `handover/ai-direct/TB-14_SHIP_STATUS_2026-05-03.md`. **Workspace = 841 passed / 0 failed / 150 ignored; 6/6 architect §5.7 halt-triggers GREEN; 12/12 SG/G ship gates GREEN; 6/6 CR-14.x conformance preserved; ChainTape smoke + 5 production-controlled canonical-masking smokes (chain-backed) PASS.**
 
-**HEAD**: `1189cb2` (10 commits across Atom 6 main + internal F1 + B′ R1-VETO closure cycle). NOT pushed to remote — user-decision boundary.
+**HEAD**: `8b93fd9` (9 commits across Atom 6 main + internal F1 + B′ R1-VETO closure cycle + Atom 7 ship). NOT pushed to remote — user-decision boundary.
 
 ### Dual audit final verdict matrix
 
@@ -39,7 +39,7 @@ dd40052  B′ step 3 — charter amend (canonical namespace decision §3 binding
 9daba5a  B′ step 4 — CanonicalNodeGraph + compute_mask_set canonical-graph rewire
 07ce9b8  B′ step 5+6 — production-controlled chain-backed smokes (1 positive + 3 negative + idempotency)
 1189cb2  B′ step 7 R2 closure — Gemini Q11 sequencer_wired field
-[NEW]    Atom 7 — TB-14 SHIP STATUS doc + LATEST.md update + final commit
+8b93fd9  Atom 7 SHIPPED — single-charter PriceIndex + Boltzmann Masking; dual audit converged R2 PASS
 ```
 
 ### Architectural decisions surfaced (carry-forward to TB-15)
