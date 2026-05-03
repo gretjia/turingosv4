@@ -508,13 +508,22 @@ impl TuringBus {
     pub fn snapshot(&self) -> crate::sdk::snapshot::UniverseSnapshot {
         let policy = crate::state::BoltzmannMaskPolicy::from_env();
 
+        // TB-14 Atom 6 B′ step 4 (architect ruling 2026-05-03 §3+§4): the
+        // canonical-node-graph is built from L4 accepted WorkTx +
+        // CAS-resident ProposalTelemetry.parent_tx via
+        // `Sequencer::compute_canonical_edges_at_head`. The resulting
+        // `CanonicalNodeGraph` is keyed by canonical accepted WorkTx.tx_id
+        // — same namespace as `price_index` — so `compute_mask_set` can
+        // join them correctly (which the pre-B′ shadow `kernel.tape`
+        // version could NOT, per Codex R1 ship audit VETO).
         let (price_index, mask_set) = match self.sequencer.as_ref() {
             Some(seq) => match seq.q_snapshot() {
                 Ok(q) => {
                     let pi = crate::state::compute_price_index(&q.economic_state_t);
+                    let edges = seq.compute_canonical_edges_at_head();
                     let ms = crate::state::compute_mask_set(
                         &q.economic_state_t,
-                        &self.kernel.tape,
+                        &edges,
                         &policy,
                         &pi,
                     );

@@ -121,32 +121,32 @@ fn price_does_not_change_l4_decision() {
 // Halt-trigger #3
 // parent_not_deleted_from_chaintape
 //
-// After compute_mask_set includes a parent_id, the full Tape iteration
-// (tape.nodes()) must still yield that parent node.
-// mask_set filters the SCHEDULER read-view, not ChainTape storage.
+// After compute_mask_set includes a parent_id, the canonical edge
+// graph + price_index must still yield that parent.
+// mask_set filters the SCHEDULER read-view, not canonical state.
+//
+// **TB-14 Atom 6 B′ step 4 (architect ruling 2026-05-03 §3+§4)**: this
+// test was rewritten to consume `CanonicalNodeGraph` (canonical-keyed
+// parent → children edge map) in place of the legacy shadow `Tape`.
+// The shadow Tape lived in a different id namespace and produced
+// empty mask_set in production (Codex R1 ship audit VETO). The
+// post-B′-step-4 invariant: masking is a derived view over canonical
+// state; the canonical edge map and the price_index entries remain
+// unchanged across mask computation.
 // ────────────────────────────────────────────────────────────────────
 #[test]
 fn parent_not_deleted_from_chaintape() {
-    // TB-14 Atom 3: CR-14.3 / SG-14.3 — masking is read-view, not deletion.
+    // TB-14 Atom 3 + Atom 6 B′ step 4: CR-14.3 / SG-14.3 — masking is
+    // read-view, not deletion of canonical state.
+    use std::collections::{BTreeMap, BTreeSet};
     use turingosv4::economy::money::MicroCoin;
-    use turingosv4::ledger::{Node, Tape};
     use turingosv4::state::q_state::AgentId;
     use turingosv4::state::typed_tx::{NodePosition, PositionKind, PositionSide};
     use turingosv4::state::{
-        compute_mask_set, compute_price_index, BoltzmannMaskPolicy, EconomicState,
-        TaskId, TxId,
+        compute_mask_set, compute_price_index, BoltzmannMaskPolicy, CanonicalNodeGraph,
+        EconomicState, TaskId, TxId,
     };
 
-    fn node(id: &str, parents: &[&str]) -> Node {
-        Node {
-            id: id.to_string(),
-            author: "author".into(),
-            payload: format!("payload_{id}"),
-            citations: parents.iter().map(|s| s.to_string()).collect(),
-            created_at: 0,
-            completion_tokens: 0,
-        }
-    }
     fn position(
         pid: &str,
         node_id: &str,
@@ -168,10 +168,12 @@ fn parent_not_deleted_from_chaintape() {
         }
     }
 
-    // Build parent → child Tape; parent 50/50, child 100/0 (clear dominance).
-    let mut tape = Tape::new();
-    tape.append(node("parent", &[])).expect("append parent");
-    tape.append(node("child", &["parent"])).expect("append child");
+    // Build parent → child canonical edge map; parent 50/50, child 100/0
+    // (clear dominance). Canonical IDs match NodePosition.node_id values.
+    let mut edges: CanonicalNodeGraph = BTreeMap::new();
+    let mut children = BTreeSet::new();
+    children.insert(TxId("child".into()));
+    edges.insert(TxId("parent".into()), children);
 
     let mut econ = EconomicState::default();
     for p in [
@@ -187,7 +189,7 @@ fn parent_not_deleted_from_chaintape() {
 
     let policy = BoltzmannMaskPolicy::default();
     let price_index = compute_price_index(&econ);
-    let mask = compute_mask_set(&econ, &tape, &policy, &price_index);
+    let mask = compute_mask_set(&econ, &edges, &policy, &price_index);
 
     // Prerequisite: parent IS masked (so the test below is meaningful).
     assert!(
@@ -195,15 +197,28 @@ fn parent_not_deleted_from_chaintape() {
         "halt-trigger #3 prerequisite: parent must be masked under default policy"
     );
 
-    // Halt-trigger #3 assertion: tape.nodes() still yields masked parent.
+    // Halt-trigger #3 assertion (post-B′-step-4): the canonical edge map
+    // STILL contains the parent's children edge after mask computation.
+    // The mask is a separate derived BTreeSet; it does NOT mutate the
+    // canonical edges.
     assert!(
-        tape.nodes().contains_key("parent"),
-        "halt-trigger #3: tape.nodes() MUST still contain masked parent (CR-14.3)"
+        edges.contains_key(&TxId("parent".into())),
+        "halt-trigger #3: canonical edges MUST still contain masked parent (CR-14.3)"
     );
-    // And the parent → child edge is preserved.
     assert!(
-        tape.children("parent").contains(&"child".to_string()),
-        "halt-trigger #3: tape.children() edge MUST be preserved across mask"
+        edges.get(&TxId("parent".into()))
+            .map(|s| s.contains(&TxId("child".into())))
+            .unwrap_or(false),
+        "halt-trigger #3: parent → child canonical edge MUST be preserved across mask"
+    );
+    // And the price_index entries are unchanged.
+    assert!(
+        price_index.contains_key(&TxId("parent".into())),
+        "halt-trigger #3: price_index entry for masked parent MUST be preserved"
+    );
+    assert!(
+        price_index.contains_key(&TxId("child".into())),
+        "halt-trigger #3: price_index entry for child MUST be preserved"
     );
 }
 
@@ -318,26 +333,21 @@ fn zero_liquidity_returns_none() {
 // ────────────────────────────────────────────────────────────────────
 #[test]
 fn unresolved_challenge_blocks_masking() {
-    // TB-14 Atom 3: CR-14.5 / SG-14.7 — Open challenge against child blocks parent masking.
+    // TB-14 Atom 3: CR-14.5 / SG-14.7 — Open challenge against child blocks
+    // parent masking. Atom 6 B′ step 4 (architect ruling 2026-05-03 §3+§4):
+    // canonical-graph rewire — `compute_mask_set` no longer reads the
+    // shadow `Tape`; consumes a `CanonicalNodeGraph` keyed by canonical
+    // accepted WorkTx.tx_id matching the challenge_cases_t target_work_tx
+    // namespace.
+    use std::collections::{BTreeMap, BTreeSet};
     use turingosv4::economy::money::MicroCoin;
-    use turingosv4::ledger::{Node, Tape};
     use turingosv4::state::q_state::{AgentId, ChallengeCase, ChallengeStatus};
     use turingosv4::state::typed_tx::{NodePosition, PositionKind, PositionSide};
     use turingosv4::state::{
-        compute_mask_set, compute_price_index, BoltzmannMaskPolicy, EconomicState,
-        TaskId, TxId,
+        compute_mask_set, compute_price_index, BoltzmannMaskPolicy, CanonicalNodeGraph,
+        EconomicState, TaskId, TxId,
     };
 
-    fn node(id: &str, parents: &[&str]) -> Node {
-        Node {
-            id: id.to_string(),
-            author: "author".into(),
-            payload: format!("payload_{id}"),
-            citations: parents.iter().map(|s| s.to_string()).collect(),
-            created_at: 0,
-            completion_tokens: 0,
-        }
-    }
     fn position(
         pid: &str,
         node_id: &str,
@@ -359,11 +369,12 @@ fn unresolved_challenge_blocks_masking() {
         }
     }
 
-    // Build parent → child Tape; parent 50/50, child 100/0 (would dominate
-    // under default policy if no challenge present).
-    let mut tape = Tape::new();
-    tape.append(node("parent", &[])).expect("append parent");
-    tape.append(node("child", &["parent"])).expect("append child");
+    // Build parent → child canonical edge map; parent 50/50, child 100/0
+    // (would dominate under default policy if no challenge present).
+    let mut edges: CanonicalNodeGraph = BTreeMap::new();
+    let mut children = BTreeSet::new();
+    children.insert(TxId("child".into()));
+    edges.insert(TxId("parent".into()), children);
 
     let mut econ = EconomicState::default();
     for p in [
@@ -391,7 +402,7 @@ fn unresolved_challenge_blocks_masking() {
 
     let policy = BoltzmannMaskPolicy::default();
     let price_index = compute_price_index(&econ);
-    let mask = compute_mask_set(&econ, &tape, &policy, &price_index);
+    let mask = compute_mask_set(&econ, &edges, &policy, &price_index);
 
     assert!(
         !mask.contains(&TxId("parent".into())),

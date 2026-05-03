@@ -33,8 +33,8 @@ pub use q_state::{
 /// `BoltzmannMaskPolicy::from_env()` constructor (this re-export already
 /// covers the type itself).
 pub use price_index::{
-    compute_mask_set, compute_price_index, BoltzmannMaskPolicy, NodeMarketEntry,
-    RationalPrice,
+    compute_mask_set, compute_price_index, BoltzmannMaskPolicy, CanonicalNodeGraph,
+    NodeMarketEntry, RationalPrice,
 };
 
 pub use typed_tx::{

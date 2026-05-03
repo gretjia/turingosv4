@@ -369,13 +369,13 @@ fn fc3_n42_compute_price_index_pure_fn_witness() {
 
 #[test]
 fn fc2_n28_mask_set_publication_witness() {
+    use std::collections::{BTreeMap, BTreeSet};
     use turingosv4::economy::money::MicroCoin;
-    use turingosv4::ledger::{Node, Tape};
     use turingosv4::state::q_state::{AgentId, AgentVisibleProjection};
     use turingosv4::state::typed_tx::{NodePosition, PositionKind, PositionSide};
     use turingosv4::state::{
-        compute_mask_set, compute_price_index, BoltzmannMaskPolicy, EconomicState,
-        TaskId, TxId,
+        compute_mask_set, compute_price_index, BoltzmannMaskPolicy, CanonicalNodeGraph,
+        EconomicState, TaskId, TxId,
     };
 
     // FC2-N28 (a): AgentVisibleProjection has a mask_set field of the
@@ -388,25 +388,16 @@ fn fc2_n28_mask_set_publication_witness() {
 
     // FC2-N28 (b): compute_mask_set produces a populated set when child
     // dominates parent under the default policy.
-    let mut tape = Tape::new();
-    tape.append(Node {
-        id: "parent_n".into(),
-        author: "a".into(),
-        payload: "p".into(),
-        citations: vec![],
-        created_at: 0,
-        completion_tokens: 0,
-    })
-    .unwrap();
-    tape.append(Node {
-        id: "child_n".into(),
-        author: "a".into(),
-        payload: "p".into(),
-        citations: vec!["parent_n".into()],
-        created_at: 0,
-        completion_tokens: 0,
-    })
-    .unwrap();
+    //
+    // TB-14 Atom 6 B′ step 4 (architect ruling 2026-05-03 §3+§4): the
+    // edge map is a `CanonicalNodeGraph` (BTreeMap<TxId, BTreeSet<TxId>>)
+    // keyed by canonical TxIds, NOT a shadow `Tape`. The canonical IDs
+    // here MUST match the NodePosition.node_id values in the EconomicState
+    // — that is the post-B′-step-4 invariant envelope.
+    let mut edges: CanonicalNodeGraph = BTreeMap::new();
+    let mut children = BTreeSet::new();
+    children.insert(TxId("child_n".into()));
+    edges.insert(TxId("parent_n".into()), children);
 
     let mut econ = EconomicState::default();
     let mk_pos = |pid: &str, node: &str, side: PositionSide, kind: PositionKind, amt: i64| -> NodePosition {
@@ -432,7 +423,7 @@ fn fc2_n28_mask_set_publication_witness() {
 
     let policy = BoltzmannMaskPolicy::default();
     let price_index = compute_price_index(&econ);
-    let mask = compute_mask_set(&econ, &tape, &policy, &price_index);
+    let mask = compute_mask_set(&econ, &edges, &policy, &price_index);
 
     assert!(
         mask.contains(&TxId("parent_n".into())),
@@ -441,7 +432,7 @@ fn fc2_n28_mask_set_publication_witness() {
 
     // FC2-N28 (c): determinism — repeated calls produce identical output.
     assert_eq!(
-        compute_mask_set(&econ, &tape, &policy, &price_index),
+        compute_mask_set(&econ, &edges, &policy, &price_index),
         mask,
         "FC2-N28: compute_mask_set must be replay-deterministic"
     );

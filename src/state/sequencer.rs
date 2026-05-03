@@ -3118,6 +3118,100 @@ impl Sequencer {
             .map_err(|_| ApplyError::QStateLockPoisoned)
     }
 
+    /// TRACE_MATRIX TB-14 Atom 6 B′ step 4 (FC2-N28; architect ruling
+    /// 2026-05-03 §3+§4): build a canonical-keyed parent → children edge
+    /// map by walking the L4 chain and reading
+    /// `ProposalTelemetry.parent_tx` for each accepted WorkTx via its
+    /// `proposal_cid`. Replaces the legacy shadow `kernel.tape`
+    /// consumption at the bus snapshot's mask-set derivation site
+    /// (canonical-graph rewire closes Codex R1 ship audit VETO; full
+    /// detail in `handover/directives/2026-05-03_TB14_ATOM6_VETO_RULING.md`).
+    ///
+    /// **Replay determinism** (Art.0.2): the L4 chain + CAS payloads are
+    /// both replay-deterministic per TB-13 chaintape evidence. Walking
+    /// L4 in `read_at` order + reading ProposalTelemetry from CAS
+    /// produces a byte-equal `BTreeMap<TxId, BTreeSet<TxId>>` across
+    /// live vs replay.
+    ///
+    /// **Empty fallback**: failures at any layer (lock poisoned, CAS
+    /// missing payload, canonical_decode error, ProposalTelemetry
+    /// decode error, no parent_tx in telemetry) are silently skipped
+    /// rather than propagated — bus.snapshot must NEVER crash because
+    /// of an edge-map build failure (consumers handle empty as "no
+    /// canonical edges yet"). The L4 chain itself is the canonical
+    /// source of truth; this is a derived view.
+    ///
+    /// **Cost**: O(N + N·CAS_read) per call where N = L4 length. Bus
+    /// snapshot frequency is bounded by the evaluator iteration cap;
+    /// for a 50-iteration run this is ~50²/2 = 1250 CAS reads total.
+    /// A future optimization can cache by writer.len() but is premature
+    /// at B′ step 4.
+    ///
+    /// **TB-9 zero-CID synthetic seed**: legacy synthetic-seed WorkTx
+    /// (proposal_cid = `[0u8; 32]`) has no telemetry record; skipped
+    /// silently (mirrors `chain_derived_run_facts` line 340 discipline).
+    pub fn compute_canonical_edges_at_head(
+        &self,
+    ) -> std::collections::BTreeMap<crate::state::TxId, std::collections::BTreeSet<crate::state::TxId>>
+    {
+        use crate::bottom_white::ledger::transition_ledger::canonical_decode;
+        use crate::runtime::proposal_telemetry::read_from_cas as read_proposal_telemetry;
+
+        let mut edges: std::collections::BTreeMap<
+            crate::state::TxId,
+            std::collections::BTreeSet<crate::state::TxId>,
+        > = std::collections::BTreeMap::new();
+
+        let writer_r = match self.ledger_writer.read() {
+            Ok(g) => g,
+            Err(_) => return edges,
+        };
+        let cas_r = match self.cas.read() {
+            Ok(g) => g,
+            Err(_) => return edges,
+        };
+
+        let n = writer_r.len();
+        for t in 1..=n {
+            let entry = match writer_r.read_at(t) {
+                Ok(e) => e,
+                Err(_) => continue,
+            };
+            // Only Work entries carry parent_tx via ProposalTelemetry.
+            if entry.tx_kind != crate::bottom_white::ledger::transition_ledger::TxKind::Work {
+                continue;
+            }
+            let payload = match cas_r.get(&entry.tx_payload_cid) {
+                Ok(b) => b,
+                Err(_) => continue,
+            };
+            let typed_tx: TypedTx = match canonical_decode(&payload) {
+                Ok(tx) => tx,
+                Err(_) => continue,
+            };
+            let work = match typed_tx {
+                TypedTx::Work(w) => w,
+                _ => continue,
+            };
+            // Skip TB-9 zero-CID synthetic seed (no ProposalTelemetry).
+            if work.proposal_cid.0 == [0u8; 32] {
+                continue;
+            }
+            let tel = match read_proposal_telemetry(&cas_r, &work.proposal_cid) {
+                Ok(t) => t,
+                Err(_) => continue,
+            };
+            if let Some(parent_tx) = tel.parent_tx {
+                edges
+                    .entry(parent_tx)
+                    .or_insert_with(std::collections::BTreeSet::new)
+                    .insert(work.tx_id);
+            }
+        }
+
+        edges
+    }
+
     pub fn next_submit_id_peek(&self) -> u64 {
         self.next_submit_id.load(Ordering::SeqCst)
     }
