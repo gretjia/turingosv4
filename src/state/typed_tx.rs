@@ -825,6 +825,14 @@ const DOMAIN_SYSTEM_TASK_EXPIRE: &[u8] = b"turingosv4.system_sig.task_expire.v1"
 const DOMAIN_SYSTEM_TERMINAL_SUMMARY: &[u8] = b"turingosv4.system_sig.terminal_summary.v1";
 const DOMAIN_SYSTEM_CHALLENGE_RESOLVE: &[u8] = b"turingosv4.system_sig.challenge_resolve.v1"; // TB-5 Atom 3
 const DOMAIN_SYSTEM_TASK_BANKRUPTCY: &[u8] = b"turingosv4.system_sig.task_bankruptcy.v1";    // TB-11
+// TB-13 — CompleteSet + MarketSeedTx (architect 2026-05-03 post-TB-12 ruling Part A §4.3).
+// All three TB-13 typed-tx are AGENT-SIGNED (provider funds explicit; no
+// auto-seed; redeem requires system-resolution-reference + outcome match,
+// gated sequencer-side at admission). Domain prefixes mirror existing
+// agent-domain naming conventions (`turingosv4.agent_sig.<purpose>.v1`).
+const DOMAIN_AGENT_COMPLETE_SET_MINT: &[u8] = b"turingosv4.agent_sig.complete_set_mint.v1";
+const DOMAIN_AGENT_COMPLETE_SET_REDEEM: &[u8] = b"turingosv4.agent_sig.complete_set_redeem.v1";
+const DOMAIN_AGENT_MARKET_SEED: &[u8] = b"turingosv4.agent_sig.market_seed.v1";
 
 /// Reserved for v4.1 MetaTx (Gemini round-2 GR-1 recommendation).
 /// Not used in v4 — namespace placeholder so v4.1 can introduce
@@ -1045,6 +1053,238 @@ impl ChallengeResolveSigningPayload {
     }
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// § 5c-TB-13 — CompleteSet + MarketSeedTx conditional shares
+//
+// TRACE_MATRIX TB-13 Atom 1 (architect 2026-05-03 post-TB-12 ruling Part A
+// §4.3 + §4.4 FR-13.1..7 + §4.5 CR-13.1..6).
+//
+// **Mathematical core**: `1 locked Coin = 1 YES_E + 1 NO_E`.
+// `CompleteSetMintTx` debits Coin balance, locks it as `conditional_collateral_t`,
+// mints equal YES_E + NO_E shares to the same owner. `CompleteSetRedeemTx`
+// requires a system-resolved outcome reference and pays the winning side
+// 1:1 against `conditional_collateral_t`. `MarketSeedTx` requires explicit
+// provider funds; no auto-seed, no quote, no trade, no price.
+//
+// **Forbidden in TB-13** (architect §4.7): AMM / CPMM / orderbook /
+// MarketOrderTx / MarketTradeTx / PriceIndex / DPMM / pro-rata / automatic
+// liquidity / ghost liquidity / NodeMarketEntry as canonical state / f64.
+// ────────────────────────────────────────────────────────────────────────────
+
+/// TRACE_MATRIX TB-13 Atom 1 (architect §4.3): event identifier for
+/// conditional shares. TB-13 maps `EventId` 1:1 to `TaskId` (the event
+/// being resolved is "this task got finalized YES via FinalizeRewardTx
+/// vs. died NO via TaskBankruptcyTx"); future TB-14+ may decouple to
+/// per-node events.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default)]
+pub struct EventId(pub TaskId);
+
+/// TRACE_MATRIX TB-13 Atom 1 (architect §4.3): outcome-side discriminator
+/// for conditional shares. Yes = "this event was finalized YES";
+/// No = "this event went bankrupt / was rejected".
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[repr(u8)]
+pub enum OutcomeSide {
+    Yes = 0,
+    No = 1,
+}
+
+impl Default for OutcomeSide {
+    fn default() -> Self {
+        Self::Yes
+    }
+}
+
+/// TRACE_MATRIX TB-13 Atom 1 (architect §4.3): non-negative share count.
+///
+/// Architect spec uses `units: i128`; we tighten to `u128` because TB-13
+/// shares can never be negative (mint creates positive, redeem decreases
+/// positive, no debt model). Underflow at redeem time is a sequencer
+/// `RedeemMoreThanOwned` rejection, not a representation concern.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default)]
+pub struct ShareAmount {
+    pub units: u128,
+}
+
+impl ShareAmount {
+    /// TRACE_MATRIX TB-13 Atom 1 (architect §4.3): zero share amount —
+    /// default constructor for empty share balance lookups.
+    pub const fn zero() -> Self {
+        Self { units: 0 }
+    }
+    /// TRACE_MATRIX TB-13 Atom 1 (architect §4.3): build a `ShareAmount`
+    /// from a raw `u128` units count. Used by sequencer mint/redeem arms
+    /// (Atom 2) to project `MicroCoin::micro_units() as u128` into the
+    /// share-claim domain.
+    pub const fn from_units(units: u128) -> Self {
+        Self { units }
+    }
+}
+
+/// TRACE_MATRIX TB-13 Atom 1 (architect §4.3): system-resolution reference
+/// embedded in `CompleteSetRedeemTx`. References either a
+/// `TaskBankruptcyTx` (outcome must be `OutcomeSide::No`) or a
+/// `FinalizeRewardTx` (outcome must be `OutcomeSide::Yes`) for the
+/// referenced `EventId.0 == task_id`. Sequencer validates the reference
+/// exists in L4 + outcome matches before allowing redeem (architect
+/// FR-13.4 + SG-13.5).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct ResolutionRef {
+    pub resolution_tx_id: TxId,
+    pub claimed_outcome: OutcomeSide,
+}
+
+/// TRACE_MATRIX TB-13 Atom 1 (architect §4.3 + FR-13.1..3): mint conditional
+/// shares against locked Coin collateral.
+///
+/// Sequencer arm (Atom 2):
+/// 1. `balances_t[owner] >= amount` else `InsufficientBalanceForMint`.
+/// 2. `balances_t[owner] -= amount`.
+/// 3. `conditional_collateral_t[event_id] += amount`.
+/// 4. `conditional_share_balances_t[(owner, event_id, Yes)] += amount.units`.
+/// 5. `conditional_share_balances_t[(owner, event_id, No)]  += amount.units`.
+///
+/// CTF preserved: balance debit equals collateral credit; YES/NO shares
+/// are claims (not Coin) per CR-13.3 / SG-13.2.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct CompleteSetMintTx {
+    pub tx_id: TxId,                          //  1
+    pub parent_state_root: Hash,              //  2
+    pub event_id: EventId,                    //  3
+    pub owner: AgentId,                       //  4
+    pub amount: MicroCoin,                    //  5
+    pub signature: AgentSignature,            //  6
+    pub timestamp_logical: u64,               //  7
+}
+
+/// TRACE_MATRIX TB-13 Atom 1 (architect §4.3 + FR-13.4..5 + SG-13.5..6):
+/// redeem winning conditional shares post-resolution.
+///
+/// Sequencer arm (Atom 2):
+/// 1. Lookup `resolution_ref.resolution_tx_id` in L4 accepted set.
+///    - If `TaskBankruptcyTx` for `event_id.0`: claimed_outcome must be
+///      `No` else `InvalidResolutionRef`.
+///    - If `FinalizeRewardTx` for `event_id.0`: claimed_outcome must be
+///      `Yes` else `InvalidResolutionRef`.
+///    - Else: `RedeemBeforeResolution` (no acceptable resolution).
+/// 2. `conditional_share_balances_t[(owner, event_id, outcome)] >= share_amount.units`
+///    else `RedeemMoreThanOwned`.
+/// 3. `conditional_collateral_t[event_id] >= share_amount.units` else
+///    `InsufficientCollateral` (defensive; should never fire if
+///    `assert_complete_set_balanced` holds).
+/// 4. Debit shares; debit collateral; credit `balances_t[owner]` 1:1.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct CompleteSetRedeemTx {
+    pub tx_id: TxId,                          //  1
+    pub parent_state_root: Hash,              //  2
+    pub event_id: EventId,                    //  3
+    pub owner: AgentId,                       //  4
+    pub outcome: OutcomeSide,                 //  5
+    pub share_amount: ShareAmount,            //  6
+    pub resolution_ref: ResolutionRef,        //  7
+    pub signature: AgentSignature,            //  8
+    pub timestamp_logical: u64,               //  9
+}
+
+/// TRACE_MATRIX TB-13 Atom 1 (architect §4.3 + FR-13.6..7): explicit
+/// provider-funded protocol-owned share inventory seed. **NO trading,
+/// NO quoting, NO pricing.**
+///
+/// Sequencer arm (Atom 2):
+/// 1. `collateral_amount > 0` else `InsufficientCollateral` (SG-13.4).
+/// 2. `balances_t[provider] >= collateral_amount` else
+///    `InsufficientBalanceForMint` (SG-13.3).
+/// 3. `balances_t[provider] -= collateral_amount`.
+/// 4. `conditional_collateral_t[event_id] += collateral_amount`.
+/// 5. Provider receives BOTH sides of share inventory:
+///    `conditional_share_balances_t[(provider, event_id, Yes)] += collateral_amount.units`
+///    `conditional_share_balances_t[(provider, event_id, No)]  += collateral_amount.units`.
+///
+/// The shape is identical to `CompleteSetMintTx` post-effect; the
+/// distinction is semantic ("mint" = claim against own bet vs "seed" =
+/// protocol-owned inventory pre-resolution). Future tracer-bullets may
+/// treat seeded liquidity differently — TB-13 itself records only the
+/// fact of seeding, not any signal derived from it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct MarketSeedTx {
+    pub tx_id: TxId,                          //  1
+    pub parent_state_root: Hash,              //  2
+    pub event_id: EventId,                    //  3
+    pub provider: AgentId,                    //  4
+    pub collateral_amount: MicroCoin,         //  5
+    pub signature: AgentSignature,            //  6
+    pub timestamp_logical: u64,               //  7
+}
+
+// ── TB-13 SigningPayloads ───────────────────────────────────────────────
+
+/// TRACE_MATRIX TB-13 Atom 1 (architect §4.3): signing payload for
+/// `CompleteSetMintTx` (7 fields → 6 fields; signature excluded).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct CompleteSetMintSigningPayload {
+    pub tx_id: TxId,
+    pub parent_state_root: Hash,
+    pub event_id: EventId,
+    pub owner: AgentId,
+    pub amount: MicroCoin,
+    pub timestamp_logical: u64,
+}
+
+impl CompleteSetMintSigningPayload {
+    /// TRACE_MATRIX TB-13 Atom 1 (architect §4.3): domain-prefixed
+    /// canonical digest for agent-signed CompleteSetMintTx. Domain
+    /// prefix `b"turingosv4.agent_sig.complete_set_mint.v1"` mirrors
+    /// agent-domain naming (Work / Verify / Challenge / TaskOpen /
+    /// EscrowLock).
+    pub fn canonical_digest(&self) -> [u8; 32] {
+        domain_prefixed_digest(DOMAIN_AGENT_COMPLETE_SET_MINT, self)
+    }
+}
+
+/// TRACE_MATRIX TB-13 Atom 1 (architect §4.3): signing payload for
+/// `CompleteSetRedeemTx` (9 fields → 8 fields; signature excluded).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct CompleteSetRedeemSigningPayload {
+    pub tx_id: TxId,
+    pub parent_state_root: Hash,
+    pub event_id: EventId,
+    pub owner: AgentId,
+    pub outcome: OutcomeSide,
+    pub share_amount: ShareAmount,
+    pub resolution_ref: ResolutionRef,
+    pub timestamp_logical: u64,
+}
+
+impl CompleteSetRedeemSigningPayload {
+    /// TRACE_MATRIX TB-13 Atom 1 (architect §4.3): domain-prefixed
+    /// canonical digest for agent-signed CompleteSetRedeemTx. Domain
+    /// prefix `b"turingosv4.agent_sig.complete_set_redeem.v1"`.
+    pub fn canonical_digest(&self) -> [u8; 32] {
+        domain_prefixed_digest(DOMAIN_AGENT_COMPLETE_SET_REDEEM, self)
+    }
+}
+
+/// TRACE_MATRIX TB-13 Atom 1 (architect §4.3): signing payload for
+/// `MarketSeedTx` (7 fields → 6 fields; signature excluded).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct MarketSeedSigningPayload {
+    pub tx_id: TxId,
+    pub parent_state_root: Hash,
+    pub event_id: EventId,
+    pub provider: AgentId,
+    pub collateral_amount: MicroCoin,
+    pub timestamp_logical: u64,
+}
+
+impl MarketSeedSigningPayload {
+    /// TRACE_MATRIX TB-13 Atom 1 (architect §4.3): domain-prefixed
+    /// canonical digest for agent-signed MarketSeedTx. Domain prefix
+    /// `b"turingosv4.agent_sig.market_seed.v1"`.
+    pub fn canonical_digest(&self) -> [u8; 32] {
+        domain_prefixed_digest(DOMAIN_AGENT_MARKET_SEED, self)
+    }
+}
+
 // ── Projections: tx → signing payload ────────────────────────────────────
 
 impl WorkTx {
@@ -1203,6 +1443,55 @@ impl ChallengeResolveTx {
     }
 }
 
+// TB-13 — projection impls.
+
+impl CompleteSetMintTx {
+    /// TRACE_MATRIX TB-13 Atom 1 (architect §4.3): wire → signing payload
+    /// projection. Excludes `signature` to prevent cycle-on-self.
+    pub fn to_signing_payload(&self) -> CompleteSetMintSigningPayload {
+        CompleteSetMintSigningPayload {
+            tx_id: self.tx_id.clone(),
+            parent_state_root: self.parent_state_root,
+            event_id: self.event_id.clone(),
+            owner: self.owner.clone(),
+            amount: self.amount,
+            timestamp_logical: self.timestamp_logical,
+        }
+    }
+}
+
+impl CompleteSetRedeemTx {
+    /// TRACE_MATRIX TB-13 Atom 1 (architect §4.3): wire → signing payload
+    /// projection. Excludes `signature` to prevent cycle-on-self.
+    pub fn to_signing_payload(&self) -> CompleteSetRedeemSigningPayload {
+        CompleteSetRedeemSigningPayload {
+            tx_id: self.tx_id.clone(),
+            parent_state_root: self.parent_state_root,
+            event_id: self.event_id.clone(),
+            owner: self.owner.clone(),
+            outcome: self.outcome,
+            share_amount: self.share_amount,
+            resolution_ref: self.resolution_ref.clone(),
+            timestamp_logical: self.timestamp_logical,
+        }
+    }
+}
+
+impl MarketSeedTx {
+    /// TRACE_MATRIX TB-13 Atom 1 (architect §4.3): wire → signing payload
+    /// projection. Excludes `signature` to prevent cycle-on-self.
+    pub fn to_signing_payload(&self) -> MarketSeedSigningPayload {
+        MarketSeedSigningPayload {
+            tx_id: self.tx_id.clone(),
+            parent_state_root: self.parent_state_root,
+            event_id: self.event_id.clone(),
+            provider: self.provider.clone(),
+            collateral_amount: self.collateral_amount,
+            timestamp_logical: self.timestamp_logical,
+        }
+    }
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // § 6 TypedTx outer enum
 // ────────────────────────────────────────────────────────────────────────────
@@ -1228,6 +1517,9 @@ pub enum TypedTx {
     EscrowLock(EscrowLockTx),     // TB-3 RSP-1 formal surface
     ChallengeResolve(ChallengeResolveTx), // TB-5 RSP-3.0/3.1 system-emitted resolution
     TaskBankruptcy(TaskBankruptcyTx),     // TB-11 system-emitted task-level failure marker
+    CompleteSetMint(CompleteSetMintTx),   // TB-13 agent-signed conditional-share mint
+    CompleteSetRedeem(CompleteSetRedeemTx), // TB-13 agent-signed conditional-share redeem
+    MarketSeed(MarketSeedTx),             // TB-13 agent-signed protocol-owned share seed
 }
 
 impl TypedTx {
@@ -1246,6 +1538,9 @@ impl TypedTx {
             Self::EscrowLock(_) => TxKind::EscrowLock,
             Self::ChallengeResolve(_) => TxKind::ChallengeResolve,
             Self::TaskBankruptcy(_) => TxKind::TaskBankruptcy,
+            Self::CompleteSetMint(_) => TxKind::CompleteSetMint,
+            Self::CompleteSetRedeem(_) => TxKind::CompleteSetRedeem,
+            Self::MarketSeed(_) => TxKind::MarketSeed,
         }
     }
 }
@@ -1327,6 +1622,27 @@ impl HasSubmitter for TaskBankruptcyTx {
     }
 }
 
+// TB-13 — agent-signed conditional-share variants. Submitter is the
+// owner / provider on the wire (mirrors WorkTx → agent_id pattern).
+
+impl HasSubmitter for CompleteSetMintTx {
+    fn submitter_id(&self) -> Option<AgentId> {
+        Some(self.owner.clone())
+    }
+}
+
+impl HasSubmitter for CompleteSetRedeemTx {
+    fn submitter_id(&self) -> Option<AgentId> {
+        Some(self.owner.clone())
+    }
+}
+
+impl HasSubmitter for MarketSeedTx {
+    fn submitter_id(&self) -> Option<AgentId> {
+        Some(self.provider.clone())
+    }
+}
+
 impl HasSubmitter for TypedTx {
     fn submitter_id(&self) -> Option<AgentId> {
         match self {
@@ -1341,6 +1657,9 @@ impl HasSubmitter for TypedTx {
             Self::EscrowLock(t) => t.submitter_id(),
             Self::ChallengeResolve(t) => t.submitter_id(),
             Self::TaskBankruptcy(t) => t.submitter_id(),
+            Self::CompleteSetMint(t) => t.submitter_id(),
+            Self::CompleteSetRedeem(t) => t.submitter_id(),
+            Self::MarketSeed(t) => t.submitter_id(),
         }
     }
 }
@@ -2723,5 +3042,168 @@ mod tests {
             &fixture_challenge_resolve_tx().to_signing_payload().canonical_digest()
         );
         assert_eq!(actual, EXPECTED_SIGNING_HEX_CHALLENGE_RESOLVE);
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // TB-13 Atom 1 unit tests — CompleteSetMint / CompleteSetRedeem /
+    // MarketSeed (architect 2026-05-03 post-TB-12 ruling Part A §4.3).
+    // ──────────────────────────────────────────────────────────────────
+
+    fn fixture_complete_set_mint_tx() -> CompleteSetMintTx {
+        CompleteSetMintTx {
+            tx_id: TxId("complete-set-mint-fixture-01".into()),
+            parent_state_root: h(0x77),
+            event_id: EventId(TaskId("task-fixture-tb13-mint".into())),
+            owner: AgentId("agent-mint-fixture".into()),
+            amount: MicroCoin::from_micro_units(7_000_000),
+            signature: AgentSignature::from_bytes([0xddu8; 64]),
+            timestamp_logical: 21,
+        }
+    }
+
+    fn fixture_complete_set_redeem_tx() -> CompleteSetRedeemTx {
+        CompleteSetRedeemTx {
+            tx_id: TxId("complete-set-redeem-fixture-01".into()),
+            parent_state_root: h(0x88),
+            event_id: EventId(TaskId("task-fixture-tb13-redeem".into())),
+            owner: AgentId("agent-redeem-fixture".into()),
+            outcome: OutcomeSide::Yes,
+            share_amount: ShareAmount::from_units(7_000_000),
+            resolution_ref: ResolutionRef {
+                resolution_tx_id: TxId("finalize-reward-resolution-01".into()),
+                claimed_outcome: OutcomeSide::Yes,
+            },
+            signature: AgentSignature::from_bytes([0xeeu8; 64]),
+            timestamp_logical: 22,
+        }
+    }
+
+    fn fixture_market_seed_tx() -> MarketSeedTx {
+        MarketSeedTx {
+            tx_id: TxId("market-seed-fixture-01".into()),
+            parent_state_root: h(0x99),
+            event_id: EventId(TaskId("task-fixture-tb13-seed".into())),
+            provider: AgentId("agent-provider-fixture".into()),
+            collateral_amount: MicroCoin::from_micro_units(2_500_000),
+            signature: AgentSignature::from_bytes([0xffu8; 64]),
+            timestamp_logical: 23,
+        }
+    }
+
+    /// TB-13 U1: CompleteSetMintTx round-trips through canonical encode.
+    #[test]
+    fn tb_13_complete_set_mint_round_trips_canonical() {
+        let tx = TypedTx::CompleteSetMint(fixture_complete_set_mint_tx());
+        let bytes = canonical_encode(&tx).expect("encode");
+        let decoded: TypedTx = canonical_decode(&bytes).expect("decode");
+        assert_eq!(tx, decoded, "CompleteSetMintTx round-trip mismatch");
+        assert_eq!(
+            decoded.tx_kind(),
+            crate::bottom_white::ledger::transition_ledger::TxKind::CompleteSetMint,
+        );
+    }
+
+    /// TB-13 U2: CompleteSetRedeemTx round-trips through canonical encode.
+    #[test]
+    fn tb_13_complete_set_redeem_round_trips_canonical() {
+        let tx = TypedTx::CompleteSetRedeem(fixture_complete_set_redeem_tx());
+        let bytes = canonical_encode(&tx).expect("encode");
+        let decoded: TypedTx = canonical_decode(&bytes).expect("decode");
+        assert_eq!(tx, decoded, "CompleteSetRedeemTx round-trip mismatch");
+        assert_eq!(
+            decoded.tx_kind(),
+            crate::bottom_white::ledger::transition_ledger::TxKind::CompleteSetRedeem,
+        );
+    }
+
+    /// TB-13 U3: MarketSeedTx round-trips through canonical encode.
+    #[test]
+    fn tb_13_market_seed_round_trips_canonical() {
+        let tx = TypedTx::MarketSeed(fixture_market_seed_tx());
+        let bytes = canonical_encode(&tx).expect("encode");
+        let decoded: TypedTx = canonical_decode(&bytes).expect("decode");
+        assert_eq!(tx, decoded, "MarketSeedTx round-trip mismatch");
+        assert_eq!(
+            decoded.tx_kind(),
+            crate::bottom_white::ledger::transition_ledger::TxKind::MarketSeed,
+        );
+    }
+
+    /// TB-13 U4: OutcomeSide repr discriminants stable.
+    #[test]
+    fn tb_13_outcome_side_repr_u8_stable() {
+        assert_eq!(OutcomeSide::Yes as u8, 0);
+        assert_eq!(OutcomeSide::No as u8, 1);
+    }
+
+    /// TB-13 U5: ShareAmount default is zero.
+    #[test]
+    fn tb_13_share_amount_default_zero_units() {
+        assert_eq!(ShareAmount::default(), ShareAmount::zero());
+        assert_eq!(ShareAmount::default().units, 0u128);
+    }
+
+    /// TB-13 U6: deterministic canonical_digest — same payload twice yields
+    /// the same digest. Architect §4.3 requires deterministic signing
+    /// payloads (no environmental input).
+    #[test]
+    fn tb_13_signing_payloads_deterministic_digest() {
+        let mint_a = fixture_complete_set_mint_tx().to_signing_payload().canonical_digest();
+        let mint_b = fixture_complete_set_mint_tx().to_signing_payload().canonical_digest();
+        assert_eq!(mint_a, mint_b, "CompleteSetMint digest must be deterministic");
+
+        let redeem_a = fixture_complete_set_redeem_tx().to_signing_payload().canonical_digest();
+        let redeem_b = fixture_complete_set_redeem_tx().to_signing_payload().canonical_digest();
+        assert_eq!(redeem_a, redeem_b, "CompleteSetRedeem digest must be deterministic");
+
+        let seed_a = fixture_market_seed_tx().to_signing_payload().canonical_digest();
+        let seed_b = fixture_market_seed_tx().to_signing_payload().canonical_digest();
+        assert_eq!(seed_a, seed_b, "MarketSeed digest must be deterministic");
+    }
+
+    /// TB-13 U7: signing payloads exclude the `signature` field — exact
+    /// field count enforced (mint 6 / redeem 8 / seed 6).
+    #[test]
+    fn tb_13_signing_payloads_exclude_signature_field_counts() {
+        let mint_p = fixture_complete_set_mint_tx().to_signing_payload();
+        let mint_v = serde_json::to_value(&mint_p).unwrap();
+        let mint_o = mint_v.as_object().unwrap();
+        assert_eq!(mint_o.len(), 6, "CompleteSetMintSigningPayload must have 6 fields");
+        assert!(!mint_o.contains_key("signature"));
+
+        let redeem_p = fixture_complete_set_redeem_tx().to_signing_payload();
+        let redeem_v = serde_json::to_value(&redeem_p).unwrap();
+        let redeem_o = redeem_v.as_object().unwrap();
+        assert_eq!(redeem_o.len(), 8, "CompleteSetRedeemSigningPayload must have 8 fields");
+        assert!(!redeem_o.contains_key("signature"));
+
+        let seed_p = fixture_market_seed_tx().to_signing_payload();
+        let seed_v = serde_json::to_value(&seed_p).unwrap();
+        let seed_o = seed_v.as_object().unwrap();
+        assert_eq!(seed_o.len(), 6, "MarketSeedSigningPayload must have 6 fields");
+        assert!(!seed_o.contains_key("signature"));
+    }
+
+    /// TB-13 U8: HasSubmitter projects to the wire owner / provider.
+    #[test]
+    fn tb_13_has_submitter_returns_owner_or_provider() {
+        let mint = fixture_complete_set_mint_tx();
+        assert_eq!(mint.submitter_id(), Some(mint.owner.clone()));
+
+        let redeem = fixture_complete_set_redeem_tx();
+        assert_eq!(redeem.submitter_id(), Some(redeem.owner.clone()));
+
+        let seed = fixture_market_seed_tx();
+        assert_eq!(seed.submitter_id(), Some(seed.provider.clone()));
+
+        // TypedTx wrapper delegates to inner.
+        assert_eq!(
+            TypedTx::CompleteSetMint(fixture_complete_set_mint_tx()).submitter_id(),
+            Some(AgentId("agent-mint-fixture".into())),
+        );
+        assert_eq!(
+            TypedTx::MarketSeed(fixture_market_seed_tx()).submitter_id(),
+            Some(AgentId("agent-provider-fixture".into())),
+        );
     }
 }

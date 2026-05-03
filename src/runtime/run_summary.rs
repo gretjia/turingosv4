@@ -221,6 +221,9 @@ fn extract_tx_id(tx: &TypedTx) -> TxId {
         TypedTx::EscrowLock(t) => t.tx_id.clone(),
         TypedTx::ChallengeResolve(t) => t.tx_id.clone(),
         TypedTx::TaskBankruptcy(t) => t.tx_id.clone(),  // TB-11
+        TypedTx::CompleteSetMint(t) => t.tx_id.clone(), // TB-13
+        TypedTx::CompleteSetRedeem(t) => t.tx_id.clone(), // TB-13
+        TypedTx::MarketSeed(t) => t.tx_id.clone(),      // TB-13
     }
 }
 

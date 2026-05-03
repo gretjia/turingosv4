@@ -314,7 +314,19 @@ pub fn assert_no_post_init_mint(tx: &TypedTx, q: &QState) -> Result<(), Monetary
         // Bankrupt). No money movement, so trivially does not mint.
         // CTF conservation enforced by assert_total_ctf_conserved with
         // empty exempt list at the dispatch site.
-        | TypedTx::TaskBankruptcy(_) => Ok(()),
+        | TypedTx::TaskBankruptcy(_)
+        // TB-13 (architect 2026-05-03 post-TB-12 ruling Part A §4.3 +
+        // CR-13.1..6): CompleteSetMint / CompleteSetRedeem / MarketSeed
+        // are balance ↔ collateral migrations only. Mint debits balance
+        // and credits collateral 1:1; redeem debits collateral and shares
+        // and credits balance 1:1; seed debits provider balance and
+        // credits collateral 1:1. Conditional shares are claims, NOT Coin
+        // (CR-13.3 + SG-13.2). No mint, no burn — Atom 3 extends
+        // assert_total_ctf_conserved with conditional_collateral_t as the
+        // 6th Coin holding.
+        | TypedTx::CompleteSetMint(_)
+        | TypedTx::CompleteSetRedeem(_)
+        | TypedTx::MarketSeed(_) => Ok(()),
     }
 }
 

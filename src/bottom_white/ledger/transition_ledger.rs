@@ -77,6 +77,25 @@ pub enum TxKind {
     /// `Sequencer::emit_system_tx`. No money movement (refund is a separate
     /// TaskExpireTx fired by tick post-bankruptcy).
     TaskBankruptcy  = 10,
+    /// TB-13 (2026-05-03 architect post-TB-12 ruling Part A §4.3) —
+    /// agent-signed conditional-share mint. Debits `balances_t[owner]`,
+    /// credits `conditional_collateral_t[event_id]`, mints equal YES_E +
+    /// NO_E shares to `conditional_share_balances_t`. CTF preserved (1
+    /// Coin → 1 YES + 1 NO; shares are claims, not Coin).
+    CompleteSetMint   = 11,
+    /// TB-13 (architect §4.3) — agent-signed conditional-share redeem
+    /// post-resolution. Validates `resolution_ref` against L4 (must be
+    /// `TaskBankruptcy` for `Outcome::No` or `FinalizeReward` for
+    /// `Outcome::Yes`); pays winning side 1:1 against
+    /// `conditional_collateral_t`. Pre-resolution rejected with
+    /// `RedeemBeforeResolution`.
+    CompleteSetRedeem = 12,
+    /// TB-13 (architect §4.3) — agent-signed protocol-owned share
+    /// inventory seed. Provider explicitly funds `conditional_collateral_t`
+    /// + receives BOTH YES + NO shares. **No trading. No quoting. No
+    /// pricing.** TB-13 records only the fact of seeding, not any signal
+    /// derived from it.
+    MarketSeed        = 13,
 }
 
 /// TRACE_MATRIX FC2-Append + WP § 5.L4: stored LedgerEntry record (11 fields).

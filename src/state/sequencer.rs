@@ -395,13 +395,18 @@ fn system_message_for_verification(
             let digest = t.to_signing_payload().canonical_digest();
             Some(CanonicalMessage::TaskBankruptcySigning(digest))
         }
-        // Agent-submitted variants: stage 1.5 is system-only.
+        // Agent-submitted variants: stage 1.5 is system-only. TB-13
+        // CompleteSetMint / CompleteSetRedeem / MarketSeed are agent-signed
+        // (verified separately at admission via the agent-signature path).
         TypedTx::Work(_)
         | TypedTx::Verify(_)
         | TypedTx::Challenge(_)
         | TypedTx::Reuse(_)
         | TypedTx::TaskOpen(_)
-        | TypedTx::EscrowLock(_) => None,
+        | TypedTx::EscrowLock(_)
+        | TypedTx::CompleteSetMint(_)
+        | TypedTx::CompleteSetRedeem(_)
+        | TypedTx::MarketSeed(_) => None,
     }
 }
 
@@ -421,7 +426,10 @@ fn system_signature_of(
         | TypedTx::Challenge(_)
         | TypedTx::Reuse(_)
         | TypedTx::TaskOpen(_)
-        | TypedTx::EscrowLock(_) => None,
+        | TypedTx::EscrowLock(_)
+        | TypedTx::CompleteSetMint(_)
+        | TypedTx::CompleteSetRedeem(_)
+        | TypedTx::MarketSeed(_) => None,
     }
 }
 
@@ -446,7 +454,10 @@ fn system_epoch_of(tx: &TypedTx) -> Option<SystemEpoch> {
         | TypedTx::Challenge(_)
         | TypedTx::Reuse(_)
         | TypedTx::TaskOpen(_)
-        | TypedTx::EscrowLock(_) => None,
+        | TypedTx::EscrowLock(_)
+        | TypedTx::CompleteSetMint(_)
+        | TypedTx::CompleteSetRedeem(_)
+        | TypedTx::MarketSeed(_) => None,
     }
 }
 
@@ -1508,6 +1519,15 @@ pub(crate) fn dispatch_transition(
 
             Ok((q_next, SignalBundle::default()))
         }
+        // ──────────────────────────────────────────────────────────────────
+        // TB-13 Atom 1 stubs (architect 2026-05-03 post-TB-12 ruling Part A
+        // §4.3 + §4.4). Real dispatch bodies land in Atom 2 (sequencer
+        // dispatch + EconomicState 11→13 extension); Atom 1 only freezes
+        // the typed-tx wire surface + keeps the exhaustive match green.
+        // ──────────────────────────────────────────────────────────────────
+        TypedTx::CompleteSetMint(_) => Err(TransitionError::NotYetImplemented),
+        TypedTx::CompleteSetRedeem(_) => Err(TransitionError::NotYetImplemented),
+        TypedTx::MarketSeed(_) => Err(TransitionError::NotYetImplemented),
     }
 }
 
@@ -1972,13 +1992,18 @@ impl Sequencer {
             | TypedTx::TaskBankruptcy(_) => {
                 return Err(SubmitError::SystemTxForbiddenOnAgentIngress);
             }
-            // Agent-submitted variants — proceed to queue.
+            // Agent-submitted variants — proceed to queue. TB-13 conditional-
+            // share variants (CompleteSetMint / CompleteSetRedeem / MarketSeed)
+            // are agent-signed and admit through the same ingress path.
             TypedTx::Work(_)
             | TypedTx::Verify(_)
             | TypedTx::Challenge(_)
             | TypedTx::Reuse(_)
             | TypedTx::TaskOpen(_)
-            | TypedTx::EscrowLock(_) => {}
+            | TypedTx::EscrowLock(_)
+            | TypedTx::CompleteSetMint(_)
+            | TypedTx::CompleteSetRedeem(_)
+            | TypedTx::MarketSeed(_) => {}
         }
         // TB-2 P1-D r1 concurrency contract: fetch_add precedes try_send, so
         // submit_id allocation order is NOT receiver arrival order under
