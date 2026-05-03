@@ -255,6 +255,80 @@ impl Default for BoltzmannMaskPolicy {
     }
 }
 
+impl BoltzmannMaskPolicy {
+    /// TRACE_MATRIX TB-14 Atom 4 (FC2-N28 + FC2-N29 configuration loader;
+    /// charter §3 Atom 4): build a policy from process environment with
+    /// per-field defaults matching `BoltzmannMaskPolicy::default()`.
+    ///
+    /// **All 7 fields are integer-rational** (architect §5.6 forbidden:
+    /// no decimal float anywhere in the policy surface). The seven env
+    /// vars are: `BOLTZMANN_BETA_NUM` / `BOLTZMANN_BETA_DEN`,
+    /// `BOLTZMANN_MIN_LIQUIDITY_MICRO`, `BOLTZMANN_PRICE_MARGIN_NUM` /
+    /// `BOLTZMANN_PRICE_MARGIN_DEN`, `BOLTZMANN_EPSILON_NUM` /
+    /// `BOLTZMANN_EPSILON_DEN`. Unparsable values silently fall back to
+    /// the field default — fail-soft is the right policy for a scheduler
+    /// hyperparameter loader (Art.I.1 + C-027: env-overridable, never
+    /// hardcoded; misconfiguration must not crash the swarm).
+    ///
+    /// **Determinism note**: this function reads `std::env::var` and is
+    /// therefore NOT replay-deterministic by itself. Production callers
+    /// (Atom 6 evaluator wire-up) load the policy ONCE at run start, then
+    /// pass it as an explicit input to `compute_mask_set` /
+    /// `boltzmann_select_parent_v2`, which ARE deterministic given the
+    /// fixed policy. This separation preserves Art.0.2 replay-determinism
+    /// at the deterministic boundary while allowing operational tuning at
+    /// the env-var boundary.
+    pub fn from_env() -> Self {
+        let default = Self::default();
+
+        fn parse_i64(key: &str, fallback: i64) -> i64 {
+            std::env::var(key)
+                .ok()
+                .and_then(|s| s.parse::<i64>().ok())
+                .unwrap_or(fallback)
+        }
+        fn parse_u64(key: &str, fallback: u64) -> u64 {
+            std::env::var(key)
+                .ok()
+                .and_then(|s| s.parse::<u64>().ok())
+                .unwrap_or(fallback)
+        }
+        fn parse_u128(key: &str, fallback: u128) -> u128 {
+            std::env::var(key)
+                .ok()
+                .and_then(|s| s.parse::<u128>().ok())
+                .unwrap_or(fallback)
+        }
+
+        Self {
+            beta_num: parse_i64("BOLTZMANN_BETA_NUM", default.beta_num),
+            beta_den: parse_i64("BOLTZMANN_BETA_DEN", default.beta_den),
+            min_liquidity: MicroCoin::from_micro_units(parse_i64(
+                "BOLTZMANN_MIN_LIQUIDITY_MICRO",
+                default.min_liquidity.micro_units(),
+            )),
+            price_margin: RationalPrice {
+                numerator: parse_u128(
+                    "BOLTZMANN_PRICE_MARGIN_NUM",
+                    default.price_margin.numerator,
+                ),
+                denominator: parse_u128(
+                    "BOLTZMANN_PRICE_MARGIN_DEN",
+                    default.price_margin.denominator,
+                ),
+            },
+            epsilon_exploration_num: parse_u64(
+                "BOLTZMANN_EPSILON_NUM",
+                default.epsilon_exploration_num,
+            ),
+            epsilon_exploration_den: parse_u64(
+                "BOLTZMANN_EPSILON_DEN",
+                default.epsilon_exploration_den,
+            ),
+        }
+    }
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // compute_mask_set — derive the parent-mask set from price_index + Tape
 // + policy + open challenges. Pure deterministic over inputs.
@@ -673,5 +747,138 @@ mod tests {
         };
         assert!(!p60.dominates_by(&zero_den, &m10));
         assert!(!zero_den.dominates_by(&p60, &m10));
+    }
+
+    // ──────────── BoltzmannMaskPolicy::from_env (Atom 4) ────────────
+    //
+    // Tests mutate process-global env vars; serialize with a static Mutex
+    // per `feedback_env_var_test_lock` (cargo's default test runner is
+    // parallel across threads within a single test binary).
+
+    use std::sync::Mutex;
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    fn with_env_isolated<F: FnOnce()>(f: F) {
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+        let keys = [
+            "BOLTZMANN_BETA_NUM",
+            "BOLTZMANN_BETA_DEN",
+            "BOLTZMANN_MIN_LIQUIDITY_MICRO",
+            "BOLTZMANN_PRICE_MARGIN_NUM",
+            "BOLTZMANN_PRICE_MARGIN_DEN",
+            "BOLTZMANN_EPSILON_NUM",
+            "BOLTZMANN_EPSILON_DEN",
+        ];
+        for k in &keys {
+            std::env::remove_var(k);
+        }
+        f();
+        for k in &keys {
+            std::env::remove_var(k);
+        }
+    }
+
+    #[test]
+    fn boltzmann_mask_policy_default_matches_field_defaults() {
+        let p = BoltzmannMaskPolicy::default();
+        assert_eq!(p.beta_num, 1);
+        assert_eq!(p.beta_den, 1);
+        assert_eq!(p.min_liquidity, MicroCoin::from_micro_units(1_000_000));
+        assert_eq!(
+            p.price_margin,
+            RationalPrice {
+                numerator: 1,
+                denominator: 10
+            }
+        );
+        assert_eq!(p.epsilon_exploration_num, 1);
+        assert_eq!(p.epsilon_exploration_den, 10);
+    }
+
+    #[test]
+    fn boltzmann_from_env_with_no_vars_set_matches_default() {
+        with_env_isolated(|| {
+            let p = BoltzmannMaskPolicy::from_env();
+            assert_eq!(p, BoltzmannMaskPolicy::default());
+        });
+    }
+
+    #[test]
+    fn boltzmann_from_env_overrides_each_field() {
+        with_env_isolated(|| {
+            std::env::set_var("BOLTZMANN_BETA_NUM", "3");
+            std::env::set_var("BOLTZMANN_BETA_DEN", "2");
+            std::env::set_var("BOLTZMANN_MIN_LIQUIDITY_MICRO", "5000000");
+            std::env::set_var("BOLTZMANN_PRICE_MARGIN_NUM", "7");
+            std::env::set_var("BOLTZMANN_PRICE_MARGIN_DEN", "20");
+            std::env::set_var("BOLTZMANN_EPSILON_NUM", "3");
+            std::env::set_var("BOLTZMANN_EPSILON_DEN", "100");
+
+            let p = BoltzmannMaskPolicy::from_env();
+            assert_eq!(p.beta_num, 3);
+            assert_eq!(p.beta_den, 2);
+            assert_eq!(p.min_liquidity, MicroCoin::from_micro_units(5_000_000));
+            assert_eq!(
+                p.price_margin,
+                RationalPrice {
+                    numerator: 7,
+                    denominator: 20
+                }
+            );
+            assert_eq!(p.epsilon_exploration_num, 3);
+            assert_eq!(p.epsilon_exploration_den, 100);
+        });
+    }
+
+    #[test]
+    fn boltzmann_from_env_invalid_values_fall_back_to_defaults() {
+        with_env_isolated(|| {
+            std::env::set_var("BOLTZMANN_BETA_NUM", "not_a_number");
+            std::env::set_var("BOLTZMANN_PRICE_MARGIN_NUM", "");
+            std::env::set_var("BOLTZMANN_EPSILON_NUM", "abc");
+            // Other vars left unset (also fall back to default).
+
+            let p = BoltzmannMaskPolicy::from_env();
+            assert_eq!(p.beta_num, 1, "invalid value falls back to default 1");
+            assert_eq!(
+                p.price_margin.numerator, 1,
+                "empty value falls back to default 1"
+            );
+            assert_eq!(
+                p.epsilon_exploration_num, 1,
+                "non-numeric value falls back to default 1"
+            );
+        });
+    }
+
+    #[test]
+    fn boltzmann_from_env_serde_round_trip() {
+        let p = BoltzmannMaskPolicy {
+            beta_num: 5,
+            beta_den: 3,
+            min_liquidity: MicroCoin::from_micro_units(7_000_000),
+            price_margin: RationalPrice {
+                numerator: 11,
+                denominator: 13,
+            },
+            epsilon_exploration_num: 17,
+            epsilon_exploration_den: 19,
+        };
+        let json = serde_json::to_string(&p).unwrap();
+        let back: BoltzmannMaskPolicy = serde_json::from_str(&json).unwrap();
+        assert_eq!(p, back, "serde JSON round-trip identity");
+    }
+
+    #[test]
+    fn boltzmann_policy_zero_decimal_float_substring() {
+        // Defense-in-depth: enforce that no field type accidentally accepts
+        // a decimal-float-typed value. This is a structural assertion (the
+        // halt-trigger #4 file scan is the canonical fence for the module).
+        let p = BoltzmannMaskPolicy::default();
+        let json = serde_json::to_string(&p).unwrap();
+        assert!(
+            !json.contains('.'),
+            "BoltzmannMaskPolicy JSON must not contain decimal points (integer-rational only)"
+        );
     }
 }
