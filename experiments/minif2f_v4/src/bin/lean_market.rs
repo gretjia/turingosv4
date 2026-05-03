@@ -55,6 +55,8 @@ fn main() {
         // TB-11 G3 carry-forward (TB-12 Atom 0.5b; architect 2026-05-03 §1.1):
         "tick" => cmd_tick(&sub_args),
         "view-bankruptcy" => cmd_view_bankruptcy(&sub_args),
+        // TB-12 Atom 4 (architect 2026-05-03 §8 Atom 4):
+        "view-positions" => cmd_view_positions(&sub_args),
         "help" | "-h" | "--help" => {
             print_help();
             std::process::exit(0);
@@ -445,6 +447,96 @@ fn cmd_tick(args: &[String]) {
         }
         Err(e) => {
             eprintln!("[lean_market] tick replay failed: {e}");
+            std::process::exit(1);
+        }
+    }
+}
+
+/// `lean_market view-positions` — TB-12 Atom 4 (architect 2026-05-03 §8 Atom 4).
+/// Read-only listing of NodePosition exposure records from chaintape replay.
+///
+/// Architect-mandated LABEL DISCIPLINE: "Exposure records", NOT "Open market
+/// balances". TB-12 is exposure index, NOT trading market. NodePosition is
+/// IMMUTABLE EXPOSURE RECORD per architect §10; NOT a Coin holding (CR-12.1);
+/// NodePosition.amount NOT in total_supply_micro (CR-12.2). NO trading / price
+/// / settlement in TB-12.
+fn cmd_view_positions(args: &[String]) {
+    let chaintape = arg_value(args, "--chaintape").unwrap_or_else(|| {
+        eprintln!("lean_market view-positions: --chaintape <path> is required");
+        std::process::exit(2);
+    });
+    let node_filter = arg_value(args, "--node-id");
+    let owner_filter = arg_value(args, "--owner");
+    let chaintape_path = PathBuf::from(&chaintape);
+    let cas_path = derive_cas_path(&chaintape_path);
+    match replay_qstate(&chaintape_path, &cas_path) {
+        Ok((q, l4_count)) => {
+            println!("[lean_market] view-positions  (TB-12 Exposure records — NOT live market balances)");
+            println!("  chaintape    = {chaintape_path:?}");
+            println!("  L4 entries   = {l4_count}");
+            if let Some(n) = node_filter.as_ref() {
+                println!("  filter       = node_id={n}");
+            }
+            if let Some(o) = owner_filter.as_ref() {
+                println!("  filter       = owner={o}");
+            }
+            println!();
+
+            let positions = &q.economic_state_t.node_positions_t.0;
+            if positions.is_empty() {
+                println!("  (no NodePosition exposure records on this chaintape)");
+                return;
+            }
+
+            let mut total_long: i64 = 0;
+            let mut total_short: i64 = 0;
+            let mut shown: u32 = 0;
+            for (pid, pos) in positions.iter() {
+                if let Some(n) = node_filter.as_ref() {
+                    if pos.node_id.0 != *n {
+                        continue;
+                    }
+                }
+                if let Some(o) = owner_filter.as_ref() {
+                    if pos.owner.0 != *o {
+                        continue;
+                    }
+                }
+                shown += 1;
+                let side_str = format!("{:?}", pos.side);
+                let kind_str = format!("{:?}", pos.kind);
+                if pos.side
+                    == turingosv4::state::typed_tx::PositionSide::Long
+                {
+                    total_long += pos.amount.micro_units();
+                } else {
+                    total_short += pos.amount.micro_units();
+                }
+                println!(
+                    "  position_id={} node_id={} side={} kind={} owner={} amount={} micro task_id={} @round={}",
+                    pid.0,
+                    pos.node_id.0,
+                    side_str,
+                    kind_str,
+                    pos.owner.0,
+                    pos.amount.micro_units(),
+                    pos.task_id.0,
+                    pos.opened_at_round,
+                );
+            }
+            println!();
+            println!("  Total Long  : {total_long} micro");
+            println!("  Total Short : {total_short} micro");
+            println!("  Net         : {} micro (long − short)", total_long - total_short);
+            println!("  Records     : {shown} (of {} total in QState)", positions.len());
+            println!();
+            println!("  ⚠ Architect §10: these are IMMUTABLE EXPOSURE RECORDS, not active");
+            println!("    position balances. TB-12 has no trading / price / settlement layer.");
+            println!("    NodePosition.amount is NOT a Coin holding and is NOT counted in");
+            println!("    total_supply_micro (CR-12.1 + CR-12.2 invariant).");
+        }
+        Err(e) => {
+            eprintln!("[lean_market] view-positions replay failed: {e}");
             std::process::exit(1);
         }
     }

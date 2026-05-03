@@ -115,6 +115,35 @@ struct DashboardReport {
     /// L4 entries (death certificate for future TB-12 NodeMarket Short / NO
     /// settlement anchor).
     bankrupt_tasks: Vec<BankruptTaskRow>,
+    /// TB-12 Atom 4 (architect 2026-05-03 ruling §8 Atom 4): exposure
+    /// records derived from accepted WorkTx (FirstLong) + ChallengeTx
+    /// (ChallengeShort) L4 entries. Architect §10: IMMUTABLE EXPOSURE
+    /// RECORD, NOT active position balance. Label discipline: "Exposure
+    /// records", NOT "Open market balances".
+    exposures: Vec<ExposureRecordRow>,
+}
+
+/// TB-12 Atom 4 (architect 2026-05-03 ruling §8 Atom 4) — per-NodePosition
+/// audit row for §13. Architect's label discipline: "Exposure records"
+/// (NOT "Open market balances" — TB-12 is exposure index, not trading
+/// market; live share balances land in TB-13 CompleteSet).
+#[derive(Debug, serde::Serialize)]
+struct ExposureRecordRow {
+    position_id: String,
+    node_id: String,
+    task_id: String,
+    owner: String,
+    /// "Long" or "Short".
+    side: String,
+    /// "FirstLong" or "ChallengeShort".
+    kind: String,
+    /// MicroCoin amount of the position. **NOT a Coin holding** per CR-12.1
+    /// + CR-12.2; explicitly excluded from total_supply_micro.
+    amount_micro: i64,
+    /// Backref to the source typed-tx that derived this position
+    /// (FirstLong: WorkTx.tx_id; ChallengeShort: ChallengeTx.tx_id).
+    source_tx: String,
+    opened_at_round: u64,
 }
 
 /// TB-11 Atom 5 (architect §6.2 ruling 2026-05-02) — per-RunExhausted
@@ -359,6 +388,10 @@ fn build_report(repo: &std::path::Path, cas_path: &std::path::Path) -> Result<Da
     let mut exhausted_runs_in_progress: Vec<ExhaustedRunRow> = Vec::new();
     let mut expired_tasks_in_progress: Vec<ExpiredTaskRow> = Vec::new();
     let mut bankrupt_tasks_in_progress: Vec<BankruptTaskRow> = Vec::new();
+    // TB-12 Atom 4 (architect 2026-05-03 §8 Atom 4): exposure records
+    // collected by walking L4 — accepted WorkTx with stake>0 → FirstLong;
+    // accepted ChallengeTx with stake>0 → ChallengeShort.
+    let mut exposures_in_progress: Vec<ExposureRecordRow> = Vec::new();
     // TB-7.7 D6: oracle_verified_worktx_ids — set of accepted L4 WorkTx
     // tx_ids whose ProposalTelemetry.verification_result_cid resolves to
     // VerificationResult { verified: true }. Plus their telemetry for
@@ -439,6 +472,60 @@ fn build_report(repo: &std::path::Path, cas_path: &std::path::Path) -> Result<Da
                     rejection_class: None,
                     proposal_artifact_preview: payload_preview,
                     oracle_verified,
+                });
+                // TB-12 Atom 4 (architect 2026-05-03 §8 Atom 4): if accepted
+                // WorkTx has stake>0, derive a FirstLong exposure record
+                // (mirror of dispatch arm in src/state/sequencer.rs).
+                if work.stake.micro_units() > 0 {
+                    exposures_in_progress.push(ExposureRecordRow {
+                        position_id: work.tx_id.0.clone(),
+                        node_id: work.tx_id.0.clone(),
+                        task_id: work.task_id.0.clone(),
+                        owner: work.agent_id.0.clone(),
+                        side: "Long".into(),
+                        kind: "FirstLong".into(),
+                        amount_micro: work.stake.micro_units(),
+                        source_tx: work.tx_id.0.clone(),
+                        opened_at_round: work.timestamp_logical,
+                    });
+                }
+            }
+            // TB-12 Atom 4 (architect 2026-05-03 §8 Atom 4): accepted
+            // ChallengeTx with stake>0 → ChallengeShort exposure record.
+            TypedTx::Challenge(challenge) => {
+                if challenge.stake.micro_units() > 0 {
+                    exposures_in_progress.push(ExposureRecordRow {
+                        position_id: challenge.tx_id.0.clone(),
+                        // node_id targets the challenged WorkTx (FR-12.5).
+                        node_id: challenge.target_work_tx.0.clone(),
+                        // task_id is best-effort: dashboard walks L4
+                        // sequentially and does not have stakes_t available;
+                        // the ChainTape replay validates the final state.
+                        // For dashboard rendering, leave empty if unresolved
+                        // — TB-12 charter §3 Atom 4 forbids "Open market
+                        // balances" framing anyway, so this is a render-only
+                        // approximation; SOURCE OF TRUTH is the QState
+                        // node_positions_t after replay.
+                        task_id: String::new(),
+                        owner: challenge.challenger_agent.0.clone(),
+                        side: "Short".into(),
+                        kind: "ChallengeShort".into(),
+                        amount_micro: challenge.stake.micro_units(),
+                        source_tx: challenge.tx_id.0.clone(),
+                        opened_at_round: challenge.timestamp_logical,
+                    });
+                }
+                proposal_flow.push(ProposalFlowEntry {
+                    logical_t,
+                    side: "L4",
+                    tx_kind: "Challenge".into(),
+                    agent_id: Some(challenge.challenger_agent.0.clone()),
+                    tx_id: Some(challenge.tx_id.0.clone()),
+                    candidate_tactic: None,
+                    branch_id: None,
+                    rejection_class: None,
+                    proposal_artifact_preview: None,
+                    oracle_verified: None,
                 });
             }
             TypedTx::Verify(verify) => {
@@ -837,6 +924,7 @@ fn build_report(repo: &std::path::Path, cas_path: &std::path::Path) -> Result<Da
         exhausted_runs: exhausted_runs_in_progress,
         expired_tasks: expired_tasks_in_progress,
         bankrupt_tasks: bankrupt_tasks_in_progress,
+        exposures: exposures_in_progress,
     })
 }
 
@@ -1318,6 +1406,83 @@ fn render_text(r: &DashboardReport) -> String {
     s.push_str("    O(1) chain cost / O(N) auditability — failure evidence anchored on L4\n");
     s.push_str("    via system-emitted system_signature; raw log requires audit-role access\n");
     s.push_str("    (CapsulePrivacyPolicy::AuditOnly default; only public_summary surfaces here).\n");
+
+    // §13 TB-12 Node exposure records (architect 2026-05-03 ruling §3 + §10).
+    // ARCHITECT-MANDATED LABEL: "Exposure records", NOT "Open market balances".
+    // TB-12 is exposure index, NOT trading market — NodePosition is IMMUTABLE
+    // EXPOSURE RECORD (architect §10), not active position balance. CR-12.1:
+    // NodePosition is NOT a Coin holding. CR-12.2: NodePosition.amount NOT
+    // counted in total_supply_micro. SG-12.6 covered.
+    s.push('\n');
+    s.push_str("§13 TB-12 Node exposure records (architect 2026-05-03 §3 + §10)\n");
+    s.push_str("------------------------------------------------------------------------------\n");
+
+    if r.exposures.is_empty() {
+        s.push_str("  (no NodePosition records — no accepted WorkTx/ChallengeTx with stake>0 on this chaintape)\n");
+    } else {
+        s.push_str("  NodePosition exposure records (immutable; NOT Coin holdings; NOT in total_supply):\n");
+        s.push_str("    position_id      | node_id          | side  | kind            | owner          | amount_micro | @round\n");
+        s.push_str("    -----------------+------------------+-------+-----------------+----------------+--------------+--------\n");
+        let mut total_long: i64 = 0;
+        let mut total_short: i64 = 0;
+        for ex in &r.exposures {
+            if ex.side == "Long" {
+                total_long += ex.amount_micro;
+            } else if ex.side == "Short" {
+                total_short += ex.amount_micro;
+            }
+            s.push_str(&format!(
+                "    {:<16} | {:<16} | {:<5} | {:<15} | {:<14} | {:>12} | {:>6}\n",
+                trunc(&ex.position_id, 16),
+                trunc(&ex.node_id, 16),
+                ex.side,
+                ex.kind,
+                trunc(&ex.owner, 14),
+                ex.amount_micro,
+                ex.opened_at_round,
+            ));
+        }
+        s.push_str(&format!(
+            "    ─── Total Long: {} micro | Total Short: {} micro | exposure rows: {} ───\n",
+            total_long,
+            total_short,
+            r.exposures.len()
+        ));
+
+        // Per-node aggregation.
+        use std::collections::BTreeMap as RenderBTreeMap;
+        let mut by_node: RenderBTreeMap<&str, (i64, i64)> = RenderBTreeMap::new();
+        for ex in &r.exposures {
+            let entry = by_node.entry(&ex.node_id).or_insert((0, 0));
+            if ex.side == "Long" {
+                entry.0 += ex.amount_micro;
+            } else if ex.side == "Short" {
+                entry.1 += ex.amount_micro;
+            }
+        }
+        if by_node.len() > 1 {
+            s.push('\n');
+            s.push_str("  Per-node exposure aggregation:\n");
+            s.push_str("    node_id          | long_micro | short_micro | net (long − short)\n");
+            s.push_str("    -----------------+------------+-------------+--------------------\n");
+            for (nid, (lo, sh)) in by_node.iter() {
+                s.push_str(&format!(
+                    "    {:<16} | {:>10} | {:>11} | {:>18}\n",
+                    trunc(nid, 16),
+                    lo,
+                    sh,
+                    lo - sh
+                ));
+            }
+        }
+    }
+
+    s.push('\n');
+    s.push_str("  Architect mandate (§3 + §10 ruling 2026-05-03) ✓:\n");
+    s.push_str("    NodePosition is an IMMUTABLE EXPOSURE RECORD, NOT active position balance.\n");
+    s.push_str("    NodePosition.amount is NOT a Coin holding (CR-12.1) and is NOT counted in\n");
+    s.push_str("    total_supply_micro (CR-12.2). NO trading. NO price. NO settlement in TB-12.\n");
+    s.push_str("    NodeMarketEntry is TB-14 derived view; flat NodePositionsIndex is canonical.\n");
 
     s
 }
