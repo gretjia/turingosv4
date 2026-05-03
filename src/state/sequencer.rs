@@ -1593,6 +1593,25 @@ pub(crate) fn dispatch_transition(
             if mint.amount.micro_units() <= 0 {
                 return Err(TransitionError::InsufficientBalanceForMint);
             }
+            // Step 2.5: event state gate (Gemini round-2 CHALLENGE Q13
+            // remediation 2026-05-03). Reject mint against an event
+            // whose task_markets_t state is anything but Open. Closes a
+            // griefing surface where an agent could mint shares against
+            // a Finalized/Bankrupt event, immediately redeem the
+            // winning side for full refund, and leave noise on-chain.
+            // Missing task_markets_t entry is also rejected (mint
+            // requires a task to exist; EventId is 1:1 with TaskId in
+            // TB-13 per architect §4.3).
+            let market_state = q
+                .economic_state_t
+                .task_markets_t
+                .0
+                .get(&mint.event_id.0)
+                .map(|m| m.state)
+                .ok_or(TransitionError::TaskNotOpen)?;
+            if market_state != crate::state::q_state::TaskMarketState::Open {
+                return Err(TransitionError::EventNotOpen);
+            }
             // Step 3: owner solvency.
             let owner_bal = q
                 .economic_state_t
@@ -1647,6 +1666,14 @@ pub(crate) fn dispatch_transition(
                 &q.economic_state_t,
                 &q_next.economic_state_t,
                 &[],
+            )
+            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            // Codex round-2 CHALLENGE remediation 2026-05-03: call
+            // assert_complete_set_balanced from dispatch arm (was test-
+            // only). This ensures the 1 Coin → 1 YES_E + 1 NO_E identity
+            // is enforced live, not just in test fixtures.
+            crate::economy::monetary_invariant::assert_complete_set_balanced(
+                &q_next.economic_state_t,
             )
             .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
 
@@ -1793,6 +1820,10 @@ pub(crate) fn dispatch_transition(
                 &[],
             )
             .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            crate::economy::monetary_invariant::assert_complete_set_balanced(
+                &q_next.economic_state_t,
+            )
+            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
 
             // Step 7: state_root advance.
             q_next.state_root_t = complete_set_redeem_accept_state_root(&q.state_root_t, tx);
@@ -1815,6 +1846,19 @@ pub(crate) fn dispatch_transition(
             // VETO TB13-V1 remediation (2026-05-03).
             if seed.collateral_amount.micro_units() <= 0 {
                 return Err(TransitionError::InsufficientCollateral);
+            }
+            // Step 1.5: event state gate (Gemini round-2 CHALLENGE Q13
+            // remediation 2026-05-03). Same rationale as CompleteSetMint
+            // step 2.5: reject seeding into a closed/missing event.
+            let seed_market_state = q
+                .economic_state_t
+                .task_markets_t
+                .0
+                .get(&seed.event_id.0)
+                .map(|m| m.state)
+                .ok_or(TransitionError::TaskNotOpen)?;
+            if seed_market_state != crate::state::q_state::TaskMarketState::Open {
+                return Err(TransitionError::EventNotOpen);
             }
             // Step 2: provider solvency (architect SG-13.3).
             let provider_bal = q
@@ -1868,6 +1912,10 @@ pub(crate) fn dispatch_transition(
                 &q.economic_state_t,
                 &q_next.economic_state_t,
                 &[],
+            )
+            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            crate::economy::monetary_invariant::assert_complete_set_balanced(
+                &q_next.economic_state_t,
             )
             .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
 
@@ -1952,6 +2000,15 @@ pub enum SubmitError {
     /// § 3.2; constitutional Art V.1.3 + WP § 12.4: agent ≠ direct state
     /// writer; system-emitted variants must come through `emit_system_tx`).
     SystemTxForbiddenOnAgentIngress,
+    /// TB-13 Atom 6 round-3 (Codex VETO TB13-AUTH remediation 2026-05-03):
+    /// agent signature verification failed at submit-time admission for a
+    /// TB-13 variant (CompleteSetMint / CompleteSetRedeem / MarketSeed)
+    /// when the optional `agent_pubkeys` manifest is set. Either the
+    /// owner/provider is not registered in the manifest, or the signature
+    /// does not match the agent's pinned pubkey for the canonical
+    /// signing-payload digest. Rejected pre-queue per Class 3
+    /// money/collateral admission control.
+    AgentSignatureInvalid,
 }
 
 impl std::fmt::Display for SubmitError {
@@ -1959,6 +2016,11 @@ impl std::fmt::Display for SubmitError {
         match self {
             Self::QueueFull => write!(f, "submission queue saturated"),
             Self::QueueClosed => write!(f, "submission queue closed"),
+            Self::AgentSignatureInvalid => write!(
+                f,
+                "agent signature verification failed for TB-13 variant; \
+                 owner/provider unregistered or signature does not match"
+            ),
             Self::SystemTxForbiddenOnAgentIngress => write!(
                 f,
                 "system-emitted tx variant forbidden on agent ingress; \
@@ -2243,6 +2305,25 @@ pub struct Sequencer {
     /// production sources from `genesis_payload.toml [system_pubkeys]`.
     pinned_pubkeys: Arc<crate::bottom_white::ledger::system_keypair::PinnedSystemPubkeys>,
 
+    /// TRACE_MATRIX TB-13 Atom 6 round-3 (Codex VETO TB13-AUTH remediation
+    /// 2026-05-03): opt-in agent pubkey manifest for submit-time
+    /// signature verification of the 3 TB-13 conditional-share variants
+    /// (CompleteSetMint / CompleteSetRedeem / MarketSeed).
+    ///
+    /// **Default state**: empty (`OnceLock::new()`) — preserves
+    /// backward-compat with all TB-3..TB-12 callers + test fixtures
+    /// using placeholder `[0u8; 64]` signatures (the codebase-wide
+    /// agent-sig admission gap is OBS-tracked at
+    /// `OBS_AGENT_SIG_REPLAY_GAP_2026-05-03.md` and remains future scope
+    /// for the broader codebase).
+    ///
+    /// **TB-13 enforcement**: when set via [`Sequencer::set_agent_pubkeys`],
+    /// `submit_agent_tx` verifies TB-13 variants' signatures against the
+    /// pinned pubkeys; failed verification → `SubmitError::AgentSignatureInvalid`.
+    /// Closes Codex round-2 VETO TB13-AUTH for Class 3
+    /// (money/collateral) admission control.
+    agent_pubkeys: std::sync::OnceLock<Arc<crate::runtime::agent_keypairs::AgentPubkeyManifest>>,
+
     q: RwLock<QState>,
 }
 
@@ -2291,9 +2372,27 @@ impl Sequencer {
             predicate_registry,
             tool_registry,
             pinned_pubkeys,
+            agent_pubkeys: std::sync::OnceLock::new(),
             q: RwLock::new(initial_q),
         };
         (seq, queue_rx)
+    }
+
+    /// TRACE_MATRIX TB-13 Atom 6 round-3 (Codex VETO TB13-AUTH 2026-05-03):
+    /// install the agent pubkey manifest for submit-time signature
+    /// verification of TB-13 variants. Called once per Sequencer
+    /// lifetime (post-construction, pre-first-submit). Returns the
+    /// manifest back as `Err` if already set.
+    ///
+    /// Production binaries plumb this from
+    /// `<runtime_repo>/agent_pubkeys.json` after agent registration.
+    /// Tests may opt in by constructing an `AgentPubkeyManifest` from
+    /// real keypairs.
+    pub fn set_agent_pubkeys(
+        &self,
+        manifest: Arc<crate::runtime::agent_keypairs::AgentPubkeyManifest>,
+    ) -> Result<(), Arc<crate::runtime::agent_keypairs::AgentPubkeyManifest>> {
+        self.agent_pubkeys.set(manifest)
     }
 
     /// TRACE_MATRIX TB-5 charter v2 § 4.2: peek pinned_pubkeys (for tests +
@@ -2352,6 +2451,49 @@ impl Sequencer {
             | TypedTx::CompleteSetMint(_)
             | TypedTx::CompleteSetRedeem(_)
             | TypedTx::MarketSeed(_) => {}
+        }
+        // TRACE_MATRIX TB-13 Atom 6 round-3 (Codex VETO TB13-AUTH 2026-05-03):
+        // submit-time agent-signature verification for the 3 TB-13
+        // conditional-share variants. Opt-in via `set_agent_pubkeys` —
+        // when the manifest is set, forged or unregistered signatures
+        // are rejected pre-queue with `SubmitError::AgentSignatureInvalid`.
+        // When the manifest is absent (default), this gate is bypassed
+        // and replay-time `verify.rs` Gate 4 is the only line of defense
+        // (see OBS_AGENT_SIG_REPLAY_GAP_2026-05-03.md).
+        if let Some(manifest) = self.agent_pubkeys.get() {
+            use crate::runtime::agent_keypairs::verify_agent_signature;
+            match &tx {
+                TypedTx::CompleteSetMint(mint) => {
+                    let pubkey = manifest
+                        .get(&mint.owner)
+                        .ok_or(SubmitError::AgentSignatureInvalid)?;
+                    let digest = mint.to_signing_payload().canonical_digest();
+                    if verify_agent_signature(&mint.signature, &digest, &pubkey).is_err() {
+                        return Err(SubmitError::AgentSignatureInvalid);
+                    }
+                }
+                TypedTx::CompleteSetRedeem(redeem) => {
+                    let pubkey = manifest
+                        .get(&redeem.owner)
+                        .ok_or(SubmitError::AgentSignatureInvalid)?;
+                    let digest = redeem.to_signing_payload().canonical_digest();
+                    if verify_agent_signature(&redeem.signature, &digest, &pubkey).is_err() {
+                        return Err(SubmitError::AgentSignatureInvalid);
+                    }
+                }
+                TypedTx::MarketSeed(seed) => {
+                    let pubkey = manifest
+                        .get(&seed.provider)
+                        .ok_or(SubmitError::AgentSignatureInvalid)?;
+                    let digest = seed.to_signing_payload().canonical_digest();
+                    if verify_agent_signature(&seed.signature, &digest, &pubkey).is_err() {
+                        return Err(SubmitError::AgentSignatureInvalid);
+                    }
+                }
+                // Other agent variants are not gated here — codebase-wide
+                // forward-dep per OBS_AGENT_SIG_REPLAY_GAP.
+                _ => {}
+            }
         }
         // TB-2 P1-D r1 concurrency contract: fetch_add precedes try_send, so
         // submit_id allocation order is NOT receiver arrival order under

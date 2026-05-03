@@ -217,7 +217,7 @@ Conservative-verdict-wins on Codex ↔ Gemini disagreement (per `feedback_dual_a
 
 ---
 
-## §11 Concluding verdict
+## §11 Concluding verdict (round-1)
 
 TB-13 SHIPPED Atoms 0 + 0.5 + 1 + 2 + 3 + 5 to local main with PASS verdict on:
 - 5 constitutional clauses (Tape Canonical / 5-step compile loop / Anti-Oreo / no fake accepted / replay-deterministic + conservation + resolution gating + forward-fence + label discipline)
@@ -227,6 +227,62 @@ TB-13 SHIPPED Atoms 0 + 0.5 + 1 + 2 + 3 + 5 to local main with PASS verdict on:
 
 `cargo test --workspace = 783/0/150` (TB-12 baseline 759 + 3 fence + 8 unit + 13 integration = 783; failed=0; ignored=150 unchanged).
 
-External Codex + Gemini audits pending per architect Part A §4.8 (Class 3 dual; conservative-verdict-wins on disagreement). User-checkpoint per architect §11 master instruction "Stop for user review at ship gate" reached: AI coder STOPS for user review of this self-audit + decision on whether to invoke Codex + Gemini external audits before Atom 7 SHIP.
+---
+
+## §12 External round-1 dual-audit verdicts + round-2 remediation log
+
+### §12.1 Round-1 verdicts (2026-05-03 evening)
+
+| Auditor | Verdict | Conviction | Recommendation | Document |
+| ------- | ------- | ---------- | -------------- | -------- |
+| Gemini  | PASS    | high       | PROCEED to SHIP | `handover/audits/GEMINI_TB_13_SHIP_AUDIT_2026-05-03_R1.md` |
+| Codex   | VETO    | high       | FIX-THEN-PROCEED | `handover/audits/CODEX_TB_13_SHIP_AUDIT_2026-05-03_R1.md` |
+
+Per `feedback_dual_audit_conflict` (VETO > CHALLENGE > PASS): Codex VETO wins.
+
+Gemini also raised one non-blocking CHALLENGE on Q12 (`ResolutionRef`
+multi-resolver evolution for TB-15+) — explicitly flagged as future
+roadmap, not a TB-13 blocker.
+
+### §12.2 Codex round-1 VETO findings
+
+**TB13-V1 — Negative MicroCoin amounts accepted**:
+- `MicroCoin` is i64-backed; permits negative values at type layer (`src/economy/money.rs:27`).
+- TB-13 dispatch arms checked `== 0` (zero rejection) but not `< 0` (negative rejection).
+- Attack: a negative mint/seed would credit balance (debit by negative = +), write negative collateral, cast negative amount to huge u128 shares (~10^19 phantom YES + NO claims).
+- Blocks Q1 (anti-mint), Q6 (seed solvency), Q8 (underflow).
+
+**TB13-V2 — AgentSignature fields not live-verified**:
+- `submit_agent_tx` accepts/enqueues TB-13 variants without sig verification.
+- `apply_one` only verifies system signatures; TB-13 variants return `None` from `system_signature_of`.
+- `verify_chaintape` Gate 4 (replay-time verification) historically scoped to WorkTx + VerifyTx only (TB-7 ARCHITECT_RULING D3 narrowed scope); TB-13 variants hit `_ => {}` fall-through.
+- All-zero signatures pass through (test fixtures use `[0u8; 64]`).
+- Class-3 money/collateral auth blocker.
+
+**Q9 CHALLENGE** (CHALLENGE-level, not VETO): forward-fence span detector only scans TB-13-marker spans. A legacy `use crate::prediction_market::*` import outside a TB-13 doc-comment span would bypass detection.
+
+### §12.3 Round-2 remediation (2026-05-03 evening commit `07fc869`)
+
+**V1 fix** — `src/state/sequencer.rs`:
+- `CompleteSetMint.amount`: `== 0` → `<= 0`.
+- `MarketSeed.collateral_amount`: `== 0` → `<= 0`.
+- New tests: `halt_negative_mint_amount_rejected` + `halt_negative_market_seed_collateral_rejected` (assert balance unchanged + no collateral written under negative-amount rejection).
+
+**V2 partial fix** — `src/runtime/verify.rs` Gate 4 extended:
+- `CompleteSetMint` → verify against owner's pubkey.
+- `CompleteSetRedeem` → verify against owner's pubkey.
+- `MarketSeed` → verify against provider's pubkey.
+- Submit-time / apply-time verification remains a codebase-wide forward dependency (CO P2.x AgentRegistry territory). OBS-tracked at `handover/alignment/OBS_AGENT_SIG_REPLAY_GAP_2026-05-03.md` with full threat model + per-variant gap matrix + closure plan.
+- TB-13 raises the bar to its 3 Class 3 variants for replay-time detection; the broader codebase pass is future scope.
+
+**Q9 fix** — `tests/tb_13_legacy_cpmm_forward_fence.rs`:
+- Added `HARD_BANNED_LEGACY_IMPORTS` constant + Layer 1 unconditional whole-file scan (catches `use crate::prediction_market::*` anywhere, not just TB-13-marker spans).
+- Layer 2 (TB-13-marker-scoped scan) preserved for trading/AMM concept tokens.
+
+### §12.4 Round-2 verdicts (TBD)
+
+Round-2 Codex + Gemini audit invocations queued post-fix. Verdicts to be appended here.
+
+`cargo test --workspace = 785/0/150` post-round-2 (added 2 negative-amount halt tests).
 
 End of recursive self-audit.

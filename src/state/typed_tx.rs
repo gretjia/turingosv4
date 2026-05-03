@@ -1875,6 +1875,15 @@ pub enum TransitionError {
     /// FR-13.5: after-YES pays YES not NO. Maps to
     /// `L4ERejectionClass::PolicyViolation`.
     InvalidResolutionRef,
+    /// TB-13 Atom 6 round-2 (Gemini CHALLENGE Q13 remediation 2026-05-03):
+    /// `CompleteSetMintTx` / `MarketSeedTx` admission rejected because
+    /// the target event's `task_markets_t[event_id.0].state` is not
+    /// `Open` (Finalized / Bankrupt / Expired). Closes a griefing
+    /// surface where an agent could mint shares against a closed
+    /// event and immediately redeem winning side for full refund,
+    /// leaving noise + stranded shares on-chain. Maps to
+    /// `L4ERejectionClass::PolicyViolation`.
+    EventNotOpen,
 
     // ── Stub sentinel (CO1.7.5 fills) ──────────────────────────────────────
     /// Stub return value used by CO1.7.5 unimplemented bodies — preserves
@@ -1959,6 +1968,10 @@ impl std::fmt::Display for TransitionError {
             Self::InvalidResolutionRef => write!(
                 f,
                 "CompleteSetRedeemTx: resolution_ref.claimed_outcome does not match task_markets_t[event_id.0] state"
+            ),
+            Self::EventNotOpen => write!(
+                f,
+                "TB-13 mint/seed: target event's task_markets_t state is not Open (Finalized/Bankrupt/Expired)"
             ),
             Self::NotYetImplemented => write!(f, "transition body not yet implemented (CO1.7.5)"),
         }

@@ -111,6 +111,75 @@ fn seed_task_market(q: &mut QState, task: &str, state: TaskMarketState) {
         .insert(TaskId(task.into()), entry);
 }
 
+/// Build a genesis QState with the given balances AND a single
+/// task_markets_t entry in Open state for the given task. Used by the
+/// happy-path tests post Gemini Q13 gate (mint/seed reject closed/missing
+/// events).
+fn genesis_with_balances_and_open_task(
+    pairs: &[(&str, i64)],
+    task: &str,
+) -> QState {
+    let mut q = genesis_with_balances(pairs);
+    seed_task_market(&mut q, task, TaskMarketState::Open);
+    q
+}
+
+/// Build a QState that simulates a post-mint snapshot — `mint_owner`
+/// has minted `mint_amount_micro` against `task` (event_id) and the
+/// task_markets_t state has been flipped to `final_state`. Used by
+/// redeem-focused tests so they don't have to drive the actual mint
+/// dispatch (which now requires task state == Open per Gemini round-2
+/// CHALLENGE Q13 remediation). The post-mint Q-projection is identical
+/// to what the dispatch arm would produce.
+fn genesis_post_mint(
+    pairs: &[(&str, i64)],
+    mint_owner: &str,
+    task: &str,
+    mint_amount_micro: i64,
+    final_state: TaskMarketState,
+) -> QState {
+    let mut q = genesis_with_balances(pairs);
+    seed_task_market(&mut q, task, final_state);
+
+    let agent_id = AgentId(mint_owner.into());
+    let event_id = EventId(TaskId(task.into()));
+
+    // Debit balance.
+    let bal = q
+        .economic_state_t
+        .balances_t
+        .0
+        .get(&agent_id)
+        .copied()
+        .unwrap_or(MicroCoin::zero());
+    q.economic_state_t.balances_t.0.insert(
+        agent_id.clone(),
+        MicroCoin::from_micro_units(bal.micro_units() - mint_amount_micro),
+    );
+
+    // Credit collateral.
+    q.economic_state_t
+        .conditional_collateral_t
+        .0
+        .insert(event_id.clone(), MicroCoin::from_micro_units(mint_amount_micro));
+
+    // Credit equal YES + NO shares to the owner.
+    let mut owner_shares = std::collections::BTreeMap::new();
+    owner_shares.insert(
+        event_id,
+        ShareSidePair {
+            yes: ShareAmount::from_units(mint_amount_micro as u128),
+            no: ShareAmount::from_units(mint_amount_micro as u128),
+        },
+    );
+    q.economic_state_t
+        .conditional_share_balances_t
+        .0
+        .insert(agent_id, owner_shares);
+
+    q
+}
+
 async fn submit_and_apply(h: &mut Harness, tx: TypedTx) -> Result<(), String> {
     h.seq
         .submit_agent_tx(tx)
@@ -184,7 +253,7 @@ fn build_seed(
 /// SG-13.1 — Mint 1 Coin → 1 YES + 1 NO, total Coin conserved.
 #[tokio::test]
 async fn sg_13_1_mint_one_coin_yields_one_yes_plus_one_no_total_coin_conserved() {
-    let q0 = genesis_with_balances(&[("alice", 100)]);
+    let q0 = genesis_with_balances_and_open_task(&[("alice", 100)], "task-A");
     let mut h = fresh_harness(q0);
     let parent = h.seq.q_snapshot().unwrap().state_root_t;
 
@@ -252,7 +321,7 @@ async fn sg_13_1_mint_one_coin_yields_one_yes_plus_one_no_total_coin_conserved()
 /// than the pre sum and the assertion would fail.
 #[tokio::test]
 async fn sg_13_2_yes_no_shares_not_in_total_coin_supply() {
-    let q0 = genesis_with_balances(&[("alice", 50)]);
+    let q0 = genesis_with_balances_and_open_task(&[("alice", 50)], "task-Z");
     let mut h = fresh_harness(q0.clone());
     let parent = h.seq.q_snapshot().unwrap().state_root_t;
 
@@ -273,8 +342,9 @@ async fn sg_13_2_yes_no_shares_not_in_total_coin_supply() {
 /// SG-13.3 — MarketSeedTx fails if provider lacks balance.
 #[tokio::test]
 async fn sg_13_3_market_seed_fails_if_provider_lacks_balance() {
-    // Bob has NO balance row at all.
-    let q0 = genesis_with_balances(&[("alice", 100)]);
+    // Bob has NO balance row at all. Task-S is pre-Open so Q13 gate
+    // (event state) passes; the balance gate is the one that fires.
+    let q0 = genesis_with_balances_and_open_task(&[("alice", 100)], "task-S");
     let mut h = fresh_harness(q0);
     let parent = h.seq.q_snapshot().unwrap().state_root_t;
 
@@ -293,7 +363,9 @@ async fn sg_13_3_market_seed_fails_if_provider_lacks_balance() {
 /// (architect §4.7 forbidden list "No automatic liquidity").
 #[tokio::test]
 async fn sg_13_4_market_seed_cannot_create_liquidity_without_collateral() {
-    let q0 = genesis_with_balances(&[("alice", 100)]);
+    // Task-X is pre-Open so the Q13 event gate is not the one firing;
+    // the zero-collateral gate is.
+    let q0 = genesis_with_balances_and_open_task(&[("alice", 100)], "task-X");
     let mut h = fresh_harness(q0);
     let parent = h.seq.q_snapshot().unwrap().state_root_t;
 
@@ -316,8 +388,9 @@ async fn sg_13_4_market_seed_cannot_create_liquidity_without_collateral() {
 /// is impossible before system-resolved outcome."
 #[tokio::test]
 async fn sg_13_5_redeem_unavailable_before_outcome_resolution() {
-    let mut q0 = genesis_with_balances(&[("alice", 100)]);
-    seed_task_market(&mut q0, "task-O", TaskMarketState::Open);
+    // Sub-test 1: mint into Open task succeeds; immediate redeem against
+    // the still-Open task is rejected with RedeemBeforeResolution.
+    let q0 = genesis_with_balances_and_open_task(&[("alice", 100)], "task-O");
     let mut h = fresh_harness(q0);
     let parent = h.seq.q_snapshot().unwrap().state_root_t;
 
@@ -337,14 +410,18 @@ async fn sg_13_5_redeem_unavailable_before_outcome_resolution() {
         "expected RedeemBeforeResolution, got: {err}"
     );
 
-    // Also: Expired state must reject (treated as no resolution).
-    let mut q1 = genesis_with_balances(&[("bob", 100)]);
-    seed_task_market(&mut q1, "task-E", TaskMarketState::Expired);
+    // Sub-test 2: Expired-state task with pre-baked post-mint state
+    // (mint was rejected by Q13 gate when state==Expired, so we use
+    // genesis_post_mint to construct the state directly). Redeem is
+    // rejected with RedeemBeforeResolution.
+    let q1 = genesis_post_mint(
+        &[("bob", 100)],
+        "bob",
+        "task-E",
+        2_000_000,
+        TaskMarketState::Expired,
+    );
     let mut h2 = fresh_harness(q1);
-    let parent = h2.seq.q_snapshot().unwrap().state_root_t;
-    submit_and_apply(&mut h2, build_mint(parent, "bob", "task-E", 2_000_000, 7))
-        .await
-        .expect("mint accepted");
     let parent = h2.seq.q_snapshot().unwrap().state_root_t;
     let err = submit_and_apply(
         &mut h2,
@@ -363,14 +440,17 @@ async fn sg_13_5_redeem_unavailable_before_outcome_resolution() {
 /// SG-13.6 — Redeem after YES outcome pays YES, not NO.
 #[tokio::test]
 async fn sg_13_6_redeem_after_yes_outcome_pays_yes_not_no() {
-    let mut q0 = genesis_with_balances(&[("alice", 100)]);
-    seed_task_market(&mut q0, "task-Y", TaskMarketState::Finalized);
+    // Use pre-baked post-mint state with task=Finalized — mint dispatch
+    // would now reject Finalized state per Q13 gate, so we build the
+    // post-mint state directly to focus the test on redeem semantics.
+    let q0 = genesis_post_mint(
+        &[("alice", 100)],
+        "alice",
+        "task-Y",
+        4_000_000,
+        TaskMarketState::Finalized,
+    );
     let mut h = fresh_harness(q0);
-    let parent = h.seq.q_snapshot().unwrap().state_root_t;
-
-    submit_and_apply(&mut h, build_mint(parent, "alice", "task-Y", 4_000_000, 9))
-        .await
-        .expect("mint accepted");
     let parent = h.seq.q_snapshot().unwrap().state_root_t;
 
     submit_and_apply(
@@ -421,14 +501,15 @@ async fn sg_13_6_redeem_after_yes_outcome_pays_yes_not_no() {
     );
 
     // Symmetric check: Bankrupt event with outcome=Yes must fail; with
-    // outcome=No must succeed.
-    let mut q_b = genesis_with_balances(&[("bob", 50)]);
-    seed_task_market(&mut q_b, "task-B", TaskMarketState::Bankrupt);
+    // outcome=No must succeed. Use pre-baked post-mint state.
+    let q_b = genesis_post_mint(
+        &[("bob", 50)],
+        "bob",
+        "task-B",
+        1_000_000,
+        TaskMarketState::Bankrupt,
+    );
     let mut hb = fresh_harness(q_b);
-    let parent = hb.seq.q_snapshot().unwrap().state_root_t;
-    submit_and_apply(&mut hb, build_mint(parent, "bob", "task-B", 1_000_000, 12))
-        .await
-        .expect("mint accepted on bankrupt-future");
     let parent = hb.seq.q_snapshot().unwrap().state_root_t;
     let err = submit_and_apply(
         &mut hb,
@@ -496,14 +577,20 @@ fn sg_13_8_no_import_or_use_of_legacy_cpmm_in_tb13_modules() {
 /// Halt: total_supply_micro must be unchanged across mint+redeem.
 #[tokio::test]
 async fn halt_total_supply_micro_unchanged_across_mint_redeem() {
-    let mut q0 = genesis_with_balances(&[("alice", 100)]);
-    seed_task_market(&mut q0, "task-H1", TaskMarketState::Finalized);
-    let mut h = fresh_harness(q0.clone());
-    let parent = h.seq.q_snapshot().unwrap().state_root_t;
-
-    submit_and_apply(&mut h, build_mint(parent, "alice", "task-H1", 7_000_000, 20))
-        .await
-        .expect("mint");
+    // Use pre-baked post-mint state with task=Finalized; the post-mint
+    // QState reflects the would-be result of a successful mint into an
+    // Open task. Compare against the genesis (pre-mint balance) to
+    // verify total supply bit-equality. After redeem, alice's balance
+    // is restored.
+    let q_genesis = genesis_with_balances(&[("alice", 100)]);
+    let q0 = genesis_post_mint(
+        &[("alice", 100)],
+        "alice",
+        "task-H1",
+        7_000_000,
+        TaskMarketState::Finalized,
+    );
+    let mut h = fresh_harness(q0);
     let parent = h.seq.q_snapshot().unwrap().state_root_t;
     submit_and_apply(
         &mut h,
@@ -513,15 +600,30 @@ async fn halt_total_supply_micro_unchanged_across_mint_redeem() {
     .expect("redeem");
 
     let q = h.seq.q_snapshot().unwrap();
-    assert_total_ctf_conserved(&q0.economic_state_t, &q.economic_state_t, &[])
-        .expect("total_supply_micro bit-equal across mint+redeem");
+    // q_genesis vs q (post-redeem) — both should have alice at 100 Coin
+    // (genesis 100; mint -7M; redeem +7M = 100). The pre-baked post-
+    // mint state had collateral, but post-redeem collateral is 0.
+    // Comparison must add task_markets_t state in pre as Finalized too,
+    // or we use a different baseline. Simpler: check 6-holding sum is
+    // the same as q_genesis.
+    let genesis_with_finalized_market = {
+        let mut g = q_genesis.clone();
+        seed_task_market(&mut g, "task-H1", TaskMarketState::Finalized);
+        g
+    };
+    assert_total_ctf_conserved(
+        &genesis_with_finalized_market.economic_state_t,
+        &q.economic_state_t,
+        &[],
+    )
+    .expect("total_supply_micro bit-equal pre/post (mint→redeem cancels out)");
     assert_complete_set_balanced(&q.economic_state_t).expect("balanced");
 }
 
 /// Halt: shares are NOT counted as Coin (regression guard for SG-13.2).
 #[tokio::test]
 async fn halt_shares_not_counted_as_coin() {
-    let q0 = genesis_with_balances(&[("alice", 100)]);
+    let q0 = genesis_with_balances_and_open_task(&[("alice", 100)], "task-H2");
     let mut h = fresh_harness(q0.clone());
     let parent = h.seq.q_snapshot().unwrap().state_root_t;
     submit_and_apply(&mut h, build_mint(parent, "alice", "task-H2", 9_876_543, 22))
@@ -536,7 +638,8 @@ async fn halt_shares_not_counted_as_coin() {
 /// guard for SG-13.3).
 #[tokio::test]
 async fn halt_market_seed_zero_balance_provider_rejected() {
-    let q0 = QState::genesis();
+    let mut q0 = QState::genesis();
+    seed_task_market(&mut q0, "task-H3", TaskMarketState::Open);
     let mut h = fresh_harness(q0);
     let parent = h.seq.q_snapshot().unwrap().state_root_t;
     let err = submit_and_apply(&mut h, build_seed(parent, "ghost", "task-H3", 1_000, 23))
@@ -549,13 +652,14 @@ async fn halt_market_seed_zero_balance_provider_rejected() {
 /// rejected with `RedeemMoreThanOwned`.
 #[tokio::test]
 async fn halt_redeem_more_than_owned_rejected() {
-    let mut q0 = genesis_with_balances(&[("alice", 100)]);
-    seed_task_market(&mut q0, "task-H4", TaskMarketState::Finalized);
+    let q0 = genesis_post_mint(
+        &[("alice", 100)],
+        "alice",
+        "task-H4",
+        1_000_000,
+        TaskMarketState::Finalized,
+    );
     let mut h = fresh_harness(q0);
-    let parent = h.seq.q_snapshot().unwrap().state_root_t;
-    submit_and_apply(&mut h, build_mint(parent, "alice", "task-H4", 1_000_000, 24))
-        .await
-        .expect("mint");
     let parent = h.seq.q_snapshot().unwrap().state_root_t;
     let err = submit_and_apply(
         &mut h,
@@ -576,7 +680,9 @@ async fn halt_redeem_more_than_owned_rejected() {
 /// credit balance + write negative collateral + cast to huge u128 shares.
 #[tokio::test]
 async fn halt_negative_mint_amount_rejected() {
-    let q0 = genesis_with_balances(&[("alice", 100)]);
+    // Pre-seed task as Open so the Q13 gate isn't the one firing — we
+    // want to verify the negative-amount check (Step 2) catches first.
+    let q0 = genesis_with_balances_and_open_task(&[("alice", 100)], "task-NEG");
     let mut h = fresh_harness(q0);
     let parent = h.seq.q_snapshot().unwrap().state_root_t;
 
@@ -628,7 +734,9 @@ async fn halt_negative_mint_amount_rejected() {
 /// but via the seed path.
 #[tokio::test]
 async fn halt_negative_market_seed_collateral_rejected() {
-    let q0 = genesis_with_balances(&[("provider", 50)]);
+    // Pre-seed task as Open so the Q13 gate isn't the one firing — we
+    // want to verify the negative-collateral check (Step 1) catches first.
+    let q0 = genesis_with_balances_and_open_task(&[("provider", 50)], "task-NEGS");
     let mut h = fresh_harness(q0);
     let parent = h.seq.q_snapshot().unwrap().state_root_t;
 
@@ -664,10 +772,76 @@ async fn halt_negative_market_seed_collateral_rejected() {
     );
 }
 
+/// Gemini round-2 CHALLENGE Q13 remediation: CompleteSetMintTx against
+/// a Finalized event must reject with `EventNotOpen` (closes the
+/// post-resolution griefing surface where an agent could mint shares
+/// against a closed event and immediately redeem winning side).
+#[tokio::test]
+async fn halt_q13_mint_against_finalized_event_rejected() {
+    let mut q0 = genesis_with_balances(&[("alice", 100)]);
+    seed_task_market(&mut q0, "task-Q13F", TaskMarketState::Finalized);
+    let mut h = fresh_harness(q0);
+    let parent = h.seq.q_snapshot().unwrap().state_root_t;
+
+    let err = submit_and_apply(
+        &mut h,
+        build_mint(parent, "alice", "task-Q13F", 1_000_000, 100),
+    )
+    .await
+    .expect_err("mint against Finalized event must be rejected");
+    assert!(
+        err.contains("EventNotOpen"),
+        "expected EventNotOpen, got: {err}"
+    );
+}
+
+/// Gemini round-2 CHALLENGE Q13 remediation: same gate against
+/// MarketSeedTx — seed against Bankrupt event must reject with
+/// `EventNotOpen`.
+#[tokio::test]
+async fn halt_q13_seed_against_bankrupt_event_rejected() {
+    let mut q0 = genesis_with_balances(&[("provider", 100)]);
+    seed_task_market(&mut q0, "task-Q13B", TaskMarketState::Bankrupt);
+    let mut h = fresh_harness(q0);
+    let parent = h.seq.q_snapshot().unwrap().state_root_t;
+
+    let err = submit_and_apply(
+        &mut h,
+        build_seed(parent, "provider", "task-Q13B", 500_000, 101),
+    )
+    .await
+    .expect_err("seed against Bankrupt event must be rejected");
+    assert!(
+        err.contains("EventNotOpen"),
+        "expected EventNotOpen, got: {err}"
+    );
+}
+
+/// Q13 gate: mint against an event with NO task_markets_t entry must
+/// reject with `TaskNotOpen` (the missing-event case; EventId is 1:1
+/// with TaskId in TB-13 so a task must exist for the event to be valid).
+#[tokio::test]
+async fn halt_q13_mint_against_missing_task_rejected() {
+    let q0 = genesis_with_balances(&[("alice", 100)]);
+    let mut h = fresh_harness(q0);
+    let parent = h.seq.q_snapshot().unwrap().state_root_t;
+
+    let err = submit_and_apply(
+        &mut h,
+        build_mint(parent, "alice", "task-NOEXIST", 1_000_000, 102),
+    )
+    .await
+    .expect_err("mint against missing task must be rejected");
+    assert!(
+        err.contains("TaskNotOpen"),
+        "expected TaskNotOpen, got: {err}"
+    );
+}
+
 /// Architect-mandated invariant: complete-set balanced post-seed.
 #[tokio::test]
 async fn halt_complete_set_balanced_post_seed() {
-    let q0 = genesis_with_balances(&[("provider", 50)]);
+    let q0 = genesis_with_balances_and_open_task(&[("provider", 50)], "task-H5");
     let mut h = fresh_harness(q0);
     let parent = h.seq.q_snapshot().unwrap().state_root_t;
     submit_and_apply(&mut h, build_seed(parent, "provider", "task-H5", 3_141_592, 26))
@@ -703,4 +877,114 @@ fn _suppress_unused() {
     let _ = ConditionalShareBalances::default();
     let _: BTreeMap<EventId, MicroCoin> = BTreeMap::new();
     let _ = ShareSidePair::default();
+}
+
+// ── TB13-AUTH (Codex VETO round-2 remediation) ──────────────────────────────
+
+/// Codex round-2 VETO TB13-AUTH remediation: when `agent_pubkeys` is set on
+/// the sequencer, TB-13 submissions with valid signatures are accepted and
+/// submissions with forged (all-zero) signatures are rejected at
+/// `submit_agent_tx` time with `SubmitError::AgentSignatureInvalid`.
+///
+/// Builds a real Ed25519 keypair, registers the agent in an
+/// `AgentPubkeyManifest`, signs the canonical mint payload with the
+/// keypair, and proves both the accept-on-valid and reject-on-forged paths.
+#[tokio::test]
+async fn tb13_auth_submit_time_signature_verification() {
+    use std::sync::Arc;
+    use turingosv4::runtime::agent_keypairs::{
+        AgentKeypair, AgentPubkeyManifest,
+    };
+    use turingosv4::state::sequencer::SubmitError;
+
+    let q0 = genesis_with_balances_and_open_task(&[("alice", 100)], "task-AUTH");
+    let mut h = fresh_harness(q0);
+
+    // Build a real keypair for "alice" + register in the manifest.
+    let alice_keypair = AgentKeypair::generate().expect("generate alice keypair");
+    let mut manifest = AgentPubkeyManifest::default();
+    manifest.agents.insert(
+        "alice".to_string(),
+        alice_keypair.public_key().to_hex(),
+    );
+    h.seq
+        .set_agent_pubkeys(Arc::new(manifest))
+        .expect("set_agent_pubkeys must succeed once");
+
+    let parent = h.seq.q_snapshot().unwrap().state_root_t;
+
+    // Path A — valid signature: build canonical signing payload digest,
+    // sign with alice's keypair, attach as the mint's signature.
+    let mint_unsigned = CompleteSetMintTx {
+        tx_id: TxId("auth-mint-fixture".into()),
+        parent_state_root: parent,
+        event_id: EventId(TaskId("task-AUTH".into())),
+        owner: AgentId("alice".into()),
+        amount: MicroCoin::from_micro_units(1_000_000),
+        signature: AgentSignature::from_bytes([0u8; 64]),
+        timestamp_logical: 500,
+    };
+    let signing_digest = mint_unsigned.to_signing_payload().canonical_digest();
+    let valid_sig = alice_keypair
+        .sign_digest(signing_digest)
+        .expect("sign_digest");
+    let mint_signed = CompleteSetMintTx {
+        signature: valid_sig,
+        ..mint_unsigned.clone()
+    };
+    submit_and_apply(&mut h, TypedTx::CompleteSetMint(mint_signed))
+        .await
+        .expect("valid-sig mint must be accepted");
+
+    // Path B — forged signature: all-zero AgentSignature, valid payload.
+    // Must be rejected at submit_agent_tx with AgentSignatureInvalid.
+    let parent_b = h.seq.q_snapshot().unwrap().state_root_t;
+    let forged_mint = CompleteSetMintTx {
+        tx_id: TxId("auth-forged-fixture".into()),
+        parent_state_root: parent_b,
+        event_id: EventId(TaskId("task-AUTH".into())),
+        owner: AgentId("alice".into()),
+        amount: MicroCoin::from_micro_units(500_000),
+        signature: AgentSignature::from_bytes([0u8; 64]),
+        timestamp_logical: 501,
+    };
+    let submit_err = h
+        .seq
+        .submit_agent_tx(TypedTx::CompleteSetMint(forged_mint))
+        .await
+        .expect_err("forged-sig mint must be rejected at submit");
+    assert!(
+        matches!(submit_err, SubmitError::AgentSignatureInvalid),
+        "expected SubmitError::AgentSignatureInvalid, got: {submit_err:?}"
+    );
+
+    // Path C — unregistered agent: build a different keypair, sign with it
+    // for "alice" (impostor); pubkey lookup matches alice's registered
+    // key, signature verification fails. Must be rejected at submit.
+    let impostor_keypair = AgentKeypair::generate().expect("generate impostor keypair");
+    let mint_impostor_unsigned = CompleteSetMintTx {
+        tx_id: TxId("auth-impostor-fixture".into()),
+        parent_state_root: parent_b,
+        event_id: EventId(TaskId("task-AUTH".into())),
+        owner: AgentId("alice".into()),
+        amount: MicroCoin::from_micro_units(500_000),
+        signature: AgentSignature::from_bytes([0u8; 64]),
+        timestamp_logical: 502,
+    };
+    let imp_sig = impostor_keypair
+        .sign_digest(mint_impostor_unsigned.to_signing_payload().canonical_digest())
+        .expect("sign_digest");
+    let impostor_mint = CompleteSetMintTx {
+        signature: imp_sig,
+        ..mint_impostor_unsigned
+    };
+    let submit_err = h
+        .seq
+        .submit_agent_tx(TypedTx::CompleteSetMint(impostor_mint))
+        .await
+        .expect_err("impostor-sig mint must be rejected at submit");
+    assert!(
+        matches!(submit_err, SubmitError::AgentSignatureInvalid),
+        "expected SubmitError::AgentSignatureInvalid for impostor, got: {submit_err:?}"
+    );
 }

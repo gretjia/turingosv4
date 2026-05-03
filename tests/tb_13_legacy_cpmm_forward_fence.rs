@@ -45,15 +45,19 @@
 use std::fs;
 use std::path::PathBuf;
 
-/// In-scope source files for the TB-13 forward-fence. NEW TB-13 markers
-/// appearing in any of these files are subject to the forbidden-token
-/// rules below.
-const FENCE_SCOPE: &[&str] = &[
+/// Statically-listed in-scope source files for the TB-13 forward-fence
+/// Layer 1 (unconditional whole-file scan for hard-banned imports).
+/// Codex round-2 CHALLENGE remediation 2026-05-03: this list is now
+/// a *floor* — `discover_tb_13_files()` walks `src/` for any additional
+/// file containing a TB-13 authoring marker and adds it to the
+/// effective scope.
+const FENCE_SCOPE_FLOOR: &[&str] = &[
     "src/state/typed_tx.rs",
     "src/state/q_state.rs",
     "src/state/sequencer.rs",
     "src/economy/monetary_invariant.rs",
     "src/bin/audit_dashboard.rs",
+    "src/runtime/verify.rs",
 ];
 
 /// Tokens forbidden inside any TB-13-marker span (architect §4.2 halting
@@ -149,12 +153,65 @@ fn tb_13_spans(source: &str) -> Vec<(usize, String)> {
 }
 
 /// Read a source file relative to the workspace root, returning its
-/// content as a String. Panics with a clear message if missing — Atom 0.5
-/// ship requires every file in `FENCE_SCOPE` to exist.
+/// content as a String. Panics with a clear message if missing — fence
+/// requires every file in `FENCE_SCOPE_FLOOR` to exist.
 fn read_scope_file(rel_path: &str) -> String {
     let full = workspace_root().join(rel_path);
     fs::read_to_string(&full)
         .unwrap_or_else(|e| panic!("TB-13 fence: failed to read {rel_path}: {e}"))
+}
+
+/// Walk `src/` for any `.rs` file containing a TB-13 authoring marker.
+/// Codex round-2 CHALLENGE remediation 2026-05-03: closes the gap where
+/// a new TB-13 file outside the static `FENCE_SCOPE_FLOOR` list could
+/// bypass forbidden-token enforcement. This discovery walk makes the
+/// fence self-extending: any new TB-13 contributing module is auto-
+/// added to scope on first run.
+fn discover_tb_13_files() -> Vec<String> {
+    let src_root = workspace_root().join("src");
+    let mut found: Vec<String> = Vec::new();
+    walk_rs_files(&src_root, &mut |path| {
+        let rel = path
+            .strip_prefix(workspace_root())
+            .unwrap_or(path)
+            .to_string_lossy()
+            .into_owned();
+        let body = match fs::read_to_string(path) {
+            Ok(s) => s,
+            Err(_) => return,
+        };
+        if body.lines().any(is_tb_13_authoring_marker) {
+            found.push(rel);
+        }
+    });
+    found
+}
+
+fn walk_rs_files(dir: &std::path::Path, visitor: &mut dyn FnMut(&std::path::Path)) {
+    let entries = match fs::read_dir(dir) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            walk_rs_files(&path, visitor);
+        } else if path.extension().map(|e| e == "rs").unwrap_or(false) {
+            visitor(&path);
+        }
+    }
+}
+
+/// Effective fence scope = FLOOR ∪ discovered. Deduplicated, sorted.
+fn effective_fence_scope() -> Vec<String> {
+    let mut set: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    for s in FENCE_SCOPE_FLOOR {
+        set.insert((*s).to_string());
+    }
+    for s in discover_tb_13_files() {
+        set.insert(s);
+    }
+    set.into_iter().collect()
 }
 
 /// Hard-banned legacy CPMM imports — these strings MUST NOT appear in
@@ -188,9 +245,10 @@ const HARD_BANNED_LEGACY_IMPORTS: &[&str] = &[
 #[test]
 fn legacy_cpm_api_not_imported_by_complete_set() {
     let mut violations: Vec<String> = Vec::new();
+    let scope = effective_fence_scope();
 
     // Layer 1: unconditional whole-file scan for hard-banned imports.
-    for rel in FENCE_SCOPE {
+    for rel in &scope {
         let source = read_scope_file(rel);
         for (line_no, line) in source.lines().enumerate() {
             for token in HARD_BANNED_LEGACY_IMPORTS {
@@ -205,7 +263,7 @@ fn legacy_cpm_api_not_imported_by_complete_set() {
     }
 
     // Layer 2: TB-13-marker-scoped scan for trading/AMM concepts.
-    for rel in FENCE_SCOPE {
+    for rel in &scope {
         let source = read_scope_file(rel);
         for (line_no, line) in tb_13_spans(&source) {
             for token in FORBIDDEN_LEGACY_TOKENS {
@@ -228,12 +286,14 @@ fn legacy_cpm_api_not_imported_by_complete_set() {
     }
     assert!(
         violations.is_empty(),
-        "TB-13 SG-13.0.1 forward-fence violated:\n{}",
+        "TB-13 SG-13.0.1 forward-fence violated (scope: {} files):\n{}",
+        scope.len(),
         violations.join("\n")
     );
 }
 
-/// SG-13.0.2 — `no_f64_in_complete_set_or_market_seed`.
+/// SG-13.0.2 — `no_f64_in_complete_set_or_market_seed`. Now uses
+/// effective_fence_scope() (auto-discovers new TB-13 files).
 ///
 /// Architect §4.2 halting trigger: HALT if `f64` appears in NEW
 /// CompleteSet / MarketSeed code. Money-path types must use integer
@@ -242,7 +302,7 @@ fn legacy_cpm_api_not_imported_by_complete_set() {
 fn no_f64_in_complete_set_or_market_seed() {
     let mut violations: Vec<String> = Vec::new();
     let f64_tokens = [" f64", "f64,", "f64;", "f64)"];
-    for rel in FENCE_SCOPE {
+    for rel in &effective_fence_scope() {
         let source = read_scope_file(rel);
         for (line_no, line) in tb_13_spans(&source) {
             for token in &f64_tokens {
