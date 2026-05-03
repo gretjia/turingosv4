@@ -569,6 +569,101 @@ async fn halt_redeem_more_than_owned_rejected() {
     );
 }
 
+/// Codex round-1 VETO TB13-V1 remediation: negative `MicroCoin` amount
+/// in CompleteSetMintTx must be rejected. `MicroCoin` is i64-backed and
+/// permits negative values at the type layer; the dispatch arm gates
+/// `<= 0` (not just `== 0`). Without this gate, a negative mint would
+/// credit balance + write negative collateral + cast to huge u128 shares.
+#[tokio::test]
+async fn halt_negative_mint_amount_rejected() {
+    let q0 = genesis_with_balances(&[("alice", 100)]);
+    let mut h = fresh_harness(q0);
+    let parent = h.seq.q_snapshot().unwrap().state_root_t;
+
+    let neg_mint = TypedTx::CompleteSetMint(CompleteSetMintTx {
+        tx_id: TxId("neg-mint-fixture".into()),
+        parent_state_root: parent,
+        event_id: EventId(TaskId("task-NEG".into())),
+        owner: AgentId("alice".into()),
+        amount: MicroCoin::from_micro_units(-1_000_000),
+        signature: AgentSignature::from_bytes([0u8; 64]),
+        timestamp_logical: 999,
+    });
+    let err = submit_and_apply(&mut h, neg_mint)
+        .await
+        .expect_err("negative mint must be rejected");
+    assert!(
+        err.contains("InsufficientBalanceForMint"),
+        "expected InsufficientBalanceForMint for negative amount, got: {err}"
+    );
+
+    // Verify alice balance unchanged.
+    let q = h.seq.q_snapshot().unwrap();
+    let alice_bal = q
+        .economic_state_t
+        .balances_t
+        .0
+        .get(&AgentId("alice".into()))
+        .copied()
+        .unwrap();
+    assert_eq!(
+        alice_bal.micro_units(),
+        100_i64 * 1_000_000,
+        "alice balance MUST be unchanged after negative-mint rejection"
+    );
+    // Verify no collateral written.
+    assert!(
+        q.economic_state_t
+            .conditional_collateral_t
+            .0
+            .get(&EventId(TaskId("task-NEG".into())))
+            .is_none(),
+        "no collateral must be written under negative-mint rejection"
+    );
+}
+
+/// Codex round-1 VETO TB13-V1 remediation: negative `MicroCoin`
+/// collateral_amount in MarketSeedTx must be rejected with
+/// `InsufficientCollateral`. Same attack vector as halt_negative_mint
+/// but via the seed path.
+#[tokio::test]
+async fn halt_negative_market_seed_collateral_rejected() {
+    let q0 = genesis_with_balances(&[("provider", 50)]);
+    let mut h = fresh_harness(q0);
+    let parent = h.seq.q_snapshot().unwrap().state_root_t;
+
+    let neg_seed = TypedTx::MarketSeed(MarketSeedTx {
+        tx_id: TxId("neg-seed-fixture".into()),
+        parent_state_root: parent,
+        event_id: EventId(TaskId("task-NEGS".into())),
+        provider: AgentId("provider".into()),
+        collateral_amount: MicroCoin::from_micro_units(-500_000),
+        signature: AgentSignature::from_bytes([0u8; 64]),
+        timestamp_logical: 998,
+    });
+    let err = submit_and_apply(&mut h, neg_seed)
+        .await
+        .expect_err("negative-collateral seed must be rejected");
+    assert!(
+        err.contains("InsufficientCollateral"),
+        "expected InsufficientCollateral for negative collateral, got: {err}"
+    );
+
+    let q = h.seq.q_snapshot().unwrap();
+    let provider_bal = q
+        .economic_state_t
+        .balances_t
+        .0
+        .get(&AgentId("provider".into()))
+        .copied()
+        .unwrap();
+    assert_eq!(
+        provider_bal.micro_units(),
+        50_i64 * 1_000_000,
+        "provider balance MUST be unchanged after negative-seed rejection"
+    );
+}
+
 /// Architect-mandated invariant: complete-set balanced post-seed.
 #[tokio::test]
 async fn halt_complete_set_balanced_post_seed() {

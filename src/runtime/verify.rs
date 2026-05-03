@@ -439,14 +439,61 @@ fn verify_agent_artifacts(
                     }
                 }
             }
-            // Other tx variants (TaskOpen / EscrowLock / Challenge /
+            // TRACE_MATRIX TB-13 Atom 6 round-2 (Codex VETO TB13-V2
+            // remediation 2026-05-03): extend Gate 4 to cover the 3
+            // agent-signed TB-13 variants. The submit-time verification
+            // gap is codebase-wide (also affects Challenge/TaskOpen/
+            // EscrowLock); replay-time coverage is the existing TB-7
+            // ARCHITECT_RULING D3 model. TB-13 raises the bar to its
+            // own three variants because Class 3 money-mover.
+            TypedTx::CompleteSetMint(mint) => {
+                let payload = mint.to_signing_payload();
+                let digest = payload.canonical_digest();
+                let pubkey_opt = manifest.get(&mint.owner);
+                match pubkey_opt {
+                    None => agent_signatures_verified = false,
+                    Some(pubkey) => {
+                        if verify_agent_signature(&mint.signature, &digest, &pubkey).is_err() {
+                            agent_signatures_verified = false;
+                        }
+                    }
+                }
+            }
+            TypedTx::CompleteSetRedeem(redeem) => {
+                let payload = redeem.to_signing_payload();
+                let digest = payload.canonical_digest();
+                let pubkey_opt = manifest.get(&redeem.owner);
+                match pubkey_opt {
+                    None => agent_signatures_verified = false,
+                    Some(pubkey) => {
+                        if verify_agent_signature(&redeem.signature, &digest, &pubkey).is_err() {
+                            agent_signatures_verified = false;
+                        }
+                    }
+                }
+            }
+            TypedTx::MarketSeed(seed) => {
+                let payload = seed.to_signing_payload();
+                let digest = payload.canonical_digest();
+                let pubkey_opt = manifest.get(&seed.provider);
+                match pubkey_opt {
+                    None => agent_signatures_verified = false,
+                    Some(pubkey) => {
+                        if verify_agent_signature(&seed.signature, &digest, &pubkey).is_err() {
+                            agent_signatures_verified = false;
+                        }
+                    }
+                }
+            }
+            // Remaining tx variants (TaskOpen / EscrowLock / Challenge /
             // ChallengeResolve / ReuseTx / FinalizeReward / TaskExpire /
-            // TerminalSummary) are not covered by Gate 4 because:
+            // TerminalSummary / TaskBankruptcy) are not covered by Gate 4
+            // because:
             // - Some are system-emitted (signature path is system, not agent;
             //   covered by system_signatures_verified above).
             // - Others are agent-emitted but their signing payloads need
-            //   per-variant signing helpers (TB-7 scope is WorkTx + VerifyTx
-            //   per ARCHITECT_RULING D3 narrowed scope).
+            //   per-variant signing helpers and are deferred to a future
+            //   codebase-wide CO P2.x AgentRegistry pass per `OBS_AGENT_SIG_REPLAY_GAP_2026-05-03`.
             _ => {}
         }
     }

@@ -157,14 +157,54 @@ fn read_scope_file(rel_path: &str) -> String {
         .unwrap_or_else(|e| panic!("TB-13 fence: failed to read {rel_path}: {e}"))
 }
 
+/// Hard-banned legacy CPMM imports — these strings MUST NOT appear in
+/// any FENCE_SCOPE file regardless of TB-13-marker discipline. Codex
+/// round-1 Q9 CHALLENGE remediation (2026-05-03): the marker-only fence
+/// could be bypassed by writing a legacy import outside a TB-13 doc-
+/// comment span. These tokens are unconditionally banned (a `use
+/// crate::prediction_market::BinaryMarket` anywhere in scope is an
+/// architectural regression even in non-TB-13 sections).
+const HARD_BANNED_LEGACY_IMPORTS: &[&str] = &[
+    "use crate::prediction_market::",
+    "use crate::prediction_market;",
+    "crate::prediction_market::BinaryMarket",
+    "crate::prediction_market::MarketError",
+];
+
 /// SG-13.0.1 — `legacy_cpm_api_not_imported_by_complete_set`.
 ///
 /// Architect §4.2 halting trigger: HALT if NEW TB-13 code imports legacy
-/// `prediction_market.rs`. We extend the check to all legacy CPMM API
-/// names and all forbidden trading/AMM concepts.
+/// `prediction_market.rs`. Two layers of enforcement:
+///
+/// **Layer 1 (unconditional, Codex round-1 Q9 remediation)**: scan every
+/// FENCE_SCOPE file for `HARD_BANNED_LEGACY_IMPORTS` regardless of
+/// TB-13-marker discipline. Catches any new use-statement or type
+/// reference that pulls legacy CPMM into a TB-13-scope module.
+///
+/// **Layer 2 (TB-13-marker-scoped)**: scan TB-13-marked spans for the
+/// broader `FORBIDDEN_LEGACY_TOKENS` set (API names, trading/AMM
+/// concepts). The marker discipline allows benign references in
+/// historical doc-comments while keeping new TB-13 code clean.
 #[test]
 fn legacy_cpm_api_not_imported_by_complete_set() {
     let mut violations: Vec<String> = Vec::new();
+
+    // Layer 1: unconditional whole-file scan for hard-banned imports.
+    for rel in FENCE_SCOPE {
+        let source = read_scope_file(rel);
+        for (line_no, line) in source.lines().enumerate() {
+            for token in HARD_BANNED_LEGACY_IMPORTS {
+                if line.contains(token) {
+                    violations.push(format!(
+                        "{rel}:{}: hard-banned legacy import `{token}` — {line}",
+                        line_no + 1
+                    ));
+                }
+            }
+        }
+    }
+
+    // Layer 2: TB-13-marker-scoped scan for trading/AMM concepts.
     for rel in FENCE_SCOPE {
         let source = read_scope_file(rel);
         for (line_no, line) in tb_13_spans(&source) {

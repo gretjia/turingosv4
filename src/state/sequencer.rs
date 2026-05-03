@@ -1584,8 +1584,13 @@ pub(crate) fn dispatch_transition(
             if mint.parent_state_root != q.state_root_t {
                 return Err(TransitionError::StaleParent);
             }
-            // Step 2: amount > 0 sanity.
-            if mint.amount.micro_units() == 0 {
+            // Step 2: amount > 0 strictly. `MicroCoin` is i64-backed and
+            // permits negative values at the type level (see
+            // `src/economy/money.rs`); `<= 0` rejects both zero (no-op
+            // mint) and negative (would credit balance + write negative
+            // collateral + cast to huge u128 shares). Codex round-1 VETO
+            // TB13-V1 remediation (2026-05-03).
+            if mint.amount.micro_units() <= 0 {
                 return Err(TransitionError::InsufficientBalanceForMint);
             }
             // Step 3: owner solvency.
@@ -1803,8 +1808,12 @@ pub(crate) fn dispatch_transition(
             if seed.parent_state_root != q.state_root_t {
                 return Err(TransitionError::StaleParent);
             }
-            // Step 1: collateral_amount > 0 (architect SG-13.4).
-            if seed.collateral_amount.micro_units() == 0 {
+            // Step 1: collateral_amount > 0 strictly (architect SG-13.4).
+            // `<= 0` rejects both zero (architect direct mandate) and
+            // negative (would mirror the V1 attack on CompleteSetMint —
+            // negative collateral + huge u128 shares). Codex round-1
+            // VETO TB13-V1 remediation (2026-05-03).
+            if seed.collateral_amount.micro_units() <= 0 {
                 return Err(TransitionError::InsufficientCollateral);
             }
             // Step 2: provider solvency (architect SG-13.3).
