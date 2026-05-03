@@ -173,6 +173,23 @@ pub struct EconomicState {
     /// chain snapshots.
     #[serde(default)]
     pub runs_t: RunsIndex,
+    /// TRACE_MATRIX TB-12 (architect 2026-05-03 ruling §3 + §10): node_positions_t
+    /// — flat `BTreeMap<TxId, NodePosition>` index. **Canonical** TB-12 source
+    /// of truth for exposure records. **NOT a Coin holding** (CR-12.1 + CR-12.2);
+    /// NodePosition.amount is NOT counted in `monetary_invariant::total_supply_micro`.
+    ///
+    /// Architect §3 explicitly REJECTED the nested `node_market_t:
+    /// BTreeMap<NodeId, NodeMarketEntry>` shape — that's TB-14 derived view
+    /// (price + long_interest + short_interest aggregation), not canonical
+    /// state. Avoiding second source-of-truth (architect §3.2 reasoning;
+    /// TaskMarket.total_escrow precedent on cache=truth).
+    ///
+    /// Populated by accept-arm side-effect on accepted WorkTx (FirstLong) +
+    /// ChallengeTx (ChallengeShort) per architect §8 Atom 2. VerifyTx writes
+    /// nothing here per FR-12.3 + CR-12.8. `#[serde(default)]` for
+    /// backward-compat with pre-TB-12 chain snapshots.
+    #[serde(default)]
+    pub node_positions_t: NodePositionsIndex,
 }
 
 /// TRACE_MATRIX WP § 2 — agent → balance ledger. Concrete entry: `MicroCoin` (CO1.0a).
@@ -458,6 +475,23 @@ impl Default for TaskMarketState {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct RunsIndex(pub BTreeMap<crate::state::typed_tx::RunId, RunSummaryEntry>);
 
+// ────────────────────────────────────────────────────────────────────────────
+// TB-12 (architect 2026-05-03 ruling §3 + §8 Atom 1): NodePositionsIndex —
+// flat exposure record index. ARCHITECT-RULING DISCIPLINE: this is the
+// canonical TB-12 state. No `node_market_t / NodeMarketEntry` is added —
+// that's TB-14 derived view. Avoids second source-of-truth risk.
+// ────────────────────────────────────────────────────────────────────────────
+
+/// TRACE_MATRIX TB-12 (architect 2026-05-03 §3 + §8 Atom 1): flat
+/// `position_id → NodePosition` index. Architect's §3 ruling chose this
+/// over nested `node_market_t: BTreeMap<NodeId, NodeMarketEntry>` to keep a
+/// single source of truth in TB-12. Populated by accept-arm side-effect
+/// (Atom 2) on accepted WorkTx (FirstLong) + ChallengeTx (ChallengeShort).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct NodePositionsIndex(
+    pub BTreeMap<TxId, crate::state::typed_tx::NodePosition>,
+);
+
 /// TRACE_MATRIX TB-11 (architect §6.2) — per-run summary. Sponsored by
 /// `task_id`; populated by the `TerminalSummaryTx` dispatch arm with
 /// fields drawn from the typed-tx wire payload (Q-derivable on replay).
@@ -663,21 +697,46 @@ mod tests {
     }
 
     #[test]
-    fn economic_state_has_ten_sub_fields() {
-        // TB-11 (architect §6.2 ruling 2026-05-02): bumped from 9 → 10 sub-fields
-        // with the addition of `runs_t: RunsIndex` (run-summary anchor for
-        // architect's RunExhaustedTx role; populated by TerminalSummaryTx
-        // dispatch arm).
+    fn economic_state_has_eleven_sub_fields() {
+        // TB-11 (2026-05-02 architect ruling §6.2): 9 → 10 sub-fields with +runs_t.
+        // TB-12 (2026-05-03 architect ruling §3 + §8 Atom 1): 10 → 11 sub-fields
+        // with +node_positions_t (flat NodePositionsIndex; canonical exposure
+        // record state; NOT NodeMarketEntry which is TB-14 derived view).
         let e = EconomicState::default();
         let s = serde_json::to_value(&e).unwrap();
         let obj = s.as_object().unwrap();
         assert_eq!(
             obj.len(),
-            10,
-            "EconomicState must have 10 sub-fields post-TB-11 (was 9 per WP § 2; +runs_t); got {}",
+            11,
+            "EconomicState must have 11 sub-fields post-TB-12 (was 10 post-TB-11; +node_positions_t); got {}",
             obj.len()
         );
         assert!(obj.contains_key("runs_t"), "TB-11 runs_t sub-field missing");
+        assert!(obj.contains_key("node_positions_t"), "TB-12 node_positions_t sub-field missing");
+    }
+
+    /// TB-12 Atom 1 (architect §8 Atom 1): NodePositionsIndex empty default
+    /// serializes to empty BTreeMap; carries no balance information.
+    #[test]
+    fn node_positions_index_default_is_empty() {
+        let idx = NodePositionsIndex::default();
+        assert!(idx.0.is_empty());
+    }
+
+    /// TB-12 Atom 1: explicit invariant SG-12.8 — no `node_market_t` field
+    /// on EconomicState. NodeMarketEntry is TB-14 derived view per architect
+    /// §3 ruling.
+    #[test]
+    fn economic_state_does_not_have_node_market_t_field() {
+        let e = EconomicState::default();
+        let s = serde_json::to_value(&e).unwrap();
+        let obj = s.as_object().unwrap();
+        assert!(
+            !obj.contains_key("node_market_t"),
+            "TB-12 architect §3 ruling: node_market_t must NOT be a canonical \
+             EconomicState field. NodeMarketEntry is TB-14 derived view only. \
+             Adding node_market_t introduces second source-of-truth (architect §3.2)."
+        );
     }
 
     #[test]

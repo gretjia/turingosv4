@@ -82,11 +82,11 @@ fn nine_top_level_fields() {
 }
 
 #[test]
-fn empty_economic_state_serializes_to_ten_sub_fields() {
-    // TB-11 (architect §6.2 ruling 2026-05-02): bumped to 10 sub-fields
-    // (+runs_t for architect's RunExhaustedTx anchor).
+fn empty_economic_state_serializes_to_eleven_sub_fields() {
+    // TB-11 (architect §6.2 ruling 2026-05-02): 9 → 10 (+runs_t).
+    // TB-12 (architect 2026-05-03 ruling §3 + §8 Atom 1): 10 → 11 (+node_positions_t).
     let e = EconomicState::default();
     let v = serde_json::to_value(&e).unwrap();
     let obj = v.as_object().unwrap();
-    assert_eq!(obj.len(), 10);
+    assert_eq!(obj.len(), 11);
 }

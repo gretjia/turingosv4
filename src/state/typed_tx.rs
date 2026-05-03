@@ -588,6 +588,108 @@ impl Default for RunOutcome {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// § 5a-TB-12 — NodePosition exposure record (architect 2026-05-03 ruling)
+//
+// TB-12 = Node exposure index, NOT trading market. Architect §10 critical
+// insight: NodePosition is **immutable exposure record**, not active position
+// balance. TB-12 forbids close / settle / transfer / mark-to-market —
+// those land in TB-13 (CompleteSet) + TB-14 (PriceIndex) + TB-16
+// (controlled-arena P&L).
+//
+// FORBIDDEN in TB-12 (architect §9.4):
+//   No NodeMarketEntry as canonical EconomicState field (TB-14 derived view).
+//   No MarketBuy / MarketSell PositionKind variants (TB-13+ trading layer).
+//   No price_yes / price_no calculation (TB-14).
+//   No CompleteSet / MarketSeedTx / AMM / CPMM (TB-13/14 territory).
+// ────────────────────────────────────────────────────────────────────────────
+
+/// TRACE_MATRIX TB-12 Atom 1 (architect 2026-05-03 ruling §3 + §8 Atom 1):
+/// position side discriminator. TB-12 only uses Long / Short. Long is
+/// derived from accepted `WorkTx.stake`; Short is from accepted
+/// `ChallengeTx.stake`. Per FR-12.3 + CR-12.8: VerifyTx.bond is NEITHER
+/// (responsibility bond, not market side).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[repr(u8)]
+pub enum PositionSide {
+    Long = 0,
+    Short = 1,
+}
+
+impl Default for PositionSide {
+    fn default() -> Self {
+        Self::Long
+    }
+}
+
+/// TRACE_MATRIX TB-12 Atom 1 (architect 2026-05-03 ruling §8 Atom 1):
+/// position kind. **TB-12 only ships FirstLong + ChallengeShort.**
+/// `MarketBuy` / `MarketSell` are explicitly forbidden (architect §9.4 +
+/// §10) — they belong to the future TB-13+ trading layer. Adding them
+/// now would prematurely commit to a trading semantics not yet
+/// architected.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[repr(u8)]
+pub enum PositionKind {
+    /// Position derived from accepted `WorkTx.stake` (work-side commitment
+    /// to a node). FirstLong.node_id == own work_tx_id (architect §4 +
+    /// FR-12.4).
+    FirstLong = 0,
+    /// Position derived from accepted `ChallengeTx.stake` (challenge-side
+    /// commitment). ChallengeShort.node_id == challenge.target_work_tx
+    /// (architect §4 + FR-12.5).
+    ChallengeShort = 1,
+}
+
+impl Default for PositionKind {
+    fn default() -> Self {
+        Self::FirstLong
+    }
+}
+
+/// TRACE_MATRIX TB-12 Atom 1 (architect 2026-05-03 §3 + §4 + §10 critical
+/// insight): **IMMUTABLE EXPOSURE RECORD**, NOT a Coin holding.
+///
+/// **What this struct IS** (architect §10):
+/// - A frozen record that "this Agent took Long/Short directional risk on
+///   this node at the moment of accepting their source_tx".
+/// - Q-derived from typed-tx fields at accept time (replay-deterministic).
+/// - Read-only after creation in TB-12.
+///
+/// **What this struct IS NOT** (architect §10 + §9.4 forbidden list):
+/// - NOT a Coin holding (CR-12.1; NodePosition.amount is NOT in
+///   `total_supply_micro`; CR-12.2).
+/// - NOT a tradable share balance.
+/// - NOT a YES/NO claim (TB-13 CompleteSet territory).
+/// - NOT an LP share or market order.
+/// - NOT closeable / settleable / transferable / mark-to-marketable in
+///   TB-12 (those operations land in TB-13+ / TB-16).
+///
+/// **TB-12 invariants**:
+/// - `position_id == source_tx` (one accepted source-tx ↔ one position;
+///   architect §4 last paragraph). Future MarketBuyTx may break this 1:1
+///   when one trade produces multiple lots; that's TB-13+ territory.
+/// - `FirstLong`: `node_id == source_tx == work.tx_id`,
+///   `owner == work.agent_id`, `amount == work.stake.into()`,
+///   `side == Long`, `kind == FirstLong`.
+/// - `ChallengeShort`: `node_id == challenge.target_work_tx`,
+///   `source_tx == position_id == challenge.tx_id`,
+///   `owner == challenge.challenger_agent`,
+///   `amount == challenge.stake.into()`, `side == Short`,
+///   `kind == ChallengeShort`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct NodePosition {
+    pub position_id: TxId,
+    pub node_id: TxId,
+    pub task_id: TaskId,
+    pub owner: AgentId,
+    pub side: PositionSide,
+    pub kind: PositionKind,
+    pub amount: MicroCoin,
+    pub source_tx: TxId,
+    pub opened_at_round: u64,
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // § 5b TB-3 RSP-1 formal-tx-surface — TaskOpenTx + EscrowLockTx
 //
 // Per TB-3 charter v2 (`handover/tracer_bullets/TB-3_charter_2026-04-30.md`):
