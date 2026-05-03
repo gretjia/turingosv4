@@ -23,7 +23,54 @@
 // ────────────────────────────────────────────────────────────────────
 #[test]
 fn raw_logs_not_in_general_read_view() {
-    unimplemented!("TB-15 halt #1 — backfill in Atom 3");
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    let q_state_path = format!("{}/src/state/q_state.rs", manifest);
+    let body = std::fs::read_to_string(&q_state_path)
+        .unwrap_or_else(|e| panic!("read {}: {}", q_state_path, e));
+
+    // Locate `pub struct AgentVisibleProjection {` and its terminating `}`.
+    let needle = "pub struct AgentVisibleProjection";
+    let start = body
+        .find(needle)
+        .expect("AgentVisibleProjection struct must exist in q_state.rs");
+    let after = &body[start..];
+    let brace_open = after
+        .find('{')
+        .expect("AgentVisibleProjection struct: opening brace not found");
+    let mut depth = 0i32;
+    let mut end = brace_open;
+    for (i, ch) in after[brace_open..].char_indices() {
+        match ch {
+            '{' => depth += 1,
+            '}' => {
+                depth -= 1;
+                if depth == 0 {
+                    end = brace_open + i;
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+    let projection_body = &after[brace_open..=end];
+
+    // Constructed at runtime via byte literals so this test's own source
+    // doesn't contain the forbidden substrings.
+    let forbidden: Vec<String> = vec![
+        format!("agent_autopsies{}", "_t"),
+        format!("Autopsy{}", "Index"),
+        format!("Agent{}", "AutopsyCapsule"),
+        format!("private_detail_{}", "cid"),
+    ];
+    for tok in &forbidden {
+        assert!(
+            !projection_body.contains(tok.as_str()),
+            "halt-trigger #1: AgentVisibleProjection MUST NOT reference TB-15 \
+             autopsy type `{}` — autopsy is sequencer-side / CAS-only and is NOT \
+             projected to agent read view (CR-15.1)",
+            tok
+        );
+    }
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -96,7 +143,56 @@ fn autopsy_does_not_mutate_predicates() {
 // ────────────────────────────────────────────────────────────────────
 #[test]
 fn private_detail_not_in_other_agent_view() {
-    unimplemented!("TB-15 halt #4 — backfill in Atom 3");
+    // Structural fence: AutopsyIndex value type must remain Vec<Cid>
+    // (32-byte content addresses), NOT Vec<AgentAutopsyCapsule> (the
+    // bytes themselves) and NOT any structure containing
+    // private_detail_cid payload bytes. Even if AgentVisibleProjection
+    // were ever to surface AutopsyIndex contents (which it does not —
+    // see halt-trigger #1), it would surface only public CAS Cids of
+    // public CAS evidence.
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    let q_state_path = format!("{}/src/state/q_state.rs", manifest);
+    let body = std::fs::read_to_string(&q_state_path)
+        .unwrap_or_else(|e| panic!("read {}: {}", q_state_path, e));
+
+    // Locate the AutopsyIndex newtype definition.
+    let needle = "pub struct Autopsy".to_string() + "Index";
+    let start = body
+        .find(&needle)
+        .expect("AutopsyIndex newtype must exist in q_state.rs");
+    let after = &body[start..];
+    // Walk forward until the line ending with `;` (newtype is single-line).
+    let line_end = after
+        .find(";\n")
+        .or_else(|| after.find(";\r"))
+        .or_else(|| after.find(';'))
+        .expect("AutopsyIndex newtype must terminate with semicolon");
+    let decl = &after[..=line_end];
+
+    // The value type MUST be Vec<Cid>. Forbidden alternatives that
+    // would leak raw bytes:
+    let forbidden_value_shapes: Vec<String> = vec![
+        format!("Vec<Agent{}>", "AutopsyCapsule"),
+        format!("Vec<u{}>", "8"),
+        format!("Vec<Auto{}>", "psyPrivateDetail"),
+    ];
+    for tok in &forbidden_value_shapes {
+        assert!(
+            !decl.contains(tok.as_str()),
+            "halt-trigger #4: AutopsyIndex value type MUST be Vec<Cid>, \
+             NOT `{}` — agent_autopsies_t stores Cids only; raw bytes \
+             stay in CAS behind AuditOnly access (SG-15.2)",
+            tok
+        );
+    }
+    // Positive assertion: the declaration includes Vec<...Cid>.
+    assert!(
+        decl.contains("Vec<crate::bottom_white::cas::schema::Cid>")
+            || decl.contains("Vec<Cid>"),
+        "halt-trigger #4: AutopsyIndex value type must explicitly be Vec<Cid>; \
+         got declaration: {}",
+        decl
+    );
 }
 
 // ────────────────────────────────────────────────────────────────────

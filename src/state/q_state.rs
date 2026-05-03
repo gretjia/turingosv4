@@ -237,6 +237,24 @@ pub struct EconomicState {
     /// `#[serde(default)]` for backward-compat with pre-TB-13 chain snapshots.
     #[serde(default)]
     pub conditional_share_balances_t: ConditionalShareBalances,
+    /// TRACE_MATRIX TB-15 Atom 3 (architect §6.2 ruling 2026-05-02 + §6.5
+    /// SG-15.1 + SG-15.2): per-event autopsy index.
+    /// `BTreeMap<EventId, Vec<Cid>>` — for each event with at least one
+    /// loss-emission, accumulates the CAS Cids of `AgentAutopsyCapsule`
+    /// objects (one per losing agent). **Stores Cids only**, NEVER the
+    /// raw capsule bytes — the bytes live in CAS behind
+    /// `ObjectType::AgentAutopsyCapsule` (and the audit-only
+    /// `private_detail_cid` lives behind `ObjectType::AutopsyPrivateDetail`).
+    ///
+    /// **NOT projected to `AgentVisibleProjection`** (CR-15.1 + halt-
+    /// trigger #1). Sequencer-side index only; surfaces via
+    /// dashboard §15 (Atom 6) + ChainTape replay regeneration. Other
+    /// Agents cannot retrieve the bytes through their `tape_view_t`
+    /// (SG-15.2 + halt-trigger #4).
+    ///
+    /// `#[serde(default)]` for backward-compat with pre-TB-15 chain snapshots.
+    #[serde(default)]
+    pub agent_autopsies_t: AutopsyIndex,
 }
 
 /// TRACE_MATRIX WP § 2 — agent → balance ledger. Concrete entry: `MicroCoin` (CO1.0a).
@@ -714,6 +732,21 @@ impl Default for ChallengeCase {
 // truth"; charter §7 auto-resolution A: "no second source-of-truth").
 // `EconomicState.price_index_t` field also removed at architect §5.2.
 
+/// TRACE_MATRIX TB-15 Atom 3 (architect §6.2 + DECISION_LAMARCKIAN §1.1):
+/// per-event autopsy index. `BTreeMap<EventId, Vec<Cid>>` — one Cid per
+/// `AgentAutopsyCapsule` emitted on a loss event (TB-15 v0 sole trigger
+/// = TaskBankruptcyTx; per-staker capsule emission). **Cids only** —
+/// the capsule bytes live in CAS behind `ObjectType::AgentAutopsyCapsule`.
+///
+/// Sequencer-side index ONLY. NOT projected to `AgentVisibleProjection`
+/// (CR-15.1 + halt-trigger #1). Other agents cannot retrieve the bytes
+/// through their `tape_view_t` (SG-15.2 + halt-trigger #4).
+///
+/// BTreeMap iteration order is sorted-by-`EventId` → deterministic →
+/// replay-safe.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct AutopsyIndex(pub BTreeMap<crate::state::typed_tx::EventId, Vec<crate::bottom_white::cas::schema::Cid>>);
+
 // ────────────────────────────────────────────────────────────────────────────
 // QState — § 1.1 verbatim, 9 fields.
 // ────────────────────────────────────────────────────────────────────────────
@@ -800,7 +833,7 @@ mod tests {
     }
 
     #[test]
-    fn economic_state_has_twelve_sub_fields() {
+    fn economic_state_has_thirteen_sub_fields() {
         // TB-11 (2026-05-02 architect ruling §6.2): 9 → 10 sub-fields with +runs_t.
         // TB-12 (2026-05-03 architect ruling §3 + §8 Atom 1): 10 → 11 sub-fields
         // with +node_positions_t (flat NodePositionsIndex; canonical exposure
@@ -815,19 +848,24 @@ mod tests {
         // `compute_price_index` pure-fn derived view, not canonical state —
         // "price is signal, not truth"; charter §7 auto-resolution A: no
         // second source-of-truth).
+        // TB-15 Atom 3 (2026-05-03 architect ruling §6.2): 12 → 13 sub-fields
+        // with +agent_autopsies_t (`AutopsyIndex` = `BTreeMap<EventId, Vec<Cid>>`;
+        // sequencer-side per-event Cid index; capsule bytes live in CAS;
+        // NOT projected to AgentVisibleProjection per CR-15.1 + halt-trigger #1).
         let e = EconomicState::default();
         let s = serde_json::to_value(&e).unwrap();
         let obj = s.as_object().unwrap();
         assert_eq!(
             obj.len(),
-            12,
-            "EconomicState must have 12 sub-fields post-TB-14 (was 13 post-TB-13; -price_index_t legacy stub); got {}",
+            13,
+            "EconomicState must have 13 sub-fields post-TB-15 (was 12 post-TB-14; +agent_autopsies_t); got {}",
             obj.len()
         );
         assert!(obj.contains_key("runs_t"), "TB-11 runs_t sub-field missing");
         assert!(obj.contains_key("node_positions_t"), "TB-12 node_positions_t sub-field missing");
         assert!(obj.contains_key("conditional_collateral_t"), "TB-13 conditional_collateral_t sub-field missing");
         assert!(obj.contains_key("conditional_share_balances_t"), "TB-13 conditional_share_balances_t sub-field missing");
+        assert!(obj.contains_key("agent_autopsies_t"), "TB-15 agent_autopsies_t sub-field missing");
         assert!(!obj.contains_key("price_index_t"), "TB-14 Atom 2: price_index_t MUST be removed");
     }
 

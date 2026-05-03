@@ -323,6 +323,146 @@ pub fn write_autopsy_capsule(
     Ok(capsule)
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// TB-15 Atom 3 — `derive_autopsies_for_bankruptcy` (PURE deterministic helper)
+// ────────────────────────────────────────────────────────────────────────────
+//
+// Pure function consumed by both the dispatch arm (to populate
+// `EconomicState.agent_autopsies_t` with deterministic Cids) AND by
+// the apply_one post-dispatch hook (to write the same bytes to CAS so
+// they're retrievable). Replay-determinism: identical inputs → identical
+// `(Cid, AgentAutopsyCapsule, private_detail_bytes)` triples.
+
+use crate::state::q_state::EconomicState;
+use crate::state::typed_tx::TaskBankruptcyTx;
+
+/// TRACE_MATRIX FC1-N33 (TB-15 Atom 3; architect §6.2 + DECISION_LAMARCKIAN
+/// §1.1): pure-deterministic derivation of `AgentAutopsyCapsule`s for a
+/// `TaskBankruptcyTx`. Returns one capsule per agent with an active
+/// `StakeEntry` pointing at the bankrupted task — `loss_reason_class =
+/// Bankruptcy`; `loss_amount = stake.amount`; `evidence_cids = [Cid of
+/// stake_tx_id]`. BTreeMap iteration is sorted by `TxId` → output order
+/// is deterministic.
+///
+/// **Pure**: takes pre-bankruptcy `EconomicState` snapshot + the
+/// `TaskBankruptcyTx`; no CAS writes, no env access. Used by:
+/// - dispatch arm: capsule_id population into `agent_autopsies_t`
+/// - apply_one hook: CAS write of the same deterministic bytes
+///
+/// Replay determinism (Art.0.2): identical `(pre_econ, bk, round, t)` →
+/// identical `Vec<(AgentAutopsyCapsule, Vec<u8>)>` (same Cids, same bytes,
+/// same order).
+pub fn derive_autopsies_for_bankruptcy(
+    pre_econ: &EconomicState,
+    bk: &TaskBankruptcyTx,
+    created_at_round: u64,
+    created_at_logical_t: u64,
+) -> Vec<(AgentAutopsyCapsule, Vec<u8>)> {
+    let event_id = EventId(bk.task_id.clone());
+    let mut out = Vec::new();
+
+    for (stake_tx_id, stake) in pre_econ.stakes_t.0.iter() {
+        if stake.task_id != bk.task_id {
+            continue;
+        }
+        // Deterministic private_detail JSON.
+        let private_detail = format!(
+            "{{\"event_kind\":\"task_bankruptcy\",\"task_id\":\"{}\",\
+             \"stake_tx_id\":\"{}\",\"staker\":\"{}\",\
+             \"stake_amount_micro\":{}}}",
+            stake.task_id.0,
+            stake_tx_id.0,
+            stake.staker.0,
+            stake.amount.micro_units()
+        );
+        let private_bytes = private_detail.into_bytes();
+        let private_detail_cid = Cid::from_content(&private_bytes);
+
+        let public_summary = AgentAutopsyCapsule::format_public_summary(
+            &stake.staker,
+            &event_id,
+            stake.amount,
+            &LossReasonClass::Bankruptcy,
+        );
+
+        let mut capsule = AgentAutopsyCapsule {
+            capsule_id: Cid::default(),
+            agent_id: stake.staker.clone(),
+            event_id: event_id.clone(),
+            loss_amount: stake.amount,
+            loss_reason_class: LossReasonClass::Bankruptcy,
+            violated_risk_rule: None,
+            suggested_policy_patch: None,
+            evidence_cids: vec![Cid::from_content(stake_tx_id.0.as_bytes())],
+            public_summary,
+            private_detail_cid,
+            privacy_policy: CapsulePrivacyPolicy::AuditOnly,
+            sha256: Hash::ZERO,
+            created_at_logical_t,
+            created_at_round,
+        };
+        let prelim_bytes = canonical_encode(&capsule)
+            .expect("AgentAutopsyCapsule is canonical-encodable");
+        let cid = Cid::from_content(&prelim_bytes);
+        capsule.capsule_id = cid;
+        capsule.sha256 = Hash(cid.0);
+
+        out.push((capsule, private_bytes));
+    }
+    out
+}
+
+/// TRACE_MATRIX FC1-N33 (TB-15 Atom 3): apply_one post-dispatch hook —
+/// writes deterministic autopsy bytes to CAS for a successfully-accepted
+/// `TaskBankruptcyTx`. Re-derives the capsule list using
+/// `derive_autopsies_for_bankruptcy` (same inputs → same Cids as the
+/// dispatch arm already populated into `agent_autopsies_t`).
+///
+/// Idempotent: CAS `put` of identical bytes returns the existing Cid
+/// (replay-safe — re-running apply_one yields the same CAS state).
+pub fn write_bankruptcy_autopsies_to_cas(
+    cas: &std::sync::Arc<std::sync::RwLock<CasStore>>,
+    pre_econ: &EconomicState,
+    bk: &TaskBankruptcyTx,
+    created_at_round: u64,
+    created_at_logical_t: u64,
+    creator_str: &str,
+) -> Result<Vec<Cid>, AutopsyWriteError> {
+    let derived = derive_autopsies_for_bankruptcy(
+        pre_econ,
+        bk,
+        created_at_round,
+        created_at_logical_t,
+    );
+    let mut cids = Vec::with_capacity(derived.len());
+    let mut cas_w = cas
+        .write()
+        .map_err(|_| AutopsyWriteError::InternalLockPoisoned)?;
+    for (capsule, private_bytes) in derived {
+        // Write private_detail bytes (idempotent put — Cid matches what
+        // the dispatch arm derived).
+        let _ = cas_w.put(
+            &private_bytes,
+            ObjectType::AutopsyPrivateDetail,
+            creator_str,
+            created_at_logical_t,
+            Some("v1/autopsy_private_detail".into()),
+        )?;
+        // Write canonical capsule bytes.
+        let final_bytes = canonical_encode(&capsule)
+            .map_err(|e| AutopsyWriteError::Encode(format!("capsule final encode: {e:?}")))?;
+        let _ = cas_w.put(
+            &final_bytes,
+            ObjectType::AgentAutopsyCapsule,
+            creator_str,
+            created_at_logical_t,
+            Some("v1/agent_autopsy_capsule".into()),
+        )?;
+        cids.push(capsule.capsule_id);
+    }
+    Ok(cids)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -468,6 +608,189 @@ mod tests {
         assert_eq!(
             LossReasonClass::Other("CustomThing".into()).tag(),
             "CustomThing"
+        );
+    }
+
+    // ───────────────────────────────────────────────────────────────────
+    // Atom 3 — derive_autopsies_for_bankruptcy tests
+    // ───────────────────────────────────────────────────────────────────
+
+    use crate::state::q_state::{
+        BalancesIndex, EconomicState, StakeEntry, StakesIndex, TaskMarketEntry,
+        TaskMarketState, TaskMarketsIndex, TxId,
+    };
+    use crate::state::typed_tx::TaskBankruptcyTx;
+
+    fn synthetic_econ_with_stakes(task_id: &str, stakers: &[(&str, &str, i64)]) -> EconomicState {
+        let mut econ = EconomicState::default();
+        // Add a TaskMarketEntry so the dispatch arm could find the task —
+        // not strictly needed by derive_autopsies_for_bankruptcy itself.
+        econ.task_markets_t = TaskMarketsIndex::default();
+        econ.task_markets_t.0.insert(
+            TaskId(task_id.into()),
+            TaskMarketEntry {
+                state: TaskMarketState::Open,
+                ..Default::default()
+            },
+        );
+        // Pre-bankruptcy stakes for the target task (and one off-target
+        // stake to verify the filter works).
+        let mut stakes = StakesIndex::default();
+        for (stake_tx_id, staker_id, amt) in stakers {
+            stakes.0.insert(
+                TxId((*stake_tx_id).into()),
+                StakeEntry {
+                    amount: MicroCoin::from_micro_units(*amt),
+                    staker: AgentId((*staker_id).into()),
+                    task_id: TaskId(task_id.into()),
+                },
+            );
+        }
+        // One off-target stake — same Map, different task_id; must be
+        // filtered out.
+        stakes.0.insert(
+            TxId("stake_off_target".into()),
+            StakeEntry {
+                amount: MicroCoin::from_micro_units(999),
+                staker: AgentId("Agent_off_target".into()),
+                task_id: TaskId("task:other".into()),
+            },
+        );
+        econ.stakes_t = stakes;
+        econ.balances_t = BalancesIndex::default();
+        econ
+    }
+
+    fn synthetic_bk(task_id: &str) -> TaskBankruptcyTx {
+        TaskBankruptcyTx {
+            task_id: TaskId(task_id.into()),
+            timestamp_logical: 100,
+            ..Default::default()
+        }
+    }
+
+    /// TB-15 Atom 3 — derive_autopsies_for_bankruptcy: per-staker
+    /// emission for the target task; off-target stakes filtered out.
+    #[test]
+    fn derive_autopsies_emits_one_per_staker_target_only() {
+        let task = "task:tb15:bankruptcy";
+        let econ = synthetic_econ_with_stakes(
+            task,
+            &[("stake_tx_a", "Agent_A", 1000), ("stake_tx_b", "Agent_B", 2000)],
+        );
+        let bk = synthetic_bk(task);
+
+        let derived = derive_autopsies_for_bankruptcy(&econ, &bk, /*round=*/ 5, /*t=*/ 100);
+
+        assert_eq!(
+            derived.len(),
+            2,
+            "2 stakers on the target task → 2 capsules; off-target stake filtered out"
+        );
+        let agents: Vec<&str> = derived
+            .iter()
+            .map(|(c, _)| c.agent_id.0.as_str())
+            .collect();
+        assert!(agents.contains(&"Agent_A"));
+        assert!(agents.contains(&"Agent_B"));
+        assert!(!agents.contains(&"Agent_off_target"));
+
+        // Each capsule reports the correct event_id, loss_amount,
+        // loss_reason_class, and a populated capsule_id.
+        for (c, _bytes) in &derived {
+            assert_eq!(c.event_id.0 .0, task);
+            assert_eq!(c.loss_reason_class, LossReasonClass::Bankruptcy);
+            assert_ne!(c.capsule_id, Cid::default());
+            assert_eq!(c.capsule_id.0, c.sha256.0);
+            assert!(c.public_summary.contains(task));
+            assert!(c.public_summary.contains("Bankruptcy"));
+        }
+    }
+
+    /// TB-15 Atom 3 — derive_autopsies_for_bankruptcy: same inputs →
+    /// identical (Cid, capsule, bytes) — replay-determinism foundation
+    /// (Art.0.2). Underwrites the dispatch / apply_one Cid agreement.
+    #[test]
+    fn derive_autopsies_deterministic_across_calls() {
+        let task = "task:tb15:det";
+        let econ = synthetic_econ_with_stakes(
+            task,
+            &[("stake_tx_x", "Agent_X", 500), ("stake_tx_y", "Agent_Y", 750)],
+        );
+        let bk = synthetic_bk(task);
+
+        let a = derive_autopsies_for_bankruptcy(&econ, &bk, 3, 50);
+        let b = derive_autopsies_for_bankruptcy(&econ, &bk, 3, 50);
+
+        assert_eq!(a.len(), b.len());
+        for (i, ((ca, ba), (cb, bb))) in a.iter().zip(b.iter()).enumerate() {
+            assert_eq!(ca.capsule_id, cb.capsule_id, "capsule {i} cid mismatch");
+            assert_eq!(ca, cb, "capsule {i} struct mismatch");
+            assert_eq!(ba, bb, "capsule {i} private_detail bytes mismatch");
+        }
+    }
+
+    /// TB-15 Atom 3 — derive_autopsies_for_bankruptcy: no stakers on
+    /// the bankrupted task → empty Vec (no capsules emitted).
+    #[test]
+    fn derive_autopsies_empty_when_no_stakers() {
+        let task = "task:tb15:nostakers";
+        let mut econ = EconomicState::default();
+        econ.task_markets_t.0.insert(
+            TaskId(task.into()),
+            TaskMarketEntry {
+                state: TaskMarketState::Open,
+                ..Default::default()
+            },
+        );
+        let bk = synthetic_bk(task);
+        let derived = derive_autopsies_for_bankruptcy(&econ, &bk, 0, 0);
+        assert!(derived.is_empty());
+    }
+
+    /// TB-15 Atom 3 — write_bankruptcy_autopsies_to_cas: writes
+    /// 2 CAS objects per staker (capsule + private_detail). Returned
+    /// Cids match the dispatch arm's deterministic derivation.
+    #[test]
+    fn write_bankruptcy_autopsies_to_cas_round_trip() {
+        use std::sync::{Arc, RwLock};
+        use tempfile::TempDir;
+
+        let task = "task:tb15:cas_writeback";
+        let econ = synthetic_econ_with_stakes(
+            task,
+            &[("stake_w1", "Agent_W1", 100), ("stake_w2", "Agent_W2", 200)],
+        );
+        let bk = synthetic_bk(task);
+
+        let tmp = TempDir::new().expect("tempdir");
+        let cas = Arc::new(RwLock::new(
+            crate::bottom_white::cas::store::CasStore::open(tmp.path()).expect("cas"),
+        ));
+
+        let cids = write_bankruptcy_autopsies_to_cas(
+            &cas,
+            &econ,
+            &bk,
+            7,
+            42,
+            "tb15-test-writer",
+        )
+        .expect("write succeeds");
+
+        assert_eq!(cids.len(), 2);
+
+        // Cids match what derive returns (replay-determinism contract).
+        let derived = derive_autopsies_for_bankruptcy(&econ, &bk, 7, 42);
+        let derived_cids: Vec<Cid> = derived.iter().map(|(c, _)| c.capsule_id).collect();
+        assert_eq!(cids, derived_cids);
+
+        // CAS now contains 4 objects per 2 stakers: 2 private_detail + 2 capsule.
+        let cas_r = cas.read().expect("cas read");
+        assert_eq!(
+            cas_r.len(),
+            4,
+            "2 stakers × 2 CAS objects (private_detail + capsule) = 4"
         );
     }
 }

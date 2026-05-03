@@ -11,7 +11,7 @@ use turingosv4::state::{
 };
 
 #[test]
-fn twelve_sub_fields_present() {
+fn thirteen_sub_fields_present() {
     // TB-12: was ten (TB-11 +runs_t); +node_positions_t (architect
     // 2026-05-03 §3). TB-13 Atom 2 (architect 2026-05-03 post-TB-12
     // ruling Part A §4.3): 11 → 13 (+conditional_collateral_t Coin
@@ -20,6 +20,11 @@ fn twelve_sub_fields_present() {
     // TB-14 derives the price view via `compute_price_index` pure fn,
     // not stored as canonical state — "price is signal, not truth";
     // charter §7 auto-resolution A: no second source-of-truth).
+    // TB-15 Atom 3 (2026-05-03; architect §6.2 ruling): 12 → 13
+    // (+agent_autopsies_t — `AutopsyIndex` = `BTreeMap<EventId, Vec<Cid>>`;
+    // sequencer-side per-event Cid index for AgentAutopsyCapsule emission;
+    // capsule bytes live in CAS; NOT projected to AgentVisibleProjection
+    // per CR-15.1 + halt-trigger #1).
     let e = EconomicState::default();
     let v = serde_json::to_value(&e).unwrap();
     let obj = v.as_object().unwrap();
@@ -36,8 +41,9 @@ fn twelve_sub_fields_present() {
         "node_positions_t",                // TB-12 (architect 2026-05-03 ruling §3 + §8 Atom 1)
         "conditional_collateral_t",        // TB-13 Atom 2 (architect 2026-05-03 post-TB-12 ruling §4.3)
         "conditional_share_balances_t",    // TB-13 Atom 2
+        "agent_autopsies_t",               // TB-15 Atom 3 (architect §6.2 ruling 2026-05-02 + 2026-05-03)
     ];
-    assert_eq!(obj.len(), 12);
+    assert_eq!(obj.len(), 13);
     for n in names.iter() {
         assert!(obj.contains_key(*n), "missing sub-field {}", n);
     }
