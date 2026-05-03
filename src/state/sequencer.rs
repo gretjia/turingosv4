@@ -557,6 +557,36 @@ pub(crate) fn dispatch_transition(
                     task_id: work.task_id.clone(),
                 },
             );
+            // ──────────────────────────────────────────────────────────────
+            // TB-12 Atom 2 (architect 2026-05-03 ruling §3 + §8 Atom 2):
+            // accepted WorkTx with stake > 0 derives a `FirstLong`
+            // NodePosition exposure record. Pure additive index write —
+            // **no money mutation**, **no change** to balances_t / stakes_t
+            // / total_supply (those are handled above by TB-3 economic
+            // logic). NodePosition.amount is **NOT a Coin holding** per
+            // CR-12.1 + CR-12.2; the 5-holding CTF sum stays unchanged.
+            // FR-12.1 + FR-12.4: kind = FirstLong; node_id = work.tx_id;
+            // position_id = source_tx = work.tx_id (one-source-tx-one-position
+            // invariant for TB-12 per architect §4 last paragraph).
+            // ──────────────────────────────────────────────────────────────
+            if work.stake.micro_units() > 0 {
+                let position = crate::state::typed_tx::NodePosition {
+                    position_id: work.tx_id.clone(),
+                    node_id: work.tx_id.clone(),
+                    task_id: work.task_id.clone(),
+                    owner: work.agent_id.clone(),
+                    side: crate::state::typed_tx::PositionSide::Long,
+                    kind: crate::state::typed_tx::PositionKind::FirstLong,
+                    amount: work.stake.0,
+                    source_tx: work.tx_id.clone(),
+                    opened_at_round: work.timestamp_logical,
+                };
+                q_next
+                    .economic_state_t
+                    .node_positions_t
+                    .0
+                    .insert(work.tx_id.clone(), position);
+            }
             // state_root advance (existing TB-2; WORKTX_ACCEPT_DOMAIN_V1).
             q_next.state_root_t = worktx_accept_state_root(&q.state_root_t, tx);
 
@@ -779,6 +809,45 @@ pub(crate) fn dispatch_transition(
                     status: crate::state::q_state::ChallengeStatus::Open, // TB-5 ABI default
                 },
             );
+            // ──────────────────────────────────────────────────────────────
+            // TB-12 Atom 2 (architect 2026-05-03 ruling §3 + §8 Atom 2):
+            // accepted ChallengeTx with stake > 0 derives a `ChallengeShort`
+            // NodePosition exposure record. Pure additive index write —
+            // **no money mutation**, **no change** to balances_t /
+            // challenge_cases_t / total_supply (those are handled above by
+            // TB-4 economic logic). NodePosition.amount is **NOT a Coin
+            // holding** per CR-12.1 + CR-12.2; the 5-holding CTF sum stays
+            // unchanged. FR-12.2 + FR-12.5: kind = ChallengeShort; node_id
+            // = challenge.target_work_tx; position_id = source_tx =
+            // challenge.tx_id. task_id derived via stakes_t[target_work_tx]
+            // (the target's stake row holds the task_id backref).
+            // ──────────────────────────────────────────────────────────────
+            if challenge.stake.micro_units() > 0 {
+                // Q-derive task_id from the target WorkTx's stake row.
+                let task_id_for_position = q
+                    .economic_state_t
+                    .stakes_t
+                    .0
+                    .get(&challenge.target_work_tx)
+                    .map(|s| s.task_id.clone())
+                    .unwrap_or_default();
+                let position = crate::state::typed_tx::NodePosition {
+                    position_id: challenge.tx_id.clone(),
+                    node_id: challenge.target_work_tx.clone(),
+                    task_id: task_id_for_position,
+                    owner: challenge.challenger_agent.clone(),
+                    side: crate::state::typed_tx::PositionSide::Short,
+                    kind: crate::state::typed_tx::PositionKind::ChallengeShort,
+                    amount: challenge.stake.0,
+                    source_tx: challenge.tx_id.clone(),
+                    opened_at_round: challenge.timestamp_logical,
+                };
+                q_next
+                    .economic_state_t
+                    .node_positions_t
+                    .0
+                    .insert(challenge.tx_id.clone(), position);
+            }
             // Step 7: monetary invariants (debit = credit; challenge_cases.bond
             // is the 5th holding term).
             assert_no_post_init_mint(tx, q)
