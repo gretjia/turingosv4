@@ -300,31 +300,90 @@ impl BoltzmannMaskPolicy {
                 .unwrap_or(fallback)
         }
 
+        // TB-14 Atom 6 follow-up (architect ruling 2026-05-03 step 2):
+        // env-load validation for production safety. Per Codex R1 secondary
+        // CHALLENGE — `from_env` previously accepted nonsensical values
+        // (negative `min_liquidity` flowing into MicroCoin; zero
+        // `price_margin` denominator interacting with saturating_sub in
+        // dominates_by). Rule per architect ruling:
+        //   - min_liquidity > 0           (non-positive → fall back to default)
+        //   - price_margin > 0            (zero numerator OR zero denominator → default)
+        //   - beta_den > 0                (zero → default; argmax tiebreaker)
+        //   - beta_num >= 0               (negative → default)
+        //   - epsilon in [0, 1]           (num > den → default; den=0 also → default)
+        //
+        // Fail-soft policy unchanged (Art.I.1 + C-027): a misconfigured
+        // env var falls back to `Default::default()` for THAT FIELD.
+        // Misconfiguration must not crash the swarm; production semantics
+        // must remain inside the architect-mandated invariant envelope.
+        let beta_num_raw = parse_i64("BOLTZMANN_BETA_NUM", default.beta_num);
+        let beta_num = if beta_num_raw >= 0 {
+            beta_num_raw
+        } else {
+            default.beta_num
+        };
+        let beta_den_raw = parse_i64("BOLTZMANN_BETA_DEN", default.beta_den);
+        let beta_den = if beta_den_raw > 0 {
+            beta_den_raw
+        } else {
+            default.beta_den
+        };
+
+        let min_liq_raw = parse_i64(
+            "BOLTZMANN_MIN_LIQUIDITY_MICRO",
+            default.min_liquidity.micro_units(),
+        );
+        let min_liquidity = if min_liq_raw > 0 {
+            MicroCoin::from_micro_units(min_liq_raw)
+        } else {
+            default.min_liquidity
+        };
+
+        let pm_num = parse_u128(
+            "BOLTZMANN_PRICE_MARGIN_NUM",
+            default.price_margin.numerator,
+        );
+        let pm_den = parse_u128(
+            "BOLTZMANN_PRICE_MARGIN_DEN",
+            default.price_margin.denominator,
+        );
+        let price_margin = if pm_num > 0 && pm_den > 0 {
+            RationalPrice {
+                numerator: pm_num,
+                denominator: pm_den,
+            }
+        } else {
+            default.price_margin
+        };
+
+        let eps_num = parse_u64(
+            "BOLTZMANN_EPSILON_NUM",
+            default.epsilon_exploration_num,
+        );
+        let eps_den = parse_u64(
+            "BOLTZMANN_EPSILON_DEN",
+            default.epsilon_exploration_den,
+        );
+        // epsilon ∈ [0, 1] interpreted as eps_num / eps_den ∈ [0, 1].
+        // den must be > 0; num must be ≤ den (epsilon ≤ 1; epsilon = 0 is
+        // the "no exploration" boundary and is accepted).
+        let (epsilon_exploration_num, epsilon_exploration_den) =
+            if eps_den > 0 && eps_num <= eps_den {
+                (eps_num, eps_den)
+            } else {
+                (
+                    default.epsilon_exploration_num,
+                    default.epsilon_exploration_den,
+                )
+            };
+
         Self {
-            beta_num: parse_i64("BOLTZMANN_BETA_NUM", default.beta_num),
-            beta_den: parse_i64("BOLTZMANN_BETA_DEN", default.beta_den),
-            min_liquidity: MicroCoin::from_micro_units(parse_i64(
-                "BOLTZMANN_MIN_LIQUIDITY_MICRO",
-                default.min_liquidity.micro_units(),
-            )),
-            price_margin: RationalPrice {
-                numerator: parse_u128(
-                    "BOLTZMANN_PRICE_MARGIN_NUM",
-                    default.price_margin.numerator,
-                ),
-                denominator: parse_u128(
-                    "BOLTZMANN_PRICE_MARGIN_DEN",
-                    default.price_margin.denominator,
-                ),
-            },
-            epsilon_exploration_num: parse_u64(
-                "BOLTZMANN_EPSILON_NUM",
-                default.epsilon_exploration_num,
-            ),
-            epsilon_exploration_den: parse_u64(
-                "BOLTZMANN_EPSILON_DEN",
-                default.epsilon_exploration_den,
-            ),
+            beta_num,
+            beta_den,
+            min_liquidity,
+            price_margin,
+            epsilon_exploration_num,
+            epsilon_exploration_den,
         }
     }
 }
@@ -867,6 +926,166 @@ mod tests {
         let json = serde_json::to_string(&p).unwrap();
         let back: BoltzmannMaskPolicy = serde_json::from_str(&json).unwrap();
         assert_eq!(p, back, "serde JSON round-trip identity");
+    }
+
+    // ─── B′ step 2 (architect ruling 2026-05-03) — env validation ───────
+    //
+    // Per Codex R1 secondary CHALLENGE: from_env previously accepted
+    // nonsensical values (negative min_liquidity, zero price_margin
+    // denominator). Each test below pins the per-field validation rule:
+    // invalid input falls back to the field's Default value (fail-soft;
+    // misconfiguration must not crash the swarm; production semantics
+    // must remain inside the architect-mandated invariant envelope).
+
+    #[test]
+    fn boltzmann_from_env_negative_min_liquidity_falls_back_to_default() {
+        with_env_isolated(|| {
+            std::env::set_var("BOLTZMANN_MIN_LIQUIDITY_MICRO", "-500000");
+            let p = BoltzmannMaskPolicy::from_env();
+            assert_eq!(
+                p.min_liquidity,
+                BoltzmannMaskPolicy::default().min_liquidity,
+                "negative min_liquidity must fall back to default (architect step 2: min_liquidity > 0)"
+            );
+        });
+    }
+
+    #[test]
+    fn boltzmann_from_env_zero_min_liquidity_falls_back_to_default() {
+        with_env_isolated(|| {
+            std::env::set_var("BOLTZMANN_MIN_LIQUIDITY_MICRO", "0");
+            let p = BoltzmannMaskPolicy::from_env();
+            assert_eq!(
+                p.min_liquidity,
+                BoltzmannMaskPolicy::default().min_liquidity,
+                "zero min_liquidity must fall back to default (architect step 2: min_liquidity > 0; > not >=)"
+            );
+        });
+    }
+
+    #[test]
+    fn boltzmann_from_env_zero_price_margin_denominator_falls_back_to_default() {
+        with_env_isolated(|| {
+            std::env::set_var("BOLTZMANN_PRICE_MARGIN_DEN", "0");
+            let p = BoltzmannMaskPolicy::from_env();
+            assert_eq!(
+                p.price_margin,
+                BoltzmannMaskPolicy::default().price_margin,
+                "zero price_margin denominator must fall back to default (architect step 2: price_margin > 0)"
+            );
+        });
+    }
+
+    #[test]
+    fn boltzmann_from_env_zero_price_margin_numerator_falls_back_to_default() {
+        with_env_isolated(|| {
+            std::env::set_var("BOLTZMANN_PRICE_MARGIN_NUM", "0");
+            let p = BoltzmannMaskPolicy::from_env();
+            assert_eq!(
+                p.price_margin,
+                BoltzmannMaskPolicy::default().price_margin,
+                "zero price_margin numerator must fall back to default (architect step 2: price_margin > 0)"
+            );
+        });
+    }
+
+    #[test]
+    fn boltzmann_from_env_zero_beta_den_falls_back_to_default() {
+        with_env_isolated(|| {
+            std::env::set_var("BOLTZMANN_BETA_DEN", "0");
+            let p = BoltzmannMaskPolicy::from_env();
+            assert_eq!(
+                p.beta_den,
+                BoltzmannMaskPolicy::default().beta_den,
+                "zero beta_den must fall back to default (architect step 2: beta_den > 0)"
+            );
+        });
+    }
+
+    #[test]
+    fn boltzmann_from_env_negative_beta_num_falls_back_to_default() {
+        with_env_isolated(|| {
+            std::env::set_var("BOLTZMANN_BETA_NUM", "-3");
+            let p = BoltzmannMaskPolicy::from_env();
+            assert_eq!(
+                p.beta_num,
+                BoltzmannMaskPolicy::default().beta_num,
+                "negative beta_num must fall back to default (architect step 2: beta_num >= 0)"
+            );
+        });
+    }
+
+    #[test]
+    fn boltzmann_from_env_zero_beta_num_accepted() {
+        with_env_isolated(|| {
+            std::env::set_var("BOLTZMANN_BETA_NUM", "0");
+            let p = BoltzmannMaskPolicy::from_env();
+            assert_eq!(
+                p.beta_num, 0,
+                "zero beta_num is INSIDE [0, ∞) range and must be accepted (architect step 2: beta_num >= 0)"
+            );
+        });
+    }
+
+    #[test]
+    fn boltzmann_from_env_epsilon_above_one_falls_back_to_default() {
+        with_env_isolated(|| {
+            // epsilon = 11/10 > 1.0 → invalid → default.
+            std::env::set_var("BOLTZMANN_EPSILON_NUM", "11");
+            std::env::set_var("BOLTZMANN_EPSILON_DEN", "10");
+            let p = BoltzmannMaskPolicy::from_env();
+            let d = BoltzmannMaskPolicy::default();
+            assert_eq!(
+                (p.epsilon_exploration_num, p.epsilon_exploration_den),
+                (d.epsilon_exploration_num, d.epsilon_exploration_den),
+                "epsilon > 1 must fall back to default pair (architect step 2: epsilon ∈ [0, 1])"
+            );
+        });
+    }
+
+    #[test]
+    fn boltzmann_from_env_epsilon_zero_den_falls_back_to_default() {
+        with_env_isolated(|| {
+            // epsilon den=0 → division-by-zero risk → invalid → default.
+            std::env::set_var("BOLTZMANN_EPSILON_DEN", "0");
+            let p = BoltzmannMaskPolicy::from_env();
+            let d = BoltzmannMaskPolicy::default();
+            assert_eq!(
+                (p.epsilon_exploration_num, p.epsilon_exploration_den),
+                (d.epsilon_exploration_num, d.epsilon_exploration_den),
+                "epsilon den=0 must fall back to default pair (architect step 2: epsilon ∈ [0, 1] requires den > 0)"
+            );
+        });
+    }
+
+    #[test]
+    fn boltzmann_from_env_epsilon_zero_accepted() {
+        with_env_isolated(|| {
+            // epsilon = 0/100 = 0 is INSIDE [0, 1] (no exploration) → accepted.
+            std::env::set_var("BOLTZMANN_EPSILON_NUM", "0");
+            std::env::set_var("BOLTZMANN_EPSILON_DEN", "100");
+            let p = BoltzmannMaskPolicy::from_env();
+            assert_eq!(
+                (p.epsilon_exploration_num, p.epsilon_exploration_den),
+                (0, 100),
+                "epsilon = 0 is inside [0, 1] and must be accepted (architect step 2)"
+            );
+        });
+    }
+
+    #[test]
+    fn boltzmann_from_env_epsilon_at_one_accepted() {
+        with_env_isolated(|| {
+            // epsilon = 5/5 = 1 is INSIDE [0, 1] (always-explore boundary) → accepted.
+            std::env::set_var("BOLTZMANN_EPSILON_NUM", "5");
+            std::env::set_var("BOLTZMANN_EPSILON_DEN", "5");
+            let p = BoltzmannMaskPolicy::from_env();
+            assert_eq!(
+                (p.epsilon_exploration_num, p.epsilon_exploration_den),
+                (5, 5),
+                "epsilon = 1 is inside [0, 1] and must be accepted (architect step 2; always-explore boundary)"
+            );
+        });
     }
 
     #[test]

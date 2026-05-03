@@ -1601,18 +1601,31 @@ async fn run_swarm(
                                 payload.hash(&mut ph);
                                 proposal_hashes.insert(ph.finish());
                                 proposal_count += 1;
-                                // TB-14 Atom 6 (FC2-N29 production wire-up):
-                                // integer-rational scheduler. v2 takes the
-                                // `&snap.price_index` (BTreeMap<TxId,
-                                // NodeMarketEntry>) and `&snap.mask_set`
-                                // (BTreeSet<TxId>) directly — no f64
-                                // intermediate. Returns Option<TxId>;
-                                // predicate-blind (CR-14.1 + halt-trigger
-                                // #1) — purely a scheduling priority pick.
-                                let parent = boltzmann_select_parent_v2(
+                                // TB-14 Atom 6 follow-up (architect ruling
+                                // 2026-05-03 step 1): canonical TxId from v2
+                                // MUST NOT flow into legacy shadow
+                                // `bus.append` parent_id — kernel.tape uses
+                                // a different (shadow) id namespace, so a
+                                // canonical TxId becomes a dangling
+                                // citation. The v2 selector still runs (its
+                                // result is logged for observability /
+                                // future canonical wire-up — see B′ step 4
+                                // CanonicalNodeGraph + parent_tx replacement
+                                // for last_tx_by_agent), but its output is
+                                // explicitly NOT passed to bus.append below.
+                                // Charter amend records the canonical
+                                // namespace decision; this comment receipts
+                                // the surgical fix that closes Codex R1
+                                // VETO defect #1.
+                                let _v2_canonical_pick = boltzmann_select_parent_v2(
                                     &snap.price_index, &snap.mask_set,
                                     &policy, &mut boltz_rng,
-                                ).map(|tx| tx.0);
+                                );
+                                // Architect ruling 2026-05-03 step 1: "Use
+                                // None unless a real shadow id exists." No
+                                // canonical → shadow id mapping is currently
+                                // available; pass None (the legacy default).
+                                let parent: Option<String> = None;
 
                                 // ── TB-7 Atom 2: AUTHORITATIVE per-LLM-proposal routing ──
                                 //
