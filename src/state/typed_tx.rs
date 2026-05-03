@@ -1095,6 +1095,17 @@ impl Default for OutcomeSide {
     }
 }
 
+/// TRACE_MATRIX TB-15 Atom 2 (architect §6.2): identifier for a
+/// protocol-level risk rule (`max_position_size`, `max_drawdown`,
+/// `max_slippage`, `max_leverage`, `kelly_cap`, ...). Carried by
+/// `AgentAutopsyCapsule.violated_risk_rule` as `Option<RiskRuleId>` —
+/// names the protocol invariant that triggered the loss event, when
+/// applicable. Opaque newtype so the autopsy writer never depends on
+/// the live risk-rule registry (CR-15.3 — autopsy may suggest, never
+/// mutate).
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default)]
+pub struct RiskRuleId(pub String);
+
 /// TRACE_MATRIX TB-13 Atom 1 (architect §4.3): non-negative share count.
 ///
 /// Architect spec uses `units: i128`; we tighten to `u128` because TB-13

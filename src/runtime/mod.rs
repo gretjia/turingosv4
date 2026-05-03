@@ -50,6 +50,9 @@ pub mod genesis_report;
 /// TRACE_MATRIX TB-11 Atom 1 (architect §6.1 ruling 2026-05-02): EvidenceCapsule schema + writer surface. CAS-resident rollup of failed-run evidence (attempt_count / lean_error_count / sorry_block_count / parse_failure_count / partial_accept_count + compressed_log_cid + privacy_policy). Anchored on chain by `TerminalSummaryTx.evidence_capsule_cid` (architect's RunExhaustedTx role) and `TaskBankruptcyTx.evidence_capsule_cid`. Privacy default `AuditOnly` per architect §6.1 屏蔽规则.
 pub mod evidence_capsule;
 
+/// TRACE_MATRIX FC1-N32 + FC2-N30 (TB-15 Atom 2 + 4; architect §6.2 ruling 2026-05-02 + 2026-05-03): per-agent `AgentAutopsyCapsule` schema + writer (Atom 2) and `cluster_autopsies` typical-error broadcast (Atom 4). CAS-resident; AuditOnly default. Derived from ChainTape evidence — NEVER LLM self-narrative. Anchored on `EconomicState.agent_autopsies_t[event_id]: Vec<Cid>` (Atom 3).
+pub mod autopsy_capsule;
+
 /// TRACE_MATRIX FC2 Boot: TB-10 Atom 1 — Reusable preseed factory for chaintape genesis QState. Single source of truth for `tb7-7-sponsor` + `Agent_user_0` + `Agent_0..9` initial balances. Consumed by both evaluator (`--task-mode self|both`) and `lean_market` user CLI bootstrap. Pure function; replay-deterministic.
 pub mod bootstrap;
 

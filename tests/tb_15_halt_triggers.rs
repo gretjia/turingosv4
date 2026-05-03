@@ -53,7 +53,35 @@ fn markov_capsule_references_constitution_hash() {
 // ────────────────────────────────────────────────────────────────────
 #[test]
 fn autopsy_does_not_mutate_predicates() {
-    unimplemented!("TB-15 halt #3 — backfill in Atom 2");
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    let path = format!("{}/src/runtime/autopsy_capsule.rs", manifest);
+    let body = std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("read {}: {}", path, e));
+
+    // The autopsy module MUST NOT contain any mutator surface against
+    // the predicate / tool / risk-policy registries. Constructed at
+    // runtime to avoid this test's own source containing the forbidden
+    // substrings (and triggering self-trip on the file scan).
+    let forbidden: Vec<String> = vec![
+        format!("&mut Predicate{}", "Registry"),
+        format!("&mut Tool{}", "Registry"),
+        format!("&mut Risk{}", "PolicyRegistry"),
+        format!("&mut PredicateRunner"),
+        format!(".register_predicate("),
+        format!(".unregister_predicate("),
+        format!(".patch_predicate("),
+        format!(".register_tool("),
+        format!(".unregister_tool("),
+    ];
+    for tok in &forbidden {
+        assert!(
+            !body.contains(tok.as_str()),
+            "halt-trigger #3: autopsy_capsule.rs MUST NOT contain `{}` — \
+             autopsy carries `suggested_policy_patch: Option<Cid>` only as a \
+             SUGGESTION pointer; never auto-applied (CR-15.3 + SG-15.8)",
+            tok
+        );
+    }
 }
 
 // ────────────────────────────────────────────────────────────────────

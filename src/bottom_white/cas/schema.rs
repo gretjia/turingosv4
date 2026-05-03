@@ -64,6 +64,29 @@ pub enum ObjectType {
     /// Privacy default `CapsulePrivacyPolicy::AuditOnly` — never enters
     /// Agent read view.
     CompressedRunLog,
+    /// TB-15 (architect §6.2): canonical-encoded `AgentAutopsyCapsule`
+    /// bytes. Per-agent, per-event loss capsule derived from ChainTape
+    /// evidence (NEVER from agent self-narration). Anchored from
+    /// `EconomicState.agent_autopsies_t[event_id]: Vec<Cid>`.
+    /// Privacy default `CapsulePrivacyPolicy::AuditOnly`; only
+    /// `public_summary` text may broadcast on N≥3 typical-error cluster.
+    AgentAutopsyCapsule,
+    /// TB-15 (architect §6.2): private-detail JSON for an
+    /// `AgentAutopsyCapsule`. Referenced by
+    /// `AgentAutopsyCapsule.private_detail_cid`. Audit-only by default;
+    /// MUST NOT enter `AgentVisibleProjection`.
+    AutopsyPrivateDetail,
+    /// TB-15 (architect §6.2): canonical-encoded `MarkovEvidenceCapsule`
+    /// bytes. End-of-TB rollup binding constitution_hash + L4 root +
+    /// L4.E root + CAS root + previous_capsule_cid + typical_errors +
+    /// unresolved_obs + next_session_context_cid. Default next-session
+    /// bootstrap source; deeper history requires `TURINGOS_MARKOV_OVERRIDE=1`.
+    MarkovEvidenceCapsule,
+    /// TB-15 (architect §6.2 FR-15.4): JSON blob describing the next
+    /// session's default boot context (`{constitution_hash,
+    /// latest_markov_cid, boot_seq[]}`). Referenced by
+    /// `MarkovEvidenceCapsule.next_session_context_cid`.
+    NextSessionContext,
     /// Generic / unclassified blob.
     Generic,
 }
