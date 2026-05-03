@@ -9,8 +9,8 @@
 - L4 entries: 2 (mint + redeem)
 - L4.E entries: 0
 - All 7 ReplayReport indicators GREEN: true
-- Live `state_root_t` (post-drain): `a4800b19e370b11cc53a6e538b1218cbc08d0425af40f8e216cc7ee8b9c1531e`
-- Replay `final_state_root_hex`: `a4800b19e370b11cc53a6e538b1218cbc08d0425af40f8e216cc7ee8b9c1531e`
+- Live `state_root_t` (post-drain): `6986f6d4045a7e7c9785177ddbbbbf80f7a8215a4b0409f6a88bb3f645a8d5eb`
+- Replay `final_state_root_hex`: `6986f6d4045a7e7c9785177ddbbbbf80f7a8215a4b0409f6a88bb3f645a8d5eb`
 - Pre-shutdown `conditional_collateral_t` size: 2
 - Pre-shutdown `conditional_share_balances_t` owner count: 1
 
