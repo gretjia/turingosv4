@@ -6,6 +6,73 @@
 
 ---
 
+## 🚢 2026-05-03 — TB-14 SHIPPED (single charter; full Atoms 0–7 + B′ R1-VETO closure cycle; dual audit converged R2 PASS)
+
+**Session summary**: Auto-mode shipped TB-14 PriceIndex v0 + Boltzmann Masking under a single charter (NOT split per architect §8 fallback). Full ship-status doc: `handover/ai-direct/TB-14_SHIP_STATUS_2026-05-03.md`. **Workspace = 841 passed / 0 failed / 150 ignored; 6/6 architect §5.7 halt-triggers GREEN; 12/12 SG/G ship gates GREEN; 6/6 CR-14.x conformance preserved; ChainTape smoke + 5 production-controlled canonical-masking smokes (chain-backed) PASS.**
+
+**HEAD**: `1189cb2` (10 commits across Atom 6 main + internal F1 + B′ R1-VETO closure cycle). NOT pushed to remote — user-decision boundary.
+
+### Dual audit final verdict matrix
+
+```text
+Internal auditor R0:  CHALLENGE (F1 dead BusResult::Invested f64) → CLOSED by 38412bf
+Codex R1:             VETO conviction=high (canonical-vs-shadow ID namespace mismatch)
+                      → user-architect ruling 2026-05-03 path C→B′ (binding)
+                      → CLOSED by B′ steps 1-6 (commits 48e84ee → 07ce9b8)
+Gemini R1:            PASS conviction=high recommendation=PROCEED
+Codex R2:             PASS conviction=high recommendation=PROCEED to SHIP
+                      ("Split-fallback NOT triggered. mask_set is functional under
+                       canonical production semantics, and B′ steps 1-6 close R1 VETO.")
+Gemini R2:            CHALLENGE conviction=Medium recommendation=FIX-THEN-PROCEED
+                      Single Q11 finding (bus.snapshot empty-fallback semantic ambiguity)
+                      → CLOSED by 1189cb2 (sequencer_wired field with serde-default)
+```
+
+### TB-14 Atom 6 + B′ commit sequence (this session, 10 commits)
+
+```text
+44cd480  Atom 6 main — production wire-swap + legacy CPMM excision
+38412bf  Atom 6 internal F1 fix — dead BusResult::Invested f64 excision
+c291dde  Atom 6 LATEST.md update at user-decision boundary (external audit dispatch)
+48e84ee  B′ step 1+2 — bus.append parent canonical-vs-shadow + env validation
+dd40052  B′ step 3 — charter amend (canonical namespace decision §3 binding)
+9daba5a  B′ step 4 — CanonicalNodeGraph + compute_mask_set canonical-graph rewire
+07ce9b8  B′ step 5+6 — production-controlled chain-backed smokes (1 positive + 3 negative + idempotency)
+1189cb2  B′ step 7 R2 closure — Gemini Q11 sequencer_wired field
+[NEW]    Atom 7 — TB-14 SHIP STATUS doc + LATEST.md update + final commit
+```
+
+### Architectural decisions surfaced (carry-forward to TB-15)
+
+  (1) **Canonical namespace decision** (architect §3 binding): canonical
+      WorkTx.tx_id is authoritative for TB-14 derived views; shadow tape
+      ids are legacy/local only.
+  (2) **STEP_B Phase 1 deviation** (Atom 6 worked directly on main):
+      ACCEPTED by both R2 auditors with caveat — should not become
+      default. Codify `feedback_step_b_phase_1_for_ratified_specs`
+      before TB-15.
+  (3) **v1-vs-v2 observability** deferred to TB-15 Autopsy bench.
+  (4) **Balance plumb-through fix** in evaluator.rs (snap.get_balance →
+      bus.sequencer.q_snapshot()) is incidental UX-positive scope.
+  (5) **sequencer_wired field** (Q11 closure design): chose `bool` over
+      Gemini's suggested `Option<...>` for cheaper consumer impact
+      (~15min vs ~45min); both encode the same two-state distinction.
+
+### Cross-references
+
+- Ship status doc: `handover/ai-direct/TB-14_SHIP_STATUS_2026-05-03.md`
+- Architect §5 verbatim: `handover/directives/2026-05-03_TB13_TO_TB17_POST_TB12_ARCHITECT_RULING.md`
+- Architect VETO disposition (binding): `handover/directives/2026-05-03_TB14_ATOM6_VETO_RULING.md`
+- Charter (post-amend): `handover/tracer_bullets/TB-14_charter_2026-05-03.md`
+- R1 audits: `handover/audits/{CODEX,GEMINI}_TB_14_SHIP_AUDIT_2026-05-03_R1.md`
+- R2 audits: `handover/audits/{CODEX,GEMINI}_TB_14_SHIP_AUDIT_2026-05-03_R2.md`
+
+**Closes**: `OBS_TB_12_LEGACY_CPMM_QUARANTINE_2026-05-03` + `OBS_TB13_FENCE_MECHANISM_DOOM_LOOP_2026-05-03`.
+
+**Next step (user-decision boundary)**: `git push` (or hold for manual review). TB-15 Autopsy + Markov is the next charter per `project_tb11_to_tb17_roadmap`.
+
+---
+
 ## 🚢 2026-05-03 — TB-14 Atom 6 SHIPPED (local commits) — pending external Codex + Gemini dual audit before push
 
 **Session summary**: Fresh session post-Atom-5 handover. Picked up at HEAD `9cc40e1` (Atom 5 ship + kickoff doc). Auto-mode wire-swap of Atom 6 — Class 3 production code path migrating bus snapshot's price-signal surface from legacy decimal-float CPMM scaffolding to integer-rational `state::compute_price_index` + `state::compute_mask_set` derived views. **All 6 architect §5.7 halt-triggers GREEN; workspace = 821 passed / 0 failed / 150 ignored; ChainTape smoke (chain-backed) PASS; evidence dir written**. Closes `OBS_TB_12_LEGACY_CPMM_QUARANTINE_2026-05-03`.
