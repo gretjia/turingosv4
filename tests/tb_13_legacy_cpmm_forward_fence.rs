@@ -285,6 +285,19 @@ fn discover_by_marker(walk_root: &std::path::Path) -> Vec<String> {
 /// (`TB_13_TYPE_NAMES`) on a non-comment line. Codex round-3 RQ6
 /// remediation 2026-05-03: catches contributors who imported TB-13
 /// types without remembering the authoring-marker convention.
+///
+/// **TB-14 Atom 2 architectural fix (2026-05-03)**: respect successor-TB
+/// marker discipline. A file that declares itself a TB-14+ contributor
+/// (e.g. `//! TB-14 ` module header, `TRACE_MATRIX TB-14 ` doc) is by
+/// definition a successor-TB scope, NOT a TB-13 contributor — even when
+/// it legitimately consumes TB-13 public types as substrate (e.g.
+/// `src/state/price_index.rs` derives the price view from TB-13
+/// `ConditionalShareBalances` + `ShareSidePair`). Prior to this fix the
+/// type-use heuristic pulled TB-14 files into the TB-13 fence, causing
+/// false-positive Layer 2 violations on legitimate TB-14 fields like
+/// `price_yes` / `price_no` / `RationalPrice`. Closes
+/// `OBS_TB13_FENCE_MECHANISM_DOOM_LOOP_2026-05-03.md` architecturally
+/// (replaces hardcoded path-list band-aid attempted in plan v1).
 fn discover_by_type_use(walk_root: &std::path::Path) -> Vec<String> {
     let mut found: Vec<String> = Vec::new();
     walk_rs_files(walk_root, &mut |path| {
@@ -297,6 +310,13 @@ fn discover_by_type_use(walk_root: &std::path::Path) -> Vec<String> {
             Ok(s) => s,
             Err(_) => return,
         };
+        // TB-14 Atom 2: marker-discipline-first. Successor-TB-marked files
+        // own their own forward-fence (e.g. TB-14 halt-trigger #4 enforces
+        // its own decimal-float fence). The TB-13 fence MUST NOT pull them
+        // in via the type-use heuristic.
+        if has_successor_tb_authoring_marker(&body) {
+            return;
+        }
         for line in body.lines() {
             if is_pure_comment_line(line) {
                 continue;
@@ -308,6 +328,36 @@ fn discover_by_type_use(walk_root: &std::path::Path) -> Vec<String> {
         }
     });
     found
+}
+
+/// Returns true iff `body` contains an authoring marker for any successor
+/// TB (TB-14 .. TB-99). Marker forms parallel `is_tb_13_authoring_marker`:
+/// `TRACE_MATRIX TB-N ` anywhere, OR a line whose comment body begins with
+/// `TB-N ` after stripping leading whitespace and `//!` / `///` / `//`
+/// markers. TB-14 Atom 2 fix; see `discover_by_type_use` doc-comment.
+fn has_successor_tb_authoring_marker(body: &str) -> bool {
+    // Pre-build the per-N tag strings once per call to avoid reformatting
+    // inside the inner per-line loop.
+    let tags: Vec<(String, String)> = (14u32..=99)
+        .map(|n| (format!("TRACE_MATRIX TB-{n} "), format!("TB-{n} ")))
+        .collect();
+    for line in body.lines() {
+        let trimmed = line.trim_start();
+        let comment_body = trimmed
+            .strip_prefix("//! ")
+            .or_else(|| trimmed.strip_prefix("/// "))
+            .or_else(|| trimmed.strip_prefix("// "))
+            .unwrap_or("");
+        for (trace_tag, body_tag) in &tags {
+            if line.contains(trace_tag.as_str()) {
+                return true;
+            }
+            if comment_body.starts_with(body_tag.as_str()) {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 /// Discover every TB-13-contributing file in `src/`. Union of
@@ -650,6 +700,111 @@ fn discover_by_type_use_catches_unmarked_imports_and_skips_doc_xref() {
     assert!(
         !marker_set.contains(unmarked_str.as_str()),
         "RQ6: marker walk alone should NOT have caught the unmarked file (otherwise the type-use layer is redundant). Got: {marker_only:?}"
+    );
+
+    let _ = fs::remove_dir_all(&tmp);
+}
+
+/// TB-14 Atom 2 architectural-fix unit test (2026-05-03): verifies that
+/// `discover_by_type_use` skips files declaring themselves successor-TB
+/// contributors via authoring markers. Closes
+/// `OBS_TB13_FENCE_MECHANISM_DOOM_LOOP_2026-05-03.md` — the original
+/// type-use heuristic flagged TB-14 files (e.g. `price_index.rs`) that
+/// legitimately consume TB-13 public types as substrate, producing
+/// Layer 2 false-positives. The fix respects marker discipline:
+/// successor-TB-marked files own their own forward-fence and are out of
+/// TB-13 scope by construction.
+#[test]
+fn discover_by_type_use_skips_successor_tb_marker_files() {
+    use std::io::Write;
+    let tmp = std::env::temp_dir().join(format!(
+        "tb13_fence_successor_marker_test_{}",
+        std::process::id()
+    ));
+    let _ = fs::remove_dir_all(&tmp);
+    fs::create_dir_all(&tmp).expect("mkdir tmp");
+
+    // (1) A TB-14 module-header file that ALSO uses a TB-13 type as
+    // substrate → must NOT be discovered (marker discipline wins).
+    let tb14_path = tmp.join("tb14_consumer.rs");
+    {
+        let mut f = fs::File::create(&tb14_path).expect("create tb14");
+        writeln!(
+            f,
+            "//! TB-14 Atom 2 — example successor-TB module.\n\
+             use crate::state::typed_tx::CompleteSetMintTx;\n\
+             pub fn touch() -> CompleteSetMintTx {{ CompleteSetMintTx::default() }}"
+        )
+        .unwrap();
+    }
+
+    // (2) A TB-14 doc-line marker file (no module header but contains a
+    // `// TB-14 ` line marker) that uses a TB-13 type → must NOT be
+    // discovered.
+    let tb14_doc_path = tmp.join("tb14_doc_consumer.rs");
+    {
+        let mut f = fs::File::create(&tb14_doc_path).expect("create tb14_doc");
+        writeln!(
+            f,
+            "// TB-14 Atom 3 inline marker.\n\
+             use crate::state::typed_tx::ShareAmount;\n\
+             pub fn touch() -> ShareAmount {{ ShareAmount::zero() }}"
+        )
+        .unwrap();
+    }
+
+    // (3) A TRACE_MATRIX TB-15 marker file using a TB-13 type → must NOT
+    // be discovered (covers the entire TB-14..TB-99 successor range).
+    let tb15_path = tmp.join("tb15_consumer.rs");
+    {
+        let mut f = fs::File::create(&tb15_path).expect("create tb15");
+        writeln!(
+            f,
+            "/// TRACE_MATRIX TB-15 example.\n\
+             use crate::state::typed_tx::EventId;\n\
+             pub fn touch() -> EventId {{ EventId::default() }}"
+        )
+        .unwrap();
+    }
+
+    // (4) Control: an unmarked file that uses a TB-13 type → MUST be
+    // discovered (preserves round-3 RQ6 behavior).
+    let unmarked_path = tmp.join("unmarked_user.rs");
+    {
+        let mut f = fs::File::create(&unmarked_path).expect("create unmarked");
+        writeln!(
+            f,
+            "use crate::state::typed_tx::CompleteSetMintTx;\n\
+             pub fn touch() -> CompleteSetMintTx {{ CompleteSetMintTx::default() }}"
+        )
+        .unwrap();
+    }
+
+    let found = discover_by_type_use(&tmp);
+    let found_set: std::collections::BTreeSet<&str> =
+        found.iter().map(|s| s.as_str()).collect();
+
+    let tb14_str = tb14_path.to_string_lossy().into_owned();
+    let tb14_doc_str = tb14_doc_path.to_string_lossy().into_owned();
+    let tb15_str = tb15_path.to_string_lossy().into_owned();
+    let unmarked_str = unmarked_path.to_string_lossy().into_owned();
+
+    assert!(
+        !found_set.contains(tb14_str.as_str()),
+        "TB-14 module-header file must NOT be discovered. Got: {found:?}"
+    );
+    assert!(
+        !found_set.contains(tb14_doc_str.as_str()),
+        "TB-14 doc-line marker file must NOT be discovered. Got: {found:?}"
+    );
+    assert!(
+        !found_set.contains(tb15_str.as_str()),
+        "TB-15 TRACE_MATRIX marker file must NOT be discovered. Got: {found:?}"
+    );
+    assert!(
+        found_set.contains(unmarked_str.as_str()),
+        "Unmarked TB-13-type-using file MUST still be discovered \
+         (round-3 RQ6 behavior preserved). Got: {found:?}"
     );
 
     let _ = fs::remove_dir_all(&tmp);

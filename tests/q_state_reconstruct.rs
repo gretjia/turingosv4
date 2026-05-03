@@ -82,13 +82,17 @@ fn nine_top_level_fields() {
 }
 
 #[test]
-fn empty_economic_state_serializes_to_thirteen_sub_fields() {
+fn empty_economic_state_serializes_to_twelve_sub_fields() {
     // TB-11 (architect §6.2 ruling 2026-05-02): 9 → 10 (+runs_t).
     // TB-12 (architect 2026-05-03 ruling §3 + §8 Atom 1): 10 → 11 (+node_positions_t).
     // TB-13 Atom 2 (architect 2026-05-03 post-TB-12 ruling §4.3):
     //   11 → 13 (+conditional_collateral_t +conditional_share_balances_t).
+    // TB-14 Atom 2 (2026-05-03; architect §5.1 + charter §7 auto-resolution A):
+    //   13 → 12 (-price_index_t legacy stub; TB-14 derives the price view via
+    //   `compute_price_index` pure fn, not stored as canonical state — "price
+    //   is signal, not truth"; no second source-of-truth).
     let e = EconomicState::default();
     let v = serde_json::to_value(&e).unwrap();
     let obj = v.as_object().unwrap();
-    assert_eq!(obj.len(), 13);
+    assert_eq!(obj.len(), 12);
 }

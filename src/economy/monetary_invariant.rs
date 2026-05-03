@@ -139,7 +139,9 @@ impl std::error::Error for MonetaryError {}
 /// NOT counted (not a holding):
 /// - `reputations_t` (signed reputation, not coin)
 /// - `royalty_graph_t` (edges, no coin)
-/// - `price_index_t` (market data, not held)
+/// - TB-14 `compute_price_index` derived view (signal-not-truth per
+///   architect §5.1; not stored on `EconomicState` so trivially not in
+///   the sum; legacy `price_index_t` field removed in TB-14 Atom 2)
 /// - **`task_markets_t.total_escrow`** (derived aggregate / cached index per
 ///   TB-3 charter § 3.2 — counting it would double-mint every locked bounty
 ///   because the same money is also in `escrows_t`. Cache=truth is enforced

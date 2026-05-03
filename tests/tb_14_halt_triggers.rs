@@ -15,7 +15,7 @@
 //
 // A WorkTx with price_yes=Some(near-1) but acceptance.value=false
 // must still return AcceptancePredicateFailed from dispatch_transition.
-// Price signal MUST NOT override the predicate gate at sequencer.rs:522-527.
+// Price signal MUST NOT override the predicate gate at sequencer.rs:516-558.
 // ────────────────────────────────────────────────────────────────────
 #[test]
 fn price_does_not_affect_predicate_result() {
@@ -23,7 +23,7 @@ fn price_does_not_affect_predicate_result() {
     // Stub: ensures test exists and will fail at compile-time if signature changes.
     unimplemented!(
         "Atom 5 — verify dispatch_transition rejects WorkTx with acceptance=false \
-         regardless of node price_yes in PriceIndex"
+         regardless of NodeMarketEntry.price_yes from compute_price_index"
     )
 }
 
@@ -32,15 +32,15 @@ fn price_does_not_affect_predicate_result() {
 // price_does_not_change_l4_decision
 //
 // A tx that fails L4 (AcceptancePredicateFailed) must enter L4.E,
-// not L4, even when the node has a high price_yes in PriceIndex.
-// price_index_t is never read inside dispatch_transition.
+// not L4, even when the node has a high price_yes in compute_price_index.
+// compute_price_index result is never read inside dispatch_transition.
 // ────────────────────────────────────────────────────────────────────
 #[test]
 fn price_does_not_change_l4_decision() {
     // Filled in Atom 5.
     unimplemented!(
         "Atom 5 — verify L4.E classification for predicate-failed tx \
-         is unchanged by presence of high price in PriceIndex"
+         is unchanged by presence of high price in compute_price_index"
     )
 }
 
@@ -66,15 +66,40 @@ fn parent_not_deleted_from_chaintape() {
 // no_f64_in_tb_14_modules
 //
 // src/state/price_index.rs and the TB-14 spans of src/sdk/actor.rs
-// must contain zero occurrences of f64 or f32.
+// must contain zero occurrences of decimal-float-type tokens.
 // ────────────────────────────────────────────────────────────────────
 #[test]
 fn no_f64_in_tb_14_modules() {
-    // Filled in Atom 2 when src/state/price_index.rs is created.
-    unimplemented!(
-        "Atom 2 — grep src/state/price_index.rs for f64/f32 tokens; \
-         assert count == 0"
-    )
+    // TB-14 Atom 2: enforce zero decimal-float-type tokens in TB-14 modules.
+    // Plan v2 G1: this test reads `src/state/price_index.rs` at runtime via
+    // `std::fs::read_to_string` (NEVER `include_str!`, which would inline
+    // this very test's assertion strings — a self-reference trap that
+    // sank the previous /opusplan attempt). Plan v2 G1 also requires
+    // `src/state/price_index.rs` to contain zero substrings of the
+    // forbidden types ANYWHERE — including comments — so the check is a
+    // trivial substring search with no comment-stripping needed.
+    //
+    // The forbidden tokens are constructed at runtime from byte literals
+    // joined into a String, so this test's source code does not contain
+    // the literal substrings being scanned for.
+    let forbidden: Vec<String> = vec![
+        format!("{}{}", "f", "64"),
+        format!("{}{}", "f", "32"),
+    ];
+
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    let price_index_path = format!("{}/src/state/price_index.rs", manifest);
+    let body = std::fs::read_to_string(&price_index_path)
+        .unwrap_or_else(|e| panic!("read {}: {}", price_index_path, e));
+    for tok in &forbidden {
+        assert!(
+            !body.contains(tok.as_str()),
+            "TB-14 halt-trigger #4 violated: src/state/price_index.rs contains forbidden \
+             decimal-float-type token `{}` somewhere (Plan v2 G1 requires zero substring \
+             occurrences anywhere in the file, including comments)",
+            tok
+        );
+    }
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -88,11 +113,52 @@ fn no_f64_in_tb_14_modules() {
 // ────────────────────────────────────────────────────────────────────
 #[test]
 fn zero_liquidity_returns_none() {
-    // Filled in Atom 2 after compute_price_index exists.
-    unimplemented!(
-        "Atom 2 — compute_price_index with empty node_positions_t or \
-         zero-stake NodePositions must yield price_yes=None, price_no=None"
-    )
+    // TB-14 Atom 2: FR-14.3 — empty / zero-stake node yields None price.
+    use turingosv4::economy::money::MicroCoin;
+    use turingosv4::state::{compute_price_index, EconomicState, TaskId, TxId};
+    use turingosv4::state::q_state::AgentId;
+    use turingosv4::state::typed_tx::{NodePosition, PositionKind, PositionSide};
+
+    // Case A: completely empty state → empty index (no entries at all).
+    let econ_a = EconomicState::default();
+    let idx_a = compute_price_index(&econ_a);
+    assert!(
+        idx_a.is_empty(),
+        "TB-14 halt-trigger #5: empty node_positions_t → empty PriceIndex"
+    );
+
+    // Case B: a node with one zero-amount Long position → entry exists,
+    // price_yes = None AND price_no = None per FR-14.3.
+    let mut econ_b = EconomicState::default();
+    econ_b.node_positions_t.0.insert(
+        TxId("zero_pos".into()),
+        NodePosition {
+            position_id: TxId("zero_pos".into()),
+            node_id: TxId("zero_node".into()),
+            task_id: TaskId("zero_task".into()),
+            owner: AgentId("zero_agent".into()),
+            side: PositionSide::Long,
+            kind: PositionKind::FirstLong,
+            amount: MicroCoin::zero(),
+            source_tx: TxId("zero_pos".into()),
+            opened_at_round: 1,
+        },
+    );
+    let idx_b = compute_price_index(&econ_b);
+    let entry = idx_b
+        .get(&TxId("zero_node".into()))
+        .expect("zero_node entry must be present in index");
+    assert_eq!(
+        entry.price_yes, None,
+        "TB-14 halt-trigger #5: zero stake → price_yes MUST be None (FR-14.3)"
+    );
+    assert_eq!(
+        entry.price_no, None,
+        "TB-14 halt-trigger #5: zero stake → price_no MUST be None (FR-14.3)"
+    );
+    assert_eq!(entry.long_interest, MicroCoin::zero());
+    assert_eq!(entry.short_interest, MicroCoin::zero());
+    assert_eq!(entry.liquidity_depth, MicroCoin::zero());
 }
 
 // ────────────────────────────────────────────────────────────────────

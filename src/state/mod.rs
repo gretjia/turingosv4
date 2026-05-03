@@ -15,13 +15,23 @@ pub mod typed_tx;
 /// TRACE_MATRIX § 5.2.1 / CO1.7-impl A2+A3 — L4 sequencer + dispatch_transition.
 pub mod sequencer;
 
+/// TRACE_MATRIX TB-14 Atom 2 (FC3-N42; architect §5.1 + charter §3 Atom 2):
+/// derived-view price index. `compute_price_index(econ)` is the pure-fn
+/// view of long / short interest + share depth per node (architect §5.2);
+/// never stored as canonical state (no second source-of-truth).
+pub mod price_index;
+
 pub use q_state::{
     AgentId, AgentSwarmState, AgentVisibleProjection, BalancesIndex, BudgetSnapshot,
     ChallengeCase, ChallengeCasesIndex, ClaimEntry, ClaimsIndex, EconomicState, EscrowEntry,
-    EscrowsIndex, Hash, NodeId, NodePositionsIndex, PerAgentState, PriceIndex, QState,
+    EscrowsIndex, Hash, NodeId, NodePositionsIndex, PerAgentState, QState,
     Reputation, ReputationsIndex, RoyaltyEdge, RoyaltyGraph, RunSummaryEntry, RunsIndex,
     StakeEntry, StakesIndex, TaskId, TaskMarketEntry, TaskMarketState, TaskMarketsIndex, TxId,
 };
+
+/// TB-14 Atom 2: derived-view price types. `BoltzmannMaskPolicy` is added
+/// in Atom 4 (env loader) and re-exported here at that time.
+pub use price_index::{compute_price_index, NodeMarketEntry, RationalPrice};
 
 pub use typed_tx::{
     AgentSignature, BankruptcyReason, BoolWithProof, CapsulePrivacyPolicy,

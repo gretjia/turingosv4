@@ -5,18 +5,21 @@
 use turingosv4::economy::money::MicroCoin;
 use turingosv4::state::{
     AgentId, BalancesIndex, ChallengeCase, ChallengeCasesIndex, ClaimEntry, ClaimsIndex,
-    EconomicState, EscrowEntry, EscrowsIndex, PriceIndex, Reputation, ReputationsIndex,
+    EconomicState, EscrowEntry, EscrowsIndex, Reputation, ReputationsIndex,
     RoyaltyEdge, RoyaltyGraph, StakeEntry, StakesIndex, TaskId, TaskMarketEntry, TaskMarketsIndex,
     TxId,
 };
 
 #[test]
-fn thirteen_sub_fields_present() {
+fn twelve_sub_fields_present() {
     // TB-12: was ten (TB-11 +runs_t); +node_positions_t (architect
     // 2026-05-03 §3). TB-13 Atom 2 (architect 2026-05-03 post-TB-12
-    // ruling Part A §4.3): +conditional_collateral_t (CR-13.4 Coin
-    // holding) + conditional_share_balances_t (CR-13.3 claims, NOT
-    // counted in total_supply_micro).
+    // ruling Part A §4.3): 11 → 13 (+conditional_collateral_t Coin
+    // holding + conditional_share_balances_t claims).
+    // TB-14 Atom 2 (2026-05-03; architect §5.1): 13 → 12 (-price_index_t;
+    // TB-14 derives the price view via `compute_price_index` pure fn,
+    // not stored as canonical state — "price is signal, not truth";
+    // charter §7 auto-resolution A: no second source-of-truth).
     let e = EconomicState::default();
     let v = serde_json::to_value(&e).unwrap();
     let obj = v.as_object().unwrap();
@@ -29,13 +32,12 @@ fn thirteen_sub_fields_present() {
         "task_markets_t",
         "royalty_graph_t",
         "challenge_cases_t",
-        "price_index_t",
         "runs_t",                          // TB-11 (architect §6.2 ruling 2026-05-02)
         "node_positions_t",                // TB-12 (architect 2026-05-03 ruling §3 + §8 Atom 1)
         "conditional_collateral_t",        // TB-13 Atom 2 (architect 2026-05-03 post-TB-12 ruling §4.3)
         "conditional_share_balances_t",    // TB-13 Atom 2
     ];
-    assert_eq!(obj.len(), 13);
+    assert_eq!(obj.len(), 12);
     for n in names.iter() {
         assert!(obj.contains_key(*n), "missing sub-field {}", n);
     }
@@ -94,7 +96,10 @@ fn populated_economic_state_round_trip() {
             status: turingosv4::state::q_state::ChallengeStatus::Open, // TB-5 additive
         },
     );
-    e.price_index_t.0.insert(TxId("t7".into()), MicroCoin::from_coin(9).unwrap());
+    // TB-14 Atom 2 (2026-05-03): legacy `price_index_t` field removed —
+    // TB-14 derives the price view via `compute_price_index` pure fn over
+    // `node_positions_t` + `conditional_share_balances_t`, not stored as
+    // canonical state.
 
     let s = serde_json::to_string(&e).unwrap();
     let back: EconomicState = serde_json::from_str(&s).unwrap();
@@ -126,5 +131,9 @@ fn empty_indices_serialize_to_empty_objects() {
     assert_eq!(serde_json::to_string(&TaskMarketsIndex::default()).unwrap(), "{}");
     assert_eq!(serde_json::to_string(&RoyaltyGraph::default()).unwrap(), "{}");
     assert_eq!(serde_json::to_string(&ChallengeCasesIndex::default()).unwrap(), "{}");
-    assert_eq!(serde_json::to_string(&PriceIndex::default()).unwrap(), "{}");
+    // TB-14 Atom 2 (2026-05-03): legacy `PriceIndex` struct removed.
+    // The TB-14 derived view is `compute_price_index(econ)` returning a
+    // `BTreeMap<TxId, NodeMarketEntry>` — its empty serialization is
+    // covered by the inline `empty_state_yields_empty_index` test in
+    // `src/state/price_index.rs`.
 }

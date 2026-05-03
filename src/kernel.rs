@@ -21,8 +21,9 @@ pub struct Kernel {
     /// **LEGACY** (TB-3..TB-10 Phase-3A): per-node f64 CPMM market book.
     /// See `prediction_market.rs` module header for migration path.
     /// Replaced by TB-13 `ConditionalShareBalances` (canonical YES/NO claims)
-    /// + TB-14 `PriceIndex` (statistical signal). Removal is TB-14 SHIP
-    /// prerequisite per `OBS_TB_12_LEGACY_CPMM_QUARANTINE_2026-05-03`.
+    /// + TB-14 `compute_price_index` derived view (statistical signal).
+    /// Removal is TB-14 Atom 6 SHIP step per
+    /// `OBS_TB_12_LEGACY_CPMM_QUARANTINE_2026-05-03`.
     pub markets: HashMap<NodeId, BinaryMarket>,
     /// **LEGACY** (TB-3..TB-10 Phase-3A Hayek): bounty market opened at run
     /// start, seeded with pre-committed LP from the same ghost-liquidity

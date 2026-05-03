@@ -292,3 +292,59 @@ fn fc2_n16_init_ai_orchestrator_swarm_oneshot() {
 fn fc1_n12_lean4_oracle_ground_truth_predicate() {
     panic!("FC1-N12 cross-crate — see experiments/minif2f_v4/tests/");
 }
+
+// ───────────────────────────────────────────────────────────────────────
+// TB-14 Atom 2 — FC3-N42 (compute_price_index) witness.
+// TRACE_MATRIX FC3-N42 maps to src/state/price_index.rs:compute_price_index
+// (architect 2026-05-03 ruling §5.1 + charter §3 Atom 2). Pure deterministic
+// fn over canonical EconomicState; no env / clock / RNG; replay-identical.
+// ───────────────────────────────────────────────────────────────────────
+
+#[test]
+fn fc3_n42_compute_price_index_pure_fn_witness() {
+    use turingosv4::economy::money::MicroCoin;
+    use turingosv4::state::q_state::AgentId;
+    use turingosv4::state::typed_tx::{NodePosition, PositionKind, PositionSide};
+    use turingosv4::state::{
+        compute_price_index, EconomicState, RationalPrice, TaskId, TxId,
+    };
+
+    // Construct minimal EconomicState with one Long position.
+    let mut econ = EconomicState::default();
+    econ.node_positions_t.0.insert(
+        TxId("witness_pos".into()),
+        NodePosition {
+            position_id: TxId("witness_pos".into()),
+            node_id: TxId("witness_node".into()),
+            task_id: TaskId("witness_task".into()),
+            owner: AgentId("witness_agent".into()),
+            side: PositionSide::Long,
+            kind: PositionKind::FirstLong,
+            amount: MicroCoin::from_micro_units(500_000),
+            source_tx: TxId("witness_pos".into()),
+            opened_at_round: 1,
+        },
+    );
+
+    let idx = compute_price_index(&econ);
+    let entry = idx
+        .get(&TxId("witness_node".into()))
+        .expect("FC3-N42: witness_node must appear in PriceIndex");
+
+    // FR-14.1: price_yes derived from long_interest only.
+    assert_eq!(
+        entry.price_yes,
+        Some(RationalPrice {
+            numerator: 500_000,
+            denominator: 500_000,
+        }),
+        "FC3-N42: price_yes must follow FR-14.1"
+    );
+
+    // Replay determinism (Art.0.2): repeated calls return identical output.
+    assert_eq!(
+        compute_price_index(&econ),
+        idx,
+        "FC3-N42: compute_price_index must be replay-deterministic"
+    );
+}
