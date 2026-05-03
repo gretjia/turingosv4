@@ -6,6 +6,119 @@
 
 ---
 
+## 🔨 2026-05-03 — TB-14 IN-FLIGHT — Atoms 0–5 SHIPPED; Atom 6 (Class 3 dual-audit) deferred to fresh session
+
+**Session summary**: TB-14 Atom 2 first attempt (prior session, /opusplan mode) burned 1h27m / 127k tokens with 4 specific defects (self-referencing `include_str!` test, double-rehash on q_state.rs, forward-fence band-aid `TB_14_PLUS_EXCLUDED`, 131 silently-vanished tests via missed `tests/economic_state_reconstruct.rs:129` reference). User authorized rollback to `0370d66` (Atom 1 stub). This session ran a Plan v2 + Opus 4.7 xhigh restart with 6 anti-pattern guards (G1–G6 in `~/.claude/plans/sparkling-hugging-donut.md`); shipped Atoms 2–5 in 4 clean commits, **all 6 architect §5.7 halt-triggers GREEN, workspace = 841 passed / 0 failed / 150 ignored**. Codified `feedback_opusplan_unsuitable_for_turingos` memory rule (use Opus 4.7 xhigh for every TB ship-path atom; /opusplan only for purely mechanical mass-rename / boilerplate).
+
+**Session entry**: HEAD `0370d66` (TB-14 Atom 1 halt-trigger fixture; 6 unimplemented! stubs).
+**Session exit**: HEAD `a9fbdf3` (TB-14 Atom 5 — CP-C gate green).
+
+Charter: `handover/tracer_bullets/TB-14_charter_2026-05-03.md` (ratified pre-session at `698d8a2`).
+Plan v2 (this session's anti-pattern-guarded execution plan): `~/.claude/plans/sparkling-hugging-donut.md`.
+Atom 6 kickoff (fresh session): `handover/ai-direct/TB-14_ATOM_6_KICKOFF_2026-05-03.md`.
+
+### TB-14 deliverables (4 atoms shipped this session; 2 pending)
+
+```text
+Atom 2  PriceIndex pure-fn view + fence architectural fix (commit 23ac581):
+        • NEW src/state/price_index.rs — RationalPrice (u128/u128) + NodeMarketEntry
+          (10-field architect §5.2 verbatim) + compute_price_index (FR-14.1..3
+          deterministic). 8 inline tests; G1 enforced (zero decimal-float
+          substring; halt-trigger #4 fence verifies via runtime fs read).
+        • ARCHITECTURAL FENCE FIX in tests/tb_13_legacy_cpmm_forward_fence.rs —
+          discover_by_type_use now skips files with successor-TB authoring
+          marker (TB-14..TB-99). Marker discipline wins over type-use heuristic;
+          replaces hardcoded TB_14_PLUS_EXCLUDED band-aid attempted in plan v1.
+          Closes OBS_TB13_FENCE_MECHANISM_DOOM_LOOP_2026-05-03.md.
+        • DELETE legacy `pub struct PriceIndex(BTreeMap<TxId, MicroCoin>)` (TB-3
+          stub) + `EconomicState.price_index_t` field (13 → 12 sub-fields per
+          architect §5.1 "price is signal, not truth"; charter §7 auto-resolution
+          A "no second source-of-truth"). 17 references updated across 9 files
+          (G4 enumeration; closes 131-tests-vanish risk by exhaustive scan).
+        • Halt-triggers #4, #5 GREEN. R-022-skip via OBS_R022_TB14_PRICEINDEX_REMOVED.
+        • CP-A gate: cargo test --workspace = 811 passed / 4 failed (halt #1/#2/#3/#6 stubs) / 150 ignored.
+
+Atom 3  mask_set + compute_mask_set + BoltzmannMaskPolicy skeleton (commit 668695d):
+        • src/state/q_state.rs:121-138 — AgentVisibleProjection.mask_set:
+          BTreeSet<TxId> with #[serde(default)] for backward-compat.
+        • src/state/price_index.rs append — BoltzmannMaskPolicy struct (architect
+          §5.2 verbatim; integer-rational; Default = 1/1 beta, 1 Coin min_liq,
+          10% margin, 10% epsilon) + compute_mask_set (CR-14.3/4/5 + SG-14.3/7/8;
+          cross-multiplication dominance via dominates_by; deterministic
+          BTreeSet output; one-dominating-child-suffices early break).
+        • NEW tests/tb_14_mask_set.rs — 11 tests (SG-14.3/7/8 + boundary + happy + determinism).
+        • NEW FC2-N28 witness in tests/fc_alignment_conformance.rs.
+        • Halt-triggers #3, #6 GREEN.
+        • CP-B gate: cargo test --workspace = 825 passed / 2 failed (halt #1/#2 stubs) / 150 ignored.
+
+Atom 4  BoltzmannMaskPolicy::from_env() — 7 env vars (commit 7cbcacf):
+        • src/state/price_index.rs append — from_env() reading 7 integer env
+          vars (BOLTZMANN_BETA_NUM/DEN, MIN_LIQUIDITY_MICRO, PRICE_MARGIN_NUM/DEN,
+          EPSILON_NUM/DEN); fail-soft on parse error (Art.I.1 + C-027).
+        • 6 inline tests with static Mutex per feedback_env_var_test_lock.
+        • Gate: cargo test --workspace = 831 passed / 2 failed / 150 ignored.
+
+Atom 5  boltzmann_select_parent_v2 + halt-triggers #1/#2 — 6/6 GREEN (commit a9fbdf3):
+        • NEW src/sdk/actor.rs::boltzmann_select_parent_v2 — integer-rational
+          argmax + epsilon-greedy + mask_set filter (charter §7 auto-resolution C;
+          full softmax deferred TB-15+). DEVIATION FROM CHARTER (justified):
+          ADDS v2 alongside legacy rather than DELETING. Legacy deletion
+          deferred to Atom 6 to keep workspace compileable.
+        • 7 NEW v2 unit tests + NEW FC2-N29 witness in fc_alignment_conformance.rs.
+        • HALT-TRIGGER FILLS as STRUCTURAL DECOUPLING FENCES (parallel pattern
+          to halt-trigger #4 file-level fence):
+            #1 — sequencer.rs source MUST contain ZERO TB-14 price/mask
+                 type references (CR-14.1 by construction).
+            #2 — sequencer.rs `use` statements MUST contain ZERO TB-14 imports;
+                 permanent fence (sequencer remains price-blind even after
+                 Atom 6's bus.rs snapshot wire-swap).
+        • CP-C gate: cargo test --workspace = 841 passed / 0 failed / 150 ignored.
+
+Atom 6  PENDING — Class 3 production wire-swap + legacy CPMM excision
+        (72h cap; mandatory Codex + Gemini dual audit; STEP_B_PROTOCOL on
+        kernel.rs + bus.rs). Kickoff doc TB-14_ATOM_6_KICKOFF_2026-05-03.md.
+
+Atom 7  PENDING — ship gate (blocks on Atom 6).
+```
+
+### CP-C ship-gate evidence
+
+```text
+command         = cargo test --workspace --no-fail-fast
+workspace_count = 841  (+47 net vs HEAD 0370d66 = 794 passed at TB-13 ship; +50 / -3 trust-root regression-recovery)
+failed          = 0
+ignored         = 150
+delta_per_atom  = +17 / +14 / +6 / +10 (Atoms 2/3/4/5)
+
+halt-triggers   = 6/6 GREEN
+                  #1 price_does_not_affect_predicate_result — sequencer fence
+                  #2 price_does_not_change_l4_decision — sequencer-import fence
+                  #3 parent_not_deleted_from_chaintape — runtime tape.nodes() witness
+                  #4 no_f64_in_tb_14_modules — runtime fs read of price_index.rs
+                  #5 zero_liquidity_returns_none — runtime compute_price_index
+                  #6 unresolved_challenge_blocks_masking — runtime compute_mask_set
+
+FC alignment    = FC3-N42 + FC2-N28 + FC2-N29 — all wired, all witnessed
+```
+
+### New memory codified
+
+`feedback_opusplan_unsuitable_for_turingos` — for TuringOS mainline TB ship-path atoms, use Opus 4.7 xhigh; /opusplan ONLY for mechanical mass-rename / boilerplate. TB-14 Atom 2 v1 (1h27m + 4 defects) is the precedent.
+
+### OBS files added this session
+
+- `handover/alignment/OBS_R022_TB14_PRICEINDEX_REMOVED_2026-05-03.md` — justifies R-022-skip for legacy `PriceIndex` struct + `price_index_t` field deletion (parallel to TB-13 ResolutionRef precedent).
+
+### OBS files closed this session (architecturally)
+
+- `OBS_TB13_FENCE_MECHANISM_DOOM_LOOP_2026-05-03.md` — closed by Atom 2's successor-TB-marker-discipline fix in `discover_by_type_use` (replaces hardcoded path-list band-aid attempted in plan v1).
+
+### OBS files carried forward to Atom 6
+
+- `handover/alignment/OBS_TB_12_LEGACY_CPMM_QUARANTINE_2026-05-03.md` — Atom 6 deletion of `src/prediction_market.rs` + `Kernel.markets/bounty_market/bounty_lp_seed` fields closes this OBS at TB-14 ship.
+
+---
+
 ## 🚢 2026-05-03 — TB-13 SHIPPED — CompleteSet + MarketSeedTx (architect 2026-05-03 post-TB-12 ruling Part A §4; Class 3 dual audit; round-7 closure with fence-mechanism OBS)
 
 **Session summary**: TB-13 introduces the Polymarket / CTF mathematical core — `1 locked Coin = 1 YES_E + 1 NO_E` — without any AMM / CPMM / orderbook / pricing layer (those are TB-14+). Three new agent-signed typed-tx variants (`CompleteSetMintTx` / `CompleteSetRedeemTx` / `MarketSeedTx`) on top of TB-12's NodePositionsIndex substrate. EconomicState extended 11 → 13 sub-fields (+`conditional_collateral_t` as 6-holding Coin holding per CR-13.4; +`conditional_share_balances_t` as claims NOT counted in supply per CR-13.3 + SG-13.2).
