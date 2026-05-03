@@ -536,3 +536,133 @@ fn fc2_n29_boltzmann_select_parent_v2_witness() {
         "FC2-N29: boltzmann_select_parent_v2 deterministic under fixed seed"
     );
 }
+
+
+// ───────────────────────────────────────────────────────────────────────
+// TB-15 — FC1-N32 + FC1-N33 + FC2-N30 + FC3-N43 witnesses.
+// Architect §6.2 ruling 2026-05-02 + 2026-05-03. Lamarckian Autopsy +
+// Markov EvidenceCapsule.
+// ───────────────────────────────────────────────────────────────────────
+
+/// FC1-N32 (TB-15 Atom 2): write_autopsy_capsule writer surface exists +
+/// is callable; capsule.capsule_id is sha256-derived (deterministic);
+/// privacy default = AuditOnly. Witness for src/runtime/autopsy_capsule.rs.
+#[test]
+fn fc1_n32_write_autopsy_capsule_witness() {
+    use std::sync::{Arc, RwLock};
+    use tempfile::TempDir;
+    use turingosv4::bottom_white::cas::schema::Cid;
+    use turingosv4::bottom_white::cas::store::CasStore;
+    use turingosv4::economy::money::MicroCoin;
+    use turingosv4::runtime::autopsy_capsule::{write_autopsy_capsule, LossReasonClass};
+    use turingosv4::state::q_state::{AgentId, TaskId};
+    use turingosv4::state::typed_tx::{CapsulePrivacyPolicy, EventId};
+
+    let tmp = TempDir::new().unwrap();
+    let cas = Arc::new(RwLock::new(CasStore::open(tmp.path()).unwrap()));
+    let cap = write_autopsy_capsule(
+        &cas,
+        AgentId("witness".into()),
+        EventId(TaskId("witness:event".into())),
+        MicroCoin::from_micro_units(100),
+        LossReasonClass::Bankruptcy,
+        None,
+        None,
+        vec![],
+        b"witness-private-detail",
+        CapsulePrivacyPolicy::AuditOnly,
+        "fc-witness",
+        1,
+        0,
+    )
+    .expect("FC1-N32: writer must succeed");
+    assert_ne!(cap.capsule_id, Cid::default());
+    assert_eq!(cap.capsule_id.0, cap.sha256.0);
+    assert_eq!(cap.privacy_policy, CapsulePrivacyPolicy::AuditOnly);
+}
+
+/// FC1-N33 (TB-15 Atom 3): derive_autopsies_for_bankruptcy is a pure
+/// deterministic helper consumed by both the dispatch arm + apply_one
+/// hook. Witness: same inputs → same Cids.
+#[test]
+fn fc1_n33_derive_autopsies_witness() {
+    use turingosv4::economy::money::MicroCoin;
+    use turingosv4::runtime::autopsy_capsule::derive_autopsies_for_bankruptcy;
+    use turingosv4::state::q_state::{AgentId, EconomicState, StakeEntry, TaskId, TxId};
+    use turingosv4::state::typed_tx::TaskBankruptcyTx;
+
+    let mut econ = EconomicState::default();
+    econ.stakes_t.0.insert(
+        TxId("stake_w".into()),
+        StakeEntry {
+            amount: MicroCoin::from_micro_units(500),
+            staker: AgentId("witness_staker".into()),
+            task_id: TaskId("witness:bk".into()),
+        },
+    );
+    let bk = TaskBankruptcyTx {
+        task_id: TaskId("witness:bk".into()),
+        timestamp_logical: 5,
+        ..Default::default()
+    };
+    let a = derive_autopsies_for_bankruptcy(&econ, &bk, 1, 5);
+    let b = derive_autopsies_for_bankruptcy(&econ, &bk, 1, 5);
+    assert_eq!(a.len(), 1);
+    assert_eq!(a[0].0.capsule_id, b[0].0.capsule_id, "FC1-N33: deterministic Cid");
+}
+
+/// FC2-N30 (TB-15 Atom 4): cluster_autopsies pure aggregator. Witness:
+/// 3 same-class autopsies → 1 TypicalErrorSummary (architect §3.2.3
+/// threshold). Output uses public_summary text + capsule_id Cids only.
+#[test]
+fn fc2_n30_cluster_autopsies_witness() {
+    use turingosv4::bottom_white::cas::schema::Cid;
+    use turingosv4::economy::money::MicroCoin;
+    use turingosv4::runtime::autopsy_capsule::{
+        cluster_autopsies, AgentAutopsyCapsule, LossReasonClass,
+    };
+    use turingosv4::state::q_state::{AgentId, Hash, TaskId};
+    use turingosv4::state::typed_tx::{CapsulePrivacyPolicy, EventId};
+
+    let mk = |agent: &str| AgentAutopsyCapsule {
+        capsule_id: Cid::from_content(agent.as_bytes()),
+        agent_id: AgentId(agent.into()),
+        event_id: EventId(TaskId("e".into())),
+        loss_amount: MicroCoin::from_micro_units(1),
+        loss_reason_class: LossReasonClass::Bankruptcy,
+        violated_risk_rule: None,
+        suggested_policy_patch: None,
+        evidence_cids: vec![],
+        public_summary: format!("agent={} lost 1μC reason=Bankruptcy", agent),
+        private_detail_cid: Cid::default(),
+        privacy_policy: CapsulePrivacyPolicy::AuditOnly,
+        sha256: Hash::ZERO,
+        created_at_logical_t: 0,
+        created_at_round: 0,
+    };
+    let autopsies = vec![mk("A"), mk("B"), mk("C")];
+    let summaries = cluster_autopsies(&autopsies, 3);
+    assert_eq!(summaries.len(), 1, "FC2-N30: 3 same-class → 1 broadcast");
+    assert_eq!(summaries[0].count, 3);
+}
+
+/// FC3-N43 (TB-15 Atom 5): MarkovEvidenceCapsule + writer + default-deny
+/// gate witness. Capsule references constitution_hash (SG-15.7);
+/// deep-history default-deny without override (FR-15.5 + halt-trigger #6).
+#[test]
+fn fc3_n43_markov_capsule_witness() {
+    use turingosv4::runtime::markov_capsule::{
+        try_deep_history_read_with_override_check, MarkovEvidenceCapsule, MarkovGenError,
+    };
+
+    // SG-15.7: constitution_hash field plumbed through.
+    let cap = MarkovEvidenceCapsule::with_constitution_hash([0xAB; 32]);
+    assert_eq!(cap.constitution_hash.0, [0xAB; 32]);
+
+    // FR-15.5 + halt-trigger #6: default-deny without override.
+    match try_deep_history_read_with_override_check(false) {
+        Err(MarkovGenError::DeepHistoryReadDenied) => {}
+        other => panic!("FC3-N43: expected DeepHistoryReadDenied; got {other:?}"),
+    }
+    assert!(try_deep_history_read_with_override_check(true).is_ok());
+}

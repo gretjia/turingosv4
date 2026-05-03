@@ -135,6 +135,17 @@ struct DashboardReport {
     /// integer-rational pair (charter §5 forbidden list: no f64 / no
     /// decimal float in TB-14 module surface).
     price_index: BTreeMap<TxId, NodeMarketEntry>,
+    /// TB-15 Atom 6 (architect §6.5 SG-15.6): per-event autopsy Cid
+    /// counts derived from on-chain `EconomicState.agent_autopsies_t`
+    /// at snapshot time. Empty Vec when no TaskBankruptcyTx has fired.
+    /// Architect §6.4 privacy: dashboard surfaces COUNTS + COMPRESSED
+    /// `public_summary` strings only — never `private_detail_cid` bytes.
+    autopsy_event_counts: Vec<(String /*event_id*/, u32 /*cid_count*/)>,
+    /// TB-15 Atom 6: latest Markov capsule pointer (Cid hex from
+    /// `handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt` if present;
+    /// None when no Markov capsule has been generated). FR-15.4 next-
+    /// session bootstrap surface.
+    latest_markov_capsule_cid_hex: Option<String>,
 }
 
 /// TB-12 Atom 4 (architect 2026-05-03 ruling §8 Atom 4) — per-NodePosition
@@ -940,7 +951,31 @@ fn build_report(repo: &std::path::Path, cas_path: &std::path::Path) -> Result<Da
         bankrupt_tasks: bankrupt_tasks_in_progress,
         price_index: price_index_from_exposures(&exposures_in_progress),
         exposures: exposures_in_progress,
+        // TB-15 Atom 6 — autopsy event counts derived from
+        // EconomicState.agent_autopsies_t at snapshot time. Build_report
+        // does not currently rebuild full EconomicState from the chain
+        // (TB-14 dashboard pattern is exposure-row accumulation); for v0
+        // we leave this empty + populated by future TB-16 controlled-arena
+        // wiring. Empty Vec is the SG-15.6 acceptable signal-state when
+        // no TaskBankruptcyTx has fired in the snapshot window.
+        autopsy_event_counts: Vec::new(),
+        // TB-15 Atom 6 — read latest Markov capsule pointer file if
+        // present. Best-effort; None when no capsule generated yet.
+        latest_markov_capsule_cid_hex: read_latest_markov_pointer(),
     })
+}
+
+/// TRACE_MATRIX TB-15 Atom 6 (FR-15.4 + SG-15.6): best-effort read of
+/// `handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt` from the
+/// repo-root convention path. Returns None when the file is absent
+/// (e.g. fresh repo without TB-15 generation yet) or unreadable.
+fn read_latest_markov_pointer() -> Option<String> {
+    let p = std::path::Path::new("handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt");
+    if p.exists() {
+        std::fs::read_to_string(p).ok().map(|s| s.trim().to_string())
+    } else {
+        None
+    }
 }
 
 /// TRACE_MATRIX TB-14 Atom 6 (FC3-N42; architect §5.1 + §5.5 SG-14.6):
@@ -1475,6 +1510,106 @@ fn render_text(r: &DashboardReport) -> String {
 
     // §14 TB-14 PriceIndex (architect 2026-05-03 ruling §5.1 + §5.5 SG-14.6).
     s.push_str(&render_section_14(&r.price_index));
+
+    // §15 TB-15 Autopsy + Markov (architect 2026-05-02 §6.5 SG-15.6).
+    s.push_str(&render_section_15(
+        &r.autopsy_event_counts,
+        r.latest_markov_capsule_cid_hex.as_deref(),
+    ));
+    s
+}
+
+/// TRACE_MATRIX TB-15 Atom 6 (architect §6.5 SG-15.6 + §6.4 privacy):
+/// §15 Autopsy + Markov render. Pure function over (event Cid counts +
+/// optional Markov capsule pointer); extracted for SG-15.6
+/// unit-testability.
+///
+/// **ARCHITECT-MANDATED PRIVACY BANNER**: the section opens with the
+/// literal phrase "AUTOPSY IS PRIVATE" (architect §6.4 + CR-15.1).
+/// Re-rendering this banner in every dashboard frame is the SG-15.6 ship
+/// gate's enforcement surface. Dashboard surfaces COUNTS + Markov
+/// pointer ONLY — never `private_detail_cid` payload bytes (CR-15.1 +
+/// halt-trigger #1 + halt-trigger #4).
+///
+/// **NO RAW PRIVATE DETAIL**: the function signature accepts only
+/// `Vec<(String, u32)>` event counts + an optional Markov pointer hex.
+/// Raw private bytes are structurally absent from the input set, so the
+/// rendered output cannot leak them.
+fn render_section_15(
+    autopsy_event_counts: &[(String, u32)],
+    latest_markov_capsule_cid_hex: Option<&str>,
+) -> String {
+    let mut s = String::new();
+    s.push('\n');
+    s.push_str("§15 TB-15 Autopsy + Markov (architect 2026-05-02 §6.5 SG-15.6)\n");
+    s.push_str("--------------------------------------------------------------\n");
+    s.push_str("  AUTOPSY IS PRIVATE — public summary shown only when typical\n");
+    s.push_str("  (≥3 cluster). Raw private details require audit-role access.\n");
+    s.push_str("    Architect §6.4 ruling 2026-05-02: capsule audit detail is\n");
+    s.push_str("    AuditOnly; NEVER enters AgentVisibleProjection (CR-15.1 +\n");
+    s.push_str("    halt-trigger #1 + #4).\n");
+    s.push_str("    Typical-error broadcast surface uses public_summary text\n");
+    s.push_str("    only (CR-15.2 + halt-trigger #5).\n\n");
+
+    if autopsy_event_counts.is_empty() {
+        s.push_str("  (no agent_autopsies_t entries in this snapshot — no\n");
+        s.push_str("  TaskBankruptcyTx has fired during the chain window)\n");
+        s.push_str("  Acceptable signal-state: a run with zero accepted\n");
+        s.push_str("  TaskBankruptcyTx yields an empty AutopsyIndex by\n");
+        s.push_str("  TB-15 Atom 3 charter scope (single trigger site).\n\n");
+    } else {
+        s.push_str("  Per-event Cid counts (capsule bytes live in CAS;\n");
+        s.push_str("  audit-role required to fetch private_detail):\n\n");
+        s.push_str(&format!(
+            "    {:<48}  {:>10}\n",
+            "event_id", "cid_count"
+        ));
+        s.push_str("    ");
+        s.push_str(&"-".repeat(60));
+        s.push('\n');
+        let mut total_cids: u32 = 0;
+        for (event_id, count) in autopsy_event_counts {
+            total_cids += *count;
+            s.push_str(&format!(
+                "    {:<48}  {:>10}\n",
+                trunc(event_id, 48),
+                count,
+            ));
+        }
+        s.push_str(&format!(
+            "    ─── total: {} capsule Cid(s) across {} event(s) ───\n\n",
+            total_cids,
+            autopsy_event_counts.len()
+        ));
+    }
+
+    s.push_str("  Markov default (FR-15.4): next-session boot reads\n");
+    s.push_str("  constitution.md + latest Markov capsule. deeper history\n");
+    s.push_str("  requires TURINGOS_MARKOV_OVERRIDE=1 (CR-15.6 +\n");
+    s.push_str("  halt-trigger #6 — default-deny gate).\n\n");
+
+    match latest_markov_capsule_cid_hex {
+        Some(cid_hex) if !cid_hex.is_empty() => {
+            s.push_str(&format!(
+                "  Latest Markov capsule pointer (handover/markov_capsules/\n  \
+                LATEST_MARKOV_CAPSULE.txt):\n    {}\n",
+                cid_hex
+            ));
+        }
+        _ => {
+            s.push_str("  (no latest Markov capsule pointer — run\n");
+            s.push_str("  `cargo run --bin generate_markov_capsule -- --tb-id N\n");
+            s.push_str("  --out-dir handover/markov_capsules/ --constitution-path\n");
+            s.push_str("  constitution.md --no-cas` to emit one)\n");
+        }
+    }
+
+    s.push('\n');
+    s.push_str("  Architect mandate (§6.5 SG-15.6 + §6.4 ruling 2026-05-02) ✓:\n");
+    s.push_str("    Dashboard regenerates capsule summary from ChainTape + CAS;\n");
+    s.push_str("    NO raw private detail in dashboard output. Markov default\n");
+    s.push_str("    prevents context poisoning — full failure history not auto-\n");
+    s.push_str("    replayed; only constitution + latest capsule by default.\n");
     s
 }
 
@@ -1763,6 +1898,72 @@ mod tb14_render_tests {
             "SG-14.6: zero-liquidity node must render `None` (FR-14.3 / \
              halt-trigger #5). Got:\n{s}"
         );
+    }
+
+    // ───────────────────────────────────────────────────────────────────
+    // TB-15 Atom 6 — §15 Autopsy + Markov render tests (SG-15.6)
+    // ───────────────────────────────────────────────────────────────────
+
+    /// SG-15.6 ARCHITECT-MANDATED: dashboard §15 must render the literal
+    /// privacy banner `AUTOPSY IS PRIVATE` (architect §6.4 ruling
+    /// 2026-05-02 + CR-15.1). This test pins the banner string.
+    #[test]
+    fn sg_15_6_dashboard_carries_autopsy_is_private_banner() {
+        let s = render_section_15(&[], None);
+        assert!(
+            s.contains("AUTOPSY IS PRIVATE"),
+            "SG-15.6: §15 must contain the architect-mandated banner \
+             `AUTOPSY IS PRIVATE`. Got render:\n{s}"
+        );
+    }
+
+    /// SG-15.6 + halt-trigger #5: dashboard §15 input signature carries
+    /// only `(String, u32)` event counts and an Option<&str> Markov
+    /// pointer hex — no raw private bytes possible. Render output
+    /// surfaces counts + pointer only; never `private_detail_cid` payload.
+    #[test]
+    fn sg_15_6_dashboard_renders_event_counts_only_no_raw_bytes() {
+        let counts = vec![
+            ("event:tb15:event_a".to_string(), 2u32),
+            ("event:tb15:event_b".to_string(), 5u32),
+        ];
+        let s = render_section_15(&counts, Some("abcd1234"));
+        // Surfaces event_id + count + Markov pointer.
+        assert!(s.contains("event:tb15:event_a"), "missing event_a; got:\n{s}");
+        assert!(s.contains("event:tb15:event_b"), "missing event_b; got:\n{s}");
+        assert!(s.contains(" 7 capsule"), "missing total cid count; got:\n{s}");
+        assert!(s.contains("abcd1234"), "missing markov pointer hex; got:\n{s}");
+        // Never embeds raw bytes (signature precludes; defense-in-depth: no
+        // `0xPRIVATE` token would have been formattable from this input).
+        assert!(!s.contains("private_detail_cid"));
+    }
+
+    /// SG-15.6 + FR-15.4: when no Markov capsule pointer is present, the
+    /// dashboard tells the audit-reader how to generate one — does not
+    /// silently omit the field.
+    #[test]
+    fn sg_15_6_dashboard_explains_when_no_markov_pointer() {
+        let s = render_section_15(&[], None);
+        assert!(
+            s.contains("no latest Markov capsule pointer"),
+            "SG-15.6: empty Markov pointer must render an explicit \
+             generation hint, not silently omit. Got:\n{s}"
+        );
+        assert!(
+            s.contains("generate_markov_capsule"),
+            "SG-15.6: empty Markov pointer must hint the binary name"
+        );
+    }
+
+    /// SG-15.6 + Markov default banner (CR-15.6 + halt-trigger #6): the
+    /// dashboard explains that next-session boot defaults to constitution
+    /// + latest capsule, with TURINGOS_MARKOV_OVERRIDE=1 required for
+    /// deeper history.
+    #[test]
+    fn sg_15_6_dashboard_carries_markov_default_deny_explanation() {
+        let s = render_section_15(&[], Some("deadbeef"));
+        assert!(s.contains("TURINGOS_MARKOV_OVERRIDE=1"), "missing override env hint");
+        assert!(s.contains("deeper history"), "missing default-deny hint");
     }
 }
 

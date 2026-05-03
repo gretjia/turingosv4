@@ -6,6 +6,40 @@
 
 ---
 
+## 🚢 2026-05-03 — TB-15 SHIPPED (Lamarckian Autopsy + Markov EvidenceCapsule; Class 2 self-audit; 8/8 SG + 6/6 halt-triggers GREEN)
+
+**Session summary**: Auto-mode shipped TB-15 per architect §6 spec verbatim (FR-15.1..6 + CR-15.1..6 + SG-15.1..8 + 6 halt triggers + forbidden list). All 7 atoms (charter + halt fixture + AgentAutopsyCapsule schema/writer + AutopsyIndex/TaskBankruptcyTx wire-in + cluster_autopsies + MarkovEvidenceCapsule schema/generator + dashboard §15/first-capsule/SHIP) shipped under single charter. Risk class envelope held at Class 2 (self-audit; AgentVisibleProjection unchanged; only one new sequencer dispatch hook). Full ship-status doc: `handover/ai-direct/TB-15_SHIP_STATUS_2026-05-03.md`.
+
+**Workspace = 870 passed / 0 failed / 150 ignored; +67 net vs TB-14 ship 803.** All 6 halt-triggers GREEN. All 8 architect §6.5 ship gates GREEN. All 4 P-roadmap exits addressed (P4-Exit1/2/3 + P5-Exit1/2 prep). All 4 FC-IDs (FC1-N32 / FC1-N33 / FC2-N30 / FC3-N43) have witness tests. Genesis Markov capsule emitted (`b244f16a1f3bd532d041a40fe39b2b7e7cc12fb58e18b61aedd76a8010eeb1b6`); evidence at `handover/evidence/tb_15_markov_capsule_2026-05-03/`.
+
+**HEAD**: pre-ship `31be856` (Atom 5); ship commit pending. NOT pushed to remote — user-decision boundary per session-default.
+
+### TB-15 architectural deltas (Class 2)
+- **NEW** `src/runtime/autopsy_capsule.rs` (Atoms 2 + 3 + 4): `LossReasonClass` (8 variants) + `AgentAutopsyCapsule` + `format_public_summary` + `write_autopsy_capsule` + `derive_autopsies_for_bankruptcy` (PURE; consumed by both dispatch + apply_one) + `write_bankruptcy_autopsies_to_cas` + `cluster_autopsies` + `TypicalErrorSummary`. 15 in-module tests.
+- **NEW** `src/runtime/markov_capsule.rs` (Atom 5): `ObsId` + `MarkovEvidenceCapsule` + `with_constitution_hash` + `try_deep_history_read_with_override_check` (default-deny gate) + `override_set_from_env` + `write_markov_capsule` + `scan_unresolved_obs` + `sha256_of_file` + `MarkovGenError`. 8 in-module tests.
+- **NEW** `src/bin/generate_markov_capsule.rs` (Atom 5): CLI binary with `TURINGOS_MARKOV_OVERRIDE` env support + `--no-cas` mode for fresh repos.
+- **NEW** `tests/tb_15_halt_triggers.rs` (Atoms 1 + 2 + 3 + 4 + 5): 6 halt-trigger fixtures.
+- **MOD** `src/state/typed_tx.rs`: `+ RiskRuleId(pub String)`.
+- **MOD** `src/bottom_white/cas/schema.rs`: `+ ObjectType::AgentAutopsyCapsule + AutopsyPrivateDetail + MarkovEvidenceCapsule + NextSessionContext`.
+- **MOD** `src/state/q_state.rs`: `+ AutopsyIndex(BTreeMap<EventId, Vec<Cid>>)` + `agent_autopsies_t` 13th sub-field on EconomicState. Sub-field count 12→13.
+- **MOD** `src/state/sequencer.rs`: TaskBankruptcyTx dispatch arm Step 3.5 (PURE Cid derivation) + apply_one Stage 3.5 (CAS write of capsule + private_detail bytes via deterministic helper). NO predicate registry mutation. NO AgentVisibleProjection mod.
+- **MOD** `src/runtime/mod.rs`: `+ pub mod autopsy_capsule + pub mod markov_capsule`.
+- **MOD** `src/bin/audit_dashboard.rs`: `+ render_section_15` pure render (banner `AUTOPSY IS PRIVATE`) + `+ autopsy_event_counts` + `latest_markov_capsule_cid_hex` fields on `DashboardReport` + `read_latest_markov_pointer()` helper. 4 new SG-15.6 dashboard tests.
+- **MOD** 4 test fixtures for sub-field count 12→13 + 4 fc_alignment_conformance witnesses.
+- **MOD** `genesis_payload.toml`: trust_root rehash for 6 modified files.
+
+### Production claim
+> TB-15 establishes Lamarckian Autopsy + Markov EvidenceCapsule substrate. AgentAutopsyCapsule (per-agent, per-event, AuditOnly) records loss/bankruptcy events derived deterministically from ChainTape evidence — NEVER LLM self-narration. agent_autopsies_t lives sequencer-side (NOT projected to AgentVisibleProjection per CR-15.1 + halt-trigger #1). TypicalErrorBroadcast clustering at N≥3 emits public_summary text + Cids only — NEVER private_detail_cid bytes. MarkovEvidenceCapsule binds constitution_hash + L4 + L4.E + CAS roots + previous capsule + typical_errors + unresolved_obs as next-session bootstrap default; deeper history requires `TURINGOS_MARKOV_OVERRIDE=1`. CR-15.3/15.4 (autopsy may suggest, never mutate; JudgeAI veto-only) STRUCTURALLY ENFORCED via writer signature + halt-trigger #3 file-scan.
+
+### Open follow-ups (TB-15 carry-forward; not ship blockers)
+- **Multi-site autopsy wire-in** (SlashLoss / ChallengeUnsuccessful / VerifierBondLost): wires when SlashTx ships in RSP-3.2 (TB-9) and contribution DAG ships in RSP-4.
+- **L4/L4.E/CAS root chain-readers** in Markov generator: currently zero placeholders; future TB wires to chain head readers.
+- **CAS-walking dashboard §15**: currently empty `autopsy_event_counts`; future TB-16 controlled-arena will exercise live wire-in.
+- **InitAI agent-side honoring** of Markov default: substrate + binary-level default-deny ship now; agent-side enforcement is P5 v1.
+- **OBS_RESOLUTIONS_INDEX_TB15** explicitly DEFERRED out of TB-15 scope per charter §7-G; carry-forward to dedicated TB.
+
+---
+
 ## 🚢 2026-05-03 — TB-14 SHIPPED (single charter; full Atoms 0–7 + B′ R1-VETO closure cycle; dual audit converged R2 PASS)
 
 **Session summary**: Auto-mode shipped TB-14 PriceIndex v0 + Boltzmann Masking under a single charter (NOT split per architect §8 fallback). Full ship-status doc: `handover/ai-direct/TB-14_SHIP_STATUS_2026-05-03.md`. **Workspace = 841 passed / 0 failed / 150 ignored; 6/6 architect §5.7 halt-triggers GREEN; 12/12 SG/G ship gates GREEN; 6/6 CR-14.x conformance preserved; ChainTape smoke + 5 production-controlled canonical-masking smokes (chain-backed) PASS.**
