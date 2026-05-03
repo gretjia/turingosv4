@@ -251,6 +251,54 @@ pub fn task_bankruptcy_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
     Hash::from_bytes(digest)
 }
 
+/// TRACE_MATRIX TB-13 Atom 2 (architect 2026-05-03 post-TB-12 ruling Part A
+/// §4.3): CompleteSetMint-accept state-root domain.
+pub(crate) const COMPLETE_SET_MINT_DOMAIN_V1: &[u8] =
+    b"turingosv4.complete_set_mint.accept.v1";
+
+/// TRACE_MATRIX TB-13 Atom 2: state-root mutator on `CompleteSetMintTx`
+/// accept. Mirror of `task_open_accept_state_root`.
+pub fn complete_set_mint_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
+    let mut h = Sha256::new();
+    h.update(COMPLETE_SET_MINT_DOMAIN_V1);
+    h.update(prev.0);
+    h.update(canonical_encode(tx).expect("TypedTx is canonical-encodable"));
+    let digest: [u8; 32] = h.finalize().into();
+    Hash::from_bytes(digest)
+}
+
+/// TRACE_MATRIX TB-13 Atom 2 (architect §4.3): CompleteSetRedeem-accept
+/// state-root domain.
+pub(crate) const COMPLETE_SET_REDEEM_DOMAIN_V1: &[u8] =
+    b"turingosv4.complete_set_redeem.accept.v1";
+
+/// TRACE_MATRIX TB-13 Atom 2: state-root mutator on `CompleteSetRedeemTx`
+/// accept. Mirror of `complete_set_mint_accept_state_root`.
+pub fn complete_set_redeem_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
+    let mut h = Sha256::new();
+    h.update(COMPLETE_SET_REDEEM_DOMAIN_V1);
+    h.update(prev.0);
+    h.update(canonical_encode(tx).expect("TypedTx is canonical-encodable"));
+    let digest: [u8; 32] = h.finalize().into();
+    Hash::from_bytes(digest)
+}
+
+/// TRACE_MATRIX TB-13 Atom 2 (architect §4.3): MarketSeed-accept state-root
+/// domain.
+pub(crate) const MARKET_SEED_DOMAIN_V1: &[u8] =
+    b"turingosv4.market_seed.accept.v1";
+
+/// TRACE_MATRIX TB-13 Atom 2: state-root mutator on `MarketSeedTx` accept.
+/// Mirror of `complete_set_mint_accept_state_root`.
+pub fn market_seed_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
+    let mut h = Sha256::new();
+    h.update(MARKET_SEED_DOMAIN_V1);
+    h.update(prev.0);
+    h.update(canonical_encode(tx).expect("TypedTx is canonical-encodable"));
+    let digest: [u8; 32] = h.finalize().into();
+    Hash::from_bytes(digest)
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // TB-2 Atom 4 — rejection-path helpers (preflight v3 §3.5 + §3.7)
 // ────────────────────────────────────────────────────────────────────────────
@@ -1520,14 +1568,305 @@ pub(crate) fn dispatch_transition(
             Ok((q_next, SignalBundle::default()))
         }
         // ──────────────────────────────────────────────────────────────────
-        // TB-13 Atom 1 stubs (architect 2026-05-03 post-TB-12 ruling Part A
-        // §4.3 + §4.4). Real dispatch bodies land in Atom 2 (sequencer
-        // dispatch + EconomicState 11→13 extension); Atom 1 only freezes
-        // the typed-tx wire surface + keeps the exhaustive match green.
+        // TB-13 Atom 2 — CompleteSetMintTx accept arm (architect 2026-05-03
+        // post-TB-12 ruling Part A §4.3 + §4.4 FR-13.1..3 + CR-13.1..6).
+        //
+        //   1 locked Coin → 1 YES_E + 1 NO_E.
+        //
+        // Debits balances_t[owner] by amount; credits
+        // conditional_collateral_t[event_id] by amount; credits BOTH
+        // conditional_share_balances_t[owner][event][Yes] and [No] by
+        // amount.units. CTF preserved (balance debit = collateral credit;
+        // shares are claims, not Coin per CR-13.3 + SG-13.2).
         // ──────────────────────────────────────────────────────────────────
-        TypedTx::CompleteSetMint(_) => Err(TransitionError::NotYetImplemented),
-        TypedTx::CompleteSetRedeem(_) => Err(TransitionError::NotYetImplemented),
-        TypedTx::MarketSeed(_) => Err(TransitionError::NotYetImplemented),
+        TypedTx::CompleteSetMint(mint) => {
+            // Step 1: parent-root match.
+            if mint.parent_state_root != q.state_root_t {
+                return Err(TransitionError::StaleParent);
+            }
+            // Step 2: amount > 0 sanity.
+            if mint.amount.micro_units() == 0 {
+                return Err(TransitionError::InsufficientBalanceForMint);
+            }
+            // Step 3: owner solvency.
+            let owner_bal = q
+                .economic_state_t
+                .balances_t
+                .0
+                .get(&mint.owner)
+                .copied()
+                .unwrap_or(crate::economy::money::MicroCoin::zero());
+            if owner_bal.micro_units() < mint.amount.micro_units() {
+                return Err(TransitionError::InsufficientBalanceForMint);
+            }
+            // Step 4: build q_next — atomic balance → collateral migration +
+            // equal YES_E + NO_E share mint. The 6-holding sum (Atom 3
+            // monetary_invariant extension) treats conditional_collateral_t
+            // as a Coin holding, so total_supply_micro is preserved
+            // bit-for-bit across mint.
+            let mut q_next = q.clone();
+            let new_bal_micro = owner_bal.micro_units() - mint.amount.micro_units();
+            q_next.economic_state_t.balances_t.0.insert(
+                mint.owner.clone(),
+                crate::economy::money::MicroCoin::from_micro_units(new_bal_micro),
+            );
+            let collateral_entry = q_next
+                .economic_state_t
+                .conditional_collateral_t
+                .0
+                .entry(mint.event_id.clone())
+                .or_insert(crate::economy::money::MicroCoin::zero());
+            *collateral_entry = crate::economy::money::MicroCoin::from_micro_units(
+                collateral_entry.micro_units() + mint.amount.micro_units(),
+            );
+            let owner_shares = q_next
+                .economic_state_t
+                .conditional_share_balances_t
+                .0
+                .entry(mint.owner.clone())
+                .or_insert_with(std::collections::BTreeMap::new);
+            let pair = owner_shares
+                .entry(mint.event_id.clone())
+                .or_insert(crate::state::q_state::ShareSidePair::default());
+            pair.yes = crate::state::typed_tx::ShareAmount::from_units(
+                pair.yes.units + mint.amount.micro_units() as u128,
+            );
+            pair.no = crate::state::typed_tx::ShareAmount::from_units(
+                pair.no.units + mint.amount.micro_units() as u128,
+            );
+
+            // Step 5: monetary invariants.
+            assert_no_post_init_mint(tx, q)
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            assert_total_ctf_conserved(
+                &q.economic_state_t,
+                &q_next.economic_state_t,
+                &[],
+            )
+            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+
+            // Step 6: state_root advance.
+            q_next.state_root_t = complete_set_mint_accept_state_root(&q.state_root_t, tx);
+
+            Ok((q_next, SignalBundle::default()))
+        }
+        // ──────────────────────────────────────────────────────────────────
+        // TB-13 Atom 2 — CompleteSetRedeemTx accept arm (architect §4.3 +
+        // FR-13.4..5 + SG-13.5..6).
+        //
+        // Validation:
+        //   - task_markets_t[event_id.0].state must be Finalized (Yes) or
+        //     Bankrupt (No); else RedeemBeforeResolution.
+        //   - claimed_outcome must match the state; else InvalidResolutionRef.
+        //   - owner's winning-side share balance must cover share_amount;
+        //     else RedeemMoreThanOwned.
+        //   - event collateral must cover share_amount; else
+        //     InsufficientCollateral.
+        //
+        // Effect: 1 share → 1 MicroCoin (architect §4.3: "after YES outcome
+        // pays YES shares"). Debit shares + collateral; credit balance.
+        // ──────────────────────────────────────────────────────────────────
+        TypedTx::CompleteSetRedeem(redeem) => {
+            if redeem.parent_state_root != q.state_root_t {
+                return Err(TransitionError::StaleParent);
+            }
+            // Step 1: claimed_outcome consistency between resolution_ref and
+            // outcome field — both must agree before we even check state.
+            if redeem.outcome != redeem.resolution_ref.claimed_outcome {
+                return Err(TransitionError::InvalidResolutionRef);
+            }
+            // Step 2: lookup task_markets_t state.
+            let market_state = q
+                .economic_state_t
+                .task_markets_t
+                .0
+                .get(&redeem.event_id.0)
+                .map(|m| m.state)
+                .ok_or(TransitionError::RedeemBeforeResolution)?;
+            match (market_state, redeem.outcome) {
+                (crate::state::q_state::TaskMarketState::Finalized,
+                 crate::state::typed_tx::OutcomeSide::Yes) => { /* ok — YES wins */ }
+                (crate::state::q_state::TaskMarketState::Bankrupt,
+                 crate::state::typed_tx::OutcomeSide::No) => { /* ok — NO wins */ }
+                (crate::state::q_state::TaskMarketState::Finalized, _)
+                | (crate::state::q_state::TaskMarketState::Bankrupt, _) => {
+                    return Err(TransitionError::InvalidResolutionRef);
+                }
+                (crate::state::q_state::TaskMarketState::Open, _)
+                | (crate::state::q_state::TaskMarketState::Expired, _) => {
+                    return Err(TransitionError::RedeemBeforeResolution);
+                }
+            }
+            // Step 3: owner's share balance for the winning side.
+            let pair = q
+                .economic_state_t
+                .conditional_share_balances_t
+                .0
+                .get(&redeem.owner)
+                .and_then(|m| m.get(&redeem.event_id))
+                .copied()
+                .unwrap_or_default();
+            let owned_units = match redeem.outcome {
+                crate::state::typed_tx::OutcomeSide::Yes => pair.yes.units,
+                crate::state::typed_tx::OutcomeSide::No => pair.no.units,
+            };
+            if owned_units < redeem.share_amount.units {
+                return Err(TransitionError::RedeemMoreThanOwned);
+            }
+            // Step 4: collateral coverage (defensive; should hold if
+            // assert_complete_set_balanced is preserved).
+            let event_collateral = q
+                .economic_state_t
+                .conditional_collateral_t
+                .0
+                .get(&redeem.event_id)
+                .copied()
+                .unwrap_or(crate::economy::money::MicroCoin::zero());
+            if (event_collateral.micro_units() as u128) < redeem.share_amount.units {
+                return Err(TransitionError::InsufficientCollateral);
+            }
+
+            // Step 5: build q_next.
+            let mut q_next = q.clone();
+            // 5a: debit the winning side from owner's share balance.
+            {
+                let owner_shares = q_next
+                    .economic_state_t
+                    .conditional_share_balances_t
+                    .0
+                    .entry(redeem.owner.clone())
+                    .or_insert_with(std::collections::BTreeMap::new);
+                let pair = owner_shares
+                    .entry(redeem.event_id.clone())
+                    .or_insert(crate::state::q_state::ShareSidePair::default());
+                match redeem.outcome {
+                    crate::state::typed_tx::OutcomeSide::Yes => {
+                        pair.yes = crate::state::typed_tx::ShareAmount::from_units(
+                            pair.yes.units - redeem.share_amount.units,
+                        );
+                    }
+                    crate::state::typed_tx::OutcomeSide::No => {
+                        pair.no = crate::state::typed_tx::ShareAmount::from_units(
+                            pair.no.units - redeem.share_amount.units,
+                        );
+                    }
+                }
+            }
+            // 5b: debit collateral.
+            {
+                let collateral_entry = q_next
+                    .economic_state_t
+                    .conditional_collateral_t
+                    .0
+                    .entry(redeem.event_id.clone())
+                    .or_insert(crate::economy::money::MicroCoin::zero());
+                *collateral_entry = crate::economy::money::MicroCoin::from_micro_units(
+                    collateral_entry.micro_units() - redeem.share_amount.units as i64,
+                );
+            }
+            // 5c: credit owner's balance 1:1 (1 winning share = 1 MicroCoin).
+            let owner_bal = q_next
+                .economic_state_t
+                .balances_t
+                .0
+                .get(&redeem.owner)
+                .copied()
+                .unwrap_or(crate::economy::money::MicroCoin::zero());
+            q_next.economic_state_t.balances_t.0.insert(
+                redeem.owner.clone(),
+                crate::economy::money::MicroCoin::from_micro_units(
+                    owner_bal.micro_units() + redeem.share_amount.units as i64,
+                ),
+            );
+
+            // Step 6: monetary invariants.
+            assert_no_post_init_mint(tx, q)
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            assert_total_ctf_conserved(
+                &q.economic_state_t,
+                &q_next.economic_state_t,
+                &[],
+            )
+            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+
+            // Step 7: state_root advance.
+            q_next.state_root_t = complete_set_redeem_accept_state_root(&q.state_root_t, tx);
+
+            Ok((q_next, SignalBundle::default()))
+        }
+        // ──────────────────────────────────────────────────────────────────
+        // TB-13 Atom 2 — MarketSeedTx accept arm (architect §4.3 + FR-13.6..7 +
+        // SG-13.3..4). Provider explicitly funds collateral + receives BOTH
+        // YES + NO share inventory. **No trading. No quoting. No pricing.**
+        // ──────────────────────────────────────────────────────────────────
+        TypedTx::MarketSeed(seed) => {
+            if seed.parent_state_root != q.state_root_t {
+                return Err(TransitionError::StaleParent);
+            }
+            // Step 1: collateral_amount > 0 (architect SG-13.4).
+            if seed.collateral_amount.micro_units() == 0 {
+                return Err(TransitionError::InsufficientCollateral);
+            }
+            // Step 2: provider solvency (architect SG-13.3).
+            let provider_bal = q
+                .economic_state_t
+                .balances_t
+                .0
+                .get(&seed.provider)
+                .copied()
+                .unwrap_or(crate::economy::money::MicroCoin::zero());
+            if provider_bal.micro_units() < seed.collateral_amount.micro_units() {
+                return Err(TransitionError::InsufficientBalanceForMint);
+            }
+            // Step 3: build q_next — provider balance → collateral + provider
+            // receives BOTH YES + NO share inventory.
+            let mut q_next = q.clone();
+            let new_bal_micro =
+                provider_bal.micro_units() - seed.collateral_amount.micro_units();
+            q_next.economic_state_t.balances_t.0.insert(
+                seed.provider.clone(),
+                crate::economy::money::MicroCoin::from_micro_units(new_bal_micro),
+            );
+            let collateral_entry = q_next
+                .economic_state_t
+                .conditional_collateral_t
+                .0
+                .entry(seed.event_id.clone())
+                .or_insert(crate::economy::money::MicroCoin::zero());
+            *collateral_entry = crate::economy::money::MicroCoin::from_micro_units(
+                collateral_entry.micro_units() + seed.collateral_amount.micro_units(),
+            );
+            let provider_shares = q_next
+                .economic_state_t
+                .conditional_share_balances_t
+                .0
+                .entry(seed.provider.clone())
+                .or_insert_with(std::collections::BTreeMap::new);
+            let pair = provider_shares
+                .entry(seed.event_id.clone())
+                .or_insert(crate::state::q_state::ShareSidePair::default());
+            pair.yes = crate::state::typed_tx::ShareAmount::from_units(
+                pair.yes.units + seed.collateral_amount.micro_units() as u128,
+            );
+            pair.no = crate::state::typed_tx::ShareAmount::from_units(
+                pair.no.units + seed.collateral_amount.micro_units() as u128,
+            );
+
+            // Step 4: monetary invariants.
+            assert_no_post_init_mint(tx, q)
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            assert_total_ctf_conserved(
+                &q.economic_state_t,
+                &q_next.economic_state_t,
+                &[],
+            )
+            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+
+            // Step 5: state_root advance.
+            q_next.state_root_t = market_seed_accept_state_root(&q.state_root_t, tx);
+
+            Ok((q_next, SignalBundle::default()))
+        }
     }
 }
 

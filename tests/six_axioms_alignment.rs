@@ -46,16 +46,19 @@ fn axiom_2_predicate_registry_root_present() {
     assert!(v.as_object().unwrap().contains_key("predicate_registry_root_t"));
 }
 
-/// Axiom 3: economic alignment — Q_t exposes an 11-sub-field economic state.
+/// Axiom 3: economic alignment — Q_t exposes a 13-sub-field economic state.
 /// TB-11 (architect §6.2 ruling 2026-05-02) bumped 9 → 10 with +runs_t.
 /// TB-12 (architect 2026-05-03 ruling §3 + §8 Atom 1) bumped 10 → 11 with
 /// +node_positions_t (flat NodePositionsIndex; canonical exposure record
 /// state; NOT NodeMarketEntry which is TB-14 derived view).
+/// TB-13 Atom 2 (architect 2026-05-03 post-TB-12 ruling §4.3) bumped
+/// 11 → 13 with +conditional_collateral_t (Coin holding per CR-13.4) +
+/// conditional_share_balances_t (claims per CR-13.3).
 #[test]
 fn axiom_3_economic_state_present_and_complete() {
     let g = QState::genesis();
     let e = serde_json::to_value(&g.economic_state_t).unwrap();
-    assert_eq!(e.as_object().unwrap().len(), 11);
+    assert_eq!(e.as_object().unwrap().len(), 13);
 }
 
 /// Axiom 4: tool capability — Q_t exposes `tool_registry_root_t` slot.

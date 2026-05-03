@@ -190,6 +190,31 @@ pub struct EconomicState {
     /// backward-compat with pre-TB-12 chain snapshots.
     #[serde(default)]
     pub node_positions_t: NodePositionsIndex,
+    /// TRACE_MATRIX TB-13 Atom 2 (architect 2026-05-03 post-TB-12 ruling Part A
+    /// §4.3 + §4.4 FR-13.1..7 + CR-13.4): conditional collateral per event.
+    /// Locked Coin held against outstanding YES_E + NO_E share inventory.
+    ///
+    /// **IS** a Coin holding per CR-13.4 ("Locked collateral is Coin
+    /// holding"); included in the 6-holding `total_supply_micro` sum
+    /// (extends the TB-7R 5-holding sum). Mint/seed credit; redeem debit.
+    /// 1 Coin → 1 YES_E + 1 NO_E mathematical identity (SG-13.1) ensures
+    /// `Σ_{event} conditional_collateral_t[event].units == Σ shares per side`.
+    ///
+    /// `#[serde(default)]` for backward-compat with pre-TB-13 chain snapshots.
+    #[serde(default)]
+    pub conditional_collateral_t: ConditionalCollateralIndex,
+    /// TRACE_MATRIX TB-13 Atom 2 (architect §4.3 + CR-13.3 + SG-13.2):
+    /// conditional share balances per `(owner, event_id, OutcomeSide)`.
+    ///
+    /// **IS NOT** a Coin holding — shares are CLAIMS against
+    /// `conditional_collateral_t[event_id]`; CR-13.3 + SG-13.2 explicit:
+    /// shares are NOT counted in `total_supply_micro`. Mint mints equal
+    /// YES + NO; seed mints equal YES + NO to provider; redeem debits the
+    /// winning side at 1 share = 1 MicroCoin against collateral.
+    ///
+    /// `#[serde(default)]` for backward-compat with pre-TB-13 chain snapshots.
+    #[serde(default)]
+    pub conditional_share_balances_t: ConditionalShareBalances,
 }
 
 /// TRACE_MATRIX WP § 2 — agent → balance ledger. Concrete entry: `MicroCoin` (CO1.0a).
@@ -492,6 +517,54 @@ pub struct NodePositionsIndex(
     pub BTreeMap<TxId, crate::state::typed_tx::NodePosition>,
 );
 
+// ────────────────────────────────────────────────────────────────────────────
+// TB-13 (architect 2026-05-03 post-TB-12 ruling Part A §4.3 + §4.4):
+// ConditionalCollateralIndex + ConditionalShareBalances — Polymarket / CTF
+// conditional-share substrate. **1 locked Coin = 1 YES_E + 1 NO_E.**
+// ────────────────────────────────────────────────────────────────────────────
+
+/// TRACE_MATRIX TB-13 Atom 2 (architect §4.3 + CR-13.4): per-event Coin
+/// collateral locked against outstanding YES_E + NO_E share inventory.
+///
+/// **IS** a Coin holding — included in 6-holding `total_supply_micro` sum
+/// at `monetary_invariant::assert_total_ctf_conserved`. Mint/seed credit
+/// this map; redeem debits it. The complete-set balanced invariant
+/// (`assert_complete_set_balanced`) enforces
+/// `Σ_{owner} share[(owner, event, Yes)] == Σ_{owner} share[(owner, event, No)] == collateral[event]`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct ConditionalCollateralIndex(
+    pub BTreeMap<crate::state::typed_tx::EventId, MicroCoin>,
+);
+
+/// TRACE_MATRIX TB-13 Atom 2 (architect §4.3 + CR-13.3 + SG-13.2): per-
+/// `(owner, event_id)` share balance pair (YES + NO sides).
+///
+/// **IS NOT** a Coin holding — shares are claims against
+/// `ConditionalCollateralIndex[event_id]`. Architect CR-13.3 / SG-13.2
+/// explicit: shares are NOT counted in `total_supply_micro`.
+///
+/// Wire shape: `BTreeMap<AgentId, BTreeMap<EventId, ShareSidePair>>`.
+/// Nested-map shape (rather than tuple-key) keeps the structure
+/// JSON-friendly (BTreeMap with tuple keys is not serializable through
+/// serde_json) while preserving canonical Owner-major / Event-minor
+/// ordering for replay determinism.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct ConditionalShareBalances(
+    pub BTreeMap<
+        AgentId,
+        BTreeMap<crate::state::typed_tx::EventId, ShareSidePair>,
+    >,
+);
+
+/// TRACE_MATRIX TB-13 Atom 2 (architect §4.3 + FR-13.3): YES + NO share
+/// holdings for a `(owner, event_id)` pair. Mint and seed credit
+/// equally; redeem debits the winning side.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct ShareSidePair {
+    pub yes: crate::state::typed_tx::ShareAmount,
+    pub no: crate::state::typed_tx::ShareAmount,
+}
+
 /// TRACE_MATRIX TB-11 (architect §6.2) — per-run summary. Sponsored by
 /// `task_id`; populated by the `TerminalSummaryTx` dispatch arm with
 /// fields drawn from the typed-tx wire payload (Q-derivable on replay).
@@ -697,22 +770,29 @@ mod tests {
     }
 
     #[test]
-    fn economic_state_has_eleven_sub_fields() {
+    fn economic_state_has_thirteen_sub_fields() {
         // TB-11 (2026-05-02 architect ruling §6.2): 9 → 10 sub-fields with +runs_t.
         // TB-12 (2026-05-03 architect ruling §3 + §8 Atom 1): 10 → 11 sub-fields
         // with +node_positions_t (flat NodePositionsIndex; canonical exposure
         // record state; NOT NodeMarketEntry which is TB-14 derived view).
+        // TB-13 Atom 2 (architect 2026-05-03 post-TB-12 ruling Part A §4.3):
+        // 11 → 13 sub-fields with +conditional_collateral_t (CR-13.4 Coin
+        // holding, included in 6-holding total_supply_micro) +
+        // conditional_share_balances_t (CR-13.3 claims, NOT counted in
+        // total_supply_micro).
         let e = EconomicState::default();
         let s = serde_json::to_value(&e).unwrap();
         let obj = s.as_object().unwrap();
         assert_eq!(
             obj.len(),
-            11,
-            "EconomicState must have 11 sub-fields post-TB-12 (was 10 post-TB-11; +node_positions_t); got {}",
+            13,
+            "EconomicState must have 13 sub-fields post-TB-13 (was 11 post-TB-12; +conditional_collateral_t +conditional_share_balances_t); got {}",
             obj.len()
         );
         assert!(obj.contains_key("runs_t"), "TB-11 runs_t sub-field missing");
         assert!(obj.contains_key("node_positions_t"), "TB-12 node_positions_t sub-field missing");
+        assert!(obj.contains_key("conditional_collateral_t"), "TB-13 conditional_collateral_t sub-field missing");
+        assert!(obj.contains_key("conditional_share_balances_t"), "TB-13 conditional_share_balances_t sub-field missing");
     }
 
     /// TB-12 Atom 1 (architect §8 Atom 1): NodePositionsIndex empty default

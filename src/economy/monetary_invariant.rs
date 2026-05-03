@@ -67,6 +67,19 @@ pub enum MonetaryError {
     /// underflow at finalize-time. Reported by
     /// [`assert_claim_amount_backed_by_escrow`].
     ClaimUnbacked { claim_amount_micro: i64, backing_escrow_micro: i64 },
+    /// **TB-13 complete-set balanced invariant violation**: for some
+    /// `event_id`, the sum of YES (or NO) shares across all owners does
+    /// not equal the locked collateral. Per architect §4.3 + SG-13.1:
+    /// 1 Coin → 1 YES_E + 1 NO_E mathematical identity. A drift signals
+    /// either a bug in CompleteSetMint / CompleteSetRedeem / MarketSeed
+    /// dispatch arms, or direct `EconomicState` mutation outside an
+    /// accepted transition (ghost share attempt).
+    CompleteSetUnbalanced {
+        event_id_hex: String,
+        side: crate::state::typed_tx::OutcomeSide,
+        share_sum_units: u128,
+        collateral_units: u128,
+    },
     /// Arithmetic overflow while summing economic state (i64).
     Overflow,
 }
@@ -95,6 +108,13 @@ impl std::fmt::Display for MonetaryError {
                     f,
                     "claim unbacked: claim.amount={} micro exceeds backing escrow={} micro",
                     claim_amount_micro, backing_escrow_micro
+                )
+            }
+            Self::CompleteSetUnbalanced { event_id_hex, side, share_sum_units, collateral_units } => {
+                write!(
+                    f,
+                    "complete-set unbalanced: event_id={} side={:?} Σ shares={} != collateral_units={}",
+                    event_id_hex, side, share_sum_units, collateral_units
                 )
             }
             Self::Overflow => write!(f, "i64 overflow while summing economic state"),
@@ -168,6 +188,21 @@ fn total_supply_micro(s: &EconomicState) -> Result<i64, MonetaryError> {
     // every bounty: the same micro-coins are already counted in escrows_t.
     for c in s.challenge_cases_t.0.values() {
         total = total.checked_add(c.bond.micro_units()).ok_or(MonetaryError::Overflow)?;
+    }
+    // TB-13 Atom 2 (architect 2026-05-03 post-TB-12 ruling Part A §4.3 +
+    // CR-13.4): conditional_collateral_t IS a Coin holding — locked Coin
+    // held against outstanding YES_E + NO_E share inventory. Extends the
+    // 5-holding sum to 6. Without this, CompleteSetMintTx (which migrates
+    // Coin from balances_t to conditional_collateral_t) would falsely
+    // appear to burn money, failing assert_total_ctf_conserved with empty
+    // exempt list.
+    //
+    // conditional_share_balances_t is INTENTIONALLY OMITTED per CR-13.3 +
+    // SG-13.2 — shares are CLAIMS against conditional_collateral_t, not
+    // a holding. Counting them would triple-count (shares are derived from
+    // collateral; including both creates a 2x parallel ledger).
+    for c in s.conditional_collateral_t.0.values() {
+        total = total.checked_add(c.micro_units()).ok_or(MonetaryError::Overflow)?;
     }
     Ok(total)
 }
@@ -387,6 +422,78 @@ pub fn assert_read_is_free(tx_kind: TxKind, fee: u64) -> Result<(), MonetaryErro
         return Err(MonetaryError::ReadCharged { tx_kind, fee });
     }
     Ok(())
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// TB-13 Atom 3 — assert_complete_set_balanced (architect 2026-05-03 post-
+// TB-12 ruling Part A §4.4 SG-13.1 + §4.5 CR-13.3..4)
+// ────────────────────────────────────────────────────────────────────────────
+
+/// TRACE_MATRIX TB-13 Atom 3 (architect §4.3 + SG-13.1): the
+/// **complete-set balanced** invariant.
+///
+/// For every event in `conditional_collateral_t`:
+///
+/// ```text
+/// min(Σ_{owner} share[(owner, event, Yes)], Σ_{owner} share[(owner, event, No)])
+///   == collateral[event].micro_units()
+/// ```
+///
+/// Why MIN, not equality on both sides:
+/// - Pre-resolution (mint + seed only): both sides equal collateral, so
+///   `min == collateral` is trivially equivalent to `Yes == No == collateral`.
+/// - Post-resolution + partial redeem: the winning side decreases by the
+///   redeemed amount AND collateral decreases by the same amount; the
+///   losing side stays the same (its shares are stranded zero-value
+///   claims). So `winning_side == collateral` still holds, while
+///   `losing_side > collateral` (losing side has surplus). MIN picks
+///   the winning side and matches collateral.
+/// - Post-resolution + full redeem: winning side is 0, collateral is 0,
+///   losing side is the original mint amount. MIN(0, original) = 0 = collateral.
+///
+/// This is the mathematical core of "1 Coin = 1 YES_E + 1 NO_E" enforced
+/// at the QState level: every Coin in collateral can be redeemed by the
+/// winning side, and no winning-side share is unbacked.
+pub fn assert_complete_set_balanced(
+    s: &EconomicState,
+) -> Result<(), MonetaryError> {
+    use crate::state::typed_tx::OutcomeSide;
+    for (event_id, collateral) in s.conditional_collateral_t.0.iter() {
+        let collateral_units: u128 = collateral.micro_units() as u128;
+        let mut sum_yes: u128 = 0;
+        let mut sum_no: u128 = 0;
+        for owner_map in s.conditional_share_balances_t.0.values() {
+            if let Some(pair) = owner_map.get(event_id) {
+                sum_yes = sum_yes
+                    .checked_add(pair.yes.units)
+                    .ok_or(MonetaryError::Overflow)?;
+                sum_no = sum_no
+                    .checked_add(pair.no.units)
+                    .ok_or(MonetaryError::Overflow)?;
+            }
+        }
+        let min_side = sum_yes.min(sum_no);
+        if min_side != collateral_units {
+            // Report the failing side (the smaller one) for diagnostic
+            // clarity — that's where the equality-with-collateral broke.
+            let (side, share_sum_units) = if sum_yes <= sum_no {
+                (OutcomeSide::Yes, sum_yes)
+            } else {
+                (OutcomeSide::No, sum_no)
+            };
+            return Err(MonetaryError::CompleteSetUnbalanced {
+                event_id_hex: hex_event_id(event_id),
+                side,
+                share_sum_units,
+                collateral_units,
+            });
+        }
+    }
+    Ok(())
+}
+
+fn hex_event_id(event_id: &crate::state::typed_tx::EventId) -> String {
+    event_id.0 .0.clone()
 }
 
 // ────────────────────────────────────────────────────────────────────────────

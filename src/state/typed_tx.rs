@@ -1845,6 +1845,37 @@ pub enum TransitionError {
     /// case is rejected. Maps to `L4ERejectionClass::PolicyViolation`.
     AlreadyResolved,
 
+    // ── TB-13 Atom 2 (architect 2026-05-03 ruling Part A §4.4 FR-13.1..7) ──
+    /// `CompleteSetMintTx` admission: `balances_t[owner] < amount`.
+    /// Distinct from `InsufficientBalance` to give Information Loom a
+    /// per-tx-class discriminator. Maps to `L4ERejectionClass::InsufficientBalance`.
+    InsufficientBalanceForMint,
+    /// `CompleteSetRedeemTx` admission: the referenced event is in
+    /// `task_markets_t[event_id.0]` but its state is `Open` or `Expired`
+    /// (i.e., neither `Finalized` for YES nor `Bankrupt` for NO). Architect
+    /// FR-13.4 + SG-13.5: redeem unavailable before outcome resolution.
+    /// Maps to `L4ERejectionClass::PolicyViolation`.
+    RedeemBeforeResolution,
+    /// `CompleteSetRedeemTx` admission: the owner's
+    /// `conditional_share_balances_t[owner][event_id].{yes|no}` is less
+    /// than the requested `share_amount.units`. Cannot redeem more than
+    /// owned. Maps to `L4ERejectionClass::PolicyViolation`.
+    RedeemMoreThanOwned,
+    /// `MarketSeedTx` admission: `collateral_amount.micro_units() == 0`.
+    /// Architect SG-13.4: market seed cannot create liquidity without
+    /// collateral. Also fired defensively at `CompleteSetRedeemTx` time
+    /// if `conditional_collateral_t[event_id]` lacks the redeemed amount
+    /// (should never happen if `assert_complete_set_balanced` holds).
+    /// Maps to `L4ERejectionClass::PolicyViolation`.
+    InsufficientCollateral,
+    /// `CompleteSetRedeemTx` admission: the resolution_ref's
+    /// `claimed_outcome` does not match the `task_markets_t[event_id.0]`
+    /// state (e.g., claimed_outcome=Yes but state=Bankrupt, or
+    /// claimed_outcome=No but state=Finalized). Architect §4.3 +
+    /// FR-13.5: after-YES pays YES not NO. Maps to
+    /// `L4ERejectionClass::PolicyViolation`.
+    InvalidResolutionRef,
+
     // ── Stub sentinel (CO1.7.5 fills) ──────────────────────────────────────
     /// Stub return value used by CO1.7.5 unimplemented bodies — preserves
     /// sequencer + dispatch correctness without forcing transition logic
@@ -1908,6 +1939,26 @@ impl std::fmt::Display for TransitionError {
             Self::AlreadyResolved => write!(
                 f,
                 "ChallengeCase already resolved (status != Open); idempotent re-resolution rejected"
+            ),
+            Self::InsufficientBalanceForMint => write!(
+                f,
+                "CompleteSetMintTx: owner's balances_t entry is below the requested mint amount"
+            ),
+            Self::RedeemBeforeResolution => write!(
+                f,
+                "CompleteSetRedeemTx: event task_markets_t state is Open or Expired (no system-emitted resolution yet)"
+            ),
+            Self::RedeemMoreThanOwned => write!(
+                f,
+                "CompleteSetRedeemTx: owner's conditional share balance is below the requested redeem amount"
+            ),
+            Self::InsufficientCollateral => write!(
+                f,
+                "TB-13 collateral missing: MarketSeed with zero collateral, or Redeem against insufficient conditional_collateral_t"
+            ),
+            Self::InvalidResolutionRef => write!(
+                f,
+                "CompleteSetRedeemTx: resolution_ref.claimed_outcome does not match task_markets_t[event_id.0] state"
             ),
             Self::NotYetImplemented => write!(f, "transition body not yet implemented (CO1.7.5)"),
         }
