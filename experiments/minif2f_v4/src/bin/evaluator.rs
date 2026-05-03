@@ -17,7 +17,8 @@ use turingosv4::bus::{BusConfig, BusResult, TuringBus};
 use turingosv4::sdk::error_abstraction::{classify_lean_error, classify_parse_error, CLASSIFIER_VERSION};
 use turingosv4::drivers::llm_http::{GenerateRequest, Message, ResilientLLMClient};
 use turingosv4::kernel::Kernel;
-use turingosv4::sdk::actor::{BoltzmannParams, boltzmann_select_parent};
+use turingosv4::sdk::actor::boltzmann_select_parent_v2;
+use turingosv4::state::BoltzmannMaskPolicy;
 use turingosv4::sdk::prompt::build_agent_prompt;
 use turingosv4::sdk::prompt_guard::assert_no_metric_leak;
 use turingosv4::sdk::protocol::parse_agent_output;
@@ -663,7 +664,6 @@ async fn run_swarm(
         // partials still typically <1200; no behavioural regression.
         max_payload_chars: 8000,
         max_payload_lines: 200,
-        system_lp_amount: 200.0,
         // C-011: decide/omega/native_decide forbidden (brute-force precedent)
         forbidden_patterns: vec![
             "native_decide".into(), "decide".into(), "omega".into(),
@@ -820,7 +820,6 @@ async fn run_swarm(
                 error!("[wal] open failed: {} — falling back to in-memory", e);
                 TuringBus::new(Kernel::new(), BusConfig {
                     max_payload_chars: 1200, max_payload_lines: 18,
-                    system_lp_amount: 200.0,
                     forbidden_patterns: vec![
                         "native_decide".into(), "decide".into(), "omega".into(),
                         "#eval".into(), "IO.Process".into(), "IO.FS".into(),
@@ -1164,7 +1163,14 @@ async fn run_swarm(
     ];
 
     let client = ResilientLLMClient::new(proxy_url, 1800, 2);
-    let params = BoltzmannParams::from_env();
+    // TB-14 Atom 6 (FC2-N29 production wire-up): integer-rational policy
+    // loaded once at run start. `from_env()` reads BOLTZMANN_BETA_NUM/DEN,
+    // BOLTZMANN_MIN_LIQUIDITY_MICRO, BOLTZMANN_PRICE_MARGIN_NUM/DEN,
+    // BOLTZMANN_EPSILON_NUM/DEN; unparsable values silently fall back to
+    // the per-field default (Art.I.1 + C-027). Replay-deterministic
+    // boundary: `boltzmann_select_parent_v2(price_index, mask_set, &policy,
+    // &mut rng)` is pure given a fixed policy + seeded RNG (Art.0.2).
+    let policy = BoltzmannMaskPolicy::from_env();
     // C-012: seed the Boltzmann RNG so A/B runs are reproducible.
     // Only the LLM sampling remains stochastic; same-problem paired comparison absorbs that.
     let boltzmann_seed: u64 = std::env::var("BOLTZMANN_SEED")
@@ -1319,10 +1325,30 @@ async fn run_swarm(
         // Map-reduce tick (Art. IV mermaid: clock → mr → tape)
         if tick_interval > 0 && tx > 0 && tx % tick_interval == 0 {
             let tape_len = bus.kernel.tape.time_arrow().len();
-            let market_count = bus.kernel.markets.len();
-            let ticker = bus.kernel.market_ticker(5);
-            let top_prices: Vec<String> = ticker.iter()
-                .map(|(id, p)| format!("{}:{:.0}%", id, p * 100.0))
+            // TB-14 Atom 6 (FC3-N42 production wire-up): tick-time signal
+            // surface derived from `bus.snapshot().price_index` (integer-
+            // rational NodeMarketEntry per node). Top-5 by price_yes argmax
+            // (cross-multiplication, no f64) for the operator log line.
+            // Local snapshot — the per-iteration `snap` at line 1424 below
+            // serves the agent prompt; this one is tick-scoped only.
+            let tick_snap = bus.snapshot();
+            let market_count = tick_snap.price_index.len();
+            let mut by_yes: Vec<(&turingosv4::state::TxId, &turingosv4::state::NodeMarketEntry)> =
+                tick_snap.price_index.iter()
+                    .filter(|(_, e)| e.price_yes.is_some())
+                    .collect();
+            by_yes.sort_by(|(_, a), (_, b)| {
+                let pa = a.price_yes.as_ref().unwrap();
+                let pb = b.price_yes.as_ref().unwrap();
+                let lhs = (pb.numerator).saturating_mul(pa.denominator);
+                let rhs = (pa.numerator).saturating_mul(pb.denominator);
+                lhs.cmp(&rhs)
+            });
+            let top_prices: Vec<String> = by_yes.iter().take(5)
+                .map(|(id, e)| {
+                    let p = e.price_yes.as_ref().unwrap();
+                    format!("{}:{}/{}", id.0, p.numerator, p.denominator)
+                })
                 .collect();
             info!("[tick@tx{}] tape={} markets={} top={}", tx, tape_len, market_count,
                 top_prices.join(", "));
@@ -1479,9 +1505,55 @@ async fn run_swarm(
         } else {
             String::new()
         };
+        // TB-14 Atom 6 (FC3-N42 production wire-up): build a top-N price
+        // ticker string from `snap.price_index` (integer-rational
+        // NodeMarketEntry per node). Renders price_yes as `numerator/
+        // denominator` strings — never decimal — per "PRICE IS SIGNAL,
+        // NOT TRUTH" SG-14.6 banner discipline. Sort: descending by
+        // price_yes (cross-multiplication argmax; no f64).
+        let market_ticker_str: String = {
+            let mut by_yes: Vec<(&turingosv4::state::TxId,
+                                 &turingosv4::state::NodeMarketEntry)> =
+                snap.price_index.iter()
+                    .filter(|(_, e)| e.price_yes.is_some())
+                    .collect();
+            by_yes.sort_by(|(_, a), (_, b)| {
+                let pa = a.price_yes.as_ref().unwrap();
+                let pb = b.price_yes.as_ref().unwrap();
+                let lhs = (pb.numerator).saturating_mul(pa.denominator);
+                let rhs = (pa.numerator).saturating_mul(pb.denominator);
+                lhs.cmp(&rhs)
+            });
+            by_yes.iter().take(50)
+                .map(|(id, e)| {
+                    let p = e.price_yes.as_ref().unwrap();
+                    format!("{}: YES={}/{}", id.0, p.numerator, p.denominator)
+                })
+                .collect::<Vec<_>>()
+                .join(", ")
+        };
+
+        // TB-14 Atom 6: query the canonical balance from the live sequencer
+        // when wired (chaintape mode). The TB-9 collapse "balance projection
+        // through snapshot is post-MVP polish" comment at L1353-1357 is
+        // resolved here for the prompt path: pull MicroCoin → Coin via
+        // sequencer.q_snapshot() → economic_state_t.balances_t. Falls back
+        // to 0.0 when bus runs sequencer-less (legacy WAL-only mode).
+        // The `f64` here is purely the prompt-render contract of
+        // `build_agent_prompt(... balance: f64 ...)` — `prompt.rs` is not a
+        // TB-14 module surface (the G-14.11 fence targets `price_index.rs`
+        // only).
+        let prompt_balance: f64 = bus.sequencer.as_ref()
+            .and_then(|seq| seq.q_snapshot().ok())
+            .and_then(|q| q.economic_state_t.balances_t.0
+                .get(&turingosv4::state::AgentId(agent_id.clone()))
+                .copied())
+            .map(|micro| micro.micro_units() as f64 / 1_000_000.0)
+            .unwrap_or(0.0);
+
         let prompt = build_agent_prompt(
-            &chain, &skill, &snap.market_ticker, &errors, &hits_ref,
-            snap.get_balance(agent_id), tools_desc, &team_board,
+            &chain, &skill, &market_ticker_str, &errors, &hits_ref,
+            prompt_balance, tools_desc, &team_board,
         );
 
         // Phase A atom A3: bind δ for this agent_idx (same vector resolved
@@ -1529,13 +1601,18 @@ async fn run_swarm(
                                 payload.hash(&mut ph);
                                 proposal_hashes.insert(ph.finish());
                                 proposal_count += 1;
-                                let prices: std::collections::HashMap<String, f64> =
-                                    snap.markets.iter()
-                                        .map(|(id, m)| (id.clone(), m.yes_price))
-                                        .collect();
-                                let parent = boltzmann_select_parent(
-                                    &snap.tape, &prices, &params, &mut boltz_rng
-                                );
+                                // TB-14 Atom 6 (FC2-N29 production wire-up):
+                                // integer-rational scheduler. v2 takes the
+                                // `&snap.price_index` (BTreeMap<TxId,
+                                // NodeMarketEntry>) and `&snap.mask_set`
+                                // (BTreeSet<TxId>) directly — no f64
+                                // intermediate. Returns Option<TxId>;
+                                // predicate-blind (CR-14.1 + halt-trigger
+                                // #1) — purely a scheduling priority pick.
+                                let parent = boltzmann_select_parent_v2(
+                                    &snap.price_index, &snap.mask_set,
+                                    &policy, &mut boltz_rng,
+                                ).map(|tx| tx.0);
 
                                 // ── TB-7 Atom 2: AUTHORITATIVE per-LLM-proposal routing ──
                                 //

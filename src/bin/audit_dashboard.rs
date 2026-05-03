@@ -38,7 +38,12 @@ use turingosv4::runtime::chain_derived_run_facts::{
 };
 use turingosv4::runtime::proposal_telemetry::read_from_cas as read_proposal_telemetry;
 use turingosv4::runtime::verify::{verify_chaintape, ReplayReport, VerifyOptions};
-use turingosv4::state::typed_tx::TypedTx;
+use turingosv4::state::typed_tx::{NodePosition, PositionKind, PositionSide, TypedTx};
+use turingosv4::economy::money::MicroCoin;
+use turingosv4::state::q_state::{AgentId, EconomicState};
+use turingosv4::state::{
+    compute_price_index, NodeMarketEntry, TaskId, TxId,
+};
 
 #[derive(Debug)]
 struct Args {
@@ -121,6 +126,15 @@ struct DashboardReport {
     /// RECORD, NOT active position balance. Label discipline: "Exposure
     /// records", NOT "Open market balances".
     exposures: Vec<ExposureRecordRow>,
+    /// TB-14 Atom 6 (architect 2026-05-03 ruling §5.1 + §5.5 SG-14.6):
+    /// derived price-index view per `compute_price_index` over a synthetic
+    /// `EconomicState` rebuilt from `exposures`. Renders in §14 with the
+    /// `PRICE IS SIGNAL, NOT TRUTH` banner per architect §5.1 ("Price is
+    /// signal, not truth") and SG-14.6 unit test discipline. NEVER shown
+    /// as decimal — every price is rendered as `numerator/denominator`
+    /// integer-rational pair (charter §5 forbidden list: no f64 / no
+    /// decimal float in TB-14 module surface).
+    price_index: BTreeMap<TxId, NodeMarketEntry>,
 }
 
 /// TB-12 Atom 4 (architect 2026-05-03 ruling §8 Atom 4) — per-NodePosition
@@ -924,8 +938,57 @@ fn build_report(repo: &std::path::Path, cas_path: &std::path::Path) -> Result<Da
         exhausted_runs: exhausted_runs_in_progress,
         expired_tasks: expired_tasks_in_progress,
         bankrupt_tasks: bankrupt_tasks_in_progress,
+        price_index: price_index_from_exposures(&exposures_in_progress),
         exposures: exposures_in_progress,
     })
+}
+
+/// TRACE_MATRIX TB-14 Atom 6 (FC3-N42; architect §5.1 + §5.5 SG-14.6):
+/// rebuild a synthetic `EconomicState` from the dashboard's `exposures`
+/// vec and call the canonical `state::compute_price_index` over it.
+///
+/// **Why synthetic**: the dashboard does not run a full `replay_full_transition`
+/// to produce a final `QState`; it walks the L4 chain forward to accumulate
+/// audit rows. The exposures vec already carries `(node_id, side, amount_micro,
+/// owner, task_id, source_tx, opened_at_round)` for every accepted FirstLong
+/// (WorkTx) and ChallengeShort (ChallengeTx) — exactly the inputs `compute_price_index`
+/// needs. By going through `compute_price_index` rather than re-implementing
+/// the long/short aggregation here, the dashboard's price view is canonically
+/// identical to the bus snapshot's price view (architect §5.1 "no second
+/// source-of-truth"; charter §7 auto-resolution A).
+///
+/// The `kind` field is irrelevant to `compute_price_index` (which reads only
+/// `side` + `amount` + `node_id` + `task_id`); we map by side as a placeholder.
+/// `conditional_share_balances_t` is left empty, so the resulting
+/// `NodeMarketEntry.yes_share_depth` / `no_share_depth` are zero — TB-14 v0
+/// derives price from `node_positions_t` only (FR-14.1 / FR-14.2); share
+/// depths are reported but not used in the price computation.
+fn price_index_from_exposures(
+    exposures: &[ExposureRecordRow],
+) -> BTreeMap<TxId, NodeMarketEntry> {
+    let mut econ = EconomicState::default();
+    for row in exposures {
+        let (side, kind) = match row.side.as_str() {
+            "Long" => (PositionSide::Long, PositionKind::FirstLong),
+            "Short" => (PositionSide::Short, PositionKind::ChallengeShort),
+            _ => continue, // unknown side string — drop defensively
+        };
+        let position = NodePosition {
+            position_id: TxId(row.position_id.clone()),
+            node_id: TxId(row.node_id.clone()),
+            task_id: TaskId(row.task_id.clone()),
+            owner: AgentId(row.owner.clone()),
+            side,
+            kind,
+            amount: MicroCoin::from_micro_units(row.amount_micro),
+            source_tx: TxId(row.source_tx.clone()),
+            opened_at_round: row.opened_at_round,
+        };
+        econ.node_positions_t
+            .0
+            .insert(position.position_id.clone(), position);
+    }
+    compute_price_index(&econ)
 }
 
 fn render_text(r: &DashboardReport) -> String {
@@ -1409,6 +1472,80 @@ fn render_text(r: &DashboardReport) -> String {
 
     // §13 TB-12 Node exposure records (architect 2026-05-03 ruling §3 + §10).
     s.push_str(&render_section_13(&r.exposures));
+
+    // §14 TB-14 PriceIndex (architect 2026-05-03 ruling §5.1 + §5.5 SG-14.6).
+    s.push_str(&render_section_14(&r.price_index));
+    s
+}
+
+/// TRACE_MATRIX TB-14 Atom 6 (architect 2026-05-03 ruling §5.1 + §5.5 SG-14.6):
+/// §14 PriceIndex render. Pure function over the derived view; extracted for
+/// SG-14.6 unit-testability.
+///
+/// **ARCHITECT-MANDATED BANNER**: the section opens with the literal phrase
+/// "PRICE IS SIGNAL, NOT TRUTH" (architect §5.1: "Price is signal, not
+/// truth."). Re-rendering this banner in every dashboard frame is the
+/// SG-14.6 ship gate's enforcement surface.
+///
+/// **NO DECIMAL** (charter §5 forbidden + G-14.11 ship gate "no f64 in TB-14
+/// module surface"): every `price_yes` / `price_no` is rendered as
+/// `numerator/denominator` integer-rational. The dashboard NEVER divides.
+fn render_section_14(price_index: &BTreeMap<TxId, NodeMarketEntry>) -> String {
+    let mut s = String::new();
+    s.push('\n');
+    s.push_str("§14 TB-14 PriceIndex (architect 2026-05-03 §5.1 + §5.5 SG-14.6)\n");
+    s.push_str("---------------------------------------------------------------\n");
+    s.push_str("  PRICE IS SIGNAL, NOT TRUTH.\n");
+    s.push_str("    Architect §5.1 ruling 2026-05-03: the price index is a\n");
+    s.push_str("    derived statistical broadcast over canonical NodePositionsIndex\n");
+    s.push_str("    long/short interest. It MUST NOT influence predicate gates\n");
+    s.push_str("    (CR-14.1 / halt-trigger #1) or L4/L4.E classification\n");
+    s.push_str("    (CR-14.2 / halt-trigger #2). Boolean predicates establish\n");
+    s.push_str("    absolute bounds; the price view is for relative-effectiveness\n");
+    s.push_str("    measurement only.\n\n");
+
+    if price_index.is_empty() {
+        s.push_str("  (no node positions recorded — price index is empty)\n");
+        s.push_str("  Acceptable signal-state: a run with zero accepted WorkTx +\n");
+        s.push_str("  ChallengeTx yields an empty PriceIndex by FR-14.3 / halt-\n");
+        s.push_str("  trigger #5 (zero-liquidity → price=None) extended to the\n");
+        s.push_str("  zero-position case.\n");
+        return s;
+    }
+
+    s.push_str("  Per-node entries (price as integer-rational n/d, never decimal):\n\n");
+    s.push_str(&format!(
+        "    {:<32}  {:>14}  {:>14}  {:>16}  {:>16}\n",
+        "node_id", "long_micro", "short_micro", "price_yes(n/d)", "price_no(n/d)"
+    ));
+    s.push_str("    ");
+    s.push_str(&"-".repeat(98));
+    s.push('\n');
+
+    for (node_id, entry) in price_index.iter() {
+        let yes_str = match &entry.price_yes {
+            Some(p) => format!("{}/{}", p.numerator, p.denominator),
+            None => "None".to_string(),
+        };
+        let no_str = match &entry.price_no {
+            Some(p) => format!("{}/{}", p.numerator, p.denominator),
+            None => "None".to_string(),
+        };
+        s.push_str(&format!(
+            "    {:<32}  {:>14}  {:>14}  {:>16}  {:>16}\n",
+            trunc(&node_id.0, 32),
+            entry.long_interest.micro_units(),
+            entry.short_interest.micro_units(),
+            yes_str,
+            no_str,
+        ));
+    }
+
+    s.push('\n');
+    s.push_str("  Architect mandate (§5.1 ruling 2026-05-03) ✓:\n");
+    s.push_str("    Price is signal, not truth. NodeMarketEntry is a derived view —\n");
+    s.push_str("    NOT canonical state. NO trading. NO automatic liquidity. NO AMM.\n");
+    s.push_str("    NO price-based settlement. NO Goodhart leak of private predicates.\n");
     s
 }
 
@@ -1511,6 +1648,123 @@ fn trunc(s: &str, width: usize) -> String {
 // TB-12 Atom 4 + Atom 6(a) — SG-12.6 dashboard rendering tests
 // (architect 2026-05-03 §9.3 ruling).
 // ────────────────────────────────────────────────────────────────────────────
+
+// ────────────────────────────────────────────────────────────────────────────
+// TB-14 Atom 6 — SG-14.6 dashboard PriceIndex render tests
+// (architect 2026-05-03 §5.1 + §5.5 SG-14.6).
+// ────────────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tb14_render_tests {
+    use super::*;
+    use turingosv4::state::RationalPrice;
+
+    fn make_entry(
+        node: &str, long: i64, short: i64,
+        py: Option<(u128, u128)>, pn: Option<(u128, u128)>,
+    ) -> (TxId, NodeMarketEntry) {
+        (
+            TxId(node.into()),
+            NodeMarketEntry {
+                node_id: TxId(node.into()),
+                task_id: TaskId(format!("task-{node}")),
+                event_id: turingosv4::state::typed_tx::EventId(TaskId(format!("task-{node}"))),
+                long_interest: MicroCoin::from_micro_units(long),
+                short_interest: MicroCoin::from_micro_units(short),
+                yes_share_depth: turingosv4::state::typed_tx::ShareAmount::from_units(0),
+                no_share_depth: turingosv4::state::typed_tx::ShareAmount::from_units(0),
+                price_yes: py.map(|(n, d)| RationalPrice { numerator: n, denominator: d }),
+                price_no: pn.map(|(n, d)| RationalPrice { numerator: n, denominator: d }),
+                liquidity_depth: MicroCoin::from_micro_units(long + short),
+            },
+        )
+    }
+
+    /// SG-14.6 ARCHITECT-MANDATED: dashboard §14 carries the literal banner
+    /// "PRICE IS SIGNAL, NOT TRUTH". This is the structural enforcement of
+    /// architect §5.1 ("Price is signal, not truth.") at the read-view
+    /// surface; future maintainers adding signal-as-truth language must
+    /// fail this test.
+    #[test]
+    fn sg_14_6_dashboard_carries_price_is_signal_not_truth_banner() {
+        let pi: BTreeMap<TxId, NodeMarketEntry> = BTreeMap::new();
+        let s = render_section_14(&pi);
+        assert!(
+            s.contains("PRICE IS SIGNAL, NOT TRUTH"),
+            "SG-14.6: §14 must contain the architect-mandated banner \
+             `PRICE IS SIGNAL, NOT TRUTH`. Got render:\n{s}"
+        );
+    }
+
+    /// SG-14.6 ARCHITECT-MANDATED: dashboard §14 NEVER renders prices as
+    /// decimal fractions — only `numerator/denominator` integer-rational
+    /// pairs. The renderer must not contain any `format!("{:.N}", ...)`
+    /// invocation against a price value, and the rendered string must
+    /// not contain a decimal point inside any per-row token.
+    #[test]
+    fn sg_14_6_dashboard_renders_price_as_integer_rational_never_decimal() {
+        let mut pi: BTreeMap<TxId, NodeMarketEntry> = BTreeMap::new();
+        let (k1, e1) = make_entry("n_alpha", 700_000, 300_000,
+                                  Some((700_000, 1_000_000)),
+                                  Some((300_000, 1_000_000)));
+        pi.insert(k1, e1);
+        let (k2, e2) = make_entry("n_beta", 500_000, 500_000,
+                                  Some((500_000, 1_000_000)),
+                                  Some((500_000, 1_000_000)));
+        pi.insert(k2, e2);
+
+        let s = render_section_14(&pi);
+        // Spot-check rendering of a known rational pair.
+        assert!(
+            s.contains("700000/1000000"),
+            "SG-14.6: per-node price_yes must render as `n/d` integer-rational. Got:\n{s}"
+        );
+        assert!(
+            s.contains("500000/1000000"),
+            "SG-14.6: per-node price_yes must render as `n/d` integer-rational. Got:\n{s}"
+        );
+        // Architect §5.6 forbidden: NO decimal float in TB-14 surface render.
+        // Spot-check no `0.7` / `70.0%` / similar decimal strings appear in any
+        // per-row context (banner text may contain commas; no decimals).
+        for forbidden in &["0.7", "0.3", "0.5", "70.0%", "30.0%", "50.0%"] {
+            assert!(
+                !s.contains(forbidden),
+                "SG-14.6: §14 render MUST NOT contain decimal price token `{forbidden}` \
+                 (architect §5.6 forbidden: no f64 / no decimal). Got:\n{s}"
+            );
+        }
+    }
+
+    /// SG-14.6 + FR-14.3: when the price index is empty (no recorded
+    /// positions), §14 renders an explicit empty-state message rather than
+    /// falling back to a stale or fabricated number.
+    #[test]
+    fn sg_14_6_dashboard_empty_price_index_renders_explicit_empty_state() {
+        let pi: BTreeMap<TxId, NodeMarketEntry> = BTreeMap::new();
+        let s = render_section_14(&pi);
+        assert!(
+            s.contains("price index is empty"),
+            "SG-14.6: empty PriceIndex must render an explicit empty-state \
+             message, not fabricate a number. Got:\n{s}"
+        );
+    }
+
+    /// SG-14.6 + FR-14.3: a node with `price_yes == None` (zero-liquidity)
+    /// must render as `None`, never as `0/0`, `0.0`, or any synthesized
+    /// fraction.
+    #[test]
+    fn sg_14_6_dashboard_renders_none_for_zero_liquidity_nodes() {
+        let mut pi: BTreeMap<TxId, NodeMarketEntry> = BTreeMap::new();
+        let (k, e) = make_entry("n_zero", 0, 0, None, None);
+        pi.insert(k, e);
+        let s = render_section_14(&pi);
+        assert!(
+            s.contains("None"),
+            "SG-14.6: zero-liquidity node must render `None` (FR-14.3 / \
+             halt-trigger #5). Got:\n{s}"
+        );
+    }
+}
 
 #[cfg(test)]
 mod tb12_render_tests {

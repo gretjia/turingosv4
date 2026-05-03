@@ -64,14 +64,23 @@ fn fc1_n7_delta_ai_client_constructible() {
 #[test]
 fn fc1_n6_input_universe_snapshot_via_bus() {
     // FC1-N6 input = ⟨q_i, s_i⟩ realized as UniverseSnapshot.
-    // A0e-fix 2026-04-25: strengthened from type_name. Witness: bus.snapshot()
-    // returns a UniverseSnapshot with FC1-N3 HEAD-equivalent (empty tape).
+    // TB-14 Atom 6 (2026-05-03): post-CPMM-excision, the snapshot's signal
+    // surface is `price_index` + `mask_set` — derived integer-rational
+    // views over canonical EconomicState (FC2-N28 + FC3-N42). Witness:
+    // bus.snapshot() returns a UniverseSnapshot whose new fields are
+    // structurally present and empty in legacy ledger-only mode (no
+    // sequencer wired).
     let kernel = Kernel::new();
     let bus = TuringBus::new(kernel, BusConfig::default());
     let snap: UniverseSnapshot = bus.snapshot();
-    // Witness: snapshot exposes get_balance API (per FC1-N6 ⟨q_i, s_i⟩
-    // signature — agent state is part of the input).
-    let _balance = snap.get_balance("Agent_Test");
+    assert!(
+        snap.price_index.is_empty(),
+        "FC1-N6 / FC3-N42: price_index empty when bus is sequencer-less"
+    );
+    assert!(
+        snap.mask_set.is_empty(),
+        "FC1-N6 / FC2-N28: mask_set empty when bus is sequencer-less"
+    );
 }
 
 #[test]

@@ -30,10 +30,14 @@ pub(crate) const PENDING_COMPLETION_TOKENS_CO1_1_4: u32 = 0;
 // ── Configuration ───────────────────────────────────────────────
 
 /// Bus configuration. V3L-23: no hardcoded values, all configurable.
+///
+/// TB-14 Atom 6 (2026-05-03): `system_lp_amount: f64` was excised together
+/// with `kernel.create_market` (legacy CPMM scaffolding). Pricing is now a
+/// derived view over `EconomicState` via `state::compute_price_index`; no
+/// LP injection at bus level.
 pub struct BusConfig {
     pub max_payload_chars: usize,
     pub max_payload_lines: usize,
-    pub system_lp_amount: f64,
     pub forbidden_patterns: Vec<String>,
 }
 
@@ -42,7 +46,6 @@ impl Default for BusConfig {
         BusConfig {
             max_payload_chars: 1600,
             max_payload_lines: 24,
-            system_lp_amount: 200.0,
             forbidden_patterns: Vec::new(),
         }
     }
@@ -191,19 +194,14 @@ impl TuringBus {
     }
 
     /// Initialize all tools with agent list. Triggers GENESIS.
+    ///
+    /// TB-14 Atom 6 (2026-05-03): legacy `HAYEK_BOUNTY` env-gated bounty
+    /// market open was excised together with `kernel.open_bounty_market`.
+    /// Capital signals now live entirely in `state::NodePositionsIndex`
+    /// (TB-12) and surface via `compute_price_index` derived view (TB-14).
     pub fn init(&mut self, agent_ids: &[String]) {
         for tool in &mut self.tools {
             tool.on_init(agent_ids);
-        }
-        // Phase 3A (Hayek): open the bounty market at genesis if the feature
-        // is enabled. Seed from ghost-liquidity pool (same exemption as per-
-        // node markets — pre-committed LP, not a mint). BOUNTY_LP env tunable
-        // for experimentation; constitutional default lands later.
-        if std::env::var("HAYEK_BOUNTY").ok().as_deref() == Some("1") {
-            let lp: f64 = std::env::var("BOUNTY_LP")
-                .ok().and_then(|s| s.parse().ok())
-                .unwrap_or(self.config.system_lp_amount);
-            let _ = self.kernel.open_bounty_market(lp);
         }
         if let Ok(evt) = self.ledger.append(EventType::RunStart, None, None, None) {
             let evt_clone = evt.clone();
@@ -318,14 +316,12 @@ impl TuringBus {
             }
         }
 
-        // Phase 4: System Market Maker (Magna Carta Rule #19 exemption)
-        // System MM injects liquidity from a dedicated pool, NOT from agent wallets.
-        // This is the only constitutional exception to Law 2 — MM impermanent loss
-        // is an expected physical cost, not minting. See C-001/C-002 for history.
-        // TB-9 retains kernel market data structures for snapshot read-views;
-        // the f64 grant path that fed `wallet.record_shares` was deleted.
-        self.kernel.create_market(&node_id, self.config.system_lp_amount)
-            .ok(); // Market creation failure is non-fatal
+        // Phase 4: TB-14 Atom 6 (2026-05-03 closing OBS_TB_12_LEGACY_CPMM_QUARANTINE):
+        // legacy `kernel.create_market(node_id, system_lp_amount)` per-append
+        // CPMM market open was excised together with `prediction_market.rs`.
+        // Pricing is now a derived view over canonical `EconomicState`
+        // (`state::compute_price_index`) populated by typed-tx admission via
+        // `Sequencer::dispatch_transition` — never by bus-level f64 LP grant.
 
         // Phase 5: Tool post-append hooks
         for tool in &mut self.tools {
@@ -349,15 +345,14 @@ impl TuringBus {
     }
 
     /// Halt and settle — triggered by Oracle verification.
-    /// TB-9 collapse (2026-05-02): the v3 f64 settlement paths
-    /// (`settle_portfolios` under `TAPE_ECONOMY_V2`, Hayek bounty payout under
-    /// `HAYEK_BOUNTY`) were deleted. Settlement now lives entirely in the
-    /// canonical typed_tx dispatch arms (`FinalizeRewardTx` since TB-8). The
-    /// kernel still resolves markets for snapshot read-views (price ticker),
-    /// but no f64 mutates an agent ledger here.
+    ///
+    /// TB-14 Atom 6 (2026-05-03): legacy `kernel.resolve_all(golden_path)`
+    /// CPMM market resolution was excised together with `prediction_market.rs`.
+    /// Settlement lives entirely in canonical typed-tx dispatch arms
+    /// (`FinalizeRewardTx` since TB-8) via `Sequencer::apply_one`; the bus
+    /// only fires the run-end event and lets tool hooks observe the golden
+    /// path.
     pub fn halt_and_settle(&mut self, golden_path: &[NodeId]) -> Result<(), String> {
-        self.kernel.resolve_all(golden_path).map_err(|e| e.to_string())?;
-
         let gp: Vec<String> = golden_path.to_vec();
         for tool in &mut self.tools {
             tool.on_halt(&gp);
@@ -475,44 +470,65 @@ impl TuringBus {
     }
 
     /// Get a snapshot of the universe for agents to read.
+    ///
+    /// TRACE_MATRIX TB-14 Atom 6 (FC2-N28 + FC3-N42; architect §5.1 +
+    /// charter §3 Atom 6): the snapshot now carries the integer-rational
+    /// `price_index` + `mask_set` derived from canonical `EconomicState`
+    /// via `state::compute_price_index` + `state::compute_mask_set`,
+    /// replacing the legacy decimal-float `markets: HashMap<_, MarketSnapshot>`
+    /// CPMM read-view excised together with `src/prediction_market.rs`.
+    ///
+    /// **Halt-trigger #2 spirit preserved**: bus.rs imports TB-14 types
+    /// (this is the legitimate broadcast point per kickoff doc), but the
+    /// L4/L4.E classification path in `Sequencer::dispatch_transition`
+    /// remains free of TB-14 imports — verified by halt-trigger #2's
+    /// `use`-statement scan over `src/state/sequencer.rs`. The price
+    /// signal flows: `EconomicState (canonical)` →
+    /// `compute_price_index (pure derive)` → snapshot read-view →
+    /// scheduler / dashboard / agent prompt. It NEVER flows back into
+    /// `dispatch_transition`.
+    ///
+    /// **Replay-deterministic** (Art.0.2): `compute_price_index` and
+    /// `compute_mask_set` are pure over their inputs. The snapshot's
+    /// `price_index` / `mask_set` are reproducible from any byte-equal
+    /// `EconomicState` + `Tape` + `BoltzmannMaskPolicy` without re-running
+    /// the run.
+    ///
+    /// **Sequencer-optional**: when the bus runs in legacy ledger-only
+    /// mode (`sequencer == None`, e.g. in WAL-only smoke tests), the
+    /// price_index + mask_set are empty `BTreeMap` / `BTreeSet`. Callers
+    /// (evaluator, dashboard) treat empty as "no signal yet" — they MUST
+    /// NOT crash on empty.
     pub fn snapshot(&self) -> crate::sdk::snapshot::UniverseSnapshot {
-        let markets: HashMap<NodeId, crate::sdk::snapshot::MarketSnapshot> =
-            self.kernel.markets.iter()
-                .map(|(id, m)| (id.clone(), crate::sdk::snapshot::MarketSnapshot {
-                    yes_price: m.yes_price(),
-                    no_price: m.no_price(),
-                    yes_reserve: m.yes_reserve(),
-                    no_reserve: m.no_reserve(),
-                    resolved: m.resolved,
-                }))
-                .collect();
+        let policy = crate::state::BoltzmannMaskPolicy::from_env();
 
-        // Extended ticker (Art. II.2 bidirectional price signal):
-        //   up to 50 unresolved markets with YES/NO price + reserves.
-        // Bigger cap reduces Matthew-effect; reserves let agents estimate
-        // price impact before investing (market depth visibility).
-        let ticker = self.kernel.market_ticker_full(50);
-        let mut ticker_lines: Vec<String> = ticker.iter()
-            .map(|(id, yes_p, no_p, yes_r, no_r)| {
-                format!("{}: YES={:.1}% NO={:.1}% (Y={:.0} N={:.0})",
-                    id, yes_p * 100.0, no_p * 100.0, yes_r, no_r)
-            })
-            .collect();
-        // Phase 3A: surface the bounty price first so agents see the pre-
-        // existing signal. No prose, no rule — just price-as-state (Hayek).
-        if let Some(bp) = self.kernel.bounty_yes_price() {
-            ticker_lines.insert(0,
-                format!("__bounty__: {:.1}% (LP={:.0})", bp * 100.0,
-                        self.kernel.bounty_lp_seed));
-        }
-        let ticker_str = ticker_lines.join(", ");
+        let (price_index, mask_set) = match self.sequencer.as_ref() {
+            Some(seq) => match seq.q_snapshot() {
+                Ok(q) => {
+                    let pi = crate::state::compute_price_index(&q.economic_state_t);
+                    let ms = crate::state::compute_mask_set(
+                        &q.economic_state_t,
+                        &self.kernel.tape,
+                        &policy,
+                        &pi,
+                    );
+                    (pi, ms)
+                }
+                Err(_) => (
+                    std::collections::BTreeMap::new(),
+                    std::collections::BTreeSet::new(),
+                ),
+            },
+            None => (
+                std::collections::BTreeMap::new(),
+                std::collections::BTreeSet::new(),
+            ),
+        };
 
         crate::sdk::snapshot::UniverseSnapshot {
             tape: self.kernel.tape.clone(),
-            balances: HashMap::new(), // filled by wallet tool query
-            portfolios: HashMap::new(),
-            markets,
-            market_ticker: ticker_str,
+            price_index,
+            mask_set,
             generation: self.generation,
             tx_count: self.tx_count,
         }
@@ -531,7 +547,6 @@ mod tests {
         let config = BusConfig {
             max_payload_chars: 200,
             max_payload_lines: 10,
-            system_lp_amount: 200.0,
             forbidden_patterns: vec!["FORBIDDEN".to_string()],
         };
         let mut bus = TuringBus::new(kernel, config);
@@ -604,19 +619,20 @@ mod tests {
     }
 
     #[test]
-    fn test_bus_creates_market_on_append() {
-        let mut bus = make_bus();
-        if let BusResult::Appended { node_id } = bus.append("A0", "step 1", None).unwrap() {
-            assert!(bus.kernel.markets.contains_key(&node_id));
-        }
-    }
-
-    #[test]
     fn test_bus_halt_and_settle() {
+        // TB-14 Atom 6: kernel.markets.resolved was excised with
+        // prediction_market.rs. halt_and_settle now only fires RunEnd +
+        // tool.on_halt hooks; settlement state lives in canonical typed-tx
+        // dispatch (FinalizeRewardTx). Test verifies the call succeeds and
+        // the run-end ledger event landed.
         let mut bus = make_bus();
         if let BusResult::Appended { node_id } = bus.append("A0", "step", None).unwrap() {
-            bus.halt_and_settle(&[node_id.clone()]).unwrap();
-            assert_eq!(bus.kernel.markets[&node_id].resolved, Some(true));
+            let len_before = bus.ledger.len();
+            bus.halt_and_settle(&[node_id]).unwrap();
+            assert!(
+                bus.ledger.len() > len_before,
+                "halt_and_settle must append RunEnd event"
+            );
         }
     }
 
@@ -662,11 +678,19 @@ mod tests {
 
     #[test]
     fn test_bus_snapshot() {
+        // TB-14 Atom 6: snapshot.markets HashMap was replaced by
+        // price_index: BTreeMap<TxId, NodeMarketEntry> + mask_set: BTreeSet<TxId>.
+        // Without a sequencer wired (legacy ledger-only mode), both are empty
+        // — the bus snapshot is sequencer-optional per CR-14.x; consumers
+        // (evaluator, dashboard) treat empty as "no signal yet".
         let mut bus = make_bus();
         bus.append("A0", "step 1", None).unwrap();
         let snap = bus.snapshot();
         assert_eq!(snap.tx_count, 1);
-        assert!(!snap.markets.is_empty());
+        assert!(snap.price_index.is_empty(), "no sequencer → empty price_index");
+        assert!(snap.mask_set.is_empty(), "no sequencer → empty mask_set");
+        assert!(snap.tape.get(&"tx_0_by_A0".to_string()).is_some(),
+                "appended node is in tape regardless of price index state");
     }
 
     #[test]

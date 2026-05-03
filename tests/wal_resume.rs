@@ -21,7 +21,6 @@ fn make_config() -> BusConfig {
     BusConfig {
         max_payload_chars: 1200,
         max_payload_lines: 18,
-        system_lp_amount: 200.0,
         forbidden_patterns: vec![],
     }
 }

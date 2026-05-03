@@ -552,54 +552,48 @@ fn no_f64_in_complete_set_or_market_seed() {
     );
 }
 
-/// SG-13.0.3 — `prediction_market_legacy_quarantined`.
+/// SG-13.0.3 — `prediction_market_legacy_quarantined` (post-TB-14-Atom-6
+/// form: STRONGER fence — legacy is EXCISED, not labeled).
 ///
-/// Architect §4.2 ship gate: legacy CPMM "must be clearly labeled". We
-/// enforce that `src/prediction_market.rs` carries the LEGACY module-
-/// header doc-comment with the four required tokens (`legacy`,
-/// `not constitutional`, `not RSP-M`, `not production market path`)
-/// AND that `src/kernel.rs` market-bearing fields carry the `LEGACY`
-/// label tying them to the migration path.
+/// **History**: TB-13 Atom 0.5 wrote this test as a "label discipline"
+/// fence — the legacy `src/prediction_market.rs` file remained for
+/// production-evaluator callers but had to carry a `LEGACY` module
+/// header + migration tokens, and `src/kernel.rs`'s market-bearing
+/// fields had to carry `LEGACY` doc-comments.
+///
+/// **TB-14 Atom 6 (2026-05-03 closing OBS_TB_12_LEGACY_CPMM_QUARANTINE)**:
+/// the legacy CPMM code is now DELETED. The fence is upgraded from
+/// "label discipline" to "absence discipline" — the strongest possible
+/// quarantine. Architect §4.2's intent ("legacy must not sneak back
+/// into TB-13+ code") is preserved structurally: `src/prediction_market.rs`
+/// is gone, `src/kernel.rs` carries no `markets/bounty_market/bounty_lp_seed`
+/// fields, and `src/lib.rs` does not declare `pub mod prediction_market`.
+/// Re-introduction of any of these would be caught by this test failing
+/// in the OPPOSITE direction (presence detected → legacy resurrected).
 #[test]
 fn prediction_market_legacy_quarantined() {
-    let pm = read_scope_file("src/prediction_market.rs");
-    let header = pm
-        .lines()
-        .take(60)
-        .collect::<Vec<_>>()
-        .join("\n");
+    // Assertion 1: src/prediction_market.rs is gone.
+    let pm_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("src/prediction_market.rs");
+    assert!(
+        !pm_path.exists(),
+        "TB-13 SG-13.0.3 (post-TB-14-Atom-6): src/prediction_market.rs \
+         MUST NOT exist (legacy CPMM excised). Reintroduction would \
+         resurrect f64 trading semantics + automatic CPMM liquidity \
+         that the post-2026-05 architect directive forbids."
+    );
 
-    let required_label_tokens = [
-        "LEGACY",
-        "not constitutional",
-        "not RSP-M",
-        "not production market path",
-    ];
-    for token in &required_label_tokens {
+    // Assertion 2: src/lib.rs does not re-declare the legacy module.
+    let lib = read_scope_file("src/lib.rs");
+    for forbidden in ["pub mod prediction_market", "mod prediction_market"] {
         assert!(
-            header.contains(token),
-            "TB-13 SG-13.0.3: src/prediction_market.rs module header missing required \
-             label token `{token}`. Header:\n{header}"
+            !lib.contains(forbidden),
+            "TB-13 SG-13.0.3 (post-TB-14-Atom-6): src/lib.rs MUST NOT \
+             contain `{forbidden}` (legacy CPMM module excised in Atom 6)"
         );
     }
 
-    // Architect §4.2 also requires the doc to name the migration path so
-    // future maintainers don't reintroduce the legacy API.
-    let migration_tokens = [
-        "TB-13",
-        "TB-14",
-        "CompleteSetMintTx",
-        "OBS_TB_12_LEGACY_CPMM_QUARANTINE",
-    ];
-    for token in &migration_tokens {
-        assert!(
-            header.contains(token),
-            "TB-13 SG-13.0.3: src/prediction_market.rs module header missing migration-path \
-             token `{token}`. Header:\n{header}"
-        );
-    }
-
-    // Defense-in-depth: kernel.rs market-bearing fields carry LEGACY.
+    // Assertion 3: kernel.rs carries no market-bearing fields.
     let kernel = read_scope_file("src/kernel.rs");
     let kernel_struct_idx = kernel
         .find("pub struct Kernel {")
@@ -612,19 +606,28 @@ fn prediction_market_legacy_quarantined() {
 
     for field in ["markets", "bounty_market", "bounty_lp_seed"] {
         let field_marker = format!("pub {field}");
-        let field_idx = kernel_struct_block
-            .find(&field_marker)
-            .unwrap_or_else(|| panic!("TB-13 SG-13.0.3: cannot locate field `{field}` in Kernel struct"));
-        // Look for `LEGACY` in the 600 chars preceding the field
-        // declaration (covers a multi-line doc-comment block).
-        let doc_window_start = field_idx.saturating_sub(600);
-        let doc_window = &kernel_struct_block[doc_window_start..field_idx];
         assert!(
-            doc_window.contains("LEGACY"),
-            "TB-13 SG-13.0.3: Kernel.{field} missing LEGACY doc-comment label. \
-             Doc window:\n{doc_window}"
+            !kernel_struct_block.contains(&field_marker),
+            "TB-13 SG-13.0.3 (post-TB-14-Atom-6): Kernel struct MUST NOT \
+             contain field `{field}` (legacy CPMM scaffolding excised in \
+             Atom 6 closing OBS_TB_12_LEGACY_CPMM_QUARANTINE)"
         );
     }
+
+    // Assertion 4 (consistency): tests for forbidden methods on Kernel.
+    // Re-introducing any of these would imply CPMM trading semantics.
+    for method in [
+        "fn create_market", "fn buy_yes", "fn buy_no", "fn yes_price",
+        "fn market_ticker", "fn open_bounty_market", "fn bounty_yes_price",
+        "fn resolve_bounty", "fn resolve_all",
+    ] {
+        assert!(
+            !kernel.contains(method),
+            "TB-13 SG-13.0.3 (post-TB-14-Atom-6): src/kernel.rs MUST NOT \
+             contain `{method}` (legacy CPMM API excised in Atom 6)"
+        );
+    }
+
 }
 
 /// Round-5 RQ6 unit test: `discover_by_type_use` catches a fresh file

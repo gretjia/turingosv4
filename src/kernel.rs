@@ -1,46 +1,31 @@
-// Tier 1: Pure topology (DAG) + zero-profit treasury + settlement
+// Tier 1: Pure topology (DAG)
 // Constitutional basis: Law 1 (zero domain knowledge)
 // V3L-45: no domain strings. V3L-23: no hardcoded params.
 //
 // CRITICAL: This module must NEVER contain domain-specific terms.
 // R-001 enforced by judge.sh — any edit is scanned.
+//
+// TB-14 Atom 6 (2026-05-03 closing OBS_TB_12_LEGACY_CPMM_QUARANTINE):
+// All decimal-float CPMM scaffolding (`markets`, `bounty_market`,
+// `bounty_lp_seed`, `create_market`, `buy_yes`, `buy_no`, `yes_price`,
+// `market_ticker`, `market_ticker_full`, `open_bounty_market`,
+// `bounty_yes_price`, `resolve_bounty`, `resolve_all`) was excised
+// together with `src/prediction_market.rs`. Pricing now lives entirely
+// in the derived view `state::compute_price_index`; YES/NO claims live
+// in TB-13 `ConditionalShareBalances`. The kernel is pure topology
+// (V3L-45 docstring contract restored).
 
 use crate::ledger::{Node, NodeId, Tape, TapeError};
-use crate::prediction_market::{BinaryMarket, MarketError};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 // ── Core types ──────────────────────────────────────────────────
 
 /// The pure topology manager.
-/// It knows about nodes, edges (citations), and markets.
+/// It knows about nodes and edges (citations).
 /// It does NOT know what the nodes contain or what domain they belong to.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Kernel {
     pub tape: Tape,
-    /// **LEGACY** (TB-3..TB-10 Phase-3A): per-node f64 CPMM market book.
-    /// See `prediction_market.rs` module header for migration path.
-    /// Replaced by TB-13 `ConditionalShareBalances` (canonical YES/NO claims)
-    /// + TB-14 `compute_price_index` derived view (statistical signal).
-    /// Removal is TB-14 Atom 6 SHIP step per
-    /// `OBS_TB_12_LEGACY_CPMM_QUARANTINE_2026-05-03`.
-    pub markets: HashMap<NodeId, BinaryMarket>,
-    /// **LEGACY** (TB-3..TB-10 Phase-3A Hayek): bounty market opened at run
-    /// start, seeded with pre-committed LP from the same ghost-liquidity
-    /// pool as per-node markets. Liquid from tx 0 → gives agents a price
-    /// signal BEFORE any behaviour. Resolves YES if golden path exists;
-    /// pool distributed to GP-node authors. **Not constitutional / not
-    /// RSP-M**; replaced by TB-13/TB-14 substrate. Removal is TB-14 SHIP
-    /// prerequisite per `OBS_TB_12_LEGACY_CPMM_QUARANTINE_2026-05-03`.
-    #[serde(default)]
-    pub bounty_market: Option<BinaryMarket>,
-    /// **LEGACY** (TB-3..TB-10 Phase-3A): seed LP committed to the bounty
-    /// market at open time (separate from BinaryMarket's internal CPMM
-    /// book). Used for payout distribution. f64; not constitutional.
-    /// Replaced by TB-13 `MarketSeedTx` (explicit provider funds, integer
-    /// MicroCoin, NO automatic liquidity, NO trading).
-    #[serde(default)]
-    pub bounty_lp_seed: f64,
 }
 
 /// Result of an append operation.
@@ -49,69 +34,11 @@ pub struct AppendResult {
     pub node_id: NodeId,
 }
 
-/// Result of a resolution operation.
-#[derive(Debug)]
-pub struct ResolutionResult {
-    pub golden_path: Vec<NodeId>,
-    pub markets_resolved: usize,
-}
-
 // ── Implementation ──────────────────────────────────────────────
 
 impl Kernel {
     pub fn new() -> Self {
-        Kernel {
-            tape: Tape::new(),
-            markets: HashMap::new(),
-            bounty_market: None,
-            bounty_lp_seed: 0.0,
-        }
-    }
-
-    /// Phase 3A (Hayek): open a run-level bounty market seeded with `lp_coins`.
-    /// Agents see its YES price from tx 0; price pre-exists behaviour,
-    /// breaking the Phase 2.5 bootstrap deadlock where no signal existed until
-    /// some agent had already acted.
-    pub fn open_bounty_market(&mut self, lp_coins: f64) -> Result<(), KernelError> {
-        if self.bounty_market.is_some() {
-            return Err(KernelError::MarketExists("__bounty__".to_string()));
-        }
-        let market = BinaryMarket::create("__bounty__".to_string(), lp_coins)
-            .map_err(KernelError::Market)?;
-        self.bounty_market = Some(market);
-        self.bounty_lp_seed = lp_coins;
-        Ok(())
-    }
-
-    pub fn bounty_yes_price(&self) -> Option<f64> {
-        self.bounty_market.as_ref().map(|m| m.yes_price())
-    }
-
-    /// Resolve the bounty market. `gp_authors` lists the author of each node
-    /// on the golden path (duplicates allowed — occurrences proxy contribution
-    /// count). Empty list → YES loses, seed returned to ghost pool, no payout.
-    /// Non-empty → YES wins, LP distributed equally across entries (so an
-    /// author with 2 GP nodes gets twice the share of one with 1).
-    pub fn resolve_bounty(&mut self, gp_authors: &[String]) -> HashMap<String, f64> {
-        let mut payouts: HashMap<String, f64> = HashMap::new();
-        let market = match self.bounty_market.as_mut() {
-            Some(m) => m,
-            None => return payouts,
-        };
-        if market.resolved.is_some() {
-            return payouts;
-        }
-        let yes_wins = !gp_authors.is_empty();
-        let _ = market.resolve(yes_wins);
-        if !yes_wins {
-            return payouts;
-        }
-        let lp = self.bounty_lp_seed;
-        let n = gp_authors.len() as f64;
-        for a in gp_authors {
-            *payouts.entry(a.clone()).or_insert(0.0) += lp / n;
-        }
-        payouts
+        Kernel { tape: Tape::new() }
     }
 
     /// Append a node to the tape.
@@ -123,36 +50,6 @@ impl Kernel {
         Ok(AppendResult { node_id })
     }
 
-    /// Create a prediction market for a node.
-    pub fn create_market(&mut self, node_id: &str, lp_coins: f64) -> Result<(), KernelError> {
-        if !self.tape.nodes().contains_key(node_id) {
-            return Err(KernelError::NodeNotFound(node_id.to_string()));
-        }
-        if self.markets.contains_key(node_id) {
-            return Err(KernelError::MarketExists(node_id.to_string()));
-        }
-        let market = BinaryMarket::create(node_id.to_string(), lp_coins)
-            .map_err(KernelError::Market)?;
-        self.markets.insert(node_id.to_string(), market);
-        Ok(())
-    }
-
-    /// Buy YES shares on a node's market.
-    pub fn buy_yes(&mut self, node_id: &str, coins: f64) -> Result<f64, KernelError> {
-        let market = self.markets.get_mut(node_id)
-            .ok_or_else(|| KernelError::MarketNotFound(node_id.to_string()))?;
-        let outcome = market.buy_yes(coins).map_err(KernelError::Market)?;
-        Ok(outcome.shares_received)
-    }
-
-    /// Buy NO shares on a node's market.
-    pub fn buy_no(&mut self, node_id: &str, coins: f64) -> Result<f64, KernelError> {
-        let market = self.markets.get_mut(node_id)
-            .ok_or_else(|| KernelError::MarketNotFound(node_id.to_string()))?;
-        let outcome = market.buy_no(coins).map_err(KernelError::Market)?;
-        Ok(outcome.shares_received)
-    }
-
     /// Trace ancestors from a terminal node back to root(s).
     /// Pure topology — path validity is determined externally.
     pub fn trace_golden_path(&self, terminal_id: &str) -> Result<Vec<NodeId>, KernelError> {
@@ -161,67 +58,6 @@ impl Kernel {
         }
         Ok(self.tape.trace_ancestors(terminal_id))
     }
-
-    /// Resolve all markets after external settlement.
-    /// `golden_path_ids`: nodes on the verified path (YES wins).
-    /// All other markets resolve NO.
-    pub fn resolve_all(
-        &mut self,
-        golden_path_ids: &[NodeId],
-    ) -> Result<ResolutionResult, KernelError> {
-        let gp_set: std::collections::HashSet<&str> =
-            golden_path_ids.iter().map(|s| s.as_str()).collect();
-
-        let mut resolved_count = 0;
-
-        for (node_id, market) in self.markets.iter_mut() {
-            if market.resolved.is_some() {
-                continue;
-            }
-            let yes_wins = gp_set.contains(node_id.as_str());
-            market.resolve(yes_wins).map_err(KernelError::Market)?;
-            resolved_count += 1;
-        }
-
-        Ok(ResolutionResult {
-            golden_path: golden_path_ids.to_vec(),
-            markets_resolved: resolved_count,
-        })
-    }
-
-    /// Get the current YES price for a node's market.
-    pub fn yes_price(&self, node_id: &str) -> Option<f64> {
-        self.markets.get(node_id).map(|m| m.yes_price())
-    }
-
-    /// Get top N nodes by YES price (highest first). Unresolved markets only.
-    pub fn market_ticker(&self, top_n: usize) -> Vec<(NodeId, f64)> {
-        let mut prices: Vec<(NodeId, f64)> = self.markets.iter()
-            .filter(|(_, m)| m.resolved.is_none())
-            .map(|(id, m)| (id.clone(), m.yes_price()))
-            .collect();
-        prices.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-        prices.truncate(top_n);
-        prices
-    }
-
-    /// Extended ticker with both sides + reserves, enabling bidirectional price signals
-    /// (Art. II.2) and market-depth visibility. Sorted by YES price descending.
-    pub fn market_ticker_full(&self, top_n: usize) -> Vec<(NodeId, f64, f64, f64, f64)> {
-        let mut rows: Vec<(NodeId, f64, f64, f64, f64)> = self.markets.iter()
-            .filter(|(_, m)| m.resolved.is_none())
-            .map(|(id, m)| (id.clone(), m.yes_price(), m.no_price(), m.yes_reserve(), m.no_reserve()))
-            .collect();
-        rows.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-        rows.truncate(top_n);
-        rows
-    }
-}
-
-impl Default for Kernel {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 // ── Errors ──────────────────────────────────────────────────────
@@ -229,20 +65,14 @@ impl Default for Kernel {
 #[derive(Debug)]
 pub enum KernelError {
     Tape(TapeError),
-    Market(MarketError),
     NodeNotFound(String),
-    MarketNotFound(String),
-    MarketExists(String),
 }
 
 impl std::fmt::Display for KernelError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             KernelError::Tape(e) => write!(f, "Tape error: {}", e),
-            KernelError::Market(e) => write!(f, "Market error: {}", e),
             KernelError::NodeNotFound(id) => write!(f, "Node not found: {}", id),
-            KernelError::MarketNotFound(id) => write!(f, "Market not found for node: {}", id),
-            KernelError::MarketExists(id) => write!(f, "Market already exists for node: {}", id),
         }
     }
 }
@@ -289,33 +119,6 @@ mod tests {
     }
 
     #[test]
-    fn test_market_lifecycle() {
-        let mut k = Kernel::new();
-        k.append(make_node("n1", "A0", "step 1", vec![])).unwrap();
-        k.create_market("n1", 2000.0).unwrap();
-
-        let shares = k.buy_yes("n1", 100.0).unwrap();
-        assert!(shares > 0.0);
-
-        let price = k.yes_price("n1").unwrap();
-        assert!(price > 0.5);
-    }
-
-    #[test]
-    fn test_no_market_for_nonexistent_node() {
-        let mut k = Kernel::new();
-        assert!(k.create_market("ghost", 2000.0).is_err());
-    }
-
-    #[test]
-    fn test_no_duplicate_market() {
-        let mut k = Kernel::new();
-        k.append(make_node("n1", "A0", "step", vec![])).unwrap();
-        k.create_market("n1", 2000.0).unwrap();
-        assert!(k.create_market("n1", 2000.0).is_err());
-    }
-
-    #[test]
     fn test_golden_path_trace() {
         let mut k = Kernel::new();
         k.append(make_node("root", "A0", "root", vec![])).unwrap();
@@ -327,30 +130,11 @@ mod tests {
     }
 
     #[test]
-    fn test_resolve_all_markets() {
-        let mut k = Kernel::new();
-        k.append(make_node("n1", "A0", "good", vec![])).unwrap();
-        k.append(make_node("n2", "A1", "bad", vec![])).unwrap();
-        k.create_market("n1", 2000.0).unwrap();
-        k.create_market("n2", 2000.0).unwrap();
-
-        let result = k.resolve_all(&["n1".to_string()]).unwrap();
-        assert_eq!(result.markets_resolved, 2);
-        assert_eq!(k.markets["n1"].resolved, Some(true));
-        assert_eq!(k.markets["n2"].resolved, Some(false));
-    }
-
-    #[test]
-    fn test_market_ticker() {
-        let mut k = Kernel::new();
-        k.append(make_node("n1", "A0", "a", vec![])).unwrap();
-        k.append(make_node("n2", "A1", "b", vec![])).unwrap();
-        k.create_market("n1", 2000.0).unwrap();
-        k.create_market("n2", 2000.0).unwrap();
-        k.buy_yes("n1", 100.0).unwrap();
-
-        let ticker = k.market_ticker(10);
-        assert_eq!(ticker.len(), 2);
-        assert_eq!(ticker[0].0, "n1");
+    fn test_trace_golden_path_unknown_node() {
+        let k = Kernel::new();
+        assert!(matches!(
+            k.trace_golden_path("ghost"),
+            Err(KernelError::NodeNotFound(_))
+        ));
     }
 }

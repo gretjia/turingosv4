@@ -1,0 +1,21 @@
+{
+  "l4_entries": 2,
+  "l4e_entries": 0,
+  "ledger_root_verified": true,
+  "system_signatures_verified": true,
+  "state_reconstructed": true,
+  "economic_state_reconstructed": true,
+  "cas_payloads_retrievable": true,
+  "agent_signatures_verified": true,
+  "proposal_telemetry_cas_retrievable": true,
+  "run_id": "tb14-atom6-smoke",
+  "epoch": 1,
+  "detail": {
+    "final_state_root_hex": "3aa95383939c8f9246c080b54141e03581614d155b6d3599f5b0f8a4f3be1610",
+    "final_ledger_root_hex": "50d29b0cea500894c8f2bcc9182c7b35c0f60df2372e2aeb7e136f8aecd9d92f",
+    "head_commit_oid_hex": "656e58e5cc06aa82b553ff3f1a89326aa9c5538e",
+    "l4e_last_hash_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+    "replay_failure": null,
+    "initial_q_state_loaded_from_disk": true
+  }
+}
