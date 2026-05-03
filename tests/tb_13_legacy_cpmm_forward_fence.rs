@@ -52,21 +52,22 @@ use std::path::PathBuf;
 /// file containing a TB-13 authoring marker and adds it to the
 /// effective scope.
 ///
-/// **Codex round-4 RQ6 follow-up (2026-05-03)**: `src/bin/audit_dashboard.rs`
-/// was previously listed here for forward dashboard coverage but currently
-/// carries 0 TB-13 markers + 0 TB-13 type uses (Atom 4 §13 dashboard
-/// rendering is DEFERRED per charter; consolidated to TB-14 PriceIndex).
-/// Listing it here while my Layer 2 walker now scans non-comment lines on
-/// unmarked files surfaces a false positive on the dashboard's own
-/// negative-list test fixture (line 1628-1629: string literals "price_yes"
-/// / "price_no" in a forbidden-token assertion). Remove from FLOOR; the
-/// file will be auto-rediscovered by `discover_by_marker` when Atom 4
-/// ships TB-13 contributions in TB-14.
+/// **Codex round-5 (R5) DASHBOARD-FLOOR remediation 2026-05-03**:
+/// `src/bin/audit_dashboard.rs` was briefly removed from this list in
+/// round-6 to dodge a Layer 2 false-positive on its negative-list test
+/// fixture (string literals "price_yes" / "price_no" at line 1628-1629).
+/// Codex R5 correctly pointed out that removing it from FLOOR also
+/// removed it from Layer 1 hard-import scanning — but the false-positive
+/// is Layer 2-specific. The right fix is two-tier scope: keep
+/// `audit_dashboard.rs` in `FENCE_SCOPE_FLOOR` (Layer 1 always scans for
+/// hard-banned imports), but exclude it from Layer 2's
+/// effective-discovered scope until it gains TB-13 markers or type uses.
 const FENCE_SCOPE_FLOOR: &[&str] = &[
     "src/state/typed_tx.rs",
     "src/state/q_state.rs",
     "src/state/sequencer.rs",
     "src/economy/monetary_invariant.rs",
+    "src/bin/audit_dashboard.rs",
     "src/runtime/verify.rs",
 ];
 
@@ -162,22 +163,51 @@ fn tb_13_spans(source: &str) -> Vec<(usize, String)> {
     out
 }
 
-/// Lines to scan for forbidden tokens (Layer 2). Codex round-4 RQ6
-/// remediation 2026-05-03: `tb_13_spans()` returns nothing for files
-/// added to scope by `discover_by_type_use` (no marker = no span), so
-/// the marker-only Layer 2 missed unmarked TB-13 contributors. Fix:
+/// Lines to scan for Layer 2 forbidden tokens.
 ///
-/// - If the file carries any TB-13 authoring marker → return
-///   `tb_13_spans()` (marker behavior preserved; legacy doc-xref
-///   continues to be skipped).
-/// - Otherwise (file in scope only via type-use discovery) → return
-///   every non-comment line. Unmarked TB-13 contributors are scanned
-///   wholesale because we cannot rely on marker-discipline to
-///   delineate "their" code.
+/// **Codex round-4 RQ6 (2026-05-03)**: `tb_13_spans()` returns nothing
+/// for files added to scope by `discover_by_type_use` (no marker = no
+/// span), so the marker-only Layer 2 missed unmarked TB-13 contributors.
+///
+/// **Codex round-5 (R5) PARTIAL-MARKER (2026-05-03)**: round-6's
+/// either/or rule (marker-file → spans-only; unmarked file → all
+/// non-comment lines) left a hole: a marker-bearing file could hide
+/// non-marker TB-13 type-use plus f64/AMM tokens outside any marker
+/// span. Fix: for marker-files, scan marker-spans UNION any non-comment
+/// line that contains a TB-13 type name (catches stealth TB-13 type-uses
+/// outside marker spans — those lines ARE TB-13 contributions by
+/// definition because they reference TB-13-introduced types).
+///
+/// Final rules:
+/// - Marker-file: marker-spans ∪ non-comment lines containing TB-13 type names.
+/// - Unmarked-discovered file: all non-comment lines (round-6 behavior).
+///
+/// Residual gap (acknowledged): a TB-13 helper that uses zero TB-13 type
+/// names AND lives outside marker spans (e.g., a generic math helper
+/// called only by TB-13 code). Without a code-marker AND without a
+/// type-name signal, the fence has no way to identify it as TB-13. This
+/// is a defense-in-depth limit of marker+type-name discipline; manual
+/// code review remains the residual halt-trigger guard.
 fn tb_13_scan_lines(source: &str) -> Vec<(usize, String)> {
-    if source.lines().any(is_tb_13_authoring_marker) {
-        return tb_13_spans(source);
+    use std::collections::BTreeMap;
+    let has_marker = source.lines().any(is_tb_13_authoring_marker);
+    if has_marker {
+        // Marker-file: marker-spans ∪ non-comment lines with TB-13 type names.
+        let mut acc: BTreeMap<usize, String> = BTreeMap::new();
+        for (n, l) in tb_13_spans(source) {
+            acc.insert(n, l);
+        }
+        for (i, line) in source.lines().enumerate() {
+            if is_pure_comment_line(line) {
+                continue;
+            }
+            if TB_13_TYPE_NAMES.iter().any(|t| line.contains(t)) {
+                acc.insert(i + 1, line.to_string());
+            }
+        }
+        return acc.into_iter().collect();
     }
+    // Unmarked-discovered file: all non-comment lines.
     source
         .lines()
         .enumerate()
@@ -311,12 +341,41 @@ fn walk_rs_files(dir: &std::path::Path, visitor: &mut dyn FnMut(&std::path::Path
     }
 }
 
-/// Effective fence scope = FLOOR ∪ discovered. Deduplicated, sorted.
+/// Layer 1 fence scope = FLOOR ∪ discovered. Deduplicated, sorted.
+/// Used by `legacy_cpm_api_not_imported_by_complete_set` Layer 1
+/// (HARD_BANNED_LEGACY_IMPORTS unconditional whole-file scan).
+///
+/// Layer 1 is broader than Layer 2 because legacy imports are forbidden
+/// EVERYWHERE in TB-13-relevant scope, regardless of whether the file
+/// carries TB-13 markers or type uses today. `audit_dashboard.rs` lives
+/// here because it is TB-13-relevant scope (Atom 4 §13/§14 dashboard
+/// renders TB-13 state), even though its current contributions are TB-12.
 fn effective_fence_scope() -> Vec<String> {
     let mut set: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
     for s in FENCE_SCOPE_FLOOR {
         set.insert((*s).to_string());
     }
+    for s in discover_tb_13_files() {
+        set.insert(s);
+    }
+    set.into_iter().collect()
+}
+
+/// Layer 2 fence scope = discovered only (marker OR type-use).
+/// Used by Layer 2 forbidden-token scan + `no_f64_in_complete_set_or_market_seed`.
+///
+/// **Codex round-5 (R5) DASHBOARD-FLOOR remediation 2026-05-03**:
+/// narrower than Layer 1 because Layer 2 tokens (f64 / AMM / orderbook /
+/// price names) can legitimately appear in non-TB-13 files for unrelated
+/// reasons (e.g., negative-list test fixtures in `audit_dashboard.rs`
+/// at line 1628 that BAN those tokens — not USE them). Restricting
+/// Layer 2 to discovered files (i.e., files that actually contribute
+/// TB-13 code via marker OR TB-13 type use) prevents false positives on
+/// non-TB-13 baseline code that happens to mention forbidden token
+/// names. `audit_dashboard.rs` will auto-enter this scope when TB-14
+/// ships dashboard contributions there.
+fn effective_layer_2_scope() -> Vec<String> {
+    let mut set: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
     for s in discover_tb_13_files() {
         set.insert(s);
     }
@@ -371,11 +430,15 @@ fn legacy_cpm_api_not_imported_by_complete_set() {
         }
     }
 
-    // Layer 2: scan for trading/AMM concepts. Marker-discovered files use
-    // `tb_13_spans()` (marker behavior); type-use-discovered files use
-    // `tb_13_scan_lines()` which falls back to all non-comment lines for
-    // unmarked contributors (Codex round-4 RQ6 remediation 2026-05-03).
-    for rel in &scope {
+    // Layer 2: scan for trading/AMM concepts. Restricted to discovered
+    // (Codex round-5 DASHBOARD-FLOOR remediation 2026-05-03): Layer 2
+    // tokens (f64 / AMM / orderbook / price names) can appear legitimately
+    // in non-TB-13 baseline code (e.g., negative-list test fixtures); only
+    // files that actually contribute TB-13 (via marker OR TB-13 type use)
+    // should be Layer-2-scanned. `tb_13_scan_lines` then resolves the
+    // PARTIAL-MARKER case: marker-spans ∪ non-marker TB-13-type-use lines.
+    let layer_2_scope = effective_layer_2_scope();
+    for rel in &layer_2_scope {
         let source = read_scope_file(rel);
         for (line_no, line) in tb_13_scan_lines(&source) {
             for token in FORBIDDEN_LEGACY_TOKENS {
@@ -398,14 +461,17 @@ fn legacy_cpm_api_not_imported_by_complete_set() {
     }
     assert!(
         violations.is_empty(),
-        "TB-13 SG-13.0.1 forward-fence violated (scope: {} files):\n{}",
+        "TB-13 SG-13.0.1 forward-fence violated (Layer 1 scope: {} files; Layer 2 scope: {} files):\n{}",
         scope.len(),
+        layer_2_scope.len(),
         violations.join("\n")
     );
 }
 
 /// SG-13.0.2 — `no_f64_in_complete_set_or_market_seed`. Now uses
-/// effective_fence_scope() (auto-discovers new TB-13 files).
+/// effective_layer_2_scope() (discovered-only, per Codex R5 DASHBOARD-FLOOR
+/// remediation 2026-05-03 — Layer 2 tokens like f64 can appear in
+/// non-TB-13 baseline code for unrelated reasons).
 ///
 /// Architect §4.2 halting trigger: HALT if `f64` appears in NEW
 /// CompleteSet / MarketSeed code. Money-path types must use integer
@@ -414,10 +480,11 @@ fn legacy_cpm_api_not_imported_by_complete_set() {
 fn no_f64_in_complete_set_or_market_seed() {
     let mut violations: Vec<String> = Vec::new();
     let f64_tokens = [" f64", "f64,", "f64;", "f64)"];
-    for rel in &effective_fence_scope() {
+    for rel in &effective_layer_2_scope() {
         let source = read_scope_file(rel);
-        // tb_13_scan_lines: marker-files → spans; unmarked-discovered files
-        // → all non-comment lines (Codex round-4 RQ6 remediation 2026-05-03).
+        // tb_13_scan_lines: marker-files → spans ∪ non-marker TB-13-type-use
+        // lines (Codex R5 PARTIAL-MARKER); unmarked-discovered files →
+        // all non-comment lines (Codex R4 RQ6).
         for (line_no, line) in tb_13_scan_lines(&source) {
             for token in &f64_tokens {
                 if line.contains(token) {
@@ -634,5 +701,55 @@ fn forbidden() -> f64 { 0.5_f64 }\n\
     assert!(
         scanned_text.iter().all(|l| !l.contains("trailing comment")),
         "unmarked-file: pure-comment lines must still be filtered out"
+    );
+}
+
+/// Round-7 R5-Codex PARTIAL-MARKER remediation 2026-05-03: a
+/// marker-bearing file with stealth TB-13 type-use OUTSIDE any marker
+/// span must still have those non-marker type-use lines scanned.
+#[test]
+fn tb_13_scan_lines_partial_marker_catches_stealth_type_use() {
+    // Marker-file: one marker-span at top + a TB-13 type use OUTSIDE the
+    // marker span (no TB-13 marker on the second function). Round-6
+    // helper would have only scanned the marker span; round-7 must also
+    // return the non-marker line containing `CompleteSetMintTx`.
+    let src = "\
+//! TB-13 module header.\n\
+pub fn tb13_marked() -> i32 { 0 }\n\
+\n\
+fn stealth(_: CompleteSetMintTx) -> f64 { 0.0_f64 }\n\
+";
+    let scanned = tb_13_scan_lines(src);
+    let scanned_text: Vec<&str> =
+        scanned.iter().map(|(_, l)| l.as_str()).collect();
+    assert!(
+        scanned_text.iter().any(|l| l.contains("tb13_marked")),
+        "marker-span line must be returned"
+    );
+    assert!(
+        scanned_text
+            .iter()
+            .any(|l| l.contains("CompleteSetMintTx") && l.contains("f64")),
+        "non-marker line containing TB-13 type name must also be returned (PARTIAL-MARKER closure)"
+    );
+}
+
+/// Round-7 R5-Codex DASHBOARD-FLOOR remediation 2026-05-03: Layer 1
+/// (hard-banned-imports) scope retains `audit_dashboard.rs`; Layer 2
+/// (forbidden-token) scope omits it because it currently has no TB-13
+/// markers and no TB-13 type uses. The split prevents Layer 2 false-
+/// positives on negative-list test fixtures while preserving Layer 1
+/// hard-import enforcement.
+#[test]
+fn audit_dashboard_in_layer_1_scope_but_not_layer_2_scope() {
+    let layer_1 = effective_fence_scope();
+    let layer_2 = effective_layer_2_scope();
+    assert!(
+        layer_1.iter().any(|s| s == "src/bin/audit_dashboard.rs"),
+        "DASHBOARD-FLOOR: audit_dashboard.rs must remain in Layer 1 scope (hard-imports always banned). Got: {layer_1:?}"
+    );
+    assert!(
+        !layer_2.iter().any(|s| s == "src/bin/audit_dashboard.rs"),
+        "DASHBOARD-FLOOR: audit_dashboard.rs must NOT be in Layer 2 scope until it gains TB-13 markers / type uses (otherwise its negative-list test fixture false-positives). Got: {layer_2:?}"
     );
 }
