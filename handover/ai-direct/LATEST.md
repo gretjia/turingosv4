@@ -6,6 +6,264 @@
 
 ---
 
+## 🚢 2026-05-03 — TB-12 SHIPPED — Node Exposure Index (architect 2026-05-03 ruling; Class 3 dual audit PASS — Codex + Gemini)
+
+**Session summary**: Architect 2026-05-03 morning ruling redirected TB-12 from
+"NodeMarket Position Index" (the 2026-05-02 supplementary directive name)
+to the more-precise **"Node Exposure Index"** scope: TB-12 records
+`WorkTx.stake → FirstLong` + `ChallengeTx.stake → ChallengeShort` exposure
+ONLY. NO trading. NO price. NO AMM. NO CompleteSet. NO settlement. **NodePosition
+is IMMUTABLE EXPOSURE RECORD per architect §10**, NOT active position
+balance. The architect explicitly chose **flat NodePositionsIndex**
+(canonical) over nested NodeMarketEntry (TB-14 derived view) per §3
+ruling — avoids second source-of-truth (mirroring TaskMarket.total_escrow
+precedent on cache=truth).
+
+Charter ratified at Q6 (ii.5): "一直做到双审结束" — run continuous
+through Atom 6 dual audit, STOP for user verdict before SHIP. User
+authorized SHIP after ultrathink-verified architect §9 alignment.
+
+Architect ruling lossless: `handover/directives/2026-05-03_TB12_NODE_EXPOSURE_INDEX_ARCHITECT_RULING.md`.
+Charter: `handover/tracer_bullets/TB-12_charter_2026-05-03.md`.
+Recursive self-audit: `handover/audits/RECURSIVE_AUDIT_TB_12_2026-05-03.md`.
+Codex audit: `handover/audits/CODEX_TB_12_SHIP_AUDIT_2026-05-03.md`.
+Gemini audit: `handover/audits/GEMINI_TB_12_SHIP_AUDIT_2026-05-03_R1.md`.
+
+### TB-12 deliverables (8 atoms — all SHIPPED)
+
+```text
+Atom 0    Charter ratified Q6 (ii.5) — `handover/tracer_bullets/TB-12_charter_2026-05-03.md`
+Atom 0.5  TB-11 G3/G4 carry-forward closure (commit 2cb7f4a):
+          (a) evaluator binary MAX_TX exhausted → write_evidence_capsule
+              + tb11_emit_terminal_summary_for_run; bundle.shutdown
+              drains TerminalSummary via apply_one. 4 new
+              EvidenceCapsule counters (tb11_lean_error_count,
+              tb11_sorry_block_count, tb11_protocol_parse_failure_count,
+              tb11_partial_accept_count) wired at the existing
+              classify_lean_error / classify_parse_error / step_partial_ok
+              call sites.
+          (b) lean_market `tick` (POLICY PREVIEW MODE — read-only
+              eligibility scan; emission deferred to system_keypair
+              persistence in a future TB) + `view-bankruptcy` (read-only
+              listing of TaskMarketState::Bankrupt entries).
+          (c) Real-LLM zeta rerun deferred (manual user-driven post-audit
+              session per charter §6.2; Atom 0.5(a) wired the call site).
+Atom 1    NodePosition schema (commit a35f5f3):
+          - PositionSide enum {Long, Short}
+          - PositionKind enum {FirstLong, ChallengeShort} — NO MarketBuy
+            / MarketSell (architect §9.4 forbidden; TB-13+ trading layer)
+          - NodePosition struct (9 fields) per architect §4 + §10
+            invariants (immutable; not Coin holding)
+          - NodePositionsIndex(BTreeMap<TxId, NodePosition>) flat shape
+          - EconomicState 10 → 11 sub-fields with +node_positions_t
+          - 3 unit tests (eleven_sub_fields + does_not_have_node_market_t_field
+            + node_positions_index_default_is_empty)
+Atom 2    Class 3 dispatch wire (commit 3615e32):
+          - WorkTx accept arm: if work.stake>0, write FirstLong NodePosition
+            (position_id == work.tx_id == node_id == source_tx; owner =
+            work.agent_id; amount = work.stake.0)
+          - ChallengeTx accept arm: if challenge.stake>0, write
+            ChallengeShort NodePosition (position_id == challenge.tx_id ==
+            source_tx; node_id == challenge.target_work_tx; task_id
+            Q-derived from stakes_t[target_work_tx])
+          - VerifyTx accept arm: UNCHANGED (FR-12.3 + CR-12.8)
+          - Pure additive side-effect: no change to balances_t / stakes_t
+            / challenge_cases_t / total_supply
+          - existing assert_total_ctf_conserved + assert_no_post_init_mint
+            invariants preserved
+Atom 3+5  8 deterministic integration tests in tests/tb_12_node_exposure_index.rs:
+          (architect §9.3 SG-12.1..8 ALL by exact-name PASS post-ultrathink)
+Atom 4    audit_dashboard §13 + lean_market view-positions (commit f4bff3f):
+          - ExposureRecordRow + DashboardReport.exposures field
+          - L4 walk extended for TypedTx::Work (FirstLong row) +
+            TypedTx::Challenge (ChallengeShort row)
+          - §13 render section with per-node aggregation when ≥2 nodes
+          - LABEL DISCIPLINE: "exposure records" NOT "Open market balances"
+            (architect §8 Atom 4)
+          - lean_market `view-positions [--node-id <tx>] [--owner <agent>]`
+            read-only subcommand
+          - render_section_13 refactored to pure helper for SG-12.6
+            unit-testability (commit 975108d post-ultrathink)
+Atom 6    Class 3 dual audit (commits 71053fd + 975108d):
+          (a) Recursive self-audit (4-clause + 11 G-gates + 8 SG-12.x +
+              6 failure modes) — PASS
+          (b) Codex external audit (impl-paranoid via codex:codex-rescue) —
+              CHALLENGE × 2 (Q4 doc-drift on holding count; Q5 legacy
+              CPMM scope question) — both resolved via §10 remediation
+              + OBS_TB_12_LEGACY_CPMM_QUARANTINE (TB-13 prerequisite)
+          (c) Gemini external audit (architectural strategic;
+              gemini-2.5-pro; 896k char prompt; 48.2s API) — PASS / high
+              conviction / PROCEED to SHIP. All 8 audit questions PASS,
+              including Q6 + Q7 (TB-13 CompleteSet + TB-14 PriceIndex
+              forward-compat).
+          (d) Pre-SHIP ultrathink ship-gate refinement (commit 975108d):
+              4 SG-12.x test name drifts fixed; SG-12.6
+              dashboard_view_positions_works test added; all 8/8 SG-12.x
+              pass by architect §9.3 EXACT names.
+Atom 7    SHIP — this LATEST.md update + TB_LOG.tsv row 35 + ship commit.
+```
+
+### Architect §9.3 ship gates — 8/8 by exact name PASS
+
+```text
+SG-12.1  ✓ sg_12_1_accepted_worktx_creates_firstlong_position
+SG-12.2  ✓ sg_12_2_accepted_challengetx_creates_challengeshort_position
+SG-12.3  ✓ sg_12_3_verifytx_does_not_create_node_position
+SG-12.4  ✓ sg_12_4_node_positions_do_not_change_total_supply
+SG-12.5  ✓ sg_12_5_replay_reconstructs_node_positions
+SG-12.6  ✓ sg_12_6_dashboard_view_positions_works
+SG-12.7  ✓ sg_12_7_no_market_trading_variants_introduced
+SG-12.8  ✓ sg_12_8_no_node_market_entry_as_canonical_state
+```
+
+### Architect halting triggers (§7) — NONE fired
+
+```text
+✓ CTF conservation failure          NOT triggered
+✓ WorkTx-Challenge position mismatch NOT triggered
+✓ NodePosition counted as Coin      NOT triggered
+✓ Replay divergence                 NOT triggered
+✓ Codex / Gemini VETO               NEITHER (Codex CHALLENGE×2 resolved; Gemini PASS)
+```
+
+### Ship-gate evidence
+
+```text
+command         = cargo test --workspace
+workspace_count = 759  (+12 net vs TB-11 ship 747; +28 vs TB-10 ship 731)
+failed          = 0
+ignored         = 150
+trust_root      = test_trust_root_immutable_at_boot PASS
+
+architectural   = NEW src/state/typed_tx.rs (NodePosition + 2 enums; 5 schema-addition tests)
+                  EXTEND src/state/q_state.rs (NodePositionsIndex; EconomicState 10→11; +SG-12.8 unit alias)
+                  EXTEND src/state/sequencer.rs (WorkTx + ChallengeTx accept-arm side-effect; pure additive)
+                  EXTEND src/economy/monetary_invariant.rs (NodePosition NOT in 4-holding total_supply_micro; structural)
+                  EXTEND src/bin/audit_dashboard.rs (§13 + render_section_13 helper + SG-12.6 binary unit test)
+                  EXTEND src/state/mod.rs (4 new pub-use re-exports: NodePositionsIndex / NodePosition / PositionSide / PositionKind)
+                  EXTEND experiments/minif2f_v4/src/bin/evaluator.rs (TB-11 G3/G4 wire-up — capsule write + emit on MAX_TX)
+                  EXTEND experiments/minif2f_v4/src/bin/lean_market.rs (3 new subcommands: tick + view-bankruptcy + view-positions)
+                  REHASH genesis_payload.toml trust_root for 5 modified files (+0 new)
+                  NEW   tests/tb_12_node_exposure_index.rs (9 integration tests; SG-12.1..8 architect-exact names + 1 halting-trigger guard)
+
+self-audit      = handover/audits/RECURSIVE_AUDIT_TB_12_2026-05-03.md (4-clause + 11 ship gates + 6 recursive failure modes; verdict PASS post-remediation)
+codex-audit     = handover/audits/CODEX_TB_12_SHIP_AUDIT_2026-05-03.md (CHALLENGE × 2 → resolved via §10 + OBS-tracking)
+gemini-audit    = handover/audits/GEMINI_TB_12_SHIP_AUDIT_2026-05-03_R1.md (PASS / high / PROCEED to SHIP; 8/8 questions PASS)
+obs-tracking    = handover/alignment/OBS_TB_12_LEGACY_CPMM_QUARANTINE_2026-05-03.md (legacy src/prediction_market.rs as TB-13 prerequisite)
+
+next-TB         = TB-13 CompleteSet + MarketSeedTx (architect supplementary directive 2026-05-02 §TB-13).
+                  1 locked Coin = 1 YES_E + 1 NO_E. NO ghost liquidity. NO automatic YES/NO injection. NO AMM. NO trading yet.
+                  Prerequisite met by TB-12: flat NodePositionsIndex + TaskBankruptcyTx death-cert anchor.
+                  TB-13 Atom 0.5 prerequisite (per OBS_TB_12_LEGACY_CPMM_QUARANTINE): quarantine src/prediction_market.rs
+                  (legacy f64 CPMM) before introducing CompleteSet integer-math.
+```
+
+### Post-ultrathink ship-gate refinement (architect §9 strict alignment)
+
+After Gemini round-1 PASS verdict, user-architect requested ultrathink
+verification against architect §9.1-9.4 + §10 spec. AI-coder strict
+re-audit found 4 SG-12.x test-name drifts (SG-12.5 / 12.6 / 12.7 /
+12.8 names didn't exactly match architect's `passes` strings).
+Per `feedback_no_retroactive_evidence_rewrite`, all 4 fixed BEFORE
+SHIP rather than as post-ship patch:
+
+1. SG-12.5 `sg_12_5_node_positions_replay_deterministic` → renamed
+   `sg_12_5_replay_reconstructs_node_positions`.
+2. SG-12.6 had no test → ADDED `sg_12_6_dashboard_view_positions_works`
+   inside `src/bin/audit_dashboard.rs#[cfg(test)] mod tb12_render_tests`.
+   Refactored §13 inline render block into pure-function helper
+   `render_section_13(&[ExposureRecordRow]) -> String`. Test covers
+   4 cases (empty / single-Long / same-node-long+short /
+   2-node-aggregation) + forbidden-token grep (Open market balances /
+   MarketBuy / Market* / price_yes / etc).
+3. SG-12.7 `sg_12_7_only_firstlong_and_challengeshort_kinds_observed`
+   → renamed `sg_12_7_no_market_trading_variants_introduced`.
+4. SG-12.8 `economic_state_does_not_have_node_market_t_field` (q_state.rs
+   unit test) → ADDED at architect-exact name
+   `sg_12_8_no_node_market_entry_as_canonical_state` in
+   `tests/tb_12_node_exposure_index.rs`; q_state.rs unit test kept
+   as defense-in-depth alias.
+
+Post-ultrathink: 8/8 SG-12.x by architect EXACT names PASS. Workspace
++2 tests (757 → 759). ZERO behavioral change (pure-function refactor
++ test renames + 1 new test).
+
+### Empirical observations recorded mid-session
+
+1. **Architect's flat-vs-nested ruling validated by Gemini Q7**:
+   Gemini independently confirmed flat NodePositionsIndex extends
+   cleanly to TB-14 PriceIndex via "deterministic, read-only
+   derivation. A view function can iterate the flat node_positions_t,
+   group by node_id, and sum the amount for each side. This is
+   computationally efficient on replay and avoids state-mutation
+   complexity entirely. This design is robust and scalable."
+
+2. **Codex Q4 / Q5 surfaced documentation discipline drift**:
+   Q4 caught me referring to "5-holding CTF" in audit prompt while
+   actual code is 4-holding (TB-8 ratification removed claims-active).
+   Q5 caught the legacy `src/prediction_market.rs` CPMM scaffolding
+   that predates TB-12 by many TBs. Both resolved as
+   documentation/scope clarifications (§10 + OBS); neither
+   architectural regressions.
+
+3. **lean_market `tick` subcommand shipped as POLICY PREVIEW**: actual
+   on-chain TaskExpireTx emission requires Sequencer reattachment to
+   existing chaintape, which requires system_keypair persistence
+   (not yet implemented; build_chaintape_sequencer is fail-closed on
+   NonEmptyRuntimeRepo per TB-6 design). `tick` documents this
+   limitation in its banner output. Future TB will add reattachment
+   factory + system_keypair persistence.
+
+4. **Real-LLM zeta rerun deferred**: Atom 0.5(a) wires the call site
+   (evaluator binary on MAX_TX → write_evidence_capsule +
+   tb11_emit_terminal_summary_for_run); the actual real-LLM exercise
+   is wall-clock expensive (~22min cold Lean cache) and out-of-scope
+   for this autonomous-execution budget. Manual user-driven session
+   post-ship is the closure path.
+
+### Next-session prompt (paste verbatim)
+
+```text
+TB-13 charter design: CompleteSet + MarketSeedTx — 1 Coin = 1 YES_E + 1 NO_E.
+
+CONTEXT (READ IN ORDER):
+1. /home/zephryj/projects/turingosv4/CLAUDE.md
+2. /home/zephryj/projects/turingosv4/handover/ai-direct/LATEST.md   (top section: TB-12 ship)
+3. /home/zephryj/projects/turingosv4/handover/directives/2026-05-02_TB11_TO_TB17_SUPPLEMENTARY_DIRECTIVE.md
+   (TB-13 spec § + struct schemas: CompleteSetMintTx / CompleteSetRedeemTx / MarketSeedTx)
+4. /home/zephryj/projects/turingosv4/handover/audits/RECURSIVE_AUDIT_TB_12_2026-05-03.md
+   (TB-12 architectural-skeleton hygiene; Atom 4 §13 render baseline for TB-13 §14 view)
+5. /home/zephryj/projects/turingosv4/handover/alignment/OBS_TB_12_LEGACY_CPMM_QUARANTINE_2026-05-03.md
+   (TB-13 PREREQUISITE: quarantine src/prediction_market.rs legacy f64 CPMM before
+    introducing integer-math CompleteSet)
+
+STATE-OF-WORLD:
+- TB-12 SHIPPED (this commit; 759 / 0 / 150 tests; flat NodePositionsIndex; Class 3 dual audit PASS).
+- TaskBankruptcyTx (TB-11) + NodePosition (TB-12) substrate ready for TB-13 conditional
+  shares + TB-14 price.
+- TB-13 PREREQUISITE: legacy CPMM in src/prediction_market.rs (345 lines f64) needs
+  quarantine (Atom 0.5 carry-forward, mirror TB-12 Atom 0.5 pattern).
+
+TB-13 ARCHITECT-MANDATED SHAPE (no trading yet):
+- CompleteSetMintTx: debits balances_t by amount; credits conditional_collateral_t
+  by amount; issues equal YES_E and NO_E shares (FR-13.1..3).
+- CompleteSetRedeemTx: pays winning shares only after system-resolved outcome (FR-13.4).
+- MarketSeedTx: seeds initial liquidity using EXPLICIT provider funds (FR-13.5;
+  no ghost liquidity per CR-13.1).
+- 1 Coin = YES_E + NO_E invariant (CR-13.5; SG-13.1).
+- YES/NO shares are CLAIMS, NOT Coin (CR-13.3); locked collateral IS Coin (CR-13.4).
+- NO automatic YES/NO injection (CR-13.2); NO AMM yet; NO trading yet (architect
+  forbidden list).
+
+Risk class: anticipate Class 3 (CompleteSetMintTx debits balances_t into a NEW
+holding term `conditional_collateral_t` — first new holding-term addition since
+TB-3 escrow. Total_supply_micro arithmetic + 4-holding CTF model needs explicit
+extension to 5-holding for the conditional-collateral term). Iteration cap 72h
+with 24h checkpoints. Sync mode (ii.5) — ratify-then-run-to-ship-gate-then-stop.
+```
+
+---
+
 ## 🚢 2026-05-02 evening — TB-11 SHIPPED — Epistemic Exhaust & Capital Liberation (architect §6.2 ruling; Class 3 recursive self-audit PASS)
 
 **Session summary**: Architect ruling 2026-05-02 evening redirected TB-11 from
