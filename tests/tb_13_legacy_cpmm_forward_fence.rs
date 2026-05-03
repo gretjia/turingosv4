@@ -161,16 +161,46 @@ fn read_scope_file(rel_path: &str) -> String {
         .unwrap_or_else(|e| panic!("TB-13 fence: failed to read {rel_path}: {e}"))
 }
 
-/// Walk `src/` for any `.rs` file containing a TB-13 authoring marker.
-/// Codex round-2 CHALLENGE remediation 2026-05-03: closes the gap where
-/// a new TB-13 file outside the static `FENCE_SCOPE_FLOOR` list could
-/// bypass forbidden-token enforcement. This discovery walk makes the
-/// fence self-extending: any new TB-13 contributing module is auto-
-/// added to scope on first run.
-fn discover_tb_13_files() -> Vec<String> {
-    let src_root = workspace_root().join("src");
+/// TB-13 type names — any non-comment use of one of these in `src/`
+/// marks the file as a TB-13 contributor. Codex round-3 RQ6 remediation
+/// 2026-05-03: the round-2 marker-only discovery caught files whose
+/// authors followed the `TRACE_MATRIX TB-13 ` / `// TB-13 ` convention,
+/// but a contributor could `use crate::state::typed_tx::CompleteSetMintTx;`
+/// in a fresh file without adding a marker — and the fence would miss
+/// it. The type-use walk closes that gap by checking for the distinctive
+/// TB-13-introduced symbol set itself; the marker discipline becomes a
+/// hint for human readers, not the only line of defense.
+///
+/// All names below are TB-13-introduced and have no pre-existing
+/// occurrence in `src/` outside `FENCE_SCOPE_FLOOR`.
+const TB_13_TYPE_NAMES: &[&str] = &[
+    "CompleteSetMintTx",
+    "CompleteSetRedeemTx",
+    "MarketSeedTx",
+    "ConditionalCollateralIndex",
+    "ConditionalShareBalances",
+    "ShareSidePair",
+    "EventNotOpen",
+    "EventId",
+    "OutcomeSide",
+    "ShareAmount",
+];
+
+/// True iff `line` is a pure comment (line starts with `//`, `///`, or
+/// `//!` after leading whitespace). Used by type-use discovery to skip
+/// legacy doc-comment cross-references (e.g., TB-12 `kernel.rs` /// doc
+/// strings that mention `CompleteSetMintTx` as future work).
+fn is_pure_comment_line(line: &str) -> bool {
+    line.trim_start().starts_with("//")
+}
+
+/// Walk `walk_root` for any `.rs` file containing a TB-13 authoring
+/// marker on at least one line. Codex round-2 CHALLENGE remediation
+/// 2026-05-03: makes the fence self-extending against marked but
+/// not-yet-listed contributors.
+fn discover_by_marker(walk_root: &std::path::Path) -> Vec<String> {
     let mut found: Vec<String> = Vec::new();
-    walk_rs_files(&src_root, &mut |path| {
+    walk_rs_files(walk_root, &mut |path| {
         let rel = path
             .strip_prefix(workspace_root())
             .unwrap_or(path)
@@ -185,6 +215,51 @@ fn discover_tb_13_files() -> Vec<String> {
         }
     });
     found
+}
+
+/// Walk `walk_root` for any `.rs` file that USES a TB-13 type name
+/// (`TB_13_TYPE_NAMES`) on a non-comment line. Codex round-3 RQ6
+/// remediation 2026-05-03: catches contributors who imported TB-13
+/// types without remembering the authoring-marker convention.
+fn discover_by_type_use(walk_root: &std::path::Path) -> Vec<String> {
+    let mut found: Vec<String> = Vec::new();
+    walk_rs_files(walk_root, &mut |path| {
+        let rel = path
+            .strip_prefix(workspace_root())
+            .unwrap_or(path)
+            .to_string_lossy()
+            .into_owned();
+        let body = match fs::read_to_string(path) {
+            Ok(s) => s,
+            Err(_) => return,
+        };
+        for line in body.lines() {
+            if is_pure_comment_line(line) {
+                continue;
+            }
+            if TB_13_TYPE_NAMES.iter().any(|t| line.contains(t)) {
+                found.push(rel);
+                return;
+            }
+        }
+    });
+    found
+}
+
+/// Discover every TB-13-contributing file in `src/`. Union of
+/// marker-walk (round-2) + type-use-walk (round-3 RQ6). Either path
+/// alone would leave a loophole; together they enforce the fence even
+/// when the human-followed marker convention slips.
+fn discover_tb_13_files() -> Vec<String> {
+    let src_root = workspace_root().join("src");
+    let mut set: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    for f in discover_by_marker(&src_root) {
+        set.insert(f);
+    }
+    for f in discover_by_type_use(&src_root) {
+        set.insert(f);
+    }
+    set.into_iter().collect()
 }
 
 fn walk_rs_files(dir: &std::path::Path, visitor: &mut dyn FnMut(&std::path::Path)) {
@@ -394,4 +469,82 @@ fn prediction_market_legacy_quarantined() {
              Doc window:\n{doc_window}"
         );
     }
+}
+
+/// Round-5 RQ6 unit test: `discover_by_type_use` catches a fresh file
+/// that imports a TB-13 type without an authoring marker, and the
+/// pure-comment skip prevents a TB-12 doc-comment cross-reference
+/// from being misclassified as a TB-13 contributor.
+#[test]
+fn discover_by_type_use_catches_unmarked_imports_and_skips_doc_xref() {
+    use std::io::Write;
+    let tmp = std::env::temp_dir().join(format!(
+        "tb13_fence_discovery_test_{}",
+        std::process::id()
+    ));
+    let _ = fs::remove_dir_all(&tmp);
+    fs::create_dir_all(&tmp).expect("mkdir tmp");
+
+    // (1) An unmarked file that USES a TB-13 type → must be discovered.
+    let unmarked_path = tmp.join("unmarked_user.rs");
+    {
+        let mut f = fs::File::create(&unmarked_path).expect("create unmarked");
+        writeln!(
+            f,
+            "use crate::state::typed_tx::CompleteSetMintTx;\nfn touch() -> CompleteSetMintTx {{ CompleteSetMintTx::default() }}"
+        )
+        .unwrap();
+    }
+
+    // (2) A file with TB-13 type names ONLY in /// doc-comment lines →
+    // must NOT be discovered (TB-12 legacy doc-xref pattern).
+    let docxref_path = tmp.join("doc_xref_only.rs");
+    {
+        let mut f = fs::File::create(&docxref_path).expect("create docxref");
+        writeln!(
+            f,
+            "/// Replaced by TB-13 `CompleteSetMintTx` (canonical mint).\n//! see ConditionalShareBalances for the future shape.\npub struct Unrelated;"
+        )
+        .unwrap();
+    }
+
+    // (3) A control file with no TB-13 references → not discovered.
+    let neutral_path = tmp.join("neutral.rs");
+    {
+        let mut f = fs::File::create(&neutral_path).expect("create neutral");
+        writeln!(f, "pub fn add(a: i64, b: i64) -> i64 {{ a + b }}").unwrap();
+    }
+
+    let found = discover_by_type_use(&tmp);
+    let found_set: std::collections::BTreeSet<&str> =
+        found.iter().map(|s| s.as_str()).collect();
+
+    let unmarked_str = unmarked_path.to_string_lossy().into_owned();
+    let docxref_str = docxref_path.to_string_lossy().into_owned();
+    let neutral_str = neutral_path.to_string_lossy().into_owned();
+
+    assert!(
+        found_set.contains(unmarked_str.as_str()),
+        "RQ6: unmarked TB-13 type-use file must be discovered. Got: {found:?}"
+    );
+    assert!(
+        !found_set.contains(docxref_str.as_str()),
+        "RQ6: doc-xref-only file must NOT be discovered. Got: {found:?}"
+    );
+    assert!(
+        !found_set.contains(neutral_str.as_str()),
+        "RQ6: neutral file must NOT be discovered. Got: {found:?}"
+    );
+
+    // Also assert that the marker walk alone would have missed (1) —
+    // proves type-use is the path that catches it.
+    let marker_only = discover_by_marker(&tmp);
+    let marker_set: std::collections::BTreeSet<&str> =
+        marker_only.iter().map(|s| s.as_str()).collect();
+    assert!(
+        !marker_set.contains(unmarked_str.as_str()),
+        "RQ6: marker walk alone should NOT have caught the unmarked file (otherwise the type-use layer is redundant). Got: {marker_only:?}"
+    );
+
+    let _ = fs::remove_dir_all(&tmp);
 }
