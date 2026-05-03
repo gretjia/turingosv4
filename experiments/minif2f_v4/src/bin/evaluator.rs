@@ -1219,6 +1219,14 @@ async fn run_swarm(
     // diversity (full embedding distance is Phase D+ work).
     let mut proposal_hashes: HashSet<u64> = HashSet::new();
     let mut proposal_count: u64 = 0;
+    // TB-11 Atom 0.5(a) carry-forward landed in TB-12 (architect 2026-05-03
+    // ruling §1.1 + §8 Atom 0.5): EvidenceCapsule rollup counters per
+    // architect §6.1. Incremented at the existing classify call sites.
+    // Architect's "attempt_count" maps to proposal_count above.
+    let mut tb11_lean_error_count: u64 = 0;
+    let mut tb11_sorry_block_count: u64 = 0;
+    let mut tb11_protocol_parse_failure_count: u64 = 0;
+    let mut tb11_partial_accept_count: u64 = 0;
     // Phase A atom A4 (FC1-N12 oracle scope): cumulative wall-clock
     // inside Lean for THIS run. Each verify_omega_detailed and
     // verify_partial call brackets its own elapsed and adds it here.
@@ -2094,6 +2102,17 @@ async fn run_swarm(
                                         // Step-B v3: classify + record class label (C-022 shield).
                                         let class = classify_lean_error(&err_detail);
                                         bus.record_rejection(agent_id, class.label());
+                                        // TB-11 carry-forward (TB-12 Atom 0.5a; architect §6.1):
+                                        // sorry-block ↔ lean-error split per
+                                        // EvidenceCapsule.sorry_block_count vs lean_error_count.
+                                        // lean4_oracle returns "sorry_in_proof" /
+                                        // "declaration_uses_sorry" / "forbidden_payload: sorry"
+                                        // for sorry-blocks; everything else is a Lean kernel error.
+                                        if err_detail.contains("sorry") || err_detail.contains("forbidden_payload") {
+                                            tb11_sorry_block_count += 1;
+                                        } else {
+                                            tb11_lean_error_count += 1;
+                                        }
                                         // PPUT-CCL B2: rejection error feeds back into next prompt's
                                         // recent_rejections — count those bytes against C_i.
                                         acc.record_tool_stdout(&err_detail);
@@ -2497,6 +2516,9 @@ async fn run_swarm(
                                         ) {
                                             Ok(BusResult::Appended { node_id }) => {
                                                 *tool_dist.entry("step_partial_ok".into()).or_insert(0) += 1;
+                                                // TB-11 carry-forward (TB-12 Atom 0.5a; architect §6.1):
+                                                // partial_accept_count for EvidenceCapsule.
+                                                tb11_partial_accept_count += 1;
                                                 info!("[tx {}] {} step+{} partial OK (depth={})",
                                                       tx, agent_id, node_id,
                                                       bus.kernel.tape.time_arrow().len());
@@ -2510,6 +2532,14 @@ async fn run_swarm(
                                     PartialVerdict::Reject(reason) => {
                                         let class = classify_lean_error(&reason);
                                         bus.record_rejection(agent_id, class.label());
+                                        // TB-11 carry-forward (TB-12 Atom 0.5a; architect §6.1):
+                                        // sorry-block vs lean-error split, same logic as
+                                        // OMEGA-rejected path above.
+                                        if reason.contains("sorry") || reason.contains("forbidden_payload") {
+                                            tb11_sorry_block_count += 1;
+                                        } else {
+                                            tb11_lean_error_count += 1;
+                                        }
                                         // PPUT-CCL B2: step rejection reason flows into next prompt.
                                         acc.record_tool_stdout(&reason);
                                         *tool_dist.entry("step_reject".into()).or_insert(0) += 1;
@@ -2525,6 +2555,9 @@ async fn run_swarm(
                     },
                     Err(e) => {
                         *tool_dist.entry("parse_fail".into()).or_insert(0) += 1;
+                        // TB-11 carry-forward (TB-12 Atom 0.5a; architect §6.1):
+                        // protocol_parse_failure_count for EvidenceCapsule.
+                        tb11_protocol_parse_failure_count += 1;
                         // Step-B v3: parse failures feed the class graveyard too.
                         let class = classify_parse_error(&format!("{}", e));
                         bus.record_rejection(agent_id, class.label());
@@ -2602,6 +2635,117 @@ async fn run_swarm(
         // `failed_branch_count` and `rollback_count` mirror PputResult.
         let runtime_repo_path = bundle.runtime_repo_path.clone();
         let cas_path = bundle.cas_path.clone();
+
+        // ────────────────────────────────────────────────────────────────────
+        // TB-11 Atom 0.5(a) carry-forward landed in TB-12 (architect 2026-05-03
+        // ruling §1.1 + §8 Atom 0.5; SG-11.1 + SG-11.2). MAX_TX exhausted →
+        // write EvidenceCapsule to CAS + emit TerminalSummary on-chain via
+        // tb11_emit_terminal_summary_for_run. emit_system_tx queues the tx;
+        // bundle.shutdown() below drains via apply_one (mirror of TB-8
+        // tb8_emit_finalize_after_verify pattern).
+        // ────────────────────────────────────────────────────────────────────
+        {
+            use turingosv4::bottom_white::cas::store::CasStore;
+            use turingosv4::runtime::evidence_capsule::{
+                write_evidence_capsule, ExhaustionCounts,
+            };
+            use turingosv4::state::typed_tx::{
+                CapsulePrivacyPolicy, ExhaustionReason, RejectionClass, RunOutcome,
+            };
+            use std::sync::{Arc, RwLock};
+
+            let counts = ExhaustionCounts {
+                attempt_count: proposal_count,
+                lean_error_count: tb11_lean_error_count,
+                sorry_block_count: tb11_sorry_block_count,
+                protocol_parse_failure_count: tb11_protocol_parse_failure_count,
+                partial_accept_count: tb11_partial_accept_count,
+            };
+            // Deterministic public_summary substrate. TB-11 MVP stores
+            // uncompressed; gzip wrapping deferred to TB-15 Markov Loom.
+            let raw_log = format!(
+                "TB-11 Atom 0.5(a) carry-forward MAX_TX exhausted run summary\n\
+                 run_id: {}\n\
+                 task_id: task-{}\n\
+                 proposal_count: {}\n\
+                 lean_error_count: {}\n\
+                 sorry_block_count: {}\n\
+                 protocol_parse_failure_count: {}\n\
+                 partial_accept_count: {}\n\
+                 verifier_wait_ms: {}\n\
+                 max_transactions: {}\n",
+                run_id, run_id, proposal_count, tb11_lean_error_count,
+                tb11_sorry_block_count, tb11_protocol_parse_failure_count,
+                tb11_partial_accept_count, verifier_wait_ms, max_transactions,
+            );
+            match CasStore::open(&cas_path) {
+                Ok(cas_store) => {
+                    let cas = Arc::new(RwLock::new(cas_store));
+                    let task_id_capsule =
+                        turingosv4::state::q_state::TaskId(format!("task-{}", run_id));
+                    let run_id_capsule =
+                        turingosv4::state::typed_tx::RunId(run_id.clone());
+                    match write_evidence_capsule(
+                        &cas,
+                        run_id_capsule.clone(),
+                        task_id_capsule.clone(),
+                        None, // solver_agent — multi-agent swarm; no single solver
+                        counts,
+                        (0, max_transactions as u64),
+                        ExhaustionReason::MaxTxExhausted,
+                        raw_log.as_bytes(),
+                        CapsulePrivacyPolicy::AuditOnly,
+                        "evaluator-tb11",
+                        proposal_count,
+                    ) {
+                        Ok(capsule) => {
+                            info!(
+                                "[tb11] EvidenceCapsule written: capsule_id={} \
+                                 compressed_log_cid={} attempt_count={}",
+                                capsule.capsule_id.hex(),
+                                capsule.compressed_log_cid.hex(),
+                                capsule.attempt_count
+                            );
+                            // emit TerminalSummary on-chain.
+                            let mut hist: std::collections::BTreeMap<
+                                RejectionClass,
+                                u32,
+                            > = std::collections::BTreeMap::new();
+                            if tb11_lean_error_count > 0 {
+                                hist.insert(
+                                    RejectionClass::Opaque,
+                                    tb11_lean_error_count.min(u32::MAX as u64) as u32,
+                                );
+                            }
+                            match turingosv4::runtime::adapter::tb11_emit_terminal_summary_for_run(
+                                bundle.sequencer.as_ref(),
+                                run_id_capsule,
+                                task_id_capsule,
+                                RunOutcome::MaxTxExhausted,
+                                proposal_count.min(u32::MAX as u64) as u32,
+                                hist,
+                                max_transactions as u64,
+                                None, // solver_agent
+                                Some(capsule.capsule_id),
+                            )
+                            .await
+                            {
+                                Ok(receipt) => info!(
+                                    "[tb11] TerminalSummary emitted: emit_id={}",
+                                    receipt.emit_id
+                                ),
+                                Err(e) => warn!(
+                                    "[tb11] TerminalSummary emit failed: {e:?}"
+                                ),
+                            }
+                        }
+                        Err(e) => warn!("[tb11] EvidenceCapsule write failed: {e:?}"),
+                    }
+                }
+                Err(e) => warn!("[tb11] CasStore::open failed: {e:?}"),
+            }
+        }
+
         if let Err(e) = bundle.shutdown().await {
             error!("[chaintape] driver shutdown returned error: {e}");
         }

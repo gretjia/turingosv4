@@ -52,6 +52,9 @@ fn main() {
         "view-task" => cmd_view_task(&sub_args),
         "view-wallet" => cmd_view_wallet(&sub_args),
         "view-replay" => cmd_view_replay(&sub_args),
+        // TB-11 G3 carry-forward (TB-12 Atom 0.5b; architect 2026-05-03 §1.1):
+        "tick" => cmd_tick(&sub_args),
+        "view-bankruptcy" => cmd_view_bankruptcy(&sub_args),
         "help" | "-h" | "--help" => {
             print_help();
             std::process::exit(0);
@@ -352,6 +355,143 @@ fn cmd_view_wallet(args: &[String]) {
 // ────────────────────────────────────────────────────────────────────────────
 // view-replay: delegates to verify::verify_chaintape (7-indicator report).
 // ────────────────────────────────────────────────────────────────────────────
+
+// ────────────────────────────────────────────────────────────────────────────
+// TB-11 G3 carry-forward subcommands (TB-12 Atom 0.5b; architect 2026-05-03 §1.1).
+// ────────────────────────────────────────────────────────────────────────────
+
+/// `lean_market tick` — POLICY PREVIEW MODE (TB-11 carry-forward MVP).
+///
+/// **Architecture limitation note**: actual on-chain emission of TaskExpireTx
+/// requires Sequencer reattachment to an existing chaintape, which requires
+/// system_keypair persistence (not yet implemented; the chaintape factory
+/// `build_chaintape_sequencer` fails-closed on non-empty repo per
+/// NonEmptyRuntimeRepo gate). Until that infrastructure lands, `tick` runs in
+/// **policy preview mode**: replays QState read-only, computes which tasks
+/// would be expired by the architect §6.2 policy
+/// (`tb11_emit_expire_for_eligible` eligibility logic mirrored), and prints
+/// what WOULD be expired. Actual emission requires a session-attached
+/// evaluator path (e.g. evaluator detects a tick env var pre-loop and emits
+/// before the main solver loop), which is the next-TB wire-up task.
+///
+/// This subcommand satisfies architect §8 Atom 0.5 "lean_market tick"
+/// existence requirement; the audit-gate documents the deferred actual-emit
+/// path explicitly.
+fn cmd_tick(args: &[String]) {
+    let chaintape = arg_value(args, "--chaintape").unwrap_or_else(|| {
+        eprintln!("lean_market tick: --chaintape <path> is required");
+        std::process::exit(2);
+    });
+    let expiry_delta: u64 = arg_value(args, "--expiry-delta")
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(1000);
+    let current_logical_t: u64 = arg_value(args, "--current-logical-t")
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(u64::MAX); // default = "way past any deadline"
+    let chaintape_path = PathBuf::from(&chaintape);
+    let cas_path = derive_cas_path(&chaintape_path);
+    match replay_qstate(&chaintape_path, &cas_path) {
+        Ok((q, l4_count)) => {
+            println!("[lean_market] tick (POLICY PREVIEW MODE — TB-11 carry-forward MVP)");
+            println!("  chaintape         = {chaintape_path:?}");
+            println!("  L4 entries        = {l4_count}");
+            println!("  expiry_delta      = {expiry_delta} logical_t");
+            println!("  current_logical_t = {current_logical_t}");
+            println!();
+            // Mirror tb11_emit_expire_for_eligible eligibility logic.
+            use turingosv4::state::q_state::TaskMarketState;
+            let mut eligible_count = 0u32;
+            let mut total_would_refund: i64 = 0;
+            for (task_id, entry) in q.economic_state_t.task_markets_t.0.iter() {
+                let reason = match entry.state {
+                    TaskMarketState::Open => "Deadline",
+                    TaskMarketState::Bankrupt => "BankruptcyTriggered",
+                    _ => continue,
+                };
+                let elapsed = current_logical_t.saturating_sub(entry.opened_at_logical_t);
+                if elapsed <= expiry_delta {
+                    continue;
+                }
+                let has_finalized = q.economic_state_t.claims_t.0.values().any(|c| {
+                    c.task_id == *task_id
+                        && c.status == turingosv4::state::q_state::ClaimStatus::Finalized
+                });
+                if has_finalized {
+                    continue;
+                }
+                for escrow_tx_id in entry.escrow_lock_tx_ids.iter() {
+                    if let Some(esc) = q.economic_state_t.escrows_t.0.get(escrow_tx_id) {
+                        eligible_count += 1;
+                        total_would_refund += esc.amount.micro_units();
+                        println!(
+                            "  ELIGIBLE: task_id={} escrow_tx_id={} sponsor={} amount={} micro reason={}",
+                            task_id.0,
+                            escrow_tx_id.0,
+                            esc.depositor.0,
+                            esc.amount.micro_units(),
+                            reason,
+                        );
+                    }
+                }
+            }
+            println!();
+            println!("  Eligible escrow rows : {eligible_count}");
+            println!("  Total micro to refund: {total_would_refund}");
+            println!();
+            println!("  ⚠ POLICY PREVIEW ONLY — NO TaskExpireTx emitted to chain.");
+            println!("    Actual emission requires session-attached evaluator path");
+            println!("    (Sequencer reattachment to existing chaintape needs");
+            println!("    system_keypair persistence; deferred to next TB wire-up).");
+        }
+        Err(e) => {
+            eprintln!("[lean_market] tick replay failed: {e}");
+            std::process::exit(1);
+        }
+    }
+}
+
+/// `lean_market view-bankruptcy` — read-only listing of TaskMarketState::Bankrupt
+/// entries from chaintape replay.
+fn cmd_view_bankruptcy(args: &[String]) {
+    let chaintape = arg_value(args, "--chaintape").unwrap_or_else(|| {
+        eprintln!("lean_market view-bankruptcy: --chaintape <path> is required");
+        std::process::exit(2);
+    });
+    let chaintape_path = PathBuf::from(&chaintape);
+    let cas_path = derive_cas_path(&chaintape_path);
+    match replay_qstate(&chaintape_path, &cas_path) {
+        Ok((q, l4_count)) => {
+            println!("[lean_market] view-bankruptcy");
+            println!("  chaintape    = {chaintape_path:?}");
+            println!("  L4 entries   = {l4_count}");
+            println!();
+            use turingosv4::state::q_state::TaskMarketState;
+            let mut bk_count = 0u32;
+            for (task_id, entry) in q.economic_state_t.task_markets_t.0.iter() {
+                if entry.state == TaskMarketState::Bankrupt {
+                    bk_count += 1;
+                    println!(
+                        "  task_id={} sponsor={} bankruptcy_at_logical_t={} total_escrow_locked={} micro",
+                        task_id.0,
+                        entry.publisher.0,
+                        entry.bankruptcy_at_logical_t.unwrap_or(0),
+                        entry.total_escrow.micro_units(),
+                    );
+                }
+            }
+            println!();
+            if bk_count == 0 {
+                println!("  (no Bankrupt task entries on this chaintape)");
+            } else {
+                println!("  {} bankrupt task(s)", bk_count);
+            }
+        }
+        Err(e) => {
+            eprintln!("[lean_market] view-bankruptcy replay failed: {e}");
+            std::process::exit(1);
+        }
+    }
+}
 
 fn cmd_view_replay(args: &[String]) {
     let chaintape = arg_value(args, "--chaintape").unwrap_or_else(|| {
