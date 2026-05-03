@@ -84,7 +84,23 @@ fn raw_logs_not_in_general_read_view() {
 // ────────────────────────────────────────────────────────────────────
 #[test]
 fn markov_capsule_references_constitution_hash() {
-    unimplemented!("TB-15 halt #2 — backfill in Atom 5");
+    use sha2::{Digest, Sha256};
+    use turingosv4::runtime::markov_capsule::MarkovEvidenceCapsule;
+
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    let constitution_path = format!("{}/constitution.md", manifest);
+    let constitution_bytes = std::fs::read(&constitution_path)
+        .unwrap_or_else(|e| panic!("read constitution.md: {}", e));
+    let mut h = Sha256::new();
+    h.update(&constitution_bytes);
+    let expected_hash: [u8; 32] = h.finalize().into();
+
+    let capsule = MarkovEvidenceCapsule::with_constitution_hash(expected_hash);
+    assert_eq!(
+        capsule.constitution_hash.0, expected_hash,
+        "halt-trigger #2: MarkovEvidenceCapsule.constitution_hash must equal \
+         sha256 of constitution.md bytes (SG-15.7)"
+    );
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -279,5 +295,27 @@ fn typical_error_clustering_uses_summary_only() {
 // ────────────────────────────────────────────────────────────────────
 #[test]
 fn deep_history_read_without_override_fails() {
-    unimplemented!("TB-15 halt #6 — backfill in Atom 5");
+    use turingosv4::runtime::markov_capsule::{
+        try_deep_history_read_with_override_check, MarkovGenError,
+    };
+
+    // Default-deny path: no override; result must be DeepHistoryReadDenied.
+    let result = try_deep_history_read_with_override_check(false);
+    match result {
+        Err(MarkovGenError::DeepHistoryReadDenied) => {}
+        other => panic!(
+            "halt-trigger #6: expected DeepHistoryReadDenied without \
+             TURINGOS_MARKOV_OVERRIDE=1; got {:?} (SG-15.4 + FR-15.5)",
+            other
+        ),
+    }
+
+    // Override path: result is Ok(()).
+    let ok = try_deep_history_read_with_override_check(true);
+    assert!(
+        ok.is_ok(),
+        "halt-trigger #6: TURINGOS_MARKOV_OVERRIDE=1 must permit deep-history \
+         read; got {:?}",
+        ok
+    );
 }

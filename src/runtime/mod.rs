@@ -53,6 +53,9 @@ pub mod evidence_capsule;
 /// TRACE_MATRIX FC1-N32 + FC2-N30 (TB-15 Atom 2 + 4; architect §6.2 ruling 2026-05-02 + 2026-05-03): per-agent `AgentAutopsyCapsule` schema + writer (Atom 2) and `cluster_autopsies` typical-error broadcast (Atom 4). CAS-resident; AuditOnly default. Derived from ChainTape evidence — NEVER LLM self-narrative. Anchored on `EconomicState.agent_autopsies_t[event_id]: Vec<Cid>` (Atom 3).
 pub mod autopsy_capsule;
 
+/// TRACE_MATRIX FC3-N43 (TB-15 Atom 5; architect §6.2 + FR-15.4 + FR-15.5): `MarkovEvidenceCapsule` schema + writer + default-deny deep-history gate. End-of-TB rollup binding constitution_hash + L4 root + L4.E root + CAS root + previous capsule + typical_errors + unresolved_obs + next_session_context_cid. Default next-session bootstrap source; deeper history requires `TURINGOS_MARKOV_OVERRIDE=1`.
+pub mod markov_capsule;
+
 /// TRACE_MATRIX FC2 Boot: TB-10 Atom 1 — Reusable preseed factory for chaintape genesis QState. Single source of truth for `tb7-7-sponsor` + `Agent_user_0` + `Agent_0..9` initial balances. Consumed by both evaluator (`--task-mode self|both`) and `lean_market` user CLI bootstrap. Pure function; replay-deterministic.
 pub mod bootstrap;
 
