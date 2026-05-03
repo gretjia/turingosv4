@@ -516,7 +516,13 @@ impl TuringBus {
         // — same namespace as `price_index` — so `compute_mask_set` can
         // join them correctly (which the pre-B′ shadow `kernel.tape`
         // version could NOT, per Codex R1 ship audit VETO).
-        let (price_index, mask_set) = match self.sequencer.as_ref() {
+        // TB-14 Atom 6 B′ R2 closure (Gemini R2 Q11 architectural-clarity
+        // CHALLENGE): `sequencer_wired` disambiguates "sequencer
+        // unavailable" (legacy WAL-only mode OR q_snapshot failed) from
+        // "sequencer running but no canonical positions yet" — both
+        // states produce empty `price_index` + `mask_set`, but consumers
+        // that care can read this flag to distinguish.
+        let (price_index, mask_set, sequencer_wired) = match self.sequencer.as_ref() {
             Some(seq) => match seq.q_snapshot() {
                 Ok(q) => {
                     let pi = crate::state::compute_price_index(&q.economic_state_t);
@@ -527,16 +533,18 @@ impl TuringBus {
                         &policy,
                         &pi,
                     );
-                    (pi, ms)
+                    (pi, ms, true)
                 }
                 Err(_) => (
                     std::collections::BTreeMap::new(),
                     std::collections::BTreeSet::new(),
+                    false,
                 ),
             },
             None => (
                 std::collections::BTreeMap::new(),
                 std::collections::BTreeSet::new(),
+                false,
             ),
         };
 
@@ -544,6 +552,7 @@ impl TuringBus {
             tape: self.kernel.tape.clone(),
             price_index,
             mask_set,
+            sequencer_wired,
             generation: self.generation,
             tx_count: self.tx_count,
         }
