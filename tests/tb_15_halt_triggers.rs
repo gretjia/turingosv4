@@ -207,7 +207,62 @@ fn private_detail_not_in_other_agent_view() {
 // ────────────────────────────────────────────────────────────────────
 #[test]
 fn typical_error_clustering_uses_summary_only() {
-    unimplemented!("TB-15 halt #5 — backfill in Atom 4");
+    use turingosv4::bottom_white::cas::schema::Cid;
+    use turingosv4::economy::money::MicroCoin;
+    use turingosv4::runtime::autopsy_capsule::{
+        cluster_autopsies, AgentAutopsyCapsule, LossReasonClass,
+    };
+    use turingosv4::state::q_state::{AgentId, Hash, TaskId};
+    use turingosv4::state::typed_tx::{CapsulePrivacyPolicy, EventId};
+
+    // Build 3 autopsies of the same loss_reason_class with
+    // distinguishable private_detail_cid bytes.
+    let event = EventId(TaskId("task:tb15:halt5".into()));
+    let mk = |agent: &str, priv_byte: u8| AgentAutopsyCapsule {
+        capsule_id: Cid::from_content(agent.as_bytes()),
+        agent_id: AgentId(agent.to_string()),
+        event_id: event.clone(),
+        loss_amount: MicroCoin::from_micro_units(1_000),
+        loss_reason_class: LossReasonClass::Bankruptcy,
+        violated_risk_rule: None,
+        suggested_policy_patch: None,
+        evidence_cids: vec![],
+        public_summary: format!(
+            "agent={} lost 1000μC on event={} reason=Bankruptcy",
+            agent, (event.0).0
+        ),
+        private_detail_cid: Cid([priv_byte; 32]),
+        privacy_policy: CapsulePrivacyPolicy::AuditOnly,
+        sha256: Hash::ZERO,
+        created_at_logical_t: 1,
+        created_at_round: 0,
+    };
+    let priv_bytes: [u8; 3] = [0xAA, 0xBB, 0xCC];
+    let autopsies = vec![
+        mk("A", priv_bytes[0]),
+        mk("B", priv_bytes[1]),
+        mk("C", priv_bytes[2]),
+    ];
+
+    let summaries = cluster_autopsies(&autopsies, 3);
+    assert_eq!(summaries.len(), 1, "3 same-class autopsies → 1 typical error");
+    assert_eq!(summaries[0].count, 3);
+
+    // Halt-trigger #5: serialization must not contain any
+    // private_detail_cid byte run.
+    let bytes = serde_json::to_vec(&summaries).expect("serialize summaries");
+    for &priv_byte in &priv_bytes {
+        let private_cid = [priv_byte; 32];
+        for window in bytes.windows(32) {
+            assert!(
+                window != private_cid,
+                "halt-trigger #5: TypicalErrorSummary serialization contains \
+                 private_detail_cid byte run for byte=0x{:02x} — broadcast \
+                 surface MUST use public_summary text only (SG-15.5)",
+                priv_byte
+            );
+        }
+    }
 }
 
 // ────────────────────────────────────────────────────────────────────

@@ -324,6 +324,88 @@ pub fn write_autopsy_capsule(
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// TB-15 Atom 4 — TypicalErrorBroadcast clustering (architect §3.2.3 + CR-15.2)
+// ────────────────────────────────────────────────────────────────────────────
+//
+// `cluster_autopsies` groups input autopsies by `loss_reason_class`, and
+// emits a `TypicalErrorSummary` for each class whose count meets or
+// exceeds the broadcast threshold (default N=3 per
+// DECISION_LAMARCKIAN §3.2.3 + spec test 3.2.3 verbatim).
+//
+// **CR-15.2 + halt-trigger #5**: the output struct embeds
+// `public_summary` strings + `capsule_id` Cids only — NEVER
+// `private_detail_cid` payload bytes. Halt-trigger #5 verifies this by
+// serializing the output and scanning for any input
+// `private_detail_cid` byte sequence.
+
+/// TRACE_MATRIX FC2-N30 (TB-15 Atom 4; architect §3.2.3 + CR-15.2):
+/// public broadcast summary for an N≥threshold cluster of same-class
+/// autopsies. Embeds `public_summary` text + capsule Cids only;
+/// `private_detail_cid` bytes are NEVER included (halt-trigger #5).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TypicalErrorSummary {
+    /// The shared loss reason class for the cluster.
+    pub loss_reason_class: LossReasonClass,
+    /// Count of capsules in this cluster.
+    pub count: u32,
+    /// Public broadcast text — concatenation / first-N exemplars of
+    /// each capsule's `public_summary`. Joined with " ; " separator.
+    pub exemplar_public_summary: String,
+    /// Cids of the contributing capsules (audit can fetch them with
+    /// AuditOnly access). NEVER private_detail_cids.
+    pub exemplar_capsule_cids: Vec<Cid>,
+}
+
+/// TRACE_MATRIX FC2-N30 (TB-15 Atom 4; architect §3.2.3): cluster
+/// autopsies by `loss_reason_class`. Emit a `TypicalErrorSummary` for
+/// each class whose count is `>= threshold`. Default architect
+/// threshold = 3 (DECISION_LAMARCKIAN §3.2.3 + spec test 3.2.3).
+///
+/// **Pure** — no CAS access, no env, no clock. Order-stable: input
+/// order preserved within each class; classes themselves emerge in
+/// `LossReasonClass::tag()` lexicographic order (BTreeMap iteration)
+/// for replay-determinism.
+///
+/// **CR-15.2 + halt-trigger #5**: output never embeds
+/// `private_detail_cid` bytes — only `public_summary` strings +
+/// `capsule_id` Cids.
+pub fn cluster_autopsies(
+    autopsies: &[AgentAutopsyCapsule],
+    threshold: u8,
+) -> Vec<TypicalErrorSummary> {
+    use std::collections::BTreeMap;
+    // Group by loss_reason_class.tag() for deterministic iteration.
+    let mut groups: BTreeMap<String, Vec<&AgentAutopsyCapsule>> = BTreeMap::new();
+    for c in autopsies {
+        groups
+            .entry(c.loss_reason_class.tag().to_string())
+            .or_default()
+            .push(c);
+    }
+    let mut out = Vec::new();
+    let threshold_usize = threshold as usize;
+    for (_tag, members) in groups {
+        if members.len() < threshold_usize {
+            continue;
+        }
+        let exemplar_public_summary = members
+            .iter()
+            .map(|c| c.public_summary.as_str())
+            .collect::<Vec<_>>()
+            .join(" ; ");
+        let exemplar_capsule_cids: Vec<Cid> = members.iter().map(|c| c.capsule_id).collect();
+        out.push(TypicalErrorSummary {
+            // All members share the same class by construction.
+            loss_reason_class: members[0].loss_reason_class.clone(),
+            count: members.len() as u32,
+            exemplar_public_summary,
+            exemplar_capsule_cids,
+        });
+    }
+    out
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // TB-15 Atom 3 — `derive_autopsies_for_bankruptcy` (PURE deterministic helper)
 // ────────────────────────────────────────────────────────────────────────────
 //
@@ -746,6 +828,109 @@ mod tests {
         let bk = synthetic_bk(task);
         let derived = derive_autopsies_for_bankruptcy(&econ, &bk, 0, 0);
         assert!(derived.is_empty());
+    }
+
+    // ───────────────────────────────────────────────────────────────────
+    // Atom 4 — cluster_autopsies tests
+    // ───────────────────────────────────────────────────────────────────
+
+    fn mk_autopsy(agent: &str, class: LossReasonClass, priv_byte: u8) -> AgentAutopsyCapsule {
+        let mut cap = AgentAutopsyCapsule::default();
+        cap.agent_id = AgentId(agent.into());
+        cap.event_id = EventId(TaskId("task:tb15:cluster".into()));
+        cap.loss_amount = MicroCoin::from_micro_units(1_000);
+        cap.loss_reason_class = class.clone();
+        cap.public_summary = AgentAutopsyCapsule::format_public_summary(
+            &cap.agent_id,
+            &cap.event_id,
+            cap.loss_amount,
+            &class,
+        );
+        cap.private_detail_cid = Cid([priv_byte; 32]);
+        cap.capsule_id = Cid::from_content(agent.as_bytes());
+        cap
+    }
+
+    /// TB-15 Atom 4 — 3 same-class autopsies → exactly 1 TypicalErrorSummary.
+    #[test]
+    fn cluster_autopsies_three_same_class_emits_one() {
+        let autopsies = vec![
+            mk_autopsy("A", LossReasonClass::Bankruptcy, 0xAA),
+            mk_autopsy("B", LossReasonClass::Bankruptcy, 0xBB),
+            mk_autopsy("C", LossReasonClass::Bankruptcy, 0xCC),
+        ];
+        let summaries = cluster_autopsies(&autopsies, 3);
+        assert_eq!(summaries.len(), 1);
+        assert_eq!(summaries[0].count, 3);
+        assert_eq!(summaries[0].loss_reason_class, LossReasonClass::Bankruptcy);
+        assert_eq!(summaries[0].exemplar_capsule_cids.len(), 3);
+    }
+
+    /// TB-15 Atom 4 — 2 same-class autopsies → 0 broadcasts (below
+    /// threshold).
+    #[test]
+    fn cluster_autopsies_two_same_class_emits_zero() {
+        let autopsies = vec![
+            mk_autopsy("A", LossReasonClass::Bankruptcy, 0xAA),
+            mk_autopsy("B", LossReasonClass::Bankruptcy, 0xBB),
+        ];
+        let summaries = cluster_autopsies(&autopsies, 3);
+        assert_eq!(summaries.len(), 0);
+    }
+
+    /// TB-15 Atom 4 — mixed classes: only ones with count >= threshold
+    /// emerge; ordering deterministic (BTreeMap by class tag).
+    #[test]
+    fn cluster_autopsies_mixed_classes_filters_below_threshold() {
+        let autopsies = vec![
+            mk_autopsy("A", LossReasonClass::Bankruptcy, 0xAA),
+            mk_autopsy("B", LossReasonClass::Bankruptcy, 0xBB),
+            mk_autopsy("C", LossReasonClass::Bankruptcy, 0xCC),
+            mk_autopsy("D", LossReasonClass::SlashLoss, 0xDD),
+            mk_autopsy("E", LossReasonClass::SlashLoss, 0xEE),
+            mk_autopsy("F", LossReasonClass::SlashLoss, 0xFF),
+            mk_autopsy("G", LossReasonClass::SlashLoss, 0x11),
+            mk_autopsy("H", LossReasonClass::Goodhart, 0x22),
+        ];
+        let summaries = cluster_autopsies(&autopsies, 3);
+        // Bankruptcy (3) + SlashLoss (4) = 2 broadcasts; Goodhart (1) below threshold.
+        assert_eq!(summaries.len(), 2);
+        let counts: Vec<u32> = summaries.iter().map(|s| s.count).collect();
+        assert!(counts.contains(&3));
+        assert!(counts.contains(&4));
+    }
+
+    /// TB-15 Atom 4 — halt-trigger #5: TypicalErrorSummary serialization
+    /// MUST NOT contain any input private_detail_cid bytes.
+    #[test]
+    fn cluster_autopsies_output_never_embeds_private_detail_bytes() {
+        let priv_bytes = [0x77u8, 0x88u8, 0x99u8];
+        let autopsies = vec![
+            mk_autopsy("A", LossReasonClass::Bankruptcy, priv_bytes[0]),
+            mk_autopsy("B", LossReasonClass::Bankruptcy, priv_bytes[1]),
+            mk_autopsy("C", LossReasonClass::Bankruptcy, priv_bytes[2]),
+        ];
+        let summaries = cluster_autopsies(&autopsies, 3);
+        let bytes = serde_json::to_vec(&summaries).expect("serialize summaries");
+        for &priv_byte in &priv_bytes {
+            // Each Cid is 32 identical bytes; checking for any 32-byte run.
+            let private_cid = [priv_byte; 32];
+            for window in bytes.windows(32) {
+                assert!(
+                    window != private_cid,
+                    "halt-trigger #5: TypicalErrorSummary serialization contains \
+                     private_detail_cid byte run for byte=0x{:02x}",
+                    priv_byte
+                );
+            }
+        }
+    }
+
+    /// TB-15 Atom 4 — empty input → empty output (no panic).
+    #[test]
+    fn cluster_autopsies_empty_input() {
+        let summaries = cluster_autopsies(&[], 3);
+        assert!(summaries.is_empty());
     }
 
     /// TB-15 Atom 3 — write_bankruptcy_autopsies_to_cas: writes
