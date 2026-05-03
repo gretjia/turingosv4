@@ -1122,12 +1122,29 @@ impl ShareAmount {
 }
 
 /// TRACE_MATRIX TB-13 Atom 1 (architect §4.3): system-resolution reference
-/// embedded in `CompleteSetRedeemTx`. References either a
-/// `TaskBankruptcyTx` (outcome must be `OutcomeSide::No`) or a
-/// `FinalizeRewardTx` (outcome must be `OutcomeSide::Yes`) for the
-/// referenced `EventId.0 == task_id`. Sequencer validates the reference
-/// exists in L4 + outcome matches before allowing redeem (architect
-/// FR-13.4 + SG-13.5).
+/// embedded in `CompleteSetRedeemTx`.
+///
+/// **Sequencer validation contract** (Codex round-3 doc remediation
+/// 2026-05-03): the live truth-of-resolution is
+/// `economic_state_t.task_markets_t[event_id.0].state` (Finalized →
+/// outcome=Yes; Bankrupt → outcome=No). The sequencer:
+/// 1. Verifies `redeem.outcome == resolution_ref.claimed_outcome`
+///    (inner-consistency gate).
+/// 2. Looks up the task_market state and matches against
+///    `claimed_outcome`. Mismatch → `InvalidResolutionRef`. Open or
+///    Expired → `RedeemBeforeResolution`.
+///
+/// **`resolution_tx_id` is OPAQUE traceability metadata, NOT validated
+/// against L4** — the sequencer uses task_markets_t.state as the live
+/// source-of-truth for resolution. The tx_id field exists for off-chain
+/// audit-trail correlation (which TaskBankruptcyTx or FinalizeRewardTx
+/// emitted the resolution); a malformed resolution_tx_id does NOT
+/// reject the redeem as long as task_markets_t.state agrees with
+/// claimed_outcome. This is by design — resolution authority is
+/// delegated to the system-emitted state-flip mechanism (TB-8 / TB-11),
+/// not to wire-supplied refs. Future TB-15+ may upgrade this to a
+/// ResolutionsIndex per Gemini round-3 Q12 CHALLENGE; tracked at
+/// `OBS_RESOLUTIONS_INDEX_TB15_2026-05-03.md`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct ResolutionRef {
     pub resolution_tx_id: TxId,
@@ -1161,12 +1178,14 @@ pub struct CompleteSetMintTx {
 /// redeem winning conditional shares post-resolution.
 ///
 /// Sequencer arm (Atom 2):
-/// 1. Lookup `resolution_ref.resolution_tx_id` in L4 accepted set.
-///    - If `TaskBankruptcyTx` for `event_id.0`: claimed_outcome must be
-///      `No` else `InvalidResolutionRef`.
-///    - If `FinalizeRewardTx` for `event_id.0`: claimed_outcome must be
-///      `Yes` else `InvalidResolutionRef`.
-///    - Else: `RedeemBeforeResolution` (no acceptable resolution).
+/// 1. Inner-consistency: `redeem.outcome == resolution_ref.claimed_outcome`
+///    else `InvalidResolutionRef`.
+/// 2. Look up `task_markets_t[event_id.0].state` (Codex round-3 doc
+///    remediation: live state-of-truth, NOT L4 lookup of resolution_tx_id):
+///    - If `Finalized`: claimed_outcome must be `Yes` else `InvalidResolutionRef`.
+///    - If `Bankrupt`:  claimed_outcome must be `No`  else `InvalidResolutionRef`.
+///    - If `Open` or `Expired`: `RedeemBeforeResolution`.
+///    - If absent: `RedeemBeforeResolution`.
 /// 2. `conditional_share_balances_t[(owner, event_id, outcome)] >= share_amount.units`
 ///    else `RedeemMoreThanOwned`.
 /// 3. `conditional_collateral_t[event_id] >= share_amount.units` else

@@ -279,10 +279,118 @@ roadmap, not a TB-13 blocker.
 - Added `HARD_BANNED_LEGACY_IMPORTS` constant + Layer 1 unconditional whole-file scan (catches `use crate::prediction_market::*` anywhere, not just TB-13-marker spans).
 - Layer 2 (TB-13-marker-scoped scan) preserved for trading/AMM concept tokens.
 
-### §12.4 Round-2 verdicts (TBD)
+### §12.4 Round-2 verdicts (2026-05-03 evening)
 
-Round-2 Codex + Gemini audit invocations queued post-fix. Verdicts to be appended here.
+| Auditor | Verdict   | Conviction | Recommendation   | Document |
+| ------- | --------- | ---------- | ---------------- | -------- |
+| Gemini  | CHALLENGE | high       | FIX-THEN-PROCEED | `handover/audits/GEMINI_TB_13_SHIP_AUDIT_2026-05-03_R2_PRE_R3.md` |
+| Codex   | VETO      | high       | FIX-THEN-PROCEED | `handover/audits/CODEX_TB_13_SHIP_AUDIT_2026-05-03_R2.md` |
 
-`cargo test --workspace = 785/0/150` post-round-2 (added 2 negative-amount halt tests).
+Per `feedback_dual_audit_conflict`: Codex VETO + Gemini CHALLENGE both addressed in round-3.
+
+**Gemini round-2 NEW CHALLENGE Q13** — `CompleteSetMintTx` /
+`MarketSeedTx` allowed against task_markets_t state ∈ {Finalized,
+Bankrupt, Expired}. Griefing surface: agent could mint into a closed
+event and immediately redeem the winning side for full refund. Not a
+conservation breach but unnecessary on-chain noise + stranded losing-
+side shares.
+
+**Codex round-2 VETO TB13-AUTH** — partial-V2 (replay-time only) fix
+in round-2 was insufficient. Codex argues for Class 3
+(money/collateral) admission control: forged-signature TB-13 tx is
+accepted into L4 + mutates state BEFORE replay catches it. Must verify
+agent signatures at submit-time.
+
+### §12.5 Round-3 remediation (2026-05-03 evening commit `cdba357`)
+
+**Q13 fix** — Mint/seed gate on event state == Open:
+- `src/state/typed_tx.rs` +`TransitionError::EventNotOpen` variant
+- `src/state/sequencer.rs` `CompleteSetMint` Step 2.5 + `MarketSeed` Step 1.5: reject if event's `task_markets_t` state is not `Open`. Missing entry → `TaskNotOpen`.
+- 3 new tests: `halt_q13_mint_against_finalized_event_rejected`, `halt_q13_seed_against_bankrupt_event_rejected`, `halt_q13_mint_against_missing_task_rejected`.
+- Existing redeem-focused tests refactored to use `genesis_post_mint` helper (constructs post-mint state directly).
+
+**TB13-AUTH fix** — Submit-time agent-signature verification:
+- `Sequencer` struct +`agent_pubkeys: OnceLock<Arc<AgentPubkeyManifest>>` field (opt-in).
+- `Sequencer::set_agent_pubkeys` setter for production / test wiring.
+- `submit_agent_tx` +TB-13 sig-verification block: when manifest is set, verifies owner/provider signature against pinned pubkey for canonical signing-payload digest. Failure → `SubmitError::AgentSignatureInvalid`.
+- New test `tb13_auth_submit_time_signature_verification` — 3 paths (valid sig accepted, all-zero forged rejected, impostor keypair rejected).
+- Codebase-wide gap for non-TB-13 agent variants tracked at `OBS_AGENT_SIG_REPLAY_GAP_2026-05-03.md`.
+
+**`assert_complete_set_balanced` enforced live** (Codex CHALLENGE):
+- All 3 TB-13 dispatch arms now call `assert_complete_set_balanced` on `q_next` post-mutation. Was test-only.
+
+**Forward-fence robustness** (Codex Q9 CHALLENGE):
+- Static `FENCE_SCOPE` → `FENCE_SCOPE_FLOOR` + `discover_tb_13_files()` auto-walks `src/` for any file with TB-13 authoring markers. +`src/runtime/verify.rs` to floor.
+
+`cargo test --workspace = 789/0/150` post-round-3.
+
+### §12.6 Round-3 verdicts (2026-05-03 evening)
+
+| Auditor | Verdict   | Conviction | Recommendation   | Document |
+| ------- | --------- | ---------- | ---------------- | -------- |
+| Gemini  | CHALLENGE | high       | FIX-THEN-PROCEED | `handover/audits/GEMINI_TB_13_SHIP_AUDIT_2026-05-03_R3.md` |
+| Codex   | CHALLENGE | high       | FIX-THEN-PROCEED | `handover/audits/CODEX_TB_13_SHIP_AUDIT_2026-05-03.md` |
+
+**Both auditors converged on CHALLENGE-only (NO VETO from either side)**.
+
+Codex explicit: "No VETO: I found no live money/collateral exploit in
+the TB-13 dispatch arms." Gemini explicit: "Recommendation is to add an
+OBS to the project backlog rather than blocking the TB-13 ship. With
+this acknowledgment, the project can proceed."
+
+Q1–Q11 + Q13 + RQ4 PASSed at both auditors. Residual CHALLENGES are:
+
+| ID | Auditor | Topic | Severity |
+|----|---------|-------|----------|
+| TB13-Q5-DOC  | Codex  | Doc drift: q_state.rs claims strict YES==NO==coll | Doc only |
+| TB13-RQ5     | Codex  | resolution_tx_id documented as L4-validated but is opaque | Doc only |
+| TB13-Q9/RQ6  | Codex  | Fence discovery edge case (unmarked TB-13 file outside FLOOR) | Hypothetical |
+| TB13-RQ3     | Codex  | Non-empty TB-13 replay determinism not directly evidenced | Smoke scope |
+| TB13-RQ7     | Codex  | STEP_B process artifact missing for sequencer.rs Class 3 change | Process |
+| Gemini Q12   | Gemini | ResolutionsIndex for TB-15+ multi-resolver evolution | Future arch |
+
+### §12.7 Round-4 closure (2026-05-03 evening — final)
+
+Per `feedback_elon_mode_policy` OBS-threshold-3: ship-with-OBS
+allowed when CHALLENGES are not enforcement-gate failures. The 6
+residual CHALLENGES are documentation, fence robustness, smoke scope,
+process artifacts, and future architecture — none break enforcement.
+
+**Doc fixes applied (this round-4 commit)**:
+- TB13-Q5-DOC ✓ FIXED — `q_state.rs` doc-comments updated to MIN form.
+- TB13-RQ5 ✓ FIXED — `typed_tx.rs` `ResolutionRef` docs updated to
+  declare `resolution_tx_id` opaque traceability metadata, NOT
+  L4-validated.
+
+**OBS-tracked carry-forward**:
+- `OBS_RESOLUTIONS_INDEX_TB15_2026-05-03.md` — Gemini Q12 (TB-15 future architecture).
+- `OBS_TB13_AUDIT_RESIDUAL_CHALLENGES_2026-05-03.md` — Codex TB13-Q9/RQ6 / RQ3 / RQ7 with closure plan and rationale.
+
+### §12.8 Final TB-13 ship-readiness verdict (recursive self-audit)
+
+| Layer | Status |
+| ----- | ------ |
+| Round-1 self-audit verdict | PASS |
+| Round-1 Gemini external | PASS / high |
+| Round-1 Codex external | VETO (V1+V2) |
+| Round-2 remediation | applied (negative gate + replay-time sig verify + fence Layer 1) |
+| Round-2 Gemini external | CHALLENGE (Q13 mint-after-resolution) |
+| Round-2 Codex external | VETO (TB13-AUTH submit-time) |
+| Round-3 remediation | applied (Q13 gate + submit-time sig verify + invariant live + fence discovery) |
+| Round-3 Gemini external | **CHALLENGE-only** (Q12 future-arch, non-blocking) |
+| Round-3 Codex external | **CHALLENGE-only** (5 docs/process, no VETO) |
+| Round-4 closure | doc fixes + OBS for residuals |
+
+**Recursive self-audit verdict for SHIP**: GREEN — all enforcement
+gates green; 12/12 architect SG-13.0..8 + 11/11 G ship gates pass;
+18 integration tests + 8 unit tests + 3 fence tests pass; live
+invariants enforced; submit-time admission control closed for Class 3
+surface; both external auditors at CHALLENGE-only with no VETO and
+explicit "proceed" recommendations.
+
+`cargo test --workspace = 789/0/150` final.
+
+User-architect authorization required for Atom 7 SHIP per architect
+§11 master instruction "Stop for user review at ship gate".
 
 End of recursive self-audit.

@@ -197,8 +197,16 @@ pub struct EconomicState {
     /// **IS** a Coin holding per CR-13.4 ("Locked collateral is Coin
     /// holding"); included in the 6-holding `total_supply_micro` sum
     /// (extends the TB-7R 5-holding sum). Mint/seed credit; redeem debit.
-    /// 1 Coin → 1 YES_E + 1 NO_E mathematical identity (SG-13.1) ensures
-    /// `Σ_{event} conditional_collateral_t[event].units == Σ shares per side`.
+    ///
+    /// **Complete-set balanced invariant** (Codex round-3 doc remediation
+    /// 2026-05-03): the live invariant enforced by
+    /// `monetary_invariant::assert_complete_set_balanced` is the
+    /// **MIN form**: `min(Σ_yes_shares, Σ_no_shares) == collateral`.
+    /// Pre-resolution (mint + seed only): both sides equal collateral
+    /// (MIN trivially equals collateral). Post-redeem: the winning side
+    /// equals collateral (debited 1:1 with collateral); the losing side
+    /// may exceed collateral as stranded zero-value claims. Strict
+    /// `Σ_yes == Σ_no == collateral` does NOT hold post-redemption.
     ///
     /// `#[serde(default)]` for backward-compat with pre-TB-13 chain snapshots.
     #[serde(default)]
@@ -520,7 +528,10 @@ pub struct NodePositionsIndex(
 // ────────────────────────────────────────────────────────────────────────────
 // TB-13 (architect 2026-05-03 post-TB-12 ruling Part A §4.3 + §4.4):
 // ConditionalCollateralIndex + ConditionalShareBalances — Polymarket / CTF
-// conditional-share substrate. **1 locked Coin = 1 YES_E + 1 NO_E.**
+// conditional-share substrate. **Mint identity: 1 locked Coin = 1 YES_E + 1
+// NO_E.** The live invariant after redemption uses MIN form (see
+// monetary_invariant::assert_complete_set_balanced); strict YES==NO==coll
+// only holds pre-resolution / pre-redemption.
 // ────────────────────────────────────────────────────────────────────────────
 
 /// TRACE_MATRIX TB-13 Atom 2 (architect §4.3 + CR-13.4): per-event Coin
@@ -529,8 +540,11 @@ pub struct NodePositionsIndex(
 /// **IS** a Coin holding — included in 6-holding `total_supply_micro` sum
 /// at `monetary_invariant::assert_total_ctf_conserved`. Mint/seed credit
 /// this map; redeem debits it. The complete-set balanced invariant
-/// (`assert_complete_set_balanced`) enforces
-/// `Σ_{owner} share[(owner, event, Yes)] == Σ_{owner} share[(owner, event, No)] == collateral[event]`.
+/// (`assert_complete_set_balanced`) enforces the MIN form:
+/// `min(Σ_yes_shares, Σ_no_shares) == collateral`. Pre-resolution this is
+/// equivalent to strict `Σ_yes == Σ_no == collateral`; post-redemption
+/// the winning side equals collateral while the losing side may strand
+/// above collateral. Codex round-3 doc remediation 2026-05-03.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct ConditionalCollateralIndex(
     pub BTreeMap<crate::state::typed_tx::EventId, MicroCoin>,
