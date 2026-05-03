@@ -53,7 +53,7 @@ use turingosv4::state::q_state::{
 use turingosv4::state::sequencer::{Sequencer, SubmissionEnvelope};
 use turingosv4::state::typed_tx::{
     AgentSignature, CompleteSetMintTx, CompleteSetRedeemTx, EventId,
-    MarketSeedTx, OutcomeSide, ResolutionRef, ShareAmount, TypedTx,
+    MarketSeedTx, OutcomeSide, ShareAmount, TypedTx,
 };
 use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
@@ -221,10 +221,6 @@ fn build_redeem(
         owner: AgentId(owner.into()),
         outcome,
         share_amount: ShareAmount::from_units(units),
-        resolution_ref: ResolutionRef {
-            resolution_tx_id: TxId(format!("resolution-fixture-{task}")),
-            claimed_outcome: outcome,
-        },
         signature: AgentSignature::from_bytes([0u8; 64]),
         timestamp_logical: 2000 + seq_no,
     })
@@ -487,7 +483,7 @@ async fn sg_13_6_redeem_after_yes_outcome_pays_yes_not_no() {
     assert_eq!(pair.no.units, 4_000_000_u128, "NO shares preserved (losing side)");
 
     // Now attempt redeem outcome=No on the SAME finalized event — must fail
-    // because state is Finalized (YES wins) and the claimed_outcome is No.
+    // because state is Finalized (YES wins) and the redeem outcome is No.
     let parent = h.seq.q_snapshot().unwrap().state_root_t;
     let err = submit_and_apply(
         &mut h,

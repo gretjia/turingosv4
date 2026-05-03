@@ -1121,36 +1121,6 @@ impl ShareAmount {
     }
 }
 
-/// TRACE_MATRIX TB-13 Atom 1 (architect §4.3): system-resolution reference
-/// embedded in `CompleteSetRedeemTx`.
-///
-/// **Sequencer validation contract** (Codex round-3 doc remediation
-/// 2026-05-03): the live truth-of-resolution is
-/// `economic_state_t.task_markets_t[event_id.0].state` (Finalized →
-/// outcome=Yes; Bankrupt → outcome=No). The sequencer:
-/// 1. Verifies `redeem.outcome == resolution_ref.claimed_outcome`
-///    (inner-consistency gate).
-/// 2. Looks up the task_market state and matches against
-///    `claimed_outcome`. Mismatch → `InvalidResolutionRef`. Open or
-///    Expired → `RedeemBeforeResolution`.
-///
-/// **`resolution_tx_id` is OPAQUE traceability metadata, NOT validated
-/// against L4** — the sequencer uses task_markets_t.state as the live
-/// source-of-truth for resolution. The tx_id field exists for off-chain
-/// audit-trail correlation (which TaskBankruptcyTx or FinalizeRewardTx
-/// emitted the resolution); a malformed resolution_tx_id does NOT
-/// reject the redeem as long as task_markets_t.state agrees with
-/// claimed_outcome. This is by design — resolution authority is
-/// delegated to the system-emitted state-flip mechanism (TB-8 / TB-11),
-/// not to wire-supplied refs. Future TB-15+ may upgrade this to a
-/// ResolutionsIndex per Gemini round-3 Q12 CHALLENGE; tracked at
-/// `OBS_RESOLUTIONS_INDEX_TB15_2026-05-03.md`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub struct ResolutionRef {
-    pub resolution_tx_id: TxId,
-    pub claimed_outcome: OutcomeSide,
-}
-
 /// TRACE_MATRIX TB-13 Atom 1 (architect §4.3 + FR-13.1..3): mint conditional
 /// shares against locked Coin collateral.
 ///
@@ -1177,13 +1147,15 @@ pub struct CompleteSetMintTx {
 /// TRACE_MATRIX TB-13 Atom 1 (architect §4.3 + FR-13.4..5 + SG-13.5..6):
 /// redeem winning conditional shares post-resolution.
 ///
+/// **Resolution authority is the live `task_markets_t[event_id.0].state`**
+/// (Finalized → Yes wins; Bankrupt → No wins). The redeem carries no
+/// resolution-ref wrapper — `outcome` IS the claim and the sequencer
+/// reconciles it against state.
+///
 /// Sequencer arm (Atom 2):
-/// 1. Inner-consistency: `redeem.outcome == resolution_ref.claimed_outcome`
-///    else `InvalidResolutionRef`.
-/// 2. Look up `task_markets_t[event_id.0].state` (Codex round-3 doc
-///    remediation: live state-of-truth, NOT L4 lookup of resolution_tx_id):
-///    - If `Finalized`: claimed_outcome must be `Yes` else `InvalidResolutionRef`.
-///    - If `Bankrupt`:  claimed_outcome must be `No`  else `InvalidResolutionRef`.
+/// 1. Look up `task_markets_t[event_id.0].state`:
+///    - If `Finalized`: `outcome` must be `Yes` else `InvalidResolutionRef`.
+///    - If `Bankrupt`:  `outcome` must be `No`  else `InvalidResolutionRef`.
 ///    - If `Open` or `Expired`: `RedeemBeforeResolution`.
 ///    - If absent: `RedeemBeforeResolution`.
 /// 2. `conditional_share_balances_t[(owner, event_id, outcome)] >= share_amount.units`
@@ -1200,9 +1172,8 @@ pub struct CompleteSetRedeemTx {
     pub owner: AgentId,                       //  4
     pub outcome: OutcomeSide,                 //  5
     pub share_amount: ShareAmount,            //  6
-    pub resolution_ref: ResolutionRef,        //  7
-    pub signature: AgentSignature,            //  8
-    pub timestamp_logical: u64,               //  9
+    pub signature: AgentSignature,            //  7
+    pub timestamp_logical: u64,               //  8
 }
 
 /// TRACE_MATRIX TB-13 Atom 1 (architect §4.3 + FR-13.6..7): explicit
@@ -1261,7 +1232,7 @@ impl CompleteSetMintSigningPayload {
 }
 
 /// TRACE_MATRIX TB-13 Atom 1 (architect §4.3): signing payload for
-/// `CompleteSetRedeemTx` (9 fields → 8 fields; signature excluded).
+/// `CompleteSetRedeemTx` (8 fields → 7 fields; signature excluded).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct CompleteSetRedeemSigningPayload {
     pub tx_id: TxId,
@@ -1270,7 +1241,6 @@ pub struct CompleteSetRedeemSigningPayload {
     pub owner: AgentId,
     pub outcome: OutcomeSide,
     pub share_amount: ShareAmount,
-    pub resolution_ref: ResolutionRef,
     pub timestamp_logical: u64,
 }
 
@@ -1490,7 +1460,6 @@ impl CompleteSetRedeemTx {
             owner: self.owner.clone(),
             outcome: self.outcome,
             share_amount: self.share_amount,
-            resolution_ref: self.resolution_ref.clone(),
             timestamp_logical: self.timestamp_logical,
         }
     }
@@ -1887,11 +1856,10 @@ pub enum TransitionError {
     /// (should never happen if `assert_complete_set_balanced` holds).
     /// Maps to `L4ERejectionClass::PolicyViolation`.
     InsufficientCollateral,
-    /// `CompleteSetRedeemTx` admission: the resolution_ref's
-    /// `claimed_outcome` does not match the `task_markets_t[event_id.0]`
-    /// state (e.g., claimed_outcome=Yes but state=Bankrupt, or
-    /// claimed_outcome=No but state=Finalized). Architect §4.3 +
-    /// FR-13.5: after-YES pays YES not NO. Maps to
+    /// `CompleteSetRedeemTx` admission: the redeem's `outcome` does not
+    /// match the `task_markets_t[event_id.0]` state (e.g., outcome=Yes
+    /// but state=Bankrupt, or outcome=No but state=Finalized). Architect
+    /// §4.3 + FR-13.5: after-YES pays YES not NO. Maps to
     /// `L4ERejectionClass::PolicyViolation`.
     InvalidResolutionRef,
     /// TB-13 Atom 6 round-2 (Gemini CHALLENGE Q13 remediation 2026-05-03):
@@ -1986,7 +1954,7 @@ impl std::fmt::Display for TransitionError {
             ),
             Self::InvalidResolutionRef => write!(
                 f,
-                "CompleteSetRedeemTx: resolution_ref.claimed_outcome does not match task_markets_t[event_id.0] state"
+                "CompleteSetRedeemTx: outcome does not match task_markets_t[event_id.0] state"
             ),
             Self::EventNotOpen => write!(
                 f,
@@ -3152,10 +3120,6 @@ mod tests {
             owner: AgentId("agent-redeem-fixture".into()),
             outcome: OutcomeSide::Yes,
             share_amount: ShareAmount::from_units(7_000_000),
-            resolution_ref: ResolutionRef {
-                resolution_tx_id: TxId("finalize-reward-resolution-01".into()),
-                claimed_outcome: OutcomeSide::Yes,
-            },
             signature: AgentSignature::from_bytes([0xeeu8; 64]),
             timestamp_logical: 22,
         }
@@ -3245,7 +3209,7 @@ mod tests {
     }
 
     /// TB-13 U7: signing payloads exclude the `signature` field — exact
-    /// field count enforced (mint 6 / redeem 8 / seed 6).
+    /// field count enforced (mint 6 / redeem 7 / seed 6).
     #[test]
     fn tb_13_signing_payloads_exclude_signature_field_counts() {
         let mint_p = fixture_complete_set_mint_tx().to_signing_payload();
@@ -3257,7 +3221,7 @@ mod tests {
         let redeem_p = fixture_complete_set_redeem_tx().to_signing_payload();
         let redeem_v = serde_json::to_value(&redeem_p).unwrap();
         let redeem_o = redeem_v.as_object().unwrap();
-        assert_eq!(redeem_o.len(), 8, "CompleteSetRedeemSigningPayload must have 8 fields");
+        assert_eq!(redeem_o.len(), 7, "CompleteSetRedeemSigningPayload must have 7 fields");
         assert!(!redeem_o.contains_key("signature"));
 
         let seed_p = fixture_market_seed_tx().to_signing_payload();

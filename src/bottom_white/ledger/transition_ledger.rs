@@ -84,11 +84,12 @@ pub enum TxKind {
     /// Coin → 1 YES + 1 NO; shares are claims, not Coin).
     CompleteSetMint   = 11,
     /// TB-13 (architect §4.3) — agent-signed conditional-share redeem
-    /// post-resolution. Validates `resolution_ref` against L4 (must be
-    /// `TaskBankruptcy` for `Outcome::No` or `FinalizeReward` for
-    /// `Outcome::Yes`); pays winning side 1:1 against
+    /// post-resolution. Resolution authority is the live
+    /// `task_markets_t[event_id.0].state` (Finalized → Yes wins; Bankrupt
+    /// → No wins). Pays winning side 1:1 against
     /// `conditional_collateral_t`. Pre-resolution rejected with
-    /// `RedeemBeforeResolution`.
+    /// `RedeemBeforeResolution`; outcome-vs-state mismatch rejected with
+    /// `InvalidResolutionRef`.
     CompleteSetRedeem = 12,
     /// TB-13 (architect §4.3) — agent-signed protocol-owned share
     /// inventory seed. Provider explicitly funds `conditional_collateral_t`

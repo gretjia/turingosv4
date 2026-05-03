@@ -1689,7 +1689,7 @@ pub(crate) fn dispatch_transition(
         // Validation:
         //   - task_markets_t[event_id.0].state must be Finalized (Yes) or
         //     Bankrupt (No); else RedeemBeforeResolution.
-        //   - claimed_outcome must match the state; else InvalidResolutionRef.
+        //   - redeem.outcome must match the state; else InvalidResolutionRef.
         //   - owner's winning-side share balance must cover share_amount;
         //     else RedeemMoreThanOwned.
         //   - event collateral must cover share_amount; else
@@ -1702,12 +1702,7 @@ pub(crate) fn dispatch_transition(
             if redeem.parent_state_root != q.state_root_t {
                 return Err(TransitionError::StaleParent);
             }
-            // Step 1: claimed_outcome consistency between resolution_ref and
-            // outcome field — both must agree before we even check state.
-            if redeem.outcome != redeem.resolution_ref.claimed_outcome {
-                return Err(TransitionError::InvalidResolutionRef);
-            }
-            // Step 2: lookup task_markets_t state.
+            // Step 1: lookup task_markets_t state.
             let market_state = q
                 .economic_state_t
                 .task_markets_t
@@ -1729,7 +1724,7 @@ pub(crate) fn dispatch_transition(
                     return Err(TransitionError::RedeemBeforeResolution);
                 }
             }
-            // Step 3: owner's share balance for the winning side.
+            // Step 2: owner's share balance for the winning side.
             let pair = q
                 .economic_state_t
                 .conditional_share_balances_t
@@ -1745,7 +1740,7 @@ pub(crate) fn dispatch_transition(
             if owned_units < redeem.share_amount.units {
                 return Err(TransitionError::RedeemMoreThanOwned);
             }
-            // Step 4: collateral coverage (defensive; should hold if
+            // Step 3: collateral coverage (defensive; should hold if
             // assert_complete_set_balanced is preserved).
             let event_collateral = q
                 .economic_state_t
@@ -1758,9 +1753,9 @@ pub(crate) fn dispatch_transition(
                 return Err(TransitionError::InsufficientCollateral);
             }
 
-            // Step 5: build q_next.
+            // Step 4: build q_next.
             let mut q_next = q.clone();
-            // 5a: debit the winning side from owner's share balance.
+            // 4a: debit the winning side from owner's share balance.
             {
                 let owner_shares = q_next
                     .economic_state_t
@@ -1784,7 +1779,7 @@ pub(crate) fn dispatch_transition(
                     }
                 }
             }
-            // 5b: debit collateral.
+            // 4b: debit collateral.
             {
                 let collateral_entry = q_next
                     .economic_state_t
@@ -1796,7 +1791,7 @@ pub(crate) fn dispatch_transition(
                     collateral_entry.micro_units() - redeem.share_amount.units as i64,
                 );
             }
-            // 5c: credit owner's balance 1:1 (1 winning share = 1 MicroCoin).
+            // 4c: credit owner's balance 1:1 (1 winning share = 1 MicroCoin).
             let owner_bal = q_next
                 .economic_state_t
                 .balances_t
@@ -1811,7 +1806,7 @@ pub(crate) fn dispatch_transition(
                 ),
             );
 
-            // Step 6: monetary invariants.
+            // Step 5: monetary invariants.
             assert_no_post_init_mint(tx, q)
                 .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
             assert_total_ctf_conserved(
@@ -1825,7 +1820,7 @@ pub(crate) fn dispatch_transition(
             )
             .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
 
-            // Step 7: state_root advance.
+            // Step 6: state_root advance.
             q_next.state_root_t = complete_set_redeem_accept_state_root(&q.state_root_t, tx);
 
             Ok((q_next, SignalBundle::default()))
