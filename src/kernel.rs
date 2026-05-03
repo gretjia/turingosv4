@@ -18,15 +18,26 @@ use std::collections::HashMap;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Kernel {
     pub tape: Tape,
+    /// **LEGACY** (TB-3..TB-10 Phase-3A): per-node f64 CPMM market book.
+    /// See `prediction_market.rs` module header for migration path.
+    /// Replaced by TB-13 `ConditionalShareBalances` (canonical YES/NO claims)
+    /// + TB-14 `PriceIndex` (statistical signal). Removal is TB-14 SHIP
+    /// prerequisite per `OBS_TB_12_LEGACY_CPMM_QUARANTINE_2026-05-03`.
     pub markets: HashMap<NodeId, BinaryMarket>,
-    /// Phase 3A (Hayek): bounty market opened at run start, seeded with
-    /// pre-committed LP from the same ghost-liquidity pool as per-node markets.
-    /// Liquid from tx 0 → gives agents a price signal BEFORE any behaviour.
-    /// Resolves YES if golden path exists; pool distributed to GP-node authors.
+    /// **LEGACY** (TB-3..TB-10 Phase-3A Hayek): bounty market opened at run
+    /// start, seeded with pre-committed LP from the same ghost-liquidity
+    /// pool as per-node markets. Liquid from tx 0 → gives agents a price
+    /// signal BEFORE any behaviour. Resolves YES if golden path exists;
+    /// pool distributed to GP-node authors. **Not constitutional / not
+    /// RSP-M**; replaced by TB-13/TB-14 substrate. Removal is TB-14 SHIP
+    /// prerequisite per `OBS_TB_12_LEGACY_CPMM_QUARANTINE_2026-05-03`.
     #[serde(default)]
     pub bounty_market: Option<BinaryMarket>,
-    /// Seed LP committed to the bounty market at open time (separate from
-    /// BinaryMarket's internal CPMM book). Used for payout distribution.
+    /// **LEGACY** (TB-3..TB-10 Phase-3A): seed LP committed to the bounty
+    /// market at open time (separate from BinaryMarket's internal CPMM
+    /// book). Used for payout distribution. f64; not constitutional.
+    /// Replaced by TB-13 `MarketSeedTx` (explicit provider funds, integer
+    /// MicroCoin, NO automatic liquidity, NO trading).
     #[serde(default)]
     pub bounty_lp_seed: f64,
 }

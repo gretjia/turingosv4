@@ -140,7 +140,7 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 "rules/engine.py" = "e29f062b27fa0bb486a99876438dc096f952da0f358efdca40579592c5d97713"  # rehashed by CO1.13.2 (2026-04-29): 5-line early-continue patch for trigger==pre_commit (R-022 bypass); FC3-N34 readonly verification
 ".claude/hooks/judge.sh" = "f1f8f5094057dcea3c345951f7e73fd4d269f074a407829f19e4d75830a55fc2"
 "tests/fc_alignment_conformance.rs" = "b3e75979ad2d175b9c45135be6ea1d94ce95184c6896468330c12dbfc1f719db"
-"src/kernel.rs" = "893fd67534caf7a3d9abd6efbd202556348b6491cd6d4c6bdb224d2ad75b1af0"
+"src/kernel.rs" = "9379ad8a254887e91dd3f3e3f4c976fd840b4ccd3ffab5e4a9e171a1942aebf4"  # rehashed by TB-13 Atom 0.5 (2026-05-03): added LEGACY doc-comment labels to markets / bounty_market / bounty_lp_seed fields per architect 2026-05-03 post-TB-12 ruling Part A §4.2 SG-13.0.3 (label discipline); no behavior change
 "src/wal.rs" = "1ac7637aa09531b1c7232163f5df48f7193251594c4ed20e0d0fc85cea8f84dc"
 "src/boot.rs" = "92d39c2b40e3104bcb76f5a1e7fad72aa608ad8ce2f9564a6d01a70fa64093b6"
 "src/bus.rs" = "ce86e860eaae6900d1c509499fe18b1976a41eabc5b25c867255262ebe2031d2"  # rehashed by TB-9 Atom 4 (2026-05-02): legacy bus market f64 mutator path deleted (debit_wallet/credit_wallet/settle_portfolios/InvestOnly routing/founder_grant/Hayek bounty/TAPE_ECONOMY_V2 settle)

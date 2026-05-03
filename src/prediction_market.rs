@@ -1,3 +1,48 @@
+//! # LEGACY — TB-3..TB-10 Phase-3A Hayek bounty-market scaffolding
+//!
+//! TRACE_MATRIX TB-13 Atom 0.5 (architect 2026-05-03 ruling Part A §4.2):
+//! This module is **legacy**, **not constitutional**, **not RSP-M**, and
+//! **not production market path** in the post-2026-05 architect roadmap.
+//! It is:
+//!
+//! - **NOT** the canonical YES/NO claim system. TB-13 introduces
+//!   `CompleteSetMintTx` + `ConditionalShareBalances` for that.
+//! - **NOT** the canonical price index. TB-14 introduces `PriceIndex`
+//!   derived from `node_positions_t` long/short interest.
+//! - **NOT** authorized for extension or new use sites.
+//!
+//! ## Constitutional non-compliance (forward-binding rules)
+//!
+//! - **f64 in money path** — every reserve / price / lp field below uses
+//!   `f64`; the post-2026-05 architect directive forbids f64 in money /
+//!   collateral / share path (TB-13 SG-13.0.2; CR-13 forbidden list).
+//! - **automatic liquidity** via constant-product market-maker — TB-13
+//!   forbidden list explicitly bans automatic liquidity / ghost
+//!   liquidity / automatic YES+NO injection.
+//! - **trading semantics** (`buy_yes` / `buy_no`) — TB-13 forbidden list
+//!   bans MarketBuy / MarketSell / MarketOrderTx / MarketTradeTx; TB-14
+//!   forbids price-as-truth / price-based settlement.
+//!
+//! ## Carry-forward
+//!
+//! Removal is a **TB-14 SHIP prerequisite** per
+//! `handover/alignment/OBS_TB_12_LEGACY_CPMM_QUARANTINE_2026-05-03.md`.
+//! Retroactive deletion in TB-13 would break the production evaluator
+//! (`experiments/minif2f_v4/src/bin/evaluator.rs:1323` calls
+//! `bus.kernel.market_ticker(5)` on a non-empty `markets` HashMap when
+//! the bus opens per-node markets via `bus.rs:327` `create_market(...)`)
+//! and the bus-level bounty market wiring at `bus.rs:206`
+//! `kernel.open_bounty_market(lp)` plus 10+ test files. That refactor is
+//! out-of-scope per `feedback_no_retroactive_evidence_rewrite` and
+//! architect §4.2 halting-trigger semantics, which target NEW TB-13 code,
+//! not existing scaffolding.
+//!
+//! ## Forward-fence (in place)
+//!
+//! `tests/tb_13_legacy_cpmm_forward_fence.rs` enforces that NEW TB-13
+//! modules cannot import this file's types or call its f64 trading API.
+//! The fence is the SG-13.0.1 / SG-13.0.2 / SG-13.0.3 ship gate.
+
 // Tier 0: CPMM Binary Market — pure math, no I/O
 // Constitutional basis: Law 2 (1 Coin = 1 YES + 1 NO, CTF conservation)
 // V3 lessons: V3L-41/42/43 (no post-genesis minting), V3L-44 (no fixed tax)
