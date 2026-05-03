@@ -437,3 +437,102 @@ fn fc2_n28_mask_set_publication_witness() {
         "FC2-N28: compute_mask_set must be replay-deterministic"
     );
 }
+
+// ───────────────────────────────────────────────────────────────────────
+// TB-14 Atom 5 — FC2-N29 (boltzmann_select_parent_v2) witness.
+// TRACE_MATRIX FC2-N29 maps to src/sdk/actor.rs::boltzmann_select_parent_v2
+// (architect §5.5 SG-14.4 + SG-14.5 + charter §3 Atom 5). Integer-rational
+// argmax + epsilon-greedy; mask_set read-view filter; predicate-blind by
+// type signature (Option<TxId>, no acceptance verdict).
+// ───────────────────────────────────────────────────────────────────────
+
+#[test]
+fn fc2_n29_boltzmann_select_parent_v2_witness() {
+    use rand::SeedableRng;
+    use std::collections::{BTreeMap, BTreeSet};
+    use turingosv4::sdk::actor::boltzmann_select_parent_v2;
+    use turingosv4::state::{
+        BoltzmannMaskPolicy, NodeMarketEntry, RationalPrice, TxId,
+    };
+
+    // FC2-N29 (a): with epsilon=0, v2 picks the argmax candidate.
+    let mut price_index: BTreeMap<TxId, NodeMarketEntry> = BTreeMap::new();
+    price_index.insert(
+        TxId("low_node".into()),
+        NodeMarketEntry {
+            price_yes: Some(RationalPrice {
+                numerator: 30,
+                denominator: 100,
+            }),
+            ..Default::default()
+        },
+    );
+    price_index.insert(
+        TxId("high_node".into()),
+        NodeMarketEntry {
+            price_yes: Some(RationalPrice {
+                numerator: 80,
+                denominator: 100,
+            }),
+            ..Default::default()
+        },
+    );
+    let mask: BTreeSet<TxId> = BTreeSet::new();
+    let argmax_policy = BoltzmannMaskPolicy {
+        epsilon_exploration_num: 0,
+        epsilon_exploration_den: 1,
+        ..BoltzmannMaskPolicy::default()
+    };
+    let mut rng = rand::rngs::StdRng::seed_from_u64(42);
+    let pick =
+        boltzmann_select_parent_v2(&price_index, &mask, &argmax_policy, &mut rng);
+    assert_eq!(
+        pick,
+        Some(TxId("high_node".into())),
+        "FC2-N29: argmax selection picks highest price_yes"
+    );
+
+    // FC2-N29 (b): mask_set filters out candidates.
+    let mut mask_high: BTreeSet<TxId> = BTreeSet::new();
+    mask_high.insert(TxId("high_node".into()));
+    let mut rng = rand::rngs::StdRng::seed_from_u64(42);
+    let pick =
+        boltzmann_select_parent_v2(&price_index, &mask_high, &argmax_policy, &mut rng);
+    assert_eq!(
+        pick,
+        Some(TxId("low_node".into())),
+        "FC2-N29: mask_set filter removes high_node from candidates"
+    );
+
+    // FC2-N29 (c): determinism under fixed seed.
+    let run1: Vec<Option<TxId>> = {
+        let mut rng = rand::rngs::StdRng::seed_from_u64(99);
+        (0..30)
+            .map(|_| {
+                boltzmann_select_parent_v2(
+                    &price_index,
+                    &mask,
+                    &BoltzmannMaskPolicy::default(),
+                    &mut rng,
+                )
+            })
+            .collect()
+    };
+    let run2: Vec<Option<TxId>> = {
+        let mut rng = rand::rngs::StdRng::seed_from_u64(99);
+        (0..30)
+            .map(|_| {
+                boltzmann_select_parent_v2(
+                    &price_index,
+                    &mask,
+                    &BoltzmannMaskPolicy::default(),
+                    &mut rng,
+                )
+            })
+            .collect()
+    };
+    assert_eq!(
+        run1, run2,
+        "FC2-N29: boltzmann_select_parent_v2 deterministic under fixed seed"
+    );
+}

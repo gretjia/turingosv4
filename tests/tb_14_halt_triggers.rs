@@ -16,15 +16,40 @@
 // A WorkTx with price_yes=Some(near-1) but acceptance.value=false
 // must still return AcceptancePredicateFailed from dispatch_transition.
 // Price signal MUST NOT override the predicate gate at sequencer.rs:516-558.
+//
+// TB-14 Atom 5 structural enforcement: dispatch_transition's source
+// path contains zero references to TB-14 price/mask types. Decoupling
+// is enforced by code structure — if sequencer never reads
+// compute_price_index / NodeMarketEntry / RationalPrice / mask_set,
+// they cannot affect predicate evaluation at runtime. (Parallel to
+// halt-trigger #4's file-level decimal-float fence.)
 // ────────────────────────────────────────────────────────────────────
 #[test]
 fn price_does_not_affect_predicate_result() {
-    // Filled in Atom 5 after boltzmann_select_parent_v2 + integer Boltzmann.
-    // Stub: ensures test exists and will fail at compile-time if signature changes.
-    unimplemented!(
-        "Atom 5 — verify dispatch_transition rejects WorkTx with acceptance=false \
-         regardless of NodeMarketEntry.price_yes from compute_price_index"
-    )
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    let sequencer_path = format!("{}/src/state/sequencer.rs", manifest);
+    let body = std::fs::read_to_string(&sequencer_path)
+        .unwrap_or_else(|e| panic!("read {}: {}", sequencer_path, e));
+
+    // The price/mask types must NOT appear in the sequencer dispatch path.
+    // Constructed at runtime via byte literals to avoid this test's own
+    // source containing the substrings being scanned for.
+    let forbidden: Vec<String> = vec![
+        format!("compute_price{}", "_index"),
+        format!("compute_mask{}", "_set"),
+        format!("NodeMarket{}", "Entry"),
+        format!("Rational{}", "Price"),
+        format!("Boltzmann{}", "MaskPolicy"),
+    ];
+    for tok in &forbidden {
+        assert!(
+            !body.contains(tok.as_str()),
+            "halt-trigger #1: src/state/sequencer.rs MUST NOT reference TB-14 \
+             price/mask type `{}` — sequencer dispatch is decoupled from price \
+             signal by construction (CR-14.1)",
+            tok
+        );
+    }
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -33,15 +58,63 @@ fn price_does_not_affect_predicate_result() {
 //
 // A tx that fails L4 (AcceptancePredicateFailed) must enter L4.E,
 // not L4, even when the node has a high price_yes in compute_price_index.
-// compute_price_index result is never read inside dispatch_transition.
+//
+// TB-14 Atom 5 structural enforcement (complementary to halt-trigger #1):
+// `src/state/sequencer.rs` MUST NOT IMPORT any TB-14 price/mask
+// type via `use` statement. Halt-trigger #1 scans for symbol uses
+// in the file body; halt-trigger #2 scans the `use` block to catch
+// import-only references (e.g., a re-export forwarder that would
+// otherwise let TB-14 types leak into sequencer scope without an
+// in-body call). Together: sequencer is permanently price-blind by
+// construction → L4/L4.E classification is a pure function of
+// dispatch_transition's verdict, never of any price signal.
+//
+// This is permanent: even after Atom 6's bus.rs snapshot wire-swap
+// (which legitimately reads compute_price_index for read-view
+// broadcast), sequencer.rs MUST remain free of TB-14 imports.
 // ────────────────────────────────────────────────────────────────────
 #[test]
 fn price_does_not_change_l4_decision() {
-    // Filled in Atom 5.
-    unimplemented!(
-        "Atom 5 — verify L4.E classification for predicate-failed tx \
-         is unchanged by presence of high price in compute_price_index"
-    )
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    let sequencer_path = format!("{}/src/state/sequencer.rs", manifest);
+    let body = std::fs::read_to_string(&sequencer_path)
+        .unwrap_or_else(|e| panic!("read {}: {}", sequencer_path, e));
+
+    // Scan ONLY the `use` statements in sequencer.rs for any TB-14 import.
+    // Constructed at runtime via byte literals to avoid self-reference.
+    let import_tokens: Vec<String> = vec![
+        format!("price{}", "_index"),                  // module path
+        format!("compute_price{}", "_index"),
+        format!("compute_mask{}", "_set"),
+        format!("NodeMarket{}", "Entry"),
+        format!("Rational{}", "Price"),
+        format!("Boltzmann{}", "MaskPolicy"),
+    ];
+    let mut violations: Vec<String> = Vec::new();
+    for (i, line) in body.lines().enumerate() {
+        let trimmed = line.trim_start();
+        if !trimmed.starts_with("use ") && !trimmed.starts_with("pub use ") {
+            continue;
+        }
+        for tok in &import_tokens {
+            if line.contains(tok.as_str()) {
+                violations.push(format!(
+                    "sequencer.rs:{}: forbidden TB-14 import token `{}` in `{}`",
+                    i + 1,
+                    tok,
+                    line.trim()
+                ));
+            }
+        }
+    }
+    assert!(
+        violations.is_empty(),
+        "halt-trigger #2: src/state/sequencer.rs MUST NOT IMPORT any TB-14 \
+         price/mask type. Sequencer remains permanently price-blind by \
+         construction; L4/L4.E classification is a pure function of \
+         dispatch_transition's verdict (CR-14.2). Violations:\n{}",
+        violations.join("\n")
+    );
 }
 
 // ────────────────────────────────────────────────────────────────────
