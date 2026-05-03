@@ -51,12 +51,22 @@ use std::path::PathBuf;
 /// a *floor* — `discover_tb_13_files()` walks `src/` for any additional
 /// file containing a TB-13 authoring marker and adds it to the
 /// effective scope.
+///
+/// **Codex round-4 RQ6 follow-up (2026-05-03)**: `src/bin/audit_dashboard.rs`
+/// was previously listed here for forward dashboard coverage but currently
+/// carries 0 TB-13 markers + 0 TB-13 type uses (Atom 4 §13 dashboard
+/// rendering is DEFERRED per charter; consolidated to TB-14 PriceIndex).
+/// Listing it here while my Layer 2 walker now scans non-comment lines on
+/// unmarked files surfaces a false positive on the dashboard's own
+/// negative-list test fixture (line 1628-1629: string literals "price_yes"
+/// / "price_no" in a forbidden-token assertion). Remove from FLOOR; the
+/// file will be auto-rediscovered by `discover_by_marker` when Atom 4
+/// ships TB-13 contributions in TB-14.
 const FENCE_SCOPE_FLOOR: &[&str] = &[
     "src/state/typed_tx.rs",
     "src/state/q_state.rs",
     "src/state/sequencer.rs",
     "src/economy/monetary_invariant.rs",
-    "src/bin/audit_dashboard.rs",
     "src/runtime/verify.rs",
 ];
 
@@ -150,6 +160,30 @@ fn tb_13_spans(source: &str) -> Vec<(usize, String)> {
         i = span_end;
     }
     out
+}
+
+/// Lines to scan for forbidden tokens (Layer 2). Codex round-4 RQ6
+/// remediation 2026-05-03: `tb_13_spans()` returns nothing for files
+/// added to scope by `discover_by_type_use` (no marker = no span), so
+/// the marker-only Layer 2 missed unmarked TB-13 contributors. Fix:
+///
+/// - If the file carries any TB-13 authoring marker → return
+///   `tb_13_spans()` (marker behavior preserved; legacy doc-xref
+///   continues to be skipped).
+/// - Otherwise (file in scope only via type-use discovery) → return
+///   every non-comment line. Unmarked TB-13 contributors are scanned
+///   wholesale because we cannot rely on marker-discipline to
+///   delineate "their" code.
+fn tb_13_scan_lines(source: &str) -> Vec<(usize, String)> {
+    if source.lines().any(is_tb_13_authoring_marker) {
+        return tb_13_spans(source);
+    }
+    source
+        .lines()
+        .enumerate()
+        .filter(|(_, line)| !is_pure_comment_line(line))
+        .map(|(i, line)| (i + 1, line.to_string()))
+        .collect()
 }
 
 /// Read a source file relative to the workspace root, returning its
@@ -337,10 +371,13 @@ fn legacy_cpm_api_not_imported_by_complete_set() {
         }
     }
 
-    // Layer 2: TB-13-marker-scoped scan for trading/AMM concepts.
+    // Layer 2: scan for trading/AMM concepts. Marker-discovered files use
+    // `tb_13_spans()` (marker behavior); type-use-discovered files use
+    // `tb_13_scan_lines()` which falls back to all non-comment lines for
+    // unmarked contributors (Codex round-4 RQ6 remediation 2026-05-03).
     for rel in &scope {
         let source = read_scope_file(rel);
-        for (line_no, line) in tb_13_spans(&source) {
+        for (line_no, line) in tb_13_scan_lines(&source) {
             for token in FORBIDDEN_LEGACY_TOKENS {
                 // The `f64` family entries are checked in SG-13.0.2 — skip
                 // them here so the failure message is unambiguous.
@@ -353,7 +390,7 @@ fn legacy_cpm_api_not_imported_by_complete_set() {
                 }
                 if line.contains(token) {
                     violations.push(format!(
-                        "{rel}:{line_no}: TB-13-marked span contains forbidden token `{token}` — {line}"
+                        "{rel}:{line_no}: TB-13-scope contains forbidden token `{token}` — {line}"
                     ));
                 }
             }
@@ -379,11 +416,13 @@ fn no_f64_in_complete_set_or_market_seed() {
     let f64_tokens = [" f64", "f64,", "f64;", "f64)"];
     for rel in &effective_fence_scope() {
         let source = read_scope_file(rel);
-        for (line_no, line) in tb_13_spans(&source) {
+        // tb_13_scan_lines: marker-files → spans; unmarked-discovered files
+        // → all non-comment lines (Codex round-4 RQ6 remediation 2026-05-03).
+        for (line_no, line) in tb_13_scan_lines(&source) {
             for token in &f64_tokens {
                 if line.contains(token) {
                     violations.push(format!(
-                        "{rel}:{line_no}: TB-13-marked span contains f64 (`{token}`) — {line}"
+                        "{rel}:{line_no}: TB-13-scope contains f64 (`{token}`) — {line}"
                     ));
                 }
             }
@@ -547,4 +586,53 @@ fn discover_by_type_use_catches_unmarked_imports_and_skips_doc_xref() {
     );
 
     let _ = fs::remove_dir_all(&tmp);
+}
+
+/// Round-6 R4-Codex remediation 2026-05-03: `tb_13_scan_lines` returns
+/// marker-spans for marker-files (preserves the doc-xref skip) and all
+/// non-comment lines for unmarked files (closes the Layer 2 gap where
+/// type-use-discovered files could ship f64 / AMM tokens unscanned).
+#[test]
+fn tb_13_scan_lines_handles_marker_and_unmarked_files() {
+    // Case A — marker-file: scan lines come from `tb_13_spans`. A
+    // /// TB-12 line referencing TB-13 in passing is OUTSIDE any TB-13
+    // span (because the span's first non-blank line is the TB-12 marker,
+    // not a TB-13 marker), so it must be skipped.
+    let marker_src = "\
+//! TB-13 module header.\n\
+pub fn tb13_thing() -> i32 { 42_f64 as i32 }\n\
+\n\
+/// TB-12 doc xref to TB-13 future work.\n\
+pub fn tb12_legacy() -> i32 { 0 }\n\
+";
+    let scanned = tb_13_scan_lines(marker_src);
+    let scanned_text: Vec<&str> =
+        scanned.iter().map(|(_, l)| l.as_str()).collect();
+    assert!(
+        scanned_text.iter().any(|l| l.contains("tb13_thing")),
+        "marker-file: TB-13 span lines must be returned"
+    );
+    assert!(
+        scanned_text.iter().all(|l| !l.contains("tb12_legacy")),
+        "marker-file: TB-12 span lines must NOT be returned (preserves doc-xref skip)"
+    );
+
+    // Case B — unmarked file: scan lines fall back to ALL non-comment
+    // lines. The f64 / AMM scan must see the violating line.
+    let unmarked_src = "\
+use crate::state::typed_tx::CompleteSetMintTx;\n\
+fn forbidden() -> f64 { 0.5_f64 }\n\
+// trailing comment\n\
+";
+    let scanned = tb_13_scan_lines(unmarked_src);
+    let scanned_text: Vec<&str> =
+        scanned.iter().map(|(_, l)| l.as_str()).collect();
+    assert!(
+        scanned_text.iter().any(|l| l.contains("f64")),
+        "unmarked-file: non-comment lines must be returned (Layer 2 must see f64)"
+    );
+    assert!(
+        scanned_text.iter().all(|l| !l.contains("trailing comment")),
+        "unmarked-file: pure-comment lines must still be filtered out"
+    );
 }

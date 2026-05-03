@@ -11,9 +11,9 @@
   "run_id": "rq3-tb13-smoke",
   "epoch": 1,
   "detail": {
-    "final_state_root_hex": "25fe0968049d243cd6c3189f1dc83fe13f2eeb0f65b9d524f2063cec4af15dc5",
-    "final_ledger_root_hex": "4a5505a5eb8ef454497f384991faad0a864051d56bb49bcda88b9d57a2b5fef2",
-    "head_commit_oid_hex": "fcf544573f1c9f0e6f8554db1548ae5b9b5a7652",
+    "final_state_root_hex": "a4800b19e370b11cc53a6e538b1218cbc08d0425af40f8e216cc7ee8b9c1531e",
+    "final_ledger_root_hex": "c55bb9c5f51dd806691b4dbcac621cc7f523d70cde089b45ad8f55ec6bb0896a",
+    "head_commit_oid_hex": "7cd6e82eb1ede11a7953eed9db3dde12de86efd6",
     "l4e_last_hash_hex": "0000000000000000000000000000000000000000000000000000000000000000",
     "replay_failure": null,
     "initial_q_state_loaded_from_disk": true

@@ -31,34 +31,56 @@
 //! 6. Running `verify_chaintape` on the persisted runtime_repo + cas →
 //!    asserting all 7 indicators GREEN, l4_entries ≥ 2, and the
 //!    replay-reconstructed `final_state_root_hex` matches the live
-//!    `state_root_t` byte-for-byte. Because `state_root_t` is the
-//!    SHA-256 chain-fold over the full QState (including TB-13 sub-
-//!    fields), state-root equality is cryptographic proof that replay
-//!    reconstructed the non-empty TB-13 maps bit-equal to the live
-//!    state.
+//!    `state_root_t`. Codex round-4 RQ3 follow-up (2026-05-03): the
+//!    state-root mutator hashes `domain || prev_root || canonical_tx`,
+//!    NOT the full QState. So state-root equality on its own proves
+//!    deterministic tx-chain replay (same initial_q + same canonical-
+//!    encoded txs in the same order + the same pure dispatcher → same
+//!    root); it does NOT directly assert byte-equal QState
+//!    reconstruction.
+//! 7. Running `replay_full_transition` (pub API) manually against the
+//!    persisted runtime_repo + cas + pinned_pubkeys + initial_q, and
+//!    asserting BYTE-EQUAL map reconstruction of
+//!    `conditional_collateral_t` and `conditional_share_balances_t`
+//!    against the live state. This is direct map-equality evidence —
+//!    no inference from dispatch-determinism required. Closes Codex
+//!    round-4 RQ3.
 //!
 //! ## What this proves
 //!
-//! - Non-empty `conditional_collateral_t` round-trip via verify_chaintape.
-//! - Non-empty `conditional_share_balances_t` round-trip via verify_chaintape.
-//! - Submit-time agent signature verification + replay-time Gate 4
-//!   coverage for all 3 TB-13 typed-tx variants.
+//! - Non-empty `conditional_collateral_t` reconstructs byte-equal under
+//!   replay (direct map-equality assertion, step 7).
+//! - Non-empty `conditional_share_balances_t` reconstructs byte-equal
+//!   under replay (direct map-equality assertion, step 7).
+//! - State-root chain match across replay (verify_chaintape, step 6).
+//! - Submit-time + replay-time agent signature verification (Gate 4
+//!   covers all 3 TB-13 typed-tx variants).
 //! - Two-tx state-root chain (initial → mint → redeem) replays
 //!   deterministically end-to-end.
 //!
-//! TRACE_MATRIX TB-13 Atom 6 round-5 (Codex RQ3 remediation 2026-05-03;
-//! FC3-N1 chaintape replay determinism for non-empty TB-13 maps).
+//! TRACE_MATRIX TB-13 Atom 6 round-6 (Codex round-4 RQ3 remediation
+//! 2026-05-03; FC3-N1 chaintape replay determinism + direct map-equality
+//! reconstruction for non-empty TB-13 maps).
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use tempfile::TempDir;
 
+use turingosv4::bottom_white::cas::store::CasStore;
+use turingosv4::bottom_white::ledger::system_keypair::{
+    PinnedSystemPubkeys, SystemEpoch, SystemPublicKey,
+};
+use turingosv4::bottom_white::ledger::transition_ledger::{
+    replay_full_transition, Git2LedgerWriter, LedgerEntry, LedgerWriter,
+};
+use turingosv4::bottom_white::tools::registry::ToolRegistry;
 use turingosv4::economy::money::MicroCoin;
 use turingosv4::runtime::agent_keypairs::AgentKeypairRegistry;
 use turingosv4::runtime::verify::{verify_chaintape, VerifyOptions};
 use turingosv4::runtime::{
-    build_chaintape_sequencer_with_initial_q, RuntimeChaintapeConfig,
+    build_chaintape_sequencer_with_initial_q, PinnedPubkeyManifest,
+    RuntimeChaintapeConfig,
 };
 use turingosv4::state::q_state::{
     AgentId, QState, ShareSidePair, TaskId, TaskMarketEntry, TaskMarketState, TxId,
@@ -68,6 +90,7 @@ use turingosv4::state::typed_tx::{
     AgentSignature, CompleteSetMintTx, CompleteSetRedeemTx, EventId, OutcomeSide,
     ShareAmount, TypedTx,
 };
+use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
 fn build_smoke_initial_q(
     alice: &str,
@@ -119,6 +142,56 @@ fn build_smoke_initial_q(
         .insert(alice_id, alice_shares);
 
     q
+}
+
+/// Re-runs `replay_full_transition` against the persisted runtime_repo +
+/// cas, returning the reconstructed `QState`. Mirrors the steps that
+/// `verify_chaintape` performs internally (verify.rs:225..308) but
+/// returns the QState so the caller can assert directly on the
+/// reconstructed `economic_state_t` sub-fields. Codex round-4 RQ3
+/// remediation 2026-05-03: closes the "state-root equality is cryptographic
+/// proof of map equality" overclaim by providing direct map equality
+/// evidence instead of an inference from dispatch determinism.
+fn manual_replay_from_disk(
+    runtime_repo_path: &std::path::Path,
+    cas_path: &std::path::Path,
+) -> QState {
+    // Load initial_q from disk (replay starts from the same state as live).
+    let initial_q_path = runtime_repo_path.join("initial_q_state.json");
+    let initial_q_json =
+        std::fs::read_to_string(&initial_q_path).expect("read initial_q_state.json");
+    let initial_q: QState =
+        serde_json::from_str(&initial_q_json).expect("parse initial_q_state.json");
+
+    // Read all L4 entries from the persisted Git ledger.
+    let writer = Git2LedgerWriter::open(runtime_repo_path).expect("open Git2LedgerWriter");
+    let n = writer.len();
+    let entries: Vec<LedgerEntry> = (1..=n)
+        .map(|t| writer.read_at(t).expect("read_at"))
+        .collect();
+
+    // Load pinned-pubkey manifest from disk + decode into PinnedSystemPubkeys.
+    let manifest_path = runtime_repo_path.join("pinned_pubkeys.json");
+    let manifest_json =
+        std::fs::read_to_string(&manifest_path).expect("read pinned_pubkeys.json");
+    let manifest: PinnedPubkeyManifest =
+        serde_json::from_str(&manifest_json).expect("parse pinned_pubkeys.json");
+    let mut pinned = PinnedSystemPubkeys::new();
+    for entry in &manifest.pubkeys {
+        let bytes: Vec<u8> = (0..entry.pubkey_hex.len())
+            .step_by(2)
+            .map(|i| u8::from_str_radix(&entry.pubkey_hex[i..i + 2], 16).expect("hex"))
+            .collect();
+        let arr: [u8; 32] = bytes.as_slice().try_into().expect("32-byte pubkey");
+        pinned.insert(SystemEpoch::new(entry.epoch), SystemPublicKey::from_bytes(arr));
+    }
+
+    let cas = CasStore::open(cas_path).expect("open cas");
+    let predicates = PredicateRegistry::new();
+    let tools = ToolRegistry::new();
+
+    replay_full_transition(&initial_q, &entries, &cas, &pinned, &predicates, &tools)
+        .expect("replay_full_transition")
 }
 
 #[tokio::test]
@@ -290,11 +363,14 @@ async fn rq3_non_empty_tb13_chaintape_replays_with_state_root_match() {
         "initial_q_state.json must be loaded from disk for replay determinism"
     );
 
-    // The crucial RQ3 check: replayed final_state_root matches live state_root.
-    // state_root is the SHA-256 chain-fold over the entire QState (incl. TB-13
-    // sub-fields), so equality is cryptographic proof that replay
-    // reconstructed the non-empty conditional_collateral_t and
-    // conditional_share_balances_t bit-equal to live state.
+    // ── RQ3 check 1: state-root chain matches live ─────────────────────────
+    //
+    // Codex round-4 follow-up (2026-05-03): state-root equality alone proves
+    // deterministic tx-chain replay (same initial_q + same canonical-encoded
+    // tx sequence + same pure dispatcher → same root) — it does NOT directly
+    // hash the full QState (the mutator hashes `domain || prev_root ||
+    // canonical_tx`). So we record the chain-replay match here and follow
+    // up with a direct map-equality check below.
     let live_state_root_hex: String = live_state_root
         .0
         .iter()
@@ -307,7 +383,37 @@ async fn rq3_non_empty_tb13_chaintape_replays_with_state_root_match() {
         .expect("final_state_root_hex present after non-empty replay");
     assert_eq!(
         &live_state_root_hex, final_state_root_hex,
-        "RQ3: replay state_root must match live state_root → proves non-empty TB-13 maps reconstruct bit-equal"
+        "RQ3: replay state_root must match live state_root → confirms tx-chain replays deterministically"
+    );
+
+    // ── RQ3 check 2: direct map-equality after manual re-replay ─────────────
+    //
+    // Codex round-4 RQ3 remediation 2026-05-03: re-run `replay_full_transition`
+    // (pub API) against the persisted artifacts and assert byte-equal
+    // reconstruction of the TB-13 sub-fields. This closes the "state-root
+    // overclaim" gap by proving map equality directly, not by relying on
+    // dispatch-determinism implication.
+    let replayed_q = manual_replay_from_disk(&cfg.runtime_repo_path, &cfg.cas_path);
+
+    assert_eq!(
+        replayed_q.state_root_t,
+        live_state_root,
+        "manual replay state_root must equal live state_root (sanity)"
+    );
+    assert_eq!(
+        replayed_q.economic_state_t.conditional_collateral_t,
+        live_q.economic_state_t.conditional_collateral_t,
+        "RQ3 direct check: replayed conditional_collateral_t must equal live (byte-equal map reconstruction)"
+    );
+    assert_eq!(
+        replayed_q.economic_state_t.conditional_share_balances_t,
+        live_q.economic_state_t.conditional_share_balances_t,
+        "RQ3 direct check: replayed conditional_share_balances_t must equal live (byte-equal map reconstruction)"
+    );
+    // Belt-and-suspenders: full economic_state_t equality.
+    assert_eq!(
+        replayed_q.economic_state_t, live_q.economic_state_t,
+        "RQ3 direct check: full replayed economic_state_t must equal live"
     );
 
     // ── Persist evidence to canonical handover dir (best-effort) ────────────
@@ -335,11 +441,11 @@ async fn rq3_non_empty_tb13_chaintape_replays_with_state_root_match() {
         let _ = std::fs::write(
             evidence_dir.join("README.md"),
             format!(
-                "# TB-13 Atom 6 round-5 — non-empty TB-13 chaintape replay smoke\n\
+                "# TB-13 Atom 6 round-6 — non-empty TB-13 chaintape replay smoke\n\
                  \n\
                  **Date**: 2026-05-03\n\
                  **Source**: `tests/tb_13_chaintape_smoke.rs::rq3_non_empty_tb13_chaintape_replays_with_state_root_match`\n\
-                 **Trigger**: Codex round-3 RQ3 finding — the existing real-LLM smoke at `handover/evidence/tb_13_real_llm_smoke_2026-05-03/` proves EconomicState's 13-sub-field schema round-trips with EMPTY TB-13 maps; non-empty `conditional_collateral_t` / `conditional_share_balances_t` round-trip via `verify_chaintape` was not directly evidenced.\n\
+                 **Trigger**: Codex round-3 RQ3 finding (the existing real-LLM smoke proves the EconomicState 13-sub-field schema round-trips with EMPTY TB-13 maps; non-empty replay determinism was not directly evidenced) + Codex round-4 RQ3 follow-up (the round-5 closure overclaimed state-root equality as cryptographic proof of map equality — fixed in round-6 by adding a direct map-equality assertion via manual `replay_full_transition` re-replay).\n\
                  \n\
                  ## Headline\n\
                  \n\
@@ -351,13 +457,14 @@ async fn rq3_non_empty_tb13_chaintape_replays_with_state_root_match() {
                  - Pre-shutdown `conditional_collateral_t` size: {coll_count}\n\
                  - Pre-shutdown `conditional_share_balances_t` owner count: {owners}\n\
                  \n\
-                 ## What this evidence proves (RQ3 closure)\n\
+                 ## What this evidence proves (RQ3 closure — round-6)\n\
                  \n\
                  1. Two real signed TB-13 typed-tx (CompleteSetMint + CompleteSetRedeem) flow through the full production path: `submit_agent_tx` → driver → `Git2LedgerWriter` persist → on-disk L4 chain.\n\
                  2. Pre-shutdown live state has non-empty TB-13 maps (sanity).\n\
-                 3. `verify_chaintape` reconstructs a `QState` from the persisted runtime_repo + cas + initial_q_state.json + agent_pubkeys.json + pinned_pubkeys.json whose `final_state_root_hex` matches the live `state_root_t` byte-for-byte. Because `state_root_t` is the SHA-256 chain-fold over the entire `QState` (including the TB-13 sub-fields), state-root equality is **cryptographic proof** that replay reconstructed the non-empty `conditional_collateral_t` and `conditional_share_balances_t` bit-equal to the live runtime state.\n\
-                 4. Submit-time + replay-time agent signature verification is exercised end-to-end for both `CompleteSetMint` and `CompleteSetRedeem` (Gate 4 covers both).\n\
-                 5. Two-tx state-root chain (initial → mint → redeem) replays deterministically.\n\
+                 3. `verify_chaintape` reconstructs a `QState` from the persisted runtime_repo + cas + initial_q_state.json + agent_pubkeys.json + pinned_pubkeys.json whose `final_state_root_hex` matches the live `state_root_t`. Codex round-4 follow-up clarification: the state-root mutator hashes `domain || prev_root || canonical_tx`, NOT the full QState — so state-root equality on its own proves deterministic tx-chain replay (same initial state + same canonical-encoded txs + same pure dispatcher → same root); it does NOT directly assert byte-equal QState reconstruction.\n\
+                 4. **Round-6 direct map-equality check**: the smoke also runs `replay_full_transition` manually against the persisted artifacts and asserts `replayed_q.economic_state_t.conditional_collateral_t == live_q.economic_state_t.conditional_collateral_t` AND `... .conditional_share_balances_t == ...` AND full `economic_state_t` equality. This is the direct map-equality evidence that closes RQ3 without relying on dispatch-determinism implication.\n\
+                 5. Submit-time + replay-time agent signature verification is exercised end-to-end for both `CompleteSetMint` and `CompleteSetRedeem` (Gate 4 covers both).\n\
+                 6. Two-tx state-root chain (initial → mint → redeem) replays deterministically.\n\
                  \n\
                  ## What is NOT in scope here\n\
                  \n\
