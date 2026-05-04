@@ -6,6 +6,64 @@
 
 ---
 
+## 📋 2026-05-04 — Session End Summary
+
+**Updated**: 2026-05-04 (session end)
+**Session summary**: TB-16 Atoms 0-7 R2 — Controlled Market Smoke Arena shipped pre-audit; 7 atoms + Step 1+3+4 surgical fixes; 2 fresh real-LLM arena chains PROCEED with 9/13 architect tx kinds; TB-11 EvidenceCapsule writer-pattern bug found + fixed live; Gemini R2 VETO 4/5 stale + 1 real (Q2 JSON privacy check); Codex R2 not yet run.
+
+### Current State
+
+**Works**:
+- TB-16 infrastructure: 38-assertion audit_tape battery + audit_tape_tamper + comprehensive_arena scaffold + dashboard §15 live regen + §16 SANDBOX banner + run scripts (Atoms 1-6)
+- Real-LLM arena harness: 3 env-var triggers (`TURINGOS_FORCE_CHALLENGER` + `TURINGOS_COMPLETE_SET_SEED` + `TURINGOS_FORCE_BANKRUPTCY`) wired into evaluator's OMEGA paths
+- 2 PROCEED real-LLM chains: `arena_run4` (happy: 7 tx kinds), `arena_run6_exhaust` (exhaust: 4 tx kinds incl. TaskBankruptcy)
+- Halt-trigger fence: 13/13 H1..H13 GREEN
+- `cargo test --workspace`: 907 / 0 failed / 150 ignored
+- TB-11 EvidenceCapsule writer fix (forward-only, mirrors TB-15 R2 fix)
+
+**Broken / incomplete**:
+- 4 architect-required tx kinds NOT delivered: ChallengeResolve (system-emit not wired), FinalizeReward-with-Challenge (challenge blocks finalize per challenge-window semantic), TaskExpire (no env-var trigger), CompleteSetRedeem (post-resolution path not wired)
+- AutopsyCapsule emission requires chain with BOTH accepted WorkTx AND subsequent TaskBankruptcy on same task — neither single arena run produces this
+- `audit_pipeline_smoke` evidence dir has stale Markov capsule (`previous_capsule_cid=null`) from pre-Step-1; runner now passes `--prev-cid-hex` but old artifact unreplaced
+- TB-16 SHIP_STATUS doc §2 still describes pre-Step-4 framing (Atom 6.1 deferral) — Gemini R2 read this and judged stale
+
+**Active experiments**: TB-16 Atom 7 R2 audit cycle pending — Gemini R2 VETO recorded (4/5 stale + 1 real Q2 JSON privacy check), Codex R2 not yet invoked.
+
+**Repo state**: 56 commits ahead of `origin/main`. Last commit `af05d60`. Not pushed.
+
+### Next Steps (priority order)
+
+1. **Pick path forward** (user decision):
+   - **R3 prep + R3 audit** (~3-4h): apply 6 surgical fixes per `handover/audits/RECURSIVE_AUDIT_TB_16_R2_2026-05-04.md` §4; expected PASS/PASS or CHALLENGE-only
+   - **ship-with-OBS** (~10 min): label TB-16 SHIPPED-WITH-OBS_R2_RESIDUALS; spawn TB-16.x for closure
+   - **revert + re-charter**: not recommended (infrastructure is solid)
+
+2. **If R3 path picked, surgical fixes**:
+   - Q2: extend `assert_28_projection_no_autopsy_bytes` with JSON-array decimal form check (mirror TB-15 halt-trigger #5; ~15 LoC)
+   - Q10: add Layer A new — walk L4, decode each tx, check agent_id sandbox-prefixed (~30 LoC)
+   - Q1: Layer D #18b incremental per-block conservation (~30 LoC)
+   - Q11: file-level TRACE_MATRIX precision (doc edit)
+   - Q12: TB-16 SHIP_STATUS §3 test-count math (doc edit)
+   - Update SHIP_STATUS §2 to reflect Step 4 reality (FR-16.x covered table)
+   - Regenerate `audit_pipeline_smoke/MARKOV_TB-16` with `--prev-cid-hex`
+
+3. **Optional**: Run Codex R2 — `TB16_AUDIT_ROUND=R2 bash handover/audits/run_codex_tb_16_ship_audit.sh`. Step 1 + Step 4 should close most R1 VETOs (V3-V7 + bug fix).
+
+### Open Questions
+
+1. **R2 Q4 stance ratification**: my position is §7.7 "non-sandbox funds used" HALT is **audit-time** (parallel structure with conservation / evidence-gap halts) — Layer A #3 is the architect-spec HALT, NOT a sequencer admission gate. Codex R1 V2 + Gemini Q4 read it as runtime gate. Need architect ratification OR explicit charter §5.x amendment.
+2. **TaskBankruptcy without prior stakers**: `arena_run6_exhaust` fired bankruptcy but no autopsy capsule because no agent had stake. To get FR-16.7's "loss → autopsy path" demonstrated end-to-end on chain, we need a chain with BOTH accepted WorkTx AND subsequent bankruptcy — no single env-var combo achieves this without multi-task chain continuation.
+3. **Push timing**: 56 commits unpushed. Risk of network outage / disk loss not mitigated.
+
+### Cold-start reading order (for new session)
+
+1. `handover/audits/RECURSIVE_AUDIT_TB_16_R2_2026-05-04.md` (R2 verdict triage)
+2. This file (LATEST.md) sections from 2026-05-04
+3. `handover/evidence/tb_16_real_llm_arena_2026-05-04/arena_run4/verdict.json` + `arena_run6_exhaust/verdict.json` (real evidence)
+4. `handover/tracer_bullets/TB-16_charter_2026-05-04.md` (architect spec verbatim)
+
+---
+
 ## 🚀 2026-05-04 — TB-16 Atom 7 R1 Steps 3+4 — fresh real-LLM arena runs + TB-11 writer-pattern bug fix (commits `05e3e86` + `d1c1af2`)
 
 **Path B-final Steps 3 + 4** per RECURSIVE_AUDIT_TB_16_2026-05-04.md.
