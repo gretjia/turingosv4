@@ -2680,6 +2680,67 @@ async fn run_swarm(
                                                 error!("[chaintape/atom3-omega-pertactic] FAIL-CLOSED: VerifyTx submit_typed_tx: {e:?}");
                                                 std::process::exit(3);
                                             }
+
+                                            // TB-16 Atom 7 R1 Step 3 (architect §7.3 FR-16.3 +
+                                            // CR-16.3..7) — pertactic OMEGA path. Same logic as
+                                            // atom3-omega path: TURINGOS_FORCE_CHALLENGER ⇒ submit
+                                            // adversarial ChallengeTx between VerifyTx commit and
+                                            // FinalizeReward emit.
+                                            if let Ok(challenger) = std::env::var("TURINGOS_FORCE_CHALLENGER") {
+                                                if !challenger.is_empty() && challenger.as_str() != agent_id.as_str() {
+                                                    let pre_chall_root = match bundle.sequencer.q_snapshot() {
+                                                        Ok(q) => q.state_root_t,
+                                                        Err(_) => post_work_root,
+                                                    };
+                                                    if let Err(e) = turingosv4::runtime::adapter::tb8_await_state_root_advance(
+                                                        &bundle.sequencer, pre_chall_root, 5000,
+                                                    ).await {
+                                                        warn!("[chaintape/tb16-arena-pertactic] await for VerifyTx commit failed: {e:?}");
+                                                    }
+                                                    let post_verify_root = match bundle.sequencer.q_snapshot() {
+                                                        Ok(q) => q.state_root_t,
+                                                        Err(_) => pre_chall_root,
+                                                    };
+                                                    let challenge_tx = {
+                                                        let mut reg_guard = match reg.lock() {
+                                                            Ok(g) => g,
+                                                            Err(p) => p.into_inner(),
+                                                        };
+                                                        match turingosv4::runtime::adapter::make_real_challengetx_signed_by(
+                                                            &mut *reg_guard,
+                                                            post_verify_root,
+                                                            work_tx_id.clone(),
+                                                            &challenger,
+                                                            10_000,
+                                                            // Non-zero Cid required (sequencer rejects
+                                                            // empty counterexample with
+                                                            // TransitionError::EmptyCounterexample).
+                                                            // This is a procedural FR-16.3 fence trip;
+                                                            // the actual proof-failure-counterexample is
+                                                            // out-of-scope for TB-16 audit smoke.
+                                                            turingosv4::bottom_white::cas::schema::Cid::from_content(
+                                                                b"tb16-arena-counterexample-stub"
+                                                            ),
+                                                            &format!("{suffix}-arena-chall-pertactic"),
+                                                            logical_t.saturating_add(1),
+                                                        ) {
+                                                            Ok(tx) => Some(tx),
+                                                            Err(e) => {
+                                                                warn!("[chaintape/tb16-arena-pertactic] make_real_challengetx failed: {e}");
+                                                                None
+                                                            }
+                                                        }
+                                                    };
+                                                    if let Some(ctx) = challenge_tx {
+                                                        if let Err(e) = bus.submit_typed_tx(ctx).await {
+                                                            warn!("[chaintape/tb16-arena-pertactic] ChallengeTx submit failed: {e:?}");
+                                                        } else {
+                                                            info!("[chaintape/tb16-arena-pertactic] adversarial ChallengeTx submitted by {challenger} against work_tx={work_tx_id:?}");
+                                                        }
+                                                    }
+                                                }
+                                            }
+
                                             // TB-8 Atom 4 — emit FinalizeReward (per-tactic OMEGA path).
                                             // Best-effort poll-then-emit per zero-window MVP.
                                             if let Some(vid) = verify_tx_id.clone() {

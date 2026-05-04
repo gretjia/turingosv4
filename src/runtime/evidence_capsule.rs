@@ -269,24 +269,54 @@ pub fn write_evidence_capsule(
         privacy_policy: privacy,
         sha256: crate::state::q_state::Hash::ZERO,
     };
-    let prelim_bytes = canonical_encode(&capsule)
-        .map_err(|e| CapsuleWriteError::Encode(format!("capsule prelim encode: {e:?}")))?;
-    let capsule_cid = Cid::from_content(&prelim_bytes);
-    capsule.capsule_id = capsule_cid;
-    capsule.sha256 = crate::state::q_state::Hash(capsule_cid.0);
-
-    // Step 4: write the canonical-encoded capsule (with capsule_id +
-    // sha256 filled in) to CAS as the EvidenceCapsule object.
-    let final_bytes = canonical_encode(&capsule)
-        .map_err(|e| CapsuleWriteError::Encode(format!("capsule final encode: {e:?}")))?;
+    // TB-16 Atom 7 R1 Step 3 (architect §7.5 SG-16.6 + Codex TB-15 R2
+    // writer-pattern fix carry-forward): capsule_id MUST equal
+    // sha256(stored_bytes). Previous code stored DIFFERENT bytes (with
+    // capsule_id + sha256 fields populated) than those whose sha256 was
+    // capsule_id, breaking cas.get(capsule.capsule_id) — discovered by
+    // TB-16 Atom 7 R1 Step 4 arena run5_exhaust (TB-11 latent bug; the
+    // TB-15 R2 fix patched AgentAutopsyCapsule + MarkovEvidenceCapsule
+    // writers but missed this older EvidenceCapsule writer).
+    //
+    // Fix: store the IDENTITY-ZEROED bytes in CAS (capsule_id +
+    // sha256 = ZERO). The in-memory struct returned to the caller has
+    // capsule_id + sha256 populated; readers use
+    // restore_evidence_capsule_from_cas_bytes to reconstruct identity
+    // post-fetch. Mirrors TB-15 R2 writer pattern.
+    let stored_bytes = canonical_encode(&capsule)
+        .map_err(|e| CapsuleWriteError::Encode(format!("capsule stored-bytes encode: {e:?}")))?;
+    let capsule_cid = Cid::from_content(&stored_bytes);
     let _ = cas_w.put(
-        &final_bytes,
+        &stored_bytes,
         ObjectType::EvidenceCapsule,
         creator_str,
         created_at_logical_t,
         Some("v1/evidence_capsule".into()),
     )?;
+    // Populate identity fields on the returned struct (the on-disk bytes
+    // remain the zeroed-identity form; capsule.capsule_id is the Cid of
+    // those stored bytes).
+    capsule.capsule_id = capsule_cid;
+    capsule.sha256 = crate::state::q_state::Hash(capsule_cid.0);
 
+    Ok(capsule)
+}
+
+/// TRACE_MATRIX TB-16 Atom 7 R1 Step 3 (architect §7.5 SG-16.6 carry-
+/// forward of TB-15 R2 writer-pattern fix): reconstruct an
+/// `EvidenceCapsule` from CAS-stored bytes (which have capsule_id +
+/// sha256 = ZERO). Caller supplies the Cid that was returned by
+/// `write_evidence_capsule`; this helper reads CAS, decodes, and
+/// re-populates capsule_id + sha256 from the Cid.
+pub fn restore_evidence_capsule_from_cas_bytes(
+    bytes: &[u8],
+) -> Result<EvidenceCapsule, CapsuleWriteError> {
+    use crate::bottom_white::ledger::transition_ledger::canonical_decode;
+    let mut capsule: EvidenceCapsule = canonical_decode(bytes)
+        .map_err(|e| CapsuleWriteError::Encode(format!("capsule decode: {e:?}")))?;
+    let cid = Cid::from_content(bytes);
+    capsule.capsule_id = cid;
+    capsule.sha256 = crate::state::q_state::Hash(cid.0);
     Ok(capsule)
 }
 
