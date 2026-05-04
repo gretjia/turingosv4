@@ -535,13 +535,37 @@ fn is_agent_tx_kind(k: TxKind) -> bool {
     !is_system_tx_kind(k) && !matches!(k, TxKind::Reuse)
 }
 
+/// TRACE_MATRIX TB-16 Atom 7 R1 (Codex Q1/V2 VETO closure 2026-05-04):
+/// canonical sandbox-prefix discriminator. Returns true iff the agent
+/// id matches a sandbox-only naming pattern; non-matching ids are
+/// treated as production-pattern (Layer A #3 HALT).
+///
+/// **Architect §7.4 CR-16.5 + §7.6 forbidden ("no production user funds")**:
+/// the sandbox preseed in `runtime::bootstrap::default_pput_preseed_pairs`
+/// uses these exact patterns. Any agent id outside this list is by
+/// definition non-sandbox and must trip Layer A #3.
 fn sandbox_prefix(agent: &str) -> bool {
-    agent.starts_with("Agent_solver_")
+    // Documented patterns
+    if agent.starts_with("Agent_solver_")
         || agent.starts_with("Agent_verifier_")
         || agent.starts_with("Agent_user_")
         || agent == "tb7-7-sponsor"
         || agent.starts_with("tb16-")
         || agent == "system"
+    {
+        return true;
+    }
+    // `default_pput_preseed_pairs()` produces "Agent_0".."Agent_9". These
+    // are the ACTUAL sandbox-preseed solver IDs used by every chain-backed
+    // smoke from TB-7R onward. Codex TB-16 R1 V2 VETO caught this gap —
+    // sandbox_prefix excluded them, causing every chain-backed fixture to
+    // HALT Layer A #3 spuriously.
+    if let Some(rest) = agent.strip_prefix("Agent_") {
+        if rest.len() <= 3 && rest.chars().all(|c| c.is_ascii_digit()) {
+            return true;
+        }
+    }
+    false
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -1017,24 +1041,17 @@ pub fn assert_16_replay_idempotent_across_calls(t: &LoadedTape) -> AssertionResu
 // Layer D — economic invariants (6 assertions)
 // ─────────────────────────────────────────────────────────────────────
 
+/// TRACE_MATRIX TB-16 Atom 7 R1 (Codex Q3/V6 VETO closure): use the
+/// PRODUCTION conservation sum directly (`monetary_invariant::total_supply_micro`)
+/// instead of inlining a list of holdings. Eliminates the second
+/// source-of-truth that previously drifted (omitted
+/// `challenge_cases_t.bond`, causing audit to say "conserved" when
+/// production fails its own invariant).
 fn replayed_total_supply_micro(q: &QState) -> i128 {
-    let mut total: i128 = 0;
-    for (_, mc) in &q.economic_state_t.balances_t.0 {
-        total += mc.micro_units() as i128;
-    }
-    for (_, e) in &q.economic_state_t.escrows_t.0 {
-        total += e.amount.micro_units() as i128;
-    }
-    for (_, s) in &q.economic_state_t.stakes_t.0 {
-        total += s.amount.micro_units() as i128;
-    }
-    for (_, mc) in &q.economic_state_t.conditional_collateral_t.0 {
-        total += mc.micro_units() as i128;
-    }
-    total
+    crate::economy::monetary_invariant::total_supply_micro(&q.economic_state_t)
+        .map(|v| v as i128)
+        .unwrap_or(i128::MIN) // overflow → unmistakable mismatch with GENESIS_TOTAL_MICRO
 }
-
-const GENESIS_TOTAL_MICRO: i128 = 30_000_000;
 
 /// TRACE_MATRIX FC1-N34 + FC2-N31 (TB-16 audit-from-tape battery).
 pub fn assert_17_no_post_init_mint(t: &LoadedTape) -> AssertionResult {
@@ -1067,15 +1084,22 @@ pub fn assert_18_total_supply_conserved(t: &LoadedTape) -> AssertionResult {
             );
         }
     };
-    let total = replayed_total_supply_micro(q);
-    if total == GENESIS_TOTAL_MICRO {
+    // TRACE_MATRIX TB-16 Atom 7 R1 (architect §7.4 CR-16.1 fix +
+    // monetary_invariant equivalence): conservation is FINAL == INITIAL,
+    // not FINAL == hardcoded constant. Different chains may bootstrap
+    // with different preseeds (TB-8 test fixtures use 20M; TB-7R uses
+    // 30M); the audit must compare to the chain's own initial state.
+    let initial_total = replayed_total_supply_micro(&t.initial_q);
+    let final_total = replayed_total_supply_micro(q);
+    if initial_total == final_total {
         AssertionResult::pass(18, "total_supply_conserved", AssertionLayer::D)
     } else {
         AssertionResult::halt(
             18,
             "total_supply_conserved",
             AssertionLayer::D,
-            format!("total={total}μC; expected={GENESIS_TOTAL_MICRO}μC"),
+            format!("initial={initial_total}μC; final={final_total}μC; delta={}",
+                final_total - initial_total),
         )
     }
 }
@@ -1884,33 +1908,38 @@ pub fn assert_35_markov_next_session_context_resolves(t: &LoadedTape) -> Asserti
 // Layer H — tamper detection (3 assertions; exercised via separate binary)
 // ─────────────────────────────────────────────────────────────────────
 
-/// TRACE_MATRIX FC1-N34 + FC2-N31 (TB-16 audit-from-tape battery).
+/// TRACE_MATRIX FC1-N35 (TB-16 audit_tape_tamper binary; Atom 7 R1
+/// Gemini Q11 closure: assertions #36-#38 belong to FC1-N35, not
+/// FC1-N34 — they are exercised by the audit_tape_tamper binary, not
+/// audit_tape).
 pub fn assert_36_tamper_l4_flip_detected() -> AssertionResult {
     AssertionResult::skipped(
         36,
         "tamper_l4_flip_detected",
         AssertionLayer::H,
-        "exercised by audit_tape_tamper binary (Atom 3)".into(),
+        "exercised by audit_tape_tamper binary (Atom 3; FC1-N35)".into(),
     )
 }
 
-/// TRACE_MATRIX FC1-N34 + FC2-N31 (TB-16 audit-from-tape battery).
+/// TRACE_MATRIX FC1-N35 (TB-16 audit_tape_tamper binary; Atom 7 R1
+/// Gemini Q11 closure).
 pub fn assert_37_tamper_cas_flip_detected() -> AssertionResult {
     AssertionResult::skipped(
         37,
         "tamper_cas_flip_detected",
         AssertionLayer::H,
-        "exercised by audit_tape_tamper binary (Atom 3)".into(),
+        "exercised by audit_tape_tamper binary (Atom 3; FC1-N35)".into(),
     )
 }
 
-/// TRACE_MATRIX FC1-N34 + FC2-N31 (TB-16 audit-from-tape battery).
+/// TRACE_MATRIX FC1-N35 (TB-16 audit_tape_tamper binary; Atom 7 R1
+/// Gemini Q11 closure).
 pub fn assert_38_tamper_l4_remove_detected() -> AssertionResult {
     AssertionResult::skipped(
         38,
         "tamper_l4_remove_detected",
         AssertionLayer::H,
-        "exercised by audit_tape_tamper binary (Atom 3)".into(),
+        "exercised by audit_tape_tamper binary (Atom 3; FC1-N35)".into(),
     )
 }
 

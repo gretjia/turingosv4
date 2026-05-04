@@ -182,9 +182,26 @@ MAX_TRANSACTIONS="$MAX_TX" \
   --task-mode user \
   --problem mathd_algebra_171 \
   --max-transactions "$MAX_TX" \
-  || { echo "✗ Task A evaluator failed (continue to next task)"; }
+  || { echo "✗ Task A evaluator failed" >&2; exit 1; }
 
 # (Task B-F would follow same pattern; deferred to evaluator extensions.)
+
+# Per Codex TB-16 R1 V4 VETO closure (2026-05-04): ship-gate
+# enforcement — no `|| true` masking of audit failures. If any audit
+# pipeline step fails, the script exits non-zero. CONTINUE_ON_ERROR=1
+# overrides for diagnostic-only runs.
+CONTINUE_ON_ERROR="${CONTINUE_ON_ERROR:-0}"
+maybe_continue() {
+  local rc=$?
+  if [[ $rc -ne 0 ]]; then
+    if [[ "$CONTINUE_ON_ERROR" == "1" ]]; then
+      echo "⚠ step exited $rc; CONTINUE_ON_ERROR=1 → continuing for diagnostics" >&2
+      return 0
+    fi
+    echo "✗ step exited $rc (set CONTINUE_ON_ERROR=1 to bypass for diagnostics)" >&2
+    exit $rc
+  fi
+}
 
 # ── Step 5: Run audit_tape over the produced tape ───────────────────
 echo "▶ Step 5/8: audit_tape over Task A tape..."
@@ -197,7 +214,8 @@ echo "▶ Step 5/8: audit_tape over Task A tape..."
   --constitution constitution.md \
   --markov-pointer handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt \
   --alignment-dir handover/alignment \
-  --out "$OUT_DIR/verdict.json" || true
+  --out "$OUT_DIR/verdict.json"
+maybe_continue
 
 # ── Step 6: audit_tape_tamper ───────────────────────────────────────
 echo "▶ Step 6/8: audit_tape_tamper (3-corruption smoke)..."
@@ -211,24 +229,38 @@ echo "▶ Step 6/8: audit_tape_tamper (3-corruption smoke)..."
   --markov-pointer handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt \
   --alignment-dir handover/alignment \
   --tamper-dir "$OUT_DIR/tamper" \
-  --out "$OUT_DIR/tamper_report.json" || true
+  --out "$OUT_DIR/tamper_report.json"
+maybe_continue
 
 # ── Step 7: generate_markov_capsule ─────────────────────────────────
-echo "▶ Step 7/8: generate_markov_capsule (TB-16)..."
+# Per Gemini TB-16 R1 V7 VETO closure (2026-05-04): chain TB-16 capsule
+# to the prior TB-15 head when LATEST_MARKOV_CAPSULE.txt is present —
+# CR-15.5 evidence-compression-not-isolated-island invariant.
+PREV_CID_ARGS=()
+if [[ -f handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt ]]; then
+  PREV_CID="$(tr -d '[:space:]' < handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt)"
+  if [[ -n "$PREV_CID" ]]; then
+    PREV_CID_ARGS=(--prev-cid-hex "$PREV_CID")
+  fi
+fi
+echo "▶ Step 7/8: generate_markov_capsule (TB-16; prev=${PREV_CID:-none})..."
 "$GEN_MARKOV_BIN" \
   --tb-id 16 \
   --out-dir "$OUT_DIR" \
   --constitution-path constitution.md \
   --runtime-repo "$TASK_A_DIR/runtime_repo" \
   --cas-dir "$TASK_A_DIR/cas" \
-  --alignment-dir handover/alignment || true
+  --alignment-dir handover/alignment \
+  "${PREV_CID_ARGS[@]}"
+maybe_continue
 
 # ── Step 8: audit_dashboard ─────────────────────────────────────────
 echo "▶ Step 8/8: audit_dashboard..."
 "$AUDIT_DASHBOARD_BIN" \
   --repo "$TASK_A_DIR/runtime_repo" \
   --cas "$TASK_A_DIR/cas" \
-  --out "$OUT_DIR/dashboard.txt" || true
+  --out "$OUT_DIR/dashboard.txt"
+maybe_continue
 
 # ── Replay determinism check ────────────────────────────────────────
 echo "▶ Replay determinism: re-running audit_tape..."
@@ -241,9 +273,10 @@ echo "▶ Replay determinism: re-running audit_tape..."
   --constitution constitution.md \
   --markov-pointer handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt \
   --alignment-dir handover/alignment \
-  --out "$OUT_DIR/verdict_replay.json" || true
+  --out "$OUT_DIR/verdict_replay.json"
+maybe_continue
 
-# ── Final summary ───────────────────────────────────────────────────
+# ── Final summary + ship-gate enforcement ───────────────────────────
 echo ""
 echo "═══════════════════════════════════════════════════════════════════"
 echo "TB-16 ARENA RUN COMPLETE"
@@ -254,14 +287,36 @@ echo "Verdict        : $OUT_DIR/verdict.json"
 echo "Verdict replay : $OUT_DIR/verdict_replay.json"
 echo "Tamper report  : $OUT_DIR/tamper_report.json"
 echo "Dashboard      : $OUT_DIR/dashboard.txt"
+
+# Ship-gate aggregator (Codex TB-16 R1 V4 closure): the script's exit
+# code MUST reflect ship-gate verdict. Any failure → non-zero exit.
+gate_failed=0
 if [[ -f "$OUT_DIR/verdict.json" && -f "$OUT_DIR/verdict_replay.json" ]]; then
   V1=$(grep -o '"verdict": *"[^"]*"' "$OUT_DIR/verdict.json" | head -1)
   V2=$(grep -o '"verdict": *"[^"]*"' "$OUT_DIR/verdict_replay.json" | head -1)
   echo "Verdict-1      : $V1"
   echo "Verdict-2      : $V2"
+  if [[ "$V1" != *"PROCEED"* ]]; then
+    echo "Ship-gate      : ✗ verdict-1 != PROCEED"
+    gate_failed=1
+  fi
+  if [[ "$V2" != *"PROCEED"* ]]; then
+    echo "Ship-gate      : ✗ verdict-2 != PROCEED"
+    gate_failed=1
+  fi
   if cmp -s "$OUT_DIR/verdict.json" "$OUT_DIR/verdict_replay.json"; then
     echo "Replay         : ✓ byte-identical"
   else
-    echo "Replay         : ✗ DIVERGED (HALT)"
+    echo "Replay         : ✗ DIVERGED"
+    gate_failed=1
   fi
+else
+  echo "Ship-gate      : ✗ verdict.json or verdict_replay.json missing"
+  gate_failed=1
 fi
+
+if [[ "$CONTINUE_ON_ERROR" == "1" ]]; then
+  echo "Note           : CONTINUE_ON_ERROR=1; ignoring ship-gate verdict"
+  exit 0
+fi
+exit $gate_failed

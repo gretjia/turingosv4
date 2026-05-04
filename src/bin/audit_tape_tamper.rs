@@ -201,71 +201,98 @@ fn make_writable(path: &Path) -> std::io::Result<()> {
     std::fs::set_permissions(path, perms)
 }
 
+/// TRACE_MATRIX TB-16 Atom 7 R1 (Codex Q7/V5 closure 2026-05-04):
+/// destructively corrupt the largest loose object in `.git/objects/`.
+/// Single-byte flip was insufficient — zlib partial recovery + git2
+/// pack-vs-loose redundancy meant the verdict would still PROCEED.
+/// Overwriting half the bytes with zeros guarantees zlib decode failure
+/// → git2 walk_parent error → replay BLOCK.
 fn flip_byte_in_first_blob(repo: &Path) -> Result<String, String> {
-    // Walk the .git/objects/ tree; pick the first non-empty file; flip
-    // a random byte. This corrupts a Git2 object — likely an L4 commit
-    // tree or blob. The auditor's verify-side will detect via failed
-    // canonical_decode / Cid mismatch / hash chain break.
     let objects = repo.join(".git").join("objects");
-    let mut victim: Option<PathBuf> = None;
-    fn walk(dir: &Path, victim: &mut Option<PathBuf>) -> std::io::Result<()> {
+    let mut largest: Option<(PathBuf, u64)> = None;
+    fn walk(dir: &Path, largest: &mut Option<(PathBuf, u64)>) -> std::io::Result<()> {
         for entry in std::fs::read_dir(dir)? {
             let e = entry?;
             let p = e.path();
             if p.is_dir() {
-                walk(&p, victim)?;
-            } else if victim.is_none() {
+                // Skip pack/info subdirs; only target loose objects in xx/yyyy...
+                let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
+                if name == "pack" || name == "info" {
+                    continue;
+                }
+                walk(&p, largest)?;
+            } else {
                 let len = std::fs::metadata(&p).map(|m| m.len()).unwrap_or(0);
-                if len > 0 {
-                    *victim = Some(p);
-                    return Ok(());
+                if largest.as_ref().map(|(_, n)| *n).unwrap_or(0) < len {
+                    *largest = Some((p, len));
                 }
             }
         }
         Ok(())
     }
-    walk(&objects, &mut victim).map_err(|e| format!("walk: {e}"))?;
-    let victim = victim.ok_or("no objects to corrupt")?;
-    let bytes = std::fs::read(&victim).map_err(|e| format!("read victim: {e}"))?;
-    let mut bytes = bytes;
+    walk(&objects, &mut largest).map_err(|e| format!("walk: {e}"))?;
+    let (victim, len) = largest.ok_or("no loose objects to corrupt")?;
+    let mut bytes = std::fs::read(&victim).map_err(|e| format!("read victim: {e}"))?;
     if bytes.is_empty() {
         return Err("empty victim".into());
     }
-    let idx = bytes.len() / 2;
-    bytes[idx] ^= 0xFF;
+    // Overwrite the back half with zero bytes — guarantees zlib decode
+    // fails (compressed streams have framing in the early bytes, but
+    // mid-stream corruption is reliably detected by inflate).
+    let start = bytes.len() / 2;
+    for b in &mut bytes[start..] {
+        *b = 0;
+    }
     make_writable(&victim).map_err(|e| format!("chmod victim: {e}"))?;
     std::fs::write(&victim, bytes).map_err(|e| format!("write tampered: {e}"))?;
-    Ok(format!("flipped byte {idx} in {victim:?}"))
+    Ok(format!(
+        "destructively zeroed back half ({} bytes) of largest loose object {:?}",
+        len / 2,
+        victim
+    ))
 }
 
+/// TRACE_MATRIX TB-16 Atom 7 R1 (Codex Q7/V5 closure 2026-05-04):
+/// destructively corrupt the largest CAS loose object. Same rationale
+/// as flip_byte_in_first_blob — single-byte flip is recoverable;
+/// zeroing the back half guarantees Cid mismatch + zlib failure on read.
 fn flip_byte_in_first_cas_object(cas: &Path) -> Result<String, String> {
     let objects = cas.join(".git").join("objects");
     let dir = if objects.exists() { objects } else { cas.to_path_buf() };
-    let mut victim: Option<PathBuf> = None;
-    fn walk(dir: &Path, victim: &mut Option<PathBuf>) -> std::io::Result<()> {
+    let mut largest: Option<(PathBuf, u64)> = None;
+    fn walk(dir: &Path, largest: &mut Option<(PathBuf, u64)>) -> std::io::Result<()> {
         for entry in std::fs::read_dir(dir)? {
             let e = entry?;
             let p = e.path();
             if p.is_dir() {
-                walk(&p, victim)?;
-            } else if victim.is_none() {
+                let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
+                if name == "pack" || name == "info" {
+                    continue;
+                }
+                walk(&p, largest)?;
+            } else {
                 let len = std::fs::metadata(&p).map(|m| m.len()).unwrap_or(0);
-                if len > 32 {
-                    *victim = Some(p);
-                    return Ok(());
+                if len > 32 && largest.as_ref().map(|(_, n)| *n).unwrap_or(0) < len {
+                    *largest = Some((p, len));
                 }
             }
         }
         Ok(())
     }
-    walk(&dir, &mut victim).map_err(|e| format!("walk: {e}"))?;
-    let victim = victim.ok_or("no CAS objects to corrupt")?;
+    walk(&dir, &mut largest).map_err(|e| format!("walk: {e}"))?;
+    let (victim, len) = largest.ok_or("no CAS objects to corrupt")?;
     let mut bytes = std::fs::read(&victim).map_err(|e| format!("read victim: {e}"))?;
-    let idx = bytes.len() / 2;
-    bytes[idx] ^= 0xFF;
+    let start = bytes.len() / 2;
+    for b in &mut bytes[start..] {
+        *b = 0;
+    }
     make_writable(&victim).map_err(|e| format!("chmod victim: {e}"))?;
     std::fs::write(&victim, bytes).map_err(|e| format!("write tampered: {e}"))?;
-    Ok(format!("flipped byte {idx} in {victim:?}"))
+    Ok(format!(
+        "destructively zeroed back half ({} bytes) of largest CAS object {:?}",
+        len / 2,
+        victim
+    ))
 }
 
 fn corrupt_l4_truncate_ref(repo: &Path) -> Result<String, String> {
@@ -318,6 +345,42 @@ fn run_tamper(
             };
         }
     };
+
+    // TRACE_MATRIX TB-16 Atom 7 R1 (Codex Q7/V5 VETO closure):
+    // pre-tamper baseline check. The forked tape must verify
+    // PROCEED on the UNTAMPERED copy first; otherwise any post-
+    // tamper BLOCK could be the SAME pre-existing halt (e.g.
+    // upstream evidence gap), giving false-positive detection.
+    let pre_tamper = match run_audit(args, &runtime, &cas) {
+        Ok(v) => v,
+        Err(e) => {
+            return TamperReport {
+                schema_version: "v1/audit_tape_tamper".into(),
+                label: label.into(),
+                detected: false,
+                detail: format!(
+                    "pre-tamper baseline audit failed (cannot validate \
+                     fence efficacy on a tape that's already broken): {e}"
+                ),
+                verdict: None,
+            };
+        }
+    };
+    if pre_tamper.verdict != "PROCEED" {
+        return TamperReport {
+            schema_version: "v1/audit_tape_tamper".into(),
+            label: label.into(),
+            detected: false,
+            detail: format!(
+                "pre-tamper baseline verdict={} (not PROCEED); cannot \
+                 prove tamper-fence efficacy on a tape that already \
+                 BLOCKs. Use a tape with a clean PROCEED baseline.",
+                pre_tamper.verdict
+            ),
+            verdict: Some(pre_tamper),
+        };
+    }
+
     let detail = match apply(&runtime, &cas) {
         Ok(d) => d,
         Err(e) => {
@@ -332,12 +395,16 @@ fn run_tamper(
     };
     let verdict_res = run_audit(args, &runtime, &cas);
     let (detected, verdict) = match verdict_res {
+        // TRACE_MATRIX TB-16 Atom 7 R1 (V5 closure): true detection ONLY when
+        // pre-tamper was PROCEED AND post-tamper is BLOCK. The pre-tamper
+        // check above guarantees pre==PROCEED at this point.
         Ok(v) => (v.verdict == "BLOCK", Some(v)),
         Err(e) => (true, {
-            // Audit refused to load the tape at all; that itself counts
-            // as detection (the binary can't proceed past corruption).
-            // Emit a synthetic verdict for traceability.
-            eprintln!("audit_tape_tamper: load itself failed for `{label}` → counted as detected ({e})");
+            // Audit refused to load the tape at all post-tamper; that
+            // itself counts as detection (the binary can't proceed past
+            // corruption — pre-tamper succeeded so this is a tamper-
+            // induced load failure, not a pre-existing defect).
+            eprintln!("audit_tape_tamper: load itself failed for `{label}` post-tamper → counted as detected ({e})");
             None
         }),
     };

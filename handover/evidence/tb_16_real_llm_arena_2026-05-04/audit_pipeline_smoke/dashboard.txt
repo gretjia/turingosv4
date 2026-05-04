@@ -1,17 +1,17 @@
 =================================================================
- TB-8 Audit Dashboard — run_id=tb13-smoke epoch=1
+ TB-8 Audit Dashboard — run_id=tb8-single_n1_mathd_algebra_171 epoch=1
 =================================================================
 
 §1 Run metadata
 ---------------
-  head_commit_oid: 38f1b3957834052aac42169598f92016d756c331
-  final_state_root: 1a4e9793b1dedf7d83808b85f875e4cb3e3c900dd03e1d6000f1f51a6bbde2b9
-  final_ledger_root: 93b4432adc5e49cc6b976e4eb182c4d9da9bb5050e8122b5697eb3d9d1fe28fb
+  head_commit_oid: b79fe9e457062bec432e18beb6a83d9b59c8f5a4
+  final_state_root: 98d4542d56354f04521a309a2f7a00c816bc11524a43d3be30100b81268c35bc
+  final_ledger_root: 405d5c5827c5836f8326d5eb481e148a5dcd4003436758078036696df60dc321
   initial_q_state_loaded_from_disk: true
 
 §2 Chain stats + 7 indicators
 ------------------------------
-  L4 entries:  3
+  L4 entries:  5
   L4.E entries: 2
   ledger_root_verified              : ✓
   system_signatures_verified        : ✓
@@ -26,22 +26,23 @@
 ---------------------------------------------
   solved                  : false
   verified                : false
-  tx_count                : 5
-  proposal_count          : 1
-  golden_path_token_count : 0
-  gp_payload (CID hex)    : -
-  gp_path                 : -
-  tactic_diversity        : 0
+  tx_count                : 7
+  proposal_count          : 2
+  golden_path_token_count : 471
+  gp_payload (CID hex)    : c31a0bc9b117842e3df8081fbfd0140aec26e2752ea7e92882d76f365865ae83
+  gp_path                 : step_complete
+  tactic_diversity        : 1
   failed_branch_count     : 2
-  chain_oracle_verified   : false (no oracle-verified WorkTx)
+  chain_oracle_verified   : true ✓ (Lean accepted ≥1 proof; oracle-level)
   chain_economic_finalized: false (always false in TB-7; settlement = TB-9 territory)
   tool_dist:
-    (empty)
+    step_complete: 1
 
 §4 Per-agent activity
 ---------------------
   agent_id          | pubkey | Work✓ | Work✗ | Verify✓ | Verify✗
   ------------------+--------+-------+-------+---------+--------
+  Agent_0           | ✓      | 1     | 0     | 1       | 0
   tb6-smoke-agent   | ✗      | 0     | 1     | 0       | 0
   tb6-smoke-sponsor | ✗      | 0     | 0     | 0       | 0
 
@@ -53,22 +54,26 @@
   L4.E  |   0 | Work            | tb6-smoke-agent | -          | -          | -      | PolicyViolation
   L4    |   1 | TaskOpen        | tb7-7-sponsor | -          | -          | -      | -
   L4    |   2 | EscrowLock      | tb7-7-sponsor | -          | -          | -      | -
-  L4    |   3 | TerminalSummary | -          | -          | -          | -      | -
+  L4    |   3 | Work            | Agent_0    | step_complete | Agent_0.b1 | ✓      | -
+        payload: calc ⏎   f 1 = 5 * 1 + 4 := by rw [h₀] ⏎   _ = 5 + 4 := by ring ⏎   _ = 9 := by norm_n
+  L4    |   4 | Verify          | Agent_0    | -          | -          | -      | -
+  L4    |   5 | FinalizeReward  | system (solver=Agent_0) | -          | -          | -      | -
 
 §6 Branch lineage (parent_tx → child_tx via ProposalTelemetry.parent_tx)
 ------------------------------------------------------------------------
-  parent_tx_state: NoMultiAttemptObserved (DAG not exercised this run — conformance test demonstrates plumbing)
+  parent_tx_state: SingletonGoldenPathValid (B′ singleton solve — parent_tx=None correct; conformance test demonstrates plumbing)
   edges: (none — see parent_tx_state above for interpretation)
 
 §7 Golden path (root → oracle-verified WorkTx)
 ------------------------------------------------
-  (no oracle-verified WorkTx on chain — chain_oracle_verified=false)
+  ✓depth=0  [ORACLE] | agent=Agent_0 | tactic=step_complete | tx=worktx-task-n1_mathd_algebra_171_1777725205138-omega-pertactic-1
+           payload: calc ⏎   f 1 = 5 * 1 + 4 := by rw [h₀] ⏎   _ = 5 + 4 := by ring ⏎   _ = 9 := by norm_n
 
 §8 Cross-checks
 ---------------
   audit_trail_rows         : 2
-  chain_proposal_count     : 1
-  audit_rows == proposal_count: ✗ (gap)
+  chain_proposal_count     : 2
+  audit_rows == proposal_count: ✓
   audit_trail_chain_valid     : ✓
   (Note: pre-TB-7.6 the agent_audit_trail.jsonl is populated only
    by the synthetic-seed hook; full per-LLM-proposal audit-trail
@@ -76,16 +81,20 @@
 
 §9 TB-8 Claims (claim_status + payout_amount)
 ----------------------------------------------
-  (no Confirm-VerifyTx observed; n/a — claim_status / payout: n/a)
+  claim_id                          | task_id        | solver        | status     | payout_micro | created@t | finalized@t
+  ----------------------------------+----------------+---------------+------------+--------------+-----------+------------
+  claim-verifytx-Agent_0-omega-per… | task-n1_mathd… | Agent_0       | Finalized  |       100000 |         4 | 5
+
+  Aggregate: 1 claims observed | 0 Open | 1 Finalized | total_payout = 100000 micro
 
 §10 TB-9 Durable identity (agent keystore registry)
 ---------------------------------------------------
   durable_keystore_path: /home/zephryj/.turingos/keystore/agent_keystore.enc
   durable_keystore_present: ✓ (cross-run identity available)
-  agents_in_manifest: 0
+  agents_in_manifest: 1
   agent_id          | pubkey_in_manifest | tape_activity
   ------------------+--------------------+---------------
-  (no agents with manifest pubkey on this run)
+  Agent_0           | ✓ (durable-backed) | Work✓=1 Work✗=0 Verify✓=1 Verify✗=0
 
   Note: cross-run identity is empirically observable by
   comparing this run's `agent_pubkeys.json` to a sibling run
@@ -101,10 +110,7 @@
 
 §12 TB-11 Epistemic Exhaust + Capital Liberation (architect §6.2; 2026-05-02)
 ------------------------------------------------------------------------------
-  Exhausted runs (RunExhaustedTx ≡ TerminalSummaryTx):
-    run_id         | task_id            | outcome         | attempts | evidence_capsule_cid (hex)
-    ---------------+--------------------+-----------------+----------+--------------------------------
-    n1_mathd_alge… | task-n1_mathd_alg… | MaxTxExhausted  |       10 | d2b329ee554da3e2dea1d46ecca1bf1…
+  (no TerminalSummary L4 entries — no runs have been anchored as exhausted/completed yet)
 
   Architect mandate (§6.2 ruling 2026-05-02) ✓:
     O(1) chain cost / O(N) auditability — failure evidence anchored on L4
@@ -113,7 +119,11 @@
 
 §13 TB-12 Node exposure records (architect 2026-05-03 §3 + §10)
 ------------------------------------------------------------------------------
-  (no NodePosition records — no accepted WorkTx/ChallengeTx with stake>0 on this chaintape)
+  NodePosition exposure records (immutable; NOT Coin holdings; NOT in total_supply):
+    position_id      | node_id          | side  | kind            | owner          | amount_micro | @round
+    -----------------+------------------+-------+-----------------+----------------+--------------+--------
+    worktx-task-n1_… | worktx-task-n1_… | Long  | FirstLong       | Agent_0        |         1000 |      2
+    ─── Total Long: 1000 micro | Total Short: 0 micro | exposure rows: 1 ───
 
   Architect mandate (§3 + §10 ruling 2026-05-03) ✓:
     NodePosition is an IMMUTABLE EXPOSURE RECORD, NOT active position balance.
@@ -132,11 +142,16 @@
     absolute bounds; the price view is for relative-effectiveness
     measurement only.
 
-  (no node positions recorded — price index is empty)
-  Acceptable signal-state: a run with zero accepted WorkTx +
-  ChallengeTx yields an empty PriceIndex by FR-14.3 / halt-
-  trigger #5 (zero-liquidity → price=None) extended to the
-  zero-position case.
+  Per-node entries (price as integer-rational n/d, never decimal):
+
+    node_id                               long_micro     short_micro    price_yes(n/d)     price_no(n/d)
+    --------------------------------------------------------------------------------------------------
+    worktx-task-n1_mathd_algebra_17…            1000               0         1000/1000            0/1000
+
+  Architect mandate (§5.1 ruling 2026-05-03) ✓:
+    Price is signal, not truth. NodeMarketEntry is a derived view —
+    NOT canonical state. NO trading. NO automatic liquidity. NO AMM.
+    NO price-based settlement. NO Goodhart leak of private predicates.
 
 §15 TB-15 Autopsy + Markov (architect 2026-05-02 §6.5 SG-15.6)
 --------------------------------------------------------------

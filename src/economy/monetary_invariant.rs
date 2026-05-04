@@ -171,7 +171,15 @@ impl std::error::Error for MonetaryError {}
 /// `NotYetImplemented`); removing it from the sum changes nothing for
 /// historical L4 replay (forward-only schema migration per
 /// `feedback_no_retroactive_evidence_rewrite`).
-fn total_supply_micro(s: &EconomicState) -> Result<i64, MonetaryError> {
+/// TRACE_MATRIX TB-16 Atom 7 R1 (Codex Q3/V6 VETO closure): exposed
+/// production conservation sum for use by `runtime::audit_assertions`
+/// (Layer D #18). Audit MUST call this directly to stay
+/// production-equivalent — inlining the holding list created a
+/// second source-of-truth that drifted (audit omitted
+/// `challenge_cases_t.bond` while production included it; audit could
+/// say "conserved" when production fails). No second source-of-truth
+/// per architect §5.1 reasoning.
+pub fn total_supply_micro(s: &EconomicState) -> Result<i64, MonetaryError> {
     let mut total: i64 = 0;
     for v in s.balances_t.0.values() {
         total = total.checked_add(v.micro_units()).ok_or(MonetaryError::Overflow)?;
