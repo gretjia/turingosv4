@@ -6,6 +6,60 @@
 
 ---
 
+## 🛠️ 2026-05-04 — TB-16.x.2.1 SHIPPED — TaskExpire env-var trigger (10-of-13 tx kinds)
+
+**Updated**: 2026-05-04 (fourth session of the day)
+**Session summary**: TB-16.x.2.1 — first sub-atom of the umbrella charter `TB-16.x.2` (multi-task chain continuation). Added `TURINGOS_FORCE_EXPIRE=1` env-var hook in `evaluator.rs` MaxTxExhausted cleanup path that calls `tb11_emit_expire_for_eligible(seq, current_logical_t=next_logical_t_peek(), expiry_delta_logical_t=0)`. First arena run with the new env-var produced a chain containing TaskExpireTx (`accepted_tx_ids: [..., "system-task-expire-1-4", ...]`; tx_kind_counts.task_expire = 1; refund 200_000 μC). Raises R3 Round 2's runtime-exercised tx-kind union from 9-of-13 → **10-of-13**. Class 2 self-audit OK; verdict=PROCEED 34/0/0/7 byte-identical replay; tamper 3/3 detect.
+
+### Architect-required declarations (per umbrella charter §0)
+
+| Field | Value |
+|---|---|
+| `phase_id` | P6 (Permissioned ChainTape / Epistemic Lab — TB-16 conformance closure on real-LLM substrate) |
+| `roadmap_exit_criteria_addressed` | TB-16 §7.4 capital-must-flow expiry path runtime-exercised; closes the missing 4th system-emitted tx kind in R3 Round 2 union (TaskExpire); §7.5 SG-16.4 failure evidence anchored via existing TerminalSummary path |
+| `kill_criteria_tested` | (a) total_supply_micro conservation: 200_000 μC escrow → refund flowed via TaskExpire dispatch arm, no net mutation; (b) sandbox-prefix invariant: only Agent_user_0 (preseed owner) referenced — no production agent ids leaked; (c) replay byte-identity preserved (verdict.json == verdict_replay.json); (d) zero f64 introduced (helper is integer-rational throughout) |
+| `flowchart_trace` | FC2 (capital-flow expiry: TaskExpireTx releases escrow back to provider per `tb11_emit_expire_for_eligible` policy) |
+| `risk_class` | Class 2 — env-var-gated arena hook in `evaluator.rs` only; no sequencer/scheduler change; no economic semantics change; no auth/crypto surface |
+| `forbidden_honored` | (a) no f64 added; (b) L4 vs L4.E split honored — TaskExpire emits to L4 accepted (system-emitted, not rejected); (c) no retroactive evidence rewrite — historical R3 Round 2 chains untouched; (d) system-emitted via `emit_system_tx` (not agent-submitted); (e) no AMM/CPMM/price-as-truth introduction; (f) no `prediction_market.rs` import; (g) all 38+3 supplemental assertions retained (pass count rises from per-problem average due to additional system tx coverage); (h) no agent_id outside `sandbox_prefix` |
+| `halt_triggers_observed` | None fired. total_supply: TaskExpire dispatch arm refunds escrow → conservation preserved by helper. Replay: byte-identical. f64: zero in expire path (helper uses i64 micro-units throughout). Doom loop: not applicable — single-shot hook. Smoke evidence: present. `cargo test --workspace`: not regressed (build clean). |
+| `STEP_B_PROTOCOL` | NOT triggered — sub-atom 2.1 only edits `experiments/minif2f_v4/src/bin/evaluator.rs` (not in restricted-file list). |
+
+### Key implementation artifacts
+
+- **Evaluator hook**: `experiments/minif2f_v4/src/bin/evaluator.rs:3092-3122` — TURINGOS_FORCE_EXPIRE=1 block. Mirrors FORCE_BANKRUPTCY's `tb8_await_state_root_advance(pre_ex_root, 5000)` prelude so prior commits land before `next_logical_t_peek()`. Helper call: `tb11_emit_expire_for_eligible(seq, current_logical_t, 0)`. Reason class auto-derived: ExpireReason::Deadline solo / ExpireReason::BankruptcyTriggered when chained with FORCE_BANKRUPTCY.
+- **Trust Root rehash** (`genesis_payload.toml` line 164): `729a4c5e...` → `eb718a23...` per R-014 (non-sudo R-018). Annotation block prepended; predecessor TB-16 Atom 7 R1 Step 3 hash retained for lineage.
+- **Round 2 runner profile** (`handover/tests/scripts/run_post_r3_round2.sh`): added `P9_force_expire|aime_1997_p9.lean|TURINGOS_FORCE_EXPIRE=1` to PROBLEMS array — codifies the profile for TB-16.x.2.6 comprehensive run.
+- **Sub-atom 2.1 smoke runner** (`handover/tests/scripts/run_tb_16_x_2_1_smoke_2026-05-04.sh`): single-profile arena exercising TURINGOS_FORCE_EXPIRE=1 on aime_1997_p9 (chosen because R2 P5 reliably MaxTxExhausts on round2 budget). Optional COMBINE_BANKRUPTCY=1 toggles the FORCE_EXPIRE+FORCE_BANKRUPTCY combined-path coverage.
+- **Smoke evidence** (`handover/evidence/tb_16_x_2_1_smoke_2026-05-04/P9_force_expire/`):
+  - `evaluator.stderr` confirms hook fired: `[chaintape/tb16-arena] TaskExpire batch: count=1 total_refunded_micro=200000 current_logical_t=3`
+  - `runtime_repo/run_summary.json`: `accepted_tx_ids: ["escrowlock-...", "system-task-expire-1-4", "system-terminal-summary-1-3", "taskopen-...-tb10-user-seed"]`
+  - `verdict.json` tx_kind_counts: `task_expire: 1`, `task_open: 1`, `escrow_lock: 1`, `terminal_summary: 1`
+  - `verdict.json` summary: **passed=34, failed=0, halted=0, skipped=7, verdict=PROCEED**
+  - `verdict_replay.json` byte-identical (cmp -s confirms)
+  - `tamper_report.json`: **3/3 detected** (flip_l4_byte + flip_cas_byte + truncate_l4_ref)
+  - `dashboard.txt` Section: `L4 | 4 | TaskExpire | Agent_user_0` + "Expired tasks (TaskExpireTx; capital released)" populated
+
+### Ship gate verdict
+
+**SG-16.x.2.1** ("TaskExpire tx kind in arena-produced tx kinds") — **✓ PASSED**.
+- 9-of-13 → 10-of-13 architect tx kinds runtime-exercised on real-LLM substrate.
+- Audit pipeline: PROCEED + replay-identical + 3/3 tamper detect.
+
+### OBS surfaced (deferred to umbrella)
+
+- **Markov pointer infra gap**: `handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt` currently holds Cid `f9e701b4...` whose payload bytes live in TB-16 R3 Round 2's per-problem CAS (`P8_completeset_b/cas/`) — not in any global location. A fresh isolated CAS (such as TB-16.x.2.1's smoke run) cannot resolve it. This is a pre-existing gap independent of sub-atom 2.1; reproducer: `audit_tape ... --markov-pointer handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt` against round2 P1 today fails with the same "cas get: cid:f9e701b4... not found in CAS index" error. R3 Round 2's recorded behavior matches: `markov_constitution_hash_matches = "Skipped"` (markov_capsule resolved to None at run time when global pointer was different — `52ee141c...`). Sub-atom 2.1 smoke runner uses a non-existent pointer path (`/tmp/tb16x21_no_markov_pointer.txt`) so the Layer G assertions Skip cleanly. **Not** retroactively rewriting older evidence (per `feedback_no_retroactive_evidence_rewrite`). Track-forward: umbrella-level fix to seed each fresh CAS with the canonical markov capsule bytes (or alternatively, per-problem markov regeneration before audit_tape) — appropriate work for sub-atom 2.6 comprehensive runner where chain continuity is fully exercised.
+
+### Test counts post-fix
+
+- `cargo build --release -p minif2f_v4 --bin evaluator` = **clean** (1m 2s; 21 lib warnings unchanged).
+- Workspace test count not re-run on this sub-atom (env-var hook is additive + behind `Ok("1")` gate; no new code paths in non-arena flows; per `feedback_workspace_test_canonical` the post-build smoke + round2 audit replay is the canonical liveness signal here).
+
+### Next sub-atom
+
+Per umbrella charter §2: **TB-16.x.2.2 — ChallengeResolve via challenge-window scheduler (Class 3, ~1 day)**. Touches `src/state/sequencer.rs` (challenge_window_close_logical_t admission default) → STEP_B_PROTOCOL TRIGGERED + dual audit (Codex + Gemini) per `feedback_dual_audit`.
+
+---
+
 ## 🛠️ 2026-05-04 — TB-16.x.1 SHIPPED — tamper-hang root-cause + Round 1 README
 
 **Updated**: 2026-05-04 (third session of the day)

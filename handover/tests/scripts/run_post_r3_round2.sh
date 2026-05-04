@@ -45,6 +45,12 @@ PROBLEMS=(
   "P6_triple_probe|mathd_algebra_171.lean|TURINGOS_FORCE_CHALLENGER=Agent_3 TURINGOS_COMPLETE_SET_SEED=Agent_user_0:1000000"
   "P7_baseline_b|mathd_algebra_67.lean|"
   "P8_completeset_b|amc12b_2020_p5.lean|TURINGOS_COMPLETE_SET_SEED=Agent_user_0:1500000"
+  # TB-16.x.2.1 (umbrella charter §2 Atom 2.1): TURINGOS_FORCE_EXPIRE=1 fires
+  # tb11_emit_expire_for_eligible(expiry_delta=0) at run cleanup so every
+  # Open/Bankrupt task emits TaskExpireTx (Deadline reason solo;
+  # BankruptcyTriggered when chained with FORCE_BANKRUPTCY). aime_1997_p9
+  # selected because it reliably MaxTxExhausts on the round2 budget per R2 P5.
+  "P9_force_expire|aime_1997_p9.lean|TURINGOS_FORCE_EXPIRE=1"
 )
 
 START_TS=$(date +%s)

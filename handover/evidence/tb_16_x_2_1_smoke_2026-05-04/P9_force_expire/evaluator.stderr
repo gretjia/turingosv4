@@ -1,0 +1,41 @@
+[2026-05-04T14:05:09Z INFO  evaluator] Problem: aime_1997_p9.lean | Condition: n5 | Model: deepseek-v4-flash | Mode: full
+[2026-05-04T14:05:09Z INFO  evaluator] [chaintape/d3] pre-seed enabled (TB-10 factory): 12 entries
+[2026-05-04T14:05:10Z INFO  evaluator] [chaintape] bus wired with Sequencer + on-disk ChainTape at "handover/evidence/tb_16_x_2_1_smoke_2026-05-04/P9_force_expire/runtime_repo"
+[2026-05-04T14:05:10Z INFO  evaluator] [chaintape/tb10] user-mode TaskOpen for task-n5_aime_1997_p9_1777903509799 sponsor=Agent_user_0
+[2026-05-04T14:05:10Z INFO  evaluator] [chaintape/tb10] user-mode EscrowLock 200000 micro for task-n5_aime_1997_p9_1777903509799 sponsor=Agent_user_0
+[2026-05-04T14:05:10Z INFO  evaluator] [chaintape] seeded synthetic TaskOpen for smoke-n5_aime_1997_p9_1777903509799
+[2026-05-04T14:05:10Z INFO  evaluator] [chaintape] seeded synthetic zero-stake WorkTx (synthetic_rejection_for_l4e_gate=true) for smoke-n5_aime_1997_p9_1777903509799
+[2026-05-04T14:05:10Z INFO  evaluator] [chaintape] Atom 5 audit-trail records written to CAS + indexed for smoke-n5_aime_1997_p9_1777903509799
+[2026-05-04T14:05:10Z INFO  evaluator] [chaintape/d_c] genesis_report.json written to "handover/evidence/tb_16_x_2_1_smoke_2026-05-04/P9_force_expire/runtime_repo"
+[2026-05-04T14:05:10Z INFO  evaluator] [swarm/n5] agent_models = [deepseek-v4-flash,deepseek-v4-flash,deepseek-v4-flash,deepseek-v4-flash,deepseek-v4-flash] (label=deepseek-v4-flash)
+[2026-05-04T14:05:10Z INFO  evaluator] [budget] regime=total_proposal base=20 effective_max_tx=20 (n_agents=5)
+[2026-05-04T14:05:10Z INFO  evaluator] [swarm/n5] Agent_0:skill0:t=0.20 Agent_1:skill1:t=0.20 Agent_2:skill2:t=0.20 Agent_3:skill0:t=0.20 Agent_4:skill1:t=0.20
+[2026-05-04T14:07:28Z WARN  evaluator] [tx 0] step rejected (err:other): lean_timeout
+[2026-05-04T14:08:20Z WARN  evaluator] [tx 1] step rejected (err:tactic_other): <stdin>:15:15: error: Tactic `rcases` failed: `h₀ : Real.lt✝ 0 a` is not an inductive datatype
+[2026-05-04T14:08:22Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-04T14:08:22Z WARN  evaluator] [tx 2] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-04T14:08:33Z INFO  evaluator] [tx 3] Agent_3 step+tx_0_by_Agent_3 partial OK (depth=1)
+[2026-05-04T14:08:43Z WARN  evaluator] [tx 4] step rejected (err:tactic_linarith): hard_error_with_unsolved: <stdin>:16:66: error: linarith failed to find a contradiction
+[2026-05-04T14:08:54Z WARN  evaluator] [tx 5] step rejected (err:tactic_linarith): <stdin>:16:0: error: linarith failed to find a contradiction
+[2026-05-04T14:09:05Z WARN  evaluator] [tx 6] step rejected (err:tactic_linarith): hard_error_with_unsolved: <stdin>:17:2: error: linarith failed to find a contradiction
+[2026-05-04T14:09:15Z WARN  evaluator] [tx 7] step rejected (err:tactic_simp_noprog): <stdin>:16:0: error: field_simp made no progress at h₁
+[2026-05-04T14:09:26Z WARN  evaluator] [tx 8] step rejected (err:tactic_linarith): <stdin>:16:0: error: linarith failed to find a contradiction
+[2026-05-04T14:09:36Z WARN  evaluator] [tx 9] step rejected (err:tactic_simp_noprog): <stdin>:16:0: error: field_simp made no progress at h₁
+[2026-05-04T14:09:45Z WARN  evaluator] [tx 10] step rejected (err:tactic_linarith): <stdin>:16:0: error: linarith failed to find a contradiction
+[2026-05-04T14:09:55Z WARN  evaluator] [tx 11] step rejected (err:tactic_simp_noprog): <stdin>:16:0: error: field_simp made no progress at h₁
+[2026-05-04T14:10:06Z WARN  evaluator] [tx 12] step rejected (err:tactic_simp_noprog): <stdin>:16:0: error: field_simp made no progress at h₁
+[2026-05-04T14:10:16Z WARN  evaluator] [tx 13] step rejected (err:tactic_simp_noprog): <stdin>:16:0: error: field_simp made no progress at h₁
+[2026-05-04T14:10:27Z INFO  evaluator] [tx 14] Agent_4 step+tx_1_by_Agent_4 partial OK (depth=2)
+[2026-05-04T14:10:35Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-04T14:10:35Z WARN  evaluator] [tx 15] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-04T14:10:46Z WARN  evaluator] [tx 16] step rejected (err:type_mismatch): hard_error_with_unsolved: <stdin>:17:74: error: Type mismatch
+[2026-05-04T14:11:33Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-04T14:11:33Z WARN  evaluator] [tx 17] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-04T14:11:45Z INFO  evaluator] [tx 18] Agent_3 step+tx_2_by_Agent_3 partial OK (depth=3)
+[2026-05-04T14:12:00Z WARN  evaluator] [tx 19] step rejected (err:tactic_linarith): hard_error_with_unsolved: <stdin>:18:34: error: failed to synthesize | <stdin>:22:34: error: linarith failed to find a contradiction | <stdin>:23:35: error: linarith failed to find a contradiction
+[v2-emit] SPLIT env unset; defaulting to 'adaptation' (Phase B convention; pre-registration requires SPLIT for Phase C+ ablation runs)
+[2026-05-04T14:12:00Z INFO  evaluator] [tb11] EvidenceCapsule written: capsule_id=742784ec0f991fca531a43e1f383171beabcd05407a0593690144fb67c6a06a9 compressed_log_cid=aee2c1401dbc610a5996fda0d35323024cac5d69acf6c4f05a666bacbd2978aa attempt_count=20
+[2026-05-04T14:12:00Z INFO  evaluator] [tb11] TerminalSummary emitted: emit_id=1
+[2026-05-04T14:12:00Z INFO  evaluator] [chaintape/tb16-arena] TaskExpire batch: count=1 total_refunded_micro=200000 current_logical_t=3
+[2026-05-04T14:12:00Z INFO  evaluator] [chaintape] Atom 6 RunSummary written (4 L4 + 2 L4.E entries; 4 accepted_tx_ids, 2 rejected_tx_ids)
+[2026-05-04T14:12:00Z INFO  evaluator] PPUT = 0 (no golden path in 411.0s, 20 tx)

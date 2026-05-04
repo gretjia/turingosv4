@@ -3089,6 +3089,45 @@ async fn run_swarm(
                                     ),
                                 }
                             }
+
+                            // TB-16.x.2.1 (architect umbrella charter
+                            // 2026-05-04 §2 Atom 2.1; FC2-N? capital-must-flow
+                            // expiry path): TURINGOS_FORCE_EXPIRE=1 mode.
+                            // After MaxTxExhausted run cleanup (parallel to
+                            // FORCE_BANKRUPTCY), call
+                            // tb11_emit_expire_for_eligible with
+                            // expiry_delta_logical_t=0 so every Open/Bankrupt
+                            // task that has advanced past its TaskOpen
+                            // logical_t is eligible. Reason class is derived
+                            // from market state per the helper's policy:
+                            // ExpireReason::Deadline for Open,
+                            // ExpireReason::BankruptcyTriggered when
+                            // FORCE_BANKRUPTCY also fired (closes the missing
+                            // 4th system-emitted tx kind in the R3 Round 2
+                            // chain — raises 9-of-13 → 10-of-13).
+                            if std::env::var("TURINGOS_FORCE_EXPIRE").as_deref() == Ok("1") {
+                                let pre_ex_root = match bundle.sequencer.q_snapshot() {
+                                    Ok(q) => q.state_root_t,
+                                    Err(_) => turingosv4::state::q_state::Hash::ZERO,
+                                };
+                                if let Err(e) = turingosv4::runtime::adapter::tb8_await_state_root_advance(
+                                    bundle.sequencer.as_ref(), pre_ex_root, 5000,
+                                ).await {
+                                    warn!("[chaintape/tb16-arena] await for prior commit (pre-expire) failed: {e:?}");
+                                }
+                                let current_logical_t = bundle.sequencer.next_logical_t_peek();
+                                match turingosv4::runtime::adapter::tb11_emit_expire_for_eligible(
+                                    bundle.sequencer.as_ref(), current_logical_t, 0,
+                                ).await {
+                                    Ok((count, total_micro)) => info!(
+                                        "[chaintape/tb16-arena] TaskExpire batch: count={} total_refunded_micro={} current_logical_t={}",
+                                        count, total_micro, current_logical_t
+                                    ),
+                                    Err(e) => warn!(
+                                        "[chaintape/tb16-arena] TaskExpire batch failed: {e:?}"
+                                    ),
+                                }
+                            }
                         }
                         Err(e) => warn!("[tb11] EvidenceCapsule write failed: {e:?}"),
                     }
