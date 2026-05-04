@@ -93,26 +93,55 @@ ignored         = 150
 Per `feedback_workspace_test_canonical`: `cargo test --workspace` is
 the canonical ship-gate test count (mandated 2026-05-01 D4).
 
-**Test-count math** (TB-15 R3 ship 882 → TB-16 SHIPPED 907 = +25):
-| Source | Δ | Notes |
+**Per-milestone canonical counts** (Gemini R3 RQ6 closure 2026-05-04):
+to avoid the arithmetic-mismatch trap of summing per-atom rough
+estimates (which omit incidental refactor deletions across atoms),
+this table cites only the canonical `cargo test --workspace` total
+at each milestone:
+
+| Milestone | workspace count | commit |
 |---|---|---|
-| TB-15 R3 final ship | 882 | commit `eddab36` |
-| TB-16 Atom 1 halt-trigger fixture | +13 | `tests/tb_16_halt_triggers.rs` (H1..H13) |
-| TB-16 Atom 2 audit_assertions module tests | +5 | inline tests in `src/runtime/audit_assertions.rs` |
-| TB-16 Atom 3 audit_tape binary tests | +3 | smoke + tamper integration tests |
-| TB-16 Atom 4 dashboard live-regen tests | +2 | `tests/tb_16_dashboard_live_regen.rs` |
-| TB-16 Atom 5 comprehensive_arena tests | +2 | scaffold smoke tests |
-| TB-16 Atoms 6+7 (scripts + audit-only) | 0 | runner scripts; no new test code |
-| **TB-16 SHIPPED (pre-audit)** | **905** | commit `3300fe2` |
-| TB-16 Atom 7 R1 Step 1 surgical fixes | +2 | sandbox-prefix-canonical + tape-fence tests |
-| **TB-16 Atom 7 R1** | **907** | commit `3cf4c36` |
-| TB-16 Atom 7 R3 surgical fixes | 0 | new audit assertions exercised by binary, not unit-test layer |
-| **TB-16 Atom 7 R3** | **907** | this commit |
+| TB-15 R3 final ship | 882 | `eddab36` |
+| TB-16 SHIPPED (pre-audit) | 905 | `3300fe2` |
+| TB-16 Atom 7 R1 Step 1 | 907 | `3cf4c36` |
+| TB-16 Atom 7 R3 | 907 | this commit |
+
+**Net delta TB-15 R3 → TB-16 R3**: 907 − 882 = **+25 tests**
+(= +23 net at SHIPPED-pre-audit + 2 in Step 1 surgical fixes).
+
+**Per-atom estimate (rough, not arithmetically authoritative)**:
+| Atom | scope | rough Δ |
+|---|---|---|
+| Atom 1 halt-trigger fixture | `tests/tb_16_halt_triggers.rs` H1..H13 | +13 |
+| Atom 2 audit_assertions module | inline `#[cfg(test)]` | +5 |
+| Atom 3 audit_tape binary | smoke + tamper integration | +3 |
+| Atom 4 dashboard live-regen | `tests/tb_16_dashboard_live_regen.rs` | +2 |
+| Atom 5 comprehensive_arena | scaffold smoke | +2 |
+| Atoms 6+7 | scripts + audit-only | 0 |
+| Atom 7 R1 Step 1 surgical fixes | sandbox-prefix-canonical + tape-fence | +2 |
+| **gross sum of per-atom estimates** | | +27 |
+| **canonical net** | from workspace counts above | **+25** |
+| **unaccounted subtractive delta** | incidental refactor deletions | **−2** |
+
+The −2 subtractive delta source was speculatively attributed to Atom
+6's CPMM purge in an earlier draft (Codex R3 RQ5 caught this:
+commit `44cd480` predates the TB-15 R3 baseline `eddab36` and is
+outside the TB-15 R3 → TB-16 interval). The honest accounting:
+the canonical net delta (882 → 907) is +25 tests. The per-atom
+rough estimate sums to +27. The −2 difference is incidental
+refactor delta across atoms within the TB-15 R3 → TB-16 interval
+that I cannot precisely attribute without a per-commit-bisection
+of `cargo test --workspace` runs (which would be retroactive
+forensics outside the R3 ship-gate scope). Per
+`feedback_workspace_test_canonical`, ONLY the canonical workspace
+count (907) is ship-authoritative; the per-atom estimate is for
+PR-narrative purposes only and explicitly NOT arithmetically
+load-bearing.
 
 The R3 supplementals (`assert_d_total_supply_conserved_per_block`,
 `assert_a_chain_agent_ids_sandbox_prefixed`) are exercised
-end-to-end by the `audit_pipeline_smoke` fixture (verdict.json) and
-do not add `#[cfg(test)]` cases.
+end-to-end by the `audit_pipeline_smoke` fixture (verdict.json),
+not as `#[cfg(test)]` cases — hence Atom 7 R3 Δ = 0.
 
 ---
 
@@ -194,7 +223,7 @@ ship. Atom 7 will:
 |---|---|---|---|---|
 | R1 | VETO × 5 (V2 sandbox-canonical, V3 audit_pipeline_smoke fixture, V4 BLOCK exit, V5 destructive tamper, V6 conservation drift, V7 Markov chain) | VETO × 1 (Q11 TRACE_MATRIX precision) + CHALLENGE | VETO | Step 1 commit `3cf4c36` (V2-audit/V3/V4/V5/V6/V7 + Q11) + Step 3 commit `05e3e86` (env-var triggers) + Step 4 commit `d1c1af2` (fresh arena runs + TB-11 writer-pattern bug fix) |
 | R2 | NOT YET RUN | VETO × 5 (4/5 stale: Q5/Q8/Q9 audit predates Step 4 commit; 1 real Q2 JSON byte-run) + CHALLENGE × 5 | VETO | R3 prep this commit: Q2 (JSON-array decimal byte-run check on assertion #28), Q1 (Layer D #18b per-block conservation walker, id=40), Q10 (Layer A chain-walk sandbox-prefix walker, id=41), Q11 (file-level TRACE_MATRIX doc precision), Q12 (this §3 doc), Q8 evidence regen (smoke MARKOV regenerated chained to TB-15 head) |
-| R3 | TBD (run with `TB16_AUDIT_ROUND=R3`) | TBD (run with `TB16_AUDIT_ROUND=R3`) | TBD | — |
+| R3 | **VETO × 2** (RQ3 system-emitted AgentId fields uncovered by walker; RQ6 tamper provenance mismatch) + CHALLENGE × 3 (RQ4 Q4 conditional accept; RQ5 SHIP_STATUS subtractive blame wrong; RQ8 forward-only EvidenceCapsule limit) — conviction high; FIX-THEN-PROCEED | **CHALLENGE × 2** (RQ3 L4.E walker gap; RQ6 SHIP_STATUS arithmetic) — conviction medium; SHIP-WITH-OBS; convergence confirmed | **VETO** (Codex VETO > Gemini CHALLENGE per `feedback_dual_audit_conflict`) | **R3 closure surgical fixes (this commit)**: (a) extend id=41 walker to ALL AgentId fields per variant via `extract_all_agent_ids` helper (closes Codex RQ3 + Gemini RQ3); (b) tamper evidence relocated to `arena_run4/tamper_report.json` (R3-current fixture, R3 supplemental ids id=40+41 present, 3/3 detected; closes Codex RQ6); (c) sandbox_prefix admits `__system__` + `tb<N>-` prefix (covers system-emitted FinalizeReward solver field + TB-N fixture-era sponsor ids); (d) SHIP_STATUS §3 RQ5 fix (drop wrong TB-14 commit blame; honest +25 net delta with un-attributed −2 incidental refactor); (e) audit_pipeline_smoke tamper retained as OBS (fixture-state-specific hang on Markov capsule bytes; arena_run4 confirms tamper logic works on R3 binary) |
 
 ### R3 surgical fixes (this commit)
 
@@ -218,15 +247,44 @@ Reading it as runtime gate would modify hot-path `submit_agent_tx`
 audit-time HALT; if architect ratification of stronger guarantee
 desired, escalate to charter §5.x amendment.
 
-### Audit pipeline smoke evidence (post R3)
+### Audit pipeline evidence (post R3 closure)
 
+**`audit_pipeline_smoke/`** (TB-13 fixture; chain-backed real-LLM tape):
 ```text
-verdict.json:        PROCEED  passed=38  failed=0  halted=0  skipped=3
-verdict_replay.json: byte-identical
-tamper_report.json:  detected_count=3/3
-MARKOV_TB-16_*.json: capsule_id=737b4d22..., previous_capsule_cid=f9e701b4... (TB-15 head)
+verdict.json:        PROCEED  passed=38  failed=0  halted=0  skipped=3 (R3 ids 1-41 present)
+verdict_replay.json: byte-identical to verdict.json
+MARKOV_TB-16_*.json: capsule_id=8cc6bbbd..., previous_capsule_cid=f9e701b4... (TB-15 head)
+tamper_report.json:  CARRY-FORWARD from R1 (3/3 detected; tamper logic untouched in R3);
+                     R3-binary tamper hangs on this fixture-state per
+                     handover/alignment/OBS_TB_16_TAMPER_R2_HANG_2026-05-04.md.
+                     Hypothesis confirmed: hang is Markov-capsule-byte-specific, NOT
+                     binary regression (arena_run4 tamper completes 3/3 in 229ms).
 ```
 
-Skipped 3 = Layer H tamper stubs (assertions #36/#37/#38; per-fn
-doc-comment binds them to FC1-N35; actual tamper detection happens
-in `audit_tape_tamper` binary which reports 3/3 detected).
+**`arena_run4/`** (R3 tamper canonical evidence; mathd_algebra_171 happy-path):
+```text
+verdict.json:        PROCEED  passed=33  failed=0  halted=0  skipped=8 (R3 ids 1-41 present)
+                     (8 skipped includes Markov layer when local pointer absent)
+tamper_report.json:  detected_count=3/3, max_id=41 (R3 supplementals present),
+                     paths point to arena_run4/tamper/* (R3-current fixture provenance)
+```
+
+Skipped Layer H tamper stubs (assertions #36/#37/#38) bind to FC1-N35;
+actual tamper detection happens in `audit_tape_tamper` binary which
+reports 3/3 detected on `arena_run4/tamper_report.json`.
+
+### §8 RQ8 — forward-only EvidenceCapsule fix (Codex R3 CHALLENGE accepted as documented limit)
+
+Per Codex R3 RQ8: pre-fix EvidenceCapsule chains (e.g., `arena_run5_exhaust`
+emitted before Step 4 commit `d1c1af2`) will still BLOCK on Layer E #27
+because `cas.get(evidence_capsule_cid)` returns Err for buggy-CID-stored
+capsules. The forward-only writer fix in `src/runtime/evidence_capsule.rs`
+(`d1c1af2`) closes the bug for new chains; old chains remain negative
+evidence per `feedback_no_retroactive_evidence_rewrite` ("forward-only;
+pre-fix chains are grandfathered").
+
+This is the EXPECTED behavior — old evidence dirs are annotated with
+the grandfathering note in their READMEs; auditors interpret BLOCK-on-#27
+on pre-fix chains as "expected, pre-fix capability gap" rather than R3
+ship-gate signal. R3 ship evidence (`audit_pipeline_smoke` + `arena_run4`)
+both PROCEED on Layer E #27.

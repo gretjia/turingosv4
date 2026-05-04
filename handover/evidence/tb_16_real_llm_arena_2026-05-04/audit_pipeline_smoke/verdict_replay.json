@@ -5,7 +5,7 @@
     "l4e_count": 2,
     "head_state_root_hex": "98d4542d56354f04521a309a2f7a00c816bc11524a43d3be30100b81268c35bc",
     "head_ledger_root_hex": "405d5c5827c5836f8326d5eb481e148a5dcd4003436758078036696df60dc321",
-    "cas_object_count": 16,
+    "cas_object_count": 17,
     "constitution_hash_hex": "eec695459c71fbef3685583485deb431fe3b561657b2f285b7c5e7e220e59e03"
   },
   "tx_kind_counts": {

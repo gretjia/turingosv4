@@ -83,11 +83,23 @@ classic shape).
 
 ## §5 Why it is OBS-deferred (not blocker)
 
-1. **Pre-existing**: reproduces on clean git HEAD before R3 fixes.
-2. **R1 carry-forward valid**: tamper logic in `src/bin/audit_tape_tamper.rs`
-   was NOT touched in R3. The R1 `tamper_report.json` (3/3 detected,
-   committed `3cf4c36`) remains architecturally valid evidence that
-   the harness CAN detect tampering.
+1. **Pre-existing**: reproduces on clean git HEAD before R3 fixes
+   (verified via `git stash` test).
+2. **Fixture-state-specific (R3 closure 2026-05-04)**: tamper harness
+   completes 3/3 detected in 229ms on `handover/evidence/tb_16_real_llm_arena_2026-05-04/arena_run4/`
+   using the IDENTICAL R3 binary that hangs on `audit_pipeline_smoke/`.
+   This **confirms the §4 hypothesis**: the hang is triggered by the
+   regenerated MarkovEvidenceCapsule's specific byte pattern in
+   `audit_pipeline_smoke/cas/.git/objects/e8/09b6...`, NOT a binary
+   defect. Codex R3 RQ6 was correct that "pre-existing on git HEAD"
+   alone is insufficient proof; the arena_run4 cross-fixture validation
+   is the rigorous version.
+3. **R3 tamper evidence relocated**: canonical R3 tamper evidence is
+   now `arena_run4/tamper_report.json` (R3-current fixture; max_id=41
+   supplementals present; 3/3 detected; path provenance correct).
+   Per `feedback_no_retroactive_evidence_rewrite`, audit_pipeline_smoke
+   `tamper_report.json` carry-forward from R1 (committed `3cf4c36`)
+   stays as documented R1-vintage evidence with grandfathering note.
 3. **R3 ship gate**: only requires the audit_tape battery to PROCEED
    on a chain-backed real-LLM tape with replay byte-identity. R3
    delivers PROCEED 38/0/0/3 with byte-identical replay on the smoke

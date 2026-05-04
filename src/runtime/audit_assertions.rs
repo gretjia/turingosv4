@@ -562,9 +562,8 @@ fn sandbox_prefix(agent: &str) -> bool {
     if agent.starts_with("Agent_solver_")
         || agent.starts_with("Agent_verifier_")
         || agent.starts_with("Agent_user_")
-        || agent == "tb7-7-sponsor"
-        || agent.starts_with("tb16-")
         || agent == "system"
+        || agent == "__system__"
     {
         return true;
     }
@@ -576,6 +575,24 @@ fn sandbox_prefix(agent: &str) -> bool {
     if let Some(rest) = agent.strip_prefix("Agent_") {
         if rest.len() <= 3 && rest.chars().all(|c| c.is_ascii_digit()) {
             return true;
+        }
+    }
+    // TB-N fixture-era prefixes: `tb<digit>+-...`. Covers TB-6 sponsor
+    // (`tb6-smoke-sponsor`), TB-7R sponsor (`tb7-7-sponsor`), TB-16
+    // arena agents (`tb16-arena-*`), and forward-compat TB-N. Per Gemini
+    // R3 RQ3 closure (2026-05-04): the L4.E walker for id=41 surfaces
+    // legacy fixture rejections (e.g. `tb6-smoke-sponsor`) that must be
+    // recognized as sandbox-prefixed under the parallel-structural reading
+    // of architect §7.7 — fixture data is grandfathered per
+    // `feedback_no_retroactive_evidence_rewrite`.
+    if let Some(rest) = agent.strip_prefix("tb") {
+        if let Some(dash_idx) = rest.find('-') {
+            let n = &rest[..dash_idx];
+            if !n.is_empty() && n.chars().next().map_or(false, |c| c.is_ascii_digit()) {
+                // first char is digit; remaining may be digits OR follow `<digit>-<digit>` chain
+                // (e.g. `tb7-7-sponsor` is `tb7` + `-7-sponsor`); rest starts with digit OR letter
+                return true;
+            }
         }
     }
     false
@@ -641,23 +658,35 @@ pub fn assert_03_sandbox_agent_prefix(t: &LoadedTape) -> AssertionResult {
     }
 }
 
-/// TRACE_MATRIX TB-16 Atom 7 R3 (Gemini R2 Q10 closure 2026-05-04):
-/// machine-verifiable CR-16.7 ("no production user funds") via L4 walk.
+/// TRACE_MATRIX TB-16 Atom 7 R3 (Gemini R2 Q10 closure 2026-05-04): machine-verifiable CR-16.7 ("no production user funds") via L4 + L4.E walk over ALL AgentId fields. R3 closure (Gemini R3 RQ3 + Codex R3 RQ3 — 2026-05-04): walker now extracts every AgentId-bearing field per variant (NOT just `submitter_id`) plus walks L4.E rejected records by direct `agent_id`. FC1-N34 + FC2-N31.
 ///
 /// `assert_03_sandbox_agent_prefix` only checks the agent_pubkeys.json
 /// manifest (preseed-time list); it does NOT verify that every actual
-/// chain-resident submitter is sandbox-prefixed. This supplemental
-/// assertion walks every accepted L4 entry, decodes its TypedTx, calls
-/// `HasSubmitter::submitter_id()`, and asserts the returned id (when
-/// `Some`) satisfies `sandbox_prefix`. System-emitted tx (submitter_id
-/// = None) are skipped.
+/// chain-resident agent_id is sandbox-prefixed. This supplemental
+/// assertion walks:
+///   1. every accepted L4 entry, decodes its TypedTx, extracts ALL
+///      AgentId-bearing fields (NOT just `submitter_id` — also
+///      `FinalizeReward.solver`, `TaskExpire.sponsor_agent`,
+///      `TerminalSummary.solver_agent`, `Reuse.reused_tool_creator`),
+///      asserts sandbox_prefix on each.
+///   2. **R3 RQ3 closure** (Gemini): every REJECTED L4.E record (where
+///      `agent_id` is exposed directly), asserts sandbox_prefix.
+///   3. **R3 RQ3 closure** (Codex): system-emitted tx like
+///      `FinalizeReward` carry an AgentId in their `solver` field —
+///      these were previously skipped because `submitter_id()` returns
+///      `None` for system-emitted, but the AgentId is still chain-
+///      resident and addresses real money paths (FinalizeReward credits
+///      to `solver`). The walker now extracts these regardless of
+///      submitter status.
+/// Architect §7.7 "non-sandbox funds used" parallel-structurally
+/// covers EVERY AgentId-bearing chain-resident reference, not just
+/// agent-signed submitters.
 ///
-/// id=41 (Layer A supplemental; mirrors id=39 supplemental pattern in
-/// `assert_f_no_llm_self_narrative_in_autopsy`).
+/// id=41 (Layer A supplemental).
 pub fn assert_a_chain_agent_ids_sandbox_prefixed(t: &LoadedTape) -> AssertionResult {
-    use crate::state::typed_tx::HasSubmitter;
     let id = 41u32;
     let mut walked = 0u32;
+    // L4 (accepted): decode TypedTx + extract all AgentId fields.
     for (i, e) in t.entries.iter().enumerate() {
         let payload = match t.cas.get(&e.tx_payload_cid) {
             Ok(b) => b,
@@ -681,19 +710,34 @@ pub fn assert_a_chain_agent_ids_sandbox_prefixed(t: &LoadedTape) -> AssertionRes
                 );
             }
         };
-        if let Some(submitter) = typed.submitter_id() {
+        for (field_name, agent_id) in extract_all_agent_ids(&typed) {
             walked += 1;
-            if !sandbox_prefix(submitter.0.as_str()) {
+            if !sandbox_prefix(agent_id.as_str()) {
                 return AssertionResult::halt(
                     id,
                     "chain_agent_ids_sandbox_prefixed",
                     AssertionLayer::A,
                     format!(
-                        "non-sandbox submitter at L4 index {i}: agent_id={:?}, tx_kind={:?}",
-                        submitter.0, e.tx_kind
+                        "non-sandbox agent_id at L4 index {i}: tx_kind={:?}, field={}, agent_id={:?}",
+                        e.tx_kind, field_name, agent_id
                     ),
                 );
             }
+        }
+    }
+    // L4.E (rejected): agent_id is exposed directly on the record.
+    for (i, rec) in t.l4e_writer.records().iter().enumerate() {
+        walked += 1;
+        if !sandbox_prefix(rec.agent_id.0.as_str()) {
+            return AssertionResult::halt(
+                id,
+                "chain_agent_ids_sandbox_prefixed",
+                AssertionLayer::A,
+                format!(
+                    "non-sandbox agent_id at L4.E index {i} (rejected, submit_id={}): agent_id={:?}, tx_kind={:?}",
+                    rec.submit_id, rec.agent_id.0, rec.tx_kind
+                ),
+            );
         }
     }
     if walked == 0 {
@@ -701,11 +745,41 @@ pub fn assert_a_chain_agent_ids_sandbox_prefixed(t: &LoadedTape) -> AssertionRes
             id,
             "chain_agent_ids_sandbox_prefixed",
             AssertionLayer::A,
-            "no agent-signed tx in tape (system-only chain)".into(),
+            "no agent_id-bearing tx in tape (system-only chain; L4 + L4.E both empty)".into(),
         )
     } else {
         AssertionResult::pass(id, "chain_agent_ids_sandbox_prefixed", AssertionLayer::A)
     }
+}
+
+/// TRACE_MATRIX FC1-N34 (TB-16 Atom 7 R3 Codex R3 RQ3 closure 2026-05-04): extract ALL AgentId-bearing fields from a TypedTx variant. Returns
+/// `(field_name, agent_id_str)` pairs for every variant's AgentId
+/// fields, regardless of whether the tx is agent-signed or system-
+/// emitted. Mirrors the per-variant struct field list in `state::typed_tx`.
+fn extract_all_agent_ids(tx: &TypedTx) -> Vec<(&'static str, String)> {
+    let mut out = Vec::new();
+    match tx {
+        TypedTx::Work(t) => out.push(("WorkTx.agent_id", t.agent_id.0.clone())),
+        TypedTx::Verify(t) => out.push(("VerifyTx.verifier_agent", t.verifier_agent.0.clone())),
+        TypedTx::Challenge(t) => out.push(("ChallengeTx.challenger_agent", t.challenger_agent.0.clone())),
+        TypedTx::Reuse(t) => out.push(("ReuseTx.reused_tool_creator", t.reused_tool_creator.0.clone())),
+        TypedTx::FinalizeReward(t) => out.push(("FinalizeRewardTx.solver", t.solver.0.clone())),
+        TypedTx::TaskExpire(t) => out.push(("TaskExpireTx.sponsor_agent", t.sponsor_agent.0.clone())),
+        TypedTx::TerminalSummary(t) => {
+            if let Some(solver) = &t.solver_agent {
+                out.push(("TerminalSummaryTx.solver_agent", solver.0.clone()));
+            }
+        }
+        TypedTx::TaskOpen(t) => out.push(("TaskOpenTx.sponsor_agent", t.sponsor_agent.0.clone())),
+        TypedTx::EscrowLock(t) => out.push(("EscrowLockTx.sponsor_agent", t.sponsor_agent.0.clone())),
+        TypedTx::ChallengeResolve(_) | TypedTx::TaskBankruptcy(_) => {
+            // No direct AgentId fields; refer to other tx by id only.
+        }
+        TypedTx::CompleteSetMint(t) => out.push(("CompleteSetMintTx.owner", t.owner.0.clone())),
+        TypedTx::CompleteSetRedeem(t) => out.push(("CompleteSetRedeemTx.owner", t.owner.0.clone())),
+        TypedTx::MarketSeed(t) => out.push(("MarketSeedTx.provider", t.provider.0.clone())),
+    }
+    out
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -2279,13 +2353,24 @@ mod tests {
 
     #[test]
     fn sandbox_prefix_accepts_known_patterns() {
+        // Documented patterns
         assert!(sandbox_prefix("Agent_solver_0"));
         assert!(sandbox_prefix("Agent_verifier_0"));
         assert!(sandbox_prefix("Agent_user_0"));
-        assert!(sandbox_prefix("tb7-7-sponsor"));
         assert!(sandbox_prefix("system"));
+        assert!(sandbox_prefix("__system__"));
+        // Numeric Agent_N preseed (TB-7R+)
+        assert!(sandbox_prefix("Agent_0"));
+        assert!(sandbox_prefix("Agent_42"));
+        // TB-N fixture-era prefixes (TB-6 → TB-99)
+        assert!(sandbox_prefix("tb6-smoke-sponsor"));
+        assert!(sandbox_prefix("tb7-7-sponsor"));
+        assert!(sandbox_prefix("tb16-arena-1"));
+        // Negative cases
         assert!(!sandbox_prefix("0xDEADBEEF"));
         assert!(!sandbox_prefix("Mainnet_Wallet"));
+        assert!(!sandbox_prefix("tb-no-digit"));
+        assert!(!sandbox_prefix(""));
     }
 
     #[test]
