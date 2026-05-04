@@ -30,7 +30,13 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use turingosv4::bottom_white::cas::store::CasStore;
-use turingosv4::bottom_white::ledger::transition_ledger::{canonical_decode, Git2LedgerWriter, LedgerEntry, LedgerWriter, TxKind};
+use turingosv4::bottom_white::ledger::transition_ledger::{canonical_decode, replay_full_transition, Git2LedgerWriter, LedgerCasView, LedgerEntry, LedgerWriter, ReplayError, TxKind};
+use turingosv4::bottom_white::cas::schema::Cid;
+use turingosv4::bottom_white::ledger::system_keypair::{PinnedSystemPubkeys, SystemEpoch, SystemPublicKey};
+use turingosv4::runtime::PinnedPubkeyManifest;
+use turingosv4::state::q_state::QState;
+use turingosv4::top_white::predicates::registry::PredicateRegistry;
+use turingosv4::bottom_white::tools::registry::ToolRegistry;
 use turingosv4::runtime::agent_audit_trail::AgentAuditTrailIndex;
 use turingosv4::runtime::agent_keypairs::AgentPubkeyManifest;
 use turingosv4::runtime::chain_derived_run_facts::{
@@ -146,6 +152,13 @@ struct DashboardReport {
     /// None when no Markov capsule has been generated). FR-15.4 next-
     /// session bootstrap surface.
     latest_markov_capsule_cid_hex: Option<String>,
+    /// TRACE_MATRIX FC2-N33 (TB-16 Atom 4; architect §7.4 CR-16.7 +
+    /// §7.5 SG-16.8): true when ANY agent_id encountered during the L4
+    /// walk OR in the agent_pubkeys.json manifest matches a sandbox-only
+    /// prefix (Agent_solver_/Agent_verifier_/Agent_user_/tb7-7-sponsor/
+    /// tb16-). Drives §16 banner; prevents dashboard readers from
+    /// interpreting sandbox prices/positions as production signals.
+    sandbox_run: bool,
 }
 
 /// TB-12 Atom 4 (architect 2026-05-03 ruling §8 Atom 4) — per-NodePosition
@@ -951,14 +964,14 @@ fn build_report(repo: &std::path::Path, cas_path: &std::path::Path) -> Result<Da
         bankrupt_tasks: bankrupt_tasks_in_progress,
         price_index: price_index_from_exposures(&exposures_in_progress),
         exposures: exposures_in_progress,
-        // TB-15 Atom 6 — autopsy event counts derived from
-        // EconomicState.agent_autopsies_t at snapshot time. Build_report
-        // does not currently rebuild full EconomicState from the chain
-        // (TB-14 dashboard pattern is exposure-row accumulation); for v0
-        // we leave this empty + populated by future TB-16 controlled-arena
-        // wiring. Empty Vec is the SG-15.6 acceptable signal-state when
-        // no TaskBankruptcyTx has fired in the snapshot window.
-        autopsy_event_counts: Vec::new(),
+        // TB-16 Atom 4 — closes OBS_TB_15_DASHBOARD_LIVE_REGEN_TB16: live
+        // regeneration via replay_full_transition over the L4 entries.
+        // Rebuilds EconomicState from chain alone (Art.0.2 Tape Canonical;
+        // P1-Exit8 state.db deletable). Falls back to Vec::new() if
+        // replay fails (e.g. partial chain, missing CAS) — failure mode
+        // surfaces via §15 banner, not a silent zero.
+        autopsy_event_counts: rebuild_autopsy_event_counts(repo, &entries, &cas),
+        sandbox_run: detect_sandbox_run(&entries, &cas, manifest.as_ref()),
         // TB-15 Atom 6 — read latest Markov capsule pointer file if
         // present. Best-effort; None when no capsule generated yet.
         latest_markov_capsule_cid_hex: read_latest_markov_pointer(),
@@ -969,12 +982,169 @@ fn build_report(repo: &std::path::Path, cas_path: &std::path::Path) -> Result<Da
 /// `handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt` from the
 /// repo-root convention path. Returns None when the file is absent
 /// (e.g. fresh repo without TB-15 generation yet) or unreadable.
+/// TRACE_MATRIX FC2-N33 (TB-16 Atom 4; architect §7.4 CR-16.7 + §7.5
+/// SG-16.8): scan all L4 entries + agent_pubkeys manifest for any
+/// agent_id matching a sandbox-only prefix.
+fn detect_sandbox_run(
+    entries: &[LedgerEntry],
+    cas: &CasStore,
+    manifest: Option<&AgentPubkeyManifest>,
+) -> bool {
+    let is_sandbox = |id: &str| -> bool {
+        id.starts_with("Agent_solver_")
+            || id.starts_with("Agent_verifier_")
+            || id.starts_with("Agent_user_")
+            || id == "tb7-7-sponsor"
+            || id.starts_with("tb16-")
+    };
+    if let Some(m) = manifest {
+        for k in m.agents.keys() {
+            if is_sandbox(k) {
+                return true;
+            }
+        }
+    }
+    for entry in entries {
+        let payload = match cas.get(&entry.tx_payload_cid) {
+            Ok(b) => b,
+            Err(_) => continue,
+        };
+        let typed: TypedTx = match canonical_decode(&payload) {
+            Ok(t) => t,
+            Err(_) => continue,
+        };
+        let id = match &typed {
+            TypedTx::Work(w) => w.agent_id.0.clone(),
+            TypedTx::Verify(v) => v.verifier_agent.0.clone(),
+            TypedTx::Challenge(c) => c.challenger_agent.0.clone(),
+            TypedTx::TaskOpen(t) => t.sponsor_agent.0.clone(),
+            TypedTx::EscrowLock(e) => e.sponsor_agent.0.clone(),
+            TypedTx::CompleteSetMint(m) => m.owner.0.clone(),
+            TypedTx::CompleteSetRedeem(r) => r.owner.0.clone(),
+            TypedTx::MarketSeed(s) => s.provider.0.clone(),
+            _ => continue,
+        };
+        if is_sandbox(&id) {
+            return true;
+        }
+    }
+    false
+}
+
 fn read_latest_markov_pointer() -> Option<String> {
     let p = std::path::Path::new("handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt");
     if p.exists() {
         std::fs::read_to_string(p).ok().map(|s| s.trim().to_string())
     } else {
         None
+    }
+}
+
+/// TRACE_MATRIX FC2-N32 (TB-16 Atom 4; architect §7.5 SG-16.2; closes
+/// OBS_TB_15_DASHBOARD_LIVE_REGEN_TB16_2026-05-04): live regeneration of
+/// `agent_autopsies_t` event counts via `replay_full_transition` over the
+/// L4 chain. Returns `Vec<(event_id_string, cid_count)>` per architect
+/// SG-15.6 + Codex R1 Q9 closure.
+///
+/// Falls back to `Vec::new()` on any replay error (chain corruption, CAS
+/// missing, signature mismatch). The §15 render still shows a banner
+/// distinguishing "no autopsies" from "replay failed".
+fn rebuild_autopsy_event_counts(
+    repo: &std::path::Path,
+    entries: &[LedgerEntry],
+    cas: &CasStore,
+) -> Vec<(String, u32)> {
+    // Resolve pinned pubkeys from runtime_repo/pinned_pubkeys.json.
+    let pinned_path = repo.join("pinned_pubkeys.json");
+    if !pinned_path.exists() {
+        return Vec::new();
+    }
+    let pinned_text = match std::fs::read_to_string(&pinned_path) {
+        Ok(s) => s,
+        Err(_) => return Vec::new(),
+    };
+    let pinned_manifest: PinnedPubkeyManifest = match serde_json::from_str(&pinned_text) {
+        Ok(m) => m,
+        Err(_) => return Vec::new(),
+    };
+    let mut pinned = PinnedSystemPubkeys::new();
+    for entry in &pinned_manifest.pubkeys {
+        let bytes = match hex_to_bytes(&entry.pubkey_hex) {
+            Some(b) => b,
+            None => return Vec::new(),
+        };
+        let arr: [u8; 32] = match bytes.as_slice().try_into() {
+            Ok(a) => a,
+            Err(_) => return Vec::new(),
+        };
+        pinned.insert(SystemEpoch::new(entry.epoch), SystemPublicKey::from_bytes(arr));
+    }
+
+    // Initial QState (genesis or persisted snapshot).
+    let initial_q_path = repo.join("initial_q_state.json");
+    let initial_q = if initial_q_path.exists() {
+        let s = match std::fs::read_to_string(&initial_q_path) {
+            Ok(s) => s,
+            Err(_) => return Vec::new(),
+        };
+        match serde_json::from_str::<QState>(&s) {
+            Ok(q) => q,
+            Err(_) => return Vec::new(),
+        }
+    } else {
+        QState::genesis()
+    };
+
+    let predicate_registry = PredicateRegistry::new();
+    let tool_registry = ToolRegistry::new();
+    let cas_view = AuditCasRef(cas);
+    let final_q = match replay_full_transition(
+        &initial_q,
+        entries,
+        &cas_view,
+        &pinned,
+        &predicate_registry,
+        &tool_registry,
+    ) {
+        Ok(q) => q,
+        Err(_) => return Vec::new(),
+    };
+
+    let mut out: Vec<(String, u32)> = Vec::new();
+    for (event_id, cids) in &final_q.economic_state_t.agent_autopsies_t.0 {
+        out.push((event_id.0.0.clone(), cids.len() as u32));
+    }
+    out.sort_by(|a, b| a.0.cmp(&b.0));
+    out
+}
+
+fn hex_to_bytes(hex: &str) -> Option<Vec<u8>> {
+    let h = hex.trim();
+    if h.len() % 2 != 0 {
+        return None;
+    }
+    let mut out = Vec::with_capacity(h.len() / 2);
+    let mut iter = h.bytes();
+    while let (Some(a), Some(b)) = (iter.next(), iter.next()) {
+        let hi = char_hex(a)?;
+        let lo = char_hex(b)?;
+        out.push((hi << 4) | lo);
+    }
+    Some(out)
+}
+fn char_hex(b: u8) -> Option<u8> {
+    match b {
+        b'0'..=b'9' => Some(b - b'0'),
+        b'a'..=b'f' => Some(b - b'a' + 10),
+        b'A'..=b'F' => Some(b - b'A' + 10),
+        _ => None,
+    }
+}
+
+struct AuditCasRef<'a>(&'a CasStore);
+impl<'a> LedgerCasView for AuditCasRef<'a> {
+    fn get_typed_payload(&self, cid: &Cid) -> Result<Vec<u8>, ReplayError> {
+        self.0.get(cid).map_err(|_| ReplayError::CasMissing { at: 0 })
     }
 }
 
@@ -1516,6 +1686,45 @@ fn render_text(r: &DashboardReport) -> String {
         &r.autopsy_event_counts,
         r.latest_markov_capsule_cid_hex.as_deref(),
     ));
+
+    // §16 TB-16 Sandbox banner (architect 2026-05-03 §7.4 CR-16.7 +
+    // §7.5 SG-16.8). Rendered when ANY agent_id surfaced in the report
+    // matches a sandbox-only prefix (Agent_solver_*, Agent_verifier_*,
+    // Agent_user_*, tb7-7-sponsor, tb16-*). Scans per_agent +
+    // claims.solver/sponsor + user_tasks.sponsor + exhausted_runs.solver +
+    // exposures.owner so a sponsor-only chain (TaskOpen + EscrowLock +
+    // TerminalSummary, no Work) still trips the banner.
+    s.push_str(&render_section_16(r));
+
+    s
+}
+
+/// TRACE_MATRIX FC2-N33 (TB-16 Atom 4; architect §7.4 CR-16.7 + §7.5
+/// SG-16.8): SANDBOX banner render. Source-fence — emit when
+/// `report.sandbox_run` is true (computed in build_report by scanning
+/// the L4 walk + agent_pubkeys manifest); otherwise no banner.
+fn render_section_16(r: &DashboardReport) -> String {
+    if !r.sandbox_run {
+        return String::new();
+    }
+    let mut s = String::new();
+    s.push('\n');
+    s.push_str("§16 TB-16 SANDBOX BANNER (architect 2026-05-03 §7.4 CR-16.7 + §7.5 SG-16.8)\n");
+    s.push_str("==========================================================================\n");
+    s.push_str("  ⚠ SANDBOX-RUN — NOT PRODUCTION — NO REAL FUNDS\n");
+    s.push_str("    Agent IDs are sandbox-prefixed (Agent_solver_/Agent_verifier_/\n");
+    s.push_str("    Agent_user_/tb7-7-sponsor/tb16-). Total Coin sourced from\n");
+    s.push_str("    runtime::bootstrap::default_pput_preseed_pairs() (30_000_000 μC\n");
+    s.push_str("    on_init mint; assert_no_post_init_mint enforced).\n");
+    s.push_str("\n");
+    s.push_str("    Architect §7.6 forbidden:\n");
+    s.push_str("      - No public chain.\n");
+    s.push_str("      - No real-money market.\n");
+    s.push_str("      - No external domain (Lean only; no medical/legal/financial).\n");
+    s.push_str("      - No production user funds.\n");
+    s.push_str("\n");
+    s.push_str("    Prices, positions, masks, autopsies surfaced above are SIGNAL\n");
+    s.push_str("    only — never to be interpreted as real-money valuations.\n");
     s
 }
 

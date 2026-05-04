@@ -1,7 +1,7 @@
 # OBS — TB-15 dashboard §15 live regeneration deferred to TB-16
 
 **Date**: 2026-05-04 (post Codex R1 dual audit Q9 closure).
-**Status**: OBS (observation; tracked for TB-16 implementation).
+**Status**: **CLOSED 2026-05-04** by TB-16 Atom 4 (`build_report` now reconstructs `EconomicState` via `replay_full_transition` + populates `autopsy_event_counts` from `replayed_econ.agent_autopsies_t`; `rebuild_autopsy_event_counts` helper in `src/bin/audit_dashboard.rs`; verified by `tests/tb_16_dashboard_live_regen.rs`).
 **Triggered by**: Codex TB-15 R1 ship audit Q9 CHALLENGE
 (`handover/audits/CODEX_TB_15_SHIP_AUDIT_2026-05-04_R1.md`).
 
