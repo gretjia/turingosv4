@@ -30,20 +30,22 @@
 
 | ID | Requirement | Status |
 |---|---|---|
-| FR-16.1 | At least 3 agents participate | ✓ Sandbox preseed defines 8 sandbox-prefixed agents (4 solver + 1 verifier + 1 CompleteSet operator + 2 sponsors) |
-| FR-16.2 | At least one WorkTx creates FirstLongPosition | ⚠ Atom 6.1 (multi-task aggregation needed for fresh arena run; infrastructure ready) |
-| FR-16.3 | At least one ChallengeTx creates ShortPosition | ⚠ Atom 6.1 |
-| FR-16.4 | At least one CompleteSetMintTx exists | ⚠ Atom 6.1 |
-| FR-16.5 | At least one price update occurs | ⚠ Atom 6.1 |
-| FR-16.6 | At least one Boltzmann mask event occurs | ⚠ Atom 6.1 |
-| FR-16.7 | At least one AutopsyCapsule is generated | ⚠ Atom 6.1 |
+| FR-16.1 | At least 3 agents participate | ✓ Sandbox preseed defines 8 sandbox-prefixed agents; arena_run4 exercises Agent_solver_0/Agent_verifier_0/Agent_3/Agent_user_0 |
+| FR-16.2 | At least one WorkTx creates FirstLongPosition | ✓ arena_run4 (commit `d1c1af2`): WorkTx accepted, FirstLong NodePosition created |
+| FR-16.3 | At least one ChallengeTx creates ShortPosition | ✓ arena_run4: Agent_3 ChallengeTx accepted; FR-16.3 env-var trigger added in commit `05e3e86` (`TURINGOS_FORCE_CHALLENGER`) |
+| FR-16.4 | At least one CompleteSetMintTx exists | ✓ arena_run4: Agent_user_0 MarketSeedTx + CompleteSetMintTx; FR-16.4 env-var trigger `TURINGOS_COMPLETE_SET_SEED` |
+| FR-16.5 | At least one price update occurs | ✓ arena_run4: PriceIndex view derives from chain at audit time (verified by Layer C) |
+| FR-16.6 | At least one Boltzmann mask event occurs | ✓ arena_run4: Boltzmann mask computed; verified Layer C |
+| FR-16.7 | At least one AutopsyCapsule is generated | ⚠ arena_run6_exhaust: TaskBankruptcyTx fired but no autopsy emitted because no agent had stake (no accepted WorkTx in exhaust run); needs chain with BOTH accepted WorkTx + subsequent TaskBankruptcy on same task — single-arena env-var combo cannot achieve this without multi-task chain continuation (Atom 6.1). FR-16.7 env-var trigger `TURINGOS_FORCE_BANKRUPTCY` is wired |
 
-**FR-16.2 .. FR-16.7 status**: infrastructure ready (audit_assertions
-verifies all 13 tx kinds when present; dashboard renders price + mask;
-autopsy emission wired in TB-15). Fresh arena run that exercises
-**all** 6 task scenarios on a single chain requires evaluator
-multi-task aggregation extension (TB-16 Atom 6.1; not in current
-ship).
+**Step 4 reality (commit `d1c1af2`)**: 9 of 13 architect-required tx
+kinds delivered across 2 chains (`arena_run4` happy: 7 tx kinds;
+`arena_run6_exhaust`: 4 tx kinds incl. TaskBankruptcy). Missing in
+both runs: ChallengeResolve (system-emit not wired), FinalizeReward
+(challenge blocks Finalize per challenge-window semantic), TaskExpire
+(no env-var trigger), CompleteSetRedeem (post-resolution path not
+wired). Fresh arena run with all 13 tx kinds in a single chain
+remains gated on Atom 6.1 (multi-task chain continuation).
 
 ### CR-16.x (constitutional requirements)
 
@@ -82,19 +84,35 @@ evidence gaps.
 ## §3 Test counts
 
 ```text
-cargo test --workspace = 905 passed / 0 failed / 150 ignored
+command         = cargo test --workspace --no-fail-fast
+workspace_count = 907 passed
+failed          = 0
+ignored         = 150
 ```
 
-Workspace baseline at TB-15 ship: 759. Net additions for TB-16:
-- 13 halt-trigger tests (Atom 1)
-- 5 audit_assertions module tests (Atom 2)
-- 3 audit_tape binary smoke tests (Atom 3)
-- 2 dashboard live-regen tests (Atom 4)
-- 2 comprehensive_arena smoke tests (Atom 5)
-- (Atom 6 ships scripts only — no new tests)
+Per `feedback_workspace_test_canonical`: `cargo test --workspace` is
+the canonical ship-gate test count (mandated 2026-05-01 D4).
 
-= +25 from TB-15. (Total 905 includes accumulated additions across
-sub-packages; per-package counting matches `cargo test --workspace`.)
+**Test-count math** (TB-15 R3 ship 882 → TB-16 SHIPPED 907 = +25):
+| Source | Δ | Notes |
+|---|---|---|
+| TB-15 R3 final ship | 882 | commit `eddab36` |
+| TB-16 Atom 1 halt-trigger fixture | +13 | `tests/tb_16_halt_triggers.rs` (H1..H13) |
+| TB-16 Atom 2 audit_assertions module tests | +5 | inline tests in `src/runtime/audit_assertions.rs` |
+| TB-16 Atom 3 audit_tape binary tests | +3 | smoke + tamper integration tests |
+| TB-16 Atom 4 dashboard live-regen tests | +2 | `tests/tb_16_dashboard_live_regen.rs` |
+| TB-16 Atom 5 comprehensive_arena tests | +2 | scaffold smoke tests |
+| TB-16 Atoms 6+7 (scripts + audit-only) | 0 | runner scripts; no new test code |
+| **TB-16 SHIPPED (pre-audit)** | **905** | commit `3300fe2` |
+| TB-16 Atom 7 R1 Step 1 surgical fixes | +2 | sandbox-prefix-canonical + tape-fence tests |
+| **TB-16 Atom 7 R1** | **907** | commit `3cf4c36` |
+| TB-16 Atom 7 R3 surgical fixes | 0 | new audit assertions exercised by binary, not unit-test layer |
+| **TB-16 Atom 7 R3** | **907** | this commit |
+
+The R3 supplementals (`assert_d_total_supply_conserved_per_block`,
+`assert_a_chain_agent_ids_sandbox_prefixed`) are exercised
+end-to-end by the `audit_pipeline_smoke` fixture (verdict.json) and
+do not add `#[cfg(test)]` cases.
 
 ---
 
@@ -167,3 +185,48 @@ ship. Atom 7 will:
    `feedback_dual_audit_conflict`.
 4. Round-cap=2 per `feedback_elon_mode_policy`.
 5. Final commit on PASS/PASS or degraded-PASS.
+
+---
+
+## §7 Atom 7 audit cycle log
+
+| Round | Codex | Gemini | Conservative | Closure |
+|---|---|---|---|---|
+| R1 | VETO × 5 (V2 sandbox-canonical, V3 audit_pipeline_smoke fixture, V4 BLOCK exit, V5 destructive tamper, V6 conservation drift, V7 Markov chain) | VETO × 1 (Q11 TRACE_MATRIX precision) + CHALLENGE | VETO | Step 1 commit `3cf4c36` (V2-audit/V3/V4/V5/V6/V7 + Q11) + Step 3 commit `05e3e86` (env-var triggers) + Step 4 commit `d1c1af2` (fresh arena runs + TB-11 writer-pattern bug fix) |
+| R2 | NOT YET RUN | VETO × 5 (4/5 stale: Q5/Q8/Q9 audit predates Step 4 commit; 1 real Q2 JSON byte-run) + CHALLENGE × 5 | VETO | R3 prep this commit: Q2 (JSON-array decimal byte-run check on assertion #28), Q1 (Layer D #18b per-block conservation walker, id=40), Q10 (Layer A chain-walk sandbox-prefix walker, id=41), Q11 (file-level TRACE_MATRIX doc precision), Q12 (this §3 doc), Q8 evidence regen (smoke MARKOV regenerated chained to TB-15 head) |
+| R3 | TBD (run with `TB16_AUDIT_ROUND=R3`) | TBD (run with `TB16_AUDIT_ROUND=R3`) | TBD | — |
+
+### R3 surgical fixes (this commit)
+
+| ID | Fix | Surface | LoC |
+|---|---|---|---|
+| Q2 (Gemini R2 VETO) | Mirror TB-15 halt-trigger #5: `assert_28_projection_no_autopsy_bytes` now checks BOTH (a) raw 32-byte run in canonical_encode AND (b) JSON-array decimal text form via `serde_json::to_string` | `src/runtime/audit_assertions.rs` | ~30 |
+| Q1 (Gemini R2 CHALLENGE) | Layer D supplemental `assert_d_total_supply_conserved_per_block` (id=40): incrementally walks L4, replays `entries[..=i]` for every i, asserts `total_supply_micro == initial` at every step. O(N²) tolerable for our chain sizes | `src/runtime/audit_assertions.rs` | ~55 |
+| Q10 (Gemini R2 CHALLENGE) | Layer A supplemental `assert_a_chain_agent_ids_sandbox_prefixed` (id=41): walks every L4 entry, decodes TypedTx, asserts `HasSubmitter::submitter_id()` (when Some) satisfies `sandbox_prefix`. Closes machine-verifiable CR-16.7 gap | `src/runtime/audit_assertions.rs` | ~50 |
+| Q11 (Gemini R2 CHALLENGE) | File-level TRACE_MATRIX doc-comment now precise per-layer (Layers A-G + supplementals → FC1-N34; Layer H tamper stubs → FC1-N35; verdict.json → FC2-N31) | `src/runtime/audit_assertions.rs` | ~13 |
+| Q12 (Gemini R2 CHALLENGE) | Test-count math table (above) shows per-step delta from TB-15 R3 ship through TB-16 R3; canonical `cargo test --workspace` count | this doc §3 | ~20 |
+| Q8 evidence regen (closure) | `audit_pipeline_smoke/MARKOV_TB-16_2026-05-03.json` regenerated with `--prev-cid-hex $(cat handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt)` so chain link is in artifact, not just in runner script. Chains to TB-15 head `f9e701b4...` | `handover/evidence/.../audit_pipeline_smoke/` | regen |
+
+### Q4 position held (carry-forward to architect ratification)
+
+R2 Q4 ("non-sandbox funds used" — sandbox HALT vs banner)
+**position held**: architect §7.7's "non-sandbox funds used" HALT is
+parallel-structurally an **audit-time** detection (Layer A #3 for
+manifest + new id=41 for chain), NOT a sequencer-level admission gate.
+Reading it as runtime gate would modify hot-path `submit_agent_tx`
+(Class 3+/4) and exceeds architect spec. Recommendation: keep
+audit-time HALT; if architect ratification of stronger guarantee
+desired, escalate to charter §5.x amendment.
+
+### Audit pipeline smoke evidence (post R3)
+
+```text
+verdict.json:        PROCEED  passed=38  failed=0  halted=0  skipped=3
+verdict_replay.json: byte-identical
+tamper_report.json:  detected_count=3/3
+MARKOV_TB-16_*.json: capsule_id=737b4d22..., previous_capsule_cid=f9e701b4... (TB-15 head)
+```
+
+Skipped 3 = Layer H tamper stubs (assertions #36/#37/#38; per-fn
+doc-comment binds them to FC1-N35; actual tamper detection happens
+in `audit_tape_tamper` binary which reports 3/3 detected).

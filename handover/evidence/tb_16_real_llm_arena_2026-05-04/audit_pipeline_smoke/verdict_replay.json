@@ -5,7 +5,7 @@
     "l4e_count": 2,
     "head_state_root_hex": "98d4542d56354f04521a309a2f7a00c816bc11524a43d3be30100b81268c35bc",
     "head_ledger_root_hex": "405d5c5827c5836f8326d5eb481e148a5dcd4003436758078036696df60dc321",
-    "cas_object_count": 13,
+    "cas_object_count": 16,
     "constitution_hash_hex": "eec695459c71fbef3685583485deb431fe3b561657b2f285b7c5e7e220e59e03"
   },
   "tx_kind_counts": {
@@ -42,6 +42,13 @@
     {
       "id": 3,
       "name": "sandbox_agent_prefix",
+      "layer": "A",
+      "result": "Pass",
+      "detail": null
+    },
+    {
+      "id": 41,
+      "name": "chain_agent_ids_sandbox_prefixed",
       "layer": "A",
       "result": "Pass",
       "detail": null
@@ -152,6 +159,13 @@
       "detail": null
     },
     {
+      "id": 40,
+      "name": "total_supply_conserved_per_block",
+      "layer": "D",
+      "result": "Pass",
+      "detail": null
+    },
+    {
       "id": 19,
       "name": "complete_set_min_balanced",
       "layer": "D",
@@ -253,29 +267,29 @@
       "id": 32,
       "name": "markov_constitution_hash_matches",
       "layer": "G",
-      "result": "Skipped",
-      "detail": "no Markov capsule"
+      "result": "Pass",
+      "detail": null
     },
     {
       "id": 33,
       "name": "markov_typical_errors_recompute",
       "layer": "G",
-      "result": "Skipped",
-      "detail": "no Markov capsule"
+      "result": "Pass",
+      "detail": null
     },
     {
       "id": 34,
       "name": "markov_unresolved_obs_recompute",
       "layer": "G",
-      "result": "Skipped",
-      "detail": "no Markov capsule"
+      "result": "Pass",
+      "detail": null
     },
     {
       "id": 35,
       "name": "markov_next_session_context_resolves",
       "layer": "G",
-      "result": "Skipped",
-      "detail": "no Markov capsule"
+      "result": "Pass",
+      "detail": null
     },
     {
       "id": 36,
@@ -299,15 +313,15 @@
       "detail": "exercised by audit_tape_tamper binary (Atom 3; FC1-N35)"
     }
   ],
-  "passed": 32,
+  "passed": 38,
   "failed": 0,
   "halted": 0,
-  "skipped": 7,
+  "skipped": 3,
   "feature_coverage": {
     "TB-11_terminal_bankruptcy_expire": "RED",
     "TB-13_complete_set": "RED",
     "TB-14_price_mask": "GREEN",
-    "TB-15_autopsy_markov": "RED",
+    "TB-15_autopsy_markov": "GREEN",
     "TB-1_monetary": "GREEN",
     "TB-2_work": "GREEN",
     "TB-3_task_open_escrow": "GREEN",

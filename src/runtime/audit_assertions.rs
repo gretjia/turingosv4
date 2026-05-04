@@ -23,8 +23,21 @@
 //! Verdict is composed by `summarize_results` into `TapeAuditVerdict`
 //! per design §6.3 wire format.
 //!
-//! TRACE_MATRIX FC1-N34 (audit_tape binary) + FC2-N31 (verdict.json
-//! schema v1).
+//! TRACE_MATRIX FC binding (per-layer; Atom 7 R3 Gemini Q11 closure):
+//!
+//! - Layers A/B/C/D/E/F/G (assertions 1-35 + supplementals id=39/40/41)
+//!   bind to **FC1-N34** (`audit_tape` binary; wraps `run_all_assertions`
+//!   over loaded tape inputs).
+//! - Layer H (assertions 36-38) binds to **FC1-N35** (separate
+//!   `audit_tape_tamper` binary; the `assert_36/37/38` stubs in this
+//!   module emit `Skipped` results — actual tamper detection lives in
+//!   `bin/audit_tape_tamper.rs`).
+//! - All assertion records (regardless of FC1 binding) flow through
+//!   the **FC2-N31** verdict.json schema v1 wire format
+//!   (`TapeAuditVerdict`).
+//!
+//! Per-fn doc-comments below carry the precise FC binding for each
+//! assertion. The file-level binding above is the umbrella.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
@@ -628,6 +641,73 @@ pub fn assert_03_sandbox_agent_prefix(t: &LoadedTape) -> AssertionResult {
     }
 }
 
+/// TRACE_MATRIX TB-16 Atom 7 R3 (Gemini R2 Q10 closure 2026-05-04):
+/// machine-verifiable CR-16.7 ("no production user funds") via L4 walk.
+///
+/// `assert_03_sandbox_agent_prefix` only checks the agent_pubkeys.json
+/// manifest (preseed-time list); it does NOT verify that every actual
+/// chain-resident submitter is sandbox-prefixed. This supplemental
+/// assertion walks every accepted L4 entry, decodes its TypedTx, calls
+/// `HasSubmitter::submitter_id()`, and asserts the returned id (when
+/// `Some`) satisfies `sandbox_prefix`. System-emitted tx (submitter_id
+/// = None) are skipped.
+///
+/// id=41 (Layer A supplemental; mirrors id=39 supplemental pattern in
+/// `assert_f_no_llm_self_narrative_in_autopsy`).
+pub fn assert_a_chain_agent_ids_sandbox_prefixed(t: &LoadedTape) -> AssertionResult {
+    use crate::state::typed_tx::HasSubmitter;
+    let id = 41u32;
+    let mut walked = 0u32;
+    for (i, e) in t.entries.iter().enumerate() {
+        let payload = match t.cas.get(&e.tx_payload_cid) {
+            Ok(b) => b,
+            Err(e2) => {
+                return AssertionResult::halt(
+                    id,
+                    "chain_agent_ids_sandbox_prefixed",
+                    AssertionLayer::A,
+                    format!("CAS missing tx_payload at L4 index {i}: {e2}"),
+                );
+            }
+        };
+        let typed: TypedTx = match canonical_decode(&payload) {
+            Ok(t) => t,
+            Err(e2) => {
+                return AssertionResult::halt(
+                    id,
+                    "chain_agent_ids_sandbox_prefixed",
+                    AssertionLayer::A,
+                    format!("decode TypedTx at L4 index {i}: {e2}"),
+                );
+            }
+        };
+        if let Some(submitter) = typed.submitter_id() {
+            walked += 1;
+            if !sandbox_prefix(submitter.0.as_str()) {
+                return AssertionResult::halt(
+                    id,
+                    "chain_agent_ids_sandbox_prefixed",
+                    AssertionLayer::A,
+                    format!(
+                        "non-sandbox submitter at L4 index {i}: agent_id={:?}, tx_kind={:?}",
+                        submitter.0, e.tx_kind
+                    ),
+                );
+            }
+        }
+    }
+    if walked == 0 {
+        AssertionResult::skipped(
+            id,
+            "chain_agent_ids_sandbox_prefixed",
+            AssertionLayer::A,
+            "no agent-signed tx in tape (system-only chain)".into(),
+        )
+    } else {
+        AssertionResult::pass(id, "chain_agent_ids_sandbox_prefixed", AssertionLayer::A)
+    }
+}
+
 // ─────────────────────────────────────────────────────────────────────
 // Layer B — chain integrity (8 assertions)
 // ─────────────────────────────────────────────────────────────────────
@@ -1104,6 +1184,77 @@ pub fn assert_18_total_supply_conserved(t: &LoadedTape) -> AssertionResult {
     }
 }
 
+/// TRACE_MATRIX TB-16 Atom 7 R3 (Gemini R2 Q1 closure 2026-05-04):
+/// per-block conservation walker (incremental complement to #18).
+///
+/// `assert_18_total_supply_conserved` checks `INITIAL == FINAL` over
+/// the WHOLE chain — drift inside the chain that cancels out across
+/// the prefix would slip through. This supplemental walks the L4
+/// chain incrementally: replays `entries[..=i]` for every i, asserts
+/// `total_supply_micro` equals the initial total at every intermediate
+/// step. O(N²) replay; tolerable for our chain sizes (TB-16 fixtures
+/// 5-30 entries).
+///
+/// id=40 (Layer D supplemental; mirrors id=39 supplemental pattern).
+pub fn assert_d_total_supply_conserved_per_block(t: &LoadedTape) -> AssertionResult {
+    let id = 40u32;
+    if t.replayed_q.is_none() {
+        return AssertionResult::skipped(
+            id,
+            "total_supply_conserved_per_block",
+            AssertionLayer::D,
+            "no replayed_q (full-chain replay failed; #18 will halt)".into(),
+        );
+    }
+    let initial_total = replayed_total_supply_micro(&t.initial_q);
+    if t.entries.is_empty() {
+        return AssertionResult::skipped(
+            id,
+            "total_supply_conserved_per_block",
+            AssertionLayer::D,
+            "empty L4 chain".into(),
+        );
+    }
+    let predicate_registry = PredicateRegistry::new();
+    let tool_registry = ToolRegistry::new();
+    let cas_view = CasStoreRef(&t.cas);
+    for i in 0..t.entries.len() {
+        let prefix = &t.entries[..=i];
+        let q_at_i = match crate::bottom_white::ledger::transition_ledger::replay_full_transition(
+            &t.initial_q,
+            prefix,
+            &cas_view,
+            &t.pinned,
+            &predicate_registry,
+            &tool_registry,
+        ) {
+            Ok(q) => q,
+            Err(e) => {
+                return AssertionResult::halt(
+                    id,
+                    "total_supply_conserved_per_block",
+                    AssertionLayer::D,
+                    format!("incremental replay at prefix len={}: {e}", i + 1),
+                );
+            }
+        };
+        let supply_at_i = replayed_total_supply_micro(&q_at_i);
+        if supply_at_i != initial_total {
+            return AssertionResult::halt(
+                id,
+                "total_supply_conserved_per_block",
+                AssertionLayer::D,
+                format!(
+                    "supply drift at L4 index {i} (prefix len {}): initial={initial_total}μC, got={supply_at_i}μC, delta={}",
+                    i + 1,
+                    supply_at_i - initial_total,
+                ),
+            );
+        }
+    }
+    AssertionResult::pass(id, "total_supply_conserved_per_block", AssertionLayer::D)
+}
+
 /// TRACE_MATRIX FC1-N34 + FC2-N31 (TB-16 audit-from-tape battery).
 pub fn assert_19_complete_set_min_balanced(t: &LoadedTape) -> AssertionResult {
     use crate::state::typed_tx::OutcomeSide;
@@ -1462,6 +1613,14 @@ pub fn assert_27_terminal_summary_evidence_capsule(t: &LoadedTape) -> AssertionR
 // ─────────────────────────────────────────────────────────────────────
 
 /// TRACE_MATRIX FC1-N34 + FC2-N31 (TB-16 audit-from-tape battery).
+///
+/// **Atom 7 R3 (Gemini R2 Q2 VETO closure 2026-05-04)**: the original
+/// scan looked only for raw 32-byte runs in `canonical_encode(tape_view_t)`,
+/// but `Cid` flows through `serde_json` as a 32-element ARRAY of decimal
+/// byte values (`[170,170,…,170]`) — the raw 32-byte run is NEVER
+/// present in JSON. Mirror TB-15 halt-trigger #5 (R2): check BOTH (a)
+/// the JSON-array decimal text form in `serde_json::to_string(&proj)`
+/// AND (b) the raw 32-byte run in `canonical_encode(&proj)`.
 pub fn assert_28_projection_no_autopsy_bytes(t: &LoadedTape) -> AssertionResult {
     use crate::bottom_white::ledger::transition_ledger::canonical_encode;
     let q = match &t.replayed_q {
@@ -1476,6 +1635,7 @@ pub fn assert_28_projection_no_autopsy_bytes(t: &LoadedTape) -> AssertionResult 
         }
     };
     let proj_bytes = canonical_encode(&q.tape_view_t).unwrap_or_default();
+    let proj_json = serde_json::to_string(&q.tape_view_t).unwrap_or_default();
     // Collect autopsy private_detail_cid byte-runs from CAS and ensure
     // none appear in projection serialization.
     let mut private_cids: BTreeSet<[u8; 32]> = BTreeSet::new();
@@ -1495,16 +1655,41 @@ pub fn assert_28_projection_no_autopsy_bytes(t: &LoadedTape) -> AssertionResult 
         }
     }
     for run in &private_cids {
+        // (a) raw 32-byte run in canonical_encode (catches binary leak).
         for window in proj_bytes.windows(32) {
             if window == run {
                 return AssertionResult::halt(
                     28,
                     "projection_no_autopsy_bytes",
                     AssertionLayer::F,
-                    "AgentVisibleProjection serialization contains a private_detail_cid byte run"
+                    "AgentVisibleProjection canonical_encode contains a private_detail_cid byte run"
                         .into(),
                 );
             }
+        }
+        // (b) JSON-array decimal text form (catches serde_json leak).
+        // A `Cid([b;32])` renders as `[b,b,b,…,b]` (32 decimals).
+        // Each byte may differ; build the homogeneous form for each
+        // distinct byte AND scan multi-byte windows. The homogeneous
+        // form catches the worst case (all-bytes-equal sentinel CIDs);
+        // for heterogeneous CIDs we compose the literal full array.
+        let mut json_array_form = String::with_capacity(160);
+        json_array_form.push('[');
+        for (i, b) in run.iter().enumerate() {
+            if i > 0 {
+                json_array_form.push(',');
+            }
+            json_array_form.push_str(&(*b as u32).to_string());
+        }
+        json_array_form.push(']');
+        if proj_json.contains(&json_array_form) {
+            return AssertionResult::halt(
+                28,
+                "projection_no_autopsy_bytes",
+                AssertionLayer::F,
+                "AgentVisibleProjection JSON serialization contains a private_detail_cid array form"
+                    .into(),
+            );
         }
     }
     AssertionResult::pass(28, "projection_no_autopsy_bytes", AssertionLayer::F)
@@ -1951,10 +2136,11 @@ pub fn assert_38_tamper_l4_remove_detected() -> AssertionResult {
 pub fn run_all_assertions(inputs: &AuditInputs) -> Result<Vec<AssertionResult>, AuditError> {
     let tape = load_tape(inputs)?;
     let mut r = Vec::with_capacity(40);
-    // Layer A (3)
+    // Layer A (3 + 1 supplemental — id=41 chain_agent_ids_sandbox_prefixed)
     r.push(assert_01_constitution_hash_matches_genesis(&tape));
     r.push(assert_02_pinned_pubkey_loaded(&tape));
     r.push(assert_03_sandbox_agent_prefix(&tape));
+    r.push(assert_a_chain_agent_ids_sandbox_prefixed(&tape));
     // Layer B (8)
     r.push(assert_04_l4_hash_chain_valid(&tape));
     r.push(assert_05_l4_parent_state_continuity(&tape));
@@ -1970,9 +2156,10 @@ pub fn run_all_assertions(inputs: &AuditInputs) -> Result<Vec<AssertionResult>, 
     r.push(assert_14_replay_autopsy_index_chains(&tape));
     r.push(assert_15_canonical_edges_replay_deterministic(&tape));
     r.push(assert_16_replay_idempotent_across_calls(&tape));
-    // Layer D (6)
+    // Layer D (6 + 1 supplemental — id=40 total_supply_conserved_per_block)
     r.push(assert_17_no_post_init_mint(&tape));
     r.push(assert_18_total_supply_conserved(&tape));
+    r.push(assert_d_total_supply_conserved_per_block(&tape));
     r.push(assert_19_complete_set_min_balanced(&tape));
     r.push(assert_20_task_market_total_escrow_matches_locks(&tape));
     r.push(assert_21_node_positions_excluded_from_supply(&tape));
