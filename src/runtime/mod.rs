@@ -59,6 +59,9 @@ pub mod markov_capsule;
 /// TRACE_MATRIX FC2 Boot: TB-10 Atom 1 — Reusable preseed factory for chaintape genesis QState. Single source of truth for `tb7-7-sponsor` + `Agent_user_0` + `Agent_0..9` initial balances. Consumed by both evaluator (`--task-mode self|both`) and `lean_market` user CLI bootstrap. Pure function; replay-deterministic.
 pub mod bootstrap;
 
+/// TRACE_MATRIX FC1-N34 + FC2-N31 (TB-16 Atom 2; architect §7.5 + design §6.2): 38-assertion audit-from-tape battery. Pure-fn library over on-disk artifacts (runtime_repo + cas_dir + manifests + constitution + markov pointer); NO live process state. Drives `audit_tape` + `audit_tape_tamper` binaries; verdict.json wire format per design §6.3.
+pub mod audit_assertions;
+
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 
