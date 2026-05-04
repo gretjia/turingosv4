@@ -59,11 +59,27 @@ Cheapest follow-up shipped: legacy CPMM quarantine verification.
 - Predecessor OBS `OBS_TB_12_LEGACY_CPMM_QUARANTINE_2026-05-03.md` updated to **RESOLVED** + §10 verification appended (no new OBS file added → smoke fixture's `unresolved_obs=26` count preserved → audit_pipeline_smoke baseline still PROCEED 38/0/0/3).
 - TB-14-SHIP prerequisite `(c) delete outright` was satisfied; (a) and (b) options retired.
 
+### TB-16.x.2 charter SHIPPED (2026-05-04) — implementation deferred
+
+Investigated runtime gaps (4 missing tx kinds + Boltzmann + AutopsyCapsule); split TB-16.x.2 into 6 sub-atoms with ascending complexity. Charter: `handover/tracer_bullets/TB-16.x.2_charter_2026-05-04.md`.
+
+| Sub-atom | Goal | Effort | Class |
+|---|---|---|---|
+| TB-16.x.2.1 | TaskExpire env-var (`TURINGOS_FORCE_EXPIRE`) | ~half day | 2 |
+| TB-16.x.2.2 | ChallengeResolve via challenge-window scheduler | ~1 day | 3 (STEP_B + dual audit) |
+| TB-16.x.2.3 | CompleteSetRedeem env-var (`TURINGOS_FORCE_REDEEM`) | ~half day | 2 |
+| TB-16.x.2.4 | Multi-WorkTx-attempt + Boltzmann RUNTIME | ~1 day | 3 (STEP_B + dual audit) |
+| TB-16.x.2.5 | AutopsyCapsule real-bankruptcy chain | ~half day | 2 |
+| TB-16.x.2.6 | Combined arena run (13-of-13 tx kinds + Boltzmann + Autopsy) | ~half day | 2 |
+
+**Position taken**: charter-only this session per `feedback_iteration_cap_24h` (every PR needs evaluator pass/fail signal in 24h; sub-atom 2.1 needs ~1-2h cycle including arena smoke run on real LLM endpoint — not feasible mid-session continuation). Each sub-atom is a self-contained PR for a future session. See charter §4 for the deliberation.
+
 ### Next Steps (priority order)
 
-1. **TB-16.x.2 (P2 cap-loop, ~1-2 days)**: Atom 6.1 multi-task chain continuation — unblocks 4 missing tx kinds (ChallengeResolve, CompleteSetRedeem, TaskExpire, TaskBankruptcy-on-resolved-chain) + Boltzmann mechanism 5 RUNTIME exercise + AutopsyCapsule real-bankruptcy path. Architect 2026-05-03 §1.2 said TB-12 narrowed claim; this atom expands TB-16 conformance to FULL multi-task continuation.
-2. **TB-16.x.3 / pre-TB-17 (~1-2 days)**: heldout-49 capability batch with N≥20 runs/problem (per `project_pput_ccl_arc` + `feedback_launch_priority`).
-3. **TB-17 RealWorld Gate** charter (Class 4 sudo): dispatch ONLY after the 2 atoms above + architect re-read of `project_tb11_to_tb17_roadmap` (canonical reading order).
+1. **TB-16.x.2.1 implementation** (next session entry point per charter §5): TaskExpire FORCE_EXPIRE env var + arena smoke + commit. Cheapest sub-atom; raises 9-of-13 → 10-of-13 tx kinds.
+2. **TB-16.x.2.{2..6}**: sequenced sub-atoms per charter §2. Class 3 (2.2, 2.4) require dual audit; others self-audit.
+3. **TB-16.x.3 / pre-TB-17 (~1-2 days)**: heldout-49 capability batch with N≥20 runs/problem (per `project_pput_ccl_arc` + `feedback_launch_priority`).
+4. **TB-17 RealWorld Gate** charter (Class 4 sudo): dispatch ONLY after sub-atoms 2.1-2.6 + TB-16.x.3 + architect re-read of `project_tb11_to_tb17_roadmap`.
 
 ### Cold-start reading order (for next session)
 
