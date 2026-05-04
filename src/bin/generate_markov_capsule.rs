@@ -39,8 +39,8 @@ use turingosv4::bottom_white::cas::schema::Cid;
 use turingosv4::bottom_white::cas::store::CasStore;
 use turingosv4::runtime::autopsy_capsule::TypicalErrorSummary;
 use turingosv4::runtime::markov_capsule::{
-    override_set_from_env, scan_unresolved_obs, sha256_of_file, write_markov_capsule, MarkovGenError,
-    ObsId,
+    override_set_from_env, read_flowchart_hashes_from_matrix, scan_unresolved_obs, sha256_of_file,
+    try_deep_history_read_with_override_check, write_markov_capsule, MarkovGenError, ObsId,
 };
 use turingosv4::state::q_state::Hash;
 
@@ -48,6 +48,7 @@ struct Args {
     tb_id: String,
     out_dir: PathBuf,
     constitution_path: PathBuf,
+    flowchart_matrix_path: PathBuf,
     /// v0 placeholder — future TB will read L4 chain head from this path.
     #[allow(dead_code)]
     runtime_repo: Option<PathBuf>,
@@ -55,17 +56,24 @@ struct Args {
     prev_cid_hex: Option<String>,
     alignment_dir: PathBuf,
     no_cas: bool,
+    /// R2 closure (Codex R1 Q4): when > 0, the binary attempts to read N
+    /// prior Markov capsules (deeper than the previous_capsule_cid) — a
+    /// LIVE deep-history read path that REQUIRES `TURINGOS_MARKOV_OVERRIDE=1`
+    /// per FR-15.5 + halt-trigger #6. Default 0 = no deep-history read.
+    include_prior_capsules: u32,
 }
 
 fn parse_args(argv: &[String]) -> Result<Args, String> {
     let mut tb_id: Option<String> = None;
     let mut out_dir: Option<PathBuf> = None;
     let mut constitution_path: Option<PathBuf> = None;
+    let mut flowchart_matrix_path: Option<PathBuf> = None;
     let mut runtime_repo: Option<PathBuf> = None;
     let mut cas_dir: Option<PathBuf> = None;
     let mut prev_cid_hex: Option<String> = None;
     let mut alignment_dir: Option<PathBuf> = None;
     let mut no_cas = false;
+    let mut include_prior_capsules: u32 = 0;
 
     let mut i = 0;
     while i < argv.len() {
@@ -80,6 +88,10 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
             }
             "--constitution-path" => {
                 constitution_path = argv.get(i + 1).map(PathBuf::from);
+                i += 2;
+            }
+            "--flowchart-matrix-path" => {
+                flowchart_matrix_path = argv.get(i + 1).map(PathBuf::from);
                 i += 2;
             }
             "--runtime-repo" => {
@@ -102,6 +114,14 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
                 no_cas = true;
                 i += 1;
             }
+            "--include-prior-capsules" => {
+                include_prior_capsules = argv
+                    .get(i + 1)
+                    .ok_or_else(|| "--include-prior-capsules <N> requires arg".to_string())?
+                    .parse()
+                    .map_err(|e| format!("--include-prior-capsules N parse: {e}"))?;
+                i += 2;
+            }
             "--help" | "-h" => {
                 return Err("help".to_string());
             }
@@ -114,12 +134,15 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
         out_dir: out_dir.ok_or_else(|| "--out-dir <path> required".to_string())?,
         constitution_path: constitution_path
             .ok_or_else(|| "--constitution-path <path> required".to_string())?,
+        flowchart_matrix_path: flowchart_matrix_path
+            .unwrap_or_else(|| PathBuf::from("handover/alignment/TRACE_FLOWCHART_MATRIX.md")),
         runtime_repo,
         cas_dir,
         prev_cid_hex,
         alignment_dir: alignment_dir
             .unwrap_or_else(|| PathBuf::from("handover/alignment")),
         no_cas,
+        include_prior_capsules,
     })
 }
 
@@ -132,17 +155,21 @@ fn print_help() {
          \x20  --tb-id <N> \\\n\
          \x20  --out-dir <path> \\\n\
          \x20  --constitution-path <path> \\\n\
+         \x20  [--flowchart-matrix-path <path>]                   (default: handover/alignment/TRACE_FLOWCHART_MATRIX.md)\n\
          \x20  [--runtime-repo <path>] [--cas-dir <path>] \\\n\
          \x20  [--prev-cid-hex <hex>] [--alignment-dir <path>] \\\n\
-         \x20  [--no-cas]\n\
+         \x20  [--no-cas]\\\n\
+         \x20  [--include-prior-capsules <N>]                     (default 0; > 0 triggers deep-history gate)\n\
          \n\
          env:\n\
-         \x20  TURINGOS_MARKOV_OVERRIDE=1   permit deep-history reads (default-deny)\n\
+         \x20  TURINGOS_MARKOV_OVERRIDE=1   permit deep-history reads (default-deny;\n\
+         \x20                                required when --include-prior-capsules > 0)\n\
          \n\
          exit:\n\
          \x20  0  capsule generated + persisted\n\
          \x20  1  generation failed (write / missing constitution)\n\
-         \x20  2  invalid args"
+         \x20  2  invalid args\n\
+         \x20  3  deep-history read denied (override env not set)"
     );
 }
 
@@ -180,6 +207,51 @@ fn run() -> Result<i32, String> {
             "generate_markov_capsule: TURINGOS_MARKOV_OVERRIDE=1 set — \
              deep-history reads ENABLED (audit-only path)."
         );
+    } else {
+        eprintln!(
+            "generate_markov_capsule: TURINGOS_MARKOV_OVERRIDE not set — \
+             deep-history reads DEFAULT-DENIED (FR-15.5 + halt-trigger #6); \
+             set TURINGOS_MARKOV_OVERRIDE=1 to enable"
+        );
+    }
+
+    // R2 closure (Codex R1 Q4 — live override gate). LIVE-PATH gate:
+    // when caller asks for deeper history (more than just constitution +
+    // previous_capsule_cid), enforce TURINGOS_MARKOV_OVERRIDE=1 BEFORE
+    // any deep-history I/O. Default `include_prior_capsules == 0`
+    // never triggers; default-deny is an active branch in the binary's
+    // flow, not just a library helper.
+    if args.include_prior_capsules > 0 {
+        match try_deep_history_read_with_override_check(override_set) {
+            Ok(()) => {
+                eprintln!(
+                    "generate_markov_capsule: deep-history read APPROVED \
+                     for {} prior capsules (override active)",
+                    args.include_prior_capsules
+                );
+                // NOTE: actual prior-capsule walk lands in TB-16 controlled-
+                // arena work (per `feedback_no_retroactive_evidence_rewrite`
+                // going-forward only — TB-15 v0 ships the gate; TB-16
+                // exercises the deep-history walk on a real chain).
+                eprintln!(
+                    "generate_markov_capsule: prior-capsule walk DEFERRED \
+                     to TB-16 controlled-arena (gate is enforced; walk is \
+                     not yet implemented; this is honest scope deferral)"
+                );
+            }
+            Err(MarkovGenError::DeepHistoryReadDenied) => {
+                eprintln!(
+                    "generate_markov_capsule: DEEP-HISTORY READ DENIED \
+                     ({} prior capsules requested; TURINGOS_MARKOV_OVERRIDE \
+                     not set). Refusing to proceed.",
+                    args.include_prior_capsules
+                );
+                return Ok(3);
+            }
+            Err(other) => {
+                return Err(format!("deep-history gate: {other}"));
+            }
+        }
     }
 
     // Step 1: constitution.md SHA-256.
@@ -189,6 +261,14 @@ fn run() -> Result<i32, String> {
         "constitution_hash = {}",
         hex32(&constitution_hash.0)
     );
+
+    // Step 1.5 (R2 closure — Codex R1 Q8/RQ7 + Gemini R1 Q7):
+    // canonical flowchart hashes from TRACE_FLOWCHART_MATRIX.md. Closes
+    // the literal SG-15.7 spec "constitution hash AND flowchart hashes"
+    // requirement.
+    let flowchart_hashes = read_flowchart_hashes_from_matrix(&args.flowchart_matrix_path)
+        .map_err(|e| format!("read flowchart hashes: {e}"))?;
+    eprintln!("flowchart_hashes.len = {}", flowchart_hashes.len());
 
     // Step 2: L4 / L4.E / CAS roots — for v0, accept zero placeholders
     // when --runtime-repo/--cas-dir are absent (fresh-repo path) and
@@ -226,13 +306,15 @@ fn run() -> Result<i32, String> {
         let next_session_json = serde_json::json!({
             "schema_version": "v1/next_session_context",
             "constitution_hash_hex": hex32(&constitution_hash.0),
+            "flowchart_hashes_hex": flowchart_hashes.iter().map(|h| hex32(&h.0)).collect::<Vec<_>>(),
             "previous_markov_cid_hex": previous_capsule_cid.map(|c| c.hex()),
             "tb_tag": format!("TB-{}", args.tb_id),
             "boot_seq": [
                 "1. read constitution.md (verify sha256 == constitution_hash)",
-                "2. read CAS<this_markov_capsule_cid>",
-                "3. read CAS<previous_markov_capsule_cid> (if present)",
-                "4. DEFAULT-DENY deeper history; set TURINGOS_MARKOV_OVERRIDE=1 to override (audit-only)"
+                "2. read TRACE_FLOWCHART_MATRIX.md (verify each flowchart sha256 == flowchart_hashes[i])",
+                "3. read CAS<this_markov_capsule_cid>",
+                "4. read CAS<previous_markov_capsule_cid> (if present)",
+                "5. DEFAULT-DENY deeper history; set TURINGOS_MARKOV_OVERRIDE=1 to override (audit-only)"
             ],
         });
         let next_session_bytes = serde_json::to_vec(&next_session_json)
@@ -242,6 +324,7 @@ fn run() -> Result<i32, String> {
             capsule_id: Cid::default(),
             previous_capsule_cid,
             constitution_hash,
+            flowchart_hashes: flowchart_hashes.clone(),
             l4_root,
             l4e_root,
             cas_root,
@@ -270,6 +353,7 @@ fn run() -> Result<i32, String> {
             &cas,
             previous_capsule_cid,
             constitution_hash,
+            flowchart_hashes,
             l4_root,
             l4e_root,
             cas_root,

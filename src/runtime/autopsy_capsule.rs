@@ -302,25 +302,98 @@ pub fn write_autopsy_capsule(
         created_at_logical_t,
         created_at_round,
     };
-    let prelim_bytes = canonical_encode(&capsule)
-        .map_err(|e| AutopsyWriteError::Encode(format!("capsule prelim encode: {e:?}")))?;
-    let capsule_cid = Cid::from_content(&prelim_bytes);
-    capsule.capsule_id = capsule_cid;
-    capsule.sha256 = Hash(capsule_cid.0);
-
-    // Step 3: write the canonical-encoded capsule (with capsule_id +
-    // sha256 filled in) to CAS as the AgentAutopsyCapsule object.
-    let final_bytes = canonical_encode(&capsule)
-        .map_err(|e| AutopsyWriteError::Encode(format!("capsule final encode: {e:?}")))?;
-    let _ = cas_w.put(
-        &final_bytes,
+    // R3 closure (Codex R2 VETO TB15-CAS-ID): identical pattern to
+    // write_markov_capsule. Store the bytes whose sha256 equals
+    // capsule_id, NOT the post-population bytes (which would have a
+    // different sha256, breaking cas.get(&capsule_id) resolvability).
+    // The in-memory struct returned to caller has populated
+    // capsule_id+sha256; on-CAS bytes have these zeroed.
+    let stored_bytes = canonical_encode(&capsule)
+        .map_err(|e| AutopsyWriteError::Encode(format!("capsule canonical encode: {e:?}")))?;
+    let capsule_cid = Cid::from_content(&stored_bytes);
+    let cas_returned_cid = cas_w.put(
+        &stored_bytes,
         ObjectType::AgentAutopsyCapsule,
         creator_str,
         created_at_logical_t,
         Some("v1/agent_autopsy_capsule".into()),
     )?;
+    debug_assert_eq!(
+        cas_returned_cid, capsule_cid,
+        "CAS-returned cid must equal sha256(stored_bytes); CasStore::put contract"
+    );
+    capsule.capsule_id = capsule_cid;
+    capsule.sha256 = Hash(capsule_cid.0);
 
     Ok(capsule)
+}
+
+/// TRACE_MATRIX TB-15 R3 closure (Codex R2 VETO TB15-CAS-ID): rebuild
+/// an `AgentAutopsyCapsule` from CAS-resident bytes. Symmetric helper
+/// to `restore_markov_capsule_from_cas_bytes`. Caller supplies the
+/// bytes returned by `cas.get(&capsule_id)`; helper canonical-decodes
+/// + re-derives capsule_id/sha256 from `Cid::from_content(&bytes)`.
+pub fn restore_autopsy_capsule_from_cas_bytes(
+    bytes: &[u8],
+) -> Result<AgentAutopsyCapsule, AutopsyWriteError> {
+    use crate::bottom_white::ledger::transition_ledger::canonical_decode;
+    let mut cap: AgentAutopsyCapsule = canonical_decode(bytes)
+        .map_err(|e| AutopsyWriteError::Encode(format!("capsule decode: {e:?}")))?;
+    let cid = Cid::from_content(bytes);
+    cap.capsule_id = cid;
+    cap.sha256 = Hash(cid.0);
+    Ok(cap)
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// TB-15 R2 closure — Activation gate (Gemini R1 VETO Q12; replay-determinism)
+// ────────────────────────────────────────────────────────────────────────────
+//
+// Per Gemini R1 audit 2026-05-04 Q12 VETO + `feedback_no_retroactive_evidence_rewrite`:
+// replaying a pre-TB-15 chain post-TB-15-deployment must NOT spuriously
+// generate `AgentAutopsyCapsule` entries that did not exist in the
+// original live execution.
+//
+// Verification baseline (2026-05-04): grep across all on-disk
+// `handover/evidence/*/runtime_repo` chains found ZERO production
+// `TaskBankruptcyTx` rows pre-TB-15 (TB-11 added the variant; no
+// production chain has fired one). The structural concern is real but
+// no chain currently triggers it.
+//
+// The activation gate is set at compile time. Default = 0 means
+// "always active for fresh chains shipped at or after TB-15
+// (commit 2337381 + onwards)" — every new chain starts at logical_t=1
+// which trivially satisfies `>= 0`. For pre-TB-15 chain replay
+// (no such chain exists today; future migrations would set this
+// non-zero), the cutoff would be the first logical_t at which the
+// post-TB-15 sequencer becomes authoritative.
+//
+// **Constitutional alignment** (Art.0.2 Tape Canonical):
+// post-activation replay reconstructs identical agent_autopsies_t
+// entries by deterministic helper. Pre-activation rows pass through
+// the dispatch arm without autopsy mutation, preserving the original
+// EconomicState shape.
+//
+// Future migration story: when a pre-TB-15 chain with TaskBankruptcyTx
+// rows needs to be replayed, the operator overrides
+// `TB15_AUTOPSY_ACTIVATION_LOGICAL_T` to the cutoff at deployment.
+// Pre-cutoff TaskBankruptcyTx rows replay cleanly without spurious
+// autopsy entries.
+
+/// TRACE_MATRIX TB-15 R2 closure (Gemini R1 VETO Q12; activation gate
+/// for replay-determinism). Default 0 = always active for fresh chains
+/// (TB-15 ship commit 2337381 onwards; every new chain starts at
+/// logical_t=1 ≥ 0 → trivially active). Overridable at compile time
+/// for pre-TB-15 chain migration scenarios.
+pub const TB15_AUTOPSY_ACTIVATION_LOGICAL_T: u64 = 0;
+
+/// TRACE_MATRIX TB-15 R2 closure: gate predicate. Returns true iff
+/// autopsy emission is enabled for a TaskBankruptcyTx with the given
+/// timestamp_logical. Pure-fn over the activation constant; identical
+/// in dispatch arm and apply_one Stage 3.5.
+#[inline]
+pub fn is_autopsy_active_at(timestamp_logical: u64) -> bool {
+    timestamp_logical >= TB15_AUTOPSY_ACTIVATION_LOGICAL_T
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -432,14 +505,14 @@ use crate::state::typed_tx::TaskBankruptcyTx;
 /// - apply_one hook: CAS write of the same deterministic bytes
 ///
 /// Replay determinism (Art.0.2): identical `(pre_econ, bk, round, t)` →
-/// identical `Vec<(AgentAutopsyCapsule, Vec<u8>)>` (same Cids, same bytes,
+/// identical `Vec<BankruptcyAutopsyDerivation>` (same Cids, same bytes,
 /// same order).
 pub fn derive_autopsies_for_bankruptcy(
     pre_econ: &EconomicState,
     bk: &TaskBankruptcyTx,
     created_at_round: u64,
     created_at_logical_t: u64,
-) -> Vec<(AgentAutopsyCapsule, Vec<u8>)> {
+) -> Vec<BankruptcyAutopsyDerivation> {
     let event_id = EventId(bk.task_id.clone());
     let mut out = Vec::new();
 
@@ -483,15 +556,37 @@ pub fn derive_autopsies_for_bankruptcy(
             created_at_logical_t,
             created_at_round,
         };
-        let prelim_bytes = canonical_encode(&capsule)
+        // R3 closure (Codex R2 VETO TB15-CAS-ID): canonical_encode
+        // BEFORE populating capsule_id/sha256 — these stored bytes are
+        // what apply_one writes to CAS. capsule_id = sha256 of these
+        // bytes, ensuring cas.get(&capsule_id) returns these exact
+        // bytes on retrieval.
+        let stored_bytes = canonical_encode(&capsule)
             .expect("AgentAutopsyCapsule is canonical-encodable");
-        let cid = Cid::from_content(&prelim_bytes);
+        let cid = Cid::from_content(&stored_bytes);
         capsule.capsule_id = cid;
         capsule.sha256 = Hash(cid.0);
 
-        out.push((capsule, private_bytes));
+        out.push(BankruptcyAutopsyDerivation {
+            capsule,
+            private_bytes,
+            stored_capsule_bytes: stored_bytes,
+        });
     }
     out
+}
+
+/// TRACE_MATRIX TB-15 R3 closure (Codex R2 VETO TB15-CAS-ID): bundle
+/// the deterministic outputs of `derive_autopsies_for_bankruptcy`. The
+/// dispatch arm reads only `capsule.capsule_id`; apply_one writes
+/// `private_bytes` + `stored_capsule_bytes` to CAS keyed by the
+/// matching Cids. Replay-safe: identical pre-econ + tx → identical
+/// (capsule_id, private_bytes, stored_capsule_bytes) tuple.
+#[derive(Debug, Clone)]
+pub struct BankruptcyAutopsyDerivation {
+    pub capsule: AgentAutopsyCapsule,
+    pub private_bytes: Vec<u8>,
+    pub stored_capsule_bytes: Vec<u8>,
 }
 
 /// TRACE_MATRIX FC1-N33 (TB-15 Atom 3): apply_one post-dispatch hook —
@@ -520,27 +615,31 @@ pub fn write_bankruptcy_autopsies_to_cas(
     let mut cas_w = cas
         .write()
         .map_err(|_| AutopsyWriteError::InternalLockPoisoned)?;
-    for (capsule, private_bytes) in derived {
-        // Write private_detail bytes (idempotent put — Cid matches what
-        // the dispatch arm derived).
+    for d in derived {
+        // R3 closure (Codex R2 VETO TB15-CAS-ID): write the EXACT
+        // stored_capsule_bytes returned by the derive helper. CAS keys
+        // by sha256(bytes), which equals capsule.capsule_id by helper
+        // construction. Idempotent: identical bytes → identical Cid →
+        // CAS dedupe. cas.get(&capsule.capsule_id) is now resolvable.
         let _ = cas_w.put(
-            &private_bytes,
+            &d.private_bytes,
             ObjectType::AutopsyPrivateDetail,
             creator_str,
             created_at_logical_t,
             Some("v1/autopsy_private_detail".into()),
         )?;
-        // Write canonical capsule bytes.
-        let final_bytes = canonical_encode(&capsule)
-            .map_err(|e| AutopsyWriteError::Encode(format!("capsule final encode: {e:?}")))?;
-        let _ = cas_w.put(
-            &final_bytes,
+        let cas_returned_cid = cas_w.put(
+            &d.stored_capsule_bytes,
             ObjectType::AgentAutopsyCapsule,
             creator_str,
             created_at_logical_t,
             Some("v1/agent_autopsy_capsule".into()),
         )?;
-        cids.push(capsule.capsule_id);
+        debug_assert_eq!(
+            cas_returned_cid, d.capsule.capsule_id,
+            "CAS-returned cid must equal capsule.capsule_id (CasStore::put contract)"
+        );
+        cids.push(d.capsule.capsule_id);
     }
     Ok(cids)
 }
@@ -771,7 +870,7 @@ mod tests {
         );
         let agents: Vec<&str> = derived
             .iter()
-            .map(|(c, _)| c.agent_id.0.as_str())
+            .map(|d| d.capsule.agent_id.0.as_str())
             .collect();
         assert!(agents.contains(&"Agent_A"));
         assert!(agents.contains(&"Agent_B"));
@@ -779,13 +878,22 @@ mod tests {
 
         // Each capsule reports the correct event_id, loss_amount,
         // loss_reason_class, and a populated capsule_id.
-        for (c, _bytes) in &derived {
+        for d in &derived {
+            let c = &d.capsule;
             assert_eq!(c.event_id.0 .0, task);
             assert_eq!(c.loss_reason_class, LossReasonClass::Bankruptcy);
             assert_ne!(c.capsule_id, Cid::default());
             assert_eq!(c.capsule_id.0, c.sha256.0);
             assert!(c.public_summary.contains(task));
             assert!(c.public_summary.contains("Bankruptcy"));
+            // R3 closure (Codex R2 VETO TB15-CAS-ID): capsule_id MUST
+            // equal sha256(stored_capsule_bytes).
+            assert_eq!(
+                c.capsule_id,
+                Cid::from_content(&d.stored_capsule_bytes),
+                "capsule_id must equal sha256(stored_capsule_bytes) — \
+                 cas.get(&capsule_id) resolvability contract"
+            );
         }
     }
 
@@ -805,10 +913,20 @@ mod tests {
         let b = derive_autopsies_for_bankruptcy(&econ, &bk, 3, 50);
 
         assert_eq!(a.len(), b.len());
-        for (i, ((ca, ba), (cb, bb))) in a.iter().zip(b.iter()).enumerate() {
-            assert_eq!(ca.capsule_id, cb.capsule_id, "capsule {i} cid mismatch");
-            assert_eq!(ca, cb, "capsule {i} struct mismatch");
-            assert_eq!(ba, bb, "capsule {i} private_detail bytes mismatch");
+        for (i, (da, db)) in a.iter().zip(b.iter()).enumerate() {
+            assert_eq!(
+                da.capsule.capsule_id, db.capsule.capsule_id,
+                "capsule {i} cid mismatch"
+            );
+            assert_eq!(da.capsule, db.capsule, "capsule {i} struct mismatch");
+            assert_eq!(
+                da.private_bytes, db.private_bytes,
+                "capsule {i} private_detail bytes mismatch"
+            );
+            assert_eq!(
+                da.stored_capsule_bytes, db.stored_capsule_bytes,
+                "capsule {i} stored_capsule_bytes mismatch"
+            );
         }
     }
 
@@ -933,6 +1051,28 @@ mod tests {
         assert!(summaries.is_empty());
     }
 
+    // ───────────────────────────────────────────────────────────────────
+    // R2 closure — activation gate tests (Gemini R1 VETO Q12)
+    // ───────────────────────────────────────────────────────────────────
+
+    /// R2 closure: activation gate predicate is true at default
+    /// constant (TB15_AUTOPSY_ACTIVATION_LOGICAL_T = 0); fresh chains
+    /// (any timestamp_logical >= 0) trivially satisfy the gate.
+    #[test]
+    fn activation_gate_default_is_always_active_for_fresh_chains() {
+        // Default constant is 0; any u64 (including 0 itself) is >= 0.
+        assert!(is_autopsy_active_at(0), "logical_t 0 must be active under default const 0");
+        assert!(is_autopsy_active_at(1), "logical_t 1 must be active");
+        assert!(is_autopsy_active_at(u64::MAX), "logical_t MAX must be active");
+        // Documentation: TB15_AUTOPSY_ACTIVATION_LOGICAL_T == 0 is the
+        // shipped default; pre-TB-15 chain migration would override the
+        // const to a non-zero cutoff.
+        assert_eq!(
+            TB15_AUTOPSY_ACTIVATION_LOGICAL_T, 0,
+            "shipped default must be 0 (always-active for fresh chains)"
+        );
+    }
+
     /// TB-15 Atom 3 — write_bankruptcy_autopsies_to_cas: writes
     /// 2 CAS objects per staker (capsule + private_detail). Returned
     /// Cids match the dispatch arm's deterministic derivation.
@@ -967,7 +1107,7 @@ mod tests {
 
         // Cids match what derive returns (replay-determinism contract).
         let derived = derive_autopsies_for_bankruptcy(&econ, &bk, 7, 42);
-        let derived_cids: Vec<Cid> = derived.iter().map(|(c, _)| c.capsule_id).collect();
+        let derived_cids: Vec<Cid> = derived.iter().map(|d| d.capsule.capsule_id).collect();
         assert_eq!(cids, derived_cids);
 
         // CAS now contains 4 objects per 2 stakers: 2 private_detail + 2 capsule.
@@ -977,5 +1117,30 @@ mod tests {
             4,
             "2 stakers × 2 CAS objects (private_detail + capsule) = 4"
         );
+
+        // R3 closure (Codex R2 VETO TB15-CAS-ID): cas.get(&capsule.capsule_id)
+        // MUST succeed for every emitted Cid. This is the contract Codex
+        // R2 found broken in the prior implementation.
+        for cid in &cids {
+            let bytes = cas_r
+                .get(cid)
+                .expect("R3 contract: cas.get(&capsule_id) MUST succeed");
+            // The retrieved bytes' sha256 MUST equal the cid (CAS
+            // content-addressed integrity).
+            assert_eq!(
+                Cid::from_content(&bytes),
+                *cid,
+                "R3 contract: sha256(retrieved bytes) == capsule_id"
+            );
+            // The retrieved bytes canonical_decode to a struct with the
+            // same field values (modulo capsule_id/sha256 which are
+            // derived; restored via restore_autopsy_capsule_from_cas_bytes).
+            let restored = restore_autopsy_capsule_from_cas_bytes(&bytes)
+                .expect("R3 contract: canonical_decode + restore succeeds");
+            assert_eq!(
+                restored.capsule_id, *cid,
+                "R3 contract: restored capsule_id matches CAS Cid"
+            );
+        }
     }
 }

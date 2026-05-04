@@ -85,7 +85,9 @@ fn raw_logs_not_in_general_read_view() {
 #[test]
 fn markov_capsule_references_constitution_hash() {
     use sha2::{Digest, Sha256};
-    use turingosv4::runtime::markov_capsule::MarkovEvidenceCapsule;
+    use turingosv4::runtime::markov_capsule::{
+        read_flowchart_hashes_from_matrix, MarkovEvidenceCapsule,
+    };
 
     let manifest = env!("CARGO_MANIFEST_DIR");
     let constitution_path = format!("{}/constitution.md", manifest);
@@ -100,6 +102,31 @@ fn markov_capsule_references_constitution_hash() {
         capsule.constitution_hash.0, expected_hash,
         "halt-trigger #2: MarkovEvidenceCapsule.constitution_hash must equal \
          sha256 of constitution.md bytes (SG-15.7)"
+    );
+
+    // R2 closure (Codex R1 Q8/RQ7 + Gemini R1 Q7): SG-15.7 spec literal
+    // is "constitution hash AND flowchart hashes". Capsule MUST also
+    // reference 4 canonical flowchart hashes (per architect 2026-05-02
+    // ruling 9 of Part C — flowcharts elevated to SHA-anchored
+    // architectural contracts).
+    let matrix_path = std::path::PathBuf::from(manifest)
+        .join("handover/alignment/TRACE_FLOWCHART_MATRIX.md");
+    let flowchart_hashes =
+        read_flowchart_hashes_from_matrix(&matrix_path).expect("matrix parse");
+    assert_eq!(
+        flowchart_hashes.len(),
+        4,
+        "halt-trigger #2: TRACE_FLOWCHART_MATRIX.md must yield exactly 4 \
+         canonical flowchart hashes (1a, 1b, 2, 3) per architect §2 (SG-15.7)"
+    );
+    // Capsule's flowchart_hashes field exists + accepts 4 hashes.
+    let mut cap_with_fc = capsule.clone();
+    cap_with_fc.flowchart_hashes = flowchart_hashes.clone();
+    assert_eq!(
+        cap_with_fc.flowchart_hashes.len(),
+        4,
+        "halt-trigger #2: MarkovEvidenceCapsule.flowchart_hashes must hold \
+         exactly the 4 canonical flowchart hashes (SG-15.7 literal compliance)"
     );
 }
 
@@ -264,17 +291,59 @@ fn typical_error_clustering_uses_summary_only() {
     assert_eq!(summaries.len(), 1, "3 same-class autopsies → 1 typical error");
     assert_eq!(summaries[0].count, 3);
 
-    // Halt-trigger #5: serialization must not contain any
-    // private_detail_cid byte run.
-    let bytes = serde_json::to_vec(&summaries).expect("serialize summaries");
+    // R2 closure (Codex R1 Q5): the original byte-window scan looked for
+    // a raw 32-byte run of `[priv_byte; 32]`, but Cid serializes through
+    // serde_json as a 32-element JSON ARRAY (`[170,170,...,170]`) — NOT
+    // a contiguous binary 32-byte run. The strengthened check inspects
+    // BOTH (a) the JSON-array text representation that serde_json
+    // produces for a `Cid([priv_byte; 32])`, AND (b) the raw 32-byte run
+    // (defense-in-depth against future format changes).
+    let json_text = serde_json::to_string(&summaries).expect("serialize summaries");
+    let json_bytes = json_text.as_bytes();
+    let canonical_bytes =
+        turingosv4::bottom_white::ledger::transition_ledger::canonical_encode(&summaries)
+            .expect("canonical encode");
     for &priv_byte in &priv_bytes {
-        let private_cid = [priv_byte; 32];
-        for window in bytes.windows(32) {
+        // (a) JSON-array text form: a Cid([0xAA;32]) renders as
+        //     `[170,170,170,170,170,170,170,170,170,170,170,170,170,170,170,
+        //       170,170,170,170,170,170,170,170,170,170,170,170,170,170,170,
+        //       170,170]` (each byte as its decimal value).
+        let n = priv_byte as u32;
+        let mut json_array_form = String::with_capacity(160);
+        json_array_form.push('[');
+        for i in 0..32 {
+            if i > 0 {
+                json_array_form.push(',');
+            }
+            json_array_form.push_str(&n.to_string());
+        }
+        json_array_form.push(']');
+        assert!(
+            !json_text.contains(&json_array_form),
+            "halt-trigger #5 (R2 strengthened): TypicalErrorSummary JSON \
+             serialization contains the canonical Cid array form for \
+             private_detail_cid byte 0x{:02x} — broadcast surface MUST use \
+             public_summary text only (SG-15.5)",
+            priv_byte
+        );
+
+        // (b) raw 32-byte run defense-in-depth (would catch
+        //     a hypothetical bincode/canonical-encoded leak).
+        let private_cid_run = [priv_byte; 32];
+        for window in canonical_bytes.windows(32) {
             assert!(
-                window != private_cid,
-                "halt-trigger #5: TypicalErrorSummary serialization contains \
-                 private_detail_cid byte run for byte=0x{:02x} — broadcast \
-                 surface MUST use public_summary text only (SG-15.5)",
+                window != private_cid_run,
+                "halt-trigger #5 (R2): canonical_encode of TypicalErrorSummary \
+                 contains a 32-byte run of private_detail_cid byte 0x{:02x}",
+                priv_byte
+            );
+        }
+        // Also still check JSON bytes for raw run (belt + suspenders).
+        for window in json_bytes.windows(32) {
+            assert!(
+                window != private_cid_run,
+                "halt-trigger #5 (R2): JSON of TypicalErrorSummary contains a \
+                 raw 32-byte run of private_detail_cid byte 0x{:02x}",
                 priv_byte
             );
         }

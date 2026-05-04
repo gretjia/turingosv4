@@ -1357,30 +1357,39 @@ pub(crate) fn dispatch_transition(
                 tm.state = crate::state::q_state::TaskMarketState::Bankrupt;
                 tm.bankruptcy_at_logical_t = Some(bk.timestamp_logical);
             }
-            // Step 3.5 — TB-15 Atom 3 (architect §6.2): emit deterministic
-            // AgentAutopsyCapsule Cids into agent_autopsies_t for each
-            // staker losing on the bankrupted task. PURE: no CAS write
-            // here — apply_one's post-dispatch hook (Stage 5.5) writes
-            // the bytes using the same `derive_autopsies_for_bankruptcy`
-            // helper (replay-safe identical Cids). CR-15.1 + halt-trigger
-            // #1: Cids are NOT projected to AgentVisibleProjection.
-            let derived =
-                crate::runtime::autopsy_capsule::derive_autopsies_for_bankruptcy(
-                    &q.economic_state_t,
-                    bk,
-                    q.q_t.current_round,
-                    bk.timestamp_logical,
-                );
-            if !derived.is_empty() {
-                let event_id = crate::state::typed_tx::EventId(bk.task_id.clone());
-                let entry = q_next
-                    .economic_state_t
-                    .agent_autopsies_t
-                    .0
-                    .entry(event_id)
-                    .or_default();
-                for (capsule, _private_bytes) in &derived {
-                    entry.push(capsule.capsule_id);
+            // Step 3.5 — TB-15 Atom 3 (architect §6.2) + R2 closure
+            // (Gemini R1 VETO Q12 activation gate for replay-determinism):
+            // emit deterministic AgentAutopsyCapsule Cids into
+            // agent_autopsies_t for each staker losing on the bankrupted
+            // task IFF the bankruptcy timestamp_logical is at or past the
+            // TB-15 activation cutoff. PURE: no CAS write here —
+            // apply_one's post-dispatch hook (Stage 3.5) writes the bytes
+            // using the same `derive_autopsies_for_bankruptcy` helper
+            // (replay-safe identical Cids). CR-15.1 + halt-trigger #1:
+            // Cids are NOT projected to AgentVisibleProjection.
+            // `is_autopsy_active_at` defaults true for fresh chains
+            // (TB15_AUTOPSY_ACTIVATION_LOGICAL_T=0); pre-TB-15 chain
+            // migration would override the constant to skip pre-cutoff
+            // rows per `feedback_no_retroactive_evidence_rewrite`.
+            if crate::runtime::autopsy_capsule::is_autopsy_active_at(bk.timestamp_logical) {
+                let derived =
+                    crate::runtime::autopsy_capsule::derive_autopsies_for_bankruptcy(
+                        &q.economic_state_t,
+                        bk,
+                        q.q_t.current_round,
+                        bk.timestamp_logical,
+                    );
+                if !derived.is_empty() {
+                    let event_id = crate::state::typed_tx::EventId(bk.task_id.clone());
+                    let entry = q_next
+                        .economic_state_t
+                        .agent_autopsies_t
+                        .0
+                        .entry(event_id)
+                        .or_default();
+                    for d in &derived {
+                        entry.push(d.capsule.capsule_id);
+                    }
                 }
             }
             // Step 4: monetary invariants. No money moved.
@@ -3080,26 +3089,33 @@ impl Sequencer {
         // produces the same CAS state. Failure here is a hard error
         // (ApplyError) — autopsy bytes MUST be retrievable for SG-15.6
         // dashboard regenerability.
+        // R2 closure (Gemini R1 VETO Q12): activation-gate the CAS write
+        // identically to the dispatch arm. Both gates pin on the same
+        // constant TB15_AUTOPSY_ACTIVATION_LOGICAL_T → dispatch and
+        // apply_one stay agreement-locked: pre-cutoff rows write nothing
+        // to CAS AND populate no agent_autopsies_t Cids.
         if let TypedTx::TaskBankruptcy(bk) = &tx {
-            let _ = crate::runtime::autopsy_capsule::write_bankruptcy_autopsies_to_cas(
-                &self.cas,
-                &q_snapshot.economic_state_t,
-                bk,
-                q_snapshot.q_t.current_round,
-                bk.timestamp_logical,
-                &format!("sequencer-epoch-{}", self.epoch.get()),
-            )
-            .map_err(|e| match e {
-                crate::runtime::autopsy_capsule::AutopsyWriteError::Cas(c) => {
-                    ApplyError::Cas(c)
-                }
-                crate::runtime::autopsy_capsule::AutopsyWriteError::Encode(s) => {
-                    ApplyError::PayloadEncode(s)
-                }
-                crate::runtime::autopsy_capsule::AutopsyWriteError::InternalLockPoisoned => {
-                    ApplyError::QStateLockPoisoned
-                }
-            })?;
+            if crate::runtime::autopsy_capsule::is_autopsy_active_at(bk.timestamp_logical) {
+                let _ = crate::runtime::autopsy_capsule::write_bankruptcy_autopsies_to_cas(
+                    &self.cas,
+                    &q_snapshot.economic_state_t,
+                    bk,
+                    q_snapshot.q_t.current_round,
+                    bk.timestamp_logical,
+                    &format!("sequencer-epoch-{}", self.epoch.get()),
+                )
+                .map_err(|e| match e {
+                    crate::runtime::autopsy_capsule::AutopsyWriteError::Cas(c) => {
+                        ApplyError::Cas(c)
+                    }
+                    crate::runtime::autopsy_capsule::AutopsyWriteError::Encode(s) => {
+                        ApplyError::PayloadEncode(s)
+                    }
+                    crate::runtime::autopsy_capsule::AutopsyWriteError::InternalLockPoisoned => {
+                        ApplyError::QStateLockPoisoned
+                    }
+                })?;
+            }
         }
 
         // Stage 5: build LedgerEntrySigningPayload (v1.1 — stage 4 fetch_add

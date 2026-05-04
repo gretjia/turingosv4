@@ -608,7 +608,7 @@ fn fc1_n33_derive_autopsies_witness() {
     let a = derive_autopsies_for_bankruptcy(&econ, &bk, 1, 5);
     let b = derive_autopsies_for_bankruptcy(&econ, &bk, 1, 5);
     assert_eq!(a.len(), 1);
-    assert_eq!(a[0].0.capsule_id, b[0].0.capsule_id, "FC1-N33: deterministic Cid");
+    assert_eq!(a[0].capsule.capsule_id, b[0].capsule.capsule_id, "FC1-N33: deterministic Cid");
 }
 
 /// FC2-N30 (TB-15 Atom 4): cluster_autopsies pure aggregator. Witness:
