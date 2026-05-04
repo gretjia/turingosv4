@@ -972,6 +972,101 @@ async fn run_swarm(
             } else {
                 info!("[chaintape/d3] preseed EscrowLock {escrow_micro} micro for {real_task_id}");
             }
+
+            // TB-16 Atom 7 R1 Step 3 (architect §7.3 FR-16.4 + CR-16.7):
+            // TURINGOS_COMPLETE_SET_SEED=<provider>:<amount_micro> mode.
+            // After preseed TaskOpen + EscrowLock land, the named provider
+            // submits a real-signed MarketSeedTx + CompleteSetMintTx
+            // against the task's EventId (= TaskId per TB-13). Sandbox-
+            // labeled provider only (CR-16.5).
+            if let Ok(seed_spec) = std::env::var("TURINGOS_COMPLETE_SET_SEED") {
+                let parts: Vec<&str> = seed_spec.splitn(2, ':').collect();
+                if parts.len() == 2 {
+                    let provider = parts[0].to_string();
+                    let amount_micro: i64 = parts[1].parse().unwrap_or(1_000_000);
+                    let pre_seed_root = match bundle.sequencer.q_snapshot() {
+                        Ok(q) => q.state_root_t,
+                        Err(_) => turingosv4::state::q_state::Hash::ZERO,
+                    };
+                    if let Err(e) = turingosv4::runtime::adapter::tb8_await_state_root_advance(
+                        &bundle.sequencer, pre_seed_root, 5000,
+                    ).await {
+                        warn!("[chaintape/tb16-arena] await for EscrowLock commit (pre-seed) failed: {e:?}");
+                    }
+                    let post_escrow_root = match bundle.sequencer.q_snapshot() {
+                        Ok(q) => q.state_root_t,
+                        Err(_) => pre_seed_root,
+                    };
+                    let market_seed: Option<turingosv4::state::typed_tx::TypedTx> = {
+                        let registry_arc = agent_keypairs.as_ref()
+                            .expect("[chaintape/tb16-arena] agent_keypairs registry required");
+                        let mut reg_guard = registry_arc.lock().expect("agent_keypairs registry mutex poisoned");
+                        match turingosv4::runtime::adapter::make_real_market_seed_signed_by(
+                            &mut *reg_guard,
+                            post_escrow_root,
+                            &real_task_id,
+                            &provider,
+                            amount_micro,
+                            "tb16-arena-seed",
+                            1,
+                        ) {
+                            Ok(tx) => Some(tx),
+                            Err(e) => {
+                                warn!("[chaintape/tb16-arena] make_real_market_seed failed: {e}");
+                                None
+                            }
+                        }
+                    };
+                    if let Some(ms) = market_seed {
+                        if let Err(e) = bus.submit_typed_tx(ms).await {
+                            warn!("[chaintape/tb16-arena] MarketSeedTx submit failed: {e:?}");
+                        } else {
+                            info!("[chaintape/tb16-arena] MarketSeedTx submitted by {provider} ({amount_micro} μC) for event={real_task_id}");
+                        }
+                    }
+                    // Wait for MarketSeed to commit before CompleteSetMint.
+                    if let Err(e) = turingosv4::runtime::adapter::tb8_await_state_root_advance(
+                        &bundle.sequencer, post_escrow_root, 5000,
+                    ).await {
+                        warn!("[chaintape/tb16-arena] await for MarketSeed commit (pre-mint) failed: {e:?}");
+                    }
+                    let post_seed_root = match bundle.sequencer.q_snapshot() {
+                        Ok(q) => q.state_root_t,
+                        Err(_) => post_escrow_root,
+                    };
+                    // CompleteSetMint requires balance debit; provider has the
+                    // collateral (preseed). Mint a smaller amount than the seed
+                    // to keep balance comfortable.
+                    let mint_amount = std::cmp::max(1, amount_micro / 4);
+                    let cs_mint: Option<turingosv4::state::typed_tx::TypedTx> = {
+                        let registry_arc = agent_keypairs.as_ref()
+                            .expect("[chaintape/tb16-arena] agent_keypairs registry required");
+                        let mut reg_guard = registry_arc.lock().expect("agent_keypairs registry mutex poisoned");
+                        match turingosv4::runtime::adapter::make_real_complete_set_mint_signed_by(
+                            &mut *reg_guard,
+                            post_seed_root,
+                            &real_task_id,
+                            &provider,
+                            mint_amount,
+                            "tb16-arena-mint",
+                            2,
+                        ) {
+                            Ok(tx) => Some(tx),
+                            Err(e) => {
+                                warn!("[chaintape/tb16-arena] make_real_complete_set_mint failed: {e}");
+                                None
+                            }
+                        }
+                    };
+                    if let Some(cm) = cs_mint {
+                        if let Err(e) = bus.submit_typed_tx(cm).await {
+                            warn!("[chaintape/tb16-arena] CompleteSetMintTx submit failed: {e:?}");
+                        } else {
+                            info!("[chaintape/tb16-arena] CompleteSetMintTx submitted by {provider} ({mint_amount} μC YES + {mint_amount} μC NO) for event={real_task_id}");
+                        }
+                    }
+                }
+            }
         }
 
         let task_id_str = format!("smoke-{}", run_id);
@@ -2088,7 +2183,69 @@ async fn run_swarm(
                                                 error!("[chaintape/atom3-omega] FAIL-CLOSED: VerifyTx submit_typed_tx: {e:?}");
                                                 std::process::exit(3);
                                             }
-                                            let work_tx_id = Some(work_tx_id);
+                                            let work_tx_id_opt = Some(work_tx_id.clone());
+
+                                            // TB-16 Atom 7 R1 Step 3 (architect §7.3 FR-16.3 +
+                                            // CR-16.3..7): TURINGOS_FORCE_CHALLENGER mode. After
+                                            // VerifyTx OMEGA-Confirm, an adversarial agent submits a
+                                            // ChallengeTx targeting the WorkTx. Sequencer's
+                                            // ChallengeResolveTx (system-emitted) will Released the
+                                            // bond once the original verifier re-confirms. Per
+                                            // architect §7.5 SG-16.3: "no fake accepted nodes" — the
+                                            // chain records the challenge attempt as L4 evidence,
+                                            // not a state-overwriting fork.
+                                            if let Ok(challenger) = std::env::var("TURINGOS_FORCE_CHALLENGER") {
+                                                if !challenger.is_empty() && challenger.as_str() != agent_id.as_str() {
+                                                    // Wait for verify to commit so ChallengeTx's
+                                                    // parent_state_root reflects post-verify state.
+                                                    let pre_chall_root = match bundle.sequencer.q_snapshot() {
+                                                        Ok(q) => q.state_root_t,
+                                                        Err(_) => post_work_root,
+                                                    };
+                                                    if let Err(e) = turingosv4::runtime::adapter::tb8_await_state_root_advance(
+                                                        &bundle.sequencer, pre_chall_root, 5000,
+                                                    ).await {
+                                                        warn!("[chaintape/tb16-arena] await for VerifyTx commit (pre-challenge) failed: {e:?}");
+                                                    }
+                                                    let post_verify_root = match bundle.sequencer.q_snapshot() {
+                                                        Ok(q) => q.state_root_t,
+                                                        Err(_) => pre_chall_root,
+                                                    };
+                                                    let challenge_tx = {
+                                                        let mut reg_guard = match reg.lock() {
+                                                            Ok(g) => g,
+                                                            Err(p) => p.into_inner(),
+                                                        };
+                                                        // counterexample_cid is opaque-zero in adversarial-
+                                                        // smoke mode (no actual counterexample crafted; the
+                                                        // challenge is a procedural FR-16.3 fence trip).
+                                                        match turingosv4::runtime::adapter::make_real_challengetx_signed_by(
+                                                            &mut *reg_guard,
+                                                            post_verify_root,
+                                                            work_tx_id.clone(),
+                                                            &challenger,
+                                                            10_000, // bond > 0 so ChallengeTx lands on L4
+                                                            turingosv4::bottom_white::cas::schema::Cid([0u8; 32]),
+                                                            &format!("{suffix}-arena-chall"),
+                                                            logical_t.saturating_add(1),
+                                                        ) {
+                                                            Ok(tx) => Some(tx),
+                                                            Err(e) => {
+                                                                warn!("[chaintape/tb16-arena] make_real_challengetx failed: {e}");
+                                                                None
+                                                            }
+                                                        }
+                                                    };
+                                                    if let Some(ctx) = challenge_tx {
+                                                        if let Err(e) = bus.submit_typed_tx(ctx).await {
+                                                            warn!("[chaintape/tb16-arena] ChallengeTx submit failed: {e:?}");
+                                                        } else {
+                                                            info!("[chaintape/tb16-arena] adversarial ChallengeTx submitted by {challenger} against work_tx={work_tx_id:?}");
+                                                        }
+                                                    }
+                                                }
+                                            }
+
                                             // TB-8 Atom 4 — emit FinalizeReward after the VerifyTx
                                             // commits. Best-effort poll-then-emit (zero-window MVP per
                                             // ratification §1 Q3); failure does NOT fail the run since
@@ -2102,6 +2259,7 @@ async fn run_swarm(
                                                     Err(e) => warn!("[chaintape/tb8/atom4] FinalizeReward emit_system_tx error: {e:?}"),
                                                 }
                                             }
+                                            let work_tx_id = work_tx_id_opt;
                                             // TB-7.7 D2: VerifyTx is the most recent same-agent submission;
                                             // record it as parent for any subsequent same-agent proposal.
                                             // (For root-of-tree analysis the WorkTx is the true parent of
@@ -2827,6 +2985,48 @@ async fn run_swarm(
                                 Err(e) => warn!(
                                     "[tb11] TerminalSummary emit failed: {e:?}"
                                 ),
+                            }
+
+                            // TB-16 Atom 7 R1 Step 3 (architect §7.3 FR-16.7
+                            // + SG-16.7): TURINGOS_FORCE_BANKRUPTCY=1 mode.
+                            // After TerminalSummary lands, emit
+                            // TaskBankruptcyTx referencing the same evidence
+                            // capsule. This drives the TB-15 dispatch arm
+                            // Step 3.5 → autopsy emission (FR-16.7 satisfied).
+                            // Only fires in MaxTxExhausted exit path
+                            // (architect §7.3 SG-16.7 "loss → autopsy path").
+                            if std::env::var("TURINGOS_FORCE_BANKRUPTCY").as_deref() == Ok("1") {
+                                use turingosv4::state::sequencer::SystemEmitCommand;
+                                use turingosv4::state::typed_tx::BankruptcyReason;
+                                let bk_task_id =
+                                    turingosv4::state::q_state::TaskId(format!("task-{}", run_id));
+                                // Wait for TerminalSummary to commit before emitting bankruptcy.
+                                let pre_bk_root = match bundle.sequencer.q_snapshot() {
+                                    Ok(q) => q.state_root_t,
+                                    Err(_) => turingosv4::state::q_state::Hash::ZERO,
+                                };
+                                if let Err(e) = turingosv4::runtime::adapter::tb8_await_state_root_advance(
+                                    bundle.sequencer.as_ref(), pre_bk_root, 5000,
+                                ).await {
+                                    warn!("[chaintape/tb16-arena] await for TerminalSummary commit (pre-bankruptcy) failed: {e:?}");
+                                }
+                                match bundle.sequencer
+                                    .emit_system_tx(SystemEmitCommand::TaskBankruptcy {
+                                        task_id: bk_task_id.clone(),
+                                        evidence_capsule_cid: capsule.capsule_id,
+                                        bankruptcy_reason: BankruptcyReason::MaxFailedRunCount,
+                                        failed_run_count: 1,
+                                    })
+                                    .await
+                                {
+                                    Ok(receipt) => info!(
+                                        "[chaintape/tb16-arena] TaskBankruptcyTx emitted: emit_id={} task_id={bk_task_id:?}",
+                                        receipt.emit_id
+                                    ),
+                                    Err(e) => warn!(
+                                        "[chaintape/tb16-arena] TaskBankruptcyTx emit failed: {e:?}"
+                                    ),
+                                }
                             }
                         }
                         Err(e) => warn!("[tb11] EvidenceCapsule write failed: {e:?}"),

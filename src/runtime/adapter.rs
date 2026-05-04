@@ -367,6 +367,139 @@ pub fn make_real_escrow_lock_signed_by(
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// TB-16 Atom 7 R1 Step 3 — Real-signature constructors for arena drivers
+// (architect §7.3 FR-16.3 + FR-16.4 + sandbox forbidden-list compliance).
+// ────────────────────────────────────────────────────────────────────────────
+
+/// TRACE_MATRIX FC1-N36 (TB-16 arena driver): real-signature
+/// `ChallengeTx` constructor signed by `challenger`.
+#[allow(clippy::too_many_arguments)]
+pub fn make_real_challengetx_signed_by(
+    keypairs: &mut AgentKeypairRegistry,
+    parent_state_root: Hash,
+    target_work_tx: TxId,
+    challenger: &str,
+    stake_micro: i64,
+    counterexample_cid: Cid,
+    suffix: &str,
+    timestamp_logical: u64,
+) -> Result<TypedTx, AgentKeypairError> {
+    use crate::state::typed_tx::{ChallengeSigningPayload, ChallengeTx};
+    let challenger_id = AgentId(challenger.into());
+    let tx_id = TxId(format!("challengetx-{}-{}", challenger, suffix));
+    let stake = StakeMicroCoin::from_micro_units(stake_micro);
+
+    let payload = ChallengeSigningPayload {
+        tx_id: tx_id.clone(),
+        parent_state_root,
+        target_work_tx: target_work_tx.clone(),
+        challenger_agent: challenger_id.clone(),
+        stake,
+        counterexample_cid,
+        timestamp_logical,
+    };
+    let digest = payload.canonical_digest();
+    let signature = keypairs.sign(&challenger_id, digest)?;
+
+    Ok(TypedTx::Challenge(ChallengeTx {
+        tx_id,
+        parent_state_root,
+        target_work_tx,
+        challenger_agent: challenger_id,
+        stake,
+        counterexample_cid,
+        signature,
+        timestamp_logical,
+    }))
+}
+
+/// TRACE_MATRIX FC1-N36 (TB-16 arena driver): real-signature
+/// `MarketSeedTx` constructor — Agent_user_0 boots the
+/// CompleteSet inventory at task entry (FR-16.4).
+#[allow(clippy::too_many_arguments)]
+pub fn make_real_market_seed_signed_by(
+    keypairs: &mut AgentKeypairRegistry,
+    parent_state_root: Hash,
+    event_task: &str,
+    provider: &str,
+    collateral_amount_micro: i64,
+    suffix: &str,
+    timestamp_logical: u64,
+) -> Result<TypedTx, AgentKeypairError> {
+    use crate::state::typed_tx::{
+        EventId, MarketSeedSigningPayload, MarketSeedTx,
+    };
+    let provider_id = AgentId(provider.into());
+    let tx_id = TxId(format!("marketseedtx-{}-{}", provider, suffix));
+    let event_id = EventId(crate::state::q_state::TaskId(event_task.into()));
+    let collateral_amount = MicroCoin::from_micro_units(collateral_amount_micro);
+
+    let payload = MarketSeedSigningPayload {
+        tx_id: tx_id.clone(),
+        parent_state_root,
+        event_id: event_id.clone(),
+        provider: provider_id.clone(),
+        collateral_amount,
+        timestamp_logical,
+    };
+    let digest = payload.canonical_digest();
+    let signature = keypairs.sign(&provider_id, digest)?;
+
+    Ok(TypedTx::MarketSeed(MarketSeedTx {
+        tx_id,
+        parent_state_root,
+        event_id,
+        provider: provider_id,
+        collateral_amount,
+        signature,
+        timestamp_logical,
+    }))
+}
+
+/// TRACE_MATRIX FC1-N36 (TB-16 arena driver): real-signature
+/// `CompleteSetMintTx` constructor — owner mints 1 Coin → 1 YES + 1 NO
+/// shares against the event collateral pool (FR-16.4).
+#[allow(clippy::too_many_arguments)]
+pub fn make_real_complete_set_mint_signed_by(
+    keypairs: &mut AgentKeypairRegistry,
+    parent_state_root: Hash,
+    event_task: &str,
+    owner: &str,
+    amount_micro: i64,
+    suffix: &str,
+    timestamp_logical: u64,
+) -> Result<TypedTx, AgentKeypairError> {
+    use crate::state::typed_tx::{
+        CompleteSetMintSigningPayload, CompleteSetMintTx, EventId,
+    };
+    let owner_id = AgentId(owner.into());
+    let tx_id = TxId(format!("csmint-{}-{}", owner, suffix));
+    let event_id = EventId(crate::state::q_state::TaskId(event_task.into()));
+    let amount = MicroCoin::from_micro_units(amount_micro);
+
+    let payload = CompleteSetMintSigningPayload {
+        tx_id: tx_id.clone(),
+        parent_state_root,
+        event_id: event_id.clone(),
+        owner: owner_id.clone(),
+        amount,
+        timestamp_logical,
+    };
+    let digest = payload.canonical_digest();
+    let signature = keypairs.sign(&owner_id, digest)?;
+
+    Ok(TypedTx::CompleteSetMint(CompleteSetMintTx {
+        tx_id,
+        parent_state_root,
+        event_id,
+        owner: owner_id,
+        amount,
+        signature,
+        timestamp_logical,
+    }))
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // TB-8 Atom 4 — Evaluator OMEGA-branch caller helper.
 // ────────────────────────────────────────────────────────────────────────────
 
