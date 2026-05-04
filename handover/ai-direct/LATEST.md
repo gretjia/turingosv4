@@ -49,12 +49,21 @@
 - `handover/evidence/tb_16_real_llm_arena_2026-05-04/post_r3_full_test/README.md` — new (vintage annotation).
 - `handover/tracer_bullets/TB-16.x.1_charter_2026-05-04.md` — new charter.
 
+### TB-16.x.1.5 — architect §3 anti-drift verification CLOSED (2026-05-04)
+
+Cheapest follow-up shipped: legacy CPMM quarantine verification.
+
+- `src/prediction_market.rs` — already excised in TB-14 Atom 6 (excision strictly stronger than quarantine).
+- `tests/tb_13_legacy_cpmm_forward_fence.rs` — 8/8 PASS at HEAD (covers SG-13.0.1/2/3 + 5 marker-discipline edge tests).
+- f64 in TB-13/14 economic paths — 0 hits (single grep match at `typed_tx.rs:2814` is sha256 hex literal `0f64fa50ac...`).
+- Predecessor OBS `OBS_TB_12_LEGACY_CPMM_QUARANTINE_2026-05-03.md` updated to **RESOLVED** + §10 verification appended (no new OBS file added → smoke fixture's `unresolved_obs=26` count preserved → audit_pipeline_smoke baseline still PROCEED 38/0/0/3).
+- TB-14-SHIP prerequisite `(c) delete outright` was satisfied; (a) and (b) options retired.
+
 ### Next Steps (priority order)
 
 1. **TB-16.x.2 (P2 cap-loop, ~1-2 days)**: Atom 6.1 multi-task chain continuation — unblocks 4 missing tx kinds (ChallengeResolve, CompleteSetRedeem, TaskExpire, TaskBankruptcy-on-resolved-chain) + Boltzmann mechanism 5 RUNTIME exercise + AutopsyCapsule real-bankruptcy path. Architect 2026-05-03 §1.2 said TB-12 narrowed claim; this atom expands TB-16 conformance to FULL multi-task continuation.
 2. **TB-16.x.3 / pre-TB-17 (~1-2 days)**: heldout-49 capability batch with N≥20 runs/problem (per `project_pput_ccl_arc` + `feedback_launch_priority`).
-3. **Architect §3 follow-up — TB-13 legacy CPMM quarantine verification**: greppable check that `src/prediction_market.rs` has no imports from TB-13/14 modules (CompleteSet / MarketSeed / PriceIndex). Cheap — likely an OBS-write or quick TB-16.x.1.5.
-4. **TB-17 RealWorld Gate** charter (Class 4 sudo): dispatch ONLY after the 3 atoms above + architect re-read of `project_tb11_to_tb17_roadmap` (canonical reading order).
+3. **TB-17 RealWorld Gate** charter (Class 4 sudo): dispatch ONLY after the 2 atoms above + architect re-read of `project_tb11_to_tb17_roadmap` (canonical reading order).
 
 ### Cold-start reading order (for next session)
 

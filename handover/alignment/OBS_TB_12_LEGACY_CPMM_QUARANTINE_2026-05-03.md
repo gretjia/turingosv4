@@ -1,7 +1,10 @@
 # OBS — TB-12 legacy CPMM quarantine prerequisite for TB-13
 
-**Date**: 2026-05-03.
-**Status**: OBS (observation; tracked for future TB).
+**Date**: 2026-05-03; CLOSED 2026-05-04.
+**Status**: **RESOLVED** — `src/prediction_market.rs` was excised entirely in
+TB-14 Atom 6 (commit closing this OBS); forward-fence test ships at
+`tests/tb_13_legacy_cpmm_forward_fence.rs`. See §10 below for the
+2026-05-04 architect §3 anti-drift verification.
 **Triggered by**: Codex TB-12 ship audit Q5 CHALLENGE
 (`handover/audits/CODEX_TB_12_SHIP_AUDIT_2026-05-03.md`).
 **Audit verdict**: CHALLENGE on Q5 resolved as out-of-scope-for-TB-12
@@ -135,3 +138,70 @@ b. Feature-gate behind `#[cfg(feature = "legacy_cpmm")]` (off by default; explic
 c. Delete outright if no production consumers remain.
 
 Either way: remove `pub mod prediction_market;` from `src/lib.rs`; remove `BinaryMarket` Trust Root entries (if any); ship-gate the migration with a forbidden-token grep that fails on any `BinaryMarket` / `buy_yes` / `f64 reserve` reference outside `cfg(feature = "legacy_cpmm")`.
+
+---
+
+## §10 2026-05-04 architect §3 anti-drift verification — RESOLVED
+
+### §10.1 Architect §3 concern (verbatim)
+
+> 我的第一个路线修正是：TB-13 的 Atom 0.5 必须是 legacy CPMM quarantine。
+> 不是"顺手做"，而是 TB-13 的前置 ship gate.
+
+### §10.2 Verification at HEAD `3f7535d` (post-TB-16.x.1)
+
+**File excision (stronger than quarantine)**:
+
+```bash
+$ find . -name "prediction_market.rs"
+(empty)
+$ grep -rn "^mod prediction_market\|pub mod prediction_market" src/
+(empty)
+```
+
+The file was deleted outright in TB-14 Atom 6 — excision strictly dominates
+quarantine. Surviving cross-references in source are all comments
+documenting the excision (`src/bus.rs`, `src/kernel.rs`, `src/sdk/actor.rs`,
+`src/sdk/snapshot.rs`, `src/state/price_index.rs`).
+
+**Forward-fence test result** (programmatically enforces architect §4.2 HALT
+triggers):
+
+```text
+$ cargo test --release --test tb_13_legacy_cpmm_forward_fence
+test prediction_market_legacy_quarantined ............................ ok
+test no_f64_in_complete_set_or_market_seed ........................... ok
+test legacy_cpm_api_not_imported_by_complete_set ..................... ok
+test audit_dashboard_in_layer_1_scope_but_not_layer_2_scope .......... ok
+test discover_by_type_use_catches_unmarked_imports_and_skips_doc_xref . ok
+test discover_by_type_use_skips_successor_tb_marker_files ............ ok
+test tb_13_scan_lines_handles_marker_and_unmarked_files .............. ok
+test tb_13_scan_lines_partial_marker_catches_stealth_type_use ........ ok
+test result: ok. 8 passed; 0 failed.
+```
+
+**f64 in TB-13/14 economic paths**: 0 hits. The single grep hit at
+`src/state/typed_tx.rs:2814` is a sha256 hex literal containing the
+substring `0f64`, not a `f64` floating-point type.
+
+### §10.3 Verdict — PASS
+
+| Architect requirement | Shipped state | Verdict |
+|---|---|---|
+| `src/prediction_market.rs` quarantined | File deleted (excision; stronger) | ✅ |
+| TB-13 Atom 0.5 legacy CPMM forward-fence | 8/8 tests PASS at HEAD | ✅ |
+| No f64 in CompleteSet/MarketSeed code | 0 hits in fence + grep | ✅ |
+| No AMM/CPMM router in TB-13 | Forward-fence covers; 0 hits | ✅ |
+| Architect §4.7 forbidden list | All 11 items honored | ✅ |
+
+No follow-up TB or fix needed. Architect 2026-05-03 §3 anti-drift directive
+is **CLOSED**. This OBS's TB-14-SHIP-prerequisite from §1 (a/b/c) was
+satisfied by **option (c) — delete outright** in TB-14 Atom 6.
+
+### §10.4 Why this paper trail exists
+
+Per `feedback_session_label_codification` and architect §9 anti-drift rules,
+audit verifications must leave a paper trail even when the result is
+"shipped state already complies". Future reviewers (or architect re-reads)
+can confirm the §3 follow-up was actually executed, not silently treated
+as "obviously fine".
