@@ -6,6 +6,38 @@
 
 ---
 
+## 🚀 2026-05-04 — TB-16 Atom 7 R1 Steps 3+4 — fresh real-LLM arena runs + TB-11 writer-pattern bug fix (commits `05e3e86` + `d1c1af2`)
+
+**Path B-final Steps 3 + 4** per RECURSIVE_AUDIT_TB_16_2026-05-04.md.
+
+### Step 3 (commit `05e3e86`) — evaluator arena hooks
+3 env-var triggers added: `TURINGOS_FORCE_CHALLENGER` (FR-16.3), `TURINGOS_COMPLETE_SET_SEED` (FR-16.4), `TURINGOS_FORCE_BANKRUPTCY` (FR-16.7). 3 new real-signature constructors in `src/runtime/adapter.rs` (ChallengeTx + MarketSeed + CompleteSetMint).
+
+### Step 4 (commit `d1c1af2`) — fresh arena runs
+
+| Run | Problem | Verdict | tx kinds |
+|---|---|---|---|
+| `arena_run4/` (happy) | mathd_algebra_171 | **PROCEED** | Work + Verify + Challenge + TaskOpen + EscrowLock + CompleteSetMint + MarketSeed (7) |
+| `arena_run6_exhaust/` | aime_1997_p9 | **PROCEED** | TaskOpen + EscrowLock + TerminalSummary + TaskBankruptcy (4) |
+
+**Aggregate**: 9 of 13 architect-required tx kinds across both chains. FR-16.1/2/3/4/5/6/7 conceptually covered. Missing in both runs: ChallengeResolve, FinalizeReward (was in pre-challenger run3 only — Challenge blocks Finalize per challenge-window semantic), TaskExpire, CompleteSetRedeem.
+
+### CRITICAL — TB-11 EvidenceCapsule writer-pattern bug fix
+
+`src/runtime/evidence_capsule.rs::write_evidence_capsule` had the same writer-pattern bug Codex caught in TB-15 R2 (for AgentAutopsyCapsule + MarkovEvidenceCapsule). Stored bytes had populated capsule_id, but capsule_id was sha256 of UNPOPULATED bytes → `cas.get(capsule.capsule_id)` always failed.
+
+Discovered live in arena_run5 audit Layer E #27 halt. Fix: store IDENTITY-ZEROED bytes; capsule_id = sha256(stored_bytes); add `restore_evidence_capsule_from_cas_bytes`. Verified by arena_run6 PROCEED.
+
+This bug affected EVERY chain that ever fired TerminalSummaryTx + EvidenceCapsule (TB-11 onward). Forward-only fix per `feedback_no_retroactive_evidence_rewrite`.
+
+### Test counts
+
+`cargo test --workspace = 907 / 0 failed / 150 ignored`
+
+### Next: Step 5 — R2 dual external audit on aggregate evidence
+
+---
+
 ## 🛠 2026-05-04 — TB-16 Atom 7 R1 Step 1 — surgical fixes for V3/V4/V5/V6/V7 + Q11 + V2 (commit `3cf4c36`)
 
 **Path B-prime Step 1** per `RECURSIVE_AUDIT_TB_16_2026-05-04.md` §8. Closes 6 of 7 R1 audit defects via surgical fixes. Remaining V1 (fresh arena run) + V2-deeper (sandbox admission gate at sequencer level) deferred to Path B-prime Steps 2-4.
