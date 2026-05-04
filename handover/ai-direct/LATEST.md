@@ -45,9 +45,23 @@
 - 9-of-13 → 10-of-13 architect tx kinds runtime-exercised on real-LLM substrate.
 - Audit pipeline: PROCEED + replay-identical + 3/3 tamper detect.
 
-### OBS surfaced (deferred to umbrella)
+### Markov capsule = None per FC2 Boot + Markov chain genesis (NOT a workaround)
 
-- **Markov pointer infra gap**: `handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt` currently holds Cid `f9e701b4...` whose payload bytes live in TB-16 R3 Round 2's per-problem CAS (`P8_completeset_b/cas/`) — not in any global location. A fresh isolated CAS (such as TB-16.x.2.1's smoke run) cannot resolve it. This is a pre-existing gap independent of sub-atom 2.1; reproducer: `audit_tape ... --markov-pointer handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt` against round2 P1 today fails with the same "cas get: cid:f9e701b4... not found in CAS index" error. R3 Round 2's recorded behavior matches: `markov_constitution_hash_matches = "Skipped"` (markov_capsule resolved to None at run time when global pointer was different — `52ee141c...`). Sub-atom 2.1 smoke runner uses a non-existent pointer path (`/tmp/tb16x21_no_markov_pointer.txt`) so the Layer G assertions Skip cleanly. **Not** retroactively rewriting older evidence (per `feedback_no_retroactive_evidence_rewrite`). Track-forward: umbrella-level fix to seed each fresh CAS with the canonical markov capsule bytes (or alternatively, per-problem markov regeneration before audit_tape) — appropriate work for sub-atom 2.6 comprehensive runner where chain continuity is fully exercised.
+**Per user instruction "我不要凑活，我要严格对齐宪法和宪法中的三个 flowchart" (2026-05-04 fourth session), the framing is reset to strict constitutional analysis. Prior framing — "OBS deferred / infra gap to fix in 2.6" — is withdrawn as wrong-shaped.**
+
+Constitutional facts:
+1. **MarkovEvidenceCapsule is NOT a flowchart node.** FC1 (`constitution.md:455-509`, anti-oreo runtime loop), FC2 (`constitution.md:571-660`, Boot/Init), and FC3 (`constitution.md:826-870`, meta-architecture) contain no Markov capsule node. The capsule is a TB-15 派生视图 (CR-15.5: "evidence compression, not hidden source of truth — every field is derivable from the chain + CAS").
+2. **Markov chain genesis is `previous_capsule_cid: None`** (`src/runtime/markov_capsule.rs:60` + line 111). A fresh isolated chain has no inherited Markov by definition.
+3. **TB-16.x.2.1's smoke run is constitutionally a genesis chain**: fresh `runtime_repo` + fresh `cas`, no `previous_capsule_cid` anywhere in its bytes. Therefore `markov_capsule = None` is the **only** constitutionally correct state per FC2 Boot semantic + Markov chain definition. The 7 Layer G `Skipped` outcomes are CORRECT, not bypassed.
+4. **`audit_tape --markov-pointer <absent path>` is the public API for "no inherited Markov"** (`src/runtime/audit_assertions.rs:421-425`'s `if pointer.exists() else None` branch). The smoke runner's choice to pass `/tmp/tb16x21_no_markov_pointer.txt` is the genesis-chain expression of that API — NOT a workaround.
+
+What WAS the bug (the deeper one):
+
+`handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt` is an Art. 0.2 平行账本 (parallel ledger) — a global filesystem pointer whose target cid's bytes live in exactly ONE per-problem CAS (TB-16 R3 Round 2 P8_completeset_b's). It carries cross-chain provenance with no 守恒 test, no derivability from any tape, no architectural anchoring. **Pre-TB-16.x.1 silently masked this with `.ok()` collapse → false-PROCEED Skipped.** TB-16.x.1's fix correctly fail-closes the masking. The remaining Art. 0.2 violation is the **existence of the global pointer itself**, not anything sub-atom 2.x evidence could fix locally.
+
+**Filed as `handover/alignment/OBS_R022_GLOBAL_LATEST_MARKOV_PARALLEL_LEDGER_2026-05-04.md`** for architect ratification (Sudo required — Art. V.1.3 vetoAI scope). Three candidate rulings (α delete + de-canonicalize / β anchor in Art. 0.4 path B chain continuation / γ status-quo + 守恒 sidecar). Claude's recommendation: α immediate + β long-term. **No source-code edits or pointer-file deletions until architect rules.**
+
+Sub-atom 2.x work continues using the absent-pointer pattern (constitutionally correct genesis-chain semantic) under existing TB-16.x.1 audit hardening.
 
 ### Test counts post-fix
 

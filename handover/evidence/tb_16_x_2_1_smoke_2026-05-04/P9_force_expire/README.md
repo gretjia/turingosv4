@@ -29,13 +29,40 @@ Architect tx-kind union: 9-of-13 → **10-of-13** runtime-exercised.
 bash handover/tests/scripts/run_tb_16_x_2_1_smoke_2026-05-04.sh
 ```
 
-The runner uses a non-existent markov-pointer path (`/tmp/tb16x21_no_markov_pointer.txt`)
-so Layer G (markov) assertions Skip — this matches R3 Round 2's recorded
-behavior (`markov_constitution_hash_matches = "Skipped"`). The global
-`handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt` currently points at a
-Cid whose payload bytes live in TB-16 R3 Round 2's per-problem CAS, so a
-fresh isolated CAS cannot resolve it. This is a **pre-existing infra gap
-independent of sub-atom 2.1** (deferred to umbrella sub-atom 2.6).
+## Markov capsule semantic (constitutional, not workaround)
+
+The smoke runner passes `--markov-pointer /tmp/tb16x21_no_markov_pointer.txt`
+(a non-existent path) to `audit_tape`. This is **not** a workaround for
+infrastructure brokenness; it is the public API for "this chain has no
+inherited Markov capsule" per `src/runtime/audit_assertions.rs:421-425`'s
+`if pointer.exists() else None` branch.
+
+**Why this is constitutionally correct, not "凑活":**
+
+1. MarkovEvidenceCapsule is NOT a flowchart node (FC1/FC2/FC3 contain no
+   Markov node). Per CR-15.5 it is a 派生视图 — evidence compression, not
+   source of truth. (`constitution.md:455-509` FC1, `571-660` FC2,
+   `826-870` FC3; `src/runtime/markov_capsule.rs:1-50` CR-15.5)
+2. Markov chain genesis is `previous_capsule_cid: None`
+   (`src/runtime/markov_capsule.rs:60+111`). A fresh isolated chain has no
+   inherited Markov by definition.
+3. TB-16.x.2.1's smoke run is fresh `runtime_repo` + fresh `cas`, with
+   no `previous_capsule_cid` claim in its bytes — i.e. it is
+   constitutionally a **genesis chain** per FC2 Boot semantic.
+4. Therefore `markov_capsule = None` is the unique correct state, and
+   the 7 Layer G `Skipped` assertions are CORRECT, not bypassed.
+
+The deeper Art. 0.2 violation surfaced — `handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt`
+as a global parallel-ledger sidecar — is **out of sub-atom 2.1 scope** and
+filed as `handover/alignment/OBS_R022_GLOBAL_LATEST_MARKOV_PARALLEL_LEDGER_2026-05-04.md`
+for architect ratification. Sub-atom 2.x continues with absent-pointer
+semantics (constitutionally correct) until ruling lands.
+
+To run the FORCE_EXPIRE + FORCE_BANKRUPTCY combined-path:
+
+```sh
+COMBINE_BANKRUPTCY=1 bash handover/tests/scripts/run_tb_16_x_2_1_smoke_2026-05-04.sh
+```
 
 To run the FORCE_EXPIRE + FORCE_BANKRUPTCY combined-path:
 

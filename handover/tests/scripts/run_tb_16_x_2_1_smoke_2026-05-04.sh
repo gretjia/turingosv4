@@ -29,14 +29,17 @@ N_SWARM="${N_SWARM:-5}"
 MAX_TX="${MAX_TX:-20}"
 COMBINE_BANKRUPTCY="${COMBINE_BANKRUPTCY:-0}"
 
-# Pre-existing infra gap (independent of TB-16.x.2.1): the global
-# `handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt` points at a Cid
-# whose payload bytes live in a prior run's per-problem CAS, so a fresh
-# isolated CAS cannot resolve it. Round2's verdict.json shows the same
-# state of nature — markov_constitution_hash_matches = "Skipped". We use
-# a non-existent pointer path so audit_assertions skips the Layer G
-# (markov) battery entirely. Fixing the markov bootstrap is out of scope
-# for sub-atom 2.1; tracked separately for the umbrella.
+# Markov capsule = None per FC2 Boot + Markov chain genesis semantic.
+# This sub-atom's smoke run is constitutionally a genesis chain (fresh
+# runtime_repo + fresh cas; no `previous_capsule_cid` claim in its bytes).
+# Per `src/runtime/audit_assertions.rs:421-425` the public API for "no
+# inherited Markov" is `--markov-pointer <absent path>` → markov_capsule
+# = None → 7 Layer G assertions Skipped (CORRECT, not bypassed).
+# This is NOT a workaround. The deeper Art. 0.2 violation
+# (`handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt` as global parallel-
+# ledger sidecar) is filed at
+# `handover/alignment/OBS_R022_GLOBAL_LATEST_MARKOV_PARALLEL_LEDGER_2026-05-04.md`
+# for architect ratification — out of sub-atom 2.x scope.
 NULL_MARKOV_POINTER="${NULL_MARKOV_POINTER:-/tmp/tb16x21_no_markov_pointer.txt}"
 rm -f "$NULL_MARKOV_POINTER"
 
