@@ -6,7 +6,59 @@
 
 ---
 
-## 📋 2026-05-04 — Session End Summary
+## 🚢 2026-05-04 — TB-16 SHIPPED + R3 closure + post-R3 Round 2 7-mechanism conformance battery PROCEED
+
+**Updated**: 2026-05-04 (session end; second session of the day)
+**Session summary**: TB-16 R3 dual audit closure (Codex VETO×2 + Gemini CHALLENGE×2 → conservative-merge VETO → surgical closure → all RQs CLOSED) + run_real_llm_arena.sh phantom-CLI bug fix + Round 1 + Round 2 v2 (8 problems × N=5 × MAX_TX=20) constitutional conformance battery PROCEED with all 7 mechanisms × FC matrix verified on real-LLM substrate. Pushed 60+ commits to origin/main (`fa36eca..3cd22d4`).
+
+### Current State
+
+**Works**:
+- TB-16 SHIPPED: R3 closure committed `ce64d61` + Round 2 evidence committed `3cd22d4`, both on `origin/main`
+- 7-mechanism × FC × audit conformance: 271 PASS / 0 fail / 0 halt across 8 chains; replay byte-identical 8/8; tamper 3/3 on every chain
+- audit_assertions: id=40 per-block conservation walker + id=41 chain-walk sandbox-prefix walker (extracts ALL AgentId fields per variant via `extract_all_agent_ids` helper) + #28 JSON-array decimal form scan (R3 surgical fixes)
+- sandbox_prefix admits __system__ + tb<N>- prefix (covers L4.E rejection records + TB-N fixture-era sponsors)
+- run_real_llm_arena.sh: `--task-mode user --problem ... --max-transactions $MAX_TX` phantom CLI replaced with positional `mathd_algebra_171.lean` + `CONDITION=n1` env + `TURINGOS_CHAINTAPE_PRESEED=1` (latent Atom 6 bug found + closed)
+- 9 of 13 tx kinds covered (union across 8 chains): Work + Verify + Challenge + TaskOpen + EscrowLock + CompleteSetMint + MarketSeed + FinalizeReward + TerminalSummary
+- `cargo test --workspace` = 907 / 0 fail / 150 ignored (unchanged from R3)
+- arena_run4 reproducer: P3 + P6 + P8 reproduce the 7-tx-kind chain shape
+
+**Broken / incomplete (TB-16.x scope)**:
+- 4 missing tx kinds: ChallengeResolve / CompleteSetRedeem / TaskExpire / TaskBankruptcy (Reuse out of TB-16 scope) — gate on TB-16 Atom 6.1 multi-task chain continuation
+- Mechanism 5 (Boltzmann) only structural-fenced, not RUNTIME-exercised — needs single-chain multi-WorkTx-attempt scenario
+- AutopsyCapsule never fired on a real bankruptcy chain (P4 SOLVED in 1 tx before bankruptcy could trigger)
+- audit_tape_tamper hangs on `audit_pipeline_smoke` fixture (OBS_TB_16_TAMPER_R2_HANG; verified pre-existing on git HEAD; root cause is bincode unbounded length-prefix on partially-zeroed CAS objects). Round 2 confirmed it's fixture-state-specific (8/8 detect on richer chains).
+- Round 1 evidence dir `post_r3_full_test/` is pre-runner-fix (no EscrowLock; Round 2 v2 in `post_r3_round2/` is canonical)
+- 3 problem cases (P2 / P5 / P8) hit MAX_TX=20 — capability bound, not architecture bound
+
+**Active experiments**: TB-16 R3 closed; no active Round.
+
+**Repo state**: clean, on `main`, pushed at `3cd22d4`. Working tree carries pre-existing dirty entries (TB-13/14 evidence, h_vppu_history.json, rules/enforcement.log) — none ship-blocking.
+
+### Next Steps (priority order)
+
+1. **TB-16.x.1 (P1+P3, ~half day)**: tamper-hang root-cause investigation (bincode length-prefix bound at CAS-get layer) + `post_r3_full_test/` README annotation
+2. **TB-16.x.2 (P2, ~1-2 days)**: Atom 6.1 multi-task chain continuation — unblocks 4 missing tx kinds + Boltzmann RUNTIME exercise + AutopsyCapsule real path
+3. **TB-16.x.3 / pre-TB-17 (~1-2 days)**: heldout-49 capability batch with N≥20 runs/problem (per `project_pput_ccl_arc` + `feedback_launch_priority`)
+4. **TB-17 RealWorld Gate** charter (Class 4 sudo): dispatch ONLY after the 3 atoms above
+
+### Open Questions
+
+1. **TB-16.x ordering**: P1 (cheap defect) first, or jump to P2 (architecture critical)? User-decision boundary.
+2. **TB-17 envelope semantics**: per `project_tb11_to_tb17_roadmap`, TB-17 is "RealWorld Gate" — what specifically transitions from sandbox? Real money? Cross-org? Public chain? Architect spec hasn't been re-read post-TB-16.
+3. **R-022 hook reads `.git/COMMIT_EDITMSG` (stale on `git commit -m`)**: minor papercut. Worked around with `GIT_COMMIT_MSG` env var. Could fix the hook in TB-16.x.
+
+### Cold-start reading order (for new session)
+
+1. `handover/evidence/tb_16_real_llm_arena_2026-05-04/post_r3_round2/SUMMARY.md` (canonical R3 conformance evidence; 11 sections incl. v3-style scaling table + per-mechanism × FC matrix + per-problem chain DAG)
+2. `handover/audits/RECURSIVE_AUDIT_TB_16_R3_2026-05-04.md` (R3 closure verdict matrix)
+3. This file (LATEST.md) sections from 2026-05-04
+4. `handover/alignment/OBS_TB_16_TAMPER_R2_HANG_2026-05-04.md` (carry-forward OBS; root-cause TBD in TB-16.x)
+5. `handover/tracer_bullets/TB-16_charter_2026-05-04.md` (architect spec verbatim)
+
+---
+
+## 📋 2026-05-04 — Session End Summary (earlier session)
 
 **Updated**: 2026-05-04 (session end)
 **Session summary**: TB-16 Atoms 0-7 R2 — Controlled Market Smoke Arena shipped pre-audit; 7 atoms + Step 1+3+4 surgical fixes; 2 fresh real-LLM arena chains PROCEED with 9/13 architect tx kinds; TB-11 EvidenceCapsule writer-pattern bug found + fixed live; Gemini R2 VETO 4/5 stale + 1 real (Q2 JSON privacy check); Codex R2 not yet run.
