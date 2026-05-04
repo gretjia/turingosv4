@@ -148,4 +148,9 @@ Rationale:
 
 ## §9 Status
 
-`PENDING_ARCHITECT_RATIFICATION` — no source code edits or pointer-file deletions until architect rules (α / β / γ / other). Claude continues sub-atom 2.x work using the absent-pointer pattern (constitutionally correct genesis-chain semantic) under the existing TB-16.x.1 audit hardening.
+`RATIFIED 2026-05-04` — architect ruled `Option α immediate, Option β long-term, Option γ rejected, no Phase Z′ rerun`. Implementation tracked under TB-16.x.fix.
+
+- Architect ruling (lossless verbatim): `handover/directives/2026-05-04_TB16_OBS_R022_ARCHITECT_RULING.md`
+- TB-16.x.fix charter: `handover/tracer_bullets/TB-16.x.fix_charter_2026-05-04.md`
+- New ship gates from ruling: SG-16.7 (no global Markov pointer canonical input) + SG-16.8 (fresh isolated chain → `markov_capsule=None`, Layer G Skipped) + SG-16.9 (present-but-unresolvable Markov pointer BLOCKS) + SG-16.10 (multi-task continuation uses same `runtime_repo`+CAS or explicit `--prior-chain-runtime-repo`).
+- TB-17 preconditions added: PRE-17.1..17.4 + `MARKOV_INHERITANCE_POLICY.md` artifact + SG-17.9 / SG-17.10.

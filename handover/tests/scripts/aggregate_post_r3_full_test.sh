@@ -49,10 +49,25 @@ def load_tamper(p):
     return json.loads(f.read_text())
 
 def load_markov_pointer(p):
-    f = OUT_BASE / p / "LATEST_MARKOV_CAPSULE.txt"
-    if not f.exists():
+    # TB-16.x.fix: per-run LATEST_MARKOV_CAPSULE.txt write was removed;
+    # capsule_id now extracted from per-run MARKOV_TB-*.json (architect
+    # OBS_R022 Option α 2026-05-04).
+    pdir = OUT_BASE / p
+    if not pdir.exists():
         return None
-    return f.read_text().strip()
+    for f in sorted(pdir.glob("MARKOV_TB-*.json")):
+        try:
+            j = json.loads(f.read_text())
+        except Exception:
+            continue
+        cid_hex = (
+            j.get("capsule_id_hex")
+            or (j.get("capsule_id") or {}).get("hex")
+            or (j.get("capsule_id") if isinstance(j.get("capsule_id"), str) else None)
+        )
+        if cid_hex:
+            return str(cid_hex).strip()
+    return None
 
 def replay_match(p):
     a = OUT_BASE / p / "verdict.json"

@@ -14,6 +14,12 @@
 //! Each corruption is applied to a TEMP COPY of the tape; the original
 //! is untouched. Emits `tamper_report.json` summarizing the 3 attempts.
 //!
+//! TB-16.x.fix (2026-05-04; architect OBS_R022 ruling Option α):
+//! `--markov-pointer` is now optional (mirrors `audit_tape`); absence →
+//! genesis (Layer G Skipped on tampered + untampered copies).
+//! `--prior-chain-runtime-repo` added for explicit per-runtime
+//! inheritance (NOT a global pointer).
+//!
 //! Usage:
 //!   audit_tape_tamper \
 //!     --runtime-repo  <path> \
@@ -22,7 +28,8 @@
 //!     --pinned-pubkeys <path> \
 //!     --genesis       <path> \
 //!     --constitution  <path> \
-//!     --markov-pointer <path> \
+//!     [--markov-pointer <path>] \
+//!     [--prior-chain-runtime-repo <path>] \
 //!     [--alignment-dir <path>] \
 //!     --tamper-dir    <work-dir> \
 //!     --out           <tamper_report.json>
@@ -49,7 +56,8 @@ struct Args {
     pinned_pubkeys: PathBuf,
     genesis: PathBuf,
     constitution: PathBuf,
-    markov_pointer: PathBuf,
+    markov_pointer: Option<PathBuf>,
+    prior_chain_runtime_repo: Option<PathBuf>,
     alignment_dir: Option<PathBuf>,
     tamper_dir: PathBuf,
     out: PathBuf,
@@ -66,6 +74,7 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
         "--genesis",
         "--constitution",
         "--markov-pointer",
+        "--prior-chain-runtime-repo",
         "--alignment-dir",
         "--tamper-dir",
         "--out",
@@ -81,7 +90,6 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
         }
         i += 1;
         let v = argv.get(i).ok_or_else(|| format!("{k} needs path"))?;
-        // unsafe leak via static — OK here, args parsing only.
         let static_k: &'static str = match k {
             "--runtime-repo" => "--runtime-repo",
             "--cas-dir" => "--cas-dir",
@@ -90,6 +98,7 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
             "--genesis" => "--genesis",
             "--constitution" => "--constitution",
             "--markov-pointer" => "--markov-pointer",
+            "--prior-chain-runtime-repo" => "--prior-chain-runtime-repo",
             "--alignment-dir" => "--alignment-dir",
             "--tamper-dir" => "--tamper-dir",
             "--out" => "--out",
@@ -105,9 +114,16 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
     let pinned_pubkeys = take("--pinned-pubkeys")?;
     let genesis = take("--genesis")?;
     let constitution = take("--constitution")?;
-    let markov_pointer = take("--markov-pointer")?;
     let tamper_dir = take("--tamper-dir")?;
     let out = take("--out")?;
+    let markov_pointer = p.remove("--markov-pointer");
+    let prior_chain_runtime_repo = p.remove("--prior-chain-runtime-repo");
+    if markov_pointer.is_some() && prior_chain_runtime_repo.is_some() {
+        return Err(
+            "--markov-pointer and --prior-chain-runtime-repo are mutually exclusive"
+                .into(),
+        );
+    }
     let alignment_dir = p.remove("--alignment-dir");
     Ok(Args {
         runtime_repo,
@@ -117,17 +133,43 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
         genesis,
         constitution,
         markov_pointer,
+        prior_chain_runtime_repo,
         alignment_dir,
         tamper_dir,
         out,
     })
 }
 
+/// TB-16.x.fix mirror of `audit_tape::resolve_prior_chain_markov`.
+fn resolve_prior_chain_markov(prior: &Path) -> Result<Option<PathBuf>, String> {
+    if !prior.is_dir() {
+        return Err(format!(
+            "--prior-chain-runtime-repo {:?} is not a directory",
+            prior
+        ));
+    }
+    let tip = prior.join("markov_tip.cid");
+    if tip.exists() {
+        Ok(Some(tip))
+    } else {
+        Ok(None)
+    }
+}
+
 fn help_text() -> String {
     "audit_tape_tamper — TB-16 Atom 3 tamper-detection harness\n\
      \n\
      USAGE:\n  \
-       audit_tape_tamper --runtime-repo <p> --cas-dir <p> ... --tamper-dir <p> --out <p>\n\
+       audit_tape_tamper --runtime-repo <p> --cas-dir <p> --agent-pubkeys <p>\n  \
+                         --pinned-pubkeys <p> --genesis <p> --constitution <p>\n  \
+                         [--markov-pointer <p>] [--prior-chain-runtime-repo <p>]\n  \
+                         [--alignment-dir <p>] --tamper-dir <p> --out <p>\n\
+     \n\
+     MARKOV INHERITANCE (TB-16.x.fix; architect OBS_R022 Option α):\n  \
+       both flags absent        → genesis chain; Layer G Skipped\n  \
+       --markov-pointer <p>     → per-run pointer file (NOT global)\n  \
+       --prior-chain-runtime-repo <p>\n  \
+                                → resolves <p>/markov_tip.cid (in-tape)\n\
      \n\
      EXIT:\n  \
        0  all 3 corruptions detected (BLOCK on each tampered copy)\n  \
@@ -172,7 +214,18 @@ fn fork_tape(args: &Args, label: &str) -> Result<(PathBuf, PathBuf), String> {
     Ok((runtime_dst, cas_dst))
 }
 
+fn resolve_markov_input(args: &Args) -> Result<Option<PathBuf>, String> {
+    if let Some(p) = args.markov_pointer.clone() {
+        return Ok(Some(p));
+    }
+    if let Some(prior) = args.prior_chain_runtime_repo.as_ref() {
+        return resolve_prior_chain_markov(prior);
+    }
+    Ok(None)
+}
+
 fn run_audit(args: &Args, runtime: &Path, cas: &Path) -> Result<TapeAuditVerdict, String> {
+    let markov_pointer = resolve_markov_input(args)?;
     let inputs = AuditInputs {
         runtime_repo: runtime.to_path_buf(),
         cas_dir: cas.to_path_buf(),
@@ -180,7 +233,7 @@ fn run_audit(args: &Args, runtime: &Path, cas: &Path) -> Result<TapeAuditVerdict
         pinned_pubkeys: args.pinned_pubkeys.clone(),
         genesis: args.genesis.clone(),
         constitution: args.constitution.clone(),
-        markov_pointer: args.markov_pointer.clone(),
+        markov_pointer,
         alignment_dir: args.alignment_dir.clone(),
     };
     let results = run_all_assertions(&inputs).map_err(|e| format!("run: {e}"))?;

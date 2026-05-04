@@ -57,6 +57,14 @@ struct Args {
     cas: PathBuf,
     json: bool,
     out: Option<PathBuf>,
+    /// TB-16.x.fix (architect OBS_R022 Option α): explicit Markov capsule
+    /// cid (hex). Replaces the prior implicit read from the global
+    /// `handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt` file (Art.
+    /// 0.2 parallel ledger; de-canonicalized 2026-05-04). Caller is
+    /// expected to derive the cid from the chain itself or supply it
+    /// explicitly when rendering audit dashboards. Absence ≡ no Markov
+    /// capsule pointer surfaced; §15 renders the empty-state hint.
+    markov_capsule_cid: Option<String>,
 }
 
 fn parse_args(argv: &[String]) -> Result<Args, String> {
@@ -64,6 +72,7 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
     let mut cas: Option<PathBuf> = None;
     let mut json = false;
     let mut out: Option<PathBuf> = None;
+    let mut markov_capsule_cid: Option<String> = None;
     let mut i = 0;
     while i < argv.len() {
         match argv[i].as_str() {
@@ -80,6 +89,14 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
                 i += 1;
                 out = Some(argv.get(i).ok_or("missing value after --out")?.into());
             }
+            "--markov-capsule-cid" => {
+                i += 1;
+                markov_capsule_cid = Some(
+                    argv.get(i)
+                        .ok_or("missing value after --markov-capsule-cid")?
+                        .clone(),
+                );
+            }
             "--help" | "-h" => return Err("--help requested".into()),
             other => return Err(format!("unknown arg: {other}")),
         }
@@ -90,6 +107,7 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
         cas: cas.ok_or("--cas required")?,
         json,
         out,
+        markov_capsule_cid,
     })
 }
 
@@ -147,10 +165,13 @@ struct DashboardReport {
     /// Architect §6.4 privacy: dashboard surfaces COUNTS + COMPRESSED
     /// `public_summary` strings only — never `private_detail_cid` bytes.
     autopsy_event_counts: Vec<(String /*event_id*/, u32 /*cid_count*/)>,
-    /// TB-15 Atom 6: latest Markov capsule pointer (Cid hex from
-    /// `handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt` if present;
-    /// None when no Markov capsule has been generated). FR-15.4 next-
-    /// session bootstrap surface.
+    /// TB-15 Atom 6 / TB-16.x.fix (architect OBS_R022 Option α): latest
+    /// Markov capsule cid (hex). Previously sourced from the global
+    /// `handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt` file (Art.
+    /// 0.2 parallel ledger; de-canonicalized 2026-05-04). Now supplied
+    /// explicitly via `--markov-capsule-cid <hex>` CLI arg or `None`
+    /// (empty-state hint rendered in §15). Full in-tape resolver lands
+    /// with TB-16.x.2.4 / 2.6 (β chain continuation).
     latest_markov_capsule_cid_hex: Option<String>,
     /// TRACE_MATRIX FC2-N33 (TB-16 Atom 4; architect §7.4 CR-16.7 +
     /// §7.5 SG-16.8): true when ANY agent_id encountered during the L4
@@ -344,13 +365,18 @@ fn main() {
         Err(msg) => {
             eprintln!("audit_dashboard: {msg}");
             eprintln!(
-                "usage: audit_dashboard --repo <runtime_repo> --cas <cas> [--json] [--out <path>]"
+                "usage: audit_dashboard --repo <runtime_repo> --cas <cas> [--json] \
+                 [--out <path>] [--markov-capsule-cid <hex>]"
             );
             std::process::exit(2);
         }
     };
 
-    let report = match build_report(&parsed.repo, &parsed.cas) {
+    let report = match build_report(
+        &parsed.repo,
+        &parsed.cas,
+        parsed.markov_capsule_cid.as_deref(),
+    ) {
         Ok(r) => r,
         Err(e) => {
             eprintln!("audit_dashboard: build failed: {e}");
@@ -380,7 +406,11 @@ fn main() {
     }
 }
 
-fn build_report(repo: &std::path::Path, cas_path: &std::path::Path) -> Result<DashboardReport, String> {
+fn build_report(
+    repo: &std::path::Path,
+    cas_path: &std::path::Path,
+    markov_capsule_cid: Option<&str>,
+) -> Result<DashboardReport, String> {
     // Replay verifier — gives us the 7 indicators + chain root state.
     let replay: ReplayReport = verify_chaintape(repo, cas_path, &VerifyOptions::default())
         .map_err(|e| format!("verify_chaintape: {e:?}"))?;
@@ -972,9 +1002,12 @@ fn build_report(repo: &std::path::Path, cas_path: &std::path::Path) -> Result<Da
         // surfaces via §15 banner, not a silent zero.
         autopsy_event_counts: rebuild_autopsy_event_counts(repo, &entries, &cas),
         sandbox_run: detect_sandbox_run(&entries, &cas, manifest.as_ref()),
-        // TB-15 Atom 6 — read latest Markov capsule pointer file if
-        // present. Best-effort; None when no capsule generated yet.
-        latest_markov_capsule_cid_hex: read_latest_markov_pointer(),
+        // TB-16.x.fix (architect OBS_R022 Option α): explicit caller-
+        // supplied cid. The previous `read_latest_markov_pointer()`
+        // helper read `handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt`
+        // — that path was an Art. 0.2 parallel ledger and has been
+        // removed from the runtime path per architect ruling §B.7.1.
+        latest_markov_capsule_cid_hex: markov_capsule_cid.map(|s| s.trim().to_string()),
     })
 }
 
@@ -1029,15 +1062,6 @@ fn detect_sandbox_run(
         }
     }
     false
-}
-
-fn read_latest_markov_pointer() -> Option<String> {
-    let p = std::path::Path::new("handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt");
-    if p.exists() {
-        std::fs::read_to_string(p).ok().map(|s| s.trim().to_string())
-    } else {
-        None
-    }
 }
 
 /// TRACE_MATRIX FC2-N32 (TB-16 Atom 4; architect §7.5 SG-16.2; closes
@@ -1800,16 +1824,20 @@ fn render_section_15(
     match latest_markov_capsule_cid_hex {
         Some(cid_hex) if !cid_hex.is_empty() => {
             s.push_str(&format!(
-                "  Latest Markov capsule pointer (handover/markov_capsules/\n  \
-                LATEST_MARKOV_CAPSULE.txt):\n    {}\n",
+                "  Latest Markov capsule cid (supplied via\n  \
+                --markov-capsule-cid; in-tape resolver lands with\n  \
+                TB-16.x.2.4 / 2.6 β chain continuation):\n    {}\n",
                 cid_hex
             ));
         }
         _ => {
-            s.push_str("  (no latest Markov capsule pointer — run\n");
-            s.push_str("  `cargo run --bin generate_markov_capsule -- --tb-id N\n");
-            s.push_str("  --out-dir handover/markov_capsules/ --constitution-path\n");
-            s.push_str("  constitution.md --no-cas` to emit one)\n");
+            s.push_str("  (no latest Markov capsule pointer — supply\n");
+            s.push_str("  --markov-capsule-cid <hex> on the audit_dashboard\n");
+            s.push_str("  invocation, or run `generate_markov_capsule` to\n");
+            s.push_str("  emit a per-run capsule and pass its cid here.\n");
+            s.push_str("  Per architect OBS_R022 ruling 2026-05-04 the\n");
+            s.push_str("  global LATEST_MARKOV_CAPSULE.txt file has been\n");
+            s.push_str("  de-canonicalized — runtime path no longer reads it)\n");
         }
     }
 

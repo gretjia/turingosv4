@@ -373,7 +373,17 @@ fn run() -> Result<i32, String> {
 
     eprintln!("capsule_id = {}", capsule.capsule_id.hex());
 
-    // Step 7: emit JSON pointer file + LATEST_MARKOV_CAPSULE.txt.
+    // Step 7: emit per-run JSON historical artifact only.
+    //
+    // TB-16.x.fix (2026-05-04; architect OBS_R022 ruling Option α):
+    // the previous `LATEST_MARKOV_CAPSULE.txt` global pointer write has
+    // been removed. That file was an Art. 0.2 parallel ledger
+    // (filesystem-side global, not derived from any tape, last-writer-
+    // wins lifecycle). Runtime audit / replay must use in-tape capsule
+    // bytes (resolved from the chain's own CAS) or the explicit
+    // `--prior-chain-runtime-repo` flag added to `audit_tape`. The
+    // per-run JSON below remains as a human-readable historical
+    // artifact, NOT a canonical input.
     std::fs::create_dir_all(&args.out_dir)
         .map_err(|e| format!("create out_dir: {e}"))?;
     let json_path = args
@@ -382,12 +392,7 @@ fn run() -> Result<i32, String> {
     let json_body = serde_json::to_string_pretty(&capsule)
         .map_err(|e| format!("capsule json encode: {e}"))?;
     std::fs::write(&json_path, &json_body).map_err(|e| format!("write json: {e}"))?;
-    let latest_path = args.out_dir.join("LATEST_MARKOV_CAPSULE.txt");
-    std::fs::write(&latest_path, capsule.capsule_id.hex())
-        .map_err(|e| format!("write latest pointer: {e}"))?;
-
-    eprintln!("wrote {}", json_path.display());
-    eprintln!("wrote {}", latest_path.display());
+    eprintln!("wrote {} (historical artifact, not canonical input)", json_path.display());
     Ok(0)
 }
 

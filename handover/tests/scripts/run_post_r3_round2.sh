@@ -115,7 +115,6 @@ for entry in "${PROBLEMS[@]}"; do
     --pinned-pubkeys "$PROBLEM_DIR/runtime_repo/pinned_pubkeys.json" \
     --genesis genesis_payload.toml \
     --constitution constitution.md \
-    --markov-pointer handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt \
     --alignment-dir handover/alignment \
     --out "$PROBLEM_DIR/verdict.json" 2>&1 | tail -1
 
@@ -127,7 +126,6 @@ for entry in "${PROBLEMS[@]}"; do
     --pinned-pubkeys "$PROBLEM_DIR/runtime_repo/pinned_pubkeys.json" \
     --genesis genesis_payload.toml \
     --constitution constitution.md \
-    --markov-pointer handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt \
     --alignment-dir handover/alignment \
     --out "$PROBLEM_DIR/verdict_replay.json" 2>&1 | tail -1
   if cmp -s "$PROBLEM_DIR/verdict.json" "$PROBLEM_DIR/verdict_replay.json"; then
@@ -144,21 +142,34 @@ for entry in "${PROBLEMS[@]}"; do
     --pinned-pubkeys "$PROBLEM_DIR/runtime_repo/pinned_pubkeys.json" \
     --genesis genesis_payload.toml \
     --constitution constitution.md \
-    --markov-pointer handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt \
     --alignment-dir handover/alignment \
     --tamper-dir "$PROBLEM_DIR/tamper" \
     --out "$PROBLEM_DIR/tamper_report.json" 2>&1 | tail -1
 
   echo "    generate_markov_capsule..."
-  PREV_CID="$(tr -d '[:space:]' < handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt)"
-  "$GEN_MARKOV_BIN" \
-    --tb-id 16 \
-    --out-dir "$PROBLEM_DIR" \
-    --constitution-path constitution.md \
-    --runtime-repo "$PROBLEM_DIR/runtime_repo" \
-    --cas-dir "$PROBLEM_DIR/cas" \
-    --alignment-dir handover/alignment \
-    --prev-cid-hex "$PREV_CID" 2>&1 | grep -E "capsule_id|wrote" | tail -3
+  # TB-16.x.fix: per-run capsule lineage is no longer sourced from a
+  # global pointer file. To inherit from a prior chain, set
+  # PREV_CID_HEX explicitly before invocation; otherwise generate as
+  # genesis (no `--prev-cid-hex`).
+  if [[ -n "${PREV_CID_HEX:-}" ]]; then
+    "$GEN_MARKOV_BIN" \
+      --tb-id 16 \
+      --out-dir "$PROBLEM_DIR" \
+      --constitution-path constitution.md \
+      --runtime-repo "$PROBLEM_DIR/runtime_repo" \
+      --cas-dir "$PROBLEM_DIR/cas" \
+      --alignment-dir handover/alignment \
+      --prev-cid-hex "$PREV_CID_HEX" 2>&1 | grep -E "capsule_id|wrote" | tail -3
+  else
+    "$GEN_MARKOV_BIN" \
+      --tb-id 16 \
+      --out-dir "$PROBLEM_DIR" \
+      --constitution-path constitution.md \
+      --runtime-repo "$PROBLEM_DIR/runtime_repo" \
+      --cas-dir "$PROBLEM_DIR/cas" \
+      --alignment-dir handover/alignment \
+      2>&1 | grep -E "capsule_id|wrote" | tail -3
+  fi
 
   echo "    audit_dashboard..."
   "$AUDIT_DASHBOARD_BIN" \

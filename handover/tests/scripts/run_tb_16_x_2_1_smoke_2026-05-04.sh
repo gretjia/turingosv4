@@ -32,16 +32,9 @@ COMBINE_BANKRUPTCY="${COMBINE_BANKRUPTCY:-0}"
 # Markov capsule = None per FC2 Boot + Markov chain genesis semantic.
 # This sub-atom's smoke run is constitutionally a genesis chain (fresh
 # runtime_repo + fresh cas; no `previous_capsule_cid` claim in its bytes).
-# Per `src/runtime/audit_assertions.rs:421-425` the public API for "no
-# inherited Markov" is `--markov-pointer <absent path>` → markov_capsule
-# = None → 7 Layer G assertions Skipped (CORRECT, not bypassed).
-# This is NOT a workaround. The deeper Art. 0.2 violation
-# (`handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt` as global parallel-
-# ledger sidecar) is filed at
-# `handover/alignment/OBS_R022_GLOBAL_LATEST_MARKOV_PARALLEL_LEDGER_2026-05-04.md`
-# for architect ratification — out of sub-atom 2.x scope.
-NULL_MARKOV_POINTER="${NULL_MARKOV_POINTER:-/tmp/tb16x21_no_markov_pointer.txt}"
-rm -f "$NULL_MARKOV_POINTER"
+# TB-16.x.fix (architect OBS_R022 Option α RATIFIED 2026-05-04):
+# `--markov-pointer` is now optional; absence ≡ genesis chain.
+# The previous `NULL_MARKOV_POINTER` plumbing is no longer needed.
 
 PID="P9_force_expire"
 PFILE="aime_1997_p9.lean"
@@ -95,7 +88,6 @@ echo "  audit_tape..."
   --pinned-pubkeys "$PROBLEM_DIR/runtime_repo/pinned_pubkeys.json" \
   --genesis genesis_payload.toml \
   --constitution constitution.md \
-  --markov-pointer "$NULL_MARKOV_POINTER" \
   --alignment-dir handover/alignment \
   --out "$PROBLEM_DIR/verdict.json" 2>&1 | tail -1
 
@@ -107,7 +99,6 @@ echo "  audit_tape replay..."
   --pinned-pubkeys "$PROBLEM_DIR/runtime_repo/pinned_pubkeys.json" \
   --genesis genesis_payload.toml \
   --constitution constitution.md \
-  --markov-pointer "$NULL_MARKOV_POINTER" \
   --alignment-dir handover/alignment \
   --out "$PROBLEM_DIR/verdict_replay.json" 2>&1 | tail -1
 if cmp -s "$PROBLEM_DIR/verdict.json" "$PROBLEM_DIR/verdict_replay.json"; then
@@ -124,7 +115,6 @@ echo "  audit_tape_tamper..."
   --pinned-pubkeys "$PROBLEM_DIR/runtime_repo/pinned_pubkeys.json" \
   --genesis genesis_payload.toml \
   --constitution constitution.md \
-  --markov-pointer "$NULL_MARKOV_POINTER" \
   --alignment-dir handover/alignment \
   --tamper-dir "$PROBLEM_DIR/tamper" \
   --out "$PROBLEM_DIR/tamper_report.json" 2>&1 | tail -1

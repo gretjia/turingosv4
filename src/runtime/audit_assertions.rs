@@ -11,7 +11,17 @@
 //! - `pinned_pubkeys`   — `pinned_pubkeys.json` (TB-5)
 //! - `genesis`          — `genesis_payload.toml`
 //! - `constitution`     — `constitution.md`
-//! - `markov_pointer`   — `LATEST_MARKOV_CAPSULE.txt` (Cid hex)
+//! - `markov_pointer`   — Option<PathBuf>; `None` ≡ genesis chain (no
+//!                        inherited Markov; Layer G assertions Skipped).
+//!                        TB-16.x.fix (2026-05-04; architect OBS_R022
+//!                        Option α): the previous global
+//!                        `handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt`
+//!                        file was an Art. 0.2 parallel ledger and has
+//!                        been removed; callers wishing to inherit
+//!                        Markov from a prior chain pass a per-run
+//!                        pointer file (NOT global) or invoke
+//!                        `audit_tape --prior-chain-runtime-repo <path>`
+//!                        to resolve in-tape.
 //! - `alignment_dir`    — `handover/alignment/` (OBS scan; optional)
 //!
 //! 38 assertions in 8 layers (A bootstrap, B chain, C replay, D
@@ -74,6 +84,14 @@ use crate::bottom_white::tools::registry::ToolRegistry;
 
 /// Inputs to the audit binary. Paths only — live process state is
 /// forbidden per CR-16.6 (replayability) + Art.0.2 (Tape Canonical).
+///
+/// `markov_pointer` is `Option<PathBuf>` (TB-16.x.fix; architect OBS_R022
+/// ruling Option α): `None` ≡ genesis chain (constitutional per
+/// architect Q2.b — `previous_capsule_cid: None` is the unique correct
+/// state on fresh isolated chain). `Some(p)` requires `p` to exist AND
+/// `read_markov_capsule(p, &cas)` to succeed; otherwise `load_tape`
+/// returns `AuditError::MarkovRead` (fail-closed per architect Q2.c
+/// last paragraph + TB-16.x.1).
 #[derive(Debug, Clone)]
 /// TRACE_MATRIX FC1-N34 + FC2-N31 (TB-16 audit-from-tape battery).
 pub struct AuditInputs {
@@ -83,7 +101,7 @@ pub struct AuditInputs {
     pub pinned_pubkeys: PathBuf,
     pub genesis: PathBuf,
     pub constitution: PathBuf,
-    pub markov_pointer: PathBuf,
+    pub markov_pointer: Option<PathBuf>,
     pub alignment_dir: Option<PathBuf>,
 }
 
@@ -412,16 +430,30 @@ pub fn load_tape(inputs: &AuditInputs) -> Result<LoadedTape, AuditError> {
         .map_err(|e| AuditError::ConstitutionRead(format!("{:?}: {}", inputs.constitution, e)))?;
     let constitution_hash = sha256_hash(&constitution_bytes);
 
-    // markov capsule. **TB-16.x.1**: distinguish "pointer absent"
-    // (legitimately pre-Markov chain → None) from "pointer present but
-    // capsule unreadable" (corruption / adversarial bytes → load-level
-    // error). The latter MUST surface as `AuditError` so the verdict is
-    // BLOCK; previously a blanket `.ok()` swallow let corruption skip
-    // Layer G assertions and produce a false PROCEED post-tamper.
-    let markov_capsule = if inputs.markov_pointer.exists() {
-        Some(read_markov_capsule(&inputs.markov_pointer, &cas)?)
-    } else {
-        None
+    // markov capsule. Three cases (post TB-16.x.1 + TB-16.x.fix):
+    //   (a) `markov_pointer = None`              → genesis; markov_capsule = None
+    //                                              (architect Q2.b: constitutional
+    //                                              for fresh isolated chain).
+    //   (b) `markov_pointer = Some(p)` + p missing on disk
+    //                                            → fail-closed BLOCK
+    //                                              (architect Q2.c last paragraph:
+    //                                              "pointer present but cannot
+    //                                              resolve" must NOT silently None).
+    //   (c) `markov_pointer = Some(p)` + p exists
+    //                                            → `read_markov_capsule(p, &cas)`;
+    //                                              propagates `AuditError::MarkovRead`
+    //                                              on garbage / unresolvable cid.
+    let markov_capsule = match &inputs.markov_pointer {
+        None => None,
+        Some(p) if p.exists() => Some(read_markov_capsule(p, &cas)?),
+        Some(p) => {
+            return Err(AuditError::MarkovRead(format!(
+                "markov_pointer {:?} supplied but file does not exist (TB-16.x.fix \
+                 fail-closed: pointer-supplied-but-FS-absent is BLOCK, not silent \
+                 genesis; architect Q2.c)",
+                p
+            )));
+        }
     };
 
     // genesis [constitution_root] hex (best-effort)

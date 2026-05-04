@@ -5,14 +5,25 @@
 //!   - cas/ (CAS store)
 //!   - agent_pubkeys.json + pinned_pubkeys.json (per-run manifests)
 //!   - genesis_payload.toml + constitution.md
-//!   - LATEST_MARKOV_CAPSULE.txt (Markov pointer)
+//!   - [optional] --markov-pointer <path>  per-run Markov capsule cid hex
+//!   - [optional] --prior-chain-runtime-repo <path>  inherit Markov cid
+//!     from a prior chain's per-runtime tip pointer (NOT a global pointer)
 //!   - [optional] handover/alignment/ (OBS scan)
+//!
+//! TB-16.x.fix (2026-05-04; architect OBS_R022 ruling Option α):
+//! `--markov-pointer` is no longer required. Absence → genesis chain
+//! (constitutional per architect Q2.b — `previous_capsule_cid: None` on
+//! fresh isolated chain; Layer G assertions Skipped). Present-but-FS-
+//! absent or present-but-CAS-unresolvable → fail-closed BLOCK (architect
+//! Q2.c last paragraph; TB-16.x.1 semantic preserved).
 //!
 //! NEVER reads:
 //!   - live Sequencer state
 //!   - state.db (whitebox cache; auditor rebuilds via replay_full_transition)
 //!   - process logs
 //!   - handover/ai-direct/
+//!   - handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt
+//!     (de-canonicalized; was Art. 0.2 parallel ledger — see OBS_R022)
 //!
 //! Emits verdict.json per design §6.3 schema (38 assertions × 8 layers,
 //! tape_root, tx_kind_counts, feature_coverage, verdict ∈ {PROCEED, BLOCK}).
@@ -25,7 +36,8 @@
 //!     --pinned-pubkeys <path> \
 //!     --genesis       <path> \
 //!     --constitution  <path> \
-//!     --markov-pointer <path> \
+//!     [--markov-pointer <path>] \
+//!     [--prior-chain-runtime-repo <path>] \
 //!     [--alignment-dir <path>] \
 //!     --out <verdict.json>
 //!
@@ -50,7 +62,8 @@ struct Args {
     pinned_pubkeys: PathBuf,
     genesis: PathBuf,
     constitution: PathBuf,
-    markov_pointer: PathBuf,
+    markov_pointer: Option<PathBuf>,
+    prior_chain_runtime_repo: Option<PathBuf>,
     alignment_dir: Option<PathBuf>,
     out: PathBuf,
 }
@@ -63,6 +76,7 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
     let mut genesis: Option<PathBuf> = None;
     let mut constitution: Option<PathBuf> = None;
     let mut markov_pointer: Option<PathBuf> = None;
+    let mut prior_chain_runtime_repo: Option<PathBuf> = None;
     let mut alignment_dir: Option<PathBuf> = None;
     let mut out: Option<PathBuf> = None;
     let mut i = 0;
@@ -96,6 +110,14 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
                 i += 1;
                 markov_pointer = Some(argv.get(i).ok_or("--markov-pointer needs path")?.into());
             }
+            "--prior-chain-runtime-repo" => {
+                i += 1;
+                prior_chain_runtime_repo = Some(
+                    argv.get(i)
+                        .ok_or("--prior-chain-runtime-repo needs path")?
+                        .into(),
+                );
+            }
             "--alignment-dir" => {
                 i += 1;
                 alignment_dir = Some(argv.get(i).ok_or("--alignment-dir needs path")?.into());
@@ -112,6 +134,13 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
         }
         i += 1;
     }
+    if markov_pointer.is_some() && prior_chain_runtime_repo.is_some() {
+        return Err(
+            "--markov-pointer and --prior-chain-runtime-repo are mutually exclusive \
+             (pass one or the other; absence of both = genesis chain)"
+                .into(),
+        );
+    }
     Ok(Args {
         runtime_repo: runtime_repo.ok_or("--runtime-repo required")?,
         cas_dir: cas_dir.ok_or("--cas-dir required")?,
@@ -119,7 +148,8 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
         pinned_pubkeys: pinned_pubkeys.ok_or("--pinned-pubkeys required")?,
         genesis: genesis.ok_or("--genesis required")?,
         constitution: constitution.ok_or("--constitution required")?,
-        markov_pointer: markov_pointer.ok_or("--markov-pointer required")?,
+        markov_pointer,
+        prior_chain_runtime_repo,
         alignment_dir,
         out: out.ok_or("--out required")?,
     })
@@ -131,13 +161,52 @@ fn help_text() -> String {
      USAGE:\n  \
        audit_tape --runtime-repo <p> --cas-dir <p> --agent-pubkeys <p>\n  \
                   --pinned-pubkeys <p> --genesis <p> --constitution <p>\n  \
-                  --markov-pointer <p> [--alignment-dir <p>] --out <verdict.json>\n\
+                  [--markov-pointer <p>] [--prior-chain-runtime-repo <p>]\n  \
+                  [--alignment-dir <p>] --out <verdict.json>\n\
+     \n\
+     MARKOV INHERITANCE (TB-16.x.fix; architect OBS_R022 Option α):\n  \
+       absent both flags        → genesis chain; Layer G Skipped\n  \
+       --markov-pointer <p>     → per-run pointer file (NOT global);\n  \
+                                  must exist + cid must resolve in --cas-dir\n  \
+       --prior-chain-runtime-repo <p>\n  \
+                                → resolves Markov tip from prior chain's\n  \
+                                  per-runtime pointer at <p>/markov_tip.cid\n  \
+                                  (in-tape; no global parallel ledger)\n\
      \n\
      EXIT:\n  \
        0  verdict == PROCEED (38/38 assertions GREEN)\n  \
        1  verdict == BLOCK (≥1 fail/halt)\n  \
        2  invalid args / I/O failure\n"
         .into()
+}
+
+/// TB-16.x.fix (architect OBS_R022 Option α) resolver:
+/// `--prior-chain-runtime-repo <path>` reads `<path>/markov_tip.cid`
+/// (a per-runtime-repo pointer file, NOT global) and returns its
+/// path so it can be passed downstream as `markov_pointer`. The
+/// pointer file is OPTIONAL inside the prior runtime_repo: when
+/// absent, the prior chain has no Markov tip → returns `None`
+/// (genesis-equivalent inheritance).
+///
+/// This is the minimum-viable α resolver. The full Art. 0.4 path B
+/// in-tape resolver (walk the chain to find the most recent Markov
+/// emit; resolve its cid from the supplied `--cas-dir`) lands with
+/// TB-16.x.2.4 / TB-16.x.2.6 (architect ruling §A.6 β).
+fn resolve_prior_chain_markov(prior: &std::path::Path) -> Result<Option<PathBuf>, String> {
+    if !prior.is_dir() {
+        return Err(format!(
+            "--prior-chain-runtime-repo {:?} is not a directory",
+            prior
+        ));
+    }
+    let tip = prior.join("markov_tip.cid");
+    if tip.exists() {
+        Ok(Some(tip))
+    } else {
+        // Genesis-equivalent: prior chain ran but never emitted a
+        // Markov capsule. Caller proceeds as if no Markov inheritance.
+        Ok(None)
+    }
 }
 
 fn main() -> ExitCode {
@@ -150,6 +219,20 @@ fn main() -> ExitCode {
         }
     };
 
+    let resolved_pointer = if let Some(p) = args.markov_pointer.clone() {
+        Some(p)
+    } else if let Some(prior) = args.prior_chain_runtime_repo.as_ref() {
+        match resolve_prior_chain_markov(prior) {
+            Ok(opt) => opt,
+            Err(e) => {
+                eprintln!("audit_tape: {e}");
+                return ExitCode::from(2);
+            }
+        }
+    } else {
+        None
+    };
+
     let inputs = AuditInputs {
         runtime_repo: args.runtime_repo,
         cas_dir: args.cas_dir,
@@ -157,7 +240,7 @@ fn main() -> ExitCode {
         pinned_pubkeys: args.pinned_pubkeys,
         genesis: args.genesis,
         constitution: args.constitution,
-        markov_pointer: args.markov_pointer,
+        markov_pointer: resolved_pointer,
         alignment_dir: args.alignment_dir,
     };
 

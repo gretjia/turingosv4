@@ -98,8 +98,9 @@ fn audit_tape_runs_on_existing_chain_smoke() {
         .arg(manifest.join("genesis_payload.toml"))
         .arg("--constitution")
         .arg(manifest.join("constitution.md"))
-        .arg("--markov-pointer")
-        .arg(manifest.join("handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt"))
+        // TB-16.x.fix (architect OBS_R022 Option α RATIFIED 2026-05-04):
+        // global LATEST_MARKOV_CAPSULE.txt de-canonicalized; absent
+        // --markov-pointer ≡ genesis chain; Layer G assertions Skipped.
         .arg("--alignment-dir")
         .arg(manifest.join("handover/alignment"))
         .arg("--out")

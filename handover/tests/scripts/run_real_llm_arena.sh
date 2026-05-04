@@ -225,7 +225,6 @@ echo "▶ Step 5/8: audit_tape over Task A tape..."
   --pinned-pubkeys "$TASK_A_DIR/runtime_repo/pinned_pubkeys.json" \
   --genesis genesis_payload.toml \
   --constitution constitution.md \
-  --markov-pointer handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt \
   --alignment-dir handover/alignment \
   --out "$OUT_DIR/verdict.json"
 maybe_continue
@@ -239,24 +238,21 @@ echo "▶ Step 6/8: audit_tape_tamper (3-corruption smoke)..."
   --pinned-pubkeys "$TASK_A_DIR/runtime_repo/pinned_pubkeys.json" \
   --genesis genesis_payload.toml \
   --constitution constitution.md \
-  --markov-pointer handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt \
   --alignment-dir handover/alignment \
   --tamper-dir "$OUT_DIR/tamper" \
   --out "$OUT_DIR/tamper_report.json"
 maybe_continue
 
 # ── Step 7: generate_markov_capsule ─────────────────────────────────
-# Per Gemini TB-16 R1 V7 VETO closure (2026-05-04): chain TB-16 capsule
-# to the prior TB-15 head when LATEST_MARKOV_CAPSULE.txt is present —
-# CR-15.5 evidence-compression-not-isolated-island invariant.
+# TB-16.x.fix (architect OBS_R022 Option α RATIFIED 2026-05-04): the
+# global LATEST pointer file has been de-canonicalized. To inherit
+# from a prior chain, set PREV_CID_HEX in the environment before
+# running; otherwise the capsule is genesis-rooted.
 PREV_CID_ARGS=()
-if [[ -f handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt ]]; then
-  PREV_CID="$(tr -d '[:space:]' < handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt)"
-  if [[ -n "$PREV_CID" ]]; then
-    PREV_CID_ARGS=(--prev-cid-hex "$PREV_CID")
-  fi
+if [[ -n "${PREV_CID_HEX:-}" ]]; then
+  PREV_CID_ARGS=(--prev-cid-hex "$PREV_CID_HEX")
 fi
-echo "▶ Step 7/8: generate_markov_capsule (TB-16; prev=${PREV_CID:-none})..."
+echo "▶ Step 7/8: generate_markov_capsule (TB-16; prev=${PREV_CID_HEX:-none})..."
 "$GEN_MARKOV_BIN" \
   --tb-id 16 \
   --out-dir "$OUT_DIR" \
@@ -284,7 +280,6 @@ echo "▶ Replay determinism: re-running audit_tape..."
   --pinned-pubkeys "$TASK_A_DIR/runtime_repo/pinned_pubkeys.json" \
   --genesis genesis_payload.toml \
   --constitution constitution.md \
-  --markov-pointer handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt \
   --alignment-dir handover/alignment \
   --out "$OUT_DIR/verdict_replay.json"
 maybe_continue
