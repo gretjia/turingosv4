@@ -6,6 +6,67 @@
 
 ---
 
+## 🛠️ 2026-05-04 — TB-16.x.fix SHIPPED — OBS_R022 α closure (LATEST_MARKOV_CAPSULE.txt de-canonicalized)
+
+**Updated**: 2026-05-04 (fifth session of the day; immediately after TB-16.x.2.1)
+**Commit**: `f2bb871`
+**Architect ruling**: `handover/directives/2026-05-04_TB16_OBS_R022_ARCHITECT_RULING.md` (lossless verbatim §B; structured index §A)
+**Session summary**: Architect ratified Option α from the TB-16.x.2.1 OBS_R022 ratification request (`4750778`). Executed: deleted the global `handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt` (Art. 0.2 parallel ledger), made `audit_tape --markov-pointer` optional, added `--prior-chain-runtime-repo` for explicit per-runtime inheritance (α resolver reads `<path>/markov_tip.cid` — per-runtime, not global), removed `audit_dashboard`'s implicit global-pointer read (added `--markov-capsule-cid <hex>` CLI), and stopped `generate_markov_capsule` from writing the global pointer. New ship gates SG-16.7 / SG-16.8 / SG-16.9 / SG-16.10 added; TB-17 preconditions PRE-17.1..17.4 + new artifact `MARKOV_INHERITANCE_POLICY.md` mandated. Class 2 dual audit (Codex + Gemini): Codex 1 VETO + 5 CHALLENGE + 4 PASS → all VETO/CHALLENGE addressed; Gemini deferred-degraded.
+
+### Architect declarations
+
+| Field | Value |
+|---|---|
+| `phase_id` | P5 (Markov / autopsy — closes TB-15 substrate's Art. 0.2 violation before TB-16 ship) |
+| `roadmap_exit_criteria_addressed` | SG-16.7 (no global Markov pointer canonical input) + SG-16.8 (fresh isolated chain → markov_capsule=None, Layer G Skipped) + SG-16.9 (present-but-unresolvable Markov pointer BLOCKS) + SG-16.10 (multi-task continuation uses same runtime_repo+CAS or explicit `--prior-chain-runtime-repo`; α complete, β deferred to TB-16.x.2.4 / 2.6) |
+| `kill_criteria_tested` | 8 守恒 tests (5 original + 3 added for Codex CHALLENGE 6 closure): markov_pointer_no_global_parallel_ledger / audit_tape_genesis_without_markov_pointer / audit_tape_blocks_unresolvable_present_markov_pointer / audit_tape_blocks_supplied_but_fs_absent_markov_pointer / audit_tape_rejects_both_markov_pointer_and_prior_chain / audit_tape_prior_chain_resolver_genesis_when_tip_absent / generate_markov_capsule_does_not_write_global_latest / markov_capsule_historical_artifact_not_reference_input |
+| `flowchart_trace` | FC1-N34 + FC1-N35 + FC2-N31. Markov capsule is derived view (architect Q2.a — NOT FC node). NO Phase Z′ rerun required (architect Q4 — Art. 0.2 derived-view enforcement only). |
+| `risk_class` | Class 2 (production wire-up — modifies audit binaries + dashboard runtime path; no economic/auth surface) |
+| `forbidden_honored` | (a) NO Phase Z′; (b) NO retroactive evidence rewrite (historical `handover/evidence/tb_*` dirs untouched — pre-existing drift in `git status` left unstaged for separate cleanup, NOT included in this commit; this is the resolution to Codex VETO 8); (c) NO Option γ provenance sidecar (architect rejected); (d) NO continued use of global pointer from any runtime/audit/dashboard path; (e) NO silent `.ok()` collapse (TB-16.x.1 fail-closed semantic preserved); (f) NO change to `MarkovEvidenceCapsule` schema |
+| `STEP_B_PROTOCOL` | NOT triggered (no edits to bus.rs / kernel.rs / wallet.rs / sequencer.rs) |
+
+### Surfaces shipped
+
+- `src/runtime/audit_assertions.rs` — `AuditInputs.markov_pointer: PathBuf` → `Option<PathBuf>`; `load_tape` distinguishes `None=genesis / Some(missing)=BLOCK / Some(unresolvable)=BLOCK`.
+- `src/bin/audit_tape.rs` / `audit_tape_tamper.rs` — `--markov-pointer` optional; `--prior-chain-runtime-repo <path>` added; flags mutex-enforced; α resolver reads `<path>/markov_tip.cid` (per-runtime).
+- `src/bin/audit_dashboard.rs` — deleted `read_latest_markov_pointer()`; new `--markov-capsule-cid <hex>` CLI flag; `build_report` signature gained the cid arg; `render_section_15` empty-state hint updated.
+- `src/bin/generate_markov_capsule.rs` — removed write of `LATEST_MARKOV_CAPSULE.txt`; per-run JSON retained.
+- `genesis_payload.toml` — rehashed `audit_dashboard.rs` (88520fc7…; predecessor 4674f9b6… preserved).
+- `handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt` — DELETED.
+- `handover/markov_capsules/README.md` — NEW (historical-only disclaimer; new TBs put per-run JSON under `handover/evidence/tb_*/markov/`).
+- `tests/markov_pointer_de_canonicalize.rs` — NEW; 8 守恒 tests.
+- `handover/tests/scripts/run_*.sh` — dropped `--markov-pointer handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt` lines; switched `PREV_CID` from global pointer file to env var `PREV_CID_HEX`.
+
+### Test counts (workspace-test-canonical)
+
+```
+command          = cargo test --workspace
+workspace_count  = 915
+failed           = 0
+ignored          = 150
+```
+
+Baseline pre-TB-16.x.fix: 907 passing (TB-16.x.2.1 ship). +8 = 5 original 守恒 tests + 3 added for Codex CHALLENGE 6 closure (mutex test, FS-absent BLOCK test, prior-chain genesis-equivalent test).
+
+### Smoke verification
+
+| SG | Verification | Result |
+|---|---|---|
+| SG-16.7 | Global pointer file deleted; conservation test asserts non-existence | ✓ |
+| SG-16.8 | `audit_tape` on TB-16.x.2.1 P9_force_expire/ WITHOUT `--markov-pointer` → verdict=PROCEED, 4 Layer G assertions Skipped | ✓ |
+| SG-16.9 | `audit_tape` with garbage hex pointer → exit 2; "markov read: cas get: cid:... not found in CAS index" | ✓ |
+| SG-16.10 | `--prior-chain-runtime-repo` flag exists in both binaries; α resolver in place; full β deferred to TB-16.x.2.4 / 2.6 | ✓ partial |
+
+### Next steps
+
+Per architect ruling §A.6 execution order:
+1. **TB-16.x.2.2** — ChallengeResolve / remaining arena pieces (next sub-atom on TB-16.x.2 umbrella).
+2. **TB-16.x.2.4** — multi-WorkTx attempt + Boltzmann RUNTIME exercise (β chain continuation begins; multi-task SINGLE-CHAIN runs).
+3. **TB-16.x.2.6** — combined arena run, all 4 tx kinds + Boltzmann + Autopsy in one continuing chain (β fully realized; in-tape Markov inheritance via `previous_capsule_cid`).
+4. **TB-17** — Real-World Readiness Gate (preconditions PRE-17.1..17.4 + `MARKOV_INHERITANCE_POLICY.md` + SG-17.9 / SG-17.10 are now hard preconditions).
+
+---
+
 ## 🛠️ 2026-05-04 — TB-16.x.2.1 SHIPPED — TaskExpire env-var trigger (10-of-13 tx kinds)
 
 **Updated**: 2026-05-04 (fourth session of the day)
