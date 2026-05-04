@@ -3,8 +3,9 @@
 **Date**: 2026-05-04 (during TB-16 Atom 7 R3 prep)
 **Severity**: Medium (observation; NOT a R3 ship blocker; pre-existing on git HEAD)
 **Class**: tamper-harness defect
-**Status**: OBS-deferred to TB-16.x
+**Status**: **RESOLVED** by TB-16.x.1 (2026-05-04). Root-cause + fix below in §8.
 **Discovered by**: Claude Opus 4.7 during R3 surgical-fix verification
+**Resolved by**: Claude Opus 4.7 in TB-16.x.1 (charter `handover/tracer_bullets/TB-16.x.1_charter_2026-05-04.md`)
 
 ---
 
@@ -136,3 +137,65 @@ classic shape).
   id=40/41 + #28 JSON-form check + file-level FC binding).
 - R2 closure doc: `handover/audits/RECURSIVE_AUDIT_TB_16_R2_2026-05-04.md`
 - Smoke evidence: `handover/evidence/tb_16_real_llm_arena_2026-05-04/audit_pipeline_smoke/`
+
+## §8 Resolution (TB-16.x.1, 2026-05-04)
+
+### §8.1 Actual root-cause (correcting OBS §4 hypothesis)
+
+The OBS §4 hypothesis ("hang is NOT in `read_markov_capsule`") was WRONG.
+With env-gated step-level instrumentation
+(`TURINGOS_AUDIT_TIMING=1`), the hang was bisected to **inside
+`CasStore::get`** — specifically `repo.find_blob(git_oid)` on a back-half-
+zeroed loose-object. libgit2's zlib decompression of certain corrupt
+inputs pegs a single CPU core indefinitely; the existing sha256 verify
+runs AFTER `find_blob` returns, so it never executes.
+
+The OBS §4 author was misled because (a) `CasStore::get` does sha256
+verify, (b) Round 1 (`flip_l4_byte`) corrupts an L4 ledger object whose
+specific corrupted bytes happen to fail libgit2's zlib data-check fast
+(`Zlib(5) — incorrect data check`), so they assumed CAS reads would
+also fail fast. They don't — the corruption pattern matters.
+
+### §8.2 Fix (Class 2; commit pending in this session)
+
+Two-layer defense-in-depth:
+
+1. **`src/bottom_white/cas/store.rs::CasStore::get`**: wrap the libgit2
+   `Repository::open` + `find_blob` + `blob.content()` chain in a worker
+   `std::thread` + `mpsc::Receiver::recv_timeout`. Default 10s timeout;
+   override via env `TURINGOS_CAS_GET_TIMEOUT_SECS`. On timeout, return
+   new `CasError::BackendCorruption(...)` variant. The size-bound check
+   (`content.len() > expected_size + 256` rejects expanded blobs) is
+   added inside the worker, before sha256 verify.
+2. **`src/runtime/audit_assertions.rs::load_tape`**: change the markov-
+   capsule load from `read_markov_capsule(...).ok()` (collapses ALL
+   errors to None → Layer G assertions Skip → false PROCEED) to:
+   ```rust
+   if inputs.markov_pointer.exists() {
+       Some(read_markov_capsule(&inputs.markov_pointer, &cas)?)
+   } else {
+       None
+   }
+   ```
+   Now "pointer absent" → None (legitimately pre-Markov chain) and
+   "pointer present but unreadable" → AuditError → audit verdict BLOCK
+   → tamper harness counts as detected.
+
+### §8.3 Empirical verification
+
+`audit_pipeline_smoke/tamper_report.json` regenerated 2026-05-04 post-
+fix: 3/3 detect, 10.3s wall clock (one 10s timeout for the corrupt
+MarkovEvidenceCapsule). All 8 R3 round-2 chains still audit PROCEED
+byte-identically post-fix. `cargo test --workspace --release` = 907
+pass / 0 fail / 150 ignored — zero regression.
+
+### §8.4 Prior over-confidence retracted
+
+OBS §5.3 said "audit_pipeline_smoke `tamper_report.json` carry-forward
+from R1 ... stays as documented R1-vintage evidence with grandfathering
+note." Updated 2026-05-04: post-fix tamper_report regenerated to
+canonical post-fix evidence; the R1-vintage report is superseded. Per
+`feedback_no_retroactive_evidence_rewrite`, fence-mechanism fixtures
+(audit_pipeline_smoke is one) MAY be regenerated forward — it is meta-
+infrastructure validating the audit pipeline, not a historical
+experiment result tape.

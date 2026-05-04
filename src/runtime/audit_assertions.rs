@@ -412,8 +412,17 @@ pub fn load_tape(inputs: &AuditInputs) -> Result<LoadedTape, AuditError> {
         .map_err(|e| AuditError::ConstitutionRead(format!("{:?}: {}", inputs.constitution, e)))?;
     let constitution_hash = sha256_hash(&constitution_bytes);
 
-    // markov capsule (optional — chain may be pre-Markov)
-    let markov_capsule = read_markov_capsule(&inputs.markov_pointer, &cas).ok();
+    // markov capsule. **TB-16.x.1**: distinguish "pointer absent"
+    // (legitimately pre-Markov chain → None) from "pointer present but
+    // capsule unreadable" (corruption / adversarial bytes → load-level
+    // error). The latter MUST surface as `AuditError` so the verdict is
+    // BLOCK; previously a blanket `.ok()` swallow let corruption skip
+    // Layer G assertions and produce a false PROCEED post-tamper.
+    let markov_capsule = if inputs.markov_pointer.exists() {
+        Some(read_markov_capsule(&inputs.markov_pointer, &cas)?)
+    } else {
+        None
+    };
 
     // genesis [constitution_root] hex (best-effort)
     let genesis_constitution_root_hex = std::fs::read_to_string(&inputs.genesis)

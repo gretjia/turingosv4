@@ -49,6 +49,10 @@ pub enum CasError {
     /// JSON-deserialization error on a sidecar index line. Includes 1-based
     /// line number for diagnostics.
     IndexParse { line: usize, error: String },
+    /// TB-16.x.1: backend corruption detected by a defense-in-depth check
+    /// (size bound, libgit2 zlib timeout, etc). Carries a human-readable
+    /// detail string for the audit trail.
+    BackendCorruption(String),
 }
 
 impl std::fmt::Display for CasError {
@@ -65,6 +69,7 @@ impl std::fmt::Display for CasError {
             Self::IndexParse { line, error } => {
                 write!(f, "cas index parse error at line {line}: {error}")
             }
+            Self::BackendCorruption(detail) => write!(f, "backend corruption: {detail}"),
         }
     }
 }
@@ -211,29 +216,93 @@ impl CasStore {
     }
 
     /// Retrieve content by Cid. Verifies content sha256 matches Cid (corruption check).
+    ///
+    /// **TB-16.x.1 defense-in-depth (Class 2)**: wraps the libgit2 read in a
+    /// worker thread + `recv_timeout` so adversarial CAS bytes (e.g. a loose
+    /// object whose back half is zeroed by a tamper harness) cannot hang the
+    /// audit pipeline. Empirically (2026-05-04), libgit2's zlib decompression
+    /// of certain corrupted MarkovEvidenceCapsule loose objects pegs a single
+    /// CPU core indefinitely; this wrapper converts that hang into a bounded
+    /// `BackendCorruption` error so audit termination is guaranteed.
+    ///
+    /// Knobs:
+    /// * `TURINGOS_CAS_GET_TIMEOUT_SECS` — override the default 10s timeout.
     pub fn get(&self, cid: &Cid) -> Result<Vec<u8>, CasError> {
         let metadata = self
             .index
             .get(cid)
             .ok_or(CasError::CidNotFound(*cid))?;
-        let repo = self.open_repo()?;
-        let git_oid = git2::Oid::from_str(&metadata.backend_oid_hex)
-            .map_err(CasError::Git2)?;
-        let blob = repo.find_blob(git_oid)?;
-        let content = blob.content().to_vec();
+        let repo_path = self.repo_path.clone();
+        let oid_hex = metadata.backend_oid_hex.clone();
+        let expected_size = metadata.size_bytes;
+        let cid_copy = *cid;
 
-        // Verify content sha256 matches Cid (defense against corruption).
-        let mut h = Sha256::new();
-        h.update(&content);
-        let computed = Cid(h.finalize().into());
-        if &computed != cid {
-            return Err(CasError::CidMismatch {
-                expected: *cid,
-                computed,
-            });
+        let timeout_secs: u64 = std::env::var("TURINGOS_CAS_GET_TIMEOUT_SECS")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(10);
+
+        let (tx, rx) = std::sync::mpsc::channel::<Result<Vec<u8>, CasError>>();
+        std::thread::Builder::new()
+            .name("cas-get".to_string())
+            .spawn(move || {
+                let result: Result<Vec<u8>, CasError> = (|| {
+                    let repo = Repository::open(&repo_path).map_err(CasError::from)?;
+                    let git_oid =
+                        git2::Oid::from_str(&oid_hex).map_err(CasError::Git2)?;
+                    let blob = repo.find_blob(git_oid)?;
+                    let content = blob.content().to_vec();
+
+                    // Defense-in-depth size bound: a blob whose decompressed
+                    // length exceeds the recorded `size_bytes` (plus tiny
+                    // header slack) signals adversarial expansion. Reject
+                    // before sha256 to bound any downstream alloc.
+                    if content.len() as u64 > expected_size.saturating_add(256) {
+                        return Err(CasError::BackendCorruption(format!(
+                            "blob content {} bytes exceeds expected size {} for {}",
+                            content.len(),
+                            expected_size,
+                            cid_copy
+                        )));
+                    }
+
+                    // Verify content sha256 matches Cid (corruption check).
+                    let mut h = Sha256::new();
+                    h.update(&content);
+                    let computed = Cid(h.finalize().into());
+                    if computed != cid_copy {
+                        return Err(CasError::CidMismatch {
+                            expected: cid_copy,
+                            computed,
+                        });
+                    }
+                    Ok(content)
+                })();
+                let _ = tx.send(result);
+            })
+            .map_err(|e| {
+                CasError::IoError(io::Error::new(
+                    io::ErrorKind::Other,
+                    format!("cas-get worker spawn: {e}"),
+                ))
+            })?;
+
+        match rx.recv_timeout(std::time::Duration::from_secs(timeout_secs)) {
+            Ok(r) => r,
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                Err(CasError::BackendCorruption(format!(
+                    "cas.get timed out after {timeout_secs}s for {cid_copy} \
+                     — adversarial bytes hang libgit2 zlib (TB-16.x.1 \
+                     defense-in-depth; set TURINGOS_CAS_GET_TIMEOUT_SECS to \
+                     override)"
+                )))
+            }
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => Err(
+                CasError::BackendCorruption(
+                    "cas.get worker thread disconnected unexpectedly".into(),
+                ),
+            ),
         }
-
-        Ok(content)
     }
 
     /// Get metadata only (no content fetch).

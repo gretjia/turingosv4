@@ -6,6 +6,66 @@
 
 ---
 
+## 🛠️ 2026-05-04 — TB-16.x.1 SHIPPED — tamper-hang root-cause + Round 1 README
+
+**Updated**: 2026-05-04 (third session of the day)
+**Session summary**: TB-16.x.1 kernel-debt cleanup — root-caused OBS_TB_16_TAMPER_R2_HANG (libgit2 zlib hang on back-half-zeroed CAS loose objects), shipped two-layer defense-in-depth fix (CasStore::get worker-thread + recv_timeout + size bound + new BackendCorruption variant; load_tape distinguishes "pointer absent" from "pointer corrupt"), regenerated `audit_pipeline_smoke/tamper_report.json` with canonical post-fix 3/3 detect in 10.3s, annotated `post_r3_full_test/README.md` as pre-runner-fix vintage. Class 2 self-audit OK; cargo test --workspace 907/0/150 unchanged. Charter: `handover/tracer_bullets/TB-16.x.1_charter_2026-05-04.md`.
+
+### Architect-required declarations (per 2026-05-03 anti-drift directive §9)
+
+| Field | Value |
+|---|---|
+| `phase_id` | P6 (Permissioned ChainTape / Epistemic Lab — TB-16 audit-pipeline hardening) |
+| `roadmap_exit_criteria_addressed` | SG-16.6 (no unresolved evidence gaps); SG-16.1 (replayable ChainTape preserved); §7.5 audit-tape-tamper detection layer hardened |
+| `kill_criteria_tested` | CR-16.6 replay byte-identity preserved (8/8 R3 chains); 38-assertion battery unchanged in count + outcome on all 8 chains; total_supply_micro unchanged (zero economic mutation) |
+| `flowchart_trace` | FC3 (logs archive + constitution as ground truth → audit pipeline is the attestation surface; if the audit itself can be DoS'd by adversarial CAS bytes, FC3 ground-truth chain breaks) |
+| `risk_class` | Class 2 (audit-pipeline defense-in-depth; no economic surface, no auth/crypto/money mutation, no predicate change, no L4/L4.E semantics change) |
+| `forbidden_honored` | (a) no f64 added; (b) no L4/L4.E rewrite; (c) no retroactive experiment-evidence rewrite (only fence-mechanism fixture regenerated forward); (d) no existing 38+3 supplemental assertion removed; (e) no economic state mutation; (f) no `prediction_market.rs` import; (g) no AMM/CPMM/price-as-truth; (h) no agent-submitted system tx |
+| `halt_triggers_observed` | None fired. total_supply unchanged; replay byte-id 8/8; bincode/canonical_decode bound is integer-comparison only (no f64); no predicate semantics touched; no monetary invariants touched |
+
+### Key fix evidence
+
+- **Hang site identified**: `read_markov_capsule` → `CasStore::get` → `repo.find_blob` (libgit2 zlib decompression of 953-byte loose object whose bytes 478..953 are zeroed pegs CPU indefinitely). OBS §4 hypothesis ("hang is NOT in `read_markov_capsule`") was wrong; instrumentation traced it directly inside CasStore::get.
+- **Fix Layer 1** — `src/bottom_white/cas/store.rs`: `CasStore::get` wraps libgit2 read in `std::thread` + `mpsc::Receiver::recv_timeout` (default 10s; overrideable via `TURINGOS_CAS_GET_TIMEOUT_SECS`). Adds defense-in-depth size-bound check (content.len() > expected + 256 → reject). New `CasError::BackendCorruption(String)` variant.
+- **Fix Layer 2** — `src/runtime/audit_assertions.rs::load_tape`: pre-existing `read_markov_capsule(...).ok()` collapsed ALL errors (corrupt CAS, missing pointer, ...) to `None`, letting Layer G assertions Skip and produce false PROCEED post-tamper. Now: `inputs.markov_pointer.exists() ? Some(read_markov_capsule(...)?) : None`. Pointer-absent legitimately yields None; pointer-present-but-unreadable yields `AuditError` → BLOCK.
+- **Trust Root manifest update**: `genesis_payload.toml` `[trust_root]` rehashed `src/bottom_white/cas/store.rs` (12ce3f35... ← was de86443f...). Per R-014; non-sudo per R-018.
+- **Smoke fixture capsule regen**: `audit_pipeline_smoke/`'s Markov capsule had stale `unresolved_obs=25` while alignment dir now has 26 OBS files; regenerated to chain forward (`8cc6bbbd...` → `e76e2b00...`). This was a side-issue surfaced during reproducer setup, NOT the hang itself; documented in OBS §1.
+- **Round 1 README annotation**: `post_r3_full_test/README.md` now declares the dir as "VINTAGE / NON-CANONICAL — pre-runner-fix; canonical R3 evidence is `post_r3_round2/`"; per `feedback_no_retroactive_evidence_rewrite`.
+
+### Test counts post-fix
+
+- `cargo test --workspace --release` = **907 pass / 0 fail / 150 ignored** (unchanged from R3 baseline).
+- 8 R3 chain regression sweep: **8/8 PROCEED** with assertion counts unchanged (P1-5/7/8 = 38 pass / 0 fail / 0 halt / 3 skip; P6 = 37 / 0 / 0 / 4 — same as pre-fix).
+- `audit_tape_tamper` on `audit_pipeline_smoke/`: **3/3 detect in 10.3s wall clock** (was: hang >120s).
+- `audit_tape` on `audit_pipeline_smoke/` baseline: **PROCEED 38/0/0/3** (was: BLOCK due to id=34 stale-capsule drift; resolved by capsule regen).
+
+### Files changed
+
+- `src/bottom_white/cas/store.rs` — CasStore::get hardened + BackendCorruption variant.
+- `src/runtime/audit_assertions.rs` — load_tape markov pointer-exists semantic.
+- `genesis_payload.toml` — Trust Root manifest rehash.
+- `handover/alignment/OBS_TB_16_TAMPER_R2_HANG_2026-05-04.md` — RESOLVED + §8 root-cause + fix.
+- `handover/evidence/tb_16_real_llm_arena_2026-05-04/audit_pipeline_smoke/{LATEST_MARKOV_CAPSULE.txt, MARKOV_TB-16_2026-05-03.json, tamper_report.json, tamper/}` — regenerated.
+- `handover/evidence/tb_16_real_llm_arena_2026-05-04/post_r3_full_test/README.md` — new (vintage annotation).
+- `handover/tracer_bullets/TB-16.x.1_charter_2026-05-04.md` — new charter.
+
+### Next Steps (priority order)
+
+1. **TB-16.x.2 (P2 cap-loop, ~1-2 days)**: Atom 6.1 multi-task chain continuation — unblocks 4 missing tx kinds (ChallengeResolve, CompleteSetRedeem, TaskExpire, TaskBankruptcy-on-resolved-chain) + Boltzmann mechanism 5 RUNTIME exercise + AutopsyCapsule real-bankruptcy path. Architect 2026-05-03 §1.2 said TB-12 narrowed claim; this atom expands TB-16 conformance to FULL multi-task continuation.
+2. **TB-16.x.3 / pre-TB-17 (~1-2 days)**: heldout-49 capability batch with N≥20 runs/problem (per `project_pput_ccl_arc` + `feedback_launch_priority`).
+3. **Architect §3 follow-up — TB-13 legacy CPMM quarantine verification**: greppable check that `src/prediction_market.rs` has no imports from TB-13/14 modules (CompleteSet / MarketSeed / PriceIndex). Cheap — likely an OBS-write or quick TB-16.x.1.5.
+4. **TB-17 RealWorld Gate** charter (Class 4 sudo): dispatch ONLY after the 3 atoms above + architect re-read of `project_tb11_to_tb17_roadmap` (canonical reading order).
+
+### Cold-start reading order (for next session)
+
+1. `handover/tracer_bullets/TB-16.x.1_charter_2026-05-04.md` (this atom's spec)
+2. `handover/alignment/OBS_TB_16_TAMPER_R2_HANG_2026-05-04.md` §8 (root-cause + fix)
+3. `handover/evidence/tb_16_real_llm_arena_2026-05-04/post_r3_round2/SUMMARY.md` (canonical R3 conformance evidence — unchanged)
+4. This file (LATEST.md) sections from 2026-05-04
+5. `handover/tracer_bullets/TB-16_charter_2026-05-04.md` (architect spec verbatim — unchanged)
+
+---
+
 ## 🚢 2026-05-04 — TB-16 SHIPPED + R3 closure + post-R3 Round 2 7-mechanism conformance battery PROCEED
 
 **Updated**: 2026-05-04 (session end; second session of the day)
