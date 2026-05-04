@@ -6,6 +6,37 @@
 
 ---
 
+## 🛠 2026-05-04 — TB-16 Atom 7 R1 Step 1 — surgical fixes for V3/V4/V5/V6/V7 + Q11 + V2 (commit `3cf4c36`)
+
+**Path B-prime Step 1** per `RECURSIVE_AUDIT_TB_16_2026-05-04.md` §8. Closes 6 of 7 R1 audit defects via surgical fixes. Remaining V1 (fresh arena run) + V2-deeper (sandbox admission gate at sequencer level) deferred to Path B-prime Steps 2-4.
+
+| Defect | Fix | Status |
+|---|---|---|
+| V6 (Codex Q3) | Audit calls `monetary_invariant::total_supply_micro` directly (now `pub fn`); eliminates 4-vs-5 holding drift | ✓ |
+| V2 (Codex Q1, partial) | `sandbox_prefix` accepts `Agent_<digit>` canonical preseed pattern | ✓ audit-side; sequencer-side gate = Step 4 |
+| #18 correctness | Conservation: FINAL == INITIAL (per-chain), not == hardcoded 30M | ✓ |
+| V5 (Codex Q7) | Tamper does pre-tamper PROCEED baseline; destructive corruption (zero-back-half not single-byte XOR) | ✓ 3/3 TRUE detection on PROCEED-baseline TB-8 fixture |
+| V4 (Codex Q2/Q7) | Strip `\|\| true`; runner exits non-zero on BLOCK / replay divergence | ✓ |
+| V7 (Gemini Q8) | Runner passes `--prev-cid-hex` from `LATEST_MARKOV_CAPSULE.txt`; TB-16 capsule chains to TB-15 | ✓ |
+| V3 (Codex Q2/Q8) | `audit_pipeline_smoke` regenerated with TB-8 fixture (5 L4 + happy-path FinalizeReward; PROCEED baseline) | ✓ |
+| Q11 (Gemini) | Tamper assertions #36-#38 backlinks → FC1-N35; OBS doc + R-022-skip token | ✓ |
+
+**Test counts**: `cargo test --workspace = 907 / 0 failed / 150 ignored` (+2 from Atom 6 baseline 905).
+
+**audit_pipeline_smoke evidence (regenerated)**:
+- `verdict.json`: PROCEED (32 PASS / 0 FAIL / 0 HALT / 7 SKIP)
+- `verdict_replay.json`: byte-identical
+- `tamper_report.json`: 3/3 detected (TRUE detection on PROCEED baseline)
+- `MARKOV_TB-16_2026-05-03.json`: capsule_id `1478212...`; previous_capsule_cid `f9e701b4...` chained to TB-15 ✓
+
+**Remaining (gates Step 2-4)**:
+- **V1**: fresh comprehensive arena run with all 13 tx kinds — needs user-side `lake exe cache get` (~2 min) + Atom 6.1 multi-task evaluator extension (~half day)
+- **V2-deeper**: sandbox admission gate at sequencer level — needs charter ratification (Class 3+ sequencer dispatch arm change) + design ("HALT vs flag" semantic decision)
+
+User decision required before Step 2.
+
+---
+
 ## 🚀 2026-05-04 — TB-16 SHIPPED (pre-audit) — Controlled Market Smoke Arena
 
 **Status**: 7 atoms shipped (0..6); Atom 7 dual external audit pending.
