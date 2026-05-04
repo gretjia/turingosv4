@@ -6,6 +6,134 @@
 
 ---
 
+## 🚀 2026-05-04 — TB-16 SHIPPED (pre-audit) — Controlled Market Smoke Arena
+
+**Status**: 7 atoms shipped (0..6); Atom 7 dual external audit pending.
+**Charter**: `handover/tracer_bullets/TB-16_charter_2026-05-04.md`
+**Ship status**: `handover/ai-direct/TB-16_SHIP_STATUS_2026-05-04.md`
+**Architect spec**: §7 of `handover/directives/2026-05-03_TB13_TO_TB17_POST_TB12_ARCHITECT_RULING.md`
+**Risk class**: Class 3 integration smoke (architect §7.7 — external audit MANDATORY at ship).
+
+**Shipped infrastructure** (commits `7d0d65b` → Atom 6 commit):
+- `src/runtime/audit_assertions.rs` — 38 pure-fn assertions × 8 layers
+  (A bootstrap / B chain / C replay / D economic / E predicate / F privacy /
+  G Markov / H tamper)
+- `src/bin/audit_tape.rs` — CLI emits `verdict.json` (schema_version=v1/audit_tape_verdict)
+- `src/bin/audit_tape_tamper.rs` — 3-corruption tamper-detection harness
+- `experiments/minif2f_v4/src/bin/comprehensive_arena.rs` — 6-task orchestrator scaffold
+- `handover/tests/scripts/run_real_llm_arena.sh` + `audit_tape_smoke_test.sh`
+- Dashboard §15 live regen + §16 SANDBOX banner (closes
+  `OBS_TB_15_DASHBOARD_LIVE_REGEN_TB16_2026-05-04.md`)
+- 13 halt-trigger tests (H1..H13) all GREEN
+
+**Audit pipeline smoke evidence**: `handover/evidence/tb_16_real_llm_arena_2026-05-04/audit_pipeline_smoke/`
+runs the full pipeline on a chain-backed real-LLM tape (TB-13 fixture):
+`verdict.json` (BLOCK; 31 PASS / 1 HALT / 7 SKIP — H7 **demonstrated live**),
+`verdict_replay.json` (byte-identical), `tamper_report.json` (3/3 detected),
+`MARKOV_TB-16_2026-05-03.json` (constitution_hash + 4 flowchart hashes + 23 OBS),
+`dashboard.txt` (16 sections incl. SANDBOX banner).
+
+**Deferred to Atom 6.1** (gates fresh comprehensive arena run, not infrastructure):
+- evaluator multi-task chain-continuation semantics (so 13 tx kinds appear in ONE chain)
+- mathlib build via `lake exe cache get` (~2 min; user-side action)
+
+**Test counts**: `cargo test --workspace = 905 passed / 0 failed / 150 ignored`
+(+25 over TB-15 baseline 759; sub-package tests included).
+
+**Next**: Atom 7 — Class 3 dual external audit (Codex + Gemini per `feedback_dual_audit`).
+
+---
+
+## 🛡️ 2026-05-04 — TB-15 R3 closure (recursive dual audit PASS PASS; Codex R2 VETO + Gemini R1 VETO closed)
+
+**Session summary**: Per user request, ran retroactive recursive dual audit on TB-15 (originally Class 2 self-audit). Convergence at R3 with both auditors PASS. Closed 2 VETO findings + 5 CHALLENGE findings across 3 rounds. Final commit `eddab36`.
+
+**Recursion summary**:
+| Round | Codex | Gemini | Conservative merge |
+|---|---|---|---|
+| R1 | CHALLENGE × 5 | **VETO** Q12 (replay-determinism) + CHALLENGE Q7 | VETO |
+| R2 | **VETO** Q3 + TB15-CAS-ID (REAL prod bug) | PASS | VETO |
+| R3 | **PASS** medium-high | **PASS** high | **PASS ✓** |
+
+**The big R2 finding (Codex)**: writer pattern bug — `capsule_id = sha256(prelim_bytes)` (with capsule_id+sha256 zeroed during hash) but `cas.put(final_bytes)` stored DIFFERENT post-population bytes whose sha256 differs. `cas.get(&capsule.capsule_id)` would FAIL. Verified via CAS index file: `LATEST_MARKOV_CAPSULE.txt` published `a94ae884...` but CAS object indexed under `e4932fca...`. **Broke SG-15.3 next-session bootstrap.** Same bug existed in `write_autopsy_capsule`. R3 fix: store the zeroed-identity bytes in CAS; populate in-memory struct after; add `restore_*` helpers; new round-trip tests verify the contract.
+
+### R2+R3 cumulative deltas
+- **Q12 closure** (Gemini R1 VETO — replay determinism): activation gate `TB15_AUTOPSY_ACTIVATION_LOGICAL_T: u64 = 0` + `is_autopsy_active_at` predicate; both dispatch + apply_one wrapped. Verification baseline: ZERO production chains contain TaskBankruptcyTx.
+- **Q7/Q8 closure** (both R1 — flowchart_hashes): `flowchart_hashes: Vec<Hash>` field on MarkovEvidenceCapsule (additive, serde-default) + `read_flowchart_hashes_from_matrix` parser populating 4 canonical SHA-anchored hashes from `TRACE_FLOWCHART_MATRIX.md` §2.
+- **Q3 + TB15-CAS-ID closure** (Codex R1+R2 VETO — CAS resolvability): writer pattern fix (zeroed-identity stored bytes; capsule_id = sha256 of stored bytes); `restore_markov_capsule_from_cas_bytes` + `restore_autopsy_capsule_from_cas_bytes` helpers; new `BankruptcyAutopsyDerivation` struct carries `stored_capsule_bytes` from derive to apply_one; new round-trip tests assert `cas.get(&cap.capsule_id)` succeeds.
+- **Q4 closure** (Codex R1 — live override gate): `--include-prior-capsules N` CLI arg; default-deny exit code 3.
+- **Q5 closure** (Codex R1 — byte-window scan): halt-trigger #5 strengthened (canonical Cid array form scan + raw 32-byte run + canonical_encode bytes).
+- **Q9** (Codex R1 — dashboard not regenerable): OBS-deferred to TB-16 (privacy contract holds structurally).
+
+### R3 evidence
+`handover/evidence/tb_15_markov_capsule_2026-05-04/`:
+- `MARKOV_TB-15-R3_2026-05-03.json` (CAS-resolvable; flowchart_hashes populated; capsule_id `f9e701b4...`)
+- `LATEST_MARKOV_CAPSULE.txt` (`f9e701b4...`)
+- `cas_index.jsonl` (proof: CAS index Cid MATCHES LATEST pointer)
+- `README.md` with full R1→R3 closure record
+
+### Audit artifacts (committed)
+- 6 transcripts: `handover/audits/{CODEX,GEMINI}_TB_15_SHIP_AUDIT_2026-05-04_R{1,2,3}.md`
+- 6 runner scripts: `handover/audits/run_{codex.sh,gemini.py}_tb_15_ship_audit{,_r2,_r3}`
+- Closure doc: `handover/audits/RECURSIVE_AUDIT_TB_15_2026-05-04.md`
+
+### Carry-forward OBS (non-blocking)
+- **OBS-TB-11-CAS-ID**: TB-11 `write_evidence_capsule` has the SAME CAS-cid bug. No production reader currently. Fix in TB-16+.
+- **OBS-TB15-R2-Q12-UPGRADE**: chain-resident activation marker upgrade.
+- **OBS-TB15-R2-Q7-TEST-HARDEN**: parser negative-path tests.
+- **OBS-TB15-R3-FOOTGUN**: API hardening on `capsule_id` accessors (loud-failure assertions when struct is unrestored).
+- **OBS-TB15-R3-DEBUG-ASSERT**: `debug_assert` is debug-build only; CasStore::put returning Cid::from_content is real structural guarantee.
+- **OBS_TB_15_DASHBOARD_LIVE_REGEN_TB16**: dashboard live rebuild = TB-16 scope.
+
+### Final state
+- `cargo test --workspace` = **882 PASS / 0 fail / 150 ignored** (+4 vs R1 ship 878)
+- All 6 halt-triggers GREEN; Trust Root GREEN
+- HEAD: `eddab36`. NOT pushed to remote.
+
+### Working tree
+- New: nothing to track beyond what's committed
+- Pre-existing dirty entries (TB-13/14 evidence + `rules/enforcement.log`) carry-forward unchanged
+
+---
+
+## 📐 2026-05-04 — TB-16 DESIGN landed (Real-LLM Comprehensive ChainTape + Audit-From-Tape contract)
+
+**Session summary**: Per user request, designed comprehensive real-LLM ChainTape test exercising every shipped TB feature (TB-1..TB-15), with the load-bearing acceptance gate being a separate `audit_tape` binary that reads ONLY on-disk artifacts (runtime_repo + cas_dir + agent_pubkeys.json + pinned_pubkeys.json + genesis_payload.toml + constitution.md + LATEST_MARKOV_CAPSULE.txt) and emits a 38-assertion verdict. Framed as the implementation design for **TB-16 Controlled Market Smoke Arena** (architect §7).
+
+**Status**: DESIGN ONLY. Not yet charter-ratified; nothing implemented.
+
+**Design doc**: `handover/tests/REAL_LLM_COMPREHENSIVE_AUDIT_FROM_TAPE_DESIGN_2026-05-04.md`
+
+### What the design specifies
+- **Coverage matrix** — 13 tx kinds × 6 CAS object types; 100% of shipped agent-signed + system-emitted surfaces.
+- **Six-task scenario** engineered for full coverage:
+  - A happy_path (Work + Verify + FinalizeReward)
+  - B challenge_dismissed (ChallengeResolve Released)
+  - C challenge_upheld (ChallengeResolve UpheldDeferred marker)
+  - D exhaustion (TerminalSummary → TaskBankruptcy → AgentAutopsyCapsule)
+  - E expiry (TaskExpire)
+  - F complete_set_market (MarketSeed + CompleteSetMint + CompleteSetRedeem)
+- **`audit_tape` binary contract** — 38 assertions in 8 layers: bootstrap integrity (3) + chain integrity (8) + replay determinism (5) + economic invariants (6) + predicate/evidence integrity (5) + privacy contracts (4) + Markov continuity (4) + tamper detection (4).
+- **Real-LLM provider config** — DeepSeek-v4-flash thinking-off; 30-min wall-clock cap; $15 cost ceiling; reproducible seed via `TURINGOS_RUN_SEED`.
+- **Risk class** = Class 3 integration smoke per architect §7.7 — external dual audit required at ship.
+- **13 halt triggers** including conservation failure, raw log leak, price-as-truth, LLM self-narrative bytes leaking into autopsy.
+- **Implementation plan** = 7 atoms (audit_tape binary + audit_assertions module + tamper harness + comprehensive_arena evaluator orchestrator + run/audit shell scripts + dual audit). Estimated 4-6 atom days.
+
+### Intentional non-scope
+- SlashTx execution (RSP-3.2 / TB-9 not yet shipped) — ChallengeResolve(UpheldDeferred) stays marker-only here.
+- Multi-site autopsy wire-in (SlashLoss / ChallengeUnsuccessful / VerifierBondLost) — gates on RSP-3.2 / RSP-4.
+- Public chain, real-money market, cross-org, MetaTape mutation.
+
+### Open question (for next session)
+**Should we proceed to TB-16 charter ratification + Atom 1 implementation, or refine the design first?** User-decision boundary — design has not been charter-ratified.
+
+### Working tree
+- New: `handover/tests/REAL_LLM_COMPREHENSIVE_AUDIT_FROM_TAPE_DESIGN_2026-05-04.md` (untracked)
+- Untracked dir: `handover/tests/` (new)
+- Pre-existing dirty entries (TB-13/14 evidence + `rules/enforcement.log`) carry-forward unchanged.
+
+---
+
 ## 🚢 2026-05-03 — TB-15 SHIPPED (Lamarckian Autopsy + Markov EvidenceCapsule; Class 2 self-audit; 8/8 SG + 6/6 halt-triggers GREEN)
 
 **Session summary**: Auto-mode shipped TB-15 per architect §6 spec verbatim (FR-15.1..6 + CR-15.1..6 + SG-15.1..8 + 6 halt triggers + forbidden list). All 7 atoms (charter + halt fixture + AgentAutopsyCapsule schema/writer + AutopsyIndex/TaskBankruptcyTx wire-in + cluster_autopsies + MarkovEvidenceCapsule schema/generator + dashboard §15/first-capsule/SHIP) shipped under single charter. Risk class envelope held at Class 2 (self-audit; AgentVisibleProjection unchanged; only one new sequencer dispatch hook). Full ship-status doc: `handover/ai-direct/TB-15_SHIP_STATUS_2026-05-03.md`.
