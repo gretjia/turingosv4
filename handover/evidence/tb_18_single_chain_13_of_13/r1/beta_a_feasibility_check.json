@@ -1,0 +1,23 @@
+{
+  "policy": "PRE-17.7 \u03b2-A only (architect TB-18 ratification Q4)",
+  "exclusion": "\u03b1 CLI sidecar (TB-16.x.fix OBS_R022 closure)",
+  "checks": {
+    "A_alpha_sidecar_absent": {
+      "project_root": true,
+      "runtime_repo": true,
+      "cas_dir": true
+    },
+    "B_genesis_chain_mode": {
+      "markov_pointer_flag": "absent",
+      "prior_chain_runtime_repo_flag": "absent",
+      "interpretation": "atom F single-chain smoke is genesis; \u03b2-A applies to NEXT chain inheritance (out of scope for atom F single-chain). Replay byte-identical without sidecar = all Markov state chain-derived"
+    },
+    "C_in_tape_markov_capsule_cid": {
+      "source": "tx_kind_distribution.json (chain-emitter authoritative)",
+      "terminal_summary_count": 3,
+      "distinct_tx_kinds": 13,
+      "interpretation": "TerminalSummary tx in chain = EvidenceCapsule emission point; \u03b2-A in-tape resolver (MARKOV_INHERITANCE_POLICY \u00a74) can walk this chain to find Markov tip and resolve from CAS \u2014 feasibility validated"
+    }
+  },
+  "verdict": "FEASIBLE"
+}
