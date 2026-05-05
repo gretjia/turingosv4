@@ -1,0 +1,2 @@
+audit_tape_tamper: load itself failed for `flip_l4_byte` post-tamper → counted as detected (run: replay blocked: read_at 4: backend corruption: find_blob: incorrect data check; class=Zlib (5))
+audit_tape_tamper: load itself failed for `truncate_l4_ref` post-tamper → counted as detected (run: replay blocked: git2 writer: backend corruption: walk parent: object not found - no match for id (8e6045f3f186997e067751a9065cefdcc1680000); class=Odb (9); code=NotFound (-3))

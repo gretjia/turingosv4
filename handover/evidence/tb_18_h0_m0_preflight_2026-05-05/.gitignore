@@ -1,0 +1,10 @@
+# TB-18 H0 evidence packaging policy:
+# - Main chain (runtime_repo + cas) committed via runtime_repo.dotgit.tar.gz +
+#   cas.dotgit.tar.gz tarballs (TB-7R/TB-8/TB-9 precedent per
+#   feedback_evidence_packaging_policy_required).
+# - Working tree files (non-.git) committed directly.
+# - Tamper subdirs (one chain copy with flipped byte; intermediate audit
+#   working trees) preserved as tarballs only (.dotgit.tar.gz); raw .git
+#   dirs ignored to avoid git submodule semantics on re-checkout.
+r1/P*/tamper/*/runtime_repo/.git/
+r1/P*/tamper/*/cas/.git/

@@ -1,0 +1,19 @@
+{
+  "phase": "M0",
+  "architect_authority": "2026-05-05_TB17_AUDIT_VERDICT_ARCHITECT_RULING.md §B.9.3",
+  "NOT_a_benchmark": true,
+  "NOT_real_world_readiness": true,
+  "problem_count": 3,
+  "max_tx_per_problem": 20,
+  "per_problem_timeout_s": 90,
+  "llm_proxy_url": "http://localhost:18080",
+  "active_model": "deepseek-chat",
+  "condition": "n1",
+  "run_timestamp_utc": "2026-05-05T14-28-48Z",
+  "git_head": "13a5ee02075c56bd32dd8fdaf395ab6dd2e23137",
+  "problems": [
+    "mathd_algebra_107",
+    "mathd_algebra_113",
+    "mathd_algebra_114"
+  ]
+}
