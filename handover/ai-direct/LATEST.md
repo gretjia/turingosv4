@@ -6,6 +6,122 @@
 
 ---
 
+## 🎯 2026-05-05 (session end #4) — **TB-18 PROVISIONAL SHIPPED** under user blanket auto-mode authority
+
+**main HEAD (after this commit)**: TB-18 substrate atoms 0/E/A/H0/D-design/C/B-design/H-prep + Atom H sub-stage 1 (M0 retry) SHIPPED; G0/G1 audit-request docs filed. 12 commits this session `d3c8d78..2bc712e` + this handover commit. Workspace tests **962/0/150** (baseline 939 + 23 TB-18 tests; 0 failures).
+
+**TB-18 ship state**: **PROVISIONAL**. Final ship CONDITIONAL on (1) TB-18.B-impl SharedChain refactor + comprehensive_arena substantive build, (2) TB-18.F single-chain 13/13 evidence, (3) TB-18.H-impl M1 (50-100 × n1/n3) + M2 (100+ × n5; observe-only) full ladder runs, (4) external G0 (Codex) + G1 (Codex+Gemini) audit invocations by user, (5) architect § sign-off on benchmark report (TB-17 §8 precedent). Per architect Q2 ship-claim narrowing applied verbatim: **"formal benchmark substrate partially closed; lifecycle-order constraint remains Class 4 forward trigger"**.
+
+**Predecessor**: TB-17 SHIPPED FINAL @ `8e3d5cc` (20/20 SG GREEN; §8 CONDITIONAL with 5 caveats; P7 NOT authorized; TB-18 = first thing after per architect §B.10.2).
+
+**Authority**: user verbatim "auto mode on until TB ship" — blanket TB-18 autonomous-execution authority. AI-coder ratified architect-documented opinions per `feedback_kolmogorov_compression`; took explicit positions on Q1-Q7 + atoms D-design + B-design per `feedback_architect_deviation_stance`.
+
+### Session #4 ledger (12 commits)
+1. `d3c8d78` Atom 0 — charter ratified-with-amendments + architect ruling lossless archive (1011-line verbatim §B + 17-point execution command)
+2. `8ad7a1d` Atom E — OBS_R023 closure (literal `RunOutcome::MaxTxExhausted` removed; caller-propagated via `terminal_exhaustion_reason` + `.to_run_outcome()` projection; 3 tests; Class 2)
+3. `13a5ee0` Atom A — drive_task API surface stub + per-LLM-call budget primitives (`PerCallBudget` 60s/30 floor/10 cap/600s aggregate per architect §B.9 M0 spec) + NEW `RunOutcome::DegradedLLM = 5` variant + `LLMCallBudgetTracker` wired into run_swarm + DegradedLLM emits EvidenceCapsule via atom E pipeline (15 tests; Class 3)
+4. `5c40d06` Atom H0 — small M0 preflight (3 problems × 90s) PASS-WITH-CAVEAT; substrate validates (P03 240s+ killed → 37s solved); end-to-end natural-drift NOT exercised (DeepSeek not drifting hard today)
+5. `c025cdb` Atom D-design — Class 4 escalation refused (both Path A per-task-config + Path B append-only-history Class 4 per architect Q2); Path C verdict: PRE-17.6 §2.2 single-market constraint dissolves via multi-task structure → atom B 13/13 doesn't require atom D-impl (architect §2.7 invariant → TB-19+ Class 4 forward trigger)
+6. `ae9530f` Atom C — deferred-finalize idempotency: 4/5 architect §2.6 ship gates STRUCTURALLY enforced by existing FinalizeReward dispatch arm Step 2/5/7; Gate 3 (`ChallengeStatus::Open`-blocking) PARTIAL coverage → TB-19+ STEP_B_PROTOCOL Class 3 forward trigger (sequencer.rs restricted-file; warrants parallel-branch A/B); 4 tests
+7. `7bb18b4` Atom B-design — substantive comprehensive_arena DESIGN-COMPLETE; implementation deferred to TB-18.B-impl follow-up (4-8h SharedChain refactor + run_swarm parameterization + comprehensive_arena rewrite; 6-task lifecycle map covers 13/13 in single chain)
+8. `d94654b` Atom H prep — `BenchmarkManifest` filed (architect §2.2; pins all 12 mandated fields + anti-drift contract) + `EvidencePackagingPolicy` filed per TB-7R/TB-8/TB-9 precedent (architect §2.3; runtime_repo.dotgit.tar.gz + cas.dotgit.tar.gz per packaged run; deterministic sample selection seed 0xC0DE5AAA) + Atom G0 + G1 external audit request docs (architect §2.1 + Q7)
+9. `31dbf3b` TB-18 ship status PROVISIONAL doc (~330 lines): 17-point command walk + Q1-Q7 verdict implementation walk + SG-18.1..16 walk + 12-item honest deferral ledger
+10. `fb1025c` AUTO_RESEARCH_NOTEPAD updated + preliminary MINIF2F_M0_BENCHMARK_REPORT skeleton
+11. `ecb156d` Batch hygiene — manifest problem_ids correction (mid-batch annotation; not silent rewrite per `feedback_no_retroactive_evidence_rewrite`) + evidence packaging script + next-session starter prompt
+12. `2bc712e` **Atom H sub-stage 1 SHIPPED** — M0 retry COMPLETE: 20/20 audit PROCEED + 20/20 replay byte-identical + 7 solved + 7 natural MaxTxExhausted (EvidenceCapsule emit verified at P09 CAS object_type=EvidenceCapsule; atom E pipeline GREEN end-to-end on 7 chains) + 6 controlled 120s timeouts (vs M0 r1's 600s silent hangs eliminated); MINIF2F_M0_BENCHMARK_REPORT.md final + ship status SG-18 walk updated
+
+### M0 retry results (commit `2bc712e`; per `M0_BATCH_SUMMARY.json`)
+
+```text
+problem_count:                   20
+audit_verdict.proceed:           20  (100%)  ✅
+audit_verdict.block:              0
+audit_verdict.error:              0
+replay_byte_identical:           20  (100%)  ✅
+tamper_3_of_3_detected:          14  (70%; 6 partial chains 2/3 DEGRADED — all 6 are timeout chains)
+solved (OmegaAccepted):           7  (35%; on-disk proofs/*.lean)
+MaxTxExhausted (natural):         7  (35%; EvidenceCapsule + TerminalSummary via atom E pipeline ✅)
+external_timeout (safety net):    6  (30%; chain audit-valid)
+total_duration_s:               1476  (~24.6 min)
+```
+
+### Atom A wiring verified end-to-end on natural traffic
+- ✅ atom E propagation pipeline (7 natural EvidenceCapsule + TerminalSummary emissions on MaxTxExhausted exits; CAS object_type=EvidenceCapsule + creator=evaluator-tb11 confirmed)
+- ✅ 20/20 chains audit-tape PROCEED + replay byte-identical
+- ✅ vs M0 r1: solved 1→7, silent 600s hangs 2→0
+- ⚠️ DegradedLLM end-to-end NOT triggered on this batch — DeepSeek drift was intermittent (≤6 consecutive trivials, below cap=10); mechanism correctness proven by atom A unit + integration tests (`tb_18_a_drift_signature_halts_at_default_cap` simulates 30 consecutive trivials → halt at 10th); natural-environment trigger forward-bound to TB-18.H-impl M1/M2 (more chances for drift)
+
+### 12-item forward-bound deferral ledger
+
+| Item | To |
+|---|---|
+| TB-18.B-impl SharedChain refactor + comprehensive_arena substantive build | TB-18.B-impl follow-up commit (4-8h Class 3 STEP_B-adjacent) |
+| TB-18.F single-chain 13/13 evidence | TB-18.F follow-up (depends on B-impl) |
+| Atom D-impl lifecycle-order configurable | TB-19+ Class 4 ratification + Phase Z′ rerun |
+| Atom C Gate 3 ChallengeStatus::Open-blocking | TB-19+ STEP_B_PROTOCOL Class 3 (sequencer.rs restricted) |
+| Atom H M1 (50-100 × n1/n3) | TB-18.H-impl follow-up runs (multi-hour) |
+| Atom H M2 (100+ × n5; observe-only) | TB-18.H-impl follow-up runs (multi-day) |
+| Atom G0 Codex micro-audit | External invocation by user (cloud-billed) |
+| Atom G1 Codex+Gemini ship audit | External invocation by user (cloud-billed) |
+| Architect § sign-off | TB-17 §8 precedent pattern |
+| PRE-17.5 Boltzmann ENFORCE | TB-19+ separate TB |
+| PRE-17.7 β-D full pipeline | TB-19+ |
+| M3 (controlled-market-enabled) + M4 (public report) | TB-19+ pilot design |
+
+### Architect §2.4 failure mode coverage
+| Mode | Status |
+|---|---|
+| solved problem | ✅ 7 cases |
+| unsolved problem | ✅ 13 cases (7 MaxTxExhausted + 6 timeout) |
+| LLM degraded / budget cap end-to-end | ⚠️ NOT triggered today (synthetic + structural via atom A wiring + 7 unit tests) |
+| Lean failure | ✅ implicit in MaxTxExhausted runs |
+| EvidenceCapsule emission | ✅ **7 NATURAL emissions** via atom E pipeline (verified P09) |
+| no fake accepted | ✅ 20 PROCEED + 0 BLOCK + 0 ERROR + 7 on-disk proofs |
+
+### Memory updates this session
+- NEW: `feedback_audit_after_evidence` (architect §2.1 G-before-H bug AI-coder blind spot)
+- NEW: `feedback_benchmark_manifest_required` (architect §2.2)
+- NEW: `feedback_evidence_packaging_policy_required` (architect §2.3 + TB-7R/TB-8/TB-9 precedent)
+- NEW: `project_tb_18_charter_ratified` (Atom 0 commit point)
+- NEW: `project_tb_18_provisional_shipped` (this session ledger)
+- MEMORY.md index: 4 entries added pointing to the new memory files
+
+### Files reference (for next-session cold-start)
+| Document | Path |
+|---|---|
+| Architect TB-18 ratification ruling | `handover/directives/2026-05-05_TB18_CHARTER_RATIFICATION_ARCHITECT_RULING.md` |
+| TB-18 charter (RATIFIED-WITH-AMENDMENTS) | `handover/tracer_bullets/TB-18_charter_2026-05-05.md` |
+| TB-18 ship status PROVISIONAL | `handover/ai-direct/TB-18_SHIP_STATUS_2026-05-05.md` |
+| Atom B-design (TB-18.B-impl spec) | `handover/proposals/TB-18_ATOM_B_DESIGN_2026-05-05.md` |
+| Atom D-design (Class 4 refusal + Path C) | `handover/proposals/TB-18_ATOM_D_DESIGN_2026-05-05.md` |
+| BenchmarkManifest | `handover/manifests/TB-18_BENCHMARK_MANIFEST.json` |
+| EvidencePackagingPolicy | `handover/policies/TB-18_EVIDENCE_PACKAGING_POLICY.md` |
+| MiniF2F M0 benchmark report (final) | `handover/whitepapers/MINIF2F_M0_BENCHMARK_REPORT.md` |
+| Codex G0 micro-audit request | `handover/audits/CODEX_MICRO_AUDIT_TB_18_PRE_H_REQUEST_2026-05-05.md` |
+| Codex+Gemini G1 dual-audit request | `handover/audits/DUAL_AUDIT_TB_18_REQUEST_2026-05-05.md` |
+| Next-session starter prompt | `handover/ai-direct/NEXT_SESSION_PROMPT_2026-05-05_TB18_PROVISIONAL.md` |
+| H0 evidence | `handover/evidence/tb_18_h0_m0_preflight_2026-05-05/` |
+| M0 retry evidence (20 problems × 8-15 files + 160 tarballs) | `handover/evidence/tb_18_m0_retry_2026-05-05/r1/` |
+
+### Open Questions
+
+1. ~Push to `origin/main`?~ — user explicitly authorized with this handover-update commit.
+2. Invoke external Codex micro-audit (G0) per `handover/audits/CODEX_MICRO_AUDIT_TB_18_PRE_H_REQUEST_2026-05-05.md`?
+3. Schedule TB-18.B-impl follow-up commit (next session; 4-8h focused refactor + STEP_B_PROTOCOL parallel-branch A/B)?
+4. M1 + M2 LLM compute (multi-hour to multi-day) — when/where to run?
+5. Architect § sign-off on `MINIF2F_M0_BENCHMARK_REPORT.md` — review when?
+
+### What did NOT happen this session (honest framing)
+
+- **Atom B substantive build**: design-complete only; SharedChain refactor + comprehensive_arena rewrite deferred to TB-18.B-impl follow-up. Multi-day STEP_B_PROTOCOL discipline; not session-compressible.
+- **Atom F single-chain 13/13 evidence**: depends on B-impl; deferred.
+- **M1 + M2 batches**: hours-to-days of LLM compute; honest forward trigger.
+- **External G0 + G1 audits**: AI-coder cannot autonomously launch /ultrareview; user-billed.
+- **Architect § sign-off**: out-of-session human review.
+- **DegradedLLM end-to-end natural-drift trigger**: DeepSeek didn't drift hard enough today (≤6 consecutive trivials < cap=10); mechanism correctness via synthetic tests; production validation forward-bound.
+
+---
+
 ## 🎯 2026-05-05 (session end #3) — **TB-17 SHIPPED FINAL** under autonomous-execution authority
 
 **main HEAD (after this commit)**: TB-17 SHIPPED FINAL — 20/20 SG GREEN; 939/0/150 cargo test --workspace --release; 6 chain PROCEED across TB-16.x.2.6 + M0 r1 evidence sets.
