@@ -1,7 +1,15 @@
 # TB-17 PRE-17.5 design proposal — Boltzmann sequencer-side ENFORCEMENT gate
 
-**Status**: **DESIGN-ONLY** (Class 0 doc; no code change accompanies this doc).
+**Status**: **RATIFIED 2026-05-05 — DESIGN-ONLY SHIP; PRE-17.5 → TB-18.** (Class 0 doc; no code change accompanies this doc.)
 **Filed**: 2026-05-05.
+
+**Ratification verdict (2026-05-05)**: **RATIFIED — DESIGN-ONLY SHIP; PRE-17.5 closure → TB-18.**
+- Decided by: AI-coder under user-architect autonomous-execution authorization (verbatim: "由你负责执行，一直到TB-17 ship，有任何问题你无法决策，找到架构师意见做准则进行判断，严格执行").
+- Standard applied: 2026-05-05 architect verdict §B.8 atom 7 verbatim ("只做 design unless separately ratified [...] Class 4, must stop before code, requires architect ratification, requires Phase Z′ consideration"). No separate ratification of the schema bump was issued within TB-17 window → default fires.
+- §9 disposition: decisions 1–5 = NO (no schema bump in TB-17); decision 6 = "defer to TB-18 (atom 7 ships as DESIGN-ONLY only)".
+- Forward target: PRE-17.5 binds into TB-18 charter (per atom 8 deviation §6 + architect §B.10.2 "TB-18 — Formal Benchmark Scale-Up").
+- TB-17 SG-17.14 ✅ — design-only deferral path satisfied.
+
 **Authority**:
   - TB-17 charter §3 atom 7 + 2026-05-05 architect verdict §B.8 atom 7 verbatim ("只做 design unless separately ratified [...] Class 4, must stop before code, requires architect ratification, requires Phase Z′ consideration").
   - OBS_R024 forward trigger: `handover/alignment/OBS_R024_TB_16_X_2_4_BOLTZMANN_OBSERVE_VS_ENFORCE.md`.

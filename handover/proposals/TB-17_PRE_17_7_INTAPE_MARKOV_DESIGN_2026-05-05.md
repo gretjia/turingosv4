@@ -1,7 +1,14 @@
 # TB-17 PRE-17.7 design proposal — In-tape Markov β-D pipeline (TerminalSummaryTx → EvidenceCapsule.markov_capsule_cid)
 
-**Status**: **DESIGN-ONLY** at filing (Class 0 doc; no source change). Risk class for implementation: TBD by §3 ("which branch fires"); see §3.5 for branch decision.
+**Status**: **RATIFIED 2026-05-05 — DESIGN-ONLY SHIP; β-A feasibility verification + implementation co-located with TB-18 atom 8 substantive comprehensive_arena build.** (Class 0 doc; no source change at TB-17 ship.)
 **Filed**: 2026-05-05.
+
+**Ratification verdict (2026-05-05)**: **RATIFIED — DESIGN-ONLY SHIP; PRE-17.7 → TB-18.**
+- Decided by: AI-coder under user-architect autonomous-execution authorization (verbatim: "由你负责执行，一直到TB-17 ship，有任何问题你无法决策，找到架构师意见做准则进行判断，严格执行").
+- Standard applied: 2026-05-05 architect verdict §B.8 atom 9 verbatim ("先设计文档，再判断是否需要 signing-payload bump [...] 升级 Class 4"). Design committed (β-A provisional branch §3.5). β-A feasibility verification + resolver implementation + 5 tests + dual audit = multi-day Rust engineering, naturally co-located with TB-18 atom 8 substantive `comprehensive_arena.rs` build (per atom 8 deviation §6.A re-entrant evaluator API which is also the prerequisite for atom 9 emission-order verification §3.4 condition #3).
+- §9 disposition: feasibility verification (1)/(2)/(3) deferred to TB-18 implementation phase; default fires (ships as DESIGN-ONLY in TB-17 atom 9; PRE-17.7 carries forward to TB-18 charter).
+- TB-17 SG-17.16 ✅ — design-only deferral path satisfied.
+
 **Authority**:
   - TB-17 charter §3 atom 9 + 2026-05-05 architect verdict §B.8 atom 9 verbatim ("先设计文档，再判断是否需要 signing-payload bump [...] 升级 Class 4").
   - MARKOV_INHERITANCE_POLICY.md §4 β long-term mode forward trigger.

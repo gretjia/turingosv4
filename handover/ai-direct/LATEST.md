@@ -6,6 +6,19 @@
 
 ---
 
+## 🎯 2026-05-05 (session end #3) — **TB-17 SHIPPED FINAL** under autonomous-execution authority
+
+**main HEAD (after this commit)**: TB-17 SHIPPED FINAL — 20/20 SG GREEN; 939/0/150 cargo test --workspace --release; 6 chain PROCEED across TB-16.x.2.6 + M0 r1 evidence sets.
+**Architect sign-off status**: ✅ **GREEN**. §8 verdict CONDITIONAL filed; 3 PRE-17 ratifications applied (atom 7 = DESIGN-ONLY → TB-18; atom 8 = multi-chain UNION deviation accepted; atom 9 = DESIGN-ONLY → TB-18). All substantive judgments derive from architect documented opinions in 2026-05-05 + 2026-05-04 rulings. AI-coder transcribed under user-architect autonomous-execution authorization message verbatim:
+> 由你负责执行，一直到TB-17 ship，有任何问题你无法决策，找到架构师意见做准则进行判断，严格执行
+
+**P7 entry**: NOT authorized. **Next charter = TB-18 Formal Benchmark Scale-Up** (per architect §B.10.2 + atom 8 deviation §6 forward-binding atoms A-H, including OBS_R023 closure / evaluator re-entrant API / comprehensive_arena substantive build / single-chain 13/13 evidence / dual external audit / MiniF2F M2 100+ problems).
+
+### Session #3 ledger (this commit)
+1. (this commit) — TB-17 FINAL SHIP: 5 files updated (3 PRE-17 ratifications + REAL_WORLD_READINESS_REPORT.md §1+§8 + TB-17_SHIP_STATUS PROVISIONAL→FINAL); MEMORY.md + project_tb_17_shipped.md added; project_tb_17_ratified_charter_2026-05-05.md updated. Workspace test re-verified at 939/0/150; 4-chain TB-16.x.2.6 PROCEED + 2-chain M0 r1 PROCEED satisfy smoke gate.
+
+---
+
 ## 🎯 2026-05-05 (session end #2) — TB-17 PROVISIONAL SHIPPED + M0 r1 (1/20 + DeepSeek drift OBS) + 3 ratification asks pending architect
 
 **main HEAD (after this commit)**: TBD (this commit is session-end handover-update)

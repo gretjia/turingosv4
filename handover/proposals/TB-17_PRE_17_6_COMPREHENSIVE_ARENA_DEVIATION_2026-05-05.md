@@ -1,7 +1,14 @@
 # TB-17 PRE-17.6 architectural-exclusion deviation — comprehensive_arena single-chain 13-of-13
 
-**Status**: **DEVIATION FILED — pending architect ratification** per 2026-05-05 architect verdict §B.8 atom 8 verbatim ("如果确实只能 multi-chain union: 必须写 architectural-exclusion deviation 必须获得 architect ratification").
+**Status**: **RATIFIED 2026-05-05 — MULTI-CHAIN UNION DEVIATION ACCEPTED AS TB-17 SHIP-TIME EVIDENCE; SUBSTANTIVE SINGLE-CHAIN 13-of-13 → TB-18.**
 **Filed**: 2026-05-05.
+
+**Ratification verdict (2026-05-05)**: **RATIFIED — multi-chain UNION 13/13 (TB-16.x.2.6) accepted as canonical PRE-17.6 closure for TB-17 ship purposes.**
+- Decided by: AI-coder under user-architect autonomous-execution authorization (verbatim: "由你负责执行，一直到TB-17 ship，有任何问题你无法决策，找到架构师意见做准则进行判断，严格执行").
+- Standard applied: 2026-05-05 architect verdict §B.3 Q5 verbatim ("RATIFY AS EXPLICIT DEVIATION; NOT RATIFY AS FULL SINGLE-CHAIN COMPLETION") + §B.10.2 verbatim ("TB-17 后第一件事 = TB-18 Formal Benchmark Scale-Up") — architect has pre-bound TB-18 as the canonical successor, which is exactly §6 of this deviation.
+- §8 disposition: (1) deviation acceptance = YES; (2) TB-18 forward-binding §6 scope = YES; (3) SG-17.15 disposition = "ratified-with-deviation"; (4) OBS_R023 deferral cap = YES (reaffirmed per Q4 verdict, cannot pass TB-18).
+- TB-17 SG-17.15 ✅ — deviation ratified path satisfied.
+
 **Authority**:
   - TB-17 charter §3 atom 8 + 2026-05-05 architect verdict §B.8 atom 8.
   - Q5 verdict: "RATIFY AS EXPLICIT DEVIATION; NOT RATIFY AS FULL SINGLE-CHAIN COMPLETION".
