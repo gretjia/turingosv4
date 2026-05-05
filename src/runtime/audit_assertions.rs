@@ -1723,6 +1723,115 @@ pub fn assert_27_terminal_summary_evidence_capsule(t: &LoadedTape) -> AssertionR
     AssertionResult::pass(27, "terminal_summary_evidence_capsule", AssertionLayer::E)
 }
 
+/// TRACE_MATRIX TB-16.x.2.2 (umbrella charter §2 Atom 2.2 audit assertion):
+/// every accepted ChallengeResolveTx on L4 must reference a ChallengeTx
+/// that itself appears earlier on the same chain via
+/// `target_challenge_tx_id == challenge.tx_id`. Mirrors the spirit of
+/// id=27 (TerminalSummary references its EvidenceCapsule on CAS) at the
+/// chain-walk level: a ChallengeResolve dangling without a parent
+/// ChallengeTx would indicate a system-emit forgery or an ordering bug
+/// in the dispatch arm.
+///
+/// Skips when no ChallengeResolveTx is present (most existing chains
+/// pre-TB-16.x.2.2). Halts with the offending L4 index on first dangling
+/// resolve; passes once all resolves have a matching prior challenge.
+///
+/// id=42 (Layer E supplemental).
+pub fn assert_e_challenge_resolve_chain_to_challenge_tx(t: &LoadedTape) -> AssertionResult {
+    let id = 42u32;
+    let mut prior_challenge_tx_ids: std::collections::BTreeSet<crate::state::q_state::TxId> =
+        std::collections::BTreeSet::new();
+    let mut walked_resolves = 0u32;
+    for (i, e) in t.entries.iter().enumerate() {
+        match e.tx_kind {
+            TxKind::Challenge => {
+                let bytes = match t.cas.get(&e.tx_payload_cid) {
+                    Ok(b) => b,
+                    Err(e2) => {
+                        return AssertionResult::halt(
+                            id,
+                            "challenge_resolve_chain_to_challenge_tx",
+                            AssertionLayer::E,
+                            format!(
+                                "CAS missing tx_payload at L4 index {i} (Challenge): {e2}"
+                            ),
+                        );
+                    }
+                };
+                let typed: TypedTx = match canonical_decode(&bytes) {
+                    Ok(t) => t,
+                    Err(e2) => {
+                        return AssertionResult::halt(
+                            id,
+                            "challenge_resolve_chain_to_challenge_tx",
+                            AssertionLayer::E,
+                            format!("decode TypedTx at L4 index {i} (Challenge): {e2}"),
+                        );
+                    }
+                };
+                if let TypedTx::Challenge(c) = typed {
+                    prior_challenge_tx_ids.insert(c.tx_id);
+                }
+            }
+            TxKind::ChallengeResolve => {
+                walked_resolves += 1;
+                let bytes = match t.cas.get(&e.tx_payload_cid) {
+                    Ok(b) => b,
+                    Err(e2) => {
+                        return AssertionResult::halt(
+                            id,
+                            "challenge_resolve_chain_to_challenge_tx",
+                            AssertionLayer::E,
+                            format!(
+                                "CAS missing tx_payload at L4 index {i} (ChallengeResolve): {e2}"
+                            ),
+                        );
+                    }
+                };
+                let typed: TypedTx = match canonical_decode(&bytes) {
+                    Ok(t) => t,
+                    Err(e2) => {
+                        return AssertionResult::halt(
+                            id,
+                            "challenge_resolve_chain_to_challenge_tx",
+                            AssertionLayer::E,
+                            format!(
+                                "decode TypedTx at L4 index {i} (ChallengeResolve): {e2}"
+                            ),
+                        );
+                    }
+                };
+                let target = match typed {
+                    TypedTx::ChallengeResolve(r) => r.target_challenge_tx_id,
+                    _ => continue,
+                };
+                if !prior_challenge_tx_ids.contains(&target) {
+                    return AssertionResult::halt(
+                        id,
+                        "challenge_resolve_chain_to_challenge_tx",
+                        AssertionLayer::E,
+                        format!(
+                            "ChallengeResolveTx at L4 index {i} references target_challenge_tx_id={:?} not present as a prior accepted ChallengeTx on chain",
+                            target
+                        ),
+                    );
+                }
+            }
+            _ => continue,
+        }
+    }
+    if walked_resolves == 0 {
+        AssertionResult::skipped(
+            id,
+            "challenge_resolve_chain_to_challenge_tx",
+            AssertionLayer::E,
+            "no ChallengeResolveTx in tape (pre-TB-16.x.2.2 chain or arena profile without FORCE_CHALLENGE_RESOLVE)".into(),
+        )
+    } else {
+        AssertionResult::pass(id, "challenge_resolve_chain_to_challenge_tx", AssertionLayer::E)
+    }
+}
+
 // ─────────────────────────────────────────────────────────────────────
 // Layer F — privacy contracts (4 assertions; TB-15 specific)
 // ─────────────────────────────────────────────────────────────────────
@@ -2250,7 +2359,7 @@ pub fn assert_38_tamper_l4_remove_detected() -> AssertionResult {
 /// TRACE_MATRIX FC1-N34 + FC2-N31 (TB-16 audit-from-tape battery).
 pub fn run_all_assertions(inputs: &AuditInputs) -> Result<Vec<AssertionResult>, AuditError> {
     let tape = load_tape(inputs)?;
-    let mut r = Vec::with_capacity(40);
+    let mut r = Vec::with_capacity(42);
     // Layer A (3 + 1 supplemental — id=41 chain_agent_ids_sandbox_prefixed)
     r.push(assert_01_constitution_hash_matches_genesis(&tape));
     r.push(assert_02_pinned_pubkey_loaded(&tape));
@@ -2279,12 +2388,13 @@ pub fn run_all_assertions(inputs: &AuditInputs) -> Result<Vec<AssertionResult>, 
     r.push(assert_20_task_market_total_escrow_matches_locks(&tape));
     r.push(assert_21_node_positions_excluded_from_supply(&tape));
     r.push(assert_22_conditional_shares_excluded_from_supply(&tape));
-    // Layer E (5)
+    // Layer E (5 + 1 supplemental — id=42 challenge_resolve_chain_to_challenge_tx)
     r.push(assert_23_accepted_work_predicate_results_true(&tape));
     r.push(assert_24_proposal_telemetry_chain(&tape));
     r.push(assert_25_l4e_rejection_class_redispatch(&tape));
     r.push(assert_26_price_index_is_view_only(&tape));
     r.push(assert_27_terminal_summary_evidence_capsule(&tape));
+    r.push(assert_e_challenge_resolve_chain_to_challenge_tx(&tape));
     // Layer F (4 + 1 supplemental)
     r.push(assert_28_projection_no_autopsy_bytes(&tape));
     r.push(assert_29_autopsy_private_detail_creator_is_system(&tape));

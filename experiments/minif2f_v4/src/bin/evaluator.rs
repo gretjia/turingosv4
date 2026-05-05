@@ -3136,6 +3136,52 @@ async fn run_swarm(
             }
         }
 
+        // TB-16.x.2.2 (architect umbrella charter 2026-05-04 §2 Atom 2.2;
+        // FR-16.3 challenge tx fired): TURINGOS_FORCE_CHALLENGE_RESOLVE=1
+        // mode. Unlike FORCE_BANKRUPTCY / FORCE_EXPIRE (which live inside the
+        // MaxTxExhausted EvidenceCapsule block above), this hook fires
+        // OUTSIDE that block — challenge cases are only opened on the
+        // OMEGA-Confirm success path (FORCE_CHALLENGER lives at
+        // sequencer ChallengeTx admission after VerifyTx commit), so a
+        // MaxTxExhausted-gated cleanup would never see any Open challenge
+        // to resolve. Window_delta_logical_t=0 makes every Open
+        // ChallengeCase immediately eligible; default resolution = Released
+        // (charter §2 default; bond refunds to challenger). Pairs with
+        // TURINGOS_FORCE_CHALLENGER on the same arena profile to produce a
+        // single chain containing Challenge → ChallengeResolve parent-child
+        // relationship — closes the missing 5th system-emitted tx kind in
+        // the R3 Round 2 chain (raises 10-of-13 → 11-of-13).
+        if std::env::var("TURINGOS_FORCE_CHALLENGE_RESOLVE").as_deref() == Ok("1") {
+            let pre_cr_root = match bundle.sequencer.q_snapshot() {
+                Ok(q) => q.state_root_t,
+                Err(_) => turingosv4::state::q_state::Hash::ZERO,
+            };
+            if let Err(e) = turingosv4::runtime::adapter::tb8_await_state_root_advance(
+                bundle.sequencer.as_ref(),
+                pre_cr_root,
+                5000,
+            )
+            .await
+            {
+                warn!("[chaintape/tb16-arena] await for prior commit (pre-challenge-resolve) failed: {e:?}");
+            }
+            match turingosv4::runtime::adapter::tb16_emit_challenge_resolve_for_eligible(
+                bundle.sequencer.as_ref(),
+                0,
+                turingosv4::state::typed_tx::ChallengeResolution::Released,
+            )
+            .await
+            {
+                Ok((count, bonds_micro)) => info!(
+                    "[chaintape/tb16-arena] ChallengeResolve batch: count={} bonds_released_micro={}",
+                    count, bonds_micro
+                ),
+                Err(e) => warn!(
+                    "[chaintape/tb16-arena] ChallengeResolve batch failed: {e:?}"
+                ),
+            }
+        }
+
         if let Err(e) = bundle.shutdown().await {
             error!("[chaintape] driver shutdown returned error: {e}");
         }

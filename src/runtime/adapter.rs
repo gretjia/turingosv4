@@ -734,6 +734,86 @@ pub async fn tb11_emit_expire_for_eligible(
     Ok((count, total_refunded))
 }
 
+/// TRACE_MATRIX TB-16.x.2.2 (umbrella charter §2 Atom 2.2 + FR-16.3 challenge
+/// tx fired): scheduler-tick over open challenge cases. Emits one
+/// ChallengeResolveTx per eligible (Open, past-window) case.
+///
+/// **Eligibility** (post-zero-window MVP; per charter §2):
+///   - challenge_cases_t[case_id].status == Open
+///   - q.q_t.current_round - case.opened_at_round > window_delta_logical_t
+///
+/// `window_delta_logical_t = 0` makes every Open case immediately eligible
+/// (the FORCE_CHALLENGE_RESOLVE arena profile uses this — same shape as
+/// `tb11_emit_expire_for_eligible(.., expiry_delta=0)`).
+///
+/// `default_resolution` selects the policy applied to every eligible case.
+/// `Released` (the charter default) refunds the challenger bond + flips
+/// status. `UpheldDeferred` is marker-only (bond preserved for TB-6 RSP-3.2
+/// slash routing); use only when policy upstream determined the challenge
+/// has merit. The helper does NOT decide per-case policy — caller picks one.
+///
+/// Returns `Ok((count, bonds_released_micro))` on success — `count` is the
+/// number of resolves emitted; `bonds_released_micro` is the sum of bonds
+/// returned to challengers under `Released` (zero under `UpheldDeferred`).
+pub async fn tb16_emit_challenge_resolve_for_eligible(
+    sequencer: &crate::state::sequencer::Sequencer,
+    window_delta_logical_t: u64,
+    default_resolution: crate::state::typed_tx::ChallengeResolution,
+) -> Result<(u32, i64), crate::state::sequencer::EmitSystemError> {
+    use crate::state::q_state::ChallengeStatus;
+    let q = match sequencer.q_snapshot() {
+        Ok(q) => q,
+        Err(_) => return Err(crate::state::sequencer::EmitSystemError::InternalLockPoisoned),
+    };
+
+    // Pre-collect candidates so we can drop the q_snapshot before emitting
+    // (mirror tb11_emit_expire_for_eligible — avoid holding snapshot across
+    // await boundary). bonds_planned is the per-case bond amount as
+    // observed in the snapshot; total_planned tracks the planned refund
+    // sum under Released. UpheldDeferred contributes 0.
+    let current_round = q.q_t.current_round;
+    let mut candidates: Vec<(crate::state::q_state::TxId, i64)> = Vec::new();
+    for (case_id, case) in q.economic_state_t.challenge_cases_t.0.iter() {
+        if case.status != ChallengeStatus::Open {
+            continue;
+        }
+        let elapsed = current_round.saturating_sub(case.opened_at_round);
+        if elapsed <= window_delta_logical_t {
+            continue;
+        }
+        candidates.push((case_id.clone(), case.bond.micro_units()));
+    }
+    drop(q);
+
+    // emit_system_tx for ChallengeResolve does NOT pre-check case existence
+    // / status (see sequencer.rs:2590 — construction is unconditional). A
+    // dispatch-time AlreadyResolved (sequencer.rs:1432) or ChallengeNotFound
+    // surfaces as a rejection on the L4.E ledger, NOT as an Err here. So
+    // there is no skip-pattern parallel to tb11_emit_expire_for_eligible's
+    // ClaimNotFound — emit_system_tx errors here are construction failures
+    // (queue full, internal lock poisoned, signature construction) and
+    // propagate as-is.
+    let mut count: u32 = 0;
+    let mut bonds_released_micro: i64 = 0;
+    let releasing = matches!(
+        default_resolution,
+        crate::state::typed_tx::ChallengeResolution::Released
+    );
+    for (case_id, planned_bond_micro) in candidates {
+        sequencer
+            .emit_system_tx(crate::state::sequencer::SystemEmitCommand::ChallengeResolve {
+                target_challenge_tx_id: case_id,
+                resolution: default_resolution,
+            })
+            .await?;
+        count += 1;
+        if releasing {
+            bonds_released_micro += planned_bond_micro;
+        }
+    }
+    Ok((count, bonds_released_micro))
+}
+
 #[cfg(test)]
 mod adapter_tests_atom2 {
     use super::*;

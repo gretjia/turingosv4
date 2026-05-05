@@ -51,6 +51,15 @@ PROBLEMS=(
   # BankruptcyTriggered when chained with FORCE_BANKRUPTCY). aime_1997_p9
   # selected because it reliably MaxTxExhausts on the round2 budget per R2 P5.
   "P9_force_expire|aime_1997_p9.lean|TURINGOS_FORCE_EXPIRE=1"
+  # TB-16.x.2.2 (umbrella charter §2 Atom 2.2): TURINGOS_FORCE_CHALLENGER +
+  # TURINGOS_FORCE_CHALLENGE_RESOLVE chained on the same problem to produce a
+  # single chain containing Challenge → ChallengeResolve parent-child
+  # relationship. mathd_algebra_171 chosen because it reliably OMEGA-Confirms
+  # on the round2 budget (matches P1_baseline / P6_triple_probe), so the
+  # FORCE_CHALLENGER branch in evaluator.rs (post-VerifyTx OMEGA-Confirm) actually
+  # fires before the FORCE_CHALLENGE_RESOLVE cleanup hook (pre-bundle.shutdown).
+  # Raises 10-of-13 → 11-of-13 system-emitted tx kinds runtime-exercised.
+  "P10_challenge_resolve|mathd_algebra_171.lean|TURINGOS_FORCE_CHALLENGER=Agent_3 TURINGOS_FORCE_CHALLENGE_RESOLVE=1"
 )
 
 START_TS=$(date +%s)
