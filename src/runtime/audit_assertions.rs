@@ -1832,6 +1832,146 @@ pub fn assert_e_challenge_resolve_chain_to_challenge_tx(t: &LoadedTape) -> Asser
     }
 }
 
+/// TRACE_MATRIX FC1-N34 + FC2-N31 (TB-16 audit-from-tape battery).
+///
+/// **TB-16.x.2.4 Atom 2.4 NEW (charter §2 Atom 2.4)**: Layer E
+/// supplemental assertion id=43 `boltzmann_parent_selection_diversity`
+/// — verifies that when ≥3 WorkTxs are admitted on the same task, the
+/// distribution of `ProposalTelemetry.parent_tx` across those WorkTxs
+/// has Shannon entropy ≥ 0.25 bits (per Art II.2.1 alarm threshold).
+///
+/// Architectural rationale: Boltzmann scheduler (mechanism 5) picks
+/// proposal-time parents from `price_index` × `mask_set`. The pick is
+/// recorded in `ProposalTelemetry.parent_tx` (TB-7.7 D2). Low entropy
+/// across same-task WorkTxs indicates either (a) star topology collapse
+/// (V3L-14 risk — all proposals citing the same parent), (b) Boltzmann
+/// selector returning constant None (price_index empty / mask_set
+/// dominant), or (c) seed-injection bug where every seeded WorkTx took
+/// the same fallback parent. All three are gradient-failure modes that
+/// reduce system exploration.
+///
+/// Skips when no task has ≥3 WorkTxs admitted (single-WorkTx-per-task
+/// scenarios — most pre-TB-16.x.2.4 chains).
+///
+/// Halts when the entropy is < 0.25 on any task with ≥3 WorkTxs.
+///
+/// Passes when at least one task has ≥3 WorkTxs AND entropy ≥ 0.25.
+///
+/// id=43 (Layer E supplemental).
+pub fn assert_e_boltzmann_parent_selection_diversity(
+    t: &LoadedTape,
+) -> AssertionResult {
+    let id = 43u32;
+    use std::collections::BTreeMap;
+    let mut by_task: BTreeMap<crate::state::q_state::TaskId, Vec<Option<crate::state::q_state::TxId>>> =
+        BTreeMap::new();
+    for (i, e) in t.entries.iter().enumerate() {
+        if e.tx_kind != TxKind::Work {
+            continue;
+        }
+        let bytes = match t.cas.get(&e.tx_payload_cid) {
+            Ok(b) => b,
+            Err(e2) => {
+                return AssertionResult::halt(
+                    id,
+                    "boltzmann_parent_selection_diversity",
+                    AssertionLayer::E,
+                    format!("CAS missing tx_payload at L4 index {i}: {e2}"),
+                );
+            }
+        };
+        let typed: TypedTx = match canonical_decode(&bytes) {
+            Ok(t) => t,
+            Err(e2) => {
+                return AssertionResult::halt(
+                    id,
+                    "boltzmann_parent_selection_diversity",
+                    AssertionLayer::E,
+                    format!("decode TypedTx at L4 index {i}: {e2}"),
+                );
+            }
+        };
+        let work = match typed {
+            TypedTx::Work(w) => w,
+            _ => continue,
+        };
+        let prop_bytes = match t.cas.get(&work.proposal_cid) {
+            Ok(b) => b,
+            Err(e2) => {
+                // proposal_telemetry_chain (id=24) covers this case —
+                // do not double-fail here. Skip without registering.
+                let _ = e2;
+                continue;
+            }
+        };
+        let telemetry: ProposalTelemetry = match canonical_decode::<ProposalTelemetry>(&prop_bytes) {
+            Ok(p) => p,
+            Err(_) => match serde_json::from_slice::<ProposalTelemetry>(&prop_bytes) {
+                Ok(p) => p,
+                Err(_) => continue,
+            },
+        };
+        by_task
+            .entry(work.task_id.clone())
+            .or_default()
+            .push(telemetry.parent_tx);
+    }
+    // Find any task with ≥3 admitted WorkTxs.
+    let mut any_eligible = false;
+    let mut min_entropy: Option<f64> = None;
+    let mut min_entropy_task: Option<crate::state::q_state::TaskId> = None;
+    for (task_id, parents) in &by_task {
+        if parents.len() < 3 {
+            continue;
+        }
+        any_eligible = true;
+        // Shannon entropy in bits over the parent_tx distribution.
+        // None and Some(tx_id) are distinct categories (None = root pick).
+        let n = parents.len() as f64;
+        let mut counts: BTreeMap<String, u64> = BTreeMap::new();
+        for p in parents {
+            let key = match p {
+                None => "ROOT".to_string(),
+                Some(tx) => tx.0.clone(),
+            };
+            *counts.entry(key).or_insert(0) += 1;
+        }
+        let mut h: f64 = 0.0;
+        for (_k, c) in &counts {
+            let p = (*c as f64) / n;
+            if p > 0.0 {
+                h -= p * p.log2();
+            }
+        }
+        if min_entropy.map(|m| h < m).unwrap_or(true) {
+            min_entropy = Some(h);
+            min_entropy_task = Some(task_id.clone());
+        }
+    }
+    if !any_eligible {
+        return AssertionResult::skipped(
+            id,
+            "boltzmann_parent_selection_diversity",
+            AssertionLayer::E,
+            "no task has ≥3 admitted WorkTxs (single-WorkTx-per-task scenario; pre-TB-16.x.2.4 chains or arena profile without FORCE_BOLTZMANN_SEED_WORKTXS)".into(),
+        );
+    }
+    let h = min_entropy.unwrap_or(0.0);
+    if h < 0.25 {
+        return AssertionResult::halt(
+            id,
+            "boltzmann_parent_selection_diversity",
+            AssertionLayer::E,
+            format!(
+                "min Shannon entropy {:.4} bits on task {:?} is < 0.25 (Art II.2.1 alarm threshold) — star-topology collapse risk",
+                h,
+                min_entropy_task
+            ),
+        );
+    }
+    AssertionResult::pass(id, "boltzmann_parent_selection_diversity", AssertionLayer::E)
+}
+
 // ─────────────────────────────────────────────────────────────────────
 // Layer F — privacy contracts (4 assertions; TB-15 specific)
 // ─────────────────────────────────────────────────────────────────────
@@ -2388,13 +2528,15 @@ pub fn run_all_assertions(inputs: &AuditInputs) -> Result<Vec<AssertionResult>, 
     r.push(assert_20_task_market_total_escrow_matches_locks(&tape));
     r.push(assert_21_node_positions_excluded_from_supply(&tape));
     r.push(assert_22_conditional_shares_excluded_from_supply(&tape));
-    // Layer E (5 + 1 supplemental — id=42 challenge_resolve_chain_to_challenge_tx)
+    // Layer E (5 + 2 supplemental — id=42 challenge_resolve_chain_to_challenge_tx
+    // + id=43 boltzmann_parent_selection_diversity)
     r.push(assert_23_accepted_work_predicate_results_true(&tape));
     r.push(assert_24_proposal_telemetry_chain(&tape));
     r.push(assert_25_l4e_rejection_class_redispatch(&tape));
     r.push(assert_26_price_index_is_view_only(&tape));
     r.push(assert_27_terminal_summary_evidence_capsule(&tape));
     r.push(assert_e_challenge_resolve_chain_to_challenge_tx(&tape));
+    r.push(assert_e_boltzmann_parent_selection_diversity(&tape));
     // Layer F (4 + 1 supplemental)
     r.push(assert_28_projection_no_autopsy_bytes(&tape));
     r.push(assert_29_autopsy_private_detail_creator_is_system(&tape));

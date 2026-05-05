@@ -1067,6 +1067,173 @@ async fn run_swarm(
                     }
                 }
             }
+
+            // TB-16.x.2.5 (architect umbrella charter 2026-05-04 §2 Atom 2.5;
+            // SG-16.x.2.5): TURINGOS_FORCE_BANKRUPTCY_AFTER_ACCEPTED=<staker>:<stake_micro>
+            // mode. Inject a real-signed WorkTx (predicate_passes=true) BEFORE the
+            // LLM swarm starts so stakes_t has ≥1 entry for `task-{run_id}` at
+            // the time FORCE_BANKRUPTCY emits TaskBankruptcyTx (line ~3150).
+            // The TB-15 dispatch arm Step 3.5 hook (sequencer.rs:1374) then
+            // calls derive_autopsies_for_bankruptcy(pre_econ, bk, ...), which
+            // iterates pre_econ.stakes_t and emits an AgentAutopsyCapsule for
+            // each matching stake (loss_reason_class=Bankruptcy, loss_amount =
+            // stake.amount). Closes the missing R2 P4 path "WorkTx-accepted
+            // → got accepted → then the task went bankrupt".
+            //
+            // Charter §2 Atom 2.5 phrasing "delays FORCE_BANKRUPTCY until ≥1
+            // accepted WorkTx (vs. only on MaxTxExhausted)" is satisfied by
+            // SEEDING the accepted WorkTx (the seed IS the ≥1 accepted) at
+            // setup time, then letting MaxTxExhausted+FORCE_BANKRUPTCY fire
+            // unchanged. The seeded WorkTx is REAL: real Ed25519 signature
+            // via AgentKeypairRegistry, real predicate_results, real stake
+            // debit from preseeded balance. It is NOT a synthetic-rejection
+            // gate (compare make_synthetic_worktx at line ~1086 which uses
+            // synthetic_rejection_for_l4e_gate=true → L4.E only).
+            //
+            // Pairs with TURINGOS_FORCE_BANKRUPTCY=1 to materialize the full
+            // chain: WorkTx (admit) → ... → TaskBankruptcyTx → AutopsyCapsule
+            // in CAS + AutopsyIndex entry in agent_autopsies_t.
+            //
+            // SG-16.x.2.5: chain contains AutopsyCapsule with loss_amount > 0
+            // and loss_reason_class set (Bankruptcy is the TB-15 v0 sole
+            // production trigger per autopsy_capsule.rs:46-48; the "default"
+            // value of LossReasonClass is also Bankruptcy per impl Default,
+            // so the gate is satisfied by ANY autopsy emission with
+            // loss_amount > 0).
+            if let Ok(seed_spec) = std::env::var("TURINGOS_FORCE_BANKRUPTCY_AFTER_ACCEPTED") {
+                let parts: Vec<&str> = seed_spec.split(':').collect();
+                if parts.len() != 2 {
+                    warn!(
+                        "[chaintape/tb16-arena] FORCE_BANKRUPTCY_AFTER_ACCEPTED expected \
+                         staker:stake_micro, got {seed_spec:?}"
+                    );
+                } else {
+                    let staker = parts[0].to_string();
+                    let stake_micro: i64 = parts[1].parse().unwrap_or(0);
+                    if stake_micro <= 0 {
+                        warn!(
+                            "[chaintape/tb16-arena] FORCE_BANKRUPTCY_AFTER_ACCEPTED stake_micro \
+                             must be > 0, got {stake_micro}"
+                        );
+                    } else {
+                        let pre_seed_root = match bundle.sequencer.q_snapshot() {
+                            Ok(q) => q.state_root_t,
+                            Err(_) => turingosv4::state::q_state::Hash::ZERO,
+                        };
+                        if let Err(e) = turingosv4::runtime::adapter::tb8_await_state_root_advance(
+                            &bundle.sequencer,
+                            pre_seed_root,
+                            5000,
+                        ).await {
+                            warn!("[chaintape/tb16-arena] await for prior commit (pre-bankruptcy-seed-worktx) failed: {e:?}");
+                        }
+                        let post_prior_root = match bundle.sequencer.q_snapshot() {
+                            Ok(q) => q.state_root_t,
+                            Err(_) => pre_seed_root,
+                        };
+                        // CRITICAL: every accepted WorkTx must have a resolvable
+                        // ProposalTelemetry CAS object at `proposal_cid` per audit
+                        // assertion id=24 (proposal_telemetry_chain, Layer E).
+                        // Build + write a minimal ProposalTelemetry first, then use
+                        // the returned tel_cid as the WorkTx.proposal_cid.
+                        // (.2.5 first-cut bug: used Cid::from_content of a literal
+                        // string without writing CAS bytes → id=24 HALT on smoke r2.)
+                        let proposal_cid_opt = {
+                            let cas_store_res = turingosv4::bottom_white::cas::store::CasStore::open(&bundle.cas_path);
+                            match cas_store_res {
+                                Ok(mut cas_store) => {
+                                    let pt_res = turingosv4::runtime::proposal_telemetry::ProposalTelemetry::build_for_evaluator_append(
+                                        &mut cas_store,
+                                        &run_id,
+                                        &staker,
+                                        4u64, // proposal_index = 4 (matches make_real_worktx timestamp_logical)
+                                        b"tb16-x-2-5-bankruptcy-after-accepted-seed-payload",
+                                        "tb16-arena-bankruptcy-after-accepted-seed",
+                                        turingosv4::runtime::proposal_telemetry::TokenCounts {
+                                            prompt_tokens: 0,
+                                            completion_tokens: 0,
+                                            tool_tokens: 0,
+                                        },
+                                        "tb16-x-2-5-evaluator",
+                                        4u64,
+                                    );
+                                    match pt_res {
+                                        Ok(pt) => match turingosv4::runtime::proposal_telemetry::write_to_cas(
+                                            &mut cas_store,
+                                            &pt,
+                                            "tb16-x-2-5-evaluator",
+                                            4u64,
+                                        ) {
+                                            Ok(cid) => Some(cid),
+                                            Err(e) => {
+                                                warn!("[chaintape/tb16-arena] proposal_telemetry write_to_cas failed (.2.5 seed): {e}");
+                                                None
+                                            }
+                                        },
+                                        Err(e) => {
+                                            warn!("[chaintape/tb16-arena] ProposalTelemetry build failed (.2.5 seed): {e}");
+                                            None
+                                        }
+                                    }
+                                }
+                                Err(e) => {
+                                    warn!("[chaintape/tb16-arena] CasStore::open failed (.2.5 seed): {e}");
+                                    None
+                                }
+                            }
+                        };
+                        let seed_worktx: Option<turingosv4::state::typed_tx::TypedTx> = match proposal_cid_opt {
+                            None => {
+                                warn!("[chaintape/tb16-arena] FORCE_BANKRUPTCY_AFTER_ACCEPTED skipping seed WorkTx — proposal_cid unavailable");
+                                None
+                            }
+                            Some(proposal_cid) => {
+                                let registry_arc = agent_keypairs
+                                    .as_ref()
+                                    .expect("[chaintape/tb16-arena] agent_keypairs registry required for FORCE_BANKRUPTCY_AFTER_ACCEPTED");
+                                let mut reg_guard = registry_arc
+                                    .lock()
+                                    .expect("agent_keypairs registry mutex poisoned");
+                                match turingosv4::runtime::adapter::make_real_worktx_signed_by(
+                                    &mut *reg_guard,
+                                    &real_task_id,
+                                    &staker,
+                                    post_prior_root,
+                                    stake_micro,
+                                    "tb16-arena-bankruptcy-after-accepted-seed",
+                                    proposal_cid,
+                                    true, // predicate_passes — admitted to stakes_t
+                                    4,
+                                ) {
+                                    Ok(tx) => Some(tx),
+                                    Err(e) => {
+                                        warn!("[chaintape/tb16-arena] make_real_worktx (bankruptcy-after-accepted seed) failed: {e}");
+                                        None
+                                    }
+                                }
+                            }
+                        };
+                        if let Some(wt) = seed_worktx {
+                            if let Err(e) = bus.submit_typed_tx(wt).await {
+                                warn!("[chaintape/tb16-arena] seed WorkTx submit failed: {e:?}");
+                            } else {
+                                info!(
+                                    "[chaintape/tb16-arena] seed WorkTx submitted by {staker} \
+                                     (stake={stake_micro} μC) for task={real_task_id} \
+                                     — populates stakes_t for TB-16.x.2.5 autopsy generation"
+                                );
+                            }
+                            if let Err(e) = turingosv4::runtime::adapter::tb8_await_state_root_advance(
+                                &bundle.sequencer,
+                                post_prior_root,
+                                5000,
+                            ).await {
+                                warn!("[chaintape/tb16-arena] await for seed WorkTx commit failed: {e:?}");
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         let task_id_str = format!("smoke-{}", run_id);
