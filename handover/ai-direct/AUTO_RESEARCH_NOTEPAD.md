@@ -1159,3 +1159,16 @@ Before proposing a new experiment or commit:
 | Date | Event |
 |---|---|
 | 2026-04-15 06:00 | Initial creation after user directive + n3 diagnosis |
+| 2026-05-05 (session) | TB-16.x.2 umbrella SHIPPED — all 6 sub-atoms (.2.1..2.6) closed; multi-chain union 13/13 architect tx kinds; first id=43 boltzmann_parent_selection_diversity strict gate ships (entropy 0.918 ≥ 0.5 on non-None subset); Class 3 dual external audit on .2.4 (Codex R2 ship-clean + Gemini R2 VETO Q1+Q2 deferred via OBS_R024 + TB-17 PRE-17.5). MARKOV_INHERITANCE_POLICY.md filed per architect mandate; α/β/γ deprecation calendar codified. β architectural status declared honestly: β-A (Boltzmann RUNTIME) COMPLETE; β-B (sequencer ENFORCEMENT) deferred to TB-17 PRE-17.5; β-C (single-chain multi-task) deferred to TB-17 PRE-17.6 (`comprehensive_arena.rs` substantive build); β-D (in-tape Markov inheritance) deferred to TB-17 PRE-17.7 (NEW). TB-17 hard preconditions PRE-17.1..17.7 ledger complete. workspace tests 922/0/150. Architect sign-off pending (async). |
+
+## TB-16 architectural findings (research-arc relevant for TB-17+)
+
+Three architectural-correctness constraints surfaced during TB-16.x.2.6 multi-chain analysis (these are NOT bugs to fix; they're documented design boundaries):
+
+1. **OMEGA + FORCE_CHALLENGER blocks finalize_reward**: a challenged WorkTx must wait for ChallengeResolve before FinalizeReward can re-emit. Current evaluator emits FinalizeReward immediately on OMEGA-Confirm; FORCE_CHALLENGER queues right after, sequencer rejects FinalizeReward with PolicyViolation. **TB-17 implication**: production protocol needs deferred-finalize pattern (re-emit after challenge_resolve).
+
+2. **FORCE_BANKRUPTCY + FORCE_EXPIRE order**: TaskBankruptcy sets state→Bankrupt, then TaskExpire (later in same MaxTxExhausted block) overwrites Bankrupt → Expired (sequencer.rs:1259-1261). After Expired, redeem rejects. **TB-17 implication**: the two refund paths (BankruptcyTriggered vs Deadline) are mutually exclusive within a single market lifecycle by design; no production fix needed but documented in `comprehensive_arena.rs` task-mapping when built (PRE-17.6).
+
+3. **Single-task evaluator architecture limit**: each `evaluator` invocation processes ONE Lean problem to ONE terminal outcome. To produce true single-chain 13-of-13 (architect's TB-16 main charter §3 Atom 5 spec'd 6-task scenario), `comprehensive_arena.rs` must be built out from current scaffold. **TB-17 PRE-17.6** captures this.
+
+**Research-arc priority** (for plan reviews after 2026-05-05): when proposing new arena-driven experiments, check whether the scenario requires single-chain coverage of mutually-exclusive paths (OMEGA vs MaxTxExhausted; FORCE_BANKRUPTCY vs FORCE_EXPIRE on same market). If yes, the proposal depends on PRE-17.6 multi-task arena being closed first.
