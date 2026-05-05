@@ -1,0 +1,15 @@
+Started r1: 2026-05-05T11:36:52+00:00
+[m0] preflight OK (Mathlib + lean /home/zephryj/.elan/toolchains/leanprover--lean4---v4.24.0/bin/lean)
+[m0] LLM proxy at http://localhost:18080 is up
+[m0] manifest written to handover/evidence/m0_minif2f_harness_audit_2026-05-05/r1/M0_RUN_MANIFEST.json
+[m0] [1/20] mathd_algebra_107 → handover/evidence/m0_minif2f_harness_audit_2026-05-05/r1/P01_mathd_algebra_107
+audit_tape: verdict=PROCEED passed=34 failed=0 halted=0 skipped=9 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-05/r1/P01_mathd_algebra_107/verdict.json")
+audit_tape: verdict=PROCEED passed=34 failed=0 halted=0 skipped=9 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-05/r1/P01_mathd_algebra_107/verdict_replay.json")
+audit_tape_tamper: detected 3/3 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-05/r1/P01_mathd_algebra_107/tamper_report.json")
+[m0] [1/20] P01_mathd_algebra_107: outcome=solved verdict=PROCEED replay=ok tamper=3/3 dur=12s
+[m0] [2/20] mathd_algebra_113 → handover/evidence/m0_minif2f_harness_audit_2026-05-05/r1/P02_mathd_algebra_113
+audit_tape: verdict=PROCEED passed=33 failed=0 halted=0 skipped=10 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-05/r1/P02_mathd_algebra_113/verdict.json")
+audit_tape: verdict=PROCEED passed=33 failed=0 halted=0 skipped=10 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-05/r1/P02_mathd_algebra_113/verdict_replay.json")
+audit_tape_tamper: detected 2/3 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-05/r1/P02_mathd_algebra_113/tamper_report.json")
+[m0] [2/20] P02_mathd_algebra_113: outcome=error_or_no_pput verdict=PROCEED replay=ok tamper=2/3-DEGRADED dur=600s
+[m0] [3/20] mathd_algebra_114 → handover/evidence/m0_minif2f_harness_audit_2026-05-05/r1/P03_mathd_algebra_114
