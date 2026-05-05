@@ -1,0 +1,88 @@
+{
+  "manifest_version": "tb-18.v1",
+  "manifest_id_note": "manifest_id = sha256(canonical_json(this_object_minus_manifest_id_note)); per-run EvidenceCapsule.batch_manifest_id (or sidecar) cross-check",
+  "created_at_utc": "2026-05-05T15:00:00Z",
+  "phase": "TB-18 Formal Benchmark Scale-Up",
+  "ladder_stage": "M0",
+  "ladder_stage_note": "M0 = Benchmark harness audit per architect §B.9.3 (20 known problems / chain-backed / no market / prove no fake accepted). M1 + M2 use this manifest as base with ladder_stage + problem_set deltas.",
+  "problem_set": {
+    "source": "MiniF2F",
+    "split": "valid",
+    "split_path": "/home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/",
+    "problem_ids": [
+      "mathd_algebra_107",
+      "mathd_algebra_113",
+      "mathd_algebra_114",
+      "mathd_algebra_125",
+      "mathd_algebra_141",
+      "mathd_algebra_171",
+      "mathd_algebra_176",
+      "mathd_algebra_246",
+      "aime_1983_p2",
+      "aime_1989_p8",
+      "aime_1990_p15",
+      "aime_1995_p11",
+      "amc12a_2008_p4",
+      "amc12a_2008_p5",
+      "amc12a_2008_p25",
+      "amc12a_2009_p2",
+      "amc12a_2009_p7",
+      "amc12b_2002_p11",
+      "amc12b_2003_p17",
+      "amc12_2000_p1"
+    ],
+    "problem_count": 20,
+    "problems_file_path": "handover/tests/scripts/m0_problems.txt"
+  },
+  "model": {
+    "name": "deepseek-chat",
+    "version_pin": "deepseek-chat-2026-05-05-as-of-batch-start",
+    "version_pin_note": "DeepSeek does not publish stable model-version IDs; pin captured by batch start UTC. Drift recurrence handled via per-LLM-call budget tracker (atom A) — DegradedLLM halt on N consecutive trivial responses.",
+    "temperature": 0.2,
+    "max_output_tokens": 8000,
+    "additional_params": {}
+  },
+  "runtime": {
+    "max_tx": 20,
+    "per_llm_call_wallclock_seconds": 60,
+    "per_llm_call_token_floor": 30,
+    "consecutive_trivial_response_cap": 10,
+    "aggregate_per_run_wallclock_seconds": 600,
+    "external_timeout_per_problem_seconds": 120,
+    "external_timeout_note": "External `timeout 120` is safety net per architect §1 Q5 + FR-18.2; primary cap is internal aggregate_per_run_wallclock_seconds (600s) AND per-LLM-call budget. M0 retry uses 120s tightened external timeout based on H0 evidence that today's substantive responses solve in <90s; external timeout may be loosened to architect §B.9.3 spec 600s if M0 retry surfaces problems hitting it.",
+    "n_agents": 1,
+    "condition": "n1",
+    "condition_note": "n1 = run_swarm path with single agent (per architect M-ladder M0 spec; M2 uses n5)"
+  },
+  "seeds": {
+    "rng_seed": 42,
+    "boltzmann_seed_note": "M0 + M1 do not exercise Boltzmann (single-agent); M2 will pin BOLTZMANN_SEED=12345 per TB-16.x.2.4 precedent",
+    "additional_seeds": {}
+  },
+  "lean_environment": {
+    "lean_version": "v4.24.0",
+    "lean_toolchain_path": "/home/zephryj/.elan/toolchains/leanprover--lean4---v4.24.0/bin/lean",
+    "mathlib_commit_capture": "captured at batch start via `lake exe cache get` state (mathlib commit hash recorded in genesis_payload.toml constitution_root.lean_runtime block + verified at preflight stage)",
+    "lake_manifest_path": "/home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/lake-manifest.json"
+  },
+  "turingosv4_commit": "7bb18b4",
+  "turingosv4_commit_note": "HEAD at batch start = TB-18 Atom B-design + Atom A budget tracker + Atom E RunOutcome propagation + Atom 0 charter ratification. Predecessor TB-17 SHIPPED FINAL @ 8e3d5cc.",
+  "boltzmann_mode": "observe-only",
+  "boltzmann_mode_note": "M0 + M1: n_agents=1 (Boltzmann not exercised). M2: n_agents=5, observe-only per architect Q3 (PRE-17.5 EXCLUDED from TB-18); price mask disabled.",
+  "market_state": "disabled",
+  "price_index_state": "disabled",
+  "real_funds": false,
+  "public_settlement": false,
+  "real_world_domain": false,
+  "architect_b_9_1_compliance": {
+    "1_no_real_world_readiness_claim": true,
+    "2_no_real_funds": true,
+    "3_no_public_settlement": true,
+    "4_no_chaintape_bypass": true,
+    "5_all_evidence_in_chain_or_capsule": true,
+    "6_dashboard_reproducible_from_chain_plus_cas": true
+  },
+  "anti_drift_contract": "Manifest is FROZEN at batch start. If any field changes mid-batch (e.g. model version drift, mathlib re-fetch), batch is INVALIDATED and must restart with new manifest (new created_at_utc + new turingosv4_commit + new manifest_id).",
+  "per_run_linking": "Each problem run records `batch_manifest_id` in its EvidenceCapsule.batch_manifest_id field (atom A future-binding for canonical schema; today recorded as sidecar in evidence/<run>/M0_RUN_MANIFEST.json copy). Replay tooling cross-checks every run's batch_manifest_id matches the committed manifest.",
+  "verification_note_atom_b_substrate": "Per TB-18 atom B-design ship verdict (commit 7bb18b4): M0/M1/M2 of this manifest run on EXISTING single-task evaluator substrate (atom A budget enforcement IS wired). Atom B substantive multi-task driver SKIPPED in TB-18; TB-18.B-impl follow-up + TB-18.F single-chain 13/13 evidence will produce the canonical replacement chain shape (ratified per architect Q2 ship-claim narrowing)."
+}
