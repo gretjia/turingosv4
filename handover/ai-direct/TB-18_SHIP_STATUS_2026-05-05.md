@@ -60,12 +60,14 @@
 | **SG-18.6** comprehensive_arena ≥6 tasks one process one chain | ⚠️ DEFERRED | Atom B-design SHIPPED; impl → TB-18.B-impl follow-up |
 | **SG-18.7** Single-chain 13/13 tx-kind evidence | ⚠️ DEFERRED | Depends on atom B-impl; TB-16.x.2.6 multi-chain UNION carries forward as deviation pending TB-18.B-impl + TB-18.F |
 | **SG-18.8** No global Markov pointer introduced | ✅ GREEN | TB-17 SG-17.10 carry-forward; no new `LATEST*` filesystem pointer in TB-18 evidence |
-| **SG-18.9** M0 preflight passes before M1/M2 | ✅ GREEN | H0 commit `5c40d06` PASS-WITH-CAVEAT (substrate validates; STOP gate not tripped); M0 retry running ahead of any M1/M2 |
+| **SG-18.9** M0 preflight passes before M1/M2 | ✅ GREEN | H0 commit `5c40d06` PASS-WITH-CAVEAT (substrate validates; STOP gate not tripped); M0 retry COMPLETED 20/20 audit PROCEED |
 | **SG-18.10** M1 50-100 problems completes | ❌ NOT RUN | Multi-hour cost; explicit forward trigger to TB-18.H-impl follow-up |
 | **SG-18.11** M2 100+ n5 completes | ❌ NOT RUN | Multi-day cost; explicit forward trigger to TB-18.H-impl follow-up |
-| **SG-18.12** BenchmarkManifest pinned | ✅ GREEN | `handover/manifests/TB-18_BENCHMARK_MANIFEST.json` |
-| **SG-18.13** EvidencePackagingPolicy satisfied | ⚠️ STRUCTURAL | Policy filed at `handover/policies/TB-18_EVIDENCE_PACKAGING_POLICY.md`; M0 evidence packaged per policy; M1/M2 application pending TB-18.H-impl |
-| **SG-18.14** Real-world disclaimer in benchmark report | ⚠️ PENDING | Benchmark report (M0-only) writes after M0 retry completes; disclaimer mandatory |
+| **SG-18.12** BenchmarkManifest pinned | ✅ GREEN | `handover/manifests/TB-18_BENCHMARK_MANIFEST.json` (turingosv4_commit `ecb156d` at batch start) |
+| **SG-18.13** EvidencePackagingPolicy satisfied | ✅ GREEN (M0) | Policy filed; M0 retry packaged via `tb_18_package_m0_evidence.sh` → 160 tarballs (20 problems × 2 main + tamper subdirs); M1/M2 application pending TB-18.H-impl per policy §1 SAMPLED strategy |
+| **SG-18.14** Real-world disclaimer in benchmark report | ✅ GREEN | `handover/whitepapers/MINIF2F_M0_BENCHMARK_REPORT.md` §1 contains mandatory disclaimer + §1.1 contamination disclosure + §1.2 NOT-a-benchmark statement per architect §2.10 |
+
+**M0 retry results (M0_BATCH_SUMMARY.json)**: 20/20 audit PROCEED; 20/20 replay byte-identical; 14/20 tamper 3/3; 7/20 solved (OMEGA-Confirm); 7/20 MaxTxExhausted (natural budget exhaustion → EvidenceCapsule + TerminalSummary emitted via atom E pipeline ✅); 6/20 external 120s timeout (controlled; vs M0 r1's 600s silent hang). Total wall-clock: 1476s (~24.6 min for 20 problems).
 | **SG-18.15** Codex micro-audit after F passes | ❌ PENDING EXTERNAL | G0 request doc filed; awaiting Codex invocation by user |
 | **SG-18.16** Final Codex+Gemini audit passes | ❌ PENDING EXTERNAL | G1 request doc filed; awaiting external invocation |
 

@@ -1,0 +1,60 @@
+{
+  "constitution_hash": "eec695459c71fbef3685583485deb431fe3b561657b2f285b7c5e7e220e59e03",
+  "runtime_repo": "handover/evidence/tb_18_m0_retry_2026-05-05/r1/P05_mathd_algebra_141/runtime_repo",
+  "cas_path": "handover/evidence/tb_18_m0_retry_2026-05-05/r1/P05_mathd_algebra_141/cas",
+  "system_pubkey_hash": "3e26af730720b7a37c7b255c440cc27c9a937ab6da49b51381f55083c846c922",
+  "agent_pubkeys_path": "agent_pubkeys.json",
+  "initial_balances": [
+    [
+      "tb7-7-sponsor",
+      10000000
+    ],
+    [
+      "Agent_user_0",
+      10000000
+    ],
+    [
+      "Agent_0",
+      1000000
+    ],
+    [
+      "Agent_1",
+      1000000
+    ],
+    [
+      "Agent_2",
+      1000000
+    ],
+    [
+      "Agent_3",
+      1000000
+    ],
+    [
+      "Agent_4",
+      1000000
+    ],
+    [
+      "Agent_5",
+      1000000
+    ],
+    [
+      "Agent_6",
+      1000000
+    ],
+    [
+      "Agent_7",
+      1000000
+    ],
+    [
+      "Agent_8",
+      1000000
+    ],
+    [
+      "Agent_9",
+      1000000
+    ]
+  ],
+  "task_id": "task-n1_mathd_algebra_141_1777993095836",
+  "task_open_tx": "taskopen-task-n1_mathd_algebra_141_1777993095836-tb7-7-d3-seed",
+  "escrow_lock_tx": "escrowlock-task-n1_mathd_algebra_141_1777993095836-tb7-7-d3-escrow"
+}

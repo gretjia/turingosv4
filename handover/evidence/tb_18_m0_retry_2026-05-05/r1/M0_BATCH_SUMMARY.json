@@ -1,0 +1,21 @@
+{
+  "phase": "M0",
+  "NOT_a_benchmark": true,
+  "NOT_real_world_readiness": true,
+  "run_timestamp_utc": "2026-05-05T14-53-40Z",
+  "total_duration_s": 1476,
+  "problem_count": 20,
+  "audit_verdict": {
+    "proceed": 20,
+    "block":   0,
+    "error":   0
+  },
+  "replay_byte_identical": 20,
+  "tamper_3_of_3_detected": 14,
+  "evaluator_outcome": {
+    "solved":    7,
+    "exhausted": 7,
+    "error_or_no_pput": 6
+  },
+  "manifest": "handover/evidence/tb_18_m0_retry_2026-05-05/r1/M0_RUN_MANIFEST.json"
+}
