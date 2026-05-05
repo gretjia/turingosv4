@@ -6,6 +6,38 @@
 
 ---
 
+## 📋 2026-05-05 (session end) — TB-16.x.2 umbrella shipped + Stage 4 hygiene + architect sign-off pending
+
+**main HEAD**: `7faf911` (TB-16.x.2 Stage 4 hygiene — TB_LOG.tsv + AUTO_RESEARCH_NOTEPAD backfill)
+**Architect sign-off status**: PENDING. `handover/ai-direct/TB-16_FINAL_CLOSURE_2026-05-05.md` is the comprehensive ledger ready for ratification. TB-17 charter writing unblocked upon sign-off.
+
+### Session ledger (9 commits, in order)
+1. `6d202ee` — TB-16.x.2.3 (CompleteSetRedeem env-var; 12-of-13 tx kinds)
+2. `f1216f0` — TB-16.x.2.5 (AutopsyCapsule real-bankruptcy; R2 P4 path closed)
+3. `b5118fd` — TB-16.x.2.4 pre-audit (Multi-WorkTx + Boltzmann RUNTIME)
+4. `4dd82c1` — TB-16.x.2.4.fix r1 (8 dual-audit findings closed; Class 3 envelope)
+5. `e34d178` — TB-16.x.2.4.fix r2 (R2 audit closure; OBS_R024 + TB-17 PRE-17.5)
+6. `35a4e9b` — TB-16.x.2.6 (multi-chain union 13-of-13 architect tx kinds)
+7. `bb1eb48` — Umbrella SHIPPED docs (FINAL_CLOSURE + MARKOV_INHERITANCE_POLICY + LATEST.md prepend)
+8. `7faf911` — Stage 4 hygiene (TB_LOG.tsv + AUTO_RESEARCH_NOTEPAD)
+9. (this commit) — session-end handover-update
+
+### Tests / Trust Root summary
+- `cargo test --workspace --release` = **922 / 0 / 150** (+7 from .2.4.fix r1 id=43 entropy unit tests vs 915 baseline)
+- evaluator.rs Trust Root chain: `12489ab4` → `e1c4d057` → `d39c67d1` → `5a989d15` → `fada36b4` → `346a6a3c` → `5dfd5142`
+- adapter.rs Trust Root: `c1360a73` → `48da399a`
+
+### Cold-start next-step recommendation
+1. **TB-17 charter v0** drafting (canonical next step per FINAL_CLOSURE §9; Class 0 work; codifies all 7 PRE-17 preconditions for architect ratification; ~2-3h).
+2. Optional alternative: skip charter, start `comprehensive_arena.rs` substantive build directly (closes PRE-17.6 multi-chain-union deviation; ~1 day Class 3); NOT recommended without charter spec first.
+
+### Pre-existing carry-forward (NOT touched this session)
+- 14 modified evidence files in `git status` (orphan tb_7/tb_13/tb_14 evidence drift; preserved per `feedback_no_retroactive_evidence_rewrite`).
+- Many untracked evidence dirs from prior sessions + this session's stale-iteration runs (`tb_16_x_2_4_smoke_2026-05-05/r2_after_dual_audit_fixes/`, `r3_after_preseed_settle_barrier/`, `tb_16_x_2_5_smoke_2026-05-05/P13_autopsy_real/`, `r2_after_agent_user_0_fix/`, etc.; preserved as forensic record).
+- OBS_R023 (evaluator.rs:2956 hardcoded RunOutcome::MaxTxExhausted): explicit DEFER to TB-15.x or RSP-3.2 per scope-orthogonal + verification-tax-bound rationale.
+
+---
+
 ## 🎯 2026-05-05 — TB-16.x.2 UMBRELLA CLOSED — all 6 sub-atoms shipped + multi-chain 13-of-13 + β architectural status declared
 
 **Updated**: 2026-05-05 (this session shipped 4 of 6 sub-atoms in one continuous run; previous session shipped 2.1+2.2)
