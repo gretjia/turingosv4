@@ -6,6 +6,100 @@
 
 ---
 
+## 🛠️ 2026-05-05 — TB-16.x.2.2 SHIPPED — ChallengeResolve via challenge-window scheduler (11-of-13 tx kinds)
+
+**Updated**: 2026-05-05 (this session continued the bootstrap from the prior session that landed `5e32cbf` un-smoke-verified)
+**Commits merged to main**: `5e32cbf` (TB-16.x.2.2 implementation, prior session) + `3234960` (TB-16.x.2.2.fix, this session) + `647860c` (TB-16.x.2.2.fix.r2 audit followup, this session)
+**main HEAD**: `647860c`; pushed to `origin/main`
+**Session summary**: Bootstrap step 2 (`bash run_tb_16_x_2_2_smoke_2026-05-05.sh`) surfaced that the prior session's `5e32cbf` shipped un-smoke-verified — the `FORCE_CHALLENGE_RESOLVE` hook was placed in the `if let Some(bundle) = chaintape_bundle` cleanup section that `eval_one_problem` only reaches on the **MaxTxExhausted exit path** (line 2895 P0-A comment + 2902 `mark_final_accept`). `FORCE_CHALLENGER` fires on the OMEGA-Confirm success path (line 2197 / 2689) which **early-returns at `make_pput`** (line 2333 / 2798) and never reaches the cleanup section. Net effect: `tx_kind_counts.challenge_resolve = 0` on every smoke despite the commit body claiming the ship gate met. Smoke r1 (stale binary) AND r2 (fresh binary) both produced spurious ✓ via grep false-positives in the script's ship-gate check (`grep '"challenge_resolve"' verdict.json` matches the literal field name in `tx_kind_counts` regardless of count; `grep -i challenge_resolve dashboard.txt` matches the run_id slug `tb16-x-2-2-P10_challenge_resolve`). Patch trail: A (relocate hook to BOTH OMEGA paths with post-emit `tb8_await_state_root_advance`) + B (replace grep ship-gate with python3 JSON count guard) + D (branch-scope the unconditional `tests/tb_5_anti_drift.rs` I87 assertion that was failing on every non-TB-5 evaluator-harness change — including the prior `5e32cbf` which mis-reported `failed = 0` despite this test failing on the same diff) + E (boundary fix on `tb16_emit_challenge_resolve_for_eligible`: `<= delta` → `< delta` so delta=0 actually means "immediately eligible" per docstring; `current_round` is NOT auto-advanced per-tx unlike tb11's `current_logical_t`) + F1..F6 (fail-closed gate exit, token-boundary anti-drift match, docstring symbol fix, OBS rationale wording, README count discrepancy 33/8→35/7). OBS_R023 filed for the orthogonal hardcoded `RunOutcome::MaxTxExhausted` capsule write at evaluator.rs:2956 (deferred to TB-15.x or RSP-3.2). Class 3 dual external audit (Codex via codex:codex-rescue subagent + Gemini 2.5 Pro via REST) on `3234960` returned **OVERALL CHALLENGE from BOTH (no VETO)** with 5 distinct deduped CHALLENGEs — all closed by `647860c` Patch F. Smoke r4 (canonical, committed in `3234960`) + r5 (regression, post-Patch-F): both verify all 4 SG conditions; r5 additionally verifies smoke script exit=0 on PASS (Patch F1+F2 fail-closed gate).
+
+### Architect declarations (umbrella charter `TB-16.x.2_charter_2026-05-04.md` §2 Atom 2.2)
+
+| Field | Value |
+|---|---|
+| `phase_id` | P5/P6 (Markov + multi-org Epistemic Lab; TB-16 = controlled arena per project_tb11_to_tb17_roadmap) |
+| `roadmap_exit_criteria_addressed` | closes the missing 5th system-emitted tx kind in R3 Round 2 chain (raises 10-of-13 → **11-of-13** system-emitted tx kinds runtime-exercised); SG-16.x.2.2 = chain contains parent-child ChallengeTx → ChallengeResolveTx + id=42 audit assertion `challenge_resolve_chain_to_challenge_tx` Pass |
+| `kill_criteria_tested` | (K1) ChallengeResolveTx must appear on L4 chain with both env vars set → smoke r4 verdict.json `tx_kind_counts.challenge_resolve = 1`; (K2) ship gate must use real chain counts not pattern matches → Patch B+F1+F2 (python3 JSON guard + fail-closed exit); (K3) id=42 must be PASS not SKIPPED → r4 `assertions[id=42].result = Pass`; (K4) tb_5 anti-drift must scope to TB-5 branches → Patch D + F3 token-boundary; (K5) tb16 helper must match docstring "delta=0 immediately eligible" → Patch E |
+| `flowchart_trace` | FC1-emit (system-emit on OMEGA-Confirm success path — relocated hook fires after FORCE_CHALLENGER's ChallengeTx commits) + FC2-N22 (HALT — OmegaAccepted, the path now hosting the relocated hook). NO Phase Z′ rerun (no flowchart change). |
+| `risk_class` | Class 3 (.fix surface = signed L4 evaluator-path + helper semantic; .fix.r2 surface = doc + tooling-hygiene only — Class 1 by content but R-014 rehash forces formal Class 3 process) |
+| `forbidden_honored` | (a) NO Phase Z′; (b) NO retroactive evidence rewrite (orphan tb_7/tb_13/tb_14 evidence drift in main repo `git status` left UNTOUCHED — pre-existing, NOT mine); (c) NO sequencer.rs/kernel.rs/bus.rs/wallet.rs touched (STEP_B-spirit isolation kept via worktree); (d) NO retroactive amend of `5e32cbf` or `3234960` commit bodies (per repo "always create NEW commits" protocol — `3234960`'s wrong-count Smoke section corrected via verdict.json + README in `647860c`); (e) NO OBS-bucket workaround for any audit-raised CHALLENGE (all 5 deduped CHALLENGEs fixed in `647860c` per feedback_no_workarounds_strict_constitution) |
+| `STEP_B_PROTOCOL` | NOT triggered by file list (kernel/bus/wallet/sequencer untouched); worktree isolation `experiment/tb16x22-challenge-resolve` kept for STEP_B-spirit alignment, same as `5e32cbf` |
+
+### Surfaces shipped (cumulative across 3 commits)
+
+- `experiments/minif2f_v4/src/bin/evaluator.rs` — Patch A (mirror FORCE_CHALLENGE_RESOLVE block onto BOTH OMEGA exit paths: full-proof @ ~line 2253, per-tactic @ ~line 2755; each adds post-emit `tb8_await_state_root_advance` because OMEGA early-return drops bundle without `bundle.shutdown` drain per evaluator.rs:2936-2938).
+- `src/runtime/adapter.rs` — Patch E (eligibility boundary `<= delta` → `< delta` for `tb16_emit_challenge_resolve_for_eligible`) + Patch F4 (docstring fix: removed reference to nonexistent `Sequencer::set_current_round_for_test`, point at actual `seed_q_for_challenge` test helper at `src/state/sequencer.rs:~4185`).
+- `handover/tests/scripts/run_tb_16_x_2_2_smoke_2026-05-05.sh` — Patch B (grep ship-gate → python3 JSON count guard) + Patch F1+F2 (fail-closed `exit $SHIP_GATE_RC`; `SHIP_GATE_RC=1` set on count-zero OR id42 != Pass).
+- `tests/tb_5_anti_drift.rs` — Patch D (branch-name scoping for I87 anti-drift assertion) + Patch F3 (token-boundary match — reject `tb50`/`tb500` substring false-positives via post-`tb5` digit check).
+- `genesis_payload.toml` — R-014 rehash twice on the experiment branch:
+    - `experiments/minif2f_v4/src/bin/evaluator.rs`: 993452e4 → 12489ab4 (Patch A)
+    - `src/runtime/adapter.rs`: a9bbb1ac → 3e770c4b (Patch E) → c1360a73 (Patch F4 doc-only)
+  Annotation chain prepended; predecessor hashes preserved.
+- `handover/alignment/OBS_R022_TB_16_X_2_2_FIX_EVIDENCE_CAPSULE_HARDCODED_MAXTX_2026-05-05.md` — NEW (OBS_R023 filed under R022 OBS family per repo convention). Documents `evaluator.rs:2956`'s unconditional `RunOutcome::MaxTxExhausted` EvidenceCapsule write — out of TB-16.x.2.2.fix scope, deferred. Patch F5 reframes the deferral driver as **scope-orthogonal AND verification-tax bound** (raw code-edit cost ~30-60 min but verification cycle 2-4 hours dominated by amortizable infrastructure).
+- `handover/evidence/tb_16_x_2_2_smoke_2026-05-05/` — NEW. r4 canonical evidence (verdict.json + verdict_replay.json + tamper_report.json + dashboard.txt + evaluator.{stdout,stderr} + pput_result.json + challenge_resolve_trace.txt + README.md). cas/ + runtime_repo/ + tamper/ bulk excluded per existing repo evidence convention; reproducible by re-running the smoke script. README documents r1..r5 fix-narrative trail; Patch F6 corrects pre-fix count mismatch (`33/8` → `35/7`).
+
+### Test counts (workspace-test-canonical, both .fix and .fix.r2)
+
+```
+command          = cargo test --workspace
+workspace_count  = 915
+failed           = 0
+ignored          = 150
+```
+
+Honest baseline correction: `5e32cbf`'s commit body reported `failed = 0` despite `no_p6_files_touched_in_tb5` failing on the same diff (the test ran `git diff main..HEAD --name-only` unconditionally and tripped on `experiments/minif2f_v4/src/bin/evaluator.rs`). Patch D (branch-scope) + Patch F3 (tighten match) restore honest 915/0/150.
+
+### Smoke verification
+
+| run | binary state | hook placement | helper boundary | outcome |
+|---|---|---|---|---|
+| r1 | stale (pre-`5e32cbf` binary) | n/a (binary lacks code) | n/a | id=42 not registered (only 41 assertions); ship-gate false-positive via grep |
+| r2 | fresh (built from `5e32cbf`) | original `5e32cbf` placement (MaxTxExhausted-only cleanup) | `<= delta` (require elapsed > 0) | id=42 SKIPPED (`tx_kind_counts.challenge_resolve = 0`); ship-gate false-positive via grep |
+| r3 | fresh (built with Patch A: hook mirrored to OMEGA paths) | OMEGA-Confirm full-proof + per-tactic | `<= delta` (require elapsed > 0) | hook fired but `count=0`: scan-time elapsed=0 < boundary; gate FAILED honestly (after Patch B) |
+| r4 | fresh (built with Patch A + Patch E: helper boundary `< delta`) | OMEGA-Confirm full-proof + per-tactic | `< delta` (delta=0 → immediately eligible) | **all 4 conditions PASS** (committed in `3234960`) |
+| r5 | fresh (built with Patch A + E + F: docstring + script exit) | same as r4 | same as r4 | **all 4 conditions PASS + smoke script exit=0** (verifies F1+F2 fail-closed gate) |
+
+| SG | Verification | Result |
+|---|---|---|
+| SG-16.x.2.2 (chain contains parent-child Challenge → ChallengeResolve) | r4/r5 verdict.json: `tx_kind_counts.challenge = 1`, `tx_kind_counts.challenge_resolve = 1` | ✓ |
+| SG-16.x.2.2 (id=42 audit assertion Pass) | r4/r5 verdict.json: `assertions[id=42].result = "Pass"` | ✓ |
+| SG-16.x.2.2 (replay byte-identical) | `cmp -s verdict.json verdict_replay.json` | ✓ |
+| SG-16.x.2.2 (tamper detected 3/3) | tamper_report.json: flip_l4_byte + flip_cas_byte + truncate_l4_ref all detected | ✓ |
+| SG-16.x.2.2 (smoke script fail-closed exit) | r5 manual exit code capture: `0` on PASS path; `1` on EITHER count-zero OR id42 != Pass (by inspection — single return point, $SHIP_GATE_RC propagation) | ✓ |
+
+### Class 3 dual external audit summary (on `3234960` parent commit)
+
+| Auditor | Tooling | Verdict | Wall | Defects | Status |
+|---|---|---|---|---|---|
+| Codex | `codex:codex-rescue` subagent | OVERALL CHALLENGE | ~7 min | 5 (B.1 + B.3 + D.1 + E.3 + O.1 + S.3) | All closed by `647860c` Patches F1..F6 |
+| Gemini | gemini-2.5-pro REST API | OVERALL CHALLENGE | ~80s | 1 (S.3 — subset of Codex's coverage) | Closed by `647860c` Patch F6 |
+| Combined (per feedback_dual_audit_conflict) | conservative-wins (VETO > CHALLENGE > PASS) | CHALLENGE → PASS | n/a | n/a | All closed |
+
+`647860c` itself NOT re-audited (Class 1 by content despite Class 3 by R-014 process; self-audit acceptable per hybrid-by-risk rule; the parent's auditor sign-off is the binding signal).
+
+### OBS filed this session
+
+- **OBS_R023** (`handover/alignment/OBS_R022_TB_16_X_2_2_FIX_EVIDENCE_CAPSULE_HARDCODED_MAXTX_2026-05-05.md`) — `evaluator.rs:2956` unconditional `RunOutcome::MaxTxExhausted` EvidenceCapsule write. Currently masked (only reaching path IS MaxTxExhausted exit). Deferred to a future TB owning EvidenceCapsule semantic-purity (TB-15.x Lamarckian Autopsy expansion or RSP-3.2 settlement plumbing) per scope-orthogonal AND verification-tax bound rationale.
+
+### Next steps
+
+Per architect ruling §A.6 execution order (unchanged from prior LATEST.md):
+1. **TB-16.x.2.4** — multi-WorkTx attempt + Boltzmann RUNTIME exercise (β chain continuation begins; multi-task SINGLE-CHAIN runs).
+2. **TB-16.x.2.6** — combined arena run, all 4 tx kinds + Boltzmann + Autopsy in one continuing chain (β fully realized; in-tape Markov inheritance via `previous_capsule_cid`).
+3. **TB-17** — Real-World Readiness Gate (preconditions PRE-17.1..17.4 + `MARKOV_INHERITANCE_POLICY.md` + SG-17.9 / SG-17.10 are now hard preconditions).
+
+### Local-only forensic artifacts (NOT in git history)
+
+The build host retains the following stale evidence from this session's bug-hunt iterations under `/home/zephryj/projects/turingosv4/handover/evidence/`:
+- `tb_16_x_2_2_smoke_2026-05-05_stale_r1_DO_NOT_SHIP/` — pre-`5e32cbf`-binary smoke (id=42 not registered)
+- `tb_16_x_2_2_smoke_2026-05-05_stale_r2_DO_NOT_SHIP/` — `5e32cbf` fresh binary smoke (hook in wrong control flow; count=0)
+- `tb_16_x_2_2_smoke_2026-05-05_stale_r3_DO_NOT_SHIP/` — Patch A applied, helper boundary unfixed (count=0)
+- `tb_16_x_2_2_smoke_2026-05-05_r5_VERIFICATION_DO_NOT_SHIP/` — Patch F regression run
+
+These are NOT shipped because the narrative is fully captured by the README in the canonical r4 evidence dir + the commit bodies of `3234960` and `647860c`. Replayable by checking out `5e32cbf` vs `3234960` vs `647860c` and re-running the smoke script against each binary.
+
+---
+
 ## 🛠️ 2026-05-04 — TB-16.x.fix SHIPPED — OBS_R022 α closure (LATEST_MARKOV_CAPSULE.txt de-canonicalized)
 
 **Updated**: 2026-05-04 (fifth session of the day; immediately after TB-16.x.2.1)
