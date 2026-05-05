@@ -1,0 +1,42 @@
+[2026-05-05T09:33:56Z INFO  evaluator] Problem: aime_1997_p9.lean | Condition: n5 | Model: deepseek-v4-flash | Mode: full
+[2026-05-05T09:33:56Z INFO  evaluator] [chaintape/d3] pre-seed enabled (TB-10 factory): 12 entries
+[2026-05-05T09:33:56Z INFO  evaluator] [chaintape] bus wired with Sequencer + on-disk ChainTape at "handover/evidence/tb_16_x_2_6_smoke_2026-05-05/P15b_exhaust_redeem_no_expire/runtime_repo"
+[2026-05-05T09:33:56Z INFO  evaluator] [chaintape/tb10] user-mode TaskOpen for task-n5_aime_1997_p9_1777973636127 sponsor=Agent_user_0
+[2026-05-05T09:33:56Z INFO  evaluator] [chaintape/tb10] user-mode EscrowLock 200000 micro for task-n5_aime_1997_p9_1777973636127 sponsor=Agent_user_0
+[2026-05-05T09:33:56Z INFO  evaluator] [chaintape/tb16-arena] MarketSeedTx submitted by Agent_user_0 (1000000 μC) for event=task-n5_aime_1997_p9_1777973636127
+[2026-05-05T09:33:57Z INFO  evaluator] [chaintape/tb16-arena] CompleteSetMintTx submitted by Agent_user_0 (250000 μC YES + 250000 μC NO) for event=task-n5_aime_1997_p9_1777973636127
+[2026-05-05T09:33:57Z INFO  evaluator] [chaintape] seeded synthetic TaskOpen for smoke-n5_aime_1997_p9_1777973636127
+[2026-05-05T09:33:57Z INFO  evaluator] [chaintape] seeded synthetic zero-stake WorkTx (synthetic_rejection_for_l4e_gate=true) for smoke-n5_aime_1997_p9_1777973636127
+[2026-05-05T09:33:57Z INFO  evaluator] [chaintape] Atom 5 audit-trail records written to CAS + indexed for smoke-n5_aime_1997_p9_1777973636127
+[2026-05-05T09:33:57Z INFO  evaluator] [chaintape/d_c] genesis_report.json written to "handover/evidence/tb_16_x_2_6_smoke_2026-05-05/P15b_exhaust_redeem_no_expire/runtime_repo"
+[2026-05-05T09:33:57Z INFO  evaluator] [swarm/n5] agent_models = [deepseek-v4-flash,deepseek-v4-flash,deepseek-v4-flash,deepseek-v4-flash,deepseek-v4-flash] (label=deepseek-v4-flash)
+[2026-05-05T09:33:57Z INFO  evaluator] [budget] regime=total_proposal base=20 effective_max_tx=20 (n_agents=5)
+[2026-05-05T09:33:57Z INFO  evaluator] [swarm/n5] Agent_0:skill0:t=0.20 Agent_1:skill1:t=0.20 Agent_2:skill2:t=0.20 Agent_3:skill0:t=0.20 Agent_4:skill1:t=0.20
+[2026-05-05T09:34:08Z INFO  evaluator] [tx 0] Agent_0 step+tx_0_by_Agent_0 partial OK (depth=1)
+[2026-05-05T09:34:19Z WARN  evaluator] [tx 1] step rejected (err:tactic_simp_noprog): <stdin>:16:0: error: field_simp made no progress at h₁
+[2026-05-05T09:34:29Z WARN  evaluator] [tx 2] step rejected (err:tactic_simp_noprog): <stdin>:16:0: error: field_simp made no progress at h₁
+[2026-05-05T09:34:40Z WARN  evaluator] [tx 3] step rejected (err:tactic_simp_noprog): <stdin>:16:0: error: field_simp made no progress at h₁
+[2026-05-05T09:34:50Z WARN  evaluator] [tx 4] step rejected (err:tactic_simp_noprog): <stdin>:16:0: error: field_simp made no progress at h₁
+[2026-05-05T09:35:02Z WARN  evaluator] [tx 5] step rejected (err:tactic_simp_noprog): <stdin>:16:0: error: field_simp made no progress at h₁
+[2026-05-05T09:35:13Z INFO  evaluator] [tx 6] Agent_1 step+tx_1_by_Agent_1 partial OK (depth=2)
+[2026-05-05T09:35:32Z WARN  evaluator] [tx 7] step rejected (err:tactic_simp_noprog): <stdin>:17:0: error: field_simp made no progress at h₁
+[2026-05-05T09:35:54Z INFO  evaluator] [tx 8] Agent_3 step+tx_2_by_Agent_3 partial OK (depth=3)
+[2026-05-05T09:35:59Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-05T09:35:59Z WARN  evaluator] [tx 9] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-05T09:36:49Z INFO  evaluator] [tx 10] Agent_0 step+tx_3_by_Agent_0 partial OK (depth=4)
+[2026-05-05T09:37:00Z INFO  evaluator] [tx 11] Agent_1 step+tx_4_by_Agent_1 partial OK (depth=5)
+[2026-05-05T09:37:11Z WARN  evaluator] [tx 12] step rejected (err:tactic_simp_noprog): <stdin>:20:0: error: field_simp made no progress at h₁
+[2026-05-05T09:37:23Z WARN  evaluator] [tx 13] step rejected (err:tactic_simp_noprog): <stdin>:20:0: error: field_simp made no progress at h₁
+[2026-05-05T09:37:34Z WARN  evaluator] [tx 14] step rejected (err:type_mismatch): hard_error_with_unsolved: <stdin>:20:68: error: Type mismatch
+[2026-05-05T09:37:46Z WARN  evaluator] [tx 15] step rejected (err:tactic_simp_noprog): <stdin>:20:0: error: field_simp made no progress at h₁
+[2026-05-05T09:37:57Z WARN  evaluator] [tx 16] step rejected (err:type_mismatch): hard_error_with_unsolved: <stdin>:20:68: error: Type mismatch
+[2026-05-05T09:38:09Z WARN  evaluator] [tx 17] step rejected (err:tactic_simp_noprog): <stdin>:20:0: error: field_simp made no progress at h₁
+[2026-05-05T09:38:21Z WARN  evaluator] [tx 18] step rejected (err:type_mismatch): hard_error_with_unsolved: <stdin>:20:68: error: Type mismatch
+[2026-05-05T09:38:35Z WARN  evaluator] [tx 19] step rejected (err:type_mismatch): hard_error_with_unsolved: <stdin>:20:68: error: Type mismatch
+[v2-emit] SPLIT env unset; defaulting to 'adaptation' (Phase B convention; pre-registration requires SPLIT for Phase C+ ablation runs)
+[2026-05-05T09:38:35Z INFO  evaluator] [tb11] EvidenceCapsule written: capsule_id=eb8df53ca4e266337fa97846cf89095c9ef06fa7313f28a478cb61db055414b2 compressed_log_cid=3a7fa15141c0498f157d51dd763ec10886f781f396e9e425c7d66bbd657737c0 attempt_count=20
+[2026-05-05T09:38:35Z INFO  evaluator] [tb11] TerminalSummary emitted: emit_id=1
+[2026-05-05T09:38:35Z INFO  evaluator] [chaintape/tb16-arena] TaskBankruptcyTx emitted: emit_id=2 task_id=TaskId("task-n5_aime_1997_p9_1777973636127")
+[2026-05-05T09:38:35Z INFO  evaluator] [chaintape/tb16-arena] CompleteSetRedeemTx submitted by Agent_user_0 (units=250000, outcome=No) for event=task-n5_aime_1997_p9_1777973636127
+[2026-05-05T09:38:35Z INFO  evaluator] [chaintape] Atom 6 RunSummary written (7 L4 + 2 L4.E entries; 7 accepted_tx_ids, 2 rejected_tx_ids)
+[2026-05-05T09:38:35Z INFO  evaluator] PPUT = 0 (no golden path in 279.2s, 20 tx)
