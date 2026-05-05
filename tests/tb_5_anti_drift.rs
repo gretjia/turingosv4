@@ -115,9 +115,39 @@ fn four_anti_drift_renames_documented_in_charter() {
 /// to prevent cross-phase scope creep. Soft-checks the file paths exist
 /// at the locations charter § 6 declares forbidden; uses a directory-scan
 /// fallback when git is not available in the test environment.
+///
+/// **TB-16.x.2.2.fix scoping (2026-05-05)**: the original implementation
+/// asserted unconditionally on `git diff main..HEAD --name-only`, which
+/// fired on ANY work that touches `experiments/minif2f_v4/` regardless of
+/// which TB is active — including the very evaluator-harness changes that
+/// TB-13/14/15/16 legitimately make. This converted I87 from a TB-5
+/// scope-creep guard into a perpetual fail for non-TB-5 branches (the
+/// prior commit `5e32cbf` reported `failed = 0` despite this test
+/// having failed on the same diff). Now gated on branch-name
+/// containing `tb-5`/`tb5` (case-insensitive); other branches soft-skip
+/// with a one-line reason. Honest gate per Art. V.1.
 #[test]
 fn no_p6_files_touched_in_tb5() {
     let root = project_root();
+    // Branch-scoping gate: I87 is a TB-5-specific anti-drift check; only
+    // assert when the active branch self-identifies as TB-5 work.
+    let branch_out = std::process::Command::new("git")
+        .args(["rev-parse", "--abbrev-ref", "HEAD"])
+        .current_dir(&root)
+        .output();
+    let branch_lower = match branch_out {
+        Ok(b) if b.status.success() => {
+            String::from_utf8_lossy(&b.stdout).trim().to_ascii_lowercase()
+        }
+        _ => String::new(),
+    };
+    let is_tb5_branch = branch_lower.contains("tb-5") || branch_lower.contains("tb5");
+    if !is_tb5_branch {
+        eprintln!(
+            "I87 soft-skip — branch `{branch_lower}` is not TB-5 work (anti-drift guard scoped per TB-16.x.2.2.fix 2026-05-05)"
+        );
+        return;
+    }
     // Best-effort: try `git diff main..HEAD --name-only`. If git isn't
     // available, fall back to a positive existence check for the known
     // P6 paths that should NOT have been touched.

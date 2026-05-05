@@ -740,11 +740,16 @@ pub async fn tb11_emit_expire_for_eligible(
 ///
 /// **Eligibility** (post-zero-window MVP; per charter §2):
 ///   - challenge_cases_t[case_id].status == Open
-///   - q.q_t.current_round - case.opened_at_round > window_delta_logical_t
+///   - q.q_t.current_round - case.opened_at_round >= window_delta_logical_t
 ///
 /// `window_delta_logical_t = 0` makes every Open case immediately eligible
-/// (the FORCE_CHALLENGE_RESOLVE arena profile uses this — same shape as
-/// `tb11_emit_expire_for_eligible(.., expiry_delta=0)`).
+/// (the FORCE_CHALLENGE_RESOLVE arena profile uses this). Note: differs in
+/// time-unit from `tb11_emit_expire_for_eligible(.., expiry_delta=0)` —
+/// tb11 uses caller-supplied `current_logical_t` (auto-advances per-tx);
+/// this helper uses `q.q_t.current_round` (NOT auto-advanced per-tx; only
+/// mutated explicitly via Sequencer::set_current_round_for_test or future
+/// round-advance mechanism). Hence the `>= delta` boundary, NOT `> delta`
+/// (TB-16.x.2.2.fix Patch E 2026-05-05).
 ///
 /// `default_resolution` selects the policy applied to every eligible case.
 /// `Released` (the charter default) refunds the challenger bond + flips
@@ -778,7 +783,20 @@ pub async fn tb16_emit_challenge_resolve_for_eligible(
             continue;
         }
         let elapsed = current_round.saturating_sub(case.opened_at_round);
-        if elapsed <= window_delta_logical_t {
+        // TB-16.x.2.2.fix Patch E: was `elapsed <= window_delta_logical_t` →
+        // `< window_delta_logical_t`. Original semantic required elapsed > delta,
+        // i.e. delta=0 demanded ≥1 round to pass — but `current_round` is NOT
+        // auto-advanced per-tx (unlike `current_logical_t` used by
+        // tb11_emit_expire_for_eligible). On the OMEGA-Confirm path the case
+        // is opened and scanned within the same round, so `delta=0` skipped
+        // every case — contradicting the docstring claim "delta=0 makes every
+        // Open case immediately eligible". Change to `< delta` makes delta=0
+        // include elapsed=0 (immediate eligibility, matching docstring intent
+        // and the FORCE_CHALLENGE_RESOLVE arena profile's expectation). For
+        // delta≥1 the boundary shifts by one round, which the FORCE_-prefixed
+        // arena hooks are the sole callers of today (no production caller
+        // depends on the prior off-by-one boundary).
+        if elapsed < window_delta_logical_t {
             continue;
         }
         candidates.push((case_id.clone(), case.bond.micro_units()));

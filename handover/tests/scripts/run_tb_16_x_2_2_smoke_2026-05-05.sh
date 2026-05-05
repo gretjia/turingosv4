@@ -132,31 +132,35 @@ echo "  audit_dashboard..."
 
 echo
 echo "Ship gate SG-16.x.2.2 — Challenge → ChallengeResolve parent-child:"
-HAS_CHALL=0
-HAS_RESOLVE=0
-HAS_ID42_PASS=0
-if grep -q '"challenge"' "$PROBLEM_DIR/verdict.json" 2>/dev/null \
-  || grep -qi 'ChallengeTx\|challenge_tx' "$PROBLEM_DIR/dashboard.txt" 2>/dev/null; then
-  HAS_CHALL=1
-fi
-if grep -q '"challenge_resolve"' "$PROBLEM_DIR/verdict.json" 2>/dev/null \
-  || grep -qi 'ChallengeResolveTx\|challenge_resolve' "$PROBLEM_DIR/dashboard.txt" 2>/dev/null; then
-  HAS_RESOLVE=1
-fi
-# id=42 audit assertion verifies parent-child relationship; passing ⇒ every
-# ChallengeResolveTx references a prior ChallengeTx in the same chain.
-if grep -q '"challenge_resolve_chain_to_challenge_tx".*"Pass"' "$PROBLEM_DIR/verdict.json" 2>/dev/null \
-  || grep -q '"name":"challenge_resolve_chain_to_challenge_tx".*"result":"Pass"' "$PROBLEM_DIR/verdict.json" 2>/dev/null; then
-  HAS_ID42_PASS=1
-fi
-if [[ "$HAS_CHALL" == "1" && "$HAS_RESOLVE" == "1" ]]; then
-  echo "  ✓ Both ChallengeTx and ChallengeResolveTx detected"
-  if [[ "$HAS_ID42_PASS" == "1" ]]; then
+# TB-16.x.2.2.fix Patch B — replace grep-based detection with python3 JSON
+# count guard. Prior grep matched the literal field name "challenge_resolve"
+# in tx_kind_counts (which exists with value 0) and the run_id slug
+# `tb16-x-2-2-P10_challenge_resolve` in dashboard.txt — both produced false
+# positives even when the chain contained zero ChallengeResolveTx. Honest
+# gate must read tx_kind_counts.<kind> > 0 AND assertion[id=42].result.
+GATE_RESULT=$(python3 - "$PROBLEM_DIR/verdict.json" <<'PY'
+import json, sys
+v = json.load(open(sys.argv[1]))
+counts = v.get("tx_kind_counts", {})
+chall = int(counts.get("challenge", 0))
+resolve = int(counts.get("challenge_resolve", 0))
+id42 = next((a for a in v.get("assertions", []) if a.get("id") == 42), None)
+id42_result = (id42 or {}).get("result", "Missing")
+print(f"{chall}|{resolve}|{id42_result}")
+PY
+)
+HAS_CHALL_N="${GATE_RESULT%%|*}"
+REST="${GATE_RESULT#*|}"
+HAS_RESOLVE_N="${REST%%|*}"
+ID42_RESULT="${REST#*|}"
+if [[ "$HAS_CHALL_N" -gt 0 && "$HAS_RESOLVE_N" -gt 0 ]]; then
+  echo "  ✓ Chain contains ChallengeTx (n=$HAS_CHALL_N) and ChallengeResolveTx (n=$HAS_RESOLVE_N)"
+  if [[ "$ID42_RESULT" == "Pass" ]]; then
     echo "  ✓ id=42 audit assertion PASS — parent-child relationship verified"
   else
-    echo "  ! id=42 audit assertion not detected as Pass — inspect verdict.json"
+    echo "  ✗ id=42 audit assertion result=$ID42_RESULT (expected Pass)"
   fi
 else
-  echo "  ✗ Challenge=$HAS_CHALL  ChallengeResolve=$HAS_RESOLVE — gate FAILED"
+  echo "  ✗ Chain counts: ChallengeTx=$HAS_CHALL_N  ChallengeResolveTx=$HAS_RESOLVE_N (id=42 result=$ID42_RESULT) — gate FAILED"
 fi
 echo "════════════════════════════════════════════════════════════════════"

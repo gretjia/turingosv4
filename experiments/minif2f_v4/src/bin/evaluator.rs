@@ -2259,6 +2259,55 @@ async fn run_swarm(
                                                     Err(e) => warn!("[chaintape/tb8/atom4] FinalizeReward emit_system_tx error: {e:?}"),
                                                 }
                                             }
+
+                                            // TB-16.x.2.2.fix — FORCE_CHALLENGE_RESOLVE on the
+                                            // OMEGA-Confirm exit path (full-proof). The original
+                                            // 5e32cbf placed this hook only at evaluator.rs:3154
+                                            // inside the `if let Some(bundle)` cleanup section,
+                                            // but that section runs only on the MaxTxExhausted exit
+                                            // path (line 2895 P0-A comment + 2902 mark_final_accept).
+                                            // OMEGA-Confirm early-returns at make_pput below and
+                                            // never reaches line 3154, so without this mirror the
+                                            // chain emits zero ChallengeResolveTx (id=42 audit
+                                            // assertion SKIPPED instead of PASS). Mirrored on the
+                                            // per-tactic OMEGA path at ~line 2755.
+                                            // Post-emit await is mandatory because the OMEGA exit
+                                            // drops `bundle` without bundle.shutdown() drain (see
+                                            // 2936-2938) — without the await the queued
+                                            // ChallengeResolveTx may not commit before drop.
+                                            if std::env::var("TURINGOS_FORCE_CHALLENGE_RESOLVE").as_deref() == Ok("1") {
+                                                let pre_cr_root = match bundle.sequencer.q_snapshot() {
+                                                    Ok(q) => q.state_root_t,
+                                                    Err(_) => turingosv4::state::q_state::Hash::ZERO,
+                                                };
+                                                if let Err(e) = turingosv4::runtime::adapter::tb8_await_state_root_advance(
+                                                    &bundle.sequencer, pre_cr_root, 5000,
+                                                ).await {
+                                                    warn!("[chaintape/tb16-arena] await for prior commit (pre-challenge-resolve) failed: {e:?}");
+                                                }
+                                                let pre_emit_root = match bundle.sequencer.q_snapshot() {
+                                                    Ok(q) => q.state_root_t,
+                                                    Err(_) => pre_cr_root,
+                                                };
+                                                match turingosv4::runtime::adapter::tb16_emit_challenge_resolve_for_eligible(
+                                                    bundle.sequencer.as_ref(),
+                                                    0,
+                                                    turingosv4::state::typed_tx::ChallengeResolution::Released,
+                                                ).await {
+                                                    Ok((count, bonds_micro)) => info!(
+                                                        "[chaintape/tb16-arena] ChallengeResolve batch: count={} bonds_released_micro={}",
+                                                        count, bonds_micro
+                                                    ),
+                                                    Err(e) => warn!(
+                                                        "[chaintape/tb16-arena] ChallengeResolve batch failed: {e:?}"
+                                                    ),
+                                                }
+                                                if let Err(e) = turingosv4::runtime::adapter::tb8_await_state_root_advance(
+                                                    &bundle.sequencer, pre_emit_root, 5000,
+                                                ).await {
+                                                    warn!("[chaintape/tb16-arena] await for ChallengeResolve commit failed: {e:?}");
+                                                }
+                                            }
                                             let work_tx_id = work_tx_id_opt;
                                             // TB-7.7 D2: VerifyTx is the most recent same-agent submission;
                                             // record it as parent for any subsequent same-agent proposal.
@@ -2750,6 +2799,48 @@ async fn run_swarm(
                                                     Ok(true) => info!("[chaintape/tb8/atom4-pertactic] FinalizeReward emitted for verify_tx={vid:?}"),
                                                     Ok(false) => warn!("[chaintape/tb8/atom4-pertactic] FinalizeReward poll budget expired for verify_tx={vid:?}"),
                                                     Err(e) => warn!("[chaintape/tb8/atom4-pertactic] FinalizeReward emit error: {e:?}"),
+                                                }
+                                            }
+
+                                            // TB-16.x.2.2.fix — FORCE_CHALLENGE_RESOLVE on the
+                                            // OMEGA-Confirm exit path (per-tactic). Mirrors the
+                                            // full-proof OMEGA hook (~line 2253). Original 5e32cbf
+                                            // missed both OMEGA paths; only the MaxTxExhausted
+                                            // cleanup section reached the existing block at
+                                            // ~line 3214. Post-emit await mandatory — OMEGA
+                                            // early-return drops bundle without bundle.shutdown
+                                            // drain (line 2936-2938).
+                                            if std::env::var("TURINGOS_FORCE_CHALLENGE_RESOLVE").as_deref() == Ok("1") {
+                                                let pre_cr_root = match bundle.sequencer.q_snapshot() {
+                                                    Ok(q) => q.state_root_t,
+                                                    Err(_) => turingosv4::state::q_state::Hash::ZERO,
+                                                };
+                                                if let Err(e) = turingosv4::runtime::adapter::tb8_await_state_root_advance(
+                                                    &bundle.sequencer, pre_cr_root, 5000,
+                                                ).await {
+                                                    warn!("[chaintape/tb16-arena-pertactic] await for prior commit (pre-challenge-resolve) failed: {e:?}");
+                                                }
+                                                let pre_emit_root = match bundle.sequencer.q_snapshot() {
+                                                    Ok(q) => q.state_root_t,
+                                                    Err(_) => pre_cr_root,
+                                                };
+                                                match turingosv4::runtime::adapter::tb16_emit_challenge_resolve_for_eligible(
+                                                    bundle.sequencer.as_ref(),
+                                                    0,
+                                                    turingosv4::state::typed_tx::ChallengeResolution::Released,
+                                                ).await {
+                                                    Ok((count, bonds_micro)) => info!(
+                                                        "[chaintape/tb16-arena-pertactic] ChallengeResolve batch: count={} bonds_released_micro={}",
+                                                        count, bonds_micro
+                                                    ),
+                                                    Err(e) => warn!(
+                                                        "[chaintape/tb16-arena-pertactic] ChallengeResolve batch failed: {e:?}"
+                                                    ),
+                                                }
+                                                if let Err(e) = turingosv4::runtime::adapter::tb8_await_state_root_advance(
+                                                    &bundle.sequencer, pre_emit_root, 5000,
+                                                ).await {
+                                                    warn!("[chaintape/tb16-arena-pertactic] await for ChallengeResolve commit failed: {e:?}");
                                                 }
                                             }
                                             let work_tx_id = Some(work_tx_id);
