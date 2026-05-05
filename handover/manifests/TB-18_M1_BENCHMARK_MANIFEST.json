@@ -1,0 +1,91 @@
+{
+  "manifest_version": "tb-18.v1",
+  "manifest_id_note": "manifest_id = sha256(canonical_json(this_object_minus_manifest_id_note)); per-run EvidenceCapsule.batch_manifest_id (or sidecar) cross-check",
+  "manifest_status": "DRAFT — frozen at batch start. PRE-G0 stage: manifest skeleton drafted post atom F SHIPPED (HEAD 0c3a5e1) before G0 verdict. Batch MUST NOT be invoked until: (1) G0 PASS or CHALLENGE-resolved, (2) user explicit 'go' per charter §2 non-blanket authority, (3) manifest re-frozen at that moment with corrected created_at_utc + verified turingosv4_commit.",
+  "created_at_utc": "2026-05-05T18:00:00Z-DRAFT",
+  "phase": "TB-18 Formal Benchmark Scale-Up",
+  "ladder_stage": "M1",
+  "ladder_stage_note": "M1 = Full heldout subset per architect §B.9.3 (50-100 problems / n1 + n3 / all failures produce EvidenceCapsule / dashboard batch report). This manifest pins n1 / 50 problems first; an M1.n3 follow-up manifest will pin n=3 if n=1 baseline produces credible solve+halt distribution.",
+  "problem_set": {
+    "source": "MiniF2F",
+    "split": "valid",
+    "split_path": "/home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/",
+    "problem_ids_source": "experiments/minif2f_v4/combined50.txt (50 problems; 17 overlap with M0; 33 new)",
+    "problem_count": 50,
+    "problems_file_path": "experiments/minif2f_v4/combined50.txt",
+    "problem_ids_freeze_protocol": "At batch start, copy combined50.txt into evidence dir (immutable copy) + record sha256; per-run records manifest_id + frozen_problems_sha256."
+  },
+  "model": {
+    "name": "deepseek-chat",
+    "version_pin": "deepseek-chat-2026-05-05-as-of-batch-start",
+    "version_pin_note": "DeepSeek does not publish stable model-version IDs; pin captured by batch start UTC. Drift recurrence handled via per-LLM-call budget tracker (atom A) — DegradedLLM halt on N consecutive trivial responses.",
+    "temperature": 0.2,
+    "max_output_tokens": 8000,
+    "additional_params": {}
+  },
+  "runtime": {
+    "max_tx": 20,
+    "per_llm_call_wallclock_seconds": 60,
+    "per_llm_call_token_floor": 30,
+    "consecutive_trivial_response_cap": 10,
+    "aggregate_per_run_wallclock_seconds": 600,
+    "external_timeout_per_problem_seconds": 600,
+    "external_timeout_note": "M1 uses architect §B.9.3 spec 600s external timeout (loosened from M0 retry's 120s). Rationale: M1 has 50 problems × 600s upper-bound = 30,000 wall-clock seconds (~8.3 hours) worst-case sequential; if all hit upper bound this batch becomes a network/budget loss but we keep the per-architect spec.",
+    "n_agents": 1,
+    "condition": "n1",
+    "condition_note": "n1 = run_swarm path with single agent (per architect M-ladder M1 spec). M1.n3 follow-up = same 50 problems + n=3 + new manifest."
+  },
+  "seeds": {
+    "rng_seed": 42,
+    "boltzmann_seed_note": "M1 does not exercise Boltzmann (single-agent); M2 will pin BOLTZMANN_SEED=12345 per TB-16.x.2.4 precedent",
+    "additional_seeds": {}
+  },
+  "lean_environment": {
+    "lean_version": "v4.24.0",
+    "lean_toolchain_path": "/home/zephryj/.elan/toolchains/leanprover--lean4---v4.24.0/bin/lean",
+    "mathlib_commit_capture": "captured at batch start via `lake exe cache get` state (mathlib commit hash recorded in genesis_payload.toml constitution_root.lean_runtime block + verified at preflight stage)",
+    "lake_manifest_path": "/home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/lake-manifest.json"
+  },
+  "turingosv4_commit": "0c3a5e1",
+  "turingosv4_commit_note": "HEAD at draft time = TB-18 Atom F SHIPPED (single-chain 13/13 audit verdict GREEN + β-A feasibility FEASIBLE). Predecessor: B-impl 15b662c. M1 batch MUST be invoked from this commit or a later TB-18.* follow-up commit; if HEAD changes between draft and invocation, re-freeze manifest.",
+  "predecessor_atoms_in_substrate": ["d3c8d78 (Atom 0)", "8ad7a1d (Atom E)", "13a5ee0 (Atom A)", "5c40d06 (Atom H0)", "c025cdb (Atom D-design)", "ae9530f (Atom C)", "7bb18b4 (Atom B-design)", "15b662c (Atom B-impl)", "0c3a5e1 (Atom F)"],
+  "boltzmann_mode": "off",
+  "boltzmann_mode_note": "M1: n_agents=1 (Boltzmann not exercised); price mask disabled.",
+  "market_state": "disabled",
+  "price_index_state": "disabled",
+  "real_funds": false,
+  "public_settlement": false,
+  "real_world_domain": false,
+  "architect_b_9_1_compliance": {
+    "1_no_real_world_readiness_claim": true,
+    "2_no_real_funds": true,
+    "3_no_public_settlement": true,
+    "4_no_chaintape_bypass": true,
+    "5_all_evidence_in_chain_or_capsule": true,
+    "6_dashboard_reproducible_from_chain_plus_cas": true
+  },
+  "evidence_packaging_policy": {
+    "policy_version": "tb-18.v1",
+    "policy_source": "feedback_evidence_packaging_policy_required + TB-7R/TB-8/TB-9 precedent",
+    "scale_class": "medium",
+    "sample_strategy": "SAMPLED restorable + aggregate manifest",
+    "sample_composition": "10 random + 5 failure-heavy + 5 solved + 5 unsolved + first-failure-of-each-failure-class",
+    "sample_target_count": "20-25 of 50 (40-50%)",
+    "uncommitted_runs_record": "each non-sampled run gets entry in handover/evidence/tb_18_minif2f_m1_2026-05-XX/EVIDENCE_INDEX.json with local_evidence_path"
+  },
+  "anti_drift_contract": "Manifest is FROZEN at batch start. If any field changes mid-batch (e.g. model version drift, mathlib re-fetch, problem list rotation), batch is INVALIDATED and must restart with new manifest (new created_at_utc + new turingosv4_commit + new manifest_id). Drift detection: every Nth-problem checkpoint cross-checks model_version + mathlib_commit + turingosv4_commit; mismatch halts batch, records the drift event, requires new manifest before resume.",
+  "per_run_linking": "Each problem run records `batch_manifest_id` in its EvidenceCapsule.batch_manifest_id field (atom A future-binding for canonical schema; today recorded as sidecar in evidence/<run>/M1_RUN_MANIFEST.json copy). Replay tooling cross-checks every run's batch_manifest_id matches the committed manifest.",
+  "g0_verdict_gate": {
+    "required_before_invocation": true,
+    "verdict_doc_path": "handover/audits/CODEX_MICRO_AUDIT_TB_18_PRE_H_VERDICT_2026-05-XX.md",
+    "minimum_verdict": "PASS or CHALLENGE-resolved",
+    "veto_action": "M1 BLOCKED until VETO resolved + re-audit",
+    "rationale": "feedback_audit_after_evidence + charter §2 hard sequencing rule G0 BEFORE H"
+  },
+  "user_authorization_gate": {
+    "required_before_invocation": true,
+    "authorization_pattern": "per charter §2 non-blanket authority amendment, atom H invocation requires explicit user 'go' (G0 PASS alone is necessary but not sufficient)",
+    "rationale": "charter §2 amendment 2026-05-05 (architect ratification); user blanket auto-mode authority elapsed at TB-18 PROVISIONAL ship; TB-18.* follow-ups (B-impl, F) had ad-hoc autonomous authority for in-session 24h envelopes; M1 batch is 5-7d external compute envelope and crosses authority boundary"
+  },
+  "manifest_id": "TBD-frozen-at-batch-start"
+}
