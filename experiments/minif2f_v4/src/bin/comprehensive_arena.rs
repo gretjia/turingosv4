@@ -250,11 +250,18 @@ fn write_minimal_proposal_telemetry(
 
 /// TB-18 Atom B Phase 4: write a minimal EvidenceCapsule to CAS for use
 /// as `evidence_capsule_cid` on TerminalSummary / TaskBankruptcy.
+///
+/// TB-18 G0 CHALLENGE-resolved 2026-05-05 (Codex Q6/Q7): `reason` is now a
+/// caller-supplied `ExhaustionReason` so the capsule's `terminal_reason`
+/// matches the TerminalSummary's `RunOutcome` (assert_27 now enforces
+/// `to_run_outcome` consistency). Previously hardcoded to `MaxTxExhausted`,
+/// which silently mismatched task_F's `DegradedLLM` outcome.
 fn write_minimal_evidence_capsule(
     cas_path: &Path,
     run_id_str: &str,
     task_id_str: &str,
     creator: &str,
+    reason: ExhaustionReason,
 ) -> Result<turingosv4::bottom_white::cas::schema::Cid, String> {
     use std::sync::{Arc, RwLock};
     let cas_store = CasStore::open(cas_path).map_err(|e| format!("CAS open: {e:?}"))?;
@@ -275,7 +282,7 @@ fn write_minimal_evidence_capsule(
         None, // solver_agent
         counts,
         (0, 1), // rounds (start, end)
-        ExhaustionReason::MaxTxExhausted,
+        reason,
         b"",                        // raw_log_bytes (minimal for arena synthetic)
         turingosv4::state::typed_tx::CapsulePrivacyPolicy::AuditOnly,
         creator,
@@ -523,7 +530,8 @@ async fn drive_task_c(
     tx_kinds.push("CompleteSetMint");
 
     // TaskBankruptcy (system-emitted; resolves market to NO=wins per architect)
-    let evidence_cid = write_minimal_evidence_capsule(cas_path, "tb18-task-c", &scaffold.task_id, "tb18-arena")?;
+    // task_C bankruptcy: synthetic underlying run halted on tx-cap; reason matches assert_27 projection (MaxTxExhausted -> RunOutcome::MaxTxExhausted, but TaskBankruptcy is not gated by assert_27 — kept consistent for capsule-content hygiene).
+    let evidence_cid = write_minimal_evidence_capsule(cas_path, "tb18-task-c", &scaffold.task_id, "tb18-arena", ExhaustionReason::MaxTxExhausted)?;
     let bundle = chain.chaintape_bundle.as_ref().ok_or_else(|| "bundle=None".to_string())?;
     let task_id = TaskId(scaffold.task_id.clone());
     bundle
@@ -598,7 +606,7 @@ async fn drive_task_d(
     tx_kinds.push("Work");
 
     // TerminalSummary (system-emitted; outcome=MaxTxExhausted)
-    let evidence_cid = write_minimal_evidence_capsule(cas_path, "tb18-task-d", &scaffold.task_id, "tb18-arena")?;
+    let evidence_cid = write_minimal_evidence_capsule(cas_path, "tb18-task-d", &scaffold.task_id, "tb18-arena", ExhaustionReason::MaxTxExhausted)?;
     let bundle = chain.chaintape_bundle.as_ref().ok_or_else(|| "bundle=None".to_string())?;
     let task_id = TaskId(scaffold.task_id.clone());
     let run_id_typed = RunId("tb18-task-d-run".into());
@@ -673,7 +681,7 @@ async fn drive_task_e(
     let mut tx_kinds: Vec<&'static str> = vec!["TaskOpen", "EscrowLock"];
     let post_open = parse_hex(&scaffold.post_open_lock_state_root_hex)?;
 
-    let evidence_cid = write_minimal_evidence_capsule(cas_path, "tb18-task-e", &scaffold.task_id, "tb18-arena")?;
+    let evidence_cid = write_minimal_evidence_capsule(cas_path, "tb18-task-e", &scaffold.task_id, "tb18-arena", ExhaustionReason::MaxTxExhausted)?;
     let bundle = chain.chaintape_bundle.as_ref().ok_or_else(|| "bundle=None".to_string())?;
     let task_id = TaskId(scaffold.task_id.clone());
     let run_id_typed = RunId("tb18-task-e-run".into());
@@ -733,7 +741,7 @@ async fn drive_task_f(
     let post_work = await_advance(chain, post_open, 5000).await?;
     tx_kinds.push("Work");
 
-    let evidence_cid = write_minimal_evidence_capsule(cas_path, "tb18-task-f", &scaffold.task_id, "tb18-arena")?;
+    let evidence_cid = write_minimal_evidence_capsule(cas_path, "tb18-task-f", &scaffold.task_id, "tb18-arena", ExhaustionReason::DegradedLLM)?;
     let bundle = chain.chaintape_bundle.as_ref().ok_or_else(|| "bundle=None".to_string())?;
     let task_id = TaskId(scaffold.task_id.clone());
     let run_id_typed = RunId("tb18-task-f-run".into());

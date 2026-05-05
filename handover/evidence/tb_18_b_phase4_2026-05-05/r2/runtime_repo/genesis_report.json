@@ -1,0 +1,60 @@
+{
+  "constitution_hash": "eec695459c71fbef3685583485deb431fe3b561657b2f285b7c5e7e220e59e03",
+  "runtime_repo": "handover/evidence/tb_18_b_phase4_2026-05-05/r2/runtime_repo",
+  "cas_path": "handover/evidence/tb_18_b_phase4_2026-05-05/r2/cas",
+  "system_pubkey_hash": "81b906b3c37c6173eb0e8d34415359f7b404db35a72f65f8b3a7beec6d8df04c",
+  "agent_pubkeys_path": "agent_pubkeys.json",
+  "initial_balances": [
+    [
+      "tb7-7-sponsor",
+      10000000
+    ],
+    [
+      "Agent_user_0",
+      10000000
+    ],
+    [
+      "Agent_0",
+      1000000
+    ],
+    [
+      "Agent_1",
+      1000000
+    ],
+    [
+      "Agent_2",
+      1000000
+    ],
+    [
+      "Agent_3",
+      1000000
+    ],
+    [
+      "Agent_4",
+      1000000
+    ],
+    [
+      "Agent_5",
+      1000000
+    ],
+    [
+      "Agent_6",
+      1000000
+    ],
+    [
+      "Agent_7",
+      1000000
+    ],
+    [
+      "Agent_8",
+      1000000
+    ],
+    [
+      "Agent_9",
+      1000000
+    ]
+  ],
+  "task_id": "task-tb18-arena-r2-g0fix",
+  "task_open_tx": "taskopen-task-tb18-arena-r2-g0fix-tb7-7-d3-seed",
+  "escrow_lock_tx": "escrowlock-task-tb18-arena-r2-g0fix-tb7-7-d3-escrow"
+}

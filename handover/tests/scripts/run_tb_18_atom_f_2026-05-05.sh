@@ -20,8 +20,18 @@
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
-SRC_DIR="$PROJECT_ROOT/handover/evidence/tb_18_b_phase4_2026-05-05/r1"
-OUT_DIR="$PROJECT_ROOT/handover/evidence/tb_18_single_chain_13_of_13/r1"
+DEFAULT_SRC_DIR="$PROJECT_ROOT/handover/evidence/tb_18_b_phase4_2026-05-05/r1"
+DEFAULT_OUT_DIR="$PROJECT_ROOT/handover/evidence/tb_18_single_chain_13_of_13/r1"
+SRC_DIR="$DEFAULT_SRC_DIR"
+OUT_DIR="$DEFAULT_OUT_DIR"
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --src-dir) SRC_DIR="$2"; shift 2 ;;
+    --out-dir) OUT_DIR="$2"; shift 2 ;;
+    -h|--help) sed -n '1,18p' "$0"; exit 0 ;;
+    *) echo "[atom-f] unknown arg: $1" >&2; exit 2 ;;
+  esac
+done
 WORK_DIR="$(mktemp -d -t tb18-atom-f-XXXXXX)"
 
 AUDIT_TAPE="$PROJECT_ROOT/target/release/audit_tape"

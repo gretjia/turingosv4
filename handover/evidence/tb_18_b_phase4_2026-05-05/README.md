@@ -15,37 +15,52 @@ This evidence demonstrates the §2.8 mandate is met.
 ```
 tb_18_b_phase4_2026-05-05/
 ├── README.md                              ← this file
-├── r1/                                    ← canonical run (chain_seed_id=tb18-arena-r1)
-│   ├── agent_keystore.enc                 ← TB-9 durable keystore (locked under password)
-│   ├── runtime_repo/                      ← L4 chain root (.git stored as .dotgit.tar.gz)
-│   │   ├── agent_audit_trail.jsonl        ← per-tx CAS-record index (TB-6 Atom 5)
-│   │   ├── agent_pubkeys.json             ← per-run agent pubkey manifest
-│   │   ├── genesis_report.json            ← chain-level genesis (TB-7R Deliverable C)
-│   │   ├── initial_q_state.json           ← preseeded balances + epoch
-│   │   ├── pinned_pubkeys.json            ← system-tx pubkey manifest
-│   │   ├── rejections.jsonl               ← L4.E entries (1 synthetic gate seed)
-│   │   ├── synthetic_rejection_label.json ← marks the synthetic L4.E gate
-│   │   └── _dotgit_post_tar/              ← local restore of runtime_repo.dotgit.tar.gz; NOT git-tracked
-│   ├── runtime_repo.dotgit.tar.gz         ← canonical L4 chain bytes (replay-verifiable)
-│   ├── cas/                               ← CAS objects root
-│   │   ├── .turingos_cas_index.jsonl      ← CAS object index
-│   │   └── _dotgit_post_tar/              ← local restore of cas.dotgit.tar.gz; NOT git-tracked
-│   ├── cas.dotgit.tar.gz                  ← canonical CAS bytes
-│   └── evidence/
-│       ├── SHARED_CHAIN_RUNS_REPORT.json  ← per-task outcome list (6 tasks)
-│       └── tx_kind_distribution.json      ← 13 distinct tx_kind counts
+├── r2/                                    ← canonical (post-G0 CHALLENGE-resolved; chain_seed_id=tb18-arena-r2-g0fix)
+│   └── ... (same shape as r1; capsule terminal_reason now matches TerminalSummary outcome per task)
+├── r1/                                    ← historical (pre-G0; chain_seed_id=tb18-arena-r1). PRESERVED per `feedback_no_retroactive_evidence_rewrite`. Replaying r1 with the post-G0 audit_tape produces verdict=BLOCK on assert_27 (capsule reason=MaxTxExhausted but TerminalSummary task_F outcome=DegradedLLM at L4 idx 30). Do NOT cite for ship; this is the regression-prevention witness.
+│   ├── ... (full layout as documented in r2 below)
 └── r0_wrong_cas_env/                      ← non-canonical (pre-fix run; CAS env-var typo). Kept as troubleshooting artifact only; do NOT cite for ship.
 ```
 
-## Run summary (r1; canonical)
+### r2 layout (canonical post-G0)
 
-- **Wall-clock**: 2839 ms (~2.8 sec; engineered single-process arena)
-- **Chain depth**: 31 L4 entries on `refs/transitions/main`
+```
+r2/
+├── agent_keystore.enc                 ← TB-9 durable keystore (locked under password)
+├── runtime_repo/                      ← L4 chain root (.git stored as .dotgit.tar.gz)
+│   ├── agent_audit_trail.jsonl        ← per-tx CAS-record index (TB-6 Atom 5)
+│   ├── agent_pubkeys.json             ← per-run agent pubkey manifest
+│   ├── genesis_report.json            ← chain-level genesis (TB-7R Deliverable C)
+│   ├── initial_q_state.json           ← preseeded balances + epoch
+│   ├── pinned_pubkeys.json            ← system-tx pubkey manifest
+│   ├── rejections.jsonl               ← L4.E entries (1 synthetic gate seed)
+│   ├── synthetic_rejection_label.json ← marks the synthetic L4.E gate
+│   └── _dotgit_post_tar/              ← local restore of runtime_repo.dotgit.tar.gz; NOT git-tracked
+├── runtime_repo.dotgit.tar.gz         ← canonical L4 chain bytes (replay-verifiable)
+├── cas/                               ← CAS objects root
+│   ├── .turingos_cas_index.jsonl      ← CAS object index
+│   └── _dotgit_post_tar/              ← local restore of cas.dotgit.tar.gz; NOT git-tracked
+├── cas.dotgit.tar.gz                  ← canonical CAS bytes
+└── evidence/
+    ├── SHARED_CHAIN_RUNS_REPORT.json  ← per-task outcome list (6 tasks)
+    └── tx_kind_distribution.json      ← 13 distinct tx_kind counts
+```
+
+## Run summary (r2; canonical post-G0 CHALLENGE-resolved)
+
+- **Wall-clock**: 2946 ms (~2.9 sec; engineered single-process arena)
+- **Chain seed**: `tb18-arena-r2-g0fix`
 - **L4.E rejections**: 1 (synthetic zero-stake WorkTx for the L4.E gate; `synthetic_rejection_for_l4e_gate=true`)
 - **Distinct tx kinds emitted**: **13/13** (architect's full coverage set)
 - **Tasks driven**: 6 engineered (task_A through task_F per design §4.5)
 - **Process count**: 1 (`comprehensive_arena` binary)
 - **Bundle count**: 1 (`SharedChain::from_env` constructed once)
+- **G0 fix carried**: `comprehensive_arena::write_minimal_evidence_capsule` accepts `reason: ExhaustionReason` per call site; task_F passes `DegradedLLM` matching its TerminalSummary `RunOutcome::DegradedLLM` (closes Codex G0 Q6/Q7 mismatch).
+
+## Run summary (r1; historical pre-G0)
+
+- Wall-clock 2839 ms; same task lifecycle as r2; chain seed `tb18-arena-r1`.
+- **Pre-G0 semantic gap**: synthetic capsule helper hardcoded `MaxTxExhausted` while task_F TerminalSummary emitted `DegradedLLM` → mismatch at L4 idx 30. Replaying r1 with the post-G0 audit_tape now produces `verdict=BLOCK` (assert_27 halt) — preserved as the regression-prevention witness; do NOT cite for ship.
 
 ### tx_kind_distribution
 
@@ -69,28 +84,29 @@ tb_18_b_phase4_2026-05-05/
 
 13 distinct tx kinds × 6 tasks → **architect's 13/13 single-chain mandate satisfied** (FR-18.8 + SG-18.7).
 
-## How this run was produced
+## How this run was produced (r2 canonical)
 
-1. `comprehensive_arena --out-dir handover/evidence/tb_18_b_phase4_2026-05-05/r1 --chain-seed-id tb18-arena-r1`
+1. `comprehensive_arena --out-dir handover/evidence/tb_18_b_phase4_2026-05-05/r2 --chain-seed-id tb18-arena-r2-g0fix`
 2. The binary internally:
-   - Sets `TURINGOS_CHAINTAPE_PATH=<r1>/runtime_repo` + `TURINGOS_CAS_PATH=<r1>/cas` + `TURINGOS_CHAINTAPE_PRESEED=1`.
+   - Sets `TURINGOS_CHAINTAPE_PATH=<r2>/runtime_repo` + `TURINGOS_CAS_PATH=<r2>/cas` + `TURINGOS_CHAINTAPE_PRESEED=1`.
    - Calls `SharedChain::from_env(...)` (Phase 1 lift; `chain_runtime.rs::from_env`).
-   - Calls `chain_runtime::write_synthetic_l4_l4e_gate_and_genesis_report(...)` ONCE with `chain_seed_id="tb18-arena-r1"` (Phase 2 lift).
+   - Calls `chain_runtime::write_synthetic_l4_l4e_gate_and_genesis_report(...)` ONCE with `chain_seed_id="tb18-arena-r2-g0fix"` (Phase 2 lift).
    - For each of 6 engineered task specs:
      - Calls `drive_task(&mut chain, &spec, PerCallBudget::default())` (Phase 3 substantive body — TaskOpen + EscrowLock real-signed scaffold).
      - Emits the task-specific lifecycle txs via direct `bus.submit_typed_tx` (proposer-side: Work, Verify, Challenge, MarketSeed, CompleteSetMint, CompleteSetRedeem) and `bundle.sequencer.emit_system_tx(SystemEmitCommand::*)` (system-emitted: FinalizeReward via `tb8_emit_finalize_after_verify`; ChallengeResolve via `tb16_emit_challenge_resolve_for_eligible`; TerminalSummary via `tb11_emit_terminal_summary_for_run`; TaskBankruptcy + TaskExpire via direct `emit_system_tx`).
+     - Capsule writes route through `write_minimal_evidence_capsule(..., reason: ExhaustionReason)` so `cap.terminal_reason` matches the TerminalSummary `RunOutcome` per task (assert_27 stricter check post-G0).
    - Calls `bundle.shutdown().await` ONCE at chain end (drains queued submissions).
    - Writes `tx_kind_distribution.json` + `SHARED_CHAIN_RUNS_REPORT.json` to `evidence/`.
 
-## How to replay-verify
+## How to replay-verify (r2 canonical)
 
 1. Restore the chain bytes:
    ```
-   cd handover/evidence/tb_18_b_phase4_2026-05-05/r1
+   cd handover/evidence/tb_18_b_phase4_2026-05-05/r2
    tar xzf runtime_repo.dotgit.tar.gz -C runtime_repo
    tar xzf cas.dotgit.tar.gz -C cas
    ```
-2. (After replay tooling is wired for Phase 4 chains; `audit_tape` works on the same L4 chain shape.)
+2. Run the Atom F audit script: `bash handover/tests/scripts/run_tb_18_atom_f_2026-05-05.sh --src-dir handover/evidence/tb_18_b_phase4_2026-05-05/r2 --out-dir handover/evidence/tb_18_single_chain_13_of_13/r2` — expect 5/5 ship-gate asserts GREEN under stricter assert_27.
 
 ## Why no LLM agent loop
 

@@ -11,13 +11,20 @@
 
 All five ship-gate asserts GREEN against canonical TB-18.B-impl Phase 4 r1 chain (commit `15b662c`).
 
-## Run summary (canonical r1)
+**G0 CHALLENGE-resolved 2026-05-05** — Codex G0 Q6/Q7 found a semantic gap in r1: `comprehensive_arena::write_minimal_evidence_capsule` hardcoded `ExhaustionReason::MaxTxExhausted` while task_F's `TerminalSummary` emitted `RunOutcome::DegradedLLM` → capsule `terminal_reason` ≠ TerminalSummary `run_outcome` for L4 idx 30. assert_27 originally only checked capsule presence/decodability and let the mismatch through. Closure:
+
+1. `comprehensive_arena::write_minimal_evidence_capsule` now takes a `reason: ExhaustionReason` param; task_F passes `DegradedLLM`; task_C/D/E pass `MaxTxExhausted`.
+2. `assert_27_terminal_summary_evidence_capsule` extended to also verify `cap.terminal_reason.to_run_outcome() == ts.run_outcome`; halts on mismatch.
+3. **r2 evidence** (`tb_18_b_phase4_2026-05-05/r2/` + `tb_18_single_chain_13_of_13/r2/`) regenerated with the fix; all 5 ship-gates GREEN under the stricter assert_27.
+4. **Regression-prevention proof**: replaying r1 (un-fixed chain) with the new audit_tape binary → `verdict=BLOCK`, `assert_27=Halt` with detail `TerminalSummary.run_outcome (DegradedLLM) != EvidenceCapsule.terminal_reason.to_run_outcome() (MaxTxExhausted) at L4 index 30`. The new check catches exactly the G0 finding.
+5. r1 evidence preserved as historical (per `feedback_no_retroactive_evidence_rewrite`); r2 is canonical going forward.
+
+## Run summary (canonical r2 — G0 CHALLENGE-resolved)
 
 ```text
-input_chain:        handover/evidence/tb_18_b_phase4_2026-05-05/r1/
+input_chain:        handover/evidence/tb_18_b_phase4_2026-05-05/r2/
                     runtime_repo.dotgit.tar.gz + cas.dotgit.tar.gz
-chain_seed_id:      tb18-arena-r1
-input_chain_depth:  31 L4 entries on refs/transitions/main
+chain_seed_id:      tb18-arena-r2-g0fix
 input_distinct_kinds: 13/13
 
 audit_tape verdict:        PROCEED  (passed=35, failed=0, halted=0, skipped=8)
@@ -27,15 +34,30 @@ audit_tape_tamper:         detected_count=3, expected=3, all_detected=true ✓
 β-A feasibility:           FEASIBLE ✓
 ```
 
-## Five ship-gate asserts
+## Run summary (historical r1 — pre-G0 evidence; preserved)
+
+```text
+input_chain:        handover/evidence/tb_18_b_phase4_2026-05-05/r1/
+                    runtime_repo.dotgit.tar.gz + cas.dotgit.tar.gz
+chain_seed_id:      tb18-arena-r1
+input_chain_depth:  31 L4 entries on refs/transitions/main
+input_distinct_kinds: 13/13
+
+audit_tape verdict (old binary): PROCEED  (passed=35, failed=0, halted=0, skipped=8)
+audit_tape verdict (new binary): BLOCK    (passed=34, failed=0, halted=1, skipped=8)
+                                          └─ assert_27 halts on G0-found mismatch
+β-A feasibility:                 FEASIBLE (semantic gap on capsule reason notwithstanding)
+```
+
+## Five ship-gate asserts (canonical r2 evidence; r2 is post-G0-fix)
 
 | # | Assert | Result | Source artifact |
 |---|---|---|---|
-| 1 | `verdict.json:verdict == "PROCEED"` | ✓ | `r1/verdict.json` |
+| 1 | `verdict.json:verdict == "PROCEED"` | ✓ | `r2/verdict.json` |
 | 2 | `verdict.json` byte-identical with `verdict_replay.json` | ✓ | `cmp -s` |
-| 3 | `tamper_report.json:detected_count >= 3` | ✓ (3/3) | `r1/tamper_report.json` |
-| 4 | 13 distinct tx kinds in single chain | ✓ (13/13) | `tb_18_b_phase4_2026-05-05/r1/evidence/tx_kind_distribution.json` |
-| 5 | β-A in-tape resolution feasibility (NOT α sidecar) | ✓ FEASIBLE | `r1/beta_a_feasibility_check.json` |
+| 3 | `tamper_report.json:detected_count >= 3` | ✓ (3/3) | `r2/tamper_report.json` |
+| 4 | 13 distinct tx kinds in single chain | ✓ (13/13) | `tb_18_b_phase4_2026-05-05/r2/evidence/tx_kind_distribution.json` |
+| 5 | β-A in-tape resolution feasibility (NOT α sidecar) | ✓ FEASIBLE | `r2/beta_a_feasibility_check.json` |
 
 ## β-A feasibility breakdown
 
@@ -64,7 +86,9 @@ Per architect TB-18 ratification ruling Q4 + `feedback_markov_inheritance_tape_d
 ```
 tb_18_single_chain_13_of_13/
 ├── README.md                              ← this file
-└── r1/
+├── r1/                                    ← historical (pre-G0); see G0 note above
+│   └── ... (same shape as r2; do NOT cite for ship)
+└── r2/                                    ← canonical (post-G0 CHALLENGE-resolved)
     ├── verdict.json                       ← audit_tape primary verdict (35/0/0/8)
     ├── verdict_replay.json                ← replay verdict (byte-identical)
     ├── tamper_report.json                 ← 3/3 tamper attempts detected
@@ -76,19 +100,22 @@ tb_18_single_chain_13_of_13/
 ## How this run was produced
 
 ```bash
-bash handover/tests/scripts/run_tb_18_atom_f_2026-05-05.sh
+# Canonical r2 (G0 CHALLENGE-resolved):
+bash handover/tests/scripts/run_tb_18_atom_f_2026-05-05.sh \
+  --src-dir handover/evidence/tb_18_b_phase4_2026-05-05/r2 \
+  --out-dir handover/evidence/tb_18_single_chain_13_of_13/r2
 ```
 
 Reproducibility procedure:
-1. Restore canonical bytes from TB-18.B-impl Phase 4 r1 tarballs to `$WORK_DIR`:
-   - `tar xzf handover/evidence/tb_18_b_phase4_2026-05-05/r1/runtime_repo.dotgit.tar.gz -C $WORK_DIR/runtime_repo`
-   - `tar xzf handover/evidence/tb_18_b_phase4_2026-05-05/r1/cas.dotgit.tar.gz -C $WORK_DIR/cas`
+1. Restore canonical bytes from TB-18.B-impl Phase 4 r2 tarballs to `$WORK_DIR`:
+   - `tar xzf handover/evidence/tb_18_b_phase4_2026-05-05/r2/runtime_repo.dotgit.tar.gz -C $WORK_DIR/runtime_repo`
+   - `tar xzf handover/evidence/tb_18_b_phase4_2026-05-05/r2/cas.dotgit.tar.gz -C $WORK_DIR/cas`
 2. Run `target/release/audit_tape` with canonical genesis (`genesis_payload.toml`) + `constitution.md` + alignment dir.
 3. Run again to produce `verdict_replay.json`; `cmp -s` against `verdict.json`.
 4. Run `target/release/audit_tape_tamper` against the staged tree; verify `detected_count == 3`.
 5. β-A feasibility checks A/B/C from `tx_kind_distribution.json` (chain-emitter authoritative).
 
-The script script is idempotent, restores from canonical bytes each run, and cleans up the working tree on exit.
+The script is idempotent, restores from canonical bytes each run, and cleans up the working tree on exit.
 
 ## Charter SG / FR closure
 

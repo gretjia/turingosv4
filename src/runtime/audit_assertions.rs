@@ -1669,6 +1669,13 @@ pub fn assert_26_price_index_is_view_only(_t: &LoadedTape) -> AssertionResult {
 }
 
 /// TRACE_MATRIX FC1-N34 + FC2-N31 (TB-16 audit-from-tape battery).
+///
+/// TB-18 G0 CHALLENGE-resolved 2026-05-05: extended from presence-only check
+/// to also verify the referenced capsule's `terminal_reason` projects
+/// (via `ExhaustionReason::to_run_outcome`) to the same `RunOutcome` that
+/// the TerminalSummary itself records. Catches semantic drift like a
+/// `RunOutcome::DegradedLLM` TerminalSummary pointing at an
+/// `ExhaustionReason::MaxTxExhausted` capsule (Codex G0 Q6/Q7 finding).
 pub fn assert_27_terminal_summary_evidence_capsule(t: &LoadedTape) -> AssertionResult {
     for (i, e) in t.entries.iter().enumerate() {
         if e.tx_kind != TxKind::TerminalSummary {
@@ -1705,7 +1712,7 @@ pub fn assert_27_terminal_summary_evidence_capsule(t: &LoadedTape) -> AssertionR
                 );
             }
         };
-        let _cap: EvidenceCapsule = match canonical_decode::<EvidenceCapsule>(&cap_bytes) {
+        let cap: EvidenceCapsule = match canonical_decode::<EvidenceCapsule>(&cap_bytes) {
             Ok(c) => c,
             Err(_) => match serde_json::from_slice::<EvidenceCapsule>(&cap_bytes) {
                 Ok(c) => c,
@@ -1719,6 +1726,18 @@ pub fn assert_27_terminal_summary_evidence_capsule(t: &LoadedTape) -> AssertionR
                 }
             },
         };
+        let projected = cap.terminal_reason.to_run_outcome();
+        if projected != ts.run_outcome {
+            return AssertionResult::halt(
+                27,
+                "terminal_summary_evidence_capsule",
+                AssertionLayer::E,
+                format!(
+                    "TerminalSummary.run_outcome ({:?}) != EvidenceCapsule.terminal_reason.to_run_outcome() ({:?}) at L4 index {} (capsule terminal_reason={:?})",
+                    ts.run_outcome, projected, i, cap.terminal_reason,
+                ),
+            );
+        }
     }
     AssertionResult::pass(27, "terminal_summary_evidence_capsule", AssertionLayer::E)
 }
@@ -2837,5 +2856,133 @@ mod tests {
         let h = non_none_parent_entropy(&parents).unwrap();
         assert!(h < 0.5, "skewed 9:1 entropy {h} must fall below 0.5 ship gate");
         assert!(h > 0.4 && h < 0.5, "expected ~0.469, got {h}");
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // TB-18 G0 CHALLENGE-resolved 2026-05-05 (Codex Q6/Q7) — assert_27
+    // capsule.terminal_reason ↔ TerminalSummary.run_outcome consistency.
+    //
+    // The full assertion takes a LoadedTape (CAS-resident TerminalSummaryTx
+    // + EvidenceCapsule); the disk-backed fixture is heavy for a unit test.
+    // We test the equality composition directly — `cap.terminal_reason.
+    // to_run_outcome() == ts.run_outcome` — over the canonical mismatch
+    // pair (the actual G0 finding) plus the matching pair the regen fix
+    // installs. Integration coverage on real tape is via
+    // comprehensive_arena → audit_tape regen + the TB-13 real-LLM smoke
+    // fixture exercised by `tb_16_audit_tape_binary::audit_tape_runs_on_
+    // existing_chain_smoke`.
+    // ──────────────────────────────────────────────────────────────────
+
+    use crate::state::typed_tx::{ExhaustionReason, RunOutcome};
+
+    /// Mirrors the equality composition in `assert_27_terminal_summary_
+    /// evidence_capsule` (post-G0 extension). Returns true iff capsule
+    /// projection equals TerminalSummary outcome.
+    fn assert_27_consistency_holds(
+        ts_outcome: RunOutcome,
+        capsule_reason: ExhaustionReason,
+    ) -> bool {
+        capsule_reason.to_run_outcome() == ts_outcome
+    }
+
+    #[test]
+    fn assert_27_consistency_canonical_g0_mismatch_caught() {
+        // Codex G0 Q6/Q7 finding (atom F task_F):
+        //   TerminalSummary.run_outcome = DegradedLLM
+        //   EvidenceCapsule.terminal_reason = MaxTxExhausted (synthetic stub)
+        // Pre-fix: assert_27 checked capsule presence only — passed.
+        // Post-fix: extended assert MUST return inconsistent.
+        assert!(
+            !assert_27_consistency_holds(
+                RunOutcome::DegradedLLM,
+                ExhaustionReason::MaxTxExhausted
+            ),
+            "DegradedLLM TerminalSummary with MaxTxExhausted capsule MUST \
+             flag inconsistent; the G0 Q6/Q7 mismatch must not slip through"
+        );
+    }
+
+    #[test]
+    fn assert_27_consistency_corrected_pair_passes() {
+        // Post-fix: comprehensive_arena task_F now writes capsule with
+        // ExhaustionReason::DegradedLLM; TerminalSummary still emits
+        // RunOutcome::DegradedLLM. Composition must hold.
+        assert!(
+            assert_27_consistency_holds(
+                RunOutcome::DegradedLLM,
+                ExhaustionReason::DegradedLLM
+            ),
+            "matching DegradedLLM↔DegradedLLM pair must pass"
+        );
+        assert!(
+            assert_27_consistency_holds(
+                RunOutcome::MaxTxExhausted,
+                ExhaustionReason::MaxTxExhausted
+            ),
+            "matching MaxTxExhausted↔MaxTxExhausted pair must pass"
+        );
+        assert!(
+            assert_27_consistency_holds(
+                RunOutcome::WallClockCap,
+                ExhaustionReason::WallClockCap
+            ),
+            "matching WallClockCap↔WallClockCap pair must pass"
+        );
+        assert!(
+            assert_27_consistency_holds(
+                RunOutcome::ComputeCap,
+                ExhaustionReason::ComputeCap
+            ),
+            "matching ComputeCap↔ComputeCap pair must pass"
+        );
+        // ProtocolCollapse and SolverGiveUp both project to ErrorHalt
+        // (RunOutcome is constitutionally narrower than ExhaustionReason).
+        assert!(
+            assert_27_consistency_holds(
+                RunOutcome::ErrorHalt,
+                ExhaustionReason::ProtocolCollapse
+            ),
+            "ProtocolCollapse↔ErrorHalt projection must pass"
+        );
+        assert!(
+            assert_27_consistency_holds(
+                RunOutcome::ErrorHalt,
+                ExhaustionReason::SolverGiveUp
+            ),
+            "SolverGiveUp↔ErrorHalt projection must pass"
+        );
+    }
+
+    #[test]
+    fn assert_27_consistency_swaps_caught() {
+        // Defense-in-depth: every cross-pair where projection ≠ outcome
+        // must fail the consistency check.
+        let outcomes = [
+            RunOutcome::OmegaAccepted,
+            RunOutcome::MaxTxExhausted,
+            RunOutcome::WallClockCap,
+            RunOutcome::ComputeCap,
+            RunOutcome::ErrorHalt,
+            RunOutcome::DegradedLLM,
+        ];
+        let reasons = [
+            ExhaustionReason::MaxTxExhausted,
+            ExhaustionReason::WallClockCap,
+            ExhaustionReason::ComputeCap,
+            ExhaustionReason::ProtocolCollapse,
+            ExhaustionReason::SolverGiveUp,
+            ExhaustionReason::DegradedLLM,
+        ];
+        for o in outcomes {
+            for r in reasons {
+                let proj = r.to_run_outcome();
+                let consistent = assert_27_consistency_holds(o, r);
+                assert_eq!(
+                    consistent,
+                    proj == o,
+                    "consistency for ({o:?}, {r:?}) must equal projection equality (proj={proj:?})"
+                );
+            }
+        }
     }
 }

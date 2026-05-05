@@ -1,0 +1,20 @@
+{
+  "chain_seed_id": "tb18-arena-r2-g0fix",
+  "distinct_tx_kinds": 13,
+  "target_distinct_tx_kinds": 13,
+  "tx_kind_counts": {
+    "Challenge": 1,
+    "ChallengeResolve": 1,
+    "CompleteSetMint": 1,
+    "CompleteSetRedeem": 1,
+    "EscrowLock": 6,
+    "FinalizeReward": 1,
+    "MarketSeed": 1,
+    "TaskBankruptcy": 2,
+    "TaskExpire": 1,
+    "TaskOpen": 6,
+    "TerminalSummary": 3,
+    "Verify": 2,
+    "Work": 4
+  }
+}
