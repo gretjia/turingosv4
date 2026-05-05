@@ -98,6 +98,75 @@ The build host retains the following stale evidence from this session's bug-hunt
 
 These are NOT shipped because the narrative is fully captured by the README in the canonical r4 evidence dir + the commit bodies of `3234960` and `647860c`. Replayable by checking out `5e32cbf` vs `3234960` vs `647860c` and re-running the smoke script against each binary.
 
+### TB-16 complete-path map (会话末交付 — user request "我不要最短路径，我要完整路径")
+
+The architect §A.6 execution order optimizes for shortest path to TB-17
+unblock (.2.4 + .2.6 + skip .2.3/.2.5). The COMPLETE path additionally
+delivers .2.3 + .2.5 + the umbrella-ship-closure declaration + all
+PRE-17.* ledger entries + MARKOV_INHERITANCE_POLICY.md + hygiene
+backfill. This map is the canonical "how much to fully close TB-16"
+reference for the next session(s).
+
+**Phase 1 — 4 sub-atoms to 13-of-13 tx kinds**
+
+| sub-atom | est | Class | §A.6? | what |
+|---|---|---|---|---|
+| TB-16.x.2.3 | 0.5d | 2 | omit | `TURINGOS_FORCE_REDEEM=<owner>:<event_id>:<outcome>:<share>` env-var; SG-16.x.2.3 = chain has CompleteSetRedeemTx non-zero share; **11→12 of 13** |
+| TB-16.x.2.4 | 1d + 0.5d audit | **3** | ✅ critical (β start) | multi-WorkTx attempt + Boltzmann RUNTIME; STEP_B-PROTOCOL TRIGGERED (sequencer.rs Boltzmann path); new audit assertion id=43 `boltzmann_parent_selection_diversity` (Layer E); SG-16.x.2.4 = ≥3 WorkTx + parent_selection_entropy ≥ 0.5; **Class 3 = mandatory Codex + Gemini dual audit** |
+| TB-16.x.2.5 | 0.5d | 2 | omit | `TURINGOS_FORCE_BANKRUPTCY_AFTER_ACCEPTED=1` — bankruptcy after ≥1 accepted WorkTx (not just MaxTxExhausted); produces real AutopsyCapsule (loss_amount > 0, non-default loss_reason_class); SG-16.x.2.5 |
+| TB-16.x.2.6 | 0.5d | 2 | ✅ critical (β realized) | single-chain combined arena (P14_comprehensive); SG-16.x.2.6 = **13-of-13 tx kinds + Boltzmann RUNTIME + AutopsyCapsule on one chain**; replay byte-identical; tamper 3/3 |
+
+**Phase 2 — β closure docs + TB-17 PRE ledger**
+
+| item | est | status |
+|---|---|---|
+| `handover/markov_capsules/MARKOV_INHERITANCE_POLICY.md` | 0.5d | ❌ does not exist; architect-mandated TB-17 hard gate; defines in-tape `previous_capsule_cid` walk protocol + α→β deprecation calendar + fail-closed semantic when prior chain runtime_repo missing |
+| TB-16.x.fix β-closure declaration | minutes | TB-16.x.fix dual audit left two CHALLENGEs deferred (#1 Art. 0.2 alignment, #9 PREV_CID_HEX env var) — must be explicitly recorded as "β complete via .2.4/.2.6" in LATEST.md |
+| TB-17 PRE-17.1..17.4 verification ledger | 1h | PRE-17.1/3/4 closed by TB-16.x.fix α; **PRE-17.2 only closes after .2.4 + .2.6**; needs row-by-row ledger entry in LATEST.md / TB-16 ship status |
+
+**Phase 3 — umbrella close-out + architect sign-off**
+
+| item | est |
+|---|---|
+| TB-16.x.2 umbrella SHIPPED entry (LATEST.md + TB_LOG.tsv row) | minutes |
+| `handover/ai-direct/TB-16_FINAL_CLOSURE_2026-05-XX.md` — 13-of-13 tx kinds single-chain evidence ledger + full SG-16.x list + dual-audit chain + all OBS closure status | 0.5d |
+| `architect-ingest` flow — submit ratification "TB-16 fully closed" (unblocks TB-17 charter authoring) | async |
+
+**Phase 4 — hygiene (not strictly blocking but recommended same-batch)**
+
+| item | est |
+|---|---|
+| OBS_R023 closure (evaluator.rs:2956 hardcoded `RunOutcome::MaxTxExhausted`) — currently OBS-defer to TB-15.x / RSP-3.2; if zero-OBS-residual under TB-16 desired, plumb actual `RunOutcome` through `eval_one_problem` here | 2-4h (incl. verification tax) |
+| Main-repo orphan evidence drift cleanup (`tb_7/tb_13/tb_14` README/agent_pubkeys/replay_report `M` in `git status` — multi-session drift, not this session) | 1h (human review + decide revert vs separate commit) |
+| `AUTO_RESEARCH_NOTEPAD.md` TB-16 row update (per `project_auto_research_notepad` memory) | minutes |
+| `TB_LOG.tsv` full backfill — TB-16.x.2.1..2.6 + .fix + .fix.r2 should each own a row with phase_id + roadmap_exit_criteria_addressed + kill_criteria_tested per `feedback_tb_phase_tag_required` | 30min |
+| **Latent-debt back-audit on TB-16.x.2.1** (`e986ed0`) — apply the same scrutiny that exposed `5e32cbf`'s wrong-control-flow + grep-false-positive + `failed=0` mis-report; verify .2.1's smoke binary actually contained the code, ship-gate grep wasn't false-positive, workspace test wasn't masking a fail. If similar debt found → .2.1.fix | 1-2h (depth-dependent) |
+
+**Cumulative effort**: ~5-5.5d focused work (excluding architect ratification wall time).
+
+**Dependency graph**:
+
+```
+TB-16.x.2.3 ─┐
+             ├→ TB-16.x.2.6 ─┐
+TB-16.x.2.4 ─┤                ├→ MARKOV_INHERITANCE_POLICY.md ─┐
+   (β start) │                │   (PRE-17.2 closure ledger)    │
+TB-16.x.2.5 ─┘                │                                 ├→ TB-16 fully closed → TB-17 charter authoring
+   (Class 3 dual              ├→ TB-16.x.fix β closure declared ┤
+    audit on .2.4 only)       │                                 │
+                              └→ TB-16.x.2 umbrella SHIPPED ────┘
+                                  (LATEST.md + TB_LOG.tsv)
+```
+
+True parallelism possible only on .2.3 ↔ .2.5 (both Class 2 env-var hooks, no sequencer dependency); .2.4 must serialize (STEP_B + dual-audit wall time); .2.6 must be last (aggregation chain).
+
+### Open questions / risks for next session
+
+1. **Latent debt in TB-16.x.2.1?** — This session's bug-hunt on `5e32cbf` exposed three failure modes the prior session missed: (a) hook in wrong control-flow path, (b) ship-gate grep false-positive on tx_kind_counts key + dashboard run_id slug, (c) commit body's `workspace_count` mis-reported despite `tb_5_anti_drift::no_p6_files_touched_in_tb5` failing. If `e986ed0` (TB-16.x.2.1 TaskExpire) has the SAME anti-patterns, the 10-of-13 claim is suspect. Phase 4 hygiene item #5 should run BEFORE phase 1 begins, since false confidence in .2.1 would propagate.
+2. **STEP_B sequencer.rs touch surface for TB-16.x.2.4** — charter §2.4 says "verify `boltzmann_select_parent_v2` is called in WorkTx admission path" which may or may not require src/state/sequencer.rs edit. If only verification (read-only inspection + maybe one #[cfg(test)] hook), STEP_B may not strictly trigger. Confirm-first via spec read before opening parallel branch.
+3. **Class 3 dual-audit wall-time budget for TB-16.x.2.4** — this session's audit took ~7 min Codex + ~80s Gemini = ~10 min wall. Budget similarly for .2.4. If Gemini API exhausted, Class 3 + Codex-only is acceptable per `feedback_dual_audit` "degraded label mandatory if Gemini exhausted".
+4. **β scope precision for MARKOV_INHERITANCE_POLICY.md** — architect ruling A.6 references β as "Art. 0.4 path B in-tape resolution" but doesn't specify the policy's exact form. Likely needs architect Q before authoring (may be sudo-class authoring decision).
+
 ---
 
 ## 🛠️ 2026-05-04 — TB-16.x.fix SHIPPED — OBS_R022 α closure (LATEST_MARKOV_CAPSULE.txt de-canonicalized)
