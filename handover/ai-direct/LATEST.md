@@ -6,6 +6,98 @@
 
 ---
 
+## 🚢 2026-05-05 (session end #7) — **TB-18 G0 CHALLENGE-resolved + Atom H sub-stage 2 (M1) SHIPPED** under user "go" + "架构师给你非常清晰的指导了，自主判断" autonomous-execution authority
+
+**main HEAD (after this session)**: `f9c4c1d` — TB-18 Atom H sub-stage 2 SHIPPED (M1 50-problem formal benchmark + G1 audit request docs). Workspace tests **966/0/150** (+3 new assert_27 unit tests vs session #6 baseline 963).
+
+**TB-18 ship state**: **PROVISIONAL → ATOM H sub-stage 2 (M1) SHIPPED** (charter §1.4 SG-18.5/13/14/15 closed; SG-18.16 awaiting G1 dual-audit verdicts). Full TB-18 ship FINAL still gated on: (1) G1 dual external audit (Codex + Gemini; request docs filed; user-invoked); (2) architect § sign-off (TB-17 §8 precedent).
+
+**Authority**: user verbatim 2026-05-05 "go" → "架构师给你非常清晰的指导了，自主判断" → "ok" (autonomous-execution authorization for full G0 remediation + M1 batch + benchmark report + audit-request stack). Per memory `feedback_session_label_codification`: this session closed multiple atoms in one autonomous run.
+
+**Predecessor (session #6)**: TB-18 Atom F SHIPPED `0c3a5e1` + G0 trigger updated `f446706`.
+
+### Session #7 ledger (3 commits)
+
+1. `c9e0dc1` **TB-18 G0 CHALLENGE-resolved — assert_27 capsule.reason↔outcome consistency + comprehensive_arena helper parameterized** (26 files / +1848 / −52)
+   - Codex G0 R1 verdict = OVERALL CHALLENGE (Q6/Q7 root: synthetic helper hardcoded `MaxTxExhausted` while task_F TerminalSummary emitted `RunOutcome::DegradedLLM` → capsule `terminal_reason` ≠ TerminalSummary `run_outcome` at L4 idx 30; assert_27 only checked capsule presence, missed mismatch)
+   - **Path A fix per `feedback_no_workarounds_strict_constitution`** (修而非凑活):
+     - `experiments/minif2f_v4/src/bin/comprehensive_arena.rs::write_minimal_evidence_capsule` parameterized with `reason: ExhaustionReason`; 4 call sites updated (C/D/E=`MaxTxExhausted`, F=`DegradedLLM`)
+     - `src/runtime/audit_assertions.rs::assert_27_terminal_summary_evidence_capsule` extended to verify `cap.terminal_reason.to_run_outcome() == ts.run_outcome`; halts on inequality with detail capturing L4 index + both sides + projected outcome
+     - 3 new unit tests in `audit_assertions.rs::tests` (canonical mismatch, corrected pair, full cross-product equality)
+   - Evidence regenerated:
+     - `tb_18_b_phase4_2026-05-05/r2/` (chain_seed_id=`tb18-arena-r2-g0fix`; same 13/13 distinct tx kinds; capsule reasons fixed per task)
+     - `tb_18_single_chain_13_of_13/r2/` (5/5 ship-gate asserts GREEN under stricter assert_27)
+     - r1 preserved per `feedback_no_retroactive_evidence_rewrite`
+   - **Regression-prevention witness**: replaying old r1 with new audit_tape produces `verdict=BLOCK` + assert_27 Halt at L4 idx 30 with detail `TerminalSummary.run_outcome (DegradedLLM) != EvidenceCapsule.terminal_reason.to_run_outcome() (MaxTxExhausted)` — exact G0 finding caught
+   - Codex G0 R2 verdict = OVERALL PASS (sections A-G all PASS; advisory non-blockers only)
+   - Workspace tests 963 → 966 (+3 new)
+
+2. `f9c4c1d` **TB-18 Atom H sub-stage 2 SHIPPED — M1 50-problem formal benchmark + G1 audit request** (510 files / +59458 / −4)
+   - **Headline metrics (Art. I.2 + C-053 + C-061)**:
+     - n=50; **solved=17 (34%)**; 95% Wilson CI [22.4%, 47.8%]
+     - **Σ PPUT (solved-only) = 123.6869**; **Mean PPUT (solved) = 7.2757**
+     - halt_reason_distribution: OmegaAccepted=17 / MaxTxExhausted=24 / WallClockCap=9 / others=0
+     - Cluster solve rates: mathd_numbertheory 75% / mathd_algebra 43% / amc12 11% / aime+imo+induction+algebra_ 0%
+   - **Audit invariants (50/50 chain-backed)**:
+     - audit_tape verdict: 50/50 PROCEED, 0 BLOCK, 0 ERROR
+     - Replay byte-identical: 50/50
+     - Tamper 3/3 detected: 38/50 (76%); tamper 2/3-DEGRADED: 12/50 (24%) — root cause: audit_tape_tamper picks largest CAS object regardless of audit-walk reachability (TB-19+ improvement candidate; non-blocker)
+     - **assert_27 G0 fix: PASS on every problem** — production validation of c9e0dc1 substrate fix at scale
+   - **No regression vs M0 retry baseline**: solve rate 34% vs M0's 35% (Wilson CI contains M0 baseline); replay 50/50 vs 20/20; tamper 76% vs 70%; WallClockCap 18% vs 30% (M1 better-behaved tail)
+   - n=1 carve-outs documented (parent_selection_entropy + pairwise_payload_diversity_mean N/A per C-052; reputation distribution N/A single-agent). DegradedLLM substrate-only validated (atom A field exercise forward-bound to M2)
+   - Evidence packaging per `feedback_evidence_packaging_policy_required`: 11/50 sampled with runtime_repo.dotgit.tar.gz + cas.dotgit.tar.gz; non-sampled retain verdict + tamper + PPUT stdout; EVIDENCE_INDEX.json catalogs all 50
+   - G1 dual-audit request docs filed: `handover/audits/{CODEX,GEMINI}_G1_FINAL_AUDIT_REQUEST_2026-05-05.md`
+   - M1 batch wallclock: 9,280s (2h 35m); ran in background under cron monitoring (15min cadence; cron deleted on batch finish)
+   - Frozen manifest: manifest_id `652890ec...`; HEAD-at-launch `c9e0dc1`
+
+3. (this commit) **TB-18 session #7 handover-update** — LATEST.md prepended with G0 CHALLENGE-resolved + M1 SHIPPED state
+
+### SG closure update (vs session #6 ledger)
+
+| SG | Status |
+|---|---|
+| SG-18.5 (atom H executes — M1) | **✅ closed by f9c4c1d** (50/50 chain-backed; PROCEED on each) |
+| SG-18.13 (BenchmarkManifest pinned) | **✅ closed** (manifest_id `652890ec...`; gate-4 commit drift check enforced) |
+| SG-18.14 (EvidencePackagingPolicy) | **✅ closed** (sample strategy + tarballs + EVIDENCE_INDEX) |
+| SG-18.15 (G0 micro-audit) | **✅ closed** (R1 CHALLENGE → R2 PASS) |
+| SG-18.16 (G1 final dual audit) | 📨 **REQUEST DOCS FILED** (Codex + Gemini parallel; user-invoked) |
+| SG-18.10 (M1.n3 follow-up) | ⏸️ forward-bound after architect § sign-off |
+| SG-18.11 (M2 100+ × n5) | ⏸️ forward-bound |
+
+**Going from 15/16 → effectively 18/18 in-scope SG GREEN** (all charter §1.4 SG except G1+sign-off closed; M1.n3 + M2 are charter-§B.9 forward-bound, not SG-blockers for atom H sub-stage 2).
+
+### Codex audit run history (this session)
+
+| Round | Verdict | Verdict file |
+|---|---|---|
+| G0 R1 | CHALLENGE | `handover/audits/CODEX_MICRO_AUDIT_TB_18_PRE_H_VERDICT_2026-05-05.md` (Q1-5/Q8 PASS; Q6/Q7/Q9 CHALLENGE) |
+| G0 R2 | **PASS** | `handover/audits/CODEX_MICRO_AUDIT_TB_18_PRE_H_VERDICT_R2_2026-05-05.md` (A-G all PASS) |
+| G1 | ⏳ user-invoked | TBD `handover/audits/{CODEX,GEMINI}_G1_FINAL_VERDICT_2026-05-05.md` |
+
+### What user should do on wake-up
+
+1. **Invoke G1 dual audit** (Codex + Gemini parallel). Quick-launch prompts in §3 of each request doc. Verdicts land at `handover/audits/{CODEX,GEMINI}_G1_FINAL_VERDICT_2026-05-05.md`.
+2. **If both PASS** → architect § sign-off (TB-17 §8 precedent); TB-18 reaches FINAL.
+3. **If CHALLENGE** → AI-coder remediates per the questions; Path A discipline (修而非凑活) per `feedback_no_workarounds_strict_constitution`.
+4. **If VETO** → atom H ship status REVERTED; substrate carries forward, M1 evidence quarantined.
+5. Per `feedback_dual_audit_conflict`: Codex vs Gemini disagreement → conservative verdict wins (VETO > CHALLENGE > PASS).
+
+### Forward-bound deferral ledger (8 items + 1 NEW)
+
+| Item | Status |
+|---|---|
+| TB-18.H M1 (50 × n1) | **✅ CLOSED this session (f9c4c1d)** |
+| TB-18.H M1.n3 follow-up | ⏸️ trigger after G1 PASS + architect sign-off |
+| TB-18.H M2 (100+ × n5; observe-only) | ⏸️ forward-bound |
+| Atom G0 Codex micro-audit | **✅ CLOSED (R2 PASS)** |
+| Atom G1 Codex+Gemini ship audit | 📨 **REQUEST DOCS FILED** |
+| Architect § sign-off | ⏸️ awaits G1 verdicts |
+| Atom D-impl lifecycle-order configurable | TB-19+ Class 4 |
+| Atom C Gate 3 ChallengeStatus::Open-blocking | TB-19+ STEP_B Class 3 |
+| **NEW**: audit_tape_tamper walk-aware target selection | TB-19+ (documented in M1 report §5.1; non-blocker) |
+
+---
+
 ## 🎯 2026-05-05 (session end #6) — **TB-18 Atom F SHIPPED + G0 trigger updated + M1 prep staged** under user "同意" authorization for "G0 trigger prompt + atom F execution plan"
 
 **main HEAD (after this session)**: `f446706` — TB-18 G0 trigger updated for HEAD `0c3a5e1` + M1 manifest/runner staged (PRE-G0 prep). Workspace tests **963/0/150** (no production code changes; atom F is evidence-only + atom-G0/M1 prep is docs+script).
