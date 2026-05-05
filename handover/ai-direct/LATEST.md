@@ -6,7 +6,79 @@
 
 ---
 
-## 🎯 2026-05-05 (session end #5) — **TB-18.B-impl SHIPPED** under same blanket auto-mode authority
+## 🎯 2026-05-05 (session end #6) — **TB-18 Atom F SHIPPED + G0 trigger updated + M1 prep staged** under user "同意" authorization for "G0 trigger prompt + atom F execution plan"
+
+**main HEAD (after this session)**: `f446706` — TB-18 G0 trigger updated for HEAD `0c3a5e1` + M1 manifest/runner staged (PRE-G0 prep). Workspace tests **963/0/150** (no production code changes; atom F is evidence-only + atom-G0/M1 prep is docs+script).
+
+**TB-18 ship state**: **PROVISIONAL → ATOM F SHIPPED** (charter §2 sequence atoms 0 → E → A → H0 → D-design → C → B-design → B-impl → F all closed). Atom F audit verdict GREEN against TB-18.B-impl Phase 4 r1 canonical bytes:
+  - `audit_tape verdict = PROCEED` (passed=35, failed=0, halted=0, skipped=8)
+  - `verdict.json byte-identical with verdict_replay.json` ✓
+  - `audit_tape_tamper detected_count = 3, all_detected = true` ✓
+  - `distinct_tx_kinds = 13/13 in single chain` (inherited from B-impl Phase 4)
+  - `β-A feasibility = FEASIBLE` (no α sidecar; in-tape capsules present)
+
+**Full TB-18 ship FINAL still gated on**: (1) atom G0 Codex micro-audit (user external invocation; trigger updated); (2) atom H M-ladder (M0 retry done at `2bc712e`; M1 + M2 forward-bound); (3) atom G1 dual audit AFTER atom H; (4) architect § sign-off. Architect Q2 ship-claim narrowing remains in effect.
+
+**Authority**: user verbatim 2026-05-05 "同意" (after AI-coder presented "execute atom F now + stage G0 trigger" plan). NOT a blanket auto-mode authority — atom H and beyond require new user "go" per charter §2 amendment 2026-05-05.
+
+**Predecessor (session #5)**: TB-18.B-impl SHIPPED `15b662c` (single-process / single-chain / 13-of-13 tx kinds in 2.8s).
+**Predecessor (session #4)**: TB-18 PROVISIONAL ship `2bc712e` (M0 retry COMPLETE 20/20 PROCEED).
+**Predecessor (TB-17)**: `8e3d5cc` (CONDITIONAL §8 sign-off; P7 NOT authorized).
+
+### Session #6 ledger (2 commits)
+
+1. `0c3a5e1` **TB-18 Atom F SHIPPED — single-chain 13/13 smoke + β-A feasibility audit GREEN** (8 files / +1470 / −0)
+   - NEW `handover/tests/scripts/run_tb_18_atom_f_2026-05-05.sh` (240 lines; reproducible runner; tar-extracts canonical .git tarballs to tmp work dir; idempotent; cleans up on exit)
+   - NEW `handover/evidence/tb_18_single_chain_13_of_13/README.md` (executive summary + 5-assert table + β-A breakdown)
+   - NEW `handover/evidence/tb_18_single_chain_13_of_13/r1/{verdict,verdict_replay,tamper_report,beta_a_feasibility_check}.json` + stderr logs
+   - In-process debug: 2 assertion bugs caught + fixed BEFORE commit (assert 4 wrong field path; assert 5 wrong tx-kind probe — chain entries are binary blobs not transition.json) per `feedback_no_workarounds_strict_constitution`
+2. `f446706` **TB-18 G0 trigger updated for HEAD `0c3a5e1` + M1 manifest/runner staged (PRE-G0 prep)** (3 files / +352 / −17)
+   - `handover/audits/CODEX_MICRO_AUDIT_TB_18_PRE_H_REQUEST_2026-05-05.md`: scope expanded 7→9 commits (Q6 atom B-impl + Q7 atom F added); §5 quick-launch /ultrareview-style copy/paste prompt; cross-refs synced
+   - NEW `handover/manifests/TB-18_M1_BENCHMARK_MANIFEST.json` (DRAFT skeleton; ladder_stage=M1; 50 problems combined50.txt; n=1; max_tx=20; 600s timeout; deepseek-chat; manifest_id frozen at batch start; G0 gate + user-auth gate explicit)
+   - NEW `handover/tests/scripts/run_tb_18_atom_h_m1_2026-05-05.sh` (6-gate refusal: G0 verdict file present + PASS/CHALLENGE-resolved + NOT VETO; TB18_M1_USER_AUTH_GO=1; manifest exists; HEAD == manifest commit drift detection; M0 runner present; problems file count match. Dry-run verified gate 1 fires correctly.)
+
+### SG closure update (vs session #5 ledger)
+
+| SG | Status |
+|---|---|
+| Charter §F atom F gate (PROCEED + 13/13 + tamper 3/3 + replay-byte-identical + β-A feasibility) | **✅ closed by 0c3a5e1** |
+| SG-18.15 G0 micro-audit | 📨 **TRIGGER REFRESHED** (request doc updated post-atom-F; awaits user external Codex invocation) |
+| SG-18.16 G1 final dual audit | ⏸️ NOT-YET — gated on atom H completion |
+| SG-18.10 (M1 50-100 × n1/n3) | ⏸️ FORWARD-BOUND — manifest+runner staged but gate-refusing until G0 PASS + user "go" |
+| SG-18.11 (M2 100+ × n5 observe-only) | ⏸️ FORWARD-BOUND — M2 manifest TBD post-M1 |
+
+**15/16 SG GREEN** (was 14/16 at end of session #5; atom F closes the §F gate); **10/10 CR GREEN**.
+
+### Cron monitoring
+
+Recurring cron job `dd7591bc` scheduled every 2 hours at :17 (session-only; auto-expires after 7 days):
+  - Reads `LATEST.md` top + `git log -5` + `handover/audits/` to detect G0 verdict drop
+  - Auto-debugs any new failures inline (per user mandate "在测试过程中要有 cron 跟踪进度，如果有问题，及时 debug，不要留在最后才解决问题")
+  - Idle status = "TB-18 idle, awaiting G0 external invocation by user"
+
+### Forward-bound deferral ledger (decremented from 10 → 8 items)
+
+| Item | To |
+|---|---|
+| TB-18.H M1 (50 × n1) | User "go" + G0 PASS (manifest + runner ready) |
+| TB-18.H M1.n3 (50 × n3 follow-up) | User "go" after M1.n1 baseline |
+| TB-18.H M2 (100+ × n5; observe-only) | Forward-bound (multi-day LLM compute; manifest TBD post-M1) |
+| Atom G0 Codex micro-audit | User external invocation (cloud-billed; **trigger artifact refreshed**) |
+| Atom G1 Codex+Gemini ship audit | User external invocation AFTER M-ladder |
+| Architect § sign-off | TB-17 §8 precedent |
+| Atom D-impl lifecycle-order configurable | TB-19+ Class 4 ratification + Phase Z′ rerun |
+| Atom C Gate 3 ChallengeStatus::Open-blocking | TB-19+ STEP_B_PROTOCOL Class 3 |
+
+(Session #5 items "TB-18 atom F single-chain 13/13 evidence" → **CLOSED** this session. PRE-17.5 + PRE-17.7 β-D + M3 + M4 still TB-19+ deferred per charter Q3/Q4/Q6.)
+
+### What user should do on wake-up
+
+1. **Invoke G0 audit**: `/ultrareview` (if branch billing OK) OR Codex against 9-commit range `d3c8d78..0c3a5e1` using the §5 quick-launch prompt in the request doc.
+2. **Wait for verdict** to land at `handover/audits/CODEX_MICRO_AUDIT_TB_18_PRE_H_VERDICT_2026-05-05.md`.
+3. **If PASS or CHALLENGE-resolved**: issue "go" → AI-coder will set `TB18_M1_USER_AUTH_GO=1` and launch M1 batch (8h envelope; 50 problems × 600s × n=1).
+4. **If VETO**: AI-coder remediates per Q1-Q9 challenge and re-audits.
+
+---
 
 **main HEAD (after this commit)**: TB-18.B-impl single combined commit `15b662c` carrying Phase 1+2+3+4+5 of the substantive Atom B build (SharedChain init lift + chain-level helper lift + drive_task substantive body + comprehensive_arena rewrite + evidence/audit/ship-status). Workspace tests **963/0/150** (baseline 962 + 1 new SharedChain unit test).
 
