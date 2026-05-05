@@ -181,7 +181,11 @@ pub enum VerifyVerdict {
 }
 
 /// TRACE_MATRIX § 1.5 TerminalSummaryTx field 4 + Art. IV halt-reason taxonomy.
-/// Five-way partition over how a run terminates.
+/// Six-way partition over how a run terminates (TB-18 Atom A added the 6th
+/// variant `DegradedLLM` per architect 2026-05-05 ruling §3 Atom A scope +
+/// OBS_M0_DEEPSEEK_DRIFT §5.1: when N consecutive LLM responses fall below
+/// the per-call output-token-floor threshold, the run halts cleanly rather
+/// than spinning until external `timeout`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[repr(u8)]
 pub enum RunOutcome {
@@ -190,6 +194,13 @@ pub enum RunOutcome {
     WallClockCap = 2,
     ComputeCap = 3,
     ErrorHalt = 4,
+    /// TB-18 Atom A (architect §3 + OBS_M0 §5.1): silent-trivial-LLM-response
+    /// drift halt. When `consecutive_trivial_response_cap` consecutive
+    /// responses each have `completion_tokens < token_floor_threshold`, the
+    /// run terminates with this discriminant. EvidenceCapsule + TerminalSummary
+    /// MUST be emitted on this halt path per FR-18.3 (DegradedLLM cannot
+    /// become an evidence-skip backdoor; architect §2.5).
+    DegradedLLM = 5,
 }
 
 /// TRACE_MATRIX § 1.2 TxStatus — **runtime book-keeping only** (D-1 divergence
@@ -530,6 +541,14 @@ pub enum ExhaustionReason {
     ComputeCap = 2,
     ProtocolCollapse = 3,
     SolverGiveUp = 4,
+    /// TB-18 Atom A (per-LLM-call budget; architect §3 + OBS_M0 §5.1).
+    /// Maps 1:1 to `RunOutcome::DegradedLLM` (the canonical chain-level
+    /// taxonomy gains a 6th variant for this halt path). Not folded into
+    /// ProtocolCollapse / SolverGiveUp because architect §2.5 requires
+    /// DegradedLLM to be distinguishable in EvidenceCapsule for failure-
+    /// mode coverage (atom H benchmark report needs this to count
+    /// degraded-LLM episodes vs other halts).
+    DegradedLLM = 5,
 }
 
 impl Default for ExhaustionReason {
@@ -550,6 +569,10 @@ impl ExhaustionReason {
             Self::WallClockCap => RunOutcome::WallClockCap,
             Self::ComputeCap => RunOutcome::ComputeCap,
             Self::ProtocolCollapse | Self::SolverGiveUp => RunOutcome::ErrorHalt,
+            // TB-18 Atom A: 1:1 projection to RunOutcome::DegradedLLM
+            // (the chain-level taxonomy gains the 6th variant for this
+            // halt path; architect §2.5 + FR-18.3 distinguishability).
+            Self::DegradedLLM => RunOutcome::DegradedLLM,
         }
     }
 }

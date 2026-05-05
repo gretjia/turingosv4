@@ -22,3 +22,17 @@ pub mod h_vppu_history;
 /// routing. Per architect verdict 2026-05-01 §5.6 / B3 — TB-7R
 /// Deliverable B. `FC-trace: Art.I.1 + Art.III.4 + WP-§5.L3 + WP-§5.L4`.
 pub mod chaintape_mode_gate;
+
+/// TB-18 Atom A (architect 2026-05-05 ruling §3 + OBS_M0_DEEPSEEK_DRIFT §5.1):
+/// per-LLM-call budget enforcement (token-floor + consecutive-trivial cap +
+/// aggregate per-run wall-clock cap) producing `RunOutcome::DegradedLLM`
+/// halts. Wired into evaluator's LLM call sites (run_oneshot + run_swarm)
+/// so drift episodes halt cleanly with EvidenceCapsule emission rather than
+/// spinning until external `timeout`.
+pub mod per_call_budget;
+
+/// TB-18 Atom A (architect §3 + PRE-17.6 §6.A): re-entrant per-task driver
+/// API surface. Atom A.1 ratifies the public signature; Atom B will be the
+/// first caller passing a shared chain to drive multiple tasks against ONE
+/// runtime_repo + ONE CAS + ONE Sequencer (architect §2.8).
+pub mod drive_task;

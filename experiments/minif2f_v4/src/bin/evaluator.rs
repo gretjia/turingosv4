@@ -1879,6 +1879,19 @@ async fn run_swarm(
                (synthetic veto at tx >= {})", minif2f_v4::rollback_sim::ROLLBACK_TX_THRESHOLD);
     }
 
+    // TB-18 Atom A: per-LLM-call budget tracker. Closes OBS_M0_DEEPSEEK_DRIFT
+    // §5.1 silent-hang failure mode by halting the swarm loop with
+    // `RunOutcome::DegradedLLM` when N consecutive LLM responses each have
+    // `completion_tokens < token_floor_threshold`. Defaults: 60s/call /
+    // 30 token floor / 10 consecutive cap / 600s aggregate (architect §B.9
+    // M0 spec). Configurable via TURINGOS_PER_CALL_*. Per
+    // `feedback_no_workarounds_strict_constitution`: malformed env values
+    // are FAIL-CLOSED (panic at startup), not silently default.
+    let llm_budget = minif2f_v4::per_call_budget::PerCallBudget::from_env()
+        .expect("TURINGOS_PER_CALL_* env parse — set valid u64/u32 values or unset to use defaults");
+    let mut llm_budget_tracker =
+        minif2f_v4::per_call_budget::LLMCallBudgetTracker::new(llm_budget);
+
     for tx in 0..max_transactions {
         // PPUT-CCL B7-extra: short-circuit guard. Constitutional anchor
         // FC1-E18 + FC2-N22 (existing MaxTxExhausted variant). Stamps
@@ -2203,6 +2216,45 @@ async fn run_swarm(
         match client.generate(&request).await {
             Ok(response) => {
                 acc.record_llm_call(response.prompt_tokens, response.completion_tokens);
+                // TB-18 Atom A: per-LLM-call budget verdict. Halts the
+                // swarm loop with DegradedLLM (consecutive-trivial cap) or
+                // WallClockCap (aggregate run time exhausted) before the
+                // tx counter can wedge. Sets `terminal_exhaustion_reason`
+                // for atom E's propagation pipeline → EvidenceCapsule.outcome
+                // + TerminalSummary.run_outcome reflect the actual halt
+                // cause. Architect §2.5: DegradedLLM emits EvidenceCapsule
+                // (it must NOT become an evidence-skip backdoor); the
+                // existing cleanup block at line ~3541 handles emission
+                // for both halt variants.
+                use minif2f_v4::per_call_budget::BudgetVerdict;
+                use turingosv4::state::typed_tx::ExhaustionReason;
+                match llm_budget_tracker.on_response(response.completion_tokens) {
+                    BudgetVerdict::Continue => {}
+                    BudgetVerdict::HaltDegradedLLM { consecutive_trivial } => {
+                        warn!(
+                            "[tb18-atomA] DegradedLLM halt: {} consecutive trivial responses \
+                             (token_floor={}, cap={}); total_calls={} trivial_calls={}",
+                            consecutive_trivial,
+                            llm_budget_tracker.budget().token_floor_threshold,
+                            llm_budget_tracker.budget().consecutive_trivial_response_cap,
+                            llm_budget_tracker.total_calls(),
+                            llm_budget_tracker.trivial_calls(),
+                        );
+                        terminal_exhaustion_reason = ExhaustionReason::DegradedLLM;
+                        break;
+                    }
+                    BudgetVerdict::HaltWallClockCap { aggregate_seconds } => {
+                        warn!(
+                            "[tb18-atomA] WallClockCap halt: aggregate {} sec exhausted \
+                             (cap={}s); total_calls={}",
+                            aggregate_seconds,
+                            llm_budget_tracker.budget().aggregate_per_run_wallclock_seconds,
+                            llm_budget_tracker.total_calls(),
+                        );
+                        terminal_exhaustion_reason = ExhaustionReason::WallClockCap;
+                        break;
+                    }
+                }
                 // PPUT-CCL B2: every parsed proposal default-records as failed.
                 // OMEGA-accept return paths flip the last record before returning.
                 acc.record_proposal(false);

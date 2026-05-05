@@ -145,6 +145,12 @@ fn tb_18_e_to_run_outcome_projection_contract() {
         RunOutcome::ErrorHalt,
         "SolverGiveUp must project to RunOutcome::ErrorHalt"
     );
+    // TB-18 Atom A added 6th variant; projection is 1:1.
+    assert_eq!(
+        ExhaustionReason::DegradedLLM.to_run_outcome(),
+        RunOutcome::DegradedLLM,
+        "DegradedLLM must project to RunOutcome::DegradedLLM"
+    );
 }
 
 fn workspace_relative(rel: &str) -> PathBuf {
