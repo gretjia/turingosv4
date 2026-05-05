@@ -3273,6 +3273,115 @@ async fn run_swarm(
             }
         }
 
+        // TB-16.x.2.3 (architect umbrella charter 2026-05-04 §2 Atom 2.3;
+        // FR-13.4..5 + SG-16.x.2.3): TURINGOS_FORCE_REDEEM=<owner>:<outcome>:<share_units>
+        // mode. Pairs with TURINGOS_COMPLETE_SET_SEED + TURINGOS_FORCE_BANKRUPTCY:
+        // CompleteSetSeed (line ~982) mints YES + NO shares to the named provider;
+        // FORCE_BANKRUPTCY transitions task_markets_t[task_id].state to Bankrupt
+        // (NO wins per sequencer.rs:1357); FORCE_REDEEM redeems provider's
+        // NO shares 1:1 for collateral (sequencer.rs:1736 dispatch arm).
+        // Closes the missing 6th system-emitted tx kind (raises 11-of-13
+        // → 12-of-13 architect tx kinds runtime-exercised).
+        //
+        // Charter §2 Atom 2.3 spec'd 4 parts (owner:event_id:outcome:share);
+        // implementation uses 3 (owner:outcome:share_units) — event_id is
+        // auto-derived from `task-{run_id}` because run_id contains a
+        // unix-ms timestamp minted at evaluator entry (run_id.rs:21) and is
+        // unpredictable from the smoke script. Mirrors FORCE_BANKRUPTCY's
+        // auto-derive pattern (line ~3154). Documented deviation per
+        // feedback_architect_deviation_stance.
+        //
+        // Fires OUTSIDE the MaxTxExhausted block (parallel to
+        // FORCE_CHALLENGE_RESOLVE above) so it works on both the OMEGA-
+        // Confirm success path (market resolves to Finalized via
+        // FinalizeReward) and the MaxTxExhausted+FORCE_BANKRUPTCY path
+        // (market resolves to Bankrupt). Reaches both paths because the
+        // outer cleanup runs after both terminal exits land.
+        if let Ok(redeem_spec) = std::env::var("TURINGOS_FORCE_REDEEM") {
+            let parts: Vec<&str> = redeem_spec.split(':').collect();
+            if parts.len() != 3 {
+                warn!(
+                    "[chaintape/tb16-arena] FORCE_REDEEM expected 3 parts \
+                     owner:outcome:share_units, got {redeem_spec:?}"
+                );
+            } else {
+                let owner = parts[0].to_string();
+                let outcome = match parts[1].to_lowercase().as_str() {
+                    "yes" => Some(turingosv4::state::typed_tx::OutcomeSide::Yes),
+                    "no" => Some(turingosv4::state::typed_tx::OutcomeSide::No),
+                    other => {
+                        warn!("[chaintape/tb16-arena] FORCE_REDEEM outcome must be 'yes' or 'no', got {other:?}");
+                        None
+                    }
+                };
+                let share_units: u128 = parts[2].parse().unwrap_or(0);
+                if let Some(outcome) = outcome {
+                    if share_units == 0 {
+                        warn!("[chaintape/tb16-arena] FORCE_REDEEM share_units=0 — skip (sequencer rejects zero-share redeem)");
+                    } else {
+                        let pre_rd_root = match bundle.sequencer.q_snapshot() {
+                            Ok(q) => q.state_root_t,
+                            Err(_) => turingosv4::state::q_state::Hash::ZERO,
+                        };
+                        if let Err(e) = turingosv4::runtime::adapter::tb8_await_state_root_advance(
+                            bundle.sequencer.as_ref(),
+                            pre_rd_root,
+                            5000,
+                        ).await {
+                            warn!("[chaintape/tb16-arena] await for prior commit (pre-redeem) failed: {e:?}");
+                        }
+                        let post_resolve_root = match bundle.sequencer.q_snapshot() {
+                            Ok(q) => q.state_root_t,
+                            Err(_) => pre_rd_root,
+                        };
+                        let event_task = format!("task-{}", run_id);
+                        let redeem_tx_opt: Option<turingosv4::state::typed_tx::TypedTx> = {
+                            let registry_arc = agent_keypairs
+                                .as_ref()
+                                .expect("[chaintape/tb16-arena] agent_keypairs registry required for FORCE_REDEEM");
+                            let mut reg_guard = registry_arc
+                                .lock()
+                                .expect("agent_keypairs registry mutex poisoned");
+                            match turingosv4::runtime::adapter::make_real_complete_set_redeem_signed_by(
+                                &mut *reg_guard,
+                                post_resolve_root,
+                                &event_task,
+                                &owner,
+                                outcome,
+                                share_units,
+                                "tb16-arena-redeem",
+                                3,
+                            ) {
+                                Ok(tx) => Some(tx),
+                                Err(e) => {
+                                    warn!("[chaintape/tb16-arena] make_real_complete_set_redeem failed: {e}");
+                                    None
+                                }
+                            }
+                        };
+                        if let Some(rd) = redeem_tx_opt {
+                            if let Err(e) = bus.submit_typed_tx(rd).await {
+                                warn!("[chaintape/tb16-arena] CompleteSetRedeemTx submit failed: {e:?}");
+                            } else {
+                                info!(
+                                    "[chaintape/tb16-arena] CompleteSetRedeemTx submitted by {owner} \
+                                     (units={share_units}, outcome={:?}) for event={event_task}",
+                                    outcome
+                                );
+                            }
+                            if let Err(e) = turingosv4::runtime::adapter::tb8_await_state_root_advance(
+                                bundle.sequencer.as_ref(),
+                                post_resolve_root,
+                                5000,
+                            ).await {
+                                warn!("[chaintape/tb16-arena] await for CompleteSetRedeem commit failed: {e:?}");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         if let Err(e) = bundle.shutdown().await {
             error!("[chaintape] driver shutdown returned error: {e}");
         }

@@ -499,6 +499,60 @@ pub fn make_real_complete_set_mint_signed_by(
     }))
 }
 
+/// TRACE_MATRIX FC1-N36 (TB-16.x.2.3 arena driver): real-signature
+/// `CompleteSetRedeemTx` constructor — owner redeems winning-side
+/// shares 1:1 against the resolved event collateral pool (FR-13.4..5;
+/// SG-16.x.2.3). Mirrors `make_real_complete_set_mint_signed_by` shape.
+///
+/// Sequencer (TB-13 Atom 2 admission, sequencer.rs:1736):
+/// 1. event must be Finalized (Yes wins) or Bankrupt (No wins).
+/// 2. owner's winning-side share balance ≥ share_units.
+/// 3. event collateral ≥ share_units.
+///
+/// Effect: 1 winning share = 1 MicroCoin (architect §4.3 verbatim).
+#[allow(clippy::too_many_arguments)]
+pub fn make_real_complete_set_redeem_signed_by(
+    keypairs: &mut AgentKeypairRegistry,
+    parent_state_root: Hash,
+    event_task: &str,
+    owner: &str,
+    outcome: crate::state::typed_tx::OutcomeSide,
+    share_units: u128,
+    suffix: &str,
+    timestamp_logical: u64,
+) -> Result<TypedTx, AgentKeypairError> {
+    use crate::state::typed_tx::{
+        CompleteSetRedeemSigningPayload, CompleteSetRedeemTx, EventId, ShareAmount,
+    };
+    let owner_id = AgentId(owner.into());
+    let tx_id = TxId(format!("csredeem-{}-{}", owner, suffix));
+    let event_id = EventId(crate::state::q_state::TaskId(event_task.into()));
+    let share_amount = ShareAmount::from_units(share_units);
+
+    let payload = CompleteSetRedeemSigningPayload {
+        tx_id: tx_id.clone(),
+        parent_state_root,
+        event_id: event_id.clone(),
+        owner: owner_id.clone(),
+        outcome,
+        share_amount,
+        timestamp_logical,
+    };
+    let digest = payload.canonical_digest();
+    let signature = keypairs.sign(&owner_id, digest)?;
+
+    Ok(TypedTx::CompleteSetRedeem(CompleteSetRedeemTx {
+        tx_id,
+        parent_state_root,
+        event_id,
+        owner: owner_id,
+        outcome,
+        share_amount,
+        signature,
+        timestamp_logical,
+    }))
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // TB-8 Atom 4 — Evaluator OMEGA-branch caller helper.
 // ────────────────────────────────────────────────────────────────────────────

@@ -1,0 +1,4 @@
+[2026-05-05T06:44:31Z INFO  evaluator] [chaintape/tb16-arena] MarketSeedTx submitted by Agent_user_0 (1000000 μC) for event=task-n5_aime_1997_p9_1777963470439
+[2026-05-05T06:44:31Z INFO  evaluator] [chaintape/tb16-arena] CompleteSetMintTx submitted by Agent_user_0 (250000 μC YES + 250000 μC NO) for event=task-n5_aime_1997_p9_1777963470439
+[2026-05-05T06:50:01Z INFO  evaluator] [chaintape/tb16-arena] TaskBankruptcyTx emitted: emit_id=2 task_id=TaskId("task-n5_aime_1997_p9_1777963470439")
+[2026-05-05T06:50:01Z INFO  evaluator] [chaintape/tb16-arena] CompleteSetRedeemTx submitted by Agent_user_0 (units=250000, outcome=No) for event=task-n5_aime_1997_p9_1777963470439
