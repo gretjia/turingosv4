@@ -153,14 +153,23 @@ HAS_CHALL_N="${GATE_RESULT%%|*}"
 REST="${GATE_RESULT#*|}"
 HAS_RESOLVE_N="${REST%%|*}"
 ID42_RESULT="${REST#*|}"
+SHIP_GATE_RC=0
 if [[ "$HAS_CHALL_N" -gt 0 && "$HAS_RESOLVE_N" -gt 0 ]]; then
   echo "  ✓ Chain contains ChallengeTx (n=$HAS_CHALL_N) and ChallengeResolveTx (n=$HAS_RESOLVE_N)"
   if [[ "$ID42_RESULT" == "Pass" ]]; then
     echo "  ✓ id=42 audit assertion PASS — parent-child relationship verified"
   else
     echo "  ✗ id=42 audit assertion result=$ID42_RESULT (expected Pass)"
+    SHIP_GATE_RC=1
   fi
 else
   echo "  ✗ Chain counts: ChallengeTx=$HAS_CHALL_N  ChallengeResolveTx=$HAS_RESOLVE_N (id=42 result=$ID42_RESULT) — gate FAILED"
+  SHIP_GATE_RC=1
 fi
 echo "════════════════════════════════════════════════════════════════════"
+# TB-16.x.2.2.fix.r2 Patch F1+F2 (Codex CHALLENGE B.1+B.3) — fail-closed
+# exit. Prior version printed `✗` on gate failure but exited 0 because the
+# script lacks `set -e` (only `set -uo pipefail`); a CI runner consuming
+# the exit code would have observed success. Now propagate ship-gate
+# verdict via process exit.
+exit $SHIP_GATE_RC

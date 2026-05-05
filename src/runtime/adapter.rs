@@ -746,10 +746,13 @@ pub async fn tb11_emit_expire_for_eligible(
 /// (the FORCE_CHALLENGE_RESOLVE arena profile uses this). Note: differs in
 /// time-unit from `tb11_emit_expire_for_eligible(.., expiry_delta=0)` —
 /// tb11 uses caller-supplied `current_logical_t` (auto-advances per-tx);
-/// this helper uses `q.q_t.current_round` (NOT auto-advanced per-tx; only
-/// mutated explicitly via Sequencer::set_current_round_for_test or future
-/// round-advance mechanism). Hence the `>= delta` boundary, NOT `> delta`
-/// (TB-16.x.2.2.fix Patch E 2026-05-05).
+/// this helper uses `q.q_t.current_round` (NOT auto-advanced per-tx — the
+/// only in-tree mutator at HEAD is the `seed_q_for_challenge` test helper
+/// at `src/state/sequencer.rs:~4185`; no production round-advance mechanism
+/// is wired yet). Hence the `>= delta` boundary, NOT `> delta`
+/// (TB-16.x.2.2.fix Patch E 2026-05-05; doc-only follow-up TB-16.x.2.2.fix.r2
+/// Patch F4 2026-05-05 corrects the prior docstring's reference to a
+/// nonexistent `Sequencer::set_current_round_for_test` symbol).
 ///
 /// `default_resolution` selects the policy applied to every eligible case.
 /// `Released` (the charter default) refunds the challenger bond + flips

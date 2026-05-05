@@ -37,7 +37,7 @@ script against each.
 
 ## Files
 
-- `verdict.json` — `audit_tape` verdict (passed=33 failed=0 halted=0 skipped=8)
+- `verdict.json` — `audit_tape` verdict (passed=35 failed=0 halted=0 skipped=7)
 - `verdict_replay.json` — second invocation; `cmp -s` against verdict.json = byte-identical
 - `tamper_report.json` — 3/3 tamper variants detected (flip_l4_byte, flip_cas_byte, truncate_l4_ref)
 - `dashboard.txt` — `audit_dashboard` summary (run_id=tb16-x-2-2-P10_challenge_resolve)

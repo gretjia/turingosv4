@@ -34,10 +34,10 @@ This is currently **masked** because:
 | dimension | value |
 |---|---|
 | id | OBS_R023 (filed under R022 OBS family per existing convention) |
-| fix cost | non-trivial (~30-60 min): plumb the actual `RunOutcome` from caller into the capsule construction; touches `eval_one_problem` signature + every caller site |
-| severity | latent — masked today, hidden trap for a future TB |
-| contradicts prior user instruction? | no — instruction was "fix TB-16.x.2.2 ship gate honestly per constitution and architect intent"; this block is orthogonal to ChallengeResolve hook placement |
-| OBS-defer rationale | multi-hour future-arch class — the right home is a TB owning EvidenceCapsule purity (likely TB-15.x or RSP-3.2 if Lamarckian Autopsy expands), not a band-aid in TB-16.x.2.2.fix |
+| fix cost | core diff: ~30-60 min to plumb `RunOutcome` through `eval_one_problem` + capsule construction. **Total inc. verification: 2-4 hours** (cargo build + workspace test + at least 2 smoke profiles re-run to exercise both MaxTxExhausted and OMEGA-Confirm exits + R-014 rehash + Class 3 dual external audit cycle for a signed-L4-affecting evaluator-path change). |
+| severity | latent — masked today (the only reaching path IS MaxTxExhausted, so the literal `MaxTxExhausted` label coincides with truth); becomes a hidden trap the moment a future TB adds a non-MaxTxExhausted reaching path. No chain-integrity defect today. |
+| contradicts prior user instruction? | no — current-session user instruction was "根据宪法和架构师意见自主决策" while fixing the TB-16.x.2.2 ChallengeResolve hook placement; this EvidenceCapsule-outcome-label block is orthogonal to ChallengeResolve scope (charter §2 is about challenge-window scheduler, NOT capsule outcome semantics). |
+| OBS-defer rationale | **scope-orthogonal AND verification-tax bound**: the fix would expand TB-16.x.2.2.fix charter and force a second full R-014 rehash + dual-audit cycle on a defect that has zero observable impact at HEAD. Right home is a TB owning EvidenceCapsule semantic-purity (TB-15.x Lamarckian Autopsy expansion or RSP-3.2 settlement plumbing), where the verification tax is amortized across the broader change. Patch F5 (Codex CHALLENGE O.1, 2026-05-05) corrects the prior version's "multi-hour future-arch class" wording — the true OBS-defer driver is verification-cycle amortization, not raw code-edit time. |
 
 ## §4 Reproduction
 

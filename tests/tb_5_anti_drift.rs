@@ -141,7 +141,28 @@ fn no_p6_files_touched_in_tb5() {
         }
         _ => String::new(),
     };
-    let is_tb5_branch = branch_lower.contains("tb-5") || branch_lower.contains("tb5");
+    // TB-16.x.2.2.fix.r2 Patch F3 (Codex CHALLENGE D.1) — token-boundary match.
+    // Prior `branch_lower.contains("tb5")` substring check would false-positive
+    // on future branch names containing `tb50`, `tb500`, etc. (matching the
+    // `tb5` prefix). Match `tb-5` or `tb5` only when NOT followed by an ASCII
+    // digit (which would extend the TB number). Walks all occurrences (not
+    // just the first) so e.g. `feature/tb50/hotfix-tb5-port` correctly
+    // matches the second token.
+    fn token_match(s: &str, needle: &str) -> bool {
+        let bytes = s.as_bytes();
+        let mut idx = 0usize;
+        while let Some(rel) = s[idx..].find(needle) {
+            let abs = idx + rel;
+            let after = abs + needle.len();
+            let extends = bytes.get(after).is_some_and(|&b| b.is_ascii_digit());
+            if !extends {
+                return true;
+            }
+            idx = abs + 1;
+        }
+        false
+    }
+    let is_tb5_branch = token_match(&branch_lower, "tb-5") || token_match(&branch_lower, "tb5");
     if !is_tb5_branch {
         eprintln!(
             "I87 soft-skip — branch `{branch_lower}` is not TB-5 work (anti-drift guard scoped per TB-16.x.2.2.fix 2026-05-05)"
