@@ -1838,6 +1838,16 @@ async fn run_swarm(
     let mut tb11_sorry_block_count: u64 = 0;
     let mut tb11_protocol_parse_failure_count: u64 = 0;
     let mut tb11_partial_accept_count: u64 = 0;
+    // TB-18 Atom E (OBS_R023 closure; architect Q4 deferral cap).
+    // Caller-propagated terminal exhaustion reason. Default = MaxTxExhausted
+    // (today the only natural reaching path). Future TB-18 atom A may mutate
+    // this to ExhaustionReason::DegradedLLM / WallClockCap before the bundle
+    // cleanup block at line ~3541 reads it. The literal `MaxTxExhausted` at
+    // the EvidenceCapsule + TerminalSummary write sites is REPLACED by this
+    // variable (closes OBS_R023 hardcoded-literal structural defect).
+    #[allow(unused_mut, unused_assignments)] // TB-18 Atom A re-mutates this var
+    let mut terminal_exhaustion_reason: turingosv4::state::typed_tx::ExhaustionReason =
+        turingosv4::state::typed_tx::ExhaustionReason::MaxTxExhausted;
     // Phase A atom A4 (FC1-N12 oracle scope): cumulative wall-clock
     // inside Lean for THIS run. Each verify_omega_detailed and
     // verify_partial call brackets its own elapsed and adds it here.
@@ -3560,7 +3570,12 @@ async fn run_swarm(
                 write_evidence_capsule, ExhaustionCounts,
             };
             use turingosv4::state::typed_tx::{
-                CapsulePrivacyPolicy, ExhaustionReason, RejectionClass, RunOutcome,
+                // TB-18 Atom E (OBS_R023 closure): ExhaustionReason +
+                // RunOutcome no longer used as bare literals here; the
+                // function-scope `terminal_exhaustion_reason` variable
+                // (initialized at function header) is the canonical source,
+                // and `to_run_outcome()` is invoked as a method below.
+                CapsulePrivacyPolicy, RejectionClass,
             };
             use std::sync::{Arc, RwLock};
 
@@ -3602,7 +3617,11 @@ async fn run_swarm(
                         None, // solver_agent — multi-agent swarm; no single solver
                         counts,
                         (0, max_transactions as u64),
-                        ExhaustionReason::MaxTxExhausted,
+                        // TB-18 Atom E (OBS_R023 closure): propagated from
+                        // caller's actual halt path (default MaxTxExhausted;
+                        // mutated by future atom A DegradedLLM / WallClockCap
+                        // halts before reaching this cleanup block).
+                        terminal_exhaustion_reason,
                         raw_log.as_bytes(),
                         CapsulePrivacyPolicy::AuditOnly,
                         "evaluator-tb11",
@@ -3631,7 +3650,11 @@ async fn run_swarm(
                                 bundle.sequencer.as_ref(),
                                 run_id_capsule,
                                 task_id_capsule,
-                                RunOutcome::MaxTxExhausted,
+                                // TB-18 Atom E (OBS_R023 closure): caller-
+                                // propagated RunOutcome via canonical
+                                // ExhaustionReason → RunOutcome projection
+                                // (Art.IV halt_reason taxonomy).
+                                terminal_exhaustion_reason.to_run_outcome(),
                                 proposal_count.min(u32::MAX as u64) as u32,
                                 hist,
                                 max_transactions as u64,
