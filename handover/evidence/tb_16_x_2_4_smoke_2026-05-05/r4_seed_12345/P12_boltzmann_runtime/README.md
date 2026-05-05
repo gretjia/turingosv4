@@ -61,7 +61,7 @@ halted           = 0
 skipped          = 8
 tape_root.l4_count            = 7
 tape_root.l4e_count           = 2  (1 synthetic-rejection + 1 evaluator's own L4.E gate)
-tape_root.cas_object_count    = 25
+tape_root.cas_object_count    = 23  (Codex R2 CHALLENGE #3 doc-drift fix .fix r2: prior 25 was a mis-transcription; verdict.json:8 = 23 is canonical)
 tx_kind_counts.work            = 4
 tx_kind_counts.terminal_summary = 1
 audit assertion id=23 (accepted_work_predicate_results_true): Pass
@@ -138,4 +138,12 @@ audit assertion id=43 (boltzmann_parent_selection_diversity): Pass
 
 ## Re-audit cycle
 
-- `.fix r1` re-audit by Codex + Gemini follows this commit. Round cap = 2 per `feedback_elon_mode_policy`. If R2 raises only test-scaffold edge cases (per `feedback_audit_loop_roi_flip`), ship-with-OBS-defer for any non-load-bearing residuals.
+- **R2 result (2026-05-05)**: Codex = OVERALL CHALLENGE, ship clean (all 4 R1 VETOs closed; only doc drift CH3 + stale comments left). Gemini = OVERALL VETO on Q1 (architectural enforcement gap: proposal-side OBSERVE ≠ sequencer-side ENFORCE) + Q2 (smoke produces star topology even though entropy ≥ 0.5).
+
+- **Conservative resolution per `feedback_dual_audit_conflict`** (VETO > CHALLENGE > PASS): Gemini VETO wins.
+
+- **Resolution path**: Gemini's Q1 concern is correct for production but over-spec for TB-16 (Controlled Market SANDBOX per umbrella charter §0; enforcement is TB-17 Real-World Readiness gate scope per `project_tb11_to_tb17_roadmap`). Implementing sequencer-side enforcement would require Class 4 surface (WorkTx schema change + admission gate over canonical Boltzmann pick), breaking the umbrella charter's Class 3 risk envelope for .2.4. Resolution: file `handover/alignment/OBS_R024_TB_16_X_2_4_BOLTZMANN_OBSERVE_VS_ENFORCE.md` + add `PRE-17.5` (Boltzmann sequencer-enforcement gate) to TB-17 prerequisites. **The OBSERVE side ships; ENFORCE deferred to TB-17 with concrete path documented.**
+
+- **Q2 (degenerate smoke)** is closed in `r4`: with `BOLTZMANN_SEED=12345`, distribution = `{iter-0:1, iter-1:2}` is non-trivial (2 distinct non-None parents over 3 non-root iters). Gemini's R2 Q2 verdict still references the r1 distribution `{None:1, iter-0:3}` from the audit prompt's stale evidence reference; r4 evidence is the canonical post-fix state and shows non-degenerate parent diversity.
+
+- **Round cap met** (R2 = final per `feedback_elon_mode_policy` round-cap=2). Per `feedback_audit_loop_roi_flip` ROI flip stop-rule, the architectural disagreement (Gemini Q1) is now formally registered via OBS_R024 + PRE-17.5 — concrete forward path, not a deferred "凑活" workaround per `feedback_no_workarounds_strict_constitution`.

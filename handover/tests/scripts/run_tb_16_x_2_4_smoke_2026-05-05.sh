@@ -4,20 +4,23 @@
 # Per umbrella charter `handover/tracer_bullets/TB-16.x.2_charter_2026-05-04.md`
 # §2 Atom 2.4: single-problem arena exercising
 # TURINGOS_FORCE_BOLTZMANN_SEED_WORKTXS to inject N (≥3) real-signed
-# WorkTxs serially, each with ProposalTelemetry.parent_tx derived from
-# boltzmann_select_parent_v2(snap.price_index, snap.mask_set, ...) on
-# the current bus snapshot at proposal time, with fallback to the most
-# recent produced WorkTx tx_id when the v2 selector returns None
-# (price_index empty for iter 0).
+# WorkTxs serially, each with ProposalTelemetry.parent_tx = the
+# boltzmann_select_parent_v2(snap.price_index, snap.mask_set, ...)
+# pick on the current bus snapshot at proposal time. NO fallback (since
+# .fix r1) — parent_tx is exactly v2_pick or None; iter 0 is genuinely
+# root because price_index is empty before any WorkTx commits.
 #
 # Closes the missing R3 "Boltzmann RUNTIME exercise" gap. Audit
 # assertion id=43 (boltzmann_parent_selection_diversity, Layer E
-# supplemental, added in .2.5 commit) verifies Shannon entropy ≥ 0.25
-# across same-task ProposalTelemetry.parent_tx distribution.
+# supplemental, added in .2.5 commit, refined in .2.4.fix r1) verifies
+# NON-None Shannon entropy ≥ 0.5 (charter §2 Atom 2.4 SG-16.x.2.4 ship
+# gate; Art II.2.1 alarm floor 0.25) across the non-None subset of
+# same-task ProposalTelemetry.parent_tx values.
 #
-# Ship gate SG-16.x.2.4: chain contains ≥3 WorkTxs with diverse
-# parent_selection_entropy ≥ 0.5 (per Art II.2.1 alarm threshold 0.25;
-# tighter than threshold for headroom).
+# Ship gate SG-16.x.2.4: chain contains ≥3 WorkTxs AND non-None
+# parent_selection_entropy ≥ 0.5 (the .fix r1 strict-gate; the
+# pre-fix r1 implementation had threshold 0.25 + ROOT-counting which
+# Codex VETO #1 + Gemini Q2 closed in the .fix r1 commit).
 #
 # Markov capsule = None (genesis chain) per OBS_R022 α ratification.
 #

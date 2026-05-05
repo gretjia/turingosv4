@@ -1239,14 +1239,15 @@ async fn run_swarm(
             // SG-16.x.2.4): TURINGOS_FORCE_BOLTZMANN_SEED_WORKTXS=<staker>:<count>:<stake_micro>
             // mode. Inject N (≥3) real-signed WorkTxs serially, each with
             // ProposalTelemetry.parent_tx = boltzmann_select_parent_v2 pick on
-            // current bus snapshot (or prior-WorkTx fallback when selector
-            // returns None — happens at iter 0 because price_index is empty).
-            // Closes the missing R3 "Boltzmann RUNTIME exercise" gap: prior
-            // chains had at most 1 admitted WorkTx per task, so the v2 selector
-            // had no candidate set to choose from. Audit assertion id=43
-            // (boltzmann_parent_selection_diversity, Layer E) verifies Shannon
-            // entropy ≥ 0.25 across same-task ProposalTelemetry.parent_tx
-            // distribution.
+            // current bus snapshot (no fallback in .fix r1+: parent_tx =
+            // v2_pick or None; iter 0 is genuinely root because price_index
+            // is empty). Closes the missing R3 "Boltzmann RUNTIME exercise"
+            // gap: prior chains had at most 1 admitted WorkTx per task, so
+            // the v2 selector had no candidate set to choose from. Audit
+            // assertion id=43 (boltzmann_parent_selection_diversity, Layer E
+            // supplemental) verifies non-None Shannon entropy ≥ 0.5 (charter
+            // §2 Atom 2.4 SG; Art II.2.1 alarm floor 0.25 — see
+            // src/runtime/audit_assertions.rs SHIP_GATE_ENTROPY_BITS).
             //
             // ARCHITECTURAL NOTE (deviation from charter §2 Atom 2.4 STEP_B
             // declaration per feedback_architect_deviation_stance): charter
