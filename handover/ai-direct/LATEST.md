@@ -6,6 +6,109 @@
 
 ---
 
+## 🎯 2026-05-05 (session end #5) — **TB-18.B-impl SHIPPED** under same blanket auto-mode authority
+
+**main HEAD (after this commit)**: TB-18.B-impl single combined commit `15b662c` carrying Phase 1+2+3+4+5 of the substantive Atom B build (SharedChain init lift + chain-level helper lift + drive_task substantive body + comprehensive_arena rewrite + evidence/audit/ship-status). Workspace tests **963/0/150** (baseline 962 + 1 new SharedChain unit test).
+
+**TB-18 ship state**: **PROVISIONAL → ATOM B SUBSTANTIVE BUILD CLOSED**. Architect §2.8 mandate ("one process / one runtime_repo / one CAS / one chain / multiple tasks") satisfied; SG-18.6 + SG-18.7 + FR-18.7 + FR-18.8 closed. **Full TB-18 ship FINAL still gated on**: (1) TB-18.H-impl M1/M2 LLM batches; (2) external G0 + G1 audit invocations; (3) architect § sign-off. Architect Q2 ship-claim narrowing remains in effect.
+
+**Predecessor (this session)**: TB-18 PROVISIONAL ship `2bc712e` (M0 retry COMPLETE 20/20 PROCEED).
+**Predecessor (TB-17)**: `8e3d5cc` (CONDITIONAL §8 sign-off; P7 NOT authorized).
+
+**Authority**: same user blanket auto-mode authority — verbatim 2026-05-05 "自主执行一直到 TB-18 ship". AI-coder closed B-impl autonomously (4-8h Class 3 refactor envelope; in-session execution).
+
+### Session #5 ledger (1 ship commit)
+1. `15b662c` **TB-18.B-impl SHIPPED — single-chain 13/13 tx-kind substantive build** (22 files / +2566 / −721)
+   - **Phase 1**: NEW `experiments/minif2f_v4/src/chain_runtime.rs` (~430 lines) — `pub struct SharedChain` + `from_env(problem_file) -> Self` lifted from evaluator.rs lines 659-789 + 794-833 (175 lines inline → 25-line destructure)
+   - **Phase 2**: `chain_runtime::write_synthetic_l4_l4e_gate_and_genesis_report` free fn — lifted from evaluator.rs lines 1439-1562 (124 lines → 12-line helper call)
+   - **Phase 3**: `drive_task::drive_task` substantive body replacing atom A.1 stub — `PendingAtomB` removed; new `ChaintapeRequired/AgentKeypairsRequired/SigningFailed/SubmitFailed` variants; expanded `DriveTaskResult` carries task_id + tx_ids + post_open_lock_state_root_hex
+   - **Phase 4**: comprehensive_arena.rs FULL REWRITE — subprocess-spawn pattern eliminated per architect §2.8; 6 task-driver fns (`drive_task_a..f`) against ONE shared bundle; 13/13 tx kinds emitted in 2.8s wall-clock
+   - **Phase 5**: evidence packaging + dual-audit request + ship-status doc
+
+### TB-18.B-impl run summary (canonical r1; commit `15b662c`)
+
+```text
+chain_seed_id:        tb18-arena-r1
+process_count:        1   (comprehensive_arena binary)
+runtime_repo_count:   1   (per architect §2.8)
+cas_count:            1
+sequencer_count:      1
+chain_count:          1   (refs/transitions/main)
+task_count:           6   (engineered task_A..F per design §4.5)
+chain_depth_L4:       31  entries
+L4E_count:            1   (synthetic zero-stake WorkTx for L4.E gate)
+distinct_tx_kinds:    13/13   ✅
+wall_clock_ms:        2839
+```
+
+13 distinct tx kinds: TaskOpen (×6), EscrowLock (×6), Work (×4), Verify (×2), FinalizeReward (×1), Challenge (×1), ChallengeResolve (×1), MarketSeed (×1), CompleteSetMint (×1), CompleteSetRedeem (×1), TerminalSummary (×3), TaskExpire (×1), TaskBankruptcy (×2).
+
+### SG closure update (vs session #4 ledger)
+| SG | Status |
+|---|---|
+| SG-18.6 (≥6 tasks in one process and one chain) | **✅ closed by Phase 4** |
+| SG-18.7 (single-chain 13/13 tx-kind evidence) | **✅ closed by Phase 4** |
+| SG-18.10 + SG-18.11 (M1 + M2) | ⏸️ NOT-RUN — forward-bound to TB-18.H-impl (unchanged from session #4) |
+| SG-18.15 + SG-18.16 (G0 + G1 audits) | 📨 Filed — awaits user external invocation (unchanged) |
+
+**14/16 SG GREEN** (was 12/16 at end of session #4); **10/10 CR GREEN**.
+
+### Class envelope check (per `feedback_class4_cannot_hide_in_class3`)
+- ✅ NO `src/state/sequencer.rs` changes (admission untouched)
+- ✅ NO `src/state/typed_tx.rs` changes (schema untouched)
+- ✅ NO canonical-signing-payload digest changes
+- ✅ NO `src/{kernel,bus}.rs` / `src/sdk/tools/wallet.rs` changes (no STEP_B trigger)
+- ✅ NO new TypedTx variants
+- Class 3 envelope intact; Class 3 dual external audit request filed (`handover/audits/DUAL_AUDIT_TB_18_B_PHASE4_REQUEST_2026-05-05.md`; 8 Codex + 8 Gemini questions)
+
+### Forward-bound deferral ledger (decremented from 12 → 10 items)
+
+| Item | To |
+|---|---|
+| TB-18.H-impl M1 (50-100 × n1/n3) | Forward-bound (multi-hour LLM compute) |
+| TB-18.H-impl M2 (100+ × n5; observe-only) | Forward-bound (multi-day LLM compute) |
+| Atom G0 Codex micro-audit | User external invocation (cloud-billed) |
+| Atom G1 Codex+Gemini ship audit | User external invocation (cloud-billed) |
+| Architect § sign-off | TB-17 §8 precedent (user-conveyed) |
+| Atom D-impl lifecycle-order configurable | TB-19+ Class 4 ratification + Phase Z′ rerun |
+| Atom C Gate 3 ChallengeStatus::Open-blocking | TB-19+ STEP_B_PROTOCOL Class 3 |
+| PRE-17.5 Boltzmann ENFORCE | TB-19+ separate TB |
+| PRE-17.7 β-D full pipeline | TB-19+ |
+| M3 (controlled-market-enabled) + M4 (public report) | TB-19+ pilot design |
+
+(Session #4 items "TB-18.B-impl" and "TB-18.F single-chain 13/13 evidence" → both **CLOSED** this session.)
+
+### Memory updates this session
+- NEW: `project_tb_18_b_impl_shipped` (this session ledger)
+- MEMORY.md index: 1 entry added under TB-18 PROVISIONAL pointer
+
+### Files reference (added this session)
+| Document | Path |
+|---|---|
+| TB-18.B-impl ship status | `handover/ai-direct/TB-18_B_PHASE4_SHIP_STATUS_2026-05-05.md` |
+| Class 3 dual audit request | `handover/audits/DUAL_AUDIT_TB_18_B_PHASE4_REQUEST_2026-05-05.md` |
+| Single-chain 13/13 evidence README | `handover/evidence/tb_18_b_phase4_2026-05-05/README.md` |
+| Canonical chain bytes (r1) | `handover/evidence/tb_18_b_phase4_2026-05-05/r1/runtime_repo.dotgit.tar.gz` |
+| Canonical CAS bytes (r1) | `handover/evidence/tb_18_b_phase4_2026-05-05/r1/cas.dotgit.tar.gz` |
+| tx_kind_distribution.json (13/13 proof) | `handover/evidence/tb_18_b_phase4_2026-05-05/r1/evidence/tx_kind_distribution.json` |
+| Per-task SHARED_CHAIN_RUNS_REPORT.json | `handover/evidence/tb_18_b_phase4_2026-05-05/r1/evidence/SHARED_CHAIN_RUNS_REPORT.json` |
+
+### Open Questions
+1. ~Push `15b662c` to `origin/main`?~ — user explicitly authorized with this handover-update commit.
+2. **Invoke external Codex G0 micro-audit + Codex+Gemini G1 ship audit?** (Filed; user-billed)
+3. **Run TB-18.H-impl M1 (50-100 × n1/n3) batch?** (Multi-hour LLM compute)
+4. **Run TB-18.H-impl M2 (100+ × n5; observe-only) batch?** (Multi-day LLM compute)
+5. **Architect § sign-off on `MINIF2F_M0_BENCHMARK_REPORT.md` + the new Phase 4 evidence?** (User-conveyed)
+
+### Pre-existing latent issue noted (NOT addressed this session)
+Workspace test runs (`cargo test --workspace --release`) re-modify committed TB-7/13/14 chaintape smoke evidence files (`agent_pubkeys.json`, `replay_report.json`, `genesis_report.json` — fresh ed25519 keys + state-roots). Restored via `git restore` 2× this session (cold-start + pre-Phase-5-commit). Cause: a workspace test reuses the same committed evidence directory for re-execution. **Worth opening an OBS for TB-19+ fix** (test-isolation regression).
+
+### What did NOT happen this session (honest framing)
+- **TB-18 SHIP FINAL**: still gated on M1/M2 + external audits + architect sign-off; Atom B substrate is closed but ship envelope is still PROVISIONAL.
+- **External audit invocation**: AI-coder cannot autonomously launch /ultrareview; user-billed.
+
+---
+
 ## 🎯 2026-05-05 (session end #4) — **TB-18 PROVISIONAL SHIPPED** under user blanket auto-mode authority
 
 **main HEAD (after this commit)**: TB-18 substrate atoms 0/E/A/H0/D-design/C/B-design/H-prep + Atom H sub-stage 1 (M0 retry) SHIPPED; G0/G1 audit-request docs filed. 12 commits this session `d3c8d78..2bc712e` + this handover commit. Workspace tests **962/0/150** (baseline 939 + 23 TB-18 tests; 0 failures).
