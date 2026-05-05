@@ -6,6 +6,140 @@
 
 ---
 
+## 🎯 2026-05-05 — TB-16.x.2 UMBRELLA CLOSED — all 6 sub-atoms shipped + multi-chain 13-of-13 + β architectural status declared
+
+**Updated**: 2026-05-05 (this session shipped 4 of 6 sub-atoms in one continuous run; previous session shipped 2.1+2.2)
+**main HEAD**: `35a4e9b` (TB-16.x.2.6 — multi-chain union 13-of-13)
+**Commits this session** (in order):
+- `6d202ee` — TB-16.x.2.3 (CompleteSetRedeem env-var; 12-of-13 single-chain → 12-of-13 cumulative)
+- `f1216f0` — TB-16.x.2.5 (AutopsyCapsule real-bankruptcy chain; R2 P4 path closed)
+- `b5118fd` — TB-16.x.2.4 pre-audit (Multi-WorkTx + Boltzmann RUNTIME)
+- `4dd82c1` — TB-16.x.2.4.fix r1 (Class 3 dual-audit Codex+Gemini VETO×2 + 8 findings closed)
+- `e34d178` — TB-16.x.2.4.fix r2 (R2 dual-audit closure; OBS_R024 + TB-17 PRE-17.5 deferral)
+- `35a4e9b` — TB-16.x.2.6 (multi-chain union 13-of-13; TB-17 PRE-17.6 deferral)
+
+### Sub-atom ship ledger
+
+| Sub-atom | Surface | Class | Smoke iters | Audit | Commit |
+|---|---|---|---|---|---|
+| 2.1 (TaskExpire) | evaluator.rs FORCE_EXPIRE | 2 | 1 (e986ed0; pre-session) | self | `e986ed0` |
+| 2.2 (ChallengeResolve) | evaluator.rs+adapter.rs | 3 | 5 (r1..r5; pre-session + this session) | dual (Codex+Gemini → CHALLENGE; 5 fixes) | `5e32cbf+3234960+647860c` |
+| 2.3 (CompleteSetRedeem) | evaluator.rs+adapter.rs | 2 | 1 | self | `6d202ee` |
+| 2.4 (Multi-WorkTx + Boltzmann) | evaluator.rs+audit_assertions.rs id=43 | 3 | 4 (r1..r4) | dual R1+R2 (Codex VETO→ship-clean; Gemini VETO Q1+Q2 → OBS_R024) | `b5118fd+4dd82c1+e34d178` |
+| 2.5 (AutopsyCapsule) | evaluator.rs (.fix) + audit_assertions.rs (id=43 stub) | 2 | 3 (r1 staker fix, r2 CAS write fix, r3 ship-gate) | self | `f1216f0` |
+| 2.6 (Combined arena) | smoke script + multi-chain evidence | 2 | 4 chains (P14, P14b, P15, P15b) | self | `35a4e9b` |
+
+### 13-of-13 architect tx kinds — multi-chain union ledger
+
+```
+P14_comprehensive (mathd_algebra_171, OMEGA-Confirm path, full FORCE_*):
+  work=6, verify=1, challenge=1, task_open=1, escrow_lock=1,
+  complete_set_mint=1, market_seed=1, challenge_resolve=1
+  (8/13)
+
+P14b_omega_finalize_only (mathd_algebra_171, OMEGA-Confirm path, NO FORCE_CHALLENGER):
+  work=1, verify=1, task_open=1, escrow_lock=1, finalize_reward=1
+  (5/13; captures finalize_reward — blocked by FORCE_CHALLENGER in P14)
+
+P15_exhaust_redeem (aime_1997_p9, MaxTxExhausted path, FORCE_BANKRUPTCY+EXPIRE+REDEEM):
+  task_open=1, escrow_lock=1, complete_set_mint=1, market_seed=1,
+  terminal_summary=1, task_expire=1, task_bankruptcy=1
+  (7/13; redeem rejected because FORCE_EXPIRE overwrote Bankrupt → Expired)
+
+P15b_exhaust_redeem_no_expire (aime_1997_p9, MaxTxExhausted, FORCE_BANKRUPTCY+REDEEM, NO EXPIRE):
+  task_open=1, escrow_lock=1, complete_set_mint=1, complete_set_redeem=1,
+  market_seed=1, terminal_summary=1, task_bankruptcy=1
+  (7/13; captures complete_set_redeem)
+
+UNION across 4 chains: 13/13 ✓
+```
+
+### β architectural status (per OBS_R022 architect ruling §A.6 execution order)
+
+The architect ruling §A.6 mapped β-progression to:
+- TB-16.x.2.4 — multi-WorkTx attempt + Boltzmann runtime ← begin β
+- TB-16.x.2.6 — combined arena run, single continuing chain ← β fully realized
+
+**Honest β closure declaration** (this session):
+
+| β component | Status | Reason | Forward trigger |
+|---|---|---|---|
+| β-A: multi-WorkTx + Boltzmann RUNTIME exercise | **COMPLETE** | TB-16.x.2.4.fix r2 commit `e34d178` ships 4 admitted WorkTxs with non-None entropy 0.918 ≥ 0.5 (id=43 PASS) on real-LLM chain | n/a |
+| β-B: Boltzmann sequencer-side ENFORCEMENT (vs proposal-side OBSERVE) | **NOT IMPLEMENTED** | Class 4 surface (WorkTx schema bump + canonical signing-payload + sequencer admission gate); explicit deviation per `feedback_architect_deviation_stance` | OBS_R024 + **TB-17 PRE-17.5** |
+| β-C: single continuing chain across multi-task | **PARTIAL** | TB-16.x.2.6 ships multi-chain UNION 13/13 (not single-chain). Single-chain 13-of-13 requires `comprehensive_arena.rs` substantive build (currently scaffold-only). The OMEGA-vs-MaxTxExhausted exclusion + FORCE_CHALLENGER-blocks-finalize_reward + FORCE_EXPIRE-overwrites-Bankrupt-state are 3 architectural-correctness constraints that prevent single-evaluator-process single-chain coverage | **TB-17 PRE-17.6** |
+| β-D: in-tape Markov inheritance (TerminalSummaryTx → EvidenceCapsule.markov_capsule_cid pipeline) | **NOT IMPLEMENTED** | α-style CLI sidecar (`--prior-chain-runtime-repo`) still in use; in-tape resolution from chain artifacts not yet wired | **TB-17 PRE-17.7** (NEW; declared this session in MARKOV_INHERITANCE_POLICY.md §4 α/β/γ table) |
+
+The architect's ruling §A.6 expectation that "TB-16.x.2.6 ← β fully realized" is **PARTIALLY** met. β-A is realized; β-B/C/D are deferred to TB-17 with concrete PRE-17.5/17.6/17.7 forward triggers. The umbrella charter's Class 3 risk envelope for .2.4 + .2.6 forbade the Class 4 surface required for β-B/C/D substantive build; deferral is the constitutionally-correct outcome.
+
+### TB-17 hard preconditions ledger (PRE-17.1..17.7)
+
+| PRE | Source | Status | Evidence |
+|---|---|---|---|
+| PRE-17.1 (TB-16 global Markov pointer issue closed) | architect ruling §B.6 | ✅ CLOSED (TB-16.x.fix `f2bb871`) | LATEST_MARKOV_CAPSULE.txt deleted; SG-16.7..16.10 added |
+| PRE-17.2 (run-to-run inheritance is in-tape OR explicit prior-chain-runtime-repo input) | architect ruling §B.6 | ✅ CLOSED via documentation | `handover/markov_capsules/MARKOV_INHERITANCE_POLICY.md` §2 (filed this session) |
+| PRE-17.3 (no global latest pointer acts as source of truth) | architect ruling §B.6 | ✅ CLOSED | Same as 17.1 + MARKOV_INHERITANCE_POLICY §3.1 forbids reintroduction |
+| PRE-17.4 (audit_tape distinguishes genesis / inherited / invalid Markov pointer) | architect ruling §B.6 | ✅ CLOSED | MARKOV_INHERITANCE_POLICY §2.1/2.2/2.3 + audit assertion id=32 + 33 + 34 + 35 |
+| PRE-17.5 (Boltzmann sequencer enforcement gate) | OBS_R024 (this session, via Gemini R2 Q1 VETO) | 🚧 OPEN | TB-17 charter MUST add WorkTx parent_tx schema + admission gate; closes OBSERVE→ENFORCE gap |
+| PRE-17.6 (single-chain 13-of-13 via multi-task arena) | TB-16.x.2.6 README (this session) | 🚧 OPEN | TB-17 charter MUST build out `comprehensive_arena.rs` from scaffold to substantive 6-task driver; closes multi-chain-union deviation |
+| PRE-17.7 (in-tape Markov β-D pipeline: TerminalSummaryTx → EvidenceCapsule.markov_capsule_cid) | MARKOV_INHERITANCE_POLICY §4 (this session) | 🚧 OPEN | TB-17 charter MUST wire TerminalSummaryTx to carry markov_capsule_cid; deprecates α CLI sidecar resolver |
+
+### Fresh OBSes filed this session
+
+- **OBS_R024** — `handover/alignment/OBS_R024_TB_16_X_2_4_BOLTZMANN_OBSERVE_VS_ENFORCE.md` — Boltzmann OBSERVE-vs-ENFORCE architectural gap; TB-17 PRE-17.5 trigger
+- (no OBS for .2.6's multi-chain-union deviation; instead documented inline in `handover/evidence/tb_16_x_2_6_smoke_2026-05-05/README.md` + this LATEST.md as TB-17 PRE-17.6)
+
+### Test counts (workspace-test-canonical)
+
+```
+command          = cargo test --workspace --release
+workspace_count  = 922  (+7 from .2.4.fix r1 id=43 unit tests vs 915 baseline)
+failed           = 0
+ignored          = 150
+```
+
+### Trust Root rehash chain (this session)
+
+```
+experiments/minif2f_v4/src/bin/evaluator.rs:
+  12489ab4 (.2.2.fix r2 baseline at session start)
+  → e1c4d057 (.2.3 commit 6d202ee)
+  → d39c67d1 (.2.5 commit f1216f0)
+  → 5a989d15 (.2.4 commit b5118fd)
+  → fada36b4 (.2.4.fix r1 commit 4dd82c1)
+  → 346a6a3c (.2.4.fix r1 supplemental — preseed-settle barrier)
+  → 5dfd5142 (.2.4.fix r2 commit e34d178; doc-only)
+
+src/runtime/adapter.rs:
+  c1360a73 (.2.2.fix.r2 baseline)
+  → 48da399a (.2.3 commit 6d202ee)
+
+src/runtime/audit_assertions.rs: NOT in trust root manifest (only mod.rs is)
+  - .2.5 commit f1216f0 added id=43 stub
+  - .2.4.fix r1 commit 4dd82c1 refactored id=43 to non-None entropy + 7 unit tests
+```
+
+### Next steps (TB-17 charter writing)
+
+1. Draft `handover/tracer_bullets/TB-17_charter_*.md` citing ALL 7 PRE-17 preconditions:
+   - PRE-17.1..17.4 (architect ruling 2026-05-04)
+   - PRE-17.5 (OBS_R024; Boltzmann ENFORCE)
+   - PRE-17.6 (multi-task `comprehensive_arena.rs`)
+   - PRE-17.7 (in-tape Markov β-D pipeline)
+2. Draft `tests/markov_inheritance_policy.rs` (NEW) per MARKOV_INHERITANCE_POLICY §6.1 SG-17.9 mandate.
+3. Architect-ratification ingest of TB-17 charter (Class 3+ surface; multiple Class 4 candidates per PRE-17.5/17.7).
+
+### Cross-references
+
+- Umbrella charter (this TB-16.x.2 series): `handover/tracer_bullets/TB-16.x.2_charter_2026-05-04.md`
+- Architect ruling (OBS_R022 + α/β/γ + PRE-17): `handover/directives/2026-05-04_TB16_OBS_R022_ARCHITECT_RULING.md`
+- MARKOV_INHERITANCE_POLICY (filed this session): `handover/markov_capsules/MARKOV_INHERITANCE_POLICY.md`
+- OBS_R024 (Boltzmann OBSERVE-vs-ENFORCE; filed this session): `handover/alignment/OBS_R024_TB_16_X_2_4_BOLTZMANN_OBSERVE_VS_ENFORCE.md`
+- Multi-chain evidence ledger: `handover/evidence/tb_16_x_2_6_smoke_2026-05-05/README.md`
+- Codex audits (R1+R2 on .2.4): `handover/audits/CODEX_TB_16_X_2_4_AUDIT_2026-05-05_R{1,2}.md`
+- Gemini audits (R1+R2 on .2.4): `handover/audits/GEMINI_TB_16_X_2_4_AUDIT_2026-05-05_R{1,2}.md`
+
+---
+
 ## 🛠️ 2026-05-05 — TB-16.x.2.2 SHIPPED — ChallengeResolve via challenge-window scheduler (11-of-13 tx kinds)
 
 **Updated**: 2026-05-05 (this session continued the bootstrap from the prior session that landed `5e32cbf` un-smoke-verified)
