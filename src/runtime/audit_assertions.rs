@@ -1838,24 +1838,32 @@ pub fn assert_e_challenge_resolve_chain_to_challenge_tx(t: &LoadedTape) -> Asser
 /// supplemental assertion id=43 `boltzmann_parent_selection_diversity`
 /// — verifies that when ≥3 WorkTxs are admitted on the same task, the
 /// distribution of `ProposalTelemetry.parent_tx` across those WorkTxs
-/// has Shannon entropy ≥ 0.25 bits (per Art II.2.1 alarm threshold).
+/// has Shannon entropy **≥ 0.5 bits over the non-None subset** (charter
+/// §2 Atom 2.4 SG-16.x.2.4 verbatim threshold). The Art II.2.1 alarm
+/// threshold (0.25) is the floor; charter SG is the ship requirement.
 ///
-/// Architectural rationale: Boltzmann scheduler (mechanism 5) picks
-/// proposal-time parents from `price_index` × `mask_set`. The pick is
-/// recorded in `ProposalTelemetry.parent_tx` (TB-7.7 D2). Low entropy
-/// across same-task WorkTxs indicates either (a) star topology collapse
-/// (V3L-14 risk — all proposals citing the same parent), (b) Boltzmann
-/// selector returning constant None (price_index empty / mask_set
-/// dominant), or (c) seed-injection bug where every seeded WorkTx took
-/// the same fallback parent. All three are gradient-failure modes that
-/// reduce system exploration.
+/// **Class 3 dual-audit fix (TB-16.x.2.4.fix r1)**: Codex VETO #1 +
+/// Gemini Q2 CHALLENGE both flagged the prior formula counting ROOT
+/// (None) as a distinct category — the smoke distribution
+/// `{ROOT: 1, iter-0: 3}` produced entropy 0.811 bits and passed,
+/// despite all NON-root proposals citing the SAME single parent (a
+/// star topology, the V3L-14 anti-pattern). Fix: filter parent_tx
+/// values to the non-None subset BEFORE entropy computation; the
+/// non-None distribution is what measures the genuine
+/// parent-selection diversity. ROOT proposals (None) are correct
+/// for the bootstrap iteration but contribute zero diversity signal.
 ///
-/// Skips when no task has ≥3 WorkTxs admitted (single-WorkTx-per-task
-/// scenarios — most pre-TB-16.x.2.4 chains).
-///
-/// Halts when the entropy is < 0.25 on any task with ≥3 WorkTxs.
-///
-/// Passes when at least one task has ≥3 WorkTxs AND entropy ≥ 0.25.
+/// **Skip vs Halt vs Pass semantics**:
+/// - Skip: no task has ≥3 WorkTxs (single-WorkTx-per-task chain;
+///   pre-TB-16.x.2.4 chains or arena profile without
+///   FORCE_BOLTZMANN_SEED_WORKTXS); OR a task has ≥3 WorkTxs but
+///   <2 non-None parent_tx entries (only roots — entropy is
+///   undefined; the seeder is structurally root-only).
+/// - Halt: a task has ≥3 WorkTxs AND ≥2 non-None parent_tx entries
+///   AND non-None Shannon entropy < 0.5 bits — star-topology
+///   collapse risk per V3L-14.
+/// - Pass: at least one task has ≥3 WorkTxs AND non-None entropy
+///   ≥ 0.5 (and no task with ≥3 WorkTxs has entropy < 0.5).
 ///
 /// id=43 (Layer E supplemental).
 pub fn assert_e_boltzmann_parent_selection_diversity(
@@ -1916,25 +1924,34 @@ pub fn assert_e_boltzmann_parent_selection_diversity(
             .or_default()
             .push(telemetry.parent_tx);
     }
-    // Find any task with ≥3 admitted WorkTxs.
+    // Find any task with ≥3 admitted WorkTxs AND ≥2 non-None parents.
     let mut any_eligible = false;
     let mut min_entropy: Option<f64> = None;
     let mut min_entropy_task: Option<crate::state::q_state::TaskId> = None;
+    let mut min_entropy_distribution: Option<String> = None;
+    let mut seen_total_only_roots = 0u32;
     for (task_id, parents) in &by_task {
         if parents.len() < 3 {
             continue;
         }
+        // V1 fix: filter to non-None subset BEFORE entropy
+        // (Codex VETO #1 + Gemini Q2: ROOT-counted entropy passed star
+        // topology). Only Some(tx_id) entries contribute to the
+        // parent-selection-diversity signal.
+        let non_none: Vec<&crate::state::q_state::TxId> =
+            parents.iter().filter_map(|p| p.as_ref()).collect();
+        if non_none.len() < 2 {
+            // Not enough non-root entries to measure diversity for this
+            // task. Don't flip eligibility yet — another task may qualify.
+            seen_total_only_roots += 1;
+            continue;
+        }
         any_eligible = true;
-        // Shannon entropy in bits over the parent_tx distribution.
-        // None and Some(tx_id) are distinct categories (None = root pick).
-        let n = parents.len() as f64;
+        // Shannon entropy in bits over the non-None parent_tx distribution.
+        let n = non_none.len() as f64;
         let mut counts: BTreeMap<String, u64> = BTreeMap::new();
-        for p in parents {
-            let key = match p {
-                None => "ROOT".to_string(),
-                Some(tx) => tx.0.clone(),
-            };
-            *counts.entry(key).or_insert(0) += 1;
+        for tx in &non_none {
+            *counts.entry(tx.0.clone()).or_insert(0) += 1;
         }
         let mut h: f64 = 0.0;
         for (_k, c) in &counts {
@@ -1946,26 +1963,53 @@ pub fn assert_e_boltzmann_parent_selection_diversity(
         if min_entropy.map(|m| h < m).unwrap_or(true) {
             min_entropy = Some(h);
             min_entropy_task = Some(task_id.clone());
+            min_entropy_distribution = Some(
+                counts
+                    .iter()
+                    .map(|(k, v)| format!("{k}:{v}"))
+                    .collect::<Vec<_>>()
+                    .join(", "),
+            );
         }
     }
     if !any_eligible {
+        let detail = if seen_total_only_roots > 0 {
+            format!(
+                "no task has ≥3 admitted WorkTxs AND ≥2 non-None parent_tx entries; \
+                 {seen_total_only_roots} task(s) had ≥3 WorkTxs but <2 non-root \
+                 (root-only seed; entropy undefined). Pre-TB-16.x.2.4 chains or \
+                 arena profile without FORCE_BOLTZMANN_SEED_WORKTXS."
+            )
+        } else {
+            "no task has ≥3 admitted WorkTxs (single-WorkTx-per-task scenario; \
+             pre-TB-16.x.2.4 chains or arena profile without FORCE_BOLTZMANN_SEED_WORKTXS)"
+                .to_string()
+        };
         return AssertionResult::skipped(
             id,
             "boltzmann_parent_selection_diversity",
             AssertionLayer::E,
-            "no task has ≥3 admitted WorkTxs (single-WorkTx-per-task scenario; pre-TB-16.x.2.4 chains or arena profile without FORCE_BOLTZMANN_SEED_WORKTXS)".into(),
+            detail,
         );
     }
     let h = min_entropy.unwrap_or(0.0);
-    if h < 0.25 {
+    // Charter §2 Atom 2.4 SG-16.x.2.4 spec'd ≥ 0.5 (the parenthetical
+    // "Art II.2.1 alarm threshold 0.25" is the floor below which the
+    // Art II.2.1 alarm fires; ship gate is 0.5).
+    const SHIP_GATE_ENTROPY_BITS: f64 = 0.5;
+    if h < SHIP_GATE_ENTROPY_BITS {
         return AssertionResult::halt(
             id,
             "boltzmann_parent_selection_diversity",
             AssertionLayer::E,
             format!(
-                "min Shannon entropy {:.4} bits on task {:?} is < 0.25 (Art II.2.1 alarm threshold) — star-topology collapse risk",
+                "min non-None Shannon entropy {:.4} bits on task {:?} is < {:.2} \
+                 (charter SG-16.x.2.4 ship gate; Art II.2.1 alarm floor 0.25) — \
+                 star-topology collapse risk. Distribution: {}",
                 h,
-                min_entropy_task
+                min_entropy_task,
+                SHIP_GATE_ENTROPY_BITS,
+                min_entropy_distribution.unwrap_or_else(|| "{}".to_string()),
             ),
         );
     }
@@ -2676,5 +2720,122 @@ mod tests {
     fn extract_constitution_root_hex_basic() {
         let toml = "[other]\nfoo = 1\n[constitution_root]\nsha256 = \"DEADBEEF\"\n";
         assert_eq!(extract_constitution_root_hex(toml), Some("deadbeef".into()));
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // TB-16.x.2.4.fix r1 (Class 3 dual-audit Codex VETO #1 + Gemini Q2):
+    // pure-fn unit tests for the entropy classification logic of id=43
+    // boltzmann_parent_selection_diversity.
+    //
+    // The full assertion takes a LoadedTape (CAS-resident WorkTx +
+    // ProposalTelemetry); the BCS fixture setup is too heavy for a unit
+    // test. We test the entropy-classification helper directly via a
+    // pure-fn extracted below to enable hermetic coverage of the gate
+    // semantics. Integration coverage on real tape is the .2.4 smoke.
+    // ──────────────────────────────────────────────────────────────────
+
+    /// Compute Shannon entropy in bits over the non-None subset of the
+    /// parent_tx values, exactly as `assert_e_boltzmann_parent_selection_diversity`
+    /// does internally. Returns None if the non-None subset has < 2 entries
+    /// (entropy undefined for that case).
+    fn non_none_parent_entropy(parents: &[Option<&str>]) -> Option<f64> {
+        let non_none: Vec<&str> = parents.iter().filter_map(|p| *p).collect();
+        if non_none.len() < 2 {
+            return None;
+        }
+        let n = non_none.len() as f64;
+        let mut counts: std::collections::BTreeMap<&str, u64> = std::collections::BTreeMap::new();
+        for tx in &non_none {
+            *counts.entry(tx).or_insert(0) += 1;
+        }
+        let mut h: f64 = 0.0;
+        for (_k, c) in &counts {
+            let p = (*c as f64) / n;
+            if p > 0.0 {
+                h -= p * p.log2();
+            }
+        }
+        Some(h)
+    }
+
+    #[test]
+    fn id43_pure_entropy_star_topology_with_root_yields_low_entropy() {
+        // Codex VETO #1 + Gemini Q2 reproducer: distribution
+        // {ROOT: 1, A: 3} should yield NON-NONE entropy = 0
+        // (the prior implementation counted ROOT as a category and
+        // returned 0.811 bits, falsely passing the gate).
+        let parents = vec![None, Some("A"), Some("A"), Some("A")];
+        let h = non_none_parent_entropy(&parents).unwrap();
+        assert!(
+            h.abs() < 1e-9,
+            "star-topology non-None entropy must be ~0, got {h}"
+        );
+    }
+
+    #[test]
+    fn id43_pure_entropy_diverse_non_none_passes_gate() {
+        // {ROOT: 1, A: 1, B: 1, C: 1} → non-None entropy log2(3) ≈ 1.585
+        let parents = vec![None, Some("A"), Some("B"), Some("C")];
+        let h = non_none_parent_entropy(&parents).unwrap();
+        let expected = (3.0_f64).log2();
+        assert!((h - expected).abs() < 1e-6, "got {h}, expected {expected}");
+        assert!(h >= 0.5, "entropy {h} must clear ship gate 0.5");
+    }
+
+    #[test]
+    fn id43_pure_entropy_partial_star_passes_gate() {
+        // {ROOT: 1, A: 2, B: 1} → non-None = {A: 2, B: 1} → entropy =
+        // -(2/3 log2 2/3) -(1/3 log2 1/3) ≈ 0.918 bits (≥ 0.5).
+        let parents = vec![None, Some("A"), Some("A"), Some("B")];
+        let h = non_none_parent_entropy(&parents).unwrap();
+        assert!(h >= 0.5, "partial-star non-None entropy {h} must clear 0.5");
+        // Sanity: tighter bound to catch regressions.
+        assert!(h > 0.9 && h < 1.0, "expected ~0.918, got {h}");
+    }
+
+    #[test]
+    fn id43_pure_entropy_only_roots_returns_none() {
+        // {ROOT: 3} — only one parent variant after non-None filter (zero).
+        // Should return None (assertion will Skip with "only roots" detail).
+        let parents = vec![None, None, None];
+        assert!(
+            non_none_parent_entropy(&parents).is_none(),
+            "only-roots distribution must signal entropy-undefined"
+        );
+    }
+
+    #[test]
+    fn id43_pure_entropy_single_non_none_returns_none() {
+        // {ROOT: 2, A: 1} — only one non-None entry. Entropy of a
+        // singleton distribution is 0 but mathematically not a meaningful
+        // diversity signal, so the assertion treats it as "undefined" and
+        // Skips. This prevents a 1-non-None smoke from passing on entropy=0
+        // alone (which would fail the 0.5 gate anyway, but Skip is the
+        // semantically correct verdict).
+        let parents = vec![None, None, Some("A")];
+        assert!(
+            non_none_parent_entropy(&parents).is_none(),
+            "single non-None entry must signal entropy-undefined"
+        );
+    }
+
+    #[test]
+    fn id43_pure_entropy_uniform_two_non_none_passes_gate() {
+        // {A: 1, B: 1} — uniform binary → entropy = 1.0 bit (≥ 0.5).
+        let parents = vec![Some("A"), Some("B")];
+        let h = non_none_parent_entropy(&parents).unwrap();
+        assert!((h - 1.0).abs() < 1e-9, "expected 1.0, got {h}");
+    }
+
+    #[test]
+    fn id43_pure_entropy_skewed_two_non_none_below_gate() {
+        // {A: 9, B: 1} — heavily skewed → entropy ≈ 0.469 bits (< 0.5).
+        // This case is what the ship gate is designed to catch:
+        // technically diverse (>1 distinct parent) but the diversity
+        // is small enough to indicate near-collapse.
+        let parents: Vec<Option<&str>> = (0..9).map(|_| Some("A")).chain(std::iter::once(Some("B"))).collect();
+        let h = non_none_parent_entropy(&parents).unwrap();
+        assert!(h < 0.5, "skewed 9:1 entropy {h} must fall below 0.5 ship gate");
+        assert!(h > 0.4 && h < 0.5, "expected ~0.469, got {h}");
     }
 }

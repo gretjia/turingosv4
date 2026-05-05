@@ -37,7 +37,9 @@
 # Usage:
 #   bash handover/tests/scripts/run_tb_16_x_2_3_smoke_2026-05-05.sh
 
-set -uo pipefail
+# .fix carry-over from .2.4 r1 hardening (Codex VETO #3): set -e enables
+# fail-on-error globally; explicit RC gating below.
+set -euo pipefail
 cd /home/zephryj/projects/turingosv4
 
 OUT_BASE="${OUT_BASE:-handover/evidence/tb_16_x_2_3_smoke_2026-05-05}"
@@ -80,6 +82,7 @@ echo "  Start: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 echo
 
 T0=$(date +%s)
+RC=0
 env $PROBE_ENV \
   TURINGOS_USER_TASK_MODE=1 \
   TURINGOS_CHAINTAPE_PRESEED=1 \
@@ -91,8 +94,7 @@ env $PROBE_ENV \
   MAX_TRANSACTIONS="$MAX_TX" \
   CONDITION="n${N_SWARM}" \
   RUST_LOG="${RUST_LOG:-info}" \
-  "$EVALUATOR_BIN" "$PFILE" 2> "$PROBLEM_DIR/evaluator.stderr" 1> "$PROBLEM_DIR/evaluator.stdout"
-RC=$?
+  "$EVALUATOR_BIN" "$PFILE" 2> "$PROBLEM_DIR/evaluator.stderr" 1> "$PROBLEM_DIR/evaluator.stdout" || RC=$?
 T1=$(date +%s)
 ELAPSED=$((T1 - T0))
 echo "  evaluator: rc=$RC  elapsed=${ELAPSED}s"

@@ -1,0 +1,47 @@
+[2026-05-05T08:45:48Z INFO  evaluator] Problem: aime_1997_p9.lean | Condition: n5 | Model: deepseek-v4-flash | Mode: full
+[2026-05-05T08:45:48Z INFO  evaluator] [chaintape/d3] pre-seed enabled (TB-10 factory): 12 entries
+[2026-05-05T08:45:48Z INFO  evaluator] [chaintape] bus wired with Sequencer + on-disk ChainTape at "handover/evidence/tb_16_x_2_4_smoke_2026-05-05/r4_seed_12345/P12_boltzmann_runtime/runtime_repo"
+[2026-05-05T08:45:48Z INFO  evaluator] [chaintape/tb10] user-mode TaskOpen for task-n5_aime_1997_p9_1777970748228 sponsor=Agent_user_0
+[2026-05-05T08:45:48Z INFO  evaluator] [chaintape/tb10] user-mode EscrowLock 200000 micro for task-n5_aime_1997_p9_1777970748228 sponsor=Agent_user_0
+[2026-05-05T08:45:49Z INFO  evaluator] [chaintape/tb16-arena] preseed-settle barrier settled at state_root=Some(Hash([37, 32, 177, 59, 202, 211, 128, 146, 163, 139, 0, 146, 44, 248, 250, 217, 232, 67, 67, 43, 101, 49, 120, 36, 215, 73, 46, 200, 45, 196, 159, 182])); entering FORCE_BOLTZMANN_SEED_WORKTXS loop
+[2026-05-05T08:45:49Z INFO  evaluator] [chaintape/tb16-arena] boltzmann seed iter=0 COMMITTED by Agent_user_0 (stake=25000 μC, parent_tx=None, v2_pick=None, tx_id=worktx-task-n5_aime_1997_p9_1777970748228-tb16-arena-boltzmann-seed-iter-0)
+[2026-05-05T08:45:49Z INFO  evaluator] [chaintape/tb16-arena] boltzmann seed iter=1 COMMITTED by Agent_user_0 (stake=25000 μC, parent_tx=Some(TxId("worktx-task-n5_aime_1997_p9_1777970748228-tb16-arena-boltzmann-seed-iter-0")), v2_pick=Some(TxId("worktx-task-n5_aime_1997_p9_1777970748228-tb16-arena-boltzmann-seed-iter-0")), tx_id=worktx-task-n5_aime_1997_p9_1777970748228-tb16-arena-boltzmann-seed-iter-1)
+[2026-05-05T08:45:49Z INFO  evaluator] [chaintape/tb16-arena] boltzmann seed iter=2 COMMITTED by Agent_user_0 (stake=25000 μC, parent_tx=Some(TxId("worktx-task-n5_aime_1997_p9_1777970748228-tb16-arena-boltzmann-seed-iter-1")), v2_pick=Some(TxId("worktx-task-n5_aime_1997_p9_1777970748228-tb16-arena-boltzmann-seed-iter-1")), tx_id=worktx-task-n5_aime_1997_p9_1777970748228-tb16-arena-boltzmann-seed-iter-2)
+[2026-05-05T08:45:49Z INFO  evaluator] [chaintape/tb16-arena] boltzmann seed iter=3 COMMITTED by Agent_user_0 (stake=25000 μC, parent_tx=Some(TxId("worktx-task-n5_aime_1997_p9_1777970748228-tb16-arena-boltzmann-seed-iter-1")), v2_pick=Some(TxId("worktx-task-n5_aime_1997_p9_1777970748228-tb16-arena-boltzmann-seed-iter-1")), tx_id=worktx-task-n5_aime_1997_p9_1777970748228-tb16-arena-boltzmann-seed-iter-3)
+[2026-05-05T08:45:49Z INFO  evaluator] [chaintape/tb16-arena] FORCE_BOLTZMANN_SEED_WORKTXS produced 4 accepted WorkTxs (count requested=4)
+[2026-05-05T08:45:49Z INFO  evaluator] [chaintape] seeded synthetic TaskOpen for smoke-n5_aime_1997_p9_1777970748228
+[2026-05-05T08:45:49Z INFO  evaluator] [chaintape] seeded synthetic zero-stake WorkTx (synthetic_rejection_for_l4e_gate=true) for smoke-n5_aime_1997_p9_1777970748228
+[2026-05-05T08:45:49Z INFO  evaluator] [chaintape] Atom 5 audit-trail records written to CAS + indexed for smoke-n5_aime_1997_p9_1777970748228
+[2026-05-05T08:45:49Z INFO  evaluator] [chaintape/d_c] genesis_report.json written to "handover/evidence/tb_16_x_2_4_smoke_2026-05-05/r4_seed_12345/P12_boltzmann_runtime/runtime_repo"
+[2026-05-05T08:45:49Z INFO  evaluator] [swarm/n5] agent_models = [deepseek-v4-flash,deepseek-v4-flash,deepseek-v4-flash,deepseek-v4-flash,deepseek-v4-flash] (label=deepseek-v4-flash)
+[2026-05-05T08:45:49Z INFO  evaluator] [budget] regime=total_proposal base=20 effective_max_tx=20 (n_agents=5)
+[2026-05-05T08:45:49Z INFO  evaluator] [swarm/n5] Agent_0:skill0:t=0.20 Agent_1:skill1:t=0.20 Agent_2:skill2:t=0.20 Agent_3:skill0:t=0.20 Agent_4:skill1:t=0.20
+[2026-05-05T08:46:02Z INFO  evaluator] [tx 0] Agent_0 step+tx_0_by_Agent_0 partial OK (depth=1)
+[2026-05-05T08:46:12Z INFO  evaluator] [tx 1] Agent_1 step+tx_1_by_Agent_1 partial OK (depth=2)
+[2026-05-05T08:46:15Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-05T08:46:15Z WARN  evaluator] [tx 2] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-05T08:46:25Z INFO  evaluator] [tx 3] Agent_3 step+tx_2_by_Agent_3 partial OK (depth=3)
+[2026-05-05T08:46:36Z INFO  evaluator] [tx 4] Agent_4 step+tx_3_by_Agent_4 partial OK (depth=4)
+[2026-05-05T08:46:46Z INFO  evaluator] [tx 5] Agent_0 step+tx_4_by_Agent_0 partial OK (depth=5)
+[2026-05-05T08:47:07Z WARN  evaluator] [tx 6] step rejected (err:tactic_linarith): hard_error_with_unsolved: <stdin>:43:4: error: linarith failed to find a contradiction | <stdin>:46:6: error: linarith failed to find a contradiction
+[2026-05-05T08:47:28Z WARN  evaluator] [tx 7] step rejected (err:tactic_linarith): hard_error_with_unsolved: <stdin>:40:6: error: linarith failed to find a contradiction | <stdin>:42:6: error: linarith failed to find a contradiction | <stdin>:50:4: error: invalid 'calc' step, left-h
+[2026-05-05T08:47:41Z INFO  evaluator] [tx 8] Agent_3 step+tx_5_by_Agent_3 partial OK (depth=6)
+[2026-05-05T08:47:43Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-05T08:47:43Z WARN  evaluator] [tx 9] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-05T08:47:54Z INFO  evaluator] [tx 10] Agent_0 step+tx_6_by_Agent_0 partial OK (depth=7)
+[2026-05-05T08:47:57Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-05T08:47:57Z WARN  evaluator] [tx 11] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-05T08:48:09Z INFO  evaluator] [tx 12] Agent_2 step+tx_7_by_Agent_2 partial OK (depth=8)
+[2026-05-05T08:48:20Z INFO  evaluator] [tx 13] Agent_3 step+tx_8_by_Agent_3 partial OK (depth=9)
+[2026-05-05T08:48:43Z WARN  evaluator] [tx 14] step rejected (err:tactic_linarith): hard_error_with_unsolved: <stdin>:70:6: error: linarith failed to find a contradiction | <stdin>:75:4: error: linarith failed to find a contradiction
+[2026-05-05T08:48:53Z INFO  evaluator] [tx 15] Agent_0 step+tx_9_by_Agent_0 partial OK (depth=10)
+[2026-05-05T08:49:05Z INFO  evaluator] [tx 16] Agent_1 step+tx_10_by_Agent_1 partial OK (depth=11)
+[2026-05-05T08:49:17Z INFO  evaluator] [tx 17] Agent_2 step+tx_11_by_Agent_2 partial OK (depth=12)
+[2026-05-05T08:49:19Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-05T08:49:19Z WARN  evaluator] [tx 18] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-05T08:49:30Z INFO  evaluator] [tx 19] Agent_4 step+tx_12_by_Agent_4 partial OK (depth=13)
+[v2-emit] SPLIT env unset; defaulting to 'adaptation' (Phase B convention; pre-registration requires SPLIT for Phase C+ ablation runs)
+[2026-05-05T08:49:30Z INFO  evaluator] [tb11] EvidenceCapsule written: capsule_id=a3c333b53ea316a5f7c4cc8148104bb674e40d04f4bda3d8034ecd6951562e04 compressed_log_cid=3aac1353a8e016f6c1a04dbf0e0364ea5a17a92dea1b97ea134877075e02f235 attempt_count=20
+[2026-05-05T08:49:30Z INFO  evaluator] [tb11] TerminalSummary emitted: emit_id=1
+[2026-05-05T08:49:30Z INFO  evaluator] [chaintape] Atom 6 RunSummary written (7 L4 + 2 L4.E entries; 7 accepted_tx_ids, 2 rejected_tx_ids)
+[2026-05-05T08:49:30Z INFO  evaluator] PPUT = 0 (no golden path in 222.6s, 20 tx)

@@ -1264,22 +1264,42 @@ async fn run_swarm(
             // is high-impact (Boltzmann RUNTIME wire-up is the V3L-14 anti-
             // star-topology mechanism). Pre-ship dual audit at .2.4 commit.
             if let Ok(seed_spec) = std::env::var("TURINGOS_FORCE_BOLTZMANN_SEED_WORKTXS") {
+                // .fix r1 (Codex VETO #4 + Gemini Q8): env-var parse failures
+                // are now FAIL-CLOSED via std::process::exit(3) — the user
+                // explicitly activated this hook by setting the env var; bad
+                // values must be a hard error, not a silent skip-with-warn.
                 let parts: Vec<&str> = seed_spec.split(':').collect();
                 if parts.len() != 3 {
-                    warn!(
-                        "[chaintape/tb16-arena] FORCE_BOLTZMANN_SEED_WORKTXS expected \
-                         staker:count:stake_micro, got {seed_spec:?}"
+                    error!(
+                        "[chaintape/tb16-arena] FORCE_BOLTZMANN_SEED_WORKTXS FAIL-CLOSED: \
+                         expected staker:count:stake_micro, got {seed_spec:?}"
                     );
-                } else {
-                    let staker = parts[0].to_string();
-                    let count: u32 = parts[1].parse().unwrap_or(0);
-                    let stake_micro_per: i64 = parts[2].parse().unwrap_or(0);
-                    if count == 0 || stake_micro_per <= 0 {
-                        warn!(
-                            "[chaintape/tb16-arena] FORCE_BOLTZMANN_SEED_WORKTXS count + \
-                             stake_micro must be > 0, got count={count} stake_micro={stake_micro_per}"
+                    std::process::exit(3);
+                }
+                let staker = parts[0].to_string();
+                let count: u32 = match parts[1].parse() {
+                    Ok(n) if n > 0 => n,
+                    _ => {
+                        error!(
+                            "[chaintape/tb16-arena] FORCE_BOLTZMANN_SEED_WORKTXS FAIL-CLOSED: \
+                             count must be a positive u32, got {:?}",
+                            parts[1]
                         );
-                    } else {
+                        std::process::exit(3);
+                    }
+                };
+                let stake_micro_per: i64 = match parts[2].parse() {
+                    Ok(n) if n > 0 => n,
+                    _ => {
+                        error!(
+                            "[chaintape/tb16-arena] FORCE_BOLTZMANN_SEED_WORKTXS FAIL-CLOSED: \
+                             stake_micro must be a positive i64, got {:?}",
+                            parts[2]
+                        );
+                        std::process::exit(3);
+                    }
+                };
+                {
                         // Boltzmann selector setup (mirrors line ~1381 evaluator pattern).
                         use rand::SeedableRng;
                         let policy = turingosv4::state::BoltzmannMaskPolicy::from_env();
@@ -1291,22 +1311,82 @@ async fn run_swarm(
                         // Collect produced WorkTx ids for fallback parent (used
                         // when boltzmann_select_parent_v2 returns None because
                         // price_index has no eligible entries yet).
+                        // Pre-loop settle barrier (.fix r1 supplemental — surfaced by
+                        // r2 smoke after the per-iter Codex CHALLENGE #2 fix
+                        // removed the pre-iter await). The preseed phase queues
+                        // multiple txs (TaskOpen, EscrowLock, optional
+                        // CompleteSetSeed, optional FORCE_BANKRUPTCY_AFTER_ACCEPTED
+                        // seed) via bus.submit_typed_tx but does NOT block on
+                        // their commits. Without a settle barrier, iter=0's
+                        // q_snapshot() can fall in the middle of the preseed
+                        // queue: iter-0's WorkTx is constructed with a parent_
+                        // state_root that's already been superseded by another
+                        // pending preseed commit → apply_one rejects iter-0
+                        // with StaleParent → iter-0 lands on L4.E with no
+                        // NodePosition → iter-1's snap.price_index is empty →
+                        // v2_pick=None for iter-1 (the r2 smoke shape:
+                        // tx_kind_counts.work=3 / l4e_count=2 / iter-1 v2=None).
+                        //
+                        // Fix: poll q_snapshot until state_root is stable for
+                        // one poll cycle (preseed queue drained). 50 × 200ms =
+                        // 10s budget; preseed commits typically settle in <2s.
+                        {
+                            use std::time::Duration;
+                            let mut prior_root: Option<turingosv4::state::q_state::Hash> = None;
+                            let mut settled = false;
+                            for _ in 0..50u32 {
+                                let cur = match bundle.sequencer.q_snapshot() {
+                                    Ok(q) => q.state_root_t,
+                                    Err(e) => {
+                                        error!(
+                                            "[chaintape/tb16-arena] FORCE_BOLTZMANN_SEED_WORKTXS \
+                                             FAIL-CLOSED: q_snapshot failed during preseed-settle: {e:?}"
+                                        );
+                                        std::process::exit(3);
+                                    }
+                                };
+                                if Some(cur) == prior_root {
+                                    settled = true;
+                                    break;
+                                }
+                                prior_root = Some(cur);
+                                tokio::time::sleep(Duration::from_millis(200)).await;
+                            }
+                            if !settled {
+                                error!(
+                                    "[chaintape/tb16-arena] FORCE_BOLTZMANN_SEED_WORKTXS \
+                                     FAIL-CLOSED: preseed-settle barrier did not settle within \
+                                     10s (state_root kept advancing); preseed queue likely \
+                                     wedged or evaluator running with unusually large preseed."
+                                );
+                                std::process::exit(3);
+                            }
+                            info!(
+                                "[chaintape/tb16-arena] preseed-settle barrier settled at \
+                                 state_root={:?}; entering FORCE_BOLTZMANN_SEED_WORKTXS loop",
+                                prior_root
+                            );
+                        }
                         let mut produced_worktx_ids: Vec<turingosv4::state::q_state::TxId> = Vec::new();
                         for iter_i in 0..count {
-                            let pre_root = match bundle.sequencer.q_snapshot() {
-                                Ok(q) => q.state_root_t,
-                                Err(_) => turingosv4::state::q_state::Hash::ZERO,
-                            };
-                            if let Err(e) = turingosv4::runtime::adapter::tb8_await_state_root_advance(
-                                &bundle.sequencer,
-                                pre_root,
-                                5000,
-                            ).await {
-                                warn!("[chaintape/tb16-arena] await for prior commit (boltzmann iter={iter_i}) failed: {e:?}");
-                            }
+                            // Read current state_root for the WorkTx we're
+                            // about to construct. tb8_await_state_root_advance
+                            // is the POST-submit helper (per
+                            // src/runtime/adapter.rs:570-576 contract); it is
+                            // called AFTER submit at line ~1430 below to wait
+                            // for THIS iteration's commit before the next
+                            // iteration snapshots. Pre-iteration await would
+                            // be a contract violation (Codex CHALLENGE #2 r1
+                            // — fixed by removing the pre-iteration await).
                             let post_root = match bundle.sequencer.q_snapshot() {
                                 Ok(q) => q.state_root_t,
-                                Err(_) => pre_root,
+                                Err(e) => {
+                                    error!(
+                                        "[chaintape/tb16-arena] FORCE_BOLTZMANN_SEED_WORKTXS \
+                                         FAIL-CLOSED: q_snapshot failed at iter={iter_i}: {e:?}"
+                                    );
+                                    std::process::exit(3);
+                                }
                             };
                             // Boltzmann pick from current bus snapshot.
                             // bus.snapshot returns a borrowed view; use the bus
@@ -1319,115 +1399,174 @@ async fn run_swarm(
                                 &policy,
                                 &mut boltz_rng,
                             );
-                            // Parent = v2 pick OR fallback to most recent
-                            // produced worktx (so iter 1+ has SOME parent;
-                            // iter 0 is genuinely root).
-                            let parent_tx = v2_pick.clone().or_else(|| {
-                                produced_worktx_ids.last().cloned()
-                            });
+                            // Parent = v2 pick OR None (root). Codex
+                            // CHALLENGE #4 r1: removed the
+                            // produced_worktx_ids.last() fallback. Rationale:
+                            // the fallback bypassed Boltzmann selection
+                            // entirely under empty/masked price-index
+                            // conditions, manufacturing parent edges
+                            // without scheduler authority. Strict
+                            // semantics now: parent_tx tracks the v2
+                            // selector's authoritative pick; iter 0 is
+                            // genuinely root (empty price_index → None);
+                            // iter 1+ uses v2_pick which sees the prior
+                            // iteration's NodeMarketEntry (admitted via
+                            // sequencer's TB-12 Atom 2 hook). If the
+                            // selector ever returns None for iter 1+,
+                            // that's a structural signal worth preserving
+                            // (root proposal recorded as such); the
+                            // entropy gate naturally filters those cases.
+                            let parent_tx = v2_pick.clone();
                             // Build + write ProposalTelemetry to CAS first
                             // (id=24 chain integrity requires proposal_cid
                             // resolves to ProposalTelemetry bytes per .2.5
-                            // r2 lesson).
-                            let proposal_cid_opt = {
-                                let cas_store_res = turingosv4::bottom_white::cas::store::CasStore::open(&bundle.cas_path);
-                                match cas_store_res {
-                                    Ok(mut cas_store) => {
-                                        let pt_res = turingosv4::runtime::proposal_telemetry::ProposalTelemetry::build_for_evaluator_append_with_parent(
-                                            &mut cas_store,
-                                            &run_id,
-                                            &staker,
-                                            (5u64).saturating_add(iter_i as u64), // proposal_index distinct from .2.5 seed (idx=4)
-                                            format!("tb16-x-2-4-boltzmann-seed-iter-{iter_i}").as_bytes(),
-                                            "tb16-arena-boltzmann-seed",
-                                            turingosv4::runtime::proposal_telemetry::TokenCounts {
-                                                prompt_tokens: 0,
-                                                completion_tokens: 0,
-                                                tool_tokens: 0,
-                                            },
-                                            "tb16-x-2-4-evaluator",
-                                            (5u64).saturating_add(iter_i as u64),
-                                            parent_tx.clone(),
-                                        );
-                                        match pt_res {
-                                            Ok(pt) => match turingosv4::runtime::proposal_telemetry::write_to_cas(
-                                                &mut cas_store,
-                                                &pt,
-                                                "tb16-x-2-4-evaluator",
-                                                (5u64).saturating_add(iter_i as u64),
-                                            ) {
-                                                Ok(cid) => Some(cid),
-                                                Err(e) => {
-                                                    warn!("[chaintape/tb16-arena] proposal_telemetry write_to_cas failed (.2.4 iter={iter_i}): {e}");
-                                                    None
-                                                }
-                                            },
-                                            Err(e) => {
-                                                warn!("[chaintape/tb16-arena] ProposalTelemetry build failed (.2.4 iter={iter_i}): {e}");
-                                                None
-                                            }
-                                        }
-                                    }
+                            // r2 lesson). .fix r1 (Codex VETO #4): all CAS /
+                            // ProposalTelemetry / WorkTx-construction failures
+                            // are FAIL-CLOSED via std::process::exit(3); the
+                            // smoke is canonical evidence and partial-success
+                            // would silently bias the entropy distribution.
+                            //
+                            // proposal_index uses (5 + iter_i). Codex
+                            // CHALLENGE #5 (Gemini Q5): collision risk vs
+                            // .2.3 (no proposal_index — different shape) and
+                            // .2.5 seed (idx=4). The (run_id, agent_id,
+                            // proposal_index) namespace is internal to the
+                            // arena driver; the OMEGA hot path uses
+                            // proposal_count (from 1 upward) but that
+                            // scope is the LLM swarm AFTER preseed; the .2.4
+                            // hook runs at preseed time and never overlaps
+                            // with the swarm's proposal_count. Documented as
+                            // safe under current execution-order invariant.
+                            let proposal_index = (5u64).saturating_add(iter_i as u64);
+                            let mut cas_store = match turingosv4::bottom_white::cas::store::CasStore::open(&bundle.cas_path) {
+                                Ok(c) => c,
+                                Err(e) => {
+                                    error!(
+                                        "[chaintape/tb16-arena] FORCE_BOLTZMANN_SEED_WORKTXS \
+                                         FAIL-CLOSED: CasStore::open failed at iter={iter_i}: {e}"
+                                    );
+                                    std::process::exit(3);
+                                }
+                            };
+                            let pt = match turingosv4::runtime::proposal_telemetry::ProposalTelemetry::build_for_evaluator_append_with_parent(
+                                &mut cas_store,
+                                &run_id,
+                                &staker,
+                                proposal_index,
+                                format!("tb16-x-2-4-boltzmann-seed-iter-{iter_i}").as_bytes(),
+                                "tb16-arena-boltzmann-seed",
+                                turingosv4::runtime::proposal_telemetry::TokenCounts {
+                                    prompt_tokens: 0,
+                                    completion_tokens: 0,
+                                    tool_tokens: 0,
+                                },
+                                "tb16-x-2-4-evaluator",
+                                proposal_index,
+                                parent_tx.clone(),
+                            ) {
+                                Ok(p) => p,
+                                Err(e) => {
+                                    error!(
+                                        "[chaintape/tb16-arena] FORCE_BOLTZMANN_SEED_WORKTXS \
+                                         FAIL-CLOSED: ProposalTelemetry build failed at iter={iter_i}: {e}"
+                                    );
+                                    std::process::exit(3);
+                                }
+                            };
+                            let proposal_cid = match turingosv4::runtime::proposal_telemetry::write_to_cas(
+                                &mut cas_store,
+                                &pt,
+                                "tb16-x-2-4-evaluator",
+                                proposal_index,
+                            ) {
+                                Ok(c) => c,
+                                Err(e) => {
+                                    error!(
+                                        "[chaintape/tb16-arena] FORCE_BOLTZMANN_SEED_WORKTXS \
+                                         FAIL-CLOSED: ProposalTelemetry write_to_cas failed at iter={iter_i}: {e}"
+                                    );
+                                    std::process::exit(3);
+                                }
+                            };
+                            let seed_worktx = {
+                                let registry_arc = agent_keypairs
+                                    .as_ref()
+                                    .expect("[chaintape/tb16-arena] agent_keypairs registry required for FORCE_BOLTZMANN_SEED_WORKTXS");
+                                let mut reg_guard = registry_arc
+                                    .lock()
+                                    .expect("agent_keypairs registry mutex poisoned");
+                                match turingosv4::runtime::adapter::make_real_worktx_signed_by(
+                                    &mut *reg_guard,
+                                    &real_task_id,
+                                    &staker,
+                                    post_root,
+                                    stake_micro_per,
+                                    &format!("tb16-arena-boltzmann-seed-iter-{iter_i}"),
+                                    proposal_cid,
+                                    true, // predicate_passes — admitted to stakes_t
+                                    proposal_index,
+                                ) {
+                                    Ok(tx) => tx,
                                     Err(e) => {
-                                        warn!("[chaintape/tb16-arena] CasStore::open failed (.2.4 iter={iter_i}): {e}");
-                                        None
+                                        error!(
+                                            "[chaintape/tb16-arena] FORCE_BOLTZMANN_SEED_WORKTXS \
+                                             FAIL-CLOSED: make_real_worktx failed at iter={iter_i}: {e}"
+                                        );
+                                        std::process::exit(3);
                                     }
                                 }
                             };
-                            let seed_worktx: Option<turingosv4::state::typed_tx::TypedTx> = match proposal_cid_opt {
-                                None => {
-                                    warn!("[chaintape/tb16-arena] FORCE_BOLTZMANN_SEED_WORKTXS skipping iter={iter_i} — proposal_cid unavailable");
-                                    None
-                                }
-                                Some(proposal_cid) => {
-                                    let registry_arc = agent_keypairs
-                                        .as_ref()
-                                        .expect("[chaintape/tb16-arena] agent_keypairs registry required for FORCE_BOLTZMANN_SEED_WORKTXS");
-                                    let mut reg_guard = registry_arc
-                                        .lock()
-                                        .expect("agent_keypairs registry mutex poisoned");
-                                    match turingosv4::runtime::adapter::make_real_worktx_signed_by(
-                                        &mut *reg_guard,
-                                        &real_task_id,
-                                        &staker,
-                                        post_root,
-                                        stake_micro_per,
-                                        &format!("tb16-arena-boltzmann-seed-iter-{iter_i}"),
-                                        proposal_cid,
-                                        true, // predicate_passes — admitted to stakes_t
-                                        (5u64).saturating_add(iter_i as u64),
-                                    ) {
-                                        Ok(tx) => Some(tx),
-                                        Err(e) => {
-                                            warn!("[chaintape/tb16-arena] make_real_worktx (boltzmann iter={iter_i}) failed: {e}");
-                                            None
-                                        }
-                                    }
+                            // Capture tx_id BEFORE submit (move semantics).
+                            // produced_worktx_ids.push happens AFTER commit
+                            // confirmation only — Codex VETO #2 fix.
+                            let wt_id = match &seed_worktx {
+                                turingosv4::state::typed_tx::TypedTx::Work(w) => w.tx_id.clone(),
+                                _ => {
+                                    error!(
+                                        "[chaintape/tb16-arena] FORCE_BOLTZMANN_SEED_WORKTXS \
+                                         FAIL-CLOSED: make_real_worktx returned non-Work variant at iter={iter_i}"
+                                    );
+                                    std::process::exit(3);
                                 }
                             };
-                            if let Some(wt) = seed_worktx {
-                                // Capture tx_id before submit (move) for the
-                                // produced_worktx_ids tracking + log.
-                                let wt_id = match &wt {
-                                    turingosv4::state::typed_tx::TypedTx::Work(w) => w.tx_id.clone(),
-                                    _ => turingosv4::state::q_state::TxId(format!("unknown-iter-{iter_i}")),
-                                };
-                                if let Err(e) = bus.submit_typed_tx(wt).await {
-                                    warn!("[chaintape/tb16-arena] boltzmann seed iter={iter_i} submit failed: {e:?}");
-                                } else {
+                            if let Err(e) = bus.submit_typed_tx(seed_worktx).await {
+                                error!(
+                                    "[chaintape/tb16-arena] FORCE_BOLTZMANN_SEED_WORKTXS \
+                                     FAIL-CLOSED: bus.submit_typed_tx failed at iter={iter_i}: {e:?}"
+                                );
+                                std::process::exit(3);
+                            }
+                            // Wait for THIS iter's commit BEFORE registering
+                            // the tx_id as "produced" (Codex VETO #2:
+                            // submission is async per src/bus.rs:136-138; the
+                            // sequencer may reject after submit succeeds
+                            // (insufficient balance / stale parent / etc.).
+                            // Only on confirmed commit (state_root advanced
+                            // past pre-submit snapshot) is the tx_id valid
+                            // for the next iter's Boltzmann selector to see).
+                            match turingosv4::runtime::adapter::tb8_await_state_root_advance(
+                                &bundle.sequencer,
+                                post_root,
+                                5000,
+                            ).await {
+                                Ok(_) => {
                                     info!(
-                                        "[chaintape/tb16-arena] boltzmann seed iter={iter_i} submitted by {staker} \
-                                         (stake={stake_micro_per} μC, parent_tx={:?}, v2_pick={:?})",
-                                        parent_tx, v2_pick
+                                        "[chaintape/tb16-arena] boltzmann seed iter={iter_i} \
+                                         COMMITTED by {staker} (stake={stake_micro_per} μC, \
+                                         parent_tx={:?}, v2_pick={:?}, tx_id={})",
+                                        parent_tx, v2_pick, wt_id.0
                                     );
                                     produced_worktx_ids.push(wt_id);
                                 }
-                                if let Err(e) = turingosv4::runtime::adapter::tb8_await_state_root_advance(
-                                    &bundle.sequencer,
-                                    post_root,
-                                    5000,
-                                ).await {
-                                    warn!("[chaintape/tb16-arena] await for boltzmann iter={iter_i} commit failed: {e:?}");
+                                Err(_) => {
+                                    error!(
+                                        "[chaintape/tb16-arena] FORCE_BOLTZMANN_SEED_WORKTXS \
+                                         FAIL-CLOSED: tb8_await_state_root_advance budget \
+                                         expired at iter={iter_i} (5s) — submit succeeded but \
+                                         commit not observed; rejecting smoke as honest \
+                                         per VETO #2 fix."
+                                    );
+                                    std::process::exit(3);
                                 }
                             }
                         }
@@ -1435,7 +1574,6 @@ async fn run_swarm(
                             "[chaintape/tb16-arena] FORCE_BOLTZMANN_SEED_WORKTXS produced {} accepted WorkTxs (count requested={})",
                             produced_worktx_ids.len(), count
                         );
-                    }
                 }
             }
         }

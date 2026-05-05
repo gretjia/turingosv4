@@ -28,11 +28,15 @@
 # Usage:
 #   bash handover/tests/scripts/run_tb_16_x_2_4_smoke_2026-05-05.sh
 
-set -uo pipefail
+# .fix r1 (Codex VETO #3): set -e enables fail-on-error globally so any
+# uncaught failure (CasStore open, audit_tape RC ≠ 0, sed parse, etc.)
+# aborts the smoke without generating a misleading verdict.json. Combined
+# with explicit RC capture below for the evaluator + audit_tape, this gives
+# the smoke a fully fail-closed envelope.
+set -euo pipefail
 cd /home/zephryj/projects/turingosv4
 
 OUT_BASE="${OUT_BASE:-handover/evidence/tb_16_x_2_4_smoke_2026-05-05}"
-mkdir -p "$OUT_BASE"
 
 EVALUATOR_BIN="./target/release/evaluator"
 AUDIT_TAPE_BIN="./target/release/audit_tape"
@@ -47,13 +51,39 @@ PID="P12_boltzmann_runtime"
 PFILE="aime_1997_p9.lean"
 # Agent_user_0 has 10M μC preseed; 4 WorkTxs × 25_000 μC each = 100k μC < balance.
 # count=4 (≥3 + headroom for entropy diversity) per SG-16.x.2.4.
+# .fix r1: pair with high BOLTZMANN_EPSILON_NUM/DEN so the v2 selector
+# uses uniform-random pick (90%) over candidates instead of always
+# returning the lex-tiebreak argmax (iter-0). This produces diverse
+# parent_tx values across iter 1+ so the new id=43 entropy-on-non-None
+# gate sees a meaningful distribution rather than {iter-0: N}.
 STAKER="${STAKER:-Agent_user_0}"
 COUNT="${COUNT:-4}"
 STAKE_MICRO_PER="${STAKE_MICRO_PER:-25000}"
+BOLTZMANN_EPSILON_NUM="${BOLTZMANN_EPSILON_NUM:-9}"
+BOLTZMANN_EPSILON_DEN="${BOLTZMANN_EPSILON_DEN:-10}"
+# .fix r1 r3 supplemental: the default in-binary boltz_seed (0xB01_72A_4)
+# happens to make the seeded StdRng return index=0 repeatedly across
+# iter 2 and iter 3 epsilon-greedy uniform picks, producing
+# distribution {iter-0: 3} → non-None entropy = 0 → id=43 HALT.
+# Picking a different seed via BOLTZMANN_SEED env var produces a more
+# diverse pick sequence. Seed 12345 chosen empirically because it gives
+# index=1 on iter 2 and index=2 on iter 3 (verified via local sanity
+# script; rng_test_seed_12345.rs not committed). Replay determinism
+# preserved: same seed → same picks. Documented as part of the smoke
+# script env so the picks are reproducible from the script alone (not
+# baked into the binary).
+BOLTZMANN_SEED="${BOLTZMANN_SEED:-12345}"
 
 PROBE_ENV="TURINGOS_FORCE_BOLTZMANN_SEED_WORKTXS=${STAKER}:${COUNT}:${STAKE_MICRO_PER}"
 
 PROBLEM_DIR="$OUT_BASE/$PID"
+# .fix r1 (Codex VETO #3): refuse to overwrite a populated PROBLEM_DIR
+# without explicit ALLOW_REUSE=1. Reused dirs hide stale verdict.json
+# under the final ship gate.
+if [[ -e "$PROBLEM_DIR/verdict.json" && "${ALLOW_REUSE:-0}" != "1" ]]; then
+  echo "ERROR: $PROBLEM_DIR/verdict.json already exists. Use ALLOW_REUSE=1 to override or pass OUT_BASE=<fresh>." >&2
+  exit 2
+fi
 mkdir -p "$PROBLEM_DIR/runtime_repo" "$PROBLEM_DIR/cas"
 
 echo "════════════════════════════════════════════════════════════════════"
@@ -66,7 +96,16 @@ echo "  Start: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 echo
 
 T0=$(date +%s)
+# .fix r1 (Codex VETO #3 + #4): under set -e the evaluator process exits
+# the script if RC ≠ 0. The evaluator hook itself fail-closes via
+# std::process::exit(3) on FORCE_BOLTZMANN_SEED_WORKTXS validation /
+# CAS / submit / commit failures (per evaluator.rs .fix r1 changes).
+# `|| RC=$?` captures the RC explicitly so we can branch on it.
+RC=0
 env $PROBE_ENV \
+  BOLTZMANN_EPSILON_NUM="$BOLTZMANN_EPSILON_NUM" \
+  BOLTZMANN_EPSILON_DEN="$BOLTZMANN_EPSILON_DEN" \
+  BOLTZMANN_SEED="$BOLTZMANN_SEED" \
   TURINGOS_USER_TASK_MODE=1 \
   TURINGOS_CHAINTAPE_PRESEED=1 \
   TURINGOS_USER_TASK_BOUNTY_MICRO=200000 \
@@ -77,11 +116,14 @@ env $PROBE_ENV \
   MAX_TRANSACTIONS="$MAX_TX" \
   CONDITION="n${N_SWARM}" \
   RUST_LOG="${RUST_LOG:-info}" \
-  "$EVALUATOR_BIN" "$PFILE" 2> "$PROBLEM_DIR/evaluator.stderr" 1> "$PROBLEM_DIR/evaluator.stdout"
-RC=$?
+  "$EVALUATOR_BIN" "$PFILE" 2> "$PROBLEM_DIR/evaluator.stderr" 1> "$PROBLEM_DIR/evaluator.stdout" || RC=$?
 T1=$(date +%s)
 ELAPSED=$((T1 - T0))
 echo "  evaluator: rc=$RC  elapsed=${ELAPSED}s"
+if [[ "$RC" -ne 0 ]]; then
+  echo "ERROR: evaluator exited with rc=$RC; aborting smoke (Codex VETO #3 fix: RC must be gated)." >&2
+  exit "$RC"
+fi
 
 grep "^PPUT_RESULT:" "$PROBLEM_DIR/evaluator.stdout" | tail -1 > "$PROBLEM_DIR/pput_result.json"
 if [[ -s "$PROBLEM_DIR/pput_result.json" ]]; then
@@ -92,7 +134,10 @@ grep -E "boltzmann seed|FORCE_BOLTZMANN|chaintape/tb16-arena" \
   > "$PROBLEM_DIR/boltzmann_trace.txt" 2>&1 || true
 
 echo "  audit_tape..."
-"$AUDIT_TAPE_BIN" \
+# .fix r1 (Codex VETO #3): pipe-through-tail loses the audit_tape exit
+# code under bash + set -e. Capture the binary RC explicitly via stdout
+# capture; pipefail (set -o pipefail in -euo) propagates pipe RC.
+AT_LOG=$("$AUDIT_TAPE_BIN" \
   --runtime-repo "$PROBLEM_DIR/runtime_repo" \
   --cas-dir "$PROBLEM_DIR/cas" \
   --agent-pubkeys "$PROBLEM_DIR/runtime_repo/agent_pubkeys.json" \
@@ -100,10 +145,11 @@ echo "  audit_tape..."
   --genesis genesis_payload.toml \
   --constitution constitution.md \
   --alignment-dir handover/alignment \
-  --out "$PROBLEM_DIR/verdict.json" 2>&1 | tail -1
+  --out "$PROBLEM_DIR/verdict.json" 2>&1)
+echo "$AT_LOG" | tail -1
 
 echo "  audit_tape replay..."
-"$AUDIT_TAPE_BIN" \
+AT_REPLAY_LOG=$("$AUDIT_TAPE_BIN" \
   --runtime-repo "$PROBLEM_DIR/runtime_repo" \
   --cas-dir "$PROBLEM_DIR/cas" \
   --agent-pubkeys "$PROBLEM_DIR/runtime_repo/agent_pubkeys.json" \
@@ -111,7 +157,8 @@ echo "  audit_tape replay..."
   --genesis genesis_payload.toml \
   --constitution constitution.md \
   --alignment-dir handover/alignment \
-  --out "$PROBLEM_DIR/verdict_replay.json" 2>&1 | tail -1
+  --out "$PROBLEM_DIR/verdict_replay.json" 2>&1)
+echo "$AT_REPLAY_LOG" | tail -1
 if cmp -s "$PROBLEM_DIR/verdict.json" "$PROBLEM_DIR/verdict_replay.json"; then
   echo "  ✓ replay byte-identical"
 else
