@@ -1,0 +1,60 @@
+{
+  "constitution_hash": "eec695459c71fbef3685583485deb431fe3b561657b2f285b7c5e7e220e59e03",
+  "runtime_repo": "/home/zephryj/projects/turingosv4/handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P23_mathd_algebra_107/runtime_repo",
+  "cas_path": "/home/zephryj/projects/turingosv4/handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P23_mathd_algebra_107/cas",
+  "system_pubkey_hash": "f23d1ab8e5eebc6e921718da6c0c59375287d8d4ed9bb68b1a6385aa533bb985",
+  "agent_pubkeys_path": "agent_pubkeys.json",
+  "initial_balances": [
+    [
+      "tb7-7-sponsor",
+      10000000
+    ],
+    [
+      "Agent_user_0",
+      10000000
+    ],
+    [
+      "Agent_0",
+      1000000
+    ],
+    [
+      "Agent_1",
+      1000000
+    ],
+    [
+      "Agent_2",
+      1000000
+    ],
+    [
+      "Agent_3",
+      1000000
+    ],
+    [
+      "Agent_4",
+      1000000
+    ],
+    [
+      "Agent_5",
+      1000000
+    ],
+    [
+      "Agent_6",
+      1000000
+    ],
+    [
+      "Agent_7",
+      1000000
+    ],
+    [
+      "Agent_8",
+      1000000
+    ],
+    [
+      "Agent_9",
+      1000000
+    ]
+  ],
+  "task_id": "task-n1_mathd_algebra_107_1778012007919",
+  "task_open_tx": "taskopen-task-n1_mathd_algebra_107_1778012007919-tb7-7-d3-seed",
+  "escrow_lock_tx": "escrowlock-task-n1_mathd_algebra_107_1778012007919-tb7-7-d3-escrow"
+}

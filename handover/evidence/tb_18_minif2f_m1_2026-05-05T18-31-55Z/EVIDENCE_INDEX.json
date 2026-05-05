@@ -1,0 +1,1432 @@
+{
+  "schema_version": "v1/m1_evidence_index",
+  "manifest_id": "652890ecc158d7139fb699b682298605bad3857ad3fb37a74dc6fd5a83fd57af",
+  "manifest_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/M1_RUN_MANIFEST.json",
+  "head_at_invocation": "c9e0dc1",
+  "ladder_stage": "M1",
+  "n_problems": 50,
+  "n_sampled": 11,
+  "sample_strategy": "random + failure-heavy + solved + unsolved (per feedback_evidence_packaging_policy_required); sampled set: 4 OmegaAccepted (P23/P31/P39/P49 \u2014 covers fast solve, mathd_algebra, mathd_numbertheory, numbertheory_*; one tamper-DEGRADED for fixture coverage) + 4 MaxTxExhausted (P01/P14/P25/P36 \u2014 covers boundary durations 68s/393s/330s/81s) + 3 WallClockCap (P02/P29/P41 \u2014 covers aime/algebra/numbertheory timeout)",
+  "non_sampled_note": "Non-sampled problems retain verdict.json + verdict_replay.json + tamper_report.json + evaluator.stdout (PPUT_RESULT line) committed to git. The runtime_repo/.git + cas/.git directories for non-sampled problems are NOT committed (oversize); they remain on the dev machine at the local_evidence_path for forward replay or G1 escalation.",
+  "entries": [
+    {
+      "tag": "P01_aime_1983_p2",
+      "name": "aime_1983_p2",
+      "outcome": "exhausted",
+      "halt_reason": "MaxTxExhausted",
+      "duration_seconds": 68,
+      "verdict": "PROCEED",
+      "l4_count": 3,
+      "cas_object_count": 11,
+      "tamper_detected": 3,
+      "tamper_expected": 3,
+      "pput_value": 0.0,
+      "tx_kinds": {
+        "task_open": 1,
+        "escrow_lock": 1,
+        "terminal_summary": 1
+      },
+      "is_sampled": true,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P01_aime_1983_p2",
+      "committed_artifacts": {
+        "verdict_json": "P01_aime_1983_p2/verdict.json",
+        "verdict_replay_json": "P01_aime_1983_p2/verdict_replay.json",
+        "tamper_report_json": "P01_aime_1983_p2/tamper_report.json",
+        "evaluator_stdout": "P01_aime_1983_p2/evaluator.stdout",
+        "runtime_repo_dotgit_tar_gz": "P01_aime_1983_p2/runtime_repo.dotgit.tar.gz",
+        "cas_dotgit_tar_gz": "P01_aime_1983_p2/cas.dotgit.tar.gz",
+        "runtime_repo_dotgit_sha256": "e5193e5765ab40df221b021be1d1e1dd968677ef3d086e4f403ef0529440d240",
+        "cas_dotgit_sha256": "f534c352c665db78a686c8316a2418d3210049b4e734352e1d39a5286119a288",
+        "verdict_sha256": "7dbb3da6ea62aa212ddf03be8ab6c150215dc3fe408e54750e1d9890450d5849"
+      }
+    },
+    {
+      "tag": "P02_aime_1984_p1",
+      "name": "aime_1984_p1",
+      "outcome": "error_or_no_pput",
+      "halt_reason": "WallClockCap",
+      "duration_seconds": 600,
+      "verdict": "PROCEED",
+      "l4_count": 2,
+      "cas_object_count": 7,
+      "tamper_detected": 2,
+      "tamper_expected": 3,
+      "pput_value": null,
+      "tx_kinds": {
+        "task_open": 1,
+        "escrow_lock": 1
+      },
+      "is_sampled": true,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P02_aime_1984_p1",
+      "committed_artifacts": {
+        "verdict_json": "P02_aime_1984_p1/verdict.json",
+        "verdict_replay_json": "P02_aime_1984_p1/verdict_replay.json",
+        "tamper_report_json": "P02_aime_1984_p1/tamper_report.json",
+        "evaluator_stdout": "P02_aime_1984_p1/evaluator.stdout",
+        "runtime_repo_dotgit_tar_gz": "P02_aime_1984_p1/runtime_repo.dotgit.tar.gz",
+        "cas_dotgit_tar_gz": "P02_aime_1984_p1/cas.dotgit.tar.gz",
+        "runtime_repo_dotgit_sha256": "e4515b4e442cd05e67f15240fea7e0138ebda48e86fe4c737a913551434c3c64",
+        "cas_dotgit_sha256": "477406ead609dcf917b075147ee1977a33077406e986aa16d52755752782e74a",
+        "verdict_sha256": "c1c6bdb6e4419b572d6f69c047a04b241450034ef9374e560c2b54c18ef0616e"
+      }
+    },
+    {
+      "tag": "P03_aime_1990_p4",
+      "name": "aime_1990_p4",
+      "outcome": "exhausted",
+      "halt_reason": "MaxTxExhausted",
+      "duration_seconds": 87,
+      "verdict": "PROCEED",
+      "l4_count": 3,
+      "cas_object_count": 11,
+      "tamper_detected": 3,
+      "tamper_expected": 3,
+      "pput_value": 0.0,
+      "tx_kinds": {
+        "task_open": 1,
+        "escrow_lock": 1,
+        "terminal_summary": 1
+      },
+      "is_sampled": false,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P03_aime_1990_p4",
+      "committed_artifacts": {
+        "verdict_json": "P03_aime_1990_p4/verdict.json",
+        "verdict_replay_json": "P03_aime_1990_p4/verdict_replay.json",
+        "tamper_report_json": "P03_aime_1990_p4/tamper_report.json",
+        "evaluator_stdout": "P03_aime_1990_p4/evaluator.stdout",
+        "verdict_sha256": "2a0ca639077b977eb2ddacf1370d77e5268c8f57fc52e9eb77dd543068cb6f65"
+      }
+    },
+    {
+      "tag": "P04_algebra_2varlineareq_fp3zeq11_3tfm1m5zeqn68_feqn10_zeq7",
+      "name": "algebra_2varlineareq_fp3zeq11_3tfm1m5zeqn68_feqn10_zeq7",
+      "outcome": "exhausted",
+      "halt_reason": "MaxTxExhausted",
+      "duration_seconds": 72,
+      "verdict": "PROCEED",
+      "l4_count": 3,
+      "cas_object_count": 11,
+      "tamper_detected": 3,
+      "tamper_expected": 3,
+      "pput_value": 0.0,
+      "tx_kinds": {
+        "task_open": 1,
+        "escrow_lock": 1,
+        "terminal_summary": 1
+      },
+      "is_sampled": false,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P04_algebra_2varlineareq_fp3zeq11_3tfm1m5zeqn68_feqn10_zeq7",
+      "committed_artifacts": {
+        "verdict_json": "P04_algebra_2varlineareq_fp3zeq11_3tfm1m5zeqn68_feqn10_zeq7/verdict.json",
+        "verdict_replay_json": "P04_algebra_2varlineareq_fp3zeq11_3tfm1m5zeqn68_feqn10_zeq7/verdict_replay.json",
+        "tamper_report_json": "P04_algebra_2varlineareq_fp3zeq11_3tfm1m5zeqn68_feqn10_zeq7/tamper_report.json",
+        "evaluator_stdout": "P04_algebra_2varlineareq_fp3zeq11_3tfm1m5zeqn68_feqn10_zeq7/evaluator.stdout",
+        "verdict_sha256": "e4267c704dac80900e6b9c9762b38b15ef79ae352693cc0ec3771e6a812ac300"
+      }
+    },
+    {
+      "tag": "P05_algebra_9onxpypzleqsum2onxpy",
+      "name": "algebra_9onxpypzleqsum2onxpy",
+      "outcome": "error_or_no_pput",
+      "halt_reason": "WallClockCap",
+      "duration_seconds": 600,
+      "verdict": "PROCEED",
+      "l4_count": 2,
+      "cas_object_count": 7,
+      "tamper_detected": 2,
+      "tamper_expected": 3,
+      "pput_value": null,
+      "tx_kinds": {
+        "task_open": 1,
+        "escrow_lock": 1
+      },
+      "is_sampled": false,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P05_algebra_9onxpypzleqsum2onxpy",
+      "committed_artifacts": {
+        "verdict_json": "P05_algebra_9onxpypzleqsum2onxpy/verdict.json",
+        "verdict_replay_json": "P05_algebra_9onxpypzleqsum2onxpy/verdict_replay.json",
+        "tamper_report_json": "P05_algebra_9onxpypzleqsum2onxpy/tamper_report.json",
+        "evaluator_stdout": "P05_algebra_9onxpypzleqsum2onxpy/evaluator.stdout",
+        "verdict_sha256": "d9eb36fdc0145a3b929fca0821bfc882a34deb42c222e7039839fcf26bdc9a60"
+      }
+    },
+    {
+      "tag": "P06_algebra_absxm1pabsxpabsxp1eqxp2_0leqxleq1",
+      "name": "algebra_absxm1pabsxpabsxp1eqxp2_0leqxleq1",
+      "outcome": "exhausted",
+      "halt_reason": "MaxTxExhausted",
+      "duration_seconds": 249,
+      "verdict": "PROCEED",
+      "l4_count": 3,
+      "cas_object_count": 11,
+      "tamper_detected": 3,
+      "tamper_expected": 3,
+      "pput_value": 0.0,
+      "tx_kinds": {
+        "task_open": 1,
+        "escrow_lock": 1,
+        "terminal_summary": 1
+      },
+      "is_sampled": false,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P06_algebra_absxm1pabsxpabsxp1eqxp2_0leqxleq1",
+      "committed_artifacts": {
+        "verdict_json": "P06_algebra_absxm1pabsxpabsxp1eqxp2_0leqxleq1/verdict.json",
+        "verdict_replay_json": "P06_algebra_absxm1pabsxpabsxp1eqxp2_0leqxleq1/verdict_replay.json",
+        "tamper_report_json": "P06_algebra_absxm1pabsxpabsxp1eqxp2_0leqxleq1/tamper_report.json",
+        "evaluator_stdout": "P06_algebra_absxm1pabsxpabsxp1eqxp2_0leqxleq1/evaluator.stdout",
+        "verdict_sha256": "6bda63d63d509bc5bb95f72dfc4580494e8fe28605c202d8982f3ae2c4e17a4a"
+      }
+    },
+    {
+      "tag": "P07_algebra_sqineq_at2malt1",
+      "name": "algebra_sqineq_at2malt1",
+      "outcome": "exhausted",
+      "halt_reason": "MaxTxExhausted",
+      "duration_seconds": 71,
+      "verdict": "PROCEED",
+      "l4_count": 3,
+      "cas_object_count": 11,
+      "tamper_detected": 3,
+      "tamper_expected": 3,
+      "pput_value": 0.0,
+      "tx_kinds": {
+        "task_open": 1,
+        "escrow_lock": 1,
+        "terminal_summary": 1
+      },
+      "is_sampled": false,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P07_algebra_sqineq_at2malt1",
+      "committed_artifacts": {
+        "verdict_json": "P07_algebra_sqineq_at2malt1/verdict.json",
+        "verdict_replay_json": "P07_algebra_sqineq_at2malt1/verdict_replay.json",
+        "tamper_report_json": "P07_algebra_sqineq_at2malt1/tamper_report.json",
+        "evaluator_stdout": "P07_algebra_sqineq_at2malt1/evaluator.stdout",
+        "verdict_sha256": "0986070063ead2a4151c5ae1ad16c589c9d2cfb1d88fec8bac6ced6a1a28efa7"
+      }
+    },
+    {
+      "tag": "P08_amc12_2000_p1",
+      "name": "amc12_2000_p1",
+      "outcome": "error_or_no_pput",
+      "halt_reason": "WallClockCap",
+      "duration_seconds": 600,
+      "verdict": "PROCEED",
+      "l4_count": 2,
+      "cas_object_count": 7,
+      "tamper_detected": 2,
+      "tamper_expected": 3,
+      "pput_value": null,
+      "tx_kinds": {
+        "task_open": 1,
+        "escrow_lock": 1
+      },
+      "is_sampled": false,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P08_amc12_2000_p1",
+      "committed_artifacts": {
+        "verdict_json": "P08_amc12_2000_p1/verdict.json",
+        "verdict_replay_json": "P08_amc12_2000_p1/verdict_replay.json",
+        "tamper_report_json": "P08_amc12_2000_p1/tamper_report.json",
+        "evaluator_stdout": "P08_amc12_2000_p1/evaluator.stdout",
+        "verdict_sha256": "a4252eca4d761c9b3e052cdad37c10e7514da832b0871eba87ae7eec9ec1f7a0"
+      }
+    },
+    {
+      "tag": "P09_amc12_2000_p12",
+      "name": "amc12_2000_p12",
+      "outcome": "exhausted",
+      "halt_reason": "MaxTxExhausted",
+      "duration_seconds": 97,
+      "verdict": "PROCEED",
+      "l4_count": 3,
+      "cas_object_count": 11,
+      "tamper_detected": 3,
+      "tamper_expected": 3,
+      "pput_value": 0.0,
+      "tx_kinds": {
+        "task_open": 1,
+        "escrow_lock": 1,
+        "terminal_summary": 1
+      },
+      "is_sampled": false,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P09_amc12_2000_p12",
+      "committed_artifacts": {
+        "verdict_json": "P09_amc12_2000_p12/verdict.json",
+        "verdict_replay_json": "P09_amc12_2000_p12/verdict_replay.json",
+        "tamper_report_json": "P09_amc12_2000_p12/tamper_report.json",
+        "evaluator_stdout": "P09_amc12_2000_p12/evaluator.stdout",
+        "verdict_sha256": "00856a91aa5a439570d0acb72028fd21d2189088640cac4e6139e1781f596054"
+      }
+    },
+    {
+      "tag": "P10_amc12_2000_p20",
+      "name": "amc12_2000_p20",
+      "outcome": "exhausted",
+      "halt_reason": "MaxTxExhausted",
+      "duration_seconds": 76,
+      "verdict": "PROCEED",
+      "l4_count": 3,
+      "cas_object_count": 11,
+      "tamper_detected": 3,
+      "tamper_expected": 3,
+      "pput_value": 0.0,
+      "tx_kinds": {
+        "task_open": 1,
+        "escrow_lock": 1,
+        "terminal_summary": 1
+      },
+      "is_sampled": false,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P10_amc12_2000_p20",
+      "committed_artifacts": {
+        "verdict_json": "P10_amc12_2000_p20/verdict.json",
+        "verdict_replay_json": "P10_amc12_2000_p20/verdict_replay.json",
+        "tamper_report_json": "P10_amc12_2000_p20/tamper_report.json",
+        "evaluator_stdout": "P10_amc12_2000_p20/evaluator.stdout",
+        "verdict_sha256": "77c07fc27310b99cf30cfb57f03d952e0c81c4d26b92e89258a143f8cef3b17c"
+      }
+    },
+    {
+      "tag": "P11_amc12_2000_p6",
+      "name": "amc12_2000_p6",
+      "outcome": "exhausted",
+      "halt_reason": "MaxTxExhausted",
+      "duration_seconds": 74,
+      "verdict": "PROCEED",
+      "l4_count": 3,
+      "cas_object_count": 11,
+      "tamper_detected": 3,
+      "tamper_expected": 3,
+      "pput_value": 0.0,
+      "tx_kinds": {
+        "task_open": 1,
+        "escrow_lock": 1,
+        "terminal_summary": 1
+      },
+      "is_sampled": false,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P11_amc12_2000_p6",
+      "committed_artifacts": {
+        "verdict_json": "P11_amc12_2000_p6/verdict.json",
+        "verdict_replay_json": "P11_amc12_2000_p6/verdict_replay.json",
+        "tamper_report_json": "P11_amc12_2000_p6/tamper_report.json",
+        "evaluator_stdout": "P11_amc12_2000_p6/evaluator.stdout",
+        "verdict_sha256": "67aa5edd777d910038eb89563e421d3e61beced20f8690ccff21518c4259db73"
+      }
+    },
+    {
+      "tag": "P12_amc12_2001_p21",
+      "name": "amc12_2001_p21",
+      "outcome": "error_or_no_pput",
+      "halt_reason": "WallClockCap",
+      "duration_seconds": 600,
+      "verdict": "PROCEED",
+      "l4_count": 2,
+      "cas_object_count": 7,
+      "tamper_detected": 2,
+      "tamper_expected": 3,
+      "pput_value": null,
+      "tx_kinds": {
+        "task_open": 1,
+        "escrow_lock": 1
+      },
+      "is_sampled": false,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P12_amc12_2001_p21",
+      "committed_artifacts": {
+        "verdict_json": "P12_amc12_2001_p21/verdict.json",
+        "verdict_replay_json": "P12_amc12_2001_p21/verdict_replay.json",
+        "tamper_report_json": "P12_amc12_2001_p21/tamper_report.json",
+        "evaluator_stdout": "P12_amc12_2001_p21/evaluator.stdout",
+        "verdict_sha256": "8743f58532396c62fb665c1493c24f63a208f5913b4fe0b8f5f63e69f64a10eb"
+      }
+    },
+    {
+      "tag": "P13_amc12_2001_p5",
+      "name": "amc12_2001_p5",
+      "outcome": "error_or_no_pput",
+      "halt_reason": "WallClockCap",
+      "duration_seconds": 600,
+      "verdict": "PROCEED",
+      "l4_count": 2,
+      "cas_object_count": 7,
+      "tamper_detected": 2,
+      "tamper_expected": 3,
+      "pput_value": null,
+      "tx_kinds": {
+        "task_open": 1,
+        "escrow_lock": 1
+      },
+      "is_sampled": false,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P13_amc12_2001_p5",
+      "committed_artifacts": {
+        "verdict_json": "P13_amc12_2001_p5/verdict.json",
+        "verdict_replay_json": "P13_amc12_2001_p5/verdict_replay.json",
+        "tamper_report_json": "P13_amc12_2001_p5/tamper_report.json",
+        "evaluator_stdout": "P13_amc12_2001_p5/evaluator.stdout",
+        "verdict_sha256": "ea16fe244d222f42c9e634f7c0c798fdfc72dfdd258985dca4017eb3f938b9d3"
+      }
+    },
+    {
+      "tag": "P14_amc12a_2002_p13",
+      "name": "amc12a_2002_p13",
+      "outcome": "exhausted",
+      "halt_reason": "MaxTxExhausted",
+      "duration_seconds": 393,
+      "verdict": "PROCEED",
+      "l4_count": 3,
+      "cas_object_count": 11,
+      "tamper_detected": 3,
+      "tamper_expected": 3,
+      "pput_value": 0.0,
+      "tx_kinds": {
+        "task_open": 1,
+        "escrow_lock": 1,
+        "terminal_summary": 1
+      },
+      "is_sampled": true,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P14_amc12a_2002_p13",
+      "committed_artifacts": {
+        "verdict_json": "P14_amc12a_2002_p13/verdict.json",
+        "verdict_replay_json": "P14_amc12a_2002_p13/verdict_replay.json",
+        "tamper_report_json": "P14_amc12a_2002_p13/tamper_report.json",
+        "evaluator_stdout": "P14_amc12a_2002_p13/evaluator.stdout",
+        "runtime_repo_dotgit_tar_gz": "P14_amc12a_2002_p13/runtime_repo.dotgit.tar.gz",
+        "cas_dotgit_tar_gz": "P14_amc12a_2002_p13/cas.dotgit.tar.gz",
+        "runtime_repo_dotgit_sha256": "4a4576d871c1c68cc744aa86a1bc879711d80750d3eee7276eb98660cc1de125",
+        "cas_dotgit_sha256": "4303344c2fe7ec54eaa48f5fc8f47296495b689c592fc87a2efeb473cfbee038",
+        "verdict_sha256": "7b38d3ad08e49762fb4603ef0d0c16a290925c54a6af2cd4a877b6106f5901b8"
+      }
+    },
+    {
+      "tag": "P15_amc12a_2002_p6",
+      "name": "amc12a_2002_p6",
+      "outcome": "exhausted",
+      "halt_reason": "MaxTxExhausted",
+      "duration_seconds": 72,
+      "verdict": "PROCEED",
+      "l4_count": 3,
+      "cas_object_count": 11,
+      "tamper_detected": 3,
+      "tamper_expected": 3,
+      "pput_value": 0.0,
+      "tx_kinds": {
+        "task_open": 1,
+        "escrow_lock": 1,
+        "terminal_summary": 1
+      },
+      "is_sampled": false,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P15_amc12a_2002_p6",
+      "committed_artifacts": {
+        "verdict_json": "P15_amc12a_2002_p6/verdict.json",
+        "verdict_replay_json": "P15_amc12a_2002_p6/verdict_replay.json",
+        "tamper_report_json": "P15_amc12a_2002_p6/tamper_report.json",
+        "evaluator_stdout": "P15_amc12a_2002_p6/evaluator.stdout",
+        "verdict_sha256": "404cfa3c469e49d9dbb6b00f62ee413874d5f4ffc00ee18e02c6507b7ef60e68"
+      }
+    },
+    {
+      "tag": "P16_amc12a_2003_p23",
+      "name": "amc12a_2003_p23",
+      "outcome": "solved",
+      "halt_reason": "OmegaAccepted",
+      "duration_seconds": 139,
+      "verdict": "PROCEED",
+      "l4_count": 5,
+      "cas_object_count": 13,
+      "tamper_detected": 3,
+      "tamper_expected": 3,
+      "pput_value": 0.7180965483643603,
+      "tx_kinds": {
+        "work": 1,
+        "verify": 1,
+        "task_open": 1,
+        "escrow_lock": 1,
+        "finalize_reward": 1
+      },
+      "is_sampled": false,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P16_amc12a_2003_p23",
+      "committed_artifacts": {
+        "verdict_json": "P16_amc12a_2003_p23/verdict.json",
+        "verdict_replay_json": "P16_amc12a_2003_p23/verdict_replay.json",
+        "tamper_report_json": "P16_amc12a_2003_p23/tamper_report.json",
+        "evaluator_stdout": "P16_amc12a_2003_p23/evaluator.stdout",
+        "verdict_sha256": "a3e3d49aee73d4116e99c68441d23cc71360bae838bb0428987ce0a655b1f28f"
+      }
+    },
+    {
+      "tag": "P17_imo_1959_p1",
+      "name": "imo_1959_p1",
+      "outcome": "error_or_no_pput",
+      "halt_reason": "WallClockCap",
+      "duration_seconds": 600,
+      "verdict": "PROCEED",
+      "l4_count": 2,
+      "cas_object_count": 7,
+      "tamper_detected": 2,
+      "tamper_expected": 3,
+      "pput_value": null,
+      "tx_kinds": {
+        "task_open": 1,
+        "escrow_lock": 1
+      },
+      "is_sampled": false,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P17_imo_1959_p1",
+      "committed_artifacts": {
+        "verdict_json": "P17_imo_1959_p1/verdict.json",
+        "verdict_replay_json": "P17_imo_1959_p1/verdict_replay.json",
+        "tamper_report_json": "P17_imo_1959_p1/tamper_report.json",
+        "evaluator_stdout": "P17_imo_1959_p1/evaluator.stdout",
+        "verdict_sha256": "767ef47d411dbb85834367612e0793c57bfeaa4ffda5b3a2cfd0d38f7da60ae7"
+      }
+    },
+    {
+      "tag": "P18_imo_1960_p2",
+      "name": "imo_1960_p2",
+      "outcome": "exhausted",
+      "halt_reason": "MaxTxExhausted",
+      "duration_seconds": 77,
+      "verdict": "PROCEED",
+      "l4_count": 3,
+      "cas_object_count": 11,
+      "tamper_detected": 3,
+      "tamper_expected": 3,
+      "pput_value": 0.0,
+      "tx_kinds": {
+        "task_open": 1,
+        "escrow_lock": 1,
+        "terminal_summary": 1
+      },
+      "is_sampled": false,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P18_imo_1960_p2",
+      "committed_artifacts": {
+        "verdict_json": "P18_imo_1960_p2/verdict.json",
+        "verdict_replay_json": "P18_imo_1960_p2/verdict_replay.json",
+        "tamper_report_json": "P18_imo_1960_p2/tamper_report.json",
+        "evaluator_stdout": "P18_imo_1960_p2/evaluator.stdout",
+        "verdict_sha256": "f7a40f7d66198051da7f485bbf72228889ee94aa664e4e07b03910aff5d9dd75"
+      }
+    },
+    {
+      "tag": "P19_imo_1962_p2",
+      "name": "imo_1962_p2",
+      "outcome": "exhausted",
+      "halt_reason": "MaxTxExhausted",
+      "duration_seconds": 79,
+      "verdict": "PROCEED",
+      "l4_count": 3,
+      "cas_object_count": 11,
+      "tamper_detected": 3,
+      "tamper_expected": 3,
+      "pput_value": 0.0,
+      "tx_kinds": {
+        "task_open": 1,
+        "escrow_lock": 1,
+        "terminal_summary": 1
+      },
+      "is_sampled": false,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P19_imo_1962_p2",
+      "committed_artifacts": {
+        "verdict_json": "P19_imo_1962_p2/verdict.json",
+        "verdict_replay_json": "P19_imo_1962_p2/verdict_replay.json",
+        "tamper_report_json": "P19_imo_1962_p2/tamper_report.json",
+        "evaluator_stdout": "P19_imo_1962_p2/evaluator.stdout",
+        "verdict_sha256": "7a52eaca2a106efd3b65285d1613369b2e8d9024cb61adfeead7f55dd82c7d35"
+      }
+    },
+    {
+      "tag": "P20_imo_1963_p5",
+      "name": "imo_1963_p5",
+      "outcome": "error_or_no_pput",
+      "halt_reason": "WallClockCap",
+      "duration_seconds": 600,
+      "verdict": "PROCEED",
+      "l4_count": 2,
+      "cas_object_count": 7,
+      "tamper_detected": 2,
+      "tamper_expected": 3,
+      "pput_value": null,
+      "tx_kinds": {
+        "task_open": 1,
+        "escrow_lock": 1
+      },
+      "is_sampled": false,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P20_imo_1963_p5",
+      "committed_artifacts": {
+        "verdict_json": "P20_imo_1963_p5/verdict.json",
+        "verdict_replay_json": "P20_imo_1963_p5/verdict_replay.json",
+        "tamper_report_json": "P20_imo_1963_p5/tamper_report.json",
+        "evaluator_stdout": "P20_imo_1963_p5/evaluator.stdout",
+        "verdict_sha256": "516f9d3ca599553b87798c44d7a11787e7a5698fc70f644d75ab3e3c581edcfa"
+      }
+    },
+    {
+      "tag": "P21_induction_11div10tonmn1ton",
+      "name": "induction_11div10tonmn1ton",
+      "outcome": "exhausted",
+      "halt_reason": "MaxTxExhausted",
+      "duration_seconds": 75,
+      "verdict": "PROCEED",
+      "l4_count": 3,
+      "cas_object_count": 11,
+      "tamper_detected": 3,
+      "tamper_expected": 3,
+      "pput_value": 0.0,
+      "tx_kinds": {
+        "task_open": 1,
+        "escrow_lock": 1,
+        "terminal_summary": 1
+      },
+      "is_sampled": false,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P21_induction_11div10tonmn1ton",
+      "committed_artifacts": {
+        "verdict_json": "P21_induction_11div10tonmn1ton/verdict.json",
+        "verdict_replay_json": "P21_induction_11div10tonmn1ton/verdict_replay.json",
+        "tamper_report_json": "P21_induction_11div10tonmn1ton/tamper_report.json",
+        "evaluator_stdout": "P21_induction_11div10tonmn1ton/evaluator.stdout",
+        "verdict_sha256": "7133e173dbd03afaa5d86b9c978a3e0135eaab77243422106337c40ebf18f77d"
+      }
+    },
+    {
+      "tag": "P22_induction_12dvd4expnp1p20",
+      "name": "induction_12dvd4expnp1p20",
+      "outcome": "exhausted",
+      "halt_reason": "MaxTxExhausted",
+      "duration_seconds": 175,
+      "verdict": "PROCEED",
+      "l4_count": 3,
+      "cas_object_count": 11,
+      "tamper_detected": 3,
+      "tamper_expected": 3,
+      "pput_value": 0.0,
+      "tx_kinds": {
+        "task_open": 1,
+        "escrow_lock": 1,
+        "terminal_summary": 1
+      },
+      "is_sampled": false,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P22_induction_12dvd4expnp1p20",
+      "committed_artifacts": {
+        "verdict_json": "P22_induction_12dvd4expnp1p20/verdict.json",
+        "verdict_replay_json": "P22_induction_12dvd4expnp1p20/verdict_replay.json",
+        "tamper_report_json": "P22_induction_12dvd4expnp1p20/tamper_report.json",
+        "evaluator_stdout": "P22_induction_12dvd4expnp1p20/evaluator.stdout",
+        "verdict_sha256": "c3f44c0b35728febd316f03a1ff4c2b15993aec99a7ade8d316c3bf59e9f4dd2"
+      }
+    },
+    {
+      "tag": "P23_mathd_algebra_107",
+      "name": "mathd_algebra_107",
+      "outcome": "solved",
+      "halt_reason": "OmegaAccepted",
+      "duration_seconds": 9,
+      "verdict": "PROCEED",
+      "l4_count": 5,
+      "cas_object_count": 13,
+      "tamper_detected": 3,
+      "tamper_expected": 3,
+      "pput_value": 11.04731432544472,
+      "tx_kinds": {
+        "work": 1,
+        "verify": 1,
+        "task_open": 1,
+        "escrow_lock": 1,
+        "finalize_reward": 1
+      },
+      "is_sampled": true,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P23_mathd_algebra_107",
+      "committed_artifacts": {
+        "verdict_json": "P23_mathd_algebra_107/verdict.json",
+        "verdict_replay_json": "P23_mathd_algebra_107/verdict_replay.json",
+        "tamper_report_json": "P23_mathd_algebra_107/tamper_report.json",
+        "evaluator_stdout": "P23_mathd_algebra_107/evaluator.stdout",
+        "runtime_repo_dotgit_tar_gz": "P23_mathd_algebra_107/runtime_repo.dotgit.tar.gz",
+        "cas_dotgit_tar_gz": "P23_mathd_algebra_107/cas.dotgit.tar.gz",
+        "runtime_repo_dotgit_sha256": "5019437ba02c267378374cbd7389a1f81d8eab98ebd9ae846235a8d4db283d0f",
+        "cas_dotgit_sha256": "db15ff38fce2af50b7b71d972c8261659771de160363475289e4c38db9533a9a",
+        "verdict_sha256": "4d1cd9fcba44a08fa7a60fe97888e6f65021a5db399e7af3f45d6937b3003c72"
+      }
+    },
+    {
+      "tag": "P24_mathd_algebra_113",
+      "name": "mathd_algebra_113",
+      "outcome": "exhausted",
+      "halt_reason": "MaxTxExhausted",
+      "duration_seconds": 86,
+      "verdict": "PROCEED",
+      "l4_count": 3,
+      "cas_object_count": 11,
+      "tamper_detected": 3,
+      "tamper_expected": 3,
+      "pput_value": 0.0,
+      "tx_kinds": {
+        "task_open": 1,
+        "escrow_lock": 1,
+        "terminal_summary": 1
+      },
+      "is_sampled": false,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P24_mathd_algebra_113",
+      "committed_artifacts": {
+        "verdict_json": "P24_mathd_algebra_113/verdict.json",
+        "verdict_replay_json": "P24_mathd_algebra_113/verdict_replay.json",
+        "tamper_report_json": "P24_mathd_algebra_113/tamper_report.json",
+        "evaluator_stdout": "P24_mathd_algebra_113/evaluator.stdout",
+        "verdict_sha256": "b41fb07e987df55d52b978dd999fbc96dae3fffc79fac62ce3a64e3fada7f806"
+      }
+    },
+    {
+      "tag": "P25_mathd_algebra_114",
+      "name": "mathd_algebra_114",
+      "outcome": "exhausted",
+      "halt_reason": "MaxTxExhausted",
+      "duration_seconds": 330,
+      "verdict": "PROCEED",
+      "l4_count": 3,
+      "cas_object_count": 11,
+      "tamper_detected": 3,
+      "tamper_expected": 3,
+      "pput_value": 0.0,
+      "tx_kinds": {
+        "task_open": 1,
+        "escrow_lock": 1,
+        "terminal_summary": 1
+      },
+      "is_sampled": true,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P25_mathd_algebra_114",
+      "committed_artifacts": {
+        "verdict_json": "P25_mathd_algebra_114/verdict.json",
+        "verdict_replay_json": "P25_mathd_algebra_114/verdict_replay.json",
+        "tamper_report_json": "P25_mathd_algebra_114/tamper_report.json",
+        "evaluator_stdout": "P25_mathd_algebra_114/evaluator.stdout",
+        "runtime_repo_dotgit_tar_gz": "P25_mathd_algebra_114/runtime_repo.dotgit.tar.gz",
+        "cas_dotgit_tar_gz": "P25_mathd_algebra_114/cas.dotgit.tar.gz",
+        "runtime_repo_dotgit_sha256": "ecf946b420bfbd7724295c5820c4f5a345fb9f357bbf028ab9516d0c5700bb45",
+        "cas_dotgit_sha256": "511192379e240b7f6663e7eeb33f930b06af46d7e44355e688f37e7da8709bc3",
+        "verdict_sha256": "8949d5d489ff721cbe7d28ad330ce78a8b6d28ca722e5254b1f9204ae2644d8c"
+      }
+    },
+    {
+      "tag": "P26_mathd_algebra_125",
+      "name": "mathd_algebra_125",
+      "outcome": "solved",
+      "halt_reason": "OmegaAccepted",
+      "duration_seconds": 9,
+      "verdict": "PROCEED",
+      "l4_count": 5,
+      "cas_object_count": 13,
+      "tamper_detected": 3,
+      "tamper_expected": 3,
+      "pput_value": 10.686362760574434,
+      "tx_kinds": {
+        "work": 1,
+        "verify": 1,
+        "task_open": 1,
+        "escrow_lock": 1,
+        "finalize_reward": 1
+      },
+      "is_sampled": false,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P26_mathd_algebra_125",
+      "committed_artifacts": {
+        "verdict_json": "P26_mathd_algebra_125/verdict.json",
+        "verdict_replay_json": "P26_mathd_algebra_125/verdict_replay.json",
+        "tamper_report_json": "P26_mathd_algebra_125/tamper_report.json",
+        "evaluator_stdout": "P26_mathd_algebra_125/evaluator.stdout",
+        "verdict_sha256": "e6a6c50e018a3d67d34eb0b50ce7235b7997c0cb83f0571eda8b1f04ba2aeec6"
+      }
+    },
+    {
+      "tag": "P27_mathd_algebra_129",
+      "name": "mathd_algebra_129",
+      "outcome": "exhausted",
+      "halt_reason": "MaxTxExhausted",
+      "duration_seconds": 89,
+      "verdict": "PROCEED",
+      "l4_count": 3,
+      "cas_object_count": 11,
+      "tamper_detected": 3,
+      "tamper_expected": 3,
+      "pput_value": 0.0,
+      "tx_kinds": {
+        "task_open": 1,
+        "escrow_lock": 1,
+        "terminal_summary": 1
+      },
+      "is_sampled": false,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P27_mathd_algebra_129",
+      "committed_artifacts": {
+        "verdict_json": "P27_mathd_algebra_129/verdict.json",
+        "verdict_replay_json": "P27_mathd_algebra_129/verdict_replay.json",
+        "tamper_report_json": "P27_mathd_algebra_129/tamper_report.json",
+        "evaluator_stdout": "P27_mathd_algebra_129/evaluator.stdout",
+        "verdict_sha256": "6c4f1c2cb4ee83440c6191943f29f1e4ca03852087f26e27381aa84f4111d9de"
+      }
+    },
+    {
+      "tag": "P28_mathd_algebra_137",
+      "name": "mathd_algebra_137",
+      "outcome": "exhausted",
+      "halt_reason": "MaxTxExhausted",
+      "duration_seconds": 72,
+      "verdict": "PROCEED",
+      "l4_count": 3,
+      "cas_object_count": 11,
+      "tamper_detected": 3,
+      "tamper_expected": 3,
+      "pput_value": 0.0,
+      "tx_kinds": {
+        "task_open": 1,
+        "escrow_lock": 1,
+        "terminal_summary": 1
+      },
+      "is_sampled": false,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P28_mathd_algebra_137",
+      "committed_artifacts": {
+        "verdict_json": "P28_mathd_algebra_137/verdict.json",
+        "verdict_replay_json": "P28_mathd_algebra_137/verdict_replay.json",
+        "tamper_report_json": "P28_mathd_algebra_137/tamper_report.json",
+        "evaluator_stdout": "P28_mathd_algebra_137/evaluator.stdout",
+        "verdict_sha256": "6d03bca4a41c39013a5b71aaff60cd32f13cfae17eb05a824d40063f73cf9172"
+      }
+    },
+    {
+      "tag": "P29_mathd_algebra_139",
+      "name": "mathd_algebra_139",
+      "outcome": "error_or_no_pput",
+      "halt_reason": "WallClockCap",
+      "duration_seconds": 600,
+      "verdict": "PROCEED",
+      "l4_count": 2,
+      "cas_object_count": 7,
+      "tamper_detected": 2,
+      "tamper_expected": 3,
+      "pput_value": null,
+      "tx_kinds": {
+        "task_open": 1,
+        "escrow_lock": 1
+      },
+      "is_sampled": true,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P29_mathd_algebra_139",
+      "committed_artifacts": {
+        "verdict_json": "P29_mathd_algebra_139/verdict.json",
+        "verdict_replay_json": "P29_mathd_algebra_139/verdict_replay.json",
+        "tamper_report_json": "P29_mathd_algebra_139/tamper_report.json",
+        "evaluator_stdout": "P29_mathd_algebra_139/evaluator.stdout",
+        "runtime_repo_dotgit_tar_gz": "P29_mathd_algebra_139/runtime_repo.dotgit.tar.gz",
+        "cas_dotgit_tar_gz": "P29_mathd_algebra_139/cas.dotgit.tar.gz",
+        "runtime_repo_dotgit_sha256": "078463a5e5bfab1dcdb580c61aee949844a627e00ab05fbcfe4bcf36385be46d",
+        "cas_dotgit_sha256": "4588f385b9732d94ecca2e9c467b6f402ae509ba6d080a3f8fbb93ac7bff3c13",
+        "verdict_sha256": "51ea5b0f7641f22c7ca715f76e1f28c7e43ee74049e887a48de2a270b05b1b2b"
+      }
+    },
+    {
+      "tag": "P30_mathd_algebra_141",
+      "name": "mathd_algebra_141",
+      "outcome": "solved",
+      "halt_reason": "OmegaAccepted",
+      "duration_seconds": 10,
+      "verdict": "PROCEED",
+      "l4_count": 5,
+      "cas_object_count": 13,
+      "tamper_detected": 3,
+      "tamper_expected": 3,
+      "pput_value": 9.572893790948601,
+      "tx_kinds": {
+        "work": 1,
+        "verify": 1,
+        "task_open": 1,
+        "escrow_lock": 1,
+        "finalize_reward": 1
+      },
+      "is_sampled": false,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P30_mathd_algebra_141",
+      "committed_artifacts": {
+        "verdict_json": "P30_mathd_algebra_141/verdict.json",
+        "verdict_replay_json": "P30_mathd_algebra_141/verdict_replay.json",
+        "tamper_report_json": "P30_mathd_algebra_141/tamper_report.json",
+        "evaluator_stdout": "P30_mathd_algebra_141/evaluator.stdout",
+        "verdict_sha256": "1b07bae4cb26c3152e0fa49d370a3462a9c7a8d7acf50c706ec15dafdb886ecd"
+      }
+    },
+    {
+      "tag": "P31_mathd_algebra_142",
+      "name": "mathd_algebra_142",
+      "outcome": "solved",
+      "halt_reason": "OmegaAccepted",
+      "duration_seconds": 10,
+      "verdict": "PROCEED",
+      "l4_count": 5,
+      "cas_object_count": 13,
+      "tamper_detected": 3,
+      "tamper_expected": 3,
+      "pput_value": 10.047828784341593,
+      "tx_kinds": {
+        "work": 1,
+        "verify": 1,
+        "task_open": 1,
+        "escrow_lock": 1,
+        "finalize_reward": 1
+      },
+      "is_sampled": true,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P31_mathd_algebra_142",
+      "committed_artifacts": {
+        "verdict_json": "P31_mathd_algebra_142/verdict.json",
+        "verdict_replay_json": "P31_mathd_algebra_142/verdict_replay.json",
+        "tamper_report_json": "P31_mathd_algebra_142/tamper_report.json",
+        "evaluator_stdout": "P31_mathd_algebra_142/evaluator.stdout",
+        "runtime_repo_dotgit_tar_gz": "P31_mathd_algebra_142/runtime_repo.dotgit.tar.gz",
+        "cas_dotgit_tar_gz": "P31_mathd_algebra_142/cas.dotgit.tar.gz",
+        "runtime_repo_dotgit_sha256": "f7e4a1d4413edfd44c92472ebd5a3a2977a9b17687aa8b51b4fcedc3c1167c08",
+        "cas_dotgit_sha256": "58cf8452e0078f2b7505bc37c5c5bd1bac6e20121e406db39bcca9924e25115b",
+        "verdict_sha256": "e01628d62e15318da410fe5c114e74c47490abae7b5da0e2f29ead2de848408d"
+      }
+    },
+    {
+      "tag": "P32_mathd_algebra_143",
+      "name": "mathd_algebra_143",
+      "outcome": "solved",
+      "halt_reason": "OmegaAccepted",
+      "duration_seconds": 11,
+      "verdict": "PROCEED",
+      "l4_count": 5,
+      "cas_object_count": 13,
+      "tamper_detected": 3,
+      "tamper_expected": 3,
+      "pput_value": 9.391927174538363,
+      "tx_kinds": {
+        "work": 1,
+        "verify": 1,
+        "task_open": 1,
+        "escrow_lock": 1,
+        "finalize_reward": 1
+      },
+      "is_sampled": false,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P32_mathd_algebra_143",
+      "committed_artifacts": {
+        "verdict_json": "P32_mathd_algebra_143/verdict.json",
+        "verdict_replay_json": "P32_mathd_algebra_143/verdict_replay.json",
+        "tamper_report_json": "P32_mathd_algebra_143/tamper_report.json",
+        "evaluator_stdout": "P32_mathd_algebra_143/evaluator.stdout",
+        "verdict_sha256": "78cf66ae1f7e146a022bbf94f00b940e4dd4461bda5271998c5c6c9d83ea2d99"
+      }
+    },
+    {
+      "tag": "P33_mathd_algebra_148",
+      "name": "mathd_algebra_148",
+      "outcome": "exhausted",
+      "halt_reason": "MaxTxExhausted",
+      "duration_seconds": 78,
+      "verdict": "PROCEED",
+      "l4_count": 3,
+      "cas_object_count": 11,
+      "tamper_detected": 3,
+      "tamper_expected": 3,
+      "pput_value": 0.0,
+      "tx_kinds": {
+        "task_open": 1,
+        "escrow_lock": 1,
+        "terminal_summary": 1
+      },
+      "is_sampled": false,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P33_mathd_algebra_148",
+      "committed_artifacts": {
+        "verdict_json": "P33_mathd_algebra_148/verdict.json",
+        "verdict_replay_json": "P33_mathd_algebra_148/verdict_replay.json",
+        "tamper_report_json": "P33_mathd_algebra_148/tamper_report.json",
+        "evaluator_stdout": "P33_mathd_algebra_148/evaluator.stdout",
+        "verdict_sha256": "d65ebd83cbf9d22ac51143ae26955eaa5b584a91d05a801e500d0787ce2e51fc"
+      }
+    },
+    {
+      "tag": "P34_mathd_algebra_153",
+      "name": "mathd_algebra_153",
+      "outcome": "exhausted",
+      "halt_reason": "MaxTxExhausted",
+      "duration_seconds": 83,
+      "verdict": "PROCEED",
+      "l4_count": 3,
+      "cas_object_count": 11,
+      "tamper_detected": 3,
+      "tamper_expected": 3,
+      "pput_value": 0.0,
+      "tx_kinds": {
+        "task_open": 1,
+        "escrow_lock": 1,
+        "terminal_summary": 1
+      },
+      "is_sampled": false,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P34_mathd_algebra_153",
+      "committed_artifacts": {
+        "verdict_json": "P34_mathd_algebra_153/verdict.json",
+        "verdict_replay_json": "P34_mathd_algebra_153/verdict_replay.json",
+        "tamper_report_json": "P34_mathd_algebra_153/tamper_report.json",
+        "evaluator_stdout": "P34_mathd_algebra_153/evaluator.stdout",
+        "verdict_sha256": "e348cdcbdc71361a16ccb22a9bc0f79af2459948a49af86d5e4c61bdea096ddb"
+      }
+    },
+    {
+      "tag": "P35_mathd_algebra_176",
+      "name": "mathd_algebra_176",
+      "outcome": "solved",
+      "halt_reason": "OmegaAccepted",
+      "duration_seconds": 9,
+      "verdict": "PROCEED",
+      "l4_count": 5,
+      "cas_object_count": 13,
+      "tamper_detected": 3,
+      "tamper_expected": 3,
+      "pput_value": 11.357137463703173,
+      "tx_kinds": {
+        "work": 1,
+        "verify": 1,
+        "task_open": 1,
+        "escrow_lock": 1,
+        "finalize_reward": 1
+      },
+      "is_sampled": false,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P35_mathd_algebra_176",
+      "committed_artifacts": {
+        "verdict_json": "P35_mathd_algebra_176/verdict.json",
+        "verdict_replay_json": "P35_mathd_algebra_176/verdict_replay.json",
+        "tamper_report_json": "P35_mathd_algebra_176/tamper_report.json",
+        "evaluator_stdout": "P35_mathd_algebra_176/evaluator.stdout",
+        "verdict_sha256": "239a776d451db706e5bd4f8eba48e58684e6dd3e16670cbeb8709e40ceff6f9a"
+      }
+    },
+    {
+      "tag": "P36_mathd_algebra_400",
+      "name": "mathd_algebra_400",
+      "outcome": "exhausted",
+      "halt_reason": "MaxTxExhausted",
+      "duration_seconds": 81,
+      "verdict": "PROCEED",
+      "l4_count": 3,
+      "cas_object_count": 11,
+      "tamper_detected": 3,
+      "tamper_expected": 3,
+      "pput_value": 0.0,
+      "tx_kinds": {
+        "task_open": 1,
+        "escrow_lock": 1,
+        "terminal_summary": 1
+      },
+      "is_sampled": true,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P36_mathd_algebra_400",
+      "committed_artifacts": {
+        "verdict_json": "P36_mathd_algebra_400/verdict.json",
+        "verdict_replay_json": "P36_mathd_algebra_400/verdict_replay.json",
+        "tamper_report_json": "P36_mathd_algebra_400/tamper_report.json",
+        "evaluator_stdout": "P36_mathd_algebra_400/evaluator.stdout",
+        "runtime_repo_dotgit_tar_gz": "P36_mathd_algebra_400/runtime_repo.dotgit.tar.gz",
+        "cas_dotgit_tar_gz": "P36_mathd_algebra_400/cas.dotgit.tar.gz",
+        "runtime_repo_dotgit_sha256": "3ed572324f07d4fab299fbd1b42ed1bf3aeaa770224ebfb9d7806514adb2a77e",
+        "cas_dotgit_sha256": "e74704461eb6f02f0db6dfb6b5a9b4af1ade87ab18105766712f29ee26748595",
+        "verdict_sha256": "69e0c6571ca773bd6d800fceacc0b9318ee5faf9b134704ed6c99612c67feb84"
+      }
+    },
+    {
+      "tag": "P37_mathd_numbertheory_100",
+      "name": "mathd_numbertheory_100",
+      "outcome": "solved",
+      "halt_reason": "OmegaAccepted",
+      "duration_seconds": 11,
+      "verdict": "PROCEED",
+      "l4_count": 5,
+      "cas_object_count": 13,
+      "tamper_detected": 3,
+      "tamper_expected": 3,
+      "pput_value": 8.748924082797538,
+      "tx_kinds": {
+        "work": 1,
+        "verify": 1,
+        "task_open": 1,
+        "escrow_lock": 1,
+        "finalize_reward": 1
+      },
+      "is_sampled": false,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P37_mathd_numbertheory_100",
+      "committed_artifacts": {
+        "verdict_json": "P37_mathd_numbertheory_100/verdict.json",
+        "verdict_replay_json": "P37_mathd_numbertheory_100/verdict_replay.json",
+        "tamper_report_json": "P37_mathd_numbertheory_100/tamper_report.json",
+        "evaluator_stdout": "P37_mathd_numbertheory_100/evaluator.stdout",
+        "verdict_sha256": "b869eac7419298106e2b92dfca45fb043329425447b6aad2819aca5b12ec9e43"
+      }
+    },
+    {
+      "tag": "P38_mathd_numbertheory_1124",
+      "name": "mathd_numbertheory_1124",
+      "outcome": "solved",
+      "halt_reason": "OmegaAccepted",
+      "duration_seconds": 194,
+      "verdict": "PROCEED",
+      "l4_count": 5,
+      "cas_object_count": 13,
+      "tamper_detected": 3,
+      "tamper_expected": 3,
+      "pput_value": 0.5155621195234487,
+      "tx_kinds": {
+        "work": 1,
+        "verify": 1,
+        "task_open": 1,
+        "escrow_lock": 1,
+        "finalize_reward": 1
+      },
+      "is_sampled": false,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P38_mathd_numbertheory_1124",
+      "committed_artifacts": {
+        "verdict_json": "P38_mathd_numbertheory_1124/verdict.json",
+        "verdict_replay_json": "P38_mathd_numbertheory_1124/verdict_replay.json",
+        "tamper_report_json": "P38_mathd_numbertheory_1124/tamper_report.json",
+        "evaluator_stdout": "P38_mathd_numbertheory_1124/evaluator.stdout",
+        "verdict_sha256": "aaacc6aeb3f7e294eaf79dfe39c8f0405da271af60d273e0398686ca6a465f63"
+      }
+    },
+    {
+      "tag": "P39_mathd_numbertheory_12",
+      "name": "mathd_numbertheory_12",
+      "outcome": "solved",
+      "halt_reason": "OmegaAccepted",
+      "duration_seconds": 38,
+      "verdict": "PROCEED",
+      "l4_count": 5,
+      "cas_object_count": 13,
+      "tamper_detected": 2,
+      "tamper_expected": 3,
+      "pput_value": 2.6388419436451525,
+      "tx_kinds": {
+        "work": 1,
+        "verify": 1,
+        "task_open": 1,
+        "escrow_lock": 1,
+        "finalize_reward": 1
+      },
+      "is_sampled": true,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P39_mathd_numbertheory_12",
+      "committed_artifacts": {
+        "verdict_json": "P39_mathd_numbertheory_12/verdict.json",
+        "verdict_replay_json": "P39_mathd_numbertheory_12/verdict_replay.json",
+        "tamper_report_json": "P39_mathd_numbertheory_12/tamper_report.json",
+        "evaluator_stdout": "P39_mathd_numbertheory_12/evaluator.stdout",
+        "runtime_repo_dotgit_tar_gz": "P39_mathd_numbertheory_12/runtime_repo.dotgit.tar.gz",
+        "cas_dotgit_tar_gz": "P39_mathd_numbertheory_12/cas.dotgit.tar.gz",
+        "runtime_repo_dotgit_sha256": "d57e3875f1dacd32a0e421f48dbfc50e7e6faac576903df5a7f13cebb7f3f714",
+        "cas_dotgit_sha256": "003ad03b4743222c2333f98e452ab4b8dbaa7b4ef3b8a747773845b3435eaf25",
+        "verdict_sha256": "8ea4bfefe90b45df8e5fbf335e7c2be04b575299fa15cccc6e683c3aadfd2f84"
+      }
+    },
+    {
+      "tag": "P40_mathd_numbertheory_127",
+      "name": "mathd_numbertheory_127",
+      "outcome": "solved",
+      "halt_reason": "OmegaAccepted",
+      "duration_seconds": 11,
+      "verdict": "PROCEED",
+      "l4_count": 5,
+      "cas_object_count": 13,
+      "tamper_detected": 3,
+      "tamper_expected": 3,
+      "pput_value": 8.832173610484007,
+      "tx_kinds": {
+        "work": 1,
+        "verify": 1,
+        "task_open": 1,
+        "escrow_lock": 1,
+        "finalize_reward": 1
+      },
+      "is_sampled": false,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P40_mathd_numbertheory_127",
+      "committed_artifacts": {
+        "verdict_json": "P40_mathd_numbertheory_127/verdict.json",
+        "verdict_replay_json": "P40_mathd_numbertheory_127/verdict_replay.json",
+        "tamper_report_json": "P40_mathd_numbertheory_127/tamper_report.json",
+        "evaluator_stdout": "P40_mathd_numbertheory_127/evaluator.stdout",
+        "verdict_sha256": "c0cd76d82881967565e3b0ac7ace5ec58bc45d639753e88b18cf22be724924af"
+      }
+    },
+    {
+      "tag": "P41_mathd_numbertheory_135",
+      "name": "mathd_numbertheory_135",
+      "outcome": "error_or_no_pput",
+      "halt_reason": "WallClockCap",
+      "duration_seconds": 600,
+      "verdict": "PROCEED",
+      "l4_count": 2,
+      "cas_object_count": 7,
+      "tamper_detected": 2,
+      "tamper_expected": 3,
+      "pput_value": null,
+      "tx_kinds": {
+        "task_open": 1,
+        "escrow_lock": 1
+      },
+      "is_sampled": true,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P41_mathd_numbertheory_135",
+      "committed_artifacts": {
+        "verdict_json": "P41_mathd_numbertheory_135/verdict.json",
+        "verdict_replay_json": "P41_mathd_numbertheory_135/verdict_replay.json",
+        "tamper_report_json": "P41_mathd_numbertheory_135/tamper_report.json",
+        "evaluator_stdout": "P41_mathd_numbertheory_135/evaluator.stdout",
+        "runtime_repo_dotgit_tar_gz": "P41_mathd_numbertheory_135/runtime_repo.dotgit.tar.gz",
+        "cas_dotgit_tar_gz": "P41_mathd_numbertheory_135/cas.dotgit.tar.gz",
+        "runtime_repo_dotgit_sha256": "00efbe919ae9268596771b897a139b99b151b26843cbc79f3755c2020455e301",
+        "cas_dotgit_sha256": "6d51a3dd57dd06d54232ee0b592b5a6c2f60f222fca724e36cf63152baf6bb36",
+        "verdict_sha256": "edc1812ff5c2d8216a9c8d9294acffafb8a9360492a71bb063538926ce3742a0"
+      }
+    },
+    {
+      "tag": "P42_mathd_numbertheory_150",
+      "name": "mathd_numbertheory_150",
+      "outcome": "exhausted",
+      "halt_reason": "MaxTxExhausted",
+      "duration_seconds": 74,
+      "verdict": "PROCEED",
+      "l4_count": 3,
+      "cas_object_count": 11,
+      "tamper_detected": 3,
+      "tamper_expected": 3,
+      "pput_value": 0.0,
+      "tx_kinds": {
+        "task_open": 1,
+        "escrow_lock": 1,
+        "terminal_summary": 1
+      },
+      "is_sampled": false,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P42_mathd_numbertheory_150",
+      "committed_artifacts": {
+        "verdict_json": "P42_mathd_numbertheory_150/verdict.json",
+        "verdict_replay_json": "P42_mathd_numbertheory_150/verdict_replay.json",
+        "tamper_report_json": "P42_mathd_numbertheory_150/tamper_report.json",
+        "evaluator_stdout": "P42_mathd_numbertheory_150/evaluator.stdout",
+        "verdict_sha256": "ff919f41421892d43c8ae28677161a5236812adc2f89ef0d9517c6c1062030a1"
+      }
+    },
+    {
+      "tag": "P43_mathd_numbertheory_175",
+      "name": "mathd_numbertheory_175",
+      "outcome": "solved",
+      "halt_reason": "OmegaAccepted",
+      "duration_seconds": 54,
+      "verdict": "PROCEED",
+      "l4_count": 5,
+      "cas_object_count": 13,
+      "tamper_detected": 2,
+      "tamper_expected": 3,
+      "pput_value": 1.8344245052969983,
+      "tx_kinds": {
+        "work": 1,
+        "verify": 1,
+        "task_open": 1,
+        "escrow_lock": 1,
+        "finalize_reward": 1
+      },
+      "is_sampled": false,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P43_mathd_numbertheory_175",
+      "committed_artifacts": {
+        "verdict_json": "P43_mathd_numbertheory_175/verdict.json",
+        "verdict_replay_json": "P43_mathd_numbertheory_175/verdict_replay.json",
+        "tamper_report_json": "P43_mathd_numbertheory_175/tamper_report.json",
+        "evaluator_stdout": "P43_mathd_numbertheory_175/evaluator.stdout",
+        "verdict_sha256": "6ffaac79c85377ba12f21ed2833e0bd6b059d6313dc4194f90094a57eb4ed6d6"
+      }
+    },
+    {
+      "tag": "P44_mathd_numbertheory_185",
+      "name": "mathd_numbertheory_185",
+      "outcome": "solved",
+      "halt_reason": "OmegaAccepted",
+      "duration_seconds": 10,
+      "verdict": "PROCEED",
+      "l4_count": 5,
+      "cas_object_count": 13,
+      "tamper_detected": 3,
+      "tamper_expected": 3,
+      "pput_value": 10.088513752508904,
+      "tx_kinds": {
+        "work": 1,
+        "verify": 1,
+        "task_open": 1,
+        "escrow_lock": 1,
+        "finalize_reward": 1
+      },
+      "is_sampled": false,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P44_mathd_numbertheory_185",
+      "committed_artifacts": {
+        "verdict_json": "P44_mathd_numbertheory_185/verdict.json",
+        "verdict_replay_json": "P44_mathd_numbertheory_185/verdict_replay.json",
+        "tamper_report_json": "P44_mathd_numbertheory_185/tamper_report.json",
+        "evaluator_stdout": "P44_mathd_numbertheory_185/evaluator.stdout",
+        "verdict_sha256": "ea580282d47cc3e4da708f7969b520d83790eb5bbaca54ad60d7e9fa858092b9"
+      }
+    },
+    {
+      "tag": "P45_mathd_numbertheory_207",
+      "name": "mathd_numbertheory_207",
+      "outcome": "solved",
+      "halt_reason": "OmegaAccepted",
+      "duration_seconds": 9,
+      "verdict": "PROCEED",
+      "l4_count": 5,
+      "cas_object_count": 13,
+      "tamper_detected": 3,
+      "tamper_expected": 3,
+      "pput_value": 11.009252170569983,
+      "tx_kinds": {
+        "work": 1,
+        "verify": 1,
+        "task_open": 1,
+        "escrow_lock": 1,
+        "finalize_reward": 1
+      },
+      "is_sampled": false,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P45_mathd_numbertheory_207",
+      "committed_artifacts": {
+        "verdict_json": "P45_mathd_numbertheory_207/verdict.json",
+        "verdict_replay_json": "P45_mathd_numbertheory_207/verdict_replay.json",
+        "tamper_report_json": "P45_mathd_numbertheory_207/tamper_report.json",
+        "evaluator_stdout": "P45_mathd_numbertheory_207/evaluator.stdout",
+        "verdict_sha256": "ff908f1b16677fb37403929ae8c83f295a55fd8436e6f40699d3d21d6821b66f"
+      }
+    },
+    {
+      "tag": "P46_mathd_numbertheory_212",
+      "name": "mathd_numbertheory_212",
+      "outcome": "solved",
+      "halt_reason": "OmegaAccepted",
+      "duration_seconds": 8,
+      "verdict": "PROCEED",
+      "l4_count": 5,
+      "cas_object_count": 13,
+      "tamper_detected": 3,
+      "tamper_expected": 3,
+      "pput_value": 11.448894809235533,
+      "tx_kinds": {
+        "work": 1,
+        "verify": 1,
+        "task_open": 1,
+        "escrow_lock": 1,
+        "finalize_reward": 1
+      },
+      "is_sampled": false,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P46_mathd_numbertheory_212",
+      "committed_artifacts": {
+        "verdict_json": "P46_mathd_numbertheory_212/verdict.json",
+        "verdict_replay_json": "P46_mathd_numbertheory_212/verdict_replay.json",
+        "tamper_report_json": "P46_mathd_numbertheory_212/tamper_report.json",
+        "evaluator_stdout": "P46_mathd_numbertheory_212/evaluator.stdout",
+        "verdict_sha256": "aa3a7bd96895b96833e71853131b29239a663238e1ac1e919995774c0da5e341"
+      }
+    },
+    {
+      "tag": "P47_mathd_numbertheory_222",
+      "name": "mathd_numbertheory_222",
+      "outcome": "solved",
+      "halt_reason": "OmegaAccepted",
+      "duration_seconds": 18,
+      "verdict": "PROCEED",
+      "l4_count": 5,
+      "cas_object_count": 13,
+      "tamper_detected": 3,
+      "tamper_expected": 3,
+      "pput_value": 5.478515134446051,
+      "tx_kinds": {
+        "work": 1,
+        "verify": 1,
+        "task_open": 1,
+        "escrow_lock": 1,
+        "finalize_reward": 1
+      },
+      "is_sampled": false,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P47_mathd_numbertheory_222",
+      "committed_artifacts": {
+        "verdict_json": "P47_mathd_numbertheory_222/verdict.json",
+        "verdict_replay_json": "P47_mathd_numbertheory_222/verdict_replay.json",
+        "tamper_report_json": "P47_mathd_numbertheory_222/tamper_report.json",
+        "evaluator_stdout": "P47_mathd_numbertheory_222/evaluator.stdout",
+        "verdict_sha256": "217de21e017073db75eb242c80fc7fc4a6a8a6fa7f9832b36561e3e8c7169a60"
+      }
+    },
+    {
+      "tag": "P48_mathd_numbertheory_239",
+      "name": "mathd_numbertheory_239",
+      "outcome": "exhausted",
+      "halt_reason": "MaxTxExhausted",
+      "duration_seconds": 180,
+      "verdict": "PROCEED",
+      "l4_count": 3,
+      "cas_object_count": 11,
+      "tamper_detected": 3,
+      "tamper_expected": 3,
+      "pput_value": 0.0,
+      "tx_kinds": {
+        "task_open": 1,
+        "escrow_lock": 1,
+        "terminal_summary": 1
+      },
+      "is_sampled": false,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P48_mathd_numbertheory_239",
+      "committed_artifacts": {
+        "verdict_json": "P48_mathd_numbertheory_239/verdict.json",
+        "verdict_replay_json": "P48_mathd_numbertheory_239/verdict_replay.json",
+        "tamper_report_json": "P48_mathd_numbertheory_239/tamper_report.json",
+        "evaluator_stdout": "P48_mathd_numbertheory_239/evaluator.stdout",
+        "verdict_sha256": "4045d4091407a33b73cd06dc9e8a7e6e1f1af5cc5081effeb855e3739c22207c"
+      }
+    },
+    {
+      "tag": "P49_numbertheory_2pownm1prime_nprime",
+      "name": "numbertheory_2pownm1prime_nprime",
+      "outcome": "solved",
+      "halt_reason": "OmegaAccepted",
+      "duration_seconds": 371,
+      "verdict": "PROCEED",
+      "l4_count": 5,
+      "cas_object_count": 13,
+      "tamper_detected": 2,
+      "tamper_expected": 3,
+      "pput_value": 0.27019880388063044,
+      "tx_kinds": {
+        "work": 1,
+        "verify": 1,
+        "task_open": 1,
+        "escrow_lock": 1,
+        "finalize_reward": 1
+      },
+      "is_sampled": true,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P49_numbertheory_2pownm1prime_nprime",
+      "committed_artifacts": {
+        "verdict_json": "P49_numbertheory_2pownm1prime_nprime/verdict.json",
+        "verdict_replay_json": "P49_numbertheory_2pownm1prime_nprime/verdict_replay.json",
+        "tamper_report_json": "P49_numbertheory_2pownm1prime_nprime/tamper_report.json",
+        "evaluator_stdout": "P49_numbertheory_2pownm1prime_nprime/evaluator.stdout",
+        "runtime_repo_dotgit_tar_gz": "P49_numbertheory_2pownm1prime_nprime/runtime_repo.dotgit.tar.gz",
+        "cas_dotgit_tar_gz": "P49_numbertheory_2pownm1prime_nprime/cas.dotgit.tar.gz",
+        "runtime_repo_dotgit_sha256": "9264d8015b82f06ea68b3bd2301ac9f2b85959ca59ca05aa5f7a8f14c9577ab0",
+        "cas_dotgit_sha256": "34356350be5d9c596a88f86b9be7dbd4e39a67183a237be80b94e0440d2f3f02",
+        "verdict_sha256": "fd19dc3ed637c4ca8b78d20de63bfa2dc3663331f6029e952c958e3fd66b63d4"
+      }
+    },
+    {
+      "tag": "P50_numbertheory_3pow2pownm1mod2pownp3eq2pownp2",
+      "name": "numbertheory_3pow2pownm1mod2pownp3eq2pownp2",
+      "outcome": "exhausted",
+      "halt_reason": "MaxTxExhausted",
+      "duration_seconds": 199,
+      "verdict": "PROCEED",
+      "l4_count": 3,
+      "cas_object_count": 11,
+      "tamper_detected": 3,
+      "tamper_expected": 3,
+      "pput_value": 0.0,
+      "tx_kinds": {
+        "task_open": 1,
+        "escrow_lock": 1,
+        "terminal_summary": 1
+      },
+      "is_sampled": false,
+      "local_evidence_path": "handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P50_numbertheory_3pow2pownm1mod2pownp3eq2pownp2",
+      "committed_artifacts": {
+        "verdict_json": "P50_numbertheory_3pow2pownm1mod2pownp3eq2pownp2/verdict.json",
+        "verdict_replay_json": "P50_numbertheory_3pow2pownm1mod2pownp3eq2pownp2/verdict_replay.json",
+        "tamper_report_json": "P50_numbertheory_3pow2pownm1mod2pownp3eq2pownp2/tamper_report.json",
+        "evaluator_stdout": "P50_numbertheory_3pow2pownm1mod2pownp3eq2pownp2/evaluator.stdout",
+        "verdict_sha256": "090b8cbf85a99f5e63656b16996706b39892922a1c4237a665467c6a61221285"
+      }
+    }
+  ]
+}

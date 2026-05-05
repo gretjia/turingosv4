@@ -1,0 +1,60 @@
+{
+  "constitution_hash": "eec695459c71fbef3685583485deb431fe3b561657b2f285b7c5e7e220e59e03",
+  "runtime_repo": "/home/zephryj/projects/turingosv4/handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P49_numbertheory_2pownm1prime_nprime/runtime_repo",
+  "cas_path": "/home/zephryj/projects/turingosv4/handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/P49_numbertheory_2pownm1prime_nprime/cas",
+  "system_pubkey_hash": "6a91960a9d6abcb0cde3f0b4c989038df543109759d1a311de6bd082c89d23f9",
+  "agent_pubkeys_path": "agent_pubkeys.json",
+  "initial_balances": [
+    [
+      "tb7-7-sponsor",
+      10000000
+    ],
+    [
+      "Agent_user_0",
+      10000000
+    ],
+    [
+      "Agent_0",
+      1000000
+    ],
+    [
+      "Agent_1",
+      1000000
+    ],
+    [
+      "Agent_2",
+      1000000
+    ],
+    [
+      "Agent_3",
+      1000000
+    ],
+    [
+      "Agent_4",
+      1000000
+    ],
+    [
+      "Agent_5",
+      1000000
+    ],
+    [
+      "Agent_6",
+      1000000
+    ],
+    [
+      "Agent_7",
+      1000000
+    ],
+    [
+      "Agent_8",
+      1000000
+    ],
+    [
+      "Agent_9",
+      1000000
+    ]
+  ],
+  "task_id": "task-n1_numbertheory_2pownm1prime_nprime_1778014705063",
+  "task_open_tx": "taskopen-task-n1_numbertheory_2pownm1prime_nprime_1778014705063-tb7-7-d3-seed",
+  "escrow_lock_tx": "escrowlock-task-n1_numbertheory_2pownm1prime_nprime_1778014705063-tb7-7-d3-escrow"
+}
