@@ -6,7 +6,94 @@
 
 ---
 
-## 📋 2026-05-05 (session end) — TB-16.x.2 umbrella shipped + Stage 4 hygiene + architect sign-off pending
+## 🎯 2026-05-05 (session end #2) — TB-17 PROVISIONAL SHIPPED + M0 r1 (1/20 + DeepSeek drift OBS) + 3 ratification asks pending architect
+
+**main HEAD (after this commit)**: TBD (this commit is session-end handover-update)
+**Architect sign-off status**: PENDING on `handover/whitepapers/REAL_WORLD_READINESS_REPORT.md` §8 (final TB-17 SHIP gate). Plus 3 PRE deferral ratifications open.
+
+### Session ledger (4 commits this session, in order)
+1. `3e0c91d` — **TB-17 SHIPPED (provisional)** — 16 files: amended charter + verdict archive + 6 whitepapers + 3 atom proposals + 17 conformance tests + ship status. `cargo test --workspace` = 939/0/150 (+17 from TB-16 baseline 922). 19/20 SG green; SG-17.17 (architect signature) pending.
+2. `cfff1a3` — M0 harness prep (script + 20-problem list; dry-run validated)
+3. `6471c28` — **M0 r1 STOPPED at 1/20 + 2 hung** — `OBS_M0_DEEPSEEK_DRIFT` filed → TB-18 atom A binding
+4. (this commit) — session-end handover-update
+
+### Architect verdict 2026-05-05 ratification (verbatim archived)
+Full lossless archive: `handover/directives/2026-05-05_TB17_AUDIT_VERDICT_ARCHITECT_RULING.md` §B verbatim + §A annotation.
+
+| Q | Verdict |
+|---|---|
+| Q1 TB-16 closure | RATIFY-WITH-AMENDMENT (sandbox-only ratify; β-B/C/D = open forward triggers) |
+| Q2 smoke + real-LLM | RATIFY AS CANONICAL SANDBOX EVIDENCE; NOT real-world readiness |
+| Q3 sub-atom audit asymmetry | CONCUR with Class 4 carve-out |
+| Q4 OBS_R023 deferral | ACCEPT, NOT BEYOND TB-18 |
+| Q5 multi-chain UNION | RATIFY AS EXPLICIT DEVIATION |
+| Q6 missing concerns | 4 additions (oracle attack surface / 8 irreversibility subtypes / human-escalation timeout / MiniF2F ≠ real-world) |
+| Charter amendment | FR 7→14, CR 7→14, SG 10→20 |
+| Atom 7 (PRE-17.5 Boltzmann) | design-only deferral acceptable; Class 4 if implemented (separate ratify) |
+| Atom 8 (PRE-17.6 single-chain) | RATIFY architectural-exclusion deviation; substantive build → TB-18 |
+| Atom 9 (PRE-17.7 in-tape Markov) | design-first; β-A Class 3 OR escalate to Class 4 by design |
+
+### TB-17 atom delivery ledger
+
+| # | Atom | Status | Path |
+|---|---|---|---|
+| 0 | charter (amended) | ✅ DRAFT → RATIFIED-WITH-AMENDMENT | `handover/tracer_bullets/TB-17_charter_2026-05-05.md` (862 lines) |
+| 1-6 | 6 whitepapers | ✅ all filed | `handover/whitepapers/{REAL_WORLD_READINESS_REPORT,DOMAIN_SELECTION_CRITERIA,ORACLE_REQUIREMENTS,CHALLENGE_COURT_REQUIREMENTS,SAFETY_BOUNDARY,IRREVERSIBLE_ACTION_POLICY}.md` |
+| 7 | PRE-17.5 design-only | ✅ filed (Class 4 if impl; deferred) | `handover/proposals/TB-17_PRE_17_5_BOLTZMANN_ENFORCE_DESIGN_2026-05-05.md` |
+| 8 | PRE-17.6 deviation | ✅ filed (multi-chain UNION ratified; substantive → TB-18) | `handover/proposals/TB-17_PRE_17_6_COMPREHENSIVE_ARENA_DEVIATION_2026-05-05.md` |
+| 9 | PRE-17.7 design-first | ✅ filed (β-A Class 3 provisional) | `handover/proposals/TB-17_PRE_17_7_INTAPE_MARKOV_DESIGN_2026-05-05.md` |
+| 10 | RESERVED | n/a | (charter §3 atom 10 reserved) |
+| 11 | conformance tests | ✅ 17 new tests, all PASS | `tests/tb_17_markov_inheritance_policy.rs` (10) + `tb_17_irreversible_action_examples.rs` (5) + `tb_17_minif2f_scale_separation.rs` (2) |
+| 12 | SHIP (provisional) | ✅ committed `3e0c91d`; final SHIP pending architect §8 signature | `handover/ai-direct/TB-17_SHIP_STATUS_2026-05-05.md` |
+
+### M0 r1 (architect §B.9.3 harness audit — STOPPED early)
+
+```
+spec       : 20 known problems / chain-backed / no market / prove no fake accepted
+delivered  : 1/20 clean + 2/20 hung
+batch state: STOPPED (cron 87a87ebf cancelled)
+```
+
+| # | Problem | Outcome | Verdict | Notes |
+|---|---|---|---|---|
+| P01 | mathd_algebra_107 | solved (nlinarith, 12s, tx_count=1) | PROCEED 34/0/0/9 + replay byte-identical + tamper 3/3 | clean baseline |
+| P02 | mathd_algebra_113 | error_or_no_pput (HUNG 600s; 0-byte stdout/stderr) | PROCEED 33/0/0/10 + replay byte-identical + tamper 2/3 DEGRADED | drift signature |
+| P03 | mathd_algebra_114 | killed at ~240s | (audit not run) | drift confirmed pattern |
+
+**Root cause** (diagnosed via proxy log inode-recovered from `/proc/1524640/fd/1`): DeepSeek-chat returned 200-OK 37-char trivial responses for hundreds of round-trips. Evaluator's budget mechanism counts `tx_count` (chain-accepted txs) — drift produces 0 chain-accepted → 200-tx default budget never trips → silent hang until external `timeout 600` kills.
+
+**Why historical tests didn't surface**: TB-16 arena used FORCE_* hooks (chain ended at FORCE trigger) + subprocess-per-problem (fresh LLM session per problem). M0 r1 = first run with 20-sequential + no-FORCE + shared-session = first time drift compounded to expose the gap.
+
+**Forward**: `handover/alignment/OBS_M0_DEEPSEEK_DRIFT_2026-05-05.md` §5.1 binds TB-18 atom A to add (a) per-LLM-call wall-clock budget, (b) output-token-floor detection (consecutive-N < threshold → `RunOutcome::DegradedLLM` new variant), (c) per-run internal wall-clock cap (external `timeout` = safety net only). NO M0 retry within TB-17.
+
+### Memory updates (4 new + MEMORY.md index)
+- `project_tb_16_ratified_with_scope_limits` — sandbox-only ratify
+- `feedback_minif2f_scaling_policy` — M0-M4 ladder; full benchmark = TB-18 only
+- `feedback_class4_cannot_hide_in_class3` — Class 4 surfaces require separate ratification
+- `project_tb_17_ratified_charter_2026-05-05` — charter RATIFIED-WITH-AMENDMENT + atom envelope tightening
+
+### Three ratification asks pending architect
+1. **Architect §8 signature** on `handover/whitepapers/REAL_WORLD_READINESS_REPORT.md` (closes SG-17.17 → final TB-17 SHIP)
+2. **PRE-17.5 / .6 / .7** disposition: implement-in-TB-17 vs defer-to-TB-18 (default = defer)
+3. **TB-18 charter authorization** to start (forward-binding scope = atom 8 deviation §6 verbatim)
+
+### Cold-start next-step recommendation (priority order)
+1. **WAIT** for architect §8 signature + 3 ratification asks (Claude has no in-envelope work until then).
+2. **If asks come back**: write TB-18 charter per `TB-17_PRE_17_6_*_DEVIATION_2026-05-05.md` §6 forward-binding scope (8 atoms: A re-entrant evaluator API + per-LLM-call budget; B comprehensive_arena substantive build; C deferred-finalize path; D lifecycle-order-configurable; E OBS_R023 closure; F single-chain 13/13 evidence; G dual external audit; H full MiniF2F M2 100+ problems multi-agent Boltzmann observe).
+3. **Estimated TB-18 wall-clock**: 2-4 weeks per `feedback_iteration_cap_24h` 72h-per-Class-3 × 8 atoms (parallelizable).
+
+### Pre-existing carry-forward (NOT touched this session)
+- 11 modified evidence files from prior sessions (orphan tb_7/tb_13/tb_14 evidence drift; preserved per `feedback_no_retroactive_evidence_rewrite`).
+- Many untracked forensic evidence dirs (M0 P01/P02/P03 large `cas/` + `runtime_repo/` + `tamper/` artifacts; only top-level summaries committed in `6471c28`; bytes preserved on disk for reproducibility).
+
+### Cron + Monitor state at session-end
+- Cron `87a87ebf` (M0 supervision) — CANCELLED via CronDelete (batch is done; nothing to monitor).
+- Monitor `b1nsemcqa` (per-problem deep-audit watcher) — timed out / batch killed.
+- No active background processes.
+
+---
+
+## 📋 2026-05-05 (session end #1) — TB-16.x.2 umbrella shipped + Stage 4 hygiene + architect sign-off pending
 
 **main HEAD**: `7faf911` (TB-16.x.2 Stage 4 hygiene — TB_LOG.tsv + AUTO_RESEARCH_NOTEPAD backfill)
 **Architect sign-off status**: PENDING. `handover/ai-direct/TB-16_FINAL_CLOSURE_2026-05-05.md` is the comprehensive ledger ready for ratification. TB-17 charter writing unblocked upon sign-off.

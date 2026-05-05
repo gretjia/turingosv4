@@ -268,7 +268,7 @@ for ((i=0; i<N; i++)); do
   EVAL_ERR="$RUN_DIR/evaluator.stderr"
   set +e
   TURINGOS_CHAINTAPE_PATH="$RUN_DIR/runtime_repo" \
-    TURINGOS_CHAINTAPE_CAS_PATH="$RUN_DIR/cas" \
+    TURINGOS_CAS_PATH="$RUN_DIR/cas" \
     TURINGOS_CHAINTAPE_PRESEED="1" \
     EXPERIMENT_DIR="$RUN_DIR" \
     MAX_TX_OVERRIDE="$MAX_TX" \
@@ -299,6 +299,11 @@ for ((i=0; i<N; i++)); do
   "$AUDIT_TAPE_BIN" \
     --runtime-repo "$RUN_DIR/runtime_repo" \
     --cas-dir "$RUN_DIR/cas" \
+    --agent-pubkeys "$RUN_DIR/runtime_repo/agent_pubkeys.json" \
+    --pinned-pubkeys "$RUN_DIR/runtime_repo/pinned_pubkeys.json" \
+    --genesis "$PROJECT_ROOT/genesis_payload.toml" \
+    --constitution "$PROJECT_ROOT/constitution.md" \
+    --alignment-dir "$PROJECT_ROOT/handover/alignment" \
     --out "$RUN_DIR/verdict.json" \
     2> "$AUDIT_LOG"
   AT_RC=$?
@@ -322,6 +327,11 @@ for ((i=0; i<N; i++)); do
   "$AUDIT_TAPE_BIN" \
     --runtime-repo "$RUN_DIR/runtime_repo" \
     --cas-dir "$RUN_DIR/cas" \
+    --agent-pubkeys "$RUN_DIR/runtime_repo/agent_pubkeys.json" \
+    --pinned-pubkeys "$RUN_DIR/runtime_repo/pinned_pubkeys.json" \
+    --genesis "$PROJECT_ROOT/genesis_payload.toml" \
+    --constitution "$PROJECT_ROOT/constitution.md" \
+    --alignment-dir "$PROJECT_ROOT/handover/alignment" \
     --out "$RUN_DIR/verdict_replay.json" \
     2>> "$AUDIT_LOG"
   set -e
@@ -339,9 +349,16 @@ for ((i=0; i<N; i++)); do
   # Tamper-detection
   TAMPER_LOG="$RUN_DIR/audit_tape_tamper.stderr"
   set +e
+  mkdir -p "$RUN_DIR/tamper"
   "$AUDIT_TAPE_TAMPER_BIN" \
     --runtime-repo "$RUN_DIR/runtime_repo" \
     --cas-dir "$RUN_DIR/cas" \
+    --agent-pubkeys "$RUN_DIR/runtime_repo/agent_pubkeys.json" \
+    --pinned-pubkeys "$RUN_DIR/runtime_repo/pinned_pubkeys.json" \
+    --genesis "$PROJECT_ROOT/genesis_payload.toml" \
+    --constitution "$PROJECT_ROOT/constitution.md" \
+    --alignment-dir "$PROJECT_ROOT/handover/alignment" \
+    --tamper-dir "$RUN_DIR/tamper" \
     --out "$RUN_DIR/tamper_report.json" \
     2> "$TAMPER_LOG"
   set -e
