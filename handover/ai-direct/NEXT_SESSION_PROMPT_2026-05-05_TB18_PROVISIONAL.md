@@ -181,9 +181,12 @@ feedback_evidence_packaging_policy_required.md
 ## Test baseline + git state
 
 ```
-HEAD:        <fb1025c or later>
-origin/main: <0> behind/ahead (push pending)
-Last commits this session (auto-mode through TB-18 PROVISIONAL ship):
+HEAD:        b391749 (TB-18 session #4 handover-update — LATEST.md prepended)
+origin/main: b391749 (PUSHED 2026-05-05 session-end)
+Last 14 commits this session (auto-mode through TB-18 PROVISIONAL ship + handover-update + push):
+  b391749  TB-18 session #4 handover-update — LATEST.md prepended
+  2bc712e  TB-18 Atom H sub-stage 1 SHIPPED — M0 retry COMPLETE 20/20 PROCEED + 7 solved + 7 MaxTxExhausted (EvidenceCapsule emit) + 6 timeout (controlled) + final benchmark report + ship status update
+  ecb156d  TB-18 batch hygiene — manifest correction + packaging script + next-session prompt
   fb1025c  TB-18 session-state update — AUTO_RESEARCH_NOTEPAD + preliminary M0 report
   31dbf3b  TB-18 ship status PROVISIONAL
   d94654b  TB-18 Atom H prep + Atom G0/G1 audit requests
@@ -194,6 +197,7 @@ Last commits this session (auto-mode through TB-18 PROVISIONAL ship):
   13a5ee0  TB-18 Atom A SHIPPED — drive_task + budget + DegradedLLM
   8ad7a1d  TB-18 Atom E SHIPPED — OBS_R023 closure
   d3c8d78  TB-18 Atom 0 — charter ratified-with-amendments + ruling archive
+  d58af31  TB-18 charter DRAFT — Formal Benchmark Scale-Up
 
 Workspace tests (cargo test --workspace --release): 962/0/150
   baseline 939 (TB-17 ship)
@@ -204,6 +208,15 @@ Workspace tests (cargo test --workspace --release): 962/0/150
   + 1  projection extension for DegradedLLM (atom A)
   + 4  tb_18_deferred_finalize_idempotency (atom C)
   Total: +23 = 962
+
+M-ladder Atom H sub-stage 1 (M0 retry) results:
+  20/20 audit PROCEED + 20/20 replay byte-identical
+  7 solved (OmegaAccepted; on-disk proofs/*.lean)
+  7 natural MaxTxExhausted (EvidenceCapsule emit verified at P09 CAS object_type=EvidenceCapsule; atom E pipeline GREEN end-to-end)
+  6 controlled 120s timeouts (vs M0 r1's 600s silent hangs eliminated)
+  Total wall-clock: 1476s (~24.6 min)
 ```
 
 **第一件事 (next session start)**: re-run `cargo test --workspace --release` — confirm 962/0/150 baseline preserved.
+
+**第二件事**: read `handover/ai-direct/LATEST.md` session #4 ledger (top section) for full TB-18 PROVISIONAL ship state.
