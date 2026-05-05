@@ -1,0 +1,8 @@
+[2026-05-05T07:32:56Z INFO  evaluator] [chaintape/tb16-arena] boltzmann seed iter=0 submitted by Agent_user_0 (stake=25000 μC, parent_tx=None, v2_pick=None)
+[2026-05-05T07:33:01Z WARN  evaluator] [chaintape/tb16-arena] await for prior commit (boltzmann iter=1) failed: ()
+[2026-05-05T07:33:01Z INFO  evaluator] [chaintape/tb16-arena] boltzmann seed iter=1 submitted by Agent_user_0 (stake=25000 μC, parent_tx=Some(TxId("worktx-task-n5_aime_1997_p9_1777966375334-tb16-arena-boltzmann-seed-iter-0")), v2_pick=Some(TxId("worktx-task-n5_aime_1997_p9_1777966375334-tb16-arena-boltzmann-seed-iter-0")))
+[2026-05-05T07:33:06Z WARN  evaluator] [chaintape/tb16-arena] await for prior commit (boltzmann iter=2) failed: ()
+[2026-05-05T07:33:06Z INFO  evaluator] [chaintape/tb16-arena] boltzmann seed iter=2 submitted by Agent_user_0 (stake=25000 μC, parent_tx=Some(TxId("worktx-task-n5_aime_1997_p9_1777966375334-tb16-arena-boltzmann-seed-iter-0")), v2_pick=Some(TxId("worktx-task-n5_aime_1997_p9_1777966375334-tb16-arena-boltzmann-seed-iter-0")))
+[2026-05-05T07:33:11Z WARN  evaluator] [chaintape/tb16-arena] await for prior commit (boltzmann iter=3) failed: ()
+[2026-05-05T07:33:11Z INFO  evaluator] [chaintape/tb16-arena] boltzmann seed iter=3 submitted by Agent_user_0 (stake=25000 μC, parent_tx=Some(TxId("worktx-task-n5_aime_1997_p9_1777966375334-tb16-arena-boltzmann-seed-iter-0")), v2_pick=Some(TxId("worktx-task-n5_aime_1997_p9_1777966375334-tb16-arena-boltzmann-seed-iter-0")))
+[2026-05-05T07:33:11Z INFO  evaluator] [chaintape/tb16-arena] FORCE_BOLTZMANN_SEED_WORKTXS produced 4 accepted WorkTxs (count requested=4)

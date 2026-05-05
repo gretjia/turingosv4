@@ -1,0 +1,48 @@
+[2026-05-05T07:32:55Z INFO  evaluator] Problem: aime_1997_p9.lean | Condition: n5 | Model: deepseek-v4-flash | Mode: full
+[2026-05-05T07:32:55Z INFO  evaluator] [chaintape/d3] pre-seed enabled (TB-10 factory): 12 entries
+[2026-05-05T07:32:55Z INFO  evaluator] [chaintape] bus wired with Sequencer + on-disk ChainTape at "handover/evidence/tb_16_x_2_4_smoke_2026-05-05/P12_boltzmann_runtime/runtime_repo"
+[2026-05-05T07:32:55Z INFO  evaluator] [chaintape/tb10] user-mode TaskOpen for task-n5_aime_1997_p9_1777966375334 sponsor=Agent_user_0
+[2026-05-05T07:32:55Z INFO  evaluator] [chaintape/tb10] user-mode EscrowLock 200000 micro for task-n5_aime_1997_p9_1777966375334 sponsor=Agent_user_0
+[2026-05-05T07:32:56Z INFO  evaluator] [chaintape/tb16-arena] boltzmann seed iter=0 submitted by Agent_user_0 (stake=25000 μC, parent_tx=None, v2_pick=None)
+[2026-05-05T07:33:01Z WARN  evaluator] [chaintape/tb16-arena] await for prior commit (boltzmann iter=1) failed: ()
+[2026-05-05T07:33:01Z INFO  evaluator] [chaintape/tb16-arena] boltzmann seed iter=1 submitted by Agent_user_0 (stake=25000 μC, parent_tx=Some(TxId("worktx-task-n5_aime_1997_p9_1777966375334-tb16-arena-boltzmann-seed-iter-0")), v2_pick=Some(TxId("worktx-task-n5_aime_1997_p9_1777966375334-tb16-arena-boltzmann-seed-iter-0")))
+[2026-05-05T07:33:06Z WARN  evaluator] [chaintape/tb16-arena] await for prior commit (boltzmann iter=2) failed: ()
+[2026-05-05T07:33:06Z INFO  evaluator] [chaintape/tb16-arena] boltzmann seed iter=2 submitted by Agent_user_0 (stake=25000 μC, parent_tx=Some(TxId("worktx-task-n5_aime_1997_p9_1777966375334-tb16-arena-boltzmann-seed-iter-0")), v2_pick=Some(TxId("worktx-task-n5_aime_1997_p9_1777966375334-tb16-arena-boltzmann-seed-iter-0")))
+[2026-05-05T07:33:11Z WARN  evaluator] [chaintape/tb16-arena] await for prior commit (boltzmann iter=3) failed: ()
+[2026-05-05T07:33:11Z INFO  evaluator] [chaintape/tb16-arena] boltzmann seed iter=3 submitted by Agent_user_0 (stake=25000 μC, parent_tx=Some(TxId("worktx-task-n5_aime_1997_p9_1777966375334-tb16-arena-boltzmann-seed-iter-0")), v2_pick=Some(TxId("worktx-task-n5_aime_1997_p9_1777966375334-tb16-arena-boltzmann-seed-iter-0")))
+[2026-05-05T07:33:11Z INFO  evaluator] [chaintape/tb16-arena] FORCE_BOLTZMANN_SEED_WORKTXS produced 4 accepted WorkTxs (count requested=4)
+[2026-05-05T07:33:11Z INFO  evaluator] [chaintape] seeded synthetic TaskOpen for smoke-n5_aime_1997_p9_1777966375334
+[2026-05-05T07:33:11Z INFO  evaluator] [chaintape] seeded synthetic zero-stake WorkTx (synthetic_rejection_for_l4e_gate=true) for smoke-n5_aime_1997_p9_1777966375334
+[2026-05-05T07:33:11Z INFO  evaluator] [chaintape] Atom 5 audit-trail records written to CAS + indexed for smoke-n5_aime_1997_p9_1777966375334
+[2026-05-05T07:33:11Z INFO  evaluator] [chaintape/d_c] genesis_report.json written to "handover/evidence/tb_16_x_2_4_smoke_2026-05-05/P12_boltzmann_runtime/runtime_repo"
+[2026-05-05T07:33:11Z INFO  evaluator] [swarm/n5] agent_models = [deepseek-v4-flash,deepseek-v4-flash,deepseek-v4-flash,deepseek-v4-flash,deepseek-v4-flash] (label=deepseek-v4-flash)
+[2026-05-05T07:33:11Z INFO  evaluator] [budget] regime=total_proposal base=20 effective_max_tx=20 (n_agents=5)
+[2026-05-05T07:33:11Z INFO  evaluator] [swarm/n5] Agent_0:skill0:t=0.20 Agent_1:skill1:t=0.20 Agent_2:skill2:t=0.20 Agent_3:skill0:t=0.20 Agent_4:skill1:t=0.20
+[2026-05-05T07:34:53Z INFO  evaluator] [tx 0] OMEGA claim by Agent_0 (tape_nodes=0, payload_len=2524)
+[2026-05-05T07:36:11Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:13:34: error: unexpected token 'theorem'; expected '{' or tactic | <stdin>:13:32: error: unsolved goals | <stdin>:15:8: error: `aime_1997_p9` has already been declared
+[2026-05-05T07:36:11Z WARN  evaluator] [tx 0] OMEGA rejected (err:unexpected_token). payload[0..300]="theorem aime_1997_p9\n  (a : ℝ)\n  (h₀ : 0 < a)\n  (h₁ : 1 / a - Int.floor (1 / a) = a^2 - Int.floor (a^2))\n  (h₂ : 2 < a^2)\n  (h₃ : a^2 < 3) :\n  a^12 - 144 * (1 / a) = 233 := by\n  have ha_sq_pos : 0 < a^2 := by nlinarith\n  have hfloor_a2 : Int.floor (a^2) = 2 := by\n    have h2' : (2 : ℝ) ≤ a^2 := by l"
+[2026-05-05T07:36:27Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-05T07:36:27Z WARN  evaluator] [tx 1] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-05T07:36:37Z INFO  evaluator] [tx 2] Agent_2 step+tx_0_by_Agent_2 partial OK (depth=1)
+[2026-05-05T07:36:47Z INFO  evaluator] [tx 3] Agent_3 step+tx_1_by_Agent_3 partial OK (depth=2)
+[2026-05-05T07:36:56Z WARN  evaluator] [tx 4] step rejected (err:tactic_simp_noprog): hard_error_with_unsolved: <stdin>:20:0: error: field_simp made no progress at h₁
+[2026-05-05T07:37:06Z WARN  evaluator] [tx 5] step rejected (err:tactic_simp_noprog): hard_error_with_unsolved: <stdin>:20:0: error: field_simp made no progress at h₁
+[2026-05-05T07:37:16Z WARN  evaluator] [tx 6] step rejected (err:tactic_simp_noprog): hard_error_with_unsolved: <stdin>:20:0: error: field_simp made no progress at h₁
+[2026-05-05T07:37:26Z WARN  evaluator] [tx 7] step rejected (err:other): hard_error_with_unsolved: <stdin>:21:2: error: invalid 'calc' step, left-hand side is
+[2026-05-05T07:37:36Z WARN  evaluator] [tx 8] step rejected (err:tactic_simp_noprog): hard_error_with_unsolved: <stdin>:20:0: error: field_simp made no progress at h₁
+[2026-05-05T07:37:46Z WARN  evaluator] [tx 9] step rejected (err:tactic_simp_noprog): hard_error_with_unsolved: <stdin>:20:0: error: field_simp made no progress at h₁
+[2026-05-05T07:37:55Z WARN  evaluator] [tx 10] step rejected (err:tactic_simp_noprog): hard_error_with_unsolved: <stdin>:20:0: error: field_simp made no progress at h₁
+[2026-05-05T07:38:06Z WARN  evaluator] [tx 11] step rejected (err:tactic_simp_noprog): hard_error_with_unsolved: <stdin>:20:0: error: field_simp made no progress at h₁
+[2026-05-05T07:38:16Z WARN  evaluator] [tx 12] step rejected (err:tactic_simp_noprog): hard_error_with_unsolved: <stdin>:20:0: error: field_simp made no progress at h₁
+[2026-05-05T07:38:25Z WARN  evaluator] [tx 13] step rejected (err:tactic_simp_noprog): hard_error_with_unsolved: <stdin>:20:0: error: field_simp made no progress at h₁
+[2026-05-05T07:38:35Z WARN  evaluator] [tx 14] step rejected (err:tactic_simp_noprog): hard_error_with_unsolved: <stdin>:20:0: error: field_simp made no progress at h₁
+[2026-05-05T07:38:45Z WARN  evaluator] [tx 15] step rejected (err:tactic_simp_noprog): hard_error_with_unsolved: <stdin>:20:0: error: field_simp made no progress at h₁
+[2026-05-05T07:38:55Z WARN  evaluator] [tx 16] step rejected (err:tactic_simp_noprog): hard_error_with_unsolved: <stdin>:20:0: error: field_simp made no progress at h₁
+[2026-05-05T07:39:05Z WARN  evaluator] [tx 17] step rejected (err:tactic_simp_noprog): hard_error_with_unsolved: <stdin>:20:0: error: field_simp made no progress at h₁
+[2026-05-05T07:39:17Z WARN  evaluator] [tx 18] step rejected (err:tactic_simp_noprog): hard_error_with_unsolved: <stdin>:20:0: error: field_simp made no progress at h₁
+[2026-05-05T07:39:27Z WARN  evaluator] [tx 19] step rejected (err:tactic_simp_noprog): hard_error_with_unsolved: <stdin>:20:0: error: field_simp made no progress at h₁
+[v2-emit] SPLIT env unset; defaulting to 'adaptation' (Phase B convention; pre-registration requires SPLIT for Phase C+ ablation runs)
+[2026-05-05T07:39:27Z INFO  evaluator] [tb11] EvidenceCapsule written: capsule_id=e0d9965300611806d7eb80ed9663a24ceb3cd822280d21a66c5b7f623a7d62d2 compressed_log_cid=7ee50361090a652615e5d9b5509f7228f00e245f2e9990847239de3112d705e7 attempt_count=20
+[2026-05-05T07:39:27Z INFO  evaluator] [tb11] TerminalSummary emitted: emit_id=1
+[2026-05-05T07:39:27Z INFO  evaluator] [chaintape] Atom 6 RunSummary written (7 L4 + 2 L4.E entries; 7 accepted_tx_ids, 2 rejected_tx_ids)
+[2026-05-05T07:39:27Z INFO  evaluator] PPUT = 0 (no golden path in 392.3s, 20 tx)

@@ -1234,6 +1234,210 @@ async fn run_swarm(
                     }
                 }
             }
+
+            // TB-16.x.2.4 (architect umbrella charter 2026-05-04 §2 Atom 2.4;
+            // SG-16.x.2.4): TURINGOS_FORCE_BOLTZMANN_SEED_WORKTXS=<staker>:<count>:<stake_micro>
+            // mode. Inject N (≥3) real-signed WorkTxs serially, each with
+            // ProposalTelemetry.parent_tx = boltzmann_select_parent_v2 pick on
+            // current bus snapshot (or prior-WorkTx fallback when selector
+            // returns None — happens at iter 0 because price_index is empty).
+            // Closes the missing R3 "Boltzmann RUNTIME exercise" gap: prior
+            // chains had at most 1 admitted WorkTx per task, so the v2 selector
+            // had no candidate set to choose from. Audit assertion id=43
+            // (boltzmann_parent_selection_diversity, Layer E) verifies Shannon
+            // entropy ≥ 0.25 across same-task ProposalTelemetry.parent_tx
+            // distribution.
+            //
+            // ARCHITECTURAL NOTE (deviation from charter §2 Atom 2.4 STEP_B
+            // declaration per feedback_architect_deviation_stance): charter
+            // said "verify boltzmann_select_parent_v2 is called in WorkTx
+            // admission path; STEP_B-PROTOCOL TRIGGERED". The "WorkTx admission
+            // path" interpretation that triggers STEP_B is sequencer-side
+            // dispatch; the v2 selector is ALREADY called proposal-side at
+            // evaluator.rs:1828 (captured into _v2_canonical_pick, currently
+            // unused). For SG-16.x.2.4 (≥3 WorkTx with parent_selection_entropy
+            // ≥ 0.5), the parent_tx record lives in ProposalTelemetry (CAS
+            // object) — proposal-time data, not sequencer-side admission data.
+            // No sequencer.rs touch needed; STEP_B not triggered.
+            //
+            // Class 3 dual external audit STILL applies because the surface
+            // is high-impact (Boltzmann RUNTIME wire-up is the V3L-14 anti-
+            // star-topology mechanism). Pre-ship dual audit at .2.4 commit.
+            if let Ok(seed_spec) = std::env::var("TURINGOS_FORCE_BOLTZMANN_SEED_WORKTXS") {
+                let parts: Vec<&str> = seed_spec.split(':').collect();
+                if parts.len() != 3 {
+                    warn!(
+                        "[chaintape/tb16-arena] FORCE_BOLTZMANN_SEED_WORKTXS expected \
+                         staker:count:stake_micro, got {seed_spec:?}"
+                    );
+                } else {
+                    let staker = parts[0].to_string();
+                    let count: u32 = parts[1].parse().unwrap_or(0);
+                    let stake_micro_per: i64 = parts[2].parse().unwrap_or(0);
+                    if count == 0 || stake_micro_per <= 0 {
+                        warn!(
+                            "[chaintape/tb16-arena] FORCE_BOLTZMANN_SEED_WORKTXS count + \
+                             stake_micro must be > 0, got count={count} stake_micro={stake_micro_per}"
+                        );
+                    } else {
+                        // Boltzmann selector setup (mirrors line ~1381 evaluator pattern).
+                        use rand::SeedableRng;
+                        let policy = turingosv4::state::BoltzmannMaskPolicy::from_env();
+                        let boltz_seed: u64 = std::env::var("BOLTZMANN_SEED")
+                            .ok()
+                            .and_then(|s| s.parse::<u64>().ok())
+                            .unwrap_or(0xB01_72A_4_u64);
+                        let mut boltz_rng = rand::rngs::StdRng::seed_from_u64(boltz_seed);
+                        // Collect produced WorkTx ids for fallback parent (used
+                        // when boltzmann_select_parent_v2 returns None because
+                        // price_index has no eligible entries yet).
+                        let mut produced_worktx_ids: Vec<turingosv4::state::q_state::TxId> = Vec::new();
+                        for iter_i in 0..count {
+                            let pre_root = match bundle.sequencer.q_snapshot() {
+                                Ok(q) => q.state_root_t,
+                                Err(_) => turingosv4::state::q_state::Hash::ZERO,
+                            };
+                            if let Err(e) = turingosv4::runtime::adapter::tb8_await_state_root_advance(
+                                &bundle.sequencer,
+                                pre_root,
+                                5000,
+                            ).await {
+                                warn!("[chaintape/tb16-arena] await for prior commit (boltzmann iter={iter_i}) failed: {e:?}");
+                            }
+                            let post_root = match bundle.sequencer.q_snapshot() {
+                                Ok(q) => q.state_root_t,
+                                Err(_) => pre_root,
+                            };
+                            // Boltzmann pick from current bus snapshot.
+                            // bus.snapshot returns a borrowed view; use the bus
+                            // accessor for price_index + mask_set per evaluator
+                            // line 1828 pattern.
+                            let snap = bus.snapshot();
+                            let v2_pick = boltzmann_select_parent_v2(
+                                &snap.price_index,
+                                &snap.mask_set,
+                                &policy,
+                                &mut boltz_rng,
+                            );
+                            // Parent = v2 pick OR fallback to most recent
+                            // produced worktx (so iter 1+ has SOME parent;
+                            // iter 0 is genuinely root).
+                            let parent_tx = v2_pick.clone().or_else(|| {
+                                produced_worktx_ids.last().cloned()
+                            });
+                            // Build + write ProposalTelemetry to CAS first
+                            // (id=24 chain integrity requires proposal_cid
+                            // resolves to ProposalTelemetry bytes per .2.5
+                            // r2 lesson).
+                            let proposal_cid_opt = {
+                                let cas_store_res = turingosv4::bottom_white::cas::store::CasStore::open(&bundle.cas_path);
+                                match cas_store_res {
+                                    Ok(mut cas_store) => {
+                                        let pt_res = turingosv4::runtime::proposal_telemetry::ProposalTelemetry::build_for_evaluator_append_with_parent(
+                                            &mut cas_store,
+                                            &run_id,
+                                            &staker,
+                                            (5u64).saturating_add(iter_i as u64), // proposal_index distinct from .2.5 seed (idx=4)
+                                            format!("tb16-x-2-4-boltzmann-seed-iter-{iter_i}").as_bytes(),
+                                            "tb16-arena-boltzmann-seed",
+                                            turingosv4::runtime::proposal_telemetry::TokenCounts {
+                                                prompt_tokens: 0,
+                                                completion_tokens: 0,
+                                                tool_tokens: 0,
+                                            },
+                                            "tb16-x-2-4-evaluator",
+                                            (5u64).saturating_add(iter_i as u64),
+                                            parent_tx.clone(),
+                                        );
+                                        match pt_res {
+                                            Ok(pt) => match turingosv4::runtime::proposal_telemetry::write_to_cas(
+                                                &mut cas_store,
+                                                &pt,
+                                                "tb16-x-2-4-evaluator",
+                                                (5u64).saturating_add(iter_i as u64),
+                                            ) {
+                                                Ok(cid) => Some(cid),
+                                                Err(e) => {
+                                                    warn!("[chaintape/tb16-arena] proposal_telemetry write_to_cas failed (.2.4 iter={iter_i}): {e}");
+                                                    None
+                                                }
+                                            },
+                                            Err(e) => {
+                                                warn!("[chaintape/tb16-arena] ProposalTelemetry build failed (.2.4 iter={iter_i}): {e}");
+                                                None
+                                            }
+                                        }
+                                    }
+                                    Err(e) => {
+                                        warn!("[chaintape/tb16-arena] CasStore::open failed (.2.4 iter={iter_i}): {e}");
+                                        None
+                                    }
+                                }
+                            };
+                            let seed_worktx: Option<turingosv4::state::typed_tx::TypedTx> = match proposal_cid_opt {
+                                None => {
+                                    warn!("[chaintape/tb16-arena] FORCE_BOLTZMANN_SEED_WORKTXS skipping iter={iter_i} — proposal_cid unavailable");
+                                    None
+                                }
+                                Some(proposal_cid) => {
+                                    let registry_arc = agent_keypairs
+                                        .as_ref()
+                                        .expect("[chaintape/tb16-arena] agent_keypairs registry required for FORCE_BOLTZMANN_SEED_WORKTXS");
+                                    let mut reg_guard = registry_arc
+                                        .lock()
+                                        .expect("agent_keypairs registry mutex poisoned");
+                                    match turingosv4::runtime::adapter::make_real_worktx_signed_by(
+                                        &mut *reg_guard,
+                                        &real_task_id,
+                                        &staker,
+                                        post_root,
+                                        stake_micro_per,
+                                        &format!("tb16-arena-boltzmann-seed-iter-{iter_i}"),
+                                        proposal_cid,
+                                        true, // predicate_passes — admitted to stakes_t
+                                        (5u64).saturating_add(iter_i as u64),
+                                    ) {
+                                        Ok(tx) => Some(tx),
+                                        Err(e) => {
+                                            warn!("[chaintape/tb16-arena] make_real_worktx (boltzmann iter={iter_i}) failed: {e}");
+                                            None
+                                        }
+                                    }
+                                }
+                            };
+                            if let Some(wt) = seed_worktx {
+                                // Capture tx_id before submit (move) for the
+                                // produced_worktx_ids tracking + log.
+                                let wt_id = match &wt {
+                                    turingosv4::state::typed_tx::TypedTx::Work(w) => w.tx_id.clone(),
+                                    _ => turingosv4::state::q_state::TxId(format!("unknown-iter-{iter_i}")),
+                                };
+                                if let Err(e) = bus.submit_typed_tx(wt).await {
+                                    warn!("[chaintape/tb16-arena] boltzmann seed iter={iter_i} submit failed: {e:?}");
+                                } else {
+                                    info!(
+                                        "[chaintape/tb16-arena] boltzmann seed iter={iter_i} submitted by {staker} \
+                                         (stake={stake_micro_per} μC, parent_tx={:?}, v2_pick={:?})",
+                                        parent_tx, v2_pick
+                                    );
+                                    produced_worktx_ids.push(wt_id);
+                                }
+                                if let Err(e) = turingosv4::runtime::adapter::tb8_await_state_root_advance(
+                                    &bundle.sequencer,
+                                    post_root,
+                                    5000,
+                                ).await {
+                                    warn!("[chaintape/tb16-arena] await for boltzmann iter={iter_i} commit failed: {e:?}");
+                                }
+                            }
+                        }
+                        info!(
+                            "[chaintape/tb16-arena] FORCE_BOLTZMANN_SEED_WORKTXS produced {} accepted WorkTxs (count requested={})",
+                            produced_worktx_ids.len(), count
+                        );
+                    }
+                }
+            }
         }
 
         let task_id_str = format!("smoke-{}", run_id);
