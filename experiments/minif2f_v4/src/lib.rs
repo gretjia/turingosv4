@@ -36,3 +36,11 @@ pub mod per_call_budget;
 /// first caller passing a shared chain to drive multiple tasks against ONE
 /// runtime_repo + ONE CAS + ONE Sequencer (architect §2.8).
 pub mod drive_task;
+
+/// TB-18 Atom B Phase 1 (architect §2.8 + §3 Atom B): `SharedChain` —
+/// Kernel + BusConfig + ChaintapeBundle + AgentKeypairRegistry + TuringBus
+/// initialization lifted out of `evaluator.rs::run_swarm`. Phase 1 is a
+/// pure mechanical extraction (byte-identical single-task semantics);
+/// Phase 2 will lift one-time chain bootstrap; Phase 3 adds `shutdown(self)`
+/// and parameterizes per-task entry; Phase 4 substantive `comprehensive_arena.rs`.
+pub mod chain_runtime;

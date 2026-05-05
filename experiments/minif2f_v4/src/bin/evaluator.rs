@@ -13,10 +13,11 @@ use minif2f_v4::wall_clock::RunWallClock;
 use minif2f_v4::post_hoc_verifier::{
     compute_progress_runtime, compute_progress_verified, compute_pput, compute_pput_m,
 };
-use turingosv4::bus::{BusConfig, BusResult, TuringBus};
+use turingosv4::bus::BusResult;
 use turingosv4::sdk::error_abstraction::{classify_lean_error, classify_parse_error, CLASSIFIER_VERSION};
 use turingosv4::drivers::llm_http::{GenerateRequest, Message, ResilientLLMClient};
-use turingosv4::kernel::Kernel;
+// TB-18 Atom B Phase 1: BusConfig + TuringBus + Kernel are now used inside
+// `chain_runtime::SharedChain::from_env`, not directly in this binary.
 use turingosv4::sdk::actor::boltzmann_select_parent_v2;
 use turingosv4::state::BoltzmannMaskPolicy;
 use turingosv4::sdk::prompt::build_agent_prompt;
@@ -29,7 +30,9 @@ use turingosv4::sdk::tools::librarian::LibrarianTool;
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+// TB-18 Atom B Phase 1: top-level Arc + Mutex no longer needed at this scope;
+// inner usages (Arc<RwLock> for CasStore inside the cleanup block; Mutex for
+// the env-lock static in tests) declare their own scoped imports.
 use std::time::Instant;
 use log::{info, warn, error};
 use rand::SeedableRng;
@@ -656,132 +659,27 @@ async fn run_swarm(
             .unwrap_or_default(),
     ).expect("MODE env validated at main() startup");
 
-    let kernel = Kernel::new();
-    let config = BusConfig {
-        // Phase 2.1 (C-043 candidate): OMEGA-accepted proofs are auto-written
-        // as tape nodes (mandatory wtool per Art. IV). Full proofs can be
-        // long; raise bus caps so winning nodes don't get size-vetoed. Agent
-        // partials still typically <1200; no behavioural regression.
-        max_payload_chars: 8000,
-        max_payload_lines: 200,
-        // C-011: decide/omega/native_decide forbidden (brute-force precedent)
-        forbidden_patterns: vec![
-            "native_decide".into(), "decide".into(), "omega".into(),
-            "#eval".into(), "IO.Process".into(),
-            "IO.FS".into(), "run_tac".into(), "unsafe".into(),
-        ],
-    };
-
-    // TB-6 Atom 1.3: chaintape mode (TURINGOS_CHAINTAPE_PATH).
-    // When set, build a production-mode Sequencer + Git2LedgerWriter (L4) +
-    // JSONL-backed RejectionEvidenceWriter (L4.E) + driver wrapper, and route
-    // bus construction through TuringBus::with_sequencer instead of the legacy
-    // WAL_DIR / TuringBus::new paths. Both env vars set → chain wins; WAL_DIR
-    // is silently disabled with an info!() log per preflight v2.1 §3.6.
-    // Bundle is held across the run; bundle.shutdown().await is invoked at
-    // the implicit final return to drain queued submissions.
-    // TB-7 Atom 1.7 (Codex audit cc7b3dd action item #1): fail-closed when
-    // TURINGOS_CHAINTAPE_PATH is set but bootstrap fails. Silent fallback
-    // to legacy mode is the same anti-pattern as legacy `bus.append` as
-    // authoritative state mutation (TB-7 charter §4.0 + §6 #31). When the
-    // operator declares ChainTape mode, we either get ChainTape or we
-    // exit non-zero — never quietly degrade to legacy.
-    // TB-7.7 D3: optional pre-seed for L4 accept. Reading
-    // TURINGOS_CHAINTAPE_PRESEED=1 enables a custom genesis QState with
-    // pre-seeded balances for: (a) `tb7-7-sponsor` (for TaskOpen +
-    // EscrowLock), and (b) every Agent_i (for WorkTx.stake admission).
-    // Without preseed, real LLM WorkTx with non-zero stake would fail
-    // admission with InsufficientBalance → L4.E. With preseed, the
-    // chain shows ≥1 accepted L4 WorkTx for the first time.
-    let chaintape_preseed_enabled = std::env::var("TURINGOS_CHAINTAPE_PRESEED")
-        .ok()
-        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
-        .unwrap_or(false);
-    // TB-7R Deliverable C: capture initial balances seeded into the genesis
-    // QState so the genesis_report.json can record them as the run's starting
-    // economic state. Empty when preseed disabled.
-    let mut initial_balances_for_genesis_report: Vec<(String, i64)> = Vec::new();
-    let chaintape_bundle: Option<turingosv4::runtime::ChaintapeBundle> =
-        match turingosv4::runtime::RuntimeChaintapeConfig::from_env() {
-            None => None, // env unset = legacy mode is the explicit choice
-            Some(cfg) => {
-                let result = if chaintape_preseed_enabled {
-                    // TB-10 Atom 1: preseed list extracted to runtime factory at
-                    // `src/runtime/bootstrap.rs::default_pput_preseed_pairs()`.
-                    // Single source of truth shared between evaluator and
-                    // `lean_market` user CLI so both processes bootstrap to the
-                    // same genesis QState. Includes:
-                    //   - tb7-7-sponsor (10_000_000 micro) — TB-7.7 D3 self-fund
-                    //   - Agent_user_0  (10_000_000 micro) — TB-10 user CLI sponsor
-                    //   - Agent_0..9    ( 1_000_000 micro each) — solver budgets
-                    let pairs = turingosv4::runtime::bootstrap::default_pput_preseed_pairs();
-                    initial_balances_for_genesis_report = pairs
-                        .iter()
-                        .map(|(a, m)| (a.0.clone(), m.micro_units()))
-                        .collect();
-                    let initial_q = turingosv4::runtime::adapter::genesis_with_balances(&pairs);
-                    info!(
-                        "[chaintape/d3] pre-seed enabled (TB-10 factory): {} entries",
-                        pairs.len()
-                    );
-                    turingosv4::runtime::build_chaintape_sequencer_with_initial_q(
-                        &cfg, initial_q,
-                    )
-                } else {
-                    turingosv4::runtime::build_chaintape_sequencer(&cfg)
-                };
-                match result {
-                    Ok(b) => Some(b),
-                    Err(e) => {
-                        error!(
-                            "[chaintape] bootstrap failed under TURINGOS_CHAINTAPE_PATH (declared \
-                             ChainTape mode); exiting non-zero per TB-7 Atom 1.7 fail-closed \
-                             (Codex audit action #1). Error: {e}"
-                        );
-                        std::process::exit(2);
-                    }
-                }
-            }
-        };
-    if chaintape_bundle.is_some() && std::env::var("WAL_DIR").is_ok() {
-        info!("[chaintape] WAL_DIR ignored when TURINGOS_CHAINTAPE_PATH is set");
-    }
-
-    // TB-7 Atom 2 + TB-9 Atom 2: per-run AgentKeypairRegistry holds Ed25519
-    // keypairs for every distinct agent_id that submits a real-LLM proposal
-    // through bus.submit_typed_tx. Public keys are persisted per-run to
-    // <runtime_repo>/agent_pubkeys.json (TB-7 replay sidecar; unchanged).
-    //
-    // **TB-9 (2026-05-02)**: secrets are persisted across runs to an encrypted
-    // durable keystore at TURINGOS_AGENT_KEYSTORE_PATH (default
-    // ~/.turingos/keystore/agent_keystore.enc). Cross-run identity is the
-    // architect TB-9 mandate ("agent durable key registry" + "cross-run
-    // identity"; directive 2026-05-02 Part C line 1574). The keystore password
-    // is read from TURINGOS_AGENT_KEYSTORE_PASSWORD; if unset, a hardcoded
-    // local-dev fallback is used (acceptable for solo-runs per
-    // feedback_kolmogorov_compression "MVP env-var; production-grade prompt is
-    // post-v1.0 polish"). Tests / CI set the env var explicitly.
-    //
-    // Wrapped in Arc<Mutex<>> so the registry can be shared across the async
-    // run loop (interior mutability needed for AgentKeypairRegistry::sign).
-    let agent_keypairs: Option<Arc<Mutex<turingosv4::runtime::agent_keypairs::AgentKeypairRegistry>>> =
-        chaintape_bundle.as_ref().map(|b| {
-            let durable_path = turingosv4::runtime::agent_keystore::default_agent_keystore_path()
-                .expect("[chaintape/tb9] resolve durable agent keystore path (set HOME or TURINGOS_AGENT_KEYSTORE_PATH)");
-            let pwd = turingosv4::runtime::agent_keystore::keystore_password_from_env();
-            let reg = turingosv4::runtime::agent_keypairs::AgentKeypairRegistry::generate_or_load_durable(
-                &b.runtime_repo_path,
-                &durable_path,
-                pwd,
-            )
-            .expect(
-                "[chaintape/tb9] agent_keypairs durable init must succeed (fresh runtime_repo guarantees \
-                 manifest absent; if you see this on a non-fresh dir, see TB-6 NonEmptyRuntimeRepo. \
-                 If you see a keystore decrypt error, check TURINGOS_AGENT_KEYSTORE_PASSWORD matches \
-                 the password used for the previous run.)",
-            );
-            Arc::new(Mutex::new(reg))
-        });
+    // TB-18 Atom B Phase 1: chain initialization lifted into
+    // `chain_runtime::SharedChain::from_env`. Phase 1 is a pure mechanical
+    // extraction (byte-identical single-task semantics) — destructure into
+    // the same local-variable names that previously lived inline so the rest
+    // of run_swarm (lines ~834-3999) remains byte-identical at the source
+    // level. Phase 2 lifts the one-time chain bootstrap (lines ~834-1700);
+    // Phase 3 adds `SharedChain::shutdown(self)` consume + parameterizes
+    // per-task entry as `run_swarm_with_shared_chain(chain, spec, budget)`;
+    // Phase 4 wires substantive `comprehensive_arena.rs` multi-task driver.
+    let minif2f_v4::chain_runtime::SharedChain {
+        mut bus,
+        chaintape_bundle,
+        agent_keypairs,
+        initial_balances_for_genesis_report,
+        chaintape_preseed_enabled,
+    } = minif2f_v4::chain_runtime::SharedChain::from_env(problem_file);
+    // The original code declared `initial_balances_for_genesis_report` as
+    // `mut` because it was populated inline during construction. Phase 1
+    // SharedChain returns it already populated, so the local doesn't need
+    // to be mutable downstream. Annotation kept terse (no `mut`) to track
+    // post-lift semantics.
 
     // TB-7.7 D2: last submitted tx per agent (for ProposalTelemetry.parent_tx).
     // Map of agent_id → last tx_id submitted via bus.submit_typed_tx (Work or
@@ -790,47 +688,6 @@ async fn run_swarm(
     // citation-tree / DAG-edge analysis on chain artifacts.
     let mut last_tx_by_agent: std::collections::HashMap<String, turingosv4::state::q_state::TxId> =
         std::collections::HashMap::new();
-
-    // Phase 1: opt-in tape persistence via env. WAL_DIR=<dir> enables WAL
-    // writes to <dir>/<problem>_<timestamp>.jsonl; resumes if file exists.
-    // Default off for backward-compat baseline runs.
-    let mut bus = if let Some(ref bundle) = chaintape_bundle {
-        info!(
-            "[chaintape] bus wired with Sequencer + on-disk ChainTape at {:?}",
-            bundle.runtime_repo_path
-        );
-        TuringBus::with_sequencer(kernel, config, bundle.sequencer.clone())
-    } else if let Ok(wal_dir) = std::env::var("WAL_DIR") {
-        let problem_stem = std::path::Path::new(problem_file)
-            .file_stem().map(|s| s.to_string_lossy().into_owned())
-            .unwrap_or_else(|| "unknown".into());
-        let resume_id = std::env::var("WAL_RESUME_ID").ok();
-        let id = resume_id.unwrap_or_else(|| {
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_secs().to_string())
-                .unwrap_or_else(|_| "0".into())
-        });
-        let wal_path = std::path::Path::new(&wal_dir)
-            .join(format!("{}_{}.jsonl", problem_stem, id));
-        info!("[wal] using {:?}", wal_path);
-        match TuringBus::with_wal_path(kernel, config, wal_path) {
-            Ok(b) => b,
-            Err(e) => {
-                error!("[wal] open failed: {} — falling back to in-memory", e);
-                TuringBus::new(Kernel::new(), BusConfig {
-                    max_payload_chars: 1200, max_payload_lines: 18,
-                    forbidden_patterns: vec![
-                        "native_decide".into(), "decide".into(), "omega".into(),
-                        "#eval".into(), "IO.Process".into(), "IO.FS".into(),
-                        "run_tac".into(), "unsafe".into(),
-                    ],
-                })
-            }
-        }
-    } else {
-        TuringBus::new(kernel, config)
-    };
     // TB-6 Atom 3: when chaintape mode is on, seed the on-disk chain with a
     // minimal pair of envelopes — one accepted TaskOpenTx (produces an L4
     // entry) and one rejected zero-stake WorkTx (produces an L4.E entry with
@@ -1579,130 +1436,19 @@ async fn run_swarm(
             }
         }
 
-        let task_id_str = format!("smoke-{}", run_id);
-        let task_open = turingosv4::runtime::adapter::make_synthetic_task_open(
-            &task_id_str,
-            "tb6-smoke-sponsor",
-            turingosv4::state::q_state::Hash::ZERO,
-            "atom3-seed",
-        );
-        let task_open_tx_id =
-            turingosv4::state::q_state::TxId(format!("taskopen-{}-atom3-seed", task_id_str));
-        if let Err(e) = bus.submit_typed_tx(task_open).await {
-            error!("[chaintape] synthetic TaskOpen submit failed: {e}");
-        } else {
-            info!("[chaintape] seeded synthetic TaskOpen for {}", task_id_str);
-        }
-        let bad_worktx = turingosv4::runtime::adapter::make_synthetic_worktx(
-            &task_id_str,
-            "tb6-smoke-agent",
-            turingosv4::state::q_state::Hash::ZERO,
-            0,
-            "atom3-l4e-synthetic-rejection",
-            true,
-        );
-        let bad_worktx_tx_id = turingosv4::state::q_state::TxId(format!(
-            "worktx-{}-atom3-l4e-synthetic-rejection",
-            task_id_str
-        ));
-        if let Err(e) = bus.submit_typed_tx(bad_worktx).await {
-            error!("[chaintape] synthetic zero-stake WorkTx submit failed: {e}");
-        } else {
-            info!(
-                "[chaintape] seeded synthetic zero-stake WorkTx \
-                 (synthetic_rejection_for_l4e_gate=true) for {}",
-                task_id_str
-            );
-        }
-        // Mark the synthetic-seed in the evidence dir so verify_chaintape (Atom 4)
-        // can distinguish synthetic-rejection from natural rejection.
-        let label_path = bundle.runtime_repo_path.join("synthetic_rejection_label.json");
-        let _ = std::fs::write(
-            &label_path,
-            format!(
-                r#"{{"synthetic_rejection_for_l4e_gate": true, "run_id": "{}", "atom": "TB-6 Atom 3", "rationale": "≥1 L4.E entry seeded via zero-stake WorkTx; per architect ruling 2026-05-01 § 3.6 Atom 3"}}"#,
-                run_id
-            ),
-        );
-
-        // TB-6 Atom 5: write AgentProposalRecord pairs to CAS + index for both
-        // synthetic envelopes. Each record carries the architect's 9 fields
-        // + logical_t. The index links L4 / L4.E tx_id → CAS record CID.
-        if let Err(e) = turingosv4::runtime::agent_audit_trail::write_synthetic_seed_audit_pair(
-            &bundle.cas_path,
-            &bundle.runtime_repo_path,
+        // TB-18 Atom B Phase 2: synthetic L4 + L4.E pipeline-liveness gate
+        // (TB-6 Atom 3) + chain-level genesis_report.json (TB-7R Deliverable
+        // C) lifted into `chain_runtime::write_synthetic_l4_l4e_gate_and_genesis_report`.
+        // Behavior is byte-identical to the inline code (single-task: seed_id
+        // == run_id; multi-task in Phase 4 will pass a chain-level UUID).
+        minif2f_v4::chain_runtime::write_synthetic_l4_l4e_gate_and_genesis_report(
+            &mut bus,
+            bundle,
+            &initial_balances_for_genesis_report,
+            chaintape_preseed_enabled,
             &run_id,
-            &task_open_tx_id,
-            &bad_worktx_tx_id,
-        ) {
-            error!("[chaintape] Atom 5 audit-trail write failed: {e}");
-        } else {
-            info!(
-                "[chaintape] Atom 5 audit-trail records written to CAS + indexed for {}",
-                task_id_str
-            );
-        }
-
-        // TB-7R Deliverable C (verdict 2026-05-01 §6.1): emit
-        // `<runtime_repo>/genesis_report.json` so post-hoc audits can
-        // verify the run's genesis preconditions (constitution_hash,
-        // runtime_repo, cas_path, system_pubkey, agent_pubkeys path,
-        // initial_balances) plus — when preseed is enabled — the
-        // task_id / task_open_tx / escrow_lock_tx that established the
-        // task and escrow on-chain.
-        let preseed_task_id = if chaintape_preseed_enabled {
-            Some(format!("task-{}", run_id))
-        } else {
-            None
-        };
-        // TB-10 Atom 1+3: tx_id suffix depends on user-mode flag (mirrors the
-        // make_real_*_signed_by suffix passed in lines above).
-        let user_task_mode = std::env::var("TURINGOS_USER_TASK_MODE")
-            .ok()
-            .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
-            .unwrap_or(false);
-        let preseed_task_open_tx = preseed_task_id.as_ref().map(|t| {
-            if user_task_mode {
-                format!("taskopen-{}-tb10-user-seed", t)
-            } else {
-                format!("taskopen-{}-tb7-7-d3-seed", t)
-            }
-        });
-        let preseed_escrow_lock_tx = preseed_task_id.as_ref().map(|t| {
-            if user_task_mode {
-                format!("escrowlock-{}-tb10-user-escrow", t)
-            } else {
-                format!("escrowlock-{}-tb7-7-d3-escrow", t)
-            }
-        });
-        let report = turingosv4::runtime::genesis_report::GenesisReport {
-            constitution_hash:
-                turingosv4::runtime::genesis_report::GenesisReport::hash_constitution_md(
-                    std::path::Path::new("constitution.md"),
-                ),
-            runtime_repo: bundle.runtime_repo_path.display().to_string(),
-            cas_path: bundle.cas_path.display().to_string(),
-            system_pubkey_hash:
-                turingosv4::runtime::genesis_report::GenesisReport::hash_system_pubkey_manifest(
-                    &bundle.runtime_repo_path,
-                ),
-            agent_pubkeys_path: "agent_pubkeys.json".into(),
-            initial_balances: initial_balances_for_genesis_report.clone(),
-            task_id: preseed_task_id,
-            task_open_tx: preseed_task_open_tx,
-            escrow_lock_tx: preseed_escrow_lock_tx,
-        };
-        if let Err(e) = report.write_to_runtime_repo(&bundle.runtime_repo_path) {
-            warn!(
-                "[chaintape/d_c] genesis_report.json write failed: {e} (non-fatal — \
-                 evidence collection continues, but post-hoc audit must note absence)"
-            );
-        } else {
-            info!(
-                "[chaintape/d_c] genesis_report.json written to {:?}",
-                bundle.runtime_repo_path
-            );
-        }
+        )
+        .await;
     }
 
     // TB-9 collapse (2026-05-02): Phase 4 cross-problem wallet persistence
