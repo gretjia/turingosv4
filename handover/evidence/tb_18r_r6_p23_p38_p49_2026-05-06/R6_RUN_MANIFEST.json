@@ -1,0 +1,18 @@
+{
+  "phase": "TB-18R R6",
+  "atom_authority": "TB-18R charter §2 R6 row + §1.4 SG-18R.3+SG-18R.4 v2",
+  "preflight": "handover/ai-direct/TB-18R_R4_STEP_B_invariant.md",
+  "problem_count": 3,
+  "max_tx_per_problem": 12,
+  "per_problem_timeout_s": 600,
+  "llm_proxy_url": "http://localhost:8080",
+  "active_model": "deepseek-chat",
+  "condition": "n1",
+  "run_timestamp_utc": "2026-05-06T09-05-28Z",
+  "git_head": "083b0073b48d228196502c0dfe900ddeaef1e834",
+  "problems": [
+    "mathd_algebra_107",
+    "mathd_numbertheory_1124",
+    "numbertheory_2pownm1prime_nprime"
+  ]
+}

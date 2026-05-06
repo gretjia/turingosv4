@@ -1,0 +1,14 @@
+[r6] starting | N=3 | MAX_TX=12 | git=083b0073b48d228196502c0dfe900ddeaef1e834 | ts=2026-05-06T09-05-28Z
+[r6] [1/3] mathd_algebra_107 → /home/zephryj/projects/turingosv4/handover/evidence/tb_18r_r6_p23_p38_p49_2026-05-06/P01_mathd_algebra_107
+[r6] [1/3] mathd_algebra_107: dur=583s expected_completed=0 halt=MaxTxExhausted
+audit_tape: verdict=PROCEED passed=38 failed=0 halted=0 skipped=11 (out="/home/zephryj/projects/turingosv4/handover/evidence/tb_18r_r6_p23_p38_p49_2026-05-06/P01_mathd_algebra_107/verdict.json")
+[r6] [1/3] mathd_algebra_107: invariant="invariant_verdict": "Err(TB-18R FR-18R.3 violation: clean halt MaxTxExhausted requires delta=0 but delta=2 (l4=1, l4e=1, expected=0))"
+[r6] [2/3] mathd_numbertheory_1124 → /home/zephryj/projects/turingosv4/handover/evidence/tb_18r_r6_p23_p38_p49_2026-05-06/P02_mathd_numbertheory_1124
+[r6] [2/3] mathd_numbertheory_1124: dur=600s expected_completed=0 halt=MaxTxExhausted
+audit_tape: verdict=BLOCK passed=36 failed=1 halted=0 skipped=12 (out="/home/zephryj/projects/turingosv4/handover/evidence/tb_18r_r6_p23_p38_p49_2026-05-06/P02_mathd_numbertheory_1124/verdict.json")
+[r6] [2/3] mathd_numbertheory_1124: invariant="invariant_verdict": "Err(TB-18R FR-18R.3 violation: clean halt MaxTxExhausted requires delta=0 but delta=51 (l4=0, l4e=51, expected=0))"
+[r6] [3/3] numbertheory_2pownm1prime_nprime → /home/zephryj/projects/turingosv4/handover/evidence/tb_18r_r6_p23_p38_p49_2026-05-06/P03_numbertheory_2pownm1prime_nprime
+[r6] [3/3] numbertheory_2pownm1prime_nprime: dur=600s expected_completed=0 halt=MaxTxExhausted
+audit_tape: verdict=BLOCK passed=36 failed=1 halted=0 skipped=12 (out="/home/zephryj/projects/turingosv4/handover/evidence/tb_18r_r6_p23_p38_p49_2026-05-06/P03_numbertheory_2pownm1prime_nprime/verdict.json")
+[r6] [3/3] numbertheory_2pownm1prime_nprime: invariant="invariant_verdict": "Err(TB-18R FR-18R.3 violation: clean halt MaxTxExhausted requires delta=0 but delta=24 (l4=0, l4e=24, expected=0))"
+[r6] DONE | summary at /home/zephryj/projects/turingosv4/handover/evidence/tb_18r_r6_p23_p38_p49_2026-05-06/R6_BATCH_SUMMARY.json
