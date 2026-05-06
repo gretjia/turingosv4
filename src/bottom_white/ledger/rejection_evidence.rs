@@ -43,6 +43,7 @@ use sha2::{Digest, Sha256};
 
 use crate::bottom_white::cas::schema::Cid;
 use crate::bottom_white::ledger::transition_ledger::TxKind;
+use crate::runtime::attempt_telemetry::LeanErrorClass;
 use crate::state::q_state::{AgentId, Hash};
 
 /// TB-6 Atom 1.2 — JSONL-backend shadow struct.
@@ -162,6 +163,41 @@ pub enum RejectionClass {
     /// its own failure class. Stable repr-u8 = 5; tail-append, no
     /// renumbering of existing variants.
     InsufficientBalance = 5,
+    /// **TB-18R R3** (`feedback_chaintape_externalized_proposal` + charter
+    /// §0.A Q8 remediation): Lean tactic returned a failure verdict
+    /// (type error / unification failure / undefined symbol / etc.) on the
+    /// runtime evaluator hot path. Mirrors `LeanErrorClass::LeanFailed = 6`
+    /// from R1 `attempt_telemetry.rs`. Stable repr-u8 = 6; tail-append, no
+    /// renumbering of existing variants 0..5.
+    LeanFailed = 6,
+    /// **TB-18R R3**: evaluator could not parse a candidate from the LLM
+    /// output (no recognizable lean code block, malformed wrapper). Mirrors
+    /// `LeanErrorClass::ParseFailed = 7`. Stable repr-u8 = 7; tail-append.
+    ParseFailed = 7,
+    /// **TB-18R R3**: candidate uses `sorry` or another forbidden incomplete
+    /// proof token. Mirrors `LeanErrorClass::SorryBlocked = 8`. Stable repr-u8
+    /// = 8; tail-append.
+    SorryBlocked = 8,
+    /// **TB-18R R3**: LLM API itself errored (HTTP non-200, timeout,
+    /// rate-limit, JSON parse fail on the LLM client side). Mirrors
+    /// `LeanErrorClass::LlmError = 9`. Stable repr-u8 = 9; tail-append.
+    LlmError = 9,
+}
+
+/// TB-18R R3 (preflight `handover/ai-direct/TB-18R_R3_STEP_B_admission.md` §3.3):
+/// transcode the evaluator-side `LeanErrorClass` (from `attempt_telemetry.rs`,
+/// shipped in R1) into the sequencer-side `RejectionClass`. The discriminator
+/// values match (6/7/8/9 on both sides) so this is a no-op-byte transcode that
+/// preserves repr-u8.
+impl From<LeanErrorClass> for RejectionClass {
+    fn from(lec: LeanErrorClass) -> Self {
+        match lec {
+            LeanErrorClass::LeanFailed => RejectionClass::LeanFailed,
+            LeanErrorClass::ParseFailed => RejectionClass::ParseFailed,
+            LeanErrorClass::SorryBlocked => RejectionClass::SorryBlocked,
+            LeanErrorClass::LlmError => RejectionClass::LlmError,
+        }
+    }
 }
 
 // ────────────────────────────────────────────────────────────────────────────
