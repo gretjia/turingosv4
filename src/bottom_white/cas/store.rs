@@ -233,6 +233,24 @@ impl CasStore {
             .count() as u64
     }
 
+    /// TB-18R R5 (preflight `handover/ai-direct/TB-18R_R5_preflight_audit_extension.md`):
+    /// list CIDs of all CAS objects whose metadata `object_type` matches `ty`.
+    ///
+    /// Used by `audit_assertions::assert_44_attempt_telemetry_retrievable_from_cas`
+    /// + `assert_45_lean_result_retrievable_from_cas` to walk all
+    /// AttemptTelemetry / LeanResult CAS objects per FR-18R.7. Pure
+    /// function over the in-memory index; no disk I/O.
+    ///
+    /// TRACE_MATRIX FC2-N34 (TB-18R R5 audit-tape sampler reaches
+    /// mathematical content).
+    pub fn list_cids_by_object_type(&self, ty: ObjectType) -> Vec<Cid> {
+        self.index
+            .values()
+            .filter(|m| m.object_type == ty)
+            .map(|m| m.cid)
+            .collect()
+    }
+
     /// Store content; returns its Cid. Idempotent — same content → same Cid.
     pub fn put(
         &mut self,
