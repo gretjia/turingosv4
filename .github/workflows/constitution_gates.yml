@@ -1,0 +1,133 @@
+name: TB-C0 Constitution Gates
+
+# Per TB-C0 charter (Constitution Landing Gate, 2026-05-06):
+#   "No high-risk feature can merge without constitution gates green."
+#   (charter §2 CR-C0.10 + closure condition #9)
+#
+# This workflow makes the 8 constitution gate test files
+# (`tests/constitution_*.rs`) a required merge gate. Any PR that
+# breaks an FC1 / FC2 / FC3 / Predicate / Shielding / Economy /
+# Tape-canonical / Parallel-ledger invariant fails CI and cannot land.
+#
+# Authority: handover/directives/2026-05-06_TBC0_CONSTITUTION_LANDING_RESET_DIRECTIVE.md
+# Charter:   handover/tracer_bullets/TB-C0_charter_2026-05-06.md
+# Matrix:    handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/**/*.rs"
+      - "tests/constitution_*.rs"
+      - "tests/**/*.rs"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "constitution.md"
+      - "handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md"
+      - "handover/alignment/TRACE_FLOWCHART_MATRIX.md"
+      - ".github/workflows/constitution_gates.yml"
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  constitution_gates:
+    name: Constitution gate suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-tbc0-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-tbc0-
+
+      - name: Build constitution test binaries
+        run: |
+          cargo build --tests \
+            --test constitution_no_parallel_ledger \
+            --test constitution_economy_gate \
+            --test constitution_predicate_gate \
+            --test constitution_fc1_runtime_loop \
+            --test constitution_fc2_boot \
+            --test constitution_fc3_meta \
+            --test constitution_shielding_gate \
+            --test constitution_tape_canonical_gate
+
+      - name: Run constitution gates
+        id: gates
+        run: |
+          set -eo pipefail
+          bash scripts/run_constitution_gates.sh
+
+      - name: Upload constitution gate report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: constitution_gate_report
+          path: |
+            target/constitution_gate_report.json
+            target/constitution_gate_report.md
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce closure conditions
+        if: success()
+        run: |
+          # Per TB-C0 directive §12 closure conditions:
+          # 1. Every constitution clause has a matrix row
+          # 2. Every critical row has a test
+          # 3. Every test can fail (no assert!(true))
+          # 9. CI gate exists (this workflow IS the gate)
+          if [ ! -f handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md ]; then
+            echo "::error::Closure condition #1: matrix missing"
+            exit 1
+          fi
+          if [ ! -f handover/alignment/TRACE_FLOWCHART_MATRIX.md ]; then
+            echo "::error::Closure condition #2: trace matrix missing"
+            exit 1
+          fi
+          # CR-C0.1: no assert!(true) stubs — grep all 8 test files
+          if grep -rn "assert!(true)" tests/constitution_*.rs >/dev/null 2>&1; then
+            echo "::error::CR-C0.1 violation: assert!(true) stub in constitution tests"
+            grep -rn "assert!(true)" tests/constitution_*.rs
+            exit 1
+          fi
+
+  freeze_check:
+    name: Feature freeze check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Reject feature TBs while TB-C0 is open
+        # Per TB-C0 charter §2 CR-C0.10 + project_tb_c0_charter freeze list:
+        # No new feature TB (TB-19+, NodeMarket, Polymarket, PriceIndex,
+        # public-chain, real-world-readiness, M1 public benchmark) may
+        # merge while TB-C0 is in progress. We detect by branch name +
+        # PR title pattern.
+        run: |
+          BRANCH="${{ github.head_ref }}"
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          for forbidden_pattern in "TB-19" "TB-20" "NodeMarket" "Polymarket-LIVE" "real-world-readiness" "M1-public-benchmark"; do
+            if echo "$BRANCH $PR_TITLE" | grep -i "$forbidden_pattern"; then
+              echo "::error::TB-C0 freeze: branch/title matches frozen pattern '$forbidden_pattern'."
+              echo "Per TB-C0 charter, feature TBs are blocked until the 5 MVP gates close."
+              echo "See: handover/tracer_bullets/TB-C0_charter_2026-05-06.md §2"
+              exit 1
+            fi
+          done
+          echo "Feature-freeze pattern check passed."

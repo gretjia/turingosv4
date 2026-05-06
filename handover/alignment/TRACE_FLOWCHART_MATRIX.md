@@ -1,22 +1,25 @@
-# TRACE_FLOWCHART_MATRIX — TB ↔ Constitution Flowchart Mapping
+# Trace Flowchart Matrix (TB-C0, 2026-05-06)
 
-**Authority**: architect directive 2026-05-02, ruling 9 of Part C ("Add TRACE_FLOWCHART_MATRIX.md mapping future TBs to Flowchart 1/2/3").
-- Source: `handover/directives/2026-05-02_lossless_constitution_polymarket_directive.md`
-- Insight summary: `handover/architect-insights/2026-05-02_flowchart_hashes_and_trace_matrix.md`
-**Status**: ratified by user authorization 2026-05-02 (option D1, "create skeleton now with TB-1..TB-7R back-fill + TB-8 forward row").
-**Companion**: `handover/alignment/TRACE_MATRIX_v3_2026-04-27.md` (per-symbol map; this matrix is per-TB).
+**Purpose**: Per-node FC1 / FC2 / FC3 mapping → code surface → constitution gate test. Companion to `CONSTITUTION_EXECUTION_MATRIX.md` (which is gate-level summary). This file is the granular per-node binding.
+
+**Lineage**:
+- Raw flowchart node enumeration: `FC_ELEMENTS_2026-04-22.md` (134 elements: 48 nodes + 63 edges + 23 subgraphs)
+- Existing symbol-level mapping: `TRACE_MATRIX_v0_2026-04-22.md` (43 rows; orphan/justification framing)
+- Predecessor (TB-tracking variant, archived): `TRACE_FLOWCHART_MATRIX_v0_2026-05-02.md` — that file tracked TB → flowchart contact; this file binds FC nodes → tests
+- This file ADDS the constitution-test binding (TB-C0 test name) that the prior matrices don't have
+
+**Filter**: `cargo test --workspace constitution_` for all gate tests; `cargo test --workspace fc1_` / `fc2_` / `fc3_` per flowchart.
+
+**Legend**:
+- ✅ test exists and is GREEN
+- 🟡 test exists, AMBER (smoke or full evidence pending)
+- 🔴 test missing OR test is `assert!(true)` (must NOT remain RED on close)
+- 🚫 N/A (constitution-document-level, not runtime)
+- 📅 deferred (Phase 11+ JudgeAI/ArchitectAI runtime; explicit out-of-scope)
 
 ---
 
-## §1 Why this matrix exists
-
-The lossless constitution integrated edition 2026-05-02 elevated three flowcharts from explanatory diagrams to **SHA256-anchored architectural contracts**. Each TB charter (current + future) must declare which flowchart element(s) it touches; deviation between code behavior and the four canonical hashes is now provably auditable.
-
-This matrix is the cross-reference. It is updated at every TB ship.
-
----
-
-## §2 The four canonical flowchart hashes
+## §1. Four canonical flowchart hashes (carried forward from v0)
 
 ```text
 Flowchart 1a — Runtime loop, page 8
@@ -37,135 +40,162 @@ Flowchart 3 — Meta-architecture, page 17
   SHA256: c159413984d0c6c5daa06605fea3a86a2ad4ab9c4284d0d20e0e525bf03aa9cd
 ```
 
+These hashes are immutable architectural contracts; if a flowchart changes, that is a Class 4 sudo event.
+
 ---
 
-## §3 TB ↔ Flowchart matrix
+## §2. FC1 — Basic runtime cycle (per-node)
 
-Legend: ✅ touched (TB closes or extends this flowchart element) · ◯ adjacent (TB references but does not modify) · — not relevant.
+**Cycle**: `Q_t → rtool → input → AI(δ) → output → ∏p (predicates) → wtool → Q_{t+1}` (constitution lines 325-379, header `graph TD`).
 
-| TB ID | Flowchart 1<br>(runtime loop) | Flowchart 2<br>(boot) | Flowchart 3<br>(meta) | Notes |
+| FC1 Node | Constitution label | Code surface | Constitution gate test | Status |
 |---|---|---|---|---|
-| TB-1 | ◯ | — | — | TypedTx skeleton (pre-flowchart-anchoring) |
-| TB-2 | ◯ | — | — | predicate registry skeleton |
-| TB-3 | ✅ economic mutator (escrow / RSP) | — | — | EscrowLockTx + WorkTx.stake inline |
-| TB-4 | ✅ challenge path | — | — | ChallengeTx + VerifyTx |
-| TB-5 | ✅ predicate gate | — | — | RSP-3 challenge resolution + system-tx ingress |
-| TB-6 | ✅ runtime loop closure (production binary) | ✅ Boot wire-up (Q_0 from prod binary) | — | Production ChainTape wire-up; binary now drives kernel |
-| TB-7 | ✅ Frame B (proposal-level DAG) | — | — | Per-tactic deferred to TB-8+ |
-| TB-7R | ✅ runtime loop FULL closure: every externalized proposal → L4 / L4.E; predicate evidence resolves from CAS; dashboard regeneratable | ✅ Boot continuity: genesis_report.json + on-chain TaskOpen / EscrowLock | — | Constitution-Aligned Frame B Repair; Class 3 dual ship audit PASS; 712 tests / 0 fail |
-| TB-8 | ✅ settlement node CLOSED (every accepted L4 WorkTx with closed challenge window + no upheld challenge → exactly 1 L4 FinalizeRewardTx that atomically debits escrow + credits solver + flips claims_t.status = Finalized) | ✅ Boot continuity preserved (no new artifact; TB-7R genesis_report.json carries forward) | — | Minimal payout / FinalizeRewardTx SHIPPED 2026-05-02; Class 3 dual audit (Codex + Gemini both PASS strategic-tier; Codex round-1 VETO RQ3+RQ4 → round-2 PASS); 725 tests / 0 fail / 150 ignored (+13 net TB-8) |
-| TB-9 | ✅ identity in input/output of Agent δ persists across runs (same Agent_0 → same pubkey across evaluator restarts; smoke run-A == run-B == regression all bind to `dec9e321...047b6468`) | ✅ persistent registry initialized at boot via `AgentKeypairRegistry::generate_or_load_durable` reading `~/.turingos/keystore/agent_keystore.enc` (encrypted-at-rest, KDF + ChaCha20-Poly1305) | — | Durable AgentRegistry + read-only WalletTool projection SHIPPED 2026-05-02; Class 3 (purely additive kernel-side; recursive self-audit PASS); 723 tests / 0 fail / 150 ignored; 3/3 smoke runs SOLVED with cross-run pubkey identity verified by `diff -q` |
-| TB-10 | ✅ user CLI submits TaskOpen+EscrowLock signed by Agent_user_0 (real Ed25519); evaluator user-mode subprocess routes through `submit_typed_tx`; sponsor + solver role separation visible at binary boundary; user CLI's `view-*` reads chaintape via `replay_full_transition` (no Sequencer bootstrap) | ✅ chaintape genesis QState built via `runtime::bootstrap::default_pput_preseed_pairs()` factory (12-entry preseed: tb7-7-sponsor + Agent_user_0 + Agent_0..9 totaling 30M micro); Agent_user_0 keypair loaded from durable keystore at boot via TB-9 carry; first-product loop closes end-to-end | — | Lean Proof Task Market MVP SHIPPED 2026-05-02 (first user-facing product); Class 2 primary + Class 3 audit (first new caller class for already-Class-3 economic mutators); recursive self-audit PASS (4 clauses + 11 ship gates + 6 failure modes); 731 tests / 0 fail / 150 ignored (+8 net vs TB-9 baseline 723); 3/3 smoke runs SOLVED across 3 distinct heldout-49 problems (mathd_algebra_171/107 + mathd_numbertheory_961) with bounties 100k/100k/250k micro; cross-run pubkey identity verified for both Agent_user_0 + Agent_0; sponsor balance debited by exact bounty in every run; solver balance credited by exact bounty in every run |
-| TB-11 (planned) | ✅ price-as-statistical-signal in output (not in predicates) | — | — | NodePosition + PriceIndex v0; no trading |
-| TB-12 (planned) | ✅ economic mutator (CompleteSet) | — | — | CompleteSet + MarketSeedTx; CTF semantics in code |
-| TB-13 (planned) | ✅ economic mutator (CPMM Router) | — | — | CPMM Router; constant-product invariant |
-| TB-14 (planned) | ◯ scheduler / read-view (NOT predicate / NOT ledger) | — | — | Boltzmann masking + two-axis P_accept / P_progress |
-| TB-15 (planned) | — | — | ✅ logs archive → ArchitectAI feedback → re-init | Markov Log Loom + EvidenceCapsule; first Flowchart 3 closure |
-| TB-16 (planned) | ✅ all loops live | ✅ boot fully observable | ✅ EvidenceCapsule per session | Beta with market signals |
-| TB-17 (planned) | ✅ trade ledger | — | — | Full market trading (post-v1.0) |
+| FC1-N1 (q0) | `Q_t = ⟨q_t, HEAD_t, tape_t⟩` carrier | `TuringBus`, `Kernel::tape` | `fc2_genesis_report_exists` (Q_0 init) + `fc1_attempt_count_equals_tape_count` (Q_t advancement integrity) | 🟡 |
+| FC1-N2 (q_t) | `q_t` slice | `QState`, `TuringBus::q_state` | covered by `tests/q_state_reconstruct.rs` (existing) | ✅ |
+| FC1-N3 (HEAD_t) | `HEAD_t` head pointer | `time_arrow().last()` | covered by `tests/co1_7_extra_git2_writer_head_oid_defense.rs` (existing) | ✅ |
+| FC1-N4 (q1) | `Q_{t+1}` after δ | `TuringBus::append_*` + sequencer accept | `fc1_predicate_pass_goes_l4` | ✅ |
+| FC1-N5 (rtool) | read tool — ground-truth context fetch | `ReadTool::project`, `DefaultReadTool` | `fc3_raw_logs_not_in_agent_read_view` (shielding-side; constrains what rtool exposes) | 🟡 |
+| FC1-N6 (input = ⟨q_i, s_i⟩) | input bundle to Agent | `UniverseSnapshot`, `build_agent_prompt` | covered by existing `tests/fc_alignment_conformance.rs::fc1_n6_*` | ✅ |
+| FC1-N7 (δ / AI) | external Agent (LLM call) | `ResilientLLMClient::generate` | `fc1_every_externalized_attempt_is_tape_visible` (every δ invocation must produce tape WorkTx) | 🟡 |
+| FC1-N8 (output = ⟨q_o, a_o⟩) | Agent output | `AgentOutput`, `parse_agent_output` | covered by existing fc_alignment_conformance | ✅ |
+| FC1-N9 (q_o) | proposed q-delta | `AgentOutput::q_delta` | `fc1_attempt_count_equals_tape_count` (q_o reaches tape via WorkTx) | 🟡 |
+| FC1-N10 (a_o) | action | `AgentOutput::action` | `fc1_predicate_pass_goes_l4` + `fc1_predicate_fail_goes_l4e` | ✅ |
+| FC1-N11 (∏p predicates) | predicate composition | `TuringBus::evaluate_predicates`, `Predicate` trait | `predicate_result_is_binary` + `predicate_pass_required_for_l4` | ✅ |
+| FC1-N12 (individual p) | individual predicates (Forbidden/Sorry/PayloadSize/Lean) | `{Forbidden,Sorry,PayloadSize}Predicate`, `Lean4Oracle::verify_*` | `lean_verified_required_for_verified_worktx` + `price_never_overrides_predicate` | ✅ |
+| FC1-N13 (wtool) | write tool | `WriteTool::write`, `TuringBus::append_oracle_accepted` | `fc1_no_legacy_authoritative_append` (no direct bus.append bypass) | 🟡 |
+| FC1-N14 (Q_{t+1} success) | accepted-branch advance | `append_internal`, `halt_with_reason` | `fc1_predicate_pass_goes_l4` | ✅ |
+| FC1-N15 (Q_t reject branch) | rejection branch (∏p = 0) | `PartialVerdict::Reject`, `BusResult::Vetoed`, sequencer reject arm | `fc1_predicate_fail_goes_l4e` (rejection lands in L4.E, not L4) | ✅ |
+
+### FC1 invariant battery (TB-C0 NEW gate tests)
+
+| Invariant | Test | What it asserts |
+|---|---|---|
+| **FC1-INV1** every externalized attempt → tape | `fc1_every_externalized_attempt_is_tape_visible` | for any LLM-Lean cycle that yields q-delta or composite proof, a WorkTx OR rejection-WorkTx OR anchored EvidenceCapsule item exists with `attempt_chain_root` linkage |
+| **FC1-INV2** predicate routing | `fc1_predicate_pass_goes_l4` + `fc1_predicate_fail_goes_l4e` | sequencer apply_one routes per verdict |
+| **FC1-INV3** count equality | `fc1_attempt_count_equals_tape_count` | `evaluator_reported_tx_count == L4_WorkTx_attempt_count + L4E_WorkTx_rejection_count + explicitly_anchored_capsule_attempt_count` |
+| **FC1-INV4** no legacy bypass | `fc1_no_legacy_authoritative_append` | in chaintape mode, `bus.append_*` direct path is fail-closed |
+| **FC1-INV5** dashboard not source | `fc1_dashboard_not_source_of_truth` | dropping dashboard and replaying from L4 + CAS produces same chain_derived_run_facts |
+| **FC1-INV6** no fake nodes | `fc1_no_fake_accepted_nodes` | tampering with WorkTx fields fails replay verify |
 
 ---
 
-## §4 Validation tests by flowchart
+## §3. FC2 — Boot / init / halt / tick (per-node)
 
-### 4.1 Flowchart 1 (runtime loop)
+**Topology**: `human spec / constitution.md → predicates / tools (init) → Q_0 → runtime loop` (constitution lines 441-530, indented `flowchart TD` block).
 
-For any TB that touches the runtime loop, the following invariants must hold:
+| FC2 Node | Constitution label | Code surface | Constitution gate test | Status |
+|---|---|---|---|---|
+| FC2-N16 (InitAI) | bootstrap entity | `run_swarm`, `run_oneshot` | `fc2_genesis_report_exists` + `fc2_on_init_only_mint` | ✅ |
+| FC2-N17 (human architect) | architect (manual) | `constitution.md` author | `fc3_architectai_proposal_not_direct_write` (FC3 binding) | 🚫 N/A runtime |
+| FC2-N18 (law / ground truth) | constitution.md | `constitution.md` | `fc3_constitution_hash_pinned` (existing fc_alignment_conformance) | 🚫 N/A runtime |
+| FC2-N19 (initAI →once predicates) | predicate registration at boot | `TuringBus::register_predicate` | `fc2_taskopen_escrowlock_are_chain_events` (boot-time admission gates) | ✅ |
+| FC2-N20 (initAI →once mr) | mr-tick at boot | TICK_INTERVAL + emit_mr_tick_node | covered by `tests/six_axioms_alignment.rs::axiom_5` | ✅ |
+| FC2-N21 (initAI →once Q0) | Q_0 minted | `Kernel::new`, `TuringBus::init` | `fc2_on_init_only_mint` + `fc2_no_post_init_mint` | ✅ |
+| FC2-N22 (HALT) | halted state | `QState::Halted`, `halt_with_reason` | covered by `tests/six_axioms_alignment.rs::axiom_4` | ✅ |
+| FC2-N23 (HaltReason variants) | terminal anchor distribution | `HaltReason` enum | covered by existing | ✅ |
+| FC2-N24 (clock) | tick clock | `TuringBus::clock` | covered by `tests/six_axioms_alignment.rs::axiom_5` | ✅ |
+| FC2-N25 (mr) | map-reduce tick | inline mr_summary, `emit_mr_tick_node` | covered by existing | ✅ |
+| FC2-N26 (mr →map tape0) | mr reads tape | `tape.time_arrow().len()` | covered by existing | ✅ |
+| FC2-N27 (mr →reduce tape1) | mr emits tape node | `emit_mr_tick_node` | covered by existing | ✅ |
+| FC2-N28 (tools_other) | non-rtool/wtool tool surface | `WriteTool::write_with_tools`, `TuringBus::tools` | `fc2_taskopen_escrowlock_are_chain_events` | ✅ |
 
-```text
-1. Every externalized proposal lands in L4 (accepted) or L4.E (rejected).
-   - No "third place" for failed proposals.
-   - No accepted node without predicate-passing evidence.
+### FC2 invariant battery (TB-C0 NEW gate tests)
 
-2. Predicate evidence resolves from CAS.
-   - L4 or L4.E entry → CID → CAS → evidence blob → sha256 verifies.
-
-3. Dashboard is materialized view.
-   - Dashboard is regeneratable from ChainTape + CAS alone.
-   - Dashboard does not have authoritative state.
-
-4. Predicate failure does not advance Q_t.
-   - q_state.ledger_root unchanged on rejected proposals.
-   - L4.E append is a separate ledger slot, not a Q_t mutation.
-```
-
-Reference: TB-7R 4-clause acceptance + 7-condition ship gate (`handover/audits/RECURSIVE_AUDIT_TB_7R_2026-05-02.md`).
-
-### 4.2 Flowchart 2 (boot)
-
-For any TB that touches boot or Q_0:
-
-```text
-1. Boot artifact exists and is replayable.
-   - genesis_report.json (or successor) lives in run evidence dir.
-   - Replay reconstructs Q_0 byte-exactly from the artifact.
-
-2. on_init is the sole legal mint point.
-   - No post-init mint may appear in any TypedTx variant.
-   - MarketMakerBudget (when introduced TB-12+) is allocated AT on_init,
-     consumed thereafter, never refilled by future mint.
-
-3. TaskOpen / EscrowLock are observable from L4 (post-TB-7R).
-   - Memory-only preseed is forbidden as production evidence.
-```
-
-Reference: TB-7R Atom C+D commit `392a516`; `handover/architect-insights/CONSTITUTION_ART_0_5_DRAFT_2026-04-26.md`.
-
-### 4.3 Flowchart 3 (meta)
-
-For any TB that touches the meta loop (logs / ArchitectAI / JudgeAI / re-init):
-
-```text
-1. EvidenceCapsule produced at session end.
-   - Per Markov rule: latest capsule + constitution = default context.
-   - Historical logs preserved in archive but not loaded by default.
-
-2. No raw log fragment leaks into Agent prompt.
-   - Per Art. III.1 屏蔽错误 + DECISION_LAMARCKIAN_AUTOPSY_BOLTZMANN.
-
-3. Permission changes route through ArchitectAI → JudgeAI/VetoAI → canary.
-   - Even Autopsy-suggested policy patches must traverse this loop.
-
-4. Markov override (deep-history read) only on persistent-disease problems.
-   - Override requires explicit reason + signature.
-```
-
-Reference: `handover/architect-insights/2026-05-02_flowchart_hashes_and_trace_matrix.md`; directive Part C §11 (TB-15 EvidenceCapsule structure).
+| Invariant | Test | What it asserts |
+|---|---|---|
+| **FC2-INV1** genesis exists | `fc2_genesis_report_exists` | `genesis_payload.toml` parses + trust root verifies |
+| **FC2-INV2** init-only mint | `fc2_on_init_only_mint` + `fc2_no_post_init_mint` | total Coin supply set at on_init; never mints elsewhere |
+| **FC2-INV3** no memory preseed | `fc2_no_memory_only_preseed` | code-grep: no `q.economic_state_t.insert(` outside on_init helpers |
+| **FC2-INV4** chain events | `fc2_taskopen_escrowlock_are_chain_events` | TaskOpen/EscrowLock issued via Sequencer dispatch, not memory mutation |
+| **FC2-INV5** replayable | `fc2_run_replayable_from_genesis_tape_cas` | tear down state, replay from genesis_report + L4 + CAS, recover identical chain_derived_run_facts |
+| **FC2-INV6** pubkeys verify | `fc2_system_pubkeys_verify` | system tx signature verifies under genesis_payload.toml-pinned pubkey |
+| **FC2-INV7** registry resolves | `fc2_agent_registry_resolves` | agent_pubkeys.json → AgentKeypairRegistry resolves correct pubkey |
 
 ---
 
-## §5 Update protocol
+## §4. FC3 — Meta / anti-oreo / system topology (per-node)
 
-```text
-1. Every new TB charter MUST add a row to §3 declaring which flowchart
-   element(s) it touches. Missing declaration = reject before commit
-   (per feedback_tb_phase_tag_required pattern, extended to flowcharts).
+**Topology**: `boot → constitution / logs (read-only) → JudgeAI (veto) ← ArchitectAI (propose) → tools / logs / Q update` (constitution lines 670-714, indented `graph TB` block).
 
-2. At TB ship, validation tests in §4 are checked for the touched flowcharts.
-   Failing test = ship-gate violation.
+| FC3 Node | Constitution label | Code surface | Constitution gate test | Status |
+|---|---|---|---|---|
+| FC3-N29 (boot) | system boot | `async fn main`, `TuringBus::boot` | `fc2_genesis_report_exists` (FC2 anchor) | ✅ |
+| FC3-N30 (constitution file) | constitution.md as ground truth | `constitution.md` | covered by `tests/fc_alignment_conformance.rs` | 🚫 N/A runtime |
+| FC3-N31 (logs archive) | WAL + L4 archive | `Wal::write_event`, transition_ledger | `fc3_raw_logs_not_in_agent_read_view` | 🟡 |
+| FC3-N32 (JudgeAI) | external veto agent (Codex/Gemini) | external | `fc3_judgeai_veto_only` | ✅ |
+| FC3-N33 (ArchitectAI) | external propose agent | external (Claude code editing) | `fc3_architectai_proposal_not_direct_write` | 🟡 |
+| FC3-N34 (readonly guard) | constitution + logs read-only | WAL append-only semantics | `fc3_no_automatic_predicate_mutation` | ✅ |
+| FC3-N35 (anti-oreo top→agents→tools) | top-only does signal mgmt | `evaluate_predicates` flow | covered by existing fc_alignment_conformance | ✅ |
+| FC3-N36 (agents) | swarm of N agents | `let agent_ids` round-robin | covered by existing | ✅ |
+| FC3-N37 (tools) | bottom tools (rtool/wtool) | `TuringTool` trait | covered by existing | ✅ |
+| FC3-N38 (Q update) | Q-delta application via wtool | sequencer dispatch | `fc1_predicate_pass_goes_l4` (FC1 anchor) | ✅ |
+| FC3-N39 (markov / capsule) | Markov capsule (TB-15+) | `markov_capsule.rs` | `fc3_capsule_derived_from_tape_cas` + `fc3_no_global_markov_pointer` | 🟡 |
+| FC3-N40 (override) | deep-history override | `TURINGOS_MARKOV_OVERRIDE=1` | `fc3_deep_history_requires_override` | ✅ |
 
-3. If a TB touches no flowchart element (rare; e.g., pure docs TB), declare
-   "—" across all three columns and explain in Notes.
+### FC3 invariant battery (TB-C0 NEW gate tests)
 
-4. This matrix is updated in the same commit as the TB ship.
-   No "I'll update it later" — the matrix is part of the ship gate.
-
-5. Flowchart hashes are immutable. If the constitution canonical flowcharts
-   change, that is a Class 4 sudo event; this matrix is then re-rebased.
-```
+| Invariant | Test | What it asserts |
+|---|---|---|
+| **FC3-INV1** capsule derived | `fc3_capsule_derived_from_tape_cas` | regenerating capsule from L4 + CAS gives identical CID |
+| **FC3-INV2** no global pointer | `fc3_no_global_markov_pointer` (also in `no_parallel_ledger.rs`) | `LATEST_MARKOV_CAPSULE.txt` does NOT exist |
+| **FC3-INV3** raw shielding | `fc3_raw_logs_not_in_agent_read_view` | UniverseSnapshot prompt contents do not contain raw Lean stderr |
+| **FC3-INV4** capsule context-only | `fc3_latest_capsule_context_only` | capsule used as agent context, not as predicate-feeding ground-truth |
+| **FC3-INV5** override required | `fc3_deep_history_requires_override` | reading deep-history without `TURINGOS_MARKOV_OVERRIDE=1` returns Default/empty |
+| **FC3-INV6** no auto mutation | `fc3_no_automatic_predicate_mutation` | predicate set is registered at boot and not mutated thereafter |
+| **FC3-INV7** architect propose-only | `fc3_architectai_proposal_not_direct_write` | architect role lands changes via charter/directive trail, not direct src/ commit |
+| **FC3-INV8** judge veto-only | `fc3_judgeai_veto_only` | judge role does NOT commit code; verdict-only |
 
 ---
 
-## §6 Status
+## §5. Cross-flowchart bindings (gate categories outside the 3 FCs)
 
-```text
-Created:               2026-05-02
-Last TB ship:          TB-7R (commits 55680bb + 46716ae + 17d69de)
-Next TB:               TB-8 (Minimal Payout / FinalizeRewardTx) — charter rewritten 2026-05-02
-TB-1..TB-7R back-fill: from existing TB_LOG.tsv + commit history; mappings are
-                       reconstructed, not original-author-declared.
-                       Original authorship of these TBs predates this matrix.
-TB-8 forward row:      declared in TB-8 charter rewrite 2026-05-02.
-```
+| Gate category | Tests | FC anchor (which flowcharts these enforce) |
+|---|---|---|
+| Predicate gate (5 tests) | `predicate_*` | FC1-N11 + FC1-N12 |
+| Shielding gate (5 tests) | `raw_*` / `l4e_*` / `private_*` / `evidence_*` / `dashboard_does_not_*` | FC1-N5 (rtool sees) + FC3-N31 (logs archive) |
+| Economy gate (9 tests) | `economy_*` + `system_tx_not_agent_submittable` | Art. 0 Laws + FC2-N21 (Q_0 mint) + FC2-N28 (tools_other) |
+| Tape canonical gate (7 tests) | `no_parallel_ledger` / `no_shadow_tape` / `canonical_txid` / `dashboard_regen` / `chain_derived_facts` / `all_*_have_cas_payload` | Art. 0.2 + FC1-INV4 + FC1-INV5 |
+| No parallel ledger (dedicated) | `no_parallel_ledger.rs` battery | Art. 0.2 dedicated fence |
 
-Reconstruction caveat for back-filled rows: TB-1..TB-7R rows in §3 are best-effort declarations based on what each TB demonstrably touched. Original TB charters did not declare flowchart traces. Future TBs will declare directly.
+---
+
+## §6. Test → MVP-gate cross-reference
+
+| MVP closure gate | Bound tests |
+|---|---|
+| MVP-1 FC1 tx-count equality | `fc1_attempt_count_equals_tape_count` + `fc1_every_externalized_attempt_is_tape_visible` (+ P38/P49 evidence run) |
+| MVP-2 Predicate routing | `predicate_failure_cannot_enter_l4` + `predicate_pass_required_for_l4` + `fc1_predicate_pass_goes_l4` + `fc1_predicate_fail_goes_l4e` |
+| MVP-3 Dashboard regen | `dashboard_regenerates_from_tape_cas` + `fc1_dashboard_not_source_of_truth` |
+| MVP-4 Replay | `fc2_run_replayable_from_genesis_tape_cas` + `fc2_genesis_report_exists` |
+| MVP-5 Economy conservation | all 9 `economy_*` + `system_tx_not_agent_submittable` |
+
+---
+
+## §7. Test → 6-epistemic-questions cross-reference (closure condition #10)
+
+The project must be able to answer:
+
+| Question | Test that answers it |
+|---|---|
+| "What did the Agent externalize?" | `fc1_every_externalized_attempt_is_tape_visible` + `all_externalized_attempts_have_cas_payload` |
+| "What passed predicates?" | `fc1_predicate_pass_goes_l4` + `predicate_pass_required_for_l4` |
+| "What failed?" | `fc1_predicate_fail_goes_l4e` + `predicate_failure_cannot_enter_l4` |
+| "What is on tape?" | `fc1_attempt_count_equals_tape_count` + `fc2_run_replayable_from_genesis_tape_cas` |
+| "What is only in CAS?" | `evidence_capsule_raw_logs_audit_only` + `all_lean_results_have_cas_payload` |
+| "What is only dashboard?" | `dashboard_regenerates_from_tape_cas` + `fc1_dashboard_not_source_of_truth` (i.e., dashboard is regenerable view, not authoritative) |
+
+---
+
+## §8. Update protocol (per CR-C0.7)
+
+When an FC node's enforcement changes:
+1. Update the row in this matrix.
+2. Add the new test name to `CONSTITUTION_EXECUTION_MATRIX.md` row.
+3. Update Status to ✅ only after `cargo test --workspace constitution_` confirms green.
+4. Smoke-evidence column flips from 🟡 → ✅ only after the relevant TB ladder run produces the artifact.
+
+When an FC node is renamed in constitution.md:
+1. Phase Z′ 6-stage rerun applies (architect-only).
+2. Update `FC_ELEMENTS_*.md` raw extract.
+3. Update this matrix and `TRACE_MATRIX_v0_*.md`.
+4. Bump matrix file version: `TRACE_FLOWCHART_MATRIX_vN.md`.
