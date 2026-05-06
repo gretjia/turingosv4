@@ -1,0 +1,21 @@
+{
+  "phase": "TB-18R R7 (M0 small batch)",
+  "atom_authority": "TB-18R charter §2 R7 row + §1.4 SG-18R.D",
+  "preflight": "handover/ai-direct/TB-18R_R4_STEP_B_invariant.md",
+  "problem_count": 5,
+  "max_tx_per_problem": 8,
+  "per_problem_timeout_s": 360,
+  "llm_proxy_url": "http://localhost:8080",
+  "active_model": "deepseek-chat",
+  "condition": "n1",
+  "run_timestamp_utc": "2026-05-06T09-39-26Z",
+  "git_head": "8608bc321f55b47927942e07ee52315cceb98d28",
+  "no_overlap_with_r6": true,
+  "problems": [
+    "mathd_algebra_113",
+    "mathd_algebra_114",
+    "mathd_algebra_125",
+    "mathd_algebra_141",
+    "aime_1983_p2"
+  ]
+}

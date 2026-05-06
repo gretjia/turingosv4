@@ -1,0 +1,17 @@
+[r7] starting | N=5 | MAX_TX=8 | git=8608bc321f55b47927942e07ee52315cceb98d28 | ts=2026-05-06T09-39-26Z
+[r7] [1/5] mathd_algebra_113 → /home/zephryj/projects/turingosv4/handover/evidence/tb_18r_r7_m0_2026-05-06/P01_mathd_algebra_113
+audit_tape: verdict=PROCEED passed=38 failed=0 halted=0 skipped=11 (out="/home/zephryj/projects/turingosv4/handover/evidence/tb_18r_r7_m0_2026-05-06/P01_mathd_algebra_113/verdict.json")
+[r7] [1/5] mathd_algebra_113: dur=86s expected=18 halt=MaxTxExhausted "invariant_verdict": "Err(TB-18R FR-18R.3 violation: delta<0 forbidden (delta=-8, halt=MaxTxExhausted) — attempt vanished pre-chain)"
+[r7] [2/5] mathd_algebra_114 → /home/zephryj/projects/turingosv4/handover/evidence/tb_18r_r7_m0_2026-05-06/P02_mathd_algebra_114
+audit_tape: verdict=BLOCK passed=37 failed=1 halted=0 skipped=11 (out="/home/zephryj/projects/turingosv4/handover/evidence/tb_18r_r7_m0_2026-05-06/P02_mathd_algebra_114/verdict.json")
+[r7] [2/5] mathd_algebra_114: dur=273s expected=9 halt=OmegaAccepted "invariant_verdict": "Err(TB-18R FR-18R.3 violation: delta<0 forbidden (delta=-4, halt=OmegaAccepted) — attempt vanished pre-chain)"
+[r7] [3/5] mathd_algebra_125 → /home/zephryj/projects/turingosv4/handover/evidence/tb_18r_r7_m0_2026-05-06/P03_mathd_algebra_125
+audit_tape: verdict=PROCEED passed=38 failed=0 halted=0 skipped=11 (out="/home/zephryj/projects/turingosv4/handover/evidence/tb_18r_r7_m0_2026-05-06/P03_mathd_algebra_125/verdict.json")
+[r7] [3/5] mathd_algebra_125: dur=10s expected=2 halt=OmegaAccepted "invariant_verdict": "Ok"
+[r7] [4/5] mathd_algebra_141 → /home/zephryj/projects/turingosv4/handover/evidence/tb_18r_r7_m0_2026-05-06/P04_mathd_algebra_141
+audit_tape: verdict=PROCEED passed=38 failed=0 halted=0 skipped=11 (out="/home/zephryj/projects/turingosv4/handover/evidence/tb_18r_r7_m0_2026-05-06/P04_mathd_algebra_141/verdict.json")
+[r7] [4/5] mathd_algebra_141: dur=10s expected=2 halt=OmegaAccepted "invariant_verdict": "Ok"
+[r7] [5/5] aime_1983_p2 → /home/zephryj/projects/turingosv4/handover/evidence/tb_18r_r7_m0_2026-05-06/P05_aime_1983_p2
+audit_tape: verdict=PROCEED passed=38 failed=0 halted=0 skipped=11 (out="/home/zephryj/projects/turingosv4/handover/evidence/tb_18r_r7_m0_2026-05-06/P05_aime_1983_p2/verdict.json")
+[r7] [5/5] aime_1983_p2: dur=219s expected=18 halt=MaxTxExhausted "invariant_verdict": "Err(TB-18R FR-18R.3 violation: delta<0 forbidden (delta=-8, halt=MaxTxExhausted) — attempt vanished pre-chain)"
+[r7] DONE

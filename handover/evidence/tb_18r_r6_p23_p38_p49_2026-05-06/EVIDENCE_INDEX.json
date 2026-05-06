@@ -1,0 +1,24 @@
+{
+  "evidence_dir": "handover/evidence/tb_18r_r6_p23_p38_p49_2026-05-06/",
+  "scale_class": "small (3 problems × n1)",
+  "policy": "small-scale runs not packaged as dotgit tarballs per feedback_evidence_packaging_policy_required",
+  "git_tracked_files": [
+    "README.md",
+    "R6_RUN_MANIFEST.json",
+    "R6_BATCH_SUMMARY.json",
+    "EVIDENCE_INDEX.json",
+    "r6_problems.txt",
+    "r6_runner.log",
+    "P*/chain_invariant.json (per problem; R4 invariant facts)",
+    "P*/verdict.json (per problem; audit_tape battery verdict)",
+    "P*/audit_tape.stderr (per problem)"
+  ],
+  "git_untracked_files": [
+    "P*/runtime_repo/ (chaintape L4 + L4.E git repos; CAS uses git as backend; not packaged as dotgit tarballs at this scale)",
+    "P*/cas/ (CAS git repos)",
+    "P*/evaluator.stdout (PPUT_RESULT JSON contained therein)",
+    "P*/evaluator.stderr",
+    "P*/chain_invariant.stderr"
+  ],
+  "reproducibility_protocol": "re-run handover/tests/scripts/run_tb_18r_r6_evidence.sh against same git HEAD (083b007 baseline) with same MAX_TX=12, per_problem_timeout_s=600, condition=n1, model=deepseek-chat; P02/P03 likely SIGKILL'd at timeout cap (hard problems with >25 cycles); use --per-problem-timeout-s 1800 to avoid SIGKILL + capture PPUT_RESULT for full R4 invariant equation observation."
+}

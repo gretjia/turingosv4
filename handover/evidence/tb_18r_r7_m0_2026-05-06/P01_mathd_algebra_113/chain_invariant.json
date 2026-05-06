@@ -1,0 +1,11 @@
+{
+  "attempt_aborted_count": 0,
+  "delta": 0,
+  "expected_completed_attempts": 10,
+  "invariant_verdict": "Ok",
+  "l4_work_attempt_count": 0,
+  "l4e_work_attempt_count": 10,
+  "preflight": "handover/ai-direct/TB-18R_R4_STEP_B_invariant.md",
+  "tb_18r_r4_invariant_equation": "evaluator_reported_completed_llm_calls == l4_work_attempt_count + l4e_work_attempt_count",
+  "terminal_halt_class": "MaxTxExhausted"
+}

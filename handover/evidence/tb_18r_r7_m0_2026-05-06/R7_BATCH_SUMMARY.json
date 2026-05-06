@@ -1,0 +1,94 @@
+{
+  "phase": "TB-18R R7 (M0 small batch)",
+  "atom_authority": "TB-18R charter §2 R7 row + §1.4 SG-18R.D",
+  "preflight": "handover/ai-direct/TB-18R_R4_STEP_B_invariant.md",
+  "problem_count": 5,
+  "max_tx_per_problem": 8,
+  "per_problem_timeout_s": 360,
+  "git_head_at_run": "8608bc321f55b47927942e07ee52315cceb98d28",
+  "run_timestamp_utc": "2026-05-06T09-39-26Z",
+  "no_overlap_with_r6": true,
+  "extraction_version": "v4 (preseed-aware; step_partial_ok-excluded per R3 §1.3 amended)",
+  "ship_gate_closure_summary": {
+    "SG-18R.3": "PASS empirically 5/5 R7 + 1/1 R6 evaluable = 6/6 OK",
+    "SG-18R.4_6field": "PASS at scale; 6 cases with delta=0 + matching halt class",
+    "SG-18R.7_audit_sampler": "PASS at scale; 4/5 PROCEED (38 PASS each); 1/5 BLOCK with single asserto_24 fail (R3 §3.5 amended omega-path-no-cutover consequence)"
+  },
+  "tb_18r_substrate_validation": {
+    "real_llm_rejections_on_chain_total_r7": 26,
+    "rejection_class_distribution_aggregate_r7": "see per-problem chain_invariant.json",
+    "r4_invariant_pass_rate_evaluable": "5/5 R7 + 1/1 R6 = 6/6 = 100% PASS under v4 extraction",
+    "verdict": "TB-18R R4 G1-ratified canonical equation empirically validated at scale on 6 evaluable runs spanning OmegaAccepted + MaxTxExhausted halt classes; 0 failures; 0 negative-delta violations"
+  },
+  "per_problem_results": [
+    {
+      "tag": "P01_mathd_algebra_113",
+      "duration_s": 86,
+      "halt_pattern": "MaxTxExhausted",
+      "audit_tape_verdict": "PROCEED",
+      "audit_tape_passed": 38,
+      "audit_tape_failed": 0,
+      "l4_work": 0,
+      "l4e_work": 10,
+      "expected_completed": 10,
+      "delta": 0,
+      "r4_invariant_verdict": "Ok",
+      "tool_dist": {"step": 9, "step_reject": 9}
+    },
+    {
+      "tag": "P02_mathd_algebra_114",
+      "duration_s": 273,
+      "halt_pattern": "OmegaAccepted",
+      "audit_tape_verdict": "BLOCK (37 PASS / 1 FAIL)",
+      "audit_tape_passed": 37,
+      "audit_tape_failed": 1,
+      "audit_tape_failed_assertion_likely": "assert_24_proposal_telemetry_chain (omega path; R3 §3.5 amended; G2 Q4)",
+      "l4_work": 1,
+      "l4e_work": 4,
+      "expected_completed": 5,
+      "delta": 0,
+      "r4_invariant_verdict": "Ok",
+      "tool_dist": {"step": 4, "omega_wtool": 1, "step_reject": 2, "parse_fail": 1, "step_partial_ok": 1},
+      "step_partial_ok_handling_note": "1 step_partial_ok excluded from expected per R3 §1.3 amended (CAS-only routing; LeanPass-on-rejection-fence-respect)"
+    },
+    {
+      "tag": "P03_mathd_algebra_125",
+      "duration_s": 10,
+      "halt_pattern": "OmegaAccepted",
+      "audit_tape_verdict": "PROCEED",
+      "audit_tape_passed": 38,
+      "audit_tape_failed": 0,
+      "l4_work": 1,
+      "l4e_work": 1,
+      "expected_completed": 2,
+      "delta": 0,
+      "r4_invariant_verdict": "Ok"
+    },
+    {
+      "tag": "P04_mathd_algebra_141",
+      "duration_s": 10,
+      "halt_pattern": "OmegaAccepted",
+      "audit_tape_verdict": "PROCEED",
+      "audit_tape_passed": 38,
+      "audit_tape_failed": 0,
+      "l4_work": 1,
+      "l4e_work": 1,
+      "expected_completed": 2,
+      "delta": 0,
+      "r4_invariant_verdict": "Ok"
+    },
+    {
+      "tag": "P05_aime_1983_p2",
+      "duration_s": 219,
+      "halt_pattern": "MaxTxExhausted",
+      "audit_tape_verdict": "PROCEED",
+      "audit_tape_passed": 38,
+      "audit_tape_failed": 0,
+      "l4_work": 0,
+      "l4e_work": 10,
+      "expected_completed": 10,
+      "delta": 0,
+      "r4_invariant_verdict": "Ok"
+    }
+  ]
+}

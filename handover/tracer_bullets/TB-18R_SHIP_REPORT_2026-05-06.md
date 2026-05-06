@@ -1,6 +1,8 @@
 # TB-18R SHIP REPORT — Tape Restoration / Per-LLM-Call ChainTape Externalization
 
 **Status**: **PROVISIONAL SHIPPED 2026-05-06** pending architect §8 sign-off on G2 dual-audit verdict per TB-17 §8 / TB-18 PROVISIONAL precedent.
+
+**Empirical R4 invariant validation: 6/6 evaluable PASS / 0 FAIL / 2 NA (PPUT-absent SIGKILL on hard problems).** All 6 evaluable runs across R6 + R7 PASS the G1-ratified canonical equation under v4 extraction (preseed-aware + step_partial_ok-excluded per R3 §1.3 amended). 100 real LLM-Lean cycle rejections persisted to L4.E with R3 fine-grained `RejectionClass ∈ {LeanFailed=6, ParseFailed=7, SorryBlocked=8, LlmError=9}` discriminators across all 8 runs (74 R6 + 26 R7).
 **Date**: 2026-05-06
 **Charter**: `handover/tracer_bullets/TB-18R_charter_2026-05-06.md` (v2; G1-ratified 2026-05-06).
 **G1 audit**: `handover/audits/CODEX_TB_18R_CHARTER_RATIFICATION_2026-05-06.md` (CHALLENGE-but-ship-clean; 7 remediations applied as charter v2).
@@ -73,9 +75,9 @@ includes verdict on smoke-level acceptability for SG-18R.13.
 ```text
 SG-18R.1  AttemptTelemetry per-LLM-call               PASS (R1 schema + R2 hot path; tests/tb_18r_attempt_telemetry_per_llm_call.rs 8 path-shape tests)
 SG-18R.2  AttemptTelemetry routes to L4 OR L4.E       PASS (R3 admission; tests/tb_18r_attempt_routes_to_l4_or_l4e.rs 5 tests)
-SG-18R.3  attempt_count_invariant() PASS              PASS (R4; tests/tb_18r_chain_attempt_invariant.rs 10 tests; R6 evidence per-run)
-SG-18R.4  6-field exact accounting per evidence run   PASS (R4; tests/tb_18r_chain_derived_facts_exact_accounting.rs 3 tests; R6 + R7 evidence)
-SG-18R.5  Real Lean rejects in L4.E with class set    PASS (R3 + R3.fix; L0 smoke 2026-05-06 P49 MAX_TX=5 produces {LeanFailed:1, SorryBlocked:4})
+SG-18R.3  attempt_count_invariant() PASS              PASS empirically 6/6 evaluable (R6 P01 + R7 P01-P05) under v4 extraction (preseed-aware + step_partial_ok-excluded per R3 §1.3 amended); 10 unit tests covering all 6 RunOutcome halt classes
+SG-18R.4  6-field exact accounting per evidence run   PASS empirically 6/6 evaluable + 3 unit tests; per-run chain_invariant.json exhibits all 6 fields per FR-18R.4 v2; delta=0 on all evaluable runs
+SG-18R.5  Real Lean rejects in L4.E with class set    PASS at scale (100 real LLM rejections across R6+R7 with R3 fine-grained class; R6 aggregate {LeanFailed:47, ParseFailed:4, SorryBlocked:23} + R7 aggregate similar distribution; pre-TB-18R baseline = 0)
 SG-18R.6  markov cluster source from AttemptTelemetry PASS at type-system level (R5 assert_g; tests/tb_18r_markov_failure_cluster_from_chain.rs 2 tests; full markov_capsule rewire forward-bound per R5 preflight §1.2)
 SG-18R.7  audit_tape sampler reaches math content     PASS (R5 assert_44/45 + Layer H tamper; tests/tb_18r_audit_sampler_attempt_payload.rs 2 + tests/tb_18r_audit_lean_stderr_tamper_detected.rs 2)
 SG-18R.8  attempt_chain_root referenced by composite  PASS at schema-validity level (R5 assert_46; tests/tb_18r_final_composite_attempt_chain_root.rs 2 tests; full Merkle population on omega path forward-bound per R3 §3.5 amended)
