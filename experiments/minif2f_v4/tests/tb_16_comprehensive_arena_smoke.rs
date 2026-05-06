@@ -73,14 +73,15 @@ fn comprehensive_arena_plan_only_emits_plan() {
 
     let plan = std::fs::read_to_string(&plan_path).expect("read plan");
 
-    // 6-task block present
+    // 6-task block present (binary's canonical engineered labels per
+    // header docstring §3 Atom B + design §4.5).
     for label in [
-        "A_happy_path",
-        "B_challenge_dismissed",
-        "C_challenge_upheld",
-        "D_exhaustion",
-        "E_expiry",
-        "F_complete_set_market",
+        "task_A_happy_path",
+        "task_B_challenge_released",
+        "task_C_market_lifecycle",
+        "task_D_exhaustion_bankruptcy_expire",
+        "task_E_exhaustion_no_bankruptcy",
+        "task_F_degraded_llm",
     ] {
         assert!(plan.contains(label), "task `{label}` missing from plan");
     }

@@ -195,14 +195,76 @@ fn print_plan(cfg: &ArenaConfig) {
     eprintln!("# chain_seed_id: {}", cfg.chain_seed_id);
     eprintln!("#");
     eprintln!("# 6-task engineered set (architect §3 Atom B + design §4.5):");
-    eprintln!("#   task_A: Open → Work → Verify(OMEGA) → FinalizeReward");
-    eprintln!("#   task_B: Open → Work → Verify(OMEGA) → Challenge → ChallengeResolve(Released)");
-    eprintln!("#   task_C: Open → MarketSeed → CompleteSetMint → TaskBankruptcy → CompleteSetRedeem");
-    eprintln!("#   task_D: Open → Work → TerminalSummary → TaskBankruptcy → TaskExpire");
-    eprintln!("#   task_E: Open → TerminalSummary");
-    eprintln!("#   task_F: Open → Work → TerminalSummary(DegradedLLM)");
+    eprintln!("#   task_A_happy_path: Open → Work → Verify(OMEGA) → FinalizeReward");
+    eprintln!("#   task_B_challenge_released: Open → Work → Verify(OMEGA) → Challenge → ChallengeResolve(Released)");
+    eprintln!("#   task_C_market_lifecycle: Open → MarketSeed → CompleteSetMint → TaskBankruptcy → CompleteSetRedeem");
+    eprintln!("#   task_D_exhaustion_bankruptcy_expire: Open → Work → TerminalSummary → TaskBankruptcy → TaskExpire");
+    eprintln!("#   task_E_exhaustion_no_bankruptcy: Open → TerminalSummary");
+    eprintln!("#   task_F_degraded_llm: Open → Work → TerminalSummary(DegradedLLM)");
     eprintln!("#");
     eprintln!("# Target: ONE chain emitting all 13 tx kinds.");
+}
+
+/// TB-18R G2 round-2 R10: write a structured `ARENA_PLAN.md` to
+/// `cfg.out_dir` for `--plan-only` auditability. Mirrors `print_plan`
+/// (canonical task labels) and adds the 13-tx-kind enumeration,
+/// sandbox preseed identity list, and architect §7.6 forbidden / §7.7
+/// halt-trigger summary.
+fn write_plan_to_disk(cfg: &ArenaConfig) -> Result<(), String> {
+    std::fs::create_dir_all(&cfg.out_dir)
+        .map_err(|e| format!("create out_dir {:?}: {e}", cfg.out_dir))?;
+    let plan_path = cfg.out_dir.join("ARENA_PLAN.md");
+    let body = format!(
+        "# TB-18 Atom B Phase 4 — comprehensive_arena plan (--plan-only)\n\
+         \n\
+         - out_dir: `{out_dir:?}`\n\
+         - chain_seed_id: `{seed}`\n\
+         - mode: --plan-only (no chain side-effects)\n\
+         \n\
+         ## 6-task engineered set (architect §3 Atom B + design §4.5)\n\
+         \n\
+         | Label | Lifecycle |\n\
+         |---|---|\n\
+         | `task_A_happy_path` | Open → Work → Verify(OMEGA) → FinalizeReward |\n\
+         | `task_B_challenge_released` | Open → Work → Verify(OMEGA) → Challenge → ChallengeResolve(Released) |\n\
+         | `task_C_market_lifecycle` | Open → MarketSeed → CompleteSetMint → TaskBankruptcy → CompleteSetRedeem |\n\
+         | `task_D_exhaustion_bankruptcy_expire` | Open → Work → TerminalSummary → TaskBankruptcy → TaskExpire |\n\
+         | `task_E_exhaustion_no_bankruptcy` | Open → TerminalSummary |\n\
+         | `task_F_degraded_llm` | Open → Work → TerminalSummary(DegradedLLM) |\n\
+         \n\
+         ## 13 architect-required tx kinds (cumulative across the chain)\n\
+         \n\
+         TaskOpen, EscrowLock, Work, Verify, Challenge, ChallengeResolve, \
+         MarketSeed, CompleteSetMint, CompleteSetRedeem, FinalizeReward, \
+         TerminalSummary, TaskExpire, TaskBankruptcy.\n\
+         \n\
+         ## Sandbox preseed (TB-13 substrate)\n\
+         \n\
+         - `tb7-7-sponsor` — sandbox-controlled-market sponsor identity.\n\
+         - `Agent_solver_<idx>` — solver agents (0..N).\n\
+         - `Agent_user_0` — market-side user identity (MarketSeed / \
+         CompleteSetMint / CompleteSetRedeem).\n\
+         \n\
+         ## Architect §7.6 Forbidden tx classes\n\
+         \n\
+         Production-binary admission rejects any tx kind outside the 13 \
+         enumerated above. forbidden writes fail-closed at the bus before \
+         reaching sequencer admission.\n\
+         \n\
+         ## Architect §7.7 Halt triggers\n\
+         \n\
+         - `OmegaAccepted` (clean halt; evaluator-side terminal proof).\n\
+         - `MaxTxExhausted` (per-task tx-cap reached).\n\
+         - `WallClockCap` (run wall-clock budget exceeded).\n\
+         - `ComputeCapViolated` (per-attempt compute / token cap exceeded).\n\
+         - `ErrorHalt` (uncaught runtime fault; capsule emits with \
+         `RunOutcome::ErrorHalt`).\n",
+        out_dir = cfg.out_dir,
+        seed = cfg.chain_seed_id,
+    );
+    std::fs::write(&plan_path, body)
+        .map_err(|e| format!("write {plan_path:?}: {e}"))?;
+    Ok(())
 }
 
 /// TB-18 Atom B Phase 4: write a minimal ProposalTelemetry to CAS and
@@ -958,7 +1020,14 @@ fn main() -> ExitCode {
     print_plan(&cfg);
 
     if cfg.plan_only {
-        eprintln!("[arena] --plan-only; exiting before chain side-effects");
+        if let Err(e) = write_plan_to_disk(&cfg) {
+            eprintln!("[arena] --plan-only ARENA_PLAN.md write failed: {e}");
+            return ExitCode::from(3);
+        }
+        eprintln!(
+            "[arena] --plan-only; wrote {:?}; exiting before chain side-effects",
+            cfg.out_dir.join("ARENA_PLAN.md")
+        );
         return ExitCode::from(0);
     }
 

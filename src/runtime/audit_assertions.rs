@@ -2578,8 +2578,25 @@ pub fn assert_44_attempt_telemetry_retrievable_from_cas(t: &LoadedTape) -> Asser
 }
 
 /// TRACE_MATRIX FC2-N34 (TB-18R R5 charter v2 §1.2 FR-18R.7 +
-/// §1.4 SG-18R.7): walk every `LeanResult` CAS object; assert each is
-/// canonical-decodable AND `verified ↔ exit_code == 0` invariant holds.
+/// §1.4 SG-18R.7; TB-18R G2 round-2 R8 partial-verdict-aware fix):
+/// walk every `LeanResult` CAS object; assert each is canonical-decodable
+/// AND respects the partial-verdict-aware invariant from
+/// `LeanResult` doc-comment:
+///
+///   1. `verified == true → exit_code == 0 && error_class.is_none()`
+///      (clean omega path: no error exit, no error class).
+///   2. `!verified && exit_code != 0 → error_class.is_some()`
+///      (a real Lean failure must carry a classified `LeanErrorClass`).
+///   3. `!verified && exit_code == 0` is admissible without further
+///      constraint — this is partial-verdict (`step_partial_ok`,
+///      `error_class = None`) or `sorry`-block
+///      (`error_class = Some(SorryBlocked)`). Both are legitimate
+///      non-rejection records and not enforced beyond (1) + (2).
+///
+/// Pre-G2-round-2 wording was the stricter `verified ↔ exit_code == 0`
+/// iff, which incorrectly rejected `step_partial_ok`'s legitimate
+/// `(exit_code=0, verified=false, error_class=None)` LeanResult shape
+/// (TB-18R G2 Codex VETO Q13).
 ///
 /// Empty-tape: SKIPPED.
 pub fn assert_45_lean_result_retrievable_from_cas(t: &LoadedTape) -> AssertionResult {
@@ -2604,18 +2621,36 @@ pub fn assert_45_lean_result_retrievable_from_cas(t: &LoadedTape) -> AssertionRe
                 );
             }
         };
-        let verified_iff_exit_zero = lr.verified == (lr.exit_code == 0);
-        if !verified_iff_exit_zero {
+        // (1) verified ⇒ exit_code == 0 ∧ error_class is None.
+        if lr.verified && (lr.exit_code != 0 || lr.error_class.is_some()) {
             return AssertionResult::fail(
                 45,
                 "lean_result_retrievable_from_cas",
                 AssertionLayer::G,
                 format!(
-                    "LeanResult invariant violated for cid {cid}: verified={} exit_code={}",
-                    lr.verified, lr.exit_code
+                    "LeanResult invariant (1) violated for cid {cid}: \
+                     verified=true but exit_code={} error_class={:?} \
+                     (clean omega-path requires exit_code=0 + error_class=None)",
+                    lr.exit_code, lr.error_class
                 ),
             );
         }
+        // (2) !verified ∧ exit_code != 0 ⇒ error_class is Some(_).
+        if !lr.verified && lr.exit_code != 0 && lr.error_class.is_none() {
+            return AssertionResult::fail(
+                45,
+                "lean_result_retrievable_from_cas",
+                AssertionLayer::G,
+                format!(
+                    "LeanResult invariant (2) violated for cid {cid}: \
+                     !verified ∧ exit_code={} but error_class=None \
+                     (real Lean failure must be classified)",
+                    lr.exit_code
+                ),
+            );
+        }
+        // (3) !verified ∧ exit_code == 0 is admissible (partial-verdict
+        // or sorry-block); no further enforcement.
     }
     AssertionResult::pass(45, "lean_result_retrievable_from_cas", AssertionLayer::G)
 }

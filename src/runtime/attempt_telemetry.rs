@@ -399,7 +399,15 @@ pub struct LeanResult {
     /// CID of the proof artifact (Lean source produced by the candidate)
     /// when verified successfully. `None` for failed / aborted attempts.
     pub proof_artifact_cid: Option<Cid>,
-    /// Fine-grained error class. `None` iff `verified == true`.
+    /// Fine-grained error class. Per the partial-verdict-aware invariant
+    /// (TB-18R G2 round-2 R8; enforced by `assert_45`):
+    /// - `verified == true` ⇒ `error_class == None`
+    ///   (clean omega path; no error class for a fully verified candidate).
+    /// - `!verified && exit_code != 0` ⇒ `error_class.is_some()`
+    ///   (a real Lean failure must be classified).
+    /// - `!verified && exit_code == 0` ⇒ `error_class` may be either
+    ///   `None` (partial-verdict / `step_partial_ok`) or
+    ///   `Some(SorryBlocked)` (`sorry`-block).
     pub error_class: Option<LeanErrorClass>,
 }
 
