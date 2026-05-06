@@ -10,8 +10,10 @@ Rust 2021, tokio, serde_json. Mission: MiniF2F Lean 4.
 - 机制 > 参数 > 提示 (Art. V + C-021/C-031/C-034/C-043)
 
 ## Code Standard (Art. I.1 + C-004 + C-027)
-- `cargo check` / `cargo test` 必过；`.env` 永不 commit
-- `src/{kernel,bus}.rs` + `src/sdk/tools/wallet.rs` + `src/state/sequencer.rs` 改动走 STEP_B_PROTOCOL（不直接编辑 main）
+- `cargo check` / `cargo test --workspace` 必过；`.env` 永不 commit
+- STEP_B_PROTOCOL（不直接编辑 main）适用于:
+  - `src/kernel.rs` + `src/bus.rs` + `src/sdk/tools/wallet.rs` + `src/state/sequencer.rs` (kernel/economy/admission)
+  - `src/state/typed_tx.rs` + `src/bottom_white/cas/schema.rs` (Class-4 typed-tx + CAS schema; TB-18R 2026-05-06 加入)
 - 任何影响行为的参数必须 env/config 可覆盖，不可硬编码
 
 ## Audit Standard (Art. V.1 + C-010 + C-023 + C-035)
@@ -46,6 +48,16 @@ Rust 2021, tokio, serde_json. Mission: MiniF2F Lean 4.
 - 按条款查: `grep -l "Art. I.1" cases/*.yaml`
 - 映射：`cases/V3_LESSONS.md` (50 v3 教训 → 现行判例)
 - 编号跳号：C-038 / C-042 为 reserved（见 C-041/C-043 预引用）
+
+## Active state (动态指针，不存判决)
+- TB 总账 (authoritative): `handover/tracer_bullets/TB_LOG.tsv`
+- 当前 charter: `handover/tracer_bullets/TB-18R_charter_2026-05-06.md` (Class 4, 等 Codex Gate 1)
+- 当前 FREEZE: TB-18 M1/M2/M3 + NodeMarket + PriceIndex + Polymarket-signal + public-chain + real-world-readiness; 全部解锁需 TB-18R SHIPPED FINAL with G2 PASS
+
+## Memory (跨 session 持久; auto-loaded MEMORY.md 是 hot index)
+- 高频 rule (feedback_*) + 项目状态 (project_*) + 外部引用 (reference_*) 路径: `~/.claude/projects/-home-zephryj-projects-turingosv4/memory/`
+- 写新 memory: 文件名 `<type>_<topic>.md` 加 frontmatter + 在 MEMORY.md 加 ≤150 字符 hook
+- 不要在 memory 里复述 TB_LOG.tsv 已有的 ship facts; 只记 session-level 教训和 surprise
 
 ## Docs (按需加载)
 | 文档 | 何时加载 |
