@@ -1,0 +1,10 @@
+[r9] starting | N=2 | MAX_TX=12 | timeout=1800s | git=095a62264d10b9bc56af5729872320daa587a352 | ts=2026-05-06T11-13-27Z
+[r9] [1/2] mathd_numbertheory_1124 → /home/zephryj/projects/turingosv4/handover/evidence/tb_18r_r9_p38_p49_2026-05-06/P01_mathd_numbertheory_1124
+[r9] [1/2] mathd_numbertheory_1124: dur=193s expected_completed=0 halt=MaxTxExhausted rc=0
+audit_tape: verdict=PROCEED passed=38 failed=0 halted=0 skipped=11 (out="/home/zephryj/projects/turingosv4/handover/evidence/tb_18r_r9_p38_p49_2026-05-06/P01_mathd_numbertheory_1124/verdict.json")
+[r9] [1/2] mathd_numbertheory_1124: invariant="invariant_verdict": "Err(TB-18R FR-18R.3 violation: clean halt MaxTxExhausted requires delta=0 but delta=12 (l4=0, l4e=12, expected=0))"
+[r9] [2/2] numbertheory_2pownm1prime_nprime → /home/zephryj/projects/turingosv4/handover/evidence/tb_18r_r9_p38_p49_2026-05-06/P02_numbertheory_2pownm1prime_nprime
+[r9] [2/2] numbertheory_2pownm1prime_nprime: dur=222s expected_completed=0 halt=MaxTxExhausted rc=0
+audit_tape: verdict=PROCEED passed=38 failed=0 halted=0 skipped=11 (out="/home/zephryj/projects/turingosv4/handover/evidence/tb_18r_r9_p38_p49_2026-05-06/P02_numbertheory_2pownm1prime_nprime/verdict.json")
+[r9] [2/2] numbertheory_2pownm1prime_nprime: invariant="invariant_verdict": "Err(TB-18R FR-18R.3 violation: clean halt MaxTxExhausted requires delta=0 but delta=13 (l4=0, l4e=13, expected=0))"
+[r9] DONE | summary at /home/zephryj/projects/turingosv4/handover/evidence/tb_18r_r9_p38_p49_2026-05-06/R9_BATCH_SUMMARY.json

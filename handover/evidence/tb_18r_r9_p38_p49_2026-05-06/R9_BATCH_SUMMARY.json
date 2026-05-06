@@ -1,0 +1,30 @@
+{
+  "phase": "TB-18R G2 round-2 R9",
+  "problem_count": 2,
+  "max_transactions_per_problem": 12,
+  "per_problem_timeout_s": 1800,
+  "git_head": "095a62264d10b9bc56af5729872320daa587a352",
+  "run_timestamp_utc": "2026-05-06T11-13-27Z",
+  "postprocess": "tb_18r_postprocess_invariant_v4.sh (step_partial_ok EXCLUDED per R3 \u00a71.3 amended CAS-only)",
+  "all_invariants_ok": true,
+  "per_problem_results": [
+    {
+      "tag": "P01_mathd_numbertheory_1124",
+      "delta": 0,
+      "l4": 0,
+      "l4e": 12,
+      "expected": 12,
+      "halt": "MaxTxExhausted",
+      "verdict": "Ok"
+    },
+    {
+      "tag": "P02_numbertheory_2pownm1prime_nprime",
+      "delta": 0,
+      "l4": 0,
+      "l4e": 13,
+      "expected": 13,
+      "halt": "MaxTxExhausted",
+      "verdict": "Ok"
+    }
+  ]
+}

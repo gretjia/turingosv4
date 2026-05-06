@@ -42,7 +42,7 @@ R3 has **three sub-surfaces** wired together as a single atom:
     - `proposal_cid` = the AttemptTelemetry CID minted by R2's `r2_write_attempt_telemetry` helper (return value already available — R2 helper returns `Result<Cid, String>`)
     - `stake = 0` (zero-stake; preflight §3.4)
   - Sequencer (per §1.2) maps `AttemptTelemetry.outcome` → fine-grained `RejectionClass` and writes a `RejectedSubmissionRecord` to L4.E.
-  - For paths 1-2 (`omega-full` / `omega-pertactic`, `predicate_passes=true`), the existing TB-7 Atom-3 WorkTx pipeline is unchanged. Their AttemptTelemetry already lands on L4 via the existing `proposal_cid → ProposalTelemetry` path; **R3 cuts over the omega WorkTx's `proposal_cid` to point at the AttemptTelemetry CID** (instead of ProposalTelemetry CID) so a single proposal_cid on the WorkTx unifies the success and failure paths under one schema.
+  - For paths 1-2 (`omega-full` / `omega-pertactic`, `predicate_passes=true`), the existing TB-7 Atom-3 WorkTx pipeline is unchanged. Their AttemptTelemetry already lands on L4 via the existing `proposal_cid → ProposalTelemetry` path. **[SUPERSEDED 2026-05-06 by §3.5 amendment — see below.]** The original draft proposed cutting omega WorkTx's `proposal_cid` to AttemptTelemetry CID; the amendment keeps it as ProposalTelemetry CID to preserve TB-7 audit-chain backward compatibility. The unified-schema goal is achieved at the L4.E-only failure-path layer (where AttemptTelemetry is the proposal_cid target); L4 omega keeps ProposalTelemetry as the proposal_cid target.
 
 ### §1.4 Net effect post-R3
 
@@ -221,7 +221,7 @@ Per CLAUDE.md STEP_B_PROTOCOL + R1 STEP_B precedent (`handover/ai-direct/TB-18R_
 3. **Phase 1b — implementation in isolation**:
    - Implement §1.1 schema tail-append + `From<LeanErrorClass>` trait + 2 unit tests in rejection_evidence.rs.
    - Implement §1.2 sequencer admission CAS-read + mapping in sequencer.rs.
-   - Implement §1.3 evaluator wire-up at 4 failure paths + omega proposal_cid cutover at 2 success paths.
+   - Implement §1.3 evaluator wire-up at 4 failure paths. **[SUPERSEDED 2026-05-06 by §3.5 amendment]** Original line additionally listed "omega proposal_cid cutover at 2 success paths"; the amendment removed that work — omega-path WorkTx.proposal_cid stays as ProposalTelemetry CID. As-shipped: 4 failure-path wire-ups only.
    - Update genesis_payload.toml Trust Root pin for evaluator.rs.
    - Add 3 new integration test files (10 tests total).
    - `cargo check --workspace` clean compile.
