@@ -1,6 +1,22 @@
 # TB-18R SHIP REPORT — Tape Restoration / Per-LLM-Call ChainTape Externalization
 
-**Status**: **PROVISIONAL SHIPPED 2026-05-06** pending architect §8 sign-off on G2 dual-audit verdict per TB-17 §8 / TB-18 PROVISIONAL precedent.
+> **!! STATUS DOWNGRADED 2026-05-06 — CANDIDATE REMEDIATION, NOT SHIPPED !!**
+>
+> Per architect ruling at `handover/directives/2026-05-06_TB18R_ROUND_2_ARCHITECT_RULING.md`:
+>
+> - The original "PROVISIONAL SHIPPED 2026-05-06" claim below is **withdrawn**. User single-word `"fix"` did not constitute §8 sign-off.
+> - TB-18R is currently in: **VETO → candidate remediation → process/semantic ratification pending**.
+> - Required path before any ship-class re-claim:
+>   Phase 1 (process repair) → Phase 2 (PartialVerdict typed semantic repair) →
+>   Phase 3 (P38/P49/M0 rerun on repaired substrate) → final Codex + Gemini dual audit → architect explicit §8 sign-off.
+> - Expanded FREEZE: M1 public benchmark report / M2 / M3 / TB-19 real-world / NodeMarket / PriceIndex claims based on M1 / any formal H-VPPU conclusion / any "formal benchmark passed" externalization — frozen until TB-18R **final** ship.
+> - Conservative ranking preserved: VETO > CHALLENGE > PASS.
+>
+> The body §1–§N below remains as the original PROVISIONAL submission for audit-trail continuity. **It is NOT a ship attestation.**
+
+---
+
+**Status (original; superseded by banner above)**: **PROVISIONAL SHIPPED 2026-05-06** pending architect §8 sign-off on G2 dual-audit verdict per TB-17 §8 / TB-18 PROVISIONAL precedent.
 
 **Empirical R4 invariant validation: 6/6 evaluable PASS / 0 FAIL / 2 NA (PPUT-absent SIGKILL on hard problems).** All 6 evaluable runs across R6 + R7 PASS the G1-ratified canonical equation under v4 extraction (preseed-aware + step_partial_ok-excluded per R3 §1.3 amended). 100 real LLM-Lean cycle rejections persisted to L4.E with R3 fine-grained `RejectionClass ∈ {LeanFailed=6, ParseFailed=7, SorryBlocked=8, LlmError=9}` discriminators across all 8 runs (74 R6 + 26 R7).
 **Date**: 2026-05-06

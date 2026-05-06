@@ -1,7 +1,29 @@
-# TB-18R G2 Round-2 Ship Report — 2026-05-06
+# TB-18R G2 Round-2 Candidate Remediation Report — 2026-05-06
+
+> **!! PENDING ROUND-2 DUAL AUDIT — NOT SHIPPED !!**
+>
+> **2026-05-06 architect ruling supersedes the original §8 sign-off claim below.**
+> Per `handover/directives/2026-05-06_TB18R_ROUND_2_ARCHITECT_RULING.md`:
+>
+> - User single-word `"fix"` was **NOT** architect §8 sign-off (Q-P1 ruling).
+> - R8–R12 are **CANDIDATE REMEDIATION**, not shipped atoms.
+> - This document was named "Ship Report" prematurely (Q-P6 ruling) — it is being kept
+>   under its original commit-history filename for audit-trail continuity, but the
+>   load-bearing classification is **Round-2 Candidate Remediation Report**.
+> - TB-18R itself is downgraded from PROVISIONAL SHIPPED back to CANDIDATE REMEDIATION
+>   pending Phase 1 (process repair) → Phase 2 (PartialVerdict semantic repair) →
+>   Phase 3 (P38/P49/M0 rerun) → final dual audit PASS.
+> - No M2/M3 / NodeMarket / TB-19 / public-benchmark claim may issue from this report.
+> - Conservative ranking VETO > CHALLENGE > PASS preserved for the pending round-2 verdict.
+>
+> The verbatim §1–§9 below is the candidate remediation submission. Do **not** read it as a ship attestation.
+
+---
+
+# Round-2 candidate remediation — 2026-05-06
 
 **Phase**: TB-18R G2 round-2 (post-VETO remediation slate R8..R12).
-**Authority**: §8 architect sign-off **path (A)** authorized 2026-05-06 — "fix" directive on G2 round-1 dual-audit verdict (`handover/audits/G2_TB_18R_DUAL_AUDIT_VERDICT_2026-05-06.md`).
+**Authority (originally claimed; superseded by ruling above)**: §8 architect sign-off **path (A)** authorized 2026-05-06 — "fix" directive on G2 round-1 dual-audit verdict (`handover/audits/G2_TB_18R_DUAL_AUDIT_VERDICT_2026-05-06.md`).
 **Predecessor HEAD**: `3964957` (TB-18R PROVISIONAL SHIPPED, G2 round-1 VETO).
 **Round-2 HEAD**: `095a622` (R8 + R10 atom commit) → forward (R9 evidence + R11 + R12).
 
@@ -104,6 +126,46 @@ Eight verdict.json + audit_tape.stderr persisted to `handover/evidence/tb_18r_r8
 ## §6 R12 — doc cleanup (Q14 + Q15 tail closure)
 
 **Q14 R0 grandfathering exception (CHALLENGE)**: G2 round-1 dispatch Q14 stated "R0-R7 diffs do NOT modify pre-TB-18R M1 evidence." Codex flagged this is literally false — R0 (`5338cea`) modified `MINIF2F_M1_BENCHMARK_REPORT.md` and added `README.md` inside `handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/`. The charter §0.A R0 row + VETO predecessor explicitly authorized this as **annotation/banner** (not L4/L4.E/CAS root rewrite), so the work itself is sound; only the dispatch's literal wording was overbroad.
+
+### §6.1 Verbatim authority quotes (added 2026-05-06 per architect ruling Q-P4)
+
+Per parent ruling `handover/directives/2026-05-06_TB18R_ROUND_2_ARCHITECT_RULING.md` §4 Q-P4, the structured annotation in §6.2 below is admissible **only if** the verbatim source quotes are reproduced inline. The two authoritative sources are:
+
+**(a) TB-18R charter `handover/tracer_bullets/TB-18R_charter_2026-05-06.md` — FR-18R.10 v2 (lines :435-451)**, verbatim:
+
+> FR-18R.10 (v2 — Codex Q6 remediated; artifact references corrected)
+> TB-18R ship doc + evidence runs do NOT modify pre-TB-18R M1
+> evidence at handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/
+> (no L4 / L4.E / CAS root rewrite; no relabel; per
+> `feedback_no_retroactive_evidence_rewrite`).
+>
+> The grandfathering annotation is recorded in BOTH:
+>   - `handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/README.md`
+>     (added in v2 R0 commit; primary grandfathering artifact)
+>   - `handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/MINIF2F_M1_BENCHMARK_REPORT.md`
+>     (top-of-file banner; cross-reference to README.md)
+>
+> Banner content (canonical):
+> "This M1 result predates TB-18R Tape Restoration. Per-LLM-call
+> externalization not yet enforced. Failure-path asymmetry present.
+> Do not use as benchmark evidence."
+
+**(b) VETO predecessor `handover/architect-insights/TB18_TAPE_NON_EXTERNALIZATION_VETO_2026-05-06.md` §C.5 (lines :604-609)**, verbatim:
+
+> ### §C.5 `feedback_no_retroactive_evidence_rewrite` applies — pre-TB-18R evidence is grandfathered
+>
+>   - Pre-TB-18R M1 evidence (`handover/evidence/tb_18_minif2f_m1_2026-05-05T18-31-55Z/`) is preserved as-is.
+>   - No L4 / L4.E / CAS root migration. No relabel of historical results.
+>   - TB-18R Atom R0 charter §grandfathering will add a README annotation to historical evidence directories: *"This M1 result predates TB-18R Tape Restoration. Per-LLM-call externalization not yet enforced. Failure-path asymmetry present. Do not use as benchmark evidence."*
+>   - Going-forward only: M1-rerun in Atom R6 produces fresh evidence at `handover/evidence/tb_18r_m1_rerun_<timestamp>/`.
+
+**(c) Charter §2 atom-table R0 row (line :600)**, verbatim:
+
+> | 1 | **R0** | 0 | this charter (v2 post-Codex-G1) + VETO archive + grandfathering README.md (NEW) + benchmark-report banner on M1 evidence | single-pass | n/a | charter commit + Codex Gate 1 PASS-with-remediations |
+
+These three quotes together establish the architect-authorized grandfathering envelope: (i) preservation of pre-TB-18R M1 evidence as-is, (ii) a README annotation + a top-of-file banner are explicitly enumerated as the permitted artifacts, (iii) "no L4 / L4.E / CAS root rewrite" + "no relabel" are explicit prohibitions. The §6.2 structured annotation below is a **citation-with-annotation** that must not be read as a substitute for these verbatim quotes; if the §6.2 wording is ever in tension with (a), (b), or (c), the verbatim quotes govern.
+
+### §6.2 Round-2 annotation-as-correction
 
 **Annotation-as-correction**: the precise round-2 statement that survives audit is:
 
