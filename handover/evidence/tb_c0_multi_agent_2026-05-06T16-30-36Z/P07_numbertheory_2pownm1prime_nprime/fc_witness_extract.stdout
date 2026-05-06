@@ -1,0 +1,54 @@
+=== FC-witness manifest for /home/zephryj/projects/turingosv4/handover/evidence/tb_c0_multi_agent_2026-05-06T16-30-36Z/P07_numbertheory_2pownm1prime_nprime ===
+Wrote: /home/zephryj/projects/turingosv4/handover/evidence/tb_c0_multi_agent_2026-05-06T16-30-36Z/P07_numbertheory_2pownm1prime_nprime/fc_witness_manifest.json
+Tally: 21 GREEN, 4 AMBER, 0 RED
+
+  ✅  FC1-N1_q_state_carrier
+        initial_q_state present
+  ✅  FC1-N2_q_t_slice
+        48 rejection records carry parent_state_root
+  ✅  FC1-N3_HEAD_t_pointer
+        9da57acf2f835b5fe03265c7e74ab0a3957d695b
+  ✅  FC1-N4_q1_after_delta
+        l4_count=3
+  ✅  FC1-N5_rtool
+        2 agent audit-trail records
+  ✅  FC1-N7_delta_AI_call
+        50 AttemptTelemetry CAS objects
+  ✅  FC1-N11_predicates
+        50 LeanResult CAS objects
+  ✅  FC1-N13_wtool
+        l4=3, l4e=48
+  ✅  FC1-N15_reject_branch
+        48 rejection records on L4.E
+  ✅  FC1-INV1_every_attempt_tape_visible
+        chain_invariant: expected=50, l4=0, l4e=47, AT_count=50, architect_inv1.match=True (architect_chain_attempt_count=50, evaluator_reported_tx_count=50)
+  ✅  FC1-INV3_count_equality_constitutional
+        AT=50 vs (l4=0 + l4e=47 + capsule=3) = 50; runner-passed expected=50 (diff vs AT_count=0)
+  ✅  FC2-N16_InitAI
+        genesis_report fields=['constitution_hash', 'runtime_repo', 'cas_path', 'system_pubkey_hash', 'agent_pubkeys_path', 'initial_balances']
+  ✅  FC2-N18_constitution_ground_truth
+        eec695459c71fbef3685583485deb431...
+  ✅  FC2-N21_Q0_minted
+        Q_0 ledger present
+  ✅  FC2-N22_HALT
+        halt=MaxTxExhausted
+  ✅  FC2-INV1_genesis_replayable
+        38 Pass / 0 Fail / 11 Skipped of 49 audit_tape assertions
+  ✅  FC2-INV4_taskopen_escrowlock_chain_events
+        task_open=1, escrow_lock=1
+  ✅  FC2-INV6_pubkeys_verify
+        pinned_pubkeys present
+  ✅  FC2-INV7_agent_registry_resolves
+        agent_pubkeys present
+  ✅  FC3-INV1_capsule_derived
+        EvidenceCapsule present in CAS
+  ✅  FC3-INV2_no_global_pointer
+        absent (Art. 0.2 honored)
+  🟡 structural_only  FC3-INV3_raw_logs_shielded
+        verified via constitution_fc3_meta::fc3_raw_logs_not_in_agent_read_view (source-grep test)
+  🟡 structural_only  FC3-INV5_deep_history_override
+        verified via constitution_fc3_meta::fc3_deep_history_requires_override
+  🟡 structural_only  FC3-INV7_architect_propose_only
+        verified via constitution_fc3_meta::fc3_architectai_proposal_not_direct_write
+  🟡 structural_only  FC3-INV8_judge_veto_only
+        verified via constitution_fc3_meta::fc3_judgeai_veto_only

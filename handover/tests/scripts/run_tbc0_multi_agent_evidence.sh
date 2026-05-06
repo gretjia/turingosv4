@@ -323,7 +323,9 @@ not synthesized. MiniF2F is a published benchmark
 (arXiv:2109.00110, https://github.com/openai/miniF2F).
 EOM
 
-  SUMMARY_ROWS+=("{\"tag\":\"$TAG\",\"name\":\"$NAME\",\"difficulty\":\"$DIFF\",\"max_tx\":$MAX_TX,\"tx_count\":$EXPECTED_COMPLETED,\"halt\":\"$HALT_CLASS\",\"solved\":$SOLVED,\"step_partial_ok\":$STEP_POK,\"duration_s\":$PROB_DUR,\"evaluator_rc\":$EVAL_RC}")
+  # Convert Python-style booleans (True/False) to JSON booleans (true/false)
+  SOLVED_JSON=$(echo "$SOLVED" | tr 'A-Z' 'a-z')
+  SUMMARY_ROWS+=("{\"tag\":\"$TAG\",\"name\":\"$NAME\",\"difficulty\":\"$DIFF\",\"max_tx\":$MAX_TX,\"tx_count\":$EXPECTED_COMPLETED,\"halt\":\"$HALT_CLASS\",\"solved\":$SOLVED_JSON,\"step_partial_ok\":$STEP_POK,\"duration_s\":$PROB_DUR,\"evaluator_rc\":$EVAL_RC}")
 done
 
 # Compose batch summary
