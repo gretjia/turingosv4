@@ -214,6 +214,25 @@ impl CasStore {
         Ok(())
     }
 
+    /// TB-18R R4 (preflight `handover/ai-direct/TB-18R_R4_STEP_B_invariant.md`):
+    /// count CAS objects whose metadata `object_type` matches `ty`.
+    ///
+    /// Used by `chain_derived_run_facts::compute_run_facts_from_chain_with_invariant`
+    /// to populate `attempt_aborted_count` (FR-18R.4 v2 — count of
+    /// `TerminalAbortRecord` CAS objects per run). Pure function over the
+    /// in-memory index; no disk I/O. Caller is responsible for ensuring the
+    /// index reflects the durable sidecar (open the store post-drain or call
+    /// `reload_index_from_sidecar` first).
+    ///
+    /// TRACE_MATRIX FC1-N43 (TB-18R R4 invariant ship-gate equation
+    /// numerator).
+    pub fn count_by_object_type(&self, ty: ObjectType) -> u64 {
+        self.index
+            .values()
+            .filter(|m| m.object_type == ty)
+            .count() as u64
+    }
+
     /// Store content; returns its Cid. Idempotent — same content → same Cid.
     pub fn put(
         &mut self,

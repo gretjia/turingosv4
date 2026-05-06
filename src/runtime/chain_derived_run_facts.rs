@@ -50,13 +50,15 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
+use crate::bottom_white::cas::schema::ObjectType;
 use crate::bottom_white::cas::store::CasStore;
 use crate::bottom_white::ledger::rejection_evidence::RejectionEvidenceWriter;
 use crate::bottom_white::ledger::transition_ledger::{canonical_decode, Git2LedgerWriter, LedgerEntry, LedgerWriter, LedgerWriterError, TxKind};
 use crate::runtime::proposal_telemetry::read_from_cas as read_proposal_telemetry;
 use crate::runtime::verification_result::read_from_cas as read_verification_result;
 use crate::state::q_state::TxId;
-use crate::state::typed_tx::{TypedTx, VerifyVerdict};
+use crate::state::sequencer::Sequencer;
+use crate::state::typed_tx::{RunOutcome, TypedTx, VerifyVerdict};
 
 const REJECTIONS_JSONL_FILENAME: &str = "rejections.jsonl";
 
@@ -160,6 +162,45 @@ pub struct ChainDerivedRunFacts {
     /// as a DAG violation; conformance tests demonstrate the plumbing.
     #[serde(default)]
     pub parent_tx_state: ParentTxState,
+    /// **TB-18R R4 NEW (2026-05-06; FR-18R.4 v2 + Codex Q4+Q7 remediation)**:
+    /// evaluator-reported number of completed LLM-Lean cycles for this run
+    /// (input from the evaluator side; not derivable from chain alone).
+    /// Aborted attempts are NOT counted here (they go in
+    /// `attempt_aborted_count`).
+    /// Default 0 for pre-R4 evidence runs (deserialization compat).
+    #[serde(default)]
+    pub expected_completed_attempts: u64,
+    /// **TB-18R R4 NEW**: count of L4 LedgerEntry whose decoded TypedTx is
+    /// `TypedTx::Work`. One omega-path attempt = one L4 Work entry.
+    #[serde(default)]
+    pub l4_work_attempt_count: u64,
+    /// **TB-18R R4 NEW**: count of L4.E `RejectedSubmissionRecord` with
+    /// `tx_kind == TxKind::Work`. One failure-path attempt = one L4.E Work
+    /// entry (post-R3 admission expansion).
+    #[serde(default)]
+    pub l4e_work_attempt_count: u64,
+    /// **TB-18R R4 NEW**: count of `TerminalAbortRecord` CAS objects under
+    /// the run's CAS root. Aborted attempts (externally killed / per-call
+    /// budget halt / WallClockCap-during-Lean / etc.) are excluded from
+    /// `expected_completed_attempts` and counted here per FR-18R.3 v2.
+    #[serde(default)]
+    pub attempt_aborted_count: u64,
+    /// **TB-18R R4 NEW**: deterministic accounting delta — equals
+    /// `l4_work_attempt_count + l4e_work_attempt_count -
+    /// expected_completed_attempts` per FR-18R.4 v2. Sign convention:
+    ///   - 0  = chain matches evaluator (clean halt requirement).
+    ///   - >0 = chain has more Work entries than evaluator reported as
+    ///     completed; admissible only when `delta == attempt_aborted_count`
+    ///     under a terminal abort halt class.
+    ///   - <0 = chain has fewer Work entries than reported (always a
+    ///     ship-gate violation; means an attempt vanished pre-chain).
+    #[serde(default)]
+    pub delta: i64,
+    /// **TB-18R R4 NEW**: run-level halt class. Mirrors constitutional
+    /// `RunOutcome` per `feedback_no_workarounds_strict_constitution`
+    /// (no new enum). Default `OmegaAccepted` for pre-R4 evidence runs.
+    #[serde(default)]
+    pub terminal_halt_class: RunOutcome,
 }
 
 /// TRACE_MATRIX § 3 orphan (TB-7R 2026-05-02; see OBS_R022_TRACE_MATRIX_TB7R_ORPHANS):
@@ -237,6 +278,10 @@ pub enum ChainDerivedError {
     Cas(String),
     Codec(String),
     L4eOpen(String),
+    /// TB-18R R4 (FR-18R.3 v2 drain barrier witness): chain quiescence
+    /// check failed — sequencer was not drained before invariant
+    /// evaluation. See `DrainBarrierViolation`.
+    DrainBarrier(DrainBarrierViolation),
 }
 
 impl std::fmt::Display for ChainDerivedError {
@@ -247,6 +292,7 @@ impl std::fmt::Display for ChainDerivedError {
             Self::Cas(s) => write!(f, "cas error: {s}"),
             Self::Codec(s) => write!(f, "codec error: {s}"),
             Self::L4eOpen(s) => write!(f, "l4.e open error: {s}"),
+            Self::DrainBarrier(v) => write!(f, "{v}"),
         }
     }
 }
@@ -511,7 +557,359 @@ pub fn compute_run_facts_from_chain(
         chain_oracle_verified,
         chain_economic_finalized,
         parent_tx_state,
+        // TB-18R R4 fields default to zero / OmegaAccepted on the legacy
+        // entry-point; callers that need the invariant ship-gate must use
+        // `compute_run_facts_from_chain_with_invariant` which fills these.
+        expected_completed_attempts: 0,
+        l4_work_attempt_count: 0,
+        l4e_work_attempt_count: 0,
+        attempt_aborted_count: 0,
+        delta: 0,
+        terminal_halt_class: RunOutcome::OmegaAccepted,
     })
+}
+
+// ── TB-18R R4 invariant API ─────────────────────────────────────────────────
+
+/// TRACE_MATRIX FC1-N43 (TB-18R R4 charter v2 §1.2 FR-18R.3 + FR-18R.4 +
+/// §0.A Codex Q1+Q4 remediation): externally-provided inputs for the
+/// chain-derived attempt-count invariant ship-gate equation. Caller (the
+/// evaluator binary at run termination) supplies these per-run and the
+/// chain-derivation routine fills in the chain-side fields.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AttemptCountInvariantInputs {
+    /// Number of LLM-Lean cycles the evaluator reports as having
+    /// completed (pass / fail outcome reached). Aborted attempts are NOT
+    /// counted here.
+    pub expected_completed_attempts: u64,
+    /// Run-level halt class per `RunOutcome`. Determines which side of the
+    /// clean-halt vs terminal-abort branch the invariant equation evaluates.
+    pub terminal_halt_class: RunOutcome,
+}
+
+/// TRACE_MATRIX FC1-N43 (TB-18R R4): violation class for
+/// `attempt_count_invariant`. Each variant pins the exact equation arm
+/// that failed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AttemptCountInvariantViolation {
+    /// Clean-halt class (`OmegaAccepted` / `MaxTxExhausted`) but
+    /// `delta != 0`. Per FR-18R.3 v2: clean halts MUST satisfy
+    /// `evaluator_reported_completed_llm_calls == l4 + l4e` exactly.
+    CleanHaltDeltaNonZero {
+        terminal_halt_class: RunOutcome,
+        delta: i64,
+        l4_work_attempt_count: u64,
+        l4e_work_attempt_count: u64,
+        expected_completed_attempts: u64,
+    },
+    /// Clean-halt class but `attempt_aborted_count != 0`. Per FR-18R.4 v2:
+    /// clean halts cannot have aborted attempts (definitional).
+    CleanHaltAbortedNonZero {
+        terminal_halt_class: RunOutcome,
+        attempt_aborted_count: u64,
+    },
+    /// Terminal-abort class but `expected + aborted != l4 + l4e`. Per
+    /// FR-18R.3 v2: the auxiliary equation `evaluator_observed_llm_call_starts
+    /// == evaluator_reported_completed_llm_calls + attempt_aborted_count`
+    /// extended to chain-derived `l4 + l4e == expected + aborted`.
+    AbortHaltUnbalanced {
+        terminal_halt_class: RunOutcome,
+        expected_completed_attempts: u64,
+        attempt_aborted_count: u64,
+        l4_work_attempt_count: u64,
+        l4e_work_attempt_count: u64,
+    },
+    /// `delta < 0` is forbidden under any halt class — means chain has
+    /// fewer Work entries than evaluator reported completed; an attempt
+    /// vanished pre-chain.
+    NegativeDelta {
+        terminal_halt_class: RunOutcome,
+        delta: i64,
+    },
+}
+
+impl std::fmt::Display for AttemptCountInvariantViolation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::CleanHaltDeltaNonZero {
+                terminal_halt_class,
+                delta,
+                l4_work_attempt_count,
+                l4e_work_attempt_count,
+                expected_completed_attempts,
+            } => write!(
+                f,
+                "TB-18R FR-18R.3 violation: clean halt {terminal_halt_class:?} \
+                 requires delta=0 but delta={delta} (l4={l4_work_attempt_count}, \
+                 l4e={l4e_work_attempt_count}, expected={expected_completed_attempts})"
+            ),
+            Self::CleanHaltAbortedNonZero {
+                terminal_halt_class,
+                attempt_aborted_count,
+            } => write!(
+                f,
+                "TB-18R FR-18R.4 violation: clean halt {terminal_halt_class:?} \
+                 requires attempt_aborted_count=0 but found {attempt_aborted_count}"
+            ),
+            Self::AbortHaltUnbalanced {
+                terminal_halt_class,
+                expected_completed_attempts,
+                attempt_aborted_count,
+                l4_work_attempt_count,
+                l4e_work_attempt_count,
+            } => write!(
+                f,
+                "TB-18R FR-18R.3 auxiliary violation: abort halt \
+                 {terminal_halt_class:?} requires expected+aborted == l4+l4e \
+                 but {expected_completed_attempts}+{attempt_aborted_count} != \
+                 {l4_work_attempt_count}+{l4e_work_attempt_count}"
+            ),
+            Self::NegativeDelta {
+                terminal_halt_class,
+                delta,
+            } => write!(
+                f,
+                "TB-18R FR-18R.3 violation: delta<0 forbidden (delta={delta}, \
+                 halt={terminal_halt_class:?}) — attempt vanished pre-chain"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for AttemptCountInvariantViolation {}
+
+/// TRACE_MATRIX FC1-N43 (TB-18R R4): violation class for
+/// `verify_chain_quiescent_post_drain`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DrainBarrierViolation {
+    /// `next_submit_id - 1 != l4_count + l4e_count`. Means there are
+    /// submitted typed-tx that have not reached terminal state on chain
+    /// or L4.E — the sequencer was not drained before the invariant
+    /// check ran.
+    QuiescenceCountMismatch {
+        next_submit_id_minus_one: u64,
+        l4_count: u64,
+        l4e_count: u64,
+    },
+}
+
+impl std::fmt::Display for DrainBarrierViolation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::QuiescenceCountMismatch {
+                next_submit_id_minus_one,
+                l4_count,
+                l4e_count,
+            } => write!(
+                f,
+                "TB-18R FR-18R.3 drain barrier violation: \
+                 next_submit_id-1={next_submit_id_minus_one} != \
+                 l4={l4_count} + l4e={l4e_count} — sequencer not drained"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for DrainBarrierViolation {}
+
+/// TRACE_MATRIX FC1-N43 (TB-18R R4 charter v2 §1.2 FR-18R.3 v2 +
+/// §0.A Codex Q1+Q4 remediation; G1-ratified canonical contract).
+///
+/// Ship-gate equation populated **without alteration**:
+///
+///   evaluator_reported_completed_llm_calls
+///     == l4_work_attempt_count + l4e_work_attempt_count
+///
+/// (after a mandatory sequencer drain barrier — every submitted typed-tx
+///  has reached a terminal state in chain or L4.E before the equation is
+///  evaluated)
+///
+/// Plus the auxiliary equation for aborted attempts:
+///
+///   evaluator_observed_llm_call_starts
+///     == evaluator_reported_completed_llm_calls + attempt_aborted_count
+///
+/// **Behavior**:
+/// - For clean halts (`OmegaAccepted` / `MaxTxExhausted`):
+///     `delta == 0` AND `attempt_aborted_count == 0` required.
+/// - For terminal abort states (`WallClockCap` / `ComputeCap` /
+///   `ErrorHalt` / `DegradedLLM`):
+///     `expected_completed_attempts + attempt_aborted_count
+///        == l4_work_attempt_count + l4e_work_attempt_count`
+///     required (extends the G1 equation by the auxiliary aborted-count
+///     term so the chain-side count remains exact).
+/// - `delta < 0` is forbidden under any halt class.
+///
+/// **Drain barrier contract**: caller MUST have drained the sequencer
+/// (via `ChaintapeBundle::shutdown().await` or equivalent) before
+/// invoking. See `verify_chain_quiescent_post_drain` for an explicit
+/// witness.
+pub fn attempt_count_invariant(
+    facts: &ChainDerivedRunFacts,
+) -> Result<(), AttemptCountInvariantViolation> {
+    if facts.delta < 0 {
+        return Err(AttemptCountInvariantViolation::NegativeDelta {
+            terminal_halt_class: facts.terminal_halt_class,
+            delta: facts.delta,
+        });
+    }
+    match facts.terminal_halt_class {
+        RunOutcome::OmegaAccepted | RunOutcome::MaxTxExhausted => {
+            if facts.delta != 0 {
+                return Err(AttemptCountInvariantViolation::CleanHaltDeltaNonZero {
+                    terminal_halt_class: facts.terminal_halt_class,
+                    delta: facts.delta,
+                    l4_work_attempt_count: facts.l4_work_attempt_count,
+                    l4e_work_attempt_count: facts.l4e_work_attempt_count,
+                    expected_completed_attempts: facts.expected_completed_attempts,
+                });
+            }
+            if facts.attempt_aborted_count != 0 {
+                return Err(AttemptCountInvariantViolation::CleanHaltAbortedNonZero {
+                    terminal_halt_class: facts.terminal_halt_class,
+                    attempt_aborted_count: facts.attempt_aborted_count,
+                });
+            }
+            Ok(())
+        }
+        RunOutcome::WallClockCap
+        | RunOutcome::ComputeCap
+        | RunOutcome::ErrorHalt
+        | RunOutcome::DegradedLLM => {
+            // Auxiliary equation: expected + aborted == l4 + l4e.
+            let lhs = facts
+                .expected_completed_attempts
+                .saturating_add(facts.attempt_aborted_count);
+            let rhs = facts
+                .l4_work_attempt_count
+                .saturating_add(facts.l4e_work_attempt_count);
+            if lhs != rhs {
+                return Err(AttemptCountInvariantViolation::AbortHaltUnbalanced {
+                    terminal_halt_class: facts.terminal_halt_class,
+                    expected_completed_attempts: facts.expected_completed_attempts,
+                    attempt_aborted_count: facts.attempt_aborted_count,
+                    l4_work_attempt_count: facts.l4_work_attempt_count,
+                    l4e_work_attempt_count: facts.l4e_work_attempt_count,
+                });
+            }
+            Ok(())
+        }
+    }
+}
+
+/// TRACE_MATRIX FC1-N43 (TB-18R R4 charter v2 §1.2 FR-18R.3 v2 drain barrier
+/// witness): assert chain quiescence post-shutdown.
+///
+/// Returns `Ok(())` iff `seq.next_submit_id_peek() - 1 == l4_count + l4e_count`.
+///
+/// Should be called AFTER `ChaintapeBundle::shutdown().await` — the
+/// `JoinHandle` returned by the driver task only resolves once every
+/// submitted envelope has been `apply_one`-processed. This function
+/// re-asserts that count equality at the chain-derivation boundary as a
+/// defense-in-depth witness for ship-gate evidence.
+pub fn verify_chain_quiescent_post_drain(
+    seq: &Sequencer,
+    runtime_repo_path: &Path,
+) -> Result<(), ChainDerivedError> {
+    let next_submit_id = seq.next_submit_id_peek();
+    let next_submit_id_minus_one = next_submit_id.saturating_sub(1);
+
+    let writer = Git2LedgerWriter::open(runtime_repo_path)?;
+    let l4_count = writer.len() as u64;
+
+    let rejections_path = runtime_repo_path.join(REJECTIONS_JSONL_FILENAME);
+    let l4e_count = if rejections_path.exists() {
+        RejectionEvidenceWriter::open_jsonl(rejections_path)
+            .map_err(|e| ChainDerivedError::L4eOpen(e.to_string()))?
+            .len() as u64
+    } else {
+        0
+    };
+
+    if next_submit_id_minus_one != l4_count.saturating_add(l4e_count) {
+        return Err(ChainDerivedError::DrainBarrier(
+            DrainBarrierViolation::QuiescenceCountMismatch {
+                next_submit_id_minus_one,
+                l4_count,
+                l4e_count,
+            },
+        ));
+    }
+    Ok(())
+}
+
+/// TRACE_MATRIX FC1-N43 (TB-18R R4 charter v2 §1.2 FR-18R.4 v2 — six exact
+/// fields per evidence run).
+///
+/// Compute `ChainDerivedRunFacts` extended with the R4 invariant fields
+/// (`expected_completed_attempts`, `l4_work_attempt_count`,
+/// `l4e_work_attempt_count`, `attempt_aborted_count`, `delta`,
+/// `terminal_halt_class`). Walks L4 + L4.E + CAS index for
+/// `TerminalAbortRecord` count.
+///
+/// **Drain barrier contract**: caller MUST have drained the sequencer
+/// (via `ChaintapeBundle::shutdown().await` or equivalent) before
+/// invoking, otherwise the chain-side counts will lag the evaluator-side
+/// `expected_completed_attempts` and the invariant equation will appear
+/// to fail spuriously.
+pub fn compute_run_facts_from_chain_with_invariant(
+    runtime_repo_path: &Path,
+    cas_path: &Path,
+    invariant_inputs: AttemptCountInvariantInputs,
+) -> Result<ChainDerivedRunFacts, ChainDerivedError> {
+    let mut facts = compute_run_facts_from_chain(runtime_repo_path, cas_path)?;
+
+    // L4 Work attempt count: walk L4 + decode TypedTx + count Work variants.
+    let writer = Git2LedgerWriter::open(runtime_repo_path)?;
+    let l4_count = writer.len();
+    let entries: Vec<LedgerEntry> = (1..=l4_count)
+        .map(|t| writer.read_at(t))
+        .collect::<Result<Vec<_>, _>>()?;
+    let cas = CasStore::open(cas_path).map_err(|e| ChainDerivedError::Cas(e.to_string()))?;
+    let mut l4_work_attempt_count: u64 = 0;
+    for entry in &entries {
+        let payload_bytes = match cas.get(&entry.tx_payload_cid) {
+            Ok(b) => b,
+            Err(_) => continue,
+        };
+        let typed_tx: TypedTx = match canonical_decode(&payload_bytes) {
+            Ok(tx) => tx,
+            Err(_) => continue,
+        };
+        if matches!(typed_tx, TypedTx::Work(_)) {
+            l4_work_attempt_count += 1;
+        }
+    }
+
+    // L4.E Work attempt count: walk RejectedSubmissionRecord with tx_kind=Work.
+    let rejections_path = runtime_repo_path.join(REJECTIONS_JSONL_FILENAME);
+    let l4e_writer = if rejections_path.exists() {
+        RejectionEvidenceWriter::open_jsonl(rejections_path)
+            .map_err(|e| ChainDerivedError::L4eOpen(e.to_string()))?
+    } else {
+        RejectionEvidenceWriter::new()
+    };
+    let l4e_work_attempt_count: u64 = l4e_writer
+        .records()
+        .iter()
+        .filter(|r| r.tx_kind == TxKind::Work)
+        .count() as u64;
+
+    // TerminalAbortRecord count: query CAS index by object_type.
+    let attempt_aborted_count = cas.count_by_object_type(ObjectType::TerminalAbortRecord);
+
+    let delta: i64 = (l4_work_attempt_count as i64)
+        .saturating_add(l4e_work_attempt_count as i64)
+        .saturating_sub(invariant_inputs.expected_completed_attempts as i64);
+
+    facts.expected_completed_attempts = invariant_inputs.expected_completed_attempts;
+    facts.l4_work_attempt_count = l4_work_attempt_count;
+    facts.l4e_work_attempt_count = l4e_work_attempt_count;
+    facts.attempt_aborted_count = attempt_aborted_count;
+    facts.delta = delta;
+    facts.terminal_halt_class = invariant_inputs.terminal_halt_class;
+
+    Ok(facts)
 }
 
 // ── Tests ───────────────────────────────────────────────────────────────────
