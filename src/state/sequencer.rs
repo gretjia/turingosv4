@@ -435,18 +435,45 @@ pub fn refine_rejection_class_via_attempt_telemetry(
         TypedTx::Work(w) => w.proposal_cid.clone(),
         _ => return base_class,
     };
-    let cas_g = match cas.read() {
-        Ok(g) => g,
-        Err(_) => return base_class,
-    };
     use crate::runtime::attempt_telemetry::{
         read_attempt_telemetry_from_cas, AttemptOutcome,
     };
-    let attempt = match read_attempt_telemetry_from_cas(&cas_g, &proposal_cid) {
-        Ok(a) => a,
-        Err(_) => return base_class,
+    // R3.fix (preflight handover/ai-direct/TB-18R_R3FIX_STEP_B_cas_reload.md
+    // §3.2 + §3.3): the long-lived sequencer.cas handle has a stale in-memory
+    // index relative to evaluator-side handles that wrote AttemptTelemetry on
+    // the same disk path AFTER sequencer startup. First read may miss; on miss
+    // we promote to a write lock, reload sidecar, drop, retry read once. On
+    // second miss we fall back to base_class (legacy ProposalTelemetry CID
+    // path; documented behavior preserved).
+    let initial = {
+        let cas_g = match cas.read() {
+            Ok(g) => g,
+            Err(_) => return base_class,
+        };
+        read_attempt_telemetry_from_cas(&cas_g, &proposal_cid)
     };
-    drop(cas_g);
+    let attempt = match initial {
+        Ok(a) => a,
+        Err(_) => {
+            // Reload sidecar to pick up writes from other CasStore handles.
+            if let Ok(mut cas_w) = cas.write() {
+                let _ = cas_w.reload_index_from_sidecar();
+            }
+            // Retry once. If still miss → legitimate fallback (legacy
+            // ProposalTelemetry CID, corrupt CID, or wrong object type).
+            let retry = {
+                let cas_g = match cas.read() {
+                    Ok(g) => g,
+                    Err(_) => return base_class,
+                };
+                read_attempt_telemetry_from_cas(&cas_g, &proposal_cid)
+            };
+            match retry {
+                Ok(a) => a,
+                Err(_) => return base_class,
+            }
+        }
+    };
     match attempt.outcome {
         AttemptOutcome::LeanFail => L4ERejectionClass::LeanFailed,
         AttemptOutcome::ParseFail => L4ERejectionClass::ParseFailed,
