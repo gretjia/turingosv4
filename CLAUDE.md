@@ -125,17 +125,16 @@ system_tx_not_agent_submittable
 
 ## Active state (动态指针，不存判决)
 - TB 总账 (authoritative): `handover/tracer_bullets/TB_LOG.tsv`
-- **当前 charter: `handover/tracer_bullets/TB-C0_charter_2026-05-06.md`** (Constitution Landing Gate; project meta-gate)
 - 当前操作模式: **Constitutional Harness Engineering** (since 2026-05-06)
-- **当前架构师授权 (2026-05-06)**: TB-C0 Constitution Landing Reset — `handover/directives/2026-05-06_TBC0_CONSTITUTION_LANDING_RESET_DIRECTIVE.md`. Auto-mode authorized through closure. Build executable constitution CI (matrix + 3 FC gates + 4 gate categories) BEFORE any feature TB resumes. P38/P49 = constitution-gate evidence, NOT benchmark scoring.
-- TB-18R status: **subordinate to TB-C0**; CANDIDATE REMEDIATION; reverts to "ship after TB-C0 closes" path. Phase 3 (P38/P49/M0) reframed as constitution-gate verification.
-- **HARD FREEZE (until TB-C0 closes; full list in TB-C0 charter)**: ALL feature TBs (TB-19+, NodeMarket, Polymarket, PriceIndex, public-chain, real-world-readiness), MiniF2F M1/M2/M3, formal benchmark claims, "formal benchmark passed" external claims, TB-19 pilot. Closure = 5 MVP gates green + 10 closure conditions per directive §12.
-- **TB-C0 5 MVP gates** (must be GREEN to close):
-  1. `evaluator_reported_tx_count == chain_attempt_count` on P38 + P49
-  2. predicate pass → L4; predicate fail → L4.E (or anchored EvidenceCapsule)
-  3. Dashboard regenerable from ChainTape + CAS alone
-  4. Fresh replay from `genesis_report + ChainTape + CAS`
-  5. Economy conservation (no post-init mint, total-coin-conserved, no ghost liquidity, wallet read-only, system-tx not agent-submittable)
+- **当前 charter: TB-C0 — CLOSURE CANDIDATE** (closure report: `handover/tracer_bullets/TB-C0_CLOSURE_REPORT_2026-05-06.md`)
+- TB-C0 empirical state: 25 FC nodes; 21 GREEN + 4 AMBER (structural-only by design) + 0 RED + 0 GAP per `handover/evidence/tb_c0_multi_agent_2026-05-06T16-30-36Z/fc_witness_aggregate.json`
+- **Awaiting**: (1) architect §8 sign-off on TB-C0 closure, (2) Codex + Gemini external dual audit (CR-C0.8 — happens AFTER MVP gates green)
+- **3 known accounting bugs** documented in `handover/alignment/OBS_TBC0_FC1_INV3_THREE_BUGS_2026-05-06.md` (Bug 1 Class 2: runner uses tx_count vs LLM-cycle count; Bug 2 Class 3: synthetic L4.E gate; Bug 3 Class 4 STEP_B: missing `capsule_anchored_attempt_count` field). FORWARD-bound; NOT bundled into TB-C0
+- TB-18R status: **subordinate to TB-C0**; CANDIDATE REMEDIATION; ships after TB-C0 closes via final dual audit + §8
+- **HARD FREEZE (until TB-C0 SHIPS FINAL)**: ALL feature TBs (TB-19+, NodeMarket, Polymarket, PriceIndex, public-chain, real-world-readiness), MiniF2F M1/M2/M3, formal benchmark claims
+- **Constitution gate runner**: `bash scripts/run_constitution_gates.sh` or `make constitution` → 54/0/1 GREEN. CI workflow `.github/workflows/constitution_gates.yml` is required merge gate
+- **FC-witness extractor**: `python3 scripts/fc_witness_extract.py <run_dir>` (single-problem) + `scripts/fc_witness_aggregate.py <batch_dir>` (multi-problem)
+- **Real-problem catalog**: `handover/alignment/FC_WITNESS_CATALOG_2026-05-06.md` (binds every FC node to real existing MiniF2F problems; per `feedback_real_problems_not_designed`)
 
 ## Memory (跨 session 持久; auto-loaded MEMORY.md 是 hot index)
 - 高频 rule (feedback_*) + 项目状态 (project_*) + 外部引用 (reference_*) 路径: `~/.claude/projects/-home-zephryj-projects-turingosv4/memory/`

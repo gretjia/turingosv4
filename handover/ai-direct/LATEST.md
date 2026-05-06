@@ -6,6 +6,78 @@
 
 ---
 
+## 🚢 2026-05-06 (session end #10) — **TB-C0 CLOSURE CANDIDATE — 4 rounds shipped; constitution + 3 flowcharts now executable CI; 25 FC nodes empirically witnessed on real MiniF2F (21 GREEN + 4 structural-AMBER); awaits architect §8 + Codex+Gemini dual audit**
+
+**main HEAD (after this session)**: `fa55c40` (round 4) on top of `480ebba` → `f3b8e0a` → `0537869` (round 1) on top of session #9's `e12d254` substrate.
+
+**TB-C0 ship state**: **CLOSURE CANDIDATE**. 4 rounds shipped on main; closure report at `handover/tracer_bullets/TB-C0_CLOSURE_REPORT_2026-05-06.md`. SG-C0.1..14 satisfied at structural + empirical level. Awaits architect §8 sign-off + Codex+Gemini external dual audit (per CR-C0.8 — happens AFTER MVP gates green).
+
+**TB-18R relationship**: subordinate to TB-C0; reverts to "ships after TB-C0 closes" path. TB-18R substrate (R1+R2+R3+R4) is what TB-C0 builds on — the FC-witness extractor walks TB-18R-shaped chain artifacts.
+
+**Authority for TB-C0 launch**: architect 2026-05-06 emergency reset directive (`handover/directives/2026-05-06_TBC0_CONSTITUTION_LANDING_RESET_DIRECTIVE.md`). User explicitly authorized: (1) auto-mode through closure, (2) 3 SiliconFlow + 2 DeepSeek API keys for testing, (3) "find real existing problems for any FC gap; do NOT synthesize" (codified as `feedback_real_problems_not_designed`).
+
+### Session #10 ledger (committed)
+
+**Round 1 (commit `0537869`)** — Constitution Landing Gate infrastructure:
+- 8x `tests/constitution_*.rs` integration test files (54 GREEN + 1 ignored MVP-1 LLM-compute smoke)
+- `handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md` (clause→code→test→smoke→status→kill)
+- `handover/alignment/TRACE_FLOWCHART_MATRIX.md` (per-FC-node binding; v0 archived)
+- `handover/tracer_bullets/TB-C0_charter_2026-05-06.md` (FR/CR/SG)
+- `.github/workflows/constitution_gates.yml` + `scripts/run_constitution_gates.sh` + `Makefile`
+- 2 directive archives (TB-18R emergency reset + TB-C0 reset)
+
+**Round 2 (commit `f3b8e0a`)** — analysis tooling + bug catalog:
+- `scripts/fc_witness_extract.py` (single-problem FC-node walker)
+- `scripts/fc_witness_aggregate.py` (multi-problem aggregator)
+- `handover/alignment/OBS_TBC0_FC1_INV3_THREE_BUGS_2026-05-06.md` (Bug 1 Class 2: runner uses tx_count vs LLM-cycle count; Bug 2 Class 3: synthetic L4.E gate; Bug 3 Class 4 STEP_B: missing `capsule_anchored_attempt_count` field)
+
+**Round 3 (commit `480ebba`)** — multi-agent runner + real-problem catalog:
+- `handover/tests/scripts/run_tbc0_multi_agent_evidence.sh`
+- `handover/alignment/FC_WITNESS_CATALOG_2026-05-06.md` (per-FC-node binding to real existing MiniF2F problems with citations)
+
+**Round 4 (commit `fa55c40`)** — empirical evidence + closure report:
+- `handover/evidence/tb_c0_multi_agent_2026-05-06T16-30-36Z/` (9 problems × n=5; 33-min wallclock total)
+- `handover/evidence/tb_c0_multi_agent_2026-05-06T16-29-16Z/` (smoke probe; 1-problem n=5)
+- `handover/tracer_bullets/TB-C0_CLOSURE_REPORT_2026-05-06.md`
+
+### Empirical FC-witness aggregate (9-problem n=5 batch)
+
+| Status | Count | Nodes |
+|--------|-------|-------|
+| GREEN | 21 | All FC1 chain-resident + all FC2 boot + FC3-INV1 capsule + FC3-INV2 no-global-pointer |
+| AMBER | 4 | FC3-INV3/INV5/INV7/INV8 — STRUCTURAL ONLY by design (meta-architectural roles inherently don't run on tape) |
+| RED | 0 | None at aggregate |
+| GAP | 0 | None |
+
+**Per-problem outcomes**:
+
+| Problem | Diff | tx | halt | solved | step_partial_ok | dur |
+|---------|------|----|----|------|-----------------|-----|
+| mathd_algebra_107 | easy | 1 | OmegaAccepted | ✓ | 0 | 11s |
+| mathd_algebra_125 | easy | 1 | OmegaAccepted | ✓ | 0 | 11s |
+| mathd_algebra_141 | easy | 1 | OmegaAccepted | ✓ | 0 | 11s |
+| mathd_algebra_113 | medium | 3 | OmegaAccepted | ✓ | 0 | 30s |
+| mathd_algebra_114 | medium | 20 | MaxTxExhausted | ✗ | 8 | 190s |
+| mathd_numbertheory_1124 | hard | 2 | OmegaAccepted | ✓ | 0 | 19s |
+| numbertheory_2pownm1prime_nprime | hard | 50 | MaxTxExhausted | ✗ | 4 | 343s |
+| aime_1983_p1 | hard | 50 | MaxTxExhausted | ✗ | **39** | 619s |
+| aime_1984_p1 | hard | 10 | OmegaAccepted | ✓ | 3 | 89s |
+
+**Multi-agent benefit**: `mathd_numbertheory_1124` (Phase 3 n=1 max_tx=12 = MaxTxExhausted) → TB-C0 n=5 max_tx=50 = OmegaAccepted (2 attempts). `aime_1984_p1` (real AIME) solved 10-shot. `aime_1983_p1` produced 39 step_partial_ok (densest FC1-INV3 third-term witness).
+
+### What the user should do on wake-up
+
+1. **Architect §8 sign-off** on TB-C0 closure: review `handover/tracer_bullets/TB-C0_CLOSURE_REPORT_2026-05-06.md` and either grant explicit §8 OR request specific revisions
+2. **Dispatch Codex + Gemini external dual audit** (cloud-billed, user-invoked): inputs at `handover/evidence/tb_c0_multi_agent_2026-05-06T16-30-36Z/` + closure report
+3. **If §8 + dual audit PASS** → TB-C0 SHIPPED FINAL → unblocks TB-18R FINAL ship → unblocks TB-19+ feature roadmap
+4. **3 forward-bound bugs** (NOT yet fixed): catalogued in `OBS_TBC0_FC1_INV3_THREE_BUGS_2026-05-06.md`. Class-2 (runner), Class-3 (synthetic gate), Class-4 STEP_B (schema bump). Open follow-on TB (e.g., TB-FC1) when ready
+
+### Predecessor session #9
+
+Context preserved below. Session #9 produced TB-18R Phase 3 evidence on the typed substrate; that evidence is what TB-C0 round 4 walks via the FC-witness extractor.
+
+---
+
 ## 🚢 2026-05-06 (session end #9) — **TB-18R Phase 3 EVIDENCE PRODUCED on typed substrate; round-3 dispatch authored; awaits user-billed Codex + Gemini round-3 audit + architect §8 sign-off**
 
 **main HEAD (after this session)**: `55a0935` (UNCHANGED at substrate level) + Phase 3 evidence + directive + dispatch + runner committed in this session (commit hash TBD post-commit).
