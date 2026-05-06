@@ -57,6 +57,9 @@ fn write_path(
         .expect("put candidate");
     let lean_result_cid = if let Some((exit_code, verified)) = lean_result {
         let proof_artifact_cid = if verified { Some(candidate_cid) } else { None };
+        let verdict_kind =
+            LeanResult::derive_verdict_kind_from_legacy_fields(exit_code, verified, error_class)
+                .unwrap_or_default();
         let lr = LeanResult {
             attempt_id: attempt_id.clone(),
             exit_code,
@@ -65,6 +68,7 @@ fn write_path(
             stdout_cid: None,
             proof_artifact_cid,
             error_class,
+            verdict_kind,
         };
         Some(write_lean_result_to_cas(cas, &lr, "test", 0).expect("write lean result"))
     } else {

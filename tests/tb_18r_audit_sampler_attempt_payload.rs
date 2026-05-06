@@ -66,6 +66,7 @@ fn attempt_telemetry_and_lean_result_listable_by_object_type() {
         stdout_cid: None,
         proof_artifact_cid: None,
         error_class: Some(LeanErrorClass::LeanFailed),
+        verdict_kind: turingosv4::runtime::attempt_telemetry::LeanVerdictKind::Failed,
     };
     let _lr_cid = write_lean_result_to_cas(&mut cas, &lean_result, "test", 2).expect("write lr");
 

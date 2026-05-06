@@ -80,6 +80,7 @@ fn lean_result_tamper_detected_via_cid_mismatch() {
         stdout_cid: None,
         proof_artifact_cid: None,
         error_class: Some(LeanErrorClass::LeanFailed),
+        verdict_kind: turingosv4::runtime::attempt_telemetry::LeanVerdictKind::Failed,
     };
     let cid = write_lean_result_to_cas(&mut cas, &lean_result, "test", 0).expect("write lr");
 

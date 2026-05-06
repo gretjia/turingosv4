@@ -16,6 +16,7 @@ use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
 use turingosv4::bottom_white::cas::store::CasStore;
 use turingosv4::runtime::attempt_telemetry::{
     read_lean_result_from_cas, write_lean_result_to_cas, LeanErrorClass, LeanResult,
+    LeanVerdictKind,
 };
 use turingosv4::state::q_state::TxId;
 
@@ -46,6 +47,7 @@ fn fc1_n41_lean_result_verified_pass_round_trip() {
         stdout_cid: None,
         proof_artifact_cid: Some(proof_cid),
         error_class: None,
+        verdict_kind: LeanVerdictKind::Verified,
     };
 
     let cid = write_lean_result_to_cas(&mut cas, &original, "evaluator", 11)
@@ -92,6 +94,7 @@ fn fc1_n41_lean_result_failure_path_with_shielded_stderr() {
         stdout_cid: None,
         proof_artifact_cid: None,
         error_class: Some(LeanErrorClass::LeanFailed),
+        verdict_kind: LeanVerdictKind::Failed,
     };
 
     let cid = write_lean_result_to_cas(&mut cas, &original, "evaluator", 21)
@@ -132,6 +135,11 @@ fn fc1_n41_lean_result_all_error_classes_round_trip() {
             stdout_cid: None,
             proof_artifact_cid: None,
             error_class: Some(*ec),
+            // exit_code=1 + verified=false + error_class=Some(_) = Failed shape.
+            // SorryBlocked-class records at exit_code=1 also classify as Failed
+            // at the LeanResult shape level (the sorry distinction lives in the
+            // LeanErrorClass field).
+            verdict_kind: LeanVerdictKind::Failed,
         };
         let cid = write_lean_result_to_cas(&mut cas, &original, "evaluator", 30 + i as u64)
             .expect("write");

@@ -68,7 +68,7 @@ use crate::bottom_white::ledger::transition_ledger::{
     LedgerWriter, ReplayError, TxKind,
 };
 use crate::runtime::attempt_telemetry::{
-    read_attempt_telemetry_from_cas, read_lean_result_from_cas, AttemptOutcome,
+    read_attempt_telemetry_from_cas, read_lean_result_from_cas, AttemptOutcome, LeanResult,
 };
 use crate::runtime::evidence_capsule::EvidenceCapsule;
 use crate::runtime::markov_capsule::MarkovEvidenceCapsule;
@@ -2578,25 +2578,33 @@ pub fn assert_44_attempt_telemetry_retrievable_from_cas(t: &LoadedTape) -> Asser
 }
 
 /// TRACE_MATRIX FC2-N34 (TB-18R R5 charter v2 §1.2 FR-18R.7 +
-/// §1.4 SG-18R.7; TB-18R G2 round-2 R8 partial-verdict-aware fix):
+/// §1.4 SG-18R.7; TB-18R G2 round-2 R8 partial-verdict-aware fix;
+/// TB-18R Phase 2 2026-05-06 typed-verdict retype):
 /// walk every `LeanResult` CAS object; assert each is canonical-decodable
-/// AND respects the partial-verdict-aware invariant from
-/// `LeanResult` doc-comment:
+/// AND that the typed `verdict_kind` agrees with the canonical shape of
+/// `(exit_code, verified, error_class)`.
 ///
-///   1. `verified == true → exit_code == 0 && error_class.is_none()`
-///      (clean omega path: no error exit, no error class).
-///   2. `!verified && exit_code != 0 → error_class.is_some()`
-///      (a real Lean failure must carry a classified `LeanErrorClass`).
-///   3. `!verified && exit_code == 0` is admissible without further
-///      constraint — this is partial-verdict (`step_partial_ok`,
-///      `error_class = None`) or `sorry`-block
-///      (`error_class = Some(SorryBlocked)`). Both are legitimate
-///      non-rejection records and not enforced beyond (1) + (2).
+/// **Phase 2 typed invariant**: each LeanResult must match exactly one of
+/// the four canonical arms:
 ///
-/// Pre-G2-round-2 wording was the stricter `verified ↔ exit_code == 0`
-/// iff, which incorrectly rejected `step_partial_ok`'s legitimate
-/// `(exit_code=0, verified=false, error_class=None)` LeanResult shape
-/// (TB-18R G2 Codex VETO Q13).
+///   - `verdict_kind == Verified`        ↔ `exit_code == 0 && verified == true && error_class == None`
+///   - `verdict_kind == Failed`          ↔ `exit_code != 0 && verified == false && error_class.is_some()`
+///   - `verdict_kind == PartialAccepted` ↔ `exit_code == 0 && verified == false && error_class == None`
+///   - `verdict_kind == SorryBlocked`    ↔ `exit_code == 0 && verified == false && error_class == Some(SorryBlocked)`
+///
+/// Any drift (e.g., `verdict_kind=Verified` but `verified=false`) FAILs the
+/// assertion. This collapses the round-1-VETO-cleared R8 three-implication
+/// form into a typed 4-arm match, removing the `(0, false, None)` semantic
+/// hole that round-2 architect ruling §4 Q-P2 surfaced (parent ruling at
+/// `handover/directives/2026-05-06_TB18R_ROUND_2_ARCHITECT_RULING.md`,
+/// Phase 2 design at
+/// `handover/directives/2026-05-06_TB18R_PHASE_2_REMEDIATION_DIRECTIVE.md`).
+///
+/// Pre-Phase-2 LeanResult records (R6/R7 grandfathered evidence) cannot
+/// decode under the v2 canonical schema (`verdict_kind` is REQUIRED, not
+/// `#[serde(default)]`); per architect-grandfathered evidence policy
+/// (`feedback_no_retroactive_evidence_rewrite`), R6/R7 evidence is not
+/// re-decoded by v2 builds — Phase 3 evidence is fresh on the v2 substrate.
 ///
 /// Empty-tape: SKIPPED.
 pub fn assert_45_lean_result_retrievable_from_cas(t: &LoadedTape) -> AssertionResult {
@@ -2610,7 +2618,7 @@ pub fn assert_45_lean_result_retrievable_from_cas(t: &LoadedTape) -> AssertionRe
         );
     }
     for cid in &cids {
-        let lr = match read_lean_result_from_cas(&t.cas, cid) {
+        let lr: LeanResult = match read_lean_result_from_cas(&t.cas, cid) {
             Ok(l) => l,
             Err(e) => {
                 return AssertionResult::halt(
@@ -2621,36 +2629,19 @@ pub fn assert_45_lean_result_retrievable_from_cas(t: &LoadedTape) -> AssertionRe
                 );
             }
         };
-        // (1) verified ⇒ exit_code == 0 ∧ error_class is None.
-        if lr.verified && (lr.exit_code != 0 || lr.error_class.is_some()) {
+        if !lr.is_verdict_kind_consistent() {
             return AssertionResult::fail(
                 45,
                 "lean_result_retrievable_from_cas",
                 AssertionLayer::G,
                 format!(
-                    "LeanResult invariant (1) violated for cid {cid}: \
-                     verified=true but exit_code={} error_class={:?} \
-                     (clean omega-path requires exit_code=0 + error_class=None)",
-                    lr.exit_code, lr.error_class
+                    "LeanResult typed-verdict invariant violated for cid {cid}: \
+                     verdict_kind={:?} but (exit_code={}, verified={}, error_class={:?}) \
+                     does not match the canonical shape for that kind",
+                    lr.verdict_kind, lr.exit_code, lr.verified, lr.error_class
                 ),
             );
         }
-        // (2) !verified ∧ exit_code != 0 ⇒ error_class is Some(_).
-        if !lr.verified && lr.exit_code != 0 && lr.error_class.is_none() {
-            return AssertionResult::fail(
-                45,
-                "lean_result_retrievable_from_cas",
-                AssertionLayer::G,
-                format!(
-                    "LeanResult invariant (2) violated for cid {cid}: \
-                     !verified ∧ exit_code={} but error_class=None \
-                     (real Lean failure must be classified)",
-                    lr.exit_code
-                ),
-            );
-        }
-        // (3) !verified ∧ exit_code == 0 is admissible (partial-verdict
-        // or sorry-block); no further enforcement.
     }
     AssertionResult::pass(45, "lean_result_retrievable_from_cas", AssertionLayer::G)
 }

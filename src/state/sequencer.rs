@@ -498,6 +498,28 @@ pub fn refine_rejection_class_via_attempt_telemetry(
             }
         }
         AttemptOutcome::Aborted => base_class,
+        // TB-18R Phase 2 (2026-05-06): PartialAccepted is the typed
+        // step_partial_ok outcome (replaces LeanPass-misnomer). Per R3 §1.3
+        // amended, step_partial_ok stays CAS-only; reaching the rejection arm
+        // here would be an invariant violation (no L4.E entry expected).
+        AttemptOutcome::PartialAccepted => {
+            #[cfg(debug_assertions)]
+            {
+                panic!(
+                    "TB-18R R3 invariant violation: AttemptTelemetry.outcome=PartialAccepted \
+                     reached predicate-failure rejection arm; step_partial_ok is supposed \
+                     to be CAS-only (no L4.E entry per R3 §1.3 amended)"
+                );
+            }
+            #[cfg(not(debug_assertions))]
+            {
+                log::warn!(
+                    "[tb18r-r3] AttemptTelemetry.outcome=PartialAccepted on rejection arm; \
+                     falling back to PredicateFailed"
+                );
+                base_class
+            }
+        }
     }
 }
 

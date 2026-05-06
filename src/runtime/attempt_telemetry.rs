@@ -79,7 +79,15 @@ use crate::state::q_state::{AgentId, Hash, TxId};
 pub const ATTEMPT_TELEMETRY_SCHEMA_ID: &str = "turingosv4.attempt_telemetry.v1";
 
 /// TRACE_MATRIX FC1-N41: schema id for `LeanResult` CAS objects.
-pub const LEAN_RESULT_SCHEMA_ID: &str = "turingosv4.lean_result.v1";
+///
+/// **Phase 2 (TB-18R G2 round-2 ruling 2026-05-06)**: bumped from `v1` to `v2`.
+/// v2 adds the typed `verdict_kind: LeanVerdictKind` field as required, replacing
+/// the v1 inferred-by-context multiplexing of `(verified, error_class, exit_code)`
+/// onto three semantic states. v1 records (R6/R7 evidence) are byte-incompatible
+/// with v2 readers; the architect-grandfathered evidence is preserved as-is per
+/// `feedback_no_retroactive_evidence_rewrite` and is not decoded by v2 builds.
+/// Phase 3 evidence is fresh on the v2 substrate.
+pub const LEAN_RESULT_SCHEMA_ID: &str = "turingosv4.lean_result.v2";
 
 /// TRACE_MATRIX FC1-N42: schema id for `TerminalAbortRecord` CAS objects.
 /// Per FR-18R.3 v2 + Codex Q4 remediation: aborted attempts (externally
@@ -165,6 +173,13 @@ pub enum AttemptOutcome {
     /// `TerminalAbortRecord` CAS object. NOT counted in the
     /// `evaluator_reported_completed_llm_calls` invariant numerator.
     Aborted = 5,
+    /// **TB-18R Phase 2 (2026-05-06; tail-additive)**: `step_partial_ok`
+    /// intermediate Lean-accepted progress that is NOT omega-complete.
+    /// Replaces the v1 misuse of `LeanPass` for `step_partial_ok` (FC-first
+    /// analysis 2026-05-06 §2.5). Routes to CAS only per R3 §1.3 amended;
+    /// no L4 and no L4.E entry. Mirrors `LeanVerdictKind::PartialAccepted`
+    /// on the paired LeanResult.
+    PartialAccepted = 6,
 }
 
 impl Default for AttemptOutcome {
@@ -202,6 +217,51 @@ pub enum LeanErrorClass {
     /// LLM API itself errored (HTTP non-200, timeout, rate-limit, JSON
     /// parse fail on the LLM client side). R3 RejectionClass::LlmError=9.
     LlmError = 9,
+}
+
+// ── LeanVerdictKind (TB-18R Phase 2; typed PartialAccepted state) ───────────
+
+/// TRACE_MATRIX FC1-N41 Phase 2 typed verdict classification.
+///
+/// Introduced 2026-05-06 by TB-18R G2 round-2 architect ruling §4 Q-P2 + §5
+/// Phase 2. Replaces the v1 inferred-by-context multiplexing of
+/// `(verified: bool, error_class: Option<LeanErrorClass>, exit_code: i32)` onto
+/// three semantic states (Verified / Failed / Partial-or-Sorry). Phase 2 makes
+/// the discriminator explicit so `assert_45` can typed-check each state arm
+/// without falling back to error_class=None inference (which round-2 round-1
+/// VETO surfaced as a semantic hole).
+///
+/// Stable byte-encoding via `#[repr(u8)]`. Tail-additive only (mirrors R3
+/// `RejectionClass` pattern). Discriminant assignments are byte-stable for
+/// canonical-hash purposes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[repr(u8)]
+pub enum LeanVerdictKind {
+    /// `exit_code == 0` AND `verified == true` AND `error_class == None`.
+    /// Clean omega proof; `proof_artifact_cid` SHOULD be `Some(_)`.
+    Verified = 0,
+    /// `exit_code != 0` AND `verified == false` AND `error_class.is_some()`.
+    /// Real Lean failure with a classified `LeanErrorClass`.
+    Failed = 1,
+    /// `exit_code == 0` AND `verified == false` AND `error_class == None`.
+    /// Intermediate `step_partial_ok` Lean-accepted progress that is NOT
+    /// omega-complete. `proof_artifact_cid` SHOULD be `None`. Per R3 §1.3
+    /// amended, this state stays CAS-only (no L4 / no L4.E entry).
+    PartialAccepted = 2,
+    /// `exit_code == 0` AND `verified == false` AND
+    /// `error_class == Some(LeanErrorClass::SorryBlocked)`.
+    /// `sorry` / forbidden-payload classified.
+    SorryBlocked = 3,
+}
+
+impl Default for LeanVerdictKind {
+    fn default() -> Self {
+        // Failed is the safest fallback: false-positive on a partial-accept
+        // record will FAIL assert_45 (visible defect), false-negative on a
+        // real failure would silently swallow a defect. The default should
+        // never fire in practice — every emitter sets the kind explicitly.
+        Self::Failed
+    }
 }
 
 // ── AttemptTelemetry (the primary CAS object) ───────────────────────────────
@@ -374,11 +434,24 @@ impl AttemptTelemetry {
 
 /// TRACE_MATRIX FC1-N41: Lean verdict on a single externalized candidate.
 ///
+/// **Schema version**: `v2` post-TB-18R Phase 2 (2026-05-06). v1 records
+/// (R6/R7 grandfathered evidence) are byte-incompatible with v2 readers per
+/// `feedback_no_retroactive_evidence_rewrite`; v2 chains carry `verdict_kind`
+/// as a required field that types the verdict classification explicitly.
+///
 /// Privacy: `stderr_cid` and `stdout_cid` are CIDs to AuditOnly CAS objects
 /// (per Art.III.1 + TB-15 `CapsulePrivacyPolicy`); raw stderr / stdout bytes
 /// stay shielded behind those CIDs and are NOT broadcast in the public
 /// `attempt_kind` / `outcome` fields. The `error_class` field carries the
 /// low-pollution rejection-class label for `public_summary` use.
+///
+/// **Phase 2 typed invariant** (enforced by `assert_45`):
+/// the `verdict_kind` discriminates the four legitimate (exit_code, verified,
+/// error_class) shapes; `assert_45` performs an exact 4-arm match. The
+/// legacy `verified: bool` and `error_class: Option<LeanErrorClass>` fields
+/// remain for downstream consumers (`pput_verified`,
+/// `ChainDerivedRunFacts`) and an `assert_45` consistency clause prevents
+/// drift between the typed kind and the redundant legacy fields.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LeanResult {
     /// Reference back to the `AttemptTelemetry.attempt_id` this verdict
@@ -389,6 +462,9 @@ pub struct LeanResult {
     pub exit_code: i32,
     /// True iff Lean fully verified the candidate (no errors, no `sorry`).
     /// False if exit_code != 0 OR sorry was used OR partial verdict.
+    /// **Phase 2**: redundant with `verdict_kind`; downstream consumers
+    /// (`pput_verified`, `ChainDerivedRunFacts`) read this field. The
+    /// `assert_45` consistency clause prevents drift.
     pub verified: bool,
     /// CID of the AuditOnly CAS object holding raw Lean stderr bytes.
     /// `None` if Lean produced no stderr (rare; clean omega_wtool path).
@@ -397,18 +473,93 @@ pub struct LeanResult {
     /// `None` if Lean produced no stdout.
     pub stdout_cid: Option<Cid>,
     /// CID of the proof artifact (Lean source produced by the candidate)
-    /// when verified successfully. `None` for failed / aborted attempts.
+    /// when verified successfully. `None` for failed / aborted attempts /
+    /// partial-accepted attempts.
     pub proof_artifact_cid: Option<Cid>,
-    /// Fine-grained error class. Per the partial-verdict-aware invariant
-    /// (TB-18R G2 round-2 R8; enforced by `assert_45`):
-    /// - `verified == true` ⇒ `error_class == None`
-    ///   (clean omega path; no error class for a fully verified candidate).
-    /// - `!verified && exit_code != 0` ⇒ `error_class.is_some()`
-    ///   (a real Lean failure must be classified).
-    /// - `!verified && exit_code == 0` ⇒ `error_class` may be either
-    ///   `None` (partial-verdict / `step_partial_ok`) or
-    ///   `Some(SorryBlocked)` (`sorry`-block).
+    /// Fine-grained error class. Phase 2: redundant with `verdict_kind`;
+    /// kept for backward compat with downstream rejection-class consumers.
+    /// Canonical shapes (matched by `assert_45` consistency clause):
+    /// - `Verified`        → `error_class == None`
+    /// - `Failed`          → `error_class.is_some()`
+    /// - `PartialAccepted` → `error_class == None`
+    /// - `SorryBlocked`    → `error_class == Some(SorryBlocked)`
     pub error_class: Option<LeanErrorClass>,
+    /// **TB-18R Phase 2 (2026-05-06; LeanResult schema v2)**: typed verdict
+    /// classification. REQUIRED field; v2 byte-format includes this
+    /// discriminator at the canonical-encoded tail. Pre-v2 records do not
+    /// include this byte; they will fail decode under v2 builds (acceptable
+    /// per architect-grandfathered evidence policy — R6/R7 evidence is not
+    /// re-decoded by v2; Phase 3 evidence is fresh on the v2 substrate).
+    pub verdict_kind: LeanVerdictKind,
+}
+
+impl LeanResult {
+    /// TRACE_MATRIX FC1-N41 Phase 2: derive the canonical `LeanVerdictKind`
+    /// from the legacy fields `(verified, error_class.is_some(),
+    /// exit_code != 0)`. Used by `assert_45` consistency clause and by
+    /// emitter callsites that haven't yet been migrated to pass an explicit
+    /// `verdict_kind`.
+    ///
+    /// The four canonical shapes:
+    /// | exit_code | verified | error_class           | derived kind   |
+    /// |-----------|----------|-----------------------|----------------|
+    /// | 0         | true     | None                  | Verified       |
+    /// | ≠0        | false    | Some(_)               | Failed         |
+    /// | 0         | false    | None                  | PartialAccepted|
+    /// | 0         | false    | Some(SorryBlocked)    | SorryBlocked   |
+    ///
+    /// Out-of-canonical shapes return `None` (the caller MUST treat this
+    /// as a defect and fail the assertion). This function does NOT silently
+    /// repair drift; it identifies it.
+    pub fn derive_verdict_kind_from_legacy_fields(
+        exit_code: i32,
+        verified: bool,
+        error_class: Option<LeanErrorClass>,
+    ) -> Option<LeanVerdictKind> {
+        match (exit_code, verified, error_class) {
+            (0, true, None) => Some(LeanVerdictKind::Verified),
+            (ec, false, Some(_)) if ec != 0 => Some(LeanVerdictKind::Failed),
+            (0, false, None) => Some(LeanVerdictKind::PartialAccepted),
+            (0, false, Some(LeanErrorClass::SorryBlocked)) => {
+                Some(LeanVerdictKind::SorryBlocked)
+            }
+            _ => None,
+        }
+    }
+
+    /// TRACE_MATRIX FC1-N41 + FC2-N34 Phase 2: typed-verdict consistency check.
+    ///
+    /// Returns `true` iff the typed `verdict_kind` matches the canonical shape
+    /// of `(exit_code, verified, error_class)`. This is the predicate that
+    /// `assert_45_lean_result_retrievable_from_cas` enforces; exposed publicly
+    /// so Phase 2 witness tests can exercise the contract without building a
+    /// full `LoadedTape`.
+    ///
+    /// The four canonical arms (Phase 2 directive §6 + FC-first §2.4):
+    ///   - `Verified`        ↔ `exit_code == 0 && verified == true && error_class == None`
+    ///   - `Failed`          ↔ `exit_code != 0 && verified == false && error_class.is_some()`
+    ///   - `PartialAccepted` ↔ `exit_code == 0 && verified == false && error_class == None`
+    ///   - `SorryBlocked`    ↔ `exit_code == 0 && verified == false && error_class == Some(SorryBlocked)`
+    ///
+    /// Any drift between the typed kind and the legacy fields returns `false`.
+    pub fn is_verdict_kind_consistent(&self) -> bool {
+        match self.verdict_kind {
+            LeanVerdictKind::Verified => {
+                self.exit_code == 0 && self.verified && self.error_class.is_none()
+            }
+            LeanVerdictKind::Failed => {
+                self.exit_code != 0 && !self.verified && self.error_class.is_some()
+            }
+            LeanVerdictKind::PartialAccepted => {
+                self.exit_code == 0 && !self.verified && self.error_class.is_none()
+            }
+            LeanVerdictKind::SorryBlocked => {
+                self.exit_code == 0
+                    && !self.verified
+                    && self.error_class == Some(LeanErrorClass::SorryBlocked)
+            }
+        }
+    }
 }
 
 // ── TerminalAbortRecord (FR-18R.3 v2; Codex Q4 remediation) ─────────────────
@@ -662,12 +813,67 @@ mod tests {
     fn attempt_outcome_repr_stable() {
         // Discriminator values locked: LeanPass=0, LeanFail=1, ParseFail=2,
         // SorryBlock=3, LlmErr=4, Aborted=5.
+        // Phase 2 (TB-18R 2026-05-06; tail-additive): PartialAccepted=6.
         assert_eq!(AttemptOutcome::LeanPass as u8, 0);
         assert_eq!(AttemptOutcome::LeanFail as u8, 1);
         assert_eq!(AttemptOutcome::ParseFail as u8, 2);
         assert_eq!(AttemptOutcome::SorryBlock as u8, 3);
         assert_eq!(AttemptOutcome::LlmErr as u8, 4);
         assert_eq!(AttemptOutcome::Aborted as u8, 5);
+        assert_eq!(AttemptOutcome::PartialAccepted as u8, 6);
+    }
+
+    #[test]
+    fn lean_verdict_kind_repr_stable() {
+        // Phase 2 (TB-18R 2026-05-06): typed verdict discriminators are
+        // canonical-hash-bearing. Locked: Verified=0, Failed=1,
+        // PartialAccepted=2, SorryBlocked=3.
+        assert_eq!(LeanVerdictKind::Verified as u8, 0);
+        assert_eq!(LeanVerdictKind::Failed as u8, 1);
+        assert_eq!(LeanVerdictKind::PartialAccepted as u8, 2);
+        assert_eq!(LeanVerdictKind::SorryBlocked as u8, 3);
+    }
+
+    #[test]
+    fn lean_verdict_kind_legacy_field_derivation() {
+        // The four canonical shapes derive their kinds correctly.
+        assert_eq!(
+            LeanResult::derive_verdict_kind_from_legacy_fields(0, true, None),
+            Some(LeanVerdictKind::Verified)
+        );
+        assert_eq!(
+            LeanResult::derive_verdict_kind_from_legacy_fields(
+                1,
+                false,
+                Some(LeanErrorClass::LeanFailed)
+            ),
+            Some(LeanVerdictKind::Failed)
+        );
+        assert_eq!(
+            LeanResult::derive_verdict_kind_from_legacy_fields(0, false, None),
+            Some(LeanVerdictKind::PartialAccepted)
+        );
+        assert_eq!(
+            LeanResult::derive_verdict_kind_from_legacy_fields(
+                0,
+                false,
+                Some(LeanErrorClass::SorryBlocked)
+            ),
+            Some(LeanVerdictKind::SorryBlocked)
+        );
+        // Out-of-canonical shapes return None (caller must fail-close).
+        assert_eq!(
+            LeanResult::derive_verdict_kind_from_legacy_fields(0, true, Some(LeanErrorClass::LeanFailed)),
+            None
+        );
+        assert_eq!(
+            LeanResult::derive_verdict_kind_from_legacy_fields(1, true, None),
+            None
+        );
+        assert_eq!(
+            LeanResult::derive_verdict_kind_from_legacy_fields(1, false, None),
+            None
+        );
     }
 
     #[test]
@@ -724,6 +930,7 @@ mod tests {
             stdout_cid: None,
             proof_artifact_cid: None,
             error_class: Some(LeanErrorClass::LeanFailed),
+            verdict_kind: LeanVerdictKind::Failed,
         };
         let bytes = canonical_encode(&original).expect("encode");
         let decoded: LeanResult = canonical_decode(&bytes).expect("decode");
@@ -741,6 +948,7 @@ mod tests {
             stdout_cid: None,
             proof_artifact_cid: Some(Cid::from_content(b"proof-bytes")),
             error_class: None,
+            verdict_kind: LeanVerdictKind::Verified,
         };
         let cid = write_lean_result_to_cas(&mut cas, &original, "evaluator", 100)
             .expect("write");
@@ -829,6 +1037,7 @@ mod tests {
             stdout_cid: None,
             proof_artifact_cid: None,
             error_class: Some(LeanErrorClass::LeanFailed),
+            verdict_kind: LeanVerdictKind::Failed,
         };
         // Compile-time guarantee: stderr_cid is Option<Cid>, not Option<Vec<u8>>.
         // Runtime sanity: the Cid is exactly 32 bytes regardless of stderr length.

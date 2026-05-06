@@ -76,6 +76,11 @@ struct R2AttemptArgs<'a> {
     error_class: Option<turingosv4::runtime::attempt_telemetry::LeanErrorClass>,
     /// `Some((exit_code, verified))` if Lean was invoked. `None` for parse_fail / llm_err.
     lean_result: Option<(i32, bool)>,
+    /// **TB-18R Phase 2 (2026-05-06)**: explicit typed verdict. `Some(_)` from
+    /// migrated emitters; `None` from legacy callsites — `r2_write_attempt_telemetry`
+    /// derives the kind from `(exit_code, verified, error_class)` per
+    /// `LeanResult::derive_verdict_kind_from_legacy_fields`.
+    verdict_kind: Option<turingosv4::runtime::attempt_telemetry::LeanVerdictKind>,
     logical_t: u64,
 }
 
@@ -90,7 +95,7 @@ fn r2_write_attempt_telemetry(
 ) -> Result<turingosv4::bottom_white::cas::schema::Cid, String> {
     use turingosv4::bottom_white::cas::schema::ObjectType;
     use turingosv4::runtime::attempt_telemetry::{
-        AttemptKind, AttemptTelemetry, LeanResult,
+        AttemptKind, AttemptTelemetry, LeanResult, LeanVerdictKind,
         write_attempt_telemetry_to_cas, write_lean_result_to_cas,
     };
     use turingosv4::runtime::proposal_telemetry::TokenCounts;
@@ -123,6 +128,16 @@ fn r2_write_attempt_telemetry(
 
     let lean_result_cid = if let Some((exit_code, verified)) = args.lean_result {
         let proof_artifact_cid = if verified { Some(candidate_cid) } else { None };
+        // TB-18R Phase 2: typed verdict_kind. Use the explicit value if the
+        // emitter passed one; otherwise derive from the legacy fields. The
+        // derived path is fail-close: if the (exit_code, verified, error_class)
+        // tuple is out-of-canonical, derive returns `None` and we fall back to
+        // `LeanVerdictKind::default()` (Failed) — assert_45 will then surface
+        // the drift as a typed-invariant violation.
+        let verdict_kind = args.verdict_kind.unwrap_or_else(|| {
+            LeanResult::derive_verdict_kind_from_legacy_fields(exit_code, verified, args.error_class)
+                .unwrap_or_default()
+        });
         let lr = LeanResult {
             attempt_id: attempt_id.clone(),
             exit_code,
@@ -131,6 +146,7 @@ fn r2_write_attempt_telemetry(
             stdout_cid: None,
             proof_artifact_cid,
             error_class: args.error_class,
+            verdict_kind,
         };
         Some(
             write_lean_result_to_cas(
@@ -2553,6 +2569,7 @@ async fn run_swarm(
                                                     outcome: turingosv4::runtime::attempt_telemetry::AttemptOutcome::LeanPass,
                                                     error_class: None,
                                                     lean_result: Some((0, true)),
+                                                    verdict_kind: Some(turingosv4::runtime::attempt_telemetry::LeanVerdictKind::Verified),
                                                     logical_t,
                                                 },
                                             ) {
@@ -3126,6 +3143,7 @@ async fn run_swarm(
                                                     outcome: turingosv4::runtime::attempt_telemetry::AttemptOutcome::LeanPass,
                                                     error_class: None,
                                                     lean_result: Some((0, true)),
+                                                    verdict_kind: Some(turingosv4::runtime::attempt_telemetry::LeanVerdictKind::Verified),
                                                     logical_t,
                                                 },
                                             ) {
@@ -3515,9 +3533,14 @@ async fn run_swarm(
                                                             tool_name: "step_partial_ok",
                                                             path_label: "step_partial_ok",
                                                             is_omega_success: false,
-                                                            outcome: turingosv4::runtime::attempt_telemetry::AttemptOutcome::LeanPass,
+                                                            // TB-18R Phase 2 (2026-05-06): step_partial_ok now emits
+                                                            // AttemptOutcome::PartialAccepted (was LeanPass; misnomer per
+                                                            // FC-first analysis §2.5) and explicit
+                                                            // LeanVerdictKind::PartialAccepted on the paired LeanResult.
+                                                            outcome: turingosv4::runtime::attempt_telemetry::AttemptOutcome::PartialAccepted,
                                                             error_class: None,
                                                             lean_result: Some((0, false)),
+                                                            verdict_kind: Some(turingosv4::runtime::attempt_telemetry::LeanVerdictKind::PartialAccepted),
                                                             logical_t,
                                                         },
                                                     ) {
@@ -3595,6 +3618,11 @@ async fn run_swarm(
                                                     outcome: r2_outcome,
                                                     error_class: Some(r2_lec),
                                                     lean_result: Some((1, false)),
+                                                    // TB-18R Phase 2: at exit_code=1 with error_class set, both
+                                                    // lean-error and sorry-block sub-paths classify as Failed at
+                                                    // the LeanResult shape level (the sorry-block distinction is
+                                                    // carried by AttemptOutcome::SorryBlock and LeanErrorClass).
+                                                    verdict_kind: Some(turingosv4::runtime::attempt_telemetry::LeanVerdictKind::Failed),
                                                     logical_t,
                                                 },
                                             ) {
@@ -3673,6 +3701,8 @@ async fn run_swarm(
                                     outcome: turingosv4::runtime::attempt_telemetry::AttemptOutcome::ParseFail,
                                     error_class: None,
                                     lean_result: None,
+                                    // No LeanResult emitted (Lean was not invoked); verdict_kind unused.
+                                    verdict_kind: None,
                                     logical_t,
                                 },
                             ) {
@@ -3737,6 +3767,8 @@ async fn run_swarm(
                             outcome: turingosv4::runtime::attempt_telemetry::AttemptOutcome::LlmErr,
                             error_class: None,
                             lean_result: None,
+                            // No LeanResult emitted (LLM call failed before Lean); verdict_kind unused.
+                            verdict_kind: None,
                             logical_t,
                         },
                     ) {
