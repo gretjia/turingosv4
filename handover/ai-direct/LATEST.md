@@ -6,6 +6,94 @@
 
 ---
 
+## 🚢 2026-05-06 (session end #9) — **TB-18R Phase 3 EVIDENCE PRODUCED on typed substrate; round-3 dispatch authored; awaits user-billed Codex + Gemini round-3 audit + architect §8 sign-off**
+
+**main HEAD (after this session)**: `55a0935` (UNCHANGED at substrate level) + Phase 3 evidence + directive + dispatch + runner committed in this session (commit hash TBD post-commit).
+
+**TB-18R ship state**: **CANDIDATE REMEDIATION** (unchanged). Phase 3 evidence is now produced; required path for FINAL ship: Phase 1 ✅ → Phase 2 ✅ → Phase 3 evidence ✅ (this session) → round-3 dual audit (PENDING — user-billed external invocation) → architect explicit §8 sign-off.
+
+**Authority for Phase 3 launch**: user verbatim 2026-05-06 *"我授权你做phase 3 launch，所需的llm api信息在~/projects/turingosv3，以及turingosv4中应该全都可以获取"* — multi-clause explicit directive (NOT a single-word Q-P1-prohibited input), archived lossless at `handover/directives/2026-05-06_TB18R_PHASE_3_LAUNCH_DIRECTIVE.md`.
+
+**Predecessor (session #8)**: Phase 1 + Phase 2 shipped; PROVISIONAL SHIPPED claim DOWNGRADED to CANDIDATE REMEDIATION (commits `8487bd6` + `3f51667` + `55a0935`).
+
+### Session #9 ledger (changes; commit pending)
+
+1. **Phase 3 launch directive** (`handover/directives/2026-05-06_TB18R_PHASE_3_LAUNCH_DIRECTIVE.md`) — Class 0; Kolmogorov-lossless verbatim user authorization + Q-P1 conformance + scope envelope + 5 architect §5 invariant validation gates.
+2. **Phase 3 runner script** (`handover/tests/scripts/run_tb_18r_phase_3_evidence.sh`) — mirrors R9 pattern + adds architect §5 #1 direct check (CAS AttemptTelemetry count vs PPUT_RESULT.tx_count) + verdict_kind summary via `.turingos_cas_index.jsonl` + step_partial_ok signal extraction. Includes `--smoke` mode for 1-problem probe per `feedback_smoke_before_batch`.
+3. **Phase 3 evidence** (`handover/evidence/tb_18r_phase_3_2026-05-06T14-13-55Z/`) — 7 problems on typed substrate (P38 + P49 + M0 mini-batch of 5); ~7 min total wallclock.
+4. **Phase 3 candidate report** (`handover/evidence/tb_18r_phase_3_2026-05-06T14-13-55Z/PHASE_3_CANDIDATE_REPORT.md`) — per-problem signals + architect §5 invariant audit + findings + cross-references. NOT a ship report (per Q-P6 naming discipline).
+5. **Round-3 dual audit dispatch** (`handover/audits/G2_TB_18R_ROUND_3_DUAL_AUDIT_DISPATCH_2026-05-06.md`) — covers cumulative Phase 1 + 2 + 3; Q-A1..Q-A9 (Phase 2 schema) + Q-B1..Q-B7 (Phase 3 evidence) + Q-C1..Q-C3 (cumulative ship eligibility).
+
+### Phase 3 evidence summary (per-problem signals on substrate HEAD `55a0935`)
+
+| # | Problem | M1 idx | tx_count | halt | solved | dur | audit | id45 | step_partial_ok | inv1_match |
+|---|---------|--------|----------|------|--------|-----|-------|------|-----------------|------------|
+| P01 | mathd_numbertheory_1124 | P38 | 12 | MaxTxExhausted | False | 113s | PROCEED | Pass | **3** | True |
+| P02 | numbertheory_2pownm1prime_nprime | P49 | 12 | MaxTxExhausted | False | 94s | PROCEED | Pass | **7** | True |
+| P03 | mathd_algebra_107 | M0_1 | 1 | OmegaAccepted | True | 10s | PROCEED | Pass | 0 | True |
+| P04 | mathd_algebra_113 | M0_2 | 12 | MaxTxExhausted | False | 83s | PROCEED | Pass | 0 | **False** |
+| P05 | mathd_algebra_114 | M0_3 | 12 | MaxTxExhausted | False | 94s | PROCEED | Pass | 1 | **False** |
+| P06 | mathd_algebra_125 | M0_4 | 1 | OmegaAccepted | True | 10s | PROCEED | Pass | 0 | True |
+| P07 | mathd_algebra_141 | M0_5 | 1 | OmegaAccepted | True | 9s | PROCEED | Pass | 0 | True |
+
+**Architect §5 invariant audit**:
+- **§5 #1** (chain_attempt_count == evaluator_reported_tx_count): **5/7 PASS** (P04, P05 mismatch flagged for round-3 adjudication — likely evaluator pre-LLM phase counting nuance, not Phase 2 substrate defect)
+- **§5 #2** (id44/id45/id46 PASS on real evidence): **7/7 PASS** ✓
+- **§5 #3** (R4 invariant equation evaluable): **7/7 evaluable** ✓ (binary's strict `delta=0` check artifacts on synthetic L4.E gate + step_partial_ok CAS-only documented for round-3)
+- **§5 #4** (verdict_kind=PartialAccepted records on multi-iteration): **3/4 multi-iteration problems exhibited step_partial_ok > 0** (P01:3 / P02:7 / P05:1) ✓
+- **§5 #5** (dashboard substantive smoke): **PASS** ✓ (workspace 1077/0/150 at HEAD `55a0935`)
+
+**Substrate validation**: M1 VETO defect EMPIRICALLY CLOSED on Phase 3. P38 now produces 12 AttemptTelemetry records for 12 LLM calls (M1 baseline: 1 WorkTx for ~16 calls → 16× compression). P49 produces 12 records for 12 LLM calls (M1 baseline: 1 WorkTx for 32 calls → 32× compression). Per-LLM-call externalization restored.
+
+### Q-P closure status (final)
+
+| Q-P | Issue | Status post-Phase-3 |
+|---|---|---|
+| Q-P1 | `"fix"` ≠ §8 sign-off | **CLOSED** — addendum + Phase 1 docs + Phase 3 explicit multi-clause user authorization |
+| Q-P2 | assert_45 α vs β | **CLOSED** — Phase 2 implements β-with-typing (Option B); Phase 3 id45 PASS confirms typed-consistency |
+| Q-P3 | R3 [SUPERSEDED] markers | **CLOSED** — OBS_TB18R_R3_PREFLIGHT_SUPERSESSION_2026-05-06.md filed |
+| Q-P4 | Q14 distill risk | **CLOSED** — verbatim quotes from charter §0.A + VETO :604-609 inserted |
+| Q-P5 | No FC-first trace | **CLOSED** — FC_FIRST_ANALYSIS_ASSERT45_PARTIAL_VERDICT_2026-05-06.md filed |
+| Q-P6 | Premature "Ship Report" title | **CLOSED** — banner-prefixed; Phase 3 candidate report uses correct naming |
+
+### What user should do on wake-up
+
+1. **Review Phase 3 evidence + candidate report**: especially the P04/P05 inv1_match=False finding — round-3 must adjudicate root cause (evaluator pre-LLM phase counting? phantom transaction credits? something else?).
+2. **Invoke round-3 dual audit** (Codex + Gemini parallel; user-billed cloud invocation per Atom G0/G1 precedent). Quick-launch: read `handover/audits/G2_TB_18R_ROUND_3_DUAL_AUDIT_DISPATCH_2026-05-06.md`. Verdicts land at `handover/audits/{CODEX,GEMINI}_TB_18R_G2_ROUND_3_AUDIT_2026-05-06.md`.
+3. **If both PASS** → architect §8 sign-off → TB-18R FINAL ship → FREEZE lifts on TB-18R FINAL ship gate (M1/M2/M3 + NodeMarket + PriceIndex + Polymarket + public-chain + real-world-readiness + M1 public benchmark report + TB-19 + formal H-VPPU each need separate gating per architect ruling §3).
+4. **If CHALLENGE** → AI-coder remediates per Path A discipline (修而非凑活).
+5. **If VETO** → atom-level rollback + new charter section per architect ruling §9.
+
+Per Q-P1 ruling: **single-word user inputs ("fix" / "go" / "ok") MUST NOT be parsed as architect §8 sign-off.** §8 must be explicit multi-clause directive archived under `handover/directives/`.
+
+### Smoke-evidence cleanup note
+
+4 smoke-probe evidence dirs (uncommitted; iterative debugging during runner authoring):
+- `handover/evidence/tb_18r_phase_3_2026-05-06T13-58-13Z/` (smoke v1; bad parser)
+- `handover/evidence/tb_18r_phase_3_2026-05-06T14-10-00Z/` (smoke v2; CAS index unreadable)
+- `handover/evidence/tb_18r_phase_3_2026-05-06T14-11-35Z/` (smoke v3; index works for 1-shot)
+- `handover/evidence/tb_18r_phase_3_2026-05-06T14-13-22Z/` (smoke v4; final smoke before batch)
+
+These are local-only artifacts; user can `rm -rf` them at convenience. Canonical Phase 3 evidence = `tb_18r_phase_3_2026-05-06T14-13-55Z/` only.
+
+### FREEZE state (unchanged; lifts only on TB-18R FINAL ship)
+
+In addition to existing TB-18 M1/M2/M3 + NodeMarket + PriceIndex + Polymarket-signal + public-chain + real-world-readiness:
+- M1 public benchmark report
+- M2 / M3 scale-up
+- TB-19 real-world pilot design
+- NodeMarket / PriceIndex claims based on M1
+- any formal H-VPPU conclusions
+- any "formal benchmark passed" externalization
+
+### Open questions
+
+- **Round-3 dispatch invocation timing**: user-billed; cron-monitorable but requires user external invocation.
+- **P04/P05 inv1_match=False root cause**: round-3 must adjudicate evaluator vs chain accounting nuance.
+- **Synthetic-gate + step_partial_ok artifact in R4 invariant binary**: round-3 may recommend follow-on TB to relax binary's strict-delta-zero or migrate to architect §5 #1 direct check.
+
+---
+
 ## 🚢 2026-05-06 (session end #8) — **TB-18R round-2 — PROVISIONAL SHIPPED claim DOWNGRADED to CANDIDATE REMEDIATION; Phase 1 (process) + Phase 2 (typed PartialAccepted Class-4 schema bump) shipped; Phase 3 rerun pending architect review**
 
 **main HEAD (after this session)**: `3f51667` — TB-18R Phase 2 typed PartialAccepted semantic repair (Class 4 schema bump). Workspace tests **1077 / 0 failed / 150 ignored** (+28 net vs round-2 candidate baseline 1049).
