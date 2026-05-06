@@ -58,6 +58,121 @@ fn prompt_hash_hex(prompt_body: &str) -> String {
     format!("{:016x}", h.finish())
 }
 
+/// TB-18R R2 (preflight `handover/ai-direct/TB-18R_R2_STEP_B_evaluator.md`):
+/// arguments bundle for the per-LLM-call AttemptTelemetry CAS write.
+struct R2AttemptArgs<'a> {
+    run_id: &'a str,
+    agent_id: &'a str,
+    agent_idx: usize,
+    proposal_count: u64,
+    prompt_ctx_hash: turingosv4::state::q_state::Hash,
+    prompt_tokens: u64,
+    completion_tokens: u64,
+    candidate_bytes: &'a [u8],
+    tool_name: &'a str,
+    path_label: &'a str,
+    is_omega_success: bool,
+    outcome: turingosv4::runtime::attempt_telemetry::AttemptOutcome,
+    error_class: Option<turingosv4::runtime::attempt_telemetry::LeanErrorClass>,
+    /// `Some((exit_code, verified))` if Lean was invoked. `None` for parse_fail / llm_err.
+    lean_result: Option<(i32, bool)>,
+    logical_t: u64,
+}
+
+/// TB-18R R2 (preflight §1 + §3.3 + §3.6): write per-LLM-call
+/// AttemptTelemetry + (optional) LeanResult + ProposalPayload candidate-bytes
+/// to CAS. Privacy invariant CR-18R.4 v2: `candidate_bytes` is the parsed
+/// external candidate (or path-specific sentinel for parse_fail / llm_err);
+/// raw LLM response is NEVER passed in.
+fn r2_write_attempt_telemetry(
+    cas_store: &mut turingosv4::bottom_white::cas::store::CasStore,
+    args: R2AttemptArgs<'_>,
+) -> Result<turingosv4::bottom_white::cas::schema::Cid, String> {
+    use turingosv4::bottom_white::cas::schema::ObjectType;
+    use turingosv4::runtime::attempt_telemetry::{
+        AttemptKind, AttemptTelemetry, LeanResult,
+        write_attempt_telemetry_to_cas, write_lean_result_to_cas,
+    };
+    use turingosv4::runtime::proposal_telemetry::TokenCounts;
+    use turingosv4::state::q_state::{AgentId, TxId};
+
+    let attempt_id_str = if args.is_omega_success {
+        // Matches the WorkTx tx_id minted by `make_real_worktx_signed_by` in the
+        // existing TB-7 Atom-3 OMEGA branch: `worktx-task-{run_id}-{path}-{n}`.
+        // Per AttemptTelemetry.attempt_id contract (R1 schema doc-comment line
+        // 226-228): "Same TxId used on the WorkTx.tx_id if the attempt routes
+        // to L4 accepted".
+        format!("worktx-task-{}-{}-{}", args.run_id, args.path_label, args.proposal_count)
+    } else {
+        // Failure paths (no L4 accepted WorkTx). Pre-R3 these have no
+        // RejectedSubmissionRecord either; mint an `att-` prefixed id.
+        // R3 will rebind to RejectedSubmissionRecord.submit_id at admission.
+        format!("att-{}-{}-{}-{}", args.run_id, args.agent_id, args.proposal_count, args.path_label)
+    };
+    let attempt_id = TxId(attempt_id_str);
+
+    let candidate_cid = cas_store
+        .put(
+            args.candidate_bytes,
+            ObjectType::ProposalPayload,
+            &format!("tb18r-r2-{}-candidate", args.path_label),
+            args.logical_t,
+            None,
+        )
+        .map_err(|e| format!("candidate_payload CAS put: {e}"))?;
+
+    let lean_result_cid = if let Some((exit_code, verified)) = args.lean_result {
+        let proof_artifact_cid = if verified { Some(candidate_cid) } else { None };
+        let lr = LeanResult {
+            attempt_id: attempt_id.clone(),
+            exit_code,
+            verified,
+            stderr_cid: None,
+            stdout_cid: None,
+            proof_artifact_cid,
+            error_class: args.error_class,
+        };
+        Some(
+            write_lean_result_to_cas(
+                cas_store,
+                &lr,
+                &format!("tb18r-r2-{}-lean", args.path_label),
+                args.logical_t,
+            )
+            .map_err(|e| format!("LeanResult CAS write: {e}"))?,
+        )
+    } else {
+        None
+    };
+
+    let mut attempt = AttemptTelemetry::new_root(
+        attempt_id,
+        args.run_id.to_string(),
+        format!("task-{}", args.run_id),
+        AgentId(args.agent_id.to_string()),
+        format!("n{}.b0", args.agent_idx),
+        args.prompt_ctx_hash,
+        candidate_cid,
+        AttemptKind::ExternalizedLlmCycle,
+        args.outcome,
+        TokenCounts {
+            prompt_tokens: args.prompt_tokens,
+            completion_tokens: args.completion_tokens,
+            tool_tokens: 0,
+        },
+        args.tool_name.to_string(),
+    );
+    attempt.lean_result_cid = lean_result_cid;
+
+    write_attempt_telemetry_to_cas(
+        cas_store,
+        &attempt,
+        &format!("tb18r-r2-{}", args.path_label),
+        args.logical_t,
+    )
+    .map_err(|e| format!("AttemptTelemetry CAS write: {e}"))
+}
+
 const DEFAULT_BOLTZMANN_SEED: u64 = 74677;  // same as sample seed (BTC/USD external)
 
 const DEFAULT_MINIF2F_DIR: &str = "/home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4";
@@ -1929,6 +2044,13 @@ async fn run_swarm(
             &chain, &skill, &market_ticker_str, &errors, &hits_ref,
             prompt_balance, tools_desc, &team_board,
         );
+        // TB-18R R2: SHA-256 of the prompt body for AttemptTelemetry.prompt_context_hash
+        // (preflight §3.1: reuse Cid::from_content to avoid adding sha2 direct
+        // dep to experiments/minif2f_v4/Cargo.toml). Computed BEFORE the
+        // GenerateRequest below moves `prompt` into Message.content.
+        let r2_prompt_ctx_hash = turingosv4::state::q_state::Hash(
+            turingosv4::bottom_white::cas::schema::Cid::from_content(prompt.as_bytes()).0,
+        );
 
         // Phase A atom A3: bind δ for this agent_idx (same vector resolved
         // once at run_swarm entry from AGENT_MODELS env). In Phase B+C this
@@ -2350,6 +2472,37 @@ async fn run_swarm(
                                             // TB-7.7 D2: parent_tx for branch lineage.
                                             let parent_tx_for_pt: Option<turingosv4::state::q_state::TxId> =
                                                 last_tx_by_agent.get(agent_id).cloned();
+
+                                            // ── TB-18R R2 path 1 (preflight §1 omega-full) ──
+                                            // Per FR-18R.1 + SG-18R.1: every externalized LLM-Lean
+                                            // cycle produces a CAS AttemptTelemetry. Success path
+                                            // (Lean accept) → outcome=LeanPass. attempt_id matches
+                                            // the WorkTx tx_id minted below. FAIL-CLOSED in chaintape
+                                            // mode per preflight §3.6.
+                                            if let Err(msg) = r2_write_attempt_telemetry(
+                                                &mut cas_store,
+                                                R2AttemptArgs {
+                                                    run_id: &run_id,
+                                                    agent_id,
+                                                    agent_idx,
+                                                    proposal_count,
+                                                    prompt_ctx_hash: r2_prompt_ctx_hash,
+                                                    prompt_tokens: response.prompt_tokens as u64,
+                                                    completion_tokens: response.completion_tokens as u64,
+                                                    candidate_bytes: payload.as_bytes(),
+                                                    tool_name: "omega_wtool",
+                                                    path_label: "omega-full",
+                                                    is_omega_success: true,
+                                                    outcome: turingosv4::runtime::attempt_telemetry::AttemptOutcome::LeanPass,
+                                                    error_class: None,
+                                                    lean_result: Some((0, true)),
+                                                    logical_t,
+                                                },
+                                            ) {
+                                                error!("[chaintape/tb18r-r2-omega-full] FAIL-CLOSED: {msg}");
+                                                std::process::exit(3);
+                                            }
+
                                             let pt_partial = match turingosv4::runtime::proposal_telemetry::ProposalTelemetry::build_for_evaluator_append_with_parent(
                                                 &mut cas_store,
                                                 &run_id,
@@ -2894,6 +3047,35 @@ async fn run_swarm(
                                             // TB-7.7 D2: parent_tx for branch lineage.
                                             let parent_tx_for_pt: Option<turingosv4::state::q_state::TxId> =
                                                 last_tx_by_agent.get(agent_id).cloned();
+
+                                            // ── TB-18R R2 path 2 (preflight §1 omega-pertactic) ──
+                                            // Same shape as path 1 but candidate_bytes = tactic
+                                            // (the closing step) rather than full payload.
+                                            // tool_name disambiguates from path 1 per preflight §3.7.
+                                            if let Err(msg) = r2_write_attempt_telemetry(
+                                                &mut cas_store,
+                                                R2AttemptArgs {
+                                                    run_id: &run_id,
+                                                    agent_id,
+                                                    agent_idx,
+                                                    proposal_count,
+                                                    prompt_ctx_hash: r2_prompt_ctx_hash,
+                                                    prompt_tokens: response.prompt_tokens as u64,
+                                                    completion_tokens: response.completion_tokens as u64,
+                                                    candidate_bytes: tactic.as_bytes(),
+                                                    tool_name: "omega_wtool_pertactic",
+                                                    path_label: "omega-pertactic",
+                                                    is_omega_success: true,
+                                                    outcome: turingosv4::runtime::attempt_telemetry::AttemptOutcome::LeanPass,
+                                                    error_class: None,
+                                                    lean_result: Some((0, true)),
+                                                    logical_t,
+                                                },
+                                            ) {
+                                                error!("[chaintape/tb18r-r2-omega-pertactic] FAIL-CLOSED: {msg}");
+                                                std::process::exit(3);
+                                            }
+
                                             let pt_partial = match turingosv4::runtime::proposal_telemetry::ProposalTelemetry::build_for_evaluator_append_with_parent(
                                                 &mut cas_store,
                                                 &run_id,
@@ -3240,6 +3422,43 @@ async fn run_swarm(
                                                 info!("[tx {}] {} step+{} partial OK (depth={})",
                                                       tx, agent_id, node_id,
                                                       bus.kernel.tape.time_arrow().len());
+                                                // ── TB-18R R2 path 3 (preflight §1 step_partial_ok) ──
+                                                // Lean accepted the prefix but did not Complete; per
+                                                // R1 attempt_telemetry.rs:137 mapping: outcome=LeanPass
+                                                // with proof_artifact_cid=None (intermediate, not terminal).
+                                                if let Some(bundle) = chaintape_bundle.as_ref() {
+                                                    let logical_t = bundle.sequencer.next_logical_t_peek();
+                                                    let mut cas_store = match turingosv4::bottom_white::cas::store::CasStore::open(&bundle.cas_path) {
+                                                        Ok(c) => c,
+                                                        Err(e) => {
+                                                            error!("[chaintape/tb18r-r2-step_partial_ok] FAIL-CLOSED: cas open: {e}");
+                                                            std::process::exit(3);
+                                                        }
+                                                    };
+                                                    if let Err(msg) = r2_write_attempt_telemetry(
+                                                        &mut cas_store,
+                                                        R2AttemptArgs {
+                                                            run_id: &run_id,
+                                                            agent_id,
+                                                            agent_idx,
+                                                            proposal_count: tx as u64,
+                                                            prompt_ctx_hash: r2_prompt_ctx_hash,
+                                                            prompt_tokens: response.prompt_tokens as u64,
+                                                            completion_tokens: response.completion_tokens as u64,
+                                                            candidate_bytes: tactic.as_bytes(),
+                                                            tool_name: "step_partial_ok",
+                                                            path_label: "step_partial_ok",
+                                                            is_omega_success: false,
+                                                            outcome: turingosv4::runtime::attempt_telemetry::AttemptOutcome::LeanPass,
+                                                            error_class: None,
+                                                            lean_result: Some((0, false)),
+                                                            logical_t,
+                                                        },
+                                                    ) {
+                                                        error!("[chaintape/tb18r-r2-step_partial_ok] FAIL-CLOSED: {msg}");
+                                                        std::process::exit(3);
+                                                    }
+                                                }
                                             }
                                             Ok(BusResult::Vetoed { reason }) => {
                                                 warn!("[tx {}] step partial OK but bus vetoed: {}", tx, reason);
@@ -3253,7 +3472,8 @@ async fn run_swarm(
                                         // TB-11 carry-forward (TB-12 Atom 0.5a; architect §6.1):
                                         // sorry-block vs lean-error split, same logic as
                                         // OMEGA-rejected path above.
-                                        if reason.contains("sorry") || reason.contains("forbidden_payload") {
+                                        let r2_is_sorry = reason.contains("sorry") || reason.contains("forbidden_payload");
+                                        if r2_is_sorry {
                                             tb11_sorry_block_count += 1;
                                         } else {
                                             tb11_lean_error_count += 1;
@@ -3263,6 +3483,54 @@ async fn run_swarm(
                                         *tool_dist.entry("step_reject".into()).or_insert(0) += 1;
                                         let preview = reason.chars().take(200).collect::<String>();
                                         warn!("[tx {}] step rejected ({}): {}", tx, class.label(), preview);
+                                        // ── TB-18R R2 path 4 (preflight §1 step_reject + §3.5) ──
+                                        // Lean rejected the candidate. Map sorry/forbidden_payload
+                                        // → SorryBlock + LeanErrorClass::SorryBlocked; otherwise
+                                        // LeanFail + LeanErrorClass::LeanFailed.
+                                        if let Some(bundle) = chaintape_bundle.as_ref() {
+                                            let logical_t = bundle.sequencer.next_logical_t_peek();
+                                            let (r2_outcome, r2_lec) = if r2_is_sorry {
+                                                (
+                                                    turingosv4::runtime::attempt_telemetry::AttemptOutcome::SorryBlock,
+                                                    turingosv4::runtime::attempt_telemetry::LeanErrorClass::SorryBlocked,
+                                                )
+                                            } else {
+                                                (
+                                                    turingosv4::runtime::attempt_telemetry::AttemptOutcome::LeanFail,
+                                                    turingosv4::runtime::attempt_telemetry::LeanErrorClass::LeanFailed,
+                                                )
+                                            };
+                                            let mut cas_store = match turingosv4::bottom_white::cas::store::CasStore::open(&bundle.cas_path) {
+                                                Ok(c) => c,
+                                                Err(e) => {
+                                                    error!("[chaintape/tb18r-r2-step_reject] FAIL-CLOSED: cas open: {e}");
+                                                    std::process::exit(3);
+                                                }
+                                            };
+                                            if let Err(msg) = r2_write_attempt_telemetry(
+                                                &mut cas_store,
+                                                R2AttemptArgs {
+                                                    run_id: &run_id,
+                                                    agent_id,
+                                                    agent_idx,
+                                                    proposal_count: tx as u64,
+                                                    prompt_ctx_hash: r2_prompt_ctx_hash,
+                                                    prompt_tokens: response.prompt_tokens as u64,
+                                                    completion_tokens: response.completion_tokens as u64,
+                                                    candidate_bytes: tactic.as_bytes(),
+                                                    tool_name: "step_reject",
+                                                    path_label: "step_reject",
+                                                    is_omega_success: false,
+                                                    outcome: r2_outcome,
+                                                    error_class: Some(r2_lec),
+                                                    lean_result: Some((1, false)),
+                                                    logical_t,
+                                                },
+                                            ) {
+                                                error!("[chaintape/tb18r-r2-step_reject] FAIL-CLOSED: {msg}");
+                                                std::process::exit(3);
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -3282,12 +3550,85 @@ async fn run_swarm(
                         // PPUT-CCL B2: classifier label flows into next prompt's errors.
                         acc.record_tool_stdout(class.label());
                         warn!("[tx {}] parse: {} ({})", tx, e, class.label());
+                        // ── TB-18R R2 path 5 (preflight §1 parse_fail + §3.2) ──
+                        // No parsable external candidate exists; candidate_bytes is a
+                        // sentinel marker (NEVER the raw model response — CR-18R.4 v2).
+                        // Lean was not invoked → lean_result_cid=None.
+                        if let Some(bundle) = chaintape_bundle.as_ref() {
+                            let logical_t = bundle.sequencer.next_logical_t_peek();
+                            let mut cas_store = match turingosv4::bottom_white::cas::store::CasStore::open(&bundle.cas_path) {
+                                Ok(c) => c,
+                                Err(e) => {
+                                    error!("[chaintape/tb18r-r2-parse_fail] FAIL-CLOSED: cas open: {e}");
+                                    std::process::exit(3);
+                                }
+                            };
+                            if let Err(msg) = r2_write_attempt_telemetry(
+                                &mut cas_store,
+                                R2AttemptArgs {
+                                    run_id: &run_id,
+                                    agent_id,
+                                    agent_idx,
+                                    proposal_count: tx as u64,
+                                    prompt_ctx_hash: r2_prompt_ctx_hash,
+                                    prompt_tokens: response.prompt_tokens as u64,
+                                    completion_tokens: response.completion_tokens as u64,
+                                    candidate_bytes: b"tb-18r-parse-fail-no-candidate",
+                                    tool_name: "parse_fail",
+                                    path_label: "parse_fail",
+                                    is_omega_success: false,
+                                    outcome: turingosv4::runtime::attempt_telemetry::AttemptOutcome::ParseFail,
+                                    error_class: None,
+                                    lean_result: None,
+                                    logical_t,
+                                },
+                            ) {
+                                error!("[chaintape/tb18r-r2-parse_fail] FAIL-CLOSED: {msg}");
+                                std::process::exit(3);
+                            }
+                        }
                     }
                 }
             }
             Err(e) => {
                 *tool_dist.entry("llm_err".into()).or_insert(0) += 1;
                 warn!("[tx {}] LLM: {}", tx, e);
+                // ── TB-18R R2 path 6 (preflight §1 llm_err + §3.2) ──
+                // LLM call itself failed; no response → token_counts default zero,
+                // candidate_bytes is the llm-err sentinel. Lean was not invoked.
+                if let Some(bundle) = chaintape_bundle.as_ref() {
+                    let logical_t = bundle.sequencer.next_logical_t_peek();
+                    let mut cas_store = match turingosv4::bottom_white::cas::store::CasStore::open(&bundle.cas_path) {
+                        Ok(c) => c,
+                        Err(e) => {
+                            error!("[chaintape/tb18r-r2-llm_err] FAIL-CLOSED: cas open: {e}");
+                            std::process::exit(3);
+                        }
+                    };
+                    if let Err(msg) = r2_write_attempt_telemetry(
+                        &mut cas_store,
+                        R2AttemptArgs {
+                            run_id: &run_id,
+                            agent_id,
+                            agent_idx,
+                            proposal_count: tx as u64,
+                            prompt_ctx_hash: r2_prompt_ctx_hash,
+                            prompt_tokens: 0,
+                            completion_tokens: 0,
+                            candidate_bytes: b"tb-18r-llm-err-no-candidate",
+                            tool_name: "llm_err",
+                            path_label: "llm_err",
+                            is_omega_success: false,
+                            outcome: turingosv4::runtime::attempt_telemetry::AttemptOutcome::LlmErr,
+                            error_class: None,
+                            lean_result: None,
+                            logical_t,
+                        },
+                    ) {
+                        error!("[chaintape/tb18r-r2-llm_err] FAIL-CLOSED: {msg}");
+                        std::process::exit(3);
+                    }
+                }
             }
         }
     }
