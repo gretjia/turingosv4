@@ -179,6 +179,41 @@ impl CasStore {
         Repository::open(&self.repo_path).map_err(CasError::from)
     }
 
+    /// TB-18R R3.fix (preflight `handover/ai-direct/TB-18R_R3FIX_STEP_B_cas_reload.md`):
+    /// re-read the on-disk sidecar `.turingos_cas_index.jsonl` and merge new
+    /// entries into `self.index`. Existing entries are preserved (idempotent on
+    /// already-loaded CIDs; see `load_index_from_sidecar` strict-mode contract).
+    ///
+    /// Use case: a long-lived `CasStore` handle (e.g. `Sequencer.cas`) was
+    /// opened at process start; another short-lived `CasStore` handle opened
+    /// later on the same disk path wrote new objects (e.g. evaluator's per-path
+    /// AttemptTelemetry write); the long-lived handle's in-memory index does
+    /// NOT see those entries until this method is called. The L0 smoke
+    /// 2026-05-06 surfaced this split-brain: sequencer's R3 admission helper
+    /// `refine_rejection_class_via_attempt_telemetry` was reading via the
+    /// stale index, getting `CidNotFound`, and falling back to PredicateFailed
+    /// instead of refining to LeanFailed/SorryBlocked/ParseFailed/LlmError.
+    ///
+    /// Idempotent: replays the sidecar in full; entries already present in
+    /// `self.index` are overwritten with the same metadata; new entries are
+    /// inserted. No on-disk side effect.
+    ///
+    /// **Strict mode**: any malformed sidecar line returns
+    /// `CasError::IndexParse` and `self.index` is left UNCHANGED (the
+    /// freshly-loaded BTreeMap is computed first, then swapped in only on
+    /// success).
+    ///
+    /// TRACE_MATRIX FC1-N41 (TB-18R R3.fix; consumed by sequencer.rs
+    /// `refine_rejection_class_via_attempt_telemetry` retry path).
+    pub fn reload_index_from_sidecar(&mut self) -> Result<(), CasError> {
+        let fresh = load_index_from_sidecar(&self.repo_path)?;
+        // Merge: BTreeMap::extend overwrites duplicates with the new value.
+        // Since the sidecar is the durable canonical record, the freshly-read
+        // entries are authoritative.
+        self.index.extend(fresh);
+        Ok(())
+    }
+
     /// Store content; returns its Cid. Idempotent — same content → same Cid.
     pub fn put(
         &mut self,
