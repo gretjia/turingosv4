@@ -87,6 +87,27 @@ pub enum ObjectType {
     /// latest_markov_cid, boot_seq[]}`). Referenced by
     /// `MarkovEvidenceCapsule.next_session_context_cid`.
     NextSessionContext,
+    /// TB-18R R1 (charter v2 §1 + Codex Gate 1 ratified 2026-05-06):
+    /// canonical-encoded `AttemptTelemetry` bytes for one externalized
+    /// LLM-Lean cycle. Privacy invariant: `candidate_payload_cid` points
+    /// at parsed external candidate bytes, NEVER raw LLM response (per
+    /// CR-18R.4 v2). See `src/runtime/attempt_telemetry.rs`.
+    AttemptTelemetry,
+    /// TB-18R R1 (charter v2 §1 + Codex Gate 1 ratified 2026-05-06):
+    /// canonical-encoded `LeanResult` bytes — Lean's verdict on one
+    /// externalized candidate (exit_code + verified + stderr_cid +
+    /// stdout_cid + proof_artifact_cid + error_class). Raw stderr /
+    /// stdout stay shielded behind their own AuditOnly CAS objects.
+    LeanResult,
+    /// TB-18R R1 (charter v2 FR-18R.3 v2 + Codex Q4 remediation):
+    /// canonical-encoded `TerminalAbortRecord` bytes for one aborted
+    /// attempt (externally killed / per-call budget halt / WallClockCap
+    /// during Lean / etc.). Per FR-18R.3 v2: aborted attempts are
+    /// excluded from `evaluator_reported_completed_llm_calls` and counted
+    /// in `attempt_aborted_count`; this CAS object provides the explicit
+    /// per-aborted-attempt evidence so the chain-derived equation holds
+    /// exactly after the sequencer drain barrier.
+    TerminalAbortRecord,
     /// Generic / unclassified blob.
     Generic,
 }
@@ -193,5 +214,154 @@ mod tests {
         let mut variant = base.clone();
         variant.object_type = ObjectType::CounterexamplePayload;
         assert_ne!(base.canonical_hash(), variant.canonical_hash());
+    }
+
+    // TB-18R R1: per preflight §7 — 4 ObjectType variant tests verifying
+    // (a) the new variants serialize to distinct canonical-hash bytes from
+    // each other and from existing variants, and (b) all 13 pre-existing
+    // variants still serialize byte-identical to their TB-15 baseline (so
+    // pre-TB-18R chain entries replay byte-identical per FR-18R.10 +
+    // `feedback_no_retroactive_evidence_rewrite`).
+
+    #[test]
+    fn object_type_attempt_telemetry_canonical_hash_distinct() {
+        // The new AttemptTelemetry variant must produce a canonical hash
+        // distinct from every pre-existing variant.
+        let mk = |t: ObjectType| CasObjectMetadata {
+            cid: Cid::from_content(b"x"),
+            backend_oid_hex: "abc".to_string(),
+            object_type: t,
+            creator: "evaluator".to_string(),
+            created_at_logical_t: 100,
+            schema_id: None,
+            size_bytes: 1,
+        };
+        let attempt = mk(ObjectType::AttemptTelemetry);
+        for other in [
+            ObjectType::ProposalPayload,
+            ObjectType::CounterexamplePayload,
+            ObjectType::PredicateBytecode,
+            ObjectType::ToolBytecode,
+            ObjectType::AmendmentDiff,
+            ObjectType::ReversibilityPlan,
+            ObjectType::EvidenceCapsule,
+            ObjectType::EvidenceManifest,
+            ObjectType::CompressedRunLog,
+            ObjectType::AgentAutopsyCapsule,
+            ObjectType::AutopsyPrivateDetail,
+            ObjectType::MarkovEvidenceCapsule,
+            ObjectType::NextSessionContext,
+            ObjectType::Generic,
+        ] {
+            assert_ne!(
+                attempt.canonical_hash(),
+                mk(other).canonical_hash(),
+                "AttemptTelemetry canonical hash must differ from {:?}",
+                other,
+            );
+        }
+    }
+
+    #[test]
+    fn object_type_lean_result_canonical_hash_distinct() {
+        let mk = |t: ObjectType| CasObjectMetadata {
+            cid: Cid::from_content(b"x"),
+            backend_oid_hex: "abc".to_string(),
+            object_type: t,
+            creator: "evaluator".to_string(),
+            created_at_logical_t: 100,
+            schema_id: None,
+            size_bytes: 1,
+        };
+        let lean = mk(ObjectType::LeanResult);
+        for other in [
+            ObjectType::AttemptTelemetry,
+            ObjectType::TerminalAbortRecord,
+            ObjectType::ProposalPayload,
+            ObjectType::Generic,
+        ] {
+            assert_ne!(
+                lean.canonical_hash(),
+                mk(other).canonical_hash(),
+                "LeanResult canonical hash must differ from {:?}",
+                other,
+            );
+        }
+    }
+
+    #[test]
+    fn object_type_terminal_abort_record_canonical_hash_distinct() {
+        let mk = |t: ObjectType| CasObjectMetadata {
+            cid: Cid::from_content(b"x"),
+            backend_oid_hex: "abc".to_string(),
+            object_type: t,
+            creator: "sequencer".to_string(),
+            created_at_logical_t: 100,
+            schema_id: None,
+            size_bytes: 1,
+        };
+        let abort = mk(ObjectType::TerminalAbortRecord);
+        for other in [
+            ObjectType::AttemptTelemetry,
+            ObjectType::LeanResult,
+            ObjectType::EvidenceCapsule,
+            ObjectType::Generic,
+        ] {
+            assert_ne!(
+                abort.canonical_hash(),
+                mk(other).canonical_hash(),
+                "TerminalAbortRecord canonical hash must differ from {:?}",
+                other,
+            );
+        }
+    }
+
+    #[test]
+    fn object_type_pre_tb_18r_variants_unchanged() {
+        // Per FR-18R.10 + `feedback_no_retroactive_evidence_rewrite`:
+        // the 14 pre-TB-18R ObjectType variants must serialize to the same
+        // canonical bytes after the TB-18R tail-append. This test pins their
+        // serialized form so a future renumbering / reorder is caught.
+        //
+        // serde-json encoding: ObjectType uses derived externally-tagged
+        // representation, so each variant serializes to its name string.
+        // Tail-appending new variants does NOT affect the existing ones.
+        let pre_tb_18r = [
+            (ObjectType::ProposalPayload, "\"ProposalPayload\""),
+            (ObjectType::CounterexamplePayload, "\"CounterexamplePayload\""),
+            (ObjectType::PredicateBytecode, "\"PredicateBytecode\""),
+            (ObjectType::ToolBytecode, "\"ToolBytecode\""),
+            (ObjectType::AmendmentDiff, "\"AmendmentDiff\""),
+            (ObjectType::ReversibilityPlan, "\"ReversibilityPlan\""),
+            (ObjectType::EvidenceCapsule, "\"EvidenceCapsule\""),
+            (ObjectType::EvidenceManifest, "\"EvidenceManifest\""),
+            (ObjectType::CompressedRunLog, "\"CompressedRunLog\""),
+            (ObjectType::AgentAutopsyCapsule, "\"AgentAutopsyCapsule\""),
+            (ObjectType::AutopsyPrivateDetail, "\"AutopsyPrivateDetail\""),
+            (ObjectType::MarkovEvidenceCapsule, "\"MarkovEvidenceCapsule\""),
+            (ObjectType::NextSessionContext, "\"NextSessionContext\""),
+            (ObjectType::Generic, "\"Generic\""),
+        ];
+        for (variant, expected) in pre_tb_18r {
+            let actual = serde_json::to_string(&variant).expect("serialize");
+            assert_eq!(
+                actual, expected,
+                "pre-TB-18R variant {:?} must serialize to {}",
+                variant, expected,
+            );
+        }
+        // Sanity: the new TB-18R variants serialize to their expected names.
+        assert_eq!(
+            serde_json::to_string(&ObjectType::AttemptTelemetry).expect("serialize"),
+            "\"AttemptTelemetry\"",
+        );
+        assert_eq!(
+            serde_json::to_string(&ObjectType::LeanResult).expect("serialize"),
+            "\"LeanResult\"",
+        );
+        assert_eq!(
+            serde_json::to_string(&ObjectType::TerminalAbortRecord).expect("serialize"),
+            "\"TerminalAbortRecord\"",
+        );
     }
 }

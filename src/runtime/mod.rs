@@ -62,6 +62,9 @@ pub mod bootstrap;
 /// TRACE_MATRIX FC1-N34 + FC2-N31 (TB-16 Atom 2; architect §7.5 + design §6.2): 38-assertion audit-from-tape battery. Pure-fn library over on-disk artifacts (runtime_repo + cas_dir + manifests + constitution + markov pointer); NO live process state. Drives `audit_tape` + `audit_tape_tamper` binaries; verdict.json wire format per design §6.3.
 pub mod audit_assertions;
 
+/// TRACE_MATRIX FC1-N41 + FC1-N42 + FC1-N43 NEW (TB-18R R1 charter v2 §1 + Codex Gate 1 ratified 2026-05-06): per-LLM-Lean-cycle `AttemptTelemetry` + `LeanResult` + `TerminalAbortRecord` CAS object schemas. Closes failure-path asymmetry (omega ✅ / step_reject + parse_fail + llm_err + step_partial_ok ❌) documented in 2026-05-06 external-audit VETO. R2 wires evaluator hot path; R3 extends sequencer L4.E admission with `RejectionClass::LeanFailed=6 / ParseFailed=7 / SorryBlocked=8 / LlmError=9` tail-append.
+pub mod attempt_telemetry;
+
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 
