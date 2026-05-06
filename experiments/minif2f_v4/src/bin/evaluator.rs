@@ -173,6 +173,63 @@ fn r2_write_attempt_telemetry(
     .map_err(|e| format!("AttemptTelemetry CAS write: {e}"))
 }
 
+/// TB-18R R3 (preflight `handover/ai-direct/TB-18R_R3_STEP_B_admission.md` §1.3 + §3.4):
+/// emit a runtime-path failure WorkTx after the per-LLM-call AttemptTelemetry
+/// has been written to CAS by `r2_write_attempt_telemetry`.
+///
+/// The WorkTx carries:
+/// - `predicate_passes = false` (sequencer routes to L4.E)
+/// - `proposal_cid = attempt_telemetry_cid` (sequencer's R3 refinement helper
+///   reads `AttemptTelemetry.outcome` via this CID and maps to fine-grained
+///   `RejectionClass ∈ {6,7,8,9}`)
+/// - `stake = 0` (preflight §3.4: failure-path WorkTx must NOT burn agent
+///   balance; economic-engine misuse otherwise)
+///
+/// Origin-tag: the `synthetic_rejection_for_l4e_gate` field stays implicit-
+/// false (preflight §3.4 + CR-18R.5); pre-R3 Atom-3 fixtures keep their
+/// existing `=true` tag, runtime-path R3 records carry `=false`.
+async fn r3_emit_failure_path_worktx(
+    bus: &turingosv4::bus::TuringBus,
+    bundle: &turingosv4::runtime::ChaintapeBundle,
+    reg: &std::sync::Arc<std::sync::Mutex<turingosv4::runtime::agent_keypairs::AgentKeypairRegistry>>,
+    run_id: &str,
+    agent_id: &str,
+    attempt_seq: u64,
+    path_label: &str,
+    attempt_telemetry_cid: turingosv4::bottom_white::cas::schema::Cid,
+    logical_t: u64,
+) -> Result<(), String> {
+    let parent_state_root = bundle
+        .sequencer
+        .q_snapshot()
+        .map_err(|e| format!("q_snapshot: {e:?}"))?
+        .state_root_t;
+    let task_id_str = format!("task-{}", run_id);
+    let suffix = format!("{}-{}", path_label, attempt_seq);
+    let work_tx = {
+        let mut reg_guard = match reg.lock() {
+            Ok(g) => g,
+            Err(p) => p.into_inner(),
+        };
+        turingosv4::runtime::adapter::make_real_worktx_signed_by(
+            &mut *reg_guard,
+            &task_id_str,
+            agent_id,
+            parent_state_root,
+            0,
+            &suffix,
+            attempt_telemetry_cid,
+            false,
+            logical_t,
+        )
+        .map_err(|e| format!("make_real_worktx_signed_by: {e}"))?
+    };
+    bus.submit_typed_tx(work_tx)
+        .await
+        .map_err(|e| format!("submit_typed_tx: {e:?}"))?;
+    Ok(())
+}
+
 const DEFAULT_BOLTZMANN_SEED: u64 = 74677;  // same as sample seed (BTC/USD external)
 
 const DEFAULT_MINIF2F_DIR: &str = "/home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4";
@@ -3426,6 +3483,15 @@ async fn run_swarm(
                                                 // Lean accepted the prefix but did not Complete; per
                                                 // R1 attempt_telemetry.rs:137 mapping: outcome=LeanPass
                                                 // with proof_artifact_cid=None (intermediate, not terminal).
+                                                // R3 deviation (preflight §1.3 amended): step_partial_ok
+                                                // is structurally intermediate (LeanPass), not a rejection,
+                                                // so does NOT submit a predicate_passes=false WorkTx.
+                                                // Doing so would trip the sequencer's LeanPass-on-
+                                                // rejection-arm guard (preflight §3.6: panic in debug).
+                                                // step_partial_ok stays CAS-only in R3; a future TB will
+                                                // design an audit-compatible L4 lane for intermediate
+                                                // partial-accept progress (would require a per-tactic
+                                                // ProposalTelemetry to satisfy TB-7 Gate 5).
                                                 if let Some(bundle) = chaintape_bundle.as_ref() {
                                                     let logical_t = bundle.sequencer.next_logical_t_peek();
                                                     let mut cas_store = match turingosv4::bottom_white::cas::store::CasStore::open(&bundle.cas_path) {
@@ -3487,7 +3553,12 @@ async fn run_swarm(
                                         // Lean rejected the candidate. Map sorry/forbidden_payload
                                         // → SorryBlock + LeanErrorClass::SorryBlocked; otherwise
                                         // LeanFail + LeanErrorClass::LeanFailed.
-                                        if let Some(bundle) = chaintape_bundle.as_ref() {
+                                        // R3 (preflight §1.3): also emit a runtime-path WorkTx
+                                        // (predicate_passes=false, stake=0) → sequencer routes to L4.E
+                                        // with refined RejectionClass=LeanFailed=6 (or SorryBlocked=8).
+                                        if let (Some(bundle), Some(reg)) =
+                                            (chaintape_bundle.as_ref(), agent_keypairs.as_ref())
+                                        {
                                             let logical_t = bundle.sequencer.next_logical_t_peek();
                                             let (r2_outcome, r2_lec) = if r2_is_sorry {
                                                 (
@@ -3507,7 +3578,7 @@ async fn run_swarm(
                                                     std::process::exit(3);
                                                 }
                                             };
-                                            if let Err(msg) = r2_write_attempt_telemetry(
+                                            let r3_attempt_cid = match r2_write_attempt_telemetry(
                                                 &mut cas_store,
                                                 R2AttemptArgs {
                                                     run_id: &run_id,
@@ -3527,7 +3598,24 @@ async fn run_swarm(
                                                     logical_t,
                                                 },
                                             ) {
-                                                error!("[chaintape/tb18r-r2-step_reject] FAIL-CLOSED: {msg}");
+                                                Ok(cid) => cid,
+                                                Err(msg) => {
+                                                    error!("[chaintape/tb18r-r2-step_reject] FAIL-CLOSED: {msg}");
+                                                    std::process::exit(3);
+                                                }
+                                            };
+                                            if let Err(msg) = r3_emit_failure_path_worktx(
+                                                &bus,
+                                                bundle,
+                                                reg,
+                                                &run_id,
+                                                agent_id,
+                                                tx as u64,
+                                                "step_reject",
+                                                r3_attempt_cid,
+                                                logical_t,
+                                            ).await {
+                                                error!("[chaintape/tb18r-r3-step_reject] FAIL-CLOSED: {msg}");
                                                 std::process::exit(3);
                                             }
                                         }
@@ -3554,7 +3642,12 @@ async fn run_swarm(
                         // No parsable external candidate exists; candidate_bytes is a
                         // sentinel marker (NEVER the raw model response — CR-18R.4 v2).
                         // Lean was not invoked → lean_result_cid=None.
-                        if let Some(bundle) = chaintape_bundle.as_ref() {
+                        // R3 (preflight §1.3): emit a runtime-path WorkTx referencing
+                        // the AttemptTelemetry so sequencer routes to L4.E with
+                        // refined RejectionClass=ParseFailed=7.
+                        if let (Some(bundle), Some(reg)) =
+                            (chaintape_bundle.as_ref(), agent_keypairs.as_ref())
+                        {
                             let logical_t = bundle.sequencer.next_logical_t_peek();
                             let mut cas_store = match turingosv4::bottom_white::cas::store::CasStore::open(&bundle.cas_path) {
                                 Ok(c) => c,
@@ -3563,7 +3656,7 @@ async fn run_swarm(
                                     std::process::exit(3);
                                 }
                             };
-                            if let Err(msg) = r2_write_attempt_telemetry(
+                            let r3_attempt_cid = match r2_write_attempt_telemetry(
                                 &mut cas_store,
                                 R2AttemptArgs {
                                     run_id: &run_id,
@@ -3583,7 +3676,24 @@ async fn run_swarm(
                                     logical_t,
                                 },
                             ) {
-                                error!("[chaintape/tb18r-r2-parse_fail] FAIL-CLOSED: {msg}");
+                                Ok(cid) => cid,
+                                Err(msg) => {
+                                    error!("[chaintape/tb18r-r2-parse_fail] FAIL-CLOSED: {msg}");
+                                    std::process::exit(3);
+                                }
+                            };
+                            if let Err(msg) = r3_emit_failure_path_worktx(
+                                &bus,
+                                bundle,
+                                reg,
+                                &run_id,
+                                agent_id,
+                                tx as u64,
+                                "parse_fail",
+                                r3_attempt_cid,
+                                logical_t,
+                            ).await {
+                                error!("[chaintape/tb18r-r3-parse_fail] FAIL-CLOSED: {msg}");
                                 std::process::exit(3);
                             }
                         }
@@ -3596,7 +3706,12 @@ async fn run_swarm(
                 // ── TB-18R R2 path 6 (preflight §1 llm_err + §3.2) ──
                 // LLM call itself failed; no response → token_counts default zero,
                 // candidate_bytes is the llm-err sentinel. Lean was not invoked.
-                if let Some(bundle) = chaintape_bundle.as_ref() {
+                // R3 (preflight §1.3): emit a runtime-path WorkTx referencing the
+                // AttemptTelemetry; sequencer routes to L4.E with refined
+                // RejectionClass=LlmError=9.
+                if let (Some(bundle), Some(reg)) =
+                    (chaintape_bundle.as_ref(), agent_keypairs.as_ref())
+                {
                     let logical_t = bundle.sequencer.next_logical_t_peek();
                     let mut cas_store = match turingosv4::bottom_white::cas::store::CasStore::open(&bundle.cas_path) {
                         Ok(c) => c,
@@ -3605,7 +3720,7 @@ async fn run_swarm(
                             std::process::exit(3);
                         }
                     };
-                    if let Err(msg) = r2_write_attempt_telemetry(
+                    let r3_attempt_cid = match r2_write_attempt_telemetry(
                         &mut cas_store,
                         R2AttemptArgs {
                             run_id: &run_id,
@@ -3625,7 +3740,24 @@ async fn run_swarm(
                             logical_t,
                         },
                     ) {
-                        error!("[chaintape/tb18r-r2-llm_err] FAIL-CLOSED: {msg}");
+                        Ok(cid) => cid,
+                        Err(msg) => {
+                            error!("[chaintape/tb18r-r2-llm_err] FAIL-CLOSED: {msg}");
+                            std::process::exit(3);
+                        }
+                    };
+                    if let Err(msg) = r3_emit_failure_path_worktx(
+                        &bus,
+                        bundle,
+                        reg,
+                        &run_id,
+                        agent_id,
+                        tx as u64,
+                        "llm_err",
+                        r3_attempt_cid,
+                        logical_t,
+                    ).await {
+                        error!("[chaintape/tb18r-r3-llm_err] FAIL-CLOSED: {msg}");
                         std::process::exit(3);
                     }
                 }

@@ -397,6 +397,84 @@ fn public_summary_for(e: &TransitionError) -> Option<String> {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// TB-18R R3 — fine-grained rejection-class refinement via AttemptTelemetry
+// (preflight `handover/ai-direct/TB-18R_R3_STEP_B_admission.md` §1.2 + §3.1
+// + §3.6)
+// ────────────────────────────────────────────────────────────────────────────
+
+/// TRACE_MATRIX FC1-N42 (R3): refine a base `L4ERejectionClass` (from
+/// `rejection_class_for(err)`) into a fine-grained class derived from the
+/// `WorkTx.proposal_cid` if that CID resolves to an `AttemptTelemetry` CAS
+/// object with a failure-path outcome.
+///
+/// **Design D** (preflight §3.1): pure-additive on the sequencer; legacy
+/// chains replay byte-identical because legacy `proposal_cid` resolves to a
+/// `ProposalTelemetry` CAS object, NOT an `AttemptTelemetry`, so
+/// `read_attempt_telemetry_from_cas` returns `Err(Codec(...))` and the
+/// helper falls back to `base_class` (`PredicateFailed`).
+///
+/// Refinement only occurs on:
+/// - `tx` is a `WorkTx` (other variants don't carry `proposal_cid`);
+/// - `base_class == PredicateFailed` (other rejection classes — e.g.
+///   `EscrowMissing`, `InsufficientBalance` — keep their existing semantics
+///   unchanged; predicate-failure is the only arm where R3 disambiguates).
+///
+/// **Failure handling** (preflight §3.6): in `cfg(debug_assertions)`,
+/// inconsistent state (e.g. `outcome=LeanPass` reaching this helper)
+/// panics for early detection. In release builds, log warn + fall back —
+/// chain continues.
+pub fn refine_rejection_class_via_attempt_telemetry(
+    cas: &Arc<RwLock<CasStore>>,
+    tx: &TypedTx,
+    base_class: L4ERejectionClass,
+) -> L4ERejectionClass {
+    if base_class != L4ERejectionClass::PredicateFailed {
+        return base_class;
+    }
+    let proposal_cid = match tx {
+        TypedTx::Work(w) => w.proposal_cid.clone(),
+        _ => return base_class,
+    };
+    let cas_g = match cas.read() {
+        Ok(g) => g,
+        Err(_) => return base_class,
+    };
+    use crate::runtime::attempt_telemetry::{
+        read_attempt_telemetry_from_cas, AttemptOutcome,
+    };
+    let attempt = match read_attempt_telemetry_from_cas(&cas_g, &proposal_cid) {
+        Ok(a) => a,
+        Err(_) => return base_class,
+    };
+    drop(cas_g);
+    match attempt.outcome {
+        AttemptOutcome::LeanFail => L4ERejectionClass::LeanFailed,
+        AttemptOutcome::ParseFail => L4ERejectionClass::ParseFailed,
+        AttemptOutcome::SorryBlock => L4ERejectionClass::SorryBlocked,
+        AttemptOutcome::LlmErr => L4ERejectionClass::LlmError,
+        AttemptOutcome::LeanPass => {
+            #[cfg(debug_assertions)]
+            {
+                panic!(
+                    "TB-18R R3 invariant violation: AttemptTelemetry.outcome=LeanPass \
+                     reached predicate-failure rejection arm; proposal_cid is supposed \
+                     to point at a *failed* attempt"
+                );
+            }
+            #[cfg(not(debug_assertions))]
+            {
+                log::warn!(
+                    "[tb18r-r3] AttemptTelemetry.outcome=LeanPass on rejection arm; \
+                     falling back to PredicateFailed"
+                );
+                base_class
+            }
+        }
+        AttemptOutcome::Aborted => base_class,
+    }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // TB-5 Atom 4 — apply_one Stage 1.5 helpers (preflight § 4.5)
 //
 // `system_message_for_verification`: exhaustively matches the 4 system-emitted
@@ -2972,6 +3050,14 @@ impl Sequencer {
             .submitter_id()
             .unwrap_or_else(|| AgentId(SYSTEM_AGENT_ID_STR.to_string()));
 
+        // TB-18R R3 (preflight §1.2 + §3.1 Design D): refine the base
+        // rejection class via AttemptTelemetry when the WorkTx.proposal_cid
+        // resolves to one. Pure-additive; legacy proposal_cid → fall-back to
+        // base class (PredicateFailed); other rejection arms unchanged.
+        let base_class = rejection_class_for(err);
+        let refined_class =
+            refine_rejection_class_via_attempt_telemetry(&self.cas, tx, base_class);
+
         {
             let mut writer_w = self
                 .rejection_writer
@@ -2983,7 +3069,7 @@ impl Sequencer {
                 agent_id,
                 tx.tx_kind(),
                 tx_payload_cid,
-                rejection_class_for(err),
+                refined_class,
                 raw_diagnostic_cid,
                 public_summary_for(err),
             );
