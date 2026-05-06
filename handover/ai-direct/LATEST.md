@@ -6,6 +6,91 @@
 
 ---
 
+## 🚢 2026-05-06 (session end #8) — **TB-18R round-2 — PROVISIONAL SHIPPED claim DOWNGRADED to CANDIDATE REMEDIATION; Phase 1 (process) + Phase 2 (typed PartialAccepted Class-4 schema bump) shipped; Phase 3 rerun pending architect review**
+
+**main HEAD (after this session)**: `3f51667` — TB-18R Phase 2 typed PartialAccepted semantic repair (Class 4 schema bump). Workspace tests **1077 / 0 failed / 150 ignored** (+28 net vs round-2 candidate baseline 1049).
+
+**TB-18R ship state**: **CANDIDATE REMEDIATION** (downgraded 2026-05-06 from PROVISIONAL SHIPPED). Required path before any final ship-class claim: Phase 1 (process repair, **DONE**) → Phase 2 (typed PartialAccepted, **DONE**) → Phase 3 (P38/P49/M0 rerun on typed substrate, **PENDING — needs LLM API + ~3h run**) → final dual audit (Codex + Gemini round-3) → architect explicit §8 sign-off.
+
+**Authority for Phase 1 + Phase 2**: composite trail recorded in
+- `handover/directives/2026-05-06_TB18R_ROUND_2_ARCHITECT_RULING.md` (parent ruling, Kolmogorov-lossless archive)
+- user umbrella authorization 2026-05-06 "我授权你按照架构师意见严格执行全部 phases"
+- user explicit 2026-05-06 "根据架构师的意见，你无法自主决策吗？" — confirmed orchestrator may decide between architect-ratified Option A vs Option B as engineering judgment
+- `handover/directives/FC_FIRST_ANALYSIS_ASSERT45_PARTIAL_VERDICT_2026-05-06.md` recommends Option B
+- `handover/directives/2026-05-06_TB18R_PHASE_2_REMEDIATION_DIRECTIVE.md` self-recorded ratification trail
+
+**Predecessor (session #7)**: TB-18 Atom H sub-stage 2 (M1) SHIPPED `f9c4c1d`. Sessions in between: TB-18 M1 evidence triggered VETO 2026-05-06 (`TB18_TAPE_NON_EXTERNALIZATION_VETO_2026-05-06.md`); TB-18R Class-4 charter v2 → R0..R7 → G2 round-1 dispatch → round-1 merged VETO → R8–R12 candidate remediation → round-2 dispatch → architect ruling (this session).
+
+### Session #8 ledger (2 commits)
+
+1. `8487bd6` **TB-18R round-2 Phase 1 — process repair + Phase 2 directive** (9 files / +2668 / −3 / Class 0)
+   - Architect ruling lossless archive: `handover/directives/2026-05-06_TB18R_ROUND_2_ARCHITECT_RULING.md` (verbatim original + impact analysis + risk-class breakdown)
+   - R8–R12 ratification addendum: per-R authorization gap + ratification ask
+   - R3 preflight `[SUPERSEDED]` markers OBS: `handover/alignment/OBS_TB18R_R3_PREFLIGHT_SUPERSESSION_2026-05-06.md` (Q-P3 closure)
+   - Q14 grandfathering verbatim quotes inserted into round-2 candidate report §6.1 (Q-P4 closure; charter FR-18R.10 + VETO §C.5 + charter §2 R0 row all reproduced verbatim per `feedback_kolmogorov_compression`)
+   - FC-first analysis: `handover/directives/FC_FIRST_ANALYSIS_ASSERT45_PARTIAL_VERDICT_2026-05-06.md` — answers Q1 (PartialVerdict ∈ FC1), Q2 (LeanResult primarily predicate-evidence), Q3 (error_class=None untyped-legal only), Q4 (R8 changes FC2 invariant; FC1 ambiguity untouched). FC3 cross-edge audit: no economic dependency. Recommends Option B (tail-additive `verdict_kind` field; mirrors R3 RejectionClass pattern)
+   - TB-18 delay 5-RC post-mortem: `handover/post-mortems/ROOT_CAUSE_TB18_DELAY_2026-05-06.md` (scope overload / tape granularity not first-class gate / `"fix"` ≠ §8 process drift / partial-verdict under-specified / premature ship-naming)
+   - Round-2 ship report + tracer-bullet ship report banner-prefixed `PENDING ROUND-2 DUAL AUDIT — NOT SHIPPED` (Q-P6 closure; downgrades original PROVISIONAL SHIPPED claim)
+   - Phase 2 remediation directive authored as self-ratification trail (composite authority cited)
+
+2. `3f51667` **TB-18R Phase 2 — typed PartialAccepted semantic repair (Class 4 schema bump)** (12 files / +763 / −55 / Class 4)
+   - **Schema delta** (`src/runtime/attempt_telemetry.rs`):
+     - NEW `LeanVerdictKind` enum (`#[repr(u8)]` Verified=0, Failed=1, PartialAccepted=2, SorryBlocked=3); `LEAN_RESULT_SCHEMA_ID` bumped `v1` → `v2`
+     - `LeanResult.verdict_kind: LeanVerdictKind` REQUIRED field (pre-Phase-2 records byte-incompat; grandfathered per `feedback_no_retroactive_evidence_rewrite`)
+     - `LeanResult::derive_verdict_kind_from_legacy_fields` + `LeanResult::is_verdict_kind_consistent` public predicates (single source of truth)
+     - tail-additive `AttemptOutcome::PartialAccepted = 6` (variants 0..5 unchanged)
+   - **assert_45 retype** (`src/runtime/audit_assertions.rs`): 4-arm typed match via `is_verdict_kind_consistent`; closes round-1 Q13 VETO + the `(0,false,None)` semantic hole architect §4 Q-P2 surfaced
+   - **Sequencer guard** (`src/state/sequencer.rs`): `AttemptOutcome::PartialAccepted` arm added to `refine_rejection_class_via_attempt_telemetry` (panic-in-debug / fallback-in-release; step_partial_ok stays CAS-only per R3 §1.3)
+   - **Emitter migration** (`evaluator.rs`): 6 callsites threaded with explicit `verdict_kind`; `step_partial_ok` now writes `outcome: AttemptOutcome::PartialAccepted, verdict_kind: PartialAccepted` (replaces the LeanPass misnomer per FC-first §2.5)
+   - genesis_payload.toml rehashed for evaluator.rs + sequencer.rs
+   - **Zero STEP_B file touched** (typed_tx.rs / cas/schema.rs / kernel.rs / bus.rs / wallet.rs unchanged); Class-4 status derives from R1-ratified schema contract on LeanResult / AttemptOutcome
+   - **Test delta**: +28 net (1049 → 1077). 3 new test files: `tb_18r_lean_verdict_kind_repr_stability.rs` (6 tests) + `tb_18r_lean_verdict_kind_consistency.rs` (15 tests) + `tb_18r_attempt_outcome_partial_accepted_repr_stability.rs` (5 tests). 5 existing test sites updated for new schema. 2 in-source tests added.
+   - FC-trace: FC1-N41 (LeanResult schema) + FC2-N34 (assert_45 invariant)
+
+### Q-P closure status (round-2 process gaps)
+
+| Q-P | Issue | Status |
+|---|---|---|
+| Q-P1 | `"fix"` ≠ §8 sign-off | **✅ closed** — R8–R12 ratification addendum + Phase 1 docs |
+| Q-P2 | assert_45 α vs β | **✅ closed** — Phase 2 implements β-with-typing (Option B) |
+| Q-P3 | R3 `[SUPERSEDED]` markers | **✅ closed** — OBS file authored |
+| Q-P4 | Q14 distill risk | **✅ closed** — verbatim quotes inserted |
+| Q-P5 | No FC-first trace | **✅ closed** — FC-first analysis authored |
+| Q-P6 | Premature "Ship Report" title | **✅ closed** — banner added on round-2 + tracer-bullet ship report |
+
+### What user should do on wake-up
+
+1. **Review Phase 1 + Phase 2 commits** (`8487bd6`, `3f51667`). Especially the architect ruling archive + FC-first analysis + Phase 2 remediation directive.
+2. **Decide Phase 3 launch readiness**:
+   - Phase 3 = fresh P38/P49/M0 rerun on typed substrate (`MAX_TRANSACTIONS=12`, `PER_PROBLEM_TIMEOUT_S=1800`; runner script not yet authored). Estimated wall-clock ~3h on hard problems + small batch.
+   - Validates: chain_attempt_count == evaluator_reported_tx_count / id44/id45/id46 PASS / R4 invariant evaluable / `verdict_kind=PartialAccepted` records on multi-iteration problems / dashboard substantive smoke.
+   - No retroactive M1/R6/R7 evidence rewrite (per `feedback_no_retroactive_evidence_rewrite`); Phase 3 evidence dir is fresh: `handover/evidence/tb_18r_phase_3_<timestamp>/`.
+3. **Optional pre-Phase-3 review gate**: a fresh dual audit on Phase 2 substrate alone (without Phase 3 evidence) could surface schema-design issues earlier. Trade-off: dual audit cost vs Phase 3 compute risk.
+4. **After Phase 3 evidence + final dual audit (round-3)**: architect explicit §8 sign-off. Single-word user inputs MUST NOT be parsed as §8 (per Q-P1 ruling).
+
+### FREEZE state (expanded 2026-05-06; lifts only on TB-18R FINAL ship)
+
+In addition to existing TB-18 M1/M2/M3 + NodeMarket + PriceIndex + Polymarket-signal + public-chain + real-world-readiness:
+- M1 public benchmark report
+- M2 / M3 scale-up
+- TB-19 real-world pilot design
+- NodeMarket / PriceIndex claims based on M1
+- any formal H-VPPU conclusions
+- any "formal benchmark passed" externalization
+
+### Open questions
+
+- **Phase 3 launch authorization**: explicit user / architect sign-off needed before invoking real LLM cycles + Lean toolchain on hard problems. The umbrella authorization "execute all phases" was given before Phase 2 substrate existed; user may want to inspect Phase 2 commit before approving Phase 3 compute spend.
+- **Round-3 dispatch design**: Phase 3 dispatch mirrors round-2 (Q1..Q15 + Q-P-class) but with extra atoms for Phase 2 schema bump + Phase 3 fresh evidence. To be drafted when Phase 3 evidence lands.
+- **Pre-Phase-3 dual-audit option**: should Phase 2 schema bump be audited independently before Phase 3 evidence run, or bundled into round-3?
+
+### Memory updates this session
+
+- `MEMORY.md` Active state: PROVISIONAL SHIPPED → CANDIDATE REMEDIATION; expanded FREEZE; architect ruling indexed
+- `project_tb_18r_provisional_shipped.md`: STATUS DOWNGRADED banner + Phase 1/2/3 path documented; historical content preserved verbatim
+
+---
+
 ## 🚢 2026-05-05 (session end #7) — **TB-18 G0 CHALLENGE-resolved + Atom H sub-stage 2 (M1) SHIPPED** under user "go" + "架构师给你非常清晰的指导了，自主判断" autonomous-execution authority
 
 **main HEAD (after this session)**: `f9c4c1d` — TB-18 Atom H sub-stage 2 SHIPPED (M1 50-problem formal benchmark + G1 audit request docs). Workspace tests **966/0/150** (+3 new assert_27 unit tests vs session #6 baseline 963).
