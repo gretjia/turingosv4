@@ -45,33 +45,11 @@ Rust 2021, tokio, serde_json. Mission: MiniF2F Lean 4.
 - raw logs shielded; capsule 必须 derivable from ChainTape + CAS
 - dashboard = materialized view only (不可成 source of truth)
 
-### 12 个持久 Constitutional CI tests (Class 3/4 必须实现并维护)
-```
-fc1_every_externalized_attempt_is_tape_visible
-fc1_predicate_pass_goes_l4_fail_goes_l4e
-fc2_run_replayable_from_genesis_tape_cas
-fc2_no_memory_only_preseed
-fc3_capsule_derived_from_tape_cas
-no_global_markov_pointer
-no_dashboard_source_of_truth
-no_legacy_authoritative_append
-no_fake_accepted_nodes
-no_f64_money_path
-total_coin_conserved
-system_tx_not_agent_submittable
-```
-
-### Kill gates (任一即停)
-1. `evaluator_reported_tx_count != chain_attempt_count`
-2. N>1 externalized attempts but `chain_attempt_count = 1`
-3. Lean reject 仅在 stdout，不在 L4.E / EvidenceCapsule
-4. Final composite proof 缺 `attempt_chain_root` 或等价 lineage
-5. Dashboard 需 evaluator stdout 才能重建核心事实
-6. 出现 fake accepted node
-7. CTF conservation 失败
-8. ChainTape mode 静默回落 legacy `bus.append`
-9. Global Markov pointer 复现
-10. PartialAccepted schema 产生 untyped `exit_code=0, verified=false, error_class=None` 歧义
+### Constitutional CI tests + Kill gates
+权威列表 + 当前状态：`bash scripts/run_constitution_gates.sh` 或 `make constitution`。
+每个 gate = 一个 `tests/constitution_*.rs` cargo test。任一 fail = halt + 不算 TuringOS run。
+CI required workflow：`.github/workflows/constitution_gates.yml`（merge gate）。
+**CLAUDE.md 不编码具体 gate 名称 / 数量**（rot 风险；TB-C0 ship 时已 64 个，将持续增长 — 跟脚本，不跟 CLAUDE.md）。
 
 ### Audit policy 调整
 - **Class 0/1** (docs / additive): self-audit 即可
@@ -123,24 +101,28 @@ system_tx_not_agent_submittable
 - 映射：`cases/V3_LESSONS.md` (50 v3 教训 → 现行判例)
 - 编号跳号：C-038 / C-042 为 reserved（见 C-041/C-043 预引用）
 
-## Active state (动态指针，不存判决)
-- TB 总账 (authoritative): `handover/tracer_bullets/TB_LOG.tsv`
-- 当前操作模式: **Constitutional Harness Engineering** (since 2026-05-06; reinforced post-TB-C0 ship)
-- **TB-C0: SHIPPED FINAL 2026-05-07** — architect §8 sign-off `handover/directives/2026-05-07_TBC0_ARCHITECT_§8_SIGN_OFF.md` (verbatim "好，确认可以 ship"; multi-clause). Codex 5-round audit: VETO → CHALLENGE → CHALLENGE → PASS → PASS. 17 commits / 8 rounds. Constitution Landing Gate is the canonical pre-merge invariant for all future TBs.
-- 当前 charter: **next** — TB-18R FINAL ship eligible; user/architect to authorize next charter
-- TB-18R status: **eligible for FINAL ship** (was CANDIDATE REMEDIATION subordinate to TB-C0 freeze; freeze lifted 2026-05-07). Final dual audit + architect §8 path applies.
-- **FREEZE LIFTED 2026-05-07**: TB-19+, NodeMarket, Polymarket-signal, PriceIndex, public-chain, real-world-readiness, MiniF2F M1/M2/M3 ladder, M1 public benchmark report, TB-19 real-world pilot, formal H-VPPUT claim, "formal benchmark passed" external claim — ALL eligible. **Each new feature TB MUST pass `bash scripts/run_constitution_gates.sh` (currently 64 PASS / 1 ignored) BEFORE merge per CR-C0.10.**
-- **3 OBS bugs** all CLOSED inline (no STEP_B): Bug 1 (runner LHS) + Bug 2 (synthetic L4.E filter, Class 3) + Bug 3 (capsule_anchored 3-term, Class 3 with explicit deviation stance). See `handover/alignment/OBS_TBC0_FC1_INV3_THREE_BUGS_2026-05-06.md` §10 fix log.
-- **Constitution gate runner**: `bash scripts/run_constitution_gates.sh` or `make constitution` → 64/0/1 GREEN (round-8). CI workflow `.github/workflows/constitution_gates.yml` is required merge gate
-- **FC-witness extractor**: `python3 scripts/fc_witness_extract.py <run_dir>` + aggregate `scripts/fc_witness_aggregate.py <batch_dir>` (lenient) OR `scripts/regenerate_post_fix_evidence.sh` (round-7+ STRICT semantics with EXPECTED_FC_NODES universe + missing-node tracking)
-- **Real-problem catalog**: `handover/alignment/FC_WITNESS_CATALOG_2026-05-06.md` (3-class taxonomy: chain-resident / structural / tamper-probe; binds every FC node to real existing MiniF2F problems; per `feedback_real_problems_not_designed`)
-- **Strict aggregate post-ship**: 20 GREEN + 5 AMBER (1 chain-resident-AMBER FC3-INV1 + 4 structural-only by design) + 0 RED + 0 GAP + 0 missing on `handover/evidence/tb_c0_multi_agent_2026-05-06T16-30-36Z/fc_witness_aggregate_post_fix.json`. Workspace: 1141/0/151.
-- **Post-TB-C0 forward-bound items** (non-blocking; documented per architect §8 §6): Art. 0.4 git-style HEAD_t path-decision (architect call) + 4 FC3 structural-only optional strengthening + continuation/Markov smoke (TB-FC1 candidate)
+## Active state (动态；单一来源)
+- **Session-level state**: `handover/ai-direct/LATEST.md`（每 session 末尾更新；ship 状态 / freeze / 当前 charter / forward-bound items 全在这里）
+- **Ship 总账 (authoritative)**: `handover/tracer_bullets/TB_LOG.tsv`
+- **当前操作模式**: Constitutional Harness Engineering（since 2026-05-06；reinforced post-TB-C0 ship 2026-05-07）
+- **CR-C0.10**: 每个新 feature TB merge 前必过 `bash scripts/run_constitution_gates.sh`
+- **CLAUDE.md 不编码 ship 状态 / gate 数量 / round 数 / freeze 状态 / TB 名单**（rot 风险；这些都属于 LATEST.md 或 TB_LOG.tsv）
+- **永久工具入口**（不变）：
+  - `bash scripts/run_constitution_gates.sh` — constitution gate runner
+  - `python3 scripts/fc_witness_extract.py <run_dir>` — FC-witness 单题
+  - `scripts/regenerate_post_fix_evidence.sh` — STRICT 聚合（EXPECTED_FC_NODES universe）
+  - `handover/alignment/FC_WITNESS_CATALOG_2026-05-06.md` — real-problem 绑定
+  - `handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md` — clause→code→test→smoke 矩阵
 
 ## Memory (跨 session 持久; auto-loaded MEMORY.md 是 hot index)
 - 高频 rule (feedback_*) + 项目状态 (project_*) + 外部引用 (reference_*) 路径: `~/.claude/projects/-home-zephryj-projects-turingosv4/memory/`
 - 写新 memory: 文件名 `<type>_<topic>.md` 加 frontmatter + 在 MEMORY.md 加 ≤150 字符 hook
 - 不要在 memory 里复述 TB_LOG.tsv 已有的 ship facts; 只记 session-level 教训和 surprise
+
+## Pre-action gates + Cadence (mechanism > norm)
+- **Before any runner script** that mutates `handover/evidence/` 或运行真题评估：invoke `/runner-preflight` skill（7 stages: tree clean / binary mtime / evidence immutability / Class classification / FC-trace / charter / audit-round count）。memory: `feedback_pre_runner_checklist`
+- **After TB SHIPPED FINAL** 或 audit rounds > 3：invoke `/harness-reflect` skill。memory: `feedback_harness_reflect_cadence`
+- **Before writing new `feedback_*.md`**: 先问 "什么 mechanism 拦截这个违规？" 没有 mechanism 就先建 mechanism（hook / preflight / cargo test / CI gate），不要只加 norm。memory: `feedback_norm_needs_mechanism`
 
 ## Docs (按需加载)
 | 文档 | 何时加载 |
