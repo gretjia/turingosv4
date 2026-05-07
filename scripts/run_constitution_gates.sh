@@ -33,6 +33,10 @@ GATES=(
   constitution_fc3_meta
   constitution_shielding_gate
   constitution_tape_canonical_gate
+  # Round-8 (per architect + Codex remediation): FC3-INV1 capsule integrity
+  # regen + Art. V.3 amendment-log executable test
+  constitution_fc3_inv1_capsule_integrity_regen
+  constitution_art_v3_amendment_log
 )
 
 # Run each gate file separately and collect per-test outcome.
