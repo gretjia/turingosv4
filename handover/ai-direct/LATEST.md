@@ -6,6 +6,62 @@
 
 ---
 
+## 🎯 2026-05-07 (session end #13) — **TB-18R Phase 3 v3 fresh re-run on ship HEAD: 7/7 NATURAL PASS; constitution-coverage gap audit Pass 1 + Pass 2 complete; round-3 dispatch HELD pending coverage closure**
+
+**HEAD**: `8c15d61` (TB-18R Phase 3 v3 commit; 1 past prior session-end `11b987b`).
+
+### What landed this session
+
+**1. TB-18R Phase 3 v3 batch on ship HEAD `11b987b`** — 7/7 natural pass, no `_corrected.json`:
+- 7/7 audit_tape PROCEED, 7/7 id45 PASS, 7/7 architect_inv1_check `match=True`, 7/7 chain_invariant `delta=0` `verdict=Ok`
+- 5/7 OmegaAccepted (mathd_numbertheory_1124 + algebra_107/114/125/141), 2/7 MaxTxExhausted (numbertheory_2pownm1prime_nprime + algebra_113)
+- P04 mathd_algebra_113 reproduces canonical `non_llm_tx_diagnostic_gap=3` case (architect-mandated admin scaffold txs); `match=True` under canonical 3-term FC1-INV1 — gap is informational, not violation
+- Constitution gates: **70/0/1 GREEN** at HEAD `8c15d61` (post-commit)
+- Smoke probe `tb_18r_phase_3_2026-05-07T08-30-43Z/` (1 problem) preceded full batch
+- Eliminates round-3 challenge axes: HEAD drift (v2 was 4 commits behind ship HEAD; v3 == ship HEAD) + post-hoc corrected files (v2 needed; v3 natural)
+- Round-3 dispatch addendum updated with §6 v3 supersession section pointing auditors at v3 evidence
+- v3 evidence dir: `handover/evidence/tb_18r_phase_3_2026-05-07T08-33-05Z/` + report `PHASE_3_CANDIDATE_REPORT_v3.md`
+- Commit: `8c15d61` (FC-trace: FC1-INV1)
+
+**2. User directive 2026-05-07 (mid-batch)** — strengthens `feedback_real_problems_not_designed`:
+> "the test need to test every word in constitution is countable. no matter what test it is. you can research the best test to fight against, but no manipulation, the real problem you can find on web."
+- Memory file updated with 2026-05-07 strengthening section
+- MEMORY.md hook updated to reflect "every clause/word countable + adversarial preferred + no synthesis or selection-tuning"
+
+**3. Constitution coverage gap audit Pass 1** — `handover/audits/CONSTITUTION_COVERAGE_GAP_AUDIT_PASS_1_2026-05-07.md` (337 lines):
+- 73 rows enumerated: 64 testable clauses + 9 Type-5 N/A (definitional/aspirational)
+- 30 numbered gaps catalogued (G-001…G-030; 16 distinct clause groups)
+- 5-type taxonomy applied: Type-1 runtime (6 gaps) / Type-2 substrate (~8) / Type-3 audit-policy (4) / Type-4 architectural (4) / blocked-architectural (2)
+- Top-3 load-bearing gaps: G-009 (Art. 0.4 HEAD_t completely unimplemented; AMBER in matrix) / G-012 (Art. I.1.1 PCP soundness floor — no adversarial false-proof injection) / G-019 (Art. III.1 in-context bad-pattern contamination — multi-call cycle never load-tested)
+
+**4. Constitution coverage gap audit Pass 2** — `handover/audits/CONSTITUTION_COVERAGE_GAP_AUDIT_PASS_2_2026-05-07.md` (514 lines):
+- All 30 gaps addressed with witness-closure approach per gap-type
+- Web research executed: 10 queries + 1 fetch; 9/10 productive (miniF2F-v2 misalignment audit, ProofNet++, PutnamBench, Almost-Boltzmann, CoDeC contamination, Reward Hacking Benchmark, Azure compensating-transaction)
+- 1 meta-escalation: G-012 PCP soundness — no canonical ready-to-inject Lean false-proof corpus; Pass 3 must construct (user must approve method: miniF2F-v2 misalignment list as natural corpus OR systematic Lean tactic-mutation construction)
+- 2 architect-blocked: G-009 Path A/B/C decision (gates HEAD_t implementation; ~3 vs 6-8 weeks depending on path) + G-020 gardener Agent (forward-bound TB charter)
+- 4 require Class-4 schema decision: G-016 / G-019 / G-021 / G-028 — agent prompt persistence (TB-C0 `agent_audit_trail.jsonl` carries tx records, not prompt bodies; likely Class-4 schema bump needed)
+- Pass 3 ordering recommendation: 6 waves (Wave 1 static-shape ~1 day → Wave 6 blocked/forward-bound). Total ~20 days closure work
+
+### Round-3 dispatch policy
+
+User decision 2026-05-07 mid-session: **HOLD round-3 until coverage audit complete + gaps closed**. Verbatim from option-text: "Round-3 only dispatches after coverage map is complete + gaps closed."
+
+Strict reading: Pass 3 (test code closing all 30 gaps) must complete BEFORE Codex + Gemini round-3 invocation on TB-18R Phase 3 v3 evidence. This is a multi-week pause but defensible: dispatching round-3 against incomplete coverage = manipulation by selection (the very thing the 2026-05-07 directive forbids).
+
+Forward-bound items needing user/architect resolution before Pass 3 can land all waves:
+- **G-009 (Art. 0.4 HEAD_t)**: architect §8 path A/B/C decision required
+- **G-012 (PCP soundness corpus)**: user method approval required
+- **G-016/G-019/G-021/G-028 (prompt persistence)**: Class-4 schema decision required
+- **G-020 (gardener Agent)**: forward TB charter required
+
+### Active state going forward
+- Substrate HEAD: `8c15d61` (TB-18R Phase 3 v3) + Pass 1+2 audit deliverables (next commit)
+- TB-18R: subordinate to coverage closure; Phase 3 v3 evidence locked; awaiting Pass 3 + round-3
+- Constitution gates: 70/0/1 GREEN
+- ShipGate / freeze / dual-audit policy unchanged (TB-C0 gates remain active)
+
+---
+
 ## 🎯 2026-05-07 (session end #12) — **TB-18R Phase 3 v2 evidence + A0 evidence-drift fix; ShipGate PASS; ready for fresh real-test re-run on ship HEAD before round-3 audit**
 
 **HEAD**: `64745bb` (4 commits past TB-C0 ship `7c8dc54`).
