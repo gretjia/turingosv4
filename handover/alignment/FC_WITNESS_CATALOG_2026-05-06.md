@@ -194,7 +194,7 @@ After running round-5+6+7 binaries on `handover/evidence/tb_c0_multi_agent_2026-
 - **0 RED**
 - **0 GAP** (no node missing from all manifests)
 
-The previous "25/25 FC nodes have a tape witness" + "No GAPS" claims (round-3 catalog) were incorrect class-conflation: structural-only nodes and the AMBER FC3-INV1 do NOT have chain-resident tape witness. Codex Q8 VETO + Q-RR4 CHALLENGE both flagged this. **Round 7 supersedes those claims with the strict witness-class breakdown above.**
+An earlier (round-3) version of this section over-claimed full coverage by conflating structural-only nodes with chain-resident witnesses; Codex Q8 + Q-RR4 + Q-V3-3 flagged that framing. The witness-class breakdown above is the canonical post-round-7 view and supersedes any earlier coverage summary. For audit trail, refer to commit history (rounds 4 → 7) and the v1/v2/v3 Codex verdict files in `handover/audits/`.
 
 **No RED nodes** post-round-7 (was 1 RED on FC1-INV6 round-3; closed by `assert_50_cas_bytes_match_cids`). Bug 1 + Bug 2 + Bug 3 catalogued in `OBS_TBC0_FC1_INV3_THREE_BUGS_2026-05-06.md` are ALL RESOLVED inline (Bug 1 in runner; Bug 2 in `chain_derived_run_facts.rs` strengthened filter; Bug 3 in `chain_derived_run_facts.rs` schema bump). The constitutional 3-term equation `expected == l4 + l4e + capsule_anchored` HOLDS exactly on all 9 problems (delta=0, invariant_verdict=Ok in `*/chain_invariant_post_fix.json`).
 

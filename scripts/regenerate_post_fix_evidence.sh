@@ -168,10 +168,53 @@ for p in problem_dirs:
     with open(m_path) as f:
       per_problem[p] = json.load(f)
 
-all_node_keys = set()
+# Codex round-7 v3 Finding V3-C1 fix: define the EXPECTED FC node universe
+# independently of observed manifests. Round-6 / round-7-pre took the union
+# of observed manifest keys, so a node missing from ALL 9 manifests would
+# never be inserted into all_node_keys and could never produce a GAP row.
+# Round-7-final (this script) defines the canonical node set explicitly,
+# keyed off `fc_witness_extract.py` output. If a future binary drift drops
+# a node from every manifest, the missing-from-all-manifests case now
+# correctly emits an aggregate GAP row.
+EXPECTED_FC_NODES = [
+  # FC1 nodes (runtime loop)
+  "FC1-N1_q_state_carrier",
+  "FC1-N2_q_t_slice",
+  "FC1-N3_HEAD_t_pointer",
+  "FC1-N4_q1_after_delta",
+  "FC1-N5_rtool",
+  "FC1-N7_delta_AI_call",
+  "FC1-N11_predicates",
+  "FC1-N13_wtool",
+  "FC1-N15_reject_branch",
+  "FC1-INV1_every_attempt_tape_visible",
+  "FC1-INV3_count_equality_constitutional",
+  # FC2 nodes (boot)
+  "FC2-N16_InitAI",
+  "FC2-N18_constitution_ground_truth",
+  "FC2-N21_Q0_minted",
+  "FC2-N22_HALT",
+  "FC2-INV1_genesis_replayable",
+  "FC2-INV4_taskopen_escrowlock_chain_events",
+  "FC2-INV6_pubkeys_verify",
+  "FC2-INV7_agent_registry_resolves",
+  # FC3 nodes (meta)
+  "FC3-INV1_capsule_derived",
+  "FC3-INV2_no_global_pointer",
+  "FC3-INV3_raw_logs_shielded",
+  "FC3-INV5_deep_history_override",
+  "FC3-INV7_architect_propose_only",
+  "FC3-INV8_judge_veto_only",
+]
+observed = set()
 for m in per_problem.values():
   if "fc_nodes" in m:
-    all_node_keys.update(m["fc_nodes"].keys())
+    observed.update(m["fc_nodes"].keys())
+all_node_keys = set(EXPECTED_FC_NODES) | observed
+# Guardrail: alert if observed set has unexpected nodes (extractor schema drift)
+unexpected_observed = observed - set(EXPECTED_FC_NODES)
+expected_missing_globally = set(EXPECTED_FC_NODES) - observed
+# (these are surfaced via missing_by entries below)
 
 problem_count = len(per_problem)
 
