@@ -173,7 +173,7 @@ b7bde23  Constitution Landing First (G-009 / G-012 / G-016 substrate; independen
 ffb6ebd  Wave 3 20-problem diagnostic — first real-LLM tape evidence on post-b7bde23 substrate
 a612cc9  Wave 3 50-problem diagnostic — substrate stability at 2.5× load
 feec129  TB-18R FINAL SHIP REPORT (FINAL-CANDIDATE) + Wave 3 evidence binding (matrix 7 AMBER → GREEN; gates 90 → 97; workspace 1174 → 1181)
-THIS     architect §8 sign-off (this directive)
+14b9967  architect §8 sign-off (this directive committed in this commit)
 ```
 
 **Predecessor PROVISIONAL ship report** (banner-prefixed; downgraded same day per architect
