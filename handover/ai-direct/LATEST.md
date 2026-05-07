@@ -6,6 +6,230 @@
 
 ---
 
+## 🎯 2026-05-07 (session end #18) — **TB-18R SHIPPED FINAL via architect §8 sign-off; Gemini R1 verdict captured (Q1-7 PASS / Q8 CHALLENGE forward-bound to TB-18B); 4 forward charters / directives drafted (TB-18C HEAD_t C2 + TB-18B M1/M2 + TB-18D Polymarket + Real-World Readiness)**
+
+**HEAD**: `feec129` (pre-commit; no src/ touched this session; pure docs + TB_LOG.tsv flip + Gemini audit verdict).
+
+### Architect directive that triggered this session
+
+User submitted multi-clause autonomous-execution authorization referencing the two
+2026-05-07 architect alignment documents (`handover/architect-insights/2026-05-07_ARCHITECT_ALIGNMENT_AUDIT_LAUNCH_POLYMARKET_MANUAL_{zh,en}.md`,
+saved earlier this session via `/architect-ingest`). Architect message included verbatim
+Stage A→D plan + universal forbidden list (no f64 / no ghost liquidity / no
+price-as-truth / no dashboard SoT / no real funds / no public chain) + explicit
+authorization for external audit dispatch + LLM real-problem testing + edge-case
+constitution-as-tiebreaker rule. Authorization treated as Class-3/4 multi-clause §8
+sign-off per `feedback_class4_cannot_hide_in_class3` + CLAUDE.md §10; codified as
+durable directive at `handover/directives/2026-05-07_ARCHITECT_ALIGNMENT_AUTONOMOUS_EXECUTION_AUTHORIZATION.md`.
+
+### Decisions taken
+
+1. **Authorization codified as durable directive** — five-clause analysis (scope binding +
+   mode binding + edge-case rule + authority grant + external-resource grant); maps to
+   CLAUDE.md §10 fields verbatim; `feedback_class4_cannot_hide_in_class3` precedent
+   honored.
+2. **Stage A1 (TB-18R FINAL §8 sign-off) executed** — architect alignment doc Immediate
+   Priority #1; derived sign-off file from authorization; TB_LOG.tsv TB-18R row flipped
+   `active` → `shipped` with end-date 2026-05-07 + ship_commits column expanded with
+   FINAL-ship + §8 commits.
+3. **External audit Track C closed (Gemini R1 captured)** — session #17 carry-over
+   dispatch script ran in 69.2s; verdict CHALLENGE aggregate but Q1-Q7 PASS with Q8
+   CHALLENGE only. Q8 explicitly scoped to "next phase of benchmark scale-up (TB-18B)"
+   = forward TB scope, NOT current-ship defect. Per `feedback_audit_loop_roi_flip`
+   production-defect→forward-TB ROI flip rule: ship + forward-bind. R2 dispatch
+   deferred until TB-18B charter draft is read by Codex+Gemini together.
+4. **Stage A2 AMBER closure deferred to forward TB** — Wave 1/2 cleanup (Wilson 95% CI
+   helper / parent_selection_entropy / Goodhart selector-blindness gate / agent-prompt-no-raw-stderr
+   fixture) is Class-1 additive work BUT carries green-baseline-breakage risk if
+   bundled with TB-18R FINAL ship + four forward charters in same session. Items 1+2
+   are TB-18B charter atoms R2+R3; items 3+4 deferred to proposed TB-Wave12. Gemini Q7
+   PASS validates the deferral as "defensible strict-alignment win, not covert
+   sequencing manipulation."
+5. **Stage A3/B3/C/D forward charters drafted** — four documents authored as Class-0
+   docs this session; Class-3/4 execution requires per-atom architect §8 sign-off going
+   forward.
+
+### What landed this session
+
+1. **`handover/directives/2026-05-07_ARCHITECT_ALIGNMENT_AUTONOMOUS_EXECUTION_AUTHORIZATION.md`** —
+   parent durable directive codifying the 2026-05-07 architect autonomous-execution
+   authorization (verbatim user message archived; multi-clause §10 mapping; six-item
+   universal forbidden list + ten-item Polymarket-specific forbidden list pinned; what
+   it does NOT authorize enumerated; constitution-as-tiebreaker rule documented).
+2. **`handover/directives/2026-05-07_TB18R_FINAL_§8_SIGN_OFF.md`** — Stage A1 sign-off
+   derived from parent authorization Immediate Priority #1; precedent format follows
+   TB-C0 §8 sign-off; SG-18R.1..13 closure tabulated; FREEZE-list delta (TB-18R-specific
+   FREEZE list LIFTED; TB-19+ / Polymarket-trading / public-chain / real-money still
+   gated).
+3. **`handover/tracer_bullets/TB_LOG.tsv` row flip** — TB-18R: `active` → `shipped` with
+   ship-date 2026-05-07; ship_commits expanded with `phase2_partialverdict:e12d254 +
+   phase2_wireup:3f51667 + phase3_v3_fresh_rerun:8c15d61 + a0_evidence_drift_fix:cf7cb48+64745bb +
+   runner_counting_fix_inv1_lhs_scope:3eb4f71 + final_ship_report+wave3_binding:feec129 +
+   architect_§8:THIS_COMMIT (architect alignment §8 sign-off 2026-05-07 multi-clause)`.
+   Column count preserved at 11.
+4. **`handover/audits/GEMINI_CONSTITUTION_LANDING_FIRST_SANITY_2026-05-07_R1.md`** —
+   Gemini 2.5-Pro 8-question audit on b7bde23 substrate + Wave 3 evidence; aggregate
+   CHALLENGE; Q1-Q7 PASS; Q8 CHALLENGE on forward-TB scope only (PCP synthetic-only
+   corpus needs MiniF2F-v2 misalignment phase-2 before TB-18B; Art. 0.2 Tape Canonical
+   commits 5-10 status report needed before TB-18B).
+5. **`handover/alignment/OBS_GEMINI_C_LAND_R1_Q8_FORWARD_BINDING_2026-05-07.md`** — Q8
+   binds to TB-18B charter SG-18B.gemini-q8a (PCP phase-2 corpus plan documented +
+   minimum 9-class real-world set landed before M2 execution) + SG-18B.gemini-q8b
+   (Art. 0.2 commits 5-10 status report attached as charter appendix).
+6. **`handover/alignment/OBS_TB_WAVE_1_2_AMBER_CLOSURE_FORWARD_BIND_2026-05-07.md`** —
+   Stage A2 AMBER closure forward-bound; items 1+2 → TB-18B atom R2+R3; items 3+4 →
+   proposed TB-Wave12.
+7. **`handover/tracer_bullets/TB-18C_charter_2026-05-07.md`** — Stage A3 HEAD_t C2
+   multi-ref ChainTape charter (Class 4 STEP_B on `transition_ledger.rs` + Class 3
+   replay + Class 1 tests; SG-18C.1..10 = alignment-doc SG-A3.1..5 + workspace/gate
+   regression + smoke + dual audit).
+8. **`handover/tracer_bullets/TB-18B_charter_2026-05-07.md`** — Stage B3 100p / M2
+   benchmark charter (M1 50×n=3×3-seed=450 runs; M2 100×n=3×3-seed×2-model=1800 runs;
+   BenchmarkManifest + EvidencePackagingPolicy + Wilson 95% CI helper + payload
+   diversity + Gemini Q8 forward bindings as charter SGs).
+9. **`handover/tracer_bullets/TB-18D_charter_2026-05-07.md`** — Stage C Polymarket /
+   RSP-M charter (P-M0 quarantine → P-M1 CompleteSet hardening → P-M2
+   CompleteSetMergeTx Class 4 STEP_B → P-M3 MarketSeed → P-M4 CpmmPool → P-M5
+   share-only swap → P-M6 Mint-and-Swap Router Class 4 STEP_B → P-M7 PriceIndex signal
+   → P-M8 audit views → P-M9 controlled smoke; per-Class-4-atom architect §8 required;
+   sequence-binding enforced).
+10. **`handover/directives/2026-05-07_REAL_WORLD_READINESS_DIRECTIVE.md`** — Stage D
+    real-world readiness directive (DRAFT-LANDED; six §2 pre-conditions documented:
+    REAL_WORLD_READINESS_REPORT + DOMAIN_SELECTION_CRITERIA + ORACLE_REQUIREMENTS +
+    CHALLENGE_COURT_REQUIREMENTS + SAFETY_BOUNDARY + IRREVERSIBLE_ACTION_POLICY; per-domain
+    runtime gates enumerated; activation requires forward TB charter + per-domain §8
+    sign-off — this directive does NOT itself activate any real-world domain).
+
+### What this session does NOT do
+
+- Does NOT touch any production src/ — pure docs + TB_LOG flip + Gemini audit dispatch
+  + audit verdict capture this session. `cargo check --workspace` passes (warnings only;
+  pre-existing).
+- Does NOT execute any of TB-18C / TB-18B / TB-18D / Real-World Readiness charters —
+  these are forward-step charters; execution requires per-atom Class-4 STEP_B + per-atom
+  architect §8.
+- Does NOT close Wave 1/2 AMBER rows — Class-1 additive work forward-bound to TB-18B
+  atoms R2+R3 + proposed TB-Wave12.
+- Does NOT dispatch Gemini R2 — Q8 challenges are forward-TB scope; R2 deferred until
+  TB-18B charter draft so R2 audits the forward bindings together.
+- Does NOT modify constitution.md / `CLAUDE.md` / matrix / TRACE_FLOWCHART_MATRIX —
+  preserves 97/0/1 GREEN baseline at `feec129`.
+
+### Active state going forward
+
+- Substrate HEAD: `feec129` (TB-18R FINAL ship report + Wave 3 binding; same as session #17).
+- Constitution gates: **97/0/1 GREEN** (unchanged; no src changes this session).
+- Workspace tests: **1181/0/151 PASS** (unchanged; no src changes this session).
+- TB-18R: **SHIPPED FINAL 2026-05-07** (this session); FREEZE-list TB-18R-specific items
+  fully lifted.
+- TB-C0: SHIPPED FINAL 2026-05-07.
+- Forward charters drafted: TB-18C / TB-18B / TB-18D / Real-World Readiness.
+- Forward forward-bindings: Gemini Q8 (forward to TB-18B) + Wave 1/2 AMBER (forward to
+  TB-18B + TB-Wave12).
+
+### Next steps (priority order)
+
+1. **Stage + commit** — this session's deliverables: 4 directives (parent authorization +
+   TB-18R §8 + Real-World Readiness + ...) + 3 charters (TB-18C + TB-18B + TB-18D) + 3
+   forward-binding OBS docs (Gemini Q8 + Wave 1/2 + ...) + LATEST.md session #18 entry +
+   TB_LOG.tsv TB-18R row flip + Gemini R1 audit verdict file + dispatch script (Track C
+   closure).
+2. **TB-18C charter ratification** — Codex G1 audit dispatch on TB-18C (HEAD_t C2). Once
+   green, R1 STEP_B branch on `src/bottom_white/ledger/transition_ledger.rs`.
+3. **TB-18B charter ratification + execution** — Codex G1 audit on TB-18B; if green,
+   R1+R2+R3 land BenchmarkManifest helper + Wilson CI helper + payload diversity in
+   aggregate; R4 PCP phase-2 plan; R5 Art. 0.2 commits 5-10 status report (Gemini Q8
+   forward binding); then R6 M1 batch + R7 M2 batch (LLM real-problem testing per
+   architect authorization §6).
+4. **TB-18D Polymarket execution** — gated on TB-18B B1+B2 substrate-stable
+   confirmation; P-M0 → P-M1 → P-M2 (Class 4 STEP_B + per-atom §8) → ... → P-M9
+   controlled smoke. Each Class-4 atom requires its own architect §8 sign-off.
+5. **TB-Wave12 (proposed)** — if TB-18B doesn't close items 3+4 of the Wave 1/2 AMBER
+   list, charter Class-1 additive test pass.
+6. **Real-world activation TB (e.g., TB-19)** — gated on Real-World Readiness Directive
+   §2 six pre-condition documents being filed AND per-domain TB charter receiving its
+   own architect §8 sign-off. Sandbox / read-only domain preferred for first activation.
+
+### Open questions / forward-bound
+
+- Whether TB-18C should ship before TB-18B M2 execution (storage-form change mid-benchmark
+  is risky; alignment doc §3.A3 / §4.A3 + TB-18B charter §7 pre-condition both flag this
+  as RECOMMENDED but not HARD-BLOCKING).
+- Whether the Codex G1 charter ratification dispatch on TB-18C / TB-18B / TB-18D should
+  be parallel-track (one Codex task per charter; bundled prompt) or sequential
+  (TB-18C ratified first, then TB-18B, then TB-18D). Parallel-track preferred for
+  session efficiency; sequential preferred if TB-18C ratification reveals charter
+  changes that affect TB-18B / TB-18D references.
+- Whether TB-Wave12 should be opened as its own charter or folded as a TB-18B "phase 2"
+  follow-up (decide when TB-18B execution closes items 1+2 of Wave 1/2).
+
+---
+
+### Architect directive that triggered this session
+
+User invoked `/clear` then submitted "启动 TB-18R Final / Wave 1/2 / Gemini sanity pass" (the LATEST session #16 next-step #1/#2/#3). User confirmed parallel-track execution + TB-18R-subset scope (R0..R7 + Wave 3 evidence; Constitution Landing First out of scope) + Gemini dispatch via codex-rescue subagent. User added 全部授权自动执行 + Git 制度 C1 fact 补充 (libgit2 已通过 `Git2LedgerWriter` 真实落地 `refs/transitions/main`; C2 是 `refs/chaintape/*` 命名重组 Week 5–8). User then asked for independent fact-check of two analyses (DECISION_POLYMARKET_CORE 5-类缺口 + 完整宪法实现差距).
+
+### Decisions taken
+
+1. **Scope decision before execute** — TB-18R Final ship report scope = TB-18R 11 atoms (R0..R7 + G1 + G2 dispatch) + post-PROVISIONAL repair atoms + Wave 3 supplemental evidence. Constitution Landing First (commit `b7bde23`) explicitly OUT of scope (independent Class-2 substrate work).
+2. **No self-flip on TB_LOG.tsv** — per `feedback_class4_cannot_hide_in_class3` + CLAUDE.md §10, Class-3/4 ship requires named architect §8 sign-off. TB-18R row remains `active`; ship report status = FINAL-CANDIDATE.
+3. **Track C delegated to codex-rescue subagent** — per user choice; Codex async task `task-movpt3ux-qfvx8l` writes Gemini dispatch script, runs API call, captures verdict. Verdict file landing forward (still not present at session end).
+4. **Independent fact-check rejected 2 user 论断 + 1 reference analysis as inaccurate** — Art 0/III "100% LANDED+PARTIAL" ✅ confirmed; "20 NOT-LANDED" ⚠️ inaccurate (matrix 0 RED, ~13 AMBER); "Boltzmann 是口号" ❌ disproved (`BoltzmannMaskPolicy` in production); "CompleteSetRedeemTx 缺失" ❌ disproved (`typed_tx.rs:1202` implemented); `CompleteSetMergeTx` + Gardener Agent are real gaps but PROJECT_PLAN §5 推后.
+
+### What landed this session
+
+1. **Track A — TB-18R FINAL ship report** — `handover/tracer_bullets/TB-18R_FINAL_SHIP_REPORT_2026-05-07.md` (12 sections; 11 atoms + post-PROVISIONAL repair atoms + Wave 3 supplement; SG-18R.1..13 final closure; 70/70 evaluable runs PASS R4 invariant across R6+R7+Phase3v3+Wave3 20p+Wave3 50p; >500 real LLM-Lean rejects to L4.E with R3 RejectionClass discriminators; PROJECT_PLAN §3 = 10/10 GREEN check; architect §8 sign-off ask at canonical directive path).
+2. **Track B — Wave 3 evidence binding** — `tests/constitution_wave3_evidence_binding.rs` NEW 7 tests; binds matrix invariants to Wave 3 20p + 50p `chain_invariant.json` artifacts. `scripts/run_constitution_gates.sh` registers the new gate file + promotes MVP-1/MVP-3/MVP-4 + closure #4/#5/#8/#10 from AMBER/STRUCTURAL → GREEN. `CONSTITUTION_EXECUTION_MATRIX.md` 7 rows promoted AMBER → GREEN: §G FC1 every-externalized-attempt-tape-visible / no_legacy_authoritative_append / dashboard_not_source_of_truth / attempt_count_equals_tape_count / §H FC2 run_replayable / §M Tape dashboard_regenerates_from_tape_cas / chain_derived_facts_not_evaluator_stdout. Gates 90 → **97** (+7). Workspace 1174 → **1181** (+7).
+3. **Track C — Gemini sanity pass dispatch** — codex-rescue subagent spawned (background; agentId completed within ~63s with delegation to Codex `task-movpt3ux-qfvx8l`). Dispatch script `handover/audits/run_gemini_constitution_landing_first_sanity_2026-05-07.py` (10086 bytes; loads `/home/zephryj/projects/turingosv3/.env`; `gemini-2.5-pro` REST; round R1/R2 env-gated; 8-question brief covering b7bde23 substrate + Wave 3 evidence). Verdict file `GEMINI_CONSTITUTION_LANDING_FIRST_SANITY_2026-05-07_R1.md` NOT YET PRESENT at session end — Codex task running asynchronously; check `/codex:status task-movpt3ux-qfvx8l`.
+4. **Independent analysis docs** — `handover/alignment/CONSTITUTION_GAP_ANALYSIS_2026-05-07.md` (full per-Article gap analysis with file:line citations; 7 sections; updated baseline ~50/64 GREEN + ~13/64 AMBER + 0 RED + 1 truly-absent (Gardener Agent); workplan from current → "constitution fully implemented" partitioned by PROJECT_PLAN §5 TB sequence).
+5. **Commit**: `feec129` — staged Track A + B deliverables (4 files: ship report new + matrix update + gate runner update + new test file). NOT staged: Gemini dispatch script (Track C still in flight), gap analysis doc (out-of-band working artifact), bulk evidence `cas/`+`runtime_repo/` subdirs (local-only per `feedback_evidence_packaging_policy_required`), session-runtime `rules/enforcement.log` + `experiments/minif2f_v4/h_vppu_history.json`.
+
+### Constitution Matrix verified post-Track-B
+
+```
+LANDED (🟢 GREEN)     ≈ 50/64 = 78%
+PARTIAL (🟡 AMBER)    ≈ 13/64 = 20%
+NOT-LANDED (🔴 RED)   = 0
+N/A                   = 1
+```
+
+PROJECT_PLAN §0 baseline `28/64 LANDED + 41/64 LANDED+PARTIAL + 14 NOT-LANDED + 7 BLOCKED-DECISION` is now stale. Constitution Landing First (`b7bde23`) closed 6 of the 7 BLOCKED-DECISION items (G-009/G-012/G-016/G-019/G-021/G-028); Track B closed 7 AMBER → GREEN via Wave 3 binding.
+
+### Truly absent constitution items (🔴 in body text but matrix has 0 RED rows)
+
+- **Gardener Agent** (`constitution.md §379-380` Art. III.1) — `grep -rnE 'gardener_agent|gardener\b' src/` = **0 hits**. The only constitution-mandated runtime artifact with no code surface. 📅 forward TB charter post-TB-21.
+
+### What this session does NOT do
+
+- Does NOT flip TB-18R from `active` to `shipped` on TB_LOG.tsv — awaits architect §8 sign-off at `handover/directives/2026-05-07_TB18R_FINAL_§8_SIGN_OFF.md`.
+- Does NOT close Track C — Gemini verdict pending in async Codex task.
+- Does NOT advance PROJECT_PLAN §5 sequence — still at TB-18R Final eligible-for-ship.
+- Does NOT modify any production src/ — Track B is pure tests + matrix doc + gate runner script.
+
+### Active state going forward
+
+- Substrate HEAD: `feec129` (TB-18R FINAL ship report + Wave 3 binding).
+- Constitution gates: **97/0/1 GREEN**.
+- Workspace tests: **1181/0/151 PASS**.
+- TB-18R: FINAL-CANDIDATE (awaits architect §8); FREEZE list active until §8 lifts.
+- TB-C0: SHIPPED FINAL 2026-05-07 (canonical pre-merge invariant remains active).
+
+### Next steps (priority order)
+
+1. **Architect §8 sign-off on TB-18R Final** — at canonical directive path; multi-clause per `feedback_class4_cannot_hide_in_class3` precedent. Until signed, FREEZE list (NodeMarket / Polymarket-trading / public-chain / formal-benchmark-passed externalization / TB-18B charter) remains in effect.
+2. **Track C Gemini sanity verdict** — `/codex:status task-movpt3ux-qfvx8l` to check; verdict file `GEMINI_CONSTITUTION_LANDING_FIRST_SANITY_2026-05-07_R1.md` will land in `handover/audits/`. Conservative ranking VETO > CHALLENGE > PASS per `feedback_dual_audit_conflict`. If R1 CHALLENGE, dispatch R2 with `TB_AUDIT_ROUND=R2`.
+3. **Wave 1/2 cleanup remainder** — Wilson 95% CI in src/ helper; `parent_selection_entropy` + `pairwise_payload_diversity_mean` in WAVE3_AGGREGATE.json shape; explicit Goodhart selector-blindness gate; agent-prompt-no-raw-stderr fixture-style gate. ~1-3 days Class-1 (no src/ changes; pure tests). Independently valuable; not §3 blocker.
+4. **TB-18B charter draft** — when architect §8 lifts; first real benchmark scale-up M1/M2 per PROJECT_PLAN §5.
+5. **Stage + commit**: `handover/alignment/CONSTITUTION_GAP_ANALYSIS_2026-05-07.md` + `handover/audits/run_gemini_constitution_landing_first_sanity_2026-05-07.py` (after Track C verdict lands; with verdict file).
+
+### Open questions / forward-bound
+
+- Whether the architect prefers TB-18R Final §8 sign-off path through a dedicated directive file or in-LATEST sign-off (TB-C0 precedent used dedicated directive at `handover/directives/2026-05-07_TBC0_ARCHITECT_§8_SIGN_OFF.md`).
+- Whether Gemini sanity pass scope on b7bde23 substrate (Constitution Landing First) needs to also cover the TB-18R Final ship report itself, or is it independent Class-2 coverage as currently scoped.
+- Whether the "user 论断 vs 真实状态" inaccuracies discovered this session (5 distinct claim mismatches across 2 analyses) should produce a `feedback_*` memory entry to prevent repeat (likely yes — recurring pattern of analysis quality).
+
+---
+
 ## 🎯 2026-05-07 (session end #16) — **Wave 3 50-problem diagnostic GREEN: FC1 hard invariant 460 = 9 + 400 + 51 holds at N=50 under 2.5× load; PROJECT_PLAN §3 = 10/10 GREEN; §5 TB sequence resume eligibility door fully closed**
 
 **HEAD**: `ffb6ebd` (no new commit yet; LATEST update + TB_LOG row + 50p evidence pending stage and commit).
