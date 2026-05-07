@@ -6,6 +6,83 @@
 
 ---
 
+## 🎯 2026-05-07 (session end #12) — **TB-18R Phase 3 v2 evidence + A0 evidence-drift fix; ShipGate PASS; ready for fresh real-test re-run on ship HEAD before round-3 audit**
+
+**HEAD**: `64745bb` (4 commits past TB-C0 ship `7c8dc54`).
+
+**ShipGate audit verdict (this session)**: **PASS**
+- Architect §11 7 hard gates: 7/7 GREEN (FC1 / FC2 / FC3 / Predicate / Shielding / Economy / Tape)
+- Architect §12 10 conditions for "constitution fully landed": 10/10 GREEN
+- Constitution gates: **70/0/1 GREEN** (was 64; +6 from new gates)
+- Workspace tests: **1147/0/151 PASS** (was 1141; +6 new tests)
+- Phase 3 v2 evidence: 7/7 inv1_match=True delta=0 (under corrected formula)
+- Evidence drift end-to-end: 0 modifications to handover/evidence/ tracked files (A0 fix verified)
+
+**3 commits this session (in order)**:
+```
+3eb4f71 TB-18R Phase 3 — runner counting bug fixed; 7/7 PASS architect §11 #1 hard gate
+cf7cb48 A0 — fix evidence-drift root cause: env-gate test writes to committed evidence
+64745bb A0 followup — rehash trust_root manifest entry for tb_7_atom6_smoke.rs
+```
+
+### Two interleaved bugs found + fixed this session
+
+**Bug 1: Phase 3 runner counting (D-b')** — `handover/alignment/OBS_TB18R_INV1_NONLLM_TX_2026-05-07.md`
+- Symptom: P04/P05 inv1_match=False (delta=-3, -1) on Phase 3 v1 batch
+- Root cause: runner script passed `EXPECTED_COMPLETED = PPUT_RESULT.tx_count` (broader; includes architect-mandated admin scaffold) when binary's invariant LHS is `evaluator_reported_completed_llm_calls` (= LLM-Lean cycle count = `tool_dist.step + parse_fail + llm_err`)
+- Initial misdiagnosis (withdrawn): D-c (CLAUDE.md line 80 text simplification). Deeper investigation showed it was D-b' (runner mis-implementation of an actually-correct invariant).
+- Fix in commit `3eb4f71`: runner script + architect_inv1_check.json scope rename + CLAUDE.md line 80 clarification (3-term canonical alignment with FC1 line 33) + new constitution gate `tests/constitution_runner_invariant_formula.rs` (4 tests, 4 REGRESSION GUARDs)
+- Re-verification on existing CAS evidence (no LLM re-run): 7/7 problems now PASS
+
+**Bug 2: Evidence-drift via cargo test (A0)** — `handover/alignment/OBS_EVIDENCE_DRIFT_ROOT_CAUSE_2026-05-07.md` (background agent investigation report)
+- Symptom: `cargo test --workspace` silently overwrote 11 files in committed evidence dirs (TB-7/13/14) each run; user discovered as 22-file working-tree drift; even after stash, re-running cargo test recurred drift identically
+- Root cause: 3 cargo tests with hard-coded `Path::new("handover/evidence/<dated-dir>")` writes pattern; original "best-effort if dir unwritable" semantics actually ALWAYS succeeded since dirs were writable, overwriting prior content with current-schema-formatted output
+- Fix in commit `cf7cb48`: tests/tb_{7_atom6,13,14}_chaintape_smoke.rs gate writes behind `TURINGOS_TEST_REGENERATE_EVIDENCE=1` env var (default = skip; opt-in regen) + new constitution gate `tests/constitution_no_evidence_drift_in_tests.rs` (2 tests; heuristic + READ_ONLY_FIXTURE_TESTS allowlist)
+- Followup commit `64745bb`: rehash trust_root manifest entry (genesis_payload.toml line 245) for tb_7_atom6_chain_backed_smoke.rs (5e1875216eee → cd8604ee8273); 3 trust_root tests now PASS
+
+### Phase 3 v2 evidence package
+**Dir**: `handover/evidence/tb_18r_phase_3_2026-05-07T06-24-20Z/`
+**Substrate**: HEAD `7c8dc548` (TB-C0 ship; 4 commits behind current HEAD `64745bb`)
+**Files**:
+- `PHASE_3_BATCH_SUMMARY.json` (v1; preserved)
+- `PHASE_3_BATCH_SUMMARY_corrected.json` (v2; aggregate `match_pass=7/7 delta_zero=7/7 all_pass=true`)
+- `PHASE_3_CANDIDATE_REPORT.md` (v1; Option A withdrawn; preserved per `feedback_no_retroactive_evidence_rewrite`)
+- `PHASE_3_CANDIDATE_REPORT_v2_corrected.md` (canonical)
+- Per-problem `chain_invariant.json` (v1) + `chain_invariant_corrected.json` (v2)
+- Per-problem `architect_inv1_check.json` (v1) + `architect_inv1_check_corrected.json` (v2)
+
+**Smoke probe (preceding)**: `handover/evidence/tb_18r_phase_3_2026-05-07T06-20-45Z/` (P03 OmegaAccepted)
+
+### Round-3 dispatch addendum ready (not yet invoked)
+**File**: `handover/audits/G2_TB_18R_ROUND_3_DUAL_AUDIT_DISPATCH_ADDENDUM_2026-05-07.md`
+**Parent dispatch**: `G2_TB_18R_ROUND_3_DUAL_AUDIT_DISPATCH_2026-05-06.md` (substrate `55a0935`; both apply jointly to v2 evidence)
+**Adds**: Q-R3-A1..A8 covering bug 1 + bug 2 resolution narrative, REGRESSION GUARD gates, Class scope, Phase Z' applicability
+**Awaits**: user-billed Codex + Gemini round-3 invocation (deferred to next session)
+
+### Next-session real-test re-run decision
+User accepted recommendation per "真实测试 vs 外部审计 哪个更合适?": **real test FIRST per architect §10 + §9 sequence**. Phase 3 v2 evidence is at substrate `7c8dc548` (4-commit drift from current HEAD `64745bb`); intervening commits do NOT touch evaluator/runtime/sequencer/typed_tx/CAS schema (test scaffold + manifest + docs only). But strict reading of "real run on ship HEAD" + "不凑活 + 不赶工" → re-run Phase 3 batch on `64745bb` before round-3 audit.
+
+Next session re-runs Phase 3 batch with corrected runner formula on HEAD `64745bb`. Expected output: fresh evidence dir `tb_18r_phase_3_<new-timestamp>/` with 7/7 PASS naturally (no `*_corrected.json` post-processing needed since runner formula is canonical post-fix). Then round-3 dispatch addendum (v3 update) → user-billed audit invocation → architect §8.
+
+### Architect-side decisions still pending (carry over to next session)
+Per session uncertainties surfaced 2026-05-07 (user "把无法确认的告诉我"):
+1. CLAUDE.md line 80 amendment authority (project instructions vs constitution-equivalent)
+2. New constitution gate test addition autonomy (Class 0/1 vs Class 4)
+3. Runner formula `step + parse_fail + llm_err` correctness vs unaccounted-for tool_dist key
+4. Architect §11 #1 wording: literal `evaluator_tx_count` vs "LLM cycle count" intent
+5. `feedback_no_workarounds_strict_constitution` boundary (D-b' vs D-c-1 framing)
+
+User authority pattern this session: **"如果 ShipGate 通过我承认你的修改"** — ShipGate PASS verified; modifications stand pending fresh real-test confirmation.
+
+### Two stash entries preserved (not yet dropped; user authorization pending)
+```
+stash@{0}: evidence-drift-from-cargo-test-workspace-2026-05-07-r2 (returned after cargo test workspace; A0 fix now prevents)
+stash@{1}: pre-TB-18R-phase3-rerun-drift-2026-05-07 (original 22-file drift; A0 root cause)
+```
+Both contain abandoned wrong-state evidence rewrites. A0 fix prevents recurrence. Drop = destructive op (audit trail preserved in OBS_EVIDENCE_DRIFT_ROOT_CAUSE_2026-05-07.md). User authorization pending.
+
+---
+
 ## 🎯 2026-05-07 (session end #11) — **TB-C0 SHIPPED FINAL — architect §8 sign-off; FREEZE lifted; ALL feature TB roadmap unblocked**
 
 **Architect §8 sign-off**: `handover/directives/2026-05-07_TBC0_ARCHITECT_§8_SIGN_OFF.md` (verbatim "好，确认可以 ship"; multi-clause; explicit closure of all Codex v5 PASS conditions).
