@@ -99,4 +99,75 @@ If both auditors PASS Q-R3-A1..A8 + parent dispatch applies cleanly, addendum ve
 
 ---
 
-**End of round-3 dispatch addendum. Awaits user-billed Codex + Gemini round-3 invocation.**
+## §6 v3 evidence supersession (2026-05-07 evening session)
+
+**Status**: v2 evidence package (substrate `7c8dc548`, runner-counting-bug fix applied via `*_corrected.json` post-processing) was the canonical artifact when this addendum was first authored. Subsequent commits landed:
+- `3eb4f71` — Phase 3 runner counting bug fix lifted into the runner script itself (no longer requires post-hoc `_corrected.json`)
+- `cf7cb48` — A0 evidence-drift root-cause fix (env-gate test writes to committed evidence)
+- `64745bb` — A0 followup (manifest rehash for `tb_7_atom6_smoke.rs`)
+- `11b987b` — handover update; ShipGate PASS verdict
+
+Per architect `§10` + `§9` mandate (real test FIRST on ship HEAD), Phase 3 was re-run on substrate `11b987b` to eliminate the 4-commit drift between v2 substrate and the round-3 audit HEAD. **v3 evidence is now the canonical artifact for round-3 audit.**
+
+### §6.1 v3 substrate change
+
+| | v2 (parent of this addendum) | v3 (canonical for round-3) |
+|---|----------------------|----------------------|
+| Substrate HEAD | `7c8dc548` (TB-C0 SHIPPED FINAL) | `11b987b` (ShipGate PASS; round-3 ship HEAD) |
+| Drift from round-3 ship HEAD | 4 commits behind | **0 (HEAD == substrate)** |
+| Runner counting fix in script | No (lifted via `_corrected.json` post-processing) | **Yes** (canonical formula in script from genesis) |
+| `_corrected.json` post-processing | Required | **None** (natural pass) |
+| Constitution gates | 68 / 0 / 1 GREEN | **70 / 0 / 1 GREEN** (+2 gates: `runner_invariant_formula`, `no_evidence_drift_in_tests`) |
+| Phase 3 evidence dir | `tb_18r_phase_3_2026-05-07T06-24-20Z/` | **`tb_18r_phase_3_2026-05-07T08-33-05Z/`** |
+| inv1_match=True | 5/7 (raw) → 7/7 (post-corrected) | **7/7 (natural)** |
+| chain_invariant delta=0 | 5/7 (raw) → 7/7 (post-corrected) | **7/7 (natural)** |
+| Solve count | 3/7 (43%) | 5/7 (71%) — LLM stochasticity |
+
+### §6.2 What auditors should review for v3 (replaces §1.2 + §2 against v3 evidence)
+
+**Read in order**:
+1. v3 candidate report: `handover/evidence/tb_18r_phase_3_2026-05-07T08-33-05Z/PHASE_3_CANDIDATE_REPORT_v3.md`
+2. v3 batch summary: `handover/evidence/tb_18r_phase_3_2026-05-07T08-33-05Z/PHASE_3_BATCH_SUMMARY.json`
+3. v3 run manifest: `handover/evidence/tb_18r_phase_3_2026-05-07T08-33-05Z/PHASE_3_RUN_MANIFEST.json`
+4. Per-problem `chain_invariant.json` + `architect_inv1_check.json` (no `_corrected.json` files needed)
+5. OBS docs unchanged: `handover/alignment/OBS_TB18R_INV1_NONLLM_TX_2026-05-07.md` + `handover/alignment/OBS_EVIDENCE_DRIFT_ROOT_CAUSE_2026-05-07.md`
+6. `target/constitution_gate_report.json` — 70/0/1 GREEN at HEAD `11b987b`
+
+**Verify (replaces v2 §1.2 checklist)**:
+- [ ] Per-problem `chain_invariant.json` (NOT `_corrected.json`) shows `delta=0, invariant_verdict="Ok"` for all 7 problems
+- [ ] Per-problem `architect_inv1_check.json` (NOT `_corrected.json`) shows `match=True`
+- [ ] `PHASE_3_BATCH_SUMMARY.json` (NOT `_corrected.json`): 7/7 audit=PROCEED, 7/7 invariant_verdict=Ok, 7/7 delta=0, evaluator_failures_excluding_timeout=0
+- [ ] No `*_corrected.json` files exist in v3 evidence dir (verifies natural pass)
+- [ ] v3 substrate HEAD == round-3 audit HEAD (`11b987b`) — no drift
+- [ ] Constitution gates 70/0/1 GREEN at this HEAD
+- [ ] Smoke probe preceded batch: `tb_18r_phase_3_2026-05-07T08-30-43Z/` (1-problem `mathd_algebra_107`, audit=PROCEED, id45=Pass, inv1_match=True)
+- [ ] P04 `mathd_algebra_113` `non_llm_tx_diagnostic_gap=3` correctly informational, not a violation (canonical FC1-INV1 case)
+
+### §6.3 Auditor question rubric for v3 (additive to §2)
+
+| ID | Question | Expected verdict |
+|----|----------|------------------|
+| Q-R3-V3-1 | Does v3 substrate == round-3 audit HEAD? | PASS — `11b987b` both |
+| Q-R3-V3-2 | Are there any `*_corrected.json` files in v3 evidence dir? | NO — natural pass |
+| Q-R3-V3-3 | Do all 7 v3 `chain_invariant.json` files show `delta=0, invariant_verdict=Ok` directly (not via post-processing)? | PASS |
+| Q-R3-V3-4 | Does v3 demonstrate that the canonical FC1-INV1 3-term formula is in the runner script from genesis (not applied post-hoc)? | PASS — `tests/constitution_runner_invariant_formula.rs` GREEN at this HEAD |
+| Q-R3-V3-5 | Does the user 2026-05-07 directive ("every word in constitution countable, real problem from web") apply to this evidence? | YES — but v3 covers FC1-INV1 only; constitution-wide every-clause coverage is a separate post-v3 deliverable (see v3 report §5). v3 does NOT claim constitution-wide every-clause-countable coverage; it claims FC1-INV1 + adjacent §11 hard-gate coverage on real MiniF2F problems with no manipulation. |
+| Q-R3-V3-6 | Are v2 evidence files preserved (audit trail)? | PASS — `tb_18r_phase_3_2026-05-07T06-24-20Z/` untouched |
+
+### §6.4 Conservative-ranking note for v3
+
+Same as §3: if any auditor returns VETO on Q-R3-V3-1..6 or any parent-dispatch / v2 question against v3 evidence, VETO wins. If both auditors PASS, addendum verdict = PASS → architect §8 path opens.
+
+### §6.5 Cross-references for v3 (additive)
+
+- v3 evidence dir: `handover/evidence/tb_18r_phase_3_2026-05-07T08-33-05Z/`
+- v3 candidate report: `handover/evidence/tb_18r_phase_3_2026-05-07T08-33-05Z/PHASE_3_CANDIDATE_REPORT_v3.md`
+- v3 smoke probe dir: `handover/evidence/tb_18r_phase_3_2026-05-07T08-30-43Z/`
+- v3 substrate HEAD: `11b987bb58f5cf535b1ffccf07c1e9e66ce68dac`
+- Constitution gates 70/0/1 GREEN at v3 substrate: `target/constitution_gate_report.json`
+- A0 evidence-drift fix commit: `cf7cb48` (cf. `handover/alignment/OBS_EVIDENCE_DRIFT_ROOT_CAUSE_2026-05-07.md`)
+- Runner counting fix commit: `3eb4f71` (cf. `handover/alignment/OBS_TB18R_INV1_NONLLM_TX_2026-05-07.md`)
+
+---
+
+**End of round-3 dispatch addendum. v3 supersedes v2 as canonical round-3 evidence. Awaits user-billed Codex + Gemini round-3 invocation.**
