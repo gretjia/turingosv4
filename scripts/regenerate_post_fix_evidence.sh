@@ -173,34 +173,48 @@ for m in per_problem.values():
   if "fc_nodes" in m:
     all_node_keys.update(m["fc_nodes"].keys())
 
+problem_count = len(per_problem)
+
 aggregate = {}
 for node in sorted(all_node_keys):
-  green = []; amber = []; red = []
+  green = []; amber = []; red = []; missing = []
   for pname, m in per_problem.items():
-    if "fc_nodes" not in m: continue
-    v = m["fc_nodes"].get(node)
-    if not v: continue
+    fc_nodes = m.get("fc_nodes", {})
+    v = fc_nodes.get(node)
+    if not v:
+      # Codex round-7 Finding C2 fix: explicitly track missing-from-manifest
+      # cases. Round-6 used `if not v: continue` which silently skipped
+      # missing nodes — could produce false-GREEN if a problem's manifest
+      # didn't include the node at all.
+      missing.append(pname)
+      continue
     s = v.get("status", "")
     if s.startswith("✅"): green.append(pname)
     elif s.startswith("🟡"): amber.append(pname)
     elif s.startswith("🔴"): red.append(pname)
-  # STRICT semantics (Codex Q6 + §9.3 remediation): aggregate is GREEN ONLY
-  # if every problem GREEN; AMBER if any AMBER (no RED); RED if any RED.
+  # STRICT semantics (Codex Q6 + §9.3 + Q-RR3 + Finding C2 + §4 condition #2):
+  # aggregate is GREEN ONLY if every problem GREEN AND zero missing AND zero
+  # amber AND zero red. Any RED → RED. Any AMBER OR missing → AMBER.
   if red:
     agg_status = "RED"
-  elif amber and green:
-    agg_status = "AMBER"  # mixed; still flag
-  elif amber and not green:
+  elif missing and not (amber or green):
+    # ALL problems missing the node → GAP (no problem reports witness at all)
+    agg_status = "GAP"
+  elif amber or missing:
+    # Any AMBER or any missing-node — cannot claim GREEN
     agg_status = "AMBER"
-  elif green and not amber and not red:
+  elif len(green) == problem_count:
+    # Every problem reports GREEN
     agg_status = "GREEN"
   else:
+    # Should not reach (covered above) — defensive GAP
     agg_status = "GAP"
   aggregate[node] = {
     "aggregate_status": agg_status,
     "green_by": green,
     "amber_by": amber,
     "red_by": red,
+    "missing_by": missing,
   }
 
 reds = [k for k,v in aggregate.items() if v["aggregate_status"] == "RED"]

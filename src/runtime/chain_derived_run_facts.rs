@@ -916,36 +916,111 @@ pub fn compute_run_facts_from_chain_with_invariant(
     } else {
         RejectionEvidenceWriter::new()
     };
-    // **TB-C0 Codex-§8 Bug 2 fix (2026-05-07; per
-    // `CODEX_TBC0_STRICT_CONSTITUTIONAL_AUDIT_VERDICT_2026-05-07.md` Q5 PASS
-    // + Q9 VETO remediation #1)**: synthetic L4.E gate (atom A.1 — TB-6
-    // Atom 3) emits a zero-stake Work tx signed by the well-known synthetic
-    // sponsor `"tb6-smoke-agent"` to seed a chain-level liveness witness.
-    // This tx is NOT a real LLM-Lean externalized attempt; counting it in
-    // `l4e_work_attempt_count` inflates the FC1 RHS by 1 on every run that
-    // bootstrapped the synthetic gate. The runtime emit site is
-    // `experiments/minif2f_v4/src/chain_runtime.rs::write_synthetic_l4_l4e_gate_and_genesis_report`
-    // and the on-disk marker is `<runtime_repo>/synthetic_rejection_label.json`.
+    // **TB-C0 round 7 strengthened Bug 2 filter (2026-05-07; per Codex re-audit
+    // verdict v2 Q-RR1 CHALLENGE + Finding C1 + §4 condition #1)**: synthetic
+    // L4.E gate (atom A.1 — TB-6 Atom 3) emits a zero-stake Work tx signed by
+    // the well-known synthetic sponsor `"tb6-smoke-agent"` with all-zero
+    // signature, to seed a chain-level liveness witness. Round-6 used an
+    // `agent_id`-only filter which Codex correctly identified as too weak —
+    // an agent could (in principle) forge that ID and slip through.
     //
-    // Filter rule: a Work-kind rejection whose `agent_id` equals
-    // `"tb6-smoke-agent"` is a synthetic gate (the synthetic-sponsor agent
-    // never performs real LLM-Lean work — it ONLY signs the bootstrap gate).
-    // Class 3 surface (chain_derived_run_facts.rs is NOT in CLAUDE.md
-    // STEP_B file list); does not require sequencer.rs touch.
+    // Strengthened discriminator binds 5 conditions that ALL must hold before
+    // a Work rejection is excluded:
+    //   1. `agent_id == "tb6-smoke-agent"`
+    //   2. decoded `WorkTx.stake.micro_units() == 0` (zero-stake)
+    //   3. decoded `WorkTx.signature == [0u8; 64]` (zero-byte placeholder
+    //      signature; real WorkTx are Ed25519-signed via AgentKeypairRegistry)
+    //   4. `WorkTx.tx_id` ends with the synthetic suffix `"-atom3-l4e-synthetic-rejection"`
+    //      (matches the constructor at chain_runtime.rs:379-382)
+    //   5. `<runtime_repo>/synthetic_rejection_label.json` exists with
+    //      `"synthetic_rejection_for_l4e_gate": true` (the chain_runtime.rs
+    //      marker file)
+    //
+    // Cardinality: exactly one such synthetic gate per runtime. If the marker
+    // file is present and we find 0 or >1 matching records, that's a
+    // chain-derivation anomaly returned as ChainDerivedError::SyntheticGateAnomaly
+    // (NOT silently accepted).
+    //
+    // Class 3 surface (chain_derived_run_facts.rs is NOT in CLAUDE.md STEP_B
+    // file list); does not require sequencer.rs touch.
     const SYNTHETIC_GATE_SPONSOR_AGENT_ID: &str = "tb6-smoke-agent";
-    let l4e_work_attempt_count: u64 = l4e_writer
-        .records()
-        .iter()
-        .filter(|r| r.tx_kind == TxKind::Work)
-        .filter(|r| r.agent_id.0 != SYNTHETIC_GATE_SPONSOR_AGENT_ID)
-        .count() as u64;
-    let synthetic_gate_filtered_count: u64 = l4e_writer
-        .records()
-        .iter()
-        .filter(|r| r.tx_kind == TxKind::Work)
-        .filter(|r| r.agent_id.0 == SYNTHETIC_GATE_SPONSOR_AGENT_ID)
-        .count() as u64;
-    let _ = synthetic_gate_filtered_count;  // surface for future audit hook
+    const SYNTHETIC_GATE_TX_ID_SUFFIX: &str = "-atom3-l4e-synthetic-rejection";
+    const SYNTHETIC_GATE_MARKER_FILE: &str = "synthetic_rejection_label.json";
+
+    let marker_path = runtime_repo_path.join(SYNTHETIC_GATE_MARKER_FILE);
+    let marker_present_and_true = match std::fs::read_to_string(&marker_path) {
+        Ok(raw) => match serde_json::from_str::<serde_json::Value>(&raw) {
+            Ok(v) => v
+                .get("synthetic_rejection_for_l4e_gate")
+                .and_then(|x| x.as_bool())
+                .unwrap_or(false),
+            Err(_) => false,
+        },
+        Err(_) => false,
+    };
+
+    let mut work_rejection_records: Vec<&crate::bottom_white::ledger::rejection_evidence::RejectedSubmissionRecord> =
+        l4e_writer
+            .records()
+            .iter()
+            .filter(|r| r.tx_kind == TxKind::Work)
+            .collect();
+
+    let mut synthetic_gate_filtered_count: u64 = 0;
+
+    // Walk and partition: each record is either "real Work rejection" or
+    // "synthetic gate" per the 5-check predicate above.
+    let mut real_work_rejections = 0u64;
+    for record in work_rejection_records.drain(..) {
+        let mut is_synthetic = false;
+        // Check 1: agent_id match
+        if record.agent_id.0 == SYNTHETIC_GATE_SPONSOR_AGENT_ID {
+            // Decode WorkTx payload from CAS to verify checks 2-4
+            if let Ok(payload_bytes) = cas.get(&record.tx_payload_cid) {
+                if let Ok(typed_tx) = canonical_decode::<TypedTx>(&payload_bytes) {
+                    if let TypedTx::Work(work_tx) = typed_tx {
+                        // Check 2: stake == 0 micro_units
+                        let stake_zero = work_tx.stake.micro_units() == 0;
+                        // Check 3: signature == zero bytes (synthetic uses
+                        // AgentSignature::from_bytes([0u8; 64]); real WorkTx
+                        // are Ed25519-signed)
+                        let sig_zero = *work_tx.signature.as_bytes() == [0u8; 64];
+                        // Check 4: tx_id suffix
+                        let tx_id_synthetic = work_tx
+                            .tx_id
+                            .0
+                            .ends_with(SYNTHETIC_GATE_TX_ID_SUFFIX);
+                        // Check 5: marker file present and true (single
+                        // global gate; checked once per call above)
+                        if stake_zero && sig_zero && tx_id_synthetic && marker_present_and_true {
+                            is_synthetic = true;
+                        }
+                    }
+                }
+            }
+        }
+        if is_synthetic {
+            synthetic_gate_filtered_count += 1;
+        } else {
+            real_work_rejections += 1;
+        }
+    }
+
+    // Cardinality check: if marker is present, we MUST find exactly 1
+    // synthetic gate. 0 or >1 indicates a chain-derivation anomaly.
+    if marker_present_and_true && synthetic_gate_filtered_count != 1 {
+        return Err(ChainDerivedError::Cas(format!(
+            "TB-C0 round 7 synthetic-gate cardinality violation: \
+             synthetic_rejection_label.json marker is present + true, \
+             but found {} synthetic-gate-shaped Work rejections (expected exactly 1). \
+             This may indicate tampered evidence OR a runtime bug. \
+             Runtime repo: {}",
+            synthetic_gate_filtered_count,
+            runtime_repo_path.display()
+        )));
+    }
+
+    let l4e_work_attempt_count: u64 = real_work_rejections;
 
     // TerminalAbortRecord count: query CAS index by object_type.
     let attempt_aborted_count = cas.count_by_object_type(ObjectType::TerminalAbortRecord);

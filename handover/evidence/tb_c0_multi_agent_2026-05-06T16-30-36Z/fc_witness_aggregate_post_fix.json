@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "tb_id": "TB-C0",
-  "tool": "scripts/regenerate_post_fix_evidence.sh + fc_witness_extract.py (round-5+6, prefers _post_fix variants)",
+  "tool": "scripts/regenerate_post_fix_evidence.sh + fc_witness_extract.py",
   "batch_dir": "handover/evidence/tb_c0_multi_agent_2026-05-06T16-30-36Z",
   "problem_count": 9,
   "problems": [
@@ -30,7 +30,8 @@
         "P09_aime_1984_p1"
       ],
       "amber_by": [],
-      "red_by": []
+      "red_by": [],
+      "missing_by": []
     },
     "FC1-INV3_count_equality_constitutional": {
       "aggregate_status": "GREEN",
@@ -46,7 +47,8 @@
         "P09_aime_1984_p1"
       ],
       "amber_by": [],
-      "red_by": []
+      "red_by": [],
+      "missing_by": []
     },
     "FC1-N11_predicates": {
       "aggregate_status": "GREEN",
@@ -62,7 +64,8 @@
         "P09_aime_1984_p1"
       ],
       "amber_by": [],
-      "red_by": []
+      "red_by": [],
+      "missing_by": []
     },
     "FC1-N13_wtool": {
       "aggregate_status": "GREEN",
@@ -78,7 +81,8 @@
         "P09_aime_1984_p1"
       ],
       "amber_by": [],
-      "red_by": []
+      "red_by": [],
+      "missing_by": []
     },
     "FC1-N15_reject_branch": {
       "aggregate_status": "GREEN",
@@ -94,7 +98,8 @@
         "P09_aime_1984_p1"
       ],
       "amber_by": [],
-      "red_by": []
+      "red_by": [],
+      "missing_by": []
     },
     "FC1-N1_q_state_carrier": {
       "aggregate_status": "GREEN",
@@ -110,7 +115,8 @@
         "P09_aime_1984_p1"
       ],
       "amber_by": [],
-      "red_by": []
+      "red_by": [],
+      "missing_by": []
     },
     "FC1-N2_q_t_slice": {
       "aggregate_status": "GREEN",
@@ -126,7 +132,8 @@
         "P09_aime_1984_p1"
       ],
       "amber_by": [],
-      "red_by": []
+      "red_by": [],
+      "missing_by": []
     },
     "FC1-N3_HEAD_t_pointer": {
       "aggregate_status": "GREEN",
@@ -142,7 +149,8 @@
         "P09_aime_1984_p1"
       ],
       "amber_by": [],
-      "red_by": []
+      "red_by": [],
+      "missing_by": []
     },
     "FC1-N4_q1_after_delta": {
       "aggregate_status": "GREEN",
@@ -158,7 +166,8 @@
         "P09_aime_1984_p1"
       ],
       "amber_by": [],
-      "red_by": []
+      "red_by": [],
+      "missing_by": []
     },
     "FC1-N5_rtool": {
       "aggregate_status": "GREEN",
@@ -174,7 +183,8 @@
         "P09_aime_1984_p1"
       ],
       "amber_by": [],
-      "red_by": []
+      "red_by": [],
+      "missing_by": []
     },
     "FC1-N7_delta_AI_call": {
       "aggregate_status": "GREEN",
@@ -190,7 +200,8 @@
         "P09_aime_1984_p1"
       ],
       "amber_by": [],
-      "red_by": []
+      "red_by": [],
+      "missing_by": []
     },
     "FC2-INV1_genesis_replayable": {
       "aggregate_status": "GREEN",
@@ -206,7 +217,8 @@
         "P09_aime_1984_p1"
       ],
       "amber_by": [],
-      "red_by": []
+      "red_by": [],
+      "missing_by": []
     },
     "FC2-INV4_taskopen_escrowlock_chain_events": {
       "aggregate_status": "GREEN",
@@ -222,7 +234,8 @@
         "P09_aime_1984_p1"
       ],
       "amber_by": [],
-      "red_by": []
+      "red_by": [],
+      "missing_by": []
     },
     "FC2-INV6_pubkeys_verify": {
       "aggregate_status": "GREEN",
@@ -238,7 +251,8 @@
         "P09_aime_1984_p1"
       ],
       "amber_by": [],
-      "red_by": []
+      "red_by": [],
+      "missing_by": []
     },
     "FC2-INV7_agent_registry_resolves": {
       "aggregate_status": "GREEN",
@@ -254,7 +268,8 @@
         "P09_aime_1984_p1"
       ],
       "amber_by": [],
-      "red_by": []
+      "red_by": [],
+      "missing_by": []
     },
     "FC2-N16_InitAI": {
       "aggregate_status": "GREEN",
@@ -270,7 +285,8 @@
         "P09_aime_1984_p1"
       ],
       "amber_by": [],
-      "red_by": []
+      "red_by": [],
+      "missing_by": []
     },
     "FC2-N18_constitution_ground_truth": {
       "aggregate_status": "GREEN",
@@ -286,7 +302,8 @@
         "P09_aime_1984_p1"
       ],
       "amber_by": [],
-      "red_by": []
+      "red_by": [],
+      "missing_by": []
     },
     "FC2-N21_Q0_minted": {
       "aggregate_status": "GREEN",
@@ -302,7 +319,8 @@
         "P09_aime_1984_p1"
       ],
       "amber_by": [],
-      "red_by": []
+      "red_by": [],
+      "missing_by": []
     },
     "FC2-N22_HALT": {
       "aggregate_status": "GREEN",
@@ -318,7 +336,8 @@
         "P09_aime_1984_p1"
       ],
       "amber_by": [],
-      "red_by": []
+      "red_by": [],
+      "missing_by": []
     },
     "FC3-INV1_capsule_derived": {
       "aggregate_status": "AMBER",
@@ -335,7 +354,8 @@
         "P06_mathd_numbertheory_1124",
         "P09_aime_1984_p1"
       ],
-      "red_by": []
+      "red_by": [],
+      "missing_by": []
     },
     "FC3-INV2_no_global_pointer": {
       "aggregate_status": "GREEN",
@@ -351,7 +371,8 @@
         "P09_aime_1984_p1"
       ],
       "amber_by": [],
-      "red_by": []
+      "red_by": [],
+      "missing_by": []
     },
     "FC3-INV3_raw_logs_shielded": {
       "aggregate_status": "AMBER",
@@ -367,7 +388,8 @@
         "P08_aime_1983_p1",
         "P09_aime_1984_p1"
       ],
-      "red_by": []
+      "red_by": [],
+      "missing_by": []
     },
     "FC3-INV5_deep_history_override": {
       "aggregate_status": "AMBER",
@@ -383,7 +405,8 @@
         "P08_aime_1983_p1",
         "P09_aime_1984_p1"
       ],
-      "red_by": []
+      "red_by": [],
+      "missing_by": []
     },
     "FC3-INV7_architect_propose_only": {
       "aggregate_status": "AMBER",
@@ -399,7 +422,8 @@
         "P08_aime_1983_p1",
         "P09_aime_1984_p1"
       ],
-      "red_by": []
+      "red_by": [],
+      "missing_by": []
     },
     "FC3-INV8_judge_veto_only": {
       "aggregate_status": "AMBER",
@@ -415,16 +439,16 @@
         "P08_aime_1983_p1",
         "P09_aime_1984_p1"
       ],
-      "red_by": []
+      "red_by": [],
+      "missing_by": []
     }
   },
   "summary": {
     "total_nodes": 25,
     "green_count": 20,
     "amber_count": 5,
-    "red_count": 0,
-    "gap_count": 0
+    "red_count": 0
   },
-  "remediation_protocol": "TB-C0 Codex-\u00a78 remediation 2026-05-07: STRICT semantics \u2014 RED if any RED; AMBER if any AMBER (no green) or mixed; GREEN only if every problem GREEN. Closes Codex Q6 + \u00a79.3.",
-  "post_fix_binaries": "round-5+6: Bug 1 + Bug 2 + Bug 3 + FC1-INV6 fixes applied"
+  "remediation_protocol": "TB-C0 Codex-\u00a78 remediation 2026-05-07: STRICT aggregate semantics \u2014 RED if any problem RED; AMBER if any AMBER; GREEN only if all problems GREEN. Closes Codex Q6 + \u00a79.3.",
+  "post_fix_binaries": "round-5+6 (commits 0d0877b + this commit): Bug 1 + Bug 3 + Bug 2 + FC1-INV6 fixes applied"
 }

@@ -81,7 +81,7 @@ Witness status flags carry the same meaning as `CONSTITUTION_EXECUTION_MATRIX.md
 | FC1-N11 predicates | LeanResult CAS object per Lean check | ANY MiniF2F | MiniF2F (any) | ✅ |
 | FC1-N13 wtool | L4 + L4.E entries (sequencer-mediated writes) | ANY MiniF2F | MiniF2F (any) | ✅ |
 | FC1-N15 reject branch | L4.E rejection record present | `mathd_numbertheory_1124` (12 rejections; multi-attempt fail) | MiniF2F #P38 | ✅ |
-| **FC1-INV1** every-attempt-tape-visible | AttemptTelemetry count == evaluator tx_count | `mathd_numbertheory_1124`, `numbertheory_2pownm1prime_nprime` (architect_inv1.match=True) | MiniF2F #P38, #P49 | ✅ (5/7 on Phase 3) |
+| **FC1-INV1** every-attempt-tape-visible | AttemptTelemetry count == externalized_llm_cycle_count (post-round-5+6 LHS; per Codex Q-RR4 the legacy `tx_count` LHS was wrong because tx_count includes non-LLM tx like TaskOpen/EscrowLock/TerminalSummary). | **chain-resident** (post-round-6+7): all 9 problems `architect_inv1_check_post_fix.match=True` on `externalized_llm_cycle_count` derived from `tool_dist.step` (Bug 1 fix). Examples: P05 chain=20 externalized=20; P08 chain=44 externalized=44 (was match=False on legacy tx_count=50). | MiniF2F (all 9) | ✅ 9/9 GREEN post-fix |
 | **FC1-INV3** count equality (3-term constitutional) | expected == l4 + l4e + capsule_anchored | **chain-resident** (post-round-6): all 9 problems delta=0 verdict=Ok per `*/chain_invariant_post_fix.json`. Examples: `mathd_algebra_114` (P05): 20=0+12+8; `numbertheory_2pownm1prime_nprime` (P07): 50=0+46+4; `aime_1983_p1` (P08): 44=0+5+39 (39 step_partial_ok); `aime_1984_p1` (P09): 10=1+6+3. | MiniF2F (multiple) | ✅ 9/9 GREEN post-fix (round-6 Bug 2 filter + round-5 capsule_anchored). Old "12=0+10+2 with step_partial_ok=3" was an arithmetic error in the round-3 catalog, called out by Codex Q8; now superseded by post-fix figures. |
 | FC1-INV4 no legacy bypass | no fallback to `bus.append` direct path | structural test `fc1_no_legacy_authoritative_append` | source-grep | ✅ |
 | FC1-INV5 dashboard not source | `tb_16_dashboard_live_regen.rs` test | structural | source-grep + integration test | ✅ |
@@ -170,21 +170,33 @@ Witness status flags carry the same meaning as `CONSTITUTION_EXECUTION_MATRIX.md
 
 ---
 
-## §3. Coverage gap analysis (post-Phase-3 + post-TB-C0-multi-agent)
+## §3. Coverage analysis (post-round-7; STRICT semantics per Codex Q-RR4 + Finding C3)
 
-After running `scripts/fc_witness_aggregate.py` on `handover/evidence/tb_18r_phase_3_2026-05-06T14-13-55Z` (7 problems, n=1) AND `handover/evidence/tb_c0_multi_agent_*` (this TB):
+**Witness-class breakdown** (NOT a single "tape witness" claim — per the §taxonomy, structural ≠ chain-resident; tamper-probe ≠ real-problem):
 
-**Aggregate**: 25/25 FC nodes have a tape witness from at least one real MiniF2F problem (5 of those are STRUCTURAL by design — verified by source-grep test, not chain-resident; per `feedback_real_problems_not_designed` these can't have a "real problem" witness because they describe meta-architectural roles that don't run on the tape).
+After running round-5+6+7 binaries on `handover/evidence/tb_c0_multi_agent_2026-05-06T16-30-36Z` (9 MiniF2F problems, n=5; aggregate at `fc_witness_aggregate_post_fix.json`):
 
-**Specific bindings**:
-- All FC1-INV/N nodes: GREEN via mix of solved/failed MiniF2F runs
-- All FC2 boot nodes: GREEN via any boot run
-- FC3 capsule (FC3-INV1, FC3-N39): GREEN via multi-iteration MiniF2F (P38/P49)
-- FC3 structural nodes (INV3, INV5, INV7, INV8): structurally verified — these don't have chain witnesses by design (constitution document hygiene + architect/judge role separation are inherently structural)
+| Witness class | Nodes | Status |
+|---------------|-------|--------|
+| **chain-resident GREEN** (every problem on tape proves the invariant) | 19 nodes — all FC1 N/INV nodes (`FC1-N1` through `FC1-N15`, `FC1-INV1`, `FC1-INV3`, `FC1-INV4`, `FC1-INV5`, `FC1-INV6`*) + all FC2 N/INV nodes + `FC3-INV2` | ✅ |
+| **chain-resident AMBER** (capsule presence on 3/9, integrity not yet verified) | 1 node — `FC3-INV1` (path-to-GREEN documented) | 🟡 |
+| **structural-only AMBER** (source-grep / type-shape only — meta-architectural roles NOT on tape) | 4 nodes — `FC3-INV3`, `FC3-INV5`, `FC3-INV7`, `FC3-INV8` | 🟡 (by design) |
+| **tamper-probe** (security adversarial — NOT a real-problem witness) | 1 node — `FC1-INV6`* (the underlying MiniF2F problems used as substrate ARE real, but the witness CLASS is tamper-detection, not real-problem coverage) | ✅ tamper-detection works post-fix (3/3 on P05 with assert_50) |
 
-**No GAPS**.
+(*FC1-INV6 appears in two rows — its base check `cas_bytes_match_cids` runs on every real-problem tape AND it's the target of the tamper-probe; classed as both chain-resident-GREEN structural assertion AND tamper-probe by design.)
 
-**No RED nodes**, but Bug 1/2/3 in `OBS_TBC0_FC1_INV3_THREE_BUGS_2026-05-06.md` cause spurious R4-binary verdicts on individual problems — the constitutional 3-term equation HOLDS on every run when correctly accounted; the implementation's 2-term `delta = l4 + l4e - expected` shape misses the `capsule_anchored` term and is forward-bound for fix.
+**Aggregate (STRICT semantics; Codex Q-RR3 + Finding C2 closure)**: per
+`scripts/regenerate_post_fix_evidence.sh` post-round-7 strict aggregator
+(GREEN only if every problem GREEN AND zero missing AND zero amber AND zero red):
+
+- **20 GREEN** (chain-resident; all 9 problems GREEN on each)
+- **5 AMBER** (1 chain-resident-AMBER FC3-INV1 + 4 structural-only by design)
+- **0 RED**
+- **0 GAP** (no node missing from all manifests)
+
+The previous "25/25 FC nodes have a tape witness" + "No GAPS" claims (round-3 catalog) were incorrect class-conflation: structural-only nodes and the AMBER FC3-INV1 do NOT have chain-resident tape witness. Codex Q8 VETO + Q-RR4 CHALLENGE both flagged this. **Round 7 supersedes those claims with the strict witness-class breakdown above.**
+
+**No RED nodes** post-round-7 (was 1 RED on FC1-INV6 round-3; closed by `assert_50_cas_bytes_match_cids`). Bug 1 + Bug 2 + Bug 3 catalogued in `OBS_TBC0_FC1_INV3_THREE_BUGS_2026-05-06.md` are ALL RESOLVED inline (Bug 1 in runner; Bug 2 in `chain_derived_run_facts.rs` strengthened filter; Bug 3 in `chain_derived_run_facts.rs` schema bump). The constitutional 3-term equation `expected == l4 + l4e + capsule_anchored` HOLDS exactly on all 9 problems (delta=0, invariant_verdict=Ok in `*/chain_invariant_post_fix.json`).
 
 ---
 

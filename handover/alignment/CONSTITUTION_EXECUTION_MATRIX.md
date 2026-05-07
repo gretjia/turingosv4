@@ -111,16 +111,18 @@
 
 ## §I. Flowchart 3 (FC3) Meta — gate-level summary
 
-| FC3 invariant | Test name | Status | Kill condition |
-|---|---|---|---|
-| Capsule derived from tape + CAS | `fc3_capsule_derived_from_tape_cas` | 🟡 AMBER | capsule diverges from regenerated |
-| No global Markov pointer | `fc3_no_global_markov_pointer` (also in `no_parallel_ledger.rs`) | 🟢 GREEN | `LATEST_MARKOV_CAPSULE.txt` exists |
-| Raw logs not in agent read view | `fc3_raw_logs_not_in_agent_read_view` | 🟡 AMBER | agent prompt contains raw stderr |
-| Latest capsule = context only | `fc3_latest_capsule_context_only` | 🟡 AMBER | capsule used as ground-truth |
-| Deep history requires override | `fc3_deep_history_requires_override` | 🟢 GREEN | reads succeed without `TURINGOS_MARKOV_OVERRIDE=1` |
-| No automatic predicate mutation | `fc3_no_automatic_predicate_mutation` | 🟢 GREEN | predicate definitions mutate at runtime |
-| ArchitectAI proposes, no direct write | `fc3_architectai_proposal_not_direct_write` | 🟡 AMBER | architect role direct-writes |
-| JudgeAI veto-only | `fc3_judgeai_veto_only` | 🟢 GREEN | judge commits code |
+**Note (2026-05-07 round 7 per Codex Q-RR5 Finding C4 normalization)**: status here uses 3-class taxonomy from `FC_WITNESS_CATALOG_2026-05-06.md` §taxonomy. "GREEN" in this table now means "structural test passes" for nodes whose witness class is `structural` (FC3-INV5/INV7/INV8 inherently can't be chain-resident — meta-architectural roles). For nodes with chain-resident class (FC3-INV1, FC3-INV2), GREEN requires real-tape evidence.
+
+| FC3 invariant | Test name | Witness class | Status | Kill condition |
+|---|---|---|---|---|
+| Capsule derived from tape + CAS | `fc3_capsule_derived_from_tape_cas` | chain-resident | 🟡 AMBER (presence-yes, integrity-not-yet-verified) | capsule diverges from regenerated |
+| No global Markov pointer | `fc3_no_global_markov_pointer` (also in `no_parallel_ledger.rs`) | chain-resident (filesystem invariant) | 🟢 GREEN | `LATEST_MARKOV_CAPSULE.txt` exists |
+| Raw logs not in agent read view | `fc3_raw_logs_not_in_agent_read_view` | structural-only | 🟡 AMBER (structural-only by design — runtime prompt construction not asserted) | agent prompt contains raw stderr |
+| Latest capsule = context only | `fc3_latest_capsule_context_only` | structural-only | 🟡 AMBER (structural-only by design) | capsule used as ground-truth |
+| Deep history requires override | `fc3_deep_history_requires_override` | structural-only | 🟡 AMBER (structural-only by design — env-var grep, no runtime integration test; downgraded round-7 for catalog/matrix consistency per Codex Finding C4) | reads succeed without `TURINGOS_MARKOV_OVERRIDE=1` |
+| No automatic predicate mutation | `fc3_no_automatic_predicate_mutation` | structural | 🟢 GREEN | predicate definitions mutate at runtime |
+| ArchitectAI proposes, no direct write | `fc3_architectai_proposal_not_direct_write` | structural-only | 🟡 AMBER (structural-only by design) | architect role direct-writes |
+| JudgeAI veto-only | `fc3_judgeai_veto_only` | structural-only | 🟡 AMBER (structural-only by design — judge role is procedural; downgraded round-7 for consistency with catalog) | judge commits code |
 
 ## §J. Predicate gate
 
@@ -180,18 +182,20 @@
 
 ## §O. Closure conditions (directive §12)
 
+**Round-7 normalization (per Codex Q-RR5 Finding C4 + §4 condition #4)**: a closure condition's status MUST NOT be greener than the gate it summarizes. Closure #2 + #6 corrected to match the actual underlying gate status.
+
 | # | Condition | Source | Status |
 |---|-----------|--------|--------|
 | 1 | Every clause has matrix row | this file | 🟢 GREEN (≥40 rows) |
-| 2 | Every critical row has a test | this file | 🟢 GREEN |
+| 2 | Every critical row has a test | this file | 🟡 AMBER (downgraded round-7 from GREEN: Art. V.3 has `NEW test required` and is RED — closure #2 cannot be GREEN while at least one critical row has no test. Per directive §7 "no test = RED, not 'covered by docs'". Will flip GREEN once Art. V.3 amendment-log test is written.) |
 | 3 | Every test can fail (no `assert!(true)`) | CR-C0.1 | 🟡 AMBER (verify on commit) |
-| 4 | P38/P49 real runs pass FC1 | constitution_gate_report.json | 🔴 RED (not yet run; LLM-cost gate) |
-| 5 | Fresh replay passes FC2 | `fc2_run_replayable_from_genesis_tape_cas` | 🟡 AMBER |
-| 6 | Markov / EvidenceCapsule passes FC3 | `fc3_capsule_derived_from_tape_cas` + `fc3_no_global_markov_pointer` | 🟢 GREEN |
+| 4 | P38/P49 real runs pass FC1 | constitution_gate_report.json | 🟢 GREEN (round-7: post-fix invariant on all 9 problems = `delta=0 verdict=Ok`; was 🔴 RED in round-1 before LLM batch ran) |
+| 5 | Fresh replay passes FC2 | `fc2_run_replayable_from_genesis_tape_cas` | 🟡 AMBER (audit_tape Layer C replay assertions PASS 9/9; standalone fresh-genesis-replay smoke pending — MVP-4) |
+| 6 | Markov / EvidenceCapsule passes FC3 | `fc3_capsule_derived_from_tape_cas` + `fc3_no_global_markov_pointer` | 🟡 AMBER (downgraded round-7 from GREEN per Codex Finding C4: gate-row `Capsule derived from tape + CAS` is AMBER (capsule presence on 3/9, integrity not yet verified — Markov recompute SKIPPED on all 9 single-session runs); closure #6 cannot be GREEN while the gate it summarizes is AMBER. Will flip GREEN once continuation/Markov smoke OR standalone capsule-regen test runs.) |
 | 7 | Economy laws pass | 9 `economy_*` tests | 🟢 GREEN |
 | 8 | Dashboard regeneration passes | `dashboard_regenerates_from_tape_cas` | 🟡 AMBER |
-| 9 | No high-risk feature merge without gates green | CI policy in CR-C0.10 | 🔴 RED (CI gate not yet wired) |
-| 10 | Project answers 6 epistemic questions | matrix + tests answer "what externalized? predicate-pass? predicate-fail? on-tape? CAS-only? dashboard-only?" | 🟡 AMBER |
+| 9 | No high-risk feature merge without gates green | CI policy in CR-C0.10 | 🟢 GREEN (round-7: CI workflow `.github/workflows/constitution_gates.yml` exists + freeze-pattern check; `make constitution` runs locally) |
+| 10 | Project answers 6 epistemic questions | matrix + tests answer "what externalized? predicate-pass? predicate-fail? on-tape? CAS-only? dashboard-only?" | 🟢 GREEN (round-7: per `STRICT_AUDIT_TBC0_TAPE_2026-05-07.md` §6 + post-fix evidence each question maps to a chain-resident witness on real MiniF2F) |
 
 ## §P. Build / cross-references
 
