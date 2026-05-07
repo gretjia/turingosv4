@@ -1,4 +1,10 @@
-# TB-18D — Polymarket / RSP-M Implementation (charter, 2026-05-07)
+# Stage C — Polymarket / RSP-M Implementation P-M0..P-M9 (charter, 2026-05-07)
+
+> **Naming note**: This charter has NO TB ID. Architect alignment docs use Stage C
+> framing + per-phase `P-M0..P-M9` naming (`zh-doc §5 / en-doc §7 AI-coder Polymarket
+> implementation manual`). En-doc §1.2.3's forward TB ID list does NOT assign a TB ID
+> to Polymarket directly. If a TB ID is later assigned, it will come from architect
+> ratification.
 
 **Authority**: `handover/directives/2026-05-07_ARCHITECT_ALIGNMENT_AUTONOMOUS_EXECUTION_AUTHORIZATION.md`
 §3.3 (Stage C charter draft authorized; executable feature work GATED on Stage A
@@ -19,7 +25,7 @@ sign-off going forward).
 
 **Phase**: P3 Lean Proof Task Market — Polymarket extension; market exposure on top of Lean
 proof bounty market. Per `feedback_launch_priority` post-TB-7 sequencing: Lean Proof Task
-Market MVP → NodeMarket / Polymarket / public-chain — TB-18D opens the
+Market MVP → NodeMarket / Polymarket / public-chain — Stage C Polymarket opens the
 NodeMarket/Polymarket layer.
 
 **Phase tag**:
@@ -31,7 +37,7 @@ NodeMarket/Polymarket layer.
 
 ## §1. Scope
 
-TB-18D executes Stage C of the architect alignment doc:
+Stage C Polymarket executes Stage C of the architect alignment doc:
 1. **P-M0** Quarantine legacy f64 CPMM
 2. **P-M1** CompleteSet Mint/Redeem hardening
 3. **P-M2** CompleteSetMergeTx
@@ -58,7 +64,7 @@ Per parent authorization §3.3 + alignment-doc §3 (zh) / §4 (en) Stage C:
 
 - **TB-18R FINAL SHIPPED** (✅ 2026-05-07 per `2026-05-07_TB18R_FINAL_§8_SIGN_OFF.md`).
 - **TB-C0 SHIPPED FINAL** (✅ 2026-05-07).
-- **Stage A green** — TB-18R Final + AMBER closure progress + HEAD_t C1 GREEN ✅; HEAD_t C2 (TB-18C) RECOMMENDED before P-M2 STEP_B work to avoid ledger storage-form change mid-feature.
+- **Stage A green** — TB-18R Final + AMBER closure progress + HEAD_t C1 GREEN ✅; HEAD_t C2 (Stage A3) RECOMMENDED before P-M2 STEP_B work to avoid ledger storage-form change mid-feature.
 - **Stage B1 green** — Wave 3 20p diagnostic ✅ shipped; per architect alignment doc §3 / §4 "Do not start executable Polymarket features until constitution gates and diagnostic benchmarks are stable" — B1 is the minimum threshold; B2 (50p) ✅ also shipped at same session.
 - **TB-18B charter LANDED** (✅ 2026-05-07 — `TB-18B_charter_2026-05-07.md`); TB-18B execution NOT a P-M0..P-M5 blocker but IS recommended before P-M9 controlled smoke to ensure substrate stability under load.
 - **Universal forbidden list ACK** — see §6 below.
@@ -69,8 +75,8 @@ Per parent authorization §3.3 + alignment-doc §3 (zh) / §4 (en) Stage C:
 
 | ID | Requirement |
 |----|-------------|
-| FR-PM0.1 | The legacy `src/prediction_market.rs` (f64 CPMM) MUST NOT be imported by ANY new TB-18D market module. (Note: as of 2026-05-07 the legacy file may already be deleted; if so, the no-resurrect fence stands as forward guard.) |
-| FR-PM0.2 | `tests/tb_18d_legacy_cpm_api_not_imported_by_new_market.rs` (NEW) — grep-style test asserting absence of `use crate::prediction_market::*` in any TB-18D-tagged module. |
+| FR-PM0.1 | The legacy `src/prediction_market.rs` (f64 CPMM) MUST NOT be imported by ANY new Stage C Polymarket market module. (Note: as of 2026-05-07 the legacy file may already be deleted; if so, the no-resurrect fence stands as forward guard.) |
+| FR-PM0.2 | `tests/tb_18d_legacy_cpm_api_not_imported_by_new_market.rs` (NEW) — grep-style test asserting absence of `use crate::prediction_market::*` in any Stage C Polymarket-tagged module. |
 | FR-PM0.3 | `tests/tb_18d_no_f64_in_market_modules.rs` (NEW) — grep-style test asserting absence of `f64` / `f32` literals in `src/economy/polymarket*.rs`, `src/economy/cpmm*.rs`, etc. |
 
 ### §3.2. P-M1 — CompleteSet Mint/Redeem hardening
@@ -160,39 +166,39 @@ Per parent authorization §3.3 + alignment-doc §3 (zh) / §4 (en) Stage C:
 
 | ID | Constraint |
 |----|------------|
-| CR-18D.1 | NO f64 in money path (universal forbidden list per parent authorization §4). |
-| CR-18D.2 | NO ghost liquidity (any pool / inventory / share emission MUST trace to a Coin debit). |
-| CR-18D.3 | NO price-as-truth (price MUST NOT modulate predicate verdict; existing `price_never_overrides_predicate` test preserved). |
-| CR-18D.4 | NO dashboard source-of-truth (must regenerate from chain + CAS). |
-| CR-18D.5 | NO automatic per-node 100 YES + 100 NO injection (must be MarketSeedTx with collateral debit). |
-| CR-18D.6 | NO Treasury magic seed without debit. |
-| CR-18D.7 | NO DPMM / pro-rata payout inside CTF track (CTF semantics: 1 Coin = 1 YES + 1 NO; YES wins → YES holder paid; NO holder gets 0; symmetric). |
-| CR-18D.8 | NO price-based settlement (predicate / oracle resolves; price is signal). |
-| CR-18D.9 | NO agent-submitted MarketResolveTx (system-only). |
-| CR-18D.10 | NO agent-submitted system resolution. |
-| CR-18D.11 | NO AMM before CompleteSet hardened (P-M1 ships before P-M4). |
-| CR-18D.12 | NO trading before audit tools (P-M8 ships before any non-smoke external use). |
-| CR-18D.13 | NO public chain before sandbox (Stage D directive forward). |
-| CR-18D.14 | NO real money before readiness gate (Stage D directive forward). |
-| CR-18D.15 | STEP_B parallel-branch protocol per CLAUDE.md §12 for all P-M2 / P-M4 / P-M6 atoms touching `src/state/typed_tx.rs` / `src/state/sequencer.rs` / `src/bottom_white/cas/schema.rs`. Trust Root rehash routine per atom. |
-| CR-18D.16 | NO Class-4 typed-tx schema bump bundled across atoms. Each Class-4 atom (P-M2 / P-M4 if needed / P-M6 if needed) is its own STEP_B with per-atom architect §8 sign-off. |
+| CR-StageC-PM.1 | NO f64 in money path (universal forbidden list per parent authorization §4). |
+| CR-StageC-PM.2 | NO ghost liquidity (any pool / inventory / share emission MUST trace to a Coin debit). |
+| CR-StageC-PM.3 | NO price-as-truth (price MUST NOT modulate predicate verdict; existing `price_never_overrides_predicate` test preserved). |
+| CR-StageC-PM.4 | NO dashboard source-of-truth (must regenerate from chain + CAS). |
+| CR-StageC-PM.5 | NO automatic per-node 100 YES + 100 NO injection (must be MarketSeedTx with collateral debit). |
+| CR-StageC-PM.6 | NO Treasury magic seed without debit. |
+| CR-StageC-PM.7 | NO DPMM / pro-rata payout inside CTF track (CTF semantics: 1 Coin = 1 YES + 1 NO; YES wins → YES holder paid; NO holder gets 0; symmetric). |
+| CR-StageC-PM.8 | NO price-based settlement (predicate / oracle resolves; price is signal). |
+| CR-StageC-PM.9 | NO agent-submitted MarketResolveTx (system-only). |
+| CR-StageC-PM.10 | NO agent-submitted system resolution. |
+| CR-StageC-PM.11 | NO AMM before CompleteSet hardened (P-M1 ships before P-M4). |
+| CR-StageC-PM.12 | NO trading before audit tools (P-M8 ships before any non-smoke external use). |
+| CR-StageC-PM.13 | NO public chain before sandbox (Stage D directive forward). |
+| CR-StageC-PM.14 | NO real money before readiness gate (Stage D directive forward). |
+| CR-StageC-PM.15 | STEP_B parallel-branch protocol per CLAUDE.md §12 for all P-M2 / P-M4 / P-M6 atoms touching `src/state/typed_tx.rs` / `src/state/sequencer.rs` / `src/bottom_white/cas/schema.rs`. Trust Root rehash routine per atom. |
+| CR-StageC-PM.16 | NO Class-4 typed-tx schema bump bundled across atoms. Each Class-4 atom (P-M2 / P-M4 if needed / P-M6 if needed) is its own STEP_B with per-atom architect §8 sign-off. |
 
 ## §5. Ship Gates (SG) — high-level
 
-Each P-Mx phase has its own internal SG (per architect manual). TB-18D as a whole ships
+Each P-Mx phase has its own internal SG (per architect manual). Stage C Polymarket as a whole ships
 FINAL only after:
 
 | ID | Gate | Verification |
 |----|------|-------------|
-| SG-18D.1 | All P-M0..P-M9 phases pass per-phase ship gates listed in architect manual §7 / §5 | per-phase test files |
-| SG-18D.2 | `cargo test --workspace` GREEN; ≥1181 PASS (no regression from `feec129`) | runner |
-| SG-18D.3 | `bash scripts/run_constitution_gates.sh` GREEN; ≥97 PASS (no regression) | gate runner |
-| SG-18D.4 | Universal forbidden list audit clean | grep-style tests in `tests/tb_18d_*` |
-| SG-18D.5 | Polymarket forbidden list audit clean | grep-style tests |
-| SG-18D.6 | Codex G1 charter ratification CLOSED | `handover/audits/CODEX_TB_18D_CHARTER_RATIFICATION_*.md` |
-| SG-18D.7 | G2 Codex + Gemini dual audit per phase (at minimum P-M2 + P-M6 + P-M9) AFTER substrate green; conservative ranking | `handover/audits/G2_TB_18D_*` |
-| SG-18D.8 | Per-Class-4-atom architect §8 sign-off (P-M2 + any other Class-4) | `handover/directives/YYYY-MM-DD_TB18D_PMx_§8_SIGN_OFF.md` per atom |
-| SG-18D.9 | P-M9 controlled market smoke produces tape-replayable end-to-end evidence with Lean-task + market-lifecycle integration; FC1 invariant + economic conservation + price-not-truth all preserved | `handover/evidence/tb_18d_pm9_smoke_*/` |
+| SG-StageC-PM.1 | All P-M0..P-M9 phases pass per-phase ship gates listed in architect manual §7 / §5 | per-phase test files |
+| SG-StageC-PM.2 | `cargo test --workspace` GREEN; ≥1181 PASS (no regression from `feec129`) | runner |
+| SG-StageC-PM.3 | `bash scripts/run_constitution_gates.sh` GREEN; ≥97 PASS (no regression) | gate runner |
+| SG-StageC-PM.4 | Universal forbidden list audit clean | grep-style tests in `tests/tb_18d_*` |
+| SG-StageC-PM.5 | Polymarket forbidden list audit clean | grep-style tests |
+| SG-StageC-PM.6 | Codex G1 charter ratification CLOSED | `handover/audits/CODEX_TB_18D_CHARTER_RATIFICATION_*.md` |
+| SG-StageC-PM.7 | G2 Codex + Gemini dual audit per phase (at minimum P-M2 + P-M6 + P-M9) AFTER substrate green; conservative ranking | `handover/audits/G2_TB_18D_*` |
+| SG-StageC-PM.8 | Per-Class-4-atom architect §8 sign-off (P-M2 + any other Class-4) | `handover/directives/YYYY-MM-DD_STAGE_C_POLYMARKET_PMx_§8_SIGN_OFF.md` per atom |
+| SG-StageC-PM.9 | P-M9 controlled market smoke produces tape-replayable end-to-end evidence with Lean-task + market-lifecycle integration; FC1 invariant + economic conservation + price-not-truth all preserved | `handover/evidence/tb_18d_pm9_smoke_*/` |
 
 ## §6. Forbidden list (verbatim per architect alignment doc + CLAUDE.md)
 
@@ -218,7 +224,7 @@ Polymarket-specific (architect manual §6 / §8):
 - no public chain before sandbox
 - no real money before readiness gate
 
-TB-18D-specific:
+Stage C Polymarket-specific:
 - no Class-4 atom bundling (each Class-4 atom is its own STEP_B)
 - no MVP gate regression (97/0/1 baseline)
 - no workspace-test regression (1181/0/151 baseline)
@@ -240,11 +246,11 @@ Each phase's per-phase SG must close before next phase begins.
 
 ## §8. §8 ship gates (architect)
 
-TB-18D ships FINAL only after:
-1. SG-18D.1..9 GREEN.
+Stage C Polymarket ships FINAL only after:
+1. SG-StageC-PM.1..9 GREEN.
 2. Per-Class-4-atom architect §8 sign-offs filed.
 3. Codex G1 + G2 dual audits closed.
-4. Explicit overall TB-18D architect §8 sign-off at `handover/directives/YYYY-MM-DD_TB18D_§8_SIGN_OFF.md`.
+4. Explicit overall Stage C Polymarket architect §8 sign-off at `handover/directives/YYYY-MM-DD_STAGE_C_POLYMARKET_§8_SIGN_OFF.md`.
 
 ## §9. Cross-references
 
@@ -252,7 +258,7 @@ TB-18D ships FINAL only after:
 - Parent authorization: `handover/directives/2026-05-07_ARCHITECT_ALIGNMENT_AUTONOMOUS_EXECUTION_AUTHORIZATION.md`
 - TB-C0 §8 sign-off (FREEZE-lift authority): `handover/directives/2026-05-07_TBC0_ARCHITECT_§8_SIGN_OFF.md`
 - TB-18R FINAL ship: `handover/directives/2026-05-07_TB18R_FINAL_§8_SIGN_OFF.md`
-- TB-18C HEAD_t C2 charter (recommended pre-condition): `handover/tracer_bullets/TB-18C_charter_2026-05-07.md`
+- Stage A3 HEAD_t C2 charter (recommended pre-condition): `handover/tracer_bullets/STAGE_A3_HEAD_T_C2_charter_2026-05-07.md`
 - TB-18B M1/M2 charter (recommended pre-condition for P-M9 smoke): `handover/tracer_bullets/TB-18B_charter_2026-05-07.md`
 - Legacy CPMM forward fence: `tests/tb_13_legacy_cpmm_forward_fence.rs`
 - Existing CompleteSetMintTx / CompleteSetRedeemTx / MarketSeedTx (LATEST.md session #17): `src/state/typed_tx.rs`

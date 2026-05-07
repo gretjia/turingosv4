@@ -6,7 +6,7 @@
 
 ---
 
-## 🎯 2026-05-07 (session end #18) — **TB-18R SHIPPED FINAL via architect §8 sign-off; Gemini R1 verdict captured (Q1-7 PASS / Q8 CHALLENGE forward-bound to TB-18B); 4 forward charters / directives drafted (TB-18C HEAD_t C2 + TB-18B M1/M2 + TB-18D Polymarket + Real-World Readiness)**
+## 🎯 2026-05-07 (session end #18) — **TB-18R SHIPPED FINAL via architect §8 sign-off; Gemini R1 verdict captured (Q1-7 PASS / Q8 CHALLENGE forward-bound to TB-18B); 4 forward charters / directives drafted (Stage A3 HEAD_t C2 + TB-18B M1/M2 + Stage C Polymarket + Real-World Readiness)**
 
 **HEAD**: `feec129` (pre-commit; no src/ touched this session; pure docs + TB_LOG.tsv flip + Gemini audit verdict).
 
@@ -79,7 +79,7 @@ durable directive at `handover/directives/2026-05-07_ARCHITECT_ALIGNMENT_AUTONOM
 6. **`handover/alignment/OBS_TB_WAVE_1_2_AMBER_CLOSURE_FORWARD_BIND_2026-05-07.md`** —
    Stage A2 AMBER closure forward-bound; items 1+2 → TB-18B atom R2+R3; items 3+4 →
    proposed TB-Wave12.
-7. **`handover/tracer_bullets/TB-18C_charter_2026-05-07.md`** — Stage A3 HEAD_t C2
+7. **`handover/tracer_bullets/STAGE_A3_HEAD_T_C2_charter_2026-05-07.md`** — Stage A3 HEAD_t C2
    multi-ref ChainTape charter (Class 4 STEP_B on `transition_ledger.rs` + Class 3
    replay + Class 1 tests; SG-18C.1..10 = alignment-doc SG-A3.1..5 + workspace/gate
    regression + smoke + dual audit).
@@ -87,7 +87,7 @@ durable directive at `handover/directives/2026-05-07_ARCHITECT_ALIGNMENT_AUTONOM
    benchmark charter (M1 50×n=3×3-seed=450 runs; M2 100×n=3×3-seed×2-model=1800 runs;
    BenchmarkManifest + EvidencePackagingPolicy + Wilson 95% CI helper + payload
    diversity + Gemini Q8 forward bindings as charter SGs).
-9. **`handover/tracer_bullets/TB-18D_charter_2026-05-07.md`** — Stage C Polymarket /
+9. **`handover/tracer_bullets/STAGE_C_POLYMARKET_PM0_PM9_charter_2026-05-07.md`** — Stage C Polymarket /
    RSP-M charter (P-M0 quarantine → P-M1 CompleteSet hardening → P-M2
    CompleteSetMergeTx Class 4 STEP_B → P-M3 MarketSeed → P-M4 CpmmPool → P-M5
    share-only swap → P-M6 Mint-and-Swap Router Class 4 STEP_B → P-M7 PriceIndex signal
@@ -105,7 +105,7 @@ durable directive at `handover/directives/2026-05-07_ARCHITECT_ALIGNMENT_AUTONOM
 - Does NOT touch any production src/ — pure docs + TB_LOG flip + Gemini audit dispatch
   + audit verdict capture this session. `cargo check --workspace` passes (warnings only;
   pre-existing).
-- Does NOT execute any of TB-18C / TB-18B / TB-18D / Real-World Readiness charters —
+- Does NOT execute any of Stage A3 / TB-18B / Stage C / Real-World Readiness charters —
   these are forward-step charters; execution requires per-atom Class-4 STEP_B + per-atom
   architect §8.
 - Does NOT close Wave 1/2 AMBER rows — Class-1 additive work forward-bound to TB-18B
@@ -123,25 +123,25 @@ durable directive at `handover/directives/2026-05-07_ARCHITECT_ALIGNMENT_AUTONOM
 - TB-18R: **SHIPPED FINAL 2026-05-07** (this session); FREEZE-list TB-18R-specific items
   fully lifted.
 - TB-C0: SHIPPED FINAL 2026-05-07.
-- Forward charters drafted: TB-18C / TB-18B / TB-18D / Real-World Readiness.
+- Forward charters drafted: Stage A3 / TB-18B / Stage C / Real-World Readiness.
 - Forward forward-bindings: Gemini Q8 (forward to TB-18B) + Wave 1/2 AMBER (forward to
   TB-18B + TB-Wave12).
 
 ### Next steps (priority order)
 
 1. **Stage + commit** — this session's deliverables: 4 directives (parent authorization +
-   TB-18R §8 + Real-World Readiness + ...) + 3 charters (TB-18C + TB-18B + TB-18D) + 3
+   TB-18R §8 + Real-World Readiness + ...) + 3 charters (Stage A3 + TB-18B + Stage C) + 3
    forward-binding OBS docs (Gemini Q8 + Wave 1/2 + ...) + LATEST.md session #18 entry +
    TB_LOG.tsv TB-18R row flip + Gemini R1 audit verdict file + dispatch script (Track C
    closure).
-2. **TB-18C charter ratification** — Codex G1 audit dispatch on TB-18C (HEAD_t C2). Once
+2. **Stage A3 charter ratification** — Codex G1 audit dispatch on Stage A3 (HEAD_t C2). Once
    green, R1 STEP_B branch on `src/bottom_white/ledger/transition_ledger.rs`.
 3. **TB-18B charter ratification + execution** — Codex G1 audit on TB-18B; if green,
    R1+R2+R3 land BenchmarkManifest helper + Wilson CI helper + payload diversity in
    aggregate; R4 PCP phase-2 plan; R5 Art. 0.2 commits 5-10 status report (Gemini Q8
    forward binding); then R6 M1 batch + R7 M2 batch (LLM real-problem testing per
    architect authorization §6).
-4. **TB-18D Polymarket execution** — gated on TB-18B B1+B2 substrate-stable
+4. **Stage C Polymarket execution** — gated on TB-18B B1+B2 substrate-stable
    confirmation; P-M0 → P-M1 → P-M2 (Class 4 STEP_B + per-atom §8) → ... → P-M9
    controlled smoke. Each Class-4 atom requires its own architect §8 sign-off.
 5. **TB-Wave12 (proposed)** — if TB-18B doesn't close items 3+4 of the Wave 1/2 AMBER
@@ -150,16 +150,43 @@ durable directive at `handover/directives/2026-05-07_ARCHITECT_ALIGNMENT_AUTONOM
    §2 six pre-condition documents being filed AND per-domain TB charter receiving its
    own architect §8 sign-off. Sandbox / read-only domain preferred for first activation.
 
+### In-session correction (post-commit `14b9967`; landed in commit chain `44df671` + this fixup)
+
+User called out that "TB-18C" and "TB-18D" did not appear in the architect alignment
+documents. Audit confirmed:
+
+- **TB-18B** — architect-named at `en-doc §1.2.3` line 233 in the forward TB ID list
+  (`TB-18B benchmark scale-up / TB-19 real-world pilot / TB-20 sandbox pilot / TB-21
+  restricted beta / market expansion`). Retained.
+- **TB-18C** — INVENTED by AI coder this session for Stage A3 HEAD_t C2 charter; NOT in
+  any architect alignment file. RENAMED to `STAGE_A3_HEAD_T_C2_charter_2026-05-07.md`
+  with explicit "no TB ID" naming-note header.
+- **TB-18D** — INVENTED by AI coder this session for Stage C Polymarket charter; NOT in
+  any architect alignment file. RENAMED to `STAGE_C_POLYMARKET_PM0_PM9_charter_2026-05-07.md`
+  with explicit "no TB ID" naming-note header.
+
+Cross-references in OBS / Real-World Readiness Directive / TB-18B charter / LATEST.md
+all updated. SG / CR / FR ID prefixes inside the renamed charters changed to
+`SG-A3-HEAD-T-C2.* / CR-A3-HEAD-T-C2.* / FR-A3-HEAD-T-C2.*` and `SG-StageC-PM.* /
+CR-StageC-PM.* / FR-StageC-PM.*` to match the no-TB-ID Stage naming.
+
+Why this matters (rule binding): violation of `feedback_no_workarounds_strict_constitution`
+("我不要凑活" / "no workarounds") + `feedback_kolmogorov_compression` (lossless: don't
+distill or invent architect names) + `feedback_real_problems_not_designed` (names should
+trace to architect file, not be designed). The mistake is documented here rather than
+silently retroactive-rewritten so future readers know that the TB-18C/D labels were
+present in `14b9967` and are **not** retroactively scrubbed from git history.
+
 ### Open questions / forward-bound
 
-- Whether TB-18C should ship before TB-18B M2 execution (storage-form change mid-benchmark
+- Whether Stage A3 should ship before TB-18B M2 execution (storage-form change mid-benchmark
   is risky; alignment doc §3.A3 / §4.A3 + TB-18B charter §7 pre-condition both flag this
   as RECOMMENDED but not HARD-BLOCKING).
-- Whether the Codex G1 charter ratification dispatch on TB-18C / TB-18B / TB-18D should
+- Whether the Codex G1 charter ratification dispatch on Stage A3 / TB-18B / Stage C should
   be parallel-track (one Codex task per charter; bundled prompt) or sequential
-  (TB-18C ratified first, then TB-18B, then TB-18D). Parallel-track preferred for
-  session efficiency; sequential preferred if TB-18C ratification reveals charter
-  changes that affect TB-18B / TB-18D references.
+  (Stage A3 ratified first, then TB-18B, then Stage C). Parallel-track preferred for
+  session efficiency; sequential preferred if Stage A3 ratification reveals charter
+  changes that affect TB-18B / Stage C references.
 - Whether TB-Wave12 should be opened as its own charter or folded as a TB-18B "phase 2"
   follow-up (decide when TB-18B execution closes items 1+2 of Wave 1/2).
 

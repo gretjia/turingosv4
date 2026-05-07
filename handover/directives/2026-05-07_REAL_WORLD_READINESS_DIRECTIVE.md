@@ -46,7 +46,7 @@ this directive's §6 sign-off section before ANY real-world activation TB is cha
 
 | Field | Required content |
 |-------|------------------|
-| Substrate readiness | TB-C0 SHIPPED FINAL ✅; TB-18R FINAL SHIPPED ✅; TB-18B M1/M2 SHIPPED (forward); TB-18D Polymarket P-M9 controlled smoke green (forward); HEAD_t C2 substrate (TB-18C, forward, RECOMMENDED). |
+| Substrate readiness | TB-C0 SHIPPED FINAL ✅; TB-18R FINAL SHIPPED ✅; TB-18B M1/M2 SHIPPED (forward); Stage C Polymarket P-M9 controlled smoke green (forward); HEAD_t C2 substrate (Stage A3, forward, RECOMMENDED). |
 | Audit readiness | Codex + Gemini dual audit on all of the above closed; conservative ranking PASS-aggregate. |
 | Constitution coverage | Constitution gates ≥97 GREEN (or higher); matrix RED rows = 0; AMBER rows enumerated and forward-bound; Gemini Q8 forward bindings (Art. 0.2 + PCP phase-2) closed. |
 | Halt-reason taxonomy | All halt classes runtime-witnessed and replay-deterministic. |
@@ -175,9 +175,9 @@ file per domain, citing:
 - Parent authorization: `handover/directives/2026-05-07_ARCHITECT_ALIGNMENT_AUTONOMOUS_EXECUTION_AUTHORIZATION.md`
 - TB-C0 §8 sign-off (FREEZE-lift authority): `handover/directives/2026-05-07_TBC0_ARCHITECT_§8_SIGN_OFF.md`
 - TB-18R FINAL §8 sign-off: `handover/directives/2026-05-07_TB18R_FINAL_§8_SIGN_OFF.md`
-- TB-18C HEAD_t C2 charter (substrate readiness): `handover/tracer_bullets/TB-18C_charter_2026-05-07.md`
+- Stage A3 HEAD_t C2 charter (substrate readiness): `handover/tracer_bullets/STAGE_A3_HEAD_T_C2_charter_2026-05-07.md`
 - TB-18B M1/M2 charter (benchmark readiness): `handover/tracer_bullets/TB-18B_charter_2026-05-07.md`
-- TB-18D Polymarket charter (sandbox-market readiness; Stage C feeds Stage D): `handover/tracer_bullets/TB-18D_charter_2026-05-07.md`
+- Stage C Polymarket charter (sandbox-market readiness; Stage C feeds Stage D): `handover/tracer_bullets/STAGE_C_POLYMARKET_PM0_PM9_charter_2026-05-07.md`
 - Verification asymmetry framework: `handover/directives/2026-05-02_lossless_constitution_polymarket_directive__part_A_appendix_D_verification_asymmetry.md`
 - 9-phase roadmap: `handover/architect-insights/ROADMAP_9_PHASE_2026-04-29.md`
 - Project decision map: `handover/architect-insights/PROJECT_DECISION_MAP_2026-04-27.md`

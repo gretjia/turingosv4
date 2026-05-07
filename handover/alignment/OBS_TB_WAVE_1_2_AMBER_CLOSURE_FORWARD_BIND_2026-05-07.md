@@ -6,7 +6,7 @@
 defensible" (`handover/audits/GEMINI_CONSTITUTION_LANDING_FIRST_SANITY_2026-05-07_R1.md`).
 
 **Decision**: Wave 1/2 AMBER closure deferred to a forward TB charter; not blocker for
-TB-18R FINAL ship (already executed this session) or TB-18B / TB-18C / TB-18D charter
+TB-18R FINAL ship (already executed this session) or TB-18B / Stage A3 / Stage C charter
 landing. Binding made explicit so the work isn't silently retired.
 
 ---
@@ -40,7 +40,7 @@ Per session #17 next-step #3 + matrix scan:
    > rational, goal-oriented execution."
 
 3. **Architect alignment doc Stage A2 explicitly marks these "independently valuable;
-   not §3 blocker"** — the path is to TB-18B / TB-18D, not to gate them on Wave 1/2
+   not §3 blocker"** — the path is to TB-18B / Stage C, not to gate them on Wave 1/2
    completion.
 
 4. **No regression risk**: matrix RED rows = 0; AMBER rows are not blocking any
