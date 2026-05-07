@@ -6,6 +6,82 @@
 
 ---
 
+## 🎯 2026-05-07 (session end #11) — **TB-C0 SHIPPED FINAL — architect §8 sign-off; FREEZE lifted; ALL feature TB roadmap unblocked**
+
+**Architect §8 sign-off**: `handover/directives/2026-05-07_TBC0_ARCHITECT_§8_SIGN_OFF.md` (verbatim "好，确认可以 ship"; multi-clause; explicit closure of all Codex v5 PASS conditions).
+
+**Codex 5-round external audit trail**:
+- v1 (`0d0877b` round-5): VETO until further work
+- v2 (`3e146e6` round-6): CHALLENGE (4 robustness items)
+- v3 (`d1f7055` round-7): CHALLENGE (2 items)
+- v4 (`6a05c13` round-7-final): PASS — "TB-C0 IS READY FOR ARCHITECT §8"
+- v5 (`8f3a82b` round-8): PASS — closure #2 + #6 promoted GREEN beyond v4
+
+**Final empirical state**:
+- 20 chain-resident GREEN + 5 AMBER (1 chain-resident-AMBER FC3-INV1 + 4 structural-only by design) + 0 RED + 0 GAP + 0 missing
+- Workspace tests: 1141/0/151 (was 1131 pre-round-8; +10 new tests)
+- Constitution gates: 64/0/1 GREEN (was 54)
+- 9-problem n=5 multi-agent batch on real MiniF2F
+- All 9: invariant_verdict=Ok delta=0; architect_inv1.match=True; audit_tape PROCEED 39 PASS
+
+**3 OBS bugs all closed inline (NOT escalated to STEP_B)**:
+- Bug 1 (Class 2): runner uses tool_dist.step instead of tx_count
+- Bug 2 (Class 3): synthetic L4.E filter — 5-condition + cardinality
+- Bug 3 (Class 3 with explicit deviation stance): chain_derived_run_facts capsule_anchored_attempt_count field; 3-term constitutional equation
+
+**FREEZE LIFTED 2026-05-07** — ALL eligible:
+- TB-18R FINAL ship (final dual audit + §8 path)
+- TB-19+ feature roadmap
+- NodeMarket / Polymarket-signal / PriceIndex / public-chain / real-world-readiness
+- MiniF2F M1 / M2 / M3 ladder
+- M1 public benchmark report
+- TB-19 real-world pilot
+- Formal H-VPPUT claim
+- "Formal benchmark passed" external claim
+
+**TB-C0 commit chain (17 commits / 8 rounds)**:
+```
+0537869  round-1  Constitution Landing Gate infrastructure
+f3b8e0a  round-2  extractor + 3-bug OBS
+480ebba  round-3  multi-agent runner + FC_WITNESS_CATALOG
+fa55c40  round-4  n=5 multi-agent empirical evidence
+e825efe  round-4  housekeeping
+2a3f5f9           strict tape-audit (self-downgrade)
+0d0877b  round-5  Bug 1 + Bug 3 + FC1-INV6 fixes
+10e2beb           Codex v1 VETO
+3e146e6  round-6  Bug 2 + post-fix evidence + strict aggregate
+c6ec35d           Codex v2 CHALLENGE
+d1f7055  round-7  strengthened Bug 2 + missing-node + normalization
+6a05c13  round-7-final  + Codex v3 verdict
+3c3eb84           Codex v4 PASS — "READY FOR §8"
+8f3a82b  round-8  FC3-INV1 capsule integrity + Art. V.3 amendment-log
+e1135b2           Codex v5 PASS — closure #2 + #6 promoted
+THIS              architect §8 sign-off
+```
+
+**TB-C0 permanent products (load on relevant work)**:
+- `bash scripts/run_constitution_gates.sh` / `make constitution` — required merge gate
+- `python3 scripts/fc_witness_extract.py <run_dir>` — single-problem walker
+- `scripts/regenerate_post_fix_evidence.sh` — STRICT aggregate; EXPECTED_FC_NODES universe; missing-node tracking
+- `handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md` — every TB MUST add row+test for new clause/FC-node
+- `handover/alignment/FC_WITNESS_CATALOG_2026-05-06.md` — 3-class taxonomy (chain-resident / structural / tamper-probe)
+- 64 named constitution gate tests across 10 `tests/constitution_*.rs` files
+- `.github/workflows/constitution_gates.yml` — CI required merge gate + freeze-pattern check
+- 5 Codex audit verdicts at `handover/audits/CODEX_TBC0_STRICT_CONSTITUTIONAL_AUDIT_VERDICT_*_2026-05-07.md`
+
+**What's the next charter / TB**: user/architect to decide. Most natural sequel:
+1. **TB-18R FINAL ship** (Class 4 final dual audit + §8) — closes the original P49 N→1 collapse VETO
+2. **TB-FC1 / continuation Markov smoke** — cross-session capsule chain integrity (currently FC3-INV1 single-session)
+3. **TB-19 real-world pilot** (now eligible) — first feature TB beyond formal benchmark
+4. **Art. 0.4 path-decision** (architect-side; constitution-pending git-style HEAD_t)
+
+**Forward-bound items (non-blocking; from architect §8 §6)**:
+- Art. 0.4 git-style HEAD_t path-choice (architect call: A semantic 3wk / B real git 6-8wk / C deferred)
+- 4 FC3 structural-only nodes optional runtime strengthening
+- TB-FC1 continuation/Markov smoke (capsule-chain integrity)
+
+---
+
 ## 🚢 2026-05-06 (session end #10) — **TB-C0 CLOSURE CANDIDATE — 4 rounds shipped; constitution + 3 flowcharts now executable CI; 25 FC nodes empirically witnessed on real MiniF2F (21 GREEN + 4 structural-AMBER); awaits architect §8 + Codex+Gemini dual audit**
 
 **main HEAD (after this session)**: `fa55c40` (round 4) on top of `480ebba` → `f3b8e0a` → `0537869` (round 1) on top of session #9's `e12d254` substrate.

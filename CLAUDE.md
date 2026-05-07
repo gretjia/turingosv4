@@ -125,16 +125,17 @@ system_tx_not_agent_submittable
 
 ## Active state (动态指针，不存判决)
 - TB 总账 (authoritative): `handover/tracer_bullets/TB_LOG.tsv`
-- 当前操作模式: **Constitutional Harness Engineering** (since 2026-05-06)
-- **当前 charter: TB-C0 — CLOSURE CANDIDATE** (closure report: `handover/tracer_bullets/TB-C0_CLOSURE_REPORT_2026-05-06.md`)
-- TB-C0 empirical state: 25 FC nodes; 21 GREEN + 4 AMBER (structural-only by design) + 0 RED + 0 GAP per `handover/evidence/tb_c0_multi_agent_2026-05-06T16-30-36Z/fc_witness_aggregate.json`
-- **Awaiting**: (1) architect §8 sign-off on TB-C0 closure, (2) Codex + Gemini external dual audit (CR-C0.8 — happens AFTER MVP gates green)
-- **3 known accounting bugs** documented in `handover/alignment/OBS_TBC0_FC1_INV3_THREE_BUGS_2026-05-06.md` (Bug 1 Class 2: runner uses tx_count vs LLM-cycle count; Bug 2 Class 3: synthetic L4.E gate; Bug 3 Class 4 STEP_B: missing `capsule_anchored_attempt_count` field). FORWARD-bound; NOT bundled into TB-C0
-- TB-18R status: **subordinate to TB-C0**; CANDIDATE REMEDIATION; ships after TB-C0 closes via final dual audit + §8
-- **HARD FREEZE (until TB-C0 SHIPS FINAL)**: ALL feature TBs (TB-19+, NodeMarket, Polymarket, PriceIndex, public-chain, real-world-readiness), MiniF2F M1/M2/M3, formal benchmark claims
-- **Constitution gate runner**: `bash scripts/run_constitution_gates.sh` or `make constitution` → 54/0/1 GREEN. CI workflow `.github/workflows/constitution_gates.yml` is required merge gate
-- **FC-witness extractor**: `python3 scripts/fc_witness_extract.py <run_dir>` (single-problem) + `scripts/fc_witness_aggregate.py <batch_dir>` (multi-problem)
-- **Real-problem catalog**: `handover/alignment/FC_WITNESS_CATALOG_2026-05-06.md` (binds every FC node to real existing MiniF2F problems; per `feedback_real_problems_not_designed`)
+- 当前操作模式: **Constitutional Harness Engineering** (since 2026-05-06; reinforced post-TB-C0 ship)
+- **TB-C0: SHIPPED FINAL 2026-05-07** — architect §8 sign-off `handover/directives/2026-05-07_TBC0_ARCHITECT_§8_SIGN_OFF.md` (verbatim "好，确认可以 ship"; multi-clause). Codex 5-round audit: VETO → CHALLENGE → CHALLENGE → PASS → PASS. 17 commits / 8 rounds. Constitution Landing Gate is the canonical pre-merge invariant for all future TBs.
+- 当前 charter: **next** — TB-18R FINAL ship eligible; user/architect to authorize next charter
+- TB-18R status: **eligible for FINAL ship** (was CANDIDATE REMEDIATION subordinate to TB-C0 freeze; freeze lifted 2026-05-07). Final dual audit + architect §8 path applies.
+- **FREEZE LIFTED 2026-05-07**: TB-19+, NodeMarket, Polymarket-signal, PriceIndex, public-chain, real-world-readiness, MiniF2F M1/M2/M3 ladder, M1 public benchmark report, TB-19 real-world pilot, formal H-VPPUT claim, "formal benchmark passed" external claim — ALL eligible. **Each new feature TB MUST pass `bash scripts/run_constitution_gates.sh` (currently 64 PASS / 1 ignored) BEFORE merge per CR-C0.10.**
+- **3 OBS bugs** all CLOSED inline (no STEP_B): Bug 1 (runner LHS) + Bug 2 (synthetic L4.E filter, Class 3) + Bug 3 (capsule_anchored 3-term, Class 3 with explicit deviation stance). See `handover/alignment/OBS_TBC0_FC1_INV3_THREE_BUGS_2026-05-06.md` §10 fix log.
+- **Constitution gate runner**: `bash scripts/run_constitution_gates.sh` or `make constitution` → 64/0/1 GREEN (round-8). CI workflow `.github/workflows/constitution_gates.yml` is required merge gate
+- **FC-witness extractor**: `python3 scripts/fc_witness_extract.py <run_dir>` + aggregate `scripts/fc_witness_aggregate.py <batch_dir>` (lenient) OR `scripts/regenerate_post_fix_evidence.sh` (round-7+ STRICT semantics with EXPECTED_FC_NODES universe + missing-node tracking)
+- **Real-problem catalog**: `handover/alignment/FC_WITNESS_CATALOG_2026-05-06.md` (3-class taxonomy: chain-resident / structural / tamper-probe; binds every FC node to real existing MiniF2F problems; per `feedback_real_problems_not_designed`)
+- **Strict aggregate post-ship**: 20 GREEN + 5 AMBER (1 chain-resident-AMBER FC3-INV1 + 4 structural-only by design) + 0 RED + 0 GAP + 0 missing on `handover/evidence/tb_c0_multi_agent_2026-05-06T16-30-36Z/fc_witness_aggregate_post_fix.json`. Workspace: 1141/0/151.
+- **Post-TB-C0 forward-bound items** (non-blocking; documented per architect §8 §6): Art. 0.4 git-style HEAD_t path-decision (architect call) + 4 FC3 structural-only optional strengthening + continuation/Markov smoke (TB-FC1 candidate)
 
 ## Memory (跨 session 持久; auto-loaded MEMORY.md 是 hot index)
 - 高频 rule (feedback_*) + 项目状态 (project_*) + 外部引用 (reference_*) 路径: `~/.claude/projects/-home-zephryj-projects-turingosv4/memory/`
