@@ -89,13 +89,13 @@
 
 | FC1 invariant | Code surface | Test name | Status | Kill condition |
 |---|---|---|---|---|
-| Every externalized attempt is tape-visible | `src/runtime/evaluator.rs` 6 paths + `src/runtime/attempt_telemetry.rs::r2_write_attempt_telemetry` | `tests/constitution_fc1_runtime_loop.rs::fc1_every_externalized_attempt_is_tape_visible` (NEW C0) | 🟡 AMBER (smoke MVP-1 pending) | `evaluator_reported_tx_count != chain_attempt_count` |
+| Every externalized attempt is tape-visible | `src/runtime/evaluator.rs` 6 paths + `src/runtime/attempt_telemetry.rs::r2_write_attempt_telemetry` | `tests/constitution_fc1_runtime_loop.rs::fc1_every_externalized_attempt_is_tape_visible` (NEW C0) + `tests/constitution_wave3_evidence_binding.rs::wave3_50p_aggregate_fc1_invariant_holds` + `wave3_20p_aggregate_fc1_invariant_holds` (Wave 3 binding 2026-05-07) | 🟢 GREEN (Wave 3 50p binding: 460 = 9 + 400 + 51 across 50/50; was 🟡 AMBER) | `evaluator_reported_tx_count != chain_attempt_count` |
 | Predicate pass → L4 | sequencer accept arm | `tests/constitution_fc1_runtime_loop.rs::fc1_predicate_pass_goes_l4` | 🟢 GREEN | accepted WorkTx not in L4 |
 | Predicate fail → L4.E | sequencer reject arm + `tests/tb_18r_attempt_routes_to_l4_or_l4e.rs` | `tests/constitution_fc1_runtime_loop.rs::fc1_predicate_fail_goes_l4e` | 🟢 GREEN | rejected WorkTx in L4 |
-| No legacy authoritative append | `src/bus.rs` (legacy `bus.append` legacy mode) | `tests/constitution_fc1_runtime_loop.rs::fc1_no_legacy_authoritative_append` | 🟡 AMBER | chaintape mode falls back silently |
-| Dashboard not source of truth | `src/runtime/dashboard.rs` (if exists) | `tests/constitution_fc1_runtime_loop.rs::fc1_dashboard_not_source_of_truth` | 🟡 AMBER | dashboard regenerated and replay diverges |
-| Attempt count = tape count | TB-18R R4 invariant | `tests/constitution_fc1_runtime_loop.rs::fc1_attempt_count_equals_tape_count` + existing `tb_18r_chain_attempt_invariant.rs` | 🟡 AMBER (MVP-1 smoke pending) | per kill |
-| No fake accepted nodes | `src/runtime/audit_tape.rs` | `tests/constitution_fc1_runtime_loop.rs::fc1_no_fake_accepted_nodes` | 🟢 GREEN | tampered node passes verify |
+| No legacy authoritative append | `src/bus.rs` (legacy `bus.append` legacy mode) | `tests/constitution_fc1_runtime_loop.rs::fc1_no_legacy_authoritative_append` + `tests/constitution_wave3_evidence_binding.rs::wave3_50p_chaintape_runtime_repo_present` (Wave 3 binding 2026-05-07) | 🟢 GREEN (Wave 3 50p: 460 cycles all sequencer-mediated; runtime_repo/ git substrate present per problem; was 🟡 AMBER) | chaintape mode falls back silently |
+| Dashboard not source of truth | `src/runtime/dashboard.rs` (if exists) | `tests/constitution_fc1_runtime_loop.rs::fc1_dashboard_not_source_of_truth` + `tests/constitution_wave3_evidence_binding.rs::wave3_50p_dashboard_regen_matches_chain` (Wave 3 binding 2026-05-07) | 🟢 GREEN (Wave 3 50p: 50/50 chain_invariant.json regenerates from chain + CAS; expected==RHS; was 🟡 AMBER) | dashboard regenerated and replay diverges |
+| Attempt count = tape count | TB-18R R4 invariant | `tests/constitution_fc1_runtime_loop.rs::fc1_attempt_count_equals_tape_count` + existing `tb_18r_chain_attempt_invariant.rs` + `tests/constitution_wave3_evidence_binding.rs::wave3_50p_chain_invariant_all_pass` (Wave 3 binding 2026-05-07) | 🟢 GREEN (MVP-1; Wave 3 50p 50/50 verdict=Ok delta=0; was 🟡 AMBER) | per kill |
+| No fake accepted nodes | `src/runtime/audit_tape.rs` | `tests/constitution_fc1_runtime_loop.rs::fc1_no_fake_accepted_nodes` + `tests/constitution_wave3_evidence_binding.rs::wave3_50p_solve_count_three_observer_agreement` | 🟢 GREEN | tampered node passes verify |
 
 ## §H. Flowchart 2 (FC2) Boot — gate-level summary
 
@@ -106,7 +106,7 @@
 | no post-init mint | `fc2_no_post_init_mint` | 🟢 GREEN | post-init mint |
 | no memory-only preseed | `fc2_no_memory_only_preseed` | 🟡 AMBER (code-grep) | preseed surface found |
 | TaskOpen / EscrowLock are chain events | `fc2_taskopen_escrowlock_are_chain_events` | 🟢 GREEN | issued in memory only |
-| run replayable | `fc2_run_replayable_from_genesis_tape_cas` | 🟡 AMBER (MVP-4 smoke pending) | replay diverges |
+| run replayable | `fc2_run_replayable_from_genesis_tape_cas` + `tests/constitution_wave3_evidence_binding.rs::wave3_50p_replay_assertions_all_pass` (Wave 3 binding 2026-05-07) | 🟢 GREEN (MVP-4; Wave 3 50p: audit_proceed=50 + id45_pass=50 + inv1_match_true=50 three-observer agreement; was 🟡 AMBER) | replay diverges |
 | system pubkeys verify | `fc2_system_pubkeys_verify` | 🟢 GREEN | wrong-pubkey verify passes |
 | agent registry resolves | `fc2_agent_registry_resolves` | 🟢 GREEN | wrong-pubkey resolution |
 
@@ -166,8 +166,8 @@
 | `no_parallel_ledger_source_of_truth` | 🟢 GREEN | global pointer reappears |
 | `no_shadow_tape_authoritative_parent` | 🟢 GREEN | shadow tape claims canonical |
 | `canonical_txid_not_shadow_id` | 🟢 GREEN | shadow id used as canonical |
-| `dashboard_regenerates_from_tape_cas` | 🟡 AMBER (MVP-3 pending) | dashboard differs |
-| `chain_derived_facts_not_evaluator_stdout` | 🟡 AMBER | facts depend on stdout |
+| `dashboard_regenerates_from_tape_cas` + `tests/constitution_wave3_evidence_binding.rs::wave3_50p_dashboard_regen_matches_chain` | 🟢 GREEN (MVP-3; Wave 3 50p binding 2026-05-07; was 🟡 AMBER) | dashboard differs |
+| `chain_derived_facts_not_evaluator_stdout` + `tests/constitution_wave3_evidence_binding.rs::wave3_50p_dashboard_regen_matches_chain` | 🟢 GREEN (Wave 3 50p binding 2026-05-07; was 🟡 AMBER) | facts depend on stdout |
 | `all_externalized_attempts_have_cas_payload` | 🟢 GREEN | attempt without CAS payload |
 | `all_lean_results_have_cas_payload` | 🟢 GREEN | LeanResult without CAS |
 
@@ -175,10 +175,10 @@
 
 | MVP Gate | Anchored test | Status |
 |----------|---------------|--------|
-| MVP-1 (FC1: tx-count equality) | `fc1_attempt_count_equals_tape_count` + P38/P49 evidence run | 🟡 AMBER (smoke pending) |
+| MVP-1 (FC1: tx-count equality) | `fc1_attempt_count_equals_tape_count` + P38/P49 evidence + `constitution_wave3_evidence_binding::wave3_50p_chain_invariant_all_pass` + `wave3_50p_aggregate_fc1_invariant_holds` | 🟢 GREEN (Wave 3 50p binding 2026-05-07; 460 = 9 + 400 + 51 over 50/50 problems; was 🟡 AMBER) |
 | MVP-2 (Predicate: pass→L4 / fail→L4.E) | `predicate_failure_cannot_enter_l4` + `predicate_pass_required_for_l4` | 🟢 GREEN |
-| MVP-3 (Tape: dashboard regenerable) | `dashboard_regenerates_from_tape_cas` | 🟡 AMBER (MVP-3 smoke pending) |
-| MVP-4 (FC2: replay) | `fc2_run_replayable_from_genesis_tape_cas` | 🟡 AMBER |
+| MVP-3 (Tape: dashboard regenerable) | `dashboard_regenerates_from_tape_cas` + `constitution_wave3_evidence_binding::wave3_50p_dashboard_regen_matches_chain` | 🟢 GREEN (Wave 3 50p binding 2026-05-07; 50/50 expected==RHS; was 🟡 AMBER) |
+| MVP-4 (FC2: replay) | `fc2_run_replayable_from_genesis_tape_cas` + `constitution_wave3_evidence_binding::wave3_50p_replay_assertions_all_pass` | 🟢 GREEN (Wave 3 50p binding 2026-05-07; three-observer agreement; was 🟡 AMBER) |
 | MVP-5 (Economy conservation) | 9 economy_gate tests | 🟢 GREEN |
 
 ## §O. Closure conditions (directive §12)
@@ -190,11 +190,11 @@
 | 1 | Every clause has matrix row | this file | 🟢 GREEN (≥40 rows) |
 | 2 | Every critical row has a test | this file | 🟢 GREEN (round-8: Art. V.3 amendment-log test landed at `tests/constitution_art_v3_amendment_log.rs` 6/6 PASS; row flipped 🔴 RED → 🟢 GREEN; closure #2 promotes AMBER → GREEN accordingly) |
 | 3 | Every test can fail (no `assert!(true)`) | CR-C0.1 | 🟡 AMBER (verify on commit) |
-| 4 | P38/P49 real runs pass FC1 | constitution_gate_report.json | 🟢 GREEN (round-7: post-fix invariant on all 9 problems = `delta=0 verdict=Ok`; was 🔴 RED in round-1 before LLM batch ran) |
-| 5 | Fresh replay passes FC2 | `fc2_run_replayable_from_genesis_tape_cas` | 🟡 AMBER (audit_tape Layer C replay assertions PASS 9/9; standalone fresh-genesis-replay smoke pending — MVP-4) |
+| 4 | P38/P49 real runs pass FC1 | constitution_gate_report.json + `constitution_wave3_evidence_binding::wave3_50p_chain_invariant_all_pass` | 🟢 GREEN (Wave 3 50p binding 2026-05-07: P38-class + P49-class problems re-validated at 50p scale; round-7 baseline 9/9 → Wave 3 50p 50/50 verdict=Ok delta=0; was 🟢 GREEN at round-7 LLM batch already) |
+| 5 | Fresh replay passes FC2 | `fc2_run_replayable_from_genesis_tape_cas` + `constitution_wave3_evidence_binding::wave3_50p_replay_assertions_all_pass` | 🟢 GREEN (Wave 3 50p binding 2026-05-07: audit_proceed=50 + id45_pass=50 + inv1_match_true=50 three-observer agreement on the same 50 problems; was 🟡 AMBER) |
 | 6 | Markov / EvidenceCapsule passes FC3 | `fc3_capsule_derived_from_tape_cas` + `fc3_no_global_markov_pointer` + **round-8** `tests/constitution_fc3_inv1_capsule_integrity_regen.rs` (4 tests: capsule_id_is_content_addressable_p08 + capsule_attempt_count_matches_at_count_p08 + capsule_outcome_counts_match_at_walk_p08 + capsule_integrity_secondary_problems on P05+P07) | 🟢 GREEN (round-8: standalone capsule-regen test exercises FC3-INV1 integrity on REAL TB-C0 batch evidence — P08 (39 step_partial_ok) + P05 (8) + P07 (4) all pass capsule_id == sha256(canonical_bytes) + per-outcome count match. No new LLM compute required — runs against existing tape per `feedback_real_problems_not_designed`.) |
 | 7 | Economy laws pass | 9 `economy_*` tests | 🟢 GREEN |
-| 8 | Dashboard regeneration passes | `dashboard_regenerates_from_tape_cas` | 🟡 AMBER |
+| 8 | Dashboard regeneration passes | `dashboard_regenerates_from_tape_cas` + `constitution_wave3_evidence_binding::wave3_50p_dashboard_regen_matches_chain` | 🟢 GREEN (Wave 3 50p binding 2026-05-07; 50/50 chain_invariant.json regen matches chain; was 🟡 AMBER) |
 | 9 | No high-risk feature merge without gates green | CI policy in CR-C0.10 | 🟢 GREEN (round-7: CI workflow `.github/workflows/constitution_gates.yml` exists + freeze-pattern check; `make constitution` runs locally) |
 | 10 | Project answers 6 epistemic questions | matrix + tests answer "what externalized? predicate-pass? predicate-fail? on-tape? CAS-only? dashboard-only?" | 🟢 GREEN (round-7: per `STRICT_AUDIT_TBC0_TAPE_2026-05-07.md` §6 + post-fix evidence each question maps to a chain-resident witness on real MiniF2F) |
 

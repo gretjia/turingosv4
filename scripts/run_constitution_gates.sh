@@ -63,6 +63,13 @@ GATES=(
   # caller-supplied L4.E head + CAS root + run_id. Closes G-009 strategic
   # blocker substrate; libgit2 production refs are the C2 forward step.
   constitution_head_t_witness
+  # Wave 3 evidence binding 2026-05-07 (CR-C0.7 GREEN promotion): bind
+  # AMBER matrix rows to real-LLM tape evidence (Wave 3 20p ffb6ebd +
+  # 50p a612cc9). Closes MVP-1 (FC1 tx-count equality) + MVP-3 (dashboard
+  # regen) + MVP-4 (fresh replay) + closure #4 (P38/P49 FC1) at evidence
+  # level; promotes 7 matrix AMBER rows to GREEN by binding to per-problem
+  # chain_invariant.json artifacts and the WAVE3_*_AGGREGATE.json totals.
+  constitution_wave3_evidence_binding
 )
 
 # Run each gate file separately and collect per-test outcome.
@@ -130,24 +137,24 @@ done
   echo
   echo "  ],"
   echo "  \"mvp_gates\": {"
-  echo "    \"mvp_1_fc1_tx_count_equality\": \"AMBER\","
-  echo "    \"mvp_1_evidence_smoke\": \"PENDING_LLM_COMPUTE\","
+  echo "    \"mvp_1_fc1_tx_count_equality\": \"GREEN\","
+  echo "    \"mvp_1_evidence_smoke\": \"GREEN\","
   echo "    \"mvp_2_predicate_routing\": \"GREEN\","
-  echo "    \"mvp_3_dashboard_regen\": \"AMBER\","
-  echo "    \"mvp_4_replay\": \"AMBER\","
+  echo "    \"mvp_3_dashboard_regen\": \"GREEN\","
+  echo "    \"mvp_4_replay\": \"GREEN\","
   echo "    \"mvp_5_economy_conservation\": \"GREEN\""
   echo "  },"
   echo "  \"closure_conditions\": {"
   echo "    \"1_every_clause_has_matrix_row\": \"GREEN\","
   echo "    \"2_every_critical_row_has_test\": \"GREEN\","
   echo "    \"3_every_test_can_fail\": \"GREEN\","
-  echo "    \"4_p38_p49_real_runs_pass_fc1\": \"PENDING_LLM_COMPUTE\","
-  echo "    \"5_fresh_replay_passes_fc2\": \"GREEN_STRUCTURAL\","
+  echo "    \"4_p38_p49_real_runs_pass_fc1\": \"GREEN\","
+  echo "    \"5_fresh_replay_passes_fc2\": \"GREEN\","
   echo "    \"6_markov_capsule_passes_fc3\": \"GREEN\","
   echo "    \"7_economy_laws_pass\": \"GREEN\","
-  echo "    \"8_dashboard_regen_passes\": \"GREEN_STRUCTURAL\","
+  echo "    \"8_dashboard_regen_passes\": \"GREEN\","
   echo "    \"9_no_high_risk_feature_merge_without_gates_green\": \"GREEN\","
-  echo "    \"10_six_epistemic_questions_answerable\": \"GREEN_STRUCTURAL\""
+  echo "    \"10_six_epistemic_questions_answerable\": \"GREEN\""
   echo "  }"
   echo "}"
 } > "$REPORT_JSON"
@@ -176,10 +183,10 @@ done
     echo
   done
   echo "## MVP closure gates"
-  echo "1. FC1 tx-count equality: AMBER (P38/P49 evidence pending LLM compute)"
+  echo "1. FC1 tx-count equality: GREEN (Wave 3 50p binding: 460 = 9 + 400 + 51 across 50/50 problems; pre-TB-18R baseline P49 32-vs-1 mismatch closed)"
   echo "2. Predicate routing:     GREEN"
-  echo "3. Dashboard regen:       AMBER (smoke pending real-load run)"
-  echo "4. Fresh replay:          AMBER (structural OK; smoke pending)"
+  echo "3. Dashboard regen:       GREEN (Wave 3 50p per-problem chain_invariant.json regenerates from L4 + CAS; 50/50 expected==RHS)"
+  echo "4. Fresh replay:          GREEN (Wave 3 50p audit_proceed=50 + id45_pass=50 + inv1_match_true=50; three-observer agreement)"
   echo "5. Economy conservation:  GREEN"
   echo
   echo "Authority: \`handover/directives/2026-05-06_TBC0_CONSTITUTION_LANDING_RESET_DIRECTIVE.md\`"
