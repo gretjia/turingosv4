@@ -1,0 +1,10 @@
+{
+  "architect_inv_1": "chain_attempt_count == externalized_llm_cycle_count",
+  "chain_attempt_count": 50,
+  "externalized_llm_cycle_count": 50,
+  "evaluator_reported_tx_count_legacy": 50,
+  "match": true,
+  "delta": 0,
+  "_note": "TB-C0 Codex-\u00a78 remediation 2026-05-07: regenerated using tool_dist.step LHS (Bug 1 fix), not raw tx_count.",
+  "_source_binaries": "round-5+6 binaries: tb_18r_compute_invariant + audit_tape with assert_50"
+}

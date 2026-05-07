@@ -115,7 +115,15 @@ def assess_run(run_dir: Path) -> dict[str, Any]:
     facts["chain_invariant"] = load_json(run_dir / "chain_invariant.json")
     facts["verdict_kind_summary"] = load_json(run_dir / "verdict_kind_summary.json")
     facts["extracted_pput"] = load_json(run_dir / "extracted_pput.json")
-    facts["architect_inv1_check"] = load_json(run_dir / "architect_inv1_check.json")
+    # **TB-C0 Codex-§8 remediation 2026-05-07**: prefer the `_post_fix.json`
+    # variant when present (round-5+6 binaries with Bug 1 LHS fix +
+    # capsule_anchored). Falls back to legacy file. Per
+    # `feedback_no_retroactive_evidence_rewrite`: post-fix lives alongside
+    # original, NOT overwriting it.
+    post_fix_inv1 = load_json(run_dir / "architect_inv1_check_post_fix.json")
+    facts["architect_inv1_check"] = (
+        post_fix_inv1 if post_fix_inv1 else load_json(run_dir / "architect_inv1_check.json")
+    )
 
     # Markov capsule presence
     cas_types = facts["cas_object_types"]

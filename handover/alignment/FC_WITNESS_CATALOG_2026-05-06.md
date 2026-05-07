@@ -1,17 +1,34 @@
-# FC-Witness Catalog — real existing problems → FC nodes (TB-C0, 2026-05-06)
+# FC-Witness Catalog — real existing problems → FC nodes (TB-C0, 2026-05-06; **REVISED 2026-05-07** per Codex Q8 VETO)
+
+**Status (2026-05-07)**: Per Codex audit verdict §9 #1 + Q8 VETO, this catalog has been REVISED to:
+1. Strictly separate **3 witness-classes**: chain-resident / structural / tamper-probe (security)
+2. Fix the FC1-INV3 arithmetic error (was: "12=0+10+2 with step_partial_ok=3"; now uses post-fix invariant figures from round-5/6 binaries)
+3. Stop conflating tamper-probe smokes with real-problem witnesses (FC1-INV6 was bound to tampering, not a real MiniF2F problem)
+4. Honestly downgrade FC3-INV1 capsule integrity (presence ≠ derivability; Markov recompute SKIPPED on all 9 single-session runs)
 
 **Purpose**: Per `feedback_real_problems_not_designed`: when a constitution gate / FC node lacks tape witness, FIND a real existing problem (MiniF2F / Mathlib / Putnam / IMO / research-paper / web research) that exercises the path. Do NOT synthesize. This catalog enumerates real problems that produce tape evidence for each FC node.
 
 **Authority**: User 2026-05-06 — "应该是找到能测试出那个具体功能的真题（你可以web research），而不是由你来设计问题，更严谨".
 
+**Witness-class taxonomy** (added per Codex Q8 remediation):
+
+| Class | Definition | Acceptable witness sources |
+|-------|-----------|---------------------------|
+| **chain-resident** | Witness lives on the actual ChainTape (L4/L4.E/CAS) of a real-problem run. Reading the artifact reproducibly proves the invariant held during a real Agent loop. | MiniF2F / Mathlib / Putnam / IMO / research-paper formalizations (real existing problems) |
+| **structural** | Witness is a source-grep / type-shape / file-presence assertion on the codebase. Does NOT require any real-problem run; verifies the IMPLEMENTATION exists, not that it FIRED on real load. | source-grep tests in `tests/constitution_*.rs`; absence-of-file assertions |
+| **tamper-probe** | Witness is a deliberate-corruption smoke (e.g., `audit_tape_tamper`); proves detection works against a synthetic adversarial input. NOT a real-problem witness — these are security probes. | `audit_tape_tamper` binary; deliberate `flip_l4_byte` / `flip_cas_byte` / `truncate_l4_ref` perturbations |
+
+A node may have witness in MORE THAN ONE class. The classes are NOT substitutes — a structural test does NOT prove real-load behavior; a tamper-probe does NOT prove real-problem coverage.
+
 **Companion documents**:
 - `handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md` (gate-level summary)
 - `handover/alignment/TRACE_FLOWCHART_MATRIX.md` (per-FC-node binding to code + tests)
-- This file binds FC nodes to **specific real problems** that witness them on tape.
+- This file binds FC nodes to **specific real problems** that witness them on tape, with strict class separation.
 
 **Problem-source citation policy**:
-- Every problem cell lists: source-set + problem-id + URL/citation
-- Empirical evidence runs: `handover/evidence/tb_c0_multi_agent_*/` (this TB) + `handover/evidence/tb_18r_phase_3_*/` (predecessor)
+- Every problem cell lists: source-set + problem-id + URL/citation + witness class
+- Empirical evidence runs (post-round-5/6): `handover/evidence/tb_c0_multi_agent_2026-05-06T16-30-36Z/` `*_post_fix.json` + `fc_witness_aggregate_post_fix.json`
+- Predecessor evidence: `handover/evidence/tb_18r_phase_3_*/`
 
 ---
 
@@ -65,10 +82,10 @@ Witness status flags carry the same meaning as `CONSTITUTION_EXECUTION_MATRIX.md
 | FC1-N13 wtool | L4 + L4.E entries (sequencer-mediated writes) | ANY MiniF2F | MiniF2F (any) | ✅ |
 | FC1-N15 reject branch | L4.E rejection record present | `mathd_numbertheory_1124` (12 rejections; multi-attempt fail) | MiniF2F #P38 | ✅ |
 | **FC1-INV1** every-attempt-tape-visible | AttemptTelemetry count == evaluator tx_count | `mathd_numbertheory_1124`, `numbertheory_2pownm1prime_nprime` (architect_inv1.match=True) | MiniF2F #P38, #P49 | ✅ (5/7 on Phase 3) |
-| **FC1-INV3** count equality (3-term constitutional) | AT == l4 + l4e + capsule_anchored | `mathd_numbertheory_1124` (12 = 0+10+2 with step_partial_ok=3), `numbertheory_2pownm1prime_nprime` (12 = 0+6+6 with step_partial_ok=7) | MiniF2F #P38, #P49 | ✅ 3-term holds; 2-term binary fails per OBS_TBC0_FC1_INV3_THREE_BUGS |
+| **FC1-INV3** count equality (3-term constitutional) | expected == l4 + l4e + capsule_anchored | **chain-resident** (post-round-6): all 9 problems delta=0 verdict=Ok per `*/chain_invariant_post_fix.json`. Examples: `mathd_algebra_114` (P05): 20=0+12+8; `numbertheory_2pownm1prime_nprime` (P07): 50=0+46+4; `aime_1983_p1` (P08): 44=0+5+39 (39 step_partial_ok); `aime_1984_p1` (P09): 10=1+6+3. | MiniF2F (multiple) | ✅ 9/9 GREEN post-fix (round-6 Bug 2 filter + round-5 capsule_anchored). Old "12=0+10+2 with step_partial_ok=3" was an arithmetic error in the round-3 catalog, called out by Codex Q8; now superseded by post-fix figures. |
 | FC1-INV4 no legacy bypass | no fallback to `bus.append` direct path | structural test `fc1_no_legacy_authoritative_append` | source-grep | ✅ |
 | FC1-INV5 dashboard not source | `tb_16_dashboard_live_regen.rs` test | structural | source-grep + integration test | ✅ |
-| FC1-INV6 no fake nodes | `tb_18r_audit_lean_stderr_tamper_detected.rs` | tampering smoke (security probe; not real problem) | TB-18R audit suite | ✅ |
+| FC1-INV6 no fake nodes (CAS bytes match CIDs) | **tamper-probe (NOT real-problem)**: `audit_tape_tamper` on real-tape from MiniF2F problems. Empirical post-round-5: P01/P03/P05/P09 each detected 3/3 corruptions including `flip_cas_byte` (post-fix from 2/3 pre-fix). Plus `tb_18r_audit_lean_stderr_tamper_detected.rs` integration test. | tamper-probe class — security adversarial, NOT real-problem. Per Codex Q8: corrected to NOT claim real-problem binding for this node. The underlying MiniF2F problems used as substrate ARE real (P01 mathd_algebra_107, etc.); the WITNESS is the tamper-detection on those tapes, classified as security probe. | ✅ post-fix |
 | FC1-INV2 predicate routing (pass→L4, fail→L4.E) | sequencer dispatch witnessed in chain | `mathd_algebra_107` (omega→L4); `mathd_numbertheory_1124` (rejects→L4.E) | MiniF2F | ✅ |
 | FC1-N12 individual predicates (Forbidden/Sorry/PayloadSize/Lean) | LeanResult.verdict_kind variety | `numbertheory_2pownm1prime_nprime` (step_partial_ok produces PartialAccepted; step_reject produces Failed) | MiniF2F #P49 | ✅ |
 | FC1-N6 input bundle | `UniverseSnapshot` + `build_agent_prompt` runtime path | structural test | source-grep + integration | ✅ |
@@ -111,7 +128,7 @@ Witness status flags carry the same meaning as `CONSTITUTION_EXECUTION_MATRIX.md
 | FC3-N38 Q update | sequencer dispatch | ANY MiniF2F | MiniF2F | ✅ |
 | FC3-N39 markov / capsule | EvidenceCapsule CAS object | runs that hit terminal halt + capsule emission (`mathd_numbertheory_1124`, `numbertheory_2pownm1prime_nprime` produced EvidenceCapsule on Phase 3) | MiniF2F #P38, #P49 | ✅ |
 | FC3-N40 override | `TURINGOS_MARKOV_OVERRIDE=1` | structural test | env-var check | ✅ |
-| **FC3-INV1** capsule derived | EvidenceCapsule present + derivable from L4+CAS | `mathd_numbertheory_1124`, `numbertheory_2pownm1prime_nprime` | MiniF2F #P38, #P49 | ✅ |
+| **FC3-INV1** capsule derived | EvidenceCapsule **PRESENT** (chain-resident) on 3 of 9 problems: `mathd_algebra_114` (P05), `numbertheory_2pownm1prime_nprime` (P07), `aime_1983_p1` (P08). EvidenceCapsule **INTEGRITY** (regenerate-from-L4+CAS produces same CID) **NOT YET VERIFIED** — markov_*_recompute Layer G assertions are SKIPPED on all 9 problems with detail "no Markov capsule" (single-session runs lack the prior-capsule chain that the assertions need to recompute against). Per Codex Q9 #4 remediation: presence ≠ derivability. | MiniF2F #P05, #P07, #P08 (presence only) | 🟡 post-fix AMBER. **PATH TO GREEN**: run a continuation smoke (a second batch with `--prior-chain-runtime-repo` pointing at this batch's runtime_repo for ANY MiniF2F problem) so markov_*_recompute fires, OR write a standalone test that regenerates the capsule from L4+CAS bytes and asserts CID match. The second option is doable WITHOUT new LLM compute. |
 | **FC3-INV2** no global Markov pointer | filesystem absence of `LATEST_MARKOV_CAPSULE.txt` | ANY (filesystem invariant) | OBS_R022 closure 2026-05-04 | ✅ |
 | **FC3-INV3** raw logs shielded | `UniverseSnapshot` lacks `raw_stderr` field | structural test | source-grep | 🟡 structural-only by design |
 | **FC3-INV4** capsule context-only | `evaluate_predicates` doesn't consult markov_capsule | structural test | source-grep | ✅ |

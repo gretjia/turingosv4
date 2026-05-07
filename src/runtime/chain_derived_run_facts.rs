@@ -916,11 +916,36 @@ pub fn compute_run_facts_from_chain_with_invariant(
     } else {
         RejectionEvidenceWriter::new()
     };
+    // **TB-C0 Codex-§8 Bug 2 fix (2026-05-07; per
+    // `CODEX_TBC0_STRICT_CONSTITUTIONAL_AUDIT_VERDICT_2026-05-07.md` Q5 PASS
+    // + Q9 VETO remediation #1)**: synthetic L4.E gate (atom A.1 — TB-6
+    // Atom 3) emits a zero-stake Work tx signed by the well-known synthetic
+    // sponsor `"tb6-smoke-agent"` to seed a chain-level liveness witness.
+    // This tx is NOT a real LLM-Lean externalized attempt; counting it in
+    // `l4e_work_attempt_count` inflates the FC1 RHS by 1 on every run that
+    // bootstrapped the synthetic gate. The runtime emit site is
+    // `experiments/minif2f_v4/src/chain_runtime.rs::write_synthetic_l4_l4e_gate_and_genesis_report`
+    // and the on-disk marker is `<runtime_repo>/synthetic_rejection_label.json`.
+    //
+    // Filter rule: a Work-kind rejection whose `agent_id` equals
+    // `"tb6-smoke-agent"` is a synthetic gate (the synthetic-sponsor agent
+    // never performs real LLM-Lean work — it ONLY signs the bootstrap gate).
+    // Class 3 surface (chain_derived_run_facts.rs is NOT in CLAUDE.md
+    // STEP_B file list); does not require sequencer.rs touch.
+    const SYNTHETIC_GATE_SPONSOR_AGENT_ID: &str = "tb6-smoke-agent";
     let l4e_work_attempt_count: u64 = l4e_writer
         .records()
         .iter()
         .filter(|r| r.tx_kind == TxKind::Work)
+        .filter(|r| r.agent_id.0 != SYNTHETIC_GATE_SPONSOR_AGENT_ID)
         .count() as u64;
+    let synthetic_gate_filtered_count: u64 = l4e_writer
+        .records()
+        .iter()
+        .filter(|r| r.tx_kind == TxKind::Work)
+        .filter(|r| r.agent_id.0 == SYNTHETIC_GATE_SPONSOR_AGENT_ID)
+        .count() as u64;
+    let _ = synthetic_gate_filtered_count;  // surface for future audit hook
 
     // TerminalAbortRecord count: query CAS index by object_type.
     let attempt_aborted_count = cas.count_by_object_type(ObjectType::TerminalAbortRecord);
