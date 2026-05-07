@@ -1,0 +1,20 @@
+{
+  "phase": "TB-18R Phase 3",
+  "smoke_mode": false,
+  "problem_count": 7,
+  "max_transactions_per_problem": 12,
+  "per_problem_timeout_s": 1800,
+  "git_head": "7c8dc548bf4b415724208ba5451949b6cc32ce65",
+  "run_timestamp_utc": "2026-05-07T06-24-20Z",
+  "evaluator_failures_excluding_timeout": 0,
+  "missing_problem_files": 0,
+  "per_problem_results": [
+    {"tag": "P01_mathd_numbertheory_1124", "delta": 0, "evaluable": false, "audit": "PROCEED", "lean_results": 0, "partial_accepted": 0, "invariant_verdict": "Ok"},
+    {"tag": "P02_numbertheory_2pownm1prime_nprime", "delta": 0, "evaluable": false, "audit": "PROCEED", "lean_results": 0, "partial_accepted": 0, "invariant_verdict": "Ok"},
+    {"tag": "P03_mathd_algebra_107", "delta": 0, "evaluable": false, "audit": "PROCEED", "lean_results": 0, "partial_accepted": 0, "invariant_verdict": "Ok"},
+    {"tag": "P04_mathd_algebra_113", "delta": -3, "evaluable": false, "audit": "PROCEED", "lean_results": 0, "partial_accepted": 0, "invariant_verdict": "Err(TB-18R FR-18R.3 violation: delta<0 forbidden (delta=-3, halt=MaxTxExhausted) — attempt vanished pre-chain)"},
+    {"tag": "P05_mathd_algebra_114", "delta": -1, "evaluable": false, "audit": "PROCEED", "lean_results": 0, "partial_accepted": 0, "invariant_verdict": "Err(TB-18R FR-18R.3 violation: delta<0 forbidden (delta=-1, halt=MaxTxExhausted) — attempt vanished pre-chain)"},
+    {"tag": "P06_mathd_algebra_125", "delta": 0, "evaluable": false, "audit": "PROCEED", "lean_results": 0, "partial_accepted": 0, "invariant_verdict": "Ok"},
+    {"tag": "P07_mathd_algebra_141", "delta": 0, "evaluable": false, "audit": "PROCEED", "lean_results": 0, "partial_accepted": 0, "invariant_verdict": "Ok"}
+  ]
+}

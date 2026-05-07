@@ -238,9 +238,15 @@ for ((i=0; i<N; i++)); do
   set -e
   PROB_DUR=$(($(date +%s) - PROB_START))
 
-  # Phase 2 substrate: Phase-1 evaluator emitted "completed_llm_calls" / "externalized_llm_calls"
-  # which Phase 2 removed in favor of canonical PPUT_RESULT.tx_count. Use tx_count + halt
-  # derivation from solved/hit_max_tx (architect §5 #1: chain_attempt_count == evaluator_reported_tx_count).
+  # The binary's invariant equation (post-TB-C0 Bug 3 fix; chain_invariant.json):
+  #   evaluator_reported_completed_llm_calls
+  #     == l4_work_attempt_count + l4e_work_attempt_count + capsule_anchored_attempt_count
+  # The LHS is the LLM-Lean cycle count (= `tool_dist.step` in PPUT_RESULT), NOT the
+  # broader `tx_count` (which counts admin scaffold txs: TB-6 Atom-3 synthetic preseed +
+  # TB-C0 atom A.1 synthetic L4.E gate + sequencer system-terminal-summary).
+  # Passing tx_count produced false NegativeDelta on mixed-tx runs (P04 -3, P05 -1).
+  # Resolution 2026-05-07: pass tool_dist.step as --expected-completed; keep tx_count
+  # for diagnostic logging only. See `handover/alignment/OBS_TB18R_INV1_NONLLM_TX_2026-05-07.md`.
   EXTRACTED_JSON="$(python3 - "$RUN_DIR/evaluator.stdout" <<'PYEOF'
 import json, sys
 try:
@@ -258,18 +264,35 @@ try:
     else:
         halt = "MaxTxExhausted"
     td = o.get("tool_dist", {})
-    print(json.dumps({"tx_count": tx, "halt": halt, "solved": solved,
+    # LLM-Lean cycle count = sum of every tool_dist key whose evaluator callsite
+    # invokes r2_write_attempt_telemetry. Per evaluator.rs:
+    #   - "step" (lines 3032, callsite 2555/3522/3604) covers main-line LLM step calls
+    #     including step_partial_ok + step_reject sub-counters (which are also incremented
+    #     but do NOT add new AttemptTelemetry beyond step).
+    #   - "parse_fail" (line 3659, callsite 3687) — LLM response unparseable.
+    #   - "llm_err" (line 3734, callsite 3753) — LLM call failed.
+    #   - "omega_wtool" is a wtool wrapper for the omega-success step (already counted
+    #     in step); does NOT add new AttemptTelemetry.
+    # Empirical verification: AT count = step + parse_fail + llm_err in 7/7 P3 problems
+    # (including P02 with parse_fail=1 producing 11+1=12 AT records).
+    completed_llm_calls = (int(td.get("step", 0))
+                           + int(td.get("parse_fail", 0))
+                           + int(td.get("llm_err", 0)))
+    print(json.dumps({"tx_count": tx, "completed_llm_calls": completed_llm_calls,
+                      "halt": halt, "solved": solved,
                       "hit_max_tx": hit_max, "tool_dist": td}))
 except Exception as e:
-    print(json.dumps({"tx_count": 0, "halt": "ErrorHalt", "error": str(e)}))
+    print(json.dumps({"tx_count": 0, "completed_llm_calls": 0,
+                      "halt": "ErrorHalt", "error": str(e)}))
 PYEOF
 )"
-  EXPECTED_COMPLETED="$(echo "$EXTRACTED_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin)["tx_count"])')"
+  EXPECTED_COMPLETED="$(echo "$EXTRACTED_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin)["completed_llm_calls"])')"
+  TX_COUNT_TOTAL="$(echo "$EXTRACTED_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin)["tx_count"])')"
   HALT_CLASS="$(echo "$EXTRACTED_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin)["halt"])')"
   SOLVED_FLAG="$(echo "$EXTRACTED_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("solved", False))')"
   echo "$EXTRACTED_JSON" > "$RUN_DIR/extracted_pput.json"
 
-  echo "[phase3] [$((i+1))/$N] $NAME: dur=${PROB_DUR}s tx_count=$EXPECTED_COMPLETED halt=$HALT_CLASS solved=$SOLVED_FLAG rc=$EVAL_RC"
+  echo "[phase3] [$((i+1))/$N] $NAME: dur=${PROB_DUR}s tx_count=$TX_COUNT_TOTAL completed_llm_calls=$EXPECTED_COMPLETED halt=$HALT_CLASS solved=$SOLVED_FLAG rc=$EVAL_RC"
   if [ "$EVAL_RC" -ne 0 ] && [ "$EVAL_RC" -ne 124 ]; then
     EVAL_FAIL_COUNT+=1
   fi
@@ -301,12 +324,17 @@ PYEOF
   # verdict_kind summary (Phase-2 typed-record presence check via index + tool_dist)
   extract_verdict_kinds "$RUN_DIR/cas" "$EXTRACTED_JSON" > "$RUN_DIR/verdict_kind_summary.json"
 
-  # Architect §5 #1 direct check: chain_attempt_count == evaluator_reported_tx_count.
-  # Counts AttemptTelemetry CAS objects via .turingos_cas_index.jsonl + git-cat-file backend.
-  python3 - "$RUN_DIR/cas" "$EXPECTED_COMPLETED" > "$RUN_DIR/architect_inv1_check.json" <<'PYEOF'
+  # Architect §5 #1 direct check (post-OBS_TB18R_INV1_NONLLM_TX_2026-05-07 resolution):
+  #   chain_attempt_count == evaluator_reported_completed_llm_calls (= tool_dist.step)
+  # NOT vs evaluator's broader tx_count, which conflates LLM-Lean cycles with
+  # architect-mandated admin scaffold (system-terminal-summary + TB-6 atom-3 synthetic
+  # preseed + TB-C0 atom A.1 synthetic L4.E gate). The binary's invariant LHS label
+  # `evaluator_reported_completed_llm_calls` is the canonical scope.
+  python3 - "$RUN_DIR/cas" "$EXPECTED_COMPLETED" "$TX_COUNT_TOTAL" > "$RUN_DIR/architect_inv1_check.json" <<'PYEOF'
 import json, os, subprocess, sys
 cas = sys.argv[1]
-tx_count = int(sys.argv[2])
+completed_llm_calls = int(sys.argv[2])
+tx_count_total = int(sys.argv[3])
 attempt_count = 0
 attempt_outcomes = {}
 idx_path = os.path.join(cas, ".turingos_cas_index.jsonl")
@@ -332,14 +360,17 @@ if os.path.isfile(idx_path):
                 attempt_outcomes[outcome] = attempt_outcomes.get(outcome, 0) + 1
             except Exception:
                 pass
-match = (attempt_count == tx_count)
+match = (attempt_count == completed_llm_calls)
 print(json.dumps({
-    "architect_inv_1": "chain_attempt_count == evaluator_reported_tx_count",
+    "architect_inv_1": "chain_attempt_count == evaluator_reported_completed_llm_calls",
     "chain_attempt_count": attempt_count,
-    "evaluator_reported_tx_count": tx_count,
+    "evaluator_reported_completed_llm_calls": completed_llm_calls,
+    "evaluator_reported_tx_count_total": tx_count_total,
+    "non_llm_tx_diagnostic_gap": tx_count_total - completed_llm_calls,
     "match": match,
     "attempt_outcomes": attempt_outcomes,
-    "delta": attempt_count - tx_count
+    "delta": attempt_count - completed_llm_calls,
+    "resolution_ref": "handover/alignment/OBS_TB18R_INV1_NONLLM_TX_2026-05-07.md"
 }, indent=2))
 PYEOF
 

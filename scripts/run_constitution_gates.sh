@@ -37,6 +37,11 @@ GATES=(
   # regen + Art. V.3 amendment-log executable test
   constitution_fc3_inv1_capsule_integrity_regen
   constitution_art_v3_amendment_log
+  # Post-TB-C0 clarification 2026-05-07 (OBS_TB18R_INV1_NONLLM_TX): runner
+  # must compute completed_llm_calls = step + parse_fail + llm_err (NOT
+  # tx_count, which inflates with architect-mandated admin scaffold). Closes
+  # P04/P05 false-NegativeDelta on mixed-tx problems.
+  constitution_runner_invariant_formula
 )
 
 # Run each gate file separately and collect per-test outcome.

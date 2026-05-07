@@ -1,0 +1,14 @@
+{
+  "phase": "TB-18R Phase 3",
+  "smoke_mode": true,
+  "problem_count": 1,
+  "max_transactions_per_problem": 12,
+  "per_problem_timeout_s": 1800,
+  "git_head": "7c8dc548bf4b415724208ba5451949b6cc32ce65",
+  "run_timestamp_utc": "2026-05-07T06-20-45Z",
+  "evaluator_failures_excluding_timeout": 0,
+  "missing_problem_files": 0,
+  "per_problem_results": [
+    {"tag": "P01_mathd_algebra_107", "delta": 0, "evaluable": false, "audit": "PROCEED", "lean_results": 0, "partial_accepted": 0, "invariant_verdict": "Ok"}
+  ]
+}

@@ -1,0 +1,131 @@
+{
+  "phase": "TB-18R Phase 3 \u2014 corrected (post 2026-05-07 runner-bug fix)",
+  "smoke_mode": false,
+  "problem_count": 7,
+  "max_transactions_per_problem": 12,
+  "per_problem_timeout_s": 1800,
+  "git_head": "7c8dc548bf4b415724208ba5451949b6cc32ce65",
+  "run_timestamp_utc": "2026-05-07T06-24-20Z",
+  "resolution_timestamp_utc": "2026-05-07T07-00-00Z",
+  "resolution_ref": "handover/alignment/OBS_TB18R_INV1_NONLLM_TX_2026-05-07.md",
+  "evaluator_failures_excluding_timeout": 0,
+  "missing_problem_files": 0,
+  "constitution_gates_at_head": "68/0/1 GREEN (post addition of constitution_runner_invariant_formula)",
+  "workspace_test_at_head": "1141/0/151 (verified pre-runner-fix; runner change is bash-only, no rust compile delta)",
+  "per_problem_results": [
+    {
+      "tag": "P01_mathd_numbertheory_1124",
+      "completed_llm_calls": 12,
+      "tx_count_total_diagnostic": 12,
+      "non_llm_tx_gap_diagnostic": 0,
+      "chain_attempt_count": 12,
+      "match": true,
+      "delta": 0,
+      "invariant_verdict": "Ok",
+      "halt": "MaxTxExhausted",
+      "tool_dist": {
+        "step_reject": 6,
+        "step": 12,
+        "step_partial_ok": 6
+      }
+    },
+    {
+      "tag": "P02_numbertheory_2pownm1prime_nprime",
+      "completed_llm_calls": 12,
+      "tx_count_total_diagnostic": 12,
+      "non_llm_tx_gap_diagnostic": 0,
+      "chain_attempt_count": 12,
+      "match": true,
+      "delta": 0,
+      "invariant_verdict": "Ok",
+      "halt": "MaxTxExhausted",
+      "tool_dist": {
+        "parse_fail": 1,
+        "step": 11,
+        "step_reject": 6,
+        "step_partial_ok": 5
+      }
+    },
+    {
+      "tag": "P03_mathd_algebra_107",
+      "completed_llm_calls": 1,
+      "tx_count_total_diagnostic": 1,
+      "non_llm_tx_gap_diagnostic": 0,
+      "chain_attempt_count": 1,
+      "match": true,
+      "delta": 0,
+      "invariant_verdict": "Ok",
+      "halt": "OmegaAccepted",
+      "tool_dist": {
+        "step": 1,
+        "omega_wtool": 1
+      }
+    },
+    {
+      "tag": "P04_mathd_algebra_113",
+      "completed_llm_calls": 9,
+      "tx_count_total_diagnostic": 12,
+      "non_llm_tx_gap_diagnostic": 3,
+      "chain_attempt_count": 9,
+      "match": true,
+      "delta": 0,
+      "invariant_verdict": "Ok",
+      "halt": "MaxTxExhausted",
+      "tool_dist": {
+        "step": 9,
+        "step_reject": 9
+      }
+    },
+    {
+      "tag": "P05_mathd_algebra_114",
+      "completed_llm_calls": 11,
+      "tx_count_total_diagnostic": 12,
+      "non_llm_tx_gap_diagnostic": 1,
+      "chain_attempt_count": 11,
+      "match": true,
+      "delta": 0,
+      "invariant_verdict": "Ok",
+      "halt": "MaxTxExhausted",
+      "tool_dist": {
+        "step_reject": 10,
+        "step": 11,
+        "step_partial_ok": 1
+      }
+    },
+    {
+      "tag": "P06_mathd_algebra_125",
+      "completed_llm_calls": 1,
+      "tx_count_total_diagnostic": 1,
+      "non_llm_tx_gap_diagnostic": 0,
+      "chain_attempt_count": 1,
+      "match": true,
+      "delta": 0,
+      "invariant_verdict": "Ok",
+      "halt": "OmegaAccepted",
+      "tool_dist": {
+        "omega_wtool": 1,
+        "step": 1
+      }
+    },
+    {
+      "tag": "P07_mathd_algebra_141",
+      "completed_llm_calls": 1,
+      "tx_count_total_diagnostic": 1,
+      "non_llm_tx_gap_diagnostic": 0,
+      "chain_attempt_count": 1,
+      "match": true,
+      "delta": 0,
+      "invariant_verdict": "Ok",
+      "halt": "OmegaAccepted",
+      "tool_dist": {
+        "step": 1,
+        "omega_wtool": 1
+      }
+    }
+  ],
+  "aggregate": {
+    "match_pass_count": 7,
+    "delta_zero_count": 7,
+    "all_pass": true
+  }
+}
