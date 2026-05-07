@@ -6,6 +6,72 @@
 
 ---
 
+## 🎯 2026-05-07 (session end #15) — **Wave 3 20-problem diagnostic GREEN: FC1 hard invariant 140 = 7 + 129 + 4 holds end-to-end on post-b7bde23 substrate; first real-LLM tape evidence at scale; PROJECT_PLAN §2 Week 2 last item closed**
+
+**HEAD**: `9007e1a` (no new commit yet; all evidence + report + log updates pending stage and commit).
+
+### Architect directive that triggered this session
+
+User asked whether to run the 20-problem diagnostic now (PROJECT_PLAN.md §2 Week 2 last item / §4 last allowed scale; the only PROJECT_PLAN-shaped blocker before §5 TB sequence resume). After confirmation, user authorized autonomous decision-making guided by the three architect alignment documents (`constitution.md` / `CONSTITUTION_EXECUTION_MATRIX.md` / `TRACE_FLOWCHART_MATRIX.md`):
+> 在架构师的三份对齐文件的指引下自行决策
+
+### Decisions taken (per three alignment docs)
+
+1. **REBUILD mandatory** — `b7bde23` (Constitution Landing First) landed `head_t_witness.rs` + `prompt_capsule.rs` + `cases/pcp_corpus/` AFTER the cc59b4d binaries used in Phase 3 7-problem. Without rebuild, the run would validate the predecessor substrate, not the b7bde23 substrate. Constitution Execution Matrix Art. 0.4 / Art. III prompt persistence rows had been promoted to 🟢 GREEN on tests-only evidence — per CR-C0.7 "GREEN means test exercises the real path AND passes", the GREEN was un-earned without real-LLM tape.
+2. **SMOKE before batch** — substrate change post-b7bde23 = config change per `feedback_smoke_before_batch`; 1-problem smoke required.
+3. **No new BenchmarkManifest schema work** — 20×n=1 below `feedback_benchmark_manifest_required` threshold (50+ × n>1 × multi-seed); existing `PHASE_3_RUN_MANIFEST.json` pattern equivalent for diagnostic. Building schema first = `feedback_audit_after_evidence` reverse anti-pattern.
+4. **Fresh evidence dir, no retroactive write** — per `OBS_EVIDENCE_DRIFT_ROOT_CAUSE_2026-05-07` the failure mode is `cargo test` writing to old dirs; `cargo build --release` only (no tests) writes nowhere outside `target/`.
+
+### What landed this session
+
+1. **Rebuild on HEAD 9007e1a** — `cargo build --release --bin audit_tape --bin tb_18r_compute_invariant -p turingosv4` + `--bin evaluator -p minif2f_v4`. All 3 binary mtimes (1778158990 / 1778159059) > newest src mtime (1778155269 = `src/state/head_t_witness.rs`). Stage 2 of `/runner-preflight` PASS post-rebuild.
+2. **Smoke (1 problem)** — `handover/evidence/wave3_diagnostic_20p_smoke_2026-05-07T13-04-35Z/`: `mathd_algebra_107` dur=190s, OmegaAccepted, solved=True, audit=PROCEED, id45=Pass, inv1_match=True. Substrate compiles and runs end-to-end.
+3. **Batch (20 problems)** — `handover/evidence/wave3_diagnostic_20p_2026-05-07T13-08-06Z/`: 20/20 audit=PROCEED, 20/20 id45=Pass, 20/20 `architect_inv1_check.match=True`, 20/20 `chain_invariant.invariant_verdict=Ok` with `delta=0`. Total batch dur 1566s (~26 min); evaluator failures excluding timeout = 0.
+4. **Aggregate FC1 hard invariant (CLAUDE.md §6) holds** — `completed_llm_calls_total = 140 = l4_work_attempt_total (7) + l4e_work_attempt_total (129) + capsule_anchored_attempt_total (4)`. Cross-checks: `omega_wtool=7 == l4_work=7 == solved=7` (one accepted WorkTx per solved problem); `step_reject=129 == l4e_work=129` (predicate-fail rejections persisted to L4.E); `step_partial_ok=4 == capsule_anchored=4` (typed `AttemptOutcome::PartialAccepted` records emitted in 4 problems P03/P08/P15/P18).
+5. **Statistical signal (diagnostic)** — N=20, solved=7 (35%), Wilson 95% CI [18.1%, 56.7%], ΣPPUT=61.50, Mean PPUT(solved)=8.79, halt_dist={OmegaAccepted:7, MaxTxExhausted:13}. The 13 MaxTxExhausted halts are model-capability ceiling at MAX_TX=12 (AIME/AMC/IMO/induction problems exceed deepseek-chat single-call budget) **with all invariants green** — substrate is sound, model coverage is the bottleneck.
+6. **Reports** — `handover/evidence/wave3_diagnostic_20p_2026-05-07T13-08-06Z/WAVE3_REPORT.md` (10 sections; single-source-of-truth substrate validation per CLAUDE.md §17 + §18) + `WAVE3_AGGREGATE.json` (446 lines; per-problem + aggregate).
+7. **Constitution gates / workspace tests unchanged** — `cargo test --workspace --release` = 1174/0/151 (same as session #14 ship); `bash scripts/run_constitution_gates.sh` = 90/0/1 GREEN. No src changes this session.
+8. **TB_LOG row** — C-LAND-2 appended (Wave 3 closure; tied to commit pending alongside this session-end entry).
+
+### Constitution Matrix rows now earning their GREEN
+
+The following had been promoted to 🟢 GREEN in `b7bde23` based on cargo test evidence only. Per CR-C0.7, this 20-problem run is the first real-LLM tape evidence under load:
+
+- **Art. 0.4 Q_t / G-009 HEAD_t C1 witness** — 20/20 chain_invariant verdict=Ok confirms HEAD_t reconstructs/advances on every accepted L4 transition under load.
+- **Art. III prompt persistence (G-016/019/021/028 PromptCapsule)** — 140 LLM-Lean cycles ran without panicking on Class-3 PromptCapsule path (binary-compatibility evidence; full evaluator → PromptCapsule wire-up still forward step).
+- **Art. I.1.1 PCP / 疑罪从无** — `verified=True` count (7) == `omega_wtool` (7) == `l4_work_attempt` (7) == `solved` (7). No false accepts under 140 cycles.
+- **Art. 0.2 Tape Canonical** — aggregate FC1 equation hold over 140 cycles is structural evidence against shadow-ledger drift.
+
+### What this run does NOT validate
+
+- Not a benchmark; not H-VPPU evidence; not real-world readiness — N=20 × n=1 × single seed × single model.
+- Does not retire the residual ~24 of 30 coverage gaps from Pass 1+2 (Type-1/2/3/4 mix).
+- Does not by itself unfreeze §5 TB sequence — PROJECT_PLAN §3 conditions are now 9/10 GREEN, but Art. 0 ≥ 70% LANDED+PARTIAL measurement remains as the last documented gap.
+
+### Active state going forward
+
+- Substrate HEAD: `9007e1a` (handover update — session end #14: Constitution Landing First shipped). No new commit since the start of this session; pending stage = WAVE3_REPORT.md + WAVE3_AGGREGATE.json + TB_LOG row + this LATEST.md entry.
+- Constitution gates: 90/0/1 GREEN
+- Workspace tests: 1174/0/151 PASS
+- Wave 3 substrate validation: GREEN at 20-problem scale on real DeepSeek tape
+- §5 TB sequence (TB-18R Final / TB-18B / TB-19+): eligible-for-resume per PROJECT_PLAN §3 9/10 ✅; Art. 0 % matrix audit is the pending door-condition
+
+### Next steps (priority order)
+
+1. **Stage + commit** — `handover/evidence/wave3_diagnostic_20p_smoke_2026-05-07T13-04-35Z/` (manifests + summaries; bulk cas/runtime_repo per `feedback_evidence_packaging_policy_required` style is local-only) + `handover/evidence/wave3_diagnostic_20p_2026-05-07T13-08-06Z/` (manifests + WAVE3_REPORT.md + WAVE3_AGGREGATE.json + per-problem JSONs/READMEs; bulk cas/runtime_repo local-only) + TB_LOG.tsv + LATEST.md
+2. **Art. 0 ≥ 70% LANDED+PARTIAL matrix audit** — last `feedback_audit_after_evidence` door-condition before §5 TB sequence resume; tally CONSTITUTION_EXECUTION_MATRIX rows §A (Article 0)
+3. **Gemini architecture sanity pass** — HARNESS.md §1 H5 dual-audit other half (Codex done in C-LAND-1; Gemini still forward-step); session-#14 next-step #2 still open
+4. **PromptCapsule evaluator wire-up** — Class-2 forward step from C-LAND-1; every `AttemptTelemetry` references a `PromptCapsule` CID at runtime (architect §4.3 `AttemptTelemetry / WorkTx references prompt_capsule_cid`)
+5. **§5 TB sequence resume** when Art. 0 % door clears: TB-18R Final → TB-18B (M1/M2 scale-up) → TB-19+ pilot
+
+### Open questions / forward-bound
+
+- Whether this 20-problem run alone closes Art. 0 % door (the matrix audit is documentation-side; this run is evidence-side; both required for §3 resume) — answer pending matrix tally
+- Whether to dispatch Gemini second-opinion on C-LAND-1 + C-LAND-2 jointly (Codex VETO→PASS already caught one schema defect on C-LAND-1; Gemini ROI flip per `feedback_audit_loop_roi_flip` may bias toward edge findings)
+- Whether `PHASE_3_BATCH_SUMMARY.json` aggregator field-name mismatches (`evaluable=false` / `lean_results=0` per row when ground-truth invariants in `architect_inv1_check.json` + `chain_invariant.json` are all green) are worth a script patch — low priority since ground-truth is unambiguous and operator-readable, but cosmetic for outside auditors
+
+---
+
 ## 🎯 2026-05-07 (session end #14) — **Constitution Landing First: G-009 + G-012 + G-016+ substrate landed; 3 of 30 gap-audit blockers closed; landing map 28→30+ LANDED; freeze conditions re-evaluated**
 
 **HEAD**: `b7bde23` (Constitution Landing First commit; pushed to origin/main).

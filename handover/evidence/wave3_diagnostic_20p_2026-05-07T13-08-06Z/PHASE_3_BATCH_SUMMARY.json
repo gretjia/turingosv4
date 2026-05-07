@@ -1,0 +1,33 @@
+{
+  "phase": "TB-18R Phase 3",
+  "smoke_mode": false,
+  "problem_count": 20,
+  "max_transactions_per_problem": 12,
+  "per_problem_timeout_s": 1800,
+  "git_head": "9007e1a5ff78ec23d8a211decf1b196c555f5bab",
+  "run_timestamp_utc": "2026-05-07T13-08-06Z",
+  "evaluator_failures_excluding_timeout": 0,
+  "missing_problem_files": 0,
+  "per_problem_results": [
+    {"tag": "P01_mathd_algebra_107", "delta": 0, "evaluable": false, "audit": "PROCEED", "lean_results": 0, "partial_accepted": 0, "invariant_verdict": "Ok"},
+    {"tag": "P02_mathd_algebra_113", "delta": 0, "evaluable": false, "audit": "PROCEED", "lean_results": 0, "partial_accepted": 0, "invariant_verdict": "Ok"},
+    {"tag": "P03_mathd_algebra_114", "delta": 0, "evaluable": false, "audit": "PROCEED", "lean_results": 0, "partial_accepted": 0, "invariant_verdict": "Ok"},
+    {"tag": "P04_mathd_algebra_125", "delta": 0, "evaluable": false, "audit": "PROCEED", "lean_results": 0, "partial_accepted": 0, "invariant_verdict": "Ok"},
+    {"tag": "P05_mathd_algebra_141", "delta": 0, "evaluable": false, "audit": "PROCEED", "lean_results": 0, "partial_accepted": 0, "invariant_verdict": "Ok"},
+    {"tag": "P06_mathd_algebra_171", "delta": 0, "evaluable": false, "audit": "PROCEED", "lean_results": 0, "partial_accepted": 0, "invariant_verdict": "Ok"},
+    {"tag": "P07_mathd_algebra_176", "delta": 0, "evaluable": false, "audit": "PROCEED", "lean_results": 0, "partial_accepted": 0, "invariant_verdict": "Ok"},
+    {"tag": "P08_mathd_algebra_246", "delta": 0, "evaluable": false, "audit": "PROCEED", "lean_results": 0, "partial_accepted": 0, "invariant_verdict": "Ok"},
+    {"tag": "P09_aime_1983_p2", "delta": 0, "evaluable": false, "audit": "PROCEED", "lean_results": 0, "partial_accepted": 0, "invariant_verdict": "Ok"},
+    {"tag": "P10_aime_1989_p8", "delta": 0, "evaluable": false, "audit": "PROCEED", "lean_results": 0, "partial_accepted": 0, "invariant_verdict": "Ok"},
+    {"tag": "P11_amc12_2000_p1", "delta": 0, "evaluable": false, "audit": "PROCEED", "lean_results": 0, "partial_accepted": 0, "invariant_verdict": "Ok"},
+    {"tag": "P12_amc12_2000_p6", "delta": 0, "evaluable": false, "audit": "PROCEED", "lean_results": 0, "partial_accepted": 0, "invariant_verdict": "Ok"},
+    {"tag": "P13_algebra_sqineq_at2malt1", "delta": 0, "evaluable": false, "audit": "PROCEED", "lean_results": 0, "partial_accepted": 0, "invariant_verdict": "Ok"},
+    {"tag": "P14_amc12a_2002_p6", "delta": 0, "evaluable": false, "audit": "PROCEED", "lean_results": 0, "partial_accepted": 0, "invariant_verdict": "Ok"},
+    {"tag": "P15_aime_1990_p4", "delta": 0, "evaluable": false, "audit": "PROCEED", "lean_results": 0, "partial_accepted": 0, "invariant_verdict": "Ok"},
+    {"tag": "P16_imo_1959_p1", "delta": 0, "evaluable": false, "audit": "PROCEED", "lean_results": 0, "partial_accepted": 0, "invariant_verdict": "Ok"},
+    {"tag": "P17_imo_1962_p2", "delta": 0, "evaluable": false, "audit": "PROCEED", "lean_results": 0, "partial_accepted": 0, "invariant_verdict": "Ok"},
+    {"tag": "P18_induction_11div10tonmn1ton", "delta": 0, "evaluable": false, "audit": "PROCEED", "lean_results": 0, "partial_accepted": 0, "invariant_verdict": "Ok"},
+    {"tag": "P19_induction_12dvd4expnp1p20", "delta": 0, "evaluable": false, "audit": "PROCEED", "lean_results": 0, "partial_accepted": 0, "invariant_verdict": "Ok"},
+    {"tag": "P20_algebra_2varlineareq_fp3zeq11_3tfm1m5zeqn68_feqn10_zeq7", "delta": 0, "evaluable": false, "audit": "PROCEED", "lean_results": 0, "partial_accepted": 0, "invariant_verdict": "Ok"}
+  ]
+}

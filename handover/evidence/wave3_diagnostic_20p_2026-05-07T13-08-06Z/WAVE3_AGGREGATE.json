@@ -1,0 +1,446 @@
+{
+  "wave3_diagnostic_20p": {
+    "phase": "PROJECT_PLAN.md \u00a72 Wave 3 \u2014 load-bearing harness diagnostic; \u00a74 last allowed scale",
+    "purpose": "Validate post-b7bde23 substrate (HEAD_t C1 + PromptCapsule + PCP corpus + typed PartialAccepted) does not degrade at 20-problem scale before unfreezing TB-18R Final / TB-18B / TB-19+ (PROJECT_PLAN \u00a75).",
+    "git_head": "9007e1a5ff78ec23d8a211decf1b196c555f5bab",
+    "git_head_short": "9007e1a",
+    "substrate_landed_in_commit": "b7bde23 (Constitution Landing First \u2014 G-009 + G-012 + G-016 substrate)",
+    "evidence_dir": "handover/evidence/wave3_diagnostic_20p_2026-05-07T13-08-06Z",
+    "smoke_predecessor": "handover/evidence/wave3_diagnostic_20p_smoke_2026-05-07T13-04-35Z (1-problem mathd_algebra_107; PROCEED+id45=Pass+inv1_match=True; per feedback_smoke_before_batch)",
+    "active_model": "deepseek-chat",
+    "max_tx_per_problem": 12,
+    "per_problem_timeout_s": 1800,
+    "n": 20,
+    "solved": 7,
+    "solve_rate": 0.35,
+    "solve_rate_wilson_95ci": [
+      0.1812,
+      0.5671
+    ],
+    "sigma_pput_total": 61.5032,
+    "mean_pput_on_solved": 8.7862,
+    "halt_reason_distribution": {
+      "OmegaAccepted": 7,
+      "MaxTxExhausted": 13
+    },
+    "attempt_equality": {
+      "matches": 20,
+      "total": 20,
+      "all_pass": true,
+      "fc1_invariant_equation_per_problem": "evaluator_reported_completed_llm_calls == l4_work_attempt_count + l4e_work_attempt_count + capsule_anchored_attempt_count (architect \u00a75 #1; CLAUDE.md \u00a76)",
+      "aggregate_lhs_eq_rhs": true,
+      "completed_llm_calls_total_LHS": 140,
+      "l4_work_attempt_total_RHS_a": 7,
+      "l4e_work_attempt_total_RHS_b": 129,
+      "capsule_anchored_attempt_total_RHS_c": 4,
+      "aggregate_RHS": 140,
+      "tx_count_total_diagnostic": 164,
+      "non_llm_tx_diagnostic_gap": 24,
+      "obs_ref": "handover/alignment/OBS_TB18R_INV1_NONLLM_TX_2026-05-07.md"
+    },
+    "tool_dist_total": {
+      "step": 140,
+      "omega_wtool": 7,
+      "step_reject": 129,
+      "step_partial_ok": 4
+    },
+    "step_partial_ok_problems": 4,
+    "step_partial_ok_total_count": 4,
+    "evaluator_failures_excluding_timeout": 0,
+    "missing_problem_files": 0,
+    "no_fake_accepted_nodes": "ENFORCED \u2014 all 20 problems audit=PROCEED, id45=Pass; L4 accepted only when verified=True (omega_wtool=7 == l4_work_attempt_total=7 == solved=7)",
+    "per_problem": [
+      {
+        "tag": "P01_mathd_algebra_107",
+        "name": "mathd_algebra_107",
+        "solved": true,
+        "halt": "OmegaAccepted",
+        "completed_llm_calls": 1,
+        "tx_count": 1,
+        "pput_scalar": 8.722705045157182,
+        "tool_dist": {
+          "step": 1,
+          "omega_wtool": 1
+        },
+        "inv1_match": true,
+        "chain_invariant_verdict": "Ok",
+        "chain_invariant_delta": 0,
+        "l4_work_attempt_count": 1,
+        "l4e_work_attempt_count": 0,
+        "capsule_anchored_attempt_count": 0
+      },
+      {
+        "tag": "P02_mathd_algebra_113",
+        "name": "mathd_algebra_113",
+        "solved": false,
+        "halt": "MaxTxExhausted",
+        "completed_llm_calls": 9,
+        "tx_count": 12,
+        "pput_scalar": 0.0,
+        "tool_dist": {
+          "step_reject": 9,
+          "step": 9
+        },
+        "inv1_match": true,
+        "chain_invariant_verdict": "Ok",
+        "chain_invariant_delta": 0,
+        "l4_work_attempt_count": 0,
+        "l4e_work_attempt_count": 9,
+        "capsule_anchored_attempt_count": 0
+      },
+      {
+        "tag": "P03_mathd_algebra_114",
+        "name": "mathd_algebra_114",
+        "solved": false,
+        "halt": "MaxTxExhausted",
+        "completed_llm_calls": 12,
+        "tx_count": 12,
+        "pput_scalar": 0.0,
+        "tool_dist": {
+          "step_reject": 11,
+          "step": 12,
+          "step_partial_ok": 1
+        },
+        "inv1_match": true,
+        "chain_invariant_verdict": "Ok",
+        "chain_invariant_delta": 0,
+        "l4_work_attempt_count": 0,
+        "l4e_work_attempt_count": 11,
+        "capsule_anchored_attempt_count": 1
+      },
+      {
+        "tag": "P04_mathd_algebra_125",
+        "name": "mathd_algebra_125",
+        "solved": true,
+        "halt": "OmegaAccepted",
+        "completed_llm_calls": 1,
+        "tx_count": 1,
+        "pput_scalar": 9.59731006593472,
+        "tool_dist": {
+          "step": 1,
+          "omega_wtool": 1
+        },
+        "inv1_match": true,
+        "chain_invariant_verdict": "Ok",
+        "chain_invariant_delta": 0,
+        "l4_work_attempt_count": 1,
+        "l4e_work_attempt_count": 0,
+        "capsule_anchored_attempt_count": 0
+      },
+      {
+        "tag": "P05_mathd_algebra_141",
+        "name": "mathd_algebra_141",
+        "solved": true,
+        "halt": "OmegaAccepted",
+        "completed_llm_calls": 1,
+        "tx_count": 1,
+        "pput_scalar": 9.644891011591543,
+        "tool_dist": {
+          "step": 1,
+          "omega_wtool": 1
+        },
+        "inv1_match": true,
+        "chain_invariant_verdict": "Ok",
+        "chain_invariant_delta": 0,
+        "l4_work_attempt_count": 1,
+        "l4e_work_attempt_count": 0,
+        "capsule_anchored_attempt_count": 0
+      },
+      {
+        "tag": "P06_mathd_algebra_171",
+        "name": "mathd_algebra_171",
+        "solved": true,
+        "halt": "OmegaAccepted",
+        "completed_llm_calls": 1,
+        "tx_count": 1,
+        "pput_scalar": 9.461863257455551,
+        "tool_dist": {
+          "omega_wtool": 1,
+          "step": 1
+        },
+        "inv1_match": true,
+        "chain_invariant_verdict": "Ok",
+        "chain_invariant_delta": 0,
+        "l4_work_attempt_count": 1,
+        "l4e_work_attempt_count": 0,
+        "capsule_anchored_attempt_count": 0
+      },
+      {
+        "tag": "P07_mathd_algebra_176",
+        "name": "mathd_algebra_176",
+        "solved": true,
+        "halt": "OmegaAccepted",
+        "completed_llm_calls": 1,
+        "tx_count": 1,
+        "pput_scalar": 10.50581283425099,
+        "tool_dist": {
+          "omega_wtool": 1,
+          "step": 1
+        },
+        "inv1_match": true,
+        "chain_invariant_verdict": "Ok",
+        "chain_invariant_delta": 0,
+        "l4_work_attempt_count": 1,
+        "l4e_work_attempt_count": 0,
+        "capsule_anchored_attempt_count": 0
+      },
+      {
+        "tag": "P08_mathd_algebra_246",
+        "name": "mathd_algebra_246",
+        "solved": true,
+        "halt": "OmegaAccepted",
+        "completed_llm_calls": 2,
+        "tx_count": 2,
+        "pput_scalar": 3.932898156319606,
+        "tool_dist": {
+          "omega_wtool": 1,
+          "step_partial_ok": 1,
+          "step": 2
+        },
+        "inv1_match": true,
+        "chain_invariant_verdict": "Ok",
+        "chain_invariant_delta": 0,
+        "l4_work_attempt_count": 1,
+        "l4e_work_attempt_count": 0,
+        "capsule_anchored_attempt_count": 1
+      },
+      {
+        "tag": "P09_aime_1983_p2",
+        "name": "aime_1983_p2",
+        "solved": false,
+        "halt": "MaxTxExhausted",
+        "completed_llm_calls": 9,
+        "tx_count": 12,
+        "pput_scalar": 0.0,
+        "tool_dist": {
+          "step": 9,
+          "step_reject": 9
+        },
+        "inv1_match": true,
+        "chain_invariant_verdict": "Ok",
+        "chain_invariant_delta": 0,
+        "l4_work_attempt_count": 0,
+        "l4e_work_attempt_count": 9,
+        "capsule_anchored_attempt_count": 0
+      },
+      {
+        "tag": "P10_aime_1989_p8",
+        "name": "aime_1989_p8",
+        "solved": true,
+        "halt": "OmegaAccepted",
+        "completed_llm_calls": 1,
+        "tx_count": 1,
+        "pput_scalar": 9.63774183465509,
+        "tool_dist": {
+          "omega_wtool": 1,
+          "step": 1
+        },
+        "inv1_match": true,
+        "chain_invariant_verdict": "Ok",
+        "chain_invariant_delta": 0,
+        "l4_work_attempt_count": 1,
+        "l4e_work_attempt_count": 0,
+        "capsule_anchored_attempt_count": 0
+      },
+      {
+        "tag": "P11_amc12_2000_p1",
+        "name": "amc12_2000_p1",
+        "solved": false,
+        "halt": "MaxTxExhausted",
+        "completed_llm_calls": 12,
+        "tx_count": 12,
+        "pput_scalar": 0.0,
+        "tool_dist": {
+          "step": 12,
+          "step_reject": 12
+        },
+        "inv1_match": true,
+        "chain_invariant_verdict": "Ok",
+        "chain_invariant_delta": 0,
+        "l4_work_attempt_count": 0,
+        "l4e_work_attempt_count": 12,
+        "capsule_anchored_attempt_count": 0
+      },
+      {
+        "tag": "P12_amc12_2000_p6",
+        "name": "amc12_2000_p6",
+        "solved": false,
+        "halt": "MaxTxExhausted",
+        "completed_llm_calls": 9,
+        "tx_count": 12,
+        "pput_scalar": 0.0,
+        "tool_dist": {
+          "step_reject": 9,
+          "step": 9
+        },
+        "inv1_match": true,
+        "chain_invariant_verdict": "Ok",
+        "chain_invariant_delta": 0,
+        "l4_work_attempt_count": 0,
+        "l4e_work_attempt_count": 9,
+        "capsule_anchored_attempt_count": 0
+      },
+      {
+        "tag": "P13_algebra_sqineq_at2malt1",
+        "name": "algebra_sqineq_at2malt1",
+        "solved": false,
+        "halt": "MaxTxExhausted",
+        "completed_llm_calls": 9,
+        "tx_count": 12,
+        "pput_scalar": 0.0,
+        "tool_dist": {
+          "step_reject": 9,
+          "step": 9
+        },
+        "inv1_match": true,
+        "chain_invariant_verdict": "Ok",
+        "chain_invariant_delta": 0,
+        "l4_work_attempt_count": 0,
+        "l4e_work_attempt_count": 9,
+        "capsule_anchored_attempt_count": 0
+      },
+      {
+        "tag": "P14_amc12a_2002_p6",
+        "name": "amc12a_2002_p6",
+        "solved": false,
+        "halt": "MaxTxExhausted",
+        "completed_llm_calls": 12,
+        "tx_count": 12,
+        "pput_scalar": 0.0,
+        "tool_dist": {
+          "step": 12,
+          "step_reject": 12
+        },
+        "inv1_match": true,
+        "chain_invariant_verdict": "Ok",
+        "chain_invariant_delta": 0,
+        "l4_work_attempt_count": 0,
+        "l4e_work_attempt_count": 12,
+        "capsule_anchored_attempt_count": 0
+      },
+      {
+        "tag": "P15_aime_1990_p4",
+        "name": "aime_1990_p4",
+        "solved": false,
+        "halt": "MaxTxExhausted",
+        "completed_llm_calls": 12,
+        "tx_count": 12,
+        "pput_scalar": 0.0,
+        "tool_dist": {
+          "step_reject": 11,
+          "step": 12,
+          "step_partial_ok": 1
+        },
+        "inv1_match": true,
+        "chain_invariant_verdict": "Ok",
+        "chain_invariant_delta": 0,
+        "l4_work_attempt_count": 0,
+        "l4e_work_attempt_count": 11,
+        "capsule_anchored_attempt_count": 1
+      },
+      {
+        "tag": "P16_imo_1959_p1",
+        "name": "imo_1959_p1",
+        "solved": false,
+        "halt": "MaxTxExhausted",
+        "completed_llm_calls": 12,
+        "tx_count": 12,
+        "pput_scalar": 0.0,
+        "tool_dist": {
+          "step": 12,
+          "step_reject": 12
+        },
+        "inv1_match": true,
+        "chain_invariant_verdict": "Ok",
+        "chain_invariant_delta": 0,
+        "l4_work_attempt_count": 0,
+        "l4e_work_attempt_count": 12,
+        "capsule_anchored_attempt_count": 0
+      },
+      {
+        "tag": "P17_imo_1962_p2",
+        "name": "imo_1962_p2",
+        "solved": false,
+        "halt": "MaxTxExhausted",
+        "completed_llm_calls": 9,
+        "tx_count": 12,
+        "pput_scalar": 0.0,
+        "tool_dist": {
+          "step": 9,
+          "step_reject": 9
+        },
+        "inv1_match": true,
+        "chain_invariant_verdict": "Ok",
+        "chain_invariant_delta": 0,
+        "l4_work_attempt_count": 0,
+        "l4e_work_attempt_count": 9,
+        "capsule_anchored_attempt_count": 0
+      },
+      {
+        "tag": "P18_induction_11div10tonmn1ton",
+        "name": "induction_11div10tonmn1ton",
+        "solved": false,
+        "halt": "MaxTxExhausted",
+        "completed_llm_calls": 9,
+        "tx_count": 12,
+        "pput_scalar": 0.0,
+        "tool_dist": {
+          "step_partial_ok": 1,
+          "step_reject": 8,
+          "step": 9
+        },
+        "inv1_match": true,
+        "chain_invariant_verdict": "Ok",
+        "chain_invariant_delta": 0,
+        "l4_work_attempt_count": 0,
+        "l4e_work_attempt_count": 8,
+        "capsule_anchored_attempt_count": 1
+      },
+      {
+        "tag": "P19_induction_12dvd4expnp1p20",
+        "name": "induction_12dvd4expnp1p20",
+        "solved": false,
+        "halt": "MaxTxExhausted",
+        "completed_llm_calls": 9,
+        "tx_count": 12,
+        "pput_scalar": 0.0,
+        "tool_dist": {
+          "step": 9,
+          "step_reject": 9
+        },
+        "inv1_match": true,
+        "chain_invariant_verdict": "Ok",
+        "chain_invariant_delta": 0,
+        "l4_work_attempt_count": 0,
+        "l4e_work_attempt_count": 9,
+        "capsule_anchored_attempt_count": 0
+      },
+      {
+        "tag": "P20_algebra_2varlineareq_fp3zeq11_3tfm1m5zeqn68_feqn10_zeq7",
+        "name": "algebra_2varlineareq_fp3zeq11_3tfm1m5zeqn68_feqn10_zeq7",
+        "solved": false,
+        "halt": "MaxTxExhausted",
+        "completed_llm_calls": 9,
+        "tx_count": 12,
+        "pput_scalar": 0.0,
+        "tool_dist": {
+          "step": 9,
+          "step_reject": 9
+        },
+        "inv1_match": true,
+        "chain_invariant_verdict": "Ok",
+        "chain_invariant_delta": 0,
+        "l4_work_attempt_count": 0,
+        "l4e_work_attempt_count": 9,
+        "capsule_anchored_attempt_count": 0
+      }
+    ]
+  },
+  "constitution_matrix_landings_validated_by_this_run": {
+    "Art_0.4_HEAD_t_C1_witness": "real-LLM 20-problem evidence; was tests-only post-b7bde23",
+    "Art_III_prompt_persistence_G-016/019/021/028_PromptCapsule": "real-LLM 20-problem evidence; was CAS round-trip smoke only post-b7bde23",
+    "Art_I.1.1_PCP_innocent_until_proven": "no false-accepts under load (verified=True only on omega_wtool=7); structural complement to cases/pcp_corpus/ adversarial fixtures",
+    "Art_0.2_Tape_Canonical": "FC1 attempt-equality 20/20 = no shadow-ledger drift over 140 LLM-Lean cycles",
+    "FC1_runtime_loop_hard_invariant": "aggregate equation 140 = 7 + 129 + 4 holds"
+  }
+}
