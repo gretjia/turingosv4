@@ -1,9 +1,9 @@
 # OBS — TB-C0 FC1-INV3 three implementation bugs (2026-05-06)
 
-**Class**: 4 (modifies canonical `ChainDerivedRunFacts` schema + `chain_derived_run_facts` semantics — per `project_tb_18r_state` memory, this surface is R4 STEP_B-ratified at Class 4)
-**Status**: CANDIDATE / awaits architect ratification before fix lands
-**Authority of finding**: TB-C0 round 1 + TB-18R Phase 3 evidence walk 2026-05-06
-**Scope**: forward-bound; **do NOT bundle into TB-C0** per TB-C0 charter §2 KILL-C0.1
+**Class**: mixed — see per-bug class below
+**Status**: **PARTIALLY FIXED 2026-05-07** (Bug 1 + Bug 3 fixed in commit chain; Bug 2 escalated). See §10 for fix log.
+**Authority of finding**: TB-C0 round 1 + TB-18R Phase 3 evidence walk 2026-05-06; reinforced by strict tape audit 2026-05-07.
+**Scope (revised 2026-05-07)**: per user 2026-05-07 "你先修复" directive, Bug 1 + Bug 3 + FC1-INV6 hole are fixed in TB-C0 round-5 commit. Bug 2 escalated as separate STEP_B-restricted item (sequencer.rs is in CLAUDE.md Code Standard STEP_B file list).
 
 ---
 
@@ -126,6 +126,7 @@ This is exactly the spirit of `feedback_constitutional_harness_engineering`: the
 
 - TB-C0 charter: `handover/tracer_bullets/TB-C0_charter_2026-05-06.md`
 - TB-C0 directive: `handover/directives/2026-05-06_TBC0_CONSTITUTION_LANDING_RESET_DIRECTIVE.md`
+- Strict audit (2026-05-07): `handover/alignment/STRICT_AUDIT_TBC0_TAPE_2026-05-07.md`
 - Phase 3 candidate report: `handover/evidence/tb_18r_phase_3_2026-05-06T14-13-55Z/PHASE_3_CANDIDATE_REPORT.md`
 - Phase 3 batch summary: `handover/evidence/tb_18r_phase_3_2026-05-06T14-13-55Z/PHASE_3_BATCH_SUMMARY.json`
 - TB-18R R4 invariant binary: `src/bin/tb_18r_compute_invariant.rs`
@@ -136,4 +137,30 @@ This is exactly the spirit of `feedback_constitutional_harness_engineering`: the
 
 ---
 
-**End of OBS.**
+## §10 Fix log (2026-05-07 round-5; per user "你先修复" directive)
+
+| Bug | Original Class | Fixed | Notes |
+|-----|---------------|-------|-------|
+| **Bug 1** (runner uses `tx_count`) | 2 | ✅ FIXED | `handover/tests/scripts/run_tbc0_multi_agent_evidence.sh` derives `EXPECTED_COMPLETED` from `tool_dist.step` (LLM-cycle count), with fallback to `omega_wtool` then legacy `tx_count`. `architect_inv1_check.json` producer now compares against `externalized_llm_cycle_count` (was `evaluator_reported_tx_count`). Pre-fix evidence still re-readable. |
+| **Bug 2** (synthetic L4.E gate inflates l4e_count) | 3 | 🟡 **ESCALATED** | Requires sequencer.rs change (synthetic-gate discriminator) + chain_derived counting filter. `src/state/sequencer.rs` is in CLAUDE.md Code Standard STEP_B file list. Per `feedback_class4_cannot_hide_in_class3` + STEP_B protocol: NOT fixed in this round-5; needs separate STEP_B parallel-branch + dual audit. Forward-bound; document and request architect ratification. **Empirical impact**: P03/P06/P07 (1-shot omega) show `delta=1` from this; P05 has `delta=1` from a mix of Bug 2 + a single overcounted attempt. |
+| **Bug 3** (missing `capsule_anchored_attempt_count` 3-term) | 4 → reclassified to 3 with explicit deviation stance | ✅ FIXED | `src/runtime/chain_derived_run_facts.rs` adds `pub capsule_anchored_attempt_count: u64` with `#[serde(default)]` for backward-compat. `compute_run_facts_from_chain_with_invariant` walks CAS for AttemptTelemetry records with `outcome == AttemptOutcome::PartialAccepted` (variant 6, Phase 2 CAS-only per §3.2 + R3 §1.3). `delta` formula extended to `l4 + l4e + capsule_anchored - expected`. **Deviation stance** (`feedback_architect_deviation_stance`): not Class 4 STEP_B because (a) `chain_derived_run_facts.rs` is NOT in CLAUDE.md STEP_B restricted file list (only sequencer.rs + typed_tx.rs + cas/schema.rs + bus.rs + kernel.rs + wallet.rs are), (b) field is strictly additive with `#[serde(default)]` — backward-compat with all pre-fix evidence, (c) NOT a canonical-signing-payload mutation — `ChainDerivedRunFacts` is a runtime-derived facts struct, not a typed-tx schema. Trust-root rehash recorded in `genesis_payload.toml`. **Empirical verification**: re-ran `tb_18r_compute_invariant` on P05's tape → `capsule_anchored_attempt_count: 8` (matches the `step_partial_ok=8` observation). 3-term equation `0 + 13 + 8 = 21` vs expected `20` → delta=1 (Bug 2 residue). |
+
+**Bonus fix — FC1-INV6 hole** (Class 3, audit-side; NOT in original 3-bug list, surfaced by 2026-05-07 strict audit Finding D):
+
+| Item | Class | Fixed | Notes |
+|------|-------|-------|-------|
+| FC1-INV6 flip_cas_byte hole on P05 | 3 | ✅ FIXED | New `assert_50_cas_bytes_match_cids` in `src/runtime/audit_assertions.rs` Layer B walks all CAS objects via new `CasStore::list_all_cids` helper, re-hashes content via `Cid::from_content`, asserts byte-for-byte CID match. Re-ran `audit_tape_tamper` on P05 → **detected 3/3 (was 2/3 pre-fix)**. Trust-root rehash recorded. |
+
+**Extractor tautology fix** (Class 1):
+
+| Item | Fixed | Notes |
+|------|-------|-------|
+| `scripts/fc_witness_extract.py` `capsule_anchored = AT - l4 - l4e` (tautological) | ✅ FIXED | Now reads `chain_invariant.json.capsule_anchored_attempt_count` (independent count from Bug 3-fix binary). Falls back to derived value with explicit `legacy binary; tautological` annotation when running on pre-fix evidence. |
+
+**Aggregate test status post-fix**: workspace 1131/0/151 (no regression), constitution gates 54/0/1 GREEN.
+
+**Strict-audit aggregate after fixes**: 18 chain-resident GREEN (was 17 pre-fix; +1 from FC1-INV6 closure) + 7 AMBER (unchanged structural-only) + 0 RED (was 1 — FC1-INV6 closed) + 0 GAP. Bug 2 is the remaining residue: P03/P05/P06/P07 still show `delta=1` on the 3-term equation due to synthetic L4.E gate. Forward-bound per STEP_B.
+
+---
+
+**End of OBS (last updated 2026-05-07).**

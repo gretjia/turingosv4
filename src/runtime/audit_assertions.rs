@@ -2809,6 +2809,82 @@ pub fn assert_48_random_lean_stderr_tamper_detected() -> AssertionResult {
     )
 }
 
+/// TRACE_MATRIX FC1-N34 + FC1-N35 (TB-C0 strict-audit Bug FC1-INV6 fix,
+/// 2026-05-07; per `STRICT_AUDIT_TBC0_TAPE_2026-05-07.md` Finding D).
+///
+/// **Why this assertion exists**: round-4 multi-agent batch revealed that
+/// `audit_tape_tamper` on P05 detected only 2/3 corruptions — the
+/// `flip_cas_byte` case (zeroing back half of the largest CAS object)
+/// slipped past `audit_tape`'s PROCEED verdict. Root cause: existing Layer
+/// B `payload_cid_resolves` (id 10) checks that `cas.get(cid)` returns
+/// SOMETHING, but does NOT verify `hash(blob) == cid`. So a tampered blob
+/// whose CID is still referenced by L4 entries passes id 10 unnoticed.
+///
+/// **What this asserts**: walks every CAS object in the index (regardless
+/// of object_type), fetches its bytes, re-computes `Cid::from_content`,
+/// and asserts byte-for-byte hash match against the stored CID. Closes the
+/// FC1-INV6 / Art. 0.3 immutability hole.
+///
+/// Layer A would be too strict (genesis-constancy is for boot-critical
+/// files); Layer B is the correct home (tape data integrity).
+pub fn assert_50_cas_bytes_match_cids(t: &LoadedTape) -> AssertionResult {
+    let cids = t.cas.list_all_cids();
+    let mut walked: u64 = 0;
+    let mut mismatches: Vec<String> = Vec::new();
+    for cid in cids {
+        walked += 1;
+        let bytes = match t.cas.get(&cid) {
+            Ok(b) => b,
+            Err(e) => {
+                return AssertionResult::halt(
+                    50,
+                    "cas_bytes_match_cids",
+                    AssertionLayer::B,
+                    format!(
+                        "CAS get failed for cid {}: {e:?} \
+                         (suggests tampered storage; integrity check could not proceed)",
+                        cid.hex()
+                    ),
+                );
+            }
+        };
+        let recomputed = crate::bottom_white::cas::schema::Cid::from_content(&bytes);
+        if recomputed != cid {
+            mismatches.push(format!(
+                "cid={} recomputed={} (bytes-content does not hash to stored CID)",
+                cid.hex(),
+                recomputed.hex()
+            ));
+            // Cap report at first 3 to keep verdict.json readable
+            if mismatches.len() >= 3 {
+                break;
+            }
+        }
+    }
+    if walked == 0 {
+        return AssertionResult::skipped(
+            50,
+            "cas_bytes_match_cids",
+            AssertionLayer::B,
+            "no CAS objects in index (empty run)".into(),
+        );
+    }
+    if !mismatches.is_empty() {
+        return AssertionResult::halt(
+            50,
+            "cas_bytes_match_cids",
+            AssertionLayer::B,
+            format!(
+                "FC1-INV6 / Art. 0.3 violation: {n_bad} CAS object(s) failed bytes-vs-CID hash check (out of {walked} walked). First mismatches: {detail}",
+                n_bad = mismatches.len(),
+                walked = walked,
+                detail = mismatches.join("; ")
+            ),
+        );
+    }
+    AssertionResult::pass(50, "cas_bytes_match_cids", AssertionLayer::B)
+}
+
 // ─────────────────────────────────────────────────────────────────────
 // Battery + verdict
 // ─────────────────────────────────────────────────────────────────────
@@ -2822,7 +2898,7 @@ pub fn run_all_assertions(inputs: &AuditInputs) -> Result<Vec<AssertionResult>, 
     r.push(assert_02_pinned_pubkey_loaded(&tape));
     r.push(assert_03_sandbox_agent_prefix(&tape));
     r.push(assert_a_chain_agent_ids_sandbox_prefixed(&tape));
-    // Layer B (8)
+    // Layer B (9 — TB-C0 strict-audit 2026-05-07 added id 50 cas_bytes_match_cids)
     r.push(assert_04_l4_hash_chain_valid(&tape));
     r.push(assert_05_l4_parent_state_continuity(&tape));
     r.push(assert_06_l4e_chain_integrity(&tape));
@@ -2831,6 +2907,7 @@ pub fn run_all_assertions(inputs: &AuditInputs) -> Result<Vec<AssertionResult>, 
     r.push(assert_09_agent_tx_signatures_verify(&tape));
     r.push(assert_10_payload_cid_resolves(&tape));
     r.push(assert_11_tx_kind_envelope_matches_payload(&tape));
+    r.push(assert_50_cas_bytes_match_cids(&tape));
     // Layer C (5)
     r.push(assert_12_replay_state_root_matches_head(&tape));
     r.push(assert_13_replay_economic_state_canonical(&tape));

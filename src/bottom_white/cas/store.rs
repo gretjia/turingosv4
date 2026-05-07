@@ -251,6 +251,23 @@ impl CasStore {
             .collect()
     }
 
+    /// TRACE_MATRIX FC1-N34 + FC1-N35: bytes-content immutability witness
+    /// (Art. 0.3 immutability fence). Sibling helper to
+    /// `list_cids_by_object_type` (FC2-N34) and `count_by_object_type`.
+    ///
+    /// **TB-C0 strict-audit FC1-INV6 fix (2026-05-07; Finding D)**:
+    /// list every Cid in the index regardless of object_type. Used by
+    /// `audit_assertions::assert_50_cas_bytes_match_cids` to walk all CAS
+    /// objects and re-hash them against their stored CIDs (closes the
+    /// `flip_cas_byte` detection hole revealed on P05's tape — see
+    /// `STRICT_AUDIT_TBC0_TAPE_2026-05-07.md` §1 Finding D). Pure-additive
+    /// helper over the in-memory index; no disk I/O; no change to put/get/
+    /// open semantics. Class 3 surface (cas/store.rs is NOT in CLAUDE.md
+    /// STEP_B restricted list — only cas/schema.rs is).
+    pub fn list_all_cids(&self) -> Vec<Cid> {
+        self.index.values().map(|m| m.cid).collect()
+    }
+
     /// Store content; returns its Cid. Idempotent — same content → same Cid.
     pub fn put(
         &mut self,

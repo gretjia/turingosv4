@@ -185,15 +185,41 @@ pub struct ChainDerivedRunFacts {
     /// `expected_completed_attempts` and counted here per FR-18R.3 v2.
     #[serde(default)]
     pub attempt_aborted_count: u64,
-    /// **TB-18R R4 NEW**: deterministic accounting delta — equals
-    /// `l4_work_attempt_count + l4e_work_attempt_count -
-    /// expected_completed_attempts` per FR-18R.4 v2. Sign convention:
+    /// **TB-C0 strict audit 2026-05-07 (Bug 3 fix)**: count of CAS
+    /// `AttemptTelemetry` records whose `outcome == AttemptOutcome::PartialAccepted`.
+    /// Per Phase 2 directive §3.2 + R3 §1.3 amended, `step_partial_ok`
+    /// records are CAS-only — they do NOT enter L4 (no accept) and do NOT
+    /// enter L4.E (no rejection). They are explicitly anchored via the
+    /// AttemptTelemetry `attempt_chain_root` linkage to the WorkTx that
+    /// eventually closed the run. This is the third term of the FC1 hard
+    /// invariant per CLAUDE.md PRIME OPERATING MODE:
+    ///
+    /// ```text
+    /// externalized_attempt_count
+    ///   == L4_WorkTx_attempt_count
+    ///    + L4E_WorkTx_rejection_count
+    ///    + explicitly_anchored_capsule_attempt_count
+    /// ```
+    ///
+    /// Default 0 for pre-fix evidence runs (deserialization compat;
+    /// `#[serde(default)]`). When 0, the equation reduces to the original
+    /// 2-term shape and existing TB-18R R4 invariant tests continue to
+    /// pass (see tests/tb_18r_chain_attempt_invariant.rs).
+    #[serde(default)]
+    pub capsule_anchored_attempt_count: u64,
+    /// **TB-18R R4 NEW**: deterministic accounting delta. **Updated 2026-05-07
+    /// per TB-C0 strict audit Bug 3 fix**: now equals
+    /// `l4_work_attempt_count + l4e_work_attempt_count + capsule_anchored_attempt_count
+    ///  - expected_completed_attempts` (3-term constitutional formula).
+    /// Sign convention:
     ///   - 0  = chain matches evaluator (clean halt requirement).
-    ///   - >0 = chain has more Work entries than evaluator reported as
-    ///     completed; admissible only when `delta == attempt_aborted_count`
-    ///     under a terminal abort halt class.
-    ///   - <0 = chain has fewer Work entries than reported (always a
+    ///   - >0 = chain has more accounted attempts than evaluator reported;
+    ///     admissible only when `delta == attempt_aborted_count` under a
+    ///     terminal abort halt class.
+    ///   - <0 = chain has fewer accounted attempts than reported (always a
     ///     ship-gate violation; means an attempt vanished pre-chain).
+    /// Backward-compat: when `capsule_anchored_attempt_count == 0` (pre-fix
+    /// runs), reduces to the original 2-term shape.
     #[serde(default)]
     pub delta: i64,
     /// **TB-18R R4 NEW**: run-level halt class. Mirrors constitutional
@@ -563,6 +589,7 @@ pub fn compute_run_facts_from_chain(
         expected_completed_attempts: 0,
         l4_work_attempt_count: 0,
         l4e_work_attempt_count: 0,
+        capsule_anchored_attempt_count: 0,
         attempt_aborted_count: 0,
         delta: 0,
         terminal_halt_class: RunOutcome::OmegaAccepted,
@@ -898,13 +925,44 @@ pub fn compute_run_facts_from_chain_with_invariant(
     // TerminalAbortRecord count: query CAS index by object_type.
     let attempt_aborted_count = cas.count_by_object_type(ObjectType::TerminalAbortRecord);
 
+    // TB-C0 strict audit 2026-05-07 (Bug 3 fix): capsule_anchored_attempt_count.
+    // Walk CAS for AttemptTelemetry records, decode each, count those whose
+    // outcome == AttemptOutcome::PartialAccepted (variant 6, Phase 2 tail-add).
+    // These are CAS-only per Phase 2 directive §3.2 + R3 §1.3 — they do NOT
+    // enter L4 (no accept) and do NOT enter L4.E (no rejection), but they
+    // ARE explicitly anchored via attempt_chain_root linkage. This is the
+    // third term of the FC1 hard invariant.
+    let mut capsule_anchored_attempt_count: u64 = 0;
+    let at_cids = cas.list_cids_by_object_type(ObjectType::AttemptTelemetry);
+    for cid in at_cids {
+        let bytes = match cas.get(&cid) {
+            Ok(b) => b,
+            Err(_) => continue,
+        };
+        let at: crate::runtime::attempt_telemetry::AttemptTelemetry =
+            match canonical_decode(&bytes) {
+                Ok(t) => t,
+                Err(_) => continue,
+            };
+        if matches!(
+            at.outcome,
+            crate::runtime::attempt_telemetry::AttemptOutcome::PartialAccepted
+        ) {
+            capsule_anchored_attempt_count += 1;
+        }
+    }
+
+    // Constitutional 3-term equation (FC1 hard invariant per CLAUDE.md PRIME
+    // OPERATING MODE): delta = l4 + l4e + capsule_anchored - expected.
     let delta: i64 = (l4_work_attempt_count as i64)
         .saturating_add(l4e_work_attempt_count as i64)
+        .saturating_add(capsule_anchored_attempt_count as i64)
         .saturating_sub(invariant_inputs.expected_completed_attempts as i64);
 
     facts.expected_completed_attempts = invariant_inputs.expected_completed_attempts;
     facts.l4_work_attempt_count = l4_work_attempt_count;
     facts.l4e_work_attempt_count = l4e_work_attempt_count;
+    facts.capsule_anchored_attempt_count = capsule_anchored_attempt_count;
     facts.attempt_aborted_count = attempt_aborted_count;
     facts.delta = delta;
     facts.terminal_halt_class = invariant_inputs.terminal_halt_class;

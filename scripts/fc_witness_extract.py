@@ -214,22 +214,42 @@ def fc_witness_status(facts: dict[str, Any]) -> dict[str, Any]:
             f"evaluator_reported_tx_count={inv1_check.get('evaluator_reported_tx_count') if inv1_check else 'N/A'})"
         ),
     }
-    # FC1-INV3: count equality (with three-term formula)
+    # FC1-INV3: count equality (constitutional 3-term formula).
+    # **TB-C0 strict-audit Bug 3 fix (2026-05-07)**: the prior implementation
+    # `capsule_anchored = AT - l4 - l4e` was TAUTOLOGICAL by construction
+    # (yielding `at == at` always). Now the chain_invariant binary computes
+    # `capsule_anchored_attempt_count` independently by walking CAS for
+    # AttemptTelemetry records with `outcome == AttemptOutcome::PartialAccepted`.
+    # See `STRICT_AUDIT_TBC0_TAPE_2026-05-07.md` §1 Finding C.
     expected = chain_inv.get("expected_completed_attempts", 0)
     l4_w = chain_inv.get("l4_work_attempt_count", 0)
     l4e_w = chain_inv.get("l4e_work_attempt_count", 0)
     at_count = facts["attempt_telemetry_count"]
-    capsule_anchored_estimate = max(0, at_count - l4_w - l4e_w)
-    constitutional_lhs = at_count
-    constitutional_rhs = l4_w + l4e_w + capsule_anchored_estimate
+    # Independent capsule_anchored count from chain_invariant.json (Bug 3 fix).
+    # If the binary that produced the chain_invariant.json predates Bug 3 fix,
+    # the field is absent → fall back to derived `at - l4 - l4e` (with explicit
+    # warning in the detail string) AND mark as legacy.
+    capsule_anchored_independent = chain_inv.get("capsule_anchored_attempt_count")
+    is_independent = capsule_anchored_independent is not None
+    if not is_independent:
+        capsule_anchored_independent = max(0, at_count - l4_w - l4e_w)
+    constitutional_lhs = expected
+    constitutional_rhs = (
+        l4_w + l4e_w + capsule_anchored_independent
+    )
+    invariant_holds = constitutional_lhs == constitutional_rhs
+    delta_3term = constitutional_rhs - constitutional_lhs
+    if invariant_holds:
+        status = "✅" if is_independent else "🟡"
+    else:
+        status = "🔴 code_bug" if is_independent else "🟡"
     nodes["FC1-INV3_count_equality_constitutional"] = {
-        "witness": "AttemptTelemetry == L4_work + L4E_work + capsule_anchored",
-        "status": "✅" if constitutional_lhs == constitutional_rhs else "🔴 code_bug",
+        "witness": "expected == L4_work + L4E_work + capsule_anchored (independent count)",
+        "status": status,
         "detail": (
-            f"AT={at_count} vs (l4={l4_w} + l4e={l4e_w} + capsule={capsule_anchored_estimate}) "
-            f"= {constitutional_rhs}; "
-            f"runner-passed expected={expected} "
-            f"(diff vs AT_count={expected - at_count})"
+            f"expected={expected} vs (l4={l4_w} + l4e={l4e_w} + capsule={capsule_anchored_independent}) "
+            f"= {constitutional_rhs}; delta_3term={delta_3term:+d}; AT_count={at_count}; "
+            f"capsule_source={'chain_invariant.json (independent, Bug 3-fix binary)' if is_independent else 'derived AT-l4-l4e (legacy binary; tautological)'}"
         ),
     }
 

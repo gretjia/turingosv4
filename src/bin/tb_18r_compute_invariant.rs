@@ -100,12 +100,18 @@ fn main() -> ExitCode {
         "expected_completed_attempts": facts.expected_completed_attempts,
         "l4_work_attempt_count": facts.l4_work_attempt_count,
         "l4e_work_attempt_count": facts.l4e_work_attempt_count,
+        "capsule_anchored_attempt_count": facts.capsule_anchored_attempt_count,
         "attempt_aborted_count": facts.attempt_aborted_count,
         "delta": facts.delta,
         "terminal_halt_class": format!("{:?}", facts.terminal_halt_class),
         "invariant_verdict": verdict,
-        "tb_18r_r4_invariant_equation": "evaluator_reported_completed_llm_calls == l4_work_attempt_count + l4e_work_attempt_count",
+        // TB-C0 strict-audit Bug 3 fix (2026-05-07): equation extended to 3-term
+        // constitutional formula per CLAUDE.md PRIME OPERATING MODE FC1 hard
+        // invariant. Backward-compat: pre-Bug-3 evidence runs have
+        // capsule_anchored == 0; equation reduces to original 2-term shape.
+        "tb_18r_r4_invariant_equation": "evaluator_reported_completed_llm_calls == l4_work_attempt_count + l4e_work_attempt_count + capsule_anchored_attempt_count",
         "preflight": "handover/ai-direct/TB-18R_R4_STEP_B_invariant.md",
+        "tbc0_strict_audit_fix": "STRICT_AUDIT_TBC0_TAPE_2026-05-07.md Finding C — Bug 3 (capsule_anchored 3-term)",
     });
     println!("{}", serde_json::to_string_pretty(&out).unwrap());
     ExitCode::SUCCESS

@@ -226,7 +226,30 @@ except Exception as e:
     print(json.dumps({"tx_count": 0, "halt": "ErrorHalt", "error": str(e)}))
 PYEOF
 )"
-  EXPECTED_COMPLETED="$(echo "$EXTRACTED_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("tx_count", 0))')"
+  # Bug 1 fix (TB-C0 strict audit 2026-05-07): use tool_dist.step (count of
+  # actual LLM-Lean externalized cycles) instead of tx_count (total transaction
+  # count which includes non-LLM tx like TaskOpen / EscrowLock / TerminalSummary).
+  # Per FC1 hard invariant: LHS is `externalized_attempt_count`, NOT `tx_count`.
+  # See handover/alignment/STRICT_AUDIT_TBC0_TAPE_2026-05-07.md §1 Finding B.
+  EXPECTED_COMPLETED="$(echo "$EXTRACTED_JSON" | python3 -c '
+import json, sys
+o = json.load(sys.stdin)
+td = o.get("tool_dist", {}) or {}
+# Externalized LLM-Lean cycle count = count of step invocations (each step
+# is one LLM-Lean call). Per Phase 2 substrate: step subsumes step_reject +
+# step_partial_ok; omega_wtool when nonzero is the omega-final step.
+step_count = int(td.get("step", 0))
+omega_wtool = int(td.get("omega_wtool", 0))
+# Avoid omega double-counting: omega_wtool overlaps with step. If both are
+# present and step covers the omega step, dont add. If step is 0 but
+# omega_wtool > 0, use omega_wtool. Empirical: step_count alone is correct
+# for the FC1 LHS on all observed evaluator runs.
+expected = step_count if step_count > 0 else omega_wtool
+# Fallback to tx_count for legacy-evidence runs that lack tool_dist
+if expected == 0:
+    expected = int(o.get("tx_count", 0))
+print(expected)
+')"
   HALT_CLASS="$(echo "$EXTRACTED_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("halt", "ErrorHalt"))')"
   SOLVED="$(echo "$EXTRACTED_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("solved", False))')"
   STEP_POK="$(echo "$EXTRACTED_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("step_partial_ok", 0))')"
@@ -280,15 +303,25 @@ at_count = sum(1 for o in cas_idx if o.get("object_type") == "AttemptTelemetry")
 try:
     with open(os.path.join(run, "extracted_pput.json")) as f:
         pput = json.load(f)
-    tx = int(pput.get("tx_count", 0))
+    # Bug 1 fix: compare against externalized LLM-Lean cycle count, not tx_count
+    td = pput.get("tool_dist", {}) or {}
+    step_count = int(td.get("step", 0))
+    omega_wtool = int(td.get("omega_wtool", 0))
+    externalized_llm = step_count if step_count > 0 else omega_wtool
+    if externalized_llm == 0:
+        externalized_llm = int(pput.get("tx_count", 0))
+    tx_count_legacy = int(pput.get("tx_count", 0))
 except Exception:
-    tx = 0
+    externalized_llm = 0
+    tx_count_legacy = 0
 out = {
-    "architect_inv_1": "chain_attempt_count == evaluator_reported_tx_count",
+    "architect_inv_1": "chain_attempt_count == externalized_llm_cycle_count",
     "chain_attempt_count": at_count,
-    "evaluator_reported_tx_count": tx,
-    "match": at_count == tx,
-    "delta": at_count - tx,
+    "externalized_llm_cycle_count": externalized_llm,
+    "evaluator_reported_tx_count_legacy": tx_count_legacy,
+    "match": at_count == externalized_llm,
+    "delta": at_count - externalized_llm,
+    "_note": "TB-C0 strict audit 2026-05-07 Bug 1 fix: LHS is externalized LLM-Lean cycle count (tool_dist.step), not raw tx_count (which includes TaskOpen/EscrowLock/TerminalSummary)",
 }
 print(json.dumps(out, indent=2))
 PYEOF
