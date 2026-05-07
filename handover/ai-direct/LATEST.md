@@ -6,6 +6,71 @@
 
 ---
 
+## 🎯 2026-05-07 (session end #16) — **Wave 3 50-problem diagnostic GREEN: FC1 hard invariant 460 = 9 + 400 + 51 holds at N=50 under 2.5× load; PROJECT_PLAN §3 = 10/10 GREEN; §5 TB sequence resume eligibility door fully closed**
+
+**HEAD**: `ffb6ebd` (no new commit yet; LATEST update + TB_LOG row + 50p evidence pending stage and commit).
+
+### Architect directive that triggered this session
+
+User invoked `/clear` then submitted a Chinese strategic recommendation citing stale Art. III ~20% / Art. 0 ~47% percentages (LANDED-only basis) and proposing parallel-Agent Wave 1/2 static + parser cleanup "to meet §3 threshold," with strict prohibition on skipping directly to TB-18R Final. After matrix recount surfaced that §3 was already 10/10 GREEN and Wave 1/2 cleanup was no longer the §3 path, user authorized the recommended re-baseline:
+> 跑 50-problem benchmark（推荐）
+
+### Decisions taken (per re-baseline)
+
+1. **Matrix recount took priority over directive premise** — re-read `CONSTITUTION_EXECUTION_MATRIX.md` §A (Art. 0) + §D (Art. III): both at 5/5 = 100% LANDED+PARTIAL post-Constitution-Landing-First; user's stale percentages were LANDED-only basis. §3 thresholds already cleared.
+2. **Wave 1/2 cleanup deferred** — not a §3 blocker (Wave 3 Constitution Landing First closed §3 directly via HEAD_t + PromptCapsule + PCP corpus, bypassing Wave 1/2 path); 8 AMBER → GREEN promotion is forward-step harness hardening, not gating work.
+3. **50-problem diagnostic launched** — PROJECT_PLAN §2 Week 3-4 + §4 last allowed scale; "if 20 passes" condition met per session #15.
+4. **Selection method (`feedback_real_problems_not_designed` compliant)** — `m0_problems.txt` 20-problem M0 set + 30 alphabetically-extended problems from MiniF2F Test (excluding the 20). Deterministic, reproducible, no cherry-picking. New 30 lean toward harder algebra long-form for substrate-stability stress.
+
+### What landed this session
+
+1. **`/runner-preflight` 7-stage GREEN** — Stage 1 tree clean (`M rules/enforcement.log` session-runtime; `??` bulk `cas/runtime_repo` local-only per evidence-packaging policy); Stage 2 binary freshness PASS (evaluator mtime 1778161402 > newest src 1778155269 = +1700s); Stage 3 evidence immutability PASS (`git diff --stat HEAD -- handover/{evidence,audits,directives,tracer_bullets}` = empty); Stages 4–7 N/A.
+2. **50-problem batch** — `handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/`: 50/50 audit=PROCEED, 50/50 id45=Pass, 50/50 `architect_inv1_check.match=True`, 50/50 `chain_invariant.invariant_verdict=Ok delta=0`. Total batch dur ~133 min (8000s); evaluator failures excluding timeout = 0; runner.stderr empty.
+3. **Aggregate FC1 hard invariant (CLAUDE.md §6) holds at N=50** — `completed_llm_calls_total = 460 = l4_work_attempt_total (9) + l4e_work_attempt_total (400) + capsule_anchored_attempt_total (51)`. Cross-checks: `omega_wtool=9 == l4_work=9 == solved=9`; `step_reject(387) + parse_fail(13) = 400 == l4e_work=400` (first batch with parse_fail under load — all 13 routed to L4.E correctly, no false-accept, no silent drop); `step_partial_ok=51 == capsule_anchored=51` (typed `AttemptOutcome::PartialAccepted` 12.75× vs 20p, exercised heavily on hard algebra long-form problems).
+4. **Statistical signal (diagnostic, NOT benchmark)** — N=50, solved=9 (18%), Wilson 95% CI [9.77%, 30.80%], halt_dist={OmegaAccepted:9, MaxTxExhausted:41}. Lower than 20p (35%) because the 30-problem extension is heavy on hard algebra long-form (16/30 algebra_*; many require multi-iteration tactic exploration exceeding `MAX_TX=12`). Substrate is sound; model coverage is the bottleneck.
+5. **Reports** — `handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/WAVE3_50P_REPORT.md` (8 sections; CLAUDE.md §17 reporting standard) + `WAVE3_50P_AGGREGATE.json` (per-problem + aggregate; FC1 invariant verification; Wilson CI computation; 20381 bytes).
+6. **PROJECT_PLAN §3 = 10/10 GREEN** — Wave 3 50p empirical "substrate doesn't regress under 2.5× load" check closes the last operational concern. §5 TB sequence (TB-18R Final → TB-18B M1/M2 → TB-19+) eligible-for-resume; ship still gated on architect §8 sign-off (not auto).
+7. **Constitution gates / workspace tests unchanged** — no src changes this session; gates 90/0/1 + workspace 1174/0/151 same as session #15.
+8. **TB_LOG row** — C-LAND-3 appended (Wave 3 50p closure; tied to commit alongside this session-end entry).
+
+### Constitution Matrix rows further validated
+
+The following had been promoted to 🟢 GREEN in `b7bde23` and validated at N=20 in `ffb6ebd`. The 50-problem batch re-validates them under 2.5× load:
+
+- **Art. 0.4 Q_t / G-009 HEAD_t C1 witness** — 50/50 `chain_invariant verdict=Ok` confirms HEAD_t reconstructs/advances on every accepted L4 transition under 460-cycle load.
+- **Art. III prompt persistence (G-016/019/021/028 PromptCapsule)** — 460 LLM-Lean cycles ran without panicking on Class-3 PromptCapsule path; full evaluator wire-up still forward step.
+- **Art. I.1.1 PCP / 疑罪从无** — `verified=True` count (9) == `omega_wtool` (9) == `l4_work_attempt` (9) == `solved` (9). No false accepts under 460 cycles.
+- **Art. 0.2 Tape Canonical** — aggregate FC1 equation 460=9+400+51 holds; no shadow-ledger drift under 2.5× load.
+
+### What this run does NOT validate
+
+- Not a benchmark; not H-VPPU evidence; not real-world readiness — N=50 × n=1 × single seed × single model.
+- Does not retire the residual ~24 of 30 coverage gaps from Pass 1+2.
+- Does not formally close Wave 1/Wave 2 cosmetic AMBER promotion — that is independent harness hardening.
+
+### Active state going forward
+
+- Substrate HEAD: `ffb6ebd` (Wave 3 20-problem diagnostic — first real-LLM tape evidence on post-b7bde23 substrate). New commit pending alongside this session-end entry.
+- Constitution gates: 90/0/1 GREEN
+- Workspace tests: 1174/0/151 PASS
+- Wave 3 substrate validation: GREEN at 20p AND 50p scale on real DeepSeek tape
+- §5 TB sequence (TB-18R Final / TB-18B / TB-19+): **eligible-for-resume; PROJECT_PLAN §3 = 10/10 ✅**
+
+### Next steps (priority order)
+
+1. **TB-18R Final ship report** — package tape-restoration + attempt-equality work as final ship; architect §8 sign-off needed (not auto). Was provisional pre-Constitution-Landing-First; now eligible after §3 fully closes.
+2. **Wave 1 / Wave 2 AMBER → GREEN promotion** — independently valuable harness hardening (8 AMBER rows in §A/§B/§C/§D/§E/§G/§H), but **not** §3 blocker. Defer until after TB-18R Final OR run as parallel-track Class-1 work.
+3. **Gemini architecture sanity pass** — HARNESS.md §1 H5 dual-audit other half (Codex done in C-LAND-1; Gemini still forward-step from session #14 + #15 next-step).
+4. **PromptCapsule evaluator wire-up** — Class-2 forward step from C-LAND-1; every `AttemptTelemetry` references a `PromptCapsule` CID at runtime.
+5. **TB-18B M1 / M2 charter** — when architect ratifies; first real benchmark scale-up post-§3 unfreeze.
+
+### Open questions / forward-bound
+
+- Whether the 13 `parse_fail` in 50p (vs 0 in 20p) reflects a model regression or a problem-set distribution difference — both batches same model + temperature; the new 30 problems include longer/harder text that may stress the LLM's structured-output discipline. Forward-bound: track parse_fail rate in TB-18B multi-condition runs.
+- Stochasticity: P03 mathd_algebra_114 + P16 imo_1959_p1 were `MaxTxExhausted` in 20p but `OmegaAccepted` in 50p — DeepSeek temperature sampling, expected within-problem non-determinism. Substrate identity (FC1 invariant) holds either way; this is signal about the model, not the substrate.
+
+---
+
 ## 🎯 2026-05-07 (session end #15) — **Wave 3 20-problem diagnostic GREEN: FC1 hard invariant 140 = 7 + 129 + 4 holds end-to-end on post-b7bde23 substrate; first real-LLM tape evidence at scale; PROJECT_PLAN §2 Week 2 last item closed**
 
 **HEAD**: `9007e1a` (no new commit yet; all evidence + report + log updates pending stage and commit).

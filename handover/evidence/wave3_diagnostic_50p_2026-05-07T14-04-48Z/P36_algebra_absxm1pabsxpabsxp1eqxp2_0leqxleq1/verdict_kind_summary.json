@@ -1,0 +1,23 @@
+{
+  "cas_object_type_counts": {
+    "ProposalPayload": 16,
+    "Generic": 4,
+    "LeanResult": 8,
+    "AttemptTelemetry": 9,
+    "CompressedRunLog": 1,
+    "EvidenceManifest": 1,
+    "EvidenceCapsule": 1
+  },
+  "lean_result_count": 8,
+  "attempt_telemetry_count": 9,
+  "tool_dist": {
+    "step": 8,
+    "step_reject": 8,
+    "parse_fail": 1
+  },
+  "step_partial_ok_count": 0,
+  "omega_wtool_count": 0,
+  "step_reject_count": 8,
+  "parse_fail_count": 1,
+  "note": "verdict_kind decoded indirectly via id45 PASS in audit_tape (assert_45 4-arm typed match over every LeanResult); step_partial_ok > 0 indicates AttemptOutcome::PartialAccepted records emitted per Phase 2 directive \u00a75.2"
+}

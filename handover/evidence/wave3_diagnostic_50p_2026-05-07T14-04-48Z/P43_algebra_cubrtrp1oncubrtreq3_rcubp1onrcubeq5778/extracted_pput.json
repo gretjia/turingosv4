@@ -1,0 +1,1 @@
+{"tx_count": 8, "completed_llm_calls": 8, "halt": "OmegaAccepted", "solved": true, "hit_max_tx": false, "tool_dist": {"omega_wtool": 1, "step": 7, "parse_fail": 1, "step_reject": 5, "step_partial_ok": 1}}

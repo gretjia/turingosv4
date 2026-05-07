@@ -1,0 +1,11 @@
+{
+  "architect_inv_1": "chain_attempt_count == evaluator_reported_completed_llm_calls",
+  "chain_attempt_count": 8,
+  "evaluator_reported_completed_llm_calls": 8,
+  "evaluator_reported_tx_count_total": 12,
+  "non_llm_tx_diagnostic_gap": 4,
+  "match": true,
+  "attempt_outcomes": {},
+  "delta": 0,
+  "resolution_ref": "handover/alignment/OBS_TB18R_INV1_NONLLM_TX_2026-05-07.md"
+}

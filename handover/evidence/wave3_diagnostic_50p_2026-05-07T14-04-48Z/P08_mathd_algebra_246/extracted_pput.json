@@ -1,0 +1,1 @@
+{"tx_count": 12, "completed_llm_calls": 8, "halt": "MaxTxExhausted", "solved": false, "hit_max_tx": true, "tool_dist": {"step_partial_ok": 1, "step_reject": 4, "parse_fail": 3, "step": 5}}
