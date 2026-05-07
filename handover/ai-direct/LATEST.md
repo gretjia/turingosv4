@@ -6,6 +6,75 @@
 
 ---
 
+## 🎯 2026-05-07 (session end #14) — **Constitution Landing First: G-009 + G-012 + G-016+ substrate landed; 3 of 30 gap-audit blockers closed; landing map 28→30+ LANDED; freeze conditions re-evaluated**
+
+**HEAD**: `b7bde23` (Constitution Landing First commit; pushed to origin/main).
+
+### Architect directive that triggered this session
+
+User delivered three binding rulings + three top-level doctrine files (CLAUDE.md re-aligned + new HARNESS.md + new PROJECT_PLAN.md), authorized autonomous execution incl. LLM API + external auditor:
+- G-009 HEAD_t: Path-C hybrid; immediate C1 6-field witness, libgit2 C2 forward-step
+- G-012 PCP soundness: Lean tactic-mutation adversarial corpus first; MiniF2F-v2 misalignment second
+- G-016/G-019/G-021/G-028 prompt persistence: Class-3 PromptCapsule + L4 anchor by default; verbatim Class-4 audit-only
+
+### What landed this session
+
+1. **Three doctrine files** — `CLAUDE.md` (Constitutional Harness Engineering supersedes Atomic Agentic Engineering; §6 restored canonical formula `step + parse_fail + llm_err`), `HARNESS.md` NEW (H0–H5 layers + persistent-test list + strategic-blocker harness + kill gates + loop-mode boundaries), `PROJECT_PLAN.md` NEW (Constitution-First reset plan + landing map + waves + resume conditions + epistemic exit criteria).
+2. **G-009 HEAD_t C1 witness landed** — `src/state/head_t_witness.rs` (FC1-N45 NEW; 6-field architect §4.1 schema; derived view; `&QState` read-only API). Test gate `tests/constitution_head_t_witness.rs` 5/5. Matrix Art. 0.4 row 🟡 AMBER → 🟢 GREEN.
+3. **G-012 PCP corpus landed** — `cases/pcp_corpus/` (9 mutation classes + MANIFEST.json + README.md) + `tests/constitution_pcp_corpus.rs` 7/7. Pinned AttemptOutcome → L4ERejectionClass byte-stable mapping. Forward step: real-Lean replay against MiniF2F-v2 misalignment.
+4. **G-016/G-019/G-021/G-028 PromptCapsule landed** — `src/runtime/prompt_capsule.rs` (FC1-N44 NEW; Class-3 schema; architect §4.3 EXACTLY 7 fields; constructor refuses `hidden_fields_redacted=false`; `ObjectType::PromptCapsule` tail-additive). Test gate `tests/constitution_prompt_capsule.rs` 8/8. Matrix Art. III prompt-persistence: NEW row, **first LANDED prompt-persistence row in matrix history (was 0% LANDED)**.
+5. **Real evidence Phase 3 cc59b4d** — `handover/evidence/constitution_landing_phase3_2026-05-07T10-34-19Z/` (P38 + P49 + M0×5 = 7 problems): 7/7 `delta=0`, `invariant_verdict=Ok`, `audit=PROCEED`, `id45=Pass`. P04 mathd_algebra_113 mixed-tx case: tx_count=12, completed_llm_calls=9, l4e_work_attempt_count=9 — exact regression-guard target from `OBS_TB18R_INV1_NONLLM_TX_2026-05-07.md`.
+6. **Constitution gates: 70 → 90 PASS / 0 FAIL / 1 ignored** (+20 net; new files: `constitution_pcp_corpus` + `constitution_prompt_capsule` + `constitution_head_t_witness`). **Workspace tests: 1147 → 1174 PASS / 0 FAIL** (+27 net).
+7. **Trust-root rehash discipline** — 3 entries updated (`src/runtime/mod.rs` / `src/state/mod.rs` / `src/bottom_white/cas/schema.rs`).
+8. **External audit (HARNESS.md §1 H5)** — in-tree auditor: PASS (6 surfaces). External Codex (GPT-5): VETO → closed by removing `schema_version` field + adding `prompt_capsule_struct_field_count_is_exactly_seven` shape gate → re-audit PASS.
+
+### Coverage gap closure (Pass 3 partial)
+
+Of the 30 gaps from Pass 1+2 audit (`handover/audits/CONSTITUTION_COVERAGE_GAP_AUDIT_PASS_1_2026-05-07.md` + Pass_2):
+- **G-009 closed** (substrate; C2 libgit2 deferred)
+- **G-012 closed** (synthetic-corpus arm; MiniF2F-v2 misalignment deferred)
+- **G-016 / G-019 / G-021 / G-028 closed** (Class-3 PromptCapsule schema; evaluator wire-up deferred)
+- 24 gaps remaining (Type-1/2/3/4 mix; not load-bearing for feature-TB resume)
+
+### Freeze re-evaluation (PROJECT_PLAN.md §3 resume conditions check)
+
+- ✅ FC composite green
+- ✅ Art. III ≥ 60% LANDED+PARTIAL with at least one LANDED
+- ✅ HEAD_t C1 green
+- ✅ PCP synthetic corpus green
+- ✅ PromptCapsule anchored (schema landed; evaluator wire-up forward-step)
+- ✅ P38/P49 attempt equality green
+- ✅ `cargo test --workspace` 0 fail
+- ✅ `scripts/run_constitution_gates.sh` 0 fail
+- ✅ no unresolved critical BLOCKED-DECISION (3 of 3 strategic blockers settled)
+- ⏳ Art. 0 ≥ 70% LANDED+PARTIAL — needs explicit measurement
+
+**Conclusion**: feature-TB freeze can lift for TB-19+ pilot work in scope of architect's ruling, **conditional on next-session Art. 0 % measurement + 20-problem diagnostic** (PROJECT_PLAN.md §2 Week 2). NodeMarket / Polymarket / public benchmark report / H-VPPU claim / formal benchmark passed claim all remain forbidden until full Wave 3 exit (20-problem diagnostic green).
+
+### Active state going forward
+
+- Substrate HEAD: `b7bde23` (Constitution Landing First; pushed to origin/main)
+- Constitution gates: 90/0/1 GREEN
+- Workspace tests: 1174/0/151 PASS
+- TB-18R: subordinate to coverage closure (24 of 30 gaps still open); status unchanged from session #13 (Phase 3 v3 evidence locked at `8c15d61`; round-3 audit dispatch policy unchanged — held until coverage Pass 3 is more complete OR architect overrides)
+- TB-C0: shipped; Constitution Landing Gate canonical pre-merge invariant remains active
+
+### Next steps (priority order)
+
+1. **20-problem diagnostic real-test** (PROJECT_PLAN.md §2 Week 2) — verifies new substrate scales without attempt-equality regression; ~30–60 min API time
+2. **Gemini architecture sanity pass** (HARNESS.md §1 H5 dual-audit other half; Codex done)
+3. **PromptCapsule evaluator wire-up** (Class-2 forward step — every AttemptTelemetry references a PromptCapsule CID at runtime; per architect §4.3 "AttemptTelemetry / WorkTx references prompt_capsule_cid")
+4. **Pass 3 closure of remaining 24 coverage gaps** (Type-1/2/3/4 mix per Pass 1+2 audit)
+5. **HEAD_t C2 libgit2** + **MiniF2F-v2 misalignment corpus** (Week 5–8; major work, separate TBs)
+
+### Open questions / forward-bound
+
+- Art. 0 % measurement (do we already meet ≥70% LANDED+PARTIAL? matrix scan needed)
+- Whether to dispatch round-3 audit on TB-18R Phase 3 v3 evidence now that 3 of the load-bearing 30 gaps are closed (architect call)
+- Gemini second-opinion ROI (Codex VETO→PASS already caught one schema defect; Gemini may only flag test-scaffold edges per `feedback_audit_loop_roi_flip`)
+
+---
+
 ## 🎯 2026-05-07 (session end #13) — **TB-18R Phase 3 v3 fresh re-run on ship HEAD: 7/7 NATURAL PASS; constitution-coverage gap audit Pass 1 + Pass 2 complete; round-3 dispatch HELD pending coverage closure**
 
 **HEAD**: `8c15d61` (TB-18R Phase 3 v3 commit; 1 past prior session-end `11b987b`).
