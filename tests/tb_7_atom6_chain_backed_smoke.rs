@@ -240,8 +240,18 @@ async fn i110_chain_backed_smoke_end_to_end_synthetic_llm() {
     // ── Step 6: persist smoke evidence to the canonical handover dir ──
     // (best-effort; if dir unwritable, the test still passes — the on-disk
     // structural witness is the runtime_repo + cas under tmp).
+    //
+    // 2026-05-07 evidence-immutability fix: gated behind
+    // TURINGOS_TEST_REGENERATE_EVIDENCE=1 to prevent every `cargo test
+    // --workspace` from silently overwriting committed historical evidence
+    // (root cause identified in OBS_EVIDENCE_DRIFT_ROOT_CAUSE_2026-05-07.md).
+    // Default: skip write. Opt-in regeneration: set the env var.
     let evidence_dir = Path::new("handover/evidence/tb_7_chaintape_smoke_2026-05-01");
-    if let Ok(()) = std::fs::create_dir_all(evidence_dir) {
+    let regen_enabled = std::env::var("TURINGOS_TEST_REGENERATE_EVIDENCE")
+        .ok()
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
+    if regen_enabled && std::fs::create_dir_all(evidence_dir).is_ok() {
         let report_json = serde_json::to_string_pretty(&report).expect("serialize report");
         let _ = std::fs::write(evidence_dir.join("replay_report.json"), report_json);
         let facts_json = serde_json::to_string_pretty(&facts).expect("serialize facts");

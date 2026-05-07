@@ -42,6 +42,10 @@ GATES=(
   # tx_count, which inflates with architect-mandated admin scaffold). Closes
   # P04/P05 false-NegativeDelta on mixed-tx problems.
   constitution_runner_invariant_formula
+  # A0 2026-05-07 (OBS_EVIDENCE_DRIFT_ROOT_CAUSE): cargo tests writing to
+  # committed evidence dirs must be env-gated TURINGOS_TEST_REGENERATE_EVIDENCE.
+  # Closes the silent 11-files-per-cargo-test-run drift on TB-7/13/14 evidence.
+  constitution_no_evidence_drift_in_tests
 )
 
 # Run each gate file separately and collect per-test outcome.

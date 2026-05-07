@@ -421,10 +421,18 @@ async fn rq3_non_empty_tb13_chaintape_replays_with_state_root_match() {
     // Mirrors TB-7 chain-backed smoke pattern. If the dir is unwritable
     // (CI sandbox), the on-disk witness under TempDir is still authoritative
     // for the test's correctness assertions — evidence dump is forensic.
+    //
+    // 2026-05-07 evidence-immutability fix: gated behind
+    // TURINGOS_TEST_REGENERATE_EVIDENCE=1. See
+    // OBS_EVIDENCE_DRIFT_ROOT_CAUSE_2026-05-07.md.
     let evidence_dir = std::path::Path::new(
         "handover/evidence/tb_13_chaintape_smoke_2026-05-03",
     );
-    if std::fs::create_dir_all(evidence_dir).is_ok() {
+    let regen_enabled = std::env::var("TURINGOS_TEST_REGENERATE_EVIDENCE")
+        .ok()
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
+    if regen_enabled && std::fs::create_dir_all(evidence_dir).is_ok() {
         let report_json =
             serde_json::to_string_pretty(&report).expect("serialize report");
         let _ = std::fs::write(

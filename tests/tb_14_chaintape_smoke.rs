@@ -348,10 +348,18 @@ async fn tb_14_atom_6_post_wire_swap_chaintape_replay_preserves_price_index_dete
     );
 
     // ── Persist evidence to canonical handover dir (best-effort) ───────
+    //
+    // 2026-05-07 evidence-immutability fix: gated behind
+    // TURINGOS_TEST_REGENERATE_EVIDENCE=1. See
+    // OBS_EVIDENCE_DRIFT_ROOT_CAUSE_2026-05-07.md.
     let evidence_dir = std::path::Path::new(
         "handover/evidence/tb_14_chaintape_smoke_2026-05-03",
     );
-    if std::fs::create_dir_all(evidence_dir).is_ok() {
+    let regen_enabled = std::env::var("TURINGOS_TEST_REGENERATE_EVIDENCE")
+        .ok()
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
+    if regen_enabled && std::fs::create_dir_all(evidence_dir).is_ok() {
         let report_json =
             serde_json::to_string_pretty(&report).expect("serialize report");
         let _ = std::fs::write(
