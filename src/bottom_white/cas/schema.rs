@@ -108,6 +108,17 @@ pub enum ObjectType {
     /// per-aborted-attempt evidence so the chain-derived equation holds
     /// exactly after the sequencer drain barrier.
     TerminalAbortRecord,
+    /// Constitution Landing First 2026-05-07 (HARNESS.md §3 G-016/G-019/
+    /// G-021/G-028; architect ruling): canonical-encoded `PromptCapsule`
+    /// bytes — tape-resident proof that the agent's prompt context was
+    /// derivable from a fixed read-set + redaction policy + system prompt
+    /// template hash. Carries `prompt_context_hash`, `read_set`,
+    /// `policy_version`, `hidden_fields_redacted`, `visible_context_cid`,
+    /// `system_prompt_template_hash`, `agent_view_manifest_cid`. Verbatim
+    /// prompt bytes are NEVER stored here by default; verbatim is a
+    /// separate Class-4 audit-only artifact requiring explicit
+    /// ratification. See `src/runtime/prompt_capsule.rs`.
+    PromptCapsule,
     /// Generic / unclassified blob.
     Generic,
 }

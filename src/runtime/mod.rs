@@ -65,6 +65,9 @@ pub mod audit_assertions;
 /// TRACE_MATRIX FC1-N41 + FC1-N42 + FC1-N43 NEW (TB-18R R1 charter v2 §1 + Codex Gate 1 ratified 2026-05-06): per-LLM-Lean-cycle `AttemptTelemetry` + `LeanResult` + `TerminalAbortRecord` CAS object schemas. Closes failure-path asymmetry (omega ✅ / step_reject + parse_fail + llm_err + step_partial_ok ❌) documented in 2026-05-06 external-audit VETO. R2 wires evaluator hot path; R3 extends sequencer L4.E admission with `RejectionClass::LeanFailed=6 / ParseFailed=7 / SorryBlocked=8 / LlmError=9` tail-append.
 pub mod attempt_telemetry;
 
+/// TRACE_MATRIX FC1-N44 NEW (Constitution Landing First 2026-05-07; HARNESS.md §3 G-016/G-019/G-021/G-028; architect ruling §4.3): Class-3 `PromptCapsule` CAS schema — tape-resident proof that the agent's prompt context was derivable from a fixed read-set + redaction policy + system-prompt template hash, without storing verbatim prompt bytes. Closes Art. III selective shielding / prompt persistence gap (0% LANDED → first LANDED row).
+pub mod prompt_capsule;
+
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 

@@ -1,141 +1,900 @@
-# TuringOS v4
+# TuringOS v4 — CLAUDE.md
 
-## What
-Silicon-Native Microkernel for LLM Formal Verification Swarm.
-Rust 2021, tokio, serde_json. Mission: MiniF2F Lean 4.
+## 0. Identity
 
-## Why
-- 唯一对齐文档: `constitution.md` (反奥利奥架构)
-- 压缩即智能: 抽象原则进宪法 / 具体情境进 `cases/`
-- 机制 > 参数 > 提示 (Art. V + C-021/C-031/C-034/C-043)
-- **Tape-first**: 纸 / write tool / 橡皮 / 严格 predicates 决定 L4 / L4.E。没有 tape activity 的测试，一律不算 TuringOS 测试 (架构师 2026-05-06)
+TuringOS is a tape-first constitutional operating system for LLM / AGI agents.
 
-## ⚡ PRIME OPERATING MODE — Constitutional Harness Engineering (since 2026-05-06)
+Current primary mission:
 
-**取代 Atomic Agentic Engineering**。来源: `handover/directives/2026-05-06_TB18R_EMERGENCY_HARNESS_RESET_DIRECTIVE.md`.
+- Lean / MiniF2F formal proof tasks
+- ChainTape-first runtime
+- Constitutional Harness Engineering
 
-### Order of operations (硬规则)
+This repository is not an ordinary agent framework and not a benchmark wrapper.
+It is an operating substrate where black-box agents can only affect the world through white-box tape, predicates, tools, signatures, and economic discipline.
+
+The project exists to instantiate the Turing-machine discipline:
+
 ```
-1. Constitutional harness as executable tests   ← FIRST
-2. Minimal real run that exercises tape         ← SECOND
-3. External audit ONLY after evidence passes    ← THIRD
-4. Documentation packages proof, never substitutes for tape
+paper      = ChainTape / CAS / state ledger
+pencil     = WorkTx / write tool / externalized proposal
+rubber     = L4.E / rejection / revert / compensation / EvidenceCapsule
+discipline = predicates / constitution gates / system-only tx / economic conservation
+person     = black-box Agent
 ```
 
-**禁止反序**: 不再 `charter → atom → self-audit → external audit → more docs → delayed test`。
-**禁止 ceremony**: 流程必须服务 tape，不是 tape 服务流程。
-**没有 tape evidence = 不算测试**：评估器 stdout / 私有日志不构成 TuringOS 证据。
+If meaningful activity is not on tape, it is not a TuringOS run.
 
-### 三个 Flowchart Gate (Class 3/4 必过)
+***
 
-**FC1 — Runtime Loop Gate**
-- 循环: `Q_t → rtool/context → Agent output → predicate/oracle → wtool → L4 or L4.E`
-- 硬不变量: `externalized_attempt_count == L4_WorkTx_attempt_count + L4E_WorkTx_rejection_count + explicitly_anchored_capsule_attempt_count`
-- 影响 proof state / future prompt / Lean check / final composite proof 的外部化 LLM-Lean cycle 必须 tape-visible：
-  - predicate pass → L4
-  - predicate fail → L4.E
-  - high-volume logs → CAS EvidenceCapsule + L4 anchor (不是 attempt 替代)
+## 1. Supreme Source-of-Truth Order
 
-**FC2 — Boot / Genesis Gate**
-- 每个真实 run 必须可从以下重建: `genesis_report + ChainTape + CAS + agent registry + system pubkeys`
-- 禁止: memory-only preseed / retroactive evidence rewrite / global pointer source-of-truth (TB-16 OBS_R022 教训)
+Read and obey in this order:
 
-**FC3 — Meta / Markov Gate**
-- EvidenceCapsule + Markov capsule = derived view，不是隐藏 ground truth
-- raw logs shielded; capsule 必须 derivable from ChainTape + CAS
-- dashboard = materialized view only (不可成 source of truth)
+1. `constitution.md`
+2. the three constitution flowcharts
+3. ChainTape + CAS evidence
+4. `handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md`
+5. `handover/alignment/TRACE_FLOWCHART_MATRIX.md`
+6. `handover/ai-direct/LATEST.md`
+7. `handover/tracer_bullets/TB_LOG.tsv`
+8. current TB charter / directive / ratification
+9. dashboard / reports / README files
 
-### Constitutional CI tests + Kill gates
-权威列表 + 当前状态：`bash scripts/run_constitution_gates.sh` 或 `make constitution`。
-每个 gate = 一个 `tests/constitution_*.rs` cargo test。任一 fail = halt + 不算 TuringOS run。
-CI required workflow：`.github/workflows/constitution_gates.yml`（merge gate）。
-**CLAUDE.md 不编码具体 gate 名称 / 数量**（rot 风险；TB-C0 ship 时已 64 个，将持续增长 — 跟脚本，不跟 CLAUDE.md）。
+Hierarchy:
 
-### Audit policy 调整
-- **Class 0/1** (docs / additive): self-audit 即可
-- **Class 2** (production wire-up): self-audit + smoke
-- **Class 3** (auth/crypto/money/capability replay): harness → real-run-passes → external audit (顺序不可逆)
-- **Class 4** (constitution / sequencer admission / typed-tx schema / canonical signing payload): harness → minimal real run → architect ratification → external audit
-- **若真实样本失败 → 直接回实现层，不进入审计** (节省 audit dispatch entropy)
+```
+constitution > flowcharts > ChainTape/CAS > executable gates > reports
+```
 
-## Code Standard (Art. I.1 + C-004 + C-027)
-- `cargo check` / `cargo test --workspace` 必过；`.env` 永不 commit
-- STEP_B_PROTOCOL（不直接编辑 main）适用于:
-  - `src/kernel.rs` + `src/bus.rs` + `src/sdk/tools/wallet.rs` + `src/state/sequencer.rs` (kernel/economy/admission)
-  - `src/state/typed_tx.rs` + `src/bottom_white/cas/schema.rs` (Class-4 typed-tx + CAS schema; TB-18R 2026-05-06 加入)
-- 任何影响行为的参数必须 env/config 可覆盖，不可硬编码
+Dashboard, stdout, evaluator counters, README, smoke summaries, audit text, and H-VPPU reports are not source of truth.
+They are materialized views or evidence packaging.
 
-## Audit Standard (Art. V.1 + C-010 + C-023 + C-035, 2026-05-06 reset)
-- Generator ≠ Evaluator：代码作者不可是唯一审计者
-- **新顺序**: external audit AFTER tape evidence；不再先审 schema 再决定要不要跑 (`feedback_audit_after_evidence` 升级为全 Class-3/4 适用)
-- 所有 merge / phase 决策双外审（Codex + Gemini）；VETO > CHALLENGE > PASS
-- 宪法违规立即 BLOCKER，不可延期、不可"可接受"
+If a report contradicts ChainTape/CAS, trust ChainTape/CAS.
+If ChainTape/CAS contradict constitution gates, stop.
 
-## Report Standard (Art. I.2 + Art. II.2.1 + Art. IV 强制, C-052 + C-053 + C-057 + C-059 + C-061)
-- **主指标**（每报必填）: ΣPPUT + Mean PPUT (solved) + 95% CI (Wilson)
-- Art. I.2 三大统计信号不可缺: **信誉** (reputation_distribution p50/p90/max) + 效用 (PPUT) + 共识 (如适用)
-- Art. IV 终态区分: `halt_reason_distribution` {OmegaAccepted, MaxTxExhausted, WallClockCap, ComputeCapViolated, ErrorHalt}
-- 多 agent (n≥2) 专用: `parent_selection_entropy` + `pairwise_payload_diversity_mean`；任一 < 0.25 = Art. II.2.1 告警
-- solve count 不可独立陈述，必须配对 PPUT；以 solve count 起头 = 违宪
-- **新强制 (2026-05-06; clarified 2026-05-07)**: 每个 run 必填 `attempt_count_equality_report`：
-  - **Canonical invariant** = binary `tb_18r_compute_invariant` 的 3-term: `evaluator_reported_completed_llm_calls == l4_work_attempt_count + l4e_work_attempt_count + capsule_anchored_attempt_count`
-  - **`evaluator_reported_completed_llm_calls`** = `tool_dist.step + tool_dist.parse_fail + tool_dist.llm_err`（PPUT_RESULT；每个对应一次 r2_write_attempt_telemetry callsite）
-  - **NOT** `evaluator_reported_tx_count`（broader 计数，含 architect-mandated admin scaffold: TB-6 atom-3 synthetic preseed + TB-C0 atom A.1 synthetic L4.E gate + sequencer system-terminal-summary）
-  - 不等 = halt + 不算 TuringOS run。clarification 历史: `handover/alignment/OBS_TB18R_INV1_NONLLM_TX_2026-05-07.md`
+***
 
-## Reproducibility Standard (Art. I + C-012/C-016/C-032/C-039)
-- OMEGA accept 必留 self-contained artifact (`proofs/*.lean` + `gp_payload`)
-- 度量工具上线即冻结；Oracle 参数冻结；实验禁混 Oracle 模式
-- 中间件若修改数学内容 → 是 ArchitectAI 贡献，不是 swarm 涌现（C-023）
-- **每个 evidence run 必须 replayable from `genesis_report + ChainTape + CAS + agent registry + system pubkeys`** (FC2 Gate)
+## 2. Prime Operating Mode — Constitutional Harness Engineering
 
-## Alignment Standard (Art. IV + C-069)
-- 权威对齐文件: `handover/alignment/TRACE_MATRIX_v0_2026-04-22.md`
-  (后续 rev: `TRACE_MATRIX_vN.md`)
-- 每个 src/ pub 符号必须映射到宪法 flowchart 元素、标 orphan+justification、
-  或 BLOCK merge。doc-comment backlink 格式: `/// TRACE_MATRIX <FC-id>: <role>`
-- Conformance tests: `tests/fc_alignment_conformance.rs` — 每个 ✅ 行 ≥1
-  witness test；`#[ignore]` stub 覆盖 📅 deferred rows
-- 宪法 flowchart 修改仅 human architect 可触发，需重跑 Phase Z′ 6-stage
-- constitution.md hygiene 观察登记到 `handover/alignment/OBS_*.md`，不改宪法
+This supersedes Atomic Agentic Engineering.
 
-## Common Law (宪法 + 判例)
-宪法高度压缩，具体裁决查 `cases/C-xxx.yaml` (facts → ruling → precedent)
-- 按条款查: `grep -l "Art. I.1" cases/*.yaml`
-- 映射：`cases/V3_LESSONS.md` (50 v3 教训 → 现行判例)
-- 编号跳号：C-038 / C-042 为 reserved（见 C-041/C-043 预引用）
+### 2.1 Required order
 
-## Active state (动态；单一来源)
-- **Session-level state**: `handover/ai-direct/LATEST.md`（每 session 末尾更新；ship 状态 / freeze / 当前 charter / forward-bound items 全在这里）
-- **Ship 总账 (authoritative)**: `handover/tracer_bullets/TB_LOG.tsv`
-- **当前操作模式**: Constitutional Harness Engineering（since 2026-05-06；reinforced post-TB-C0 ship 2026-05-07）
-- **CR-C0.10**: 每个新 feature TB merge 前必过 `bash scripts/run_constitution_gates.sh`
-- **CLAUDE.md 不编码 ship 状态 / gate 数量 / round 数 / freeze 状态 / TB 名单**（rot 风险；这些都属于 LATEST.md 或 TB_LOG.tsv）
-- **永久工具入口**（不变）：
-  - `bash scripts/run_constitution_gates.sh` — constitution gate runner
-  - `python3 scripts/fc_witness_extract.py <run_dir>` — FC-witness 单题
-  - `scripts/regenerate_post_fix_evidence.sh` — STRICT 聚合（EXPECTED_FC_NODES universe）
-  - `handover/alignment/FC_WITNESS_CATALOG_2026-05-06.md` — real-problem 绑定
-  - `handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md` — clause→code→test→smoke 矩阵
+1. Constitution harness as executable tests
+2. Minimal real run exercising tape
+3. Implementation until harness green
+4. External audit after evidence exists
+5. Documentation packages proof, never substitutes for proof
 
-## Memory (跨 session 持久; auto-loaded MEMORY.md 是 hot index)
-- 高频 rule (feedback_*) + 项目状态 (project_*) + 外部引用 (reference_*) 路径: `~/.claude/projects/-home-zephryj-projects-turingosv4/memory/`
-- 写新 memory: 文件名 `<type>_<topic>.md` 加 frontmatter + 在 MEMORY.md 加 ≤150 字符 hook
-- 不要在 memory 里复述 TB_LOG.tsv 已有的 ship facts; 只记 session-level 教训和 surprise
+Forbidden old loop:
 
-## Pre-action gates + Cadence (mechanism > norm)
-- **Before any runner script** that mutates `handover/evidence/` 或运行真题评估：invoke `/runner-preflight` skill（7 stages: tree clean / binary mtime / evidence immutability / Class classification / FC-trace / charter / audit-round count）。memory: `feedback_pre_runner_checklist`
-- **After TB SHIPPED FINAL** 或 audit rounds > 3：invoke `/harness-reflect` skill。memory: `feedback_harness_reflect_cadence`
-- **Before writing new `feedback_*.md`**: 先问 "什么 mechanism 拦截这个违规？" 没有 mechanism 就先建 mechanism（hook / preflight / cargo test / CI gate），不要只加 norm。memory: `feedback_norm_needs_mechanism`
+```
+charter -> atom -> self-audit -> external audit -> more docs -> delayed test
+```
 
-## Docs (按需加载)
-| 文档 | 何时加载 |
-|------|---------|
-| `docs/architecture.md` | 修改 src/ 核心模块时 |
-| `docs/economics.md` | 修改经济引擎 (wallet/market) 时 |
-| `docs/hardware.md` | SSH/部署/远程操作时 |
-| `docs/experiments.md` | 创建或运行实验时 |
-| `docs/rules.md` | 触发规则或修改规则时 |
+Required loop:
 
-## User
-独狼研究员, 零编程基础 vibe coder. 中文为主, 技术术语英文可.
+```
+constitution gate -> real run -> debug -> fix -> rerun -> audit -> ship
+```
+
+If real evidence fails, return to implementation.
+Do not spend audit cycles on a failing harness.
+
+### 2.2 No tape, no test
+
+The following are not TuringOS evidence by themselves:
+
+- stdout logs
+- private evaluator counters
+- human-readable dashboard
+- LLM self-report
+- final proof only
+- post-hoc README
+- unanchored JSON
+- memory-only preseed
+- global latest pointer
+
+A valid run must be reconstructable from:
+
+```
+genesis_report
++ ChainTape
++ CAS
++ agent registry
++ system pubkeys
++ replay/audit verifier
+```
+
+***
+
+## 3. The Three Flowchart Gates
+
+Every non-trivial TB must declare which flowchart gates it touches.
+
+### 3.1 FC1 — Runtime Loop Gate
+
+Canonical loop:
+
+```
+Q_t
+-> rtool / scoped context
+-> Agent externalized output
+-> predicate / oracle
+-> wtool / Sequencer
+-> L4 accepted or L4.E rejection evidence
+```
+
+Hard invariant:
+
+```
+externalized_attempt_count
+=
+  L4_WorkTx_attempt_count
++ L4E_WorkTx_rejection_count
++ explicitly_anchored_capsule_attempt_count
+```
+
+Every externalized LLM-Lean cycle that affects proof state, future prompt context, Lean checking, final composite proof, economic state, scheduler state, price signal, or market logic must be tape-visible.
+
+Routing rule:
+
+```
+predicate pass    -> L4 accepted
+predicate fail    -> L4.E rejection evidence
+high-volume evidence -> CAS EvidenceCapsule + L4 anchor
+```
+
+Private chain-of-thought is not recorded.
+Externalized proposals, tool calls, Lean checks, parse failures, proof artifacts, and any output used by future system state are not private CoT once they affect the system.
+
+### 3.2 FC2 — Boot / Genesis Gate
+
+Every real evidence run must be replayable from:
+
+- `genesis_report`
+- ChainTape
+- CAS
+- agent registry
+- system pubkeys
+
+Forbidden:
+
+- memory-only preseed
+- post-hoc genesis reconstruction
+- retroactive evidence rewrite
+- global latest pointer as source of truth
+- untracked system key / agent key
+
+All production initialization must be represented by accepted chain events such as:
+
+- `on_init`
+- `TaskOpenTx`
+- `EscrowLockTx`
+- `AgentRegistry` entry
+- system key pinning
+
+### 3.3 FC3 — Meta / Markov Gate
+
+`EvidenceCapsule` and `MarkovEvidenceCapsule` are derived views, not hidden ground truth.
+
+Rules:
+
+- raw logs shielded
+- capsules derived from ChainTape + CAS
+- latest capsule can guide the next run
+- deep history requires explicit Markov override
+- no global latest pointer as canonical input
+- no automatic predicate/tool mutation by ArchitectAI
+- JudgeAI / VetoAI remains veto-only
+
+***
+
+## 4. The Three Strategic Decisions Are No Longer Open
+
+Do not stall on these again.
+
+### 4.1 G-009 / HEAD_t
+
+Decision: **Path C hybrid**.
+
+Immediate C1 witness:
+
+```
+HEAD_t = {
+  state_root,
+  l4_head,
+  l4e_head,
+  cas_root,
+  economic_state_root,
+  run_id
+}
+```
+
+Requirements:
+
+- every accepted transition updates `HEAD_t`
+- replay reconstructs `HEAD_t`
+- dashboard reads derived state only
+- no hidden current-state pointer
+
+Later C2 production path:
+
+```
+libgit2-backed refs:
+  refs/chaintape/l4
+  refs/chaintape/l4e
+  refs/chaintape/cas
+```
+
+Do not choose subprocess git as primary unless architect explicitly reverses this decision.
+
+### 4.2 G-012 / PCP soundness
+
+Decision: **Lean tactic-mutation adversarial corpus first; MiniF2F-v2 misalignment second**.
+
+Minimum corpus:
+
+- valid proof
+- mutated invalid proof
+- sorry insertion
+- type mismatch
+- wrong theorem name
+- off-by-one arithmetic
+- irrelevant theorem
+- partial tactic accepted but final invalid
+- parse-invalid output
+
+Gate:
+
+- valid proofs pass
+- mutated invalid proofs fail
+- invalid proofs never enter L4 accepted
+- invalid proofs enter L4.E or anchored EvidenceCapsule
+
+Synthetic adversarial tests are allowed as negative controls, but they cannot replace real public problem witnesses.
+
+### 4.3 G-016 / G-019 / G-021 / G-028 / prompt persistence
+
+Decision: **Class-3 PromptCapsule + L4 anchor by default**.
+
+Default `PromptCapsule`:
+
+```
+PromptCapsule {
+  prompt_context_hash,
+  read_set,
+  policy_version,
+  hidden_fields_redacted,
+  visible_context_cid,
+  system_prompt_template_hash,
+  agent_view_manifest_cid
+}
+```
+
+Rules:
+
+- `PromptCapsule` -> CAS
+- `AttemptTelemetry` / `WorkTx` references `prompt_capsule_cid`
+- L4/L4.E anchor references the attempt
+
+Do not put full verbatim prompt into canonical tape by default.
+Verbatim prompt may be stored only as encrypted/audit-only Class-4 artifact with explicit ratification.
+
+***
+
+## 5. Evidence Taxonomy
+
+### 5.1 L4 accepted transition
+
+A predicate-passing state transition that advances canonical state.
+
+Examples:
+
+- `TaskOpenTx`
+- `EscrowLockTx`
+- `WorkTx` accepted by predicates
+- `VerifyTx` accepted
+- `FinalizeRewardTx` system-only payout
+- `RunExhaustedTx` if system-emitted terminal state
+- `TaskExpireTx`
+
+### 5.2 L4.E rejection evidence
+
+A submitted transaction or externalized attempt that fails predicate/policy and must not advance accepted state.
+
+Examples:
+
+- `LeanFailed`
+- `ParseFailed`
+- `SorryBlocked`
+- `StaleParentRoot`
+- `InsufficientBalance`
+- `SystemTxForbiddenOnAgentIngress`
+- `InvalidPromptCapsule`
+
+### 5.3 CAS high-dimensional evidence
+
+Examples:
+
+- `AttemptTelemetry`
+- `LeanResult`
+- Proposal payload
+- `PromptCapsule`
+- proof artifact
+- raw Lean stderr/stdout
+- `EvidenceCapsule`
+- `AgentAutopsyCapsule`
+- `MarkovEvidenceCapsule`
+
+CAS objects must be reachable through ChainTape references or capsule manifests.
+
+### 5.4 Dashboard / report
+
+A read-only materialized view.
+It must be deletable and regeneratable from ChainTape + CAS.
+
+Never treat dashboard as source of truth.
+
+***
+
+## 6. Externalized Attempt Rule
+
+An externalized attempt is any model output that is:
+
+- parsed
+- sent to Lean
+- used as proof prefix
+- used to build final composite proof
+- used in future prompt context
+- submitted to a tool
+- used to change scheduling
+- used in economic or market logic
+
+For every externalized attempt:
+
+- `AttemptTelemetry` must exist in CAS.
+- `LeanResult` must exist if Lean was called.
+- `PromptCapsule` must exist if prompt context influenced the attempt.
+- The attempt must be represented in L4 or L4.E, or explicitly counted in an anchored EvidenceCapsule.
+
+Required invariant:
+
+```
+evaluator_reported_completed_llm_calls
+=
+  l4_work_attempt_count
++ l4e_work_attempt_count
++ capsule_anchored_attempt_count
+```
+
+Canonical LHS scope (clarified 2026-05-07 per `OBS_TB18R_INV1_NONLLM_TX`):
+
+```
+evaluator_reported_completed_llm_calls
+=
+  tool_dist.step + tool_dist.parse_fail + tool_dist.llm_err
+```
+
+The LHS must NOT use `evaluator_reported_tx_count` — that field includes architect-mandated non-LLM admin scaffold (TB-6 atom-3 synthetic preseed, TB-C0 atom A.1 synthetic L4.E gate, sequencer system-terminal-summary) which inflates the count and produces false NegativeDelta on mixed-tx problems. Each of `step` / `parse_fail` / `llm_err` corresponds to one `r2_write_attempt_telemetry` call site — i.e., one externalized LLM-Lean cycle.
+
+If this equality fails:
+
+- HALT
+- do not continue benchmark
+- do not audit as pass
+- do not ship
+
+***
+
+## 7. Constitution Landing Policy
+
+Every constitution clause must have a row in:
+
+`handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md`
+
+Each row must map:
+
+```
+clause / flowchart node
+-> code surface
+-> executable test
+-> smoke/evidence witness
+-> current status
+-> kill condition
+```
+
+Allowed statuses:
+
+- `LANDED`
+- `PARTIAL`
+- `NOT-LANDED`
+- `BLOCKED-DECISION`
+- `DEFERRED-FORWARD`
+- `N/A`
+
+Documentation-only coverage is not landed.
+
+If a critical clause is `NOT-LANDED` or `BLOCKED-DECISION`, feature work touching that area is frozen.
+
+***
+
+## 8. Constitutional CI
+
+The gate runner is authoritative:
+
+```
+bash scripts/run_constitution_gates.sh
+make constitution
+```
+
+Expected maintained surfaces:
+
+- `handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md`
+- `handover/alignment/TRACE_FLOWCHART_MATRIX.md`
+- `tests/constitution_*.rs`
+- `tests/fc_alignment_conformance.rs`
+
+A constitution gate must be able to fail.
+A test that cannot fail is documentation, not a gate.
+
+***
+
+## 9. Development Risk Classes
+
+### Class 0 — Docs / charter / plan
+
+Allowed:
+
+- draft docs
+- update charter
+- update matrix
+- update handover
+
+Audit:
+
+- self-check
+- architect/user review if policy-affecting
+
+### Class 1 — Additive isolated module
+
+Allowed:
+
+- pure helper
+- parser
+- formatter
+- non-authoritative view
+
+Audit:
+
+- self-audit + `cargo test --workspace`
+
+### Class 2 — Production wire-up
+
+Examples:
+
+- evaluator adapter
+- dashboard regeneration
+- ChainTape replay verifier
+- benchmark harness
+
+Audit:
+
+- constitution harness
+- minimal real run
+- self-audit
+- external implementation audit when non-trivial
+
+### Class 3 — Auth / money / CAS integrity / capability / market / production evidence
+
+Examples:
+
+- `EconomicState` mutation
+- system-emitted tx
+- CAS evidence packaging
+- market position / CompleteSet
+- `audit_tape`
+- controlled market smoke
+
+Required order:
+
+```
+harness -> real evidence -> external audit
+```
+
+Do not audit before evidence exists.
+
+### Class 4 — Constitution / sequencer admission / typed tx schema / canonical signing payload / RootBox
+
+Requires:
+
+- explicit architect ratification
+- harness
+- minimal real run if applicable
+- external audit
+
+Single-word messages such as:
+
+- `fix`
+- `go`
+- `ok`
+- `continue`
+- `可以`
+
+do not constitute Class-4 sign-off.
+
+***
+
+## 10. Authorization Semantics
+
+For Class 3/4 or ship decisions, authorization must name:
+
+- scope
+- allowed path
+- forbidden path
+- risk class
+- whether audit is required
+- whether ship is authorized
+
+A one-word instruction may authorize candidate remediation only.
+It does not authorize final ratification or ship.
+
+For VETO remediation, create or cite:
+
+`handover/directives/YYYY-MM-DD_<topic>_REMEDIATION_DIRECTIVE.md`
+
+It must state:
+
+- authorized changes
+- forbidden changes
+- rollback requirement
+- allowed files/surfaces
+- ship gates
+
+***
+
+## 11. Pre-Action Gates
+
+Before any runner script that mutates `handover/evidence/` or runs true evaluation:
+
+invoke `/runner-preflight`
+
+It must check:
+
+- clean tree
+- binary mtime/current HEAD
+- evidence immutability
+- risk class
+- FC trace
+- charter existence
+- audit-round state
+
+If preflight fails, do not run.
+
+After TB shipped final or audit rounds > 3:
+
+invoke `/harness-reflect`
+
+Before adding a new `feedback_*.md`, ask:
+
+> What mechanism will catch this next time?
+
+If no mechanism exists, build mechanism first.
+
+***
+
+## 12. Code Standard
+
+Required:
+
+- `cargo check`
+- `cargo test --workspace`
+- `bash scripts/run_constitution_gates.sh`
+
+Forbidden:
+
+- `.env` commit
+- hardcoded behavior parameter
+- `f64` in money path
+- memory-only canonical state
+- shadow ledger source of truth
+- dashboard-only source of truth
+
+STEP_B protocol applies to:
+
+- `src/kernel.rs`
+- `src/bus.rs`
+- `src/sdk/tools/wallet.rs`
+- `src/state/sequencer.rs`
+- `src/state/typed_tx.rs`
+- `src/bottom_white/cas/schema.rs`
+- canonical signing payload surfaces
+
+Any change touching sequencer admission, typed tx schema, or canonical signing payload is at least Class-4 candidate until classified otherwise.
+
+***
+
+## 13. Economy Laws
+
+The economic constitution:
+
+- Information is Free
+- Only Investment Costs Money
+- 1 Coin = 1 YES + 1 NO
+- `on_init` is the only legal base-Coin mint
+
+Hard gates:
+
+- reads/search/thinking do not spend core Coin
+- writes/append/challenge/verify/settle require stake/escrow/bond as specified
+- total Coin conserved after `on_init`
+- YES/NO shares are claims, not Coin
+- `NodePosition` is exposure index, not Coin
+- `WalletTool` is read-only projection
+- system tx cannot be agent-submitted
+- no ghost liquidity
+- no automatic YES/NO injection
+- no `f64` money path
+
+Market price is a statistical signal, not truth.
+
+***
+
+## 14. Predicate / Oracle Rules
+
+Boolean predicates define hard boundary:
+
+```
+predicate pass -> may enter L4
+predicate fail -> L4.E or anchored evidence
+```
+
+Lean verification must be represented as durable evidence:
+
+- `LeanResult` CAS object
+- proof artifact CID
+- predicate result
+- L4 / L4.E route
+
+Do not let evaluator stdout become oracle truth.
+
+Partial verdicts must be typed.
+Do not allow ambiguous states such as:
+
+```
+exit_code = 0
+verified = false
+error_class = None
+```
+
+unless an explicit typed `PartialAccepted` / `PartialVerdict` state exists and is covered by tests.
+
+***
+
+## 15. Shielding Rules
+
+Do not broadcast raw failure logs.
+
+Allowed:
+
+- `public_summary`
+- low-pollution rejection class
+- typical error summary
+- private/audit-only diagnostic CID
+
+Forbidden:
+
+- raw Lean stderr in ordinary Agent read view
+- raw autopsy broadcast
+- hidden benchmark leak
+- private predicate leak
+- global context stuffing with historical logs
+
+Agent read views must be scoped, reconstructable, and shielded.
+
+***
+
+## 16. Tape / ID Canonicality
+
+Canonical IDs and shadow IDs must not be mixed.
+
+Rules:
+
+- canonical `WorkTx.tx_id` belongs to ChainTape / L4
+- shadow tape id belongs only to legacy local kernel tape
+- `PriceIndex` / `NodePosition` / `NodeMarket` must use canonical ids
+- legacy `bus.append parent_id` must not receive canonical `TxId`
+
+If a feature needs graph structure, build it from:
+
+- L4 accepted `WorkTx`
+- L4.E rejected attempts
+- `ProposalTelemetry.parent_tx`
+- `AttemptTelemetry.parent_attempt_tx`
+- CAS artifacts
+
+Do not read legacy shadow tape as source of truth.
+
+***
+
+## 17. Reporting Standard
+
+Every run report must include:
+
+- commit HEAD
+- binary build identity
+- command used
+- risk class
+- `genesis_report` path
+- ChainTape path
+- CAS path
+- agent registry path
+- system pubkeys
+- `attempt_count_equality_report`
+- replay report
+- dashboard regeneration statement
+
+For formal proof benchmark reports, include:
+
+- ΣPPUT
+- Mean PPUT on solved
+- 95% CI if reporting aggregate
+- `halt_reason_distribution`
+- proposal / attempt counts
+- accepted / rejected counts
+- no fake accepted nodes status
+
+Do not start a report with solve count alone.
+Solve count without tape and PPUT is misleading.
+
+***
+
+## 18. Benchmark Rules
+
+A benchmark is not valid unless:
+
+- all externalized attempts are represented
+- ChainTape/CAS evidence is restorable
+- attempt equality holds
+- failures are visible or anchored
+- dashboard regenerates from evidence
+- `BenchmarkManifest` pins model/problem/seed/Lean/mathlib/commit
+- `EvidencePackagingPolicy` is satisfied
+
+Before scale-up:
+
+- P38
+- P49
+- M0 mini-batch
+
+must pass constitution gates.
+
+Large benchmark is forbidden while:
+
+- attempt count mismatch exists
+- FC gates red
+- Art. III shielding gaps block prompt persistence
+- `HEAD_t` witness absent
+- PCP soundness corpus absent
+
+MiniF2F large-scale testing is a formal benchmark stress test, not real-world readiness.
+
+***
+
+## 19. No Manipulation by Sequencing
+
+Do not close easy gaps to create progress optics while load-bearing blockers remain red.
+
+If any of the following is `BLOCKED-DECISION`, feature work touching that surface is frozen:
+
+- `HEAD_t`
+- PCP soundness
+- `PromptCapsule` / prompt persistence
+- system tx authorization
+- tape canonical ID namespace
+- economic conservation
+
+Cosmetic waves cannot be used to claim constitution landing while load-bearing blockers remain unresolved.
+
+***
+
+## 20. Feature Freeze Conditions
+
+Freeze new feature work if any of the following are red:
+
+- FC1 Runtime Loop
+- FC2 Boot
+- FC3 Meta/Markov
+- Tape canonicality
+- Economy conservation
+- No-fake-accepted
+- System-tx-not-agent-submittable
+- Dashboard-regeneratable
+- Attempt equality
+
+During freeze, do not implement:
+
+- NodeMarket
+- PriceIndex
+- Polymarket signal
+- AMM
+- CompleteSet
+- public chain
+- real-world readiness
+- benchmark publicity
+- new market mechanics
+
+unless the active TB explicitly exists to close a constitution gate related to that feature.
+
+***
+
+## 21. Handover Discipline
+
+Dynamic state belongs in:
+
+- `handover/ai-direct/LATEST.md`
+- `handover/tracer_bullets/TB_LOG.tsv`
+
+CLAUDE.md must not encode:
+
+- current ship status
+- current gate counts
+- current HEAD
+- current round count
+- temporary freeze details
+
+Use this file for stable operating law only.
+
+Memory files belong in:
+
+`~/.claude/projects/-home-zephryj-projects-turingosv4/memory/`
+
+Do not duplicate TB_LOG facts into memory.
+Memory is for recurring rules, surprises, and mechanisms.
+
+***
+
+## 22. Read Order for New Session
+
+Default read order:
+
+1. `CLAUDE.md`
+2. `constitution.md`
+3. `handover/ai-direct/LATEST.md`
+4. `handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md`
+5. `handover/alignment/TRACE_FLOWCHART_MATRIX.md`
+6. current TB charter / directive
+7. only then supporting docs
+
+If a directive conflicts with constitution or flowcharts:
+
+> constitution wins
+
+If LATEST conflicts with ChainTape evidence:
+
+> ChainTape evidence wins
+
+***
+
+## 23. User Context
+
+The user is a solo researcher and vibe coder with limited programming background.
+
+Default language:
+
+- Chinese
+
+Technical terms may remain English.
+
+Prioritize:
+
+- clear decisions
+- explicit gates
+- exact instructions for AI coder
+- no fake certainty
+- no ceremonial process
+- tape-first implementation
+- fast real-run feedback
+
+Never hide behind process if the tape is wrong.

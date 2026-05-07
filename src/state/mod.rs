@@ -21,6 +21,11 @@ pub mod sequencer;
 /// never stored as canonical state (no second source-of-truth).
 pub mod price_index;
 
+/// TRACE_MATRIX FC1-N45 NEW (Constitution Landing First 2026-05-07; HARNESS.md §3 G-009; architect ruling §4.1):
+/// C1 immediate `HEAD_t` 6-field witness — derived view over QState + L4.E head + CAS root + run_id.
+/// Closes G-009 strategic blocker substrate; libgit2-backed C2 production refs are the forward step.
+pub mod head_t_witness;
+
 pub use q_state::{
     AgentId, AgentSwarmState, AgentVisibleProjection, BalancesIndex, BudgetSnapshot,
     ChallengeCase, ChallengeCasesIndex, ClaimEntry, ClaimsIndex, EconomicState, EscrowEntry,

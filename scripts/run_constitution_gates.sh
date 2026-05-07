@@ -46,6 +46,23 @@ GATES=(
   # committed evidence dirs must be env-gated TURINGOS_TEST_REGENERATE_EVIDENCE.
   # Closes the silent 11-files-per-cargo-test-run drift on TB-7/13/14 evidence.
   constitution_no_evidence_drift_in_tests
+  # Constitution Landing First 2026-05-07 (HARNESS.md §3 G-012): PCP
+  # adversarial corpus — pins the 9-class mutation routing table
+  # (cases/pcp_corpus/) to AttemptOutcome → L4ERejectionClass mapping.
+  # Closes G-012 strategic blocker synthetic-corpus arm; MiniF2F-v2
+  # misalignment is the forward step.
+  constitution_pcp_corpus
+  # Constitution Landing First 2026-05-07 (HARNESS.md §3 G-016/G-019/
+  # G-021/G-028): PromptCapsule — Class-3 schema + L4 anchor by default.
+  # Closes Art. III selective shielding / prompt persistence gap (was 0%
+  # LANDED). Pins the 7-field architect schema and the privacy invariant
+  # that verbatim prompt bytes are NEVER public-tape resident by default.
+  constitution_prompt_capsule
+  # Constitution Landing First 2026-05-07 (HARNESS.md §3 G-009): HEAD_t
+  # C1 6-field witness (Path-C hybrid). Derived view over QState +
+  # caller-supplied L4.E head + CAS root + run_id. Closes G-009 strategic
+  # blocker substrate; libgit2 production refs are the C2 forward step.
+  constitution_head_t_witness
 )
 
 # Run each gate file separately and collect per-test outcome.

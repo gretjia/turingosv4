@@ -1,0 +1,98 @@
+{
+  "schema_version": "v1/pcp_corpus_manifest",
+  "authority": "HARNESS.md §3 G-012; architect ruling 2026-05-07",
+  "corpus": [
+    {
+      "id": "01_valid",
+      "class": "valid_proof",
+      "fixture": "01_valid/proof.lean",
+      "attempt_outcome": "LeanPass",
+      "lean_verdict_kind": "Verified",
+      "rejection_class": null,
+      "routes_to": "L4_accepted"
+    },
+    {
+      "id": "02_mutated_invalid",
+      "class": "mutated_invalid_proof",
+      "fixture": "02_mutated_invalid/proof.lean",
+      "attempt_outcome": "LeanFail",
+      "lean_verdict_kind": "Failed",
+      "rejection_class": "LeanFailed",
+      "rejection_class_u8": 6,
+      "routes_to": "L4_E"
+    },
+    {
+      "id": "03_sorry_insertion",
+      "class": "sorry_insertion",
+      "fixture": "03_sorry_insertion/proof.lean",
+      "attempt_outcome": "SorryBlock",
+      "lean_verdict_kind": "SorryBlocked",
+      "rejection_class": "SorryBlocked",
+      "rejection_class_u8": 8,
+      "routes_to": "L4_E"
+    },
+    {
+      "id": "04_type_mismatch",
+      "class": "type_mismatch",
+      "fixture": "04_type_mismatch/proof.lean",
+      "attempt_outcome": "LeanFail",
+      "lean_verdict_kind": "Failed",
+      "rejection_class": "LeanFailed",
+      "rejection_class_u8": 6,
+      "routes_to": "L4_E"
+    },
+    {
+      "id": "05_wrong_theorem_name",
+      "class": "wrong_theorem_name",
+      "fixture": "05_wrong_theorem_name/proof.lean",
+      "attempt_outcome": "LeanFail",
+      "lean_verdict_kind": "Failed",
+      "rejection_class": "LeanFailed",
+      "rejection_class_u8": 6,
+      "routes_to": "L4_E"
+    },
+    {
+      "id": "06_off_by_one_arith",
+      "class": "off_by_one_arithmetic",
+      "fixture": "06_off_by_one_arith/proof.lean",
+      "attempt_outcome": "LeanFail",
+      "lean_verdict_kind": "Failed",
+      "rejection_class": "LeanFailed",
+      "rejection_class_u8": 6,
+      "routes_to": "L4_E"
+    },
+    {
+      "id": "07_irrelevant_theorem",
+      "class": "irrelevant_theorem",
+      "fixture": "07_irrelevant_theorem/proof.lean",
+      "attempt_outcome": "LeanFail",
+      "lean_verdict_kind": "Failed",
+      "rejection_class": "LeanFailed",
+      "rejection_class_u8": 6,
+      "routes_to": "L4_E"
+    },
+    {
+      "id": "08_partial_then_final_invalid",
+      "class": "partial_then_final_invalid",
+      "fixture": "08_partial_then_final_invalid/proof.lean",
+      "attempt_outcome": "PartialAccepted",
+      "final_attempt_outcome": "LeanFail",
+      "lean_verdict_kind": "PartialAccepted",
+      "final_lean_verdict_kind": "Failed",
+      "rejection_class": null,
+      "final_rejection_class": "LeanFailed",
+      "final_rejection_class_u8": 6,
+      "routes_to": "CAS_only_then_L4_E_on_final"
+    },
+    {
+      "id": "09_parse_invalid",
+      "class": "parse_invalid_output",
+      "fixture": "09_parse_invalid/proof.lean",
+      "attempt_outcome": "ParseFail",
+      "lean_verdict_kind": "Failed",
+      "rejection_class": "ParseFailed",
+      "rejection_class_u8": 7,
+      "routes_to": "L4_E"
+    }
+  ]
+}
