@@ -143,6 +143,24 @@ GATES=(
   #   veto-only / Art. V.2 constitution boundaries
   # per `feedback_no_workarounds_strict_constitution` strict closure.
   constitution_fc3_evidence_binding
+
+  # Stage B (§2.4 audit) 2026-05-08 (session #25) — architect 2026-05-07
+  # ALIGNMENT_AUDIT_LAUNCH_POLYMARKET_MANUAL §5.3 verbatim CompleteSet
+  # hardening: 8 verbatim test names binding directly to live sequencer
+  # dispatch on CompleteSetMintTx + CompleteSetRedeemTx. Promotes §5.3
+  # from TB-13-internal SG-13.* names (in tb_13_complete_set.rs, NOT
+  # registered in this gate runner) to first-class constitution-gate
+  # names per `feedback_no_workarounds_strict_constitution` strict closure
+  # ("我不要凑活"). Ship-eligible alongside Stage B3 M2 batch.
+  constitution_completeset_hardening
+  # Stage B (§2.4 audit) 2026-05-08 (session #25) — architect §5.2 verbatim
+  # legacy CPMM quarantine + no-f64-in-market-modules: 2 verbatim test
+  # names (legacy_cpm_api_not_imported_by_new_market + no_f64_in_market_modules)
+  # plus 3 self-tests proving the scanner detects synthetic violations
+  # (closure-3 "every test can fail"). Constitution-gate complement to
+  # tb_13_legacy_cpmm_forward_fence's TB-13-marker scope; uses explicit
+  # MARKET_SUBSTRATE_ALLOW_LIST that Stage C P-M0+ TBs MUST extend.
+  constitution_market_quarantine
 )
 
 # Run each gate file separately and collect per-test outcome.
