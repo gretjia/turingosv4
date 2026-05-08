@@ -106,9 +106,23 @@ MAX_TX_PER_PROBLEM="${MAX_TX_PER_PROBLEM:-200}"
 # Lean toolchain (preflight per C-012 + reference_oracle_preflight).
 LEAN_BIN="${LEAN_BINARY:-$HOME/.elan/toolchains/leanprover--lean4---v4.24.0/bin/lean}"
 
-# LLM proxy (proxies api.deepseek.com + api.siliconflow.cn per
-# scripts/llm_proxy.py detect_provider).
-export LLM_PROXY_URL="${LLM_PROXY_URL:-http://localhost:8080}"
+# LLM proxy. MUST be a multi-provider auto-routing instance (no
+# --provider FORCED flag) so requests for `Qwen/*` and `deepseek-ai/*`
+# route to api.siliconflow.cn while `deepseek-chat` routes to
+# api.deepseek.com per `src/drivers/llm_proxy.py::detect_provider`
+# slash-prefix rule.
+#
+# Default port 18080 = multi-provider instance (verified by
+# session #26 curl probe with Qwen2.5-7B-Instruct → 200 OK +
+# real `content` not deepseek 400 invalid-model error).
+#
+# Port 8080 is FORCED `--provider deepseek` and CANNOT be used here
+# — it 400s every Qwen/SF request and silently produces a degenerate
+# `tool_dist.llm_err=200` cell (chain stays correct but no real LLM
+# activity from alt-model). This was the root cause of the
+# session #26 first-smoke 5x slowdown finding (commit 1210ea3 +
+# 9f9aee7 evidence).
+export LLM_PROXY_URL="${LLM_PROXY_URL:-http://localhost:18080}"
 
 # ── Source .env (DeepSeek + SiliconFlow keys) ───────────────────────────────
 
