@@ -6,6 +6,107 @@
 
 ---
 
+## 🎯 2026-05-08 (session end #22 — parallel Stage A3 + Stage B3 substrate ship) — **Stage A3 substrate (R1+R2+R3+R4) + Stage B3 R1+R2+R3+R4+R5 all on main; SG-A3.1-5 + SG-18B.5/6/9/10/11/q8a/q8b GREEN at HEAD `4b0062e`+1; gates 122 → 154; workspace 1227 → 1286**
+
+**HEAD**: post-`4b0062e` (Stage A3 R3 CAS hook) + Art. 0.2 status report (this session entry).
+
+### Session arc
+
+User explicit autonomous-execution authorization 2026-05-08: "并行，立刻执行，尽快推进，代码，你在审批环节耽误了太长时间". Stopped §8/§10 ratification ceremonies; executed 6 parallel-track atoms across Stage A3 (HEAD_t C2 multi-ref ChainTape) and Stage B3 (TB-18B benchmark scale-up substrate) in this session.
+
+### Commits this session (after Stage A2 ship)
+
+| Commit | Track | Atoms | Headline |
+|--------|-------|-------|----------|
+| `aa339cb` | Stage B3 | R1+R2+R3 | BenchmarkManifest schema + AggregateReport (Wilson CI + DiversityReport wire) |
+| `72e2494` | Stage A3 | R1+R2+R4 | multi-ref ChainTape (refs/chaintape/{l4,l4e,cas}); SG-A3.1..5 GREEN; merged from STEP_B branch |
+| `d51142a` | Stage B3 | R4 | PCP corpus phase-2 (MiniF2F-v2 misalignment 9-class real-world adversarial) |
+| `4b0062e` | Stage A3 | R3 | CAS root ref hook in cas/store.rs |
+| this entry | Stage B3 | R5 | Art. 0.2 commits 5-10 status report (Gemini Q8 forward-bind #2 closure) |
+
+### Stage A3 substrate (HEAD_t C2 multi-ref ChainTape) — COMPLETE at substrate level
+
+| Atom | Status | File / Test |
+|------|--------|-------------|
+| R1 multi-ref support | 🟢 | src/bottom_white/ledger/transition_ledger.rs (+CHAINTAPE_L4/L4E/CAS_REF + dual-write + 5 helper fns) |
+| R2 replay reconstruction | 🟢 | src/state/head_t_witness.rs (+reconstruct_from_chaintape_refs) |
+| R3 CAS root ref hook | 🟢 | src/bottom_white/cas/store.rs (CasStore::put advances refs/chaintape/cas) |
+| R4 Test gates SG-A3.1-5 | 🟢 | tests/constitution_head_t_c2_multi_ref.rs (7 tests; integration + unit) |
+
+**SG-A3 ship gates (charter §4)**:
+- SG-A3.1 ✅ L4 head ref advances on accepted transition (dual-write semantics)
+- SG-A3.2 ✅ L4.E head ref advances on rejected evidence (advance_chaintape_l4e_to)
+- SG-A3.3 ✅ CAS root ref advances when CAS evidence added (CasStore::put hook)
+- SG-A3.4 ✅ Replay reconstructs HEAD_t from refs (byte-equality on canonical_hash)
+- SG-A3.5 ✅ No hidden filesystem pointer (grep + matrix scan)
+
+**Forward (Stage A3 R5+R7)**: smoke run on C2 substrate (1+ problems via real LLM) + G2 Codex + Gemini dual-audit dispatch — both require API access not yet authorized this session.
+
+### Stage B3 (TB-18B benchmark scale-up) substrate — atoms R1-R5 LANDED
+
+| Atom | Status | File / Test |
+|------|--------|-------------|
+| R1 BenchmarkManifest schema | 🟢 | src/runtime/benchmark_manifest.rs (13-field pin set; 20 lib tests + 6 gate tests) |
+| R2 Wilson 95% CI helper wire | 🟢 | src/runtime/aggregate_report.rs (consumes wilson_ci.rs; 8 lib + 11 gate tests) |
+| R3 parent_selection_entropy + payload_diversity wire | 🟢 | src/runtime/aggregate_report.rs (consumes diversity.rs; DiversityReportJson) |
+| R4 PCP corpus phase-2 | 🟢 | cases/pcp_corpus_phase2/ (9 fixtures real MiniF2F-derived) + tests/constitution_pcp_corpus_phase2.rs (8 gate tests) |
+| R5 Art. 0.2 commits 5-10 status report | 🟢 | handover/alignment/ART_0_2_TAPE_CANONICAL_10_COMMIT_STATUS_2026-05-08.md |
+| R6 M1 batch real-LLM run | ⏸ | needs API authorization |
+| R7 M2 batch real-LLM run | ⏸ | needs API authorization |
+| R8 aggregate report write-up | ⏸ | depends on R6/R7 |
+| R9 sample replay tests | ⏸ | depends on R6/R7 |
+| R11 G2 dual-audit dispatch | ⏸ | depends on R6/R7 |
+
+**SG-18B ship gates landed at substrate level (charter §4)**:
+- SG-18B.5 ✅ EvidencePackagingPolicy schema (BenchmarkManifest disk format)
+- SG-18B.6 ✅ NO public SOTA/benchmark claim — charter forbidden list pinned at gate level
+- SG-18B.9 ✅ Gemini Q8 phase-2 PCP corpus minimum 9-class landed at cases/pcp_corpus_phase2/
+- SG-18B.10 ✅ Gemini Q8 Art. 0.2 commits 5-10 status report attached as charter appendix
+- SG-18B.11 ✅ Constitution gates ≥97 + workspace tests ≥1181 — actual: 154 + 1286
+- SG-18B.q8a ✅ PCP corpus phase-2 minimum 9-class landed
+- SG-18B.q8b ✅ Art. 0.2 Tape Canonical 10-commit status report — 6/10 GREEN, commits 1-4 ALL GREEN (Gemini gate)
+
+### Commits 1-4 of Art. 0.2 ALL GREEN at HEAD `4b0062e`
+
+Per ART_0_2_TAPE_CANONICAL_10_COMMIT_STATUS_2026-05-08.md §3: Gemini Q8 SG-18B.gemini-q8b gate ("if Commits 1-4 are not complete, TB-18B execution gated") — **SATISFIED**. Commit 2 upgraded 🟡 → 🟢 via Wave 3 50p binding cross-validation evidence (50/50 inv1_match_true on real-LLM tape; chain_derived_run_facts.rs is canonical derived view; RunCostAccumulator parallel struct retained for legacy run-loop but cross-validated).
+
+### Validation
+
+- Constitution gates: **122 → 154 GREEN** (+32 across 5 new gate files: BenchmarkManifest 6 + AggregateReport 11 + SG-A3 7 + PCP phase-2 8)
+- Workspace tests: **1227 → 1286 PASS** (+59 net new; 0 failed)
+- Trust Root rehashed: src/runtime/mod.rs (ce084a43→b5afa398) + src/bottom_white/ledger/transition_ledger.rs (2e1c4064→e5d36f8e) + src/bottom_white/cas/store.rs (687a6144→723dadf6)
+- All cargo test --workspace + bash scripts/run_constitution_gates.sh GREEN at every commit boundary
+- SG-A2.1-4 maintained at every commit (no regression)
+- SG-A1.* (TB-18R FINAL) maintained — no regression
+
+### Forbidden-list compliance (architect 6-item universal)
+
+All sessions in #22: no f64 / no ghost liquidity / no price-as-truth / no dashboard SoT / no real funds / no public chain. Stage A3 multi-ref ChainTape is local libgit2 storage, NOT public chain (CR-A3-HEAD-T-C2 explicit). Stage B3 work is benchmark substrate, no money path.
+
+### Forward (next session OR architect explicit go-ahead for real-LLM)
+
+Two parallel tracks remain blocked on API/budget authorization:
+
+1. **Stage A3 R5 smoke run** — 1+ problems on C2 substrate via real LLM
+2. **Stage B3 R6+R7 real-LLM batches**:
+   - M1: 50p × n=3 × 3-seed = 450 DeepSeek runs
+   - M2: 100p × n=3 × 3-seed × 2-model = 1800 runs (gated on M1 + Stage A green)
+3. **G2 dual-audit dispatch** — Codex + Gemini after substrate evidence
+
+Without API authorization, all remaining substrate work for both tracks is now LANDED at code level. The forward step is real-LLM execution which the user must explicitly green-light (budget + provider key).
+
+Optional non-API forward work:
+- Stage A3 R6 OBS forward-binding for any C1 → C2 migration edges (none observed yet)
+- Architect §10 reclassification path for remaining 7 AMBER (§F authority-bound × 2 + §I structural-only × 5)
+
+### Open questions
+
+1. **(NEW)** API budget authorization for Stage A3 R5 smoke run + Stage B3 R6/R7 batches — should I proceed with DeepSeek API spend, OR wait for explicit green-light?
+2. **(Carried from #21)** Architect §10 reclassification path for remaining 7 AMBER — orthogonal to A3/B3; can run in parallel with R5/R6/R7 once API authorized.
+3. **(Carried from #18, still active)** Architect's 2026-05-07 alignment audit + launch plan — confirmed no drift this session; reconfirm before any forward execution.
+
+---
+
 ## 🎯 2026-05-08 (session end #21 → ship) — **Stage A2 SHIPPED FINAL via architect §8 sign-off "好，确认可以 ship"; 9 AMBER → GREEN this session + cumulative 21 AMBER closed across #19/#20/#21; SG-A2.1-4 all PASS at HEAD `4c9f767`**
 
 **HEAD**: `4c9f767` (commit: "Constitution landing 2026-05-08 session #21: 9 AMBER → GREEN ...") + post-commit additions: `2026-05-08_STAGE_A2_§8_SIGN_OFF_CANDIDATE.md` + `2026-05-08_STAGE_A2_§8_SIGN_OFF.md` + `scripts/run_constitution_gates.sh` (constitution_diversity + constitution_wilson_ci registration fix).
