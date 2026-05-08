@@ -86,18 +86,27 @@ EXPERIMENT_DIR="$PROJECT_ROOT/experiments/minif2f_v4"
 MINIF2F_DIR="${MINIF2F_DIR:-/home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4}"
 RUN_DIR="$PROJECT_ROOT/handover/evidence/$RUN_TAG"
 
-# Charter-pinned model list (NOT configurable; aligns with TB-18B §1).
+# Charter-pinned model list (NOT configurable; aligns with TB-18B §1
+# + PREREG_PPUT_CCL_2026-04-26.md §1.8 canonical).
 #
-# Primary: deepseek-chat (api.deepseek.com — chat baseline).
+# Primary: deepseek-v4-flash (api.deepseek.com — PREREG §1.8 canonical
+# thinking-off backend; rules-engine R-019 compliant; supersedes earlier
+# Wave 3 50p / mini-M1 R6 alias `deepseek-chat` per memory
+# `project_deepseek_drift_2026-04-24` — aliases may silently drift to
+# different backends mid-experiment; pin to canonical for ship-grade
+# BenchmarkManifest discipline per CR-18B.5).
+#
 # Alternative: Qwen/Qwen2.5-72B-Instruct via SiliconFlow.
 #   - User AskUserQuestion 2026-05-08 session #25: deepseek-ai/DeepSeek-V3
-#   - Session #26 smoke (commit 1210ea3) showed V3 ~5x slower than chat AND
-#     hit MAX_TX=200 on 2/2 problems → projected full M2 ~245h (~10 days).
+#   - Session #26 smoke (commit 1210ea3) showed V3 wall-time at ~790s/cell
+#     misdiagnosed as model speed; turned out to be FORCED_PROVIDER misroute
+#     at proxy port :8080 (commit 1f7879a fix to :18080).
 #   - User AskUserQuestion 2026-05-08 session #26 verbatim: "换 alt-model 为
-#     Qwen2.5-72B (Recommended)" — multi-condition signal preserved (Qwen is
-#     different vendor + different architecture from DeepSeek-chat),
-#     SiliconFlow throughput expected ~2-3x chat.
-MODELS=("deepseek-chat" "Qwen/Qwen2.5-72B-Instruct")
+#     Qwen2.5-72B (Recommended)" — multi-condition signal preserved (Qwen
+#     different vendor + different architecture from DeepSeek-v4-flash),
+#     smoke v3 confirmed Qwen actually FASTER than chat (97-173s/cell vs
+#     131-255s) at SiliconFlow, expected=9 (real LLM activity, no MAX_TX).
+MODELS=("deepseek-v4-flash" "Qwen/Qwen2.5-72B-Instruct")
 
 # Per-problem evaluator wall-clock cap (matches Wave 3 50p PHASE_3_RUN_MANIFEST).
 PER_PROBLEM_TIMEOUT_S="${PER_PROBLEM_TIMEOUT_S:-1800}"
