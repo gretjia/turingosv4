@@ -68,6 +68,12 @@ pub mod attempt_telemetry;
 /// TRACE_MATRIX FC1-N44 NEW (Constitution Landing First 2026-05-07; HARNESS.md §3 G-016/G-019/G-021/G-028; architect ruling §4.3): Class-3 `PromptCapsule` CAS schema — tape-resident proof that the agent's prompt context was derivable from a fixed read-set + redaction policy + system-prompt template hash, without storing verbatim prompt bytes. Closes Art. III selective shielding / prompt persistence gap (0% LANDED → first LANDED row).
 pub mod prompt_capsule;
 
+/// TRACE_MATRIX § 3 orphan (Constitution Landing 2026-05-08; report-side helper, not chain-resident): closes Art. I.2 PPUT statistical signal AMBER (CLAUDE.md §17 Report Standard "95% CI if reporting aggregate"). Wilson score 95% CI for binomial proportions (solve-count over batch). Pure helper; no chain side effects. Constitutional Justification: `handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md` §B Art. I.2 row.
+pub mod wilson_ci;
+
+/// TRACE_MATRIX § 3 orphan (Constitution Landing 2026-05-08; report-side helper, not chain-resident): closes Art. II.2.1 exploration/exploitation AMBER (kill: parent_selection_entropy < 0.25 OR pairwise_payload_diversity_mean < 0.25). Shannon entropy over parent_tx selection (None-filtered per V3L-14 anti-pattern fix from audit_assertions id=43) + distinct-payload fraction. Pure helpers; no chain side effects. Constitutional Justification: `handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md` §C Art. II.2.1 row.
+pub mod diversity;
+
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 
