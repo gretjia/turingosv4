@@ -70,6 +70,14 @@ GATES=(
   # level; promotes 7 matrix AMBER rows to GREEN by binding to per-problem
   # chain_invariant.json artifacts and the WAVE3_*_AGGREGATE.json totals.
   constitution_wave3_evidence_binding
+
+  # Constitution landing 2026-05-08 — Closure #3 mechanical enforcement of
+  # CR-C0.1 ("every test can fail; no `assert!(true)`"). Promotes §O #3
+  # 🟡 AMBER → 🟢 GREEN by converting the editorial norm into a gate per
+  # `feedback_norm_needs_mechanism`. Self-verifying scanner — pattern list
+  # detectability proven on synthetic input via a sibling test, so the
+  # main scan over `tests/constitution_*.rs` cannot be vacuously passing.
+  constitution_closure_3_no_trivial_asserts
 )
 
 # Run each gate file separately and collect per-test outcome.

@@ -6,6 +6,111 @@
 
 ---
 
+## 🎯 2026-05-08 (session end #20) — **3 AMBER → GREEN via constitutional harness loop: §O Closure #3 (mechanism for CR-C0.1) + §H/§E "no memory-only preseed" (Wave 3 50p replay-determinism binding)**
+
+**HEAD**: pre-commit (will commit at session end — 1 NEW test file + 1 test added to existing binding file + 2 matrix row updates + 1 gate-runner registration + this LATEST.md entry).
+
+### Session arc
+
+Session-#19 hand-off prompt invited Tier-1 chain-resident AMBER row work via `/constitution-landing-check`. Skill fired (mandatory pre-action gate per `feedback_constitutional_harness_engineering`); enumerated true-AMBER rows ≈ 19 across §C/§D/§E/§F/§H/§I/§K/§O. Verdict: PIVOT to AMBER work; recommended order — §O Closure #3 first (cleanest single-file mechanical close, no production src touch), then §H/§E "no memory-only preseed" (extend with Wave 3 50p binding cross-witness).
+
+Followed Constitutional Harness Engineering loop (CLAUDE.md §2.1) for both: write/extend test → real run → matrix update → gate-runner registration → re-run.
+
+### Constitution landing — 3 AMBER → GREEN
+
+| Row | Article / Closure | Mechanism |
+|-----|-------------------|-----------|
+| §O #3 | Closure (directive §12): "every test can fail (no `assert!(true)`)" | NEW `tests/constitution_closure_3_no_trivial_asserts.rs` (3 tests): scanner over `tests/constitution_*.rs` using strip-comments-and-whitespace pipeline + 15 forbidden-pattern shapes. Self-verifying via `forbidden_patterns_list_is_load_bearing` (proves each pattern detectable on synthetic input — main scan can't be vacuously passing) + `strip_helper_drops_doc_comment_pattern_text` (proves doc-comment banners like `//! no \`assert!(true)\` per CR-C0.1` are filtered before scan). Converts editorial CR-C0.1 norm → executable gate per `feedback_norm_needs_mechanism`. |
+| §H FC2 / §E Art. IV | "no memory-only preseed" | Existing `fc2_no_memory_only_preseed` (source-grep) + NEW `tests/constitution_wave3_evidence_binding.rs::wave3_50p_no_memory_only_preseed_binding`. Wave 3 50p replay-determinism witness: `audit_proceed=50` + `inv1_match_true=50` cross-observer agreement on the same 50 problems. Memory-only `economic_state_t.insert` outside `on_init` would survive in the live process but vanish on replay → audit-tape sampler would diverge → audit_proceed < 50. 50/50 PROCEED is the chain-resident witness ruling out the kill-condition surface under real-LLM load. |
+
+### Validation
+
+- Constitution gates: **101/0/1 GREEN** (was 97/0/1; +4 tests — closure-3 ×3 + wave3 binding ×1)
+- Workspace tests: **1218/0/151 PASS** (was 1214/0/151; +4 tests; full sweep clean)
+- Trust Root: `src/runtime/mod.rs` unchanged (`ce084a43`) — no production src touched this session
+- Matrix true-AMBER count: was 19 → now 16 (3 closed)
+- `scripts/run_constitution_gates.sh` registered new gate `constitution_closure_3_no_trivial_asserts` (16 → 17 gate files in runner)
+
+### What this session does NOT do
+
+- Does NOT touch any production src/ — pure new test + matrix + gate-runner registration + handover this session
+- Does NOT close structural-only AMBER rows (§D / §I / §K / §F authority-bound rows) — re-classification decision deferred (open question Q1 below)
+- Does NOT execute forward-TB charters (Stage A3 R1 / TB-18B / Stage C) — per-atom architect §8 still required
+
+### Next session
+
+- Continue AMBER row work via `/constitution-landing-check`
+- Remaining mechanically-closeable AMBER candidates: probably none at row level — most remaining 16 AMBER are §D / §I / §K / §F structural-only-by-design + §C Art. II.1 (forward-TB scope)
+- **Open question Q1 (carried from session #19)**: re-classify §D Art. III.1-4 / §I FC3 5 procedural / §K shielding 4 rows / §F Art. V.* as `🚫 N/A`? Their kill conditions are procedural and cannot be chain-witnessed by design. Currently they sit AMBER inflating the count without representing real instability. Recommend: invoke `/architect-ingest` for explicit ratification before applying re-classification (Class-4 hygiene per CLAUDE.md §10 "constitution / sequencer admission" surface).
+- Wire `WilsonCi` + `DiversityReport` into actual aggregate runner output — deferred to next M1/M2 batch wire-up (forward TB)
+- Forward TB charters require per-atom architect §8 BEFORE branch creation
+
+### Open questions
+
+1. (Carried from #19) Structural-only AMBER → `🚫 N/A` re-classification — needs architect signoff per CLAUDE.md §10 Class-4 boundary.
+2. **NEW** §C Art. II.1 "broadcast typical errors (NO raw stderr to all agents)" — currently AMBER. Kill condition is "raw Lean stderr appears in agent prompt"; existing test `tests/constitution_shielding_gate.rs::raw_lean_stderr_not_in_agent_read_view` is structural-only. Real-path-under-load witness would require an agent-prompt-construction integration test capturing actual prompt body. Forward-bind to TB-18B / TB-Wave12 OR write a shielding-gate integration test now? Recommend: forward-bind (Class-2 production wire-up; need not block this session).
+3. (Carried from #19) Architect's 2026-05-07 alignment audit + launch plan + Polymarket manual — confirmed no drift session #19; reconfirm before next forward-TB execution.
+
+---
+
+## 🎯 2026-05-08 (session end #19) — **Mode regression caught + corrected: 8 AMBER → GREEN via constitutional harness engineering; mechanism (`/constitution-landing-check` skill) installed to prevent recurrence**
+
+**HEAD**: `bb58292` (constitution landing 2026-05-08).
+
+### Session arc
+
+Started in atomic-agentic mode following session-#18 hand-off prompt: "Step 1 dispatch G1 charter ratification on Stage A3 / TB-18B / Stage C → Step 2 process verdicts → Step 3 pick highest-ROI atom". Three Codex G1 audits dispatched in parallel. Two completed (Stage A3 = CHALLENGE-but-ship-clean; Stage C = sanity-VETO on §2 hard-gate downgrade); TB-18B mid-flight. User correction: "我不喜欢这个工作逻辑，我要的是宪法的完整落地，而且我们的harness已经从atomic agentic engineering转变为constitutional engineering". Pivoted: cancelled TB-18B G1 audit; treated Stage A3/C audits as advisory only; re-oriented around CONSTITUTION_EXECUTION_MATRIX.md AMBER rows as work units.
+
+### Root-cause + mechanism (per `feedback_norm_needs_mechanism`)
+
+- Root: `/runner-preflight` only fires on `bash run_*.sh`; no gate caught "dispatch G1 audit" or "pick atom" entry surface. Session-#18 hand-off prompt invited atomic-agentic framing; AI followed without challenging.
+- Fix: NEW `/constitution-landing-check` skill (`.claude/skills/constitution-landing-check/SKILL.md`) — pre-action gate before drafting any TB charter / dispatching G1 audit / "pick next atom" sequence. Surfaces AMBER rows + classifies (chain-resident vs structural-only vs authority-bound vs forward-TB) + verdict PROCEED/PIVOT.
+- Updated `feedback_constitutional_harness_engineering` with anti-pattern §1-6 enumeration (charter G1 dispatch as Step 1, "pick atom blockedBy G1", "process G1 verdicts", parallel charter audits before any harness test, three Codex G1 audits dispatched in parallel before any harness test runs).
+- MEMORY.md MUST CHECK BEFORE: added `/constitution-landing-check` trigger entry (top of list).
+
+### Constitution landing — 8 AMBER → GREEN
+
+| Row | Article | Mechanism |
+|-----|---------|-----------|
+| §I FC3-INV1 Capsule integrity | FC3 | matrix sync — closure #6 round-8 evidence (`constitution_fc3_inv1_capsule_integrity_regen` 4/4 PASS) was already on disk |
+| §A Art. 0.1 four-element mapping | Art. 0 | Wave 3 50p binding (460 cycles all 4 elements per problem) |
+| §A Art. 0.2 Tape Canonical | Art. 0 | Wave 3 50p `wave3_50p_chaintape_runtime_repo_present` |
+| §A Art. 0.3 blockchain preservation | Art. 0 | Wave 3 50p (460 cycles all sequencer-mediated) |
+| §A Art. 0 Laws | Art. 0 | Wave 3 50p economic-flow-bearing cycles |
+| §E Art. IV.boot Q_0 | Art. IV | sync to §H GREEN (`constitution_fc2_boot` 8/8 PASS) |
+| §E Art. IV fresh replay | Art. IV | sync to §H + §N MVP-4 GREEN |
+| §B Art. I.2 PPUT Statistical signal | Art. I.2 | NEW `src/runtime/wilson_ci.rs` — Wilson 95% CI (9 lib + 5 integration tests; CLAUDE.md §17 Report Standard) |
+| §C Art. II.2.1 exploration/exploitation | Art. II.2.1 | NEW `src/runtime/diversity.rs` — `parent_selection_shannon_entropy` (None-filtered per V3L-14 fix from `audit_assertions` id=43) + `distinct_payload_fraction` + `DiversityReport::is_below_alarm_floor` 0.25 floor (12 lib + 7 integration tests) |
+
+### Validation
+
+- Constitution gates: 97/0/1 GREEN (unchanged)
+- Workspace tests: 1214/0/151 (was 1181/0/151; +33 net new tests)
+- Trust Root: `src/runtime/mod.rs` rehashed `45d272f6` → `ce084a43` (added 2 pub mod decls with TRACE_MATRIX § 3 orphan doc-comments per R-022)
+- Matrix true-AMBER count: was 28 → now 19 (8 closed + matrix-internal consistency improved)
+
+### Advisory artifacts (not gates per new mode)
+
+- `handover/audits/CODEX_STAGE_A3_HEAD_T_C2_CHARTER_RATIFICATION_2026-05-07.md` (CHALLENGE-but-ship-clean; 2 PASS / 6 CHALLENGE / 0 VETO; remediation forward when Stage A3 R1 reaches per-atom architect §8)
+- `handover/audits/CODEX_STAGE_C_POLYMARKET_CHARTER_RATIFICATION_2026-05-07.md` (sanity-VETO on §2 line 67 hard-gate downgrade — Stage C executable work blocked anyway by Stage A green pre-condition; structurally absorbable; charter-text remediation forward)
+- TB-18B G1 cancelled mid-flight as anti-pattern.
+
+### Next session
+
+- Continue AMBER row work via `/constitution-landing-check`
+- Remaining mechanically-closeable AMBER candidates: §H "no memory-only preseed" (code-grep test extension needed)
+- Structural-only cap (cannot flip without architecture change): §D Art. III.1-4 / §I FC3 5 procedural / §K shielding 4 rows / §F Art. V authority-bound / §O #3 (continuous CI verification)
+- Forward TB charter work (Stage A3 R1 / TB-18B / Stage C) requires per-atom architect §8 BEFORE branch creation; advisory G1 audits from this session available when needed
+- Wire `WilsonCi::new_95` + `DiversityReport` into actual aggregate runner output (TB-18B M1 batch when scheduled)
+
+### Open questions
+
+1. Should structural-only AMBER rows (§D / §I procedural / §K / §F) be re-classified as `🚫 N/A` since their kill condition is procedural and cannot be chain-witnessed by design? Currently they sit AMBER inflating the count.
+2. §O Closure #3 ("every test can fail — no `assert!(true)`") is meta-AMBER pending CI verification; should it become a constitution gate test that greps `assert!(true)` in `tests/constitution_*.rs`?
+3. The architect's full audit + launch-plan + Polymarket manual was re-pasted by user 2026-05-08 — verbatim archive at `handover/architect-insights/2026-05-07_ARCHITECT_ALIGNMENT_AUDIT_LAUNCH_POLYMARKET_MANUAL_zh.md` already exists from session #18. Confirm execution alignment + that no clauses drift before next session.
+
+---
+
 ## 🎯 2026-05-07 (session end #18) — **TB-18R SHIPPED FINAL via architect §8 sign-off; Gemini R1 verdict captured (Q1-7 PASS / Q8 CHALLENGE forward-bound to TB-18B); 4 forward charters / directives drafted (Stage A3 HEAD_t C2 + TB-18B M1/M2 + Stage C Polymarket + Real-World Readiness)**
 
 **HEAD**: `feec129` (pre-commit; no src/ touched this session; pure docs + TB_LOG.tsv flip + Gemini audit verdict).

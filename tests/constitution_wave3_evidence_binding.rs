@@ -300,6 +300,76 @@ fn wave3_50p_replay_assertions_all_pass() {
     );
 }
 
+/// FC2-INV3 + Art. IV — no memory-only preseed (run-time witness).
+///
+/// `tests/constitution_fc2_boot.rs::fc2_no_memory_only_preseed` provides the
+/// source-side grep gate (static enforcement: no `q.economic_state_t.insert`
+/// surface outside permitted boot/sequencer code). Per CR-C0.7 that is
+/// `🟡 AMBER` — "test exists, structural-only or limited coverage" — until
+/// bound to a real-path-under-load witness.
+///
+/// The Wave 3 50p binding is **replay-determinism**: the aggregate reports
+/// `audit_proceed=50` (audit_tape sampler replay) AND `inv1_match_true=50`
+/// (architect FC1-INV1 cross-observer agreement) on the same 50 problems.
+/// Replay-determinism requires that final EconomicState is reconstructible
+/// from `genesis_payload + ChainTape + CAS` alone. Any memory-only
+/// `economic_state_t` mutation during the run would survive in the live
+/// process but vanish on replay → audit-tape sampler would flag divergence
+/// → `audit_proceed < 50`. 50/50 PROCEED is the chain-resident witness that
+/// the kill-condition surface stayed empty under real-LLM load.
+///
+/// This binding is the "real path under load" complement that promotes
+/// `fc2_no_memory_only_preseed` from `🟡 AMBER (code-grep)` to `🟢 GREEN`
+/// per CR-C0.7 + `feedback_real_problems_not_designed`.
+#[test]
+fn wave3_50p_no_memory_only_preseed_binding() {
+    let v = read_json(Path::new(WAVE3_50P_AGGREGATE));
+    let n_problems = v["n_problems"].as_u64().expect("n_problems");
+    let audit_proceed = v["audit_proceed"].as_u64().expect("audit_proceed");
+    let audit_other = v["audit_other"].as_u64().expect("audit_other");
+    let inv1_match_true = v["inv1_match_true"].as_u64().expect("inv1_match_true");
+    let inv1_match_false = v["inv1_match_false"].as_u64().expect("inv1_match_false");
+
+    assert_eq!(
+        n_problems, 50,
+        "Wave 3 50p binding: n_problems drifted from 50 to {n_problems}"
+    );
+
+    // Replay-determinism witness — the strong claim against memory-only
+    // preseed at runtime. If `q.economic_state_t.insert(...)` happened
+    // outside `on_init`, audit-tape replay would not reconstruct the
+    // observed final state and `audit_proceed` would fall below 50.
+    assert_eq!(
+        audit_proceed, n_problems,
+        "FC2-INV3 violation (Wave 3 50p): audit-tape sampler PROCEED \
+         {audit_proceed}/{n_problems} — replay divergence consistent with \
+         memory-only preseed surface having executed during the run."
+    );
+    assert_eq!(
+        audit_other, 0,
+        "FC2-INV3 violation (Wave 3 50p): {audit_other} non-PROCEED \
+         audit-tape outcomes — chain-only reconstruction failed somewhere."
+    );
+
+    // Cross-observer FC1-INV1 agreement complements replay determinism:
+    // architect-side check confirms tape-visible attempt count matches
+    // evaluator-side LHS on every problem. A memory-only economic mutation
+    // unaccompanied by a chain transaction would appear as an evaluator
+    // count without a chain counterpart → inv1_match_false > 0.
+    assert_eq!(
+        inv1_match_true, n_problems,
+        "FC2-INV3 cross-witness (Wave 3 50p): architect FC1-INV1 \
+         {inv1_match_true}/{n_problems} match — un-anchored economic \
+         mutation would produce a non-tape-visible delta."
+    );
+    assert_eq!(
+        inv1_match_false, 0,
+        "FC2-INV3 cross-witness (Wave 3 50p): {inv1_match_false} \
+         FC1-INV1 mismatches — un-anchored economic mutation hypothesis \
+         not ruled out."
+    );
+}
+
 /// Wave 3 50p substrate-stability cross-check: solve count agreement
 /// across three independent observers. `solved_count` (aggregate field)
 /// must equal `omega_wtool_total` (evaluator-side count) must equal
