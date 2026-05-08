@@ -102,6 +102,22 @@ GATES=(
   # audit_assertions id=43) + distinct_payload_fraction +
   # DiversityReport::is_below_alarm_floor (0.25 floor).
   constitution_diversity
+
+  # Stage B3 / TB-18B 2026-05-08 — BenchmarkManifest schema gate per FR-18B.1
+  # + CR-18B.5 ("NO BenchmarkManifest field omission. Missing fields =
+  # ship-block.") + `feedback_benchmark_manifest_required`. Every required
+  # field validates; schema_id pinned; total_runs arithmetic stable; disk
+  # round-trip byte-stable.
+  constitution_benchmark_manifest
+
+  # Stage B3 / TB-18B 2026-05-08 — AggregateReport conformance gate per
+  # FR-18B.5 / FR-18B.6 / FR-18B.11 + CLAUDE.md §17 Report Standard. Wires
+  # `wilson_ci.rs` + `diversity.rs` into a single CLAUDE.md §17 conformant
+  # consumer. Every line of §17 (ΣPPUT / Mean PPUT(solved) / Wilson 95% CI
+  # / halt distribution / counts / no-fake-accepted-nodes / FC1 aggregate)
+  # enforced as ship-block. Closes session #18 Wave-1/2 forward-bind items
+  # 1+2 at consumer-side wire-up level.
+  constitution_aggregate_report
 )
 
 # Run each gate file separately and collect per-test outcome.

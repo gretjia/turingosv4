@@ -74,6 +74,12 @@ pub mod wilson_ci;
 /// TRACE_MATRIX § 3 orphan (Constitution Landing 2026-05-08; report-side helper, not chain-resident): closes Art. II.2.1 exploration/exploitation AMBER (kill: parent_selection_entropy < 0.25 OR pairwise_payload_diversity_mean < 0.25). Shannon entropy over parent_tx selection (None-filtered per V3L-14 anti-pattern fix from audit_assertions id=43) + distinct-payload fraction. Pure helpers; no chain side effects. Constitutional Justification: `handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md` §C Art. II.2.1 row.
 pub mod diversity;
 
+/// TRACE_MATRIX § 3 orphan (Stage B3 / TB-18B 2026-05-08; report-side schema, not chain-resident): TB-18B FR-18B.1 / CR-18B.5 — `BenchmarkManifest` pin-set required before any 50+ × n>1 × multi-seed batch. Constitutional Justification: `feedback_benchmark_manifest_required` + TB-18B charter §3 line 47-48.
+pub mod benchmark_manifest;
+
+/// TRACE_MATRIX § 3 orphan (Stage B3 / TB-18B 2026-05-08; report-side aggregator, not chain-resident): TB-18B FR-18B.5 / FR-18B.6 / FR-18B.11 — `AggregateReport` consuming `wilson_ci.rs` + `diversity.rs` per CLAUDE.md §17 Report Standard. Closes the Wilson CI + DiversityReport wire-up forward step from session #18 Wave-1/2 forward-bind. Constitutional Justification: CLAUDE.md §17 + TB-18B charter §3 line 51 + `handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md` §B Art. I.2 + §C Art. II.2.1 rows.
+pub mod aggregate_report;
+
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 
