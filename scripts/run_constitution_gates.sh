@@ -133,6 +133,16 @@ GATES=(
   # `feedback_real_problems_not_designed`. Phase-1 synthetic corpus
   # (cases/pcp_corpus/) preserved as predecessor.
   constitution_pcp_corpus_phase2
+
+  # Constitution full-landing 2026-05-08 (session #24) — FC3 §I structural
+  # rows + §F Art. V.2 boundaries. Closes 7 AMBER → GREEN by binding the
+  # `tests/constitution_fc3_meta.rs` source-grep gates to real Wave 3 50p
+  # / Stage A3 / B3 R6 evidence + git-history witness. Promotes:
+  #   FC3-INV3 raw logs / FC3-INV4 capsule context only / FC3-INV5 deep
+  #   history override / FC3-INV7 ArchitectAI proposes / FC3-INV8 JudgeAI
+  #   veto-only / Art. V.2 constitution boundaries
+  # per `feedback_no_workarounds_strict_constitution` strict closure.
+  constitution_fc3_evidence_binding
 )
 
 # Run each gate file separately and collect per-test outcome.

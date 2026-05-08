@@ -8,22 +8,22 @@
 
 ## 📊 宪法全落地完成进度（Constitution Full-Landing Dashboard）
 
-**Updated**: 2026-05-08 session #24 (Stage A3 SHIPPED FINAL)
-**HEAD**: `3fb35e6` + Stage A3 §8 sign-off ("同意 sign-off" 2026-05-08; `2026-05-08_STAGE_A3_§8_SIGN_OFF.md`)
+**Updated**: 2026-05-08 session #24 (Stage A3 SHIPPED FINAL + 宪法完整落地 — 7 final AMBER → GREEN)
+**HEAD**: `ce71813` (Stage A3 §8 sign-off) + WIP `tests/constitution_fc3_evidence_binding.rs` (7 tests, 7 §F+§I AMBER closures)
 **Snapshot**: per `bash scripts/run_constitution_gates.sh` + `cargo test --workspace --no-fail-fast`
 
 ### Validation totals
 | Metric | Value | Δ since session #19 (architect baseline 97/1181) |
 |--------|------:|--------------------------------------------------:|
-| Constitution gate tests | **155 GREEN / 0 failed / 1 ignored** | +58 |
-| Workspace tests | **1288 PASS / 0 failed / 151 ignored** | +107 |
+| Constitution gate tests | **162 GREEN / 0 failed / 1 ignored** | +65 |
+| Workspace tests | **1295 PASS / 0 failed / 151 ignored** | +114 |
 | Trust Root rehashed files | 5 (transition_ledger.rs ×2, mod.rs, cas/store.rs, rejection_evidence.rs) | — |
 
 ### Constitution Execution Matrix (`CONSTITUTION_EXECUTION_MATRIX.md`)
 | Status | Rows | Trajectory |
 |---|---:|---|
-| 🟢 GREEN | ~57 (stable rows) + sub-row promotions | started session #19 at 90; +up via Wave 3 50p binding + Stage A2 + Stage A3 substrate |
-| 🟡 AMBER | **7** (§F authority-bound × 2 + §I structural-only-by-design × 5) | **28 → 7** across sessions #19/#20/#21 (Stage A2 ratified); plateau since (out-of-A2-scope per architect verbatim) |
+| 🟢 GREEN | ~64 (stable rows) + sub-row promotions | started session #19 at 90; +up via Wave 3 50p binding + Stage A2 + Stage A3 substrate + session #24 全 7 AMBER closures |
+| 🟡 AMBER | **0** | **28 → 7 → 0** across sessions #19/#20/#21/#24 (final 7 closed via `tests/constitution_fc3_evidence_binding.rs` real-witness binding per `feedback_no_workarounds_strict_constitution`) |
 | 🔴 RED | 0 | clean since 2026-05-07 |
 | 🚫 N/A | 1 | unchanged |
 
