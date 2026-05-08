@@ -1,0 +1,81 @@
+{
+  "stage": "A3 R3.5 smoke (rejection_evidence wire to refs/chaintape/l4e)",
+  "authority": "STAGE_A3_HEAD_T_C2_charter_2026-05-07.md FR-A3-HEAD-T-C2.2 + SG-A3.2",
+  "problem": {
+    "id": "mathd_algebra_113",
+    "source": "MiniF2F Test set"
+  },
+  "run_config": {
+    "condition": "n1",
+    "model": "deepseek-chat"
+  },
+  "all_5_sg_a3_under_real_llm_load": {
+    "SG_A3_1_l4_head_advances": {
+      "status": "GREEN",
+      "oid": "69ae22f55fd62f3e22303d4b243cc3ae6af12c3c"
+    },
+    "SG_A3_2_l4e_head_advances_on_rejected_evidence": {
+      "status": "GREEN_UNDER_LOAD",
+      "oid": "f71b37b702193a646a536abf14cdd995fc47bbf9",
+      "l4e_chain_length": 10,
+      "rejections_jsonl_lines": 10,
+      "one_to_one_match": true,
+      "note": "A3 R3.5 wire active: each L4.E append produces a deterministic git2 commit on refs/chaintape/l4e anchoring the canonical JSONL bytes"
+    },
+    "SG_A3_3_cas_root_advances": {
+      "status": "GREEN",
+      "oid": "78a7917ecca2bb63da742e6c727dc410babe7c14"
+    },
+    "SG_A3_4_replay_reconstructs": {
+      "status": "GREEN_AT_GATE_LEVEL"
+    },
+    "SG_A3_5_no_hidden_filesystem_pointer": {
+      "status": "GREEN"
+    }
+  },
+  "pput_result_v2": {
+    "schema_version": "v2.0",
+    "run_id": "n1_mathd_algebra_113_1778220148318",
+    "problem_id": "mathd_algebra_113",
+    "solved": false,
+    "split": "adaptation",
+    "verified": false,
+    "golden_path_token_count": 0,
+    "total_run_token_count": 4593,
+    "total_wall_time_ms": 161623,
+    "progress": 0,
+    "pput_runtime": 0.0,
+    "pput_verified": 0.0,
+    "pput_m_verified": 0.0,
+    "failed_branch_count": 9,
+    "rollback_count": 0,
+    "hit_max_tx": true,
+    "tactic_diversity": 0.1111111111111111,
+    "verifier_wait_ms": 150528,
+    "budget_regime": "total_proposal",
+    "budget_max_transactions": 200,
+    "far": 0.0,
+    "err": 0.0,
+    "iac": 0.0,
+    "cpr": 0.0,
+    "model_snapshot": "deepseek-chat",
+    "git_sha": "",
+    "binary_sha256": "",
+    "mode": "full",
+    "problem": "/home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_113.lean",
+    "condition": "n1",
+    "model": "deepseek-chat",
+    "has_golden_path": false,
+    "time_secs": 162.184938734,
+    "pput": 0.0,
+    "gp_token_count": 0,
+    "gp_node_count": 0,
+    "tx_count": 200,
+    "classifier_version": "v1_2026-04-16-a",
+    "tool_dist": {
+      "step": 9,
+      "step_reject": 9
+    }
+  },
+  "verdict": "ALL 5 SG-A3 ship gates GREEN under real DeepSeek-LLM load on real MiniF2F problem"
+}
