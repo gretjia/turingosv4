@@ -6,6 +6,76 @@
 
 ---
 
+## 📊 宪法全落地完成进度（Constitution Full-Landing Dashboard）
+
+**Updated**: 2026-05-08 session #23 close
+**HEAD**: `49bab5b` (Stage A3 §8 sign-off CANDIDATE)
+**Snapshot**: per `bash scripts/run_constitution_gates.sh` + `cargo test --workspace --no-fail-fast`
+
+### Validation totals
+| Metric | Value | Δ since session #19 (architect baseline 97/1181) |
+|--------|------:|--------------------------------------------------:|
+| Constitution gate tests | **155 GREEN / 0 failed / 1 ignored** | +58 |
+| Workspace tests | **1288 PASS / 0 failed / 151 ignored** | +107 |
+| Trust Root rehashed files | 5 (transition_ledger.rs ×2, mod.rs, cas/store.rs, rejection_evidence.rs) | — |
+
+### Constitution Execution Matrix (`CONSTITUTION_EXECUTION_MATRIX.md`)
+| Status | Rows | Trajectory |
+|---|---:|---|
+| 🟢 GREEN | ~57 (stable rows) + sub-row promotions | started session #19 at 90; +up via Wave 3 50p binding + Stage A2 + Stage A3 substrate |
+| 🟡 AMBER | **7** (§F authority-bound × 2 + §I structural-only-by-design × 5) | **28 → 7** across sessions #19/#20/#21 (Stage A2 ratified); plateau since (out-of-A2-scope per architect verbatim) |
+| 🔴 RED | 0 | clean since 2026-05-07 |
+| 🚫 N/A | 1 | unchanged |
+
+### Stage-level progress (per architect 2026-05-07 alignment doc + parent authorization §3)
+
+| Stage | Atom | Class | Status |
+|---|---|---|---|
+| **A1** TB-18R FINAL | ship | 3/4 | 🟢 SHIPPED (architect §8 2026-05-07 — `2026-05-07_TB18R_FINAL_§8_SIGN_OFF.md`) |
+| **A2** Constitution AMBER closure | ship | 1 | 🟢 SHIPPED FINAL (architect §8 2026-05-08 "好，确认可以 ship" — `2026-05-08_STAGE_A2_§8_SIGN_OFF.md`) |
+| **A3** HEAD_t C2 multi-ref ChainTape | R1+R2+R3+R3.5+R4+R5+R7 | 4 STEP_B | 🟡 SHIPPED CANDIDATE (10/10 SG-A3.* GREEN; awaiting §8 — `2026-05-08_STAGE_A3_§8_SIGN_OFF_CANDIDATE.md`) |
+| **B1** 20p diagnostic | ship | 2 | 🟢 SHIPPED (commit `ffb6ebd` 2026-05-07) |
+| **B2** 50p controlled | ship | 2 | 🟢 SHIPPED (commit `a612cc9` 2026-05-07) |
+| **B3** TB-18B M1/M2 | R1+R2+R3+R4+R5 + R6 mini-M1 | 1+3 | 🟡 substrate LANDED (BenchmarkManifest + AggregateReport + PCP corpus phase-2 + Art. 0.2 status report); R6 full M1 (450 runs) + R7 M2 + R8-R11 forward |
+| **C** Polymarket P-M0..P-M9 | charter | varies | 🔒 GATED (charter drafted `STAGE_C_POLYMARKET_PM0_PM9_charter_2026-05-07.md`; P-M0 strict-letter charter-eligible after A green; B3 full M1 still required per architect priority #4 verbatim) |
+| **D** Real-world readiness | directive draft | — | 🔒 GATED (`2026-05-07_REAL_WORLD_READINESS_DIRECTIVE.md`; activation requires architect-side path decisions) |
+
+### TB-C0 + Stage A2 + Stage A3 architect §8 lineage
+
+| Ship | Date | Form | Directive |
+|---|---|---|---|
+| TB-C0 SHIPPED FINAL | 2026-05-07 | "好，确认可以 ship" multi-clause | `2026-05-07_TBC0_ARCHITECT_§8_SIGN_OFF.md` |
+| TB-18R FINAL SHIPPED | 2026-05-07 | multi-clause autonomous-execution authorization | `2026-05-07_TB18R_FINAL_§8_SIGN_OFF.md` |
+| Stage A2 SHIPPED FINAL | 2026-05-08 | "好，确认可以 ship" multi-clause | `2026-05-08_STAGE_A2_§8_SIGN_OFF.md` |
+| Stage A3 SHIPPED CANDIDATE | 2026-05-08 | (awaiting verbatim) | `2026-05-08_STAGE_A3_§8_SIGN_OFF_CANDIDATE.md` |
+
+### Real-LLM evidence ledger (post-Wave-3 Stage A3 + B3 substrate)
+
+| Run | Problems | Substrate | Wall | chain_invariant.json |
+|---|---:|---|---|---|
+| Wave 3 50p (B2) | 50 | C1 (refs/transitions/main only) | — | 50/50 Ok delta=0 |
+| Stage A3 R5 smoke | 1 (mathd_algebra_107) | **C2 multi-ref** | 150s | 1/1 Ok delta=0 |
+| Stage A3 R3.5 smoke | 1 (mathd_algebra_113) | **C2 + l4e ref wire** | 161s | 1/1 Ok delta=0 (10/10 ref↔JSONL 1:1) |
+| Stage B3 R6 mini-M1 | 8 (algebra + aime) | **C2 multi-ref full** | 16.5min | 8/8 Ok delta=0 (8/8 l4e_jsonl_match) |
+| **Stage A3 substrate cumulative** | **10** | **C2 multi-ref** | **~20min** | **10/10 Ok delta=0** |
+
+### Forward queue (post-Stage-A3 §8)
+
+| Item | Class | Blocker |
+|---|---|---|
+| Stage A3.6 enhancement TB | 3 | dual-audit forward-bind: CasStore::put error surface + refs/chaintape/cas commit-chain redesign + atomic ref-update + failure-injection tests + RejectionEvidenceWriter explicit ctor arg |
+| Stage B3 R6 full M1 (450 runs ~19h) | 3 | compute-budget; can run unattended next session |
+| Stage B3 R7 M2 (1800 runs ~75h) | 3 | gated on M1 + Stage A green |
+| §10 reclassification of remaining 7 AMBER | 4 | architect §10 ratification path (procedural / structural-only-by-design) |
+| Stage C P-M0 quarantine | 1 | charter-eligible after A3 §8; full Stage C gated on B3 R6 |
+| Stage D real-world readiness | architect-path | architect-side oracle/challenge-court/safety design |
+
+### Forbidden-list compliance (architect 6-item universal)
+
+All sessions #19/#20/#21/#22/#23: ✅ no f64 / ✅ no ghost liquidity / ✅ no price-as-truth / ✅ no dashboard SoT / ✅ no real funds / ✅ no public chain (refs/chaintape/* are local libgit2 storage per CR-A3-HEAD-T-C2 explicit).
+
+---
+
 ## 🎯 2026-05-08 (session end #23 — Stage A3 substrate FULLY VERIFIED on real DeepSeek tape; Stage B3 R6 mini-M1 batch running) — **All 5 SG-A3 GREEN under real-LLM load; A3 R5 + A3 R3.5 smoke evidence shipped; A3 R3.5 wire (rejection_evidence → refs/chaintape/l4e) shipped; B3 R6 mini-M1 8-problem batch in flight**
 
 **HEAD**: `f7a6660` (Stage A3 R3.5 wire + smoke 10/10 1:1 ref-to-JSONL match) + B3 R6 mini-M1 background batch.
