@@ -88,6 +88,20 @@ GATES=(
   # `tests/constitution_shielding_gate.rs` per CR-C0.7 +
   # `feedback_real_problems_not_designed`.
   constitution_shielding_evidence_binding
+
+  # Constitution landing 2026-05-08 — register session #19 gate files for
+  # SG-A2.2 closure (architect: "all new gate files included in
+  # scripts/run_constitution_gates.sh"). Both files were created session #19
+  # but mistakenly omitted from the runner registration; this closes the gap.
+  #
+  # Wilson 95% CI helper for §B Art. I.2 PPUT Statistical Signal (CLAUDE.md
+  # §17 Report Standard). Aggregate-runner integration is the forward step.
+  constitution_wilson_ci
+  # Diversity helper for §C Art. II.2.1 exploration/exploitation balance —
+  # parent_selection_shannon_entropy (None-filtered per V3L-14 fix from
+  # audit_assertions id=43) + distinct_payload_fraction +
+  # DiversityReport::is_below_alarm_floor (0.25 floor).
+  constitution_diversity
 )
 
 # Run each gate file separately and collect per-test outcome.

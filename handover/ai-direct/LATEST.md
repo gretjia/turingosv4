@@ -6,6 +6,96 @@
 
 ---
 
+## 🎯 2026-05-08 (session end #21 → ship) — **Stage A2 SHIPPED FINAL via architect §8 sign-off "好，确认可以 ship"; 9 AMBER → GREEN this session + cumulative 21 AMBER closed across #19/#20/#21; SG-A2.1-4 all PASS at HEAD `4c9f767`**
+
+**HEAD**: `4c9f767` (commit: "Constitution landing 2026-05-08 session #21: 9 AMBER → GREEN ...") + post-commit additions: `2026-05-08_STAGE_A2_§8_SIGN_OFF_CANDIDATE.md` + `2026-05-08_STAGE_A2_§8_SIGN_OFF.md` + `scripts/run_constitution_gates.sh` (constitution_diversity + constitution_wilson_ci registration fix).
+
+### Stage A2 §8 sign-off received
+
+User-as-architect verbatim: `好，确认可以 ship` (2026-05-08).
+
+Multi-clause analysis (per `feedback_class4_cannot_hide_in_class3` + CLAUDE.md §10): TWO clauses (`好` affirmation + `确认可以 ship` explicit confirmation), identical form to TB-C0 §8 (2026-05-07) and TB-18R FINAL §8 (2026-05-07) precedents. Satisfies multi-clause requirement; not the historical `"fix"` single-word ambiguity. Sign-off arrived after Stage A2 ship gates verified all GREEN at HEAD `4c9f767`.
+
+### Stage A2 ship gates — all PASS
+
+| Gate | Architect verbatim | Verification |
+|------|--------------------|--------------|
+| **SG-A2.1** | constitution gates ≥ 97 + no regression | 🟢 PASS — `bash scripts/run_constitution_gates.sh` reports **122 passed, 0 failed, 1 ignored** at HEAD `4c9f767`; 122 ≥ 97 architect baseline |
+| **SG-A2.2** | all new gate files registered to runner | 🟢 PASS — 20 `tests/constitution_*.rs` ↔ 20 GATES entries; session-#19 unregistered gaps (`constitution_diversity` + `constitution_wilson_ci`) closed mid-verification |
+| **SG-A2.3** | every matrix promotion has a real witness | 🟢 PASS — 39/39 GREEN-row cited tests are real `#[test] fn` definitions; workspace `cargo test --workspace` 1227/0/151 |
+| **SG-A2.4** | no doc-only GREEN promotions | 🟢 PASS — `constitution_closure_3_no_trivial_asserts` 3/3 (self-verifying scanner over 20 test files; 9 forbidden patterns; pattern-list-load-bearing test proves detectability) |
+
+SG-A1.* (TB-18R FINAL) re-verification at HEAD `4c9f767`: 7/7 GREEN — no regression from session #19/#20/#21 work.
+
+Forbidden-list compliance (architect 6-item universal list): all 6 satisfied across sessions #19/#20/#21 (no f64 / no ghost liquidity / no price-as-truth / no dashboard SoT / no real funds / no public chain).
+
+### Cumulative Stage A2 trajectory (sessions #19/#20/#21)
+
+| Metric | Pre-#19 | Post-A2 ship (#21) | Δ |
+|--------|---------|---------------------|---:|
+| Matrix true-AMBER rows | 28 | **7** | −21 |
+| Constitution gate tests | 90 | **122** | +32 |
+| Workspace tests | 1174 | **1227** | +53 |
+
+### Session #21 work (this session)
+
+| Row | Article / mirror | Mechanism |
+|-----|-----------------|-----------|
+| §C Art. II.1 | broadcast typical errors (NO raw stderr) | `wave3_50p_shielding_lean_result_is_verdict_only` (LeanResult max 146B / 447 instances) + `wave3_50p_shielding_no_leakage_suggestive_schema_ids` (forbidden-token absence across 2074 CAS objects) |
+| §D Art. III.1 | shield errors (private CID) | `wave3_50p_shielding_attempt_telemetry_does_not_inline_payload` (max 469B / 460 instances) + `wave3_50p_shielding_typed_wrappers_dont_inline_raw` |
+| §D Art. III.2 | encapsulation (CAS audit-only) | `wave3_50p_shielding_evidence_capsule_routes_via_cid` (1:1 capsule/companion count) + `wave3_50p_shielding_no_orphan_raw_bodies` |
+| §D Art. III.3 | shield correlation (no Goodhart leak) | `wave3_50p_shielding_no_leakage_suggestive_schema_ids` + `wave3_50p_shielding_aggregate_coverage_floor` |
+| §D Art. III.4 | shield Goodhart (low-pollution) | `wave3_50p_shielding_rejection_class_low_pollution` (TransitionError.display.v1 max 48B / 95 real rejections) |
+| §K mirror × 4 | §C Art. II.1 / §D Art. III.1-4 mirror | sync GREEN |
+
+Plus session-#21 mid-verification fix: `constitution_diversity` + `constitution_wilson_ci` registered to gate runner.
+
+### What §8 sign-off DOES authorize
+
+- Stage A2 SHIPPED FINAL — Constitution AMBER closure work concluded at 28 → 7
+- Cumulative session #19/#20/#21 work ratified
+- Stage A1 (TB-18R FINAL) remains green at current HEAD — no regression
+
+### What §8 sign-off does NOT authorize
+
+Per CLAUDE.md §10 + parent autonomous-execution authorization §7:
+
+- **NOT** Stage A3 (HEAD_t C2 multi-ref) execution — Class-4 STEP_B; per-atom §8 still needed
+- **NOT** Stage B3 (TB-18B / 100p / M2) execution — Class-3 explicitly authorized in parent §3.2; per-atom §8 still needed for execution
+- **NOT** Stage C (Polymarket P-M0+) — gated on Stage A green AND Stage B1 green; A1+A2 now green, but A3 remains forward
+- **NOT** Stage D (real-world readiness) activation — directive draft only
+- **NOT** reclassification of remaining 7 AMBER (§F authority-bound × 2 + §I FC3 structural-only-by-design × 5) — needs separate architect §10 ratification path
+- **NOT** constitution edits (Art. V.1.1 sudo) — needs human-architect-only authorization
+
+### Remaining 7 AMBER (Stage A2 out-of-scope per architect "no-dependency static and parser/manifest" framing)
+
+| Article | Row | Class | Forward path |
+|---------|-----|-------|--------------|
+| §F Art. V.1.2 | ArchitectAI proposes (NOT direct write) | authority-bound | architect §10 ratification |
+| §F Art. V.2 | constitution boundaries | authority-bound | architect §10 ratification |
+| §I FC3 | Raw logs not in agent read view | structural-only-by-design | optional forward-TB integration test (TB-18B / TB-Wave12) |
+| §I FC3 | Latest capsule = context only | structural-only-by-design | architect §10 ratification |
+| §I FC3 | Deep history requires override | structural-only-by-design | optional forward-TB env-var integration test |
+| §I FC3 | ArchitectAI proposes, no direct write | structural-only-by-design | sync to §F V.1.2 |
+| §I FC3 | JudgeAI veto-only | structural-only-by-design | architect §10 ratification |
+
+### Next session
+
+Two parallel tracks now eligible:
+
+1. **Stage A3** (HEAD_t C2 multi-ref ChainTape) — charter `STAGE_A3_HEAD_T_C2_charter_2026-05-07.md` drafted; needs per-atom architect §8 to open execution branch (Class-4 STEP_B on `transition_ledger.rs`)
+2. **Stage B3** (TB-18B / 100p / M2 benchmark) — charter `TB-18B_charter_2026-05-07.md` drafted; needs per-atom architect §8 to open execution branch (Class-3 explicitly authorized in parent §3.2). This also discharges session #18 Wave-1/2 forward-bind (Wilson CI + DiversityReport wire-up to aggregate runner) + Gemini Q8 forward bindings (PCP phase-2 + Art. 0.2 commits 5-10 status report)
+
+In addition: optional `/architect-ingest` for §10 reclassification of 7 remaining AMBER → 🚫 N/A (not required for any ship; cleans up matrix true-AMBER count).
+
+### Open questions
+
+1. **(Carried; now forward of Stage A2)** Architect §10 reclassification path for 7 remaining AMBER — should it run before Stage A3/B3 or in parallel? Recommendation: parallel — does not block forward-TB execution.
+2. **(Carried from #18)** Architect's 2026-05-07 alignment audit + launch plan + Polymarket manual — confirmed no drift sessions #19/#20/#21; reconfirm before next forward-TB execution.
+3. **NEW** Per session #21 §8 sign-off: Stage C P-M0 quarantine is now strict-letter charter-eligible (parent §3.3 "pre-condition, charter-eligible after A1 ships" — A1 + A2 both green now). But architect priority #4 verbatim "until constitution gates AND diagnostic benchmarks are stable" remains binding; B3 not yet executed → P-M0+ executable trading still gated.
+
+---
+
 ## 🎯 2026-05-08 (session end #21) — **9 AMBER → GREEN via constitutional harness loop: §C Art. II.1 + §D Art. III.1-4 + §K shielding 4 mirror rows (Wave 3 50p CAS-index shielding binding); 16 → 7 true-AMBER**
 
 **HEAD**: pre-commit (1 NEW test file `tests/constitution_shielding_evidence_binding.rs` + 1 gate-runner registration + matrix row updates §C/§D/§K + this LATEST.md entry; no production src/ touched).
