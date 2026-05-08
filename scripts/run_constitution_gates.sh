@@ -125,6 +125,14 @@ GATES=(
   # C1 baseline refs/transitions/main preserved as backward-compat alias.
   # Closes architect alignment doc Stage A3 SG-A3.1-5 at substrate level.
   constitution_head_t_c2_multi_ref
+
+  # Stage B3 / TB-18B 2026-05-08 — PCP corpus phase-2 (MiniF2F-v2
+  # misalignment, real-world adversarial). Closes Gemini R1 Q8 forward-bind
+  # #1 + TB-18B charter SG-18B.9. 9 mutation classes derived from real
+  # public mathd_algebra_107 (NOT synthetic) per
+  # `feedback_real_problems_not_designed`. Phase-1 synthetic corpus
+  # (cases/pcp_corpus/) preserved as predecessor.
+  constitution_pcp_corpus_phase2
 )
 
 # Run each gate file separately and collect per-test outcome.

@@ -1,0 +1,131 @@
+{
+  "schema_version": "v1/pcp_corpus_phase2_manifest",
+  "authority": "Gemini R1 Q8 forward-bind (OBS_GEMINI_C_LAND_R1_Q8_FORWARD_BINDING_2026-05-07.md) + TB-18B charter SG-18B.9 + CLAUDE.md §4.2 G-012",
+  "predecessor": "cases/pcp_corpus/MANIFEST.json (synthetic phase-1)",
+  "base_problem": {
+    "source": "MiniF2F Test set",
+    "id": "mathd_algebra_107",
+    "canonical_statement": "theorem mathd_algebra_107 (x y : ℝ) (h₀ : x^2 + 8 * x + y^2 - 6 * y = 0) : (x + 4)^2 + (y-3)^2 = 5^2",
+    "canonical_proof": "by nlinarith"
+  },
+  "rationale": "Per `feedback_real_problems_not_designed`: real public problems preferred; synthesis forbidden. Phase-2 derives all 9 mutation classes from a single real MiniF2F problem family rather than synthesized one-line theorems.",
+  "corpus": [
+    {
+      "id": "01_valid",
+      "class": "valid_proof",
+      "fixture": "01_valid/proof.lean",
+      "mutation": "(none — canonical positive control)",
+      "attempt_outcome": "LeanPass",
+      "lean_verdict_kind": "Verified",
+      "rejection_class": null,
+      "routes_to": "L4_accepted"
+    },
+    {
+      "id": "02_mutated_invalid",
+      "class": "mutated_invalid_proof",
+      "fixture": "02_mutated_invalid/proof.lean",
+      "mutation": "nlinarith → linarith (insufficient power for nonlinear goal)",
+      "attempt_outcome": "LeanFail",
+      "lean_verdict_kind": "Failed",
+      "rejection_class": "LeanFailed",
+      "rejection_class_u8": 6,
+      "routes_to": "L4_E"
+    },
+    {
+      "id": "03_sorry_insertion",
+      "class": "sorry_insertion",
+      "fixture": "03_sorry_insertion/proof.lean",
+      "mutation": "nlinarith → sorry (placeholder; hole in proof)",
+      "attempt_outcome": "SorryBlock",
+      "lean_verdict_kind": "SorryBlocked",
+      "rejection_class": "SorryBlocked",
+      "rejection_class_u8": 8,
+      "routes_to": "L4_E"
+    },
+    {
+      "id": "04_type_mismatch",
+      "class": "type_mismatch",
+      "fixture": "04_type_mismatch/proof.lean",
+      "mutation": "conclusion (x + 4)^2 → ((x : ℕ) + 4)^2; forces ℝ ↦ ℕ coercion mismatch",
+      "attempt_outcome": "LeanFail",
+      "lean_verdict_kind": "Failed",
+      "rejection_class": "LeanFailed",
+      "rejection_class_u8": 6,
+      "routes_to": "L4_E"
+    },
+    {
+      "id": "05_wrong_theorem_name",
+      "class": "wrong_theorem_name",
+      "fixture": "05_wrong_theorem_name/proof.lean",
+      "mutation": "reference Mathlib.Tactic.Nlinarith2.proof_that_does_not_exist (undefined identifier)",
+      "attempt_outcome": "LeanFail",
+      "lean_verdict_kind": "Failed",
+      "rejection_class": "LeanFailed",
+      "rejection_class_u8": 6,
+      "routes_to": "L4_E"
+    },
+    {
+      "id": "06_off_by_one_arith",
+      "class": "off_by_one_arithmetic",
+      "fixture": "06_off_by_one_arith/proof.lean",
+      "mutation": "conclusion 5^2 → 6^2; LHS still equals 25 ≠ 36 (true statement broken)",
+      "attempt_outcome": "LeanFail",
+      "lean_verdict_kind": "Failed",
+      "rejection_class": "LeanFailed",
+      "rejection_class_u8": 6,
+      "routes_to": "L4_E"
+    },
+    {
+      "id": "07_irrelevant_theorem",
+      "class": "irrelevant_theorem",
+      "fixture": "07_irrelevant_theorem/proof.lean",
+      "mutation": "exact Nat.add_comm 0 0 (irrelevant lemma; type mismatch on ℝ goal)",
+      "attempt_outcome": "LeanFail",
+      "lean_verdict_kind": "Failed",
+      "rejection_class": "LeanFailed",
+      "rejection_class_u8": 6,
+      "routes_to": "L4_E"
+    },
+    {
+      "id": "08_partial_then_final_invalid",
+      "class": "partial_then_final_invalid",
+      "fixture": "08_partial_then_final_invalid/proof.lean",
+      "mutation": "ring_nf (succeeds) followed by rfl (fails on non-syntactic equality)",
+      "attempt_outcome": "LeanFail",
+      "lean_verdict_kind": "Failed",
+      "rejection_class": "LeanFailed",
+      "rejection_class_u8": 6,
+      "routes_to": "L4_E"
+    },
+    {
+      "id": "09_parse_invalid",
+      "class": "parse_invalid",
+      "fixture": "09_parse_invalid/proof.lean",
+      "mutation": "unbalanced parentheses ((((  ; Lean parser rejects pre-elaboration",
+      "attempt_outcome": "ParseFail",
+      "lean_verdict_kind": "ParseFailed",
+      "rejection_class": "ParseFailed",
+      "rejection_class_u8": 7,
+      "routes_to": "L4_E"
+    }
+  ],
+  "constitutional_invariants": [
+    "Valid proofs MUST pass.",
+    "Mutated invalid proofs MUST fail.",
+    "Invalid proofs MUST NOT enter L4 accepted.",
+    "Invalid proofs MUST enter L4.E or anchored EvidenceCapsule."
+  ],
+  "kill_conditions": [
+    "Any L4_accepted-routed mutation other than 01_valid",
+    "Any class missing a fixture file",
+    "Any rejection_class_u8 mapping inconsistent with phase-1 (cases/pcp_corpus/)",
+    "Any fixture not based on mathd_algebra_107 canonical statement"
+  ],
+  "cross_references": [
+    "cases/pcp_corpus/MANIFEST.json (phase-1 synthetic predecessor)",
+    "handover/alignment/OBS_GEMINI_C_LAND_R1_Q8_FORWARD_BINDING_2026-05-07.md",
+    "handover/tracer_bullets/TB-18B_charter_2026-05-07.md (SG-18B.9)",
+    "CLAUDE.md §4.2 G-012 PCP soundness",
+    "feedback_real_problems_not_designed"
+  ]
+}
