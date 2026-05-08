@@ -86,9 +86,18 @@ EXPERIMENT_DIR="$PROJECT_ROOT/experiments/minif2f_v4"
 MINIF2F_DIR="${MINIF2F_DIR:-/home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4}"
 RUN_DIR="$PROJECT_ROOT/handover/evidence/$RUN_TAG"
 
-# Charter-pinned model list (NOT configurable; aligns with TB-18B §1 +
-# session #25 user pick).
-MODELS=("deepseek-chat" "deepseek-ai/DeepSeek-V3")
+# Charter-pinned model list (NOT configurable; aligns with TB-18B §1).
+#
+# Primary: deepseek-chat (api.deepseek.com — chat baseline).
+# Alternative: Qwen/Qwen2.5-72B-Instruct via SiliconFlow.
+#   - User AskUserQuestion 2026-05-08 session #25: deepseek-ai/DeepSeek-V3
+#   - Session #26 smoke (commit 1210ea3) showed V3 ~5x slower than chat AND
+#     hit MAX_TX=200 on 2/2 problems → projected full M2 ~245h (~10 days).
+#   - User AskUserQuestion 2026-05-08 session #26 verbatim: "换 alt-model 为
+#     Qwen2.5-72B (Recommended)" — multi-condition signal preserved (Qwen is
+#     different vendor + different architecture from DeepSeek-chat),
+#     SiliconFlow throughput expected ~2-3x chat.
+MODELS=("deepseek-chat" "Qwen/Qwen2.5-72B-Instruct")
 
 # Per-problem evaluator wall-clock cap (matches Wave 3 50p PHASE_3_RUN_MANIFEST).
 PER_PROBLEM_TIMEOUT_S="${PER_PROBLEM_TIMEOUT_S:-1800}"
