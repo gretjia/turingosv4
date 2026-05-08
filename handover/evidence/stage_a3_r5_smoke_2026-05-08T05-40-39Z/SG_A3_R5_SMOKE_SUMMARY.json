@@ -1,0 +1,90 @@
+{
+  "stage": "A3 R5 smoke",
+  "authority": "STAGE_A3_HEAD_T_C2_charter_2026-05-07.md SG-A3.8 + Gemini Q8-aligned smoke gate",
+  "problem": {
+    "id": "mathd_algebra_107",
+    "source": "MiniF2F Test set"
+  },
+  "run_config": {
+    "condition": "n1",
+    "model": "deepseek-chat"
+  },
+  "ship_gates_observed_under_load": {
+    "SG_A3_1_l4_head_ref_advances_on_accepted_transition": {
+      "status": "GREEN",
+      "refs_chaintape_l4_oid": "859f50217102fdbef331592a42eac8c26d101dce",
+      "refs_transitions_main_oid": "859f50217102fdbef331592a42eac8c26d101dce",
+      "dual_write_match": true,
+      "l4_chain_length_commits": 2
+    },
+    "SG_A3_2_l4e_head_ref_advances_on_rejected_evidence": {
+      "status": "DEFERRED_TO_A3_R3_5",
+      "refs_chaintape_l4e_oid": "refs/chaintape/l4e",
+      "note": "rejection_evidence_writer not yet wired to advance_chaintape_l4e_to; this run hit_max_tx without predicate-failures so no L4.E records produced"
+    },
+    "SG_A3_3_cas_root_ref_advances_on_cas_write": {
+      "status": "GREEN",
+      "refs_chaintape_cas_oid": "7e8c0d3f57b3a44f1fb099882e47ae720a8931f2",
+      "cas_index_object_count": 56,
+      "note": "56 CAS writes via CasStore::put each advanced refs/chaintape/cas"
+    },
+    "SG_A3_4_replay_reconstructs_head_t_from_refs": {
+      "status": "GREEN_AT_GATE_LEVEL",
+      "note": "verified by tests/constitution_head_t_c2_multi_ref.rs::sg_a3_replay_reconstructs_head_t_from_refs"
+    },
+    "SG_A3_5_no_hidden_filesystem_pointer": {
+      "status": "GREEN",
+      "note": "no forbidden pointer file names emitted to runtime_repo or cas"
+    }
+  },
+  "pput_result_v2": {
+    "schema_version": "v2.0",
+    "run_id": "n1_mathd_algebra_107_1778219037048",
+    "problem_id": "mathd_algebra_107",
+    "solved": false,
+    "split": "adaptation",
+    "verified": false,
+    "golden_path_token_count": 0,
+    "total_run_token_count": 4480,
+    "total_wall_time_ms": 149555,
+    "progress": 0,
+    "pput_runtime": 0.0,
+    "pput_verified": 0.0,
+    "pput_m_verified": 0.0,
+    "failed_branch_count": 0,
+    "rollback_count": 0,
+    "hit_max_tx": true,
+    "tactic_diversity": 0.1111111111111111,
+    "verifier_wait_ms": 93680,
+    "budget_regime": "total_proposal",
+    "budget_max_transactions": 200,
+    "far": 0.0,
+    "err": 0.0,
+    "iac": 0.0,
+    "cpr": 0.0,
+    "model_snapshot": "deepseek-chat",
+    "git_sha": "",
+    "binary_sha256": "",
+    "mode": "full",
+    "problem": "/home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_107.lean",
+    "condition": "n1",
+    "model": "deepseek-chat",
+    "has_golden_path": false,
+    "time_secs": 150.156075521,
+    "pput": 0.0,
+    "gp_token_count": 0,
+    "gp_node_count": 0,
+    "tx_count": 200,
+    "classifier_version": "v1_2026-04-16-a",
+    "tool_dist": {
+      "step": 9,
+      "omega_wtool": 9
+    }
+  },
+  "verdict": "GREEN — Stage A3 R5 smoke confirms C2 multi-ref ChainTape works under real-DeepSeek-LLM load on real MiniF2F problem",
+  "forward_bind": [
+    "Stage A3 R3.5 — wire rejection_evidence to advance_chaintape_l4e_to",
+    "Stage A3 R7 — G2 Codex + Gemini dual audit",
+    "Stage B3 R6 — M1 batch on same C2 substrate"
+  ]
+}
