@@ -8,8 +8,8 @@
 
 ## 📊 宪法全落地完成进度（Constitution Full-Landing Dashboard）
 
-**Updated**: 2026-05-08 session #23 close
-**HEAD**: `49bab5b` (Stage A3 §8 sign-off CANDIDATE)
+**Updated**: 2026-05-08 session #24 (Stage A3 SHIPPED FINAL)
+**HEAD**: `3fb35e6` + Stage A3 §8 sign-off ("同意 sign-off" 2026-05-08; `2026-05-08_STAGE_A3_§8_SIGN_OFF.md`)
 **Snapshot**: per `bash scripts/run_constitution_gates.sh` + `cargo test --workspace --no-fail-fast`
 
 ### Validation totals
@@ -33,7 +33,7 @@
 |---|---|---|---|
 | **A1** TB-18R FINAL | ship | 3/4 | 🟢 SHIPPED (architect §8 2026-05-07 — `2026-05-07_TB18R_FINAL_§8_SIGN_OFF.md`) |
 | **A2** Constitution AMBER closure | ship | 1 | 🟢 SHIPPED FINAL (architect §8 2026-05-08 "好，确认可以 ship" — `2026-05-08_STAGE_A2_§8_SIGN_OFF.md`) |
-| **A3** HEAD_t C2 multi-ref ChainTape | R1+R2+R3+R3.5+R4+R5+R7 | 4 STEP_B | 🟡 SHIPPED CANDIDATE (10/10 SG-A3.* GREEN; awaiting §8 — `2026-05-08_STAGE_A3_§8_SIGN_OFF_CANDIDATE.md`) |
+| **A3** HEAD_t C2 multi-ref ChainTape | R1+R2+R3+R3.5+R4+R5+R7 | 4 STEP_B | 🟢 SHIPPED FINAL (architect §8 2026-05-08 "同意 sign-off" — `2026-05-08_STAGE_A3_§8_SIGN_OFF.md`; 10/10 SG-A3.* GREEN) |
 | **B1** 20p diagnostic | ship | 2 | 🟢 SHIPPED (commit `ffb6ebd` 2026-05-07) |
 | **B2** 50p controlled | ship | 2 | 🟢 SHIPPED (commit `a612cc9` 2026-05-07) |
 | **B3** TB-18B M1/M2 | R1+R2+R3+R4+R5 + R6 mini-M1 | 1+3 | 🟡 substrate LANDED (BenchmarkManifest + AggregateReport + PCP corpus phase-2 + Art. 0.2 status report); R6 full M1 (450 runs) + R7 M2 + R8-R11 forward |
@@ -47,7 +47,7 @@
 | TB-C0 SHIPPED FINAL | 2026-05-07 | "好，确认可以 ship" multi-clause | `2026-05-07_TBC0_ARCHITECT_§8_SIGN_OFF.md` |
 | TB-18R FINAL SHIPPED | 2026-05-07 | multi-clause autonomous-execution authorization | `2026-05-07_TB18R_FINAL_§8_SIGN_OFF.md` |
 | Stage A2 SHIPPED FINAL | 2026-05-08 | "好，确认可以 ship" multi-clause | `2026-05-08_STAGE_A2_§8_SIGN_OFF.md` |
-| Stage A3 SHIPPED CANDIDATE | 2026-05-08 | (awaiting verbatim) | `2026-05-08_STAGE_A3_§8_SIGN_OFF_CANDIDATE.md` |
+| **Stage A3 SHIPPED FINAL** | 2026-05-08 | "同意 sign-off" two-clause (agreement + named act) | `2026-05-08_STAGE_A3_§8_SIGN_OFF.md` |
 
 ### Real-LLM evidence ledger (post-Wave-3 Stage A3 + B3 substrate)
 
@@ -59,15 +59,15 @@
 | Stage B3 R6 mini-M1 | 8 (algebra + aime) | **C2 multi-ref full** | 16.5min | 8/8 Ok delta=0 (8/8 l4e_jsonl_match) |
 | **Stage A3 substrate cumulative** | **10** | **C2 multi-ref** | **~20min** | **10/10 Ok delta=0** |
 
-### Forward queue (post-Stage-A3 §8)
+### Forward queue (post-Stage-A3 §8 SHIPPED FINAL)
 
 | Item | Class | Blocker |
 |---|---|---|
-| Stage A3.6 enhancement TB | 3 | dual-audit forward-bind: CasStore::put error surface + refs/chaintape/cas commit-chain redesign + atomic ref-update + failure-injection tests + RejectionEvidenceWriter explicit ctor arg |
-| Stage B3 R6 full M1 (450 runs ~19h) | 3 | compute-budget; can run unattended next session |
-| Stage B3 R7 M2 (1800 runs ~75h) | 3 | gated on M1 + Stage A green |
+| Stage A3.6 enhancement TB | 3 | dual-audit forward-bind: CasStore::put error surface + refs/chaintape/cas commit-chain redesign + atomic ref-update + failure-injection tests + RejectionEvidenceWriter explicit ctor arg; charter draftable now |
+| Stage B3 R6 full M1 (450 runs ~19h) | 3 | compute-budget pre-confirmed (parent §6 + 5/8 verbatim "这些都给你授权"); can run unattended |
+| Stage B3 R7 M2 (1800 runs ~75h) | 3 | gated on M1 complete |
 | §10 reclassification of remaining 7 AMBER | 4 | architect §10 ratification path (procedural / structural-only-by-design) |
-| Stage C P-M0 quarantine | 1 | charter-eligible after A3 §8; full Stage C gated on B3 R6 |
+| Stage C P-M0 quarantine | 1 | charter-eligible NOW (Stage A green achieved at A3 §8); full Stage C still gated on B3 R6 per priority #4 |
 | Stage D real-world readiness | architect-path | architect-side oracle/challenge-court/safety design |
 
 ### Forbidden-list compliance (architect 6-item universal)
