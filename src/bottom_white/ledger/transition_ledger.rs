@@ -713,16 +713,45 @@ impl Git2LedgerWriter {
             })?,
         };
 
-        // Resolve refs/transitions/main if it exists.
-        let (head_oid, len) = match repo.find_reference(TRANSITIONS_REF) {
-            Ok(reference) => {
-                let oid = reference
-                    .target()
-                    .ok_or_else(|| {
-                        LedgerWriterError::BackendCorruption(format!(
-                            "{TRANSITIONS_REF} has no direct target"
-                        ))
-                    })?;
+        // Stage A3 / HEAD_t C2 R7 (Codex R1 Q1 fix): C2 ref `refs/chaintape/l4`
+        // is canonical; `refs/transitions/main` is a backward-compat alias.
+        // Prefer C2 if present; fall back to C1 alias if only C1 exists (e.g.
+        // pre-A3 evidence). On open() detect divergence between the two and
+        // repair by mirroring C2 → C1 (canonical wins). This closes the partial
+        // failure window where commit() updates C2 but C1 alias mirror fails.
+        let c2_oid = repo
+            .find_reference(CHAINTAPE_L4_REF)
+            .ok()
+            .and_then(|r| r.target());
+        let c1_oid = repo
+            .find_reference(TRANSITIONS_REF)
+            .ok()
+            .and_then(|r| r.target());
+
+        let canonical_oid = match (c2_oid, c1_oid) {
+            (Some(c2), Some(c1)) if c2 != c1 => {
+                // Divergence detected: C2 wins per CR-A3-HEAD-T-C2.6 (C1 is alias).
+                // Repair by overwriting C1 to match C2.
+                repo.reference(
+                    TRANSITIONS_REF,
+                    c2,
+                    true,
+                    "C2/C1 divergence repair: aligning C1 alias to canonical C2",
+                )
+                .map_err(|e| {
+                    LedgerWriterError::BackendCorruption(format!(
+                        "C1 alias repair: {e}"
+                    ))
+                })?;
+                Some(c2)
+            }
+            (Some(c2), _) => Some(c2),
+            (None, Some(c1)) => Some(c1), // pre-A3 evidence: C1-only path
+            (None, None) => None,
+        };
+
+        let (head_oid, len) = match canonical_oid {
+            Some(oid) => {
                 // Walk parents to count chain length.
                 let mut n: u64 = 0;
                 let mut cursor = Some(oid);
@@ -735,7 +764,7 @@ impl Git2LedgerWriter {
                 }
                 (Some(oid), n)
             }
-            Err(_) => (None, 0),
+            None => (None, 0),
         };
 
         Ok(Self {
@@ -924,9 +953,15 @@ impl LedgerWriter for Git2LedgerWriter {
         };
         let parent_refs: Vec<&git2::Commit<'_>> = parents.iter().collect();
         let message = format!("transition logical_t={}\n", entry.logical_t);
+        // Stage A3 / HEAD_t C2 R7 (Codex R1 Q1 fix): write to C2 ref (canonical)
+        // FIRST as the commit destination, then update C1 alias as the secondary
+        // backward-compat pointer. If the C1 alias update fails, the C2 ref is
+        // already canonical so the canonical chain is intact; subsequent open()
+        // detects divergence and repairs. Pre-fix order had the inverse risk:
+        // C1 advanced + C2 stale on partial failure left canonical chain stale.
         let new_oid = repo
             .commit(
-                Some(TRANSITIONS_REF),
+                Some(CHAINTAPE_L4_REF),
                 &author,
                 &committer,
                 &message,
@@ -935,20 +970,20 @@ impl LedgerWriter for Git2LedgerWriter {
             )
             .map_err(|e| LedgerWriterError::BackendCorruption(format!("commit: {e}")))?;
 
-        // Stage A3 / HEAD_t C2 FR-A3-HEAD-T-C2.2 — dual-write to
-        // `refs/chaintape/l4` so the new canonical ref family advances
-        // alongside the C1 alias `refs/transitions/main`. Per CR-A3-HEAD-T-C2.6
-        // the HEAD_t schema is unchanged; only the storage form gains the
-        // multi-ref witness.
+        // Stage A3 / HEAD_t C2 FR-A3-HEAD-T-C2.2 (post-Codex Q1 fix): mirror the
+        // canonical C2 OID into the C1 alias `refs/transitions/main` so existing
+        // C1 readers (open() walk in particular) keep working. Per CR-A3-HEAD-T-C2.6
+        // the HEAD_t schema is unchanged; the C2 ref family is now the canonical
+        // pointer, with C1 as a repairable alias.
         repo.reference(
-            CHAINTAPE_L4_REF,
+            TRANSITIONS_REF,
             new_oid,
             true,
-            &format!("transition logical_t={}", entry.logical_t),
+            &format!("transition logical_t={} (C1 alias)", entry.logical_t),
         )
         .map_err(|e| {
             LedgerWriterError::BackendCorruption(format!(
-                "chaintape l4 ref update: {e}"
+                "C1 alias refs/transitions/main update: {e}"
             ))
         })?;
 

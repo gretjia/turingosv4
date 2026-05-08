@@ -282,6 +282,17 @@ fn sg_a3_no_hidden_filesystem_pointer() {
         "RUN_LATEST_POINTER",
         "head_t_pointer.txt",
     ];
+    // Note (Stage A3 R7 Codex R1 Q5): `LATEST_MARKOV_CAPSULE.txt` is the
+    // OBS_R022-decanonicalized historical Markov pointer. Codex flagged it as
+    // missing from this list, but it is ALREADY covered by the parallel-ledger
+    // gate `tests/constitution_no_parallel_ledger.rs::no_global_markov_pointer`
+    // (FC3 chain-resident filesystem invariant) plus `tests/markov_pointer_de_canonicalize.rs`
+    // (TB-16 OBS_R022 closure). Including it here would also flag legitimate
+    // doc-comment references and user-facing audit diagnostic strings in
+    // `src/bin/audit_dashboard.rs` (which explicitly explain the pointer's
+    // de-canonicalization). The cross-gate coverage is sufficient per
+    // `feedback_no_workarounds_strict_constitution`: rely on the canonical
+    // gate, not on patching here.
     // Walk src/ and check no .rs file references a forbidden pointer file.
     let src = Path::new("src");
     walk_and_check(src, &forbidden);
@@ -298,6 +309,37 @@ fn sg_a3_no_hidden_filesystem_pointer() {
     }
 }
 
+/// Strip Rust line comments (`//`, `///`, `//!`) so the forbidden-pointer
+/// scan only inspects production code, not doc-comment references that may
+/// legitimately mention forbidden names as guards. Block comments (`/* */`)
+/// are best-effort: this stripper handles the line-comment case which covers
+/// >99% of Rust comments in this codebase.
+fn strip_rust_line_comments(body: &str) -> String {
+    let mut out = String::with_capacity(body.len());
+    for line in body.lines() {
+        let trimmed = line.trim_start();
+        if trimmed.starts_with("//") {
+            // Whole-line comment — skip.
+            out.push('\n');
+            continue;
+        }
+        // Inline trailing comment: keep the code portion before `//`.
+        if let Some(idx) = line.find("//") {
+            // Heuristic: don't mistake `://` (URL) for a comment start; require
+            // the `//` to be preceded by whitespace or be at column 0.
+            let prefix = &line[..idx];
+            if idx == 0 || prefix.ends_with(' ') || prefix.ends_with('\t') {
+                out.push_str(prefix);
+                out.push('\n');
+                continue;
+            }
+        }
+        out.push_str(line);
+        out.push('\n');
+    }
+    out
+}
+
 fn walk_and_check(dir: &Path, forbidden: &[&str]) {
     if !dir.exists() {
         return;
@@ -312,19 +354,20 @@ fn walk_and_check(dir: &Path, forbidden: &[&str]) {
                 Ok(s) => s,
                 Err(_) => continue,
             };
+            // Ignore comments that explicitly mention forbidden names as
+            // banned (so this very file's forbidden-list doesn't trip).
+            let is_test_file = path
+                .file_name()
+                .map(|n| n.to_string_lossy().contains("constitution_head_t_c2"))
+                .unwrap_or(false);
+            if is_test_file {
+                continue;
+            }
+            let stripped = strip_rust_line_comments(&body);
             for f in forbidden {
-                // Ignore comments that explicitly mention forbidden names as
-                // banned (so this very file's forbidden-list doesn't trip).
-                let is_test_file = path
-                    .file_name()
-                    .map(|n| n.to_string_lossy().contains("constitution_head_t_c2"))
-                    .unwrap_or(false);
-                if is_test_file {
-                    continue;
-                }
                 assert!(
-                    !body.contains(f),
-                    "CR-A3-HEAD-T-C2.5 violation: {} contains forbidden pointer name `{f}`",
+                    !stripped.contains(f),
+                    "CR-A3-HEAD-T-C2.5 violation: {} contains forbidden pointer name `{f}` in production code (comments stripped)",
                     path.display()
                 );
             }
@@ -370,6 +413,66 @@ fn sg_a3_cas_root_ref_advances_via_cas_store_put() {
         oid_a, oid_b,
         "CasStore::put must advance refs/chaintape/cas on each new content"
     );
+}
+
+/// SG-A3.1 reorder-fix verification — Codex R1 Q1 closure: refs/chaintape/l4
+/// is the canonical ref, refs/transitions/main is the C1 alias. After commit,
+/// both refs MUST point at the same OID (verified by sg_a3_l4_head_ref_advances...).
+/// This test exercises the divergence-repair path on open(): if a stale C1 alias
+/// lags the C2 canonical ref (simulating partial-failure history), open() must
+/// repair the alias to match canonical.
+#[test]
+fn sg_a3_open_repairs_c1_alias_divergence() {
+    let (_tmp, path, mut writer) = fresh_repo();
+    // Append two transitions to populate both refs at HEAD-2 OID.
+    let e1 = entry_at(1, Hash::ZERO, Hash::ZERO, Hash([0x11; 32]));
+    let _ = writer.commit(&e1).expect("commit-1");
+    let e2 = entry_at(2, Hash([0x11; 32]), e1.resulting_ledger_root, Hash([0x22; 32]));
+    let _ = writer.commit(&e2).expect("commit-2");
+
+    let canonical = writer.head_commit_oid().expect("c2 head");
+    drop(writer);
+
+    // Simulate divergence: rewind C1 alias to a stale parent commit.
+    {
+        let repo = Repository::open(&path).expect("open repo");
+        let canonical_commit = repo.find_commit(canonical).expect("find commit");
+        let parent = canonical_commit.parent(0).expect("parent");
+        repo.reference(
+            "refs/transitions/main",
+            parent.id(),
+            true,
+            "test: simulate divergent C1 alias",
+        )
+        .expect("rewind C1");
+
+        let c1_after = Git2LedgerWriter::head_chaintape_l4(&path).expect("read l4").expect("l4");
+        // C2 still at canonical
+        assert_eq!(c1_after, canonical);
+        // C1 was rewound to parent (different from canonical)
+        let c1_oid = repo
+            .find_reference("refs/transitions/main")
+            .expect("ref")
+            .target()
+            .expect("oid");
+        assert_ne!(c1_oid, canonical, "test setup: C1 should be rewound");
+    }
+
+    // Re-open: open() must detect divergence and repair C1 → C2.
+    let _writer2 = Git2LedgerWriter::open(&path).expect("reopen");
+
+    let repo = Repository::open(&path).expect("open repo post");
+    let c1_repaired = repo
+        .find_reference("refs/transitions/main")
+        .expect("ref")
+        .target()
+        .expect("oid");
+    let c2_after = Git2LedgerWriter::head_chaintape_l4(&path).expect("l4 post").expect("l4 oid");
+    assert_eq!(
+        c1_repaired, c2_after,
+        "open() must repair C1 alias divergence by aligning to C2 canonical"
+    );
+    assert_eq!(c2_after, canonical, "C2 must remain at canonical after open");
 }
 
 /// Regression — REF constants pinned at canonical names per FR-A3-HEAD-T-C2.1.
