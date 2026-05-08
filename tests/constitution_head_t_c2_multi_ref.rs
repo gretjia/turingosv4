@@ -332,6 +332,46 @@ fn walk_and_check(dir: &Path, forbidden: &[&str]) {
     }
 }
 
+/// SG-A3-HEAD-T-C2.3 integration — `CasStore::put` advances `refs/chaintape/cas`
+/// automatically. Closes Stage A3 R3 (CAS hook) at integration level: each
+/// call to CasStore::put MUST result in the ref pointing at the new blob OID.
+#[test]
+fn sg_a3_cas_root_ref_advances_via_cas_store_put() {
+    use turingosv4::bottom_white::cas::schema::ObjectType;
+    use turingosv4::bottom_white::cas::store::CasStore;
+
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let path = tmp.path().to_path_buf();
+    let mut store = CasStore::open(&path).expect("open cas store");
+
+    // Pre: no chaintape/cas ref.
+    let pre = Git2LedgerWriter::head_chaintape_cas(&path).expect("read pre");
+    assert!(pre.is_none(), "fresh CAS store must have no chaintape/cas ref");
+
+    // First put — ref must materialize.
+    let cid_a = store
+        .put(b"first cas content", ObjectType::Generic, "test", 1, None)
+        .expect("put 1");
+    let oid_a = Git2LedgerWriter::head_chaintape_cas(&path)
+        .expect("read cas after put 1")
+        .expect("cas ref present after put");
+    let _ = cid_a;
+
+    // Second put — ref must advance to new OID.
+    let cid_b = store
+        .put(b"second cas content", ObjectType::Generic, "test", 2, None)
+        .expect("put 2");
+    let oid_b = Git2LedgerWriter::head_chaintape_cas(&path)
+        .expect("read cas after put 2")
+        .expect("cas ref present after second put");
+    let _ = cid_b;
+
+    assert_ne!(
+        oid_a, oid_b,
+        "CasStore::put must advance refs/chaintape/cas on each new content"
+    );
+}
+
 /// Regression — REF constants pinned at canonical names per FR-A3-HEAD-T-C2.1.
 /// A future rename would silently break replay-from-refs; this fires the gate.
 #[test]

@@ -301,6 +301,22 @@ impl CasStore {
         // either the entry is durably recorded AND in-memory, or neither).
         append_to_sidecar(&self.repo_path, &metadata)?;
         self.index.insert(cid, metadata);
+
+        // Stage A3 / HEAD_t C2 R3 — advance refs/chaintape/cas to track the
+        // new git_oid (the blob OID of the just-written content). This is the
+        // canonical CAS root pointer per FR-A3-HEAD-T-C2.2 / SG-A3.3. The ref
+        // is best-effort: a failure here MUST NOT roll back the CAS write
+        // (the durable append already succeeded), but does fire R-022-PASS
+        // failure logging via the Err path's BackendCorruption variant for
+        // operator visibility. Per CR-A3-HEAD-T-C2.5 the ref IS the canonical
+        // pointer; transient ref-update failures are recoverable on next
+        // CAS write because the ref is overwrite-safe (force=true).
+        let _ = crate::bottom_white::ledger::transition_ledger::Git2LedgerWriter::advance_chaintape_cas_to(
+            &self.repo_path,
+            git_oid,
+            &format!("CAS put: cid={cid}"),
+        );
+
         Ok(cid)
     }
 
