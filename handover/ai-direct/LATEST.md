@@ -6,6 +6,66 @@
 
 ---
 
+## 🎯 2026-05-08 (session end #21) — **9 AMBER → GREEN via constitutional harness loop: §C Art. II.1 + §D Art. III.1-4 + §K shielding 4 mirror rows (Wave 3 50p CAS-index shielding binding); 16 → 7 true-AMBER**
+
+**HEAD**: pre-commit (1 NEW test file `tests/constitution_shielding_evidence_binding.rs` + 1 gate-runner registration + matrix row updates §C/§D/§K + this LATEST.md entry; no production src/ touched).
+
+### Session arc
+
+User issued Chinese verbatim authorization: "根据架构师意见自主执行，如果遇到边缘情况。架构师意见没有明确指引的，依照宪法严格对齐" — autonomous execution per architect opinion; constitution as tiebreaker for edge cases. Mapped to architect's 2026-05-07 alignment authorization (`handover/directives/2026-05-07_ARCHITECT_ALIGNMENT_AUTONOMOUS_EXECUTION_AUTHORIZATION.md`) §3.1 A2 "Constitution AMBER closure — Class 1 (pure tests; harness hardening; no src/ writes if avoidable) — YES — execute as ship-eligible Class-1 work". Session #20 carry-forward identified §C Art. II.1 raw-stderr as forward-bound to TB-18B and structural-only AMBER reclassification as needing architect §10 ratification. Per "edge case → constitution strict alignment" rule, did NOT pursue the Class-4 reclassification path; instead extended the Wave 3 50p binding pattern to shielding rows via CAS index aggregation.
+
+`/constitution-landing-check` skill fired; 16 true-AMBER enumerated; 9 classified as `chain-resident, mechanically-closeable` via CAS-index binding (the 4 §K shielding tests + their §C/§D mirrors). VERDICT: PIVOT to AMBER row work via shielding-evidence-binding extension. The remaining 7 (§F authority-bound ×2 + §I structural-only-by-design ×5) are NOT autonomously closeable — §F needs architect ratification (CLAUDE.md §10 Class-4 boundary), §I rows are explicitly marked "structural-only by design" in row text.
+
+### Constitution landing — 9 AMBER → GREEN
+
+| Row | Article / mirror | Mechanism |
+|-----|-----------------|-----------|
+| §C Art. II.1 | broadcast typical errors (NO raw stderr) | Wave 3 50p `wave3_50p_shielding_lean_result_is_verdict_only` (LeanResult max 146B / 447 instances) + `wave3_50p_shielding_no_leakage_suggestive_schema_ids` (forbidden-token absence across 2074 CAS objects) |
+| §D Art. III.1 | shield errors (private CID) | `wave3_50p_shielding_attempt_telemetry_does_not_inline_payload` (max 469B / 460 instances) + `wave3_50p_shielding_typed_wrappers_dont_inline_raw` (TypedTx.v1 max 459B / 668 instances) |
+| §D Art. III.2 | encapsulation (CAS audit-only) | `wave3_50p_shielding_evidence_capsule_routes_via_cid` (capsule shell max 485B / 41; raw_log companion 1:1 count proves CID separation) + `wave3_50p_shielding_no_orphan_raw_bodies` |
+| §D Art. III.3 | shield correlation (no Goodhart leak) | `wave3_50p_shielding_no_leakage_suggestive_schema_ids` (no schema_id / object_type matching forbidden tokens `raw_stderr` / `lean_full_body` / `private_diagnostic_*` / `agent_visible_raw` / `prompt_raw_visible`) + `wave3_50p_shielding_aggregate_coverage_floor` |
+| §D Art. III.4 | shield Goodhart (low-pollution) | `wave3_50p_shielding_rejection_class_low_pollution` (TransitionError.display.v1 max 48B avg 34B / 95 real rejections) |
+| §K `raw_lean_stderr_not_in_agent_read_view` | §C/§D mirror | sync GREEN |
+| §K `l4e_public_summary_low_pollution` | §D Art. III.4 mirror | sync GREEN |
+| §K `evidence_capsule_raw_logs_audit_only` | §D Art. III.2 mirror | sync GREEN |
+| §K `dashboard_does_not_leak_private_failure_detail` | §D Art. III.3 mirror | sync GREEN |
+
+### Why CAS-index binding is the canonical "real path under load" witness
+
+Each `cas/.turingos_cas_index.jsonl` line records `{cid, object_type, schema_id, size_bytes, creator, created_at_logical_t}` for one real CAS object emitted by the Wave 3 run. If shielding leaked raw Lean stderr / private diagnostic bodies into a typed surface (LeanResult / TransitionError.display / EvidenceCapsule shell / AttemptTelemetry), the emitted bytes would be measurably larger than the schema-defined sanitized shape — real Lean stderr is typically 2-20 KB, while the observed LeanResult max is 146B and TransitionError.display max is 48B. The size bounds + schema-id whitelist + forbidden-token-absence collectively rule out the kill-condition surface for all four Art. III shielding rows on real 2074-object 50-problem tape, complementing (NOT replacing) the source-grep gate in `tests/constitution_shielding_gate.rs` per CR-C0.7 + `feedback_real_problems_not_designed`.
+
+### Validation
+
+- Constitution gates: **110/0/1 GREEN** (was 101/0/1; +9 tests in `constitution_shielding_evidence_binding`)
+- Workspace tests: **1227/0/151 PASS** (was 1218/0/151; +9 net new tests; full sweep clean)
+- Trust Root: `src/runtime/mod.rs` unchanged — no production src touched this session
+- Matrix true-AMBER count: was 16 → now **7** (9 closed)
+- `scripts/run_constitution_gates.sh` registered new gate `constitution_shielding_evidence_binding` (17 → 18 gate files)
+
+### What this session does NOT do
+
+- Does NOT touch any production src/ — pure new test + matrix + gate-runner registration + handover this session
+- Does NOT pursue structural-only AMBER → 🚫 N/A reclassification (§D / §I / §K / §F rows) — Q1 carried from session #19/#20 still pending architect §10 ratification (Class-4 hygiene per CLAUDE.md §10)
+- Does NOT extend §C Art. II.1 to runtime-prompt-construction integration test — that remains the forward-TB option; the CAS-index binding is the orthogonal real-evidence complement and is sufficient for AMBER → GREEN per CR-C0.7
+- Does NOT execute forward-TB charters (Stage A3 R1 / TB-18B / Stage C) — per-atom architect §8 still required
+
+### Next session
+
+- Remaining 7 AMBER are NOT autonomously closeable at row level:
+  - **§F authority-bound** (2 rows): Art. V.1.2 ArchitectAI proposes + Art. V.2 constitution boundaries — kill conditions are procedural ("architect directly writes to src/ without TB charter"); witness must be a human-architect signature pattern
+  - **§I FC3 structural-only-by-design** (5 rows): Raw logs in agent read view + Latest capsule context-only + Deep history override + ArchitectAI proposes + JudgeAI veto-only — row text already explicitly notes "structural-only by design"
+- All 7 require either architect §10 ratification (reclassify to 🚫 N/A) or a forward-TB carrying a runtime integration test
+- Forward TB charters (Stage A3 R1 / TB-18B / Stage C) require per-atom architect §8 BEFORE branch creation
+- Wire `WilsonCi` + `DiversityReport` into actual aggregate runner output — deferred to next M1/M2 batch wire-up (forward TB)
+
+### Open questions
+
+1. **(Carried from #19/#20, still open)** Structural-only AMBER (§I FC3 5 procedural + §F Art. V.* 2 authority-bound) → 🚫 N/A reclassification — needs architect §10 ratification per CLAUDE.md §10 Class-4 boundary. Recommend: invoke `/architect-ingest` for explicit ratification; without it, these 7 sit AMBER as procedural caps.
+2. **(Carried from #20)** §C Art. II.1 runtime-prompt-construction integration test — this session closed the row via CAS-index evidence binding; the runtime-prompt integration test remains a forward-TB option (TB-18B / TB-Wave12) that would add a SECOND independent witness, not REQUIRED to keep §C Art. II.1 GREEN.
+3. **(Carried from #18, still active)** Architect's 2026-05-07 alignment audit + launch plan + Polymarket manual — confirmed no drift sessions #19/#20/#21; reconfirm before next forward-TB execution.
+
+---
+
 ## 🎯 2026-05-08 (session end #20) — **3 AMBER → GREEN via constitutional harness loop: §O Closure #3 (mechanism for CR-C0.1) + §H/§E "no memory-only preseed" (Wave 3 50p replay-determinism binding)**
 
 **HEAD**: pre-commit (will commit at session end — 1 NEW test file + 1 test added to existing binding file + 2 matrix row updates + 1 gate-runner registration + this LATEST.md entry).

@@ -78,6 +78,16 @@ GATES=(
   # detectability proven on synthetic input via a sibling test, so the
   # main scan over `tests/constitution_*.rs` cannot be vacuously passing.
   constitution_closure_3_no_trivial_asserts
+
+  # Constitution landing 2026-05-08 — Wave 3 50p shielding evidence binding.
+  # Promotes §C Art. II.1 + §D Art. III.1-4 + §K shielding 4 mirror rows
+  # 🟡 AMBER → 🟢 GREEN by aggregating the per-problem
+  # `cas/.turingos_cas_index.jsonl` sidecar across 50 MiniF2F problems and
+  # asserting per-schema size bounds + leakage-suggestive-name absence.
+  # Real-path-under-load complement to the source-grep gate in
+  # `tests/constitution_shielding_gate.rs` per CR-C0.7 +
+  # `feedback_real_problems_not_designed`.
+  constitution_shielding_evidence_binding
 )
 
 # Run each gate file separately and collect per-test outcome.
