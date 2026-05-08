@@ -8,15 +8,15 @@
 
 ## 📊 宪法全落地完成进度（Constitution Full-Landing Dashboard）
 
-**Updated**: 2026-05-08 session #24 (Stage A3 SHIPPED FINAL + 宪法完整落地 — 7 final AMBER → GREEN)
-**HEAD**: `ce71813` (Stage A3 §8 sign-off) + WIP `tests/constitution_fc3_evidence_binding.rs` (7 tests, 7 §F+§I AMBER closures)
+**Updated**: 2026-05-08 session #25 (Stage B §2.4 audit — CompleteSet hardening + market quarantine constitution gates SHIPPED)
+**HEAD**: `d33c25a` (Stage B §2.4 audit commit)
 **Snapshot**: per `bash scripts/run_constitution_gates.sh` + `cargo test --workspace --no-fail-fast`
 
 ### Validation totals
 | Metric | Value | Δ since session #19 (architect baseline 97/1181) |
 |--------|------:|--------------------------------------------------:|
-| Constitution gate tests | **162 GREEN / 0 failed / 1 ignored** | +65 |
-| Workspace tests | **1295 PASS / 0 failed / 151 ignored** | +114 |
+| Constitution gate tests | **175 GREEN / 0 failed / 1 ignored** | +78 |
+| Workspace tests | **1308 PASS / 0 failed / 151 ignored** | +127 |
 | Trust Root rehashed files | 5 (transition_ledger.rs ×2, mod.rs, cas/store.rs, rejection_evidence.rs) | — |
 
 ### Constitution Execution Matrix (`CONSTITUTION_EXECUTION_MATRIX.md`)
@@ -37,6 +37,7 @@
 | **B1** 20p diagnostic | ship | 2 | 🟢 SHIPPED (commit `ffb6ebd` 2026-05-07) |
 | **B2** 50p controlled | ship | 2 | 🟢 SHIPPED (commit `a612cc9` 2026-05-07) |
 | **B3** TB-18B M1/M2 | R1+R2+R3+R4+R5 + R6 mini-M1 | 1+3 | 🟡 substrate LANDED (BenchmarkManifest + AggregateReport + PCP corpus phase-2 + Art. 0.2 status report); R6 full M1 (450 runs) + R7 M2 + R8-R11 forward |
+| **§2.4 audit** Stage B | 1 audit-of-existing-impl | 1 | 🟢 SHIPPED (commit `d33c25a` 2026-05-08 session #25) — `tests/constitution_completeset_hardening.rs` (8 §5.3 verbatim) + `tests/constitution_market_quarantine.rs` (2 §5.2 verbatim + 3 self-tests); +13 constitution gates + +13 workspace tests |
 | **C** Polymarket P-M0..P-M9 | charter | varies | 🔒 GATED (charter drafted `STAGE_C_POLYMARKET_PM0_PM9_charter_2026-05-07.md`; P-M0 strict-letter charter-eligible after A green; B3 full M1 still required per architect priority #4 verbatim) |
 | **D** Real-world readiness | directive draft | — | 🔒 GATED (`2026-05-07_REAL_WORLD_READINESS_DIRECTIVE.md`; activation requires architect-side path decisions) |
 
@@ -59,24 +60,79 @@
 | Stage B3 R6 mini-M1 | 8 (algebra + aime) | **C2 multi-ref full** | 16.5min | 8/8 Ok delta=0 (8/8 l4e_jsonl_match) |
 | **Stage A3 substrate cumulative** | **10** | **C2 multi-ref** | **~20min** | **10/10 Ok delta=0** |
 
-### Forward queue (post-Stage-A3 §8 SHIPPED FINAL)
+### Forward queue (post-Stage-A3 §8 + §2.4 audit SHIPPED — gating decisions for session #26)
 
 | Item | Class | Blocker |
 |---|---|---|
 | Stage A3.6 enhancement TB | 3 | dual-audit forward-bind: CasStore::put error surface + refs/chaintape/cas commit-chain redesign + atomic ref-update + failure-injection tests + RejectionEvidenceWriter explicit ctor arg; charter draftable now |
-| Stage B3 R6 full M1 (450 runs ~19h) | 3 | compute-budget pre-confirmed (parent §6 + 5/8 verbatim "这些都给你授权"); can run unattended |
-| Stage B3 R7 M2 (1800 runs ~75h) | 3 | gated on M1 complete |
-| §10 reclassification of remaining 7 AMBER | 4 | architect §10 ratification path (procedural / structural-only-by-design) |
-| Stage C P-M0 quarantine | 1 | charter-eligible NOW (Stage A green achieved at A3 §8); full Stage C still gated on B3 R6 per priority #4 |
+| **Stage B3 R7 M2 runner script + launch** | 3 | (a) `scripts/run_stage_b3.sh` writing — wraps evaluator binary with multi-seed × multi-model × n=3 loop + per-run TURINGOS_CHAINTAPE_PATH + BenchmarkManifest.json + EvidencePackagingPolicy tarball (~half-day); (b) **alt-model decision** for charter "DeepSeek + 1 alternative" (TB-18B charter §1) — likely SiliconFlow Qwen / Kimi family per `reference_siliconflow`, but explicit user pick required for BenchmarkManifest pin; (c) smoke-validate 2-4p × n=1 before full launch |
+| Stage B3 R7 M2 batch (1800 runs ~75h compute) | 3 | gated on (a) runner script (b) alt-model decision (c) smoke validation; compute-budget pre-confirmed (parent §6 + 5/8 verbatim "这些都给你授权"); can run unattended once gated items resolved |
+| §10 reclassification of remaining 7 AMBER | 4 | architect §10 ratification path (procedural / structural-only-by-design) — superseded by 宪法完整落地 session #24 (matrix 0 AMBER); §10 path likely no longer needed |
+| Stage C P-M0 quarantine | 1 | charter-eligible NOW (Stage A green achieved at A3 §8 + §2.4 audit shipped); full Stage C still gated on B3 R7 M2 per priority #4 |
 | Stage D real-world readiness | architect-path | architect-side oracle/challenge-court/safety design |
+
+### Decisions captured 2026-05-08 session #25 (Stage B §2.4 audit ship-path)
+
+| Decision | Verbatim | Authority |
+|---|---|---|
+| M2 scope = TB-18B charter shape (1800 runs) | "Charter M2 = 1800 runs (Recommended)" | User answer (AskUserQuestion 2026-05-08) — overrides session-prompt 500-run pilot in favor of charter-strict 100p × n=3 × 3 seeds × 2 models |
+| Runner approach = write new `scripts/run_stage_b3.sh` | "先写 runner script (Recommended)" | User answer (AskUserQuestion 2026-05-08) — rejected inline-bash session-#23 pattern in favor of reproducible script per CR-18B.5 EvidencePackagingPolicy |
 
 ### Forbidden-list compliance (architect 6-item universal)
 
-All sessions #19/#20/#21/#22/#23: ✅ no f64 / ✅ no ghost liquidity / ✅ no price-as-truth / ✅ no dashboard SoT / ✅ no real funds / ✅ no public chain (refs/chaintape/* are local libgit2 storage per CR-A3-HEAD-T-C2 explicit).
+All sessions #19/#20/#21/#22/#23/#24/#25: ✅ no f64 / ✅ no ghost liquidity / ✅ no price-as-truth / ✅ no dashboard SoT / ✅ no real funds / ✅ no public chain (refs/chaintape/* are local libgit2 storage per CR-A3-HEAD-T-C2 explicit). §5.2 quarantine gate `legacy_cpm_api_not_imported_by_new_market` + `no_f64_in_market_modules` now enforce no-f64 + no-legacy-CPMM-import at constitution-gate surface session #25 onward.
 
 ---
 
-## 🎯 2026-05-08 (session end #23 — Stage A3 substrate FULLY VERIFIED on real DeepSeek tape; Stage B3 R6 mini-M1 batch running) — **All 5 SG-A3 GREEN under real-LLM load; A3 R5 + A3 R3.5 smoke evidence shipped; A3 R3.5 wire (rejection_evidence → refs/chaintape/l4e) shipped; B3 R6 mini-M1 8-problem batch in flight**
+## 🎯 2026-05-08 (session end #25 — Stage B §2.4 CompleteSet hardening + market quarantine SHIPPED; B1 launch deferred to session #26 pending runner-script + alt-model decision) — **+13 constitution gates / +13 workspace tests; HEAD `d33c25a`**
+
+**HEAD**: `d33c25a` (Stage B §2.4 audit — CompleteSet hardening + market quarantine constitution gates).
+
+### Session arc
+
+User session prompt requested complete Stage B SHIPPED FINAL loop (P1+P2+P3 → B1 → V1 → A1 → S1-3) with "single loop with parallel compute branch" framing. Audit revealed actual scope:
+
+1. **§2.4 audit work was smaller than estimated** — TB-13 (`tests/tb_13_complete_set.rs` + `tests/tb_13_legacy_cpmm_forward_fence.rs`) already covers architect §5.3/§5.2 verbatim 10 names semantically, but at TB-13 ship-gate surface (NOT registered in `scripts/run_constitution_gates.sh GATES=()` array). Decision per `feedback_no_workarounds_strict_constitution`: write fresh constitution-gate files binding architect-verbatim names directly to live sequencer dispatch (Class 1, no production-code mutation), independent of TB-13 organization.
+
+2. **B1 launch revealed scope mismatch** — TB-18B charter §1 verbatim defines M2 = 100p × n=3 × 3 seeds × 2 models = 1800 runs; session prompt said 500 runs single-model single-seed. User confirmed charter shape (1800 runs) over pilot (500 runs).
+
+3. **Runner script gap** — `experiments/minif2f_v4/run_list.sh` is legacy non-chain-backed; mini-M1 R6 8p×n1 batch was inline-launched ad-hoc bash without reproducible script. Charter SG-18B.5 (EvidencePackagingPolicy) + CR-18B.9 (`/runner-preflight` mandatory) require reproducible runner. User confirmed approach = write new `scripts/run_stage_b3.sh` (rejected inline-bash repeat).
+
+4. **Alt-model decision deferred** — TB-18B charter "DeepSeek + 1 alternative" (M2 needs 2 models) — alternative model identity requires explicit user pick for BenchmarkManifest pin. Likely SiliconFlow per `reference_siliconflow` but model name not specified. Punted to session #26 alongside runner-script writing.
+
+### Commits this session
+
+| Commit | Atom | Headline |
+|---|---|---|
+| `d33c25a` | Stage B §2.4 audit | tests/constitution_completeset_hardening.rs (8 §5.3 verbatim) + tests/constitution_market_quarantine.rs (2 §5.2 verbatim + 3 self-tests) + scripts/run_constitution_gates.sh registration; constitution gates 162→175; workspace 1295→1308; bash scripts/run_constitution_gates.sh PASS all GREEN |
+
+### Validation
+
+- Constitution gates: 162 → **175 GREEN** (+13: 8 hardening + 5 quarantine)
+- Workspace tests: 1295 → **1308 PASS** (+13)
+- 0 failed / 151 ignored (ignored count unchanged)
+- bash scripts/run_constitution_gates.sh: PASS all gates GREEN
+- Disk: 6.5M free → **37G free** (cargo clean removed 38.6GiB build cache; project unrelated to evidence pressure)
+- Per-run mini-M1 evidence size measured: ~1.1 MB/run × 1800 = ~2 GB (well within 37G headroom for full M2 batch)
+
+### Open for session #26 (Stage B SHIPPED FINAL forward queue)
+
+| Item | Status | Notes |
+|---|---|---|
+| `scripts/run_stage_b3.sh` runner script | NOT WRITTEN | wrapper around evaluator binary with multi-seed (BOLTZMANN_SEED env) × multi-model (ACTIVE_MODEL env) × n=3 loop; per-run TURINGOS_CHAINTAPE_PATH = `handover/evidence/stage_b3_<TS>/<seed>/<model>/<rep>/<problem>/runtime_repo`; emits BenchmarkManifest.json + per-run runtime_repo.dotgit.tar.gz + cas.dotgit.tar.gz + AggregateReport.json; ~half-day work |
+| Alt-model selection | PENDING USER | TB-18B charter §1 "DeepSeek + 1 alternative" — `reference_siliconflow` says SiliconFlow 3-key heterogeneous; specific model (Qwen/Kimi/etc.) needs user pick before BenchmarkManifest pin |
+| Stage B3 R7 M2 launch | GATED on above two | 1800 runs × ~125s/run ≈ 62-75h wall; background-safe; budget pre-confirmed |
+| V1 4 replay sampling tests | GATED on B1 evidence | `tests/constitution_b3_m2_replay_sampling.rs`: sampled_full_replay / failure_heavy_sample_replay / solved_sample_replay / unsolved_sample_replay (architect §3.B3 verbatim) |
+| A1 Codex R1 + Gemini R1 dual-audit | GATED on V1 evidence | Class-3 full-dual per `feedback_dual_audit`; AFTER evidence per `feedback_audit_after_evidence` |
+| Stage B SHIPPED FINAL § 8 sign-off | GATED on dual-audit verdict | conservative ranking VETO>CHALLENGE>PASS |
+
+### Trigger reminders for session #26 cold start
+
+- Read order: CLAUDE.md → constitution.md → LATEST.md (this dashboard) → CONSTITUTION_EXECUTION_MATRIX.md → TRACE_FLOWCHART_MATRIX.md → TB-18B_charter_2026-05-07.md → 2026-05-07_ARCHITECT_ALIGNMENT_AUDIT_LAUNCH_POLYMARKET_MANUAL_zh.md §3.B3 / §7
+- Before writing `scripts/run_stage_b3.sh`: re-confirm the M2 charter scope (1800 runs) is still authoritative — recheck TB-18B charter §1 + LATEST.md "Decisions captured 2026-05-08 session #25"
+- Before launching M2 batch: invoke `/runner-preflight` (7-stage)
+- Stage B SHIPPED FINAL → invoke `/harness-reflect`
+- New TB charter (Stage B SHIPPED FINAL → C P-M0 substrate) must declare `phase_id` + `roadmap_exit_criteria_addressed` + `kill_criteria_tested`
 
 **HEAD**: `f7a6660` (Stage A3 R3.5 wire + smoke 10/10 1:1 ref-to-JSONL match) + B3 R6 mini-M1 background batch.
 
