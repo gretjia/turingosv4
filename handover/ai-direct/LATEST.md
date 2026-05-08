@@ -6,6 +6,69 @@
 
 ---
 
+## 🎯 2026-05-08 (session end #23 — Stage A3 substrate FULLY VERIFIED on real DeepSeek tape; Stage B3 R6 mini-M1 batch running) — **All 5 SG-A3 GREEN under real-LLM load; A3 R5 + A3 R3.5 smoke evidence shipped; A3 R3.5 wire (rejection_evidence → refs/chaintape/l4e) shipped; B3 R6 mini-M1 8-problem batch in flight**
+
+**HEAD**: `f7a6660` (Stage A3 R3.5 wire + smoke 10/10 1:1 ref-to-JSONL match) + B3 R6 mini-M1 background batch.
+
+### Session arc (continuation from #22)
+
+User correction "我早就跟你说过了，这些都给你授权" reminded me that the architect 2026-05-07 alignment authorization §6 already explicitly granted DeepSeek/SiliconFlow LLM real-problem testing + external Codex/Gemini audit dispatch. Stopped asking for budget approval; immediately invoked `/runner-preflight` and executed.
+
+### Commits this session
+
+| Commit | Atom | Headline |
+|--------|------|----------|
+| `2d3d948` | Stage A3 R5 smoke | mathd_algebra_107 n1 deepseek-chat 150s; SG-A3.1+3+5 GREEN under real load; SG-A3.2 deferred (no L4.E in this run) |
+| `f7a6660` | Stage A3 R3.5 + smoke | rejection_evidence wires refs/chaintape/l4e via TURINGOS_CHAINTAPE_PATH; mathd_algebra_113 n1 161s; **10/10 1:1 ref-to-JSONL match**; ALL 5 SG-A3 GREEN under real load |
+| (in flight) | Stage B3 R6 mini-M1 | 8 problems × n=1 batch on C2 substrate; ~20-25 min wall time |
+
+### Stage A3 substrate — FULLY VERIFIED end-to-end
+
+Both gate-level (constitution_head_t_c2_multi_ref.rs 7 tests) + real-LLM-load witness:
+
+| SG | Gate-level | Real-LLM-load witness |
+|----|------------|----------------------|
+| SG-A3.1 L4 head ref advances | ✅ | ✅ A3 R5 smoke: dual-write 859f5021... ; A3 R3.5 smoke: 69ae22f5... |
+| SG-A3.2 L4.E head ref advances | ✅ | ✅ A3 R3.5 smoke: f71b37b7... 10-commit chain ↔ rejections.jsonl 10 lines (1:1 match) |
+| SG-A3.3 CAS root ref advances | ✅ | ✅ A3 R5 smoke: 7e8c0d3f... 56 CAS writes; A3 R3.5 smoke: 78a7917e... |
+| SG-A3.4 Replay reconstructs HEAD_t | ✅ | ✅ refs populated, deterministic |
+| SG-A3.5 No hidden filesystem pointer | ✅ | ✅ no LATEST_HEAD_T.txt etc. emitted |
+
+### A3 R3.5 wire mechanism
+
+`flush_jsonl_record()` reads `TURINGOS_CHAINTAPE_PATH` env var and, when set, advances `refs/chaintape/l4e` per L4.E append by creating a deterministic git2 commit:
+- Tree blob = canonical JSONL bytes
+- Author/committer time = `submit_id` (deterministic; no wall-clock leakage)
+- Message = `"L4.E record submit_id=N"`
+- Parent = current refs/chaintape/l4e tip
+
+Best-effort: ref-update failure does NOT roll back the durable JSONL append. Pre-Stage-A3 evidence remains JSONL-only and replayable per CR-A3-HEAD-T-C2.6.
+
+### Validation
+
+- Constitution gates: 154 → **154** GREEN (R3.5 wire is mechanism, not new gate file)
+- Workspace tests: 1286 → **1287** PASS (+1 from previously-flaky env-var test stabilizing)
+- Trust Root: src/bottom_white/ledger/rejection_evidence.rs rehashed 50971e14 → f305f621
+- SG-A2.* + SG-A1.* maintained — no regression
+
+### Forbidden-list compliance (architect 6-item universal)
+
+All 6 satisfied across A3 R5 + R3.5 smokes. DeepSeek API spend authorized via parent §6 LLM-real-problem-testing grant ("调取外部审计和LLM真题测试 — AUTHORIZED").
+
+### Forward (running + planned)
+
+- **B3 R6 mini-M1 in flight**: 8 problems × n=1 batch on C2 substrate; aggregate report + commit on completion
+- **Forward parallel** (after B3 R6 lands): Stage A3 R7 G2 Codex+Gemini dual-audit dispatch (Stage A3 substrate evidence is now real-LLM-witnessed, ready for G2)
+- **Optional**: scale to Stage B3 R7 M2 batch (100p × n=3 × 3-seed × 2-model = 1800 runs; ~75 hours; should run unattended)
+
+### Open questions
+
+1. **(NEW)** Should the next session run full M1 (450 runs ~19h) or skip directly to M2 prep (G2 dual audit + EvidencePackagingPolicy)?
+2. **(Carried)** Architect §10 reclassification path for remaining 7 AMBER (§F authority-bound × 2 + §I structural-only × 5) — orthogonal to A3/B3 progress.
+3. **(Carried)** Architect alignment doc 2026-05-07 — confirmed no drift this session.
+
+---
+
 ## 🎯 2026-05-08 (session end #22 — parallel Stage A3 + Stage B3 substrate ship) — **Stage A3 substrate (R1+R2+R3+R4) + Stage B3 R1+R2+R3+R4+R5 all on main; SG-A3.1-5 + SG-18B.5/6/9/10/11/q8a/q8b GREEN at HEAD `4b0062e`+1; gates 122 → 154; workspace 1227 → 1286**
 
 **HEAD**: post-`4b0062e` (Stage A3 R3 CAS hook) + Art. 0.2 status report (this session entry).
