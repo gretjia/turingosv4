@@ -1,0 +1,181 @@
+{
+  "stage": "B3 R6 mini-M1",
+  "authority": "TB-18B charter §5 R6 / FR-18B.3 + Stage A3 substrate validation at multi-problem scale",
+  "n_problems": 8,
+  "condition": "n1",
+  "model": "deepseek-chat",
+  "wall_time_total_seconds": 989.997516767,
+  "per_problem": [
+    {
+      "problem": "P01_mathd_algebra_107",
+      "solved": false,
+      "tx_count": 200,
+      "tool_dist": {
+        "omega_wtool": 9,
+        "step": 9
+      },
+      "time_secs": 136.695555228,
+      "refs": {
+        "l4": "c80b7d343ea58b9cbc06f4fc9467d040158f68aa",
+        "l4_chain_len": 2,
+        "l4e": "7d995fd834fe8aaa5097869bd9110e65805b23ec",
+        "l4e_chain_len": 10,
+        "cas": "8978e62c0dc7c3961dc3ae96bd4703250a511495"
+      },
+      "rejections_jsonl_lines": 10,
+      "l4e_jsonl_match": true,
+      "cas_index_size": 56
+    },
+    {
+      "problem": "P02_mathd_algebra_113",
+      "solved": false,
+      "tx_count": 200,
+      "tool_dist": {
+        "step": 9,
+        "step_reject": 9
+      },
+      "time_secs": 85.031902014,
+      "refs": {
+        "l4": "0ed6a2be3c2a7ba5f8af7c5b2cf7cd8f593ae629",
+        "l4_chain_len": 2,
+        "l4e": "2dc5c430c4a2af705e7dc1ad82a5550e27e99d0d",
+        "l4e_chain_len": 10,
+        "cas": "1656f70ec1ce871c55d1ad70f66d3e5ffead971c"
+      },
+      "rejections_jsonl_lines": 10,
+      "l4e_jsonl_match": true,
+      "cas_index_size": 38
+    },
+    {
+      "problem": "P03_mathd_algebra_114",
+      "solved": false,
+      "tx_count": 200,
+      "tool_dist": {
+        "step_partial_ok": 1,
+        "step_reject": 12,
+        "step": 13
+      },
+      "time_secs": 122.844055632,
+      "refs": {
+        "l4": "ce2c2960ef750683f6b9e52173a04851ff5685a2",
+        "l4_chain_len": 2,
+        "l4e": "d29a27e9b1a6f9bbb107a464d9a41cc93b94c6db",
+        "l4e_chain_len": 13,
+        "cas": "f6433e4a22f6af379adf7ea6cc063599a611e75d"
+      },
+      "rejections_jsonl_lines": 13,
+      "l4e_jsonl_match": true,
+      "cas_index_size": 53
+    },
+    {
+      "problem": "P04_mathd_algebra_125",
+      "solved": false,
+      "tx_count": 200,
+      "tool_dist": {
+        "omega_wtool": 9,
+        "step": 9
+      },
+      "time_secs": 136.869459857,
+      "refs": {
+        "l4": "bd5403b0cbb82f452f453052205fabb2dcc917df",
+        "l4_chain_len": 2,
+        "l4e": "ad94d62b595bd2bdbf00b2c4e7bb082fc1b25a3e",
+        "l4e_chain_len": 10,
+        "cas": "da1d2aaec6197bf7b92994a3bf6e0f8b99ed93d9"
+      },
+      "rejections_jsonl_lines": 10,
+      "l4e_jsonl_match": true,
+      "cas_index_size": 56
+    },
+    {
+      "problem": "P05_mathd_algebra_141",
+      "solved": false,
+      "tx_count": 200,
+      "tool_dist": {
+        "step": 9,
+        "omega_wtool": 9
+      },
+      "time_secs": 146.66796199,
+      "refs": {
+        "l4": "e2881781aca237182e411a10f271801d98b68dc7",
+        "l4_chain_len": 2,
+        "l4e": "873650321fc04ab2254b9d846ba444705f611cd9",
+        "l4e_chain_len": 10,
+        "cas": "26ad7521dc11d50649a0866c52a80fa0f823b935"
+      },
+      "rejections_jsonl_lines": 10,
+      "l4e_jsonl_match": true,
+      "cas_index_size": 56
+    },
+    {
+      "problem": "P06_aime_1983_p2",
+      "solved": false,
+      "tx_count": 200,
+      "tool_dist": {
+        "step": 9,
+        "step_reject": 9
+      },
+      "time_secs": 86.903508598,
+      "refs": {
+        "l4": "d5bb6fecb38b2e392e29b1427b1b828bfc6b584e",
+        "l4_chain_len": 2,
+        "l4e": "64e430fa7fd83b7c8e536dc174b9ef2391388d6c",
+        "l4e_chain_len": 10,
+        "cas": "db0a780f4f4977936a8bc947e2de6b17bf67a3b4"
+      },
+      "rejections_jsonl_lines": 10,
+      "l4e_jsonl_match": true,
+      "cas_index_size": 39
+    },
+    {
+      "problem": "P07_aime_1989_p8",
+      "solved": false,
+      "tx_count": 200,
+      "tool_dist": {
+        "step": 9,
+        "omega_wtool": 9
+      },
+      "time_secs": 146.651295196,
+      "refs": {
+        "l4": "952084ddf7d826cad2e9e11616026fdf79967915",
+        "l4_chain_len": 2,
+        "l4e": "0d3957d7f58c5529df2f81cb35853401d55991bb",
+        "l4e_chain_len": 10,
+        "cas": "2fdf21ad2c5c7f93d658aee2ab4c0d09bff06853"
+      },
+      "rejections_jsonl_lines": 10,
+      "l4e_jsonl_match": true,
+      "cas_index_size": 56
+    },
+    {
+      "problem": "P08_mathd_algebra_176",
+      "solved": false,
+      "tx_count": 200,
+      "tool_dist": {
+        "step": 9,
+        "omega_wtool": 9
+      },
+      "time_secs": 128.333778252,
+      "refs": {
+        "l4": "1c4a2cd787ec36b56b2e553af29f12e4a2af2e02",
+        "l4_chain_len": 2,
+        "l4e": "284b9d22247a167b4480f6bc3ec4401be0bdda38",
+        "l4e_chain_len": 10,
+        "cas": "56c03eff615d91a2de23aebfc2585d4d75aa129a"
+      },
+      "rejections_jsonl_lines": 10,
+      "l4e_jsonl_match": true,
+      "cas_index_size": 56
+    }
+  ],
+  "totals": {
+    "solved": 0,
+    "unsolved": 8,
+    "tx_count_sum": 1600,
+    "l4_chain_total_commits": 16,
+    "l4e_chain_total_commits": 83,
+    "rejections_jsonl_total_lines": 83,
+    "cas_index_total_objects": 410,
+    "l4e_jsonl_match_all_problems": true
+  }
+}
