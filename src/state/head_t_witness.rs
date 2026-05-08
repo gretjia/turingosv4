@@ -91,6 +91,47 @@ impl HeadTWitness {
         economic_state_canonical_root(econ)
     }
 
+    /// TRACE_MATRIX § 3 orphan (Stage A3 / HEAD_t C2 SG-A3-HEAD-T-C2.4): reconstruct the C2 witness from `refs/chaintape/{l4,l4e,cas}` ref OIDs alone, plus caller-supplied state/economic/run_id (which MUST be reconstructed from the chain by the caller). Returns `Some` iff at least the L4 ref exists; pre-genesis returns `None`. Constitutional Justification: STAGE_A3_HEAD_T_C2_charter_2026-05-07.md FR-A3-HEAD-T-C2.3 + SG-A3.4 replay-byte-equality.
+    pub fn reconstruct_from_chaintape_refs(
+        repo_path: &std::path::Path,
+        run_id: impl Into<String>,
+        state_root: Hash,
+        economic_state_root: Hash,
+    ) -> Result<Option<Self>, crate::bottom_white::ledger::transition_ledger::LedgerWriterError>
+    {
+        use crate::bottom_white::ledger::transition_ledger::Git2LedgerWriter;
+        let l4_oid = Git2LedgerWriter::head_chaintape_l4(repo_path)?;
+        let l4_oid = match l4_oid {
+            Some(o) => o,
+            None => return Ok(None),
+        };
+        let l4e_oid = Git2LedgerWriter::head_chaintape_l4e(repo_path)?;
+        let cas_oid = Git2LedgerWriter::head_chaintape_cas(repo_path)?;
+
+        // Map git OIDs to NodeId (40-hex string) and Hash (raw bytes).
+        let l4_head = NodeId(l4_oid.to_string());
+        let l4e_head = l4e_oid.map(|o| NodeId(o.to_string()));
+        // Git2 OIDs are 20 bytes (SHA-1) or 32 bytes (SHA-256 repos); hash
+        // them with sha256 to canonicalize into the 32-byte Hash shape.
+        // This is a derived view; the canonical chain-side OID lives in the
+        // ref itself.
+        let cas_root = cas_oid.map(|o| {
+            let mut hasher = Sha256::new();
+            hasher.update(b"chaintape/cas/oid");
+            hasher.update(o.as_bytes());
+            Hash(hasher.finalize().into())
+        });
+
+        Ok(Some(Self {
+            state_root,
+            l4_head,
+            l4e_head,
+            cas_root,
+            economic_state_root,
+            run_id: run_id.into(),
+        }))
+    }
+
     /// TRACE_MATRIX FC1-N45: canonical hash of the witness (sha256 of
     /// canonical-encoded bytes). Two witnesses with identical 6-field
     /// contents MUST produce identical canonical hashes — this is what

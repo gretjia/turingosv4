@@ -118,6 +118,13 @@ GATES=(
   # enforced as ship-block. Closes session #18 Wave-1/2 forward-bind items
   # 1+2 at consumer-side wire-up level.
   constitution_aggregate_report
+
+  # Stage A3 / HEAD_t C2 multi-ref ChainTape 2026-05-08 — SG-A3.1..5 ship
+  # gates per STAGE_A3_HEAD_T_C2_charter_2026-05-07.md §4. Pure additive
+  # multi-ref support on transition_ledger.rs (refs/chaintape/{l4,l4e,cas});
+  # C1 baseline refs/transitions/main preserved as backward-compat alias.
+  # Closes architect alignment doc Stage A3 SG-A3.1-5 at substrate level.
+  constitution_head_t_c2_multi_ref
 )
 
 # Run each gate file separately and collect per-test outcome.

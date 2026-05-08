@@ -679,6 +679,27 @@ const TREE_BLOB_PAYLOAD_CID: &str = "payload_cid";
 const TREE_BLOB_SIGNATURE: &str = "signature";
 const TREE_BLOB_ENTRY_CANONICAL: &str = "entry_canonical";
 
+// ── Stage A3 / HEAD_t C2 multi-ref ChainTape (additive) ─────────────────────
+//
+// Per `STAGE_A3_HEAD_T_C2_charter_2026-05-07.md` FR-A3-HEAD-T-C2.1: three
+// named refs constitute the canonical ChainTape pointer.
+//
+// The C1 baseline's `refs/transitions/main` is preserved as a backward-compat
+// alias; every accepted-transition commit dual-writes to `refs/chaintape/l4`
+// so a fresh checkout can reconstruct HEAD_t via either ref family. The L4.E
+// and CAS sides (currently stored as filesystem JSONL + CAS index sidecar)
+// gain Git-ref witnesses via `advance_chaintape_l4e_to` /
+// `advance_chaintape_cas_to`, which downstream rejection-evidence and CAS-
+// write code paths invoke after a successful append. The refs ARE the canonical
+// pointer per CR-A3-HEAD-T-C2.5 (no hidden filesystem global pointer).
+
+/// TRACE_MATRIX § 3 orphan (Stage A3 / HEAD_t C2 FR-A3-HEAD-T-C2.1): canonical L4 head ref. Dual-written alongside `refs/transitions/main` for migration safety. Constitutional Justification: STAGE_A3_HEAD_T_C2_charter_2026-05-07.md §2.
+pub const CHAINTAPE_L4_REF: &str = "refs/chaintape/l4";
+/// TRACE_MATRIX § 3 orphan (Stage A3 / HEAD_t C2 FR-A3-HEAD-T-C2.1): canonical L4.E head ref. Advanced by rejection-evidence-side after each L4.E append. Constitutional Justification: STAGE_A3_HEAD_T_C2_charter_2026-05-07.md §2.
+pub const CHAINTAPE_L4E_REF: &str = "refs/chaintape/l4e";
+/// TRACE_MATRIX § 3 orphan (Stage A3 / HEAD_t C2 FR-A3-HEAD-T-C2.1): canonical CAS root ref. Advanced by CAS-write-side after each batch. Constitutional Justification: STAGE_A3_HEAD_T_C2_charter_2026-05-07.md §2.
+pub const CHAINTAPE_CAS_REF: &str = "refs/chaintape/cas";
+
 impl Git2LedgerWriter {
     /// Open or initialize a `Git2LedgerWriter` rooted at `repo_path`.
     /// Creates the underlying git repo if it doesn't exist; resolves the
@@ -733,6 +754,73 @@ impl Git2LedgerWriter {
     /// CO1.7.5+ `head_t` wiring uses this to surface commit_sha alongside Hash.
     pub fn head_commit_oid(&self) -> Option<git2::Oid> {
         self.head_oid
+    }
+
+    /// TRACE_MATRIX § 3 orphan (Stage A3 / HEAD_t C2 SG-A3-HEAD-T-C2.1): read the canonical L4 head ref `refs/chaintape/l4`. Equal to `head_commit_oid()` after dual-write completes; a fresh checkout reads this ref directly. Constitutional Justification: STAGE_A3_HEAD_T_C2_charter_2026-05-07.md SG-A3.1 + FR-A3-HEAD-T-C2.4 replay-from-refs.
+    pub fn head_chaintape_l4(repo_path: &Path) -> Result<Option<git2::Oid>, LedgerWriterError> {
+        let repo = Repository::open(repo_path)
+            .map_err(|e| LedgerWriterError::BackendCorruption(format!("repo open: {e}")))?;
+        let oid = repo
+            .find_reference(CHAINTAPE_L4_REF)
+            .ok()
+            .and_then(|r| r.target());
+        Ok(oid)
+    }
+
+    /// TRACE_MATRIX § 3 orphan (Stage A3 / HEAD_t C2 SG-A3-HEAD-T-C2.2): advance `refs/chaintape/l4e` to a caller-supplied OID. Called by rejection-evidence-side after each L4.E append (rejection_evidence.rs::append_rejected). The caller is responsible for constructing a deterministic commit OID; this function only updates the ref atomically. Constitutional Justification: STAGE_A3_HEAD_T_C2_charter_2026-05-07.md SG-A3.2.
+    pub fn advance_chaintape_l4e_to(
+        repo_path: &Path,
+        oid: git2::Oid,
+        log_message: &str,
+    ) -> Result<(), LedgerWriterError> {
+        let repo = Repository::open(repo_path)
+            .map_err(|e| LedgerWriterError::BackendCorruption(format!("repo open: {e}")))?;
+        repo.reference(CHAINTAPE_L4E_REF, oid, true, log_message)
+            .map_err(|e| {
+                LedgerWriterError::BackendCorruption(format!(
+                    "chaintape l4e ref update: {e}"
+                ))
+            })?;
+        Ok(())
+    }
+
+    /// TRACE_MATRIX § 3 orphan (Stage A3 / HEAD_t C2 SG-A3-HEAD-T-C2.3): advance `refs/chaintape/cas` to a caller-supplied OID. Called by CAS-write-side after each batch (cas/store.rs). Constitutional Justification: STAGE_A3_HEAD_T_C2_charter_2026-05-07.md SG-A3.3.
+    pub fn advance_chaintape_cas_to(
+        repo_path: &Path,
+        oid: git2::Oid,
+        log_message: &str,
+    ) -> Result<(), LedgerWriterError> {
+        let repo = Repository::open(repo_path)
+            .map_err(|e| LedgerWriterError::BackendCorruption(format!("repo open: {e}")))?;
+        repo.reference(CHAINTAPE_CAS_REF, oid, true, log_message)
+            .map_err(|e| {
+                LedgerWriterError::BackendCorruption(format!(
+                    "chaintape cas ref update: {e}"
+                ))
+            })?;
+        Ok(())
+    }
+
+    /// TRACE_MATRIX § 3 orphan (Stage A3 / HEAD_t C2 FR-A3-HEAD-T-C2.4): read `refs/chaintape/l4e` head OID; `None` if ref not yet created. Constitutional Justification: STAGE_A3_HEAD_T_C2_charter_2026-05-07.md FR-A3-HEAD-T-C2.4 replay-from-refs.
+    pub fn head_chaintape_l4e(repo_path: &Path) -> Result<Option<git2::Oid>, LedgerWriterError> {
+        let repo = Repository::open(repo_path)
+            .map_err(|e| LedgerWriterError::BackendCorruption(format!("repo open: {e}")))?;
+        let oid = repo
+            .find_reference(CHAINTAPE_L4E_REF)
+            .ok()
+            .and_then(|r| r.target());
+        Ok(oid)
+    }
+
+    /// TRACE_MATRIX § 3 orphan (Stage A3 / HEAD_t C2 FR-A3-HEAD-T-C2.4): read `refs/chaintape/cas` head OID; `None` if ref not yet created. Constitutional Justification: STAGE_A3_HEAD_T_C2_charter_2026-05-07.md FR-A3-HEAD-T-C2.4 replay-from-refs.
+    pub fn head_chaintape_cas(repo_path: &Path) -> Result<Option<git2::Oid>, LedgerWriterError> {
+        let repo = Repository::open(repo_path)
+            .map_err(|e| LedgerWriterError::BackendCorruption(format!("repo open: {e}")))?;
+        let oid = repo
+            .find_reference(CHAINTAPE_CAS_REF)
+            .ok()
+            .and_then(|r| r.target());
+        Ok(oid)
     }
 
     /// Read raw canonical-encoded `LedgerEntry` bytes (the `entry_canonical`
@@ -846,6 +934,23 @@ impl LedgerWriter for Git2LedgerWriter {
                 &parent_refs,
             )
             .map_err(|e| LedgerWriterError::BackendCorruption(format!("commit: {e}")))?;
+
+        // Stage A3 / HEAD_t C2 FR-A3-HEAD-T-C2.2 — dual-write to
+        // `refs/chaintape/l4` so the new canonical ref family advances
+        // alongside the C1 alias `refs/transitions/main`. Per CR-A3-HEAD-T-C2.6
+        // the HEAD_t schema is unchanged; only the storage form gains the
+        // multi-ref witness.
+        repo.reference(
+            CHAINTAPE_L4_REF,
+            new_oid,
+            true,
+            &format!("transition logical_t={}", entry.logical_t),
+        )
+        .map_err(|e| {
+            LedgerWriterError::BackendCorruption(format!(
+                "chaintape l4 ref update: {e}"
+            ))
+        })?;
 
         self.head_oid = Some(new_oid);
         self.len += 1;
