@@ -8,8 +8,9 @@
 
 ## 📊 宪法全落地完成进度（Constitution Full-Landing Dashboard）
 
-**Updated**: 2026-05-08 session #25 (Stage B §2.4 audit — CompleteSet hardening + market quarantine constitution gates SHIPPED)
-**HEAD**: `d33c25a` (Stage B §2.4 audit commit)
+**Updated**: 2026-05-08 session #26 (Stage B3 R7 M2 batch LAUNCHED in tmux — 1800-cell ~67h wall)
+**HEAD**: `1550e1b` (runner pin canonical PREREG §1.8 model `deepseek-v4-flash`)
+**M2 batch**: tmux session `stage_b3_r7_m2`, run_dir `handover/evidence/stage_b3_r7_m2_20260508T210337Z/`, log `/tmp/stage_b3_r7_m2_20260508T210337Z.log`, attach via `tmux attach -t stage_b3_r7_m2`
 **Snapshot**: per `bash scripts/run_constitution_gates.sh` + `cargo test --workspace --no-fail-fast`
 
 ### Validation totals
@@ -38,6 +39,8 @@
 | **B2** 50p controlled | ship | 2 | 🟢 SHIPPED (commit `a612cc9` 2026-05-07) |
 | **B3** TB-18B M1/M2 | R1+R2+R3+R4+R5 + R6 mini-M1 | 1+3 | 🟡 substrate LANDED (BenchmarkManifest + AggregateReport + PCP corpus phase-2 + Art. 0.2 status report); R6 full M1 (450 runs) + R7 M2 + R8-R11 forward |
 | **§2.4 audit** Stage B | 1 audit-of-existing-impl | 1 | 🟢 SHIPPED (commit `d33c25a` 2026-05-08 session #25) — `tests/constitution_completeset_hardening.rs` (8 §5.3 verbatim) + `tests/constitution_market_quarantine.rs` (2 §5.2 verbatim + 3 self-tests); +13 constitution gates + +13 workspace tests |
+| **B3.M2 runner** Stage B | 1 infrastructure | 1 | 🟢 SHIPPED + LAUNCHED (commits `1210ea3`+`9f9aee7`+`1f7879a`+`1550e1b` 2026-05-08 session #26) — `scripts/run_stage_b3.sh` (509 lines bash; multi-seed×multi-model×n=3 wrapper; BenchmarkManifest+EvidencePackagingPolicy+resumable); 4 smoke iterations bug-fixed (CONDITION=oneshot→n1; TURINGOS_CAS_PATH explicit; LLM_PROXY_URL :8080→:18080; MODELS pinned canonical `deepseek-v4-flash` + `Qwen/Qwen2.5-72B-Instruct`); smoke v4 4/4 GREEN @ ~134s/cell avg |
+| **B3.M2 batch** Stage B | 3 LLM real-problem | 3 | 🟡 RUNNING (launched 2026-05-08T21:03:37Z in tmux `stage_b3_r7_m2`; 1800 cells = 100p × n=3 × 3 seeds × 2 models; ~67h wall projection; resumable on crash; spans sessions #27-#28) |
 | **C** Polymarket P-M0..P-M9 | charter | varies | 🔒 GATED (charter drafted `STAGE_C_POLYMARKET_PM0_PM9_charter_2026-05-07.md`; P-M0 strict-letter charter-eligible after A green; B3 full M1 still required per architect priority #4 verbatim) |
 | **D** Real-world readiness | directive draft | — | 🔒 GATED (`2026-05-07_REAL_WORLD_READINESS_DIRECTIVE.md`; activation requires architect-side path decisions) |
 
@@ -60,27 +63,92 @@
 | Stage B3 R6 mini-M1 | 8 (algebra + aime) | **C2 multi-ref full** | 16.5min | 8/8 Ok delta=0 (8/8 l4e_jsonl_match) |
 | **Stage A3 substrate cumulative** | **10** | **C2 multi-ref** | **~20min** | **10/10 Ok delta=0** |
 
-### Forward queue (post-Stage-A3 §8 + §2.4 audit SHIPPED — gating decisions for session #26)
+### Forward queue (post-§2.4 audit + B3 runner SHIPPED + B3 R7 M2 LAUNCHED — gating decisions for session #27/#28)
 
 | Item | Class | Blocker |
 |---|---|---|
 | Stage A3.6 enhancement TB | 3 | dual-audit forward-bind: CasStore::put error surface + refs/chaintape/cas commit-chain redesign + atomic ref-update + failure-injection tests + RejectionEvidenceWriter explicit ctor arg; charter draftable now |
-| **Stage B3 R7 M2 runner script + launch** | 3 | (a) `scripts/run_stage_b3.sh` writing — wraps evaluator binary with multi-seed × multi-model × n=3 loop + per-run TURINGOS_CHAINTAPE_PATH + BenchmarkManifest.json + EvidencePackagingPolicy tarball (~half-day); (b) **alt-model decision** for charter "DeepSeek + 1 alternative" (TB-18B charter §1) — likely SiliconFlow Qwen / Kimi family per `reference_siliconflow`, but explicit user pick required for BenchmarkManifest pin; (c) smoke-validate 2-4p × n=1 before full launch |
-| Stage B3 R7 M2 batch (1800 runs ~75h compute) | 3 | gated on (a) runner script (b) alt-model decision (c) smoke validation; compute-budget pre-confirmed (parent §6 + 5/8 verbatim "这些都给你授权"); can run unattended once gated items resolved |
-| §10 reclassification of remaining 7 AMBER | 4 | architect §10 ratification path (procedural / structural-only-by-design) — superseded by 宪法完整落地 session #24 (matrix 0 AMBER); §10 path likely no longer needed |
-| Stage C P-M0 quarantine | 1 | charter-eligible NOW (Stage A green achieved at A3 §8 + §2.4 audit shipped); full Stage C still gated on B3 R7 M2 per priority #4 |
+| **Stage B3 R7 M2 batch** | 3 RUNNING | tmux session `stage_b3_r7_m2`; 1800 cells; ~67h wall; resumable; check progress: `tmux attach -t stage_b3_r7_m2` or `tail -f /tmp/stage_b3_r7_m2_20260508T210337Z.log` or `cat handover/evidence/stage_b3_r7_m2_20260508T210337Z/run_log.txt` |
+| **V1** 4 replay sampling tests | 1 GATED on B1 | `tests/constitution_b3_m2_replay_sampling.rs` per architect §3.B3 verbatim names (sampled_full_replay, failure_heavy_sample_replay, solved_sample_replay, unsolved_sample_replay); after M2 evidence packed |
+| **V2** EvidencePackagingPolicy verification | 1 GATED on B1 | per-cell tarball integrity + 1800/1800 chain_invariant Ok delta=0 aggregate |
+| **V3** AggregateReport.json (CLAUDE.md §17 verbatim) | 1 GATED on B1 | aggregate runner consuming wilson_ci.rs + diversity.rs; ΣPPUT + Mean PPUT(solved) + Wilson 95% CI + halt_distribution + per-condition tables (Stage B3 atom R8 per TB-18B charter §5) |
+| **A1** Codex R1 + Gemini R1 dual audit | 3 audit GATED on V3 | feedback_audit_after_evidence + feedback_dual_audit Class-3 full-dual; conservative VETO>CHALLENGE>PASS; cap 3 rounds per feedback_elon_mode_policy |
+| **S1** Stage B SHIPPED CANDIDATE → §8 sign-off | 4 ship | architect §8 verbatim (TB-18B charter §8 7-item checklist) |
+| §10 reclassification of remaining 7 AMBER | 4 | architect §10 ratification path — superseded by 宪法完整落地 session #24 (matrix 0 AMBER); §10 path likely no longer needed |
+| Stage C P-M0 quarantine | 1 | charter-eligible NOW; full Stage C still gated on B3 R7 M2 per priority #4 |
 | Stage D real-world readiness | architect-path | architect-side oracle/challenge-court/safety design |
 
-### Decisions captured 2026-05-08 session #25 (Stage B §2.4 audit ship-path)
+### Decisions captured 2026-05-08 session #25-#26 (Stage B §2.4 audit + B3 R7 M2 launch ship-path)
 
-| Decision | Verbatim | Authority |
+| Decision | Verbatim | Authority / Session |
 |---|---|---|
-| M2 scope = TB-18B charter shape (1800 runs) | "Charter M2 = 1800 runs (Recommended)" | User answer (AskUserQuestion 2026-05-08) — overrides session-prompt 500-run pilot in favor of charter-strict 100p × n=3 × 3 seeds × 2 models |
-| Runner approach = write new `scripts/run_stage_b3.sh` | "先写 runner script (Recommended)" | User answer (AskUserQuestion 2026-05-08) — rejected inline-bash session-#23 pattern in favor of reproducible script per CR-18B.5 EvidencePackagingPolicy |
+| M2 scope = TB-18B charter shape (1800 runs) | "Charter M2 = 1800 runs (Recommended)" | User AskUserQuestion 2026-05-08 #25 — overrides session-prompt 500-run pilot in favor of charter-strict 100p × n=3 × 3 seeds × 2 models |
+| Runner approach = write new `scripts/run_stage_b3.sh` | "先写 runner script (Recommended)" | User AskUserQuestion 2026-05-08 #25 — rejected inline-bash session-#23 pattern in favor of reproducible script per CR-18B.5 EvidencePackagingPolicy |
+| Alt-model = Qwen/Qwen2.5-72B-Instruct (initially V3 → swapped) | "换 alt-model 为 Qwen2.5-72B (Recommended)" | User AskUserQuestion 2026-05-08 #26 — V3 misdiagnosed-slow during smoke (commit 1210ea3); root cause was proxy port misroute (commit 1f7879a fix), not model speed; Qwen retained as charter-strict different-vendor alternative |
+| Primary model = canonical `deepseek-v4-flash` (was alias `deepseek-chat`) | rules-engine R-019 (FC1-N7) reminder | PREREG_PPUT_CCL_2026-04-26.md §1.8 canonical thinking-off backend; commits `1550e1b` |
+| LLM_PROXY_URL = `:18080` (multi-provider auto-route) | proxy at `:8080` is `--provider deepseek` FORCED | Diagnosed during smoke v1+v2 (commits 1210ea3 + 9f9aee7 evidence); fix commit `1f7879a` |
+| **B3 R7 M2 launch authorized** | preflight 7-stage GO with stage-1 override (orphaned untracked evidence non-conflicting; B1 writes new TS dir) | session #26 self-administered preflight per CLAUDE.md §11 + CR-18B.9 |
 
 ### Forbidden-list compliance (architect 6-item universal)
 
 All sessions #19/#20/#21/#22/#23/#24/#25: ✅ no f64 / ✅ no ghost liquidity / ✅ no price-as-truth / ✅ no dashboard SoT / ✅ no real funds / ✅ no public chain (refs/chaintape/* are local libgit2 storage per CR-A3-HEAD-T-C2 explicit). §5.2 quarantine gate `legacy_cpm_api_not_imported_by_new_market` + `no_f64_in_market_modules` now enforce no-f64 + no-legacy-CPMM-import at constitution-gate surface session #25 onward.
+
+---
+
+## 🎯 2026-05-08 (session end #26 — Stage B3 runner SHIPPED + B3 R7 M2 1800-cell batch LAUNCHED in tmux; ~67h wall projection; spans sessions #27-#28) — **HEAD `1550e1b` · 4 commits this session · 4 smoke iterations to reach reliable runner · M2 batch live**
+
+**HEAD**: `1550e1b` (canonical PREREG §1.8 model pin).
+**Active background compute**: tmux session `stage_b3_r7_m2`, run dir `handover/evidence/stage_b3_r7_m2_20260508T210337Z/`.
+
+### Session arc
+
+P0 alt-model AskUserQuestion → V3 → P1 runner write → smoke iterations:
+1. **Smoke v1** (`stage_b3_smoke_20260508T140941Z`) — all 4 cells `elapsed=0s halt=ErrorHalt expected=0` → `CONDITION=oneshot` not ChainTape-wired (TB-7R verdict B3); fix `CONDITION=n1`.
+2. **Smoke v2** (`stage_b3_smoke_20260508T141808Z`) — chain_invariant.json empty + `tb_18r_compute_invariant rc=3`; evaluator wrote CAS to `cas_runtime_repo/` not `cas/` (auto-derived via `cas_<basename>` per `src/runtime/mod.rs::RuntimeChaintapeConfig::from_env`); fix `TURINGOS_CAS_PATH=$CELL_DIR/cas` explicit.
+3. **Smoke v3 (V3 alt)** (`stage_b3_smoke_qwen_20260508T151452Z`) — 4/4 chain Ok BUT V3+Qwen alt-cells `expected=200 elapsed=790s` 5x slowdown. Initial misdiagnosis as model-speed/thinking-mode; user AskUserQuestion 2026-05-08 user prompt "要关掉 thinking mode 有可能加速" prompted llm_proxy.py edit (broaden disable-thinking allow-list) — turned out (a) trigger TRUST_ROOT_TAMPERED panic per src/boot.rs verify_trust_root + genesis_payload.toml [trust_root] hash pin; reverted; (b) NOT the actual root cause.
+4. **Real root cause discovered** via evaluator.stderr inspection: 200/200 attempts returned HTTP 400 from api.deepseek.com `"The supported API model names are deepseek-v4-pro or deepseek-v4-flash, but you passed Qwen/Qwen2.5-72B-Instruct"`. Proxy at `:8080` was launched 2026-04-28 with `--provider deepseek` FORCED flag → all requests forced to deepseek API regardless of model name. Multi-provider instance lives at `:18080` (no `--provider` flag). Fix: `LLM_PROXY_URL=:18080`.
+5. **Smoke v3-fixed** (`stage_b3_smoke_qwen_v3_20260508T203807Z`) — 4/4 GREEN; Qwen2.5-72B at SF actually FASTER than chat (97-173s/cell vs 131-255s); expected=9 (real LLM activity, no MAX_TX exhaustion).
+6. **Preflight stage 1+5** caught R-019 alias drift: `deepseek-chat` is deprecated alias per PREREG §1.8 canonical = `deepseek-v4-flash`. Fix `MODELS=("deepseek-v4-flash" "Qwen/Qwen2.5-72B-Instruct")`.
+7. **Smoke v4 final** (`stage_b3_smoke_v4flash_20260508T205227Z`) — 4/4 GREEN; substrate parity confirmed across canonical model names.
+8. **Preflight 7-stage** GO with stage-1 override (orphaned pre-existing untracked evidence; non-conflicting B1 writes new TS dir).
+9. **B1 LAUNCHED** in tmux `stage_b3_r7_m2` at 21:03:37Z.
+
+### Commits this session
+
+| Commit | Atom | Headline |
+|--------|------|----------|
+| `1210ea3` | P1 runner v1 | scripts/run_stage_b3.sh complete (multi-seed×multi-model×n=3 wrapper; BenchmarkManifest+EvidencePackagingPolicy+resumable); 4-cell smoke V3 alt-model with bug catches (CONDITION + CAS path); wall-time mis-projection ~245h surfaced |
+| `9f9aee7` | alt-model swap | V3→Qwen2.5-72B per user AskUserQuestion #26; smoke v3 reveals SAME ~5x slowdown not model-specific (root cause hypothesis: SF systemic) |
+| `1f7879a` | proxy URL fix | LLM_PROXY_URL :8080→:18080 (multi-provider auto-route); ROOT CAUSE confirmed = proxy at :8080 was `--provider deepseek` FORCED + 400'd all SF requests; smoke v3-fixed 4/4 GREEN with Qwen actually 25-30% faster than chat; corrected wall projection ~81h |
+| `1550e1b` | canonical model pin | MODELS deepseek-chat → deepseek-v4-flash per PREREG §1.8 + R-019 compliance; smoke v4 4/4 GREEN ~134s/cell avg; full M2 ~67h projection |
+
+### Validation (this session)
+
+- Constitution gates: 175 → **175 GREEN** (no new gate added; runner is infrastructure)
+- Workspace tests: 1308 → **1308 PASS** (no test changes)
+- 4 smoke iterations spanning ~32min compute (16-20min each per 2p×n=1×2model batch)
+- 4 commits all signed with FC-trace trailer
+- M2 launch: 1800-cell × ~134s/cell = 67h projection vs 75h LATEST baseline
+
+### Open for sessions #27-#28 (Stage B SHIPPED FINAL ship-path post-M2-evidence)
+
+| Item | Status | Notes |
+|---|---|---|
+| **B3 R7 M2 batch** | 🟡 RUNNING | check `tail -f /tmp/stage_b3_r7_m2_20260508T210337Z.log` or `tmux attach -t stage_b3_r7_m2`. Resumable on crash via `bash scripts/run_stage_b3.sh stage_b3_r7_m2_20260508T210337Z` (skip cells with non-empty chain_invariant.json + no DEGENERATE_RUN.flag) |
+| **V1** 4 replay sampling tests | GATED on B1 evidence | architect §3.B3 verbatim names → `tests/constitution_b3_m2_replay_sampling.rs` |
+| **V2** EvidencePackagingPolicy aggregate verify | GATED on B1 | 1800/1800 chain_invariant Ok delta=0 + tarball integrity |
+| **V3** AggregateReport.json | GATED on B1 | TB-18B atom R8 per charter §5; consume wilson_ci.rs + diversity.rs |
+| **A1** Codex+Gemini dual audit | GATED on V3 | Class-3 full-dual; conservative ranking; round-cap 3 |
+| **S1-S3** Stage B SHIPPED FINAL §8 | GATED on dual-audit verdict | architect §8 verbatim sign-off |
+
+### Trigger reminders for sessions #27/#28 cold start
+
+- **Read order**: CLAUDE.md → constitution.md → LATEST.md (this dashboard, session arc above) → CONSTITUTION_EXECUTION_MATRIX.md → TB-18B_charter_2026-05-07.md → 2026-05-07_ARCHITECT_ALIGNMENT_AUDIT_LAUNCH_POLYMARKET_MANUAL_zh.md §3.B3 + §7
+- **Check M2 progress**: `tmux attach -t stage_b3_r7_m2` (Ctrl-B then D to detach), or `tail -f /tmp/stage_b3_r7_m2_20260508T210337Z.log`, or `wc -l handover/evidence/stage_b3_r7_m2_20260508T210337Z/run_log.txt` (each line = 1 cell completion)
+- **If batch crashed mid-run**: re-invoke `bash scripts/run_stage_b3.sh stage_b3_r7_m2_20260508T210337Z` — runner is resumable
+- **After 1800 cells complete**: V1 → V2 → V3 → A1 → S1
+- **Stage B SHIPPED FINAL → invoke `/harness-reflect`** per memory `feedback_harness_reflect_cadence`
+- New TB charter (Stage C P-M0+) must declare `phase_id` + `roadmap_exit_criteria_addressed` + `kill_criteria_tested`
 
 ---
 
