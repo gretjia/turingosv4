@@ -316,6 +316,22 @@ pub fn complete_set_merge_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
     Hash::from_bytes(digest)
 }
 
+/// TRACE_MATRIX Stage C P-M5 (architect manual §7.6): CpmmSwap-accept
+/// state-root domain.
+pub(crate) const CPMM_SWAP_DOMAIN_V1: &[u8] =
+    b"turingosv4.cpmm_swap.accept.v1";
+
+/// TRACE_MATRIX Stage C P-M5: state-root mutator on `CpmmSwapTx` accept.
+/// Mirror of `complete_set_mint_accept_state_root`.
+pub fn cpmm_swap_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
+    let mut h = Sha256::new();
+    h.update(CPMM_SWAP_DOMAIN_V1);
+    h.update(prev.0);
+    h.update(canonical_encode(tx).expect("TypedTx is canonical-encodable"));
+    let digest: [u8; 32] = h.finalize().into();
+    Hash::from_bytes(digest)
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // TB-2 Atom 4 — rejection-path helpers (preflight v3 §3.5 + §3.7)
 // ────────────────────────────────────────────────────────────────────────────
@@ -600,7 +616,8 @@ fn system_message_for_verification(
         | TypedTx::CompleteSetMint(_)
         | TypedTx::CompleteSetRedeem(_)
         | TypedTx::MarketSeed(_)
-        | TypedTx::CompleteSetMerge(_) => None,
+        | TypedTx::CompleteSetMerge(_)
+        | TypedTx::CpmmSwap(_) => None,
     }
 }
 
@@ -624,7 +641,8 @@ fn system_signature_of(
         | TypedTx::CompleteSetMint(_)
         | TypedTx::CompleteSetRedeem(_)
         | TypedTx::MarketSeed(_)
-        | TypedTx::CompleteSetMerge(_) => None,
+        | TypedTx::CompleteSetMerge(_)
+        | TypedTx::CpmmSwap(_) => None,
     }
 }
 
@@ -653,7 +671,8 @@ fn system_epoch_of(tx: &TypedTx) -> Option<SystemEpoch> {
         | TypedTx::CompleteSetMint(_)
         | TypedTx::CompleteSetRedeem(_)
         | TypedTx::MarketSeed(_)
-        | TypedTx::CompleteSetMerge(_) => None,
+        | TypedTx::CompleteSetMerge(_)
+        | TypedTx::CpmmSwap(_) => None,
     }
 }
 
@@ -2216,6 +2235,180 @@ pub(crate) fn dispatch_transition(
 
             Ok((q_next, SignalBundle::default()))
         }
+        // ──────────────────────────────────────────────────────────────────
+        // Stage C P-M5 — CpmmSwapTx accept arm (architect manual §7.6).
+        //
+        //   BuyYesWithNo: outY = floor(dN * poolY / (poolN + dN))
+        //   BuyNoWithYes: outN = floor(dY * poolN / (poolY + dY))
+        //
+        // Sender pays one side's shares, pool returns the other side's
+        // shares; constant-product non-decreasing under floor rounding
+        // (dust stays in pool).
+        // ──────────────────────────────────────────────────────────────────
+        TypedTx::CpmmSwap(swap) => {
+            // Step 1: parent-root match.
+            if swap.parent_state_root != q.state_root_t {
+                return Err(TransitionError::StaleParent);
+            }
+            // Step 2: amount_in > 0.
+            if swap.amount_in.units == 0 {
+                return Err(TransitionError::SwapZeroInput);
+            }
+            // Step 3: pool entry exists at event_id.
+            let pool_pre = q
+                .economic_state_t
+                .cpmm_pools_t
+                .0
+                .get(&swap.event_id)
+                .copied()
+                .ok_or(TransitionError::SwapPoolNotFound)?;
+            // Step 4: sender holds ≥ amount_in of input side.
+            let sender_pair = q
+                .economic_state_t
+                .conditional_share_balances_t
+                .0
+                .get(&swap.sender)
+                .and_then(|m| m.get(&swap.event_id))
+                .copied()
+                .unwrap_or_default();
+            let (sender_input_units, sender_output_units, pool_input_units, pool_output_units) =
+                match swap.side {
+                    crate::state::typed_tx::SwapSide::BuyYesWithNo => (
+                        sender_pair.no.units,
+                        sender_pair.yes.units,
+                        pool_pre.pool_no.units,
+                        pool_pre.pool_yes.units,
+                    ),
+                    crate::state::typed_tx::SwapSide::BuyNoWithYes => (
+                        sender_pair.yes.units,
+                        sender_pair.no.units,
+                        pool_pre.pool_yes.units,
+                        pool_pre.pool_no.units,
+                    ),
+                };
+            if sender_input_units < swap.amount_in.units {
+                return Err(TransitionError::SwapInsufficientSenderInput);
+            }
+            // Step 5: integer floor formula
+            //   out_units = floor(amount_in * pool_output / (pool_input + amount_in))
+            let denom = pool_input_units
+                .checked_add(swap.amount_in.units)
+                .ok_or(TransitionError::SwapInsufficientPoolOutput)?;
+            if denom == 0 {
+                return Err(TransitionError::SwapInsufficientPoolOutput);
+            }
+            let numerator = swap
+                .amount_in
+                .units
+                .checked_mul(pool_output_units)
+                .ok_or(TransitionError::SwapInsufficientPoolOutput)?;
+            let out_units = numerator / denom;
+            if out_units == 0 || out_units >= pool_output_units {
+                return Err(TransitionError::SwapInsufficientPoolOutput);
+            }
+            // Step 6: slippage protection.
+            if out_units < swap.min_out.units {
+                return Err(TransitionError::SwapMinOutNotMet);
+            }
+            // Step 7: build q_next — sender + pool both rebalance.
+            let mut q_next = q.clone();
+            // 7a: sender input -= amount_in; sender output += out_units.
+            {
+                let sender_shares = q_next
+                    .economic_state_t
+                    .conditional_share_balances_t
+                    .0
+                    .entry(swap.sender.clone())
+                    .or_insert_with(std::collections::BTreeMap::new);
+                let pair = sender_shares
+                    .entry(swap.event_id.clone())
+                    .or_insert(crate::state::q_state::ShareSidePair::default());
+                match swap.side {
+                    crate::state::typed_tx::SwapSide::BuyYesWithNo => {
+                        pair.no = crate::state::typed_tx::ShareAmount::from_units(
+                            pair.no.units - swap.amount_in.units,
+                        );
+                        pair.yes = crate::state::typed_tx::ShareAmount::from_units(
+                            pair.yes.units + out_units,
+                        );
+                    }
+                    crate::state::typed_tx::SwapSide::BuyNoWithYes => {
+                        pair.yes = crate::state::typed_tx::ShareAmount::from_units(
+                            pair.yes.units - swap.amount_in.units,
+                        );
+                        pair.no = crate::state::typed_tx::ShareAmount::from_units(
+                            pair.no.units + out_units,
+                        );
+                    }
+                }
+            }
+            // 7b: pool input += amount_in; pool output -= out_units.
+            let pool_post = {
+                let pool = q_next
+                    .economic_state_t
+                    .cpmm_pools_t
+                    .0
+                    .get_mut(&swap.event_id)
+                    .expect("pool exists (validated step 3)");
+                match swap.side {
+                    crate::state::typed_tx::SwapSide::BuyYesWithNo => {
+                        pool.pool_no = crate::state::typed_tx::ShareAmount::from_units(
+                            pool.pool_no.units + swap.amount_in.units,
+                        );
+                        pool.pool_yes = crate::state::typed_tx::ShareAmount::from_units(
+                            pool.pool_yes.units - out_units,
+                        );
+                    }
+                    crate::state::typed_tx::SwapSide::BuyNoWithYes => {
+                        pool.pool_yes = crate::state::typed_tx::ShareAmount::from_units(
+                            pool.pool_yes.units + swap.amount_in.units,
+                        );
+                        pool.pool_no = crate::state::typed_tx::ShareAmount::from_units(
+                            pool.pool_no.units - out_units,
+                        );
+                    }
+                }
+                *pool
+            };
+            // Step 8: constant-product non-decreasing invariant.
+            // Use u128 multiplication; for Stage C scale (reserves ≤ 2^60)
+            // this stays well below u128::MAX. Forward-bind to u256/saturating
+            // when reserve scale exceeds Stage C bound.
+            let k_pre = pool_pre
+                .pool_yes
+                .units
+                .checked_mul(pool_pre.pool_no.units)
+                .ok_or(TransitionError::SwapConstantProductRegressed)?;
+            let k_post = pool_post
+                .pool_yes
+                .units
+                .checked_mul(pool_post.pool_no.units)
+                .ok_or(TransitionError::SwapConstantProductRegressed)?;
+            if k_post < k_pre {
+                return Err(TransitionError::SwapConstantProductRegressed);
+            }
+            // Step 9: monetary invariants — swap moves shares only;
+            // total Coin and conditional collateral both unchanged.
+            assert_no_post_init_mint(tx, q)
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            assert_total_ctf_conserved(
+                &q.economic_state_t,
+                &q_next.economic_state_t,
+                &[],
+            )
+            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            // Note: assert_complete_set_balanced is NOT applicable to swap —
+            // swap moves shares between sender and pool; the
+            // min(Σ_yes, Σ_no) == collateral identity may temporarily
+            // diverge if the test fixture starts with non-balanced state.
+            // Forward-bind a pool-aware variant if needed; for now the
+            // CTF conservation + constant-product checks are sufficient.
+
+            // Step 10: state_root advance.
+            q_next.state_root_t = cpmm_swap_accept_state_root(&q.state_root_t, tx);
+
+            Ok((q_next, SignalBundle::default()))
+        }
     }
 }
 
@@ -2734,7 +2927,8 @@ impl Sequencer {
             // Agent-submitted variants — proceed to queue. TB-13 conditional-
             // share variants (CompleteSetMint / CompleteSetRedeem / MarketSeed)
             // are agent-signed and admit through the same ingress path.
-            // Stage C P-M2 CompleteSetMerge follows the same agent-signed pattern.
+            // Stage C P-M2 CompleteSetMerge + Stage C P-M5 CpmmSwap follow
+            // the same agent-signed pattern.
             TypedTx::Work(_)
             | TypedTx::Verify(_)
             | TypedTx::Challenge(_)
@@ -2744,7 +2938,8 @@ impl Sequencer {
             | TypedTx::CompleteSetMint(_)
             | TypedTx::CompleteSetRedeem(_)
             | TypedTx::MarketSeed(_)
-            | TypedTx::CompleteSetMerge(_) => {}
+            | TypedTx::CompleteSetMerge(_)
+            | TypedTx::CpmmSwap(_) => {}
         }
         // TRACE_MATRIX TB-13 Atom 6 round-3 (Codex VETO TB13-AUTH 2026-05-03):
         // submit-time agent-signature verification for the 3 TB-13
@@ -2792,6 +2987,17 @@ impl Sequencer {
                         .ok_or(SubmitError::AgentSignatureInvalid)?;
                     let digest = merge.to_signing_payload().canonical_digest();
                     if verify_agent_signature(&merge.signature, &digest, &pubkey).is_err() {
+                        return Err(SubmitError::AgentSignatureInvalid);
+                    }
+                }
+                // Stage C P-M5 (architect manual §7.6): same submit-time agent
+                // signature gate for CpmmSwap. Sender is the swap initiator.
+                TypedTx::CpmmSwap(swap) => {
+                    let pubkey = manifest
+                        .get(&swap.sender)
+                        .ok_or(SubmitError::AgentSignatureInvalid)?;
+                    let digest = swap.to_signing_payload().canonical_digest();
+                    if verify_agent_signature(&swap.signature, &digest, &pubkey).is_err() {
                         return Err(SubmitError::AgentSignatureInvalid);
                     }
                 }

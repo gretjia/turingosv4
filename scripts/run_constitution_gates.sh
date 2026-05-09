@@ -193,6 +193,18 @@ GATES=(
   # (no ghost liquidity). EconomicState sub-field count 13 → 14.
   # Awaiting batch §8 sign-off (P-M2 + P-M4 + P-M6).
   constitution_cpmm_pool
+  # Stage C P-M5 2026-05-09 (plan cozy-waddling-raven Step 7; STEP_B
+  # parallel-branch `feat/p-m5-cpmm-swap`) — architect manual §7.6
+  # verbatim CPMM share-only swap hardening: 6 verbatim test names
+  # (swap_no_for_yes_constant_product_non_decreasing +
+  # swap_yes_for_no_constant_product_non_decreasing +
+  # swap_fails_zero_input + swap_fails_insufficient_pool_output +
+  # swap_respects_min_out_slippage + swap_uses_integer_math_no_f64).
+  # Tests bind to live sequencer dispatch on TypedTx::CpmmSwap (new
+  # variant; integer floor formula `outY = floor(dN * poolY /
+  # (poolN + dN))`; constant-product non-decreasing under floor rounding).
+  # No §8 sign-off pause (Class 3 wire-up; covered by Stage C overall §8).
+  constitution_cpmm_swap
 )
 
 # Run each gate file separately and collect per-test outcome.
