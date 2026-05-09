@@ -1,0 +1,18 @@
+{
+  "final_total_coin_micro": 12000001000,
+  "gates": {
+    "ctf_conservation_end_to_end": "PASS",
+    "fc1_invariant": "PASS",
+    "no_ghost_liquidity": "PASS",
+    "no_price_as_truth": "PASS",
+    "no_raw_log_broadcast": "PASS",
+    "replay_determinism": "PASS"
+  },
+  "initial_total_coin_micro": 12000001000,
+  "owners_with_shares": 2,
+  "pools_active": 1,
+  "smoke": "stage_c_pm9_controlled_smoke",
+  "txs_accepted": 2,
+  "txs_rejected": 1,
+  "verdict": "PASS"
+}

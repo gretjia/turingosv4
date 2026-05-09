@@ -237,6 +237,17 @@ GATES=(
   # path consumes view output (signal-only); no state mutation. Determinism
   # asserted across repeated calls (dashboard regenerates from chain).
   audit_tape_views
+  # Stage C P-M9 2026-05-09 (plan cozy-waddling-raven Step 12) — architect
+  # manual §7.10 controlled market smoke. End-to-end integration smoke
+  # (`stage_c_pm9_controlled_market_smoke`) drives the Polymarket atom
+  # chain (BuyYesWithCoinRouter → BuyNoWithCoinRouter → PriceIndex quote →
+  # audit views → CompleteSetMerge rejection) through the Sequencer with
+  # synthetic-but-canonical fixture state. Asserts all 6 charter
+  # SG-StageC-PM.9 gates: no ghost liquidity / CTF conservation
+  # end-to-end / no price-as-truth / no raw log broadcast / FC1 invariant /
+  # replay determinism. Evidence at
+  # `handover/evidence/stage_c_pm9_controlled_smoke_20260509T042633Z/`.
+  stage_c_pm9_controlled_smoke
 )
 
 # Run each gate file separately and collect per-test outcome.

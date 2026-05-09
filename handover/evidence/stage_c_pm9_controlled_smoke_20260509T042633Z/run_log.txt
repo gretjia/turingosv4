@@ -1,0 +1,12 @@
+=== Stage C P-M9 controlled market smoke ===
+initial total_supply_micro: 12000001000
+Step 1 (BuyYes router 100 Coin): accepted
+Step 2 (BuyNo router 100 Coin): accepted
+Step 3 (PriceIndex quote, pay=50): yes=Some((98, false)) no=Some((96, false))
+Step 4 (audit views): shares=2 pools=1 prices=1 entries
+Step 5 (merge attempt without NO): rejected as expected
+Gate 1+2 (CTF conservation): PASS — total 12000001000 == initial 12000001000
+Gate 3 (no price-as-truth): PASS — sequencer source-grep clean
+Gate 4 (no raw log broadcast): PASS — rejection class is typed
+Gate 5 (FC1 invariant): PASS — 2 accepted + 1 rejected via typed paths
+Gate 6 (replay determinism): PASS — views bit-equal across calls

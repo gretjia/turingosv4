@@ -170,6 +170,8 @@ Per parent authorization §3.3 + alignment-doc §3 (zh) / §4 (en) Stage C:
 
 ### §3.10. P-M9 — Controlled market smoke
 
+**P-M9 STATUS**: 🟢 SHIPPED 2026-05-09 (session #27, plan cozy-waddling-raven Step 12) — `tests/stage_c_pm9_controlled_smoke.rs::stage_c_pm9_controlled_market_smoke` integration smoke drives the full Polymarket atom chain (BuyYesWithCoinRouter → BuyNoWithCoinRouter → PriceIndex quote → audit views → CompleteSetMerge rejection) through the Sequencer with synthetic-but-canonical fixture state. All 6 SG-StageC-PM.9 gates GREEN: no ghost liquidity / CTF conservation end-to-end / no price-as-truth / no raw log broadcast / FC1 invariant / replay determinism. Evidence at `handover/evidence/stage_c_pm9_controlled_smoke_20260509T042633Z/` (`run_log.txt` + `final_state.json` with verdict PASS). Evidence write is `TURINGOS_TEST_REGENERATE_EVIDENCE=1` gated per FC2-INV5 evidence-immutability. The "Lean task" + "Agent A/B WorkTx + ChallengeTx" + "Task resolved" + "Autopsy" portions of architect §7.10 remain covered by the existing FC1 substrate; this smoke focuses on the NEW Stage C market-lifecycle composition (P-M2 + P-M4 + P-M5 + P-M6 + P-M7 + P-M8).
+
 | ID | Requirement |
 |----|-------------|
 | FR-PM9.1 | Scenario per architect manual §7.10: Lean task → Agent A WorkTx FirstLong → Agent B ChallengeTx Short → MarketSeedTx by sponsor or treasury → BuyYesWithCoin → BuyNoWithCoin → PriceIndex update → Task resolved → Redeem / merge → Autopsy if loss. |
