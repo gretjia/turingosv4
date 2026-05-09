@@ -381,7 +381,13 @@ pub fn assert_no_post_init_mint(tx: &TypedTx, q: &QState) -> Result<(), Monetary
         // Stage C P-M5 (architect manual §7.6): CpmmSwap moves shares
         // between sender and pool. No Coin movement; no mint, no burn.
         // Total Coin invariant trivially preserved.
-        | TypedTx::CpmmSwap(_) => Ok(()),
+        | TypedTx::CpmmSwap(_)
+        // Stage C P-M6 (architect manual §7.7): BuyWithCoinRouter is
+        // atomic CompleteSetMint (debit Coin, credit collateral) + share
+        // swap. Coin balance debit equals collateral credit; mint adds
+        // shares (NOT Coin); swap moves shares between buyer and pool.
+        // Total Coin invariant preserved.
+        | TypedTx::BuyWithCoinRouter(_) => Ok(()),
     }
 }
 
@@ -482,6 +488,7 @@ pub fn assert_complete_set_balanced(
         let collateral_units: u128 = collateral.micro_units() as u128;
         let mut sum_yes: u128 = 0;
         let mut sum_no: u128 = 0;
+        // Owner-held conditional shares (TB-13 surface).
         for owner_map in s.conditional_share_balances_t.0.values() {
             if let Some(pair) = owner_map.get(event_id) {
                 sum_yes = sum_yes
@@ -491,6 +498,20 @@ pub fn assert_complete_set_balanced(
                     .checked_add(pair.no.units)
                     .ok_or(MonetaryError::Overflow)?;
             }
+        }
+        // Stage C P-M4+P-M6 (architect manual §7.5+§7.7): pool reserves are
+        // share balances controlled by the pool. They are NOT counted as
+        // Coin (CR analogue to CR-13.3) but ARE share inventory and MUST
+        // be included in the complete-set min-side identity to keep the
+        // accounting consistent across CompleteSetMint + CpmmSwap +
+        // BuyWithCoinRouter mutations.
+        if let Some(pool) = s.cpmm_pools_t.0.get(event_id) {
+            sum_yes = sum_yes
+                .checked_add(pool.pool_yes.units)
+                .ok_or(MonetaryError::Overflow)?;
+            sum_no = sum_no
+                .checked_add(pool.pool_no.units)
+                .ok_or(MonetaryError::Overflow)?;
         }
         let min_side = sum_yes.min(sum_no);
         if min_side != collateral_units {
