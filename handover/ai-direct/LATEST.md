@@ -6,6 +6,58 @@
 
 ---
 
+## 🔴 Stage C Polymarket — VETOED + ROLLED BACK 2026-05-09 session #28
+
+**HEAD**: `01dd825` (rollback commit) on top of `72dabe1` (VETO + remediation directives) on top of `e0ed12c` (P-M1 SHIPPED, last pre-Stage-C-Class-4 commit).
+**Status**: Stage C P-M2..P-M9 work fully reverted. P-M0 + P-M1 (session #25 + session #27 Step 3) PRESERVED.
+
+### Verdict + cause
+- Codex G2 audit aggregate: **VETO** (load-bearing P-M6 defects).
+- Architect verbatim 2026-05-09: **「我是要 VETO + 全 rollback」**.
+- Defect 1 (P-M6, load-bearing): `monetary_invariant.rs` accepted `min(sum_yes, sum_no) == collateral` instead of strict `sum_yes == collateral && sum_no == collateral` — weakens CLAUDE.md §13 economy law and architect §6.1 CTF invariant.
+- Defect 2 (P-M6, load-bearing): `router_atomic_rollback_on_failure` test triggered insufficient-balance failure that was rejected before `q_next` mutation began → vacuous; no tape evidence of 9-step composite atomicity.
+- Defect 3 (P-M2): added `timestamp_logical` field; architect §7.3 verbatim specifies 6 fields only.
+- Defect 4 (P-M4): used `event_id_kind` where architect §7.5 verbatim specifies `event_id`.
+- CR-StageC-PM.16 deviation (batch §8 over per-atom): Codex audit REJECTED; mitigation insufficient because self-audit didn't catch any of the 4 defects.
+
+### Authority artifacts
+- VETO: `handover/directives/2026-05-09_STAGE_C_POLYMARKET_PM2_PM4_PM6_BATCH_§8_VETO.md`
+- Remediation: `handover/directives/2026-05-09_STAGE_C_POLYMARKET_VETO_REMEDIATION_DIRECTIVE.md`
+- OBS_R022 justification (TRACE_MATRIX bulk-removal): `handover/alignment/OBS_R022_STAGE_C_VETO_ROLLBACK_2026-05-09.md`
+- Codex G2 audit transcript: agent ID `a1e5cd6edeb8377bc`
+
+### Post-rollback verification (HEAD `01dd825`)
+| Check | Result |
+|---|---|
+| `cargo check --workspace` | ✅ clean (1 pre-existing unused-import warning in evaluator) |
+| `bash scripts/run_constitution_gates.sh` | ✅ **175 / 0 / 1** (matches pre-Stage-C baseline exactly) |
+| `cargo test --workspace --no-fail-fast` | ✅ **1308 / 0 / 151** (matches pre-Stage-C baseline exactly) |
+| `cargo test --lib verify_trust_root_passes_on_intact_repo` | ✅ PASS |
+
+### Forward path (per remediation directive Phase E + F)
+- **Phase E** (mechanism additions, ~1-2 days; precedes any Phase F rebuild):
+  1. `tests/constitution_architect_verbatim_struct_binding.rs` — verbatim spec binding gate (mechanically catches schema drift)
+  2. `tests/constitution_class4_atomic_rollback_witness.rs` — atomic rollback test pattern enforcement (catches vacuous tests)
+  3. `tests/constitution_economy_strict_equality.rs` — strict-equality lint (catches `min()` weakening)
+  4. NEW `feedback_no_batch_class4_signoff.md` (codify charter rule against batch §8 for Class-4)
+  5. UPDATE `feedback_dual_audit.md` (timing rule: PRE-§8 dual audit, not POST-§8-request)
+- **Phase F** (per-atom rebuild, ~3-4 weeks; strict per-atom §8 cadence; NO batching):
+  - F.1 P-M2 rebuild (strict 6-field per §7.3) → per-atom §8
+  - F.2 P-M3 re-apply (was correct)
+  - F.3 P-M4 rebuild (rename `event_id_kind` → `event_id`) → per-atom §8
+  - F.4 P-M5 re-apply (was correct)
+  - F.5 P-M6 rebuild WITH PATCHES (strict-equality `monetary_invariant`; mid-mutation failure-injection rollback test) → per-atom §8
+  - F.6-8 P-M7/P-M8/P-M9 re-apply
+  - F.9 Stage C overall §8
+
+### Key lesson
+- Self-audit (212 GREEN) was insufficient for Class-4. Codex external review caught all 4 defects.
+- Class-4 dual audit MUST be PRE-§8 (at packet draft time) not POST-§8-request — saves the rollback round-trip.
+- Batch §8 over per-atom multiplies cascade risk; charter CR-StageC-PM.16 strict per-atom rule was correct from the start.
+- Net cost of session #27 batch attempt: ~1 day implementation + 1 day audit + ~2-3 weeks rebuild ≈ NET NEGATIVE vs strict per-atom from the start.
+
+---
+
 ## 🚧 Open after Polymarket (post Stage C ship FINAL)
 
 These items do **not** affect Polymarket runtime; forward-bound to post-Stage-C session per plan `cozy-waddling-raven.md` Step 1 (user verbatim 2026-05-09: "之前没有完成的任务，你要在本地文件记录清楚，不要 drift"). Do not start any of these until Stage C Polymarket §8 sign-off lands.
