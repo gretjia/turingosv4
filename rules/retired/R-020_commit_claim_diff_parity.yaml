@@ -1,5 +1,22 @@
+# RETIRED 2026-05-09 session #31 (post-P-M4 SHIPPED FINAL `/harness-reflect`).
+# Two consecutive harness-reflect cycles (#30 + #31) found 0 cumulative
+# triggers since rule was added 2026-04-26 (A8e12). Per
+# `feedback_harness_reflect_cadence`: rules with 0 triggers across 2
+# consecutive reflect cycles are retire candidates.
+#
+# Origin context preserved below for audit trail. The rule's parent
+# precedent (case C-076) remains binding constitutional language even
+# though this YAML is retired — multi-fix-bundle commits without
+# per-claim `Verified:` proof are still C-076 violations; the harness
+# just no longer warns at pre-commit time. If the underlying false-
+# closure pattern resurfaces in future audits, this rule can be moved
+# back to `rules/active/` without modification.
+#
+# judge.sh R-020 block (lines 164-203 pre-retirement) commented out in
+# same commit as this move; rules/MANIFEST.sha256 updated to point at
+# the new path.
 id: "R-020"
-name: "commit_claim_diff_parity_warn"
+name: "commit_claim_diff_parity_warn (RETIRED 2026-05-09)"
 source_incidents:
   - "A8 round-9 audit Codex finding R9#1 (false-closure on A8e9 N3)"
   - "A8 round-10 substantive findings R10#1 + R10#2 (gaps the prior commit's fix-claims missed)"

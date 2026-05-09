@@ -161,46 +161,44 @@ if [ "$TOOL_NAME" = "Bash" ] && [ -n "$COMMAND" ]; then
             # warn only — does not block; user decides whether to amend
         fi
 
-        # R-020 commit_claim_diff_parity (added 2026-04-26, A8e12 — case C-076):
-        # warn on multi-fix-bundle commit messages without per-claim
-        # `Verified:` proof lines. Source: A8e9 N3 false-closure (Codex R9#1).
-        # Counts fix-tag occurrences (F1/F2/M1/M3/N1/P2/K1/etc) AND bullet
-        # headers ("fixed:" / "closed:" / "corrected:" / "updated:"). ≥2
-        # distinct claims and zero `Verified:` lines → WARN.
-        msg_body=""
-        if echo "$COMMAND" | grep -qE '\-m[[:space:]]'; then
-            # capture inline / HEREDOC body from COMMAND (best-effort —
-            # bash quoting makes perfect extraction hard; we accept
-            # false-positive from over-matching on the COMMAND string)
-            msg_body="$COMMAND"
-        fi
-        if [ -z "$msg_body" ]; then
-            msg_file=$(echo "$COMMAND" | grep -oE '\-F[[:space:]]+[^[:space:];|&]+' | head -1 | sed 's/^-F[[:space:]]*//')
-            if [ -n "$msg_file" ] && [ -f "$msg_file" ]; then
-                msg_body=$(cat "$msg_file" 2>/dev/null)
-            fi
-        fi
-        if [ -n "$msg_body" ]; then
-            # Count distinct fix-tag occurrences. Tag pattern = uppercase
-            # letter + digits, word-bounded, ALL-CAPS (avoids matching
-            # "F1" inside random words but accepts F1, F2, M1, M2, M3,
-            # N1, N2, P1, P2, K1, K2, etc.) plus the explicit
-            # bullet/header words.
-            fix_tag_count=$(echo "$msg_body" | grep -oE '\b[A-Z][0-9]+\b' | sort -u | wc -l)
-            bullet_count=$(echo "$msg_body" | grep -ciE '^[[:space:]]*[-*+]?[[:space:]]*\*\*?(fix|closed?|corrected|updated)[[:space:]a-z0-9_-]*:?\*?\*?:' || true)
-            total_claims=$((fix_tag_count + bullet_count))
-            verified_count=$(echo "$msg_body" | grep -cE 'Verified:' || true)
-
-            if [ "$total_claims" -ge 2 ] && [ "$verified_count" -eq 0 ]; then
-                echo "WARNING R-020 / case C-076: multi-fix-bundle commit detected (≥2 distinct fix tags or bullets) without per-claim 'Verified:' proof line." >&2
-                echo "  Per C-076 Rule 1: every fix-claim in commit body MUST be paired with a 'Verified:' line — typically 'grep -n' / 'sed -n' showing the diff contains the asserted change at the asserted location." >&2
-                echo "  Source: A8e9 N3 false-closure (Codex R9#1) — commit message claimed runner-default fix that the diff didn't ship; caught next round at ~\$5–7 audit-API cost." >&2
-                echo "  Cost of compliance: ~30s per claim. Cost of bypass: ~\$5–7 + 1 round delay if next dual audit catches the false-closure." >&2
-                # warn only — false-positive accepted (legitimate
-                # single-claim commit that happens to mention 2+
-                # tag-shaped tokens in unrelated context)
-            fi
-        fi
+        # R-020 commit_claim_diff_parity — RETIRED 2026-05-09 session #31
+        # post-P-M4-SHIPPED-FINAL /harness-reflect.
+        #
+        # Two consecutive harness-reflect cycles (#30 + #31) found 0
+        # cumulative triggers since rule was added 2026-04-26 (A8e12).
+        # Per `feedback_harness_reflect_cadence`: rules with 0 triggers
+        # across 2 consecutive reflect cycles are retire candidates.
+        # YAML moved to `rules/retired/R-020_*.yaml` in same commit;
+        # `rules/MANIFEST.sha256` updated to point at new path.
+        #
+        # The underlying constitutional case C-076 (false-closure
+        # prevention via per-claim `Verified:` proof) remains binding —
+        # this hook just no longer warns at pre-commit time. If the
+        # false-closure pattern resurfaces in future audits, the
+        # commented-out implementation below can be reinstated by
+        # un-commenting + moving the YAML back to `rules/active/`.
+        #
+        # ── R-020 BLOCK (commented-out implementation; preserved for revival) ──
+        # msg_body=""
+        # if echo "$COMMAND" | grep -qE '\-m[[:space:]]'; then
+        #     msg_body="$COMMAND"
+        # fi
+        # if [ -z "$msg_body" ]; then
+        #     msg_file=$(echo "$COMMAND" | grep -oE '\-F[[:space:]]+[^[:space:];|&]+' | head -1 | sed 's/^-F[[:space:]]*//')
+        #     if [ -n "$msg_file" ] && [ -f "$msg_file" ]; then
+        #         msg_body=$(cat "$msg_file" 2>/dev/null)
+        #     fi
+        # fi
+        # if [ -n "$msg_body" ]; then
+        #     fix_tag_count=$(echo "$msg_body" | grep -oE '\b[A-Z][0-9]+\b' | sort -u | wc -l)
+        #     bullet_count=$(echo "$msg_body" | grep -ciE '^[[:space:]]*[-*+]?[[:space:]]*\*\*?(fix|closed?|corrected|updated)[[:space:]a-z0-9_-]*:?\*?\*?:' || true)
+        #     total_claims=$((fix_tag_count + bullet_count))
+        #     verified_count=$(echo "$msg_body" | grep -cE 'Verified:' || true)
+        #     if [ "$total_claims" -ge 2 ] && [ "$verified_count" -eq 0 ]; then
+        #         echo "WARNING R-020 / case C-076: ..." >&2
+        #     fi
+        # fi
+        # ── END R-020 RETIRED BLOCK ──
     fi
     exit 0
 fi
