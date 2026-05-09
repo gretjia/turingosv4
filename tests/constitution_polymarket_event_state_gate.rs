@@ -478,3 +478,74 @@ async fn pool_swap_router_all_succeed_against_open_event() {
     .await
     .expect("router against Open event admits normally");
 }
+
+// ── Codex R2 CHALLENGE Q10 closure: fail-closed on missing entry ───────────
+
+/// pool_create_rejected_against_missing_event_entry — Codex Stage C
+/// overall §8 R2 CHALLENGE Q10: even when task_markets_t has NO entry
+/// for the event_id (malformed / legacy / pre-genesis), pool creation
+/// must reject with EventNotOpen. Pre-R2-fix: `unwrap_or(Open)`
+/// fail-open default would have admitted; R2-fix: fail-closed `ok_or`.
+#[tokio::test]
+async fn pool_create_rejected_against_missing_event_entry() {
+    // Genesis with NO task_markets_t entry for the event.
+    let mut q0 = QState::genesis();
+    q0.economic_state_t.balances_t.0.insert(
+        AgentId("alice".into()),
+        MicroCoin::from_coin(100).unwrap(),
+    );
+    // Note: we deliberately DO NOT add a task_markets_t entry for "evt-missing".
+    let mut h = fresh_harness(q0);
+
+    let p = h.seq.q_snapshot().unwrap().state_root_t;
+    let err = submit_and_apply(
+        &mut h,
+        build_pool(p, "alice", "evt-missing", 1_000_000, 1),
+    )
+    .await
+    .expect_err("pool create against missing event entry must be rejected");
+    assert!(
+        err.contains("EventNotOpen"),
+        "fail-closed: missing task_markets_t entry must reject with EventNotOpen; got: {err}"
+    );
+}
+
+#[tokio::test]
+async fn swap_rejected_against_missing_event_entry() {
+    // Bootstrap pool against "evt-active" (Open). Then call swap with a
+    // DIFFERENT event_id ("evt-missing") that has no task_markets_t
+    // entry. The swap admission must fail-closed even though "evt-active"
+    // has a valid pool — the swap targets the missing event.
+    let (mut h, _) = bootstrap_active_pool("evt-active", 5_000_000).await;
+
+    // Swap with event_id "evt-missing" (no task_markets_t entry, no pool).
+    // Expected: EventNotOpen (gate fires before PoolNotActive check).
+    let parent = h.seq.q_snapshot().unwrap().state_root_t;
+    let err = submit_and_apply(
+        &mut h,
+        build_swap(parent, "bob", "evt-missing", 100_000, 1),
+    )
+    .await
+    .expect_err("swap against missing event entry must be rejected");
+    assert!(
+        err.contains("EventNotOpen"),
+        "fail-closed: swap missing event must reject with EventNotOpen (not PoolNotActive); got: {err}"
+    );
+}
+
+#[tokio::test]
+async fn router_rejected_against_missing_event_entry() {
+    let (mut h, _) = bootstrap_active_pool("evt-active-r", 5_000_000).await;
+
+    let parent = h.seq.q_snapshot().unwrap().state_root_t;
+    let err = submit_and_apply(
+        &mut h,
+        build_router(parent, "bob", "evt-missing-r", 500_000, 1),
+    )
+    .await
+    .expect_err("router against missing event entry must be rejected");
+    assert!(
+        err.contains("EventNotOpen"),
+        "fail-closed: router missing event must reject with EventNotOpen; got: {err}"
+    );
+}

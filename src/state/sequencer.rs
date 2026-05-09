@@ -2401,14 +2401,20 @@ pub(crate) fn dispatch_transition(
             // invariant "no trading after resolution". Mirrors TB-13
             // CompleteSetMint admission pattern for `EventNotOpen`.
             {
-                let event_state = q
+                // Fail-closed: missing task_markets_t entry rejects with
+                // EventNotOpen (Codex Stage C overall R2 CHALLENGE Q10
+                // closure 2026-05-09: malformed / pre-genesis events
+                // without an explicit Open entry must NOT admit market
+                // operations). Mirrors CompleteSetMint / MarketSeed
+                // event-state gate which uses the same fail-closed
+                // semantic.
+                let market_entry = q
                     .economic_state_t
                     .task_markets_t
                     .0
                     .get(&pool.event_id.0)
-                    .map(|m| m.state)
-                    .unwrap_or(crate::state::q_state::TaskMarketState::Open);
-                if event_state != crate::state::q_state::TaskMarketState::Open {
+                    .ok_or(TransitionError::EventNotOpen)?;
+                if market_entry.state != crate::state::q_state::TaskMarketState::Open {
                     return Err(TransitionError::EventNotOpen);
                 }
             }
@@ -2584,14 +2590,16 @@ pub(crate) fn dispatch_transition(
             // admit new swaps — preserves "no trading after resolution"
             // invariant.
             {
-                let event_state = q
+                // Fail-closed: missing task_markets_t entry rejects with
+                // EventNotOpen (Codex Stage C overall R2 CHALLENGE Q10
+                // closure).
+                let market_entry = q
                     .economic_state_t
                     .task_markets_t
                     .0
                     .get(&swap.event_id.0)
-                    .map(|m| m.state)
-                    .unwrap_or(crate::state::q_state::TaskMarketState::Open);
-                if event_state != crate::state::q_state::TaskMarketState::Open {
+                    .ok_or(TransitionError::EventNotOpen)?;
+                if market_entry.state != crate::state::q_state::TaskMarketState::Open {
                     return Err(TransitionError::EventNotOpen);
                 }
             }
@@ -2821,14 +2829,16 @@ pub(crate) fn dispatch_transition(
             // must NOT admit Coin-locking router txs — preserves "no
             // trading after resolution" invariant.
             {
-                let event_state = q
+                // Fail-closed: missing task_markets_t entry rejects with
+                // EventNotOpen (Codex Stage C overall R2 CHALLENGE Q10
+                // closure).
+                let market_entry = q
                     .economic_state_t
                     .task_markets_t
                     .0
                     .get(&router.event_id.0)
-                    .map(|m| m.state)
-                    .unwrap_or(crate::state::q_state::TaskMarketState::Open);
-                if event_state != crate::state::q_state::TaskMarketState::Open {
+                    .ok_or(TransitionError::EventNotOpen)?;
+                if market_entry.state != crate::state::q_state::TaskMarketState::Open {
                     return Err(TransitionError::EventNotOpen);
                 }
             }
