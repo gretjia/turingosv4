@@ -255,6 +255,23 @@ pub struct EconomicState {
     /// `#[serde(default)]` for backward-compat with pre-TB-15 chain snapshots.
     #[serde(default)]
     pub agent_autopsies_t: AutopsyIndex,
+    /// TRACE_MATRIX FC1-Append Stage C P-M4 / Phase F.3 (architect manual
+    /// §7.5 + remediation directive §1.C row 3): per-event LiquidityPool
+    /// (CpmmPool) index. One pool per `EventId`; pool reserves in
+    /// `CpmmPool.pool_yes / pool_no` are NOT Coin (architect §7.5 rule 2)
+    /// → EXCLUDED from `total_supply_micro`. Created by P-M4
+    /// `CpmmPoolTx`; mutated by future P-M5 CpmmSwapTx + P-M6 router.
+    /// `#[serde(default)]` for backward-compat with pre-P-M4 snapshots.
+    #[serde(default)]
+    pub cpmm_pools_t: CpmmPoolsIndex,
+    /// TRACE_MATRIX FC1-Append Stage C P-M4 / Phase F.3 (architect manual
+    /// §7.5 rule 3 "lp shares are not Coin"): per-`(agent, event_id)` LP
+    /// share balance ledger. Provider receives LP shares 1:1 with the
+    /// symmetric `seed_yes` units they contributed at pool creation.
+    /// LP shares are NOT Coin → EXCLUDED from `total_supply_micro`.
+    /// `#[serde(default)]` for backward-compat with pre-P-M4 snapshots.
+    #[serde(default)]
+    pub lp_share_balances_t: LpShareBalancesIndex,
 }
 
 /// TRACE_MATRIX WP § 2 — agent → balance ledger. Concrete entry: `MicroCoin` (CO1.0a).
@@ -611,6 +628,124 @@ pub struct ShareSidePair {
     pub no: crate::state::typed_tx::ShareAmount,
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// Stage C P-M4 / Phase F.3 — CpmmPool LiquidityPool state (architect §7.5).
+// Per remediation directive 2026-05-09 §1.C row 3 (Class-4 STEP_B rebuild
+// post-VETO; defect 4 prevention `event_id` NOT `event_id_kind`).
+// ────────────────────────────────────────────────────────────────────────────
+
+/// TRACE_MATRIX FC1-Append Stage C P-M4 / Phase F.3 (architect manual §7.5
+/// rule 3 verbatim "lp shares are not Coin"): LP share count newtype.
+///
+/// Non-negative `u128` units. LP shares track ownership of `CpmmPool`
+/// reserves; they are explicitly NOT a Coin holding (architect §7.5 rule 3).
+/// `LpShareBalancesIndex` is therefore EXCLUDED from the
+/// `total_supply_micro` 6-holding sum that `assert_no_post_init_mint`
+/// guards (per Phase E.3 strict-equality lint).
+///
+/// Pattern mirror: `ShareAmount` at `src/state/typed_tx.rs:1140` (TB-13).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default)]
+pub struct LpShareAmount {
+    pub units: u128,
+}
+
+impl LpShareAmount {
+    /// TRACE_MATRIX FC1-Append Stage C P-M4 / Phase F.3 (architect manual
+    /// §7.5 rule 3 "lp shares are not Coin"): zero LP share amount —
+    /// default constructor for empty balance lookups.
+    pub const fn zero() -> Self {
+        Self { units: 0 }
+    }
+    /// TRACE_MATRIX FC1-Append Stage C P-M4 / Phase F.3 (architect manual
+    /// §7.5 rule 3): build from raw `u128` units. Used by sequencer
+    /// pool-creation arm to project `seed_yes.units` (symmetric init
+    /// formula `lp_total_shares = seed_yes.units`) into the LP-share
+    /// domain at `cpmm_pool_accept_state_root` step 6c.
+    pub const fn from_units(units: u128) -> Self {
+        Self { units }
+    }
+}
+
+/// TRACE_MATRIX FC1-Append Stage C P-M4 / Phase F.3 (architect manual §7.5):
+/// pool lifecycle status discriminator.
+///
+/// `Active` — pool open for swaps (P-M5 CPMM swap arm activates against this).
+/// `Resolved` — post-event-resolution; reserves frozen (LP-only redemption
+///   path lands at P-M9 controlled smoke / future TB).
+/// `Closed` — pool drained + retired.
+///
+/// Default `Active` because pool-creation tx instantiates a usable pool.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[repr(u8)]
+pub enum PoolStatus {
+    Active = 0,
+    Resolved = 1,
+    Closed = 2,
+}
+
+impl Default for PoolStatus {
+    fn default() -> Self {
+        Self::Active
+    }
+}
+
+/// TRACE_MATRIX FC1-Append Stage C P-M4 / Phase F.3 (architect manual §7.5
+/// VERBATIM 5-field spec — `event_id` NOT `event_id_kind` per session #27
+/// defect 4 lesson; field ORDER + TYPES bound by `tests/constitution_
+/// architect_verbatim_struct_binding.rs` E.1 gate).
+///
+/// State semantics (architect §7.5 rules):
+/// - `pool_yes` / `pool_no` are share balances controlled by the pool
+///   (NOT held in `conditional_share_balances_t`; pool reserves live
+///   inside this struct as `pool.pool_yes / pool.pool_no`).
+/// - Pool reserves are NOT Coin (rule 2) → `total_supply_micro`
+///   sum EXCLUDES `cpmm_pools_t.values().*.pool_yes/no.units`.
+/// - `lp_total_shares` is the total LP-token supply outstanding for this
+///   pool; per-agent ownership lives in `lp_share_balances_t`.
+/// - `k = pool_yes * pool_no` is the constant-product invariant maintained
+///   by future P-M5 swap arms (this struct only declares state shape).
+///
+/// One pool per `EventId` (sequencer admission rejects double-create with
+/// `PoolAlreadyExists`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct CpmmPool {
+    pub event_id: crate::state::typed_tx::EventId,
+    pub pool_yes: crate::state::typed_tx::ShareAmount,
+    pub pool_no: crate::state::typed_tx::ShareAmount,
+    pub lp_total_shares: LpShareAmount,
+    pub status: PoolStatus,
+}
+
+/// TRACE_MATRIX FC1-Append Stage C P-M4 / Phase F.3 (architect manual §7.5):
+/// per-event CpmmPool index. Keyed by `EventId` — one pool per event in v4
+/// (multi-pool-per-event deferred to future TB).
+///
+/// Pool reserves contained in `CpmmPool.pool_yes / pool.pool_no` are NOT
+/// counted in `total_supply_micro`: shares are claims, never Coin
+/// (architect §7.5 rule 2 + CR-13.3 / SG-13.2 carry-forward).
+/// `#[serde(default)]` for backward-compat with pre-P-M4 chain snapshots.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct CpmmPoolsIndex(
+    pub BTreeMap<crate::state::typed_tx::EventId, CpmmPool>,
+);
+
+/// TRACE_MATRIX FC1-Append Stage C P-M4 / Phase F.3 (architect manual §7.5
+/// rule 3 "lp shares are not Coin"): per-`(agent, event_id)` LP token
+/// balance index.
+///
+/// Wire shape: `BTreeMap<(AgentId, EventId), LpShareAmount>`. Tuple-key
+/// shape (vs nested map) is acceptable here because LP balances are not
+/// projected to JSON in the agent-view (Class-4 internal state only); the
+/// audit-side `serde_json` projection passes through `BTreeMap` ordering
+/// for deterministic replay.
+///
+/// EXCLUDED from `total_supply_micro` per architect §7.5 rule 3 + Phase E.3
+/// strict-equality lint extension.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct LpShareBalancesIndex(
+    pub BTreeMap<(AgentId, crate::state::typed_tx::EventId), LpShareAmount>,
+);
+
 /// TRACE_MATRIX TB-11 (architect §6.2) — per-run summary. Sponsored by
 /// `task_id`; populated by the `TerminalSummaryTx` dispatch arm with
 /// fields drawn from the typed-tx wire payload (Q-derivable on replay).
@@ -833,7 +968,7 @@ mod tests {
     }
 
     #[test]
-    fn economic_state_has_thirteen_sub_fields() {
+    fn economic_state_has_fifteen_sub_fields() {
         // TB-11 (2026-05-02 architect ruling §6.2): 9 → 10 sub-fields with +runs_t.
         // TB-12 (2026-05-03 architect ruling §3 + §8 Atom 1): 10 → 11 sub-fields
         // with +node_positions_t (flat NodePositionsIndex; canonical exposure
@@ -852,13 +987,18 @@ mod tests {
         // with +agent_autopsies_t (`AutopsyIndex` = `BTreeMap<EventId, Vec<Cid>>`;
         // sequencer-side per-event Cid index; capsule bytes live in CAS;
         // NOT projected to AgentVisibleProjection per CR-15.1 + halt-trigger #1).
+        // Stage C P-M4 / Phase F.3 (architect manual §7.5 + remediation
+        // directive 2026-05-09 §1.C row 3): 13 → 15 sub-fields with
+        // +cpmm_pools_t (one CpmmPool per EventId; pool reserves NOT Coin
+        // per architect §7.5 rule 2) and +lp_share_balances_t (LP token
+        // balances; NOT Coin per architect §7.5 rule 3).
         let e = EconomicState::default();
         let s = serde_json::to_value(&e).unwrap();
         let obj = s.as_object().unwrap();
         assert_eq!(
             obj.len(),
-            13,
-            "EconomicState must have 13 sub-fields post-TB-15 (was 12 post-TB-14; +agent_autopsies_t); got {}",
+            15,
+            "EconomicState must have 15 sub-fields post-Stage-C-P-M4 (was 13 post-TB-15; +cpmm_pools_t +lp_share_balances_t); got {}",
             obj.len()
         );
         assert!(obj.contains_key("runs_t"), "TB-11 runs_t sub-field missing");
@@ -866,6 +1006,8 @@ mod tests {
         assert!(obj.contains_key("conditional_collateral_t"), "TB-13 conditional_collateral_t sub-field missing");
         assert!(obj.contains_key("conditional_share_balances_t"), "TB-13 conditional_share_balances_t sub-field missing");
         assert!(obj.contains_key("agent_autopsies_t"), "TB-15 agent_autopsies_t sub-field missing");
+        assert!(obj.contains_key("cpmm_pools_t"), "Stage C P-M4 cpmm_pools_t sub-field missing");
+        assert!(obj.contains_key("lp_share_balances_t"), "Stage C P-M4 lp_share_balances_t sub-field missing");
         assert!(!obj.contains_key("price_index_t"), "TB-14 Atom 2: price_index_t MUST be removed");
     }
 

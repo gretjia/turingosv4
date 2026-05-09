@@ -82,7 +82,7 @@ fn nine_top_level_fields() {
 }
 
 #[test]
-fn empty_economic_state_serializes_to_thirteen_sub_fields() {
+fn empty_economic_state_serializes_to_fifteen_sub_fields() {
     // TB-11 (architect §6.2 ruling 2026-05-02): 9 → 10 (+runs_t).
     // TB-12 (architect 2026-05-03 ruling §3 + §8 Atom 1): 10 → 11 (+node_positions_t).
     // TB-13 Atom 2 (architect 2026-05-03 post-TB-12 ruling §4.3):
@@ -95,8 +95,12 @@ fn empty_economic_state_serializes_to_thirteen_sub_fields() {
     //   (+agent_autopsies_t — `AutopsyIndex` per-event Cid index for
     //   AgentAutopsyCapsule emission; sequencer-side; CR-15.1 + halt-trigger #1
     //   exclude from AgentVisibleProjection).
+    // Stage C P-M4 / Phase F.3 (architect manual §7.5 + remediation
+    //   directive 2026-05-09 §1.C row 3): 13 → 15 (+cpmm_pools_t +
+    //   lp_share_balances_t — pool reserves NOT Coin per architect §7.5
+    //   rule 2; LP shares NOT Coin per rule 3).
     let e = EconomicState::default();
     let v = serde_json::to_value(&e).unwrap();
     let obj = v.as_object().unwrap();
-    assert_eq!(obj.len(), 13);
+    assert_eq!(obj.len(), 15);
 }

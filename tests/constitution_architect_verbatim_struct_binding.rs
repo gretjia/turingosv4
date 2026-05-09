@@ -141,7 +141,37 @@ const BINDINGS: &[StructBinding] = &[
             ("lp_total_shares", "LpShareAmount"),
             ("status", "PoolStatus"),
         ],
-        landing_status: LandingStatus::NotYetLanded,
+        // FLIPPED 2026-05-09 session #31 by Phase F.3 P-M4 rebuild commit:
+        // CpmmPool struct now Landed at `src/state/q_state.rs`. E.1 strict
+        // (name, type) pair-equality enforces architect §7.5 verbatim shape;
+        // any future drift (e.g. reintroducing `event_id_kind`) fails at
+        // gate-time.
+        landing_status: LandingStatus::Landed,
+    },
+    // F-DEFERRAL-2 closure for P-M4 (per remediation directive §9):
+    // sibling SigningPayload binding extends drift detection from the
+    // wire-tx struct to its agent-signed projection. Architect §7.5
+    // specifies the STATE struct only; the tx + signing payload are
+    // implementation-defined (strict-minimal 7-wire-field shape mirroring
+    // CompleteSetMergeTx P-M2 pattern, NO `timestamp_logical`).
+    // CpmmPoolSigningPayload is the 6-field projection (7 wire fields
+    // minus `signature`); fields are pinned here so a future implementer
+    // cannot pollute the signing payload with extra fields without failing
+    // this gate.
+    StructBinding {
+        atom_id: "P-M4",
+        manual_section: "§7.5-signing",
+        struct_name: "CpmmPoolSigningPayload",
+        impl_path: "src/state/typed_tx.rs",
+        expected_fields: &[
+            ("tx_id", "TxId"),
+            ("parent_state_root", "Hash"),
+            ("event_id", "EventId"),
+            ("provider", "AgentId"),
+            ("seed_yes", "ShareAmount"),
+            ("seed_no", "ShareAmount"),
+        ],
+        landing_status: LandingStatus::Landed,
     },
 ];
 
@@ -208,12 +238,30 @@ fn extract_struct_field_pairs(
                     && !name.is_empty()
                 {
                     let type_part = rest[colon_idx + 1..].trim();
-                    // Extract first identifier of the type expression.
-                    // Stop at the first non-ident-char (`<`, `,`, `(`, ` `, etc.).
-                    let type_token: String = type_part
+                    // Phase F.3 P-M4 parser hardening: handle path-qualified
+                    // types like `crate::state::typed_tx::EventId`. Take the
+                    // type-expression head (up to first `<` / `,` / `(` /
+                    // whitespace), allowing `::` so the path is preserved,
+                    // then take the LAST `::`-separated segment. Examples:
+                    //   `EventId`                              → "EventId"
+                    //   `crate::state::typed_tx::EventId`      → "EventId"
+                    //   `Option<String>`                       → "Option"
+                    //   `Vec<u32>`                             → "Vec"
+                    //   `BTreeMap<EventId, ShareSidePair>`     → "BTreeMap"
+                    // This is forward-looking: prior atoms (P-M2) used direct
+                    // imports so the broken parser was never exercised; P-M4
+                    // CpmmPool uses path-qualified types to avoid a circular
+                    // import (q_state.rs → typed_tx.rs → q_state.rs cycle if
+                    // EventId/ShareAmount were imported via `use`).
+                    let head: String = type_part
                         .chars()
-                        .take_while(|c| c.is_alphanumeric() || *c == '_')
+                        .take_while(|c| c.is_alphanumeric() || *c == '_' || *c == ':')
                         .collect();
+                    let type_token: String = head
+                        .rsplit("::")
+                        .next()
+                        .unwrap_or("")
+                        .to_string();
                     if !type_token.is_empty() {
                         pairs.push((name.to_string(), type_token));
                     }

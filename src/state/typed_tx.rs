@@ -857,6 +857,10 @@ const DOMAIN_AGENT_COMPLETE_SET_MINT: &[u8] = b"turingosv4.agent_sig.complete_se
 const DOMAIN_AGENT_COMPLETE_SET_REDEEM: &[u8] = b"turingosv4.agent_sig.complete_set_redeem.v1";
 const DOMAIN_AGENT_MARKET_SEED: &[u8] = b"turingosv4.agent_sig.market_seed.v1";
 const DOMAIN_AGENT_COMPLETE_SET_MERGE: &[u8] = b"turingosv4.agent_sig.complete_set_merge.v1";
+/// Stage C P-M4 / Phase F.3 (architect manual §7.5; remediation directive
+/// 2026-05-09 §1.C row 3): agent-signed CpmmPool creation tx domain prefix.
+/// Mirror naming convention `turingosv4.agent_sig.<purpose>.v1`.
+const DOMAIN_AGENT_CPMM_POOL: &[u8] = b"turingosv4.agent_sig.cpmm_pool.v1";
 
 /// Reserved for v4.1 MetaTx (Gemini round-2 GR-1 recommendation).
 /// Not used in v4 — namespace placeholder so v4.1 can introduce
@@ -1269,6 +1273,57 @@ pub struct CompleteSetMergeTx {
     pub signature: AgentSignature,            //  6
 }
 
+/// TRACE_MATRIX FC1-Append Stage C P-M4 / Phase F.3 (architect manual §7.5
+/// + remediation directive 2026-05-09 §1.C row 3 verbatim "P-M4 CpmmPool
+/// (rebuild); Class 4 STEP_B; Rename event_id_kind → event_id per architect
+/// §7.5"): agent-signed CpmmPool creation transaction.
+///
+/// **Architect manual §7.5 specifies the STATE struct only** (`CpmmPool` at
+/// `q_state.rs`); transaction shape is implementation-defined. This 7-field
+/// shape mirrors `CompleteSetMergeTx` minimal pattern (NO `timestamp_logical`
+/// — defect 3 prevention; NO `event_id_kind` — defect 4 prevention).
+///
+/// Sequencer arm (admission preconditions; 5-stage):
+/// 1. `parent_state_root == q.state_root_t` else `StaleParent`.
+/// 2. `seed_yes.units > 0 && seed_no.units > 0` else `InvalidPoolSeed`
+///    (zero reserves is degenerate; `k = poolY * poolN = 0` would brick
+///    P-M5 swap math).
+/// 3. `seed_yes == seed_no` else `UnbalancedPoolSeed` (symmetric init
+///    invariant; v4 simplification → `lp_total_shares = seed_yes.units`
+///    clean closed-form. Asymmetric pools are out-of-scope for P-M4 and
+///    forward-bound to a future TB if/when geometric-mean / k-balanced
+///    init is required).
+/// 4. `conditional_share_balances_t[(provider, event_id)].yes >= seed_yes
+///    && .no >= seed_no` else `InsufficientSharesForPool` (provider must
+///    hold collateralized YES + NO from prior `MarketSeedTx` /
+///    `CompleteSetMintTx`; this is what `pool_cannot_exist_without_
+///    collateralized_shares` test exercises).
+/// 5. `cpmm_pools_t.get(&event_id).is_none()` else `PoolAlreadyExists`
+///    (one pool per event in v4; multi-pool deferred).
+///
+/// Atomic state transitions on accept:
+/// - `conditional_share_balances_t[(provider, event_id)].yes -= seed_yes`
+/// - `conditional_share_balances_t[(provider, event_id)].no  -= seed_no`
+/// - `cpmm_pools_t[event_id] = CpmmPool {..., status: Active}`
+/// - `lp_share_balances_t[(provider, event_id)] += seed_yes.units` LP
+///   (symmetric init formula; provider's LP receipt for the inventory
+///   contribution).
+///
+/// Total Coin invariant UNCHANGED. `conditional_collateral_t` UNCHANGED
+/// (collateral was locked at MarketSeed time; pool creation only moves
+/// YES + NO claims from provider's individual balance into the pool's
+/// reserves — no Coin minted, no Coin burned).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct CpmmPoolTx {
+    pub tx_id: TxId,                          //  1
+    pub parent_state_root: Hash,              //  2
+    pub event_id: EventId,                    //  3
+    pub provider: AgentId,                    //  4
+    pub seed_yes: ShareAmount,                //  5
+    pub seed_no: ShareAmount,                 //  6
+    pub signature: AgentSignature,            //  7
+}
+
 // ── TB-13 SigningPayloads ───────────────────────────────────────────────
 
 /// TRACE_MATRIX TB-13 Atom 1 (architect §4.3): signing payload for
@@ -1356,6 +1411,34 @@ impl CompleteSetMergeSigningPayload {
     /// `b"turingosv4.agent_sig.complete_set_merge.v1"`.
     pub fn canonical_digest(&self) -> [u8; 32] {
         domain_prefixed_digest(DOMAIN_AGENT_COMPLETE_SET_MERGE, self)
+    }
+}
+
+/// TRACE_MATRIX FC1-Append Stage C P-M4 / Phase F.3 (architect manual §7.5
+/// + remediation directive §9 F-DEFERRAL-2 closure): signing payload for
+/// `CpmmPoolTx` (7 wire fields → 6 signing fields; `signature` excluded
+/// to prevent cycle-on-self).
+///
+/// E.1 binding gate (`tests/constitution_architect_verbatim_struct_binding.rs`)
+/// pins this struct's field-set; F-DEFERRAL-2 sibling entry mirrors the 6
+/// fields below. Any future drift (extra field, type rename) fails the gate
+/// at build time.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct CpmmPoolSigningPayload {
+    pub tx_id: TxId,
+    pub parent_state_root: Hash,
+    pub event_id: EventId,
+    pub provider: AgentId,
+    pub seed_yes: ShareAmount,
+    pub seed_no: ShareAmount,
+}
+
+impl CpmmPoolSigningPayload {
+    /// TRACE_MATRIX FC1-Append Stage C P-M4 / Phase F.3: domain-prefixed
+    /// canonical digest for agent-signed `CpmmPoolTx`. Domain prefix
+    /// `b"turingosv4.agent_sig.cpmm_pool.v1"`.
+    pub fn canonical_digest(&self) -> [u8; 32] {
+        domain_prefixed_digest(DOMAIN_AGENT_CPMM_POOL, self)
     }
 }
 
@@ -1581,6 +1664,22 @@ impl CompleteSetMergeTx {
     }
 }
 
+impl CpmmPoolTx {
+    /// TRACE_MATRIX FC1-Append Stage C P-M4 / Phase F.3 (architect §7.5):
+    /// wire → signing payload projection. Excludes `signature` to prevent
+    /// cycle-on-self. 6-field projection of the 7-field wire struct.
+    pub fn to_signing_payload(&self) -> CpmmPoolSigningPayload {
+        CpmmPoolSigningPayload {
+            tx_id: self.tx_id.clone(),
+            parent_state_root: self.parent_state_root,
+            event_id: self.event_id.clone(),
+            provider: self.provider.clone(),
+            seed_yes: self.seed_yes,
+            seed_no: self.seed_no,
+        }
+    }
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // § 6 TypedTx outer enum
 // ────────────────────────────────────────────────────────────────────────────
@@ -1610,6 +1709,11 @@ pub enum TypedTx {
     CompleteSetRedeem(CompleteSetRedeemTx), // TB-13 agent-signed conditional-share redeem
     MarketSeed(MarketSeedTx),             // TB-13 agent-signed protocol-owned share seed
     CompleteSetMerge(CompleteSetMergeTx), // Stage C P-M2 / Phase F.1 agent-signed pre-resolution YES+NO->Coin merge
+    /// Stage C P-M4 / Phase F.3 agent-signed CpmmPool (LiquidityPool)
+    /// creation (architect manual §7.5 verbatim 5-field state struct;
+    /// 7-field wire tx is implementation-defined; defect 4 prevention
+    /// `event_id` NOT `event_id_kind`).
+    CpmmPool(CpmmPoolTx),
 }
 
 impl TypedTx {
@@ -1632,6 +1736,7 @@ impl TypedTx {
             Self::CompleteSetRedeem(_) => TxKind::CompleteSetRedeem,
             Self::MarketSeed(_) => TxKind::MarketSeed,
             Self::CompleteSetMerge(_) => TxKind::CompleteSetMerge,
+            Self::CpmmPool(_) => TxKind::CpmmPool,
         }
     }
 }
@@ -1742,6 +1847,12 @@ impl HasSubmitter for CompleteSetMergeTx {
     }
 }
 
+impl HasSubmitter for CpmmPoolTx {
+    fn submitter_id(&self) -> Option<AgentId> {
+        Some(self.provider.clone())
+    }
+}
+
 impl HasSubmitter for TypedTx {
     fn submitter_id(&self) -> Option<AgentId> {
         match self {
@@ -1760,6 +1871,7 @@ impl HasSubmitter for TypedTx {
             Self::CompleteSetRedeem(t) => t.submitter_id(),
             Self::MarketSeed(t) => t.submitter_id(),
             Self::CompleteSetMerge(t) => t.submitter_id(),
+            Self::CpmmPool(t) => t.submitter_id(),
         }
     }
 }
@@ -1995,6 +2107,38 @@ pub enum TransitionError {
     /// Maps to `L4ERejectionClass::PolicyViolation`.
     InsufficientSharesForMerge,
 
+    // ── Stage C P-M4 / Phase F.3 (architect manual §7.5) ───────────────────
+    /// `CpmmPoolTx` admission: `seed_yes.units == 0` OR `seed_no.units == 0`.
+    /// Architect §7.5 rule 4 (`k = pool_yes * pool_no`) implies non-zero
+    /// reserves on both sides; degenerate pools (any side zero) brick the
+    /// future P-M5 swap math (division-by-zero or trivially-drained pool).
+    /// Maps to `L4ERejectionClass::PolicyViolation`.
+    InvalidPoolSeed,
+    /// `CpmmPoolTx` admission: `seed_yes != seed_no`. v4 simplification —
+    /// pool init requires symmetric seed so `lp_total_shares = seed_yes.units`
+    /// gives a clean closed-form. Asymmetric seed (geometric-mean LP init,
+    /// post-resolution skew correction, etc.) is forward-bound to a future
+    /// TB. Architect §7.5 is silent on the tx schema; symmetric-only is a
+    /// strict-letter implementation choice consistent with the `MarketSeedTx`
+    /// (P-M3) symmetric YES + NO inventory creation pattern. Maps to
+    /// `L4ERejectionClass::PolicyViolation`.
+    UnbalancedPoolSeed,
+    /// `CpmmPoolTx` admission: provider's
+    /// `conditional_share_balances_t[(provider, event_id)].yes < seed_yes`
+    /// OR `.no < seed_no`. Provider must hold collateralized YES + NO
+    /// shares (typically from a prior `MarketSeedTx` or `CompleteSetMintTx`)
+    /// to seed the pool. Pool reserves come from existing collateralized
+    /// inventory — the pool cannot conjure shares. Architect §7.5 test
+    /// `pool_cannot_exist_without_collateralized_shares` exercises this
+    /// rejection path. Maps to `L4ERejectionClass::PolicyViolation`.
+    InsufficientSharesForPool,
+    /// `CpmmPoolTx` admission: `cpmm_pools_t.contains_key(&event_id)`.
+    /// Architect §7.5 implies one pool per event (state index keyed by
+    /// `EventId`); double-create rejected idempotently. Multi-pool-per-event
+    /// is forward-bound to a future TB. Maps to `L4ERejectionClass::
+    /// PolicyViolation`.
+    PoolAlreadyExists,
+
     // ── Stub sentinel (CO1.7.5 fills) ──────────────────────────────────────
     /// Stub return value used by CO1.7.5 unimplemented bodies — preserves
     /// sequencer + dispatch correctness without forcing transition logic
@@ -2086,6 +2230,22 @@ impl std::fmt::Display for TransitionError {
             Self::InsufficientSharesForMerge => write!(
                 f,
                 "CompleteSetMergeTx: owner lacks the requested amount on YES or NO conditional share balance (architect §7.3 requires both sides >= amount)"
+            ),
+            Self::InvalidPoolSeed => write!(
+                f,
+                "CpmmPoolTx: seed_yes or seed_no is zero (architect §7.5 implies k = poolY * poolN > 0; degenerate reserves rejected)"
+            ),
+            Self::UnbalancedPoolSeed => write!(
+                f,
+                "CpmmPoolTx: seed_yes != seed_no (P-M4 v4 symmetric-init simplification; asymmetric seed deferred to future TB)"
+            ),
+            Self::InsufficientSharesForPool => write!(
+                f,
+                "CpmmPoolTx: provider lacks the requested seed on YES or NO conditional share balance (architect §7.5 requires collateralized shares to seed pool)"
+            ),
+            Self::PoolAlreadyExists => write!(
+                f,
+                "CpmmPoolTx: cpmm_pools_t already has an entry for this event_id (architect §7.5 implies one pool per event in v4)"
             ),
             Self::NotYetImplemented => write!(f, "transition body not yet implemented (CO1.7.5)"),
         }

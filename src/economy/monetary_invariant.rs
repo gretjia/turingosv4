@@ -375,7 +375,16 @@ pub fn assert_no_post_init_mint(tx: &TypedTx, q: &QState) -> Result<(), Monetary
         // Stage C P-M2 / Phase F.1 (architect §7.3): merge is the bit-for-bit
         // inverse of CompleteSetMint — burns YES + NO + collateral and
         // credits balance 1:1. Pure balance ↔ collateral migration. No mint.
-        | TypedTx::CompleteSetMerge(_) => Ok(()),
+        | TypedTx::CompleteSetMerge(_)
+        // Stage C P-M4 / Phase F.3 (architect manual §7.5): CpmmPool creation
+        // moves YES + NO shares from provider's `conditional_share_balances_t`
+        // into the pool's `pool_yes / pool.pool_no` reserves AND credits
+        // provider with LP shares in `lp_share_balances_t`. None of these
+        // touch `balances_t` or `conditional_collateral_t` — no Coin mint,
+        // no Coin burn. Pool reserves are NOT Coin (architect §7.5 rule 2);
+        // LP shares are NOT Coin (architect §7.5 rule 3). `total_supply_micro`
+        // 6-holding sum is preserved bit-exact.
+        | TypedTx::CpmmPool(_) => Ok(()),
     }
 }
 
@@ -493,6 +502,8 @@ pub fn assert_complete_set_balanced(
         let collateral_units: u128 = collateral.micro_units() as u128;
         let mut sum_yes: u128 = 0;
         let mut sum_no: u128 = 0;
+        // Sum claim shares held by individual agents in their
+        // conditional_share_balances_t entry for this event.
         for owner_map in s.conditional_share_balances_t.0.values() {
             if let Some(pair) = owner_map.get(event_id) {
                 sum_yes = sum_yes
@@ -502,6 +513,24 @@ pub fn assert_complete_set_balanced(
                     .checked_add(pair.no.units)
                     .ok_or(MonetaryError::Overflow)?;
             }
+        }
+        // Stage C P-M4 / Phase F.3 (architect manual §7.5 rule 1
+        // "pool_yes and pool_no are share balances controlled by pool"):
+        // pool reserves are claims against the SAME locked collateral
+        // (CpmmPoolTx accept arm pulls YES + NO from provider's
+        // conditional_share_balances_t into pool reserves; collateral
+        // unchanged). The complete-set balance invariant (sum YES claims
+        // == sum NO claims == collateral) MUST count pool reserves —
+        // otherwise the symmetric-branch strict-equality would FAIL on a
+        // valid post-pool-create state where claims have moved from
+        // individual balances to pool reserves.
+        if let Some(pool) = s.cpmm_pools_t.0.get(event_id) {
+            sum_yes = sum_yes
+                .checked_add(pool.pool_yes.units)
+                .ok_or(MonetaryError::Overflow)?;
+            sum_no = sum_no
+                .checked_add(pool.pool_no.units)
+                .ok_or(MonetaryError::Overflow)?;
         }
         if sum_yes == sum_no {
             // Branch A — symmetric: strict CTF invariant on both sides.

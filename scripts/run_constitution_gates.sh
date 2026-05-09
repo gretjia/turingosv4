@@ -211,6 +211,20 @@ GATES=(
   # total_coin. Sub-option A2: TB-13-era 7-field impl preserved as
   # ratified state (no schema bump; no STEP_B; no Trust Root rehash).
   constitution_market_seed_hardening
+
+  # Stage C P-M4 / Phase F.3 2026-05-09 (rebuild Class-4 STEP_B; per
+  # `handover/directives/2026-05-09_STAGE_C_POLYMARKET_VETO_REMEDIATION_
+  # DIRECTIVE.md` §1.C row 3 + architect manual §7.5 verbatim 5-field
+  # CpmmPool state struct). Four architect-mandated test names
+  # exercising CpmmPoolTx through the live sequencer accept arm:
+  # pool_created_from_seed_inventory / pool_reserves_not_counted_as_coin /
+  # lp_shares_not_counted_as_coin / pool_cannot_exist_without_
+  # collateralized_shares. Defect-4 prevention `event_id` NOT
+  # `event_id_kind`. CpmmPool state binding LANDED + CpmmPoolSigningPayload
+  # sibling binding LANDED (F-DEFERRAL-2 closure per remediation
+  # directive §9). Pool reserves + LP shares are NOT Coin (architect
+  # §7.5 rules 2 + 3); total_supply_micro UNCHANGED on accept.
+  constitution_cpmm_pool
 )
 
 # Run each gate file separately and collect per-test outcome.

@@ -315,6 +315,25 @@ pub fn complete_set_merge_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
     Hash::from_bytes(digest)
 }
 
+/// TRACE_MATRIX FC1-Append Stage C P-M4 / Phase F.3 (architect manual §7.5;
+/// remediation directive §1.C row 3): CpmmPool-accept state-root domain.
+/// Mirrors sibling `MARKET_SEED_DOMAIN_V1` / `COMPLETE_SET_MERGE_DOMAIN_V1`
+/// naming convention (`turingosv4.<purpose>.accept.v1`).
+pub(crate) const CPMM_POOL_DOMAIN_V1: &[u8] =
+    b"turingosv4.cpmm_pool.accept.v1";
+
+/// TRACE_MATRIX FC1-Append Stage C P-M4 / Phase F.3: state-root mutator on
+/// `CpmmPoolTx` accept. Mirror of `complete_set_merge_accept_state_root`
+/// (sha256(domain || prev || canonical_encode(tx))).
+pub fn cpmm_pool_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
+    let mut h = Sha256::new();
+    h.update(CPMM_POOL_DOMAIN_V1);
+    h.update(prev.0);
+    h.update(canonical_encode(tx).expect("TypedTx is canonical-encodable"));
+    let digest: [u8; 32] = h.finalize().into();
+    Hash::from_bytes(digest)
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // TB-2 Atom 4 — rejection-path helpers (preflight v3 §3.5 + §3.7)
 // ────────────────────────────────────────────────────────────────────────────
@@ -598,7 +617,10 @@ fn system_message_for_verification(
         | TypedTx::CompleteSetMint(_)
         | TypedTx::CompleteSetRedeem(_)
         | TypedTx::MarketSeed(_)
-        | TypedTx::CompleteSetMerge(_) => None,
+        | TypedTx::CompleteSetMerge(_)
+        // Stage C P-M4 / Phase F.3 — agent-signed (provider AgentSignature);
+        // verified separately at admission, not at system stage 1.5.
+        | TypedTx::CpmmPool(_) => None,
     }
 }
 
@@ -622,7 +644,9 @@ fn system_signature_of(
         | TypedTx::CompleteSetMint(_)
         | TypedTx::CompleteSetRedeem(_)
         | TypedTx::MarketSeed(_)
-        | TypedTx::CompleteSetMerge(_) => None,
+        | TypedTx::CompleteSetMerge(_)
+        // Stage C P-M4 / Phase F.3 — agent-signed.
+        | TypedTx::CpmmPool(_) => None,
     }
 }
 
@@ -651,7 +675,9 @@ fn system_epoch_of(tx: &TypedTx) -> Option<SystemEpoch> {
         | TypedTx::CompleteSetMint(_)
         | TypedTx::CompleteSetRedeem(_)
         | TypedTx::MarketSeed(_)
-        | TypedTx::CompleteSetMerge(_) => None,
+        | TypedTx::CompleteSetMerge(_)
+        // Stage C P-M4 / Phase F.3 — agent-signed (no system epoch).
+        | TypedTx::CpmmPool(_) => None,
     }
 }
 
@@ -2232,6 +2258,157 @@ pub(crate) fn dispatch_transition(
 
             Ok((q_next, SignalBundle::default()))
         }
+
+        // ──────────────────────────────────────────────────────────────────
+        // Stage C P-M4 / Phase F.3 (architect manual §7.5 verbatim 5-field
+        // CpmmPool state struct; remediation directive §1.C row 3 Class-4
+        // STEP_B rebuild post-VETO).
+        //
+        // Architect §7.5 specifies STATE struct only; tx schema is
+        // implementation-defined (7-field minimal, NO `timestamp_logical`).
+        //
+        // 5-stage admission preconditions:
+        //   1. parent-root match
+        //   2. seed_yes > 0 && seed_no > 0          (no degenerate pools)
+        //   3. seed_yes == seed_no                  (symmetric init invariant)
+        //   4. provider has YES + NO inventory      (collateralized-shares pre)
+        //   5. no existing pool for event_id        (one-per-event)
+        //
+        // Atomic state transitions:
+        //   - debit provider's conditional_share_balances_t (yes + no)
+        //   - create cpmm_pools_t[event_id] (Active, lp_total = seed_yes)
+        //   - credit lp_share_balances_t[(provider, event_id)] += seed_yes
+        //
+        // Coin-conservation invariant UNCHANGED. conditional_collateral_t
+        // UNCHANGED (collateral was already locked at MarketSeed time;
+        // pool creation only moves YES + NO claims). Pool reserves and LP
+        // shares are NOT Coin per architect §7.5 rules 2 + 3 →
+        // `assert_total_ctf_conserved` passes with empty exempt-list.
+        // ──────────────────────────────────────────────────────────────────
+        TypedTx::CpmmPool(pool) => {
+            // Step 1: parent-root match (Inv 5).
+            if pool.parent_state_root != q.state_root_t {
+                return Err(TransitionError::StaleParent);
+            }
+            // Step 2: non-zero reserves on both sides (architect §7.5 rule
+            // `k = pool_yes * pool_no` requires k > 0).
+            if pool.seed_yes.units == 0 || pool.seed_no.units == 0 {
+                return Err(TransitionError::InvalidPoolSeed);
+            }
+            // Step 3: symmetric init invariant. v4 simplification — supports
+            // clean `lp_total_shares = seed_yes.units` formula. Asymmetric
+            // (geometric-mean init) deferred to a future TB; surfaced as
+            // `UnbalancedPoolSeed` so the rejection class is distinct from
+            // amount-zero / inventory-shortage.
+            if pool.seed_yes.units != pool.seed_no.units {
+                return Err(TransitionError::UnbalancedPoolSeed);
+            }
+            // Step 4: provider must hold seed_yes YES + seed_no NO. Architect
+            // §7.5 test `pool_cannot_exist_without_collateralized_shares`
+            // exercises this rejection path (provider with empty
+            // `conditional_share_balances_t`).
+            let pair = q
+                .economic_state_t
+                .conditional_share_balances_t
+                .0
+                .get(&pool.provider)
+                .and_then(|m| m.get(&pool.event_id))
+                .copied()
+                .unwrap_or_default();
+            if pair.yes.units < pool.seed_yes.units {
+                return Err(TransitionError::InsufficientSharesForPool);
+            }
+            if pair.no.units < pool.seed_no.units {
+                return Err(TransitionError::InsufficientSharesForPool);
+            }
+            // Step 5: one-pool-per-event (architect §7.5 implies `cpmm_pools_t`
+            // keyed by `EventId`; double-create rejected idempotently).
+            if q
+                .economic_state_t
+                .cpmm_pools_t
+                .0
+                .contains_key(&pool.event_id)
+            {
+                return Err(TransitionError::PoolAlreadyExists);
+            }
+
+            // Step 6: build q_next — atomic share-debit + pool-create + LP
+            // credit. 1 share-unit moves 1:1 from provider's
+            // conditional_share_balances_t into pool's pool_yes/pool_no.
+            let mut q_next = q.clone();
+            // 6a: debit provider YES + NO inventory.
+            {
+                let provider_shares = q_next
+                    .economic_state_t
+                    .conditional_share_balances_t
+                    .0
+                    .entry(pool.provider.clone())
+                    .or_insert_with(std::collections::BTreeMap::new);
+                let pair_mut = provider_shares
+                    .entry(pool.event_id.clone())
+                    .or_insert(crate::state::q_state::ShareSidePair::default());
+                pair_mut.yes = crate::state::typed_tx::ShareAmount::from_units(
+                    pair_mut.yes.units - pool.seed_yes.units,
+                );
+                pair_mut.no = crate::state::typed_tx::ShareAmount::from_units(
+                    pair_mut.no.units - pool.seed_no.units,
+                );
+            }
+            // 6b: create pool entry (status = Active; lp_total_shares =
+            // seed_yes.units per symmetric-init formula).
+            q_next.economic_state_t.cpmm_pools_t.0.insert(
+                pool.event_id.clone(),
+                crate::state::q_state::CpmmPool {
+                    event_id: pool.event_id.clone(),
+                    pool_yes: pool.seed_yes,
+                    pool_no: pool.seed_no,
+                    lp_total_shares:
+                        crate::state::q_state::LpShareAmount::from_units(
+                            pool.seed_yes.units,
+                        ),
+                    status: crate::state::q_state::PoolStatus::Active,
+                },
+            );
+            // 6c: credit provider with LP shares (1:1 with seed_yes per
+            // symmetric-init formula). Tuple-keyed BTreeMap — provider's
+            // first LP receipt for this event creates the entry; subsequent
+            // pool-creates would fail at step 5 anyway.
+            q_next.economic_state_t.lp_share_balances_t.0.insert(
+                (pool.provider.clone(), pool.event_id.clone()),
+                crate::state::q_state::LpShareAmount::from_units(
+                    pool.seed_yes.units,
+                ),
+            );
+
+            // Step 7: monetary invariants. Coin-side untouched (pool reserves
+            // and LP shares are NOT Coin per architect §7.5 rules 2 + 3);
+            // assert_total_ctf_conserved with empty exempt-list MUST pass
+            // because balances_t / conditional_collateral_t / escrows_t /
+            // stakes_t / claims_t / runs_t are all bit-identical. Conditional-
+            // share total moves from provider individual to pool reserves —
+            // since neither side is in `total_supply_micro`, conservation
+            // holds trivially. assert_complete_set_balanced verifies the
+            // collateral-vs-shares balance is preserved (pool reserves carry
+            // forward the YES + NO claim counts that the provider previously
+            // held; collateral lock unchanged).
+            assert_no_post_init_mint(tx, q)
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            assert_total_ctf_conserved(
+                &q.economic_state_t,
+                &q_next.economic_state_t,
+                &[],
+            )
+            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            crate::economy::monetary_invariant::assert_complete_set_balanced(
+                &q_next.economic_state_t,
+            )
+            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+
+            // Step 8: state_root advance.
+            q_next.state_root_t = cpmm_pool_accept_state_root(&q.state_root_t, tx);
+
+            Ok((q_next, SignalBundle::default()))
+        }
     }
 }
 
@@ -2761,7 +2938,13 @@ impl Sequencer {
             | TypedTx::MarketSeed(_)
             // Stage C P-M2 / Phase F.1 — agent-signed; admits through agent
             // ingress path identical to TB-13 conditional-share variants.
-            | TypedTx::CompleteSetMerge(_) => {}
+            | TypedTx::CompleteSetMerge(_)
+            // Stage C P-M4 / Phase F.3 — agent-signed (provider); admits
+            // through identical agent ingress path. Pool creation is an
+            // economic mutator (debits provider's YES + NO inventory; credits
+            // pool reserves + provider LP shares) and is therefore subject
+            // to all the same admission gates as TB-13 / P-M2.
+            | TypedTx::CpmmPool(_) => {}
         }
         // TRACE_MATRIX TB-13 Atom 6 round-3 (Codex VETO TB13-AUTH 2026-05-03):
         // submit-time agent-signature verification for the 3 TB-13
@@ -2811,6 +2994,19 @@ impl Sequencer {
                         .ok_or(SubmitError::AgentSignatureInvalid)?;
                     let digest = merge.to_signing_payload().canonical_digest();
                     if verify_agent_signature(&merge.signature, &digest, &pubkey).is_err() {
+                        return Err(SubmitError::AgentSignatureInvalid);
+                    }
+                }
+                // Stage C P-M4 / Phase F.3 (architect §7.5): agent-signature
+                // gate parallel to MarketSeed (provider is the signer). Pool
+                // creation is a Class-3 economic mutator → manifest-when-set
+                // gating consistent with sibling P-M3 / P-M2 admission.
+                TypedTx::CpmmPool(pool) => {
+                    let pubkey = manifest
+                        .get(&pool.provider)
+                        .ok_or(SubmitError::AgentSignatureInvalid)?;
+                    let digest = pool.to_signing_payload().canonical_digest();
+                    if verify_agent_signature(&pool.signature, &digest, &pubkey).is_err() {
                         return Err(SubmitError::AgentSignatureInvalid);
                     }
                 }

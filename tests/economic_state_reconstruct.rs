@@ -11,7 +11,7 @@ use turingosv4::state::{
 };
 
 #[test]
-fn thirteen_sub_fields_present() {
+fn fifteen_sub_fields_present() {
     // TB-12: was ten (TB-11 +runs_t); +node_positions_t (architect
     // 2026-05-03 §3). TB-13 Atom 2 (architect 2026-05-03 post-TB-12
     // ruling Part A §4.3): 11 → 13 (+conditional_collateral_t Coin
@@ -25,6 +25,11 @@ fn thirteen_sub_fields_present() {
     // sequencer-side per-event Cid index for AgentAutopsyCapsule emission;
     // capsule bytes live in CAS; NOT projected to AgentVisibleProjection
     // per CR-15.1 + halt-trigger #1).
+    // Stage C P-M4 / Phase F.3 (architect manual §7.5 + remediation
+    // directive 2026-05-09 §1.C row 3): 13 → 15 (+cpmm_pools_t
+    // CpmmPoolsIndex one-pool-per-event LiquidityPool state, NOT Coin per
+    // architect §7.5 rule 2; +lp_share_balances_t LpShareBalancesIndex
+    // per-(agent, event) LP token balance, NOT Coin per rule 3).
     let e = EconomicState::default();
     let v = serde_json::to_value(&e).unwrap();
     let obj = v.as_object().unwrap();
@@ -42,8 +47,10 @@ fn thirteen_sub_fields_present() {
         "conditional_collateral_t",        // TB-13 Atom 2 (architect 2026-05-03 post-TB-12 ruling §4.3)
         "conditional_share_balances_t",    // TB-13 Atom 2
         "agent_autopsies_t",               // TB-15 Atom 3 (architect §6.2 ruling 2026-05-02 + 2026-05-03)
+        "cpmm_pools_t",                    // Stage C P-M4 / Phase F.3 (architect §7.5)
+        "lp_share_balances_t",             // Stage C P-M4 / Phase F.3 (architect §7.5 rule 3)
     ];
-    assert_eq!(obj.len(), 13);
+    assert_eq!(obj.len(), 15);
     for n in names.iter() {
         assert!(obj.contains_key(*n), "missing sub-field {}", n);
     }
