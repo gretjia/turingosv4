@@ -205,6 +205,20 @@ GATES=(
   # (poolN + dN))`; constant-product non-decreasing under floor rounding).
   # No §8 sign-off pause (Class 3 wire-up; covered by Stage C overall §8).
   constitution_cpmm_swap
+  # Stage C P-M6 2026-05-09 (plan cozy-waddling-raven Step 8; STEP_B
+  # parallel-branch `feat/p-m6-router`) — architect manual §7.7 verbatim
+  # Mint-and-Swap Router hardening: 9 verbatim test names
+  # (buy_yes_with_coin_matches_formula +
+  # buy_no_with_coin_matches_symmetric_formula +
+  # buy_yes_debits_coin_locks_collateral + buy_yes_mints_complete_set +
+  # buy_yes_transfers_retained_yes_plus_swap_yes +
+  # buy_yes_respects_min_yes_out + buy_yes_no_f64 +
+  # buy_yes_no_ghost_liquidity + router_atomic_rollback_on_failure).
+  # Tests bind to live sequencer dispatch on TypedTx::BuyWithCoinRouter
+  # (new variant; atomic 9-step composite over CompleteSetMint + CpmmSwap;
+  # effective price priceY = payC / getY signal-only). Awaiting batch §8
+  # sign-off (P-M2 + P-M4 + P-M6).
+  constitution_router_buy_with_coin
 )
 
 # Run each gate file separately and collect per-test outcome.

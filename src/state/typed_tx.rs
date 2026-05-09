@@ -864,6 +864,12 @@ const DOMAIN_AGENT_COMPLETE_SET_MERGE: &[u8] = b"turingosv4.agent_sig.complete_s
 /// swap. Sender pays one side's shares, pool returns the other side's
 /// shares per integer floor formula `outY = floor(dN * poolY / (poolN + dN))`.
 const DOMAIN_AGENT_CPMM_SWAP: &[u8] = b"turingosv4.agent_sig.cpmm_swap.v1";
+/// Stage C P-M6 (architect manual §7.7): agent-signed Mint-and-Swap
+/// Router. Atomic 9-step composite (debit Coin → lock collateral → mint
+/// complete set → transfer retained side → swap counter side into pool →
+/// transfer pool output to buyer).
+const DOMAIN_AGENT_BUY_WITH_COIN_ROUTER: &[u8] =
+    b"turingosv4.agent_sig.buy_with_coin_router.v1";
 
 /// Reserved for v4.1 MetaTx (Gemini round-2 GR-1 recommendation).
 /// Not used in v4 — namespace placeholder so v4.1 can introduce
@@ -1248,6 +1254,71 @@ pub struct MarketSeedTx {
     pub timestamp_logical: u64,               //  7
 }
 
+/// TRACE_MATRIX Stage C P-M6 (architect manual §7.7): Mint-and-Swap
+/// Router direction. `BuyYes` pays Coin, mints complete set, retains the
+/// minted YES, swaps the minted NO into the pool to receive more YES.
+/// `BuyNo` is symmetric.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[repr(u8)]
+pub enum BuyDirection {
+    /// Sender pays Coin, ends up holding YES shares (retained mint + swap output).
+    BuyYes = 0,
+    /// Sender pays Coin, ends up holding NO shares (retained mint + swap output).
+    BuyNo = 1,
+}
+
+impl Default for BuyDirection {
+    fn default() -> Self {
+        Self::BuyYes
+    }
+}
+
+/// TRACE_MATRIX Stage C P-M6 (architect manual §7.7): agent-signed
+/// Mint-and-Swap Router. Atomic 9-step composite (architect §7.7 verbatim
+/// for `BuyYesWithCoinRouter`):
+///
+/// ```text
+/// 1. Debit buyer Coin by payC.
+/// 2. Lock payC collateral.
+/// 3. Mint payC YES + payC NO to router.
+/// 4. Transfer payC YES to buyer.
+/// 5. Swap payC NO into CPMM pool.
+/// 6. Pool receives dN = payC NO.
+/// 7. Router receives outY YES:
+///      outY = floor(payC * poolY / (poolN + payC))
+/// 8. Transfer outY YES to buyer.
+/// 9. Buyer receives getY = payC + outY.
+/// ```
+///
+/// `BuyNoWithCoinRouter` is symmetric (swap minted YES into pool to
+/// receive NO).
+///
+/// Effective price: `priceY = payC / getY` (signal only; not stored).
+/// Constant-product invariant `poolY1 * poolN1 >= poolY * poolN` enforced
+/// post-mutation (floor rounding keeps dust in pool).
+///
+/// Atomic rollback: any single-step failure → entire tx reverts (handled
+/// by `dispatch_transition` returning `Err(_)` before state advance —
+/// q_next is local to the arm and discarded on error).
+///
+/// CTF preserved: balance debit equals collateral credit (mint side);
+/// share supply increases by 2 × payC (mint adds payC YES + payC NO);
+/// internal transfers and swap moves shares but do not mint/burn.
+/// `assert_complete_set_balanced` post-router: `min(Σ_yes_post, Σ_no_post)
+/// = min(Σ_yes_pre, Σ_no_pre) + payC = C_pre + payC = C_post`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct BuyWithCoinRouterTx {
+    pub tx_id: TxId,                          //  1
+    pub parent_state_root: Hash,              //  2
+    pub event_id: EventId,                    //  3
+    pub buyer: AgentId,                       //  4
+    pub direction: BuyDirection,              //  5
+    pub pay_coin: MicroCoin,                  //  6
+    pub min_total_out: ShareAmount,           //  7
+    pub signature: AgentSignature,            //  8
+    pub timestamp_logical: u64,               //  9
+}
+
 /// TRACE_MATRIX Stage C P-M5 (architect manual §7.6): swap direction.
 /// Polymarket binary-outcome CPMM supports two atomic share-share swaps;
 /// `BuyYesWithNo` deposits NO shares into the pool and withdraws YES;
@@ -1455,6 +1526,29 @@ impl CpmmSwapSigningPayload {
     /// `b"turingosv4.agent_sig.cpmm_swap.v1"`.
     pub fn canonical_digest(&self) -> [u8; 32] {
         domain_prefixed_digest(DOMAIN_AGENT_CPMM_SWAP, self)
+    }
+}
+
+/// TRACE_MATRIX Stage C P-M6 (architect manual §7.7): signing payload for
+/// `BuyWithCoinRouterTx` (9 fields → 8 fields; signature excluded).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct BuyWithCoinRouterSigningPayload {
+    pub tx_id: TxId,
+    pub parent_state_root: Hash,
+    pub event_id: EventId,
+    pub buyer: AgentId,
+    pub direction: BuyDirection,
+    pub pay_coin: MicroCoin,
+    pub min_total_out: ShareAmount,
+    pub timestamp_logical: u64,
+}
+
+impl BuyWithCoinRouterSigningPayload {
+    /// TRACE_MATRIX Stage C P-M6 (architect manual §7.7): domain-prefixed
+    /// canonical digest for agent-signed `BuyWithCoinRouterTx`. Domain
+    /// prefix `b"turingosv4.agent_sig.buy_with_coin_router.v1"`.
+    pub fn canonical_digest(&self) -> [u8; 32] {
+        domain_prefixed_digest(DOMAIN_AGENT_BUY_WITH_COIN_ROUTER, self)
     }
 }
 
@@ -1696,6 +1790,23 @@ impl CpmmSwapTx {
     }
 }
 
+impl BuyWithCoinRouterTx {
+    /// TRACE_MATRIX Stage C P-M6 (architect manual §7.7): wire → signing
+    /// payload projection. Excludes `signature` to prevent cycle-on-self.
+    pub fn to_signing_payload(&self) -> BuyWithCoinRouterSigningPayload {
+        BuyWithCoinRouterSigningPayload {
+            tx_id: self.tx_id.clone(),
+            parent_state_root: self.parent_state_root,
+            event_id: self.event_id.clone(),
+            buyer: self.buyer.clone(),
+            direction: self.direction,
+            pay_coin: self.pay_coin,
+            min_total_out: self.min_total_out,
+            timestamp_logical: self.timestamp_logical,
+        }
+    }
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // § 6 TypedTx outer enum
 // ────────────────────────────────────────────────────────────────────────────
@@ -1730,6 +1841,10 @@ pub enum TypedTx {
     /// Stage C P-M5 (architect manual §7.6) — agent-signed share-only CPMM
     /// swap (BuyYesWithNo or BuyNoWithYes) on a CpmmPool at a given event.
     CpmmSwap(CpmmSwapTx),
+    /// Stage C P-M6 (architect manual §7.7) — agent-signed Mint-and-Swap
+    /// Router (BuyYes or BuyNo with Coin); atomic 9-step composite over
+    /// CompleteSetMint + CpmmSwap.
+    BuyWithCoinRouter(BuyWithCoinRouterTx),
 }
 
 impl TypedTx {
@@ -1753,6 +1868,7 @@ impl TypedTx {
             Self::MarketSeed(_) => TxKind::MarketSeed,
             Self::CompleteSetMerge(_) => TxKind::CompleteSetMerge,
             Self::CpmmSwap(_) => TxKind::CpmmSwap,
+            Self::BuyWithCoinRouter(_) => TxKind::BuyWithCoinRouter,
         }
     }
 }
@@ -1871,6 +1987,14 @@ impl HasSubmitter for CpmmSwapTx {
     }
 }
 
+// Stage C P-M6 (architect manual §7.7): submitter is the buyer (paying
+// Coin to receive YES or NO shares via mint-and-swap).
+impl HasSubmitter for BuyWithCoinRouterTx {
+    fn submitter_id(&self) -> Option<AgentId> {
+        Some(self.buyer.clone())
+    }
+}
+
 impl HasSubmitter for TypedTx {
     fn submitter_id(&self) -> Option<AgentId> {
         match self {
@@ -1890,6 +2014,7 @@ impl HasSubmitter for TypedTx {
             Self::MarketSeed(t) => t.submitter_id(),
             Self::CompleteSetMerge(t) => t.submitter_id(),
             Self::CpmmSwap(t) => t.submitter_id(),
+            Self::BuyWithCoinRouter(t) => t.submitter_id(),
         }
     }
 }
@@ -2159,6 +2284,21 @@ pub enum TransitionError {
     /// `L4ERejectionClass::InvariantViolation`.
     SwapConstantProductRegressed,
 
+    // ── Stage C P-M6 BuyWithCoinRouter admission ──────────────────────────
+    /// Stage C P-M6 BuyWithCoinRouterTx admission — `pay_coin <= 0`.
+    /// Rejected pre-emptively (mirrors Mint amount discipline). Maps to
+    /// `L4ERejectionClass::PolicyViolation`.
+    RouterPayCoinNotPositive,
+    /// Stage C P-M6 BuyWithCoinRouterTx admission — buyer balance below
+    /// `pay_coin`. Maps to `L4ERejectionClass::PolicyViolation`.
+    RouterInsufficientBuyerBalance,
+    /// Stage C P-M6 BuyWithCoinRouterTx admission — buyer's `getY` total
+    /// (retained mint side + swap output) is below the buyer's
+    /// `min_total_out` slippage protection (architect §7.7 verbatim
+    /// `buy_yes_respects_min_yes_out`). Maps to
+    /// `L4ERejectionClass::PolicyViolation`.
+    RouterMinTotalOutNotMet,
+
     // ── Stub sentinel (CO1.7.5 fills) ──────────────────────────────────────
     /// Stub return value used by CO1.7.5 unimplemented bodies — preserves
     /// sequencer + dispatch correctness without forcing transition logic
@@ -2278,6 +2418,18 @@ impl std::fmt::Display for TransitionError {
             Self::SwapConstantProductRegressed => write!(
                 f,
                 "Stage C P-M5 CpmmSwapTx: constant-product invariant violated (poolY1 * poolN1 < poolY0 * poolN0)"
+            ),
+            Self::RouterPayCoinNotPositive => write!(
+                f,
+                "Stage C P-M6 BuyWithCoinRouterTx: pay_coin must be > 0"
+            ),
+            Self::RouterInsufficientBuyerBalance => write!(
+                f,
+                "Stage C P-M6 BuyWithCoinRouterTx: buyer balance < pay_coin"
+            ),
+            Self::RouterMinTotalOutNotMet => write!(
+                f,
+                "Stage C P-M6 BuyWithCoinRouterTx: getY total below min_total_out (slippage)"
             ),
             Self::NotYetImplemented => write!(f, "transition body not yet implemented (CO1.7.5)"),
         }

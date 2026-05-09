@@ -110,6 +110,11 @@ pub enum TxKind {
     /// `outY = floor(dN * poolY / (poolN + dN))`; constant-product
     /// invariant `poolY1 * poolN1 >= poolY0 * poolN0` enforced post-swap.
     CpmmSwap          = 15,
+    /// Stage C P-M6 (architect manual §7.7) — agent-signed Mint-and-Swap
+    /// Router (BuyYes / BuyNo with Coin). Atomic 9-step composite over
+    /// CompleteSetMint + CpmmSwap; effective price `priceY = payC / getY`
+    /// (signal only, not stored).
+    BuyWithCoinRouter = 16,
 }
 
 /// TRACE_MATRIX FC2-Append + WP § 5.L4: stored LedgerEntry record (11 fields).
