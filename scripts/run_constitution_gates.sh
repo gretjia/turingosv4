@@ -219,6 +219,15 @@ GATES=(
   # effective price priceY = payC / getY signal-only). Awaiting batch §8
   # sign-off (P-M2 + P-M4 + P-M6).
   constitution_router_buy_with_coin
+  # Stage C P-M7 2026-05-09 (plan cozy-waddling-raven Step 10) — architect
+  # manual §7.8 verbatim PriceIndex from CPMM (signal-only) hardening: 4
+  # verbatim test names (price_quote_does_not_change_state +
+  # price_signal_not_predicate +
+  # price_does_not_make_failed_node_accepted + low_liquidity_warning).
+  # Tests bind to new pure helper `cpmm_price_quote` in
+  # src/state/price_index.rs. Source-grep guards verify sequencer.rs does
+  # NOT call cpmm_price_quote (price-not-truth). Class 2 additive helper.
+  constitution_price_index_signal_only
 )
 
 # Run each gate file separately and collect per-test outcome.

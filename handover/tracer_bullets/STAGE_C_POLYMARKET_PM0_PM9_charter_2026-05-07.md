@@ -147,6 +147,8 @@ Per parent authorization §3.3 + alignment-doc §3 (zh) / §4 (en) Stage C:
 
 ### §3.8. P-M7 — PriceIndex from CPMM (signal-only)
 
+**P-M7 STATUS**: 🟢 SHIPPED 2026-05-09 (session #27, plan cozy-waddling-raven Step 10) — `tests/constitution_price_index_signal_only.rs` exact-matches all 4 architect manual §7.8 verbatim test names: `price_quote_does_not_change_state` + `price_signal_not_predicate` + `price_does_not_make_failed_node_accepted` + `low_liquidity_warning`. New pure helper `cpmm_price_quote` in `src/state/price_index.rs` (additive; no mutation surface). Source-grep guards verify sequencer.rs does NOT call cpmm_price_quote (price-not-truth invariant defense-in-depth). Class 2.
+
 | ID | Requirement |
 |----|-------------|
 | FR-PM7.1 | `price_yes_effective = quote_payC / quote_getY`; `price_no_effective = quote_payC / quote_getN`. |
