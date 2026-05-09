@@ -181,6 +181,18 @@ GATES=(
   # debit" from TB-13-internal SG-13.3+SG-13.4 names to first-class
   # constitution-gate verbatim names per `feedback_no_workarounds_strict_constitution`.
   constitution_marketseed_hardening
+  # Stage C P-M4 2026-05-09 (plan cozy-waddling-raven Step 6; STEP_B
+  # parallel-branch `feat/p-m4-cpmm-pool`) — architect manual §7.5
+  # verbatim CpmmPool integer state hardening: 4 verbatim test names
+  # (pool_created_from_seed_inventory + pool_reserves_not_counted_as_coin
+  # + lp_shares_not_counted_as_coin +
+  # pool_cannot_exist_without_collateralized_shares). Tests assert
+  # structural invariants over live `EconomicState.cpmm_pools_t` —
+  # pool reserves + LP shares both NOT in total_supply_micro per
+  # architect §7.5; pool entries require backing collateral
+  # (no ghost liquidity). EconomicState sub-field count 13 → 14.
+  # Awaiting batch §8 sign-off (P-M2 + P-M4 + P-M6).
+  constitution_cpmm_pool
 )
 
 # Run each gate file separately and collect per-test outcome.
