@@ -106,6 +106,18 @@ pub enum TxKind {
     /// Strict 6-field struct per architect §7.3; NO `timestamp_logical`
     /// drift (Codex G2 audit 2026-05-09 defect 3 prevention).
     CompleteSetMerge  = 14,
+    /// Stage C P-M4 / Phase F.3 (architect manual §7.5 verbatim;
+    /// remediation directive 2026-05-09 §1.C row 3) — agent-signed
+    /// CpmmPool (LiquidityPool) creation. Provider seeds pool with
+    /// symmetric YES + NO inventory pulled from
+    /// `conditional_share_balances_t`; receives LP shares (NOT Coin)
+    /// in `lp_share_balances_t`. Pool reserves (`pool.pool_yes /
+    /// pool.pool_no`) are NOT Coin per architect §7.5 rules 2 + 3;
+    /// `total_supply_micro` UNCHANGED on accept. Defect 4 prevention
+    /// `event_id` NOT `event_id_kind`. Strict 7-wire-field shape
+    /// mirroring `CompleteSetMergeTx` minimal pattern (NO
+    /// `timestamp_logical`).
+    CpmmPool          = 15,
 }
 
 /// TRACE_MATRIX FC2-Append + WP § 5.L4: stored LedgerEntry record (11 fields).

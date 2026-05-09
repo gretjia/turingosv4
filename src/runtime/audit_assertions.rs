@@ -203,6 +203,7 @@ pub struct TxKindCounts {
     pub complete_set_redeem: u64,
     pub market_seed: u64,
     pub complete_set_merge: u64,  // Stage C P-M2 / Phase F.1
+    pub cpmm_pool: u64,           // Stage C P-M4 / Phase F.3
     pub finalize_reward: u64,
     pub challenge_resolve: u64,
     pub terminal_summary: u64,
@@ -226,6 +227,7 @@ impl TxKindCounts {
                 TxKind::CompleteSetRedeem => c.complete_set_redeem += 1,
                 TxKind::MarketSeed => c.market_seed += 1,
                 TxKind::CompleteSetMerge => c.complete_set_merge += 1,
+                TxKind::CpmmPool => c.cpmm_pool += 1,
                 TxKind::FinalizeReward => c.finalize_reward += 1,
                 TxKind::ChallengeResolve => c.challenge_resolve += 1,
                 TxKind::TerminalSummary => c.terminal_summary += 1,
@@ -825,6 +827,7 @@ fn extract_all_agent_ids(tx: &TypedTx) -> Vec<(&'static str, String)> {
         TypedTx::CompleteSetRedeem(t) => out.push(("CompleteSetRedeemTx.owner", t.owner.0.clone())),
         TypedTx::MarketSeed(t) => out.push(("MarketSeedTx.provider", t.provider.0.clone())),
         TypedTx::CompleteSetMerge(t) => out.push(("CompleteSetMergeTx.owner", t.owner.0.clone())),
+        TypedTx::CpmmPool(t) => out.push(("CpmmPoolTx.provider", t.provider.0.clone())),
     }
     out
 }

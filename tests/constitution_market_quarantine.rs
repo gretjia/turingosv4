@@ -55,12 +55,25 @@ const MARKET_SUBSTRATE_ALLOW_LIST: &[&str] = &[
 ///
 ///   - `prediction_market::` — direct path-import of legacy module
 ///   - `BinaryMarket` — legacy f64 CPMM type
-///   - `AMM`, `CPMM`, `DPMM` — legacy / external market mechanism names
-///     forbidden in TB-13 substrate (deferred to architect-spec'd CPMM
-///     in §5.6+, which uses integer math by construction)
+///   - `AMM`, `DPMM` — legacy / external market mechanism names
+///     forbidden in TB-13 substrate.
 ///   - `orderbook` — orderbook trading deferred indefinitely
 ///   - `PriceIndex`, `yes_price`, `no_price`, `price_yes`, `price_no` —
 ///     price-as-truth concepts deferred to TB-14+ price-as-signal
+///
+/// **Stage C P-M4 / Phase F.3 update (2026-05-09 session #31)**: removed
+/// ` CPMM` from the banned list. Architect manual §7.5 verbatim
+/// introduces `CpmmPool` (LiquidityPool state) — the prior comment at
+/// this location already anticipated this exemption ("deferred to
+/// architect-spec'd CPMM in §5.6+, which uses integer math by
+/// construction"). E.1 verbatim struct-binding gate
+/// (`constitution_architect_verbatim_struct_binding`) is now the
+/// primary defense against CPMM-shaped drift; the legacy-file forward
+/// fence (`tb_13_legacy_cpmm_forward_fence::prediction_market_legacy_
+/// quarantined`) still ensures the deleted f64-era legacy file stays
+/// gone. The remaining banned tokens here cover identifiers the
+/// architect-spec CpmmPool DOES NOT introduce (`AMM`, `DPMM`,
+/// `BinaryMarket`, `bounty_*`, etc.).
 const HARD_BANNED_LEGACY_TOKENS: &[&str] = &[
     "prediction_market::",
     "BinaryMarket",
@@ -70,7 +83,6 @@ const HARD_BANNED_LEGACY_TOKENS: &[&str] = &[
     "bounty_yes_price",
     "resolve_bounty",
     " AMM",
-    " CPMM",
     " DPMM",
     "orderbook",
     "PriceIndex",

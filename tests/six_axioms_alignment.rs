@@ -46,7 +46,7 @@ fn axiom_2_predicate_registry_root_present() {
     assert!(v.as_object().unwrap().contains_key("predicate_registry_root_t"));
 }
 
-/// Axiom 3: economic alignment — Q_t exposes a 13-sub-field economic state.
+/// Axiom 3: economic alignment — Q_t exposes a 15-sub-field economic state.
 /// TB-11 (architect §6.2 ruling 2026-05-02) bumped 9 → 10 with +runs_t.
 /// TB-12 (architect 2026-05-03 ruling §3 + §8 Atom 1) bumped 10 → 11 with
 /// +node_positions_t (flat NodePositionsIndex; canonical exposure record
@@ -63,11 +63,16 @@ fn axiom_2_predicate_registry_root_present() {
 /// sequencer-side per-event Cid index for AgentAutopsyCapsule emission;
 /// capsule bytes live in CAS; CR-15.1 + halt-trigger #1 exclude from
 /// AgentVisibleProjection).
+/// Stage C P-M4 / Phase F.3 (architect manual §7.5 + remediation directive
+/// 2026-05-09 §1.C row 3) bumped 13 → 15 with +cpmm_pools_t (CpmmPoolsIndex
+/// one-pool-per-event LiquidityPool state; pool reserves NOT Coin per
+/// architect §7.5 rule 2) + lp_share_balances_t (LpShareBalancesIndex
+/// per-(agent,event) LP token balance; NOT Coin per architect §7.5 rule 3).
 #[test]
 fn axiom_3_economic_state_present_and_complete() {
     let g = QState::genesis();
     let e = serde_json::to_value(&g.economic_state_t).unwrap();
-    assert_eq!(e.as_object().unwrap().len(), 13);
+    assert_eq!(e.as_object().unwrap().len(), 15);
 }
 
 /// Axiom 4: tool capability — Q_t exposes `tool_registry_root_t` slot.
