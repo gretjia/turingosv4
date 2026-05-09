@@ -83,6 +83,8 @@ Per parent authorization §3.3 + alignment-doc §3 (zh) / §4 (en) Stage C:
 
 ### §3.2. P-M1 — CompleteSet Mint/Redeem hardening
 
+**P-M1 STATUS**: 🟢 SHIPPED 2026-05-08 (session #25 / verified session #27 2026-05-09) — `tests/constitution_completeset_hardening.rs` exact-matches all 8 architect manual §7.2 verbatim test names: `mint_one_coin_creates_one_yes_one_no` + `mint_conserves_total_coin` + `shares_not_counted_as_coin` + `redeem_unavailable_before_resolution` + `redeem_yes_after_yes_pays_yes_not_no` + `redeem_no_after_no_pays_no_not_yes` + `redeem_cannot_exceed_share_balance` + `redeem_debits_collateral`. `cargo test --workspace --test constitution_completeset_hardening` → 8 passed.
+
 | ID | Requirement |
 |----|-------------|
 | FR-PM1.1 | `CompleteSetMintTx` semantics per architect manual: `balances_t[owner] -= amount; conditional_collateral_t[event_id] += amount; share_balance[(owner,event,YES)] += amount; share_balance[(owner,event,NO)] += amount`. |
