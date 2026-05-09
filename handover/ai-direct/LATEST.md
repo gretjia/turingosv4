@@ -6,6 +6,23 @@
 
 ---
 
+## 🚧 Open after Polymarket (post Stage C ship FINAL)
+
+These items do **not** affect Polymarket runtime; forward-bound to post-Stage-C session per plan `cozy-waddling-raven.md` Step 1 (user verbatim 2026-05-09: "之前没有完成的任务，你要在本地文件记录清楚，不要 drift"). Do not start any of these until Stage C Polymarket §8 sign-off lands.
+
+| ID | Item | Manifest ref | Reason non-blocking | Estimated work | Class |
+|----|------|--------------|---------------------|----------------|-------|
+| C.5 | PromptCapsule evaluator runtime wire-up (emit `PromptCapsule::new` per LLM call; AttemptTelemetry → carry `prompt_capsule_cid` field) | `CONSTITUTION_LANDING_MANIFEST_2026-05-09.md` §3 row C.5 PARTIAL-S | Affects LLM-Lean proof-attempt path only; Polymarket sequencer/state machine doesn't read PromptCapsule | ~1-2 days | Class 3 |
+| B.4 | CAS root strict-Merkle commit-chain redesign (`refs/chaintape/cas` blob-OID → commit-chain ref; atomic ref-update; failure-injection tests; per Codex Q1+Q2 forward-bind from A3 R7) | manifest §2 row B.4 KNOWN-GAP | Replay reconstructs via `cas/.git/objects/` + `.turingos_cas_index.jsonl` sidecar — strict-Merkle proof is forward concern; market L4 anchor unaffected | ~3-5 days | Class 3-4 (Stage A3.6 enhancement TB) |
+| J.2 | Full charter M1 (50p × n=3 × 3 seeds × 1 model = 450 cells) | manifest §10 row J.2 NOT-DONE | Charter §2 explicit: "TB-18B execution NOT a P-M0..P-M5 blocker; recommended before P-M9 only"; substrate stable @ 109 cumulative cells per `handover/decisions/2026-05-09_M2_KILL_AND_SUBSTRATE_STABLE_DECLARATION.md` | ~3 days wall + ¥budget | runner-only |
+| J.3 | Full M2 (100p × n=3 × 3 seeds × 2 models = 1800 cells) — KILLED 2026-05-09 at cell 49/1800 | manifest §10 row J.3 RUNNING → KILLED-FORWARD-BOUND at next manifest regen | Gates RealWorldReadiness claim only, not Polymarket | ~9 days wall + ¥85k API | runner-only |
+| J.5 | 4 replay sampling tests (architect §3.B3 verbatim names: `sampled_full_replay`, `failure_heavy_sample_replay`, `solved_sample_replay`, `unsolved_sample_replay`) | manifest §10 row J.5 NOT-STARTED | Gate-level only; gated on full M2 evidence | ~1 day | Class 1 |
+| K.1-6 | Stage D real-world readiness directive package (REAL_WORLD_READINESS_REPORT, DOMAIN_SELECTION_CRITERIA, ORACLE_REQUIREMENTS, CHALLENGE_COURT_REQUIREMENTS, SAFETY_BOUNDARY, IRREVERSIBLE_ACTION_POLICY) | manifest §11 K.* NOT-STARTED / GATED | Architect-side directive package; decoupled from Polymarket per manifest §11 | architect timeline | architect Class-4 |
+
+**No drift policy**: any session that picks up forward-bound work must (a) confirm Stage C Polymarket §8 has shipped, (b) update the corresponding row in `CONSTITUTION_EXECUTION_MATRIX.md` from forward-note → in-progress, (c) regenerate manifest per its §15 trigger.
+
+---
+
 ## 📊 宪法全落地完成进度（Constitution Full-Landing Dashboard）
 
 **Updated**: 2026-05-08 session #26 (Stage B3 R7 M2 batch LAUNCHED in tmux — 1800-cell ~67h wall)
