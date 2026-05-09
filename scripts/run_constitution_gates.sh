@@ -304,6 +304,23 @@ GATES=(
   # Replay-deterministic; no env / clock / RNG; integer-only; pure-fn
   # over `&EconomicState`.
   constitution_audit_views
+
+  # Stage C P-M9 / Phase F.8 2026-05-09 (Class 2-3 controlled market
+  # smoke per architect manual §7.10 verbatim scenario + 5-gate battery).
+  # End-to-end test exercising the full Stage C Polymarket sequence (P-M3
+  # mint + P-M4 pool + P-M6 router buys + P-M7 quote + P-M8 audit views)
+  # in a single harness run, then asserting the architect §7.10 5
+  # mandatory gates:
+  #   - no ghost liquidity (sum YES == sum NO == collateral)
+  #   - total coin conserved (assert_total_ctf_conserved at each tx +
+  #     pre-smoke vs post-smoke total invariant)
+  #   - no price-as-truth (router_quote does not advance state)
+  #   - no raw log broadcast (out-of-scope for this smoke; Wave-3 +
+  #     TB-15 binding gates land separately)
+  #   - all activity replayable (state_root advances monotonically;
+  #     audit views regenerate byte-identical)
+  # 1 architect-mandated test: polymarket_controlled_market_smoke.
+  constitution_polymarket_smoke
 )
 
 # Run each gate file separately and collect per-test outcome.
