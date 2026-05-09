@@ -58,6 +58,66 @@
 
 ---
 
+## ✅ Stage C Polymarket SHIPPED FINAL 2026-05-09 session #32 (Phase F.9 overall §8)
+
+**HEAD on `origin/main`**: `65666fa` (R2 fail-closed remediation; full sequence + Q10 closure shipped).
+**Authority**: `handover/directives/2026-05-09_STAGE_C_POLYMARKET_OVERALL_§8_SIGN_OFF.md`.
+**Architect §8**: user multi-clause Class-4 forward §8 grant (session #32 boot): "授权自主执行直到polymarket全部落地并自主开展真题测试" — clause 1 names act `授权` + scope `直到polymarket全部落地`; structurally equivalent to canonical Class-4 §8 forms (TB-C0 / Stage A3 / P-M4 multi-clause). Conditional on PRE-§8 dual audit PASS — condition satisfied at R3.
+
+### Per-atom Stage C ship history
+- F.1 P-M2 CompleteSetMergeTx — SHIPPED FINAL session #29 (per-atom §8 R2 PASS).
+- F.2 P-M3 MarketSeed (re-apply) — Class 3 SHIPPED session #30.
+- F.3 P-M4 CpmmPool (rebuild) — SHIPPED FINAL session #31 (per-atom §8 R1 PASS first-try).
+- F.4 P-M5 CpmmSwap (re-apply) — Class 3 SHIPPED session #32.
+- F.5 P-M6 BuyWithCoinRouter (rebuild) — SHIPPED FINAL session #32 (per-atom §8 R1 PASS first-try).
+- F.6 P-M7 PriceIndex from CPMM — Class 1-2 SHIPPED session #32.
+- F.7 P-M8 Audit views — Class 1-2 SHIPPED session #32.
+- F.8 P-M9 Controlled market smoke — Class 2-3 SHIPPED session #32.
+- **F.9 Stage C overall §8** — SHIPPED FINAL session #32 (this entry; PRE-§8 dual audit R1 CHALLENGE → R2 CHALLENGE → R3 PASS).
+
+### PRE-§8 dual audit Phase F.9 (3 rounds)
+| Round | Codex G2 | Gemini DeepThink | Aggregate | Closure |
+|-------|----------|------------------|-----------|---------|
+| R1 | 9/10 PASS + Q10 CHALLENGE | 10/10 PASS | CHALLENGE | event-state gate added to 3 admission arms |
+| R2 | 9/10 PASS + Q10 CHALLENGE (fail-open default) | 10/10 PASS | CHALLENGE | fail-closed `ok_or(EventNotOpen)?` |
+| **R3** | **10/10 PASS** | **PASS conviction high** | **PASS** | both PROCEED |
+
+R3 transcripts:
+- `handover/audits/CODEX_STAGE_C_OVERALL_AUDIT_2026-05-09_R3.md` (PASS 10/10).
+- `handover/audits/GEMINI_STAGE_C_OVERALL_AUDIT_2026-05-09_R3.md` (PASS conviction high).
+
+### Q10 closure summary (3 rounds; `tests/constitution_polymarket_event_state_gate.rs` 10 tests)
+- R1 fix: event-state gate added to CpmmPool / CpmmSwap / BuyWithCoinRouter admission (Step 1.5 / Step 1.5 / Pre-1.5).
+- R2 fix: fail-closed `.get(...).ok_or(EventNotOpen)?` (was fail-open `.unwrap_or(Open)`).
+- R3 verification: 10 tests cover 6 reject paths (3 arms × 2 post-resolution states) + 3 missing-entry reject paths + 1 positive control.
+
+### All 4 session #27 batch §8 VETO defects + 2 Q10 issues — ALL CLOSED
+| Defect | Mechanism | Status |
+|--------|-----------|--------|
+| 1 (P-M6 monetary `min()`) | E.3 strict-equality + P-M4 extension | ✅ |
+| 2 (P-M6 vacuous rollback) | E.2 + cfg(debug_assertions) injection | ✅ |
+| 3 (P-M2 timestamp_logical drift) | E.1 verbatim binding | ✅ |
+| 4 (P-M4 event_id_kind rename) | E.1 verbatim binding | ✅ |
+| R1 Q10 (post-resolution gate gap) | Event-state gate × 3 admission arms | ✅ |
+| R2 Q10 (fail-open default) | Fail-closed `ok_or(EventNotOpen)?` | ✅ |
+
+### Validation (HEAD `65666fa`)
+| Check | Pre-Stage-C baseline (`01dd825`) | Post-Stage-C HEAD `65666fa` | Δ |
+|---|---|---|---|
+| Constitution gates | 175/0/1 | **241/0/1** | +66 |
+| Workspace tests | 1308/0/151 | **~1390/0/151** | +80+ |
+| Trust Root verify | PASS | **PASS** | rehashed ~10 STEP_B files cumulative |
+
+### Forward path (per user pre-authorization scope `直到polymarket全部落地并自主开展真题测试`)
+| Item | Status |
+|------|--------|
+| Stage D real-world readiness | DEFERRED behind explicit architect ship gate |
+| K.1-6 readiness gates | NOT eligible until architect explicit authorization |
+| **Real-problem testing (LLM API + tape)** | **ELIGIBLE NOW** per user clause 2 grant; M0/M1 mini under chain-backed harness |
+| LP unwind / PoolStatus::Resolved/Closed lifecycle | Forward to Stage D readiness |
+
+---
+
 ## ✅ P-M6 SHIPPED FINAL 2026-05-09 session #32 (Phase F.5; BuyWithCoinRouter Class-4 STEP_B)
 
 **HEAD on `origin/main`**: `7adc3ba` (merge of `feat/p-m6-rebuild` `6d4f128` via `--no-ff`).

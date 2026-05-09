@@ -24,7 +24,7 @@ ENV_FILES = [
 ROUND = os.environ.get("TB_AUDIT_ROUND", "R1")
 OUT = ROOT / f"handover/audits/GEMINI_STAGE_C_OVERALL_AUDIT_2026-05-09_{ROUND}.md"
 
-if ROUND not in {"R1", "R2"}:
+if ROUND not in {"R1", "R2", "R3"}:
     print("[gemini C overall] error: TB_AUDIT_ROUND must be R1 or R2", file=sys.stderr)
     sys.exit(2)
 if OUT.exists():
