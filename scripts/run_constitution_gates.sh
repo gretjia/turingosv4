@@ -269,6 +269,24 @@ GATES=(
   # branch — tests 4 + 8 directly witness this. E.1 +
   # F-DEFERRAL-2 + E.2 bindings all FLIPPED to Landed in same commit.
   constitution_router_buy_with_coin
+
+  # Stage C P-M7 / Phase F.6 2026-05-09 (Class 1-2 view-only quote per
+  # architect manual §7.8 verbatim: "Price is signal only. Do not use
+  # price to decide predicate truth"). Four architect-mandated tests:
+  #   price_quote_does_not_change_state
+  #   price_signal_not_predicate (source-grep gate; sequencer must NOT
+  #     import router_quote; predicate files must NOT reference
+  #     router_quote)
+  #   price_does_not_make_failed_node_accepted (router tx with bad
+  #     admission state still rejects regardless of how attractive the
+  #     quote is)
+  #   low_liquidity_warning (LiquidityWarning::None | LowLiquidity |
+  #     NoOutput classification per pool reserves + floor outcome)
+  # Pure quote API at `src/state/router_quote.rs`; reuses RationalPrice
+  # from `state::price_index` (TB-14 Atom 2 architect §5.2). No tx kind
+  # change; no STEP_B file edit (only state/mod.rs `pub mod router_quote`
+  # declaration; rehashed in genesis_payload.toml).
+  constitution_router_price_quote
 )
 
 # Run each gate file separately and collect per-test outcome.

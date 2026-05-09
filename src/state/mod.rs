@@ -26,6 +26,14 @@ pub mod price_index;
 /// Closes G-009 strategic blocker substrate; libgit2-backed C2 production refs are the forward step.
 pub mod head_t_witness;
 
+/// TRACE_MATRIX FC1-Append Stage C P-M7 / Phase F.6 (architect manual §7.8):
+/// CPMM Mint-and-Swap router quote — pure derivation over `CpmmPool`
+/// reserves + caller-supplied `pay_coin`. Architect §7.8 explicit:
+/// "Price is signal only. Do not use price to decide predicate truth."
+/// Output is `Option<RouterQuote>` containing the integer-rational price
+/// signal + `out_shares` + `get_shares` + low-liquidity warning marker.
+pub mod router_quote;
+
 pub use q_state::{
     AgentId, AgentSwarmState, AgentVisibleProjection, BalancesIndex, BudgetSnapshot,
     ChallengeCase, ChallengeCasesIndex, ClaimEntry, ClaimsIndex, EconomicState, EscrowEntry,
