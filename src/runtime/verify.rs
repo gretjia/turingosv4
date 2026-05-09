@@ -485,6 +485,23 @@ fn verify_agent_artifacts(
                     }
                 }
             }
+            // Stage C P-M2 / Phase F.1 (architect §7.3): replay-time Gate 4
+            // coverage parallel to CompleteSetMint / CompleteSetRedeem /
+            // MarketSeed. Owner is the signer; pubkey lookup mirrors
+            // CompleteSetMint replay arm.
+            TypedTx::CompleteSetMerge(merge) => {
+                let payload = merge.to_signing_payload();
+                let digest = payload.canonical_digest();
+                let pubkey_opt = manifest.get(&merge.owner);
+                match pubkey_opt {
+                    None => agent_signatures_verified = false,
+                    Some(pubkey) => {
+                        if verify_agent_signature(&merge.signature, &digest, &pubkey).is_err() {
+                            agent_signatures_verified = false;
+                        }
+                    }
+                }
+            }
             // Remaining tx variants (TaskOpen / EscrowLock / Challenge /
             // ChallengeResolve / ReuseTx / FinalizeReward / TaskExpire /
             // TerminalSummary / TaskBankruptcy) are not covered by Gate 4

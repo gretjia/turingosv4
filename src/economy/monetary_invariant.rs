@@ -371,7 +371,11 @@ pub fn assert_no_post_init_mint(tx: &TypedTx, q: &QState) -> Result<(), Monetary
         // 6th Coin holding.
         | TypedTx::CompleteSetMint(_)
         | TypedTx::CompleteSetRedeem(_)
-        | TypedTx::MarketSeed(_) => Ok(()),
+        | TypedTx::MarketSeed(_)
+        // Stage C P-M2 / Phase F.1 (architect §7.3): merge is the bit-for-bit
+        // inverse of CompleteSetMint — burns YES + NO + collateral and
+        // credits balance 1:1. Pure balance ↔ collateral migration. No mint.
+        | TypedTx::CompleteSetMerge(_) => Ok(()),
     }
 }
 

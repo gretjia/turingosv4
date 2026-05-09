@@ -84,14 +84,15 @@ struct StructBinding {
 //     scope-creep into either an architect-manual amendment or a TB-13 era
 //     refactor). Phase F.3 (P-M3 re-apply) is the natural decision point.
 const BINDINGS: &[StructBinding] = &[
-    // ── NotYetLanded (Stage C VETO rolled these back; Phase F rebuilds) ──
+    // ── Landed (Stage C P-M2 / Phase F.1 rebuild 2026-05-09 session #29) ──
     StructBinding {
         atom_id: "P-M2",
         manual_section: "§7.3",
         struct_name: "CompleteSetMergeTx",
         impl_path: "src/state/typed_tx.rs",
         // Architect §7.3 verbatim 6-field spec with types.
-        // NO timestamp_logical (Codex defect 3).
+        // NO timestamp_logical (Codex defect 3 — caught at gate-time on
+        // Landed flip if reintroduced).
         expected_fields: &[
             ("tx_id", "TxId"),
             ("parent_state_root", "Hash"),
@@ -100,7 +101,27 @@ const BINDINGS: &[StructBinding] = &[
             ("amount", "ShareAmount"),
             ("signature", "AgentSignature"),
         ],
-        landing_status: LandingStatus::NotYetLanded,
+        landing_status: LandingStatus::Landed,
+    },
+    // F-DEFERRAL-2 closure (per remediation directive §9 — extends BINDINGS
+    // for each Class-4 atom rebuild with a sibling SigningPayload entry).
+    // CompleteSetMergeSigningPayload is the agent-signing projection of
+    // CompleteSetMergeTx (5 wire fields + domain prefix; signature
+    // excluded per `to_signing_payload` cycle-on-self prevention).
+    StructBinding {
+        atom_id: "P-M2",
+        manual_section: "§7.3-signing",
+        struct_name: "CompleteSetMergeSigningPayload",
+        impl_path: "src/state/typed_tx.rs",
+        // Verbatim 5-field projection (the 6 wire fields minus `signature`).
+        expected_fields: &[
+            ("tx_id", "TxId"),
+            ("parent_state_root", "Hash"),
+            ("event_id", "EventId"),
+            ("owner", "AgentId"),
+            ("amount", "ShareAmount"),
+        ],
+        landing_status: LandingStatus::Landed,
     },
     StructBinding {
         atom_id: "P-M4",

@@ -189,6 +189,17 @@ GATES=(
   # `sum_yes == sum_no == coll`) and asymmetric (post-resolution; min()
   # marked) branches.
   constitution_economy_strict_equality
+
+  # Stage C P-M2 / Phase F.1 2026-05-09 (rebuild post-VETO; per
+  # `handover/directives/2026-05-09_STAGE_C_POLYMARKET_VETO_REMEDIATION_
+  # DIRECTIVE.md` §1.C row 1 + architect manual §7.3 verbatim). Five
+  # architect-mandated test names exercising CompleteSetMergeTx through
+  # the live sequencer accept arm: merge_yes_no_returns_coin /
+  # merge_requires_both_sides / merge_conserves_total_coin /
+  # merge_reduces_collateral / merge_unavailable_after_final_redeem_if_
+  # shares_exhausted. Strict 6-field struct (NO `timestamp_logical` —
+  # E.1 binding flipped to Landed for P-M2 in same commit).
+  constitution_completeset_merge
 )
 
 # Run each gate file separately and collect per-test outcome.

@@ -97,6 +97,15 @@ pub enum TxKind {
     /// pricing.** TB-13 records only the fact of seeding, not any signal
     /// derived from it.
     MarketSeed        = 13,
+    /// Stage C P-M2 / Phase F.1 (architect manual §7.3 verbatim) —
+    /// agent-signed pre-resolution `1 YES + 1 NO -> 1 Coin` merge. Burns
+    /// equal YES + NO shares from owner; debits
+    /// `conditional_collateral_t[event]` by amount; credits
+    /// `balances_t[owner]` by amount Coin. CTF preserved (collateral
+    /// debit equals balance credit; YES + NO claim retired symmetrically).
+    /// Strict 6-field struct per architect §7.3; NO `timestamp_logical`
+    /// drift (Codex G2 audit 2026-05-09 defect 3 prevention).
+    CompleteSetMerge  = 14,
 }
 
 /// TRACE_MATRIX FC2-Append + WP § 5.L4: stored LedgerEntry record (11 fields).

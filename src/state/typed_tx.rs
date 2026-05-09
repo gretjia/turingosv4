@@ -856,6 +856,7 @@ const DOMAIN_SYSTEM_TASK_BANKRUPTCY: &[u8] = b"turingosv4.system_sig.task_bankru
 const DOMAIN_AGENT_COMPLETE_SET_MINT: &[u8] = b"turingosv4.agent_sig.complete_set_mint.v1";
 const DOMAIN_AGENT_COMPLETE_SET_REDEEM: &[u8] = b"turingosv4.agent_sig.complete_set_redeem.v1";
 const DOMAIN_AGENT_MARKET_SEED: &[u8] = b"turingosv4.agent_sig.market_seed.v1";
+const DOMAIN_AGENT_COMPLETE_SET_MERGE: &[u8] = b"turingosv4.agent_sig.complete_set_merge.v1";
 
 /// Reserved for v4.1 MetaTx (Gemini round-2 GR-1 recommendation).
 /// Not used in v4 — namespace placeholder so v4.1 can introduce
@@ -1240,6 +1241,34 @@ pub struct MarketSeedTx {
     pub timestamp_logical: u64,               //  7
 }
 
+/// TRACE_MATRIX Stage C P-M2 / Phase F.1 (architect manual §7.3 verbatim):
+/// pre-resolution `1 YES + 1 NO -> 1 Coin` merge. STRICT 6-field shape per
+/// architect spec; NO `timestamp_logical` (Codex G2 2026-05-09 defect 3 —
+/// first VETO failure mode caught by Phase E.1 verbatim-binding gate).
+///
+/// Sequencer arm:
+/// 1. Owner YES share balance >= amount else `InsufficientSharesForMerge`.
+/// 2. Owner NO  share balance >= amount else `InsufficientSharesForMerge`.
+/// 3. `conditional_collateral_t[event] >= amount.units` (defensive; should
+///    hold under `assert_complete_set_balanced`).
+/// 4. Burn amount.units from BOTH `(owner, event_id, Yes)` and `(_, _, No)`.
+/// 5. `conditional_collateral_t[event] -= amount.units` (1 share-unit = 1
+///    micro-Coin, mirroring CompleteSetMint where the same equivalence is
+///    set at mint time).
+/// 6. `balances_t[owner] += amount.units` Coin.
+///
+/// CTF preserved: collateral debit equals balance credit; YES + NO claim
+/// retired symmetrically (the inverse of CompleteSetMint, exact-cycle).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct CompleteSetMergeTx {
+    pub tx_id: TxId,                          //  1
+    pub parent_state_root: Hash,              //  2
+    pub event_id: EventId,                    //  3
+    pub owner: AgentId,                       //  4
+    pub amount: ShareAmount,                  //  5
+    pub signature: AgentSignature,            //  6
+}
+
 // ── TB-13 SigningPayloads ───────────────────────────────────────────────
 
 /// TRACE_MATRIX TB-13 Atom 1 (architect §4.3): signing payload for
@@ -1305,6 +1334,28 @@ impl MarketSeedSigningPayload {
     /// `b"turingosv4.agent_sig.market_seed.v1"`.
     pub fn canonical_digest(&self) -> [u8; 32] {
         domain_prefixed_digest(DOMAIN_AGENT_MARKET_SEED, self)
+    }
+}
+
+/// TRACE_MATRIX Stage C P-M2 / Phase F.1 (architect §7.3 verbatim): signing
+/// payload for `CompleteSetMergeTx` (6 fields → 5 fields; signature excluded).
+/// F-DEFERRAL-2 closure (remediation directive §9): named struct mirroring
+/// the 5 wire fields under a domain-prefixed digest.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct CompleteSetMergeSigningPayload {
+    pub tx_id: TxId,
+    pub parent_state_root: Hash,
+    pub event_id: EventId,
+    pub owner: AgentId,
+    pub amount: ShareAmount,
+}
+
+impl CompleteSetMergeSigningPayload {
+    /// TRACE_MATRIX Stage C P-M2 / Phase F.1: domain-prefixed canonical
+    /// digest for agent-signed CompleteSetMergeTx. Domain prefix
+    /// `b"turingosv4.agent_sig.complete_set_merge.v1"`.
+    pub fn canonical_digest(&self) -> [u8; 32] {
+        domain_prefixed_digest(DOMAIN_AGENT_COMPLETE_SET_MERGE, self)
     }
 }
 
@@ -1514,6 +1565,22 @@ impl MarketSeedTx {
     }
 }
 
+impl CompleteSetMergeTx {
+    /// TRACE_MATRIX Stage C P-M2 / Phase F.1 (architect §7.3): wire →
+    /// signing payload projection. Excludes `signature` to prevent
+    /// cycle-on-self. NO `timestamp_logical` (verbatim 5-field projection
+    /// of the verbatim 6-field wire struct).
+    pub fn to_signing_payload(&self) -> CompleteSetMergeSigningPayload {
+        CompleteSetMergeSigningPayload {
+            tx_id: self.tx_id.clone(),
+            parent_state_root: self.parent_state_root,
+            event_id: self.event_id.clone(),
+            owner: self.owner.clone(),
+            amount: self.amount,
+        }
+    }
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // § 6 TypedTx outer enum
 // ────────────────────────────────────────────────────────────────────────────
@@ -1542,6 +1609,7 @@ pub enum TypedTx {
     CompleteSetMint(CompleteSetMintTx),   // TB-13 agent-signed conditional-share mint
     CompleteSetRedeem(CompleteSetRedeemTx), // TB-13 agent-signed conditional-share redeem
     MarketSeed(MarketSeedTx),             // TB-13 agent-signed protocol-owned share seed
+    CompleteSetMerge(CompleteSetMergeTx), // Stage C P-M2 / Phase F.1 agent-signed pre-resolution YES+NO->Coin merge
 }
 
 impl TypedTx {
@@ -1563,6 +1631,7 @@ impl TypedTx {
             Self::CompleteSetMint(_) => TxKind::CompleteSetMint,
             Self::CompleteSetRedeem(_) => TxKind::CompleteSetRedeem,
             Self::MarketSeed(_) => TxKind::MarketSeed,
+            Self::CompleteSetMerge(_) => TxKind::CompleteSetMerge,
         }
     }
 }
@@ -1665,6 +1734,14 @@ impl HasSubmitter for MarketSeedTx {
     }
 }
 
+// Stage C P-M2 / Phase F.1 — agent-signed by `owner` (mirrors
+// CompleteSetMintTx / CompleteSetRedeemTx submitter pattern).
+impl HasSubmitter for CompleteSetMergeTx {
+    fn submitter_id(&self) -> Option<AgentId> {
+        Some(self.owner.clone())
+    }
+}
+
 impl HasSubmitter for TypedTx {
     fn submitter_id(&self) -> Option<AgentId> {
         match self {
@@ -1682,6 +1759,7 @@ impl HasSubmitter for TypedTx {
             Self::CompleteSetMint(t) => t.submitter_id(),
             Self::CompleteSetRedeem(t) => t.submitter_id(),
             Self::MarketSeed(t) => t.submitter_id(),
+            Self::CompleteSetMerge(t) => t.submitter_id(),
         }
     }
 }
@@ -1906,6 +1984,17 @@ pub enum TransitionError {
     /// `L4ERejectionClass::PolicyViolation`.
     EventNotOpen,
 
+    // ── Stage C P-M2 / Phase F.1 (architect manual §7.3 verbatim) ──────────
+    /// `CompleteSetMergeTx` admission: owner's
+    /// `conditional_share_balances_t[owner][event_id].yes.units < amount.units`
+    /// OR `.no.units < amount.units`. Architect §7.3 verbatim semantics:
+    /// "require owner YES >= amount" + "require owner NO >= amount". Both
+    /// sides must be present in equal `amount` for the burn → Coin exchange
+    /// (the inverse of CompleteSetMint). Distinct from `RedeemMoreThanOwned`
+    /// because merge is a non-resolution exit, not a winning-side payout.
+    /// Maps to `L4ERejectionClass::PolicyViolation`.
+    InsufficientSharesForMerge,
+
     // ── Stub sentinel (CO1.7.5 fills) ──────────────────────────────────────
     /// Stub return value used by CO1.7.5 unimplemented bodies — preserves
     /// sequencer + dispatch correctness without forcing transition logic
@@ -1993,6 +2082,10 @@ impl std::fmt::Display for TransitionError {
             Self::EventNotOpen => write!(
                 f,
                 "TB-13 mint/seed: target event's task_markets_t state is not Open (Finalized/Bankrupt/Expired)"
+            ),
+            Self::InsufficientSharesForMerge => write!(
+                f,
+                "CompleteSetMergeTx: owner lacks the requested amount on YES or NO conditional share balance (architect §7.3 requires both sides >= amount)"
             ),
             Self::NotYetImplemented => write!(f, "transition body not yet implemented (CO1.7.5)"),
         }
