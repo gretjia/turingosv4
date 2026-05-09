@@ -287,6 +287,23 @@ GATES=(
   # change; no STEP_B file edit (only state/mod.rs `pub mod router_quote`
   # declaration; rehashed in genesis_payload.toml).
   constitution_router_price_quote
+
+  # Stage C P-M8 / Phase F.7 2026-05-09 (Class 1-2 audit views per
+  # architect manual §7.9 verbatim: "Add: audit_tape view-shares /
+  # view-pools / view-prices / view-positions. Must show: owner YES/NO
+  # shares, conditional collateral, pool reserves, LP shares,
+  # NodePositions, price signal"). Three architect-mandated tests:
+  #   audit_view_shares_matches_state
+  #   audit_view_pools_matches_state
+  #   dashboard_regenerates_market_view
+  # 4 pure view aggregator fns at `src/runtime/audit_views.rs`:
+  # audit_view_shares (owner YES/NO + collateral) /
+  # audit_view_pools (CpmmPool reserves + LP holdings + k_product) /
+  # audit_view_prices (router quote signal per pool over caller-supplied
+  # pay_coin samples) / audit_view_positions (NodePosition exposure).
+  # Replay-deterministic; no env / clock / RNG; integer-only; pure-fn
+  # over `&EconomicState`.
+  constitution_audit_views
 )
 
 # Run each gate file separately and collect per-test outcome.
