@@ -46,11 +46,25 @@ struct StructBinding {
     struct_name: &'static str,
     /// Path to the impl file relative to workspace root.
     impl_path: &'static str,
-    /// Verbatim field-name set per architect spec.
-    expected_fields: &'static [&'static str],
+    /// Verbatim (field_name, type_first_token) pairs per architect spec.
+    /// Hardened per Codex re-audit 2026-05-09 Recommendation 2: field NAME
+    /// alone is insufficient — a future drift could rename a TYPE while
+    /// keeping the field name (e.g. `event_id: EventIdKind` would have
+    /// preserved the name `event_id` but corrupted the type). Tracking
+    /// `(name, type_first_token)` pairs catches this.
+    ///
+    /// `type_first_token` is the first identifier of the type expression:
+    ///   - `EventId` for `pub event_id: EventId`
+    ///   - `Option` for `pub note: Option<String>` (the outer wrapper)
+    ///   - `Vec` for `pub items: Vec<u32>`
+    /// This is conservative — full type matching would require parsing
+    /// generic args and lifetime params, which is out of scope. The
+    /// first-token heuristic catches the realistic drift shapes
+    /// (renames + wrapper changes).
+    expected_fields: &'static [(&'static str, &'static str)],
     /// Whether the struct currently exists in the codebase. NotYetLanded
     /// atoms record the spec without enforcing it; Landed atoms enforce
-    /// strict field-set equality.
+    /// strict field-set equality (name + type-first-token pair).
     landing_status: LandingStatus,
 }
 
@@ -76,14 +90,15 @@ const BINDINGS: &[StructBinding] = &[
         manual_section: "§7.3",
         struct_name: "CompleteSetMergeTx",
         impl_path: "src/state/typed_tx.rs",
-        // Architect §7.3 verbatim 6-field spec. NO timestamp_logical (Codex defect 3).
+        // Architect §7.3 verbatim 6-field spec with types.
+        // NO timestamp_logical (Codex defect 3).
         expected_fields: &[
-            "tx_id",
-            "parent_state_root",
-            "event_id",
-            "owner",
-            "amount",
-            "signature",
+            ("tx_id", "TxId"),
+            ("parent_state_root", "Hash"),
+            ("event_id", "EventId"),
+            ("owner", "AgentId"),
+            ("amount", "ShareAmount"),
+            ("signature", "AgentSignature"),
         ],
         landing_status: LandingStatus::NotYetLanded,
     },
@@ -92,13 +107,18 @@ const BINDINGS: &[StructBinding] = &[
         manual_section: "§7.5",
         struct_name: "CpmmPool",
         impl_path: "src/state/q_state.rs",
-        // Architect §7.5 verbatim 5-field spec. event_id NOT event_id_kind (Codex defect 4).
+        // Architect §7.5 verbatim 5-field spec with types.
+        // event_id (not event_id_kind) AND type EventId (not PoolEventKind);
+        // E' hardening per Codex 2026-05-09 Recommendation 2 — both name
+        // and type-first-token are checked, so a hypothetical drift like
+        // `pub event_id: PoolEventKind` (preserving the name but renaming
+        // type) is now caught.
         expected_fields: &[
-            "event_id",
-            "pool_yes",
-            "pool_no",
-            "lp_total_shares",
-            "status",
+            ("event_id", "EventId"),
+            ("pool_yes", "ShareAmount"),
+            ("pool_no", "ShareAmount"),
+            ("lp_total_shares", "LpShareAmount"),
+            ("status", "PoolStatus"),
         ],
         landing_status: LandingStatus::NotYetLanded,
     },
@@ -114,70 +134,87 @@ fn read_file(rel: &str) -> Option<String> {
 }
 
 /// Locate the `pub struct <name> { ... }` declaration in source and extract
-/// the set of public field identifiers. Returns None if struct not present.
+/// `(field_name, type_first_token)` pairs for every `pub` field.
+///
+/// Hardened per Codex re-audit 2026-05-09 Recommendation 2: returning
+/// type-first-token alongside the name catches drift shapes where a
+/// future implementer preserves the field name but changes the type
+/// (e.g. `pub event_id: PoolEventKind` would have preserved name
+/// `event_id` while corrupting the type — fixture mismatch on the
+/// type token catches this).
 ///
 /// Parser is intentionally simple: finds `pub struct <Name>` line, then
-/// reads forward until the matching `}` on column 0 or `}` after any field
-/// declarations. Counts brace depth to handle nested types in field types
-/// (e.g. `Option<Vec<T>>`).
-fn extract_struct_fields(source: &str, struct_name: &str) -> Option<BTreeSet<String>> {
+/// reads forward until the matching `}` (brace depth tracking handles
+/// nested types like `Option<Vec<T>>`). For each `pub <name>: <type>,`
+/// line, captures the first identifier of the type expression.
+fn extract_struct_field_pairs(
+    source: &str,
+    struct_name: &str,
+) -> Option<Vec<(String, String)>> {
     let needle = format!("pub struct {}", struct_name);
-    let mut lines = source.lines();
     let mut found = false;
     let mut depth: i32 = 0;
-    let mut fields = BTreeSet::new();
-    while let Some(line) = lines.next() {
+    let mut pairs: Vec<(String, String)> = Vec::new();
+    for line in source.lines() {
         if !found {
-            // Match `pub struct <Name>` followed by ` ` or `<` or `{` or end-of-line.
             if let Some(idx) = line.find(&needle) {
-                // Ensure the next char after the name terminates the identifier.
                 let after = &line[idx + needle.len()..];
                 let next_char = after.chars().next();
-                let is_terminator = matches!(next_char, None | Some(' ') | Some('<') | Some('{') | Some('('));
+                let is_terminator = matches!(
+                    next_char,
+                    None | Some(' ') | Some('<') | Some('{') | Some('(')
+                );
                 if is_terminator {
                     found = true;
-                    // Track braces opened on this line.
                     depth += line.matches('{').count() as i32;
                     depth -= line.matches('}').count() as i32;
-                    // If struct is unit/tuple form `pub struct X;` or `pub struct X(...);`,
-                    // there are no named fields → return empty set.
                     if line.ends_with(';') {
-                        return Some(BTreeSet::new());
+                        return Some(Vec::new());
                     }
                 }
             }
             continue;
         }
-        // We're inside the struct body.
         depth += line.matches('{').count() as i32;
         depth -= line.matches('}').count() as i32;
-        // Field declaration heuristic: a line like `    pub field_name: Type,`
-        // We strip leading whitespace, look for `pub ` prefix, then take the
-        // ident before the first `:`.
         let trimmed = line.trim();
         if let Some(rest) = trimmed.strip_prefix("pub ") {
             if let Some(colon_idx) = rest.find(':') {
                 let name = rest[..colon_idx].trim();
-                // Reject anything that looks like a sub-type (`(`, `<`, `fn`).
                 if name
                     .chars()
                     .all(|c| c.is_alphanumeric() || c == '_')
                     && !name.is_empty()
                 {
-                    fields.insert(name.to_string());
+                    let type_part = rest[colon_idx + 1..].trim();
+                    // Extract first identifier of the type expression.
+                    // Stop at the first non-ident-char (`<`, `,`, `(`, ` `, etc.).
+                    let type_token: String = type_part
+                        .chars()
+                        .take_while(|c| c.is_alphanumeric() || *c == '_')
+                        .collect();
+                    if !type_token.is_empty() {
+                        pairs.push((name.to_string(), type_token));
+                    }
                 }
             }
         }
         if depth <= 0 {
-            return Some(fields);
+            return Some(pairs);
         }
     }
     if found {
-        // Reached EOF without closing brace — partial extract.
-        Some(fields)
+        Some(pairs)
     } else {
         None
     }
+}
+
+/// Backwards-compat helper: extract just the field-name set. Used by the
+/// `binding_self_check_extracts_known_fields` test (existing pre-E' assertion).
+fn extract_struct_fields(source: &str, struct_name: &str) -> Option<BTreeSet<String>> {
+    extract_struct_field_pairs(source, struct_name)
+        .map(|pairs| pairs.into_iter().map(|(n, _)| n).collect())
 }
 
 #[test]
@@ -194,17 +231,17 @@ fn architect_verbatim_struct_field_bindings() {
                 continue;
             }
         };
-        let actual = extract_struct_fields(&source, b.struct_name);
+        let actual = extract_struct_field_pairs(&source, b.struct_name);
         match (b.landing_status, actual) {
             (LandingStatus::NotYetLanded, None) => {
                 // Expected: rolled-back struct not present in codebase.
             }
-            (LandingStatus::NotYetLanded, Some(fields)) => {
+            (LandingStatus::NotYetLanded, Some(pairs)) => {
                 failures.push(format!(
                     "[{}/{}] declared NotYetLanded but `pub struct {}` is present in {} \
                      with fields {:?}; flip landing_status to Landed in this binding when \
                      Phase F rebuilds the atom",
-                    b.atom_id, b.struct_name, b.struct_name, b.impl_path, fields
+                    b.atom_id, b.struct_name, b.struct_name, b.impl_path, pairs
                 ));
             }
             (LandingStatus::Landed, None) => {
@@ -213,18 +250,25 @@ fn architect_verbatim_struct_field_bindings() {
                     b.atom_id, b.struct_name, b.struct_name, b.impl_path
                 ));
             }
-            (LandingStatus::Landed, Some(actual_set)) => {
-                let expected: BTreeSet<String> =
-                    b.expected_fields.iter().map(|s| s.to_string()).collect();
-                if expected != actual_set {
-                    let extra: Vec<String> =
-                        actual_set.difference(&expected).cloned().collect();
-                    let missing: Vec<String> =
-                        expected.difference(&actual_set).cloned().collect();
+            (LandingStatus::Landed, Some(actual_pairs)) => {
+                // Compare on (name, type_first_token) pair sets — strict equality.
+                use std::collections::BTreeSet;
+                let expected_set: BTreeSet<(String, String)> = b
+                    .expected_fields
+                    .iter()
+                    .map(|(n, t)| (n.to_string(), t.to_string()))
+                    .collect();
+                let actual_set: BTreeSet<(String, String)> =
+                    actual_pairs.iter().cloned().collect();
+                if expected_set != actual_set {
+                    let extra: Vec<(String, String)> =
+                        actual_set.difference(&expected_set).cloned().collect();
+                    let missing: Vec<(String, String)> =
+                        expected_set.difference(&actual_set).cloned().collect();
                     failures.push(format!(
                         "[{}/{}] verbatim drift vs architect manual {}: \
-                         extra fields in impl {:?}; missing fields in impl {:?}; \
-                         architect verbatim spec is exactly {:?}",
+                         extra (name,type) pairs in impl {:?}; missing (name,type) pairs \
+                         in impl {:?}; architect verbatim spec is exactly {:?}",
                         b.atom_id,
                         b.struct_name,
                         b.manual_section,
@@ -308,5 +352,112 @@ pub struct CompleteSetMergeTx_Synthetic {
         actual.contains("timestamp_logical"),
         "self-check: parser should extract timestamp_logical; got {:?}",
         actual,
+    );
+}
+
+#[test]
+fn binding_self_check_synthetic_d4_shape_field_rename_detected() {
+    // Phase E' hardening per Codex 2026-05-09 Recommendation 2: synthetic
+    // Rust source mimicking Codex defect 4 shape (P-M4 `event_id_kind` rename).
+    // Both NAME drift (event_id → event_id_kind) and TYPE drift (EventId →
+    // PoolEventKind) must be caught by extract_struct_field_pairs.
+    let synthetic = r#"
+pub struct CpmmPool_Synthetic {
+    pub event_id_kind: PoolEventKind,
+    pub pool_yes: ShareAmount,
+    pub pool_no: ShareAmount,
+    pub lp_total_shares: LpShareAmount,
+    pub status: PoolStatus,
+}
+"#;
+    let actual_pairs = extract_struct_field_pairs(synthetic, "CpmmPool_Synthetic")
+        .expect("synthetic struct must parse");
+    use std::collections::BTreeSet;
+    let actual_set: BTreeSet<(String, String)> = actual_pairs.iter().cloned().collect();
+    let expected_set: BTreeSet<(String, String)> = [
+        ("event_id", "EventId"),
+        ("pool_yes", "ShareAmount"),
+        ("pool_no", "ShareAmount"),
+        ("lp_total_shares", "LpShareAmount"),
+        ("status", "PoolStatus"),
+    ]
+    .iter()
+    .map(|(n, t)| (n.to_string(), t.to_string()))
+    .collect();
+    assert_ne!(
+        actual_set, expected_set,
+        "self-check (E' hardening): parser MUST detect the field rename \
+         `event_id` → `event_id_kind` AND the type rename `EventId` → \
+         `PoolEventKind` in synthetic CpmmPool_Synthetic vs architect §7.5 spec",
+    );
+    let extra: Vec<(String, String)> =
+        actual_set.difference(&expected_set).cloned().collect();
+    assert!(
+        extra.iter().any(|(n, t)| n == "event_id_kind" && t == "PoolEventKind"),
+        "self-check (E' hardening): expected to find `(event_id_kind, PoolEventKind)` \
+         in the diff's `extra` set; got extras={:?}",
+        extra,
+    );
+}
+
+#[test]
+fn binding_self_check_type_only_drift_detected() {
+    // Phase E' hardening per Codex 2026-05-09 Recommendation 2: a hypothetical
+    // future drift could PRESERVE the field name while corrupting only the
+    // TYPE (e.g. `pub event_id: PoolEventKind`). The (name, type) pair check
+    // catches this even though name-only check would miss it.
+    let synthetic = r#"
+pub struct CpmmPool_TypeOnlyDrift {
+    pub event_id: PoolEventKind,
+    pub pool_yes: ShareAmount,
+    pub pool_no: ShareAmount,
+    pub lp_total_shares: LpShareAmount,
+    pub status: PoolStatus,
+}
+"#;
+    let actual_pairs = extract_struct_field_pairs(synthetic, "CpmmPool_TypeOnlyDrift")
+        .expect("synthetic struct must parse");
+    let actual_names: BTreeSet<String> =
+        actual_pairs.iter().map(|(n, _)| n.clone()).collect();
+    let expected_names: BTreeSet<String> = [
+        "event_id",
+        "pool_yes",
+        "pool_no",
+        "lp_total_shares",
+        "status",
+    ]
+    .iter()
+    .map(|s| s.to_string())
+    .collect();
+    assert_eq!(
+        actual_names, expected_names,
+        "self-check (E' hardening): name-only check should NOT detect type-only \
+         drift; expected names ARE preserved in TypeOnlyDrift fixture",
+    );
+    use std::collections::BTreeSet;
+    let actual_set: BTreeSet<(String, String)> =
+        actual_pairs.iter().cloned().collect();
+    let expected_set: BTreeSet<(String, String)> = [
+        ("event_id", "EventId"),
+        ("pool_yes", "ShareAmount"),
+        ("pool_no", "ShareAmount"),
+        ("lp_total_shares", "LpShareAmount"),
+        ("status", "PoolStatus"),
+    ]
+    .iter()
+    .map(|(n, t)| (n.to_string(), t.to_string()))
+    .collect();
+    assert_ne!(
+        actual_set, expected_set,
+        "self-check (E' hardening): (name, type) pair check MUST detect the \
+         type-only drift `event_id: EventId` → `event_id: PoolEventKind`",
+    );
+    let extra: Vec<(String, String)> =
+        actual_set.difference(&expected_set).cloned().collect();
+    assert!(
+        extra.iter().any(|(n, t)| n == "event_id" && t == "PoolEventKind"),
+        "self-check (E' hardening): expected `(event_id, PoolEventKind)` in diff \
+         extras; got extras={:?}",
+        extra,
     );
 }

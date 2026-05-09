@@ -52,15 +52,52 @@ struct CompositeTxRollback {
     landing_status: LandingStatus,
 }
 
-/// Markers a rollback-test body must contain to count as exercising the
-/// mid-mutation rollback path. Phase F.5 introduces an explicit helper;
-/// either the helper invocation OR an equivalent direct manipulation of
-/// a `q_next` clone followed by an explicit failure injection counts.
-const MID_MUTATION_INJECTION_MARKERS: &[&str] = &[
-    "inject_failure_after_step",
-    "TURINGOS_TEST_ROUTER_FAIL_AT_STEP",
-    "ROUTER_FAIL_AT_STEP",
+/// CALL-form patterns a rollback-test body must contain to count as
+/// exercising the mid-mutation rollback path. Each pattern matches a
+/// function-call construct, not a bare identifier — so an implementer
+/// cannot satisfy the gate by merely mentioning the marker name.
+///
+/// Hardened per Codex re-audit 2026-05-09 Recommendation 1:
+///   - Patterns include the open-paren or open-quote of an argument list,
+///     so identifier-mention without invocation does not match.
+///   - The match is performed against the test body with `//` comments
+///     stripped (so a marker hidden in a comment does NOT count).
+///   - Patterns intentionally include the env-var-name string literal
+///     forms because `std::env::set_var("ROUTER_FAIL_AT_STEP", ...)` is a
+///     legitimate cfg(test)-friendly injection mechanism — the env-var
+///     literal IS the call's first arg, not a free-floating string.
+///
+/// Phase F.5 introduces the explicit `inject_failure_after_step(...)`
+/// helper. Phase F-flexibility allows either form.
+const MID_MUTATION_INJECTION_PATTERNS: &[&str] = &[
+    "inject_failure_after_step(",
+    "set_var(\"ROUTER_FAIL_AT_STEP\"",
+    "set_var(\"TURINGOS_TEST_ROUTER_FAIL_AT_STEP\"",
 ];
+
+/// Strip inline `//` comments from each line, producing the executable-code
+/// substring that the call-pattern scan operates on. String literals are
+/// PRESERVED because the legitimate env-set form
+/// `set_var("ROUTER_FAIL_AT_STEP", ...)` requires the literal to live in
+/// the call site. The bypass case "marker mentioned only in a comment" is
+/// covered by comment stripping; the bypass case "marker mentioned only
+/// inside a free-floating string literal" requires the implementer to
+/// write `let _s = "ROUTER_FAIL_AT_STEP";` — which is contrived because
+/// the `set_var("ROUTER_FAIL_AT_STEP"` pattern requires the OPEN-PAREN
+/// + literal sequence, which a free-floating literal cannot satisfy.
+fn body_executable_only(body: &str) -> String {
+    let mut out = String::new();
+    for line in body.lines() {
+        let code = if let Some(idx) = line.find("//") {
+            &line[..idx]
+        } else {
+            line
+        };
+        out.push_str(code);
+        out.push('\n');
+    }
+    out
+}
 
 const BINDINGS: &[CompositeTxRollback] = &[
     // P-M6 Mint-and-Swap Router (architect §7.7 9-step composite).
@@ -153,9 +190,12 @@ fn class4_atomic_rollback_witness_check() {
             ));
             continue;
         }
-        // Landed: body must contain at least one mid-mutation injection marker.
+        // Landed: body must contain at least one mid-mutation injection marker
+        // in EXECUTABLE code (per E' hardening — strip comments + string literals
+        // before scanning so the marker cannot be satisfied by mention alone).
+        let executable = body_executable_only(body);
         let has_marker =
-            MID_MUTATION_INJECTION_MARKERS.iter().any(|m| body.contains(m));
+            MID_MUTATION_INJECTION_PATTERNS.iter().any(|m| executable.contains(m));
         if !has_marker {
             failures.push(format!(
                 "[{}/{}] rollback test `{}` does NOT invoke any mid-mutation \
@@ -165,7 +205,7 @@ fn class4_atomic_rollback_witness_check() {
                 b.atom_id,
                 b.composite_name,
                 b.rollback_test_fn,
-                MID_MUTATION_INJECTION_MARKERS,
+                MID_MUTATION_INJECTION_PATTERNS,
                 b.manual_section,
                 b.rollback_test_path,
             ));
@@ -195,13 +235,13 @@ fn router_atomic_rollback_on_failure() {
     let body = extract_test_fn_body(synthetic, "router_atomic_rollback_on_failure")
         .expect("synthetic test must parse");
     let has_marker =
-        MID_MUTATION_INJECTION_MARKERS.iter().any(|m| body.contains(m));
+        MID_MUTATION_INJECTION_PATTERNS.iter().any(|m| body.contains(m));
     assert!(
         !has_marker,
         "self-check: synthetic vacuous rollback test should NOT contain mid-mutation \
          injection markers; gate would correctly flag it as vacuous. \
          Markers: {:?}, body excerpt: {}",
-        MID_MUTATION_INJECTION_MARKERS,
+        MID_MUTATION_INJECTION_PATTERNS,
         body.chars().take(200).collect::<String>(),
     );
 }
@@ -226,12 +266,72 @@ fn router_atomic_rollback_on_failure() {
 "#;
     let body = extract_test_fn_body(synthetic, "router_atomic_rollback_on_failure")
         .expect("synthetic test must parse");
+    let executable = body_executable_only(body);
     let has_marker =
-        MID_MUTATION_INJECTION_MARKERS.iter().any(|m| body.contains(m));
+        MID_MUTATION_INJECTION_PATTERNS.iter().any(|m| executable.contains(m));
     assert!(
         has_marker,
         "self-check: synthetic proper rollback test SHOULD contain a mid-mutation \
-         injection marker; got body excerpt: {}",
+         injection marker in executable code; got body excerpt: {}",
         body.chars().take(300).collect::<String>(),
+    );
+}
+
+#[test]
+fn witness_self_check_marker_only_in_comment_does_not_satisfy() {
+    // Phase E' hardening per Codex 2026-05-09 Recommendation 1: a test body
+    // that only mentions the marker in a `//` comment (without actually
+    // calling the failure-injection helper) must NOT pass the gate.
+    let synthetic = r#"
+#[test]
+fn router_atomic_rollback_on_failure() {
+    // This test would inject_failure_after_step but actually doesn't.
+    // We pretend by mentioning TURINGOS_TEST_ROUTER_FAIL_AT_STEP in a comment.
+    let mut q = build_q_with_balance(50);
+    let tx = build_router_tx(payC = 100);
+    let result = sequencer.dispatch(tx);
+    assert!(result.is_err());
+}
+"#;
+    let body = extract_test_fn_body(synthetic, "router_atomic_rollback_on_failure")
+        .expect("synthetic test must parse");
+    let executable = body_executable_only(body);
+    let has_marker =
+        MID_MUTATION_INJECTION_PATTERNS.iter().any(|m| executable.contains(m));
+    assert!(
+        !has_marker,
+        "self-check (E' hardening): markers mentioned ONLY in `//` comments must \
+         NOT satisfy the gate; executable-stripped body still contained a marker: \
+         {}",
+        executable.chars().take(400).collect::<String>(),
+    );
+}
+
+#[test]
+fn witness_self_check_marker_only_in_string_does_not_satisfy() {
+    // Phase E' hardening per Codex 2026-05-09 Recommendation 1: a test body
+    // that mentions the marker only inside a `"..."` string literal (e.g. a
+    // log message, debug assertion text) must NOT pass the gate.
+    let synthetic = r#"
+#[test]
+fn router_atomic_rollback_on_failure() {
+    let mut q = build_q_with_balance(50);
+    let tx = build_router_tx(payC = 100);
+    let result = sequencer.dispatch(tx);
+    assert!(result.is_err(), "expected inject_failure_after_step rollback");
+    println!("would have set TURINGOS_TEST_ROUTER_FAIL_AT_STEP if implemented");
+}
+"#;
+    let body = extract_test_fn_body(synthetic, "router_atomic_rollback_on_failure")
+        .expect("synthetic test must parse");
+    let executable = body_executable_only(body);
+    let has_marker =
+        MID_MUTATION_INJECTION_PATTERNS.iter().any(|m| executable.contains(m));
+    assert!(
+        !has_marker,
+        "self-check (E' hardening): markers mentioned ONLY in `\"...\"` string \
+         literals must NOT satisfy the gate; executable-stripped body still \
+         contained a marker: {}",
+        executable.chars().take(400).collect::<String>(),
     );
 }
