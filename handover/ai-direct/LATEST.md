@@ -58,6 +58,55 @@
 
 ---
 
+## ✅ P-M5 SHIPPED 2026-05-09 session #32 (Phase F.4; CpmmSwap Class-3 re-apply)
+
+**HEAD on `origin/main`**: `f9c7ed6` (merge of `feat/p-m5-rebuild` `244ae5b` via `--no-ff`).
+**Authority**: `handover/directives/2026-05-09_STAGE_C_POLYMARKET_VETO_REMEDIATION_DIRECTIVE.md` §1.C row 4 verbatim "P-M5 CpmmSwap (re-apply); Class 3; n/a (was correct); per-atom §8 NO".
+**User authorization** (multi-clause; structurally Class-3 forward batch): "授权自主执行直到polymarket全部落地并自主开展真题测试" (2026-05-09 session #32 boot).
+
+### What landed
+| Surface | Change |
+|---------|--------|
+| `src/state/typed_tx.rs` | `DOMAIN_AGENT_CPMM_SWAP` const + `SwapDirection` enum (BuyYesWithNo/BuyNoWithYes; `#[repr(u8)]`) + `CpmmSwapTx` 8-field wire (NO `timestamp_logical`; `event_id` NOT `event_id_kind`) + `CpmmSwapSigningPayload` 7-field + `canonical_digest` + `to_signing_payload` + `TypedTx::CpmmSwap` variant + tx_kind dispatch + `HasSubmitter` (trader as signer) + 5 new `TransitionError` variants (`SwapZeroInput` / `PoolNotActive` / `InsufficientSharesForSwap` / `SwapInsufficientPoolOutput` / `SwapSlippageExceeded`) + Display arms |
+| `src/state/sequencer.rs` | `CPMM_SWAP_DOMAIN_V1` + `cpmm_swap_accept_state_root` + CpmmSwap admission arm (6 preconditions + per-direction projection + 3-step atomic mutation + 3 monetary invariants + state_root advance) + 4 fan-out match arms + agent-sig manifest verify arm |
+| `src/bottom_white/ledger/transition_ledger.rs` | `TxKind::CpmmSwap = 16` |
+| `src/economy/monetary_invariant.rs` | `assert_no_post_init_mint` allow-list extended (CpmmSwap; pure share rotation) |
+| `src/runtime/verify.rs` + `run_summary.rs` + `audit_assertions.rs` | replay-time Gate 4 verify arm + tx_id extractor + counter (`cpmm_swap: u64`) + signer extraction |
+| `tests/constitution_cpmm_swap.rs` (NEW; 745 lines) | 6 architect §7.6 verbatim test names through live `Sequencer::submit_agent_tx` |
+| `genesis_payload.toml` | 6 STEP_B file rehashes |
+| `scripts/run_constitution_gates.sh` | Registered `constitution_cpmm_swap` gate |
+
+### Architect §7.6 verbatim 6-test battery (all GREEN)
+- `swap_no_for_yes_constant_product_non_decreasing` — outY = floor(dN * poolY / (poolN + dN)); poolY1 * poolN1 ≥ poolY * poolN
+- `swap_yes_for_no_constant_product_non_decreasing` — outN = floor(dY * poolN / (poolY + dY)); symmetric direction
+- `swap_fails_zero_input` — `SwapZeroInput` rejects `amount_in.units == 0`
+- `swap_fails_insufficient_pool_output` — out == 0 (dust input vs asymmetric pool ratio); `SwapInsufficientPoolOutput`
+- `swap_respects_min_out_slippage` — out < min_out → `SwapSlippageExceeded`; tested at exact-floor + one-above-floor boundaries
+- `swap_uses_integer_math_no_f64` — source-grep gate (forbids `: f64` / `: f32` / `as f64` / `as f32` / `f64::` / `f32::` / float-literal suffix in CpmmSwap admission arm + struct surfaces)
+
+### Validation post-P-M5 ship (HEAD `f9c7ed6`)
+| Check | Pre-P-M5 | Post-P-M5 | Δ |
+|---|---|---|---|
+| Constitution gates | 207/0/1 | **213/0/1** | +6 (1 new gate file × 6 verbatim tests) |
+| Workspace tests | 1340/0/151 | **1346/0/151** | +6 (same 6 architect-mandated tests counted at workspace level) |
+| Trust Root verify | PASS | **PASS** | rehashed 6 STEP_B files (typed_tx + sequencer + transition_ledger + verify + run_summary + monetary_invariant) |
+
+### Pure share rotation (no Coin movement)
+- `balances_t` UNCHANGED on accept
+- `conditional_collateral_t` UNCHANGED
+- `lp_share_balances_t` UNCHANGED
+- `total_supply_micro` 6-holding sum preserved bit-exact
+- Constant-product invariant `pool_yes1 * pool_no1 ≥ pool_yes * pool_no` (`≥` not `==` because integer floor leaves dust in pool — architect §7.6 explicit)
+- `assert_complete_set_balanced` (P-M4-extended to count pool reserves) holds: sum YES + sum NO across (traders + pool) preserved bit-for-bit each direction
+
+### Class-3 framing (no per-atom §8; no PRE-§8 dual audit)
+Per remediation directive §1.C row 4 + `feedback_dual_audit` Class-3 hybrid risk model: self-audit + workspace tests + gate runner + Trust Root verification suffice. STEP_B parallel-branch protocol still applies (file membership in STEP_B governs handling, not atom risk class).
+
+### Forward — Phase F.5 P-M6 (Class-4 STEP_B; ELIGIBLE NOW)
+Per remediation directive §1.C row 5 + §9: Mint-and-Swap Router rebuild WITH Defect 1 + Defect 2 patches. Per-atom §8 + PRE-§8 dual audit dispatch mandatory. F-DEFERRAL-1 closure (helper-alias attestation) + F-DEFERRAL-2 closure (`BuyWithCoinRouterSigningPayload` sibling binding) at packet draft time.
+
+---
+
 ## ✅ Phase E SHIPPED 2026-05-09 session #28 (mechanism additions before any Phase F rebuild)
 
 **Plan**: `cached-noodle.md` (architect-approved replan superseding rolled-back `cozy-waddling-raven.md`).
