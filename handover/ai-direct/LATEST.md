@@ -42,8 +42,8 @@
   4. NEW `feedback_no_batch_class4_signoff.md` (codify charter rule against batch §8 for Class-4)
   5. UPDATE `feedback_dual_audit.md` (timing rule: PRE-§8 dual audit, not POST-§8-request)
 - **Phase F** (per-atom rebuild, ~3-4 weeks; strict per-atom §8 cadence; NO batching):
-  - F.1 P-M2 rebuild (strict 6-field per §7.3) → per-atom §8
-  - F.2 P-M3 re-apply (was correct)
+  - **F.1 P-M2 rebuild ✅ SHIPPED FINAL 2026-05-09 session #29** — see "✅ P-M2 SHIPPED FINAL" block below
+  - F.2 P-M3 re-apply (was correct) — Class 3, NEXT
   - F.3 P-M4 rebuild (rename `event_id_kind` → `event_id`) → per-atom §8
   - F.4 P-M5 re-apply (was correct)
   - F.5 P-M6 rebuild WITH PATCHES (strict-equality `monetary_invariant`; mid-mutation failure-injection rollback test) → per-atom §8
@@ -107,6 +107,77 @@ Each Class-4 atom (F.1 P-M2 / F.3 P-M4 / F.5 P-M6) goes:
 Non-Class-4 atoms (F.2 P-M3 / F.4 P-M5 / F.6 P-M7 / F.7 P-M8 / F.8 P-M9): per-atom commit + cargo test green; no per-atom §8.
 
 F.9 Stage C overall §8 packet: after all atoms shipped; same DUAL-PRE-§8 cadence.
+
+---
+
+## ✅ P-M2 SHIPPED FINAL 2026-05-09 session #29 (first per-atom Class-4 §8 post-VETO)
+
+**HEAD pushed**: `<post-push>` — see `git log origin/main` after this section commits.
+**Authority**: User architect-role verbatim **「好，确认可以 ship」** (2026-05-09 session #29).
+**Sign-off directive**: `handover/directives/2026-05-09_STAGE_C_POLYMARKET_PM2_§8_SIGN_OFF.md`.
+**Candidate packet**: `handover/directives/2026-05-09_STAGE_C_POLYMARKET_PM2_§8_PACKET.md`.
+
+### What landed (architect §7.3 verbatim — STRICT 6-field, NO `timestamp_logical`)
+
+| Surface | Change |
+|---------|--------|
+| `src/state/typed_tx.rs` | `CompleteSetMergeTx` (architect §7.3 verbatim 6-field) + `CompleteSetMergeSigningPayload` (5-field projection) + `DOMAIN_AGENT_COMPLETE_SET_MERGE` + `TypedTx::CompleteSetMerge` variant + `TxKind` dispatch + `HasSubmitter` + `InsufficientSharesForMerge` `TransitionError` + Display |
+| `src/state/sequencer.rs` | `COMPLETE_SET_MERGE_DOMAIN_V1` + `complete_set_merge_accept_state_root` + `CompleteSetMerge` admission arm (require YES + NO; burn both; debit collateral; credit Coin) + 4 fan-out match arms + agent-sig manifest verify arm |
+| `src/bottom_white/ledger/transition_ledger.rs` | `TxKind::CompleteSetMerge = 14` |
+| `src/economy/monetary_invariant.rs` | `assert_no_post_init_mint` allow-list extended for `CompleteSetMerge` |
+| `src/runtime/verify.rs` | Replay-time Gate 4 agent-signature verify arm for `CompleteSetMerge` |
+| `src/runtime/run_summary.rs` + `src/runtime/audit_assertions.rs` | Exhaustive-match coverage |
+| `tests/constitution_completeset_merge.rs` (NEW) | 5 architect §7.3 verbatim test names — all live through `Sequencer::submit_agent_tx` |
+| `tests/constitution_architect_verbatim_struct_binding.rs` | P-M2 binding `NotYetLanded → Landed` + F-DEFERRAL-2 closure (`CompleteSetMergeSigningPayload` sibling binding `Landed`) |
+| `scripts/run_constitution_gates.sh` | Registered `constitution_completeset_merge` gate |
+| `genesis_payload.toml` | 6 trust_root rehashes (`typed_tx.rs` + `sequencer.rs` + `transition_ledger.rs` + `monetary_invariant.rs` + `verify.rs` + `run_summary.rs`) |
+
+### Validation at sign-off
+
+| Check | Pre-F.1 | Post-F.1 | Δ |
+|-------|---------|----------|---|
+| Constitution gates | 193/0/1 | **198/0/1** | +5 (new `constitution_completeset_merge` gate) |
+| Workspace tests | 1326/0/151 | **1331/0/151** | +5 (5 architect-mandated verbatim tests) |
+| Trust Root verify | PASS | **PASS** | 6 files rehashed |
+| E.1 P-M2 binding | NotYetLanded | **LANDED** | strict (name, type) pair-equality enforced |
+| F-DEFERRAL-2 (signing-payload binding) | open | **CLOSED for P-M2** | sibling binding LANDED |
+| F-DEFERRAL-1 (helper-alias scope) | open | **N/A for P-M2** | no helper-alias introduced |
+
+### PRE-§8 dual audit chain (NEW Class-4 timing rule, exercised first time)
+
+Per `feedback_dual_audit` Class-4 PRE-§8 timing (added 2026-05-09 from Stage C session #27 batch §8 VETO lesson). Conservative-wins per `feedback_dual_audit_conflict`.
+
+| Round | HEAD | Codex G2 | Gemini | Aggregate | Action |
+|-------|------|----------|--------|-----------|--------|
+| R1 | `66f4e34` | CHALLENGE (Q2 fixture-forge + Q3 zero-amount drift) | PASS (all 8) | CHALLENGE → FIX-THEN-PROCEED | Remediated in `444c470` |
+| R2 | `851364a` | **PASS** (Q2 + Q3 closed) | **PASS** (all 8) | **PASS → PROCEED** | Ascended to architect §8 |
+
+R1 reports: `handover/audits/CODEX_STAGE_C_PM2_AUDIT_2026-05-09_R1.md` + `handover/audits/GEMINI_STAGE_C_PM2_AUDIT_2026-05-09_R1.md`.
+R2 reports: `handover/audits/CODEX_STAGE_C_PM2_AUDIT_2026-05-09_R2.md` + `handover/audits/GEMINI_STAGE_C_PM2_AUDIT_2026-05-09_R2.md`.
+Round cap 2 used (within `feedback_elon_mode_policy`); R3 not required.
+
+### Mechanism gate witness (Phase E machinery worked)
+
+- **E.1 caught Defect 3 prevention**: P-M2 binding flip to `Landed` mechanically enforces strict `(name, type)` pair-equality. Reintroducing `timestamp_logical` would FAIL the build at gate-time — exactly the defect Codex G2 caught on session #27 batch.
+- **E.2 not exercised in P-M2** (single-mutation accept arm, not 9-step composite); remains armed for F.5 P-M6.
+- **E.3 not exercised in P-M2** (no aggregate reduction introduced); remains armed for F.5 P-M6.
+
+### Key lessons confirmed
+
+- Class-4 PRE-§8 timing rule (Codex + Gemini at packet-draft time, not after architect §8 request) saved 1 round-trip. R1 CHALLENGE was caught + remediated in working tree before any §8 ratification — zero rollback cost.
+- Per-atom §8 (no batching) honored. P-M3 starts only after this push.
+
+### Forward queue
+
+| Atom | Class | Status post-P-M2 §8 |
+|------|-------|----------------------|
+| **F.1 P-M2** | 4 STEP_B | ✅ SHIPPED FINAL (this block) |
+| F.2 P-M3 (MarketSeedTx hardening) | 3 | Charter-eligible NOW (no §8 needed) |
+| F.3 P-M4 (CpmmPool rebuild) | 4 STEP_B | Gated on F.2 |
+| F.4 P-M5 | 3 | Gated on F.3 §8 |
+| F.5 P-M6 (Mint-and-Swap Router rebuild + 2 patches) | 4 STEP_B | Gated on F.4 |
+| F.6/F.7/F.8 P-M7/M8/M9 | 1-3 | Gated on F.5 §8 |
+| F.9 Stage C overall §8 | 4 ship | Gated on all atoms green |
 
 ---
 
