@@ -856,6 +856,10 @@ const DOMAIN_SYSTEM_TASK_BANKRUPTCY: &[u8] = b"turingosv4.system_sig.task_bankru
 const DOMAIN_AGENT_COMPLETE_SET_MINT: &[u8] = b"turingosv4.agent_sig.complete_set_mint.v1";
 const DOMAIN_AGENT_COMPLETE_SET_REDEEM: &[u8] = b"turingosv4.agent_sig.complete_set_redeem.v1";
 const DOMAIN_AGENT_MARKET_SEED: &[u8] = b"turingosv4.agent_sig.market_seed.v1";
+/// Stage C P-M2 (architect manual §7.3): agent-signed merge of YES + NO
+/// share pairs back into Coin pre-resolution. Domain prefix mirrors
+/// existing CTF surface (`complete_set_*`).
+const DOMAIN_AGENT_COMPLETE_SET_MERGE: &[u8] = b"turingosv4.agent_sig.complete_set_merge.v1";
 
 /// Reserved for v4.1 MetaTx (Gemini round-2 GR-1 recommendation).
 /// Not used in v4 — namespace placeholder so v4.1 can introduce
@@ -1240,6 +1244,41 @@ pub struct MarketSeedTx {
     pub timestamp_logical: u64,               //  7
 }
 
+/// TRACE_MATRIX Stage C P-M2 (architect manual §7.3): agent-signed merge
+/// of an `amount` of YES + `amount` of NO shares back into `amount` Coin,
+/// callable pre-resolution. Inverse of `CompleteSetMintTx`.
+///
+/// Sequencer arm (Stage C P-M2):
+/// 1. `parent_state_root == q.state_root_t` else `StaleParent`.
+/// 2. `amount.units > 0` strictly else `MergeAmountZero`.
+/// 3. Owner YES share at `event_id` >= `amount.units` AND owner NO share
+///    >= `amount.units` else `MergeMoreThanOwned`.
+/// 4. `conditional_collateral_t[event_id].micro_units() as u128 >=
+///    amount.units` else `InsufficientCollateral` (defensive; should
+///    always hold when `assert_complete_set_balanced` is preserved).
+/// 5. Debit YES + NO shares; debit collateral; credit `balances_t[owner]`
+///    1:1 with `amount.units` (interpreted as MicroCoin micro_units).
+///
+/// CTF preserved: total Coin invariant (1 Coin = 1 YES + 1 NO accounting
+/// per CR-13.3) symmetrically reverses Mint. Allowed regardless of
+/// `task_markets_t` state — Merge is symmetric (no outcome-side advantage)
+/// and gives agents a non-settlement exit + prepares for liquidity
+/// mechanics (architect manual §7.3 "before resolution"). Post-resolution
+/// merge is operationally subsumed by Redeem in the optimal path; the
+/// verbatim test `merge_unavailable_after_final_redeem_if_shares_exhausted`
+/// falls out of the share-balance check (Step 3) when both sides are
+/// already redeemed.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct CompleteSetMergeTx {
+    pub tx_id: TxId,                          //  1
+    pub parent_state_root: Hash,              //  2
+    pub event_id: EventId,                    //  3
+    pub owner: AgentId,                       //  4
+    pub amount: ShareAmount,                  //  5
+    pub signature: AgentSignature,            //  6
+    pub timestamp_logical: u64,               //  7
+}
+
 // ── TB-13 SigningPayloads ───────────────────────────────────────────────
 
 /// TRACE_MATRIX TB-13 Atom 1 (architect §4.3): signing payload for
@@ -1305,6 +1344,27 @@ impl MarketSeedSigningPayload {
     /// `b"turingosv4.agent_sig.market_seed.v1"`.
     pub fn canonical_digest(&self) -> [u8; 32] {
         domain_prefixed_digest(DOMAIN_AGENT_MARKET_SEED, self)
+    }
+}
+
+/// TRACE_MATRIX Stage C P-M2 (architect manual §7.3): signing payload for
+/// `CompleteSetMergeTx` (7 fields → 6 fields; signature excluded).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct CompleteSetMergeSigningPayload {
+    pub tx_id: TxId,
+    pub parent_state_root: Hash,
+    pub event_id: EventId,
+    pub owner: AgentId,
+    pub amount: ShareAmount,
+    pub timestamp_logical: u64,
+}
+
+impl CompleteSetMergeSigningPayload {
+    /// TRACE_MATRIX Stage C P-M2 (architect manual §7.3): domain-prefixed
+    /// canonical digest for agent-signed `CompleteSetMergeTx`. Domain
+    /// prefix `b"turingosv4.agent_sig.complete_set_merge.v1"`.
+    pub fn canonical_digest(&self) -> [u8; 32] {
+        domain_prefixed_digest(DOMAIN_AGENT_COMPLETE_SET_MERGE, self)
     }
 }
 
@@ -1514,6 +1574,21 @@ impl MarketSeedTx {
     }
 }
 
+impl CompleteSetMergeTx {
+    /// TRACE_MATRIX Stage C P-M2 (architect manual §7.3): wire → signing
+    /// payload projection. Excludes `signature` to prevent cycle-on-self.
+    pub fn to_signing_payload(&self) -> CompleteSetMergeSigningPayload {
+        CompleteSetMergeSigningPayload {
+            tx_id: self.tx_id.clone(),
+            parent_state_root: self.parent_state_root,
+            event_id: self.event_id.clone(),
+            owner: self.owner.clone(),
+            amount: self.amount,
+            timestamp_logical: self.timestamp_logical,
+        }
+    }
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // § 6 TypedTx outer enum
 // ────────────────────────────────────────────────────────────────────────────
@@ -1542,6 +1617,9 @@ pub enum TypedTx {
     CompleteSetMint(CompleteSetMintTx),   // TB-13 agent-signed conditional-share mint
     CompleteSetRedeem(CompleteSetRedeemTx), // TB-13 agent-signed conditional-share redeem
     MarketSeed(MarketSeedTx),             // TB-13 agent-signed protocol-owned share seed
+    /// Stage C P-M2 (architect manual §7.3) — agent-signed merge of YES + NO
+    /// share pairs back into Coin pre-resolution; inverse of `CompleteSetMint`.
+    CompleteSetMerge(CompleteSetMergeTx),
 }
 
 impl TypedTx {
@@ -1563,6 +1641,7 @@ impl TypedTx {
             Self::CompleteSetMint(_) => TxKind::CompleteSetMint,
             Self::CompleteSetRedeem(_) => TxKind::CompleteSetRedeem,
             Self::MarketSeed(_) => TxKind::MarketSeed,
+            Self::CompleteSetMerge(_) => TxKind::CompleteSetMerge,
         }
     }
 }
@@ -1665,6 +1744,14 @@ impl HasSubmitter for MarketSeedTx {
     }
 }
 
+// Stage C P-M2 (architect manual §7.3): submitter is the owner who is
+// merging YES + NO shares back into Coin (mirrors CompleteSetMint owner).
+impl HasSubmitter for CompleteSetMergeTx {
+    fn submitter_id(&self) -> Option<AgentId> {
+        Some(self.owner.clone())
+    }
+}
+
 impl HasSubmitter for TypedTx {
     fn submitter_id(&self) -> Option<AgentId> {
         match self {
@@ -1682,6 +1769,7 @@ impl HasSubmitter for TypedTx {
             Self::CompleteSetMint(t) => t.submitter_id(),
             Self::CompleteSetRedeem(t) => t.submitter_id(),
             Self::MarketSeed(t) => t.submitter_id(),
+            Self::CompleteSetMerge(t) => t.submitter_id(),
         }
     }
 }
@@ -1906,6 +1994,21 @@ pub enum TransitionError {
     /// `L4ERejectionClass::PolicyViolation`.
     EventNotOpen,
 
+    // ── Stage C P-M2 CompleteSetMerge admission ───────────────────────────
+    /// Stage C P-M2 CompleteSetMergeTx admission — `amount.units == 0`.
+    /// Rejected pre-emptively to mirror Mint/Seed amount discipline (no-op
+    /// merge would still write canonical bytes + advance state_root).
+    /// Maps to `L4ERejectionClass::PolicyViolation`.
+    MergeAmountZero,
+    /// Stage C P-M2 CompleteSetMergeTx admission — owner's `(YES, NO)`
+    /// share balance at the event_id is below the requested merge `amount`
+    /// on at least one side. Per architect manual §7.3 verbatim
+    /// `merge_requires_both_sides` semantics. Subsumes the
+    /// `merge_unavailable_after_final_redeem_if_shares_exhausted` test
+    /// (when shares are exhausted, both sides are zero). Maps to
+    /// `L4ERejectionClass::PolicyViolation`.
+    MergeMoreThanOwned,
+
     // ── Stub sentinel (CO1.7.5 fills) ──────────────────────────────────────
     /// Stub return value used by CO1.7.5 unimplemented bodies — preserves
     /// sequencer + dispatch correctness without forcing transition logic
@@ -1993,6 +2096,14 @@ impl std::fmt::Display for TransitionError {
             Self::EventNotOpen => write!(
                 f,
                 "TB-13 mint/seed: target event's task_markets_t state is not Open (Finalized/Bankrupt/Expired)"
+            ),
+            Self::MergeAmountZero => write!(
+                f,
+                "Stage C P-M2 CompleteSetMergeTx: amount must be > 0"
+            ),
+            Self::MergeMoreThanOwned => write!(
+                f,
+                "Stage C P-M2 CompleteSetMergeTx: owner's YES or NO share balance below merge amount"
             ),
             Self::NotYetImplemented => write!(f, "transition body not yet implemented (CO1.7.5)"),
         }
