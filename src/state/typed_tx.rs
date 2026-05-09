@@ -860,6 +860,10 @@ const DOMAIN_AGENT_MARKET_SEED: &[u8] = b"turingosv4.agent_sig.market_seed.v1";
 /// share pairs back into Coin pre-resolution. Domain prefix mirrors
 /// existing CTF surface (`complete_set_*`).
 const DOMAIN_AGENT_COMPLETE_SET_MERGE: &[u8] = b"turingosv4.agent_sig.complete_set_merge.v1";
+/// Stage C P-M5 (architect manual §7.6): agent-signed share-only CPMM
+/// swap. Sender pays one side's shares, pool returns the other side's
+/// shares per integer floor formula `outY = floor(dN * poolY / (poolN + dN))`.
+const DOMAIN_AGENT_CPMM_SWAP: &[u8] = b"turingosv4.agent_sig.cpmm_swap.v1";
 
 /// Reserved for v4.1 MetaTx (Gemini round-2 GR-1 recommendation).
 /// Not used in v4 — namespace placeholder so v4.1 can introduce
@@ -1244,6 +1248,69 @@ pub struct MarketSeedTx {
     pub timestamp_logical: u64,               //  7
 }
 
+/// TRACE_MATRIX Stage C P-M5 (architect manual §7.6): swap direction.
+/// Polymarket binary-outcome CPMM supports two atomic share-share swaps;
+/// `BuyYesWithNo` deposits NO shares into the pool and withdraws YES;
+/// `BuyNoWithYes` is symmetric.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[repr(u8)]
+pub enum SwapSide {
+    /// Sender pays NO shares, receives YES shares.
+    BuyYesWithNo = 0,
+    /// Sender pays YES shares, receives NO shares.
+    BuyNoWithYes = 1,
+}
+
+impl Default for SwapSide {
+    fn default() -> Self {
+        Self::BuyYesWithNo
+    }
+}
+
+/// TRACE_MATRIX Stage C P-M5 (architect manual §7.6): agent-signed
+/// share-only CPMM swap. Sender deposits `amount_in` shares of one side
+/// (per `side` discriminator) and receives the other side's shares per
+/// integer floor formula:
+///
+/// ```text
+/// BuyYesWithNo: outY = floor(amount_in * poolY / (poolN + amount_in))
+/// BuyNoWithYes: outN = floor(amount_in * poolN / (poolY + amount_in))
+/// ```
+///
+/// Sequencer arm (Stage C P-M5):
+/// 1. `parent_state_root == q.state_root_t` else `StaleParent`.
+/// 2. `amount_in.units > 0` strictly else `SwapZeroInput`.
+/// 3. Pool entry exists at `event_id` else `SwapPoolNotFound`.
+/// 4. Sender holds ≥ `amount_in.units` of input side at `event_id` else
+///    `SwapInsufficientSenderInput`.
+/// 5. Compute `out_units` per formula (integer math; floor keeps dust
+///    in pool). If `out_units == 0` (input too small relative to pool)
+///    OR `out_units >= pool_output_side.units` → `SwapInsufficientPoolOutput`.
+/// 6. If `out_units < min_out.units` → `SwapMinOutNotMet` (slippage).
+/// 7. Mutate: sender input side `-= amount_in`; sender output side
+///    `+= out_units`; pool input side `+= amount_in`; pool output side
+///    `-= out_units`.
+/// 8. Constant-product invariant `poolY1 * poolN1 >= poolY0 * poolN0`
+///    enforced by sequencer post-mutation; floor rounding keeps dust in
+///    pool so the inequality holds bit-strict.
+///
+/// CTF preserved: swap moves shares between sender and pool; total
+/// share supply at the event is bit-equal pre/post. Conditional
+/// collateral and total Coin both unchanged. Pool reserves and LP shares
+/// remain NOT-Coin (per CR analogue to CR-13.3).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct CpmmSwapTx {
+    pub tx_id: TxId,                          //  1
+    pub parent_state_root: Hash,              //  2
+    pub event_id: EventId,                    //  3
+    pub sender: AgentId,                      //  4
+    pub side: SwapSide,                       //  5
+    pub amount_in: ShareAmount,               //  6
+    pub min_out: ShareAmount,                 //  7
+    pub signature: AgentSignature,            //  8
+    pub timestamp_logical: u64,               //  9
+}
+
 /// TRACE_MATRIX Stage C P-M2 (architect manual §7.3): agent-signed merge
 /// of an `amount` of YES + `amount` of NO shares back into `amount` Coin,
 /// callable pre-resolution. Inverse of `CompleteSetMintTx`.
@@ -1365,6 +1432,29 @@ impl CompleteSetMergeSigningPayload {
     /// prefix `b"turingosv4.agent_sig.complete_set_merge.v1"`.
     pub fn canonical_digest(&self) -> [u8; 32] {
         domain_prefixed_digest(DOMAIN_AGENT_COMPLETE_SET_MERGE, self)
+    }
+}
+
+/// TRACE_MATRIX Stage C P-M5 (architect manual §7.6): signing payload for
+/// `CpmmSwapTx` (9 fields → 8 fields; signature excluded).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct CpmmSwapSigningPayload {
+    pub tx_id: TxId,
+    pub parent_state_root: Hash,
+    pub event_id: EventId,
+    pub sender: AgentId,
+    pub side: SwapSide,
+    pub amount_in: ShareAmount,
+    pub min_out: ShareAmount,
+    pub timestamp_logical: u64,
+}
+
+impl CpmmSwapSigningPayload {
+    /// TRACE_MATRIX Stage C P-M5 (architect manual §7.6): domain-prefixed
+    /// canonical digest for agent-signed `CpmmSwapTx`. Domain prefix
+    /// `b"turingosv4.agent_sig.cpmm_swap.v1"`.
+    pub fn canonical_digest(&self) -> [u8; 32] {
+        domain_prefixed_digest(DOMAIN_AGENT_CPMM_SWAP, self)
     }
 }
 
@@ -1589,6 +1679,23 @@ impl CompleteSetMergeTx {
     }
 }
 
+impl CpmmSwapTx {
+    /// TRACE_MATRIX Stage C P-M5 (architect manual §7.6): wire → signing
+    /// payload projection. Excludes `signature` to prevent cycle-on-self.
+    pub fn to_signing_payload(&self) -> CpmmSwapSigningPayload {
+        CpmmSwapSigningPayload {
+            tx_id: self.tx_id.clone(),
+            parent_state_root: self.parent_state_root,
+            event_id: self.event_id.clone(),
+            sender: self.sender.clone(),
+            side: self.side,
+            amount_in: self.amount_in,
+            min_out: self.min_out,
+            timestamp_logical: self.timestamp_logical,
+        }
+    }
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // § 6 TypedTx outer enum
 // ────────────────────────────────────────────────────────────────────────────
@@ -1620,6 +1727,9 @@ pub enum TypedTx {
     /// Stage C P-M2 (architect manual §7.3) — agent-signed merge of YES + NO
     /// share pairs back into Coin pre-resolution; inverse of `CompleteSetMint`.
     CompleteSetMerge(CompleteSetMergeTx),
+    /// Stage C P-M5 (architect manual §7.6) — agent-signed share-only CPMM
+    /// swap (BuyYesWithNo or BuyNoWithYes) on a CpmmPool at a given event.
+    CpmmSwap(CpmmSwapTx),
 }
 
 impl TypedTx {
@@ -1642,6 +1752,7 @@ impl TypedTx {
             Self::CompleteSetRedeem(_) => TxKind::CompleteSetRedeem,
             Self::MarketSeed(_) => TxKind::MarketSeed,
             Self::CompleteSetMerge(_) => TxKind::CompleteSetMerge,
+            Self::CpmmSwap(_) => TxKind::CpmmSwap,
         }
     }
 }
@@ -1752,6 +1863,14 @@ impl HasSubmitter for CompleteSetMergeTx {
     }
 }
 
+// Stage C P-M5 (architect manual §7.6): submitter is the swap sender
+// (the agent paying input shares to the pool).
+impl HasSubmitter for CpmmSwapTx {
+    fn submitter_id(&self) -> Option<AgentId> {
+        Some(self.sender.clone())
+    }
+}
+
 impl HasSubmitter for TypedTx {
     fn submitter_id(&self) -> Option<AgentId> {
         match self {
@@ -1770,6 +1889,7 @@ impl HasSubmitter for TypedTx {
             Self::CompleteSetRedeem(t) => t.submitter_id(),
             Self::MarketSeed(t) => t.submitter_id(),
             Self::CompleteSetMerge(t) => t.submitter_id(),
+            Self::CpmmSwap(t) => t.submitter_id(),
         }
     }
 }
@@ -2009,6 +2129,36 @@ pub enum TransitionError {
     /// `L4ERejectionClass::PolicyViolation`.
     MergeMoreThanOwned,
 
+    // ── Stage C P-M5 CpmmSwap admission ───────────────────────────────────
+    /// Stage C P-M5 CpmmSwapTx admission — `amount_in.units == 0`. Rejected
+    /// pre-emptively to mirror Mint/Merge/Seed amount discipline. Maps to
+    /// `L4ERejectionClass::PolicyViolation`.
+    SwapZeroInput,
+    /// Stage C P-M5 CpmmSwapTx admission — no `cpmm_pools_t[event_id]`
+    /// entry exists. Pool must be initialized before swap is callable.
+    /// Maps to `L4ERejectionClass::PolicyViolation`.
+    SwapPoolNotFound,
+    /// Stage C P-M5 CpmmSwapTx admission — sender's input-side share
+    /// balance is below `amount_in.units`. Maps to
+    /// `L4ERejectionClass::PolicyViolation`.
+    SwapInsufficientSenderInput,
+    /// Stage C P-M5 CpmmSwapTx admission — pool's output-side reserves are
+    /// insufficient (computed `out_units >= pool_output_side.units` OR
+    /// `out_units == 0` from formula floor — input too small relative to
+    /// pool depth). Maps to `L4ERejectionClass::PolicyViolation`.
+    SwapInsufficientPoolOutput,
+    /// Stage C P-M5 CpmmSwapTx admission — `out_units < min_out.units`
+    /// (slippage protection per architect manual §7.6 verbatim
+    /// `swap_respects_min_out_slippage` test). Maps to
+    /// `L4ERejectionClass::PolicyViolation`.
+    SwapMinOutNotMet,
+    /// Stage C P-M5 CpmmSwapTx invariant — constant-product
+    /// `poolY1 * poolN1 >= poolY0 * poolN0` violated post-mutation. Should
+    /// never fire under floor-rounded integer math; rejection is a
+    /// defense-in-depth invariant guard. Maps to
+    /// `L4ERejectionClass::InvariantViolation`.
+    SwapConstantProductRegressed,
+
     // ── Stub sentinel (CO1.7.5 fills) ──────────────────────────────────────
     /// Stub return value used by CO1.7.5 unimplemented bodies — preserves
     /// sequencer + dispatch correctness without forcing transition logic
@@ -2104,6 +2254,30 @@ impl std::fmt::Display for TransitionError {
             Self::MergeMoreThanOwned => write!(
                 f,
                 "Stage C P-M2 CompleteSetMergeTx: owner's YES or NO share balance below merge amount"
+            ),
+            Self::SwapZeroInput => write!(
+                f,
+                "Stage C P-M5 CpmmSwapTx: amount_in must be > 0"
+            ),
+            Self::SwapPoolNotFound => write!(
+                f,
+                "Stage C P-M5 CpmmSwapTx: no CpmmPool at event_id"
+            ),
+            Self::SwapInsufficientSenderInput => write!(
+                f,
+                "Stage C P-M5 CpmmSwapTx: sender input-side share balance < amount_in"
+            ),
+            Self::SwapInsufficientPoolOutput => write!(
+                f,
+                "Stage C P-M5 CpmmSwapTx: pool output-side reserves insufficient (or floor formula yields zero out)"
+            ),
+            Self::SwapMinOutNotMet => write!(
+                f,
+                "Stage C P-M5 CpmmSwapTx: computed out_units below min_out (slippage)"
+            ),
+            Self::SwapConstantProductRegressed => write!(
+                f,
+                "Stage C P-M5 CpmmSwapTx: constant-product invariant violated (poolY1 * poolN1 < poolY0 * poolN0)"
             ),
             Self::NotYetImplemented => write!(f, "transition body not yet implemented (CO1.7.5)"),
         }

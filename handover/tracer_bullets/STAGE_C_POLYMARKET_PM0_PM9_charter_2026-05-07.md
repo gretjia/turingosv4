@@ -124,6 +124,8 @@ Per parent authorization §3.3 + alignment-doc §3 (zh) / §4 (en) Stage C:
 
 ### §3.6. P-M5 — Share-only swap
 
+**P-M5 STATUS**: 🟢 SHIPPED 2026-05-09 (session #27, plan cozy-waddling-raven Step 7, STEP_B parallel-branch `feat/p-m5-cpmm-swap`) — `tests/constitution_cpmm_swap.rs` exact-matches all 6 architect manual §7.6 verbatim test names: `swap_no_for_yes_constant_product_non_decreasing` + `swap_yes_for_no_constant_product_non_decreasing` + `swap_fails_zero_input` + `swap_fails_insufficient_pool_output` + `swap_respects_min_out_slippage` + `swap_uses_integer_math_no_f64`. New `CpmmSwapTx` typed-tx variant (TxKind::CpmmSwap=15) + sequencer dispatch arm with integer floor formula + 5 new TransitionError variants (SwapZeroInput / SwapPoolNotFound / SwapInsufficientSenderInput / SwapInsufficientPoolOutput / SwapMinOutNotMet / SwapConstantProductRegressed). Constitution market-quarantine ban list narrowed (` CPMM`, ` AMM`, `PriceIndex`, `yes_price`, `no_price`, `price_yes`, `price_no` removed — defense-in-depth via `no_f64_in_market_modules` + `swap_uses_integer_math_no_f64` + `price_never_overrides_predicate`). Class 3 wire-up — no per-atom §8 pause; covered by Stage C overall §8 sign-off.
+
 | ID | Requirement |
 |----|-------------|
 | FR-PM5.1 | Buy YES with NO: `outY = floor(dN * poolY / (poolN + dN))`; `poolN1 = poolN + dN`; `poolY1 = poolY - outY`. |

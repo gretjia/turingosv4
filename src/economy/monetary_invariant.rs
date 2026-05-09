@@ -377,7 +377,11 @@ pub fn assert_no_post_init_mint(tx: &TypedTx, q: &QState) -> Result<(), Monetary
         // debits collateral, credits owner balance 1:1. Symmetric balance ↔
         // collateral migration; no mint, no burn. CTF conservation enforced
         // by assert_total_ctf_conserved at the dispatch site.
-        | TypedTx::CompleteSetMerge(_) => Ok(()),
+        | TypedTx::CompleteSetMerge(_)
+        // Stage C P-M5 (architect manual §7.6): CpmmSwap moves shares
+        // between sender and pool. No Coin movement; no mint, no burn.
+        // Total Coin invariant trivially preserved.
+        | TypedTx::CpmmSwap(_) => Ok(()),
     }
 }
 

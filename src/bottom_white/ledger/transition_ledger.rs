@@ -104,6 +104,12 @@ pub enum TxKind {
     /// post-resolution merge is operationally subsumed by `Redeem` but
     /// remains technically callable while shares are not exhausted.
     CompleteSetMerge  = 14,
+    /// Stage C P-M5 (architect manual §7.6) — agent-signed share-only
+    /// CPMM swap (BuyYesWithNo or BuyNoWithYes) on a pre-existing
+    /// `CpmmPool` at the event. Integer floor formula
+    /// `outY = floor(dN * poolY / (poolN + dN))`; constant-product
+    /// invariant `poolY1 * poolN1 >= poolY0 * poolN0` enforced post-swap.
+    CpmmSwap          = 15,
 }
 
 /// TRACE_MATRIX FC2-Append + WP § 5.L4: stored LedgerEntry record (11 fields).
