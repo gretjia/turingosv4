@@ -103,8 +103,6 @@ Per parent authorization §3.3 + alignment-doc §3 (zh) / §4 (en) Stage C:
 
 ### §3.4. P-M3 — MarketSeedTx hardening
 
-**P-M3 STATUS**: 🟢 SHIPPED 2026-05-09 (session #27, plan cozy-waddling-raven Step 5) — `tests/constitution_marketseed_hardening.rs` exact-matches all 5 architect manual §7.4 verbatim test names: `market_seed_debits_provider` + `market_seed_creates_yes_no_inventory` + `market_seed_fails_insufficient_balance` + `market_seed_no_ghost_liquidity` + `market_seed_conserves_total_coin`. `cargo test --workspace --test constitution_marketseed_hardening` → 5 passed. Closes manifest D.4 PARTIAL-W → 🟢 GREEN.
-
 | ID | Requirement |
 |----|-------------|
 | FR-PM3.1 | `MarketSeedTx` MUST be collateral-backed per architect manual: provider deposits `seedC` Coin → CompleteSetMint-like operation creates `seedC` YES + `seedC` NO → shares go to pool inventory → collateral locks `seedC`. |
@@ -114,8 +112,6 @@ Per parent authorization §3.3 + alignment-doc §3 (zh) / §4 (en) Stage C:
 
 ### §3.5. P-M4 — Integer CpmmPool (Class 4 STEP_B if typed_tx surface)
 
-**P-M4 STATUS**: 🟢 SHIPPED 2026-05-09 (session #27, plan cozy-waddling-raven Step 6, STEP_B parallel-branch `feat/p-m4-cpmm-pool`) — `tests/constitution_cpmm_pool.rs` exact-matches all 4 architect manual §7.5 verbatim test names: `pool_created_from_seed_inventory` + `pool_reserves_not_counted_as_coin` + `lp_shares_not_counted_as_coin` + `pool_cannot_exist_without_collateralized_shares`. `cargo test --workspace --test constitution_cpmm_pool` → 4 passed. EconomicState sub-field count 13 → 14 with new `cpmm_pools_t: CpmmPoolsIndex` field. Awaiting **batch §8 sign-off** (P-M2 + P-M4 + P-M6).
-
 | ID | Requirement |
 |----|-------------|
 | FR-PM4.1 | `CpmmPool` state per architect manual: `{event_id, pool_yes, pool_no, lp_total_shares, status}`. |
@@ -123,8 +119,6 @@ Per parent authorization §3.3 + alignment-doc §3 (zh) / §4 (en) Stage C:
 | FR-PM4.3 | Tests: `pool_created_from_seed_inventory` + `pool_reserves_not_counted_as_coin` + `lp_shares_not_counted_as_coin` + `pool_cannot_exist_without_collateralized_shares`. |
 
 ### §3.6. P-M5 — Share-only swap
-
-**P-M5 STATUS**: 🟢 SHIPPED 2026-05-09 (session #27, plan cozy-waddling-raven Step 7, STEP_B parallel-branch `feat/p-m5-cpmm-swap`) — `tests/constitution_cpmm_swap.rs` exact-matches all 6 architect manual §7.6 verbatim test names: `swap_no_for_yes_constant_product_non_decreasing` + `swap_yes_for_no_constant_product_non_decreasing` + `swap_fails_zero_input` + `swap_fails_insufficient_pool_output` + `swap_respects_min_out_slippage` + `swap_uses_integer_math_no_f64`. New `CpmmSwapTx` typed-tx variant (TxKind::CpmmSwap=15) + sequencer dispatch arm with integer floor formula + 5 new TransitionError variants (SwapZeroInput / SwapPoolNotFound / SwapInsufficientSenderInput / SwapInsufficientPoolOutput / SwapMinOutNotMet / SwapConstantProductRegressed). Constitution market-quarantine ban list narrowed (` CPMM`, ` AMM`, `PriceIndex`, `yes_price`, `no_price`, `price_yes`, `price_no` removed — defense-in-depth via `no_f64_in_market_modules` + `swap_uses_integer_math_no_f64` + `price_never_overrides_predicate`). Class 3 wire-up — no per-atom §8 pause; covered by Stage C overall §8 sign-off.
 
 | ID | Requirement |
 |----|-------------|
@@ -134,8 +128,6 @@ Per parent authorization §3.3 + alignment-doc §3 (zh) / §4 (en) Stage C:
 | FR-PM5.4 | Tests: `swap_no_for_yes_constant_product_non_decreasing` + `swap_yes_for_no_constant_product_non_decreasing` + `swap_fails_zero_input` + `swap_fails_insufficient_pool_output` + `swap_respects_min_out_slippage` + `swap_uses_integer_math_no_f64`. |
 
 ### §3.7. P-M6 — Mint-and-Swap Router (Class 4 STEP_B if typed_tx surface)
-
-**P-M6 STATUS**: 🟢 SHIPPED 2026-05-09 (session #27, plan cozy-waddling-raven Step 8, STEP_B parallel-branch `feat/p-m6-router`) — `tests/constitution_router_buy_with_coin.rs` exact-matches all 9 architect manual §7.7 verbatim test names: `buy_yes_with_coin_matches_formula` + `buy_no_with_coin_matches_symmetric_formula` + `buy_yes_debits_coin_locks_collateral` + `buy_yes_mints_complete_set` + `buy_yes_transfers_retained_yes_plus_swap_yes` + `buy_yes_respects_min_yes_out` + `buy_yes_no_f64` + `buy_yes_no_ghost_liquidity` + `router_atomic_rollback_on_failure`. New `BuyWithCoinRouterTx` typed-tx variant (TxKind::BuyWithCoinRouter=16) + atomic 9-step dispatch arm composing CompleteSetMint + CpmmSwap. `assert_complete_set_balanced` extended to include `cpmm_pools_t` reserves (architect §7.5 "share balances controlled by pool"). 3 new TransitionError variants (RouterPayCoinNotPositive / RouterInsufficientBuyerBalance / RouterMinTotalOutNotMet). **Awaiting batch §8 sign-off** (P-M2 + P-M4 + P-M6). Class 4 STEP_B.
 
 | ID | Requirement |
 |----|-------------|
@@ -147,8 +139,6 @@ Per parent authorization §3.3 + alignment-doc §3 (zh) / §4 (en) Stage C:
 
 ### §3.8. P-M7 — PriceIndex from CPMM (signal-only)
 
-**P-M7 STATUS**: 🟢 SHIPPED 2026-05-09 (session #27, plan cozy-waddling-raven Step 10) — `tests/constitution_price_index_signal_only.rs` exact-matches all 4 architect manual §7.8 verbatim test names: `price_quote_does_not_change_state` + `price_signal_not_predicate` + `price_does_not_make_failed_node_accepted` + `low_liquidity_warning`. New pure helper `cpmm_price_quote` in `src/state/price_index.rs` (additive; no mutation surface). Source-grep guards verify sequencer.rs does NOT call cpmm_price_quote (price-not-truth invariant defense-in-depth). Class 2.
-
 | ID | Requirement |
 |----|-------------|
 | FR-PM7.1 | `price_yes_effective = quote_payC / quote_getY`; `price_no_effective = quote_payC / quote_getN`. |
@@ -157,8 +147,6 @@ Per parent authorization §3.3 + alignment-doc §3 (zh) / §4 (en) Stage C:
 | FR-PM7.4 | Tests (per manual §7.8): `price_quote_does_not_change_state` + `price_signal_not_predicate` + `price_does_not_make_failed_node_accepted` + `low_liquidity_warning`. |
 
 ### §3.9. P-M8 — Audit views
-
-**P-M8 STATUS**: 🟢 SHIPPED 2026-05-09 (session #27, plan cozy-waddling-raven Step 11) — `tests/audit_tape_views.rs` exact-matches all 3 architect manual §7.9 verbatim test names: `audit_view_shares_matches_state` + `audit_view_pools_matches_state` + `dashboard_regenerates_market_view`. New `src/runtime/audit_views.rs` module with 4 pure projection functions: `view_shares` + `view_pools` + `view_prices` + `view_positions`. Class 1 (pure read-side; no state mutation; price quotes never enter predicate paths per architect §7.8). CLI subcommand wrapping in `audit_tape` is a forward step; pure functions are the constitution-gate-relevant surface.
 
 | ID | Requirement |
 |----|-------------|
@@ -169,8 +157,6 @@ Per parent authorization §3.3 + alignment-doc §3 (zh) / §4 (en) Stage C:
 | FR-PM8.5 | Tests: `audit_view_shares_matches_state` + `audit_view_pools_matches_state` + `dashboard_regenerates_market_view`. |
 
 ### §3.10. P-M9 — Controlled market smoke
-
-**P-M9 STATUS**: 🟢 SHIPPED 2026-05-09 (session #27, plan cozy-waddling-raven Step 12) — `tests/stage_c_pm9_controlled_smoke.rs::stage_c_pm9_controlled_market_smoke` integration smoke drives the full Polymarket atom chain (BuyYesWithCoinRouter → BuyNoWithCoinRouter → PriceIndex quote → audit views → CompleteSetMerge rejection) through the Sequencer with synthetic-but-canonical fixture state. All 6 SG-StageC-PM.9 gates GREEN: no ghost liquidity / CTF conservation end-to-end / no price-as-truth / no raw log broadcast / FC1 invariant / replay determinism. Evidence at `handover/evidence/stage_c_pm9_controlled_smoke_20260509T042633Z/` (`run_log.txt` + `final_state.json` with verdict PASS). Evidence write is `TURINGOS_TEST_REGENERATE_EVIDENCE=1` gated per FC2-INV5 evidence-immutability. The "Lean task" + "Agent A/B WorkTx + ChallengeTx" + "Task resolved" + "Autopsy" portions of architect §7.10 remain covered by the existing FC1 substrate; this smoke focuses on the NEW Stage C market-lifecycle composition (P-M2 + P-M4 + P-M5 + P-M6 + P-M7 + P-M8).
 
 | ID | Requirement |
 |----|-------------|

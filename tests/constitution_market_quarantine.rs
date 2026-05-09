@@ -51,32 +51,16 @@ const MARKET_SUBSTRATE_ALLOW_LIST: &[&str] = &[
 ];
 
 /// Hard-banned tokens that must NOT appear in any market-substrate file
-/// (in non-comment lines). Architect §5.2 + §4.7 forbidden list, narrowed
-/// 2026-05-09 (Stage C P-M4 + P-M5) to the truly-forbidden surface:
+/// (in non-comment lines). Architect §5.2 + §4.7 forbidden list:
 ///
-///   - `prediction_market::` — direct path-import of legacy f64 module
+///   - `prediction_market::` — direct path-import of legacy module
 ///   - `BinaryMarket` — legacy f64 CPMM type
-///   - `bounty_market` / `bounty_lp_seed` / `bounty_yes_price` /
-///     `resolve_bounty` / `open_bounty_market` — legacy bounty surface
-///   - ` DPMM` — architect explicit forbidden list ("no DPMM / pro-rata
-///     payout inside CTF track"; charter §6 + architect manual §6 / §8)
+///   - `AMM`, `CPMM`, `DPMM` — legacy / external market mechanism names
+///     forbidden in TB-13 substrate (deferred to architect-spec'd CPMM
+///     in §5.6+, which uses integer math by construction)
 ///   - `orderbook` — orderbook trading deferred indefinitely
-///   - `RationalPrice` — legacy f64 price substitute type
-///   - `.buy_yes(` / `.buy_no(` — legacy method-call shape (architect
-///     §7.7 router uses different method names: `buy_yes_with_coin_router`
-///     etc.)
-///
-/// **Tokens REMOVED from ban list at Stage C P-M4+P-M5 landing
-/// (2026-05-09)**:
-///   - ` CPMM`, ` AMM` — architect manual §7.5 / §7.6 explicitly defines
-///     `CpmmPool` (integer math) + share-only swap (AMM-shaped). f64
-///     defense is provided independently by `no_f64_in_market_modules` +
-///     `swap_uses_integer_math_no_f64` tests.
 ///   - `PriceIndex`, `yes_price`, `no_price`, `price_yes`, `price_no` —
-///     architect manual §7.8 defines `PriceIndex` as signal (not truth).
-///     Price-as-truth defense is provided by
-///     `tests/constitution_predicate_gate.rs::price_never_overrides_predicate`
-///     + P-M7 verbatim `price_signal_not_predicate`.
+///     price-as-truth concepts deferred to TB-14+ price-as-signal
 const HARD_BANNED_LEGACY_TOKENS: &[&str] = &[
     "prediction_market::",
     "BinaryMarket",
@@ -85,8 +69,15 @@ const HARD_BANNED_LEGACY_TOKENS: &[&str] = &[
     "bounty_lp_seed",
     "bounty_yes_price",
     "resolve_bounty",
+    " AMM",
+    " CPMM",
     " DPMM",
     "orderbook",
+    "PriceIndex",
+    "yes_price",
+    "no_price",
+    "price_yes",
+    "price_no",
     "RationalPrice",
     ".buy_yes(",
     ".buy_no(",

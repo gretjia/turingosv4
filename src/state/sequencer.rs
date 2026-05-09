@@ -299,55 +299,6 @@ pub fn market_seed_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
     Hash::from_bytes(digest)
 }
 
-/// TRACE_MATRIX Stage C P-M2 (architect manual §7.3): CompleteSetMerge-accept
-/// state-root domain. Distinct prefix prevents cross-tx digest collision
-/// with `CompleteSetMint` despite the inverse-effect symmetry.
-pub(crate) const COMPLETE_SET_MERGE_DOMAIN_V1: &[u8] =
-    b"turingosv4.complete_set_merge.accept.v1";
-
-/// TRACE_MATRIX Stage C P-M2: state-root mutator on `CompleteSetMergeTx`
-/// accept. Mirror of `complete_set_mint_accept_state_root`.
-pub fn complete_set_merge_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
-    let mut h = Sha256::new();
-    h.update(COMPLETE_SET_MERGE_DOMAIN_V1);
-    h.update(prev.0);
-    h.update(canonical_encode(tx).expect("TypedTx is canonical-encodable"));
-    let digest: [u8; 32] = h.finalize().into();
-    Hash::from_bytes(digest)
-}
-
-/// TRACE_MATRIX Stage C P-M5 (architect manual §7.6): CpmmSwap-accept
-/// state-root domain.
-pub(crate) const CPMM_SWAP_DOMAIN_V1: &[u8] =
-    b"turingosv4.cpmm_swap.accept.v1";
-
-/// TRACE_MATRIX Stage C P-M5: state-root mutator on `CpmmSwapTx` accept.
-/// Mirror of `complete_set_mint_accept_state_root`.
-pub fn cpmm_swap_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
-    let mut h = Sha256::new();
-    h.update(CPMM_SWAP_DOMAIN_V1);
-    h.update(prev.0);
-    h.update(canonical_encode(tx).expect("TypedTx is canonical-encodable"));
-    let digest: [u8; 32] = h.finalize().into();
-    Hash::from_bytes(digest)
-}
-
-/// TRACE_MATRIX Stage C P-M6 (architect manual §7.7): BuyWithCoinRouter-
-/// accept state-root domain.
-pub(crate) const BUY_WITH_COIN_ROUTER_DOMAIN_V1: &[u8] =
-    b"turingosv4.buy_with_coin_router.accept.v1";
-
-/// TRACE_MATRIX Stage C P-M6: state-root mutator on `BuyWithCoinRouterTx`
-/// accept. Mirror of `complete_set_mint_accept_state_root`.
-pub fn buy_with_coin_router_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
-    let mut h = Sha256::new();
-    h.update(BUY_WITH_COIN_ROUTER_DOMAIN_V1);
-    h.update(prev.0);
-    h.update(canonical_encode(tx).expect("TypedTx is canonical-encodable"));
-    let digest: [u8; 32] = h.finalize().into();
-    Hash::from_bytes(digest)
-}
-
 // ────────────────────────────────────────────────────────────────────────────
 // TB-2 Atom 4 — rejection-path helpers (preflight v3 §3.5 + §3.7)
 // ────────────────────────────────────────────────────────────────────────────
@@ -622,7 +573,6 @@ fn system_message_for_verification(
         // Agent-submitted variants: stage 1.5 is system-only. TB-13
         // CompleteSetMint / CompleteSetRedeem / MarketSeed are agent-signed
         // (verified separately at admission via the agent-signature path).
-        // Stage C P-M2 CompleteSetMerge follows the same agent-signed pattern.
         TypedTx::Work(_)
         | TypedTx::Verify(_)
         | TypedTx::Challenge(_)
@@ -631,10 +581,7 @@ fn system_message_for_verification(
         | TypedTx::EscrowLock(_)
         | TypedTx::CompleteSetMint(_)
         | TypedTx::CompleteSetRedeem(_)
-        | TypedTx::MarketSeed(_)
-        | TypedTx::CompleteSetMerge(_)
-        | TypedTx::CpmmSwap(_)
-        | TypedTx::BuyWithCoinRouter(_) => None,
+        | TypedTx::MarketSeed(_) => None,
     }
 }
 
@@ -657,10 +604,7 @@ fn system_signature_of(
         | TypedTx::EscrowLock(_)
         | TypedTx::CompleteSetMint(_)
         | TypedTx::CompleteSetRedeem(_)
-        | TypedTx::MarketSeed(_)
-        | TypedTx::CompleteSetMerge(_)
-        | TypedTx::CpmmSwap(_)
-        | TypedTx::BuyWithCoinRouter(_) => None,
+        | TypedTx::MarketSeed(_) => None,
     }
 }
 
@@ -688,10 +632,7 @@ fn system_epoch_of(tx: &TypedTx) -> Option<SystemEpoch> {
         | TypedTx::EscrowLock(_)
         | TypedTx::CompleteSetMint(_)
         | TypedTx::CompleteSetRedeem(_)
-        | TypedTx::MarketSeed(_)
-        | TypedTx::CompleteSetMerge(_)
-        | TypedTx::CpmmSwap(_)
-        | TypedTx::BuyWithCoinRouter(_) => None,
+        | TypedTx::MarketSeed(_) => None,
     }
 }
 
@@ -2140,487 +2081,6 @@ pub(crate) fn dispatch_transition(
 
             Ok((q_next, SignalBundle::default()))
         }
-        // ──────────────────────────────────────────────────────────────────
-        // Stage C P-M2 — CompleteSetMergeTx accept arm (architect manual §7.3).
-        //
-        //   1 YES + 1 NO → 1 Coin (inverse of CompleteSetMint).
-        //
-        // Allowed regardless of `task_markets_t` state — Merge is symmetric
-        // (no outcome-side advantage). Post-resolution merge is operationally
-        // subsumed by Redeem in the optimal path; the verbatim test
-        // `merge_unavailable_after_final_redeem_if_shares_exhausted` falls
-        // out of the share-balance check (Step 3) when both sides are
-        // already redeemed.
-        // ──────────────────────────────────────────────────────────────────
-        TypedTx::CompleteSetMerge(merge) => {
-            // Step 1: parent-root match.
-            if merge.parent_state_root != q.state_root_t {
-                return Err(TransitionError::StaleParent);
-            }
-            // Step 2: amount > 0 strictly. Zero merge = no-op; reject to
-            // mirror Mint/Seed amount discipline.
-            if merge.amount.units == 0 {
-                return Err(TransitionError::MergeAmountZero);
-            }
-            // Step 3: owner has ≥ amount on BOTH sides at this event_id.
-            let pair = q
-                .economic_state_t
-                .conditional_share_balances_t
-                .0
-                .get(&merge.owner)
-                .and_then(|m| m.get(&merge.event_id))
-                .copied()
-                .unwrap_or_default();
-            if pair.yes.units < merge.amount.units || pair.no.units < merge.amount.units {
-                return Err(TransitionError::MergeMoreThanOwned);
-            }
-            // Step 4: collateral coverage (defensive; should hold if
-            // assert_complete_set_balanced is preserved).
-            let event_collateral = q
-                .economic_state_t
-                .conditional_collateral_t
-                .0
-                .get(&merge.event_id)
-                .copied()
-                .unwrap_or(crate::economy::money::MicroCoin::zero());
-            if (event_collateral.micro_units() as u128) < merge.amount.units {
-                return Err(TransitionError::InsufficientCollateral);
-            }
-
-            // Step 5: build q_next — debit YES + NO shares; debit
-            // collateral; credit owner Coin balance 1:1.
-            let mut q_next = q.clone();
-            // 5a: debit BOTH sides of owner's share balance.
-            {
-                let owner_shares = q_next
-                    .economic_state_t
-                    .conditional_share_balances_t
-                    .0
-                    .entry(merge.owner.clone())
-                    .or_insert_with(std::collections::BTreeMap::new);
-                let pair = owner_shares
-                    .entry(merge.event_id.clone())
-                    .or_insert(crate::state::q_state::ShareSidePair::default());
-                pair.yes = crate::state::typed_tx::ShareAmount::from_units(
-                    pair.yes.units - merge.amount.units,
-                );
-                pair.no = crate::state::typed_tx::ShareAmount::from_units(
-                    pair.no.units - merge.amount.units,
-                );
-            }
-            // 5b: debit event collateral by amount (interpreted as MicroCoin).
-            {
-                let collateral_entry = q_next
-                    .economic_state_t
-                    .conditional_collateral_t
-                    .0
-                    .entry(merge.event_id.clone())
-                    .or_insert(crate::economy::money::MicroCoin::zero());
-                *collateral_entry = crate::economy::money::MicroCoin::from_micro_units(
-                    collateral_entry.micro_units() - merge.amount.units as i64,
-                );
-            }
-            // 5c: credit owner Coin balance 1:1 with `amount` units.
-            let owner_bal = q_next
-                .economic_state_t
-                .balances_t
-                .0
-                .get(&merge.owner)
-                .copied()
-                .unwrap_or(crate::economy::money::MicroCoin::zero());
-            q_next.economic_state_t.balances_t.0.insert(
-                merge.owner.clone(),
-                crate::economy::money::MicroCoin::from_micro_units(
-                    owner_bal.micro_units() + merge.amount.units as i64,
-                ),
-            );
-
-            // Step 6: monetary invariants.
-            assert_no_post_init_mint(tx, q)
-                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
-            assert_total_ctf_conserved(
-                &q.economic_state_t,
-                &q_next.economic_state_t,
-                &[],
-            )
-            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
-            crate::economy::monetary_invariant::assert_complete_set_balanced(
-                &q_next.economic_state_t,
-            )
-            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
-
-            // Step 7: state_root advance.
-            q_next.state_root_t = complete_set_merge_accept_state_root(&q.state_root_t, tx);
-
-            Ok((q_next, SignalBundle::default()))
-        }
-        // ──────────────────────────────────────────────────────────────────
-        // Stage C P-M5 — CpmmSwapTx accept arm (architect manual §7.6).
-        //
-        //   BuyYesWithNo: outY = floor(dN * poolY / (poolN + dN))
-        //   BuyNoWithYes: outN = floor(dY * poolN / (poolY + dY))
-        //
-        // Sender pays one side's shares, pool returns the other side's
-        // shares; constant-product non-decreasing under floor rounding
-        // (dust stays in pool).
-        // ──────────────────────────────────────────────────────────────────
-        TypedTx::CpmmSwap(swap) => {
-            // Step 1: parent-root match.
-            if swap.parent_state_root != q.state_root_t {
-                return Err(TransitionError::StaleParent);
-            }
-            // Step 2: amount_in > 0.
-            if swap.amount_in.units == 0 {
-                return Err(TransitionError::SwapZeroInput);
-            }
-            // Step 3: pool entry exists at event_id.
-            let pool_pre = q
-                .economic_state_t
-                .cpmm_pools_t
-                .0
-                .get(&swap.event_id)
-                .copied()
-                .ok_or(TransitionError::SwapPoolNotFound)?;
-            // Step 4: sender holds ≥ amount_in of input side.
-            let sender_pair = q
-                .economic_state_t
-                .conditional_share_balances_t
-                .0
-                .get(&swap.sender)
-                .and_then(|m| m.get(&swap.event_id))
-                .copied()
-                .unwrap_or_default();
-            let (sender_input_units, sender_output_units, pool_input_units, pool_output_units) =
-                match swap.side {
-                    crate::state::typed_tx::SwapSide::BuyYesWithNo => (
-                        sender_pair.no.units,
-                        sender_pair.yes.units,
-                        pool_pre.pool_no.units,
-                        pool_pre.pool_yes.units,
-                    ),
-                    crate::state::typed_tx::SwapSide::BuyNoWithYes => (
-                        sender_pair.yes.units,
-                        sender_pair.no.units,
-                        pool_pre.pool_yes.units,
-                        pool_pre.pool_no.units,
-                    ),
-                };
-            if sender_input_units < swap.amount_in.units {
-                return Err(TransitionError::SwapInsufficientSenderInput);
-            }
-            // Step 5: integer floor formula
-            //   out_units = floor(amount_in * pool_output / (pool_input + amount_in))
-            let denom = pool_input_units
-                .checked_add(swap.amount_in.units)
-                .ok_or(TransitionError::SwapInsufficientPoolOutput)?;
-            if denom == 0 {
-                return Err(TransitionError::SwapInsufficientPoolOutput);
-            }
-            let numerator = swap
-                .amount_in
-                .units
-                .checked_mul(pool_output_units)
-                .ok_or(TransitionError::SwapInsufficientPoolOutput)?;
-            let out_units = numerator / denom;
-            if out_units == 0 || out_units >= pool_output_units {
-                return Err(TransitionError::SwapInsufficientPoolOutput);
-            }
-            // Step 6: slippage protection.
-            if out_units < swap.min_out.units {
-                return Err(TransitionError::SwapMinOutNotMet);
-            }
-            // Step 7: build q_next — sender + pool both rebalance.
-            let mut q_next = q.clone();
-            // 7a: sender input -= amount_in; sender output += out_units.
-            {
-                let sender_shares = q_next
-                    .economic_state_t
-                    .conditional_share_balances_t
-                    .0
-                    .entry(swap.sender.clone())
-                    .or_insert_with(std::collections::BTreeMap::new);
-                let pair = sender_shares
-                    .entry(swap.event_id.clone())
-                    .or_insert(crate::state::q_state::ShareSidePair::default());
-                match swap.side {
-                    crate::state::typed_tx::SwapSide::BuyYesWithNo => {
-                        pair.no = crate::state::typed_tx::ShareAmount::from_units(
-                            pair.no.units - swap.amount_in.units,
-                        );
-                        pair.yes = crate::state::typed_tx::ShareAmount::from_units(
-                            pair.yes.units + out_units,
-                        );
-                    }
-                    crate::state::typed_tx::SwapSide::BuyNoWithYes => {
-                        pair.yes = crate::state::typed_tx::ShareAmount::from_units(
-                            pair.yes.units - swap.amount_in.units,
-                        );
-                        pair.no = crate::state::typed_tx::ShareAmount::from_units(
-                            pair.no.units + out_units,
-                        );
-                    }
-                }
-            }
-            // 7b: pool input += amount_in; pool output -= out_units.
-            let pool_post = {
-                let pool = q_next
-                    .economic_state_t
-                    .cpmm_pools_t
-                    .0
-                    .get_mut(&swap.event_id)
-                    .expect("pool exists (validated step 3)");
-                match swap.side {
-                    crate::state::typed_tx::SwapSide::BuyYesWithNo => {
-                        pool.pool_no = crate::state::typed_tx::ShareAmount::from_units(
-                            pool.pool_no.units + swap.amount_in.units,
-                        );
-                        pool.pool_yes = crate::state::typed_tx::ShareAmount::from_units(
-                            pool.pool_yes.units - out_units,
-                        );
-                    }
-                    crate::state::typed_tx::SwapSide::BuyNoWithYes => {
-                        pool.pool_yes = crate::state::typed_tx::ShareAmount::from_units(
-                            pool.pool_yes.units + swap.amount_in.units,
-                        );
-                        pool.pool_no = crate::state::typed_tx::ShareAmount::from_units(
-                            pool.pool_no.units - out_units,
-                        );
-                    }
-                }
-                *pool
-            };
-            // Step 8: constant-product non-decreasing invariant.
-            // Use u128 multiplication; for Stage C scale (reserves ≤ 2^60)
-            // this stays well below u128::MAX. Forward-bind to u256/saturating
-            // when reserve scale exceeds Stage C bound.
-            let k_pre = pool_pre
-                .pool_yes
-                .units
-                .checked_mul(pool_pre.pool_no.units)
-                .ok_or(TransitionError::SwapConstantProductRegressed)?;
-            let k_post = pool_post
-                .pool_yes
-                .units
-                .checked_mul(pool_post.pool_no.units)
-                .ok_or(TransitionError::SwapConstantProductRegressed)?;
-            if k_post < k_pre {
-                return Err(TransitionError::SwapConstantProductRegressed);
-            }
-            // Step 9: monetary invariants — swap moves shares only;
-            // total Coin and conditional collateral both unchanged.
-            assert_no_post_init_mint(tx, q)
-                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
-            assert_total_ctf_conserved(
-                &q.economic_state_t,
-                &q_next.economic_state_t,
-                &[],
-            )
-            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
-            // Note: assert_complete_set_balanced is NOT applicable to swap —
-            // swap moves shares between sender and pool; the
-            // min(Σ_yes, Σ_no) == collateral identity may temporarily
-            // diverge if the test fixture starts with non-balanced state.
-            // Forward-bind a pool-aware variant if needed; for now the
-            // CTF conservation + constant-product checks are sufficient.
-
-            // Step 10: state_root advance.
-            q_next.state_root_t = cpmm_swap_accept_state_root(&q.state_root_t, tx);
-
-            Ok((q_next, SignalBundle::default()))
-        }
-        // ──────────────────────────────────────────────────────────────────
-        // Stage C P-M6 — BuyWithCoinRouterTx accept arm (architect manual §7.7).
-        //
-        //   BuyYesWithCoinRouter(payC):
-        //     1. Debit buyer Coin by payC.
-        //     2. Lock payC collateral.
-        //     3. Mint payC YES + payC NO to router.
-        //     4. Transfer payC YES to buyer (retained side).
-        //     5. Swap payC NO into CPMM pool.
-        //     6. Pool receives dN = payC NO; router receives outY YES.
-        //        outY = floor(payC * poolY / (poolN + payC))
-        //     7. Transfer outY YES to buyer.
-        //     8. Buyer receives getY = payC + outY.
-        //     9. Constant-product invariant `poolY1 * poolN1 >= poolY * poolN`
-        //        enforced post-mutation (floor rounding keeps dust in pool).
-        //   BuyNoWithCoinRouter is symmetric.
-        //
-        // Atomic rollback: any single-step Err(_) below returns before
-        // state advance — q_next is local and discarded on error.
-        // ──────────────────────────────────────────────────────────────────
-        TypedTx::BuyWithCoinRouter(router) => {
-            // Step 1: parent-root match.
-            if router.parent_state_root != q.state_root_t {
-                return Err(TransitionError::StaleParent);
-            }
-            // Step 2: pay_coin > 0.
-            if router.pay_coin.micro_units() <= 0 {
-                return Err(TransitionError::RouterPayCoinNotPositive);
-            }
-            let pay_units = router.pay_coin.micro_units() as u128;
-            // Step 3: pool exists.
-            let pool_pre = q
-                .economic_state_t
-                .cpmm_pools_t
-                .0
-                .get(&router.event_id)
-                .copied()
-                .ok_or(TransitionError::SwapPoolNotFound)?;
-            // Step 4: buyer balance >= pay_coin.
-            let buyer_bal = q
-                .economic_state_t
-                .balances_t
-                .0
-                .get(&router.buyer)
-                .copied()
-                .unwrap_or(crate::economy::money::MicroCoin::zero());
-            if buyer_bal.micro_units() < router.pay_coin.micro_units() {
-                return Err(TransitionError::RouterInsufficientBuyerBalance);
-            }
-            // Step 5: compute swap output. `pool_input_units` is the side
-            // that grows (buyer's swapped-in side = the OPPOSITE of the
-            // direction's retained side). For BuyYes, retained = YES,
-            // swapped = NO → pool_input is poolN.
-            let (pool_input_units, pool_output_units) = match router.direction {
-                crate::state::typed_tx::BuyDirection::BuyYes => {
-                    (pool_pre.pool_no.units, pool_pre.pool_yes.units)
-                }
-                crate::state::typed_tx::BuyDirection::BuyNo => {
-                    (pool_pre.pool_yes.units, pool_pre.pool_no.units)
-                }
-            };
-            let denom = pool_input_units
-                .checked_add(pay_units)
-                .ok_or(TransitionError::SwapInsufficientPoolOutput)?;
-            if denom == 0 {
-                return Err(TransitionError::SwapInsufficientPoolOutput);
-            }
-            let numerator = pay_units
-                .checked_mul(pool_output_units)
-                .ok_or(TransitionError::SwapInsufficientPoolOutput)?;
-            let out_units = numerator / denom;
-            if out_units == 0 || out_units >= pool_output_units {
-                return Err(TransitionError::SwapInsufficientPoolOutput);
-            }
-            // Step 6: getY total = pay_units + out_units (architect §7.7
-            // verbatim "buyer receives getY = payC + outY").
-            let total_out_units = pay_units
-                .checked_add(out_units)
-                .ok_or(TransitionError::SwapInsufficientPoolOutput)?;
-            // Step 7: slippage protection on total_out.
-            if total_out_units < router.min_total_out.units {
-                return Err(TransitionError::RouterMinTotalOutNotMet);
-            }
-            // Step 8: build q_next — atomic mutation.
-            let mut q_next = q.clone();
-            // 8a: debit buyer balance + credit collateral by pay_coin.
-            let new_buyer_bal_micro =
-                buyer_bal.micro_units() - router.pay_coin.micro_units();
-            q_next.economic_state_t.balances_t.0.insert(
-                router.buyer.clone(),
-                crate::economy::money::MicroCoin::from_micro_units(new_buyer_bal_micro),
-            );
-            {
-                let collateral_entry = q_next
-                    .economic_state_t
-                    .conditional_collateral_t
-                    .0
-                    .entry(router.event_id.clone())
-                    .or_insert(crate::economy::money::MicroCoin::zero());
-                *collateral_entry = crate::economy::money::MicroCoin::from_micro_units(
-                    collateral_entry.micro_units() + router.pay_coin.micro_units(),
-                );
-            }
-            // 8b: credit buyer's retained side by total_out_units (= mint
-            // pay_units + swap out_units, condensed) and credit buyer's
-            // OTHER side by 0 (mint adds pay_units NO/YES which is then
-            // swapped into pool — net 0 buyer exposure to the swapped side).
-            {
-                let buyer_shares = q_next
-                    .economic_state_t
-                    .conditional_share_balances_t
-                    .0
-                    .entry(router.buyer.clone())
-                    .or_insert_with(std::collections::BTreeMap::new);
-                let pair = buyer_shares
-                    .entry(router.event_id.clone())
-                    .or_insert(crate::state::q_state::ShareSidePair::default());
-                match router.direction {
-                    crate::state::typed_tx::BuyDirection::BuyYes => {
-                        pair.yes = crate::state::typed_tx::ShareAmount::from_units(
-                            pair.yes.units + total_out_units,
-                        );
-                    }
-                    crate::state::typed_tx::BuyDirection::BuyNo => {
-                        pair.no = crate::state::typed_tx::ShareAmount::from_units(
-                            pair.no.units + total_out_units,
-                        );
-                    }
-                }
-            }
-            // 8c: pool reserves: input side += pay_units; output side -= out_units.
-            let pool_post = {
-                let pool = q_next
-                    .economic_state_t
-                    .cpmm_pools_t
-                    .0
-                    .get_mut(&router.event_id)
-                    .expect("pool exists (validated step 3)");
-                match router.direction {
-                    crate::state::typed_tx::BuyDirection::BuyYes => {
-                        pool.pool_no = crate::state::typed_tx::ShareAmount::from_units(
-                            pool.pool_no.units + pay_units,
-                        );
-                        pool.pool_yes = crate::state::typed_tx::ShareAmount::from_units(
-                            pool.pool_yes.units - out_units,
-                        );
-                    }
-                    crate::state::typed_tx::BuyDirection::BuyNo => {
-                        pool.pool_yes = crate::state::typed_tx::ShareAmount::from_units(
-                            pool.pool_yes.units + pay_units,
-                        );
-                        pool.pool_no = crate::state::typed_tx::ShareAmount::from_units(
-                            pool.pool_no.units - out_units,
-                        );
-                    }
-                }
-                *pool
-            };
-            // Step 9: constant-product non-decreasing invariant.
-            let k_pre = pool_pre
-                .pool_yes
-                .units
-                .checked_mul(pool_pre.pool_no.units)
-                .ok_or(TransitionError::SwapConstantProductRegressed)?;
-            let k_post = pool_post
-                .pool_yes
-                .units
-                .checked_mul(pool_post.pool_no.units)
-                .ok_or(TransitionError::SwapConstantProductRegressed)?;
-            if k_post < k_pre {
-                return Err(TransitionError::SwapConstantProductRegressed);
-            }
-            // Step 10: monetary invariants — Coin balance debit equals
-            // collateral credit (mint side); share supply increases by
-            // 2 × pay_units (mint adds pay YES + pay NO). CTF preserved.
-            assert_no_post_init_mint(tx, q)
-                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
-            assert_total_ctf_conserved(
-                &q.economic_state_t,
-                &q_next.economic_state_t,
-                &[],
-            )
-            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
-            crate::economy::monetary_invariant::assert_complete_set_balanced(
-                &q_next.economic_state_t,
-            )
-            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
-
-            // Step 11: state_root advance.
-            q_next.state_root_t = buy_with_coin_router_accept_state_root(&q.state_root_t, tx);
-
-            Ok((q_next, SignalBundle::default()))
-        }
     }
 }
 
@@ -3139,8 +2599,6 @@ impl Sequencer {
             // Agent-submitted variants — proceed to queue. TB-13 conditional-
             // share variants (CompleteSetMint / CompleteSetRedeem / MarketSeed)
             // are agent-signed and admit through the same ingress path.
-            // Stage C P-M2 CompleteSetMerge + Stage C P-M5 CpmmSwap +
-            // Stage C P-M6 BuyWithCoinRouter follow the same agent-signed pattern.
             TypedTx::Work(_)
             | TypedTx::Verify(_)
             | TypedTx::Challenge(_)
@@ -3149,10 +2607,7 @@ impl Sequencer {
             | TypedTx::EscrowLock(_)
             | TypedTx::CompleteSetMint(_)
             | TypedTx::CompleteSetRedeem(_)
-            | TypedTx::MarketSeed(_)
-            | TypedTx::CompleteSetMerge(_)
-            | TypedTx::CpmmSwap(_)
-            | TypedTx::BuyWithCoinRouter(_) => {}
+            | TypedTx::MarketSeed(_) => {}
         }
         // TRACE_MATRIX TB-13 Atom 6 round-3 (Codex VETO TB13-AUTH 2026-05-03):
         // submit-time agent-signature verification for the 3 TB-13
@@ -3189,39 +2644,6 @@ impl Sequencer {
                         .ok_or(SubmitError::AgentSignatureInvalid)?;
                     let digest = seed.to_signing_payload().canonical_digest();
                     if verify_agent_signature(&seed.signature, &digest, &pubkey).is_err() {
-                        return Err(SubmitError::AgentSignatureInvalid);
-                    }
-                }
-                // Stage C P-M2 (architect manual §7.3): same submit-time agent
-                // signature gate for CompleteSetMerge. Owner is the merger.
-                TypedTx::CompleteSetMerge(merge) => {
-                    let pubkey = manifest
-                        .get(&merge.owner)
-                        .ok_or(SubmitError::AgentSignatureInvalid)?;
-                    let digest = merge.to_signing_payload().canonical_digest();
-                    if verify_agent_signature(&merge.signature, &digest, &pubkey).is_err() {
-                        return Err(SubmitError::AgentSignatureInvalid);
-                    }
-                }
-                // Stage C P-M5 (architect manual §7.6): same submit-time agent
-                // signature gate for CpmmSwap. Sender is the swap initiator.
-                TypedTx::CpmmSwap(swap) => {
-                    let pubkey = manifest
-                        .get(&swap.sender)
-                        .ok_or(SubmitError::AgentSignatureInvalid)?;
-                    let digest = swap.to_signing_payload().canonical_digest();
-                    if verify_agent_signature(&swap.signature, &digest, &pubkey).is_err() {
-                        return Err(SubmitError::AgentSignatureInvalid);
-                    }
-                }
-                // Stage C P-M6 (architect manual §7.7): same submit-time agent
-                // signature gate for BuyWithCoinRouter. Buyer is the buyer.
-                TypedTx::BuyWithCoinRouter(router) => {
-                    let pubkey = manifest
-                        .get(&router.buyer)
-                        .ok_or(SubmitError::AgentSignatureInvalid)?;
-                    let digest = router.to_signing_payload().canonical_digest();
-                    if verify_agent_signature(&router.signature, &digest, &pubkey).is_err() {
                         return Err(SubmitError::AgentSignatureInvalid);
                     }
                 }

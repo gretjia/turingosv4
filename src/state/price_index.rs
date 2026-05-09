@@ -240,61 +240,6 @@ pub fn compute_price_index(econ: &EconomicState) -> BTreeMap<TxId, NodeMarketEnt
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// Stage C P-M7 — CPMM PriceIndex from pool reserves (architect manual §7.8).
-//
-// Pure quote function: given a hypothetical `pay_units` Coin debit toward
-// `BuyYes` or `BuyNo`, compute the would-be `getY` (or `getN`) total per
-// the BuyWithCoinRouter formula and return the effective integer-rational
-// price. Quote does NOT mutate state and has NO predicate-side effect —
-// it is signal-only per architect §7.8 + universal forbidden list
-// "no price-as-truth".
-// ─────────────────────────────────────────────────────────────────────────
-
-/// TRACE_MATRIX Stage C P-M7 (architect manual §7.8): low-liquidity warning
-/// threshold. Pools with pool_yes < this OR pool_no < this trigger the
-/// `low_liquidity_warning` indicator on price quotes — quotes are still
-/// returned (architect doesn't gate quoting on depth) but the consumer of
-/// the signal (UI / dashboard) should mark the price as uncertain.
-pub const STAGE_C_LOW_LIQUIDITY_THRESHOLD_UNITS: u128 = 100;
-
-/// TRACE_MATRIX Stage C P-M7 (architect manual §7.8): pure CPMM price
-/// quote. Returns `(get_total_units, low_liquidity_warning)` where
-/// `get_total_units = pay_units + out_units` per the BuyWithCoinRouter
-/// formula. Effective price is then `pay_units / get_total_units`.
-///
-/// **Quote does NOT change state**. **Quote does NOT decide predicate
-/// truth** (architect §7.8 + `tests/constitution_predicate_gate.rs::price_never_overrides_predicate`).
-///
-/// Returns `None` if:
-/// - `pay_units == 0` (no quote on zero pay)
-/// - `pool_input + pay_units` overflows u128 (extreme depth)
-/// - `pay_units * pool_output` overflows u128 (extreme depth)
-/// - `out_units == 0` (input too small relative to pool — formula floor yields zero)
-/// - `out_units >= pool_output_units` (formula sanity)
-pub fn cpmm_price_quote(
-    pool_input_units: u128,
-    pool_output_units: u128,
-    pay_units: u128,
-) -> Option<(u128, bool)> {
-    if pay_units == 0 {
-        return None;
-    }
-    let denom = pool_input_units.checked_add(pay_units)?;
-    if denom == 0 {
-        return None;
-    }
-    let numerator = pay_units.checked_mul(pool_output_units)?;
-    let out_units = numerator / denom;
-    if out_units == 0 || out_units >= pool_output_units {
-        return None;
-    }
-    let get_total = pay_units.checked_add(out_units)?;
-    let low_liquidity = pool_input_units < STAGE_C_LOW_LIQUIDITY_THRESHOLD_UNITS
-        || pool_output_units < STAGE_C_LOW_LIQUIDITY_THRESHOLD_UNITS;
-    Some((get_total, low_liquidity))
-}
-
-// ─────────────────────────────────────────────────────────────────────────
 // BoltzmannMaskPolicy — architect §5.2 verbatim shape (skeleton in Atom 3;
 // `from_env()` constructor lands in Atom 4 per charter §3 split).
 // ─────────────────────────────────────────────────────────────────────────

@@ -856,20 +856,6 @@ const DOMAIN_SYSTEM_TASK_BANKRUPTCY: &[u8] = b"turingosv4.system_sig.task_bankru
 const DOMAIN_AGENT_COMPLETE_SET_MINT: &[u8] = b"turingosv4.agent_sig.complete_set_mint.v1";
 const DOMAIN_AGENT_COMPLETE_SET_REDEEM: &[u8] = b"turingosv4.agent_sig.complete_set_redeem.v1";
 const DOMAIN_AGENT_MARKET_SEED: &[u8] = b"turingosv4.agent_sig.market_seed.v1";
-/// Stage C P-M2 (architect manual §7.3): agent-signed merge of YES + NO
-/// share pairs back into Coin pre-resolution. Domain prefix mirrors
-/// existing CTF surface (`complete_set_*`).
-const DOMAIN_AGENT_COMPLETE_SET_MERGE: &[u8] = b"turingosv4.agent_sig.complete_set_merge.v1";
-/// Stage C P-M5 (architect manual §7.6): agent-signed share-only CPMM
-/// swap. Sender pays one side's shares, pool returns the other side's
-/// shares per integer floor formula `outY = floor(dN * poolY / (poolN + dN))`.
-const DOMAIN_AGENT_CPMM_SWAP: &[u8] = b"turingosv4.agent_sig.cpmm_swap.v1";
-/// Stage C P-M6 (architect manual §7.7): agent-signed Mint-and-Swap
-/// Router. Atomic 9-step composite (debit Coin → lock collateral → mint
-/// complete set → transfer retained side → swap counter side into pool →
-/// transfer pool output to buyer).
-const DOMAIN_AGENT_BUY_WITH_COIN_ROUTER: &[u8] =
-    b"turingosv4.agent_sig.buy_with_coin_router.v1";
 
 /// Reserved for v4.1 MetaTx (Gemini round-2 GR-1 recommendation).
 /// Not used in v4 — namespace placeholder so v4.1 can introduce
@@ -1254,169 +1240,6 @@ pub struct MarketSeedTx {
     pub timestamp_logical: u64,               //  7
 }
 
-/// TRACE_MATRIX Stage C P-M6 (architect manual §7.7): Mint-and-Swap
-/// Router direction. `BuyYes` pays Coin, mints complete set, retains the
-/// minted YES, swaps the minted NO into the pool to receive more YES.
-/// `BuyNo` is symmetric.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[repr(u8)]
-pub enum BuyDirection {
-    /// Sender pays Coin, ends up holding YES shares (retained mint + swap output).
-    BuyYes = 0,
-    /// Sender pays Coin, ends up holding NO shares (retained mint + swap output).
-    BuyNo = 1,
-}
-
-impl Default for BuyDirection {
-    fn default() -> Self {
-        Self::BuyYes
-    }
-}
-
-/// TRACE_MATRIX Stage C P-M6 (architect manual §7.7): agent-signed
-/// Mint-and-Swap Router. Atomic 9-step composite (architect §7.7 verbatim
-/// for `BuyYesWithCoinRouter`):
-///
-/// ```text
-/// 1. Debit buyer Coin by payC.
-/// 2. Lock payC collateral.
-/// 3. Mint payC YES + payC NO to router.
-/// 4. Transfer payC YES to buyer.
-/// 5. Swap payC NO into CPMM pool.
-/// 6. Pool receives dN = payC NO.
-/// 7. Router receives outY YES:
-///      outY = floor(payC * poolY / (poolN + payC))
-/// 8. Transfer outY YES to buyer.
-/// 9. Buyer receives getY = payC + outY.
-/// ```
-///
-/// `BuyNoWithCoinRouter` is symmetric (swap minted YES into pool to
-/// receive NO).
-///
-/// Effective price: `priceY = payC / getY` (signal only; not stored).
-/// Constant-product invariant `poolY1 * poolN1 >= poolY * poolN` enforced
-/// post-mutation (floor rounding keeps dust in pool).
-///
-/// Atomic rollback: any single-step failure → entire tx reverts (handled
-/// by `dispatch_transition` returning `Err(_)` before state advance —
-/// q_next is local to the arm and discarded on error).
-///
-/// CTF preserved: balance debit equals collateral credit (mint side);
-/// share supply increases by 2 × payC (mint adds payC YES + payC NO);
-/// internal transfers and swap moves shares but do not mint/burn.
-/// `assert_complete_set_balanced` post-router: `min(Σ_yes_post, Σ_no_post)
-/// = min(Σ_yes_pre, Σ_no_pre) + payC = C_pre + payC = C_post`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub struct BuyWithCoinRouterTx {
-    pub tx_id: TxId,                          //  1
-    pub parent_state_root: Hash,              //  2
-    pub event_id: EventId,                    //  3
-    pub buyer: AgentId,                       //  4
-    pub direction: BuyDirection,              //  5
-    pub pay_coin: MicroCoin,                  //  6
-    pub min_total_out: ShareAmount,           //  7
-    pub signature: AgentSignature,            //  8
-    pub timestamp_logical: u64,               //  9
-}
-
-/// TRACE_MATRIX Stage C P-M5 (architect manual §7.6): swap direction.
-/// Polymarket binary-outcome CPMM supports two atomic share-share swaps;
-/// `BuyYesWithNo` deposits NO shares into the pool and withdraws YES;
-/// `BuyNoWithYes` is symmetric.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[repr(u8)]
-pub enum SwapSide {
-    /// Sender pays NO shares, receives YES shares.
-    BuyYesWithNo = 0,
-    /// Sender pays YES shares, receives NO shares.
-    BuyNoWithYes = 1,
-}
-
-impl Default for SwapSide {
-    fn default() -> Self {
-        Self::BuyYesWithNo
-    }
-}
-
-/// TRACE_MATRIX Stage C P-M5 (architect manual §7.6): agent-signed
-/// share-only CPMM swap. Sender deposits `amount_in` shares of one side
-/// (per `side` discriminator) and receives the other side's shares per
-/// integer floor formula:
-///
-/// ```text
-/// BuyYesWithNo: outY = floor(amount_in * poolY / (poolN + amount_in))
-/// BuyNoWithYes: outN = floor(amount_in * poolN / (poolY + amount_in))
-/// ```
-///
-/// Sequencer arm (Stage C P-M5):
-/// 1. `parent_state_root == q.state_root_t` else `StaleParent`.
-/// 2. `amount_in.units > 0` strictly else `SwapZeroInput`.
-/// 3. Pool entry exists at `event_id` else `SwapPoolNotFound`.
-/// 4. Sender holds ≥ `amount_in.units` of input side at `event_id` else
-///    `SwapInsufficientSenderInput`.
-/// 5. Compute `out_units` per formula (integer math; floor keeps dust
-///    in pool). If `out_units == 0` (input too small relative to pool)
-///    OR `out_units >= pool_output_side.units` → `SwapInsufficientPoolOutput`.
-/// 6. If `out_units < min_out.units` → `SwapMinOutNotMet` (slippage).
-/// 7. Mutate: sender input side `-= amount_in`; sender output side
-///    `+= out_units`; pool input side `+= amount_in`; pool output side
-///    `-= out_units`.
-/// 8. Constant-product invariant `poolY1 * poolN1 >= poolY0 * poolN0`
-///    enforced by sequencer post-mutation; floor rounding keeps dust in
-///    pool so the inequality holds bit-strict.
-///
-/// CTF preserved: swap moves shares between sender and pool; total
-/// share supply at the event is bit-equal pre/post. Conditional
-/// collateral and total Coin both unchanged. Pool reserves and LP shares
-/// remain NOT-Coin (per CR analogue to CR-13.3).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub struct CpmmSwapTx {
-    pub tx_id: TxId,                          //  1
-    pub parent_state_root: Hash,              //  2
-    pub event_id: EventId,                    //  3
-    pub sender: AgentId,                      //  4
-    pub side: SwapSide,                       //  5
-    pub amount_in: ShareAmount,               //  6
-    pub min_out: ShareAmount,                 //  7
-    pub signature: AgentSignature,            //  8
-    pub timestamp_logical: u64,               //  9
-}
-
-/// TRACE_MATRIX Stage C P-M2 (architect manual §7.3): agent-signed merge
-/// of an `amount` of YES + `amount` of NO shares back into `amount` Coin,
-/// callable pre-resolution. Inverse of `CompleteSetMintTx`.
-///
-/// Sequencer arm (Stage C P-M2):
-/// 1. `parent_state_root == q.state_root_t` else `StaleParent`.
-/// 2. `amount.units > 0` strictly else `MergeAmountZero`.
-/// 3. Owner YES share at `event_id` >= `amount.units` AND owner NO share
-///    >= `amount.units` else `MergeMoreThanOwned`.
-/// 4. `conditional_collateral_t[event_id].micro_units() as u128 >=
-///    amount.units` else `InsufficientCollateral` (defensive; should
-///    always hold when `assert_complete_set_balanced` is preserved).
-/// 5. Debit YES + NO shares; debit collateral; credit `balances_t[owner]`
-///    1:1 with `amount.units` (interpreted as MicroCoin micro_units).
-///
-/// CTF preserved: total Coin invariant (1 Coin = 1 YES + 1 NO accounting
-/// per CR-13.3) symmetrically reverses Mint. Allowed regardless of
-/// `task_markets_t` state — Merge is symmetric (no outcome-side advantage)
-/// and gives agents a non-settlement exit + prepares for liquidity
-/// mechanics (architect manual §7.3 "before resolution"). Post-resolution
-/// merge is operationally subsumed by Redeem in the optimal path; the
-/// verbatim test `merge_unavailable_after_final_redeem_if_shares_exhausted`
-/// falls out of the share-balance check (Step 3) when both sides are
-/// already redeemed.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub struct CompleteSetMergeTx {
-    pub tx_id: TxId,                          //  1
-    pub parent_state_root: Hash,              //  2
-    pub event_id: EventId,                    //  3
-    pub owner: AgentId,                       //  4
-    pub amount: ShareAmount,                  //  5
-    pub signature: AgentSignature,            //  6
-    pub timestamp_logical: u64,               //  7
-}
-
 // ── TB-13 SigningPayloads ───────────────────────────────────────────────
 
 /// TRACE_MATRIX TB-13 Atom 1 (architect §4.3): signing payload for
@@ -1482,73 +1305,6 @@ impl MarketSeedSigningPayload {
     /// `b"turingosv4.agent_sig.market_seed.v1"`.
     pub fn canonical_digest(&self) -> [u8; 32] {
         domain_prefixed_digest(DOMAIN_AGENT_MARKET_SEED, self)
-    }
-}
-
-/// TRACE_MATRIX Stage C P-M2 (architect manual §7.3): signing payload for
-/// `CompleteSetMergeTx` (7 fields → 6 fields; signature excluded).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub struct CompleteSetMergeSigningPayload {
-    pub tx_id: TxId,
-    pub parent_state_root: Hash,
-    pub event_id: EventId,
-    pub owner: AgentId,
-    pub amount: ShareAmount,
-    pub timestamp_logical: u64,
-}
-
-impl CompleteSetMergeSigningPayload {
-    /// TRACE_MATRIX Stage C P-M2 (architect manual §7.3): domain-prefixed
-    /// canonical digest for agent-signed `CompleteSetMergeTx`. Domain
-    /// prefix `b"turingosv4.agent_sig.complete_set_merge.v1"`.
-    pub fn canonical_digest(&self) -> [u8; 32] {
-        domain_prefixed_digest(DOMAIN_AGENT_COMPLETE_SET_MERGE, self)
-    }
-}
-
-/// TRACE_MATRIX Stage C P-M5 (architect manual §7.6): signing payload for
-/// `CpmmSwapTx` (9 fields → 8 fields; signature excluded).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub struct CpmmSwapSigningPayload {
-    pub tx_id: TxId,
-    pub parent_state_root: Hash,
-    pub event_id: EventId,
-    pub sender: AgentId,
-    pub side: SwapSide,
-    pub amount_in: ShareAmount,
-    pub min_out: ShareAmount,
-    pub timestamp_logical: u64,
-}
-
-impl CpmmSwapSigningPayload {
-    /// TRACE_MATRIX Stage C P-M5 (architect manual §7.6): domain-prefixed
-    /// canonical digest for agent-signed `CpmmSwapTx`. Domain prefix
-    /// `b"turingosv4.agent_sig.cpmm_swap.v1"`.
-    pub fn canonical_digest(&self) -> [u8; 32] {
-        domain_prefixed_digest(DOMAIN_AGENT_CPMM_SWAP, self)
-    }
-}
-
-/// TRACE_MATRIX Stage C P-M6 (architect manual §7.7): signing payload for
-/// `BuyWithCoinRouterTx` (9 fields → 8 fields; signature excluded).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub struct BuyWithCoinRouterSigningPayload {
-    pub tx_id: TxId,
-    pub parent_state_root: Hash,
-    pub event_id: EventId,
-    pub buyer: AgentId,
-    pub direction: BuyDirection,
-    pub pay_coin: MicroCoin,
-    pub min_total_out: ShareAmount,
-    pub timestamp_logical: u64,
-}
-
-impl BuyWithCoinRouterSigningPayload {
-    /// TRACE_MATRIX Stage C P-M6 (architect manual §7.7): domain-prefixed
-    /// canonical digest for agent-signed `BuyWithCoinRouterTx`. Domain
-    /// prefix `b"turingosv4.agent_sig.buy_with_coin_router.v1"`.
-    pub fn canonical_digest(&self) -> [u8; 32] {
-        domain_prefixed_digest(DOMAIN_AGENT_BUY_WITH_COIN_ROUTER, self)
     }
 }
 
@@ -1758,55 +1514,6 @@ impl MarketSeedTx {
     }
 }
 
-impl CompleteSetMergeTx {
-    /// TRACE_MATRIX Stage C P-M2 (architect manual §7.3): wire → signing
-    /// payload projection. Excludes `signature` to prevent cycle-on-self.
-    pub fn to_signing_payload(&self) -> CompleteSetMergeSigningPayload {
-        CompleteSetMergeSigningPayload {
-            tx_id: self.tx_id.clone(),
-            parent_state_root: self.parent_state_root,
-            event_id: self.event_id.clone(),
-            owner: self.owner.clone(),
-            amount: self.amount,
-            timestamp_logical: self.timestamp_logical,
-        }
-    }
-}
-
-impl CpmmSwapTx {
-    /// TRACE_MATRIX Stage C P-M5 (architect manual §7.6): wire → signing
-    /// payload projection. Excludes `signature` to prevent cycle-on-self.
-    pub fn to_signing_payload(&self) -> CpmmSwapSigningPayload {
-        CpmmSwapSigningPayload {
-            tx_id: self.tx_id.clone(),
-            parent_state_root: self.parent_state_root,
-            event_id: self.event_id.clone(),
-            sender: self.sender.clone(),
-            side: self.side,
-            amount_in: self.amount_in,
-            min_out: self.min_out,
-            timestamp_logical: self.timestamp_logical,
-        }
-    }
-}
-
-impl BuyWithCoinRouterTx {
-    /// TRACE_MATRIX Stage C P-M6 (architect manual §7.7): wire → signing
-    /// payload projection. Excludes `signature` to prevent cycle-on-self.
-    pub fn to_signing_payload(&self) -> BuyWithCoinRouterSigningPayload {
-        BuyWithCoinRouterSigningPayload {
-            tx_id: self.tx_id.clone(),
-            parent_state_root: self.parent_state_root,
-            event_id: self.event_id.clone(),
-            buyer: self.buyer.clone(),
-            direction: self.direction,
-            pay_coin: self.pay_coin,
-            min_total_out: self.min_total_out,
-            timestamp_logical: self.timestamp_logical,
-        }
-    }
-}
-
 // ────────────────────────────────────────────────────────────────────────────
 // § 6 TypedTx outer enum
 // ────────────────────────────────────────────────────────────────────────────
@@ -1835,16 +1542,6 @@ pub enum TypedTx {
     CompleteSetMint(CompleteSetMintTx),   // TB-13 agent-signed conditional-share mint
     CompleteSetRedeem(CompleteSetRedeemTx), // TB-13 agent-signed conditional-share redeem
     MarketSeed(MarketSeedTx),             // TB-13 agent-signed protocol-owned share seed
-    /// Stage C P-M2 (architect manual §7.3) — agent-signed merge of YES + NO
-    /// share pairs back into Coin pre-resolution; inverse of `CompleteSetMint`.
-    CompleteSetMerge(CompleteSetMergeTx),
-    /// Stage C P-M5 (architect manual §7.6) — agent-signed share-only CPMM
-    /// swap (BuyYesWithNo or BuyNoWithYes) on a CpmmPool at a given event.
-    CpmmSwap(CpmmSwapTx),
-    /// Stage C P-M6 (architect manual §7.7) — agent-signed Mint-and-Swap
-    /// Router (BuyYes or BuyNo with Coin); atomic 9-step composite over
-    /// CompleteSetMint + CpmmSwap.
-    BuyWithCoinRouter(BuyWithCoinRouterTx),
 }
 
 impl TypedTx {
@@ -1866,9 +1563,6 @@ impl TypedTx {
             Self::CompleteSetMint(_) => TxKind::CompleteSetMint,
             Self::CompleteSetRedeem(_) => TxKind::CompleteSetRedeem,
             Self::MarketSeed(_) => TxKind::MarketSeed,
-            Self::CompleteSetMerge(_) => TxKind::CompleteSetMerge,
-            Self::CpmmSwap(_) => TxKind::CpmmSwap,
-            Self::BuyWithCoinRouter(_) => TxKind::BuyWithCoinRouter,
         }
     }
 }
@@ -1971,30 +1665,6 @@ impl HasSubmitter for MarketSeedTx {
     }
 }
 
-// Stage C P-M2 (architect manual §7.3): submitter is the owner who is
-// merging YES + NO shares back into Coin (mirrors CompleteSetMint owner).
-impl HasSubmitter for CompleteSetMergeTx {
-    fn submitter_id(&self) -> Option<AgentId> {
-        Some(self.owner.clone())
-    }
-}
-
-// Stage C P-M5 (architect manual §7.6): submitter is the swap sender
-// (the agent paying input shares to the pool).
-impl HasSubmitter for CpmmSwapTx {
-    fn submitter_id(&self) -> Option<AgentId> {
-        Some(self.sender.clone())
-    }
-}
-
-// Stage C P-M6 (architect manual §7.7): submitter is the buyer (paying
-// Coin to receive YES or NO shares via mint-and-swap).
-impl HasSubmitter for BuyWithCoinRouterTx {
-    fn submitter_id(&self) -> Option<AgentId> {
-        Some(self.buyer.clone())
-    }
-}
-
 impl HasSubmitter for TypedTx {
     fn submitter_id(&self) -> Option<AgentId> {
         match self {
@@ -2012,9 +1682,6 @@ impl HasSubmitter for TypedTx {
             Self::CompleteSetMint(t) => t.submitter_id(),
             Self::CompleteSetRedeem(t) => t.submitter_id(),
             Self::MarketSeed(t) => t.submitter_id(),
-            Self::CompleteSetMerge(t) => t.submitter_id(),
-            Self::CpmmSwap(t) => t.submitter_id(),
-            Self::BuyWithCoinRouter(t) => t.submitter_id(),
         }
     }
 }
@@ -2239,66 +1906,6 @@ pub enum TransitionError {
     /// `L4ERejectionClass::PolicyViolation`.
     EventNotOpen,
 
-    // ── Stage C P-M2 CompleteSetMerge admission ───────────────────────────
-    /// Stage C P-M2 CompleteSetMergeTx admission — `amount.units == 0`.
-    /// Rejected pre-emptively to mirror Mint/Seed amount discipline (no-op
-    /// merge would still write canonical bytes + advance state_root).
-    /// Maps to `L4ERejectionClass::PolicyViolation`.
-    MergeAmountZero,
-    /// Stage C P-M2 CompleteSetMergeTx admission — owner's `(YES, NO)`
-    /// share balance at the event_id is below the requested merge `amount`
-    /// on at least one side. Per architect manual §7.3 verbatim
-    /// `merge_requires_both_sides` semantics. Subsumes the
-    /// `merge_unavailable_after_final_redeem_if_shares_exhausted` test
-    /// (when shares are exhausted, both sides are zero). Maps to
-    /// `L4ERejectionClass::PolicyViolation`.
-    MergeMoreThanOwned,
-
-    // ── Stage C P-M5 CpmmSwap admission ───────────────────────────────────
-    /// Stage C P-M5 CpmmSwapTx admission — `amount_in.units == 0`. Rejected
-    /// pre-emptively to mirror Mint/Merge/Seed amount discipline. Maps to
-    /// `L4ERejectionClass::PolicyViolation`.
-    SwapZeroInput,
-    /// Stage C P-M5 CpmmSwapTx admission — no `cpmm_pools_t[event_id]`
-    /// entry exists. Pool must be initialized before swap is callable.
-    /// Maps to `L4ERejectionClass::PolicyViolation`.
-    SwapPoolNotFound,
-    /// Stage C P-M5 CpmmSwapTx admission — sender's input-side share
-    /// balance is below `amount_in.units`. Maps to
-    /// `L4ERejectionClass::PolicyViolation`.
-    SwapInsufficientSenderInput,
-    /// Stage C P-M5 CpmmSwapTx admission — pool's output-side reserves are
-    /// insufficient (computed `out_units >= pool_output_side.units` OR
-    /// `out_units == 0` from formula floor — input too small relative to
-    /// pool depth). Maps to `L4ERejectionClass::PolicyViolation`.
-    SwapInsufficientPoolOutput,
-    /// Stage C P-M5 CpmmSwapTx admission — `out_units < min_out.units`
-    /// (slippage protection per architect manual §7.6 verbatim
-    /// `swap_respects_min_out_slippage` test). Maps to
-    /// `L4ERejectionClass::PolicyViolation`.
-    SwapMinOutNotMet,
-    /// Stage C P-M5 CpmmSwapTx invariant — constant-product
-    /// `poolY1 * poolN1 >= poolY0 * poolN0` violated post-mutation. Should
-    /// never fire under floor-rounded integer math; rejection is a
-    /// defense-in-depth invariant guard. Maps to
-    /// `L4ERejectionClass::InvariantViolation`.
-    SwapConstantProductRegressed,
-
-    // ── Stage C P-M6 BuyWithCoinRouter admission ──────────────────────────
-    /// Stage C P-M6 BuyWithCoinRouterTx admission — `pay_coin <= 0`.
-    /// Rejected pre-emptively (mirrors Mint amount discipline). Maps to
-    /// `L4ERejectionClass::PolicyViolation`.
-    RouterPayCoinNotPositive,
-    /// Stage C P-M6 BuyWithCoinRouterTx admission — buyer balance below
-    /// `pay_coin`. Maps to `L4ERejectionClass::PolicyViolation`.
-    RouterInsufficientBuyerBalance,
-    /// Stage C P-M6 BuyWithCoinRouterTx admission — buyer's `getY` total
-    /// (retained mint side + swap output) is below the buyer's
-    /// `min_total_out` slippage protection (architect §7.7 verbatim
-    /// `buy_yes_respects_min_yes_out`). Maps to
-    /// `L4ERejectionClass::PolicyViolation`.
-    RouterMinTotalOutNotMet,
-
     // ── Stub sentinel (CO1.7.5 fills) ──────────────────────────────────────
     /// Stub return value used by CO1.7.5 unimplemented bodies — preserves
     /// sequencer + dispatch correctness without forcing transition logic
@@ -2386,50 +1993,6 @@ impl std::fmt::Display for TransitionError {
             Self::EventNotOpen => write!(
                 f,
                 "TB-13 mint/seed: target event's task_markets_t state is not Open (Finalized/Bankrupt/Expired)"
-            ),
-            Self::MergeAmountZero => write!(
-                f,
-                "Stage C P-M2 CompleteSetMergeTx: amount must be > 0"
-            ),
-            Self::MergeMoreThanOwned => write!(
-                f,
-                "Stage C P-M2 CompleteSetMergeTx: owner's YES or NO share balance below merge amount"
-            ),
-            Self::SwapZeroInput => write!(
-                f,
-                "Stage C P-M5 CpmmSwapTx: amount_in must be > 0"
-            ),
-            Self::SwapPoolNotFound => write!(
-                f,
-                "Stage C P-M5 CpmmSwapTx: no CpmmPool at event_id"
-            ),
-            Self::SwapInsufficientSenderInput => write!(
-                f,
-                "Stage C P-M5 CpmmSwapTx: sender input-side share balance < amount_in"
-            ),
-            Self::SwapInsufficientPoolOutput => write!(
-                f,
-                "Stage C P-M5 CpmmSwapTx: pool output-side reserves insufficient (or floor formula yields zero out)"
-            ),
-            Self::SwapMinOutNotMet => write!(
-                f,
-                "Stage C P-M5 CpmmSwapTx: computed out_units below min_out (slippage)"
-            ),
-            Self::SwapConstantProductRegressed => write!(
-                f,
-                "Stage C P-M5 CpmmSwapTx: constant-product invariant violated (poolY1 * poolN1 < poolY0 * poolN0)"
-            ),
-            Self::RouterPayCoinNotPositive => write!(
-                f,
-                "Stage C P-M6 BuyWithCoinRouterTx: pay_coin must be > 0"
-            ),
-            Self::RouterInsufficientBuyerBalance => write!(
-                f,
-                "Stage C P-M6 BuyWithCoinRouterTx: buyer balance < pay_coin"
-            ),
-            Self::RouterMinTotalOutNotMet => write!(
-                f,
-                "Stage C P-M6 BuyWithCoinRouterTx: getY total below min_total_out (slippage)"
             ),
             Self::NotYetImplemented => write!(f, "transition body not yet implemented (CO1.7.5)"),
         }

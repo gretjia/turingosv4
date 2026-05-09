@@ -202,9 +202,6 @@ pub struct TxKindCounts {
     pub complete_set_mint: u64,
     pub complete_set_redeem: u64,
     pub market_seed: u64,
-    pub complete_set_merge: u64,
-    pub cpmm_swap: u64,
-    pub buy_with_coin_router: u64,
     pub finalize_reward: u64,
     pub challenge_resolve: u64,
     pub terminal_summary: u64,
@@ -227,9 +224,6 @@ impl TxKindCounts {
                 TxKind::CompleteSetMint => c.complete_set_mint += 1,
                 TxKind::CompleteSetRedeem => c.complete_set_redeem += 1,
                 TxKind::MarketSeed => c.market_seed += 1,
-                TxKind::CompleteSetMerge => c.complete_set_merge += 1,
-                TxKind::CpmmSwap => c.cpmm_swap += 1,
-                TxKind::BuyWithCoinRouter => c.buy_with_coin_router += 1,
                 TxKind::FinalizeReward => c.finalize_reward += 1,
                 TxKind::ChallengeResolve => c.challenge_resolve += 1,
                 TxKind::TerminalSummary => c.terminal_summary += 1,
@@ -828,13 +822,6 @@ fn extract_all_agent_ids(tx: &TypedTx) -> Vec<(&'static str, String)> {
         TypedTx::CompleteSetMint(t) => out.push(("CompleteSetMintTx.owner", t.owner.0.clone())),
         TypedTx::CompleteSetRedeem(t) => out.push(("CompleteSetRedeemTx.owner", t.owner.0.clone())),
         TypedTx::MarketSeed(t) => out.push(("MarketSeedTx.provider", t.provider.0.clone())),
-        // Stage C P-M2 (architect manual §7.3): owner is the merger.
-        TypedTx::CompleteSetMerge(t) => out.push(("CompleteSetMergeTx.owner", t.owner.0.clone())),
-        // Stage C P-M5 (architect manual §7.6): sender is the swap initiator.
-        TypedTx::CpmmSwap(t) => out.push(("CpmmSwapTx.sender", t.sender.0.clone())),
-        // Stage C P-M6 (architect manual §7.7): buyer pays Coin to receive
-        // YES or NO shares via the atomic mint-and-swap router.
-        TypedTx::BuyWithCoinRouter(t) => out.push(("BuyWithCoinRouterTx.buyer", t.buyer.0.clone())),
     }
     out
 }

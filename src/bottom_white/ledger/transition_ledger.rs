@@ -97,24 +97,6 @@ pub enum TxKind {
     /// pricing.** TB-13 records only the fact of seeding, not any signal
     /// derived from it.
     MarketSeed        = 13,
-    /// Stage C P-M2 (architect manual §7.3) — agent-signed merge of YES +
-    /// NO share pairs back into Coin pre-resolution. Inverse of
-    /// `CompleteSetMint`: 1 YES + 1 NO + 1 collateral lock → 1 Coin.
-    /// Allowed regardless of `task_markets_t` state (symmetric op);
-    /// post-resolution merge is operationally subsumed by `Redeem` but
-    /// remains technically callable while shares are not exhausted.
-    CompleteSetMerge  = 14,
-    /// Stage C P-M5 (architect manual §7.6) — agent-signed share-only
-    /// CPMM swap (BuyYesWithNo or BuyNoWithYes) on a pre-existing
-    /// `CpmmPool` at the event. Integer floor formula
-    /// `outY = floor(dN * poolY / (poolN + dN))`; constant-product
-    /// invariant `poolY1 * poolN1 >= poolY0 * poolN0` enforced post-swap.
-    CpmmSwap          = 15,
-    /// Stage C P-M6 (architect manual §7.7) — agent-signed Mint-and-Swap
-    /// Router (BuyYes / BuyNo with Coin). Atomic 9-step composite over
-    /// CompleteSetMint + CpmmSwap; effective price `priceY = payC / getY`
-    /// (signal only, not stored).
-    BuyWithCoinRouter = 16,
 }
 
 /// TRACE_MATRIX FC2-Append + WP § 5.L4: stored LedgerEntry record (11 fields).
