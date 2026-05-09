@@ -337,15 +337,25 @@ Per CLAUDE.md §10 + `feedback_no_batch_class4_signoff`:
 
 ---
 
-## §9. Dual audit verdicts (TO BE FILLED post-dispatch)
+## §9. Dual audit verdicts (R1; both PASS first-try)
 
-**Codex G2 audit (PRE-§8 timing rule)**:
-- Round 1: PENDING dispatch.
+**Codex G2 audit (PRE-§8 timing rule)** — `handover/audits/CODEX_STAGE_C_PM6_AUDIT_2026-05-09_R1.md` (TO BE COPIED FROM `/tmp/codex_pm6_r1_last.txt`):
+- R1: **PASS** (9/9 Q1-Q9; conviction high; recommendation PROCEED).
+- Verbatim aggregate: `## VERDICT: PASS / Conviction: high / Recommendation: PROCEED`.
+- Non-blocking note: "some comments still say `cfg(test)`, but compiled behavior is correct" — addressed in follow-up commit on top of `b03df48` (re-rehashed typed_tx + sequencer; comments updated to read `cfg(debug_assertions)`).
 
-**Gemini DeepThink audit (PRE-§8 timing rule)**:
-- Round 1: PENDING dispatch.
+**Gemini DeepThink audit (PRE-§8 timing rule)** — `handover/audits/GEMINI_STAGE_C_PM6_AUDIT_2026-05-09_R1.md`:
+- R1: **PASS** (9/9 Q1-Q9; conviction high; recommendation PROCEED).
+- Verbatim aggregate: `## VERDICT: PASS / Conviction: high / Recommendation: PROCEED`.
 
-**Aggregate**: PENDING.
+**Aggregate**: **PASS** (both auditors PASS first-try; conservative-merge VETO > CHALLENGE > PASS = PASS). Round cap 2 used 1.
+
+**Pattern history**:
+- P-M2: R1 CHALLENGE → R2 PASS (2-round cycle).
+- P-M4: R1 PASS/PASS first-try.
+- P-M6: R1 PASS/PASS first-try.
+
+The PRE-§8 timing rule (E.5) is now stable across 3 atoms; mechanism gates (E.1 verbatim binding + E.2 atomic-rollback witness + E.3 strict-equality lint) mechanically prevent recurrence of session #27 batch §8 VETO defects 1-4.
 
 ---
 

@@ -1491,11 +1491,13 @@ impl Default for BuyDirection {
 /// 9 steps execute against a single `q_next = q.clone()` mutated in place;
 /// any failure causes `q_next` to be dropped without persisting (Rust's
 /// move semantics + the final state_root commit point provide structural
-/// atomicity). The sequencer additionally exposes a `cfg(test)` failure-
-/// injection hook reading `TURINGOS_TEST_ROUTER_FAIL_AT_STEP` env var
-/// (per E.2 atomic-rollback witness gate); tests can force failure at any
-/// step 1-9 to witness the rollback path leaves the original `q.state_root`
-/// unchanged.
+/// atomicity). The sequencer additionally exposes a `cfg(debug_assertions)`
+/// failure-injection hook reading `TURINGOS_TEST_ROUTER_FAIL_AT_STEP` env
+/// var (per E.2 atomic-rollback witness gate); integration tests can force
+/// failure at any step 1-9 to witness the rollback path leaves the original
+/// `q.state_root` unchanged. Production --release builds compile the env
+/// var read out (`cfg(not(debug_assertions))` no-op stub) — replay
+/// determinism preserved.
 ///
 /// Symmetric direction (`BuyNo`) mirrors steps 4/5/7/8 with YES↔NO roles
 /// swapped per architect §7.7 BuyNoWithCoinRouter spec.
@@ -2018,11 +2020,13 @@ pub enum TypedTx {
     /// locks; pool reserves shift per swap formula. State_root advance
     /// is the single atomic commit point — failure at any of the 9
     /// internal steps causes `q_next` to be dropped without persisting.
-    /// `cfg(test)` failure-injection hook (`TURINGOS_TEST_ROUTER_FAIL_AT_STEP`
-    /// env var) exercises the rollback path per E.2 atomic-rollback
-    /// witness gate. 8-wire-field shape is implementation-defined
-    /// (architect §7.7 specifies 9-step composite + 9 mandated tests +
-    /// integer formulas, not tx schema).
+    /// `cfg(debug_assertions)` failure-injection hook
+    /// (`TURINGOS_TEST_ROUTER_FAIL_AT_STEP` env var) exercises the rollback
+    /// path per E.2 atomic-rollback witness gate; the env var read is
+    /// compiled out in `--release` production builds (no-op stub),
+    /// preserving replay determinism. 8-wire-field shape is implementation-
+    /// defined (architect §7.7 specifies 9-step composite + 9 mandated
+    /// tests + integer formulas, not tx schema).
     BuyWithCoinRouter(BuyWithCoinRouterTx),
 }
 
@@ -2543,13 +2547,14 @@ pub enum TransitionError {
     /// composite from the bare swap. Maps to
     /// `L4ERejectionClass::PolicyViolation`.
     RouterSlippageExceeded,
-    /// `BuyWithCoinRouterTx` admission: `cfg(test)` failure-injection hook
-    /// fired (`TURINGOS_TEST_ROUTER_FAIL_AT_STEP` env var matches a step
-    /// 1..=9 in the composite). Used by `tests/constitution_router_buy_
-    /// with_coin.rs::router_atomic_rollback_on_failure` to witness the
-    /// 9-step composite atomic-rollback path per E.2 atomic-rollback
-    /// witness gate (Codex G2 audit 2026-05-09 defect 2). Production
-    /// builds (`cfg(not(test))`) compile this branch out — it cannot
+    /// `BuyWithCoinRouterTx` admission: `cfg(debug_assertions)` failure-
+    /// injection hook fired (`TURINGOS_TEST_ROUTER_FAIL_AT_STEP` env var
+    /// matches a step 1..=9 in the composite). Used by
+    /// `tests/constitution_router_buy_with_coin.rs::router_atomic_rollback_
+    /// on_failure` to witness the 9-step composite atomic-rollback path
+    /// per E.2 atomic-rollback witness gate (Codex G2 audit 2026-05-09
+    /// defect 2). Production `--release` builds
+    /// (`cfg(not(debug_assertions))`) compile this branch out — it cannot
     /// fire on a real chain. Maps to `L4ERejectionClass::PolicyViolation`.
     TestForcedFailure,
 
@@ -2703,7 +2708,7 @@ impl std::fmt::Display for TransitionError {
             ),
             Self::TestForcedFailure => write!(
                 f,
-                "BuyWithCoinRouterTx: cfg(test) failure-injection hook fired (TURINGOS_TEST_ROUTER_FAIL_AT_STEP); production builds compile this out"
+                "BuyWithCoinRouterTx: cfg(debug_assertions) failure-injection hook fired (TURINGOS_TEST_ROUTER_FAIL_AT_STEP); production --release builds compile this out"
             ),
             Self::NotYetImplemented => write!(f, "transition body not yet implemented (CO1.7.5)"),
         }

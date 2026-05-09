@@ -2738,7 +2738,7 @@ pub(crate) fn dispatch_transition(
         // post-Phase E.3 refactor; the router post-state must hit the
         // symmetric branch since Coin->collateral mint is balanced 1:1).
         //
-        // Defect-2 patch: cfg(test) failure-injection hook
+        // Defect-2 patch: cfg(debug_assertions) failure-injection hook
         // (`check_router_test_failure_injection`) called between EACH of the
         // 9 architect steps so the rollback test can witness the atomic
         // failure path. Rust's `q_next = q.clone()` + final state_root
@@ -2833,10 +2833,10 @@ pub(crate) fn dispatch_transition(
             // === Build q_next: 9 architect steps applied atomically ===
             //
             // Atomicity model: q_next is a FRESH clone of q. All 9 mutations
-            // touch q_next ONLY. If any cfg(test) failure-injection fires
-            // mid-arm, we early-return Err and Rust drops q_next — the
-            // original q is unchanged. The state_root advance at the end is
-            // the single atomic commit point.
+            // touch q_next ONLY. If any cfg(debug_assertions) failure-
+            // injection fires mid-arm, we early-return Err and Rust drops
+            // q_next — the original q is unchanged. The state_root advance
+            // at the end is the single atomic commit point.
             let mut q_next = q.clone();
             let pay_coin_micro_i64 = router.pay_coin.micro_units();
 
