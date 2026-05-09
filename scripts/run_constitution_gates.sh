@@ -171,6 +171,16 @@ GATES=(
   # Polymarket atom landing typed_tx schema bump + sequencer admission
   # arm pattern. Awaiting batch §8 sign-off (P-M2 + P-M4 + P-M6).
   constitution_completeset_merge
+  # Stage C P-M3 2026-05-09 (plan cozy-waddling-raven Step 5) — architect
+  # manual §7.4 verbatim MarketSeed hardening: 5 verbatim test names
+  # (market_seed_debits_provider + market_seed_creates_yes_no_inventory +
+  # market_seed_fails_insufficient_balance + market_seed_no_ghost_liquidity
+  # + market_seed_conserves_total_coin). Tests bind to live sequencer
+  # dispatch on TypedTx::MarketSeed. Closes manifest D.4 PARTIAL-W —
+  # promotes "no ghost liquidity" + "MarketSeed must require collateral
+  # debit" from TB-13-internal SG-13.3+SG-13.4 names to first-class
+  # constitution-gate verbatim names per `feedback_no_workarounds_strict_constitution`.
+  constitution_marketseed_hardening
 )
 
 # Run each gate file separately and collect per-test outcome.

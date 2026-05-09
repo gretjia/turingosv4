@@ -103,6 +103,8 @@ Per parent authorization §3.3 + alignment-doc §3 (zh) / §4 (en) Stage C:
 
 ### §3.4. P-M3 — MarketSeedTx hardening
 
+**P-M3 STATUS**: 🟢 SHIPPED 2026-05-09 (session #27, plan cozy-waddling-raven Step 5) — `tests/constitution_marketseed_hardening.rs` exact-matches all 5 architect manual §7.4 verbatim test names: `market_seed_debits_provider` + `market_seed_creates_yes_no_inventory` + `market_seed_fails_insufficient_balance` + `market_seed_no_ghost_liquidity` + `market_seed_conserves_total_coin`. `cargo test --workspace --test constitution_marketseed_hardening` → 5 passed. Closes manifest D.4 PARTIAL-W → 🟢 GREEN.
+
 | ID | Requirement |
 |----|-------------|
 | FR-PM3.1 | `MarketSeedTx` MUST be collateral-backed per architect manual: provider deposits `seedC` Coin → CompleteSetMint-like operation creates `seedC` YES + `seedC` NO → shares go to pool inventory → collateral locks `seedC`. |
