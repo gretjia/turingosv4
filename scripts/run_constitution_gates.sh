@@ -200,6 +200,17 @@ GATES=(
   # shares_exhausted. Strict 6-field struct (NO `timestamp_logical` —
   # E.1 binding flipped to Landed for P-M2 in same commit).
   constitution_completeset_merge
+
+  # Stage C P-M3 / Phase F.2 2026-05-09 (re-apply Class-3; per
+  # `handover/directives/2026-05-09_STAGE_C_POLYMARKET_VETO_REMEDIATION_
+  # DIRECTIVE.md` §1.C row 2 + architect manual §7.4 verbatim). Five
+  # architect-mandated test names exercising MarketSeedTx through the
+  # live sequencer accept arm: market_seed_debits_provider /
+  # market_seed_creates_yes_no_inventory / market_seed_fails_insufficient_
+  # balance / market_seed_no_ghost_liquidity / market_seed_conserves_
+  # total_coin. Sub-option A2: TB-13-era 7-field impl preserved as
+  # ratified state (no schema bump; no STEP_B; no Trust Root rehash).
+  constitution_market_seed_hardening
 )
 
 # Run each gate file separately and collect per-test outcome.
