@@ -202,3 +202,55 @@ If §1.B (mechanism additions) needs separate authorization or if the rebuild or
 ---
 
 **Status at file**: 🔵 ACTIVE — governs all Stage C remediation work post-rollback.
+
+---
+
+## §9. Codex Round-2 Acknowledged Deferrals (added 2026-05-09 session #28 post-Phase E')
+
+Codex re-audit round-2 on Phase E' (commit `7995846`) returned CHALLENGE on two residual documentation items. Both are **explicitly deferred to Phase F** with the binding rules below; they are NOT shippable gaps if Phase F honors the deferrals.
+
+### F-DEFERRAL-1 — Helper-alias reduction scan (scope expansion)
+
+**Origin**: Codex round-2 finding F (E.3 helper-alias bypass).
+
+**Bypass shape**: a Phase F implementer could move a `min()`-style reduction into a helper function (e.g. `pub fn safe_min(a: u128, b: u128) -> u128 { a.min(b) }`) defined in a file that E.3 does not currently scan, then call the helper from `monetary_invariant.rs`. The E.3 lint scans only `monetary_invariant.rs` line-by-line; helper-aliased reductions in other files would slip through.
+
+**Phase F binding rule** (mandatory; ship-block on violation):
+- Phase F.5 P-M6 rebuild MUST extend `tests/constitution_economy_strict_equality.rs` `CONSERVATION_INVARIANT_FILES` to include any new file containing CTF conservation logic introduced by the rebuild.
+- If the rebuild introduces a helper function called from `monetary_invariant.rs` that reduces sum-aggregates, the helper's defining file MUST be added to the lint scan list. Failure to do so is a Phase F.5 ship-blocker per per-atom §8 cadence.
+- This deferral is closed at Phase F.5 PASS-time, not Phase E ship-time. Phase E ships with the narrower one-file scan and this binding rule documented.
+
+**Self-witness**: Phase F.5 G2 audit packet MUST cite this deferral and confirm `CONSERVATION_INVARIANT_FILES` was extended (or attest that no helper-alias was introduced). Audit witness:
+```
+git diff <pre-F.5> <post-F.5> -- tests/constitution_economy_strict_equality.rs
+```
+must show either `CONSERVATION_INVARIANT_FILES` modification or a `# F-DEFERRAL-1: no helper-alias introduced` comment.
+
+### F-DEFERRAL-2 — Signing-payload field-set binding gate (E.1 expansion)
+
+**Origin**: Codex round-1 finding I + round-2 finding I (signing-payload binding MISSING from E.1).
+
+**Bypass shape**: Codex session #27 defect 3 was P-M2's `timestamp_logical` field added to `CompleteSetMergeTx` AND signed via `CompleteSetMergeSigningPayload`. E.1 currently binds the typed-tx struct fields verbatim, but does NOT bind the signing-payload struct fields. A future Phase F implementer could keep the typed-tx struct correct per architect §7.x, but pollute the signing payload with extra fields (e.g. timestamp_logical only in the signing payload). E.1 would not catch.
+
+**Phase F binding rule** (mandatory; ship-block on violation):
+- Phase F.1 P-M2 rebuild MUST extend `tests/constitution_architect_verbatim_struct_binding.rs` BINDINGS array with a sibling entry for `CompleteSetMergeSigningPayload` mirroring the architect §7.3 verbatim 6-field spec (with one additional architect-permitted field for the signing-payload-specific projection: typically the same 6 fields with `signature` removed and `domain_prefix` or `version` added per the existing TB-13 signing-payload pattern).
+- Phase F.3 P-M4 / Phase F.5 P-M6 SAME requirement for their respective signing payloads (`CpmmSwapSigningPayload`, `BuyWithCoinRouterSigningPayload`).
+- The signing-payload binding entry uses the same `landing_status: Landed | NotYetLanded` mechanism as the typed-tx struct binding. Both bindings must be `Landed` for the per-atom §8 to ship.
+
+**Self-witness**: Phase F.{1,3,5} G2 audit packet MUST cite this deferral and confirm a sibling binding entry was added for the signing-payload projection. Audit witness:
+```
+grep "SigningPayload" tests/constitution_architect_verbatim_struct_binding.rs
+```
+must show ≥3 entries (one per Class-4 atom) post-Phase-F.
+
+### Why these are deferral-acceptable rather than Phase E blockers
+
+Both F-DEFERRAL-1 and F-DEFERRAL-2 are **future-bypass risks**, not current defects. The current Phase E + E' implementation:
+- catches all 4 historical session #27 defects (Codex round-1 PASS confirmed)
+- tightens the 3 round-1 CHALLENGE items (Codex round-2 CLOSED on 6 of 8 sub-items)
+- the 2 residuals (F + I) require active malice or scope expansion to hit
+- closing them now via additional gates would require either (a) cross-file scan logic (helper-alias) or (b) signing-payload struct extraction (architectural overlap with E.1) — both are cleaner to do at Phase F.x boundary when the actual concrete signing payload struct lands
+
+`feedback_elon_mode_policy` 2-round cap is binding for THIS audit chain. Round-3 would be required to ship a deeper-hardened gate at Phase E ship-time, and round-3 needs explicit user authorization. The user (architect-role) authorized Phase E' + round-2 only; deferring residuals to Phase F honors that authorization scope.
+
+**Status of §9 deferrals**: 🟡 ACTIVE-DEFERRAL — closed by per-atom Phase F.{1,3,5} ship gates per binding rules above.
