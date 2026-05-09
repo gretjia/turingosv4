@@ -112,7 +112,7 @@ F.9 Stage C overall §8 packet: after all atoms shipped; same DUAL-PRE-§8 caden
 
 ## ✅ P-M2 SHIPPED FINAL 2026-05-09 session #29 (first per-atom Class-4 §8 post-VETO)
 
-**HEAD pushed**: `<post-push>` — see `git log origin/main` after this section commits.
+**HEAD pushed**: `4fa6c7e` (origin/main; pushed 2026-05-09 session #29; 8 commits on top of `ff2d401` pre-Phase-F.1 baseline).
 **Authority**: User architect-role verbatim **「好，确认可以 ship」** (2026-05-09 session #29).
 **Sign-off directive**: `handover/directives/2026-05-09_STAGE_C_POLYMARKET_PM2_§8_SIGN_OFF.md`.
 **Candidate packet**: `handover/directives/2026-05-09_STAGE_C_POLYMARKET_PM2_§8_PACKET.md`.
