@@ -299,6 +299,22 @@ pub fn market_seed_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
     Hash::from_bytes(digest)
 }
 
+/// TRACE_MATRIX Stage C P-M2 / Phase F.1 (architect §7.3): CompleteSetMerge-
+/// accept state-root domain.
+pub(crate) const COMPLETE_SET_MERGE_DOMAIN_V1: &[u8] =
+    b"turingosv4.complete_set_merge.accept.v1";
+
+/// TRACE_MATRIX Stage C P-M2 / Phase F.1: state-root mutator on
+/// `CompleteSetMergeTx` accept. Mirror of `complete_set_mint_accept_state_root`.
+pub fn complete_set_merge_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
+    let mut h = Sha256::new();
+    h.update(COMPLETE_SET_MERGE_DOMAIN_V1);
+    h.update(prev.0);
+    h.update(canonical_encode(tx).expect("TypedTx is canonical-encodable"));
+    let digest: [u8; 32] = h.finalize().into();
+    Hash::from_bytes(digest)
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // TB-2 Atom 4 — rejection-path helpers (preflight v3 §3.5 + §3.7)
 // ────────────────────────────────────────────────────────────────────────────
@@ -581,7 +597,8 @@ fn system_message_for_verification(
         | TypedTx::EscrowLock(_)
         | TypedTx::CompleteSetMint(_)
         | TypedTx::CompleteSetRedeem(_)
-        | TypedTx::MarketSeed(_) => None,
+        | TypedTx::MarketSeed(_)
+        | TypedTx::CompleteSetMerge(_) => None,
     }
 }
 
@@ -604,7 +621,8 @@ fn system_signature_of(
         | TypedTx::EscrowLock(_)
         | TypedTx::CompleteSetMint(_)
         | TypedTx::CompleteSetRedeem(_)
-        | TypedTx::MarketSeed(_) => None,
+        | TypedTx::MarketSeed(_)
+        | TypedTx::CompleteSetMerge(_) => None,
     }
 }
 
@@ -632,7 +650,8 @@ fn system_epoch_of(tx: &TypedTx) -> Option<SystemEpoch> {
         | TypedTx::EscrowLock(_)
         | TypedTx::CompleteSetMint(_)
         | TypedTx::CompleteSetRedeem(_)
-        | TypedTx::MarketSeed(_) => None,
+        | TypedTx::MarketSeed(_)
+        | TypedTx::CompleteSetMerge(_) => None,
     }
 }
 
@@ -2081,6 +2100,137 @@ pub(crate) fn dispatch_transition(
 
             Ok((q_next, SignalBundle::default()))
         }
+        // ──────────────────────────────────────────────────────────────────
+        // Stage C P-M2 / Phase F.1 — CompleteSetMergeTx accept arm
+        // (architect manual §7.3 verbatim).
+        //
+        //   1 YES + 1 NO -> 1 Coin (pre-resolution exit).
+        //
+        // Inverse of CompleteSetMint: burns equal YES + NO from owner; debits
+        // conditional_collateral_t[event_id] by amount; credits balances_t
+        // [owner] by amount Coin. CTF preserved (collateral debit equals
+        // balance credit; YES + NO claim retired symmetrically).
+        //
+        // Architect §7.3 semantics block contains NO event-state gate — merge
+        // remains available post-resolution as long as the owner still holds
+        // matching YES + NO inventory (test
+        // `merge_unavailable_after_final_redeem_if_shares_exhausted` formalises
+        // this: merge is share-balance bounded, not state-bounded).
+        // ──────────────────────────────────────────────────────────────────
+        TypedTx::CompleteSetMerge(merge) => {
+            // Step 1: parent-root match.
+            if merge.parent_state_root != q.state_root_t {
+                return Err(TransitionError::StaleParent);
+            }
+            // Step 2: amount.units > 0 strictly. Zero-amount merge is a
+            // signal-only no-op + chain-noise vector; mirror the CompleteSetMint
+            // V1-attack remediation by rejecting zero (Codex round-1 VETO
+            // TB13-V1 pattern, 2026-05-03).
+            if merge.amount.units == 0 {
+                return Err(TransitionError::InsufficientSharesForMerge);
+            }
+            // Step 3: owner share balance — both YES + NO must cover amount
+            // (architect §7.3 verbatim "require owner YES >= amount" + "require
+            // owner NO >= amount"). Distinct error class from RedeemMoreThanOwned
+            // because merge is a non-resolution exit, not a winning-side payout.
+            let pair = q
+                .economic_state_t
+                .conditional_share_balances_t
+                .0
+                .get(&merge.owner)
+                .and_then(|m| m.get(&merge.event_id))
+                .copied()
+                .unwrap_or_default();
+            if pair.yes.units < merge.amount.units {
+                return Err(TransitionError::InsufficientSharesForMerge);
+            }
+            if pair.no.units < merge.amount.units {
+                return Err(TransitionError::InsufficientSharesForMerge);
+            }
+            // Step 4: defensive collateral coverage (should hold under
+            // assert_complete_set_balanced; mirror CompleteSetRedeem step 3).
+            let event_collateral = q
+                .economic_state_t
+                .conditional_collateral_t
+                .0
+                .get(&merge.event_id)
+                .copied()
+                .unwrap_or(crate::economy::money::MicroCoin::zero());
+            if (event_collateral.micro_units() as u128) < merge.amount.units {
+                return Err(TransitionError::InsufficientCollateral);
+            }
+
+            // Step 5: build q_next — atomic dual-side share burn + collateral
+            // debit + balance credit. 1 share-unit = 1 micro-Coin (the same
+            // equivalence set at CompleteSetMint time).
+            let mut q_next = q.clone();
+            // 5a: debit YES + NO each by amount.units.
+            {
+                let owner_shares = q_next
+                    .economic_state_t
+                    .conditional_share_balances_t
+                    .0
+                    .entry(merge.owner.clone())
+                    .or_insert_with(std::collections::BTreeMap::new);
+                let pair_mut = owner_shares
+                    .entry(merge.event_id.clone())
+                    .or_insert(crate::state::q_state::ShareSidePair::default());
+                pair_mut.yes = crate::state::typed_tx::ShareAmount::from_units(
+                    pair_mut.yes.units - merge.amount.units,
+                );
+                pair_mut.no = crate::state::typed_tx::ShareAmount::from_units(
+                    pair_mut.no.units - merge.amount.units,
+                );
+            }
+            // 5b: debit collateral by amount.units (cast to i64 micro-Coin).
+            {
+                let collateral_entry = q_next
+                    .economic_state_t
+                    .conditional_collateral_t
+                    .0
+                    .entry(merge.event_id.clone())
+                    .or_insert(crate::economy::money::MicroCoin::zero());
+                *collateral_entry = crate::economy::money::MicroCoin::from_micro_units(
+                    collateral_entry.micro_units() - merge.amount.units as i64,
+                );
+            }
+            // 5c: credit owner balance 1:1.
+            let owner_bal = q_next
+                .economic_state_t
+                .balances_t
+                .0
+                .get(&merge.owner)
+                .copied()
+                .unwrap_or(crate::economy::money::MicroCoin::zero());
+            q_next.economic_state_t.balances_t.0.insert(
+                merge.owner.clone(),
+                crate::economy::money::MicroCoin::from_micro_units(
+                    owner_bal.micro_units() + merge.amount.units as i64,
+                ),
+            );
+
+            // Step 6: monetary invariants — exact mirror of CompleteSetMint /
+            // CompleteSetRedeem; merge MUST satisfy
+            // assert_complete_set_balanced because it is the bit-for-bit
+            // inverse of CompleteSetMint.
+            assert_no_post_init_mint(tx, q)
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            assert_total_ctf_conserved(
+                &q.economic_state_t,
+                &q_next.economic_state_t,
+                &[],
+            )
+            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            crate::economy::monetary_invariant::assert_complete_set_balanced(
+                &q_next.economic_state_t,
+            )
+            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+
+            // Step 7: state_root advance.
+            q_next.state_root_t = complete_set_merge_accept_state_root(&q.state_root_t, tx);
+
+            Ok((q_next, SignalBundle::default()))
+        }
     }
 }
 
@@ -2607,7 +2757,10 @@ impl Sequencer {
             | TypedTx::EscrowLock(_)
             | TypedTx::CompleteSetMint(_)
             | TypedTx::CompleteSetRedeem(_)
-            | TypedTx::MarketSeed(_) => {}
+            | TypedTx::MarketSeed(_)
+            // Stage C P-M2 / Phase F.1 — agent-signed; admits through agent
+            // ingress path identical to TB-13 conditional-share variants.
+            | TypedTx::CompleteSetMerge(_) => {}
         }
         // TRACE_MATRIX TB-13 Atom 6 round-3 (Codex VETO TB13-AUTH 2026-05-03):
         // submit-time agent-signature verification for the 3 TB-13
@@ -2644,6 +2797,19 @@ impl Sequencer {
                         .ok_or(SubmitError::AgentSignatureInvalid)?;
                     let digest = seed.to_signing_payload().canonical_digest();
                     if verify_agent_signature(&seed.signature, &digest, &pubkey).is_err() {
+                        return Err(SubmitError::AgentSignatureInvalid);
+                    }
+                }
+                // Stage C P-M2 / Phase F.1 (architect §7.3): agent-signature
+                // gate parallel to CompleteSetMint / CompleteSetRedeem /
+                // MarketSeed. Owner is the signer; pubkey lookup mirrors
+                // CompleteSetMint admission.
+                TypedTx::CompleteSetMerge(merge) => {
+                    let pubkey = manifest
+                        .get(&merge.owner)
+                        .ok_or(SubmitError::AgentSignatureInvalid)?;
+                    let digest = merge.to_signing_payload().canonical_digest();
+                    if verify_agent_signature(&merge.signature, &digest, &pubkey).is_err() {
                         return Err(SubmitError::AgentSignatureInvalid);
                     }
                 }
