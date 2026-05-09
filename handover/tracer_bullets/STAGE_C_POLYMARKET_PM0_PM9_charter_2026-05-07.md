@@ -158,6 +158,8 @@ Per parent authorization §3.3 + alignment-doc §3 (zh) / §4 (en) Stage C:
 
 ### §3.9. P-M8 — Audit views
 
+**P-M8 STATUS**: 🟢 SHIPPED 2026-05-09 (session #27, plan cozy-waddling-raven Step 11) — `tests/audit_tape_views.rs` exact-matches all 3 architect manual §7.9 verbatim test names: `audit_view_shares_matches_state` + `audit_view_pools_matches_state` + `dashboard_regenerates_market_view`. New `src/runtime/audit_views.rs` module with 4 pure projection functions: `view_shares` + `view_pools` + `view_prices` + `view_positions`. Class 1 (pure read-side; no state mutation; price quotes never enter predicate paths per architect §7.8). CLI subcommand wrapping in `audit_tape` is a forward step; pure functions are the constitution-gate-relevant surface.
+
 | ID | Requirement |
 |----|-------------|
 | FR-PM8.1 | `audit_tape view-shares` shows owner YES/NO shares. |

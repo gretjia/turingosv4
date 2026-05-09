@@ -80,6 +80,9 @@ pub mod benchmark_manifest;
 /// TRACE_MATRIX § 3 orphan (Stage B3 / TB-18B 2026-05-08; report-side aggregator, not chain-resident): TB-18B FR-18B.5 / FR-18B.6 / FR-18B.11 — `AggregateReport` consuming `wilson_ci.rs` + `diversity.rs` per CLAUDE.md §17 Report Standard. Closes the Wilson CI + DiversityReport wire-up forward step from session #18 Wave-1/2 forward-bind. Constitutional Justification: CLAUDE.md §17 + TB-18B charter §3 line 51 + `handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md` §B Art. I.2 + §C Art. II.2.1 rows.
 pub mod aggregate_report;
 
+/// TRACE_MATRIX § 3 orphan (Stage C P-M8 2026-05-09; audit-view helpers, not chain-resident): architect manual §7.9 verbatim `audit_tape view-shares` / `view-pools` / `view-prices` / `view-positions` pure projections from `EconomicState`. Signal-only (price quotes never enter predicate paths per architect §7.8). Constitutional Justification: architect manual §7.9 + plan cozy-waddling-raven Step 11.
+pub mod audit_views;
+
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 

@@ -228,6 +228,15 @@ GATES=(
   # src/state/price_index.rs. Source-grep guards verify sequencer.rs does
   # NOT call cpmm_price_quote (price-not-truth). Class 2 additive helper.
   constitution_price_index_signal_only
+  # Stage C P-M8 2026-05-09 (plan cozy-waddling-raven Step 11) — architect
+  # manual §7.9 verbatim audit views: 3 verbatim test names
+  # (audit_view_shares_matches_state + audit_view_pools_matches_state +
+  # dashboard_regenerates_market_view). Tests bind to new pure projection
+  # functions in src/runtime/audit_views.rs (view_shares + view_pools +
+  # view_prices + view_positions). Class 1 — pure read-side; no admission
+  # path consumes view output (signal-only); no state mutation. Determinism
+  # asserted across repeated calls (dashboard regenerates from chain).
+  audit_tape_views
 )
 
 # Run each gate file separately and collect per-test outcome.
