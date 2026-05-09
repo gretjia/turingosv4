@@ -2393,6 +2393,25 @@ pub(crate) fn dispatch_transition(
             if pool.parent_state_root != q.state_root_t {
                 return Err(TransitionError::StaleParent);
             }
+            // Step 1.5: event-state gate (Codex Stage C overall §8 R1
+            // CHALLENGE Q10 closure 2026-05-09 session #32): pool creation
+            // is only valid against an Open event. Post-resolution
+            // (Finalized / Bankrupt / Expired) events must NOT admit new
+            // pool creation — preserves the architect §7 + §8 forbidden-list
+            // invariant "no trading after resolution". Mirrors TB-13
+            // CompleteSetMint admission pattern for `EventNotOpen`.
+            {
+                let event_state = q
+                    .economic_state_t
+                    .task_markets_t
+                    .0
+                    .get(&pool.event_id.0)
+                    .map(|m| m.state)
+                    .unwrap_or(crate::state::q_state::TaskMarketState::Open);
+                if event_state != crate::state::q_state::TaskMarketState::Open {
+                    return Err(TransitionError::EventNotOpen);
+                }
+            }
             // Step 2: non-zero reserves on both sides (architect §7.5 rule
             // `k = pool_yes * pool_no` requires k > 0).
             if pool.seed_yes.units == 0 || pool.seed_no.units == 0 {
@@ -2558,6 +2577,23 @@ pub(crate) fn dispatch_transition(
             // Step 1: parent-root match (Inv 5).
             if swap.parent_state_root != q.state_root_t {
                 return Err(TransitionError::StaleParent);
+            }
+            // Step 1.5: event-state gate (Codex Stage C overall §8 R1
+            // CHALLENGE Q10 closure 2026-05-09 session #32): swap is only
+            // valid against an Open event. Post-resolution events must NOT
+            // admit new swaps — preserves "no trading after resolution"
+            // invariant.
+            {
+                let event_state = q
+                    .economic_state_t
+                    .task_markets_t
+                    .0
+                    .get(&swap.event_id.0)
+                    .map(|m| m.state)
+                    .unwrap_or(crate::state::q_state::TaskMarketState::Open);
+                if event_state != crate::state::q_state::TaskMarketState::Open {
+                    return Err(TransitionError::EventNotOpen);
+                }
             }
             // Step 2: non-zero input (architect §7.6 verbatim dN > 0 / dY > 0).
             if swap.amount_in.units == 0 {
@@ -2778,6 +2814,23 @@ pub(crate) fn dispatch_transition(
             // Pre-1: parent-root match (Inv 5).
             if router.parent_state_root != q.state_root_t {
                 return Err(TransitionError::StaleParent);
+            }
+            // Pre-1.5: event-state gate (Codex Stage C overall §8 R1
+            // CHALLENGE Q10 closure 2026-05-09 session #32): router buy is
+            // only valid against an Open event. Post-resolution events
+            // must NOT admit Coin-locking router txs — preserves "no
+            // trading after resolution" invariant.
+            {
+                let event_state = q
+                    .economic_state_t
+                    .task_markets_t
+                    .0
+                    .get(&router.event_id.0)
+                    .map(|m| m.state)
+                    .unwrap_or(crate::state::q_state::TaskMarketState::Open);
+                if event_state != crate::state::q_state::TaskMarketState::Open {
+                    return Err(TransitionError::EventNotOpen);
+                }
             }
             // Pre-2: pay_coin > 0 (architect §7.7 implies payC > 0).
             if router.pay_coin.micro_units() <= 0 {
@@ -4347,6 +4400,28 @@ impl Sequencer {
             .read()
             .map(|g| g.clone())
             .map_err(|_| ApplyError::QStateLockPoisoned)
+    }
+
+    /// TRACE_MATRIX FC1-Append Stage C overall §8 R1 CHALLENGE Q10 closure
+    /// (Codex Stage C overall PRE-§8 audit 2026-05-09 session #32):
+    /// debug-only test-side `q_t` injection helper. Allows constitution
+    /// gate tests to simulate post-resolution `task_markets_t` state
+    /// transitions WITHOUT requiring a full system-emitted
+    /// FinalizeRewardTx / TaskExpireTx / TaskBankruptcyTx lifecycle.
+    /// `cfg(debug_assertions)` only — production --release builds
+    /// compile this method out (replay-determinism preserved; the q_t
+    /// state-root chain cannot be poisoned by this helper outside of
+    /// test/dev builds).
+    ///
+    /// Used by `tests/constitution_polymarket_event_state_gate.rs` to
+    /// witness that pool / swap / router admission rejects against
+    /// post-resolution events even when active pool / reserves /
+    /// inventory exist.
+    #[cfg(debug_assertions)]
+    pub fn replace_q_for_test(&self, q: QState) {
+        if let Ok(mut guard) = self.q.write() {
+            *guard = q;
+        }
     }
 
     /// TRACE_MATRIX TB-14 Atom 6 B′ step 4 (FC2-N28; architect ruling

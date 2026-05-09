@@ -321,6 +321,17 @@ GATES=(
   #     audit views regenerate byte-identical)
   # 1 architect-mandated test: polymarket_controlled_market_smoke.
   constitution_polymarket_smoke
+
+  # Stage C overall §8 R1 CHALLENGE Q10 closure 2026-05-09 (Codex Stage C
+  # overall PRE-§8 audit 2026-05-09 session #32 R1 Q10 CHALLENGE
+  # remediation 1+2: task_markets_t event-state gate for Polymarket
+  # admission paths). 7 tests covering all 3 admission arms
+  # (CpmmPool / CpmmSwap / BuyWithCoinRouter) × 2 post-resolution states
+  # (Finalized / Bankrupt) + 1 positive control (all 3 admit normally
+  # against Open event). Closes the safety gap "no transition flips
+  # pools to Resolved/Closed on task resolution, leaving post-resolution
+  # pool creation/trading reachable" per Codex Q10 verbatim.
+  constitution_polymarket_event_state_gate
 )
 
 # Run each gate file separately and collect per-test outcome.
