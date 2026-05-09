@@ -73,6 +73,8 @@ Per parent authorization §3.3 + alignment-doc §3 (zh) / §4 (en) Stage C:
 
 ### §3.1. P-M0 — Quarantine legacy f64 CPMM
 
+**P-M0 STATUS**: 🟢 SHIPPED 2026-05-08 (session #25, commit `d33c25a`) — substantively closed via `tests/constitution_market_quarantine.rs` (§5.2 verbatim, Layer 1+2 scan + no-f64 + no-import) + `tests/constitution_completeset_hardening.rs` (§5.3 8 verbatim tests). Legacy `src/prediction_market.rs` was physically deleted; the no-resurrect fence at `tests/tb_13_legacy_cpmm_forward_fence.rs::prediction_market_legacy_quarantined` asserts absence. No-import + no-f64 grep tests fold into the live `constitution_market_quarantine.rs` rather than separate `tb_18d_*` files.
+
 | ID | Requirement |
 |----|-------------|
 | FR-PM0.1 | The legacy `src/prediction_market.rs` (f64 CPMM) MUST NOT be imported by ANY new Stage C Polymarket market module. (Note: as of 2026-05-07 the legacy file may already be deleted; if so, the no-resurrect fence stands as forward guard.) |
