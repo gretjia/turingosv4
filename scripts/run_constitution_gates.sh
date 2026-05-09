@@ -242,6 +242,33 @@ GATES=(
   # transition_ledger.rs / verify.rs / run_summary.rs / audit_assertions.rs
   # / monetary_invariant.rs file membership).
   constitution_cpmm_swap
+
+  # Stage C P-M6 / Phase F.5 2026-05-09 (rebuild Class-4 STEP_B; per
+  # `handover/directives/2026-05-09_STAGE_C_POLYMARKET_VETO_REMEDIATION_
+  # DIRECTIVE.md` §1.C row 5 + architect manual §7.7 verbatim 9-step
+  # composite atomic Mint-and-Swap router). Nine architect-mandated test
+  # names exercising BuyWithCoinRouterTx through the live sequencer
+  # accept arm + 1 defense-in-depth across all 9 steps:
+  #   buy_yes_with_coin_matches_formula
+  #   buy_no_with_coin_matches_symmetric_formula
+  #   buy_yes_debits_coin_locks_collateral
+  #   buy_yes_mints_complete_set
+  #   buy_yes_transfers_retained_yes_plus_swap_yes
+  #   buy_yes_respects_min_yes_out
+  #   buy_yes_no_f64 (source-grep)
+  #   buy_yes_no_ghost_liquidity
+  #   router_atomic_rollback_on_failure (Defect-2 witness — uses
+  #     cfg(debug_assertions) failure-injection hook
+  #     `TURINGOS_TEST_ROUTER_FAIL_AT_STEP` env var; asserts state_root,
+  #     buyer Coin balance, collateral, and pool reserves UNCHANGED
+  #     post mid-mutation failure)
+  #   router_atomic_rollback_witnessed_at_every_step (defense-in-depth
+  #     across steps 1..=9)
+  # Defect-1 patch (strict equality `sum_yes == sum_no == collateral`)
+  # enforced by P-M4-extended `assert_complete_set_balanced` symmetric
+  # branch — tests 4 + 8 directly witness this. E.1 +
+  # F-DEFERRAL-2 + E.2 bindings all FLIPPED to Landed in same commit.
+  constitution_router_buy_with_coin
 )
 
 # Run each gate file separately and collect per-test outcome.

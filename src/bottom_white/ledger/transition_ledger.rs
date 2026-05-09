@@ -131,6 +131,21 @@ pub enum TxKind {
     /// explicit). Strict 8-wire-field shape mirroring `CpmmPoolTx`
     /// minimal pattern (NO `timestamp_logical`).
     CpmmSwap          = 16,
+    /// Stage C P-M6 / Phase F.5 (architect manual §7.7 verbatim;
+    /// remediation directive 2026-05-09 §1.C row 5) — agent-signed
+    /// Mint-and-Swap router (9-step composite atomic tx). Buyer pays
+    /// Coin → collateral locks → synthetic complete-set mint splits
+    /// payC into payC YES + payC NO → buyer retains preferred side
+    /// (per `direction`) → unwanted side swaps into CPMM pool → pool
+    /// returns out_shares of preferred side per architect §7.6 floor
+    /// formula → buyer ends with `payC + out_shares` of preferred side.
+    /// Per E.2 atomic-rollback witness gate: `cfg(test)` failure-
+    /// injection hook (`TURINGOS_TEST_ROUTER_FAIL_AT_STEP` env var)
+    /// allows mid-mutation failure for atomic-rollback test coverage.
+    /// Constant-product invariant + complete-set balance + Coin
+    /// conservation all preserved on accept. Strict 8-wire-field shape
+    /// (NO `timestamp_logical`; `event_id` NOT `event_id_kind`).
+    BuyWithCoinRouter = 17,
 }
 
 /// TRACE_MATRIX FC2-Append + WP § 5.L4: stored LedgerEntry record (11 fields).

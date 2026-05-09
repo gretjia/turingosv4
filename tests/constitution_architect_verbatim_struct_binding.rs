@@ -173,6 +173,56 @@ const BINDINGS: &[StructBinding] = &[
         ],
         landing_status: LandingStatus::Landed,
     },
+    // ── Phase F.5 Stage C P-M6 (architect §7.7 9-step composite) ──────────
+    // BuyWithCoinRouterTx is implementation-defined — architect §7.7 fixes
+    // the 9-step semantics + integer formula + 9 mandated tests, not the
+    // tx schema. The 8-field shape mirrors CpmmSwapTx (P-M5) minimal
+    // pattern + replaces `amount_in: ShareAmount` with `pay_coin: MicroCoin`
+    // (router input is Coin payment). Defect-3 prevention: NO
+    // `timestamp_logical`. Defect-4 prevention: `event_id` NOT
+    // `event_id_kind`.
+    //
+    // FLIPPED 2026-05-09 session #32 (Phase F.5 P-M6 rebuild commit):
+    // BuyWithCoinRouterTx Landed at `src/state/typed_tx.rs`. E.1 strict
+    // (name, type) pair-equality enforces the wire shape; future drift
+    // (e.g. reintroducing `timestamp_logical`) fails at gate-time.
+    StructBinding {
+        atom_id: "P-M6",
+        manual_section: "§7.7",
+        struct_name: "BuyWithCoinRouterTx",
+        impl_path: "src/state/typed_tx.rs",
+        expected_fields: &[
+            ("tx_id", "TxId"),
+            ("parent_state_root", "Hash"),
+            ("event_id", "EventId"),
+            ("buyer", "AgentId"),
+            ("direction", "BuyDirection"),
+            ("pay_coin", "MicroCoin"),
+            ("min_out_shares", "ShareAmount"),
+            ("signature", "AgentSignature"),
+        ],
+        landing_status: LandingStatus::Landed,
+    },
+    // F-DEFERRAL-2 closure for P-M6 (per remediation directive §9):
+    // sibling SigningPayload binding extends drift detection from the
+    // wire-tx struct to its agent-signed projection. 7-field projection
+    // (8 wire fields minus `signature`).
+    StructBinding {
+        atom_id: "P-M6",
+        manual_section: "§7.7-signing",
+        struct_name: "BuyWithCoinRouterSigningPayload",
+        impl_path: "src/state/typed_tx.rs",
+        expected_fields: &[
+            ("tx_id", "TxId"),
+            ("parent_state_root", "Hash"),
+            ("event_id", "EventId"),
+            ("buyer", "AgentId"),
+            ("direction", "BuyDirection"),
+            ("pay_coin", "MicroCoin"),
+            ("min_out_shares", "ShareAmount"),
+        ],
+        landing_status: LandingStatus::Landed,
+    },
 ];
 
 fn workspace_root() -> PathBuf {

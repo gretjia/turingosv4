@@ -353,6 +353,76 @@ pub fn cpmm_swap_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
     Hash::from_bytes(digest)
 }
 
+/// TRACE_MATRIX FC1-Append Stage C P-M6 / Phase F.5 (architect manual §7.7;
+/// remediation directive §1.C row 5): BuyWithCoinRouter-accept state-root
+/// domain. Mirrors sibling `CPMM_POOL_DOMAIN_V1` / `CPMM_SWAP_DOMAIN_V1`
+/// naming convention (`turingosv4.<purpose>.accept.v1`).
+pub(crate) const BUY_WITH_COIN_ROUTER_DOMAIN_V1: &[u8] =
+    b"turingosv4.buy_with_coin_router.accept.v1";
+
+/// TRACE_MATRIX FC1-Append Stage C P-M6 / Phase F.5: state-root mutator on
+/// `BuyWithCoinRouterTx` accept. Mirror of `cpmm_swap_accept_state_root`
+/// (sha256(domain || prev || canonical_encode(tx))). The single
+/// state_root advance at end of the 9-step composite admission arm is
+/// the atomic commit point per architect §7.7 + Codex G2 audit
+/// 2026-05-09 defect 2 atomicity requirement.
+pub fn buy_with_coin_router_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
+    let mut h = Sha256::new();
+    h.update(BUY_WITH_COIN_ROUTER_DOMAIN_V1);
+    h.update(prev.0);
+    h.update(canonical_encode(tx).expect("TypedTx is canonical-encodable"));
+    let digest: [u8; 32] = h.finalize().into();
+    Hash::from_bytes(digest)
+}
+
+/// TRACE_MATRIX FC1-Append Stage C P-M6 / Phase F.5 (E.2 atomic-rollback
+/// witness gate; Codex G2 audit 2026-05-09 defect 2):
+/// debug-only failure-injection hook for the 9-step composite router
+/// admission arm. Reads `TURINGOS_TEST_ROUTER_FAIL_AT_STEP` env var; if
+/// set to a step number in 1..=9 matching `current_step`, returns
+/// `TestForcedFailure` so the test suite can witness the rollback path.
+///
+/// **Gate choice — `cfg(debug_assertions)` not `cfg(test)`**: integration
+/// tests in `tests/*.rs` link against the *non-test* lib crate (cfg(test)
+/// applies only within the crate currently being test-built; the
+/// integration-test target builds the lib WITHOUT cfg(test)). Switching
+/// to `cfg(debug_assertions)` makes the injection reachable from
+/// integration tests AND from `cargo test --lib` AND from dev builds —
+/// while still being compiled OUT in `--release` builds (production
+/// replay determinism preserved; environment variable cannot influence a
+/// release-mode chain).
+///
+/// Production builds (`cfg(not(debug_assertions))`) compile out the
+/// entire body to `Ok(())` — zero runtime cost; the env var is unreadable
+/// by design.
+///
+/// Per E.2 binding pattern (`tests/constitution_class4_atomic_rollback_
+/// witness.rs::router_atomic_rollback_on_failure`): tests invoke
+/// `std::env::set_var("TURINGOS_TEST_ROUTER_FAIL_AT_STEP", "<n>")` before
+/// dispatching the router tx; assert `result.is_err()` AND
+/// `q.state_root` UNCHANGED post-failure (atomic rollback witnessed).
+#[cfg(debug_assertions)]
+fn check_router_test_failure_injection(
+    current_step: u8,
+) -> Result<(), TransitionError> {
+    if let Ok(target) = std::env::var("TURINGOS_TEST_ROUTER_FAIL_AT_STEP") {
+        if let Ok(target_step) = target.parse::<u8>() {
+            if target_step == current_step {
+                return Err(TransitionError::TestForcedFailure);
+            }
+        }
+    }
+    Ok(())
+}
+
+#[cfg(not(debug_assertions))]
+#[inline(always)]
+fn check_router_test_failure_injection(
+    _current_step: u8,
+) -> Result<(), TransitionError> {
+    Ok(())
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // TB-2 Atom 4 — rejection-path helpers (preflight v3 §3.5 + §3.7)
 // ────────────────────────────────────────────────────────────────────────────
@@ -642,7 +712,10 @@ fn system_message_for_verification(
         | TypedTx::CpmmPool(_)
         // Stage C P-M5 / Phase F.4 — agent-signed (trader AgentSignature);
         // verified separately at admission, not at system stage 1.5.
-        | TypedTx::CpmmSwap(_) => None,
+        | TypedTx::CpmmSwap(_)
+        // Stage C P-M6 / Phase F.5 — agent-signed (buyer AgentSignature);
+        // verified separately at admission, not at system stage 1.5.
+        | TypedTx::BuyWithCoinRouter(_) => None,
     }
 }
 
@@ -670,7 +743,9 @@ fn system_signature_of(
         // Stage C P-M4 / Phase F.3 — agent-signed.
         | TypedTx::CpmmPool(_)
         // Stage C P-M5 / Phase F.4 — agent-signed.
-        | TypedTx::CpmmSwap(_) => None,
+        | TypedTx::CpmmSwap(_)
+        // Stage C P-M6 / Phase F.5 — agent-signed.
+        | TypedTx::BuyWithCoinRouter(_) => None,
     }
 }
 
@@ -703,7 +778,9 @@ fn system_epoch_of(tx: &TypedTx) -> Option<SystemEpoch> {
         // Stage C P-M4 / Phase F.3 — agent-signed (no system epoch).
         | TypedTx::CpmmPool(_)
         // Stage C P-M5 / Phase F.4 — agent-signed (no system epoch).
-        | TypedTx::CpmmSwap(_) => None,
+        | TypedTx::CpmmSwap(_)
+        // Stage C P-M6 / Phase F.5 — agent-signed (no system epoch).
+        | TypedTx::BuyWithCoinRouter(_) => None,
     }
 }
 
@@ -2648,6 +2725,312 @@ pub(crate) fn dispatch_transition(
 
             Ok((q_next, SignalBundle::default()))
         }
+
+        // ──────────────────────────────────────────────────────────────────
+        // Stage C P-M6 / Phase F.5 (architect manual §7.7 verbatim
+        // "BuyYesWithCoinRouter" / "BuyNoWithCoinRouter" 9-step composite;
+        // remediation directive §1.C row 5 verbatim "P-M6 BuyWithCoinRouter
+        // (rebuild); Class 4 STEP_B; per-atom §8 + PRE-§8 dual audit
+        // mandatory"; Codex G2 audit 2026-05-09 defect 1 + defect 2 patches).
+        //
+        // Defect-1 patch: monetary invariants enforce STRICT equality
+        // (`assert_complete_set_balanced` symmetric branch is strict-equality
+        // post-Phase E.3 refactor; the router post-state must hit the
+        // symmetric branch since Coin->collateral mint is balanced 1:1).
+        //
+        // Defect-2 patch: cfg(test) failure-injection hook
+        // (`check_router_test_failure_injection`) called between EACH of the
+        // 9 architect steps so the rollback test can witness the atomic
+        // failure path. Rust's `q_next = q.clone()` + final state_root
+        // commit pattern provides structural atomicity — failure mid-arm
+        // drops `q_next` without persisting; the original `q.state_root_t`
+        // is unchanged.
+        //
+        // Architect §7.7 verbatim 9-step composite (BuyYesWithCoinRouter):
+        //   1. Debit buyer Coin by payC.        (balances_t -=)
+        //   2. Lock payC collateral.            (conditional_collateral_t +=)
+        //   3. Mint payC YES + payC NO to router book-keeping.
+        //   4. Transfer payC YES to buyer.      (conditional_share_balances_t.yes +=)
+        //   5. Swap payC NO into CPMM pool.     (pool.pool_no += payC.micro)
+        //   6. Pool receives dN = payC NO.      (synthetic NO consumed by pool)
+        //   7. Router receives outY YES:
+        //        outY = floor(payC.micro * pool.pool_yes /
+        //                     (pool.pool_no + payC.micro))
+        //      (pool.pool_yes -= outY)
+        //   8. Transfer outY YES to buyer.      (conditional_share_balances_t.yes += outY)
+        //   9. buyer receives getY = payC + outY (cumulative ledger effect).
+        //
+        // Symmetric `BuyNo` mirrors steps 4/5/7/8 with YES↔NO swap (architect
+        // §7.7 "BuyNoWithCoinRouter").
+        //
+        // Per architect §7.7 integer invariant:
+        //   pool_yes1 * pool_no1 >= pool_yes * pool_no    (>= because floor)
+        //
+        // Coin conservation: balances_t -1 payC; conditional_collateral_t +1
+        // payC; net delta = 0. assert_total_ctf_conserved with empty
+        // exempt-list MUST pass.
+        // ──────────────────────────────────────────────────────────────────
+        TypedTx::BuyWithCoinRouter(router) => {
+            use crate::state::typed_tx::BuyDirection;
+
+            // === Pre-step admission preconditions (steps 1-prep gate) ===
+
+            // Pre-1: parent-root match (Inv 5).
+            if router.parent_state_root != q.state_root_t {
+                return Err(TransitionError::StaleParent);
+            }
+            // Pre-2: pay_coin > 0 (architect §7.7 implies payC > 0).
+            if router.pay_coin.micro_units() <= 0 {
+                return Err(TransitionError::RouterZeroPay);
+            }
+            // Pre-3: pool exists AND status == Active.
+            let (pool_input_units_pre, pool_other_units_pre) = {
+                let pool =
+                    match q.economic_state_t.cpmm_pools_t.0.get(&router.event_id) {
+                        Some(p) => p,
+                        None => return Err(TransitionError::RouterPoolNotActive),
+                    };
+                if pool.status != crate::state::q_state::PoolStatus::Active {
+                    return Err(TransitionError::RouterPoolNotActive);
+                }
+                // Per direction: BuyYes → input side (pool_no) takes payC,
+                // other side (pool_yes) gives outY. BuyNo: symmetric.
+                match router.direction {
+                    BuyDirection::BuyYes => (pool.pool_no.units, pool.pool_yes.units),
+                    BuyDirection::BuyNo => (pool.pool_yes.units, pool.pool_no.units),
+                }
+            };
+            // Pre-4: buyer Coin balance >= payC (architect §7.7 step 1).
+            let buyer_balance_pre = q
+                .economic_state_t
+                .balances_t
+                .0
+                .get(&router.buyer)
+                .copied()
+                .unwrap_or_default();
+            if buyer_balance_pre.micro_units() < router.pay_coin.micro_units() {
+                return Err(TransitionError::RouterInsufficientCoinBalance);
+            }
+            // Pre-5: compute out_shares = floor(payC * pool_other /
+            // (pool_input + payC)). Integer math only.
+            let pay_coin_units: u128 = router.pay_coin.micro_units() as u128;
+            let denom = pool_input_units_pre
+                .checked_add(pay_coin_units)
+                .ok_or(TransitionError::MonetaryInvariantViolation)?;
+            let numer = pay_coin_units
+                .checked_mul(pool_other_units_pre)
+                .ok_or(TransitionError::MonetaryInvariantViolation)?;
+            let out_shares: u128 = numer / denom;
+            // Pre-6: out > 0 else RouterSwapInsufficientPoolOutput.
+            if out_shares == 0 {
+                return Err(TransitionError::RouterSwapInsufficientPoolOutput);
+            }
+            // Pre-7: out >= min_out_shares else RouterSlippageExceeded.
+            if out_shares < router.min_out_shares.units {
+                return Err(TransitionError::RouterSlippageExceeded);
+            }
+
+            // === Build q_next: 9 architect steps applied atomically ===
+            //
+            // Atomicity model: q_next is a FRESH clone of q. All 9 mutations
+            // touch q_next ONLY. If any cfg(test) failure-injection fires
+            // mid-arm, we early-return Err and Rust drops q_next — the
+            // original q is unchanged. The state_root advance at the end is
+            // the single atomic commit point.
+            let mut q_next = q.clone();
+            let pay_coin_micro_i64 = router.pay_coin.micro_units();
+
+            // Step 1 — architect §7.7 verbatim: "Debit buyer Coin by payC."
+            check_router_test_failure_injection(1)?;
+            {
+                let buyer_bal = q_next
+                    .economic_state_t
+                    .balances_t
+                    .0
+                    .entry(router.buyer.clone())
+                    .or_insert(crate::economy::money::MicroCoin::zero());
+                *buyer_bal = buyer_bal
+                    .checked_sub(router.pay_coin)
+                    .ok_or(TransitionError::MonetaryInvariantViolation)?;
+            }
+
+            // Step 2 — architect §7.7 verbatim: "Lock payC collateral."
+            check_router_test_failure_injection(2)?;
+            {
+                let coll = q_next
+                    .economic_state_t
+                    .conditional_collateral_t
+                    .0
+                    .entry(router.event_id.clone())
+                    .or_insert(crate::economy::money::MicroCoin::zero());
+                *coll = coll
+                    .checked_add(router.pay_coin)
+                    .ok_or(TransitionError::MonetaryInvariantViolation)?;
+            }
+
+            // Step 3 — architect §7.7 verbatim: "Mint payC YES + payC NO to
+            // router." (book-keeping; in-place via steps 4 + 5 below — the
+            // synthetic intermediate router holding never persists in state.
+            // This step is the architect's logical conservation explanation:
+            // the locked collateral logically represents one complete set,
+            // which the router immediately decomposes into the buyer's
+            // retained side + the pool's swap side.)
+            check_router_test_failure_injection(3)?;
+
+            // Step 4 — architect §7.7 verbatim: "Transfer payC YES to buyer."
+            // (BuyYes: trader's YES += payC.micro; BuyNo: trader's NO += payC.micro.)
+            check_router_test_failure_injection(4)?;
+            {
+                let buyer_shares = q_next
+                    .economic_state_t
+                    .conditional_share_balances_t
+                    .0
+                    .entry(router.buyer.clone())
+                    .or_insert_with(std::collections::BTreeMap::new);
+                let pair_mut = buyer_shares
+                    .entry(router.event_id.clone())
+                    .or_insert(crate::state::q_state::ShareSidePair::default());
+                match router.direction {
+                    BuyDirection::BuyYes => {
+                        pair_mut.yes = crate::state::typed_tx::ShareAmount::from_units(
+                            pair_mut.yes.units + pay_coin_units,
+                        );
+                    }
+                    BuyDirection::BuyNo => {
+                        pair_mut.no = crate::state::typed_tx::ShareAmount::from_units(
+                            pair_mut.no.units + pay_coin_units,
+                        );
+                    }
+                }
+            }
+
+            // Step 5 — architect §7.7 verbatim: "Swap payC NO into CPMM pool."
+            // (BuyYes: pool.pool_no += payC.micro; BuyNo: pool.pool_yes += payC.micro.)
+            check_router_test_failure_injection(5)?;
+            // Step 6 — architect §7.7 verbatim: "Pool receives dN = payC NO."
+            // (combined with Step 5 — single mutation: pool input side gets payC.)
+            check_router_test_failure_injection(6)?;
+            // Step 7 — architect §7.7 verbatim: "Router receives outY YES:
+            //   outY = floor(payC * poolY / (poolN + payC))"
+            // (pool other side decreases by out_shares.)
+            check_router_test_failure_injection(7)?;
+            {
+                let pool_mut = q_next
+                    .economic_state_t
+                    .cpmm_pools_t
+                    .0
+                    .get_mut(&router.event_id)
+                    .expect("pool existence checked at Pre-3");
+                match router.direction {
+                    BuyDirection::BuyYes => {
+                        // BuyYes: pool_no += payC; pool_yes -= out_shares.
+                        pool_mut.pool_no =
+                            crate::state::typed_tx::ShareAmount::from_units(
+                                pool_mut.pool_no.units + pay_coin_units,
+                            );
+                        pool_mut.pool_yes =
+                            crate::state::typed_tx::ShareAmount::from_units(
+                                pool_mut.pool_yes.units - out_shares,
+                            );
+                    }
+                    BuyDirection::BuyNo => {
+                        // BuyNo: pool_yes += payC; pool_no -= out_shares.
+                        pool_mut.pool_yes =
+                            crate::state::typed_tx::ShareAmount::from_units(
+                                pool_mut.pool_yes.units + pay_coin_units,
+                            );
+                        pool_mut.pool_no =
+                            crate::state::typed_tx::ShareAmount::from_units(
+                                pool_mut.pool_no.units - out_shares,
+                            );
+                    }
+                }
+            }
+
+            // Step 8 — architect §7.7 verbatim: "Transfer outY YES to buyer."
+            // (BuyYes: buyer's YES += out_shares; BuyNo: buyer's NO += out_shares.)
+            check_router_test_failure_injection(8)?;
+            {
+                let buyer_shares = q_next
+                    .economic_state_t
+                    .conditional_share_balances_t
+                    .0
+                    .get_mut(&router.buyer)
+                    .expect("buyer entry created at Step 4");
+                let pair_mut = buyer_shares
+                    .get_mut(&router.event_id)
+                    .expect("buyer event entry created at Step 4");
+                match router.direction {
+                    BuyDirection::BuyYes => {
+                        pair_mut.yes = crate::state::typed_tx::ShareAmount::from_units(
+                            pair_mut.yes.units + out_shares,
+                        );
+                    }
+                    BuyDirection::BuyNo => {
+                        pair_mut.no = crate::state::typed_tx::ShareAmount::from_units(
+                            pair_mut.no.units + out_shares,
+                        );
+                    }
+                }
+            }
+
+            // Step 9 — architect §7.7 verbatim: "buyer receives getY = payC +
+            // outY." (cumulative ledger statement; combined effect of steps
+            // 4 + 8. No additional mutation.)
+            check_router_test_failure_injection(9)?;
+
+            // === Post-step monetary invariants (Defect-1 patch + CTF) ===
+            //
+            // assert_no_post_init_mint(tx, q): TypedTx::BuyWithCoinRouter is
+            // in the allow-list. Net effect on `total_supply_micro`: ZERO
+            // (balances_t -1 payC, conditional_collateral_t +1 payC; both
+            // are Coin holdings; symmetric movement).
+            //
+            // assert_total_ctf_conserved(empty exempt): Coin sum bit-identical
+            // pre/post (debit + credit cancel within the 6-holding sum).
+            //
+            // assert_complete_set_balanced (P-M4 extended to count pool
+            // reserves; Phase E.3 refactored to STRICT symmetric-equality):
+            // post-state must hit symmetric branch with strict
+            // sum_yes == sum_no == collateral. Trace:
+            //   pre: sum_yes_traders + pool.pool_yes  ;  sum_no_traders + pool.pool_no  =  collateral
+            //   For BuyYes:
+            //     post sum_yes = sum_yes_traders + payC + out_shares + (pool.pool_yes - out_shares) =
+            //                    sum_yes_traders + pool.pool_yes + payC = pre + payC
+            //     post sum_no  = sum_no_traders + (pool.pool_no + payC) = pre + payC
+            //     post collateral = pre + payC
+            //   sum_yes' == sum_no' == collateral' ✓ (symmetric branch holds).
+            //   BuyNo: symmetric, same conclusion.
+            assert_no_post_init_mint(tx, q)
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            assert_total_ctf_conserved(
+                &q.economic_state_t,
+                &q_next.economic_state_t,
+                &[],
+            )
+            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            crate::economy::monetary_invariant::assert_complete_set_balanced(
+                &q_next.economic_state_t,
+            )
+            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+
+            // === Atomic commit: state_root advance ===
+            //
+            // Single state-root mutation = atomic commit point. If any of
+            // the 9 step injection-checks above returned Err, q_next was
+            // dropped before reaching here and q.state_root_t remains
+            // unchanged (witnessed by E.2 atomic-rollback gate). The fact
+            // that we successfully reach this line implies all 9 steps +
+            // 3 monetary invariants passed.
+            //
+            // pay_coin_micro_i64 binding suppresses unused-var warning on
+            // builds where downstream comments reference it.
+            let _ = pay_coin_micro_i64;
+            q_next.state_root_t =
+                buy_with_coin_router_accept_state_root(&q.state_root_t, tx);
+
+            Ok((q_next, SignalBundle::default()))
+        }
     }
 }
 
@@ -3189,7 +3572,13 @@ impl Sequencer {
             // between trader and pool reserves; no Coin movement; subject
             // to the same admission gates as P-M4 (manifest-when-set
             // signature gate; replay-time Gate 4 fallback).
-            | TypedTx::CpmmSwap(_) => {}
+            | TypedTx::CpmmSwap(_)
+            // Stage C P-M6 / Phase F.5 — agent-signed (buyer); admits
+            // through identical agent ingress path. 9-step composite
+            // Mint-and-Swap router: Coin payment → collateral lock + YES/NO
+            // mint → swap retains buyer's preferred side; subject to the
+            // same admission gates as sibling agent-signed variants.
+            | TypedTx::BuyWithCoinRouter(_) => {}
         }
         // TRACE_MATRIX TB-13 Atom 6 round-3 (Codex VETO TB13-AUTH 2026-05-03):
         // submit-time agent-signature verification for the 3 TB-13
@@ -3265,6 +3654,20 @@ impl Sequencer {
                         .ok_or(SubmitError::AgentSignatureInvalid)?;
                     let digest = swap.to_signing_payload().canonical_digest();
                     if verify_agent_signature(&swap.signature, &digest, &pubkey).is_err() {
+                        return Err(SubmitError::AgentSignatureInvalid);
+                    }
+                }
+                // Stage C P-M6 / Phase F.5 (architect §7.7): agent-signature
+                // gate parallel to CpmmSwap (buyer is the signer). Router is
+                // a Class-4 STEP_B economic mutator (9-step composite atomic
+                // tx) → manifest-when-set gating consistent with sibling
+                // P-M5 admission.
+                TypedTx::BuyWithCoinRouter(router) => {
+                    let pubkey = manifest
+                        .get(&router.buyer)
+                        .ok_or(SubmitError::AgentSignatureInvalid)?;
+                    let digest = router.to_signing_payload().canonical_digest();
+                    if verify_agent_signature(&router.signature, &digest, &pubkey).is_err() {
                         return Err(SubmitError::AgentSignatureInvalid);
                     }
                 }

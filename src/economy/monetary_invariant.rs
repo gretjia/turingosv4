@@ -391,7 +391,18 @@ pub fn assert_no_post_init_mint(tx: &TypedTx, q: &QState) -> Result<(), Monetary
         // Coin mint, no Coin burn. `total_supply_micro` 6-holding sum is
         // preserved bit-exact (input-side gain on pool == loss on trader;
         // output-side gain on trader == loss on pool — neither side is Coin).
-        | TypedTx::CpmmSwap(_) => Ok(()),
+        | TypedTx::CpmmSwap(_)
+        // Stage C P-M6 / Phase F.5 (architect manual §7.7): BuyWithCoinRouter
+        // is a 9-step composite: balances_t -1 payC + conditional_collateral_t
+        // +1 payC + buyer's conditional_share_balances_t += (payC + out_shares)
+        // on preferred side + pool reserves shift per swap. The Coin-side
+        // movement (balances_t → conditional_collateral_t) is symmetric:
+        // total_supply_micro 6-holding sum preserved bit-exact (Coin holding
+        // moves to collateral holding; both are in the sum). YES/NO shares
+        // are NOT Coin (per architect §7.5 rule 2 + CR-13.3); pool reserves
+        // are NOT Coin (per §7.5 rule 2). Net mint check: Coin neither
+        // created nor destroyed.
+        | TypedTx::BuyWithCoinRouter(_) => Ok(()),
     }
 }
 
