@@ -114,6 +114,8 @@ Per parent authorization §3.3 + alignment-doc §3 (zh) / §4 (en) Stage C:
 
 ### §3.5. P-M4 — Integer CpmmPool (Class 4 STEP_B if typed_tx surface)
 
+**P-M4 STATUS**: 🟢 SHIPPED 2026-05-09 (session #27, plan cozy-waddling-raven Step 6, STEP_B parallel-branch `feat/p-m4-cpmm-pool`) — `tests/constitution_cpmm_pool.rs` exact-matches all 4 architect manual §7.5 verbatim test names: `pool_created_from_seed_inventory` + `pool_reserves_not_counted_as_coin` + `lp_shares_not_counted_as_coin` + `pool_cannot_exist_without_collateralized_shares`. `cargo test --workspace --test constitution_cpmm_pool` → 4 passed. EconomicState sub-field count 13 → 14 with new `cpmm_pools_t: CpmmPoolsIndex` field. Awaiting **batch §8 sign-off** (P-M2 + P-M4 + P-M6).
+
 | ID | Requirement |
 |----|-------------|
 | FR-PM4.1 | `CpmmPool` state per architect manual: `{event_id, pool_yes, pool_no, lp_total_shares, status}`. |
