@@ -205,6 +205,7 @@ pub struct TxKindCounts {
     pub complete_set_merge: u64,  // Stage C P-M2 / Phase F.1
     pub cpmm_pool: u64,           // Stage C P-M4 / Phase F.3
     pub cpmm_swap: u64,           // Stage C P-M5 / Phase F.4
+    pub buy_with_coin_router: u64, // Stage C P-M6 / Phase F.5
     pub finalize_reward: u64,
     pub challenge_resolve: u64,
     pub terminal_summary: u64,
@@ -230,6 +231,7 @@ impl TxKindCounts {
                 TxKind::CompleteSetMerge => c.complete_set_merge += 1,
                 TxKind::CpmmPool => c.cpmm_pool += 1,
                 TxKind::CpmmSwap => c.cpmm_swap += 1,
+                TxKind::BuyWithCoinRouter => c.buy_with_coin_router += 1,
                 TxKind::FinalizeReward => c.finalize_reward += 1,
                 TxKind::ChallengeResolve => c.challenge_resolve += 1,
                 TxKind::TerminalSummary => c.terminal_summary += 1,
@@ -831,6 +833,7 @@ fn extract_all_agent_ids(tx: &TypedTx) -> Vec<(&'static str, String)> {
         TypedTx::CompleteSetMerge(t) => out.push(("CompleteSetMergeTx.owner", t.owner.0.clone())),
         TypedTx::CpmmPool(t) => out.push(("CpmmPoolTx.provider", t.provider.0.clone())),
         TypedTx::CpmmSwap(t) => out.push(("CpmmSwapTx.trader", t.trader.0.clone())),
+        TypedTx::BuyWithCoinRouter(t) => out.push(("BuyWithCoinRouterTx.buyer", t.buyer.0.clone())),
     }
     out
 }

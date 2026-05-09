@@ -101,14 +101,29 @@ fn body_executable_only(body: &str) -> String {
 
 const BINDINGS: &[CompositeTxRollback] = &[
     // P-M6 Mint-and-Swap Router (architect §7.7 9-step composite).
-    // VETO rolled this back; Phase F.5 rebuilds with mid-mutation injection.
+    // FLIPPED to Landed 2026-05-09 session #32 by Phase F.5 P-M6 rebuild
+    // commit: rollback test now exists at the bound path AND invokes
+    // `set_var("TURINGOS_TEST_ROUTER_FAIL_AT_STEP", ...)` per the static-
+    // layer pattern catalog. The dynamic layer is in
+    // `src/state/sequencer.rs::check_router_test_failure_injection` —
+    // gated on `cfg(debug_assertions)` so the env-var read is reachable
+    // from integration tests + dev builds AND compiled OUT in --release
+    // production builds (replay determinism preserved).
+    //
+    // Codex G2 audit 2026-05-09 defect 2 closed: rollback test forces
+    // step-5 (mid-composite) failure via env var injection AND asserts
+    // (a) state_root unchanged, (b) buyer Coin balance unchanged,
+    // (c) collateral unchanged, (d) pool reserves unchanged,
+    // (e) buyer's YES gain from step-4 reverted. Companion test
+    // `router_atomic_rollback_witnessed_at_every_step` exhaustively
+    // injects at steps 1..=9 and asserts state_root unchanged for each.
     CompositeTxRollback {
         atom_id: "P-M6",
         manual_section: "§7.7",
         composite_name: "BuyWithCoinRouter",
         rollback_test_path: "tests/constitution_router_buy_with_coin.rs",
         rollback_test_fn: "router_atomic_rollback_on_failure",
-        landing_status: LandingStatus::NotYetLanded,
+        landing_status: LandingStatus::Landed,
     },
 ];
 
