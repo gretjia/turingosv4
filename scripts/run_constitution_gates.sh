@@ -225,6 +225,23 @@ GATES=(
   # directive §9). Pool reserves + LP shares are NOT Coin (architect
   # §7.5 rules 2 + 3); total_supply_micro UNCHANGED on accept.
   constitution_cpmm_pool
+
+  # Stage C P-M5 / Phase F.4 2026-05-09 (re-apply Class-3; per
+  # `handover/directives/2026-05-09_STAGE_C_POLYMARKET_VETO_REMEDIATION_
+  # DIRECTIVE.md` §1.C row 4 + architect manual §7.6 verbatim). Six
+  # architect-mandated test names exercising CpmmSwapTx through the live
+  # sequencer accept arm: swap_no_for_yes_constant_product_non_decreasing
+  # / swap_yes_for_no_constant_product_non_decreasing /
+  # swap_fails_zero_input / swap_fails_insufficient_pool_output /
+  # swap_respects_min_out_slippage / swap_uses_integer_math_no_f64. Pure
+  # share rotation between trader and pool reserves; no Coin movement;
+  # constant-product invariant `pool_yes1 * pool_no1 >= pool_yes *
+  # pool_no` preserved (>= because integer floor leaves dust in pool —
+  # architect §7.6 explicit). Class-3 sub-option mirrors P-M3 framing
+  # (per-atom §8 NO; STEP_B branch for typed_tx.rs / sequencer.rs /
+  # transition_ledger.rs / verify.rs / run_summary.rs / audit_assertions.rs
+  # / monetary_invariant.rs file membership).
+  constitution_cpmm_swap
 )
 
 # Run each gate file separately and collect per-test outcome.

@@ -384,7 +384,14 @@ pub fn assert_no_post_init_mint(tx: &TypedTx, q: &QState) -> Result<(), Monetary
         // no Coin burn. Pool reserves are NOT Coin (architect §7.5 rule 2);
         // LP shares are NOT Coin (architect §7.5 rule 3). `total_supply_micro`
         // 6-holding sum is preserved bit-exact.
-        | TypedTx::CpmmPool(_) => Ok(()),
+        | TypedTx::CpmmPool(_)
+        // Stage C P-M5 / Phase F.4 (architect manual §7.6): CpmmSwap is pure
+        // share rotation between trader and pool reserves. `balances_t` /
+        // `conditional_collateral_t` / `lp_share_balances_t` UNCHANGED — no
+        // Coin mint, no Coin burn. `total_supply_micro` 6-holding sum is
+        // preserved bit-exact (input-side gain on pool == loss on trader;
+        // output-side gain on trader == loss on pool — neither side is Coin).
+        | TypedTx::CpmmSwap(_) => Ok(()),
     }
 }
 
