@@ -58,6 +58,58 @@
 
 ---
 
+## ✅ Phase E SHIPPED 2026-05-09 session #28 (mechanism additions before any Phase F rebuild)
+
+**Plan**: `cached-noodle.md` (architect-approved replan superseding rolled-back `cozy-waddling-raven.md`).
+**Authority**: `handover/directives/2026-05-09_STAGE_C_POLYMARKET_VETO_REMEDIATION_DIRECTIVE.md` §1.B.
+
+### What landed
+| Atom | Type | File | Tests |
+|---|---|---|---|
+| **E.1** verbatim spec binding gate | NEW gate | `tests/constitution_architect_verbatim_struct_binding.rs` | 3 (1 main + 2 self-checks) — bindings P-M2 §7.3 + P-M4 §7.5 currently NotYetLanded; flip to Landed in Phase F |
+| **E.2** atomic-rollback witness gate | NEW gate (static layer) | `tests/constitution_class4_atomic_rollback_witness.rs` | 3 (1 main + 2 self-checks) — P-M6 binding NotYetLanded; sequencer cfg(test) injection point lands in Phase F.5 |
+| **E.3** strict-equality lint | NEW gate | `tests/constitution_economy_strict_equality.rs` | 4 (1 main + 3 self-checks) |
+| **E.3 source refactor** | `assert_complete_set_balanced` split | `src/economy/monetary_invariant.rs` | symmetric branch (strict `sum_yes == sum_no == coll`) + asymmetric branch (post-resolution; `min()` audit-marked CTF-MIN-SAFE); 36/36 existing CTF tests preserved |
+| **E.4** no-batch-Class-4-§8 feedback | NEW memory file | `~/.claude/projects/-home-zephryj-projects-turingosv4/memory/feedback_no_batch_class4_signoff.md` | hard rule with Stage C session #27 evidence |
+| **E.5** dual-audit timing rule | UPDATE memory | `~/.claude/projects/-home-zephryj-projects-turingosv4/memory/feedback_dual_audit.md` | added "Class-4 timing: dispatch at PACKET DRAFT time" rule |
+| **E.6** registration | gate registry | `scripts/run_constitution_gates.sh` | 3 gates registered + Trust Root rehash for monetary_invariant.rs |
+
+### Validation post-Phase-E (HEAD post-commit)
+| Check | Pre-Phase-E | Post-Phase-E | Δ |
+|---|---|---|---|
+| Constitution gates | 175/0/1 | **185/0/1** | +10 (3 new gate files; main test + 2-3 self-checks each) |
+| Workspace tests | 1308/0/151 | **1318/0/151** | +10 (same self-check tests counted in workspace too) |
+| Trust Root verify | PASS | **PASS** | rehashed `src/economy/monetary_invariant.rs` (91f66421 → c4e1e258) |
+| TB-13 forward-fence (`legacy_cpm_api_not_imported_by_complete_set`) | PASS | **PASS** | doc-comment language adjusted to avoid `CPMM` token (used "constant-product market" instead) |
+
+### Filesystem audit verified (2026-05-09 session #28; reconciles a remote-session report claiming M2 produced 0 cells)
+- `handover/evidence/stage_b3_r7_m2_20260508T210337Z/` exists with `run_log.txt`, `BenchmarkManifest.json`, `PROBLEMS.txt`, and per-cell evidence under `deepseek-v4-flash/seed1/rep1/P*` (49 cells captured before kill-decision).
+- `/tmp/stage_b3_r7_m2_20260508T210337Z.log` exists at 8798 bytes; 49 `verdict=Ok` lines confirmed.
+- Cumulative substrate-stable cell count: **109** (50 Wave 3 + 8 B3 R6 mini-M1 + 1 A3 R5 + 1 A3 R3.5 + 49 B3 R7 M2 partial).
+- The remote ultraplan session that reported "60 cells, M2 produced 0" was operating against a different filesystem (no `/tmp` content + no evidence dir) — its findings do not apply to the local working tree.
+
+### Phase F prerequisites — now satisfied
+1. ✅ Mechanism gates in place (E.1 + E.2 + E.3) — schema drift, vacuous rollback test, and `min()` weakening all caught at gate-level rather than relying on self-audit.
+2. ✅ Source refactor complete (`assert_complete_set_balanced` symmetric/asymmetric split) — no more lurking `min()` weakening on the conservation invariant.
+3. ✅ Charter rule codified (`feedback_no_batch_class4_signoff.md`) — no future batch §8 attempt regardless of wall-clock pressure.
+4. ✅ Audit timing rule codified (`feedback_dual_audit.md` Class-4 timing) — packet-draft-time dual dispatch, not post-§8-request.
+
+### Forward — Phase F execution rules (per remediation directive + plan §D)
+Each Class-4 atom (F.1 P-M2 / F.3 P-M4 / F.5 P-M6) goes:
+1. Implement strictly per architect §7.x verbatim (struct field set + names + tests) → E.1 binding flips Landed.
+2. STEP_B parallel-branch + Trust Root rehash + per-atom commit.
+3. Draft `*_§8_PACKET.md`.
+4. **Auto-dispatch dual audit (Codex G2 + Gemini parallel)** PRE-§8 per E.5 timing rule.
+5. Conservative-wins (VETO > CHALLENGE > PASS); 3-round cap.
+6. PASS → submit packet to architect; ratification verbatim → ship.
+7. Next atom only after current atom shipped.
+
+Non-Class-4 atoms (F.2 P-M3 / F.4 P-M5 / F.6 P-M7 / F.7 P-M8 / F.8 P-M9): per-atom commit + cargo test green; no per-atom §8.
+
+F.9 Stage C overall §8 packet: after all atoms shipped; same DUAL-PRE-§8 cadence.
+
+---
+
 ## 🚧 Open after Polymarket (post Stage C ship FINAL)
 
 These items do **not** affect Polymarket runtime; forward-bound to post-Stage-C session per plan `cozy-waddling-raven.md` Step 1 (user verbatim 2026-05-09: "之前没有完成的任务，你要在本地文件记录清楚，不要 drift"). Do not start any of these until Stage C Polymarket §8 sign-off lands.
@@ -77,17 +129,19 @@ These items do **not** affect Polymarket runtime; forward-bound to post-Stage-C 
 
 ## 📊 宪法全落地完成进度（Constitution Full-Landing Dashboard）
 
-**Updated**: 2026-05-08 session #26 (Stage B3 R7 M2 batch LAUNCHED in tmux — 1800-cell ~67h wall)
-**HEAD**: `1550e1b` (runner pin canonical PREREG §1.8 model `deepseek-v4-flash`)
-**M2 batch**: tmux session `stage_b3_r7_m2`, run_dir `handover/evidence/stage_b3_r7_m2_20260508T210337Z/`, log `/tmp/stage_b3_r7_m2_20260508T210337Z.log`, attach via `tmux attach -t stage_b3_r7_m2`
+> **Note (2026-05-09 session #28)**: This dashboard section dates from session #26 launch state. Current canonical truth is at top-of-file (Stage C VETO + rollback block + Phase E SHIPPED block). M2 batch was KILLED 2026-05-09 session #27 at cell 49/1800; substrate-stable @ 109 cumulative cells (filesystem-verified session #28). Validation totals below have been updated to post-Phase-E values; dashboard narrative below preserved for audit trail.
+
+**Updated**: 2026-05-09 session #28 (Stage C VETO rollback + Phase E mechanism gates SHIPPED; dashboard validation totals refreshed)
+**HEAD**: post-Phase-E commit (see top-of-file blocks for stage history)
+**M2 batch**: KILLED 2026-05-09 session #27 at cell 49/1800 (decision file `handover/decisions/2026-05-09_M2_KILL_AND_SUBSTRATE_STABLE_DECLARATION.md`); 49 cells preserved at `handover/evidence/stage_b3_r7_m2_20260508T210337Z/` (verdict=Ok delta=0 for all 49 per `run_log.txt`)
 **Snapshot**: per `bash scripts/run_constitution_gates.sh` + `cargo test --workspace --no-fail-fast`
 
 ### Validation totals
 | Metric | Value | Δ since session #19 (architect baseline 97/1181) |
 |--------|------:|--------------------------------------------------:|
-| Constitution gate tests | **175 GREEN / 0 failed / 1 ignored** | +78 |
-| Workspace tests | **1308 PASS / 0 failed / 151 ignored** | +127 |
-| Trust Root rehashed files | 5 (transition_ledger.rs ×2, mod.rs, cas/store.rs, rejection_evidence.rs) | — |
+| Constitution gate tests | **185 GREEN / 0 failed / 1 ignored** | +88 |
+| Workspace tests | **1318 PASS / 0 failed / 151 ignored** | +137 |
+| Trust Root rehashed files | 6 (transition_ledger.rs ×2, mod.rs, cas/store.rs, rejection_evidence.rs, monetary_invariant.rs Phase E.3 split) | — |
 
 ### Constitution Execution Matrix (`CONSTITUTION_EXECUTION_MATRIX.md`)
 | Status | Rows | Trajectory |
@@ -109,7 +163,7 @@ These items do **not** affect Polymarket runtime; forward-bound to post-Stage-C 
 | **B3** TB-18B M1/M2 | R1+R2+R3+R4+R5 + R6 mini-M1 | 1+3 | 🟡 substrate LANDED (BenchmarkManifest + AggregateReport + PCP corpus phase-2 + Art. 0.2 status report); R6 full M1 (450 runs) + R7 M2 + R8-R11 forward |
 | **§2.4 audit** Stage B | 1 audit-of-existing-impl | 1 | 🟢 SHIPPED (commit `d33c25a` 2026-05-08 session #25) — `tests/constitution_completeset_hardening.rs` (8 §5.3 verbatim) + `tests/constitution_market_quarantine.rs` (2 §5.2 verbatim + 3 self-tests); +13 constitution gates + +13 workspace tests |
 | **B3.M2 runner** Stage B | 1 infrastructure | 1 | 🟢 SHIPPED + LAUNCHED (commits `1210ea3`+`9f9aee7`+`1f7879a`+`1550e1b` 2026-05-08 session #26) — `scripts/run_stage_b3.sh` (509 lines bash; multi-seed×multi-model×n=3 wrapper; BenchmarkManifest+EvidencePackagingPolicy+resumable); 4 smoke iterations bug-fixed (CONDITION=oneshot→n1; TURINGOS_CAS_PATH explicit; LLM_PROXY_URL :8080→:18080; MODELS pinned canonical `deepseek-v4-flash` + `Qwen/Qwen2.5-72B-Instruct`); smoke v4 4/4 GREEN @ ~134s/cell avg |
-| **B3.M2 batch** Stage B | 3 LLM real-problem | 3 | 🟡 RUNNING (launched 2026-05-08T21:03:37Z in tmux `stage_b3_r7_m2`; 1800 cells = 100p × n=3 × 3 seeds × 2 models; ~67h wall projection; resumable on crash; spans sessions #27-#28) |
+| **B3.M2 batch** Stage B | 3 LLM real-problem | 3 | 🔴 KILLED 2026-05-09 session #27 at cell 49/1800 (decision file `handover/decisions/2026-05-09_M2_KILL_AND_SUBSTRATE_STABLE_DECLARATION.md`; user verbatim "M2 kill — saves ~9 days wall + ~¥2500 API"); 49 cells preserved at `handover/evidence/stage_b3_r7_m2_20260508T210337Z/` per `feedback_no_retroactive_evidence_rewrite`; cumulative substrate-stable @ 109 cells (50 + 8 + 1 + 1 + 49) filesystem-verified 2026-05-09 session #28 |
 | **C** Polymarket P-M0..P-M9 | charter | varies | 🔒 GATED (charter drafted `STAGE_C_POLYMARKET_PM0_PM9_charter_2026-05-07.md`; P-M0 strict-letter charter-eligible after A green; B3 full M1 still required per architect priority #4 verbatim) |
 | **D** Real-world readiness | directive draft | — | 🔒 GATED (`2026-05-07_REAL_WORLD_READINESS_DIRECTIVE.md`; activation requires architect-side path decisions) |
 
@@ -137,7 +191,7 @@ These items do **not** affect Polymarket runtime; forward-bound to post-Stage-C 
 | Item | Class | Blocker |
 |---|---|---|
 | Stage A3.6 enhancement TB | 3 | dual-audit forward-bind: CasStore::put error surface + refs/chaintape/cas commit-chain redesign + atomic ref-update + failure-injection tests + RejectionEvidenceWriter explicit ctor arg; charter draftable now |
-| **Stage B3 R7 M2 batch** | 3 RUNNING | tmux session `stage_b3_r7_m2`; 1800 cells; ~67h wall; resumable; check progress: `tmux attach -t stage_b3_r7_m2` or `tail -f /tmp/stage_b3_r7_m2_20260508T210337Z.log` or `cat handover/evidence/stage_b3_r7_m2_20260508T210337Z/run_log.txt` |
+| **Stage B3 R7 M2 batch** | 3 KILLED 2026-05-09 | killed at cell 49/1800 per `handover/decisions/2026-05-09_M2_KILL_AND_SUBSTRATE_STABLE_DECLARATION.md`; 49 cells preserved at `handover/evidence/stage_b3_r7_m2_20260508T210337Z/`; full M2 deferred per "Open after Polymarket" J.3 row |
 | **V1** 4 replay sampling tests | 1 GATED on B1 | `tests/constitution_b3_m2_replay_sampling.rs` per architect §3.B3 verbatim names (sampled_full_replay, failure_heavy_sample_replay, solved_sample_replay, unsolved_sample_replay); after M2 evidence packed |
 | **V2** EvidencePackagingPolicy verification | 1 GATED on B1 | per-cell tarball integrity + 1800/1800 chain_invariant Ok delta=0 aggregate |
 | **V3** AggregateReport.json (CLAUDE.md §17 verbatim) | 1 GATED on B1 | aggregate runner consuming wilson_ci.rs + diversity.rs; ΣPPUT + Mean PPUT(solved) + Wilson 95% CI + halt_distribution + per-condition tables (Stage B3 atom R8 per TB-18B charter §5) |

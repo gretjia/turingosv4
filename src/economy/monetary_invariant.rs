@@ -439,31 +439,48 @@ pub fn assert_read_is_free(tx_kind: TxKind, fee: u64) -> Result<(), MonetaryErro
 // TB-12 ruling Part A §4.4 SG-13.1 + §4.5 CR-13.3..4)
 // ────────────────────────────────────────────────────────────────────────────
 
-/// TRACE_MATRIX TB-13 Atom 3 (architect §4.3 + SG-13.1): the
-/// **complete-set balanced** invariant.
+/// TRACE_MATRIX TB-13 Atom 3 (architect §4.3 + SG-13.1) + Stage C VETO
+/// remediation Phase E.3 (2026-05-09): the **complete-set balanced**
+/// invariant, enforced as two explicit branches by share-aggregate symmetry.
 ///
-/// For every event in `conditional_collateral_t`:
+/// For every event in `conditional_collateral_t`, let:
 ///
 /// ```text
-/// min(Σ_{owner} share[(owner, event, Yes)], Σ_{owner} share[(owner, event, No)])
-///   == collateral[event].micro_units()
+/// sum_yes = Σ_{owner} share[(owner, event, Yes)]
+/// sum_no  = Σ_{owner} share[(owner, event, No)]
+/// coll    = collateral[event].micro_units()
 /// ```
 ///
-/// Why MIN, not equality on both sides:
-/// - Pre-resolution (mint + seed only): both sides equal collateral, so
-///   `min == collateral` is trivially equivalent to `Yes == No == collateral`.
-/// - Post-resolution + partial redeem: the winning side decreases by the
-///   redeemed amount AND collateral decreases by the same amount; the
-///   losing side stays the same (its shares are stranded zero-value
-///   claims). So `winning_side == collateral` still holds, while
-///   `losing_side > collateral` (losing side has surplus). MIN picks
-///   the winning side and matches collateral.
-/// - Post-resolution + full redeem: winning side is 0, collateral is 0,
-///   losing side is the original mint amount. MIN(0, original) = 0 = collateral.
+/// Branch A (symmetric — `sum_yes == sum_no`):
+///   strict `sum_yes == coll && sum_no == coll`. This is the canonical
+///   pre-resolution / pre-redemption state, OR the fully-redeemed state
+///   (both 0, collateral 0). The architect §6.1 CTF invariant
+///   "1 Coin = 1 YES_E + 1 NO_E" requires equality on **both** sides here;
+///   any deviation means a mint/burn pathway lost track.
 ///
-/// This is the mathematical core of "1 Coin = 1 YES_E + 1 NO_E" enforced
-/// at the QState level: every Coin in collateral can be redeemed by the
-/// winning side, and no winning-side share is unbacked.
+/// Branch B (asymmetric — `sum_yes != sum_no`):
+///   `min(sum_yes, sum_no) == coll`. This is only legitimately reachable
+///   via post-resolution partial redemption: the winning side decreases by
+///   the redeemed amount AND collateral decreases by the same amount; the
+///   losing side stays the same (its shares are stranded zero-value
+///   claims). MIN picks the winning side and matches collateral; the
+///   larger side is the losing-side stranded-shares surplus.
+///
+/// Why this split (vs the prior unconditional `min()`):
+///   the symmetric case ENFORCES strict equality, which `min(a,a) == coll`
+///   is functionally identical to but semantically opaque. The split
+///   surfaces the invariant's two regimes for static auditability and
+///   catches a future-extension hazard: when constant-product market pool
+///   reserves enter the sums (Stage C P-M4+), pre-resolution YES/NO can
+///   diverge by swap without a redemption to justify it. Without the
+///   split, `min()` would silently admit ghost liquidity (Codex 2026-05-09
+///   G2 audit defect 1). The split puts that case on the asymmetric branch
+///   where Phase F resolution-state tracking will explicitly distinguish
+///   "asymmetric from redemption" vs "asymmetric from pool swap".
+///
+/// CTF-MIN-SAFE markers: the `.min(` call below is the single intentional
+/// asymmetric-branch reduction; the `// CTF-MIN-SAFE: ...` comment is the
+/// audit point recognized by `tests/constitution_economy_strict_equality.rs`.
 pub fn assert_complete_set_balanced(
     s: &EconomicState,
 ) -> Result<(), MonetaryError> {
@@ -482,21 +499,33 @@ pub fn assert_complete_set_balanced(
                     .ok_or(MonetaryError::Overflow)?;
             }
         }
-        let min_side = sum_yes.min(sum_no);
-        if min_side != collateral_units {
-            // Report the failing side (the smaller one) for diagnostic
-            // clarity — that's where the equality-with-collateral broke.
-            let (side, share_sum_units) = if sum_yes <= sum_no {
-                (OutcomeSide::Yes, sum_yes)
-            } else {
-                (OutcomeSide::No, sum_no)
-            };
-            return Err(MonetaryError::CompleteSetUnbalanced {
-                event_id_hex: hex_event_id(event_id),
-                side,
-                share_sum_units,
-                collateral_units,
-            });
+        if sum_yes == sum_no {
+            // Branch A — symmetric: strict CTF invariant on both sides.
+            if sum_yes != collateral_units {
+                return Err(MonetaryError::CompleteSetUnbalanced {
+                    event_id_hex: hex_event_id(event_id),
+                    side: OutcomeSide::Yes,
+                    share_sum_units: sum_yes,
+                    collateral_units,
+                });
+            }
+        } else {
+            // Branch B — asymmetric: post-resolution partial redemption only.
+            // CTF-MIN-SAFE: branch guarded by `sum_yes != sum_no` above; smaller side == residual collateral; larger side == stranded losing-side shares.
+            let min_side = sum_yes.min(sum_no);
+            if min_side != collateral_units {
+                let (side, share_sum_units) = if sum_yes <= sum_no {
+                    (OutcomeSide::Yes, sum_yes)
+                } else {
+                    (OutcomeSide::No, sum_no)
+                };
+                return Err(MonetaryError::CompleteSetUnbalanced {
+                    event_id_hex: hex_event_id(event_id),
+                    side,
+                    share_sum_units,
+                    collateral_units,
+                });
+            }
         }
     }
     Ok(())

@@ -161,6 +161,34 @@ GATES=(
   # tb_13_legacy_cpmm_forward_fence's TB-13-marker scope; uses explicit
   # MARKET_SUBSTRATE_ALLOW_LIST that Stage C P-M0+ TBs MUST extend.
   constitution_market_quarantine
+
+  # Stage C VETO remediation Phase E 2026-05-09 (session #28) — three
+  # mechanism gates added per `handover/directives/2026-05-09_STAGE_C_
+  # POLYMARKET_VETO_REMEDIATION_DIRECTIVE.md` §1.B + plan cached-noodle.md.
+  # Codex G2 audit (2026-05-09) caught 4 defects in Stage C session #27
+  # batch §8: P-M6 monetary_invariant `min()` weakening; P-M6 vacuous
+  # rollback test; P-M2/P-M4 verbatim struct drift. Self-audit (212 GREEN)
+  # caught zero of them. These three gates encode the missing mechanism
+  # so future Class-4 atoms cannot ship the same shape of defect.
+  #
+  # E.1 verbatim spec binding: hardcodes architect manual §7.x verbatim
+  # struct field sets and asserts impl matches strictly when LANDED.
+  # NotYetLanded bindings (P-M2 §7.3, P-M4 §7.5) flip to Landed in Phase F
+  # rebuild commits.
+  constitution_architect_verbatim_struct_binding
+  # E.2 atomic-rollback witness: each Class-4 composite-tx
+  # `*_atomic_rollback_on_failure` test must invoke a mid-mutation
+  # failure-injection helper (not just trigger pre-mutation rejection).
+  # Static layer this PR; cfg(test) sequencer injection point lands in
+  # Phase F.5 (P-M6 rebuild).
+  constitution_class4_atomic_rollback_witness
+  # E.3 strict-equality lint: forbids `.min(`-style reductions on
+  # sum-aggregate identifiers in `monetary_invariant.rs` unless the line
+  # carries a `// CTF-MIN-SAFE: <reason>` audit marker. Phase E source
+  # refactor split `assert_complete_set_balanced` into symmetric (strict
+  # `sum_yes == sum_no == coll`) and asymmetric (post-resolution; min()
+  # marked) branches.
+  constitution_economy_strict_equality
 )
 
 # Run each gate file separately and collect per-test outcome.
