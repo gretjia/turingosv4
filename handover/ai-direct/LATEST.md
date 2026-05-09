@@ -181,6 +181,72 @@ Round cap 2 used (within `feedback_elon_mode_policy`); R3 not required.
 
 ---
 
+## ✅ P-M4 SHIPPED FINAL 2026-05-09 session #31 (Class-4 STEP_B rebuild; Phase F.3)
+
+**HEAD pushed**: `008d9a3` (origin/main; merge of `feat/p-m4-rebuild` `023fe32` onto `92cfeb6`; sign-off commit `d9d2b0b` on the same branch).
+**Authority**: Architect verbatim **「签字，同意后续执行」** (2026-05-09 session #31; multi-clause Class-4 §8 per CLAUDE.md §10; structurally equivalent to Stage A3 「同意 sign-off」 precedent — clause 1 names act, clause 2 authorizes scope).
+**Sign-off directive**: `handover/directives/2026-05-09_STAGE_C_POLYMARKET_PM4_§8_SIGN_OFF.md`.
+**Candidate packet**: `handover/directives/2026-05-09_STAGE_C_POLYMARKET_PM4_§8_PACKET.md`.
+
+### What landed (architect §7.5 verbatim — 5-field STATE + 4 mandated tests; defect 4 prevention)
+
+| Surface | Change |
+|---------|--------|
+| `src/state/q_state.rs` | NEW `LpShareAmount` u128 newtype + `PoolStatus` enum (Active/Resolved/Closed) + `CpmmPool` 5-field architect §7.5 verbatim state struct (event_id NOT event_id_kind — defect 4 prevention) + `CpmmPoolsIndex` + `LpShareBalancesIndex` newtypes; EconomicState 13→15 with `+cpmm_pools_t` + `+lp_share_balances_t` `#[serde(default)]`; sub-field count assertion 13→15 |
+| `src/state/typed_tx.rs` | `DOMAIN_AGENT_CPMM_POOL` constant + `CpmmPoolTx` 7-wire-field implementation-defined (NO `timestamp_logical` mirror P-M2 minimal pattern) + `CpmmPoolSigningPayload` 6-field projection + `to_signing_payload` impl + canonical_digest + `TypedTx::CpmmPool` variant + `TxKind` dispatch + `HasSubmitter` (`Some(self.provider.clone())`) + 4 new `TransitionError` variants (`InvalidPoolSeed` / `UnbalancedPoolSeed` / `InsufficientSharesForPool` / `PoolAlreadyExists`) + Display impls |
+| `src/state/sequencer.rs` | `CPMM_POOL_DOMAIN_V1` + `cpmm_pool_accept_state_root` + CpmmPool admission arm (5 preconditions: parent-root match / non-zero seeds / symmetric-init / collateralized shares / no existing pool; 3 atomic mutations: debit conditional_share_balances_t / create cpmm_pools_t Active / credit lp_share_balances_t 1:1 with seed_yes; 3 monetary invariants called) + 4 fan-out match arms (system_message_for_verification / system_signature_of / system_epoch_of / submit_agent_tx allow-list) + agent-sig manifest verify arm (provider as signer) |
+| `src/bottom_white/ledger/transition_ledger.rs` | `TxKind::CpmmPool = 15` |
+| `src/economy/monetary_invariant.rs` | `assert_no_post_init_mint` allow-list extended for `TypedTx::CpmmPool`; `assert_complete_set_balanced` extended to count `cpmm_pools_t[event_id].pool_yes/no` in sum_yes/sum_no totals (claims against same locked collateral); asymmetric branch CTF-MIN-SAFE marker unchanged |
+| `src/runtime/verify.rs` | Replay-time Gate 4 agent-signature verify arm for `CpmmPool` (provider lookup) |
+| `src/runtime/run_summary.rs` + `src/runtime/audit_assertions.rs` | Exhaustive-match coverage for `TypedTx::CpmmPool` + `TxKind::CpmmPool` (counter `cpmm_pool: u64` added to `TxKindCounts`) |
+| `tests/constitution_cpmm_pool.rs` (NEW; 472 lines) | 4 architect §7.5 verbatim test names live through `Sequencer::submit_agent_tx`: `pool_created_from_seed_inventory` / `pool_reserves_not_counted_as_coin` / `lp_shares_not_counted_as_coin` / `pool_cannot_exist_without_collateralized_shares` |
+| `tests/constitution_architect_verbatim_struct_binding.rs` | P-M4 CpmmPool binding `NotYetLanded → Landed` + `CpmmPoolSigningPayload` sibling binding `NEW → Landed` (F-DEFERRAL-2 closure per remediation directive §9) + parser hardening for path-qualified types |
+| `tests/constitution_market_quarantine.rs` | ` CPMM` (with leading space) removed from `HARD_BANNED_LEGACY_TOKENS` (the comment already anticipated architect-spec'd CPMM landing); other tokens (`AMM` / `DPMM` / `BinaryMarket` / `bounty_*` / orderbook / price-as-truth) preserved |
+| `tests/economic_state_reconstruct.rs` + `q_state_reconstruct.rs` + `six_axioms_alignment.rs` | 13→15 sub-field counters updated |
+| `scripts/run_constitution_gates.sh` | Registered `constitution_cpmm_pool` gate |
+| `genesis_payload.toml` | 7 trust_root rehashes (q_state.rs + typed_tx.rs + sequencer.rs + transition_ledger.rs + monetary_invariant.rs + verify.rs + run_summary.rs) |
+
+### Validation at sign-off
+
+| Check | Pre-F.3 | Post-F.3 | Δ |
+|-------|---------|----------|---|
+| Constitution gates | 203/0/1 | **207/0/1** | +4 (new `constitution_cpmm_pool` gate) |
+| Workspace tests | 1336/0/151 | **1340/0/151** | +4 (4 architect-mandated verbatim tests) |
+| Trust Root verify | PASS | **PASS** | 7 files rehashed |
+| E.1 P-M4 binding | NotYetLanded | **LANDED** | strict (name, last-segment-of-type) pair-equality enforced |
+| F-DEFERRAL-2 (signing-payload binding) | open | **CLOSED for P-M4** | `CpmmPoolSigningPayload` sibling binding LANDED |
+| F-DEFERRAL-1 (helper-alias scope) | open | **N/A for P-M4** | `assert_complete_set_balanced` extended in-place; no helper-alias introduced |
+
+### PRE-§8 dual audit chain (R1 — both PASS first round; round cap 2 used 1 round)
+
+Per `feedback_dual_audit` Class-4 PRE-§8 timing rule (added 2026-05-09 from Stage C session #27 batch §8 VETO lesson; second exercise after P-M2 Phase F.1).
+
+| Round | HEAD | Codex G2 | Gemini | Aggregate | Action |
+|-------|------|----------|--------|-----------|--------|
+| R1 | `023fe32` | **PASS** (8/8, conviction high) | **PASS** (8/8, conviction high) | **PASS → PROCEED** | Ascended to architect §8 |
+
+R1 reports: `handover/audits/CODEX_STAGE_C_PM4_AUDIT_2026-05-09_R1.md` + `handover/audits/GEMINI_STAGE_C_PM4_AUDIT_2026-05-09_R1.md`. Codex independently verified workspace 1340/0/151 + gates 207/0/1 + 7 trust-root sha256 — all matched packet baselines.
+
+### Mechanism gate witness (Phase E machinery worked again)
+
+- **E.1 caught Defect 4 prevention**: P-M4 binding flip to `Landed` mechanically enforces strict `(name, type-last-segment)` pair-equality. Reintroducing `event_id_kind` would FAIL the build at gate-time. Parser hardening (path-qualified type handling) is forward-looking; 4 self-checks all PASS.
+- **E.2 not exercised in P-M4** (single-mutation accept arm, not 9-step composite); remains armed for F.5 P-M6.
+- **E.3 PASSES** despite the `assert_complete_set_balanced` extension — the new `cpmm_pools_t` summation is in the symmetric branch `==` strict-equality side; NO `min()` / `max()` introduced. Asymmetric branch CTF-MIN-SAFE marker unchanged. 8/8 strict-equality lint PASS.
+
+### Forward queue
+
+| Atom | Class | Status post-P-M4 §8 |
+|------|-------|----------------------|
+| **F.1 P-M2** | 4 STEP_B | ✅ SHIPPED FINAL session #29 |
+| **F.2 P-M3** | 3 | ✅ SHIPPED session #30 |
+| **F.3 P-M4** | 4 STEP_B | ✅ SHIPPED FINAL (this block) session #31 |
+| **F.4 P-M5** (CpmmSwap re-apply) | 3 | NEXT — eligible immediately |
+| F.5 P-M6 (Mint-and-Swap Router rebuild + 2 patches) | 4 STEP_B | Gated on F.4 |
+| F.6/F.7/F.8 P-M7/M8/M9 | 1-3 | Gated on F.5 §8 |
+| F.9 Stage C overall §8 | 4 ship | Gated on all atoms green |
+
+---
+
 ## ✅ P-M3 SHIPPED 2026-05-09 session #30 (Class-3 re-apply; Phase F.2)
 
 **HEAD pushed**: `73b42d7` (origin/main; merge of `feat/p-m3-rebuild` `ac06a47` onto `0db1ec2`).
