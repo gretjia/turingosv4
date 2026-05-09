@@ -58,6 +58,73 @@
 
 ---
 
+## ✅ P-M6 SHIPPED FINAL 2026-05-09 session #32 (Phase F.5; BuyWithCoinRouter Class-4 STEP_B)
+
+**HEAD on `origin/main`**: `7adc3ba` (merge of `feat/p-m6-rebuild` `6d4f128` via `--no-ff`).
+**Authority**: `handover/directives/2026-05-09_STAGE_C_POLYMARKET_VETO_REMEDIATION_DIRECTIVE.md` §1.C row 5 verbatim "P-M6 BuyWithCoinRouter (rebuild); Class 4 STEP_B; per-atom §8 + PRE-§8 dual audit".
+**Architect §8** (multi-clause Class-4 forward grant per CLAUDE.md §10): user verbatim "授权自主执行直到polymarket全部落地并自主开展真题测试" — clause 1 names act `授权` + scope `直到polymarket全部落地`; clause 2 grants LLM API; clause 3 re-aligns architect manual; clause 4 forces strict-constitution discipline. Conditional on PRE-§8 dual audit PASS for each Class-4 atom; condition satisfied at R1 (see below).
+
+### PRE-§8 dual audit (R1; both PASS first-try)
+| Auditor | Verdict | Conviction | Recommendation | Transcript |
+|---------|---------|------------|----------------|------------|
+| **Codex G2** | **PASS** (9/9 high) | high | PROCEED | `handover/audits/CODEX_STAGE_C_PM6_AUDIT_2026-05-09_R1.md` |
+| **Gemini** | **PASS** (9/9 high) | high | PROCEED | `handover/audits/GEMINI_STAGE_C_PM6_AUDIT_2026-05-09_R1.md` |
+| **Aggregate** | **PASS** | high | PROCEED | conservative-merge VETO > CHALLENGE > PASS |
+
+Round cap 2 used 1. Pattern history: P-M2 R1 CHALLENGE→R2 PASS; P-M4 R1 PASS/PASS first-try; **P-M6 R1 PASS/PASS first-try**. Codex non-blocking note (Q3 PASS): stale `cfg(test)` doc-comments — addressed in commit `6d4f128` (typed_tx + sequencer re-rehashed).
+
+### What landed
+| Surface | Change |
+|---------|--------|
+| `src/state/typed_tx.rs` | `DOMAIN_AGENT_BUY_WITH_COIN_ROUTER` const + `BuyDirection` enum (BuyYes/BuyNo; `#[repr(u8)]`) + `BuyWithCoinRouterTx` 8-field wire (NO `timestamp_logical`; `event_id` NOT `event_id_kind`) + `BuyWithCoinRouterSigningPayload` 7-field (F-DEFERRAL-2 closure) + `canonical_digest` + `to_signing_payload` + `TypedTx::BuyWithCoinRouter` variant + tx_kind dispatch + `HasSubmitter` (buyer as signer) + 6 new `TransitionError` variants (`RouterZeroPay` / `RouterPoolNotActive` / `RouterInsufficientCoinBalance` / `RouterSwapInsufficientPoolOutput` / `RouterSlippageExceeded` / `TestForcedFailure`) + Display arms |
+| `src/state/sequencer.rs` | `BUY_WITH_COIN_ROUTER_DOMAIN_V1` + `buy_with_coin_router_accept_state_root` + `check_router_test_failure_injection` helper (cfg(debug_assertions); cfg(not(debug_assertions)) inline no-op) + BuyWithCoinRouter admission arm (5 pre-step preconditions + 9 architect-step mutations interleaved with cfg-gated injection checks + 3 monetary invariants + atomic state_root commit) + 4 fan-out match arms + agent-sig manifest verify arm |
+| `src/bottom_white/ledger/transition_ledger.rs` | `TxKind::BuyWithCoinRouter = 17` |
+| `src/economy/monetary_invariant.rs` | `assert_no_post_init_mint` allow-list extended (BuyWithCoinRouter; symmetric Coin→collateral movement) |
+| `src/runtime/verify.rs` + `run_summary.rs` + `audit_assertions.rs` | replay-time Gate 4 verify arm + tx_id extractor + counter (`buy_with_coin_router: u64`) + signer extraction |
+| `tests/constitution_router_buy_with_coin.rs` (NEW; 1082 lines) | 9 architect §7.7 verbatim tests + 1 defense-in-depth across all 9 steps |
+| `tests/constitution_architect_verbatim_struct_binding.rs` | P-M6 BuyWithCoinRouterTx + BuyWithCoinRouterSigningPayload bindings flipped to `LandingStatus::Landed` (E.1 + F-DEFERRAL-2 closure) |
+| `tests/constitution_class4_atomic_rollback_witness.rs` | P-M6 BINDING flipped to `LandingStatus::Landed` (E.2 closure) |
+| `genesis_payload.toml` | 6 STEP_B file rehashes (typed_tx + sequencer re-rehashed in follow-up) |
+| `scripts/run_constitution_gates.sh` | Registered `constitution_router_buy_with_coin` gate |
+
+### Architect §7.7 verbatim 9-test battery (all GREEN) + defense-in-depth
+- `buy_yes_with_coin_matches_formula` — outY = floor(payC * poolY / (poolN + payC)); poolY1 * poolN1 ≥ poolY * poolN
+- `buy_no_with_coin_matches_symmetric_formula` — outN symmetric direction
+- `buy_yes_debits_coin_locks_collateral` — Coin → collateral migration (steps 1+2)
+- `buy_yes_mints_complete_set` — strict `sum_yes == sum_no == collateral` post-router (Defect-1 patch witness)
+- `buy_yes_transfers_retained_yes_plus_swap_yes` — getY = payC + outY (steps 4+8 combined)
+- `buy_yes_respects_min_yes_out` — slippage gate at exact-floor + one-above-floor boundaries
+- `buy_yes_no_f64` — source-grep gate (no f64/f32 in router admission arm + struct surfaces)
+- `buy_yes_no_ghost_liquidity` — sum YES + sum NO == collateral on each side (no shares without locked Coin)
+- `router_atomic_rollback_on_failure` (Defect-2 patch witness) — cfg(debug_assertions) injection at step 5; asserts state_root + balances + collateral + pool reserves UNCHANGED post-failure
+- `router_atomic_rollback_witnessed_at_every_step` — exhaustive step-1..=9 injection; state_root unchanged each time
+
+### Defect closure summary (session #27 batch §8 VETO targets — ALL CLOSED)
+| Defect | Mechanism | P-M6 closure |
+|--------|-----------|--------------|
+| 1 (P-M6 monetary `min()`) | E.3 strict-equality refactor | Symmetric branch + tests 4 + 8 witness; Codex Q2 + Gemini Q3 PASS |
+| 2 (P-M6 vacuous rollback) | E.2 atomic-rollback witness gate | cfg(debug_assertions) hook + dynamic-layer tests 9 + defense-in-depth; Codex Q3 + Gemini Q4 PASS |
+| 3 (P-M2 timestamp_logical drift) | E.1 verbatim binding | P-M6 minimal-pattern (NO timestamp_logical); E.1 LANDED |
+| 4 (P-M4 event_id_kind rename) | E.1 verbatim binding | P-M6 uses event_id; E.1 LANDED |
+
+All 4 defects mechanically prevented from recurrence in future Class-4 atoms.
+
+### Validation post-P-M6 ship (HEAD `7adc3ba`)
+| Check | Pre-P-M6 | Post-P-M6 | Δ |
+|---|---|---|---|
+| Constitution gates | 213/0/1 | **223/0/1** | +10 (1 new gate × 10 tests) |
+| Workspace tests | 1346/0/151 | **1356/0/151** | +10 (same 10 tests at workspace level) |
+| Trust Root verify | PASS | **PASS** | rehashed 6 STEP_B files (post follow-up: typed_tx + sequencer re-rehashed for cfg(test)→cfg(debug_assertions) comment fix) |
+
+### Forward — Phase F.6+ (per user pre-authorization scope)
+- F.6 P-M7 PriceIndex (architect §7.8 view-only quote): Class 1-2; eligible NOW.
+- F.7 P-M8 Audit views (architect §7.10): Class 1-2; gated on F.6.
+- F.8 P-M9 Controlled market smoke: Class 2-3; gated on F.7.
+- F.9 Stage C overall §8: Class 4; PRE-§8 dual audit; gated on all atoms green.
+- Post Stage C: real-problem testing per user "自主开展真题测试" + "授权调用 LMM API".
+
+---
+
 ## ✅ P-M5 SHIPPED 2026-05-09 session #32 (Phase F.4; CpmmSwap Class-3 re-apply)
 
 **HEAD on `origin/main`**: `f9c7ed6` (merge of `feat/p-m5-rebuild` `244ae5b` via `--no-ff`).
