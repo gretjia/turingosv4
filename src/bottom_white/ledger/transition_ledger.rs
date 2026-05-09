@@ -118,6 +118,19 @@ pub enum TxKind {
     /// mirroring `CompleteSetMergeTx` minimal pattern (NO
     /// `timestamp_logical`).
     CpmmPool          = 15,
+    /// Stage C P-M5 / Phase F.4 (architect manual §7.6 verbatim;
+    /// remediation directive 2026-05-09 §1.C row 4) — agent-signed
+    /// CPMM share swap. Trader rotates input-side shares for
+    /// output-side shares against pool reserves; pool reserves shift
+    /// per `direction` (Buy YES with NO / Buy NO with YES). Pure share
+    /// rotation — no Coin movement; `balances_t` /
+    /// `conditional_collateral_t` / `lp_share_balances_t` UNCHANGED;
+    /// `total_supply_micro` UNCHANGED on accept. Constant-product
+    /// invariant `pool_yes1 * pool_no1 >= pool_yes * pool_no` preserved
+    /// (`>=` because integer floor leaves dust in pool — architect §7.6
+    /// explicit). Strict 8-wire-field shape mirroring `CpmmPoolTx`
+    /// minimal pattern (NO `timestamp_logical`).
+    CpmmSwap          = 16,
 }
 
 /// TRACE_MATRIX FC2-Append + WP § 5.L4: stored LedgerEntry record (11 fields).

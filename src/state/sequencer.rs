@@ -334,6 +334,25 @@ pub fn cpmm_pool_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
     Hash::from_bytes(digest)
 }
 
+/// TRACE_MATRIX FC1-Append Stage C P-M5 / Phase F.4 (architect manual §7.6;
+/// remediation directive §1.C row 4): CpmmSwap-accept state-root domain.
+/// Mirrors sibling `CPMM_POOL_DOMAIN_V1` naming convention
+/// (`turingosv4.<purpose>.accept.v1`).
+pub(crate) const CPMM_SWAP_DOMAIN_V1: &[u8] =
+    b"turingosv4.cpmm_swap.accept.v1";
+
+/// TRACE_MATRIX FC1-Append Stage C P-M5 / Phase F.4: state-root mutator on
+/// `CpmmSwapTx` accept. Mirror of `cpmm_pool_accept_state_root`
+/// (sha256(domain || prev || canonical_encode(tx))).
+pub fn cpmm_swap_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
+    let mut h = Sha256::new();
+    h.update(CPMM_SWAP_DOMAIN_V1);
+    h.update(prev.0);
+    h.update(canonical_encode(tx).expect("TypedTx is canonical-encodable"));
+    let digest: [u8; 32] = h.finalize().into();
+    Hash::from_bytes(digest)
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // TB-2 Atom 4 — rejection-path helpers (preflight v3 §3.5 + §3.7)
 // ────────────────────────────────────────────────────────────────────────────
@@ -620,7 +639,10 @@ fn system_message_for_verification(
         | TypedTx::CompleteSetMerge(_)
         // Stage C P-M4 / Phase F.3 — agent-signed (provider AgentSignature);
         // verified separately at admission, not at system stage 1.5.
-        | TypedTx::CpmmPool(_) => None,
+        | TypedTx::CpmmPool(_)
+        // Stage C P-M5 / Phase F.4 — agent-signed (trader AgentSignature);
+        // verified separately at admission, not at system stage 1.5.
+        | TypedTx::CpmmSwap(_) => None,
     }
 }
 
@@ -646,7 +668,9 @@ fn system_signature_of(
         | TypedTx::MarketSeed(_)
         | TypedTx::CompleteSetMerge(_)
         // Stage C P-M4 / Phase F.3 — agent-signed.
-        | TypedTx::CpmmPool(_) => None,
+        | TypedTx::CpmmPool(_)
+        // Stage C P-M5 / Phase F.4 — agent-signed.
+        | TypedTx::CpmmSwap(_) => None,
     }
 }
 
@@ -677,7 +701,9 @@ fn system_epoch_of(tx: &TypedTx) -> Option<SystemEpoch> {
         | TypedTx::MarketSeed(_)
         | TypedTx::CompleteSetMerge(_)
         // Stage C P-M4 / Phase F.3 — agent-signed (no system epoch).
-        | TypedTx::CpmmPool(_) => None,
+        | TypedTx::CpmmPool(_)
+        // Stage C P-M5 / Phase F.4 — agent-signed (no system epoch).
+        | TypedTx::CpmmSwap(_) => None,
     }
 }
 
@@ -2409,6 +2435,219 @@ pub(crate) fn dispatch_transition(
 
             Ok((q_next, SignalBundle::default()))
         }
+
+        // ──────────────────────────────────────────────────────────────────
+        // Stage C P-M5 / Phase F.4 (architect manual §7.6 verbatim "Buy YES
+        // with NO" / "Symmetric Buy NO with YES"; remediation directive
+        // §1.C row 4 verbatim "P-M5 CpmmSwap (re-apply); Class 3").
+        //
+        // Architect §7.6 specifies BEHAVIOR + 6 mandated tests (no STATE
+        // struct; mutates existing CpmmPool fields + ShareSidePair); tx
+        // schema is implementation-defined.
+        //
+        // 6-stage admission preconditions (per `direction`):
+        //   1. parent-root match
+        //   2. amount_in.units > 0                      (architect dN/dY > 0)
+        //   3. pool exists at event_id AND status == Active
+        //   4. trader holds amount_in of input side
+        //   5. compute out = floor(amount_in * pool_other / (pool_input +
+        //      amount_in)); out > 0                     (no dust extractor)
+        //   6. out >= min_out                           (slippage budget)
+        //
+        // Atomic state transitions (3-step):
+        //   - debit trader's conditional_share_balances_t (input side)
+        //   - update pool reserves (pool_input += amount_in;
+        //                           pool_other -= out)
+        //   - credit trader's conditional_share_balances_t (output side)
+        //
+        // Coin invariant UNCHANGED (pure share rotation; no balances_t /
+        // conditional_collateral_t mutation). LP shares UNCHANGED.
+        //
+        // Constant-product invariant `pool_yes1 * pool_no1 >= pool_yes *
+        // pool_no` (architect §7.6 verbatim `>=` because integer floor
+        // leaves dust in pool — `swap_uses_integer_math_no_f64` test
+        // exercises this). Holds by construction: floor rounds the trader's
+        // output DOWN (i.e., in the pool's favor), so the pool retains at
+        // least the multiplicative invariant.
+        //
+        // assert_complete_set_balanced (extended in P-M4 to count pool
+        // reserves) holds because share totals across (traders + pool)
+        // are preserved on each side: pool_input gain == trader_input
+        // loss; pool_other loss == trader_other gain.
+        // ──────────────────────────────────────────────────────────────────
+        TypedTx::CpmmSwap(swap) => {
+            use crate::state::typed_tx::SwapDirection;
+
+            // Step 1: parent-root match (Inv 5).
+            if swap.parent_state_root != q.state_root_t {
+                return Err(TransitionError::StaleParent);
+            }
+            // Step 2: non-zero input (architect §7.6 verbatim dN > 0 / dY > 0).
+            if swap.amount_in.units == 0 {
+                return Err(TransitionError::SwapZeroInput);
+            }
+            // Step 3: pool exists AND is Active. Resolved / Closed pools
+            // forward-bound to future TB redemption / unwind path.
+            let (pool_input_units, pool_other_units) = {
+                let pool = match q.economic_state_t.cpmm_pools_t.0.get(&swap.event_id) {
+                    Some(p) => p,
+                    None => return Err(TransitionError::PoolNotActive),
+                };
+                if pool.status != crate::state::q_state::PoolStatus::Active {
+                    return Err(TransitionError::PoolNotActive);
+                }
+                // Project pool reserves onto (input_side, other_side) per
+                // direction. `BuyYesWithNo` → input side is NO, other is YES.
+                // `BuyNoWithYes` → input side is YES, other is NO.
+                match swap.direction {
+                    SwapDirection::BuyYesWithNo => {
+                        (pool.pool_no.units, pool.pool_yes.units)
+                    }
+                    SwapDirection::BuyNoWithYes => {
+                        (pool.pool_yes.units, pool.pool_no.units)
+                    }
+                }
+            };
+
+            // Step 4: trader holds amount_in of input side.
+            let trader_pair = q
+                .economic_state_t
+                .conditional_share_balances_t
+                .0
+                .get(&swap.trader)
+                .and_then(|m| m.get(&swap.event_id))
+                .copied()
+                .unwrap_or_default();
+            let trader_input_units = match swap.direction {
+                SwapDirection::BuyYesWithNo => trader_pair.no.units,
+                SwapDirection::BuyNoWithYes => trader_pair.yes.units,
+            };
+            if trader_input_units < swap.amount_in.units {
+                return Err(TransitionError::InsufficientSharesForSwap);
+            }
+
+            // Step 5: compute out = floor(amount_in * pool_other /
+            // (pool_input + amount_in)). Integer math only — `u128` widens
+            // intermediate product to avoid overflow; `swap_uses_integer_
+            // math_no_f64` source-grep gate enforces no `f64` / `f32` /
+            // `as f..` in this arm.
+            let denom = pool_input_units
+                .checked_add(swap.amount_in.units)
+                .ok_or(TransitionError::MonetaryInvariantViolation)?;
+            // denom == 0 is impossible here: amount_in.units > 0 (step 2);
+            // overflow already trapped above.
+            let numer = swap
+                .amount_in
+                .units
+                .checked_mul(pool_other_units)
+                .ok_or(TransitionError::MonetaryInvariantViolation)?;
+            let out_units: u128 = numer / denom;
+
+            // Step 6: out > 0 else SwapInsufficientPoolOutput (input too
+            // small relative to pool ratio; floor returns zero).
+            if out_units == 0 {
+                return Err(TransitionError::SwapInsufficientPoolOutput);
+            }
+            // Step 7: out >= min_out else SwapSlippageExceeded.
+            if out_units < swap.min_out.units {
+                return Err(TransitionError::SwapSlippageExceeded);
+            }
+
+            // Step 8: build q_next — atomic 3-step mutation.
+            let mut q_next = q.clone();
+            // 8a: debit trader input side; 8c: credit trader output side
+            // (combined under one entry mutation).
+            {
+                let trader_shares = q_next
+                    .economic_state_t
+                    .conditional_share_balances_t
+                    .0
+                    .entry(swap.trader.clone())
+                    .or_insert_with(std::collections::BTreeMap::new);
+                let pair_mut = trader_shares
+                    .entry(swap.event_id.clone())
+                    .or_insert(crate::state::q_state::ShareSidePair::default());
+                match swap.direction {
+                    SwapDirection::BuyYesWithNo => {
+                        pair_mut.no = crate::state::typed_tx::ShareAmount::from_units(
+                            pair_mut.no.units - swap.amount_in.units,
+                        );
+                        pair_mut.yes = crate::state::typed_tx::ShareAmount::from_units(
+                            pair_mut.yes.units + out_units,
+                        );
+                    }
+                    SwapDirection::BuyNoWithYes => {
+                        pair_mut.yes = crate::state::typed_tx::ShareAmount::from_units(
+                            pair_mut.yes.units - swap.amount_in.units,
+                        );
+                        pair_mut.no = crate::state::typed_tx::ShareAmount::from_units(
+                            pair_mut.no.units + out_units,
+                        );
+                    }
+                }
+            }
+            // 8b: update pool reserves. Pool input grows by amount_in;
+            // pool other shrinks by out.
+            {
+                let pool_mut = q_next
+                    .economic_state_t
+                    .cpmm_pools_t
+                    .0
+                    .get_mut(&swap.event_id)
+                    .expect("pool existence checked at Step 3");
+                match swap.direction {
+                    SwapDirection::BuyYesWithNo => {
+                        // Input side = NO; other = YES.
+                        pool_mut.pool_no =
+                            crate::state::typed_tx::ShareAmount::from_units(
+                                pool_mut.pool_no.units + swap.amount_in.units,
+                            );
+                        pool_mut.pool_yes =
+                            crate::state::typed_tx::ShareAmount::from_units(
+                                pool_mut.pool_yes.units - out_units,
+                            );
+                    }
+                    SwapDirection::BuyNoWithYes => {
+                        // Input side = YES; other = NO.
+                        pool_mut.pool_yes =
+                            crate::state::typed_tx::ShareAmount::from_units(
+                                pool_mut.pool_yes.units + swap.amount_in.units,
+                            );
+                        pool_mut.pool_no =
+                            crate::state::typed_tx::ShareAmount::from_units(
+                                pool_mut.pool_no.units - out_units,
+                            );
+                    }
+                }
+            }
+
+            // Step 9: monetary invariants. Coin-side untouched; LP shares
+            // untouched. assert_total_ctf_conserved with empty exempt-list
+            // MUST pass (balances_t / conditional_collateral_t / escrows_t /
+            // stakes_t / claims_t / runs_t bit-identical). Conditional-share
+            // total per side (traders + pool) preserved bit-for-bit:
+            //   sum YES post = sum YES pre  (pool_yes - out moved to trader's yes)
+            //   sum NO  post = sum NO  pre  (pool_no  + amount_in came from trader's no)
+            // → assert_complete_set_balanced (extended in P-M4 to count pool
+            // reserves alongside conditional_share_balances_t) holds.
+            assert_no_post_init_mint(tx, q)
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            assert_total_ctf_conserved(
+                &q.economic_state_t,
+                &q_next.economic_state_t,
+                &[],
+            )
+            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            crate::economy::monetary_invariant::assert_complete_set_balanced(
+                &q_next.economic_state_t,
+            )
+            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+
+            // Step 10: state_root advance.
+            q_next.state_root_t = cpmm_swap_accept_state_root(&q.state_root_t, tx);
+
+            Ok((q_next, SignalBundle::default()))
+        }
     }
 }
 
@@ -2944,7 +3183,13 @@ impl Sequencer {
             // economic mutator (debits provider's YES + NO inventory; credits
             // pool reserves + provider LP shares) and is therefore subject
             // to all the same admission gates as TB-13 / P-M2.
-            | TypedTx::CpmmPool(_) => {}
+            | TypedTx::CpmmPool(_)
+            // Stage C P-M5 / Phase F.4 — agent-signed (trader); admits
+            // through identical agent ingress path. Pure share rotation
+            // between trader and pool reserves; no Coin movement; subject
+            // to the same admission gates as P-M4 (manifest-when-set
+            // signature gate; replay-time Gate 4 fallback).
+            | TypedTx::CpmmSwap(_) => {}
         }
         // TRACE_MATRIX TB-13 Atom 6 round-3 (Codex VETO TB13-AUTH 2026-05-03):
         // submit-time agent-signature verification for the 3 TB-13
@@ -3007,6 +3252,19 @@ impl Sequencer {
                         .ok_or(SubmitError::AgentSignatureInvalid)?;
                     let digest = pool.to_signing_payload().canonical_digest();
                     if verify_agent_signature(&pool.signature, &digest, &pubkey).is_err() {
+                        return Err(SubmitError::AgentSignatureInvalid);
+                    }
+                }
+                // Stage C P-M5 / Phase F.4 (architect §7.6): agent-signature
+                // gate parallel to CpmmPool (trader is the signer). Swap is a
+                // pure share-rotation Class-3 economic mutator → manifest-
+                // when-set gating consistent with sibling P-M4 admission.
+                TypedTx::CpmmSwap(swap) => {
+                    let pubkey = manifest
+                        .get(&swap.trader)
+                        .ok_or(SubmitError::AgentSignatureInvalid)?;
+                    let digest = swap.to_signing_payload().canonical_digest();
+                    if verify_agent_signature(&swap.signature, &digest, &pubkey).is_err() {
                         return Err(SubmitError::AgentSignatureInvalid);
                     }
                 }

@@ -862,6 +862,12 @@ const DOMAIN_AGENT_COMPLETE_SET_MERGE: &[u8] = b"turingosv4.agent_sig.complete_s
 /// Mirror naming convention `turingosv4.agent_sig.<purpose>.v1`.
 const DOMAIN_AGENT_CPMM_POOL: &[u8] = b"turingosv4.agent_sig.cpmm_pool.v1";
 
+/// Stage C P-M5 / Phase F.4 (architect manual §7.6; remediation directive
+/// 2026-05-09 §1.C row 4 verbatim "P-M5 CpmmSwap (re-apply); Class 3"):
+/// agent-signed CPMM share-swap tx domain prefix. Mirror naming convention
+/// `turingosv4.agent_sig.<purpose>.v1` parallel to CpmmPool.
+const DOMAIN_AGENT_CPMM_SWAP: &[u8] = b"turingosv4.agent_sig.cpmm_swap.v1";
+
 /// Reserved for v4.1 MetaTx (Gemini round-2 GR-1 recommendation).
 /// Not used in v4 — namespace placeholder so v4.1 can introduce
 /// `MetaSigningPayload` without re-rotating sibling domains. Marked
@@ -1324,6 +1330,98 @@ pub struct CpmmPoolTx {
     pub signature: AgentSignature,            //  7
 }
 
+/// TRACE_MATRIX FC1-Append Stage C P-M5 / Phase F.4 (architect manual §7.6
+/// verbatim "Buy YES with NO" / "Symmetric Buy NO with YES"): swap
+/// direction discriminator. Determines which side of the pool is the
+/// input vs. output side at the sequencer admission arm.
+///
+/// `BuyYesWithNo` — trader submits dN > 0 NO; receives outY YES.
+///   Pool: poolN1 = poolN + dN; poolY1 = poolY - outY;
+///   outY = floor(dN * poolY / (poolN + dN)).
+/// `BuyNoWithYes` — trader submits dY > 0 YES; receives outN NO.
+///   Pool: poolY1 = poolY + dY; poolN1 = poolN - outN;
+///   outN = floor(dY * poolN / (poolY + dY)).
+///
+/// Default `BuyYesWithNo` (chosen so `Default::default()` for unit-test
+/// fixture builders + protobuf-style backward-compat decoders produce a
+/// concrete variant; runtime callers always set explicitly).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[repr(u8)]
+pub enum SwapDirection {
+    /// Architect §7.6 verbatim "Buy YES with NO".
+    BuyYesWithNo = 0,
+    /// Architect §7.6 verbatim "Symmetric Buy NO with YES".
+    BuyNoWithYes = 1,
+}
+
+impl Default for SwapDirection {
+    fn default() -> Self {
+        Self::BuyYesWithNo
+    }
+}
+
+/// TRACE_MATRIX FC1-Append Stage C P-M5 / Phase F.4 (architect manual §7.6
+/// + remediation directive 2026-05-09 §1.C row 4 verbatim "P-M5 CpmmSwap
+/// (re-apply); Class 3; n/a (was correct); per-atom §8 NO"): agent-signed
+/// CPMM share-swap transaction.
+///
+/// **Architect manual §7.6 specifies behavior + tests; transaction shape
+/// is implementation-defined.** This 8-field shape mirrors `CpmmPoolTx`
+/// minimal pattern + adds `direction` (enum) + `amount_in` (input-side
+/// shares) + `min_out` (slippage protection; `0` = caller accepts any
+/// non-zero output).
+///
+/// Sequencer arm (admission preconditions; 6-stage):
+/// 1. `parent_state_root == q.state_root_t` else `StaleParent`.
+/// 2. `amount_in.units > 0` else `SwapZeroInput` (architect §7.6 verbatim
+///    `dN > 0` / `dY > 0`).
+/// 3. `cpmm_pools_t.get(&event_id).is_some() && pool.status == Active`
+///    else `PoolNotActive` (P-M5 only swaps against live pools; Resolved /
+///    Closed pools forward-bound to future TB redemption / unwind path).
+/// 4. `conditional_share_balances_t[(trader, event_id)].input_side >=
+///    amount_in` else `InsufficientSharesForSwap` (trader must hold the
+///    input side from prior `MarketSeed` / `CompleteSetMint` /
+///    `CpmmSwap` accept).
+/// 5. compute `out = floor(amount_in * pool_other / (pool_input +
+///    amount_in))`; `out > 0` else `SwapInsufficientPoolOutput` (input
+///    too small relative to pool ratio for the floor formula to produce
+///    a positive output share — the swap would extract zero value).
+/// 6. `out >= min_out` else `SwapSlippageExceeded` (trader's slippage
+///    budget exceeded; pool ratio shifted between quote and submission).
+///
+/// Atomic state transitions on accept:
+/// - `conditional_share_balances_t[(trader, event_id)].input_side -=
+///    amount_in`.
+/// - `cpmm_pools_t[event_id].pool_input += amount_in.units;
+///    pool.pool_other -= out.units`.
+/// - `conditional_share_balances_t[(trader, event_id)].other_side +=
+///    out.units`.
+///
+/// Total Coin invariant UNCHANGED (no `balances_t` mutation; no Coin
+/// minted, no Coin burned). `conditional_collateral_t` UNCHANGED.
+/// `lp_share_balances_t` UNCHANGED. The constant-product invariant
+/// `pool_yes1 * pool_no1 >= pool_yes * pool_no` (architect §7.6 verbatim
+/// `>=` not `==` — floor leaves dust in pool) holds by construction:
+/// `(pool_input + amount_in) * (pool_other - out) >= pool_input *
+/// pool_other` because `out <= floor(amount_in * pool_other /
+/// (pool_input + amount_in))` and the floor operation always rounds in
+/// the pool's favor.
+///
+/// Defect-3 prevention: NO `timestamp_logical` field (mirrors
+/// `CompleteSetMergeTx` / `CpmmPoolTx` minimal pattern). Defect-4
+/// prevention: `event_id` (NOT `event_id_kind`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct CpmmSwapTx {
+    pub tx_id: TxId,                          //  1
+    pub parent_state_root: Hash,              //  2
+    pub event_id: EventId,                    //  3
+    pub trader: AgentId,                      //  4
+    pub direction: SwapDirection,             //  5
+    pub amount_in: ShareAmount,               //  6
+    pub min_out: ShareAmount,                 //  7
+    pub signature: AgentSignature,            //  8
+}
+
 // ── TB-13 SigningPayloads ───────────────────────────────────────────────
 
 /// TRACE_MATRIX TB-13 Atom 1 (architect §4.3): signing payload for
@@ -1439,6 +1537,38 @@ impl CpmmPoolSigningPayload {
     /// `b"turingosv4.agent_sig.cpmm_pool.v1"`.
     pub fn canonical_digest(&self) -> [u8; 32] {
         domain_prefixed_digest(DOMAIN_AGENT_CPMM_POOL, self)
+    }
+}
+
+/// TRACE_MATRIX FC1-Append Stage C P-M5 / Phase F.4 (architect manual §7.6;
+/// remediation directive §1.C row 4): signing payload for `CpmmSwapTx`
+/// (8 wire fields → 7 signing fields; `signature` excluded to prevent
+/// cycle-on-self).
+///
+/// Field order mirrors `CpmmSwapTx` exactly minus `signature`. The
+/// domain-prefixed digest binds tx-id + parent-state-root + event-id +
+/// trader + direction + amount-in + min-out — i.e., the full economic
+/// intent. Replaying the same payload under a different signature would
+/// fail the agent-sig verify gate; replaying under a different
+/// `parent_state_root` would fail the sequencer admission `StaleParent`
+/// gate.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct CpmmSwapSigningPayload {
+    pub tx_id: TxId,
+    pub parent_state_root: Hash,
+    pub event_id: EventId,
+    pub trader: AgentId,
+    pub direction: SwapDirection,
+    pub amount_in: ShareAmount,
+    pub min_out: ShareAmount,
+}
+
+impl CpmmSwapSigningPayload {
+    /// TRACE_MATRIX FC1-Append Stage C P-M5 / Phase F.4: domain-prefixed
+    /// canonical digest for agent-signed `CpmmSwapTx`. Domain prefix
+    /// `b"turingosv4.agent_sig.cpmm_swap.v1"`.
+    pub fn canonical_digest(&self) -> [u8; 32] {
+        domain_prefixed_digest(DOMAIN_AGENT_CPMM_SWAP, self)
     }
 }
 
@@ -1680,6 +1810,23 @@ impl CpmmPoolTx {
     }
 }
 
+impl CpmmSwapTx {
+    /// TRACE_MATRIX FC1-Append Stage C P-M5 / Phase F.4 (architect §7.6):
+    /// wire → signing payload projection. Excludes `signature` to prevent
+    /// cycle-on-self. 7-field projection of the 8-field wire struct.
+    pub fn to_signing_payload(&self) -> CpmmSwapSigningPayload {
+        CpmmSwapSigningPayload {
+            tx_id: self.tx_id.clone(),
+            parent_state_root: self.parent_state_root,
+            event_id: self.event_id.clone(),
+            trader: self.trader.clone(),
+            direction: self.direction,
+            amount_in: self.amount_in,
+            min_out: self.min_out,
+        }
+    }
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // § 6 TypedTx outer enum
 // ────────────────────────────────────────────────────────────────────────────
@@ -1714,6 +1861,15 @@ pub enum TypedTx {
     /// 7-field wire tx is implementation-defined; defect 4 prevention
     /// `event_id` NOT `event_id_kind`).
     CpmmPool(CpmmPoolTx),
+    /// Stage C P-M5 / Phase F.4 agent-signed CPMM share swap (architect
+    /// manual §7.6 verbatim Buy YES with NO / Buy NO with YES). Pure
+    /// share rotation between trader and pool reserves; no Coin movement;
+    /// constant-product invariant `pool_yes1 * pool_no1 >= pool_yes *
+    /// pool_no` preserved (`>=` because integer floor leaves dust in
+    /// pool — architect §7.6 explicit). 8-wire-field shape is
+    /// implementation-defined (architect §7.6 specifies behavior + 6
+    /// mandated tests, not tx schema).
+    CpmmSwap(CpmmSwapTx),
 }
 
 impl TypedTx {
@@ -1737,6 +1893,7 @@ impl TypedTx {
             Self::MarketSeed(_) => TxKind::MarketSeed,
             Self::CompleteSetMerge(_) => TxKind::CompleteSetMerge,
             Self::CpmmPool(_) => TxKind::CpmmPool,
+            Self::CpmmSwap(_) => TxKind::CpmmSwap,
         }
     }
 }
@@ -1853,6 +2010,15 @@ impl HasSubmitter for CpmmPoolTx {
     }
 }
 
+// Stage C P-M5 / Phase F.4 — agent-signed by `trader` (mirrors
+// CpmmPoolTx provider-as-signer + CompleteSetMintTx owner-as-signer
+// pattern).
+impl HasSubmitter for CpmmSwapTx {
+    fn submitter_id(&self) -> Option<AgentId> {
+        Some(self.trader.clone())
+    }
+}
+
 impl HasSubmitter for TypedTx {
     fn submitter_id(&self) -> Option<AgentId> {
         match self {
@@ -1872,6 +2038,7 @@ impl HasSubmitter for TypedTx {
             Self::MarketSeed(t) => t.submitter_id(),
             Self::CompleteSetMerge(t) => t.submitter_id(),
             Self::CpmmPool(t) => t.submitter_id(),
+            Self::CpmmSwap(t) => t.submitter_id(),
         }
     }
 }
@@ -2139,6 +2306,46 @@ pub enum TransitionError {
     /// PolicyViolation`.
     PoolAlreadyExists,
 
+    // ── Stage C P-M5 / Phase F.4 (architect manual §7.6) ───────────────────
+    /// `CpmmSwapTx` admission: `amount_in.units == 0`. Architect §7.6
+    /// verbatim "input: dN > 0" / "input: dY > 0" — zero input is a
+    /// degenerate swap with trivial floor formula `floor(0 * pool_other
+    /// / pool_input) = 0`. Rejected pre-formula to avoid divide-by-zero
+    /// edge cases on empty pools. Maps to `L4ERejectionClass::
+    /// PolicyViolation`.
+    SwapZeroInput,
+    /// `CpmmSwapTx` admission: `cpmm_pools_t[event_id]` missing OR
+    /// `pool.status != PoolStatus::Active`. P-M5 only swaps against live
+    /// pools; Resolved (post-event-resolution) and Closed (drained +
+    /// retired) pools are forward-bound to future TB redemption / unwind
+    /// paths. Maps to `L4ERejectionClass::PolicyViolation`.
+    PoolNotActive,
+    /// `CpmmSwapTx` admission: trader's
+    /// `conditional_share_balances_t[(trader, event_id)]` input-side
+    /// holding is below `amount_in.units`. Architect §7.6 implies trader
+    /// must hold the input side from prior `MarketSeed` / `CompleteSetMint`
+    /// / accepted `CpmmSwap` before swapping. Distinct from
+    /// `InsufficientSharesForPool` because pool-creation drains both YES +
+    /// NO; swap drains one side per `direction`. Maps to
+    /// `L4ERejectionClass::PolicyViolation`.
+    InsufficientSharesForSwap,
+    /// `CpmmSwapTx` admission: computed `out = floor(amount_in *
+    /// pool_other / (pool_input + amount_in))` equals zero. The trader's
+    /// input is too small relative to the pool ratio for the floor formula
+    /// to produce a positive output share — the swap would extract zero
+    /// value (no share credited; pool drift only). Architect §7.6 verbatim
+    /// formulas use floor; this rejection class catches the "dust input"
+    /// edge case. Maps to `L4ERejectionClass::PolicyViolation`.
+    SwapInsufficientPoolOutput,
+    /// `CpmmSwapTx` admission: `0 < out < min_out`. Trader's slippage
+    /// budget exceeded — pool ratio shifted between off-chain quote and
+    /// on-chain submission. The non-zero output is the architect §7.6
+    /// formula's actual answer; rejection class distinct from
+    /// `SwapInsufficientPoolOutput` (which is `out == 0`) so trader can
+    /// distinguish "pool too thin" from "pool moved against me". Maps to
+    /// `L4ERejectionClass::PolicyViolation`.
+    SwapSlippageExceeded,
+
     // ── Stub sentinel (CO1.7.5 fills) ──────────────────────────────────────
     /// Stub return value used by CO1.7.5 unimplemented bodies — preserves
     /// sequencer + dispatch correctness without forcing transition logic
@@ -2246,6 +2453,26 @@ impl std::fmt::Display for TransitionError {
             Self::PoolAlreadyExists => write!(
                 f,
                 "CpmmPoolTx: cpmm_pools_t already has an entry for this event_id (architect §7.5 implies one pool per event in v4)"
+            ),
+            Self::SwapZeroInput => write!(
+                f,
+                "CpmmSwapTx: amount_in.units == 0 (architect §7.6 verbatim dN > 0 / dY > 0; zero-input swap is degenerate)"
+            ),
+            Self::PoolNotActive => write!(
+                f,
+                "CpmmSwapTx: cpmm_pools_t[event_id] missing or status != Active (P-M5 swaps only against live pools; Resolved/Closed deferred to future TB)"
+            ),
+            Self::InsufficientSharesForSwap => write!(
+                f,
+                "CpmmSwapTx: trader lacks the requested input-side amount on conditional_share_balances_t (architect §7.6 implies trader must hold the input side before swap)"
+            ),
+            Self::SwapInsufficientPoolOutput => write!(
+                f,
+                "CpmmSwapTx: floor(amount_in * pool_other / (pool_input + amount_in)) == 0 (input too small relative to pool ratio; architect §7.6 floor formula returns zero output)"
+            ),
+            Self::SwapSlippageExceeded => write!(
+                f,
+                "CpmmSwapTx: computed out < min_out (trader slippage budget exceeded; pool ratio shifted between quote and submission)"
             ),
             Self::NotYetImplemented => write!(f, "transition body not yet implemented (CO1.7.5)"),
         }

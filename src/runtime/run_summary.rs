@@ -226,6 +226,7 @@ fn extract_tx_id(tx: &TypedTx) -> TxId {
         TypedTx::MarketSeed(t) => t.tx_id.clone(),      // TB-13
         TypedTx::CompleteSetMerge(t) => t.tx_id.clone(), // Stage C P-M2 / Phase F.1
         TypedTx::CpmmPool(t) => t.tx_id.clone(),         // Stage C P-M4 / Phase F.3
+        TypedTx::CpmmSwap(t) => t.tx_id.clone(),         // Stage C P-M5 / Phase F.4
     }
 }
 
