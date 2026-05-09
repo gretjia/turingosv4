@@ -371,7 +371,13 @@ pub fn assert_no_post_init_mint(tx: &TypedTx, q: &QState) -> Result<(), Monetary
         // 6th Coin holding.
         | TypedTx::CompleteSetMint(_)
         | TypedTx::CompleteSetRedeem(_)
-        | TypedTx::MarketSeed(_) => Ok(()),
+        | TypedTx::MarketSeed(_)
+        // Stage C P-M2 (architect manual §7.3): CompleteSetMerge is the
+        // inverse of CompleteSetMint — debits owner's YES + NO shares,
+        // debits collateral, credits owner balance 1:1. Symmetric balance ↔
+        // collateral migration; no mint, no burn. CTF conservation enforced
+        // by assert_total_ctf_conserved at the dispatch site.
+        | TypedTx::CompleteSetMerge(_) => Ok(()),
     }
 }
 

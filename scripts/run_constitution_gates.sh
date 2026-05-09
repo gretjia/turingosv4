@@ -161,6 +161,16 @@ GATES=(
   # tb_13_legacy_cpmm_forward_fence's TB-13-marker scope; uses explicit
   # MARKET_SUBSTRATE_ALLOW_LIST that Stage C P-M0+ TBs MUST extend.
   constitution_market_quarantine
+  # Stage C P-M2 2026-05-09 (plan cozy-waddling-raven Step 4) — architect
+  # manual §7.3 verbatim CompleteSetMergeTx hardening: 5 verbatim test
+  # names (merge_yes_no_returns_coin + merge_requires_both_sides +
+  # merge_conserves_total_coin + merge_reduces_collateral +
+  # merge_unavailable_after_final_redeem_if_shares_exhausted). Tests bind
+  # to live sequencer dispatch on TypedTx::CompleteSetMerge (Class 4
+  # STEP_B parallel-branch `feat/p-m2-completeset-merge`); first new
+  # Polymarket atom landing typed_tx schema bump + sequencer admission
+  # arm pattern. Awaiting batch §8 sign-off (P-M2 + P-M4 + P-M6).
+  constitution_completeset_merge
 )
 
 # Run each gate file separately and collect per-test outcome.
