@@ -2122,17 +2122,18 @@ pub(crate) fn dispatch_transition(
             if merge.parent_state_root != q.state_root_t {
                 return Err(TransitionError::StaleParent);
             }
-            // Step 2: amount.units > 0 strictly. Zero-amount merge is a
-            // signal-only no-op + chain-noise vector; mirror the CompleteSetMint
-            // V1-attack remediation by rejecting zero (Codex round-1 VETO
-            // TB13-V1 pattern, 2026-05-03).
-            if merge.amount.units == 0 {
-                return Err(TransitionError::InsufficientSharesForMerge);
-            }
-            // Step 3: owner share balance — both YES + NO must cover amount
+            // Step 2: owner share balance — both YES + NO must cover amount
             // (architect §7.3 verbatim "require owner YES >= amount" + "require
             // owner NO >= amount"). Distinct error class from RedeemMoreThanOwned
             // because merge is a non-resolution exit, not a winning-side payout.
+            //
+            // Zero-amount merge is admitted (strict §7.3 verbatim per
+            // `feedback_no_workarounds_strict_constitution`): both preconditions
+            // trivially hold for amount=0 (u128 >= 0); steps 4a/4b/4c become
+            // `-= 0` / `+= 0` no-ops; assert_complete_set_balanced still holds.
+            // Codex R1 CHALLENGE Q3 remediation 2026-05-09 (architect spec
+            // does not exclude zero; prior `amount.units == 0` early-reject
+            // was extra policy not ratified by §7.3).
             let pair = q
                 .economic_state_t
                 .conditional_share_balances_t
@@ -2147,7 +2148,7 @@ pub(crate) fn dispatch_transition(
             if pair.no.units < merge.amount.units {
                 return Err(TransitionError::InsufficientSharesForMerge);
             }
-            // Step 4: defensive collateral coverage (should hold under
+            // Step 3: defensive collateral coverage (should hold under
             // assert_complete_set_balanced; mirror CompleteSetRedeem step 3).
             let event_collateral = q
                 .economic_state_t
@@ -2160,11 +2161,11 @@ pub(crate) fn dispatch_transition(
                 return Err(TransitionError::InsufficientCollateral);
             }
 
-            // Step 5: build q_next — atomic dual-side share burn + collateral
+            // Step 4: build q_next — atomic dual-side share burn + collateral
             // debit + balance credit. 1 share-unit = 1 micro-Coin (the same
             // equivalence set at CompleteSetMint time).
             let mut q_next = q.clone();
-            // 5a: debit YES + NO each by amount.units.
+            // 4a: debit YES + NO each by amount.units.
             {
                 let owner_shares = q_next
                     .economic_state_t
@@ -2182,7 +2183,7 @@ pub(crate) fn dispatch_transition(
                     pair_mut.no.units - merge.amount.units,
                 );
             }
-            // 5b: debit collateral by amount.units (cast to i64 micro-Coin).
+            // 4b: debit collateral by amount.units (cast to i64 micro-Coin).
             {
                 let collateral_entry = q_next
                     .economic_state_t
@@ -2194,7 +2195,7 @@ pub(crate) fn dispatch_transition(
                     collateral_entry.micro_units() - merge.amount.units as i64,
                 );
             }
-            // 5c: credit owner balance 1:1.
+            // 4c: credit owner balance 1:1.
             let owner_bal = q_next
                 .economic_state_t
                 .balances_t
@@ -2209,7 +2210,7 @@ pub(crate) fn dispatch_transition(
                 ),
             );
 
-            // Step 6: monetary invariants — exact mirror of CompleteSetMint /
+            // Step 5: monetary invariants — exact mirror of CompleteSetMint /
             // CompleteSetRedeem; merge MUST satisfy
             // assert_complete_set_balanced because it is the bit-for-bit
             // inverse of CompleteSetMint.
@@ -2226,7 +2227,7 @@ pub(crate) fn dispatch_transition(
             )
             .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
 
-            // Step 7: state_root advance.
+            // Step 6: state_root advance.
             q_next.state_root_t = complete_set_merge_accept_state_root(&q.state_root_t, tx);
 
             Ok((q_next, SignalBundle::default()))
