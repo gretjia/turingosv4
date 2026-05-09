@@ -172,10 +172,55 @@ Round cap 2 used (within `feedback_elon_mode_policy`); R3 not required.
 | Atom | Class | Status post-P-M2 §8 |
 |------|-------|----------------------|
 | **F.1 P-M2** | 4 STEP_B | ✅ SHIPPED FINAL (this block) |
-| F.2 P-M3 (MarketSeedTx hardening) | 3 | Charter-eligible NOW (no §8 needed) |
-| F.3 P-M4 (CpmmPool rebuild) | 4 STEP_B | Gated on F.2 |
+| **F.2 P-M3** (MarketSeedTx hardening) | 3 | ✅ SHIPPED (next block) |
+| F.3 P-M4 (CpmmPool rebuild) | 4 STEP_B | Charter-eligible NOW post-P-M3 push |
 | F.4 P-M5 | 3 | Gated on F.3 §8 |
 | F.5 P-M6 (Mint-and-Swap Router rebuild + 2 patches) | 4 STEP_B | Gated on F.4 |
+| F.6/F.7/F.8 P-M7/M8/M9 | 1-3 | Gated on F.5 §8 |
+| F.9 Stage C overall §8 | 4 ship | Gated on all atoms green |
+
+---
+
+## ✅ P-M3 SHIPPED 2026-05-09 session #30 (Class-3 re-apply; Phase F.2)
+
+**HEAD pushed**: `73b42d7` (origin/main; merge of `feat/p-m3-rebuild` `ac06a47` onto `0db1ec2`).
+**Authority**: Remediation directive `handover/directives/2026-05-09_STAGE_C_POLYMARKET_VETO_REMEDIATION_DIRECTIVE.md` §1.C row 2 verbatim ("P-M3 MarketSeed (re-apply); Class 3; n/a (was correct); per-atom §8 NO"). Sub-option A2 framing per session #29 close prompt: TB-13 era 7-field impl preserved as ratified state.
+
+### What landed (architect §7.4 verbatim — 5 mandated test names, no schema change)
+
+| Surface | Change |
+|---------|--------|
+| `tests/constitution_market_seed_hardening.rs` (NEW) | 5 architect §7.4 verbatim test names — all live through `Sequencer::submit_agent_tx`: `market_seed_debits_provider` / `market_seed_creates_yes_no_inventory` / `market_seed_fails_insufficient_balance` / `market_seed_no_ghost_liquidity` / `market_seed_conserves_total_coin` |
+| `scripts/run_constitution_gates.sh` | Registered `constitution_market_seed_hardening` gate |
+
+**No `src/` changes.** `MarketSeedTx` 7-field TB-13-era impl (`src/state/typed_tx.rs::MarketSeedTx` line 1234) preserved. `timestamp_logical` drift question forward-bound to architect §10 reclassification path (out of P-M3 A2 scope; would also touch `CompleteSetMintTx` + `CompleteSetRedeemTx` if reopened).
+
+### Validation at ship
+
+| Check | Pre-F.2 | Post-F.2 | Δ |
+|-------|---------|----------|---|
+| Constitution gates | 198/0/1 | **203/0/1** | +5 (new `constitution_market_seed_hardening` gate) |
+| Workspace tests | 1331/0/151 | **1336/0/151** | +5 (5 architect-mandated verbatim tests) |
+| Trust Root verify | PASS | **PASS** (unchanged) | no STEP_B file edit; no rehash needed |
+| `cargo check --workspace --tests` | clean | **clean** | no new warnings |
+
+### Audit framing
+
+Class-3 atom — per remediation directive §1.C row 2 "per-atom §8 NO". No external dual-audit dispatched (no auth/money/CAS surface mutated; only test surface added). Self-audit + workspace + gate runner are sufficient for Class-3 hardening that's purely additive on existing landed semantics.
+
+### Pre-flight gates witness
+
+- `/harness-reflect` fired post-P-M2-SHIPPED-FINAL (mandatory MEMORY.md gate). Phase F.1 lessons extracted: PRE-§8 dual-audit timing rule worked first try; E.1 binding gate mechanically prevented Defect 3 recurrence; R-022 doc-block backlinks proven enforcement on new pub items.
+- `/constitution-landing-check` returned PROCEED — matrix is 0 AMBER / 0 RED / 96 GREEN / 0 N/A (per session #24 strict closure 2026-05-08). Meta-finding: skill's Stage 1 awk regex over-matches "was 🟡 AMBER" historical annotations; not patching now (logged only).
+
+### Forward queue post-P-M3
+
+| Atom | Class | Status |
+|------|-------|--------|
+| **F.2 P-M3** | 3 | ✅ SHIPPED (this block) |
+| **F.3 P-M4** (CpmmPool rebuild) | 4 STEP_B | **Charter-eligible NOW**; requires per-atom §8 + PRE-§8 dual audit |
+| F.4 P-M5 (CpmmSwap re-apply) | 3 | Gated on F.3 §8 |
+| F.5 P-M6 (Router rebuild + 2 patches) | 4 STEP_B | Gated on F.4 |
 | F.6/F.7/F.8 P-M7/M8/M9 | 1-3 | Gated on F.5 §8 |
 | F.9 Stage C overall §8 | 4 ship | Gated on all atoms green |
 
