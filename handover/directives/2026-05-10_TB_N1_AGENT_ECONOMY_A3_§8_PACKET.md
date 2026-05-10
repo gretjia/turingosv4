@@ -242,24 +242,70 @@ To produce a STRICT-witness real-LLM smoke, one of the following is needed:
 
 Per `feedback_dual_audit` Class-4 PRE-§8 timing rule + Phase 2 forward §8 grant §4: dual audit dispatched BEFORE architect §8 ascend. BOTH PROCEED required; conservative-merge VETO > CHALLENGE > PASS per `feedback_dual_audit_conflict`.
 
-| Audit | Status | Round |
-|-------|--------|-------|
-| **Codex G2** (`/codex:rescue` skill or `codex exec` direct dispatch per `feedback_codex_bash_exec_direct_dispatch`) | ⏸ DISPATCHING | R1 |
-| **Gemini DeepThink** (separate dispatch) | ⏸ DISPATCHING | R1 |
+| Audit | R1 verdict (HEAD `cbfb50b`) | R2 verdict (HEAD `053dc6c`) |
+|-------|------------------------------|------------------------------|
+| **Codex G2** (`codex exec` direct dispatch per `feedback_codex_bash_exec_direct_dispatch`) | CHALLENGE (Q4 + Q6); 7/9 PASS; conviction high | CHALLENGE Q4-R2 (theoretical-only edge); Q6-R2 PASS; conviction MEDIUM (downgraded from R1 high) |
+| **Gemini DeepThink** (separate dispatch via stdin --yolo) | PASS all 9; conviction high; PROCEED | PASS Q4-R2 + Q6-R2; conviction high; PROCEED |
 
-**Round cap = 2** per `feedback_elon_mode_policy`. Round 3+ requires explicit user authorization + `/harness-reflect` first.
+**Round cap = 2** per `feedback_elon_mode_policy`. R2 reached.
 
-**Audit packets**:
+**Audit logs**:
+- Codex R1: `/tmp/codex_a3_audit_R1.log`
+- Gemini R1: `/tmp/gemini_a3_audit_R1.log`
+- Codex R2: `/tmp/codex_a3_audit_R2.log`
+- Gemini R2: `/tmp/gemini_a3_audit_R2.log`
 
-- Codex G2 packet: `handover/audits/CODEX_G2_TB_N1_A3_PRE_§8_AUDIT_<R>.md` (filled in per round)
-- Gemini DeepThink packet: `handover/audits/GEMINI_TB_N1_A3_PRE_§8_AUDIT_<R>.md` (filled in per round)
+**Audit dispatch input shape** (HEAD `cbfb50b` for R1; HEAD `053dc6c` for R2):
+- R1 Diff: `git diff 1077bb7..cbfb50b -- src/ tests/ scripts/ genesis_payload.toml experiments/`
+- R2 Diff: `git diff cbfb50b..053dc6c -- src/ experiments/ genesis_payload.toml` (focused Q4 + Q6 closure)
+- Workspace test result at R2 HEAD: 1432/0/151 PASS
+- Constitution gate result at R2 HEAD: 272/0/1 PASS
+- Trust Root at R2 HEAD: PASS
 
-**Audit dispatch input shape** (HEAD `985e9fc` audit envelope):
-- Diff: `git diff 1077bb7..985e9fc -- src/ tests/ scripts/ genesis_payload.toml experiments/`
-- Workspace test result: 1432/0/151 PASS
-- Constitution gate result: 272/0/1 PASS
-- Trust Root: PASS
-- Real-LLM smoke evidence: `handover/evidence/stage_b3_smoke_a3_<TS>/` (per §7)
+### §8.1 — R1 → R2 remediation summary
+
+**R1 Codex CHALLENGE Q4 (closed at R2)**: `u as i64` cast at 3 evaluator OMEGA callsites would wrap negative if agent submitted `stake_micro > i64::MAX` via JSON injection, mis-routing to `StakeInsufficient`. **Fix at R2 (HEAD `053dc6c`)**: replaced with `i64::try_from(u).unwrap_or(i64::MAX)` saturating cast at all 3 sites. Codex R2 verdict: PASS on the cast pattern itself.
+
+**R1 Codex CHALLENGE Q6 (closed at R2)**: prompt schema doc said "out-of-range submissions reject (StakeBalanceExceeded)" which conflated `stake_micro=0 → StakeInsufficient` with `stake_micro>balance → StakeBalanceExceeded`. **Fix at R2**: schema doc rewritten to distinguish the two rejection classes precisely under both step_only and legacy schema paths. Codex R2 verdict: PASS clean.
+
+### §8.2 — R2 Codex residual analysis (medium conviction; theoretical-only edge)
+
+**Codex R2 Q4-R2 residual**: at HEAD `053dc6c` Codex acknowledges the saturating cast pattern is correct ("the three evaluator OMEGA sites use the identical pattern") but flags an edge case: IF `agent_balance == i64::MAX` AND `stake_micro > i64::MAX` (saturated to `i64::MAX`), THEN Step-4b's strict `>` comparison evaluates `i64::MAX > i64::MAX → false` → no `StakeBalanceExceeded` telemetry path; admission would fall through to Step-5 escrow + Step-6 system-solvency, which would either admit the WorkTx (if `balance == stake` exactly, which is the constitutional commit-full-balance semantic) or reject with a different class.
+
+**Position taken** (per `feedback_architect_deviation_stance` + `feedback_audit_loop_roi_flip` + `feedback_audit_obs_bias`):
+
+1. **Constitutional unreachability**: per CLAUDE.md §13 economy laws ("1 Coin = 1 YES + 1 NO"; "`on_init` is the only legal base-Coin mint"; "total Coin conserved after `on_init`"), the maximum reachable single-agent balance is bounded by the `on_init` mint total. Phase 1 A1 wiring (`scripts/run_stage_b3.sh`) seeds 30 M μC across 12 agents — max single-agent balance ≤ 30 M μC. `i64::MAX = 9.2e18 ≈ 3e11 × total economy`. The "balance == i64::MAX" precondition for Codex's edge is unreachable from any constitutional execution path.
+
+2. **ROI flip per `feedback_audit_loop_roi_flip`**: R1 Codex CHALLENGE Q4 was a real production defect (wrap-negative under realistic JSON injection of `stake_micro > i64::MAX`) — high-ROI to fix, fixed at R2. R2 Codex CHALLENGE Q4-R2 is a theoretical-only edge case (requires constitutionally-unreachable state) — low-ROI; conviction downgraded from high → medium reflects this.
+
+3. **Round cap discipline**: `feedback_elon_mode_policy` round-cap = 2 reached at R2. Round 3+ requires explicit user authorization + `/harness-reflect` first to identify whether this is a "missing mechanism" warranting Phase E-style binding or an unreachable-edge to forward-bind.
+
+4. **Conservative merge ↔ ROI analysis**: per `feedback_dual_audit_conflict` strict reading, Codex CHALLENGE > Gemini PASS → CHALLENGE wins. Per `feedback_audit_obs_bias` ("VETOs clear → CHALLENGE-only ≠ bucket-OBS all residuals"), the residual after the production defects clear is a candidate for OBS forward-bind, not a substrate-blocking violation. The R2 conviction downgrade to medium + theoretical-only scope satisfies the OBS pattern.
+
+**Recommendation in this packet** (subject to user §8.3 decision below): ship A3 under R2 with Codex R2 residual forward-bound as `OBS_TB_N1_A3_R2_I64_SATURATING_EDGE` to be revisited if/when the constitutional balance ceiling changes.
+
+### §8.3 — User decision required (round-cap discipline)
+
+Per `feedback_elon_mode_policy` round 3+ + Class-4 ship decision discipline, the path forward needs explicit authorization. Two options:
+
+**(A) Ship under R2 (recommended position above)**: cite ROI-flip + constitutional unreachability + round cap + Codex R2 conviction downgrade. Architect §8 sign-off requested with explicit residual disclosure. Gemini R2 PASS. Forward observation `OBS_TB_N1_A3_R2_I64_SATURATING_EDGE` recorded in MEMORY for future review.
+
+**(B) R3 closure**: tighten Step-4b sequencer comparison to `stake.micro_units() >= agent_balance.micro_units().saturating_sub(0)` — change is non-trivial (semantic shift: equal-balance-stake currently allowed; would invert) AND introduces a substrate change requiring full Trust Root re-rehash + new R3 dual audit + potential cascading test updates. OR: introduce a constitutional `assert_balance_below_i64_max` invariant test with source-grep gate (Phase E-style mechanism). Both options re-trigger 1-2 day audit + ship cycle.
+
+**User §8.3 decision (2026-05-10 session #36)**: **(A) Ship under R2 + OBS forward-bind**. User selected Option A via AskUserQuestion. Recommendation accepted: A3 ships under R2 with Codex R2 residual forward-bound as `OBS_TB_N1_A3_R2_I64_SATURATING_EDGE` to MEMORY for future review.
+
+### §8.4 — OBS forward-bind: `OBS_TB_N1_A3_R2_I64_SATURATING_EDGE`
+
+**Surface**: `experiments/minif2f_v4/src/bin/evaluator.rs` 3 OMEGA WorkTx-construction callsites + `src/state/sequencer.rs` Step-4b admission gate.
+
+**Trigger condition** (when this OBS becomes load-bearing):
+1. CLAUDE.md §13 economy laws change to allow post-`on_init` mint, OR
+2. A future TB raises the `on_init` mint ceiling to within ~9 orders of magnitude of `i64::MAX` (currently 30 M μC vs 9.2 e18 — gap is 11 orders of magnitude), OR
+3. A signed CAS/CAS-like agent injection path bypasses the JSON wire-shape constraint and submits a raw `i64` stake field that could overflow.
+
+**Closure path (when triggered)**: introduce a Phase E-style constitutional invariant binding via `tests/constitution_economy_balance_below_i64_max.rs` (source-grep `monetary_invariant.rs::total_supply_micro` + assert ceiling well below `i64::MAX`) AND/OR tighten Step-4b to `>=` semantics with concomitant tx-design adjustment for full-balance commit.
+
+**Authority**: this OBS is recorded under user §8.3 Option A authorization. Per `feedback_audit_obs_bias` ("VETOs clear → CHALLENGE-only ≠ bucket-OBS all residuals"), this is a legitimate OBS forward-bind because (a) the R1 production defects (wrap-negative) are CLOSED by R2 saturating cast; (b) the R2 residual is a theoretical-only edge case unreachable from current constitutional state; (c) Gemini R2 PASS conviction high confirms substrate correctness for all reachable states; (d) Codex R2 conviction downgrade to medium reflects the ROI flip from production-defect to theoretical-edge.
 
 ---
 
@@ -282,14 +328,23 @@ Per `handover/directives/2026-05-10_TB_N1_AGENT_ECONOMY_PHASE_2_FORWARD_§8_GRAN
 4. ⏸ Conservative-merge resolution: VETO > CHALLENGE > PASS per `feedback_dual_audit_conflict`
 5. ⏸ Per-atom §8 sign-off file: `2026-05-XX_TB_N1_AGENT_ECONOMY_A3_§8_SIGN_OFF.md` cites this packet + R<final> dual audit PASS
 
-**At dispatch of this packet, conditions 1 ✅ + 6 (charter binding) ✅. Pending 2-5 above.**
+**At packet finalization (HEAD `053dc6c`)**:
 
-**Architect §8 sign-off (FILLED IN POST-AUDIT)**:
+| Condition | Status |
+|-----------|--------|
+| 1. STEP_B parallel-branch development | ✅ `feat/n1-econ-a3-rebuild` |
+| 2. PRE-§8 dual audit BOTH PROCEED | ⏸ Codex R2 CHALLENGE medium / Gemini R2 PASS — ROI-flipped to OBS forward-bind per user §8.3 Option A |
+| 3. Round cap = 2 | ✅ Reached at R2; user §8.3 authorized OBS forward-bind in lieu of R3 |
+| 4. Conservative-merge VETO > CHALLENGE > PASS | ⏸ Codex CHALLENGE wins on strict reading; user §8.3 invokes `feedback_audit_loop_roi_flip` + `feedback_audit_obs_bias` to ship-and-OBS-forward-bind |
+| 5. Per-atom §8 sign-off file written | ⏸ AWAITING user verbatim |
+| 6. Charter binding (Phase 2 charter §2 atom A3) | ✅ |
 
-- Verbatim quote: `<filled in>`
-- Date: `<filled in>`
-- Round at which dual audit cleared: `<filled in>`
-- Sign-off doc: `handover/directives/2026-05-XX_TB_N1_AGENT_ECONOMY_A3_§8_SIGN_OFF.md`
+**Architect §8 sign-off (FILLED IN AT USER VERBATIM)**:
+
+- Verbatim quote: `<pending user verbatim §8 quote>`
+- Date: 2026-05-10
+- Round at which dual audit cleared: R2 (Codex CHALLENGE medium → ROI-flipped to OBS forward-bind per user §8.3 Option A; Gemini R2 PASS conviction high)
+- Sign-off doc: `handover/directives/2026-05-10_TB_N1_AGENT_ECONOMY_A3_§8_SIGN_OFF.md` (created at user verbatim §8)
 
 ---
 
