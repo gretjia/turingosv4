@@ -1,0 +1,28 @@
+[2026-05-10T13:42:19Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/aime_1983_p1.lean | Condition: n1 | Model: deepseek-v4-flash | Mode: full
+[2026-05-10T13:42:19Z INFO  minif2f_v4::chain_runtime] [chaintape/d3] pre-seed enabled (TB-10 factory): 12 entries
+[2026-05-10T13:42:20Z INFO  minif2f_v4::chain_runtime] [chaintape] bus wired with Sequencer + on-disk ChainTape at "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_smoke_a3_post_ship_20260510T133947Z/deepseek-v4-flash/seed1/rep1/P001_aime_1983_p1/runtime_repo"
+[2026-05-10T13:42:20Z INFO  evaluator] [chaintape/d3] preseed TaskOpen for task-n1_aime_1983_p1_1778420539563
+[2026-05-10T13:42:20Z INFO  evaluator] [chaintape/d3] preseed EscrowLock 100000 micro for task-n1_aime_1983_p1_1778420539563
+[2026-05-10T13:42:20Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic TaskOpen for smoke-n1_aime_1983_p1_1778420539563
+[2026-05-10T13:42:20Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic zero-stake WorkTx (synthetic_rejection_for_l4e_gate=true) for smoke-n1_aime_1983_p1_1778420539563
+[2026-05-10T13:42:20Z INFO  minif2f_v4::chain_runtime] [chaintape] Atom 5 audit-trail records written to CAS + indexed for smoke-n1_aime_1983_p1_1778420539563
+[2026-05-10T13:42:20Z INFO  minif2f_v4::chain_runtime] [chaintape/d_c] genesis_report.json written to "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_smoke_a3_post_ship_20260510T133947Z/deepseek-v4-flash/seed1/rep1/P001_aime_1983_p1/runtime_repo"
+[2026-05-10T13:42:20Z INFO  evaluator] [swarm/n1] agent_models = [deepseek-v4-flash] (label=deepseek-v4-flash)
+[2026-05-10T13:42:20Z INFO  evaluator] [budget] regime=total_proposal base=200 effective_max_tx=200 (n_agents=1)
+[2026-05-10T13:42:20Z INFO  evaluator] [swarm/n1] Agent_0:skill0:t=0.20
+[2026-05-10T13:42:45Z WARN  evaluator] [tx 0] step rejected (err:unknown_const): <stdin>:13:4: error: failed to prove nonzeroness, but it would be possible to prove nonnegativity if desired | <stdin>:16:12: error(lean.unknownIdentifier): Unknown identifier `hlogx` | <stdin>:16:19:
+[2026-05-10T13:42:54Z INFO  evaluator] [tx 1] Agent_0 step+tx_0_by_Agent_0 partial OK (depth=1)
+[2026-05-10T13:43:04Z WARN  evaluator] [tx 2] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress at h0
+[2026-05-10T13:43:13Z WARN  evaluator] [tx 3] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress at h0
+[2026-05-10T13:43:23Z WARN  evaluator] [tx 4] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress at h0
+[2026-05-10T13:43:32Z WARN  evaluator] [tx 5] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress at h0
+[2026-05-10T13:43:42Z WARN  evaluator] [tx 6] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress at h0
+[2026-05-10T13:43:51Z WARN  evaluator] [tx 7] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress at h0
+[2026-05-10T13:44:00Z WARN  evaluator] [tx 8] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress at h0
+[2026-05-10T13:44:09Z WARN  evaluator] [tx 9] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress at h0
+[2026-05-10T13:44:11Z WARN  evaluator] [tb18-atomA] DegradedLLM halt: 10 consecutive trivial responses (token_floor=30, cap=10); total_calls=11 trivial_calls=10
+[v2-emit] SPLIT env unset; defaulting to 'adaptation' (Phase B convention; pre-registration requires SPLIT for Phase C+ ablation runs)
+[2026-05-10T13:44:11Z INFO  evaluator] [tb11] EvidenceCapsule written: capsule_id=02c03058aebf58615330839752ea427f2a76fdfde6785a6895b62f649981e3ad compressed_log_cid=a7512b814cd7fe2ce49fb19301ce39071d2b79db06b69acb4807ecdf9daee72e attempt_count=10
+[2026-05-10T13:44:11Z INFO  evaluator] [tb11] TerminalSummary emitted: emit_id=1
+[2026-05-10T13:44:11Z INFO  evaluator] [chaintape] Atom 6 RunSummary written (3 L4 + 11 L4.E entries; 3 accepted_tx_ids, 11 rejected_tx_ids)
+[2026-05-10T13:44:11Z INFO  evaluator] PPUT = 0 (no golden path in 111.9s, 200 tx)

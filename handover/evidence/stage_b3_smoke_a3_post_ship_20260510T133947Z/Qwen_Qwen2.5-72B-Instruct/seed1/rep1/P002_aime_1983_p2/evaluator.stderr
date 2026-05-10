@@ -1,0 +1,74 @@
+[2026-05-10T13:58:41Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/aime_1983_p2.lean | Condition: n1 | Model: Qwen/Qwen2.5-72B-Instruct | Mode: full
+[2026-05-10T13:58:41Z INFO  minif2f_v4::chain_runtime] [chaintape/d3] pre-seed enabled (TB-10 factory): 12 entries
+[2026-05-10T13:58:42Z INFO  minif2f_v4::chain_runtime] [chaintape] bus wired with Sequencer + on-disk ChainTape at "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_smoke_a3_post_ship_20260510T133947Z/Qwen_Qwen2.5-72B-Instruct/seed1/rep1/P002_aime_1983_p2/runtime_repo"
+[2026-05-10T13:58:42Z INFO  evaluator] [chaintape/d3] preseed TaskOpen for task-n1_aime_1983_p2_1778421521705
+[2026-05-10T13:58:42Z INFO  evaluator] [chaintape/d3] preseed EscrowLock 100000 micro for task-n1_aime_1983_p2_1778421521705
+[2026-05-10T13:58:42Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic TaskOpen for smoke-n1_aime_1983_p2_1778421521705
+[2026-05-10T13:58:42Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic zero-stake WorkTx (synthetic_rejection_for_l4e_gate=true) for smoke-n1_aime_1983_p2_1778421521705
+[2026-05-10T13:58:42Z INFO  minif2f_v4::chain_runtime] [chaintape] Atom 5 audit-trail records written to CAS + indexed for smoke-n1_aime_1983_p2_1778421521705
+[2026-05-10T13:58:42Z INFO  minif2f_v4::chain_runtime] [chaintape/d_c] genesis_report.json written to "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_smoke_a3_post_ship_20260510T133947Z/Qwen_Qwen2.5-72B-Instruct/seed1/rep1/P002_aime_1983_p2/runtime_repo"
+[2026-05-10T13:58:42Z INFO  evaluator] [swarm/n1] agent_models = [Qwen/Qwen2.5-72B-Instruct] (label=Qwen/Qwen2.5-72B-Instruct)
+[2026-05-10T13:58:42Z INFO  evaluator] [budget] regime=total_proposal base=200 effective_max_tx=200 (n_agents=1)
+[2026-05-10T13:58:42Z INFO  evaluator] [swarm/n1] Agent_0:skill0:t=0.20
+[2026-05-10T13:58:51Z INFO  evaluator] [tx 0] Agent_0 step+tx_0_by_Agent_0 partial OK (depth=1)
+[2026-05-10T13:59:01Z INFO  evaluator] [tx 1] Agent_0 step+tx_1_by_Agent_0 partial OK (depth=2)
+[2026-05-10T13:59:17Z INFO  evaluator] [tx 2] Agent_0 step+tx_2_by_Agent_0 partial OK (depth=3)
+[2026-05-10T13:59:34Z INFO  evaluator] [tx 3] Agent_0 step+tx_3_by_Agent_0 partial OK (depth=4)
+[2026-05-10T13:59:51Z INFO  evaluator] [tx 4] Agent_0 step+tx_4_by_Agent_0 partial OK (depth=5)
+[2026-05-10T14:00:01Z INFO  evaluator] [tx 5] Agent_0 step+tx_5_by_Agent_0 partial OK (depth=6)
+[2026-05-10T14:00:12Z INFO  evaluator] [tx 6] Agent_0 step+tx_6_by_Agent_0 partial OK (depth=7)
+[2026-05-10T14:00:23Z INFO  evaluator] [tx 7] Agent_0 step+tx_7_by_Agent_0 partial OK (depth=8)
+[2026-05-10T14:00:33Z INFO  evaluator] [tx 8] Agent_0 step+tx_8_by_Agent_0 partial OK (depth=9)
+[2026-05-10T14:00:44Z INFO  evaluator] [tx 9] Agent_0 step+tx_9_by_Agent_0 partial OK (depth=10)
+[2026-05-10T14:00:54Z INFO  evaluator] [tx 10] Agent_0 step+tx_10_by_Agent_0 partial OK (depth=11)
+[2026-05-10T14:01:05Z INFO  evaluator] [tx 11] Agent_0 step+tx_11_by_Agent_0 partial OK (depth=12)
+[2026-05-10T14:01:15Z INFO  evaluator] [tx 12] Agent_0 step+tx_12_by_Agent_0 partial OK (depth=13)
+[2026-05-10T14:01:26Z INFO  evaluator] [tx 13] Agent_0 step+tx_13_by_Agent_0 partial OK (depth=14)
+[2026-05-10T14:01:36Z INFO  evaluator] [tx 14] Agent_0 step+tx_14_by_Agent_0 partial OK (depth=15)
+[2026-05-10T14:01:46Z INFO  evaluator] [tx 15] Agent_0 step+tx_15_by_Agent_0 partial OK (depth=16)
+[2026-05-10T14:01:56Z INFO  evaluator] [tx 16] Agent_0 step+tx_16_by_Agent_0 partial OK (depth=17)
+[2026-05-10T14:02:07Z INFO  evaluator] [tx 17] Agent_0 step+tx_17_by_Agent_0 partial OK (depth=18)
+[2026-05-10T14:02:18Z INFO  evaluator] [tx 18] Agent_0 step+tx_18_by_Agent_0 partial OK (depth=19)
+[2026-05-10T14:02:28Z INFO  evaluator] [tx 19] Agent_0 step+tx_19_by_Agent_0 partial OK (depth=20)
+[2026-05-10T14:02:28Z INFO  evaluator] [tick@tx20] tape=20 markets=0 top=
+[2026-05-10T14:02:38Z INFO  evaluator] [tx 20] Agent_0 step+tx_20_by_Agent_0 partial OK (depth=21)
+[2026-05-10T14:02:49Z INFO  evaluator] [tx 21] Agent_0 step+tx_21_by_Agent_0 partial OK (depth=22)
+[2026-05-10T14:02:59Z INFO  evaluator] [tx 22] Agent_0 step+tx_22_by_Agent_0 partial OK (depth=23)
+[2026-05-10T14:03:09Z INFO  evaluator] [tx 23] Agent_0 step+tx_23_by_Agent_0 partial OK (depth=24)
+[2026-05-10T14:03:19Z INFO  evaluator] [tx 24] Agent_0 step+tx_24_by_Agent_0 partial OK (depth=25)
+[2026-05-10T14:03:29Z INFO  evaluator] [tx 25] Agent_0 step+tx_25_by_Agent_0 partial OK (depth=26)
+[2026-05-10T14:03:39Z INFO  evaluator] [tx 26] Agent_0 step+tx_26_by_Agent_0 partial OK (depth=27)
+[2026-05-10T14:03:49Z INFO  evaluator] [tx 27] Agent_0 step+tx_27_by_Agent_0 partial OK (depth=28)
+[2026-05-10T14:03:59Z INFO  evaluator] [tx 28] Agent_0 step+tx_28_by_Agent_0 partial OK (depth=29)
+[2026-05-10T14:04:08Z INFO  evaluator] [tx 29] Agent_0 step+tx_29_by_Agent_0 partial OK (depth=30)
+[2026-05-10T14:04:19Z INFO  evaluator] [tx 30] Agent_0 step+tx_30_by_Agent_0 partial OK (depth=31)
+[2026-05-10T14:04:29Z INFO  evaluator] [tx 31] Agent_0 step+tx_31_by_Agent_0 partial OK (depth=32)
+[2026-05-10T14:04:38Z INFO  evaluator] [tx 32] Agent_0 step+tx_32_by_Agent_0 partial OK (depth=33)
+[2026-05-10T14:04:53Z INFO  evaluator] [tx 33] Agent_0 step+tx_33_by_Agent_0 partial OK (depth=34)
+[2026-05-10T14:05:05Z INFO  evaluator] [tx 34] Agent_0 step+tx_34_by_Agent_0 partial OK (depth=35)
+[2026-05-10T14:05:17Z INFO  evaluator] [tx 35] Agent_0 step+tx_35_by_Agent_0 partial OK (depth=36)
+[2026-05-10T14:05:29Z INFO  evaluator] [tx 36] Agent_0 step+tx_36_by_Agent_0 partial OK (depth=37)
+[2026-05-10T14:05:40Z INFO  evaluator] [tx 37] Agent_0 step+tx_37_by_Agent_0 partial OK (depth=38)
+[2026-05-10T14:05:53Z INFO  evaluator] [tx 38] Agent_0 step+tx_38_by_Agent_0 partial OK (depth=39)
+[2026-05-10T14:06:05Z INFO  evaluator] [tx 39] Agent_0 step+tx_39_by_Agent_0 partial OK (depth=40)
+[2026-05-10T14:06:05Z INFO  evaluator] [tick@tx40] tape=40 markets=0 top=
+[2026-05-10T14:06:18Z INFO  evaluator] [tx 40] Agent_0 step+tx_40_by_Agent_0 partial OK (depth=41)
+[2026-05-10T14:06:31Z INFO  evaluator] [tx 41] Agent_0 step+tx_41_by_Agent_0 partial OK (depth=42)
+[2026-05-10T14:06:41Z INFO  evaluator] [tx 42] Agent_0 step+tx_42_by_Agent_0 partial OK (depth=43)
+[2026-05-10T14:06:53Z INFO  evaluator] [tx 43] Agent_0 step+tx_43_by_Agent_0 partial OK (depth=44)
+[2026-05-10T14:07:03Z INFO  evaluator] [tx 44] Agent_0 step+tx_44_by_Agent_0 partial OK (depth=45)
+[2026-05-10T14:07:13Z INFO  evaluator] [tx 45] Agent_0 step+tx_45_by_Agent_0 partial OK (depth=46)
+[2026-05-10T14:07:25Z INFO  evaluator] [tx 46] Agent_0 step+tx_46_by_Agent_0 partial OK (depth=47)
+[2026-05-10T14:07:35Z INFO  evaluator] [tx 47] Agent_0 step+tx_47_by_Agent_0 partial OK (depth=48)
+[2026-05-10T14:07:46Z INFO  evaluator] [tx 48] Agent_0 step+tx_48_by_Agent_0 partial OK (depth=49)
+[2026-05-10T14:07:57Z INFO  evaluator] [tx 49] Agent_0 step+tx_49_by_Agent_0 partial OK (depth=50)
+[2026-05-10T14:08:08Z INFO  evaluator] [tx 50] Agent_0 step+tx_50_by_Agent_0 partial OK (depth=51)
+[2026-05-10T14:08:18Z INFO  evaluator] [tx 51] Agent_0 step+tx_51_by_Agent_0 partial OK (depth=52)
+[2026-05-10T14:08:30Z INFO  evaluator] [tx 52] Agent_0 step+tx_52_by_Agent_0 partial OK (depth=53)
+[2026-05-10T14:08:40Z INFO  evaluator] [tx 53] Agent_0 step+tx_53_by_Agent_0 partial OK (depth=54)
+[2026-05-10T14:08:43Z WARN  evaluator] [tb18-atomA] WallClockCap halt: aggregate 601 sec exhausted (cap=600s); total_calls=55
+[v2-emit] SPLIT env unset; defaulting to 'adaptation' (Phase B convention; pre-registration requires SPLIT for Phase C+ ablation runs)
+[2026-05-10T14:08:43Z INFO  evaluator] [tb11] EvidenceCapsule written: capsule_id=0d85666ad6551213fab03dbd2f390c4fc883de08865894759e1ff46110dfb19d compressed_log_cid=5fd09b4efc12e803dcb7fb78383638264659b978dc50223974e6102e1c6c484b attempt_count=54
+[2026-05-10T14:08:43Z INFO  evaluator] [tb11] TerminalSummary emitted: emit_id=1
+[2026-05-10T14:08:43Z INFO  evaluator] [chaintape] Atom 6 RunSummary written (3 L4 + 2 L4.E entries; 3 accepted_tx_ids, 2 rejected_tx_ids)
+[2026-05-10T14:08:43Z INFO  evaluator] PPUT = 0 (no golden path in 601.9s, 200 tx)
