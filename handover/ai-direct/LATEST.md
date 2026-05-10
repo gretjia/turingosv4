@@ -6,6 +6,75 @@
 
 ---
 
+## ✅ Session #36 (continued) 2026-05-10 — TB-N1-AGENT-ECONOMY Phase 2 atom A4 SHIPPED FINAL + **Phase 2 SHIPPED FINAL**
+
+**HEAD on `origin/main`**: `98c1908` (4 commits past A3 ship `535d760`; pushed).
+
+**Architect §8** (`handover/directives/2026-05-10_TB_N1_AGENT_ECONOMY_A4_§8_SIGN_OFF.md`): user verbatim **"好，确认可以 ship"** — canonical Class-4 §8 multi-clause form (clause 1 acknowledgment `好` + clause 2 named act `确认` + scope `可以 ship`). **Second canonical §8 form invocation in session #36** (A3 → A4 serial cadence preserved per Phase 2 forward grant clause 2 "授权 A3 + A4 串行全授权").
+
+### What landed (4 commits)
+
+| Commit | Subject | Δ gates / workspace |
+|--------|---------|---------------------|
+| `31fb6a2` | **TB-N1 A4 — agent-callable verify-peer** (Class-4 STEP_B). typed_tx.rs 3 NEW RejectionClass + 3 NEW TransitionError tail-append (`VerifyBondOutOfBounds` + `VerifyTargetNotAccepted` + `VerifyDuplicate`). q_state.rs NEW `AgentVerificationsIndex` newtype + EconomicState 15→16 sub-fields (agent_verifications_t; NOT a Coin holding). sequencer.rs VerifyTx Step-2.5 (bond>balance → VerifyBondOutOfBounds; mirrors A3 Step-4b) + Step-3 rename (TargetWorkInactive → VerifyTargetNotAccepted for verify-peer path; ChallengeTx arm preserved) + Step-3.5 (duplicate (verifier, target) → VerifyDuplicate) + Step-5b (insert into agent_verifications_t). protocol.rs AgentAction.target_work_tx_id + verdict + bond_micro (Option<>, #[serde(default)]; backward-compat). evaluator.rs NEW "verify_peer" dispatch arm with A3-style saturating cast + FAIL-CLOSED on q_snapshot/signing. prompt.rs verify_peer schema doc both step_only + legacy paths. NEW `tests/constitution_n1_agent_economy_a4.rs` (7 SG-N1-A4.* tests). 5 in-tree fixture updates preserve test intent. Trust Root rehash sequencer + typed_tx + q_state + evaluator. | gates 272 → 279 (+7); workspace 1432 → 1439 (+7) |
+| `69910fe` | **A4 — real-LLM n=2 swarm 6-cell smoke + run_stage_b3.sh CONDITION override**. `stage_b3_smoke_a4_20260510T222030Z` (3 problems × 2 models × n=2 swarm). 6/6 GREEN, FC1 verdict=Ok delta=0, 1 OmegaAccepted (deepseek/aime_1983_p2 3rd consecutive). Aggregate 1+154+31=186 ✓. **verify_peer admission count = 0/6** (uptake gap per project_economy_prompt_landing_gap; SG-N1-A4.6 PASS via WEAK fallback). 3-FC alignment: FC1 6/6 + FC2 6/6 runtime_repo+genesis_report+cas + FC3 6/6 no global latest pointer. | preserved |
+| `fcd0c7a` | **A4 — §8 packet finalize (R1 dual audit BOTH PASS first-try)**. Codex G2 R1 PASS all 9 (Q1..Q9) + Gemini DT R1 PASS all 9; conviction high; PROCEED. Conservative-merge: no conflict → R2 not needed. Notable contrast with A3 (which needed R2 for Codex Q4 wrap-negative + Q6 schema imprecision); A3 R2 fixes applied prophylactically to A4 → first-try clean. | docs only |
+| `98c1908` | **A4 — §8 SIGN-OFF**. User verbatim "好，确认可以 ship" cited; 7 ship gates verified; Phase 2 closure declared (A3 + A4 both shipped per-atom §8). | docs only |
+
+### PRE-§8 dual audit summary (R1 first-try clean; NO R2 needed)
+
+| Audit | R1 verdict | Conviction | Recommendation |
+|-------|-----------|------------|----------------|
+| Codex G2 | PASS all 9 (Q1..Q9) | high | PROCEED |
+| Gemini DeepThink | PASS all 9 (Q1..Q9) | high | PROCEED |
+
+Conservative-merge resolution: BOTH PROCEED. Round cap=2 used 1 of 2. Pattern improvement vs A3 (which needed R2): A3 R2 fixes (saturating cast pattern + precise rejection-class schema doc) applied prophylactically to A4 → first-try clean PASS.
+
+### Validation baseline at session #36 close (HEAD `98c1908`)
+
+| Check | Value |
+|---|---|
+| HEAD (origin/main) | `98c1908` (pushed) |
+| Constitution gates | **279 / 0 / 1** (was 272 at A3 close; +7 from `constitution_n1_agent_economy_a4`) |
+| Workspace tests | **1439 / 0 / 151** (was 1432 at A3 close; +7 from SG-N1-A4.1..7) |
+| Trust Root | PASS (4 STEP_B files rehashed at A4: sequencer / typed_tx / q_state / evaluator) |
+| `CONSTITUTION_EXECUTION_MATRIX.md` | 0 RED + 0 AMBER (preserved) |
+| `TRACE_FLOWCHART_MATRIX.md` | 0 RED + 0 AMBER + 37 GREEN + 3 N/A (preserved) |
+| 3-FC alignment | FC1 6/6 + FC2 6/6 + FC3 6/6 verified empirically on A4 smoke |
+| Architect ship-gate sets verified at HEAD | 9/10 (SG-B3.1-6 / M2 still single open set; **freeze lifts post-Phase-2-ship**) |
+
+### Phase 2 SHIPPED FINAL
+
+| Atom | Status | Sign-off | HEAD |
+|------|--------|----------|------|
+| **A3** Agent-decided stake (Class-4 STEP_B) | ✅ SHIPPED FINAL | `2026-05-10_TB_N1_AGENT_ECONOMY_A3_§8_SIGN_OFF.md` | `dfc00e2` |
+| **A4** Agent-callable verify-peer (Class-4 STEP_B) | ✅ SHIPPED FINAL | `2026-05-10_TB_N1_AGENT_ECONOMY_A4_§8_SIGN_OFF.md` | `98c1908` |
+
+Phase 2 forward §8 grant clause 2 "授权 A3 + A4 串行全授权" **fully discharged**. TB-N1-AGENT-ECONOMY Phase 2 SHIPPED FINAL.
+
+### Agent-uptake gap: documented forward concern
+
+Both A3 (stake_micro) and A4 (verify_peer) lands the **mechanism** (admission gate + protocol field + evaluator dispatch + prompt schema doc + typed rejection classes). Real-LLM smokes consistently show **0 uptake** — neither DeepSeek-v4-flash nor Qwen2.5-72B-Instruct natively use the new tools without prompt training / fine-tuning. Per project_economy_prompt_landing_gap (session #33): substrate-level landing is independent of agent-uptake-level work.
+
+Forward A5 (prompt economic feedback; Class-2) is the natural next atom to address this gap.
+
+### Forward queue (Phase 2 freeze lifts post-A4 ship)
+
+| Item | Authority | Eligibility |
+|------|-----------|-------------|
+| **A5** Prompt economic feedback (Class-2) | Art. I.1.1 statistical signal feedback | ✅ ELIGIBLE (orthogonal to Phase 2 substrate; addresses A3/A4 uptake gap) |
+| **M2 100p batch** (SG-B3.1-6 1800 invocations) | Architect §Stage B + TB-18B charter §1 | ✅ NOW ELIGIBLE (Phase 2 sequencer admission changes complete) |
+| **A6** Polymarket-agent-bridge (Class-4 STEP_B; Stage D-aligned) | Art. II.2 + §13 verify/settle | DEFERRED — separate architect §8 needed |
+| **Stage D** real-world readiness | architect §B.9.1 + CLAUDE.md §20 | DEFERRED behind explicit architect ship gate |
+| **PromptCapsule** evaluator wire-up (Class-3) | CLAUDE.md §4.3 | OPEN; not blocking |
+
+**Recommended next-session work** (per Constitutional Harness Engineering mode):
+1. (a) **A5 prompt economic feedback** — addresses A3/A4 uptake gap empirically demonstrated across 2 atoms × 12 smoke cells = 0 verify_peer + 0 non-default stake_micro
+2. (b) **M2 100p batch** — exercise A3+A4 substrate at scale; produces canonical benchmark report per TB-18B charter
+3. (c) **Stage D** — needs architect §8 / ship gate
+
+---
+
 ## ✅ Session #36 close 2026-05-10 — TB-N1-AGENT-ECONOMY Phase 2 atom A3 SHIPPED FINAL
 
 **HEAD on `origin/main`**: `dfc00e2` (6 commits past session #35 close `e28b570`; **pushed**).
