@@ -332,6 +332,19 @@ GATES=(
   # pools to Resolved/Closed on task resolution, leaving post-resolution
   # pool creation/trading reachable" per Codex Q10 verbatim.
   constitution_polymarket_event_state_gate
+
+  # Stage C overall §8 R2 CHALLENGE Q10 closure 2026-05-09 — fail-open
+  # admission default lint. The R1 event-state gate added live
+  # `state == Open` checks but used `unwrap_or(TaskMarketState::Open)` to
+  # default missing entries, admitting malformed/pre-genesis events into
+  # the permissive state. The R3 fix replaced this with
+  # `.ok_or(EventNotOpen)?` for fail-closed semantics. This gate forbids
+  # any future regression by source-grep: same-line co-occurrence of
+  # `unwrap_or(...)` / `unwrap_or_else(...)` and a fail-open state-machine
+  # variant (TaskMarketState::Open / ChallengeStatus::Open / ClaimStatus::Open
+  # / PoolStatus::Active / EventState::Open) in src/state/sequencer.rs.
+  # 1 main test on real source + 8 self-checks = 9 tests.
+  constitution_admission_no_fail_open_default
 )
 
 # Run each gate file separately and collect per-test outcome.
