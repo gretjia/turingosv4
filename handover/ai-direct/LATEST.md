@@ -38,10 +38,11 @@
 | Item | Class | Status |
 |---|---|---|
 | (a) Option A/B/C economy-aware prompt landing | TBD | DEFERRED until user picks path; M0 evidence available; reference v3 `~/projects/turingosv3/experiments/zeta_sum_proof/prompt/skill.txt` |
-| (b) M0 4/20 ERROR root-cause investigation | 1-2 | OPEN — not blocking; ~30 min |
+| (b) ~~M0 4/20 ERROR root-cause investigation~~ | 1 | ✅ **TRIAGED this session** — single shared cause (TRUST_ROOT_TAMPERED panic on `src/runtime/mod.rs` because the file was modified mid-batch for the tamper-3-of-3 fix while genesis_payload.toml was still on the stale hash). NOT a TuringOS bug; harness behaved correctly (fail-closed Trust Root). Operational discipline: no source modifications during a long-running batch. Full report: `handover/alignment/M0_4_OF_20_ERROR_TRIAGE_2026-05-10.md`. New memory: `feedback_no_concurrent_dev_during_batch.md`. |
 | (c) ~~L4.E body integrity verification~~ | 2 | ✅ **LANDED this session** |
 | (d) M1 mini batch (8p × n3) | 2-3 | ELIGIBLE per session #32 user grant; recommend after (a) so M1 includes correct prompt |
 | Stage D real-world readiness | architect | DEFERRED behind explicit ship gate |
+| (B-followup, optional) Batch driver mid-batch Trust Root re-check | 1-2 | FORWARD — improves diagnostic on the (b) failure mode (one clean "Trust Root drifted at problem N" abort vs N independent per-problem panics). ~1-2 hours. Forward-bind when batch frequency rises (M1+ routine). |
 
 ---
 
