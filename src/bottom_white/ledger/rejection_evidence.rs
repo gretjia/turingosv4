@@ -666,6 +666,50 @@ impl RejectionEvidenceWriter {
     }
 }
 
+/// TRACE_MATRIX FC1-N34 (session #34 L4.E body integrity landing;
+/// `assert_51_l4e_git_attestation_matches_jsonl`): parse a single
+/// JSONL-encoded rejection record from raw bytes (no trailing newline
+/// required — the `\n` is trimmed if present) and verify the embedded
+/// `hash` field equals the SHA-256 over its 9 content fields. Catches
+/// any field-level body tampering inside the bytes.
+///
+/// Used by the audit-side L4.E git-attestation walker: each commit on
+/// `refs/chaintape/l4e` carries a `rejection_record` blob whose bytes are
+/// the canonical JSONL line for that record. The walker passes those
+/// bytes here; a `Err(HashMismatch)` proves the git-side blob diverged
+/// from the canonical record (any field flip / re-serialization with
+/// non-matching `hash` field).
+pub fn parse_and_verify_jsonl_record_bytes(
+    bytes: &[u8],
+) -> Result<RejectedSubmissionRecord, RejectionEvidenceError> {
+    let s = std::str::from_utf8(bytes).map_err(|e| RejectionEvidenceError::JsonlParse {
+        line: 0,
+        reason: format!("utf8: {e}"),
+    })?;
+    let trimmed = s.trim_end_matches(|c: char| c == '\n' || c == '\r');
+    let shadow: JsonlRecord =
+        serde_json::from_str(trimmed).map_err(|e| RejectionEvidenceError::JsonlParse {
+            line: 0,
+            reason: e.to_string(),
+        })?;
+    let record: RejectedSubmissionRecord = shadow.into();
+    let recomputed = RejectedSubmissionRecord::compute_hash(
+        record.submit_id,
+        &record.parent_state_root,
+        &record.agent_id,
+        record.tx_kind,
+        &record.tx_payload_cid,
+        record.rejection_class,
+        &record.raw_diagnostic_cid,
+        &record.public_summary,
+        &record.prev_hash,
+    );
+    if recomputed != record.hash {
+        return Err(RejectionEvidenceError::HashMismatch { at: 0 });
+    }
+    Ok(record)
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // Inline correctness tests; cross-cutting P1 kill acceptance tests live in
 // `tests/tb_1_p1_acceptance.rs`.

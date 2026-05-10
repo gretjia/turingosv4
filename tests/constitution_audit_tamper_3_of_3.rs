@@ -37,7 +37,7 @@ use tempfile::TempDir;
 
 use turingosv4::runtime::audit_tamper::{
     corrupt_chain_refs, flip_largest_cas_object, flip_largest_reachable_l4_blob, CHAIN_REFS,
-    L4_REFS,
+    L4E_REFS, L4_REFS,
 };
 
 // ── Synthetic-repo fixtures ────────────────────────────────────────────────
@@ -420,11 +420,16 @@ fn chain_refs_list_is_complete_for_post_a3_multi_ref() {
     );
 }
 
-/// `L4_REFS` MUST be the strict subset of `CHAIN_REFS` that points at refs
-/// whose reachable blob bodies are deep-verified by `audit_tape`. The
-/// rejection-chain `refs/chaintape/l4e` MUST be in `CHAIN_REFS` (for ref
-/// truncation) but MUST NOT be in `L4_REFS` (audit doesn't deep-verify
-/// rejection_record bodies; tampering one would be silent).
+/// `L4_REFS` MUST be the strict subset of `CHAIN_REFS` covering only the
+/// L4 (accepted-spine) heads. L4 + L4.E have separate deep-verify paths:
+/// L4 via Layer-B assertions #04/#05/#08-#11/#50, L4.E via assertion #51
+/// (`l4e_git_attestation_matches_jsonl`, session #34 2026-05-10). The
+/// rejection-chain `refs/chaintape/l4e` MUST be in `CHAIN_REFS` (for the
+/// dual-ref truncation primitive) AND in [`L4E_REFS`] (so
+/// `flip_largest_reachable_l4e_blob` targets the correct ref-set), but
+/// MUST NOT be in `L4_REFS` (otherwise `flip_largest_reachable_l4_blob`
+/// would mis-target an L4.E blob, and the L4-side audit assertions don't
+/// exercise L4.E content).
 #[test]
 fn l4_refs_is_strict_subset_of_chain_refs_excluding_l4e() {
     let l4: HashSet<&str> = L4_REFS.iter().copied().collect();
@@ -437,16 +442,47 @@ fn l4_refs_is_strict_subset_of_chain_refs_excluding_l4e() {
     );
     assert!(
         !l4.contains("refs/chaintape/l4e"),
-        "L4_REFS must NOT include refs/chaintape/l4e: audit does not deep-verify L4.E \
-         rejection_record bodies, so tampering an L4.E blob is silent. Adding it would \
-         re-introduce the M0 2026-05-10 false-PASS regression. (Constitutional gap: \
-         L4.E body integrity verification is a forward item; until it lands, L4.E \
-         tampering is constitutionally undetectable and must not be claimed.)"
+        "L4_REFS must NOT include refs/chaintape/l4e: L4.E uses the separate \
+         L4E_REFS constant + flip_largest_reachable_l4e_blob primitive + \
+         assert_51_l4e_git_attestation_matches_jsonl deep-verify path. Mixing \
+         them would mis-target the L4-side tamper primitive at L4.E content."
     );
     assert!(
         chain.contains("refs/chaintape/l4e"),
         "CHAIN_REFS must include refs/chaintape/l4e: ref truncation MUST corrupt the \
          L4.E head ref so audit can't load the rejection chain at all."
+    );
+}
+
+/// `L4E_REFS` MUST be the strict subset of `CHAIN_REFS` covering only the
+/// L4.E (rejection-chain) heads. Symmetric to `L4_REFS` but on the
+/// L4.E side. Currently single-element (`refs/chaintape/l4e`); a future
+/// stage that adds an L4.E alias must extend this list AND update
+/// `assert_51_l4e_git_attestation_matches_jsonl` to walk the new ref.
+#[test]
+fn l4e_refs_is_strict_subset_of_chain_refs_l4e_only() {
+    let l4e: HashSet<&str> = L4E_REFS.iter().copied().collect();
+    let chain: HashSet<&str> = CHAIN_REFS.iter().copied().collect();
+    assert!(
+        l4e.is_subset(&chain),
+        "L4E_REFS must be a subset of CHAIN_REFS; got L4E_REFS={:?} CHAIN_REFS={:?}",
+        L4E_REFS,
+        CHAIN_REFS
+    );
+    assert!(
+        l4e.contains("refs/chaintape/l4e"),
+        "L4E_REFS must include refs/chaintape/l4e (Stage A3 canonical rejection head)"
+    );
+    assert!(
+        !l4e.contains("refs/chaintape/l4"),
+        "L4E_REFS must NOT include refs/chaintape/l4 (that's the L4 accepted-spine; \
+         use L4_REFS for L4-side tampering). Cross-contamination would cause \
+         flip_largest_reachable_l4e_blob to target L4 content."
+    );
+    assert!(
+        !l4e.contains("refs/transitions/main"),
+        "L4E_REFS must NOT include refs/transitions/main (that's the pre-A3 L4 \
+         alias). The L4.E chain has no equivalent alias today."
     );
 }
 

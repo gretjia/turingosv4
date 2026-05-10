@@ -58,7 +58,7 @@ use sha2::{Digest, Sha256};
 use crate::bottom_white::cas::schema::{Cid, ObjectType};
 use crate::bottom_white::cas::store::CasStore;
 use crate::bottom_white::ledger::rejection_evidence::{
-    RejectionEvidenceError, RejectionEvidenceWriter,
+    parse_and_verify_jsonl_record_bytes, RejectionEvidenceError, RejectionEvidenceWriter,
 };
 use crate::bottom_white::ledger::system_keypair::{
     PinnedSystemPubkeys, SystemEpoch, SystemPublicKey,
@@ -2897,6 +2897,311 @@ pub fn assert_50_cas_bytes_match_cids(t: &LoadedTape) -> AssertionResult {
     AssertionResult::pass(50, "cas_bytes_match_cids", AssertionLayer::B)
 }
 
+/// TRACE_MATRIX FC1-N34 + FC1-N35 + FC2-INV1 (session #34 L4.E
+/// body-integrity landing 2026-05-10; closes the forward gap documented
+/// in `tests/constitution_audit_tamper_3_of_3.rs::l4_refs_is_strict_subset_of_chain_refs_excluding_l4e`).
+///
+/// **Why this assertion exists**: Stage A3 / HEAD_t C2 R3.5 introduced a
+/// dual-write tape for L4.E rejection evidence:
+///   1. `runtime_repo/rejections.jsonl` — JSONL chain with embedded
+///      `prev_hash` + `hash` per record. Verified at load by
+///      `RejectionEvidenceWriter::open_jsonl::verify_chain` (recomputes
+///      `RejectedSubmissionRecord::compute_hash` over each record's 9
+///      fields). Tampering this side breaks load + audit BLOCKs.
+///   2. `runtime_repo/.git/refs/chaintape/l4e` — git-backed commit chain.
+///      Each commit's tree contains a `rejection_record` blob with the
+///      canonical JSONL line bytes (see
+///      `rejection_evidence::advance_l4e_ref_for_record`). Architect §3.5
+///      "或等价结构" / Stage A3 CR-A3-HEAD-T-C2.5: this side is the
+///      canonical L4.E pointer; the JSONL backs the public-summary path.
+///
+/// Pre-this-assertion, only side (1) was verified. Side (2) was a "best
+/// effort attestation" — tampering a blob reachable from
+/// `refs/chaintape/l4e` (or rewriting the ref to point at a fabricated
+/// commit chain) was silent at audit-time. M0 batch 2026-05-10 surfaced
+/// the related TB-16-era tamper-primitive drift; the strict-constitution
+/// stance ("我不要凑活" /
+/// `feedback_no_workarounds_strict_constitution`) requires both sides
+/// be deep-verified.
+///
+/// **What this asserts**:
+///   - Open `runtime_repo` via git2.
+///   - If `refs/chaintape/l4e` is absent + JSONL records present →
+///     SKIPPED with detail (pre-A3 JSONL-only mode; valid for replay of
+///     evidence created before the dual-write env var was set; not a
+///     regression).
+///   - If `refs/chaintape/l4e` is absent + JSONL empty → SKIPPED ("no
+///     L4.E activity").
+///   - If `refs/chaintape/l4e` is present + JSONL empty → HALT (orphan
+///     attestation; integrity violation: ref exists but no JSONL backing).
+///   - Else: walk parent chain from head-of-ref to root; collect commit
+///     OIDs in chronological order (oldest-first to match JSONL append
+///     order); assert `commit_count == jsonl_record_count`; for each
+///     `(commit, jsonl_record)` pair extract the `rejection_record` blob
+///     from the commit's tree, parse + verify it via
+///     `parse_and_verify_jsonl_record_bytes` (this catches body
+///     tampering: any field flip → embedded `hash` won't recompute), and
+///     assert the parsed record's `hash` equals the JSONL-side record's
+///     `hash` (this catches ref-target tampering or git-side substitution
+///     with a self-consistent but divergent record).
+///
+/// **What it catches**:
+///   - byte tampering of any L4.E git-side loose blob → either git2 zlib
+///     decode fails on read (HALT via Err propagation) or recomputed
+///     embedded hash diverges (HALT via HashMismatch).
+///   - tampering of `refs/chaintape/l4e` to point at a different OID →
+///     wrong commit at head → walk-derived record mismatches JSONL.
+///   - removal/insertion/reorder of L4.E commits → commit_count mismatch
+///     OR per-position hash mismatch.
+///   - drift between JSONL-side and git-side (a partial dual-write that
+///     only updated one side) → per-position hash mismatch.
+pub fn assert_51_l4e_git_attestation_matches_jsonl(
+    inputs: &AuditInputs,
+    t: &LoadedTape,
+) -> AssertionResult {
+    use git2::Repository;
+
+    const NAME: &str = "l4e_git_attestation_matches_jsonl";
+    const ID: u32 = 51;
+
+    let jsonl_records = t.l4e_writer.records();
+    let jsonl_count = jsonl_records.len();
+
+    // Open repo (side (2) host).
+    let repo = match Repository::open(&inputs.runtime_repo) {
+        Ok(r) => r,
+        Err(e) => {
+            return AssertionResult::halt(
+                ID,
+                NAME,
+                AssertionLayer::B,
+                format!(
+                    "git2::Repository::open({:?}) failed: {e} \
+                     (cannot verify L4.E git-side attestation; if this is a \
+                     non-git tape that's a load-tape bug — load_tape would \
+                     have failed earlier opening the L4 chain)",
+                    inputs.runtime_repo
+                ),
+            );
+        }
+    };
+
+    let head_ref = repo.find_reference("refs/chaintape/l4e");
+    match (&head_ref, jsonl_count) {
+        (Err(_), 0) => {
+            return AssertionResult::skipped(
+                ID,
+                NAME,
+                AssertionLayer::B,
+                "no L4.E activity (refs/chaintape/l4e absent + 0 JSONL records)".into(),
+            );
+        }
+        (Err(_), n) => {
+            return AssertionResult::skipped(
+                ID,
+                NAME,
+                AssertionLayer::B,
+                format!(
+                    "refs/chaintape/l4e absent + {n} JSONL record(s) — pre-A3 \
+                     JSONL-only mode (TURINGOS_CHAINTAPE_PATH was not set during \
+                     the original run; evidence is replayable but git-side \
+                     attestation cannot be cross-checked). Per FR-A3-HEAD-T-C2.6 \
+                     pre-Stage-A3 evidence remains valid; assertion #51 cannot \
+                     produce a meaningful verdict on this evidence shape."
+                ),
+            );
+        }
+        (Ok(_), 0) => {
+            return AssertionResult::halt(
+                ID,
+                NAME,
+                AssertionLayer::B,
+                "refs/chaintape/l4e present but 0 JSONL records — orphan \
+                 attestation (a git-side L4.E chain exists with no canonical \
+                 JSONL backing; either the JSONL was deleted or the ref points \
+                 at a fabricated chain). This is a constitutional drift between \
+                 the two L4.E attestations and must not be claimed PROCEED."
+                    .into(),
+            );
+        }
+        _ => {}
+    }
+    let head_ref = head_ref.unwrap();
+    let head_oid = match head_ref.target() {
+        Some(o) => o,
+        None => {
+            return AssertionResult::halt(
+                ID,
+                NAME,
+                AssertionLayer::B,
+                "refs/chaintape/l4e exists but has no target OID (symbolic \
+                 ref or corrupt ref file)"
+                    .into(),
+            );
+        }
+    };
+
+    // Walk from head to root, collecting OIDs (newest-first), then reverse to
+    // match JSONL append order (oldest-first).
+    let mut commits_newest_first: Vec<git2::Oid> = Vec::new();
+    let mut cursor = head_oid;
+    loop {
+        commits_newest_first.push(cursor);
+        let commit = match repo.find_commit(cursor) {
+            Ok(c) => c,
+            Err(e) => {
+                return AssertionResult::halt(
+                    ID,
+                    NAME,
+                    AssertionLayer::B,
+                    format!(
+                        "find_commit({cursor}) failed: {e} (broken commit chain \
+                         on refs/chaintape/l4e; tampering of a blob reachable \
+                         from this ref would surface here as zlib decode failure)"
+                    ),
+                );
+            }
+        };
+        match commit.parent_count() {
+            0 => break,
+            1 => {
+                cursor = commit.parent_id(0).expect("parent_count==1 so parent_id(0) exists");
+            }
+            n => {
+                return AssertionResult::halt(
+                    ID,
+                    NAME,
+                    AssertionLayer::B,
+                    format!(
+                        "commit {cursor} on refs/chaintape/l4e has {n} parents \
+                         (expected 0 or 1 — L4.E chain is linear per \
+                         advance_l4e_ref_for_record)"
+                    ),
+                );
+            }
+        }
+    }
+    let mut commits = commits_newest_first;
+    commits.reverse();
+
+    if commits.len() != jsonl_count {
+        return AssertionResult::halt(
+            ID,
+            NAME,
+            AssertionLayer::B,
+            format!(
+                "L4.E commit count ({}) != JSONL record count ({}) — chain \
+                 length divergence (commit added/removed without matching \
+                 JSONL update, or vice versa)",
+                commits.len(),
+                jsonl_count
+            ),
+        );
+    }
+
+    // Per-position cross-check.
+    for (i, (oid, jsonl_rec)) in commits.iter().zip(jsonl_records.iter()).enumerate() {
+        let commit = match repo.find_commit(*oid) {
+            Ok(c) => c,
+            Err(e) => {
+                return AssertionResult::halt(
+                    ID,
+                    NAME,
+                    AssertionLayer::B,
+                    format!("find_commit at L4.E position {i} ({oid}): {e}"),
+                );
+            }
+        };
+        let tree = match commit.tree() {
+            Ok(t) => t,
+            Err(e) => {
+                return AssertionResult::halt(
+                    ID,
+                    NAME,
+                    AssertionLayer::B,
+                    format!("tree at L4.E position {i} ({oid}): {e}"),
+                );
+            }
+        };
+        let entry = match tree.get_name("rejection_record") {
+            Some(e) => e,
+            None => {
+                return AssertionResult::halt(
+                    ID,
+                    NAME,
+                    AssertionLayer::B,
+                    format!(
+                        "tree at L4.E position {i} ({oid}) missing required entry \
+                         'rejection_record' (per advance_l4e_ref_for_record this \
+                         entry MUST exist)"
+                    ),
+                );
+            }
+        };
+        let blob = match entry.to_object(&repo).and_then(|obj| obj.peel_to_blob()) {
+            Ok(b) => b,
+            Err(e) => {
+                return AssertionResult::halt(
+                    ID,
+                    NAME,
+                    AssertionLayer::B,
+                    format!(
+                        "peel_to_blob at L4.E position {i} ({oid}): {e} \
+                         (likely tampering: zlib decode failure on the \
+                         rejection_record blob)"
+                    ),
+                );
+            }
+        };
+        let parsed = match parse_and_verify_jsonl_record_bytes(blob.content()) {
+            Ok(r) => r,
+            Err(e) => {
+                return AssertionResult::halt(
+                    ID,
+                    NAME,
+                    AssertionLayer::B,
+                    format!(
+                        "L4.E position {i}: rejection_record blob failed parse \
+                         + self-verify: {e} (body tampering caught by embedded \
+                         hash recomputation)"
+                    ),
+                );
+            }
+        };
+        if parsed.hash != jsonl_rec.hash {
+            return AssertionResult::halt(
+                ID,
+                NAME,
+                AssertionLayer::B,
+                format!(
+                    "L4.E position {i}: git-side record hash != JSONL-side \
+                     record hash (git submit_id={}, JSONL submit_id={}). The \
+                     two L4.E attestations diverged — either git-side blob was \
+                     replaced with a different self-consistent record, or the \
+                     ref points at a fabricated chain.",
+                    parsed.submit_id, jsonl_rec.submit_id
+                ),
+            );
+        }
+        if parsed.submit_id != jsonl_rec.submit_id {
+            return AssertionResult::halt(
+                ID,
+                NAME,
+                AssertionLayer::B,
+                format!(
+                    "L4.E position {i}: git-side submit_id ({}) != JSONL-side \
+                     submit_id ({}) despite hash match — should be impossible \
+                     (compute_hash includes submit_id); investigate hash collision \
+                     or rejection_evidence schema drift",
+                    parsed.submit_id, jsonl_rec.submit_id
+                ),
+            );
+        }
+    }
+
+    AssertionResult::pass(ID, NAME, AssertionLayer::B)
+}
+
 // ─────────────────────────────────────────────────────────────────────
 // Battery + verdict
 // ─────────────────────────────────────────────────────────────────────
@@ -2904,13 +3209,14 @@ pub fn assert_50_cas_bytes_match_cids(t: &LoadedTape) -> AssertionResult {
 /// TRACE_MATRIX FC1-N34 + FC2-N31 (TB-16 audit-from-tape battery).
 pub fn run_all_assertions(inputs: &AuditInputs) -> Result<Vec<AssertionResult>, AuditError> {
     let tape = load_tape(inputs)?;
-    let mut r = Vec::with_capacity(42);
+    let mut r = Vec::with_capacity(43);
     // Layer A (3 + 1 supplemental — id=41 chain_agent_ids_sandbox_prefixed)
     r.push(assert_01_constitution_hash_matches_genesis(&tape));
     r.push(assert_02_pinned_pubkey_loaded(&tape));
     r.push(assert_03_sandbox_agent_prefix(&tape));
     r.push(assert_a_chain_agent_ids_sandbox_prefixed(&tape));
-    // Layer B (9 — TB-C0 strict-audit 2026-05-07 added id 50 cas_bytes_match_cids)
+    // Layer B (10 — TB-C0 strict-audit 2026-05-07 added id 50 cas_bytes_match_cids;
+    // session #34 2026-05-10 added id 51 l4e_git_attestation_matches_jsonl)
     r.push(assert_04_l4_hash_chain_valid(&tape));
     r.push(assert_05_l4_parent_state_continuity(&tape));
     r.push(assert_06_l4e_chain_integrity(&tape));
@@ -2920,6 +3226,7 @@ pub fn run_all_assertions(inputs: &AuditInputs) -> Result<Vec<AssertionResult>, 
     r.push(assert_10_payload_cid_resolves(&tape));
     r.push(assert_11_tx_kind_envelope_matches_payload(&tape));
     r.push(assert_50_cas_bytes_match_cids(&tape));
+    r.push(assert_51_l4e_git_attestation_matches_jsonl(inputs, &tape));
     // Layer C (5)
     r.push(assert_12_replay_state_root_matches_head(&tape));
     r.push(assert_13_replay_economic_state_canonical(&tape));

@@ -6,6 +6,45 @@
 
 ---
 
+## ✅ Session #34 close 2026-05-10 — L4.E body integrity verification LANDED
+
+**HEAD on local main**: TBD on commit (1 commit ahead of session #33 close `ed0555f`).
+**Session scope**: forward queue item (3) "L4.E body integrity verification" closed per 2026-05-10 user verbatim **"我现在在引擎的开发阶段，我不要凑合，我需要的是宪法约定的内容全部真实落地且可被验证"** (strict-constitution stance restated; `feedback_no_workarounds_strict_constitution`).
+
+### What landed
+
+| Surface | Description |
+|---------|-------------|
+| `src/runtime/audit_assertions.rs` | NEW `assert_51_l4e_git_attestation_matches_jsonl` (Layer B; FC1-N34 + FC1-N35 + FC2-INV1) — walks `refs/chaintape/l4e` chain, parses each commit's `rejection_record` blob via the new helper, asserts each git-side record's `hash` matches the JSONL-side record's `hash`. Catches body tampering / ref-rewrite / chain truncation / partial dual-write divergence. Three-way verdict (Pass / Halt / Skipped); pre-A3 JSONL-only mode skips with reason (FR-A3-HEAD-T-C2.6 backward-compat). |
+| `src/bottom_white/ledger/rejection_evidence.rs` | NEW `pub fn parse_and_verify_jsonl_record_bytes` audit-side helper — parses a single JSONL line into `RejectedSubmissionRecord`, recomputes `compute_hash` over its 9 fields, asserts match against embedded `hash`. Pure additive read-only helper; NO change to record schema, `compute_hash` byte stream, or `JsonlRecord` serialization. Trust Root rehashed `f305f621 → 32679870` (Class 2 per `feedback_class4_cannot_hide_in_class3`; rejection_evidence.rs is NOT on CLAUDE.md §12 STEP_B restricted list). |
+| `src/runtime/audit_tamper.rs` | NEW `pub const L4E_REFS` + `pub fn flip_largest_reachable_l4e_blob` — sibling tamper primitive for the L4.E side (the existing `L4_REFS` + `flip_largest_reachable_l4_blob` cover only L4). Rustdoc on `L4_REFS` updated to reflect the L4 / L4.E semantic split (separate deep-verify paths, no longer "L4.E body verification is a forward gap"). |
+| `tests/constitution_l4e_body_integrity.rs` | NEW gate (7 tests): positive on real M0 P01 evidence (snapshotted to tempdir per evidence-immutability) → assertion #51 PASSes; L4.E blob byte-flip → HALT; L4.E ref corruption → HALT; pre-A3 JSONL-only mode → SKIPPED with reason; 3 self-tests on the new helper (untampered passes, field-tampered rejects with HashMismatch, garbage rejects with JsonlParse). |
+| `tests/constitution_audit_tamper_3_of_3.rs` | UPDATED `l4_refs_is_strict_subset_of_chain_refs_excluding_l4e` rationale (no longer cites the now-closed forward gap; now describes the L4 / L4.E separate-deep-verify split). NEW `l4e_refs_is_strict_subset_of_chain_refs_l4e_only` (1 test) — symmetric assertion that `L4E_REFS ⊂ CHAIN_REFS` and contains exactly `refs/chaintape/l4e`. |
+| `scripts/run_constitution_gates.sh` | Registered `constitution_l4e_body_integrity` after `constitution_audit_tamper_3_of_3`. |
+| `handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md` | NEW §G FC1 row "L4.E body integrity — git-side attestation matches JSONL" (🟢 GREEN with full assertion + helper + tamper-primitive surface binding). |
+
+### Validation baseline at session #34 close
+
+| Check | Value |
+|---|---|
+| HEAD | TBD (post-commit) |
+| Constitution gates | 267/0/1 (was 259; +8: tamper-3-of-3 9→10 + new constitution_l4e_body_integrity 0→7) |
+| Workspace tests (--test-threads=1) | 1411/0/151 (was 1403; +8) |
+| Trust Root | PASS (post `src/bottom_white/ledger/rejection_evidence.rs` rehash) |
+| FC1 / FC2 / FC3 | all GREEN |
+
+### Forward queue (post-session-#34)
+
+| Item | Class | Status |
+|---|---|---|
+| (a) Option A/B/C economy-aware prompt landing | TBD | DEFERRED until user picks path; M0 evidence available; reference v3 `~/projects/turingosv3/experiments/zeta_sum_proof/prompt/skill.txt` |
+| (b) M0 4/20 ERROR root-cause investigation | 1-2 | OPEN — not blocking; ~30 min |
+| (c) ~~L4.E body integrity verification~~ | 2 | ✅ **LANDED this session** |
+| (d) M1 mini batch (8p × n3) | 2-3 | ELIGIBLE per session #32 user grant; recommend after (a) so M1 includes correct prompt |
+| Stage D real-world readiness | architect | DEFERRED behind explicit ship gate |
+
+---
+
 ## ✅ Session #33 close 2026-05-10 — post Stage C forward defense + M0 evidence batch
 
 **HEAD on local main**: `ed0555f` (3 commits ahead of `origin/main` `bf45a2b`).

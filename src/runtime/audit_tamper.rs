@@ -49,15 +49,32 @@ use git2::{Oid, Repository, TreeWalkMode, TreeWalkResult};
 /// accepted transition). `flip_largest_reachable_l4_blob` walks only these
 /// so the corrupted blob is guaranteed to be on the audit's read path.
 ///
-/// `refs/chaintape/l4e` is excluded: L4.E rejection-record blob bodies
-/// are NOT currently deep-verified by `audit_assertions::run_all_assertions`
-/// (only chain-linkage via `l4e_chain_integrity` assertion #6). Corrupting
-/// an L4.E body is silent at audit-time today; documented as a forward
-/// constitutional gap. Until L4.E body verification lands, it is
-/// constitutionally incorrect to claim "L4.E body tamper detected".
+/// `refs/chaintape/l4e` is intentionally absent: L4 + L4.E have separate
+/// deep-verify paths in `audit_assertions::run_all_assertions`. L4 bodies
+/// are deep-verified by Layer B assertions #04/#05/#08-#11/#50 (state-root
+/// continuity + signatures + payload CID + bytes-vs-CID); L4.E bodies are
+/// deep-verified by assertion #51 `l4e_git_attestation_matches_jsonl`
+/// (added 2026-05-10 session #34) which walks `refs/chaintape/l4e` and
+/// asserts each commit's `rejection_record` blob hash matches the
+/// JSONL-side record. Tamper coverage for L4.E uses [`L4E_REFS`] +
+/// [`flip_largest_reachable_l4e_blob`].
 pub const L4_REFS: &[&str] = &[
     "refs/chaintape/l4",      // Stage A3 canonical accepted-transition head
     "refs/transitions/main",  // pre-A3 / backward-compat alias (CR-A3-HEAD-T-C2.6)
+];
+
+/// TRACE_MATRIX FC1-N35 + FC1-N34 (audit_tape_tamper coverage; architect
+/// §B.9.3 prove-no-fake-accepted L4.E-side coverage; session #34
+/// L4.E-body-integrity landing): refs whose reachable blob bodies are
+/// deep-verified by `assert_51_l4e_git_attestation_matches_jsonl`.
+/// `flip_largest_reachable_l4e_blob` walks only these so the corrupted
+/// blob is guaranteed to be on the L4.E audit's read path.
+///
+/// Single-element today (no alias for L4.E). If a future stage introduces
+/// a parallel rejection-chain ref, add it here AND update the assertion
+/// walker.
+pub const L4E_REFS: &[&str] = &[
+    "refs/chaintape/l4e",     // Stage A3 canonical rejection head
 ];
 
 /// TRACE_MATRIX FC1-N35 (audit_tape_tamper coverage; architect §B.9.3):
@@ -217,9 +234,7 @@ fn destructively_zero_back_half(victim: &Path) -> Result<u64, String> {
 /// PASS. Per `feedback_no_workarounds_strict_constitution`.
 pub fn flip_largest_reachable_l4_blob(repo_path: &Path) -> Result<String, String> {
     let repo = Repository::open(repo_path).map_err(|e| format!("open repo: {e}"))?;
-    // L4 only — the audit deep-verifies L4 entry_canonical bodies but treats
-    // L4.E rejection_record bodies as opaque (only chain-linkage is checked).
-    // Targeting an L4.E body would tamper a blob the audit doesn't read.
+    // L4 only — see `L4_REFS` rustdoc for the L4 / L4.E split rationale.
     let reachable = collect_reachable_oids(&repo, L4_REFS)?;
     let candidates = loose_objects_reachable(repo_path, &reachable)?;
     let (victim, _len, oid) = candidates.into_iter().next().ok_or_else(|| {
@@ -234,6 +249,34 @@ pub fn flip_largest_reachable_l4_blob(repo_path: &Path) -> Result<String, String
         "destructively zeroed back half ({zeroed} bytes) of largest \
          L4-reachable loose object {oid} ({victim:?}) — forces git2 zlib \
          decode failure when audit_tape next reads"
+    ))
+}
+
+/// TRACE_MATRIX FC1-N35 + FC1-N34 (audit_tape_tamper L4.E-side coverage;
+/// architect §B.9.3 prove-no-fake-accepted; session #34 L4.E-body-integrity
+/// landing): walk objects under `runtime_repo/.git/objects/`, restrict to
+/// those reachable from any of [`L4E_REFS`], pick the largest by byte
+/// length, zero its back half. Forces git2 zlib decode failure when
+/// `assert_51_l4e_git_attestation_matches_jsonl` next reads it.
+///
+/// L4.E-only — the L4 path uses [`flip_largest_reachable_l4_blob`]. The
+/// audit's L4.E deep-verify path is `assert_51_l4e_git_attestation_matches_jsonl`.
+pub fn flip_largest_reachable_l4e_blob(repo_path: &Path) -> Result<String, String> {
+    let repo = Repository::open(repo_path).map_err(|e| format!("open repo: {e}"))?;
+    let reachable = collect_reachable_oids(&repo, L4E_REFS)?;
+    let candidates = loose_objects_reachable(repo_path, &reachable)?;
+    let (victim, _len, oid) = candidates.into_iter().next().ok_or_else(|| {
+        format!(
+            "no reachable loose objects under {:?}/.git/objects (L4E reachable oids: {})",
+            repo_path,
+            reachable.len()
+        )
+    })?;
+    let zeroed = destructively_zero_back_half(&victim)?;
+    Ok(format!(
+        "destructively zeroed back half ({zeroed} bytes) of largest \
+         L4E-reachable loose object {oid} ({victim:?}) — forces git2 zlib \
+         decode failure when assert_51 next reads"
     ))
 }
 

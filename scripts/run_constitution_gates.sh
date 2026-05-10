@@ -362,6 +362,23 @@ GATES=(
   # Empirical 3/3 validation against M0 P01 + P05 fixtures verified
   # post-fix; per `feedback_no_workarounds_strict_constitution`.
   constitution_audit_tamper_3_of_3
+
+  # Session #34 (2026-05-10) — L4.E body integrity verification.
+  # Closes the forward gap documented at
+  # constitution_audit_tamper_3_of_3::l4_refs_is_strict_subset_of_chain_refs_excluding_l4e
+  # (session #33 close: "audit does not deep-verify L4.E rejection_record
+  # bodies, so tampering an L4.E blob is silent at audit-time"). Per
+  # 2026-05-10 user verbatim "我需要的是宪法约定的内容全部真实落地且可被
+  # 验证" + `feedback_no_workarounds_strict_constitution`: a
+  # constitutionally-undetectable tamper class is a constitutional
+  # violation, not a deferred forward item. This gate exercises the new
+  # `assert_51_l4e_git_attestation_matches_jsonl` assertion (Layer B,
+  # FC1-N34 + FC1-N35 + FC2-INV1) which walks `refs/chaintape/l4e`, parses
+  # each commit's `rejection_record` blob, and cross-checks against the
+  # JSONL-side records. 7 tests: positive control on M0 P01 (Pass), L4.E
+  # blob byte-flip (Halt), L4.E ref corruption (Halt), pre-A3 JSONL-only
+  # mode (Skipped), 3 self-tests on the parse-and-verify helper.
+  constitution_l4e_body_integrity
 )
 
 # Run each gate file separately and collect per-test outcome.
