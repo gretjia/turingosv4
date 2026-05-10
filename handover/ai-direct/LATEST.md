@@ -6,6 +6,76 @@
 
 ---
 
+## ✅ Session #36 close 2026-05-10 — TB-N1-AGENT-ECONOMY Phase 2 atom A3 SHIPPED FINAL
+
+**HEAD on `origin/main`**: `dfc00e2` (6 commits past session #35 close `e28b570`; **pushed**).
+
+**Architect §8** (`handover/directives/2026-05-10_TB_N1_AGENT_ECONOMY_A3_§8_SIGN_OFF.md`): user verbatim **"好，确认可以 ship"** — canonical Class-4 §8 multi-clause form (clause 1 named act `确认` + scope `可以 ship`); structurally identical to TB-C0 (2026-05-07) + Stage C P-M2 (2026-05-09) §8 forms.
+
+### What landed (6 commits)
+
+| Commit | Subject | Δ gates / workspace |
+|--------|---------|---------------------|
+| `fbc1a60` | **TB-N1 A3 — agent-decided stake admission** (Class-4 STEP_B). typed_tx.rs RejectionClass + TransitionError tail-append `StakeBalanceExceeded` (variant #8) + Display impl. sequencer.rs WorkTx Step-4b agent-bound gate (`stake > balances_t[agent_id]` → StakeBalanceExceeded; default-zero on missing). protocol.rs `AgentAction.stake_micro: Option<u64>` (#[serde(default)]; backward-compat). evaluator.rs 3 OMEGA callsites thread `action.stake_micro`. prompt.rs step schema doc. NEW `tests/constitution_n1_agent_economy_a3.rs` (5 SG-N1-A3.* tests). 4 in-tree fixture updates preserve test intent. Trust Root rehash: sequencer + typed_tx + evaluator + transition_ledger (test-fixture-only). | gates 267 → 272 (+5); workspace 1427 → 1432 (+5) |
+| `a5dc63e` | **A3 — smoke evidence + §8 packet draft**. Real-LLM 6-cell smoke `stage_b3_smoke_a3_20260510T114738Z` (3 problems × 2 models). 6/6 cells GREEN; FC1 verdict=Ok delta=0; 1 OmegaAccepted (deepseek/aime_1983_p2 actually solved). Aggregate L4=1, L4E=83, capsule=4, expected=88; 1+83+4=88 ✓. §8 packet drafted with strict-vs-weak SG-N1-A3.5 witness analysis. | docs + evidence |
+| `ebad990` | **A3 — SG-N1-A3.5 binding logic fix**. Test scanned for `tool_dist` field (in `evaluator.stdout` PPUT_RESULT) but should walk per-cell `chain_invariant.json` (canonical regen artifact). Fixed: aggregate `expected_completed_attempts > 0` + `l4_work + l4e_work > 0` + `invariant_verdict == Ok`. Asymmetric pattern preserved. | docs + test |
+| `c594f59` | **A3 R2 — Codex Q4+Q6 CHALLENGE fixes**. Q4: 3 OMEGA callsites use `i64::try_from(u).unwrap_or(i64::MAX)` saturating cast (closes wrap-negative production defect). Q6: prompt schema doc precise on rejection-class disambiguation (`stake_micro=0 → StakeInsufficient`; `stake_micro>balance → StakeBalanceExceeded`). Trust Root rehash evaluator.rs `bc016070 → afde6670`. | preserved |
+| `010187b` | **A3 — §8 packet finalize (R1+R2 dual audit + OBS forward-bind)**. R1+R2 verdicts populated. §8.1-8.4 sections: remediation summary, R2 residual analysis, user §8.3 Option A authorization, OBS specification. | docs only |
+| `dfc00e2` | **A3 — §8 SIGN-OFF**. User verbatim "好，确认可以 ship" cited; 5 ship gates verified at sign-off; OBS_TB_N1_A3_R2_I64_SATURATING_EDGE recorded; A4 forward-grant readiness confirmed. | docs only |
+
+### PRE-§8 dual audit summary (round-cap 2 reached)
+
+| Round | Codex G2 | Gemini DeepThink | Conservative-merge resolution |
+|-------|----------|------------------|-------------------------------|
+| R1 (HEAD `cbfb50b`) | CHALLENGE Q4 (wrap-negative) + Q6 (schema imprecise); 7/9 PASS; high conviction | PASS all 9; high; PROCEED | Codex CHALLENGE wins → R2 |
+| R2 (HEAD `053dc6c`) | CHALLENGE Q4-R2 (theoretical-only edge: agent_balance == i64::MAX unreachable per §13 on_init ceiling); Q6-R2 PASS; **MEDIUM conviction (downgraded)** | PASS Q4-R2 + Q6-R2; high; PROCEED | Codex CHALLENGE → user §8.3 Option A: ship under R2 + OBS forward-bind per `feedback_audit_loop_roi_flip` (R1 production-defect → R2 theoretical-edge ROI inversion) + `feedback_audit_obs_bias` |
+
+**OBS forward-bind**: `OBS_TB_N1_A3_R2_I64_SATURATING_EDGE` (memory file + MEMORY.md index entry session #36). Trigger: §13 mint ceiling change OR economy total within ~9 OOMs of `i64::MAX` OR new CAS-injection path. Closure: Phase E-style `tests/constitution_economy_balance_below_i64_max.rs` binding gate.
+
+### Validation baseline at session #36 close (HEAD `dfc00e2`)
+
+| Check | Value |
+|---|---|
+| HEAD (origin/main) | `dfc00e2` (pushed) |
+| Constitution gates | **272 / 0 / 1** (was 267 baseline at session #35; +5 from `constitution_n1_agent_economy_a3`) |
+| Workspace tests | **1432 / 0 / 151** (was 1427; +5 from SG-N1-A3.* 5 ship gate tests) |
+| Trust Root | PASS (4 files rehashed at A3: sequencer / typed_tx / evaluator / transition_ledger fixture-only) |
+| `CONSTITUTION_EXECUTION_MATRIX.md` | 0 RED + 0 AMBER (preserved) |
+| `TRACE_FLOWCHART_MATRIX.md` | 0 RED + 0 AMBER + 37 GREEN + 3 N/A (preserved) |
+| FC1 / FC2 / FC3 | all GREEN |
+| Architect ship-gate sets verified at HEAD | 9/10 (SG-B3.1-6 / M2 still single open set; **forbidden during Phase 2** per charter §4 + forward grant §3) |
+
+### Phase 2 progress
+
+| Atom | Status | Sign-off |
+|------|--------|----------|
+| **A3** Agent-decided stake (Class-4 STEP_B) | ✅ SHIPPED FINAL session #36 | `2026-05-10_TB_N1_AGENT_ECONOMY_A3_§8_SIGN_OFF.md` |
+| **A4** Agent-callable verify-peer (Class-4 STEP_B) | ⏸ AUTHORIZED next-session start | Forward grant active |
+
+### Phase 2 forward state (A4 next; per Phase 2 forward §8 grant clause 2)
+
+User verbatim "授权 A3 + A4 串行全授权" — A4 authorized post-A3 ship per `feedback_no_batch_class4_signoff` per-atom cadence.
+
+A4 surface (per charter §2 atom A4):
+- `src/sdk/protocol.rs` — NEW tool action `AgentAction::VerifyPeer` (target_work_tx_id + verdict + bond_micro)
+- `experiments/minif2f_v4/src/bin/evaluator.rs` — action handler dispatch for `verify_peer`
+- `src/state/sequencer.rs` — admission arm extension for AGENT-submitted VerifyTx (3 reject paths + 1 admit path)
+- `src/state/typed_tx.rs` — NEW RejectionClass: `VerifyBondOutOfBounds` + `VerifyTargetNotAccepted` + `VerifyDuplicate`
+- `tests/constitution_n1_agent_economy_a4.rs` (NEW) — 7 ship gate tests (SG-N1-A4.1..7)
+- Trust Root rehash: sequencer + typed_tx + evaluator (3 pinned files)
+
+A4 protocol (same as A3): STEP_B parallel-branch `feat/n1-econ-a4-rebuild` → impl + tests → real-LLM smoke (n=2 swarm) → PRE-§8 dual audit → per-atom §8 → merge → push.
+
+### Forbidden during Phase 2 (per charter §4 — preserved through A3 ship)
+
+- NO M2 batch run (sequencer admission change still in flight until A4 ships; M2 evidence would be invalidated)
+- NO Polymarket-agent-bridge (A6 → Stage D)
+- NO swarm n>1 batch outside A4 SG-N1-A4.6 smoke
+- NO new typed_tx variant beyond A4-charter scope
+- NO canonical signing payload change
+
+---
+
 ## ✅ Session #35 close 2026-05-10 — TB-N1-AGENT-ECONOMY Phase 1 SHIPPED + Phase 2 charter ratified
 
 **HEAD on main (local)**: `1077bb7` (2 commits past session #34 close `ff92646`; NOT pushed — Class-4 forward grant active for A3+A4 STEP_B serial).
