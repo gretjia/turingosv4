@@ -272,6 +272,22 @@ pub struct EconomicState {
     /// `#[serde(default)]` for backward-compat with pre-P-M4 snapshots.
     #[serde(default)]
     pub lp_share_balances_t: LpShareBalancesIndex,
+    /// TRACE_MATRIX TB-N1-AGENT-ECONOMY Phase 2 A4 (charter §2; 2026-05-10):
+    /// `(verifier_agent, target_work_tx)` set tracking accepted agent-
+    /// submitted VerifyTxs. Used by sequencer step-3.5 to reject duplicate
+    /// VerifyTxs from the same agent on the same target (closes the
+    /// duplicate-verification griefing surface where an agent could spam
+    /// multiple Confirm/Deny VerifyTxs on the same target_work_tx).
+    ///
+    /// **NOT a Coin holding** — pure set-tracking index; EXCLUDED from
+    /// `total_supply_micro`. Pure-additive: pre-A4 chains had no
+    /// agent_verifications_t and admitted potentially duplicate Verifies
+    /// (handled at claims_t level via line ~1053 already_claimed
+    /// suppression); A4 promotes this to a fail-closed admission gate
+    /// for telemetry symmetry with A3's StakeBalanceExceeded.
+    /// `#[serde(default)]` for backward-compat with pre-A4 chain snapshots.
+    #[serde(default)]
+    pub agent_verifications_t: AgentVerificationsIndex,
 }
 
 /// TRACE_MATRIX WP § 2 — agent → balance ledger. Concrete entry: `MicroCoin` (CO1.0a).
@@ -746,6 +762,26 @@ pub struct LpShareBalancesIndex(
     pub BTreeMap<(AgentId, crate::state::typed_tx::EventId), LpShareAmount>,
 );
 
+/// TRACE_MATRIX TB-N1-AGENT-ECONOMY Phase 2 A4 (charter §2; 2026-05-10):
+/// `(verifier_agent, target_work_tx)` set tracking accepted agent-submitted
+/// VerifyTxs. Closes the duplicate-verification griefing surface — sequencer
+/// step-3.5 admission gate rejects with `VerifyDuplicate` if the pair is
+/// present.
+///
+/// Wire shape: `BTreeSet<(AgentId, TxId)>`. Pure-additive set; pre-A4 chain
+/// snapshots deserialize with empty set via `#[serde(default)]` on the
+/// `EconomicState.agent_verifications_t` field.
+///
+/// **NOT a Coin holding** — pure set-tracking index; EXCLUDED from
+/// `total_supply_micro`. Pre-A4 chains relied on the `claims_t::already_claimed`
+/// check (line ~1053) for cross-agent claim suppression; A4 promotes the
+/// per-(verifier, target) duplicate check to a fail-closed admission gate
+/// for telemetry symmetry with A3's `StakeBalanceExceeded`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct AgentVerificationsIndex(
+    pub std::collections::BTreeSet<(AgentId, TxId)>,
+);
+
 /// TRACE_MATRIX TB-11 (architect §6.2) — per-run summary. Sponsored by
 /// `task_id`; populated by the `TerminalSummaryTx` dispatch arm with
 /// fields drawn from the typed-tx wire payload (Q-derivable on replay).
@@ -968,7 +1004,7 @@ mod tests {
     }
 
     #[test]
-    fn economic_state_has_fifteen_sub_fields() {
+    fn economic_state_has_sixteen_sub_fields() {
         // TB-11 (2026-05-02 architect ruling §6.2): 9 → 10 sub-fields with +runs_t.
         // TB-12 (2026-05-03 architect ruling §3 + §8 Atom 1): 10 → 11 sub-fields
         // with +node_positions_t (flat NodePositionsIndex; canonical exposure
@@ -992,13 +1028,18 @@ mod tests {
         // +cpmm_pools_t (one CpmmPool per EventId; pool reserves NOT Coin
         // per architect §7.5 rule 2) and +lp_share_balances_t (LP token
         // balances; NOT Coin per architect §7.5 rule 3).
+        // TB-N1-AGENT-ECONOMY Phase 2 A4 (2026-05-10; charter §2 atom A4):
+        // 15 → 16 sub-fields with +agent_verifications_t
+        // (AgentVerificationsIndex = BTreeSet<(AgentId, TxId)> for
+        // sequencer step-3.5 duplicate-suppression; NOT a Coin holding —
+        // pure set; EXCLUDED from total_supply_micro).
         let e = EconomicState::default();
         let s = serde_json::to_value(&e).unwrap();
         let obj = s.as_object().unwrap();
         assert_eq!(
             obj.len(),
-            15,
-            "EconomicState must have 15 sub-fields post-Stage-C-P-M4 (was 13 post-TB-15; +cpmm_pools_t +lp_share_balances_t); got {}",
+            16,
+            "EconomicState must have 16 sub-fields post-TB-N1-A4 (was 15 post-Stage-C-P-M4; +agent_verifications_t); got {}",
             obj.len()
         );
         assert!(obj.contains_key("runs_t"), "TB-11 runs_t sub-field missing");
@@ -1008,6 +1049,7 @@ mod tests {
         assert!(obj.contains_key("agent_autopsies_t"), "TB-15 agent_autopsies_t sub-field missing");
         assert!(obj.contains_key("cpmm_pools_t"), "Stage C P-M4 cpmm_pools_t sub-field missing");
         assert!(obj.contains_key("lp_share_balances_t"), "Stage C P-M4 lp_share_balances_t sub-field missing");
+        assert!(obj.contains_key("agent_verifications_t"), "TB-N1 A4 agent_verifications_t sub-field missing");
         assert!(!obj.contains_key("price_index_t"), "TB-14 Atom 2: price_index_t MUST be removed");
     }
 

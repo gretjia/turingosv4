@@ -99,8 +99,12 @@ fn empty_economic_state_serializes_to_fifteen_sub_fields() {
     //   directive 2026-05-09 §1.C row 3): 13 → 15 (+cpmm_pools_t +
     //   lp_share_balances_t — pool reserves NOT Coin per architect §7.5
     //   rule 2; LP shares NOT Coin per rule 3).
+    // TB-N1-AGENT-ECONOMY Phase 2 A4 (2026-05-10; charter §2 atom A4):
+    //   15 → 16 (+agent_verifications_t AgentVerificationsIndex
+    //   BTreeSet<(AgentId, TxId)> for sequencer step-3.5
+    //   duplicate-suppression; NOT a Coin holding).
     let e = EconomicState::default();
     let v = serde_json::to_value(&e).unwrap();
     let obj = v.as_object().unwrap();
-    assert_eq!(obj.len(), 15);
+    assert_eq!(obj.len(), 16);
 }

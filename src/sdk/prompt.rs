@@ -168,6 +168,17 @@ pub fn build_agent_prompt(
         prompt.push_str("    stake_micro > balance rejects as StakeBalanceExceeded. If absent,\n");
         prompt.push_str("    the system uses a small default. Stakes are debited on accept and\n");
         prompt.push_str("    locked into stakes_t until the run resolves.\n");
+        // TB-N1-AGENT-ECONOMY Phase 2 A4 (2026-05-10): verify_peer tool.
+        prompt.push_str("  {\"tool\":\"verify_peer\",\"target_work_tx_id\":\"<TxId>\",\"verdict\":\"confirm|deny\",\"bond_micro\":<u64>}\n");
+        prompt.push_str("    Verify another agent's accepted WorkTx. target_work_tx_id is the\n");
+        prompt.push_str("    TxId of a previously-accepted WorkTx (visible in the chain).\n");
+        prompt.push_str("    verdict = \"confirm\" if you agree the proof step is correct;\n");
+        prompt.push_str("    \"deny\" if you believe it's wrong. bond_micro is your stake on\n");
+        prompt.push_str("    the verdict (1 <= bond_micro <= balance). Rejection classes:\n");
+        prompt.push_str("    bond_micro = 0 → BondInsufficient; bond_micro > balance →\n");
+        prompt.push_str("    VerifyBondOutOfBounds; target not on chain → VerifyTargetNotAccepted;\n");
+        prompt.push_str("    already verified by you → VerifyDuplicate. Bond is locked into\n");
+        prompt.push_str("    stakes_t until the run resolves; correct verdict earns reward.\n");
     } else {
         prompt.push_str("  {\"tool\":\"step\",\"payload\":\"<one Lean tactic>\",\"stake_micro\":<optional u64>}\n");
         prompt.push_str("    Phase 7 Art. IV δ-step: the system appends payload to tape, then\n");
@@ -177,6 +188,12 @@ pub fn build_agent_prompt(
         prompt.push_str("    (1 Coin = 1_000_000 μC). Must satisfy 1 <= stake_micro <= balance.\n");
         prompt.push_str("    Rejection classes: stake_micro = 0 → StakeInsufficient;\n");
         prompt.push_str("    stake_micro > balance → StakeBalanceExceeded.\n");
+        // TB-N1-AGENT-ECONOMY Phase 2 A4 (2026-05-10): verify_peer tool.
+        prompt.push_str("  {\"tool\":\"verify_peer\",\"target_work_tx_id\":\"<TxId>\",\"verdict\":\"confirm|deny\",\"bond_micro\":<u64>}\n");
+        prompt.push_str("    Verify another agent's WorkTx. Rejection classes:\n");
+        prompt.push_str("    bond_micro=0 → BondInsufficient; bond>balance → VerifyBondOutOfBounds;\n");
+        prompt.push_str("    target not L4-accepted → VerifyTargetNotAccepted; already verified\n");
+        prompt.push_str("    by you → VerifyDuplicate.\n");
         prompt.push_str("  {\"tool\":\"append\",\"payload\":\"<proof-step-text>\",\"node\":\"<optional-parent-id>\"}\n");
         prompt.push_str("    Raw scratch write (no oracle check). Use `step` instead when possible.\n");
         prompt.push_str("  {\"tool\":\"complete\",\"payload\":\"<tactics-only>\"}\n");

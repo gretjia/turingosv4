@@ -64,6 +64,11 @@ fn predicate_failure_cannot_enter_l4() {
             // `StakeInsufficient` (zero stake) so the agent-bound failure
             // class has its own L4.E route tag.
             RejectionClass::StakeBalanceExceeded => "stake-balance-fail-route-to-L4E",
+            // TB-N1-AGENT-ECONOMY Phase 2 A4 (2026-05-10): VerifyTx-arm
+            // agent-side rejection classes (verify-peer agency layer).
+            RejectionClass::VerifyBondOutOfBounds => "verify-bond-out-of-bounds-route-to-L4E",
+            RejectionClass::VerifyTargetNotAccepted => "verify-target-not-accepted-route-to-L4E",
+            RejectionClass::VerifyDuplicate => "verify-duplicate-route-to-L4E",
         }
     }
     use turingosv4::state::typed_tx::PredicateId;

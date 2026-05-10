@@ -178,6 +178,32 @@ pub enum RejectionClass {
     /// inequality). Closes the agency layer of CLAUDE.md §13: agent-decided
     /// stake within `[min_stake, balance]` is now a typed admission gate.
     StakeBalanceExceeded,
+    /// TB-N1-AGENT-ECONOMY Phase 2 atom A4 (charter §2; 2026-05-10): VerifyTx
+    /// admission step-2.5 extension — agent declared a bond that exceeds
+    /// available `balances_t[verifier_agent]`. Mirrors `StakeBalanceExceeded`
+    /// for the verify-peer agency path: distinct from `BondInsufficient`
+    /// (bond == 0) and from system-side `InsufficientBalance` (existing
+    /// Step-4 defense-in-depth). Per `feedback_real_problems_not_designed`,
+    /// gives Information Loom a per-tx-class signal distinguishing
+    /// "agent over-committed-bond" from "bond=0" and from solvency miss.
+    VerifyBondOutOfBounds,
+    /// TB-N1-AGENT-ECONOMY Phase 2 atom A4 (charter §2; 2026-05-10): VerifyTx
+    /// admission step-3 refinement — agent's declared `target_work_tx` is
+    /// not present in `q.economic_state_t.stakes_t` (semantically: target
+    /// was never an accepted live WorkTx). Replaces the prior
+    /// `TargetWorkInactive` mapping for the verify-peer agency path with a
+    /// distinct fine-grained class so per-tx telemetry can distinguish
+    /// "agent verified a phantom WorkTx" from finalize-removes-stakes_t
+    /// future variants.
+    VerifyTargetNotAccepted,
+    /// TB-N1-AGENT-ECONOMY Phase 2 atom A4 (charter §2; 2026-05-10): VerifyTx
+    /// admission step-3.5 — `(verifier_agent, target_work_tx)` pair already
+    /// present in `agent_verifications_t` (this verifier already submitted a
+    /// VerifyTx on this target). Closes the duplicate-verification griefing
+    /// surface where the same agent could spam multiple Confirm/Deny
+    /// VerifyTxs on the same target_work_tx, each locking a bond AND (for
+    /// Confirms) potentially compounding claims_t entries.
+    VerifyDuplicate,
 }
 
 /// TRACE_MATRIX § 1.3 VerifyTx field 5 — verifier verdict.
@@ -2578,6 +2604,30 @@ pub enum TransitionError {
     /// agent has insufficient balance for declared stake).
     StakeBalanceExceeded,
 
+    // ── TB-N1-AGENT-ECONOMY Phase 2 atom A4 (charter §2; 2026-05-10) ───────
+    /// `VerifyTx` admission step-2.5 extension: agent-declared
+    /// `bond.micro_units()` exceeds `balances_t[verifier_agent].micro_units()`.
+    /// Mirrors A3's `StakeBalanceExceeded` for the verify-peer agency path.
+    /// Distinct from `BondInsufficient` (bond == 0) and from
+    /// `InsufficientBalance` (Step-4 system-side defense-in-depth). Maps
+    /// to `L4ERejectionClass::InsufficientBalance`.
+    VerifyBondOutOfBounds,
+    /// `VerifyTx` admission step-3 refinement: declared `target_work_tx`
+    /// not present in `q.economic_state_t.stakes_t` (target never accepted
+    /// as live WorkTx). Replaces the prior `TargetWorkInactive` for the
+    /// verify-peer agency path with a finer-grained class. Maps to
+    /// `L4ERejectionClass::PolicyViolation`.
+    VerifyTargetNotAccepted,
+    /// `VerifyTx` admission step-3.5: `(verifier_agent, target_work_tx)`
+    /// pair already present in `q.economic_state_t.agent_verifications_t`
+    /// (this verifier already submitted an accepted VerifyTx on this
+    /// target). Prevents duplicate-verification griefing surface where the
+    /// same agent could spam multiple Confirm/Deny VerifyTxs on the same
+    /// target_work_tx, each locking a bond AND (for Confirms) potentially
+    /// compounding claims_t entries. Maps to
+    /// `L4ERejectionClass::PolicyViolation`.
+    VerifyDuplicate,
+
     // ── Stub sentinel (CO1.7.5 fills) ──────────────────────────────────────
     /// Stub return value used by CO1.7.5 unimplemented bodies — preserves
     /// sequencer + dispatch correctness without forcing transition logic
@@ -2733,6 +2783,18 @@ impl std::fmt::Display for TransitionError {
             Self::StakeBalanceExceeded => write!(
                 f,
                 "WorkTx: agent-declared stake exceeds available balance (TB-N1 Phase 2 A3 admission step-4 agent-bound check; distinct from system-side InsufficientBalance defense-in-depth)"
+            ),
+            Self::VerifyBondOutOfBounds => write!(
+                f,
+                "VerifyTx: agent-declared bond exceeds available balance (TB-N1 Phase 2 A4 admission step-2.5 agent-bound check; distinct from BondInsufficient zero-bond + InsufficientBalance defense-in-depth)"
+            ),
+            Self::VerifyTargetNotAccepted => write!(
+                f,
+                "VerifyTx: target_work_tx not present in stakes_t (TB-N1 Phase 2 A4 admission step-3 refinement; agent verified against a phantom or never-accepted WorkTx)"
+            ),
+            Self::VerifyDuplicate => write!(
+                f,
+                "VerifyTx: (verifier_agent, target_work_tx) already in agent_verifications_t (TB-N1 Phase 2 A4 admission step-3.5 — duplicate-verification griefing prevention)"
             ),
             Self::NotYetImplemented => write!(f, "transition body not yet implemented (CO1.7.5)"),
         }

@@ -935,25 +935,30 @@ async fn property_no_sequence_violates_total_ctf_conservation_with_verify_challe
     h.seq.try_apply_one(&mut h.rx).expect("env").expect("accept");
     assert_eq!(total(&h), initial_total, "step 8 (second ChallengeTx by same challenger)");
 
-    // Step 9: SECOND VerifyTx by SAME verifier (different verdict) — Q1 DEFER
-    // (no idempotency dedup; verifier may submit Doubt then Confirm with
-    // different evidence in real flows).
+    // Step 9: SECOND VerifyTx by SAME verifier — TB-N1 Phase 2 A4
+    // (2026-05-10) now rejects with VerifyDuplicate (step-3.5
+    // duplicate-suppression). Pre-A4 this test asserted accept under the
+    // Q1-DEFER "no idempotency dedup" interpretation; A4 promotes
+    // duplicate-prevention to a fail-closed admission gate. CTF
+    // conservation invariant preserved across the rejection (rejected tx
+    // → no state mutation).
     let parent = h.seq.q_snapshot().expect("snap").state_root_t;
     h.seq.submit(make_verify_tx(&work_id.0, "verifier-A", 2_000_000, parent, "p9")).await.expect("submit");
-    h.seq.try_apply_one(&mut h.rx).expect("env").expect("accept");
-    assert_eq!(total(&h), initial_total, "step 9 (second VerifyTx by same verifier)");
+    let r = h.seq.try_apply_one(&mut h.rx).expect("env");
+    assert!(r.is_err(), "post-A4: second VerifyTx by same verifier must reject (VerifyDuplicate)");
+    assert_eq!(total(&h), initial_total, "step 9 (rejected duplicate VerifyTx; no mutation)");
 
     // Step 10: Verify against inactive target — rejects.
     let parent = h.seq.q_snapshot().expect("snap").state_root_t;
     h.seq.submit(make_verify_tx("nonexistent-target", "verifier-A", 1_000_000, parent, "p10")).await.expect("submit");
     let r = h.seq.try_apply_one(&mut h.rx).expect("env");
     assert!(r.is_err());
-    assert_eq!(total(&h), initial_total, "step 10 (TargetWorkInactive; no mutation)");
+    assert_eq!(total(&h), initial_total, "step 10 (VerifyTargetNotAccepted; no mutation)");
 
     // Final state: 5 holdings, CTF still conserved.
     let post = h.seq.q_snapshot().expect("post");
-    // 1 work YES stake + 2 verify bonds (steps 4 + 9) = 3 stakes_t entries.
-    assert_eq!(post.economic_state_t.stakes_t.0.len(), 3);
+    // 1 work YES stake + 1 verify bond (step 4; step 9 now rejected post-A4) = 2 stakes_t entries.
+    assert_eq!(post.economic_state_t.stakes_t.0.len(), 2);
     // 2 challenge cases (steps 5 + 8).
     assert_eq!(post.economic_state_t.challenge_cases_t.0.len(), 2);
 }

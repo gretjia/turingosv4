@@ -483,6 +483,15 @@ fn rejection_class_for(e: &TransitionError) -> L4ERejectionClass {
         // solvency check), gives Information Loom a per-tx-class signal
         // distinguishing "agent over-committed" from "stake = 0".
         TE::StakeBalanceExceeded => RC::InsufficientBalance,
+        // TB-N1-AGENT-ECONOMY Phase 2 A4 (2026-05-10): VerifyTx agent-side
+        // rejection telemetry. VerifyBondOutOfBounds → InsufficientBalance
+        // (mirrors A3's StakeBalanceExceeded mapping; agent has insufficient
+        // balance for declared bond). VerifyTargetNotAccepted +
+        // VerifyDuplicate → PolicyViolation (charter §4.5 + directive Q7
+        // precedent for VerifyTx-arm catch-all class).
+        TE::VerifyBondOutOfBounds => RC::InsufficientBalance,
+        TE::VerifyTargetNotAccepted => RC::PolicyViolation,
+        TE::VerifyDuplicate => RC::PolicyViolation,
         // Non-WorkTx-arm variants documented per §3.7 mapping table — should
         // not occur on the WorkTx arm; conservative sentinel preserves L4.E
         // append correctness if a future TB adds new variants.
@@ -527,6 +536,13 @@ fn public_summary_for(e: &TransitionError) -> Option<String> {
         // telemetry distinguishes from `stake_insufficient` (zero stake)
         // and `insufficient_balance` (system-side solvency).
         TransitionError::StakeBalanceExceeded => Some("stake_balance_exceeded".into()),
+        // TB-N1-AGENT-ECONOMY Phase 2 A4 (2026-05-10): VerifyTx agent-side
+        // rejection telemetry. Three distinct public-summary tags so
+        // per-tx-class telemetry distinguishes the verify-peer failure
+        // modes (bound vs target-missing vs duplicate).
+        TransitionError::VerifyBondOutOfBounds => Some("verify_bond_out_of_bounds".into()),
+        TransitionError::VerifyTargetNotAccepted => Some("verify_target_not_accepted".into()),
+        TransitionError::VerifyDuplicate => Some("verify_duplicate".into()),
         _ => Some("policy_violation".into()),
     }
 }
@@ -978,15 +994,50 @@ pub(crate) fn dispatch_transition(
             if verify.bond.micro_units() == 0 {
                 return Err(TransitionError::BondInsufficient);
             }
+            // Step 2.5: TB-N1-AGENT-ECONOMY Phase 2 A4 (2026-05-10) — agent-
+            // bound upper-side bond gate. Mirrors A3's WorkTx Step-4b.
+            // Reads `balances_t[verifier_agent]` with default-zero on missing
+            // entry (mirroring Step-4 pattern). Distinct from Step-4 system-
+            // side `InsufficientBalance` (same inequality but different
+            // telemetry surface; Step-2.5 fires first for agent-decided
+            // overspend, Step-4 remains as defense-in-depth).
+            let verifier_bal_a4 = q.economic_state_t.balances_t.0
+                .get(&verify.verifier_agent)
+                .copied()
+                .unwrap_or(crate::economy::money::MicroCoin::zero());
+            if verify.bond.micro_units() > verifier_bal_a4.micro_units() {
+                return Err(TransitionError::VerifyBondOutOfBounds);
+            }
             // Step 3: target liveness — must be in stakes_t (live YES stake).
             // TB-4 minimum scope: stakes_t.contains_key is a sufficient
             // proxy for "ever accepted as live WorkTx" (charter § 4.3 step 3
             // resolution; preflight § 8 Q1).
+            //
+            // TB-N1 A4 (2026-05-10): missing entry now returns the agent-side
+            // refined `VerifyTargetNotAccepted` (replaces prior
+            // `TargetWorkInactive` for verify-peer path). Same semantic; finer
+            // telemetry class per `feedback_real_problems_not_designed`.
             let target_stake = match q.economic_state_t.stakes_t.0.get(&verify.target_work_tx) {
                 Some(s) => s.clone(),
-                None => return Err(TransitionError::TargetWorkInactive),
+                None => return Err(TransitionError::VerifyTargetNotAccepted),
             };
-            // Step 4: verifier solvency (§ 3.4 step 5).
+            // Step 3.5: TB-N1-AGENT-ECONOMY Phase 2 A4 (2026-05-10) — agent-
+            // bound duplicate-verification gate. Reject if
+            // `(verifier_agent, target_work_tx)` is already present in
+            // `agent_verifications_t`. Closes the duplicate-verification
+            // griefing surface where an agent could spam multiple Confirm/Deny
+            // VerifyTxs on the same target_work_tx, each locking a bond AND
+            // (for Confirms) potentially compounding claims_t entries beyond
+            // the cross-agent suppression at line ~1053.
+            let verify_pair = (verify.verifier_agent.clone(), verify.target_work_tx.clone());
+            if q.economic_state_t.agent_verifications_t.0.contains(&verify_pair) {
+                return Err(TransitionError::VerifyDuplicate);
+            }
+            // Step 4: verifier solvency (§ 3.4 step 5). Defense-in-depth post
+            // A4 Step-2.5 — structurally unreachable from synchronous
+            // dispatch_transition because 2.5 fires first on the same
+            // inequality; preserved for any future code path that bypasses
+            // the agent-bound dispatch.
             let verifier_bal = q.economic_state_t.balances_t.0
                 .get(&verify.verifier_agent)
                 .copied()
@@ -1009,6 +1060,11 @@ pub(crate) fn dispatch_transition(
                     task_id: target_stake.task_id.clone(),
                 },
             );
+            // Step 5b: TB-N1-AGENT-ECONOMY Phase 2 A4 (2026-05-10) — record
+            // the (verifier, target) pair in `agent_verifications_t` so
+            // future VerifyTxs from the same agent on the same target reject
+            // at Step-3.5 with `VerifyDuplicate`.
+            q_next.economic_state_t.agent_verifications_t.0.insert(verify_pair);
             // ──────────────────────────────────────────────────────────────
             // TB-8 Atom 1 — claims_t writer (charter §3 Atom 1 +
             // ratification §1 Q1/Q3/Q5 + §2.1/§2.2).
@@ -5404,7 +5460,10 @@ mod tests {
     }
 
     /// U14 — VerifyTx with target_work_tx not in stakes_t rejects with
-    /// TargetWorkInactive (charter § 3.8 + directive Q3).
+    /// VerifyTargetNotAccepted (charter § 3.8 + directive Q3; renamed from
+    /// TargetWorkInactive at TB-N1-AGENT-ECONOMY Phase 2 A4 2026-05-10:
+    /// the VerifyTx-arm Step-3 returns the agent-side refined class for
+    /// distinct per-tx telemetry; same semantic).
     #[test]
     fn dispatch_verify_rejects_when_target_not_in_stakes_t() {
         let preds = PredicateRegistry::new();
@@ -5419,8 +5478,8 @@ mod tests {
         );
         let tx = TypedTx::Verify(verify_tx);
         let err = dispatch_transition(&q, &tx, &preds, &tools).unwrap_err();
-        assert!(matches!(err, TransitionError::TargetWorkInactive),
-                "expected TargetWorkInactive, got {err:?}");
+        assert!(matches!(err, TransitionError::VerifyTargetNotAccepted),
+                "post-A4: expected VerifyTargetNotAccepted (Step-3 agent-side refined class; renamed from TargetWorkInactive); got {err:?}");
     }
 
     /// U15 — VerifyTx with stale parent_state_root rejects with StaleParent.
@@ -5442,7 +5501,17 @@ mod tests {
         assert!(matches!(err, TransitionError::StaleParent));
     }
 
-    /// U16 — VerifyTx with verifier balance < bond rejects with InsufficientBalance.
+    /// U16 — VerifyTx with verifier balance < bond rejects with
+    /// VerifyBondOutOfBounds.
+    ///
+    /// TB-N1-AGENT-ECONOMY Phase 2 A4 (2026-05-10) updated this test's
+    /// expected error: pre-A4 the rejection fired at Step-4 system-side
+    /// solvency check (`verifier_bal < bond` → `InsufficientBalance`).
+    /// Post-A4, the new Step-2.5 agent-bound check (`bond > verifier_bal`
+    /// → `VerifyBondOutOfBounds`) fires first on the same input. Step-4
+    /// remains as defense-in-depth (structurally unreachable from
+    /// synchronous `dispatch_transition` because 2.5 fires first on
+    /// identical inequality). Test intent preserved.
     #[test]
     fn dispatch_verify_rejects_when_verifier_balance_lt_bond() {
         let preds = PredicateRegistry::new();
@@ -5453,7 +5522,8 @@ mod tests {
         );
         let tx = TypedTx::Verify(verify_tx);
         let err = dispatch_transition(&q, &tx, &preds, &tools).unwrap_err();
-        assert!(matches!(err, TransitionError::InsufficientBalance));
+        assert!(matches!(err, TransitionError::VerifyBondOutOfBounds),
+            "post-A4: verifier balance < bond → Step-2.5 VerifyBondOutOfBounds (subsumes pre-A4 Step-4 InsufficientBalance for this case); got {err:?}");
     }
 
     // ── TB-4 Atom 5 — Challenge dispatch arm tests (charter § 4.7 U17-U21) ──

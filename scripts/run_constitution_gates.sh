@@ -401,6 +401,36 @@ GATES=(
   # Charter: `handover/tracer_bullets/TB_N1_AGENT_ECONOMY_PHASE_2_charter_2026-05-10.md`.
   # Forward §8 grant: `handover/directives/2026-05-10_TB_N1_AGENT_ECONOMY_PHASE_2_FORWARD_§8_GRANT.md`.
   constitution_n1_agent_economy_a3
+
+  # TB-N1-AGENT-ECONOMY Phase 2 atom A4 (Class-4 STEP_B; 2026-05-10) —
+  # agent-callable verify-peer admission gate. Adds 3 NEW `TransitionError`
+  # variants (VerifyBondOutOfBounds + VerifyTargetNotAccepted + VerifyDuplicate)
+  # + mirror `RejectionClass` variants + Display impls. Sequencer VerifyTx
+  # admission gains Step-2.5 (bond > balance → VerifyBondOutOfBounds; mirrors
+  # A3 Step-4b), Step-3 rename (TargetWorkInactive → VerifyTargetNotAccepted
+  # for verify-peer path; ChallengeTx arm unchanged), Step-3.5 (duplicate
+  # `(verifier, target)` → VerifyDuplicate). NEW state index
+  # `EconomicState.agent_verifications_t: AgentVerificationsIndex`
+  # (BTreeSet<(AgentId, TxId)>; #[serde(default)] backward-compat;
+  # NOT a Coin holding). Closes the agency layer of CLAUDE.md §13
+  # verify/bond + Art. I.1.1 multi-agent verification — agent-callable
+  # `verify_peer` tool with typed admission rejection classes. 7 ship gate
+  # tests (SG-N1-A4.1..7):
+  #   sg_n1_a4_1_zero_bond_rejects_with_bond_insufficient
+  #   sg_n1_a4_2_overbond_rejects_with_verify_bond_out_of_bounds
+  #   sg_n1_a4_3_phantom_target_rejects_with_verify_target_not_accepted
+  #   sg_n1_a4_4_duplicate_verify_rejects_with_verify_duplicate
+  #   sg_n1_a4_5_first_valid_verify_admits
+  #   sg_n1_a4_6_real_llm_swarm_smoke_witnesses_admission_health
+  #     (asymmetric: vacuous-pass when no stage_b3_smoke_a4_* dir exists,
+  #     load-bearing once smoke evidence lands per
+  #     `feedback_real_problems_not_designed`).
+  #   sg_n1_a4_7_verify_peer_advertised_and_dispatched
+  #     (source-grep mechanism-binding test: verify_peer must be both
+  #     advertised in prompt.rs AND dispatched in evaluator.rs).
+  # Charter: `handover/tracer_bullets/TB_N1_AGENT_ECONOMY_PHASE_2_charter_2026-05-10.md`.
+  # Forward §8 grant: `handover/directives/2026-05-10_TB_N1_AGENT_ECONOMY_PHASE_2_FORWARD_§8_GRANT.md`.
+  constitution_n1_agent_economy_a4
 )
 
 # Run each gate file separately and collect per-test outcome.

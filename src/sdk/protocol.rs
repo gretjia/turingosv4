@@ -35,6 +35,30 @@ pub struct AgentAction {
     /// `[1, balance]` is now a typed admission gate.
     #[serde(default)]
     pub stake_micro: Option<u64>,
+    /// TB-N1-AGENT-ECONOMY Phase 2 A4 (2026-05-10): target_work_tx_id for
+    /// the `verify_peer` tool. The TxId of the WorkTx being verified by
+    /// this agent. Required when `tool == "verify_peer"`. Sequencer admission
+    /// step-3 rejects with `VerifyTargetNotAccepted` if the target is not
+    /// present in `q.economic_state_t.stakes_t`.
+    #[serde(default)]
+    pub target_work_tx_id: Option<String>,
+    /// TB-N1-AGENT-ECONOMY Phase 2 A4 (2026-05-10): verdict for the
+    /// `verify_peer` tool. Valid values: `"confirm"` (target is correct;
+    /// OMEGA-Confirm path; creates a claim) or `"deny"` (target is
+    /// incorrect). Required when `tool == "verify_peer"`. Defaults to
+    /// `"confirm"` on absence per VerifyVerdict::Confirm as the OMEGA verdict
+    /// (ratification §2.1).
+    #[serde(default)]
+    pub verdict: Option<String>,
+    /// TB-N1-AGENT-ECONOMY Phase 2 A4 (2026-05-10): agent-decided bond for
+    /// the `verify_peer` tool, in micro-units. Optional — when absent,
+    /// evaluator falls back to a small env default. Sequencer admission
+    /// step-2.5 rejects with `VerifyBondOutOfBounds` if the declared
+    /// `bond_micro` exceeds the verifier's `balances_t` entry; step-2
+    /// rejects with `BondInsufficient` if bond_micro == 0. Mirrors
+    /// `stake_micro` for the verify-peer agency path.
+    #[serde(default)]
+    pub bond_micro: Option<u64>,
 }
 
 /// Parse error with explicit reason. V3L-09: NEVER silently return None.

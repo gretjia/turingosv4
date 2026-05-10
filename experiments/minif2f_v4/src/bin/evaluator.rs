@@ -3039,6 +3039,100 @@ async fn run_swarm(
                                 }
                             }
                         }
+                        "verify_peer" => {
+                            // TB-N1-AGENT-ECONOMY Phase 2 atom A4 (2026-05-10;
+                            // charter §2 atom A4 + forward §8 grant). Agent
+                            // verifies another agent's WorkTx. JSON shape:
+                            //   {"tool":"verify_peer","target_work_tx_id":"<TxId>",
+                            //    "verdict":"confirm|deny","bond_micro":<u64>}
+                            // Sequencer admission step-2.5 / step-3 / step-3.5
+                            // enforces bond bounds, target liveness, and per-
+                            // (verifier, target) duplicate suppression.
+                            *tool_dist.entry("verify_peer".into()).or_insert(0) += 1;
+                            if let (Some(bundle), Some(reg)) =
+                                (chaintape_bundle.as_ref(), agent_keypairs.as_ref())
+                            {
+                                let target_tx_id_str = match action.target_work_tx_id.as_ref() {
+                                    Some(s) if !s.is_empty() => s.clone(),
+                                    _ => {
+                                        warn!("[verify_peer] {} omitted target_work_tx_id; skipping", agent_id);
+                                        // Reclassify to a parse_fail-style miss so
+                                        // FC1 accounting reflects the no-op.
+                                        *tool_dist.entry("verify_peer".into()).or_insert(0) =
+                                            tool_dist.get("verify_peer").copied().unwrap_or(0).saturating_sub(1);
+                                        *tool_dist.entry("verify_peer_skip_no_target".into()).or_insert(0) += 1;
+                                        continue;
+                                    }
+                                };
+                                let verdict_confirms = match action.verdict.as_deref() {
+                                    Some("confirm") | Some("yes") | Some("Confirm") | None => true,
+                                    Some("deny") | Some("doubt") | Some("no") | Some("Doubt") => false,
+                                    Some(other) => {
+                                        warn!("[verify_peer] {} unknown verdict {:?}; defaulting to Confirm", agent_id, other);
+                                        true
+                                    }
+                                };
+                                // TB-N1 A4 saturating cast (mirrors A3 R2 Codex
+                                // Q4 fix): `u as i64` wraps negative for
+                                // u > i64::MAX; `i64::try_from(u).unwrap_or(i64::MAX)`
+                                // preserves fail-closed admission via Step-2.5.
+                                let bond_micro: i64 = action
+                                    .bond_micro
+                                    .map(|u| i64::try_from(u).unwrap_or(i64::MAX))
+                                    .or_else(|| {
+                                        std::env::var("TURINGOS_CHAINTAPE_VERIFY_BOND_MICRO")
+                                            .ok()
+                                            .and_then(|s| s.parse().ok())
+                                    })
+                                    .unwrap_or(1_000);
+
+                                let q = match bundle.sequencer.q_snapshot() {
+                                    Ok(q) => q,
+                                    Err(e) => {
+                                        error!("[verify_peer] FAIL-CLOSED: q_snapshot: {e:?}");
+                                        std::process::exit(3);
+                                    }
+                                };
+                                let parent_state_root = q.state_root_t;
+                                let logical_t = bundle.sequencer.next_logical_t_peek();
+                                let suffix = format!("vp{}-{}", tx, proposal_count);
+                                let verify_tx = {
+                                    let mut reg_guard = match reg.lock() {
+                                        Ok(g) => g,
+                                        Err(p) => p.into_inner(),
+                                    };
+                                    match turingosv4::runtime::adapter::make_real_verifytx_signed_by(
+                                        &mut *reg_guard,
+                                        parent_state_root,
+                                        turingosv4::state::q_state::TxId(target_tx_id_str.clone()),
+                                        agent_id,
+                                        bond_micro,
+                                        &suffix,
+                                        verdict_confirms,
+                                        logical_t,
+                                    ) {
+                                        Ok(tx) => tx,
+                                        Err(e) => {
+                                            error!("[verify_peer] FAIL-CLOSED: make_real_verifytx_signed_by: {e}");
+                                            std::process::exit(3);
+                                        }
+                                    }
+                                };
+                                if let Err(e) = bus.submit_typed_tx(verify_tx).await {
+                                    warn!("[verify_peer] submit_typed_tx failed (may be rejected at admission): {e:?}");
+                                } else {
+                                    info!(
+                                        "[verify_peer] {} → target={} verdict={} bond_micro={}",
+                                        agent_id,
+                                        target_tx_id_str,
+                                        if verdict_confirms { "confirm" } else { "deny" },
+                                        bond_micro
+                                    );
+                                }
+                            } else {
+                                warn!("[verify_peer] chaintape not wired; agent {} verify_peer is no-op", agent_id);
+                            }
+                        }
                         "step" => {
                             // Phase 7 (C-043+ Turing δ-step): submit ONE tactic,
                             // oracle classifies the accumulated tape+tactic prefix

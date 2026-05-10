@@ -68,11 +68,15 @@ fn axiom_2_predicate_registry_root_present() {
 /// one-pool-per-event LiquidityPool state; pool reserves NOT Coin per
 /// architect §7.5 rule 2) + lp_share_balances_t (LpShareBalancesIndex
 /// per-(agent,event) LP token balance; NOT Coin per architect §7.5 rule 3).
+/// TB-N1-AGENT-ECONOMY Phase 2 A4 (2026-05-10; charter §2 atom A4) bumped
+/// 15 → 16 with +agent_verifications_t (AgentVerificationsIndex =
+/// BTreeSet<(AgentId, TxId)> for sequencer step-3.5 duplicate-suppression;
+/// NOT a Coin holding — pure set; EXCLUDED from total_supply_micro).
 #[test]
 fn axiom_3_economic_state_present_and_complete() {
     let g = QState::genesis();
     let e = serde_json::to_value(&g.economic_state_t).unwrap();
-    assert_eq!(e.as_object().unwrap().len(), 15);
+    assert_eq!(e.as_object().unwrap().len(), 16);
 }
 
 /// Axiom 4: tool capability — Q_t exposes `tool_registry_root_t` slot.

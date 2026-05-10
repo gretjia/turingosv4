@@ -30,6 +30,10 @@ fn fifteen_sub_fields_present() {
     // CpmmPoolsIndex one-pool-per-event LiquidityPool state, NOT Coin per
     // architect §7.5 rule 2; +lp_share_balances_t LpShareBalancesIndex
     // per-(agent, event) LP token balance, NOT Coin per rule 3).
+    // TB-N1-AGENT-ECONOMY Phase 2 A4 (2026-05-10; charter §2 atom A4):
+    // 15 → 16 (+agent_verifications_t AgentVerificationsIndex
+    // BTreeSet<(AgentId, TxId)> for sequencer step-3.5 duplicate-suppression;
+    // NOT a Coin holding — pure set; EXCLUDED from total_supply_micro).
     let e = EconomicState::default();
     let v = serde_json::to_value(&e).unwrap();
     let obj = v.as_object().unwrap();
@@ -49,8 +53,9 @@ fn fifteen_sub_fields_present() {
         "agent_autopsies_t",               // TB-15 Atom 3 (architect §6.2 ruling 2026-05-02 + 2026-05-03)
         "cpmm_pools_t",                    // Stage C P-M4 / Phase F.3 (architect §7.5)
         "lp_share_balances_t",             // Stage C P-M4 / Phase F.3 (architect §7.5 rule 3)
+        "agent_verifications_t",           // TB-N1 Phase 2 A4 (charter §2; 2026-05-10)
     ];
-    assert_eq!(obj.len(), 15);
+    assert_eq!(obj.len(), 16);
     for n in names.iter() {
         assert!(obj.contains_key(*n), "missing sub-field {}", n);
     }
