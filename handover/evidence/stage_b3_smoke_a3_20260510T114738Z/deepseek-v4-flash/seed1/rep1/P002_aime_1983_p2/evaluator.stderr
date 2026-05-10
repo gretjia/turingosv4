@@ -1,0 +1,17 @@
+[2026-05-10T11:51:15Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/aime_1983_p2.lean | Condition: n1 | Model: deepseek-v4-flash | Mode: full
+[2026-05-10T11:51:15Z INFO  minif2f_v4::chain_runtime] [chaintape/d3] pre-seed enabled (TB-10 factory): 12 entries
+[2026-05-10T11:51:16Z INFO  minif2f_v4::chain_runtime] [chaintape] bus wired with Sequencer + on-disk ChainTape at "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_smoke_a3_20260510T114738Z/deepseek-v4-flash/seed1/rep1/P002_aime_1983_p2/runtime_repo"
+[2026-05-10T11:51:16Z INFO  evaluator] [chaintape/d3] preseed TaskOpen for task-n1_aime_1983_p2_1778413875551
+[2026-05-10T11:51:16Z INFO  evaluator] [chaintape/d3] preseed EscrowLock 100000 micro for task-n1_aime_1983_p2_1778413875551
+[2026-05-10T11:51:16Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic TaskOpen for smoke-n1_aime_1983_p2_1778413875551
+[2026-05-10T11:51:16Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic zero-stake WorkTx (synthetic_rejection_for_l4e_gate=true) for smoke-n1_aime_1983_p2_1778413875551
+[2026-05-10T11:51:16Z INFO  minif2f_v4::chain_runtime] [chaintape] Atom 5 audit-trail records written to CAS + indexed for smoke-n1_aime_1983_p2_1778413875551
+[2026-05-10T11:51:16Z INFO  minif2f_v4::chain_runtime] [chaintape/d_c] genesis_report.json written to "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_smoke_a3_20260510T114738Z/deepseek-v4-flash/seed1/rep1/P002_aime_1983_p2/runtime_repo"
+[2026-05-10T11:51:16Z INFO  evaluator] [swarm/n1] agent_models = [deepseek-v4-flash] (label=deepseek-v4-flash)
+[2026-05-10T11:51:16Z INFO  evaluator] [budget] regime=total_proposal base=200 effective_max_tx=200 (n_agents=1)
+[2026-05-10T11:51:16Z INFO  evaluator] [swarm/n1] Agent_0:skill0:t=0.20
+[2026-05-10T11:51:36Z INFO  evaluator] [tx 0] Agent_0 step+tx_0_by_Agent_0 partial OK (depth=1)
+[2026-05-10T11:51:46Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=2 after this write)
+[2026-05-10T11:51:47Z INFO  evaluator] [chaintape/tb8/atom4-pertactic] FinalizeReward emitted for verify_tx=TxId("verifytx-Agent_0-omega-pertactic-2")
+[v2-emit] SPLIT env unset; defaulting to 'adaptation' (Phase B convention; pre-registration requires SPLIT for Phase C+ ablation runs)
+[2026-05-10T11:51:47Z INFO  evaluator] PPUT = 3.17%/s (GP: 2 nodes, 426 tokens, 31.5s)
