@@ -2333,7 +2333,7 @@ async fn run_swarm(
                                         // layer of CLAUDE.md §13.
                                         let stake_micro: i64 = action
                                             .stake_micro
-                                            .map(|u| u as i64)
+                                            .map(|u| i64::try_from(u).unwrap_or(i64::MAX))
                                             .or_else(|| {
                                                 std::env::var("TURINGOS_CHAINTAPE_PROPOSAL_STAKE_MICRO")
                                                     .ok()
@@ -2655,7 +2655,7 @@ async fn run_swarm(
                                             // TB-N1 Phase 2 A3: agent-decided overrides env default.
                                             let stake_micro: i64 = action
                                                 .stake_micro
-                                                .map(|u| u as i64)
+                                                .map(|u| i64::try_from(u).unwrap_or(i64::MAX))
                                                 .or_else(|| {
                                                     std::env::var("TURINGOS_CHAINTAPE_PROPOSAL_STAKE_MICRO")
                                                         .ok()
@@ -3233,7 +3233,7 @@ async fn run_swarm(
                                             // TB-N1 Phase 2 A3: agent-decided overrides env default.
                                             let stake_micro: i64 = action
                                                 .stake_micro
-                                                .map(|u| u as i64)
+                                                .map(|u| i64::try_from(u).unwrap_or(i64::MAX))
                                                 .or_else(|| {
                                                     std::env::var("TURINGOS_CHAINTAPE_PROPOSAL_STAKE_MICRO")
                                                         .ok()
