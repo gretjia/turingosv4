@@ -2,7 +2,7 @@
 //!
 //! TRACE_MATRIX FC1-Append Stage C P-M7 (architect §7.8 verbatim):
 //!
-//! ```
+//! ```text
 //! price_yes_effective = quote_payC / quote_getY
 //! price_no_effective  = quote_payC / quote_getN
 //! ```

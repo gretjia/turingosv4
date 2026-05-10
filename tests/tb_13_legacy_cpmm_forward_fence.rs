@@ -110,7 +110,19 @@ const FORBIDDEN_LEGACY_TOKENS: &[&str] = &[
     "PriceIndex",
     "yes_price",
     "no_price",
-    "RationalPrice",
+    // `RationalPrice` removed 2026-05-10 — Stage C P-M7 (architect §7.8)
+    // landed `RationalPrice` as the integer-rational price-SIGNAL type for
+    // the CPMM router quote (`src/state/price_index.rs` →
+    // `src/state/router_quote.rs` + `src/runtime/audit_views.rs`). Architect
+    // §7.8 explicit gate: "Price is signal only. Do not use price to decide
+    // predicate truth." Witnessed by `tests/constitution_router_price_quote.rs`
+    // `price_signal_not_predicate` source-grep test. The token is no longer
+    // a "legacy CPMM" import per `feedback_market_quarantine_token_exemption`
+    // (cf. P-M4 ` CPMM` removal): when architect-spec'd token lands and the
+    // legacy quarantine catches it, REMOVE token with rationale, not
+    // bandaid-rename production code. Other price-as-truth tokens
+    // (`price_yes` / `price_no` / `PriceIndex` / `yes_price` / `no_price`)
+    // remain banned because no architect §7.x spec has elevated them.
 ];
 
 fn workspace_root() -> PathBuf {
