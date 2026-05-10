@@ -6,6 +6,94 @@
 
 ---
 
+## ✅ Session #35 close 2026-05-10 — TB-N1-AGENT-ECONOMY Phase 1 SHIPPED + Phase 2 charter ratified
+
+**HEAD on main (local)**: `1077bb7` (2 commits past session #34 close `ff92646`; NOT pushed — Class-4 forward grant active for A3+A4 STEP_B serial).
+**Session scope**: pivoted from M2 launch (forward queue (A) per session #34 boot prompt) → n=1 agent economy landing per user verbatim "做这么大量的真题实验，难道不应该先解决 Agent 真实的经济行为这个缺失的问题吗" + "我要的是 TuringOS engine 有序完整落地" + "我不要凑活的方案，我不考虑成本和 easy".
+
+### What landed (2 commits)
+
+| Commit | Subject | Δ gates / workspace |
+|--------|---------|---------------------|
+| `a5625a6` | **TB-N1-AGENT-ECONOMY Phase 1 — A1 + A2 land**. A1: `scripts/run_stage_b3.sh` adds `TURINGOS_CHAINTAPE_PRESEED=1` (preseed env-default-off → script-on). A2: new `src/sdk/econ_position.rs::render_econ_position(q, agent_id)` + `build_agent_prompt` signature `balance: f64` → `econ_position: &str`. Trust Root rehashed `evaluator.rs` `62834dff → 60f41bc8`. Includes 3 smoke evidence dirs (baseline gap-witness + A1 closure + Phase 1 final-verification) as load-bearing real-evidence. | gates 267→267 (preserved); workspace 1418→1427 (+9: 7 econ_position + 2 prompt) |
+| `1077bb7` | **TB-N1-AGENT-ECONOMY Phase 2 — charter ratified + forward §8 grant**. User verbatim multi-clause Class-4 forward grant: "批准 charter + 授权 A3 + A4 串行全授权" — clause 1 ratifies charter, clause 2 authorizes A3+A4 serial conditional on per-atom dual audit PASS. Per `feedback_no_batch_class4_signoff` per-atom §8 cadence preserved. | docs only |
+
+### Constitutional landing finding (session #35 empirical)
+
+Pre-session-#35 state: n=1 economy was **structurally** landed (FC1 invariant Ok across Wave 3 50p; conservation invariants tested) but **invisible to agent at prompt layer**. Smoke evidence 6 cells × 2 models (`stage_b3_smoke_session35_20260510T082517Z`) confirmed:
+- `genesis_report.initial_balances`: empty `[]` (no preseed engaged)
+- `accepted_tx_ids`: 2 (TaskOpen + terminal-summary; **no EscrowLockTx**)
+- agent prompt: `Balance: 0 Coins` single line (no escrow / claim / stake / reputation visibility)
+
+Pre-A1 cause: `TURINGOS_CHAINTAPE_PRESEED` env var was unset in `run_stage_b3.sh` (other callers `comprehensive_arena.rs` + `lean_market.rs` set it explicitly; M2 / Stage B3 batch did not).
+
+Post-A1 (`stage_b3_smoke_session35_a1_*/` 6 cells):
+- `initial_balances`: 12 entries (tb7-7-sponsor + Agent_user_0 + Agent_0..9, 30M μC total)
+- `accepted_tx_ids`: 3 (+ `escrowlock-task-...-tb7-7-d3-escrow`)
+- `tx_kind_counts.escrow_lock`: 0 → **1**
+- FC1 invariant Ok delta=0 preserved
+
+Post-A2 (Phase 1 final smoke `stage_b3_smoke_session35_phase1_*/` 2 cells):
+- agent prompt now renders `=== Your Economic Position ===` block with 4 lines (Balance + Active stakes + Pending claims + Reputation) sourced from canonical `EconomicState`
+- runtime path verified end-to-end (no crash; chain_invariant Ok)
+
+### Validation baseline at session #35 close (HEAD `1077bb7`)
+
+| Check | Value |
+|---|---|
+| HEAD | `1077bb7` (NOT pushed; per-atom §8 sign-off required before push per Phase 2 forward grant §3) |
+| Constitution gates | 267 / 0 / 1 (preserved at session #34 baseline) |
+| Workspace tests | **1427** / 0 / 151 (was 1418; +9 from A2) |
+| Trust Root | PASS post evaluator.rs rehash |
+| `CONSTITUTION_EXECUTION_MATRIX.md` | 0 current RED + 0 current AMBER (preserved) |
+| FC1 / FC2 / FC3 | all GREEN |
+| Architect ship-gate sets verified at HEAD | 9/10 (SG-B3.1-6 / M2 still single open set; **explicitly NOT closed by Phase 1 — forbidden during Phase 2 per charter §4 + forward grant §3**) |
+
+### Phase 2 forward state (A3 STEP_B branch ready; NOT executed)
+
+Branch `feat/n1-econ-a3-rebuild` exists at HEAD `1077bb7` — clean (no commits past main). Ready for next-session A3 implementation.
+
+A3 surface (per charter §2):
+- `src/state/typed_tx.rs` — RejectionClass tail-append `StakeBalanceExceeded`
+- `src/state/sequencer.rs` — WorkTx admission Step 4 extension: reject if `stake > agent_balance`
+- `src/sdk/protocol.rs` — `AgentAction::Step` gains `stake_micro: Option<u64>`
+- `experiments/minif2f_v4/src/bin/evaluator.rs` — 3 OMEGA callsites thread `action.stake_micro`
+- `src/sdk/prompt.rs` — schema doc updated
+- `tests/constitution_n1_agent_economy_a3.rs` (NEW) — 5 ship gate tests
+- `scripts/run_constitution_gates.sh` — register
+- Trust Root rehash: sequencer + typed_tx + evaluator (3 pinned files)
+
+A3 protocol (per Phase 2 forward §8 grant):
+1. STEP_B parallel-branch (already created)
+2. Implementation + cargo test --workspace + bash scripts/run_constitution_gates.sh GREEN
+3. Real-LLM 6-cell smoke
+4. PRE-§8 dual audit (Codex G2 + Gemini DeepThink); BOTH PROCEED required
+5. Per-atom §8 sign-off file
+6. Merge to main + final smoke
+7. Repeat for A4
+
+Forbidden during Phase 2 (per charter §4):
+- M2 batch run (sequencer admission change in flight)
+- Polymarket-agent-bridge (A6 deferred to Stage D)
+- swarm n>1 batch
+- new typed_tx variant or canonical signing payload change
+- push to origin/main without per-atom §8 sign-off
+
+### Critical files for next-session orientation
+
+1. `CLAUDE.md` — project constitution
+2. `handover/ai-direct/LATEST.md` — this session-#35-close block
+3. `handover/tracer_bullets/TB_N1_AGENT_ECONOMY_PHASE_2_charter_2026-05-10.md` — Phase 2 charter
+4. `handover/directives/2026-05-10_TB_N1_AGENT_ECONOMY_PHASE_2_FORWARD_§8_GRANT.md` — forward grant
+5. `handover/alignment/N1_AGENT_ECONOMY_LANDING_GAP_2026-05-10_session35.md` — empirical analysis + atom inventory
+6. `handover/evidence/stage_b3_smoke_session35_*/` — 3 smoke evidence dirs
+
+### Pending push
+
+HEAD `1077bb7` is local-only. Per Phase 2 forward §8 grant §6: push only after per-atom §8 sign-off doc exists. Phase 1 (`a5625a6`) ITSELF is shippable independently — not Class-4, no §8 needed. **Next session may push `a5625a6` immediately as Phase 1 ship; `1077bb7` (charter + forward grant) ships with the first per-atom §8.** Or push both together at A3 §8 sign-off.
+
+---
+
 ## ✅ Session #34 close 2026-05-10 — strict-constitution sweep (6 commits)
 
 **HEAD on origin/main**: `c0c36b4` (6 commits past session #33 close `ed0555f`; pushed).
