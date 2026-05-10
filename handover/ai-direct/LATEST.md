@@ -8,7 +8,7 @@
 
 ## ✅ Session #34 close 2026-05-10 — L4.E body integrity verification LANDED
 
-**HEAD on local main**: TBD on commit (1 commit ahead of session #33 close `ed0555f`).
+**HEAD on local main**: `4775620` (1 commit ahead of session #33 close `ed0555f`; not yet pushed — user decision).
 **Session scope**: forward queue item (3) "L4.E body integrity verification" closed per 2026-05-10 user verbatim **"我现在在引擎的开发阶段，我不要凑合，我需要的是宪法约定的内容全部真实落地且可被验证"** (strict-constitution stance restated; `feedback_no_workarounds_strict_constitution`).
 
 ### What landed
@@ -27,7 +27,7 @@
 
 | Check | Value |
 |---|---|
-| HEAD | TBD (post-commit) |
+| HEAD | `4775620` (local main; not yet pushed) |
 | Constitution gates | 267/0/1 (was 259; +8: tamper-3-of-3 9→10 + new constitution_l4e_body_integrity 0→7) |
 | Workspace tests (--test-threads=1) | 1411/0/151 (was 1403; +8) |
 | Trust Root | PASS (post `src/bottom_white/ledger/rejection_evidence.rs` rehash) |
