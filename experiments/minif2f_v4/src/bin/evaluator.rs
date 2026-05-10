@@ -2326,9 +2326,19 @@ async fn run_swarm(
                                         // TB-7.7 D3: stake from env (default 1000 micro-units = 0.001 coin)
                                         // for admission-gate clearance under pre-seeded escrow.
                                         // Pre-TB-7.7 stake was hardcoded 0 → all WorkTx → L4.E.
-                                        let stake_micro: i64 = std::env::var("TURINGOS_CHAINTAPE_PROPOSAL_STAKE_MICRO")
-                                            .ok()
-                                            .and_then(|s| s.parse().ok())
+                                        //
+                                        // TB-N1-AGENT-ECONOMY Phase 2 A3 (2026-05-10): if the agent's
+                                        // parsed `step` action carried `stake_micro: Some(u64)`, use
+                                        // that. Else fall back to env default. Closes the agency
+                                        // layer of CLAUDE.md §13.
+                                        let stake_micro: i64 = action
+                                            .stake_micro
+                                            .map(|u| u as i64)
+                                            .or_else(|| {
+                                                std::env::var("TURINGOS_CHAINTAPE_PROPOSAL_STAKE_MICRO")
+                                                    .ok()
+                                                    .and_then(|s| s.parse().ok())
+                                            })
                                             .unwrap_or(1_000);
                                         match turingosv4::runtime::adapter::make_real_worktx_signed_by(
                                             &mut *reg_guard,
@@ -2642,9 +2652,15 @@ async fn run_swarm(
                                                 }
                                             };
                                             // TB-7.7 D3: stake from env (default 1000 micro-units).
-                                            let stake_micro: i64 = std::env::var("TURINGOS_CHAINTAPE_PROPOSAL_STAKE_MICRO")
-                                                .ok()
-                                                .and_then(|s| s.parse().ok())
+                                            // TB-N1 Phase 2 A3: agent-decided overrides env default.
+                                            let stake_micro: i64 = action
+                                                .stake_micro
+                                                .map(|u| u as i64)
+                                                .or_else(|| {
+                                                    std::env::var("TURINGOS_CHAINTAPE_PROPOSAL_STAKE_MICRO")
+                                                        .ok()
+                                                        .and_then(|s| s.parse().ok())
+                                                })
                                                 .unwrap_or(1_000);
                                             // TB-8 Atom 4: WorkTx then VerifyTx must be sequenced — the
                                             // VerifyTx's parent_state_root MUST reflect the post-Work state
@@ -3214,9 +3230,15 @@ async fn run_swarm(
                                                 }
                                             };
                                             // TB-7.7 D3: stake from env (default 1000 micro-units).
-                                            let stake_micro: i64 = std::env::var("TURINGOS_CHAINTAPE_PROPOSAL_STAKE_MICRO")
-                                                .ok()
-                                                .and_then(|s| s.parse().ok())
+                                            // TB-N1 Phase 2 A3: agent-decided overrides env default.
+                                            let stake_micro: i64 = action
+                                                .stake_micro
+                                                .map(|u| u as i64)
+                                                .or_else(|| {
+                                                    std::env::var("TURINGOS_CHAINTAPE_PROPOSAL_STAKE_MICRO")
+                                                        .ok()
+                                                        .and_then(|s| s.parse().ok())
+                                                })
                                                 .unwrap_or(1_000);
                                             // TB-8 Atom 4: WorkTx then VerifyTx must be sequenced — the
                                             // VerifyTx's parent_state_root MUST reflect the post-Work state

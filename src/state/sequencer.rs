@@ -477,6 +477,12 @@ fn rejection_class_for(e: &TransitionError) -> L4ERejectionClass {
         // TB-8 Atom 3 (charter § 4.5):
         TE::ClaimAlreadyFinalized => RC::PolicyViolation,
         TE::ChallengeWindowStillOpen => RC::PolicyViolation,
+        // TB-N1-AGENT-ECONOMY Phase 2 A3 (2026-05-10): agent-declared stake
+        // exceeds available balance. Maps to `InsufficientBalance` —
+        // architecturally honest (same L4E class as Step-6 system-side
+        // solvency check), gives Information Loom a per-tx-class signal
+        // distinguishing "agent over-committed" from "stake = 0".
+        TE::StakeBalanceExceeded => RC::InsufficientBalance,
         // Non-WorkTx-arm variants documented per §3.7 mapping table — should
         // not occur on the WorkTx arm; conservative sentinel preserves L4.E
         // append correctness if a future TB adds new variants.
@@ -516,6 +522,11 @@ fn public_summary_for(e: &TransitionError) -> Option<String> {
         // TB-8 Atom 3.
         TransitionError::ClaimAlreadyFinalized => Some("claim_already_finalized".into()),
         TransitionError::ChallengeWindowStillOpen => Some("challenge_window_still_open".into()),
+        // TB-N1-AGENT-ECONOMY Phase 2 A3 (2026-05-10): agent-decided stake
+        // bound exceeded. Distinct public-summary tag so per-tx-class
+        // telemetry distinguishes from `stake_insufficient` (zero stake)
+        // and `insufficient_balance` (system-side solvency).
+        TransitionError::StakeBalanceExceeded => Some("stake_balance_exceeded".into()),
         _ => Some("policy_violation".into()),
     }
 }
@@ -828,8 +839,24 @@ pub(crate) fn dispatch_transition(
 
             // Step 4: YES stake gate (RSP-1 P3:3). StakeMicroCoin newtype
             // intentionally has no integer comparison; use the const accessor.
+            //
+            // TB-N1-AGENT-ECONOMY Phase 2 A3 (2026-05-10) extends Step 4 with
+            // an agent-bound upper-side gate: agent must not declare a stake
+            // that exceeds their `balances_t` entry. Distinct from
+            // `InsufficientBalance` at Step 6 (system-side debit-time
+            // solvency defense-in-depth — same inequality, different
+            // semantic surface). Reading the balance here matches the
+            // Step 6 read pattern (default-zero on missing entry per
+            // existing fail-closed admission discipline).
             if work.stake.micro_units() <= 0 {
                 return Err(TransitionError::StakeInsufficient);
+            }
+            let agent_balance_a3 = q.economic_state_t.balances_t.0
+                .get(&work.agent_id)
+                .copied()
+                .unwrap_or(crate::economy::money::MicroCoin::zero());
+            if work.stake.micro_units() > agent_balance_a3.micro_units() {
+                return Err(TransitionError::StakeBalanceExceeded);
             }
 
             // ──────────────────────────────────────────────────────────────
@@ -4575,7 +4602,20 @@ mod tests {
         let rejection_writer = Arc::new(RwLock::new(RejectionEvidenceWriter::default()));
         let preds = Arc::new(PredicateRegistry::new());
         let tools = Arc::new(ToolRegistry::new());
-        let q = QState::genesis();
+        let mut q = QState::genesis();
+        // TB-N1-AGENT-ECONOMY Phase 2 A3 (2026-05-10): seed `alice` with
+        // sufficient balance so the new sequencer Step-4 agent-bound stake
+        // gate (`stake > balance` → StakeBalanceExceeded) does NOT fire on
+        // the `fixture_work_tx()` plumbing tests. Those tests assert the
+        // Step-5 `EscrowMissing` rejection (their actual intent: prove
+        // envelope plumbing); the new Step-4 gate would intercept first
+        // with empty balances. 10 Coin = 10_000_000 μC ≥ fixture stake
+        // (1_000_000 μC) by 10×, leaving the EscrowMissing-via-genesis
+        // semantics intact.
+        q.economic_state_t.balances_t.0.insert(
+            AgentId("alice".into()),
+            crate::economy::money::MicroCoin::from_micro_units(10_000_000),
+        );
         // TB-5 Atom 4: tests pin keypair's own pubkey under the test epoch
         // (preflight § 4.2). emit_system_tx signs with self.keypair, so
         // verification by-construction succeeds when the pinned pubkey for
@@ -5193,6 +5233,18 @@ mod tests {
     }
 
     /// U10 — WorkTx admission rejects when solver balance < stake.
+    ///
+    /// TB-N1-AGENT-ECONOMY Phase 2 A3 (2026-05-10) updated this test's
+    /// expected error: pre-A3 the rejection fired at Step-6 system-side
+    /// solvency check (`solver_bal < stake` → `InsufficientBalance`).
+    /// Post-A3, the new Step-4 agent-bound check (`stake > agent_balance`
+    /// → `StakeBalanceExceeded`) fires first on the same input, subsuming
+    /// the agent-side overspend case under a distinct rejection class.
+    /// Step-6 remains as defense-in-depth (e.g. balance changes between
+    /// dispatch read and apply_one debit) but is structurally unreachable
+    /// from synchronous `dispatch_transition` calls. The test's intent
+    /// ("WorkTx with stake exceeding solver balance must reject") is
+    /// preserved; the rejection class is now the more specific A3 variant.
     #[test]
     fn dispatch_worktx_rejects_when_solver_balance_lt_stake() {
         let preds = PredicateRegistry::new();
@@ -5206,8 +5258,8 @@ mod tests {
             "task-u10", "solver-broke", parent, 5_000_000 /* 5 coin */, "u10", true,
         ));
         let result = dispatch_transition(&q, &work, &preds, &tools);
-        assert!(matches!(result, Err(TransitionError::InsufficientBalance)),
-            "solver lacks balance for stake → InsufficientBalance; got {:?}", result);
+        assert!(matches!(result, Err(TransitionError::StakeBalanceExceeded)),
+            "post-A3: solver lacks balance for stake → Step-4 StakeBalanceExceeded (subsumes pre-A3 Step-6 InsufficientBalance for this case); got {:?}", result);
     }
 
     /// U11 — Accepted WorkTx debits balance + credits stakes_t with task_id binding.

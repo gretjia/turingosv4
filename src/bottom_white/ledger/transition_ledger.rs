@@ -1502,8 +1502,19 @@ mod tests {
             &mut cas,
             &dummy_typed_tx(),
         );
+        // TB-N1-AGENT-ECONOMY Phase 2 A3 (2026-05-10): seed `alice` with
+        // a non-zero balance so the new Step-4 agent-bound stake gate
+        // (`stake > balance` → StakeBalanceExceeded) does NOT preempt the
+        // EscrowMissing assertion (which proves replay reaches dispatch
+        // and through it stages 1-6 of validation; only Step-5 escrow
+        // gate is unfunded in this fixture).
+        let mut q0 = crate::state::q_state::QState::genesis();
+        q0.economic_state_t.balances_t.0.insert(
+            AgentId("alice".into()),
+            crate::economy::money::MicroCoin::from_micro_units(1_000_000),
+        );
         let err = replay_full_transition(
-            &crate::state::q_state::QState::genesis(),
+            &q0,
             &[entry],
             &cas,
             &pinned,
@@ -1513,7 +1524,7 @@ mod tests {
         .unwrap_err();
         assert!(
             matches!(err, ReplayError::Transition { at: 0, inner: crate::state::typed_tx::TransitionError::EscrowMissing }),
-            "expected Transition(NotYetImplemented at 0); got {err:?}"
+            "expected Transition(EscrowMissing at 0); got {err:?}"
         );
     }
 

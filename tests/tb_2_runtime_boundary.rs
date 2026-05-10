@@ -360,7 +360,15 @@ async fn runtime_stakeless_worktx_appends_l4e() {
 #[tokio::test]
 async fn runtime_no_escrow_worktx_appends_l4e() {
     // QState::genesis() has no seeded escrow for task-i6.
-    let mut h = fresh_harness(QState::genesis());
+    //
+    // TB-N1-AGENT-ECONOMY Phase 2 A3 (2026-05-10): seed `alice` balance via
+    // `seed_q_with_escrow` (fixture name is historical — it only seeds
+    // balances, NOT escrow per its doc) so the new sequencer Step-4
+    // agent-bound stake gate (`stake > balance` → StakeBalanceExceeded)
+    // does NOT preempt the test's Step-5 EscrowMissing assertion. The
+    // test's task_id (task-i6-no-escrow) has no `task_markets_t` entry, so
+    // Step-5 still fires after the new Step-4 gate passes.
+    let mut h = fresh_harness(seed_q_with_escrow(&TaskId("task-i6-no-escrow".into())));
 
     let receipt = h
         .seq

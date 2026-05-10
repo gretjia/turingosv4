@@ -170,6 +170,14 @@ pub enum RejectionClass {
     StaleParentRoot,
     Opaque,
     BudgetExceeded,
+    /// TB-N1-AGENT-ECONOMY Phase 2 atom A3 (charter §2; 2026-05-10): WorkTx
+    /// admission step-4 extension — agent declared a stake that exceeds
+    /// available `balances_t[agent_id]`. Distinct from `StakeInsufficient`
+    /// (stake == 0; agent declined to stake) and from the system-side
+    /// solvency `InsufficientBalance` (Step-6 defense-in-depth on the same
+    /// inequality). Closes the agency layer of CLAUDE.md §13: agent-decided
+    /// stake within `[min_stake, balance]` is now a typed admission gate.
+    StakeBalanceExceeded,
 }
 
 /// TRACE_MATRIX § 1.3 VerifyTx field 5 — verifier verdict.
@@ -2558,6 +2566,18 @@ pub enum TransitionError {
     /// fire on a real chain. Maps to `L4ERejectionClass::PolicyViolation`.
     TestForcedFailure,
 
+    // ── TB-N1-AGENT-ECONOMY Phase 2 atom A3 (charter §2; 2026-05-10) ───────
+    /// `WorkTx` admission step-4 extension: agent-declared `stake.micro_units()`
+    /// exceeds `balances_t[agent_id].micro_units()`. Distinct from
+    /// `StakeInsufficient` (stake == 0) and from `InsufficientBalance`
+    /// (Step-6 system-side solvency defense-in-depth). Closes the agency
+    /// layer of CLAUDE.md §13 "writes/append require stake/escrow/bond as
+    /// specified" — agent-decided stake within `[min_stake, balance]` is
+    /// now a typed admission gate. Maps to
+    /// `L4ERejectionClass::InsufficientBalance` (architecturally honest:
+    /// agent has insufficient balance for declared stake).
+    StakeBalanceExceeded,
+
     // ── Stub sentinel (CO1.7.5 fills) ──────────────────────────────────────
     /// Stub return value used by CO1.7.5 unimplemented bodies — preserves
     /// sequencer + dispatch correctness without forcing transition logic
@@ -2709,6 +2729,10 @@ impl std::fmt::Display for TransitionError {
             Self::TestForcedFailure => write!(
                 f,
                 "BuyWithCoinRouterTx: cfg(debug_assertions) failure-injection hook fired (TURINGOS_TEST_ROUTER_FAIL_AT_STEP); production --release builds compile this out"
+            ),
+            Self::StakeBalanceExceeded => write!(
+                f,
+                "WorkTx: agent-declared stake exceeds available balance (TB-N1 Phase 2 A3 admission step-4 agent-bound check; distinct from system-side InsufficientBalance defense-in-depth)"
             ),
             Self::NotYetImplemented => write!(f, "transition body not yet implemented (CO1.7.5)"),
         }

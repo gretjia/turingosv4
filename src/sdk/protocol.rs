@@ -25,6 +25,16 @@ pub struct AgentAction {
     /// positive ⇒ long, negative ⇒ short. See Art. II.2 bidirectional price signal.
     #[serde(default)]
     pub direction: Option<String>,
+    /// TB-N1-AGENT-ECONOMY Phase 2 A3 (2026-05-10): agent-decided stake for
+    /// the `step` tool, in micro-units (1 Coin = 1_000_000 μC). Optional —
+    /// when absent, evaluator falls back to the env default
+    /// `TURINGOS_CHAINTAPE_PROPOSAL_STAKE_MICRO` (1000 μC). Sequencer
+    /// admission step-4 rejects with `StakeBalanceExceeded` if the declared
+    /// `stake_micro` exceeds the agent's `balances_t` entry. Closes the
+    /// agency layer of CLAUDE.md §13: agent-decided stake within
+    /// `[1, balance]` is now a typed admission gate.
+    #[serde(default)]
+    pub stake_micro: Option<u64>,
 }
 
 /// Parse error with explicit reason. V3L-09: NEVER silently return None.

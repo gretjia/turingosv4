@@ -379,6 +379,28 @@ GATES=(
   # blob byte-flip (Halt), L4.E ref corruption (Halt), pre-A3 JSONL-only
   # mode (Skipped), 3 self-tests on the parse-and-verify helper.
   constitution_l4e_body_integrity
+
+  # TB-N1-AGENT-ECONOMY Phase 2 atom A3 (Class-4 STEP_B; 2026-05-10) —
+  # agent-decided stake admission gate. Sequencer Step-4 extension: WorkTx
+  # rejects with NEW `TransitionError::StakeBalanceExceeded` (→ L4E
+  # InsufficientBalance) when agent-declared `stake_micro` exceeds
+  # `balances_t[agent_id]`. Distinct from existing `StakeInsufficient`
+  # (stake==0) and from Step-6 system-side `InsufficientBalance`
+  # defense-in-depth. Closes the agency layer of CLAUDE.md §13
+  # "writes/append/challenge/verify/settle require stake/escrow/bond as
+  # specified" — agent-decided stake within `[1, balance]` is now a typed
+  # admission gate. 5 ship gate tests (SG-N1-A3.1..5):
+  #   sg_n1_a3_1_zero_stake_rejects_with_stake_insufficient
+  #   sg_n1_a3_2_overspend_rejects_with_stake_balance_exceeded
+  #   sg_n1_a3_3_minimum_stake_admits
+  #   sg_n1_a3_4_prompt_aggregates_agent_decided_per_cell_stakes
+  #   sg_n1_a3_5_real_llm_smoke_witnesses_agent_decided_non_default_stake
+  #     (asymmetric: vacuous-pass when no stage_b3_smoke_a3_* dir exists,
+  #     load-bearing once smoke evidence lands per
+  #     `feedback_real_problems_not_designed`).
+  # Charter: `handover/tracer_bullets/TB_N1_AGENT_ECONOMY_PHASE_2_charter_2026-05-10.md`.
+  # Forward §8 grant: `handover/directives/2026-05-10_TB_N1_AGENT_ECONOMY_PHASE_2_FORWARD_§8_GRANT.md`.
+  constitution_n1_agent_economy_a3
 )
 
 # Run each gate file separately and collect per-test outcome.

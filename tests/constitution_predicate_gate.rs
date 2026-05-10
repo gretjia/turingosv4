@@ -59,6 +59,11 @@ fn predicate_failure_cannot_enter_l4() {
             RejectionClass::StaleParentRoot => "parent-fail-route-to-L4E",
             RejectionClass::Opaque => "opaque-route-to-L4E",
             RejectionClass::BudgetExceeded => "budget-fail-route-to-L4E",
+            // TB-N1-AGENT-ECONOMY Phase 2 A3 (2026-05-10): agent declared a
+            // stake exceeding their `balances_t` entry. Distinct from
+            // `StakeInsufficient` (zero stake) so the agent-bound failure
+            // class has its own L4.E route tag.
+            RejectionClass::StakeBalanceExceeded => "stake-balance-fail-route-to-L4E",
         }
     }
     use turingosv4::state::typed_tx::PredicateId;

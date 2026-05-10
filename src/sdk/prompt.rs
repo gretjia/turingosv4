@@ -151,7 +151,7 @@ pub fn build_agent_prompt(
     // PartialOk / Reject. Unchanged: search, invest, post.
     let step_only = std::env::var("TURING_STEP_ONLY").ok().as_deref() == Some("1");
     if step_only {
-        prompt.push_str("  {\"tool\":\"step\",\"payload\":\"<one Lean tactic>\"}\n");
+        prompt.push_str("  {\"tool\":\"step\",\"payload\":\"<one Lean tactic>\",\"stake_micro\":<optional u64>}\n");
         prompt.push_str("    THE proof-progression tool. Submit ONE tactic (e.g. `intro h`,\n");
         prompt.push_str("    `rw [h₀]`, `linarith`, `induction' n with m IH`). The oracle\n");
         prompt.push_str("    elaborates (problem_statement ++ accumulated_tape ++ this_tactic):\n");
@@ -161,11 +161,20 @@ pub fn build_agent_prompt(
         prompt.push_str("    Build the proof incrementally. Cite prior tape nodes by reading the\n");
         prompt.push_str("    === Current Chain === section; your next tactic operates on the\n");
         prompt.push_str("    proof state that already follows from those steps.\n");
+        prompt.push_str("    stake_micro (optional): how many micro-Coins to commit on this\n");
+        prompt.push_str("    step (1 Coin = 1_000_000 μC). Must satisfy 1 <= stake_micro <=\n");
+        prompt.push_str("    your current balance shown in === Your Economic Position ===;\n");
+        prompt.push_str("    out-of-range submissions reject (StakeBalanceExceeded). If absent,\n");
+        prompt.push_str("    the system uses a small default. Stakes are debited on accept and\n");
+        prompt.push_str("    locked into stakes_t until the run resolves.\n");
     } else {
-        prompt.push_str("  {\"tool\":\"step\",\"payload\":\"<one Lean tactic>\"}\n");
+        prompt.push_str("  {\"tool\":\"step\",\"payload\":\"<one Lean tactic>\",\"stake_micro\":<optional u64>}\n");
         prompt.push_str("    Phase 7 Art. IV δ-step: the system appends payload to tape, then\n");
         prompt.push_str("    Lean elaborates (problem + accumulated_tape + this_tactic).\n");
         prompt.push_str("    Goals-solved → OMEGA; partial-ok → tape grows; error → reject.\n");
+        prompt.push_str("    stake_micro (optional): per-step commitment in micro-Coins\n");
+        prompt.push_str("    (1 Coin = 1_000_000 μC). Must satisfy 1 <= stake_micro <= balance;\n");
+        prompt.push_str("    out-of-range submissions reject (StakeBalanceExceeded).\n");
         prompt.push_str("  {\"tool\":\"append\",\"payload\":\"<proof-step-text>\",\"node\":\"<optional-parent-id>\"}\n");
         prompt.push_str("    Raw scratch write (no oracle check). Use `step` instead when possible.\n");
         prompt.push_str("  {\"tool\":\"complete\",\"payload\":\"<tactics-only>\"}\n");
