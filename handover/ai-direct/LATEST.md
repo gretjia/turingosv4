@@ -6,43 +6,68 @@
 
 ---
 
-## ✅ Session #34 close 2026-05-10 — L4.E body integrity verification LANDED
+## ✅ Session #34 close 2026-05-10 — strict-constitution sweep (6 commits)
 
-**HEAD on local main**: `4775620` (1 commit ahead of session #33 close `ed0555f`; not yet pushed — user decision).
-**Session scope**: forward queue item (3) "L4.E body integrity verification" closed per 2026-05-10 user verbatim **"我现在在引擎的开发阶段，我不要凑合，我需要的是宪法约定的内容全部真实落地且可被验证"** (strict-constitution stance restated; `feedback_no_workarounds_strict_constitution`).
+**HEAD on origin/main**: `c0c36b4` (6 commits past session #33 close `ed0555f`; pushed).
+**Session scope**: forward queue (b)+(c) + prompt-variant experiment + comprehensive verification per user's two strict-constitution redirects:
+- "我现在在引擎的开发阶段，我不要凑合，我需要的是宪法约定的内容全部真实落地且可被验证" → drove (c) L4.E body integrity landing.
+- "我不想听到哪种更简单，哪种更 cheap 这样的言论...我需要的是宪法以及宪法中三个 flow chart 的完整落地，还有架构师设计的 ship gate 的完整的验证通过" → drove the comprehensive verification + 8 FC AMBER → ✅ promotion.
 
-### What landed
+### What landed (6 commits)
 
-| Surface | Description |
-|---------|-------------|
-| `src/runtime/audit_assertions.rs` | NEW `assert_51_l4e_git_attestation_matches_jsonl` (Layer B; FC1-N34 + FC1-N35 + FC2-INV1) — walks `refs/chaintape/l4e` chain, parses each commit's `rejection_record` blob via the new helper, asserts each git-side record's `hash` matches the JSONL-side record's `hash`. Catches body tampering / ref-rewrite / chain truncation / partial dual-write divergence. Three-way verdict (Pass / Halt / Skipped); pre-A3 JSONL-only mode skips with reason (FR-A3-HEAD-T-C2.6 backward-compat). |
-| `src/bottom_white/ledger/rejection_evidence.rs` | NEW `pub fn parse_and_verify_jsonl_record_bytes` audit-side helper — parses a single JSONL line into `RejectedSubmissionRecord`, recomputes `compute_hash` over its 9 fields, asserts match against embedded `hash`. Pure additive read-only helper; NO change to record schema, `compute_hash` byte stream, or `JsonlRecord` serialization. Trust Root rehashed `f305f621 → 32679870` (Class 2 per `feedback_class4_cannot_hide_in_class3`; rejection_evidence.rs is NOT on CLAUDE.md §12 STEP_B restricted list). |
-| `src/runtime/audit_tamper.rs` | NEW `pub const L4E_REFS` + `pub fn flip_largest_reachable_l4e_blob` — sibling tamper primitive for the L4.E side (the existing `L4_REFS` + `flip_largest_reachable_l4_blob` cover only L4). Rustdoc on `L4_REFS` updated to reflect the L4 / L4.E semantic split (separate deep-verify paths, no longer "L4.E body verification is a forward gap"). |
-| `tests/constitution_l4e_body_integrity.rs` | NEW gate (7 tests): positive on real M0 P01 evidence (snapshotted to tempdir per evidence-immutability) → assertion #51 PASSes; L4.E blob byte-flip → HALT; L4.E ref corruption → HALT; pre-A3 JSONL-only mode → SKIPPED with reason; 3 self-tests on the new helper (untampered passes, field-tampered rejects with HashMismatch, garbage rejects with JsonlParse). |
-| `tests/constitution_audit_tamper_3_of_3.rs` | UPDATED `l4_refs_is_strict_subset_of_chain_refs_excluding_l4e` rationale (no longer cites the now-closed forward gap; now describes the L4 / L4.E separate-deep-verify split). NEW `l4e_refs_is_strict_subset_of_chain_refs_l4e_only` (1 test) — symmetric assertion that `L4E_REFS ⊂ CHAIN_REFS` and contains exactly `refs/chaintape/l4e`. |
-| `scripts/run_constitution_gates.sh` | Registered `constitution_l4e_body_integrity` after `constitution_audit_tamper_3_of_3`. |
-| `handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md` | NEW §G FC1 row "L4.E body integrity — git-side attestation matches JSONL" (🟢 GREEN with full assertion + helper + tamper-primitive surface binding). |
+| Commit | Subject | Δ gates / workspace |
+|--------|---------|---------------------|
+| `4775620` | L4.E body integrity — close session-#33 forward gap (`assert_51_l4e_git_attestation_matches_jsonl` Layer B + `parse_and_verify_jsonl_record_bytes` audit-side helper + `L4E_REFS` + `flip_largest_reachable_l4e_blob` + 7-test gate). Trust Root rehashed `rejection_evidence.rs` `f305f621 → 32679870`. | gates 259→267 (+8); workspace 1403→1411 (+8) |
+| `65e5760` | LATEST.md backfill HEAD `4775620` | docs only |
+| `5561b66` | M0 4/20 ERROR triage (operational, not a bug — TRUST_ROOT_TAMPERED on `src/runtime/mod.rs` because the file was modified mid-batch session #33; new `feedback_no_concurrent_dev_during_batch.md`) | docs only |
+| `9b8c847` | Prompt-variant experiment harness (`TURINGOS_PROMPT_VARIANT={v0\|v1\|v2\|v3\|v4}` opt-in env var; v0 = unchanged baseline; 7 new variant tests). Authority: user "你可以根据M0测试的真实数据...进行Prompt实验". | workspace 1411→1418 (+7) |
+| `41e8e61` | Prompt-variant experiment results — clean negative at N=1 T=0.2 deepseek-chat. 5 variants × 4 problems = 20 runs (16.5 min wall-clock), every cell byte-identical. Memory `project_economy_prompt_landing_gap.md` updated with empirical decision: land v1 (schema cleanup; ~75 token savings/call) and forward-bind "agent perceives economy" to TB-12+ runtime. | docs only |
+| `c0c36b4` | Comprehensive verification at HEAD `41e8e61` — `TRACE_FLOWCHART_MATRIX.md` 8 stale 🟡 → ✅ promotions (FC1-N1/N5/N7/N9/N13 + FC3-N31/N33/N39 with Wave 3 50p / FC3 evidence binding / M0 P01-P16 citations). NEW `COMPREHENSIVE_VERIFICATION_REPORT_2026-05-10_session34.md` audits constitution + FC + every architect SG-* per stage. | docs only |
 
-### Validation baseline at session #34 close
+### Validation baseline at session #34 close (HEAD `c0c36b4`)
 
 | Check | Value |
 |---|---|
-| HEAD | `4775620` (local main; not yet pushed) |
-| Constitution gates | 267/0/1 (was 259; +8: tamper-3-of-3 9→10 + new constitution_l4e_body_integrity 0→7) |
-| Workspace tests (--test-threads=1) | 1411/0/151 (was 1403; +8) |
-| Trust Root | PASS (post `src/bottom_white/ledger/rejection_evidence.rs` rehash) |
-| FC1 / FC2 / FC3 | all GREEN |
+| HEAD | `c0c36b4` (origin/main; pushed) |
+| Constitution gates | **267/0/1** |
+| Workspace tests (--test-threads=1) | **1418/0/151** |
+| Trust Root | PASS |
+| `CONSTITUTION_EXECUTION_MATRIX.md` | 0 RED + 0 AMBER (current; 31 AMBER markers historical "was X → 🟢") |
+| `TRACE_FLOWCHART_MATRIX.md` | 0 RED + 0 AMBER + 37 GREEN + 3 N/A (post 8 promotions) |
+| FC1 / FC2 / FC3 gate suites | 7+8+8 = 23/0 PASS |
+| Wave 3 50p / 20p / FC3 / shielding evidence-binding suites | 8+1+7+9 = 25/0 PASS |
 
-### Forward queue (post-session-#34)
+### Architect-designed ship gates per-stage status (full table in `COMPREHENSIVE_VERIFICATION_REPORT_2026-05-10_session34.md`)
 
-| Item | Class | Status |
-|---|---|---|
-| (a) Option A/B/C economy-aware prompt landing | TBD | DEFERRED until user picks path; M0 evidence available; reference v3 `~/projects/turingosv3/experiments/zeta_sum_proof/prompt/skill.txt` |
-| (b) ~~M0 4/20 ERROR root-cause investigation~~ | 1 | ✅ **TRIAGED this session** — single shared cause (TRUST_ROOT_TAMPERED panic on `src/runtime/mod.rs` because the file was modified mid-batch for the tamper-3-of-3 fix while genesis_payload.toml was still on the stale hash). NOT a TuringOS bug; harness behaved correctly (fail-closed Trust Root). Operational discipline: no source modifications during a long-running batch. Full report: `handover/alignment/M0_4_OF_20_ERROR_TRIAGE_2026-05-10.md`. New memory: `feedback_no_concurrent_dev_during_batch.md`. |
-| (c) ~~L4.E body integrity verification~~ | 2 | ✅ **LANDED this session** |
-| (d) M1 mini batch (8p × n3) | 2-3 | ELIGIBLE per session #32 user grant; recommend after (a) so M1 includes correct prompt |
-| Stage D real-world readiness | architect | DEFERRED behind explicit ship gate |
-| (B-followup, optional) Batch driver mid-batch Trust Root re-check | 1-2 | FORWARD — improves diagnostic on the (b) failure mode (one clean "Trust Root drifted at problem N" abort vs N independent per-problem panics). ~1-2 hours. Forward-bind when batch frequency rises (M1+ routine). |
+| Stage | Status | Note |
+|-------|--------|------|
+| A1 (TB-18R FINAL) — SG-A1.* / SG-18R.1-13 | 🟢 GREEN | Stage A2 §8 verified no regression |
+| A2 — SG-A2.1-4 | 🟢 GREEN | matrix audit re-confirms |
+| A3 (HEAD_t C2 multi-ref) — SG-A3.1-10 + SG-A3-HEAD | 🟢 GREEN | `constitution_head_t_c2_multi_ref` 7/7 |
+| B1 (20p diagnostic) — SG-B1.1-5 | 🟢 GREEN | Wave 3 20p binding |
+| B2 (50p controlled) — SG-B2.1-4 | 🟢 GREEN | 7 wave3_50p_* tests PASS |
+| **B3 (100p / M2) — SG-B3.1-6** | **🟡 OPEN** | **substrate shipped; M2 BENCHMARK RUN not executed — only architect SG-* set still requiring real-evidence binding** |
+| TB-C0 — SG-C0.1-14 | 🟢 GREEN | gate count 90→267, no regression |
+| Tape canonical — SG-TAPE-1..9 | 🟢 GREEN | per `ART_0_2_TAPE_CANONICAL_10_COMMIT_STATUS` |
+| Stage C VETO — SG-VETO.B/E/F.* | 🟢 GREEN | R3 PASS/PASS dual audit |
+| Session #33+#34 forward defenses | 🟢 GREEN | admission_no_fail_open + audit_tamper_3_of_3 + l4e_body_integrity |
+
+### Forward queue (post-session-#34, strict-constitution framing)
+
+| Item | Constitutional binding | Status |
+|------|------------------------|---------|
+| **(A) Run M2 (100-problem benchmark) under SG-B3.1-6 + EvidencePackagingPolicy** | Architect §Stage B + §B.9.1; SG-B3 spec; `feedback_minif2f_scaling_policy` M0→M1→M2→M3 ladder; `feedback_benchmark_manifest_required` + `feedback_evidence_packaging_policy_required` | **OPEN — only architect-designed ship-gate set still requiring real-evidence binding at HEAD `c0c36b4`**. Precondition "B1+B2 green" satisfied. M1 (10-30p) is optional precursor. |
+| (B) Stage D real-world readiness | Architect §B.9.1 forbid + CLAUDE.md §20 freeze | DEFERRED behind explicit architect ship gate |
+| (C) PromptCapsule evaluator wire-up | CLAUDE.md §4.3 G-016/019/021/028 | OPEN forward Class-3 |
+| (D) CAS Merkle redesign | Stage A3.6 enhancement TB | DEFERRED |
+| (E) Economy-aware agent prompt landing (boot-prompt option a) | TB-12+ runtime tools (NodeMarket / Polymarket-agent-bridge), NOT prompt text | **EMPIRICALLY CLOSED** at this configuration via session #34 prompt-variant clean-negative |
+| (F) Optional: land v1 prompt schema cleanup | Empirical safety per session #34 experiment; not a ship-gate satisfier | OPEN — housekeeping only |
+
+### Open constitutional / SG questions
+
+1. **SG-B3.1-6 M2 benchmark run** — substrate ready; awaiting actual run.
+2. **L4.E body integrity at non-default JSONL record shapes** — assertion #51 covers the M0-shape rejection_record blob; if a future tx kind produces a differently-shaped rejection JSONL, the parse-and-verify path may need extending. Forward defense.
+3. **Mid-batch Trust Root re-check (B-followup from session #33)** — diagnostic improvement only; no constitutional gap (existing fail-closed panic IS the detection mechanism).
 
 ---
 
