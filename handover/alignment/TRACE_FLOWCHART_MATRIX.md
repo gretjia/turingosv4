@@ -50,19 +50,19 @@ These hashes are immutable architectural contracts; if a flowchart changes, that
 
 | FC1 Node | Constitution label | Code surface | Constitution gate test | Status |
 |---|---|---|---|---|
-| FC1-N1 (q0) | `Q_t = ⟨q_t, HEAD_t, tape_t⟩` carrier | `TuringBus`, `Kernel::tape` | `fc2_genesis_report_exists` (Q_0 init) + `fc1_attempt_count_equals_tape_count` (Q_t advancement integrity) | 🟡 |
+| FC1-N1 (q0) | `Q_t = ⟨q_t, HEAD_t, tape_t⟩` carrier | `TuringBus`, `Kernel::tape` | `fc2_genesis_report_exists` (Q_0 init) + `fc1_attempt_count_equals_tape_count` (Q_t advancement integrity) + Wave 3 50p binding `wave3_50p_aggregate_fc1_invariant_holds` (real-LLM-load Q_t advancement: 460 cycles across 50/50 problems) + M0 P01-P16 binding | ✅ |
 | FC1-N2 (q_t) | `q_t` slice | `QState`, `TuringBus::q_state` | covered by `tests/q_state_reconstruct.rs` (existing) | ✅ |
 | FC1-N3 (HEAD_t) | `HEAD_t` head pointer | `time_arrow().last()` | covered by `tests/co1_7_extra_git2_writer_head_oid_defense.rs` (existing) | ✅ |
 | FC1-N4 (q1) | `Q_{t+1}` after δ | `TuringBus::append_*` + sequencer accept | `fc1_predicate_pass_goes_l4` | ✅ |
-| FC1-N5 (rtool) | read tool — ground-truth context fetch | `ReadTool::project`, `DefaultReadTool` | `fc3_raw_logs_not_in_agent_read_view` (shielding-side; constrains what rtool exposes) | 🟡 |
+| FC1-N5 (rtool) | read tool — ground-truth context fetch | `ReadTool::project`, `DefaultReadTool` | `fc3_raw_logs_not_in_agent_read_view` (shielding-side; constrains what rtool exposes) + Wave 3 50p shielding binding `wave3_50p_shielding_lean_result_is_verdict_only` (LeanResult max 146B across 447 instances proves rtool sees structured verdict, NOT raw stderr) + `wave3_50p_shielding_no_leakage_suggestive_schema_ids` (2074-CAS-object aggregate has no leakage-suggestive schema_id) | ✅ |
 | FC1-N6 (input = ⟨q_i, s_i⟩) | input bundle to Agent | `UniverseSnapshot`, `build_agent_prompt` | covered by existing `tests/fc_alignment_conformance.rs::fc1_n6_*` | ✅ |
-| FC1-N7 (δ / AI) | external Agent (LLM call) | `ResilientLLMClient::generate` | `fc1_every_externalized_attempt_is_tape_visible` (every δ invocation must produce tape WorkTx) | 🟡 |
+| FC1-N7 (δ / AI) | external Agent (LLM call) | `ResilientLLMClient::generate` | `fc1_every_externalized_attempt_is_tape_visible` (every δ invocation must produce tape WorkTx) + Wave 3 50p binding `wave3_50p_aggregate_fc1_invariant_holds` (460 = 9 + 400 + 51 across 50/50 problems on real-LLM tape; LHS scope per `OBS_TB18R_INV1_NONLLM_TX` 2026-05-07) + M0 P01-P16 binding | ✅ |
 | FC1-N8 (output = ⟨q_o, a_o⟩) | Agent output | `AgentOutput`, `parse_agent_output` | covered by existing fc_alignment_conformance | ✅ |
-| FC1-N9 (q_o) | proposed q-delta | `AgentOutput::q_delta` | `fc1_attempt_count_equals_tape_count` (q_o reaches tape via WorkTx) | 🟡 |
+| FC1-N9 (q_o) | proposed q-delta | `AgentOutput::q_delta` | `fc1_attempt_count_equals_tape_count` (q_o reaches tape via WorkTx) + Wave 3 50p binding `wave3_50p_aggregate_fc1_invariant_holds` (every q_o reaches tape under real-LLM load — count equality verified on 460 cycles) + M0 P01-P16 binding | ✅ |
 | FC1-N10 (a_o) | action | `AgentOutput::action` | `fc1_predicate_pass_goes_l4` + `fc1_predicate_fail_goes_l4e` | ✅ |
 | FC1-N11 (∏p predicates) | predicate composition | `TuringBus::evaluate_predicates`, `Predicate` trait | `predicate_result_is_binary` + `predicate_pass_required_for_l4` | ✅ |
 | FC1-N12 (individual p) | individual predicates (Forbidden/Sorry/PayloadSize/Lean) | `{Forbidden,Sorry,PayloadSize}Predicate`, `Lean4Oracle::verify_*` | `lean_verified_required_for_verified_worktx` + `price_never_overrides_predicate` | ✅ |
-| FC1-N13 (wtool) | write tool | `WriteTool::write`, `TuringBus::append_oracle_accepted` | `fc1_no_legacy_authoritative_append` (no direct bus.append bypass) | 🟡 |
+| FC1-N13 (wtool) | write tool | `WriteTool::write`, `TuringBus::append_oracle_accepted` | `fc1_no_legacy_authoritative_append` (no direct bus.append bypass) + Wave 3 50p binding `wave3_50p_chaintape_runtime_repo_present` (50/50 problems exercise sequencer-mediated wtool; runtime_repo/ git substrate present per problem; zero legacy bus.append authoritative writes across 460 cycles) | ✅ |
 | FC1-N14 (Q_{t+1} success) | accepted-branch advance | `append_internal`, `halt_with_reason` | `fc1_predicate_pass_goes_l4` | ✅ |
 | FC1-N15 (Q_t reject branch) | rejection branch (∏p = 0) | `PartialVerdict::Reject`, `BusResult::Vetoed`, sequencer reject arm | `fc1_predicate_fail_goes_l4e` (rejection lands in L4.E, not L4) | ✅ |
 
@@ -121,15 +121,15 @@ These hashes are immutable architectural contracts; if a flowchart changes, that
 |---|---|---|---|---|
 | FC3-N29 (boot) | system boot | `async fn main`, `TuringBus::boot` | `fc2_genesis_report_exists` (FC2 anchor) | ✅ |
 | FC3-N30 (constitution file) | constitution.md as ground truth | `constitution.md` | covered by `tests/fc_alignment_conformance.rs` | 🚫 N/A runtime |
-| FC3-N31 (logs archive) | WAL + L4 archive | `Wal::write_event`, transition_ledger | `fc3_raw_logs_not_in_agent_read_view` | 🟡 |
+| FC3-N31 (logs archive) | WAL + L4 archive | `Wal::write_event`, transition_ledger | `fc3_raw_logs_not_in_agent_read_view` + Wave 3 50p binding `wave3_50p_shielding_evidence_capsule_routes_via_cid` + `wave3_50p_shielding_no_orphan_raw_bodies` (capsule shell max 485B / 41 instances; raw_log companion 1:1 capsule/companion proves CID-routed isolation across 2074-CAS-object aggregate) + FC3 evidence binding `fc3_inv3_raw_logs_size_bound` | ✅ |
 | FC3-N32 (JudgeAI) | external veto agent (Codex/Gemini) | external | `fc3_judgeai_veto_only` | ✅ |
-| FC3-N33 (ArchitectAI) | external propose agent | external (Claude code editing) | `fc3_architectai_proposal_not_direct_write` | 🟡 |
+| FC3-N33 (ArchitectAI) | external propose agent | external (Claude code editing) | `fc3_architectai_proposal_not_direct_write` + FC3 evidence binding `fc3_inv7_architect_proposes_no_direct_write_git_witness` (full git-author scan: only project-role authors `gretjia` / `Claude`; zero `codex@` / `gemini@` / `judgeai` / `architect_direct` / `audit-role` markers across the entire history) | ✅ |
 | FC3-N34 (readonly guard) | constitution + logs read-only | WAL append-only semantics | `fc3_no_automatic_predicate_mutation` | ✅ |
 | FC3-N35 (anti-oreo top→agents→tools) | top-only does signal mgmt | `evaluate_predicates` flow | covered by existing fc_alignment_conformance | ✅ |
 | FC3-N36 (agents) | swarm of N agents | `let agent_ids` round-robin | covered by existing | ✅ |
 | FC3-N37 (tools) | bottom tools (rtool/wtool) | `TuringTool` trait | covered by existing | ✅ |
 | FC3-N38 (Q update) | Q-delta application via wtool | sequencer dispatch | `fc1_predicate_pass_goes_l4` (FC1 anchor) | ✅ |
-| FC3-N39 (markov / capsule) | Markov capsule (TB-15+) | `markov_capsule.rs` | `fc3_capsule_derived_from_tape_cas` + `fc3_no_global_markov_pointer` | 🟡 |
+| FC3-N39 (markov / capsule) | Markov capsule (TB-15+) | `markov_capsule.rs` | `fc3_capsule_derived_from_tape_cas` + `fc3_no_global_markov_pointer` + FC3 evidence binding `fc3_inv4_capsule_context_only_replay_determinism` (replay-determinism witness: capsule context-only constraint enforced under load) + Wave 3 50p audit pointer-discipline (no `LATEST_MARKOV_CAPSULE.txt` global pointer survives the run) | ✅ |
 | FC3-N40 (override) | deep-history override | `TURINGOS_MARKOV_OVERRIDE=1` | `fc3_deep_history_requires_override` | ✅ |
 
 ### FC3 invariant battery (TB-C0 NEW gate tests)
