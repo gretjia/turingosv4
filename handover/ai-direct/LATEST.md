@@ -6,6 +6,68 @@
 
 ---
 
+## ✅ Session #33 close 2026-05-10 — post Stage C forward defense + M0 evidence batch
+
+**HEAD on local main**: `ed0555f` (3 commits ahead of `origin/main` `bf45a2b`).
+**Push status**: pushed at session close (see `git log origin/main` for sync).
+**Session scope**: forward queue from boot prompt (d → a) + two regressions surfaced by M0 batch closed. Strict-constitution stance ("我不要凑活") preserved across all decisions.
+
+### What landed (3 commits, all Class 1-2)
+
+| Commit | Subject | Δ gates / workspace |
+|--------|---------|---------------------|
+| `8de75aa` | Stage C ship hygiene — P-M7 doctest + TB-13 RationalPrice token exemption | 2 pre-existing P-M7 ship gaps closed (workspace 1392/2-flaky → 1394/0/151 serial baseline) |
+| `5e6d7c7` | constitution_admission_no_fail_open_default gate — Stage C R2 Q10 forward defense | gates 241→250 (+9); workspace 1385→1394 (+9) |
+| `ed0555f` | audit_tape_tamper 3/3 detection — close TB-16-era multi-ref drift | gates 250→259 (+9); workspace 1394→1403 (+9); Trust Root rehashed `src/runtime/mod.rs` (33ff0897 → 8cde3e8a) |
+
+### M0 batch evidence (real DeepSeek + real Lean, ChainTape-backed)
+
+**Path**: `handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/` (untracked; per `feedback_no_retroactive_evidence_rewrite` evidence is write-once; not committed because dynamic-state).
+**HEAD at run**: `5e6d7c7` (post-(d), pre-tamper-fix).
+**Wall-clock**: 1777s (~30 min) for 20 problems.
+**Cost**: ~$1-3 (within boot-prompt §3 estimate; per-problem token usage TBD if user wants `cost_aggregator` analysis).
+
+| Metric | Value |
+|---|---|
+| Audit verdict | 16 PROCEED / 0 BLOCK / 4 ERROR |
+| Replay byte-identical | 16/20 |
+| Tamper 3-of-3 detected (pre-fix) | 0/20 (1/3 universal) |
+| Tamper 3-of-3 detected (post-fix, sampled P01 + P05) | 3/3 each — fix empirically validated |
+| Evaluator outcome | 8 solved / 7 exhausted / 5 error_or_no_pput |
+
+### Constitutional findings (in-flight; deferred per user 2026-05-10)
+
+- **Economy-aware agent prompt gap** (`memory/project_economy_prompt_landing_gap.md`):
+  v4 prompt advertises `invest` tool that is runtime-disabled (TB-9 collapse 2026-05-02); broader economy (stake/escrow/reward) invisible to agent. User REJECTED quick-fix kludge: "我要宪法的完整落地，我不要凑活，但是可以等M0实际结果来决定v4的机制如何修正". Decision (Option A v3-style explicit LAW / B minimal awareness / C TB-12+ synchronized) deferred. Reference: `~/projects/turingosv3/experiments/zeta_sum_proof/prompt/skill.txt`.
+- **L4.E body integrity gap** (documented in `tests/constitution_audit_tamper_3_of_3.rs::l4_refs_is_strict_subset_of_chain_refs_excluding_l4e`):
+  `audit_assertions::run_all_assertions` doesn't deep-verify L4.E rejection_record bodies (only chain-linkage). Tampering an L4.E body is silent at audit-time. Forward gap; constitutionally separate from the L4 detection that was closed in `ed0555f`.
+
+### N=1 economy-on-tape diagnosis (verified empirically)
+
+User question 2026-05-10: "agent N=1时，也要能从tape上看到经济制度落地，因为agent是自由的". **Answer: yes, verified.** M0 P01 chain tape `tx_kind_counts`: `task_open=1 + escrow_lock=1 + work=1 + verify=1 + finalize_reward=1` (full mint→invest→externalize→verify→settle loop). No N>=2 gate in code; `experiments/minif2f_v4/src/chaintape_mode_gate.rs:22` confirms `oneshot` is the only banned condition (NOT `n1`). Genesis pre-mints to all 10 pool agents + sponsor + user agent regardless of N.
+
+### Validation baseline at session #33 close
+
+| Check | Value |
+|---|---|
+| HEAD | `ed0555f` (local main; pushed) |
+| Constitution gates | 259/0/1 |
+| Workspace tests (--test-threads=1) | 1403/0/151 |
+| Trust Root | PASS (post `src/runtime/mod.rs` rehash) |
+| FC1 / FC2 / FC3 | all GREEN |
+
+### Forward queue (post-session-#33)
+
+| Item | Class | Status |
+|---|---|---|
+| Option A/B/C economy-aware prompt landing | TBD | DEFERRED until user picks path; gated on this session's M0 evidence (now available) |
+| M0 4/20 ERROR root-cause investigation | 1-2 | OPEN — not blocking; could be tamper-related, audit-load related, or per-problem evaluator issue |
+| L4.E body integrity verification (audit_assertions extension) | 2-3 | OPEN — forward defense; closes the silent-L4.E-tamper class |
+| M1 mini batch (8p × n3) | 2-3 | ELIGIBLE per session #32 user grant (post-Polymarket-landing real-problem testing); recommend after Option A/B/C resolved so M1 includes correct prompt |
+| Stage D real-world readiness | architect | DEFERRED behind explicit ship gate |
+
+---
+
 ## 🔴 Stage C Polymarket — VETOED + ROLLED BACK 2026-05-09 session #28
 
 **HEAD**: `01dd825` (rollback commit) on top of `72dabe1` (VETO + remediation directives) on top of `e0ed12c` (P-M1 SHIPPED, last pre-Stage-C-Class-4 commit).
