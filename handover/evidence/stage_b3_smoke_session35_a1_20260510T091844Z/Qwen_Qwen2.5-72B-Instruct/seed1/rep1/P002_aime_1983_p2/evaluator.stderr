@@ -1,0 +1,63 @@
+[2026-05-10T09:39:19Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/aime_1983_p2.lean | Condition: n1 | Model: Qwen/Qwen2.5-72B-Instruct | Mode: full
+[2026-05-10T09:39:19Z INFO  minif2f_v4::chain_runtime] [chaintape/d3] pre-seed enabled (TB-10 factory): 12 entries
+[2026-05-10T09:39:20Z INFO  minif2f_v4::chain_runtime] [chaintape] bus wired with Sequencer + on-disk ChainTape at "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_smoke_session35_a1_20260510T091844Z/Qwen_Qwen2.5-72B-Instruct/seed1/rep1/P002_aime_1983_p2/runtime_repo"
+[2026-05-10T09:39:20Z INFO  evaluator] [chaintape/d3] preseed TaskOpen for task-n1_aime_1983_p2_1778405959756
+[2026-05-10T09:39:20Z INFO  evaluator] [chaintape/d3] preseed EscrowLock 100000 micro for task-n1_aime_1983_p2_1778405959756
+[2026-05-10T09:39:20Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic TaskOpen for smoke-n1_aime_1983_p2_1778405959756
+[2026-05-10T09:39:20Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic zero-stake WorkTx (synthetic_rejection_for_l4e_gate=true) for smoke-n1_aime_1983_p2_1778405959756
+[2026-05-10T09:39:20Z INFO  minif2f_v4::chain_runtime] [chaintape] Atom 5 audit-trail records written to CAS + indexed for smoke-n1_aime_1983_p2_1778405959756
+[2026-05-10T09:39:20Z INFO  minif2f_v4::chain_runtime] [chaintape/d_c] genesis_report.json written to "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_smoke_session35_a1_20260510T091844Z/Qwen_Qwen2.5-72B-Instruct/seed1/rep1/P002_aime_1983_p2/runtime_repo"
+[2026-05-10T09:39:20Z INFO  evaluator] [swarm/n1] agent_models = [Qwen/Qwen2.5-72B-Instruct] (label=Qwen/Qwen2.5-72B-Instruct)
+[2026-05-10T09:39:20Z INFO  evaluator] [budget] regime=total_proposal base=200 effective_max_tx=200 (n_agents=1)
+[2026-05-10T09:39:20Z INFO  evaluator] [swarm/n1] Agent_0:skill0:t=0.20
+[2026-05-10T09:39:32Z WARN  evaluator] [tx 0] step rejected (err:rewrite_no_match): <stdin>:15:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-10T09:39:46Z WARN  evaluator] [tx 1] step rejected (err:unexpected_token): <stdin>:15:190: error: unexpected token ']'; expected ')', ',' or ':'
+[2026-05-10T09:39:59Z INFO  evaluator] [tx 2] Agent_0 step+tx_0_by_Agent_0 partial OK (depth=1)
+[2026-05-10T09:40:10Z WARN  evaluator] [tx 3] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:16:203: error: unexpected token ','; expected command
+[2026-05-10T09:40:22Z WARN  evaluator] [tx 4] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:16:203: error: unexpected token ','; expected command
+[2026-05-10T09:40:34Z INFO  evaluator] [tx 5] Agent_0 step+tx_1_by_Agent_0 partial OK (depth=2)
+[2026-05-10T09:40:52Z INFO  evaluator] [tx 6] Agent_0 step+tx_2_by_Agent_0 partial OK (depth=3)
+[2026-05-10T09:41:05Z INFO  evaluator] [tx 7] Agent_0 step+tx_3_by_Agent_0 partial OK (depth=4)
+[2026-05-10T09:41:20Z INFO  evaluator] [tx 8] Agent_0 step+tx_4_by_Agent_0 partial OK (depth=5)
+[2026-05-10T09:41:35Z INFO  evaluator] [tx 9] Agent_0 step+tx_5_by_Agent_0 partial OK (depth=6)
+[2026-05-10T09:41:48Z INFO  evaluator] [tx 10] Agent_0 step+tx_6_by_Agent_0 partial OK (depth=7)
+[2026-05-10T09:42:06Z WARN  evaluator] [tx 11] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:22:203: error: unexpected token ','; expected command
+[2026-05-10T09:42:25Z INFO  evaluator] [tx 12] Agent_0 step+tx_7_by_Agent_0 partial OK (depth=8)
+[2026-05-10T09:43:22Z INFO  evaluator] [tx 13] Agent_0 step+tx_8_by_Agent_0 partial OK (depth=9)
+[2026-05-10T09:43:32Z INFO  evaluator] [tx 14] Agent_0 step+tx_9_by_Agent_0 partial OK (depth=10)
+[2026-05-10T09:43:44Z INFO  evaluator] [tx 15] Agent_0 step+tx_10_by_Agent_0 partial OK (depth=11)
+[2026-05-10T09:43:55Z INFO  evaluator] [tx 16] Agent_0 step+tx_11_by_Agent_0 partial OK (depth=12)
+[2026-05-10T09:44:09Z INFO  evaluator] [tx 17] Agent_0 step+tx_12_by_Agent_0 partial OK (depth=13)
+[2026-05-10T09:44:23Z INFO  evaluator] [tx 18] Agent_0 step+tx_13_by_Agent_0 partial OK (depth=14)
+[2026-05-10T09:44:35Z INFO  evaluator] [tx 19] Agent_0 step+tx_14_by_Agent_0 partial OK (depth=15)
+[2026-05-10T09:44:35Z INFO  evaluator] [tick@tx20] tape=15 markets=0 top=
+[2026-05-10T09:44:46Z INFO  evaluator] [tx 20] Agent_0 step+tx_15_by_Agent_0 partial OK (depth=16)
+[2026-05-10T09:44:57Z INFO  evaluator] [tx 21] Agent_0 step+tx_16_by_Agent_0 partial OK (depth=17)
+[2026-05-10T09:45:06Z INFO  evaluator] [tx 22] Agent_0 step+tx_17_by_Agent_0 partial OK (depth=18)
+[2026-05-10T09:45:17Z INFO  evaluator] [tx 23] Agent_0 step+tx_18_by_Agent_0 partial OK (depth=19)
+[2026-05-10T09:45:29Z INFO  evaluator] [tx 24] Agent_0 step+tx_19_by_Agent_0 partial OK (depth=20)
+[2026-05-10T09:45:41Z INFO  evaluator] [tx 25] Agent_0 step+tx_20_by_Agent_0 partial OK (depth=21)
+[2026-05-10T09:45:59Z INFO  evaluator] [tx 26] Agent_0 step+tx_21_by_Agent_0 partial OK (depth=22)
+[2026-05-10T09:46:11Z INFO  evaluator] [tx 27] Agent_0 step+tx_22_by_Agent_0 partial OK (depth=23)
+[2026-05-10T09:46:22Z INFO  evaluator] [tx 28] Agent_0 step+tx_23_by_Agent_0 partial OK (depth=24)
+[2026-05-10T09:46:36Z INFO  evaluator] [tx 29] Agent_0 step+tx_24_by_Agent_0 partial OK (depth=25)
+[2026-05-10T09:46:49Z INFO  evaluator] [tx 30] Agent_0 step+tx_25_by_Agent_0 partial OK (depth=26)
+[2026-05-10T09:46:59Z INFO  evaluator] [tx 31] Agent_0 step+tx_26_by_Agent_0 partial OK (depth=27)
+[2026-05-10T09:47:14Z INFO  evaluator] [tx 32] Agent_0 step+tx_27_by_Agent_0 partial OK (depth=28)
+[2026-05-10T09:47:28Z INFO  evaluator] [tx 33] Agent_0 step+tx_28_by_Agent_0 partial OK (depth=29)
+[2026-05-10T09:47:42Z INFO  evaluator] [tx 34] Agent_0 step+tx_29_by_Agent_0 partial OK (depth=30)
+[2026-05-10T09:47:53Z INFO  evaluator] [tx 35] Agent_0 step+tx_30_by_Agent_0 partial OK (depth=31)
+[2026-05-10T09:48:06Z INFO  evaluator] [tx 36] Agent_0 step+tx_31_by_Agent_0 partial OK (depth=32)
+[2026-05-10T09:48:18Z INFO  evaluator] [tx 37] Agent_0 step+tx_32_by_Agent_0 partial OK (depth=33)
+[2026-05-10T09:48:30Z INFO  evaluator] [tx 38] Agent_0 step+tx_33_by_Agent_0 partial OK (depth=34)
+[2026-05-10T09:48:41Z INFO  evaluator] [tx 39] Agent_0 step+tx_34_by_Agent_0 partial OK (depth=35)
+[2026-05-10T09:48:41Z INFO  evaluator] [tick@tx40] tape=35 markets=0 top=
+[2026-05-10T09:48:54Z INFO  evaluator] [tx 40] Agent_0 step+tx_35_by_Agent_0 partial OK (depth=36)
+[2026-05-10T09:49:07Z INFO  evaluator] [tx 41] Agent_0 step+tx_36_by_Agent_0 partial OK (depth=37)
+[2026-05-10T09:49:21Z INFO  evaluator] [tx 42] Agent_0 step+tx_37_by_Agent_0 partial OK (depth=38)
+[2026-05-10T09:49:30Z WARN  evaluator] [tb18-atomA] WallClockCap halt: aggregate 609 sec exhausted (cap=600s); total_calls=44
+[v2-emit] SPLIT env unset; defaulting to 'adaptation' (Phase B convention; pre-registration requires SPLIT for Phase C+ ablation runs)
+[2026-05-10T09:49:30Z INFO  evaluator] [tb11] EvidenceCapsule written: capsule_id=6fbc8c6ad271cf64350072f812573ccb20a3c4c0337760f3dbdf8e7a2ab5fc4a compressed_log_cid=8d83c6cea1b73c7336577e8049dca019bff00b9b16336315e2095af5658123a4 attempt_count=43
+[2026-05-10T09:49:30Z INFO  evaluator] [tb11] TerminalSummary emitted: emit_id=1
+[2026-05-10T09:49:30Z INFO  evaluator] [chaintape] Atom 6 RunSummary written (3 L4 + 7 L4.E entries; 3 accepted_tx_ids, 7 rejected_tx_ids)
+[2026-05-10T09:49:30Z INFO  evaluator] PPUT = 0 (no golden path in 610.4s, 200 tx)

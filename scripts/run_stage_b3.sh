@@ -418,6 +418,18 @@ for MODEL in "${MODELS[@]}"; do
                 # `cas_runtime_repo`) breaking the canonical evidence shape
                 # of `<cell>/{runtime_repo,cas}/` per mini-M1 R6 + replay
                 # tooling expectation. Setting explicitly aligns to mini-M1.
+                # TB-N1-AGENT-ECONOMY A1 (session #35 2026-05-10): enable
+                # genesis preseed so each Agent_i starts at 1 Coin balance.
+                # Without this, balances_t={} at genesis and Agent_i can't
+                # pass admission with stake>0 → economy never activates at
+                # agent layer (witnessed empirically in
+                # stage_b3_smoke_session35_20260510T082517Z 6/6 cells:
+                # initial_balances=[] + accepted_tx_ids only TaskOpen +
+                # terminal-summary; no EscrowLockTx visible). Per
+                # `chain_runtime.rs:160` env-default-off design,
+                # `comprehensive_arena.rs:933` and `lean_market.rs:229`
+                # explicitly set this; M2 / Stage B3 batch must too per
+                # CLAUDE.md §13 economy-laws constitutional landing.
                 set +e
                 timeout "$PER_PROBLEM_TIMEOUT_S" env \
                     CONDITION="n1" \
@@ -428,6 +440,7 @@ for MODEL in "${MODELS[@]}"; do
                     BOLTZMANN_SEED="$SEED" \
                     TURINGOS_CHAINTAPE_PATH="$CELL_DIR/runtime_repo" \
                     TURINGOS_CAS_PATH="$CELL_DIR/cas" \
+                    TURINGOS_CHAINTAPE_PRESEED="1" \
                     MAX_TX_PER_PROBLEM="$MAX_TX_PER_PROBLEM" \
                     "$EVALUATOR" "$PROBLEM_PATH" \
                     > "$CELL_DIR/evaluator.stdout" \

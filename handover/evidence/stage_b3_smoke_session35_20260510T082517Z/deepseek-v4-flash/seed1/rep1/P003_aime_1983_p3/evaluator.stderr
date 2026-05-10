@@ -1,0 +1,49 @@
+[2026-05-10T08:33:19Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/aime_1983_p3.lean | Condition: n1 | Model: deepseek-v4-flash | Mode: full
+[2026-05-10T08:33:20Z INFO  minif2f_v4::chain_runtime] [chaintape] bus wired with Sequencer + on-disk ChainTape at "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_smoke_session35_20260510T082517Z/deepseek-v4-flash/seed1/rep1/P003_aime_1983_p3/runtime_repo"
+[2026-05-10T08:33:20Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic TaskOpen for smoke-n1_aime_1983_p3_1778401999895
+[2026-05-10T08:33:20Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic zero-stake WorkTx (synthetic_rejection_for_l4e_gate=true) for smoke-n1_aime_1983_p3_1778401999895
+[2026-05-10T08:33:20Z INFO  minif2f_v4::chain_runtime] [chaintape] Atom 5 audit-trail records written to CAS + indexed for smoke-n1_aime_1983_p3_1778401999895
+[2026-05-10T08:33:20Z INFO  minif2f_v4::chain_runtime] [chaintape/d_c] genesis_report.json written to "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_smoke_session35_20260510T082517Z/deepseek-v4-flash/seed1/rep1/P003_aime_1983_p3/runtime_repo"
+[2026-05-10T08:33:20Z INFO  evaluator] [swarm/n1] agent_models = [deepseek-v4-flash] (label=deepseek-v4-flash)
+[2026-05-10T08:33:20Z INFO  evaluator] [budget] regime=total_proposal base=200 effective_max_tx=200 (n_agents=1)
+[2026-05-10T08:33:20Z INFO  evaluator] [swarm/n1] Agent_0:skill0:t=0.20
+[2026-05-10T08:33:28Z WARN  evaluator] [tx 0] step rejected (err:tactic_linarith): <stdin>:13:0: error: linarith failed to find a contradiction
+[2026-05-10T08:33:38Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-10T08:33:38Z WARN  evaluator] [tx 1] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-10T08:33:41Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-10T08:33:41Z WARN  evaluator] [tx 2] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-10T08:33:57Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-10T08:33:57Z WARN  evaluator] [tx 3] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-10T08:34:06Z WARN  evaluator] [tx 4] step rejected (err:tactic_linarith): <stdin>:13:0: error: linarith failed to find a contradiction
+[2026-05-10T08:34:14Z WARN  evaluator] [tx 5] step rejected (err:tactic_linarith): <stdin>:13:0: error: linarith failed to find a contradiction
+[2026-05-10T08:34:23Z WARN  evaluator] [tx 6] step rejected (err:tactic_linarith): <stdin>:13:0: error: linarith failed to find a contradiction
+[2026-05-10T08:34:44Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-10T08:34:44Z WARN  evaluator] [tx 7] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-10T08:34:53Z WARN  evaluator] [tx 8] step rejected (err:tactic_linarith): <stdin>:13:0: error: linarith failed to find a contradiction
+[2026-05-10T08:35:02Z WARN  evaluator] [tx 9] step rejected (err:tactic_linarith): <stdin>:13:0: error: linarith failed to find a contradiction
+[2026-05-10T08:35:23Z WARN  evaluator] [tx 10] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:41:54: error: unexpected token ')'; expected '_' or identifier | <stdin>:14:39: error: failed to synthesize | <stdin>:16:12: error: failed to synthesize
+[2026-05-10T08:35:36Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-10T08:35:36Z WARN  evaluator] [tx 11] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-10T08:35:48Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-10T08:35:48Z WARN  evaluator] [tx 12] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-10T08:35:51Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-10T08:35:51Z WARN  evaluator] [tx 13] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-10T08:36:41Z INFO  evaluator] [tx 14] OMEGA claim by Agent_0 (tape_nodes=0, payload_len=1886)
+[2026-05-10T08:36:48Z WARN  minif2f_v4::lean4_oracle] oracle reject reason (exit=1): <stdin>:11:41: error: unexpected token 'theorem'; expected '{' or tactic | <stdin>:11:39: error: unsolved goals | <stdin>:58:7: error: unexpected token 'in'; expected ','
+[2026-05-10T08:36:48Z WARN  evaluator] [tx 14] OMEGA rejected (err:unexpected_token). payload[0..300]="theorem aime_1983_p3\n  (f : ℝ → ℝ)\n  (h₀ : ∀ x, f x = (x^2 + (18 * x +  30) - 2 * Real.sqrt (x^2 + (18 * x + 45))))\n  (h₁ : Fintype (f⁻¹' {0})) :\n  ∏ x ∈ (f⁻¹' {0}).toFinset, x = 20 := by\n  have h_eq : ∀ x, f x = 0 ↔ x^2 + 18*x + 20 = 0 := by\n    intro x\n    constructor\n    · intro hfx\n      rw [h₀ "
+[2026-05-10T08:36:57Z INFO  evaluator] [tx 15] Agent_0 step+tx_0_by_Agent_0 partial OK (depth=1)
+[2026-05-10T08:37:05Z WARN  evaluator] [tx 16] step rejected (err:tactic_linarith): <stdin>:14:0: error: linarith failed to find a contradiction
+[2026-05-10T08:37:14Z WARN  evaluator] [tx 17] step rejected (err:tactic_linarith): <stdin>:14:0: error: linarith failed to find a contradiction
+[2026-05-10T08:37:22Z WARN  evaluator] [tx 18] step rejected (err:tactic_simp_noprog): <stdin>:14:0: error: `simp` made no progress
+[2026-05-10T08:37:31Z WARN  evaluator] [tx 19] step rejected (err:tactic_linarith): <stdin>:14:0: error: linarith failed to find a contradiction
+[2026-05-10T08:37:31Z INFO  evaluator] [tick@tx20] tape=1 markets=0 top=
+[2026-05-10T08:37:40Z WARN  evaluator] [tx 20] step rejected (err:tactic_linarith): <stdin>:14:0: error: linarith failed to find a contradiction
+[2026-05-10T08:37:48Z WARN  evaluator] [tx 21] step rejected (err:tactic_linarith): <stdin>:14:0: error: linarith failed to find a contradiction
+[2026-05-10T08:37:57Z WARN  evaluator] [tx 22] step rejected (err:tactic_linarith): <stdin>:14:0: error: linarith failed to find a contradiction
+[2026-05-10T08:38:06Z WARN  evaluator] [tx 23] step rejected (err:tactic_linarith): <stdin>:14:0: error: linarith failed to find a contradiction
+[2026-05-10T08:38:08Z WARN  evaluator] [tb18-atomA] DegradedLLM halt: 10 consecutive trivial responses (token_floor=30, cap=10); total_calls=25 trivial_calls=16
+[v2-emit] SPLIT env unset; defaulting to 'adaptation' (Phase B convention; pre-registration requires SPLIT for Phase C+ ablation runs)
+[2026-05-10T08:38:08Z INFO  evaluator] [tb11] EvidenceCapsule written: capsule_id=aab4b1a1826828b272eb7687d430ec5cee2be8b347da5ef631097b91dded94fb compressed_log_cid=1081c1ecc1614d71ff84b40caa8487c4899e4fa8fadf1b3905f70053228159a7 attempt_count=24
+[2026-05-10T08:38:08Z INFO  evaluator] [tb11] TerminalSummary emitted: emit_id=1
+[2026-05-10T08:38:08Z INFO  evaluator] [chaintape] Atom 6 RunSummary written (2 L4 + 23 L4.E entries; 2 accepted_tx_ids, 23 rejected_tx_ids)
+[2026-05-10T08:38:08Z INFO  evaluator] PPUT = 0 (no golden path in 288.3s, 200 tx)

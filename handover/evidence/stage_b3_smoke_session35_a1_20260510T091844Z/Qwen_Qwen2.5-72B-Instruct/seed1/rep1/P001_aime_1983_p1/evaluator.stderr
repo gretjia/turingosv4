@@ -1,0 +1,47 @@
+[2026-05-10T09:33:58Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/aime_1983_p1.lean | Condition: n1 | Model: Qwen/Qwen2.5-72B-Instruct | Mode: full
+[2026-05-10T09:33:58Z INFO  minif2f_v4::chain_runtime] [chaintape/d3] pre-seed enabled (TB-10 factory): 12 entries
+[2026-05-10T09:33:59Z INFO  minif2f_v4::chain_runtime] [chaintape] bus wired with Sequencer + on-disk ChainTape at "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_smoke_session35_a1_20260510T091844Z/Qwen_Qwen2.5-72B-Instruct/seed1/rep1/P001_aime_1983_p1/runtime_repo"
+[2026-05-10T09:33:59Z INFO  evaluator] [chaintape/d3] preseed TaskOpen for task-n1_aime_1983_p1_1778405638749
+[2026-05-10T09:33:59Z INFO  evaluator] [chaintape/d3] preseed EscrowLock 100000 micro for task-n1_aime_1983_p1_1778405638749
+[2026-05-10T09:33:59Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic TaskOpen for smoke-n1_aime_1983_p1_1778405638749
+[2026-05-10T09:33:59Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic zero-stake WorkTx (synthetic_rejection_for_l4e_gate=true) for smoke-n1_aime_1983_p1_1778405638749
+[2026-05-10T09:33:59Z INFO  minif2f_v4::chain_runtime] [chaintape] Atom 5 audit-trail records written to CAS + indexed for smoke-n1_aime_1983_p1_1778405638749
+[2026-05-10T09:33:59Z INFO  minif2f_v4::chain_runtime] [chaintape/d_c] genesis_report.json written to "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_smoke_session35_a1_20260510T091844Z/Qwen_Qwen2.5-72B-Instruct/seed1/rep1/P001_aime_1983_p1/runtime_repo"
+[2026-05-10T09:33:59Z INFO  evaluator] [swarm/n1] agent_models = [Qwen/Qwen2.5-72B-Instruct] (label=Qwen/Qwen2.5-72B-Instruct)
+[2026-05-10T09:33:59Z INFO  evaluator] [budget] regime=total_proposal base=200 effective_max_tx=200 (n_agents=1)
+[2026-05-10T09:33:59Z INFO  evaluator] [swarm/n1] Agent_0:skill0:t=0.20
+[2026-05-10T09:34:12Z WARN  evaluator] [tx 0] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:11:38: error: unexpected token ','; expected command
+[2026-05-10T09:34:23Z WARN  evaluator] [tx 1] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:11:38: error: unexpected token ','; expected command
+[2026-05-10T09:34:35Z WARN  evaluator] [tx 2] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:11:38: error: unexpected token ','; expected command
+[2026-05-10T09:34:49Z WARN  evaluator] [tx 3] step rejected (err:rewrite_no_match): <stdin>:11:8: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-10T09:35:03Z WARN  evaluator] [tx 4] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:11:38: error: unexpected token ','; expected command
+[2026-05-10T09:35:14Z WARN  evaluator] [tx 5] step rejected (err:rewrite_no_match): <stdin>:11:8: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-10T09:35:25Z WARN  evaluator] [tx 6] step rejected (err:rewrite_no_match): <stdin>:11:8: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-10T09:35:36Z WARN  evaluator] [tx 7] step rejected (err:rewrite_no_match): <stdin>:11:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-10T09:35:48Z WARN  evaluator] [tx 8] step rejected (err:rewrite_no_match): <stdin>:11:29: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern in the current goal
+[2026-05-10T09:36:00Z WARN  evaluator] [tx 9] step rejected (err:rewrite_no_match): <stdin>:11:8: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-10T09:36:11Z WARN  evaluator] [tx 10] step rejected (err:rewrite_no_match): <stdin>:11:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-10T09:36:22Z WARN  evaluator] [tx 11] step rejected (err:rewrite_no_match): <stdin>:11:8: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-10T09:36:35Z WARN  evaluator] [tx 12] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:11:38: error: unexpected token ','; expected command
+[2026-05-10T09:36:47Z WARN  evaluator] [tx 13] step rejected (err:rewrite_no_match): <stdin>:11:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-10T09:36:57Z WARN  evaluator] [tx 14] step rejected (err:rewrite_no_match): <stdin>:11:8: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-10T09:37:09Z WARN  evaluator] [tx 15] step rejected (err:rewrite_no_match): <stdin>:11:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-10T09:37:20Z WARN  evaluator] [tx 16] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:11:38: error: unexpected token ','; expected command
+[2026-05-10T09:37:31Z WARN  evaluator] [tx 17] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:11:38: error: unexpected token ','; expected command
+[2026-05-10T09:37:41Z WARN  evaluator] [tx 18] step rejected (err:rewrite_no_match): <stdin>:11:29: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern in the current goal
+[2026-05-10T09:37:52Z INFO  evaluator] [tx 19] Agent_0 step+tx_0_by_Agent_0 partial OK (depth=1)
+[2026-05-10T09:37:52Z INFO  evaluator] [tick@tx20] tape=1 markets=0 top=
+[2026-05-10T09:38:02Z WARN  evaluator] [tx 20] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-10T09:38:13Z WARN  evaluator] [tx 21] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-10T09:38:24Z WARN  evaluator] [tx 22] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress at hw
+[2026-05-10T09:38:34Z WARN  evaluator] [tx 23] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress at hw
+[2026-05-10T09:38:44Z WARN  evaluator] [tx 24] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress at hw
+[2026-05-10T09:38:54Z WARN  evaluator] [tx 25] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress at hw
+[2026-05-10T09:39:05Z WARN  evaluator] [tx 26] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress at hw
+[2026-05-10T09:39:15Z WARN  evaluator] [tx 27] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress at hw
+[2026-05-10T09:39:19Z WARN  evaluator] [tb18-atomA] DegradedLLM halt: 10 consecutive trivial responses (token_floor=30, cap=10); total_calls=29 trivial_calls=10
+[v2-emit] SPLIT env unset; defaulting to 'adaptation' (Phase B convention; pre-registration requires SPLIT for Phase C+ ablation runs)
+[2026-05-10T09:39:19Z INFO  evaluator] [tb11] EvidenceCapsule written: capsule_id=eb8d5c7c45b802fee08e7cf3e1eb9741f9f784d6ad3af4ebc75bf33a08e24809 compressed_log_cid=e5a197664ae68e7c0993c9e4b4a1e1e19358643d73de9738f2b8323848e9467a attempt_count=28
+[2026-05-10T09:39:19Z INFO  evaluator] [tb11] TerminalSummary emitted: emit_id=1
+[2026-05-10T09:39:19Z INFO  evaluator] [chaintape] Atom 6 RunSummary written (3 L4 + 29 L4.E entries; 3 accepted_tx_ids, 29 rejected_tx_ids)
+[2026-05-10T09:39:19Z INFO  evaluator] PPUT = 0 (no golden path in 320.5s, 200 tx)

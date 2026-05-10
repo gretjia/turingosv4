@@ -1,0 +1,3 @@
+Stage B3 batch run log — 2026-05-10T10-13-28Z
+[1/2] model=deepseek-v4-flash seed=1 rep=1 P001 aime_1983_p1 OK verdict=Ok delta=0 halt=MaxTxExhausted expected=12 elapsed=113s
+[2/2] model=Qwen_Qwen2.5-72B-Instruct seed=1 rep=1 P001 aime_1983_p1 OK verdict=Ok delta=0 halt=MaxTxExhausted expected=29 elapsed=312s

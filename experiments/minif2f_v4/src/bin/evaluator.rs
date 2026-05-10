@@ -2095,27 +2095,27 @@ async fn run_swarm(
                 .join(", ")
         };
 
-        // TB-14 Atom 6: query the canonical balance from the live sequencer
-        // when wired (chaintape mode). The TB-9 collapse "balance projection
-        // through snapshot is post-MVP polish" comment at L1353-1357 is
-        // resolved here for the prompt path: pull MicroCoin → Coin via
-        // sequencer.q_snapshot() → economic_state_t.balances_t. Falls back
-        // to 0.0 when bus runs sequencer-less (legacy WAL-only mode).
-        // The `f64` here is purely the prompt-render contract of
-        // `build_agent_prompt(... balance: f64 ...)` — `prompt.rs` is not a
-        // TB-14 module surface (the G-14.11 fence targets `price_index.rs`
-        // only).
-        let prompt_balance: f64 = bus.sequencer.as_ref()
+        // TB-N1-AGENT-ECONOMY A2 (session #35 2026-05-10): render the
+        // agent's full economic position from canonical EconomicState
+        // (balances_t / stakes_t / claims_t / reputations_t) via the
+        // dedicated helper. Pre-A2 a single f64 balance number was passed
+        // to `build_agent_prompt`; A2 replaces it with a structured block
+        // surfacing balance + committed stakes + pending claims +
+        // reputation per CLAUDE.md §13 economy-laws + Art. III.2
+        // progressive disclosure. Falls back to "" (block suppressed) when
+        // bus runs sequencer-less (legacy WAL-only mode); previously this
+        // path rendered "Balance: 0 Coins\n\n".
+        let econ_position: String = bus.sequencer.as_ref()
             .and_then(|seq| seq.q_snapshot().ok())
-            .and_then(|q| q.economic_state_t.balances_t.0
-                .get(&turingosv4::state::AgentId(agent_id.clone()))
-                .copied())
-            .map(|micro| micro.micro_units() as f64 / 1_000_000.0)
-            .unwrap_or(0.0);
+            .map(|q| turingosv4::sdk::econ_position::render_econ_position(
+                &q,
+                &turingosv4::state::AgentId(agent_id.clone()),
+            ))
+            .unwrap_or_default();
 
         let prompt = build_agent_prompt(
             &chain, &skill, &market_ticker_str, &errors, &hits_ref,
-            prompt_balance, tools_desc, &team_board,
+            &econ_position, tools_desc, &team_board,
         );
         // TB-18R R2: SHA-256 of the prompt body for AttemptTelemetry.prompt_context_hash
         // (preflight §3.1: reuse Cid::from_content to avoid adding sha2 direct

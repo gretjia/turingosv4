@@ -1,0 +1,11 @@
+{
+  "schema_version": "stage_b3_summary_v1",
+  "run_tag": "stage_b3_smoke_session35_20260510T082517Z",
+  "completed_at_utc": "2026-05-10T08-58-54Z",
+  "expected_total_invocations": 6,
+  "completed": 6,
+  "skipped_resumed": 0,
+  "failed": 0,
+  "manifest": "BenchmarkManifest.json",
+  "next_step": "Run the aggregate-runner binary (consumes wilson_ci.rs + diversity.rs per CLAUDE.md §17 / FR-18B.5) to emit AggregateReport.json."
+}

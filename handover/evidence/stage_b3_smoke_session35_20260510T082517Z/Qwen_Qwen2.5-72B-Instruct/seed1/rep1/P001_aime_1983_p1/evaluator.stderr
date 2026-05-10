@@ -1,0 +1,33 @@
+[2026-05-10T08:38:08Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/aime_1983_p1.lean | Condition: n1 | Model: Qwen/Qwen2.5-72B-Instruct | Mode: full
+[2026-05-10T08:38:09Z INFO  minif2f_v4::chain_runtime] [chaintape] bus wired with Sequencer + on-disk ChainTape at "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_smoke_session35_20260510T082517Z/Qwen_Qwen2.5-72B-Instruct/seed1/rep1/P001_aime_1983_p1/runtime_repo"
+[2026-05-10T08:38:09Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic TaskOpen for smoke-n1_aime_1983_p1_1778402288574
+[2026-05-10T08:38:09Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic zero-stake WorkTx (synthetic_rejection_for_l4e_gate=true) for smoke-n1_aime_1983_p1_1778402288574
+[2026-05-10T08:38:09Z INFO  minif2f_v4::chain_runtime] [chaintape] Atom 5 audit-trail records written to CAS + indexed for smoke-n1_aime_1983_p1_1778402288574
+[2026-05-10T08:38:09Z INFO  minif2f_v4::chain_runtime] [chaintape/d_c] genesis_report.json written to "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_smoke_session35_20260510T082517Z/Qwen_Qwen2.5-72B-Instruct/seed1/rep1/P001_aime_1983_p1/runtime_repo"
+[2026-05-10T08:38:09Z INFO  evaluator] [swarm/n1] agent_models = [Qwen/Qwen2.5-72B-Instruct] (label=Qwen/Qwen2.5-72B-Instruct)
+[2026-05-10T08:38:09Z INFO  evaluator] [budget] regime=total_proposal base=200 effective_max_tx=200 (n_agents=1)
+[2026-05-10T08:38:09Z INFO  evaluator] [swarm/n1] Agent_0:skill0:t=0.20
+[2026-05-10T08:38:20Z WARN  evaluator] [tx 0] step rejected (err:rewrite_no_match): <stdin>:11:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-10T08:38:31Z WARN  evaluator] [tx 1] step rejected (err:rewrite_no_match): <stdin>:11:8: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-10T08:38:43Z WARN  evaluator] [tx 2] step rejected (err:rewrite_no_match): <stdin>:11:8: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-10T08:38:53Z WARN  evaluator] [tx 3] step rejected (err:rewrite_no_match): hard_error_with_unsolved: <stdin>:11:49: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-10T08:39:02Z WARN  evaluator] [tx 4] step rejected (err:rewrite_no_match): <stdin>:11:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-10T08:39:14Z WARN  evaluator] [tx 5] step rejected (err:rewrite_no_match): <stdin>:11:8: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-10T08:39:30Z WARN  evaluator] [tx 6] step rejected (err:rewrite_no_match): <stdin>:11:8: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-10T08:39:51Z WARN  evaluator] [tx 7] step rejected (err:rewrite_no_match): <stdin>:11:8: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-10T08:40:09Z WARN  evaluator] [tx 8] step rejected (err:rewrite_no_match): <stdin>:11:8: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-10T08:40:32Z WARN  evaluator] [tx 9] step rejected (err:rewrite_no_match): <stdin>:11:8: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-10T08:40:44Z WARN  evaluator] [tx 10] step rejected (err:rewrite_no_match): <stdin>:11:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-10T08:40:55Z WARN  evaluator] [tx 11] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:11:38: error: unexpected token ','; expected command
+[2026-05-10T08:41:08Z WARN  evaluator] [tx 12] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:11:38: error: unexpected token ','; expected command
+[2026-05-10T08:41:20Z WARN  evaluator] [tx 13] step rejected (err:rewrite_no_match): <stdin>:11:8: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-10T08:41:30Z WARN  evaluator] [tx 14] step rejected (err:rewrite_no_match): <stdin>:11:8: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-10T08:41:42Z WARN  evaluator] [tx 15] step rejected (err:rewrite_no_match): <stdin>:11:29: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern in the current goal
+[2026-05-10T08:41:52Z WARN  evaluator] [tx 16] step rejected (err:rewrite_no_match): <stdin>:11:8: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-10T08:42:03Z WARN  evaluator] [tx 17] step rejected (err:rewrite_no_match): <stdin>:11:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-10T08:52:01Z WARN  evaluator] [tb18-atomA] WallClockCap halt: aggregate 832 sec exhausted (cap=600s); total_calls=19
+[v2-emit] SPLIT env unset; defaulting to 'adaptation' (Phase B convention; pre-registration requires SPLIT for Phase C+ ablation runs)
+[2026-05-10T08:52:02Z INFO  evaluator] [tb11] EvidenceCapsule written: capsule_id=5a6d4e2d6a9b493cf5f319782f97d9e018402e9c0419840e6b8de72aa4b4f359 compressed_log_cid=32609536c6b35b1ca532ba41cd42f02ff5036821abbadbfe259b5cd4905e980e attempt_count=18
+[2026-05-10T08:52:02Z INFO  evaluator] [tb11] TerminalSummary emitted: emit_id=1
+[2026-05-10T08:52:02Z INFO  evaluator] [chaintape] Atom 6 RunSummary written (2 L4 + 19 L4.E entries; 2 accepted_tx_ids, 19 rejected_tx_ids)
+[2026-05-10T08:52:02Z INFO  evaluator] PPUT = 0 (no golden path in 833.4s, 200 tx)
