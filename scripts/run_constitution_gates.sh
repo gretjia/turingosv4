@@ -345,6 +345,23 @@ GATES=(
   # / PoolStatus::Active / EventState::Open) in src/state/sequencer.rs.
   # 1 main test on real source + 8 self-checks = 9 tests.
   constitution_admission_no_fail_open_default
+
+  # M0 batch 2026-05-10 surfaced TB-16-era tamper drift — `audit_tape_tamper`
+  # detected only 1/3 (vs architect §B.9.3 mandated 3/3) because the
+  # in-binary primitives picked the largest loose object regardless of
+  # reachability (post-A3 multi-ref made orphan blobs > chain blobs) and
+  # truncated only `refs/transitions/main` (alias) without canonical
+  # `refs/chaintape/l4`. Fix: tamper primitives moved to library
+  # `src/runtime/audit_tamper.rs` with reachability filtering (L4_REFS
+  # only — audit deep-verifies L4 entry_canonical bodies but not L4.E
+  # rejection_record bodies) + dual-ref truncation (CHAIN_REFS = L4 +
+  # L4.E + alias). This gate is the executable face of the constitutional
+  # invariant: 9 tests covering chain-ref-list completeness, L4-vs-L4.E
+  # semantic split, reachability filtering, dual-ref truncation,
+  # alias-only backward-compat, error-on-no-chain-refs, CAS tamper.
+  # Empirical 3/3 validation against M0 P01 + P05 fixtures verified
+  # post-fix; per `feedback_no_workarounds_strict_constitution`.
+  constitution_audit_tamper_3_of_3
 )
 
 # Run each gate file separately and collect per-test outcome.

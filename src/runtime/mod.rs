@@ -91,6 +91,17 @@ pub mod aggregate_report;
 /// signal. Pure functions; no state mutation; replay-deterministic.
 pub mod audit_views;
 
+/// TRACE_MATRIX FC1-N35 + FC2-INV1 (M0 batch 2026-05-10 surfaced TB-16-era
+/// drift): `audit_tamper` — three corruption primitives used by the
+/// `audit_tape_tamper` binary harness. Constitutional Justification:
+/// architect §B.9.3 mandates "prove no fake accepted" via 3/3 tamper
+/// detection. Stage A3 multi-ref ChainTape (refs/chaintape/{l4,l4e,cas})
+/// invalidated TB-16-era assumptions (largest-by-bytes blob + alias-only
+/// ref truncation); the M0 P01 evidence showed 1/3 detection. Library
+/// API is exercised by `tests/constitution_audit_tamper_3_of_3.rs` so
+/// future drift is gate-time-caught. See `feedback_no_workarounds_strict_constitution`.
+pub mod audit_tamper;
+
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 

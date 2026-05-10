@@ -40,12 +40,27 @@
 //!   2  — invalid args / I/O failure
 //!
 //! TRACE_MATRIX FC1-N35 (audit_tape_tamper binary; design §6.2 #36-#38).
+//!
+//! TRACE_MATRIX TB-16 Atom 7 R1 (Codex Q7/V5 closure 2026-05-04):
+//! the destructive zlib-decode-failure tamper primitives originally lived in
+//! this binary as `flip_byte_in_first_blob` + `flip_byte_in_first_cas_object`.
+//!
+//! TRACE_MATRIX TB-16 Atom 7 R1 (Codex Q7/V5 closure 2026-05-04):
+//! moved to library `turingosv4::runtime::audit_tamper` 2026-05-10 session
+//! #33 after M0 batch surfaced multi-ref drift (orphan-blob silent
+//! corruption + alias-only ref truncation; M0 P01 evidence showed 1/3 vs
+//! architect §B.9.3 mandated 3/3). Library `pub fn` carry the same anchor
+//! (FC1-N35 + FC2-INV1 + architect §B.9.3 prove-no-fake-accepted). See
+//! `feedback_no_workarounds_strict_constitution`.
 
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use turingosv4::runtime::audit_assertions::{
     run_all_assertions, summarize_results, AuditInputs, TapeAuditVerdict,
+};
+use turingosv4::runtime::audit_tamper::{
+    corrupt_chain_refs, flip_largest_cas_object, flip_largest_reachable_l4_blob,
 };
 
 #[derive(Debug, Clone)]
@@ -240,137 +255,9 @@ fn run_audit(args: &Args, runtime: &Path, cas: &Path) -> Result<TapeAuditVerdict
     summarize_results(&inputs, results).map_err(|e| format!("summarize: {e}"))
 }
 
-fn make_writable(path: &Path) -> std::io::Result<()> {
-    let mut perms = std::fs::metadata(path)?.permissions();
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        perms.set_mode(0o644);
-    }
-    #[cfg(not(unix))]
-    {
-        perms.set_readonly(false);
-    }
-    std::fs::set_permissions(path, perms)
-}
-
-/// TRACE_MATRIX TB-16 Atom 7 R1 (Codex Q7/V5 closure 2026-05-04):
-/// destructively corrupt the largest loose object in `.git/objects/`.
-/// Single-byte flip was insufficient — zlib partial recovery + git2
-/// pack-vs-loose redundancy meant the verdict would still PROCEED.
-/// Overwriting half the bytes with zeros guarantees zlib decode failure
-/// → git2 walk_parent error → replay BLOCK.
-fn flip_byte_in_first_blob(repo: &Path) -> Result<String, String> {
-    let objects = repo.join(".git").join("objects");
-    let mut largest: Option<(PathBuf, u64)> = None;
-    fn walk(dir: &Path, largest: &mut Option<(PathBuf, u64)>) -> std::io::Result<()> {
-        for entry in std::fs::read_dir(dir)? {
-            let e = entry?;
-            let p = e.path();
-            if p.is_dir() {
-                // Skip pack/info subdirs; only target loose objects in xx/yyyy...
-                let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
-                if name == "pack" || name == "info" {
-                    continue;
-                }
-                walk(&p, largest)?;
-            } else {
-                let len = std::fs::metadata(&p).map(|m| m.len()).unwrap_or(0);
-                if largest.as_ref().map(|(_, n)| *n).unwrap_or(0) < len {
-                    *largest = Some((p, len));
-                }
-            }
-        }
-        Ok(())
-    }
-    walk(&objects, &mut largest).map_err(|e| format!("walk: {e}"))?;
-    let (victim, len) = largest.ok_or("no loose objects to corrupt")?;
-    let mut bytes = std::fs::read(&victim).map_err(|e| format!("read victim: {e}"))?;
-    if bytes.is_empty() {
-        return Err("empty victim".into());
-    }
-    // Overwrite the back half with zero bytes — guarantees zlib decode
-    // fails (compressed streams have framing in the early bytes, but
-    // mid-stream corruption is reliably detected by inflate).
-    let start = bytes.len() / 2;
-    for b in &mut bytes[start..] {
-        *b = 0;
-    }
-    make_writable(&victim).map_err(|e| format!("chmod victim: {e}"))?;
-    std::fs::write(&victim, bytes).map_err(|e| format!("write tampered: {e}"))?;
-    Ok(format!(
-        "destructively zeroed back half ({} bytes) of largest loose object {:?}",
-        len / 2,
-        victim
-    ))
-}
-
-/// TRACE_MATRIX TB-16 Atom 7 R1 (Codex Q7/V5 closure 2026-05-04):
-/// destructively corrupt the largest CAS loose object. Same rationale
-/// as flip_byte_in_first_blob — single-byte flip is recoverable;
-/// zeroing the back half guarantees Cid mismatch + zlib failure on read.
-fn flip_byte_in_first_cas_object(cas: &Path) -> Result<String, String> {
-    let objects = cas.join(".git").join("objects");
-    let dir = if objects.exists() { objects } else { cas.to_path_buf() };
-    let mut largest: Option<(PathBuf, u64)> = None;
-    fn walk(dir: &Path, largest: &mut Option<(PathBuf, u64)>) -> std::io::Result<()> {
-        for entry in std::fs::read_dir(dir)? {
-            let e = entry?;
-            let p = e.path();
-            if p.is_dir() {
-                let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
-                if name == "pack" || name == "info" {
-                    continue;
-                }
-                walk(&p, largest)?;
-            } else {
-                let len = std::fs::metadata(&p).map(|m| m.len()).unwrap_or(0);
-                if len > 32 && largest.as_ref().map(|(_, n)| *n).unwrap_or(0) < len {
-                    *largest = Some((p, len));
-                }
-            }
-        }
-        Ok(())
-    }
-    walk(&dir, &mut largest).map_err(|e| format!("walk: {e}"))?;
-    let (victim, len) = largest.ok_or("no CAS objects to corrupt")?;
-    let mut bytes = std::fs::read(&victim).map_err(|e| format!("read victim: {e}"))?;
-    let start = bytes.len() / 2;
-    for b in &mut bytes[start..] {
-        *b = 0;
-    }
-    make_writable(&victim).map_err(|e| format!("chmod victim: {e}"))?;
-    std::fs::write(&victim, bytes).map_err(|e| format!("write tampered: {e}"))?;
-    Ok(format!(
-        "destructively zeroed back half ({} bytes) of largest CAS object {:?}",
-        len / 2,
-        victim
-    ))
-}
-
-fn corrupt_l4_truncate_ref(repo: &Path) -> Result<String, String> {
-    // Easiest deterministic-ish corruption: truncate the L4 chain by
-    // moving the refs/transitions/main ref back one commit. We don't
-    // try to walk parent OIDs in pure Rust here; instead we corrupt
-    // the ref file's hex by zeroing the last 4 hex chars — which makes
-    // the ref unresolvable, causing Git2LedgerWriter::open() or
-    // .read_at() to error → audit_tape returns BLOCK.
-    let ref_path = repo.join(".git").join("refs").join("transitions").join("main");
-    let alt_ref = repo.join(".git").join("HEAD");
-    let target = if ref_path.exists() { ref_path } else { alt_ref };
-    let s = std::fs::read_to_string(&target).map_err(|e| format!("read ref: {e}"))?;
-    if s.len() < 5 {
-        return Err("ref too short to corrupt".into());
-    }
-    let mut chars: Vec<char> = s.chars().collect();
-    let n = chars.len();
-    for i in (n - 5)..(n - 1) {
-        chars[i] = '0';
-    }
-    let zeroed: String = chars.into_iter().collect();
-    std::fs::write(&target, zeroed).map_err(|e| format!("write ref: {e}"))?;
-    Ok(format!("zeroed last 4 hex chars in {target:?}"))
-}
+// Tamper apply primitives moved to library `turingosv4::runtime::audit_tamper`
+// (M0 batch 2026-05-10 surfaced TB-16-era multi-ref drift; backlinks at
+// module-doc head). Library imports above; binary now thin orchestrator.
 
 #[derive(serde::Serialize)]
 struct TamperReport {
@@ -485,13 +372,13 @@ fn main() -> ExitCode {
     }
 
     let r1 = run_tamper("flip_l4_byte", &args, |runtime, _cas| {
-        flip_byte_in_first_blob(runtime)
+        flip_largest_reachable_l4_blob(runtime)
     });
     let r2 = run_tamper("flip_cas_byte", &args, |_runtime, cas| {
-        flip_byte_in_first_cas_object(cas)
+        flip_largest_cas_object(cas)
     });
     let r3 = run_tamper("truncate_l4_ref", &args, |runtime, _cas| {
-        corrupt_l4_truncate_ref(runtime)
+        corrupt_chain_refs(runtime)
     });
     let detected = [r1.detected, r2.detected, r3.detected];
     let total_detected = detected.iter().filter(|x| **x).count();
