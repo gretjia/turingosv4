@@ -1,0 +1,27 @@
+[2026-05-10T22:51:16Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/aime_1983_p2.lean | Condition: n2 | Model: Qwen/Qwen2.5-72B-Instruct | Mode: full
+[2026-05-10T22:51:16Z INFO  minif2f_v4::chain_runtime] [chaintape/d3] pre-seed enabled (TB-10 factory): 12 entries
+[2026-05-10T22:51:18Z INFO  minif2f_v4::chain_runtime] [chaintape] bus wired with Sequencer + on-disk ChainTape at "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_smoke_a4_20260510T222030Z/Qwen_Qwen2.5-72B-Instruct/seed1/rep1/P002_aime_1983_p2/runtime_repo"
+[2026-05-10T22:51:18Z INFO  evaluator] [chaintape/d3] preseed TaskOpen for task-n2_aime_1983_p2_1778453476976
+[2026-05-10T22:51:18Z INFO  evaluator] [chaintape/d3] preseed EscrowLock 100000 micro for task-n2_aime_1983_p2_1778453476976
+[2026-05-10T22:51:18Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic TaskOpen for smoke-n2_aime_1983_p2_1778453476976
+[2026-05-10T22:51:18Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic zero-stake WorkTx (synthetic_rejection_for_l4e_gate=true) for smoke-n2_aime_1983_p2_1778453476976
+[2026-05-10T22:51:18Z INFO  minif2f_v4::chain_runtime] [chaintape] Atom 5 audit-trail records written to CAS + indexed for smoke-n2_aime_1983_p2_1778453476976
+[2026-05-10T22:51:18Z INFO  minif2f_v4::chain_runtime] [chaintape/d_c] genesis_report.json written to "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_smoke_a4_20260510T222030Z/Qwen_Qwen2.5-72B-Instruct/seed1/rep1/P002_aime_1983_p2/runtime_repo"
+[2026-05-10T22:51:18Z INFO  evaluator] [swarm/n2] agent_models = [Qwen/Qwen2.5-72B-Instruct,Qwen/Qwen2.5-72B-Instruct] (label=Qwen/Qwen2.5-72B-Instruct)
+[2026-05-10T22:51:18Z INFO  evaluator] [budget] regime=total_proposal base=200 effective_max_tx=200 (n_agents=2)
+[2026-05-10T22:51:18Z INFO  evaluator] [swarm/n2] Agent_0:skill0:t=0.20 Agent_1:skill1:t=0.20
+[2026-05-10T22:51:46Z INFO  evaluator] [tx 0] Agent_0 step+tx_0_by_Agent_0 partial OK (depth=1)
+[2026-05-10T22:51:57Z WARN  evaluator] [tx 1] step rejected (err:rewrite_no_match): <stdin>:16:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-10T22:52:06Z WARN  evaluator] [tx 2] step rejected (err:rewrite_no_match): <stdin>:16:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-10T22:52:15Z WARN  evaluator] [tx 3] step rejected (err:rewrite_no_match): <stdin>:16:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-10T22:52:24Z WARN  evaluator] [tx 4] step rejected (err:rewrite_no_match): <stdin>:16:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-10T22:52:35Z WARN  evaluator] [tx 5] step rejected (err:rewrite_no_match): <stdin>:16:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-10T22:52:44Z WARN  evaluator] [tx 6] step rejected (err:rewrite_no_match): <stdin>:16:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-10T22:52:53Z WARN  evaluator] [tx 7] step rejected (err:rewrite_no_match): <stdin>:16:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-10T22:53:02Z WARN  evaluator] [tx 8] step rejected (err:rewrite_no_match): <stdin>:16:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-10T22:53:05Z WARN  evaluator] [tb18-atomA] DegradedLLM halt: 10 consecutive trivial responses (token_floor=30, cap=10); total_calls=10 trivial_calls=10
+[v2-emit] SPLIT env unset; defaulting to 'adaptation' (Phase B convention; pre-registration requires SPLIT for Phase C+ ablation runs)
+[2026-05-10T22:53:05Z INFO  evaluator] [tb11] EvidenceCapsule written: capsule_id=a0b2738b984e6553b12a02933e57bcbd5faa6ab63564f70d8112cbad4645aa65 compressed_log_cid=28d79e05adb46100ddd956a4ea0e3341b7a2fca2a8cf2e975e3cefd36a3e6edb attempt_count=9
+[2026-05-10T22:53:05Z INFO  evaluator] [tb11] TerminalSummary emitted: emit_id=1
+[2026-05-10T22:53:05Z INFO  evaluator] [chaintape] Atom 6 RunSummary written (3 L4 + 10 L4.E entries; 3 accepted_tx_ids, 10 rejected_tx_ids)
+[2026-05-10T22:53:05Z INFO  evaluator] PPUT = 0 (no golden path in 108.6s, 200 tx)

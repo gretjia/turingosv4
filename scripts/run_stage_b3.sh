@@ -430,9 +430,16 @@ for MODEL in "${MODELS[@]}"; do
                 # `comprehensive_arena.rs:933` and `lean_market.rs:229`
                 # explicitly set this; M2 / Stage B3 batch must too per
                 # CLAUDE.md §13 economy-laws constitutional landing.
+                # TB-N1-AGENT-ECONOMY Phase 2 A4 (2026-05-10): CONDITION
+                # env override. Default "n1" matches mini-M1 R6 pattern;
+                # callers (e.g., A4 swarm smoke) set CONDITION=n2 (or any
+                # nN) externally and this script honors it. Charter §4
+                # "NO swarm n>1 batch outside A4 SG-N1-A4.6 smoke" governs
+                # the scope of this override at policy layer.
+                COND_PER_CELL="${CONDITION:-n1}"
                 set +e
                 timeout "$PER_PROBLEM_TIMEOUT_S" env \
-                    CONDITION="n1" \
+                    CONDITION="$COND_PER_CELL" \
                     MINIF2F_DIR="$MINIF2F_DIR" \
                     EXPERIMENT_DIR="$EXPERIMENT_DIR" \
                     RUST_LOG="${RUST_LOG:-info}" \

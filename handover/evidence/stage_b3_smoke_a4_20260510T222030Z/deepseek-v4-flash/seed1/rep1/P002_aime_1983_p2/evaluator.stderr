@@ -1,0 +1,53 @@
+[2026-05-10T22:32:08Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/aime_1983_p2.lean | Condition: n2 | Model: deepseek-v4-flash | Mode: full
+[2026-05-10T22:32:08Z INFO  minif2f_v4::chain_runtime] [chaintape/d3] pre-seed enabled (TB-10 factory): 12 entries
+[2026-05-10T22:32:08Z INFO  minif2f_v4::chain_runtime] [chaintape] bus wired with Sequencer + on-disk ChainTape at "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_smoke_a4_20260510T222030Z/deepseek-v4-flash/seed1/rep1/P002_aime_1983_p2/runtime_repo"
+[2026-05-10T22:32:08Z INFO  evaluator] [chaintape/d3] preseed TaskOpen for task-n2_aime_1983_p2_1778452328402
+[2026-05-10T22:32:08Z INFO  evaluator] [chaintape/d3] preseed EscrowLock 100000 micro for task-n2_aime_1983_p2_1778452328402
+[2026-05-10T22:32:08Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic TaskOpen for smoke-n2_aime_1983_p2_1778452328402
+[2026-05-10T22:32:08Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic zero-stake WorkTx (synthetic_rejection_for_l4e_gate=true) for smoke-n2_aime_1983_p2_1778452328402
+[2026-05-10T22:32:08Z INFO  minif2f_v4::chain_runtime] [chaintape] Atom 5 audit-trail records written to CAS + indexed for smoke-n2_aime_1983_p2_1778452328402
+[2026-05-10T22:32:08Z INFO  minif2f_v4::chain_runtime] [chaintape/d_c] genesis_report.json written to "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_smoke_a4_20260510T222030Z/deepseek-v4-flash/seed1/rep1/P002_aime_1983_p2/runtime_repo"
+[2026-05-10T22:32:08Z INFO  evaluator] [swarm/n2] agent_models = [deepseek-v4-flash,deepseek-v4-flash] (label=deepseek-v4-flash)
+[2026-05-10T22:32:08Z INFO  evaluator] [budget] regime=total_proposal base=200 effective_max_tx=200 (n_agents=2)
+[2026-05-10T22:32:08Z INFO  evaluator] [swarm/n2] Agent_0:skill0:t=0.20 Agent_1:skill1:t=0.20
+[2026-05-10T22:32:17Z WARN  evaluator] [tx 0] step rejected (err:tactic_linarith): <stdin>:15:0: error: linarith failed to find a contradiction
+[2026-05-10T22:32:30Z WARN  evaluator] [tx 1] step rejected (err:other): <stdin>:16:2: error: expected '{' or indented tactic sequence
+[2026-05-10T22:32:39Z WARN  evaluator] [tx 2] step rejected (err:tactic_linarith): <stdin>:15:0: error: linarith failed to find a contradiction
+[2026-05-10T22:32:54Z WARN  evaluator] [tx 3] step rejected (err:tactic_linarith): hard_error_with_unsolved: <stdin>:22:2: error: linarith failed to find a contradiction
+[2026-05-10T22:33:14Z WARN  evaluator] [tx 4] step rejected (err:tactic_linarith): <stdin>:22:59: error: linarith failed to find a contradiction
+[2026-05-10T22:33:23Z INFO  evaluator] [tx 5] Agent_1 step+tx_0_by_Agent_1 partial OK (depth=1)
+[2026-05-10T22:33:31Z INFO  evaluator] [tx 6] Agent_0 step+tx_1_by_Agent_0 partial OK (depth=2)
+[2026-05-10T22:33:39Z INFO  evaluator] [tx 7] Agent_1 step+tx_2_by_Agent_1 partial OK (depth=3)
+[2026-05-10T22:33:48Z INFO  evaluator] [tx 8] Agent_0 step+tx_3_by_Agent_0 partial OK (depth=4)
+[2026-05-10T22:33:57Z INFO  evaluator] [tx 9] Agent_1 step+tx_4_by_Agent_1 partial OK (depth=5)
+[2026-05-10T22:34:06Z INFO  evaluator] [tx 10] Agent_0 step+tx_5_by_Agent_0 partial OK (depth=6)
+[2026-05-10T22:34:15Z INFO  evaluator] [tx 11] Agent_1 step+tx_6_by_Agent_1 partial OK (depth=7)
+[2026-05-10T22:34:24Z INFO  evaluator] [tx 12] Agent_0 step+tx_7_by_Agent_0 partial OK (depth=8)
+[2026-05-10T22:34:37Z INFO  evaluator] [tx 13] Agent_1 step+tx_8_by_Agent_1 partial OK (depth=9)
+[2026-05-10T22:34:47Z INFO  evaluator] [tx 14] Agent_0 step+tx_9_by_Agent_0 partial OK (depth=10)
+[2026-05-10T22:34:56Z INFO  evaluator] [tx 15] Agent_1 step+tx_10_by_Agent_1 partial OK (depth=11)
+[2026-05-10T22:35:14Z INFO  evaluator] [tx 16] Agent_0 step+tx_11_by_Agent_0 partial OK (depth=12)
+[2026-05-10T22:35:24Z INFO  evaluator] [tx 17] Agent_1 step+tx_12_by_Agent_1 partial OK (depth=13)
+[2026-05-10T22:35:34Z INFO  evaluator] [tx 18] Agent_0 step+tx_13_by_Agent_0 partial OK (depth=14)
+[2026-05-10T22:35:44Z INFO  evaluator] [tx 19] Agent_1 step+tx_14_by_Agent_1 partial OK (depth=15)
+[2026-05-10T22:35:44Z INFO  evaluator] [tick@tx20] tape=15 markets=0 top=
+[2026-05-10T22:35:54Z INFO  evaluator] [tx 20] Agent_0 step+tx_15_by_Agent_0 partial OK (depth=16)
+[2026-05-10T22:36:05Z INFO  evaluator] [tx 21] Agent_1 step+tx_16_by_Agent_1 partial OK (depth=17)
+[2026-05-10T22:36:15Z INFO  evaluator] [tx 22] Agent_0 step+tx_17_by_Agent_0 partial OK (depth=18)
+[2026-05-10T22:36:25Z INFO  evaluator] [tx 23] Agent_1 step+tx_18_by_Agent_1 partial OK (depth=19)
+[2026-05-10T22:36:36Z INFO  evaluator] [tx 24] Agent_0 step+tx_19_by_Agent_0 partial OK (depth=20)
+[2026-05-10T22:36:46Z INFO  evaluator] [tx 25] Agent_1 step+tx_20_by_Agent_1 partial OK (depth=21)
+[2026-05-10T22:37:00Z INFO  evaluator] [tx 26] Agent_0 step+tx_21_by_Agent_0 partial OK (depth=22)
+[2026-05-10T22:37:10Z INFO  evaluator] [tx 27] Agent_1 step+tx_22_by_Agent_1 partial OK (depth=23)
+[2026-05-10T22:37:26Z WARN  evaluator] [tx 28] step rejected (err:type_mismatch): <stdin>:111:12: error: Type mismatch | but is expected to have type | <stdin>:99:0: error: 'calc' expression has type | but is expected to have type
+[2026-05-10T22:37:37Z INFO  evaluator] [tx 29] Agent_1 step+tx_23_by_Agent_1 partial OK (depth=24)
+[2026-05-10T22:37:53Z WARN  evaluator] [tx 30] step rejected (err:unexpected_token): <stdin>:103:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern | <stdin>:104:2: error: unexpected token 'have'; expected command
+[2026-05-10T22:38:05Z WARN  evaluator] [tx 31] step rejected (err:tactic_linarith): <stdin>:103:0: error: linarith failed to find a contradiction
+[2026-05-10T22:38:17Z WARN  evaluator] [tx 32] step rejected (err:tactic_linarith): <stdin>:103:0: error: linarith failed to find a contradiction
+[2026-05-10T22:38:29Z WARN  evaluator] [tx 33] step rejected (err:tactic_linarith): <stdin>:103:0: error: linarith failed to find a contradiction
+[2026-05-10T22:39:06Z INFO  evaluator] [tx 34] Agent_0 step+tx_24_by_Agent_0 partial OK (depth=25)
+[2026-05-10T22:39:21Z INFO  evaluator] [tx 35] Agent_1 step+tx_25_by_Agent_1 partial OK (depth=26)
+[2026-05-10T22:39:36Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=27 after this write)
+[2026-05-10T22:39:36Z INFO  evaluator] [chaintape/tb8/atom4-pertactic] FinalizeReward emitted for verify_tx=TxId("verifytx-Agent_0-omega-pertactic-37")
+[v2-emit] SPLIT env unset; defaulting to 'adaptation' (Phase B convention; pre-registration requires SPLIT for Phase C+ ablation runs)
+[2026-05-10T22:39:36Z INFO  evaluator] PPUT = 0.22%/s (GP: 27 nodes, 2776 tokens, 448.1s)
