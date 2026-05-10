@@ -1,0 +1,29 @@
+[2026-05-10T23:20:21Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/aime_1983_p1.lean | Condition: n2 | Model: deepseek-v4-flash | Mode: full
+[2026-05-10T23:20:21Z INFO  minif2f_v4::chain_runtime] [chaintape/d3] pre-seed enabled (TB-10 factory): 12 entries
+[2026-05-10T23:20:22Z INFO  minif2f_v4::chain_runtime] [chaintape] bus wired with Sequencer + on-disk ChainTape at "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_smoke_a4_post_ship_20260510T231830Z/deepseek-v4-flash/seed1/rep1/P001_aime_1983_p1/runtime_repo"
+[2026-05-10T23:20:22Z INFO  evaluator] [chaintape/d3] preseed TaskOpen for task-n2_aime_1983_p1_1778455221798
+[2026-05-10T23:20:22Z INFO  evaluator] [chaintape/d3] preseed EscrowLock 100000 micro for task-n2_aime_1983_p1_1778455221798
+[2026-05-10T23:20:22Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic TaskOpen for smoke-n2_aime_1983_p1_1778455221798
+[2026-05-10T23:20:22Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic zero-stake WorkTx (synthetic_rejection_for_l4e_gate=true) for smoke-n2_aime_1983_p1_1778455221798
+[2026-05-10T23:20:22Z INFO  minif2f_v4::chain_runtime] [chaintape] Atom 5 audit-trail records written to CAS + indexed for smoke-n2_aime_1983_p1_1778455221798
+[2026-05-10T23:20:22Z INFO  minif2f_v4::chain_runtime] [chaintape/d_c] genesis_report.json written to "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_smoke_a4_post_ship_20260510T231830Z/deepseek-v4-flash/seed1/rep1/P001_aime_1983_p1/runtime_repo"
+[2026-05-10T23:20:22Z INFO  evaluator] [swarm/n2] agent_models = [deepseek-v4-flash,deepseek-v4-flash] (label=deepseek-v4-flash)
+[2026-05-10T23:20:22Z INFO  evaluator] [budget] regime=total_proposal base=200 effective_max_tx=200 (n_agents=2)
+[2026-05-10T23:20:22Z INFO  evaluator] [swarm/n2] Agent_0:skill0:t=0.20 Agent_1:skill1:t=0.20
+[2026-05-10T23:20:30Z INFO  evaluator] [tx 0] Agent_0 step+tx_0_by_Agent_0 partial OK (depth=1)
+[2026-05-10T23:20:39Z INFO  evaluator] [tx 1] Agent_1 step+tx_1_by_Agent_1 partial OK (depth=2)
+[2026-05-10T23:20:48Z INFO  evaluator] [tx 2] Agent_0 step+tx_2_by_Agent_0 partial OK (depth=3)
+[2026-05-10T23:20:56Z WARN  evaluator] [tx 3] step rejected (err:unknown_const): <stdin>:14:7: error(lean.unknownIdentifier): Unknown identifier `ht` | <stdin>:14:15: error: Tactic `rcases` failed: `x✝ : ?m.73` is not an inductive datatype
+[2026-05-10T23:21:06Z WARN  evaluator] [tx 4] step rejected (err:tactic_simp_noprog): <stdin>:14:0: error: field_simp made no progress at h0
+[2026-05-10T23:21:16Z WARN  evaluator] [tx 5] step rejected (err:unknown_const): <stdin>:14:7: error(lean.unknownIdentifier): Unknown identifier `ht` | <stdin>:14:15: error: Tactic `rcases` failed: `x✝ : ?m.73` is not an inductive datatype
+[2026-05-10T23:21:25Z WARN  evaluator] [tx 6] step rejected (err:tactic_simp_noprog): <stdin>:14:0: error: field_simp made no progress at h0
+[2026-05-10T23:21:34Z WARN  evaluator] [tx 7] step rejected (err:unknown_const): <stdin>:14:7: error(lean.unknownIdentifier): Unknown identifier `ht` | <stdin>:14:15: error: Tactic `rcases` failed: `x✝ : ?m.73` is not an inductive datatype
+[2026-05-10T23:21:44Z WARN  evaluator] [tx 8] step rejected (err:tactic_simp_noprog): <stdin>:14:0: error: field_simp made no progress at h0
+[2026-05-10T23:21:53Z WARN  evaluator] [tx 9] step rejected (err:unknown_const): <stdin>:14:7: error(lean.unknownIdentifier): Unknown identifier `ht` | <stdin>:14:15: error: Tactic `rcases` failed: `x✝ : ?m.73` is not an inductive datatype
+[2026-05-10T23:22:02Z WARN  evaluator] [tx 10] step rejected (err:tactic_simp_noprog): <stdin>:14:0: error: field_simp made no progress at h0
+[2026-05-10T23:22:04Z WARN  evaluator] [tb18-atomA] DegradedLLM halt: 10 consecutive trivial responses (token_floor=30, cap=10); total_calls=12 trivial_calls=11
+[v2-emit] SPLIT env unset; defaulting to 'adaptation' (Phase B convention; pre-registration requires SPLIT for Phase C+ ablation runs)
+[2026-05-10T23:22:04Z INFO  evaluator] [tb11] EvidenceCapsule written: capsule_id=d15c7284a2876cb33d5ae3a689f4ae74951d7af33fd60068f542d8a658e74384 compressed_log_cid=ddd31923e51f2fd4e14aa4af52d814ca13b0b8b084236ba6f216890e326df6ae attempt_count=11
+[2026-05-10T23:22:04Z INFO  evaluator] [tb11] TerminalSummary emitted: emit_id=1
+[2026-05-10T23:22:04Z INFO  evaluator] [chaintape] Atom 6 RunSummary written (3 L4 + 10 L4.E entries; 3 accepted_tx_ids, 10 rejected_tx_ids)
+[2026-05-10T23:22:04Z INFO  evaluator] PPUT = 0 (no golden path in 102.2s, 200 tx)

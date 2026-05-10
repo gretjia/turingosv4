@@ -1,0 +1,27 @@
+[2026-05-10T23:42:42Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/aime_1983_p3.lean | Condition: n2 | Model: Qwen/Qwen2.5-72B-Instruct | Mode: full
+[2026-05-10T23:42:42Z INFO  minif2f_v4::chain_runtime] [chaintape/d3] pre-seed enabled (TB-10 factory): 12 entries
+[2026-05-10T23:42:42Z INFO  minif2f_v4::chain_runtime] [chaintape] bus wired with Sequencer + on-disk ChainTape at "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_smoke_a4_post_ship_20260510T231830Z/Qwen_Qwen2.5-72B-Instruct/seed1/rep1/P003_aime_1983_p3/runtime_repo"
+[2026-05-10T23:42:42Z INFO  evaluator] [chaintape/d3] preseed TaskOpen for task-n2_aime_1983_p3_1778456562476
+[2026-05-10T23:42:43Z INFO  evaluator] [chaintape/d3] preseed EscrowLock 100000 micro for task-n2_aime_1983_p3_1778456562476
+[2026-05-10T23:42:43Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic TaskOpen for smoke-n2_aime_1983_p3_1778456562476
+[2026-05-10T23:42:43Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic zero-stake WorkTx (synthetic_rejection_for_l4e_gate=true) for smoke-n2_aime_1983_p3_1778456562476
+[2026-05-10T23:42:43Z INFO  minif2f_v4::chain_runtime] [chaintape] Atom 5 audit-trail records written to CAS + indexed for smoke-n2_aime_1983_p3_1778456562476
+[2026-05-10T23:42:43Z INFO  minif2f_v4::chain_runtime] [chaintape/d_c] genesis_report.json written to "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_smoke_a4_post_ship_20260510T231830Z/Qwen_Qwen2.5-72B-Instruct/seed1/rep1/P003_aime_1983_p3/runtime_repo"
+[2026-05-10T23:42:43Z INFO  evaluator] [swarm/n2] agent_models = [Qwen/Qwen2.5-72B-Instruct,Qwen/Qwen2.5-72B-Instruct] (label=Qwen/Qwen2.5-72B-Instruct)
+[2026-05-10T23:42:43Z INFO  evaluator] [budget] regime=total_proposal base=200 effective_max_tx=200 (n_agents=2)
+[2026-05-10T23:42:43Z INFO  evaluator] [swarm/n2] Agent_0:skill0:t=0.20 Agent_1:skill1:t=0.20
+[2026-05-10T23:42:59Z WARN  evaluator] [tx 0] step rejected (err:rewrite_no_match): <stdin>:13:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-10T23:43:22Z WARN  evaluator] [tx 1] step rejected (err:rewrite_no_match): <stdin>:13:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-10T23:43:53Z INFO  evaluator] [tx 2] Agent_0 step+tx_0_by_Agent_0 partial OK (depth=1)
+[2026-05-10T23:44:04Z WARN  evaluator] [tx 3] step rejected (err:rewrite_no_match): <stdin>:14:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-10T23:44:13Z WARN  evaluator] [tx 4] step rejected (err:other): <stdin>:14:0: error: ring_nf made no progress on goal
+[2026-05-10T23:44:23Z WARN  evaluator] [tx 5] step rejected (err:rewrite_no_match): <stdin>:14:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-10T23:44:32Z WARN  evaluator] [tx 6] step rejected (err:other): <stdin>:14:0: error: ring_nf made no progress on goal
+[2026-05-10T23:44:42Z WARN  evaluator] [tx 7] step rejected (err:rewrite_no_match): <stdin>:14:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-10T23:44:51Z WARN  evaluator] [tx 8] step rejected (err:other): <stdin>:14:0: error: ring_nf made no progress on goal
+[2026-05-10T23:44:53Z WARN  evaluator] [tb18-atomA] DegradedLLM halt: 10 consecutive trivial responses (token_floor=30, cap=10); total_calls=10 trivial_calls=10
+[v2-emit] SPLIT env unset; defaulting to 'adaptation' (Phase B convention; pre-registration requires SPLIT for Phase C+ ablation runs)
+[2026-05-10T23:44:53Z INFO  evaluator] [tb11] EvidenceCapsule written: capsule_id=d3104e7191c76e7e15081174958860e7597e058b4584bab1c8d10dfaf41393f9 compressed_log_cid=46af00beaf46edb18f1c6bdd31511e5105b1f740d8b3baa2c71f55b56bc43686 attempt_count=9
+[2026-05-10T23:44:53Z INFO  evaluator] [tb11] TerminalSummary emitted: emit_id=1
+[2026-05-10T23:44:53Z INFO  evaluator] [chaintape] Atom 6 RunSummary written (3 L4 + 10 L4.E entries; 3 accepted_tx_ids, 10 rejected_tx_ids)
+[2026-05-10T23:44:53Z INFO  evaluator] PPUT = 0 (no golden path in 131.4s, 200 tx)
