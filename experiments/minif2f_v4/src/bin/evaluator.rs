@@ -2095,6 +2095,64 @@ async fn run_swarm(
                 .join(", ")
         };
 
+        // TB-N3 A4 (architect ruling 2026-05-11 amendment 5 + Q7 + §8.4):
+        // append the same-task `node_survive:*` CPMM pool snapshot block
+        // when `TURINGOS_TB_N3_AUTO_MARKET=1`. Filters node-market events
+        // to those whose `event_id.0.0` contains the current `run_id`
+        // (same-task isolation per amendment 5; cross-task pools excluded
+        // to avoid prompt context pollution). K = `TURINGOS_TB_N3_MARKET_CONTEXT_K`
+        // env (default 10 per architect Q7). Integer-rational price (NEVER
+        // decimal). Suffix banner `"price is signal, not truth"`.
+        let market_ticker_str: String = {
+            let mut combined = market_ticker_str;
+            let tb_n3_enabled = std::env::var("TURINGOS_TB_N3_AUTO_MARKET")
+                .ok()
+                .as_deref()
+                == Some("1");
+            if tb_n3_enabled {
+                if let Some(seq) = bus.sequencer.as_ref() {
+                    if let Ok(q) = seq.q_snapshot() {
+                        // Derive same-task accepted WorkTx list from
+                        // node-survive event_ids whose namespaced payload
+                        // contains the current run_id substring. Each
+                        // `event_id.0.0` is `node_survive:<work_tx_id>`
+                        // where the work_tx_id was minted by
+                        // `make_real_worktx_signed_by` via
+                        // `worktx-task-{run_id}-{path}-{n}` — so the
+                        // run_id substring uniquely scopes to this task.
+                        let run_id_needle = format!("task-{}", run_id);
+                        let mut same_task_work_tx_ids: Vec<turingosv4::state::q_state::TxId> = Vec::new();
+                        for event_id in q.economic_state_t.cpmm_pools_t.0.keys() {
+                            let inner = &event_id.0.0;
+                            if let Some(rest) = inner.strip_prefix("node_survive:") {
+                                if rest.contains(&run_id_needle) {
+                                    same_task_work_tx_ids.push(turingosv4::state::q_state::TxId(rest.to_string()));
+                                }
+                            }
+                        }
+                        let k = std::env::var("TURINGOS_TB_N3_MARKET_CONTEXT_K")
+                            .ok()
+                            .and_then(|s| s.parse::<usize>().ok())
+                            .unwrap_or(turingosv4::sdk::market_context::DEFAULT_MARKET_CONTEXT_K);
+                        let tb_n3_block = turingosv4::sdk::market_context::render_market_context(
+                            &q,
+                            &turingosv4::state::q_state::TaskId(run_id.clone()),
+                            &same_task_work_tx_ids,
+                            k,
+                            &turingosv4::state::q_state::AgentId(agent_id.clone()),
+                        );
+                        if !tb_n3_block.is_empty() {
+                            if !combined.is_empty() && !combined.ends_with('\n') {
+                                combined.push('\n');
+                            }
+                            combined.push_str(&tb_n3_block);
+                        }
+                    }
+                }
+            }
+            combined
+        };
+
         // TB-N1-AGENT-ECONOMY A2 (session #35 2026-05-10): render the
         // agent's full economic position from canonical EconomicState
         // (balances_t / stakes_t / claims_t / reputations_t) via the
@@ -2712,6 +2770,59 @@ async fn run_swarm(
                                                     continue;
                                                 }
                                             };
+                                            // TB-N3 A3 (architect ruling 2026-05-11 amendments 3-6 +
+                                            // Q1+Q2+Q6 — Class-4 STEP_B): emit a node-survive market
+                                            // for this freshly-accepted WorkTx. Gated on
+                                            // `TURINGOS_TB_N3_AUTO_MARKET=1`. Best-effort: failure
+                                            // returns a typed `NodeMarketEmitOutcome` that we log
+                                            // but never halt on (mirrors `tb8_emit_finalize_after_verify`
+                                            // best-effort pattern). Provider = `MarketMakerBudget`
+                                            // (genesis preseed per A0.5); seed = `TURINGOS_DEFAULT_POOL_SEED_MICRO`
+                                            // env (default 100_000 per architect Q1).
+                                            if std::env::var("TURINGOS_TB_N3_AUTO_MARKET").ok().as_deref()
+                                                == Some("1")
+                                            {
+                                                let seed_micro: i64 = std::env::var("TURINGOS_DEFAULT_POOL_SEED_MICRO")
+                                                    .ok()
+                                                    .and_then(|s| s.parse().ok())
+                                                    .unwrap_or(100_000);
+                                                let a3_suffix = format!("a3-omega-{}", work_tx_id.0);
+                                                let a3_outcome = {
+                                                    let mut reg_guard = match reg.lock() {
+                                                        Ok(g) => g,
+                                                        Err(p) => p.into_inner(),
+                                                    };
+                                                    turingosv4::runtime::adapter::tb_n3_emit_node_market_after_work_accept(
+                                                        &bundle.sequencer,
+                                                        &work_tx_id,
+                                                        &mut *reg_guard,
+                                                        &a3_suffix,
+                                                        logical_t,
+                                                        seed_micro,
+                                                    )
+                                                    .await
+                                                };
+                                                match a3_outcome {
+                                                    Ok(turingosv4::runtime::adapter::NodeMarketEmitOutcome::Created { event_id, pool_seed_micro }) => {
+                                                        info!(
+                                                            "[chaintape/tb-n3-a3] node market created for {}: event_id={} seed={} μC",
+                                                            work_tx_id.0, event_id.0.0, pool_seed_micro
+                                                        );
+                                                    }
+                                                    Ok(other) => {
+                                                        info!(
+                                                            "[chaintape/tb-n3-a3] node market not created for {}: outcome={:?}",
+                                                            work_tx_id.0, other
+                                                        );
+                                                    }
+                                                    Err(e) => {
+                                                        warn!(
+                                                            "[chaintape/tb-n3-a3] node market emit error for {}: {:?}",
+                                                            work_tx_id.0, e
+                                                        );
+                                                    }
+                                                }
+                                            }
                                             // Construct VerifyTx with fresh post-work parent_state_root.
                                             let verify_tx = {
                                                 let mut reg_guard = match reg.lock() {
@@ -3006,15 +3117,156 @@ async fn run_swarm(
                             }
                         }
                         "invest" => {
-                            // TB-9 collapse (2026-05-02): the v3 invest tool action
-                            // mutated WalletTool's f64 ledger. Per architect directive
-                            // 2026-05-02 line 1574 (no f64 mutation), invest is no
-                            // longer routed at this evaluator-level handler. Stake
-                            // commitment lives in `state::typed_tx::WorkTx.stake`
-                            // mutating `EconomicState.stakes_t` via the canonical
-                            // sequencer dispatch arm. NodeMarket trading lands in
-                            // TB-12+ via typed market transactions, not this path.
-                            *tool_dist.entry("invest_disabled_tb9".into()).or_insert(0) += 1;
+                            // TB-N3 A2 (architect ruling 2026-05-11 amendments 1+2 + Q5):
+                            // the agent's `invest` payload routes to a real
+                            // `BuyWithCoinRouterTx` against the Stage C P-M6
+                            // CPMM substrate, keyed by
+                            // `node_survive(work_tx_id)` (amendment 1).
+                            // Pre-submit classification by
+                            // `tb_n3_invest_to_router_tx`; failures anchor a
+                            // `MarketDecisionTrace::no_trade` in CAS (architect
+                            // §8.6 — failed invest is meaningful tape activity).
+                            // Submitted invests anchor `MarketDecisionTrace::submitted`
+                            // for run-report §F aggregation. min_out_shares = 0
+                            // per architect Q5 MVP.
+                            *tool_dist.entry("invest_attempted".into()).or_insert(0) += 1;
+                            let node_str = action.node.clone().unwrap_or_default();
+                            let amount_micro: i64 = action.amount.unwrap_or(0.0) as i64;
+                            let direction = match action.direction.as_deref() {
+                                Some("short") | Some("no") | Some("Short") | Some("No") => {
+                                    turingosv4::state::typed_tx::BuyDirection::BuyNo
+                                }
+                                _ => turingosv4::state::typed_tx::BuyDirection::BuyYes,
+                            };
+                            // Multi-agent runtime path: requires both
+                            // chaintape bundle (sequencer + bus) and agent
+                            // keypair registry. Solo-test paths without these
+                            // record a NoPromptTool no-trade and continue.
+                            if let (Some(bundle), Some(reg)) =
+                                (chaintape_bundle.as_ref(), agent_keypairs.as_ref())
+                            {
+                                let parent_root = match bundle.sequencer.q_snapshot() {
+                                    Ok(q) => q.state_root_t,
+                                    Err(e) => {
+                                        warn!("[tx {}] invest q_snapshot failed: {:?}", tx, e);
+                                        *tool_dist.entry("invest_snapshot_err".into())
+                                            .or_insert(0) += 1;
+                                        continue;
+                                    }
+                                };
+                                let q_for_classify = match bundle.sequencer.q_snapshot() {
+                                    Ok(q) => q,
+                                    Err(_) => continue,
+                                };
+                                let suffix = format!("{}-{}", agent_id, tx);
+                                let route_result = {
+                                    let mut reg_guard = match reg.lock() {
+                                        Ok(g) => g,
+                                        Err(p) => p.into_inner(),
+                                    };
+                                    turingosv4::runtime::adapter::tb_n3_invest_to_router_tx(
+                                        &mut *reg_guard,
+                                        parent_root,
+                                        Some(&q_for_classify),
+                                        agent_id.as_str(),
+                                        &node_str,
+                                        direction,
+                                        amount_micro,
+                                        0,
+                                        &suffix,
+                                    )
+                                };
+                                let trace_agent_id = turingosv4::state::q_state::AgentId(
+                                    agent_id.clone(),
+                                );
+                                use turingosv4::runtime::market_decision_trace::{
+                                    MarketDecisionTrace, write_market_decision_trace_to_cas,
+                                };
+                                match route_result {
+                                    Ok(typed_tx) => {
+                                        let router_tx_id = match &typed_tx {
+                                            turingosv4::state::typed_tx::TypedTx::BuyWithCoinRouter(r) => {
+                                                r.tx_id.clone()
+                                            }
+                                            _ => unreachable!("tb_n3_invest_to_router_tx returns BuyWithCoinRouter"),
+                                        };
+                                        let pre_root = parent_root;
+                                        match bus.submit_typed_tx(typed_tx).await {
+                                            Ok(_) => {
+                                                let _ = turingosv4::runtime::adapter::tb8_await_state_root_advance(
+                                                    &bundle.sequencer, pre_root, 5000,
+                                                ).await;
+                                                *tool_dist.entry("invest_submitted".into())
+                                                    .or_insert(0) += 1;
+                                                let trace = MarketDecisionTrace::submitted(
+                                                    trace_agent_id.clone(),
+                                                    turingosv4::state::q_state::TxId(node_str.clone()),
+                                                    direction,
+                                                    amount_micro,
+                                                    router_tx_id.clone(),
+                                                    format!(
+                                                        "submitted {} μC dir={:?} on {}",
+                                                        amount_micro, direction, node_str
+                                                    ),
+                                                );
+                                                let cas_open = turingosv4::bottom_white::cas::store::CasStore::open(&bundle.cas_path);
+                                                if let Ok(mut cas_store) = cas_open {
+                                                    let _ = write_market_decision_trace_to_cas(
+                                                        &mut cas_store,
+                                                        &trace,
+                                                        &suffix,
+                                                        tx as u64,
+                                                    );
+                                                }
+                                                info!(
+                                                    "[tx {}] {} invest submitted: tx_id={} amount={}μC dir={:?} node={}",
+                                                    tx, agent_id, router_tx_id.0, amount_micro, direction, node_str
+                                                );
+                                            }
+                                            Err(e) => {
+                                                *tool_dist.entry("invest_submit_err".into())
+                                                    .or_insert(0) += 1;
+                                                warn!("[tx {}] invest submit_typed_tx failed: {:?}", tx, e);
+                                            }
+                                        }
+                                    }
+                                    Err(route_err) => {
+                                        let no_trade_reason = route_err.to_no_trade_reason();
+                                        let label = no_trade_reason.label();
+                                        *tool_dist
+                                            .entry(format!("invest_no_trade_{}", label))
+                                            .or_insert(0) += 1;
+                                        let chosen_node = if node_str.is_empty() {
+                                            None
+                                        } else {
+                                            Some(turingosv4::state::q_state::TxId(node_str.clone()))
+                                        };
+                                        let trace = MarketDecisionTrace::no_trade(
+                                            trace_agent_id.clone(),
+                                            chosen_node,
+                                            Some(direction),
+                                            Some(amount_micro),
+                                            no_trade_reason,
+                                            route_err.public_summary(),
+                                        );
+                                        let cas_open = turingosv4::bottom_white::cas::store::CasStore::open(&bundle.cas_path);
+                                        if let Ok(mut cas_store) = cas_open {
+                                            let _ = write_market_decision_trace_to_cas(
+                                                &mut cas_store,
+                                                &trace,
+                                                &suffix,
+                                                tx as u64,
+                                            );
+                                        }
+                                        info!(
+                                            "[tx {}] {} invest no-trade ({}): {}",
+                                            tx, agent_id, label, route_err.public_summary()
+                                        );
+                                    }
+                                }
+                            } else {
+                                *tool_dist.entry("invest_no_chaintape".into()).or_insert(0) += 1;
+                            }
                         }
                         "search" => {
                             // F-2026-04-19-05 cap: if over budget this agent's turn the
@@ -3407,6 +3659,54 @@ async fn run_swarm(
                                                     continue;
                                                 }
                                             };
+                                            // TB-N3 A3 (architect ruling 2026-05-11 amendments 3-6 +
+                                            // Q1+Q2+Q6 — Class-4 STEP_B): per-tactic accept site
+                                            // mirror of the full-proof OMEGA hook above. Same
+                                            // env-gate, same best-effort contract, same provider.
+                                            if std::env::var("TURINGOS_TB_N3_AUTO_MARKET").ok().as_deref()
+                                                == Some("1")
+                                            {
+                                                let seed_micro: i64 = std::env::var("TURINGOS_DEFAULT_POOL_SEED_MICRO")
+                                                    .ok()
+                                                    .and_then(|s| s.parse().ok())
+                                                    .unwrap_or(100_000);
+                                                let a3_suffix = format!("a3-pertactic-{}", work_tx_id.0);
+                                                let a3_outcome = {
+                                                    let mut reg_guard = match reg.lock() {
+                                                        Ok(g) => g,
+                                                        Err(p) => p.into_inner(),
+                                                    };
+                                                    turingosv4::runtime::adapter::tb_n3_emit_node_market_after_work_accept(
+                                                        &bundle.sequencer,
+                                                        &work_tx_id,
+                                                        &mut *reg_guard,
+                                                        &a3_suffix,
+                                                        logical_t,
+                                                        seed_micro,
+                                                    )
+                                                    .await
+                                                };
+                                                match a3_outcome {
+                                                    Ok(turingosv4::runtime::adapter::NodeMarketEmitOutcome::Created { event_id, pool_seed_micro }) => {
+                                                        info!(
+                                                            "[chaintape/tb-n3-a3-pertactic] node market created for {}: event_id={} seed={} μC",
+                                                            work_tx_id.0, event_id.0.0, pool_seed_micro
+                                                        );
+                                                    }
+                                                    Ok(other) => {
+                                                        info!(
+                                                            "[chaintape/tb-n3-a3-pertactic] node market not created for {}: outcome={:?}",
+                                                            work_tx_id.0, other
+                                                        );
+                                                    }
+                                                    Err(e) => {
+                                                        warn!(
+                                                            "[chaintape/tb-n3-a3-pertactic] node market emit error for {}: {:?}",
+                                                            work_tx_id.0, e
+                                                        );
+                                                    }
+                                                }
+                                            }
                                             // Construct VerifyTx with fresh post-work parent_state_root.
                                             let verify_tx = {
                                                 let mut reg_guard = match reg.lock() {

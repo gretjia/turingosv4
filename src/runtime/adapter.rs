@@ -1009,6 +1009,442 @@ pub async fn tb16_emit_challenge_resolve_for_eligible(
     Ok((count, bonds_released_micro))
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// TB-N3 A2 + A3 — Polymarket / CPMM multi-agent bridge adapter helpers
+// (architect ruling 2026-05-11 amendments 1-6 + Q1-Q8).
+// ────────────────────────────────────────────────────────────────────────────
+
+/// TB-N3 A3 — outcome of a single `tb_n3_emit_node_market_after_work_accept`
+/// call. Best-effort contract mirroring `tb8_emit_finalize_after_verify` /
+/// `tb_n2_emit_event_resolve_after_finalize`: failures return a typed
+/// outcome so the caller can record telemetry without halting the run.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NodeMarketEmitOutcome {
+    /// Snapshot showed `MarketMakerBudget.balances_t < seed_micro`. No
+    /// pool created; `pools_skipped_budget` counter increments. Architect
+    /// §3.4 forbids ghost liquidity — this fails-closed.
+    BudgetExhausted,
+    /// `cpmm_pools_t` already has an entry for `event_id`. Idempotent
+    /// re-call (e.g. caller hooked twice into the same WorkTx accept site)
+    /// returns this without emitting.
+    AlreadyExists,
+    /// TaskOpen, MarketSeed, and CpmmPool all admitted; `event_id` carries
+    /// the namespaced identifier; `pool_seed` is the seed_micro committed
+    /// from MarketMakerBudget.
+    Created {
+        event_id: crate::state::typed_tx::EventId,
+        pool_seed_micro: i64,
+    },
+    /// One of the three sub-tx submissions returned `Err(SubmitError)`
+    /// (typically a queue-full / channel-closed condition; admission
+    /// rejections at apply-time materialise as L4.E entries, not as Err
+    /// here). Field names the failed step for telemetry.
+    SubmitFailed { step: &'static str, message: String },
+    /// Poll budget expired waiting for one of the three sub-tx to apply
+    /// (state_root advance never observed). Caller should log; not fatal.
+    /// `step` distinguishes which sub-tx never landed.
+    PollTimeout { step: &'static str },
+}
+
+/// TB-N3 A3 (architect ruling 2026-05-11 amendments 3-6 + Q1+Q2+Q6;
+/// Class-4 STEP_B per amendment 6) — emit a node-survive market for a
+/// freshly-accepted WorkTx via canonical agent-signed admission paths.
+///
+/// Sequence (mirrors `tb_n2_emit_event_resolve_after_finalize` poll-then-
+/// emit pattern, but uses agent-signed admission via
+/// `Sequencer::submit_agent_tx` rather than system-emitted txs):
+///
+/// 1. Snapshot Q.
+/// 2. Check `cpmm_pools_t[event_id]`: if Some → `AlreadyExists`
+///    (idempotent).
+/// 3. Check `MarketMakerBudget.balances_t < seed_micro`: if so →
+///    `BudgetExhausted` (no ghost liquidity per architect §3.4 + §7).
+/// 4. Sign + submit `TaskOpenTx{sponsor=MarketMakerBudget,
+///    task_id=node_survive:<work_tx_id>}` to register the
+///    `task_markets_t` entry that MarketSeed/CpmmPool admission requires.
+/// 5. Sign + submit `MarketSeedTx{provider=MarketMakerBudget,
+///    event_id, collateral_amount=seed_micro}` to lock collateral and
+///    mint YES+NO inventory to the provider.
+/// 6. Sign + submit `CpmmPoolTx{provider=MarketMakerBudget, event_id,
+///    seed_yes=seed_no=seed_micro as u128}` to create the pool.
+/// 7. Return `Created { event_id, pool_seed_micro }`.
+///
+/// **Architect amendment 1 binding**: `event_id` is constructed via
+/// `node_survive_event_id(work_tx_id)` — never the bare `task_id`.
+/// **Architect amendment 4 binding**: caller must invoke this ONLY after
+/// the `work_tx_id` has been L4-accepted (poll `tb8_await_state_root_advance`
+/// after `bus.submit_typed_tx(work_tx)`). This helper does NOT re-validate
+/// the WorkTx admission status; calling it on an L4.E-rejected attempt is
+/// undefined behavior at the contract level (the helper still runs but may
+/// produce orphan markets if the caller bypasses the discipline).
+/// **Architect amendment 3 binding**: all three sub-tx route via canonical
+/// `Sequencer::submit_agent_tx` admission — no `emit_system_tx` bypass; no
+/// hand-written treasury debit / pool reserve.
+///
+/// Best-effort contract: failures at any step return a typed
+/// `NodeMarketEmitOutcome`; `Err` is reserved for `EmitSystemError`-class
+/// signaller failures (currently unreachable since this helper does not
+/// touch `emit_system_tx`, but kept for symmetry with sibling helpers).
+#[allow(clippy::too_many_arguments)]
+pub async fn tb_n3_emit_node_market_after_work_accept(
+    sequencer: &crate::state::sequencer::Sequencer,
+    work_tx_id: &TxId,
+    keypairs: &mut AgentKeypairRegistry,
+    suffix: &str,
+    timestamp_logical: u64,
+    seed_micro: i64,
+) -> Result<NodeMarketEmitOutcome, crate::state::sequencer::EmitSystemError> {
+    use crate::state::typed_tx::node_survive_event_id;
+
+    let event_id = node_survive_event_id(work_tx_id);
+    // Step 1+2+3 — single snapshot covers all preflight checks.
+    let q0 = match sequencer.q_snapshot() {
+        Ok(q) => q,
+        Err(_) => {
+            return Ok(NodeMarketEmitOutcome::SubmitFailed {
+                step: "snapshot",
+                message: "q_snapshot failed".into(),
+            });
+        }
+    };
+    if q0.economic_state_t.cpmm_pools_t.0.contains_key(&event_id) {
+        return Ok(NodeMarketEmitOutcome::AlreadyExists);
+    }
+    let mmb_id = AgentId("MarketMakerBudget".into());
+    let mmb_bal = q0
+        .economic_state_t
+        .balances_t
+        .0
+        .get(&mmb_id)
+        .copied()
+        .unwrap_or(MicroCoin::zero());
+    if mmb_bal.micro_units() < seed_micro {
+        return Ok(NodeMarketEmitOutcome::BudgetExhausted);
+    }
+
+    // Step 4 — TaskOpen for the node event.
+    let parent_root = q0.state_root_t;
+    let task_str = event_id.0.0.clone();
+    let task_open_tx = match make_real_task_open_signed_by(
+        keypairs,
+        &task_str,
+        "MarketMakerBudget",
+        parent_root,
+        suffix,
+        timestamp_logical,
+    ) {
+        Ok(tx) => tx,
+        Err(e) => {
+            return Ok(NodeMarketEmitOutcome::SubmitFailed {
+                step: "task_open_sign",
+                message: format!("{e}"),
+            });
+        }
+    };
+    if let Err(e) = sequencer.submit_agent_tx(task_open_tx).await {
+        return Ok(NodeMarketEmitOutcome::SubmitFailed {
+            step: "task_open_submit",
+            message: format!("{e:?}"),
+        });
+    }
+    let after_open = match tb8_await_state_root_advance(sequencer, parent_root, 5000).await {
+        Ok(r) => r,
+        Err(_) => {
+            return Ok(NodeMarketEmitOutcome::PollTimeout {
+                step: "task_open_apply",
+            });
+        }
+    };
+
+    // Step 5 — MarketSeed (canonical signing path; architect amendment 3).
+    let market_seed_tx = match make_real_market_seed_signed_by(
+        keypairs,
+        after_open,
+        &task_str,
+        "MarketMakerBudget",
+        seed_micro,
+        suffix,
+        timestamp_logical,
+    ) {
+        Ok(tx) => tx,
+        Err(e) => {
+            return Ok(NodeMarketEmitOutcome::SubmitFailed {
+                step: "market_seed_sign",
+                message: format!("{e}"),
+            });
+        }
+    };
+    if let Err(e) = sequencer.submit_agent_tx(market_seed_tx).await {
+        return Ok(NodeMarketEmitOutcome::SubmitFailed {
+            step: "market_seed_submit",
+            message: format!("{e:?}"),
+        });
+    }
+    let after_seed = match tb8_await_state_root_advance(sequencer, after_open, 5000).await {
+        Ok(r) => r,
+        Err(_) => {
+            return Ok(NodeMarketEmitOutcome::PollTimeout {
+                step: "market_seed_apply",
+            });
+        }
+    };
+
+    // Step 6 — CpmmPool (canonical signing path; symmetric init).
+    let pool_tx = match make_real_cpmm_pool_signed_by(
+        keypairs,
+        after_seed,
+        &task_str,
+        "MarketMakerBudget",
+        seed_micro as u128,
+        suffix,
+    ) {
+        Ok(tx) => tx,
+        Err(e) => {
+            return Ok(NodeMarketEmitOutcome::SubmitFailed {
+                step: "cpmm_pool_sign",
+                message: format!("{e}"),
+            });
+        }
+    };
+    if let Err(e) = sequencer.submit_agent_tx(pool_tx).await {
+        return Ok(NodeMarketEmitOutcome::SubmitFailed {
+            step: "cpmm_pool_submit",
+            message: format!("{e:?}"),
+        });
+    }
+    if let Err(_) = tb8_await_state_root_advance(sequencer, after_seed, 5000).await {
+        return Ok(NodeMarketEmitOutcome::PollTimeout {
+            step: "cpmm_pool_apply",
+        });
+    }
+
+    Ok(NodeMarketEmitOutcome::Created {
+        event_id,
+        pool_seed_micro: seed_micro,
+    })
+}
+
+/// TB-N3 A2 (architect ruling 2026-05-11 amendment 2 — A2 deterministic
+/// fixture path). Pre-submit classification reasons for an agent invest
+/// emission. Each variant maps 1:1 to a `NoTradeReason` for the
+/// `MarketDecisionTrace` audit anchor.
+#[derive(Debug)]
+pub enum InvestRouteError {
+    /// Agent emitted invest with `amount = 0` (parser-induced; not a
+    /// signal-of-decline — that path is `MarketDecisionTrace::declined`).
+    ZeroAmount,
+    /// Agent emitted negative amount.
+    NegativeAmount,
+    /// Agent emitted amount exceeding current balance.
+    AmountExceedsBalance {
+        amount_micro: i64,
+        balance_micro: i64,
+    },
+    /// Agent's `node` value was empty / contained control chars / would
+    /// break canonical signing payload encoding.
+    MalformedNode { reason: &'static str },
+    /// Snapshot showed no `cpmm_pools_t[event_id]` entry (TB-N3 A3
+    /// auto-emit hasn't fired for this WorkTx yet, OR MarketMakerBudget
+    /// was exhausted at pool-create time).
+    UnknownEvent,
+    /// Pool exists but `status != Active` (Drained / Frozen).
+    PoolNotActive,
+    /// Sequencer agent-keypair signing failed (typically only on
+    /// fresh-tempdir test fixtures with no `seed_pubkey` registered).
+    KeypairError(AgentKeypairError),
+}
+
+impl InvestRouteError {
+    /// Map to the canonical `NoTradeReason` taxonomy per architect §8.2.
+    pub fn to_no_trade_reason(&self) -> crate::runtime::market_decision_trace::NoTradeReason {
+        use crate::runtime::market_decision_trace::NoTradeReason;
+        match self {
+            InvestRouteError::ZeroAmount => NoTradeReason::ZeroAmount,
+            InvestRouteError::NegativeAmount => NoTradeReason::NoParsedInvest,
+            InvestRouteError::AmountExceedsBalance { .. } => NoTradeReason::AmountExceedsBalance,
+            InvestRouteError::MalformedNode { .. } => NoTradeReason::MalformedNode,
+            InvestRouteError::UnknownEvent | InvestRouteError::PoolNotActive => {
+                NoTradeReason::NoPool
+            }
+            InvestRouteError::KeypairError(_) => NoTradeReason::Unknown,
+        }
+    }
+
+    /// Short public summary for `MarketDecisionTrace.reason_summary_public`
+    /// (≤ 120 chars).
+    pub fn public_summary(&self) -> String {
+        match self {
+            InvestRouteError::ZeroAmount => "amount=0 rejected pre-submit".into(),
+            InvestRouteError::NegativeAmount => "negative amount rejected pre-submit".into(),
+            InvestRouteError::AmountExceedsBalance { amount_micro, balance_micro } => format!(
+                "amount {amount_micro} μC exceeds balance {balance_micro} μC"
+            ),
+            InvestRouteError::MalformedNode { reason } => format!("malformed node ({reason})"),
+            InvestRouteError::UnknownEvent => "no auto-pool for this work_tx_id".into(),
+            InvestRouteError::PoolNotActive => "pool present but not Active".into(),
+            InvestRouteError::KeypairError(_) => "agent-keypair signing failed".into(),
+        }
+    }
+}
+
+/// TB-N3 A2 (architect ruling 2026-05-11 amendment 1 + Q5) — build a real-
+/// signature `BuyWithCoinRouterTx` from a parsed agent invest payload.
+///
+/// `event_id` is computed via `node_survive_event_id(work_tx_id)` —
+/// architect amendment 1: "node market 的 event_id 必须是 accepted WorkTx
+/// 的 canonical tx_id，而不是 task_id".
+///
+/// Pre-submit classification gates (architect amendment 2 — fixture path):
+/// - `amount_micro == 0` → `ZeroAmount`
+/// - `amount_micro < 0` → `NegativeAmount`
+/// - `work_tx_id_str` empty / contains control chars → `MalformedNode`
+/// - if `snapshot.is_some()`:
+///     - buyer balance < amount → `AmountExceedsBalance`
+///     - no `cpmm_pools_t[event_id]` → `UnknownEvent`
+///     - pool `status != Active` → `PoolNotActive`
+///
+/// `min_out_shares` defaults to `0` per architect Q5 ("min_out_shares = 0
+/// for MVP"); caller may override (parser allows future field).
+///
+/// Caller pattern (evaluator): on `Err`, increment
+/// `tool_dist["invest_<reason>"]` and write a `MarketDecisionTrace`
+/// `NoTrade{reason}` to CAS. On `Ok(tx)`, capture `tx_id`,
+/// `bus.submit_typed_tx(tx).await`, await state_root advance, then write a
+/// `MarketDecisionTrace` `Submitted{tx_id}`.
+#[allow(clippy::too_many_arguments)]
+pub fn tb_n3_invest_to_router_tx(
+    keypairs: &mut AgentKeypairRegistry,
+    parent_state_root: Hash,
+    snapshot: Option<&QState>,
+    buyer: &str,
+    work_tx_id_str: &str,
+    direction: crate::state::typed_tx::BuyDirection,
+    amount_micro: i64,
+    min_out_units: u128,
+    suffix: &str,
+) -> Result<TypedTx, InvestRouteError> {
+    use crate::state::typed_tx::{
+        BuyWithCoinRouterSigningPayload, BuyWithCoinRouterTx, ShareAmount,
+    };
+
+    if amount_micro == 0 {
+        return Err(InvestRouteError::ZeroAmount);
+    }
+    if amount_micro < 0 {
+        return Err(InvestRouteError::NegativeAmount);
+    }
+    if work_tx_id_str.is_empty() {
+        return Err(InvestRouteError::MalformedNode { reason: "empty" });
+    }
+    if work_tx_id_str.chars().any(|c| c.is_control()) {
+        return Err(InvestRouteError::MalformedNode { reason: "control char" });
+    }
+
+    let buyer_id = AgentId(buyer.into());
+    let work_tx_id = TxId(work_tx_id_str.into());
+    let event_id = crate::state::typed_tx::node_survive_event_id(&work_tx_id);
+
+    if let Some(q) = snapshot {
+        let bal = q
+            .economic_state_t
+            .balances_t
+            .0
+            .get(&buyer_id)
+            .copied()
+            .unwrap_or(MicroCoin::zero());
+        if bal.micro_units() < amount_micro {
+            return Err(InvestRouteError::AmountExceedsBalance {
+                amount_micro,
+                balance_micro: bal.micro_units(),
+            });
+        }
+        match q.economic_state_t.cpmm_pools_t.0.get(&event_id) {
+            None => return Err(InvestRouteError::UnknownEvent),
+            Some(p) if !matches!(p.status, crate::state::q_state::PoolStatus::Active) => {
+                return Err(InvestRouteError::PoolNotActive);
+            }
+            _ => {}
+        }
+    }
+
+    let tx_id = TxId(format!("router-{buyer}-{suffix}"));
+    let pay_coin = MicroCoin::from_micro_units(amount_micro);
+    let min_out_shares = ShareAmount::from_units(min_out_units);
+
+    let payload = BuyWithCoinRouterSigningPayload {
+        tx_id: tx_id.clone(),
+        parent_state_root,
+        event_id: event_id.clone(),
+        buyer: buyer_id.clone(),
+        direction,
+        pay_coin,
+        min_out_shares,
+    };
+    let digest = payload.canonical_digest();
+    let signature = keypairs
+        .sign(&buyer_id, digest)
+        .map_err(InvestRouteError::KeypairError)?;
+
+    Ok(TypedTx::BuyWithCoinRouter(BuyWithCoinRouterTx {
+        tx_id,
+        parent_state_root,
+        event_id,
+        buyer: buyer_id,
+        direction,
+        pay_coin,
+        min_out_shares,
+        signature,
+    }))
+}
+
+/// TB-N3 A3 (architect ruling 2026-05-11 amendment 3) — real-signature
+/// `CpmmPoolTx` constructor mirroring `make_real_market_seed_signed_by`
+/// shape. Provider signs over the canonical signing payload; symmetric
+/// init (`seed_yes == seed_no`).
+///
+/// Architect §3.3: A3 must compose canonical admission paths (no hand-
+/// written treasury debit / pool reserve mutation). This helper is the
+/// canonical signing wrapper consumed by `tb_n3_emit_node_market_after_work_accept`.
+#[allow(clippy::too_many_arguments)]
+pub fn make_real_cpmm_pool_signed_by(
+    keypairs: &mut AgentKeypairRegistry,
+    parent_state_root: Hash,
+    event_task: &str,
+    provider: &str,
+    seed_units: u128,
+    suffix: &str,
+) -> Result<TypedTx, AgentKeypairError> {
+    use crate::state::typed_tx::{
+        CpmmPoolSigningPayload, CpmmPoolTx, EventId, ShareAmount,
+    };
+    let provider_id = AgentId(provider.into());
+    let tx_id = TxId(format!("pool-{provider}-{event_task}-{suffix}"));
+    let event_id = EventId(crate::state::q_state::TaskId(event_task.into()));
+    let seed_yes = ShareAmount::from_units(seed_units);
+    let seed_no = ShareAmount::from_units(seed_units);
+
+    let payload = CpmmPoolSigningPayload {
+        tx_id: tx_id.clone(),
+        parent_state_root,
+        event_id: event_id.clone(),
+        provider: provider_id.clone(),
+        seed_yes,
+        seed_no,
+    };
+    let digest = payload.canonical_digest();
+    let signature = keypairs.sign(&provider_id, digest)?;
+
+    Ok(TypedTx::CpmmPool(CpmmPoolTx {
+        tx_id,
+        parent_state_root,
+        event_id,
+        provider: provider_id,
+        seed_yes,
+        seed_no,
+        signature,
+    }))
+}
+
 #[cfg(test)]
 mod adapter_tests_atom2 {
     use super::*;

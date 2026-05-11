@@ -200,15 +200,41 @@ pub fn build_agent_prompt(
         prompt.push_str("    Legacy one-shot: full proof. Payload alone, then tape+payload fallback.\n");
     }
     // Session #34 V1 (tool clean) drops unused tools from the schema. M0
-    // 2026-05-10 evidence: agent never invokes search/invest/post at N=1.
+    // 2026-05-10 evidence: agent never invokes search/invest/post at N=1
+    // for SINGLE-LLM runs. TB-N3 (architect ruling 2026-05-11 Q3) overrides
+    // this for `invest` specifically: V0 + V1 BOTH default-include the
+    // invest tool because v4 terminal architecture is multi-llm-agents
+    // (user verbatim 2026-05-11 "v4 终极设计目的也是 multi-llm-agents").
+    // Opt-out via `TURINGOS_DISABLE_MARKET_TOOLS=1` for legacy single-LLM
+    // experiments that explicitly want the V1 strip.
+    let market_tools_disabled = std::env::var("TURINGOS_DISABLE_MARKET_TOOLS")
+        .ok()
+        .as_deref()
+        == Some("1");
     if variant != "v1" {
         prompt.push_str("  {\"tool\":\"search\",\"query\":\"<keyword>\"}\n");
-        prompt.push_str("  {\"tool\":\"invest\",\"node\":\"<node-id>\",\"amount\":<number>,\"direction\":\"long|short\"}\n");
-        prompt.push_str("    Bet on a tape node's quality (Art. II.2 price signal).\n");
+    }
+    if !market_tools_disabled {
+        // TB-N3 A1 (architect ruling 2026-05-11 Q3 + amendment 5):
+        // `node` MUST be the canonical work_tx_id of an L4-accepted WorkTx
+        // visible in `=== Current Chain ===` or `=== Market ===`. TB-N3 A3
+        // auto-emits a CPMM pool keyed by `node_survive(work_tx_id)` for
+        // each accepted WorkTx; the router resolves `node` → that node-
+        // namespaced EventId via `tb_n3_invest_to_router_tx` (architect
+        // amendment 1: "event_id 必须是 accepted WorkTx 的 canonical tx_id，
+        // 而不是 task_id"). Permissive copy per architect §8.3 ("you may
+        // invest if market signal provides an advantage" — do NOT hard-
+        // induce trading).
+        prompt.push_str("  {\"tool\":\"invest\",\"node\":\"<work_tx_id>\",\"amount\":<microCoin>,\"direction\":\"long|short\"}\n");
+        prompt.push_str("    OPTIONAL — you may invest if the market signal provides an advantage.\n");
+        prompt.push_str("    `node` is the canonical work_tx_id of an L4-accepted WorkTx visible\n");
+        prompt.push_str("    in `=== Current Chain ===` or the per-node price block in\n");
+        prompt.push_str("    `=== Market ===` (price is signal, not truth).\n");
         prompt.push_str("    direction=\"long\" buys YES shares (this node is on the winning path);\n");
         prompt.push_str("    direction=\"short\" buys NO shares (this node is a dead end).\n");
-        prompt.push_str("    Use short to price-signal dissent — silence != disagreement.\n");
-        prompt.push_str("    amount is coins deducted from your balance.\n");
+        prompt.push_str("    `amount` is micro-Coin debited from your balance (1 Coin = 1_000_000 μC).\n");
+    }
+    if variant != "v1" {
         prompt.push_str("  {\"tool\":\"post\",\"payload\":\"<short message to team board>\"}\n");
     }
 
@@ -393,12 +419,15 @@ mod tests {
         }
 
         #[test]
-        fn v1_drops_unused_tools_from_schema() {
+        fn v1_drops_search_and_post_but_keeps_invest_per_tb_n3() {
+            // TB-N3 A1 (architect ruling 2026-05-11 Q3): V1 schema
+            // strip RESTORES `invest` so multi-llm-agents can trade
+            // even on V1 prompt. search + post remain V1-stripped.
             with_variant(Some("v1"), || {
                 let p = build_agent_prompt("", "", "", &[], &[], "", "", "");
-                assert!(!p.contains("\"invest\""), "V1 drops the invest schema entry");
-                assert!(!p.contains("\"search\""), "V1 drops the search schema entry");
-                assert!(!p.contains("\"post\""), "V1 drops the post schema entry");
+                assert!(p.contains("\"invest\""), "V1 keeps invest per TB-N3 A1 ruling");
+                assert!(!p.contains("\"search\""), "V1 still drops search");
+                assert!(!p.contains("\"post\""), "V1 still drops post");
                 assert!(p.contains("\"step\""), "V1 keeps the step schema entry");
             });
         }
@@ -454,6 +483,46 @@ mod tests {
                 let p = build_agent_prompt("", "", "", &[], &[], "", "", "");
                 assert!(p.contains("\"invest\""), "unknown variant defaults to V0");
                 assert!(!p.contains("Tactic Search Guidance"));
+            });
+        }
+
+        // TB-N3 A1 — TURINGOS_DISABLE_MARKET_TOOLS opt-out tests.
+        fn with_market_tools_env<F: FnOnce()>(value: Option<&str>, body: F) {
+            let _guard = ENV_LOCK.lock().expect("env lock");
+            std::env::remove_var("TURINGOS_PROMPT_VARIANT");
+            match value {
+                Some(v) => std::env::set_var("TURINGOS_DISABLE_MARKET_TOOLS", v),
+                None => std::env::remove_var("TURINGOS_DISABLE_MARKET_TOOLS"),
+            }
+            body();
+            std::env::remove_var("TURINGOS_DISABLE_MARKET_TOOLS");
+        }
+
+        #[test]
+        fn tb_n3_a1_disable_market_tools_strips_invest_from_v0() {
+            with_market_tools_env(Some("1"), || {
+                let p = build_agent_prompt("", "", "", &[], &[], "", "", "");
+                assert!(!p.contains("\"invest\""), "TURINGOS_DISABLE_MARKET_TOOLS=1 strips invest from V0");
+                assert!(p.contains("\"step\""), "step still present");
+                assert!(p.contains("\"search\""), "V0 search still present (only invest is opt-out)");
+            });
+        }
+
+        #[test]
+        fn tb_n3_a1_default_keeps_invest_when_opt_out_unset() {
+            with_market_tools_env(None, || {
+                let p = build_agent_prompt("", "", "", &[], &[], "", "", "");
+                assert!(p.contains("\"invest\""), "default V0 keeps invest");
+            });
+        }
+
+        #[test]
+        fn tb_n3_a1_invest_schema_documents_work_tx_id_and_signal_not_truth() {
+            with_market_tools_env(None, || {
+                let p = build_agent_prompt("", "", "", &[], &[], "", "", "");
+                assert!(p.contains("work_tx_id"), "invest doc references canonical work_tx_id");
+                assert!(p.contains("price is signal, not truth"), "invest doc says price is signal not truth");
+                assert!(p.contains("OPTIONAL"), "OPTIONAL marker present (no hard induction per architect §8.3)");
             });
         }
     }

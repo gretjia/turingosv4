@@ -1165,6 +1165,21 @@ impl ChallengeResolveSigningPayload {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default)]
 pub struct EventId(pub TaskId);
 
+/// TRACE_MATRIX TB-N3 A0 (architect ruling 2026-05-11 amendment 1):
+/// node-level event identifier derived from an accepted `WorkTx.tx_id`.
+///
+/// Architect: "node market 的 event_id 必须是 accepted WorkTx 的 canonical
+/// tx_id，而不是 task_id". One accepted WorkTx → one node event → at most
+/// one CPMM pool. `task_id` only as metadata, not as node-market identity.
+///
+/// Encoding: `EventId(TaskId(format!("node_survive:{}", work_tx_id.0)))`.
+/// No new enum variant — preserves the architect-defended `event_id_kind`
+/// defect prevention from Stage C P-M4 §8 (E.1 verbatim binding gate).
+/// Distinguishable at runtime by `event_id.0.0.starts_with("node_survive:")`.
+pub fn node_survive_event_id(work_tx_id: &TxId) -> EventId {
+    EventId(TaskId(format!("node_survive:{}", work_tx_id.0)))
+}
+
 /// TRACE_MATRIX TB-13 Atom 1 (architect §4.3): outcome-side discriminator
 /// for conditional shares. Yes = "this event was finalized YES";
 /// No = "this event went bankrupt / was rejected".
@@ -4221,5 +4236,56 @@ mod tests {
             TypedTx::MarketSeed(fixture_market_seed_tx()).submitter_id(),
             Some(AgentId("agent-provider-fixture".into())),
         );
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // TB-N3 A0 — node_survive_event_id helper tests (architect amendment 1)
+    // ─────────────────────────────────────────────────────────────────────
+
+    /// TB-N3 A0 U1 — `node_survive:<work_tx_id>` namespace prefix is present
+    /// and the work_tx_id is preserved verbatim after the colon.
+    #[test]
+    fn tb_n3_a0_node_survive_event_id_uses_namespace_prefix() {
+        let work_tx_id = TxId("worktx-Agent_2-evt-foo-7".into());
+        let event_id = node_survive_event_id(&work_tx_id);
+        assert_eq!(
+            event_id.0.0, "node_survive:worktx-Agent_2-evt-foo-7",
+            "namespace prefix MUST be `node_survive:` followed by verbatim work_tx_id"
+        );
+        assert!(
+            event_id.0.0.starts_with("node_survive:"),
+            "runtime distinguishability check (matrix gate)"
+        );
+    }
+
+    /// TB-N3 A0 U2 — distinct work_tx_ids produce distinct event_ids
+    /// (collision-free; one accepted WorkTx → one node event).
+    #[test]
+    fn tb_n3_a0_node_survive_event_id_collision_free() {
+        let a = node_survive_event_id(&TxId("worktx-A-1".into()));
+        let b = node_survive_event_id(&TxId("worktx-A-2".into()));
+        let c = node_survive_event_id(&TxId("worktx-B-1".into()));
+        assert_ne!(a, b);
+        assert_ne!(a, c);
+        assert_ne!(b, c);
+    }
+
+    /// TB-N3 A0 U3 — task-level EventId (legacy TB-13 / Stage C usage)
+    /// remains distinguishable from node-level: bare `task_id` is NOT
+    /// `node_survive:`-prefixed (architect-defended event_id_kind defect
+    /// prevention preserved per Stage C P-M4 §8 E.1).
+    #[test]
+    fn tb_n3_a0_legacy_task_event_id_distinguishable_from_node_event_id() {
+        let task_event = EventId(TaskId("mathd_algebra_107".into()));
+        let node_event = node_survive_event_id(&TxId("worktx-Agent_3-mathd_algebra_107-5".into()));
+        assert!(
+            !task_event.0.0.starts_with("node_survive:"),
+            "legacy task-level EventId MUST NOT carry node_survive: prefix"
+        );
+        assert!(
+            node_event.0.0.starts_with("node_survive:"),
+            "node-level EventId MUST carry node_survive: prefix"
+        );
+        assert_ne!(task_event, node_event);
     }
 }

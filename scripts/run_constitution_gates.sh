@@ -456,6 +456,28 @@ GATES=(
   # Charter: `handover/tracer_bullets/TB_N2_POLYMARKET_CPMM_LIFECYCLE_charter_2026-05-10.md`.
   # Gap audit: `handover/audits/STAGE_C_POLYMARKET_CPMM_LIFECYCLE_GAP_AUDIT_2026-05-10.md`.
   constitution_n2_event_resolve
+
+  # TB-N3 A2 (architect ruling 2026-05-11 amendments 1+2 + Q5; Class-2
+  # invest-routing fixture path) — `tb_n3_invest_to_router_tx` adapter
+  # helper ingress test. SG-N3.1 (fixture pool present → router accepts;
+  # event_id `node_survive:`-namespaced per amendment 1) + SG-N3.2
+  # (missing-pool path returns InvestRouteError::UnknownEvent → maps to
+  # NoTradeReason::NoPool for trace anchor; NOT silent drop) + 7 negative-
+  # path cases (closed pool, zero amount, negative amount, empty node_str,
+  # balance shortfall, deterministic signing).
+  # Charter v3 §6 SG-N3.1, SG-N3.2.
+  constitution_tb_n3_invest_routing
+
+  # TB-N3 A3 (architect ruling 2026-05-11 amendments 3-6 + Q1+Q2+Q6;
+  # Class-4 STEP_B per amendment 6) — `tb_n3_emit_node_market_after_work_accept`
+  # gate. SG-N3.4 (event_id is `node_survive:`-namespaced; bare task_id
+  # negative-witness) + SG-N3.5 (MarketMakerBudget debited by exactly
+  # seed_micro per pool — no ghost liquidity) + SG-N3.6 (insufficient
+  # budget → BudgetExhausted; no pool, no shares, balance unchanged) +
+  # idempotency (re-call returns AlreadyExists, no double debit).
+  # Self-audit dossier: handover/audits/TB_N3_A3_SELF_AUDIT_2026-05-11.md.
+  # Charter v3 §6 SG-N3.4, SG-N3.5, SG-N3.6.
+  constitution_tb_n3_a3_emit
 )
 
 # Run each gate file separately and collect per-test outcome.

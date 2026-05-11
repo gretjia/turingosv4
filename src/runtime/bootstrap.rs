@@ -26,9 +26,11 @@
 use crate::economy::money::MicroCoin;
 use crate::state::q_state::AgentId;
 
-/// TRACE_MATRIX FC2 Boot: TB-10 Atom 1 — sponsor + user-sponsor + 10 solver agent budgets.
+/// TRACE_MATRIX FC2 Boot: TB-10 Atom 1 — sponsor + user-sponsor + 10 solver agent budgets;
+/// **TB-N3 A0.5 (architect ruling 2026-05-11 amendment 6 + Q1+Q2 verdicts)**:
+/// + 1 MarketMakerBudget genesis preseed entry.
 ///
-/// The 12 entries (in stable insertion order):
+/// The 13 entries (in stable insertion order):
 ///
 /// 1. `tb7-7-sponsor` (10_000_000 micro = 10 Coin) — TB-7.7 D3 self-funded
 ///    sponsor used by evaluator's `--task-mode self|both` preseed branch
@@ -40,9 +42,21 @@ use crate::state::q_state::AgentId;
 ///    (per ratification §2.3).
 /// 3-12. `Agent_0..9` (1_000_000 micro = 1 Coin each) — solver budgets;
 ///    plenty for ~1000 WorkTx.stake at 1_000 each.
+/// 13. `MarketMakerBudget` (5_000_000 micro = 5 Coin) — **TB-N3 A0.5 net-new
+///     (2026-05-11; architect ruling Q2 + amendment 6)**: provider identity
+///     used by TB-N3 A3 `tb_n3_emit_node_market_after_work_accept` to seed
+///     `MarketSeedTx` + `CpmmPoolTx` against accepted WorkTx node markets.
+///     Sized at 10× safety margin over the architect's recommended Phase-2
+///     batch budget (architect Q1: DEFAULT_POOL_SEED = 100_000 microCoin
+///     × ~5 accepted WorkTx per 9-problem batch = 500_000 microCoin draw;
+///     5_000_000 micro budget = 10× headroom for stochastic batch growth).
+///     No special permission semantics: identity acts as ordinary preseed
+///     agent. Genesis insertion (NOT post-init mint) preserves
+///     `assert_no_post_init_mint`; A3 helper signs each
+///     TaskOpen/MarketSeed/CpmmPool tx via canonical agent paths.
 ///
-/// Total preseed supply = 10_000_000 + 10_000_000 + 10 × 1_000_000 = 30_000_000 micro
-/// = 30 Coin.
+/// Total preseed supply = 10_000_000 + 10_000_000 + 10 × 1_000_000 + 5_000_000
+/// = 35_000_000 micro = 35 Coin.
 ///
 /// **Why not env-driven**: env-driven preseed would break replay determinism
 /// (genesis QState would depend on env at bootstrap time). The factory is
@@ -66,6 +80,15 @@ pub fn default_pput_preseed_pairs() -> Vec<(AgentId, MicroCoin)> {
             MicroCoin::from_micro_units(1_000_000),
         ));
     }
+    // TB-N3 A0.5 (architect ruling 2026-05-11 amendment 6 + Q2): the
+    // MarketMakerBudget agent is the canonical provider for TB-N3 A3
+    // auto-emitted node-market seed/pool transactions. 5M micro = 10×
+    // headroom over Phase-2 expected draw at DEFAULT_POOL_SEED = 100k
+    // micro per pool (architect Q1).
+    pairs.push((
+        AgentId("MarketMakerBudget".into()),
+        MicroCoin::from_micro_units(5_000_000),
+    ));
     pairs
 }
 
@@ -73,11 +96,13 @@ pub fn default_pput_preseed_pairs() -> Vec<(AgentId, MicroCoin)> {
 mod tests {
     use super::*;
 
-    /// U1 — factory returns 12 entries: 1 tb7-7-sponsor + 1 Agent_user_0 + 10 Agent_i.
+    /// U1 — factory returns 13 entries: 1 tb7-7-sponsor + 1 Agent_user_0 + 10 Agent_i
+    /// + 1 MarketMakerBudget (TB-N3 A0.5 net-new 2026-05-11; architect
+    /// ruling Q2 + amendment 6).
     #[test]
-    fn returns_12_entries() {
+    fn returns_13_entries() {
         let pairs = default_pput_preseed_pairs();
-        assert_eq!(pairs.len(), 12, "expected 12 preseed entries");
+        assert_eq!(pairs.len(), 13, "expected 13 preseed entries (12 legacy + 1 TB-N3 MarketMakerBudget)");
     }
 
     /// U2 — every entry has positive balance (no zero-funded agent).
@@ -136,14 +161,35 @@ mod tests {
         }
     }
 
-    /// U6 — total preseed supply is 30_000_000 micro.
+    /// U6 — total preseed supply is 35_000_000 micro (30M legacy +
+    /// 5M TB-N3 MarketMakerBudget per architect Q1+Q2).
     #[test]
-    fn total_preseed_supply_30m() {
+    fn total_preseed_supply_35m() {
         let total: i64 = default_pput_preseed_pairs()
             .iter()
             .map(|(_, m)| m.micro_units())
             .sum();
-        assert_eq!(total, 30_000_000, "total preseed micro");
+        assert_eq!(
+            total, 35_000_000,
+            "total preseed micro (30M legacy + 5M MarketMakerBudget)"
+        );
+    }
+
+    /// U9 — TB-N3 A0.5 (architect ruling 2026-05-11 Q2 + amendment 6):
+    /// MarketMakerBudget identity is present at the documented 5M micro
+    /// (10× headroom over Phase-2 expected pool-seed draw per Q1).
+    #[test]
+    fn market_maker_budget_present_with_5m_micro() {
+        let pairs = default_pput_preseed_pairs();
+        let mmb = pairs
+            .iter()
+            .find(|(a, _)| a.0 == "MarketMakerBudget")
+            .expect("MarketMakerBudget must be in TB-N3 preseed list");
+        assert_eq!(
+            mmb.1.micro_units(),
+            5_000_000,
+            "MarketMakerBudget budget"
+        );
     }
 
     /// U7 — factory is deterministic: two calls produce byte-identical output.
@@ -159,7 +205,8 @@ mod tests {
     }
 
     /// U8 — feeding the factory output into genesis_with_balances yields a
-    /// QState whose balances_t Σ matches the documented 30M total.
+    /// QState whose balances_t Σ matches the documented 35M total (TB-N3
+    /// A0.5: 30M legacy + 5M MarketMakerBudget).
     #[test]
     fn genesis_construction_matches_total() {
         use crate::runtime::adapter::genesis_with_balances;
@@ -172,6 +219,6 @@ mod tests {
             .values()
             .map(|m| m.micro_units())
             .sum();
-        assert_eq!(total, 30_000_000, "genesis balances Σ");
+        assert_eq!(total, 35_000_000, "genesis balances Σ");
     }
 }

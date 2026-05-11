@@ -258,20 +258,23 @@ fn h12_llm_self_narrative_in_autopsy_evidence_halts() {
 #[test]
 fn h13_total_supply_mutates_halts() {
     // Fence: assert_18_total_supply_conserved halts on total_supply
-    // divergence from genesis 30_000_000μC. Layer D verified at
+    // divergence from genesis 35_000_000μC (TB-N3 A0.5 2026-05-11:
+    // 30M legacy + 5M MarketMakerBudget). Layer D verified at
     // audit_tape time. Source-level fence: GENESIS_TOTAL_MICRO is
     // unmoved.
     use turingosv4::runtime::audit_assertions::AssertionLayer;
     let layer = AssertionLayer::D;
     assert!(matches!(layer, AssertionLayer::D));
 
-    // Genesis preseed total = 30_000_000 (verified by bootstrap module).
+    // Genesis preseed total = 35_000_000 (verified by bootstrap module:
+    // 30M legacy preseed + 5M MarketMakerBudget per TB-N3 A0.5 architect
+    // ruling 2026-05-11 Q1+Q2+amendment 6).
     use turingosv4::runtime::bootstrap::default_pput_preseed_pairs;
     let total: i64 = default_pput_preseed_pairs()
         .iter()
         .map(|(_, mc)| mc.micro_units())
         .sum();
-    assert_eq!(total, 30_000_000, "H13: genesis preseed total micro must equal 30_000_000μC");
+    assert_eq!(total, 35_000_000, "H13: genesis preseed total micro must equal 35_000_000μC (30M legacy + 5M TB-N3 MarketMakerBudget)");
 }
 
 // helper to silence unused imports in trivial tests

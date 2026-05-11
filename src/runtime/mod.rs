@@ -102,6 +102,20 @@ pub mod audit_views;
 /// future drift is gate-time-caught. See `feedback_no_workarounds_strict_constitution`.
 pub mod audit_tamper;
 
+/// TRACE_MATRIX FC1-Append TB-N3 A2 (architect ruling 2026-05-11 §8.1+§8.2 + §8.6):
+/// `market_decision_trace` — CAS-anchored audit trail for every agent invest
+/// intent. `MarketDecisionTrace` records the agent's market-side decision
+/// (chosen node + direction + amount + quoted price) plus a `TraceOutcome`
+/// distinguishing `Submitted{tx_id}` from `NoTrade{NoTradeReason}` /
+/// `Declined`. Failed invests (no pool / insufficient balance / router
+/// rejected) anchor here as `NoTrade` outcomes; submitted invests carry the
+/// L4 / L4.E TxId. Aggregate render lives in `audit_dashboard --run-report`
+/// §F (no-trade reason distribution). Constitutional Justification:
+/// architect §8.6 "Failed invest 也算有意义 tape activity" + §8.1 "外部化
+/// market decision 的审计轨迹" + Phase-2 SG-N3.12 (run_report §F).
+pub mod market_decision_trace;
+
+
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 

@@ -65,6 +65,14 @@ struct Args {
     /// explicitly when rendering audit dashboards. Absence ≡ no Markov
     /// capsule pointer surfaced; §15 renders the empty-state hint.
     markov_capsule_cid: Option<String>,
+    /// TB-N3 A5 (architect ruling 2026-05-11 SG-N3.12 + charter v3 §3):
+    /// when true, emit a TB-N3 run-report (§A citation tree + §B role
+    /// activity + §C market tx counts + §D top contested nodes + §E
+    /// budget burn + §F MarketDecisionTrace aggregate + §G signal-not-
+    /// truth banner) APPENDED to the existing dashboard render. Reads
+    /// the chain + CAS the same way as the legacy dashboard; pure
+    /// materialized view per CLAUDE.md §17 Report Standard.
+    run_report: bool,
 }
 
 fn parse_args(argv: &[String]) -> Result<Args, String> {
@@ -73,6 +81,7 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
     let mut json = false;
     let mut out: Option<PathBuf> = None;
     let mut markov_capsule_cid: Option<String> = None;
+    let mut run_report: bool = false;
     let mut i = 0;
     while i < argv.len() {
         match argv[i].as_str() {
@@ -97,6 +106,7 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
                         .clone(),
                 );
             }
+            "--run-report" => run_report = true,
             "--help" | "-h" => return Err("--help requested".into()),
             other => return Err(format!("unknown arg: {other}")),
         }
@@ -108,6 +118,7 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
         json,
         out,
         markov_capsule_cid,
+        run_report,
     })
 }
 
@@ -393,7 +404,14 @@ fn main() {
             }
         }
     } else {
-        render_text(&report)
+        let mut out = render_text(&report);
+        if parsed.run_report {
+            // TB-N3 A5 — append §A..§G TB-N3 run report sections.
+            let tb_n3 = render_tb_n3_run_report(&report, &parsed.repo, &parsed.cas);
+            out.push_str("\n");
+            out.push_str(&tb_n3);
+        }
+        out
     };
 
     if let Some(out) = parsed.out.as_ref() {
@@ -1738,7 +1756,7 @@ fn render_section_16(r: &DashboardReport) -> String {
     s.push_str("  ⚠ SANDBOX-RUN — NOT PRODUCTION — NO REAL FUNDS\n");
     s.push_str("    Agent IDs are sandbox-prefixed (Agent_solver_/Agent_verifier_/\n");
     s.push_str("    Agent_user_/tb7-7-sponsor/tb16-). Total Coin sourced from\n");
-    s.push_str("    runtime::bootstrap::default_pput_preseed_pairs() (30_000_000 μC\n");
+    s.push_str("    runtime::bootstrap::default_pput_preseed_pairs() (35_000_000 μC\n");
     s.push_str("    on_init mint; assert_no_post_init_mint enforced).\n");
     s.push_str("\n");
     s.push_str("    Architect §7.6 forbidden:\n");
@@ -2019,6 +2037,259 @@ fn trunc(s: &str, width: usize) -> String {
 // ────────────────────────────────────────────────────────────────────────────
 // TB-12 Atom 4 + Atom 6(a) — SG-12.6 dashboard rendering tests
 // (architect 2026-05-03 §9.3 ruling).
+// ────────────────────────────────────────────────────────────────────────────
+
+// ────────────────────────────────────────────────────────────────────────────
+// TB-N3 A5 — Run report renderer (architect ruling 2026-05-11 §3 §A..§G +
+// SG-N3.12). Sections all sourced from ChainTape + CAS only — no external
+// state. Pure materialized view per CLAUDE.md §17 Report Standard.
+// ────────────────────────────────────────────────────────────────────────────
+
+/// TB-N3 A5 — render the §A..§G run-report block for a TB-N3 batch run.
+/// Walks L4 + CAS to surface tx_kind counts, top contested nodes, budget
+/// burn, MarketDecisionTrace aggregate, signal-not-truth banner. Caller
+/// (`audit_dashboard --run-report`) appends this to the legacy 16-section
+/// dashboard render.
+fn render_tb_n3_run_report(
+    report: &DashboardReport,
+    repo: &std::path::Path,
+    cas_path: &std::path::Path,
+) -> String {
+    use std::collections::BTreeMap;
+    use turingosv4::bottom_white::cas::store::CasStore;
+    use turingosv4::bottom_white::ledger::transition_ledger::{
+        canonical_decode, Git2LedgerWriter,
+    };
+    use turingosv4::runtime::market_decision_trace::{
+        MarketDecisionTrace, NoTradeReason, TraceOutcome,
+    };
+
+    let mut out = String::new();
+    out.push_str("\n=== TB-N3 RUN REPORT ===\n");
+    out.push_str(&format!("run_id: {}\n", report.run_id));
+    out.push_str(&format!("epoch: {}\n", report.epoch));
+
+    // Walk the L4 ledger once to count tx-kinds and gather node-survive
+    // pool / market-seed / router activity.
+    let writer = match Git2LedgerWriter::open(repo) {
+        Ok(w) => w,
+        Err(e) => {
+            out.push_str(&format!("\n[error] open L4 ledger: {e:?}\n"));
+            return out;
+        }
+    };
+    let l4_count = writer.len();
+    let cas = match CasStore::open(cas_path) {
+        Ok(c) => c,
+        Err(e) => {
+            out.push_str(&format!("\n[error] open CAS: {e}\n"));
+            return out;
+        }
+    };
+
+    let mut tx_kind_counts: BTreeMap<String, u64> = BTreeMap::new();
+    let mut market_seed_total_micro: i64 = 0;
+    let mut pools_created: u64 = 0;
+    let mut router_count_yes: u64 = 0;
+    let mut router_count_no: u64 = 0;
+    let mut node_event_seeds: BTreeMap<String, i64> = BTreeMap::new();
+
+    for t in 1..=l4_count {
+        let entry = match writer.read_at(t) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        let payload = match cas.get(&entry.tx_payload_cid) {
+            Ok(b) => b,
+            Err(_) => continue,
+        };
+        let typed_tx: TypedTx = match canonical_decode(&payload) {
+            Ok(t) => t,
+            Err(_) => continue,
+        };
+        let kind = format!("{:?}", typed_tx.tx_kind());
+        *tx_kind_counts.entry(kind).or_insert(0) += 1;
+        match &typed_tx {
+            TypedTx::MarketSeed(seed) => {
+                let inner = &seed.event_id.0.0;
+                if inner.starts_with("node_survive:") {
+                    market_seed_total_micro += seed.collateral_amount.micro_units();
+                    node_event_seeds
+                        .entry(inner.clone())
+                        .and_modify(|v| *v += seed.collateral_amount.micro_units())
+                        .or_insert(seed.collateral_amount.micro_units());
+                }
+            }
+            TypedTx::CpmmPool(pool) => {
+                let inner = &pool.event_id.0.0;
+                if inner.starts_with("node_survive:") {
+                    pools_created += 1;
+                }
+            }
+            TypedTx::BuyWithCoinRouter(router) => {
+                use turingosv4::state::typed_tx::BuyDirection;
+                match router.direction {
+                    BuyDirection::BuyYes => router_count_yes += 1,
+                    BuyDirection::BuyNo => router_count_no += 1,
+                }
+            }
+            _ => {}
+        }
+    }
+
+    // §A Citation tree (minimal first-cut: list accepted Work tx_ids
+    // grouped by agent; full tree is a forward enhancement).
+    out.push_str("\n## §A Citation tree (accepted WorkTx by agent)\n");
+    let mut work_by_agent: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for (agent, act) in &report.per_agent {
+        if act.work_tx_accepted == 0 {
+            continue;
+        }
+        work_by_agent
+            .entry(agent.clone())
+            .or_default()
+            .push(format!("{} accepted WorkTx", act.work_tx_accepted));
+    }
+    if work_by_agent.is_empty() {
+        out.push_str("  (no accepted WorkTx in run)\n");
+    } else {
+        for (agent, lines) in &work_by_agent {
+            out.push_str(&format!("  - {}: {}\n", agent, lines.join(", ")));
+        }
+    }
+
+    // §B Role activity (already in DashboardReport per_agent).
+    out.push_str("\n## §B Role activity\n");
+    for (agent, act) in &report.per_agent {
+        out.push_str(&format!(
+            "  - {}: work_accepted={} work_rejected={} verify_accepted={} verify_rejected={}\n",
+            agent,
+            act.work_tx_accepted,
+            act.work_tx_rejected,
+            act.verify_tx_accepted,
+            act.verify_tx_rejected,
+        ));
+    }
+
+    // §C Market tx counts (from L4 walk).
+    out.push_str("\n## §C Market tx counts\n");
+    for kind in [
+        "TaskOpen", "EscrowLock", "Work", "Verify", "FinalizeReward",
+        "EventResolve", "CompleteSetMint", "MarketSeed", "CpmmPool",
+        "CpmmSwap", "BuyWithCoinRouter", "CompleteSetRedeem",
+        "CompleteSetMerge", "Challenge", "ChallengeResolve",
+        "TaskBankruptcy", "TaskExpire", "TerminalSummary",
+    ] {
+        let n = tx_kind_counts.get(kind).copied().unwrap_or(0);
+        out.push_str(&format!("  {kind}: {n}\n"));
+    }
+    let accepted_work = report
+        .per_agent
+        .values()
+        .map(|a| a.work_tx_accepted as u64)
+        .sum::<u64>();
+    out.push_str(&format!("  accepted_work_tx_total: {accepted_work}\n"));
+
+    // §D Top contested nodes — from cpmm pool reserves (read live from
+    // sequencer if present; absent here so we approximate from the
+    // node_event_seeds map populated by the L4 walk).
+    out.push_str("\n## §D Top contested nodes (by seed total μC)\n");
+    let mut by_seed: Vec<(&String, &i64)> = node_event_seeds.iter().collect();
+    by_seed.sort_by(|a, b| b.1.cmp(a.1));
+    if by_seed.is_empty() {
+        out.push_str("  (no node-survive pools seeded)\n");
+    } else {
+        for (event, seed) in by_seed.iter().take(10) {
+            out.push_str(&format!("  - {}: {} μC\n", event, seed));
+        }
+    }
+
+    // §E Budget burn report (architect §8.5).
+    let mmb_genesis_micro: i64 = 5_000_000;
+    let pools_skipped_budget: i64 =
+        accepted_work as i64 - pools_created as i64;
+    out.push_str("\n## §E Budget burn report\n");
+    out.push_str(&format!("  pools_created: {}\n", pools_created));
+    out.push_str(&format!("  market_seed_total: {} μC\n", market_seed_total_micro));
+    out.push_str(&format!("  treasury_budget_start: {} μC (MarketMakerBudget genesis)\n", mmb_genesis_micro));
+    out.push_str(&format!(
+        "  treasury_budget_end: {} μC (= start - market_seed_total)\n",
+        mmb_genesis_micro - market_seed_total_micro
+    ));
+    out.push_str(&format!(
+        "  pools_skipped_budget: {}\n",
+        pools_skipped_budget.max(0)
+    ));
+    out.push_str(&format!("  router_buy_yes: {}\n", router_count_yes));
+    out.push_str(&format!("  router_buy_no: {}\n", router_count_no));
+
+    // §F MarketDecisionTrace summary — scan CAS objects whose schema
+    // version sentinel matches `tb_n3.market_decision_trace.v1`.
+    let mut outcome_counts: BTreeMap<String, u64> = BTreeMap::new();
+    let mut no_trade_breakdown: BTreeMap<String, u64> = BTreeMap::new();
+    let mut total_traces: u64 = 0;
+    for entry in cas.list_all_cids() {
+        let bytes = match cas.get(&entry) {
+            Ok(b) => b,
+            Err(_) => continue,
+        };
+        // Trace JSON has a `schema_version` discriminator; skip non-trace
+        // AttemptTelemetry objects by checking that prefix.
+        let trace: MarketDecisionTrace = match serde_json::from_slice(&bytes) {
+            Ok(t) => t,
+            Err(_) => continue,
+        };
+        if trace.schema_version != MarketDecisionTrace::SCHEMA_VERSION {
+            continue;
+        }
+        total_traces += 1;
+        match &trace.outcome {
+            TraceOutcome::Submitted { .. } => {
+                *outcome_counts.entry("submitted".into()).or_insert(0) += 1;
+            }
+            TraceOutcome::NoTrade { reason, .. } => {
+                *outcome_counts.entry("no_trade".into()).or_insert(0) += 1;
+                *no_trade_breakdown
+                    .entry(reason_label(*reason).into())
+                    .or_insert(0) += 1;
+            }
+            TraceOutcome::Declined => {
+                *outcome_counts.entry("declined".into()).or_insert(0) += 1;
+            }
+        }
+    }
+    out.push_str("\n## §F MarketDecisionTrace summary\n");
+    out.push_str(&format!("  total_traces: {}\n", total_traces));
+    for (k, v) in &outcome_counts {
+        out.push_str(&format!("  outcome[{}] = {}\n", k, v));
+    }
+    if !no_trade_breakdown.is_empty() {
+        out.push_str("  no_trade reason breakdown:\n");
+        let mut sorted: Vec<(&String, &u64)> = no_trade_breakdown.iter().collect();
+        sorted.sort_by(|a, b| b.1.cmp(a.1));
+        for (reason, n) in sorted {
+            out.push_str(&format!("    {} = {}\n", reason, n));
+        }
+    }
+
+    // §G Banner (architect "no price as truth").
+    out.push_str("\n## §G PRICE IS SIGNAL, NOT TRUTH\n");
+    out.push_str("  Pool reserves and prices in this report are derived\n");
+    out.push_str("  views over ChainTape + CAS evidence. Prices are\n");
+    out.push_str("  expressed as integer-rational (numerator/denominator).\n");
+    out.push_str("  No Coin minted post-init; no ghost liquidity; no f64.\n");
+
+    // Suppress unused-helper warning for `reason_label` in builds that
+    // never enter §F (no traces present).
+    let _ = NoTradeReason::Unknown;
+
+    out
+}
+
+fn reason_label(r: turingosv4::runtime::market_decision_trace::NoTradeReason) -> &'static str {
+    r.label()
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 
 // ────────────────────────────────────────────────────────────────────────────

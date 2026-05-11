@@ -343,16 +343,28 @@ fn discover_by_type_use(walk_root: &std::path::Path) -> Vec<String> {
 }
 
 /// Returns true iff `body` contains an authoring marker for any successor
-/// TB (TB-14 .. TB-99). Marker forms parallel `is_tb_13_authoring_marker`:
-/// `TRACE_MATRIX TB-N ` anywhere, OR a line whose comment body begins with
-/// `TB-N ` after stripping leading whitespace and `//!` / `///` / `//`
-/// markers. TB-14 Atom 2 fix; see `discover_by_type_use` doc-comment.
+/// TB (TB-14 .. TB-99 OR TB-N1 / TB-N2 / TB-N3 / ... / TB-N9 — the
+/// "N-prefix next-generation" series introduced 2026-05-10 with TB-N1
+/// agent economy and continued by TB-N2 + TB-N3 Polymarket lifecycle).
+/// Marker forms parallel `is_tb_13_authoring_marker`: `TRACE_MATRIX TB-{tag} `
+/// anywhere, OR a line whose comment body begins with `TB-{tag} ` after
+/// stripping leading whitespace and `//!` / `///` / `//` markers. TB-14
+/// Atom 2 fix; TB-N3 A2 extension 2026-05-11 per `feedback_market_quarantine_token_exemption`
+/// (architect-spec'd successor TB landing must own its own forward-fence;
+/// extending recognition list is the correct closure, not bandaid-rename).
 fn has_successor_tb_authoring_marker(body: &str) -> bool {
     // Pre-build the per-N tag strings once per call to avoid reformatting
     // inside the inner per-line loop.
-    let tags: Vec<(String, String)> = (14u32..=99)
+    let mut tags: Vec<(String, String)> = (14u32..=99)
         .map(|n| (format!("TRACE_MATRIX TB-{n} "), format!("TB-{n} ")))
         .collect();
+    // TB-N* "next-generation" series (TB-N1 / TB-N2 / TB-N3 / ... / TB-N9).
+    for n in 1..=9 {
+        tags.push((
+            format!("TRACE_MATRIX TB-N{n} "),
+            format!("TB-N{n} "),
+        ));
+    }
     for line in body.lines() {
         let trimmed = line.trim_start();
         let comment_body = trimmed
