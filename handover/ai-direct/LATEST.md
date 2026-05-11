@@ -6,6 +6,36 @@
 
 ---
 
+## 🔄 IN-FLIGHT 2026-05-11 — TB-N2-POLYMARKET-CPMM-LIFECYCLE B2 candidate impl on parallel branch
+
+**Branch**: `feat/n2-b2-event-resolve` (parallel STEP_B branch; NOT merged to main; NOT pushed to origin)
+**HEAD on branch**: `7dc2aa0`
+**`origin/main` HEAD**: `00d7024` (TB-N2 B0 charter + B1 gap audit; pushed)
+**Authorization scope**: user 2026-05-11 "Charter + plan + Option 1 — begin B2 candidate impl on parallel branch"; CLAUDE.md §9 single-word "confirm" → candidate remediation only, NOT §8 ship.
+
+**What B2 closes**: pre-B2 `TaskMarketState::Finalized` was READ at 5+ admission sites but WRITTEN 0 times (gap audit §3.3). B2 adds Open → Finalized writer-side via system-emit on the OMEGA-Confirm path (Option 1 minimal resolution authority).
+
+**Validation at `7dc2aa0`**:
+- `cargo check --workspace`: clean
+- `cargo test --workspace --test-threads=1`: **1447 / 0 / 151** (+8 vs 1439)
+- `bash scripts/run_constitution_gates.sh`: **287 / 0 / 1** (+8 vs 279)
+- `cargo test -p minif2f_v4 --test trust_root_immutability`: PASS (8 STEP_B / adjacent files rehashed)
+
+**Files edited**: 13 files / 1003 insertions / 11 deletions. STEP_B-protected: `src/state/typed_tx.rs`, `src/state/sequencer.rs`, `src/bottom_white/ledger/system_keypair.rs` (Class-4 canonical-signing-payload boundary touched), plus `transition_ledger.rs`, `adapter.rs`, `monetary_invariant.rs`, `audit_assertions.rs`, `run_summary.rs`, 2 evaluator/arena binaries, 1 new test file, gate runner, Trust Root manifest.
+
+**Resume plan** (next session): full step-by-step at `handover/ai-direct/NEXT_SESSION_PROMPT_2026-05-11_post_b2_impl.md`. Summary:
+1. `/runner-preflight` per MEMORY MUST CHECK BEFORE
+2. `cargo build --release --bin evaluator`
+3. Real-LLM smoke (3 problems × 2 models; aime_1983_p2 guarantees OmegaAccepted → B2 trigger; ~15-30 min, ~$3-5)
+4. Verify ≥1 cell with `EventResolve emitted` log line + verdict=Ok delta=0 across 6/6 cells
+5. PRE-§8 dual audit (Codex G2 + Gemini DT) on smoke evidence; Class-4 canonical-signing-payload boundary → full dual; conservative-merge VETO > CHALLENGE > PASS; round cap=2
+6. Draft §8 packet at `handover/directives/2026-05-11_TB_N2_B2_§8_PACKET.md`
+7. **HOLD** for explicit multi-clause architect §8
+
+**Forward queue (after B2 ships per per-atom §8)**: B3 CpmmPoolResolveTx → B4 CpmmLpUnwindTx (closes LP funds-locked gap §3.4) → B5 asymmetric seed → B6 end-to-end real-LLM smoke → B7 Phase B overall §8 cap.
+
+---
+
 ## ✅ Session #36 (continued) 2026-05-10 — TB-N1-AGENT-ECONOMY Phase 2 atom A4 SHIPPED FINAL + **Phase 2 SHIPPED FINAL**
 
 **HEAD on `origin/main`**: `98c1908` (4 commits past A3 ship `535d760`; pushed).
