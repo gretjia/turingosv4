@@ -10,7 +10,7 @@
 
 **Branch**: `feat/g1-1-resume-mode` → merged to `main`.
 
-**HEAD on `origin/main`**: `<COMMIT_PLACEHOLDER>` (G1.1 ship discharge; supersedes session #39 close `e3fd848`).
+**HEAD on `origin/main`**: `5d55950` (G1.1 ship discharge; supersedes session #39 close `e3fd848`).
 
 **Architect §8 (G1.1)**: SIGNED 2026-05-11 session #39 close. User verbatim "好，确认可以 ship" — canonical Class-4 §8 multi-clause form; structurally equivalent to all prior canonical §8 invocations (TB-C0 / P-M2 / P-M6 / A3 / A4 / B2). Seventh canonical §8 in v4 history. §8 packet at `handover/directives/2026-05-11_TB_G_G1_1_§8_PACKET.md` §6.
 
