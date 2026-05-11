@@ -519,6 +519,19 @@ GATES=(
   constitution_g1_2_chain_tape_lease
 )
 
+# Per-package gates — tests that live under a workspace member crate
+# (e.g. experiments/minif2f_v4/tests/) and must be invoked with `-p
+# <package>` to resolve the package's dev-dependencies. Format:
+# "<package>:<test_name>".
+GATES_PKG=(
+  # TB-G G1.2-3 (Option B+ orchestration ruling 2026-05-11 §1 +
+  # §3.1-§3.5): batch_orchestrator subprocess-resume gates SG-G1.2-3.1..5.
+  # task_0 fresh-genesis / task_k>0 resume / canonical SG-G1.7
+  # one-continuous-ChainTape / halt-and-record on subprocess crash /
+  # legacy single-task byte-equal genesis regression.
+  "minif2f_v4:constitution_g1_2_subprocess_resume"
+)
+
 # Run each gate file separately and collect per-test outcome.
 TOTAL_PASS=0
 TOTAL_FAIL=0
@@ -559,6 +572,39 @@ for gate in "${GATES[@]}"; do
   fi
 
   GATE_DETAIL+=("{\"gate\":\"$gate\",\"passed\":$pass,\"failed\":$fail,\"ignored\":$ignored,\"rc\":$rc}")
+done
+
+# Per-package gates (TB-G G1.2-3 introduced this loop). Each entry is
+# "<package>:<test_name>"; we invoke `cargo test -p <package> --test
+# <test_name>` and aggregate into the same totals.
+for entry in "${GATES_PKG[@]}"; do
+  pkg="${entry%%:*}"
+  gate="${entry##*:}"
+  echo "[gate-pkg] $pkg::$gate"
+  out_path="target/${pkg}_${gate}_output.txt"
+  set +e
+  cargo test -p "$pkg" --test "$gate" --no-fail-fast -- --test-threads=1 > "$out_path" 2>&1
+  rc=$?
+  set -e
+
+  result_line=$(grep -E '^test result:' "$out_path" | head -1 || echo "")
+  pass=$(echo "$result_line" | sed -nE 's/.* ([0-9]+) passed.*/\1/p' | head -1)
+  fail=$(echo "$result_line" | sed -nE 's/.* ([0-9]+) failed.*/\1/p' | head -1)
+  ignored=$(echo "$result_line" | sed -nE 's/.* ([0-9]+) ignored.*/\1/p' | head -1)
+  pass=${pass:-0}; fail=${fail:-0}; ignored=${ignored:-0}
+
+  TOTAL_PASS=$((TOTAL_PASS + pass))
+  TOTAL_FAIL=$((TOTAL_FAIL + fail))
+  TOTAL_IGNORED=$((TOTAL_IGNORED + ignored))
+
+  if [ "$fail" -gt 0 ] || [ "$rc" -ne 0 ]; then
+    ANY_FAIL=1
+    echo "  RED: $result_line  (rc=$rc)"
+  else
+    echo "  GREEN: $result_line"
+  fi
+
+  GATE_DETAIL+=("{\"gate\":\"${pkg}::${gate}\",\"passed\":$pass,\"failed\":$fail,\"ignored\":$ignored,\"rc\":$rc}")
 done
 
 # Compose JSON report

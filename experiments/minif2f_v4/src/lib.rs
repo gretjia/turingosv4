@@ -44,3 +44,16 @@ pub mod drive_task;
 /// Phase 2 will lift one-time chain bootstrap; Phase 3 adds `shutdown(self)`
 /// and parameterizes per-task entry; Phase 4 substantive `comprehensive_arena.rs`.
 pub mod chain_runtime;
+
+/// TRACE_MATRIX FC2-Boot adjacent (TB-G G1.2-3 2026-05-11; Option B+
+/// orchestration ruling): `batch_orchestrator` — binding glue between
+/// G1.2-1 ResumePreflight, G1.2-2 ChainTapeLease, and the existing
+/// `evaluator` binary. Provides `BatchSpec` / `TaskOutcome` /
+/// `prepare_task_boundary` / `build_subprocess_env` /
+/// `verify_chain_continuity` / `write_manifest_skeleton`. Does NOT
+/// execute LLM-Lean cycles itself — those happen inside spawned
+/// `evaluator` subprocesses. Sequential-batch use today; concurrent
+/// expansion forward. Constitutional Justification:
+/// `handover/directives/2026-05-11_TB_G_G1_2_OPTION_B_PLUS_RULING.md`
+/// §1 + §3.1 + §3.2 + §3.3 + §3.5.
+pub mod batch_orchestrator;
