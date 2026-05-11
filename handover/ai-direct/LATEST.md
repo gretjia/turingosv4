@@ -6,13 +6,15 @@
 
 ---
 
-## 🟡 Session #39 2026-05-11 — TB-G G0 LANDED + G1.1 §8 PACKET DRAFTED (HALT)
+## ✅ Session #39 2026-05-11 — TB-G G0 LANDED + G1.1 §8 SIGNED (fresh-session handoff for impl)
 
 **Branch**: `feat/tb-n3-autorun-20260511T051910Z` (working branch; G0 docs landed here pre-charter ship)
 
 **HEAD on `origin/main`**: `2c110dc` (pre-teleport sweep; G-Phase directive archived at `handover/directives/2026-05-11_G_PHASE_GENERATIVE_ARENA_DIRECTIVE.md` 586 lines).
 
-**Architect §8**: **NOT YET SIGNED**. G1.1 is a Class-4 STEP_B atom (resume-mode genesis branch in `src/runtime/mod.rs:407` + new `Sequencer::new_at_logical_t` constructor). Per CLAUDE.md §9 + `feedback_no_batch_class4_signoff`, autonomous authority STOPS at packet draft. §8 packet at `handover/directives/2026-05-11_TB_G_G1_1_§8_PACKET.md` §6 BLANK awaiting verbatim multi-clause sign-off.
+**Architect §8 (G1.1)**: **SIGNED 2026-05-11** session #39 close. User verbatim "好，确认可以 ship" — canonical Class-4 §8 multi-clause form, structurally identical to TB-C0 / P-M2 / P-M6 / A3 / A4 / B2 prior canonical forms. **Seventh canonical §8 invocation in v4 history.** §8 packet `handover/directives/2026-05-11_TB_G_G1_1_§8_PACKET.md` §6 now contains the verbatim text + authorized scope; §8 HALT condition cleared.
+
+**Implementation deferred to fresh session** (session #40) per user direction: current session accumulated web-ultraplan + sandbox-path + teleport + plan-revision + G0 docs + packet-draft context; clean context recommended for Class-4 STEP_B implementation + dual audit + smoke. All handoff state persisted in packet + charter + matrix §R + this LATEST + architect directive.
 
 **Authority chain**: web ultraplan session `01QqSehGhpsts18AC5qExyAS` (plan approved by user verbatim "plan approved, returned to terminal and execute your plan" 2026-05-11) → local resume → G0 Class-0 atoms landed → G1.1 §8 packet drafted → HALT.
 
@@ -73,11 +75,74 @@ Once architect §8 lands G1.1:
 | Trust Root impact | NONE (no source files touched) |
 | Constitution gate count delta | 0 (9 §R rows added at 🔴 RED status; gates land when atoms land) |
 
-### Halt rationale (verbatim)
+### Session-close rationale + fresh-session handoff
 
-Per CLAUDE.md §9 Class 4 + `feedback_no_batch_class4_signoff`: G1.1 touches `src/state/sequencer.rs` (new constructor) AND introduces a new boot-time admission path (non-empty repo allowed under env gate). Both are sequencer-admission surfaces; both qualify as Class 4 per CLAUDE.md §12 STEP_B list. Autonomous landing of Class 4 is forbidden without explicit multi-clause architect §8 (CLAUDE.md §10 — "scope / allowed path / forbidden path / risk class / whether audit is required / whether ship is authorized"; single-word `可以` / `go` / `ok` does NOT suffice per §9 verbatim list).
+G1.1 §8 signed; per CLAUDE.md §10 the multi-clause "好，确认可以 ship" authorizes the scope enumerated in packet §6. Implementation moves to a fresh session (#40) because current session accumulated heavy phase-switching context (web ultraplan / sandbox-path teleport / plan revision rounds / G0 doc landing / packet draft) that doesn't help the Class-4 STEP_B implementation audit precision.
 
-**Recommended next user action**: review `handover/directives/2026-05-11_TB_G_G1_1_§8_PACKET.md`; provide explicit multi-clause §8 sign-off (e.g., "好，G1.1 scope confirmed, 同意按 §2 列表执行 + 按 §5 dual-audit 计划走 + 通过后 ship") OR adjust scope.
+**Fresh-session boot prompt** (handed off via user; canonical form below):
+
+```
+# Session #40 boot — G1.1 (resume-mode genesis branch) implementation
+
+Default read order per CLAUDE.md §22:
+1. CLAUDE.md
+2. constitution.md
+3. handover/ai-direct/LATEST.md (session #39 entry; this entry handing off)
+4. handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md §R (G-Phase rows)
+5. handover/tracer_bullets/TB_G_GENERATIVE_ARENA_charter_2026-05-11.md
+6. handover/directives/2026-05-11_TB_G_G1_1_§8_PACKET.md (§8 SIGNED;
+   §6 contains verbatim authorized scope; §2 enumerates surfaces)
+7. handover/directives/2026-05-11_G_PHASE_GENERATIVE_ARENA_DIRECTIVE.md
+   (architect verbatim verdict — binding source)
+
+Task: implement TB-G atom G1.1 per packet §2:
+- Cut branch `feat/g1-1-resume-mode` from current `feat/tb-n3-autorun-20260511T051910Z`
+  HEAD (post-§8-sign-off commit).
+- Land surfaces enumerated in packet §2:
+  • src/runtime/mod.rs:407 — add RuntimeChaintapeConfig.resume_existing_chain
+    + env-read TURINGOS_CHAINTAPE_RESUME==1 + build_chaintape_sequencer
+    resume branch (reuse reconstruct_from_chaintape_refs from
+    src/state/head_t_witness.rs)
+  • src/state/sequencer.rs — add Sequencer::new_at_logical_t companion
+    constructor
+- Write tests/constitution_g1_resume.rs covering SG-G1.1..SG-G1.5
+  (packet §3).
+- cargo check + cargo test --workspace + bash scripts/run_constitution_gates.sh
+  all GREEN.
+- Dispatch PRE-§8 dual audit (Codex G2 + Gemini DT round-cap=2) covering
+  Q1..Q9 in packet §5. Use STEP_B parallel branch already in place.
+- Real-LLM 3-problem mini smoke with TURINGOS_CHAINTAPE_RESUME=1 on the
+  resumed chain; evidence at handover/evidence/g_phase_g1_1_smoke_2026-05-11T<ts>Z/
+  with chain_invariant.verdict=Ok delta=0 + audit_proceed=true +
+  inv1_match=true.
+- Update LATEST.md with session #40 entry; ship under existing §8
+  (packet §6 SIGNED) per /runner-preflight cadence.
+
+Constraints (packet §6 forbidden path):
+- Do not touch src/state/typed_tx.rs, src/bottom_white/ledger/system_keypair.rs,
+  genesis_payload.toml Trust Root.
+- Do not batch G2 / G2P / G3 / G4 / G5 / G6 / G7 into this commit.
+- Single-word affirmations (e.g., "go", "ok", "可以") DO NOT extend §8 to
+  out-of-scope work per CLAUDE.md §9 + §10.
+
+Constitutional gates (G-Phase arena boundary, must remain GREEN):
+- tape-first / no-ghost-liquidity / no-price-as-truth /
+  dashboard-derived-only / no-real-funds / no-public-chain
+- G-Phase non-objectives: NO more substrate / NO public benchmark / NO
+  DeFi expansion / NO real-world readiness
+
+If any item above is unclear or surface in §2 is mis-stated, STOP and
+ask. Do not extrapolate beyond §2 file list.
+```
+
+Architect §8 sign-off persisted at:
+- `handover/directives/2026-05-11_TB_G_G1_1_§8_PACKET.md` §6 (verbatim)
+- this LATEST entry §39 header (status flip 🟡 → ✅)
+
+Forward Class-4 atoms still requiring per-atom §8 (drafted as separate
+packets after G1.1 ships):
+- G3.2 (sequencer-side bankruptcy risk-cap admission)
+- G4.2 (agent_model_assignment genesis schema)
 
 ---
 
