@@ -8,7 +8,7 @@
 
 ## ✅ Session #38 2026-05-11 — TB-N2-POLYMARKET-CPMM-LIFECYCLE atom B2 SHIPPED FINAL
 
-**HEAD on `origin/main`**: `<TBD post-push>` (will resolve after merge + push completes; expect ~3 commits past `00d7024`).
+**HEAD on `origin/main`**: `b61735b` (2 commits past `00d7024`: R2 fix + ship discharge `b61735b` and the R1 candidate `7dc2aa0` already in branch ancestry; pushed `00d7024..b61735b`).
 
 **Architect §8** (`handover/directives/2026-05-11_TB_N2_B2_§8_SIGN_OFF.md`): user verbatim **"好，确认可以 ship"** — canonical Class-4 §8 multi-clause form (clause 1 acknowledgment `好` + clause 2 named act `确认` + scope `可以 ship`). **Sixth canonical §8 form invocation in v4 history** (TB-C0 2026-05-07, P-M2 2026-05-09, P-M6 2026-05-09, A3 2026-05-10, A4 2026-05-10, B2 2026-05-11). Structurally identical to all prior accepted canonical Class-4 §8 forms per CLAUDE.md §10 multi-clause analysis.
 
@@ -17,8 +17,8 @@
 | Commit (chronological) | Subject | Class | Δ gates / workspace |
 |--------|---------|-------|---------------------|
 | `7dc2aa0` (R1 candidate; pre-session #38) | TB-N2 B2 — EventResolveTx system-emit on OMEGA-Confirm (Class-3 impl) | 3 (Class-4 canonical-signing-payload boundary touched) | gates 279 → 287 (+8); workspace 1439 → 1447 (+8) |
-| `<TBD R2>` | **TB-N2 B2 R2 — adapter race fix + Trust Root manifest coverage** (Codex G2 R1 VETO closure). `tb_n2_emit_event_resolve_after_finalize` now accepts `verify_tx_id: &TxId` 3rd param; polls `claims_t[claim_id].status == ClaimStatus::Finalized` (apply-witness; mirrors tb8 pattern) ALONGSIDE `task_markets_t.state == Open` before EventResolve emit. Prevents stale `parent_state_root` → `StaleParent` L4.E race observed in R1 smoke cell 2 (`rejections.jsonl:9 tx_kind:"EventResolve" public_summary:"stale_parent_root"`). 3 call sites updated; both evaluator hooks nested inside `if let Some(vid)` block. `genesis_payload.toml`: ADDED `src/runtime/audit_assertions.rs` entry; REHASHED adapter.rs + evaluator.rs. NEW SG-N2-B2.9 source-grep binding gate. | gates 287 → 288 (+1); workspace 1447 → 1448 (+1) |
-| `<TBD §8>` | TB-N2 B2 — §8 SIGN-OFF + LATEST + TB_LOG (ship discharge) | docs only | preserved |
+| `b61735b` | **TB-N2 B2 R2 — adapter race fix + Trust Root manifest coverage + ship discharge** (Codex G2 R1 VETO closure). `tb_n2_emit_event_resolve_after_finalize` now accepts `verify_tx_id: &TxId` 3rd param; polls `claims_t[claim_id].status == ClaimStatus::Finalized` (apply-witness; mirrors tb8 pattern) ALONGSIDE `task_markets_t.state == Open` before EventResolve emit. Prevents stale `parent_state_root` → `StaleParent` L4.E race observed in R1 smoke cell 2 (`rejections.jsonl:9 tx_kind:"EventResolve" public_summary:"stale_parent_root"`). 3 call sites updated; both evaluator hooks nested inside `if let Some(vid)` block. `genesis_payload.toml`: ADDED `src/runtime/audit_assertions.rs` entry; REHASHED adapter.rs + evaluator.rs. NEW SG-N2-B2.9 source-grep binding gate. | gates 287 → 288 (+1); workspace 1447 → 1448 (+1) |
+| _(folded into b61735b above; atomic ship)_ | _(R2 fix + audit records + §8 packet + §8 sign-off + LATEST + TB_LOG all in one atomic commit per `feedback_no_workarounds_strict_constitution` minimal-commit-graph)_ | — | — |
 
 ### PRE-§8 dual audit summary (R1 VETO → R2 PASS)
 
@@ -45,7 +45,7 @@ Ship dossier: `handover/directives/2026-05-11_TB_N2_B2_§8_PACKET.md` + `2026-05
 
 | Check | Value |
 |---|---|
-| HEAD (origin/main) | `<TBD>` (post-push) |
+| HEAD (origin/main) | `b61735b` (post-push) |
 | Constitution gates | **288 / 0 / 1** (+9 vs 279 session #36 close; +1 from SG-N2-B2.9 R2 binding) |
 | Workspace tests | **1448 / 0 / 151** (+9 vs 1439 session #36 close; +1 from SG-N2-B2.9) |
 | Trust Root | PASS (4/4 including `test_trust_root_manifest_includes_b2_b4_files`; +1 file `audit_assertions.rs` added to manifest; adapter.rs + evaluator.rs rehashed) |
