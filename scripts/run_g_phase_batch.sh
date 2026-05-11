@@ -244,13 +244,16 @@ echo "[batch_evaluator] exit_code=$BATCH_EXIT elapsed=${ELAPSED}s"
 
 echo
 echo "[audit_tape] running over shared runtime_repo + cas"
-"$AUDIT_TAPE" \
+( cd "$PROJECT_ROOT" && "$AUDIT_TAPE" \
     --runtime-repo "$RUN_DIR/runtime_repo" \
     --cas-dir "$RUN_DIR/cas" \
     --agent-pubkeys "$RUN_DIR/runtime_repo/agent_pubkeys.json" \
     --pinned-pubkeys "$RUN_DIR/runtime_repo/pinned_pubkeys.json" \
-    > "$RUN_DIR/aggregate_verdict.json" \
-    2> "$RUN_DIR/audit_tape.stderr"
+    --genesis "$PROJECT_ROOT/genesis_payload.toml" \
+    --constitution "$PROJECT_ROOT/constitution.md" \
+    --alignment-dir "$PROJECT_ROOT/handover/alignment" \
+    --out "$RUN_DIR/aggregate_verdict.json" \
+    ) 2> "$RUN_DIR/audit_tape.stderr"
 AUDIT_EXIT=$?
 
 VERDICT="$(grep -E '"verdict"' "$RUN_DIR/aggregate_verdict.json" 2>/dev/null | head -1 | sed -E 's/.*"verdict": *"([^"]+)".*/\1/')"

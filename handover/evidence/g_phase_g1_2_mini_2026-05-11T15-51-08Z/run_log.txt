@@ -1,0 +1,8 @@
+batch_id        g_phase_g1_2_mini_2026-05-11T15-51-08Z_b70a330
+run_tag         g_phase_g1_2_mini_2026-05-11T15-51-08Z
+problem_count   3
+git_head        b70a330846e5bb9c675d9a20ed980579feafc3ed
+elapsed_s       541
+batch_exit      0
+audit_exit      2
+audit_verdict   
