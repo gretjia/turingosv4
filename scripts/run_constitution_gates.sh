@@ -509,6 +509,14 @@ GATES=(
   # architect-named "TURINGOS_CHAINTAPE_RESUME=1 is a signal not a
   # safety protocol" gap.
   constitution_g1_2_resume_preflight
+
+  # TB-G G1.2-2 (Option B+ orchestration ruling 2026-05-11 §3.2):
+  # ChainTapeLease single-writer file-lock guarding
+  # refs/transitions/main advancement against concurrent subprocess
+  # writers. 6 SG-G1.2-2.* gates covering round-trip + 5 reject /
+  # recover paths. Sequential-batch today; concurrent-expansion
+  # forward.
+  constitution_g1_2_chain_tape_lease
 )
 
 # Run each gate file separately and collect per-test outcome.

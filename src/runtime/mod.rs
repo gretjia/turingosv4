@@ -124,6 +124,16 @@ pub mod market_decision_trace;
 /// `handover/directives/2026-05-11_TB_G_G1_2_OPTION_B_PLUS_RULING.md` §3.1.
 pub mod resume_preflight;
 
+/// TRACE_MATRIX FC2-Boot (TB-G G1.2-2 2026-05-11; Option B+ orchestration
+/// ruling §3.2): `ChainTapeLease` — single-writer file-lock guarding
+/// `refs/transitions/main` advancement against concurrent subprocess
+/// writers. Atomic tempfile+rename write; stale-lock detection via
+/// `kill -0 holder_pid`; RAII drop releases. Six gates SG-G1.2-2.1..6.
+/// Sequential-batch use only today; concurrent expansion forward.
+/// Constitutional Justification:
+/// `handover/directives/2026-05-11_TB_G_G1_2_OPTION_B_PLUS_RULING.md` §3.2.
+pub mod chain_tape_lease;
+
 
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
