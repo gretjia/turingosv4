@@ -1,0 +1,11 @@
+batch_id            g_phase_g1_2_full_2026-05-11T22-31-30Z_0e3e471
+run_tag             g_phase_g1_2_full_2026-05-11T22-31-30Z
+problem_count       9
+git_head            0e3e471089ffc7f1972fa8b7fbfaf9b99dc52a98
+elapsed_s           3151
+batch_exit          0
+audit_exit          0
+audit_verdict       PROCEED
+persistence_exit    0
+persistence_passing true
+persistence_n_witnessed 1

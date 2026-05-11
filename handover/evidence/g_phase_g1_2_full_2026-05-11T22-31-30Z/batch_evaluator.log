@@ -1,0 +1,18 @@
+batch_orchestrator: task_index=0 BoundaryPrep::FreshGenesis (no preflight, no lease — task_0 owns genesis)
+batch_orchestrator: task_index=1 ChainTapeLease ACQUIRED (holder_pid=3277801, batch_id=g_phase_g1_2_full_2026-05-11T22-31-30Z_0e3e471, start_head=b2ef3b241a7d923617e3335b02f2b250f1fcda94)
+batch_orchestrator: task_index=1 ResumePreflight::Ok (head=b2ef3b241a7d923617e3335b02f2b250f1fcda94 state_root=a46a9f99de3d6f730680979c281b68a2987d7ee5f9e3cfd38d06199940c5fc61 chain_length=2) → BoundaryPrep::Resume
+batch_orchestrator: task_index=2 ChainTapeLease ACQUIRED (holder_pid=3277801, batch_id=g_phase_g1_2_full_2026-05-11T22-31-30Z_0e3e471, start_head=644e9eaa3df66b405943c40f0347c71f6dd17e66)
+batch_orchestrator: task_index=2 ResumePreflight::Ok (head=644e9eaa3df66b405943c40f0347c71f6dd17e66 state_root=afa81175f209783f24123f37af911318d2ab4ba73d53b58a6fe8b6538b244f13 chain_length=3) → BoundaryPrep::Resume
+batch_orchestrator: task_index=3 ChainTapeLease ACQUIRED (holder_pid=3277801, batch_id=g_phase_g1_2_full_2026-05-11T22-31-30Z_0e3e471, start_head=c3ed0a8ccb9d560850510ceca805a34e463ef633)
+batch_orchestrator: task_index=3 ResumePreflight::Ok (head=c3ed0a8ccb9d560850510ceca805a34e463ef633 state_root=4c4836430389127c2b09e344bead561faa2bc98d0537cbe87cfc95f0a6b2f4c5 chain_length=4) → BoundaryPrep::Resume
+batch_orchestrator: task_index=4 ChainTapeLease ACQUIRED (holder_pid=3277801, batch_id=g_phase_g1_2_full_2026-05-11T22-31-30Z_0e3e471, start_head=f491f1855eb60396cf3dde1165f42007bb1910b9)
+batch_orchestrator: task_index=4 ResumePreflight::Ok (head=f491f1855eb60396cf3dde1165f42007bb1910b9 state_root=5b4318dcd25145f2a0d3a69537f79de22c7b9c8b46ff2bbffba458849128763d chain_length=5) → BoundaryPrep::Resume
+batch_orchestrator: task_index=5 ChainTapeLease ACQUIRED (holder_pid=3277801, batch_id=g_phase_g1_2_full_2026-05-11T22-31-30Z_0e3e471, start_head=bf3ec5da398f60a0b6b7bb658054337851726bc8)
+batch_orchestrator: task_index=5 ResumePreflight::Ok (head=bf3ec5da398f60a0b6b7bb658054337851726bc8 state_root=767ab3d620ebd347de1103d2a54f6d3b92306a0a820128e65141fb7071ea9ebd chain_length=6) → BoundaryPrep::Resume
+batch_orchestrator: task_index=6 ChainTapeLease ACQUIRED (holder_pid=3277801, batch_id=g_phase_g1_2_full_2026-05-11T22-31-30Z_0e3e471, start_head=d169612996cc938e0f67d86bea16605509c4b5e2)
+batch_orchestrator: task_index=6 ResumePreflight::Ok (head=d169612996cc938e0f67d86bea16605509c4b5e2 state_root=1c79e843db533d9427de5e6aee105cc85e71c972a021158ffd85732f7c9b2836 chain_length=7) → BoundaryPrep::Resume
+batch_orchestrator: task_index=7 ChainTapeLease ACQUIRED (holder_pid=3277801, batch_id=g_phase_g1_2_full_2026-05-11T22-31-30Z_0e3e471, start_head=8b74dbe962137b263e9b81f0b2df1ca4b87c9949)
+batch_orchestrator: task_index=7 ResumePreflight::Ok (head=8b74dbe962137b263e9b81f0b2df1ca4b87c9949 state_root=aca3888f9c000ed175ad798f9a1239d990f983bec7e75cd669e0a57c17cdedbb chain_length=8) → BoundaryPrep::Resume
+batch_orchestrator: task_index=8 ChainTapeLease ACQUIRED (holder_pid=3277801, batch_id=g_phase_g1_2_full_2026-05-11T22-31-30Z_0e3e471, start_head=e1730e8a7d356aec9d307aca489d54c80211b537)
+batch_orchestrator: task_index=8 ResumePreflight::Ok (head=e1730e8a7d356aec9d307aca489d54c80211b537 state_root=7e172446d052f948a39c13884f88fa615f0647904b986a80cb882a02843ddaeb chain_length=9) → BoundaryPrep::Resume
+batch_evaluator: chain continuity OK across 9 tasks
