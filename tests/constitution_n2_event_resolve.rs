@@ -445,6 +445,86 @@ fn sg_n2_b2_8_adapter_helper_and_evaluator_hook_present() {
     );
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// SG-N2-B2.9 — R2 race-fix binding (Codex G2 R1 Q8 VETO closure 2026-05-11)
+// ════════════════════════════════════════════════════════════════════════════
+
+/// **R2 race-fix binding gate**. R1 audit (Codex G2 2026-05-11 Q8 VETO)
+/// surfaced a runtime race condition: the adapter helper polled only
+/// `task_markets_t.state == Open` and emitted `EventResolveTx`
+/// immediately on observation. Since `FinalizeRewardTx` applies
+/// asynchronously after `tb8_emit_finalize_after_verify` returns Ok, the
+/// EventResolve construction captured a pre-FinalizeReward
+/// `parent_state_root` R_0. Apply-time state_root was R_1 (post-
+/// FinalizeReward apply) → dispatch Step-0 parent-root mismatch →
+/// `StaleParent` L4.E `stale_parent_root`. Smoke evidence:
+/// `handover/evidence/stage_b3_smoke_b2_20260511T012401Z/`
+/// `deepseek-v4-flash/seed1/rep1/P002_aime_1983_p2/runtime_repo/rejections.jsonl:9`.
+///
+/// R2 fix: caller passes `verify_tx_id`; adapter derives `claim_id =
+/// "claim-{verify_tx_id}"` (mirrors tb8 helper) and polls
+/// `claims_t[claim_id].status == Finalized` ALONGSIDE the existing
+/// `task_markets_t.state == Open` poll. The claim status flip is the
+/// witness that FinalizeReward dispatch arm has applied (advancing
+/// state_root), so the subsequent emit_system_tx captures the post-
+/// FinalizeReward state_root.
+///
+/// This gate verbatim-binds the R2 fix: source-grep that the helper
+/// signature accepts `verify_tx_id: &TxId` AND polls `claims_t` AND
+/// matches on `ClaimStatus::Finalized`. Catches silent revert to R1
+/// shape.
+#[test]
+fn sg_n2_b2_9_adapter_polls_claim_finalized_before_emit_r2() {
+    let adapter_src = std::fs::read_to_string("src/runtime/adapter.rs")
+        .expect("adapter.rs present");
+
+    // R2 signature: helper accepts verify_tx_id parameter.
+    assert!(
+        adapter_src.contains("verify_tx_id: &TxId"),
+        "src/runtime/adapter.rs `tb_n2_emit_event_resolve_after_finalize` must accept \
+         `verify_tx_id: &TxId` parameter (R2 race fix per Codex G2 R1 Q8 VETO closure)",
+    );
+
+    // R2 body: derives claim_id from verify_tx_id (mirrors tb8 helper).
+    assert!(
+        adapter_src.contains("claim_id_inner = TxId(format!(\"claim-{}\", verify_tx_id.0))"),
+        "adapter helper must derive claim_id from verify_tx_id (mirrors tb8 helper's claim_id_inner pattern; R2 race fix)",
+    );
+
+    // R2 body: polls claims_t (not just task_markets_t).
+    assert!(
+        adapter_src.contains("economic_state_t\n                .claims_t\n                .0\n                .get(&claim_id_inner)")
+            || adapter_src.contains(".claims_t.0.get(&claim_id_inner)"),
+        "adapter helper must poll claims_t for the claim_id_inner status (R2 race fix)",
+    );
+
+    // R2 body: matches on ClaimStatus::Finalized as the apply-witness.
+    assert!(
+        adapter_src.contains("ClaimStatus::Finalized"),
+        "adapter helper must require `claim.status == ClaimStatus::Finalized` as the FinalizeReward-applied witness (R2 race fix)",
+    );
+
+    // R2 body: combined gate — both claim_finalized AND task Open must hold.
+    assert!(
+        adapter_src.contains("claim_finalized") && adapter_src.contains("both_ready"),
+        "adapter helper must use a combined gate (`both_ready = claim_finalized && task Open`) before emit (R2 race fix)",
+    );
+
+    // Evaluator call sites must pass &vid (verify_tx_id reference).
+    let evaluator_src = std::fs::read_to_string(
+        "experiments/minif2f_v4/src/bin/evaluator.rs",
+    )
+    .expect("evaluator.rs present");
+    let r2_call_hits = evaluator_src
+        .matches("tb_n2_emit_event_resolve_after_finalize(\n                                                    &bundle.sequencer, b2_task_id.clone(), &vid,")
+        .count();
+    assert!(
+        r2_call_hits >= 2,
+        "evaluator.rs must invoke `tb_n2_emit_event_resolve_after_finalize` with `&vid` as 3rd arg at BOTH full-proof + per-tactic OMEGA exits (R2 race fix). Found {} R2-shape occurrences.",
+        r2_call_hits,
+    );
+}
+
 // ── Unused warning suppression ──────────────────────────────────────────────
 // Some imports are reserved for forward-extension tests (e.g. WorkTx /
 // PredicateResultsBundle for future redeem-flow integration in B4+).

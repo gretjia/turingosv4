@@ -650,12 +650,34 @@ pub async fn tb8_emit_finalize_after_verify(
 ///
 /// **Why a poll-then-emit helper**: mirrors `tb8_emit_finalize_after_verify`.
 /// The just-emitted `FinalizeRewardTx` queues; the `Sequencer::run` driver
-/// applies asynchronously. To emit `EventResolve { task_id }` we need
-/// `task_markets_t[task_id].state` to be the post-FinalizeReward value
-/// (which is Open until B2 lands; FinalizeReward does NOT itself flip
-/// `task_markets_t.state` — the claims_t.status flips, but task_markets_t
-/// is task-market lifecycle and is the dimension B2 mutates). We poll
-/// `q_snapshot` until the claim's status is Finalized, then emit B2.
+/// applies asynchronously. The B2 emit must capture a `parent_state_root`
+/// that matches the apply-time `state_root_t` — otherwise dispatch
+/// rejects with `StaleParent`. Polling `task_markets_t[task_id].state ==
+/// Open` is insufficient (FinalizeReward does NOT touch task_markets_t),
+/// so we ALSO poll `claims_t[claim_id].status == Finalized` to witness
+/// that the FinalizeReward dispatch arm has applied (advancing
+/// `state_root_t`).
+///
+/// **R2 race fix (R1 audit Q8 VETO closure 2026-05-11)**: prior R1 helper
+/// polled only `task_markets_t.state == Open` and emitted EventResolve
+/// immediately. Since FinalizeReward applies asynchronously AFTER tb8
+/// helper returns Ok (tb8 returns on `emit_system_tx` Ok at
+/// `adapter.rs:638`, NOT on apply), the EventResolve construction
+/// captured a pre-FinalizeReward `parent_state_root R_0`. By apply-time
+/// the state_root had advanced to R_1 (FinalizeReward applied first),
+/// and dispatch Step-0 parent-root check rejected with `StaleParent` →
+/// L4.E `stale_parent_root`. Smoke evidence: cell 2 rejections.jsonl
+/// entry 9 at `handover/evidence/stage_b3_smoke_b2_20260511T012401Z/`
+/// (Codex G2 R1 Q8 VETO 2026-05-11). R2 fix: caller passes
+/// `verify_tx_id` so we derive `claim_id = "claim-{verify_tx_id}"`
+/// (mirrors tb8 helper's `claim_id_inner` at
+/// `tb8_emit_finalize_after_verify:622`), then poll
+/// `claims_t[claim_id].status == Finalized` ALONGSIDE the existing
+/// `task_markets_t.state == Open` poll BEFORE emitting EventResolve.
+/// Once BOTH conditions are met, the FinalizeReward apply has completed
+/// (state_root advanced) and the subsequent `emit_system_tx` captures
+/// the post-FinalizeReward state_root, so apply-time parent-root check
+/// passes.
 ///
 /// **Resolution authority** (Option 1 per charter §5): the FinalizeReward
 /// just-emitted IS the resolution evidence. No external oracle required;
@@ -664,33 +686,65 @@ pub async fn tb8_emit_finalize_after_verify(
 ///
 /// Returns:
 /// - `Ok(true)` when the EventResolve was emitted successfully.
-/// - `Ok(false)` when the poll budget expired before claim Finalized
-///   was observed (caller logs but does NOT fail the run; matches the
+/// - `Ok(false)` when the poll budget expired before BOTH conditions
+///   (claim Finalized + task still Open) were observed, OR task is
+///   already non-Open (resolved/bankrupt/expired — emit would reject).
+///   Caller logs but does NOT fail the run; matches the
 ///   `tb8_emit_finalize_after_verify` best-effort pattern for solo-run
-///   MVP).
+///   MVP.
 /// - `Err(_)` when `emit_system_tx` returns an unexpected error (e.g.,
 ///   `EventResolveTaskNotFound` — defense-in-depth).
 pub async fn tb_n2_emit_event_resolve_after_finalize(
     sequencer: &crate::state::sequencer::Sequencer,
     task_id: TaskId,
+    verify_tx_id: &TxId,
     poll_budget_ms: u64,
 ) -> Result<bool, crate::state::sequencer::EmitSystemError> {
     use std::time::{Duration, Instant};
+    // R2 race fix: derive claim_id from verify_tx_id (mirrors
+    // `tb8_emit_finalize_after_verify`'s `claim_id_inner` at
+    // `adapter.rs:622`). The FinalizeReward dispatch arm flips
+    // `claims_t[claim_id].status` Open → Finalized at the dispatch
+    // arm in `sequencer.rs`; that flip is the witness that
+    // FinalizeReward has applied and `state_root_t` has advanced.
+    let claim_id_inner = TxId(format!("claim-{}", verify_tx_id.0));
     let deadline = Instant::now() + Duration::from_millis(poll_budget_ms);
-    let mut task_present_and_open = false;
+    let mut both_ready = false;
     while Instant::now() < deadline {
         if let Ok(q) = sequencer.q_snapshot() {
+            // Witness FinalizeReward apply via claim.status == Finalized.
+            // NOT just claim presence — claims_t insert happens at TB-8
+            // Atom 1 OMEGA-Confirm VerifyTx accept, which precedes the
+            // FinalizeReward dispatch arm we are waiting for.
+            let claim_finalized = q
+                .economic_state_t
+                .claims_t
+                .0
+                .get(&claim_id_inner)
+                .map(|c| {
+                    matches!(c.status, crate::state::q_state::ClaimStatus::Finalized)
+                })
+                .unwrap_or(false);
             if let Some(tm) = q.economic_state_t.task_markets_t.0.get(&task_id) {
                 match tm.state {
                     crate::state::q_state::TaskMarketState::Open => {
-                        task_present_and_open = true;
-                        break;
+                        // R2: ALSO require claim Finalized — otherwise
+                        // we race FinalizeReward apply and capture a
+                        // stale state_root, producing StaleParent L4.E.
+                        if claim_finalized {
+                            both_ready = true;
+                            break;
+                        }
+                        // else fall through to sleep + retry
                     }
                     // Already resolved/bankrupt/expired — B2 emit would
-                    // reject as EventAlreadyResolved. Treat as "nothing to
-                    // do"; mirrors `tb8_emit_finalize_after_verify`'s
-                    // best-effort idempotent contract.
-                    _ => {
+                    // reject as EventAlreadyResolved. Treat as
+                    // "nothing to do"; mirrors
+                    // `tb8_emit_finalize_after_verify`'s best-effort
+                    // idempotent contract.
+                    crate::state::q_state::TaskMarketState::Finalized
+                    | crate::state::q_state::TaskMarketState::Bankrupt
+                    | crate::state::q_state::TaskMarketState::Expired => {
                         return Ok(false);
                     }
                 }
@@ -698,7 +752,7 @@ pub async fn tb_n2_emit_event_resolve_after_finalize(
         }
         tokio::time::sleep(Duration::from_millis(20)).await;
     }
-    if !task_present_and_open {
+    if !both_ready {
         return Ok(false);
     }
     sequencer

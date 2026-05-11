@@ -2819,24 +2819,28 @@ async fn run_swarm(
                                                     Ok(false) => warn!("[chaintape/tb8/atom4] FinalizeReward poll budget expired (claim not yet in claims_t) for verify_tx={vid:?}"),
                                                     Err(e) => warn!("[chaintape/tb8/atom4] FinalizeReward emit_system_tx error: {e:?}"),
                                                 }
-                                            }
 
-                                            // TB-N2 B2 (TB_N2_POLYMARKET_CPMM_LIFECYCLE charter §3 B2;
-                                            // 2026-05-11) — emit EventResolveTx after FinalizeReward to
-                                            // close the CPMM lifecycle gap. Flips
-                                            // `task_markets_t[task_id].state` from Open → Finalized,
-                                            // making downstream TB-13 CompleteSetRedeemTx reachable
-                                            // (resolution authority: minimal Option 1 system-emit per
-                                            // gap audit §4). Best-effort poll-then-emit; mirrors B2
-                                            // adapter helper docstring contract. task_id matches the
-                                            // preseed construction at line 903 (`task-{run_id}`).
-                                            let b2_task_id = turingosv4::state::q_state::TaskId(format!("task-{}", run_id));
-                                            match turingosv4::runtime::adapter::tb_n2_emit_event_resolve_after_finalize(
-                                                &bundle.sequencer, b2_task_id.clone(), 5000,
-                                            ).await {
-                                                Ok(true) => info!("[chaintape/tb-n2/b2] EventResolve emitted for task_id={b2_task_id:?}"),
-                                                Ok(false) => warn!("[chaintape/tb-n2/b2] EventResolve poll budget expired or task already resolved for task_id={b2_task_id:?}"),
-                                                Err(e) => warn!("[chaintape/tb-n2/b2] EventResolve emit_system_tx error: {e:?}"),
+                                                // TB-N2 B2 (TB_N2_POLYMARKET_CPMM_LIFECYCLE charter §3 B2;
+                                                // 2026-05-11; R2 race fix 2026-05-11) — emit
+                                                // EventResolveTx after FinalizeReward applies, to close
+                                                // the CPMM lifecycle gap. R2 fix nests this emit inside
+                                                // the `if let Some(vid)` so we (a) only fire after a
+                                                // real OMEGA-Confirm + FinalizeReward emit and (b) pass
+                                                // `&vid` so the adapter helper can poll claims_t for
+                                                // the Finalized status witness BEFORE constructing the
+                                                // EventResolveTx (prevents stale `parent_state_root`
+                                                // captured pre-FinalizeReward-apply → StaleParent
+                                                // L4.E; per Codex G2 R1 Q8 VETO closure). task_id
+                                                // matches the preseed construction at line 903
+                                                // (`task-{run_id}`).
+                                                let b2_task_id = turingosv4::state::q_state::TaskId(format!("task-{}", run_id));
+                                                match turingosv4::runtime::adapter::tb_n2_emit_event_resolve_after_finalize(
+                                                    &bundle.sequencer, b2_task_id.clone(), &vid, 5000,
+                                                ).await {
+                                                    Ok(true) => info!("[chaintape/tb-n2/b2] EventResolve emitted for task_id={b2_task_id:?}"),
+                                                    Ok(false) => warn!("[chaintape/tb-n2/b2] EventResolve poll budget expired or task already resolved for task_id={b2_task_id:?}"),
+                                                    Err(e) => warn!("[chaintape/tb-n2/b2] EventResolve emit_system_tx error: {e:?}"),
+                                                }
                                             }
 
                                             // TB-16.x.2.2.fix — FORCE_CHALLENGE_RESOLVE on the
@@ -3509,18 +3513,24 @@ async fn run_swarm(
                                                     Ok(false) => warn!("[chaintape/tb8/atom4-pertactic] FinalizeReward poll budget expired for verify_tx={vid:?}"),
                                                     Err(e) => warn!("[chaintape/tb8/atom4-pertactic] FinalizeReward emit error: {e:?}"),
                                                 }
-                                            }
 
-                                            // TB-N2 B2 — emit EventResolve (per-tactic OMEGA path).
-                                            // Mirrors the full-proof OMEGA hook above (~line 2823).
-                                            // task_id matches preseed construction at line 903.
-                                            let b2_task_id = turingosv4::state::q_state::TaskId(format!("task-{}", run_id));
-                                            match turingosv4::runtime::adapter::tb_n2_emit_event_resolve_after_finalize(
-                                                &bundle.sequencer, b2_task_id.clone(), 5000,
-                                            ).await {
-                                                Ok(true) => info!("[chaintape/tb-n2/b2-pertactic] EventResolve emitted for task_id={b2_task_id:?}"),
-                                                Ok(false) => warn!("[chaintape/tb-n2/b2-pertactic] EventResolve poll budget expired or task already resolved for task_id={b2_task_id:?}"),
-                                                Err(e) => warn!("[chaintape/tb-n2/b2-pertactic] EventResolve emit error: {e:?}"),
+                                                // TB-N2 B2 — emit EventResolve (per-tactic OMEGA path).
+                                                // Mirrors the full-proof OMEGA hook above (~line 2823).
+                                                // R2 race fix 2026-05-11: nested inside the
+                                                // `if let Some(vid)` block so we pass `&vid` (allowing
+                                                // adapter helper to poll claims_t for Finalized status
+                                                // BEFORE EventResolve construction; prevents stale
+                                                // parent_state_root → StaleParent L4.E per Codex G2 R1
+                                                // Q8 VETO closure). task_id matches preseed
+                                                // construction at line 903.
+                                                let b2_task_id = turingosv4::state::q_state::TaskId(format!("task-{}", run_id));
+                                                match turingosv4::runtime::adapter::tb_n2_emit_event_resolve_after_finalize(
+                                                    &bundle.sequencer, b2_task_id.clone(), &vid, 5000,
+                                                ).await {
+                                                    Ok(true) => info!("[chaintape/tb-n2/b2-pertactic] EventResolve emitted for task_id={b2_task_id:?}"),
+                                                    Ok(false) => warn!("[chaintape/tb-n2/b2-pertactic] EventResolve poll budget expired or task already resolved for task_id={b2_task_id:?}"),
+                                                    Err(e) => warn!("[chaintape/tb-n2/b2-pertactic] EventResolve emit error: {e:?}"),
+                                                }
                                             }
 
                                             // TB-16.x.2.2.fix — FORCE_CHALLENGE_RESOLVE on the

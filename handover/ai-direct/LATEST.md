@@ -6,33 +6,82 @@
 
 ---
 
-## 🔄 IN-FLIGHT 2026-05-11 — TB-N2-POLYMARKET-CPMM-LIFECYCLE B2 candidate impl on parallel branch
+## ✅ Session #38 2026-05-11 — TB-N2-POLYMARKET-CPMM-LIFECYCLE atom B2 SHIPPED FINAL
 
-**Branch**: `feat/n2-b2-event-resolve` (parallel STEP_B branch; NOT merged to main; NOT pushed to origin)
-**HEAD on branch**: `7dc2aa0`
-**`origin/main` HEAD**: `00d7024` (TB-N2 B0 charter + B1 gap audit; pushed)
-**Authorization scope**: user 2026-05-11 "Charter + plan + Option 1 — begin B2 candidate impl on parallel branch"; CLAUDE.md §9 single-word "confirm" → candidate remediation only, NOT §8 ship.
+**HEAD on `origin/main`**: `<TBD post-push>` (will resolve after merge + push completes; expect ~3 commits past `00d7024`).
 
-**What B2 closes**: pre-B2 `TaskMarketState::Finalized` was READ at 5+ admission sites but WRITTEN 0 times (gap audit §3.3). B2 adds Open → Finalized writer-side via system-emit on the OMEGA-Confirm path (Option 1 minimal resolution authority).
+**Architect §8** (`handover/directives/2026-05-11_TB_N2_B2_§8_SIGN_OFF.md`): user verbatim **"好，确认可以 ship"** — canonical Class-4 §8 multi-clause form (clause 1 acknowledgment `好` + clause 2 named act `确认` + scope `可以 ship`). **Sixth canonical §8 form invocation in v4 history** (TB-C0 2026-05-07, P-M2 2026-05-09, P-M6 2026-05-09, A3 2026-05-10, A4 2026-05-10, B2 2026-05-11). Structurally identical to all prior accepted canonical Class-4 §8 forms per CLAUDE.md §10 multi-clause analysis.
 
-**Validation at `7dc2aa0`**:
-- `cargo check --workspace`: clean
-- `cargo test --workspace --test-threads=1`: **1447 / 0 / 151** (+8 vs 1439)
-- `bash scripts/run_constitution_gates.sh`: **287 / 0 / 1** (+8 vs 279)
-- `cargo test -p minif2f_v4 --test trust_root_immutability`: PASS (8 STEP_B / adjacent files rehashed)
+### What landed (R1 candidate + R2 race fix + ship discharge)
 
-**Files edited**: 13 files / 1003 insertions / 11 deletions. STEP_B-protected: `src/state/typed_tx.rs`, `src/state/sequencer.rs`, `src/bottom_white/ledger/system_keypair.rs` (Class-4 canonical-signing-payload boundary touched), plus `transition_ledger.rs`, `adapter.rs`, `monetary_invariant.rs`, `audit_assertions.rs`, `run_summary.rs`, 2 evaluator/arena binaries, 1 new test file, gate runner, Trust Root manifest.
+| Commit (chronological) | Subject | Class | Δ gates / workspace |
+|--------|---------|-------|---------------------|
+| `7dc2aa0` (R1 candidate; pre-session #38) | TB-N2 B2 — EventResolveTx system-emit on OMEGA-Confirm (Class-3 impl) | 3 (Class-4 canonical-signing-payload boundary touched) | gates 279 → 287 (+8); workspace 1439 → 1447 (+8) |
+| `<TBD R2>` | **TB-N2 B2 R2 — adapter race fix + Trust Root manifest coverage** (Codex G2 R1 VETO closure). `tb_n2_emit_event_resolve_after_finalize` now accepts `verify_tx_id: &TxId` 3rd param; polls `claims_t[claim_id].status == ClaimStatus::Finalized` (apply-witness; mirrors tb8 pattern) ALONGSIDE `task_markets_t.state == Open` before EventResolve emit. Prevents stale `parent_state_root` → `StaleParent` L4.E race observed in R1 smoke cell 2 (`rejections.jsonl:9 tx_kind:"EventResolve" public_summary:"stale_parent_root"`). 3 call sites updated; both evaluator hooks nested inside `if let Some(vid)` block. `genesis_payload.toml`: ADDED `src/runtime/audit_assertions.rs` entry; REHASHED adapter.rs + evaluator.rs. NEW SG-N2-B2.9 source-grep binding gate. | gates 287 → 288 (+1); workspace 1447 → 1448 (+1) |
+| `<TBD §8>` | TB-N2 B2 — §8 SIGN-OFF + LATEST + TB_LOG (ship discharge) | docs only | preserved |
 
-**Resume plan** (next session): full step-by-step at `handover/ai-direct/NEXT_SESSION_PROMPT_2026-05-11_post_b2_impl.md`. Summary:
-1. `/runner-preflight` per MEMORY MUST CHECK BEFORE
-2. `cargo build --release --bin evaluator`
-3. Real-LLM smoke (3 problems × 2 models; aime_1983_p2 guarantees OmegaAccepted → B2 trigger; ~15-30 min, ~$3-5)
-4. Verify ≥1 cell with `EventResolve emitted` log line + verdict=Ok delta=0 across 6/6 cells
-5. PRE-§8 dual audit (Codex G2 + Gemini DT) on smoke evidence; Class-4 canonical-signing-payload boundary → full dual; conservative-merge VETO > CHALLENGE > PASS; round cap=2
-6. Draft §8 packet at `handover/directives/2026-05-11_TB_N2_B2_§8_PACKET.md`
-7. **HOLD** for explicit multi-clause architect §8
+### PRE-§8 dual audit summary (R1 VETO → R2 PASS)
 
-**Forward queue (after B2 ships per per-atom §8)**: B3 CpmmPoolResolveTx → B4 CpmmLpUnwindTx (closes LP funds-locked gap §3.4) → B5 asymmetric seed → B6 end-to-end real-LLM smoke → B7 Phase B overall §8 cap.
+| Round | Codex G2 | Gemini DT | Aggregate | Action |
+|---|---|---|---|---|
+| R1 | **VETO** (Q8 race + Q9 manifest, high conviction) | PASS all 9 (high) | **VETO** (conservative-merge) | R2 fix |
+| R2 | **PASS all 9 + Q-NEW R2 binding** (high, PROCEED) | **PASS all 9 + Q-NEW R2 binding** (high, PROCEED) | **PASS** | SHIP |
+
+**Critical R1 finding (Codex G2 unique catch)**: smoke `rejections.jsonl:9` revealed B2 emit returned Ok but apply-side rejected with `stale_parent_root` — the "EventResolve emitted" evaluator log + `chain_invariant.verdict=Ok` masked it because FC1 hard invariant only counts externalized LLM-Lean attempts, not system-tx admissions. **B2 mechanism was broken at runtime in R1** — `task_markets_t.state` never actually flipped Open → Finalized. Gemini R1 missed it via string-grep-only check; Codex G2 caught it via deep CAS+ChainTape walk. R2 fix added the missing apply-witness poll (`claim.status == Finalized` mirrors tb8 helper pattern).
+
+R2 evidence streams (all GREEN at ratification):
+1. **R1 smoke** (`handover/evidence/stage_b3_smoke_b2_20260511T012401Z/`) — DEMONSTRATES THE BUG: cell 2 deepseek/aime_1983_p2 OmegaAccepted + StaleParent L4.E at rejections.jsonl:9 (preserved as historical evidence)
+2. **R2 smoke** (`handover/evidence/stage_b3_smoke_b2_r2_20260511T022124Z/`) — DEMONSTRATES NO REGRESSION: 6/6 verdict=Ok delta=0; 0 cells with `rejections.jsonl tx_kind:"EventResolve"`; no OMEGA fired this iteration (LLM stochasticity — same seed=1 rep=1 design)
+3. **SG-N2-B2.9 source-grep binding** — VERIFIES THE FIX IS WIRED: enforces R2 signature + body + call-site patterns. Catches silent revert.
+
+Audit records (canonical, all in `handover/audits/`):
+- `CODEX_G2_TB_N2_B2_PRE8_AUDIT_R1.md` + `_R1_FULL_LOG.log`
+- `CODEX_G2_TB_N2_B2_PRE8_AUDIT_R2.md` + `_R2_FULL_LOG.log`
+- `GEMINI_DT_TB_N2_B2_PRE8_AUDIT_R1.md` + `_R2.md`
+
+Ship dossier: `handover/directives/2026-05-11_TB_N2_B2_§8_PACKET.md` + `2026-05-11_TB_N2_B2_§8_SIGN_OFF.md`.
+
+### Validation baseline at TB-N2 B2 ship (R2 HEAD)
+
+| Check | Value |
+|---|---|
+| HEAD (origin/main) | `<TBD>` (post-push) |
+| Constitution gates | **288 / 0 / 1** (+9 vs 279 session #36 close; +1 from SG-N2-B2.9 R2 binding) |
+| Workspace tests | **1448 / 0 / 151** (+9 vs 1439 session #36 close; +1 from SG-N2-B2.9) |
+| Trust Root | PASS (4/4 including `test_trust_root_manifest_includes_b2_b4_files`; +1 file `audit_assertions.rs` added to manifest; adapter.rs + evaluator.rs rehashed) |
+| `CONSTITUTION_EXECUTION_MATRIX.md` | 0 RED + 0 AMBER (preserved) |
+| `TRACE_FLOWCHART_MATRIX.md` | 0 RED + 0 AMBER (preserved) |
+| 3-FC alignment | FC1 + FC2 + FC3 GREEN across 12 cells (R1 + R2 smoke) |
+| R2 critical gate | 0 cells with `rejections.jsonl tx_kind:"EventResolve"` in R2 smoke (race fix verified) |
+| Architect ship-gate sets verified at HEAD | 9/10 (SG-B3.1-6 / M2 still single open set; freeze status unchanged) |
+
+### What B2 closes
+
+Pre-B2 `TaskMarketState::Finalized` was READ at 5+ admission sites (`CompleteSetRedeem` / mint+seed gates / verify path / runtime adapter skip list) but WRITTEN ZERO times. This made the entire post-resolution path — including TB-13 `CompleteSetRedeemTx` — **unreachable**. LP funds + complete-set holders had funds permanently dust-locked.
+
+B2 closes this gap via system-emit on OMEGA-Confirm path:
+```
+proof task accepted (lean-verify Ok)
+  → L4 FinalizeRewardTx (TB-8 transition; flips claims_t.status to Finalized + advances state_root)
+  → adapter helper waits for claim.status == Finalized AND task_markets_t.state == Open  ← R2 fix
+  → emit_system_tx(SystemEmitCommand::EventResolve { task_id })
+  → L4 EventResolveTx accepted (TxKind=18; flips task_markets_t.state Open → Finalized)
+  → downstream TB-13 CompleteSetRedeem becomes reachable
+```
+
+### Forward queue (post-B2 ship)
+
+Per TB-N2-POLYMARKET-CPMM-LIFECYCLE charter §3 atom decomposition + `feedback_no_batch_class4_signoff` (every Class-4 atom requires per-atom §8 — NO batching):
+
+| Atom | Class | Authority | Eligibility |
+|------|-------|-----------|-------------|
+| **B3** CpmmPoolResolveTx (system-tx; pool.status Active → Resolved triggered by B2 chain) | 4 STEP_B | per-atom §8 | NEXT — eligible to start as candidate impl on new parallel branch |
+| **B4** CpmmLpUnwindTx (agent-tx; closes LP funds-locked gap §3.4) | 4 STEP_B | per-atom §8 | DEFERRED behind B3 ship |
+| **B5** Asymmetric pool seed (architect §2.1 general k; relax UnbalancedPoolSeed) | 3 (4 if test semantics) | per-atom §8 | ELIGIBLE in parallel with B3 |
+| **B6** End-to-end CPMM lifecycle real-LLM smoke | 2 | autonomous after B2-B5 ship | DEFERRED behind B2-B5 ship |
+| **B7** TB-N2 overall §8 cap | 4 | per-atom §8 (does NOT replace B3/B4/B5) | DEFERRED behind B6 ship |
+
+**Recommended next-session work**: B3 candidate impl on parallel branch `feat/n2-b3-pool-resolve` per same STEP_B + per-atom §8 cadence as B2.
 
 ---
 

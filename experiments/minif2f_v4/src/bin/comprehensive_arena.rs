@@ -444,13 +444,18 @@ async fn drive_task_a(
     if finalized {
         tx_kinds.push("FinalizeReward");
     }
-    // TB-N2 B2 (2026-05-11) — emit EventResolveTx after FinalizeReward
-    // succeeds in the happy-path arena task. Closes the CPMM lifecycle
+    // TB-N2 B2 (2026-05-11; R2 race fix 2026-05-11) — emit
+    // EventResolveTx after FinalizeReward applies in the happy-path
+    // arena task. R2 fix: pass `&verify_tx_id` so the adapter helper
+    // polls `claims_t[claim_id].status == Finalized` BEFORE EventResolve
+    // construction (prevents stale `parent_state_root` → StaleParent
+    // L4.E per Codex G2 R1 Q8 VETO closure). Closes the CPMM lifecycle
     // gap (Open → Finalized); makes downstream CompleteSetRedeem
     // reachable. Best-effort: failures are non-fatal for the arena.
     let event_resolved = turingosv4::runtime::adapter::tb_n2_emit_event_resolve_after_finalize(
         bundle.sequencer.as_ref(),
         turingosv4::state::q_state::TaskId(scaffold.task_id.clone()),
+        &verify_tx_id,
         5000,
     )
     .await
