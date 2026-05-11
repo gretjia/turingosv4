@@ -517,6 +517,13 @@ GATES=(
   # recover paths. Sequential-batch today; concurrent-expansion
   # forward.
   constitution_g1_2_chain_tape_lease
+
+  # TB-G G1.2-4 (Option B+ orchestration ruling 2026-05-11 §3.3):
+  # BatchContinuationManifest — CAS-anchorable multi-task batch
+  # identity. 4 SG-G1.2-4.* gates: records_all_tasks_in_order /
+  # head_chain_is_continuous / rejects_continuity_gap /
+  # replay_matches_real_chain_head_walk.
+  constitution_g1_2_batch_continuation_manifest
 )
 
 # Per-package gates — tests that live under a workspace member crate

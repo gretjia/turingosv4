@@ -134,6 +134,17 @@ pub mod resume_preflight;
 /// `handover/directives/2026-05-11_TB_G_G1_2_OPTION_B_PLUS_RULING.md` §3.2.
 pub mod chain_tape_lease;
 
+/// TRACE_MATRIX FC2-Boot + FC3-Markov (TB-G G1.2-4 2026-05-11; Option B+
+/// orchestration ruling §3.3): `BatchContinuationManifest` — architect-
+/// mandated fact-identity for a multi-task batch. CAS-anchorable
+/// (`ObjectType::Generic` with
+/// `schema_id="batch_continuation_manifest_g1_2_v1"`); `replay_continuity`
+/// verifies chain continuity across tasks; `replay_matches_real_chain_head`
+/// cross-checks the manifest against the live `refs/transitions/main`.
+/// Four gates SG-G1.2-4.1..4. Constitutional Justification:
+/// `handover/directives/2026-05-11_TB_G_G1_2_OPTION_B_PLUS_RULING.md` §3.3.
+pub mod batch_continuation_manifest;
+
 
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
