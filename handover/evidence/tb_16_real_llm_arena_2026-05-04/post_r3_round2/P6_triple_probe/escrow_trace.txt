@@ -1,0 +1,10 @@
+[2026-05-04T12:43:27Z INFO  evaluator] [chaintape/d3] pre-seed enabled (TB-10 factory): 12 entries
+[2026-05-04T12:43:28Z INFO  evaluator] [chaintape] bus wired with Sequencer + on-disk ChainTape at "handover/evidence/tb_16_real_llm_arena_2026-05-04/post_r3_round2/P6_triple_probe/runtime_repo"
+[2026-05-04T12:43:28Z INFO  evaluator] [chaintape/tb10] user-mode TaskOpen for task-n5_mathd_algebra_171_1777898607639 sponsor=Agent_user_0
+[2026-05-04T12:43:28Z INFO  evaluator] [chaintape/tb10] user-mode EscrowLock 200000 micro for task-n5_mathd_algebra_171_1777898607639 sponsor=Agent_user_0
+[2026-05-04T12:43:28Z INFO  evaluator] [chaintape/tb16-arena] MarketSeedTx submitted by Agent_user_0 (1000000 μC) for event=task-n5_mathd_algebra_171_1777898607639
+[2026-05-04T12:43:28Z INFO  evaluator] [chaintape/tb16-arena] CompleteSetMintTx submitted by Agent_user_0 (250000 μC YES + 250000 μC NO) for event=task-n5_mathd_algebra_171_1777898607639
+[2026-05-04T12:43:28Z INFO  evaluator] [chaintape] seeded synthetic TaskOpen for smoke-n5_mathd_algebra_171_1777898607639
+[2026-05-04T12:43:28Z INFO  evaluator] [chaintape] seeded synthetic zero-stake WorkTx (synthetic_rejection_for_l4e_gate=true) for smoke-n5_mathd_algebra_171_1777898607639
+[2026-05-04T12:43:28Z INFO  evaluator] [chaintape] Atom 5 audit-trail records written to CAS + indexed for smoke-n5_mathd_algebra_171_1777898607639
+[2026-05-04T12:43:28Z INFO  evaluator] [chaintape/d_c] genesis_report.json written to "handover/evidence/tb_16_real_llm_arena_2026-05-04/post_r3_round2/P6_triple_probe/runtime_repo"

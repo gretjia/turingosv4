@@ -1,0 +1,24 @@
+[2026-05-09T01:48:03Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/amc12a_2002_p6.lean | Condition: n1 | Model: deepseek-v4-flash | Mode: full
+[2026-05-09T01:48:04Z INFO  minif2f_v4::chain_runtime] [chaintape] bus wired with Sequencer + on-disk ChainTape at "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_r7_m2_20260508T210337Z/deepseek-v4-flash/seed1/rep1/P041_amc12a_2002_p6/runtime_repo"
+[2026-05-09T01:48:04Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic TaskOpen for smoke-n1_amc12a_2002_p6_1778291283623
+[2026-05-09T01:48:04Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic zero-stake WorkTx (synthetic_rejection_for_l4e_gate=true) for smoke-n1_amc12a_2002_p6_1778291283623
+[2026-05-09T01:48:04Z INFO  minif2f_v4::chain_runtime] [chaintape] Atom 5 audit-trail records written to CAS + indexed for smoke-n1_amc12a_2002_p6_1778291283623
+[2026-05-09T01:48:04Z INFO  minif2f_v4::chain_runtime] [chaintape/d_c] genesis_report.json written to "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_r7_m2_20260508T210337Z/deepseek-v4-flash/seed1/rep1/P041_amc12a_2002_p6/runtime_repo"
+[2026-05-09T01:48:04Z INFO  evaluator] [swarm/n1] agent_models = [deepseek-v4-flash] (label=deepseek-v4-flash)
+[2026-05-09T01:48:04Z INFO  evaluator] [budget] regime=total_proposal base=200 effective_max_tx=200 (n_agents=1)
+[2026-05-09T01:48:04Z INFO  evaluator] [swarm/n1] Agent_0:skill0:t=0.20
+[2026-05-09T01:48:13Z WARN  evaluator] [tx 0] step rejected (err:tactic_linarith): <stdin>:12:0: error: linarith failed to find a contradiction
+[2026-05-09T01:48:22Z INFO  evaluator] [tx 1] Agent_0 step+tx_0_by_Agent_0 partial OK (depth=1)
+[2026-05-09T01:48:32Z WARN  evaluator] [tx 2] step rejected (err:type_mismatch): <stdin>:13:4: error: Type mismatch | of sort `outParam Type` but is expected to have type
+[2026-05-09T01:48:41Z WARN  evaluator] [tx 3] step rejected (err:type_mismatch): <stdin>:13:4: error: Type mismatch | of sort `outParam Type` but is expected to have type
+[2026-05-09T01:48:50Z WARN  evaluator] [tx 4] step rejected (err:type_mismatch): <stdin>:13:4: error: Type mismatch | of sort `outParam Type` but is expected to have type
+[2026-05-09T01:48:59Z WARN  evaluator] [tx 5] step rejected (err:type_mismatch): <stdin>:13:4: error: Type mismatch | of sort `outParam Type` but is expected to have type
+[2026-05-09T01:49:08Z WARN  evaluator] [tx 6] step rejected (err:type_mismatch): <stdin>:13:4: error: Type mismatch | of sort `outParam Type` but is expected to have type
+[2026-05-09T01:49:17Z WARN  evaluator] [tx 7] step rejected (err:type_mismatch): <stdin>:13:4: error: Type mismatch | of sort `outParam Type` but is expected to have type
+[2026-05-09T01:49:26Z WARN  evaluator] [tx 8] step rejected (err:type_mismatch): <stdin>:13:4: error: Type mismatch | of sort `outParam Type` but is expected to have type
+[2026-05-09T01:49:27Z WARN  evaluator] [tb18-atomA] DegradedLLM halt: 10 consecutive trivial responses (token_floor=30, cap=10); total_calls=10 trivial_calls=10
+[v2-emit] SPLIT env unset; defaulting to 'adaptation' (Phase B convention; pre-registration requires SPLIT for Phase C+ ablation runs)
+[2026-05-09T01:49:27Z INFO  evaluator] [tb11] EvidenceCapsule written: capsule_id=6de3f6c77f03bcd1fe6130a1a31912b21cd32ce6cd145cb10b73fb5d171424d6 compressed_log_cid=65d6af29c7ea45f097906ca1f013c8b50630d0b5a91796f0158bbd36b03e5047 attempt_count=9
+[2026-05-09T01:49:27Z INFO  evaluator] [tb11] TerminalSummary emitted: emit_id=1
+[2026-05-09T01:49:27Z INFO  evaluator] [chaintape] Atom 6 RunSummary written (2 L4 + 9 L4.E entries; 2 accepted_tx_ids, 9 rejected_tx_ids)
+[2026-05-09T01:49:27Z INFO  evaluator] PPUT = 0 (no golden path in 84.0s, 200 tx)

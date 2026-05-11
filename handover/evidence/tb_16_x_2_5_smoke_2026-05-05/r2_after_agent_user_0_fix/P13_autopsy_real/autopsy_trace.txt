@@ -1,0 +1,4 @@
+[2026-05-05T07:07:07Z INFO  evaluator] [chaintape] bus wired with Sequencer + on-disk ChainTape at "handover/evidence/tb_16_x_2_5_smoke_2026-05-05/r2_after_agent_user_0_fix/P13_autopsy_real/runtime_repo"
+[2026-05-05T07:07:07Z INFO  evaluator] [chaintape/tb16-arena] seed WorkTx submitted by Agent_user_0 (stake=50000 μC) for task=task-n5_aime_1997_p9_1777964827285 — populates stakes_t for TB-16.x.2.5 autopsy generation
+[2026-05-05T07:07:07Z INFO  evaluator] [chaintape/d_c] genesis_report.json written to "handover/evidence/tb_16_x_2_5_smoke_2026-05-05/r2_after_agent_user_0_fix/P13_autopsy_real/runtime_repo"
+[2026-05-05T07:11:05Z INFO  evaluator] [chaintape/tb16-arena] TaskBankruptcyTx emitted: emit_id=2 task_id=TaskId("task-n5_aime_1997_p9_1777964827285")

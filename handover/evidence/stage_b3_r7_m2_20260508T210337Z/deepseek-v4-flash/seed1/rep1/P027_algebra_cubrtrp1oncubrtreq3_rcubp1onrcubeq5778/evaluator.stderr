@@ -1,0 +1,25 @@
+[2026-05-09T00:16:31Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/algebra_cubrtrp1oncubrtreq3_rcubp1onrcubeq5778.lean | Condition: n1 | Model: deepseek-v4-flash | Mode: full
+[2026-05-09T00:16:31Z INFO  minif2f_v4::chain_runtime] [chaintape] bus wired with Sequencer + on-disk ChainTape at "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_r7_m2_20260508T210337Z/deepseek-v4-flash/seed1/rep1/P027_algebra_cubrtrp1oncubrtreq3_rcubp1onrcubeq5778/runtime_repo"
+[2026-05-09T00:16:31Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic TaskOpen for smoke-n1_algebra_cubrtrp1oncubrtreq3_rcubp1onrcubeq5778_1778285791279
+[2026-05-09T00:16:31Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic zero-stake WorkTx (synthetic_rejection_for_l4e_gate=true) for smoke-n1_algebra_cubrtrp1oncubrtreq3_rcubp1onrcubeq5778_1778285791279
+[2026-05-09T00:16:31Z INFO  minif2f_v4::chain_runtime] [chaintape] Atom 5 audit-trail records written to CAS + indexed for smoke-n1_algebra_cubrtrp1oncubrtreq3_rcubp1onrcubeq5778_1778285791279
+[2026-05-09T00:16:31Z INFO  minif2f_v4::chain_runtime] [chaintape/d_c] genesis_report.json written to "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_r7_m2_20260508T210337Z/deepseek-v4-flash/seed1/rep1/P027_algebra_cubrtrp1oncubrtreq3_rcubp1onrcubeq5778/runtime_repo"
+[2026-05-09T00:16:31Z INFO  evaluator] [swarm/n1] agent_models = [deepseek-v4-flash] (label=deepseek-v4-flash)
+[2026-05-09T00:16:31Z INFO  evaluator] [budget] regime=total_proposal base=200 effective_max_tx=200 (n_agents=1)
+[2026-05-09T00:16:31Z INFO  evaluator] [swarm/n1] Agent_0:skill0:t=0.20
+[2026-05-09T00:16:44Z WARN  evaluator] [tx 0] step rejected (err:tactic_linarith): hard_error_with_unsolved: <stdin>:16:4: error: linarith failed to find a contradiction
+[2026-05-09T00:17:10Z WARN  evaluator] [tx 1] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T00:17:30Z WARN  evaluator] [tx 2] step rejected (err:tactic_linarith): hard_error_with_unsolved: <stdin>:15:2: error: linarith failed to find a contradiction | <stdin>:17:2: error: linarith failed to find a contradiction | <stdin>:19:2: error: linarith failed to find a c
+[2026-05-09T00:20:32Z WARN  evaluator] [tx 3] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T00:20:52Z WARN  evaluator] [tx 4] step rejected (err:tactic_linarith): hard_error_with_unsolved: <stdin>:15:2: error: linarith failed to find a contradiction | <stdin>:17:2: error: linarith failed to find a contradiction | <stdin>:19:2: error: linarith failed to find a c
+[2026-05-09T00:21:52Z WARN  evaluator] [tx 5] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:13:2: error: unexpected token 'have'; expected command
+[2026-05-09T00:22:28Z WARN  evaluator] [tx 6] step rejected (err:tactic_linarith): hard_error_with_unsolved: <stdin>:15:2: error: linarith failed to find a contradiction | <stdin>:17:2: error: linarith failed to find a contradiction | <stdin>:19:2: error: linarith failed to find a c
+[2026-05-09T00:23:09Z WARN  evaluator] [tx 7] step rejected (err:tactic_linarith): hard_error_with_unsolved: <stdin>:15:2: error: linarith failed to find a contradiction | <stdin>:17:2: error: linarith failed to find a contradiction | <stdin>:19:2: error: linarith failed to find a c
+[2026-05-09T00:23:45Z WARN  evaluator] [tx 8] step rejected (err:tactic_linarith): hard_error_with_unsolved: <stdin>:15:2: error: linarith failed to find a contradiction | <stdin>:17:2: error: linarith failed to find a contradiction | <stdin>:19:2: error: linarith failed to find a c
+[2026-05-09T00:26:55Z WARN  evaluator] [tx 9] step rejected (err:tactic_linarith): hard_error_with_unsolved: <stdin>:19:76: error: don't know how to synthesize placeholder | <stdin>:29:4: error: linarith failed to find a contradiction | <stdin>:31:4: error: linarith failed to find a
+[2026-05-09T00:27:52Z WARN  evaluator] [tb18-atomA] WallClockCap halt: aggregate 680 sec exhausted (cap=600s); total_calls=11
+[v2-emit] SPLIT env unset; defaulting to 'adaptation' (Phase B convention; pre-registration requires SPLIT for Phase C+ ablation runs)
+[2026-05-09T00:27:52Z INFO  evaluator] [tb11] EvidenceCapsule written: capsule_id=1e8e0631b880b2d685054e7dc33a7a9c93f549695866eaed7b2ae7a5524e539c compressed_log_cid=d42eb349515944e1ac2cafbf7efda101016ebc5f45e5888896b0ac2bf7d5738e attempt_count=8
+[2026-05-09T00:27:52Z INFO  evaluator] [tb11] TerminalSummary emitted: emit_id=1
+[2026-05-09T00:27:52Z INFO  evaluator] [chaintape] Atom 6 RunSummary written (2 L4 + 11 L4.E entries; 2 accepted_tx_ids, 11 rejected_tx_ids)
+[2026-05-09T00:27:52Z INFO  evaluator] PPUT = 0 (no golden path in 681.0s, 200 tx)

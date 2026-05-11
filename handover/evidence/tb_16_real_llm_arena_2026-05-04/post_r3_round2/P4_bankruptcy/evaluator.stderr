@@ -1,0 +1,16 @@
+[2026-05-04T12:38:40Z INFO  evaluator] Problem: mathd_numbertheory_961.lean | Condition: n5 | Model: deepseek-v4-flash | Mode: full
+[2026-05-04T12:38:40Z INFO  evaluator] [chaintape/d3] pre-seed enabled (TB-10 factory): 12 entries
+[2026-05-04T12:38:41Z INFO  evaluator] [chaintape] bus wired with Sequencer + on-disk ChainTape at "handover/evidence/tb_16_real_llm_arena_2026-05-04/post_r3_round2/P4_bankruptcy/runtime_repo"
+[2026-05-04T12:38:41Z INFO  evaluator] [chaintape/tb10] user-mode TaskOpen for task-n5_mathd_numbertheory_961_1777898320647 sponsor=Agent_user_0
+[2026-05-04T12:38:41Z INFO  evaluator] [chaintape/tb10] user-mode EscrowLock 200000 micro for task-n5_mathd_numbertheory_961_1777898320647 sponsor=Agent_user_0
+[2026-05-04T12:38:41Z INFO  evaluator] [chaintape] seeded synthetic TaskOpen for smoke-n5_mathd_numbertheory_961_1777898320647
+[2026-05-04T12:38:41Z INFO  evaluator] [chaintape] seeded synthetic zero-stake WorkTx (synthetic_rejection_for_l4e_gate=true) for smoke-n5_mathd_numbertheory_961_1777898320647
+[2026-05-04T12:38:41Z INFO  evaluator] [chaintape] Atom 5 audit-trail records written to CAS + indexed for smoke-n5_mathd_numbertheory_961_1777898320647
+[2026-05-04T12:38:41Z INFO  evaluator] [chaintape/d_c] genesis_report.json written to "handover/evidence/tb_16_real_llm_arena_2026-05-04/post_r3_round2/P4_bankruptcy/runtime_repo"
+[2026-05-04T12:38:41Z INFO  evaluator] [swarm/n5] agent_models = [deepseek-v4-flash,deepseek-v4-flash,deepseek-v4-flash,deepseek-v4-flash,deepseek-v4-flash] (label=deepseek-v4-flash)
+[2026-05-04T12:38:41Z INFO  evaluator] [budget] regime=total_proposal base=20 effective_max_tx=20 (n_agents=5)
+[2026-05-04T12:38:41Z INFO  evaluator] [swarm/n5] Agent_0:skill0:t=0.20 Agent_1:skill1:t=0.20 Agent_2:skill2:t=0.20 Agent_3:skill0:t=0.20 Agent_4:skill1:t=0.20
+[2026-05-04T12:38:51Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=1 after this write)
+[2026-05-04T12:38:51Z INFO  evaluator] [chaintape/tb8/atom4-pertactic] FinalizeReward emitted for verify_tx=TxId("verifytx-Agent_0-omega-pertactic-1")
+[v2-emit] SPLIT env unset; defaulting to 'adaptation' (Phase B convention; pre-registration requires SPLIT for Phase C+ ablation runs)
+[2026-05-04T12:38:51Z INFO  evaluator] PPUT = 9.22%/s (GP: 1 nodes, 10 tokens, 10.8s)

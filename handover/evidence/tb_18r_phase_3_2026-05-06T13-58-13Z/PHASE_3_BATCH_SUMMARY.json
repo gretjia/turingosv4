@@ -1,0 +1,14 @@
+{
+  "phase": "TB-18R Phase 3",
+  "smoke_mode": true,
+  "problem_count": 1,
+  "max_transactions_per_problem": 12,
+  "per_problem_timeout_s": 1800,
+  "git_head": "55a0935213a13b87556da1a57540117cec3438af",
+  "run_timestamp_utc": "2026-05-06T13-58-13Z",
+  "evaluator_failures_excluding_timeout": 0,
+  "missing_problem_files": 0,
+  "per_problem_results": [
+    {"tag": "P01_mathd_algebra_107", "delta": 2, "evaluable": false, "audit": "PROCEED", "lean_results": 0, "partial_accepted": 0, "invariant_verdict": "Err(TB-18R FR-18R.3 violation: clean halt MaxTxExhausted requires delta=0 but delta=2 (l4=1, l4e=1, expected=0))"}
+  ]
+}

@@ -1,0 +1,2 @@
+audit_tape: load failed: pinned manifest: read "handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P20_algebra_2varlineareq_fp3zeq11_3tfm1m5zeqn68_feqn10_zeq7/runtime_repo/pinned_pubkeys.json": No such file or directory (os error 2)
+audit_tape: load failed: pinned manifest: read "handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P20_algebra_2varlineareq_fp3zeq11_3tfm1m5zeqn68_feqn10_zeq7/runtime_repo/pinned_pubkeys.json": No such file or directory (os error 2)

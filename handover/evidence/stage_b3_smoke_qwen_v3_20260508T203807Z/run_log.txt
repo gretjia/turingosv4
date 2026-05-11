@@ -1,0 +1,5 @@
+Stage B3 batch run log — 2026-05-08T20-38-07Z
+[1/4] model=deepseek-chat seed=1 rep=1 P001 mathd_algebra_107 OK verdict=Ok delta=0 halt=MaxTxExhausted expected=9 elapsed=131s
+[2/4] model=deepseek-chat seed=1 rep=1 P002 mathd_algebra_113 OK verdict=Ok delta=0 halt=MaxTxExhausted expected=20 elapsed=255s
+[3/4] model=Qwen_Qwen2.5-72B-Instruct seed=1 rep=1 P001 mathd_algebra_107 OK verdict=Ok delta=0 halt=MaxTxExhausted expected=9 elapsed=97s
+[4/4] model=Qwen_Qwen2.5-72B-Instruct seed=1 rep=1 P002 mathd_algebra_113 OK verdict=Ok delta=0 halt=MaxTxExhausted expected=9 elapsed=173s

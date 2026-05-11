@@ -1,0 +1,64 @@
+[2026-05-08T23:14:40Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/algebra_absapbon1pabsapbleqsumabsaon1pabsa.lean | Condition: n1 | Model: deepseek-v4-flash | Mode: full
+[2026-05-08T23:14:40Z INFO  minif2f_v4::chain_runtime] [chaintape] bus wired with Sequencer + on-disk ChainTape at "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_r7_m2_20260508T210337Z/deepseek-v4-flash/seed1/rep1/P019_algebra_absapbon1pabsapbleqsumabsaon1pabsa/runtime_repo"
+[2026-05-08T23:14:40Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic TaskOpen for smoke-n1_algebra_absapbon1pabsapbleqsumabsaon1pabsa_1778282080332
+[2026-05-08T23:14:40Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic zero-stake WorkTx (synthetic_rejection_for_l4e_gate=true) for smoke-n1_algebra_absapbon1pabsapbleqsumabsaon1pabsa_1778282080332
+[2026-05-08T23:14:40Z INFO  minif2f_v4::chain_runtime] [chaintape] Atom 5 audit-trail records written to CAS + indexed for smoke-n1_algebra_absapbon1pabsapbleqsumabsaon1pabsa_1778282080332
+[2026-05-08T23:14:40Z INFO  minif2f_v4::chain_runtime] [chaintape/d_c] genesis_report.json written to "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_r7_m2_20260508T210337Z/deepseek-v4-flash/seed1/rep1/P019_algebra_absapbon1pabsapbleqsumabsaon1pabsa/runtime_repo"
+[2026-05-08T23:14:40Z INFO  evaluator] [swarm/n1] agent_models = [deepseek-v4-flash] (label=deepseek-v4-flash)
+[2026-05-08T23:14:40Z INFO  evaluator] [budget] regime=total_proposal base=200 effective_max_tx=200 (n_agents=1)
+[2026-05-08T23:14:40Z INFO  evaluator] [swarm/n1] Agent_0:skill0:t=0.20
+[2026-05-08T23:14:51Z INFO  evaluator] [tx 0] Agent_0 step+tx_0_by_Agent_0 partial OK (depth=1)
+[2026-05-08T23:15:03Z WARN  evaluator] [tx 1] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-08T23:15:13Z WARN  evaluator] [tx 2] step rejected (err:unknown_const): <stdin>:12:11: error(lean.unknownIdentifier): Unknown identifier `abs_add`
+[2026-05-08T23:15:26Z WARN  evaluator] [tx 3] step rejected (err:tactic_linarith): <stdin>:12:0: error: linarith failed to find a contradiction
+[2026-05-08T23:15:37Z WARN  evaluator] [tx 4] step rejected (err:unknown_const): <stdin>:12:11: error(lean.unknownIdentifier): Unknown identifier `abs_add`
+[2026-05-08T23:15:48Z WARN  evaluator] [tx 5] step rejected (err:unknown_const): <stdin>:12:11: error(lean.unknownIdentifier): Unknown identifier `abs_add`
+[2026-05-08T23:15:58Z WARN  evaluator] [tx 6] step rejected (err:unknown_const): <stdin>:12:11: error(lean.unknownIdentifier): Unknown identifier `abs_add`
+[2026-05-08T23:16:10Z WARN  evaluator] [tx 7] step rejected (err:unknown_const): <stdin>:12:11: error(lean.unknownIdentifier): Unknown identifier `abs_add`
+[2026-05-08T23:16:21Z WARN  evaluator] [tx 8] step rejected (err:unknown_const): <stdin>:12:11: error(lean.unknownIdentifier): Unknown identifier `abs_add`
+[2026-05-08T23:16:31Z WARN  evaluator] [tx 9] step rejected (err:unknown_const): <stdin>:12:11: error(lean.unknownIdentifier): Unknown identifier `abs_add`
+[2026-05-08T23:16:44Z WARN  evaluator] [tx 10] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-08T23:16:55Z WARN  evaluator] [tx 11] step rejected (err:unknown_const): <stdin>:12:11: error(lean.unknownIdentifier): Unknown identifier `abs_add`
+[2026-05-08T23:17:06Z WARN  evaluator] [tx 12] step rejected (err:unknown_const): <stdin>:12:11: error(lean.unknownIdentifier): Unknown identifier `abs_add`
+[2026-05-08T23:17:16Z WARN  evaluator] [tx 13] step rejected (err:unknown_const): <stdin>:12:11: error(lean.unknownIdentifier): Unknown identifier `abs_add`
+[2026-05-08T23:17:26Z WARN  evaluator] [tx 14] step rejected (err:unknown_const): <stdin>:12:11: error(lean.unknownIdentifier): Unknown identifier `abs_add`
+[2026-05-08T23:17:36Z WARN  evaluator] [tx 15] step rejected (err:unknown_const): <stdin>:12:11: error(lean.unknownIdentifier): Unknown identifier `abs_add`
+[2026-05-08T23:17:46Z WARN  evaluator] [tx 16] step rejected (err:unknown_const): <stdin>:12:11: error(lean.unknownIdentifier): Unknown identifier `abs_add`
+[2026-05-08T23:17:56Z WARN  evaluator] [tx 17] step rejected (err:unknown_const): <stdin>:12:11: error(lean.unknownIdentifier): Unknown identifier `abs_add`
+[2026-05-08T23:18:08Z WARN  evaluator] [tx 18] step rejected (err:unknown_const): <stdin>:12:11: error(lean.unknownIdentifier): Unknown identifier `abs_add`
+[2026-05-08T23:18:19Z WARN  evaluator] [tx 19] step rejected (err:unknown_const): <stdin>:12:11: error(lean.unknownIdentifier): Unknown identifier `abs_add`
+[2026-05-08T23:18:19Z INFO  evaluator] [tick@tx20] tape=1 markets=0 top=
+[2026-05-08T23:18:37Z WARN  evaluator] [tx 20] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:13:2: error: unexpected token 'have'; expected command
+[2026-05-08T23:18:48Z WARN  evaluator] [tx 21] step rejected (err:unknown_const): <stdin>:12:11: error(lean.unknownIdentifier): Unknown identifier `abs_add`
+[2026-05-08T23:18:58Z WARN  evaluator] [tx 22] step rejected (err:unknown_const): <stdin>:12:11: error(lean.unknownIdentifier): Unknown identifier `abs_add`
+[2026-05-08T23:19:09Z WARN  evaluator] [tx 23] step rejected (err:unknown_const): <stdin>:12:11: error(lean.unknownIdentifier): Unknown identifier `abs_add`
+[2026-05-08T23:19:37Z WARN  evaluator] [tx 24] step rejected (err:unknown_const): <stdin>:12:11: error(lean.unknownIdentifier): Unknown identifier `abs_add`
+[2026-05-08T23:20:02Z WARN  evaluator] [tx 25] step rejected (err:unknown_const): <stdin>:12:11: error(lean.unknownIdentifier): Unknown identifier `abs_add`
+[2026-05-08T23:20:30Z WARN  evaluator] [tx 26] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-08T23:20:40Z WARN  evaluator] [tx 27] step rejected (err:unknown_const): <stdin>:12:11: error(lean.unknownIdentifier): Unknown identifier `abs_add`
+[2026-05-08T23:21:05Z WARN  evaluator] [tx 28] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:12:2: error: unexpected token 'have'; expected command
+[2026-05-08T23:21:17Z WARN  evaluator] [tx 29] step rejected (err:unknown_const): <stdin>:12:11: error(lean.unknownIdentifier): Unknown identifier `abs_add`
+[2026-05-08T23:21:29Z WARN  evaluator] [tx 30] step rejected (err:unknown_const): <stdin>:12:11: error(lean.unknownIdentifier): Unknown identifier `abs_add`
+[2026-05-08T23:21:39Z WARN  evaluator] [tx 31] step rejected (err:unknown_const): <stdin>:12:11: error(lean.unknownIdentifier): Unknown identifier `abs_add`
+[2026-05-08T23:21:49Z WARN  evaluator] [tx 32] step rejected (err:unknown_const): <stdin>:12:11: error(lean.unknownIdentifier): Unknown identifier `abs_add`
+[2026-05-08T23:22:01Z WARN  evaluator] [tx 33] step rejected (err:unknown_const): <stdin>:12:11: error(lean.unknownIdentifier): Unknown identifier `abs_add`
+[2026-05-08T23:22:12Z WARN  evaluator] [tx 34] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-08T23:22:22Z WARN  evaluator] [tx 35] step rejected (err:unknown_const): <stdin>:12:11: error(lean.unknownIdentifier): Unknown identifier `abs_add`
+[2026-05-08T23:22:33Z WARN  evaluator] [tx 36] step rejected (err:unknown_const): <stdin>:12:11: error(lean.unknownIdentifier): Unknown identifier `abs_add`
+[2026-05-08T23:22:44Z WARN  evaluator] [tx 37] step rejected (err:unknown_const): <stdin>:12:11: error(lean.unknownIdentifier): Unknown identifier `abs_add`
+[2026-05-08T23:22:54Z WARN  evaluator] [tx 38] step rejected (err:tactic_linarith): <stdin>:12:0: error: linarith failed to find a contradiction
+[2026-05-08T23:23:05Z WARN  evaluator] [tx 39] step rejected (err:unknown_const): <stdin>:12:11: error(lean.unknownIdentifier): Unknown identifier `abs_add`
+[2026-05-08T23:23:05Z INFO  evaluator] [tick@tx40] tape=1 markets=0 top=
+[2026-05-08T23:23:16Z WARN  evaluator] [tx 40] step rejected (err:unknown_const): <stdin>:12:11: error(lean.unknownIdentifier): Unknown identifier `abs_add`
+[2026-05-08T23:23:26Z WARN  evaluator] [tx 41] step rejected (err:unknown_const): <stdin>:12:11: error(lean.unknownIdentifier): Unknown identifier `abs_add`
+[2026-05-08T23:23:38Z WARN  evaluator] [tx 42] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-08T23:23:54Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=2 after this write)
+[2026-05-08T23:23:59Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-08T23:24:35Z WARN  evaluator] [tx 44] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:12:2: error: unexpected token 'have'; expected command
+[2026-05-08T23:24:47Z WARN  evaluator] [tx 45] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-08T23:24:48Z WARN  evaluator] [tb18-atomA] WallClockCap halt: aggregate 607 sec exhausted (cap=600s); total_calls=47
+[v2-emit] SPLIT env unset; defaulting to 'adaptation' (Phase B convention; pre-registration requires SPLIT for Phase C+ ablation runs)
+[2026-05-08T23:24:48Z INFO  evaluator] [tb11] EvidenceCapsule written: capsule_id=b667f11cfea955b5bfaf2a7ca283f097ab22a378e5b023a4e7a5bc090dc18045 compressed_log_cid=29117dfdeaf86623189b9f284f79b1598ac7e2761a59cefe3ecb2a9ea45dc60b attempt_count=46
+[2026-05-08T23:24:48Z INFO  evaluator] [tb11] TerminalSummary emitted: emit_id=1
+[2026-05-08T23:24:48Z INFO  evaluator] [chaintape] Atom 6 RunSummary written (2 L4 + 46 L4.E entries; 2 accepted_tx_ids, 46 rejected_tx_ids)
+[2026-05-08T23:24:48Z INFO  evaluator] PPUT = 0 (no golden path in 608.1s, 200 tx)

@@ -1,0 +1,27 @@
+[2026-05-11T02:41:55Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/aime_1983_p3.lean | Condition: n1 | Model: Qwen/Qwen2.5-72B-Instruct | Mode: full
+[2026-05-11T02:41:55Z INFO  minif2f_v4::chain_runtime] [chaintape/d3] pre-seed enabled (TB-10 factory): 12 entries
+[2026-05-11T02:41:56Z INFO  minif2f_v4::chain_runtime] [chaintape] bus wired with Sequencer + on-disk ChainTape at "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_smoke_b2_r2_20260511T022124Z/Qwen_Qwen2.5-72B-Instruct/seed1/rep1/P003_aime_1983_p3/runtime_repo"
+[2026-05-11T02:41:56Z INFO  evaluator] [chaintape/d3] preseed TaskOpen for task-n1_aime_1983_p3_1778467315536
+[2026-05-11T02:41:56Z INFO  evaluator] [chaintape/d3] preseed EscrowLock 100000 micro for task-n1_aime_1983_p3_1778467315536
+[2026-05-11T02:41:56Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic TaskOpen for smoke-n1_aime_1983_p3_1778467315536
+[2026-05-11T02:41:56Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic zero-stake WorkTx (synthetic_rejection_for_l4e_gate=true) for smoke-n1_aime_1983_p3_1778467315536
+[2026-05-11T02:41:56Z INFO  minif2f_v4::chain_runtime] [chaintape] Atom 5 audit-trail records written to CAS + indexed for smoke-n1_aime_1983_p3_1778467315536
+[2026-05-11T02:41:56Z INFO  minif2f_v4::chain_runtime] [chaintape/d_c] genesis_report.json written to "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_smoke_b2_r2_20260511T022124Z/Qwen_Qwen2.5-72B-Instruct/seed1/rep1/P003_aime_1983_p3/runtime_repo"
+[2026-05-11T02:41:56Z INFO  evaluator] [swarm/n1] agent_models = [Qwen/Qwen2.5-72B-Instruct] (label=Qwen/Qwen2.5-72B-Instruct)
+[2026-05-11T02:41:56Z INFO  evaluator] [budget] regime=total_proposal base=200 effective_max_tx=200 (n_agents=1)
+[2026-05-11T02:41:56Z INFO  evaluator] [swarm/n1] Agent_0:skill0:t=0.20
+[2026-05-11T02:42:05Z INFO  evaluator] [tx 0] Agent_0 step+tx_0_by_Agent_0 partial OK (depth=1)
+[2026-05-11T02:42:15Z WARN  evaluator] [tx 1] step rejected (err:other): <stdin>:14:0: error: ring_nf made no progress on goal
+[2026-05-11T02:42:24Z WARN  evaluator] [tx 2] step rejected (err:other): <stdin>:14:0: error: ring_nf made no progress on goal
+[2026-05-11T02:42:34Z WARN  evaluator] [tx 3] step rejected (err:other): <stdin>:14:0: error: ring_nf made no progress on goal
+[2026-05-11T02:42:44Z WARN  evaluator] [tx 4] step rejected (err:other): <stdin>:14:0: error: ring_nf made no progress on goal
+[2026-05-11T02:42:53Z WARN  evaluator] [tx 5] step rejected (err:other): <stdin>:14:0: error: ring_nf made no progress on goal
+[2026-05-11T02:43:03Z WARN  evaluator] [tx 6] step rejected (err:other): <stdin>:14:0: error: ring_nf made no progress on goal
+[2026-05-11T02:43:13Z WARN  evaluator] [tx 7] step rejected (err:other): <stdin>:14:0: error: ring_nf made no progress on goal
+[2026-05-11T02:43:23Z WARN  evaluator] [tx 8] step rejected (err:other): <stdin>:14:0: error: ring_nf made no progress on goal
+[2026-05-11T02:43:26Z WARN  evaluator] [tb18-atomA] DegradedLLM halt: 10 consecutive trivial responses (token_floor=30, cap=10); total_calls=10 trivial_calls=10
+[v2-emit] SPLIT env unset; defaulting to 'adaptation' (Phase B convention; pre-registration requires SPLIT for Phase C+ ablation runs)
+[2026-05-11T02:43:26Z INFO  evaluator] [tb11] EvidenceCapsule written: capsule_id=28f5f456ec9e99553edbf59c9d5823dc068f327ba335a3d2dce353698894fdae compressed_log_cid=986fe3bddfcb3c31b1d59c9c7b0543158a564fcc5804a5b4b6a95be377da6e19 attempt_count=9
+[2026-05-11T02:43:26Z INFO  evaluator] [tb11] TerminalSummary emitted: emit_id=1
+[2026-05-11T02:43:26Z INFO  evaluator] [chaintape] Atom 6 RunSummary written (3 L4 + 10 L4.E entries; 3 accepted_tx_ids, 10 rejected_tx_ids)
+[2026-05-11T02:43:26Z INFO  evaluator] PPUT = 0 (no golden path in 90.7s, 200 tx)

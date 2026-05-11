@@ -1,0 +1,41 @@
+[2026-05-08T22:39:17Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/aime_1995_p7.lean | Condition: n1 | Model: deepseek-v4-flash | Mode: full
+[2026-05-08T22:39:18Z INFO  minif2f_v4::chain_runtime] [chaintape] bus wired with Sequencer + on-disk ChainTape at "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_r7_m2_20260508T210337Z/deepseek-v4-flash/seed1/rep1/P013_aime_1995_p7/runtime_repo"
+[2026-05-08T22:39:18Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic TaskOpen for smoke-n1_aime_1995_p7_1778279957727
+[2026-05-08T22:39:18Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic zero-stake WorkTx (synthetic_rejection_for_l4e_gate=true) for smoke-n1_aime_1995_p7_1778279957727
+[2026-05-08T22:39:18Z INFO  minif2f_v4::chain_runtime] [chaintape] Atom 5 audit-trail records written to CAS + indexed for smoke-n1_aime_1995_p7_1778279957727
+[2026-05-08T22:39:18Z INFO  minif2f_v4::chain_runtime] [chaintape/d_c] genesis_report.json written to "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_r7_m2_20260508T210337Z/deepseek-v4-flash/seed1/rep1/P013_aime_1995_p7/runtime_repo"
+[2026-05-08T22:39:18Z INFO  evaluator] [swarm/n1] agent_models = [deepseek-v4-flash] (label=deepseek-v4-flash)
+[2026-05-08T22:39:18Z INFO  evaluator] [budget] regime=total_proposal base=200 effective_max_tx=200 (n_agents=1)
+[2026-05-08T22:39:18Z INFO  evaluator] [swarm/n1] Agent_0:skill0:t=0.20
+[2026-05-08T22:40:01Z WARN  evaluator] [tx 0] step rejected (err:tactic_linarith): <stdin>:16:0: error: linarith failed to find a contradiction
+[2026-05-08T22:40:25Z WARN  evaluator] [tx 1] step rejected (err:tactic_linarith): hard_error_with_unsolved: <stdin>:18:4: error: linarith failed to find a contradiction | <stdin>:20:4: error: linarith failed to find a contradiction | <stdin>:21:2: error: linarith failed to find a c
+[2026-05-08T22:43:32Z WARN  evaluator] [tx 2] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-08T22:44:05Z WARN  evaluator] [tx 3] step rejected (err:tactic_linarith): hard_error_with_unsolved: <stdin>:25:4: error: linarith failed to find a contradiction | <stdin>:27:4: error: linarith failed to find a contradiction | <stdin>:29:6: error: linarith failed to find a c
+[2026-05-08T22:44:15Z WARN  evaluator] [tx 4] step rejected (err:tactic_linarith): <stdin>:16:0: error: linarith failed to find a contradiction
+[2026-05-08T22:44:26Z WARN  evaluator] [tx 5] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:17:2: error: unexpected token 'have'; expected command
+[2026-05-08T22:44:35Z WARN  evaluator] [tx 6] step rejected (err:tactic_linarith): <stdin>:16:0: error: linarith failed to find a contradiction
+[2026-05-08T22:44:56Z INFO  evaluator] [tx 7] Agent_0 step+tx_0_by_Agent_0 partial OK (depth=1)
+[2026-05-08T22:45:09Z WARN  evaluator] [tx 8] step rejected (err:tactic_linarith): <stdin>:18:0: error: linarith failed to find a contradiction
+[2026-05-08T22:45:22Z WARN  evaluator] [tx 9] step rejected (err:tactic_linarith): <stdin>:18:0: error: linarith failed to find a contradiction
+[2026-05-08T22:45:34Z WARN  evaluator] [tx 10] step rejected (err:tactic_linarith): <stdin>:18:0: error: linarith failed to find a contradiction
+[2026-05-08T22:45:35Z WARN  evaluator] [tx 11] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-08T22:45:47Z INFO  evaluator] [tx 12] Agent_0 step+tx_1_by_Agent_0 partial OK (depth=2)
+[2026-05-08T22:45:59Z WARN  evaluator] [tx 13] step rejected (err:tactic_linarith): <stdin>:19:0: error: linarith failed to find a contradiction
+[2026-05-08T22:46:10Z WARN  evaluator] [tx 14] step rejected (err:tactic_linarith): <stdin>:19:0: error: linarith failed to find a contradiction
+[2026-05-08T22:46:36Z WARN  evaluator] [tx 15] step rejected (err:other): <stdin>:19:0: error: 'calc' expression has type | but is expected to have type
+[2026-05-08T22:46:59Z WARN  evaluator] [tx 16] step rejected (err:tactic_linarith): <stdin>:19:0: error: linarith failed to find a contradiction
+[2026-05-08T22:47:52Z WARN  evaluator] [tx 17] step rejected (err:tactic_linarith): <stdin>:19:0: error: linarith failed to find a contradiction
+[2026-05-08T22:48:04Z WARN  evaluator] [tx 18] step rejected (err:tactic_linarith): <stdin>:19:0: error: linarith failed to find a contradiction
+[2026-05-08T22:48:16Z WARN  evaluator] [tx 19] step rejected (err:tactic_linarith): <stdin>:19:0: error: linarith failed to find a contradiction
+[2026-05-08T22:48:16Z INFO  evaluator] [tick@tx20] tape=2 markets=0 top=
+[2026-05-08T22:48:28Z WARN  evaluator] [tx 20] step rejected (err:tactic_linarith): <stdin>:19:0: error: linarith failed to find a contradiction
+[2026-05-08T22:48:41Z WARN  evaluator] [tx 21] step rejected (err:tactic_linarith): <stdin>:19:0: error: linarith failed to find a contradiction
+[2026-05-08T22:48:53Z WARN  evaluator] [tx 22] step rejected (err:tactic_linarith): <stdin>:19:0: error: linarith failed to find a contradiction
+[2026-05-08T22:49:06Z WARN  evaluator] [tx 23] step rejected (err:tactic_linarith): <stdin>:19:0: error: linarith failed to find a contradiction
+[2026-05-08T22:49:20Z WARN  evaluator] [tx 24] step rejected (err:tactic_linarith): <stdin>:19:0: error: linarith failed to find a contradiction
+[2026-05-08T22:49:21Z WARN  evaluator] [tb18-atomA] DegradedLLM halt: 10 consecutive trivial responses (token_floor=30, cap=10); total_calls=26 trivial_calls=19
+[v2-emit] SPLIT env unset; defaulting to 'adaptation' (Phase B convention; pre-registration requires SPLIT for Phase C+ ablation runs)
+[2026-05-08T22:49:21Z INFO  evaluator] [tb11] EvidenceCapsule written: capsule_id=a0c0304e0636c1de6e685a65e5c75822048f8cd8eb48f87cc84cbd36661a7e96 compressed_log_cid=6230088b4307c19206861f2172e466c2d34c166a87d30cf5bb7b0737e0d8fff8 attempt_count=23
+[2026-05-08T22:49:21Z INFO  evaluator] [tb11] TerminalSummary emitted: emit_id=1
+[2026-05-08T22:49:21Z INFO  evaluator] [chaintape] Atom 6 RunSummary written (2 L4 + 24 L4.E entries; 2 accepted_tx_ids, 24 rejected_tx_ids)
+[2026-05-08T22:49:21Z INFO  evaluator] PPUT = 0 (no golden path in 603.4s, 200 tx)

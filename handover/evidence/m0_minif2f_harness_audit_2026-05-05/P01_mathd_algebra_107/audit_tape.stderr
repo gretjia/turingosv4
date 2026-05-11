@@ -1,0 +1,48 @@
+audit_tape: --agent-pubkeys required
+
+audit_tape — TB-16 Atom 3 audit-from-tape binary
+
+USAGE:
+  audit_tape --runtime-repo <p> --cas-dir <p> --agent-pubkeys <p>
+  --pinned-pubkeys <p> --genesis <p> --constitution <p>
+  [--markov-pointer <p>] [--prior-chain-runtime-repo <p>]
+  [--alignment-dir <p>] --out <verdict.json>
+
+MARKOV INHERITANCE (TB-16.x.fix; architect OBS_R022 Option α):
+  absent both flags        → genesis chain; Layer G Skipped
+  --markov-pointer <p>     → per-run pointer file (NOT global);
+  must exist + cid must resolve in --cas-dir
+  --prior-chain-runtime-repo <p>
+  → resolves Markov tip from prior chain's
+  per-runtime pointer at <p>/markov_tip.cid
+  (in-tape; no global parallel ledger)
+
+EXIT:
+  0  verdict == PROCEED (38/38 assertions GREEN)
+  1  verdict == BLOCK (≥1 fail/halt)
+  2  invalid args / I/O failure
+
+audit_tape: --agent-pubkeys required
+
+audit_tape — TB-16 Atom 3 audit-from-tape binary
+
+USAGE:
+  audit_tape --runtime-repo <p> --cas-dir <p> --agent-pubkeys <p>
+  --pinned-pubkeys <p> --genesis <p> --constitution <p>
+  [--markov-pointer <p>] [--prior-chain-runtime-repo <p>]
+  [--alignment-dir <p>] --out <verdict.json>
+
+MARKOV INHERITANCE (TB-16.x.fix; architect OBS_R022 Option α):
+  absent both flags        → genesis chain; Layer G Skipped
+  --markov-pointer <p>     → per-run pointer file (NOT global);
+  must exist + cid must resolve in --cas-dir
+  --prior-chain-runtime-repo <p>
+  → resolves Markov tip from prior chain's
+  per-runtime pointer at <p>/markov_tip.cid
+  (in-tape; no global parallel ledger)
+
+EXIT:
+  0  verdict == PROCEED (38/38 assertions GREEN)
+  1  verdict == BLOCK (≥1 fail/halt)
+  2  invalid args / I/O failure
+

@@ -1,0 +1,23 @@
+{
+  "tb_id": "TB-C0",
+  "smoke_mode": true,
+  "problem_count": 1,
+  "n_agents": 5,
+  "condition": "n5",
+  "git_head": "b42ff44e8eb11c7f4f8944594200b7fe2b519f1c",
+  "run_timestamp_utc": "2026-05-11T06-49-12Z",
+  "evaluator_failures_excluding_timeout": 0,
+  "missing_problem_files": 0,
+  "per_problem_results": [
+    {"tag":"P01_mathd_algebra_107",
+    "name":"mathd_algebra_107",
+    "difficulty":"easy",
+    "max_tx":5,
+    "tx_count":1,
+    "halt":"OmegaAccepted",
+    "solved":true,
+    "step_partial_ok":0,
+    "duration_s":120,
+    "evaluator_rc":0}
+  ]
+}

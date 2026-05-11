@@ -1,0 +1,32 @@
+{
+  "schema_version": "stage_b3_v1",
+  "run_tag": "stage_b3_smoke_b2_20260511T012028Z",
+  "run_timestamp_utc": "2026-05-11T01-20-28Z",
+  "charter": "handover/tracer_bullets/TB-18B_charter_2026-05-07.md",
+  "charter_section": "§1 (M2 scope) + §3 CR-18B.5 (manifest pin) + §3 CR-18B.9 (preflight gate)",
+  "architect_directive": "handover/architect-insights/2026-05-07_ARCHITECT_ALIGNMENT_AUDIT_LAUNCH_POLYMARKET_MANUAL_zh.md §3.B3",
+  "git_head": "4ec8440bf54093f38593d3e590e83cf7f0c5477e",
+  "git_head_short": "4ec8440",
+  "evaluator_binary_sha256": "0f0d7047edc1e70e6fd5a6884a99ef9027d205b13baaca21f9f376e393a493fd",
+  "lean_version": "Lean (version 4.24.0, x86_64-unknown-linux-gnu, commit 797c613eb9b6d4ec95db23e3e00af9ac6657f24b, Release)",
+  "mathlib_commit": "f897ebcf72cd16f89ab4577d0c826cd14afaafc7",
+  "minif2f_dir": "/home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4",
+  "models": ["deepseek-v4-flash", "Qwen/Qwen2.5-72B-Instruct"],
+  "seeds": [1],
+  "n_attempts": 1,
+  "problem_count": 3,
+  "expected_total_invocations": 6,
+  "max_tx_per_problem": 200,
+  "per_problem_timeout_s": 900,
+  "llm_proxy_url": "http://localhost:18080",
+  "problems": ["aime_1983_p1.lean", "aime_1983_p2.lean", "aime_1983_p3.lean"],
+  "sampling_strategy": "exhaustive (no sampling; all problem×seed×model×rep tuples enumerated)",
+  "evidence_packaging_policy": {
+    "per_run_runtime_repo_tarball": true,
+    "per_run_cas_tarball": true,
+    "tarball_format": "tar.gz",
+    "feedback_anchor": "feedback_evidence_packaging_policy_required"
+  },
+  "fc1_invariant_formula": "evaluator_reported_completed_llm_calls == l4_work_attempt_count + l4e_work_attempt_count + capsule_anchored_attempt_count",
+  "fc1_invariant_formula_lhs_decomposition": "tool_dist.step + tool_dist.parse_fail + tool_dist.llm_err (per CLAUDE.md §6 OBS_TB18R_INV1_NONLLM_TX clarification 2026-05-07)"
+}

@@ -1,0 +1,33 @@
+[2026-05-08T20:38:22Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/mathd_algebra_107.lean | Condition: n1 | Model: deepseek-chat | Mode: full
+[2026-05-08T20:38:23Z INFO  minif2f_v4::chain_runtime] [chaintape] bus wired with Sequencer + on-disk ChainTape at "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_smoke_qwen_v3_20260508T203807Z/deepseek-chat/seed1/rep1/P001_mathd_algebra_107/runtime_repo"
+[2026-05-08T20:38:23Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic TaskOpen for smoke-n1_mathd_algebra_107_1778272702953
+[2026-05-08T20:38:23Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic zero-stake WorkTx (synthetic_rejection_for_l4e_gate=true) for smoke-n1_mathd_algebra_107_1778272702953
+[2026-05-08T20:38:23Z INFO  minif2f_v4::chain_runtime] [chaintape] Atom 5 audit-trail records written to CAS + indexed for smoke-n1_mathd_algebra_107_1778272702953
+[2026-05-08T20:38:23Z INFO  minif2f_v4::chain_runtime] [chaintape/d_c] genesis_report.json written to "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_smoke_qwen_v3_20260508T203807Z/deepseek-chat/seed1/rep1/P001_mathd_algebra_107/runtime_repo"
+[2026-05-08T20:38:23Z INFO  evaluator] [swarm/n1] agent_models = [deepseek-chat] (label=deepseek-chat)
+[2026-05-08T20:38:23Z INFO  evaluator] [budget] regime=total_proposal base=200 effective_max_tx=200 (n_agents=1)
+[2026-05-08T20:38:23Z INFO  evaluator] [swarm/n1] Agent_0:skill0:t=0.20
+[2026-05-08T20:38:33Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=1 after this write)
+[2026-05-08T20:38:38Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-08T20:38:48Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=1 after this write)
+[2026-05-08T20:38:53Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-08T20:39:02Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=1 after this write)
+[2026-05-08T20:39:07Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-08T20:39:16Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=1 after this write)
+[2026-05-08T20:39:21Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-08T20:39:31Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=1 after this write)
+[2026-05-08T20:39:36Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-08T20:39:44Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=1 after this write)
+[2026-05-08T20:39:49Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-08T20:39:59Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=1 after this write)
+[2026-05-08T20:40:04Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-08T20:40:13Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=1 after this write)
+[2026-05-08T20:40:18Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-08T20:40:27Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=1 after this write)
+[2026-05-08T20:40:32Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-08T20:40:33Z WARN  evaluator] [tb18-atomA] DegradedLLM halt: 10 consecutive trivial responses (token_floor=30, cap=10); total_calls=10 trivial_calls=10
+[v2-emit] SPLIT env unset; defaulting to 'adaptation' (Phase B convention; pre-registration requires SPLIT for Phase C+ ablation runs)
+[2026-05-08T20:40:33Z INFO  evaluator] [tb11] EvidenceCapsule written: capsule_id=1cda1bc449bfeaef6753407dae26e602b018e8848aec9e71edc9d634fc8b9e76 compressed_log_cid=62c1122bf61c2604a9042b1ce713bc5ee12ff2cfa66b212e09131a5b085a50ab attempt_count=9
+[2026-05-08T20:40:33Z INFO  evaluator] [tb11] TerminalSummary emitted: emit_id=1
+[2026-05-08T20:40:33Z INFO  evaluator] [chaintape] Atom 6 RunSummary written (2 L4 + 10 L4.E entries; 2 accepted_tx_ids, 10 rejected_tx_ids)
+[2026-05-08T20:40:33Z INFO  evaluator] PPUT = 0 (no golden path in 130.5s, 200 tx)

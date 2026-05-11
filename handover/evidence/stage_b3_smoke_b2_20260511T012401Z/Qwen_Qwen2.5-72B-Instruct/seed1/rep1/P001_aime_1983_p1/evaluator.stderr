@@ -1,0 +1,72 @@
+[2026-05-11T01:30:21Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/aime_1983_p1.lean | Condition: n1 | Model: Qwen/Qwen2.5-72B-Instruct | Mode: full
+[2026-05-11T01:30:21Z INFO  minif2f_v4::chain_runtime] [chaintape/d3] pre-seed enabled (TB-10 factory): 12 entries
+[2026-05-11T01:30:21Z INFO  minif2f_v4::chain_runtime] [chaintape] bus wired with Sequencer + on-disk ChainTape at "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_smoke_b2_20260511T012401Z/Qwen_Qwen2.5-72B-Instruct/seed1/rep1/P001_aime_1983_p1/runtime_repo"
+[2026-05-11T01:30:21Z INFO  evaluator] [chaintape/d3] preseed TaskOpen for task-n1_aime_1983_p1_1778463021244
+[2026-05-11T01:30:21Z INFO  evaluator] [chaintape/d3] preseed EscrowLock 100000 micro for task-n1_aime_1983_p1_1778463021244
+[2026-05-11T01:30:21Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic TaskOpen for smoke-n1_aime_1983_p1_1778463021244
+[2026-05-11T01:30:21Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic zero-stake WorkTx (synthetic_rejection_for_l4e_gate=true) for smoke-n1_aime_1983_p1_1778463021244
+[2026-05-11T01:30:21Z INFO  minif2f_v4::chain_runtime] [chaintape] Atom 5 audit-trail records written to CAS + indexed for smoke-n1_aime_1983_p1_1778463021244
+[2026-05-11T01:30:21Z INFO  minif2f_v4::chain_runtime] [chaintape/d_c] genesis_report.json written to "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_smoke_b2_20260511T012401Z/Qwen_Qwen2.5-72B-Instruct/seed1/rep1/P001_aime_1983_p1/runtime_repo"
+[2026-05-11T01:30:21Z INFO  evaluator] [swarm/n1] agent_models = [Qwen/Qwen2.5-72B-Instruct] (label=Qwen/Qwen2.5-72B-Instruct)
+[2026-05-11T01:30:21Z INFO  evaluator] [budget] regime=total_proposal base=200 effective_max_tx=200 (n_agents=1)
+[2026-05-11T01:30:21Z INFO  evaluator] [swarm/n1] Agent_0:skill0:t=0.20
+[2026-05-11T01:30:34Z INFO  evaluator] [tx 0] Agent_0 step+tx_0_by_Agent_0 partial OK (depth=1)
+[2026-05-11T01:30:52Z WARN  evaluator] [tx 1] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:31:03Z WARN  evaluator] [tx 2] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:31:15Z WARN  evaluator] [tx 3] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:31:25Z WARN  evaluator] [tx 4] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:31:37Z WARN  evaluator] [tx 5] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:31:48Z WARN  evaluator] [tx 6] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:32:00Z WARN  evaluator] [tx 7] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:32:11Z WARN  evaluator] [tx 8] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:32:23Z WARN  evaluator] [tx 9] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:32:37Z WARN  evaluator] [tx 10] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:32:51Z WARN  evaluator] [tx 11] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:33:01Z WARN  evaluator] [tx 12] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:33:12Z WARN  evaluator] [tx 13] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:33:23Z WARN  evaluator] [tx 14] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:33:33Z WARN  evaluator] [tx 15] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:33:44Z WARN  evaluator] [tx 16] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:33:55Z WARN  evaluator] [tx 17] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:34:05Z WARN  evaluator] [tx 18] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:34:15Z WARN  evaluator] [tx 19] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:34:15Z INFO  evaluator] [tick@tx20] tape=1 markets=0 top=
+[2026-05-11T01:34:26Z WARN  evaluator] [tx 20] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:34:36Z WARN  evaluator] [tx 21] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:34:46Z WARN  evaluator] [tx 22] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:34:57Z WARN  evaluator] [tx 23] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:35:07Z WARN  evaluator] [tx 24] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:35:17Z WARN  evaluator] [tx 25] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:35:27Z WARN  evaluator] [tx 26] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:35:37Z WARN  evaluator] [tx 27] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:35:47Z WARN  evaluator] [tx 28] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:35:57Z WARN  evaluator] [tx 29] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:36:13Z WARN  evaluator] [tx 30] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:36:32Z WARN  evaluator] [tx 31] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:36:45Z WARN  evaluator] [tx 32] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:36:55Z WARN  evaluator] [tx 33] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:37:07Z WARN  evaluator] [tx 34] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:37:18Z WARN  evaluator] [tx 35] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:37:29Z WARN  evaluator] [tx 36] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:37:39Z WARN  evaluator] [tx 37] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:37:49Z WARN  evaluator] [tx 38] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:38:00Z WARN  evaluator] [tx 39] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:38:00Z INFO  evaluator] [tick@tx40] tape=1 markets=0 top=
+[2026-05-11T01:38:12Z WARN  evaluator] [tx 40] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:38:26Z WARN  evaluator] [tx 41] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:38:36Z WARN  evaluator] [tx 42] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:38:48Z WARN  evaluator] [tx 43] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:39:01Z WARN  evaluator] [tx 44] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:39:13Z WARN  evaluator] [tx 45] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:39:25Z WARN  evaluator] [tx 46] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:39:36Z WARN  evaluator] [tx 47] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:39:47Z WARN  evaluator] [tx 48] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:39:57Z WARN  evaluator] [tx 49] step rejected (err:rewrite_no_match): <stdin>:12:8: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T01:40:09Z WARN  evaluator] [tx 50] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:40:19Z WARN  evaluator] [tx 51] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress on goal
+[2026-05-11T01:40:21Z WARN  evaluator] [tb18-atomA] WallClockCap halt: aggregate 600 sec exhausted (cap=600s); total_calls=53
+[v2-emit] SPLIT env unset; defaulting to 'adaptation' (Phase B convention; pre-registration requires SPLIT for Phase C+ ablation runs)
+[2026-05-11T01:40:21Z INFO  evaluator] [tb11] EvidenceCapsule written: capsule_id=f3cda33059e2a32b59669b08b44e1fc16b46c2128d383522148d393367fa473d compressed_log_cid=432bb93c5b763045490689fd5fb3175921e4787db29219abd5a1df17989b38ad attempt_count=52
+[2026-05-11T01:40:21Z INFO  evaluator] [tb11] TerminalSummary emitted: emit_id=1
+[2026-05-11T01:40:21Z INFO  evaluator] [chaintape] Atom 6 RunSummary written (3 L4 + 53 L4.E entries; 3 accepted_tx_ids, 53 rejected_tx_ids)
+[2026-05-11T01:40:21Z INFO  evaluator] PPUT = 0 (no golden path in 600.6s, 200 tx)

@@ -1,0 +1,7 @@
+Started: 2026-05-05T11:32:56+00:00
+[m0] preflight OK (Mathlib + lean /home/zephryj/.elan/toolchains/leanprover--lean4---v4.24.0/bin/lean)
+[m0] LLM proxy at http://localhost:18080 is up
+[m0] manifest written to /home/zephryj/projects/turingosv4/handover/evidence/m0_minif2f_harness_audit_2026-05-05/M0_RUN_MANIFEST.json
+[m0] [1/20] mathd_algebra_107 → /home/zephryj/projects/turingosv4/handover/evidence/m0_minif2f_harness_audit_2026-05-05/P01_mathd_algebra_107
+[m0] [1/20] P01_mathd_algebra_107: outcome=solved verdict=ERROR replay=missing tamper=missing dur=13s
+[m0] [2/20] mathd_algebra_113 → /home/zephryj/projects/turingosv4/handover/evidence/m0_minif2f_harness_audit_2026-05-05/P02_mathd_algebra_113

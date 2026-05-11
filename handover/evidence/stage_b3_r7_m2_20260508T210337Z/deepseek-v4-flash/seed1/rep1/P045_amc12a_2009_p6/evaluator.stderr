@@ -1,0 +1,81 @@
+[2026-05-09T02:15:11Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/amc12a_2009_p6.lean | Condition: n1 | Model: deepseek-v4-flash | Mode: full
+[2026-05-09T02:15:12Z INFO  minif2f_v4::chain_runtime] [chaintape] bus wired with Sequencer + on-disk ChainTape at "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_r7_m2_20260508T210337Z/deepseek-v4-flash/seed1/rep1/P045_amc12a_2009_p6/runtime_repo"
+[2026-05-09T02:15:12Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic TaskOpen for smoke-n1_amc12a_2009_p6_1778292911117
+[2026-05-09T02:15:12Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic zero-stake WorkTx (synthetic_rejection_for_l4e_gate=true) for smoke-n1_amc12a_2009_p6_1778292911117
+[2026-05-09T02:15:12Z INFO  minif2f_v4::chain_runtime] [chaintape] Atom 5 audit-trail records written to CAS + indexed for smoke-n1_amc12a_2009_p6_1778292911117
+[2026-05-09T02:15:12Z INFO  minif2f_v4::chain_runtime] [chaintape/d_c] genesis_report.json written to "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_r7_m2_20260508T210337Z/deepseek-v4-flash/seed1/rep1/P045_amc12a_2009_p6/runtime_repo"
+[2026-05-09T02:15:12Z INFO  evaluator] [swarm/n1] agent_models = [deepseek-v4-flash] (label=deepseek-v4-flash)
+[2026-05-09T02:15:12Z INFO  evaluator] [budget] regime=total_proposal base=200 effective_max_tx=200 (n_agents=1)
+[2026-05-09T02:15:12Z INFO  evaluator] [swarm/n1] Agent_0:skill0:t=0.20
+[2026-05-09T02:15:54Z INFO  evaluator] [tx 0] Agent_0 step+tx_0_by_Agent_0 partial OK (depth=1)
+[2026-05-09T02:16:10Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=2 after this write)
+[2026-05-09T02:16:15Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-09T02:16:28Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=2 after this write)
+[2026-05-09T02:16:33Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-09T02:16:45Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=2 after this write)
+[2026-05-09T02:16:50Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-09T02:17:02Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=2 after this write)
+[2026-05-09T02:17:07Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-09T02:17:19Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=2 after this write)
+[2026-05-09T02:17:24Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-09T02:17:36Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=2 after this write)
+[2026-05-09T02:17:41Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-09T02:17:53Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=2 after this write)
+[2026-05-09T02:17:58Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-09T02:18:11Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=2 after this write)
+[2026-05-09T02:18:16Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-09T02:18:29Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=2 after this write)
+[2026-05-09T02:18:34Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-09T02:18:46Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=2 after this write)
+[2026-05-09T02:18:51Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-09T02:19:04Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=2 after this write)
+[2026-05-09T02:19:09Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-09T02:19:25Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=2 after this write)
+[2026-05-09T02:19:30Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-09T02:19:43Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=2 after this write)
+[2026-05-09T02:19:48Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-09T02:20:03Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=2 after this write)
+[2026-05-09T02:20:08Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-09T02:20:20Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=2 after this write)
+[2026-05-09T02:20:25Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-09T02:20:37Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=2 after this write)
+[2026-05-09T02:20:42Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-09T02:20:54Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=2 after this write)
+[2026-05-09T02:20:59Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-09T02:21:11Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=2 after this write)
+[2026-05-09T02:21:16Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-09T02:21:28Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=2 after this write)
+[2026-05-09T02:21:33Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-09T02:21:33Z INFO  evaluator] [tick@tx20] tape=1 markets=0 top=
+[2026-05-09T02:21:45Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=2 after this write)
+[2026-05-09T02:21:50Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-09T02:22:02Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=2 after this write)
+[2026-05-09T02:22:07Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-09T02:22:19Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=2 after this write)
+[2026-05-09T02:22:24Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-09T02:22:36Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=2 after this write)
+[2026-05-09T02:22:41Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-09T02:22:53Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=2 after this write)
+[2026-05-09T02:22:58Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-09T02:23:11Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=2 after this write)
+[2026-05-09T02:23:16Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-09T02:23:28Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=2 after this write)
+[2026-05-09T02:23:33Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-09T02:23:45Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=2 after this write)
+[2026-05-09T02:23:50Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-09T02:24:02Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=2 after this write)
+[2026-05-09T02:24:07Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-09T02:24:20Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=2 after this write)
+[2026-05-09T02:24:25Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-09T02:24:39Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=2 after this write)
+[2026-05-09T02:24:44Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-09T02:24:58Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=2 after this write)
+[2026-05-09T02:25:03Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-09T02:25:16Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=2 after this write)
+[2026-05-09T02:25:21Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-09T02:25:24Z WARN  evaluator] [tb18-atomA] WallClockCap halt: aggregate 611 sec exhausted (cap=600s); total_calls=34
+[v2-emit] SPLIT env unset; defaulting to 'adaptation' (Phase B convention; pre-registration requires SPLIT for Phase C+ ablation runs)
+[2026-05-09T02:25:24Z INFO  evaluator] [tb11] EvidenceCapsule written: capsule_id=9956eea28afef20160573151098e53624d894a3dfe8073cc8eccd24a65f5b694 compressed_log_cid=f71ee118d54f4a37f994c6316585a4984125df0fe3d78addbebfef15576b622e attempt_count=33
+[2026-05-09T02:25:24Z INFO  evaluator] [tb11] TerminalSummary emitted: emit_id=1
+[2026-05-09T02:25:24Z INFO  evaluator] [chaintape] Atom 6 RunSummary written (2 L4 + 33 L4.E entries; 2 accepted_tx_ids, 33 rejected_tx_ids)
+[2026-05-09T02:25:24Z INFO  evaluator] PPUT = 0 (no golden path in 613.0s, 200 tx)

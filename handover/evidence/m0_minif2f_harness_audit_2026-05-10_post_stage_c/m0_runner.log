@@ -1,0 +1,116 @@
+[m0] preflight OK (Mathlib + lean /home/zephryj/.elan/toolchains/leanprover--lean4---v4.24.0/bin/lean)
+[m0] LLM proxy at http://localhost:18080 is up
+[m0] manifest written to handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/M0_RUN_MANIFEST.json
+[m0] [1/20] mathd_algebra_107 → handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P01_mathd_algebra_107
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P01_mathd_algebra_107/verdict.json")
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P01_mathd_algebra_107/verdict_replay.json")
+audit_tape_tamper: detected 1/3 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P01_mathd_algebra_107/tamper_report.json")
+[m0] [1/20] P01_mathd_algebra_107: outcome=solved verdict=PROCEED replay=ok tamper=1/3-DEGRADED dur=13s
+[m0] [2/20] mathd_algebra_113 → handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P02_mathd_algebra_113
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P02_mathd_algebra_113/verdict.json")
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P02_mathd_algebra_113/verdict_replay.json")
+audit_tape_tamper: detected 1/3 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P02_mathd_algebra_113/tamper_report.json")
+[m0] [2/20] P02_mathd_algebra_113: outcome=exhausted verdict=PROCEED replay=ok tamper=1/3-DEGRADED dur=103s
+[m0] [3/20] mathd_algebra_114 → handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P03_mathd_algebra_114
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P03_mathd_algebra_114/verdict.json")
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P03_mathd_algebra_114/verdict_replay.json")
+audit_tape_tamper: detected 1/3 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P03_mathd_algebra_114/tamper_report.json")
+[m0] [3/20] P03_mathd_algebra_114: outcome=exhausted verdict=PROCEED replay=ok tamper=1/3-DEGRADED dur=126s
+[m0] [4/20] mathd_algebra_125 → handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P04_mathd_algebra_125
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P04_mathd_algebra_125/verdict.json")
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P04_mathd_algebra_125/verdict_replay.json")
+audit_tape_tamper: detected 1/3 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P04_mathd_algebra_125/tamper_report.json")
+[m0] [4/20] P04_mathd_algebra_125: outcome=solved verdict=PROCEED replay=ok tamper=1/3-DEGRADED dur=11s
+[m0] [5/20] mathd_algebra_141 → handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P05_mathd_algebra_141
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P05_mathd_algebra_141/verdict.json")
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P05_mathd_algebra_141/verdict_replay.json")
+audit_tape_tamper: detected 1/3 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P05_mathd_algebra_141/tamper_report.json")
+[m0] [5/20] P05_mathd_algebra_141: outcome=solved verdict=PROCEED replay=ok tamper=1/3-DEGRADED dur=9s
+[m0] [6/20] mathd_algebra_171 → handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P06_mathd_algebra_171
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P06_mathd_algebra_171/verdict.json")
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P06_mathd_algebra_171/verdict_replay.json")
+audit_tape_tamper: detected 1/3 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P06_mathd_algebra_171/tamper_report.json")
+[m0] [6/20] P06_mathd_algebra_171: outcome=solved verdict=PROCEED replay=ok tamper=1/3-DEGRADED dur=10s
+[m0] [7/20] mathd_algebra_176 → handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P07_mathd_algebra_176
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P07_mathd_algebra_176/verdict.json")
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P07_mathd_algebra_176/verdict_replay.json")
+audit_tape_tamper: detected 1/3 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P07_mathd_algebra_176/tamper_report.json")
+[m0] [7/20] P07_mathd_algebra_176: outcome=solved verdict=PROCEED replay=ok tamper=1/3-DEGRADED dur=10s
+[m0] [8/20] mathd_algebra_246 → handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P08_mathd_algebra_246
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P08_mathd_algebra_246/verdict.json")
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P08_mathd_algebra_246/verdict_replay.json")
+audit_tape_tamper: detected 1/3 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P08_mathd_algebra_246/tamper_report.json")
+[m0] [8/20] P08_mathd_algebra_246: outcome=solved verdict=PROCEED replay=ok tamper=1/3-DEGRADED dur=11s
+[m0] [9/20] aime_1983_p2 → handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P09_aime_1983_p2
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P09_aime_1983_p2/verdict.json")
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P09_aime_1983_p2/verdict_replay.json")
+audit_tape_tamper: detected 1/3 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P09_aime_1983_p2/tamper_report.json")
+[m0] [9/20] P09_aime_1983_p2: outcome=exhausted verdict=PROCEED replay=ok tamper=1/3-DEGRADED dur=83s
+[m0] [10/20] aime_1989_p8 → handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P10_aime_1989_p8
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P10_aime_1989_p8/verdict.json")
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P10_aime_1989_p8/verdict_replay.json")
+audit_tape_tamper: detected 1/3 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P10_aime_1989_p8/tamper_report.json")
+[m0] [10/20] P10_aime_1989_p8: outcome=solved verdict=PROCEED replay=ok tamper=1/3-DEGRADED dur=10s
+[m0] [11/20] amc12_2000_p1 → handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P11_amc12_2000_p1
+audit_tape: verdict=PROCEED passed=38 failed=0 halted=0 skipped=12 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P11_amc12_2000_p1/verdict.json")
+audit_tape: verdict=PROCEED passed=38 failed=0 halted=0 skipped=12 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P11_amc12_2000_p1/verdict_replay.json")
+audit_tape_tamper: detected 1/3 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P11_amc12_2000_p1/tamper_report.json")
+[m0] [11/20] P11_amc12_2000_p1: outcome=error_or_no_pput verdict=PROCEED replay=ok tamper=1/3-DEGRADED dur=600s
+[m0] [12/20] amc12_2000_p6 → handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P12_amc12_2000_p6
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P12_amc12_2000_p6/verdict.json")
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P12_amc12_2000_p6/verdict_replay.json")
+audit_tape_tamper: detected 1/3 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P12_amc12_2000_p6/tamper_report.json")
+[m0] [12/20] P12_amc12_2000_p6: outcome=exhausted verdict=PROCEED replay=ok tamper=1/3-DEGRADED dur=89s
+[m0] [13/20] algebra_sqineq_at2malt1 → handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P13_algebra_sqineq_at2malt1
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P13_algebra_sqineq_at2malt1/verdict.json")
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P13_algebra_sqineq_at2malt1/verdict_replay.json")
+audit_tape_tamper: detected 1/3 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P13_algebra_sqineq_at2malt1/tamper_report.json")
+[m0] [13/20] P13_algebra_sqineq_at2malt1: outcome=exhausted verdict=PROCEED replay=ok tamper=1/3-DEGRADED dur=85s
+[m0] [14/20] amc12a_2002_p6 → handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P14_amc12a_2002_p6
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P14_amc12a_2002_p6/verdict.json")
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P14_amc12a_2002_p6/verdict_replay.json")
+audit_tape_tamper: detected 1/3 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P14_amc12a_2002_p6/tamper_report.json")
+[m0] [14/20] P14_amc12a_2002_p6: outcome=exhausted verdict=PROCEED replay=ok tamper=1/3-DEGRADED dur=275s
+[m0] [15/20] aime_1990_p4 → handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P15_aime_1990_p4
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P15_aime_1990_p4/verdict.json")
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P15_aime_1990_p4/verdict_replay.json")
+audit_tape_tamper: detected 1/3 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P15_aime_1990_p4/tamper_report.json")
+[m0] [15/20] P15_aime_1990_p4: outcome=exhausted verdict=PROCEED replay=ok tamper=1/3-DEGRADED dur=106s
+[m0] [16/20] imo_1959_p1 → handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P16_imo_1959_p1
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P16_imo_1959_p1/verdict.json")
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P16_imo_1959_p1/verdict_replay.json")
+audit_tape_tamper: detected 1/3 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P16_imo_1959_p1/tamper_report.json")
+[m0] [16/20] P16_imo_1959_p1: outcome=solved verdict=PROCEED replay=ok tamper=1/3-DEGRADED dur=181s
+[m0] [17/20] imo_1962_p2 → handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P17_imo_1962_p2
+audit_tape_tamper: detected 0/3 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P17_imo_1962_p2/tamper_report.json")
+[m0] [17/20] P17_imo_1962_p2: outcome=error_or_no_pput verdict=ERROR replay=missing tamper=0/3-DEGRADED dur=0s
+[m0] [18/20] induction_11div10tonmn1ton → handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P18_induction_11div10tonmn1ton
+audit_tape_tamper: detected 0/3 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P18_induction_11div10tonmn1ton/tamper_report.json")
+[m0] [18/20] P18_induction_11div10tonmn1ton: outcome=error_or_no_pput verdict=ERROR replay=missing tamper=0/3-DEGRADED dur=0s
+[m0] [19/20] induction_12dvd4expnp1p20 → handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P19_induction_12dvd4expnp1p20
+audit_tape_tamper: detected 0/3 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P19_induction_12dvd4expnp1p20/tamper_report.json")
+[m0] [19/20] P19_induction_12dvd4expnp1p20: outcome=error_or_no_pput verdict=ERROR replay=missing tamper=0/3-DEGRADED dur=0s
+[m0] [20/20] algebra_2varlineareq_fp3zeq11_3tfm1m5zeqn68_feqn10_zeq7 → handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P20_algebra_2varlineareq_fp3zeq11_3tfm1m5zeqn68_feqn10_zeq7
+audit_tape_tamper: detected 0/3 (out="handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P20_algebra_2varlineareq_fp3zeq11_3tfm1m5zeqn68_feqn10_zeq7/tamper_report.json")
+[m0] [20/20] P20_algebra_2varlineareq_fp3zeq11_3tfm1m5zeqn68_feqn10_zeq7: outcome=error_or_no_pput verdict=ERROR replay=missing tamper=0/3-DEGRADED dur=0s
+
+══════════════════════════════════════════════════════════════════
+M0 batch complete — out: handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c
+  problems:                    20
+  audit verdict PROCEED:       16
+  audit verdict BLOCK:         0
+  audit ERROR:                 4
+  replay byte-identical:       16
+  tamper 3/3 detected:         0
+  solved (OMEGA):              8
+  exhausted (MaxTxExhausted):  7
+  total wall-clock:            1777s
+══════════════════════════════════════════════════════════════════
+
+NOT a benchmark; harness-prep input only.
+Architect-mandated next step: aggregate report at
+  handover/evidence/m0_minif2f_harness_audit_2026-05-05/M0_HARNESS_AUDIT_REPORT.md
+(written by Claude post-run).
+
+Summary JSON: handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/M0_BATCH_SUMMARY.json
+Manifest:     handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/M0_RUN_MANIFEST.json

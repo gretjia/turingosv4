@@ -1,0 +1,21 @@
+audit_tape_tamper: --agent-pubkeys required
+
+audit_tape_tamper — TB-16 Atom 3 tamper-detection harness
+
+USAGE:
+  audit_tape_tamper --runtime-repo <p> --cas-dir <p> --agent-pubkeys <p>
+  --pinned-pubkeys <p> --genesis <p> --constitution <p>
+  [--markov-pointer <p>] [--prior-chain-runtime-repo <p>]
+  [--alignment-dir <p>] --tamper-dir <p> --out <p>
+
+MARKOV INHERITANCE (TB-16.x.fix; architect OBS_R022 Option α):
+  both flags absent        → genesis chain; Layer G Skipped
+  --markov-pointer <p>     → per-run pointer file (NOT global)
+  --prior-chain-runtime-repo <p>
+  → resolves <p>/markov_tip.cid (in-tape)
+
+EXIT:
+  0  all 3 corruptions detected (BLOCK on each tampered copy)
+  1  at least 1 corruption NOT detected (HALT per architect §7.7)
+  2  invalid args / I/O failure
+

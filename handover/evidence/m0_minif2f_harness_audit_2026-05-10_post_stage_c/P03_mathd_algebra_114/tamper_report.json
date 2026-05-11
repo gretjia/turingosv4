@@ -1,0 +1,1232 @@
+{
+  "all_detected": false,
+  "detected_count": 1,
+  "expected": 3,
+  "schema_version": "v1/audit_tape_tamper",
+  "tamper_results": [
+    {
+      "detail": "destructively zeroed back half (242 bytes) of largest loose object \"handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P03_mathd_algebra_114/tamper/flip_l4_byte/runtime_repo/.git/objects/0f/7d2fb5df9d55f61f02ab4ba7a52fad3fded71b\"",
+      "detected": false,
+      "label": "flip_l4_byte",
+      "schema_version": "v1/audit_tape_tamper",
+      "verdict": {
+        "assertions": [
+          {
+            "detail": null,
+            "id": 1,
+            "layer": "A",
+            "name": "constitution_hash_matches_genesis",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 2,
+            "layer": "A",
+            "name": "pinned_pubkey_loaded",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 3,
+            "layer": "A",
+            "name": "sandbox_agent_prefix",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 41,
+            "layer": "A",
+            "name": "chain_agent_ids_sandbox_prefixed",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 4,
+            "layer": "B",
+            "name": "l4_hash_chain_valid",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 5,
+            "layer": "B",
+            "name": "l4_parent_state_continuity",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 6,
+            "layer": "B",
+            "name": "l4e_chain_integrity",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 7,
+            "layer": "B",
+            "name": "genesis_row_zero_parents",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 8,
+            "layer": "B",
+            "name": "system_tx_signatures_verify",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 9,
+            "layer": "B",
+            "name": "agent_tx_signatures_verify",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 10,
+            "layer": "B",
+            "name": "payload_cid_resolves",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 11,
+            "layer": "B",
+            "name": "tx_kind_envelope_matches_payload",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 50,
+            "layer": "B",
+            "name": "cas_bytes_match_cids",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 12,
+            "layer": "C",
+            "name": "replay_state_root_matches_head",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 13,
+            "layer": "C",
+            "name": "replay_economic_state_canonical",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 14,
+            "layer": "C",
+            "name": "replay_autopsy_index_chains",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 15,
+            "layer": "C",
+            "name": "canonical_edges_replay_deterministic",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 16,
+            "layer": "C",
+            "name": "replay_idempotent_across_calls",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 17,
+            "layer": "D",
+            "name": "no_post_init_mint",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 18,
+            "layer": "D",
+            "name": "total_supply_conserved",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 40,
+            "layer": "D",
+            "name": "total_supply_conserved_per_block",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 19,
+            "layer": "D",
+            "name": "complete_set_min_balanced",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 20,
+            "layer": "D",
+            "name": "task_market_total_escrow_matches_locks",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 21,
+            "layer": "D",
+            "name": "node_positions_excluded_from_supply",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 22,
+            "layer": "D",
+            "name": "conditional_shares_excluded_from_supply",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 23,
+            "layer": "E",
+            "name": "accepted_work_predicate_results_true",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 24,
+            "layer": "E",
+            "name": "proposal_telemetry_chain",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 25,
+            "layer": "E",
+            "name": "l4e_rejection_class_redispatch",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 26,
+            "layer": "E",
+            "name": "price_index_is_view_only",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 27,
+            "layer": "E",
+            "name": "terminal_summary_evidence_capsule",
+            "result": "Pass"
+          },
+          {
+            "detail": "no ChallengeResolveTx in tape (pre-TB-16.x.2.2 chain or arena profile without FORCE_CHALLENGE_RESOLVE)",
+            "id": 42,
+            "layer": "E",
+            "name": "challenge_resolve_chain_to_challenge_tx",
+            "result": "Skipped"
+          },
+          {
+            "detail": "no task has ≥3 admitted WorkTxs (single-WorkTx-per-task scenario; pre-TB-16.x.2.4 chains or arena profile without FORCE_BOLTZMANN_SEED_WORKTXS)",
+            "id": 43,
+            "layer": "E",
+            "name": "boltzmann_parent_selection_diversity",
+            "result": "Skipped"
+          },
+          {
+            "detail": null,
+            "id": 28,
+            "layer": "F",
+            "name": "projection_no_autopsy_bytes",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 29,
+            "layer": "F",
+            "name": "autopsy_private_detail_creator_is_system",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 30,
+            "layer": "F",
+            "name": "typical_error_summary_no_private_detail",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 31,
+            "layer": "F",
+            "name": "autopsy_index_value_type_is_vec_cid",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 39,
+            "layer": "F",
+            "name": "no_llm_self_narrative_in_autopsy",
+            "result": "Pass"
+          },
+          {
+            "detail": "no Markov capsule",
+            "id": 32,
+            "layer": "G",
+            "name": "markov_constitution_hash_matches",
+            "result": "Skipped"
+          },
+          {
+            "detail": "no Markov capsule",
+            "id": 33,
+            "layer": "G",
+            "name": "markov_typical_errors_recompute",
+            "result": "Skipped"
+          },
+          {
+            "detail": "no Markov capsule",
+            "id": 34,
+            "layer": "G",
+            "name": "markov_unresolved_obs_recompute",
+            "result": "Skipped"
+          },
+          {
+            "detail": "no Markov capsule",
+            "id": 35,
+            "layer": "G",
+            "name": "markov_next_session_context_resolves",
+            "result": "Skipped"
+          },
+          {
+            "detail": null,
+            "id": 44,
+            "layer": "G",
+            "name": "attempt_telemetry_retrievable_from_cas",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 45,
+            "layer": "G",
+            "name": "lean_result_retrievable_from_cas",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 46,
+            "layer": "G",
+            "name": "attempt_chain_root_schema_well_formed",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 49,
+            "layer": "G",
+            "name": "markov_cluster_source_attempt_telemetry",
+            "result": "Pass"
+          },
+          {
+            "detail": "exercised by audit_tape_tamper binary (Atom 3; FC1-N35)",
+            "id": 36,
+            "layer": "H",
+            "name": "tamper_l4_flip_detected",
+            "result": "Skipped"
+          },
+          {
+            "detail": "exercised by audit_tape_tamper binary (Atom 3; FC1-N35)",
+            "id": 37,
+            "layer": "H",
+            "name": "tamper_cas_flip_detected",
+            "result": "Skipped"
+          },
+          {
+            "detail": "exercised by audit_tape_tamper binary (Atom 3; FC1-N35)",
+            "id": 38,
+            "layer": "H",
+            "name": "tamper_l4_remove_detected",
+            "result": "Skipped"
+          },
+          {
+            "detail": "exercised by audit_tape_tamper binary (TB-18R R5; FC2-N34)",
+            "id": 47,
+            "layer": "H",
+            "name": "random_attempt_payload_tamper_detected",
+            "result": "Skipped"
+          },
+          {
+            "detail": "exercised by audit_tape_tamper binary (TB-18R R5; FC2-N34)",
+            "id": 48,
+            "layer": "H",
+            "name": "random_lean_stderr_tamper_detected",
+            "result": "Skipped"
+          }
+        ],
+        "failed": 0,
+        "feature_coverage": {
+          "TB-11_terminal_bankruptcy_expire": "GREEN",
+          "TB-13_complete_set": "RED",
+          "TB-14_price_mask": "GREEN",
+          "TB-15_autopsy_markov": "RED",
+          "TB-1_monetary": "GREEN",
+          "TB-2_work": "RED",
+          "TB-3_task_open_escrow": "GREEN",
+          "TB-4_verify_challenge": "RED",
+          "TB-5_challenge_resolve": "RED",
+          "TB-6_chain": "GREEN",
+          "TB-7_agent_pubkeys": "GREEN",
+          "TB-8_finalize_reward": "RED"
+        },
+        "halted": 0,
+        "passed": 39,
+        "schema_version": "v1/audit_tape_verdict",
+        "skipped": 11,
+        "tape_root": {
+          "cas_object_count": 53,
+          "constitution_hash_hex": "eec695459c71fbef3685583485deb431fe3b561657b2f285b7c5e7e220e59e03",
+          "head_ledger_root_hex": "2a7a8f85deb287a1cc3e83f290354f65c474c9488dc45b9d7e5e92d1e5d9079c",
+          "head_state_root_hex": "1fe7cb5b25faaf1eaac511d6a28ed9e3b4e59fbb2d8541ad5890a6b5c8414ff8",
+          "l4_count": 3,
+          "l4e_count": 14
+        },
+        "tx_kind_counts": {
+          "buy_with_coin_router": 0,
+          "challenge": 0,
+          "challenge_resolve": 0,
+          "complete_set_merge": 0,
+          "complete_set_mint": 0,
+          "complete_set_redeem": 0,
+          "cpmm_pool": 0,
+          "cpmm_swap": 0,
+          "escrow_lock": 1,
+          "finalize_reward": 0,
+          "market_seed": 0,
+          "reuse": 0,
+          "task_bankruptcy": 0,
+          "task_expire": 0,
+          "task_open": 1,
+          "terminal_summary": 1,
+          "verify": 0,
+          "work": 0
+        },
+        "verdict": "PROCEED"
+      }
+    },
+    {
+      "detail": "destructively zeroed back half (134 bytes) of largest CAS object \"handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P03_mathd_algebra_114/tamper/flip_cas_byte/cas/.git/objects/fc/d0e3124205ab054e06146b4e12949afdd66880\"",
+      "detected": true,
+      "label": "flip_cas_byte",
+      "schema_version": "v1/audit_tape_tamper",
+      "verdict": {
+        "assertions": [
+          {
+            "detail": null,
+            "id": 1,
+            "layer": "A",
+            "name": "constitution_hash_matches_genesis",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 2,
+            "layer": "A",
+            "name": "pinned_pubkey_loaded",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 3,
+            "layer": "A",
+            "name": "sandbox_agent_prefix",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 41,
+            "layer": "A",
+            "name": "chain_agent_ids_sandbox_prefixed",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 4,
+            "layer": "B",
+            "name": "l4_hash_chain_valid",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 5,
+            "layer": "B",
+            "name": "l4_parent_state_continuity",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 6,
+            "layer": "B",
+            "name": "l4e_chain_integrity",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 7,
+            "layer": "B",
+            "name": "genesis_row_zero_parents",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 8,
+            "layer": "B",
+            "name": "system_tx_signatures_verify",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 9,
+            "layer": "B",
+            "name": "agent_tx_signatures_verify",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 10,
+            "layer": "B",
+            "name": "payload_cid_resolves",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 11,
+            "layer": "B",
+            "name": "tx_kind_envelope_matches_payload",
+            "result": "Pass"
+          },
+          {
+            "detail": "CAS get failed for cid c57acbc0f1d1024626fb253b5f67546751270dbcb8caadecd0f0923721d2cdd4: Git2(Error { code: -1, klass: 5, message: \"incorrect data check\" }) (suggests tampered storage; integrity check could not proceed)",
+            "id": 50,
+            "layer": "B",
+            "name": "cas_bytes_match_cids",
+            "result": "Halt"
+          },
+          {
+            "detail": null,
+            "id": 12,
+            "layer": "C",
+            "name": "replay_state_root_matches_head",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 13,
+            "layer": "C",
+            "name": "replay_economic_state_canonical",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 14,
+            "layer": "C",
+            "name": "replay_autopsy_index_chains",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 15,
+            "layer": "C",
+            "name": "canonical_edges_replay_deterministic",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 16,
+            "layer": "C",
+            "name": "replay_idempotent_across_calls",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 17,
+            "layer": "D",
+            "name": "no_post_init_mint",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 18,
+            "layer": "D",
+            "name": "total_supply_conserved",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 40,
+            "layer": "D",
+            "name": "total_supply_conserved_per_block",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 19,
+            "layer": "D",
+            "name": "complete_set_min_balanced",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 20,
+            "layer": "D",
+            "name": "task_market_total_escrow_matches_locks",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 21,
+            "layer": "D",
+            "name": "node_positions_excluded_from_supply",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 22,
+            "layer": "D",
+            "name": "conditional_shares_excluded_from_supply",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 23,
+            "layer": "E",
+            "name": "accepted_work_predicate_results_true",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 24,
+            "layer": "E",
+            "name": "proposal_telemetry_chain",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 25,
+            "layer": "E",
+            "name": "l4e_rejection_class_redispatch",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 26,
+            "layer": "E",
+            "name": "price_index_is_view_only",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 27,
+            "layer": "E",
+            "name": "terminal_summary_evidence_capsule",
+            "result": "Pass"
+          },
+          {
+            "detail": "no ChallengeResolveTx in tape (pre-TB-16.x.2.2 chain or arena profile without FORCE_CHALLENGE_RESOLVE)",
+            "id": 42,
+            "layer": "E",
+            "name": "challenge_resolve_chain_to_challenge_tx",
+            "result": "Skipped"
+          },
+          {
+            "detail": "no task has ≥3 admitted WorkTxs (single-WorkTx-per-task scenario; pre-TB-16.x.2.4 chains or arena profile without FORCE_BOLTZMANN_SEED_WORKTXS)",
+            "id": 43,
+            "layer": "E",
+            "name": "boltzmann_parent_selection_diversity",
+            "result": "Skipped"
+          },
+          {
+            "detail": null,
+            "id": 28,
+            "layer": "F",
+            "name": "projection_no_autopsy_bytes",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 29,
+            "layer": "F",
+            "name": "autopsy_private_detail_creator_is_system",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 30,
+            "layer": "F",
+            "name": "typical_error_summary_no_private_detail",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 31,
+            "layer": "F",
+            "name": "autopsy_index_value_type_is_vec_cid",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 39,
+            "layer": "F",
+            "name": "no_llm_self_narrative_in_autopsy",
+            "result": "Pass"
+          },
+          {
+            "detail": "no Markov capsule",
+            "id": 32,
+            "layer": "G",
+            "name": "markov_constitution_hash_matches",
+            "result": "Skipped"
+          },
+          {
+            "detail": "no Markov capsule",
+            "id": 33,
+            "layer": "G",
+            "name": "markov_typical_errors_recompute",
+            "result": "Skipped"
+          },
+          {
+            "detail": "no Markov capsule",
+            "id": 34,
+            "layer": "G",
+            "name": "markov_unresolved_obs_recompute",
+            "result": "Skipped"
+          },
+          {
+            "detail": "no Markov capsule",
+            "id": 35,
+            "layer": "G",
+            "name": "markov_next_session_context_resolves",
+            "result": "Skipped"
+          },
+          {
+            "detail": null,
+            "id": 44,
+            "layer": "G",
+            "name": "attempt_telemetry_retrievable_from_cas",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 45,
+            "layer": "G",
+            "name": "lean_result_retrievable_from_cas",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 46,
+            "layer": "G",
+            "name": "attempt_chain_root_schema_well_formed",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 49,
+            "layer": "G",
+            "name": "markov_cluster_source_attempt_telemetry",
+            "result": "Pass"
+          },
+          {
+            "detail": "exercised by audit_tape_tamper binary (Atom 3; FC1-N35)",
+            "id": 36,
+            "layer": "H",
+            "name": "tamper_l4_flip_detected",
+            "result": "Skipped"
+          },
+          {
+            "detail": "exercised by audit_tape_tamper binary (Atom 3; FC1-N35)",
+            "id": 37,
+            "layer": "H",
+            "name": "tamper_cas_flip_detected",
+            "result": "Skipped"
+          },
+          {
+            "detail": "exercised by audit_tape_tamper binary (Atom 3; FC1-N35)",
+            "id": 38,
+            "layer": "H",
+            "name": "tamper_l4_remove_detected",
+            "result": "Skipped"
+          },
+          {
+            "detail": "exercised by audit_tape_tamper binary (TB-18R R5; FC2-N34)",
+            "id": 47,
+            "layer": "H",
+            "name": "random_attempt_payload_tamper_detected",
+            "result": "Skipped"
+          },
+          {
+            "detail": "exercised by audit_tape_tamper binary (TB-18R R5; FC2-N34)",
+            "id": 48,
+            "layer": "H",
+            "name": "random_lean_stderr_tamper_detected",
+            "result": "Skipped"
+          }
+        ],
+        "failed": 0,
+        "feature_coverage": {
+          "TB-11_terminal_bankruptcy_expire": "GREEN",
+          "TB-13_complete_set": "RED",
+          "TB-14_price_mask": "GREEN",
+          "TB-15_autopsy_markov": "RED",
+          "TB-1_monetary": "GREEN",
+          "TB-2_work": "RED",
+          "TB-3_task_open_escrow": "GREEN",
+          "TB-4_verify_challenge": "RED",
+          "TB-5_challenge_resolve": "RED",
+          "TB-6_chain": "GREEN",
+          "TB-7_agent_pubkeys": "GREEN",
+          "TB-8_finalize_reward": "RED"
+        },
+        "halted": 1,
+        "passed": 38,
+        "schema_version": "v1/audit_tape_verdict",
+        "skipped": 11,
+        "tape_root": {
+          "cas_object_count": 53,
+          "constitution_hash_hex": "eec695459c71fbef3685583485deb431fe3b561657b2f285b7c5e7e220e59e03",
+          "head_ledger_root_hex": "2a7a8f85deb287a1cc3e83f290354f65c474c9488dc45b9d7e5e92d1e5d9079c",
+          "head_state_root_hex": "1fe7cb5b25faaf1eaac511d6a28ed9e3b4e59fbb2d8541ad5890a6b5c8414ff8",
+          "l4_count": 3,
+          "l4e_count": 14
+        },
+        "tx_kind_counts": {
+          "buy_with_coin_router": 0,
+          "challenge": 0,
+          "challenge_resolve": 0,
+          "complete_set_merge": 0,
+          "complete_set_mint": 0,
+          "complete_set_redeem": 0,
+          "cpmm_pool": 0,
+          "cpmm_swap": 0,
+          "escrow_lock": 1,
+          "finalize_reward": 0,
+          "market_seed": 0,
+          "reuse": 0,
+          "task_bankruptcy": 0,
+          "task_expire": 0,
+          "task_open": 1,
+          "terminal_summary": 1,
+          "verify": 0,
+          "work": 0
+        },
+        "verdict": "BLOCK"
+      }
+    },
+    {
+      "detail": "zeroed last 4 hex chars in \"handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P03_mathd_algebra_114/tamper/truncate_l4_ref/runtime_repo/.git/refs/transitions/main\"",
+      "detected": false,
+      "label": "truncate_l4_ref",
+      "schema_version": "v1/audit_tape_tamper",
+      "verdict": {
+        "assertions": [
+          {
+            "detail": null,
+            "id": 1,
+            "layer": "A",
+            "name": "constitution_hash_matches_genesis",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 2,
+            "layer": "A",
+            "name": "pinned_pubkey_loaded",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 3,
+            "layer": "A",
+            "name": "sandbox_agent_prefix",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 41,
+            "layer": "A",
+            "name": "chain_agent_ids_sandbox_prefixed",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 4,
+            "layer": "B",
+            "name": "l4_hash_chain_valid",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 5,
+            "layer": "B",
+            "name": "l4_parent_state_continuity",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 6,
+            "layer": "B",
+            "name": "l4e_chain_integrity",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 7,
+            "layer": "B",
+            "name": "genesis_row_zero_parents",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 8,
+            "layer": "B",
+            "name": "system_tx_signatures_verify",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 9,
+            "layer": "B",
+            "name": "agent_tx_signatures_verify",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 10,
+            "layer": "B",
+            "name": "payload_cid_resolves",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 11,
+            "layer": "B",
+            "name": "tx_kind_envelope_matches_payload",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 50,
+            "layer": "B",
+            "name": "cas_bytes_match_cids",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 12,
+            "layer": "C",
+            "name": "replay_state_root_matches_head",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 13,
+            "layer": "C",
+            "name": "replay_economic_state_canonical",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 14,
+            "layer": "C",
+            "name": "replay_autopsy_index_chains",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 15,
+            "layer": "C",
+            "name": "canonical_edges_replay_deterministic",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 16,
+            "layer": "C",
+            "name": "replay_idempotent_across_calls",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 17,
+            "layer": "D",
+            "name": "no_post_init_mint",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 18,
+            "layer": "D",
+            "name": "total_supply_conserved",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 40,
+            "layer": "D",
+            "name": "total_supply_conserved_per_block",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 19,
+            "layer": "D",
+            "name": "complete_set_min_balanced",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 20,
+            "layer": "D",
+            "name": "task_market_total_escrow_matches_locks",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 21,
+            "layer": "D",
+            "name": "node_positions_excluded_from_supply",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 22,
+            "layer": "D",
+            "name": "conditional_shares_excluded_from_supply",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 23,
+            "layer": "E",
+            "name": "accepted_work_predicate_results_true",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 24,
+            "layer": "E",
+            "name": "proposal_telemetry_chain",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 25,
+            "layer": "E",
+            "name": "l4e_rejection_class_redispatch",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 26,
+            "layer": "E",
+            "name": "price_index_is_view_only",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 27,
+            "layer": "E",
+            "name": "terminal_summary_evidence_capsule",
+            "result": "Pass"
+          },
+          {
+            "detail": "no ChallengeResolveTx in tape (pre-TB-16.x.2.2 chain or arena profile without FORCE_CHALLENGE_RESOLVE)",
+            "id": 42,
+            "layer": "E",
+            "name": "challenge_resolve_chain_to_challenge_tx",
+            "result": "Skipped"
+          },
+          {
+            "detail": "no task has ≥3 admitted WorkTxs (single-WorkTx-per-task scenario; pre-TB-16.x.2.4 chains or arena profile without FORCE_BOLTZMANN_SEED_WORKTXS)",
+            "id": 43,
+            "layer": "E",
+            "name": "boltzmann_parent_selection_diversity",
+            "result": "Skipped"
+          },
+          {
+            "detail": null,
+            "id": 28,
+            "layer": "F",
+            "name": "projection_no_autopsy_bytes",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 29,
+            "layer": "F",
+            "name": "autopsy_private_detail_creator_is_system",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 30,
+            "layer": "F",
+            "name": "typical_error_summary_no_private_detail",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 31,
+            "layer": "F",
+            "name": "autopsy_index_value_type_is_vec_cid",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 39,
+            "layer": "F",
+            "name": "no_llm_self_narrative_in_autopsy",
+            "result": "Pass"
+          },
+          {
+            "detail": "no Markov capsule",
+            "id": 32,
+            "layer": "G",
+            "name": "markov_constitution_hash_matches",
+            "result": "Skipped"
+          },
+          {
+            "detail": "no Markov capsule",
+            "id": 33,
+            "layer": "G",
+            "name": "markov_typical_errors_recompute",
+            "result": "Skipped"
+          },
+          {
+            "detail": "no Markov capsule",
+            "id": 34,
+            "layer": "G",
+            "name": "markov_unresolved_obs_recompute",
+            "result": "Skipped"
+          },
+          {
+            "detail": "no Markov capsule",
+            "id": 35,
+            "layer": "G",
+            "name": "markov_next_session_context_resolves",
+            "result": "Skipped"
+          },
+          {
+            "detail": null,
+            "id": 44,
+            "layer": "G",
+            "name": "attempt_telemetry_retrievable_from_cas",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 45,
+            "layer": "G",
+            "name": "lean_result_retrievable_from_cas",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 46,
+            "layer": "G",
+            "name": "attempt_chain_root_schema_well_formed",
+            "result": "Pass"
+          },
+          {
+            "detail": null,
+            "id": 49,
+            "layer": "G",
+            "name": "markov_cluster_source_attempt_telemetry",
+            "result": "Pass"
+          },
+          {
+            "detail": "exercised by audit_tape_tamper binary (Atom 3; FC1-N35)",
+            "id": 36,
+            "layer": "H",
+            "name": "tamper_l4_flip_detected",
+            "result": "Skipped"
+          },
+          {
+            "detail": "exercised by audit_tape_tamper binary (Atom 3; FC1-N35)",
+            "id": 37,
+            "layer": "H",
+            "name": "tamper_cas_flip_detected",
+            "result": "Skipped"
+          },
+          {
+            "detail": "exercised by audit_tape_tamper binary (Atom 3; FC1-N35)",
+            "id": 38,
+            "layer": "H",
+            "name": "tamper_l4_remove_detected",
+            "result": "Skipped"
+          },
+          {
+            "detail": "exercised by audit_tape_tamper binary (TB-18R R5; FC2-N34)",
+            "id": 47,
+            "layer": "H",
+            "name": "random_attempt_payload_tamper_detected",
+            "result": "Skipped"
+          },
+          {
+            "detail": "exercised by audit_tape_tamper binary (TB-18R R5; FC2-N34)",
+            "id": 48,
+            "layer": "H",
+            "name": "random_lean_stderr_tamper_detected",
+            "result": "Skipped"
+          }
+        ],
+        "failed": 0,
+        "feature_coverage": {
+          "TB-11_terminal_bankruptcy_expire": "GREEN",
+          "TB-13_complete_set": "RED",
+          "TB-14_price_mask": "GREEN",
+          "TB-15_autopsy_markov": "RED",
+          "TB-1_monetary": "GREEN",
+          "TB-2_work": "RED",
+          "TB-3_task_open_escrow": "GREEN",
+          "TB-4_verify_challenge": "RED",
+          "TB-5_challenge_resolve": "RED",
+          "TB-6_chain": "GREEN",
+          "TB-7_agent_pubkeys": "GREEN",
+          "TB-8_finalize_reward": "RED"
+        },
+        "halted": 0,
+        "passed": 39,
+        "schema_version": "v1/audit_tape_verdict",
+        "skipped": 11,
+        "tape_root": {
+          "cas_object_count": 53,
+          "constitution_hash_hex": "eec695459c71fbef3685583485deb431fe3b561657b2f285b7c5e7e220e59e03",
+          "head_ledger_root_hex": "2a7a8f85deb287a1cc3e83f290354f65c474c9488dc45b9d7e5e92d1e5d9079c",
+          "head_state_root_hex": "1fe7cb5b25faaf1eaac511d6a28ed9e3b4e59fbb2d8541ad5890a6b5c8414ff8",
+          "l4_count": 3,
+          "l4e_count": 14
+        },
+        "tx_kind_counts": {
+          "buy_with_coin_router": 0,
+          "challenge": 0,
+          "challenge_resolve": 0,
+          "complete_set_merge": 0,
+          "complete_set_mint": 0,
+          "complete_set_redeem": 0,
+          "cpmm_pool": 0,
+          "cpmm_swap": 0,
+          "escrow_lock": 1,
+          "finalize_reward": 0,
+          "market_seed": 0,
+          "reuse": 0,
+          "task_bankruptcy": 0,
+          "task_expire": 0,
+          "task_open": 1,
+          "terminal_summary": 1,
+          "verify": 0,
+          "work": 0
+        },
+        "verdict": "PROCEED"
+      }
+    }
+  ]
+}

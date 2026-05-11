@@ -1,0 +1,45 @@
+[2026-05-09T02:43:56Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/amc12a_2020_p10.lean | Condition: n1 | Model: deepseek-v4-flash | Mode: full
+[2026-05-09T02:43:56Z INFO  minif2f_v4::chain_runtime] [chaintape] bus wired with Sequencer + on-disk ChainTape at "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_r7_m2_20260508T210337Z/deepseek-v4-flash/seed1/rep1/P049_amc12a_2020_p10/runtime_repo"
+[2026-05-09T02:43:56Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic TaskOpen for smoke-n1_amc12a_2020_p10_1778294636034
+[2026-05-09T02:43:56Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic zero-stake WorkTx (synthetic_rejection_for_l4e_gate=true) for smoke-n1_amc12a_2020_p10_1778294636034
+[2026-05-09T02:43:56Z INFO  minif2f_v4::chain_runtime] [chaintape] Atom 5 audit-trail records written to CAS + indexed for smoke-n1_amc12a_2020_p10_1778294636034
+[2026-05-09T02:43:56Z INFO  minif2f_v4::chain_runtime] [chaintape/d_c] genesis_report.json written to "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_r7_m2_20260508T210337Z/deepseek-v4-flash/seed1/rep1/P049_amc12a_2020_p10/runtime_repo"
+[2026-05-09T02:43:56Z INFO  evaluator] [swarm/n1] agent_models = [deepseek-v4-flash] (label=deepseek-v4-flash)
+[2026-05-09T02:43:56Z INFO  evaluator] [budget] regime=total_proposal base=200 effective_max_tx=200 (n_agents=1)
+[2026-05-09T02:43:56Z INFO  evaluator] [swarm/n1] Agent_0:skill0:t=0.20
+[2026-05-09T02:47:00Z WARN  evaluator] [tx 0] parse: Invalid JSON in action: key must be a string at line 1 column 2 (err:unexpected_token)
+[2026-05-09T02:47:12Z INFO  evaluator] [tx 1] Agent_0 step+tx_0_by_Agent_0 partial OK (depth=1)
+[2026-05-09T02:47:26Z WARN  evaluator] [tx 2] step rejected (err:unknown_const): <stdin>:13:141: error(lean.unknownIdentifier): Unknown constant `Nat.sum_digits` | <stdin>:14:141: error(lean.unknownIdentifier): Unknown constant `Nat.sum_digits` | <stdin>:14:0: error: `simp` made n
+[2026-05-09T02:47:51Z WARN  evaluator] [tx 3] step rejected (err:unknown_const): <stdin>:13:141: error(lean.unknownIdentifier): Unknown constant `Nat.sum_digits` | <stdin>:14:45: error: Ambiguous term | <stdin>:14:0: error: `simp` made no progress
+[2026-05-09T02:47:59Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:47:59Z WARN  evaluator] [tx 4] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:48:34Z WARN  evaluator] [tx 5] step rejected (err:unknown_const): <stdin>:13:141: error(lean.unknownIdentifier): Unknown constant `Nat.sum_digits` | <stdin>:14:141: error(lean.unknownIdentifier): Unknown constant `Nat.sum_digits` | <stdin>:14:0: error: `simp` made n
+[2026-05-09T02:49:23Z WARN  evaluator] [tx 6] step rejected (err:unknown_const): <stdin>:13:141: error(lean.unknownIdentifier): Unknown constant `Nat.sum_digits` | <stdin>:14:0: error: linarith failed to find a contradiction
+[2026-05-09T02:49:36Z WARN  evaluator] [tx 7] step rejected (err:unknown_const): <stdin>:13:141: error(lean.unknownIdentifier): Unknown constant `Nat.sum_digits` | <stdin>:14:141: error(lean.unknownIdentifier): Unknown constant `Nat.sum_digits` | <stdin>:14:0: error: `simp` made n
+[2026-05-09T02:49:49Z WARN  evaluator] [tx 8] step rejected (err:unknown_const): <stdin>:13:141: error(lean.unknownIdentifier): Unknown constant `Nat.sum_digits` | <stdin>:14:141: error(lean.unknownIdentifier): Unknown constant `Nat.sum_digits` | <stdin>:14:0: error: `simp` made n
+[2026-05-09T02:50:01Z INFO  evaluator] [tx 9] Agent_0 step+tx_1_by_Agent_0 partial OK (depth=2)
+[2026-05-09T02:50:11Z WARN  evaluator] [tx 10] parse: Invalid JSON in action: control character (\u0000-\u001F) found while parsing a string at line 2 column 0 (err:unexpected_token)
+[2026-05-09T02:50:25Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:50:25Z WARN  evaluator] [tx 11] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:50:39Z WARN  evaluator] [tx 12] step rejected (err:unknown_const): <stdin>:13:141: error(lean.unknownIdentifier): Unknown constant `Nat.sum_digits` | <stdin>:15:0: error: linarith failed to find a contradiction
+[2026-05-09T02:50:54Z WARN  evaluator] [tx 13] step rejected (err:unknown_const): <stdin>:13:141: error(lean.unknownIdentifier): Unknown constant `Nat.sum_digits` | <stdin>:15:0: error: field_simp made no progress at h₁
+[2026-05-09T02:51:08Z WARN  evaluator] [tx 14] step rejected (err:unknown_const): <stdin>:13:141: error(lean.unknownIdentifier): Unknown constant `Nat.sum_digits` | <stdin>:15:0: error: linarith failed to find a contradiction
+[2026-05-09T02:51:21Z WARN  evaluator] [tx 15] step rejected (err:unknown_const): <stdin>:13:141: error(lean.unknownIdentifier): Unknown constant `Nat.sum_digits` | <stdin>:15:0: error: linarith failed to find a contradiction
+[2026-05-09T02:51:47Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=3 after this write)
+[2026-05-09T02:51:52Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-09T02:52:07Z WARN  evaluator] [tx 17] step rejected (err:unknown_const): <stdin>:13:141: error(lean.unknownIdentifier): Unknown constant `Nat.sum_digits` | <stdin>:15:4: error: Failed to rewrite using equation theorems for `logb`
+[2026-05-09T02:52:20Z WARN  evaluator] [tx 18] step rejected (err:unknown_const): <stdin>:13:141: error(lean.unknownIdentifier): Unknown constant `Nat.sum_digits` | <stdin>:15:0: error: linarith failed to find a contradiction
+[2026-05-09T02:52:33Z WARN  evaluator] [tx 19] step rejected (err:unknown_const): <stdin>:13:141: error(lean.unknownIdentifier): Unknown constant `Nat.sum_digits` | <stdin>:15:0: error: linarith failed to find a contradiction
+[2026-05-09T02:52:33Z INFO  evaluator] [tick@tx20] tape=2 markets=0 top=
+[2026-05-09T02:52:47Z WARN  evaluator] [tx 20] step rejected (err:unknown_const): <stdin>:13:141: error(lean.unknownIdentifier): Unknown constant `Nat.sum_digits` | <stdin>:15:0: error: linarith failed to find a contradiction
+[2026-05-09T02:53:00Z WARN  evaluator] [tx 21] step rejected (err:unknown_const): <stdin>:13:141: error(lean.unknownIdentifier): Unknown constant `Nat.sum_digits` | <stdin>:15:0: error: linarith failed to find a contradiction
+[2026-05-09T02:53:19Z WARN  evaluator] [tx 22] step rejected (err:unknown_const): <stdin>:13:141: error(lean.unknownIdentifier): Unknown constant `Nat.sum_digits` | <stdin>:15:0: error: field_simp made no progress at h₁
+[2026-05-09T02:53:33Z WARN  evaluator] [tx 23] step rejected (err:unknown_const): <stdin>:13:141: error(lean.unknownIdentifier): Unknown constant `Nat.sum_digits` | <stdin>:15:0: error: linarith failed to find a contradiction
+[2026-05-09T02:53:46Z WARN  evaluator] [tx 24] step rejected (err:unknown_const): <stdin>:13:141: error(lean.unknownIdentifier): Unknown constant `Nat.sum_digits` | <stdin>:15:0: error: linarith failed to find a contradiction
+[2026-05-09T02:54:00Z WARN  evaluator] [tx 25] step rejected (err:unknown_const): <stdin>:13:141: error(lean.unknownIdentifier): Unknown constant `Nat.sum_digits` | <stdin>:15:0: error: linarith failed to find a contradiction
+[2026-05-09T02:54:02Z WARN  evaluator] [tb18-atomA] WallClockCap halt: aggregate 605 sec exhausted (cap=600s); total_calls=27
+[v2-emit] SPLIT env unset; defaulting to 'adaptation' (Phase B convention; pre-registration requires SPLIT for Phase C+ ablation runs)
+[2026-05-09T02:54:02Z INFO  evaluator] [tb11] EvidenceCapsule written: capsule_id=a35a740e663696f7d5ec86204332b76478ab097276cacd0850aed17093a3979d compressed_log_cid=4da50513e960698fef224aa028c868840ff06a2ecfdd0055e24ed725f1d80d06 attempt_count=24
+[2026-05-09T02:54:02Z INFO  evaluator] [tb11] TerminalSummary emitted: emit_id=1
+[2026-05-09T02:54:02Z INFO  evaluator] [chaintape] Atom 6 RunSummary written (2 L4 + 25 L4.E entries; 2 accepted_tx_ids, 25 rejected_tx_ids)
+[2026-05-09T02:54:02Z INFO  evaluator] PPUT = 0 (no golden path in 606.6s, 200 tx)

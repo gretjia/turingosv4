@@ -1,0 +1,29 @@
+{
+  "all_detected": false,
+  "detected_count": 0,
+  "expected": 3,
+  "schema_version": "v1/audit_tape_tamper",
+  "tamper_results": [
+    {
+      "detail": "pre-tamper baseline audit failed (cannot validate fence efficacy on a tape that's already broken): run: pinned manifest: read \"handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P19_induction_12dvd4expnp1p20/tamper/flip_l4_byte/runtime_repo/pinned_pubkeys.json\": No such file or directory (os error 2)",
+      "detected": false,
+      "label": "flip_l4_byte",
+      "schema_version": "v1/audit_tape_tamper",
+      "verdict": null
+    },
+    {
+      "detail": "pre-tamper baseline audit failed (cannot validate fence efficacy on a tape that's already broken): run: pinned manifest: read \"handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P19_induction_12dvd4expnp1p20/tamper/flip_cas_byte/runtime_repo/pinned_pubkeys.json\": No such file or directory (os error 2)",
+      "detected": false,
+      "label": "flip_cas_byte",
+      "schema_version": "v1/audit_tape_tamper",
+      "verdict": null
+    },
+    {
+      "detail": "pre-tamper baseline audit failed (cannot validate fence efficacy on a tape that's already broken): run: pinned manifest: read \"handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P19_induction_12dvd4expnp1p20/tamper/truncate_l4_ref/runtime_repo/pinned_pubkeys.json\": No such file or directory (os error 2)",
+      "detected": false,
+      "label": "truncate_l4_ref",
+      "schema_version": "v1/audit_tape_tamper",
+      "verdict": null
+    }
+  ]
+}

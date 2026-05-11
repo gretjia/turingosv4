@@ -1,0 +1,203 @@
+[2026-05-09T02:04:35Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/amc12a_2008_p25.lean | Condition: n1 | Model: deepseek-v4-flash | Mode: full
+[2026-05-09T02:04:36Z INFO  minif2f_v4::chain_runtime] [chaintape] bus wired with Sequencer + on-disk ChainTape at "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_r7_m2_20260508T210337Z/deepseek-v4-flash/seed1/rep1/P044_amc12a_2008_p25/runtime_repo"
+[2026-05-09T02:04:36Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic TaskOpen for smoke-n1_amc12a_2008_p25_1778292275750
+[2026-05-09T02:04:36Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic zero-stake WorkTx (synthetic_rejection_for_l4e_gate=true) for smoke-n1_amc12a_2008_p25_1778292275750
+[2026-05-09T02:04:36Z INFO  minif2f_v4::chain_runtime] [chaintape] Atom 5 audit-trail records written to CAS + indexed for smoke-n1_amc12a_2008_p25_1778292275750
+[2026-05-09T02:04:36Z INFO  minif2f_v4::chain_runtime] [chaintape/d_c] genesis_report.json written to "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_r7_m2_20260508T210337Z/deepseek-v4-flash/seed1/rep1/P044_amc12a_2008_p25/runtime_repo"
+[2026-05-09T02:04:36Z INFO  evaluator] [swarm/n1] agent_models = [deepseek-v4-flash] (label=deepseek-v4-flash)
+[2026-05-09T02:04:36Z INFO  evaluator] [budget] regime=total_proposal base=200 effective_max_tx=200 (n_agents=1)
+[2026-05-09T02:04:36Z INFO  evaluator] [swarm/n1] Agent_0:skill0:t=0.20
+[2026-05-09T02:04:38Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:04:38Z WARN  evaluator] [tx 0] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:05:26Z WARN  evaluator] [tx 1] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:15:12: error: unexpected token 'have'; expected 'in'
+[2026-05-09T02:07:24Z WARN  evaluator] [tx 2] step rejected (err:type_mismatch): hard_error_with_unsolved: <stdin>:17:4: error: Type mismatch: After simplification, term
+[2026-05-09T02:07:27Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:07:27Z WARN  evaluator] [tx 3] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:07:30Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:07:30Z WARN  evaluator] [tx 4] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:07:40Z WARN  evaluator] [tx 5] step rejected (err:unexpected_token): <stdin>:16:55: error: unexpected token ')'; expected '_' or identifier
+[2026-05-09T02:07:42Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:07:42Z WARN  evaluator] [tx 6] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:07:44Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:07:44Z WARN  evaluator] [tx 7] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:07:45Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:07:45Z WARN  evaluator] [tx 8] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:07:47Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:07:47Z WARN  evaluator] [tx 9] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:07:49Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:07:49Z WARN  evaluator] [tx 10] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:07:51Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:07:51Z WARN  evaluator] [tx 11] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:07:52Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:07:52Z WARN  evaluator] [tx 12] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:07:54Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:07:54Z WARN  evaluator] [tx 13] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:07:57Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:07:57Z WARN  evaluator] [tx 14] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:08:00Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:08:00Z WARN  evaluator] [tx 15] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:08:03Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:08:03Z WARN  evaluator] [tx 16] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:08:04Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:08:04Z WARN  evaluator] [tx 17] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:08:06Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:08:06Z WARN  evaluator] [tx 18] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:08:08Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:08:08Z WARN  evaluator] [tx 19] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:08:08Z INFO  evaluator] [tick@tx20] tape=0 markets=0 top=
+[2026-05-09T02:08:11Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:08:11Z WARN  evaluator] [tx 20] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:08:12Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:08:12Z WARN  evaluator] [tx 21] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:08:14Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:08:14Z WARN  evaluator] [tx 22] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:08:16Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:08:16Z WARN  evaluator] [tx 23] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:08:25Z WARN  evaluator] [tx 24] step rejected (err:other): hard_error_with_unsolved: <stdin>:16:55: error: unexpected end of input
+[2026-05-09T02:08:27Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:08:27Z WARN  evaluator] [tx 25] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:08:31Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:08:31Z WARN  evaluator] [tx 26] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:08:34Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:08:34Z WARN  evaluator] [tx 27] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:08:35Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:08:35Z WARN  evaluator] [tx 28] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:08:39Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:08:39Z WARN  evaluator] [tx 29] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:08:41Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:08:41Z WARN  evaluator] [tx 30] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:08:43Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:08:43Z WARN  evaluator] [tx 31] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:08:45Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:08:45Z WARN  evaluator] [tx 32] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:08:46Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:08:46Z WARN  evaluator] [tx 33] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:08:56Z WARN  evaluator] [tx 34] step rejected (err:other): hard_error_with_unsolved: <stdin>:16:57: error: unexpected end of input
+[2026-05-09T02:08:58Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:08:58Z WARN  evaluator] [tx 35] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:09:09Z WARN  evaluator] [tx 36] step rejected (err:other): hard_error_with_unsolved: <stdin>:16:57: error: unexpected end of input
+[2026-05-09T02:09:10Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:09:10Z WARN  evaluator] [tx 37] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:09:13Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:09:13Z WARN  evaluator] [tx 38] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:09:15Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:09:15Z WARN  evaluator] [tx 39] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:09:15Z INFO  evaluator] [tick@tx40] tape=0 markets=0 top=
+[2026-05-09T02:09:19Z WARN  evaluator] [tx 40] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T02:09:23Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:09:23Z WARN  evaluator] [tx 41] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:09:25Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:09:25Z WARN  evaluator] [tx 42] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:09:30Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:09:30Z WARN  evaluator] [tx 43] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:09:32Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:09:32Z WARN  evaluator] [tx 44] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:09:35Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:09:35Z WARN  evaluator] [tx 45] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:09:36Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:09:36Z WARN  evaluator] [tx 46] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:09:38Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:09:38Z WARN  evaluator] [tx 47] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:09:41Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:09:41Z WARN  evaluator] [tx 48] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:09:43Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:09:43Z WARN  evaluator] [tx 49] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:09:45Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:09:45Z WARN  evaluator] [tx 50] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:09:46Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:09:46Z WARN  evaluator] [tx 51] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:09:49Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:09:49Z WARN  evaluator] [tx 52] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:09:54Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:09:54Z WARN  evaluator] [tx 53] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:09:55Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:09:55Z WARN  evaluator] [tx 54] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:10:06Z WARN  evaluator] [tx 55] step rejected (err:unexpected_token): <stdin>:16:55: error: unexpected token ')'; expected '_' or identifier
+[2026-05-09T02:10:10Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:10:10Z WARN  evaluator] [tx 56] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:10:20Z WARN  evaluator] [tx 57] step rejected (err:tactic_linarith): <stdin>:15:0: error: linarith failed to find a contradiction
+[2026-05-09T02:10:22Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:10:22Z WARN  evaluator] [tx 58] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:10:26Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:10:26Z WARN  evaluator] [tx 59] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:10:26Z INFO  evaluator] [tick@tx60] tape=0 markets=0 top=
+[2026-05-09T02:10:30Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:10:30Z WARN  evaluator] [tx 60] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:10:34Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:10:34Z WARN  evaluator] [tx 61] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:10:38Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:10:38Z WARN  evaluator] [tx 62] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:10:39Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:10:39Z WARN  evaluator] [tx 63] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:10:43Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:10:43Z WARN  evaluator] [tx 64] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:10:48Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:10:48Z WARN  evaluator] [tx 65] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:10:52Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:10:52Z WARN  evaluator] [tx 66] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:10:55Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:10:55Z WARN  evaluator] [tx 67] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:10:57Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:10:57Z WARN  evaluator] [tx 68] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:10:59Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:10:59Z WARN  evaluator] [tx 69] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:11:02Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:11:02Z WARN  evaluator] [tx 70] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:11:04Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:11:04Z WARN  evaluator] [tx 71] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:11:07Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:11:07Z WARN  evaluator] [tx 72] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:11:08Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:11:08Z WARN  evaluator] [tx 73] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:11:12Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:11:12Z WARN  evaluator] [tx 74] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:11:15Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:11:15Z WARN  evaluator] [tx 75] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:11:17Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:11:17Z WARN  evaluator] [tx 76] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:11:19Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:11:19Z WARN  evaluator] [tx 77] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:11:20Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:11:20Z WARN  evaluator] [tx 78] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:11:23Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:11:23Z WARN  evaluator] [tx 79] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:11:23Z INFO  evaluator] [tick@tx80] tape=0 markets=0 top=
+[2026-05-09T02:11:27Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:11:27Z WARN  evaluator] [tx 80] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:11:30Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:11:30Z WARN  evaluator] [tx 81] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:11:34Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:11:34Z WARN  evaluator] [tx 82] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:11:38Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:11:38Z WARN  evaluator] [tx 83] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:11:42Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:11:42Z WARN  evaluator] [tx 84] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:11:45Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:11:45Z WARN  evaluator] [tx 85] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:11:49Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:11:49Z WARN  evaluator] [tx 86] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:11:51Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:11:51Z WARN  evaluator] [tx 87] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:11:55Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:11:55Z WARN  evaluator] [tx 88] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:11:59Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:11:59Z WARN  evaluator] [tx 89] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:12:04Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:12:04Z WARN  evaluator] [tx 90] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:12:05Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:12:05Z WARN  evaluator] [tx 91] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:12:10Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:12:10Z WARN  evaluator] [tx 92] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:12:12Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:12:12Z WARN  evaluator] [tx 93] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:13:55Z INFO  evaluator] [tx 94] Agent_0 step+tx_0_by_Agent_0 partial OK (depth=1)
+[2026-05-09T02:14:25Z INFO  evaluator] [tx 95] Agent_0 step+tx_1_by_Agent_0 partial OK (depth=2)
+[2026-05-09T02:14:28Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T02:14:28Z WARN  evaluator] [tx 96] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T02:15:05Z WARN  evaluator] [tx 97] step rejected (err:tactic_linarith): hard_error_with_unsolved: <stdin>:35:2: error: linarith failed to find a contradiction
+[2026-05-09T02:15:08Z WARN  evaluator] [tb18-atomA] WallClockCap halt: aggregate 632 sec exhausted (cap=600s); total_calls=99
+[v2-emit] SPLIT env unset; defaulting to 'adaptation' (Phase B convention; pre-registration requires SPLIT for Phase C+ ablation runs)
+[2026-05-09T02:15:09Z INFO  evaluator] [tb11] EvidenceCapsule written: capsule_id=6b0f5edf20913ac707dc2ee8853454c9d3d58d95998f7fb99c9e0c558bcb5ff5 compressed_log_cid=3959fc177a8127eb83bb735b6a33080c55a3656a0dd8cdbcf3e23555ff9beede attempt_count=97
+[2026-05-09T02:15:09Z INFO  evaluator] [tb11] TerminalSummary emitted: emit_id=1
+[2026-05-09T02:15:09Z INFO  evaluator] [chaintape] Atom 6 RunSummary written (2 L4 + 97 L4.E entries; 2 accepted_tx_ids, 97 rejected_tx_ids)
+[2026-05-09T02:15:09Z INFO  evaluator] PPUT = 0 (no golden path in 633.2s, 200 tx)

@@ -1,0 +1,84 @@
+[2026-05-09T00:29:10Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/algebra_others_exirrpowirrrat.lean | Condition: n1 | Model: deepseek-v4-flash | Mode: full
+[2026-05-09T00:29:11Z INFO  minif2f_v4::chain_runtime] [chaintape] bus wired with Sequencer + on-disk ChainTape at "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_r7_m2_20260508T210337Z/deepseek-v4-flash/seed1/rep1/P029_algebra_others_exirrpowirrrat/runtime_repo"
+[2026-05-09T00:29:11Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic TaskOpen for smoke-n1_algebra_others_exirrpowirrrat_1778286550668
+[2026-05-09T00:29:11Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic zero-stake WorkTx (synthetic_rejection_for_l4e_gate=true) for smoke-n1_algebra_others_exirrpowirrrat_1778286550668
+[2026-05-09T00:29:11Z INFO  minif2f_v4::chain_runtime] [chaintape] Atom 5 audit-trail records written to CAS + indexed for smoke-n1_algebra_others_exirrpowirrrat_1778286550668
+[2026-05-09T00:29:11Z INFO  minif2f_v4::chain_runtime] [chaintape/d_c] genesis_report.json written to "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_r7_m2_20260508T210337Z/deepseek-v4-flash/seed1/rep1/P029_algebra_others_exirrpowirrrat/runtime_repo"
+[2026-05-09T00:29:11Z INFO  evaluator] [swarm/n1] agent_models = [deepseek-v4-flash] (label=deepseek-v4-flash)
+[2026-05-09T00:29:11Z INFO  evaluator] [budget] regime=total_proposal base=200 effective_max_tx=200 (n_agents=1)
+[2026-05-09T00:29:11Z INFO  evaluator] [swarm/n1] Agent_0:skill0:t=0.20
+[2026-05-09T00:29:20Z WARN  evaluator] [tx 0] step rejected (err:other): hard_error_with_unsolved: <stdin>:10:4: error: Invalid `⟨...⟩` notation: The expected type `Quot ⇑CauSeq.equiv` is not an inductive type
+[2026-05-09T00:29:29Z INFO  evaluator] [tx 1] Agent_0 step+tx_0_by_Agent_0 partial OK (depth=1)
+[2026-05-09T00:29:38Z INFO  evaluator] [tx 2] Agent_0 step+tx_1_by_Agent_0 partial OK (depth=2)
+[2026-05-09T00:29:46Z INFO  evaluator] [tx 3] Agent_0 step+tx_2_by_Agent_0 partial OK (depth=3)
+[2026-05-09T00:29:56Z INFO  evaluator] [tx 4] Agent_0 step+tx_3_by_Agent_0 partial OK (depth=4)
+[2026-05-09T00:29:58Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T00:29:58Z WARN  evaluator] [tx 5] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T00:30:08Z INFO  evaluator] [tx 6] Agent_0 step+tx_4_by_Agent_0 partial OK (depth=5)
+[2026-05-09T00:30:11Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T00:30:11Z WARN  evaluator] [tx 7] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T00:30:13Z WARN  evaluator] [tx 8] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T00:30:14Z WARN  evaluator] [tx 9] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T00:30:30Z WARN  evaluator] [tx 10] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:18:0: error: unexpected token 'by'; expected command
+[2026-05-09T00:30:43Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=6 after this write)
+[2026-05-09T00:30:48Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-09T00:31:01Z WARN  evaluator] [tx 12] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:18:0: error: unexpected token 'by'; expected command
+[2026-05-09T00:31:14Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=6 after this write)
+[2026-05-09T00:31:19Z WARN  evaluator] [chaintape/atom3-omega-pertactic] WorkTx accept poll expired; skipping VerifyTx + FinalizeReward
+[2026-05-09T00:31:20Z WARN  evaluator] [tx 14] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T00:31:30Z WARN  evaluator] [tx 15] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:18:0: error: unexpected token 'by'; expected command
+[2026-05-09T00:31:32Z WARN  evaluator] [tx 16] parse: Invalid JSON in action: EOF while parsing a string at line 1 column 259 (err:unexpected_token)
+[2026-05-09T00:31:39Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T00:31:39Z WARN  evaluator] [tx 17] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T00:31:48Z WARN  evaluator] [tx 18] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:18:0: error: unexpected token 'by'; expected command
+[2026-05-09T00:31:57Z INFO  evaluator] [tx 19] Agent_0 step+tx_5_by_Agent_0 partial OK (depth=6)
+[2026-05-09T00:31:57Z INFO  evaluator] [tick@tx20] tape=6 markets=0 top=
+[2026-05-09T00:32:11Z WARN  evaluator] [tx 20] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:19:0: error: unexpected token 'by'; expected command
+[2026-05-09T00:32:12Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T00:32:12Z WARN  evaluator] [tx 21] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T00:32:17Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T00:32:17Z WARN  evaluator] [tx 22] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T00:32:27Z WARN  evaluator] [tx 23] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:19:0: error: unexpected token 'by'; expected command
+[2026-05-09T00:32:36Z INFO  evaluator] [tx 24] Agent_0 step+tx_6_by_Agent_0 partial OK (depth=7)
+[2026-05-09T00:32:53Z WARN  evaluator] [tx 25] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:20:0: error: unexpected token 'by'; expected command
+[2026-05-09T00:33:03Z INFO  evaluator] [tx 26] Agent_0 step+tx_7_by_Agent_0 partial OK (depth=8)
+[2026-05-09T00:33:12Z INFO  evaluator] [tx 27] Agent_0 step+tx_8_by_Agent_0 partial OK (depth=9)
+[2026-05-09T00:33:22Z WARN  evaluator] [tx 28] step rejected (err:other): hard_error_with_unsolved: <stdin>:22:6: error: don't know how to synthesize placeholder
+[2026-05-09T00:33:31Z INFO  evaluator] [tx 29] Agent_0 step+tx_9_by_Agent_0 partial OK (depth=10)
+[2026-05-09T00:33:40Z WARN  evaluator] [tx 30] step rejected (err:other): hard_error_with_unsolved: <stdin>:23:6: error: don't know how to synthesize placeholder
+[2026-05-09T00:33:50Z WARN  evaluator] [tx 31] step rejected (err:other): hard_error_with_unsolved: <stdin>:23:6: error: Invalid `⟨...⟩` notation: The expected type
+[2026-05-09T00:34:01Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T00:34:01Z WARN  evaluator] [tx 32] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T00:34:11Z WARN  evaluator] [tx 33] step rejected (err:other): hard_error_with_unsolved: <stdin>:23:6: error: Invalid `⟨...⟩` notation: The expected type
+[2026-05-09T00:34:20Z WARN  evaluator] [tx 34] step rejected (err:other): hard_error_with_unsolved: <stdin>:23:6: error: don't know how to synthesize placeholder
+[2026-05-09T00:34:29Z INFO  evaluator] [tx 35] Agent_0 step+tx_10_by_Agent_0 partial OK (depth=11)
+[2026-05-09T00:34:38Z INFO  evaluator] [tx 36] Agent_0 step+tx_11_by_Agent_0 partial OK (depth=12)
+[2026-05-09T00:34:48Z INFO  evaluator] [tx 37] Agent_0 step+tx_12_by_Agent_0 partial OK (depth=13)
+[2026-05-09T00:35:03Z WARN  evaluator] [tx 38] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:26:0: error: unexpected token 'by'; expected command
+[2026-05-09T00:35:10Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T00:35:10Z WARN  evaluator] [tx 39] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T00:35:10Z INFO  evaluator] [tick@tx40] tape=13 markets=0 top=
+[2026-05-09T00:35:15Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T00:35:15Z WARN  evaluator] [tx 40] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T00:35:30Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T00:35:30Z WARN  evaluator] [tx 41] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T00:35:45Z INFO  evaluator] [tx 42] Agent_0 step+tx_13_by_Agent_0 partial OK (depth=14)
+[2026-05-09T00:36:02Z INFO  evaluator] [tx 43] Agent_0 step+tx_14_by_Agent_0 partial OK (depth=15)
+[2026-05-09T00:36:07Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T00:36:07Z WARN  evaluator] [tx 44] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T00:37:08Z INFO  evaluator] [tx 45] Agent_0 step+tx_15_by_Agent_0 partial OK (depth=16)
+[2026-05-09T00:37:30Z INFO  evaluator] [tx 46] Agent_0 step+tx_16_by_Agent_0 partial OK (depth=17)
+[2026-05-09T00:37:38Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T00:37:38Z WARN  evaluator] [tx 47] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T00:37:42Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T00:37:42Z WARN  evaluator] [tx 48] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T00:37:46Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-09T00:37:46Z WARN  evaluator] [tx 49] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-09T00:38:01Z WARN  evaluator] [tx 50] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:30:0: error: unexpected token 'by'; expected command
+[2026-05-09T00:38:14Z WARN  evaluator] [tx 51] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:30:0: error: unexpected token 'by'; expected command
+[2026-05-09T00:41:17Z WARN  evaluator] [tb18-atomA] WallClockCap halt: aggregate 726 sec exhausted (cap=600s); total_calls=53
+[v2-emit] SPLIT env unset; defaulting to 'adaptation' (Phase B convention; pre-registration requires SPLIT for Phase C+ ablation runs)
+[2026-05-09T00:41:17Z INFO  evaluator] [tb11] EvidenceCapsule written: capsule_id=b3f72e128bc7ad5e9a8f5e41a1daf330ca326e88122354cc5b9a854cd900ed4e compressed_log_cid=45b2917e96bd1fc76b7aced141e1784b4e9659831045750d7d11cdc9c0e235b1 attempt_count=48
+[2026-05-09T00:41:17Z INFO  evaluator] [tb11] TerminalSummary emitted: emit_id=1
+[2026-05-09T00:41:17Z INFO  evaluator] [chaintape] Atom 6 RunSummary written (2 L4 + 36 L4.E entries; 2 accepted_tx_ids, 36 rejected_tx_ids)
+[2026-05-09T00:41:17Z INFO  evaluator] PPUT = 0 (no golden path in 727.0s, 200 tx)

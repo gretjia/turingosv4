@@ -1,0 +1,13 @@
+{
+  "attempt_aborted_count": 0,
+  "capsule_anchored_attempt_count": 0,
+  "delta": 0,
+  "expected_completed_attempts": 23,
+  "invariant_verdict": "Ok",
+  "l4_work_attempt_count": 0,
+  "l4e_work_attempt_count": 23,
+  "preflight": "handover/ai-direct/TB-18R_R4_STEP_B_invariant.md",
+  "tb_18r_r4_invariant_equation": "evaluator_reported_completed_llm_calls == l4_work_attempt_count + l4e_work_attempt_count + capsule_anchored_attempt_count",
+  "tbc0_strict_audit_fix": "STRICT_AUDIT_TBC0_TAPE_2026-05-07.md Finding C — Bug 3 (capsule_anchored 3-term)",
+  "terminal_halt_class": "MaxTxExhausted"
+}

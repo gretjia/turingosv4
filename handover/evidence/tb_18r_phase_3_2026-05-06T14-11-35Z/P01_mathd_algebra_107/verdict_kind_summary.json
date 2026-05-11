@@ -1,0 +1,11 @@
+{
+  "total_lean_result_records": 1,
+  "by_verdict_kind": {
+    "Verified": 0,
+    "Failed": 0,
+    "PartialAccepted": 0,
+    "SorryBlocked": 0,
+    "_legacy_no_kind": 0,
+    "_decode_error": 1
+  }
+}

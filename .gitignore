@@ -26,3 +26,17 @@ experiments/minif2f_v4/analysis/run_nscaling.sh
 experiments/minif2f_v4/analysis/run_temp_ladder.sh
 experiments/minif2f_v4/analysis/sample_E1_hard10.txt
 experiments/minif2f_v4/analysis/sample_failed13.txt
+
+# Nested libgit2-backed CAS / runtime-repo stores inside evidence dirs.
+# Each problem run writes a self-contained git repo at cas/, runtime_repo/,
+# cas_runtime_repo/, tamper/, tamper2/ — these are content-addressed stores
+# with their own .git/ and the parent repo cannot embed them as plain files
+# without packing .git -> _dotgit_post_tar (the older pre-2026-05-07 convention).
+# Tracked outside-the-store artifacts (run_manifest, evaluator.{stderr,stdout},
+# h_vppu_history.json, verdict.json, chain_invariant.json) capture the run for
+# replay. Older evidence runs that DID pack their inner .git remain tracked.
+handover/evidence/**/cas/
+handover/evidence/**/runtime_repo/
+handover/evidence/**/cas_runtime_repo/
+handover/evidence/**/tamper/
+handover/evidence/**/tamper2/

@@ -1,0 +1,24 @@
+[2026-05-08T21:03:49Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/aime_1983_p1.lean | Condition: n1 | Model: deepseek-v4-flash | Mode: full
+[2026-05-08T21:03:49Z INFO  minif2f_v4::chain_runtime] [chaintape] bus wired with Sequencer + on-disk ChainTape at "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_r7_m2_20260508T210337Z/deepseek-v4-flash/seed1/rep1/P001_aime_1983_p1/runtime_repo"
+[2026-05-08T21:03:49Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic TaskOpen for smoke-n1_aime_1983_p1_1778274229205
+[2026-05-08T21:03:49Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic zero-stake WorkTx (synthetic_rejection_for_l4e_gate=true) for smoke-n1_aime_1983_p1_1778274229205
+[2026-05-08T21:03:49Z INFO  minif2f_v4::chain_runtime] [chaintape] Atom 5 audit-trail records written to CAS + indexed for smoke-n1_aime_1983_p1_1778274229205
+[2026-05-08T21:03:49Z INFO  minif2f_v4::chain_runtime] [chaintape/d_c] genesis_report.json written to "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_r7_m2_20260508T210337Z/deepseek-v4-flash/seed1/rep1/P001_aime_1983_p1/runtime_repo"
+[2026-05-08T21:03:49Z INFO  evaluator] [swarm/n1] agent_models = [deepseek-v4-flash] (label=deepseek-v4-flash)
+[2026-05-08T21:03:49Z INFO  evaluator] [budget] regime=total_proposal base=200 effective_max_tx=200 (n_agents=1)
+[2026-05-08T21:03:49Z INFO  evaluator] [swarm/n1] Agent_0:skill0:t=0.20
+[2026-05-08T21:03:59Z INFO  evaluator] [tx 0] Agent_0 step+tx_0_by_Agent_0 partial OK (depth=1)
+[2026-05-08T21:04:10Z WARN  evaluator] [tx 1] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress at h0
+[2026-05-08T21:04:21Z WARN  evaluator] [tx 2] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress at h0
+[2026-05-08T21:04:31Z WARN  evaluator] [tx 3] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress at h0
+[2026-05-08T21:04:43Z WARN  evaluator] [tx 4] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress at h0
+[2026-05-08T21:04:53Z WARN  evaluator] [tx 5] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress at h0
+[2026-05-08T21:05:03Z WARN  evaluator] [tx 6] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress at h0
+[2026-05-08T21:05:13Z WARN  evaluator] [tx 7] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress at h0
+[2026-05-08T21:05:24Z WARN  evaluator] [tx 8] step rejected (err:tactic_simp_noprog): <stdin>:12:0: error: field_simp made no progress at h0
+[2026-05-08T21:05:25Z WARN  evaluator] [tb18-atomA] DegradedLLM halt: 10 consecutive trivial responses (token_floor=30, cap=10); total_calls=10 trivial_calls=10
+[v2-emit] SPLIT env unset; defaulting to 'adaptation' (Phase B convention; pre-registration requires SPLIT for Phase C+ ablation runs)
+[2026-05-08T21:05:25Z INFO  evaluator] [tb11] EvidenceCapsule written: capsule_id=65cce4f86a0a290026813bc1ace48574233512b51dc30438fc87d36b9c6a5a95 compressed_log_cid=93a6321c0e8ce184f3a582b41580e8fd36b778a5ef613eae861c227e4203e13e attempt_count=9
+[2026-05-08T21:05:25Z INFO  evaluator] [tb11] TerminalSummary emitted: emit_id=1
+[2026-05-08T21:05:25Z INFO  evaluator] [chaintape] Atom 6 RunSummary written (2 L4 + 9 L4.E entries; 2 accepted_tx_ids, 9 rejected_tx_ids)
+[2026-05-08T21:05:25Z INFO  evaluator] PPUT = 0 (no golden path in 96.2s, 200 tx)

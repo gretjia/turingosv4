@@ -1,0 +1,8 @@
+{
+  "architect_inv_1": "chain_attempt_count == evaluator_reported_tx_count",
+  "chain_attempt_count": 0,
+  "evaluator_reported_tx_count": 1,
+  "match": false,
+  "attempt_outcomes": {},
+  "delta": -1
+}

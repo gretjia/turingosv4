@@ -1,0 +1,59 @@
+{
+  "n_problems": 1,
+  "per_problem": [
+    {
+      "tag": "P01_mathd_algebra_107",
+      "solved": true,
+      "work_accepted": 1,
+      "cpmm_pool_count": 1,
+      "buy_with_coin_router_count": 0,
+      "market_seed_count": 1,
+      "complete_set_mint_count": 0,
+      "task_open_count": 2,
+      "verify_count": 0,
+      "finalize_reward_count": 0,
+      "event_resolve_count": 0,
+      "submitted_traces": 0,
+      "no_trade_traces": 0,
+      "pools_skipped_budget": 0
+    }
+  ],
+  "totals": {
+    "accepted_work_tx": 1,
+    "cpmm_pool_count": 1,
+    "buy_with_coin_router_count": 0,
+    "market_seed_count": 1,
+    "complete_set_mint_count": 0,
+    "task_open_count": 2,
+    "verify_count": 0,
+    "finalize_reward_count": 0,
+    "event_resolve_count": 0,
+    "solved": 1,
+    "wall_time_s": 0,
+    "no_trade_traces": 0,
+    "submitted_traces": 0,
+    "pools_skipped_budget": 0
+  },
+  "ship_gates": {
+    "SG-N3.7_cpmm_pool_ge_accepted_work_tx": {
+      "expected": ">= 1",
+      "actual": 1,
+      "pass": true
+    },
+    "SG-N3.8_buy_with_coin_router_ge_1": {
+      "expected": ">= 1",
+      "actual": 0,
+      "pass": false
+    },
+    "SG-N3.9_solved_ge_4_of_9": {
+      "expected": ">= 4 / 9",
+      "actual": "1 / 1",
+      "pass": false
+    },
+    "SG-N3.10_wall_time_le_14400_s": {
+      "expected": "<= 14400 s",
+      "actual": 0,
+      "pass": true
+    }
+  }
+}

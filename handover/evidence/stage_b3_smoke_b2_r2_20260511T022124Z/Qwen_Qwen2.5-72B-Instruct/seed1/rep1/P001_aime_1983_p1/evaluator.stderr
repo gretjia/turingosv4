@@ -1,0 +1,74 @@
+[2026-05-11T02:28:29Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/aime_1983_p1.lean | Condition: n1 | Model: Qwen/Qwen2.5-72B-Instruct | Mode: full
+[2026-05-11T02:28:29Z INFO  minif2f_v4::chain_runtime] [chaintape/d3] pre-seed enabled (TB-10 factory): 12 entries
+[2026-05-11T02:28:30Z INFO  minif2f_v4::chain_runtime] [chaintape] bus wired with Sequencer + on-disk ChainTape at "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_smoke_b2_r2_20260511T022124Z/Qwen_Qwen2.5-72B-Instruct/seed1/rep1/P001_aime_1983_p1/runtime_repo"
+[2026-05-11T02:28:30Z INFO  evaluator] [chaintape/d3] preseed TaskOpen for task-n1_aime_1983_p1_1778466509521
+[2026-05-11T02:28:30Z INFO  evaluator] [chaintape/d3] preseed EscrowLock 100000 micro for task-n1_aime_1983_p1_1778466509521
+[2026-05-11T02:28:30Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic TaskOpen for smoke-n1_aime_1983_p1_1778466509521
+[2026-05-11T02:28:30Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic zero-stake WorkTx (synthetic_rejection_for_l4e_gate=true) for smoke-n1_aime_1983_p1_1778466509521
+[2026-05-11T02:28:30Z INFO  minif2f_v4::chain_runtime] [chaintape] Atom 5 audit-trail records written to CAS + indexed for smoke-n1_aime_1983_p1_1778466509521
+[2026-05-11T02:28:30Z INFO  minif2f_v4::chain_runtime] [chaintape/d_c] genesis_report.json written to "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_smoke_b2_r2_20260511T022124Z/Qwen_Qwen2.5-72B-Instruct/seed1/rep1/P001_aime_1983_p1/runtime_repo"
+[2026-05-11T02:28:30Z INFO  evaluator] [swarm/n1] agent_models = [Qwen/Qwen2.5-72B-Instruct] (label=Qwen/Qwen2.5-72B-Instruct)
+[2026-05-11T02:28:30Z INFO  evaluator] [budget] regime=total_proposal base=200 effective_max_tx=200 (n_agents=1)
+[2026-05-11T02:28:30Z INFO  evaluator] [swarm/n1] Agent_0:skill0:t=0.20
+[2026-05-11T02:28:43Z WARN  evaluator] [tx 0] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:11:38: error: unexpected token ','; expected command
+[2026-05-11T02:28:59Z WARN  evaluator] [tx 1] step rejected (err:rewrite_no_match): <stdin>:11:8: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T02:29:10Z WARN  evaluator] [tx 2] step rejected (err:rewrite_no_match): <stdin>:11:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T02:29:22Z WARN  evaluator] [tx 3] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:11:38: error: unexpected token ','; expected command
+[2026-05-11T02:29:34Z WARN  evaluator] [tx 4] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:11:38: error: unexpected token ','; expected command
+[2026-05-11T02:29:44Z WARN  evaluator] [tx 5] step rejected (err:rewrite_no_match): <stdin>:11:8: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T02:29:55Z WARN  evaluator] [tx 6] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:11:38: error: unexpected token ','; expected command
+[2026-05-11T02:30:05Z WARN  evaluator] [tx 7] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:11:38: error: unexpected token ','; expected command
+[2026-05-11T02:30:21Z WARN  evaluator] [tx 8] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:11:38: error: unexpected token ','; expected command
+[2026-05-11T02:30:32Z WARN  evaluator] [tx 9] step rejected (err:unexpected_token): <stdin>:11:8: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern | <stdin>:11:58: error: unexpected token ','; expected command
+[2026-05-11T02:30:43Z WARN  evaluator] [tx 10] step rejected (err:rewrite_no_match): <stdin>:11:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T02:30:53Z WARN  evaluator] [tx 11] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:11:38: error: unexpected token ','; expected command
+[2026-05-11T02:31:04Z WARN  evaluator] [tx 12] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:11:38: error: unexpected token ','; expected command
+[2026-05-11T02:31:15Z WARN  evaluator] [tx 13] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:11:38: error: unexpected token ','; expected command
+[2026-05-11T02:31:26Z WARN  evaluator] [tx 14] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:11:38: error: unexpected token ','; expected command
+[2026-05-11T02:31:40Z WARN  evaluator] [tx 15] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:11:38: error: unexpected token ','; expected command
+[2026-05-11T02:31:50Z WARN  evaluator] [tx 16] step rejected (err:rewrite_no_match): <stdin>:11:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T02:32:01Z WARN  evaluator] [tx 17] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:11:38: error: unexpected token ','; expected command
+[2026-05-11T02:32:15Z WARN  evaluator] [tx 18] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:11:38: error: unexpected token ','; expected command
+[2026-05-11T02:32:26Z WARN  evaluator] [tx 19] step rejected (err:rewrite_no_match): <stdin>:11:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T02:32:26Z INFO  evaluator] [tick@tx20] tape=0 markets=0 top=
+[2026-05-11T02:32:36Z WARN  evaluator] [tx 20] step rejected (err:rewrite_no_match): <stdin>:11:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T02:32:47Z WARN  evaluator] [tx 21] step rejected (err:rewrite_no_match): <stdin>:11:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T02:32:57Z WARN  evaluator] [tx 22] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:11:38: error: unexpected token ','; expected command
+[2026-05-11T02:33:08Z WARN  evaluator] [tx 23] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:11:38: error: unexpected token ','; expected command
+[2026-05-11T02:33:20Z WARN  evaluator] [tx 24] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:11:38: error: unexpected token ','; expected command
+[2026-05-11T02:33:30Z WARN  evaluator] [tx 25] step rejected (err:rewrite_no_match): <stdin>:11:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T02:33:42Z WARN  evaluator] [tx 26] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:11:38: error: unexpected token ','; expected command
+[2026-05-11T02:33:53Z WARN  evaluator] [tx 27] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:11:38: error: unexpected token ','; expected command
+[2026-05-11T02:34:03Z WARN  evaluator] [tx 28] step rejected (err:unexpected_token): <stdin>:11:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern | <stdin>:11:21: error: unexpected token ','; expected command
+[2026-05-11T02:34:15Z WARN  evaluator] [tx 29] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:11:38: error: unexpected token ','; expected command
+[2026-05-11T02:34:27Z WARN  evaluator] [tx 30] step rejected (err:rewrite_no_match): <stdin>:11:8: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T02:34:37Z WARN  evaluator] [tx 31] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:11:38: error: unexpected token ','; expected command
+[2026-05-11T02:34:48Z WARN  evaluator] [tx 32] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:11:69: error: unexpected token ','; expected command
+[2026-05-11T02:35:03Z WARN  evaluator] [tx 33] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:11:69: error: unexpected token ','; expected command
+[2026-05-11T02:35:14Z WARN  evaluator] [tx 34] step rejected (err:rewrite_no_match): <stdin>:11:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T02:35:23Z WARN  evaluator] [tx 35] step rejected (err:unexpected_token): <stdin>:11:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern | <stdin>:11:21: error: unexpected token ','; expected command
+[2026-05-11T02:35:35Z WARN  evaluator] [tx 36] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:11:38: error: unexpected token ','; expected command
+[2026-05-11T02:35:45Z WARN  evaluator] [tx 37] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:11:38: error: unexpected token ','; expected command
+[2026-05-11T02:35:55Z WARN  evaluator] [tx 38] step rejected (err:rewrite_no_match): <stdin>:11:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T02:36:06Z WARN  evaluator] [tx 39] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:11:38: error: unexpected token ','; expected command
+[2026-05-11T02:36:06Z INFO  evaluator] [tick@tx40] tape=0 markets=0 top=
+[2026-05-11T02:36:18Z WARN  evaluator] [tx 40] step rejected (err:rewrite_no_match): <stdin>:11:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T02:36:28Z WARN  evaluator] [tx 41] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:11:38: error: unexpected token ','; expected command
+[2026-05-11T02:36:39Z WARN  evaluator] [tx 42] step rejected (err:rewrite_no_match): <stdin>:11:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T02:36:49Z WARN  evaluator] [tx 43] step rejected (err:rewrite_no_match): <stdin>:11:8: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T02:36:59Z WARN  evaluator] [tx 44] step rejected (err:rewrite_no_match): <stdin>:11:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T02:37:09Z WARN  evaluator] [tx 45] step rejected (err:unexpected_token): <stdin>:11:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern | <stdin>:11:21: error: unexpected token ','; expected command
+[2026-05-11T02:37:19Z WARN  evaluator] [tx 46] step rejected (err:rewrite_no_match): <stdin>:11:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T02:37:30Z WARN  evaluator] [tx 47] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:11:38: error: unexpected token ','; expected command
+[2026-05-11T02:37:42Z WARN  evaluator] [tx 48] step rejected (err:unexpected_token): <stdin>:11:8: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern | <stdin>:11:63: error: unexpected token ','; expected command
+[2026-05-11T02:37:52Z WARN  evaluator] [tx 49] step rejected (err:rewrite_no_match): <stdin>:11:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T02:38:01Z WARN  evaluator] [tx 50] step rejected (err:unexpected_token): <stdin>:11:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern | <stdin>:11:21: error: unexpected token ','; expected command
+[2026-05-11T02:38:12Z WARN  evaluator] [tx 51] step rejected (err:rewrite_no_match): <stdin>:11:8: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T02:38:22Z WARN  evaluator] [tx 52] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:11:38: error: unexpected token ','; expected command
+[2026-05-11T02:38:33Z WARN  evaluator] [tx 53] step rejected (err:rewrite_no_match): <stdin>:11:8: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T02:38:37Z WARN  evaluator] [tb18-atomA] WallClockCap halt: aggregate 607 sec exhausted (cap=600s); total_calls=55
+[v2-emit] SPLIT env unset; defaulting to 'adaptation' (Phase B convention; pre-registration requires SPLIT for Phase C+ ablation runs)
+[2026-05-11T02:38:37Z INFO  evaluator] [tb11] EvidenceCapsule written: capsule_id=adeaf80eff308ae0d38f6b8c370ef4ef81a6863faf3d3b8cbbb4adee557f6aeb compressed_log_cid=7e3ba58ea1bd679d07a0d3a0634ffabacbd0ff1970fa038e2b60402f034b44eb attempt_count=54
+[2026-05-11T02:38:37Z INFO  evaluator] [tb11] TerminalSummary emitted: emit_id=1
+[2026-05-11T02:38:37Z INFO  evaluator] [chaintape] Atom 6 RunSummary written (3 L4 + 56 L4.E entries; 3 accepted_tx_ids, 56 rejected_tx_ids)
+[2026-05-11T02:38:37Z INFO  evaluator] PPUT = 0 (no golden path in 607.9s, 200 tx)

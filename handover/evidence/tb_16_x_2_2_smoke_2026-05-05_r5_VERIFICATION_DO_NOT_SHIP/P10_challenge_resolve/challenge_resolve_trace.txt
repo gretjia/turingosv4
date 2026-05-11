@@ -1,0 +1,2 @@
+[2026-05-05T05:42:30Z INFO  evaluator] [chaintape/tb16-arena-pertactic] adversarial ChallengeTx submitted by Agent_3 against work_tx=TxId("worktx-task-n5_mathd_algebra_171_1777959731334-omega-pertactic-1")
+[2026-05-05T05:42:30Z INFO  evaluator] [chaintape/tb16-arena-pertactic] ChallengeResolve batch: count=1 bonds_released_micro=10000

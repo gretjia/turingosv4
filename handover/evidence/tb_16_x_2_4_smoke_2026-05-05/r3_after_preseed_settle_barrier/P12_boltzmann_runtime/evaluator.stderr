@@ -1,0 +1,43 @@
+[2026-05-05T08:39:56Z INFO  evaluator] Problem: aime_1997_p9.lean | Condition: n5 | Model: deepseek-v4-flash | Mode: full
+[2026-05-05T08:39:56Z INFO  evaluator] [chaintape/d3] pre-seed enabled (TB-10 factory): 12 entries
+[2026-05-05T08:39:56Z INFO  evaluator] [chaintape] bus wired with Sequencer + on-disk ChainTape at "handover/evidence/tb_16_x_2_4_smoke_2026-05-05/r3_after_preseed_settle_barrier/P12_boltzmann_runtime/runtime_repo"
+[2026-05-05T08:39:56Z INFO  evaluator] [chaintape/tb10] user-mode TaskOpen for task-n5_aime_1997_p9_1777970396073 sponsor=Agent_user_0
+[2026-05-05T08:39:56Z INFO  evaluator] [chaintape/tb10] user-mode EscrowLock 200000 micro for task-n5_aime_1997_p9_1777970396073 sponsor=Agent_user_0
+[2026-05-05T08:39:57Z INFO  evaluator] [chaintape/tb16-arena] preseed-settle barrier settled at state_root=Some(Hash([49, 70, 122, 228, 2, 154, 137, 184, 28, 142, 250, 64, 34, 166, 177, 25, 53, 233, 199, 94, 116, 55, 173, 239, 144, 42, 81, 77, 162, 228, 179, 87])); entering FORCE_BOLTZMANN_SEED_WORKTXS loop
+[2026-05-05T08:39:57Z INFO  evaluator] [chaintape/tb16-arena] boltzmann seed iter=0 COMMITTED by Agent_user_0 (stake=25000 μC, parent_tx=None, v2_pick=None, tx_id=worktx-task-n5_aime_1997_p9_1777970396073-tb16-arena-boltzmann-seed-iter-0)
+[2026-05-05T08:39:57Z INFO  evaluator] [chaintape/tb16-arena] boltzmann seed iter=1 COMMITTED by Agent_user_0 (stake=25000 μC, parent_tx=Some(TxId("worktx-task-n5_aime_1997_p9_1777970396073-tb16-arena-boltzmann-seed-iter-0")), v2_pick=Some(TxId("worktx-task-n5_aime_1997_p9_1777970396073-tb16-arena-boltzmann-seed-iter-0")), tx_id=worktx-task-n5_aime_1997_p9_1777970396073-tb16-arena-boltzmann-seed-iter-1)
+[2026-05-05T08:39:57Z INFO  evaluator] [chaintape/tb16-arena] boltzmann seed iter=2 COMMITTED by Agent_user_0 (stake=25000 μC, parent_tx=Some(TxId("worktx-task-n5_aime_1997_p9_1777970396073-tb16-arena-boltzmann-seed-iter-0")), v2_pick=Some(TxId("worktx-task-n5_aime_1997_p9_1777970396073-tb16-arena-boltzmann-seed-iter-0")), tx_id=worktx-task-n5_aime_1997_p9_1777970396073-tb16-arena-boltzmann-seed-iter-2)
+[2026-05-05T08:39:57Z INFO  evaluator] [chaintape/tb16-arena] boltzmann seed iter=3 COMMITTED by Agent_user_0 (stake=25000 μC, parent_tx=Some(TxId("worktx-task-n5_aime_1997_p9_1777970396073-tb16-arena-boltzmann-seed-iter-0")), v2_pick=Some(TxId("worktx-task-n5_aime_1997_p9_1777970396073-tb16-arena-boltzmann-seed-iter-0")), tx_id=worktx-task-n5_aime_1997_p9_1777970396073-tb16-arena-boltzmann-seed-iter-3)
+[2026-05-05T08:39:57Z INFO  evaluator] [chaintape/tb16-arena] FORCE_BOLTZMANN_SEED_WORKTXS produced 4 accepted WorkTxs (count requested=4)
+[2026-05-05T08:39:57Z INFO  evaluator] [chaintape] seeded synthetic TaskOpen for smoke-n5_aime_1997_p9_1777970396073
+[2026-05-05T08:39:57Z INFO  evaluator] [chaintape] seeded synthetic zero-stake WorkTx (synthetic_rejection_for_l4e_gate=true) for smoke-n5_aime_1997_p9_1777970396073
+[2026-05-05T08:39:57Z INFO  evaluator] [chaintape] Atom 5 audit-trail records written to CAS + indexed for smoke-n5_aime_1997_p9_1777970396073
+[2026-05-05T08:39:57Z INFO  evaluator] [chaintape/d_c] genesis_report.json written to "handover/evidence/tb_16_x_2_4_smoke_2026-05-05/r3_after_preseed_settle_barrier/P12_boltzmann_runtime/runtime_repo"
+[2026-05-05T08:39:57Z INFO  evaluator] [swarm/n5] agent_models = [deepseek-v4-flash,deepseek-v4-flash,deepseek-v4-flash,deepseek-v4-flash,deepseek-v4-flash] (label=deepseek-v4-flash)
+[2026-05-05T08:39:57Z INFO  evaluator] [budget] regime=total_proposal base=20 effective_max_tx=20 (n_agents=5)
+[2026-05-05T08:39:57Z INFO  evaluator] [swarm/n5] Agent_0:skill0:t=0.20 Agent_1:skill1:t=0.20 Agent_2:skill2:t=0.20 Agent_3:skill0:t=0.20 Agent_4:skill1:t=0.20
+[2026-05-05T08:40:20Z WARN  evaluator] [tx 0] step rejected (err:tactic_linarith): <stdin>:15:0: error: linarith failed to find a contradiction
+[2026-05-05T08:40:39Z INFO  evaluator] [tx 1] Agent_1 step+tx_0_by_Agent_1 partial OK (depth=1)
+[2026-05-05T08:41:27Z INFO  evaluator] [tx 2] Agent_2 step+tx_1_by_Agent_2 partial OK (depth=2)
+[2026-05-05T08:41:37Z INFO  evaluator] [tx 3] Agent_3 step+tx_2_by_Agent_3 partial OK (depth=3)
+[2026-05-05T08:41:48Z INFO  evaluator] [tx 4] Agent_4 step+tx_3_by_Agent_4 partial OK (depth=4)
+[2026-05-05T08:41:58Z INFO  evaluator] [tx 5] Agent_0 step+tx_4_by_Agent_0 partial OK (depth=5)
+[2026-05-05T08:42:09Z INFO  evaluator] [tx 6] Agent_1 step+tx_5_by_Agent_1 partial OK (depth=6)
+[2026-05-05T08:42:19Z INFO  evaluator] [tx 7] Agent_2 step+tx_6_by_Agent_2 partial OK (depth=7)
+[2026-05-05T08:42:30Z INFO  evaluator] [tx 8] Agent_3 step+tx_7_by_Agent_3 partial OK (depth=8)
+[2026-05-05T08:42:39Z INFO  evaluator] [tx 9] Agent_4 step+tx_8_by_Agent_4 partial OK (depth=9)
+[2026-05-05T08:42:50Z INFO  evaluator] [tx 10] Agent_0 step+tx_9_by_Agent_0 partial OK (depth=10)
+[2026-05-05T08:42:59Z INFO  evaluator] [tx 11] Agent_1 step+tx_10_by_Agent_1 partial OK (depth=11)
+[2026-05-05T08:43:09Z INFO  evaluator] [tx 12] Agent_2 step+tx_11_by_Agent_2 partial OK (depth=12)
+[2026-05-05T08:43:20Z INFO  evaluator] [tx 13] Agent_3 step+tx_12_by_Agent_3 partial OK (depth=13)
+[2026-05-05T08:43:30Z INFO  evaluator] [tx 14] Agent_4 step+tx_13_by_Agent_4 partial OK (depth=14)
+[2026-05-05T08:43:40Z INFO  evaluator] [tx 15] Agent_0 step+tx_14_by_Agent_0 partial OK (depth=15)
+[2026-05-05T08:43:51Z INFO  evaluator] [tx 16] Agent_1 step+tx_15_by_Agent_1 partial OK (depth=16)
+[2026-05-05T08:44:01Z INFO  evaluator] [tx 17] Agent_2 step+tx_16_by_Agent_2 partial OK (depth=17)
+[2026-05-05T08:44:11Z INFO  evaluator] [tx 18] Agent_3 step+tx_17_by_Agent_3 partial OK (depth=18)
+[2026-05-05T08:44:21Z INFO  evaluator] [tx 19] Agent_4 step+tx_18_by_Agent_4 partial OK (depth=19)
+[v2-emit] SPLIT env unset; defaulting to 'adaptation' (Phase B convention; pre-registration requires SPLIT for Phase C+ ablation runs)
+[2026-05-05T08:44:21Z INFO  evaluator] [tb11] EvidenceCapsule written: capsule_id=f29c94faa8fb259332d84dca7176647d7f91074d4a8757b087ff71c829d844d9 compressed_log_cid=91e86303eb0c6f903ce9fe6414de89bdaac0184d4edbfcdd8a22a567eca6c17b attempt_count=20
+[2026-05-05T08:44:21Z INFO  evaluator] [tb11] TerminalSummary emitted: emit_id=1
+[2026-05-05T08:44:21Z INFO  evaluator] [chaintape] Atom 6 RunSummary written (7 L4 + 2 L4.E entries; 7 accepted_tx_ids, 2 rejected_tx_ids)
+[2026-05-05T08:44:21Z INFO  evaluator] PPUT = 0 (no golden path in 265.7s, 20 tx)

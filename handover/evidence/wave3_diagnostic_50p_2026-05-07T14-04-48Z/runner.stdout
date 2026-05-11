@@ -1,0 +1,208 @@
+[phase3] HEAD: ffb6ebd
+[phase3] evaluator built: 2026-05-07 13:43:22
+[phase3] audit_tape built: 2026-05-07 13:40:59
+[phase3] proxy: http://localhost:8080 ✓
+[phase3] minif2f: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4 ✓
+[phase3] starting | N=50 | MAX_TX=12 | timeout=1800s | git=ffb6ebd | ts=2026-05-07T14-04-48Z
+[phase3] [1/50] mathd_algebra_107 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P01_mathd_algebra_107
+[phase3] [1/50] mathd_algebra_107: dur=188s tx_count=2 completed_llm_calls=2 halt=OmegaAccepted solved=True rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P01_mathd_algebra_107/verdict.json")
+[phase3] [1/50] mathd_algebra_107: audit=PROCEED id45=Pass step_partial_ok=0 inv1_match=True
+[phase3] [2/50] mathd_algebra_113 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P02_mathd_algebra_113
+[phase3] [2/50] mathd_algebra_113: dur=99s tx_count=12 completed_llm_calls=9 halt=MaxTxExhausted solved=False rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P02_mathd_algebra_113/verdict.json")
+[phase3] [2/50] mathd_algebra_113: audit=PROCEED id45=Pass step_partial_ok=0 inv1_match=True
+[phase3] [3/50] mathd_algebra_114 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P03_mathd_algebra_114
+[phase3] [3/50] mathd_algebra_114: dur=44s tx_count=5 completed_llm_calls=5 halt=OmegaAccepted solved=True rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P03_mathd_algebra_114/verdict.json")
+[phase3] [3/50] mathd_algebra_114: audit=PROCEED id45=Pass step_partial_ok=1 inv1_match=True
+[phase3] [4/50] mathd_algebra_125 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P04_mathd_algebra_125
+[phase3] [4/50] mathd_algebra_125: dur=11s tx_count=1 completed_llm_calls=1 halt=OmegaAccepted solved=True rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P04_mathd_algebra_125/verdict.json")
+[phase3] [4/50] mathd_algebra_125: audit=PROCEED id45=Pass step_partial_ok=0 inv1_match=True
+[phase3] [5/50] mathd_algebra_141 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P05_mathd_algebra_141
+[phase3] [5/50] mathd_algebra_141: dur=11s tx_count=1 completed_llm_calls=1 halt=OmegaAccepted solved=True rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P05_mathd_algebra_141/verdict.json")
+[phase3] [5/50] mathd_algebra_141: audit=PROCEED id45=Pass step_partial_ok=0 inv1_match=True
+[phase3] [6/50] mathd_algebra_171 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P06_mathd_algebra_171
+[phase3] [6/50] mathd_algebra_171: dur=11s tx_count=1 completed_llm_calls=1 halt=OmegaAccepted solved=True rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P06_mathd_algebra_171/verdict.json")
+[phase3] [6/50] mathd_algebra_171: audit=PROCEED id45=Pass step_partial_ok=0 inv1_match=True
+[phase3] [7/50] mathd_algebra_176 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P07_mathd_algebra_176
+[phase3] [7/50] mathd_algebra_176: dur=10s tx_count=1 completed_llm_calls=1 halt=OmegaAccepted solved=True rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P07_mathd_algebra_176/verdict.json")
+[phase3] [7/50] mathd_algebra_176: audit=PROCEED id45=Pass step_partial_ok=0 inv1_match=True
+[phase3] [8/50] mathd_algebra_246 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P08_mathd_algebra_246
+[phase3] [8/50] mathd_algebra_246: dur=656s tx_count=12 completed_llm_calls=8 halt=MaxTxExhausted solved=False rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P08_mathd_algebra_246/verdict.json")
+[phase3] [8/50] mathd_algebra_246: audit=PROCEED id45=Pass step_partial_ok=1 inv1_match=True
+[phase3] [9/50] aime_1983_p2 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P09_aime_1983_p2
+[phase3] [9/50] aime_1983_p2: dur=163s tx_count=12 completed_llm_calls=9 halt=MaxTxExhausted solved=False rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P09_aime_1983_p2/verdict.json")
+[phase3] [9/50] aime_1983_p2: audit=PROCEED id45=Pass step_partial_ok=0 inv1_match=True
+[phase3] [10/50] aime_1989_p8 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P10_aime_1989_p8
+[phase3] [10/50] aime_1989_p8: dur=11s tx_count=1 completed_llm_calls=1 halt=OmegaAccepted solved=True rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P10_aime_1989_p8/verdict.json")
+[phase3] [10/50] aime_1989_p8: audit=PROCEED id45=Pass step_partial_ok=0 inv1_match=True
+[phase3] [11/50] amc12_2000_p1 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P11_amc12_2000_p1
+[phase3] [11/50] amc12_2000_p1: dur=88s tx_count=12 completed_llm_calls=9 halt=MaxTxExhausted solved=False rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P11_amc12_2000_p1/verdict.json")
+[phase3] [11/50] amc12_2000_p1: audit=PROCEED id45=Pass step_partial_ok=0 inv1_match=True
+[phase3] [12/50] amc12_2000_p6 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P12_amc12_2000_p6
+[phase3] [12/50] amc12_2000_p6: dur=89s tx_count=12 completed_llm_calls=9 halt=MaxTxExhausted solved=False rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P12_amc12_2000_p6/verdict.json")
+[phase3] [12/50] amc12_2000_p6: audit=PROCEED id45=Pass step_partial_ok=0 inv1_match=True
+[phase3] [13/50] algebra_sqineq_at2malt1 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P13_algebra_sqineq_at2malt1
+[phase3] [13/50] algebra_sqineq_at2malt1: dur=90s tx_count=12 completed_llm_calls=9 halt=MaxTxExhausted solved=False rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P13_algebra_sqineq_at2malt1/verdict.json")
+[phase3] [13/50] algebra_sqineq_at2malt1: audit=PROCEED id45=Pass step_partial_ok=0 inv1_match=True
+[phase3] [14/50] amc12a_2002_p6 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P14_amc12a_2002_p6
+[phase3] [14/50] amc12a_2002_p6: dur=122s tx_count=12 completed_llm_calls=12 halt=MaxTxExhausted solved=False rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P14_amc12a_2002_p6/verdict.json")
+[phase3] [14/50] amc12a_2002_p6: audit=PROCEED id45=Pass step_partial_ok=0 inv1_match=True
+[phase3] [15/50] aime_1990_p4 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P15_aime_1990_p4
+[phase3] [15/50] aime_1990_p4: dur=196s tx_count=12 completed_llm_calls=12 halt=MaxTxExhausted solved=False rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P15_aime_1990_p4/verdict.json")
+[phase3] [15/50] aime_1990_p4: audit=PROCEED id45=Pass step_partial_ok=1 inv1_match=True
+[phase3] [16/50] imo_1959_p1 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P16_imo_1959_p1
+[phase3] [16/50] imo_1959_p1: dur=100s tx_count=7 completed_llm_calls=7 halt=OmegaAccepted solved=True rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P16_imo_1959_p1/verdict.json")
+[phase3] [16/50] imo_1959_p1: audit=PROCEED id45=Pass step_partial_ok=2 inv1_match=True
+[phase3] [17/50] imo_1962_p2 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P17_imo_1962_p2
+[phase3] [17/50] imo_1962_p2: dur=92s tx_count=12 completed_llm_calls=9 halt=MaxTxExhausted solved=False rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P17_imo_1962_p2/verdict.json")
+[phase3] [17/50] imo_1962_p2: audit=PROCEED id45=Pass step_partial_ok=0 inv1_match=True
+[phase3] [18/50] induction_11div10tonmn1ton → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P18_induction_11div10tonmn1ton
+[phase3] [18/50] induction_11div10tonmn1ton: dur=95s tx_count=12 completed_llm_calls=9 halt=MaxTxExhausted solved=False rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P18_induction_11div10tonmn1ton/verdict.json")
+[phase3] [18/50] induction_11div10tonmn1ton: audit=PROCEED id45=Pass step_partial_ok=0 inv1_match=True
+[phase3] [19/50] induction_12dvd4expnp1p20 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P19_induction_12dvd4expnp1p20
+[phase3] [19/50] induction_12dvd4expnp1p20: dur=87s tx_count=12 completed_llm_calls=9 halt=MaxTxExhausted solved=False rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P19_induction_12dvd4expnp1p20/verdict.json")
+[phase3] [19/50] induction_12dvd4expnp1p20: audit=PROCEED id45=Pass step_partial_ok=1 inv1_match=True
+[phase3] [20/50] algebra_2varlineareq_fp3zeq11_3tfm1m5zeqn68_feqn10_zeq7 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P20_algebra_2varlineareq_fp3zeq11_3tfm1m5zeqn68_feqn10_zeq7
+[phase3] [20/50] algebra_2varlineareq_fp3zeq11_3tfm1m5zeqn68_feqn10_zeq7: dur=86s tx_count=12 completed_llm_calls=9 halt=MaxTxExhausted solved=False rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P20_algebra_2varlineareq_fp3zeq11_3tfm1m5zeqn68_feqn10_zeq7/verdict.json")
+[phase3] [20/50] algebra_2varlineareq_fp3zeq11_3tfm1m5zeqn68_feqn10_zeq7: audit=PROCEED id45=Pass step_partial_ok=0 inv1_match=True
+[phase3] [21/50] aime_1983_p1 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P21_aime_1983_p1
+[phase3] [21/50] aime_1983_p1: dur=180s tx_count=12 completed_llm_calls=11 halt=MaxTxExhausted solved=False rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P21_aime_1983_p1/verdict.json")
+[phase3] [21/50] aime_1983_p1: audit=PROCEED id45=Pass step_partial_ok=1 inv1_match=True
+[phase3] [22/50] aime_1983_p3 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P22_aime_1983_p3
+[phase3] [22/50] aime_1983_p3: dur=150s tx_count=12 completed_llm_calls=12 halt=MaxTxExhausted solved=False rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P22_aime_1983_p3/verdict.json")
+[phase3] [22/50] aime_1983_p3: audit=PROCEED id45=Pass step_partial_ok=1 inv1_match=True
+[phase3] [23/50] aime_1984_p1 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P23_aime_1984_p1
+[phase3] [23/50] aime_1984_p1: dur=153s tx_count=12 completed_llm_calls=12 halt=MaxTxExhausted solved=False rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P23_aime_1984_p1/verdict.json")
+[phase3] [23/50] aime_1984_p1: audit=PROCEED id45=Pass step_partial_ok=3 inv1_match=True
+[phase3] [24/50] aime_1984_p7 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P24_aime_1984_p7
+[phase3] [24/50] aime_1984_p7: dur=121s tx_count=12 completed_llm_calls=12 halt=MaxTxExhausted solved=False rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P24_aime_1984_p7/verdict.json")
+[phase3] [24/50] aime_1984_p7: audit=PROCEED id45=Pass step_partial_ok=8 inv1_match=True
+[phase3] [25/50] aime_1987_p5 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P25_aime_1987_p5
+[phase3] [25/50] aime_1987_p5: dur=92s tx_count=12 completed_llm_calls=9 halt=MaxTxExhausted solved=False rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P25_aime_1987_p5/verdict.json")
+[phase3] [25/50] aime_1987_p5: audit=PROCEED id45=Pass step_partial_ok=0 inv1_match=True
+[phase3] [26/50] aime_1988_p8 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P26_aime_1988_p8
+[phase3] [26/50] aime_1988_p8: dur=34s tx_count=12 completed_llm_calls=12 halt=MaxTxExhausted solved=False rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P26_aime_1988_p8/verdict.json")
+[phase3] [26/50] aime_1988_p8: audit=PROCEED id45=Pass step_partial_ok=0 inv1_match=True
+[phase3] [27/50] aime_1990_p15 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P27_aime_1990_p15
+[phase3] [27/50] aime_1990_p15: dur=340s tx_count=12 completed_llm_calls=11 halt=MaxTxExhausted solved=False rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P27_aime_1990_p15/verdict.json")
+[phase3] [27/50] aime_1990_p15: audit=PROCEED id45=Pass step_partial_ok=1 inv1_match=True
+[phase3] [28/50] aime_1991_p9 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P28_aime_1991_p9
+[phase3] [28/50] aime_1991_p9: dur=92s tx_count=12 completed_llm_calls=9 halt=MaxTxExhausted solved=False rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P28_aime_1991_p9/verdict.json")
+[phase3] [28/50] aime_1991_p9: audit=PROCEED id45=Pass step_partial_ok=1 inv1_match=True
+[phase3] [29/50] aime_1994_p3 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P29_aime_1994_p3
+[phase3] [29/50] aime_1994_p3: dur=132s tx_count=12 completed_llm_calls=12 halt=MaxTxExhausted solved=False rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P29_aime_1994_p3/verdict.json")
+[phase3] [29/50] aime_1994_p3: audit=PROCEED id45=Pass step_partial_ok=2 inv1_match=True
+[phase3] [30/50] aime_1995_p7 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P30_aime_1995_p7
+[phase3] [30/50] aime_1995_p7: dur=104s tx_count=12 completed_llm_calls=9 halt=MaxTxExhausted solved=False rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P30_aime_1995_p7/verdict.json")
+[phase3] [30/50] aime_1995_p7: audit=PROCEED id45=Pass step_partial_ok=0 inv1_match=True
+[phase3] [31/50] aime_1997_p9 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P31_aime_1997_p9
+[phase3] [31/50] aime_1997_p9: dur=188s tx_count=12 completed_llm_calls=12 halt=MaxTxExhausted solved=False rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P31_aime_1997_p9/verdict.json")
+[phase3] [31/50] aime_1997_p9: audit=PROCEED id45=Pass step_partial_ok=1 inv1_match=True
+[phase3] [32/50] aime_1999_p11 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P32_aime_1999_p11
+[phase3] [32/50] aime_1999_p11: dur=231s tx_count=12 completed_llm_calls=12 halt=MaxTxExhausted solved=False rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P32_aime_1999_p11/verdict.json")
+[phase3] [32/50] aime_1999_p11: audit=PROCEED id45=Pass step_partial_ok=2 inv1_match=True
+[phase3] [33/50] algebra_9onxpypzleqsum2onxpy → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P33_algebra_9onxpypzleqsum2onxpy
+[phase3] [33/50] algebra_9onxpypzleqsum2onxpy: dur=153s tx_count=12 completed_llm_calls=12 halt=MaxTxExhausted solved=False rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P33_algebra_9onxpypzleqsum2onxpy/verdict.json")
+[phase3] [33/50] algebra_9onxpypzleqsum2onxpy: audit=PROCEED id45=Pass step_partial_ok=1 inv1_match=True
+[phase3] [34/50] algebra_abpbcpcageq3_sumaonsqrtapbgeq3onsqrt2 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P34_algebra_abpbcpcageq3_sumaonsqrtapbgeq3onsqrt2
+[phase3] [34/50] algebra_abpbcpcageq3_sumaonsqrtapbgeq3onsqrt2: dur=82s tx_count=12 completed_llm_calls=9 halt=MaxTxExhausted solved=False rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P34_algebra_abpbcpcageq3_sumaonsqrtapbgeq3onsqrt2/verdict.json")
+[phase3] [34/50] algebra_abpbcpcageq3_sumaonsqrtapbgeq3onsqrt2: audit=PROCEED id45=Pass step_partial_ok=0 inv1_match=True
+[phase3] [35/50] algebra_absapbon1pabsapbleqsumabsaon1pabsa → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P35_algebra_absapbon1pabsapbleqsumabsaon1pabsa
+[phase3] [35/50] algebra_absapbon1pabsapbleqsumabsaon1pabsa: dur=163s tx_count=12 completed_llm_calls=12 halt=MaxTxExhausted solved=False rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P35_algebra_absapbon1pabsapbleqsumabsaon1pabsa/verdict.json")
+[phase3] [35/50] algebra_absapbon1pabsapbleqsumabsaon1pabsa: audit=PROCEED id45=Pass step_partial_ok=1 inv1_match=True
+[phase3] [36/50] algebra_absxm1pabsxpabsxp1eqxp2_0leqxleq1 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P36_algebra_absxm1pabsxpabsxp1eqxp2_0leqxleq1
+[phase3] [36/50] algebra_absxm1pabsxpabsxp1eqxp2_0leqxleq1: dur=75s tx_count=12 completed_llm_calls=9 halt=MaxTxExhausted solved=False rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P36_algebra_absxm1pabsxpabsxp1eqxp2_0leqxleq1/verdict.json")
+[phase3] [36/50] algebra_absxm1pabsxpabsxp1eqxp2_0leqxleq1: audit=PROCEED id45=Pass step_partial_ok=0 inv1_match=True
+[phase3] [37/50] algebra_amgm_sum1toneqn_prod1tonleq1 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P37_algebra_amgm_sum1toneqn_prod1tonleq1
+[phase3] [37/50] algebra_amgm_sum1toneqn_prod1tonleq1: dur=226s tx_count=12 completed_llm_calls=12 halt=MaxTxExhausted solved=False rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P37_algebra_amgm_sum1toneqn_prod1tonleq1/verdict.json")
+[phase3] [37/50] algebra_amgm_sum1toneqn_prod1tonleq1: audit=PROCEED id45=Pass step_partial_ok=1 inv1_match=True
+[phase3] [38/50] algebra_amgm_sumasqdivbgeqsuma → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P38_algebra_amgm_sumasqdivbgeqsuma
+[phase3] [38/50] algebra_amgm_sumasqdivbgeqsuma: dur=168s tx_count=12 completed_llm_calls=9 halt=MaxTxExhausted solved=False rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P38_algebra_amgm_sumasqdivbgeqsuma/verdict.json")
+[phase3] [38/50] algebra_amgm_sumasqdivbgeqsuma: audit=PROCEED id45=Pass step_partial_ok=0 inv1_match=True
+[phase3] [39/50] algebra_apbmpcneq0_aeq0anbeq0anceq0 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P39_algebra_apbmpcneq0_aeq0anbeq0anceq0
+[phase3] [39/50] algebra_apbmpcneq0_aeq0anbeq0anceq0: dur=206s tx_count=12 completed_llm_calls=12 halt=MaxTxExhausted solved=False rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P39_algebra_apbmpcneq0_aeq0anbeq0anceq0/verdict.json")
+[phase3] [39/50] algebra_apbmpcneq0_aeq0anbeq0anceq0: audit=PROCEED id45=Pass step_partial_ok=4 inv1_match=True
+[phase3] [40/50] algebra_apbon2pownleqapownpbpowon2 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P40_algebra_apbon2pownleqapownpbpowon2
+[phase3] [40/50] algebra_apbon2pownleqapownpbpowon2: dur=112s tx_count=12 completed_llm_calls=12 halt=MaxTxExhausted solved=False rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P40_algebra_apbon2pownleqapownpbpowon2/verdict.json")
+[phase3] [40/50] algebra_apbon2pownleqapownpbpowon2: audit=PROCEED id45=Pass step_partial_ok=0 inv1_match=True
+[phase3] [41/50] algebra_apbpceq2_abpbcpcaeq1_aleq1on3anbleq1ancleq4on3 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P41_algebra_apbpceq2_abpbcpcaeq1_aleq1on3anbleq1ancleq4on3
+[phase3] [41/50] algebra_apbpceq2_abpbcpcaeq1_aleq1on3anbleq1ancleq4on3: dur=332s tx_count=12 completed_llm_calls=12 halt=MaxTxExhausted solved=False rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P41_algebra_apbpceq2_abpbcpcaeq1_aleq1on3anbleq1ancleq4on3/verdict.json")
+[phase3] [41/50] algebra_apbpceq2_abpbcpcaeq1_aleq1on3anbleq1ancleq4on3: audit=PROCEED id45=Pass step_partial_ok=7 inv1_match=True
+[phase3] [42/50] algebra_bleqa_apbon2msqrtableqambsqon8b → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P42_algebra_bleqa_apbon2msqrtableqambsqon8b
+[phase3] [42/50] algebra_bleqa_apbon2msqrtableqambsqon8b: dur=281s tx_count=12 completed_llm_calls=12 halt=MaxTxExhausted solved=False rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P42_algebra_bleqa_apbon2msqrtableqambsqon8b/verdict.json")
+[phase3] [42/50] algebra_bleqa_apbon2msqrtableqambsqon8b: audit=PROCEED id45=Pass step_partial_ok=0 inv1_match=True
+[phase3] [43/50] algebra_cubrtrp1oncubrtreq3_rcubp1onrcubeq5778 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P43_algebra_cubrtrp1oncubrtreq3_rcubp1onrcubeq5778
+[phase3] [43/50] algebra_cubrtrp1oncubrtreq3_rcubp1onrcubeq5778: dur=234s tx_count=8 completed_llm_calls=8 halt=OmegaAccepted solved=True rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P43_algebra_cubrtrp1oncubrtreq3_rcubp1onrcubeq5778/verdict.json")
+[phase3] [43/50] algebra_cubrtrp1oncubrtreq3_rcubp1onrcubeq5778: audit=PROCEED id45=Pass step_partial_ok=1 inv1_match=True
+[phase3] [44/50] algebra_ineq_nto1onlt2m1on → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P44_algebra_ineq_nto1onlt2m1on
+[phase3] [44/50] algebra_ineq_nto1onlt2m1on: dur=196s tx_count=12 completed_llm_calls=12 halt=MaxTxExhausted solved=False rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P44_algebra_ineq_nto1onlt2m1on/verdict.json")
+[phase3] [44/50] algebra_ineq_nto1onlt2m1on: audit=PROCEED id45=Pass step_partial_ok=1 inv1_match=True
+[phase3] [45/50] algebra_others_exirrpowirrrat → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P45_algebra_others_exirrpowirrrat
+[phase3] [45/50] algebra_others_exirrpowirrrat: dur=164s tx_count=12 completed_llm_calls=11 halt=MaxTxExhausted solved=False rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P45_algebra_others_exirrpowirrrat/verdict.json")
+[phase3] [45/50] algebra_others_exirrpowirrrat: audit=PROCEED id45=Pass step_partial_ok=9 inv1_match=True
+[phase3] [46/50] algebra_sqineq_unitcircatbpabsamblt1 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P46_algebra_sqineq_unitcircatbpabsamblt1
+[phase3] [46/50] algebra_sqineq_unitcircatbpabsamblt1: dur=119s tx_count=12 completed_llm_calls=12 halt=MaxTxExhausted solved=False rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P46_algebra_sqineq_unitcircatbpabsamblt1/verdict.json")
+[phase3] [46/50] algebra_sqineq_unitcircatbpabsamblt1: audit=PROCEED id45=Pass step_partial_ok=0 inv1_match=True
+[phase3] [47/50] algebra_sqineq_unitcircatbpamblt1 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P47_algebra_sqineq_unitcircatbpamblt1
+[phase3] [47/50] algebra_sqineq_unitcircatbpamblt1: dur=85s tx_count=12 completed_llm_calls=9 halt=MaxTxExhausted solved=False rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P47_algebra_sqineq_unitcircatbpamblt1/verdict.json")
+[phase3] [47/50] algebra_sqineq_unitcircatbpamblt1: audit=PROCEED id45=Pass step_partial_ok=0 inv1_match=True
+[phase3] [48/50] algebra_sum1onsqrt2to1onsqrt10000lt198 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P48_algebra_sum1onsqrt2to1onsqrt10000lt198
+[phase3] [48/50] algebra_sum1onsqrt2to1onsqrt10000lt198: dur=86s tx_count=12 completed_llm_calls=9 halt=MaxTxExhausted solved=False rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P48_algebra_sum1onsqrt2to1onsqrt10000lt198/verdict.json")
+[phase3] [48/50] algebra_sum1onsqrt2to1onsqrt10000lt198: audit=PROCEED id45=Pass step_partial_ok=0 inv1_match=True
+[phase3] [49/50] amc12_2000_p12 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P49_amc12_2000_p12
+[phase3] [49/50] amc12_2000_p12: dur=169s tx_count=12 completed_llm_calls=11 halt=MaxTxExhausted solved=False rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P49_amc12_2000_p12/verdict.json")
+[phase3] [49/50] amc12_2000_p12: audit=PROCEED id45=Pass step_partial_ok=0 inv1_match=True
+[phase3] [50/50] amc12_2000_p20 → handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P50_amc12_2000_p20
+[phase3] [50/50] amc12_2000_p20: dur=136s tx_count=12 completed_llm_calls=12 halt=MaxTxExhausted solved=False rc=0
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=11 (out="handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/P50_amc12_2000_p20/verdict.json")
+[phase3] [50/50] amc12_2000_p20: audit=PROCEED id45=Pass step_partial_ok=0 inv1_match=True
+[phase3] DONE | summary at handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/PHASE_3_BATCH_SUMMARY.json
+[phase3] OUT_DIR: handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z

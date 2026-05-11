@@ -1,0 +1,11 @@
+{
+  "attempt_aborted_count": 0,
+  "delta": 2,
+  "expected_completed_attempts": 0,
+  "invariant_verdict": "Err(TB-18R FR-18R.3 violation: clean halt MaxTxExhausted requires delta=0 but delta=2 (l4=1, l4e=1, expected=0))",
+  "l4_work_attempt_count": 1,
+  "l4e_work_attempt_count": 1,
+  "preflight": "handover/ai-direct/TB-18R_R4_STEP_B_invariant.md",
+  "tb_18r_r4_invariant_equation": "evaluator_reported_completed_llm_calls == l4_work_attempt_count + l4e_work_attempt_count",
+  "terminal_halt_class": "MaxTxExhausted"
+}

@@ -1,0 +1,164 @@
+[2026-05-09T01:37:54Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/amc12a_2002_p13.lean | Condition: n1 | Model: deepseek-v4-flash | Mode: full
+[2026-05-09T01:37:55Z INFO  minif2f_v4::chain_runtime] [chaintape] bus wired with Sequencer + on-disk ChainTape at "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_r7_m2_20260508T210337Z/deepseek-v4-flash/seed1/rep1/P040_amc12a_2002_p13/runtime_repo"
+[2026-05-09T01:37:55Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic TaskOpen for smoke-n1_amc12a_2002_p13_1778290674575
+[2026-05-09T01:37:55Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic zero-stake WorkTx (synthetic_rejection_for_l4e_gate=true) for smoke-n1_amc12a_2002_p13_1778290674575
+[2026-05-09T01:37:55Z INFO  minif2f_v4::chain_runtime] [chaintape] Atom 5 audit-trail records written to CAS + indexed for smoke-n1_amc12a_2002_p13_1778290674575
+[2026-05-09T01:37:55Z INFO  minif2f_v4::chain_runtime] [chaintape/d_c] genesis_report.json written to "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_r7_m2_20260508T210337Z/deepseek-v4-flash/seed1/rep1/P040_amc12a_2002_p13/runtime_repo"
+[2026-05-09T01:37:55Z INFO  evaluator] [swarm/n1] agent_models = [deepseek-v4-flash] (label=deepseek-v4-flash)
+[2026-05-09T01:37:55Z INFO  evaluator] [budget] regime=total_proposal base=200 effective_max_tx=200 (n_agents=1)
+[2026-05-09T01:37:55Z INFO  evaluator] [swarm/n1] Agent_0:skill0:t=0.20
+[2026-05-09T01:38:05Z WARN  evaluator] [tx 0] step rejected (err:tactic_linarith): <stdin>:15:0: error: linarith failed to find a contradiction
+[2026-05-09T01:38:56Z WARN  evaluator] [tx 1] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:16:2: error: unexpected token 'have'; expected command
+[2026-05-09T01:38:57Z WARN  evaluator] [tx 2] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:38:58Z WARN  evaluator] [tx 3] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:39:00Z WARN  evaluator] [tx 4] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:39:16Z WARN  evaluator] [tx 5] step rejected (err:tactic_linarith): <stdin>:15:0: error: linarith failed to find a contradiction
+[2026-05-09T01:39:18Z WARN  evaluator] [tx 6] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:39:19Z WARN  evaluator] [tx 7] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:39:21Z WARN  evaluator] [tx 8] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:39:22Z WARN  evaluator] [tx 9] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:39:23Z WARN  evaluator] [tx 10] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:39:25Z WARN  evaluator] [tx 11] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:39:39Z WARN  evaluator] [tx 12] step rejected (err:tactic_linarith): <stdin>:15:0: error: linarith failed to find a contradiction
+[2026-05-09T01:39:40Z WARN  evaluator] [tx 13] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:39:52Z WARN  evaluator] [tx 14] step rejected (err:tactic_linarith): <stdin>:15:0: error: linarith failed to find a contradiction
+[2026-05-09T01:39:54Z WARN  evaluator] [tx 15] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:39:56Z WARN  evaluator] [tx 16] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:40:09Z WARN  evaluator] [tx 17] step rejected (err:tactic_linarith): <stdin>:15:0: error: linarith failed to find a contradiction
+[2026-05-09T01:40:11Z WARN  evaluator] [tx 18] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:40:37Z WARN  evaluator] [tx 19] step rejected (err:tactic_linarith): <stdin>:15:0: error: linarith failed to find a contradiction
+[2026-05-09T01:40:37Z INFO  evaluator] [tick@tx20] tape=0 markets=0 top=
+[2026-05-09T01:40:39Z WARN  evaluator] [tx 20] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:40:56Z WARN  evaluator] [tx 21] step rejected (err:tactic_linarith): <stdin>:15:0: error: linarith failed to find a contradiction
+[2026-05-09T01:40:58Z WARN  evaluator] [tx 22] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:40:59Z WARN  evaluator] [tx 23] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:41:00Z WARN  evaluator] [tx 24] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:41:01Z WARN  evaluator] [tx 25] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:41:03Z WARN  evaluator] [tx 26] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:41:04Z WARN  evaluator] [tx 27] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:41:06Z WARN  evaluator] [tx 28] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:41:07Z WARN  evaluator] [tx 29] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:41:08Z WARN  evaluator] [tx 30] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:41:36Z WARN  evaluator] [tx 31] step rejected (err:tactic_linarith): <stdin>:15:0: error: linarith failed to find a contradiction
+[2026-05-09T01:41:38Z WARN  evaluator] [tx 32] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:41:39Z WARN  evaluator] [tx 33] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:41:41Z WARN  evaluator] [tx 34] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:41:42Z WARN  evaluator] [tx 35] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:41:43Z WARN  evaluator] [tx 36] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:41:45Z WARN  evaluator] [tx 37] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:41:54Z WARN  evaluator] [tx 38] step rejected (err:tactic_linarith): <stdin>:15:0: error: linarith failed to find a contradiction
+[2026-05-09T01:42:03Z WARN  evaluator] [tx 39] step rejected (err:tactic_linarith): <stdin>:15:0: error: linarith failed to find a contradiction
+[2026-05-09T01:42:03Z INFO  evaluator] [tick@tx40] tape=0 markets=0 top=
+[2026-05-09T01:42:05Z WARN  evaluator] [tx 40] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:42:07Z WARN  evaluator] [tx 41] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:42:09Z WARN  evaluator] [tx 42] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:44:08Z WARN  evaluator] [tx 43] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:13:27: error: unexpected token '<'; expected '{' or tactic
+[2026-05-09T01:44:09Z WARN  evaluator] [tx 44] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:44:10Z WARN  evaluator] [tx 45] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:44:11Z WARN  evaluator] [tx 46] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:44:13Z WARN  evaluator] [tx 47] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:44:22Z WARN  evaluator] [tx 48] step rejected (err:tactic_linarith): <stdin>:15:0: error: linarith failed to find a contradiction
+[2026-05-09T01:44:23Z WARN  evaluator] [tx 49] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:44:24Z WARN  evaluator] [tx 50] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:44:25Z WARN  evaluator] [tx 51] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:44:26Z WARN  evaluator] [tx 52] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:44:28Z WARN  evaluator] [tx 53] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:44:29Z WARN  evaluator] [tx 54] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:44:30Z WARN  evaluator] [tx 55] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:44:32Z WARN  evaluator] [tx 56] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:44:33Z WARN  evaluator] [tx 57] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:44:34Z WARN  evaluator] [tx 58] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:44:35Z WARN  evaluator] [tx 59] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:44:35Z INFO  evaluator] [tick@tx60] tape=0 markets=0 top=
+[2026-05-09T01:44:37Z WARN  evaluator] [tx 60] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:44:38Z WARN  evaluator] [tx 61] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:44:39Z WARN  evaluator] [tx 62] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:44:41Z WARN  evaluator] [tx 63] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:44:43Z WARN  evaluator] [tx 64] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:44:44Z WARN  evaluator] [tx 65] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:44:45Z WARN  evaluator] [tx 66] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:44:47Z WARN  evaluator] [tx 67] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:44:48Z WARN  evaluator] [tx 68] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:44:49Z WARN  evaluator] [tx 69] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:44:50Z WARN  evaluator] [tx 70] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:44:51Z WARN  evaluator] [tx 71] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:44:53Z WARN  evaluator] [tx 72] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:44:54Z WARN  evaluator] [tx 73] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:45:04Z WARN  evaluator] [tx 74] step rejected (err:tactic_linarith): <stdin>:15:0: error: linarith failed to find a contradiction
+[2026-05-09T01:45:05Z WARN  evaluator] [tx 75] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:45:06Z WARN  evaluator] [tx 76] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:45:08Z WARN  evaluator] [tx 77] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:45:09Z WARN  evaluator] [tx 78] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:45:10Z WARN  evaluator] [tx 79] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:45:10Z INFO  evaluator] [tick@tx80] tape=0 markets=0 top=
+[2026-05-09T01:45:12Z WARN  evaluator] [tx 80] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:45:13Z WARN  evaluator] [tx 81] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:45:15Z WARN  evaluator] [tx 82] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:45:16Z WARN  evaluator] [tx 83] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:45:17Z WARN  evaluator] [tx 84] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:45:19Z WARN  evaluator] [tx 85] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:45:28Z WARN  evaluator] [tx 86] step rejected (err:tactic_linarith): <stdin>:15:0: error: linarith failed to find a contradiction
+[2026-05-09T01:45:29Z WARN  evaluator] [tx 87] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:45:31Z WARN  evaluator] [tx 88] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:45:32Z WARN  evaluator] [tx 89] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:45:34Z WARN  evaluator] [tx 90] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:45:35Z WARN  evaluator] [tx 91] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:45:38Z WARN  evaluator] [tx 92] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:45:39Z WARN  evaluator] [tx 93] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:45:40Z WARN  evaluator] [tx 94] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:45:41Z WARN  evaluator] [tx 95] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:45:51Z WARN  evaluator] [tx 96] step rejected (err:tactic_linarith): <stdin>:15:0: error: linarith failed to find a contradiction
+[2026-05-09T01:46:01Z WARN  evaluator] [tx 97] step rejected (err:tactic_linarith): <stdin>:15:0: error: linarith failed to find a contradiction
+[2026-05-09T01:46:03Z WARN  evaluator] [tx 98] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:46:04Z WARN  evaluator] [tx 99] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:46:04Z INFO  evaluator] [tick@tx100] tape=0 markets=0 top=
+[2026-05-09T01:46:04Z WARN  evaluator] [harness] 5 consecutive zero-ticks (tape & markets idle) — constitutional engines bypassed (Art. II.1/II.2 unused)
+[2026-05-09T01:46:05Z WARN  evaluator] [tx 100] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:46:15Z WARN  evaluator] [tx 101] step rejected (err:tactic_linarith): <stdin>:15:0: error: linarith failed to find a contradiction
+[2026-05-09T01:46:16Z WARN  evaluator] [tx 102] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:46:18Z WARN  evaluator] [tx 103] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:46:19Z WARN  evaluator] [tx 104] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:46:20Z WARN  evaluator] [tx 105] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:46:29Z WARN  evaluator] [tx 106] step rejected (err:tactic_linarith): <stdin>:15:0: error: linarith failed to find a contradiction
+[2026-05-09T01:46:31Z WARN  evaluator] [tx 107] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:46:32Z WARN  evaluator] [tx 108] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:46:33Z WARN  evaluator] [tx 109] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:46:34Z WARN  evaluator] [tx 110] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:46:35Z WARN  evaluator] [tx 111] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:46:37Z WARN  evaluator] [tx 112] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:46:38Z WARN  evaluator] [tx 113] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:46:39Z WARN  evaluator] [tx 114] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:46:49Z WARN  evaluator] [tx 115] step rejected (err:tactic_linarith): <stdin>:15:0: error: linarith failed to find a contradiction
+[2026-05-09T01:46:50Z WARN  evaluator] [tx 116] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:46:52Z WARN  evaluator] [tx 117] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:46:53Z WARN  evaluator] [tx 118] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:46:55Z WARN  evaluator] [tx 119] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:46:55Z INFO  evaluator] [tick@tx120] tape=0 markets=0 top=
+[2026-05-09T01:46:56Z WARN  evaluator] [tx 120] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:46:58Z WARN  evaluator] [tx 121] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:46:59Z WARN  evaluator] [tx 122] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:47:01Z WARN  evaluator] [tx 123] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:47:02Z WARN  evaluator] [tx 124] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:47:03Z WARN  evaluator] [tx 125] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:47:05Z WARN  evaluator] [tx 126] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:47:06Z WARN  evaluator] [tx 127] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:47:07Z WARN  evaluator] [tx 128] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:47:08Z WARN  evaluator] [tx 129] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:47:10Z WARN  evaluator] [tx 130] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:47:11Z WARN  evaluator] [tx 131] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:47:12Z WARN  evaluator] [tx 132] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:47:14Z WARN  evaluator] [tx 133] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:47:15Z WARN  evaluator] [tx 134] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:47:16Z WARN  evaluator] [tx 135] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:47:17Z WARN  evaluator] [tx 136] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-09T01:47:30Z INFO  evaluator] [tx 137] Agent_0 step+tx_0_by_Agent_0 partial OK (depth=1)
+[2026-05-09T01:47:40Z INFO  evaluator] [tx 138] Agent_0 step+tx_1_by_Agent_0 partial OK (depth=2)
+[2026-05-09T01:47:49Z INFO  evaluator] [tx 139] Agent_0 step+tx_2_by_Agent_0 partial OK (depth=3)
+[2026-05-09T01:47:49Z INFO  evaluator] [tick@tx140] tape=3 markets=0 top=
+[2026-05-09T01:48:00Z WARN  evaluator] [tx 140] step rejected (err:tactic_linarith): hard_error_with_unsolved: <stdin>:28:2: error: linarith failed to find a contradiction
+[2026-05-09T01:48:02Z WARN  evaluator] [tb18-atomA] WallClockCap halt: aggregate 607 sec exhausted (cap=600s); total_calls=142
+[v2-emit] SPLIT env unset; defaulting to 'adaptation' (Phase B convention; pre-registration requires SPLIT for Phase C+ ablation runs)
+[2026-05-09T01:48:02Z INFO  evaluator] [tb11] EvidenceCapsule written: capsule_id=807e199b0137f20826243f27ea7962d80cd5d476e32f6b9debca308678d5d269 compressed_log_cid=99ca55d129760d8ddcbc8ad468bf293ddbe224840fe6d5d68e8ab05d9e392b79 attempt_count=24
+[2026-05-09T01:48:02Z INFO  evaluator] [tb11] TerminalSummary emitted: emit_id=1
+[2026-05-09T01:48:02Z INFO  evaluator] [chaintape] Atom 6 RunSummary written (2 L4 + 139 L4.E entries; 2 accepted_tx_ids, 139 rejected_tx_ids)
+[2026-05-09T01:48:02Z INFO  evaluator] PPUT = 0 (no golden path in 607.8s, 200 tx)

@@ -1,0 +1,21 @@
+{
+  "phase": "M0",
+  "NOT_a_benchmark": true,
+  "NOT_real_world_readiness": true,
+  "run_timestamp_utc": "2026-05-10T01-51-34Z",
+  "total_duration_s": 1777,
+  "problem_count": 20,
+  "audit_verdict": {
+    "proceed": 16,
+    "block":   0,
+    "error":   4
+  },
+  "replay_byte_identical": 16,
+  "tamper_3_of_3_detected": 0,
+  "evaluator_outcome": {
+    "solved":    8,
+    "exhausted": 7,
+    "error_or_no_pput": 5
+  },
+  "manifest": "handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/M0_RUN_MANIFEST.json"
+}

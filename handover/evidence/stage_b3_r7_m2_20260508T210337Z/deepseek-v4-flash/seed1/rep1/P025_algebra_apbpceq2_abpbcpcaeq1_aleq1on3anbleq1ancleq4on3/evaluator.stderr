@@ -1,0 +1,37 @@
+[2026-05-09T00:00:32Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/algebra_apbpceq2_abpbcpcaeq1_aleq1on3anbleq1ancleq4on3.lean | Condition: n1 | Model: deepseek-v4-flash | Mode: full
+[2026-05-09T00:00:32Z INFO  minif2f_v4::chain_runtime] [chaintape] bus wired with Sequencer + on-disk ChainTape at "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_r7_m2_20260508T210337Z/deepseek-v4-flash/seed1/rep1/P025_algebra_apbpceq2_abpbcpcaeq1_aleq1on3anbleq1ancleq4on3/runtime_repo"
+[2026-05-09T00:00:32Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic TaskOpen for smoke-n1_algebra_apbpceq2_abpbcpcaeq1_aleq1on3anbleq1ancleq4on3_1778284832191
+[2026-05-09T00:00:32Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic zero-stake WorkTx (synthetic_rejection_for_l4e_gate=true) for smoke-n1_algebra_apbpceq2_abpbcpcaeq1_aleq1on3anbleq1ancleq4on3_1778284832191
+[2026-05-09T00:00:32Z INFO  minif2f_v4::chain_runtime] [chaintape] Atom 5 audit-trail records written to CAS + indexed for smoke-n1_algebra_apbpceq2_abpbcpcaeq1_aleq1on3anbleq1ancleq4on3_1778284832191
+[2026-05-09T00:00:32Z INFO  minif2f_v4::chain_runtime] [chaintape/d_c] genesis_report.json written to "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_r7_m2_20260508T210337Z/deepseek-v4-flash/seed1/rep1/P025_algebra_apbpceq2_abpbcpcaeq1_aleq1on3anbleq1ancleq4on3/runtime_repo"
+[2026-05-09T00:00:32Z INFO  evaluator] [swarm/n1] agent_models = [deepseek-v4-flash] (label=deepseek-v4-flash)
+[2026-05-09T00:00:32Z INFO  evaluator] [budget] regime=total_proposal base=200 effective_max_tx=200 (n_agents=1)
+[2026-05-09T00:00:32Z INFO  evaluator] [swarm/n1] Agent_0:skill0:t=0.20
+[2026-05-09T00:00:42Z WARN  evaluator] [tx 0] step rejected (err:tactic_linarith): <stdin>:14:0: error: linarith failed to find a contradiction
+[2026-05-09T00:00:51Z WARN  evaluator] [tx 1] step rejected (err:tactic_linarith): <stdin>:14:0: error: linarith failed to find a contradiction
+[2026-05-09T00:01:00Z WARN  evaluator] [tx 2] step rejected (err:tactic_linarith): <stdin>:14:0: error: linarith failed to find a contradiction
+[2026-05-09T00:01:09Z WARN  evaluator] [tx 3] step rejected (err:tactic_linarith): <stdin>:14:0: error: linarith failed to find a contradiction
+[2026-05-09T00:01:32Z WARN  evaluator] [tx 4] step rejected (err:unknown_const): <stdin>:14:7: error(lean.unknownIdentifier): Unknown identifier `h0` | <stdin>:14:15: error: Tactic `rcases` failed: `x✝ : ?m.82` is not an inductive datatype
+[2026-05-09T00:01:45Z INFO  evaluator] [tx 5] Agent_0 step+tx_0_by_Agent_0 partial OK (depth=1)
+[2026-05-09T00:01:58Z INFO  evaluator] [tx 6] Agent_0 step+tx_1_by_Agent_0 partial OK (depth=2)
+[2026-05-09T00:02:11Z INFO  evaluator] [tx 7] Agent_0 step+tx_2_by_Agent_0 partial OK (depth=3)
+[2026-05-09T00:02:26Z INFO  evaluator] [tx 8] Agent_0 step+tx_3_by_Agent_0 partial OK (depth=4)
+[2026-05-09T00:02:43Z INFO  evaluator] [tx 9] Agent_0 step+tx_4_by_Agent_0 partial OK (depth=5)
+[2026-05-09T00:03:09Z INFO  evaluator] [tx 10] Agent_0 step+tx_5_by_Agent_0 partial OK (depth=6)
+[2026-05-09T00:03:48Z INFO  evaluator] [tx 11] Agent_0 step+tx_6_by_Agent_0 partial OK (depth=7)
+[2026-05-09T00:04:49Z INFO  evaluator] [tx 12] Agent_0 step+tx_7_by_Agent_0 partial OK (depth=8)
+[2026-05-09T00:05:18Z INFO  evaluator] [tx 13] Agent_0 step+tx_8_by_Agent_0 partial OK (depth=9)
+[2026-05-09T00:05:51Z INFO  evaluator] [tx 14] Agent_0 step+tx_9_by_Agent_0 partial OK (depth=10)
+[2026-05-09T00:06:28Z INFO  evaluator] [tx 15] Agent_0 step+tx_10_by_Agent_0 partial OK (depth=11)
+[2026-05-09T00:07:10Z INFO  evaluator] [tx 16] Agent_0 step+tx_11_by_Agent_0 partial OK (depth=12)
+[2026-05-09T00:08:01Z INFO  evaluator] [tx 17] Agent_0 step+tx_12_by_Agent_0 partial OK (depth=13)
+[2026-05-09T00:09:02Z INFO  evaluator] [tx 18] Agent_0 step+tx_13_by_Agent_0 partial OK (depth=14)
+[2026-05-09T00:10:06Z INFO  evaluator] [tx 19] Agent_0 step+tx_14_by_Agent_0 partial OK (depth=15)
+[2026-05-09T00:10:06Z INFO  evaluator] [tick@tx20] tape=15 markets=0 top=
+[2026-05-09T00:11:15Z INFO  evaluator] [tx 20] Agent_0 step+tx_15_by_Agent_0 partial OK (depth=16)
+[2026-05-09T00:11:17Z WARN  evaluator] [tb18-atomA] WallClockCap halt: aggregate 644 sec exhausted (cap=600s); total_calls=22
+[v2-emit] SPLIT env unset; defaulting to 'adaptation' (Phase B convention; pre-registration requires SPLIT for Phase C+ ablation runs)
+[2026-05-09T00:11:17Z INFO  evaluator] [tb11] EvidenceCapsule written: capsule_id=199a2fc78c4f1f1d0ff50f6568336093a6805f4eb2154be07bc468a98f35bab8 compressed_log_cid=45d31f1d354e7bb7cce90deab8ead59503d7587da703dd57ca663f474bd2dad9 attempt_count=21
+[2026-05-09T00:11:17Z INFO  evaluator] [tb11] TerminalSummary emitted: emit_id=1
+[2026-05-09T00:11:17Z INFO  evaluator] [chaintape] Atom 6 RunSummary written (2 L4 + 6 L4.E entries; 2 accepted_tx_ids, 6 rejected_tx_ids)
+[2026-05-09T00:11:17Z INFO  evaluator] PPUT = 0 (no golden path in 645.4s, 200 tx)

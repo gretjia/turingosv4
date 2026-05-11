@@ -1,0 +1,40 @@
+[2026-05-05T07:01:44Z INFO  evaluator] Problem: aime_1997_p9.lean | Condition: n5 | Model: deepseek-v4-flash | Mode: full
+[2026-05-05T07:01:44Z INFO  evaluator] [chaintape/d3] pre-seed enabled (TB-10 factory): 12 entries
+[2026-05-05T07:01:45Z INFO  evaluator] [chaintape] bus wired with Sequencer + on-disk ChainTape at "handover/evidence/tb_16_x_2_5_smoke_2026-05-05/P13_autopsy_real/runtime_repo"
+[2026-05-05T07:01:45Z INFO  evaluator] [chaintape/tb10] user-mode TaskOpen for task-n5_aime_1997_p9_1777964504852 sponsor=Agent_user_0
+[2026-05-05T07:01:45Z INFO  evaluator] [chaintape/tb10] user-mode EscrowLock 200000 micro for task-n5_aime_1997_p9_1777964504852 sponsor=Agent_user_0
+[2026-05-05T07:01:45Z INFO  evaluator] [chaintape/tb16-arena] seed WorkTx submitted by Agent_solver_0 (stake=50000 μC) for task=task-n5_aime_1997_p9_1777964504852 — populates stakes_t for TB-16.x.2.5 autopsy generation
+[2026-05-05T07:01:50Z WARN  evaluator] [chaintape/tb16-arena] await for seed WorkTx commit failed: ()
+[2026-05-05T07:01:50Z INFO  evaluator] [chaintape] seeded synthetic TaskOpen for smoke-n5_aime_1997_p9_1777964504852
+[2026-05-05T07:01:50Z INFO  evaluator] [chaintape] seeded synthetic zero-stake WorkTx (synthetic_rejection_for_l4e_gate=true) for smoke-n5_aime_1997_p9_1777964504852
+[2026-05-05T07:01:50Z INFO  evaluator] [chaintape] Atom 5 audit-trail records written to CAS + indexed for smoke-n5_aime_1997_p9_1777964504852
+[2026-05-05T07:01:50Z INFO  evaluator] [chaintape/d_c] genesis_report.json written to "handover/evidence/tb_16_x_2_5_smoke_2026-05-05/P13_autopsy_real/runtime_repo"
+[2026-05-05T07:01:50Z INFO  evaluator] [swarm/n5] agent_models = [deepseek-v4-flash,deepseek-v4-flash,deepseek-v4-flash,deepseek-v4-flash,deepseek-v4-flash] (label=deepseek-v4-flash)
+[2026-05-05T07:01:50Z INFO  evaluator] [budget] regime=total_proposal base=20 effective_max_tx=20 (n_agents=5)
+[2026-05-05T07:01:50Z INFO  evaluator] [swarm/n5] Agent_0:skill0:t=0.20 Agent_1:skill1:t=0.20 Agent_2:skill2:t=0.20 Agent_3:skill0:t=0.20 Agent_4:skill1:t=0.20
+[2026-05-05T07:02:15Z INFO  evaluator] [tx 0] Agent_0 step+tx_0_by_Agent_0 partial OK (depth=1)
+[2026-05-05T07:02:24Z WARN  evaluator] [tx 1] step rejected (err:tactic_simp_noprog): <stdin>:16:0: error: field_simp made no progress at h₁
+[2026-05-05T07:02:34Z WARN  evaluator] [tx 2] step rejected (err:tactic_simp_noprog): <stdin>:16:0: error: field_simp made no progress at h₁
+[2026-05-05T07:02:45Z WARN  evaluator] [tx 3] step rejected (err:tactic_linarith): <stdin>:16:0: error: linarith failed to find a contradiction
+[2026-05-05T07:02:55Z WARN  evaluator] [tx 4] step rejected (err:tactic_simp_noprog): <stdin>:16:0: error: field_simp made no progress at h₁
+[2026-05-05T07:03:06Z WARN  evaluator] [tx 5] step rejected (err:tactic_linarith): <stdin>:16:0: error: linarith failed to find a contradiction
+[2026-05-05T07:03:15Z WARN  evaluator] [tx 6] step rejected (err:tactic_simp_noprog): <stdin>:16:0: error: field_simp made no progress at h₁
+[2026-05-05T07:03:25Z WARN  evaluator] [tx 7] step rejected (err:tactic_simp_noprog): <stdin>:16:0: error: field_simp made no progress at h₁
+[2026-05-05T07:03:34Z WARN  evaluator] [tx 8] step rejected (err:tactic_simp_noprog): <stdin>:16:0: error: field_simp made no progress at h₁
+[2026-05-05T07:03:44Z WARN  evaluator] [tx 9] step rejected (err:tactic_simp_noprog): <stdin>:16:0: error: field_simp made no progress at h₁
+[2026-05-05T07:03:53Z WARN  evaluator] [tx 10] step rejected (err:tactic_simp_noprog): <stdin>:16:0: error: field_simp made no progress at h₁
+[2026-05-05T07:04:02Z WARN  evaluator] [tx 11] step rejected (err:tactic_simp_noprog): <stdin>:16:0: error: field_simp made no progress at h₁
+[2026-05-05T07:04:12Z WARN  evaluator] [tx 12] step rejected (err:tactic_simp_noprog): <stdin>:16:0: error: field_simp made no progress at h₁
+[2026-05-05T07:04:21Z WARN  evaluator] [tx 13] step rejected (err:tactic_simp_noprog): <stdin>:16:0: error: field_simp made no progress at h₁
+[2026-05-05T07:04:31Z WARN  evaluator] [tx 14] step rejected (err:tactic_simp_noprog): <stdin>:16:0: error: field_simp made no progress at h₁
+[2026-05-05T07:04:40Z WARN  evaluator] [tx 15] step rejected (err:tactic_linarith): <stdin>:16:0: error: linarith failed to find a contradiction
+[2026-05-05T07:04:50Z WARN  evaluator] [tx 16] step rejected (err:tactic_simp_noprog): <stdin>:16:0: error: field_simp made no progress at h₁
+[2026-05-05T07:04:59Z WARN  evaluator] [tx 17] step rejected (err:tactic_simp_noprog): <stdin>:16:0: error: field_simp made no progress at h₁
+[2026-05-05T07:05:09Z WARN  evaluator] [tx 18] step rejected (err:tactic_linarith): <stdin>:16:0: error: linarith failed to find a contradiction
+[2026-05-05T07:05:18Z WARN  evaluator] [tx 19] step rejected (err:tactic_simp_noprog): <stdin>:16:0: error: field_simp made no progress at h₁
+[v2-emit] SPLIT env unset; defaulting to 'adaptation' (Phase B convention; pre-registration requires SPLIT for Phase C+ ablation runs)
+[2026-05-05T07:05:18Z INFO  evaluator] [tb11] EvidenceCapsule written: capsule_id=97007c85f1e1643a5d1f778d697de2f1e95204816f844f431aee77f7c5b44369 compressed_log_cid=20a7754fbc05baf693bf6c2524c8b3e015892bbdab8bb820a8fdaac745492f86 attempt_count=20
+[2026-05-05T07:05:18Z INFO  evaluator] [tb11] TerminalSummary emitted: emit_id=1
+[2026-05-05T07:05:18Z INFO  evaluator] [chaintape/tb16-arena] TaskBankruptcyTx emitted: emit_id=2 task_id=TaskId("task-n5_aime_1997_p9_1777964504852")
+[2026-05-05T07:05:18Z INFO  evaluator] [chaintape] Atom 6 RunSummary written (4 L4 + 3 L4.E entries; 4 accepted_tx_ids, 3 rejected_tx_ids)
+[2026-05-05T07:05:18Z INFO  evaluator] PPUT = 0 (no golden path in 213.8s, 20 tx)

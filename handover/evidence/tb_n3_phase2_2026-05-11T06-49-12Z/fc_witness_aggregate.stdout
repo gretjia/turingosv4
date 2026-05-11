@@ -1,0 +1,33 @@
+=== FC-witness aggregate for /home/zephryj/projects/turingosv4/handover/evidence/tb_n3_phase2_2026-05-11T06-49-12Z ===
+Wrote: /home/zephryj/projects/turingosv4/handover/evidence/tb_n3_phase2_2026-05-11T06-49-12Z/fc_witness_aggregate.json
+Summary: 25 FC nodes; 19 GREEN, 5 AMBER, 1 RED, 0 GAP
+
+Per-node status:
+  GREEN   FC1-INV1_every_attempt_tape_visible  (green:1 amber:0 red:0)
+  GREEN   FC1-INV3_count_equality_constitutional  (green:1 amber:0 red:0)
+  GREEN   FC1-N11_predicates  (green:1 amber:0 red:0)
+  GREEN   FC1-N13_wtool  (green:1 amber:0 red:0)
+  GREEN   FC1-N15_reject_branch  (green:1 amber:0 red:0)
+  GREEN   FC1-N1_q_state_carrier  (green:1 amber:0 red:0)
+  GREEN   FC1-N2_q_t_slice  (green:1 amber:0 red:0)
+  GREEN   FC1-N3_HEAD_t_pointer  (green:1 amber:0 red:0)
+  GREEN   FC1-N4_q1_after_delta  (green:1 amber:0 red:0)
+  GREEN   FC1-N5_rtool  (green:1 amber:0 red:0)
+  GREEN   FC1-N7_delta_AI_call  (green:1 amber:0 red:0)
+  RED     FC2-INV1_genesis_replayable  (green:0 amber:0 red:1)
+  GREEN   FC2-INV4_taskopen_escrowlock_chain_events  (green:1 amber:0 red:0)
+  GREEN   FC2-INV6_pubkeys_verify  (green:1 amber:0 red:0)
+  GREEN   FC2-INV7_agent_registry_resolves  (green:1 amber:0 red:0)
+  GREEN   FC2-N16_InitAI  (green:1 amber:0 red:0)
+  GREEN   FC2-N18_constitution_ground_truth  (green:1 amber:0 red:0)
+  GREEN   FC2-N21_Q0_minted  (green:1 amber:0 red:0)
+  GREEN   FC2-N22_HALT  (green:1 amber:0 red:0)
+  AMBER   FC3-INV1_capsule_derived  (green:0 amber:1 red:0)
+  GREEN   FC3-INV2_no_global_pointer  (green:1 amber:0 red:0)
+  AMBER   FC3-INV3_raw_logs_shielded  (green:0 amber:1 red:0)
+  AMBER   FC3-INV5_deep_history_override  (green:0 amber:1 red:0)
+  AMBER   FC3-INV7_architect_propose_only  (green:0 amber:1 red:0)
+  AMBER   FC3-INV8_judge_veto_only  (green:0 amber:1 red:0)
+
+RED nodes (1) — code bug to fix:
+  - FC2-INV1_genesis_replayable: red on problems ['P01_mathd_algebra_107']

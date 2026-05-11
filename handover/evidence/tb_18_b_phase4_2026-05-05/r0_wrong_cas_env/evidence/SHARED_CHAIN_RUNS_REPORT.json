@@ -1,0 +1,83 @@
+{
+  "atom": "B Phase 4",
+  "chain_seed_id": "tb18-arena-r1",
+  "elapsed_ms": 2839,
+  "out_dir": "handover/evidence/tb_18_b_phase4_2026-05-05/r1",
+  "outcomes": [
+    {
+      "label": "task_A_happy_path",
+      "note": "",
+      "task_id": "task-task_a_happy_path",
+      "tx_kinds_emitted": [
+        "TaskOpen",
+        "EscrowLock",
+        "Work",
+        "Verify",
+        "FinalizeReward"
+      ]
+    },
+    {
+      "label": "task_B_challenge_released",
+      "note": "",
+      "task_id": "task-task_b_challenge",
+      "tx_kinds_emitted": [
+        "TaskOpen",
+        "EscrowLock",
+        "Work",
+        "Verify",
+        "Challenge",
+        "ChallengeResolve"
+      ]
+    },
+    {
+      "label": "task_C_market_lifecycle",
+      "note": "",
+      "task_id": "task-task_c_market",
+      "tx_kinds_emitted": [
+        "TaskOpen",
+        "EscrowLock",
+        "MarketSeed",
+        "CompleteSetMint",
+        "TaskBankruptcy",
+        "CompleteSetRedeem"
+      ]
+    },
+    {
+      "label": "task_D_exhaustion_bankruptcy_expire",
+      "note": "",
+      "task_id": "task-task_d_exhaustion",
+      "tx_kinds_emitted": [
+        "TaskOpen",
+        "EscrowLock",
+        "Work",
+        "TerminalSummary",
+        "TaskBankruptcy",
+        "TaskExpire"
+      ]
+    },
+    {
+      "label": "task_E_exhaustion_no_bankruptcy",
+      "note": "",
+      "task_id": "task-task_e_no_solver",
+      "tx_kinds_emitted": [
+        "TaskOpen",
+        "EscrowLock",
+        "TerminalSummary"
+      ]
+    },
+    {
+      "label": "task_F_degraded_llm",
+      "note": "outcome=DegradedLLM (atom A new path)",
+      "task_id": "task-task_f_degraded",
+      "tx_kinds_emitted": [
+        "TaskOpen",
+        "EscrowLock",
+        "Work",
+        "TerminalSummary"
+      ]
+    }
+  ],
+  "policy_reference": "handover/policies/TB-18_EVIDENCE_PACKAGING_POLICY.md",
+  "task_count": 6,
+  "tb_id": "TB-18"
+}

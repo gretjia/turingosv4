@@ -1,0 +1,53 @@
+[2026-05-08T22:26:16Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/aime_1994_p3.lean | Condition: n1 | Model: deepseek-v4-flash | Mode: full
+[2026-05-08T22:26:16Z INFO  minif2f_v4::chain_runtime] [chaintape] bus wired with Sequencer + on-disk ChainTape at "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_r7_m2_20260508T210337Z/deepseek-v4-flash/seed1/rep1/P012_aime_1994_p3/runtime_repo"
+[2026-05-08T22:26:16Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic TaskOpen for smoke-n1_aime_1994_p3_1778279176001
+[2026-05-08T22:26:16Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic zero-stake WorkTx (synthetic_rejection_for_l4e_gate=true) for smoke-n1_aime_1994_p3_1778279176001
+[2026-05-08T22:26:16Z INFO  minif2f_v4::chain_runtime] [chaintape] Atom 5 audit-trail records written to CAS + indexed for smoke-n1_aime_1994_p3_1778279176001
+[2026-05-08T22:26:16Z INFO  minif2f_v4::chain_runtime] [chaintape/d_c] genesis_report.json written to "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_r7_m2_20260508T210337Z/deepseek-v4-flash/seed1/rep1/P012_aime_1994_p3/runtime_repo"
+[2026-05-08T22:26:16Z INFO  evaluator] [swarm/n1] agent_models = [deepseek-v4-flash] (label=deepseek-v4-flash)
+[2026-05-08T22:26:16Z INFO  evaluator] [budget] regime=total_proposal base=200 effective_max_tx=200 (n_agents=1)
+[2026-05-08T22:26:16Z INFO  evaluator] [swarm/n1] Agent_0:skill0:t=0.20
+[2026-05-08T22:26:27Z WARN  evaluator] [tx 0] step rejected (err:other): <stdin>:14:2: error: invalid 'calc' step, left-hand side is | but is expected to be | <stdin>:22:2: error: invalid 'calc' step, right-hand side is | but is expected to be
+[2026-05-08T22:26:51Z WARN  evaluator] [tx 1] step rejected (err:tactic_other): hard_error_with_unsolved: <stdin>:14:2: error: Tactic `apply` failed: could not unify the type of `h0`
+[2026-05-08T22:27:01Z WARN  evaluator] [tx 2] step rejected (err:tactic_linarith): <stdin>:13:0: error: linarith failed to find a contradiction
+[2026-05-08T22:27:29Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-08T22:27:29Z WARN  evaluator] [tx 3] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-08T22:27:31Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-08T22:27:31Z WARN  evaluator] [tx 4] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-08T22:28:16Z WARN  evaluator] [tx 5] step rejected (err:type_mismatch): hard_error_with_unsolved: <stdin>:15:46: error: Type mismatch | <stdin>:66:44: error: Function expected at | <stdin>:67:52: error: Function expected at
+[2026-05-08T22:28:18Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-08T22:28:18Z WARN  evaluator] [tx 6] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-08T22:28:19Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-08T22:28:19Z WARN  evaluator] [tx 7] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-08T22:28:21Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-08T22:28:21Z WARN  evaluator] [tx 8] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-08T22:28:22Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-08T22:28:22Z WARN  evaluator] [tx 9] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-08T22:28:24Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-08T22:28:24Z WARN  evaluator] [tx 10] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-08T22:29:30Z WARN  evaluator] [tx 11] step rejected (err:other): hard_error_with_unsolved: <stdin>:15:4: error: expected '{' or indented tactic sequence
+[2026-05-08T22:29:39Z WARN  evaluator] [tx 12] step rejected (err:tactic_linarith): <stdin>:13:0: error: linarith failed to find a contradiction
+[2026-05-08T22:29:42Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-08T22:29:42Z WARN  evaluator] [tx 13] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-08T22:29:44Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-08T22:29:44Z WARN  evaluator] [tx 14] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-08T22:29:45Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-08T22:29:45Z WARN  evaluator] [tx 15] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-08T22:29:55Z WARN  evaluator] [tx 16] step rejected (err:tactic_linarith): <stdin>:13:0: error: linarith failed to find a contradiction
+[2026-05-08T22:29:57Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-08T22:29:57Z WARN  evaluator] [tx 17] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-08T22:30:06Z WARN  evaluator] [tx 18] step rejected (err:tactic_linarith): <stdin>:13:0: error: linarith failed to find a contradiction
+[2026-05-08T22:30:08Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-08T22:30:08Z WARN  evaluator] [tx 19] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-08T22:30:08Z INFO  evaluator] [tick@tx20] tape=0 markets=0 top=
+[2026-05-08T22:31:14Z WARN  evaluator] [tx 20] step rejected (err:unexpected_token): hard_error_with_unsolved: <stdin>:13:45: error: Function expected at | <stdin>:14:2: error: unexpected token 'have'; expected command
+[2026-05-08T22:32:10Z WARN  evaluator] [tx 21] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-08T22:32:12Z WARN  minif2f_v4::lean4_oracle] [oracle/partial] rejected pre-Lean: Forbidden: 'sorry' detected
+[2026-05-08T22:32:12Z WARN  evaluator] [tx 22] step rejected (err:other): forbidden_payload: Forbidden: 'sorry' detected
+[2026-05-08T22:38:11Z WARN  evaluator] [tx 23] step rejected (err:other): lean_timeout
+[2026-05-08T22:39:17Z WARN  evaluator] [tb18-atomA] WallClockCap halt: aggregate 780 sec exhausted (cap=600s); total_calls=25
+[v2-emit] SPLIT env unset; defaulting to 'adaptation' (Phase B convention; pre-registration requires SPLIT for Phase C+ ablation runs)
+[2026-05-08T22:39:17Z INFO  evaluator] [tb11] EvidenceCapsule written: capsule_id=2ffba41ab1ec2b715cf01e151583633529ee1517c52b7ccece35e9512ad85d4b compressed_log_cid=603677d40d67a5cf41662f34eb7f7830ca6106142914f2f286b49c307ede4346 attempt_count=23
+[2026-05-08T22:39:17Z INFO  evaluator] [tb11] TerminalSummary emitted: emit_id=1
+[2026-05-08T22:39:17Z INFO  evaluator] [chaintape] Atom 6 RunSummary written (2 L4 + 25 L4.E entries; 2 accepted_tx_ids, 25 rejected_tx_ids)
+[2026-05-08T22:39:17Z INFO  evaluator] PPUT = 0 (no golden path in 781.1s, 200 tx)

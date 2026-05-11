@@ -1,0 +1,78 @@
+[2026-05-11T01:40:22Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/aime_1983_p2.lean | Condition: n1 | Model: Qwen/Qwen2.5-72B-Instruct | Mode: full
+[2026-05-11T01:40:22Z INFO  minif2f_v4::chain_runtime] [chaintape/d3] pre-seed enabled (TB-10 factory): 12 entries
+[2026-05-11T01:40:23Z INFO  minif2f_v4::chain_runtime] [chaintape] bus wired with Sequencer + on-disk ChainTape at "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_smoke_b2_20260511T012401Z/Qwen_Qwen2.5-72B-Instruct/seed1/rep1/P002_aime_1983_p2/runtime_repo"
+[2026-05-11T01:40:23Z INFO  evaluator] [chaintape/d3] preseed TaskOpen for task-n1_aime_1983_p2_1778463622427
+[2026-05-11T01:40:23Z INFO  evaluator] [chaintape/d3] preseed EscrowLock 100000 micro for task-n1_aime_1983_p2_1778463622427
+[2026-05-11T01:40:23Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic TaskOpen for smoke-n1_aime_1983_p2_1778463622427
+[2026-05-11T01:40:23Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic zero-stake WorkTx (synthetic_rejection_for_l4e_gate=true) for smoke-n1_aime_1983_p2_1778463622427
+[2026-05-11T01:40:23Z INFO  minif2f_v4::chain_runtime] [chaintape] Atom 5 audit-trail records written to CAS + indexed for smoke-n1_aime_1983_p2_1778463622427
+[2026-05-11T01:40:23Z INFO  minif2f_v4::chain_runtime] [chaintape/d_c] genesis_report.json written to "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_smoke_b2_20260511T012401Z/Qwen_Qwen2.5-72B-Instruct/seed1/rep1/P002_aime_1983_p2/runtime_repo"
+[2026-05-11T01:40:23Z INFO  evaluator] [swarm/n1] agent_models = [Qwen/Qwen2.5-72B-Instruct] (label=Qwen/Qwen2.5-72B-Instruct)
+[2026-05-11T01:40:23Z INFO  evaluator] [budget] regime=total_proposal base=200 effective_max_tx=200 (n_agents=1)
+[2026-05-11T01:40:23Z INFO  evaluator] [swarm/n1] Agent_0:skill0:t=0.20
+[2026-05-11T01:40:32Z INFO  evaluator] [tx 0] Agent_0 step+tx_0_by_Agent_0 partial OK (depth=1)
+[2026-05-11T01:40:42Z WARN  evaluator] [tx 1] step rejected (err:rewrite_no_match): <stdin>:16:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T01:40:52Z WARN  evaluator] [tx 2] step rejected (err:rewrite_no_match): <stdin>:16:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T01:41:02Z WARN  evaluator] [tx 3] step rejected (err:rewrite_no_match): <stdin>:16:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T01:41:11Z WARN  evaluator] [tx 4] step rejected (err:rewrite_no_match): <stdin>:16:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T01:41:21Z WARN  evaluator] [tx 5] step rejected (err:rewrite_no_match): <stdin>:16:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T01:41:31Z WARN  evaluator] [tx 6] step rejected (err:rewrite_no_match): <stdin>:16:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T01:41:41Z WARN  evaluator] [tx 7] step rejected (err:rewrite_no_match): <stdin>:16:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T01:41:51Z WARN  evaluator] [tx 8] step rejected (err:other): <stdin>:16:4: error: Invalid rewrite argument: Expected an equality or iff proof or definition name, but `abs_sub ?a ?b` is a proof of
+[2026-05-11T01:42:01Z WARN  evaluator] [tx 9] step rejected (err:rewrite_no_match): <stdin>:16:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T01:42:12Z WARN  evaluator] [tx 10] step rejected (err:other): <stdin>:16:4: error: Invalid rewrite argument: Expected an equality or iff proof or definition name, but `abs_sub ?a ?b` is a proof of
+[2026-05-11T01:42:22Z WARN  evaluator] [tx 11] step rejected (err:rewrite_no_match): <stdin>:16:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T01:42:33Z WARN  evaluator] [tx 12] step rejected (err:rewrite_no_match): <stdin>:16:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T01:42:44Z WARN  evaluator] [tx 13] step rejected (err:rewrite_no_match): <stdin>:16:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T01:42:55Z WARN  evaluator] [tx 14] step rejected (err:other): <stdin>:16:4: error: Invalid rewrite argument: Expected an equality or iff proof or definition name, but `abs_sub ?a ?b` is a proof of
+[2026-05-11T01:43:05Z WARN  evaluator] [tx 15] step rejected (err:rewrite_no_match): <stdin>:16:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T01:43:15Z WARN  evaluator] [tx 16] step rejected (err:rewrite_no_match): <stdin>:16:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T01:43:25Z WARN  evaluator] [tx 17] step rejected (err:rewrite_no_match): <stdin>:16:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T01:43:35Z WARN  evaluator] [tx 18] step rejected (err:rewrite_no_match): <stdin>:16:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T01:43:46Z WARN  evaluator] [tx 19] step rejected (err:rewrite_no_match): <stdin>:16:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T01:43:46Z INFO  evaluator] [tick@tx20] tape=1 markets=0 top=
+[2026-05-11T01:43:56Z WARN  evaluator] [tx 20] step rejected (err:other): <stdin>:16:4: error: Invalid rewrite argument: Expected an equality or iff proof or definition name, but `abs_sub ?a ?b` is a proof of
+[2026-05-11T01:44:05Z WARN  evaluator] [tx 21] step rejected (err:rewrite_no_match): <stdin>:16:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T01:44:15Z WARN  evaluator] [tx 22] step rejected (err:rewrite_no_match): <stdin>:16:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T01:44:25Z WARN  evaluator] [tx 23] step rejected (err:rewrite_no_match): <stdin>:16:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T01:44:34Z WARN  evaluator] [tx 24] step rejected (err:other): <stdin>:16:4: error: Invalid rewrite argument: Expected an equality or iff proof or definition name, but `abs_sub ?a ?b` is a proof of
+[2026-05-11T01:44:44Z WARN  evaluator] [tx 25] step rejected (err:other): <stdin>:16:4: error: Invalid rewrite argument: Expected an equality or iff proof or definition name, but `abs_sub ?a ?b` is a proof of
+[2026-05-11T01:44:54Z WARN  evaluator] [tx 26] step rejected (err:rewrite_no_match): <stdin>:16:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T01:45:04Z WARN  evaluator] [tx 27] step rejected (err:other): <stdin>:16:4: error: Invalid rewrite argument: Expected an equality or iff proof or definition name, but `abs_sub ?a ?b` is a proof of
+[2026-05-11T01:45:15Z WARN  evaluator] [tx 28] step rejected (err:rewrite_no_match): <stdin>:16:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T01:45:24Z WARN  evaluator] [tx 29] step rejected (err:rewrite_no_match): <stdin>:16:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T01:45:35Z WARN  evaluator] [tx 30] step rejected (err:rewrite_no_match): <stdin>:16:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T01:45:44Z WARN  evaluator] [tx 31] step rejected (err:rewrite_no_match): <stdin>:16:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T01:45:54Z WARN  evaluator] [tx 32] step rejected (err:rewrite_no_match): <stdin>:16:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T01:46:03Z WARN  evaluator] [tx 33] step rejected (err:rewrite_no_match): <stdin>:16:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T01:46:13Z WARN  evaluator] [tx 34] step rejected (err:rewrite_no_match): <stdin>:16:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T01:46:23Z WARN  evaluator] [tx 35] step rejected (err:other): <stdin>:16:4: error: Invalid rewrite argument: Expected an equality or iff proof or definition name, but `abs_sub ?a ?b` is a proof of
+[2026-05-11T01:46:32Z WARN  evaluator] [tx 36] step rejected (err:rewrite_no_match): <stdin>:16:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T01:46:49Z WARN  evaluator] [tx 37] step rejected (err:other): <stdin>:16:4: error: Invalid rewrite argument: Expected an equality or iff proof or definition name, but `abs_sub ?a ?b` is a proof of
+[2026-05-11T01:47:09Z WARN  evaluator] [tx 38] step rejected (err:other): <stdin>:16:4: error: Invalid rewrite argument: Expected an equality or iff proof or definition name, but `abs_sub ?a ?b` is a proof of
+[2026-05-11T01:47:32Z WARN  evaluator] [tx 39] step rejected (err:other): <stdin>:16:4: error: Invalid rewrite argument: Expected an equality or iff proof or definition name, but `abs_sub ?a ?b` is a proof of
+[2026-05-11T01:47:32Z INFO  evaluator] [tick@tx40] tape=1 markets=0 top=
+[2026-05-11T01:47:43Z WARN  evaluator] [tx 40] step rejected (err:rewrite_no_match): <stdin>:16:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T01:47:53Z WARN  evaluator] [tx 41] step rejected (err:rewrite_no_match): <stdin>:16:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T01:48:02Z WARN  evaluator] [tx 42] step rejected (err:rewrite_no_match): <stdin>:16:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T01:48:12Z WARN  evaluator] [tx 43] step rejected (err:rewrite_no_match): <stdin>:16:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T01:48:22Z WARN  evaluator] [tx 44] step rejected (err:rewrite_no_match): <stdin>:16:4: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+[2026-05-11T01:48:32Z WARN  evaluator] [tx 45] step rejected (err:other): <stdin>:16:4: error: Invalid rewrite argument: Expected an equality or iff proof or definition name, but `abs_sub ?a ?b` is a proof of
+[2026-05-11T01:48:42Z INFO  evaluator] [tx 46] Agent_0 step+tx_1_by_Agent_0 partial OK (depth=2)
+[2026-05-11T01:48:51Z INFO  evaluator] [tx 47] Agent_0 step+tx_2_by_Agent_0 partial OK (depth=3)
+[2026-05-11T01:49:00Z INFO  evaluator] [tx 48] Agent_0 step+tx_3_by_Agent_0 partial OK (depth=4)
+[2026-05-11T01:49:10Z INFO  evaluator] [tx 49] Agent_0 step+tx_4_by_Agent_0 partial OK (depth=5)
+[2026-05-11T01:49:20Z INFO  evaluator] [tx 50] Agent_0 step+tx_5_by_Agent_0 partial OK (depth=6)
+[2026-05-11T01:49:30Z INFO  evaluator] [tx 51] Agent_0 step+tx_6_by_Agent_0 partial OK (depth=7)
+[2026-05-11T01:49:39Z INFO  evaluator] [tx 52] Agent_0 step+tx_7_by_Agent_0 partial OK (depth=8)
+[2026-05-11T01:49:49Z INFO  evaluator] [tx 53] Agent_0 step+tx_8_by_Agent_0 partial OK (depth=9)
+[2026-05-11T01:49:59Z INFO  evaluator] [tx 54] Agent_0 step+tx_9_by_Agent_0 partial OK (depth=10)
+[2026-05-11T01:50:09Z INFO  evaluator] [tx 55] Agent_0 step+tx_10_by_Agent_0 partial OK (depth=11)
+[2026-05-11T01:50:20Z INFO  evaluator] [tx 56] Agent_0 step+tx_11_by_Agent_0 partial OK (depth=12)
+[2026-05-11T01:50:29Z INFO  evaluator] [tx 57] Agent_0 step+tx_12_by_Agent_0 partial OK (depth=13)
+[2026-05-11T01:50:32Z WARN  evaluator] [tb18-atomA] WallClockCap halt: aggregate 609 sec exhausted (cap=600s); total_calls=59
+[v2-emit] SPLIT env unset; defaulting to 'adaptation' (Phase B convention; pre-registration requires SPLIT for Phase C+ ablation runs)
+[2026-05-11T01:50:32Z INFO  evaluator] [tb11] EvidenceCapsule written: capsule_id=941778a323088e004797431e249c5457ced3767793561f820e8d3b9c6729bb75 compressed_log_cid=62020cd7e70dfbea84fd0afde6909c9ea452a780475726317580a3e821db5ae1 attempt_count=58
+[2026-05-11T01:50:32Z INFO  evaluator] [tb11] TerminalSummary emitted: emit_id=1
+[2026-05-11T01:50:32Z INFO  evaluator] [chaintape] Atom 6 RunSummary written (3 L4 + 47 L4.E entries; 3 accepted_tx_ids, 47 rejected_tx_ids)
+[2026-05-11T01:50:32Z INFO  evaluator] PPUT = 0 (no golden path in 610.2s, 200 tx)

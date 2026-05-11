@@ -1,0 +1,439 @@
+{
+  "schema_version": 1,
+  "tb_id": "TB-C0",
+  "tool": "scripts/fc_witness_aggregate.py",
+  "batch_dir": "handover/evidence/phase1_n5_batch_2026-05-11T03-46-20Z",
+  "problem_count": 9,
+  "problems": [
+    "P01_mathd_algebra_107",
+    "P02_mathd_algebra_125",
+    "P03_mathd_algebra_141",
+    "P04_mathd_algebra_113",
+    "P05_mathd_algebra_114",
+    "P06_mathd_numbertheory_1124",
+    "P07_numbertheory_2pownm1prime_nprime",
+    "P08_aime_1983_p1",
+    "P09_aime_1984_p1"
+  ],
+  "aggregate_node_status": {
+    "FC1-INV1_every_attempt_tape_visible": {
+      "aggregate_status": "GREEN",
+      "green_by": [
+        "P01_mathd_algebra_107",
+        "P02_mathd_algebra_125",
+        "P03_mathd_algebra_141",
+        "P04_mathd_algebra_113",
+        "P05_mathd_algebra_114",
+        "P06_mathd_numbertheory_1124",
+        "P08_aime_1983_p1",
+        "P09_aime_1984_p1"
+      ],
+      "amber_by": [],
+      "red_by": [
+        "P07_numbertheory_2pownm1prime_nprime"
+      ]
+    },
+    "FC1-INV3_count_equality_constitutional": {
+      "aggregate_status": "GREEN",
+      "green_by": [
+        "P01_mathd_algebra_107",
+        "P02_mathd_algebra_125",
+        "P03_mathd_algebra_141",
+        "P04_mathd_algebra_113",
+        "P05_mathd_algebra_114",
+        "P06_mathd_numbertheory_1124",
+        "P08_aime_1983_p1",
+        "P09_aime_1984_p1"
+      ],
+      "amber_by": [],
+      "red_by": [
+        "P07_numbertheory_2pownm1prime_nprime"
+      ]
+    },
+    "FC1-N11_predicates": {
+      "aggregate_status": "GREEN",
+      "green_by": [
+        "P01_mathd_algebra_107",
+        "P02_mathd_algebra_125",
+        "P03_mathd_algebra_141",
+        "P04_mathd_algebra_113",
+        "P05_mathd_algebra_114",
+        "P06_mathd_numbertheory_1124",
+        "P07_numbertheory_2pownm1prime_nprime",
+        "P08_aime_1983_p1",
+        "P09_aime_1984_p1"
+      ],
+      "amber_by": [],
+      "red_by": []
+    },
+    "FC1-N13_wtool": {
+      "aggregate_status": "GREEN",
+      "green_by": [
+        "P01_mathd_algebra_107",
+        "P02_mathd_algebra_125",
+        "P03_mathd_algebra_141",
+        "P04_mathd_algebra_113",
+        "P05_mathd_algebra_114",
+        "P06_mathd_numbertheory_1124",
+        "P07_numbertheory_2pownm1prime_nprime",
+        "P08_aime_1983_p1",
+        "P09_aime_1984_p1"
+      ],
+      "amber_by": [],
+      "red_by": []
+    },
+    "FC1-N15_reject_branch": {
+      "aggregate_status": "GREEN",
+      "green_by": [
+        "P01_mathd_algebra_107",
+        "P02_mathd_algebra_125",
+        "P03_mathd_algebra_141",
+        "P04_mathd_algebra_113",
+        "P05_mathd_algebra_114",
+        "P06_mathd_numbertheory_1124",
+        "P07_numbertheory_2pownm1prime_nprime",
+        "P08_aime_1983_p1",
+        "P09_aime_1984_p1"
+      ],
+      "amber_by": [],
+      "red_by": []
+    },
+    "FC1-N1_q_state_carrier": {
+      "aggregate_status": "GREEN",
+      "green_by": [
+        "P01_mathd_algebra_107",
+        "P02_mathd_algebra_125",
+        "P03_mathd_algebra_141",
+        "P04_mathd_algebra_113",
+        "P05_mathd_algebra_114",
+        "P06_mathd_numbertheory_1124",
+        "P07_numbertheory_2pownm1prime_nprime",
+        "P08_aime_1983_p1",
+        "P09_aime_1984_p1"
+      ],
+      "amber_by": [],
+      "red_by": []
+    },
+    "FC1-N2_q_t_slice": {
+      "aggregate_status": "GREEN",
+      "green_by": [
+        "P01_mathd_algebra_107",
+        "P02_mathd_algebra_125",
+        "P03_mathd_algebra_141",
+        "P04_mathd_algebra_113",
+        "P05_mathd_algebra_114",
+        "P06_mathd_numbertheory_1124",
+        "P07_numbertheory_2pownm1prime_nprime",
+        "P08_aime_1983_p1",
+        "P09_aime_1984_p1"
+      ],
+      "amber_by": [],
+      "red_by": []
+    },
+    "FC1-N3_HEAD_t_pointer": {
+      "aggregate_status": "GREEN",
+      "green_by": [
+        "P01_mathd_algebra_107",
+        "P02_mathd_algebra_125",
+        "P03_mathd_algebra_141",
+        "P04_mathd_algebra_113",
+        "P05_mathd_algebra_114",
+        "P06_mathd_numbertheory_1124",
+        "P07_numbertheory_2pownm1prime_nprime",
+        "P08_aime_1983_p1",
+        "P09_aime_1984_p1"
+      ],
+      "amber_by": [],
+      "red_by": []
+    },
+    "FC1-N4_q1_after_delta": {
+      "aggregate_status": "GREEN",
+      "green_by": [
+        "P01_mathd_algebra_107",
+        "P02_mathd_algebra_125",
+        "P03_mathd_algebra_141",
+        "P04_mathd_algebra_113",
+        "P05_mathd_algebra_114",
+        "P06_mathd_numbertheory_1124",
+        "P07_numbertheory_2pownm1prime_nprime",
+        "P08_aime_1983_p1",
+        "P09_aime_1984_p1"
+      ],
+      "amber_by": [],
+      "red_by": []
+    },
+    "FC1-N5_rtool": {
+      "aggregate_status": "GREEN",
+      "green_by": [
+        "P01_mathd_algebra_107",
+        "P02_mathd_algebra_125",
+        "P03_mathd_algebra_141",
+        "P04_mathd_algebra_113",
+        "P05_mathd_algebra_114",
+        "P06_mathd_numbertheory_1124",
+        "P07_numbertheory_2pownm1prime_nprime",
+        "P08_aime_1983_p1",
+        "P09_aime_1984_p1"
+      ],
+      "amber_by": [],
+      "red_by": []
+    },
+    "FC1-N7_delta_AI_call": {
+      "aggregate_status": "GREEN",
+      "green_by": [
+        "P01_mathd_algebra_107",
+        "P02_mathd_algebra_125",
+        "P03_mathd_algebra_141",
+        "P04_mathd_algebra_113",
+        "P05_mathd_algebra_114",
+        "P06_mathd_numbertheory_1124",
+        "P07_numbertheory_2pownm1prime_nprime",
+        "P08_aime_1983_p1",
+        "P09_aime_1984_p1"
+      ],
+      "amber_by": [],
+      "red_by": []
+    },
+    "FC2-INV1_genesis_replayable": {
+      "aggregate_status": "GREEN",
+      "green_by": [
+        "P01_mathd_algebra_107",
+        "P02_mathd_algebra_125",
+        "P03_mathd_algebra_141",
+        "P04_mathd_algebra_113",
+        "P05_mathd_algebra_114",
+        "P06_mathd_numbertheory_1124",
+        "P07_numbertheory_2pownm1prime_nprime",
+        "P08_aime_1983_p1",
+        "P09_aime_1984_p1"
+      ],
+      "amber_by": [],
+      "red_by": []
+    },
+    "FC2-INV4_taskopen_escrowlock_chain_events": {
+      "aggregate_status": "GREEN",
+      "green_by": [
+        "P01_mathd_algebra_107",
+        "P02_mathd_algebra_125",
+        "P03_mathd_algebra_141",
+        "P04_mathd_algebra_113",
+        "P05_mathd_algebra_114",
+        "P06_mathd_numbertheory_1124",
+        "P07_numbertheory_2pownm1prime_nprime",
+        "P08_aime_1983_p1",
+        "P09_aime_1984_p1"
+      ],
+      "amber_by": [],
+      "red_by": []
+    },
+    "FC2-INV6_pubkeys_verify": {
+      "aggregate_status": "GREEN",
+      "green_by": [
+        "P01_mathd_algebra_107",
+        "P02_mathd_algebra_125",
+        "P03_mathd_algebra_141",
+        "P04_mathd_algebra_113",
+        "P05_mathd_algebra_114",
+        "P06_mathd_numbertheory_1124",
+        "P07_numbertheory_2pownm1prime_nprime",
+        "P08_aime_1983_p1",
+        "P09_aime_1984_p1"
+      ],
+      "amber_by": [],
+      "red_by": []
+    },
+    "FC2-INV7_agent_registry_resolves": {
+      "aggregate_status": "GREEN",
+      "green_by": [
+        "P01_mathd_algebra_107",
+        "P02_mathd_algebra_125",
+        "P03_mathd_algebra_141",
+        "P04_mathd_algebra_113",
+        "P05_mathd_algebra_114",
+        "P06_mathd_numbertheory_1124",
+        "P07_numbertheory_2pownm1prime_nprime",
+        "P08_aime_1983_p1",
+        "P09_aime_1984_p1"
+      ],
+      "amber_by": [],
+      "red_by": []
+    },
+    "FC2-N16_InitAI": {
+      "aggregate_status": "GREEN",
+      "green_by": [
+        "P01_mathd_algebra_107",
+        "P02_mathd_algebra_125",
+        "P03_mathd_algebra_141",
+        "P04_mathd_algebra_113",
+        "P05_mathd_algebra_114",
+        "P06_mathd_numbertheory_1124",
+        "P07_numbertheory_2pownm1prime_nprime",
+        "P08_aime_1983_p1",
+        "P09_aime_1984_p1"
+      ],
+      "amber_by": [],
+      "red_by": []
+    },
+    "FC2-N18_constitution_ground_truth": {
+      "aggregate_status": "GREEN",
+      "green_by": [
+        "P01_mathd_algebra_107",
+        "P02_mathd_algebra_125",
+        "P03_mathd_algebra_141",
+        "P04_mathd_algebra_113",
+        "P05_mathd_algebra_114",
+        "P06_mathd_numbertheory_1124",
+        "P07_numbertheory_2pownm1prime_nprime",
+        "P08_aime_1983_p1",
+        "P09_aime_1984_p1"
+      ],
+      "amber_by": [],
+      "red_by": []
+    },
+    "FC2-N21_Q0_minted": {
+      "aggregate_status": "GREEN",
+      "green_by": [
+        "P01_mathd_algebra_107",
+        "P02_mathd_algebra_125",
+        "P03_mathd_algebra_141",
+        "P04_mathd_algebra_113",
+        "P05_mathd_algebra_114",
+        "P06_mathd_numbertheory_1124",
+        "P07_numbertheory_2pownm1prime_nprime",
+        "P08_aime_1983_p1",
+        "P09_aime_1984_p1"
+      ],
+      "amber_by": [],
+      "red_by": []
+    },
+    "FC2-N22_HALT": {
+      "aggregate_status": "GREEN",
+      "green_by": [
+        "P01_mathd_algebra_107",
+        "P02_mathd_algebra_125",
+        "P03_mathd_algebra_141",
+        "P04_mathd_algebra_113",
+        "P05_mathd_algebra_114",
+        "P06_mathd_numbertheory_1124",
+        "P07_numbertheory_2pownm1prime_nprime",
+        "P08_aime_1983_p1",
+        "P09_aime_1984_p1"
+      ],
+      "amber_by": [],
+      "red_by": []
+    },
+    "FC3-INV1_capsule_derived": {
+      "aggregate_status": "GREEN",
+      "green_by": [
+        "P04_mathd_algebra_113",
+        "P05_mathd_algebra_114",
+        "P08_aime_1983_p1",
+        "P09_aime_1984_p1"
+      ],
+      "amber_by": [
+        "P01_mathd_algebra_107",
+        "P02_mathd_algebra_125",
+        "P03_mathd_algebra_141",
+        "P06_mathd_numbertheory_1124",
+        "P07_numbertheory_2pownm1prime_nprime"
+      ],
+      "red_by": []
+    },
+    "FC3-INV2_no_global_pointer": {
+      "aggregate_status": "GREEN",
+      "green_by": [
+        "P01_mathd_algebra_107",
+        "P02_mathd_algebra_125",
+        "P03_mathd_algebra_141",
+        "P04_mathd_algebra_113",
+        "P05_mathd_algebra_114",
+        "P06_mathd_numbertheory_1124",
+        "P07_numbertheory_2pownm1prime_nprime",
+        "P08_aime_1983_p1",
+        "P09_aime_1984_p1"
+      ],
+      "amber_by": [],
+      "red_by": []
+    },
+    "FC3-INV3_raw_logs_shielded": {
+      "aggregate_status": "AMBER",
+      "green_by": [],
+      "amber_by": [
+        "P01_mathd_algebra_107",
+        "P02_mathd_algebra_125",
+        "P03_mathd_algebra_141",
+        "P04_mathd_algebra_113",
+        "P05_mathd_algebra_114",
+        "P06_mathd_numbertheory_1124",
+        "P07_numbertheory_2pownm1prime_nprime",
+        "P08_aime_1983_p1",
+        "P09_aime_1984_p1"
+      ],
+      "red_by": []
+    },
+    "FC3-INV5_deep_history_override": {
+      "aggregate_status": "AMBER",
+      "green_by": [],
+      "amber_by": [
+        "P01_mathd_algebra_107",
+        "P02_mathd_algebra_125",
+        "P03_mathd_algebra_141",
+        "P04_mathd_algebra_113",
+        "P05_mathd_algebra_114",
+        "P06_mathd_numbertheory_1124",
+        "P07_numbertheory_2pownm1prime_nprime",
+        "P08_aime_1983_p1",
+        "P09_aime_1984_p1"
+      ],
+      "red_by": []
+    },
+    "FC3-INV7_architect_propose_only": {
+      "aggregate_status": "AMBER",
+      "green_by": [],
+      "amber_by": [
+        "P01_mathd_algebra_107",
+        "P02_mathd_algebra_125",
+        "P03_mathd_algebra_141",
+        "P04_mathd_algebra_113",
+        "P05_mathd_algebra_114",
+        "P06_mathd_numbertheory_1124",
+        "P07_numbertheory_2pownm1prime_nprime",
+        "P08_aime_1983_p1",
+        "P09_aime_1984_p1"
+      ],
+      "red_by": []
+    },
+    "FC3-INV8_judge_veto_only": {
+      "aggregate_status": "AMBER",
+      "green_by": [],
+      "amber_by": [
+        "P01_mathd_algebra_107",
+        "P02_mathd_algebra_125",
+        "P03_mathd_algebra_141",
+        "P04_mathd_algebra_113",
+        "P05_mathd_algebra_114",
+        "P06_mathd_numbertheory_1124",
+        "P07_numbertheory_2pownm1prime_nprime",
+        "P08_aime_1983_p1",
+        "P09_aime_1984_p1"
+      ],
+      "red_by": []
+    }
+  },
+  "summary": {
+    "total_nodes": 25,
+    "green_count": 21,
+    "amber_count": 4,
+    "red_count": 0,
+    "gap_count": 0
+  },
+  "gaps_for_remediation": [],
+  "red_nodes_indicating_code_bug": [],
+  "ambers_lacking_any_green_witness": [
+    "FC3-INV3_raw_logs_shielded",
+    "FC3-INV5_deep_history_override",
+    "FC3-INV7_architect_propose_only",
+    "FC3-INV8_judge_veto_only"
+  ],
+  "remediation_protocol": "Per feedback_real_problems_not_designed: for any GAP / persistent AMBER node, find a REAL existing problem (MiniF2F / Mathlib / Putnam / IMO / research-paper / web research) that exercises the path; do NOT synthesize. For RED nodes, escalate the code bug per OBS_TBC0_FC1_INV3_THREE_BUGS_2026-05-06.md."
+}

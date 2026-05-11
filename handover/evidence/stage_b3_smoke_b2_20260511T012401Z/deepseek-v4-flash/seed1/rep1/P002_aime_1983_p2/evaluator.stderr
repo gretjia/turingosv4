@@ -1,0 +1,23 @@
+[2026-05-11T01:25:49Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/aime_1983_p2.lean | Condition: n1 | Model: deepseek-v4-flash | Mode: full
+[2026-05-11T01:25:49Z INFO  minif2f_v4::chain_runtime] [chaintape/d3] pre-seed enabled (TB-10 factory): 12 entries
+[2026-05-11T01:25:50Z INFO  minif2f_v4::chain_runtime] [chaintape] bus wired with Sequencer + on-disk ChainTape at "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_smoke_b2_20260511T012401Z/deepseek-v4-flash/seed1/rep1/P002_aime_1983_p2/runtime_repo"
+[2026-05-11T01:25:50Z INFO  evaluator] [chaintape/d3] preseed TaskOpen for task-n1_aime_1983_p2_1778462749535
+[2026-05-11T01:25:50Z INFO  evaluator] [chaintape/d3] preseed EscrowLock 100000 micro for task-n1_aime_1983_p2_1778462749535
+[2026-05-11T01:25:50Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic TaskOpen for smoke-n1_aime_1983_p2_1778462749535
+[2026-05-11T01:25:50Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic zero-stake WorkTx (synthetic_rejection_for_l4e_gate=true) for smoke-n1_aime_1983_p2_1778462749535
+[2026-05-11T01:25:50Z INFO  minif2f_v4::chain_runtime] [chaintape] Atom 5 audit-trail records written to CAS + indexed for smoke-n1_aime_1983_p2_1778462749535
+[2026-05-11T01:25:50Z INFO  minif2f_v4::chain_runtime] [chaintape/d_c] genesis_report.json written to "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_smoke_b2_20260511T012401Z/deepseek-v4-flash/seed1/rep1/P002_aime_1983_p2/runtime_repo"
+[2026-05-11T01:25:50Z INFO  evaluator] [swarm/n1] agent_models = [deepseek-v4-flash] (label=deepseek-v4-flash)
+[2026-05-11T01:25:50Z INFO  evaluator] [budget] regime=total_proposal base=200 effective_max_tx=200 (n_agents=1)
+[2026-05-11T01:25:50Z INFO  evaluator] [swarm/n1] Agent_0:skill0:t=0.20
+[2026-05-11T01:26:11Z WARN  evaluator] [tx 0] step rejected (err:tactic_linarith): <stdin>:15:0: error: linarith failed to find a contradiction
+[2026-05-11T01:26:20Z WARN  evaluator] [tx 1] step rejected (err:tactic_linarith): <stdin>:15:0: error: linarith failed to find a contradiction
+[2026-05-11T01:26:30Z WARN  evaluator] [tx 2] step rejected (err:tactic_linarith): <stdin>:15:0: error: linarith failed to find a contradiction
+[2026-05-11T01:26:39Z WARN  evaluator] [tx 3] step rejected (err:tactic_linarith): <stdin>:15:0: error: linarith failed to find a contradiction
+[2026-05-11T01:26:49Z WARN  evaluator] [tx 4] step rejected (err:tactic_linarith): <stdin>:15:0: error: linarith failed to find a contradiction
+[2026-05-11T01:26:58Z WARN  evaluator] [tx 5] step rejected (err:tactic_linarith): <stdin>:15:0: error: linarith failed to find a contradiction
+[2026-05-11T01:27:30Z INFO  evaluator] >>> OMEGA ACCEPTED <<< via step (depth=1 after this write)
+[2026-05-11T01:27:30Z INFO  evaluator] [chaintape/tb8/atom4-pertactic] FinalizeReward emitted for verify_tx=TxId("verifytx-Agent_0-omega-pertactic-7")
+[2026-05-11T01:27:30Z INFO  evaluator] [chaintape/tb-n2/b2-pertactic] EventResolve emitted for task_id=TaskId("task-n1_aime_1983_p2_1778462749535")
+[v2-emit] SPLIT env unset; defaulting to 'adaptation' (Phase B convention; pre-registration requires SPLIT for Phase C+ ablation runs)
+[2026-05-11T01:27:30Z INFO  evaluator] PPUT = 0.99%/s (GP: 1 nodes, 1576 tokens, 101.0s)

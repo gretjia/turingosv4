@@ -1,0 +1,32 @@
+{
+  "schema_version": "stage_b3_v1",
+  "run_tag": "stage_b3_r7_m2_20260508T210337Z",
+  "run_timestamp_utc": "2026-05-08T21-03-37Z",
+  "charter": "handover/tracer_bullets/TB-18B_charter_2026-05-07.md",
+  "charter_section": "§1 (M2 scope) + §3 CR-18B.5 (manifest pin) + §3 CR-18B.9 (preflight gate)",
+  "architect_directive": "handover/architect-insights/2026-05-07_ARCHITECT_ALIGNMENT_AUDIT_LAUNCH_POLYMARKET_MANUAL_zh.md §3.B3",
+  "git_head": "1550e1b7a57390d42a84d25e2343291b647d5cfe",
+  "git_head_short": "1550e1b",
+  "evaluator_binary_sha256": "fa770fb53743db5863cfe177269435b9bec4c7680a9762d277fcc2c4e03c5dbb",
+  "lean_version": "Lean (version 4.24.0, x86_64-unknown-linux-gnu, commit 797c613eb9b6d4ec95db23e3e00af9ac6657f24b, Release)",
+  "mathlib_commit": "f897ebcf72cd16f89ab4577d0c826cd14afaafc7",
+  "minif2f_dir": "/home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4",
+  "models": ["deepseek-v4-flash", "Qwen/Qwen2.5-72B-Instruct"],
+  "seeds": [1, 2, 3],
+  "n_attempts": 3,
+  "problem_count": 100,
+  "expected_total_invocations": 1800,
+  "max_tx_per_problem": 200,
+  "per_problem_timeout_s": 1800,
+  "llm_proxy_url": "http://localhost:18080",
+  "problems": ["aime_1983_p1", "aime_1983_p2", "aime_1983_p3", "aime_1984_p1", "aime_1984_p7", "aime_1987_p5", "aime_1988_p8", "aime_1989_p8", "aime_1990_p15", "aime_1990_p4", "aime_1991_p9", "aime_1994_p3", "aime_1995_p7", "aime_1997_p9", "aime_1999_p11", "algebra_2varlineareq_fp3zeq11_3tfm1m5zeqn68_feqn10_zeq7", "algebra_9onxpypzleqsum2onxpy", "algebra_abpbcpcageq3_sumaonsqrtapbgeq3onsqrt2", "algebra_absapbon1pabsapbleqsumabsaon1pabsa", "algebra_absxm1pabsxpabsxp1eqxp2_0leqxleq1", "algebra_amgm_sum1toneqn_prod1tonleq1", "algebra_amgm_sumasqdivbgeqsuma", "algebra_apbmpcneq0_aeq0anbeq0anceq0", "algebra_apbon2pownleqapownpbpowon2", "algebra_apbpceq2_abpbcpcaeq1_aleq1on3anbleq1ancleq4on3", "algebra_bleqa_apbon2msqrtableqambsqon8b", "algebra_cubrtrp1oncubrtreq3_rcubp1onrcubeq5778", "algebra_ineq_nto1onlt2m1on", "algebra_others_exirrpowirrrat", "algebra_sqineq_at2malt1", "algebra_sqineq_unitcircatbpabsamblt1", "algebra_sqineq_unitcircatbpamblt1", "algebra_sum1onsqrt2to1onsqrt10000lt198", "amc12_2000_p1", "amc12_2000_p12", "amc12_2000_p20", "amc12_2000_p6", "amc12_2001_p21", "amc12_2001_p5", "amc12a_2002_p13", "amc12a_2002_p6", "amc12a_2003_p23", "amc12a_2003_p5", "amc12a_2008_p25", "amc12a_2009_p6", "amc12a_2009_p7", "amc12a_2013_p4", "amc12a_2019_p12", "amc12a_2020_p10", "amc12a_2020_p15", "amc12a_2020_p25", "amc12a_2020_p4", "amc12a_2020_p7", "amc12a_2020_p9", "amc12a_2021_p12", "amc12a_2021_p14", "amc12a_2021_p18", "amc12a_2021_p19", "amc12a_2021_p22", "amc12a_2021_p25", "amc12a_2021_p3", "amc12a_2021_p8", "amc12a_2021_p9", "amc12b_2002_p19", "amc12b_2002_p2", "amc12b_2002_p4", "amc12b_2002_p7", "amc12b_2020_p13", "amc12b_2020_p2", "amc12b_2020_p21", "amc12b_2020_p22", "amc12b_2020_p6", "amc12b_2021_p1", "amc12b_2021_p13", "amc12b_2021_p18", "amc12b_2021_p3", "amc12b_2021_p4", "amc12b_2021_p9", "imo_1959_p1", "imo_1960_p2", "imo_1962_p2", "imo_1963_p5", "imo_1964_p2", "imo_1965_p2", "imo_1968_p5_1", "imo_1969_p2", "imo_1974_p3", "imo_1977_p6", "imo_1981_p6", "imo_1982_p1", "imo_1983_p6", "imo_1984_p6", "imo_1985_p6", "imo_1992_p1", "imo_1997_p5", "imo_2001_p6", "imo_2019_p1", "imosl_2007_algebra_p6", "induction_11div10tonmn1ton", "induction_12dvd4expnp1p20"],
+  "sampling_strategy": "exhaustive (no sampling; all problem×seed×model×rep tuples enumerated)",
+  "evidence_packaging_policy": {
+    "per_run_runtime_repo_tarball": true,
+    "per_run_cas_tarball": true,
+    "tarball_format": "tar.gz",
+    "feedback_anchor": "feedback_evidence_packaging_policy_required"
+  },
+  "fc1_invariant_formula": "evaluator_reported_completed_llm_calls == l4_work_attempt_count + l4e_work_attempt_count + capsule_anchored_attempt_count",
+  "fc1_invariant_formula_lhs_decomposition": "tool_dist.step + tool_dist.parse_fail + tool_dist.llm_err (per CLAUDE.md §6 OBS_TB18R_INV1_NONLLM_TX clarification 2026-05-07)"
+}

@@ -1,0 +1,32 @@
+[2026-05-08T21:32:26Z INFO  evaluator] Problem: /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4/MiniF2F/Test/aime_1984_p7.lean | Condition: n1 | Model: deepseek-v4-flash | Mode: full
+[2026-05-08T21:32:27Z INFO  minif2f_v4::chain_runtime] [chaintape] bus wired with Sequencer + on-disk ChainTape at "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_r7_m2_20260508T210337Z/deepseek-v4-flash/seed1/rep1/P005_aime_1984_p7/runtime_repo"
+[2026-05-08T21:32:27Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic TaskOpen for smoke-n1_aime_1984_p7_1778275946127
+[2026-05-08T21:32:27Z INFO  minif2f_v4::chain_runtime] [chaintape] seeded synthetic zero-stake WorkTx (synthetic_rejection_for_l4e_gate=true) for smoke-n1_aime_1984_p7_1778275946127
+[2026-05-08T21:32:27Z INFO  minif2f_v4::chain_runtime] [chaintape] Atom 5 audit-trail records written to CAS + indexed for smoke-n1_aime_1984_p7_1778275946127
+[2026-05-08T21:32:27Z INFO  minif2f_v4::chain_runtime] [chaintape/d_c] genesis_report.json written to "/home/zephryj/projects/turingosv4/handover/evidence/stage_b3_r7_m2_20260508T210337Z/deepseek-v4-flash/seed1/rep1/P005_aime_1984_p7/runtime_repo"
+[2026-05-08T21:32:27Z INFO  evaluator] [swarm/n1] agent_models = [deepseek-v4-flash] (label=deepseek-v4-flash)
+[2026-05-08T21:32:27Z INFO  evaluator] [budget] regime=total_proposal base=200 effective_max_tx=200 (n_agents=1)
+[2026-05-08T21:32:27Z INFO  evaluator] [swarm/n1] Agent_0:skill0:t=0.20
+[2026-05-08T21:33:05Z WARN  evaluator] [tx 0] step rejected (err:tactic_linarith): <stdin>:13:0: error: linarith failed to find a contradiction
+[2026-05-08T21:33:14Z WARN  evaluator] [tx 1] step rejected (err:tactic_linarith): <stdin>:13:0: error: linarith failed to find a contradiction
+[2026-05-08T21:33:23Z WARN  evaluator] [tx 2] step rejected (err:other): <stdin>:13:37: error: unknown tactic
+[2026-05-08T21:33:32Z INFO  evaluator] [tx 3] Agent_0 step+tx_0_by_Agent_0 partial OK (depth=1)
+[2026-05-08T21:33:42Z INFO  evaluator] [tx 4] Agent_0 step+tx_1_by_Agent_0 partial OK (depth=2)
+[2026-05-08T21:33:51Z INFO  evaluator] [tx 5] Agent_0 step+tx_2_by_Agent_0 partial OK (depth=3)
+[2026-05-08T21:34:01Z INFO  evaluator] [tx 6] Agent_0 step+tx_3_by_Agent_0 partial OK (depth=4)
+[2026-05-08T21:34:10Z INFO  evaluator] [tx 7] Agent_0 step+tx_4_by_Agent_0 partial OK (depth=5)
+[2026-05-08T21:34:19Z INFO  evaluator] [tx 8] Agent_0 step+tx_5_by_Agent_0 partial OK (depth=6)
+[2026-05-08T21:34:28Z INFO  evaluator] [tx 9] Agent_0 step+tx_6_by_Agent_0 partial OK (depth=7)
+[2026-05-08T21:34:38Z INFO  evaluator] [tx 10] Agent_0 step+tx_7_by_Agent_0 partial OK (depth=8)
+[2026-05-08T21:34:47Z INFO  evaluator] [tx 11] Agent_0 step+tx_8_by_Agent_0 partial OK (depth=9)
+[2026-05-08T21:34:56Z INFO  evaluator] [tx 12] Agent_0 step+tx_9_by_Agent_0 partial OK (depth=10)
+[2026-05-08T21:35:05Z INFO  evaluator] [tx 13] Agent_0 step+tx_10_by_Agent_0 partial OK (depth=11)
+[2026-05-08T21:38:00Z WARN  evaluator] [tx 14] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-08T21:40:55Z WARN  evaluator] [tx 15] parse: No <action> tag found in output (err:unexpected_token)
+[2026-05-08T21:41:05Z INFO  evaluator] [tx 16] Agent_0 step+tx_11_by_Agent_0 partial OK (depth=12)
+[2026-05-08T21:43:58Z WARN  evaluator] [tb18-atomA] WallClockCap halt: aggregate 691 sec exhausted (cap=600s); total_calls=18
+[v2-emit] SPLIT env unset; defaulting to 'adaptation' (Phase B convention; pre-registration requires SPLIT for Phase C+ ablation runs)
+[2026-05-08T21:43:58Z INFO  evaluator] [tb11] EvidenceCapsule written: capsule_id=6979fa6f853ffac1ae292561ff1384947c1023d937ed4f825256759c7814db96 compressed_log_cid=a646c281488eb03442c37929afaa9232b3a6d1b1b6d86ae8d7efba165a8ad331 attempt_count=15
+[2026-05-08T21:43:58Z INFO  evaluator] [tb11] TerminalSummary emitted: emit_id=1
+[2026-05-08T21:43:58Z INFO  evaluator] [chaintape] Atom 6 RunSummary written (2 L4 + 6 L4.E entries; 2 accepted_tx_ids, 6 rejected_tx_ids)
+[2026-05-08T21:43:58Z INFO  evaluator] PPUT = 0 (no golden path in 692.4s, 200 tx)

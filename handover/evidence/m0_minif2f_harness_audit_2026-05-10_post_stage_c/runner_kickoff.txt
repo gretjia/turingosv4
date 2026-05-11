@@ -1,0 +1,2 @@
+[runner] M0 starting at 2026-05-10T01:49:31Z; HEAD=5e6d7c7; out=handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c
+[runner] M0 finished at 2026-05-10T02:21:11Z; exit_code=0

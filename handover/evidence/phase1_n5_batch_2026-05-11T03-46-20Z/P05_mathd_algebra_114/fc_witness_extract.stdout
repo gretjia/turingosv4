@@ -1,0 +1,54 @@
+=== FC-witness manifest for handover/evidence/phase1_n5_batch_2026-05-11T03-46-20Z/P05_mathd_algebra_114 ===
+Wrote: handover/evidence/phase1_n5_batch_2026-05-11T03-46-20Z/P05_mathd_algebra_114/fc_witness_manifest.json
+Tally: 21 GREEN, 4 AMBER, 0 RED
+
+  ✅  FC1-N1_q_state_carrier
+        initial_q_state present
+  ✅  FC1-N2_q_t_slice
+        10 rejection records carry parent_state_root
+  ✅  FC1-N3_HEAD_t_pointer
+        c13fd62da4ec9b26a8e5b743224957a5d8468314
+  ✅  FC1-N4_q1_after_delta
+        l4_count=3
+  ✅  FC1-N5_rtool
+        2 agent audit-trail records
+  ✅  FC1-N7_delta_AI_call
+        20 AttemptTelemetry CAS objects
+  ✅  FC1-N11_predicates
+        20 LeanResult CAS objects
+  ✅  FC1-N13_wtool
+        l4=3, l4e=10
+  ✅  FC1-N15_reject_branch
+        10 rejection records on L4.E
+  ✅  FC1-INV1_every_attempt_tape_visible
+        chain_invariant: expected=20, l4=0, l4e=8, AT_count=20, architect_inv1.match=True (architect_chain_attempt_count=20, evaluator_reported_tx_count=None)
+  ✅  FC1-INV3_count_equality_constitutional
+        expected=20 vs (l4=0 + l4e=8 + capsule=12) = 20; delta_3term=+0; AT_count=20; capsule_source=chain_invariant.json (independent, Bug 3-fix binary)
+  ✅  FC2-N16_InitAI
+        genesis_report fields=['constitution_hash', 'runtime_repo', 'cas_path', 'system_pubkey_hash', 'agent_pubkeys_path', 'initial_balances']
+  ✅  FC2-N18_constitution_ground_truth
+        eec695459c71fbef3685583485deb431...
+  ✅  FC2-N21_Q0_minted
+        Q_0 ledger present
+  ✅  FC2-N22_HALT
+        halt=MaxTxExhausted
+  ✅  FC2-INV1_genesis_replayable
+        40 Pass / 0 Fail / 11 Skipped of 51 audit_tape assertions
+  ✅  FC2-INV4_taskopen_escrowlock_chain_events
+        task_open=1, escrow_lock=1
+  ✅  FC2-INV6_pubkeys_verify
+        pinned_pubkeys present
+  ✅  FC2-INV7_agent_registry_resolves
+        agent_pubkeys present
+  ✅  FC3-INV1_capsule_derived
+        EvidenceCapsule present in CAS
+  ✅  FC3-INV2_no_global_pointer
+        absent (Art. 0.2 honored)
+  🟡 structural_only  FC3-INV3_raw_logs_shielded
+        verified via constitution_fc3_meta::fc3_raw_logs_not_in_agent_read_view (source-grep test)
+  🟡 structural_only  FC3-INV5_deep_history_override
+        verified via constitution_fc3_meta::fc3_deep_history_requires_override
+  🟡 structural_only  FC3-INV7_architect_propose_only
+        verified via constitution_fc3_meta::fc3_architectai_proposal_not_direct_write
+  🟡 structural_only  FC3-INV8_judge_veto_only
+        verified via constitution_fc3_meta::fc3_judgeai_veto_only

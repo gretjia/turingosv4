@@ -1,0 +1,4 @@
+
+thread 'main' (1832757) panicked at experiments/minif2f_v4/src/bin/evaluator.rs:451:9:
+TRUST_ROOT_TAMPERED at evaluator boot: TRUST_ROOT_TAMPERED: /home/zephryj/projects/turingosv4/src/runtime/mod.rs hash mismatch (expected 33ff089779f8cb63fea14c57a117bfe30397382eda47bc06221d95881688332b, actual 8cde3e8aafdffa928a66b8e2be5abc367f2f7d13859833d02e1d2bba15a58b7d)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

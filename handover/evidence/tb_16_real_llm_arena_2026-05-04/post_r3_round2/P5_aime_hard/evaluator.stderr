@@ -1,0 +1,37 @@
+[2026-05-04T12:38:51Z INFO  evaluator] Problem: aime_1997_p9.lean | Condition: n5 | Model: deepseek-v4-flash | Mode: full
+[2026-05-04T12:38:51Z INFO  evaluator] [chaintape/d3] pre-seed enabled (TB-10 factory): 12 entries
+[2026-05-04T12:38:52Z INFO  evaluator] [chaintape] bus wired with Sequencer + on-disk ChainTape at "handover/evidence/tb_16_real_llm_arena_2026-05-04/post_r3_round2/P5_aime_hard/runtime_repo"
+[2026-05-04T12:38:52Z INFO  evaluator] [chaintape/tb10] user-mode TaskOpen for task-n5_aime_1997_p9_1777898331902 sponsor=Agent_user_0
+[2026-05-04T12:38:52Z INFO  evaluator] [chaintape/tb10] user-mode EscrowLock 200000 micro for task-n5_aime_1997_p9_1777898331902 sponsor=Agent_user_0
+[2026-05-04T12:38:52Z INFO  evaluator] [chaintape] seeded synthetic TaskOpen for smoke-n5_aime_1997_p9_1777898331902
+[2026-05-04T12:38:52Z INFO  evaluator] [chaintape] seeded synthetic zero-stake WorkTx (synthetic_rejection_for_l4e_gate=true) for smoke-n5_aime_1997_p9_1777898331902
+[2026-05-04T12:38:52Z INFO  evaluator] [chaintape] Atom 5 audit-trail records written to CAS + indexed for smoke-n5_aime_1997_p9_1777898331902
+[2026-05-04T12:38:52Z INFO  evaluator] [chaintape/d_c] genesis_report.json written to "handover/evidence/tb_16_real_llm_arena_2026-05-04/post_r3_round2/P5_aime_hard/runtime_repo"
+[2026-05-04T12:38:52Z INFO  evaluator] [swarm/n5] agent_models = [deepseek-v4-flash,deepseek-v4-flash,deepseek-v4-flash,deepseek-v4-flash,deepseek-v4-flash] (label=deepseek-v4-flash)
+[2026-05-04T12:38:52Z INFO  evaluator] [budget] regime=total_proposal base=20 effective_max_tx=20 (n_agents=5)
+[2026-05-04T12:38:52Z INFO  evaluator] [swarm/n5] Agent_0:skill0:t=0.20 Agent_1:skill1:t=0.20 Agent_2:skill2:t=0.20 Agent_3:skill0:t=0.20 Agent_4:skill1:t=0.20
+[2026-05-04T12:39:03Z INFO  evaluator] [tx 0] Agent_0 step+tx_0_by_Agent_0 partial OK (depth=1)
+[2026-05-04T12:39:14Z WARN  evaluator] [tx 1] step rejected (err:tactic_simp_noprog): <stdin>:16:0: error: field_simp made no progress at h₁
+[2026-05-04T12:39:30Z WARN  evaluator] [tx 2] step rejected (err:tactic_simp_noprog): <stdin>:16:0: error: field_simp made no progress at h₁
+[2026-05-04T12:39:41Z WARN  evaluator] [tx 3] step rejected (err:tactic_simp_noprog): <stdin>:16:0: error: field_simp made no progress at h₁
+[2026-05-04T12:39:51Z WARN  evaluator] [tx 4] step rejected (err:tactic_linarith): hard_error_with_unsolved: <stdin>:16:66: error: linarith failed to find a contradiction
+[2026-05-04T12:40:02Z WARN  evaluator] [tx 5] step rejected (err:tactic_linarith): <stdin>:16:0: error: linarith failed to find a contradiction
+[2026-05-04T12:40:12Z WARN  evaluator] [tx 6] step rejected (err:type_mismatch): hard_error_with_unsolved: <stdin>:16:72: error: Type mismatch
+[2026-05-04T12:40:22Z WARN  evaluator] [tx 7] step rejected (err:tactic_simp_noprog): <stdin>:16:0: error: field_simp made no progress at h₁
+[2026-05-04T12:40:32Z WARN  evaluator] [tx 8] step rejected (err:tactic_simp_noprog): <stdin>:16:0: error: field_simp made no progress at h₁
+[2026-05-04T12:40:43Z INFO  evaluator] [tx 9] Agent_4 step+tx_1_by_Agent_4 partial OK (depth=2)
+[2026-05-04T12:41:03Z WARN  evaluator] [tx 10] step rejected (err:tactic_simp_noprog): <stdin>:17:0: error: field_simp made no progress at h₁
+[2026-05-04T12:41:25Z WARN  evaluator] [tx 11] step rejected (err:type_mismatch): hard_error_with_unsolved: <stdin>:17:63: error: Type mismatch
+[2026-05-04T12:42:12Z WARN  evaluator] [tx 12] step rejected (err:type_mismatch): hard_error_with_unsolved: <stdin>:17:62: error: Type mismatch
+[2026-05-04T12:42:25Z WARN  evaluator] [tx 13] step rejected (err:tactic_simp_noprog): <stdin>:17:0: error: field_simp made no progress at h₁
+[2026-05-04T12:42:35Z WARN  evaluator] [tx 14] step rejected (err:type_mismatch): hard_error_with_unsolved: <stdin>:17:63: error: Type mismatch
+[2026-05-04T12:42:45Z WARN  evaluator] [tx 15] step rejected (err:tactic_linarith): <stdin>:17:0: error: linarith failed to find a contradiction
+[2026-05-04T12:42:56Z WARN  evaluator] [tx 16] step rejected (err:other): <stdin>:17:27: error: typeclass instance problem is stuck, it is often due to metavariables
+[2026-05-04T12:43:06Z INFO  evaluator] [tx 17] Agent_2 step+tx_2_by_Agent_2 partial OK (depth=3)
+[2026-05-04T12:43:17Z WARN  evaluator] [tx 18] step rejected (err:tactic_linarith): <stdin>:18:0: error: linarith failed to find a contradiction
+[2026-05-04T12:43:26Z INFO  evaluator] [tx 19] Agent_4 step+tx_3_by_Agent_4 partial OK (depth=4)
+[v2-emit] SPLIT env unset; defaulting to 'adaptation' (Phase B convention; pre-registration requires SPLIT for Phase C+ ablation runs)
+[2026-05-04T12:43:26Z INFO  evaluator] [tb11] EvidenceCapsule written: capsule_id=cb9f7e0bed18790059a2b32fe18e582481907b6c6d97167f6af553042fc4f519 compressed_log_cid=76b4e4535d2f41204aaf193f0254519c50e5ddcbf8737e7d20ed769153450aee attempt_count=20
+[2026-05-04T12:43:26Z INFO  evaluator] [tb11] TerminalSummary emitted: emit_id=1
+[2026-05-04T12:43:26Z INFO  evaluator] [chaintape] Atom 6 RunSummary written (3 L4 + 2 L4.E entries; 3 accepted_tx_ids, 2 rejected_tx_ids)
+[2026-05-04T12:43:26Z INFO  evaluator] PPUT = 0 (no golden path in 275.0s, 20 tx)
