@@ -6,6 +6,45 @@
 
 ---
 
+## 📍 Handover summary (session #40 close 2026-05-11)
+
+**Session Summary**: TB-G G1.1 SHIPPED FINAL — cross-problem persistence (resume-mode genesis branch) at `origin/main` HEAD `379f4a6`. Kernel + binary layers both fail-closed via canonical FC2 Boot `replay_full_transition`; 8 SG-G1.* binding tests GREEN; R1 + R1.5 + R2 dual-audit cycle complete with conservative-merge closure.
+
+### Current State
+
+**Works**:
+- TB-G G0 (charter + matrix §R + §8 packet) + G1.1 (resume mode end-to-end) shipped to `origin/main`. Constitution gates `310/0/1`, workspace `1487+/0/151`, Trust Root PASS.
+- `TURINGOS_CHAINTAPE_RESUME=1` admits non-empty runtime_repo + persists `pinned_pubkeys.json` (system pubkeys, new epoch appended) + preserves `agent_pubkeys.json` (agent registry) + cross-checks keystore↔manifest.
+- 3 fail-closed paths each bound by CI: `ManifestAbsentInResume`, `ResumeKeystoreInconsistent{missing-secret}`, `ResumeKeystoreInconsistent{pubkey-mismatch}`.
+- Real-LLM smoke: 3 problems share ONE runtime_repo + CAS, chain grows 0→3→4→5 monotonically; aggregate `audit_tape verdict=PROCEED` (40/0/0/11).
+
+**Incomplete / forward-bound**:
+- G1.2 batch_evaluator binary (Class 3) — autonomous after G1.1.
+- G1.3 persistent-batch wrapper script (Class 2) — autonomous.
+- G1.4 persistence-evidence binding test (6 architect-required fields) — autonomous.
+- G2 / G2P / G3.1/3.3/3.4 / G4.1/4.3/4.4 (Class 2-3) — autonomous.
+- G3.2 + G4.2 (Class 4) — each requires own §8 packet.
+- G5 / G6 / G7 — gated behind G3.2 + G4.2 ship.
+- Class-2 tooling refresh: `tb_18r_compute_invariant` / `chain_derived_run_facts` synthetic-gate cardinality check fails on shared resumed runtime_repo (designed for fresh-per-problem; per-problem invariant tool needs resume-aware mode). Aggregate `audit_tape` is the canonical metric.
+
+**Active experiments**: G-Phase Module G1 ready to scale via the next forward atom (G1.2 batch_evaluator). LLM proxy at `localhost:8080` was healthy this session.
+
+### Next Steps
+
+1. **G1.2 batch_evaluator** (Class 3, autonomous) — extract `experiments/minif2f_v4/src/swarm_one_problem.rs` from `evaluator.rs:829..1700`; add `experiments/minif2f_v4/src/bin/batch_evaluator.rs` that drives N problems through ONE persistent runtime_repo via the G1.1 resume primitive. Closes SG-G1.6..G1.8 binary-side ship gates at scale.
+2. **G1.3 wrapper script** (Class 2) — `scripts/run_g_phase_batch.sh` sibling of `run_stage_b3.sh` with persistent-batch evidence shape.
+3. **G1.4 persistence-evidence binding test** (Class 2) — bind the 6 architect-required persisted fields (balance / positions / reputation / PnL / autopsy / market history / proof performance trajectories) under SG-G1.11..G1.15.
+4. **Class-2 resume-aware invariant tool** — update `chain_derived_run_facts` synthetic-gate cardinality assertion to accept N gates on a chain that has resumed N times (one per fresh-genesis boot in the chain's ancestry).
+5. **G2 / G2P parallel priorities** — MarketDecisionTrace audit / NoTradeReason extension / Peer Verification Bridge.
+
+### Open Questions
+
+1. Should the smoke-driver report `aggregate_verdict.json` PROCEED as the ship-gate (it does), OR should the per-problem `tb_18r_compute_invariant` be made resume-aware first? Tentative read: ship uses aggregate as canonical; tool refresh is forward Class-2.
+2. The R1.5 `5d55950` "ship final" commit on `origin/main` is now superseded by R2 `e4c5859`. The Codex CHALLENGE was surfaced post-push (audit completed writing after my commit). Should future ship discharges wait for `pgrep` to confirm audit-process exit, not just file-size stability? Candidate mechanism addition for `feedback_dual_audit`.
+3. Codex `codex exec` occasionally truncates output without emitting final verdict block (R1 first attempt, R1.5 first attempt — both needed re-dispatch with tighter prompt). Should we prepend a "EMIT VERDICT FIRST, then file reads" instruction to mitigate? Or accept Gemini Pro as the structured-output partner with Codex as the rigor-finder?
+
+---
+
 ## ✅ Session #40 2026-05-11 — TB-G G1.1 SHIPPED FINAL (Class-4 STEP_B; resume-mode genesis branch — cross-problem persistence; R2 dual-audit closure)
 
 **Branch**: `feat/g1-1-resume-mode` → merged to `main`.
