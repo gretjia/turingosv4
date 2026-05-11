@@ -356,9 +356,19 @@ async fn batch_evaluator_halts_and_records_on_mid_batch_fail() {
         "SG-G1.2-3.4: manifest must carry terminated_reason"
     );
     let last_task = &manifest_json["tasks"][1];
+    // G1.2-6 Codex Q6 closure: write_manifest_skeleton was unified onto
+    // the canonical `BatchContinuationManifest` schema (G1.2-4) so the
+    // persistence-report binary can ingest it via `serde_json::from_str
+    // ::<BatchContinuationManifest>`. The canonical schema carries
+    // `exit_code` instead of a separate `terminal_marker.kind` — a
+    // non-zero exit_code IS the SubprocessCrashed signal.
     assert_eq!(
-        last_task["terminal_marker"]["kind"], "SubprocessCrashed",
-        "SG-G1.2-3.4: last task must carry SubprocessCrashed marker"
+        last_task["exit_code"], serde_json::json!(137),
+        "SG-G1.2-3.4: last task exit_code must signal SubprocessCrashed (non-zero)"
+    );
+    assert_eq!(
+        manifest_json["schema_version"], serde_json::json!("g1_2_v1"),
+        "SG-G1.2-3.4: manifest schema_version must be canonical g1_2_v1 (G1.2-4)"
     );
 }
 

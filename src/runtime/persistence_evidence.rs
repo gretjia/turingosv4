@@ -53,8 +53,17 @@
 //! FC-trace: FC2-Boot (cross-task continuity binding) + FC3-Markov
 //! (derived view from ChainTape + CAS; never LLM self-report).
 
+use std::path::Path;
+
 use serde::{Deserialize, Serialize};
 
+use crate::bottom_white::cas::store::CasStore;
+use crate::bottom_white::ledger::system_keypair::{PinnedSystemPubkeys, SystemEpoch, SystemPublicKey};
+use crate::bottom_white::ledger::transition_ledger::{
+    replay_full_transition, Git2LedgerWriter, LedgerEntry, LedgerWriter,
+};
+use crate::bottom_white::tools::registry::ToolRegistry;
+use crate::top_white::predicates::registry::PredicateRegistry;
 use crate::state::q_state::QState;
 
 use super::batch_continuation_manifest::BatchContinuationManifest;
@@ -475,6 +484,149 @@ fn classify_model_identity(
         n = per_task.len(),
     ))
 }
+
+/// TRACE_MATRIX § 3 orphan (TB-G G1.2-5 2026-05-11; Option B+ §3.4):
+/// `replay_task_end_snapshots_from_disk` — replays the on-disk
+/// `runtime_repo` + `cas` for each task boundary recorded in
+/// `manifest.tasks` and returns `(initial_q, per_task_end_q)` ready
+/// for `bind_persistence`. Used by the `tb_g_persistence_report`
+/// binary (G1.2-6/7 evidence enricher; Codex Q6 closure).
+///
+/// Reads `pinned_pubkeys.json` + `initial_q_state.json` via the same
+/// FC2-Boot semantics as `verify_chaintape`. For each task k, slices
+/// the chain entries to `[0..tasks[k].end_chain_length]` and re-runs
+/// `replay_full_transition` to obtain the post-task `QState`. This
+/// is O(N²) in worst case (one full replay per boundary) but
+/// negligible for the G1.2 batch sizes (3-9 tasks).
+pub fn replay_task_end_snapshots_from_disk(
+    runtime_repo_path: &Path,
+    cas_path: &Path,
+    manifest: &BatchContinuationManifest,
+) -> Result<(QState, Vec<QState>), ReplaySnapshotError> {
+    // pinned pubkeys
+    let pin_path = runtime_repo_path.join("pinned_pubkeys.json");
+    let pin_json = std::fs::read_to_string(&pin_path)
+        .map_err(|e| ReplaySnapshotError::Io(format!("read {pin_path:?}: {e}")))?;
+    let pin_manifest: crate::runtime::PinnedPubkeyManifest = serde_json::from_str(&pin_json)
+        .map_err(|e| ReplaySnapshotError::Parse(format!("pinned_pubkeys: {e}")))?;
+    let mut pinned = PinnedSystemPubkeys::new();
+    for entry in &pin_manifest.pubkeys {
+        let bytes = decode_hex_32(&entry.pubkey_hex)?;
+        let pubkey = SystemPublicKey::from_bytes(bytes);
+        pinned.insert(SystemEpoch::new(entry.epoch), pubkey);
+    }
+
+    // initial QState (fall back to genesis if file absent — matches verify_chaintape)
+    let initial_q_path = runtime_repo_path.join("initial_q_state.json");
+    let initial_q = if initial_q_path.exists() {
+        let s = std::fs::read_to_string(&initial_q_path)
+            .map_err(|e| ReplaySnapshotError::Io(format!("read initial_q: {e}")))?;
+        serde_json::from_str::<QState>(&s)
+            .map_err(|e| ReplaySnapshotError::Parse(format!("initial_q_state: {e}")))?
+    } else {
+        QState::genesis()
+    };
+
+    // open ledger writer + CAS
+    let writer = Git2LedgerWriter::open(runtime_repo_path)
+        .map_err(|e| ReplaySnapshotError::Io(format!("open ledger: {e}")))?;
+    let chain_len = writer.len();
+    let cas_store = CasStore::open(cas_path)
+        .map_err(|e| ReplaySnapshotError::Io(format!("open cas: {e}")))?;
+
+    // pull entries [1..=chain_len] once
+    let entries: Vec<LedgerEntry> = (1..=chain_len)
+        .map(|t| writer.read_at(t))
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| ReplaySnapshotError::Io(format!("read entries: {e}")))?;
+
+    let predicate_registry = PredicateRegistry::new();
+    let tool_registry = ToolRegistry::new();
+
+    let mut per_task: Vec<QState> = Vec::with_capacity(manifest.tasks.len());
+    for task in &manifest.tasks {
+        let end_idx = task.end_chain_length as usize;
+        if end_idx > entries.len() {
+            return Err(ReplaySnapshotError::ManifestExceedsChain {
+                task_index: task.task_index,
+                end_chain_length: task.end_chain_length,
+                actual_chain_length: chain_len,
+            });
+        }
+        let prefix = &entries[..end_idx];
+        let q = replay_full_transition(
+            &initial_q,
+            prefix,
+            &cas_store,
+            &pinned,
+            &predicate_registry,
+            &tool_registry,
+        )
+        .map_err(|e| ReplaySnapshotError::Replay {
+            task_index: task.task_index,
+            detail: format!("{e:?}"),
+        })?;
+        per_task.push(q);
+    }
+
+    Ok((initial_q, per_task))
+}
+
+fn decode_hex_32(hex: &str) -> Result<[u8; 32], ReplaySnapshotError> {
+    if hex.len() != 64 || !hex.chars().all(|c| c.is_ascii_hexdigit()) {
+        return Err(ReplaySnapshotError::Parse(format!(
+            "pubkey hex must be 64 lowercase hex chars; got {} chars",
+            hex.len()
+        )));
+    }
+    let mut out = [0u8; 32];
+    for i in 0..32 {
+        out[i] = u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16)
+            .map_err(|_| ReplaySnapshotError::Parse("bad hex digit".into()))?;
+    }
+    Ok(out)
+}
+
+/// TRACE_MATRIX § 3 orphan (TB-G G1.2-5 2026-05-11; Option B+ §3.4):
+/// error carrier for `replay_task_end_snapshots_from_disk`.
+#[derive(Debug)]
+pub enum ReplaySnapshotError {
+    Io(String),
+    Parse(String),
+    Replay {
+        task_index: u64,
+        detail: String,
+    },
+    ManifestExceedsChain {
+        task_index: u64,
+        end_chain_length: u64,
+        actual_chain_length: u64,
+    },
+}
+
+impl std::fmt::Display for ReplaySnapshotError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Io(s) => write!(f, "io: {s}"),
+            Self::Parse(s) => write!(f, "parse: {s}"),
+            Self::Replay {
+                task_index,
+                detail,
+            } => write!(f, "replay task {task_index}: {detail}"),
+            Self::ManifestExceedsChain {
+                task_index,
+                end_chain_length,
+                actual_chain_length,
+            } => write!(
+                f,
+                "manifest task[{task_index}].end_chain_length={end_chain_length} \
+                 exceeds actual chain length {actual_chain_length}"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for ReplaySnapshotError {}
 
 #[cfg(test)]
 mod tests {

@@ -1,0 +1,64 @@
+{
+  "schema_version": "persistence_evidence_g1_2_v1",
+  "batch_id": "g_phase_g1_2_mini_2026-05-11T16-31-26Z_2e4f99d",
+  "n_tasks": 3,
+  "balances": {
+    "kind": "Empty",
+    "detail": "balances_total + distinct_agents unchanged across batch"
+  },
+  "positions": {
+    "kind": "Empty",
+    "detail": "no node_positions written by this batch (low market activity)"
+  },
+  "reputation": {
+    "kind": "Empty",
+    "detail": "no reputation entries accumulated by this batch (no verify cycle)"
+  },
+  "pnl": {
+    "kind": "Empty",
+    "detail": "pnl total economic balance unchanged"
+  },
+  "autopsy": {
+    "kind": "Empty",
+    "detail": "no autopsy capsules written by this batch (no event resolutions)"
+  },
+  "model_identity": {
+    "kind": "Witnessed",
+    "detail": "manifest.model=deepseek-chat stable across 3 tasks"
+  },
+  "per_task": [
+    {
+      "task_index": 0,
+      "problem_id": "mathd_algebra_107",
+      "balances_total_micro": 0,
+      "balances_distinct_agents": 0,
+      "node_positions_count": 0,
+      "reputations_count": 0,
+      "autopsy_event_count": 0,
+      "autopsy_capsule_total": 0,
+      "conditional_collateral_total_micro": 0
+    },
+    {
+      "task_index": 1,
+      "problem_id": "mathd_algebra_125",
+      "balances_total_micro": 0,
+      "balances_distinct_agents": 0,
+      "node_positions_count": 0,
+      "reputations_count": 0,
+      "autopsy_event_count": 0,
+      "autopsy_capsule_total": 0,
+      "conditional_collateral_total_micro": 0
+    },
+    {
+      "task_index": 2,
+      "problem_id": "mathd_algebra_141",
+      "balances_total_micro": 0,
+      "balances_distinct_agents": 0,
+      "node_positions_count": 0,
+      "reputations_count": 0,
+      "autopsy_event_count": 0,
+      "autopsy_capsule_total": 0,
+      "conditional_collateral_total_micro": 0
+    }
+  ]
+}

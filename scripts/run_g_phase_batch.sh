@@ -169,12 +169,13 @@ BATCH_ID="${RUN_TAG}_${GIT_HEAD:0:7}"
 
 # ── Build release binaries ──────────────────────────────────────────────────
 
-echo "[build] cargo build --release -p minif2f_v4 --bin evaluator --bin batch_evaluator -p turingosv4 --bin audit_tape"
-(cd "$PROJECT_ROOT" && cargo build --release -p minif2f_v4 --bin evaluator --bin batch_evaluator -p turingosv4 --bin audit_tape 2>&1 | tail -5)
+echo "[build] cargo build --release -p minif2f_v4 --bin evaluator --bin batch_evaluator -p turingosv4 --bin audit_tape --bin tb_g_persistence_report"
+(cd "$PROJECT_ROOT" && cargo build --release -p minif2f_v4 --bin evaluator --bin batch_evaluator -p turingosv4 --bin audit_tape --bin tb_g_persistence_report 2>&1 | tail -5)
 EVALUATOR="$PROJECT_ROOT/target/release/evaluator"
 BATCH_EVALUATOR="$PROJECT_ROOT/target/release/batch_evaluator"
 AUDIT_TAPE="$PROJECT_ROOT/target/release/audit_tape"
-for b in "$EVALUATOR" "$BATCH_EVALUATOR" "$AUDIT_TAPE"; do
+PERSISTENCE_REPORT="$PROJECT_ROOT/target/release/tb_g_persistence_report"
+for b in "$EVALUATOR" "$BATCH_EVALUATOR" "$AUDIT_TAPE" "$PERSISTENCE_REPORT"; do
     [[ -x "$b" ]] || { echo "ERROR: binary not built: $b" >&2; exit 6; }
 done
 
@@ -259,17 +260,32 @@ AUDIT_EXIT=$?
 VERDICT="$(grep -E '"verdict"' "$RUN_DIR/aggregate_verdict.json" 2>/dev/null | head -1 | sed -E 's/.*"verdict": *"([^"]+)".*/\1/')"
 echo "[audit_tape] exit=$AUDIT_EXIT verdict=$VERDICT"
 
-# ── Run log ─────────────────────────────────────────────────────────────────
+# ── Persistence binding report (Codex Q6 closure) ───────────────────────────
+
+echo
+echo "[persistence_report] running tb_g_persistence_report"
+"$PERSISTENCE_REPORT" --run-dir "$RUN_DIR" \
+    > "$RUN_DIR/persistence_report.stdout" \
+    2> "$RUN_DIR/persistence_report.stderr"
+PERSISTENCE_EXIT=$?
+PERSISTENCE_PASSING="$(grep -oE 'is_passing=(true|false)' "$RUN_DIR/persistence_report.stdout" 2>/dev/null | head -1 | sed -E 's/.*=(true|false)/\1/')"
+PERSISTENCE_N_WITNESSED="$(grep -oE 'n_witnessed=[0-9]+' "$RUN_DIR/persistence_report.stdout" 2>/dev/null | head -1 | sed -E 's/.*=([0-9]+)/\1/')"
+echo "[persistence_report] exit=$PERSISTENCE_EXIT is_passing=$PERSISTENCE_PASSING n_witnessed=$PERSISTENCE_N_WITNESSED"
+
+# ── Run log (canonical; final after every artifact settles) ─────────────────
 
 {
-    echo "batch_id        $BATCH_ID"
-    echo "run_tag         $RUN_TAG"
-    echo "problem_count   $PROBLEM_COUNT"
-    echo "git_head        $GIT_HEAD"
-    echo "elapsed_s       $ELAPSED"
-    echo "batch_exit      $BATCH_EXIT"
-    echo "audit_exit      $AUDIT_EXIT"
-    echo "audit_verdict   $VERDICT"
+    echo "batch_id            $BATCH_ID"
+    echo "run_tag             $RUN_TAG"
+    echo "problem_count       $PROBLEM_COUNT"
+    echo "git_head            $GIT_HEAD"
+    echo "elapsed_s           $ELAPSED"
+    echo "batch_exit          $BATCH_EXIT"
+    echo "audit_exit          $AUDIT_EXIT"
+    echo "audit_verdict       $VERDICT"
+    echo "persistence_exit    $PERSISTENCE_EXIT"
+    echo "persistence_passing $PERSISTENCE_PASSING"
+    echo "persistence_n_witnessed $PERSISTENCE_N_WITNESSED"
 } > "$RUN_DIR/run_log.txt"
 
 echo
@@ -277,15 +293,20 @@ echo "════════════════════════�
 echo "Done. Evidence dir: $RUN_DIR"
 echo "  - BatchContinuationManifest.json   (G1.2-4 fact-identity)"
 echo "  - aggregate_verdict.json verdict=$VERDICT"
+echo "  - PERSISTENCE_BINDING_REPORT.json  is_passing=$PERSISTENCE_PASSING (n_witnessed=$PERSISTENCE_N_WITNESSED)"
 echo "  - run_log.txt"
 echo "════════════════════════════════════════════════════════════════════════"
 
-# Exit non-zero on any failure mode (batch crash OR audit non-PROCEED).
+# Exit non-zero on any failure mode (batch crash OR audit non-PROCEED OR persistence Reset).
 if [[ "$BATCH_EXIT" -ne 0 ]]; then
     exit "$BATCH_EXIT"
 fi
 if [[ "$VERDICT" != "PROCEED" ]]; then
     echo "WARNING: aggregate audit_tape verdict=$VERDICT (not PROCEED)" >&2
+    exit 1
+fi
+if [[ "$PERSISTENCE_PASSING" != "true" ]]; then
+    echo "WARNING: persistence binding has Reset verdict(s) (kill-criterion #1)" >&2
     exit 1
 fi
 exit 0

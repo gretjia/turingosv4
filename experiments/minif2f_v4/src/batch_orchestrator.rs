@@ -97,6 +97,9 @@ pub fn prepare_task_boundary(
     prior_outcome: Option<&TaskOutcome>,
 ) -> Result<BoundaryPrep, BoundaryError> {
     if task_index == 0 {
+        eprintln!(
+            "batch_orchestrator: task_index=0 BoundaryPrep::FreshGenesis (no preflight, no lease — task_0 owns genesis)"
+        );
         return Ok(BoundaryPrep::FreshGenesis);
     }
 
@@ -110,6 +113,13 @@ pub fn prepare_task_boundary(
         &prior.end_head_t_hex,
     )
     .map_err(|e| BoundaryError::Lease(e.to_string()))?;
+    eprintln!(
+        "batch_orchestrator: task_index={task_index} ChainTapeLease ACQUIRED \
+         (holder_pid={}, batch_id={}, start_head={})",
+        std::process::id(),
+        spec.batch_id,
+        prior.end_head_t_hex,
+    );
 
     // Re-snapshot under lock for the state-root claim that preflight
     // will verify.
@@ -130,15 +140,27 @@ pub fn prepare_task_boundary(
     };
 
     match preflight_check(&contract) {
-        PreflightVerdict::Ok => Ok(BoundaryPrep::Resume {
-            lease,
-            start_head_t_hex: head_hex,
-            start_chain_length: chain_length,
-        }),
+        PreflightVerdict::Ok => {
+            eprintln!(
+                "batch_orchestrator: task_index={task_index} ResumePreflight::Ok \
+                 (head={head_hex} state_root={state_root_hex} chain_length={chain_length}) \
+                 → BoundaryPrep::Resume"
+            );
+            Ok(BoundaryPrep::Resume {
+                lease,
+                start_head_t_hex: head_hex,
+                start_chain_length: chain_length,
+            })
+        }
         PreflightVerdict::Fail { failure } => {
             // Drop the lease before returning the error so the next
             // attempt sees a clean state.
             drop(lease);
+            eprintln!(
+                "batch_orchestrator: task_index={task_index} ResumePreflight::Fail \
+                 → ChainTapeLease released; failure={}",
+                format_failure(&failure)
+            );
             Err(BoundaryError::Preflight {
                 failure: format_failure(&failure),
             })
@@ -239,28 +261,64 @@ pub fn build_subprocess_env(
 }
 
 /// TRACE_MATRIX § 3 orphan (TB-G G1.2-3 2026-05-11; Option B+ §3.3 +
-/// §3.5): write the per-batch manifest skeleton to disk. The full
-/// CAS-anchored manifest module lands in G1.2-4; today we write a
-/// stable JSON shape under `<out_dir>/BatchContinuationManifest.json`
-/// so callers can rely on the format.
+/// §3.5): write the per-batch manifest skeleton to disk using the
+/// canonical `BatchContinuationManifest` schema (G1.2-4
+/// `runtime::batch_continuation_manifest`). Reads parseable by the
+/// canonical types so `tb_g_persistence_report` (G1.2-6 Codex Q6
+/// closure) can ingest the manifest directly via
+/// `serde_json::from_str::<BatchContinuationManifest>`.
 pub fn write_manifest_skeleton(
     spec: &BatchSpec,
     outcomes: &[TaskOutcome],
     terminated_reason: Option<&str>,
 ) -> std::io::Result<PathBuf> {
+    use turingosv4::runtime::batch_continuation_manifest::{
+        BatchContinuationManifest, TaskContinuationEntry,
+    };
+
     std::fs::create_dir_all(&spec.out_dir)?;
     let path = spec.out_dir.join("BatchContinuationManifest.json");
-    let manifest = serde_json::json!({
-        "schema_version": "g1_2_3_skeleton_v1",
-        "batch_id": spec.batch_id,
-        "runtime_repo": spec.runtime_repo.to_string_lossy(),
-        "cas_root": spec.cas_path.to_string_lossy(),
-        "model": spec.model,
-        "n_agents": spec.n_agents,
-        "tasks": outcomes,
-        "terminated_reason": terminated_reason,
-    });
-    std::fs::write(&path, serde_json::to_string_pretty(&manifest).unwrap())?;
+
+    let initial_head_t_hex = outcomes
+        .first()
+        .map(|o| o.start_head_t_hex.clone())
+        .unwrap_or_default();
+
+    let tasks: Vec<TaskContinuationEntry> = outcomes
+        .iter()
+        .map(|o| TaskContinuationEntry {
+            task_index: o.task_index,
+            problem_id: o.problem_id.clone(),
+            start_head_t_hex: o.start_head_t_hex.clone(),
+            end_head_t_hex: o.end_head_t_hex.clone(),
+            start_chain_length: o.start_chain_length,
+            end_chain_length: o.end_chain_length,
+            subprocess_command_sha256: String::new(),
+            run_summary_cid_hex: None,
+            terminal_tx_id: None,
+            exit_code: o.exit_code,
+            started_at_unix_s: o.started_at_unix_s,
+            finished_at_unix_s: o.finished_at_unix_s,
+        })
+        .collect();
+
+    let manifest = BatchContinuationManifest {
+        schema_version: "g1_2_v1".to_string(),
+        batch_id: spec.batch_id.clone(),
+        runtime_repo: spec.runtime_repo.to_string_lossy().into_owned(),
+        cas_root: spec.cas_path.to_string_lossy().into_owned(),
+        model: spec.model.clone(),
+        n_agents: spec.n_agents,
+        initial_head_t_hex,
+        agent_registry_cid_hex: None,
+        system_pubkeys_cid_hex: None,
+        model_manifest_cid_hex: None,
+        tasks,
+        terminated_reason: terminated_reason.map(|s| s.to_string()),
+    };
+    let body = serde_json::to_string_pretty(&manifest)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+    std::fs::write(&path, body)?;
     Ok(path)
 }
 
