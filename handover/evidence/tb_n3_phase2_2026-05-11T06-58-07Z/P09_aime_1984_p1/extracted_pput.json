@@ -1,0 +1,1 @@
+{"tx_count": 50, "halt": "MaxTxExhausted", "solved": false, "hit_max_tx": true, "verified": false, "tool_dist": {"step_partial_ok": 3, "step_reject": 36, "step": 39, "parse_fail": 2}, "step_partial_ok": 3}

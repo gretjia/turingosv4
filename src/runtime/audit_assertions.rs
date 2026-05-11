@@ -649,6 +649,17 @@ fn sandbox_prefix(agent: &str) -> bool {
             }
         }
     }
+    // TB-N3 A0.5 (architect ruling 2026-05-11 amendment 6 + Q2):
+    // `MarketMakerBudget` is the genesis-preseeded provider identity
+    // for TB-N3 A3 auto-emitted node-survive markets. Sandbox-only by
+    // construction — added to `default_pput_preseed_pairs()` at on_init
+    // (no production user funds path). Per Phase 1 smoke evidence
+    // 2026-05-11: chain witnesses TaskOpen/MarketSeed/CpmmPool tx with
+    // sponsor=provider="MarketMakerBudget" — id=3 + id=41 must recognize
+    // this as sandbox per architect §7.7 + amendment 6.
+    if agent == "MarketMakerBudget" {
+        return true;
+    }
     false
 }
 
@@ -1391,6 +1402,17 @@ pub fn assert_d_total_supply_conserved_per_block(t: &LoadedTape) -> AssertionRes
 }
 
 /// TRACE_MATRIX FC1-N34 + FC2-N31 (TB-16 audit-from-tape battery).
+///
+/// TB-N3 A3 fix 2026-05-11: extend the share-sum to ALSO include
+/// `cpmm_pools_t[event_id].pool_yes/no` reserves, mirroring the runtime
+/// `economy::monetary_invariant::assert_complete_set_balanced` extension
+/// landed at Stage C P-M4 (architect manual §7.5 rule 1: "pool_yes and
+/// pool_no are share balances controlled by pool"). Pool reserves are
+/// claims against the SAME locked collateral; CpmmPool admission moves
+/// shares from `conditional_share_balances_t` into pool reserves while
+/// leaving collateral unchanged. Without counting pool reserves the
+/// symmetric-branch invariant `min(sum_yes, sum_no) == collateral` would
+/// HALT on every valid post-pool-create state.
 pub fn assert_19_complete_set_min_balanced(t: &LoadedTape) -> AssertionResult {
     use crate::state::typed_tx::OutcomeSide;
     let q = match &t.replayed_q {
@@ -1412,6 +1434,12 @@ pub fn assert_19_complete_set_min_balanced(t: &LoadedTape) -> AssertionResult {
             *yes_sum.entry(event_id.clone()).or_default() += pair.yes.units as i128;
             *no_sum.entry(event_id.clone()).or_default() += pair.no.units as i128;
         }
+    }
+    // TB-N3 A3 fix: count CpmmPool reserves alongside individual share
+    // balances (mirrors runtime assert_complete_set_balanced).
+    for (event_id, pool) in &q.economic_state_t.cpmm_pools_t.0 {
+        *yes_sum.entry(event_id.clone()).or_default() += pool.pool_yes.units as i128;
+        *no_sum.entry(event_id.clone()).or_default() += pool.pool_no.units as i128;
     }
     for (event_id, mc) in &q.economic_state_t.conditional_collateral_t.0 {
         let collateral = mc.micro_units() as i128;
@@ -1504,6 +1532,17 @@ pub fn assert_21_node_positions_excluded_from_supply(t: &LoadedTape) -> Assertio
 }
 
 /// TRACE_MATRIX FC1-N34 + FC2-N31 (TB-16 audit-from-tape battery).
+///
+/// TB-N3 A3 fix 2026-05-11: also count `cpmm_pools_t[event_id].pool_yes/no`
+/// reserves alongside `conditional_share_balances_t` when computing
+/// `with_shares`, then check that EITHER the share registry is empty
+/// (no claims yet) OR the share total is non-zero (claims exist and were
+/// excluded from `total_supply_micro` baseline). Pre-fix logic raised
+/// CR-13.3 violation when post-CpmmPool individual share balances zeroed
+/// out (shares moved into pool reserves), even though the pool reserves
+/// themselves are claims that ARE excluded from total_supply_micro per
+/// architect §7.5 rule 2 — same exclusion semantics; same CR-13.3
+/// invariant; just a different surface holding the claims.
 pub fn assert_22_conditional_shares_excluded_from_supply(t: &LoadedTape) -> AssertionResult {
     let q = match &t.replayed_q {
         Some(q) => q,
@@ -1523,9 +1562,14 @@ pub fn assert_22_conditional_shares_excluded_from_supply(t: &LoadedTape) -> Asse
             with_shares += pair.yes.units as i128 + pair.no.units as i128;
         }
     }
-    if q.economic_state_t.conditional_share_balances_t.0.is_empty()
-        || with_shares != baseline
-    {
+    // TB-N3 A3 fix: include CpmmPool reserves (also claims; also excluded
+    // from total_supply_micro per architect §7.5 rule 2).
+    for (_event_id, pool) in &q.economic_state_t.cpmm_pools_t.0 {
+        with_shares += pool.pool_yes.units as i128 + pool.pool_no.units as i128;
+    }
+    let no_share_state = q.economic_state_t.conditional_share_balances_t.0.is_empty()
+        && q.economic_state_t.cpmm_pools_t.0.is_empty();
+    if no_share_state || with_shares != baseline {
         AssertionResult::pass(
             22,
             "conditional_shares_excluded_from_supply",
@@ -1536,7 +1580,7 @@ pub fn assert_22_conditional_shares_excluded_from_supply(t: &LoadedTape) -> Asse
             22,
             "conditional_shares_excluded_from_supply",
             AssertionLayer::D,
-            "including shares did not change total — implies CR-13.3 violation".into(),
+            "including shares + pool reserves did not change total — implies CR-13.3 violation".into(),
         )
     }
 }

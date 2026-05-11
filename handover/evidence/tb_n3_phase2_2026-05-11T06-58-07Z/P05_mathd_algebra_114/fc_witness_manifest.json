@@ -1,0 +1,155 @@
+{
+  "schema_version": 1,
+  "tb_id": "TB-C0",
+  "tool": "scripts/fc_witness_extract.py",
+  "run_dir": "/home/zephryj/projects/turingosv4/handover/evidence/tb_n3_phase2_2026-05-11T06-58-07Z/P05_mathd_algebra_114",
+  "node_status_counts": {
+    "green": 21,
+    "amber": 4,
+    "red": 0
+  },
+  "fc_nodes": {
+    "FC1-N1_q_state_carrier": {
+      "witness": "initial_q_state.json + final state via run_summary",
+      "status": "\u2705",
+      "detail": "initial_q_state present"
+    },
+    "FC1-N2_q_t_slice": {
+      "witness": "Q_t advancement visible via state_root in rejections.jsonl + L4 entries",
+      "status": "\u2705",
+      "detail": "7 rejection records carry parent_state_root"
+    },
+    "FC1-N3_HEAD_t_pointer": {
+      "witness": "audit_tape verdict.head_state_root_hex + head_ledger_root_hex",
+      "status": "\u2705",
+      "detail": "85544c0dafeeab57b32643ad857447aa2329f4d9"
+    },
+    "FC1-N4_q1_after_delta": {
+      "witness": "L4 entries (accepted WorkTx advance Q_t)",
+      "status": "\u2705",
+      "detail": "l4_count=3"
+    },
+    "FC1-N5_rtool": {
+      "witness": "agent_audit_trail.jsonl records (snapshot reads)",
+      "status": "\u2705",
+      "detail": "2 agent audit-trail records"
+    },
+    "FC1-N7_delta_AI_call": {
+      "witness": "AttemptTelemetry CAS objects (one per LLM call)",
+      "status": "\u2705",
+      "detail": "20 AttemptTelemetry CAS objects"
+    },
+    "FC1-N11_predicates": {
+      "witness": "LeanResult CAS objects (predicate verdict per attempt)",
+      "status": "\u2705",
+      "detail": "20 LeanResult CAS objects"
+    },
+    "FC1-N13_wtool": {
+      "witness": "L4 + L4.E entries (sequencer-mediated writes)",
+      "status": "\u2705",
+      "detail": "l4=3, l4e=7"
+    },
+    "FC1-N15_reject_branch": {
+      "witness": "L4.E entries (rejected proposals routed away from L4)",
+      "status": "\u2705",
+      "detail": "7 rejection records on L4.E"
+    },
+    "FC1-INV1_every_attempt_tape_visible": {
+      "witness": "AttemptTelemetry count == l4_work + l4e_work + capsule_anchored (extended FC1 hard invariant)",
+      "status": "\u2705",
+      "detail": "chain_invariant: expected=20, l4=0, l4e=5, AT_count=20, architect_inv1.match=True (architect_chain_attempt_count=20, evaluator_reported_tx_count=None)"
+    },
+    "FC1-INV3_count_equality_constitutional": {
+      "witness": "expected == L4_work + L4E_work + capsule_anchored (independent count)",
+      "status": "\u2705",
+      "detail": "expected=20 vs (l4=0 + l4e=5 + capsule=15) = 20; delta_3term=+0; AT_count=20; capsule_source=chain_invariant.json (independent, Bug 3-fix binary)"
+    },
+    "FC2-N16_InitAI": {
+      "witness": "genesis_report.json with constitution_hash + run_id + Q_0",
+      "status": "\u2705",
+      "detail": "genesis_report fields=['constitution_hash', 'runtime_repo', 'cas_path', 'system_pubkey_hash', 'agent_pubkeys_path', 'initial_balances']"
+    },
+    "FC2-N18_constitution_ground_truth": {
+      "witness": "audit_tape verdict.constitution_hash_hex + assertion 'constitution_hash_matches_genesis'",
+      "status": "\u2705",
+      "detail": "eec695459c71fbef3685583485deb431..."
+    },
+    "FC2-N21_Q0_minted": {
+      "witness": "initial_q_state.json shows pre-seeded EconomicState (Coin balances at boot)",
+      "status": "\u2705",
+      "detail": "Q_0 ledger present"
+    },
+    "FC2-N22_HALT": {
+      "witness": "chain_invariant.terminal_halt_class (RunOutcome variant)",
+      "status": "\u2705",
+      "detail": "halt=MaxTxExhausted"
+    },
+    "FC2-INV1_genesis_replayable": {
+      "witness": "audit_tape verdict assertions Pass (replay verifies; audit_tape walks L4+L4.E+CAS)",
+      "status": "\u2705",
+      "detail": "40 Pass / 0 Fail / 11 Skipped of 51 audit_tape assertions"
+    },
+    "FC2-INV4_taskopen_escrowlock_chain_events": {
+      "witness": "audit_tape tx_kind_counts shows task_open >= 1 + escrow_lock >= 1",
+      "status": "\u2705",
+      "detail": "task_open=1, escrow_lock=1"
+    },
+    "FC2-INV6_pubkeys_verify": {
+      "witness": "pinned_pubkeys.json + audit_tape assertion 'system_pubkey_verifies_terminal_summary'",
+      "status": "\u2705",
+      "detail": "pinned_pubkeys present"
+    },
+    "FC2-INV7_agent_registry_resolves": {
+      "witness": "agent_pubkeys.json with resolvable agent_id \u2192 ed25519 pubkey",
+      "status": "\u2705",
+      "detail": "agent_pubkeys present"
+    },
+    "FC3-INV1_capsule_derived": {
+      "witness": "EvidenceCapsule CAS object (derived from L4+CAS)",
+      "status": "\u2705",
+      "detail": "EvidenceCapsule present in CAS"
+    },
+    "FC3-INV2_no_global_pointer": {
+      "witness": "filesystem absence of LATEST_MARKOV_CAPSULE.txt",
+      "status": "\u2705",
+      "detail": "absent (Art. 0.2 honored)"
+    },
+    "FC3-INV3_raw_logs_shielded": {
+      "witness": "agent_audit_trail.jsonl shows snapshot reads do NOT include raw stderr; structural test fc3_raw_logs_not_in_agent_read_view",
+      "status": "\ud83d\udfe1 structural_only",
+      "detail": "verified via constitution_fc3_meta::fc3_raw_logs_not_in_agent_read_view (source-grep test)"
+    },
+    "FC3-INV5_deep_history_override": {
+      "witness": "structural test fc3_deep_history_requires_override + TURINGOS_MARKOV_OVERRIDE env-flag",
+      "status": "\ud83d\udfe1 structural_only",
+      "detail": "verified via constitution_fc3_meta::fc3_deep_history_requires_override"
+    },
+    "FC3-INV7_architect_propose_only": {
+      "witness": "handover/directives/*.md trail (architect proposals as committed-doc artifacts)",
+      "status": "\ud83d\udfe1 structural_only",
+      "detail": "verified via constitution_fc3_meta::fc3_architectai_proposal_not_direct_write"
+    },
+    "FC3-INV8_judge_veto_only": {
+      "witness": "handover/audits/*.md trail (Codex+Gemini verdict reports, no code commits)",
+      "status": "\ud83d\udfe1 structural_only",
+      "detail": "verified via constitution_fc3_meta::fc3_judgeai_veto_only"
+    }
+  },
+  "facts_summary": {
+    "attempt_telemetry_count": 20,
+    "lean_result_count": 20,
+    "l4_count": 3,
+    "l4e_count": 7,
+    "cas_object_types": {
+      "ProposalPayload": 16,
+      "Generic": 4,
+      "LeanResult": 20,
+      "AttemptTelemetry": 20,
+      "CompressedRunLog": 1,
+      "EvidenceManifest": 1,
+      "EvidenceCapsule": 1
+    },
+    "rejections_jsonl_count": 7,
+    "agent_audit_trail_count": 2
+  }
+}

@@ -1,0 +1,9 @@
+mathd_algebra_107 easy 5
+mathd_algebra_125 easy 5
+mathd_algebra_141 easy 5
+mathd_algebra_113 medium 20
+mathd_algebra_114 medium 20
+mathd_numbertheory_1124 hard 50
+numbertheory_2pownm1prime_nprime hard 50
+aime_1983_p1 hard 50
+aime_1984_p1 hard 50

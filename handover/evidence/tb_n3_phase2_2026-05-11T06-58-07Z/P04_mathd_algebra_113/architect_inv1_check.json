@@ -1,0 +1,9 @@
+{
+  "architect_inv_1": "chain_attempt_count == externalized_llm_cycle_count",
+  "chain_attempt_count": 6,
+  "externalized_llm_cycle_count": 6,
+  "evaluator_reported_tx_count_legacy": 6,
+  "match": true,
+  "delta": 0,
+  "_note": "TB-C0 strict audit 2026-05-07 Bug 1 fix: LHS is externalized LLM-Lean cycle count (tool_dist.step), not raw tx_count (which includes TaskOpen/EscrowLock/TerminalSummary)"
+}

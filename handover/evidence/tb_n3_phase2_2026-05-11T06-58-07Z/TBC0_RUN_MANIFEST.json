@@ -1,0 +1,18 @@
+{
+  "tb_id": "TB-C0",
+  "phase": "TB-C0 multi-agent FC-witness evidence run",
+  "directive": "handover/directives/2026-05-06_TBC0_CONSTITUTION_LANDING_RESET_DIRECTIVE.md",
+  "charter": "handover/tracer_bullets/TB-C0_charter_2026-05-06.md",
+  "smoke_mode": false,
+  "problem_count": 9,
+  "n_agents": 5,
+  "condition": "n5",
+  "per_problem_timeout_s": 1800,
+  "llm_proxy_url": "http://localhost:8080",
+  "active_model": "deepseek-chat",
+  "run_timestamp_utc": "2026-05-11T06-58-07Z",
+  "git_head": "b42ff44e8eb11c7f4f8944594200b7fe2b519f1c",
+  "git_head_short": "b42ff44",
+  "problem_difficulty_file": "/home/zephryj/projects/turingosv4/handover/evidence/tb_n3_phase2_2026-05-11T06-58-07Z/tbc0_problems_difficulty.txt",
+  "remediation_protocol": "feedback_real_problems_not_designed (find real existing problems for any FC gap; do NOT synthesize)"
+}
