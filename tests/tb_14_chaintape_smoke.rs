@@ -173,6 +173,7 @@ async fn tb_14_atom_6_post_wire_swap_chaintape_replay_preserves_price_index_dete
         cas_path: tmp.path().join("cas"),
         run_id: "tb14-atom6-smoke".to_string(),
         queue_capacity: 16,
+        resume_existing_chain: false,
     };
 
     let alice = "alice";

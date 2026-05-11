@@ -3748,11 +3748,55 @@ impl Sequencer {
         initial_q: QState,
         queue_capacity: usize,
     ) -> (Self, tokio::sync::mpsc::Receiver<SubmissionEnvelope>) {
+        Self::new_at_logical_t(
+            cas,
+            keypair,
+            epoch,
+            ledger_writer,
+            rejection_writer,
+            predicate_registry,
+            tool_registry,
+            pinned_pubkeys,
+            initial_q,
+            queue_capacity,
+            0,
+        )
+    }
+
+    /// TRACE_MATRIX FC2-INV8: TB-G G1.1 (architect §8 SIGNED 2026-05-11
+    /// "好，确认可以 ship" — canonical Class-4 §8 form; packet §2):
+    /// companion to [`Sequencer::new`] that seeds `next_logical_t` to a
+    /// caller-supplied value. Used by
+    /// `runtime::build_chaintape_sequencer_with_initial_q` when resuming
+    /// an existing `refs/transitions/main` chain — the sequencer must
+    /// observe `next_logical_t == chain_length` so the strict
+    /// `len + 1` invariant in `Git2LedgerWriter::append` holds on the
+    /// next commit (SG-G1.2 binding;
+    /// `tests/constitution_g1_resume.rs::sg_g1_2_resume_on_n_entry_chain_sets_next_logical_t_to_n`).
+    ///
+    /// Body intentionally shares everything with `new` except the
+    /// `next_logical_t` seed (packet §5 Q3: no admission-arm fork). All
+    /// admission arms, predicate gates, and monetary invariants are
+    /// identical. `Sequencer::new` is a thin alias that passes `0`.
+    #[allow(clippy::too_many_arguments)]
+    pub fn new_at_logical_t(
+        cas: Arc<RwLock<CasStore>>,
+        keypair: Arc<Ed25519Keypair>,
+        epoch: SystemEpoch,
+        ledger_writer: Arc<RwLock<dyn LedgerWriter>>,
+        rejection_writer: Arc<RwLock<RejectionEvidenceWriter>>,
+        predicate_registry: Arc<PredicateRegistry>,
+        tool_registry: Arc<ToolRegistry>,
+        pinned_pubkeys: Arc<crate::bottom_white::ledger::system_keypair::PinnedSystemPubkeys>,
+        initial_q: QState,
+        queue_capacity: usize,
+        next_logical_t_seed: u64,
+    ) -> (Self, tokio::sync::mpsc::Receiver<SubmissionEnvelope>) {
         let (queue_tx, queue_rx) = tokio::sync::mpsc::channel(queue_capacity);
         let seq = Self {
             next_submit_id: AtomicU64::new(1),
-            next_logical_t: AtomicU64::new(0), // first accepted commit advances to 1
-            next_emit_id: AtomicU64::new(1),    // TB-5 Atom 4: parallel system-emit counter
+            next_logical_t: AtomicU64::new(next_logical_t_seed),
+            next_emit_id: AtomicU64::new(1),
             queue_tx,
             cas,
             keypair,

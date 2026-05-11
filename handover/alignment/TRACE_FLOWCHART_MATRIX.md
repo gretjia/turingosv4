@@ -110,6 +110,7 @@ These hashes are immutable architectural contracts; if a flowchart changes, that
 | **FC2-INV5** replayable | `fc2_run_replayable_from_genesis_tape_cas` | tear down state, replay from genesis_report + L4 + CAS, recover identical chain_derived_run_facts |
 | **FC2-INV6** pubkeys verify | `fc2_system_pubkeys_verify` | system tx signature verifies under genesis_payload.toml-pinned pubkey |
 | **FC2-INV7** registry resolves | `fc2_agent_registry_resolves` | agent_pubkeys.json → AgentKeypairRegistry resolves correct pubkey |
+| **FC2-INV8** resume-from-existing-chain (TB-G G1.1; architect §8 SIGNED 2026-05-11) | `tests/constitution_g1_resume.rs` (sg_g1_1 .. sg_g1_5) | env-gated `TURINGOS_CHAINTAPE_RESUME=1` admits non-empty `refs/transitions/main` and rebuilds QState via the canonical FC2 Boot replay primitive `replay_full_transition` (same primitive `verify_chaintape` uses); resume preserves `pinned_pubkeys.json` (epoch continuity) and seeds `Sequencer.next_logical_t = chain_length` so the strict `len + 1` invariant holds on the next commit; default `resume_existing_chain = false` preserves the original TB-6 `NonEmptyRuntimeRepo` fail-closed gate (SG-G1.4 back-compat) |
 
 ---
 

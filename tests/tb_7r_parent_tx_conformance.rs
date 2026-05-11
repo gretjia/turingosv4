@@ -50,6 +50,7 @@ fn fresh_config(tmp: &TempDir, run_id: &str) -> RuntimeChaintapeConfig {
         cas_path: tmp.path().join("cas"),
         run_id: run_id.into(),
         queue_capacity: 16,
+        resume_existing_chain: false,
     }
 }
 

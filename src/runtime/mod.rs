@@ -125,10 +125,10 @@ use tokio::task::JoinHandle;
 use crate::bottom_white::cas::store::CasStore;
 use crate::bottom_white::ledger::rejection_evidence::RejectionEvidenceWriter;
 use crate::bottom_white::ledger::system_keypair::{
-    Ed25519Keypair, PinnedSystemPubkeys, SystemEpoch,
+    Ed25519Keypair, PinnedSystemPubkeys, SystemEpoch, SystemPublicKey,
 };
 use crate::bottom_white::ledger::transition_ledger::{
-    Git2LedgerWriter, LedgerWriter,
+    replay_full_transition, Git2LedgerWriter, LedgerEntry, LedgerWriter,
 };
 use crate::state::q_state::QState;
 use crate::state::sequencer::{Sequencer, SubmissionEnvelope};
@@ -161,6 +161,15 @@ pub struct RuntimeChaintapeConfig {
     pub run_id: String,
     /// Sequencer mpsc channel capacity. Default 64.
     pub queue_capacity: usize,
+    /// TB-G G1.1 (architect §8 SIGNED 2026-05-11; packet §2 + §5 Q4):
+    /// when `true` AND `refs/transitions/main` is non-empty,
+    /// `build_chaintape_sequencer` resumes the existing chain instead of
+    /// fail-closing with `BootstrapError::NonEmptyRuntimeRepo`. Default
+    /// `false` preserves back-compat for all pre-G-Phase callers (TB-N* /
+    /// Stage C / Wave 3 50p / TB-N3 Phase 2). Env-gated by
+    /// `TURINGOS_CHAINTAPE_RESUME == "1"` (strict equality; no
+    /// truthy-string footgun).
+    pub resume_existing_chain: bool,
 }
 
 impl RuntimeChaintapeConfig {
@@ -193,11 +202,20 @@ impl RuntimeChaintapeConfig {
             .ok()
             .and_then(|s| s.parse::<usize>().ok())
             .unwrap_or(64);
+        // TB-G G1.1 (packet §5 Q4): strict equality on "1". `Ok("1")` flips
+        // the resume gate on; any other value (including "true", "yes",
+        // "TRUE", "01", " 1", absent) leaves the gate off. No
+        // truthy-string footgun.
+        let resume_existing_chain = matches!(
+            std::env::var("TURINGOS_CHAINTAPE_RESUME").as_deref(),
+            Ok("1")
+        );
         Some(Self {
             runtime_repo_path,
             cas_path,
             run_id,
             queue_capacity,
+            resume_existing_chain,
         })
     }
 }
@@ -424,11 +442,23 @@ pub fn build_chaintape_sequencer_with_initial_q(
     config: &RuntimeChaintapeConfig,
     initial_q: QState,
 ) -> Result<ChaintapeBundle, BootstrapError> {
-    // Step 1: open or init runtime repo, fail-closed on existing chain.
+    // Step 1: open or init runtime repo. Branch on resume_existing_chain.
+    //
+    // TB-G G1.1 (architect §8 SIGNED 2026-05-11; packet §2): when
+    // `resume_existing_chain == true` AND `refs/transitions/main` is
+    // non-empty, take the resume path; otherwise preserve the original
+    // TB-6 fail-closed behavior (`NonEmptyRuntimeRepo`). Empty repo +
+    // resume=true degrades to fresh genesis (SG-G1.1 byte-equality).
     std::fs::create_dir_all(&config.runtime_repo_path)?;
     let git_writer = Git2LedgerWriter::open(&config.runtime_repo_path)
         .map_err(|e| BootstrapError::LedgerWriter(e.to_string()))?;
-    if git_writer.head_commit_oid().is_some() {
+    let chain_is_non_empty = git_writer.head_commit_oid().is_some();
+    let resume_active = config.resume_existing_chain && chain_is_non_empty;
+
+    if chain_is_non_empty && !config.resume_existing_chain {
+        // SG-G1.4: existing TB-6 fail-closed gate preserved when resume
+        // is OFF. All TB-N* / Stage C / Wave 3 50p / TB-N3 Phase 2
+        // smoke runs hit this branch unchanged.
         let existing_head = git_writer
             .head_commit_oid()
             .map(|o| o.to_string())
@@ -438,24 +468,65 @@ pub fn build_chaintape_sequencer_with_initial_q(
             existing_head,
         });
     }
-    let transition_writer: Arc<RwLock<dyn LedgerWriter>> = Arc::new(RwLock::new(git_writer));
 
-    // Step 2: open CAS.
+    // Step 2: open CAS (same path for both branches; resume reads
+    // pre-existing payloads, fresh writes new ones).
     std::fs::create_dir_all(&config.cas_path)?;
     let cas_store = CasStore::open(&config.cas_path)
         .map_err(|e| BootstrapError::Cas(e.to_string()))?;
-    let cas = Arc::new(RwLock::new(cas_store));
 
-    // Step 3: generate keypair + persist pinned-pubkey manifest.
-    let keypair = Arc::new(
-        Ed25519Keypair::generate_with_secure_entropy()
-            .map_err(|e| BootstrapError::Keypair(e.to_string()))?,
-    );
-    let epoch = SystemEpoch::new(1);
-    write_pinned_pubkey_manifest(&config.runtime_repo_path, epoch, &keypair, &config.run_id)?;
-    let mut pinned = PinnedSystemPubkeys::new();
-    pinned.insert(epoch, keypair.public_key());
+    // Step 3-3.5: keypair + pinned pubkeys + seed QState + chain length.
+    //
+    // FRESH path: generate fresh keypair, write fresh manifest, seed
+    // Sequencer with caller-supplied `initial_q`, next_logical_t = 0.
+    //
+    // RESUME path (FC2 Boot constitutional alignment — "every real
+    // evidence run must be replayable from genesis_report + ChainTape
+    // + CAS + agent registry + system pubkeys", CLAUDE.md §3.2):
+    // read existing pinned_pubkeys.json (must exist; fail-closed if
+    // not) → build PinnedSystemPubkeys from all manifest entries →
+    // read existing initial_q_state.json (must exist; fail-closed
+    // if not) → replay every L4 entry via the canonical
+    // `replay_full_transition` primitive (the same primitive
+    // `verify_chaintape` uses; FC2-Boot replay determinism is
+    // covered by Stage A3 SG-A3.4 multi-ref replay-byte-equality)
+    // → generate a NEW keypair for a NEW epoch, append to manifest,
+    // pin the new pubkey. Old epochs remain pinned so prior entries
+    // still verify; new commits sign with the new epoch.
+    //
+    // Note re packet §2 adjacent-surfaces row: that row described
+    // `head_t_witness::reconstruct_from_chaintape_refs` as the
+    // QState-rebuild primitive, but in code that helper only
+    // reconstructs the 6-field HeadTWitness derived view from L4 /
+    // L4.E / CAS ref OIDs (Stage A3 SG-A3.4 derived-view boundary).
+    // Per FC2 §3.2 + §4.1 G-009 Path C the canonical QState replay
+    // primitive is `replay_full_transition`, which is what
+    // `verify_chaintape` uses. This module therefore takes the
+    // canonical FC2 replay path; `reconstruct_from_chaintape_refs`
+    // is unused by G1.1.
+    let (keypair, epoch, pinned, seed_q, chain_length): (
+        Arc<Ed25519Keypair>,
+        SystemEpoch,
+        PinnedSystemPubkeys,
+        QState,
+        u64,
+    ) = if resume_active {
+        bootstrap_resume_state(&config.runtime_repo_path, &cas_store, &git_writer)?
+    } else {
+        let kp = Arc::new(
+            Ed25519Keypair::generate_with_secure_entropy()
+                .map_err(|e| BootstrapError::Keypair(e.to_string()))?,
+        );
+        let epoch = SystemEpoch::new(1);
+        write_pinned_pubkey_manifest(&config.runtime_repo_path, epoch, &kp, &config.run_id)?;
+        let mut pinned = PinnedSystemPubkeys::new();
+        pinned.insert(epoch, kp.public_key());
+        (kp, epoch, pinned, initial_q, 0u64)
+    };
     let pinned_pubkeys = Arc::new(pinned);
+
+    let transition_writer: Arc<RwLock<dyn LedgerWriter>> = Arc::new(RwLock::new(git_writer));
+    let cas = Arc::new(RwLock::new(cas_store));
 
     // Step 4: rejection writer — JSONL-backed at <runtime_repo>/rejections.jsonl
     // per Atom 1.2 + architect § 3.5 deliverable shape.
@@ -465,6 +536,10 @@ pub fn build_chaintape_sequencer_with_initial_q(
     // anti-pattern as legacy `bus.append` as authoritative state mutation:
     // a chain-backed run that secretly drops L4.E writes is worse than a
     // failed boot. ChainTape mode is contractually a fail-closed declaration.
+    //
+    // TB-G G1.1: on resume the existing rejections.jsonl is re-opened,
+    // preserving the cumulative L4.E head. `open_jsonl` internally
+    // verifies the chain and rejects any tamper.
     let rejections_path = config.runtime_repo_path.join("rejections.jsonl");
     let rejection_writer = match RejectionEvidenceWriter::open_jsonl(rejections_path.clone()) {
         Ok(w) => Arc::new(RwLock::new(w)),
@@ -481,32 +556,51 @@ pub fn build_chaintape_sequencer_with_initial_q(
     let predicate_registry = Arc::new(PredicateRegistry::new());
     let tool_registry = Arc::new(ToolRegistry::new());
 
-    // Step 6: initial QState (caller-provided; base factory passes QState::genesis()).
-    // TB-7.7 D7 fix: persist initial_q to <runtime_repo>/initial_q_state.json so
-    // verify_chaintape can replay from the same starting point. Without this,
-    // pre-seeded balances / open task markets seen at runtime are absent during
-    // replay, causing a state divergence that classifies as
-    // (state_reconstructed=false, economic_state_reconstructed=false). Per
-    // verify.rs:264-272 this file is the authoritative initial-Q manifest;
-    // omitting it forces replay to start from QState::genesis().
-    let initial_q_path = config.runtime_repo_path.join("initial_q_state.json");
-    let initial_q_json = serde_json::to_string_pretty(&initial_q)
-        .map_err(|e| BootstrapError::Cas(format!("initial_q serialize: {e}")))?;
-    std::fs::write(&initial_q_path, initial_q_json)?;
+    // Step 6: persist `initial_q_state.json` so `verify_chaintape` can
+    // replay from the same seed. TB-G G1.1: skip on resume — the file
+    // already exists from the original bootstrap; re-writing would
+    // overwrite the canonical genesis snapshot with the post-replay
+    // QState and break FC2 replay determinism.
+    if !resume_active {
+        let initial_q_path = config.runtime_repo_path.join("initial_q_state.json");
+        let initial_q_json = serde_json::to_string_pretty(&seed_q)
+            .map_err(|e| BootstrapError::Cas(format!("initial_q serialize: {e}")))?;
+        std::fs::write(&initial_q_path, initial_q_json)?;
+    }
 
-    // Step 7: construct Sequencer.
-    let (sequencer, queue_rx) = Sequencer::new(
-        cas,
-        keypair,
-        epoch,
-        transition_writer.clone(),
-        rejection_writer.clone(),
-        predicate_registry,
-        tool_registry,
-        pinned_pubkeys,
-        initial_q,
-        config.queue_capacity,
-    );
+    // Step 7: construct Sequencer. Fresh path uses `Sequencer::new`
+    // (next_logical_t = 0); resume path uses
+    // `Sequencer::new_at_logical_t(.., chain_length)` so the next
+    // commit satisfies `Git2LedgerWriter::append`'s strict
+    // `len + 1` invariant (packet §3 SG-G1.2).
+    let (sequencer, queue_rx) = if resume_active {
+        Sequencer::new_at_logical_t(
+            cas,
+            keypair,
+            epoch,
+            transition_writer.clone(),
+            rejection_writer.clone(),
+            predicate_registry,
+            tool_registry,
+            pinned_pubkeys,
+            seed_q,
+            config.queue_capacity,
+            chain_length,
+        )
+    } else {
+        Sequencer::new(
+            cas,
+            keypair,
+            epoch,
+            transition_writer.clone(),
+            rejection_writer.clone(),
+            predicate_registry,
+            tool_registry,
+            pinned_pubkeys,
+            seed_q,
+            config.queue_capacity,
+        )
+    };
     let sequencer = Arc::new(sequencer);
 
     // Step 8: spawn driver wrapper + shutdown channel.
@@ -526,6 +620,158 @@ pub fn build_chaintape_sequencer_with_initial_q(
         driver_handle,
         shutdown_tx,
     })
+}
+
+/// TB-G G1.1 (architect §8 SIGNED 2026-05-11; packet §2 resume branch):
+/// reconstruct the (keypair, epoch, pinned pubkeys, seed QState,
+/// chain_length) tuple consumed by `build_chaintape_sequencer_with_initial_q`
+/// when resuming a non-empty `refs/transitions/main` chain.
+///
+/// Steps (FC2 Boot constitutional alignment per CLAUDE.md §3.2 +
+/// §4.1 G-009 Path C):
+/// 1. Read existing `pinned_pubkeys.json`. Fail-closed if missing or
+///    unparseable.
+/// 2. Build `PinnedSystemPubkeys` from every manifest entry so all
+///    prior-epoch entries still verify.
+/// 3. Read existing `initial_q_state.json`. Fail-closed if missing.
+/// 4. Read every L4 entry from `refs/transitions/main`.
+/// 5. Replay via `replay_full_transition` — the canonical FC2 Boot
+///    replay primitive shared with `verify_chaintape`. Any replay
+///    failure is fail-closed (no partial admission per packet §5 Q1).
+/// 6. Generate a NEW keypair for a NEW epoch (`max_existing + 1`).
+///    Append the new entry to `pinned_pubkeys.json` on disk; old
+///    entries stay so prior commits still verify. Pin the new pubkey
+///    so new commits round-trip.
+fn bootstrap_resume_state(
+    runtime_repo_path: &Path,
+    cas_store: &CasStore,
+    git_writer: &Git2LedgerWriter,
+) -> Result<
+    (
+        Arc<Ed25519Keypair>,
+        SystemEpoch,
+        PinnedSystemPubkeys,
+        QState,
+        u64,
+    ),
+    BootstrapError,
+> {
+    // 1. Pinned pubkeys manifest — fail-closed if missing.
+    let manifest_path = runtime_repo_path.join(PINNED_PUBKEYS_FILENAME);
+    if !manifest_path.exists() {
+        return Err(BootstrapError::Keypair(format!(
+            "resume mode: pinned_pubkeys.json missing at {manifest_path:?}; \
+             cannot rebuild PinnedSystemPubkeys map for chain signature verification"
+        )));
+    }
+    let manifest_json = std::fs::read_to_string(&manifest_path)?;
+    let mut manifest: PinnedPubkeyManifest = serde_json::from_str(&manifest_json)
+        .map_err(|e| BootstrapError::Keypair(format!("pinned_pubkeys.json parse: {e}")))?;
+
+    // 2. Rehydrate PinnedSystemPubkeys from every manifest entry.
+    let mut pinned = PinnedSystemPubkeys::new();
+    let mut max_epoch: u64 = 0;
+    for entry in &manifest.pubkeys {
+        let bytes = decode_pubkey_hex_32(&entry.pubkey_hex)?;
+        pinned.insert(SystemEpoch::new(entry.epoch), SystemPublicKey::from_bytes(bytes));
+        if entry.epoch > max_epoch {
+            max_epoch = entry.epoch;
+        }
+    }
+
+    // 3. Initial QState — fail-closed if missing.
+    let initial_q_path = runtime_repo_path.join("initial_q_state.json");
+    if !initial_q_path.exists() {
+        return Err(BootstrapError::Cas(format!(
+            "resume mode: initial_q_state.json missing at {initial_q_path:?}; \
+             cannot replay chain without canonical genesis seed QState"
+        )));
+    }
+    let initial_q_json = std::fs::read_to_string(&initial_q_path)?;
+    let initial_q: QState = serde_json::from_str(&initial_q_json)
+        .map_err(|e| BootstrapError::Cas(format!("initial_q_state.json parse: {e}")))?;
+
+    // 4. Read every L4 entry.
+    let chain_length = git_writer.len();
+    let entries: Vec<LedgerEntry> = (1..=chain_length)
+        .map(|t| git_writer.read_at(t))
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| {
+            BootstrapError::LedgerWriter(format!("resume read_at sweep: {e}"))
+        })?;
+
+    // 5. Replay via the canonical FC2 Boot primitive.
+    //
+    // Production binaries register predicates / tools AFTER bootstrap,
+    // and `verify_chaintape` does the same — so empty registries here
+    // mirror `verify_chaintape`'s replay envelope. Replay is
+    // deterministic regardless of registry contents because
+    // `dispatch_transition` is a pure function over inputs.
+    let predicate_registry = PredicateRegistry::new();
+    let tool_registry = ToolRegistry::new();
+    let replayed_q = replay_full_transition(
+        &initial_q,
+        &entries,
+        cas_store,
+        &pinned,
+        &predicate_registry,
+        &tool_registry,
+    )
+    .map_err(|e| {
+        BootstrapError::LedgerWriter(format!("resume replay_full_transition failed: {e:?}"))
+    })?;
+
+    // 6. New keypair + new epoch.
+    let new_keypair = Arc::new(
+        Ed25519Keypair::generate_with_secure_entropy()
+            .map_err(|e| BootstrapError::Keypair(e.to_string()))?,
+    );
+    let new_epoch = SystemEpoch::new(max_epoch + 1);
+    pinned.insert(new_epoch, new_keypair.public_key());
+
+    // Append to on-disk manifest. Old entries preserved verbatim per
+    // packet §1 ("pinned-pubkey continuity: resume branch reads
+    // existing pinned_pubkeys.json if present; epoch preserved
+    // across resume"). New entry appended; manifest top-level
+    // `epoch` advances to the new epoch so verifiers can pick the
+    // freshest pin while still resolving any earlier entry.
+    let new_pubkey_hex: String = new_keypair
+        .public_key()
+        .as_bytes()
+        .iter()
+        .map(|b| format!("{:02x}", b))
+        .collect();
+    manifest.epoch = new_epoch.get();
+    manifest.pubkeys.push(PinnedPubkeyEntry {
+        epoch: new_epoch.get(),
+        pubkey_hex: new_pubkey_hex,
+    });
+    let updated_json = serde_json::to_string_pretty(&manifest)
+        .map_err(|e| BootstrapError::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+    std::fs::write(&manifest_path, updated_json)?;
+
+    Ok((new_keypair, new_epoch, pinned, replayed_q, chain_length))
+}
+
+/// TB-G G1.1: decode a 64-char hex string into a 32-byte ed25519 pubkey.
+/// Used only by `bootstrap_resume_state`; kept private. Mirrors the
+/// `verify.rs::decode_pubkey_hex` decode path but yields the array
+/// shape directly (no intermediate `Vec`).
+fn decode_pubkey_hex_32(hex: &str) -> Result<[u8; 32], BootstrapError> {
+    if hex.len() != 64 {
+        return Err(BootstrapError::Keypair(format!(
+            "pubkey_hex expected 64 chars, got {}",
+            hex.len()
+        )));
+    }
+    let mut out = [0u8; 32];
+    for i in 0..32 {
+        let byte = u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16).map_err(|e| {
+            BootstrapError::Keypair(format!("pubkey_hex decode at byte {i}: {e}"))
+        })?;
+        out[i] = byte;
+    }
+    Ok(out)
 }
 
 // ── Driver wrapper ──────────────────────────────────────────────────────────
@@ -588,6 +834,7 @@ mod tests {
             cas_path: tmp.path().join("cas"),
             run_id: run_id.to_string(),
             queue_capacity: 16,
+            resume_existing_chain: false,
         }
     }
 

@@ -202,6 +202,7 @@ async fn rq3_non_empty_tb13_chaintape_replays_with_state_root_match() {
         cas_path: tmp.path().join("cas"),
         run_id: "rq3-tb13-smoke".to_string(),
         queue_capacity: 16,
+        resume_existing_chain: false,
     };
 
     let alice = "alice";

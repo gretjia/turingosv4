@@ -1088,6 +1088,7 @@ mod tests {
             cas_path: tmp.path().join("cas"),
             run_id: run_id.to_string(),
             queue_capacity: 16,
+            resume_existing_chain: false,
         }
     }
 

@@ -478,6 +478,29 @@ GATES=(
   # Self-audit dossier: handover/audits/TB_N3_A3_SELF_AUDIT_2026-05-11.md.
   # Charter v3 §6 SG-N3.4, SG-N3.5, SG-N3.6.
   constitution_tb_n3_a3_emit
+
+  # TB-G G1.1 (architect §8 SIGNED 2026-05-11 "好，确认可以 ship" —
+  # canonical Class-4 §8 form; packet §2): resume-mode genesis branch
+  # for cross-problem persistence. Closes the architect-mandated
+  # "每个 problem fresh runtime_repo + fresh genesis — 每轮开局都把
+  # 交易员洗白、清仓、重置记忆" gap by adding env-gated
+  # `TURINGOS_CHAINTAPE_RESUME=1` admission path. Default-deny posture
+  # preserved (resume=0 still fail-closes on non-empty repos —
+  # SG-G1.4 back-compat regression). 5 SG-G1.* gates:
+  #   SG-G1.1 resume on empty repo byte-equals legacy bootstrap
+  #   SG-G1.2 N-entry chain → Sequencer.next_logical_t == N
+  #   SG-G1.3 balances reconstruction matches forward replay
+  #   SG-G1.4 NonEmptyRuntimeRepo only fires when resume=false
+  #   SG-G1.5 pinned_pubkeys.json preserved across resume
+  # Constitutional anchor: FC2-Boot §3.2 + §4.1 G-009 Path C. The
+  # canonical FC2 Boot replay primitive (`replay_full_transition`
+  # shared with `verify_chaintape`) is the QState rebuilder; packet
+  # §2 adjacent-surfaces row mentioned
+  # `head_t_witness::reconstruct_from_chaintape_refs` but that helper
+  # is the Stage A3 SG-A3.4 derived-view boundary, not a QState
+  # primitive (user 2026-05-11 directive: "关于内核一定要对齐宪法和宪法
+  # 中的三个flowchart").
+  constitution_g1_resume
 )
 
 # Run each gate file separately and collect per-test outcome.
