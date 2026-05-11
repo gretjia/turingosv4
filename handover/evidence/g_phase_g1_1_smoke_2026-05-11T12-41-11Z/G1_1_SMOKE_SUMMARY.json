@@ -1,0 +1,47 @@
+{
+  "atom": "TB-G G1.1",
+  "ship_gate": "every problem verdict=Ok delta=0 AND audit_proceed=true AND chain monotone-grows",
+  "final_chain_length": 5,
+  "pinned_pubkey_entries": "3",
+  "aggregate_audit_proceed": "?",
+  "aggregate_inv1_match": "?",
+  "global_fail": 1,
+  "per_problem": [
+    {
+      "idx": 1,
+      "name": "mathd_algebra_107",
+      "resume": "fresh",
+      "pre_len": 0,
+      "post_len": 3,
+      "step": 1,
+      "halt": "OmegaAccepted",
+      "verdict": "?",
+      "delta": "0",
+      "dur_s": 120
+    },
+    {
+      "idx": 2,
+      "name": "mathd_algebra_125",
+      "resume": "resume",
+      "pre_len": 3,
+      "post_len": 4,
+      "step": 5,
+      "halt": "MaxTxExhausted",
+      "verdict": "?",
+      "delta": "?",
+      "dur_s": 132
+    },
+    {
+      "idx": 3,
+      "name": "mathd_algebra_141",
+      "resume": "resume",
+      "pre_len": 4,
+      "post_len": 5,
+      "step": 5,
+      "halt": "MaxTxExhausted",
+      "verdict": "?",
+      "delta": "?",
+      "dur_s": 82
+    }
+  ]
+}

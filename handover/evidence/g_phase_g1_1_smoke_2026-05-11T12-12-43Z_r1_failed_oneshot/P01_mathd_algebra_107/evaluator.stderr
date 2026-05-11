@@ -1,0 +1,1 @@
+[2026-05-11T12:13:28Z ERROR evaluator] [chaintape] FAIL-CLOSED: CONDITION=oneshot is not wired through bus.submit_typed_tx; ChainTape mode requires a swarm condition (n1, n3, n5, ...). TB-7R Deliverable B / verdict B3.

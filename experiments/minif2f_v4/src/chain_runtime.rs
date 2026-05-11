@@ -233,17 +233,47 @@ impl SharedChain {
                 let durable_path = turingosv4::runtime::agent_keystore::default_agent_keystore_path()
                     .expect("[chaintape/tb9] resolve durable agent keystore path (set HOME or TURINGOS_AGENT_KEYSTORE_PATH)");
                 let pwd = turingosv4::runtime::agent_keystore::keystore_password_from_env();
-                let reg = AgentKeypairRegistry::generate_or_load_durable(
-                    &b.runtime_repo_path,
-                    &durable_path,
-                    pwd,
-                )
-                .expect(
-                    "[chaintape/tb9] agent_keypairs durable init must succeed (fresh runtime_repo guarantees \
-                     manifest absent; if you see this on a non-fresh dir, see TB-6 NonEmptyRuntimeRepo. \
-                     If you see a keystore decrypt error, check TURINGOS_AGENT_KEYSTORE_PASSWORD matches \
-                     the password used for the previous run.)",
-                );
+                // TB-G G1.1 (architect §8 SIGNED 2026-05-11; user directive
+                // "断点续作是本项目的核心" — Turing-machine fundamentalist
+                // reading of FC2 §3.2 "every real evidence run must be
+                // replayable from genesis_report + ChainTape + CAS + agent
+                // registry + system pubkeys"): on resume, the existing
+                // `agent_pubkeys.json` IS the agent registry — load it
+                // instead of fail-closing. Mirrors the kernel-side
+                // `bootstrap_resume_state` behavior for `pinned_pubkeys.json`.
+                // Env gate is the same `TURINGOS_CHAINTAPE_RESUME == "1"`
+                // strict equality used by `RuntimeChaintapeConfig::from_env`,
+                // so the two layers (kernel sequencer + binary agent
+                // registry) are gated by a single env flag — no drift.
+                let resume_active = matches!(
+                    std::env::var("TURINGOS_CHAINTAPE_RESUME").as_deref(),
+                    Ok("1")
+                ) && b.runtime_repo_path.join("agent_pubkeys.json").exists();
+                let reg = if resume_active {
+                    AgentKeypairRegistry::resume_existing_durable(
+                        &b.runtime_repo_path,
+                        &durable_path,
+                        pwd,
+                    )
+                    .expect(
+                        "[chaintape/tb9-resume] agent_keypairs resume must succeed (TURINGOS_CHAINTAPE_RESUME=1 \
+                         requested but resume_existing_durable failed; check that agent_pubkeys.json + the \
+                         durable keystore both correspond to the same prior run).",
+                    )
+                } else {
+                    AgentKeypairRegistry::generate_or_load_durable(
+                        &b.runtime_repo_path,
+                        &durable_path,
+                        pwd,
+                    )
+                    .expect(
+                        "[chaintape/tb9] agent_keypairs durable init must succeed (fresh runtime_repo guarantees \
+                         manifest absent; if you see this on a non-fresh dir, see TB-6 NonEmptyRuntimeRepo or \
+                         enable TURINGOS_CHAINTAPE_RESUME=1 for G1.1 resume mode. \
+                         If you see a keystore decrypt error, check TURINGOS_AGENT_KEYSTORE_PASSWORD matches \
+                         the password used for the previous run.)",
+                    )
+                };
                 Arc::new(Mutex::new(reg))
             });
 

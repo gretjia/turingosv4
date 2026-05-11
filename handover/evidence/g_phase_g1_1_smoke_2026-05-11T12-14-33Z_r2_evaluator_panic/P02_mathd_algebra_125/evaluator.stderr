@@ -1,0 +1,4 @@
+
+thread 'main' (3068852) panicked at experiments/minif2f_v4/src/chain_runtime.rs:241:18:
+[chaintape/tb9] agent_keypairs durable init must succeed (fresh runtime_repo guarantees manifest absent; if you see this on a non-fresh dir, see TB-6 NonEmptyRuntimeRepo. If you see a keystore decrypt error, check TURINGOS_AGENT_KEYSTORE_PASSWORD matches the password used for the previous run.): ManifestAlreadyExists { path: "/home/zephryj/projects/turingosv4/handover/evidence/g_phase_g1_1_smoke_2026-05-11T12-14-33Z/runtime_repo/agent_pubkeys.json" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

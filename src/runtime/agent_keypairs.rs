@@ -276,6 +276,73 @@ impl AgentKeypairRegistry {
         Ok(registry)
     }
 
+    /// TRACE_MATRIX FC2-INV8 (TB-G G1.1 architect §8 SIGNED 2026-05-11 user
+    /// directive "断点续作是本项目的核心"; Turing-machine fundamentalist
+    /// reading of FC2 §3.2 "every real evidence run must be replayable from
+    /// genesis_report + ChainTape + CAS + **agent registry** + system pubkeys"):
+    /// open an agent keypair registry on a non-empty runtime_repo by
+    /// loading the existing `agent_pubkeys.json` manifest INSTEAD of
+    /// fail-closing with `ManifestAlreadyExists`.
+    ///
+    /// Required by G1.1 resume mode at the **binary** layer: the
+    /// evaluator's swarm bootstrap re-attaches to a runtime_repo that
+    /// already contains both `pinned_pubkeys.json` (system pubkeys —
+    /// G1.1 kernel-side covers) and `agent_pubkeys.json` (agent registry
+    /// — this entry covers). Without this, the binary path panics on
+    /// the second problem even though the kernel sequencer happily
+    /// resumes.
+    ///
+    /// Semantics:
+    /// - **Manifest absent** → fail-closed `ManifestAbsentInResume`.
+    ///   Resume mode is contractually predicated on the manifest
+    ///   existing; falling through to fresh init would silently
+    ///   discard the prior agent registry (constitution violation).
+    /// - **Manifest present** → parse it (fail-closed on parse error),
+    ///   load secrets from the durable keystore (same as
+    ///   `generate_or_load_durable`), reconstruct the in-memory
+    ///   keypair map from the secrets (the manifest is the public
+    ///   side of those secrets — replay-verifiable), and DO NOT
+    ///   re-persist the manifest on construction (preserves the
+    ///   existing on-disk bytes verbatim).
+    ///
+    /// Subsequent `sign()` calls that discover a new agent_id still
+    /// trigger `persist_manifest()` via `get_or_create()` — new agents
+    /// added during the resumed run are appended; existing agents
+    /// remain untouched.
+    pub fn resume_existing_durable(
+        runtime_repo_path: &Path,
+        durable_keystore_path: &Path,
+        password: secrecy::SecretString,
+    ) -> Result<Self, AgentKeypairError> {
+        let manifest_path = runtime_repo_path.join("agent_pubkeys.json");
+        if !manifest_path.exists() {
+            return Err(AgentKeypairError::ManifestAbsentInResume {
+                path: manifest_path,
+            });
+        }
+        // Parse the existing manifest just to confirm it round-trips.
+        // The actual signing keys come from the durable keystore — the
+        // manifest is the public-side replay sidecar.
+        let manifest_bytes = std::fs::read(&manifest_path).map_err(AgentKeypairError::Io)?;
+        let _parsed: AgentPubkeyManifest = serde_json::from_slice(&manifest_bytes)
+            .map_err(|e| AgentKeypairError::Serde(format!("agent_pubkeys.json: {e}")))?;
+        let (secrets_map, _fresh) =
+            crate::runtime::agent_keystore::load_or_empty(durable_keystore_path, &password)
+                .map_err(|e| AgentKeypairError::Serde(format!("durable keystore: {e}")))?;
+        let mut keypairs: BTreeMap<AgentId, AgentKeypair> = BTreeMap::new();
+        for (agent_id_raw, seed) in secrets_map {
+            keypairs.insert(AgentId(agent_id_raw), AgentKeypair::from_secret_bytes(seed));
+        }
+        Ok(Self {
+            keypairs,
+            manifest_path,
+            durable: Some(DurableConfig {
+                keystore_path: durable_keystore_path.to_path_buf(),
+                password,
+            }),
+        })
+    }
+
     /// TRACE_MATRIX FC1-N14: get-or-create the keypair for `agent_id`. New
     /// agents auto-generate a fresh keypair (and update the on-disk manifest);
     /// existing agents return the cached keypair.
@@ -411,6 +478,13 @@ pub enum AgentKeypairError {
     Serde(String),
     InvalidFormat(&'static str),
     ManifestAlreadyExists { path: PathBuf },
+    /// TB-G G1.1 resume mode (architect §8 SIGNED 2026-05-11; user directive
+    /// "断点续作是本项目的核心"): `resume_existing_durable` was called but
+    /// the manifest at `path` does not exist. Fail-closed so callers can
+    /// distinguish "fresh-init was intended, manifest absent" from
+    /// "resume-was-intended, manifest absent" — the latter is an invariant
+    /// violation worth panicking on rather than silently reinitializing.
+    ManifestAbsentInResume { path: PathBuf },
     Verify(String),
 }
 
@@ -423,6 +497,14 @@ impl fmt::Display for AgentKeypairError {
             Self::InvalidFormat(s) => write!(f, "invalid format: {s}"),
             Self::ManifestAlreadyExists { path } => {
                 write!(f, "agent_pubkeys.json already exists at {path:?}")
+            }
+            Self::ManifestAbsentInResume { path } => {
+                write!(
+                    f,
+                    "resume mode: agent_pubkeys.json missing at {path:?}; \
+                     cannot resume the agent registry without a persisted \
+                     manifest (FC2 §3.2 mandates agent_registry as a replay input)"
+                )
             }
             Self::Verify(e) => write!(f, "agent signature verify: {e}"),
         }

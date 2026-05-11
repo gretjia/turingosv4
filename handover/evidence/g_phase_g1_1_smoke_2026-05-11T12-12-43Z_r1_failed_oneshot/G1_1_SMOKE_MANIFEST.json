@@ -1,0 +1,17 @@
+{
+  "tb_id": "TB-G",
+  "atom": "G1.1",
+  "phase": "G1.1 resume-mode mini smoke (architect §8 SIGNED packet §6 ship-cond b)",
+  "packet": "handover/directives/2026-05-11_TB_G_G1_1_§8_PACKET.md",
+  "problem_count": 3,
+  "problems": ["mathd_algebra_107", "mathd_algebra_125", "mathd_algebra_141"],
+  "shared_runtime_repo": "/home/zephryj/projects/turingosv4/handover/evidence/g_phase_g1_1_smoke_2026-05-11T12-12-43Z/runtime_repo",
+  "shared_cas": "/home/zephryj/projects/turingosv4/handover/evidence/g_phase_g1_1_smoke_2026-05-11T12-12-43Z/cas",
+  "per_problem_timeout_s": 600,
+  "llm_proxy_url": "http://localhost:8080",
+  "active_model": "deepseek-chat",
+  "run_timestamp_utc": "2026-05-11T12-13-28Z",
+  "git_head": "e82dad5bc66955aaa757468845a5d3dfd2d2a9a7",
+  "resume_semantic": "problem 1 = fresh bootstrap (TURINGOS_CHAINTAPE_RESUME unset); problems 2..N = resume via TURINGOS_CHAINTAPE_RESUME=1",
+  "ship_gate": "every problem chain_invariant.verdict=Ok delta=0 AND audit_tape audit_proceed=true AND chain length monotone-increases"
+}
