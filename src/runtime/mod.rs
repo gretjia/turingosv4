@@ -145,6 +145,19 @@ pub mod chain_tape_lease;
 /// `handover/directives/2026-05-11_TB_G_G1_2_OPTION_B_PLUS_RULING.md` §3.3.
 pub mod batch_continuation_manifest;
 
+/// TRACE_MATRIX FC2-Boot + FC3-Markov (TB-G G1.2-5 2026-05-11; Option B+
+/// orchestration ruling §3.4 + charter §1 G1.2-5): persistence-evidence
+/// binding library. Classifies each of the six architect-required
+/// persisted fields (balances / positions / reputation / PnL / autopsy /
+/// model identity) against per-task `QState` snapshots and the
+/// `BatchContinuationManifest`. Six gates SG-G1.2-5.1..6 verify the
+/// classifier itself; G1.2-6/7 real-LLM evidence wires it against
+/// chain-replay snapshots. Constitutional Justification:
+/// `handover/directives/2026-05-11_TB_G_G1_2_OPTION_B_PLUS_RULING.md` §3.4 +
+/// `handover/tracer_bullets/TB_G_GENERATIVE_ARENA_charter_2026-05-11.md`
+/// §0 kill_criteria_tested #1.
+pub mod persistence_evidence;
+
 
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};

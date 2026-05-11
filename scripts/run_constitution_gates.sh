@@ -524,6 +524,19 @@ GATES=(
   # head_chain_is_continuous / rejects_continuity_gap /
   # replay_matches_real_chain_head_walk.
   constitution_g1_2_batch_continuation_manifest
+
+  # TB-G G1.2-5 (Option B+ orchestration ruling 2026-05-11 §3.4 +
+  # charter §1 G1.2-5): persistence-evidence binding library that
+  # classifies the six architect-required persisted fields (balances /
+  # positions / reputation / PnL / autopsy / model identity) as
+  # Witnessed | Empty | Reset against per-task QState snapshots and
+  # the BatchContinuationManifest. 6 SG-G1.2-5.* gates: witnesses
+  # balance mutation in 2-task batch / clean-negative on empty batch
+  # / detects balance reset / detects autopsy monotonicity violation
+  # / model identity witnessed / n_witnessed >= 2 on real batch.
+  # Closes architect §3.4 + charter §0 kill_criteria_tested #1
+  # ("per-problem genesis reset between problems → reject").
+  constitution_g1_2_persistence_evidence_binding
 )
 
 # Per-package gates — tests that live under a workspace member crate
