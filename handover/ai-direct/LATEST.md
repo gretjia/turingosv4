@@ -6,6 +6,81 @@
 
 ---
 
+## 🟡 Session #39 2026-05-11 — TB-G G0 LANDED + G1.1 §8 PACKET DRAFTED (HALT)
+
+**Branch**: `feat/tb-n3-autorun-20260511T051910Z` (working branch; G0 docs landed here pre-charter ship)
+
+**HEAD on `origin/main`**: `2c110dc` (pre-teleport sweep; G-Phase directive archived at `handover/directives/2026-05-11_G_PHASE_GENERATIVE_ARENA_DIRECTIVE.md` 586 lines).
+
+**Architect §8**: **NOT YET SIGNED**. G1.1 is a Class-4 STEP_B atom (resume-mode genesis branch in `src/runtime/mod.rs:407` + new `Sequencer::new_at_logical_t` constructor). Per CLAUDE.md §9 + `feedback_no_batch_class4_signoff`, autonomous authority STOPS at packet draft. §8 packet at `handover/directives/2026-05-11_TB_G_G1_1_§8_PACKET.md` §6 BLANK awaiting verbatim multi-clause sign-off.
+
+**Authority chain**: web ultraplan session `01QqSehGhpsts18AC5qExyAS` (plan approved by user verbatim "plan approved, returned to terminal and execute your plan" 2026-05-11) → local resume → G0 Class-0 atoms landed → G1.1 §8 packet drafted → HALT.
+
+### What landed (G0 Class-0; this commit)
+
+| Atom | Class | File | Status |
+|------|-------|------|--------|
+| **G0.1** TB-G charter | 0 | `handover/tracer_bullets/TB_G_GENERATIVE_ARENA_charter_2026-05-11.md` | ✅ LANDED |
+| **G0.2** Architect verdict archive | 0 | (CANONICAL at `handover/directives/2026-05-11_G_PHASE_GENERATIVE_ARENA_DIRECTIVE.md` 586 lines; committed at `2c110dc` pre-teleport. No duplicate archive in `handover/architect-insights/` — single source of truth.) | ✅ LANDED |
+| **G0.3** Matrix §R rows | 0 | `handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md` §R (NEW; G1 + G2 + G2P + G3 + G4 + G5 + G6 + G7 + SG-G overall rows, all 🔴 RED pending atom landing) | ✅ LANDED |
+| **G1.1 §8 packet (DRAFT)** | 0 | `handover/directives/2026-05-11_TB_G_G1_1_§8_PACKET.md` (§6 BLANK; HALT condition documented in §8) | ✅ DRAFTED — AWAITING ARCHITECT §8 |
+
+### G-Phase scope (full atom list)
+
+Plan archive: web ultraplan session approved 2026-05-11. Local charter: `handover/tracer_bullets/TB_G_GENERATIVE_ARENA_charter_2026-05-11.md` §1.
+
+| Module | Goal | Class peak | §8 packet required |
+|--------|------|-----------|--------------------|
+| G0 | Charter + verdict archive ref + matrix §R rows | 0 | no (this session ✅) |
+| G1 | Cross-Problem Persistence (one runtime_repo + CAS + HEAD_t across N problems) | **4** (G1.1 resume mode) | **yes** (G1.1 packet drafted; awaiting §8) |
+| G2 | MarketDecisionTrace audit + NoTradeReason extension + L4.E failed-invest binding | 2 | no |
+| G2P | Peer Verification Bridge (architect §8.2 parallel priority) | 2 | no |
+| G3 | Persistent PnL / Solvency / Bankruptcy risk-cap admission | **4** (G3.2 sequencer admission) | **yes** (G3.2 packet draft pending G1.1 ship) |
+| G4 | Multi-LLM Mix + No-Hidden-Model-Switch detector | **4** (G4.2 genesis schema) | **yes** (G4.2 packet draft pending G1.1 ship) |
+| G5 | Opportunity Scheduler + 7-action menu + Role Classifier | 3 | no |
+| G6 | Epistemic Pricing Feedback (observe-only) + Unresolved-Challenged filter | 2 | no |
+| G7 | Structural Run6-Equivalent Smoke (13 Minimum-tier sub-gates) + Mid-tier `--mid-tier` flag + Late-tier TB-G+1 stub | 2 | no |
+
+### G1.1 §8 packet summary
+
+- **Scope**: `RuntimeChaintapeConfig.resume_existing_chain: bool` flag (env `TURINGOS_CHAINTAPE_RESUME=1`) + `build_chaintape_sequencer` resume branch + new `Sequencer::new_at_logical_t` constructor + 5+ tests in `tests/constitution_g1_resume.rs`.
+- **Forbidden**: changes to `src/state/typed_tx.rs` / `system_keypair.rs` / `genesis_payload.toml` Trust Root / batching G2..G7 atoms.
+- **Constitutional preservation**: tape-first / no-ghost-liquidity / no-price-as-truth / dashboard-derived-only / no-real-funds / no-public-chain — all preserved (G1.1 changes admission boundary only, not constitutional substance).
+- **Ship gates**: SG-G1.1 (empty-repo byte-equal genesis) / SG-G1.2 (resume next_logical_t==N) / SG-G1.3 (balances reconstruction byte-equal) / SG-G1.4 (NonEmptyRuntimeRepo back-compat) / SG-G1.5 (pinned_pubkeys preserved across resume).
+- **Audit plan**: PRE-implementation packet (this); POST-implementation dual audit (Codex G2 + Gemini DT round-cap=2 covering Q1..Q9); 3-problem mini real-LLM smoke; THEN architect §8.
+
+### Forward queue (gated on G1.1 §8 sign-off)
+
+Once architect §8 lands G1.1:
+1. Cut branch `feat/g1-1-resume-mode`; land implementation.
+2. Dispatch dual audit; resolve any CHALLENGE.
+3. Run 3-problem mini smoke with `TURINGOS_CHAINTAPE_RESUME=1`.
+4. Land G1.2 (Class 3 batch driver), G1.3 (Class 2 wrapper), G1.4 (Class 2 binding test) autonomously per dual-audit-PASS-then-PROCEED cadence.
+5. Land G2 + G2P (parallel priorities) autonomously.
+6. Draft G3.2 §8 packet + HALT.
+7. Draft G4.2 §8 packet + HALT.
+8. G5 + G6 + G7 land autonomously after G4.2 ships.
+
+### Validation baseline at session #39 mid-state (before commit)
+
+| Check | Value |
+|---|---|
+| Working branch | `feat/tb-n3-autorun-20260511T051910Z` |
+| HEAD before this session's edits | `2c110dc` (pre-teleport sweep) |
+| Files added this session | 2 (`TB_G_GENERATIVE_ARENA_charter_2026-05-11.md` + `2026-05-11_TB_G_G1_1_§8_PACKET.md`) |
+| Files modified this session | 2 (`CONSTITUTION_EXECUTION_MATRIX.md` §R add + this `LATEST.md`) |
+| Cargo / test impact | NONE (all changes are Class-0 docs) |
+| Trust Root impact | NONE (no source files touched) |
+| Constitution gate count delta | 0 (9 §R rows added at 🔴 RED status; gates land when atoms land) |
+
+### Halt rationale (verbatim)
+
+Per CLAUDE.md §9 Class 4 + `feedback_no_batch_class4_signoff`: G1.1 touches `src/state/sequencer.rs` (new constructor) AND introduces a new boot-time admission path (non-empty repo allowed under env gate). Both are sequencer-admission surfaces; both qualify as Class 4 per CLAUDE.md §12 STEP_B list. Autonomous landing of Class 4 is forbidden without explicit multi-clause architect §8 (CLAUDE.md §10 — "scope / allowed path / forbidden path / risk class / whether audit is required / whether ship is authorized"; single-word `可以` / `go` / `ok` does NOT suffice per §9 verbatim list).
+
+**Recommended next user action**: review `handover/directives/2026-05-11_TB_G_G1_1_§8_PACKET.md`; provide explicit multi-clause §8 sign-off (e.g., "好，G1.1 scope confirmed, 同意按 §2 列表执行 + 按 §5 dual-audit 计划走 + 通过后 ship") OR adjust scope.
+
+---
+
 ## ✅ Session #38 2026-05-11 — TB-N2-POLYMARKET-CPMM-LIFECYCLE atom B2 SHIPPED FINAL
 
 **HEAD on `origin/main`**: `b61735b` (2 commits past `00d7024`: R2 fix + ship discharge `b61735b` and the R1 candidate `7dc2aa0` already in branch ancestry; pushed `00d7024..b61735b`).
