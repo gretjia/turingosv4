@@ -9729,3 +9729,34 @@ exec
 662:Partial verdicts must be typed.
 746:- no fake accepted nodes status
 
+codex
+Q1: CHALLENGE — Parses manifest but accepts missing/empty/mismatched keystore; remediate by requiring keystore present and derived pubkeys cover/match manifest.
+Q2: CHALLENGE — Variant is fail-closed, but caller skips it when manifest is absent; route resume-requested/non-empty+absent manifest to this error.
+Q3: CHALLENGE — Strict `"1"` matches, but kernel gates on chain non-empty while binary gates on manifest existence; align predicates and fail closed on absent manifest.
+Q4: PASS — Fresh false branch still uses `generate_or_load_durable`; only diagnostic text changed.
+Q5: PASS — Kernel R1 scope untouched; aggregate `audit_tape` is PROCEED 40/0/0/11.
+Q6: PASS — Trust Root hash matches current `sha256sum` at `a2d0f3bf`.
+Q7: PASS — Diff introduces no `f64`, shadow ledger, admission arm, or sequencer touch.
+Q8: CHALLENGE — Agent registry preservation is not enforced under absent/mismatched keystore or absent manifest; use Q1/Q2 remediation.
+Q9: PASS — Direct `ManifestAbsentInResume` message is explicit and debuggable.
+Q10: PASS — Per-problem synthetic-gate error is shared-chain tooling drift; aggregate `audit_tape` PROCEED is the right ship metric.
+
+Aggregate R1.5 verdict: CHALLENGE  
+Conviction: high  
+Recommendation: R2
+tokens used
+119,668
+Q1: CHALLENGE — Parses manifest but accepts missing/empty/mismatched keystore; remediate by requiring keystore present and derived pubkeys cover/match manifest.
+Q2: CHALLENGE — Variant is fail-closed, but caller skips it when manifest is absent; route resume-requested/non-empty+absent manifest to this error.
+Q3: CHALLENGE — Strict `"1"` matches, but kernel gates on chain non-empty while binary gates on manifest existence; align predicates and fail closed on absent manifest.
+Q4: PASS — Fresh false branch still uses `generate_or_load_durable`; only diagnostic text changed.
+Q5: PASS — Kernel R1 scope untouched; aggregate `audit_tape` is PROCEED 40/0/0/11.
+Q6: PASS — Trust Root hash matches current `sha256sum` at `a2d0f3bf`.
+Q7: PASS — Diff introduces no `f64`, shadow ledger, admission arm, or sequencer touch.
+Q8: CHALLENGE — Agent registry preservation is not enforced under absent/mismatched keystore or absent manifest; use Q1/Q2 remediation.
+Q9: PASS — Direct `ManifestAbsentInResume` message is explicit and debuggable.
+Q10: PASS — Per-problem synthetic-gate error is shared-chain tooling drift; aggregate `audit_tape` PROCEED is the right ship metric.
+
+Aggregate R1.5 verdict: CHALLENGE  
+Conviction: high  
+Recommendation: R2
