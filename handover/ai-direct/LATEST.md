@@ -10,7 +10,7 @@
 
 **Branch**: `feat/g1-1-resume-mode` → merged to `main`.
 
-**HEAD on `origin/main`**: `<R2_SHIP_HASH>` (G1.1 R2 ship discharge; supersedes session #39 close `e3fd848`; intermediate ship commits 5d55950 (R1.5; CHALLENGED) + 58d7769 (R1.5 audit-capture) + R2-impl + R2-audit-capture).
+**HEAD on `origin/main`**: `e4c5859` (G1.1 R2 ship discharge; supersedes session #39 close `e3fd848`; intermediate ship commits 5d55950 (R1.5; CHALLENGED) + 58d7769 (R1.5 audit-capture) + R2-impl + R2-audit-capture).
 
 **Ship history (rounds visible)**:
 1. R1 implementation + dual audit kernel: Codex G2 + Gemini Pro both PASS Q1..Q12 + Constitutional Alignment, high, PROCEED (first-try).
