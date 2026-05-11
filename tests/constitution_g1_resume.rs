@@ -28,6 +28,7 @@ use turingosv4::bus::{BusConfig, TuringBus};
 use turingosv4::economy::money::MicroCoin;
 use turingosv4::kernel::Kernel;
 use turingosv4::runtime::adapter::{genesis_with_balances, make_synthetic_task_open};
+use turingosv4::runtime::agent_keypairs::{AgentKeypairError, AgentKeypairRegistry};
 use turingosv4::runtime::{
     build_chaintape_sequencer, build_chaintape_sequencer_with_initial_q, BootstrapError,
     RuntimeChaintapeConfig,
@@ -406,4 +407,171 @@ async fn sg_g1_5_pinned_pubkeys_preserved_across_resume() {
     );
 
     bundle_r.shutdown().await.expect("resume shutdown");
+}
+
+// ── SG-G1.6 (R2 closure; Codex Q2 CHALLENGE) ────────────────────────────────
+//
+// `resume_existing_durable` fails closed with `ManifestAbsentInResume`
+// when invoked on a runtime_repo where `agent_pubkeys.json` doesn't
+// exist. Binary-layer invariant: env=1 + manifest absent must NOT
+// silently degrade to fresh init. Mechanism per
+// `feedback_norm_needs_mechanism`.
+#[test]
+fn sg_g1_6_resume_existing_durable_fails_closed_when_manifest_absent() {
+    let tmp = TempDir::new().expect("tempdir");
+    let runtime_repo = tmp.path().join("runtime_repo");
+    std::fs::create_dir_all(&runtime_repo).expect("mkdir");
+    // No agent_pubkeys.json written.
+    let keystore = tmp.path().join("keystore.enc");
+    let pwd = secrecy::SecretString::new("test-password".to_string().into());
+    let result = AgentKeypairRegistry::resume_existing_durable(&runtime_repo, &keystore, pwd);
+    match result {
+        Err(AgentKeypairError::ManifestAbsentInResume { path }) => {
+            assert_eq!(
+                path,
+                runtime_repo.join("agent_pubkeys.json"),
+                "SG-G1.6: ManifestAbsentInResume must echo the expected manifest path"
+            );
+        }
+        Err(other) => panic!(
+            "SG-G1.6: expected ManifestAbsentInResume; got {other:?}"
+        ),
+        Ok(_) => panic!(
+            "SG-G1.6: resume_existing_durable on missing manifest MUST fail-closed \
+             (silent fall-through would degrade FC2 §3.2 agent_registry replay input)"
+        ),
+    }
+}
+
+// ── SG-G1.8 (R2 R2 closure; Codex R2 Q5+Q7+Q9 CHALLENGE) ─────────────────────
+//
+// `resume_existing_durable` fails closed with `ResumeKeystoreInconsistent`
+// when the manifest pubkey for an agent DOES NOT MATCH the pubkey
+// derived from that agent's keystore secret. Catches: manifest
+// tampering (someone edited agent_pubkeys.json with a different
+// pubkey while the keystore still holds the original secret),
+// split-brain keystore (keystore and manifest came from different
+// runs), or hash collision-style attack. The reason string MUST
+// include "does NOT match" so the operator can distinguish this
+// from the missing-secret path (SG-G1.7).
+//
+// Mechanism per `feedback_norm_needs_mechanism` (closes Codex R2
+// observation that pubkey-mismatch was unbound in CI).
+#[test]
+fn sg_g1_8_resume_existing_durable_fails_closed_on_pubkey_mismatch() {
+    use std::collections::BTreeMap;
+    let tmp = TempDir::new().expect("tempdir");
+    let runtime_repo = tmp.path().join("runtime_repo");
+    std::fs::create_dir_all(&runtime_repo).expect("mkdir");
+
+    // Build a deterministic 32-byte seed and derive the keypair from it
+    // (so we can save the SAME seed to the durable keystore and then
+    // recompute the same pubkey on resume).
+    let real_secret: [u8; 32] = [0x42u8; 32];
+    let real_kp = turingosv4::runtime::agent_keypairs::AgentKeypair::from_secret_bytes(real_secret);
+    let real_pubkey_hex = real_kp.public_key().to_hex();
+
+    let agent_id_str = "Agent_real_for_mismatch_test".to_string();
+    let keystore_path = tmp.path().join("keystore.enc");
+    let pwd = secrecy::SecretString::new("test-password".to_string().into());
+    let mut secrets: BTreeMap<String, [u8; 32]> = BTreeMap::new();
+    secrets.insert(agent_id_str.clone(), real_secret);
+    turingosv4::runtime::agent_keystore::save(&keystore_path, &pwd, &secrets)
+        .expect("save keystore with real secret");
+
+    // Write a manifest with the SAME agent_id but a DIFFERENT pubkey hex
+    // (all-zeros — easy to distinguish from the real-pubkey hex).
+    let tampered_pubkey_hex = "00".repeat(32);
+    assert_ne!(
+        tampered_pubkey_hex, real_pubkey_hex,
+        "test invariant: tampered pubkey must differ from real-derived pubkey"
+    );
+    let mut agents = BTreeMap::new();
+    agents.insert(agent_id_str.clone(), tampered_pubkey_hex.clone());
+    let manifest = serde_json::json!({ "agents": agents });
+    std::fs::write(
+        runtime_repo.join("agent_pubkeys.json"),
+        serde_json::to_vec(&manifest).expect("serialize manifest"),
+    )
+    .expect("write tampered manifest");
+
+    let result = AgentKeypairRegistry::resume_existing_durable(&runtime_repo, &keystore_path, pwd);
+    match result {
+        Err(AgentKeypairError::ResumeKeystoreInconsistent { agent_id, reason }) => {
+            assert_eq!(
+                agent_id, agent_id_str,
+                "SG-G1.8: error must name the inconsistent agent_id"
+            );
+            assert!(
+                reason.contains("does NOT match"),
+                "SG-G1.8: reason should describe pubkey-mismatch case (contain \
+                 'does NOT match'); got {reason:?}"
+            );
+        }
+        Err(other) => panic!(
+            "SG-G1.8: expected ResumeKeystoreInconsistent on pubkey mismatch; \
+             got {other:?}"
+        ),
+        Ok(_) => panic!(
+            "SG-G1.8: resume with tampered manifest pubkey MUST fail-closed — \
+             silent boot would violate FC2 §3.2 agent_registry replay \
+             determinism (signing key would no longer match the on-disk public \
+             pubkey for that agent)"
+        ),
+    }
+}
+
+// ── SG-G1.7 (R2 closure; Codex Q1+Q8 CHALLENGE) ─────────────────────────────
+//
+// `resume_existing_durable` fails closed with `ResumeKeystoreInconsistent`
+// when the manifest references an agent_id that has no corresponding
+// secret in the durable keystore. Catches: empty keystore + populated
+// manifest, wrong-password keystore reading as empty, keystore wiped
+// while manifest survived.
+#[test]
+fn sg_g1_7_resume_existing_durable_fails_closed_on_keystore_manifest_drift() {
+    use std::collections::BTreeMap;
+    let tmp = TempDir::new().expect("tempdir");
+    let runtime_repo = tmp.path().join("runtime_repo");
+    std::fs::create_dir_all(&runtime_repo).expect("mkdir");
+    // Write a manifest claiming an agent that is NOT in the durable keystore.
+    let mut agents = BTreeMap::new();
+    agents.insert(
+        "Agent_phantom".to_string(),
+        // 32-byte all-zeros pubkey hex placeholder — won't match any real key
+        "00".repeat(32),
+    );
+    let manifest = serde_json::json!({
+        "agents": agents,
+    });
+    std::fs::write(
+        runtime_repo.join("agent_pubkeys.json"),
+        serde_json::to_vec(&manifest).expect("serialize manifest"),
+    )
+    .expect("write manifest");
+
+    let keystore = tmp.path().join("keystore.enc");
+    // Empty keystore: never written, so `load_or_empty` returns empty.
+    let pwd = secrecy::SecretString::new("test-password".to_string().into());
+    let result = AgentKeypairRegistry::resume_existing_durable(&runtime_repo, &keystore, pwd);
+    match result {
+        Err(AgentKeypairError::ResumeKeystoreInconsistent { agent_id, reason }) => {
+            assert_eq!(
+                agent_id, "Agent_phantom",
+                "SG-G1.7: error must name the inconsistent agent_id"
+            );
+            assert!(
+                reason.contains("no corresponding secret"),
+                "SG-G1.7: reason should describe missing-secret case; got {reason:?}"
+            );
+        }
+        Err(other) => panic!(
+            "SG-G1.7: expected ResumeKeystoreInconsistent; got {other:?}"
+        ),
+        Ok(_) => panic!(
+            "SG-G1.7: resume_existing_durable with manifest agent but no keystore secret \
+             MUST fail-closed — silent boot would lose signing capability and violate \
+             FC2 §3.2 agent_registry replay determinism"
+        ),
+    }
 }

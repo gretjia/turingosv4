@@ -320,11 +320,14 @@ impl AgentKeypairRegistry {
                 path: manifest_path,
             });
         }
-        // Parse the existing manifest just to confirm it round-trips.
-        // The actual signing keys come from the durable keystore — the
-        // manifest is the public-side replay sidecar.
+        // Parse the existing manifest — the public side of the agent
+        // registry. Every agent listed here MUST have a secret in the
+        // durable keystore; otherwise the resumed registry would
+        // silently lose a signing capability and the tape's
+        // agent_registry replay input would diverge from the
+        // post-resume in-memory state.
         let manifest_bytes = std::fs::read(&manifest_path).map_err(AgentKeypairError::Io)?;
-        let _parsed: AgentPubkeyManifest = serde_json::from_slice(&manifest_bytes)
+        let parsed: AgentPubkeyManifest = serde_json::from_slice(&manifest_bytes)
             .map_err(|e| AgentKeypairError::Serde(format!("agent_pubkeys.json: {e}")))?;
         let (secrets_map, _fresh) =
             crate::runtime::agent_keystore::load_or_empty(durable_keystore_path, &password)
@@ -333,6 +336,46 @@ impl AgentKeypairRegistry {
         for (agent_id_raw, seed) in secrets_map {
             keypairs.insert(AgentId(agent_id_raw), AgentKeypair::from_secret_bytes(seed));
         }
+
+        // TB-G G1.1 R2 closure (Codex G2 R1.5 Q1+Q8 CHALLENGE): cross-check
+        // every agent in the manifest MUST have a corresponding secret in
+        // the durable keystore AND the derived pubkey MUST match the
+        // manifest pubkey verbatim. Catches:
+        // (a) keystore was wiped while manifest survived (registry/keystore
+        //     drift),
+        // (b) keystore covers different agents (wrong keystore path / wrong
+        //     password),
+        // (c) manifest was tampered (manifest pubkey != derived pubkey).
+        // Fail-closed in all three cases — silent partial resume would
+        // violate FC2 §3.2 "agent_registry is a replay input" because the
+        // in-memory registry would no longer reproduce the on-disk
+        // manifest's binding.
+        for (agent_id_raw, manifest_pubkey_hex) in &parsed.agents {
+            let agent_id = AgentId(agent_id_raw.clone());
+            let keypair = keypairs.get(&agent_id).ok_or_else(|| {
+                AgentKeypairError::ResumeKeystoreInconsistent {
+                    agent_id: agent_id_raw.clone(),
+                    reason: format!(
+                        "agent_pubkeys.json lists agent_id={agent_id_raw:?} but the \
+                         durable keystore at {durable_keystore_path:?} has no \
+                         corresponding secret — keystore was wiped, password is \
+                         wrong, or the runtime_repo / keystore are from different runs"
+                    ),
+                }
+            })?;
+            let derived_pubkey_hex = keypair.public_key().to_hex();
+            if &derived_pubkey_hex != manifest_pubkey_hex {
+                return Err(AgentKeypairError::ResumeKeystoreInconsistent {
+                    agent_id: agent_id_raw.clone(),
+                    reason: format!(
+                        "manifest pubkey {manifest_pubkey_hex:?} does NOT match keystore-\
+                         derived pubkey {derived_pubkey_hex:?} — possible manifest \
+                         tampering or split-brain keystore"
+                    ),
+                });
+            }
+        }
+
         Ok(Self {
             keypairs,
             manifest_path,
@@ -485,6 +528,14 @@ pub enum AgentKeypairError {
     /// "resume-was-intended, manifest absent" — the latter is an invariant
     /// violation worth panicking on rather than silently reinitializing.
     ManifestAbsentInResume { path: PathBuf },
+    /// TB-G G1.1 R2 (Codex G2 R1.5 Q1+Q8 CHALLENGE closure 2026-05-11):
+    /// the on-disk `agent_pubkeys.json` references `agent_id` but the
+    /// durable keystore either has no secret for it or has a secret that
+    /// produces a different public key. Either way the resumed registry
+    /// can't faithfully reproduce the manifest's signing capabilities, so
+    /// FC2 §3.2 "agent_registry is a replay input" would silently
+    /// degrade. Fail-closed.
+    ResumeKeystoreInconsistent { agent_id: String, reason: String },
     Verify(String),
 }
 
@@ -504,6 +555,13 @@ impl fmt::Display for AgentKeypairError {
                     "resume mode: agent_pubkeys.json missing at {path:?}; \
                      cannot resume the agent registry without a persisted \
                      manifest (FC2 §3.2 mandates agent_registry as a replay input)"
+                )
+            }
+            Self::ResumeKeystoreInconsistent { agent_id, reason } => {
+                write!(
+                    f,
+                    "resume mode: agent_pubkeys.json / durable keystore inconsistency \
+                     for agent_id={agent_id:?}: {reason}"
                 )
             }
             Self::Verify(e) => write!(f, "agent signature verify: {e}"),

@@ -241,24 +241,46 @@ impl SharedChain {
                 // `agent_pubkeys.json` IS the agent registry — load it
                 // instead of fail-closing. Mirrors the kernel-side
                 // `bootstrap_resume_state` behavior for `pinned_pubkeys.json`.
-                // Env gate is the same `TURINGOS_CHAINTAPE_RESUME == "1"`
-                // strict equality used by `RuntimeChaintapeConfig::from_env`,
-                // so the two layers (kernel sequencer + binary agent
-                // registry) are gated by a single env flag — no drift.
-                let resume_active = matches!(
+                //
+                // **R2 closure (Codex G2 R1.5 Q2+Q3 CHALLENGE 2026-05-11)**:
+                // the binary gate is ONLY on the env flag (NOT on
+                // manifest-existence). This way, when the user requests
+                // resume (`TURINGOS_CHAINTAPE_RESUME=1`) but the manifest
+                // is absent, the request routes to `resume_existing_durable`
+                // which fail-closes with `ManifestAbsentInResume` — instead
+                // of silently falling through to `generate_or_load_durable`
+                // which would CREATE a fresh manifest (violating the
+                // user-mandated "断点续作是本项目的核心" invariant).
+                //
+                // Predicate alignment with kernel: kernel's
+                // `bootstrap_resume_state` requires
+                // `config.resume_existing_chain && head_commit_oid().is_some()`
+                // — but a non-empty chain WITHOUT an agent_pubkeys.json
+                // is itself an inconsistency the binary must surface.
+                // Both layers now fail-closed on env=1 + missing critical
+                // input rather than silently degrading.
+                let resume_requested = matches!(
                     std::env::var("TURINGOS_CHAINTAPE_RESUME").as_deref(),
                     Ok("1")
-                ) && b.runtime_repo_path.join("agent_pubkeys.json").exists();
-                let reg = if resume_active {
+                );
+                let reg = if resume_requested {
                     AgentKeypairRegistry::resume_existing_durable(
                         &b.runtime_repo_path,
                         &durable_path,
                         pwd,
                     )
                     .expect(
-                        "[chaintape/tb9-resume] agent_keypairs resume must succeed (TURINGOS_CHAINTAPE_RESUME=1 \
-                         requested but resume_existing_durable failed; check that agent_pubkeys.json + the \
-                         durable keystore both correspond to the same prior run).",
+                        "[chaintape/tb9-resume] agent_keypairs resume must succeed \
+                         (TURINGOS_CHAINTAPE_RESUME=1 requested). On ManifestAbsentInResume: \
+                         the runtime_repo at this path was never agent-registered, so resume \
+                         is meaningless — point TURINGOS_CHAINTAPE_PATH at a runtime_repo \
+                         from a prior agent-registered run, or unset TURINGOS_CHAINTAPE_RESUME \
+                         to start a fresh registry. On ResumeKeystoreInconsistent: \
+                         agent_pubkeys.json and the durable keystore disagree about agent \
+                         identities — either the keystore was wiped while the manifest \
+                         survived, or TURINGOS_AGENT_KEYSTORE_PASSWORD does not match the \
+                         password used for the prior run. On a keystore decrypt error: \
+                         check TURINGOS_AGENT_KEYSTORE_PASSWORD.",
                     )
                 } else {
                     AgentKeypairRegistry::generate_or_load_durable(
