@@ -72,6 +72,65 @@ Five binding amendments override any prior TB-N* assumption that conflicts:
   §K renders a clean-negative explanation + forward-TB stub when minimum-tier
   is not met; this is the deliverable, not a failure.
 
+## §0.65. Option B+ orchestration ruling (architect 2026-05-11; binding for G1.2)
+
+Verbatim source at `handover/directives/2026-05-11_TB_G_G1_2_OPTION_B_PLUS_RULING.md`.
+Resolves the §11 questions raised in
+`handover/directives/2026-05-11_TB_G_G1_2_ORCHESTRATION_DECISION_PACKET.md`.
+
+**Canonical orchestration**:
+
+> **Option B+ — Process-distributed, Tape-continuous runtime**.
+> 每个 problem 可以由 subprocess 执行；但所有 subprocess 必须 resume 同一条
+> ChainTape：same runtime_repo / same CAS / same agent registry / same system
+> pubkeys / same batch_id / continuous HEAD_t / no fresh genesis / no
+> memory-only cross-task state.
+
+**Disposition**:
+- Option A (single-process loop) → dev-only harness; not ship evidence.
+- Option B (subprocess + resume) → canonical (with B+ hardening below).
+- Option C (hybrid) → allowed only as wrapper over Option B+ semantics.
+
+**Binding principle (architect §7)**:
+
+> **进程是否重启不重要，tape 是否连续才重要。**
+> 图灵机可以停机再启动，但纸带不能换。
+
+**SG-G1.7 reworded** (replaces any "one process" language):
+
+> A batch of >=3 tasks must execute on **one continuous ChainTape**:
+> same runtime_repo / same CAS / exactly one genesis /
+> `task_{k+1}.start_head_t == task_k.end_head_t` / agent balances /
+> positions / reputation persist across task boundaries.
+
+**Resume contract** (not just env var; explicit fail-closed args):
+- `--runtime-repo`
+- `--cas`
+- `--expected-head-t`
+- `--batch-id`
+- `--task-id`
+- `--agent-registry`
+
+**Class**: 3 by default. HALT and re-charter Class 4 if implementation forces
+touching sequencer admission, TypedTx schema, canonical signing payload,
+`HEAD_t` definition, economic state schema, system tx authorization, or
+constitution.md text.
+
+**Audit cadence** (architect Q5):
+1. Codex micro-audit after 3-task mini-smoke + ResumePreflight ship.
+2. Codex + Gemini Pro full dual audit after 9-task batch ship.
+3. No schema-only audit cycles; real tape evidence first.
+
+**Forward §8 implication** (architect Q6):
+
+> 所有未来跨 run / 跨 task / 跨 agent 的状态，都必须由 ChainTape/CAS 继承，
+> 不能由 evaluator 内存继承.
+
+For any future state (G5 scheduler, Markov inheritance, agent PnL, role
+differentiation, NodeMarket prices, autopsy): ask `is this memory on tape?`
++ `can replay reconstruct it?` + `can HEAD_t / CAS / L4 / L4.E rebuild it?`
+If any answer is no → not compliant.
+
 ## §0.7. Non-objectives (architect §10 verbatim)
 
 This phase is NOT:
@@ -110,9 +169,15 @@ This phase is NOT:
 | Atom | Class | Code surface | Ship gate |
 |------|-------|--------------|-----------|
 | **G1.1** Resume-mode genesis branch — `RuntimeChaintapeConfig.resume_existing_chain: bool` flag (env `TURINGOS_CHAINTAPE_RESUME=1`); `build_chaintape_sequencer` learns a `resume` branch: (a) opens existing `refs/transitions/main` instead of fail-closing on `NonEmptyRuntimeRepo`; (b) calls `reconstruct_from_chaintape_refs` (exists at `src/state/head_t_witness.rs`) to rebuild `QState` from L4 + L4.E + CAS; (c) sets `Sequencer.next_logical_t = chain_length` so strict `len + 1` invariant holds on next commit. | **4 STEP_B** | `src/runtime/mod.rs:407` + `src/state/sequencer.rs` (`Sequencer::new_at_logical_t` constructor) + `src/state/head_t_witness.rs` (reuse `reconstruct_from_chaintape_refs`) + `tests/constitution_g1_resume.rs` (NEW; 5+ gates) | SG-G1.1..SG-G1.5: empty-repo byte-equal genesis / N-entry resume `next_logical_t == N` / balances reconstruction matches forward replay / `NonEmptyRuntimeRepo` only fires when resume=false / pinned_pubkeys preserved across resume |
-| **G1.2** Batch driver binary | 3 | NEW `experiments/minif2f_v4/src/bin/batch_evaluator.rs` + NEW `experiments/minif2f_v4/src/swarm_one_problem.rs` (extract from `evaluator.rs:829..1700`) | SG-G1.6..SG-G1.8: ONE `runtime_repo` across N problems / legacy `evaluator` binary unchanged tests / failure mid-batch yields `RunExhaustedTx` terminal state |
-| **G1.3** Persistent batch wrapper script | 2 | NEW `scripts/run_g_phase_batch.sh` (sibling of `run_stage_b3.sh:364`) | SG-G1.9..SG-G1.10: one evidence dir shape `<run>/<model>/seed<S>/rep<R>/{runtime_repo,cas,PROBLEMS.txt,batch_summary.json}` / `audit_tape` PROCEED across full batch |
-| **G1.4** Persistence-evidence binding test (6 architect-required persisted fields) | 2 | `tests/constitution_g1_persistence_evidence_binding.rs` (NEW) | SG-G1.11..SG-G1.15: ≥1 Agent_i balance trajectory non-flat / replay byte-equality / market-history walk non-empty / proof-performance trajectory ≥1 accept+reject for some agent / autopsy index monotone-add |
+| **G1.2-0** Charter amendment + Option B+ directive archive | 0 | this row block + `handover/directives/2026-05-11_TB_G_G1_2_OPTION_B_PLUS_RULING.md` (NEW; verbatim architect ruling) | charter cites architect Option B+ ruling + names G1.2-0..G1.2-8 atoms + lists halt conditions |
+| **G1.2-1** ResumePreflight (fail-closed library + CLI shim) — `ResumeContract` + `check()` validates runtime_repo / CAS / agent_registry / system_pubkeys / genesis_report / head_t / state_root / chain_length / task_index / no-fresh-genesis-attempt | 2-3 | NEW `src/runtime/resume_preflight.rs` + NEW `src/bin/resume_preflight.rs` + NEW `tests/constitution_g1_2_resume_preflight.rs` (11 gates) | SG-G1.2-1.1..G1.2-1.11: preflight_accepts_valid_chain + 10 reject paths (missing_repo / missing_cas / missing_agent_pubkeys / missing_pinned_pubkeys / missing_genesis_report / head_mismatch / state_root_mismatch / chain_length_mismatch / task_index_gap / fresh_genesis_attempt) |
+| **G1.2-2** ChainTapeLease (single-writer lock; future-concurrency hardening) — atomic file write via tempfile+rename; stale-lock detection via `kill -0 holder_pid`; RAII drop releases | 2 | NEW `src/runtime/chain_tape_lease.rs` + NEW `tests/constitution_g1_2_chain_tape_lease.rs` (6 gates) | SG-G1.2-2.1..G1.2-2.6: acquire_release_round_trip / rejects_second_writer_same_pid / rejects_second_writer_other_pid / detects_stale_lock_when_pid_dead / detects_head_changed_under_lock / releases_on_guard_drop |
+| **G1.2-3** Extract `swarm_one_problem` from `evaluator.rs::run_swarm` + `batch_evaluator` orchestrator binary (task_0 fresh, task_k>0 resume with explicit contract) | 2-3 | NEW `experiments/minif2f_v4/src/swarm_one_problem.rs` + EDIT `experiments/minif2f_v4/src/bin/evaluator.rs` (run_swarm becomes thin wrapper; byte-identical single-task) + NEW `experiments/minif2f_v4/src/bin/batch_evaluator.rs` + NEW `tests/constitution_g1_2_subprocess_resume.rs` (5 gates) | SG-G1.2-3.1..G1.2-3.5: subprocess_task_0_creates_fresh_genesis / subprocess_task_1_resumes_existing_chain_no_new_genesis / task_k_plus_1_start_head_eq_task_k_end_head (canonical SG-G1.7 reworded gate — one continuous tape, not one process) / batch_evaluator_emits_run_exhausted_tx_on_mid_batch_fail (SG-G1.8) / legacy_evaluator_binary_unchanged_on_single_task_path (SG-G1.7 back-compat) |
+| **G1.2-4** BatchContinuationManifest — `batch_id` + `runtime_repo` + `cas_root` + `initial_head_t` + tasks: Vec<TaskContinuationEntry> + agent_registry_cid + system_pubkeys_cid + model_manifest_cid; written incrementally; CAS-anchored on batch close | 2 | NEW `src/runtime/batch_continuation_manifest.rs` + NEW `tests/constitution_g1_2_batch_continuation_manifest.rs` (4 gates) | SG-G1.2-4.1..G1.2-4.4: manifest_records_all_tasks_in_order / manifest_head_chain_is_continuous / manifest_rejects_continuity_gap / manifest_replay_matches_real_chain_head_walk |
+| **G1.2-5** Persistence-evidence binding test (6 architect-required persisted fields: balances / positions / reputation / PnL / autopsy / model identity) — reads BatchContinuationManifest + runtime_repo + CAS; clean-negative row allowed on low-activity batch | 2 | NEW `tests/constitution_g1_persistence_evidence_binding.rs` | SG-G1.11..G1.15: ≥1 Agent_i balance trajectory non-flat / replay byte-equality / market-history walk non-empty / proof-performance trajectory ≥1 accept+reject for some agent / autopsy index monotone-add — OR clean-negative `persistence_evidence_binding.json` row with mechanism-bottleneck explanation |
+| **G1.2-6** 3-task mini-smoke + Codex micro-audit (architect Q5 cadence) | 2 | NEW `scripts/run_g_phase_batch.sh` (mirrors `scripts/run_stage_b3.sh`) + evidence dir `handover/evidence/g_phase_g1_2_mini_*/` | SG-G1.2-mini.1..6: exactly one `genesis_report.json` / task_2.start_head == task_1.end_head / task_3.start_head == task_2.end_head / ≥1 agent balance non-flat / no per-task runtime_repo / `audit_tape verdict=PROCEED` on aggregate |
+| **G1.2-7** 9-task same-problem-set batch + Codex G2 + Gemini Pro full dual audit (architect Q5 cadence) | 2 | same `scripts/run_g_phase_batch.sh` (batch_size=9; TB-N3 Phase 2 problem set; deepseek-chat; market enabled; same 10 agents from `default_pput_preseed_pairs()`) + evidence dir `handover/evidence/g_phase_g1_2_full_*/` | SG-G1.2-full.1..5: continuous HEAD_t chain via manifest replay / cross-problem persistence (G1.2-5 binding) / no fresh genesis after task 0 / `audit_tape verdict=PROCEED` across full batch / legacy evaluator byte-equal single-task control |
+| **G1.2-8** Cross-problem persistence report — auto-generated `CROSS_PROBLEM_PERSISTENCE_REPORT.md` answering Q6: balance changes / positions / invest / verify-challenge / role diversity / mechanism-bottleneck row | 0-1 | `handover/evidence/g_phase_g1_2_full_<TS>/CROSS_PROBLEM_PERSISTENCE_REPORT.md` + `handover/ai-direct/LATEST.md` session-close + matrix §R sync | report answers 6 architect Q6 questions OR explicit mechanism-bottleneck row with ≥3 candidate causes |
 
 ### Module G2 — Market Decision Observability (parallel with G1; Turing lens)
 
@@ -182,7 +247,7 @@ This phase is NOT:
 | `assert_total_ctf_conserved` GREEN end-of-batch | G7.1 SG-G7.11 |
 | `assert_no_post_init_mint` GREEN end-of-batch | G7.1 SG-G7.12 |
 | `assert_complete_set_balanced` GREEN end-of-batch | G7.1 SG-G7.13 |
-| Cross-problem PnL trajectory present | G3.4 SG-G3.8 dual-bound to G1 SG-G1.7 |
+| Cross-problem PnL trajectory present | G3.4 SG-G3.8 dual-bound to G1 SG-G1.7 (reworded 2026-05-11 per Option B+ ruling: "one continuous ChainTape" = `task_{k+1}.start_head_t == task_k.end_head_t` + same runtime_repo + same CAS + exactly one genesis + agent balances persist) |
 | ≥2 distinct roles detected on persistent batch | G5.3 SG-G5.6 + G7.1 SG-G7.9 |
 | ≥1 non-solver VerifyTx witness | G2P SG-G2P.5 + G7.1 SG-G7.5 |
 | No-hidden-model-switch witness | G4.4 SG-G4.6 |
