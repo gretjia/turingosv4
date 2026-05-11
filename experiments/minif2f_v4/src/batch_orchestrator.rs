@@ -251,6 +251,17 @@ pub fn build_subprocess_env(
             "TURINGOS_RUN_ID".to_string(),
             format!("{}_t{:03}", spec.batch_id, task_index),
         ),
+        // TB-G G1.2-7 dual-audit closure (Codex G2 Q11 CHALLENGE
+        // 2026-05-11): enable the architect-canonical preseed
+        // (default_pput_preseed_pairs at `src/runtime/bootstrap.rs`)
+        // so task_0 boots with `tb7-7-sponsor` + `Agent_user_0` +
+        // `Agent_0..9` balances baked into `initial_q_state.json`.
+        // Task_k>0 resume reads the same file via
+        // `bootstrap_resume_state` (FC2-Boot canonical). Without this
+        // env flag, the persistence binding's "Empty balances" verdict
+        // is ambiguous between "no agent activity" and "no preseed
+        // applied" — Codex G2 R1 Q11 CHALLENGE.
+        ("TURINGOS_CHAINTAPE_PRESEED".to_string(), "1".to_string()),
     ];
     // Architect §1: for task_0 the resume flag MUST be unset; for
     // task_k>0 it MUST be "1". Default-deny posture preserved.
@@ -433,6 +444,13 @@ mod tests {
         let env = build_subprocess_env(&spec, 1, &fake_resume);
         assert!(env.iter().any(|(k, v)| k == "TURINGOS_CHAINTAPE_RESUME" && v == "1"));
         assert!(env.iter().any(|(k, _)| k == "TURINGOS_CHAINTAPE_PATH"));
+        // Codex G2 R1 Q11 CHALLENGE closure (2026-05-11): preseed flag
+        // MUST be present on resume tasks too — the chain_runtime
+        // bootstrap path reads it before deciding whether to write a
+        // preseeded `initial_q_state.json`. Even though resume reads
+        // the persisted file (not the env-time preseed pairs), the
+        // contract is uniform across all subprocesses.
+        assert!(env.iter().any(|(k, v)| k == "TURINGOS_CHAINTAPE_PRESEED" && v == "1"));
     }
 
     #[test]
@@ -441,6 +459,14 @@ mod tests {
         let spec = spec_for(&tmp, "test_env0");
         let env = build_subprocess_env(&spec, 0, &BoundaryPrep::FreshGenesis);
         assert!(!env.iter().any(|(k, _)| k == "TURINGOS_CHAINTAPE_RESUME"));
+        // Codex G2 R1 Q11 CHALLENGE closure (2026-05-11): task_0
+        // (fresh-genesis) MUST carry TURINGOS_CHAINTAPE_PRESEED=1
+        // so the chain_runtime bootstrap path writes
+        // `default_pput_preseed_pairs()` into the initial_q_state.json
+        // that resume tasks will inherit. Without this, agents have
+        // zero balance and every WorkTx with non-zero stake gets
+        // L4.E-rejected with stake_balance_exceeded.
+        assert!(env.iter().any(|(k, v)| k == "TURINGOS_CHAINTAPE_PRESEED" && v == "1"));
     }
 
     #[test]
