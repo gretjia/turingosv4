@@ -131,6 +131,76 @@ differentiation, NodeMarket prices, autopsy): ask `is this memory on tape?`
 + `can replay reconstruct it?` + `can HEAD_t / CAS / L4 / L4.E rebuild it?`
 If any answer is no → not compliant.
 
+## §0.66. WalletBackend trait — forward principle (user 2026-05-11 directive)
+
+User verbatim 2026-05-11 (session #41 mid-G1.2-1):
+
+> 在没有正式接入真实世界经济的时候，你现在要给每个 agent 安排初始的虚拟货币，
+> 不然他们怎么投资？而且你要把这个虚拟货币选项做的能够在未来无缝切换成真实的
+> 链上钱包，不要为了模拟而凑活，在架构上要完备。
+
+**Status of initial allocation (already in place)**: every agent is seeded
+by `src/runtime/bootstrap.rs::default_pput_preseed_pairs()` at `on_init`
+(12 entries totaling 30M μC: `tb7-7-sponsor` + `Agent_user_0` +
+`Agent_0..9`). CLAUDE.md §13 makes `on_init` the **only** legal base-coin
+mint site; Option B+ resume preserves `balances_t` across every task
+boundary (`replay_full_transition` rebuilds `EconomicState` from the
+chain). G1.1 mini-smoke already exercised this path; G1.2 inherits it.
+
+**The forward gap user named — "不要为了模拟而凑活"**:
+
+Current code mutates `EconomicState.balances_t: BTreeMap<AgentId, MicroCoin>`
+directly inside `dispatch_transition` arms. There is no wallet
+abstraction layer — swapping `MicroCoin` (virtual) for an on-chain
+wallet (real) would force every sequencer admission arm to change. That
+is the "凑活" the user prohibited.
+
+**Forward design — `WalletBackend` trait** (not implemented in G1.2;
+written here as binding forward principle):
+
+```rust
+trait WalletBackend {
+    fn balance(&self, agent: &AgentId) -> Result<MicroCoin, WalletError>;
+    fn debit(&mut self, agent: &AgentId, amount: MicroCoin,
+             reason: DebitReason)
+        -> Result<WalletReceipt, WalletError>;
+    fn credit(&mut self, agent: &AgentId, amount: MicroCoin,
+              reason: CreditReason)
+        -> Result<WalletReceipt, WalletError>;
+    fn supports_split_yes_no(&self) -> bool;
+}
+
+struct VirtualWallet { state: Arc<RwLock<EconomicState>> }      // today
+struct OnChainWallet { rpc: ChainRpc, signing_key: KeystoreRef } // future
+```
+
+Rules:
+- `WalletReceipt` carries an on-chain `tx_hash` (`None` in virtual mode;
+  populated in on-chain mode).
+- `EconomicState.balances_t` remains the **canonical truth view** —
+  on-chain mode is a read-through projection, not a parallel ledger.
+- Any sequencer admission that affects balance MUST go through
+  `WalletBackend::debit / credit`, not raw `BTreeMap::insert`.
+- Switching backend = swap the `WalletBackend` impl. Zero changes to
+  sequencer admission code; zero changes to chain shape.
+
+**Class**: 4 STEP_B when implemented (touches sequencer admission arms +
+EconomicState contract). Requires its own per-atom architect §8 packet
+per `feedback_no_batch_class4_signoff`.
+
+**Forward TB**: `TB-H WalletBackend trait` (charter to be drafted after
+G1.2 ships; not blocking G-Phase G1..G7).
+
+**In-scope for G1.2** (no Class-4 mutation):
+- G1.2-3 batch_evaluator orchestrator: no direct balance handling
+  (subprocess delegates to sequencer; chain owns balances).
+- G1.2-5 persistence-evidence binding test: comment-binds the test to
+  the future WalletBackend.debit/credit observability (today: direct
+  walk of EconomicState; tomorrow: WalletReceipt audit trail).
+
+This block is the canonical "no shortcut" record per user directive +
+`feedback_no_workarounds_strict_constitution`.
+
 ## §0.7. Non-objectives (architect §10 verbatim)
 
 This phase is NOT:

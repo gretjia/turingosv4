@@ -115,6 +115,15 @@ pub mod audit_tamper;
 /// market decision 的审计轨迹" + Phase-2 SG-N3.12 (run_report §F).
 pub mod market_decision_trace;
 
+/// TRACE_MATRIX FC2-Boot (TB-G G1.2-1 2026-05-11; Option B+ orchestration
+/// ruling): `ResumePreflight` — fail-closed library that validates a
+/// subprocess's claim to resume an existing ChainTape. Architect classified
+/// `TURINGOS_CHAINTAPE_RESUME=1` alone as a signal, not a safety protocol;
+/// preflight is the safety protocol. Eleven gates SG-G1.2-1.1..11.
+/// Constitutional Justification:
+/// `handover/directives/2026-05-11_TB_G_G1_2_OPTION_B_PLUS_RULING.md` §3.1.
+pub mod resume_preflight;
+
 
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};

@@ -501,6 +501,14 @@ GATES=(
   # primitive (user 2026-05-11 directive: "关于内核一定要对齐宪法和宪法
   # 中的三个flowchart").
   constitution_g1_resume
+
+  # TB-G G1.2-1 (Option B+ orchestration ruling 2026-05-11; binding
+  # directive handover/directives/2026-05-11_TB_G_G1_2_OPTION_B_PLUS_RULING.md
+  # §3.1): ResumePreflight fail-closed validation. 11 SG-G1.2-1.*
+  # gates covering accepts_valid_chain + 10 reject paths. Closes
+  # architect-named "TURINGOS_CHAINTAPE_RESUME=1 is a signal not a
+  # safety protocol" gap.
+  constitution_g1_2_resume_preflight
 )
 
 # Run each gate file separately and collect per-test outcome.
