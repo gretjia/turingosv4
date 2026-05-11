@@ -6,6 +6,65 @@
 
 ---
 
+## 📍 Handover summary (session #41 close 2026-05-11)
+
+**Session Summary**: TB-G G1.2 atoms 0..4 SHIPPED (5 sub-atoms, 26 new SG-G1.2-* gates GREEN, all on `origin/main`). Option B+ orchestration ruling archived + charter amended + Trust Root + dual safety primitives (ResumePreflight + ChainTapeLease) + orchestrator binary + CAS-anchorable BatchContinuationManifest. Pure-code phase complete; G1.2-5..G1.2-8 remain (G1.2-6/7 need real-LLM smoke).
+
+### Current State
+
+**Works**:
+- TB-G G1.2-0..G1.2-4 shipped to `origin/main` HEAD `904a793` (pre-handover-commit; final push HEAD will rebase forward by 1 commit for the LATEST.md sync).
+- Architect Option B+ ruling archived at `handover/directives/2026-05-11_TB_G_G1_2_OPTION_B_PLUS_RULING.md` (6 Q-resolutions + 7 hidden-risk mitigations). Predecessor decision packet committed in same atom as audit trail.
+- Charter §0.65 (Option B+ binding amendment) + §0.66 (WalletBackend forward principle per user 2026-05-11 directive "不要为了模拟而凑活").
+- 26 new SG-G1.2-* gates GREEN: 11 ResumePreflight + 6 ChainTapeLease + 5 subprocess-resume + 4 BatchContinuationManifest. All wired under `bash scripts/run_constitution_gates.sh` (root tests + new `GATES_PKG` per-package gate runner for the minif2f_v4 integration test).
+- `batch_evaluator` binary builds + spawns existing `evaluator` subprocess with Option B+ env wiring (RESUME=1 for task_k>0; default-deny for task_0). `evaluator.rs` UNCHANGED — SG-G1.2-3.5 byte-equal regression preserved automatically.
+
+**Incomplete / forward-bound**:
+- G1.2-5 persistence-evidence binding test (Class 2, pure-code; 6 architect-required persisted fields) — NEXT atom.
+- G1.2-6 3-task mini-smoke + Codex micro-audit (needs real LLM API + proxy; ~10-15min).
+- G1.2-7 9-task batch + Codex+Gemini full dual audit (real LLM + ~30min batch + multi-round audit).
+- G1.2-8 cross-problem persistence report + matrix sync.
+
+**Active experiments**: Option B+ subprocess-per-task pattern shipped + tested in-process. Real subprocess evidence pending G1.2-6.
+
+### Next Steps
+
+1. **G1.2-5 persistence-evidence binding** (Class 2 pure-code) — `tests/constitution_g1_persistence_evidence_binding.rs` reading a `BatchContinuationManifest` + `runtime_repo` + CAS, asserting balances / positions / reputation / PnL / autopsy / model identity persistence. Clean-negative rows allowed on low-activity batch.
+2. **G1.2-6 3-task mini-smoke** (Class 2 evidence) — `scripts/run_g_phase_batch.sh` (sibling of `run_stage_b3.sh`) + 3-problem real-LLM run + aggregate `audit_tape` verdict. Dispatch Codex micro-audit on mini per architect Q5 cadence.
+3. **G1.2-7 9-task batch** — same script with batch_size=9; Codex+Gemini full dual audit.
+4. **G1.2-8 cross-problem persistence report** — auto-generate `CROSS_PROBLEM_PERSISTENCE_REPORT.md` answering architect Q6 questions; LATEST sync; matrix §R G1 row 🟡 → 🟢 if persistence + dual audit PASS.
+
+### Open Questions
+
+1. The architect Q5 audit cadence (Codex micro after mini, Codex+Gemini full after 9-task batch) implies G1.2-6 is the audit-trigger boundary. Confirm LLM proxy budget + API key state before kicking off G1.2-6 — last session reported `localhost:8080` healthy.
+2. `WalletBackend` trait (charter §0.66, forward TB-H) is Class-4 STEP_B. Should it be drafted as a §8 packet during G-Phase, or strictly after G7 closes?
+3. `swarm_one_problem` library extraction was skipped in G1.2-3 (evaluator binary IS the per-problem entry point at the binary level — Option B+ subprocess pattern doesn't need it). If future work wants in-process multi-task without subprocess, the library extraction returns as a forward TB.
+4. The G1.2-4 `BatchContinuationManifest` CAS-anchor (`write_to_cas` returns Cid) is available but no `TerminalSummaryTx.batch_continuation_manifest_cid` exists yet to anchor it on-chain. Forward-bound to a later atom (likely G3.4 or G7 closure).
+
+### Validation (G1.2-0..G1.2-4 ship state)
+
+- **workspace** (incremental, not full re-run this session): G1.2-1 (11) + G1.2-2 (6) + G1.2-3 (5+5 unit) + G1.2-4 (4+2 unit) = 33 new tests, all PASS at last invocation per atom.
+- **constitution gates**: 310 → **314 root + 1 per-pkg** = 315 (+4 new gate files registered; G1.2-3 routed via new `GATES_PKG` per-package runner).
+- **Trust Root `verify_trust_root_passes_on_intact_repo`**: PASS after 4 rehashes: `src/runtime/mod.rs` (f72bbda7 → a9d2514f → 0801ff3e → 4aa33a30) + `Cargo.lock` (e1afff63 → 080b20c7) for the tempfile dev-dep.
+- **No regressions**: SG-G1.2-3.5 byte-equal genesis preserved automatically (evaluator.rs untouched).
+- **R-022 alignment**: every new pub symbol in the four new runtime/lib modules carries `/// TRACE_MATRIX § 3 orphan (TB-G G1.2-N 2026-05-11; Option B+ §3.X)` backlink.
+
+### Commits this session (oldest → newest)
+
+| HEAD | Atom | Subject |
+|------|------|---------|
+| `a5d6898` | G1.2-0 | Option B+ ruling archive + charter amendment + matrix sync |
+| `934e022` | G1.2-1 | ResumePreflight (fail-closed library + CLI shim) + WalletBackend forward principle |
+| `b7b8d8e` | G1.2-2 | ChainTapeLease single-writer lock (atomic tempfile+rename; stale-pid recovery) |
+| `948a55b` | G1.2-3 | batch_orchestrator library + batch_evaluator binary (subprocess-per-task; Option B+ canonical) |
+| `904a793` | G1.2-4 | BatchContinuationManifest (CAS-anchorable multi-task batch fact-identity) |
+
+### Operational note
+
+Mid-session disk-full incident (cargo target/ filled /dev/sda1; bash returned `No space left on device` silently exit 1). Resolved by `cargo clean` — recovered 34.3 GiB. Forward defensible mechanism: periodic `df -h` check before launching long batches (G1.2-6/7 evidence generation will write multi-GB to handover/evidence/).
+
+---
+
 ## 📍 Handover summary (session #40 close 2026-05-11)
 
 **Session Summary**: TB-G G1.1 SHIPPED FINAL — cross-problem persistence (resume-mode genesis branch) at `origin/main` HEAD `379f4a6`. Kernel + binary layers both fail-closed via canonical FC2 Boot `replay_full_transition`; 8 SG-G1.* binding tests GREEN; R1 + R1.5 + R2 dual-audit cycle complete with conservative-merge closure.
