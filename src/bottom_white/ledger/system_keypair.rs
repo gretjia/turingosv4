@@ -262,6 +262,14 @@ pub enum CanonicalMessage {
     /// from `state::typed_tx::TaskBankruptcySigningPayload::canonical_digest()`.
     /// Same opaque-digest pattern as the other 4 system-tx variants.
     TaskBankruptcySigning([u8; 32]),
+    /// TRACE_MATRIX FC1-Sig + FC3-Sig (TB-N2 B2 charter §3 B2; 2026-05-11):
+    /// event-resolve signing payload digest. Opaque [u8; 32] from
+    /// `state::typed_tx::EventResolveSigningPayload::canonical_digest()`.
+    /// Same opaque-digest pattern as the 5 prior system-tx variants
+    /// (TerminalSummary / FinalizeReward / TaskExpire / ChallengeResolve /
+    /// TaskBankruptcy). System-only: emit via
+    /// `Sequencer::emit_system_tx(SystemEmitCommand::EventResolve)`.
+    EventResolveSigning([u8; 32]),
 }
 
 /// TRACE_MATRIX FC1-Sig+FC3-Sig: epoch-indexed public keys pinned by genesis and rotation history.
@@ -513,6 +521,10 @@ pub fn canonical_digest(message: &CanonicalMessage) -> [u8; 32] {
             h.update(b"TaskBankruptcySigning");
             h.update(digest);
         }
+        CanonicalMessage::EventResolveSigning(digest) => {
+            h.update(b"EventResolveSigning");
+            h.update(digest);
+        }
     }
     h.finalize().into()
 }
@@ -659,6 +671,21 @@ pub(crate) mod terminal_summary_emitter {
         digest: [u8; 32],
     ) -> Result<SystemSignature, KeypairError> {
         sign_system_message_inner(keypair, &CanonicalMessage::TaskBankruptcySigning(digest))
+    }
+
+    /// TRACE_MATRIX FC1-Sig + FC3-Sig (TB-N2 B2 charter §3 B2; 2026-05-11):
+    /// sign an opaque 32-byte digest of an `EventResolveSigningPayload`
+    /// (computed by
+    /// `state::typed_tx::EventResolveTx::to_signing_payload().canonical_digest()`).
+    /// Symmetric to the other 5 system-tx signers. Used by
+    /// `Sequencer::emit_system_tx(SystemEmitCommand::EventResolve)` to
+    /// construct the system_signature internally — caller never carries a
+    /// forged signature.
+    pub(crate) fn sign_event_resolve(
+        keypair: &Ed25519Keypair,
+        digest: [u8; 32],
+    ) -> Result<SystemSignature, KeypairError> {
+        sign_system_message_inner(keypair, &CanonicalMessage::EventResolveSigning(digest))
     }
 
     /// TRACE_MATRIX FC3-Sig: sign only typed epoch rotation proofs.

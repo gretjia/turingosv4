@@ -251,6 +251,27 @@ pub fn task_bankruptcy_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
     Hash::from_bytes(digest)
 }
 
+/// TRACE_MATRIX TB-N2 B2 (TB_N2_POLYMARKET_CPMM_LIFECYCLE charter §3 B2;
+/// 2026-05-11): EventResolve state-root domain. Mirror of
+/// `task_bankruptcy_accept_state_root` — both flip
+/// `task_markets_t[task_id].state` to a terminal value (Finalized vs
+/// Bankrupt) via system-tx; same state-root advance pattern.
+pub(crate) const EVENT_RESOLVE_DOMAIN_V1: &[u8] =
+    b"turingosv4.event_resolve.accept.v1";
+
+/// TRACE_MATRIX TB-N2 B2: state-root mutator on `EventResolveTx` accept
+/// (mutates task_markets_t[task_id].state = Finalized; pure status
+/// mutation — no money movement, no other state change). Mirror of
+/// `task_bankruptcy_accept_state_root`.
+pub fn event_resolve_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
+    let mut h = Sha256::new();
+    h.update(EVENT_RESOLVE_DOMAIN_V1);
+    h.update(prev.0);
+    h.update(canonical_encode(tx).expect("TypedTx is canonical-encodable"));
+    let digest: [u8; 32] = h.finalize().into();
+    Hash::from_bytes(digest)
+}
+
 /// TRACE_MATRIX TB-13 Atom 2 (architect 2026-05-03 post-TB-12 ruling Part A
 /// §4.3): CompleteSetMint-accept state-root domain.
 pub(crate) const COMPLETE_SET_MINT_DOMAIN_V1: &[u8] =
@@ -492,6 +513,15 @@ fn rejection_class_for(e: &TransitionError) -> L4ERejectionClass {
         TE::VerifyBondOutOfBounds => RC::InsufficientBalance,
         TE::VerifyTargetNotAccepted => RC::PolicyViolation,
         TE::VerifyDuplicate => RC::PolicyViolation,
+        // TB-N2 B2 (2026-05-11): EventResolveTx admission failure classes.
+        // Both → PolicyViolation (system-tx admission policy; not agent
+        // balance / stake-side rejection). EventResolveTaskNotFound = system
+        // emit referenced a non-existent task; EventAlreadyResolved =
+        // idempotent re-emit / post-Bankrupt / post-Expired. Conservative-
+        // merge consistent with TB-5 SystemTxForbiddenOnAgentIngress + TB-11
+        // TaskBankruptcy-arm classes (all → PolicyViolation).
+        TE::EventResolveTaskNotFound => RC::PolicyViolation,
+        TE::EventAlreadyResolved => RC::PolicyViolation,
         // Non-WorkTx-arm variants documented per §3.7 mapping table — should
         // not occur on the WorkTx arm; conservative sentinel preserves L4.E
         // append correctness if a future TB adds new variants.
@@ -543,6 +573,11 @@ fn public_summary_for(e: &TransitionError) -> Option<String> {
         TransitionError::VerifyBondOutOfBounds => Some("verify_bond_out_of_bounds".into()),
         TransitionError::VerifyTargetNotAccepted => Some("verify_target_not_accepted".into()),
         TransitionError::VerifyDuplicate => Some("verify_duplicate".into()),
+        // TB-N2 B2 (2026-05-11): EventResolveTx admission failure summaries.
+        // Public-summary tags distinguish the two failure modes for
+        // Information Loom signal.
+        TransitionError::EventResolveTaskNotFound => Some("event_resolve_task_not_found".into()),
+        TransitionError::EventAlreadyResolved => Some("event_already_resolved".into()),
         _ => Some("policy_violation".into()),
     }
 }
@@ -721,6 +756,13 @@ fn system_message_for_verification(
             let digest = t.to_signing_payload().canonical_digest();
             Some(CanonicalMessage::TaskBankruptcySigning(digest))
         }
+        // TB-N2 B2 (2026-05-11): EventResolveTx is system-emitted; verify
+        // against its signing payload digest under the EventResolveSigning
+        // canonical message domain. Mirrors TaskBankruptcy pattern.
+        TypedTx::EventResolve(t) => {
+            let digest = t.to_signing_payload().canonical_digest();
+            Some(CanonicalMessage::EventResolveSigning(digest))
+        }
         // Agent-submitted variants: stage 1.5 is system-only. TB-13
         // CompleteSetMint / CompleteSetRedeem / MarketSeed are agent-signed
         // (verified separately at admission via the agent-signature path).
@@ -757,6 +799,8 @@ fn system_signature_of(
         TypedTx::TerminalSummary(t) => Some(&t.system_signature),
         TypedTx::ChallengeResolve(t) => Some(&t.system_signature),
         TypedTx::TaskBankruptcy(t) => Some(&t.system_signature),
+        // TB-N2 B2 (2026-05-11) — system-emitted; mirror TaskBankruptcy.
+        TypedTx::EventResolve(t) => Some(&t.system_signature),
         TypedTx::Work(_)
         | TypedTx::Verify(_)
         | TypedTx::Challenge(_)
@@ -792,6 +836,9 @@ fn system_epoch_of(tx: &TypedTx) -> Option<SystemEpoch> {
         TypedTx::TerminalSummary(_) => None,
         TypedTx::ChallengeResolve(t) => Some(t.epoch),
         TypedTx::TaskBankruptcy(t) => Some(t.epoch),
+        // TB-N2 B2 (2026-05-11) — system-emitted; pin epoch for pinned-pubkey
+        // lookup at apply_one stage 1.5.
+        TypedTx::EventResolve(t) => Some(t.epoch),
         TypedTx::Work(_)
         | TypedTx::Verify(_)
         | TypedTx::Challenge(_)
@@ -1757,6 +1804,67 @@ pub(crate) fn dispatch_transition(
                 .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
             // Step 5: state_root advance.
             q_next.state_root_t = task_bankruptcy_accept_state_root(&q.state_root_t, tx);
+            Ok((q_next, SignalBundle::empty()))
+        }
+        // ──────────────────────────────────────────────────────────────────
+        // TB-N2 B2 — EventResolve arm (charter §3 B2; 2026-05-11).
+        //
+        // System-emitted; flips `task_markets_t[task_id].state` from Open →
+        // Finalized on a proof task's OMEGA-Confirm path (Option 1 resolution
+        // authority: minimal CPMM-completeness path; lean-verify outcome
+        // triggers system-emit via `tb_n2_emit_event_resolve_after_finalize`).
+        //
+        // Resolution authority semantics (already encoded by TB-13 redeem at
+        // typed_tx.rs:1244-1247): `Finalized` = YES wins (proof accepted).
+        // B2 ONLY lands Open → Finalized; the Bankrupt NO-wins path is
+        // landed by TB-11 TaskBankruptcyTx.
+        //
+        // Idempotency + lifecycle gate (architect §4.5 monotonic resolution):
+        //   Open → proceed
+        //   Finalized → EventAlreadyResolved (idempotent re-emit refused)
+        //   Bankrupt → EventAlreadyResolved (NO-wins already won; YES cannot win)
+        //   Expired → EventAlreadyResolved (refund path is exclusive; pool LP unwinds at expiry, not finalize)
+        //
+        // Pure status mutation: `balances_t` / `conditional_collateral_t` /
+        // `lp_share_balances_t` / pool reserves UNCHANGED.
+        // monetary_invariant `total_supply_micro` UNCHANGED.
+        // ──────────────────────────────────────────────────────────────────
+        TypedTx::EventResolve(er) => {
+            // Step 0: parent-root match (Anti-Oreo).
+            if er.parent_state_root != q.state_root_t {
+                return Err(TransitionError::StaleParent);
+            }
+            // Step 1: task_markets_t entry exists (admission gate; gap-audit
+            // §3.3 closure target).
+            let task_entry = match q.economic_state_t.task_markets_t.0.get(&er.task_id) {
+                Some(e) => e.clone(),
+                None => return Err(TransitionError::EventResolveTaskNotFound),
+            };
+            // Step 2: monotonic resolution gate. Only Open → Finalized is
+            // legal; all other states reject as EventAlreadyResolved.
+            match task_entry.state {
+                crate::state::q_state::TaskMarketState::Open => { /* proceed */ }
+                crate::state::q_state::TaskMarketState::Finalized
+                | crate::state::q_state::TaskMarketState::Bankrupt
+                | crate::state::q_state::TaskMarketState::Expired => {
+                    return Err(TransitionError::EventAlreadyResolved);
+                }
+            }
+            // Step 3: q_next — flip state to Finalized. No bankruptcy_at_logical_t
+            // mutation (that field is Bankrupt-specific per TB-15 autopsy
+            // activation gate).
+            let mut q_next = q.clone();
+            if let Some(tm) = q_next.economic_state_t.task_markets_t.0.get_mut(&er.task_id) {
+                tm.state = crate::state::q_state::TaskMarketState::Finalized;
+            }
+            // Step 4: monetary invariants — defense-in-depth even though
+            // EventResolve is pure status mutation (no holding term moves).
+            assert_no_post_init_mint(tx, q)
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            assert_total_ctf_conserved(&q.economic_state_t, &q_next.economic_state_t, &[])
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            // Step 5: state_root advance.
+            q_next.state_root_t = event_resolve_accept_state_root(&q.state_root_t, tx);
             Ok((q_next, SignalBundle::empty()))
         }
         // ──────────────────────────────────────────────────────────────────
@@ -3362,6 +3470,24 @@ pub enum SystemEmitCommand {
         bankruptcy_reason: crate::state::typed_tx::BankruptcyReason,
         failed_run_count: u32,
     },
+    /// TB-N2 B2 (TB_N2_POLYMARKET_CPMM_LIFECYCLE charter §3 B2; 2026-05-11) —
+    /// event-resolve transition (Open → Finalized). Caller passes only
+    /// `task_id`; runtime Q-derives `parent_state_root` + fills
+    /// `epoch` + `timestamp_logical` + signs internally.
+    ///
+    /// Triggered by `tb_n2_emit_event_resolve_after_finalize` in adapter.rs
+    /// after a successful `FinalizeReward` emit on a proof task's OMEGA-Confirm
+    /// path (Option 1 resolution authority per charter §5).
+    ///
+    /// NOT agent-submittable — `submit_agent_tx` rejects pre-queue via
+    /// `SystemTxForbiddenOnAgentIngress`. Mirrors `TaskBankruptcy` shape
+    /// minus the bankruptcy-specific evidence_capsule + reason fields
+    /// (EventResolve carries no evidence reference — the proof acceptance
+    /// itself is the evidence, anchored as the FinalizeReward L4 row
+    /// that triggered this emit).
+    EventResolve {
+        task_id: crate::state::q_state::TaskId,
+    },
     // Future RSP-3.2 additions (NOT in TB-11 scope):
     //   SlashTx        { ... }   (RSP-3.2)
 }
@@ -3397,6 +3523,13 @@ pub enum EmitSystemError {
     /// the production evaluator path because the OMEGA caller derives
     /// `claim_id` from the just-accepted VerifyTx.
     ClaimNotFound,
+    /// TB-N2 B2 (2026-05-11): `SystemEmitCommand::EventResolve { task_id }`
+    /// referenced a `task_id` not present in `task_markets_t`. Caller-side
+    /// error (caller asked for resolve on a non-existent task); never
+    /// reachable from the production evaluator path because
+    /// `tb_n2_emit_event_resolve_after_finalize` derives `task_id` from the
+    /// just-accepted FinalizeReward's claim.
+    EventResolveTaskNotFound,
 }
 
 impl std::fmt::Display for EmitSystemError {
@@ -3415,6 +3548,10 @@ impl std::fmt::Display for EmitSystemError {
             Self::ClaimNotFound => write!(
                 f,
                 "SystemEmitCommand::FinalizeReward referenced a claim_id not present in claims_t"
+            ),
+            Self::EventResolveTaskNotFound => write!(
+                f,
+                "SystemEmitCommand::EventResolve referenced a task_id not present in task_markets_t (TB-N2 B2; 2026-05-11)"
             ),
         }
     }
@@ -3689,7 +3826,12 @@ impl Sequencer {
             // TB-11 Atom 1 (architect §6.2 ruling 2026-05-02): TaskBankruptcyTx
             // is system-emitted only; agent ingress must reject pre-queue per
             // Anti-Oreo (Art V.1.3). Construction goes through emit_system_tx.
-            | TypedTx::TaskBankruptcy(_) => {
+            | TypedTx::TaskBankruptcy(_)
+            // TB-N2 B2 (charter §3 B2; 2026-05-11): EventResolveTx is
+            // system-emitted only; agent ingress must reject pre-queue per
+            // Anti-Oreo. Construction goes through
+            // `emit_system_tx(SystemEmitCommand::EventResolve)`.
+            | TypedTx::EventResolve(_) => {
                 return Err(SubmitError::SystemTxForbiddenOnAgentIngress);
             }
             // Agent-submitted variants — proceed to queue. TB-13 conditional-
@@ -4094,6 +4236,59 @@ impl Sequencer {
                 tx.system_signature = sig;
                 Ok(TypedTx::TaskBankruptcy(tx))
             }
+            // ─────────────────────────────────────────────────────────────
+            // TB-N2 B2 (TB_N2_POLYMARKET_CPMM_LIFECYCLE charter §3 B2;
+            // 2026-05-11) — EventResolve construction.
+            //
+            // Caller passes ONLY `task_id`. Runtime Q-derives
+            // `parent_state_root` from current Q + fills tx_id + epoch +
+            // ts_logical + signs internally.
+            //
+            // Pre-emit policy gate (defense-in-depth at construction): if
+            // `task_markets_t[task_id]` is absent, return
+            // EventResolveTaskNotFound here (caller-side error). This
+            // mirrors `FinalizeReward.ClaimNotFound` pattern — preferable
+            // to letting the dispatch arm reject post-queue (which would
+            // still work via EventResolveTaskNotFound TransitionError, but
+            // would waste a logical_t slot).
+            //
+            // Note: the apply-time monotonic gate (Open → Finalized only)
+            // is NOT replicated here. emit_system_tx is allowed to emit
+            // for any present task_id; the dispatch arm enforces state
+            // semantics. This separation matches TaskBankruptcy emit (no
+            // pre-emit state check; dispatch enforces).
+            // ─────────────────────────────────────────────────────────────
+            SystemEmitCommand::EventResolve { task_id } => {
+                use crate::bottom_white::ledger::system_keypair::terminal_summary_emitter::sign_event_resolve;
+                use crate::state::typed_tx::EventResolveTx;
+                let q_snap = self
+                    .q
+                    .read()
+                    .map_err(|_| EmitSystemError::InternalLockPoisoned)?;
+                if !q_snap.economic_state_t.task_markets_t.0.contains_key(&task_id) {
+                    return Err(EmitSystemError::EventResolveTaskNotFound);
+                }
+                let logical_t_for_id = self.next_logical_t.load(Ordering::SeqCst) + 1;
+                let mut tx = EventResolveTx {
+                    tx_id: crate::state::q_state::TxId(format!(
+                        "system-event-resolve-{}-{}",
+                        self.epoch.get(),
+                        logical_t_for_id
+                    )),
+                    parent_state_root: q_snap.state_root_t,
+                    task_id,
+                    epoch: self.epoch,
+                    timestamp_logical: logical_t_for_id,
+                    system_signature: SystemSignature::from_bytes([0u8; 64]), // placeholder
+                };
+                drop(q_snap);
+                let payload = tx.to_signing_payload();
+                let digest = payload.canonical_digest();
+                let sig = sign_event_resolve(&self.keypair, digest)
+                    .map_err(EmitSystemError::SignatureConstruction)?;
+                tx.system_signature = sig;
+                Ok(TypedTx::EventResolve(tx))
+            }
         }
     }
 
@@ -4146,6 +4341,15 @@ impl Sequencer {
             TypedTx::TaskBankruptcy(t) => {
                 let digest = t.to_signing_payload().canonical_digest();
                 let msg = CanonicalMessage::TaskBankruptcySigning(digest);
+                if !verify_system_signature(&t.system_signature, &msg, t.epoch, &self.pinned_pubkeys) {
+                    return Err(EmitSystemError::InvalidSystemSignatureLive);
+                }
+                Ok(())
+            }
+            // TB-N2 B2 — EventResolve defense-in-depth verify (2026-05-11).
+            TypedTx::EventResolve(t) => {
+                let digest = t.to_signing_payload().canonical_digest();
+                let msg = CanonicalMessage::EventResolveSigning(digest);
                 if !verify_system_signature(&t.system_signature, &msg, t.epoch, &self.pinned_pubkeys) {
                     return Err(EmitSystemError::InvalidSystemSignatureLive);
                 }

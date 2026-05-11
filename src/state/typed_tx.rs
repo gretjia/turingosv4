@@ -882,6 +882,16 @@ const DOMAIN_SYSTEM_TASK_EXPIRE: &[u8] = b"turingosv4.system_sig.task_expire.v1"
 const DOMAIN_SYSTEM_TERMINAL_SUMMARY: &[u8] = b"turingosv4.system_sig.terminal_summary.v1";
 const DOMAIN_SYSTEM_CHALLENGE_RESOLVE: &[u8] = b"turingosv4.system_sig.challenge_resolve.v1"; // TB-5 Atom 3
 const DOMAIN_SYSTEM_TASK_BANKRUPTCY: &[u8] = b"turingosv4.system_sig.task_bankruptcy.v1";    // TB-11
+// TB-N2 B2 (TB_N2_POLYMARKET_CPMM_LIFECYCLE charter §3 B2 atom; 2026-05-11):
+// system-emitted `EventResolveTx` flips `task_markets_t[task_id].state` from
+// Open → Finalized when a proof task's OMEGA-Confirm path produces a
+// FinalizeReward. Closes the CPMM lifecycle gap identified in
+// `handover/audits/STAGE_C_POLYMARKET_CPMM_LIFECYCLE_GAP_AUDIT_2026-05-10.md`
+// §3.3 (TaskMarketState::Finalized previously READ 5+ sites / WRITE 0 sites).
+// Resolution authority: minimal CPMM-completeness path (Option 1 system-emit
+// on lean-verify outcome per charter §5 + gap audit §4); K.3 ORACLE / K.6
+// EXTERNAL forward-bound and can wrap this without breaking B2 invariants.
+const DOMAIN_SYSTEM_EVENT_RESOLVE: &[u8] = b"turingosv4.system_sig.event_resolve.v1";        // TB-N2 B2
 // TB-13 — CompleteSet + MarketSeedTx (architect 2026-05-03 post-TB-12 ruling Part A §4.3).
 // All three TB-13 typed-tx are AGENT-SIGNED (provider funds explicit; no
 // auto-seed; redeem requires system-resolution-reference + outcome match,
@@ -1550,6 +1560,49 @@ pub struct BuyWithCoinRouterTx {
     pub signature: AgentSignature,            //  8
 }
 
+/// TRACE_MATRIX TB-N2 B2 (TB_N2_POLYMARKET_CPMM_LIFECYCLE charter §3 B2;
+/// gap audit §3.3 verbatim closure target) — system-emitted event-resolve
+/// transition. Flips `task_markets_t[task_id].state` from Open → Finalized
+/// on a proof task's OMEGA-Confirm path (Option 1 resolution authority:
+/// minimal CPMM-completeness path; lean-verify outcome triggers
+/// system-emit).
+///
+/// **Resolution authority semantics** (already encoded by TB-13 redeem at
+/// typed_tx.rs:1244-1247): `Finalized` = YES wins (proof accepted);
+/// `Bankrupt` = NO wins (proof failed; TaskBankruptcyTx is the parallel
+/// system-tx for that path); `Open` / `Expired` = pre-resolution
+/// `RedeemBeforeResolution`. B2 lands ONLY the Open → Finalized YES-wins
+/// path; the Bankrupt NO-wins path was already landed by TB-11
+/// TaskBankruptcyTx.
+///
+/// **System-emitted only**: agent ingress (`Sequencer::submit_agent_tx`)
+/// rejects this variant pre-queue per Anti-Oreo (Art V.1.3); construction
+/// goes through `Sequencer::emit_system_tx` with
+/// `SystemEmitCommand::EventResolve { task_id }`.
+///
+/// **Pure status mutation** (no `economic_state_t` ledger movement at
+/// EventResolve): `balances_t` / `conditional_collateral_t` /
+/// `lp_share_balances_t` / pool reserves all UNCHANGED. monetary_invariant
+/// `total_supply_micro` UNCHANGED. The follow-on CompleteSetRedeemTx
+/// (TB-13) is the agent-signed transition that converts winning-side
+/// shares into Coin; B2 makes redeem reachable, but does not perform
+/// redeem itself.
+///
+/// **TB-N2 B2 minimal wire shape** (mirrors TaskBankruptcyTx 9-field shape
+/// without `evidence_capsule_cid` / `bankruptcy_reason` / `failed_run_count`):
+/// `tx_id` + `parent_state_root` + `task_id` + `epoch` + `timestamp_logical`
+/// + `system_signature` = 6 wire fields. Forward NO `timestamp_logical`
+/// drift (E.1 verbatim binding pattern; Stage C P-M2 Defect-3 prevention).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct EventResolveTx {
+    pub tx_id: TxId,                       //  1
+    pub parent_state_root: Hash,           //  2
+    pub task_id: TaskId,                   //  3
+    pub epoch: SystemEpoch,                //  4
+    pub timestamp_logical: u64,            //  5
+    pub system_signature: SystemSignature, //  6
+}
+
 // ── TB-13 SigningPayloads ───────────────────────────────────────────────
 
 /// TRACE_MATRIX TB-13 Atom 1 (architect §4.3): signing payload for
@@ -1732,6 +1785,28 @@ impl BuyWithCoinRouterSigningPayload {
     }
 }
 
+/// TRACE_MATRIX TB-N2 B2 — system signing payload for `EventResolveTx`
+/// (6 wire fields → 5 fields; system_signature excluded). Domain prefix
+/// `b"turingosv4.system_sig.event_resolve.v1"` mirrors the existing 5
+/// system-tx signing domains (TerminalSummary / FinalizeReward /
+/// TaskExpire / ChallengeResolve / TaskBankruptcy).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct EventResolveSigningPayload {
+    pub tx_id: TxId,
+    pub parent_state_root: Hash,
+    pub task_id: TaskId,
+    pub epoch: SystemEpoch,
+    pub timestamp_logical: u64,
+}
+
+impl EventResolveSigningPayload {
+    /// TRACE_MATRIX FC1-Sig TB-N2 B2: domain-prefixed canonical digest for
+    /// system-emitted EventResolveTx signing.
+    pub fn canonical_digest(&self) -> [u8; 32] {
+        domain_prefixed_digest(DOMAIN_SYSTEM_EVENT_RESOLVE, self)
+    }
+}
+
 // ── Projections: tx → signing payload ────────────────────────────────────
 
 impl WorkTx {
@@ -1839,6 +1914,20 @@ impl TaskBankruptcyTx {
             evidence_capsule_cid: self.evidence_capsule_cid,
             bankruptcy_reason: self.bankruptcy_reason,
             failed_run_count: self.failed_run_count,
+            epoch: self.epoch,
+            timestamp_logical: self.timestamp_logical,
+        }
+    }
+}
+
+impl EventResolveTx {
+    /// TRACE_MATRIX FC1-Sig TB-N2 B2: project the wire struct to the signing
+    /// payload subset (excludes `system_signature`).
+    pub fn to_signing_payload(&self) -> EventResolveSigningPayload {
+        EventResolveSigningPayload {
+            tx_id: self.tx_id.clone(),
+            parent_state_root: self.parent_state_root,
+            task_id: self.task_id.clone(),
             epoch: self.epoch,
             timestamp_logical: self.timestamp_logical,
         }
@@ -2062,6 +2151,14 @@ pub enum TypedTx {
     /// defined (architect §7.7 specifies 9-step composite + 9 mandated
     /// tests + integer formulas, not tx schema).
     BuyWithCoinRouter(BuyWithCoinRouterTx),
+    /// TB-N2 B2 (TB_N2_POLYMARKET_CPMM_LIFECYCLE charter §3) — system-emitted
+    /// event-resolve transition; flips `task_markets_t[task_id].state` from
+    /// Open → Finalized on a proof task's OMEGA-Confirm path. Closes the
+    /// CPMM lifecycle gap (CompleteSetRedeem previously unreachable because
+    /// `TaskMarketState::Finalized` was never written). Pure status mutation
+    /// (no `economic_state_t` ledger movement; downstream redeem is the
+    /// agent-signed Coin-credit transition).
+    EventResolve(EventResolveTx),
 }
 
 impl TypedTx {
@@ -2087,6 +2184,7 @@ impl TypedTx {
             Self::CpmmPool(_) => TxKind::CpmmPool,
             Self::CpmmSwap(_) => TxKind::CpmmSwap,
             Self::BuyWithCoinRouter(_) => TxKind::BuyWithCoinRouter,
+            Self::EventResolve(_) => TxKind::EventResolve,
         }
     }
 }
@@ -2168,6 +2266,12 @@ impl HasSubmitter for TaskBankruptcyTx {
     }
 }
 
+impl HasSubmitter for EventResolveTx {
+    fn submitter_id(&self) -> Option<AgentId> {
+        None  // TB-N2 B2 system-emitted; mirror TaskBankruptcyTx / FinalizeRewardTx (no agent_id; sequencer emit_system_tx is sole construction path)
+    }
+}
+
 // TB-13 — agent-signed conditional-share variants. Submitter is the
 // owner / provider on the wire (mirrors WorkTx → agent_id pattern).
 
@@ -2242,6 +2346,7 @@ impl HasSubmitter for TypedTx {
             Self::CpmmPool(t) => t.submitter_id(),
             Self::CpmmSwap(t) => t.submitter_id(),
             Self::BuyWithCoinRouter(t) => t.submitter_id(),
+            Self::EventResolve(t) => t.submitter_id(),
         }
     }
 }
@@ -2628,6 +2733,26 @@ pub enum TransitionError {
     /// `L4ERejectionClass::PolicyViolation`.
     VerifyDuplicate,
 
+    // ── TB-N2 B2 EventResolveTx admission (charter §3 B2; 2026-05-11) ──────
+    /// `EventResolveTx` admission step-1: `task_markets_t.0.get(&task_id)`
+    /// returned `None`. Distinct from `TaskNotFound` (which is used by
+    /// VerifyTx / ChallengeTx admission targeting work_tx-referenced
+    /// tasks) — at EventResolve time, the system must have a
+    /// task_markets_t entry to flip. If the task was never opened or has
+    /// been GC'd, the system MUST NOT silently no-op. Maps to
+    /// `L4ERejectionClass::PolicyViolation`.
+    EventResolveTaskNotFound,
+    /// `EventResolveTx` admission step-2: `task_markets_t[task_id].state
+    /// != TaskMarketState::Open`. Covers idempotent re-emit (state ==
+    /// Finalized) AND post-Bankrupt / post-Expired resolution attempts.
+    /// The semantic intent is "resolution is monotonic" — once a market
+    /// has left Open, it cannot transition to Finalized via system emit.
+    /// (TB-11 TaskBankruptcyTx is the parallel system-tx that flips Open →
+    /// Bankrupt for proof-failed paths; EventResolve handles Open →
+    /// Finalized for proof-accepted paths.) Maps to
+    /// `L4ERejectionClass::PolicyViolation`.
+    EventAlreadyResolved,
+
     // ── Stub sentinel (CO1.7.5 fills) ──────────────────────────────────────
     /// Stub return value used by CO1.7.5 unimplemented bodies — preserves
     /// sequencer + dispatch correctness without forcing transition logic
@@ -2795,6 +2920,14 @@ impl std::fmt::Display for TransitionError {
             Self::VerifyDuplicate => write!(
                 f,
                 "VerifyTx: (verifier_agent, target_work_tx) already in agent_verifications_t (TB-N1 Phase 2 A4 admission step-3.5 — duplicate-verification griefing prevention)"
+            ),
+            Self::EventResolveTaskNotFound => write!(
+                f,
+                "EventResolveTx: task_markets_t has no entry for task_id (TB-N2 B2 admission step-1 — system emit referenced a non-existent task)"
+            ),
+            Self::EventAlreadyResolved => write!(
+                f,
+                "EventResolveTx: task_markets_t[task_id].state is not Open (TB-N2 B2 admission step-2 — idempotent re-resolve / post-Bankrupt / post-Expired path; resolution is monotonic)"
             ),
             Self::NotYetImplemented => write!(f, "transition body not yet implemented (CO1.7.5)"),
         }

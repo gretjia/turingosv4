@@ -211,6 +211,7 @@ pub struct TxKindCounts {
     pub terminal_summary: u64,
     pub task_expire: u64,
     pub task_bankruptcy: u64,
+    pub event_resolve: u64, // TB-N2 B2 (2026-05-11) — Open → Finalized system-emit
 }
 
 impl TxKindCounts {
@@ -237,6 +238,7 @@ impl TxKindCounts {
                 TxKind::TerminalSummary => c.terminal_summary += 1,
                 TxKind::TaskExpire => c.task_expire += 1,
                 TxKind::TaskBankruptcy => c.task_bankruptcy += 1,
+                TxKind::EventResolve => c.event_resolve += 1, // TB-N2 B2 (2026-05-11)
             }
         }
         c
@@ -824,8 +826,11 @@ fn extract_all_agent_ids(tx: &TypedTx) -> Vec<(&'static str, String)> {
         }
         TypedTx::TaskOpen(t) => out.push(("TaskOpenTx.sponsor_agent", t.sponsor_agent.0.clone())),
         TypedTx::EscrowLock(t) => out.push(("EscrowLockTx.sponsor_agent", t.sponsor_agent.0.clone())),
-        TypedTx::ChallengeResolve(_) | TypedTx::TaskBankruptcy(_) => {
+        TypedTx::ChallengeResolve(_) | TypedTx::TaskBankruptcy(_) | TypedTx::EventResolve(_) => {
             // No direct AgentId fields; refer to other tx by id only.
+            // TB-N2 B2 EventResolveTx: 6 wire fields (tx_id + parent_state_root +
+            // task_id + epoch + timestamp_logical + system_signature); none
+            // bear AgentId — system-emitted with task_id reference only.
         }
         TypedTx::CompleteSetMint(t) => out.push(("CompleteSetMintTx.owner", t.owner.0.clone())),
         TypedTx::CompleteSetRedeem(t) => out.push(("CompleteSetRedeemTx.owner", t.owner.0.clone())),

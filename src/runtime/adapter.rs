@@ -643,6 +643,72 @@ pub async fn tb8_emit_finalize_after_verify(
         .map(|_| true)
 }
 
+/// TRACE_MATRIX TB-N2 B2 (TB_N2_POLYMARKET_CPMM_LIFECYCLE charter §3 B2;
+/// 2026-05-11) — emit an `EventResolveTx` after a successful
+/// `FinalizeReward` to flip `task_markets_t[task_id].state` from Open →
+/// Finalized.
+///
+/// **Why a poll-then-emit helper**: mirrors `tb8_emit_finalize_after_verify`.
+/// The just-emitted `FinalizeRewardTx` queues; the `Sequencer::run` driver
+/// applies asynchronously. To emit `EventResolve { task_id }` we need
+/// `task_markets_t[task_id].state` to be the post-FinalizeReward value
+/// (which is Open until B2 lands; FinalizeReward does NOT itself flip
+/// `task_markets_t.state` — the claims_t.status flips, but task_markets_t
+/// is task-market lifecycle and is the dimension B2 mutates). We poll
+/// `q_snapshot` until the claim's status is Finalized, then emit B2.
+///
+/// **Resolution authority** (Option 1 per charter §5): the FinalizeReward
+/// just-emitted IS the resolution evidence. No external oracle required;
+/// proof-task acceptance = market resolves YES per architect Part C §2.1
+/// + TB-13 redeem mapping (typed_tx.rs:1244 `Finalized → Yes wins`).
+///
+/// Returns:
+/// - `Ok(true)` when the EventResolve was emitted successfully.
+/// - `Ok(false)` when the poll budget expired before claim Finalized
+///   was observed (caller logs but does NOT fail the run; matches the
+///   `tb8_emit_finalize_after_verify` best-effort pattern for solo-run
+///   MVP).
+/// - `Err(_)` when `emit_system_tx` returns an unexpected error (e.g.,
+///   `EventResolveTaskNotFound` — defense-in-depth).
+pub async fn tb_n2_emit_event_resolve_after_finalize(
+    sequencer: &crate::state::sequencer::Sequencer,
+    task_id: TaskId,
+    poll_budget_ms: u64,
+) -> Result<bool, crate::state::sequencer::EmitSystemError> {
+    use std::time::{Duration, Instant};
+    let deadline = Instant::now() + Duration::from_millis(poll_budget_ms);
+    let mut task_present_and_open = false;
+    while Instant::now() < deadline {
+        if let Ok(q) = sequencer.q_snapshot() {
+            if let Some(tm) = q.economic_state_t.task_markets_t.0.get(&task_id) {
+                match tm.state {
+                    crate::state::q_state::TaskMarketState::Open => {
+                        task_present_and_open = true;
+                        break;
+                    }
+                    // Already resolved/bankrupt/expired — B2 emit would
+                    // reject as EventAlreadyResolved. Treat as "nothing to
+                    // do"; mirrors `tb8_emit_finalize_after_verify`'s
+                    // best-effort idempotent contract.
+                    _ => {
+                        return Ok(false);
+                    }
+                }
+            }
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    if !task_present_and_open {
+        return Ok(false);
+    }
+    sequencer
+        .emit_system_tx(crate::state::sequencer::SystemEmitCommand::EventResolve {
+            task_id,
+        })
+        .await
+        .map(|_| true)
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // TB-11 Atom 4 — Runtime emission helpers (architect §6.2 ruling 2026-05-02)
 // ────────────────────────────────────────────────────────────────────────────

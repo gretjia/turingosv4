@@ -431,6 +431,31 @@ GATES=(
   # Charter: `handover/tracer_bullets/TB_N1_AGENT_ECONOMY_PHASE_2_charter_2026-05-10.md`.
   # Forward §8 grant: `handover/directives/2026-05-10_TB_N1_AGENT_ECONOMY_PHASE_2_FORWARD_§8_GRANT.md`.
   constitution_n1_agent_economy_a4
+
+  # TB-N2 B2 — Polymarket CPMM Lifecycle B2 atom (event-resolve system-tx).
+  # SG-N2-B2.1..8 close the CPMM lifecycle gap from gap audit §3.3:
+  # `TaskMarketState::Finalized` was READ 5+ sites but WRITTEN 0 times.
+  # B2 adds the Open → Finalized writer-side via system-emit on the
+  # OMEGA-Confirm path (Option 1 resolution authority per charter §5).
+  #   sg_n2_b2_1_agent_ingress_rejects_event_resolve_pre_queue
+  #     (Anti-Oreo barrier: agent ingress rejects pre-queue)
+  #   sg_n2_b2_2_event_resolve_flips_state_open_to_finalized
+  #     (emit_system_tx accept → state_root advances + state flip)
+  #   sg_n2_b2_3_re_emit_on_finalized_rejects_with_event_already_resolved
+  #     (idempotent re-emit refused; monotonic resolution)
+  #   sg_n2_b2_4_emit_on_bankrupt_market_rejects
+  #     (cross-system-tx state-machine: Bankrupt is terminal for B2)
+  #   sg_n2_b2_5_emit_on_unknown_task_returns_event_resolve_task_not_found
+  #     (defense-in-depth at emit construction time)
+  #   sg_n2_b2_6_pure_status_mutation_no_money_movement
+  #     (architect §2.1 closing guard 5 + CLAUDE.md §13 conservation)
+  #   sg_n2_b2_7_post_resolution_state_makes_redeem_reachable
+  #     (TB-13 redeem mapping Finalized → Yes wins engaged)
+  #   sg_n2_b2_8_adapter_helper_and_evaluator_hook_present
+  #     (source-grep mechanism binding per Phase E.1 pattern)
+  # Charter: `handover/tracer_bullets/TB_N2_POLYMARKET_CPMM_LIFECYCLE_charter_2026-05-10.md`.
+  # Gap audit: `handover/audits/STAGE_C_POLYMARKET_CPMM_LIFECYCLE_GAP_AUDIT_2026-05-10.md`.
+  constitution_n2_event_resolve
 )
 
 # Run each gate file separately and collect per-test outcome.

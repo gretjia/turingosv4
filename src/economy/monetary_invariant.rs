@@ -402,7 +402,15 @@ pub fn assert_no_post_init_mint(tx: &TypedTx, q: &QState) -> Result<(), Monetary
         // are NOT Coin (per architect §7.5 rule 2 + CR-13.3); pool reserves
         // are NOT Coin (per §7.5 rule 2). Net mint check: Coin neither
         // created nor destroyed.
-        | TypedTx::BuyWithCoinRouter(_) => Ok(()),
+        | TypedTx::BuyWithCoinRouter(_)
+        // TB-N2 B2 (TB_N2_POLYMARKET_CPMM_LIFECYCLE charter §3 B2; 2026-05-11):
+        // EventResolveTx is a task_markets_t[task_id].state mutation only
+        // (Open → Finalized). No money movement; balances_t /
+        // conditional_collateral_t / lp_share_balances_t / pool reserves
+        // UNCHANGED. Trivially does not mint. CTF conservation enforced
+        // by assert_total_ctf_conserved with empty exempt list at the
+        // dispatch site (sequencer.rs B2 dispatch arm Step 4).
+        | TypedTx::EventResolve(_) => Ok(()),
     }
 }
 

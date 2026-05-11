@@ -146,6 +146,19 @@ pub enum TxKind {
     /// conservation all preserved on accept. Strict 8-wire-field shape
     /// (NO `timestamp_logical`; `event_id` NOT `event_id_kind`).
     BuyWithCoinRouter = 17,
+    /// TB-N2 B2 (TB_N2_POLYMARKET_CPMM_LIFECYCLE charter §3 B2; 2026-05-11)
+    /// — system-emitted event-resolve transition flipping
+    /// `task_markets_t[task_id].state` from Open → Finalized on a proof
+    /// task's OMEGA-Confirm path. Closes the CPMM lifecycle gap identified
+    /// in the 2026-05-10 gap audit §3.3 (`TaskMarketState::Finalized` was
+    /// READ 5+ sites but WRITTEN 0 sites). Pure status mutation — no
+    /// `economic_state_t` ledger movement. Downstream TB-13
+    /// `CompleteSetRedeemTx` becomes reachable once this transition fires
+    /// (resolution authority mapping `Finalized → Yes wins` already
+    /// encoded in TB-13 redeem admission). System-only: agent ingress
+    /// rejects pre-queue; emit via
+    /// `Sequencer::emit_system_tx(SystemEmitCommand::EventResolve)`.
+    EventResolve     = 18,
 }
 
 /// TRACE_MATRIX FC2-Append + WP § 5.L4: stored LedgerEntry record (11 fields).
