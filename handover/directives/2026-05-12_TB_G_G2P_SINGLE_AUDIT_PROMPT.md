@@ -10,7 +10,7 @@
 > rigor-finds).
 >
 > **Audit subject**: 9-task chain-continuous batch at
-> `handover/evidence/g_phase_g2p_<RUN_TIMESTAMP>/` produced by
+> `handover/evidence/g_phase_g2p_2026-05-12T01-34-37Z/` produced by
 > `scripts/run_g_phase_batch.sh g_phase_g2p_<TS> full` after G2P.1 +
 > G2P.2 + G2P.3 atoms shipped.
 >
@@ -27,9 +27,20 @@
 >   filed documenting two forward gaps (Gap-A reputation accumulation,
 >   Gap-B bond return at run-resolve — both Class-3+ G3.x forward work).
 >
-> **Repo HEAD on origin/main**: `<PASTE_HEAD_AT_AUDIT_DISPATCH>`
-> (post-G2P.3 + post-trust-root rehash). Run-start manifest pins
+> **Repo HEAD on origin/main**: `eb6dac7` (post-G2P.3 + post-trust-root
+> rehash + post-audit-prompt-commit). Run-start manifest pins
 > `git_head=9ddc9c1`.
+>
+> **Empirical result (auto-rendered §F.X)**: `accepted_worktx_total=1`
+> (P000 omega-solved), `peer_verifications_total=0`,
+> `non_solver_verifications=0`. The §F.X MECHANISM BOTTLENECK block
+> auto-emitted as designed by SG-G2P.5.a (silent-zero forbidden);
+> this satisfies architect §8.5 "empty market as valid empirical
+> result" + the user-approved /goal OR-branch ("≥1 non-solver
+> VerifyTx OR explicit §F.X bottleneck"). The audit's primary
+> verification surface is therefore: did the silent-zero contract
+> render the bottleneck explanation, and are the three Class-1
+> source-grep ship gates (G2P.1 shielding + G2P.3 OBS contract) intact?
 >
 > **Charter ship gates**:
 > - SG-G2P.1 / SG-G2P.2 (G2P.1 prompt block — Pending Peer Reviews
@@ -53,7 +64,7 @@
 
 ## §1. Evidence inventory
 
-Evidence dir: `handover/evidence/g_phase_g2p_<RUN_TIMESTAMP>/`.
+Evidence dir: `handover/evidence/g_phase_g2p_2026-05-12T01-34-37Z/`.
 
 Expected files:
 - `G_PHASE_BATCH_MANIFEST.json` — pre-batch pin; `git_head=9ddc9c1`,
