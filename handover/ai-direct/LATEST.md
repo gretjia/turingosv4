@@ -6,6 +6,74 @@
 
 ---
 
+## 📍 Handover summary (session #42 close 2026-05-12)
+
+**Session Summary**: TB-G G1.2-5..G1.2-8 SHIPPED — **G1 module LANDED 🟢**. Substrate persistence proven across 9 cross-problem tasks (1 WorkTx accepted + 1 MarketSeed + 1 CpmmPool; persistence binding `n_witnessed=4` Witnessed: balances/positions/pnl/model_identity). Codex G2 single-auditor full audit Q1..Q12 ALL PASS at HEAD `3728659`.
+
+### Current State
+
+**Works**:
+- TB-G G1.2-5..G1.2-8 shipped to `origin/main` HEAD `3728659`. 6 + 3 new gates GREEN (6 SG-G1.2-5.* binding gates + 3 lib unit tests). Constitution gate runner `342/0/1` (+6 vs session #41's `336`).
+- `bind_persistence(initial_q, snapshots, manifest) -> PersistenceBindingReport` library classifies 6 architect-required persisted fields as `Witnessed | Empty | Reset`. R2 schema serializes `is_passing` + `n_witnessed` directly (Codex Note closure; `#[serde(default)]` for back-compat).
+- `scripts/run_g_phase_batch.sh` (chain-continuous batch driver) + `tb_g_persistence_report` binary (post-batch report enricher) + batch_orchestrator boundary/lease eprintln logging (Codex Q4/Q5 closure).
+- G1.2-7 R2 9-task batch at `handover/evidence/g_phase_g1_2_full_2026-05-11T23-36-38Z/` — chain `0→14` monotone; aggregate audit_tape verdict=PROCEED (`40/0/0/11`); persistence_passing=true.
+- Matrix §R G1 row: 🟡 AMBER → 🟢 GREEN.
+
+**Audit chain**:
+- G1.2-6 R2 micro-audit: Codex G2 PROCEED Q1..Q9 ALL PASS (`handover/audits/CODEX_G2_TB_G_G1_2_6_R2_VERDICT.md`)
+- G1.2-7 R1 dual: Codex CHALLENGE Q11 high (preseed unset) + Gemini Pro DT PASS Q1..Q12 (`handover/audits/GEMINI_DT_TB_G_G1_2_7_R1_AUDIT.log`)
+- G1.2-7 R2 single (per user direction "Gemini 总是 all pass — 意义不大"): Codex PROCEED Q1..Q12 ALL PASS (`handover/audits/CODEX_G2_TB_G_G1_2_7_R2_VERDICT.md`)
+
+**Forward-bound (G-Phase queue per `CROSS_PROBLEM_PERSISTENCE_REPORT.md` §5)**:
+- G2P (Peer Verification Bridge, Class-2 PARALLEL priority per arch §0.6) — NEXT
+- G2 (MarketDecisionTrace audit), G3.1/3.3/3.4, G5.1/5.2/5.3, G6.1-6.3, G7.1-7.4 — autonomous
+- G3.2 (sequencer risk-cap admission) + G4.2 (model-assignment genesis) — Class-4 STEP_B; each needs own §8 packet
+
+### Next Steps
+
+1. **G2P** (Pending Peer Reviews prompt block + walker; Class 2 autonomous) — closes user 病灶3 (0 verify).
+2. **G2** (NoTradeReason audit + 2 variants + §F dashboard rows).
+3. Draft G3.2 §8 packet + HALT (Class-4 risk-cap admission; closes 病灶1 bankruptcy-cycle).
+4. Draft G4.2 §8 packet + HALT.
+5. G5.1 / G5.2 / G5.3 / G6.* / G7.* autonomous after G3.2 + G4.2 ship.
+
+### Open Questions
+
+1. CpmmPool was auto-emitted on the 9-task batch but no `BuyWithCoinRouter` swap happened. Is the pool created too late in the chain to give downstream tasks discovery time, or does the absence of a 7-action menu (G5.1) explain it fully? Likely the latter, but flagging for G5.1 design review.
+2. The 13 distinct agents observed in persistence (preseed 12 + 1 solver) include a boltzmann-seeded `Agent_<id>` from P000 — confirm this matches the architect's intended agent registry shape (preseed list vs runtime-induced identities).
+3. WalletBackend trait (charter §0.66, forward TB-H Class-4) — same question carried from session #41: §8 packet during G-Phase or strictly after G7 closes?
+
+### Validation (G1.2-5..G1.2-8 ship state)
+
+- Workspace: 6 SG-G1.2-5.* + 3 lib unit tests GREEN; constitution_g1_2_subprocess_resume 5/5 GREEN (SG-G1.2-3.4 updated to canonical `g1_2_v1` schema); constitution_g1_2_batch_continuation_manifest 4/4 GREEN.
+- Constitution gate runner: `342/0/1` (+6 vs session #41's `336`).
+- Trust Root: PASS (rehash `src/runtime/mod.rs` `4aa33a30` → `aefb511d` for `pub mod persistence_evidence;`).
+- audit_tape over G1.2-7 R2 chain: PROCEED `40/0/0/11`.
+- persistence_report: `is_passing=true n_witnessed=4` over 9 tasks.
+
+### Commits this session (oldest → newest)
+
+| HEAD | Atom | Subject |
+|------|------|---------|
+| `dbed8bf` | G1.2-5 | persistence-evidence binding library + 6 SG-G1.2-5.* gates |
+| `b70a330` | G1.2-6 prep | `scripts/run_g_phase_batch.sh` chain-continuous batch runner |
+| `2e4f99d` | G1.2-6 R1 | 3-task mini-smoke evidence (CHALLENGE Q3/4/5/6) |
+| `e6de176` | G1.2-6 R2 | close Codex micro-audit Q3/Q4/Q5/Q6 CHALLENGEs |
+| `0e3e471` | G1.2-6 SHIPPED | Codex G2 R2 micro-audit PROCEED 9/9 PASS |
+| `b63ebeb` | G1.2-7 R1 | 9-task batch evidence (CHALLENGE Q11 preseed wiring) |
+| `5a6940b` | G1.2-7 R1 fix | TURINGOS_CHAINTAPE_PRESEED=1 (Codex Q11 closure) |
+| `0e5d94a` | G1.2-7 R2 | ecosystem activation evidence (n_witnessed=1→4) |
+| `3728659` | G1.2-7 SHIPPED + G1.2-8 close | Codex R2 PROCEED 12/12 + matrix 🟡→🟢 |
+
+### Operational note
+
+- User-directed Codex zombie cleanup mid-session: 8 stale broker PIDs (1-41 days old) + 2 orphan codex app-server PIDs SIGKILLed to free OpenAI agent thread quota.
+- User-directed single-auditor for G1.2-7 R2 (skip Gemini per "总是 all pass — 意义不大"); Codex sole auditor.
+- Codex `codex:rescue` Skill route hit `internal error` mid-session; fell back to `codex exec --dangerously-bypass-approvals-and-sandbox` Bash direct dispatch (per `feedback_codex_bash_exec_direct_dispatch`).
+- User direction 2026-05-12 verbatim "病灶 1/2/3" diagnosis pre-launched the G1.2-7 R1 → R2 path: R1 evidence surfaced the 0-balance bug Codex Q11 caught; R2 closed it via 1-line orchestrator env-var addition.
+
+---
+
 ## 📍 Handover summary (session #41 close 2026-05-11)
 
 **Session Summary**: TB-G G1.2 atoms 0..4 SHIPPED (5 sub-atoms, 26 new SG-G1.2-* gates GREEN, all on `origin/main`). Option B+ orchestration ruling archived + charter amended + Trust Root + dual safety primitives (ResumePreflight + ChainTapeLease) + orchestrator binary + CAS-anchorable BatchContinuationManifest. Pure-code phase complete; G1.2-5..G1.2-8 remain (G1.2-6/7 need real-LLM smoke).
