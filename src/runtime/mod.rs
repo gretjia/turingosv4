@@ -179,6 +179,18 @@ pub mod peer_verify_coverage;
 /// row-rendering contract.
 pub mod market_decision_trace_summary;
 
+/// TRACE_MATRIX FC1-N5 + §15 + §17 (TB-G G3.1 2026-05-12; charter §1 Module
+/// G3 atom G3.1; G-Phase directive §G3 verbatim 7-field shape + SG-G3.5
+/// "PnL is visible in dashboard as materialized view"): per-agent PnL
+/// derived view. `compute_agent_pnl(q, agent_id, initial_balance_micro)`
+/// returns the architect-spec'd `AgentMarketStateView` — balance,
+/// open_positions, realized_pnl, unrealized_pnl, solvency_status,
+/// reputation_score. Pure derivation; never mutates state. Integer math
+/// only (CLAUDE.md §13 no-f64). Sibling renderer is G3.3
+/// `src/sdk/your_position.rs`; dashboard consumer is G3.4 §G PnL
+/// trajectory in `src/bin/audit_dashboard.rs`.
+pub mod agent_pnl;
+
 
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};

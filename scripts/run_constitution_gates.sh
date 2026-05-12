@@ -646,6 +646,22 @@ GATES=(
   #   SG-G2.5.d full architect §8.6 "Failed invest 也算有意义 tape activity"
   #             chain: L4.E rejection AND CAS MarketDecisionTrace trace
   constitution_g2_failed_invest_l4e
+
+  # ── TB-G G3.1 (charter §1 Module G3 atom G3.1; G-Phase directive §G3
+  # verbatim 7-field `AgentMarketState` shape + SG-G3.1..G3.5) ──
+  # `compute_agent_pnl` derived view + 7-field `AgentMarketStateView`
+  # over canonical `EconomicState`. Pure derivation; no state mutation;
+  # CLAUDE.md §13 integer-only money math. Ship gates:
+  #   SG-G3.1   genesis QState at preseed baseline yields 0 PnL
+  #   SG-G3.2   post-BuyWithCoinRouter cash drops + signed unrealized
+  #   SG-G3.3.a-e  five scenarios covered (genesis / balanced no-pool /
+  #             balanced skewed-pool / asymmetric active-pool / resolved-pool)
+  #   SG-G3.9   7 architect-spec'd field names source-grep witnessed
+  #   SG-G3.9.a 3-tier solvency enum source-grep witnessed
+  #   SG-G3.9.b canonical state index reads source-grep witnessed
+  #   SG-G3.9.c no-f64 lint (CLAUDE.md §13 money path)
+  #   SG-G3.9.d stakes / claims visible as open_positions (neutral PnL)
+  constitution_g3_pnl
 )
 
 # Per-package gates — tests that live under a workspace member crate
