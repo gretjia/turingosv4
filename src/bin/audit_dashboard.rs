@@ -2060,9 +2060,10 @@ fn render_tb_n3_run_report(
     use turingosv4::bottom_white::ledger::transition_ledger::{
         canonical_decode, Git2LedgerWriter,
     };
-    use turingosv4::runtime::market_decision_trace::{
-        MarketDecisionTrace, NoTradeReason, TraceOutcome,
-    };
+    // TB-G G2.2 lift: §F walker + renderer moved to
+    // `turingosv4::runtime::market_decision_trace_summary`. The
+    // MarketDecisionTrace / NoTradeReason / TraceOutcome imports are no
+    // longer needed in this binary scope (helper consumes them).
 
     let mut out = String::new();
     out.push_str("\n=== TB-N3 RUN REPORT ===\n");
@@ -2223,54 +2224,19 @@ fn render_tb_n3_run_report(
     out.push_str(&format!("  router_buy_yes: {}\n", router_count_yes));
     out.push_str(&format!("  router_buy_no: {}\n", router_count_no));
 
-    // §F MarketDecisionTrace summary — scan CAS objects whose schema
-    // version sentinel matches `tb_n3.market_decision_trace.v1`.
-    let mut outcome_counts: BTreeMap<String, u64> = BTreeMap::new();
-    let mut no_trade_breakdown: BTreeMap<String, u64> = BTreeMap::new();
-    let mut total_traces: u64 = 0;
-    for entry in cas.list_all_cids() {
-        let bytes = match cas.get(&entry) {
-            Ok(b) => b,
-            Err(_) => continue,
-        };
-        // Trace JSON has a `schema_version` discriminator; skip non-trace
-        // AttemptTelemetry objects by checking that prefix.
-        let trace: MarketDecisionTrace = match serde_json::from_slice(&bytes) {
-            Ok(t) => t,
-            Err(_) => continue,
-        };
-        if trace.schema_version != MarketDecisionTrace::SCHEMA_VERSION {
-            continue;
-        }
-        total_traces += 1;
-        match &trace.outcome {
-            TraceOutcome::Submitted { .. } => {
-                *outcome_counts.entry("submitted".into()).or_insert(0) += 1;
-            }
-            TraceOutcome::NoTrade { reason, .. } => {
-                *outcome_counts.entry("no_trade".into()).or_insert(0) += 1;
-                *no_trade_breakdown
-                    .entry(reason_label(*reason).into())
-                    .or_insert(0) += 1;
-            }
-            TraceOutcome::Declined => {
-                *outcome_counts.entry("declined".into()).or_insert(0) += 1;
-            }
-        }
-    }
-    out.push_str("\n## §F MarketDecisionTrace summary\n");
-    out.push_str(&format!("  total_traces: {}\n", total_traces));
-    for (k, v) in &outcome_counts {
-        out.push_str(&format!("  outcome[{}] = {}\n", k, v));
-    }
-    if !no_trade_breakdown.is_empty() {
-        out.push_str("  no_trade reason breakdown:\n");
-        let mut sorted: Vec<(&String, &u64)> = no_trade_breakdown.iter().collect();
-        sorted.sort_by(|a, b| b.1.cmp(a.1));
-        for (reason, n) in sorted {
-            out.push_str(&format!("    {} = {}\n", reason, n));
-        }
-    }
+    // §F MarketDecisionTrace summary — TB-G G2.2 (charter §1 Module G2
+    // atom G2.2; G-Phase directive §G2 SG-G2.3 "NoTradeReason appears in
+    // dashboard"). The §F walker + renderer was lifted into
+    // `turingosv4::runtime::market_decision_trace_summary` for library-
+    // test access (G2.2 SG-G2.4 fixture renders per-variant counts).
+    // The new helper adds:
+    //   - `submitted_vs_traced_ratio: <s>/<t> = <pct>%` row.
+    //   - `## §F.A NoTradeReason exhaustive breakdown` (13-row stable
+    //     block iterating `NoTradeReason::ALL`, zeros included for
+    //     forward grep stability).
+    let summary =
+        turingosv4::runtime::market_decision_trace_summary::MarketDecisionTraceSummary::compute_from_cas(&cas);
+    out.push_str(&summary.render_section_f());
 
     // §F.X Peer-verify coverage (TB-G G2P.2; charter §1 Module G2P;
     // G-Phase directive §0.6 amendment G-2 "verify_peer=0 比 invest=0
@@ -2298,15 +2264,7 @@ fn render_tb_n3_run_report(
     out.push_str("  expressed as integer-rational (numerator/denominator).\n");
     out.push_str("  No Coin minted post-init; no ghost liquidity; no f64.\n");
 
-    // Suppress unused-helper warning for `reason_label` in builds that
-    // never enter §F (no traces present).
-    let _ = NoTradeReason::Unknown;
-
     out
-}
-
-fn reason_label(r: turingosv4::runtime::market_decision_trace::NoTradeReason) -> &'static str {
-    r.label()
 }
 
 // ────────────────────────────────────────────────────────────────────────────

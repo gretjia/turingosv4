@@ -167,6 +167,18 @@ pub mod persistence_evidence;
 /// 2026-05-12 病灶3 "0 verify" quantification gap.
 pub mod peer_verify_coverage;
 
+/// TRACE_MATRIX FC1-N5 + §15 + §17 reporting standard — TB-G G2.2
+/// (charter §1 Module G2 atom G2.2; G-Phase directive §G2 SG-G2.3
+/// "NoTradeReason appears in dashboard"): MarketDecisionTrace §F
+/// summary builder. Walks CAS for `tb_n3.market_decision_trace.v1`
+/// objects, computes per-`NoTradeReason` counts (exhaustive 13-row
+/// stable iteration over `NoTradeReason::ALL`) + `submitted_vs_traced`
+/// ratio, and renders the `## §F MarketDecisionTrace summary` block
+/// for `audit_dashboard --run-report`. Lift-out from
+/// `src/bin/audit_dashboard.rs` to gain library-test access to the
+/// row-rendering contract.
+pub mod market_decision_trace_summary;
+
 
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};

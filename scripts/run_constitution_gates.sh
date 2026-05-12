@@ -618,6 +618,20 @@ GATES=(
   #   SG-G2.6 trace-or-tx invariant: every variant builds a valid CAS object
   #   SG-G2.6.a evaluator end-of-turn classifier wires both new variants
   constitution_g2_no_trade_reason_taxonomy
+
+  # ── TB-G G2.2 (charter §1 Module G2 atom G2.2; G-Phase directive §G2
+  # SG-G2.3 "NoTradeReason appears in dashboard and CAS") ──
+  # `audit_dashboard --run-report` §F MarketDecisionTrace summary +
+  # `## §F.A NoTradeReason exhaustive breakdown` (13-row stable block) +
+  # `submitted_vs_traced_ratio` row. Walker + renderer lifted from the
+  # binary into `runtime::market_decision_trace_summary` for library-test
+  # access. Ship gates:
+  #   SG-G2.4.a total_traces + outcome[*] + submitted_vs_traced_ratio row
+  #   SG-G2.4.b §F.A exhaustive 13-row stable breakdown (zeros included)
+  #   SG-G2.4.c empty-batch render safety (n/a ratio + 13 zero rows)
+  #   SG-G2.4.d integer-rational percent (no f64 in user-facing ratio)
+  #   SG-G2.4.e audit_dashboard binary uses library helper (no inline dup)
+  constitution_g2_dashboard_no_trade_rows
 )
 
 # Per-package gates — tests that live under a workspace member crate
