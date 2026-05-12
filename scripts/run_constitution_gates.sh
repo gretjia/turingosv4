@@ -555,6 +555,26 @@ GATES=(
   #   SG-G2P.2.b fixture_filters_self_work_tx_and_already_verified_targets
   #   SG-G2P.2.c prompt_builder_and_evaluator_wire_the_block
   constitution_g2p_pending_peer_reviews
+
+  # TB-G G2P.2 (charter §1 Module G2P; G-Phase directive §0.6 amendment
+  # G-2 + §8.2 ship gate "≥1 non-solver VerifyTx"): peer-verify-coverage
+  # walker + §F.X dashboard. `src/runtime/peer_verify_coverage.rs`
+  # derives per-agent `peer_verify_count` + coverage % +
+  # `non_solver_verifications` from canonical L4 + CAS; wired into
+  # `audit_dashboard --run-report` §F.X. Silent-zero is forbidden:
+  # when non_solver_verifications == 0 the rendered block emits an
+  # explicit MECHANISM BOTTLENECK with ≥3 candidate causes per
+  # CROSS_PROBLEM_PERSISTENCE_REPORT.md §4 Q6.6 + architect §8.5
+  # "empty market as valid empirical result". Ship gates:
+  #   SG-G2P.3.a walker_is_public_and_accepts_trait_object_writer
+  #   SG-G2P.3.b walker_output_exposes_per_agent_peer_verify_count
+  #   SG-G2P.3.c walker_does_not_reference_private_surfaces
+  #   SG-G2P.4.a audit_dashboard_wires_peer_verify_coverage_walker
+  #   SG-G2P.4.b fixture_renders_coverage_pct_line_and_per_agent_rows
+  #   SG-G2P.5.a zero_non_solver_emits_bottleneck_with_three_candidate_causes
+  #   SG-G2P.5.b positive_non_solver_count_omits_bottleneck
+  #   SG-G2P.5.c empty_chain_still_renders_explicit_bottleneck
+  constitution_g2p_peer_verify_coverage
 )
 
 # Per-package gates — tests that live under a workspace member crate

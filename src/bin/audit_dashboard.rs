@@ -2272,6 +2272,25 @@ fn render_tb_n3_run_report(
         }
     }
 
+    // §F.X Peer-verify coverage (TB-G G2P.2; charter §1 Module G2P;
+    // G-Phase directive §0.6 amendment G-2 "verify_peer=0 比 invest=0
+    // 更危险"). Walker derives per-agent peer_verify_count + coverage
+    // % + non_solver_verifications from canonical L4 + CAS. Closes
+    // user 2026-05-12 病灶3 "0 verify" by quantifying coverage in the
+    // post-batch dashboard so silent-zero outcomes surface explicit
+    // mechanism-bottleneck explanations per architect §8.5 +
+    // CROSS_PROBLEM_PERSISTENCE_REPORT §4 Q6.6.
+    match turingosv4::runtime::peer_verify_coverage::compute_peer_verify_coverage_from_paths(
+        repo, cas_path,
+    ) {
+        Ok(cov) => {
+            out.push_str(&cov.render_section_f_x());
+        }
+        Err(e) => {
+            out.push_str(&format!("\n## §F.X Peer-verify coverage\n  [error] {e}\n"));
+        }
+    }
+
     // §G Banner (architect "no price as truth").
     out.push_str("\n## §G PRICE IS SIGNAL, NOT TRUTH\n");
     out.push_str("  Pool reserves and prices in this report are derived\n");

@@ -158,6 +158,15 @@ pub mod batch_continuation_manifest;
 /// §0 kill_criteria_tested #1.
 pub mod persistence_evidence;
 
+/// TRACE_MATRIX FC1-N7 + §15 + §17 reporting standard — TB-G G2P.2
+/// (charter §1 Module G2P): peer-verify-coverage walker. Derives
+/// per-agent `peer_verify_count` + per-target verifier count +
+/// `non_solver_verifications` (architect §8.2 ship-gate signal) from
+/// canonical L4 ledger entries + CAS. Powers the
+/// `audit_dashboard --run-report` §F.X section. Closes user
+/// 2026-05-12 病灶3 "0 verify" quantification gap.
+pub mod peer_verify_coverage;
+
 
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
