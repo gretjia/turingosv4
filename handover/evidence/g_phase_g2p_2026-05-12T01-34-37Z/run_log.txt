@@ -1,0 +1,11 @@
+batch_id            g_phase_g2p_2026-05-12T01-34-37Z_9ddc9c1
+run_tag             g_phase_g2p_2026-05-12T01-34-37Z
+problem_count       9
+git_head            9ddc9c13b5ad1ebab5f0d4480320f3a8b70b0c0c
+elapsed_s           3316
+batch_exit          0
+audit_exit          0
+audit_verdict       PROCEED
+persistence_exit    0
+persistence_passing true
+persistence_n_witnessed 4

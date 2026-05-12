@@ -6,6 +6,77 @@
 
 ---
 
+## 📍 Handover summary (session #43 close 2026-05-12)
+
+**Session Summary**: TB-G G2P.1+G2P.2+G2P.3 SHIPPED — **G2P module LANDED 🟢**. Codex G2 single-auditor PROCEED 11/12 PASS (Q1 CHALLENGE = prompt-body observability gap, NOT production defect). Architect §8.2 ship-gate empirical result `peer_verifications_total=0`; §8.5 OR-branch satisfied via auto-rendered §F.X MECHANISM BOTTLENECK (silent-zero-forbidden contract). 17 new constitution gates 342→359.
+
+### Current State
+
+**Works**:
+- TB-G G2P.1+G2P.2+G2P.3 shipped to `origin/main` HEADs `6e374f9` / `ebc2e29` / `93a3068`. Trust-root rehashes `58d4ded` (evaluator.rs) + `9ddc9c1` (runtime/mod.rs + audit_dashboard.rs). Audit prompt instantiated at `27b6c3c`.
+- G2P.1: `src/sdk/pending_peer_reviews.rs` per-viewer renderer (8 lib unit + 6 gate tests). `build_agent_prompt` gains 9th `pending_peer_reviews: &str` param. Empty-string-suppression mirrors econ_position pattern.
+- G2P.2: `src/runtime/peer_verify_coverage.rs` walker (6 lib unit + 8 gate tests). `audit_dashboard --run-report` §F.X wired via `compute_peer_verify_coverage_from_paths`. Silent-zero-forbidden contract: `non_solver_verifications=0` → auto-render MECHANISM BOTTLENECK with ≥3 causes.
+- G2P.3: TB-N1 A4 admission audit + `handover/alignment/OBS_G2P_VERIFY_PEER_REWARD_2026-05-12.md` documenting Gap-A (no reputations_t mutation in any sequencer arm) + Gap-B (no bond return at run-resolve). 3 binding gates including fail-on-fix scaffold (SG-G2P.6.c).
+- G2P real-LLM 9-task smoke at `handover/evidence/g_phase_g2p_2026-05-12T01-34-37Z/` (3316s wall; aggregate verdict PROCEED 40/0/0/11; persistence_passing=true; n_witnessed=4 baseline-matched).
+- Matrix §R G2P row: 🔴 RED → 🟢 GREEN.
+
+**Audit chain**:
+- G2P Codex G2 single-auditor: PROCEED conviction medium, Q2..Q12 ALL PASS at HEAD `27b6c3c` (`handover/audits/CODEX_G2_TB_G_G2P_VERDICT.md` + `.AUDIT.log` 89KB). User-directed single-auditor per session #42 cadence ("Gemini 总是 all pass — 意义不大").
+- Q1 CHALLENGE: production evidence bundle does not capture prompt bodies → cannot empirically prove Pending Peer Reviews block reached LLM. Source wire confirmed; 14 unit/gate tests pin renderer. Forward-bound via `handover/alignment/OBS_G2P_PROMPT_BODY_OBSERVABILITY_2026-05-12.md` (closure path: write PromptCapsule CAS object per LLM call in evaluator swarm path; Class 2-3 forward work).
+
+**Forward-bound (G-Phase queue unchanged from session #42)**:
+- G2 (MarketDecisionTrace audit), G3.1/3.3/3.4, G5.1/5.2/5.3, G6.1-6.3, G7.1-7.4 — autonomous Class 2-3
+- G3.2 (sequencer risk-cap admission) + G4.2 (model-assignment genesis) — Class-4 STEP_B; each needs own §8 packet
+- G2P observability closure (PromptCapsule swarm-write) — Class 2-3 forward; addresses Q1 CHALLENGE
+
+### Next Steps
+
+1. **G2** (NoTradeReason audit + 2 variants + §F dashboard rows; Class 2 autonomous).
+2. **G3.1 / G3.3 / G3.4** (Class 2-3 PnL view + prompt block + §G report; autonomous).
+3. **G2P observability closure** (Class 2-3 PromptCapsule swarm-write; closes Q1 CHALLENGE forward bind).
+4. Draft G3.2 §8 packet + HALT (Class-4 risk-cap admission; closes 病灶1 bankruptcy-cycle + Gap-A/B from OBS_G2P_VERIFY_PEER_REWARD).
+5. Draft G4.2 §8 packet + HALT.
+6. G5.1 / G5.2 / G5.3 / G6.* / G7.* autonomous after G3.2 + G4.2 ship.
+
+### Open Questions (carry-forward + new)
+
+1. **CpmmPool auto-emitted but no BuyWithCoinRouter swap** (session #42 carry-forward) — same outcome on G2P smoke (cpmm_swap=0). G5.1 7-action menu remains the likely fix.
+2. **13-agent persistence shape** (session #42 carry-forward) — confirm preseed-12 + boltzmann-seeded solver intent.
+3. **WalletBackend trait** (charter §0.66, sessions #41/#42 carry-forward) — §8 packet during G-Phase or after G7?
+4. **NEW: prompt-body observability** — Q1 CHALLENGE forward closure. Should the PromptCapsule swarm-write land as a sibling G2P.4 atom (Class 2-3) or be bundled into the G3.x reputation/bond fix?
+5. **NEW: G3.x scope coordination** — Gap-A (reputation accumulation) + Gap-B (bond return) sit in G3.x cluster per OBS_G2P_VERIFY_PEER_REWARD §3. Should architect ratify these as part of G3.2 §8 packet, or split into a sibling G3.5 atom?
+
+### Validation (G2P module ship state)
+
+- Workspace: 6 lib unit (`peer_verify_coverage::tests`) + 8 lib unit (`pending_peer_reviews::tests`) + 17 gate tests (3 files) GREEN. Constitution gate runner: `359/0/1` (+17 vs session #42's `342`).
+- Trust Root: PASS (rehashes: `evaluator.rs` `36b550c9`→`b5c5ec97`; `src/runtime/mod.rs` `aefb511d`→`b653e247`; `src/bin/audit_dashboard.rs` `2926592f`→`2dba81a2`).
+- audit_tape over G2P 9-task batch: PROCEED `40/0/0/11`.
+- persistence_report: `is_passing=true n_witnessed=4` over 9 tasks (Gap-A keeps reputation Empty — expected per OBS).
+- TB-N1 A4 regression: `tests/constitution_n1_agent_economy_a4.rs` 7/7 PASS preserved.
+
+### Commits this session (oldest → newest)
+
+| HEAD | Atom | Subject |
+|------|------|---------|
+| `6e374f9` | G2P.1 | Pending Peer Reviews per-viewer prompt block (8+6 tests) |
+| `ebc2e29` | G2P.2 | peer-verify-coverage walker + §F.X dashboard (silent-zero-forbidden contract; 6+8 tests) |
+| `93a3068` | G2P.3 | verifier reward / bond return audit + OBS Gap-A/B (3 binding gates) |
+| `58d4ded` | trust-root | evaluator.rs rehash post-G2P.1 wiring |
+| `9ddc9c1` | trust-root | runtime/mod.rs + audit_dashboard.rs rehash post-G2P.2 wiring |
+| `eb6dac7` | audit-prompt | Codex G2 single-auditor audit prompt drafted |
+| `27b6c3c` | audit-prompt | instantiate placeholders + empirical-result note |
+| (session close) | session-close | matrix §R G2P 🔴→🟢 + 2 OBS files + Codex verdict + this handover |
+
+### Operational notes
+
+- **Smoke launch path**: 2 aborted launches due to TRUST_ROOT_TAMPERED (G2P.1 evaluator.rs edit + G2P.2 runtime/mod.rs + audit_dashboard.rs edits); both closed via inline rehash with full predecessor chain. Forward defensive mechanism: pre-launch `sha256sum` check against `genesis_payload.toml [trust_root]` would catch this before the smoke wastes the cargo-build cycle. Candidate `feedback_pre_smoke_trust_root_check` if recurring.
+- **G2P scope finding mid-flight**: user pre-launch AskUserQuestion clarified n_witnessed≥5 target was structurally unreachable from G2P Class-2 (requires Class-3+ sequencer reputation mutation per OBS Gap-A). User selected "Run smoke; accept §8.2" — architect §8.5 OR-branch satisfied via §F.X bottleneck.
+- **codex:rescue Skill rejected once with internal error**; fell back to direct `nohup codex exec --dangerously-bypass-approvals-and-sandbox` per `feedback_codex_bash_exec_direct_dispatch` — first-try success.
+- **Stale Monitor noise**: initial Monitor pattern `^VERDICT:` matched audit-prompt-template placeholder `VERDICT: <PROCEED|...>`; replaced with strict `VERDICT: (PROCEED|CHALLENGE|VETO|HALT)\b` matching only literal values. Candidate `feedback_monitor_strict_value_match` if recurring.
+- **/runner-preflight** invoked once; caught binary-stale + identified pre-existing log drift (h_vppu_history.json + rules/enforcement.log + search_gdocs.py) requiring `TURINGOS_G_PHASE_DIRTY_OK=1` override (documented runner-script exception path).
+
+---
+
 ## 📍 Handover summary (session #42 close 2026-05-12)
 
 **Session Summary**: TB-G G1.2-5..G1.2-8 SHIPPED — **G1 module LANDED 🟢**. Substrate persistence proven across 9 cross-problem tasks (1 WorkTx accepted + 1 MarketSeed + 1 CpmmPool; persistence binding `n_witnessed=4` Witnessed: balances/positions/pnl/model_identity). Codex G2 single-auditor full audit Q1..Q12 ALL PASS at HEAD `3728659`.
