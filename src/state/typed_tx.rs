@@ -204,6 +204,21 @@ pub enum RejectionClass {
     /// VerifyTxs on the same target_work_tx, each locking a bond AND (for
     /// Confirms) potentially compounding claims_t entries.
     VerifyDuplicate,
+    /// TB-G G3.2 (charter §1 Module G3; 2026-05-12): admission-side
+    /// bankruptcy risk-cap rejection — the agent's
+    /// `balances_t[agent_id] < bankruptcy_risk_cap_micro(agent_id, q)`
+    /// precondition fired before per-arm-specific gates
+    /// (`StakeBalanceExceeded` / `VerifyBondOutOfBounds` /
+    /// `RouterInsufficientCoinBalance` / `InsufficientStake`). Subsuming
+    /// pattern (architect Q5 = first): the more general "below risk-cap
+    /// floor" failure subsumes more specific per-arm failures. Distinct
+    /// per-tx-class signal for Information Loom — "agent below 10% of
+    /// initial preseed" vs the more-specific per-arm classes. Mirrors
+    /// `StakeBalanceExceeded` (A3) / `VerifyBondOutOfBounds` (A4) shape;
+    /// fires in 4 admission arms: WorkTx + BuyWithCoinRouter + Challenge +
+    /// Verify. Maps to `L4ERejectionClass::PolicyViolation` (shielding-
+    /// correct low-pollution class per CLAUDE.md §15).
+    BankruptcyRiskCapExceeded,
 }
 
 /// TRACE_MATRIX § 1.3 VerifyTx field 5 — verifier verdict.
@@ -2768,6 +2783,21 @@ pub enum TransitionError {
     /// `L4ERejectionClass::PolicyViolation`.
     EventAlreadyResolved,
 
+    // ── TB-G G3.2 bankruptcy risk-cap admission (charter §1 Module G3; 2026-05-12) ─
+    /// 4 admission arms (WorkTx + BuyWithCoinRouter + Challenge + Verify):
+    /// agent's `balances_t[agent_id] < bankruptcy_risk_cap_micro(agent_id, q)`
+    /// (threshold = `initial_balance_micro / 10` per architect Q1; reuses
+    /// G3.1 SHIPPED `classify_solvency` boundary). Risk-cap fires FIRST in
+    /// admission (architect Q5 = first) — the more general failure subsumes
+    /// the more specific per-arm balance/stake/router/bond gate, giving
+    /// Information Loom a per-tx-class signal distinguishing "agent below
+    /// risk-cap floor" from per-arm-specific insufficient-funds rejections.
+    /// Maps to `L4ERejectionClass::PolicyViolation` per CLAUDE.md §15
+    /// shielding (low-pollution class). Below-cap agents can still read /
+    /// observe / receive autopsy per architect §7.2 — only risky/staked
+    /// admission paths are blocked.
+    BankruptcyRiskCapExceeded,
+
     // ── Stub sentinel (CO1.7.5 fills) ──────────────────────────────────────
     /// Stub return value used by CO1.7.5 unimplemented bodies — preserves
     /// sequencer + dispatch correctness without forcing transition logic
@@ -2944,6 +2974,8 @@ impl std::fmt::Display for TransitionError {
                 f,
                 "EventResolveTx: task_markets_t[task_id].state is not Open (TB-N2 B2 admission step-2 — idempotent re-resolve / post-Bankrupt / post-Expired path; resolution is monotonic)"
             ),
+            // TB-G G3.2 (2026-05-12): SG-G3.12 budget ≤ 64 bytes. Below = 37 bytes.
+            Self::BankruptcyRiskCapExceeded => write!(f, "bankruptcy risk-cap exceeded"),
             Self::NotYetImplemented => write!(f, "transition body not yet implemented (CO1.7.5)"),
         }
     }

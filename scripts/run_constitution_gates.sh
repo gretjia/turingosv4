@@ -698,6 +698,28 @@ GATES=(
   #   SG-G3.13.d full-prompt integration: heading + framing + balance line
   #   SG-G3.13.e empty your_position suppresses block (V3L-40 stability)
   constitution_g3_your_position_prompt
+
+  # ── TB-G G3.2 (charter §1 Module G3 atom G3.2; G-Phase directive §G3
+  # SG-G3.2 + SG-G3.3 + SG-G3.4; architect §8 ratification 2026-05-12
+  # `handover/directives/2026-05-12_TB_G_G3_2_§8_ARCHITECT_RATIFICATION.md`)
+  # Bankruptcy risk-cap admission (4 arms: WorkTx + BuyRouter + Challenge +
+  # Verify) + RejectionClass tail-append + AutopsyCapsule per-task-end emit
+  # + Gap-A reputation +1 + Gap-B verifier bond return via FinalizeRewardTx
+  # + RiskCapImpactReport audit-output + FinalizeRewardPayoutBreakdown.
+  # Ship gates:
+  #   SG-G3.10.a..d 4-arm risk-cap precondition fires FIRST (architect Q5)
+  #   SG-G3.11      risk-cap above per-arm specific check
+  #   SG-G3.12      Display ≤ 64 bytes (architect §1.5 shielding)
+  #   SG-G3.X.a     Gap-A reputation +1 uniform (architect Q2)
+  #   SG-G3.X.b     Gap-B bond return via FinalizeReward (architect Q3 = B1)
+  #   SG-G3.X.c     RejectionClass tail-append (golden-digest discipline)
+  #   SG-G3.4       AutopsyCapsule per-task-end emit (architect Q6)
+  #   Arch §7.1     RiskCapImpactReport surface present + sane shape
+  #   Arch §7.2     below-cap agent can still READ (admission scope only)
+  #   Arch §7.3     autopsy AuditOnly privacy (Markov scope, not history)
+  #   Arch §7.4     Sybil guard via Step-3.5 agent_verifications_t dedup
+  #   Arch §7.5     FinalizeRewardPayoutBreakdown separates solver/verifier
+  constitution_g3_bankruptcy_risk_cap
 )
 
 # Per-package gates — tests that live under a workspace member crate

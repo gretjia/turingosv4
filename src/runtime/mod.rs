@@ -191,6 +191,17 @@ pub mod market_decision_trace_summary;
 /// trajectory in `src/bin/audit_dashboard.rs`.
 pub mod agent_pnl;
 
+/// TRACE_MATRIX FC1-N43 + FC3-N13 (TB-G G3.2 2026-05-12; architect §7.1 +
+/// §7.5): post-hoc audit views over the canonical chain — `RiskCapImpactReport`
+/// (per-rejection rows: agent / balance_before / risk_cap / tx_kind /
+/// task_id / another_agent_continued / solve_outcome) for solve-rate
+/// regression attribution, plus `FinalizeRewardPayoutBreakdown`
+/// (solver_reward_delta / verifier_bond_return_delta / other_settlement_delta)
+/// for payout traceability. Both are PURE chain-derived: identical chain
+/// + identical `q` → identical report. Dashboard consumer:
+/// `src/bin/audit_dashboard.rs` §G PnL trajectory + §H+ extensions.
+pub mod risk_cap_impact_report;
+
 
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};

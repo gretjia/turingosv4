@@ -522,6 +522,14 @@ fn rejection_class_for(e: &TransitionError) -> L4ERejectionClass {
         // TaskBankruptcy-arm classes (all → PolicyViolation).
         TE::EventResolveTaskNotFound => RC::PolicyViolation,
         TE::EventAlreadyResolved => RC::PolicyViolation,
+        // TB-G G3.2 (2026-05-12): bankruptcy risk-cap admission rejection.
+        // → PolicyViolation per CLAUDE.md §15 shielding low-pollution class
+        // (architect §1.5 + packet §2.1). Distinct from
+        // `StakeBalanceExceeded`/`VerifyBondOutOfBounds`/
+        // `RouterInsufficientCoinBalance` (per-arm-specific InsufficientBalance
+        // classes) — risk-cap is the more general "agent below 10% preseed
+        // floor" failure that fires FIRST in admission (architect Q5).
+        TE::BankruptcyRiskCapExceeded => RC::PolicyViolation,
         // Non-WorkTx-arm variants documented per §3.7 mapping table — should
         // not occur on the WorkTx arm; conservative sentinel preserves L4.E
         // append correctness if a future TB adds new variants.
@@ -578,6 +586,12 @@ fn public_summary_for(e: &TransitionError) -> Option<String> {
         // Information Loom signal.
         TransitionError::EventResolveTaskNotFound => Some("event_resolve_task_not_found".into()),
         TransitionError::EventAlreadyResolved => Some("event_already_resolved".into()),
+        // TB-G G3.2 (2026-05-12): per-tx-class public summary tag (32 bytes
+        // ≤ 64-byte SG-G3.12 budget) — distinct from `stake_balance_exceeded`
+        // / `verify_bond_out_of_bounds` / `policy_violation` so Information
+        // Loom can attribute risk-cap rejection separately from per-arm
+        // insufficient-funds and from the catch-all class.
+        TransitionError::BankruptcyRiskCapExceeded => Some("bankruptcy_risk_cap_exceeded".into()),
         _ => Some("policy_violation".into()),
     }
 }
@@ -900,6 +914,28 @@ pub(crate) fn dispatch_transition(
                 }
             }
 
+            // Step 3.5: TB-G G3.2 (charter §1 Module G3; 2026-05-12) — agent
+            // bankruptcy risk-cap admission gate. Fires BEFORE per-arm
+            // stake/balance gates (architect Q5: risk-cap is the more general
+            // failure that subsumes more specific per-arm failures, giving
+            // Information Loom a per-tx-class signal distinguishing "agent
+            // below 10% preseed floor" from `StakeInsufficient` (stake=0)
+            // and `StakeBalanceExceeded` (stake>balance) and
+            // `InsufficientBalance` (system-side defense-in-depth). Predicate
+            // gates (Step 2-3) fire FIRST — bankrupt agents can still do
+            // epistemic work and surface predicate-fail telemetry per
+            // architect §7.2; only stake-side admission paths are blocked.
+            let work_agent_bal_g3_2 = q.economic_state_t.balances_t.0
+                .get(&work.agent_id)
+                .copied()
+                .unwrap_or(crate::economy::money::MicroCoin::zero());
+            let work_risk_cap_g3_2 = crate::runtime::agent_pnl::bankruptcy_risk_cap_micro(
+                &work.agent_id, q,
+            );
+            if work_agent_bal_g3_2.micro_units() < work_risk_cap_g3_2 {
+                return Err(TransitionError::BankruptcyRiskCapExceeded);
+            }
+
             // Step 4: YES stake gate (RSP-1 P3:3). StakeMicroCoin newtype
             // intentionally has no integer comparison; use the const accessor.
             //
@@ -1037,6 +1073,24 @@ pub(crate) fn dispatch_transition(
             if verify.parent_state_root != q.state_root_t {
                 return Err(TransitionError::StaleParent);
             }
+            // Step 1.5: TB-G G3.2 (charter §1 Module G3; 2026-05-12) — agent
+            // bankruptcy risk-cap admission gate. Fires BEFORE per-arm bond
+            // gates (architect Q5: subsuming pattern). Below-cap verifier
+            // with bond=0 OR bond>balance both surface as
+            // `BankruptcyRiskCapExceeded` rather than `BondInsufficient` /
+            // `VerifyBondOutOfBounds`. Below-cap verifier per architect §7.2
+            // can still observe / receive autopsy / read scoped capsule —
+            // only bond-locking VerifyTx admission is blocked.
+            let verify_agent_bal_g3_2 = q.economic_state_t.balances_t.0
+                .get(&verify.verifier_agent)
+                .copied()
+                .unwrap_or(crate::economy::money::MicroCoin::zero());
+            let verify_risk_cap_g3_2 = crate::runtime::agent_pnl::bankruptcy_risk_cap_micro(
+                &verify.verifier_agent, q,
+            );
+            if verify_agent_bal_g3_2.micro_units() < verify_risk_cap_g3_2 {
+                return Err(TransitionError::BankruptcyRiskCapExceeded);
+            }
             // Step 2: bond positivity (§ 3.4 step 2).
             if verify.bond.micro_units() == 0 {
                 return Err(TransitionError::BondInsufficient);
@@ -1112,6 +1166,22 @@ pub(crate) fn dispatch_transition(
             // future VerifyTxs from the same agent on the same target reject
             // at Step-3.5 with `VerifyDuplicate`.
             q_next.economic_state_t.agent_verifications_t.0.insert(verify_pair);
+            // Step 5c: TB-G G3.2 Gap-A reputation accumulation (charter §1
+            // Module G3; 2026-05-12; closes OBS_G2P_VERIFY_PEER_REWARD
+            // SG-G2P.6.c). Architect Q2 verdict: uniform +1 per accepted
+            // VerifyTx (Confirm OR Doubt). Sybil-guard (architect §7.4) is
+            // structurally guaranteed by Step-3.5: the (verifier, target)
+            // pair is already in `agent_verifications_t` after this insert,
+            // so a second VerifyTx from the same verifier on the same target
+            // rejects at Step-3.5 with `VerifyDuplicate` BEFORE reaching
+            // Step-5c. Accumulated reputation is therefore unique per
+            // (verifier, target_work_tx) pair. Verdict-weighted or
+            // outcome-correlated accumulation is deferred to a future TB per
+            // architect Q2 verdict.
+            q_next.economic_state_t.reputations_t.0
+                .entry(verify.verifier_agent.clone())
+                .or_insert(crate::state::q_state::Reputation(0))
+                .0 += 1;
             // ──────────────────────────────────────────────────────────────
             // TB-8 Atom 1 — claims_t writer (charter §3 Atom 1 +
             // ratification §1 Q1/Q3/Q5 + §2.1/§2.2).
@@ -1231,6 +1301,24 @@ pub(crate) fn dispatch_transition(
             // Step 1: parent-root match.
             if challenge.parent_state_root != q.state_root_t {
                 return Err(TransitionError::StaleParent);
+            }
+            // Step 1.5: TB-G G3.2 (charter §1 Module G3; 2026-05-12) — agent
+            // bankruptcy risk-cap admission gate. Fires BEFORE per-arm stake
+            // gates (architect Q5: subsuming pattern). Below-cap challenger
+            // with stake=0 OR stake>balance both surface as
+            // `BankruptcyRiskCapExceeded` rather than `StakeInsufficient` /
+            // `InsufficientBalance`. Below-cap challenger per architect §7.2
+            // can still observe the chain — only stake-locking ChallengeTx
+            // admission is blocked.
+            let chal_agent_bal_g3_2 = q.economic_state_t.balances_t.0
+                .get(&challenge.challenger_agent)
+                .copied()
+                .unwrap_or(crate::economy::money::MicroCoin::zero());
+            let chal_risk_cap_g3_2 = crate::runtime::agent_pnl::bankruptcy_risk_cap_micro(
+                &challenge.challenger_agent, q,
+            );
+            if chal_agent_bal_g3_2.micro_units() < chal_risk_cap_g3_2 {
+                return Err(TransitionError::BankruptcyRiskCapExceeded);
             }
             // Step 2: stake positivity.
             if challenge.stake.micro_units() == 0 {
@@ -1505,6 +1593,65 @@ pub(crate) fn dispatch_transition(
                 .get_mut(fr.claim_id.as_tx_id())
                 .expect("verified at step 1");
             entry.status = crate::state::q_state::ClaimStatus::Finalized;
+            // 7c-bis: TB-G G3.2 Gap-B verifier bond return (architect Q3 = B1;
+            // closes OBS_G2P_VERIFY_PEER_REWARD SG-G2P.6.b). Walk stakes_t for
+            // entries on this task_id that are NOT the solver's WorkTx stake
+            // (filtered by tx_id != claim.work_tx_id). These are verifier
+            // bonds locked at VerifyTx Step-5 (`stakes_t[verify.tx_id]` with
+            // task_id propagated from the target's stake row). For each:
+            // (i) credit balances_t[staker] += entry.amount, (ii) remove the
+            // stakes_t entry to prevent double return + preserve idempotency
+            // (subsequent finalize attempts hit ClaimAlreadyFinalized at Step
+            // 2). CTF invariant preserved: bond return is structural transfer
+            // stakes_t → balances_t (same total Coin sum). Architect §7.5
+            // payout breakdown (solver_reward_delta vs verifier_bond_return_
+            // delta) is derivable from chain deltas; recorded locally here
+            // for the test surface (see `compute_finalize_reward_payout_
+            // breakdown` helper). NO new TxKind / SignalBundle schema bump
+            // (architect Q3 = B1 verbatim).
+            let verifier_entries: Vec<(crate::state::q_state::TxId,
+                crate::state::q_state::StakeEntry)> = q
+                .economic_state_t
+                .stakes_t
+                .0
+                .iter()
+                .filter(|(tx_id, e)| {
+                    e.task_id == claim.task_id && **tx_id != claim.work_tx_id
+                })
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect();
+            let mut g3_2_verifier_bond_return_total_micro: i64 = 0;
+            for (verify_tx_id, ve) in verifier_entries {
+                let cur_bal = q_next
+                    .economic_state_t
+                    .balances_t
+                    .0
+                    .get(&ve.staker)
+                    .copied()
+                    .unwrap_or_else(crate::economy::money::MicroCoin::zero);
+                let new_bal_micro =
+                    cur_bal.micro_units() + ve.amount.micro_units();
+                q_next.economic_state_t.balances_t.0.insert(
+                    ve.staker.clone(),
+                    crate::economy::money::MicroCoin::from_micro_units(
+                        new_bal_micro,
+                    ),
+                );
+                q_next
+                    .economic_state_t
+                    .stakes_t
+                    .0
+                    .remove(&verify_tx_id);
+                g3_2_verifier_bond_return_total_micro = g3_2_verifier_bond_return_total_micro
+                    .saturating_add(ve.amount.micro_units());
+            }
+            // Forward-bound: chain deltas at this finalize tx represent
+            // solver_reward_delta = claim.amount and
+            // verifier_bond_return_delta =
+            // g3_2_verifier_bond_return_total_micro. Tests + audit_dashboard
+            // recompute these via `compute_finalize_reward_payout_breakdown`
+            // (Atom G surface).
+            let _ = g3_2_verifier_bond_return_total_micro;
             // 7d. Update task_markets_t cache (total_escrow -= reward).
             // Cache=truth per TB-3 charter §3.2; the escrow debit above
             // changes the derived sum, so the cache must follow.
@@ -1712,6 +1859,37 @@ pub(crate) fn dispatch_transition(
                 last_logical_t: ts.last_logical_t,
             };
             q_next.economic_state_t.runs_t.0.insert(ts.run_id.clone(), entry);
+            // Step 2.5: TB-G G3.2 (charter §1 Module G3; 2026-05-12) per-
+            // task-end bankruptcy autopsy emit. Architect Q6 verdict: emit
+            // at each TerminalSummaryTx boundary for agents below their
+            // risk-cap. PURE: derives capsule_id only; apply_one Stage 3.5
+            // writes the actual CAS bytes using the same deterministic
+            // helper. Activation-gated by `is_autopsy_active_at` for
+            // replay-safety (mirrors TB-15 R2 closure pattern for
+            // TaskBankruptcyTx). architect §7.3 Markov capsule scope
+            // (latest only) is enforced at the read-side, not the write-
+            // side.
+            if crate::runtime::autopsy_capsule::is_autopsy_active_at(ts.last_logical_t) {
+                let derived =
+                    crate::runtime::autopsy_capsule::derive_g3_2_terminal_summary_bankrupt_autopsies(
+                        &q.economic_state_t,
+                        ts,
+                        q.q_t.current_round,
+                        ts.last_logical_t,
+                    );
+                if !derived.is_empty() {
+                    let event_id = crate::state::typed_tx::EventId(ts.task_id.clone());
+                    let entry_vec = q_next
+                        .economic_state_t
+                        .agent_autopsies_t
+                        .0
+                        .entry(event_id)
+                        .or_default();
+                    for d in &derived {
+                        entry_vec.push(d.capsule.capsule_id);
+                    }
+                }
+            }
             // Step 3: monetary invariants. No money moved.
             assert_no_post_init_mint(tx, q)
                 .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
@@ -3032,6 +3210,24 @@ pub(crate) fn dispatch_transition(
                 if market_entry.state != crate::state::q_state::TaskMarketState::Open {
                     return Err(TransitionError::EventNotOpen);
                 }
+            }
+            // Pre-1.6: TB-G G3.2 (charter §1 Module G3; 2026-05-12) — agent
+            // bankruptcy risk-cap admission gate. Fires BEFORE per-arm
+            // balance gate (architect Q5: subsuming pattern). Below-cap buyer
+            // with pay_coin=0 OR pay_coin>balance both surface as
+            // `BankruptcyRiskCapExceeded` rather than `RouterZeroPay` /
+            // `RouterInsufficientCoinBalance`. Below-cap buyer per architect
+            // §7.2 can still observe the market — only Coin-locking router
+            // admission is blocked.
+            let router_buyer_bal_g3_2 = q.economic_state_t.balances_t.0
+                .get(&router.buyer)
+                .copied()
+                .unwrap_or_default();
+            let router_risk_cap_g3_2 = crate::runtime::agent_pnl::bankruptcy_risk_cap_micro(
+                &router.buyer, q,
+            );
+            if router_buyer_bal_g3_2.micro_units() < router_risk_cap_g3_2 {
+                return Err(TransitionError::BankruptcyRiskCapExceeded);
             }
             // Pre-2: pay_coin > 0 (architect §7.7 implies payC > 0).
             if router.pay_coin.micro_units() <= 0 {
@@ -4655,6 +4851,36 @@ impl Sequencer {
                     bk,
                     q_snapshot.q_t.current_round,
                     bk.timestamp_logical,
+                    &format!("sequencer-epoch-{}", self.epoch.get()),
+                )
+                .map_err(|e| match e {
+                    crate::runtime::autopsy_capsule::AutopsyWriteError::Cas(c) => {
+                        ApplyError::Cas(c)
+                    }
+                    crate::runtime::autopsy_capsule::AutopsyWriteError::Encode(s) => {
+                        ApplyError::PayloadEncode(s)
+                    }
+                    crate::runtime::autopsy_capsule::AutopsyWriteError::InternalLockPoisoned => {
+                        ApplyError::QStateLockPoisoned
+                    }
+                })?;
+            }
+        }
+        // Stage 3.5b — TB-G G3.2 (charter §1 Module G3; 2026-05-12) per-
+        // task-end bankruptcy autopsy CAS-write hook. Same activation-gate
+        // + derive-helper pattern as TB-15 TaskBankruptcyTx (Stage 3.5
+        // above). For accepted TerminalSummaryTx, derive the G3.2 per-task-
+        // end capsules + write their bytes to CAS. agent_autopsies_t Cids
+        // in q_next already populated by the dispatch arm; this writer
+        // produces matching CAS bytes for cas.get(&capsule_id) resolvability.
+        if let TypedTx::TerminalSummary(ts) = &tx {
+            if crate::runtime::autopsy_capsule::is_autopsy_active_at(ts.last_logical_t) {
+                let _ = crate::runtime::autopsy_capsule::write_g3_2_terminal_summary_bankrupt_autopsies_to_cas(
+                    &self.cas,
+                    &q_snapshot.economic_state_t,
+                    ts,
+                    q_snapshot.q_t.current_round,
+                    ts.last_logical_t,
                     &format!("sequencer-epoch-{}", self.epoch.get()),
                 )
                 .map_err(|e| match e {

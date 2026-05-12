@@ -330,6 +330,42 @@ pub fn initial_balance_micro_from_default_preseed(agent_id: &AgentId) -> i64 {
         .unwrap_or(0)
 }
 
+/// TRACE_MATRIX FC1-N42 (TB-G G3.2 2026-05-12; charter §1 Module G3): the
+/// canonical bankruptcy risk-cap threshold for one agent.
+///
+/// **Architect Q1 verdict (2026-05-12)**: per-agent threshold =
+/// `initial_balance_micro / 10` (NO new `EconomicState.bankruptcy_risk_cap_t`
+/// table). Reuses the G3.1 SHIPPED `classify_solvency` boundary at line 311
+/// — guarantees read-view (`SolvencyStatus::NearInsolvent`) and write-view
+/// (4 admission arms' risk-cap precondition) use the SAME threshold.
+///
+/// Per-agent cap table (architect Q1 ratification §2):
+///
+/// | Agent              | Preseed (μC) | Cap (μC)    |
+/// |--------------------|--------------|-------------|
+/// | Agent_0..9         | 1_000_000    | 100_000     |
+/// | MarketMakerBudget  | 5_000_000    | 500_000     |
+/// | tb7-7-sponsor      | 10_000_000   | 1_000_000   |
+/// | (unknown agent)    | 0            | 0           |
+///
+/// Returns 0 for agents not in the canonical preseed (fail-closed:
+/// `balance < 0` is impossible since u-micro is i64-signed and balances are
+/// non-negative by construction; an unknown agent therefore passes the
+/// risk-cap precondition trivially as `balance >= 0 == cap`). This matches
+/// the existing `unwrap_or(0)` semantics in
+/// `initial_balance_micro_from_default_preseed`.
+///
+/// The `_q` parameter is reserved for future per-agent risk-cap state
+/// indexing (architect Q1 verdict explicitly forbade a new
+/// `bankruptcy_risk_cap_t` table for this atom, but the parameter shape
+/// keeps the helper future-extensible without a signature break).
+pub fn bankruptcy_risk_cap_micro(
+    agent_id: &AgentId,
+    _q: &crate::state::q_state::QState,
+) -> i64 {
+    initial_balance_micro_from_default_preseed(agent_id) / 10
+}
+
 // ────────────────────────────────────────────────────────────────────────
 // TB-G G3.4 — §G PnL trajectory dashboard section + path-based wrapper.
 //

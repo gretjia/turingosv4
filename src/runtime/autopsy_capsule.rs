@@ -644,6 +644,178 @@ pub fn write_bankruptcy_autopsies_to_cas(
     Ok(cids)
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// TB-G G3.2 (charter §1 Module G3; 2026-05-12) — per-task-end bankruptcy
+// autopsy emit. Architect Q6 verdict: emit at each TerminalSummaryTx
+// boundary (per-task / per-bankruptcy-event), not run-end aggregate. Walks
+// `pre_econ.balances_t` for agents below `bankruptcy_risk_cap_micro =
+// initial_balance_micro / 10` (architect Q1 verdict; reuses G3.1 SHIPPED
+// `classify_solvency` threshold).
+// ────────────────────────────────────────────────────────────────────────────
+
+use crate::state::typed_tx::TerminalSummaryTx;
+
+/// TRACE_MATRIX FC3-N12 (TB-G G3.2 2026-05-12): pure-deterministic
+/// derivation of `AgentAutopsyCapsule`s at the per-task-end boundary
+/// represented by a `TerminalSummaryTx`. Returns one capsule per agent in
+/// `pre_econ.balances_t` whose balance is below the risk-cap floor — the
+/// architect-mandated bankruptcy gate (Q1: `initial_balance_micro / 10`).
+/// `loss_reason_class = Bankruptcy`; `loss_amount = initial - balance`
+/// (architect-rendered loss view). BTreeMap iteration is sorted by
+/// `AgentId` → output order is deterministic for replay-determinism.
+///
+/// **Pure**: takes pre-TerminalSummary `EconomicState` snapshot + the
+/// `TerminalSummaryTx`; no CAS writes, no env access. Used by:
+/// - dispatch arm: capsule_id population into `agent_autopsies_t`
+/// - apply_one hook: CAS write of the same deterministic bytes
+///
+/// Replay determinism (Art.0.2): identical `(pre_econ, ts, round, t)` →
+/// identical `Vec<BankruptcyAutopsyDerivation>` (same Cids, same bytes,
+/// same order).
+///
+/// **Architect §7.3 (Markov capsule scope)**: emit per-task is the
+/// per-event capsule write. The latest-only read view (NOT historical
+/// prompt stuffing) is enforced at the read-side (`UniverseSnapshot` /
+/// `compute_agent_pnl` viewer scope), not at the write-side here.
+pub fn derive_g3_2_terminal_summary_bankrupt_autopsies(
+    pre_econ: &EconomicState,
+    ts: &TerminalSummaryTx,
+    created_at_round: u64,
+    created_at_logical_t: u64,
+) -> Vec<BankruptcyAutopsyDerivation> {
+    let event_id = EventId(ts.task_id.clone());
+    let mut out = Vec::new();
+
+    for (agent_id, balance) in pre_econ.balances_t.0.iter() {
+        let initial_micro = crate::runtime::agent_pnl::initial_balance_micro_from_default_preseed(agent_id);
+        if initial_micro <= 0 {
+            // Unknown agent (no preseed entry) — risk-cap is 0, balance
+            // cannot be below 0 — skip per Q1 fail-closed semantics.
+            continue;
+        }
+        let risk_cap_micro = initial_micro / 10;
+        let bal_micro = balance.micro_units();
+        if bal_micro >= risk_cap_micro {
+            continue;
+        }
+        // Loss = initial - current (saturating-non-negative).
+        let loss_micro = initial_micro.saturating_sub(bal_micro).max(0);
+        let loss_amount = crate::economy::money::MicroCoin::from_micro_units(loss_micro);
+
+        // Deterministic private_detail JSON. Carries task_id + agent_id +
+        // initial / current / loss amounts for audit-only inspection.
+        let private_detail = format!(
+            "{{\"event_kind\":\"g3_2_terminal_summary_bankrupt\",\
+             \"task_id\":\"{}\",\"agent_id\":\"{}\",\
+             \"initial_balance_micro\":{},\"current_balance_micro\":{},\
+             \"risk_cap_micro\":{},\"loss_micro\":{},\
+             \"last_logical_t\":{}}}",
+            ts.task_id.0,
+            agent_id.0,
+            initial_micro,
+            bal_micro,
+            risk_cap_micro,
+            loss_micro,
+            ts.last_logical_t
+        );
+        let private_bytes = private_detail.into_bytes();
+        let private_detail_cid = Cid::from_content(&private_bytes);
+
+        let public_summary = AgentAutopsyCapsule::format_public_summary(
+            agent_id,
+            &event_id,
+            loss_amount,
+            &LossReasonClass::Bankruptcy,
+        );
+
+        let mut capsule = AgentAutopsyCapsule {
+            capsule_id: Cid::default(),
+            agent_id: agent_id.clone(),
+            event_id: event_id.clone(),
+            loss_amount,
+            loss_reason_class: LossReasonClass::Bankruptcy,
+            violated_risk_rule: None,
+            suggested_policy_patch: None,
+            // Evidence anchor: deterministic Cid of the
+            // (task_id || agent_id) tuple — links the capsule to the
+            // task-end boundary that triggered emit.
+            evidence_cids: vec![Cid::from_content(
+                format!("{}::{}", ts.task_id.0, agent_id.0).as_bytes(),
+            )],
+            public_summary,
+            private_detail_cid,
+            privacy_policy: CapsulePrivacyPolicy::AuditOnly,
+            sha256: Hash::ZERO,
+            created_at_logical_t,
+            created_at_round,
+        };
+        // R3-style closure: canonical_encode BEFORE populating
+        // capsule_id/sha256; stored bytes are what apply_one writes; cid
+        // = sha256(stored_bytes); cas.get(&capsule_id) resolves identical
+        // bytes (matches TB-15 derive_autopsies_for_bankruptcy pattern).
+        let stored_bytes = canonical_encode(&capsule)
+            .expect("AgentAutopsyCapsule is canonical-encodable");
+        let cid = Cid::from_content(&stored_bytes);
+        capsule.capsule_id = cid;
+        capsule.sha256 = Hash(cid.0);
+
+        out.push(BankruptcyAutopsyDerivation {
+            capsule,
+            private_bytes,
+            stored_capsule_bytes: stored_bytes,
+        });
+    }
+    out
+}
+
+/// TRACE_MATRIX FC3-N12 (TB-G G3.2 2026-05-12): apply_one post-dispatch
+/// hook — writes deterministic G3.2 terminal-summary bankruptcy autopsies
+/// to CAS. Re-derives via `derive_g3_2_terminal_summary_bankrupt_autopsies`;
+/// identical inputs produce identical Cids matching `agent_autopsies_t`.
+/// Idempotent: re-running apply_one yields the same CAS state (CAS put of
+/// identical bytes returns the existing Cid).
+pub fn write_g3_2_terminal_summary_bankrupt_autopsies_to_cas(
+    cas: &std::sync::Arc<std::sync::RwLock<CasStore>>,
+    pre_econ: &EconomicState,
+    ts: &TerminalSummaryTx,
+    created_at_round: u64,
+    created_at_logical_t: u64,
+    creator_str: &str,
+) -> Result<Vec<Cid>, AutopsyWriteError> {
+    let derived = derive_g3_2_terminal_summary_bankrupt_autopsies(
+        pre_econ,
+        ts,
+        created_at_round,
+        created_at_logical_t,
+    );
+    let mut cids = Vec::with_capacity(derived.len());
+    let mut cas_w = cas
+        .write()
+        .map_err(|_| AutopsyWriteError::InternalLockPoisoned)?;
+    for d in derived {
+        let _ = cas_w.put(
+            &d.private_bytes,
+            ObjectType::AutopsyPrivateDetail,
+            creator_str,
+            created_at_logical_t,
+            Some("v1/autopsy_private_detail".into()),
+        )?;
+        let cas_returned_cid = cas_w.put(
+            &d.stored_capsule_bytes,
+            ObjectType::AgentAutopsyCapsule,
+            creator_str,
+            created_at_logical_t,
+            Some("v1/agent_autopsy_capsule".into()),
+        )?;
+        debug_assert_eq!(
+            cas_returned_cid, d.capsule.capsule_id,
+            "CAS-returned cid must equal capsule.capsule_id (CasStore::put contract)"
+        );
+        cids.push(d.capsule.capsule_id);
+    }
+    Ok(cids)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

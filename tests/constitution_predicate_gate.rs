@@ -69,6 +69,10 @@ fn predicate_failure_cannot_enter_l4() {
             RejectionClass::VerifyBondOutOfBounds => "verify-bond-out-of-bounds-route-to-L4E",
             RejectionClass::VerifyTargetNotAccepted => "verify-target-not-accepted-route-to-L4E",
             RejectionClass::VerifyDuplicate => "verify-duplicate-route-to-L4E",
+            // TB-G G3.2 (2026-05-12): bankruptcy risk-cap admission rejection.
+            // Distinct route tag for the 4-arm admission gate (architect Q5
+            // subsuming pattern + per-tx-class telemetry).
+            RejectionClass::BankruptcyRiskCapExceeded => "bankruptcy-risk-cap-route-to-L4E",
         }
     }
     use turingosv4::state::typed_tx::PredicateId;
