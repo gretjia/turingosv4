@@ -564,6 +564,164 @@ fn arch_74_sybil_guard_via_step_3_5_already_in_place() {
 // Architect §7.3 — autopsy Markov scope (latest only, not history dump)
 // ────────────────────────────────────────────────────────────────────────────
 
+// ────────────────────────────────────────────────────────────────────────────
+// Architect §6 ship-gate condition: deterministic fixture witnesses the
+// AutopsyCapsule path for at least one bankrupt/low-balance agent (architect
+// verdict §6 verbatim: "at least one bankrupt/low-balance AutopsyCapsule
+// path is witnessed or a deterministic fixture proves the path"). The
+// fixture exercises the pure `derive_g3_2_terminal_summary_bankrupt_autopsies`
+// helper end-to-end with a constructed EconomicState containing a bankrupt
+// Agent_0 — sufficient to prove the emit path (apply_one Stage 3.5b CAS
+// write is mechanically derived from the same helper output).
+// ────────────────────────────────────────────────────────────────────────────
+
+#[test]
+fn ship_gate_fixture_bankrupt_agent_below_cap_emits_autopsy_capsule() {
+    use turingosv4::economy::money::MicroCoin;
+    use turingosv4::runtime::autopsy_capsule::{
+        derive_g3_2_terminal_summary_bankrupt_autopsies, LossReasonClass,
+    };
+    use turingosv4::state::typed_tx::{CapsulePrivacyPolicy, TerminalSummaryTx};
+
+    // Setup: Agent_0 preseed 1_000_000 μC → risk-cap = 100_000 μC.
+    // Set current balance to 50_000 μC → below cap → bankrupt for emit.
+    let mut econ = EconomicState::default();
+    econ.balances_t.0.insert(
+        AgentId("Agent_0".into()),
+        MicroCoin::from_micro_units(50_000),
+    );
+    let ts = TerminalSummaryTx {
+        task_id: TaskId("ship-gate-fixture-task-1".into()),
+        ..Default::default()
+    };
+
+    let derived =
+        derive_g3_2_terminal_summary_bankrupt_autopsies(&econ, &ts, /*round=*/ 1, /*t=*/ 100);
+
+    // Architect SG-G3.4 verbatim: "bankrupt / low-balance agent receives
+    // AutopsyCapsule".
+    assert_eq!(
+        derived.len(),
+        1,
+        "Bankrupt Agent_0 (balance=50k < cap=100k) MUST produce exactly 1 autopsy capsule"
+    );
+
+    let cap = &derived[0].capsule;
+
+    // (a) agent_id correct.
+    assert_eq!(cap.agent_id, AgentId("Agent_0".into()));
+
+    // (b) event_id scoped to the per-task-end boundary (architect Q6).
+    let _expected_event_id =
+        turingosv4::state::typed_tx::EventId(TaskId("ship-gate-fixture-task-1".into()));
+    // Just check it carries the task_id projection.
+    assert_eq!(cap.event_id.0 .0, "ship-gate-fixture-task-1");
+
+    // (c) loss_amount = initial - current = 1_000_000 - 50_000 = 950_000 μC.
+    assert_eq!(cap.loss_amount.micro_units(), 950_000);
+
+    // (d) loss_reason_class = Bankruptcy (TB-15 enum).
+    assert!(matches!(cap.loss_reason_class, LossReasonClass::Bankruptcy));
+
+    // (e) Architect §7.3 verbatim: "AutopsyCapsule private scoped read view"
+    // — CapsulePrivacyPolicy::AuditOnly prevents global prompt stuffing.
+    assert!(matches!(cap.privacy_policy, CapsulePrivacyPolicy::AuditOnly));
+
+    // (f) capsule_id is content-addressable (sha256 of canonical bytes).
+    assert_ne!(
+        cap.capsule_id.0,
+        [0u8; 32],
+        "capsule_id must be populated (NOT zero); content-addressable per TB-15 R3 closure"
+    );
+
+    // (g) Replay-determinism (Art. 0.2): identical inputs → identical capsule_id.
+    let derived_again =
+        derive_g3_2_terminal_summary_bankrupt_autopsies(&econ, &ts, 1, 100);
+    assert_eq!(derived_again.len(), 1);
+    assert_eq!(
+        derived_again[0].capsule.capsule_id, cap.capsule_id,
+        "Architect Art. 0.2: derive must be replay-deterministic"
+    );
+
+    // (h) Architect §7.2 verbatim: "below risk cap: can receive autopsy".
+    // The fact that this fixture emits 1 capsule for a below-cap agent
+    // IS the witness of the architect §7.2 contract.
+}
+
+#[test]
+fn ship_gate_fixture_solvent_agent_above_cap_emits_no_autopsy() {
+    use turingosv4::economy::money::MicroCoin;
+    use turingosv4::runtime::autopsy_capsule::derive_g3_2_terminal_summary_bankrupt_autopsies;
+    use turingosv4::state::typed_tx::TerminalSummaryTx;
+
+    // Solvent agent: Agent_0 balance = 500_000 μC > cap = 100_000 μC.
+    let mut econ = EconomicState::default();
+    econ.balances_t.0.insert(
+        AgentId("Agent_0".into()),
+        MicroCoin::from_micro_units(500_000),
+    );
+    let ts = TerminalSummaryTx {
+        task_id: TaskId("solvent-fixture-task".into()),
+        ..Default::default()
+    };
+    let derived =
+        derive_g3_2_terminal_summary_bankrupt_autopsies(&econ, &ts, 1, 100);
+    assert_eq!(
+        derived.len(),
+        0,
+        "Solvent Agent_0 (balance=500k > cap=100k) MUST NOT produce any autopsy capsule \
+         (no false-positives — architect §7.2 read-side scope preserves observable
+          behavior for solvent agents)"
+    );
+}
+
+#[test]
+fn ship_gate_fixture_multi_agent_mixed_solvency() {
+    use turingosv4::economy::money::MicroCoin;
+    use turingosv4::runtime::autopsy_capsule::derive_g3_2_terminal_summary_bankrupt_autopsies;
+    use turingosv4::state::typed_tx::TerminalSummaryTx;
+
+    let mut econ = EconomicState::default();
+    // Agent_0: bankrupt (50k < 100k cap)
+    econ.balances_t.0.insert(
+        AgentId("Agent_0".into()),
+        MicroCoin::from_micro_units(50_000),
+    );
+    // Agent_1: solvent (200k > 100k cap)
+    econ.balances_t.0.insert(
+        AgentId("Agent_1".into()),
+        MicroCoin::from_micro_units(200_000),
+    );
+    // Agent_2: bankrupt (10k < 100k cap)
+    econ.balances_t.0.insert(
+        AgentId("Agent_2".into()),
+        MicroCoin::from_micro_units(10_000),
+    );
+    // MarketMakerBudget: solvent (1M > 500k cap)
+    econ.balances_t.0.insert(
+        AgentId("MarketMakerBudget".into()),
+        MicroCoin::from_micro_units(1_000_000),
+    );
+    let ts = TerminalSummaryTx {
+        task_id: TaskId("mixed-fixture-task".into()),
+        ..Default::default()
+    };
+    let derived =
+        derive_g3_2_terminal_summary_bankrupt_autopsies(&econ, &ts, 1, 200);
+    // 2 bankrupt agents (Agent_0 + Agent_2) → 2 capsules.
+    assert_eq!(
+        derived.len(),
+        2,
+        "Multi-agent mixed: only 2 bankrupt agents (Agent_0 + Agent_2) produce capsules"
+    );
+    // Capsules sorted by AgentId (BTreeMap iteration → deterministic).
+    let agent_ids: Vec<&AgentId> = derived.iter().map(|d| &d.capsule.agent_id).collect();
+    assert!(agent_ids.contains(&&AgentId("Agent_0".into())));
+    assert!(agent_ids.contains(&&AgentId("Agent_2".into())));
+    assert!(!agent_ids.contains(&&AgentId("Agent_1".into())));
+    assert!(!agent_ids.contains(&&AgentId("MarketMakerBudget".into())));
+}
+
 #[test]
 fn arch_73_autopsy_capsule_marked_audit_only_privacy() {
     // CapsulePrivacyPolicy::AuditOnly on derive helper output — prevents
