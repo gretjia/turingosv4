@@ -1,0 +1,449 @@
+Codex G2 TB-G G3 single-auditor audit log
+Date: 2026-05-12
+Workspace: /home/zephryj/projects/turingosv4
+
+Preflight
+---------
+Command:
+  pwd && git status --short && git rev-parse --short HEAD && git log --oneline -3
+Output:
+  /home/zephryj/projects/turingosv4
+   M h_vppu_history.json
+   M rules/enforcement.log
+  ?? handover/evidence/g_phase_g2p_2026-05-12T01-31-55Z/
+  ?? handover/evidence/g_phase_g2p_2026-05-12T01-33-28Z/
+  ?? handover/evidence/g_phase_g3_2026-05-12T11-02-27Z/
+  ?? search_gdocs.py
+  9fde94d
+  9fde94d TB-G G3 — Codex G2 single-auditor audit prompt drafted
+  903d164 TB-G G3.3 SHIPPED — === Your Position === per-viewer prompt block (Drucker) + trust-root rehash
+  2e7839f TB-G G3.4 SHIPPED — §G PnL trajectory dashboard report + dual-bind + trust-root rehash
+Reasoning:
+  The worktree was dirty before audit work began. I treated those paths as pre-existing and only wrote the two requested audit artifacts.
+
+Command:
+  rg --files -g AGENTS.md /home/zephryj/projects/turingosv4 /home/zephryj/projects /home/zephryj /home 2>/dev/null
+Output:
+  No AGENTS.md under /home/zephryj/projects/turingosv4 or its applicable parents. Sibling project AGENTS.md files were found but are out of scope.
+Reasoning:
+  No repo-scoped AGENTS.md instructions apply to the two files written under this repo.
+
+Q1 - G3.1 7-field shape source-grep
+-----------------------------------
+Command:
+  for field in agent_id balance open_positions realized_pnl unrealized_pnl solvency_status reputation_score; do count=$(rg -o "$field" src/runtime/agent_pnl.rs | wc -l); printf '%s %s\n' "$field" "$count"; done
+Output:
+  agent_id 28
+  balance 75
+  open_positions 17
+  realized_pnl 40
+  unrealized_pnl 23
+  solvency_status 10
+  reputation_score 13
+
+Command:
+  rg -n "AgentMarketStateView|agent_id|balance|open_positions|realized_pnl|unrealized_pnl|solvency_status|reputation_score" src/runtime/agent_pnl.rs
+Key output:
+  src/runtime/agent_pnl.rs:78: Architect verbatim field list.
+  src/runtime/agent_pnl.rs:81-97: `AgentMarketStateView` struct with all seven fields.
+  src/runtime/agent_pnl.rs:191-198: constructor writes all seven fields.
+  src/runtime/agent_pnl.rs:400-409: downstream trajectory accessor uses the view fields.
+
+Command:
+  rg -n "sg_g3_9_source_grep_seven_field_shape|agent_id|balance|open_positions|realized_pnl|unrealized_pnl|solvency_status|reputation_score" tests/constitution_g3_pnl.rs
+Key output:
+  tests/constitution_g3_pnl.rs:302: fn sg_g3_9_source_grep_seven_field_shape()
+  tests/constitution_g3_pnl.rs:305-311: expected seven field names.
+Reasoning:
+  All seven architect-verbatim names are present at least twice, including struct definition and downstream use. Q1 PASS.
+
+Q2 - G3.1 integer-only math
+---------------------------
+Command:
+  for token in ': f64' ': f32' 'as f64' 'as f32' ' f64::' ' f32::'; do count=$(rg -F -o "$token" src/runtime/agent_pnl.rs | wc -l); printf '%s %s\n' "$token" "$count"; done
+Output:
+  : f64 0
+  : f32 0
+  as f64 0
+  as f32 0
+   f64:: 0
+   f32:: 0
+
+Command:
+  rg -n "f64|f32|sg_g3_9_c|forbidden|integer" tests/constitution_g3_pnl.rs src/runtime/agent_pnl.rs
+Key output:
+  tests/constitution_g3_pnl.rs:365: fn sg_g3_9_c_no_f64_in_money_path()
+  tests/constitution_g3_pnl.rs:367-370: forbids the same six tokens.
+Reasoning:
+  No forbidden float token appears in `src/runtime/agent_pnl.rs`. Q2 PASS.
+
+Q3 - G3.1 5-scenario PnL semantics
+----------------------------------
+Command:
+  cargo test --test constitution_g3_pnl --no-fail-fast
+Output:
+  running 12 tests
+  test sg_g3_1_genesis_at_preseed_baseline_yields_zero_pnl ... ok
+  test sg_g3_3_scenario_b_balanced_mint_no_pool ... ok
+  test sg_g3_2_post_buy_router_cash_drops_and_unrealized_updates ... ok
+  test sg_g3_3_scenario_a_empty_genesis ... ok
+  test sg_g3_3_scenario_d_asymmetric_mint_with_active_pool ... ok
+  test sg_g3_3_scenario_c_balanced_mint_with_skewed_pool ... ok
+  test sg_g3_3_scenario_e_post_resolve_pool_zero_unrealized ... ok
+  test sg_g3_9_a_solvency_three_tier_source_grep ... ok
+  test sg_g3_9_d_stakes_and_claims_visible_in_open_positions ... ok
+  test sg_g3_9_source_grep_seven_field_shape ... ok
+  test sg_g3_9_b_canonical_state_index_reads_source_grep ... ok
+  test sg_g3_9_c_no_f64_in_money_path ... ok
+  test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+  Cargo emitted existing unused-code warnings; no test failed.
+
+Command:
+  sed -n '70,310p' tests/constitution_g3_pnl.rs
+Key output:
+  Genesis asserts realized=0, unrealized=0, Solvent.
+  SG-G3.2 asserts realized=-100_000 and unrealized=25_000 with comment `125k - 100k = +25k`.
+  Balanced mint no-pool asserts unrealized=0.
+  Balanced mint skewed-pool asserts unrealized=0.
+  Resolved pool asserts unrealized=0.
+Reasoning:
+  The binding test suite passed and source assertions match the packet semantics. Q3 PASS.
+
+Q4 - G3.4 §G render contract
+----------------------------
+Command:
+  target/release/audit_dashboard --run-report --repo handover/evidence/g_phase_g3_2026-05-12T11-02-27Z/runtime_repo --cas handover/evidence/g_phase_g3_2026-05-12T11-02-27Z/cas
+Key output:
+  Command exited 0. Output contained the full dashboard and TB-N3 report, including:
+  ## §G PnL trajectory
+    (per-agent realized/unrealized PnL over the batch; integer-rational μC; cost basis 1 μC/share-pair)
+    - tb7-7-sponsor: balance=9900000 μC (initial 10000000); realized=-100000; unrealized=0; positions=0; rep=0; solvent
+    - Agent_user_0: balance=10000000 μC (initial 10000000); realized=0; unrealized=0; positions=0; rep=0; solvent
+    - Agent_0: balance=999000 μC (initial 1000000); realized=-1000; unrealized=0; positions=2; rep=0; solvent
+    - Agent_1: balance=1000000 μC (initial 1000000); realized=0; unrealized=0; positions=0; rep=0; solvent
+    - Agent_2: balance=1000000 μC (initial 1000000); realized=0; unrealized=0; positions=0; rep=0; solvent
+    - Agent_3: balance=1000000 μC (initial 1000000); realized=0; unrealized=0; positions=0; rep=0; solvent
+    - Agent_4: balance=1000000 μC (initial 1000000); realized=0; unrealized=0; positions=0; rep=0; solvent
+    - Agent_5: balance=1000000 μC (initial 1000000); realized=0; unrealized=0; positions=0; rep=0; solvent
+    - Agent_6: balance=1000000 μC (initial 1000000); realized=0; unrealized=0; positions=0; rep=0; solvent
+    - Agent_7: balance=1000000 μC (initial 1000000); realized=0; unrealized=0; positions=0; rep=0; solvent
+    - Agent_8: balance=1000000 μC (initial 1000000); realized=0; unrealized=0; positions=0; rep=0; solvent
+    - Agent_9: balance=1000000 μC (initial 1000000); realized=0; unrealized=0; positions=0; rep=0; solvent
+    - MarketMakerBudget: balance=4900000 μC (initial 5000000); realized=-100000; unrealized=0; positions=1; rep=0; solvent
+  ## §H PRICE IS SIGNAL, NOT TRUTH
+
+Command:
+  target/release/audit_dashboard --run-report --repo ... --cas ... | awk '/^## §G PnL trajectory/{flag=1} /^## §H PRICE IS SIGNAL/{print; flag=0} flag{print}'
+Output:
+  The extracted block is identical to the block pasted in the verdict Notes.
+
+Command:
+  target/release/audit_dashboard --run-report --repo ... --cas ... | awk '/^## §G PnL trajectory/{flag=1; next} /^## §H PRICE IS SIGNAL/{flag=0} flag && /^  - /{rows++; if ($0 !~ /balance=[0-9]+ μC \(initial [0-9]+\); realized=-?[0-9]+; unrealized=-?[0-9]+; positions=[0-9]+; rep=-?[0-9]+; (solvent|near_insolvent|bankrupt)$/) bad++} END{printf "rows=%d bad_shape=%d\n", rows, bad+0}'
+Output:
+  rows=13 bad_shape=0
+
+Command:
+  rg -n "render_section_14|§G PnL trajectory|§H PRICE IS SIGNAL|PRICE IS SIGNAL, NOT TRUTH" src/bin/audit_dashboard.rs src/runtime/agent_pnl.rs tests/constitution_g3_pnl_trajectory_evidence_binding.rs
+Key output:
+  src/runtime/agent_pnl.rs:427: renders `## §G PnL trajectory`.
+  src/bin/audit_dashboard.rs:1883: `fn render_section_14(...)`.
+  src/bin/audit_dashboard.rs:2284: emits `## §H PRICE IS SIGNAL, NOT TRUTH`.
+Reasoning:
+  The dashboard has the required §G block, 13 exhaustive rows with valid shape, and the old banner moved to §H while section 14 remains independently enforced. Q4 PASS.
+
+Q5 - G3.4 silent-zero MECHANISM BOTTLENECK branches
+---------------------------------------------------
+Command:
+  target/release/audit_dashboard --run-report --repo ... --cas ... | awk '/^## §G PnL trajectory/{flag=1; next} /^## §H PRICE IS SIGNAL/{flag=0} flag{if ($0 ~ /MECHANISM BOTTLENECK/) found=1; if ($0 ~ /^  - /){rows++; if ($0 !~ /realized=0; unrealized=0; positions=0; rep=0;/) nonflat++}} END{printf "rows=%d non_flat=%d mechanism_bottleneck_in_section_g=%s\n", rows, nonflat, found?"yes":"no"}'
+Output:
+  rows=13 non_flat=3 mechanism_bottleneck_in_section_g=no
+
+Command:
+  cargo test --test constitution_g3_pnl_trajectory_evidence_binding sg_g3_8_b_empty_fixture_triggers_mechanism_bottleneck
+Output:
+  running 1 test
+  test sg_g3_8_b_empty_fixture_triggers_mechanism_bottleneck ... ok
+  test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out
+
+Command:
+  sed -n '92,122p' tests/constitution_g3_pnl_trajectory_evidence_binding.rs && sed -n '447,467p' src/runtime/agent_pnl.rs
+Key output:
+  Test asserts all-flat fixture produces `MECHANISM BOTTLENECK` and `1./2./3.` markers.
+  Production renderer emits:
+    1. No BuyWithCoinRouter activity ... G5.1 opportunity scheduler ...
+    2. No accepted WorkTx ... TURINGOS_CHAINTAPE_PRESEED=1 ...
+    3. No reputation accumulation ... reputations_t ... G3.2 ...
+Reasoning:
+  Empirical non-flat branch suppresses the bottleneck. All-flat focused test passes. Non-blocking test-strength gap: the test does not assert the cause text, but source contains it. Q5 PASS.
+
+Q6 - G3.4 dual-bind to G1 SG-G1.7
+---------------------------------
+Command:
+  rg -n "compute_pnl_trajectory_from_paths|replay_full_transition|pinned_pubkeys|initial_q_state|Git2LedgerWriter|CasStore|collect_entries|predicate_registry|tool_registry|PnlTrajectorySection::compute_from_q" src/runtime/agent_pnl.rs
+Key output:
+  src/runtime/agent_pnl.rs:511-516: wrapper states fresh `replay_full_transition`.
+  src/runtime/agent_pnl.rs:531: pinned_pubkeys.json path.
+  src/runtime/agent_pnl.rs:543: initial_q_state.json path.
+  src/runtime/agent_pnl.rs:553-555: opens Git2LedgerWriter and CasStore.
+  src/runtime/agent_pnl.rs:559-565: reads entries for `1..=chain_len`.
+  src/runtime/agent_pnl.rs:577-585: builds registries and calls `replay_full_transition`.
+  src/runtime/agent_pnl.rs:589: derives `PnlTrajectorySection::compute_from_q(&final_q)`.
+
+Command:
+  sed -n '468,590p' src/runtime/agent_pnl.rs
+Output:
+  Source confirms the sequence: read pinned pubkeys, read initial QState, open ledger/CAS, collect ledger entries, replay through the canonical transition primitive, then compute the view from final QState.
+Reasoning:
+  The trajectory path does not stitch independent derived states. Q6 PASS.
+
+Q7 - G3.3 Drucker verbatim framing
+----------------------------------
+Command:
+  rg -n "DRUCKER_FRAMING_LINE|Drucker:|'What gets measured gets managed'|your position drives your next decision|render_your_position" src/sdk/your_position.rs tests/constitution_g3_your_position_prompt.rs
+Key output:
+  src/sdk/your_position.rs:37-38: exported `DRUCKER_FRAMING_LINE` exact string.
+  src/sdk/your_position.rs:68: `render_your_position`.
+  src/sdk/your_position.rs:86: renderer pushes `DRUCKER_FRAMING_LINE`.
+  tests/constitution_g3_your_position_prompt.rs:122: `sg_g3_13_drucker_verbatim_framing`.
+
+Command:
+  sed -n '1,140p' src/sdk/your_position.rs
+Output:
+  The constant is:
+  `Drucker: 'What gets measured gets managed' \u{2014} your position drives your next decision.`
+  The renderer starts with `s.push_str(DRUCKER_FRAMING_LINE); s.push('\n');`.
+
+Command:
+  sed -n '120,150p' tests/constitution_g3_your_position_prompt.rs
+Output:
+  Test asserts `rendered.starts_with(DRUCKER_FRAMING_LINE)` and independently checks `Drucker:`, `What gets measured gets managed`, and `your position drives your next decision`.
+Reasoning:
+  The framing string is exported, exact, and first in the rendered block. Q7 PASS.
+
+Q8 - G3.3 per-viewer isolation source-grep
+------------------------------------------
+Command:
+  rg -n "compute_agent_pnl\(q, viewer|balances_t\.0\.values\(|values\(\)|render_your_position|viewer" src/sdk/your_position.rs
+Key output:
+  src/sdk/your_position.rs:70: `let view = compute_agent_pnl(q, viewer, initial_balance_micro);`
+  No `balances_t.0.values()` occurrence in `src/sdk/your_position.rs`.
+
+Command:
+  rg -n "sg_g3_13_a|Bob|bob|alice|stake|does NOT|no other|agent_id" tests/constitution_g3_your_position_prompt.rs
+Key output:
+  tests/constitution_g3_your_position_prompt.rs:153: `fn sg_g3_13_a_no_other_agent_leak()`.
+  tests/constitution_g3_your_position_prompt.rs:173-184: Alice render must not contain Bob's tx_id, stake amount, or agent id.
+
+Command:
+  cargo test --test constitution_g3_your_position_prompt sg_g3_13_a_no_other_agent_pnl_or_position_leak
+Output:
+  running 0 tests
+  test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out
+Reasoning:
+  This was an operator mistake: I guessed the test name wrong. I reran with the actual test name below.
+
+Command:
+  cargo test --test constitution_g3_your_position_prompt sg_g3_13_a_no_other_agent_leak
+Output:
+  running 1 test
+  test sg_g3_13_a_no_other_agent_leak ... ok
+  test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out
+Reasoning:
+  The renderer source is viewer-filtered and the Bob/Alice fixture executed. Q8 PASS.
+
+Q9 - G3.3 evaluator wire and signature bump
+-------------------------------------------
+Command:
+  nl -ba experiments/minif2f_v4/src/bin/evaluator.rs | sed -n '2170,2235p'
+Key output:
+  2214-2220: `let your_position` from `bus.sequencer.as_ref().and_then(|seq| seq.q_snapshot().ok()).map(|q| turingosv4::sdk::your_position::render_your_position(&q, &AgentId(agent_id.clone())))`.
+  2222-2226: `build_agent_prompt(..., &pending_peer_reviews, &your_position)`.
+
+Command:
+  nl -ba src/sdk/prompt.rs | sed -n '1,130p' && nl -ba src/sdk/prompt.rs | sed -n '145,172p'
+Key output:
+  src/sdk/prompt.rs:48-59: `build_agent_prompt` has 10th parameter `your_position: &str`.
+  src/sdk/prompt.rs:157-162: non-empty `your_position` emits `=== Your Position ===`; empty string suppresses it.
+Reasoning:
+  Evaluator wiring and prompt signature are complete. Q9 PASS.
+
+Q10 - trust-root rehash discipline
+----------------------------------
+Command:
+  rg -n "src/runtime/mod\.rs|src/bin/audit_dashboard\.rs|experiments/minif2f_v4/src/bin/evaluator\.rs|f0caecfc|27bffa9f|27537f26|1d128067|aad73808|4a369b4f" genesis_payload.toml
+Key output:
+  genesis_payload.toml:164: evaluator.rs = `27537f26...`; predecessor `4a369b4f` superseded.
+  genesis_payload.toml:218: src/runtime/mod.rs = `f0caecfc...`; predecessor `1d128067` superseded.
+  genesis_payload.toml:241: src/bin/audit_dashboard.rs = `27bffa9f...`; predecessor `aad73808` superseded.
+
+Command:
+  git show --stat --oneline 97e6527 -- genesis_payload.toml src/runtime/mod.rs
+  git show --stat --oneline 2e7839f -- genesis_payload.toml src/bin/audit_dashboard.rs
+  git show --stat --oneline 903d164 -- genesis_payload.toml experiments/minif2f_v4/src/bin/evaluator.rs
+Output:
+  97e6527 TB-G G3.1 SHIPPED ... trust-root rehash
+   genesis_payload.toml |  2 +-
+   src/runtime/mod.rs   | 12 ++++++++++++
+  2e7839f TB-G G3.4 SHIPPED ... trust-root rehash
+   genesis_payload.toml       |  2 +-
+   src/bin/audit_dashboard.rs | 27 +++++++++++++++++++++++++--
+  903d164 TB-G G3.3 SHIPPED ... trust-root rehash
+   experiments/minif2f_v4/src/bin/evaluator.rs | 18 ++++++++++++++++++
+   genesis_payload.toml                        |  2 +-
+
+Command:
+  cargo test --lib boot::tests::verify_trust_root_passes_on_intact_repo
+Output:
+  running 1 test
+  test boot::tests::verify_trust_root_passes_on_intact_repo ... ok
+  test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 622 filtered out
+Reasoning:
+  The trust-root test passed. This was the immediate-VETO gate and it did not trip. Q10 PASS.
+
+Q11 - continuity at scale
+-------------------------
+Command:
+  jq -r '.tasks as $t | "task_count=\($t|length)", ([range(0; ($t|length)-1) as $i | {i:$i, end:$t[$i].end_head_t_hex, next_start:$t[$i+1].start_head_t_hex, match:($t[$i+1].start_head_t_hex == $t[$i].end_head_t_hex)}] | .[] | "k=\(.i) end=\(.end) next_start=\(.next_start) match=\(.match)"), "continuity_ok=\(([range(0; ($t|length)-1) as $i | ($t[$i+1].start_head_t_hex == $t[$i].end_head_t_hex)] | all))", "last_end_head_t_hex=\($t[-1].end_head_t_hex)"' handover/evidence/g_phase_g3_2026-05-12T11-02-27Z/BatchContinuationManifest.json
+Output:
+  task_count=9
+  k=0 ... match=true
+  k=1 ... match=true
+  k=2 ... match=true
+  k=3 ... match=true
+  k=4 ... match=true
+  k=5 ... match=true
+  k=6 ... match=true
+  k=7 ... match=true
+  continuity_ok=true
+  last_end_head_t_hex=e1cb7a2678e427794df614a00b98468bd1e6fa7f
+
+Command:
+  git -C handover/evidence/g_phase_g3_2026-05-12T11-02-27Z/runtime_repo rev-parse HEAD
+Output:
+  fatal: ambiguous argument 'HEAD': unknown revision or path not in the working tree.
+Reasoning:
+  The ChainTape runtime repo has no ordinary branch HEAD. I verified the actual ChainTape refs instead.
+
+Command:
+  git -C handover/evidence/g_phase_g3_2026-05-12T11-02-27Z/runtime_repo show-ref
+Output:
+  e1cb7a2678e427794df614a00b98468bd1e6fa7f refs/chaintape/l4
+  7fd315fb68b04d3b9f2c918a51b1d83aa1add2f0 refs/chaintape/l4e
+  e1cb7a2678e427794df614a00b98468bd1e6fa7f refs/transitions/main
+
+Command:
+  last=$(jq -r '.tasks[-1].end_head_t_hex' .../BatchContinuationManifest.json); l4=$(git -C .../runtime_repo show-ref refs/chaintape/l4 | awk '{print $1}'); trans=$(git -C .../runtime_repo show-ref refs/transitions/main | awk '{print $1}'); printf ...
+Output:
+  manifest_last=e1cb7a2678e427794df614a00b98468bd1e6fa7f
+  refs_chaintape_l4=e1cb7a2678e427794df614a00b98468bd1e6fa7f match=true
+  refs_transitions_main=e1cb7a2678e427794df614a00b98468bd1e6fa7f match=true
+
+Command:
+  jq -r '.tasks[] | "task_index=\(.task_index) start_chain_length=\(.start_chain_length) end_chain_length=\(.end_chain_length)"' .../BatchContinuationManifest.json
+Output:
+  task_index=0 start_chain_length=0 end_chain_length=6
+  task_index=1 start_chain_length=6 end_chain_length=7
+  task_index=2 start_chain_length=7 end_chain_length=8
+  task_index=3 start_chain_length=8 end_chain_length=9
+  task_index=4 start_chain_length=9 end_chain_length=10
+  task_index=5 start_chain_length=10 end_chain_length=11
+  task_index=6 start_chain_length=11 end_chain_length=12
+  task_index=7 start_chain_length=12 end_chain_length=13
+  task_index=8 start_chain_length=13 end_chain_length=14
+
+Command:
+  printf counts for genesis_report.json, P*/runtime_repo, and P*/genesis_report.json
+Output:
+  genesis_report_count=1
+  runtime_repo_under_P_count=0
+  genesis_under_P_count=0
+  handover/evidence/g_phase_g3_2026-05-12T11-02-27Z/runtime_repo/genesis_report.json
+
+Command:
+  rg -c 'ResumePreflight::Ok' .../batch_evaluator.log
+  rg -c 'ChainTapeLease ACQUIRED' .../batch_evaluator.log
+Output:
+  ResumePreflight_Ok_count=8
+  ChainTapeLease_ACQUIRED_count=8
+Reasoning:
+  Manifest continuity holds, ChainTape refs match the final manifest head, chain length is monotone across task boundaries, and there are no per-task runtime repos or genesis reports. Q11 PASS.
+
+Q12 - persistence binding regression and kill criteria
+------------------------------------------------------
+Command:
+  jq '.' handover/evidence/g_phase_g3_2026-05-12T11-02-27Z/PERSISTENCE_BINDING_REPORT.json
+Key output:
+  "n_tasks": 9
+  "is_passing": true
+  "n_witnessed": 4
+  balances.kind = Witnessed
+  positions.kind = Witnessed
+  reputation.kind = Empty
+  pnl.kind = Witnessed
+  autopsy.kind = Empty
+  model_identity.kind = Witnessed
+  model_identity.detail = "manifest.model=deepseek-chat stable across 9 tasks"
+
+Command:
+  jq -r '[.balances.kind, .positions.kind, .reputation.kind, .pnl.kind, .autopsy.kind, .model_identity.kind] | to_entries[] | "field_index=\(.key) kind=\(.value)"' .../PERSISTENCE_BINDING_REPORT.json && rg -n '"kind": "Reset"|Reset' .../PERSISTENCE_BINDING_REPORT.json || true
+Output:
+  field_index=0 kind=Witnessed
+  field_index=1 kind=Witnessed
+  field_index=2 kind=Empty
+  field_index=3 kind=Witnessed
+  field_index=4 kind=Empty
+  field_index=5 kind=Witnessed
+  No `Reset` occurrences.
+
+Command:
+  rg -n "active_model|model|llm_proxy_url|deepseek-chat|aggregate_verdict|assert_no_post_init_mint|assert_total_ctf_conserved|assert_complete_set_balanced|GREEN|PROCEED|Reset|Witnessed|is_passing|n_witnessed|n_tasks" .../G_PHASE_BATCH_MANIFEST.json .../run_log.txt .../aggregate_verdict.json .../PERSISTENCE_BINDING_REPORT.json
+Key output:
+  G_PHASE_BATCH_MANIFEST.json: active_model = "deepseek-chat"; llm_proxy_url = "http://localhost:8080".
+  run_log.txt: audit_verdict PROCEED; persistence_n_witnessed 4.
+  aggregate_verdict.json: TB-1_monetary GREEN; TB-13_complete_set GREEN; verdict PROCEED.
+
+Command:
+  jq '{verdict, passed, failed, halted, skipped}' .../aggregate_verdict.json
+Output:
+  {
+    "verdict": "PROCEED",
+    "passed": 40,
+    "failed": 0,
+    "halted": 0,
+    "skipped": 11
+  }
+
+Command:
+  jq '.assertions[] | select(.name=="no_post_init_mint" or .name=="total_supply_conserved" or .name=="total_supply_conserved_per_block" or .name=="complete_set_min_balanced")' .../aggregate_verdict.json
+Output:
+  no_post_init_mint: result Pass
+  total_supply_conserved: result Pass
+  total_supply_conserved_per_block: result Pass
+  complete_set_min_balanced: result Pass
+
+Command:
+  rg -n "price|market_decision_trace|MarketDecisionTrace|NoTradeReason|NodeMarketEntry|compute_price_index|price_index|MarketDecision" src/top_white/predicates src/top_white || true
+Output:
+  No matches.
+
+Command:
+  sed -n '511,589p' src/runtime/agent_pnl.rs | rg -n "read_to_string|Git2LedgerWriter::open|CasStore::open|read_at|replay_full_transition|PnlTrajectorySection::compute_from_q|write|submit|insert|remove|mutate|save|std::fs::write|push"
+Output:
+  read_to_string for pinned_pubkeys and initial_q_state; Git2LedgerWriter::open; CasStore::open; writer.read_at; entries.push; replay_full_transition; PnlTrajectorySection::compute_from_q.
+  No state submission/write path in the trajectory wrapper.
+
+Command:
+  jq -r '"manifest_active_model=\(.active_model)", "manifest_git_head=\(.git_head)", "llm_proxy_url=\(.llm_proxy_url)", "problem_count=\(.problem_count)"' .../G_PHASE_BATCH_MANIFEST.json && jq -r '"batch_model=\(.model)", "batch_id=\(.batch_id)"' .../BatchContinuationManifest.json
+Output:
+  manifest_active_model=deepseek-chat
+  manifest_git_head=903d16407106ded31e7acfb1d5ecaf36cce3353b
+  llm_proxy_url=http://localhost:8080
+  problem_count=9
+  batch_model=deepseek-chat
+  batch_id=g_phase_g3_2026-05-12T11-02-27Z_903d164
+Reasoning:
+  Persistence report is passing with 4 witnessed fields and no Reset. Kill criteria are not tripped: no per-problem genesis reset (Q11), no predicate price/market-trace reads, no bankrupt-cap admission bypass in G3.1 read-only classifier, model identity is stable as deepseek-chat, and conservation assertions pass in the aggregate verdict. G3-specific read-only trajectory, per-viewer prompt, and Drucker verbatim checks are covered by Q6-Q9. Q12 PASS.
+
+Overall reasoning
+-----------------
+All Q1-Q12 halt conditions are satisfied. Remaining gaps are audit/provenance quality gaps, not ship blockers: pre-existing dirty worktree, the expected dashboard §8 audit-trail coverage gap (`audit_trail_rows=18` vs `chain_proposal_count=202`), the Q5 test not asserting full cause text even though production renders it, and the ChainTape repo using refs rather than an ordinary Git branch HEAD.

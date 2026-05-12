@@ -1,0 +1,9 @@
+mathd_algebra_107
+mathd_algebra_125
+mathd_algebra_141
+mathd_algebra_113
+mathd_algebra_114
+mathd_numbertheory_1124
+numbertheory_2pownm1prime_nprime
+aime_1983_p1
+aime_1984_p1

@@ -6,6 +6,87 @@
 
 ---
 
+## 📍 Handover summary (session #45 close 2026-05-12)
+
+**Session Summary**: TB-G G3.1+G3.4+G3.3 SHIPPED — **G3 observability layer LANDED 🟡 AMBER** (3/4 atoms; G3.2 Class-4 STEP_B still pending per-atom §8 packet). Codex G2 single-auditor **PROCEED 12/12 PASS conviction HIGH** — best audit result in TB-G so far (G2 R1: 12/12 medium; G2P R1: 11/12 medium with Q1 CHALLENGE). 26 new constitution gates 376 → 402. Real-LLM 9-task smoke verdict PROCEED 40/0/0/11; persistence_passing=true n_witnessed=4. **Architect §G3 SG-G3.5 "PnL is visible in dashboard as materialized view" empirically SATISFIED** — §G PnL trajectory rendered 3/13 NON-FLAT rows (better outcome than G2 R1 / G2P R1 which both rendered all-zero).
+
+### Current State
+
+**Works**:
+- TB-G G3.1+G3.4+G3.3 shipped to `origin/main` HEADs `97e6527` / `2e7839f` / `903d164` (each atom commit bundles trust-root rehashes per G2 collapsed-rehash pattern).
+- **G3.1** (`97e6527`): NEW `src/runtime/agent_pnl.rs` — `compute_agent_pnl(q, agent_id, initial_balance_micro) -> AgentMarketStateView` architect-verbatim 7-field shape (`agent_id` / `balance` / `open_positions` / `realized_pnl` / `unrealized_pnl` / `solvency_status` / `reputation_score`). Pure derivation over canonical `EconomicState`; integer math only (CLAUDE.md §13 no-f64). 5-variant `OpenPosition` enum + 3-tier `SolvencyStatus`. PnL semantics: realized = balance − initial; unrealized = signed MTM on conditional-share holdings against active CpmmPool (cost basis 1 μC / share-pair). Balanced N+N mint yields 0 unrealized regardless of pool skew; asymmetric position yields signed PnL (e.g. 150k YES + 50k NO under pool 50:150 → +25k unrealized). 10 lib unit + 12 gate-binding tests.
+- **G3.4** (`2e7839f`): EDIT `src/runtime/agent_pnl.rs` (+285 lines) — `PnlTrajectoryRow` + `PnlTrajectorySection` walker iterating canonical preseed agent registry (13 entries) + `compute_pnl_trajectory_from_paths` path wrapper using canonical `replay_full_transition` FC2 Boot primitive (one-continuous-ChainTape SG-G1.7 dual-bind) + `render_section_g()` with silent-zero-forbidden MECHANISM BOTTLENECK contract (≥3 candidate causes when all-flat). EDIT `src/bin/audit_dashboard.rs::render_tb_n3_run_report`: inject §G between §F.X and price-is-signal banner; banner renamed `## §G` → `## §H` (SG-14.6 contract preserved via separate `render_section_14`). 6 gate tests.
+- **G3.3** (`903d164`): NEW `src/sdk/your_position.rs` — `render_your_position(q, viewer)` per-viewer renderer with architect-verbatim `DRUCKER_FRAMING_LINE` ("Drucker: 'What gets measured gets managed' — your position drives your next decision."). EDIT `src/sdk/prompt.rs::build_agent_prompt` gains 10th `your_position: &str` param + `=== Your Position ===` block rendering. EDIT `experiments/minif2f_v4/src/bin/evaluator.rs:~2204` wires `your_position::render_your_position` from `seq.q_snapshot()`. Per-viewer isolation enforced by `compute_agent_pnl(q, viewer, ...)` viewer-keyed filter. 6 lib unit + 8 gate-binding tests.
+- G3 real-LLM 9-task smoke at `handover/evidence/g_phase_g3_2026-05-12T11-02-27Z/` (3088s wall; aggregate verdict PROCEED 40/0/0/11; persistence_passing=true n_witnessed=4 baseline-matched).
+- Audit prompt instantiated at `9fde94d` with empirical §G block.
+- Matrix §R G3 row: 🔴 RED → 🟡 AMBER (G3 OBSERVABILITY LAYER LANDED; G3.2 admission layer still pending §8 packet).
+
+**Empirical §G PnL trajectory** (from `audit_dashboard --run-report` over the G3 evidence):
+```
+## §G PnL trajectory
+  (per-agent realized/unrealized PnL over the batch; integer-rational μC; cost basis 1 μC/share-pair)
+  - tb7-7-sponsor: balance=9900000 μC (initial 10000000); realized=-100000; unrealized=0; positions=0; rep=0; solvent
+  - Agent_0: balance=999000 μC (initial 1000000); realized=-1000; unrealized=0; positions=2; rep=0; solvent
+  - MarketMakerBudget: balance=4900000 μC (initial 5000000); realized=-100000; unrealized=0; positions=1; rep=0; solvent
+  (10 other preseed agents: realized=0; unrealized=0; positions=0; solvent)
+```
+3 of 13 rows NON-FLAT (escrow / stake+claim / collateral). Silent-zero MECHANISM BOTTLENECK correctly ABSENT.
+
+**Audit chain**:
+- G3 Codex G2 single-auditor: **PROCEED conviction HIGH, Q1..Q12 ALL PASS** at HEAD `9fde94d` (`handover/audits/CODEX_G2_TB_G_G3_VERDICT.md` + `.AUDIT.log`). User-directed single-auditor per session #43/#44 cadence "Gemini 总是 all pass — 意义不大".
+- 3 Codex non-blocking notes: (1) provenance gap — dirty worktree + HEAD ahead of batch manifest pin (same shape as G2 R1 non-blocking note); (2) test-strength gap — SG-G3.8.b doesn't assert exact cause strings (production source DOES contain them; test-scaffold edge per `feedback_audit_loop_roi_flip`); (3) multi-ref ChainTape — refs/chaintape/l4 + refs/transitions/main both match manifest (Stage A3 derived-view contract; correct + expected). All forward-deferred.
+
+**Forward-bound (G-Phase queue post-G3-observability)**:
+- **G3.2 (Class-4 STEP_B; PER-ATOM §8 PACKET REQUIRED)** — sequencer risk-cap admission (4 admission arms: WorkTx + BuyRouter + Challenge + Verify) + `BankruptcyRiskCapExceeded` RejectionClass tail-append + AutopsyCapsule emit at problem-end boundary. Closes module-level architect §G3 SG-G3.2 + SG-G3.3 + SG-G3.4 ship gates (which this session leaves untouched). Architect §8 packet boundary; HALT until ratified.
+- G4.2 (Class-4 STEP_B; PER-ATOM §8 PACKET REQUIRED) — `[agent_model_assignment]` genesis schema for multi-LLM persistent identity.
+- G2P observability closure (Class 2-3 PromptCapsule swarm-write) — addresses G2P R1 Q1 CHALLENGE; forward.
+- G5.1 / G5.2 / G5.3 / G6.* / G7.* — autonomous after G3.2 + G4.2 §8 packets land.
+
+### Next Steps
+
+1. Push `97e6527` / `2e7839f` / `903d164` / `9fde94d` + matrix + LATEST to `origin/main` (after user authorization).
+2. Draft G3.2 §8 packet + HALT (Class-4 STEP_B; closes 病灶1 bankruptcy-cycle + Gap-A/B from `OBS_G2P_VERIFY_PEER_REWARD`).
+3. Draft G4.2 §8 packet + HALT (Class-4 STEP_B; multi-LLM persistent identity).
+4. G2P observability closure (Class 2-3 PromptCapsule swarm-write; forward).
+5. G5.1 / G5.2 / G5.3 / G6.* / G7.* autonomous after G3.2 + G4.2 ship.
+
+### Open Questions (carry-forward + new)
+
+1. **Matrix G3 framing** — AMBER (strict, 3/4 atoms shipped; G3.2 pending) vs GREEN (G2/G2P precedent — module rows went GREEN despite Class-4 sub-atoms pending elsewhere). Defaulted to AMBER per `feedback_no_workarounds_strict_constitution`; user override to GREEN is one matrix-edit away.
+2. **`total_traces=0` empirical pattern** — now 3 consecutive batches (G2P R1 + G2 R1 + G3 R1) with same shape. G5.1 opportunity scheduler + 7-action menu is the canonical forward fix; G3.4 §G silent-zero MECHANISM BOTTLENECK contract was correctly ABSENT this batch because §G IS rendering non-flat rows (escrow / stake / collateral) — only the trace/router/peer-verify surfaces show 0.
+3. **G3.3 Class-3 envelope retroactive ratification** — user-adjudicated session #45 boot "Parent §8 covers — ship in this session". Codex Q9 PASS confirms structure (no sequencer admission / typed_tx / signing payload touch). No retro §8 needed; surface for record.
+4. **WalletBackend trait** (charter §0.66, sessions #41-#45 carry-forward) — §8 packet during G-Phase or after G7?
+5. **PromptCapsule observability closure** (session #43 Q1 CHALLENGE) — forward closure path; not urgent.
+
+### Validation (G3 observability layer ship state)
+
+- Workspace: 6 lib unit (`your_position::tests`) + 10 lib unit (`agent_pnl::tests`) + 26 gate tests (3 files) GREEN. Constitution gate runner: `402/0/1` (+26 vs session #44's `376`).
+- Trust Root: PASS (rehashes: `src/runtime/mod.rs` `1d128067`→`f0caecfc`; `src/bin/audit_dashboard.rs` `aad73808`→`27bffa9f`; `experiments/minif2f_v4/src/bin/evaluator.rs` `4a369b4f`→`27537f26`).
+- audit_tape over G3 9-task batch: PROCEED `40/0/0/11`.
+- persistence_report: `is_passing=true n_witnessed=4` over 9 tasks (reputation/autopsy Empty pending G3.2).
+- TB-G G1+G2P+G2 regression: all prior gate tests preserved.
+
+### Commits this session (oldest → newest)
+
+| HEAD | Atom | Subject |
+|------|------|---------|
+| `97e6527` | G3.1 | `compute_agent_pnl` 7-field derived view + 12 SG-G3.* gates + 10 lib unit (Trust Root rehash bundled) |
+| `2e7839f` | G3.4 | §G PnL trajectory dashboard + dual-bind to G1 SG-G1.7 + silent-zero MECHANISM BOTTLENECK (Trust Root rehash bundled) |
+| `903d164` | G3.3 | `=== Your Position ===` per-viewer Drucker prompt block + 10th `build_agent_prompt` param (Trust Root rehash bundled) |
+| `9fde94d` | audit-prompt | TB-G G3 Codex G2 single-auditor audit prompt instantiated |
+| (session close) | session-close | matrix §R G3 🔴→🟡 + Codex verdict + LATEST handover sync |
+
+### Operational notes
+
+- **Codex dispatch route**: direct `nohup codex exec --dangerously-bypass-approvals-and-sandbox` per `feedback_codex_bash_exec_direct_dispatch` (mirroring session #44). Audit wall ~17 min (longer than G2's ~10 min); Codex GPT-5 was thorough — paused ~6 min between "All twelve gates have evidence" message and verdict-file write but ultimately completed.
+- **Monitor safer signal**: `until [ -s VERDICT_FILE ] || ! ps -p <pid>` worked correctly per `feedback_monitor_codex_verdict_safer_signal` — fired exactly when verdict file appeared.
+- **Smoke launch path**: 2 launches — first failed with exit-4 on missing `TURINGOS_G_PHASE_LOW_DISK_OK=1` override (19G free vs 20G architect minimum); succeeded on second launch with both `TURINGOS_G_PHASE_DIRTY_OK=1` + `TURINGOS_G_PHASE_LOW_DISK_OK=1`. Forward defensive mechanism: pre-launch `df -h /home/zephryj` is in `/runner-preflight` Stage 2; threshold could be tightened to FAIL at 19G to surface earlier.
+- **Pre-launch rebuild**: both `audit_dashboard` + evaluator binaries were stale (src 1778583118 > binary 1778572086); `/runner-preflight` Stage 2 caught this; rebuilt both before launch (1m26s + 1m46s).
+- **G3.3 Class-3 envelope**: user-adjudicated at boot via AskUserQuestion ("Parent §8 covers — ship in this session"). Codex Q9 confirms structurally no Class-4 vectors (no sequencer admission / typed_tx schema / canonical signing payload touch).
+- **Smoke completion logic improvement opportunity** — `feedback_monitor_codex_verdict_safer_signal` already covers Codex audit; consider extending the same "verdict file written OR process exit" pattern to smoke completion (currently Monitor filter `^\[P[0-9]+\]|PPUT_RESULT|...` is content-based; process-exit OR aggregate_verdict.json-written would be more robust).
+
+---
+
 ## 📍 Handover summary (session #44 close 2026-05-12)
 
 **Session Summary**: TB-G G2.1+G2.2+G2.3 SHIPPED — **G2 module LANDED 🟢**. Codex G2 single-auditor PROCEED 12/12 PASS, conviction medium (cleaner than G2P R1's 11/12). 17 new constitution gates 359 → 376. Real-LLM 9-task smoke verdict PROCEED 40/0/0/11; persistence_passing=true n_witnessed=4 (baseline G1.2-7 R2 + G2P R1 preserved).
