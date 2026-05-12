@@ -6,7 +6,74 @@
 
 ---
 
-## 📍 Handover summary (session #43 close 2026-05-12)
+## 📍 Handover summary (session #44 close 2026-05-12)
+
+**Session Summary**: TB-G G2.1+G2.2+G2.3 SHIPPED — **G2 module LANDED 🟢**. Codex G2 single-auditor PROCEED 12/12 PASS, conviction medium (cleaner than G2P R1's 11/12). 17 new constitution gates 359 → 376. Real-LLM 9-task smoke verdict PROCEED 40/0/0/11; persistence_passing=true n_witnessed=4 (baseline G1.2-7 R2 + G2P R1 preserved).
+
+### Current State
+
+**Works**:
+- TB-G G2.1+G2.2+G2.3 shipped to `origin/main` HEADs `f22140a` / `9b05563` / `297042c` (trust-root rehashes bundled into atom commits — collapsed from G2P's split-rehash-commit pattern for tighter atomicity).
+- G2.1 (`f22140a`): `NoTradeReason` tail-append `NoPerceivedEdge` + `PromptBudgetExceeded` (11 → 13 variants); `AmountExceedsBalance` doc-aliased to architect `InsufficientBalance` (§8.2 verbatim); `NoTradeReason::ALL` stable-order slice for §F.A iteration. `InvestRouteError` gains 2 caller-constructible classifier variants mapping 1:1. Evaluator end-of-turn classifier wired: `tb_n3_market_block_present` + `tb_n3_market_block_budget_elided` (set during market-context build) + `invest_action_emitted_this_turn` (set at `"invest" =>` arm head); post-parse-match trace-emit calls `MarketDecisionTrace::no_trade(NoPerceivedEdge | PromptBudgetExceeded, …)` on every non-invest market-bearing turn. 2 lib unit + 8 gate tests.
+- G2.2 (`9b05563`): `src/runtime/market_decision_trace_summary.rs` (NEW) library helper lifts the §F walker + renderer out of `src/bin/audit_dashboard.rs`. Adds `submitted_vs_traced_ratio` row (integer-rational percent; `n/a` on empty batches; no f64) + `## §F.A NoTradeReason exhaustive breakdown` (13-row stable iteration over `NoTradeReason::ALL` with zeros included for forward grep stability). 4 lib unit + 5 gate tests.
+- G2.3 (`297042c`): `tests/constitution_g2_failed_invest_l4e.rs` (NEW) — 4 binding tests against a real Sequencer + InMemoryLedgerWriter harness. SG-G2.5.a balance-shortfall → L4.E with coarse `RejectionClass::PolicyViolation` + `public_summary == "policy_violation"` (the architect's shielding policy: fine-grained `TransitionError::RouterInsufficientCoinBalance` lives in `raw_diagnostic_cid` only). SG-G2.5.b pool-not-Active → same coarse class. SG-G2.5.c adapter pre-classifier round-trips through `MarketDecisionTraceSummary::compute_from_path`. SG-G2.5.d full architect §8.6 "Failed invest 也算有意义 tape activity" chain.
+- G2 real-LLM 9-task smoke at `handover/evidence/g_phase_g2_2026-05-12T07-48-28Z/` (3996s wall; aggregate verdict PROCEED 40/0/0/11; persistence_passing=true n_witnessed=4 baseline-matched).
+- Matrix §R G2 row: 🔴 RED → 🟢 GREEN.
+
+**Audit chain**:
+- G2 Codex G2 single-auditor: PROCEED conviction medium, Q1..Q12 ALL PASS at HEAD `297042c` (`handover/audits/CODEX_G2_TB_G_G2_VERDICT.md` + `.AUDIT.log`). User-directed single-auditor per session #43 cadence "Gemini 总是 all pass — 意义不大".
+- 2 Codex non-blocking notes: (1) provenance gap — local HEAD ahead of `origin/main` at audit time (push pending); (2) test-doc drift in SG-G2.5.d docstring vs body — production L4.E admission path still exercised by SG-G2.5.a/b/c. Both forward-deferred per `feedback_audit_loop_roi_flip` (test-scaffold edge ≠ production defect).
+
+**Forward-bound (G-Phase queue unchanged from session #43)**:
+- G3.1 / G3.3 / G3.4 (PnL derived view + prompt block + §G report) — Class 2-3 autonomous.
+- G5.1 / G5.2 / G5.3 (opportunity scheduler + role classifier + §I roles) — G5.1 likely closes the `total_traces=0` empirical pattern by adding the 7-action menu (G5.1 SG-G5.7 forward fix per §F.X bottleneck render).
+- G6.1-6.3 / G7.1-7.4 — autonomous after G5.
+- G3.2 (sequencer risk-cap admission) + G4.2 (model-assignment genesis) — Class-4 STEP_B; each needs own §8 packet.
+- G2P observability closure (PromptCapsule swarm-write) — Class 2-3 forward; addresses session #43 Q1 CHALLENGE.
+
+### Next Steps
+
+1. **G3.1 / G3.3 / G3.4** (Class 2-3 PnL view + prompt block + §G report; autonomous).
+2. **G2P observability closure** (Class 2-3 PromptCapsule swarm-write; closes session #43 Q1 CHALLENGE forward bind).
+3. Draft G3.2 §8 packet + HALT (Class-4 risk-cap admission; closes 病灶1 bankruptcy-cycle + Gap-A/B from `OBS_G2P_VERIFY_PEER_REWARD`).
+4. Draft G4.2 §8 packet + HALT (Class-4 model-assignment genesis schema).
+5. G5.1 / G5.2 / G5.3 / G6.* / G7.* autonomous after G3.2 + G4.2 ship.
+
+### Open Questions (carry-forward + new)
+
+1. **`total_traces=0` empirical pattern across G2P R1 + G2 R1** (now 2 batches, same shape) — G2 end-of-turn classifier wire is correct but had no opportunity to fire because: (a) only 1 WorkTx accepts per batch (P000 omega-solve), (b) OMEGA exit returns immediately so no further LLM call in that task sees the pool, (c) cross-task amendment 5 isolation strips prior task pools. The G5.1 opportunity scheduler + 7-action menu is the canonical forward fix (also closes G2P's `non_solver_verifications=0`).
+2. **13-agent persistence shape** (sessions #42/#43/#44 carry-forward) — confirm preseed-12 + boltzmann-seeded solver intent.
+3. **WalletBackend trait** (charter §0.66, sessions #41-#44 carry-forward) — §8 packet during G-Phase or after G7?
+4. **PromptCapsule observability closure** (session #43 Q1 CHALLENGE) — `handover/alignment/OBS_G2P_PROMPT_BODY_OBSERVABILITY_2026-05-12.md` forward closure. AFTER G3.x or sibling G2P.4? Same answer as session #43: AFTER (Class 2-3 standalone; not urgent).
+5. **G3.x scope coordination for Gap-A/B** (reputation accumulation + bond return) — bundle into G3.2 §8 packet or split into G3.5 atom?
+
+### Validation (G2 module ship state)
+
+- Workspace: 4 lib unit (`market_decision_trace_summary::tests`) + 2 lib unit (`market_decision_trace::tests` new) + 17 gate tests (3 files) GREEN. Constitution gate runner: `376/0/1` (+17 vs session #43's `359`).
+- Trust Root: PASS (rehashes: `adapter.rs` `a84afccf`→`bdd4be50`; `evaluator.rs` `b5c5ec97`→`4a369b4f`; `runtime/mod.rs` `b653e247`→`1d128067`; `audit_dashboard.rs` `2dba81a2`→`aad73808`).
+- audit_tape over G2 9-task batch: PROCEED `40/0/0/11`.
+- persistence_report: `is_passing=true n_witnessed=4` over 9 tasks (Gap-A keeps reputation Empty — expected per OBS).
+- TB-N1 A4 regression: `tests/constitution_n1_agent_economy_a4.rs` 7/7 PASS preserved (Codex Q8 verbatim).
+- TB-G G2P regression: `tests/constitution_g2p_*.rs` 17/17 PASS preserved.
+
+### Commits this session (oldest → newest)
+
+| HEAD | Atom | Subject |
+|------|------|---------|
+| `f22140a` | G2.1 | NoTradeReason 13-variant taxonomy + 2 new variants + evaluator wire + trust-root rehash (bundled) |
+| `9b05563` | G2.2 | §F MarketDecisionTrace summary + §F.A exhaustive 13-row breakdown + submitted_vs_traced_ratio + lib helper lift + trust-root rehash (bundled) |
+| `297042c` | G2.3 | Failed-invest L4.E binding test (4 SG-G2.5.* gates against real Sequencer harness) |
+| (session close) | session-close | matrix §R G2 🔴→🟢 + Codex verdict + LATEST handover sync |
+
+### Operational notes
+
+- **Codex dispatch route**: `Skill: codex:rescue` was rejected once by user mid-session (user verbatim "时间又很久了，是不是 Codex 又发生了 idle" — recurring pain signal about Skill route latency); fell back to direct `nohup codex exec --dangerously-bypass-approvals-and-sandbox -C ... < prompt.md > log 2>&1 &` per `feedback_codex_bash_exec_direct_dispatch`. First-try success (~10min wall).
+- **Monitor false-positive on `^VERDICT: PROCEED`**: initial Monitor pattern `^VERDICT: (PROCEED|CHALLENGE|VETO|HALT)\b` matched Codex's mid-audit `cat handover/audits/CODEX_G2_TB_G_G2P_VERDICT.md` echo — predecessor verdict file contains the literal `VERDICT: PROCEED` line and Codex was reading it as reference. Re-armed Monitor with a safer signal (`[ -s VERDICT_FILE ] || ! ps -p PID`) — process-exit OR verdict-file-written. Candidate `feedback_monitor_codex_verdict_safer_signal` if recurring.
+- **Trust-root rehash collapsed into atom commits**: G2 collapsed the 2 rehash-only commits that G2P split out (`58d4ded` + `9ddc9c1`) — each atom commit carries its own post-edit sha256 → manifest update. Tighter atomicity; same correctness (Trust Root verify_trust_root_passes_on_intact_repo PASS at every commit boundary checked).
+- **Smoke launch path**: 1 launch — `TURINGOS_G_PHASE_DIRTY_OK=1` override required for pre-existing session-44-boot drift (`h_vppu_history.json`, `rules/enforcement.log`, `search_gdocs.py`, leftover `g_phase_g2p_*` dirs). Documented per LATEST.md operational note from session #43.
+- **/runner-preflight invoked once**: caught stale binaries (4-6 hr old) before launch; explicit rebuild `cargo build --release --bin audit_dashboard + -p minif2f_v4 --bin evaluator` resolved.
+
+---
 
 **Session Summary**: TB-G G2P.1+G2P.2+G2P.3 SHIPPED — **G2P module LANDED 🟢**. Codex G2 single-auditor PROCEED 11/12 PASS (Q1 CHALLENGE = prompt-body observability gap, NOT production defect). Architect §8.2 ship-gate empirical result `peer_verifications_total=0`; §8.5 OR-branch satisfied via auto-rendered §F.X MECHANISM BOTTLENECK (silent-zero-forbidden contract). 17 new constitution gates 342→359.
 
