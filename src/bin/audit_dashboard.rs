@@ -2257,8 +2257,31 @@ fn render_tb_n3_run_report(
         }
     }
 
-    // §G Banner (architect "no price as truth").
-    out.push_str("\n## §G PRICE IS SIGNAL, NOT TRUTH\n");
+    // §G PnL trajectory (TB-G G3.4; charter §1 Module G3 atom G3.4;
+    // G-Phase directive §G3 SG-G3.5 "PnL is visible in dashboard as
+    // materialized view"). Walker replays the full L4 chain to obtain
+    // the final QState, then iterates the canonical preseed agent
+    // registry and emits per-agent realized/unrealized PnL +
+    // open-position count + solvency status. Silent-zero-forbidden
+    // contract: if every row is flat (no PnL movement, no positions),
+    // a MECHANISM BOTTLENECK explainer with ≥3 candidate causes is
+    // auto-rendered (mirrors the §F.X / G2P.2 silent-zero contract).
+    match turingosv4::runtime::agent_pnl::compute_pnl_trajectory_from_paths(
+        repo, cas_path,
+    ) {
+        Ok(traj) => {
+            out.push_str(&traj.render_section_g());
+        }
+        Err(e) => {
+            out.push_str(&format!("\n## §G PnL trajectory\n  [error] {e}\n"));
+        }
+    }
+
+    // §H Banner (architect "no price as truth"). Renamed from §G to §H
+    // by TB-G G3.4 to free the §G label for PnL trajectory; SG-14.6
+    // architect-mandated banner contract still enforced via
+    // `render_section_14` (separate section; unchanged).
+    out.push_str("\n## §H PRICE IS SIGNAL, NOT TRUTH\n");
     out.push_str("  Pool reserves and prices in this report are derived\n");
     out.push_str("  views over ChainTape + CAS evidence. Prices are\n");
     out.push_str("  expressed as integer-rational (numerator/denominator).\n");

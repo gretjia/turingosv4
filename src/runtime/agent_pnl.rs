@@ -330,6 +330,279 @@ pub fn initial_balance_micro_from_default_preseed(agent_id: &AgentId) -> i64 {
         .unwrap_or(0)
 }
 
+// ────────────────────────────────────────────────────────────────────────
+// TB-G G3.4 — §G PnL trajectory dashboard section + path-based wrapper.
+//
+// Charter: handover/tracer_bullets/TB_G_GENERATIVE_ARENA_charter_2026-05-11.md
+// §1 Module G3 atom G3.4.
+//
+// Directive: handover/directives/2026-05-11_G_PHASE_GENERATIVE_ARENA_DIRECTIVE.md
+// §G3 SG-G3.5 "PnL is visible in dashboard as materialized view".
+// ────────────────────────────────────────────────────────────────────────
+
+/// TRACE_MATRIX FC1-N7 + §15 + §17 (TB-G G3.4 2026-05-12): per-agent
+/// trajectory row in the `## §G PnL trajectory` dashboard block.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PnlTrajectoryRow {
+    pub agent_id: AgentId,
+    pub initial_balance_micro: i64,
+    pub current_balance_micro: i64,
+    pub realized_pnl: i64,
+    pub unrealized_pnl: i64,
+    pub solvency_status: SolvencyStatus,
+    pub reputation_score: i64,
+    pub open_position_count: usize,
+}
+
+impl PnlTrajectoryRow {
+    /// TRACE_MATRIX FC1-N5 (TB-G G3.4 2026-05-12): `true` when the
+    /// agent has zero PnL movement AND zero open positions AND zero
+    /// reputation — i.e. the agent took no economic action across the
+    /// batch. Used by the silent-zero-forbidden contract in
+    /// `PnlTrajectorySection::render_section_g`.
+    pub fn is_flat(&self) -> bool {
+        self.realized_pnl == 0
+            && self.unrealized_pnl == 0
+            && self.open_position_count == 0
+            && self.reputation_score == 0
+    }
+}
+
+/// TRACE_MATRIX FC1-N7 + §15 + §17 (TB-G G3.4 2026-05-12): the §G
+/// PnL trajectory section payload — per-agent rows over the canonical
+/// preseed agent set plus an aggregate `all_flat` flag for the
+/// silent-zero-forbidden contract.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PnlTrajectorySection {
+    pub rows: Vec<PnlTrajectoryRow>,
+    /// `true` when every row is flat (no PnL movement, no open positions).
+    /// Triggers the MECHANISM BOTTLENECK explainer at render time.
+    pub all_flat: bool,
+}
+
+impl PnlTrajectorySection {
+    /// TRACE_MATRIX FC1-N5 (TB-G G3.4 2026-05-12; G-Phase directive §G3
+    /// SG-G3.5 "PnL is visible in dashboard as materialized view"):
+    /// pure walker — iterates the canonical preseed agent registry
+    /// (`runtime::bootstrap::default_pput_preseed_pairs`) and computes a
+    /// `PnlTrajectoryRow` for each.
+    ///
+    /// **Why preseed list, not balances_t.keys()**: a bankrupt agent
+    /// may have been debited to balance 0 and removed from BalancesIndex
+    /// via opportunistic cleanup; the preseed list is the authoritative
+    /// roster of identities the dashboard should report on (matches
+    /// architect's "13-agent persistence" framing).
+    pub fn compute_from_q(q: &QState) -> Self {
+        let pairs = crate::runtime::bootstrap::default_pput_preseed_pairs();
+        let mut rows: Vec<PnlTrajectoryRow> = Vec::with_capacity(pairs.len());
+        for (agent_id, initial) in &pairs {
+            let initial_micro = initial.micro_units();
+            let view = compute_agent_pnl(q, agent_id, initial_micro);
+            rows.push(PnlTrajectoryRow {
+                agent_id: agent_id.clone(),
+                initial_balance_micro: initial_micro,
+                current_balance_micro: view.balance,
+                realized_pnl: view.realized_pnl,
+                unrealized_pnl: view.unrealized_pnl,
+                solvency_status: view.solvency_status,
+                reputation_score: view.reputation_score,
+                open_position_count: view.open_positions.len(),
+            });
+        }
+        let all_flat = rows.iter().all(|r| r.is_flat());
+        Self { rows, all_flat }
+    }
+
+    /// TRACE_MATRIX FC1-N7 (TB-G G3.4 2026-05-12; G-Phase directive §G3
+    /// SG-G3.5 + charter §1 Module G3 atom G3.4 dashboard render
+    /// contract).
+    ///
+    /// Render the `## §G PnL trajectory` block consumed by
+    /// `audit_dashboard --run-report`. Includes an explicit
+    /// MECHANISM BOTTLENECK explainer with ≥3 candidate causes when
+    /// `all_flat == true` — silent zero forbidden per
+    /// `feedback_no_workarounds_strict_constitution`.
+    pub fn render_section_g(&self) -> String {
+        let mut out = String::new();
+        out.push_str("\n## §G PnL trajectory\n");
+        out.push_str("  (per-agent realized/unrealized PnL over the batch; ");
+        out.push_str("integer-rational μC; cost basis 1 μC/share-pair)\n");
+        for row in &self.rows {
+            let solvency_label = match row.solvency_status {
+                SolvencyStatus::Solvent => "solvent",
+                SolvencyStatus::NearInsolvent => "near_insolvent",
+                SolvencyStatus::Bankrupt => "bankrupt",
+            };
+            out.push_str(&format!(
+                "  - {agent}: balance={bal} μC (initial {init}); \
+                 realized={rpnl}; unrealized={upnl}; \
+                 positions={pos}; rep={rep}; {solv}\n",
+                agent = row.agent_id.0,
+                bal = row.current_balance_micro,
+                init = row.initial_balance_micro,
+                rpnl = row.realized_pnl,
+                upnl = row.unrealized_pnl,
+                pos = row.open_position_count,
+                rep = row.reputation_score,
+                solv = solvency_label,
+            ));
+        }
+        if self.all_flat {
+            out.push_str("  MECHANISM BOTTLENECK (architect §G3 SG-G3.5 / Drucker \
+                          framing unmet — every agent shows flat PnL):\n");
+            out.push_str("    1. No BuyWithCoinRouter activity — no router buy means\n");
+            out.push_str("       no asymmetric share position means no signed unrealized\n");
+            out.push_str("       PnL. G5.1 opportunity scheduler + 7-action menu is the\n");
+            out.push_str("       canonical forward fix (round-robin scheduler under-\n");
+            out.push_str("       samples invest path; same shape as G2P §F.X bottleneck).\n");
+            out.push_str("    2. No accepted WorkTx → no stakes locked → no realized PnL\n");
+            out.push_str("       movement. Confirm `BatchContinuationManifest.task_count`\n");
+            out.push_str("       and preseed `TURINGOS_CHAINTAPE_PRESEED=1` so agents\n");
+            out.push_str("       have stake budget across the persistent batch.\n");
+            out.push_str("    3. No reputation accumulation in any sequencer arm —\n");
+            out.push_str("       `reputations_t` mutation is forward-bound to G3.2 \n");
+            out.push_str("       Class-4 sequencer admission (OBS_G2P_VERIFY_PEER_REWARD\n");
+            out.push_str("       Gap-A). Until G3.2 ships, reputation_score will stay 0.\n");
+        }
+        out
+    }
+}
+
+/// TRACE_MATRIX FC1-N7 (TB-G G3.4 2026-05-12): error wrapper for the
+/// path-based `compute_pnl_trajectory_from_paths` entry point.
+#[derive(Debug)]
+pub enum PnlTrajectoryError {
+    LedgerOpen(String),
+    CasOpen(String),
+    PinnedPubkeysIo(String),
+    PinnedPubkeysParse(String),
+    InitialQStateIo(String),
+    InitialQStateParse(String),
+    LedgerRead(String),
+    Replay(String),
+    HexDecode(String),
+}
+
+impl std::fmt::Display for PnlTrajectoryError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::LedgerOpen(e) => write!(f, "open ledger: {e}"),
+            Self::CasOpen(e) => write!(f, "open CAS: {e}"),
+            Self::PinnedPubkeysIo(e) => write!(f, "read pinned_pubkeys.json: {e}"),
+            Self::PinnedPubkeysParse(e) => write!(f, "parse pinned_pubkeys: {e}"),
+            Self::InitialQStateIo(e) => write!(f, "read initial_q_state.json: {e}"),
+            Self::InitialQStateParse(e) => write!(f, "parse initial_q_state: {e}"),
+            Self::LedgerRead(e) => write!(f, "read ledger entry: {e}"),
+            Self::Replay(e) => write!(f, "replay_full_transition: {e}"),
+            Self::HexDecode(e) => write!(f, "hex decode: {e}"),
+        }
+    }
+}
+
+impl std::error::Error for PnlTrajectoryError {}
+
+/// TRACE_MATRIX FC1-N7 (TB-G G3.4 2026-05-12; G-Phase directive §G3
+/// SG-G3.5 + charter §1 Module G3 atom G3.4 dual-bind via SG-G1.7
+/// one-continuous-ChainTape): path-based entry point for the
+/// `audit_dashboard --run-report` §G section + the
+/// `tests/constitution_g3_pnl_trajectory_evidence_binding.rs` dual-
+/// binding test.
+///
+/// Performs a fresh `replay_full_transition` over the L4 chain rooted
+/// at `runtime_repo_path` (loads `pinned_pubkeys.json` +
+/// `initial_q_state.json` per the FC2 Boot replay contract), then walks
+/// the canonical preseed agent registry to emit per-agent
+/// `PnlTrajectoryRow`s.
+pub fn compute_pnl_trajectory_from_paths(
+    runtime_repo_path: &std::path::Path,
+    cas_path: &std::path::Path,
+) -> Result<PnlTrajectorySection, PnlTrajectoryError> {
+    use crate::bottom_white::cas::store::CasStore;
+    use crate::bottom_white::ledger::system_keypair::{
+        PinnedSystemPubkeys, SystemEpoch, SystemPublicKey,
+    };
+    use crate::bottom_white::ledger::transition_ledger::{
+        replay_full_transition, Git2LedgerWriter, LedgerCasView, LedgerEntry, LedgerWriter,
+        ReplayError,
+    };
+    use crate::top_white::predicates::registry::PredicateRegistry;
+    use crate::bottom_white::tools::registry::ToolRegistry;
+
+    let pinned_path = runtime_repo_path.join("pinned_pubkeys.json");
+    let pinned_text = std::fs::read_to_string(&pinned_path)
+        .map_err(|e| PnlTrajectoryError::PinnedPubkeysIo(format!("{pinned_path:?}: {e}")))?;
+    let pinned_manifest: crate::runtime::PinnedPubkeyManifest = serde_json::from_str(&pinned_text)
+        .map_err(|e| PnlTrajectoryError::PinnedPubkeysParse(e.to_string()))?;
+    let mut pinned = PinnedSystemPubkeys::new();
+    for entry in &pinned_manifest.pubkeys {
+        let bytes = decode_hex_32(&entry.pubkey_hex)
+            .map_err(PnlTrajectoryError::HexDecode)?;
+        pinned.insert(SystemEpoch::new(entry.epoch), SystemPublicKey::from_bytes(bytes));
+    }
+
+    let initial_q_path = runtime_repo_path.join("initial_q_state.json");
+    let initial_q: QState = if initial_q_path.exists() {
+        let s = std::fs::read_to_string(&initial_q_path)
+            .map_err(|e| PnlTrajectoryError::InitialQStateIo(e.to_string()))?;
+        serde_json::from_str::<QState>(&s)
+            .map_err(|e| PnlTrajectoryError::InitialQStateParse(e.to_string()))?
+    } else {
+        QState::genesis()
+    };
+
+    let writer = Git2LedgerWriter::open(runtime_repo_path)
+        .map_err(|e| PnlTrajectoryError::LedgerOpen(format!("{e:?}")))?;
+    let cas = CasStore::open(cas_path)
+        .map_err(|e| PnlTrajectoryError::CasOpen(e.to_string()))?;
+
+    let chain_len = writer.len();
+    let mut entries: Vec<LedgerEntry> = Vec::with_capacity(chain_len as usize);
+    for t in 1..=chain_len {
+        let entry = writer
+            .read_at(t)
+            .map_err(|e| PnlTrajectoryError::LedgerRead(format!("{e:?}")))?;
+        entries.push(entry);
+    }
+
+    struct CasRef<'a>(&'a CasStore);
+    impl<'a> LedgerCasView for CasRef<'a> {
+        fn get_typed_payload(
+            &self,
+            cid: &crate::bottom_white::cas::schema::Cid,
+        ) -> Result<Vec<u8>, ReplayError> {
+            self.0.get(cid).map_err(|_| ReplayError::CasMissing { at: 0 })
+        }
+    }
+    let cas_view = CasRef(&cas);
+    let predicate_registry = PredicateRegistry::new();
+    let tool_registry = ToolRegistry::new();
+    let final_q = replay_full_transition(
+        &initial_q,
+        &entries,
+        &cas_view,
+        &pinned,
+        &predicate_registry,
+        &tool_registry,
+    )
+    .map_err(|e| PnlTrajectoryError::Replay(format!("{e:?}")))?;
+
+    Ok(PnlTrajectorySection::compute_from_q(&final_q))
+}
+
+fn decode_hex_32(hex: &str) -> Result<[u8; 32], String> {
+    let h = hex.trim();
+    if h.len() != 64 {
+        return Err(format!("expected 64 hex chars, got {}", h.len()));
+    }
+    let mut out = [0u8; 32];
+    for i in 0..32 {
+        let byte = u8::from_str_radix(&h[2 * i..2 * i + 2], 16)
+            .map_err(|e| format!("hex parse at {i}: {e}"))?;
+        out[i] = byte;
+    }
+    Ok(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

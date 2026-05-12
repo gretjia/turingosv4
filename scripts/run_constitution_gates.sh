@@ -662,6 +662,25 @@ GATES=(
   #   SG-G3.9.c no-f64 lint (CLAUDE.md §13 money path)
   #   SG-G3.9.d stakes / claims visible as open_positions (neutral PnL)
   constitution_g3_pnl
+
+  # ── TB-G G3.4 (charter §1 Module G3 atom G3.4; G-Phase directive §G3
+  # SG-G3.5 "PnL is visible in dashboard as materialized view") ──
+  # §G PnL trajectory dashboard section + dual-bind to G1 SG-G1.7
+  # one-continuous-ChainTape. `audit_dashboard --run-report` injects the
+  # `## §G PnL trajectory` block between §F.X (peer-verify coverage)
+  # and §H (price-is-signal banner). Walker delegates to canonical
+  # `replay_full_transition` FC2 Boot primitive to obtain the final
+  # QState, then iterates the 13-entry preseed agent registry. Silent-
+  # zero-forbidden contract: MECHANISM BOTTLENECK with ≥3 candidate
+  # causes when every row is flat. Ship gates:
+  #   SG-G3.8.a synthetic accepted-WorkTx fixture → ≥1 non-flat row
+  #   SG-G3.8.b preseed-funded no-action fixture → all_flat triggers
+  #             MECHANISM BOTTLENECK with ≥3 enumerated causes
+  #   SG-G3.8.c §G header rendered + 13 preseed rows present
+  #   SG-G3.8.d render uses integer μC only (no decimal-point tokens)
+  #   SG-G3.8.e solvency tiers (solvent / near_insolvent / bankrupt) all render
+  #   SG-G1.7-bind missing-evidence path returns typed Err, not panic
+  constitution_g3_pnl_trajectory_evidence_binding
 )
 
 # Per-package gates — tests that live under a workspace member crate
