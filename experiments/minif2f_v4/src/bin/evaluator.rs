@@ -2171,9 +2171,23 @@ async fn run_swarm(
             ))
             .unwrap_or_default();
 
+        // TB-G G2P.1 (charter §1 Module G2P; G-Phase directive §0.6
+        // amendment G-2 "verify_peer=0 比 invest=0 更危险"): per-viewer
+        // pending-peer-reviews block. Closes user 2026-05-12 病灶3
+        // "0 verify". Filters stakes_t to (a) drop self-WorkTxs and
+        // (b) drop targets already verified by this viewer.
+        let pending_peer_reviews: String = bus.sequencer.as_ref()
+            .and_then(|seq| seq.q_snapshot().ok())
+            .map(|q| turingosv4::sdk::pending_peer_reviews::render_pending_peer_reviews(
+                &q,
+                &turingosv4::state::AgentId(agent_id.clone()),
+                turingosv4::sdk::pending_peer_reviews::DEFAULT_PENDING_REVIEWS_K,
+            ))
+            .unwrap_or_default();
+
         let prompt = build_agent_prompt(
             &chain, &skill, &market_ticker_str, &errors, &hits_ref,
-            &econ_position, tools_desc, &team_board,
+            &econ_position, tools_desc, &team_board, &pending_peer_reviews,
         );
         // TB-18R R2: SHA-256 of the prompt body for AttemptTelemetry.prompt_context_hash
         // (preflight §3.1: reuse Cid::from_content to avoid adding sha2 direct

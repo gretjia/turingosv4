@@ -10,6 +10,13 @@ pub mod prompt_guard;
 /// to close session #35 smoke-evidence finding "n=1 economy
 /// structurally landed but invisible to agent at prompt layer".
 pub mod econ_position;
+/// TRACE_MATRIX FC1-N7 + §15 + G-Phase directive §0.6 amendment G-2 —
+/// TB-G G2P.1 (charter §1 Module G2P): per-viewer renderer for the
+/// `=== Pending Peer Reviews ===` prompt block. Surfaces the queue of
+/// accepted peer WorkTxs the viewer agent can `verify_peer` against,
+/// filtered to exclude self-WorkTxs and already-verified targets.
+/// Closes user 2026-05-12 病灶3 "0 verify" mechanism gap.
+pub mod pending_peer_reviews;
 pub mod tool;
 pub mod actor;
 pub mod sandbox;

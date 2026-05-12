@@ -537,6 +537,24 @@ GATES=(
   # Closes architect §3.4 + charter §0 kill_criteria_tested #1
   # ("per-problem genesis reset between problems → reject").
   constitution_g1_2_persistence_evidence_binding
+
+  # TB-G G2P.1 (charter §1 Module G2P; G-Phase directive §0.6 amendment
+  # G-2 verbatim "verify_peer=0 比 invest=0 更危险"; user 2026-05-12
+  # 病灶3 "0 verify"): per-viewer Pending Peer Reviews prompt block.
+  # `src/sdk/pending_peer_reviews.rs` renders the queue of accepted
+  # peer WorkTxs eligible for `verify_peer` (filters self-WorkTxs +
+  # already-verified targets). Wired into `build_agent_prompt` under
+  # the canonical `=== Pending Peer Reviews ===` heading; evaluator
+  # swarm path calls the renderer per-tx. Closes the prompt-block
+  # absence root cause #2 from `CROSS_PROBLEM_PERSISTENCE_REPORT.md`
+  # §4 Q6.6 mechanism-bottleneck analysis. Ship gates:
+  #   SG-G2P.1.a renderer_takes_per_viewer_id
+  #   SG-G2P.1.b renderer_reads_only_public_chain_indices
+  #   SG-G2P.1.c renderer_does_not_reference_private_surfaces
+  #   SG-G2P.2.a fixture_renders_peer_work_tx_pending_review_row
+  #   SG-G2P.2.b fixture_filters_self_work_tx_and_already_verified_targets
+  #   SG-G2P.2.c prompt_builder_and_evaluator_wire_the_block
+  constitution_g2p_pending_peer_reviews
 )
 
 # Per-package gates — tests that live under a workspace member crate
