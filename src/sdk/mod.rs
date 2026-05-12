@@ -17,6 +17,16 @@ pub mod econ_position;
 /// filtered to exclude self-WorkTxs and already-verified targets.
 /// Closes user 2026-05-12 病灶3 "0 verify" mechanism gap.
 pub mod pending_peer_reviews;
+/// TRACE_MATRIX FC1-N7 + §15 + Art. III.2 (TB-G G3.3 2026-05-12; charter
+/// §1 Module G3 atom G3.3 + G-Phase directive §G3 verbatim 7-field
+/// `AgentMarketState` shape + Drucker framing): per-viewer
+/// `=== Your Position ===` prompt block. Renders the agent's own 7-field
+/// `AgentMarketStateView` (balance / open_positions / realized_pnl /
+/// unrealized_pnl / solvency_status / reputation_score) with the
+/// architect-verbatim Drucker framing string at the head. Per-viewer:
+/// never aggregates across agents. Empty-string-suppression contract
+/// mirrors `econ_position` + `pending_peer_reviews`.
+pub mod your_position;
 pub mod tool;
 pub mod actor;
 pub mod sandbox;

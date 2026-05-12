@@ -55,6 +55,7 @@ pub fn build_agent_prompt(
     tools_description: &str,
     team_board: &str,
     pending_peer_reviews: &str,
+    your_position: &str,
 ) -> String {
     let variant = current_prompt_variant();
     let mut prompt = String::new();
@@ -142,6 +143,21 @@ pub fn build_agent_prompt(
         prompt.push_str("=== Pending Peer Reviews ===\n");
         prompt.push_str(pending_peer_reviews);
         if !pending_peer_reviews.ends_with('\n') { prompt.push('\n'); }
+        prompt.push('\n');
+    }
+
+    // TB-G G3.3 (charter §1 Module G3 atom G3.3; G-Phase directive §G3
+    // verbatim 7-field `AgentMarketState` shape + Drucker framing): the
+    // viewer's own balance + open positions + realized/unrealized PnL +
+    // solvency + reputation, rendered by caller via
+    // `crate::sdk::your_position::render_your_position(&q, &agent_id)`.
+    // Per-viewer: never aggregates across agents (Art. III.4 shielding).
+    // Empty string suppresses the block entirely (mirrors econ_position
+    // + pending_peer_reviews suppression contracts).
+    if !your_position.is_empty() {
+        prompt.push_str("=== Your Position ===\n");
+        prompt.push_str(your_position);
+        if !your_position.ends_with('\n') { prompt.push('\n'); }
         prompt.push('\n');
     }
 
@@ -329,14 +345,14 @@ mod tests {
 
     #[test]
     fn test_prompt_contains_no_example_values() {
-        let prompt = build_agent_prompt("", "", "", &[], &[], "Balance: 10000 \u{03BC}Coin", "append, invest, search", "", "");
+        let prompt = build_agent_prompt("", "", "", &[], &[], "Balance: 10000 \u{03BC}Coin", "append, invest, search", "", "", "");
         assert!(!prompt.contains("50.0"), "No example amounts in prompt");
         assert!(!prompt.contains("100.0"), "No example amounts in prompt");
     }
 
     #[test]
     fn test_prompt_includes_balance() {
-        let prompt = build_agent_prompt("", "", "", &[], &[], "Balance: 5000 \u{03BC}Coin", "", "", "");
+        let prompt = build_agent_prompt("", "", "", &[], &[], "Balance: 5000 \u{03BC}Coin", "", "", "", "");
         assert!(prompt.contains("5000"));
     }
 
@@ -350,7 +366,7 @@ mod tests {
                      Active stakes: 0 \u{03BC}Coin across 0 pending WorkTx\n\
                      Pending claims: 0 \u{03BC}Coin (earned, not yet settled)\n\
                      Reputation: 0\n";
-        let prompt = build_agent_prompt("", "", "", &[], &[], block, "", "", "");
+        let prompt = build_agent_prompt("", "", "", &[], &[], block, "", "", "", "");
         assert!(
             prompt.contains("=== Your Economic Position ===\n"),
             "block must render under canonical heading"
@@ -367,7 +383,7 @@ mod tests {
 
     #[test]
     fn test_empty_econ_position_suppresses_block() {
-        let prompt = build_agent_prompt("", "", "", &[], &[], "", "", "", "");
+        let prompt = build_agent_prompt("", "", "", &[], &[], "", "", "", "", "");
         assert!(
             !prompt.contains("=== Your Economic Position ==="),
             "empty econ_position must suppress the block entirely"
@@ -381,7 +397,7 @@ mod tests {
     #[test]
     fn test_prompt_truncates_errors_to_3() {
         let errors: Vec<String> = (0..10).map(|i| format!("error {}", i)).collect();
-        let prompt = build_agent_prompt("", "", "", &errors, &[], "", "", "", "");
+        let prompt = build_agent_prompt("", "", "", &errors, &[], "", "", "", "", "");
         assert!(prompt.contains("error 0"));
         assert!(prompt.contains("error 2"));
         assert!(!prompt.contains("error 3"));
@@ -390,7 +406,7 @@ mod tests {
     #[test]
     fn test_prompt_surfaces_search_hits() {
         let hits: Vec<String> = vec!["thm_a.lean".into(), "thm_b.lean".into()];
-        let prompt = build_agent_prompt("", "", "", &[], &hits, "", "", "", "");
+        let prompt = build_agent_prompt("", "", "", &[], &hits, "", "", "", "", "");
         assert!(prompt.contains("Recent Search Hits"));
         assert!(prompt.contains("thm_a.lean"));
     }
@@ -398,7 +414,7 @@ mod tests {
     #[test]
     fn test_prompt_surfaces_team_board() {
         let board = "Agent_0 balance=10040 (+40)\nAgent_3 balance=10030 (+30)\n";
-        let prompt = build_agent_prompt("", "", "", &[], &[], "", "", board, "");
+        let prompt = build_agent_prompt("", "", "", &[], &[], "", "", board, "", "");
         assert!(prompt.contains("Team Board"));
         assert!(prompt.contains("Agent_0 balance=10040"));
     }
@@ -426,7 +442,7 @@ mod tests {
         #[test]
         fn v0_default_lists_legacy_tools() {
             with_variant(None, || {
-                let p = build_agent_prompt("", "", "", &[], &[], "", "", "", "");
+                let p = build_agent_prompt("", "", "", &[], &[], "", "", "", "", "");
                 assert!(p.contains("\"invest\""), "V0 default lists the invest schema");
                 assert!(!p.contains("Tactic Search Guidance"));
                 assert!(!p.contains("Operating Laws"));
@@ -440,7 +456,7 @@ mod tests {
             // strip RESTORES `invest` so multi-llm-agents can trade
             // even on V1 prompt. search + post remain V1-stripped.
             with_variant(Some("v1"), || {
-                let p = build_agent_prompt("", "", "", &[], &[], "", "", "", "");
+                let p = build_agent_prompt("", "", "", &[], &[], "", "", "", "", "");
                 assert!(p.contains("\"invest\""), "V1 keeps invest per TB-N3 A1 ruling");
                 assert!(!p.contains("\"search\""), "V1 still drops search");
                 assert!(!p.contains("\"post\""), "V1 still drops post");
@@ -451,7 +467,7 @@ mod tests {
         #[test]
         fn v2_injects_tactic_search_guidance() {
             with_variant(Some("v2"), || {
-                let p = build_agent_prompt("", "", "", &[], &[], "", "", "", "");
+                let p = build_agent_prompt("", "", "", &[], &[], "", "", "", "", "");
                 assert!(p.contains("Tactic Search Guidance"));
                 assert!(p.contains("STRUCTURALLY DIFFERENT"));
                 assert!(p.contains("nlinarith"));
@@ -462,7 +478,7 @@ mod tests {
         #[test]
         fn v3_injects_v3_style_laws_and_criteria() {
             with_variant(Some("v3"), || {
-                let p = build_agent_prompt("", "", "", &[], &[], "", "", "", "");
+                let p = build_agent_prompt("", "", "", &[], &[], "", "", "", "", "");
                 assert!(p.contains("Operating Laws"));
                 assert!(p.contains("LAW 1"));
                 assert!(p.contains("LAW 2"));
@@ -476,7 +492,7 @@ mod tests {
             with_variant(Some("v4"), || {
                 let errs: Vec<String> =
                     vec!["nlinarith (rejected)".into(), "linarith (rejected)".into()];
-                let p = build_agent_prompt("", "", "", &errs, &[], "", "", "", "");
+                let p = build_agent_prompt("", "", "", &errs, &[], "", "", "", "", "");
                 assert!(p.contains("Tactic Search Guidance"));
                 assert!(p.contains("Last Rejected Tactics"));
                 assert!(p.contains("nlinarith (rejected)"));
@@ -487,7 +503,7 @@ mod tests {
         #[test]
         fn v4_omits_rejects_block_when_no_errors() {
             with_variant(Some("v4"), || {
-                let p = build_agent_prompt("", "", "", &[], &[], "", "", "", "");
+                let p = build_agent_prompt("", "", "", &[], &[], "", "", "", "", "");
                 assert!(p.contains("Tactic Search Guidance"));
                 assert!(!p.contains("Last Rejected Tactics"));
             });
@@ -496,7 +512,7 @@ mod tests {
         #[test]
         fn unknown_variant_falls_back_to_default() {
             with_variant(Some("vNINE"), || {
-                let p = build_agent_prompt("", "", "", &[], &[], "", "", "", "");
+                let p = build_agent_prompt("", "", "", &[], &[], "", "", "", "", "");
                 assert!(p.contains("\"invest\""), "unknown variant defaults to V0");
                 assert!(!p.contains("Tactic Search Guidance"));
             });
@@ -517,7 +533,7 @@ mod tests {
         #[test]
         fn tb_n3_a1_disable_market_tools_strips_invest_from_v0() {
             with_market_tools_env(Some("1"), || {
-                let p = build_agent_prompt("", "", "", &[], &[], "", "", "", "");
+                let p = build_agent_prompt("", "", "", &[], &[], "", "", "", "", "");
                 assert!(!p.contains("\"invest\""), "TURINGOS_DISABLE_MARKET_TOOLS=1 strips invest from V0");
                 assert!(p.contains("\"step\""), "step still present");
                 assert!(p.contains("\"search\""), "V0 search still present (only invest is opt-out)");
@@ -527,7 +543,7 @@ mod tests {
         #[test]
         fn tb_n3_a1_default_keeps_invest_when_opt_out_unset() {
             with_market_tools_env(None, || {
-                let p = build_agent_prompt("", "", "", &[], &[], "", "", "", "");
+                let p = build_agent_prompt("", "", "", &[], &[], "", "", "", "", "");
                 assert!(p.contains("\"invest\""), "default V0 keeps invest");
             });
         }
@@ -535,7 +551,7 @@ mod tests {
         #[test]
         fn tb_n3_a1_invest_schema_documents_work_tx_id_and_signal_not_truth() {
             with_market_tools_env(None, || {
-                let p = build_agent_prompt("", "", "", &[], &[], "", "", "", "");
+                let p = build_agent_prompt("", "", "", &[], &[], "", "", "", "", "");
                 assert!(p.contains("work_tx_id"), "invest doc references canonical work_tx_id");
                 assert!(p.contains("price is signal, not truth"), "invest doc says price is signal not truth");
                 assert!(p.contains("OPTIONAL"), "OPTIONAL marker present (no hard induction per architect §8.3)");

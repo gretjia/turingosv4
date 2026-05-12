@@ -681,6 +681,23 @@ GATES=(
   #   SG-G3.8.e solvency tiers (solvent / near_insolvent / bankrupt) all render
   #   SG-G1.7-bind missing-evidence path returns typed Err, not panic
   constitution_g3_pnl_trajectory_evidence_binding
+
+  # ── TB-G G3.3 (charter §1 Module G3 atom G3.3; G-Phase directive §G3
+  # verbatim 7-field `AgentMarketState` shape + Drucker framing) ──
+  # `=== Your Position ===` per-viewer prompt block. NEW
+  # `src/sdk/your_position.rs` renderer (mirrors G2P.1
+  # `pending_peer_reviews.rs` + N1 A2 `econ_position.rs` patterns) plus
+  # `build_agent_prompt` 10th `your_position: &str` param + evaluator.rs
+  # wire-up. Ship gates:
+  #   SG-G3.6  per-viewer source-grep witness (compute_agent_pnl(q, viewer, ...))
+  #   SG-G3.7  non-default render witnessed (per-viewer-specific row)
+  #   SG-G3.13 Drucker verbatim framing string present at head
+  #   SG-G3.13.a no other-agent PnL or position leak
+  #   SG-G3.13.b build_agent_prompt signature carries 10th param
+  #   SG-G3.13.c evaluator wires render_your_position into call site
+  #   SG-G3.13.d full-prompt integration: heading + framing + balance line
+  #   SG-G3.13.e empty your_position suppresses block (V3L-40 stability)
+  constitution_g3_your_position_prompt
 )
 
 # Per-package gates — tests that live under a workspace member crate

@@ -2202,9 +2202,27 @@ async fn run_swarm(
             ))
             .unwrap_or_default();
 
+        // TB-G G3.3 (charter §1 Module G3 atom G3.3; G-Phase directive
+        // §G3 verbatim 7-field `AgentMarketState` shape + Drucker
+        // framing): per-viewer `=== Your Position ===` prompt block.
+        // Renders the viewer's own balance + open positions + realized/
+        // unrealized PnL + solvency + reputation with the architect-
+        // verbatim Drucker framing line at the head. Per-viewer
+        // isolation enforced by `render_your_position(q, viewer)`
+        // (filters `EconomicState` slices by `viewer` identity; never
+        // aggregates across agents per Art. III.4 shielding).
+        let your_position: String = bus.sequencer.as_ref()
+            .and_then(|seq| seq.q_snapshot().ok())
+            .map(|q| turingosv4::sdk::your_position::render_your_position(
+                &q,
+                &turingosv4::state::AgentId(agent_id.clone()),
+            ))
+            .unwrap_or_default();
+
         let prompt = build_agent_prompt(
             &chain, &skill, &market_ticker_str, &errors, &hits_ref,
             &econ_position, tools_desc, &team_board, &pending_peer_reviews,
+            &your_position,
         );
         // TB-18R R2: SHA-256 of the prompt body for AttemptTelemetry.prompt_context_hash
         // (preflight §3.1: reuse Cid::from_content to avoid adding sha2 direct
