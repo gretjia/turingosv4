@@ -1252,6 +1252,22 @@ pub enum InvestRouteError {
     /// Sequencer agent-keypair signing failed (typically only on
     /// fresh-tempdir test fixtures with no `seed_pubkey` registered).
     KeypairError(AgentKeypairError),
+    /// TB-G G2.1 (architect §8.2 directive verbatim variant): caller
+    /// signals that the agent perceived no profitable edge in any
+    /// visible market node — emitted no invest action despite seeing
+    /// the `=== Market ===` prompt block. This variant is NEVER raised
+    /// by `tb_n3_invest_to_router_tx` itself (which classifies parser /
+    /// balance / pool errors); the evaluator's end-of-turn classifier
+    /// constructs this error to feed `to_no_trade_reason()` + emit a
+    /// `MarketDecisionTrace::no_trade(NoPerceivedEdge, …)` trace.
+    NoPerceivedEdge,
+    /// TB-G G2.1 (architect §8.2 directive verbatim variant): caller
+    /// signals that the prompt budget cap elided the `=== Market ===`
+    /// block (canonical signal: `TURINGOS_TB_N3_MARKET_CONTEXT_K = 0`
+    /// forces top-K=0). Like `NoPerceivedEdge`, never raised by
+    /// `tb_n3_invest_to_router_tx`; constructed by the evaluator's
+    /// end-of-turn classifier.
+    PromptBudgetExceeded,
 }
 
 impl InvestRouteError {
@@ -1267,6 +1283,8 @@ impl InvestRouteError {
                 NoTradeReason::NoPool
             }
             InvestRouteError::KeypairError(_) => NoTradeReason::Unknown,
+            InvestRouteError::NoPerceivedEdge => NoTradeReason::NoPerceivedEdge,
+            InvestRouteError::PromptBudgetExceeded => NoTradeReason::PromptBudgetExceeded,
         }
     }
 
@@ -1283,6 +1301,12 @@ impl InvestRouteError {
             InvestRouteError::UnknownEvent => "no auto-pool for this work_tx_id".into(),
             InvestRouteError::PoolNotActive => "pool present but not Active".into(),
             InvestRouteError::KeypairError(_) => "agent-keypair signing failed".into(),
+            InvestRouteError::NoPerceivedEdge => {
+                "agent saw market block but emitted no invest action".into()
+            }
+            InvestRouteError::PromptBudgetExceeded => {
+                "market block elided by prompt budget cap (top-K=0)".into()
+            }
         }
     }
 }

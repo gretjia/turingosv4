@@ -2103,6 +2103,14 @@ async fn run_swarm(
         // to avoid prompt context pollution). K = `TURINGOS_TB_N3_MARKET_CONTEXT_K`
         // env (default 10 per architect Q7). Integer-rational price (NEVER
         // decimal). Suffix banner `"price is signal, not truth"`.
+        // TB-G G2.1 (charter §1 Module G2.1; G-Phase directive §5 13-variant
+        // taxonomy): track the prompt-side observability needed by the
+        // end-of-turn classifier — was the market block visible to the
+        // agent, or was it elided by the per-prompt budget cap? These two
+        // booleans drive the `NoPerceivedEdge` vs `PromptBudgetExceeded`
+        // distinction on non-invest turns.
+        let mut tb_n3_market_block_present: bool = false;
+        let mut tb_n3_market_block_budget_elided: bool = false;
         let market_ticker_str: String = {
             let mut combined = market_ticker_str;
             let tb_n3_enabled = std::env::var("TURINGOS_TB_N3_AUTO_MARKET")
@@ -2134,6 +2142,12 @@ async fn run_swarm(
                             .ok()
                             .and_then(|s| s.parse::<usize>().ok())
                             .unwrap_or(turingosv4::sdk::market_context::DEFAULT_MARKET_CONTEXT_K);
+                        // TB-G G2.1: K==0 is the canonical prompt-budget
+                        // elision signal — same-task pools exist but the
+                        // operator capped the per-prompt top-K to 0,
+                        // forcing the block out of the prompt context.
+                        let budget_cap_zero = k == 0;
+                        let pools_present = !same_task_work_tx_ids.is_empty();
                         let tb_n3_block = turingosv4::sdk::market_context::render_market_context(
                             &q,
                             &turingosv4::state::q_state::TaskId(run_id.clone()),
@@ -2146,6 +2160,9 @@ async fn run_swarm(
                                 combined.push('\n');
                             }
                             combined.push_str(&tb_n3_block);
+                            tb_n3_market_block_present = true;
+                        } else if pools_present && budget_cap_zero {
+                            tb_n3_market_block_budget_elided = true;
                         }
                     }
                 }
@@ -2271,6 +2288,13 @@ async fn run_swarm(
                 // PPUT-CCL B2: every parsed proposal default-records as failed.
                 // OMEGA-accept return paths flip the last record before returning.
                 acc.record_proposal(false);
+                // TB-G G2.1 (charter §1 Module G2.1; trace-or-tx invariant):
+                // tracks whether this agent turn emitted an `invest` action
+                // (regardless of submitted / no_trade outcome). Set to true
+                // as the first thing inside the `"invest" =>` arm so the
+                // end-of-turn classifier knows NOT to fire `NoPerceivedEdge`
+                // / `PromptBudgetExceeded` for this turn.
+                let mut invest_action_emitted_this_turn: bool = false;
                 match parse_agent_output(&response.content) {
                     Ok(action) => match action.tool.as_str() {
                         "append" => {
@@ -3143,6 +3167,11 @@ async fn run_swarm(
                             // Submitted invests anchor `MarketDecisionTrace::submitted`
                             // for run-report §F aggregation. min_out_shares = 0
                             // per architect Q5 MVP.
+                            // TB-G G2.1: mark this turn as having emitted
+                            // invest (regardless of submitted / no_trade
+                            // outcome) so the end-of-turn classifier does
+                            // NOT fire NoPerceivedEdge / PromptBudgetExceeded.
+                            invest_action_emitted_this_turn = true;
                             *tool_dist.entry("invest_attempted".into()).or_insert(0) += 1;
                             let node_str = action.node.clone().unwrap_or_default();
                             let amount_micro: i64 = action.amount.unwrap_or(0.0) as i64;
@@ -4196,6 +4225,75 @@ async fn run_swarm(
                                 error!("[chaintape/tb18r-r3-parse_fail] FAIL-CLOSED: {msg}");
                                 std::process::exit(3);
                             }
+                        }
+                    }
+                }
+                // TB-G G2.1 (charter §1 Module G2.1; G-Phase directive §5
+                // 13-variant taxonomy; SG-G2.6 trace-or-tx invariant):
+                // end-of-turn classifier — every market-bearing agent turn
+                // must produce EITHER a `BuyWithCoinRouterTx` (or its L4.E
+                // rejection) OR a `MarketDecisionTrace::no_trade` with a
+                // classified `NoTradeReason`. The `"invest" =>` arm above
+                // covers the first half (Submitted / NoTrade trace inline);
+                // this classifier covers non-invest turns that nonetheless
+                // had market context in their prompt.
+                //
+                // `NoPerceivedEdge` — agent saw the `=== Market ===` block
+                // and chose not to act (any non-invest tool, or parse_fail
+                // on a turn where the block was rendered).
+                // `PromptBudgetExceeded` — TB-N3 was enabled and same-task
+                // pools existed, but the per-prompt top-K cap was 0 (the
+                // canonical budget elision signal).
+                //
+                // Silent absence is forbidden by SG-G2.6: a non-invest turn
+                // with neither flag set is NOT classified (and not traced)
+                // because the agent had no market visibility on that turn
+                // (TB-N3 disabled / no same-task pools); that case is
+                // properly out-of-scope for the "market-bearing turn"
+                // invariant.
+                if !invest_action_emitted_this_turn
+                    && (tb_n3_market_block_present || tb_n3_market_block_budget_elided)
+                {
+                    if let Some(bundle) = chaintape_bundle.as_ref() {
+                        use turingosv4::runtime::market_decision_trace::{
+                            MarketDecisionTrace, NoTradeReason,
+                            write_market_decision_trace_to_cas,
+                        };
+                        let (reason, summary) = if tb_n3_market_block_present {
+                            (
+                                NoTradeReason::NoPerceivedEdge,
+                                "agent saw market block but emitted no invest action".to_string(),
+                            )
+                        } else {
+                            (
+                                NoTradeReason::PromptBudgetExceeded,
+                                "market block elided by prompt budget cap (top-K=0)".to_string(),
+                            )
+                        };
+                        let trace_agent_id = turingosv4::state::q_state::AgentId(
+                            agent_id.to_string(),
+                        );
+                        let trace = MarketDecisionTrace::no_trade(
+                            trace_agent_id,
+                            None,
+                            None,
+                            None,
+                            reason,
+                            summary,
+                        );
+                        let suffix = format!("{}-{}-end-of-turn", agent_id, tx);
+                        *tool_dist
+                            .entry(format!("invest_no_trade_{}", reason.label()))
+                            .or_insert(0) += 1;
+                        if let Ok(mut cas_store) =
+                            turingosv4::bottom_white::cas::store::CasStore::open(&bundle.cas_path)
+                        {
+                            let _ = write_market_decision_trace_to_cas(
+                                &mut cas_store,
+                                &trace,
+                                &suffix,
+                                tx as u64,
+                            );
                         }
                     }
                 }

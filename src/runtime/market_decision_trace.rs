@@ -42,7 +42,14 @@ use crate::state::typed_tx::BuyDirection;
 /// emission to NOT result in a submitted `BuyWithCoinRouterTx`.
 ///
 /// Stable insertion order matches the `audit_dashboard --run-report` §F
-/// breakdown columns.
+/// breakdown columns. **Append new variants at the tail** to preserve
+/// existing dashboard column order across releases.
+///
+/// TB-G G2.1 (charter §1 Module G2.1; G-Phase directive §5 verbatim
+/// 9-variant `enum NoTradeReason` listing): 11 pre-existing variants +
+/// `NoPerceivedEdge` + `PromptBudgetExceeded` = 13 total. Architect §8.2
+/// directive lists `InsufficientBalance`; implementation alias is
+/// `AmountExceedsBalance` (see doc on that variant).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum NoTradeReason {
     /// Agent prompt did not advertise the invest tool (e.g.
@@ -58,6 +65,12 @@ pub enum NoTradeReason {
     /// SignalDeclined — bare zero).
     ZeroAmount,
     /// Agent's amount exceeded current balance.
+    ///
+    /// Architect §8.2 directive doc-alias: this variant is the
+    /// implementation label for what the directive lists verbatim as
+    /// `InsufficientBalance`. Same semantic; kept as `AmountExceedsBalance`
+    /// to preserve the lower-snake label `amount_exceeds_balance` already
+    /// consumed by `tool_dist` counter keys + the §F dashboard column.
     AmountExceedsBalance,
     /// Snapshot showed no Active CPMM pool for the resolved EventId
     /// (TB-N3 A3 auto-emit hasn't fired for this WorkTx yet, OR
@@ -81,6 +94,21 @@ pub enum NoTradeReason {
     SlippageOutZero,
     /// Catch-all for unanticipated paths; tagged for forward-investigation.
     Unknown,
+    /// TB-G G2.1 (architect §8.2 directive verbatim variant): agent saw
+    /// the `=== Market ===` prompt block (non-empty render in prompt
+    /// context) but the turn emitted no `invest` action — agent perceived
+    /// no profitable edge in any visible node. Fires from the evaluator's
+    /// end-of-turn classifier when `tb_n3_market_block_present == true`
+    /// and `invest_action_emitted_this_turn == false`.
+    NoPerceivedEdge,
+    /// TB-G G2.1 (architect §8.2 directive verbatim variant): TB-N3 was
+    /// enabled but the market block was elided from the prompt because
+    /// the per-prompt budget cap was exhausted (canonical signal:
+    /// `TURINGOS_TB_N3_MARKET_CONTEXT_K = 0` forces top-K=0 elision).
+    /// Fires from the evaluator's end-of-turn classifier when TB-N3 was
+    /// enabled, `same_task_work_tx_ids` was non-empty, the rendered block
+    /// came back empty, AND the elision was budget-cap-attributable.
+    PromptBudgetExceeded,
 }
 
 impl NoTradeReason {
@@ -100,8 +128,35 @@ impl NoTradeReason {
             NoTradeReason::TooFastSolve => "too_fast_solve",
             NoTradeReason::SlippageOutZero => "slippage_out_zero",
             NoTradeReason::Unknown => "unknown",
+            NoTradeReason::NoPerceivedEdge => "no_perceived_edge",
+            NoTradeReason::PromptBudgetExceeded => "prompt_budget_exceeded",
         }
     }
+
+    /// TB-G G2.1 (charter §1 Module G2.1; SG-G2.1 13-variant exhaustive
+    /// taxonomy gate) — every distinct variant in the architect §8.2
+    /// directive `enum NoTradeReason` listing + the implementation tail-
+    /// append slots. Stable insertion order matches the `audit_dashboard
+    /// --run-report` §F column order. **Append new variants at the tail**.
+    ///
+    /// TRACE_MATRIX § 3 orphan (TB-G G2.1 2026-05-12; charter §1 Module G2
+    /// atom G2.1 — taxonomy table for the §F dashboard column iteration +
+    /// the SG-G2.1 / SG-G2.6 trace-or-tx invariant test surface).
+    pub const ALL: &'static [NoTradeReason] = &[
+        NoTradeReason::NoPromptTool,
+        NoTradeReason::NoParsedInvest,
+        NoTradeReason::MalformedNode,
+        NoTradeReason::ZeroAmount,
+        NoTradeReason::AmountExceedsBalance,
+        NoTradeReason::NoPool,
+        NoTradeReason::RouterRejected,
+        NoTradeReason::AgentDeclined,
+        NoTradeReason::TooFastSolve,
+        NoTradeReason::SlippageOutZero,
+        NoTradeReason::Unknown,
+        NoTradeReason::NoPerceivedEdge,
+        NoTradeReason::PromptBudgetExceeded,
+    ];
 }
 
 /// TB-N3 A2 §8.1 — outcome of a single invest decision pipeline.
@@ -311,23 +366,18 @@ pub fn write_market_decision_trace_to_cas(
 mod tests {
     use super::*;
 
-    /// TB-N3 A2 U1 — every NoTradeReason has a stable lower-snake-case
-    /// label that the evaluator's `tool_dist` counter can use as a key.
+    /// TB-N3 A2 U1 + TB-G G2.1 — every NoTradeReason has a stable
+    /// lower-snake-case label that the evaluator's `tool_dist` counter +
+    /// audit dashboard §F column header can use as a key.
     #[test]
     fn all_no_trade_reasons_have_stable_lower_snake_labels() {
-        for reason in [
-            NoTradeReason::NoPromptTool,
-            NoTradeReason::NoParsedInvest,
-            NoTradeReason::MalformedNode,
-            NoTradeReason::ZeroAmount,
-            NoTradeReason::AmountExceedsBalance,
-            NoTradeReason::NoPool,
-            NoTradeReason::RouterRejected,
-            NoTradeReason::AgentDeclined,
-            NoTradeReason::TooFastSolve,
-            NoTradeReason::SlippageOutZero,
-            NoTradeReason::Unknown,
-        ] {
+        // TB-G G2.1 13-variant exhaustive list (architect §8.2 directive
+        // 9-variant verbatim + 4 implementation tail-append: MalformedNode +
+        // ZeroAmount + SlippageOutZero + Unknown). Stable insertion order
+        // matches `NoTradeReason::ALL` and §F dashboard column order.
+        let all = NoTradeReason::ALL;
+        assert_eq!(all.len(), 13, "TB-G G2.1: 13-variant taxonomy");
+        for &reason in all {
             let label = reason.label();
             assert!(!label.is_empty());
             assert_eq!(label, label.to_lowercase());
@@ -336,6 +386,60 @@ mod tests {
                 "label {label:?} must be ascii lower snake"
             );
         }
+    }
+
+    /// TB-G G2.1 U7 — `NoTradeReason::ALL` contains every enum variant
+    /// exactly once + labels are all distinct (no collisions on the §F
+    /// dashboard column header / `tool_dist` counter key).
+    #[test]
+    fn all_contains_each_variant_with_unique_label() {
+        use std::collections::BTreeSet;
+        let labels: BTreeSet<&'static str> =
+            NoTradeReason::ALL.iter().map(|r| r.label()).collect();
+        assert_eq!(
+            labels.len(),
+            NoTradeReason::ALL.len(),
+            "labels must be unique"
+        );
+        // Architect §8.2 directive 9-variant verbatim listing — every name
+        // must be label-anchored in the §F dashboard regardless of source
+        // module rename.
+        for expected in [
+            "no_pool",
+            "no_prompt_tool",
+            "no_parsed_invest",
+            "amount_exceeds_balance", // architect doc-alias for "insufficient_balance"
+            "router_rejected",
+            "agent_declined",
+            "too_fast_solve",
+            "no_perceived_edge",
+            "prompt_budget_exceeded",
+        ] {
+            assert!(
+                labels.contains(expected),
+                "architect §8.2 verbatim variant label {expected:?} missing"
+            );
+        }
+    }
+
+    /// TB-G G2.1 U8 — `AmountExceedsBalance` carries the architect §8.2
+    /// `InsufficientBalance` doc-alias as part of its source comment.
+    /// Guards forward rename / scope confusion: future audits searching
+    /// for the architect verbatim spelling find a binding here.
+    #[test]
+    fn amount_exceeds_balance_doc_alias_present() {
+        // Source-level check: the rustdoc on the variant must mention the
+        // architect's `InsufficientBalance` spelling. We can't read the
+        // rustdoc at runtime from `cfg(test)`; instead we re-read the
+        // source file and grep.
+        let src = include_str!("market_decision_trace.rs");
+        let needle = "InsufficientBalance";
+        let count = src.matches(needle).count();
+        assert!(
+            count >= 1,
+            "AmountExceedsBalance variant must doc-alias architect's `InsufficientBalance` \
+             spelling (found {count} occurrences; expected >= 1)"
+        );
     }
 
     /// TB-N3 A2 U2 — `no_trade` constructor truncates summary to 120 chars

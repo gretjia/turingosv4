@@ -604,6 +604,20 @@ GATES=(
   #       that adds the mutation surfaces for review per OBS
   #       forward-closure protocol).
   constitution_g2p_verify_reward_bond_return
+
+  # ── TB-G G2.1 (charter §1 Module G2.1; G-Phase directive §G2 verbatim
+  # 9-variant enum) ──
+  # 11 pre-existing NoTradeReason variants + NoPerceivedEdge +
+  # PromptBudgetExceeded = 13-variant exhaustive taxonomy. Ship gates:
+  #   SG-G2.1 source-grep covers each of 13 variants
+  #   SG-G2.2 NoTradeReason::ALL is len() == 13 with unique variants
+  #   SG-G2.3 label() round-trip is unique + lower-snake
+  #   SG-G2.4 architect §8.2 directive verbatim labels all present
+  #          (incl. `InsufficientBalance` ↔ `AmountExceedsBalance` doc-alias)
+  #   SG-G2.5 InvestRouteError → NoTradeReason mapping total
+  #   SG-G2.6 trace-or-tx invariant: every variant builds a valid CAS object
+  #   SG-G2.6.a evaluator end-of-turn classifier wires both new variants
+  constitution_g2_no_trade_reason_taxonomy
 )
 
 # Per-package gates — tests that live under a workspace member crate
