@@ -120,11 +120,22 @@ pub struct TaskBoundaryTrace {
 /// TRACE_MATRIX § 3 orphan (TB-G G1.2-5 2026-05-11; Option B+ §3.4):
 /// full report. CAS-anchorable as a Generic object with schema_id
 /// `persistence_evidence_g1_2_v1` (G1.2-6/7 will wire that anchor).
+///
+/// G1.2-7 R2 Codex Notes closure (2026-05-12): the auditor-convenience
+/// fields `is_passing` and `n_witnessed` are now serialized directly
+/// in the report (previously derived via `is_passing()` /
+/// `n_witnessed()` methods; visible only via `tb_g_persistence_report`
+/// stdout). `#[serde(default)]` preserves back-compat with R2 evidence
+/// dirs that pre-date this field addition.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct PersistenceBindingReport {
     pub schema_version: String,
     pub batch_id: String,
     pub n_tasks: usize,
+    #[serde(default)]
+    pub is_passing: bool,
+    #[serde(default)]
+    pub n_witnessed: usize,
     pub balances: FieldVerdict,
     pub positions: FieldVerdict,
     pub reputation: FieldVerdict,
@@ -256,10 +267,16 @@ pub fn bind_persistence(
     let autopsy = classify_autopsy(&initial_trace, &per_task);
     let model_identity = classify_model_identity(manifest, &per_task);
 
+    let verdicts = [&balances, &positions, &reputation, &pnl, &autopsy, &model_identity];
+    let is_passing = !verdicts.iter().any(|v| v.is_reset());
+    let n_witnessed = verdicts.iter().filter(|v| v.is_witnessed()).count();
+
     PersistenceBindingReport {
         schema_version: "persistence_evidence_g1_2_v1".to_string(),
         batch_id: manifest.batch_id.clone(),
         n_tasks: manifest.tasks.len(),
+        is_passing,
+        n_witnessed,
         balances,
         positions,
         reputation,
