@@ -632,6 +632,20 @@ GATES=(
   #   SG-G2.4.d integer-rational percent (no f64 in user-facing ratio)
   #   SG-G2.4.e audit_dashboard binary uses library helper (no inline dup)
   constitution_g2_dashboard_no_trade_rows
+
+  # ── TB-G G2.3 (charter §1 Module G2 atom G2.3; G-Phase directive §G2
+  # SG-G2.4 verbatim "Failed invest attempts enter L4.E") ──
+  # End-to-end binding for the router-rejected BuyWithCoinRouterTx →
+  # L4.E lane AND the caller-side MarketDecisionTrace::no_trade trace in
+  # CAS. Ship gates:
+  #   SG-G2.5.a balance shortfall → L4.E with coarse PolicyViolation +
+  #             public_summary == "policy_violation"
+  #   SG-G2.5.b pool not Active → L4.E with coarse PolicyViolation
+  #   SG-G2.5.c adapter pre-classifier returns AmountExceedsBalance →
+  #             MarketDecisionTraceSummary round-trip count = 1
+  #   SG-G2.5.d full architect §8.6 "Failed invest 也算有意义 tape activity"
+  #             chain: L4.E rejection AND CAS MarketDecisionTrace trace
+  constitution_g2_failed_invest_l4e
 )
 
 # Per-package gates — tests that live under a workspace member crate
