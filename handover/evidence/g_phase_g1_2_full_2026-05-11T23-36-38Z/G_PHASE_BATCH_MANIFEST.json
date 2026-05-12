@@ -1,0 +1,20 @@
+{
+  "tb_id": "TB-G",
+  "atom": "G1.2-6/7",
+  "phase": "G1.2 chain-continuous batch (Option B+ canonical)",
+  "ruling": "handover/directives/2026-05-11_TB_G_G1_2_OPTION_B_PLUS_RULING.md",
+  "run_tag": "g_phase_g1_2_full_2026-05-11T23-36-38Z",
+  "batch_id": "g_phase_g1_2_full_2026-05-11T23-36-38Z_5a6940b",
+  "problem_count": 9,
+  "problem_set": "full",
+  "shared_runtime_repo": "/home/zephryj/projects/turingosv4/handover/evidence/g_phase_g1_2_full_2026-05-11T23-36-38Z/runtime_repo",
+  "shared_cas": "/home/zephryj/projects/turingosv4/handover/evidence/g_phase_g1_2_full_2026-05-11T23-36-38Z/cas",
+  "active_model": "deepseek-chat",
+  "llm_proxy_url": "http://localhost:8080",
+  "minif2f_dir": "/home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4",
+  "per_problem_timeout_s": 900,
+  "git_head": "5a6940b35652c09b3d8fb2160bc834ec4102dbc2",
+  "run_timestamp_utc": "2026-05-11T23-36-43Z",
+  "resume_semantic": "task_0 = fresh genesis; task_k>0 = TURINGOS_CHAINTAPE_RESUME=1 via batch_evaluator (Option B+ §1)",
+  "halt_on": "any subprocess exits non-zero (architect §3.5 halt-and-record)"
+}
