@@ -575,6 +575,35 @@ GATES=(
   #   SG-G2P.5.b positive_non_solver_count_omits_bottleneck
   #   SG-G2P.5.c empty_chain_still_renders_explicit_bottleneck
   constitution_g2p_peer_verify_coverage
+
+  # TB-G G2P.3 (charter §1 Module G2P; Class 1): verifier reward + bond
+  # return audit. Charter ship gate "existing TB-N1 A4 gates GREEN OR
+  # OBS_G2P_VERIFY_PEER_REWARD filed" — BOTH satisfied:
+  #   (a) TB-N1 A4 admission gates GREEN at HEAD (witnessed by
+  #       `constitution_n1_agent_economy_a4` 7/7 PASS); admission
+  #       contract holds (bond_micro=0 → BondInsufficient; bond>balance →
+  #       VerifyBondOutOfBounds; phantom target → VerifyTargetNotAccepted;
+  #       duplicate (verifier, target) → VerifyDuplicate; positive
+  #       control admits + records pair in agent_verifications_t).
+  #   (b) `handover/alignment/OBS_G2P_VERIFY_PEER_REWARD_2026-05-12.md`
+  #       documents two forward gaps: Gap-A (verifier reputation
+  #       accumulation NOT implemented in any sequencer arm) + Gap-B
+  #       (bond return at run-resolve NOT implemented — bond
+  #       permanently locked in stakes_t until next-run resume). Both
+  #       gaps are Class-3+ forward work bound to TB-G charter §1
+  #       Module G3 (G3.1 / G3.2). Closure criteria explicit per
+  #       feedback_no_workarounds_strict_constitution (no permanent
+  #       AMBER residual).
+  # Ship gates SG-G2P.6.a/b/c bind:
+  #   a — OBS file present with documented forward-closure section
+  #   b — TB-N1 A4 admission contract preserved in sequencer.rs VerifyTx arm
+  #       (source-grep: bond debit + stakes_t insert + agent_verifications_t
+  #        insert + VerifyDuplicate + VerifyTargetNotAccepted)
+  #   c — fail-on-fix scaffold: sequencer.rs MUST NOT mutate
+  #       reputations_t in any admission arm today (any future commit
+  #       that adds the mutation surfaces for review per OBS
+  #       forward-closure protocol).
+  constitution_g2p_verify_reward_bond_return
 )
 
 # Per-package gates — tests that live under a workspace member crate
