@@ -1,0 +1,751 @@
+   Compiling tokio-rustls v0.26.4
+warning: variable does not need to be mutable
+  --> spike/gix_capability/src/c1_init.rs:21:13
+   |
+21 |         let mut index = repo.index()?;
+   |             ----^^^^^
+   |             |
+   |             help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `gix_capability_spike` (lib) generated 1 warning (run `cargo fix --lib -p gix_capability_spike` to apply 1 suggestion)
+warning: `gix_capability_spike` (lib test) generated 1 warning (1 duplicate)
+   Compiling hyper-rustls v0.27.8
+   Compiling reqwest v0.12.28
+   Compiling turingosv4 v0.1.0 (/home/zephryj/projects/turingosv4)
+warning: unused import: `KernelError`
+ --> src/bus.rs:8:29
+  |
+8 | use crate::kernel::{Kernel, KernelError};
+  |                             ^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `TapeError`
+ --> src/bus.rs:9:54
+  |
+9 | use crate::ledger::{EventType, Ledger, Node, NodeId, TapeError};
+  |                                                      ^^^^^^^^^
+
+warning: unused imports: `Deserialize` and `Serialize`
+  --> src/bus.rs:13:13
+   |
+13 | use serde::{Deserialize, Serialize};
+   |             ^^^^^^^^^^^  ^^^^^^^^^
+
+warning: unused import: `ToolSignal`
+ --> src/sdk/tools/search.rs:4:24
+  |
+4 | use crate::sdk::tool::{ToolSignal, TuringTool};
+  |                        ^^^^^^^^^^
+
+warning: unused import: `std::path::Path`
+ --> src/sdk/tools/search.rs:6:5
+  |
+6 | use std::path::Path;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `Deserialize`
+ --> src/sdk/tools/librarian.rs:6:13
+  |
+6 | use serde::{Deserialize, Serialize};
+  |             ^^^^^^^^^^^
+
+warning: unused import: `Path`
+ --> src/sdk/tools/librarian.rs:9:17
+  |
+9 | use std::path::{Path, PathBuf};
+  |                 ^^^^
+
+warning: unused imports: `MICRO_PER_COIN` and `MicroCoin`
+  --> src/economy/monetary_invariant.rs:26:29
+   |
+26 | use crate::economy::money::{MicroCoin, MICRO_PER_COIN};
+   |                             ^^^^^^^^^  ^^^^^^^^^^^^^^
+
+warning: unused import: `ObjectType as Git2ObjectType`
+  --> src/bottom_white/cas/store.rs:26:12
+   |
+26 | use git2::{ObjectType as Git2ObjectType, Repository};
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ObjectType as Git2ObjectType`
+  --> src/bottom_white/ledger/transition_ledger.rs:36:12
+   |
+36 | use git2::{ObjectType as Git2ObjectType, Repository, Signature as GitSignature};
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `TxId`
+  --> src/state/sequencer.rs:41:82
+   |
+41 | use crate::state::q_state::{AgentId, EscrowEntry, Hash, QState, TaskMarketEntry, TxId};
+   |                                                                                  ^^^^
+
+warning: unused imports: `AgentId` and `ShareSidePair`
+  --> src/state/price_index.rs:23:29
+   |
+23 | use crate::state::q_state::{AgentId, ChallengeStatus, EconomicState, ShareSidePair};
+   |                             ^^^^^^^                                  ^^^^^^^^^^^^^
+
+warning: unused import: `NodePosition`
+  --> src/state/price_index.rs:24:39
+   |
+24 | use crate::state::typed_tx::{EventId, NodePosition, PositionSide, ShareAmount};
+   |                                       ^^^^^^^^^^^^
+
+warning: unused import: `Sha256`
+  --> src/runtime/agent_keypairs.rs:31:20
+   |
+31 | use sha2::{Digest, Sha256};
+   |                    ^^^^^^
+
+warning: unused import: `CapsulePrivacyPolicy`
+  --> src/runtime/audit_assertions.rs:83:30
+   |
+83 | use crate::state::typed_tx::{CapsulePrivacyPolicy, TypedTx};
+   |                              ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::BTreeMap`
+  --> src/runtime/audit_views.rs:27:5
+   |
+27 | use std::collections::BTreeMap;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::state::price_index::RationalPrice`
+  --> src/runtime/audit_views.rs:32:5
+   |
+32 | use crate::state::price_index::RationalPrice;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `LpShareAmount` and `ShareSidePair`
+  --> src/runtime/audit_views.rs:34:29
+   |
+34 |     AgentId, EconomicState, LpShareAmount, PoolStatus, ShareSidePair,
+   |                             ^^^^^^^^^^^^^              ^^^^^^^^^^^^^
+
+warning: unused import: `ShareAmount`
+  --> src/runtime/audit_views.rs:40:42
+   |
+40 |     EventId, PositionKind, PositionSide, ShareAmount,
+   |                                          ^^^^^^^^^^^
+
+warning: unused import: `Digest`
+  --> src/runtime/agent_keypairs.rs:31:12
+   |
+31 | use sha2::{Digest, Sha256};
+   |            ^^^^^^
+
+warning: function `sign_rejected_attempt_summary` is never used
+   --> src/bottom_white/ledger/system_keypair.rs:581:19
+    |
+581 |     pub(crate) fn sign_rejected_attempt_summary(
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `sign_system_message` is never used
+   --> src/bottom_white/ledger/system_keypair.rs:592:19
+    |
+592 |     pub(crate) fn sign_system_message(
+    |                   ^^^^^^^^^^^^^^^^^^^
+
+warning: function `sign_epoch_rotation_proof` is never used
+   --> src/bottom_white/ledger/system_keypair.rs:692:19
+    |
+692 |     pub(crate) fn sign_epoch_rotation_proof(
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `sign_system_message` is never used
+   --> src/bottom_white/ledger/system_keypair.rs:703:19
+    |
+703 |     pub(crate) fn sign_system_message(
+    |                   ^^^^^^^^^^^^^^^^^^^
+
+warning: field `tx_id` is never read
+   --> src/runtime/chain_derived_run_facts.rs:239:5
+    |
+238 | struct WorkTxAttempt {
+    |        ------------- field in this struct
+239 |     tx_id: TxId,
+    |     ^^^^^
+    |
+    = note: `WorkTxAttempt` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+   Compiling minif2f_v4 v0.1.0 (/home/zephryj/projects/turingosv4/experiments/minif2f_v4)
+warning: unused import: `EconomicState`
+  --> src/sdk/econ_position.rs:95:21
+   |
+95 |         ClaimEntry, EconomicState, QState, Reputation, StakeEntry, TaskId, TxId,
+   |                     ^^^^^^^^^^^^^
+
+warning: unused import: `make_real_verifytx_signed_by`
+    --> src/runtime/chain_derived_run_facts.rs:1078:35
+     |
+1078 |     use crate::runtime::adapter::{make_real_verifytx_signed_by, make_real_worktx_signed_by};
+     |                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ShareSidePair`
+  --> src/runtime/audit_views.rs:34:56
+   |
+34 |     AgentId, EconomicState, LpShareAmount, PoolStatus, ShareSidePair,
+   |                                                        ^^^^^^^^^^^^^
+
+warning: variable does not need to be mutable
+   --> src/top_white/predicates/registry.rs:255:17
+    |
+255 |             let mut h = Sha256::new();
+    |                 ----^
+    |                 |
+    |                 help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `sign_system_message` is never used
+   --> src/bottom_white/ledger/system_keypair.rs:592:19
+    |
+592 |     pub(crate) fn sign_system_message(
+    |                   ^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `turingosv4` (lib) generated 25 warnings (run `cargo fix --lib -p turingosv4` to apply 19 suggestions)
+warning: function `ok` is never used
+  --> tests/tb_16_halt_triggers.rs:16:4
+   |
+16 | fn ok(r: &AssertionResult, expected_layer: AssertionLayer) {
+   |    ^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `turingosv4` (test "tb_16_halt_triggers") generated 1 warning
+warning: `turingosv4` (lib test) generated 20 warnings (15 duplicates) (run `cargo fix --lib -p turingosv4 --tests` to apply 4 suggestions)
+warning: variant `NotYetLanded` is never constructed
+  --> tests/constitution_class4_atomic_rollback_witness.rs:36:5
+   |
+34 | enum LandingStatus {
+   |      ------------- variant in this enum
+35 |     Landed,
+36 |     NotYetLanded,
+   |     ^^^^^^^^^^^^
+   |
+   = note: `LandingStatus` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `turingosv4` (test "constitution_class4_atomic_rollback_witness") generated 1 warning
+warning: variable `payC` should have a snake case name
+   --> tests/constitution_router_price_quote.rs:178:10
+    |
+178 |     for &payC in &[100_000_i64, 1_000_000, 5_000_000, 10_000_000] {
+    |          ^^^^ help: convert the identifier to snake case: `pay_c`
+    |
+    = note: `#[warn(non_snake_case)]` (part of `#[warn(nonstandard_style)]`) on by default
+
+warning: variable `payC` should have a snake case name
+   --> tests/constitution_router_price_quote.rs:296:9
+    |
+296 |     let payC: i64 = 5_000_000;
+    |         ^^^^ help: convert the identifier to snake case: `pay_c`
+
+warning: field `repo_path` is never read
+  --> tests/constitution_tb_n3_a3_emit.rs:50:5
+   |
+44 | struct Harness {
+   |        ------- field in this struct
+...
+50 |     repo_path: std::path::PathBuf,
+   |     ^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `turingosv4` (test "constitution_router_price_quote") generated 2 warnings
+warning: `turingosv4` (test "constitution_tb_n3_a3_emit") generated 1 warning
+warning: constant `AGENT_PNL_PATH` is never used
+  --> tests/constitution_g3_bankruptcy_risk_cap.rs:38:7
+   |
+38 | const AGENT_PNL_PATH: &str = "src/runtime/agent_pnl.rs";
+   |       ^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `turingosv4` (test "constitution_g3_bankruptcy_risk_cap") generated 1 warning
+warning: unused import: `EscrowEntry`
+  --> tests/tb_2_runtime_boundary.rs:33:43
+   |
+33 | use turingosv4::state::q_state::{AgentId, EscrowEntry, Hash, QState, TaskId, TxId};
+   |                                           ^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `turingosv4` (test "tb_2_runtime_boundary") generated 1 warning (run `cargo fix --test "tb_2_runtime_boundary" -p turingosv4` to apply 1 suggestion)
+warning: unused import: `MICRO_PER_COIN`
+  --> tests/walkthrough_inv3_conservation.rs:18:45
+   |
+18 | use turingosv4::economy::money::{MicroCoin, MICRO_PER_COIN};
+   |                                             ^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `royalty_edges` is never read
+  --> tests/walkthrough_inv3_conservation.rs:26:5
+   |
+22 | struct EconStateMinimal {
+   |        ---------------- field in this struct
+...
+26 |     royalty_edges: Vec<(String, String, i64)>,     // (creator, beneficiary_work_tx, weight_micro)
+   |     ^^^^^^^^^^^^^
+   |
+   = note: `EconStateMinimal` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `turingosv4` (test "walkthrough_inv3_conservation") generated 2 warnings (run `cargo fix --test "walkthrough_inv3_conservation" -p turingosv4` to apply 1 suggestion)
+warning: unused import: `turingosv4::bottom_white::ledger::transition_ledger::replay_full_transition`
+   --> tests/tb_3_rsp1_formal_surface.rs:496:9
+    |
+496 |     use turingosv4::bottom_white::ledger::transition_ledger::replay_full_transition;
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `entries`
+   --> tests/tb_3_rsp1_formal_surface.rs:512:9
+    |
+512 |     let entries = {
+    |         ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_entries`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `turingosv4` (test "tb_3_rsp1_formal_surface") generated 2 warnings (run `cargo fix --test "tb_3_rsp1_formal_surface" -p turingosv4` to apply 2 suggestions)
+warning: unused import: `TxId`
+  --> tests/tb_7_atom6_chain_backed_smoke.rs:61:49
+   |
+61 | use turingosv4::state::q_state::{AgentId, Hash, TxId};
+   |                                                 ^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `turingosv4` (test "tb_7_atom6_chain_backed_smoke") generated 1 warning (run `cargo fix --test "tb_7_atom6_chain_backed_smoke" -p turingosv4` to apply 1 suggestion)
+warning: useless assignment of field of type `turingosv4::state::Hash` to itself
+   --> tests/six_axioms_alignment.rs:115:5
+    |
+115 |     q.predicate_registry_root_t = q.predicate_registry_root_t; // axiom 2
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: useless assignment of field of type `turingosv4::state::Hash` to itself
+   --> tests/six_axioms_alignment.rs:120:5
+    |
+120 |     q.tool_registry_root_t = q.tool_registry_root_t; // axiom 4
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `Cid`
+  --> tests/tb_18r_audit_sampler_attempt_payload.rs:13:45
+   |
+13 | use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
+   |                                             ^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `turingosv4` (test "six_axioms_alignment") generated 2 warnings
+warning: variable does not need to be mutable
+   --> tests/tb_8_minimal_payout.rs:425:9
+    |
+425 |     let mut h = fresh_harness(genesis_with_balances(&[("a", 1)]));
+    |         ----^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `turingosv4` (test "tb_18r_audit_sampler_attempt_payload") generated 1 warning (run `cargo fix --test "tb_18r_audit_sampler_attempt_payload" -p turingosv4` to apply 1 suggestion)
+warning: `turingosv4` (test "tb_8_minimal_payout") generated 1 warning (run `cargo fix --test "tb_8_minimal_payout" -p turingosv4` to apply 1 suggestion)
+warning: unused import: `std::path::Path`
+  --> tests/constitution_art_v3_amendment_log.rs:29:5
+   |
+29 | use std::path::Path;
+   |     ^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `turingosv4` (test "constitution_art_v3_amendment_log") generated 1 warning (run `cargo fix --test "constitution_art_v3_amendment_log" -p turingosv4` to apply 1 suggestion)
+warning: unused import: `Cid`
+  --> tests/tb_18r_lean_result_cas_resolves.rs:15:45
+   |
+15 | use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
+   |                                             ^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `turingosv4` (test "tb_18r_lean_result_cas_resolves") generated 1 warning (run `cargo fix --test "tb_18r_lean_result_cas_resolves" -p turingosv4` to apply 1 suggestion)
+warning: variant `NotYetLanded` is never constructed
+  --> tests/constitution_architect_verbatim_struct_binding.rs:36:5
+   |
+34 | enum LandingStatus {
+   |      ------------- variant in this enum
+35 |     Landed,
+36 |     NotYetLanded,
+   |     ^^^^^^^^^^^^
+   |
+   = note: `LandingStatus` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `turingosv4` (test "constitution_architect_verbatim_struct_binding") generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 38s
+     Running unittests src/lib.rs (target/debug/deps/gix_capability_spike-758eb611b9b651aa)
+     Running unittests src/main.rs (target/debug/deps/gix_capability_spike-10070e197e1116fc)
+     Running unittests src/lib.rs (target/debug/deps/minif2f_v4-be7e605837b00ad2)
+     Running unittests src/bin/batch_evaluator.rs (target/debug/deps/batch_evaluator-2e4357d5ff824970)
+     Running unittests src/bin/comprehensive_arena.rs (target/debug/deps/comprehensive_arena-5c0b4a9dab46296f)
+     Running unittests src/bin/evaluator.rs (target/debug/deps/evaluator-ebd1b1230846396b)
+     Running unittests src/bin/lean_market.rs (target/debug/deps/lean_market-bd5b20b42b1168ff)
+     Running tests/architect_sole_lt_reader.rs (target/debug/deps/architect_sole_lt_reader-2d7325fef015a4c2)
+     Running tests/artifact_content_predicates.rs (target/debug/deps/artifact_content_predicates-a92bd36f2d4d6009)
+     Running tests/artifact_lookup_evasion.rs (target/debug/deps/artifact_lookup_evasion-6b540f28017f0979)
+     Running tests/auditor_sees_candidate_only.rs (target/debug/deps/auditor_sees_candidate_only-f627fa91eb9142fb)
+     Running tests/constitution_g1_2_subprocess_resume.rs (target/debug/deps/constitution_g1_2_subprocess_resume-889d01d7ea910a91)
+     Running tests/fc_alignment_conformance.rs (target/debug/deps/fc_alignment_conformance-73d0ddb534e5868b)
+     Running tests/fc_trace_smoke.rs (target/debug/deps/fc_trace_smoke-242826193c12c58a)
+warning: unused import: `KernelError`
+ --> src/bus.rs:8:29
+  |
+8 | use crate::kernel::{Kernel, KernelError};
+  |                             ^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `TapeError`
+ --> src/bus.rs:9:54
+  |
+9 | use crate::ledger::{EventType, Ledger, Node, NodeId, TapeError};
+  |                                                      ^^^^^^^^^
+
+warning: unused imports: `Deserialize` and `Serialize`
+  --> src/bus.rs:13:13
+   |
+13 | use serde::{Deserialize, Serialize};
+   |             ^^^^^^^^^^^  ^^^^^^^^^
+
+warning: unused import: `ToolSignal`
+ --> src/sdk/tools/search.rs:4:24
+  |
+4 | use crate::sdk::tool::{ToolSignal, TuringTool};
+  |                        ^^^^^^^^^^
+
+warning: unused import: `std::path::Path`
+ --> src/sdk/tools/search.rs:6:5
+  |
+6 | use std::path::Path;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `Deserialize`
+ --> src/sdk/tools/librarian.rs:6:13
+  |
+6 | use serde::{Deserialize, Serialize};
+  |             ^^^^^^^^^^^
+
+warning: unused import: `Path`
+ --> src/sdk/tools/librarian.rs:9:17
+  |
+9 | use std::path::{Path, PathBuf};
+  |                 ^^^^
+
+warning: unused imports: `MICRO_PER_COIN` and `MicroCoin`
+  --> src/economy/monetary_invariant.rs:26:29
+   |
+26 | use crate::economy::money::{MicroCoin, MICRO_PER_COIN};
+   |                             ^^^^^^^^^  ^^^^^^^^^^^^^^
+
+warning: unused import: `ObjectType as Git2ObjectType`
+  --> src/bottom_white/cas/store.rs:26:12
+   |
+26 | use git2::{ObjectType as Git2ObjectType, Repository};
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ObjectType as Git2ObjectType`
+  --> src/bottom_white/ledger/transition_ledger.rs:36:12
+   |
+36 | use git2::{ObjectType as Git2ObjectType, Repository, Signature as GitSignature};
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `TxId`
+  --> src/state/sequencer.rs:41:82
+   |
+41 | use crate::state::q_state::{AgentId, EscrowEntry, Hash, QState, TaskMarketEntry, TxId};
+   |                                                                                  ^^^^
+
+warning: unused imports: `AgentId` and `ShareSidePair`
+  --> src/state/price_index.rs:23:29
+   |
+23 | use crate::state::q_state::{AgentId, ChallengeStatus, EconomicState, ShareSidePair};
+   |                             ^^^^^^^                                  ^^^^^^^^^^^^^
+
+warning: unused import: `NodePosition`
+  --> src/state/price_index.rs:24:39
+   |
+24 | use crate::state::typed_tx::{EventId, NodePosition, PositionSide, ShareAmount};
+   |                                       ^^^^^^^^^^^^
+
+warning: unused import: `Sha256`
+  --> src/runtime/agent_keypairs.rs:31:20
+   |
+31 | use sha2::{Digest, Sha256};
+   |                    ^^^^^^
+
+warning: unused import: `CapsulePrivacyPolicy`
+  --> src/runtime/audit_assertions.rs:83:30
+   |
+83 | use crate::state::typed_tx::{CapsulePrivacyPolicy, TypedTx};
+   |                              ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::BTreeMap`
+  --> src/runtime/audit_views.rs:27:5
+   |
+27 | use std::collections::BTreeMap;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::state::price_index::RationalPrice`
+  --> src/runtime/audit_views.rs:32:5
+   |
+32 | use crate::state::price_index::RationalPrice;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `LpShareAmount` and `ShareSidePair`
+  --> src/runtime/audit_views.rs:34:29
+   |
+34 |     AgentId, EconomicState, LpShareAmount, PoolStatus, ShareSidePair,
+   |                             ^^^^^^^^^^^^^              ^^^^^^^^^^^^^
+
+warning: unused import: `ShareAmount`
+  --> src/runtime/audit_views.rs:40:42
+   |
+40 |     EventId, PositionKind, PositionSide, ShareAmount,
+   |                                          ^^^^^^^^^^^
+
+warning: unused import: `Digest`
+  --> src/runtime/agent_keypairs.rs:31:12
+   |
+31 | use sha2::{Digest, Sha256};
+   |            ^^^^^^
+
+warning: function `sign_rejected_attempt_summary` is never used
+   --> src/bottom_white/ledger/system_keypair.rs:581:19
+    |
+581 |     pub(crate) fn sign_rejected_attempt_summary(
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `sign_system_message` is never used
+   --> src/bottom_white/ledger/system_keypair.rs:592:19
+    |
+592 |     pub(crate) fn sign_system_message(
+    |                   ^^^^^^^^^^^^^^^^^^^
+
+warning: function `sign_epoch_rotation_proof` is never used
+   --> src/bottom_white/ledger/system_keypair.rs:692:19
+    |
+692 |     pub(crate) fn sign_epoch_rotation_proof(
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `sign_system_message` is never used
+   --> src/bottom_white/ledger/system_keypair.rs:703:19
+    |
+703 |     pub(crate) fn sign_system_message(
+    |                   ^^^^^^^^^^^^^^^^^^^
+
+warning: field `tx_id` is never read
+   --> src/runtime/chain_derived_run_facts.rs:239:5
+    |
+238 | struct WorkTxAttempt {
+    |        ------------- field in this struct
+239 |     tx_id: TxId,
+    |     ^^^^^
+    |
+    = note: `WorkTxAttempt` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+     Running tests/heldout_operational_sealing.rs (target/debug/deps/heldout_operational_sealing-81be1015cf275a76)
+     Running tests/llm_proxy_python_conformance.rs (target/debug/deps/llm_proxy_python_conformance-804be00187cc0f53)
+     Running tests/mode_flag_binary_purity.rs (target/debug/deps/mode_flag_binary_purity-e5d0c447bd30c29d)
+     Running tests/pput_anti_goodhart.rs (target/debug/deps/pput_anti_goodhart-72e415deff7fb2bd)
+     Running tests/tb_16_comprehensive_arena_smoke.rs (target/debug/deps/tb_16_comprehensive_arena_smoke-b4414adc90102414)
+# TB-18 Atom B Phase 4 — comprehensive_arena plan
+# out_dir: "/tmp/tb16_arena_smoke_4059310"
+# chain_seed_id: tb18-arena-1778678993
+#
+# 6-task engineered set (architect §3 Atom B + design §4.5):
+#   task_A_happy_path: Open → Work → Verify(OMEGA) → FinalizeReward
+#   task_B_challenge_released: Open → Work → Verify(OMEGA) → Challenge → ChallengeResolve(Released)
+#   task_C_market_lifecycle: Open → MarketSeed → CompleteSetMint → TaskBankruptcy → CompleteSetRedeem
+#   task_D_exhaustion_bankruptcy_expire: Open → Work → TerminalSummary → TaskBankruptcy → TaskExpire
+#   task_E_exhaustion_no_bankruptcy: Open → TerminalSummary
+#   task_F_degraded_llm: Open → Work → TerminalSummary(DegradedLLM)
+#
+# Target: ONE chain emitting all 13 tx kinds.
+[arena] --plan-only; wrote "/tmp/tb16_arena_smoke_4059310/ARENA_PLAN.md"; exiting before chain side-effects
+     Running tests/tb_18_per_llm_call_budget.rs (target/debug/deps/tb_18_per_llm_call_budget-c214d42e5500fc87)
+     Running tests/trust_root_immutability.rs (target/debug/deps/trust_root_immutability-8eb37cafba2c2598)
+     Running unittests src/lib.rs (target/debug/deps/turingosv4-02347eed360488fd)
+     Running unittests src/bin/audit_dashboard.rs (target/debug/deps/audit_dashboard-2755d044d1d1acd6)
+     Running unittests src/bin/audit_tape.rs (target/debug/deps/audit_tape-4b667dfc2ba0e516)
+     Running unittests src/bin/audit_tape_tamper.rs (target/debug/deps/audit_tape_tamper-a15944f53c7b070b)
+     Running unittests src/bin/gen_run_summary.rs (target/debug/deps/gen_run_summary-50ff3e2413a89e57)
+     Running unittests src/bin/generate_markov_capsule.rs (target/debug/deps/generate_markov_capsule-e62df01438d11db9)
+     Running unittests src/bin/resume_preflight.rs (target/debug/deps/resume_preflight-822c6e57180da1fb)
+     Running unittests src/bin/tb_18r_compute_invariant.rs (target/debug/deps/tb_18r_compute_invariant-5afbeb74cdcd5502)
+     Running unittests src/bin/tb_g_persistence_report.rs (target/debug/deps/tb_g_persistence_report-c36e975b30f61e9e)
+     Running unittests src/bin/turingos_dev.rs (target/debug/deps/turingos_dev-9fd3773fde0c4a72)
+     Running unittests src/main.rs (target/debug/deps/turingosv4-dd155d650e3b61b8)
+     Running unittests src/bin/verify_chaintape.rs (target/debug/deps/verify_chaintape-bf3c40f7aafb989d)
+     Running tests/co1_7_extra_cas_payload_round_trip.rs (target/debug/deps/co1_7_extra_cas_payload_round_trip-3e40f24b9c408707)
+     Running tests/co1_7_extra_git2_writer_head_oid_defense.rs (target/debug/deps/co1_7_extra_git2_writer_head_oid_defense-f1a09d76d6731562)
+     Running tests/co1_7_extra_sequencer_head_t_advancement.rs (target/debug/deps/co1_7_extra_sequencer_head_t_advancement-57851363b34f9704)
+     Running tests/conformance_stubs.rs (target/debug/deps/conformance_stubs-55ca9de1423f4719)
+     Running tests/constitution_admission_no_fail_open_default.rs (target/debug/deps/constitution_admission_no_fail_open_default-1c919095472e9c31)
+     Running tests/constitution_aggregate_report.rs (target/debug/deps/constitution_aggregate_report-dfcecbcb7d2dfb0d)
+     Running tests/constitution_architect_verbatim_struct_binding.rs (target/debug/deps/constitution_architect_verbatim_struct_binding-c98c6fab1b25c98e)
+     Running tests/constitution_art_v3_amendment_log.rs (target/debug/deps/constitution_art_v3_amendment_log-d700335e25917f9d)
+     Running tests/constitution_audit_tamper_3_of_3.rs (target/debug/deps/constitution_audit_tamper_3_of_3-d7b6cfc59dd262be)
+     Running tests/constitution_audit_views.rs (target/debug/deps/constitution_audit_views-c8bac74af8268cba)
+     Running tests/constitution_benchmark_manifest.rs (target/debug/deps/constitution_benchmark_manifest-99ca399128fa28d3)
+     Running tests/constitution_class4_atomic_rollback_witness.rs (target/debug/deps/constitution_class4_atomic_rollback_witness-158b571210391b52)
+     Running tests/constitution_closure_3_no_trivial_asserts.rs (target/debug/deps/constitution_closure_3_no_trivial_asserts-fa1bad07c321267b)
+     Running tests/constitution_completeset_hardening.rs (target/debug/deps/constitution_completeset_hardening-9805a111c08bb42c)
+     Running tests/constitution_completeset_merge.rs (target/debug/deps/constitution_completeset_merge-31a77a7998cbc83e)
+     Running tests/constitution_cpmm_pool.rs (target/debug/deps/constitution_cpmm_pool-b4ada4c0aca35f7c)
+     Running tests/constitution_cpmm_swap.rs (target/debug/deps/constitution_cpmm_swap-42d5e71da326f516)
+     Running tests/constitution_dev_harness.rs (target/debug/deps/constitution_dev_harness-dc52c2ec99e8669d)
+     Running tests/constitution_diversity.rs (target/debug/deps/constitution_diversity-9a9b8828cd822a19)
+     Running tests/constitution_economy_gate.rs (target/debug/deps/constitution_economy_gate-f47fa655c3e035e6)
+     Running tests/constitution_economy_strict_equality.rs (target/debug/deps/constitution_economy_strict_equality-1a2cb5de50fb9919)
+     Running tests/constitution_fc1_runtime_loop.rs (target/debug/deps/constitution_fc1_runtime_loop-97e9bc864c75e26e)
+     Running tests/constitution_fc2_boot.rs (target/debug/deps/constitution_fc2_boot-33504d26963ddcce)
+     Running tests/constitution_fc3_evidence_binding.rs (target/debug/deps/constitution_fc3_evidence_binding-92a77e883ccabd3b)
+     Running tests/constitution_fc3_inv1_capsule_integrity_regen.rs (target/debug/deps/constitution_fc3_inv1_capsule_integrity_regen-f3288420c5f47d49)
+     Running tests/constitution_fc3_meta.rs (target/debug/deps/constitution_fc3_meta-42ef0756b2f127a4)
+     Running tests/constitution_g1_2_batch_continuation_manifest.rs (target/debug/deps/constitution_g1_2_batch_continuation_manifest-f1e2267e60bdfe13)
+     Running tests/constitution_g1_2_chain_tape_lease.rs (target/debug/deps/constitution_g1_2_chain_tape_lease-90d70fd1eb4c7ffe)
+     Running tests/constitution_g1_2_persistence_evidence_binding.rs (target/debug/deps/constitution_g1_2_persistence_evidence_binding-8d93a477ceeb04a8)
+     Running tests/constitution_g1_2_resume_preflight.rs (target/debug/deps/constitution_g1_2_resume_preflight-41e2248311b50cc8)
+     Running tests/constitution_g1_resume.rs (target/debug/deps/constitution_g1_resume-9f6d85218e027b5b)
+     Running tests/constitution_g2_dashboard_no_trade_rows.rs (target/debug/deps/constitution_g2_dashboard_no_trade_rows-716f8159a902140d)
+     Running tests/constitution_g2_failed_invest_l4e.rs (target/debug/deps/constitution_g2_failed_invest_l4e-941f021da79061bd)
+     Running tests/constitution_g2_no_trade_reason_taxonomy.rs (target/debug/deps/constitution_g2_no_trade_reason_taxonomy-cfef0af6aaa8b365)
+     Running tests/constitution_g2p_peer_verify_coverage.rs (target/debug/deps/constitution_g2p_peer_verify_coverage-dce01d763dfdfb2f)
+     Running tests/constitution_g2p_pending_peer_reviews.rs (target/debug/deps/constitution_g2p_pending_peer_reviews-64fdfc2d2d91cad8)
+     Running tests/constitution_g2p_verify_reward_bond_return.rs (target/debug/deps/constitution_g2p_verify_reward_bond_return-b5870fdd985eecac)
+     Running tests/constitution_g3_bankruptcy_risk_cap.rs (target/debug/deps/constitution_g3_bankruptcy_risk_cap-a20940b661afc575)
+     Running tests/constitution_g3_pnl.rs (target/debug/deps/constitution_g3_pnl-dc84ede37628788f)
+     Running tests/constitution_g3_pnl_trajectory_evidence_binding.rs (target/debug/deps/constitution_g3_pnl_trajectory_evidence_binding-a6bbc1e0fa458168)
+     Running tests/constitution_g3_your_position_prompt.rs (target/debug/deps/constitution_g3_your_position_prompt-52034828b69d7eef)
+     Running tests/constitution_g4_multi_llm.rs (target/debug/deps/constitution_g4_multi_llm-950fe86624a6036b)
+     Running tests/constitution_g4_no_hidden_model_switch.rs (target/debug/deps/constitution_g4_no_hidden_model_switch-a3fdbbcab3cb8da7)
+     Running tests/constitution_head_t_c2_multi_ref.rs (target/debug/deps/constitution_head_t_c2_multi_ref-ddbd9048425b1fb9)
+     Running tests/constitution_head_t_witness.rs (target/debug/deps/constitution_head_t_witness-1a540867afce7a36)
+     Running tests/constitution_l4e_body_integrity.rs (target/debug/deps/constitution_l4e_body_integrity-f0580e6bc917859d)
+     Running tests/constitution_market_quarantine.rs (target/debug/deps/constitution_market_quarantine-84d77c3d20cad8ae)
+     Running tests/constitution_market_seed_hardening.rs (target/debug/deps/constitution_market_seed_hardening-6f8eee42a5e078a8)
+     Running tests/constitution_n1_agent_economy_a3.rs (target/debug/deps/constitution_n1_agent_economy_a3-f8e841781555329f)
+     Running tests/constitution_n1_agent_economy_a4.rs (target/debug/deps/constitution_n1_agent_economy_a4-59aaf8b02b915068)
+     Running tests/constitution_n2_event_resolve.rs (target/debug/deps/constitution_n2_event_resolve-39d6c177628a4778)
+     Running tests/constitution_no_evidence_drift_in_tests.rs (target/debug/deps/constitution_no_evidence_drift_in_tests-bb8d91e93bf8b29c)
+     Running tests/constitution_no_parallel_ledger.rs (target/debug/deps/constitution_no_parallel_ledger-5164cb53707960f1)
+     Running tests/constitution_pcp_corpus.rs (target/debug/deps/constitution_pcp_corpus-35b43c7e377b7c05)
+     Running tests/constitution_pcp_corpus_phase2.rs (target/debug/deps/constitution_pcp_corpus_phase2-9a7a3b250009a4ba)
+     Running tests/constitution_polymarket_event_state_gate.rs (target/debug/deps/constitution_polymarket_event_state_gate-014835c268c314d1)
+     Running tests/constitution_polymarket_smoke.rs (target/debug/deps/constitution_polymarket_smoke-94efcf0e02ba4da5)
+     Running tests/constitution_predicate_gate.rs (target/debug/deps/constitution_predicate_gate-7f48985910538a59)
+     Running tests/constitution_prompt_capsule.rs (target/debug/deps/constitution_prompt_capsule-785d1db73a7bb7bb)
+     Running tests/constitution_router_buy_with_coin.rs (target/debug/deps/constitution_router_buy_with_coin-7b8c6c8fff009908)
+     Running tests/constitution_router_price_quote.rs (target/debug/deps/constitution_router_price_quote-2753890a252e7c67)
+     Running tests/constitution_runner_invariant_formula.rs (target/debug/deps/constitution_runner_invariant_formula-c7b4a56c24fff073)
+     Running tests/constitution_shielding_evidence_binding.rs (target/debug/deps/constitution_shielding_evidence_binding-74416912767c25bc)
+     Running tests/constitution_shielding_gate.rs (target/debug/deps/constitution_shielding_gate-316b491476ff4c18)
+     Running tests/constitution_tape_canonical_gate.rs (target/debug/deps/constitution_tape_canonical_gate-2c33a5b5d31aac64)
+     Running tests/constitution_tb_n3_a3_emit.rs (target/debug/deps/constitution_tb_n3_a3_emit-2909bf3788a3f72c)
+     Running tests/constitution_tb_n3_invest_routing.rs (target/debug/deps/constitution_tb_n3_invest_routing-e8cacc7afced6d04)
+     Running tests/constitution_wave3_evidence_binding.rs (target/debug/deps/constitution_wave3_evidence_binding-01415cbc4d3d6e47)
+     Running tests/constitution_wilson_ci.rs (target/debug/deps/constitution_wilson_ci-b33061c0ab76ce1c)
+     Running tests/economic_state_reconstruct.rs (target/debug/deps/economic_state_reconstruct-276df4dc7a1fb2cb)
+     Running tests/fc_alignment_conformance.rs (target/debug/deps/fc_alignment_conformance-40660f833bf4dd1f)
+     Running tests/four_element_mapping.rs (target/debug/deps/four_element_mapping-1dd5c3632524f7a8)
+     Running tests/markov_pointer_de_canonicalize.rs (target/debug/deps/markov_pointer_de_canonicalize-61e9b21d1528865c)
+audit_tape: load failed: markov read: markov_pointer "/tmp/tb_16_x_fix_absent_pointer_4060847.txt" supplied but file does not exist (TB-16.x.fix fail-closed: pointer-supplied-but-FS-absent is BLOCK, not silent genesis; architect Q2.c)
+audit_tape: load failed: markov read: cas get: cid:deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef not found in CAS index
+generate_markov_capsule: TURINGOS_MARKOV_OVERRIDE not set — deep-history reads DEFAULT-DENIED (FR-15.5 + halt-trigger #6); set TURINGOS_MARKOV_OVERRIDE=1 to enable
+constitution_hash = eec695459c71fbef3685583485deb431fe3b561657b2f285b7c5e7e220e59e03
+flowchart_hashes.len = 4
+unresolved_obs.len = 45
+generate_markov_capsule: --no-cas mode — JSON pointer only
+capsule_id = 6636702e5776c1644cdd83c7265cbf43076c94081e4060bba1a783ecf76b7a6a
+wrote /tmp/tb_16_x_fix_gen_outdir_4060847/MARKOV_TB-16xfix-test_2026-05-03.json (historical artifact, not canonical input)
+     Running tests/q_state_reconstruct.rs (target/debug/deps/q_state_reconstruct-09d4608407f3f7de)
+     Running tests/r_022_integration_orchestrator.rs (target/debug/deps/r_022_integration_orchestrator-7cf8b92faca0e675)
+     Running tests/six_axioms_alignment.rs (target/debug/deps/six_axioms_alignment-f53ada91ebb53368)
+     Running tests/system_keypair_generation.rs (target/debug/deps/system_keypair_generation-587cea3b703a3067)
+     Running tests/system_keypair_load_and_decrypt.rs (target/debug/deps/system_keypair_load_and_decrypt-cd6b95a87de85569)
+     Running tests/system_keypair_rotation_proof.rs (target/debug/deps/system_keypair_rotation_proof-7824188e81fc1634)
+     Running tests/system_keypair_sign_only_from_runner.rs (target/debug/deps/system_keypair_sign_only_from_runner-ab6cc8404e76b7f4)
+     Running tests/system_keypair_verify_correctness.rs (target/debug/deps/system_keypair_verify_correctness-0e3e22badc04a1e0)
+     Running tests/tb_11_epistemic_exhaust.rs (target/debug/deps/tb_11_epistemic_exhaust-284a82e6a9f74a01)
+     Running tests/tb_12_node_exposure_index.rs (target/debug/deps/tb_12_node_exposure_index-a716d0a20a4ea858)
+     Running tests/tb_13_chaintape_smoke.rs (target/debug/deps/tb_13_chaintape_smoke-8c69a14c930af1c1)
+     Running tests/tb_13_complete_set.rs (target/debug/deps/tb_13_complete_set-4d21b4c693c7baa0)
+     Running tests/tb_13_legacy_cpmm_forward_fence.rs (target/debug/deps/tb_13_legacy_cpmm_forward_fence-501122a5ab8b899b)
+     Running tests/tb_14_canonical_masking_smoke.rs (target/debug/deps/tb_14_canonical_masking_smoke-70b521ca09a72f88)
+     Running tests/tb_14_chaintape_smoke.rs (target/debug/deps/tb_14_chaintape_smoke-4905f26815807596)
+     Running tests/tb_14_halt_triggers.rs (target/debug/deps/tb_14_halt_triggers-0d3d4be856693311)
+     Running tests/tb_14_mask_set.rs (target/debug/deps/tb_14_mask_set-62167f5f0be4d62e)
+     Running tests/tb_14_price_index.rs (target/debug/deps/tb_14_price_index-9fb866e8f82c2de5)
+     Running tests/tb_15_halt_triggers.rs (target/debug/deps/tb_15_halt_triggers-615b767189d198b9)
+     Running tests/tb_16_audit_tape_binary.rs (target/debug/deps/tb_16_audit_tape_binary-b797b7c87b454077)
+     Running tests/tb_16_dashboard_live_regen.rs (target/debug/deps/tb_16_dashboard_live_regen-9e408aa9c0dec0c8)
+     Running tests/tb_16_halt_triggers.rs (target/debug/deps/tb_16_halt_triggers-4a8804b1bab50e95)
+     Running tests/tb_17_irreversible_action_examples.rs (target/debug/deps/tb_17_irreversible_action_examples-7ee5683fd27c5c05)
+     Running tests/tb_17_markov_inheritance_policy.rs (target/debug/deps/tb_17_markov_inheritance_policy-2ea34df6d74e122a)
+     Running tests/tb_17_minif2f_scale_separation.rs (target/debug/deps/tb_17_minif2f_scale_separation-9f032f53558cc89e)
+     Running tests/tb_18_deferred_finalize_idempotency.rs (target/debug/deps/tb_18_deferred_finalize_idempotency-1ceef5402a043244)
+     Running tests/tb_18_evidence_capsule_outcome_propagation.rs (target/debug/deps/tb_18_evidence_capsule_outcome_propagation-03149392433c8a53)
+     Running tests/tb_18r_attempt_chain_root_payload_schema.rs (target/debug/deps/tb_18r_attempt_chain_root_payload_schema-1bb8699d255cfcdb)
+     Running tests/tb_18r_attempt_outcome_partial_accepted_repr_stability.rs (target/debug/deps/tb_18r_attempt_outcome_partial_accepted_repr_stability-09a247dee984acfd)
+     Running tests/tb_18r_attempt_routes_to_l4_or_l4e.rs (target/debug/deps/tb_18r_attempt_routes_to_l4_or_l4e-d458ca23f60d8455)
+     Running tests/tb_18r_attempt_telemetry_per_llm_call.rs (target/debug/deps/tb_18r_attempt_telemetry_per_llm_call-349d25ffb0565a44)
+     Running tests/tb_18r_attempt_telemetry_serialize.rs (target/debug/deps/tb_18r_attempt_telemetry_serialize-c0017102da18a739)
+     Running tests/tb_18r_audit_lean_stderr_tamper_detected.rs (target/debug/deps/tb_18r_audit_lean_stderr_tamper_detected-e18b2d74d6218123)
+     Running tests/tb_18r_audit_sampler_attempt_payload.rs (target/debug/deps/tb_18r_audit_sampler_attempt_payload-5d54b02780a50c40)
+     Running tests/tb_18r_cas_reload_split_brain.rs (target/debug/deps/tb_18r_cas_reload_split_brain-79f961eb689770a3)
+     Running tests/tb_18r_chain_attempt_invariant.rs (target/debug/deps/tb_18r_chain_attempt_invariant-7f8a3f21af06e39f)
+     Running tests/tb_18r_chain_derived_facts_exact_accounting.rs (target/debug/deps/tb_18r_chain_derived_facts_exact_accounting-3ff71edff5e334b2)
+     Running tests/tb_18r_dashboard_attempt_dag_replay.rs (target/debug/deps/tb_18r_dashboard_attempt_dag_replay-a030da867836d45d)
+     Running tests/tb_18r_drain_barrier_quiescence.rs (target/debug/deps/tb_18r_drain_barrier_quiescence-236a0671f8b3ec89)
+     Running tests/tb_18r_final_composite_attempt_chain_root.rs (target/debug/deps/tb_18r_final_composite_attempt_chain_root-350541776581c1d0)
+     Running tests/tb_18r_lean_reject_in_l4e.rs (target/debug/deps/tb_18r_lean_reject_in_l4e-67d062233f5910bb)
+     Running tests/tb_18r_lean_result_cas_resolves.rs (target/debug/deps/tb_18r_lean_result_cas_resolves-6b8e696a720fd22f)
+     Running tests/tb_18r_lean_verdict_kind_consistency.rs (target/debug/deps/tb_18r_lean_verdict_kind_consistency-65a7fc927d131d23)
+     Running tests/tb_18r_lean_verdict_kind_repr_stability.rs (target/debug/deps/tb_18r_lean_verdict_kind_repr_stability-f8a6d4bfb703af44)
+     Running tests/tb_18r_markov_failure_cluster_from_chain.rs (target/debug/deps/tb_18r_markov_failure_cluster_from_chain-a8153332df243936)
+     Running tests/tb_18r_no_raw_response_in_attempt_payload.rs (target/debug/deps/tb_18r_no_raw_response_in_attempt_payload-25e778f358329296)
+     Running tests/tb_18r_rejection_class_repr_stability.rs (target/debug/deps/tb_18r_rejection_class_repr_stability-20535a58f2f41ee2)
+     Running tests/tb_1_acceptance.rs (target/debug/deps/tb_1_acceptance-12e9920173e259af)
+     Running tests/tb_2_runtime_boundary.rs (target/debug/deps/tb_2_runtime_boundary-9c0b73b34933d8c6)
+     Running tests/tb_3_bridge_deletion_invariant.rs (target/debug/deps/tb_3_bridge_deletion_invariant-c569689d244fec53)
+     Running tests/tb_3_rsp1_formal_surface.rs (target/debug/deps/tb_3_rsp1_formal_surface-2d4f7f1e20b6d700)
+     Running tests/tb_4_rsp2_admission_surface.rs (target/debug/deps/tb_4_rsp2_admission_surface-bd48579f358c3264)
+     Running tests/tb_5_anti_drift.rs (target/debug/deps/tb_5_anti_drift-0bc21df65e37fd44)
+     Running tests/tb_5_challenge_resolve_surface.rs (target/debug/deps/tb_5_challenge_resolve_surface-4361354f464dbaf4)
+     Running tests/tb_5_system_ingress_barrier.rs (target/debug/deps/tb_5_system_ingress_barrier-ba00a136746a1429)
+     Running tests/tb_6_agent_audit_trail.rs (target/debug/deps/tb_6_agent_audit_trail-53fad782e70d187c)
+     Running tests/tb_6_l4e_jsonl_persistence.rs (target/debug/deps/tb_6_l4e_jsonl_persistence-3fe7750103466155)
+     Running tests/tb_6_run_summary.rs (target/debug/deps/tb_6_run_summary-b9e857b932f332ba)
+     Running tests/tb_6_runtime_chaintape_bootstrap.rs (target/debug/deps/tb_6_runtime_chaintape_bootstrap-66a9c17533e5c7ab)
+     Running tests/tb_6_verify_chaintape.rs (target/debug/deps/tb_6_verify_chaintape-a96a17e251902dfb)
+     Running tests/tb_7_atom6_chain_backed_smoke.rs (target/debug/deps/tb_7_atom6_chain_backed_smoke-1b1e834fb979f2e0)
+     Running tests/tb_7_authoritative_routing.rs (target/debug/deps/tb_7_authoritative_routing-981c41cc51944228)
+     Running tests/tb_7_legacy_append_regression.rs (target/debug/deps/tb_7_legacy_append_regression-c3f3c267b14686be)
+     Running tests/tb_7r_parent_tx_conformance.rs (target/debug/deps/tb_7r_parent_tx_conformance-453be42cd334d0ac)
+     Running tests/tb_8_minimal_payout.rs (target/debug/deps/tb_8_minimal_payout-c565a9a5d7520847)
+     Running tests/wal_resume.rs (target/debug/deps/wal_resume-9c4587b8cd10183d)
+     Running tests/walkthrough_inv3_conservation.rs (target/debug/deps/walkthrough_inv3_conservation-46b0a07410e177fd)
+   Doc-tests gix_capability_spike
+   Doc-tests minif2f_v4
+   Doc-tests turingosv4

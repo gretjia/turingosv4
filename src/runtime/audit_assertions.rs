@@ -67,19 +67,21 @@ use crate::bottom_white::ledger::transition_ledger::{
     canonical_decode, replay_full_transition, Git2LedgerWriter, LedgerCasView, LedgerEntry,
     LedgerWriter, ReplayError, TxKind,
 };
+use crate::bottom_white::tools::registry::ToolRegistry;
+use crate::runtime::agent_keypairs::AgentPubkeyManifest;
 use crate::runtime::attempt_telemetry::{
-    read_attempt_telemetry_from_cas, read_lean_result_from_cas, AttemptOutcome, LeanResult,
+    read_attempt_telemetry_from_cas, read_lean_result_from_cas, AttemptOutcome, AttemptTelemetry,
+    LeanResult,
 };
 use crate::runtime::evidence_capsule::EvidenceCapsule;
+use crate::runtime::genesis_report::AgentModelAssignment;
 use crate::runtime::markov_capsule::MarkovEvidenceCapsule;
 use crate::runtime::proposal_telemetry::ProposalTelemetry;
 use crate::runtime::verification_result::VerificationResult;
 use crate::runtime::PinnedPubkeyManifest;
-use crate::runtime::agent_keypairs::AgentPubkeyManifest;
 use crate::state::q_state::{Hash, QState};
 use crate::state::typed_tx::{CapsulePrivacyPolicy, TypedTx};
 use crate::top_white::predicates::registry::PredicateRegistry;
-use crate::bottom_white::tools::registry::ToolRegistry;
 
 // ─────────────────────────────────────────────────────────────────────
 // Public types
@@ -179,6 +181,260 @@ impl AssertionResult {
     }
 }
 
+/// TRACE_MATRIX FC3 audit/report view: verdict for the G4.2 hidden-switch assertion.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ModelIdentityAuditVerdict {
+    Proceed,
+    Block,
+}
+
+/// TRACE_MATRIX FC3 audit/report view: cause taxonomy for blocking hidden-switch reports.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum HiddenSwitchCause {
+    EnvResolverMismatch,
+    ProviderFallback,
+    ManualOverride,
+    RuntimeProxyReroute,
+    MissingAttemptTelemetry,
+    Unknown,
+}
+
+/// TRACE_MATRIX FC3 audit/report view: one model identity mismatch witness.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HiddenSwitchRecord {
+    pub agent_id: String,
+    pub attempt_id: String,
+    pub expected_model_name: Option<String>,
+    pub expected_model_family: Option<String>,
+    pub actual_model_name: Option<String>,
+    pub actual_model_family: Option<String>,
+    pub cause: HiddenSwitchCause,
+}
+
+/// TRACE_MATRIX FC3 audit/report view: aggregate report for genesis-vs-actual model identity.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ModelIdentityAuditReport {
+    pub verdict: ModelIdentityAuditVerdict,
+    pub total_attempts: usize,
+    pub hidden_switches: Vec<HiddenSwitchRecord>,
+}
+
+impl ModelIdentityAuditReport {
+    /// TRACE_MATRIX FC3 audit/report view: render blocking audit detail without mutating evidence.
+    pub fn render_blocking_report(&self) -> String {
+        if self.hidden_switches.is_empty() {
+            return "no hidden model switch detected".into();
+        }
+        let mut out = format!(
+            "BLOCK: hidden model switch audit failed ({} mismatch(es) / {} attempt(s))",
+            self.hidden_switches.len(),
+            self.total_attempts
+        );
+        for r in &self.hidden_switches {
+            out.push_str(&format!(
+                "\n- agent={} attempt={} cause={:?} expected={:?}/{:?} actual={:?}/{:?}",
+                r.agent_id,
+                r.attempt_id,
+                r.cause,
+                r.expected_model_family,
+                r.expected_model_name,
+                r.actual_model_family,
+                r.actual_model_name
+            ));
+        }
+        out
+    }
+}
+
+/// TRACE_MATRIX FC3 audit/report view: compare GenesisReport assignment against AttemptTelemetry actuals.
+pub fn audit_model_identity_records(
+    assignments: &[AgentModelAssignment],
+    attempts: &[AttemptTelemetry],
+) -> ModelIdentityAuditReport {
+    let assignment_by_agent: BTreeMap<String, &AgentModelAssignment> = assignments
+        .iter()
+        .map(|a| (a.agent_id.clone(), a))
+        .collect();
+    let mut hidden_switches = Vec::new();
+
+    for attempt in attempts {
+        let agent_id = attempt.agent_id.0.clone();
+        let attempt_id = attempt.attempt_id.0.clone();
+        let assignment = match assignment_by_agent.get(&agent_id) {
+            Some(a) => *a,
+            None => {
+                hidden_switches.push(HiddenSwitchRecord {
+                    agent_id,
+                    attempt_id,
+                    expected_model_name: None,
+                    expected_model_family: None,
+                    actual_model_name: attempt.model_name.clone(),
+                    actual_model_family: attempt.model_family.clone(),
+                    cause: HiddenSwitchCause::EnvResolverMismatch,
+                });
+                continue;
+            }
+        };
+
+        let missing_actual = attempt.model_name.is_none()
+            || attempt.model_family.is_none()
+            || attempt.model_provider.is_none()
+            || attempt.temperature_milli.is_none();
+        if missing_actual {
+            hidden_switches.push(HiddenSwitchRecord {
+                agent_id,
+                attempt_id,
+                expected_model_name: Some(assignment.model_name.clone()),
+                expected_model_family: Some(assignment.model_family.clone()),
+                actual_model_name: attempt.model_name.clone(),
+                actual_model_family: attempt.model_family.clone(),
+                cause: HiddenSwitchCause::MissingAttemptTelemetry,
+            });
+            continue;
+        }
+
+        let model_name_matches =
+            attempt.model_name.as_deref() == Some(assignment.model_name.as_str());
+        let model_family_matches =
+            attempt.model_family.as_deref() == Some(assignment.model_family.as_str());
+        let model_provider_matches =
+            attempt.model_provider.as_deref() == Some(assignment.model_provider.as_str());
+        let temperature_matches = attempt.temperature_milli == Some(assignment.temperature_milli);
+        if model_name_matches
+            && model_family_matches
+            && model_provider_matches
+            && temperature_matches
+        {
+            continue;
+        }
+
+        let cause = if !model_family_matches || !model_name_matches {
+            HiddenSwitchCause::RuntimeProxyReroute
+        } else if !model_provider_matches {
+            HiddenSwitchCause::ProviderFallback
+        } else if !temperature_matches {
+            HiddenSwitchCause::ManualOverride
+        } else {
+            HiddenSwitchCause::Unknown
+        };
+        hidden_switches.push(HiddenSwitchRecord {
+            agent_id,
+            attempt_id,
+            expected_model_name: Some(assignment.model_name.clone()),
+            expected_model_family: Some(assignment.model_family.clone()),
+            actual_model_name: attempt.model_name.clone(),
+            actual_model_family: attempt.model_family.clone(),
+            cause,
+        });
+    }
+
+    ModelIdentityAuditReport {
+        verdict: if hidden_switches.is_empty() {
+            ModelIdentityAuditVerdict::Proceed
+        } else {
+            ModelIdentityAuditVerdict::Block
+        },
+        total_attempts: attempts.len(),
+        hidden_switches,
+    }
+}
+
+/// TRACE_MATRIX FC3 audit/report view: derive hidden-switch verdict from GenesisReport + CAS.
+pub fn audit_model_identity_from_paths(
+    runtime_repo: &Path,
+    cas_dir: &Path,
+) -> Result<ModelIdentityAuditReport, String> {
+    let genesis_path = runtime_repo.join("genesis_report.json");
+    let genesis_json = std::fs::read_to_string(&genesis_path)
+        .map_err(|e| format!("read {genesis_path:?}: {e}"))?;
+    let genesis: crate::runtime::genesis_report::GenesisReport =
+        serde_json::from_str(&genesis_json).map_err(|e| format!("parse {genesis_path:?}: {e}"))?;
+    let cas = CasStore::open(cas_dir).map_err(|e| format!("open CAS {cas_dir:?}: {e}"))?;
+    let mut attempts = Vec::new();
+    for cid in cas.list_cids_by_object_type(ObjectType::AttemptTelemetry) {
+        let attempt = read_attempt_telemetry_from_cas(&cas, &cid)
+            .map_err(|e| format!("read AttemptTelemetry {cid}: {e}"))?;
+        attempts.push(attempt);
+    }
+    Ok(audit_model_identity_records(
+        &genesis.agent_model_assignment,
+        &attempts,
+    ))
+}
+
+/// TRACE_MATRIX FC3 audit/report view: blocking audit_tape assertion for G4.2 hidden switches.
+pub fn assert_g_no_hidden_model_switch(t: &LoadedTape) -> AssertionResult {
+    const ID: u32 = 52;
+    const NAME: &str = "no_hidden_model_switch";
+
+    let genesis_path = t.runtime_repo.join("genesis_report.json");
+    if !genesis_path.exists() {
+        return AssertionResult::skipped(
+            ID,
+            NAME,
+            AssertionLayer::G,
+            "no genesis_report.json present; pre-G4.2 evidence grandfathered".into(),
+        );
+    }
+
+    let genesis_json = match std::fs::read_to_string(&genesis_path) {
+        Ok(json) => json,
+        Err(e) => {
+            return AssertionResult::halt(
+                ID,
+                NAME,
+                AssertionLayer::G,
+                format!("read {genesis_path:?}: {e}"),
+            )
+        }
+    };
+    let genesis: crate::runtime::genesis_report::GenesisReport =
+        match serde_json::from_str(&genesis_json) {
+            Ok(genesis) => genesis,
+            Err(e) => {
+                return AssertionResult::halt(
+                    ID,
+                    NAME,
+                    AssertionLayer::G,
+                    format!("parse {genesis_path:?}: {e}"),
+                )
+            }
+        };
+
+    if genesis.agent_model_assignment.is_empty() {
+        return AssertionResult::skipped(
+            ID,
+            NAME,
+            AssertionLayer::G,
+            "genesis_report has no agent_model_assignment; historical evidence grandfathered"
+                .into(),
+        );
+    }
+
+    let mut attempts = Vec::new();
+    for cid in t.cas.list_cids_by_object_type(ObjectType::AttemptTelemetry) {
+        match read_attempt_telemetry_from_cas(&t.cas, &cid) {
+            Ok(attempt) => attempts.push(attempt),
+            Err(e) => {
+                return AssertionResult::halt(
+                    ID,
+                    NAME,
+                    AssertionLayer::G,
+                    format!("AttemptTelemetry decode failed for cid {cid}: {e}"),
+                )
+            }
+        }
+    }
+
+    let report = audit_model_identity_records(&genesis.agent_model_assignment, &attempts);
+    match report.verdict {
+        ModelIdentityAuditVerdict::Proceed => AssertionResult::pass(ID, NAME, AssertionLayer::G),
+        ModelIdentityAuditVerdict::Block => {
+            AssertionResult::halt(ID, NAME, AssertionLayer::G, report.render_blocking_report())
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 /// TRACE_MATRIX FC1-N34 + FC2-N31 (TB-16 audit-from-tape battery).
 pub struct TapeRoot {
@@ -202,9 +458,9 @@ pub struct TxKindCounts {
     pub complete_set_mint: u64,
     pub complete_set_redeem: u64,
     pub market_seed: u64,
-    pub complete_set_merge: u64,  // Stage C P-M2 / Phase F.1
-    pub cpmm_pool: u64,           // Stage C P-M4 / Phase F.3
-    pub cpmm_swap: u64,           // Stage C P-M5 / Phase F.4
+    pub complete_set_merge: u64,   // Stage C P-M2 / Phase F.1
+    pub cpmm_pool: u64,            // Stage C P-M4 / Phase F.3
+    pub cpmm_swap: u64,            // Stage C P-M5 / Phase F.4
     pub buy_with_coin_router: u64, // Stage C P-M6 / Phase F.5
     pub finalize_reward: u64,
     pub challenge_resolve: u64,
@@ -343,6 +599,8 @@ impl<'a> LedgerCasView for CasStoreRef<'a> {
 
 /// TRACE_MATRIX FC1-N34 + FC2-N31 (TB-16 audit-from-tape battery).
 pub struct LoadedTape {
+    pub runtime_repo: PathBuf,
+    pub cas_dir: PathBuf,
     pub entries: Vec<LedgerEntry>,
     pub l4e_writer: RejectionEvidenceWriter,
     pub cas: CasStore,
@@ -382,7 +640,10 @@ pub fn load_tape(inputs: &AuditInputs) -> Result<LoadedTape, AuditError> {
             .as_slice()
             .try_into()
             .map_err(|_| AuditError::PinnedManifest("expected 32-byte pubkey".into()))?;
-        pinned.insert(SystemEpoch::new(entry.epoch), SystemPublicKey::from_bytes(arr));
+        pinned.insert(
+            SystemEpoch::new(entry.epoch),
+            SystemPublicKey::from_bytes(arr),
+        );
     }
 
     // agent manifest
@@ -393,7 +654,8 @@ pub fn load_tape(inputs: &AuditInputs) -> Result<LoadedTape, AuditError> {
     let initial_q_path = inputs.runtime_repo.join(INITIAL_Q_STATE_FILENAME);
     let initial_q = if initial_q_path.exists() {
         let s = std::fs::read_to_string(&initial_q_path)?;
-        serde_json::from_str(&s).map_err(|e| AuditError::ReplayBlocked(format!("initial_q: {e}")))?
+        serde_json::from_str(&s)
+            .map_err(|e| AuditError::ReplayBlocked(format!("initial_q: {e}")))?
     } else {
         QState::genesis()
     };
@@ -411,8 +673,7 @@ pub fn load_tape(inputs: &AuditInputs) -> Result<LoadedTape, AuditError> {
     }
 
     // CAS
-    let cas =
-        CasStore::open(&inputs.cas_dir).map_err(|e| AuditError::Cas(e.to_string()))?;
+    let cas = CasStore::open(&inputs.cas_dir).map_err(|e| AuditError::Cas(e.to_string()))?;
 
     // L4.E
     let rej_path = inputs.runtime_repo.join(REJECTIONS_JSONL_FILENAME);
@@ -475,6 +736,8 @@ pub fn load_tape(inputs: &AuditInputs) -> Result<LoadedTape, AuditError> {
         .and_then(|s| extract_constitution_root_hex(&s));
 
     Ok(LoadedTape {
+        runtime_repo: inputs.runtime_repo.clone(),
+        cas_dir: inputs.cas_dir.clone(),
         entries,
         l4e_writer,
         cas,
@@ -675,8 +938,7 @@ pub fn assert_01_constitution_hash_matches_genesis(t: &LoadedTape) -> AssertionR
             1,
             "constitution_hash_matches_genesis",
             AssertionLayer::A,
-            "genesis [constitution_root] not present or unparseable; sha256 left unchecked"
-                .into(),
+            "genesis [constitution_root] not present or unparseable; sha256 left unchecked".into(),
         ),
         Some(want) if want == &live => {
             AssertionResult::pass(1, "constitution_hash_matches_genesis", AssertionLayer::A)
@@ -826,17 +1088,26 @@ fn extract_all_agent_ids(tx: &TypedTx) -> Vec<(&'static str, String)> {
     match tx {
         TypedTx::Work(t) => out.push(("WorkTx.agent_id", t.agent_id.0.clone())),
         TypedTx::Verify(t) => out.push(("VerifyTx.verifier_agent", t.verifier_agent.0.clone())),
-        TypedTx::Challenge(t) => out.push(("ChallengeTx.challenger_agent", t.challenger_agent.0.clone())),
-        TypedTx::Reuse(t) => out.push(("ReuseTx.reused_tool_creator", t.reused_tool_creator.0.clone())),
+        TypedTx::Challenge(t) => {
+            out.push(("ChallengeTx.challenger_agent", t.challenger_agent.0.clone()))
+        }
+        TypedTx::Reuse(t) => out.push((
+            "ReuseTx.reused_tool_creator",
+            t.reused_tool_creator.0.clone(),
+        )),
         TypedTx::FinalizeReward(t) => out.push(("FinalizeRewardTx.solver", t.solver.0.clone())),
-        TypedTx::TaskExpire(t) => out.push(("TaskExpireTx.sponsor_agent", t.sponsor_agent.0.clone())),
+        TypedTx::TaskExpire(t) => {
+            out.push(("TaskExpireTx.sponsor_agent", t.sponsor_agent.0.clone()))
+        }
         TypedTx::TerminalSummary(t) => {
             if let Some(solver) = &t.solver_agent {
                 out.push(("TerminalSummaryTx.solver_agent", solver.0.clone()));
             }
         }
         TypedTx::TaskOpen(t) => out.push(("TaskOpenTx.sponsor_agent", t.sponsor_agent.0.clone())),
-        TypedTx::EscrowLock(t) => out.push(("EscrowLockTx.sponsor_agent", t.sponsor_agent.0.clone())),
+        TypedTx::EscrowLock(t) => {
+            out.push(("EscrowLockTx.sponsor_agent", t.sponsor_agent.0.clone()))
+        }
         TypedTx::ChallengeResolve(_) | TypedTx::TaskBankruptcy(_) | TypedTx::EventResolve(_) => {
             // No direct AgentId fields; refer to other tx by id only.
             // TB-N2 B2 EventResolveTx: 6 wire fields (tx_id + parent_state_root +
@@ -951,9 +1222,7 @@ pub fn assert_07_genesis_row_zero_parents(t: &LoadedTape) -> AssertionResult {
 
 /// TRACE_MATRIX FC1-N34 + FC2-N31 (TB-16 audit-from-tape battery).
 pub fn assert_08_system_tx_signatures_verify(t: &LoadedTape) -> AssertionResult {
-    use crate::bottom_white::ledger::system_keypair::{
-        verify_system_signature, CanonicalMessage,
-    };
+    use crate::bottom_white::ledger::system_keypair::{verify_system_signature, CanonicalMessage};
     let mut count = 0u32;
     for (i, e) in t.entries.iter().enumerate() {
         if !is_system_tx_kind(e.tx_kind) {
@@ -1164,7 +1433,11 @@ pub fn assert_14_replay_autopsy_index_chains(t: &LoadedTape) -> AssertionResult 
                         14,
                         "replay_autopsy_index_chains",
                         AssertionLayer::C,
-                        format!("CAS missing autopsy {} for {:?}", hex_encode(&cid.0), event_id),
+                        format!(
+                            "CAS missing autopsy {} for {:?}",
+                            hex_encode(&cid.0),
+                            event_id
+                        ),
                     );
                 }
             }
@@ -1199,7 +1472,11 @@ pub fn assert_15_canonical_edges_replay_deterministic(t: &LoadedTape) -> Asserti
     let a = canonical_encode(&q.economic_state_t).unwrap_or_default();
     let b = canonical_encode(&q.economic_state_t).unwrap_or_default();
     if a == b {
-        AssertionResult::pass(15, "canonical_edges_replay_deterministic", AssertionLayer::C)
+        AssertionResult::pass(
+            15,
+            "canonical_edges_replay_deterministic",
+            AssertionLayer::C,
+        )
     } else {
         AssertionResult::fail(
             15,
@@ -1324,8 +1601,10 @@ pub fn assert_18_total_supply_conserved(t: &LoadedTape) -> AssertionResult {
             18,
             "total_supply_conserved",
             AssertionLayer::D,
-            format!("initial={initial_total}μC; final={final_total}μC; delta={}",
-                final_total - initial_total),
+            format!(
+                "initial={initial_total}μC; final={final_total}μC; delta={}",
+                final_total - initial_total
+            ),
         )
     }
 }
@@ -1490,7 +1769,11 @@ pub fn assert_20_task_market_total_escrow_matches_locks(t: &LoadedTape) -> Asser
             );
         }
     }
-    AssertionResult::pass(20, "task_market_total_escrow_matches_locks", AssertionLayer::D)
+    AssertionResult::pass(
+        20,
+        "task_market_total_escrow_matches_locks",
+        AssertionLayer::D,
+    )
 }
 
 /// TRACE_MATRIX FC1-N34 + FC2-N31 (TB-16 audit-from-tape battery).
@@ -1515,9 +1798,7 @@ pub fn assert_21_node_positions_excluded_from_supply(t: &LoadedTape) -> Assertio
     for (_, pos) in &q.economic_state_t.node_positions_t.0 {
         with_positions += pos.amount.micro_units() as i128;
     }
-    if q.economic_state_t.node_positions_t.0.is_empty()
-        || with_positions != baseline
-    {
+    if q.economic_state_t.node_positions_t.0.is_empty() || with_positions != baseline {
         // either no positions to include (vacuous), or including them
         // would diverge — both confirm exclusion.
         AssertionResult::pass(21, "node_positions_excluded_from_supply", AssertionLayer::D)
@@ -1580,7 +1861,8 @@ pub fn assert_22_conditional_shares_excluded_from_supply(t: &LoadedTape) -> Asse
             22,
             "conditional_shares_excluded_from_supply",
             AssertionLayer::D,
-            "including shares + pool reserves did not change total — implies CR-13.3 violation".into(),
+            "including shares + pool reserves did not change total — implies CR-13.3 violation"
+                .into(),
         )
     }
 }
@@ -1623,7 +1905,11 @@ pub fn assert_23_accepted_work_predicate_results_true(t: &LoadedTape) -> Asserti
             }
         }
     }
-    AssertionResult::pass(23, "accepted_work_predicate_results_true", AssertionLayer::E)
+    AssertionResult::pass(
+        23,
+        "accepted_work_predicate_results_true",
+        AssertionLayer::E,
+    )
 }
 
 /// TRACE_MATRIX FC1-N34 + FC2-N31 (TB-16 audit-from-tape battery).
@@ -1659,7 +1945,8 @@ pub fn assert_24_proposal_telemetry_chain(t: &LoadedTape) -> AssertionResult {
                 );
             }
         };
-        let telemetry: ProposalTelemetry = match canonical_decode::<ProposalTelemetry>(&prop_bytes) {
+        let telemetry: ProposalTelemetry = match canonical_decode::<ProposalTelemetry>(&prop_bytes)
+        {
             Ok(p) => p,
             Err(_) => match serde_json::from_slice::<ProposalTelemetry>(&prop_bytes) {
                 Ok(p) => p,
@@ -1835,9 +2122,7 @@ pub fn assert_e_challenge_resolve_chain_to_challenge_tx(t: &LoadedTape) -> Asser
                             id,
                             "challenge_resolve_chain_to_challenge_tx",
                             AssertionLayer::E,
-                            format!(
-                                "CAS missing tx_payload at L4 index {i} (Challenge): {e2}"
-                            ),
+                            format!("CAS missing tx_payload at L4 index {i} (Challenge): {e2}"),
                         );
                     }
                 };
@@ -1878,9 +2163,7 @@ pub fn assert_e_challenge_resolve_chain_to_challenge_tx(t: &LoadedTape) -> Asser
                             id,
                             "challenge_resolve_chain_to_challenge_tx",
                             AssertionLayer::E,
-                            format!(
-                                "decode TypedTx at L4 index {i} (ChallengeResolve): {e2}"
-                            ),
+                            format!("decode TypedTx at L4 index {i} (ChallengeResolve): {e2}"),
                         );
                     }
                 };
@@ -1911,7 +2194,11 @@ pub fn assert_e_challenge_resolve_chain_to_challenge_tx(t: &LoadedTape) -> Asser
             "no ChallengeResolveTx in tape (pre-TB-16.x.2.2 chain or arena profile without FORCE_CHALLENGE_RESOLVE)".into(),
         )
     } else {
-        AssertionResult::pass(id, "challenge_resolve_chain_to_challenge_tx", AssertionLayer::E)
+        AssertionResult::pass(
+            id,
+            "challenge_resolve_chain_to_challenge_tx",
+            AssertionLayer::E,
+        )
     }
 }
 
@@ -1949,13 +2236,13 @@ pub fn assert_e_challenge_resolve_chain_to_challenge_tx(t: &LoadedTape) -> Asser
 ///   ≥ 0.5 (and no task with ≥3 WorkTxs has entropy < 0.5).
 ///
 /// id=43 (Layer E supplemental).
-pub fn assert_e_boltzmann_parent_selection_diversity(
-    t: &LoadedTape,
-) -> AssertionResult {
+pub fn assert_e_boltzmann_parent_selection_diversity(t: &LoadedTape) -> AssertionResult {
     let id = 43u32;
     use std::collections::BTreeMap;
-    let mut by_task: BTreeMap<crate::state::q_state::TaskId, Vec<Option<crate::state::q_state::TxId>>> =
-        BTreeMap::new();
+    let mut by_task: BTreeMap<
+        crate::state::q_state::TaskId,
+        Vec<Option<crate::state::q_state::TxId>>,
+    > = BTreeMap::new();
     for (i, e) in t.entries.iter().enumerate() {
         if e.tx_kind != TxKind::Work {
             continue;
@@ -1995,7 +2282,8 @@ pub fn assert_e_boltzmann_parent_selection_diversity(
                 continue;
             }
         };
-        let telemetry: ProposalTelemetry = match canonical_decode::<ProposalTelemetry>(&prop_bytes) {
+        let telemetry: ProposalTelemetry = match canonical_decode::<ProposalTelemetry>(&prop_bytes)
+        {
             Ok(p) => p,
             Err(_) => match serde_json::from_slice::<ProposalTelemetry>(&prop_bytes) {
                 Ok(p) => p,
@@ -2096,7 +2384,11 @@ pub fn assert_e_boltzmann_parent_selection_diversity(
             ),
         );
     }
-    AssertionResult::pass(id, "boltzmann_parent_selection_diversity", AssertionLayer::E)
+    AssertionResult::pass(
+        id,
+        "boltzmann_parent_selection_diversity",
+        AssertionLayer::E,
+    )
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -2138,9 +2430,15 @@ pub fn assert_28_projection_no_autopsy_bytes(t: &LoadedTape) -> AssertionResult 
             };
             // Best-effort decode; if it fails, skip — tampered CAS
             // bytes will be flagged elsewhere.
-            if let Ok(autopsy) = canonical_decode::<crate::runtime::autopsy_capsule::AgentAutopsyCapsule>(&caps_bytes) {
+            if let Ok(autopsy) = canonical_decode::<
+                crate::runtime::autopsy_capsule::AgentAutopsyCapsule,
+            >(&caps_bytes)
+            {
                 private_cids.insert(autopsy.private_detail_cid.0);
-            } else if let Ok(autopsy) = serde_json::from_slice::<crate::runtime::autopsy_capsule::AgentAutopsyCapsule>(&caps_bytes) {
+            } else if let Ok(autopsy) = serde_json::from_slice::<
+                crate::runtime::autopsy_capsule::AgentAutopsyCapsule,
+            >(&caps_bytes)
+            {
                 private_cids.insert(autopsy.private_detail_cid.0);
             }
         }
@@ -2228,7 +2526,11 @@ pub fn assert_29_autopsy_private_detail_creator_is_system(t: &LoadedTape) -> Ass
             }
         }
     }
-    AssertionResult::pass(29, "autopsy_private_detail_creator_is_system", AssertionLayer::F)
+    AssertionResult::pass(
+        29,
+        "autopsy_private_detail_creator_is_system",
+        AssertionLayer::F,
+    )
 }
 
 /// TRACE_MATRIX FC1-N34 + FC2-N31 (TB-16 audit-from-tape battery).
@@ -2266,8 +2568,7 @@ pub fn assert_30_typical_error_summary_no_private_detail(t: &LoadedTape) -> Asse
             capsules.push(autopsy);
         }
     }
-    let summaries =
-        crate::runtime::autopsy_capsule::cluster_autopsies(&capsules, 3);
+    let summaries = crate::runtime::autopsy_capsule::cluster_autopsies(&capsules, 3);
     let json = serde_json::to_string(&summaries).unwrap_or_default();
     let canonical = canonical_encode(&summaries).unwrap_or_default();
     for run in &private_cids {
@@ -2289,7 +2590,9 @@ pub fn assert_30_typical_error_summary_no_private_detail(t: &LoadedTape) -> Asse
             let mut form = String::with_capacity(160);
             form.push('[');
             for i in 0..32 {
-                if i > 0 { form.push(','); }
+                if i > 0 {
+                    form.push(',');
+                }
                 form.push_str(&n.to_string());
             }
             form.push(']');
@@ -2303,7 +2606,11 @@ pub fn assert_30_typical_error_summary_no_private_detail(t: &LoadedTape) -> Asse
             }
         }
     }
-    AssertionResult::pass(30, "typical_error_summary_no_private_detail", AssertionLayer::F)
+    AssertionResult::pass(
+        30,
+        "typical_error_summary_no_private_detail",
+        AssertionLayer::F,
+    )
 }
 
 /// TRACE_MATRIX FC1-N34 + FC2-N31 (TB-16 audit-from-tape battery).
@@ -2467,9 +2774,14 @@ pub fn assert_33_markov_typical_errors_recompute(t: &LoadedTape) -> AssertionRes
                 Ok(b) => b,
                 Err(_) => continue,
             };
-            if let Ok(a) = canonical_decode::<crate::runtime::autopsy_capsule::AgentAutopsyCapsule>(&bytes) {
+            if let Ok(a) =
+                canonical_decode::<crate::runtime::autopsy_capsule::AgentAutopsyCapsule>(&bytes)
+            {
                 capsules.push(a);
-            } else if let Ok(a) = serde_json::from_slice::<crate::runtime::autopsy_capsule::AgentAutopsyCapsule>(&bytes) {
+            } else if let Ok(a) = serde_json::from_slice::<
+                crate::runtime::autopsy_capsule::AgentAutopsyCapsule,
+            >(&bytes)
+            {
                 capsules.push(a);
             }
         }
@@ -2569,7 +2881,11 @@ pub fn assert_35_markov_next_session_context_resolves(t: &LoadedTape) -> Asserti
     };
     let s = String::from_utf8_lossy(&bytes);
     if s.contains("DEFAULT-DENY") || s.contains("default-deny") || s.contains("default_deny") {
-        AssertionResult::pass(35, "markov_next_session_context_resolves", AssertionLayer::G)
+        AssertionResult::pass(
+            35,
+            "markov_next_session_context_resolves",
+            AssertionLayer::G,
+        )
     } else {
         AssertionResult::fail(
             35,
@@ -2605,7 +2921,8 @@ pub fn assert_44_attempt_telemetry_retrievable_from_cas(t: &LoadedTape) -> Asser
             44,
             "attempt_telemetry_retrievable_from_cas",
             AssertionLayer::G,
-            "no AttemptTelemetry CAS objects on this chain (pre-R3 grandfathered or empty run)".into(),
+            "no AttemptTelemetry CAS objects on this chain (pre-R3 grandfathered or empty run)"
+                .into(),
         );
     }
     for cid in &cids {
@@ -2635,7 +2952,11 @@ pub fn assert_44_attempt_telemetry_retrievable_from_cas(t: &LoadedTape) -> Asser
             );
         }
     }
-    AssertionResult::pass(44, "attempt_telemetry_retrievable_from_cas", AssertionLayer::G)
+    AssertionResult::pass(
+        44,
+        "attempt_telemetry_retrievable_from_cas",
+        AssertionLayer::G,
+    )
 }
 
 /// TRACE_MATRIX FC2-N34 (TB-18R R5 charter v2 §1.2 FR-18R.7 +
@@ -2759,7 +3080,11 @@ pub fn assert_46_attempt_chain_root_schema_well_formed(t: &LoadedTape) -> Assert
             }
         }
     }
-    AssertionResult::pass(46, "attempt_chain_root_schema_well_formed", AssertionLayer::G)
+    AssertionResult::pass(
+        46,
+        "attempt_chain_root_schema_well_formed",
+        AssertionLayer::G,
+    )
 }
 
 /// TRACE_MATRIX FC3-N47 (TB-18R R5 charter v2 §1.2 FR-18R.6 +
@@ -2803,7 +3128,11 @@ pub fn assert_g_markov_cluster_source_attempt_telemetry(t: &LoadedTape) -> Asser
     // discriminator from the failure set counts as a valid markov
     // cluster source.
     let _ = failure_outcomes_seen;
-    AssertionResult::pass(49, "markov_cluster_source_attempt_telemetry", AssertionLayer::G)
+    AssertionResult::pass(
+        49,
+        "markov_cluster_source_attempt_telemetry",
+        AssertionLayer::G,
+    )
 }
 
 // Layer H — tamper detection (3 assertions; exercised via separate binary)
@@ -3114,7 +3443,9 @@ pub fn assert_51_l4e_git_attestation_matches_jsonl(
         match commit.parent_count() {
             0 => break,
             1 => {
-                cursor = commit.parent_id(0).expect("parent_count==1 so parent_id(0) exists");
+                cursor = commit
+                    .parent_id(0)
+                    .expect("parent_count==1 so parent_id(0) exists");
             }
             n => {
                 return AssertionResult::halt(
@@ -3318,6 +3649,7 @@ pub fn run_all_assertions(inputs: &AuditInputs) -> Result<Vec<AssertionResult>, 
     r.push(assert_45_lean_result_retrievable_from_cas(&tape));
     r.push(assert_46_attempt_chain_root_schema_well_formed(&tape));
     r.push(assert_g_markov_cluster_source_attempt_telemetry(&tape));
+    r.push(assert_g_no_hidden_model_switch(&tape));
     // Layer H (3 + 2 TB-18R R5 supplemental — exercised by
     // audit_tape_tamper binary)
     r.push(assert_36_tamper_l4_flip_detected());
@@ -3364,21 +3696,46 @@ pub fn summarize_results(
     }
     let mut feature_coverage: BTreeMap<String, String> = BTreeMap::new();
     let cov = |present: bool| -> &'static str {
-        if present { "GREEN" } else { "RED" }
+        if present {
+            "GREEN"
+        } else {
+            "RED"
+        }
     };
     let c = &tx_kind_counts;
     feature_coverage.insert("TB-1_monetary".into(), "GREEN".into());
     feature_coverage.insert("TB-2_work".into(), cov(c.work > 0).into());
-    feature_coverage.insert("TB-3_task_open_escrow".into(), cov(c.task_open > 0 && c.escrow_lock > 0).into());
-    feature_coverage.insert("TB-4_verify_challenge".into(), cov(c.verify > 0 && c.challenge > 0).into());
-    feature_coverage.insert("TB-5_challenge_resolve".into(), cov(c.challenge_resolve > 0).into());
+    feature_coverage.insert(
+        "TB-3_task_open_escrow".into(),
+        cov(c.task_open > 0 && c.escrow_lock > 0).into(),
+    );
+    feature_coverage.insert(
+        "TB-4_verify_challenge".into(),
+        cov(c.verify > 0 && c.challenge > 0).into(),
+    );
+    feature_coverage.insert(
+        "TB-5_challenge_resolve".into(),
+        cov(c.challenge_resolve > 0).into(),
+    );
     feature_coverage.insert("TB-6_chain".into(), "GREEN".into());
     feature_coverage.insert("TB-7_agent_pubkeys".into(), "GREEN".into());
-    feature_coverage.insert("TB-8_finalize_reward".into(), cov(c.finalize_reward > 0).into());
-    feature_coverage.insert("TB-11_terminal_bankruptcy_expire".into(), cov(c.terminal_summary > 0 || c.task_bankruptcy > 0 || c.task_expire > 0).into());
-    feature_coverage.insert("TB-13_complete_set".into(), cov(c.complete_set_mint > 0 || c.market_seed > 0).into());
+    feature_coverage.insert(
+        "TB-8_finalize_reward".into(),
+        cov(c.finalize_reward > 0).into(),
+    );
+    feature_coverage.insert(
+        "TB-11_terminal_bankruptcy_expire".into(),
+        cov(c.terminal_summary > 0 || c.task_bankruptcy > 0 || c.task_expire > 0).into(),
+    );
+    feature_coverage.insert(
+        "TB-13_complete_set".into(),
+        cov(c.complete_set_mint > 0 || c.market_seed > 0).into(),
+    );
     feature_coverage.insert("TB-14_price_mask".into(), "GREEN".into());
-    feature_coverage.insert("TB-15_autopsy_markov".into(), cov(tape.markov_capsule.is_some()).into());
+    feature_coverage.insert(
+        "TB-15_autopsy_markov".into(),
+        cov(tape.markov_capsule.is_some()).into(),
+    );
     let verdict = if failed == 0 && halted == 0 {
         "PROCEED".into()
     } else {
@@ -3562,9 +3919,15 @@ mod tests {
         // This case is what the ship gate is designed to catch:
         // technically diverse (>1 distinct parent) but the diversity
         // is small enough to indicate near-collapse.
-        let parents: Vec<Option<&str>> = (0..9).map(|_| Some("A")).chain(std::iter::once(Some("B"))).collect();
+        let parents: Vec<Option<&str>> = (0..9)
+            .map(|_| Some("A"))
+            .chain(std::iter::once(Some("B")))
+            .collect();
         let h = non_none_parent_entropy(&parents).unwrap();
-        assert!(h < 0.5, "skewed 9:1 entropy {h} must fall below 0.5 ship gate");
+        assert!(
+            h < 0.5,
+            "skewed 9:1 entropy {h} must fall below 0.5 ship gate"
+        );
         assert!(h > 0.4 && h < 0.5, "expected ~0.469, got {h}");
     }
 
@@ -3603,10 +3966,7 @@ mod tests {
         // Pre-fix: assert_27 checked capsule presence only — passed.
         // Post-fix: extended assert MUST return inconsistent.
         assert!(
-            !assert_27_consistency_holds(
-                RunOutcome::DegradedLLM,
-                ExhaustionReason::MaxTxExhausted
-            ),
+            !assert_27_consistency_holds(RunOutcome::DegradedLLM, ExhaustionReason::MaxTxExhausted),
             "DegradedLLM TerminalSummary with MaxTxExhausted capsule MUST \
              flag inconsistent; the G0 Q6/Q7 mismatch must not slip through"
         );
@@ -3618,10 +3978,7 @@ mod tests {
         // ExhaustionReason::DegradedLLM; TerminalSummary still emits
         // RunOutcome::DegradedLLM. Composition must hold.
         assert!(
-            assert_27_consistency_holds(
-                RunOutcome::DegradedLLM,
-                ExhaustionReason::DegradedLLM
-            ),
+            assert_27_consistency_holds(RunOutcome::DegradedLLM, ExhaustionReason::DegradedLLM),
             "matching DegradedLLM↔DegradedLLM pair must pass"
         );
         assert!(
@@ -3632,33 +3989,21 @@ mod tests {
             "matching MaxTxExhausted↔MaxTxExhausted pair must pass"
         );
         assert!(
-            assert_27_consistency_holds(
-                RunOutcome::WallClockCap,
-                ExhaustionReason::WallClockCap
-            ),
+            assert_27_consistency_holds(RunOutcome::WallClockCap, ExhaustionReason::WallClockCap),
             "matching WallClockCap↔WallClockCap pair must pass"
         );
         assert!(
-            assert_27_consistency_holds(
-                RunOutcome::ComputeCap,
-                ExhaustionReason::ComputeCap
-            ),
+            assert_27_consistency_holds(RunOutcome::ComputeCap, ExhaustionReason::ComputeCap),
             "matching ComputeCap↔ComputeCap pair must pass"
         );
         // ProtocolCollapse and SolverGiveUp both project to ErrorHalt
         // (RunOutcome is constitutionally narrower than ExhaustionReason).
         assert!(
-            assert_27_consistency_holds(
-                RunOutcome::ErrorHalt,
-                ExhaustionReason::ProtocolCollapse
-            ),
+            assert_27_consistency_holds(RunOutcome::ErrorHalt, ExhaustionReason::ProtocolCollapse),
             "ProtocolCollapse↔ErrorHalt projection must pass"
         );
         assert!(
-            assert_27_consistency_holds(
-                RunOutcome::ErrorHalt,
-                ExhaustionReason::SolverGiveUp
-            ),
+            assert_27_consistency_holds(RunOutcome::ErrorHalt, ExhaustionReason::SolverGiveUp),
             "SolverGiveUp↔ErrorHalt projection must pass"
         );
     }

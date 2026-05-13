@@ -1,0 +1,5 @@
+error: unexpected argument 'audit_tape_assertion_battery_blocks_hidden_model_switch' found
+
+Usage: cargo test [OPTIONS] [TESTNAME] [-- [ARGS]...]
+
+For more information, try '--help'.

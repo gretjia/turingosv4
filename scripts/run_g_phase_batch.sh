@@ -72,6 +72,58 @@ MINIF2F_DIR="${MINIF2F_DIR:-/home/zephryj/projects/turingosv3/experiments/minif2
 ACTIVE_MODEL="${ACTIVE_MODEL:-deepseek-chat}"
 LLM_PROXY_URL="${LLM_PROXY_URL:-http://localhost:8080}"
 PER_PROBLEM_TIMEOUT_S="${PER_PROBLEM_TIMEOUT_S:-900}"
+G_PHASE_N_AGENTS="${TURINGOS_G_PHASE_N_AGENTS:-10}"
+G_PHASE_CONDITION="${TURINGOS_G_PHASE_CONDITION:-n${G_PHASE_N_AGENTS}}"
+AGENT_MODELS_RAW="${AGENT_MODELS:-}"
+PHASE_D_HETERO_OK_VALUE="${PHASE_D_HETERO_OK:-0}"
+AGENT_MODELS_HASH="$(printf '%s' "$AGENT_MODELS_RAW" | sha256sum | awk '{print $1}')"
+if [[ -z "${TURINGOS_G4_REQUIRED_MODEL_FAMILIES:-}" ]]; then
+    if [[ "$RUN_TAG" == g_phase_g4_2_* ]]; then
+        TURINGOS_G4_REQUIRED_MODEL_FAMILIES=3
+    else
+        TURINGOS_G4_REQUIRED_MODEL_FAMILIES=0
+    fi
+fi
+
+model_family_for() {
+    local model_lc
+    model_lc="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
+    case "$model_lc" in
+        *claude*|*anthropic*) echo "claude" ;;
+        *gpt*|*openai*|o1*|o3*|o4*) echo "openai" ;;
+        *qwen*) echo "qwen" ;;
+        *deepseek*) echo "deepseek" ;;
+        *gemini*) echo "gemini" ;;
+        *llama*|*local*) echo "local" ;;
+        *) echo "unknown" ;;
+    esac
+}
+
+if [[ -n "$AGENT_MODELS_RAW" ]]; then
+    IFS=',' read -r -a G4_MODELS <<< "$AGENT_MODELS_RAW"
+else
+    G4_MODELS=("$ACTIVE_MODEL")
+fi
+declare -A G4_FAMILIES=()
+ASSIGNMENT_SUMMARY=""
+for model_entry in "${G4_MODELS[@]}"; do
+    model_entry="$(printf '%s' "$model_entry" | xargs)"
+    [[ -n "$model_entry" ]] || continue
+    family="$(model_family_for "$model_entry")"
+    G4_FAMILIES["$family"]=1
+    if [[ -z "$ASSIGNMENT_SUMMARY" ]]; then
+        ASSIGNMENT_SUMMARY="${model_entry}:${family}"
+    else
+        ASSIGNMENT_SUMMARY="${ASSIGNMENT_SUMMARY};${model_entry}:${family}"
+    fi
+done
+MODEL_FAMILY_COUNT_OBSERVED="${#G4_FAMILIES[@]}"
+if [[ "$TURINGOS_G4_REQUIRED_MODEL_FAMILIES" -gt 0 \
+      && "$MODEL_FAMILY_COUNT_OBSERVED" -lt "$TURINGOS_G4_REQUIRED_MODEL_FAMILIES" \
+      && "${TURINGOS_G4_SINGLE_MODEL_DIAGNOSTIC:-0}" != "1" ]]; then
+    echo "ERROR: G4.2 multi-model evidence requires at least ${TURINGOS_G4_REQUIRED_MODEL_FAMILIES} model families; observed ${MODEL_FAMILY_COUNT_OBSERVED}. Set TURINGOS_G4_SINGLE_MODEL_DIAGNOSTIC=1 only for non-ship diagnostics." >&2
+    exit 7
+fi
 
 # ── Source .env (DeepSeek key) ──────────────────────────────────────────────
 
@@ -131,6 +183,11 @@ echo "RUN_TAG          = $RUN_TAG"
 echo "RUN_DIR          = $RUN_DIR"
 echo "PROBLEM_SET      = $PROBLEM_SET  ($PROBLEM_COUNT tasks)"
 echo "ACTIVE_MODEL     = $ACTIVE_MODEL"
+echo "G_PHASE_N_AGENTS = $G_PHASE_N_AGENTS"
+echo "G_PHASE_CONDITION= $G_PHASE_CONDITION"
+echo "AGENT_MODELS     = ${AGENT_MODELS_RAW:-<empty>}"
+echo "PHASE_D_HETERO_OK= $PHASE_D_HETERO_OK_VALUE"
+echo "MODEL_FAMILIES   = observed=$MODEL_FAMILY_COUNT_OBSERVED required=$TURINGOS_G4_REQUIRED_MODEL_FAMILIES"
 echo "LLM_PROXY_URL    = $LLM_PROXY_URL"
 echo "MINIF2F_DIR      = $MINIF2F_DIR"
 echo "PER_PROB_TIMEOUT = ${PER_PROBLEM_TIMEOUT_S}s"
@@ -191,9 +248,17 @@ cat > "$RUN_DIR/G_PHASE_BATCH_MANIFEST.json" <<EOF
   "batch_id": "$BATCH_ID",
   "problem_count": $PROBLEM_COUNT,
   "problem_set": "$PROBLEM_SET",
+  "n_agents": $G_PHASE_N_AGENTS,
+  "condition": "$G_PHASE_CONDITION",
   "shared_runtime_repo": "$RUN_DIR/runtime_repo",
   "shared_cas": "$RUN_DIR/cas",
   "active_model": "$ACTIVE_MODEL",
+  "agent_models_env_hash": "$AGENT_MODELS_HASH",
+  "agent_models_source": "AGENT_MODELS",
+  "phase_d_hetero_ok": "$PHASE_D_HETERO_OK_VALUE",
+  "assignment_summary": "$ASSIGNMENT_SUMMARY",
+  "model_family_count_required": $TURINGOS_G4_REQUIRED_MODEL_FAMILIES,
+  "model_family_count_observed": $MODEL_FAMILY_COUNT_OBSERVED,
   "llm_proxy_url": "$LLM_PROXY_URL",
   "minif2f_dir": "$MINIF2F_DIR",
   "per_problem_timeout_s": $PER_PROBLEM_TIMEOUT_S,
@@ -213,6 +278,9 @@ START_TS=$(date +%s)
 
 export MINIF2F_DIR
 export ACTIVE_MODEL
+export AGENT_MODELS="$AGENT_MODELS_RAW"
+export PHASE_D_HETERO_OK="$PHASE_D_HETERO_OK_VALUE"
+export TURINGOS_G4_REQUIRED_MODEL_FAMILIES
 export LLM_PROXY_URL
 export TURINGOS_TB_N3_AUTO_MARKET="${TURINGOS_TB_N3_AUTO_MARKET:-1}"
 
@@ -228,8 +296,8 @@ export TURINGOS_TB_N3_AUTO_MARKET="${TURINGOS_TB_N3_AUTO_MARKET:-1}"
     --batch-id "$BATCH_ID" \
     --problems-file "$PROBLEMS_FILE" \
     --model "$ACTIVE_MODEL" \
-    --n-agents 10 \
-    --condition n1 \
+    --n-agents "$G_PHASE_N_AGENTS" \
+    --condition "$G_PHASE_CONDITION" \
     --out-dir "$RUN_DIR" \
     --evaluator-bin "$EVALUATOR" \
     --minif2f-dir "$MINIF2F_DIR/MiniF2F/Test" \

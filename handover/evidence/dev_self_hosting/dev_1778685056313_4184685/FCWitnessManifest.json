@@ -1,0 +1,18 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778685056313_4184685",
+  "fc_nodes": [
+    "FC2 Boot / Genesis",
+    "FC1 AttemptTelemetry",
+    "FC3 audit/report view",
+    "Art. III shielding"
+  ],
+  "expected_witness": "Diff, command evidence, and audit verdict must cite these FC nodes.",
+  "evidence_artifacts": [
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "c49360a676fc5b05b3455121e17478d184b8f451e433df90bac6f78127f632b0",
+      "size_bytes": 546423
+    }
+  ]
+}

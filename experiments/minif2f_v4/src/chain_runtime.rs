@@ -320,8 +320,8 @@ impl SharedChain {
                     .map(|d| d.as_secs().to_string())
                     .unwrap_or_else(|_| "0".into())
             });
-            let wal_path = std::path::Path::new(&wal_dir)
-                .join(format!("{}_{}.jsonl", problem_stem, id));
+            let wal_path =
+                std::path::Path::new(&wal_dir).join(format!("{}_{}.jsonl", problem_stem, id));
             info!("[wal] using {:?}", wal_path);
             match TuringBus::with_wal_path(kernel, config, wal_path) {
                 Ok(b) => b,
@@ -406,6 +406,27 @@ pub async fn write_synthetic_l4_l4e_gate_and_genesis_report(
     chaintape_preseed_enabled: bool,
     seed_id: &str,
 ) {
+    write_synthetic_l4_l4e_gate_and_genesis_report_with_model_assignment(
+        bus,
+        bundle,
+        initial_balances,
+        chaintape_preseed_enabled,
+        seed_id,
+        Vec::new(),
+        None,
+    )
+    .await;
+}
+
+pub async fn write_synthetic_l4_l4e_gate_and_genesis_report_with_model_assignment(
+    bus: &mut TuringBus,
+    bundle: &ChaintapeBundle,
+    initial_balances: &[(String, i64)],
+    chaintape_preseed_enabled: bool,
+    seed_id: &str,
+    agent_model_assignment: Vec<turingosv4::runtime::genesis_report::AgentModelAssignment>,
+    model_assignment_manifest: Option<turingosv4::runtime::genesis_report::ModelAssignmentManifest>,
+) {
     let task_id_str = format!("smoke-{}", seed_id);
     let task_open = turingosv4::runtime::adapter::make_synthetic_task_open(
         &task_id_str,
@@ -443,7 +464,9 @@ pub async fn write_synthetic_l4_l4e_gate_and_genesis_report(
     }
     // Mark the synthetic-seed in the evidence dir so verify_chaintape (Atom 4)
     // can distinguish synthetic-rejection from natural rejection.
-    let label_path = bundle.runtime_repo_path.join("synthetic_rejection_label.json");
+    let label_path = bundle
+        .runtime_repo_path
+        .join("synthetic_rejection_label.json");
     let _ = std::fs::write(
         &label_path,
         format!(
@@ -502,11 +525,34 @@ pub async fn write_synthetic_l4_l4e_gate_and_genesis_report(
             format!("escrowlock-{}-tb7-7-d3-escrow", t)
         }
     });
+    let model_assignment_manifest_cid = model_assignment_manifest.and_then(|manifest| {
+        match turingosv4::bottom_white::cas::store::CasStore::open(&bundle.cas_path).and_then(
+            |mut cas| {
+                turingosv4::runtime::genesis_report::write_model_assignment_manifest_to_cas(
+                    &mut cas,
+                    &manifest,
+                    "g4-2-model-assignment",
+                    manifest.created_at_head_t,
+                )
+                .map_err(|e| {
+                    turingosv4::bottom_white::cas::store::CasError::BackendCorruption(e.to_string())
+                })
+            },
+        ) {
+            Ok(cid) => Some(cid.to_string()),
+            Err(e) => {
+                error!(
+                    "[chaintape/g4.2] model assignment manifest CAS write failed: {e}; \
+                     FAIL-CLOSED per G4.2 resolver provenance requirement"
+                );
+                std::process::exit(3);
+            }
+        }
+    });
     let report = turingosv4::runtime::genesis_report::GenesisReport {
-        constitution_hash:
-            turingosv4::runtime::genesis_report::GenesisReport::hash_constitution_md(
-                std::path::Path::new("constitution.md"),
-            ),
+        constitution_hash: turingosv4::runtime::genesis_report::GenesisReport::hash_constitution_md(
+            std::path::Path::new("constitution.md"),
+        ),
         runtime_repo: bundle.runtime_repo_path.display().to_string(),
         cas_path: bundle.cas_path.display().to_string(),
         system_pubkey_hash:
@@ -518,8 +564,21 @@ pub async fn write_synthetic_l4_l4e_gate_and_genesis_report(
         task_id: preseed_task_id,
         task_open_tx: preseed_task_open_tx,
         escrow_lock_tx: preseed_escrow_lock_tx,
+        agent_model_assignment: turingosv4::runtime::genesis_report::sorted_agent_model_assignment(
+            agent_model_assignment,
+        ),
+        model_assignment_manifest_cid,
     };
     if let Err(e) = report.write_to_runtime_repo(&bundle.runtime_repo_path) {
+        if !report.agent_model_assignment.is_empty()
+            || report.model_assignment_manifest_cid.is_some()
+        {
+            error!(
+                "[chaintape/g4.2] genesis_report.json write failed: {e}; \
+                 FAIL-CLOSED because this run carries agent_model_assignment"
+            );
+            std::process::exit(3);
+        }
         warn!(
             "[chaintape/d_c] genesis_report.json write failed: {e} (non-fatal — \
              evidence collection continues, but post-hoc audit must note absence)"

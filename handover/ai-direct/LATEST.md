@@ -6,6 +6,62 @@
 
 ---
 
+## 📍 Handover summary (session #47 close 2026-05-13)
+
+**Session Summary**: TB-G G4.2 Class-4 STEP_B SHIPPED — **G4 module LANDED 🟢 GREEN**. Architect original-text ratification preserved locally first, then implementation aligned atom-by-atom to that source. G4.2 promotes per-agent model identity from runtime env configuration into replayable genesis/audit fact: `Agent_i -> genesis-assigned model identity -> AttemptTelemetry actual model -> audit assertion: no hidden model switch -> dashboard/report divergence by model family`.
+
+### Current State
+
+**Works**:
+- Architect ratification source is archived verbatim at `handover/directives/2026-05-13_TB_G_G4_2_§8_ARCHITECT_RATIFICATION.md`; packet status is superseded by that ratification file.
+- `GenesisReport.agent_model_assignment` landed as deterministic sorted `Vec<AgentModelAssignment>` with `serde(default)` historical compatibility, `temperature_milli` integer persistence, and no `EconomicState` table / global pointer.
+- `ModelAssignmentManifest` provenance is written to CAS and linked by `genesis_report.model_assignment_manifest_cid`, with `AGENT_MODELS` hash, `PHASE_D_HETERO_OK`, family counts, resolver source, fallback/proxy provenance, and fail-closed missing-provenance behavior.
+- `AttemptTelemetry` v2 records actual model identity (`model_name`, `model_family`, `model_provider`, `model_version`, `temperature_milli`) and includes a v1 dual-reader so old telemetry remains parseable.
+- Successful evaluator LLM paths now write proxy/provider-reported `response.model` as the actual model; no-response `llm_err` path records the requested assignment with zero tokens and `LlmErr`.
+- PromptCapsule exact 7-field shape remains unchanged; model linkage is placed behind `PromptCapsule.agent_view_manifest_cid` via a manifest containing assigned model family, prompt template hash, and model assignment manifest CID, with no raw prompt/completion/CoT.
+- `audit_tape` now includes blocking `no_hidden_model_switch`; dashboard §G.3 renders model-family activity from GenesisReport + AttemptTelemetry + ChainTape + CAS, explicitly as activity/divergence only, not ranking.
+- `scripts/run_g_phase_batch.sh` records `AGENT_MODELS`, `PHASE_D_HETERO_OK`, assignment summary, `G_PHASE_N_AGENTS`, `G_PHASE_CONDITION`, required/observed model-family count, and fail-closes G4.2 evidence below 3 families unless explicitly single-model diagnostic.
+
+**Audit chain**:
+- R1 clean-context Codex: `VETO` at `handover/audits/CODEX_G4_2_ROUND1_VERDICT.md` (requested-vs-actual telemetry, dashboard-only hidden switch, manifest fail-soft).
+- R2 clean-context Codex: `CHALLENGE` at `handover/audits/CODEX_G4_2_ROUND2_VERDICT.md` (new G4.2 run could lose `genesis_report.json` and be treated historical).
+- R3 clean-context Codex: `PROCEED` at `handover/audits/CODEX_G4_2_ROUND3_VERDICT.md`, verifying R1/R2 closures, fresh smoke evidence, and forbidden surfaces untouched.
+- No Gemini dispatched per latest Harness default and user instruction.
+
+**Harness evidence**:
+- Primary TDD/audit run: `handover/evidence/dev_self_hosting/dev_1778674964290_3969679/` (contains intentional red tests, fail-closed preflight evidence, R1 VETO, R2 CHALLENGE, and R3 PROCEED).
+- Acceptance closeout run: `handover/evidence/dev_self_hosting/dev_1778684575651_4163516/` (green-command run before R-022 doc-comment hook remediation; preserved, not rewritten).
+- R-022 closeout run: `handover/evidence/dev_self_hosting/dev_1778685056313_4184685/` (preserves the Trust Root failure that forced final rehash; not rewritten).
+- Final ship closeout run: `handover/evidence/dev_self_hosting/dev_1778685230382_4187296/` (final green-command run for `turingos_dev close`; no evidence rewrite of prior runs).
+- Final diff artifact: see the latest `artifacts/diff.patch` inside the acceptance closeout run.
+- Fresh current-source smoke: `handover/evidence/g_phase_g4_2_mini_challenge_fix_2026-05-13T14-33-04Z/`.
+- Smoke facts: 3 mini tasks, 10 assignments, `model_family_count_required=3`, `model_family_count_observed=4`, `audit_tape` PROCEED `41/0/0/11`, persistence `is_passing=true n_witnessed=5`, dashboard §G.3 hidden-switch verdict `Proceed`.
+
+### Validation
+
+- `cargo test --test constitution_g4_multi_llm -- --nocapture` → 6 passed / 0 failed.
+- `cargo test --test constitution_prompt_capsule -- --nocapture` → 9 passed / 0 failed.
+- `cargo test --test constitution_g4_no_hidden_model_switch -- --nocapture` → 8 passed / 0 failed.
+- `cargo test --lib boot::tests::verify_trust_root_passes_on_intact_repo -- --nocapture` → 1 passed / 0 failed.
+- `target/debug/audit_tape ...` over fresh smoke → `verdict=PROCEED passed=41 failed=0 halted=0 skipped=11`.
+- `bash scripts/run_constitution_gates.sh` → 436 passed / 0 failed / 1 ignored.
+- `cargo test --workspace --no-fail-fast -- --test-threads=1` → exit 0.
+- Fresh G4.2 mini smoke with `PHASE_D_HETERO_OK=1` and 10-entry `AGENT_MODELS` → exit 0.
+
+### Next Steps
+
+1. Stage intentionally and commit the G4.2 STEP_B ship bundle; avoid unrelated pre-existing local drift unless deliberately included.
+2. Merge G4.2 branch after commit review.
+3. Proceed in architect-preserved order: G5 opportunity scheduler observe-only, G6 price feedback observe-only, G7 run6-structural smoke, TB-GD Gardener Agent, larger multi-model / market batch, then real-world pilot design.
+4. Do not make multi-model behavior/ranking claims yet; G4.2 proves identity replay and hidden-switch prevention, not model superiority or emergent role differentiation.
+
+### Open Questions
+
+1. `h_vppu_history.json` and `rules/enforcement.log` remain modified local/generated drift; treat as staging hygiene items unless explicitly desired in the ship commit.
+2. A first fresh-smoke attempt at `handover/evidence/g_phase_g4_2_mini_challenge_fix_2026-05-13T14-32-40Z/` fail-closed at dirty-tree preflight. It is preserved as evidence; the passing smoke used `TURINGOS_G_PHASE_DIRTY_OK=1` because this atom's own implementation/evidence files were necessarily dirty before commit.
+
+---
+
 ## 📍 Handover summary (session #46 close 2026-05-13)
 
 **Session Summary**: TB-G G3.2 Class-4 STEP_B SHIPPED — **G3 module LANDED 🟢 GREEN**. Latest Harness cadence applied: no Gemini; one independent clean-context Codex R2 audit after R1 CHALLENGE remediation. Matrix §R G3 flips 🟡 AMBER → 🟢 GREEN because the previously pending G3.2 admission/autopsy/reward gates are now closed.

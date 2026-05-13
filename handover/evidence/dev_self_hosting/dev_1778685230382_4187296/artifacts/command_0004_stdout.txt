@@ -1,0 +1,14 @@
+
+running 9 tests
+test prompt_capsule_created_for_attempt ... ok
+test prompt_capsule_agent_view_manifest_links_model_assignment_without_raw_prompt ... ok
+test prompt_capsule_redacts_hidden_fields ... ok
+test prompt_capsule_object_type_is_distinct ... ok
+test prompt_capsule_schema_id_is_pinned ... ok
+test prompt_capsule_referenced_by_attempt_telemetry ... ok
+test prompt_capsule_struct_field_count_is_exactly_seven ... ok
+test verbatim_prompt_not_public_by_default ... ok
+test prompt_capsule_hash_stable ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

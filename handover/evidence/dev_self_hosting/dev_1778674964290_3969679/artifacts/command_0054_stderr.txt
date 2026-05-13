@@ -1,0 +1,2 @@
+WARNING: working tree has non-evidence changes; /runner-preflight Stage 1 normally rejects this.
+  Set TURINGOS_G_PHASE_DIRTY_OK=1 to override (smoke testing only).

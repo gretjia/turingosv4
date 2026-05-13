@@ -1,0 +1,11 @@
+
+running 1 test
+test boot::tests::verify_trust_root_passes_on_intact_repo ... FAILED
+
+failures:
+
+failures:
+    boot::tests::verify_trust_root_passes_on_intact_repo
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 628 filtered out; finished in 0.15s
+

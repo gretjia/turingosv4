@@ -1,0 +1,1 @@
+audit_tape: verdict=PROCEED passed=41 failed=0 halted=0 skipped=11 (out="handover/evidence/g_phase_g4_2_mini_veto_fix_2026-05-13T13-44-33Z/aggregate_verdict_after_challenge_fix.json")

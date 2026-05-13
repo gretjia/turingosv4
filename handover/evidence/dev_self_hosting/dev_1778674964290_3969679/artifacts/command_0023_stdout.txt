@@ -1,0 +1,11 @@
+
+running 6 tests
+test historical_genesis_report_without_model_assignment_is_grandfathered ... ok
+test g4_2_ratification_original_text_is_archived_locally ... ok
+test model_family_inference_supports_minimal_three_family_smoke ... ok
+test genesis_report_contains_sorted_agent_model_assignment ... ok
+test model_assignment_manifest_records_resolver_provenance_without_secrets ... ok
+test g4_batch_script_records_model_identity_inputs ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

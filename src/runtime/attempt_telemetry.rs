@@ -69,14 +69,16 @@ use serde::{Deserialize, Serialize};
 
 use crate::bottom_white::cas::schema::{Cid, ObjectType};
 use crate::bottom_white::cas::store::{CasError, CasStore};
-use crate::bottom_white::ledger::transition_ledger::{canonical_decode, canonical_encode};
+use crate::bottom_white::ledger::transition_ledger::{
+    canonical_decode, canonical_encode, CanonicalCodecError,
+};
 use crate::runtime::proposal_telemetry::TokenCounts;
 use crate::state::q_state::{AgentId, Hash, TxId};
 
 // ── Schema IDs (charter v2 §6 binding) ──────────────────────────────────────
 
 /// TRACE_MATRIX FC1-N41: schema id for `AttemptTelemetry` CAS objects.
-pub const ATTEMPT_TELEMETRY_SCHEMA_ID: &str = "turingosv4.attempt_telemetry.v1";
+pub const ATTEMPT_TELEMETRY_SCHEMA_ID: &str = "turingosv4.attempt_telemetry.v2";
 
 /// TRACE_MATRIX FC1-N41: schema id for `LeanResult` CAS objects.
 ///
@@ -98,10 +100,9 @@ pub const LEAN_RESULT_SCHEMA_ID: &str = "turingosv4.lean_result.v2";
 pub const TERMINAL_ABORT_RECORD_SCHEMA_ID: &str = "turingosv4.terminal_abort_record.v1";
 
 /// TRACE_MATRIX FC1-N41: schema version constant for `AttemptTelemetry`.
-/// Per Codex Q5 ratified. Bump when adding non-defaulted fields or changing
-/// serialization shape. Tail-additive `#[serde(default)]` fields are
-/// forward-compat at v1.
-pub const ATTEMPT_TELEMETRY_SCHEMA_VERSION: u32 = 1;
+/// v2 = G4.2 actual model identity tail-add. Historical v1 bincode bytes are
+/// grandfathered by `decode_attempt_telemetry_compat`.
+pub const ATTEMPT_TELEMETRY_SCHEMA_VERSION: u32 = 2;
 
 // ── AttemptKind (Codex Q5: separate from outcome; tail-extensible) ──────────
 
@@ -346,6 +347,72 @@ pub struct AttemptTelemetry {
     /// Design B).
     #[serde(default)]
     pub attempt_chain_root: Option<Hash>,
+    /// G4.2 actual model identity observed for this LLM attempt.
+    #[serde(default)]
+    pub model_name: Option<String>,
+    #[serde(default)]
+    pub model_family: Option<String>,
+    #[serde(default)]
+    pub model_provider: Option<String>,
+    #[serde(default)]
+    pub model_version: Option<String>,
+    #[serde(default)]
+    pub temperature_milli: Option<i64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+struct AttemptTelemetryV1Wire {
+    schema_version: u32,
+    attempt_id: TxId,
+    run_id: String,
+    task_id: String,
+    agent_id: AgentId,
+    branch_id: String,
+    parent_attempt_tx: Option<TxId>,
+    attempt_index: u64,
+    prompt_context_hash: Hash,
+    candidate_payload_cid: Cid,
+    lean_result_cid: Option<Cid>,
+    attempt_kind: AttemptKind,
+    outcome: AttemptOutcome,
+    token_counts: TokenCounts,
+    tool_name: String,
+    #[serde(default)]
+    proposal_telemetry_cid: Option<Cid>,
+    #[serde(default)]
+    verification_result_cid: Option<Cid>,
+    #[serde(default)]
+    attempt_chain_root: Option<Hash>,
+}
+
+impl From<AttemptTelemetryV1Wire> for AttemptTelemetry {
+    fn from(v1: AttemptTelemetryV1Wire) -> Self {
+        Self {
+            schema_version: v1.schema_version,
+            attempt_id: v1.attempt_id,
+            run_id: v1.run_id,
+            task_id: v1.task_id,
+            agent_id: v1.agent_id,
+            branch_id: v1.branch_id,
+            parent_attempt_tx: v1.parent_attempt_tx,
+            attempt_index: v1.attempt_index,
+            prompt_context_hash: v1.prompt_context_hash,
+            candidate_payload_cid: v1.candidate_payload_cid,
+            lean_result_cid: v1.lean_result_cid,
+            attempt_kind: v1.attempt_kind,
+            outcome: v1.outcome,
+            token_counts: v1.token_counts,
+            tool_name: v1.tool_name,
+            proposal_telemetry_cid: v1.proposal_telemetry_cid,
+            verification_result_cid: v1.verification_result_cid,
+            attempt_chain_root: v1.attempt_chain_root,
+            model_name: None,
+            model_family: None,
+            model_provider: None,
+            model_version: None,
+            temperature_milli: None,
+        }
+    }
 }
 
 impl AttemptTelemetry {
@@ -385,6 +452,11 @@ impl AttemptTelemetry {
             proposal_telemetry_cid: None,
             verification_result_cid: None,
             attempt_chain_root: None,
+            model_name: None,
+            model_family: None,
+            model_provider: None,
+            model_version: None,
+            temperature_milli: None,
         }
     }
 
@@ -426,7 +498,29 @@ impl AttemptTelemetry {
             proposal_telemetry_cid: None,
             verification_result_cid: None,
             attempt_chain_root: Some(attempt_chain_root),
+            model_name: None,
+            model_family: None,
+            model_provider: None,
+            model_version: None,
+            temperature_milli: None,
         }
+    }
+
+    /// TRACE_MATRIX FC1 AttemptTelemetry: attach provider-reported actual model identity to an attempt.
+    pub fn with_actual_model_identity(
+        mut self,
+        model_name: impl Into<String>,
+        model_family: impl Into<String>,
+        model_provider: impl Into<String>,
+        model_version: Option<String>,
+        temperature_milli: i64,
+    ) -> Self {
+        self.model_name = Some(model_name.into());
+        self.model_family = Some(model_family.into());
+        self.model_provider = Some(model_provider.into());
+        self.model_version = model_version;
+        self.temperature_milli = Some(temperature_milli);
+        self
     }
 }
 
@@ -520,9 +614,7 @@ impl LeanResult {
             (0, true, None) => Some(LeanVerdictKind::Verified),
             (ec, false, Some(_)) if ec != 0 => Some(LeanVerdictKind::Failed),
             (0, false, None) => Some(LeanVerdictKind::PartialAccepted),
-            (0, false, Some(LeanErrorClass::SorryBlocked)) => {
-                Some(LeanVerdictKind::SorryBlocked)
-            }
+            (0, false, Some(LeanErrorClass::SorryBlocked)) => Some(LeanVerdictKind::SorryBlocked),
             _ => None,
         }
     }
@@ -701,8 +793,22 @@ pub fn read_attempt_telemetry_from_cas(
     cid: &Cid,
 ) -> Result<AttemptTelemetry, AttemptTelemetryError> {
     let bytes = cas.get(cid)?;
-    canonical_decode::<AttemptTelemetry>(&bytes)
-        .map_err(|e| AttemptTelemetryError::Codec(e.to_string()))
+    decode_attempt_telemetry_compat(&bytes).map_err(|e| AttemptTelemetryError::Codec(e.to_string()))
+}
+
+/// TRACE_MATRIX FC1 AttemptTelemetry: v2/v1 dual-reader preserving historical CAS evidence.
+pub fn decode_attempt_telemetry_compat(
+    bytes: &[u8],
+) -> Result<AttemptTelemetry, CanonicalCodecError> {
+    match canonical_decode::<AttemptTelemetry>(bytes) {
+        Ok(v2) => Ok(v2),
+        Err(v2_err) => match canonical_decode::<AttemptTelemetryV1Wire>(bytes) {
+            Ok(v1) => Ok(v1.into()),
+            Err(v1_err) => Err(CanonicalCodecError::Decode(format!(
+                "AttemptTelemetry v2 decode failed: {v2_err}; v1 fallback failed: {v1_err}"
+            ))),
+        },
+    }
 }
 
 /// TRACE_MATRIX FC1-N41: canonical-encode a LeanResult + CAS put.
@@ -730,8 +836,7 @@ pub fn read_lean_result_from_cas(
     cid: &Cid,
 ) -> Result<LeanResult, AttemptTelemetryError> {
     let bytes = cas.get(cid)?;
-    canonical_decode::<LeanResult>(&bytes)
-        .map_err(|e| AttemptTelemetryError::Codec(e.to_string()))
+    canonical_decode::<LeanResult>(&bytes).map_err(|e| AttemptTelemetryError::Codec(e.to_string()))
 }
 
 /// TRACE_MATRIX FC1-N42: canonical-encode a TerminalAbortRecord + CAS put.
@@ -863,7 +968,11 @@ mod tests {
         );
         // Out-of-canonical shapes return None (caller must fail-close).
         assert_eq!(
-            LeanResult::derive_verdict_kind_from_legacy_fields(0, true, Some(LeanErrorClass::LeanFailed)),
+            LeanResult::derive_verdict_kind_from_legacy_fields(
+                0,
+                true,
+                Some(LeanErrorClass::LeanFailed)
+            ),
             None
         );
         assert_eq!(
@@ -905,8 +1014,7 @@ mod tests {
     fn attempt_telemetry_canonical_round_trip() {
         let original = fresh_attempt(0);
         let bytes = canonical_encode(&original).expect("encode");
-        let decoded: AttemptTelemetry =
-            canonical_decode(&bytes).expect("decode");
+        let decoded: AttemptTelemetry = canonical_decode(&bytes).expect("decode");
         assert_eq!(original, decoded);
     }
 
@@ -950,8 +1058,7 @@ mod tests {
             error_class: None,
             verdict_kind: LeanVerdictKind::Verified,
         };
-        let cid = write_lean_result_to_cas(&mut cas, &original, "evaluator", 100)
-            .expect("write");
+        let cid = write_lean_result_to_cas(&mut cas, &original, "evaluator", 100).expect("write");
         let recovered = read_lean_result_from_cas(&cas, &cid).expect("read");
         assert_eq!(original, recovered);
     }
@@ -1015,12 +1122,12 @@ mod tests {
     }
 
     #[test]
-    fn schema_version_starts_at_one() {
-        // Per Codex Q5 ratified: schema_version: u32 starts at 1 for TB-18R.
-        // Mirrors `turingosv4.proposal_telemetry.v1` precedent.
-        assert_eq!(ATTEMPT_TELEMETRY_SCHEMA_VERSION, 1);
+    fn schema_version_is_g4_2_v2() {
+        // G4.2 bumps AttemptTelemetry for durable actual-model identity while
+        // preserving v1 decode via `decode_attempt_telemetry_compat`.
+        assert_eq!(ATTEMPT_TELEMETRY_SCHEMA_VERSION, 2);
         let attempt = fresh_attempt(0);
-        assert_eq!(attempt.schema_version, 1);
+        assert_eq!(attempt.schema_version, 2);
     }
 
     #[test]

@@ -29,14 +29,17 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use turingosv4::bottom_white::cas::store::CasStore;
-use turingosv4::bottom_white::ledger::transition_ledger::{canonical_decode, replay_full_transition, Git2LedgerWriter, LedgerCasView, LedgerEntry, LedgerWriter, ReplayError, TxKind};
 use turingosv4::bottom_white::cas::schema::Cid;
-use turingosv4::bottom_white::ledger::system_keypair::{PinnedSystemPubkeys, SystemEpoch, SystemPublicKey};
-use turingosv4::runtime::PinnedPubkeyManifest;
-use turingosv4::state::q_state::QState;
-use turingosv4::top_white::predicates::registry::PredicateRegistry;
+use turingosv4::bottom_white::cas::store::CasStore;
+use turingosv4::bottom_white::ledger::system_keypair::{
+    PinnedSystemPubkeys, SystemEpoch, SystemPublicKey,
+};
+use turingosv4::bottom_white::ledger::transition_ledger::{
+    canonical_decode, replay_full_transition, Git2LedgerWriter, LedgerCasView, LedgerEntry,
+    LedgerWriter, ReplayError, TxKind,
+};
 use turingosv4::bottom_white::tools::registry::ToolRegistry;
+use turingosv4::economy::money::MicroCoin;
 use turingosv4::runtime::agent_audit_trail::AgentAuditTrailIndex;
 use turingosv4::runtime::agent_keypairs::AgentPubkeyManifest;
 use turingosv4::runtime::chain_derived_run_facts::{
@@ -44,12 +47,12 @@ use turingosv4::runtime::chain_derived_run_facts::{
 };
 use turingosv4::runtime::proposal_telemetry::read_from_cas as read_proposal_telemetry;
 use turingosv4::runtime::verify::{verify_chaintape, ReplayReport, VerifyOptions};
-use turingosv4::state::typed_tx::{NodePosition, PositionKind, PositionSide, TypedTx};
-use turingosv4::economy::money::MicroCoin;
+use turingosv4::runtime::PinnedPubkeyManifest;
+use turingosv4::state::q_state::QState;
 use turingosv4::state::q_state::{AgentId, EconomicState};
-use turingosv4::state::{
-    compute_price_index, NodeMarketEntry, TaskId, TxId,
-};
+use turingosv4::state::typed_tx::{NodePosition, PositionKind, PositionSide, TypedTx};
+use turingosv4::state::{compute_price_index, NodeMarketEntry, TaskId, TxId};
+use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
 #[derive(Debug)]
 struct Args {
@@ -437,8 +440,7 @@ fn build_report(
         .map_err(|e| format!("chain_derived_run_facts: {e:?}"))?;
 
     // Walk L4 entries to populate per_agent + proposal_flow + branch_lineage.
-    let writer = Git2LedgerWriter::open(repo)
-        .map_err(|e| format!("open ledger: {e:?}"))?;
+    let writer = Git2LedgerWriter::open(repo).map_err(|e| format!("open ledger: {e:?}"))?;
     let l4_count = writer.len();
     let entries: Vec<LedgerEntry> = (1..=l4_count)
         .map(|t| writer.read_at(t))
@@ -615,7 +617,9 @@ fn build_report(
                 });
             }
             TypedTx::Verify(verify) => {
-                let acct = per_agent.entry(verify.verifier_agent.0.clone()).or_default();
+                let acct = per_agent
+                    .entry(verify.verifier_agent.0.clone())
+                    .or_default();
                 acct.verify_tx_accepted += 1;
                 proposal_flow.push(ProposalFlowEntry {
                     logical_t,
@@ -651,7 +655,8 @@ fn build_report(
                             None
                         })
                         .next();
-                    let (solver_id, task_id) = solver.unwrap_or_else(|| ("(unknown)".into(), "(unknown)".into()));
+                    let (solver_id, task_id) =
+                        solver.unwrap_or_else(|| ("(unknown)".into(), "(unknown)".into()));
                     claims_in_progress.push(ClaimAuditRow {
                         claim_id: format!("claim-{}", verify.tx_id.0),
                         task_id,
@@ -853,10 +858,7 @@ fn build_report(
             payload.clone(),
             true,
         ));
-        let mut cursor = work_parent_by_tx_id
-            .get(winner_tx_id)
-            .cloned()
-            .flatten();
+        let mut cursor = work_parent_by_tx_id.get(winner_tx_id).cloned().flatten();
         let mut safety = 0;
         while let Some(parent) = cursor {
             safety += 1;
@@ -876,7 +878,13 @@ fn build_report(
                     p.oracle_verified.unwrap_or(false),
                 ));
             } else {
-                chain.push((parent.clone(), String::new(), String::new(), String::new(), false));
+                chain.push((
+                    parent.clone(),
+                    String::new(),
+                    String::new(),
+                    String::new(),
+                    false,
+                ));
             }
             cursor = work_parent_by_tx_id.get(&parent).cloned().flatten();
         }
@@ -945,7 +953,10 @@ fn build_report(
 
     // Audit-trail cross-check
     let audit_trail_index = AgentAuditTrailIndex::open(repo).ok();
-    let audit_trail_rows = audit_trail_index.as_ref().map(|i| i.len() as u64).unwrap_or(0);
+    let audit_trail_rows = audit_trail_index
+        .as_ref()
+        .map(|i| i.len() as u64)
+        .unwrap_or(0);
     let chain_proposal_count = run_facts.proposal_count;
     // Best-effort: if any audit rows exist, the chain integrity is already
     // checked at AgentAuditTrailIndex::open time (returns ChainBroken on
@@ -967,10 +978,7 @@ fn build_report(
     // TB-10 Atom 4: cross-reference user-task rows with claim audit rows so
     // §11 can show solver + status + payout for each user-sponsored task.
     for ut in user_tasks_in_progress.iter_mut() {
-        if let Some(claim) = claims_in_progress
-            .iter()
-            .find(|c| c.task_id == ut.task_id)
-        {
+        if let Some(claim) = claims_in_progress.iter().find(|c| c.task_id == ut.task_id) {
             ut.solver = claim.solver.clone();
             ut.claim_status = claim.claim_status.clone();
             ut.payout_micro = claim.payout_amount_micro;
@@ -1119,7 +1127,10 @@ fn rebuild_autopsy_event_counts(
             Ok(a) => a,
             Err(_) => return Vec::new(),
         };
-        pinned.insert(SystemEpoch::new(entry.epoch), SystemPublicKey::from_bytes(arr));
+        pinned.insert(
+            SystemEpoch::new(entry.epoch),
+            SystemPublicKey::from_bytes(arr),
+        );
     }
 
     // Initial QState (genesis or persisted snapshot).
@@ -1154,7 +1165,7 @@ fn rebuild_autopsy_event_counts(
 
     let mut out: Vec<(String, u32)> = Vec::new();
     for (event_id, cids) in &final_q.economic_state_t.agent_autopsies_t.0 {
-        out.push((event_id.0.0.clone(), cids.len() as u32));
+        out.push((event_id.0 .0.clone(), cids.len() as u32));
     }
     out.sort_by(|a, b| a.0.cmp(&b.0));
     out
@@ -1186,7 +1197,9 @@ fn char_hex(b: u8) -> Option<u8> {
 struct AuditCasRef<'a>(&'a CasStore);
 impl<'a> LedgerCasView for AuditCasRef<'a> {
     fn get_typed_payload(&self, cid: &Cid) -> Result<Vec<u8>, ReplayError> {
-        self.0.get(cid).map_err(|_| ReplayError::CasMissing { at: 0 })
+        self.0
+            .get(cid)
+            .map_err(|_| ReplayError::CasMissing { at: 0 })
     }
 }
 
@@ -1210,9 +1223,7 @@ impl<'a> LedgerCasView for AuditCasRef<'a> {
 /// `NodeMarketEntry.yes_share_depth` / `no_share_depth` are zero — TB-14 v0
 /// derives price from `node_positions_t` only (FR-14.1 / FR-14.2); share
 /// depths are reported but not used in the price computation.
-fn price_index_from_exposures(
-    exposures: &[ExposureRecordRow],
-) -> BTreeMap<TxId, NodeMarketEntry> {
+fn price_index_from_exposures(exposures: &[ExposureRecordRow]) -> BTreeMap<TxId, NodeMarketEntry> {
     let mut econ = EconomicState::default();
     for row in exposures {
         let (side, kind) = match row.side.as_str() {
@@ -1241,7 +1252,10 @@ fn price_index_from_exposures(
 fn render_text(r: &DashboardReport) -> String {
     let mut s = String::new();
     s.push_str("=================================================================\n");
-    s.push_str(&format!(" TB-8 Audit Dashboard — run_id={} epoch={}\n", r.run_id, r.epoch));
+    s.push_str(&format!(
+        " TB-8 Audit Dashboard — run_id={} epoch={}\n",
+        r.run_id, r.epoch
+    ));
     s.push_str("=================================================================\n\n");
 
     // §1 Run metadata
@@ -1249,7 +1263,10 @@ fn render_text(r: &DashboardReport) -> String {
     s.push_str("---------------\n");
     s.push_str(&format!(
         "  head_commit_oid: {}\n",
-        r.chain.head_commit_oid_hex.as_deref().unwrap_or("(empty chain)")
+        r.chain
+            .head_commit_oid_hex
+            .as_deref()
+            .unwrap_or("(empty chain)")
     ));
     s.push_str(&format!(
         "  final_state_root: {}\n",
@@ -1272,45 +1289,92 @@ fn render_text(r: &DashboardReport) -> String {
     s.push_str(&format!("  L4.E entries: {}\n", r.chain.l4e_entries));
     s.push_str(&format!(
         "  ledger_root_verified              : {}\n",
-        if r.indicators.ledger_root_verified { "✓" } else { "✗" }
+        if r.indicators.ledger_root_verified {
+            "✓"
+        } else {
+            "✗"
+        }
     ));
     s.push_str(&format!(
         "  system_signatures_verified        : {}\n",
-        if r.indicators.system_signatures_verified { "✓" } else { "✗" }
+        if r.indicators.system_signatures_verified {
+            "✓"
+        } else {
+            "✗"
+        }
     ));
     s.push_str(&format!(
         "  state_reconstructed               : {}\n",
-        if r.indicators.state_reconstructed { "✓" } else { "✗" }
+        if r.indicators.state_reconstructed {
+            "✓"
+        } else {
+            "✗"
+        }
     ));
     s.push_str(&format!(
         "  economic_state_reconstructed      : {}\n",
-        if r.indicators.economic_state_reconstructed { "✓" } else { "✗" }
+        if r.indicators.economic_state_reconstructed {
+            "✓"
+        } else {
+            "✗"
+        }
     ));
     s.push_str(&format!(
         "  cas_payloads_retrievable          : {}\n",
-        if r.indicators.cas_payloads_retrievable { "✓" } else { "✗" }
+        if r.indicators.cas_payloads_retrievable {
+            "✓"
+        } else {
+            "✗"
+        }
     ));
     s.push_str(&format!(
         "  agent_signatures_verified [Gate 4]: {}\n",
-        if r.indicators.agent_signatures_verified { "✓" } else { "✗" }
+        if r.indicators.agent_signatures_verified {
+            "✓"
+        } else {
+            "✗"
+        }
     ));
     s.push_str(&format!(
         "  proposal_telemetry_cas_retrievable [Gate 5]: {}\n",
-        if r.indicators.proposal_telemetry_cas_retrievable { "✓" } else { "✗" }
+        if r.indicators.proposal_telemetry_cas_retrievable {
+            "✓"
+        } else {
+            "✗"
+        }
     ));
     s.push_str(&format!(
         "  ALL 7 PASS                        : {}\n\n",
-        if r.indicators.all_pass { "GREEN" } else { "RED" }
+        if r.indicators.all_pass {
+            "GREEN"
+        } else {
+            "RED"
+        }
     ));
 
     // §3 ChainDerivedRunFacts
     s.push_str("§3 ChainDerivedRunFacts (§4.4 bit-exact set)\n");
     s.push_str("---------------------------------------------\n");
-    s.push_str(&format!("  solved                  : {}\n", r.run_facts.solved));
-    s.push_str(&format!("  verified                : {}\n", r.run_facts.verified));
-    s.push_str(&format!("  tx_count                : {}\n", r.run_facts.tx_count));
-    s.push_str(&format!("  proposal_count          : {}\n", r.run_facts.proposal_count));
-    s.push_str(&format!("  golden_path_token_count : {}\n", r.run_facts.golden_path_token_count));
+    s.push_str(&format!(
+        "  solved                  : {}\n",
+        r.run_facts.solved
+    ));
+    s.push_str(&format!(
+        "  verified                : {}\n",
+        r.run_facts.verified
+    ));
+    s.push_str(&format!(
+        "  tx_count                : {}\n",
+        r.run_facts.tx_count
+    ));
+    s.push_str(&format!(
+        "  proposal_count          : {}\n",
+        r.run_facts.proposal_count
+    ));
+    s.push_str(&format!(
+        "  golden_path_token_count : {}\n",
+        r.run_facts.golden_path_token_count
+    ));
     s.push_str(&format!(
         "  gp_payload (CID hex)    : {}\n",
         r.run_facts.gp_payload.as_deref().unwrap_or("-")
@@ -1319,12 +1383,22 @@ fn render_text(r: &DashboardReport) -> String {
         "  gp_path                 : {}\n",
         r.run_facts.gp_path.as_deref().unwrap_or("-")
     ));
-    s.push_str(&format!("  tactic_diversity        : {}\n", r.run_facts.tactic_diversity));
-    s.push_str(&format!("  failed_branch_count     : {}\n", r.run_facts.failed_branch_count));
+    s.push_str(&format!(
+        "  tactic_diversity        : {}\n",
+        r.run_facts.tactic_diversity
+    ));
+    s.push_str(&format!(
+        "  failed_branch_count     : {}\n",
+        r.run_facts.failed_branch_count
+    ));
     s.push_str(&format!(
         "  chain_oracle_verified   : {} {}\n",
         r.run_facts.chain_oracle_verified,
-        if r.run_facts.chain_oracle_verified { "✓ (Lean accepted ≥1 proof; oracle-level)" } else { "(no oracle-verified WorkTx)" }
+        if r.run_facts.chain_oracle_verified {
+            "✓ (Lean accepted ≥1 proof; oracle-level)"
+        } else {
+            "(no oracle-verified WorkTx)"
+        }
     ));
     s.push_str(&format!(
         "  chain_economic_finalized: {} (always false in TB-7; settlement = TB-9 territory)\n",
@@ -1447,7 +1521,11 @@ fn render_text(r: &DashboardReport) -> String {
                 "  {}depth={:<2} {} | agent={} | tactic={} | tx={}\n",
                 marker,
                 step.depth,
-                if step.oracle_verified { "[ORACLE]" } else { "        " },
+                if step.oracle_verified {
+                    "[ORACLE]"
+                } else {
+                    "        "
+                },
                 step.agent_id,
                 step.candidate_tactic,
                 step.tx_id,
@@ -1463,15 +1541,29 @@ fn render_text(r: &DashboardReport) -> String {
     // §8 Cross-checks
     s.push_str("§8 Cross-checks\n");
     s.push_str("---------------\n");
-    s.push_str(&format!("  audit_trail_rows         : {}\n", r.cross_checks.audit_trail_rows));
-    s.push_str(&format!("  chain_proposal_count     : {}\n", r.cross_checks.chain_proposal_count));
+    s.push_str(&format!(
+        "  audit_trail_rows         : {}\n",
+        r.cross_checks.audit_trail_rows
+    ));
+    s.push_str(&format!(
+        "  chain_proposal_count     : {}\n",
+        r.cross_checks.chain_proposal_count
+    ));
     s.push_str(&format!(
         "  audit_rows == proposal_count: {}\n",
-        if r.cross_checks.proposal_count_matches_audit_rows { "✓" } else { "✗ (gap)" }
+        if r.cross_checks.proposal_count_matches_audit_rows {
+            "✓"
+        } else {
+            "✗ (gap)"
+        }
     ));
     s.push_str(&format!(
         "  audit_trail_chain_valid     : {}\n",
-        if r.cross_checks.agent_audit_trail_chain_valid { "✓" } else { "✗" }
+        if r.cross_checks.agent_audit_trail_chain_valid {
+            "✓"
+        } else {
+            "✗"
+        }
     ));
     s.push_str("  (Note: pre-TB-7.6 the agent_audit_trail.jsonl is populated only\n");
     s.push_str("   by the synthetic-seed hook; full per-LLM-proposal audit-trail\n");
@@ -1512,13 +1604,13 @@ fn render_text(r: &DashboardReport) -> String {
             ));
         }
         // Aggregate: total payout sum (Finalized claims only).
-        let total_payout: i64 = r
+        let total_payout: i64 = r.claims.iter().filter_map(|c| c.payout_amount_micro).sum();
+        let n_open = r.claims.iter().filter(|c| c.claim_status == "Open").count();
+        let n_finalized = r
             .claims
             .iter()
-            .filter_map(|c| c.payout_amount_micro)
-            .sum();
-        let n_open = r.claims.iter().filter(|c| c.claim_status == "Open").count();
-        let n_finalized = r.claims.iter().filter(|c| c.claim_status == "Finalized").count();
+            .filter(|c| c.claim_status == "Finalized")
+            .count();
         s.push_str(&format!(
             "\n  Aggregate: {} claims observed | {} Open | {} Finalized | total_payout = {} micro\n",
             r.claims.len(), n_open, n_finalized, total_payout
@@ -1538,16 +1630,20 @@ fn render_text(r: &DashboardReport) -> String {
     let keystore_path = std::env::var("TURINGOS_AGENT_KEYSTORE_PATH")
         .ok()
         .or_else(|| {
-            std::env::var("HOME").ok().map(|h| {
-                format!("{}/.turingos/keystore/agent_keystore.enc", h)
-            })
+            std::env::var("HOME")
+                .ok()
+                .map(|h| format!("{}/.turingos/keystore/agent_keystore.enc", h))
         })
         .unwrap_or_else(|| "<unset; set TURINGOS_AGENT_KEYSTORE_PATH or HOME>".into());
     s.push_str(&format!("  durable_keystore_path: {}\n", keystore_path));
     let durable_present = std::path::Path::new(&keystore_path).exists();
     s.push_str(&format!(
         "  durable_keystore_present: {}\n",
-        if durable_present { "✓ (cross-run identity available)" } else { "✗ (run-local only)" }
+        if durable_present {
+            "✓ (cross-run identity available)"
+        } else {
+            "✗ (run-local only)"
+        }
     ));
     s.push_str(&format!(
         "  agents_in_manifest: {}\n",
@@ -1556,15 +1652,21 @@ fn render_text(r: &DashboardReport) -> String {
     s.push_str("  agent_id          | pubkey_in_manifest | tape_activity\n");
     s.push_str("  ------------------+--------------------+---------------\n");
     for (id, act) in &r.per_agent {
-        if !act.has_pubkey { continue; }
+        if !act.has_pubkey {
+            continue;
+        }
         let activity = format!(
             "Work✓={} Work✗={} Verify✓={} Verify✗={}",
-            act.work_tx_accepted, act.work_tx_rejected,
-            act.verify_tx_accepted, act.verify_tx_rejected
+            act.work_tx_accepted,
+            act.work_tx_rejected,
+            act.verify_tx_accepted,
+            act.verify_tx_rejected
         );
         s.push_str(&format!(
             "  {:<17} | {:<18} | {}\n",
-            trunc(id, 17), "✓ (durable-backed)", activity
+            trunc(id, 17),
+            "✓ (durable-backed)",
+            activity
         ));
     }
     if r.per_agent.values().filter(|a| a.has_pubkey).count() == 0 {
@@ -1621,9 +1723,7 @@ fn render_text(r: &DashboardReport) -> String {
             "\n  Aggregate: {} user task(s) | {} Finalized | total bounty = {} micro | total paid = {} micro\n",
             r.user_tasks.len(), n_finalized, total_bounty, total_paid
         ));
-        s.push_str(
-            "\n  Architect mandate (line 1594) ✓ when total paid > 0:\n"
-        );
+        s.push_str("\n  Architect mandate (line 1594) ✓ when total paid > 0:\n");
         s.push_str(
             "    user posts task → agent solves → system verifies → system pays → dashboard auditable.\n"
         );
@@ -1715,7 +1815,9 @@ fn render_text(r: &DashboardReport) -> String {
     s.push_str("  Architect mandate (§6.2 ruling 2026-05-02) ✓:\n");
     s.push_str("    O(1) chain cost / O(N) auditability — failure evidence anchored on L4\n");
     s.push_str("    via system-emitted system_signature; raw log requires audit-role access\n");
-    s.push_str("    (CapsulePrivacyPolicy::AuditOnly default; only public_summary surfaces here).\n");
+    s.push_str(
+        "    (CapsulePrivacyPolicy::AuditOnly default; only public_summary surfaces here).\n",
+    );
 
     // §13 TB-12 Node exposure records (architect 2026-05-03 ruling §3 + §10).
     s.push_str(&render_section_13(&r.exposures));
@@ -1811,21 +1913,14 @@ fn render_section_15(
     } else {
         s.push_str("  Per-event Cid counts (capsule bytes live in CAS;\n");
         s.push_str("  audit-role required to fetch private_detail):\n\n");
-        s.push_str(&format!(
-            "    {:<48}  {:>10}\n",
-            "event_id", "cid_count"
-        ));
+        s.push_str(&format!("    {:<48}  {:>10}\n", "event_id", "cid_count"));
         s.push_str("    ");
         s.push_str(&"-".repeat(60));
         s.push('\n');
         let mut total_cids: u32 = 0;
         for (event_id, count) in autopsy_event_counts {
             total_cids += *count;
-            s.push_str(&format!(
-                "    {:<48}  {:>10}\n",
-                trunc(event_id, 48),
-                count,
-            ));
+            s.push_str(&format!("    {:<48}  {:>10}\n", trunc(event_id, 48), count,));
         }
         s.push_str(&format!(
             "    ─── total: {} capsule Cid(s) across {} event(s) ───\n\n",
@@ -2016,7 +2111,9 @@ fn render_section_13(exposures: &[ExposureRecordRow]) -> String {
     s.push_str("    NodePosition is an IMMUTABLE EXPOSURE RECORD, NOT active position balance.\n");
     s.push_str("    NodePosition.amount is NOT a Coin holding (CR-12.1) and is NOT counted in\n");
     s.push_str("    total_supply_micro (CR-12.2). NO trading. NO price. NO settlement in TB-12.\n");
-    s.push_str("    NodeMarketEntry is TB-14 derived view; flat NodePositionsIndex is canonical.\n");
+    s.push_str(
+        "    NodeMarketEntry is TB-14 derived view; flat NodePositionsIndex is canonical.\n",
+    );
     s
 }
 
@@ -2057,9 +2154,7 @@ fn render_tb_n3_run_report(
 ) -> String {
     use std::collections::BTreeMap;
     use turingosv4::bottom_white::cas::store::CasStore;
-    use turingosv4::bottom_white::ledger::transition_ledger::{
-        canonical_decode, Git2LedgerWriter,
-    };
+    use turingosv4::bottom_white::ledger::transition_ledger::{canonical_decode, Git2LedgerWriter};
     // TB-G G2.2 lift: §F walker + renderer moved to
     // `turingosv4::runtime::market_decision_trace_summary`. The
     // MarketDecisionTrace / NoTradeReason / TraceOutcome imports are no
@@ -2088,6 +2183,34 @@ fn render_tb_n3_run_report(
         }
     };
 
+    #[derive(Default)]
+    struct ModelFamilyActivity {
+        attempt_count: u64,
+        accepted_worktx: u64,
+        l4e_rejection: u64,
+        verify_count: u64,
+        challenge_count: u64,
+        invest_count: u64,
+        pnl_micro: i64,
+    }
+
+    let genesis_model_family_by_agent: BTreeMap<String, String> =
+        std::fs::read_to_string(repo.join("genesis_report.json"))
+            .ok()
+            .and_then(|json| {
+                serde_json::from_str::<turingosv4::runtime::genesis_report::GenesisReport>(&json)
+                    .ok()
+            })
+            .map(|genesis| {
+                genesis
+                    .agent_model_assignment
+                    .into_iter()
+                    .map(|a| (a.agent_id, a.model_family))
+                    .collect()
+            })
+            .unwrap_or_default();
+    let mut model_family_activity: BTreeMap<String, ModelFamilyActivity> = BTreeMap::new();
+
     let mut tx_kind_counts: BTreeMap<String, u64> = BTreeMap::new();
     let mut market_seed_total_micro: i64 = 0;
     let mut pools_created: u64 = 0;
@@ -2111,8 +2234,38 @@ fn render_tb_n3_run_report(
         let kind = format!("{:?}", typed_tx.tx_kind());
         *tx_kind_counts.entry(kind).or_insert(0) += 1;
         match &typed_tx {
+            TypedTx::Work(work) => {
+                if let Some(family) = genesis_model_family_by_agent.get(&work.agent_id.0).cloned() {
+                    model_family_activity
+                        .entry(family)
+                        .or_default()
+                        .accepted_worktx += 1;
+                }
+            }
+            TypedTx::Verify(verify) => {
+                if let Some(family) = genesis_model_family_by_agent
+                    .get(&verify.verifier_agent.0)
+                    .cloned()
+                {
+                    model_family_activity
+                        .entry(family)
+                        .or_default()
+                        .verify_count += 1;
+                }
+            }
+            TypedTx::Challenge(challenge) => {
+                if let Some(family) = genesis_model_family_by_agent
+                    .get(&challenge.challenger_agent.0)
+                    .cloned()
+                {
+                    model_family_activity
+                        .entry(family)
+                        .or_default()
+                        .challenge_count += 1;
+                }
+            }
             TypedTx::MarketSeed(seed) => {
-                let inner = &seed.event_id.0.0;
+                let inner = &seed.event_id.0 .0;
                 if inner.starts_with("node_survive:") {
                     market_seed_total_micro += seed.collateral_amount.micro_units();
                     node_event_seeds
@@ -2122,19 +2275,69 @@ fn render_tb_n3_run_report(
                 }
             }
             TypedTx::CpmmPool(pool) => {
-                let inner = &pool.event_id.0.0;
+                let inner = &pool.event_id.0 .0;
                 if inner.starts_with("node_survive:") {
                     pools_created += 1;
                 }
             }
             TypedTx::BuyWithCoinRouter(router) => {
                 use turingosv4::state::typed_tx::BuyDirection;
+                if let Some(family) = genesis_model_family_by_agent.get(&router.buyer.0).cloned() {
+                    model_family_activity
+                        .entry(family)
+                        .or_default()
+                        .invest_count += 1;
+                }
                 match router.direction {
                     BuyDirection::BuyYes => router_count_yes += 1,
                     BuyDirection::BuyNo => router_count_no += 1,
                 }
             }
             _ => {}
+        }
+    }
+
+    for cid in cas.list_cids_by_object_type(
+        turingosv4::bottom_white::cas::schema::ObjectType::AttemptTelemetry,
+    ) {
+        if let Ok(attempt) =
+            turingosv4::runtime::attempt_telemetry::read_attempt_telemetry_from_cas(&cas, &cid)
+        {
+            if attempt.model_family.is_some()
+                || genesis_model_family_by_agent.contains_key(&attempt.agent_id.0)
+            {
+                let family = attempt
+                    .model_family
+                    .clone()
+                    .unwrap_or_else(|| genesis_model_family_by_agent[&attempt.agent_id.0].clone());
+                model_family_activity
+                    .entry(family)
+                    .or_default()
+                    .attempt_count += 1;
+            }
+        }
+    }
+
+    {
+        use turingosv4::bottom_white::ledger::rejection_evidence::RejectionEvidenceWriter;
+        let rejections_path = repo.join("rejections.jsonl");
+        let l4e_writer = if rejections_path.exists() {
+            RejectionEvidenceWriter::open_jsonl(rejections_path).ok()
+        } else {
+            Some(RejectionEvidenceWriter::new())
+        };
+        if let Some(l4e_writer) = l4e_writer {
+            for record in l4e_writer.records() {
+                if let Some(family) = genesis_model_family_by_agent
+                    .get(&record.agent_id.0)
+                    .cloned()
+                {
+                    model_family_activity
+                        .entry(family)
+                        .or_default()
+                        .l4e_rejection += 1;
+                }
+            }
         }
     }
 
@@ -2175,11 +2378,24 @@ fn render_tb_n3_run_report(
     // §C Market tx counts (from L4 walk).
     out.push_str("\n## §C Market tx counts\n");
     for kind in [
-        "TaskOpen", "EscrowLock", "Work", "Verify", "FinalizeReward",
-        "EventResolve", "CompleteSetMint", "MarketSeed", "CpmmPool",
-        "CpmmSwap", "BuyWithCoinRouter", "CompleteSetRedeem",
-        "CompleteSetMerge", "Challenge", "ChallengeResolve",
-        "TaskBankruptcy", "TaskExpire", "TerminalSummary",
+        "TaskOpen",
+        "EscrowLock",
+        "Work",
+        "Verify",
+        "FinalizeReward",
+        "EventResolve",
+        "CompleteSetMint",
+        "MarketSeed",
+        "CpmmPool",
+        "CpmmSwap",
+        "BuyWithCoinRouter",
+        "CompleteSetRedeem",
+        "CompleteSetMerge",
+        "Challenge",
+        "ChallengeResolve",
+        "TaskBankruptcy",
+        "TaskExpire",
+        "TerminalSummary",
     ] {
         let n = tx_kind_counts.get(kind).copied().unwrap_or(0);
         out.push_str(&format!("  {kind}: {n}\n"));
@@ -2207,12 +2423,17 @@ fn render_tb_n3_run_report(
 
     // §E Budget burn report (architect §8.5).
     let mmb_genesis_micro: i64 = 5_000_000;
-    let pools_skipped_budget: i64 =
-        accepted_work as i64 - pools_created as i64;
+    let pools_skipped_budget: i64 = accepted_work as i64 - pools_created as i64;
     out.push_str("\n## §E Budget burn report\n");
     out.push_str(&format!("  pools_created: {}\n", pools_created));
-    out.push_str(&format!("  market_seed_total: {} μC\n", market_seed_total_micro));
-    out.push_str(&format!("  treasury_budget_start: {} μC (MarketMakerBudget genesis)\n", mmb_genesis_micro));
+    out.push_str(&format!(
+        "  market_seed_total: {} μC\n",
+        market_seed_total_micro
+    ));
+    out.push_str(&format!(
+        "  treasury_budget_start: {} μC (MarketMakerBudget genesis)\n",
+        mmb_genesis_micro
+    ));
     out.push_str(&format!(
         "  treasury_budget_end: {} μC (= start - market_seed_total)\n",
         mmb_genesis_micro - market_seed_total_micro
@@ -2266,10 +2487,14 @@ fn render_tb_n3_run_report(
     // contract: if every row is flat (no PnL movement, no positions),
     // a MECHANISM BOTTLENECK explainer with ≥3 candidate causes is
     // auto-rendered (mirrors the §F.X / G2P.2 silent-zero contract).
-    match turingosv4::runtime::agent_pnl::compute_pnl_trajectory_from_paths(
-        repo, cas_path,
-    ) {
+    match turingosv4::runtime::agent_pnl::compute_pnl_trajectory_from_paths(repo, cas_path) {
         Ok(traj) => {
+            for row in &traj.rows {
+                if let Some(family) = genesis_model_family_by_agent.get(&row.agent_id.0).cloned() {
+                    model_family_activity.entry(family).or_default().pnl_micro +=
+                        row.realized_pnl + row.unrealized_pnl;
+                }
+            }
             out.push_str(&traj.render_section_g());
         }
         Err(e) => {
@@ -2290,6 +2515,45 @@ fn render_tb_n3_run_report(
         }
         Err(e) => {
             out.push_str(&format!("\n## §G.2 RiskCapImpactReport\n  [error] {e}\n"));
+        }
+    }
+
+    // §G.3 Model-family activity (G4.2). This is an attribution/divergence
+    // materialized view from GenesisReport + AttemptTelemetry + ChainTape +
+    // CAS. It is not a model leaderboard and makes no "model X is better"
+    // claim.
+    out.push_str("\n## §G.3 Model-family activity\n");
+    out.push_str("  source: GenesisReport + AttemptTelemetry + ChainTape + CAS\n");
+    out.push_str("  interpretation: activity/divergence only; no model ranking\n");
+    match turingosv4::runtime::audit_assertions::audit_model_identity_from_paths(repo, cas_path) {
+        Ok(identity_report) => {
+            out.push_str(&format!(
+                "  hidden_switch_verdict: {:?}\n",
+                identity_report.verdict
+            ));
+            if !identity_report.hidden_switches.is_empty() {
+                out.push_str("  hidden_switch_blocking_report:\n");
+                for line in identity_report.render_blocking_report().lines() {
+                    out.push_str(&format!("    {line}\n"));
+                }
+            }
+        }
+        Err(e) => out.push_str(&format!("  hidden_switch_verdict: ERROR ({e})\n")),
+    }
+    if model_family_activity.is_empty() {
+        out.push_str("  (no model-family activity derived)\n");
+    } else {
+        for (family, act) in &model_family_activity {
+            out.push_str(&format!(
+                "  - {family}: attempt_count_by_model_family={} accepted_worktx_by_model_family={} l4e_rejection_by_model_family={} verify_count_by_model_family={} challenge_count_by_model_family={} invest_count_by_model_family={} pnl_by_model_family={}μC\n",
+                act.attempt_count,
+                act.accepted_worktx,
+                act.l4e_rejection,
+                act.verify_count,
+                act.challenge_count,
+                act.invest_count,
+                act.pnl_micro
+            ));
         }
     }
 
@@ -2319,8 +2583,11 @@ mod tb14_render_tests {
     use turingosv4::state::RationalPrice;
 
     fn make_entry(
-        node: &str, long: i64, short: i64,
-        py: Option<(u128, u128)>, pn: Option<(u128, u128)>,
+        node: &str,
+        long: i64,
+        short: i64,
+        py: Option<(u128, u128)>,
+        pn: Option<(u128, u128)>,
     ) -> (TxId, NodeMarketEntry) {
         (
             TxId(node.into()),
@@ -2332,8 +2599,14 @@ mod tb14_render_tests {
                 short_interest: MicroCoin::from_micro_units(short),
                 yes_share_depth: turingosv4::state::typed_tx::ShareAmount::from_units(0),
                 no_share_depth: turingosv4::state::typed_tx::ShareAmount::from_units(0),
-                price_yes: py.map(|(n, d)| RationalPrice { numerator: n, denominator: d }),
-                price_no: pn.map(|(n, d)| RationalPrice { numerator: n, denominator: d }),
+                price_yes: py.map(|(n, d)| RationalPrice {
+                    numerator: n,
+                    denominator: d,
+                }),
+                price_no: pn.map(|(n, d)| RationalPrice {
+                    numerator: n,
+                    denominator: d,
+                }),
                 liquidity_depth: MicroCoin::from_micro_units(long + short),
             },
         )
@@ -2363,13 +2636,21 @@ mod tb14_render_tests {
     #[test]
     fn sg_14_6_dashboard_renders_price_as_integer_rational_never_decimal() {
         let mut pi: BTreeMap<TxId, NodeMarketEntry> = BTreeMap::new();
-        let (k1, e1) = make_entry("n_alpha", 700_000, 300_000,
-                                  Some((700_000, 1_000_000)),
-                                  Some((300_000, 1_000_000)));
+        let (k1, e1) = make_entry(
+            "n_alpha",
+            700_000,
+            300_000,
+            Some((700_000, 1_000_000)),
+            Some((300_000, 1_000_000)),
+        );
         pi.insert(k1, e1);
-        let (k2, e2) = make_entry("n_beta", 500_000, 500_000,
-                                  Some((500_000, 1_000_000)),
-                                  Some((500_000, 1_000_000)));
+        let (k2, e2) = make_entry(
+            "n_beta",
+            500_000,
+            500_000,
+            Some((500_000, 1_000_000)),
+            Some((500_000, 1_000_000)),
+        );
         pi.insert(k2, e2);
 
         let s = render_section_14(&pi);
@@ -2453,10 +2734,22 @@ mod tb14_render_tests {
         ];
         let s = render_section_15(&counts, Some("abcd1234"));
         // Surfaces event_id + count + Markov pointer.
-        assert!(s.contains("event:tb15:event_a"), "missing event_a; got:\n{s}");
-        assert!(s.contains("event:tb15:event_b"), "missing event_b; got:\n{s}");
-        assert!(s.contains(" 7 capsule"), "missing total cid count; got:\n{s}");
-        assert!(s.contains("abcd1234"), "missing markov pointer hex; got:\n{s}");
+        assert!(
+            s.contains("event:tb15:event_a"),
+            "missing event_a; got:\n{s}"
+        );
+        assert!(
+            s.contains("event:tb15:event_b"),
+            "missing event_b; got:\n{s}"
+        );
+        assert!(
+            s.contains(" 7 capsule"),
+            "missing total cid count; got:\n{s}"
+        );
+        assert!(
+            s.contains("abcd1234"),
+            "missing markov pointer hex; got:\n{s}"
+        );
         // Never embeds raw bytes (signature precludes; defense-in-depth: no
         // `0xPRIVATE` token would have been formattable from this input).
         assert!(!s.contains("private_detail_cid"));
@@ -2486,7 +2779,10 @@ mod tb14_render_tests {
     #[test]
     fn sg_15_6_dashboard_carries_markov_default_deny_explanation() {
         let s = render_section_15(&[], Some("deadbeef"));
-        assert!(s.contains("TURINGOS_MARKOV_OVERRIDE=1"), "missing override env hint");
+        assert!(
+            s.contains("TURINGOS_MARKOV_OVERRIDE=1"),
+            "missing override env hint"
+        );
         assert!(s.contains("deeper history"), "missing default-deny hint");
     }
 }

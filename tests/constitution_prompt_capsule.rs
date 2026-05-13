@@ -26,6 +26,9 @@ use std::collections::BTreeSet;
 use tempfile::TempDir;
 use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
 use turingosv4::bottom_white::cas::store::CasStore;
+use turingosv4::runtime::genesis_report::{
+    prompt_capsule_model_link_manifest_bytes, PromptCapsuleModelLinkManifest,
+};
 use turingosv4::runtime::prompt_capsule::{
     read_prompt_capsule_from_cas, write_prompt_capsule_to_cas, PromptCapsule, PromptCapsuleError,
     PROMPT_CAPSULE_SCHEMA_ID,
@@ -98,6 +101,40 @@ fn prompt_capsule_struct_field_count_is_exactly_seven() {
     }
 }
 
+/// G4.2 — the architect requires model identity to enter the
+/// PromptCapsule / AttemptTelemetry consistency chain, while the
+/// seven-field PromptCapsule payload remains architect-pinned. Therefore
+/// model linkage lives in the manifest behind `agent_view_manifest_cid`,
+/// not as new direct fields on `PromptCapsule`.
+#[test]
+fn prompt_capsule_agent_view_manifest_links_model_assignment_without_raw_prompt() {
+    let manifest = PromptCapsuleModelLinkManifest {
+        assigned_model_family: "claude".into(),
+        prompt_template_hash: "template-hash-only".into(),
+        model_assignment_manifest_cid: "cid-model-assignment-manifest".into(),
+    };
+
+    let bytes = prompt_capsule_model_link_manifest_bytes(&manifest).expect("manifest json bytes");
+    let json = String::from_utf8(bytes).expect("utf8 json");
+    assert!(json.contains("\"assigned_model_family\":\"claude\""));
+    assert!(json.contains("\"prompt_template_hash\":\"template-hash-only\""));
+    assert!(json.contains("\"model_assignment_manifest_cid\":\"cid-model-assignment-manifest\""));
+
+    for forbidden in [
+        "raw_prompt",
+        "prompt_body",
+        "verbatim_prompt",
+        "completion",
+        "chain_of_thought",
+        "CoT",
+    ] {
+        assert!(
+            !json.contains(forbidden),
+            "G4.2 model-link manifest must not store raw prompt/completion/CoT: {forbidden}"
+        );
+    }
+}
+
 /// G-019 — canonical encoding is deterministic. Same input → same canonical
 /// hash. Same input → same CAS CID round-trip.
 #[test]
@@ -106,7 +143,10 @@ fn prompt_capsule_hash_stable() {
     let b = fixture_capsule(0xAA);
     let ha = a.canonical_hash().expect("hash a");
     let hb = b.canonical_hash().expect("hash b");
-    assert_eq!(ha, hb, "identical capsules MUST produce identical canonical hashes");
+    assert_eq!(
+        ha, hb,
+        "identical capsules MUST produce identical canonical hashes"
+    );
 
     // Different prompt context hash → different canonical hash (no
     // accidental collision).
@@ -122,7 +162,10 @@ fn prompt_capsule_hash_stable() {
     let mut cas = CasStore::open(dir.path()).expect("cas open");
     let cid_a = write_prompt_capsule_to_cas(&mut cas, &a, "gate", 0).expect("put a");
     let cid_b = write_prompt_capsule_to_cas(&mut cas, &b, "gate", 0).expect("put b");
-    assert_eq!(cid_a, cid_b, "identical capsules must produce identical CAS CIDs");
+    assert_eq!(
+        cid_a, cid_b,
+        "identical capsules must produce identical CAS CIDs"
+    );
     let read_back = read_prompt_capsule_from_cas(&cas, &cid_a).expect("get");
     assert_eq!(read_back, a, "CAS round-trip must preserve capsule");
 }
@@ -206,8 +249,8 @@ fn prompt_capsule_referenced_by_attempt_telemetry() {
 /// audit-only artifact) or an explicit constitution amendment.
 #[test]
 fn verbatim_prompt_not_public_by_default() {
-    let src_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("src/runtime/prompt_capsule.rs");
+    let src_path =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/runtime/prompt_capsule.rs");
     let src = std::fs::read_to_string(&src_path).expect("read prompt_capsule.rs");
 
     // The architect schema explicitly lists 7 fields (counting schema_version).

@@ -1,0 +1,19 @@
+
+running 7 tests
+test actual_vs_genesis_mismatch_blocks_as_hidden_switch ... ok
+test historical_attempt_telemetry_v1_bytes_still_decode ... ok
+test audit_tape_assertion_battery_blocks_hidden_model_switch ... FAILED
+test evaluator_success_attempts_record_proxy_reported_actual_model ... FAILED
+test missing_actual_attempt_model_identity_blocks ... ok
+test matching_actual_model_identity_proceeds ... ok
+test g4_model_assignment_manifest_write_is_fail_closed_for_new_runs ... FAILED
+
+failures:
+
+failures:
+    audit_tape_assertion_battery_blocks_hidden_model_switch
+    evaluator_success_attempts_record_proxy_reported_actual_model
+    g4_model_assignment_manifest_write_is_fail_closed_for_new_runs
+
+test result: FAILED. 4 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

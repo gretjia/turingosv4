@@ -1,0 +1,9 @@
+
+running 4 tests
+test historical_attempt_telemetry_v1_bytes_still_decode ... ok
+test actual_vs_genesis_mismatch_blocks_as_hidden_switch ... ok
+test missing_actual_attempt_model_identity_blocks ... ok
+test matching_actual_model_identity_proceeds ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

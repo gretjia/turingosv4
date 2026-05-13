@@ -1,0 +1,16 @@
+════════════════════════════════════════════════════════════════════════
+TB-G G1.2 chain-continuous batch (Option B+ canonical)
+════════════════════════════════════════════════════════════════════════
+RUN_TAG          = g_phase_g4_2_mini_challenge_fix_2026-05-13T14-32-40Z
+RUN_DIR          = /home/zephryj/projects/turingosv4/handover/evidence/g_phase_g4_2_mini_challenge_fix_2026-05-13T14-32-40Z
+PROBLEM_SET      = mini  (3 tasks)
+ACTIVE_MODEL     = deepseek-chat
+G_PHASE_N_AGENTS = 10
+G_PHASE_CONDITION= n10
+AGENT_MODELS     = deepseek-chat,gpt-5.2,claude-3-7-sonnet,qwen3-coder,deepseek-chat,gpt-5.2,claude-3-7-sonnet,qwen3-coder,deepseek-chat,gpt-5.2
+PHASE_D_HETERO_OK= 1
+MODEL_FAMILIES   = observed=4 required=3
+LLM_PROXY_URL    = http://localhost:8080
+MINIF2F_DIR      = /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4
+PER_PROB_TIMEOUT = 900s
+

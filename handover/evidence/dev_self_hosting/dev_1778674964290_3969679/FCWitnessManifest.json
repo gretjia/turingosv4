@@ -1,0 +1,58 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778674964290_3969679",
+  "fc_nodes": [
+    "FC2 Boot / Genesis",
+    "FC1 AttemptTelemetry",
+    "FC3 audit/report view",
+    "Art. III shielding"
+  ],
+  "expected_witness": "Diff, command evidence, and audit verdict must cite these FC nodes.",
+  "evidence_artifacts": [
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "5fc61c22bd570f0333a918649620d897a416d5b57716cfdd60e531a6eacc17b4",
+      "size_bytes": 495494
+    },
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "5fc61c22bd570f0333a918649620d897a416d5b57716cfdd60e531a6eacc17b4",
+      "size_bytes": 495494
+    },
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "2462ca4a71bcb646fbae6c4a00473affb645bb8957b99ab564f96494b9185133",
+      "size_bytes": 502684
+    },
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "0c3f7c857bc9595b3b795dea562c8a3f0072135756043a9a19938b7f04f797f4",
+      "size_bytes": 503893
+    },
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "0c3f7c857bc9595b3b795dea562c8a3f0072135756043a9a19938b7f04f797f4",
+      "size_bytes": 503893
+    },
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "0c3f7c857bc9595b3b795dea562c8a3f0072135756043a9a19938b7f04f797f4",
+      "size_bytes": 503893
+    },
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "e0345aad20b42f1bda68e3be6e35c4dc959518862db6494abb5c7505cbec344d",
+      "size_bytes": 503940
+    },
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "d8b914429e784e20f7a24241fc397dc619c6c6f6b0a69b41f01047811910327d",
+      "size_bytes": 530497
+    },
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "d8b914429e784e20f7a24241fc397dc619c6c6f6b0a69b41f01047811910327d",
+      "size_bytes": 530497
+    }
+  ]
+}
