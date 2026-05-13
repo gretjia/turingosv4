@@ -202,6 +202,13 @@ pub mod agent_pnl;
 /// `src/bin/audit_dashboard.rs` §G PnL trajectory + §H+ extensions.
 pub mod risk_cap_impact_report;
 
+/// TRACE_MATRIX FC3-N33 + FC3-N43 (Unified Agent Harness 2026-05-13):
+/// self-hosting development evidence sidecar. `turingos_dev` records
+/// module/molecule/atom contracts, command evidence, review verdicts, and an
+/// append-only hash chain for development work. It is NOT a canonical tape or
+/// a second CAS; future work may anchor summaries into ChainTape/CAS after
+/// G3.2/G4.2/PromptCapsule runtime closure.
+pub mod dev_harness;
 
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};

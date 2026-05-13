@@ -2277,6 +2277,22 @@ fn render_tb_n3_run_report(
         }
     }
 
+    // §G.2 RiskCapImpactReport (TB-G G3.2; architect §7.1): derive
+    // bankruptcy-risk-cap admission rejections from L4.E + CAS + replayed
+    // QState and render the regression-attribution columns required by the
+    // G3.2 §8 supplementary packet.
+    match turingosv4::runtime::risk_cap_impact_report::compute_risk_cap_impact_report_from_paths(
+        repo, cas_path,
+    ) {
+        Ok(report) => {
+            let _: &turingosv4::runtime::risk_cap_impact_report::RiskCapImpactReport = &report;
+            out.push_str(&report.render_section_g_2());
+        }
+        Err(e) => {
+            out.push_str(&format!("\n## §G.2 RiskCapImpactReport\n  [error] {e}\n"));
+        }
+    }
+
     // §H Banner (architect "no price as truth"). Renamed from §G to §H
     // by TB-G G3.4 to free the §G label for PnL trajectory; SG-14.6
     // architect-mandated banner contract still enforced via

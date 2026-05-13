@@ -1,0 +1,18 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778668340170_3888334",
+  "fc_nodes": [
+    "FC1-admission-rejection",
+    "FC2-trust-root-replay",
+    "FC3-auditonly-autopsy",
+    "ECO-conservation"
+  ],
+  "expected_witness": "Diff, command evidence, and audit verdict must cite these FC nodes.",
+  "evidence_artifacts": [
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "12427cb69703879edc733c3412004e09cfb426e0329e88e8d675d5a3f023139a",
+      "size_bytes": 63969
+    }
+  ]
+}

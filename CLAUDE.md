@@ -1,5 +1,13 @@
 # TuringOS v4 — CLAUDE.md
 
+@AGENTS.md
+
+This file is the Claude Code adapter and historical operating-law expansion for
+this repository. The shared cross-agent harness contract lives in `AGENTS.md`;
+Claude-specific memory, hooks, and workflow detail may live here. If this file
+duplicates `AGENTS.md`, treat `AGENTS.md` as the shared router and use this file
+for Claude-only mechanics.
+
 ## 0. Identity
 
 TuringOS is a tape-first constitutional operating system for LLM / AGI agents.

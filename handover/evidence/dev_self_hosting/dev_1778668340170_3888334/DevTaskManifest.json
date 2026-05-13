@@ -1,0 +1,37 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778668340170_3888334",
+  "title": "TB-G G3.2 R1 audit challenge remediation",
+  "module": "G3.2 risk-cap audit dashboard",
+  "molecule_or_atom": "atom",
+  "requested_risk_class": 4,
+  "risk_class": 4,
+  "fc_nodes": [
+    "FC1-admission-rejection",
+    "FC2-trust-root-replay",
+    "FC3-auditonly-autopsy",
+    "ECO-conservation"
+  ],
+  "allowed_paths": [
+    "src/runtime/risk_cap_impact_report.rs",
+    "src/bin/audit_dashboard.rs",
+    "tests/constitution_g3_bankruptcy_risk_cap.rs",
+    "scripts/run_constitution_gates.sh",
+    "genesis_payload.toml",
+    "handover/audits/CODEX_G2_TB_G_G3_2_VERDICT.md",
+    "handover/audits/CODEX_G2_TB_G_G3_2_R2_VERDICT.md"
+  ],
+  "restricted_surface_hits": [
+    "genesis_payload.toml"
+  ],
+  "acceptance_commands": [
+    "cargo test --test constitution_g3_bankruptcy_risk_cap",
+    "bash scripts/run_constitution_gates.sh",
+    "cargo test --lib boot::tests::verify_trust_root_passes_on_intact_repo"
+  ],
+  "audit_required": true,
+  "human_intent": "Remediate clean-context Codex R1 CHALLENGE: RiskCapImpactReport exists but audit_dashboard lacks §7.1 risk-cap attribution render.",
+  "ratification": "G3.2 §8 architect ratification includes §7.1 RiskCapImpactReport dashboard wire; R1 clean-context audit CHALLENGE requires remediation.",
+  "git_head": "871d24183018ba7ac16c84762cdfdeb6ab058b9f",
+  "created_at_unix_ms": 1778668340170
+}

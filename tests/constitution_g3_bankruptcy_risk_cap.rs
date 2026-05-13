@@ -459,6 +459,23 @@ fn arch_71_default_report_is_empty() {
     assert!(r.rows.is_empty());
 }
 
+#[test]
+fn arch_71_audit_dashboard_wires_risk_cap_impact_report() {
+    let src = read("src/bin/audit_dashboard.rs");
+    assert!(
+        src.contains("risk_cap_impact_report::compute_risk_cap_impact_report_from_paths"),
+        "Architect §7.1: audit_dashboard --run-report must derive RiskCapImpactReport from ChainTape/CAS"
+    );
+    assert!(
+        src.contains("render_section_g_2"),
+        "Architect §7.1: audit_dashboard --run-report must render the risk-cap impact section"
+    );
+    assert!(
+        src.contains("RiskCapImpactReport"),
+        "Architect §7.1: dashboard source must name the RiskCapImpactReport surface"
+    );
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // Architect §7.5 — FinalizeRewardPayoutBreakdown separates solver vs verifier
 // ────────────────────────────────────────────────────────────────────────────

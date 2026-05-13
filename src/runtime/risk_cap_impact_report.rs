@@ -19,10 +19,16 @@
 //! **CLAUDE.md §13 no-f64**: all math in `i64` micro-units; no floating
 //! point in any path.
 
+use std::collections::BTreeMap;
+use std::path::Path;
+
 use serde::{Deserialize, Serialize};
 
-use crate::state::q_state::{AgentId, EconomicState, TaskId};
-use crate::state::typed_tx::{FinalizeRewardTx, RejectionClass, RunOutcome, TransitionError};
+use crate::bottom_white::ledger::transition_ledger::TxKind;
+use crate::state::q_state::{AgentId, EconomicState, Hash, QState, TaskId, TxId};
+use crate::state::typed_tx::{
+    FinalizeRewardTx, RejectionClass, RunOutcome, TransitionError, TypedTx,
+};
 
 /// TRACE_MATRIX FC1-N43 (TB-G G3.2 §7.1; 2026-05-12): one row per
 /// `BankruptcyRiskCapExceeded` admission rejection on the chain. Columns
@@ -59,6 +65,346 @@ pub struct RiskCapRejectionRow {
 pub struct RiskCapImpactReport {
     pub total_rejections: usize,
     pub rows: Vec<RiskCapRejectionRow>,
+}
+
+impl RiskCapImpactReport {
+    /// TRACE_MATRIX FC1-N43 (TB-G G3.2 §7.1; 2026-05-12): render the
+    /// `audit_dashboard --run-report` section for bankruptcy-risk-cap
+    /// attribution. The dashboard is a materialized view, not a truth
+    /// source; each row is derived from L4.E + CAS + replayed QState.
+    pub fn render_section_g_2(&self) -> String {
+        let mut out = String::new();
+        out.push_str("\n## §G.2 RiskCapImpactReport\n");
+        out.push_str("  (bankruptcy risk-cap admission rejections; derived from L4.E + CAS + replayed QState)\n");
+        out.push_str(&format!(
+            "  risk_cap_rejections: {}\n",
+            self.total_rejections
+        ));
+        if self.rows.is_empty() {
+            out.push_str("  (no BankruptcyRiskCapExceeded L4.E rows in this run)\n");
+            return out;
+        }
+        out.push_str("  agent_id | balance_before_micro | risk_cap_micro | tx_kind | task_id | another_agent_continued | solve_outcome\n");
+        for row in &self.rows {
+            out.push_str(&format!(
+                "  - {} | {} | {} | {} | {} | {} | {}\n",
+                row.agent_id.0,
+                row.balance_before_micro,
+                row.risk_cap_micro,
+                row.tx_kind,
+                row.task_id.as_ref().map(|t| t.0.as_str()).unwrap_or("-"),
+                row.another_agent_continued,
+                row.solve_outcome
+                    .map(|o| format!("{o:?}"))
+                    .unwrap_or_else(|| "-".to_string()),
+            ));
+        }
+        out
+    }
+}
+
+/// TRACE_MATRIX § 3 orphan — TB-G G3.2 §7.1 path-based report walker
+/// error. Kept string-light for dashboard display while preserving the
+/// failing subsystem.
+#[derive(Debug)]
+pub enum RiskCapImpactReportError {
+    L4eOpen(String),
+    LedgerOpen(String),
+    LedgerRead(String),
+    CasOpen(String),
+    CasRead(String),
+    Decode(String),
+    PinnedPubkeysIo(String),
+    PinnedPubkeysParse(String),
+    InitialQStateIo(String),
+    InitialQStateParse(String),
+    HexDecode(String),
+    Replay(String),
+    StateRootNotFound(String),
+}
+
+impl std::fmt::Display for RiskCapImpactReportError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::L4eOpen(e) => write!(f, "open L4.E rejections: {e}"),
+            Self::LedgerOpen(e) => write!(f, "open L4 ledger: {e}"),
+            Self::LedgerRead(e) => write!(f, "read L4 ledger: {e}"),
+            Self::CasOpen(e) => write!(f, "open CAS: {e}"),
+            Self::CasRead(e) => write!(f, "read CAS: {e}"),
+            Self::Decode(e) => write!(f, "decode typed tx: {e}"),
+            Self::PinnedPubkeysIo(e) => write!(f, "read pinned pubkeys: {e}"),
+            Self::PinnedPubkeysParse(e) => write!(f, "parse pinned pubkeys: {e}"),
+            Self::InitialQStateIo(e) => write!(f, "read initial_q_state: {e}"),
+            Self::InitialQStateParse(e) => write!(f, "parse initial_q_state: {e}"),
+            Self::HexDecode(e) => write!(f, "hex decode: {e}"),
+            Self::Replay(e) => write!(f, "replay: {e}"),
+            Self::StateRootNotFound(e) => write!(f, "state root not found: {e}"),
+        }
+    }
+}
+
+impl std::error::Error for RiskCapImpactReportError {}
+
+/// TRACE_MATRIX FC1-N43 + FC2-Boot (TB-G G3.2 §7.1; 2026-05-12):
+/// path-based walker for `audit_dashboard --run-report`.
+///
+/// The report is derived from:
+/// - `<runtime_repo>/rejections.jsonl` for L4.E risk-cap rows;
+/// - CAS `tx_payload_cid` for the rejected typed tx body;
+/// - L4 replay from `initial_q_state.json` + `pinned_pubkeys.json` to
+///   recover the exact `balance_before_micro` at `parent_state_root`.
+pub fn compute_risk_cap_impact_report_from_paths(
+    runtime_repo_path: &Path,
+    cas_path: &Path,
+) -> Result<RiskCapImpactReport, RiskCapImpactReportError> {
+    use crate::bottom_white::cas::store::CasStore;
+    use crate::bottom_white::ledger::rejection_evidence::RejectionEvidenceWriter;
+    use crate::bottom_white::ledger::transition_ledger::{
+        canonical_decode, Git2LedgerWriter, LedgerEntry, LedgerWriter,
+    };
+
+    let rejections_path = runtime_repo_path.join("rejections.jsonl");
+    let l4e_writer = if rejections_path.exists() {
+        RejectionEvidenceWriter::open_jsonl(rejections_path)
+            .map_err(|e| RiskCapImpactReportError::L4eOpen(e.to_string()))?
+    } else {
+        RejectionEvidenceWriter::new()
+    };
+    let risk_records: Vec<_> = l4e_writer
+        .records()
+        .iter()
+        .filter(|r| r.public_summary.as_deref() == Some("bankruptcy_risk_cap_exceeded"))
+        .cloned()
+        .collect();
+    if risk_records.is_empty() {
+        return Ok(RiskCapImpactReport::default());
+    }
+
+    let cas =
+        CasStore::open(cas_path).map_err(|e| RiskCapImpactReportError::CasOpen(e.to_string()))?;
+    let writer = Git2LedgerWriter::open(runtime_repo_path)
+        .map_err(|e| RiskCapImpactReportError::LedgerOpen(format!("{e:?}")))?;
+    let chain_len = writer.len();
+    let mut entries: Vec<LedgerEntry> = Vec::with_capacity(chain_len as usize);
+    for t in 1..=chain_len {
+        entries.push(
+            writer
+                .read_at(t)
+                .map_err(|e| RiskCapImpactReportError::LedgerRead(format!("{e:?}")))?,
+        );
+    }
+
+    let mut accepted_work: Vec<(usize, TxId, TaskId, AgentId)> = Vec::new();
+    let mut task_outcomes: BTreeMap<TaskId, RunOutcome> = BTreeMap::new();
+    for (idx, entry) in entries.iter().enumerate() {
+        let payload = match cas.get(&entry.tx_payload_cid) {
+            Ok(b) => b,
+            Err(_) => continue,
+        };
+        let typed_tx: TypedTx = match canonical_decode(&payload) {
+            Ok(t) => t,
+            Err(_) => continue,
+        };
+        match typed_tx {
+            TypedTx::Work(w) => {
+                accepted_work.push((idx + 1, w.tx_id, w.task_id, w.agent_id));
+            }
+            TypedTx::TerminalSummary(ts) => {
+                task_outcomes.insert(ts.task_id, ts.run_outcome);
+            }
+            _ => {}
+        }
+    }
+    let work_task_by_tx: BTreeMap<TxId, TaskId> = accepted_work
+        .iter()
+        .map(|(_, tx, task, _)| (tx.clone(), task.clone()))
+        .collect();
+
+    let replay = ReplayInputs::load(runtime_repo_path, entries)?;
+    let mut rows = Vec::new();
+    for record in risk_records {
+        let payload = cas
+            .get(&record.tx_payload_cid)
+            .map_err(|e| RiskCapImpactReportError::CasRead(e.to_string()))?;
+        let typed_tx: TypedTx = canonical_decode(&payload)
+            .map_err(|e| RiskCapImpactReportError::Decode(format!("{e:?}")))?;
+        let task_id = task_id_for_rejected_tx(&typed_tx, &work_task_by_tx);
+        let q_before = replay.q_at_state_root(record.parent_state_root, &cas)?;
+        let balance_before_micro = q_before
+            .economic_state_t
+            .balances_t
+            .0
+            .get(&record.agent_id)
+            .map(|b| b.micro_units())
+            .unwrap_or(0);
+        let risk_cap_micro =
+            crate::runtime::agent_pnl::bankruptcy_risk_cap_micro(&record.agent_id, &q_before);
+        let root_pos = replay.state_root_position(record.parent_state_root)?;
+        let another_agent_continued = task_id.as_ref().map_or(false, |task| {
+            accepted_work.iter().any(|(idx, _, work_task, work_agent)| {
+                *idx > root_pos && work_task == task && work_agent != &record.agent_id
+            })
+        });
+        let solve_outcome = task_id
+            .as_ref()
+            .and_then(|task| task_outcomes.get(task).copied());
+
+        rows.push(RiskCapRejectionRow {
+            agent_id: record.agent_id,
+            balance_before_micro,
+            risk_cap_micro,
+            tx_kind: risk_cap_tx_kind_label(record.tx_kind).to_string(),
+            task_id,
+            another_agent_continued,
+            solve_outcome,
+        });
+    }
+
+    Ok(RiskCapImpactReport {
+        total_rejections: rows.len(),
+        rows,
+    })
+}
+
+struct ReplayInputs {
+    initial_q: QState,
+    entries: Vec<crate::bottom_white::ledger::transition_ledger::LedgerEntry>,
+    pinned: crate::bottom_white::ledger::system_keypair::PinnedSystemPubkeys,
+}
+
+impl ReplayInputs {
+    fn load(
+        runtime_repo_path: &Path,
+        entries: Vec<crate::bottom_white::ledger::transition_ledger::LedgerEntry>,
+    ) -> Result<Self, RiskCapImpactReportError> {
+        use crate::bottom_white::ledger::system_keypair::{
+            PinnedSystemPubkeys, SystemEpoch, SystemPublicKey,
+        };
+
+        let pinned_path = runtime_repo_path.join("pinned_pubkeys.json");
+        let pinned_text = std::fs::read_to_string(&pinned_path).map_err(|e| {
+            RiskCapImpactReportError::PinnedPubkeysIo(format!("{pinned_path:?}: {e}"))
+        })?;
+        let pinned_manifest: crate::runtime::PinnedPubkeyManifest =
+            serde_json::from_str(&pinned_text)
+                .map_err(|e| RiskCapImpactReportError::PinnedPubkeysParse(e.to_string()))?;
+        let mut pinned = PinnedSystemPubkeys::new();
+        for entry in &pinned_manifest.pubkeys {
+            let bytes =
+                decode_hex_32(&entry.pubkey_hex).map_err(RiskCapImpactReportError::HexDecode)?;
+            pinned.insert(
+                SystemEpoch::new(entry.epoch),
+                SystemPublicKey::from_bytes(bytes),
+            );
+        }
+
+        let initial_q_path = runtime_repo_path.join("initial_q_state.json");
+        let initial_q = if initial_q_path.exists() {
+            let text = std::fs::read_to_string(&initial_q_path)
+                .map_err(|e| RiskCapImpactReportError::InitialQStateIo(e.to_string()))?;
+            serde_json::from_str(&text)
+                .map_err(|e| RiskCapImpactReportError::InitialQStateParse(e.to_string()))?
+        } else {
+            QState::genesis()
+        };
+
+        Ok(Self {
+            initial_q,
+            entries,
+            pinned,
+        })
+    }
+
+    fn state_root_position(&self, root: Hash) -> Result<usize, RiskCapImpactReportError> {
+        if root == self.initial_q.state_root_t {
+            return Ok(0);
+        }
+        self.entries
+            .iter()
+            .position(|entry| entry.resulting_state_root == root)
+            .map(|idx| idx + 1)
+            .ok_or_else(|| RiskCapImpactReportError::StateRootNotFound(hex_hash(root)))
+    }
+
+    fn q_at_state_root(
+        &self,
+        root: Hash,
+        cas: &crate::bottom_white::cas::store::CasStore,
+    ) -> Result<QState, RiskCapImpactReportError> {
+        let pos = self.state_root_position(root)?;
+        if pos == 0 {
+            return Ok(self.initial_q.clone());
+        }
+
+        use crate::bottom_white::ledger::transition_ledger::{
+            replay_full_transition, LedgerCasView, ReplayError,
+        };
+        use crate::bottom_white::tools::registry::ToolRegistry;
+        use crate::top_white::predicates::registry::PredicateRegistry;
+
+        struct CasRef<'a>(&'a crate::bottom_white::cas::store::CasStore);
+        impl<'a> LedgerCasView for CasRef<'a> {
+            fn get_typed_payload(
+                &self,
+                cid: &crate::bottom_white::cas::schema::Cid,
+            ) -> Result<Vec<u8>, ReplayError> {
+                self.0
+                    .get(cid)
+                    .map_err(|_| ReplayError::CasMissing { at: 0 })
+            }
+        }
+
+        replay_full_transition(
+            &self.initial_q,
+            &self.entries[..pos],
+            &CasRef(cas),
+            &self.pinned,
+            &PredicateRegistry::new(),
+            &ToolRegistry::new(),
+        )
+        .map_err(|e| RiskCapImpactReportError::Replay(format!("{e:?}")))
+    }
+}
+
+fn task_id_for_rejected_tx(
+    tx: &TypedTx,
+    work_task_by_tx: &BTreeMap<TxId, TaskId>,
+) -> Option<TaskId> {
+    match tx {
+        TypedTx::Work(w) => Some(w.task_id.clone()),
+        TypedTx::Verify(v) => work_task_by_tx.get(&v.target_work_tx).cloned(),
+        TypedTx::Challenge(c) => work_task_by_tx.get(&c.target_work_tx).cloned(),
+        TypedTx::BuyWithCoinRouter(router) => Some(router.event_id.0.clone()),
+        _ => None,
+    }
+}
+
+fn risk_cap_tx_kind_label(kind: TxKind) -> &'static str {
+    match kind {
+        TxKind::Work => "work",
+        TxKind::Verify => "verify",
+        TxKind::Challenge => "challenge",
+        TxKind::BuyWithCoinRouter => "buy_with_coin_router",
+        _ => "other",
+    }
+}
+
+fn decode_hex_32(hex: &str) -> Result<[u8; 32], String> {
+    let h = hex.trim();
+    if h.len() != 64 {
+        return Err(format!("expected 64 hex chars, got {}", h.len()));
+    }
+    let mut out = [0u8; 32];
+    for i in 0..32 {
+        let byte = u8::from_str_radix(&h[2 * i..2 * i + 2], 16)
+            .map_err(|e| format!("hex parse at {i}: {e}"))?;
+        out[i] = byte;
+    }
+    Ok(out)
+}
+
+fn hex_hash(hash: Hash) -> String {
+    hash.0.iter().map(|b| format!("{b:02x}")).collect()
 }
 
 /// TRACE_MATRIX FC1-N43 (TB-G G3.2 §7.1; 2026-05-12): tx-kind string for

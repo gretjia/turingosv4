@@ -6,6 +6,50 @@
 
 ---
 
+## 📍 Handover summary (session #46 close 2026-05-13)
+
+**Session Summary**: TB-G G3.2 Class-4 STEP_B SHIPPED — **G3 module LANDED 🟢 GREEN**. Latest Harness cadence applied: no Gemini; one independent clean-context Codex R2 audit after R1 CHALLENGE remediation. Matrix §R G3 flips 🟡 AMBER → 🟢 GREEN because the previously pending G3.2 admission/autopsy/reward gates are now closed.
+
+### Current State
+
+**Works**:
+- **G3.2** closes the pending G3 Class-4 atom: per-agent bankruptcy risk cap = initial balance / 10, no new `EconomicState` table; risk-cap precondition fires first in WorkTx / VerifyTx / ChallengeTx / BuyWithCoinRouter admission arms.
+- Gap-A/B bundle landed: accepted VerifyTx gives uniform `+1` reputation, and FinalizeRewardTx returns verifier bonds while preserving the existing settlement path.
+- Per-task-end autopsy emit landed for below-cap agents, with audit-only privacy preserved.
+- Architect §7 supplementary packet landed: §7.1 `RiskCapImpactReport`, §7.2 below-cap read-side preserved, §7.3 AuditOnly Markov/autopsy scope, §7.4 Step-3.5 Sybil guard, §7.5 `FinalizeRewardPayoutBreakdown`.
+- R1 Codex audit challenged missing `audit_dashboard --run-report` §7.1 wiring; remediation added §G.2 `RiskCapImpactReport` derived from L4.E + CAS + replayed QState.
+
+**Audit chain**:
+- R1 clean-context Codex: `CHALLENGE` at `handover/audits/CODEX_G2_TB_G_G3_2_VERDICT.md`.
+- R2 clean-context Codex: `PROCEED` at `handover/audits/CODEX_G2_TB_G_G3_2_R2_VERDICT.md`.
+- No Gemini dispatched per latest Harness/user instruction.
+
+**Harness evidence**:
+- Closed run: `handover/evidence/dev_self_hosting/dev_1778668340170_3888334/DevRunSummary.json`.
+- Diff artifact: `artifacts/diff.patch` sha256 `12427cb69703879edc733c3412004e09cfb426e0329e88e8d675d5a3f023139a`.
+- Effective risk class: 4; audit required: true; audit verdict: PROCEED; acceptance_passed: true.
+
+### Validation
+
+- `cargo test --test constitution_g3_bankruptcy_risk_cap` → 33 passed / 0 failed.
+- `cargo test --lib boot::tests::verify_trust_root_passes_on_intact_repo` → PASS.
+- `bash scripts/run_constitution_gates.sh` → 435 passed / 0 failed / 1 ignored.
+- `cargo test --workspace --no-fail-fast -- --test-threads=1` → exit 0.
+
+### Next Steps
+
+1. Merge G3.2 branch after selected staging/commit of this ship packet.
+2. Draft/execute G4.2 §8 packet (Class-4 model-assignment genesis schema).
+3. G2P observability closure (PromptCapsule swarm-write; Class 2-3).
+4. G5.1 / G5.2 / G5.3 / G6.* / G7.* autonomous after G4.2 is closed.
+
+### Open Questions
+
+1. R2 non-blocking observation: `tx_kind_label_for_risk_cap_rejection(u16)` still carries stale helper/test discriminants, while the dashboard production path uses the correct `TxKind` enum match. Forward cleanup recommended, not ship-blocking.
+2. Dirty-tree hygiene before merge: workspace still contains pre-existing Harness files and generated evidence. Stage intentionally; do not sweep unrelated local drift into the G3.2 ship commit by accident.
+
+---
+
 ## 📍 Handover summary (session #45 close 2026-05-12)
 
 **Session Summary**: TB-G G3.1+G3.4+G3.3 SHIPPED — **G3 observability layer LANDED 🟡 AMBER** (3/4 atoms; G3.2 Class-4 STEP_B still pending per-atom §8 packet). Codex G2 single-auditor **PROCEED 12/12 PASS conviction HIGH** — best audit result in TB-G so far (G2 R1: 12/12 medium; G2P R1: 11/12 medium with Q1 CHALLENGE). 26 new constitution gates 376 → 402. Real-LLM 9-task smoke verdict PROCEED 40/0/0/11; persistence_passing=true n_witnessed=4. **Architect §G3 SG-G3.5 "PnL is visible in dashboard as materialized view" empirically SATISFIED** — §G PnL trajectory rendered 3/13 NON-FLAT rows (better outcome than G2 R1 / G2P R1 which both rendered all-zero).
