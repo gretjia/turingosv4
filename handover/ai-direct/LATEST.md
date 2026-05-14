@@ -6,6 +6,53 @@
 
 ---
 
+## 📍 Handover summary (session #48 close 2026-05-14)
+
+**Session Summary**: TB-G G-Phase closeout SHIPPED through the minimum structural path requested by the architect update: **G5/G6/G7 rows are structurally GREEN and SG-G overall is GREEN after clean-context Codex R3 PROCEED**. This is not a Constitution Reset and not a new feature direction; it is the architect-requested closeout path `G4.2 → G5/G6/G7 → SG-G overall §8 packet`.
+
+### Current State
+
+**Works**:
+- Architect closeout update was archived verbatim at `handover/directives/2026-05-14_TB_G_G_PHASE_CLOSEOUT_ARCHITECT_UPDATE.md`.
+- Control ledger added at `handover/alignment/G_PHASE_SIGNOFF_LEDGER.md`, reconciling G1.1 / G3.2 / G4.2 signoff and G5/G6/G7 closeout status.
+- Forward CAS strict-Merkle note added at `handover/alignment/OBS_FORWARD_CAS_STRICT_MERKLE_C2.md`; explicitly not a current G-Phase blocker.
+- G5 minimum structural helper landed: pure `agent_scheduler`, prompt 7-action menu, public `agent_role_classifier`, dashboard §I.
+- G6 observe-only pricing landed: trace hints in market context, open-challenge target filter, dashboard §J, predicate source-grep guard.
+- G7 minimum structural smoke landed: `g7_structural_smoke` evaluator and dashboard §K with `minimum_tier_green`, `clean_negative`, and `forward_tb_stub_required`.
+- SG-G packet finalized at `handover/directives/2026-05-14_TB_G_§8_PACKET.md`.
+- Clean-context Codex audit chain closed: R1 CHALLENGE (TRACE_MATRIX backlinks), R2 CHALLENGE (staged packet whitespace/raw harness artifact packaging), R3 PROCEED.
+
+**Evidence**:
+- Structural report: `handover/evidence/g_phase_g7_structural_2026-05-14T00-00-00Z/RUN_REPORT_G5_G6_G7.md`.
+- §K facts: `minimum_tier_green: true`, `clean_negative: false`, `forward_tb_stub_required: false`.
+- Dashboard regeneration witnesses §I role activity classifier, §J epistemic pricing observe-only, §K structural smoke, and §H `PRICE IS SIGNAL, NOT TRUTH`.
+
+### Validation
+
+- `cargo test --test constitution_g5_scheduler --test constitution_g5_action_menu --test constitution_g5_role_classifier --test constitution_g6_observe_only --test constitution_g6_unresolved_challenged_not_safe --test constitution_g7_structural_smoke` → 15 passed / 0 failed.
+- `cargo run --bin audit_dashboard -- --repo handover/evidence/g_phase_g4_2_mini_challenge_fix_2026-05-13T14-33-04Z/runtime_repo --cas handover/evidence/g_phase_g4_2_mini_challenge_fix_2026-05-13T14-33-04Z/cas --run-report` → regenerated §I/§J/§K/§H report.
+- `git diff --check` → exit 0.
+- `python3 scripts/check_trace_matrix.py --mode commit` → exit 0.
+- `git diff --cached --check` → exit 0.
+- `cargo test --lib boot::tests::verify_trust_root_passes_on_intact_repo` → 1 passed / 0 failed.
+- `bash scripts/run_constitution_gates.sh` → 436 passed / 0 failed / 1 ignored.
+- `cargo test --workspace --no-fail-fast -- --test-threads=1` → exit 0.
+
+### Next Steps
+
+1. Commit the staged G-Phase closeout packet intentionally; raw `dev_self_hosting` harness artifacts remain local/untracked evidence and are not included in the staged commit packet.
+2. Proceed to the architect-preserved order after SG-G: TB-GD Gardener Agent, larger multi-model / market batch, then real-world pilot design.
+3. Keep CAS strict-Merkle C2 enhancement forward-bound via `handover/alignment/OBS_FORWARD_CAS_STRICT_MERKLE_C2.md`.
+
+### Non-Claims
+
+- No model ranking claim.
+- No emergent role differentiation claim.
+- No v3 run6 volume equivalence claim.
+- No real-world pilot readiness claim.
+
+---
+
 ## 📍 Handover summary (session #47 close 2026-05-13)
 
 **Session Summary**: TB-G G4.2 Class-4 STEP_B SHIPPED — **G4 module LANDED 🟢 GREEN**. Architect original-text ratification preserved locally first, then implementation aligned atom-by-atom to that source. G4.2 promotes per-agent model identity from runtime env configuration into replayable genesis/audit fact: `Agent_i -> genesis-assigned model identity -> AttemptTelemetry actual model -> audit assertion: no hidden model switch -> dashboard/report divergence by model family`.

@@ -12,11 +12,19 @@
 //! `=== Market ===` block in the prompt.
 
 use crate::economy::money::MicroCoin;
-use crate::state::q_state::{AgentId, EconomicState, QState, TaskId, TxId};
+use crate::state::q_state::{AgentId, ChallengeStatus, EconomicState, QState, TaskId, TxId};
 
 /// TB-N3 A4 default K per architect Q7 ("K = 10 default; K = 5 if context
 /// budget tight"). Caller-supplied via `TURINGOS_TB_N3_MARKET_CONTEXT_K` env.
 pub const DEFAULT_MARKET_CONTEXT_K: usize = 10;
+
+/// TRACE_MATRIX FC1-N7 + Art.I predicate boundary: observe-only market trace
+/// hint rendered in prompts/reports; it has no predicate or sequencer authority.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct MarketTraceHint {
+    pub submitted_count: u64,
+    pub no_trade_count: u64,
+}
 
 /// TB-N3 A4 default top-K node-market render. Returns the empty string when
 /// no eligible pool exists for `task_id` — this suppresses the
@@ -47,16 +55,43 @@ pub fn render_market_context(
     task_id: &TaskId,
     accepted_work_tx_for_task: &[TxId],
     k: usize,
-    _viewer: &AgentId,
+    viewer: &AgentId,
 ) -> String {
+    render_market_context_with_trace_hints(q, task_id, accepted_work_tx_for_task, k, viewer, &[])
+}
+
+/// TRACE_MATRIX FC1-N7 + Art.I predicate boundary: render market context with
+/// observe-only trace hints and unresolved-challenge filtering; price remains
+/// signal, not truth.
+pub fn render_market_context_with_trace_hints(
+    q: &QState,
+    task_id: &TaskId,
+    accepted_work_tx_for_task: &[TxId],
+    k: usize,
+    _viewer: &AgentId,
+    trace_hints: &[(TxId, MarketTraceHint)],
+) -> String {
+    use std::collections::{BTreeMap, BTreeSet};
+
     let _ = task_id; // task_id is implicit in the caller-supplied work-tx list.
     let econ: &EconomicState = &q.economic_state_t;
+    let open_challenge_targets: BTreeSet<TxId> = econ
+        .challenge_cases_t
+        .0
+        .values()
+        .filter(|case| case.status == ChallengeStatus::Open)
+        .map(|case| case.target_work_tx.clone())
+        .collect();
+    let trace_hints: BTreeMap<TxId, MarketTraceHint> = trace_hints.iter().cloned().collect();
 
     // Build (work_tx_id, pool_yes, pool_no, recency_idx) for each
     // accepted WorkTx that has a matching node_survive event with an
     // active pool.
     let mut rows: Vec<(TxId, u128, u128, usize)> = Vec::new();
     for (recency_idx, work_tx_id) in accepted_work_tx_for_task.iter().enumerate() {
+        if open_challenge_targets.contains(work_tx_id) {
+            continue;
+        }
         let event_id = crate::state::typed_tx::node_survive_event_id(work_tx_id);
         if let Some(pool) = econ.cpmm_pools_t.0.get(&event_id) {
             // Only Active pools (no Drained / Frozen markets in the
@@ -80,9 +115,7 @@ pub fn render_market_context(
     rows.sort_by(|a, b| {
         let depth_a: u128 = a.1.saturating_add(a.2);
         let depth_b: u128 = b.1.saturating_add(b.2);
-        depth_b
-            .cmp(&depth_a)
-            .then_with(|| b.3.cmp(&a.3))
+        depth_b.cmp(&depth_a).then_with(|| b.3.cmp(&a.3))
     });
 
     let mut buf = String::new();
@@ -108,6 +141,12 @@ pub fn render_market_context(
             pnn = price_no_n,
             pnd = price_no_d,
         ));
+        if let Some(hint) = trace_hints.get(work_tx_id) {
+            buf.push_str(&format!(
+                "  trace_submitted={} trace_no_trade={} (observe-only)\n",
+                hint.submitted_count, hint.no_trade_count
+            ));
+        }
     }
     buf.push_str("price is signal, not truth\n");
     let _ = MicroCoin::zero(); // ensure import is used (no behavior).
@@ -168,10 +207,19 @@ mod tests {
             DEFAULT_MARKET_CONTEXT_K,
             &AgentId("Agent_3".into()),
         );
-        assert!(out.contains("node worktx-Agent_0-1"), "render must mention work_tx_id");
+        assert!(
+            out.contains("node worktx-Agent_0-1"),
+            "render must mention work_tx_id"
+        );
         assert!(out.contains("pool_yes=4000000"), "raw u128 reserves");
-        assert!(out.contains("price_yes=4000000/8000000"), "integer-rational price");
-        assert!(out.contains("price is signal, not truth"), "architect signal-not-truth banner");
+        assert!(
+            out.contains("price_yes=4000000/8000000"),
+            "integer-rational price"
+        );
+        assert!(
+            out.contains("price is signal, not truth"),
+            "architect signal-not-truth banner"
+        );
     }
 
     /// TB-N3 A4 U3 — top-K cap.
@@ -215,14 +263,18 @@ mod tests {
         );
         let high_idx = out.find("worktx-Agent_0-high").expect("high node present");
         let low_idx = out.find("worktx-Agent_0-low").expect("low node present");
-        assert!(high_idx < low_idx, "depth-desc: high-depth pool renders first");
+        assert!(
+            high_idx < low_idx,
+            "depth-desc: high-depth pool renders first"
+        );
     }
 
     /// TB-N3 A4 U5 — non-Active pool excluded.
     #[test]
     fn closed_pool_excluded() {
         let mut q = fresh_q();
-        let event_id = crate::state::typed_tx::node_survive_event_id(&TxId("worktx-Agent_0-1".into()));
+        let event_id =
+            crate::state::typed_tx::node_survive_event_id(&TxId("worktx-Agent_0-1".into()));
         q.economic_state_t.cpmm_pools_t.0.insert(
             event_id.clone(),
             crate::state::q_state::CpmmPool {

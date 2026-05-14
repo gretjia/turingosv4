@@ -326,6 +326,8 @@ struct AgentActivity {
     work_tx_rejected: u64,
     verify_tx_accepted: u64,
     verify_tx_rejected: u64,
+    challenge_tx_accepted: u64,
+    invest_tx_accepted: u64,
     has_pubkey: bool,
 }
 
@@ -581,6 +583,10 @@ fn build_report(
             // TB-12 Atom 4 (architect 2026-05-03 §8 Atom 4): accepted
             // ChallengeTx with stake>0 → ChallengeShort exposure record.
             TypedTx::Challenge(challenge) => {
+                let acct = per_agent
+                    .entry(challenge.challenger_agent.0.clone())
+                    .or_default();
+                acct.challenge_tx_accepted += 1;
                 if challenge.stake.micro_units() > 0 {
                     exposures_in_progress.push(ExposureRecordRow {
                         position_id: challenge.tx_id.0.clone(),
@@ -820,6 +826,22 @@ fn build_report(
                     tx_kind: "TaskBankruptcy".into(),
                     agent_id: None,
                     tx_id: Some(bk.tx_id.0.clone()),
+                    candidate_tactic: None,
+                    branch_id: None,
+                    rejection_class: None,
+                    proposal_artifact_preview: None,
+                    oracle_verified: None,
+                });
+            }
+            TypedTx::BuyWithCoinRouter(router) => {
+                let acct = per_agent.entry(router.buyer.0.clone()).or_default();
+                acct.invest_tx_accepted += 1;
+                proposal_flow.push(ProposalFlowEntry {
+                    logical_t,
+                    side: "L4",
+                    tx_kind: "BuyWithCoinRouter".into(),
+                    agent_id: Some(router.buyer.0.clone()),
+                    tx_id: Some(router.tx_id.0.clone()),
                     candidate_tactic: None,
                     branch_id: None,
                     rejection_class: None,
@@ -2366,12 +2388,14 @@ fn render_tb_n3_run_report(
     out.push_str("\n## §B Role activity\n");
     for (agent, act) in &report.per_agent {
         out.push_str(&format!(
-            "  - {}: work_accepted={} work_rejected={} verify_accepted={} verify_rejected={}\n",
+            "  - {}: work_accepted={} work_rejected={} verify_accepted={} verify_rejected={} challenge_accepted={} invest_accepted={}\n",
             agent,
             act.work_tx_accepted,
             act.work_tx_rejected,
             act.verify_tx_accepted,
             act.verify_tx_rejected,
+            act.challenge_tx_accepted,
+            act.invest_tx_accepted,
         ));
     }
 
@@ -2556,6 +2580,69 @@ fn render_tb_n3_run_report(
             ));
         }
     }
+
+    // §I Role activity classifier (TB-G G5). Derived from public per-agent
+    // activity counts only; no prompt body, completion, or CoT input.
+    let role_rows: Vec<(
+        String,
+        turingosv4::runtime::agent_role_classifier::RoleActivity,
+    )> = report
+        .per_agent
+        .iter()
+        .map(|(agent, act)| {
+            (
+                agent.clone(),
+                turingosv4::runtime::agent_role_classifier::RoleActivity {
+                    work_tx_accepted: act.work_tx_accepted,
+                    verify_tx_accepted: act.verify_tx_accepted,
+                    challenge_tx_accepted: act.challenge_tx_accepted,
+                    invest_tx_accepted: act.invest_tx_accepted,
+                },
+            )
+        })
+        .collect();
+    out.push_str(
+        &turingosv4::runtime::agent_role_classifier::render_role_activity_section(&role_rows),
+    );
+
+    // §J Epistemic pricing feedback (TB-G G6). Observe-only rows: these
+    // correlate visible price/trace signals with action counts, but do not
+    // become predicate authority or a model ranking surface.
+    out.push_str("\n## §J Epistemic pricing feedback (observe-only)\n");
+    out.push_str("  source: MarketDecisionTrace + ChainTape market activity\n");
+    out.push_str("  interpretation: price is signal, not truth; no predicate authority\n");
+    out.push_str(&format!(
+        "  citation_vs_price: submitted_market_traces={} total_market_traces={}\n",
+        summary.submitted_count, summary.total_traces
+    ));
+    let market_visible_actions = router_count_yes + router_count_no + pools_created;
+    out.push_str(&format!(
+        "  high_price_selection_rate: observed_market_visible_actions={} (integer count; benchmark protocol required before ranking claims)\n",
+        market_visible_actions
+    ));
+    out.push_str(
+        "  unresolved_challenged_filter: open Challenge targets are excluded from prompt market_context top-K\n",
+    );
+
+    // §K G7 structural smoke. This is a materialized dashboard view over
+    // current run-report inputs; SG-G closeout still depends on the dedicated
+    // G7 evidence dir or clean-negative forward-TB stub.
+    let no_trade_reason_count = summary.outcome_counts.get("no_trade").copied().unwrap_or(0);
+    let g7_report = turingosv4::runtime::g7_structural_smoke::evaluate_g7_structural_smoke(
+        turingosv4::runtime::g7_structural_smoke::G7SmokeInput {
+            one_runtime_repo: repo.exists(),
+            multi_agent: report.per_agent.len() > 1,
+            persistent_state: report.run_facts.tx_count > 0,
+            proof_related_actions: accepted_work,
+            market_visible_actions,
+            no_trade_reason_count,
+            role_classifier_output: true,
+            price_observe_only: true,
+            no_price_as_truth: true,
+            dashboard_regenerated: true,
+        },
+    );
+    out.push_str(&g7_report.render_section_k());
 
     // §H Banner (architect "no price as truth"). Renamed from §G to §H
     // by TB-G G3.4 to free the §G label for PnL trajectory; SG-14.6

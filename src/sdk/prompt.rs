@@ -67,7 +67,9 @@ pub fn build_agent_prompt(
     if !team_board.is_empty() {
         prompt.push_str("=== Team Board ===\n");
         prompt.push_str(team_board);
-        if !team_board.ends_with('\n') { prompt.push('\n'); }
+        if !team_board.ends_with('\n') {
+            prompt.push('\n');
+        }
         prompt.push('\n');
     }
 
@@ -127,7 +129,9 @@ pub fn build_agent_prompt(
     if !econ_position.is_empty() {
         prompt.push_str("=== Your Economic Position ===\n");
         prompt.push_str(econ_position);
-        if !econ_position.ends_with('\n') { prompt.push('\n'); }
+        if !econ_position.ends_with('\n') {
+            prompt.push('\n');
+        }
         prompt.push('\n');
     }
 
@@ -142,7 +146,9 @@ pub fn build_agent_prompt(
     if !pending_peer_reviews.is_empty() {
         prompt.push_str("=== Pending Peer Reviews ===\n");
         prompt.push_str(pending_peer_reviews);
-        if !pending_peer_reviews.ends_with('\n') { prompt.push('\n'); }
+        if !pending_peer_reviews.ends_with('\n') {
+            prompt.push('\n');
+        }
         prompt.push('\n');
     }
 
@@ -157,7 +163,9 @@ pub fn build_agent_prompt(
     if !your_position.is_empty() {
         prompt.push_str("=== Your Position ===\n");
         prompt.push_str(your_position);
-        if !your_position.ends_with('\n') { prompt.push('\n'); }
+        if !your_position.ends_with('\n') {
+            prompt.push('\n');
+        }
         prompt.push('\n');
     }
 
@@ -190,7 +198,8 @@ pub fn build_agent_prompt(
         prompt.push_str("      - all goals solved → OMEGA, run halts\n");
         prompt.push_str("      - goals remain, no type errors → tactic joins tape as Q_{t+1}\n");
         prompt.push_str("      - Lean errors → tape unchanged, try a different tactic\n");
-        prompt.push_str("    Build the proof incrementally. Cite prior tape nodes by reading the\n");
+        prompt
+            .push_str("    Build the proof incrementally. Cite prior tape nodes by reading the\n");
         prompt.push_str("    === Current Chain === section; your next tactic operates on the\n");
         prompt.push_str("    proof state that already follows from those steps.\n");
         prompt.push_str("    stake_micro (optional): how many micro-Coins to commit on this\n");
@@ -208,7 +217,9 @@ pub fn build_agent_prompt(
         prompt.push_str("    \"deny\" if you believe it's wrong. bond_micro is your stake on\n");
         prompt.push_str("    the verdict (1 <= bond_micro <= balance). Rejection classes:\n");
         prompt.push_str("    bond_micro = 0 → BondInsufficient; bond_micro > balance →\n");
-        prompt.push_str("    VerifyBondOutOfBounds; target not on chain → VerifyTargetNotAccepted;\n");
+        prompt.push_str(
+            "    VerifyBondOutOfBounds; target not on chain → VerifyTargetNotAccepted;\n",
+        );
         prompt.push_str("    already verified by you → VerifyDuplicate. Bond is locked into\n");
         prompt.push_str("    stakes_t until the run resolves; correct verdict earns reward.\n");
     } else {
@@ -223,13 +234,19 @@ pub fn build_agent_prompt(
         // TB-N1-AGENT-ECONOMY Phase 2 A4 (2026-05-10): verify_peer tool.
         prompt.push_str("  {\"tool\":\"verify_peer\",\"target_work_tx_id\":\"<TxId>\",\"verdict\":\"confirm|deny\",\"bond_micro\":<u64>}\n");
         prompt.push_str("    Verify another agent's WorkTx. Rejection classes:\n");
-        prompt.push_str("    bond_micro=0 → BondInsufficient; bond>balance → VerifyBondOutOfBounds;\n");
+        prompt.push_str(
+            "    bond_micro=0 → BondInsufficient; bond>balance → VerifyBondOutOfBounds;\n",
+        );
         prompt.push_str("    target not L4-accepted → VerifyTargetNotAccepted; already verified\n");
         prompt.push_str("    by you → VerifyDuplicate.\n");
         prompt.push_str("  {\"tool\":\"append\",\"payload\":\"<proof-step-text>\",\"node\":\"<optional-parent-id>\"}\n");
-        prompt.push_str("    Raw scratch write (no oracle check). Use `step` instead when possible.\n");
+        prompt.push_str(
+            "    Raw scratch write (no oracle check). Use `step` instead when possible.\n",
+        );
         prompt.push_str("  {\"tool\":\"complete\",\"payload\":\"<tactics-only>\"}\n");
-        prompt.push_str("    Legacy one-shot: full proof. Payload alone, then tape+payload fallback.\n");
+        prompt.push_str(
+            "    Legacy one-shot: full proof. Payload alone, then tape+payload fallback.\n",
+        );
     }
     // Session #34 V1 (tool clean) drops unused tools from the schema. M0
     // 2026-05-10 evidence: agent never invokes search/invest/post at N=1
@@ -258,17 +275,41 @@ pub fn build_agent_prompt(
         // invest if market signal provides an advantage" — do NOT hard-
         // induce trading).
         prompt.push_str("  {\"tool\":\"invest\",\"node\":\"<work_tx_id>\",\"amount\":<microCoin>,\"direction\":\"long|short\"}\n");
-        prompt.push_str("    OPTIONAL — you may invest if the market signal provides an advantage.\n");
-        prompt.push_str("    `node` is the canonical work_tx_id of an L4-accepted WorkTx visible\n");
+        prompt.push_str(
+            "    OPTIONAL — you may invest if the market signal provides an advantage.\n",
+        );
+        prompt
+            .push_str("    `node` is the canonical work_tx_id of an L4-accepted WorkTx visible\n");
         prompt.push_str("    in `=== Current Chain ===` or the per-node price block in\n");
         prompt.push_str("    `=== Market ===` (price is signal, not truth).\n");
-        prompt.push_str("    direction=\"long\" buys YES shares (this node is on the winning path);\n");
+        prompt.push_str(
+            "    direction=\"long\" buys YES shares (this node is on the winning path);\n",
+        );
         prompt.push_str("    direction=\"short\" buys NO shares (this node is a dead end).\n");
-        prompt.push_str("    `amount` is micro-Coin debited from your balance (1 Coin = 1_000_000 μC).\n");
+        prompt.push_str(
+            "    `amount` is micro-Coin debited from your balance (1 Coin = 1_000_000 μC).\n",
+        );
     }
     if variant != "v1" {
         prompt.push_str("  {\"tool\":\"post\",\"payload\":\"<short message to team board>\"}\n");
     }
+    // TB-G G5: structural action menu additions. These are parser-level
+    // choices for agent externalization; admission remains governed by the
+    // existing ChainTape predicates and sequencer surfaces.
+    prompt.push_str("  {\"tool\":\"challenge_node\",\"node\":\"<work_tx_id>\",\"payload\":\"<counterexample or reason>\"}\n");
+    prompt.push_str(
+        "    OPTIONAL — challenge an accepted WorkTx when public evidence suggests it is wrong.\n",
+    );
+    prompt.push_str(
+        "  {\"tool\":\"bid_task\",\"amount\":<microCoin>,\"direction\":\"long|short\"}\n",
+    );
+    prompt.push_str(
+        "    OPTIONAL — express task-level market interest when a task edge is visible.\n",
+    );
+    prompt.push_str("  {\"tool\":\"abstain\",\"payload\":\"<optional no-action reason>\"}\n");
+    prompt.push_str(
+        "    Use when no proof, verify, challenge, or market action has a perceived edge.\n",
+    );
 
     prompt
 }
@@ -345,14 +386,36 @@ mod tests {
 
     #[test]
     fn test_prompt_contains_no_example_values() {
-        let prompt = build_agent_prompt("", "", "", &[], &[], "Balance: 10000 \u{03BC}Coin", "append, invest, search", "", "", "");
+        let prompt = build_agent_prompt(
+            "",
+            "",
+            "",
+            &[],
+            &[],
+            "Balance: 10000 \u{03BC}Coin",
+            "append, invest, search",
+            "",
+            "",
+            "",
+        );
         assert!(!prompt.contains("50.0"), "No example amounts in prompt");
         assert!(!prompt.contains("100.0"), "No example amounts in prompt");
     }
 
     #[test]
     fn test_prompt_includes_balance() {
-        let prompt = build_agent_prompt("", "", "", &[], &[], "Balance: 5000 \u{03BC}Coin", "", "", "", "");
+        let prompt = build_agent_prompt(
+            "",
+            "",
+            "",
+            &[],
+            &[],
+            "Balance: 5000 \u{03BC}Coin",
+            "",
+            "",
+            "",
+            "",
+        );
         assert!(prompt.contains("5000"));
     }
 
@@ -443,7 +506,10 @@ mod tests {
         fn v0_default_lists_legacy_tools() {
             with_variant(None, || {
                 let p = build_agent_prompt("", "", "", &[], &[], "", "", "", "", "");
-                assert!(p.contains("\"invest\""), "V0 default lists the invest schema");
+                assert!(
+                    p.contains("\"invest\""),
+                    "V0 default lists the invest schema"
+                );
                 assert!(!p.contains("Tactic Search Guidance"));
                 assert!(!p.contains("Operating Laws"));
                 assert!(!p.contains("Last Rejected Tactics"));
@@ -457,7 +523,10 @@ mod tests {
             // even on V1 prompt. search + post remain V1-stripped.
             with_variant(Some("v1"), || {
                 let p = build_agent_prompt("", "", "", &[], &[], "", "", "", "", "");
-                assert!(p.contains("\"invest\""), "V1 keeps invest per TB-N3 A1 ruling");
+                assert!(
+                    p.contains("\"invest\""),
+                    "V1 keeps invest per TB-N3 A1 ruling"
+                );
                 assert!(!p.contains("\"search\""), "V1 still drops search");
                 assert!(!p.contains("\"post\""), "V1 still drops post");
                 assert!(p.contains("\"step\""), "V1 keeps the step schema entry");
@@ -534,9 +603,15 @@ mod tests {
         fn tb_n3_a1_disable_market_tools_strips_invest_from_v0() {
             with_market_tools_env(Some("1"), || {
                 let p = build_agent_prompt("", "", "", &[], &[], "", "", "", "", "");
-                assert!(!p.contains("\"invest\""), "TURINGOS_DISABLE_MARKET_TOOLS=1 strips invest from V0");
+                assert!(
+                    !p.contains("\"invest\""),
+                    "TURINGOS_DISABLE_MARKET_TOOLS=1 strips invest from V0"
+                );
                 assert!(p.contains("\"step\""), "step still present");
-                assert!(p.contains("\"search\""), "V0 search still present (only invest is opt-out)");
+                assert!(
+                    p.contains("\"search\""),
+                    "V0 search still present (only invest is opt-out)"
+                );
             });
         }
 
@@ -552,9 +627,18 @@ mod tests {
         fn tb_n3_a1_invest_schema_documents_work_tx_id_and_signal_not_truth() {
             with_market_tools_env(None, || {
                 let p = build_agent_prompt("", "", "", &[], &[], "", "", "", "", "");
-                assert!(p.contains("work_tx_id"), "invest doc references canonical work_tx_id");
-                assert!(p.contains("price is signal, not truth"), "invest doc says price is signal not truth");
-                assert!(p.contains("OPTIONAL"), "OPTIONAL marker present (no hard induction per architect §8.3)");
+                assert!(
+                    p.contains("work_tx_id"),
+                    "invest doc references canonical work_tx_id"
+                );
+                assert!(
+                    p.contains("price is signal, not truth"),
+                    "invest doc says price is signal not truth"
+                );
+                assert!(
+                    p.contains("OPTIONAL"),
+                    "OPTIONAL marker present (no hard induction per architect §8.3)"
+                );
             });
         }
     }

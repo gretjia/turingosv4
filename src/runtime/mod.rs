@@ -202,6 +202,20 @@ pub mod agent_pnl;
 /// `src/bin/audit_dashboard.rs` §G PnL trajectory + §H+ extensions.
 pub mod risk_cap_impact_report;
 
+/// TRACE_MATRIX FC1-N7 + FC3-N43 (TB-G G5 2026-05-14): observe-only
+/// opportunity scheduler helper. Pure read-side decision record; does not
+/// mutate QState or replace sequencer admission.
+pub mod agent_scheduler;
+
+/// TRACE_MATRIX FC3-N43 (TB-G G5 2026-05-14): public activity role classifier
+/// for dashboard/report views. Derived from ChainTape/CAS counts only; no CoT
+/// or private prompt body inputs.
+pub mod agent_role_classifier;
+
+/// TRACE_MATRIX FC3-N43 (TB-G G7 2026-05-14): structural run6-equivalent smoke
+/// evaluator and §K clean-negative renderer.
+pub mod g7_structural_smoke;
+
 /// TRACE_MATRIX FC3-N33 + FC3-N43 (Unified Agent Harness 2026-05-13):
 /// self-hosting development evidence sidecar. `turingos_dev` records
 /// module/molecule/atom contracts, command evidence, review verdicts, and an
@@ -224,10 +238,10 @@ use crate::bottom_white::ledger::system_keypair::{
 use crate::bottom_white::ledger::transition_ledger::{
     replay_full_transition, Git2LedgerWriter, LedgerEntry, LedgerWriter,
 };
+use crate::bottom_white::tools::registry::ToolRegistry;
 use crate::state::q_state::QState;
 use crate::state::sequencer::{Sequencer, SubmissionEnvelope};
 use crate::top_white::predicates::registry::PredicateRegistry;
-use crate::bottom_white::tools::registry::ToolRegistry;
 
 // ── Configuration ───────────────────────────────────────────────────────────
 
@@ -271,8 +285,7 @@ impl RuntimeChaintapeConfig {
     ///
     /// Build from env. Returns `None` if `TURINGOS_CHAINTAPE_PATH` unset.
     pub fn from_env() -> Option<Self> {
-        let runtime_repo_path: PathBuf =
-            std::env::var("TURINGOS_CHAINTAPE_PATH").ok()?.into();
+        let runtime_repo_path: PathBuf = std::env::var("TURINGOS_CHAINTAPE_PATH").ok()?.into();
         let cas_path: PathBuf = match std::env::var("TURINGOS_CAS_PATH") {
             Ok(p) => p.into(),
             Err(_) => runtime_repo_path
@@ -566,8 +579,8 @@ pub fn build_chaintape_sequencer_with_initial_q(
     // Step 2: open CAS (same path for both branches; resume reads
     // pre-existing payloads, fresh writes new ones).
     std::fs::create_dir_all(&config.cas_path)?;
-    let cas_store = CasStore::open(&config.cas_path)
-        .map_err(|e| BootstrapError::Cas(e.to_string()))?;
+    let cas_store =
+        CasStore::open(&config.cas_path).map_err(|e| BootstrapError::Cas(e.to_string()))?;
 
     // Step 3-3.5: keypair + pinned pubkeys + seed QState + chain length.
     //
@@ -767,7 +780,10 @@ fn bootstrap_resume_state(
     let mut max_epoch: u64 = 0;
     for entry in &manifest.pubkeys {
         let bytes = decode_pubkey_hex_32(&entry.pubkey_hex)?;
-        pinned.insert(SystemEpoch::new(entry.epoch), SystemPublicKey::from_bytes(bytes));
+        pinned.insert(
+            SystemEpoch::new(entry.epoch),
+            SystemPublicKey::from_bytes(bytes),
+        );
         if entry.epoch > max_epoch {
             max_epoch = entry.epoch;
         }
@@ -790,9 +806,7 @@ fn bootstrap_resume_state(
     let entries: Vec<LedgerEntry> = (1..=chain_length)
         .map(|t| git_writer.read_at(t))
         .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| {
-            BootstrapError::LedgerWriter(format!("resume read_at sweep: {e}"))
-        })?;
+        .map_err(|e| BootstrapError::LedgerWriter(format!("resume read_at sweep: {e}")))?;
 
     // 5. Replay via the canonical FC2 Boot primitive.
     //
@@ -860,9 +874,8 @@ fn decode_pubkey_hex_32(hex: &str) -> Result<[u8; 32], BootstrapError> {
     }
     let mut out = [0u8; 32];
     for i in 0..32 {
-        let byte = u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16).map_err(|e| {
-            BootstrapError::Keypair(format!("pubkey_hex decode at byte {i}: {e}"))
-        })?;
+        let byte = u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16)
+            .map_err(|e| BootstrapError::Keypair(format!("pubkey_hex decode at byte {i}: {e}")))?;
         out[i] = byte;
     }
     Ok(out)
@@ -941,7 +954,10 @@ mod tests {
         assert_eq!(Arc::strong_count(&bundle.sequencer) >= 2, true);
         // pinned_pubkeys.json was written.
         let manifest_path = cfg.runtime_repo_path.join(PINNED_PUBKEYS_FILENAME);
-        assert!(manifest_path.exists(), "pinned_pubkeys.json must exist at {manifest_path:?}");
+        assert!(
+            manifest_path.exists(),
+            "pinned_pubkeys.json must exist at {manifest_path:?}"
+        );
         // Clean shutdown.
         bundle.shutdown().await.expect("shutdown");
     }
@@ -953,8 +969,7 @@ mod tests {
         let bundle = build_chaintape_sequencer(&cfg).expect("bootstrap");
         let manifest_path = cfg.runtime_repo_path.join(PINNED_PUBKEYS_FILENAME);
         let json = std::fs::read_to_string(&manifest_path).expect("read manifest");
-        let manifest: PinnedPubkeyManifest =
-            serde_json::from_str(&json).expect("parse manifest");
+        let manifest: PinnedPubkeyManifest = serde_json::from_str(&json).expect("parse manifest");
         assert_eq!(manifest.run_id, "t2-run");
         assert_eq!(manifest.tb_id, "TB-6");
         assert_eq!(manifest.epoch, 1);
@@ -991,11 +1006,7 @@ mod tests {
         let cfg = cfg_for(&tmp, "t5-run");
         let bundle = build_chaintape_sequencer(&cfg).expect("bootstrap");
         // No submissions made — queue stays empty. shutdown() must return Ok promptly.
-        let res = tokio::time::timeout(
-            std::time::Duration::from_secs(5),
-            bundle.shutdown(),
-        )
-        .await;
+        let res = tokio::time::timeout(std::time::Duration::from_secs(5), bundle.shutdown()).await;
         let inner = res.expect("shutdown did not time out");
         inner.expect("shutdown returned Ok");
     }
