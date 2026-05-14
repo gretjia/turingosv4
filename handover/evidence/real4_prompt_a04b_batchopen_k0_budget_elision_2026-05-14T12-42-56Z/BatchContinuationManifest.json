@@ -1,0 +1,43 @@
+{
+  "schema_version": "g1_2_v1",
+  "batch_id": "real4_prompt_a04b_batchopen_k0_budget_elision_2026-05-14T12-42-56Z_0512b50",
+  "runtime_repo": "/home/zephryj/projects/turingosv4/handover/evidence/real4_prompt_a04b_batchopen_k0_budget_elision_2026-05-14T12-42-56Z/runtime_repo",
+  "cas_root": "/home/zephryj/projects/turingosv4/handover/evidence/real4_prompt_a04b_batchopen_k0_budget_elision_2026-05-14T12-42-56Z/cas",
+  "model": "deepseek-chat",
+  "n_agents": 10,
+  "initial_head_t_hex": "",
+  "agent_registry_cid_hex": null,
+  "system_pubkeys_cid_hex": null,
+  "model_manifest_cid_hex": null,
+  "tasks": [
+    {
+      "task_index": 0,
+      "problem_id": "mathd_algebra_125",
+      "start_head_t_hex": "",
+      "end_head_t_hex": "5892910209b5b7e5637d026d50c74c0938cee585",
+      "start_chain_length": 0,
+      "end_chain_length": 6,
+      "subprocess_command_sha256": "",
+      "run_summary_cid_hex": null,
+      "terminal_tx_id": null,
+      "exit_code": 0,
+      "started_at_unix_s": 1778762614,
+      "finished_at_unix_s": 1778762648
+    },
+    {
+      "task_index": 1,
+      "problem_id": "mathd_algebra_141",
+      "start_head_t_hex": "5892910209b5b7e5637d026d50c74c0938cee585",
+      "end_head_t_hex": "ee15700da4582707d45d2b0a14c2d876254ce895",
+      "start_chain_length": 6,
+      "end_chain_length": 7,
+      "subprocess_command_sha256": "",
+      "run_summary_cid_hex": null,
+      "terminal_tx_id": null,
+      "exit_code": 0,
+      "started_at_unix_s": 1778762648,
+      "finished_at_unix_s": 1778762839
+    }
+  ],
+  "terminated_reason": null
+}

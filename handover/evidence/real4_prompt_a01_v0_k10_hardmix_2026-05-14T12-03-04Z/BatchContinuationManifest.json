@@ -1,0 +1,57 @@
+{
+  "schema_version": "g1_2_v1",
+  "batch_id": "real4_prompt_a01_v0_k10_hardmix_2026-05-14T12-03-04Z_0512b50",
+  "runtime_repo": "/home/zephryj/projects/turingosv4/handover/evidence/real4_prompt_a01_v0_k10_hardmix_2026-05-14T12-03-04Z/runtime_repo",
+  "cas_root": "/home/zephryj/projects/turingosv4/handover/evidence/real4_prompt_a01_v0_k10_hardmix_2026-05-14T12-03-04Z/cas",
+  "model": "deepseek-chat",
+  "n_agents": 10,
+  "initial_head_t_hex": "",
+  "agent_registry_cid_hex": null,
+  "system_pubkeys_cid_hex": null,
+  "model_manifest_cid_hex": null,
+  "tasks": [
+    {
+      "task_index": 0,
+      "problem_id": "mathd_algebra_107",
+      "start_head_t_hex": "",
+      "end_head_t_hex": "3a9cc6a794d5ee243db8e3ecdc5c2dddc7d8f0b3",
+      "start_chain_length": 0,
+      "end_chain_length": 6,
+      "subprocess_command_sha256": "",
+      "run_summary_cid_hex": null,
+      "terminal_tx_id": null,
+      "exit_code": 0,
+      "started_at_unix_s": 1778760391,
+      "finished_at_unix_s": 1778760519
+    },
+    {
+      "task_index": 1,
+      "problem_id": "mathd_algebra_125",
+      "start_head_t_hex": "3a9cc6a794d5ee243db8e3ecdc5c2dddc7d8f0b3",
+      "end_head_t_hex": "8aa62220a76b105b396596c54ab0b85339b08f8f",
+      "start_chain_length": 6,
+      "end_chain_length": 7,
+      "subprocess_command_sha256": "",
+      "run_summary_cid_hex": null,
+      "terminal_tx_id": null,
+      "exit_code": 0,
+      "started_at_unix_s": 1778760519,
+      "finished_at_unix_s": 1778761122
+    },
+    {
+      "task_index": 2,
+      "problem_id": "mathd_algebra_141",
+      "start_head_t_hex": "8aa62220a76b105b396596c54ab0b85339b08f8f",
+      "end_head_t_hex": "dc866c9ab9ed90a3bda738a3b0c44f860df0ac3a",
+      "start_chain_length": 7,
+      "end_chain_length": 8,
+      "subprocess_command_sha256": "",
+      "run_summary_cid_hex": null,
+      "terminal_tx_id": null,
+      "exit_code": 0,
+      "started_at_unix_s": 1778761122,
+      "finished_at_unix_s": 1778761446
+    }
+  ],
+  "terminated_reason": null
+}

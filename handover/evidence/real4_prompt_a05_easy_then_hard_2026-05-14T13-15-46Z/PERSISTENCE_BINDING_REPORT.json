@@ -1,0 +1,88 @@
+{
+  "schema_version": "persistence_evidence_g1_2_v1",
+  "batch_id": "real4_prompt_a05_easy_then_hard_2026-05-14T13-15-46Z_0512b50",
+  "n_tasks": 5,
+  "is_passing": true,
+  "n_witnessed": 5,
+  "balances": {
+    "kind": "Witnessed",
+    "detail": "balances_total_micro 35000000 → 33800000 across 5 tasks; distinct_agents 13 → 13"
+  },
+  "positions": {
+    "kind": "Witnessed",
+    "detail": "node_positions_t count 0 → 1 across 5 tasks"
+  },
+  "reputation": {
+    "kind": "Empty",
+    "detail": "no reputation entries accumulated by this batch (no verify cycle)"
+  },
+  "pnl": {
+    "kind": "Witnessed",
+    "detail": "pnl final_delta_micro=-1100000 (balances+collateral vs initial)"
+  },
+  "autopsy": {
+    "kind": "Witnessed",
+    "detail": "autopsy_capsule_total 0 → 4 (monotone-add)"
+  },
+  "model_identity": {
+    "kind": "Witnessed",
+    "detail": "manifest.model=deepseek-chat stable across 5 tasks"
+  },
+  "per_task": [
+    {
+      "task_index": 0,
+      "problem_id": "mathd_algebra_107",
+      "balances_total_micro": 33800000,
+      "balances_distinct_agents": 13,
+      "node_positions_count": 1,
+      "reputations_count": 0,
+      "autopsy_event_count": 0,
+      "autopsy_capsule_total": 0,
+      "conditional_collateral_total_micro": 100000
+    },
+    {
+      "task_index": 1,
+      "problem_id": "mathd_algebra_113",
+      "balances_total_micro": 33800000,
+      "balances_distinct_agents": 13,
+      "node_positions_count": 1,
+      "reputations_count": 0,
+      "autopsy_event_count": 1,
+      "autopsy_capsule_total": 1,
+      "conditional_collateral_total_micro": 100000
+    },
+    {
+      "task_index": 2,
+      "problem_id": "mathd_algebra_114",
+      "balances_total_micro": 33800000,
+      "balances_distinct_agents": 13,
+      "node_positions_count": 1,
+      "reputations_count": 0,
+      "autopsy_event_count": 2,
+      "autopsy_capsule_total": 2,
+      "conditional_collateral_total_micro": 100000
+    },
+    {
+      "task_index": 3,
+      "problem_id": "mathd_algebra_125",
+      "balances_total_micro": 33800000,
+      "balances_distinct_agents": 13,
+      "node_positions_count": 1,
+      "reputations_count": 0,
+      "autopsy_event_count": 3,
+      "autopsy_capsule_total": 3,
+      "conditional_collateral_total_micro": 100000
+    },
+    {
+      "task_index": 4,
+      "problem_id": "mathd_algebra_141",
+      "balances_total_micro": 33800000,
+      "balances_distinct_agents": 13,
+      "node_positions_count": 1,
+      "reputations_count": 0,
+      "autopsy_event_count": 4,
+      "autopsy_capsule_total": 4,
+      "conditional_collateral_total_micro": 100000
+    }
+  ]
+}

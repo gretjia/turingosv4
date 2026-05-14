@@ -1,0 +1,11 @@
+batch_id            real4_prompt_a01_v0_k10_hardmix_2026-05-14T12-03-04Z_0512b50
+run_tag             real4_prompt_a01_v0_k10_hardmix_2026-05-14T12-03-04Z
+problem_count       3
+git_head            0512b503d51caf10609d1c116f56a778d7f36466
+elapsed_s           1056
+batch_exit          0
+audit_exit          0
+audit_verdict       PROCEED
+persistence_exit    0
+persistence_passing true
+persistence_n_witnessed 5
