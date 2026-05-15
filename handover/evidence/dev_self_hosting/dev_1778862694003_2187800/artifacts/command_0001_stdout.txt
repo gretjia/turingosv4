@@ -1,0 +1,2 @@
+/home/zephryj/.cargo/bin/turingos_dev
+{"run_dir":"handover/evidence/dev_self_hosting/dev_1778862709550_2187888","run_id":"dev_1778862709550_2187888"}

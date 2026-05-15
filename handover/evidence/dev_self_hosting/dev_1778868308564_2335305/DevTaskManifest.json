@@ -1,0 +1,28 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778868308564_2335305",
+  "title": "REAL-11-handover-closeout",
+  "module": "REAL-11-Handover",
+  "molecule_or_atom": "molecule",
+  "requested_risk_class": 0,
+  "risk_class": 0,
+  "fc_nodes": [
+    "FC3"
+  ],
+  "allowed_paths": [
+    "handover/ai-direct/LATEST.md",
+    "handover/tracer_bullets/TB_LOG.tsv",
+    "handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md",
+    "tests/constitution_real11_matrix_update.rs"
+  ],
+  "restricted_surface_hits": [],
+  "acceptance_commands": [
+    "cargo test --test constitution_real11_matrix_update",
+    "git diff --check"
+  ],
+  "audit_required": false,
+  "human_intent": "Record REAL-11 final status in dynamic handover files after implementation Harness closed.",
+  "ratification": null,
+  "git_head": "d2bfee58618683e4035daab206e472f89c3ff7cd",
+  "created_at_unix_ms": 1778868308567
+}

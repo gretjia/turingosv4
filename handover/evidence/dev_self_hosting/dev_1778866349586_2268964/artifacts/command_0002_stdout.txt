@@ -1,0 +1,76 @@
+
+running 1 test
+test real11_launch_and_beta_forbidden_claims_are_absent_or_explicitly_forbidden ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 2 tests
+test real11_e2_micro_probe_report_uses_allowed_e2_verdict_rule ... ok
+test real11_e2_micro_probe_runner_has_required_constraints_and_outputs ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 3 tests
+test contaminated_evidence_appears_only_in_invalid_or_remediation_context ... ok
+test real10_ratification_marks_clean_evidence_as_only_conclusion_bearing ... ok
+test stale_parent_behavioral_gate_is_present ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 6 tests
+test every_trader_turn_has_exactly_one_market_opportunity_trace ... ok
+test prompt_budget_elision_is_specific_prompt_budget_reason ... ok
+test trace_serialization_contains_no_raw_prompt_completion_cot_or_logs ... ok
+test trader_turn_with_active_pool_and_balance_has_actionable_market ... ok
+test trader_turn_with_no_pool_is_specific_no_pool_not_unknown ... ok
+test trader_turn_with_pool_but_zero_balance_is_specific_balance_reason ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 4 tests
+test audit_dashboard_renders_real11_market_tx_category_split ... ok
+test market_tx_classifier_separates_structural_resolution_scripted_and_live_agent_action ... ok
+test real10_rerender_keeps_agent_economic_action_zero_and_excludes_scripted_from_e2 ... ok
+test real11_market_tx_category_report_contains_split_columns_and_no_e2_overclaim ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 3 tests
+test constitution_execution_matrix_tracks_real11_boundary ... ok
+test real11_decision_gate_records_b_c_diagnostic_clean_negative ... ok
+test real11_traceability_update_maps_fc_and_kill_conditions ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 2 tests
+test real11_micro_probe_report_forbids_live_real6b_approval ... ok
+test real11_micro_probe_runner_rejects_live_real6b_and_scripted_attempt_prediction ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 6 tests
+test runner_and_report_contract_make_evidence_mandatory_and_not_e2 ... ok
+test sg_11_2_1_scripted_buy_yes_router_enters_l4_and_updates_pnl ... ok
+test sg_11_2_2_scripted_buy_no_short_equivalent_has_explicit_l4_route ... ok
+test sg_11_2_3_insufficient_balance_is_preclassified_and_lands_l4e ... ok
+test sg_11_2_4_missing_pool_is_no_pool_and_lands_l4e ... ok
+test sg_11_2_7_router_money_path_has_no_executable_float_arithmetic ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+
+running 4 tests
+test low_balance_trader_is_blocked_from_high_risk_market_action_but_can_read ... ok
+test pnl_summary_matches_compute_agent_pnl_and_uses_no_sidecar_source_of_truth ... ok
+test trader_position_prompt_contains_balance_pnl_risk_and_autopsy_summary ... ok
+test trader_view_does_not_include_raw_cot_logs_or_lean_stderr ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

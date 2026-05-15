@@ -1,0 +1,11 @@
+
+running 6 tests
+test runner_and_report_contract_make_evidence_mandatory_and_not_e2 ... ok
+test sg_11_2_1_scripted_buy_yes_router_enters_l4_and_updates_pnl ... ok
+test sg_11_2_2_scripted_buy_no_short_equivalent_has_explicit_l4_route ... ok
+test sg_11_2_3_insufficient_balance_is_preclassified_and_lands_l4e ... ok
+test sg_11_2_4_missing_pool_is_no_pool_and_lands_l4e ... ok
+test sg_11_2_7_router_money_path_has_no_executable_float_arithmetic ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s
+

@@ -1,0 +1,18 @@
+
+running 13 tests
+test sdk::protocol::tests::test_deduct_negative_amount_rejected ... ok
+test sdk::protocol::tests::test_malformed_action_tag_rejected_not_fallback ... ok
+test sdk::protocol::tests::test_no_byte_repair_on_invalid_escape ... ok
+test sdk::protocol::tests::test_parse_action_tag_valid ... ok
+test sdk::protocol::tests::test_parse_action_tag_with_think_block ... ok
+test sdk::protocol::tests::test_parse_bare_json_fallback ... ok
+test sdk::protocol::tests::test_parse_invalid_json_returns_error ... ok
+test sdk::protocol::tests::test_parse_no_action_returns_error ... ok
+test sdk::protocol::tests::test_parse_with_invest_action ... ok
+test sdk::protocol::tests::test_parse_with_invest_float_amount_rejects ... ok
+test sdk::protocol::tests::test_strip_multiple_think_blocks ... ok
+test sdk::protocol::tests::test_strip_think_blocks ... ok
+test sdk::protocol::tests::test_strip_unclosed_think_block ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 619 filtered out; finished in 0.01s
+

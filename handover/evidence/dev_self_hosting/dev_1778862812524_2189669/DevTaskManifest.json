@@ -1,0 +1,32 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778862812524_2189669",
+  "title": "REAL-11 Atom 0-1 metrics split",
+  "module": "REAL-11 Agent Economic Action Activation",
+  "molecule_or_atom": "atom",
+  "requested_risk_class": 2,
+  "risk_class": 2,
+  "fc_nodes": [
+    "FC1 market action evidence; FC2 pinned evidence hygiene; FC3 materialized-view claim boundary; Art.I quantization"
+  ],
+  "allowed_paths": [
+    "handover/directives/2026-05-15_REAL10_NARROW_RATIFICATION_REAL11.md",
+    "handover/alignment/DECISION_REAL11_MARKET_TX_CATEGORY.md",
+    "handover/reports/REAL11_MARKET_TX_CATEGORY_REPORT.md",
+    "tests/constitution_real11_evidence_hygiene.rs",
+    "tests/constitution_real11_market_tx_category.rs",
+    "tests/constitution_real11_claim_boundary.rs",
+    "src/runtime/market_tx_category.rs",
+    "src/runtime/mod.rs"
+  ],
+  "restricted_surface_hits": [],
+  "acceptance_commands": [
+    "cargo test --test constitution_real11_evidence_hygiene --test constitution_real11_market_tx_category --test constitution_real11_claim_boundary --no-fail-fast",
+    "git diff --check"
+  ],
+  "audit_required": false,
+  "human_intent": "Atom 0-1: ratify REAL-10 clean evidence boundary and split structural market activity from agent economic action without E2 overclaim.",
+  "ratification": null,
+  "git_head": "d2bfee58618683e4035daab206e472f89c3ff7cd",
+  "created_at_unix_ms": 1778862812524
+}

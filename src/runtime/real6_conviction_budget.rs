@@ -169,6 +169,7 @@ pub fn render_scoped_conviction_budget_summary(q: &QState, agent_id: &AgentId) -
          realized_pnl={realized}\n\
          unrealized_pnl={unrealized}\n\
          risk_cap={risk_cap}\n\
+         Bankruptcy/autopsy summary: none in scoped read view; audit-only capsules remain CAS-derived\n\
          free_cognition=true\n\
          paid_conviction=true\n",
         agent = budget.agent_id.0,

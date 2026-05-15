@@ -1,0 +1,9 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778862694003_2187800",
+  "fc_nodes": [
+    "FC1 market action/no-trade loop; FC2 pinned evidence/replay; FC3 materialized reports; Art.I quantization; Art.II broadcast; Art.III shielding; economy gates"
+  ],
+  "expected_witness": "Diff, command evidence, and audit verdict must cite these FC nodes.",
+  "evidence_artifacts": []
+}

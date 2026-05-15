@@ -3819,6 +3819,67 @@ async fn run_swarm(
             } else {
                 None
             };
+        if std::env::var("TURINGOS_REAL11_MARKET_OPPORTUNITY_TRACE")
+            .ok()
+            .as_deref()
+            == Some("1")
+            && real5_prompt_role == turingosv4::runtime::real5_roles::AgentRole::Trader
+        {
+            let Some(bundle) = chaintape_bundle.as_ref() else {
+                error!(
+                    "[real11-opportunity] MarketOpportunityTrace CAS write FAIL-CLOSED: \
+                     ChainTape bundle unavailable"
+                );
+                std::process::exit(3);
+            };
+            let Some(q) = q_snapshot_for_prompt.as_ref() else {
+                error!(
+                    "[real11-opportunity] MarketOpportunityTrace CAS write FAIL-CLOSED: \
+                     QState snapshot unavailable"
+                );
+                std::process::exit(3);
+            };
+            let head_t = format!(
+                "HEAD_t(l4_head={},state_root={},round={},run_id={})",
+                q.head_t.0,
+                real6d_hash_hex(&q.state_root_t),
+                q.q_t.current_round,
+                run_id
+            );
+            let req = turingosv4::runtime::market_opportunity_trace::MarketOpportunityRequest {
+                agent_id: prompt_agent_id.clone(),
+                role: real5_prompt_role,
+                task_id: turingosv4::state::q_state::TaskId(format!("task-{run_id}")),
+                head_t,
+                router_available: tools_desc.contains("invest"),
+                market_prompt_budget_elided: tb_n3_market_block_budget_elided,
+                prompt_capsule_cid: real5_prompt_capsule_cid_for_turn,
+            };
+            let trace =
+                turingosv4::runtime::market_opportunity_trace::derive_market_opportunity_trace(
+                    q, req,
+                );
+            let mut cas_store =
+                match turingosv4::bottom_white::cas::store::CasStore::open(&bundle.cas_path) {
+                    Ok(c) => c,
+                    Err(e) => {
+                        error!("[real11-opportunity] CAS open failed: {e}");
+                        std::process::exit(3);
+                    }
+                };
+            let logical_t = bundle.sequencer.next_logical_t_peek();
+            if let Err(e) =
+                turingosv4::runtime::market_opportunity_trace::write_market_opportunity_trace_to_cas(
+                    &mut cas_store,
+                    &trace,
+                    &format!("{}-{}", agent_id, tx),
+                    logical_t,
+                )
+            {
+                error!("[real11-opportunity] CAS put failed: {e}");
+                std::process::exit(3);
+            }
+        }
 
         // Phase A atom A3: bind δ for this agent_idx (same vector resolved
         // once at run_swarm entry from AGENT_MODELS env). In Phase B+C this
@@ -5144,7 +5205,7 @@ async fn run_swarm(
                                     invest_action_emitted_this_turn = true;
                                     *tool_dist.entry("invest_attempted".into()).or_insert(0) += 1;
                                     let node_str = action.node.clone().unwrap_or_default();
-                                    let amount_micro: i64 = action.amount.unwrap_or(0.0) as i64;
+                                    let amount_micro: i64 = action.amount.unwrap_or(0);
                                     let direction = match action.direction.as_deref() {
                                         Some("short") | Some("no") | Some("Short") | Some("No") => {
                                             turingosv4::state::typed_tx::BuyDirection::BuyNo

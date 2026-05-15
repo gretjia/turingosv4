@@ -1,0 +1,24 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778863874106_2207843",
+  "title": "REAL-11 Agent Economic Action Activation corrected Class-4 package",
+  "module": "REAL-11 Agent Economic Action Activation",
+  "molecule_or_atom": "molecule",
+  "requested_risk_class": 4,
+  "risk_class": 4,
+  "fc_nodes": [
+    "FC1 role/economic action loop; FC2 PromptCapsule/TrustRoot replay; FC3 dashboard/materialized evidence; Art. III shielding; market/economy gates"
+  ],
+  "allowed_paths": [
+    "handover/directives/2026-05-15_REAL11_AGENT_ECONOMIC_ACTION_ACTIVATION_ARCHITECT_ORIGINAL.md"
+  ],
+  "restricted_surface_hits": [],
+  "acceptance_commands": [
+    "cargo check"
+  ],
+  "audit_required": true,
+  "human_intent": null,
+  "ratification": null,
+  "git_head": "d2bfee58618683e4035daab206e472f89c3ff7cd",
+  "created_at_unix_ms": 1778863874107
+}

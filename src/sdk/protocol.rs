@@ -15,7 +15,7 @@ pub struct AgentAction {
     #[serde(default)]
     pub payload: Option<String>,
     #[serde(default)]
-    pub amount: Option<f64>,
+    pub amount: Option<i64>,
     #[serde(default)]
     pub node: Option<String>,
     #[serde(default)]
@@ -23,6 +23,8 @@ pub struct AgentAction {
     /// Bet direction for `invest` tool. Valid values: "long"/"yes" (buy YES)
     /// or "short"/"no" (buy NO). If absent, falls back to sign of `amount`:
     /// positive ⇒ long, negative ⇒ short. See Art. II.2 bidirectional price signal.
+    /// Parsed as integer microCoin only; decimal/floating JSON is rejected at
+    /// the action membrane so money paths never depend on f64 rounding.
     #[serde(default)]
     pub direction: Option<String>,
     /// TB-N1-AGENT-ECONOMY Phase 2 A3 (2026-05-10): agent-decided stake for
@@ -233,11 +235,21 @@ mod tests {
 
     #[test]
     fn test_parse_with_invest_action() {
-        let raw = r#"<action>{"tool":"invest","node":"n1","amount":50.0}</action>"#;
+        let raw = r#"<action>{"tool":"invest","node":"n1","amount":50}</action>"#;
         let action = parse_agent_output(raw).unwrap();
         assert_eq!(action.tool, "invest");
         assert_eq!(action.node.as_deref(), Some("n1"));
-        assert_eq!(action.amount, Some(50.0));
+        assert_eq!(action.amount, Some(50));
+    }
+
+    #[test]
+    fn test_parse_with_invest_float_amount_rejects() {
+        let raw = r#"<action>{"tool":"invest","node":"n1","amount":50.5}</action>"#;
+        let result = parse_agent_output(raw);
+        assert!(
+            matches!(result, Err(ParseError::InvalidJson(_))),
+            "invest amount must be integer microCoin, never f64/f32"
+        );
     }
 
     #[test]

@@ -1,0 +1,58 @@
+{
+  "schema_version": "g1_2_v1",
+  "batch_id": "real11_e2_micro_probe_20260515T165855Z_d2bfee5",
+  "runtime_repo": "/home/zephryj/projects/turingosv4/handover/evidence/real11_e2_micro_probe_20260515T165855Z/runtime_repo",
+  "cas_root": "/home/zephryj/projects/turingosv4/handover/evidence/real11_e2_micro_probe_20260515T165855Z/cas",
+  "model": "deepseek-chat",
+  "n_agents": 5,
+  "initial_head_t_hex": "",
+  "agent_registry_cid_hex": null,
+  "system_pubkeys_cid_hex": null,
+  "model_manifest_cid_hex": null,
+  "role_assignment_manifest_cid_hex": "36efe9024ab0fb0c8538620d6913ffa21055564b94be30acffc0d7827ab4b8e1",
+  "tasks": [
+    {
+      "task_index": 0,
+      "problem_id": "mathd_algebra_107",
+      "start_head_t_hex": "",
+      "end_head_t_hex": "49ea8acb6eabe4b7f3e696a70b40494bb406b4eb",
+      "start_chain_length": 0,
+      "end_chain_length": 11,
+      "subprocess_command_sha256": "",
+      "run_summary_cid_hex": null,
+      "terminal_tx_id": null,
+      "exit_code": 0,
+      "started_at_unix_s": 1778864336,
+      "finished_at_unix_s": 1778864347
+    },
+    {
+      "task_index": 1,
+      "problem_id": "mathd_algebra_125",
+      "start_head_t_hex": "49ea8acb6eabe4b7f3e696a70b40494bb406b4eb",
+      "end_head_t_hex": "ee18480e0b3766c035c5b385451ba312822b5db4",
+      "start_chain_length": 11,
+      "end_chain_length": 17,
+      "subprocess_command_sha256": "",
+      "run_summary_cid_hex": null,
+      "terminal_tx_id": null,
+      "exit_code": 0,
+      "started_at_unix_s": 1778864347,
+      "finished_at_unix_s": 1778864369
+    },
+    {
+      "task_index": 2,
+      "problem_id": "mathd_algebra_141",
+      "start_head_t_hex": "ee18480e0b3766c035c5b385451ba312822b5db4",
+      "end_head_t_hex": "801052472b880cdea2e88cab753aaf8b256d5140",
+      "start_chain_length": 17,
+      "end_chain_length": 26,
+      "subprocess_command_sha256": "",
+      "run_summary_cid_hex": null,
+      "terminal_tx_id": null,
+      "exit_code": 0,
+      "started_at_unix_s": 1778864369,
+      "finished_at_unix_s": 1778864379
+    }
+  ],
+  "terminated_reason": null
+}

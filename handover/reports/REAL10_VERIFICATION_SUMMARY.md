@@ -10,11 +10,9 @@ Clean evidence directory:
 handover/evidence/real8x_market_ab_clean_20260515T141331Z/
 ```
 
-Invalid evidence directory, preserved only as contamination/remediation record:
-
-```text
-handover/evidence/real8x_market_ab_20260515T134453Z/
-```
+Invalid evidence directory:
+`handover/evidence/real8x_market_ab_20260515T134453Z/` is preserved only as a
+contamination/remediation record and is not conclusion-bearing.
 
 ## Targeted Checks
 

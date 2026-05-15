@@ -2475,6 +2475,43 @@ fn render_tb_n3_run_report(
         .sum::<u64>();
     out.push_str(&format!("  accepted_work_tx_total: {accepted_work}\n"));
 
+    let summary =
+        turingosv4::runtime::market_decision_trace_summary::MarketDecisionTraceSummary::compute_from_cas(&cas);
+    let router_total = router_count_yes + router_count_no;
+    let agent_economic_action_tx_count = router_total.min(summary.submitted_count);
+    let scripted_or_unproven_router_tx_count =
+        router_total.saturating_sub(agent_economic_action_tx_count);
+    let structural_market_tx_count = tx_kind_counts.get("MarketSeed").copied().unwrap_or(0)
+        + tx_kind_counts.get("CpmmPool").copied().unwrap_or(0)
+        + tx_kind_counts.get("CompleteSetMint").copied().unwrap_or(0)
+        + tx_kind_counts.get("CpmmSwap").copied().unwrap_or(0)
+        + tx_kind_counts
+            .get("CompleteSetRedeem")
+            .copied()
+            .unwrap_or(0)
+        + tx_kind_counts.get("CompleteSetMerge").copied().unwrap_or(0);
+    let resolution_tx_count = tx_kind_counts.get("EventResolve").copied().unwrap_or(0)
+        + tx_kind_counts.get("ChallengeResolve").copied().unwrap_or(0);
+    out.push_str("\n## §C.1 REAL-11 Market tx categories\n");
+    out.push_str("  interpretation: structural market activity is not E2\n");
+    out.push_str(&format!(
+        "  structural_market_tx_count: {}\n",
+        structural_market_tx_count
+    ));
+    out.push_str(&format!(
+        "  agent_economic_action_tx_count: {}\n",
+        agent_economic_action_tx_count
+    ));
+    out.push_str(&format!(
+        "  scripted_or_unproven_router_tx_count: {}\n",
+        scripted_or_unproven_router_tx_count
+    ));
+    out.push_str(&format!("  resolution_tx_count: {}\n", resolution_tx_count));
+    out.push_str(&format!("  buy_with_coin_router_count: {}\n", router_total));
+    out.push_str(
+        "  e2_candidate_rule: live non-scripted router tx requires MarketDecisionTrace submitted provenance + ChainTape/CAS audit; scripted/unproven router tx is not E2\n",
+    );
+
     // §D Top contested nodes — from cpmm pool reserves (read live from
     // sequencer if present; absent here so we approximate from the
     // node_event_seeds map populated by the L4 walk).
@@ -2523,8 +2560,6 @@ fn render_tb_n3_run_report(
     //   - `## §F.A NoTradeReason exhaustive breakdown` (13-row stable
     //     block iterating `NoTradeReason::ALL`, zeros included for
     //     forward grep stability).
-    let summary =
-        turingosv4::runtime::market_decision_trace_summary::MarketDecisionTraceSummary::compute_from_cas(&cas);
     out.push_str(&summary.render_section_f());
 
     // §F.X Peer-verify coverage (TB-G G2P.2; charter §1 Module G2P;
@@ -2752,6 +2787,15 @@ fn render_tb_n3_run_report(
                 .ok()
         })
         .collect();
+    let persisted_market_opportunity_trace_cids =
+        turingosv4::runtime::market_opportunity_trace::market_opportunity_trace_cids(&cas);
+    out.push_str(&format!(
+        "  persisted_market_opportunity_trace_cas_count: {}\n",
+        persisted_market_opportunity_trace_cids.len()
+    ));
+    for cid in persisted_market_opportunity_trace_cids.iter().take(3) {
+        out.push_str(&format!("    - market_opportunity_trace_cid={cid}\n"));
+    }
 
     // §K G7 structural smoke. This is a materialized dashboard view over
     // current run-report inputs; SG-G closeout still depends on the dedicated

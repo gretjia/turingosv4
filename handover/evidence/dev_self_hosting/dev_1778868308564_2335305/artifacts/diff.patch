@@ -1,0 +1,210 @@
+diff --git a/handover/ai-direct/LATEST.md b/handover/ai-direct/LATEST.md
+index 09bf033b..5a3a79cc 100644
+--- a/handover/ai-direct/LATEST.md
++++ b/handover/ai-direct/LATEST.md
+@@ -6,6 +6,108 @@
+ 
+ ---
+ 
++## 📍 Handover summary (session #51 close 2026-05-15)
++
++**Session Summary**: REAL-11 Agent Economic Action Activation completed after
++fixing local `turingos_dev` PATH availability. REAL-11 does **not** prove E2
++spontaneous market action; it proves the router path works under scripted
++positive control, separates structural/scripted market tx from live agent
++economic action, records market opportunity/PnL visibility, and produces a
++clean negative live E2 micro-probe.
++
++### Current State
++
++**Works**:
++- `turingos_dev` is installed on PATH at `/home/zephryj/.cargo/bin/turingos_dev`.
++- REAL-10 was narrowly ratified for REAL-11 at
++  `handover/directives/2026-05-15_REAL10_NARROW_RATIFICATION_REAL11.md`.
++- REAL-11 architect original and execution plan are archived at
++  `handover/directives/2026-05-15_REAL11_AGENT_ECONOMIC_ACTION_ACTIVATION_ARCHITECT_ORIGINAL.md`
++  and
++  `handover/directives/2026-05-15_REAL11_AGENT_ECONOMIC_ACTION_ACTIVATION_EXECUTION_PLAN.md`.
++- Market tx reporting now separates structural market tx, agent economic
++  action tx, scripted/unproven router tx, and resolution tx.
++- The live `invest` action parser now uses integer `amount: Option<i64>` and
++  rejects float amounts; no f64/f32 money path is introduced.
++- `MarketOpportunityTrace` is typed/CAS-anchored and shielded; it stores CIDs
++  and public summaries, not raw prompt/completion/CoT.
++- Trader PnL/risk/balance visibility is present through the scoped,
++  ChainTape/QState-derived position/ConvictionBudget view.
++- Execution Matrix REAL-11 row is GREEN after final gates and clean-context
++  Codex R2 PROCEED.
++
++**Canonical REAL-11 evidence**:
++- Router positive-control:
++  `handover/evidence/real11_router_positive_control_20260515T172419Z_r2b/`.
++  It has runtime_repo/CAS/dashboard/audit evidence, `audit_tape=PROCEED`,
++  `market_seed=6`, `cpmm_pool=6`, `buy_with_coin_router=6`, and is explicitly
++  scripted-not-E2.
++- Patched E2 micro-probe:
++  `handover/evidence/real11_e2_micro_probe_20260515T172707Z_r2_max10/`.
++  It has `audit_tape=PROCEED`, `live_real6b_enabled=false`,
++  scripted TaskOutcome buys forbidden, `buy_with_coin_router=0`, and
++  `E2 NOT ACHIEVED`.
++- Supplemental actionable-opportunity diagnostic:
++  `handover/evidence/real11_e2_micro_probe_20260515T165855Z/`.
++  It shows `MarketOpportunityTrace=1`, `actionable=3`,
++  `router_available=true`, `balance=1000000`, `no_perceived_edge=5`, and no
++  live buy. This is supplemental only, not the patched canonical runner proof.
++- Final Harness:
++  `handover/evidence/dev_self_hosting/dev_1778867346838_2304458/`, closed with
++  `acceptance_passed=true`, `effective_risk_class=4`, restricted surface
++  `genesis_payload.toml`, explicit Class-4 ratification text, and
++  `audit_verdict=PROCEED`.
++
++### Validation
++
++- `cargo fmt --all -- --check` → exit 0.
++- REAL-11 targeted tests:
++  `constitution_real11_evidence_hygiene`,
++  `constitution_real11_market_tx_category`,
++  `constitution_real11_claim_boundary`,
++  `constitution_real11_router_positive_control`,
++  `constitution_real11_market_opportunity_trace`,
++  `constitution_real11_trader_pnl_visibility`,
++  `constitution_real11_e2_micro_probe`,
++  `constitution_real11_no_live_real6b`,
++  `constitution_real11_matrix_update` → exit 0.
++- `cargo test sdk::protocol --lib -- --test-threads=1` → exit 0.
++- `cargo test --lib boot::tests::verify_trust_root_passes_on_intact_repo -- --test-threads=1` → exit 0.
++- `bash scripts/run_constitution_gates.sh` → 461 passed / 0 failed / 1 ignored.
++- `cargo test --workspace --no-fail-fast -- --test-threads=1` → exit 0.
++- Clean-context Codex review:
++  - R1 `CHALLENGE`:
++    `handover/audits/CODEX_REAL11_FINAL_IMPLEMENTATION_REVIEW.md`
++    (ratification missing from first final Harness; traceability pointer drift).
++  - R2 `PROCEED`:
++    `handover/audits/CODEX_REAL11_FINAL_IMPLEMENTATION_REVIEW_R2.md`.
++
++### Non-Claims
++
++- E2 is not achieved: no live non-scripted agent-generated router/short action.
++- E3 is not achieved: no persistent behavioral role differentiation claim.
++- E4 is not achieved: no causal performance signal claim.
++- No live REAL-6B approval.
++- No price-as-truth, forced trade, ghost liquidity, f64/f32 economy path,
++  off-tape WAL truth, private CoT recording, raw-log broadcast, model ranking,
++  autonomous secondary market, or real-world readiness claim.
++
++### Next Steps
++
++1. Present REAL-11 evidence to the architect as: router substrate works; live
++   E2 remains absent; patched clean probe did not schedule an actionable Trader
++   turn; supplemental diagnostic shows actionable opportunity can exist and
++   still abstain as `NoPerceivedEdge`.
++2. Recommended next implementation direction is live Trader activation /
++   objective-routing redesign: ensure Trader turns in the clean patched probe
++   path, strengthen Trader objective, make PnL/risk-adjusted return visibility
++   more explicit, still no forced trade.
++3. Do not jump directly to live REAL-6B unless the next diagnostic proves there
++   is no actionable market window after Trader scheduling and objective-routing
++   are confirmed.
++
++---
++
+ ## 📍 Handover summary (session #50 close 2026-05-15)
+ 
+ **Session Summary**: REAL-10 Controlled Market Evidence Expansion completed under the orchestrated GPT-5.5 reasoning-depth plan. The REAL-5S→REAL-9 bundle is narrowly ratified as a chain-backed role scaffold + lawful market-pressure substrate + descriptive A/B framework, not as spontaneous market emergence or causal performance gain. REAL-8X expanded the benchmark to 15 tasks per arm with pinned inputs and clean claim-boundary audits.
+diff --git a/handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md b/handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md
+index 2e3d1f1b..f124440c 100644
+--- a/handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md
++++ b/handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md
+@@ -236,6 +236,7 @@
+ | **REAL-8** Formal Market A/B Benchmark | NEW `scripts/run_real8_market_ab_benchmark.sh`; pinned inputs `handover/evidence/real8_market_ab_inputs/`; final evidence `handover/evidence/real8_market_ab_20260515T_REAL8_FINALZ/`; stale-parent fix in `experiments/minif2f_v4/src/bin/evaluator.rs` with Trust Root rehash | `tests/constitution_real8_market_ab_benchmark.rs`; final run arms A/B/C/D all exit 0, audit PROCEED, same 3-task problem set / same model assignment / same budgets; constitution gates 458/0/1; workspace exit 0 | Clean-context Codex PROCEED `handover/audits/CODEX_REAL8_REAL9_IMPLEMENTATION_REVIEW.md`; report `handover/evidence/real8_market_ab_20260515T_REAL8_FINALZ/REAL8_MARKET_AB_BENCHMARK_REPORT.md` | 🟢 GREEN (descriptive A/B benchmark; A market_tx=0, B=4, C=10, D=10; no causal claim) | arms use different problem/model/budget inputs OR evidence not chain-backed OR report claims causality OR negative result is suppressed |
+ | **REAL-9** Launch synthesis / whitepaper update | `handover/whitepapers/TURINGOS_GENERATIVE_ECONOMY_WHITEPAPER_UPDATE_REAL9.md` and `handover/whitepapers/TURINGOS_MARKET_DEVELOPER_MANUAL_REAL9.md` | `tests/constitution_real9_launch_synthesis.rs`; docs assert v4 does not copy v3, price is signal not truth, market is role-specific institution not prompt decoration | Covered by REAL-8/9 audit `handover/audits/CODEX_REAL8_REAL9_IMPLEMENTATION_REVIEW.md` | 🟢 GREEN (launch synthesis docs landed with forbidden-claim boundary) | launch docs claim v4 copied v3, price-as-truth, forced trades, ghost liquidity, f64 economy, off-tape WAL truth, private CoT/raw-log broadcast, or market emergence without E2/E3 evidence |
+ | **REAL-10** Controlled Market Evidence Expansion | REAL-10 architect originals and orchestrated plan (`handover/directives/2026-05-15_REAL10_CONTROLLED_MARKET_EVIDENCE_EXPANSION_ARCHITECT_ORIGINAL.md`, `handover/directives/2026-05-15_REAL10_CONTROLLED_MARKET_EVIDENCE_EXPANSION_EXECUTION_PLAN.md`); R-022 cleanup (`handover/alignment/TRACE_MATRIX_BACKLINK_CLEANUP_REAL5S_REAL9.md`, `TRACE_MATRIX_v3_2026-04-27.md`); E1/E2/E3/E4 metrics (`handover/alignment/EMERGENCE_METRICS_E1_E2_E3_E4.md`); REAL-8X runner extension (`scripts/run_real8_market_ab_benchmark.sh`) | `tests/constitution_real10_trace_cleanup.rs` 6/0; `tests/constitution_real10_emergence_metrics.rs` 4/0; `tests/constitution_real8_market_ab_benchmark.rs` 9/0 including direct stale-parent behavior test; Trust Root 1/0; constitution gates 461/0/1; workspace exit 0 | Clean evidence `handover/evidence/real8x_market_ab_clean_20260515T141331Z/`; contaminated prior run preserved as invalid at `handover/evidence/real8x_market_ab_20260515T134453Z/`; final report `handover/reports/REAL10_DECISION_GATE_REPORT.md`; final audit `handover/audits/CODEX_REAL10_FINAL_SHIP_REVIEW.md`; clean Harness closeout `handover/evidence/dev_self_hosting/dev_1778857283388_2131282/` | 🟢 GREEN (15 tasks/arm descriptive expansion; B/C/D market activity increased vs A, but E2/E3/E4 not achieved; no live REAL-6B approval) | contaminated evidence cited as final OR scripted D fixture counted as E2 OR role labels counted as E3 OR market_tx_count / small-n descriptive data claimed as E4 causality OR live REAL-6B enabled without separate Class-4 packet |
++| **REAL-11** Agent Economic Action Activation | Architect original + execution plan (`handover/directives/2026-05-15_REAL11_AGENT_ECONOMIC_ACTION_ACTIVATION_ARCHITECT_ORIGINAL.md`, `handover/directives/2026-05-15_REAL11_AGENT_ECONOMIC_ACTION_ACTIVATION_EXECUTION_PLAN.md`); market tx split (`src/runtime/market_tx_category.rs`); MarketOpportunityTrace (`src/runtime/market_opportunity_trace.rs`); router positive-control runner (`scripts/run_real11_router_positive_control.sh`); E2 micro-probe runner (`scripts/run_real11_e2_micro_probe.sh`); dashboard/evaluator Trust Root rehash (`src/bin/audit_dashboard.rs`, `experiments/minif2f_v4/src/bin/evaluator.rs`, `src/runtime/mod.rs`, `genesis_payload.toml`); integer invest parser (`src/sdk/protocol.rs`) | `tests/constitution_real11_evidence_hygiene.rs`, `tests/constitution_real11_market_tx_category.rs`, `tests/constitution_real11_claim_boundary.rs`, `tests/constitution_real11_router_positive_control.rs`, `tests/constitution_real11_market_opportunity_trace.rs`, `tests/constitution_real11_trader_pnl_visibility.rs`, `tests/constitution_real11_e2_micro_probe.rs`, `tests/constitution_real11_no_live_real6b.rs`, `tests/constitution_real11_matrix_update.rs`; `cargo test sdk::protocol --lib`; Trust Root PASS | Router positive-control `handover/evidence/real11_router_positive_control_20260515T172419Z_r2b/` (runtime_repo/CAS/dashboard, audit_tape PROCEED, buy_with_coin_router=6 scripted-not-E2); patched E2 micro-probe `handover/evidence/real11_e2_micro_probe_20260515T172707Z_r2_max10/` (audit_tape PROCEED, scripted TaskOutcome buys forbidden, buy_with_coin_router=0); supplemental actionable-opportunity diagnostic `handover/evidence/real11_e2_micro_probe_20260515T165855Z/` (MarketOpportunityTrace=1, actionable=3, no_perceived_edge=5); reports `handover/reports/REAL11_MARKET_TX_CATEGORY_REPORT.md`, `handover/reports/REAL11_E2_MICRO_PROBE_REPORT.md`, `handover/reports/REAL11_DECISION_GATE_REPORT.md`; traceability note `handover/alignment/REAL11_TRACE_MATRIX_UPDATE.md`; final Harness `handover/evidence/dev_self_hosting/dev_1778867346838_2304458/` closed with audit PROCEED | 🟢 GREEN (REAL-11 LANDED 2026-05-15: router path works; patched probe has no live buy or scripted contamination; supplemental diagnostic shows actionable market can exist and still abstain; E2 not achieved; B/C diagnostic recommends live Trader activation / objective-routing redesign. Validation: fmt PASS, REAL-11 targeted PASS, protocol integer parser PASS, Trust Root PASS, constitution gates 461/0/1, workspace exit 0; clean-context Codex R1 CHALLENGE → R2 PROCEED.) | scripted fixture counted as E2 OR `market_tx_count` reported without StructuralMarketTx/AgentEconomicActionTx split OR actionable Trader turn lacks MarketOpportunityTrace OR no-trade after actionable opportunity lacks classified reason OR PnL/risk becomes off-tape sidecar truth OR price affects predicate/L4 admission OR live REAL-6B enabled without separate Class-4 packet OR invest amount parser accepts f64/f32 |
+ 
+ ## §P. Build / cross-references
+ 
+diff --git a/handover/tracer_bullets/TB_LOG.tsv b/handover/tracer_bullets/TB_LOG.tsv
+index e979da35..ace46ec9 100644
+--- a/handover/tracer_bullets/TB_LOG.tsv
++++ b/handover/tracer_bullets/TB_LOG.tsv
+@@ -73,3 +73,5 @@ TB-G-SG-G	shipped	2026-05-14	2026-05-14	P3-G G-Phase overall aggregate (G5 oppor
+ REAL-5S-REAL9	shipped	2026-05-14	2026-05-15	REAL route: REAL-5S scaffold ratification / clean-negative closure; REAL-6 Event Timing & Lawful Pressure; REAL-7 V3-equivalent structural smoke; REAL-8 Formal Market A/B Benchmark; REAL-9 Launch synthesis / Whitepaper update	Architect final route adopted: REAL-5S closes role scaffold without E2/E3 claim; REAL-6 moves market earlier via TaskOutcomeMarket, sealed-oracle scripted AttemptPrediction, ChainTape-derived ConvictionBudget/PnL, and observe-only scheduler; REAL-7 reconstructs v3 pressure structure without chasing v3 volume; REAL-8 runs same-input A/B arms A/B/C/D; REAL-9 documents v4 lawful-pressure thesis	role-route forbidden claims tested: no forced trades; no price-as-truth; no ghost liquidity; no f64 economy; no off-tape WAL as truth; no private CoT recording; no raw-log broadcast; no causal overclaim in REAL-8; no v3 numerical equivalence claim; REAL-6B live real-LLM AttemptPrediction remains Class-4 gated/scripted-only	cargo fmt --all -- --check exit 0; REAL-8/REAL-9 targeted tests 8/0; Trust Root verify 1/0; REAL-8 FINALZ A/B benchmark exit 0 with arms A/B/C/D all audit=PROCEED tasks=3 and market_tx_count A=0 B=4 C=10 D=10; scripts/run_constitution_gates.sh=458/0/1; cargo test --workspace --no-fail-fast -- --test-threads=1 exit 0; turingos_dev run dev_1778842938421_1788018 closed acceptance_passed=true effective_risk_class=4 audit_verdict=PROCEED	Clean-context Codex implementation review PROCEED at handover/audits/CODEX_REAL8_REAL9_IMPLEMENTATION_REVIEW.md; REAL-7 R2 PROCEED at handover/audits/CODEX_REAL7_IMPLEMENTATION_REVIEW_R2.md; earlier REAL-6 final audits PROCEED by atom; final REAL-8 evidence at handover/evidence/real8_market_ab_20260515T_REAL8_FINALZ/REAL8_MARKET_AB_BENCHMARK_REPORT.md	Architect original archived at handover/directives/2026-05-15_REAL5S_REAL6_REAL7_REAL8_REAL9_ARCHITECT_ORIGINAL.md; audited/approved execution plan at handover/directives/2026-05-15_REAL5S_REAL6_REAL7_REAL8_REAL9_EXECUTION_PLAN_APPROVED.md; user 2026-05-15 approved execution and delegated coordination to Codex with unified GPT-5.5 reasoning-depth model ladder	FC1 externalized role/market actions → L4/L4.E/CAS anchors; FC2 role/model/budget/prompt replay from genesis + ChainTape + CAS; FC3 role performance, A/B metrics, scheduler and launch docs as materialized views only; Art.III shielding; feedback_constitutional_harness_engineering; feedback_audit_after_evidence; feedback_no_workarounds_strict_constitution; feedback_tape_first_real_tests; latest-Harness single-Codex audit default	pending architect review of REAL-5S→REAL-9 bundle and launch/whitepaper direction; current branch codex/market-emergence-arena
+ # 2026-05-15 REAL-10 SHIPPED FINAL — Controlled Market Evidence Expansion; 15-task/arm REAL-8X; E1/descriptive only; no E2/E3/E4 claim; clean-context Codex final PROCEED
+ REAL-10	shipped	2026-05-15	2026-05-15	REAL route: Controlled Market Evidence Expansion after REAL-5S→REAL-9; expands REAL-8 A/B from 3 tasks/arm to 15 tasks/arm under pinned inputs and formal E1/E2/E3/E4 claim boundaries	Architect post-REAL-8/9 ruling adopted: ratify prior bundle narrowly; before new features close TRACE_MATRIX/R-022 backlink cleanup and stale-parent behavioral-test gap; define emergence metrics; run REAL-8X A/B with same problem set, model assignment, budgets, timeout, max_tx, seed/config; keep live REAL-6B gated behind separate Class-4 packet	REAL-10 forbidden claims tested: contaminated evidence not cited as final; scripted D AttemptPrediction not counted as E2; role labels / role_diversity_index not counted as E3; market_tx_count increase and small-n descriptive benchmark not counted as E4; no live REAL-6B approval; no price-as-truth / forced trade / ghost liquidity / private CoT / raw-log broadcast / off-tape WAL truth	cargo test --test constitution_real8_market_ab_benchmark=9/0; cargo test --test constitution_real10_trace_cleanup=6/0; cargo test --test constitution_real10_emergence_metrics=4/0; Trust Root verify 1/0; scripts/run_constitution_gates.sh=461/0/1; cargo test --workspace --no-fail-fast -- --test-threads=1 exit 0; clean REAL-8X evidence arms A/B/C/D all exit=0 audit=PROCEED tasks=15 with market_tx_count A=0 B=10 C=42 D=38 and solve_rate A=5/15 B=5/15 C=6/15 D=4/15; buy_with_coin_router=0 all arms; config audit disallowed_config_drift=[]	Plan alignment PROCEED handover/audits/CODEX_REAL10_EXECUTION_PLAN_ALIGNMENT_REVIEW.md; Phase2 TRACE/stale-parent PROCEED handover/audits/CODEX_REAL10_PHASE2_TRACE_STALE_PARENT_REVIEW.md; REAL-8X evidence/claim PROCEED handover/audits/CODEX_REAL10_REAL8X_EVIDENCE_CLAIM_REVIEW.md; final ship PROCEED handover/audits/CODEX_REAL10_FINAL_SHIP_REVIEW.md; clean final harness handover/evidence/dev_self_hosting/dev_1778857283388_2131282/ closed acceptance_passed=true effective_risk_class=4 audit_verdict=PROCEED	Architect originals archived at handover/directives/2026-05-15_REAL10_CONTROLLED_MARKET_EVIDENCE_EXPANSION_ARCHITECT_ORIGINAL.md; orchestrated execution plan at handover/directives/2026-05-15_REAL10_CONTROLLED_MARKET_EVIDENCE_EXPANSION_EXECUTION_PLAN.md; narrow ratification at handover/directives/2026-05-15_REAL5S_REAL9_NARROW_RATIFICATION.md; clean evidence at handover/evidence/real8x_market_ab_clean_20260515T141331Z/; contaminated prior run preserved only as invalid evidence at handover/evidence/real8x_market_ab_20260515T134453Z/	FC1 runtime market/action evidence and stale-parent admission behavior; FC2 pinned benchmark inputs/replay; FC3 reports/materialized views/claim boundary; Art.III shielding; market/economic gates; feedback_constitutional_harness_engineering; feedback_audit_after_evidence; feedback_no_workarounds_strict_constitution; feedback_tape_first_real_tests; latest-Harness single-Codex audit default	pending architect decision: either separate Class-4 live REAL-6B packet for E2 pursuit or larger clean benchmark for performance evidence; no emergence/causality launch claim
++# 2026-05-15 REAL-11 SHIPPED FINAL — Agent Economic Action Activation; router substrate positive-control works; live E2 remains negative; clean-context Codex R2 PROCEED
++REAL-11	shipped	2026-05-15	2026-05-15	REAL route: Agent Economic Action Activation after REAL-10; splits structural market activity from live agent economic action, proves router positive-control path, adds MarketOpportunityTrace and PnL/risk visibility checks, and runs a no-live-REAL-6B E2 micro-probe	Architect REAL-10 ruling adopted: do not run REAL-8Y or live REAL-6B first; bottleneck is buy_with_coin_router=0; open REAL-11 to test router wire, opportunity visibility, PnL visibility, live E2 micro-probe, then decide Trader objective redesign vs event-timing redesign	REAL-11 forbidden claims tested: scripted router fixture not counted as E2; market_tx_count reported with StructuralMarketTx / AgentEconomicActionTx / ScriptedFixtureTx / ResolutionTx split; live REAL-6B rejected unless separately ratified; scripted TaskOutcome buys forbidden in E2 micro-probe; no price-as-truth / forced trade / ghost liquidity / f64/f32 money path / private CoT / raw-log broadcast / off-tape WAL truth	cargo fmt --all -- --check exit 0; REAL-11 targeted tests exit 0; cargo test sdk::protocol --lib exit 0; Trust Root verify 1/0; scripts/run_constitution_gates.sh=461/0/1; cargo test --workspace --no-fail-fast -- --test-threads=1 exit 0; router positive-control evidence buy_with_coin_router=6 scripted-not-E2; patched E2 micro-probe buy_with_coin_router=0 and E2 NOT ACHIEVED	Plan alignment audits PROCEED through R3; Atom1/2 and opportunity/PNL audits CHALLENGE then remediated; final clean-context Codex R1 CHALLENGE handover/audits/CODEX_REAL11_FINAL_IMPLEMENTATION_REVIEW.md; final R2 PROCEED handover/audits/CODEX_REAL11_FINAL_IMPLEMENTATION_REVIEW_R2.md; final Harness handover/evidence/dev_self_hosting/dev_1778867346838_2304458/ closed acceptance_passed=true effective_risk_class=4 audit_verdict=PROCEED	Architect original archived at handover/directives/2026-05-15_REAL11_AGENT_ECONOMIC_ACTION_ACTIVATION_ARCHITECT_ORIGINAL.md; execution plan handover/directives/2026-05-15_REAL11_AGENT_ECONOMIC_ACTION_ACTIVATION_EXECUTION_PLAN.md; narrow REAL-10 ratification handover/directives/2026-05-15_REAL10_NARROW_RATIFICATION_REAL11.md; canonical router evidence handover/evidence/real11_router_positive_control_20260515T172419Z_r2b/; canonical patched micro-probe handover/evidence/real11_e2_micro_probe_20260515T172707Z_r2_max10/; supplemental actionable diagnostic handover/evidence/real11_e2_micro_probe_20260515T165855Z/	FC1 externalized role/economic action loop; FC2 Trust Root/replay authority; FC3 dashboard/report as materialized view; Art.II broadcast; Art.III shielding; economy integer-money gates; feedback_constitutional_harness_engineering; feedback_audit_after_evidence; feedback_no_workarounds_strict_constitution; feedback_tape_first_real_tests; latest-Harness single-Codex audit default	next: live Trader activation / objective-routing redesign before live REAL-6B; no E2/E3/E4 claim
+
+diff --git a/dev/null b/tests/constitution_real11_matrix_update.rs
+--- /dev/null
++++ b/tests/constitution_real11_matrix_update.rs
++use std::fs;
++
++#[test]
++fn real11_decision_gate_records_b_c_diagnostic_clean_negative() {
++    let report = fs::read_to_string("handover/reports/REAL11_DECISION_GATE_REPORT.md")
++        .expect("REAL-11 decision gate report exists");
++
++    for required in [
++        "REAL-11 takes a B/C diagnostic branch",
++        "No live non-scripted router tx was observed.",
++        "The router substrate is not the immediate blocker.",
++        "scripted TaskOutcome buys forbidden by runner = PASS",
++        "Patched no-scripted-contamination runs did not schedule an actionable Trader turn.",
++        "Supplemental diagnostic evidence shows actionable_markets > 0",
++        "actionable_markets > 0",
++        "NoTradeReason is no_perceived_edge, not no_pool.",
++        "Live Trader activation / objective-routing redesign",
++        "Do not jump directly to live REAL-6B",
++        "E2 spontaneous market action",
++        "not used as REAL-11 Atom 5 sentinels",
++    ] {
++        assert!(
++            report.contains(required),
++            "REAL-11 decision report missing required finding: {required}"
++        );
++    }
++}
++
++#[test]
++fn real11_traceability_update_maps_fc_and_kill_conditions() {
++    let update = fs::read_to_string("handover/alignment/REAL11_TRACE_MATRIX_UPDATE.md")
++        .expect("REAL-11 traceability update exists");
++
++    for required in [
++        "FC1: externalized role/economic action loop",
++        "FC2: Trust Root / replay authority",
++        "FC3: dashboard/report as materialized view",
++        "src/runtime/market_tx_category.rs",
++        "src/runtime/market_opportunity_trace.rs",
++        "scripts/run_real11_e2_micro_probe.sh",
++        "scripted fixture is counted as E2",
++        "live REAL-6B is enabled without separate Class-4 ratification",
++    ] {
++        assert!(
++            update.contains(required),
++            "REAL-11 traceability update missing required binding: {required}"
++        );
++    }
++}
++
++#[test]
++fn constitution_execution_matrix_tracks_real11_boundary() {
++    let matrix = fs::read_to_string("handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md")
++        .expect("Constitution Execution Matrix exists");
++
++    for required in [
++        "**REAL-11** Agent Economic Action Activation",
++        "patched E2 micro-probe `handover/evidence/real11_e2_micro_probe_20260515T172707Z_r2_max10/`",
++        "supplemental actionable-opportunity diagnostic",
++        "patched probe has no live buy or scripted contamination",
++        "live Trader activation / objective-routing redesign",
++        "E2 not achieved",
++        "scripted fixture counted as E2",
++        "live REAL-6B enabled without separate Class-4 packet",
++    ] {
++        assert!(
++            matrix.contains(required),
++            "Constitution Execution Matrix missing REAL-11 boundary: {required}"
++        );
++    }
++}

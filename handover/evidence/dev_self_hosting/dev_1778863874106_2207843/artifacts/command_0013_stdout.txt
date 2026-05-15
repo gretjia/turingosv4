@@ -1,0 +1,8 @@
+
+running 3 tests
+test real11_traceability_update_maps_fc_and_kill_conditions ... ok
+test real11_decision_gate_records_branch_b_clean_negative ... ok
+test constitution_execution_matrix_tracks_real11_boundary ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

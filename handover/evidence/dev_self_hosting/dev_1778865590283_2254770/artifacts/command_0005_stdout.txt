@@ -1,0 +1,5 @@
+REAL-11 router positive-control evidence: /home/zephryj/projects/turingosv4/handover/evidence/real11_router_positive_control_20260515T172419Z_r2b
+test_exit_code=0
+runtime_exit_code=0
+audit_verdict=PROCEED
+buy_with_coin_router=6

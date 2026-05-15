@@ -20,12 +20,11 @@ use turingosv4::bottom_white::tools::registry::ToolRegistry;
 use turingosv4::economy::money::{MicroCoin, StakeMicroCoin};
 use turingosv4::state::q_state::{AgentId, Hash, QState, TaskId, TxId};
 use turingosv4::state::sequencer::{ApplyError, Sequencer, SubmissionEnvelope};
-use turingosv4::state::TransitionError;
 use turingosv4::state::typed_tx::{
-    AgentSignature, BoolWithProof, CompleteSetMintTx, EventId, PredicateId,
-    PredicateResultsBundle, ReadKey, SafetyOrCreation, TaskOpenTx, TypedTx, VerifyTx,
-    VerifyVerdict, WorkTx, WriteKey,
+    AgentSignature, BoolWithProof, CompleteSetMintTx, EventId, PredicateId, PredicateResultsBundle,
+    ReadKey, SafetyOrCreation, TaskOpenTx, TypedTx, VerifyTx, VerifyVerdict, WorkTx, WriteKey,
 };
+use turingosv4::state::TransitionError;
 use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
 struct Harness {
@@ -126,7 +125,9 @@ fn work_tx(parent: Hash, task: &str) -> TypedTx {
         task_id: TaskId(task.into()),
         parent_state_root: parent,
         agent_id: AgentId("solver".into()),
-        read_set: [ReadKey("goal".into())].into_iter().collect::<BTreeSet<_>>(),
+        read_set: [ReadKey("goal".into())]
+            .into_iter()
+            .collect::<BTreeSet<_>>(),
         write_set: [WriteKey("proof".into())]
             .into_iter()
             .collect::<BTreeSet<_>>(),
@@ -388,10 +389,7 @@ async fn real8_task_outcome_arm_refreshes_verify_parent_behaviorally() {
         refreshed_root, post_market_root,
         "stale rejection must not advance state; refreshed parent remains post-market root"
     );
-    submit_and_apply(
-        &mut h,
-        verify_tx(refreshed_root, "real8x-verify-refreshed"),
-    )
-    .await
-    .expect("VerifyTx with refreshed q_snapshot root must accept");
+    submit_and_apply(&mut h, verify_tx(refreshed_root, "real8x-verify-refreshed"))
+        .await
+        .expect("VerifyTx with refreshed q_snapshot root must accept");
 }

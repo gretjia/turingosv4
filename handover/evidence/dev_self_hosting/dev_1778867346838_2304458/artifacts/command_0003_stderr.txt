@@ -1,0 +1,169 @@
+warning: unused import: `ObjectType as Git2ObjectType`
+  --> src/bottom_white/cas/store.rs:26:12
+   |
+26 | use git2::{ObjectType as Git2ObjectType, Repository};
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `ObjectType as Git2ObjectType`
+  --> src/bottom_white/ledger/transition_ledger.rs:37:12
+   |
+37 | use git2::{ObjectType as Git2ObjectType, Repository, Signature as GitSignature};
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `KernelError`
+ --> src/bus.rs:8:29
+  |
+8 | use crate::kernel::{Kernel, KernelError};
+  |                             ^^^^^^^^^^^
+
+warning: unused import: `TapeError`
+ --> src/bus.rs:9:54
+  |
+9 | use crate::ledger::{EventType, Ledger, Node, NodeId, TapeError};
+  |                                                      ^^^^^^^^^
+
+warning: unused imports: `Deserialize` and `Serialize`
+  --> src/bus.rs:13:13
+   |
+13 | use serde::{Deserialize, Serialize};
+   |             ^^^^^^^^^^^  ^^^^^^^^^
+
+warning: unused imports: `MICRO_PER_COIN` and `MicroCoin`
+  --> src/economy/monetary_invariant.rs:26:29
+   |
+26 | use crate::economy::money::{MicroCoin, MICRO_PER_COIN};
+   |                             ^^^^^^^^^  ^^^^^^^^^^^^^^
+
+warning: unused import: `Sha256`
+  --> src/runtime/agent_keypairs.rs:31:20
+   |
+31 | use sha2::{Digest, Sha256};
+   |                    ^^^^^^
+
+warning: unused import: `CapsulePrivacyPolicy`
+  --> src/runtime/audit_assertions.rs:83:30
+   |
+83 | use crate::state::typed_tx::{CapsulePrivacyPolicy, TypedTx};
+   |                              ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::BTreeMap`
+  --> src/runtime/audit_views.rs:27:5
+   |
+27 | use std::collections::BTreeMap;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::state::price_index::RationalPrice`
+  --> src/runtime/audit_views.rs:32:5
+   |
+32 | use crate::state::price_index::RationalPrice;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `LpShareAmount` and `ShareSidePair`
+  --> src/runtime/audit_views.rs:33:53
+   |
+33 | use crate::state::q_state::{AgentId, EconomicState, LpShareAmount, PoolStatus, ShareSidePair};
+   |                                                     ^^^^^^^^^^^^^              ^^^^^^^^^^^^^
+
+warning: unused import: `ShareAmount`
+  --> src/runtime/audit_views.rs:35:67
+   |
+35 | use crate::state::typed_tx::{EventId, PositionKind, PositionSide, ShareAmount};
+   |                                                                   ^^^^^^^^^^^
+
+warning: unused import: `Deserialize`
+ --> src/sdk/tools/librarian.rs:6:13
+  |
+6 | use serde::{Deserialize, Serialize};
+  |             ^^^^^^^^^^^
+
+warning: unused import: `Path`
+ --> src/sdk/tools/librarian.rs:9:17
+  |
+9 | use std::path::{Path, PathBuf};
+  |                 ^^^^
+
+warning: unused import: `ToolSignal`
+ --> src/sdk/tools/search.rs:4:24
+  |
+4 | use crate::sdk::tool::{ToolSignal, TuringTool};
+  |                        ^^^^^^^^^^
+
+warning: unused import: `std::path::Path`
+ --> src/sdk/tools/search.rs:6:5
+  |
+6 | use std::path::Path;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `TxId`
+  --> src/state/sequencer.rs:41:82
+   |
+41 | use crate::state::q_state::{AgentId, EscrowEntry, Hash, QState, TaskMarketEntry, TxId};
+   |                                                                                  ^^^^
+
+warning: unused imports: `AgentId` and `ShareSidePair`
+  --> src/state/price_index.rs:23:29
+   |
+23 | use crate::state::q_state::{AgentId, ChallengeStatus, EconomicState, ShareSidePair};
+   |                             ^^^^^^^                                  ^^^^^^^^^^^^^
+
+warning: unused import: `NodePosition`
+  --> src/state/price_index.rs:24:39
+   |
+24 | use crate::state::typed_tx::{EventId, NodePosition, PositionSide, ShareAmount};
+   |                                       ^^^^^^^^^^^^
+
+warning: unused import: `Digest`
+  --> src/runtime/agent_keypairs.rs:31:12
+   |
+31 | use sha2::{Digest, Sha256};
+   |            ^^^^^^
+
+warning: function `sign_rejected_attempt_summary` is never used
+   --> src/bottom_white/ledger/system_keypair.rs:583:19
+    |
+583 |     pub(crate) fn sign_rejected_attempt_summary(
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `sign_system_message` is never used
+   --> src/bottom_white/ledger/system_keypair.rs:594:19
+    |
+594 |     pub(crate) fn sign_system_message(
+    |                   ^^^^^^^^^^^^^^^^^^^
+
+warning: function `sign_epoch_rotation_proof` is never used
+   --> src/bottom_white/ledger/system_keypair.rs:694:19
+    |
+694 |     pub(crate) fn sign_epoch_rotation_proof(
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `sign_system_message` is never used
+   --> src/bottom_white/ledger/system_keypair.rs:705:19
+    |
+705 |     pub(crate) fn sign_system_message(
+    |                   ^^^^^^^^^^^^^^^^^^^
+
+warning: field `tx_id` is never read
+   --> src/runtime/chain_derived_run_facts.rs:242:5
+    |
+241 | struct WorkTxAttempt {
+    |        ------------- field in this struct
+242 |     tx_id: TxId,
+    |     ^^^^^
+    |
+    = note: `WorkTxAttempt` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: `turingosv4` (lib) generated 25 warnings (run `cargo fix --lib -p turingosv4` to apply 19 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.20s
+     Running tests/constitution_real11_claim_boundary.rs (target/debug/deps/constitution_real11_claim_boundary-8e678ceceb1edcff)
+     Running tests/constitution_real11_e2_micro_probe.rs (target/debug/deps/constitution_real11_e2_micro_probe-27faf8fb87bf918b)
+     Running tests/constitution_real11_evidence_hygiene.rs (target/debug/deps/constitution_real11_evidence_hygiene-b2b3be7d23829088)
+     Running tests/constitution_real11_market_opportunity_trace.rs (target/debug/deps/constitution_real11_market_opportunity_trace-4855dd5ad4fa48bb)
+     Running tests/constitution_real11_market_tx_category.rs (target/debug/deps/constitution_real11_market_tx_category-68f2ee7465d914c7)
+     Running tests/constitution_real11_matrix_update.rs (target/debug/deps/constitution_real11_matrix_update-601937cb726e0e17)
+     Running tests/constitution_real11_no_live_real6b.rs (target/debug/deps/constitution_real11_no_live_real6b-456b409421f6ffd4)
+     Running tests/constitution_real11_router_positive_control.rs (target/debug/deps/constitution_real11_router_positive_control-d2162a9cb85aa971)
+     Running tests/constitution_real11_trader_pnl_visibility.rs (target/debug/deps/constitution_real11_trader_pnl_visibility-a8095431bffe90cd)

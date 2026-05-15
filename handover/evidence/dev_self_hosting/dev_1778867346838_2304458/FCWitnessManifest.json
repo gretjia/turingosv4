@@ -1,0 +1,20 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778867346838_2304458",
+  "fc_nodes": [
+    "FC1",
+    "FC2",
+    "FC3",
+    "ArtII",
+    "ArtIII",
+    "Economy"
+  ],
+  "expected_witness": "Diff, command evidence, and audit verdict must cite these FC nodes.",
+  "evidence_artifacts": [
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "a23f849cf5b3c1ff476e751a295f483af4e67edf37609a6405c26a3c485f1797",
+      "size_bytes": 291509
+    }
+  ]
+}

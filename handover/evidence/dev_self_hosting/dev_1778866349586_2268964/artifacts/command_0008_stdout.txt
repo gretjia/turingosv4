@@ -1,0 +1,185 @@
+Diff in /home/zephryj/projects/turingosv4/src/bin/audit_dashboard.rs:2481:
+     let agent_economic_action_tx_count = router_total.min(summary.submitted_count);
+     let scripted_or_unproven_router_tx_count =
+         router_total.saturating_sub(agent_economic_action_tx_count);
+-    let structural_market_tx_count =
+-        tx_kind_counts.get("MarketSeed").copied().unwrap_or(0)
+-            + tx_kind_counts.get("CpmmPool").copied().unwrap_or(0)
+-            + tx_kind_counts.get("CompleteSetMint").copied().unwrap_or(0)
+-            + tx_kind_counts.get("CpmmSwap").copied().unwrap_or(0)
+-            + tx_kind_counts.get("CompleteSetRedeem").copied().unwrap_or(0)
+-            + tx_kind_counts.get("CompleteSetMerge").copied().unwrap_or(0);
++    let structural_market_tx_count = tx_kind_counts.get("MarketSeed").copied().unwrap_or(0)
++        + tx_kind_counts.get("CpmmPool").copied().unwrap_or(0)
++        + tx_kind_counts.get("CompleteSetMint").copied().unwrap_or(0)
++        + tx_kind_counts.get("CpmmSwap").copied().unwrap_or(0)
++        + tx_kind_counts
++            .get("CompleteSetRedeem")
++            .copied()
++            .unwrap_or(0)
++        + tx_kind_counts.get("CompleteSetMerge").copied().unwrap_or(0);
+     let resolution_tx_count = tx_kind_counts.get("EventResolve").copied().unwrap_or(0)
+         + tx_kind_counts.get("ChallengeResolve").copied().unwrap_or(0);
+     out.push_str("\n## §C.1 REAL-11 Market tx categories\n");
+Diff in /home/zephryj/projects/turingosv4/src/bin/audit_dashboard.rs:2505:
+         scripted_or_unproven_router_tx_count
+     ));
+     out.push_str(&format!("  resolution_tx_count: {}\n", resolution_tx_count));
+-    out.push_str(&format!(
+-        "  buy_with_coin_router_count: {}\n",
+-        router_total
+-    ));
++    out.push_str(&format!("  buy_with_coin_router_count: {}\n", router_total));
+     out.push_str(
+         "  e2_candidate_rule: live non-scripted router tx requires MarketDecisionTrace submitted provenance + ChainTape/CAS audit; scripted/unproven router tx is not E2\n",
+     );
+Diff in /home/zephryj/projects/turingosv4/tests/constitution_real10_trace_cleanup.rs:96:
+ 
+ #[test]
+ fn real10_trace_cleanup_report_records_one_time_exception_not_waiver() {
+-    let report = fs::read_to_string(
+-        "handover/alignment/TRACE_MATRIX_BACKLINK_CLEANUP_REAL5S_REAL9.md",
+-    )
+-    .expect("cleanup report");
++    let report =
++        fs::read_to_string("handover/alignment/TRACE_MATRIX_BACKLINK_CLEANUP_REAL5S_REAL9.md")
++            .expect("cleanup report");
+     for expected in [
+         "one-time bulk-ship exception closure, not policy relaxation",
+         "R-022 not treated as waiver",
+Diff in /home/zephryj/projects/turingosv4/tests/constitution_real10_trace_cleanup.rs:134:
+         "trace_removal must not be represented as an open §J.2 public surface"
+     );
+     assert!(
+-        !registered.contains(&("src/state/typed_tx.rs".to_string(), "trace_removal".to_string())),
++        !registered.contains(&(
++            "src/state/typed_tx.rs".to_string(),
++            "trace_removal".to_string()
++        )),
+         "trace_removal must not be represented as an open §J.2 public surface"
+     );
+     for expected in [
+Diff in /home/zephryj/projects/turingosv4/tests/constitution_real11_e2_micro_probe.rs:31:
+ 
+ #[test]
+ fn real11_e2_micro_probe_report_uses_allowed_e2_verdict_rule() {
+-    let report = fs::read_to_string("handover/reports/REAL11_E2_MICRO_PROBE_REPORT.md")
+-        .unwrap_or_default();
++    let report =
++        fs::read_to_string("handover/reports/REAL11_E2_MICRO_PROBE_REPORT.md").unwrap_or_default();
+     if report.is_empty() {
+         return;
+     }
+Diff in /home/zephryj/projects/turingosv4/tests/constitution_real11_market_opportunity_trace.rs:4:
+     derive_market_opportunity_trace, verify_one_trace_per_trader_turn, MarketOpportunityRequest,
+ };
+ use turingosv4::runtime::real5_roles::AgentRole;
+-use turingosv4::state::q_state::{
+-    AgentId, CpmmPool, LpShareAmount, PoolStatus, QState, TaskId,
+-};
++use turingosv4::state::q_state::{AgentId, CpmmPool, LpShareAmount, PoolStatus, QState, TaskId};
+ use turingosv4::state::typed_tx::{EventId, ShareAmount};
+ 
+ fn agent(name: &str) -> AgentId {
+Diff in /home/zephryj/projects/turingosv4/tests/constitution_real11_market_opportunity_trace.rs:142:
+     let q = QState::default();
+     let trace = derive_market_opportunity_trace(&q, request(agent("Trader_0"), "task-open"));
+     let json = serde_json::to_string(&trace).expect("serializes");
+-    for forbidden in ["raw_prompt", "raw_completion", "private_cot", "stderr", "raw_log"] {
++    for forbidden in [
++        "raw_prompt",
++        "raw_completion",
++        "private_cot",
++        "stderr",
++        "raw_log",
++    ] {
+         assert!(
+             !json.to_ascii_lowercase().contains(forbidden),
+             "MarketOpportunityTrace must not expose {forbidden}: {json}"
+Diff in /home/zephryj/projects/turingosv4/tests/constitution_real11_no_live_real6b.rs:25:
+ 
+ #[test]
+ fn real11_micro_probe_report_forbids_live_real6b_approval() {
+-    let report = fs::read_to_string("handover/reports/REAL11_E2_MICRO_PROBE_REPORT.md")
+-        .unwrap_or_default();
++    let report =
++        fs::read_to_string("handover/reports/REAL11_E2_MICRO_PROBE_REPORT.md").unwrap_or_default();
+     if report.is_empty() {
+         return;
+     }
+Diff in /home/zephryj/projects/turingosv4/tests/constitution_real11_trader_pnl_visibility.rs:1:
+ use turingosv4::economy::money::MicroCoin;
+ use turingosv4::runtime::agent_pnl::compute_agent_pnl;
++use turingosv4::runtime::real5_roles::AgentRole;
+ use turingosv4::runtime::real6_conviction_budget::{
+     conviction_action_allowed, derive_conviction_budget, ConvictionAction,
+ };
+Diff in /home/zephryj/projects/turingosv4/tests/constitution_real11_trader_pnl_visibility.rs:6:
+-use turingosv4::runtime::real5_roles::AgentRole;
+ use turingosv4::sdk::your_position::render_your_position;
+ use turingosv4::state::q_state::{AgentId, QState};
+ 
+Diff in /home/zephryj/projects/turingosv4/tests/constitution_real11_trader_pnl_visibility.rs:66:
+         .insert(trader.clone(), MicroCoin::from_micro_units(50_000));
+ 
+     let budget = derive_conviction_budget(&q, &trader);
+-    let risky = conviction_action_allowed(&budget, AgentRole::Trader, ConvictionAction::HighRiskMarket);
++    let risky =
++        conviction_action_allowed(&budget, AgentRole::Trader, ConvictionAction::HighRiskMarket);
+     let read = conviction_action_allowed(&budget, AgentRole::Trader, ConvictionAction::Read);
+ 
+-    assert!(!risky.allowed, "below-risk-cap Trader market action must block");
+-    assert!(read.allowed, "below-risk-cap Trader must still be able to read/observe");
++    assert!(
++        !risky.allowed,
++        "below-risk-cap Trader market action must block"
++    );
++    assert!(
++        read.allowed,
++        "below-risk-cap Trader must still be able to read/observe"
++    );
+ }
+ 
+ #[test]
+Diff in /home/zephryj/projects/turingosv4/tests/constitution_real8_market_ab_benchmark.rs:20:
+ use turingosv4::economy::money::{MicroCoin, StakeMicroCoin};
+ use turingosv4::state::q_state::{AgentId, Hash, QState, TaskId, TxId};
+ use turingosv4::state::sequencer::{ApplyError, Sequencer, SubmissionEnvelope};
+-use turingosv4::state::TransitionError;
+ use turingosv4::state::typed_tx::{
+-    AgentSignature, BoolWithProof, CompleteSetMintTx, EventId, PredicateId,
+-    PredicateResultsBundle, ReadKey, SafetyOrCreation, TaskOpenTx, TypedTx, VerifyTx,
+-    VerifyVerdict, WorkTx, WriteKey,
++    AgentSignature, BoolWithProof, CompleteSetMintTx, EventId, PredicateId, PredicateResultsBundle,
++    ReadKey, SafetyOrCreation, TaskOpenTx, TypedTx, VerifyTx, VerifyVerdict, WorkTx, WriteKey,
+ };
++use turingosv4::state::TransitionError;
+ use turingosv4::top_white::predicates::registry::PredicateRegistry;
+ 
+ struct Harness {
+Diff in /home/zephryj/projects/turingosv4/tests/constitution_real8_market_ab_benchmark.rs:126:
+         task_id: TaskId(task.into()),
+         parent_state_root: parent,
+         agent_id: AgentId("solver".into()),
+-        read_set: [ReadKey("goal".into())].into_iter().collect::<BTreeSet<_>>(),
++        read_set: [ReadKey("goal".into())]
++            .into_iter()
++            .collect::<BTreeSet<_>>(),
+         write_set: [WriteKey("proof".into())]
+             .into_iter()
+             .collect::<BTreeSet<_>>(),
+Diff in /home/zephryj/projects/turingosv4/tests/constitution_real8_market_ab_benchmark.rs:388:
+         refreshed_root, post_market_root,
+         "stale rejection must not advance state; refreshed parent remains post-market root"
+     );
+-    submit_and_apply(
+-        &mut h,
+-        verify_tx(refreshed_root, "real8x-verify-refreshed"),
+-    )
+-    .await
+-    .expect("VerifyTx with refreshed q_snapshot root must accept");
++    submit_and_apply(&mut h, verify_tx(refreshed_root, "real8x-verify-refreshed"))
++        .await
++        .expect("VerifyTx with refreshed q_snapshot root must accept");
+ }
+ 

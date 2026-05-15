@@ -1,0 +1,24 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778865590283_2254770",
+  "title": "REAL-11 audit remediation after CHALLENGE",
+  "module": "REAL-11 Agent Economic Action Activation remediation",
+  "molecule_or_atom": "molecule",
+  "requested_risk_class": 4,
+  "risk_class": 4,
+  "fc_nodes": [
+    "FC1 invest/router action membrane; FC2 Trust Root replay; FC3 dashboard/materialized evidence; Art II/III signal broadcast and shielding; economy integer-money gates"
+  ],
+  "allowed_paths": [
+    "src/sdk/protocol.rs"
+  ],
+  "restricted_surface_hits": [],
+  "acceptance_commands": [
+    "cargo check"
+  ],
+  "audit_required": true,
+  "human_intent": null,
+  "ratification": null,
+  "git_head": "d2bfee58618683e4035daab206e472f89c3ff7cd",
+  "created_at_unix_ms": 1778865590285
+}

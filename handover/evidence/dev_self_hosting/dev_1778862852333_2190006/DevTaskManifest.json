@@ -1,0 +1,28 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778862852333_2190006",
+  "title": "REAL-11 Atom 2 router positive-control",
+  "module": "REAL-11 Agent Economic Action Activation",
+  "molecule_or_atom": "atom",
+  "requested_risk_class": 3,
+  "risk_class": 3,
+  "fc_nodes": [
+    "FC1 router action to L4/L4E; FC2 mandatory evidence dir; FC3 scripted-not-E2 claim boundary; economy gates"
+  ],
+  "allowed_paths": [
+    "tests/constitution_real11_router_positive_control.rs",
+    "scripts/run_real11_router_positive_control.sh",
+    "handover/reports/REAL11_ROUTER_POSITIVE_CONTROL_REPORT.md",
+    "handover/evidence/real11_router_positive_control_*"
+  ],
+  "restricted_surface_hits": [],
+  "acceptance_commands": [
+    "cargo test --test constitution_real11_router_positive_control -- --test-threads=1",
+    "bash scripts/run_real11_router_positive_control.sh"
+  ],
+  "audit_required": true,
+  "human_intent": "Prove the scripted BuyWithCoinRouter positive-control path without claiming E2 or touching restricted economic authority surfaces.",
+  "ratification": null,
+  "git_head": "d2bfee58618683e4035daab206e472f89c3ff7cd",
+  "created_at_unix_ms": 1778862852333
+}

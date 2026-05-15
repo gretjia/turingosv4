@@ -1,0 +1,39 @@
+scripts/run_real11_router_positive_control.sh: line 228: bad substitution: no closing "`" in `
+
+This runtime evidence uses scripted TaskOutcomeMarket buys as a positive
+control. It proves the normal ChainTape/CAS/audit-dashboard path can carry
+router actions; it is explicitly not E2.
+
+## Claim Boundary
+
+\`\`\`text
+scripted fixture == not E2
+no forced trade
+no price-as-truth
+no ghost liquidity
+no f64 economy
+no private CoT recording
+no raw-log broadcast
+dashboard/report is a materialized view, not source of truth
+\`\`\`
+
+## SG Coverage
+
+| Gate | Status | Evidence |
+| --- | --- | --- |
+| SG-11.2.1 scripted BuyYesWithCoinRouterTx enters L4 | $SG_STATUS | \`cargo_test.stdout\` + \`aggregate_verdict.json\` |
+| SG-11.2.2 scripted BuyNo / short-equivalent enters L4 or explicit L4.E | $SG_STATUS | \`cargo_test.stdout\` + \`aggregate_verdict.json\` |
+| SG-11.2.3 insufficient balance routes L4.E / pre-submit classification | $SG_STATUS | \`cargo_test.stdout\` / \`cargo_test.stderr\` |
+| SG-11.2.4 missing pool routes NoPool / L4.E | $SG_STATUS | \`cargo_test.stdout\` / \`cargo_test.stderr\` |
+| SG-11.2.5 CTF conserved | $SG_STATUS | \`cargo_test.stdout\` / \`cargo_test.stderr\` |
+| SG-11.2.6 no ghost liquidity | $SG_STATUS | \`cargo_test.stdout\` / \`cargo_test.stderr\` |
+| SG-11.2.7 no f64 money path | $SG_STATUS | \`cargo_test.stdout\` / \`cargo_test.stderr\` |
+
+## Audit Readiness
+
+positive_control_verdict: \`$([[ "$TEST_STATUS" == "PASS" ]] && echo PROCEED || echo VETO)\`
+
+The manifest records aggregate verdict now and keeps a separate slot for later
+clean-context audit:
+\`audit_ready.clean_context_audit_verdict\`.
+

@@ -1,0 +1,22 @@
+
+running 1 test
+test real11_launch_and_beta_forbidden_claims_are_absent_or_explicitly_forbidden ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 3 tests
+test real10_ratification_marks_clean_evidence_as_only_conclusion_bearing ... ok
+test stale_parent_behavioral_gate_is_present ... ok
+test contaminated_evidence_appears_only_in_invalid_or_remediation_context ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+
+running 3 tests
+test market_tx_classifier_separates_structural_resolution_scripted_and_live_agent_action ... ok
+test real10_rerender_keeps_agent_economic_action_zero_and_excludes_scripted_from_e2 ... ok
+test real11_market_tx_category_report_contains_split_columns_and_no_e2_overclaim ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

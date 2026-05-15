@@ -1,0 +1,15 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778862812524_2189669",
+  "fc_nodes": [
+    "FC1 market action evidence; FC2 pinned evidence hygiene; FC3 materialized-view claim boundary; Art.I quantization"
+  ],
+  "expected_witness": "Diff, command evidence, and audit verdict must cite these FC nodes.",
+  "evidence_artifacts": [
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "f00c9767ccd5cb83cc5df9d28ba0aa04b5aa9e09f7fef897ed15caeb5a519fcc",
+      "size_bytes": 21867
+    }
+  ]
+}

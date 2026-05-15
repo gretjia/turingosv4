@@ -1,0 +1,26 @@
+
+running 2 tests
+test real11_e2_micro_probe_report_uses_allowed_e2_verdict_rule ... FAILED
+test real11_e2_micro_probe_runner_has_required_constraints_and_outputs ... ok
+
+failures:
+
+---- real11_e2_micro_probe_report_uses_allowed_e2_verdict_rule stdout ----
+
+thread 'real11_e2_micro_probe_report_uses_allowed_e2_verdict_rule' (2212677) panicked at tests/constitution_real11_e2_micro_probe.rs:43:5:
+assertion failed: report.contains("MarketOpportunityTrace summary")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    real11_e2_micro_probe_report_uses_allowed_e2_verdict_rule
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 2 tests
+test real11_micro_probe_report_forbids_live_real6b_approval ... ok
+test real11_micro_probe_runner_rejects_live_real6b_and_scripted_attempt_prediction ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

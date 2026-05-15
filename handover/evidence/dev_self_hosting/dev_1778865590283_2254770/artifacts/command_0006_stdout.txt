@@ -1,0 +1,54 @@
+════════════════════════════════════════════════════════════════════════
+TB-G G1.2 chain-continuous batch (Option B+ canonical)
+════════════════════════════════════════════════════════════════════════
+RUN_TAG          = real11_e2_micro_probe_20260515T172604Z_r2
+RUN_DIR          = /home/zephryj/projects/turingosv4/handover/evidence/real11_e2_micro_probe_20260515T172604Z_r2
+PROBLEM_SET      = mini  (3 tasks)
+ACTIVE_MODEL     = deepseek-chat
+G_PHASE_N_AGENTS = 5
+G_PHASE_CONDITION= n5
+AGENT_MODELS     = <empty>
+PHASE_D_HETERO_OK= 0
+MODEL_FAMILIES   = observed=1 required=0
+REAL5_ROLES      = Solver,Trader,Verifier,Challenger,Observer
+REAL5_ROLE_VIEWS = 1
+LLM_PROXY_URL    = http://localhost:8080
+MINIF2F_DIR      = /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4
+PER_PROB_TIMEOUT = 300s
+
+[build] cargo build --release -p minif2f_v4 --bin evaluator --bin batch_evaluator -p turingosv4 --bin audit_tape --bin tb_g_persistence_report
+    |
+    = note: `WorkTxAttempt` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: `turingosv4` (lib) generated 25 warnings (run `cargo fix --lib -p turingosv4` to apply 19 suggestions)
+    Finished `release` profile [optimized] target(s) in 0.22s
+
+[batch_evaluator] launching 3-task batch (real11_e2_micro_probe_20260515T172604Z_r2_d2bfee5)
+[batch_evaluator] runtime_repo=/home/zephryj/projects/turingosv4/handover/evidence/real11_e2_micro_probe_20260515T172604Z_r2/runtime_repo cas=/home/zephryj/projects/turingosv4/handover/evidence/real11_e2_micro_probe_20260515T172604Z_r2/cas
+batch_orchestrator: task_index=0 BoundaryPrep::FreshGenesis (no preflight, no lease — task_0 owns genesis)
+batch_orchestrator: task_index=1 ChainTapeLease ACQUIRED (holder_pid=2262756, batch_id=real11_e2_micro_probe_20260515T172604Z_r2_d2bfee5, start_head=15ae0ca9649da40a00e6c1c8bb0d6011bfb80bae)
+batch_orchestrator: task_index=1 ResumePreflight::Ok (head=15ae0ca9649da40a00e6c1c8bb0d6011bfb80bae state_root=632ce53b77fe4acef01cc418ed4aeb0a9296ccd7fd3ee33a473aa8862631b02c chain_length=11) → BoundaryPrep::Resume
+batch_orchestrator: task_index=2 ChainTapeLease ACQUIRED (holder_pid=2262756, batch_id=real11_e2_micro_probe_20260515T172604Z_r2_d2bfee5, start_head=754f06509e94ec4551013e41705c1c13da9f5d9f)
+batch_orchestrator: task_index=2 ResumePreflight::Ok (head=754f06509e94ec4551013e41705c1c13da9f5d9f state_root=382b4404080481948069160aa9e3f62c18b5ff97b06163d141bacdc7f4aa5664 chain_length=20) → BoundaryPrep::Resume
+batch_evaluator: chain continuity OK across 3 tasks
+[batch_evaluator] exit_code=0 elapsed=30s
+
+[audit_tape] running over shared runtime_repo + cas
+audit_tape: verdict=PROCEED passed=41 failed=0 halted=0 skipped=11 (out="/home/zephryj/projects/turingosv4/handover/evidence/real11_e2_micro_probe_20260515T172604Z_r2/aggregate_verdict.json")
+[audit_tape] exit=0 verdict=PROCEED
+
+[persistence_report] running tb_g_persistence_report
+[persistence_report] exit=0 is_passing=true n_witnessed=5
+
+════════════════════════════════════════════════════════════════════════
+Done. Evidence dir: /home/zephryj/projects/turingosv4/handover/evidence/real11_e2_micro_probe_20260515T172604Z_r2
+  - BatchContinuationManifest.json   (G1.2-4 fact-identity)
+  - aggregate_verdict.json verdict=PROCEED
+  - PERSISTENCE_BINDING_REPORT.json  is_passing=true (n_witnessed=5)
+  - run_log.txt
+════════════════════════════════════════════════════════════════════════
+REAL-11 E2 micro-probe evidence: /home/zephryj/projects/turingosv4/handover/evidence/real11_e2_micro_probe_20260515T172604Z_r2
+audit_verdict=PROCEED
+buy_with_coin_router=0
+live_non_scripted_router_tx_count=0
+e2_verdict=NOT ACHIEVED

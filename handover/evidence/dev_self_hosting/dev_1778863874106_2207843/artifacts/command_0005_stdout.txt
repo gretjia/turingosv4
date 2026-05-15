@@ -1,0 +1,20 @@
+
+running 6 tests
+test prompt_budget_elision_is_specific_prompt_budget_reason ... ok
+test every_trader_turn_has_exactly_one_market_opportunity_trace ... ok
+test trace_serialization_contains_no_raw_prompt_completion_cot_or_logs ... ok
+test trader_turn_with_active_pool_and_balance_has_actionable_market ... ok
+test trader_turn_with_no_pool_is_specific_no_pool_not_unknown ... ok
+test trader_turn_with_pool_but_zero_balance_is_specific_balance_reason ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 4 tests
+test low_balance_trader_is_blocked_from_high_risk_market_action_but_can_read ... ok
+test trader_view_does_not_include_raw_cot_logs_or_lean_stderr ... ok
+test pnl_summary_matches_compute_agent_pnl_and_uses_no_sidecar_source_of_truth ... ok
+test trader_position_prompt_contains_balance_pnl_risk_and_autopsy_summary ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

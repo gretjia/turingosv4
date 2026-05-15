@@ -1,0 +1,57 @@
+{
+  "atom": "REAL-11 Atom 2 router positive-control",
+  "audit_dashboard_report": "/home/zephryj/projects/turingosv4/handover/evidence/real11_router_positive_control_20260515T172012Z_r2/audit_dashboard_run_report.txt",
+  "audit_ready": {
+    "aggregate_verdict": "PROCEED",
+    "audit_record_slot": "clean_context_audit_verdict",
+    "clean_context_audit_verdict": null,
+    "designed_for_later_audit_PROCEED_record": true
+  },
+  "audit_tape_verdict": "PROCEED",
+  "cas": "/home/zephryj/projects/turingosv4/handover/evidence/real11_router_positive_control_20260515T172012Z_r2/cas",
+  "dashboard_exit_code": 0,
+  "e2_claim": false,
+  "fc_nodes": [
+    "FC1 router action to L4/L4E",
+    "FC2 mandatory evidence directory",
+    "FC3 scripted-not-E2 claim boundary",
+    "economy gates"
+  ],
+  "finished_at_utc": "2026-05-15T17:23:40Z",
+  "live_non_scripted_agent_router_tx_observed": false,
+  "mandatory_artifacts": [
+    "manifest.json",
+    "REAL11_ROUTER_POSITIVE_CONTROL_VERDICT.json",
+    "REAL11_ROUTER_POSITIVE_CONTROL_REPORT.md",
+    "cargo_test.stdout",
+    "cargo_test.stderr",
+    "runtime_repo/",
+    "cas/",
+    "aggregate_verdict.json",
+    "audit_dashboard_run_report.txt",
+    "runtime_batch.stdout",
+    "runtime_batch.stderr"
+  ],
+  "risk_class": 3,
+  "runtime_buy_with_coin_router": 6,
+  "runtime_command": "TURINGOS_REAL7_SCRIPTED_TASK_OUTCOME_BUYS=Agent_1:Agent_2:1000 bash scripts/run_g_phase_batch.sh <run_tag> mini",
+  "runtime_cpmm_pool": 6,
+  "runtime_exit_code": 0,
+  "runtime_market_seed": 6,
+  "runtime_repo": "/home/zephryj/projects/turingosv4/handover/evidence/real11_router_positive_control_20260515T172012Z_r2/runtime_repo",
+  "schema_version": "real11.router_positive_control.manifest.v1",
+  "scripted_positive_control_is_not_e2": true,
+  "sg_coverage": {
+    "SG-11.2.1_scripted_buy_yes_l4": "covered_by_test",
+    "SG-11.2.2_buy_no_short_equivalent_l4_or_l4e": "covered_by_test",
+    "SG-11.2.3_insufficient_balance_l4e": "covered_by_test",
+    "SG-11.2.4_missing_pool_l4e": "covered_by_test",
+    "SG-11.2.5_ctf_conserved": "covered_by_test",
+    "SG-11.2.6_no_ghost_liquidity": "covered_by_test",
+    "SG-11.2.7_no_f64_money_path": "covered_by_test"
+  },
+  "source_evidence_path": "/home/zephryj/projects/turingosv4/handover/evidence/real11_router_positive_control_20260515T172012Z_r2",
+  "started_at_utc": "2026-05-15T17:20:12Z",
+  "test_exit_code": 0,
+  "unit_command": "cargo test --test constitution_real11_router_positive_control -- --test-threads=1"
+}

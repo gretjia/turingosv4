@@ -1,0 +1,616 @@
+diff --git a/src/runtime/mod.rs b/src/runtime/mod.rs
+index 9895c5bd..f01a7ef6 100644
+--- a/src/runtime/mod.rs
++++ b/src/runtime/mod.rs
+@@ -216,6 +216,13 @@ pub mod agent_role_classifier;
+ /// evaluator and §K clean-negative renderer.
+ pub mod g7_structural_smoke;
+ 
++/// TRACE_MATRIX FC1/FC3 (REAL-11 Atom 1 2026-05-15): report-side market
++/// transaction categorization. Splits legacy market_tx_count into structural
++/// market activity, live agent economic action, scripted fixture activity, and
++/// resolution tx. Pure view helper only; no sequencer admission or tx schema
++/// authority.
++pub mod market_tx_category;
++
+ /// TRACE_MATRIX FC1/FC2/FC3 (REAL-5 2026-05-14): role-based generative
+ /// scaffolding — role assignment, role-scoped views, typed generation gateway,
+ /// tick budget, and tape-visible role decision traces.
+
+diff --git a/dev/null b/handover/directives/2026-05-15_REAL10_NARROW_RATIFICATION_REAL11.md
+--- /dev/null
++++ b/handover/directives/2026-05-15_REAL10_NARROW_RATIFICATION_REAL11.md
++# REAL-10 Narrow Ratification For REAL-11
++
++Date: 2026-05-15
++
++This ratifies REAL-10 only as clean, pinned, audited controlled market
++evidence. Forbidden / not ratified claims include spontaneous market emergence,
++causal performance gain, live REAL-6B, model ranking, price-as-truth, and
++real-world readiness.
++
++## Evidence Hygiene
++
++Canonical conclusion-bearing evidence:
++
++```text
++handover/evidence/real8x_market_ab_clean_20260515T141331Z
++```
++
++This clean directory is the only conclusion-bearing REAL-10 evidence for
++REAL-11 planning and reports.
++
++Contaminated/remediation-only evidence:
++`handover/evidence/real8x_market_ab_20260515T134453Z` is invalid for
++conclusions and may be cited only as contamination/remediation context.
++
++## Ratified Claim
++
++REAL-10 is ratified as:
++
++```text
++clean controlled market evidence;
++E1 market visibility for B/C/D;
++market structure active on ChainTape/CAS;
++claim-boundary discipline preserved.
++```
++
++Conclusion-bearing clean data:
++
++```text
++A: market disabled                         market_tx=0   solve=5/15
++B: market visible, no TaskOutcomeMarket    market_tx=10  solve=5/15
++C: TaskOutcomeMarket enabled               market_tx=42  solve=6/15
++D: TaskOutcomeMarket + scripted fixture    market_tx=38  solve=4/15
++buy_with_coin_router=0 in all arms
++```
++
++## Not Ratified
++
++E2 not achieved: no live non-scripted agent-generated router or short-equivalent
++action appears in the clean evidence.
++
++E3 not achieved: role labels and role diversity counters do not prove persistent
++behavioral role differentiation.
++
++E4 not achieved: small-n descriptive evidence does not establish causal
++performance improvement.
++
++Forbidden launch/beta claims unless future evidence satisfies the stated
++threshold:
++
++```text
++forbidden: autonomous prediction market
++forbidden: emergent agent economy
++forbidden: market-proven performance improvement
++forbidden: real-world readiness
++forbidden: agent economy beta without E2 at least once under live non-scripted condition
++forbidden: emergent market beta without E3 persistent role differentiation
++forbidden: launch-ready public launch
++```
++
++## REAL-11 Consequence
++
++REAL-11 must split structural market tx from agent economic action tx. Activity
++alone is not emergence; scripted actions do not satisfy E2.
+
+diff --git a/dev/null b/handover/alignment/DECISION_REAL11_MARKET_TX_CATEGORY.md
+--- /dev/null
++++ b/handover/alignment/DECISION_REAL11_MARKET_TX_CATEGORY.md
++# DECISION: REAL-11 Market Tx Category Split
++
++Date: 2026-05-15
++
++## Decision
++
++REAL-11 separates market activity into four categories:
++
++```text
++StructuralMarketTx
++AgentEconomicActionTx
++ScriptedFixtureTx
++ResolutionTx
++```
++
++This prevents `market_tx_count` from being misread as live agent economic
++action.
++
++## Category Rules
++
++`StructuralMarketTx` includes system-created market infrastructure such as
++`MarketSeedTx` and `CpmmPoolTx`.
++
++`AgentEconomicActionTx` requires all of:
++
++```text
++live agent-generated action
++non-scripted
++not forced
++router or short-equivalent tx
++PromptCapsule or MarketDecisionTrace provenance
++ChainTape/CAS anchor
++audit PROCEED
++```
++
++`ScriptedFixtureTx` includes scripted fixtures and missing-provenance router
++actions. Scripted actions do not satisfy E2.
++
++`ResolutionTx` includes settlement or oracle-resolution activity such as
++`EventResolveTx`, `MarketCloseTx`, and `OracleResolveTx`.
++
++## Claim Boundary
++
++REAL-10 proves structural market activity, not spontaneous market emergence.
++The clean REAL-10 evidence has `buy_with_coin_router=0 in all arms`, so
++`AgentEconomicActionTx` is zero for REAL-10.
++
++Forbidden overclaims:
++
++```text
++forbidden: autonomous prediction market
++forbidden: emergent agent economy
++forbidden: market-proven performance improvement
++forbidden: real-world readiness
++forbidden: model ranking
++forbidden: live REAL-6B approval
++forbidden: price-as-truth
++```
+
+diff --git a/dev/null b/handover/reports/REAL11_MARKET_TX_CATEGORY_REPORT.md
+--- /dev/null
++++ b/handover/reports/REAL11_MARKET_TX_CATEGORY_REPORT.md
++# REAL-11 Market Tx Category Report
++
++Date: 2026-05-15
++
++Source evidence:
++
++```text
++handover/evidence/real8x_market_ab_clean_20260515T141331Z
++```
++
++The contaminated REAL-10 directory
++`handover/evidence/real8x_market_ab_20260515T134453Z` is invalid for
++conclusions and is excluded here.
++
++## Re-rendered Split
++
++| Arm | Condition | structural_market_tx_count | agent_economic_action_tx_count | scripted_fixture_tx_count | resolution_tx_count | buy_with_coin_router |
++| --- | --- | ---: | ---: | ---: | ---: | ---: |
++| A | market disabled | 0 | 0 | 0 | 3 | 0 |
++| B | market visible, no TaskOutcomeMarket | 10 | 0 | 0 | 3 | 0 |
++| C | TaskOutcomeMarket enabled | 42 | 0 | 0 | 12 | 0 |
++| D | TaskOutcomeMarket + scripted AttemptPrediction fixture | 38 | 0 | 15 | 13 | 0 |
++
++The clean evidence still has `buy_with_coin_router=0 in all arms`.
++
++`scripted AttemptPrediction fixture does not count as E2`.
++
++## Interpretation
++
++REAL-10 shows structural market activity increases across market-visible arms,
++but agent_economic_action_tx_count remains zero. Activity alone is not
++emergence.
++
++E2 not achieved. E3 not achieved. E4 not achieved.
++
++Forbidden claim boundary:
++
++```text
++forbidden: autonomous prediction market
++forbidden: emergent agent economy
++forbidden: market-proven performance improvement
++forbidden: real-world readiness
++forbidden: agent economy beta without E2
++forbidden: emergent market beta without E3
++```
+
+diff --git a/dev/null b/tests/constitution_real11_evidence_hygiene.rs
+--- /dev/null
++++ b/tests/constitution_real11_evidence_hygiene.rs
++use std::fs;
++use std::path::Path;
++
++const CLEAN_EVIDENCE: &str = "handover/evidence/real8x_market_ab_clean_20260515T141331Z";
++const CONTAMINATED_EVIDENCE: &str = "handover/evidence/real8x_market_ab_20260515T134453Z";
++const RATIFICATION: &str = "handover/directives/2026-05-15_REAL10_NARROW_RATIFICATION_REAL11.md";
++
++fn read(path: &str) -> String {
++    fs::read_to_string(path).unwrap_or_else(|err| panic!("failed to read {path}: {err}"))
++}
++
++#[test]
++fn real10_ratification_marks_clean_evidence_as_only_conclusion_bearing() {
++    let text = read(RATIFICATION);
++
++    assert!(
++        text.contains(CLEAN_EVIDENCE),
++        "SG-11.0.3: ratification must name the clean canonical evidence directory"
++    );
++    assert!(
++        text.contains("only") && text.contains("conclusion-bearing"),
++        "SG-11.0.3: ratification must say the clean evidence is the only conclusion-bearing evidence"
++    );
++    assert!(
++        text.contains(CONTAMINATED_EVIDENCE),
++        "SG-11.0.2: ratification must name the contaminated evidence directory"
++    );
++    assert!(
++        text.contains("invalid for conclusions") || text.contains("remediation-only"),
++        "SG-11.0.2: contaminated evidence must be invalid/remediation-only"
++    );
++    assert!(
++        text.contains("buy_with_coin_router=0 in all arms"),
++        "ratification must preserve the REAL-10 buy_with_coin_router=0 boundary"
++    );
++    assert!(
++        text.contains("E2") && text.contains("not achieved"),
++        "ratification must preserve the E2 non-claim"
++    );
++}
++
++#[test]
++fn contaminated_evidence_appears_only_in_invalid_or_remediation_context() {
++    let scan_scope = [
++        RATIFICATION,
++        "handover/reports/REAL10_DECISION_GATE_REPORT.md",
++        "handover/reports/REAL10_VERIFICATION_SUMMARY.md",
++        "handover/evidence/real8x_market_ab_clean_20260515T141331Z/REAL10_DECISION_GATE_REPORT.md",
++        "handover/reports/REAL11_MARKET_TX_CATEGORY_REPORT.md",
++        "handover/ai-direct/LATEST.md",
++        "handover/tracer_bullets/TB_LOG.tsv",
++    ];
++    let allowed_markers = [
++        "invalid",
++        "contamination",
++        "contaminated",
++        "remediation-only",
++        "excluded",
++        "not conclusion-bearing",
++        "cannot",
++    ];
++
++    for path in scan_scope {
++        if !Path::new(path).exists() {
++            continue;
++        }
++        let text = read(path);
++        let lines: Vec<&str> = text.lines().collect();
++        for (idx, line) in lines.iter().enumerate() {
++            if !line.contains(CONTAMINATED_EVIDENCE) {
++                continue;
++            }
++            let start = idx.saturating_sub(2);
++            let end = usize::min(idx + 3, lines.len());
++            let context = lines[start..end].join("\n").to_lowercase();
++            assert!(
++                allowed_markers.iter().any(|marker| context.contains(marker)),
++                "contaminated evidence path in {path}:{} lacks invalid/remediation/excluded context:\n{context}",
++                idx + 1
++            );
++        }
++    }
++}
++
++#[test]
++fn stale_parent_behavioral_gate_is_present() {
++    let test_text = read("tests/constitution_real8_market_ab_benchmark.rs");
++    assert!(
++        test_text.contains("real8_task_outcome_arm_refreshes_verify_parent_behaviorally"),
++        "SG-11.0.4: stale-parent behavioral test must exist or a forward OBS must be created"
++    );
++}
+
+diff --git a/dev/null b/tests/constitution_real11_market_tx_category.rs
+--- /dev/null
++++ b/tests/constitution_real11_market_tx_category.rs
++use turingosv4::runtime::market_tx_category::{
++    classify_market_tx, real10_category_counts, MarketTxCategory, MarketTxProvenance,
++};
++
++#[test]
++fn market_tx_classifier_separates_structural_resolution_scripted_and_live_agent_action() {
++    assert_eq!(
++        classify_market_tx("MarketSeedTx", MarketTxProvenance::System),
++        MarketTxCategory::StructuralMarketTx
++    );
++    assert_eq!(
++        classify_market_tx("CpmmPoolTx", MarketTxProvenance::System),
++        MarketTxCategory::StructuralMarketTx
++    );
++    assert_eq!(
++        classify_market_tx("EventResolveTx", MarketTxProvenance::System),
++        MarketTxCategory::ResolutionTx
++    );
++    assert_eq!(
++        classify_market_tx("BuyWithCoinRouterTx", MarketTxProvenance::ScriptedFixture),
++        MarketTxCategory::ScriptedFixtureTx,
++        "scripted router fixtures must not count as E2"
++    );
++    assert_eq!(
++        classify_market_tx("BuyWithCoinRouterTx", MarketTxProvenance::Missing),
++        MarketTxCategory::ScriptedFixtureTx,
++        "missing provenance must conservatively remain non-E2"
++    );
++    assert_eq!(
++        classify_market_tx(
++            "BuyWithCoinRouterTx",
++            MarketTxProvenance::LiveAgentNonScripted {
++                forced: false,
++                prompt_or_trace_linked: true,
++                chaintape_anchor: true,
++                audit_proceed: true,
++            },
++        ),
++        MarketTxCategory::AgentEconomicActionTx
++    );
++    assert_eq!(
++        classify_market_tx(
++            "BuyWithCoinRouterTx",
++            MarketTxProvenance::LiveAgentNonScripted {
++                forced: true,
++                prompt_or_trace_linked: true,
++                chaintape_anchor: true,
++                audit_proceed: true,
++            },
++        ),
++        MarketTxCategory::ScriptedFixtureTx,
++        "forced live actions are non-E2"
++    );
++}
++
++#[test]
++fn real10_rerender_keeps_agent_economic_action_zero_and_excludes_scripted_from_e2() {
++    let counts = real10_category_counts();
++
++    assert_eq!(counts.arm("A").unwrap().agent_economic_action_tx_count, 0);
++    assert_eq!(counts.arm("B").unwrap().agent_economic_action_tx_count, 0);
++    assert_eq!(counts.arm("C").unwrap().agent_economic_action_tx_count, 0);
++    assert_eq!(counts.arm("D").unwrap().agent_economic_action_tx_count, 0);
++
++    assert_eq!(counts.arm("A").unwrap().market_tx_total(), 0);
++    assert_eq!(counts.arm("B").unwrap().market_tx_total(), 10);
++    assert_eq!(counts.arm("C").unwrap().market_tx_total(), 42);
++    assert_eq!(counts.arm("D").unwrap().market_tx_total(), 38);
++    assert!(
++        counts.arm("D").unwrap().scripted_fixture_tx_count > 0,
++        "Arm D scripted AttemptPrediction fixture must be split away from E2"
++    );
++}
++
++#[test]
++fn real11_market_tx_category_report_contains_split_columns_and_no_e2_overclaim() {
++    let report = std::fs::read_to_string("handover/reports/REAL11_MARKET_TX_CATEGORY_REPORT.md")
++        .expect("REAL-11 market tx category report must exist");
++
++    for required in [
++        "structural_market_tx_count",
++        "agent_economic_action_tx_count",
++        "scripted_fixture_tx_count",
++        "resolution_tx_count",
++        "buy_with_coin_router=0",
++        "scripted AttemptPrediction fixture does not count as E2",
++    ] {
++        assert!(
++            report.contains(required),
++            "report missing required split/claim-boundary text: {required}"
++        );
++    }
++}
+
+diff --git a/dev/null b/tests/constitution_real11_claim_boundary.rs
+--- /dev/null
++++ b/tests/constitution_real11_claim_boundary.rs
++use std::fs;
++use std::path::Path;
++
++#[test]
++fn real11_launch_and_beta_forbidden_claims_are_absent_or_explicitly_forbidden() {
++    let scan_scope = [
++        "handover/directives/2026-05-15_REAL10_NARROW_RATIFICATION_REAL11.md",
++        "handover/alignment/DECISION_REAL11_MARKET_TX_CATEGORY.md",
++        "handover/reports/REAL11_MARKET_TX_CATEGORY_REPORT.md",
++    ];
++    let forbidden_claims = [
++        "autonomous prediction market",
++        "emergent agent economy",
++        "market-proven performance improvement",
++        "real-world readiness",
++        "agent economy beta",
++        "emergent market beta",
++        "launch-ready",
++        "public launch",
++    ];
++    let allowed_context = [
++        "forbidden",
++        "not allowed",
++        "not achieved",
++        "does not ratify",
++        "requires e2",
++        "requires e3",
++        "without e2",
++        "without e3",
++        "no ",
++    ];
++
++    for path in scan_scope {
++        if !Path::new(path).exists() {
++            continue;
++        }
++        let text = fs::read_to_string(path).expect("scan target readable");
++        let lower_lines: Vec<String> = text.lines().map(|line| line.to_lowercase()).collect();
++        for (idx, line) in lower_lines.iter().enumerate() {
++            for claim in forbidden_claims {
++                if !line.contains(claim) {
++                    continue;
++                }
++                let start = idx.saturating_sub(2);
++                let end = usize::min(idx + 3, lower_lines.len());
++                let context = lower_lines[start..end].join("\n");
++                assert!(
++                    allowed_context.iter().any(|marker| context.contains(marker)),
++                    "{path}:{} uses forbidden launch/beta claim `{claim}` outside explicit forbidden/threshold context:\n{context}",
++                    idx + 1
++                );
++            }
++        }
++    }
++}
+
+diff --git a/dev/null b/src/runtime/market_tx_category.rs
+--- /dev/null
++++ b/src/runtime/market_tx_category.rs
++//! REAL-11 market transaction category helpers.
++//!
++//! These helpers keep REAL-10/REAL-11 reports from collapsing structural
++//! market activity into live agent economic action. They are report-side
++//! classifiers only; ChainTape/CAS remains the source of truth.
++
++use serde::{Deserialize, Serialize};
++
++/// REAL-11 split for market-facing activity.
++#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
++pub enum MarketTxCategory {
++    /// System-created market infrastructure such as MarketSeed/CpmmPool.
++    StructuralMarketTx,
++    /// Live, non-scripted, non-forced agent action with trace/audit provenance.
++    AgentEconomicActionTx,
++    /// Scripted fixture or missing-provenance action. This can test wiring but
++    /// cannot satisfy E2 spontaneous market action.
++    ScriptedFixtureTx,
++    /// Resolution/settlement activity, such as EventResolve.
++    ResolutionTx,
++}
++
++/// Provenance needed before a router tx may count as live agent action.
++#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
++pub enum MarketTxProvenance {
++    System,
++    ScriptedFixture,
++    Missing,
++    LiveAgentNonScripted {
++        forced: bool,
++        prompt_or_trace_linked: bool,
++        chaintape_anchor: bool,
++        audit_proceed: bool,
++    },
++}
++
++/// Classify a market-facing tx kind under REAL-11 claim-boundary rules.
++pub fn classify_market_tx(kind: &str, provenance: MarketTxProvenance) -> MarketTxCategory {
++    let normalized = kind.to_ascii_lowercase();
++    if normalized.contains("eventresolve")
++        || normalized.contains("event_resolve")
++        || normalized.contains("marketclose")
++        || normalized.contains("market_close")
++        || normalized.contains("oracleresolve")
++        || normalized.contains("oracle_resolve")
++    {
++        return MarketTxCategory::ResolutionTx;
++    }
++
++    if normalized.contains("buywithcoinrouter")
++        || normalized.contains("buy_with_coin_router")
++        || normalized.contains("short")
++        || normalized.contains("sell")
++    {
++        return match provenance {
++            MarketTxProvenance::LiveAgentNonScripted {
++                forced: false,
++                prompt_or_trace_linked: true,
++                chaintape_anchor: true,
++                audit_proceed: true,
++            } => MarketTxCategory::AgentEconomicActionTx,
++            _ => MarketTxCategory::ScriptedFixtureTx,
++        };
++    }
++
++    if matches!(provenance, MarketTxProvenance::ScriptedFixture) {
++        return MarketTxCategory::ScriptedFixtureTx;
++    }
++
++    MarketTxCategory::StructuralMarketTx
++}
++
++#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
++pub struct ArmMarketTxCategoryCounts {
++    pub arm: &'static str,
++    pub condition: &'static str,
++    pub structural_market_tx_count: u64,
++    pub agent_economic_action_tx_count: u64,
++    pub scripted_fixture_tx_count: u64,
++    pub resolution_tx_count: u64,
++    pub buy_with_coin_router_count: u64,
++}
++
++impl ArmMarketTxCategoryCounts {
++    /// REAL-10's reported `market_tx_count` tracked market-structure txs plus
++    /// live agent economic action. It intentionally excludes fixture sidecars
++    /// and resolution txs so comparisons to the clean REAL-10 table stay stable.
++    pub fn market_tx_total(&self) -> u64 {
++        self.structural_market_tx_count + self.agent_economic_action_tx_count
++    }
++}
++
++#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
++pub struct Real10MarketTxCategoryCounts {
++    pub evidence_dir: &'static str,
++    pub arms: Vec<ArmMarketTxCategoryCounts>,
++}
++
++impl Real10MarketTxCategoryCounts {
++    pub fn arm(&self, arm: &str) -> Option<&ArmMarketTxCategoryCounts> {
++        self.arms.iter().find(|row| row.arm == arm)
++    }
++}
++
++/// Re-render of the clean REAL-10 evidence at
++/// `handover/evidence/real8x_market_ab_clean_20260515T141331Z`.
++///
++/// Source facts:
++/// - `real8_arm_summary.tsv`: market_tx_count A/B/C/D = 0/10/42/38.
++/// - `aggregate_verdict.json`: buy_with_coin_router = 0 in all arms.
++/// - `audit_dashboard_run_report.txt`: D scripted_attempt_prediction_market_count = 15.
++pub fn real10_category_counts() -> Real10MarketTxCategoryCounts {
++    Real10MarketTxCategoryCounts {
++        evidence_dir: "handover/evidence/real8x_market_ab_clean_20260515T141331Z",
++        arms: vec![
++            ArmMarketTxCategoryCounts {
++                arm: "A",
++                condition: "market disabled",
++                structural_market_tx_count: 0,
++                agent_economic_action_tx_count: 0,
++                scripted_fixture_tx_count: 0,
++                resolution_tx_count: 3,
++                buy_with_coin_router_count: 0,
++            },
++            ArmMarketTxCategoryCounts {
++                arm: "B",
++                condition: "market visible, no TaskOutcomeMarket",
++                structural_market_tx_count: 10,
++                agent_economic_action_tx_count: 0,
++                scripted_fixture_tx_count: 0,
++                resolution_tx_count: 3,
++                buy_with_coin_router_count: 0,
++            },
++            ArmMarketTxCategoryCounts {
++                arm: "C",
++                condition: "TaskOutcomeMarket enabled",
++                structural_market_tx_count: 42,
++                agent_economic_action_tx_count: 0,
++                scripted_fixture_tx_count: 0,
++                resolution_tx_count: 12,
++                buy_with_coin_router_count: 0,
++            },
++            ArmMarketTxCategoryCounts {
++                arm: "D",
++                condition: "TaskOutcomeMarket + scripted AttemptPrediction fixture",
++                structural_market_tx_count: 38,
++                agent_economic_action_tx_count: 0,
++                scripted_fixture_tx_count: 15,
++                resolution_tx_count: 13,
++                buy_with_coin_router_count: 0,
++            },
++        ],
++    }
++}

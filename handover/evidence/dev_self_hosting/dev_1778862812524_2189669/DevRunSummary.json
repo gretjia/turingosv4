@@ -1,0 +1,64 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778862812524_2189669",
+  "close_status": "closed",
+  "manifest_sha256": "56a0f6b7025d8e8f619bdf604b7c51b134b35ff54863f98ba3d0567386fafb9b",
+  "event_chain_head_hash": "55f039d0e25180b896c895d77fbf3ea0376de5c5c9c11f03b770b16794796610",
+  "diff_sha256": "f00c9767ccd5cb83cc5df9d28ba0aa04b5aa9e09f7fef897ed15caeb5a519fcc",
+  "command_results": [
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--test",
+        "constitution_real11_evidence_hygiene",
+        "--test",
+        "constitution_real11_market_tx_category",
+        "--test",
+        "constitution_real11_claim_boundary",
+        "--no-fail-fast"
+      ],
+      "cwd": "/home/zephryj/projects/turingosv4",
+      "exit_code": 0,
+      "started_at_unix_ms": 1778863167242,
+      "ended_at_unix_ms": 1778863167718,
+      "stdout": {
+        "path": "artifacts/command_0002_stdout.txt",
+        "sha256": "eef7680a5e6d33b0da4d1527962719a67d7bb29c4915117ebdf447cc83f93d26",
+        "size_bytes": 913
+      },
+      "stderr": {
+        "path": "artifacts/command_0002_stderr.txt",
+        "sha256": "a4cdf9b96d668e3ff55360dd72717a1f5219c19ddfc738f4e2e23bb052969ce4",
+        "size_bytes": 5957
+      }
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "cwd": "/home/zephryj/projects/turingosv4",
+      "exit_code": 0,
+      "started_at_unix_ms": 1778863170984,
+      "ended_at_unix_ms": 1778863171039,
+      "stdout": {
+        "path": "artifacts/command_0003_stdout.txt",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size_bytes": 0
+      },
+      "stderr": {
+        "path": "artifacts/command_0003_stderr.txt",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size_bytes": 0
+      }
+    }
+  ],
+  "acceptance_passed": true,
+  "audit_required": false,
+  "audit_verdict": null,
+  "effective_risk_class": 2,
+  "restricted_surface_hits": [],
+  "closed_at_unix_ms": 1778863177244
+}

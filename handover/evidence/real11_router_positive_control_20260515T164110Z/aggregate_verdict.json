@@ -1,0 +1,9 @@
+{
+  "command": "cargo test --test constitution_real11_router_positive_control -- --test-threads=1",
+  "live_non_scripted_agent_router_tx_observed": false,
+  "schema_version": "real11.router_positive_control.aggregate_verdict.v1",
+  "scripted_positive_control_is_not_e2": true,
+  "source_evidence_path": "/home/zephryj/projects/turingosv4/handover/evidence/real11_router_positive_control_20260515T164110Z",
+  "test_exit_code": 0,
+  "verdict": "PROCEED"
+}

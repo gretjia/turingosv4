@@ -216,6 +216,18 @@ pub mod agent_role_classifier;
 /// evaluator and §K clean-negative renderer.
 pub mod g7_structural_smoke;
 
+/// TRACE_MATRIX FC1/FC3 (REAL-11 Atom 1 2026-05-15): report-side market
+/// transaction categorization. Splits legacy market_tx_count into structural
+/// market activity, live agent economic action, scripted fixture activity, and
+/// resolution tx. Pure view helper only; no sequencer admission or tx schema
+/// authority.
+pub mod market_tx_category;
+
+/// TRACE_MATRIX FC1/FC3 (REAL-11 Atom 3 2026-05-15): pure derived trace for
+/// whether a Trader turn had an actionable market opportunity. No new CAS
+/// object type and no economic mutation.
+pub mod market_opportunity_trace;
+
 /// TRACE_MATRIX FC1/FC2/FC3 (REAL-5 2026-05-14): role-based generative
 /// scaffolding — role assignment, role-scoped views, typed generation gateway,
 /// tick budget, and tape-visible role decision traces.

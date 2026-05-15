@@ -1,0 +1,61 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778862694003_2187800",
+  "title": "REAL-11 Agent Economic Action Activation",
+  "module": "REAL-11 Agent Economic Action Activation",
+  "molecule_or_atom": "atom",
+  "requested_risk_class": 3,
+  "risk_class": 4,
+  "fc_nodes": [
+    "FC1 market action/no-trade loop; FC2 pinned evidence/replay; FC3 materialized reports; Art.I quantization; Art.II broadcast; Art.III shielding; economy gates"
+  ],
+  "allowed_paths": [
+    "handover/directives/2026-05-15_REAL11_AGENT_ECONOMIC_ACTION_ACTIVATION_ARCHITECT_ORIGINAL.md",
+    "handover/directives/2026-05-15_REAL11_AGENT_ECONOMIC_ACTION_ACTIVATION_EXECUTION_PLAN.md",
+    "handover/directives/2026-05-15_REAL10_NARROW_RATIFICATION_REAL11.md",
+    "handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md",
+    "handover/alignment/TRACE_FLOWCHART_MATRIX.md",
+    "handover/alignment/DECISION_REAL11_MARKET_TX_CATEGORY.md",
+    "handover/alignment/REAL11_TRACE_MATRIX_UPDATE.md",
+    "handover/alignment/OBS_REAL11_*.md",
+    "handover/audits/CODEX_REAL11_*.md",
+    "handover/reports/REAL11_*.md",
+    "src/runtime/market_tx_category.rs",
+    "src/runtime/market_opportunity_trace.rs",
+    "src/runtime/market_decision_trace_summary.rs",
+    "src/runtime/audit_assertions.rs",
+    "src/runtime/audit_views.rs",
+    "src/runtime/real5_roles.rs",
+    "src/runtime/agent_pnl.rs",
+    "src/runtime/prompt_capsule.rs",
+    "src/bin/audit_dashboard.rs",
+    "src/sdk/prompt.rs",
+    "experiments/minif2f_v4/src/bin/evaluator.rs",
+    "scripts/run_real11_router_positive_control.sh",
+    "scripts/run_real11_e2_micro_probe.sh",
+    "tests/constitution_real11_*.rs",
+    "handover/evidence/real11_*",
+    "handover/evidence/dev_self_hosting/*"
+  ],
+  "restricted_surface_hits": [
+    "handover/alignment/TRACE_FLOWCHART_MATRIX.md"
+  ],
+  "acceptance_commands": [
+    "cargo test --test constitution_real11_evidence_hygiene",
+    "cargo test --test constitution_real11_market_tx_category",
+    "cargo test --test constitution_real11_router_positive_control",
+    "cargo test --test constitution_real11_market_opportunity_trace",
+    "cargo test --test constitution_real11_trader_pnl_visibility",
+    "cargo test --test constitution_real11_e2_micro_probe",
+    "cargo test --test constitution_real11_claim_boundary",
+    "cargo test --test constitution_real11_no_live_real6b",
+    "cargo test --test constitution_real11_matrix_update",
+    "bash scripts/run_constitution_gates.sh",
+    "cargo test --workspace --no-fail-fast -- --test-threads=1"
+  ],
+  "audit_required": true,
+  "human_intent": "Move market activity analysis from structural market tx to agent economic action, without forced trade, price-as-truth, or live REAL-6B.",
+  "ratification": null,
+  "git_head": "d2bfee58618683e4035daab206e472f89c3ff7cd",
+  "created_at_unix_ms": 1778862694003
+}

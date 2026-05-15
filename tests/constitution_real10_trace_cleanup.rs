@@ -96,10 +96,9 @@ fn real10_r022_skipped_surfaces_have_trace_matrix_j_rows() {
 
 #[test]
 fn real10_trace_cleanup_report_records_one_time_exception_not_waiver() {
-    let report = fs::read_to_string(
-        "handover/alignment/TRACE_MATRIX_BACKLINK_CLEANUP_REAL5S_REAL9.md",
-    )
-    .expect("cleanup report");
+    let report =
+        fs::read_to_string("handover/alignment/TRACE_MATRIX_BACKLINK_CLEANUP_REAL5S_REAL9.md")
+            .expect("cleanup report");
     for expected in [
         "one-time bulk-ship exception closure, not policy relaxation",
         "R-022 not treated as waiver",
@@ -134,7 +133,10 @@ fn real10_trace_removals_are_closed_audit_trail_not_open_surfaces() {
         "trace_removal must not be represented as an open §J.2 public surface"
     );
     assert!(
-        !registered.contains(&("src/state/typed_tx.rs".to_string(), "trace_removal".to_string())),
+        !registered.contains(&(
+            "src/state/typed_tx.rs".to_string(),
+            "trace_removal".to_string()
+        )),
         "trace_removal must not be represented as an open §J.2 public surface"
     );
     for expected in [
