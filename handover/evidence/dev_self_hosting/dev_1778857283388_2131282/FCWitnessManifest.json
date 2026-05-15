@@ -1,0 +1,23 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778857283388_2131282",
+  "fc_nodes": [
+    "FC1 market/action evidence",
+    "FC2 pinned benchmark replay",
+    "FC3 claim-boundary reports",
+    "ArtIII shielding"
+  ],
+  "expected_witness": "Diff, command evidence, and audit verdict must cite these FC nodes.",
+  "evidence_artifacts": [
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "d25b703ab54fc3be2e63f994af833289c5077da785a1bd48624e22b1707ae0cc",
+      "size_bytes": 188690
+    },
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "d25b703ab54fc3be2e63f994af833289c5077da785a1bd48624e22b1707ae0cc",
+      "size_bytes": 188690
+    }
+  ]
+}

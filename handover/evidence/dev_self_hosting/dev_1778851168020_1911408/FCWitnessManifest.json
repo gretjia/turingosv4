@@ -1,0 +1,19 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778851168020_1911408",
+  "fc_nodes": [
+    "FC1 market/action evidence",
+    "FC2 replay/pinning",
+    "FC3 report/materialized views",
+    "Art.III shielding",
+    "market/economic gates"
+  ],
+  "expected_witness": "Diff, command evidence, and audit verdict must cite these FC nodes.",
+  "evidence_artifacts": [
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "f6ce4941d101387ee60b3b401eb74766d18ee84efcc33d778ee5b3aa54566b49",
+      "size_bytes": 147133
+    }
+  ]
+}

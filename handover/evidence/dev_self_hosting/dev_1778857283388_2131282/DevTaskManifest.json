@@ -1,0 +1,53 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778857283388_2131282",
+  "title": "REAL-10 final acceptance recovery",
+  "module": "REAL-10 Controlled Market Evidence Expansion",
+  "molecule_or_atom": "atom",
+  "requested_risk_class": 4,
+  "risk_class": 4,
+  "fc_nodes": [
+    "FC1 market/action evidence",
+    "FC2 pinned benchmark replay",
+    "FC3 claim-boundary reports",
+    "ArtIII shielding"
+  ],
+  "allowed_paths": [
+    "genesis_payload.toml",
+    "handover/alignment/TRACE_MATRIX_v3_2026-04-27.md",
+    "scripts/run_real8_market_ab_benchmark.sh",
+    "tests/constitution_real8_market_ab_benchmark.rs",
+    "tests/constitution_real10_trace_cleanup.rs",
+    "tests/constitution_real10_emergence_metrics.rs",
+    "handover/alignment/TRACE_MATRIX_BACKLINK_CLEANUP_REAL5S_REAL9.md",
+    "handover/alignment/EMERGENCE_METRICS_E1_E2_E3_E4.md",
+    "handover/directives/2026-05-15_REAL10_CONTROLLED_MARKET_EVIDENCE_EXPANSION_ARCHITECT_ORIGINAL.md",
+    "handover/directives/2026-05-15_REAL10_CONTROLLED_MARKET_EVIDENCE_EXPANSION_EXECUTION_PLAN.md",
+    "handover/directives/2026-05-15_REAL5S_REAL9_NARROW_RATIFICATION.md",
+    "handover/reports/REAL10_DECISION_GATE_REPORT.md",
+    "handover/reports/REAL10_VERIFICATION_SUMMARY.md",
+    "handover/audits/CODEX_REAL10_EXECUTION_PLAN_ALIGNMENT_REVIEW.md",
+    "handover/audits/CODEX_REAL10_PHASE2_TRACE_STALE_PARENT_REVIEW.md",
+    "handover/audits/CODEX_REAL10_REAL8X_EVIDENCE_CLAIM_REVIEW.md",
+    "handover/audits/CODEX_REAL10_FINAL_SHIP_REVIEW.md",
+    "handover/evidence/real8x_market_ab_20260515T134453Z/REAL10_EVIDENCE_CONTAMINATION_NOTE.md",
+    "handover/evidence/real8x_market_ab_clean_20260515T141331Z/REAL8_MARKET_AB_BENCHMARK_REPORT.md",
+    "handover/evidence/real8x_market_ab_clean_20260515T141331Z/REAL10_DECISION_GATE_REPORT.md",
+    "handover/evidence/real8x_market_ab_clean_20260515T141331Z/real8_arm_summary.tsv",
+    "handover/evidence/real8x_market_ab_clean_20260515T141331Z/arm_config_manifests/REAL8X_CONFIG_AUDIT.json",
+    "handover/evidence/real10_real8x_inputs/problems_15.pinned.txt",
+    "handover/evidence/real10_real8x_inputs/model_assignment.pinned.env",
+    "handover/evidence/real10_real8x_inputs/budgets.pinned.env"
+  ],
+  "restricted_surface_hits": [
+    "genesis_payload.toml"
+  ],
+  "acceptance_commands": [
+    "git diff --check"
+  ],
+  "audit_required": true,
+  "human_intent": "Final clean Harness run after preserving the earlier contaminated record-command as invalid evidence; closes REAL-10 only under narrow E1/descriptive claim boundary.",
+  "ratification": "handover/directives/2026-05-15_REAL10_CONTROLLED_MARKET_EVIDENCE_EXPANSION_EXECUTION_PLAN.md",
+  "git_head": "a1decf2db671c7633e66617fa7bc4ed2be0d2812",
+  "created_at_unix_ms": 1778857283388
+}

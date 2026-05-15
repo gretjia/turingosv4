@@ -1,0 +1,15 @@
+mathd_algebra_107
+mathd_algebra_113
+mathd_algebra_114
+mathd_algebra_125
+mathd_algebra_141
+mathd_algebra_171
+mathd_algebra_176
+mathd_algebra_246
+aime_1983_p2
+aime_1989_p8
+amc12_2000_p1
+amc12_2000_p6
+algebra_sqineq_at2malt1
+amc12a_2002_p6
+aime_1990_p4

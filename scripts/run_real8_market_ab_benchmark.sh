@@ -20,6 +20,7 @@ usage: scripts/run_real8_market_ab_benchmark.sh \
   --problems <same_problem_set_manifest> \
   --models <same_model_assignment_manifest> \
   --budgets <same_budget_manifest> \
+  [--tasks-per-arm <N>] \
   --arms A,B,C,D \
   --out handover/evidence/real8_market_ab_<UTC>
 
@@ -45,12 +46,14 @@ MODELS=""
 BUDGETS=""
 ARMS="A,B,C,D"
 OUT=""
+TASKS_PER_ARM=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --problems) PROBLEMS="${2:-}"; shift 2 ;;
         --models) MODELS="${2:-}"; shift 2 ;;
         --budgets) BUDGETS="${2:-}"; shift 2 ;;
+        --tasks-per-arm) TASKS_PER_ARM="${2:-}"; shift 2 ;;
         --arms) ARMS="${2:-}"; shift 2 ;;
         --out) OUT="${2:-}"; shift 2 ;;
         -h|--help) usage; exit 0 ;;
@@ -77,6 +80,19 @@ cp "$BUDGETS" "$OUT_ABS/budgets.pinned.env"
 PROBLEMS_HASH="$(sha256sum "$OUT_ABS/problems.pinned.txt" | awk '{print $1}')"
 MODELS_HASH="$(sha256sum "$OUT_ABS/model_assignment.pinned.env" | awk '{print $1}')"
 BUDGETS_HASH="$(sha256sum "$OUT_ABS/budgets.pinned.env" | awk '{print $1}')"
+PROBLEM_COUNT="$(grep -Ev '^[[:space:]]*(#|$)' "$OUT_ABS/problems.pinned.txt" | wc -l | tr -d ' ')"
+if [[ "$PROBLEM_COUNT" -eq 0 ]]; then
+    echo "ERROR: pinned problem manifest is empty: $PROBLEMS" >&2
+    exit 2
+fi
+if [[ "${TURINGOS_REAL6B_LIVE_ATTEMPT_PREDICTION:-0}" == "1" ]]; then
+    echo "ERROR: live REAL-6B AttemptPrediction is not ratified for REAL-8/REAL-10; use the scripted fixture only" >&2
+    exit 2
+fi
+if [[ -n "$TASKS_PER_ARM" && "$PROBLEM_COUNT" != "$TASKS_PER_ARM" ]]; then
+    echo "ERROR: --tasks-per-arm=$TASKS_PER_ARM but pinned problem manifest has $PROBLEM_COUNT tasks" >&2
+    exit 2
+fi
 
 read_manifest_value() {
     local file="$1"
@@ -121,6 +137,41 @@ fi
 
 REPORT="$OUT_ABS/REAL8_MARKET_AB_BENCHMARK_REPORT.md"
 SUMMARY_TSV="$OUT_ABS/real8_arm_summary.tsv"
+ARM_CONFIG_DIR="$OUT_ABS/arm_config_manifests"
+REAL8X_SEED="${REAL8X_SEED:-real8x-fixed-seed-v1}"
+mkdir -p "$ARM_CONFIG_DIR"
+
+cat > "$ARM_CONFIG_DIR/arm_diff_allowlist.txt" <<'EOF'
+# REAL-10 SG-10.4.4 — only these keys may differ across arm config manifests.
+ARM
+ARM_CONDITION
+RUN_TAG
+RUN_DIR
+TURINGOS_DISABLE_MARKET_TOOLS
+TURINGOS_TB_N3_AUTO_MARKET
+TURINGOS_REAL6_TASK_OUTCOME_MARKET
+TURINGOS_REAL7_SCRIPTED_ATTEMPT_PREDICTION_FIXTURE
+EOF
+
+cat > "$ARM_CONFIG_DIR/REAL8X_SHARED_CONFIG.env" <<EOF
+PROBLEMS_HASH=$PROBLEMS_HASH
+MODELS_HASH=$MODELS_HASH
+BUDGETS_HASH=$BUDGETS_HASH
+PROBLEM_COUNT=$PROBLEM_COUNT
+TASKS_PER_ARM=${TASKS_PER_ARM:-$PROBLEM_COUNT}
+REAL8X_SEED=$REAL8X_SEED
+ACTIVE_MODEL=$ACTIVE_MODEL_PIN
+AGENT_MODELS=$AGENT_MODELS_PIN
+PHASE_D_HETERO_OK=$PHASE_D_HETERO_OK_PIN
+TURINGOS_REAL5_ROLE_ASSIGNMENT=$ROLE_ASSIGNMENT_PIN
+TURINGOS_G_PHASE_N_AGENTS=$N_AGENTS_PIN
+MAX_TRANSACTIONS=$MAX_TX_PIN
+PER_PROBLEM_TIMEOUT_S=$TIMEOUT_PIN
+TURINGOS_REAL6A_POLL_BUDGET_MS=$REAL6A_POLL_PIN
+TURINGOS_REAL6_SCHEDULER_OBSERVE_ONLY=1
+EOF
+REAL8X_SHARED_CONFIG_SHA256="$(sha256sum "$ARM_CONFIG_DIR/REAL8X_SHARED_CONFIG.env" | awk '{print $1}')"
+printf "%s\n" "$REAL8X_SHARED_CONFIG_SHA256" > "$ARM_CONFIG_DIR/REAL8X_SHARED_CONFIG.env.sha256"
 
 cat > "$REPORT" <<EOF
 # REAL-8 Formal Market A/B Benchmark
@@ -135,6 +186,8 @@ Negative result is valid and documented.
 | same problem set | \`$PROBLEMS_HASH\` |
 | same model assignment | \`$MODELS_HASH\` |
 | same budgets | \`$BUDGETS_HASH\` |
+| same seed/config except arm toggles | \`$REAL8X_SHARED_CONFIG_SHA256\` |
+| tasks per arm | \`${TASKS_PER_ARM:-$PROBLEM_COUNT}\` |
 
 Forbidden claim boundary:
 
@@ -159,11 +212,11 @@ no raw-log broadcast
 
 ## Metrics
 
-| Arm | exit | audit | tasks | solve_rate | verified_pput_mean | false_accept_rate_mean | cost_per_verified_proof_tokens | market_tx_count | no_trade_reason_distribution | pnl_dispersion_micro | role_diversity_index | audit_failure_rate |
-| --- | ---: | --- | ---: | --- | ---: | ---: | --- | ---: | --- | --- | ---: | ---: |
+| Arm | exit | audit | tasks | solve_rate | wilson_ci_95 | verified_pput_mean | mean_pput_solved | false_accept_rate_mean | cost_per_verified_proof_tokens | cost_time_tokens_ms | market_tx_count | no_trade_reason_distribution | pnl_dispersion_micro | role_diversity_index | failed_branch_count | verification_latency_ms_mean | wasted_attempts | audit_failure_rate |
+| --- | ---: | --- | ---: | --- | --- | ---: | ---: | ---: | --- | --- | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: |
 EOF
 
-printf "arm\trun_dir\texit_code\taudit_verdict\ttask_count\tmarket_tx_count\n" > "$SUMMARY_TSV"
+printf "arm\trun_dir\texit_code\taudit_verdict\ttask_count\tsolve_rate\twilson_ci_95\tmarket_tx_count\tfailed_branch_count\tverification_latency_ms_mean\twasted_attempts\n" > "$SUMMARY_TSV"
 
 arm_condition() {
     case "$1" in
@@ -184,10 +237,142 @@ extract_pput_metrics() {
           solved: ([.[] | select(.solved == true)] | length),
           verified: ([.[] | select(.verified == true)] | length),
           total_tokens: ([.[] | .total_run_token_count // 0] | add // 0),
+          total_wall_time_ms: ([.[] | .total_wall_time_ms // 0] | add // 0),
+          failed_branch_count: ([.[] | .failed_branch_count // 0] | add // 0),
+          verification_latency_ms_mean: (if length == 0 then 0 else ([.[] | .verifier_wait_ms // 0] | add // 0) / length end),
+          wasted_attempts: ([.[] | select(.solved != true) | .tx_count // .failed_branch_count // 0] | add // 0),
           pput_verified_mean: (if length == 0 then 0 else ([.[] | .pput_verified // 0] | add // 0) / length end),
+          mean_pput_solved: (if ([.[] | select(.solved == true)] | length) == 0 then 0 else ([.[] | select(.solved == true) | .pput_verified // .pput // 0] | add // 0) / ([.[] | select(.solved == true)] | length) end),
           false_accept_rate_mean: (if length == 0 then 0 else ([.[] | .far // 0] | add // 0) / length end),
           no_trade: ([.[] | .tool_dist // {} | to_entries[]? | select(.key | startswith("invest_no_trade_")) | "\(.key)=\(.value)"] | join(";"))
         }'
+}
+
+wilson_ci_95() {
+    python3 - "$1" "$2" <<'PY'
+import math
+import sys
+success = int(sys.argv[1])
+total = int(sys.argv[2])
+if total <= 0:
+    print("0..0")
+    raise SystemExit
+z = 1.96
+phat = success / total
+den = 1 + z * z / total
+center = (phat + z * z / (2 * total)) / den
+margin = z * math.sqrt((phat * (1 - phat) + z * z / (4 * total)) / total) / den
+print(f"{max(0.0, center - margin):.4f}..{min(1.0, center + margin):.4f}")
+PY
+}
+
+write_arm_config_manifest() {
+    local arm="$1"
+    local condition="$2"
+    local run_tag="$3"
+    local run_dir="$4"
+    local shared="$ARM_CONFIG_DIR/arm_${arm}_shared.env"
+    local toggles="$ARM_CONFIG_DIR/arm_${arm}_toggles.env"
+    local merged="$ARM_CONFIG_DIR/arm_${arm}_config.env"
+    cat > "$shared" <<EOF
+PROBLEMS_HASH=$PROBLEMS_HASH
+MODELS_HASH=$MODELS_HASH
+BUDGETS_HASH=$BUDGETS_HASH
+PROBLEM_COUNT=$PROBLEM_COUNT
+TASKS_PER_ARM=${TASKS_PER_ARM:-$PROBLEM_COUNT}
+ACTIVE_MODEL=$ACTIVE_MODEL_PIN
+AGENT_MODELS=$AGENT_MODELS_PIN
+PHASE_D_HETERO_OK=$PHASE_D_HETERO_OK_PIN
+TURINGOS_REAL5_ROLE_ASSIGNMENT=$ROLE_ASSIGNMENT_PIN
+TURINGOS_G_PHASE_N_AGENTS=$N_AGENTS_PIN
+REAL8X_SEED=$REAL8X_SEED
+MAX_TRANSACTIONS=$MAX_TX_PIN
+PER_PROBLEM_TIMEOUT_S=$TIMEOUT_PIN
+TURINGOS_REAL6A_POLL_BUDGET_MS=$REAL6A_POLL_PIN
+TURINGOS_REAL6_SCHEDULER_OBSERVE_ONLY=1
+EOF
+    cat > "$toggles" <<EOF
+ARM=$arm
+ARM_CONDITION=$condition
+RUN_TAG=$run_tag
+RUN_DIR=$run_dir
+TURINGOS_DISABLE_MARKET_TOOLS=${TURINGOS_DISABLE_MARKET_TOOLS:-}
+TURINGOS_TB_N3_AUTO_MARKET=${TURINGOS_TB_N3_AUTO_MARKET:-}
+TURINGOS_REAL6_TASK_OUTCOME_MARKET=${TURINGOS_REAL6_TASK_OUTCOME_MARKET:-}
+TURINGOS_REAL7_SCRIPTED_ATTEMPT_PREDICTION_FIXTURE=${TURINGOS_REAL7_SCRIPTED_ATTEMPT_PREDICTION_FIXTURE:-}
+EOF
+    cat "$shared" "$toggles" > "$merged"
+    sha256sum "$shared" | awk '{print $1}' > "$shared.sha256"
+}
+
+validate_arm_config_diffs() {
+    # Emits per-arm `arm_config_diff_from_A.tsv`-style evidence files:
+    # `arm_A_config_diff_from_A.tsv`, `arm_B_config_diff_from_A.tsv`, ...
+    python3 - "$ARM_CONFIG_DIR" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+allowed = set(
+    line.strip()
+    for line in (root / "arm_diff_allowlist.txt").read_text().splitlines()
+    if line.strip() and not line.lstrip().startswith("#")
+)
+
+def parse_env(path: Path) -> dict[str, str]:
+    out = {}
+    for raw in path.read_text().splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        out[key] = value
+    return out
+
+configs = sorted(root.glob("arm_*_config.env"))
+base_path = root / "arm_A_config.env"
+if not base_path.exists() and configs:
+    base_path = configs[0]
+base = parse_env(base_path) if base_path.exists() else {}
+disallowed_config_drift = []
+diff_summary = {}
+
+for config in configs:
+    arm = config.name.removeprefix("arm_").removesuffix("_config.env")
+    current = parse_env(config)
+    keys = sorted(set(base) | set(current))
+    rows = []
+    for key in keys:
+        left = base.get(key, "")
+        right = current.get(key, "")
+        if left == right:
+            continue
+        status = "ALLOW" if key in allowed else "BLOCK"
+        rows.append((key, left, right, status))
+        if status == "BLOCK":
+            disallowed_config_drift.append(
+                {"arm": arm, "key": key, "base": left, "current": right}
+            )
+    diff_summary[arm] = len(rows)
+    with (root / f"arm_{arm}_config_diff_from_A.tsv").open("w") as fh:
+        fh.write("key\tarm_A\tcurrent_arm\tstatus\n")
+        for key, left, right, status in rows:
+            fh.write(f"{key}\t{left}\t{right}\t{status}\n")
+
+audit = {
+    "base_config": str(base_path),
+    "allowlist": sorted(allowed),
+    "diff_row_count_by_arm": diff_summary,
+    "disallowed_config_drift": disallowed_config_drift,
+}
+(root / "REAL8X_CONFIG_AUDIT.json").write_text(json.dumps(audit, indent=2, sort_keys=True) + "\n")
+if disallowed_config_drift:
+    print("ERROR: Only arm toggles may differ; disallowed_config_drift found", file=sys.stderr)
+    for item in disallowed_config_drift:
+        print(item, file=sys.stderr)
+    raise SystemExit(1)
+PY
 }
 
 metric_from_dashboard() {
@@ -270,6 +455,8 @@ for arm_raw in "${ARM_LIST[@]}"; do
             ;;
     esac
 
+    write_arm_config_manifest "$arm" "$(arm_condition "$arm")" "$run_tag" "$run_dir"
+
     bash "$PROJECT_ROOT/scripts/run_g_phase_batch.sh" "$run_tag" "$OUT_ABS/problems.pinned.txt"
     exit_code=$?
     if [[ "$exit_code" -ne 0 ]]; then
@@ -289,7 +476,12 @@ for arm_raw in "${ARM_LIST[@]}"; do
     solved="$(jq -r '.solved // 0' <<< "$pput_json")"
     verified="$(jq -r '.verified // 0' <<< "$pput_json")"
     total_tokens="$(jq -r '.total_tokens // 0' <<< "$pput_json")"
+    total_wall_time_ms="$(jq -r '.total_wall_time_ms // 0' <<< "$pput_json")"
+    failed_branch_count="$(jq -r '.failed_branch_count // 0' <<< "$pput_json")"
+    verification_latency_ms_mean="$(jq -r '.verification_latency_ms_mean // 0' <<< "$pput_json")"
+    wasted_attempts="$(jq -r '.wasted_attempts // 0' <<< "$pput_json")"
     pput_mean="$(jq -r '.pput_verified_mean // 0' <<< "$pput_json")"
+    mean_pput_solved="$(jq -r '.mean_pput_solved // 0' <<< "$pput_json")"
     far_mean="$(jq -r '.false_accept_rate_mean // 0' <<< "$pput_json")"
     no_trade="$(jq -r '.no_trade // ""' <<< "$pput_json")"
     [[ -n "$no_trade" ]] || no_trade="none_observed"
@@ -315,16 +507,32 @@ for arm_raw in "${ARM_LIST[@]}"; do
     fi
     if [[ "$tasks" -gt 0 ]]; then
         solve_rate="${solved}/${tasks}"
+        wilson_ci="$(wilson_ci_95 "$solved" "$tasks")"
     else
         solve_rate="0/0"
+        wilson_ci="0..0"
     fi
+    cost_time="${total_tokens}/${total_wall_time_ms}ms"
 
-    printf "| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n" \
-        "$arm" "$exit_code" "$audit_verdict" "$tasks" "$solve_rate" "$pput_mean" "$far_mean" \
-        "$cost_per_verified" "$market_tx_count" "$no_trade" "$pnl_dispersion" "$active_roles" "$audit_failure_rate" \
+    printf "| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n" \
+        "$arm" "$exit_code" "$audit_verdict" "$tasks" "$solve_rate" "$wilson_ci" "$pput_mean" \
+        "$mean_pput_solved" "$far_mean" "$cost_per_verified" "$cost_time" "$market_tx_count" \
+        "$no_trade" "$pnl_dispersion" "$active_roles" "$failed_branch_count" \
+        "$verification_latency_ms_mean" "$wasted_attempts" "$audit_failure_rate" \
         >> "$REPORT"
-    printf "%s\t%s\t%s\t%s\t%s\t%s\n" "$arm" "$run_dir" "$exit_code" "$audit_verdict" "$tasks" "$market_tx_count" >> "$SUMMARY_TSV"
+    printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
+        "$arm" "$run_dir" "$exit_code" "$audit_verdict" "$tasks" "$solve_rate" "$wilson_ci" \
+        "$market_tx_count" "$failed_branch_count" "$verification_latency_ms_mean" "$wasted_attempts" >> "$SUMMARY_TSV"
 done
+
+shared_hash_count="$(find "$ARM_CONFIG_DIR" -name 'arm_*_shared.env.sha256' -type f -exec cat {} + | sort -u | wc -l | tr -d ' ')"
+if [[ "$shared_hash_count" != "1" ]]; then
+    echo "ERROR: per-arm shared config hashes differ; only arm toggles may differ" >&2
+    ARM_FAILURES=$((ARM_FAILURES + 1))
+fi
+if ! validate_arm_config_diffs; then
+    ARM_FAILURES=$((ARM_FAILURES + 1))
+fi
 
 cat >> "$REPORT" <<'EOF'
 
@@ -334,9 +542,10 @@ cat >> "$REPORT" <<'EOF'
 SG-8.1 Same problem set across arms: PASS (single pinned problem manifest hash above).
 SG-8.2 Same model assignment: PASS (single pinned model manifest hash above).
 SG-8.3 Same budgets: PASS (single pinned budget manifest hash above).
-SG-8.4 All runs chain-backed: PASS iff every arm exit=0 and audit=PROCEED.
-SG-8.5 No overclaim of causality: PASS (this report is descriptive evidence only).
-SG-8.6 Negative result is valid and documented: PASS (undefined/no-effect metrics are retained, not rewritten).
+SG-8.4 Same seed/config except arm toggles: PASS iff arm shared-config hashes match and arm toggles are allowlisted.
+SG-8.5 All runs chain-backed: PASS iff every arm exit=0 and audit=PROCEED.
+SG-8.6 No overclaim of causality: PASS (this report is descriptive evidence only).
+SG-8.7 Negative result is valid and documented: PASS (undefined/no-effect metrics are retained, not rewritten).
 ```
 
 ## Claim Boundary

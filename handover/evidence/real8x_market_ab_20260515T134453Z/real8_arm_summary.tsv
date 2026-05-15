@@ -1,0 +1,3 @@
+arm	run_dir	exit_code	audit_verdict	task_count	solve_rate	wilson_ci_95	market_tx_count	failed_branch_count	verification_latency_ms_mean	wasted_attempts
+A	/home/zephryj/projects/turingosv4/handover/evidence/real8x_market_ab_20260515T134453Z/arm_A	1	PROCEED	14	5/14	0.1634..0.6124	0	45	16155.785714285714	45
+B	/home/zephryj/projects/turingosv4/handover/evidence/real8x_market_ab_20260515T134453Z/arm_B	1	PROCEED	14	6/14	0.2138..0.6741	14	40	9936.92857142857	40

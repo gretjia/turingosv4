@@ -1,0 +1,20 @@
+{
+  "allowlist": [
+    "ARM",
+    "ARM_CONDITION",
+    "RUN_DIR",
+    "RUN_TAG",
+    "TURINGOS_DISABLE_MARKET_TOOLS",
+    "TURINGOS_REAL6_TASK_OUTCOME_MARKET",
+    "TURINGOS_REAL7_SCRIPTED_ATTEMPT_PREDICTION_FIXTURE",
+    "TURINGOS_TB_N3_AUTO_MARKET"
+  ],
+  "base_config": "/home/zephryj/projects/turingosv4/handover/evidence/real8x_market_ab_20260515T134453Z/arm_config_manifests/arm_A_config.env",
+  "diff_row_count_by_arm": {
+    "A": 0,
+    "B": 6,
+    "C": 7,
+    "D": 8
+  },
+  "disallowed_config_drift": []
+}

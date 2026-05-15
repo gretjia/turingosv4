@@ -1,0 +1,148 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778857283388_2131282",
+  "close_status": "closed",
+  "manifest_sha256": "5f8d433f89c4adf13c3c0f150e1a75fd34ea7c8d44f3a5aea06f7d7005a8eef1",
+  "event_chain_head_hash": "e70b15f241657695e3391e87456894fa6c1b879d6f916732457bd776fd5e8a93",
+  "diff_sha256": "d25b703ab54fc3be2e63f994af833289c5077da785a1bd48624e22b1707ae0cc",
+  "command_results": [
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "cwd": "/home/zephryj/projects/turingosv4",
+      "exit_code": 0,
+      "started_at_unix_ms": 1778857288612,
+      "ended_at_unix_ms": 1778857288653,
+      "stdout": {
+        "path": "artifacts/command_0002_stdout.txt",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size_bytes": 0
+      },
+      "stderr": {
+        "path": "artifacts/command_0002_stderr.txt",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size_bytes": 0
+      }
+    },
+    {
+      "command": [
+        "bash",
+        "-n",
+        "scripts/run_real8_market_ab_benchmark.sh"
+      ],
+      "cwd": "/home/zephryj/projects/turingosv4",
+      "exit_code": 0,
+      "started_at_unix_ms": 1778857288658,
+      "ended_at_unix_ms": 1778857288662,
+      "stdout": {
+        "path": "artifacts/command_0003_stdout.txt",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size_bytes": 0
+      },
+      "stderr": {
+        "path": "artifacts/command_0003_stderr.txt",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size_bytes": 0
+      }
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--test",
+        "constitution_real8_market_ab_benchmark"
+      ],
+      "cwd": "/home/zephryj/projects/turingosv4",
+      "exit_code": 0,
+      "started_at_unix_ms": 1778857293824,
+      "ended_at_unix_ms": 1778857294249,
+      "stdout": {
+        "path": "artifacts/command_0004_stdout.txt",
+        "sha256": "79358fbb05c5737a1fc99db918e796257c6e39a715031199e2debbc2bd9ee7d7",
+        "size_bytes": 698
+      },
+      "stderr": {
+        "path": "artifacts/command_0004_stderr.txt",
+        "sha256": "bf5607d3e4ddbe7d60d86555f50d02f6748a2bb79d5b1b6f71c9d82f44d2ff17",
+        "size_bytes": 5695
+      }
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--test",
+        "constitution_real10_trace_cleanup"
+      ],
+      "cwd": "/home/zephryj/projects/turingosv4",
+      "exit_code": 0,
+      "started_at_unix_ms": 1778857294255,
+      "ended_at_unix_ms": 1778857294584,
+      "stdout": {
+        "path": "artifacts/command_0005_stdout.txt",
+        "sha256": "bc9c24b29986587d3a1d94acf387822c4ac5ee1b7f58fd0d6d2282ed3a07d775",
+        "size_bytes": 521
+      },
+      "stderr": {
+        "path": "artifacts/command_0005_stderr.txt",
+        "sha256": "016cfcf975e411c09e873a62cbede5496c82e8f7412e9e1c5cc8e232ba7fc475",
+        "size_bytes": 5685
+      }
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--test",
+        "constitution_real10_emergence_metrics"
+      ],
+      "cwd": "/home/zephryj/projects/turingosv4",
+      "exit_code": 0,
+      "started_at_unix_ms": 1778857294590,
+      "ended_at_unix_ms": 1778857294897,
+      "stdout": {
+        "path": "artifacts/command_0006_stdout.txt",
+        "sha256": "85d794af1d59e6644fcef6f4b2be38538a760fe40f3faa84d49a789b84cc5717",
+        "size_bytes": 397
+      },
+      "stderr": {
+        "path": "artifacts/command_0006_stderr.txt",
+        "sha256": "4e4167970d9165957fc4c694bc43db38111340b0835bd1bc7931bd0759694502",
+        "size_bytes": 5693
+      }
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--lib",
+        "boot::tests::verify_trust_root_passes_on_intact_repo"
+      ],
+      "cwd": "/home/zephryj/projects/turingosv4",
+      "exit_code": 0,
+      "started_at_unix_ms": 1778857294905,
+      "ended_at_unix_ms": 1778857295670,
+      "stdout": {
+        "path": "artifacts/command_0007_stdout.txt",
+        "sha256": "b7b0b738f09bbde9dd97f0a7df6f5f146ce631a88a618e7ed9fc736d514147a6",
+        "size_bytes": 179
+      },
+      "stderr": {
+        "path": "artifacts/command_0007_stderr.txt",
+        "sha256": "3e8e256978574268bff9f1d3a532c242b58d8a639aae80ca6c72fa230ff024e0",
+        "size_bytes": 4735
+      }
+    }
+  ],
+  "acceptance_passed": true,
+  "audit_required": true,
+  "audit_verdict": "PROCEED",
+  "effective_risk_class": 4,
+  "restricted_surface_hits": [
+    "genesis_payload.toml"
+  ],
+  "closed_at_unix_ms": 1778857746499
+}

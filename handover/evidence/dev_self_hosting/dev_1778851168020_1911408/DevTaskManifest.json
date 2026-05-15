@@ -1,0 +1,49 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778851168020_1911408",
+  "title": "REAL-10 Controlled Market Evidence Expansion",
+  "module": "REAL-10 Controlled Market Evidence Expansion",
+  "molecule_or_atom": "atom",
+  "requested_risk_class": 4,
+  "risk_class": 4,
+  "fc_nodes": [
+    "FC1 market/action evidence",
+    "FC2 replay/pinning",
+    "FC3 report/materialized views",
+    "Art.III shielding",
+    "market/economic gates"
+  ],
+  "allowed_paths": [
+    "handover/directives/2026-05-15_REAL10_CONTROLLED_MARKET_EVIDENCE_EXPANSION_ARCHITECT_ORIGINAL.md",
+    "handover/directives/2026-05-15_REAL10_CONTROLLED_MARKET_EVIDENCE_EXPANSION_EXECUTION_PLAN.md",
+    "handover/directives/2026-05-15_REAL5S_REAL9_NARROW_RATIFICATION.md",
+    "handover/alignment/TRACE_MATRIX_v3_2026-04-27.md",
+    "handover/alignment/TRACE_MATRIX_BACKLINK_CLEANUP_REAL5S_REAL9.md",
+    "handover/alignment/EMERGENCE_METRICS_E1_E2_E3_E4.md",
+    "handover/audits/CODEX_REAL10_EXECUTION_PLAN_ALIGNMENT_REVIEW.md",
+    "handover/audits/CODEX_REAL10_TRACE_STALE_PARENT_REVIEW.md",
+    "handover/audits/CODEX_REAL10_EVIDENCE_CLAIM_REVIEW.md",
+    "handover/audits/CODEX_REAL10_IMPLEMENTATION_REVIEW.md",
+    "handover/reports/REAL10_DECISION_GATE_REPORT.md",
+    "handover/reports/REAL10_OVERCLAIM_BOUNDARY_REPORT.md",
+    "tests/constitution_real8_market_ab_benchmark.rs",
+    "tests/constitution_real10_trace_cleanup.rs",
+    "tests/constitution_real10_emergence_metrics.rs",
+    "scripts/run_real8_market_ab_benchmark.sh",
+    "handover/evidence/real10_*",
+    "handover/evidence/dev_self_hosting/*"
+  ],
+  "restricted_surface_hits": [],
+  "acceptance_commands": [
+    "cargo test --test constitution_real8_market_ab_benchmark",
+    "cargo test --test constitution_real10_trace_cleanup",
+    "cargo test --test constitution_real10_emergence_metrics",
+    "bash scripts/run_constitution_gates.sh",
+    "cargo test --workspace --no-fail-fast -- --test-threads=1"
+  ],
+  "audit_required": true,
+  "human_intent": "Implement architect-approved REAL-10 controlled market evidence expansion: narrow REAL-5S-REAL-9 ratification, TRACE/R-022 cleanup, stale-parent behavioral test, E1-E4 metrics, REAL-8X larger pinned benchmark, claim-boundary audits.",
+  "ratification": null,
+  "git_head": "a1decf2db671c7633e66617fa7bc4ed2be0d2812",
+  "created_at_unix_ms": 1778851168020
+}

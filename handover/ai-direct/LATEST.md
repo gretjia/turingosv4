@@ -6,6 +6,67 @@
 
 ---
 
+## 📍 Handover summary (session #50 close 2026-05-15)
+
+**Session Summary**: REAL-10 Controlled Market Evidence Expansion completed under the orchestrated GPT-5.5 reasoning-depth plan. The REAL-5S→REAL-9 bundle is narrowly ratified as a chain-backed role scaffold + lawful market-pressure substrate + descriptive A/B framework, not as spontaneous market emergence or causal performance gain. REAL-8X expanded the benchmark to 15 tasks per arm with pinned inputs and clean claim-boundary audits.
+
+### Current State
+
+**Works**:
+- Two architect originals for REAL-10 were archived at `handover/directives/2026-05-15_REAL10_CONTROLLED_MARKET_EVIDENCE_EXPANSION_ARCHITECT_ORIGINAL.md`.
+- The approved orchestrated execution plan is preserved at `handover/directives/2026-05-15_REAL10_CONTROLLED_MARKET_EVIDENCE_EXPANSION_EXECUTION_PLAN.md`, with Orchestrator + GPT-5.5 low/medium/high/xhigh worker topology.
+- REAL-5S→REAL-9 narrow ratification landed at `handover/directives/2026-05-15_REAL5S_REAL9_NARROW_RATIFICATION.md`.
+- TRACE/R-022 cleanup landed via `handover/alignment/TRACE_MATRIX_BACKLINK_CLEANUP_REAL5S_REAL9.md` and `handover/alignment/TRACE_MATRIX_v3_2026-04-27.md`; Trust Root rehashed.
+- Stale-parent gap is now covered by direct behavior test `real8_task_outcome_arm_refreshes_verify_parent_behaviorally`, proving stale VerifyTx rejection and refreshed `q_snapshot().state_root_t` acceptance.
+- Emergence metrics are formalized at `handover/alignment/EMERGENCE_METRICS_E1_E2_E3_E4.md`.
+- Planned report path `handover/reports/REAL10_DECISION_GATE_REPORT.md` points to the clean evidence-local report and preserves the contaminated-run boundary.
+
+**Clean REAL-8X evidence**:
+- Clean evidence directory: `handover/evidence/real8x_market_ab_clean_20260515T141331Z/`.
+- Contaminated prior directory preserved as invalid evidence only: `handover/evidence/real8x_market_ab_20260515T134453Z/`.
+- Arms:
+  - A market disabled: `exit=0`, `audit=PROCEED`, `tasks=15`, `market_tx_count=0`, `buy_with_coin_router=0`, `solve_rate=5/15`.
+  - B market visible, no TaskOutcomeMarket: `exit=0`, `audit=PROCEED`, `tasks=15`, `market_tx_count=10`, `buy_with_coin_router=0`, `solve_rate=5/15`.
+  - C TaskOutcomeMarket enabled: `exit=0`, `audit=PROCEED`, `tasks=15`, `market_tx_count=42`, `buy_with_coin_router=0`, `solve_rate=6/15`.
+  - D TaskOutcomeMarket + scripted AttemptPrediction fixture: `exit=0`, `audit=PROCEED`, `tasks=15`, `market_tx_count=38`, `buy_with_coin_router=0`, `solve_rate=4/15`.
+- Config audit: `disallowed_config_drift=[]`.
+
+### Validation
+
+- `cargo test --test constitution_real8_market_ab_benchmark` → 9 passed / 0 failed.
+- `cargo test --test constitution_real10_trace_cleanup` → 6 passed / 0 failed.
+- `cargo test --test constitution_real10_emergence_metrics` → 4 passed / 0 failed.
+- `cargo test --lib boot::tests::verify_trust_root_passes_on_intact_repo` → 1 passed / 0 failed.
+- `bash scripts/run_constitution_gates.sh` → 461 passed / 0 failed / 1 ignored.
+- `cargo test --workspace --no-fail-fast -- --test-threads=1` → exit 0.
+- Audit chain:
+  - Plan alignment `PROCEED`: `handover/audits/CODEX_REAL10_EXECUTION_PLAN_ALIGNMENT_REVIEW.md`.
+  - Phase 2 TRACE/stale-parent `PROCEED`: `handover/audits/CODEX_REAL10_PHASE2_TRACE_STALE_PARENT_REVIEW.md`.
+  - REAL-8X evidence/claim `PROCEED`: `handover/audits/CODEX_REAL10_REAL8X_EVIDENCE_CLAIM_REVIEW.md`.
+  - Final ship review `PROCEED`: `handover/audits/CODEX_REAL10_FINAL_SHIP_REVIEW.md`.
+- Clean final Harness run: `handover/evidence/dev_self_hosting/dev_1778857283388_2131282/` closed with `acceptance_passed=true`, `effective_risk_class=4`, `audit_verdict=PROCEED`.
+- Earlier Harness run `handover/evidence/dev_self_hosting/dev_1778851168020_1911408/` is intentionally preserved with the accidental contaminated benchmark command; it is not a ship-close run.
+
+### Non-Claims
+
+- E1 is satisfied for market-visible arms B/C/D.
+- E2 is not achieved: no live non-scripted router/short action; `buy_with_coin_router=0` for all arms.
+- E3 is not established: role labels or `role_diversity_index` alone are insufficient.
+- E4 is not established: evidence remains descriptive; Wilson intervals overlap.
+- No live REAL-6B approval.
+- No spontaneous market emergence claim.
+- No causal performance improvement claim.
+- No price-as-truth, forced trade, ghost liquidity, real-money/public-chain readiness, private CoT recording, raw-log broadcast, or off-tape WAL truth.
+
+### Next Steps
+
+1. Present REAL-10 clean evidence and claim boundary to the architect.
+2. If pursuing E2, prepare a separate Class-4 live REAL-6B packet with timing, close, oracle, settlement, abort, replay, and no-price-as-truth invariants.
+3. If pursuing performance evidence, run a larger clean benchmark only after preserving pinned-input discipline and excluding scripted actions from E2.
+4. Do not claim market emergence until live non-scripted market action appears on ChainTape/CAS.
+
+---
+
 ## 📍 Handover summary (session #49 close 2026-05-15)
 
 **Session Summary**: REAL route executed through **REAL-5S → REAL-6 → REAL-7 → REAL-8 → REAL-9** under the architect's renamed path. REAL-5/REAL-5S is narrowed to scaffold + clean-negative evidence; REAL-6 moves market timing earlier and adds lawful pressure; REAL-7 proves v3-structural pressure without claiming v3 equivalence; REAL-8 produces the formal A/B benchmark; REAL-9 captures launch/whitepaper synthesis boundaries. Clean-context Codex implementation review for REAL-8/REAL-9 returned **PROCEED**.

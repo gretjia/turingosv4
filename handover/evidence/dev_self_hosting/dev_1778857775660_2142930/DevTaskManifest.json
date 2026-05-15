@@ -1,0 +1,27 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778857775660_2142930",
+  "title": "REAL-10 post-handover dynamic state update",
+  "module": "REAL-10 Handover Closeout",
+  "molecule_or_atom": "atom",
+  "requested_risk_class": 0,
+  "risk_class": 0,
+  "fc_nodes": [
+    "FC3 handover/materialized state"
+  ],
+  "allowed_paths": [
+    "handover/ai-direct/LATEST.md",
+    "handover/tracer_bullets/TB_LOG.tsv",
+    "handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md",
+    "handover/audits/CODEX_REAL10_POST_HANDOVER_DELTA_REVIEW.md"
+  ],
+  "restricted_surface_hits": [],
+  "acceptance_commands": [
+    "git diff --check"
+  ],
+  "audit_required": false,
+  "human_intent": "Record docs-only dynamic handover update after REAL-10 final ship review; no code/evidence claim changes.",
+  "ratification": "handover/audits/CODEX_REAL10_POST_HANDOVER_DELTA_REVIEW.md",
+  "git_head": "a1decf2db671c7633e66617fa7bc4ed2be0d2812",
+  "created_at_unix_ms": 1778857775661
+}

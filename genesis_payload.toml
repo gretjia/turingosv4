@@ -308,7 +308,7 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
 # - TRACE_MATRIX_v3 full N/M/D coverage (CO0.8 atom)
 # - gix substrate spike pre-flight doc (CO1.3.1 atom prep)
 # - MetaTransitionInterface trait spec (CO P3-prep.5 atom)
-"handover/alignment/TRACE_MATRIX_v3_2026-04-27.md" = "8da3a4272bb752bd9d79b1a05ec12f22792f4c732d557cc4b3062b9db77a6a0a"  # rehashed by CO1.13.3 (2026-04-29): § F.2 auto-refreshed by scripts/update_trace_matrix_reverse_map.py; FC3-N34 readonly verification
+"handover/alignment/TRACE_MATRIX_v3_2026-04-27.md" = "fe02b8d07185d4a74a7a129097ba819af020c0029038e5355d67126350971736"  # rehashed by REAL-10 Atom 1 (2026-05-15): §J.2/§J.3 R-022 backlink cleanup for REAL-5S->REAL-9 public surfaces; FC3 traceability verification
 "handover/specs/CO1_3_1_GIX_SPIKE_PREFLIGHT_v1_2026-04-27.md" = "ddf6456633603d5ae04252cbaa700aceb61cac2c278da1f91b8cf28aa4ba8839"
 "handover/specs/META_TRANSITION_INTERFACE_v1_2026-04-27.md" = "f02d83e989be664faea660f10a746b04f986f9b13321ca16f63b470a95b96d4e"
 
