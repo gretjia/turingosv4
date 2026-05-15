@@ -360,10 +360,7 @@ fn has_successor_tb_authoring_marker(body: &str) -> bool {
         .collect();
     // TB-N* "next-generation" series (TB-N1 / TB-N2 / TB-N3 / ... / TB-N9).
     for n in 1..=9 {
-        tags.push((
-            format!("TRACE_MATRIX TB-N{n} "),
-            format!("TB-N{n} "),
-        ));
+        tags.push((format!("TRACE_MATRIX TB-N{n} "), format!("TB-N{n} ")));
     }
     for line in body.lines() {
         let trimmed = line.trim_start();
@@ -597,8 +594,7 @@ fn no_f64_in_complete_set_or_market_seed() {
 #[test]
 fn prediction_market_legacy_quarantined() {
     // Assertion 1: src/prediction_market.rs is gone.
-    let pm_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("src/prediction_market.rs");
+    let pm_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/prediction_market.rs");
     assert!(
         !pm_path.exists(),
         "TB-13 SG-13.0.3 (post-TB-14-Atom-6): src/prediction_market.rs \
@@ -641,9 +637,15 @@ fn prediction_market_legacy_quarantined() {
     // Assertion 4 (consistency): tests for forbidden methods on Kernel.
     // Re-introducing any of these would imply CPMM trading semantics.
     for method in [
-        "fn create_market", "fn buy_yes", "fn buy_no", "fn yes_price",
-        "fn market_ticker", "fn open_bounty_market", "fn bounty_yes_price",
-        "fn resolve_bounty", "fn resolve_all",
+        "fn create_market",
+        "fn buy_yes",
+        "fn buy_no",
+        "fn yes_price",
+        "fn market_ticker",
+        "fn open_bounty_market",
+        "fn bounty_yes_price",
+        "fn resolve_bounty",
+        "fn resolve_all",
     ] {
         assert!(
             !kernel.contains(method),
@@ -651,7 +653,6 @@ fn prediction_market_legacy_quarantined() {
              contain `{method}` (legacy CPMM API excised in Atom 6)"
         );
     }
-
 }
 
 /// Round-5 RQ6 unit test: `discover_by_type_use` catches a fresh file
@@ -661,10 +662,8 @@ fn prediction_market_legacy_quarantined() {
 #[test]
 fn discover_by_type_use_catches_unmarked_imports_and_skips_doc_xref() {
     use std::io::Write;
-    let tmp = std::env::temp_dir().join(format!(
-        "tb13_fence_discovery_test_{}",
-        std::process::id()
-    ));
+    let tmp =
+        std::env::temp_dir().join(format!("tb13_fence_discovery_test_{}", std::process::id()));
     let _ = fs::remove_dir_all(&tmp);
     fs::create_dir_all(&tmp).expect("mkdir tmp");
 
@@ -699,8 +698,7 @@ fn discover_by_type_use_catches_unmarked_imports_and_skips_doc_xref() {
     }
 
     let found = discover_by_type_use(&tmp);
-    let found_set: std::collections::BTreeSet<&str> =
-        found.iter().map(|s| s.as_str()).collect();
+    let found_set: std::collections::BTreeSet<&str> = found.iter().map(|s| s.as_str()).collect();
 
     let unmarked_str = unmarked_path.to_string_lossy().into_owned();
     let docxref_str = docxref_path.to_string_lossy().into_owned();
@@ -808,8 +806,7 @@ fn discover_by_type_use_skips_successor_tb_marker_files() {
     }
 
     let found = discover_by_type_use(&tmp);
-    let found_set: std::collections::BTreeSet<&str> =
-        found.iter().map(|s| s.as_str()).collect();
+    let found_set: std::collections::BTreeSet<&str> = found.iter().map(|s| s.as_str()).collect();
 
     let tb14_str = tb14_path.to_string_lossy().into_owned();
     let tb14_doc_str = tb14_doc_path.to_string_lossy().into_owned();
@@ -855,8 +852,7 @@ pub fn tb13_thing() -> i32 { 42_f64 as i32 }\n\
 pub fn tb12_legacy() -> i32 { 0 }\n\
 ";
     let scanned = tb_13_scan_lines(marker_src);
-    let scanned_text: Vec<&str> =
-        scanned.iter().map(|(_, l)| l.as_str()).collect();
+    let scanned_text: Vec<&str> = scanned.iter().map(|(_, l)| l.as_str()).collect();
     assert!(
         scanned_text.iter().any(|l| l.contains("tb13_thing")),
         "marker-file: TB-13 span lines must be returned"
@@ -874,8 +870,7 @@ fn forbidden() -> f64 { 0.5_f64 }\n\
 // trailing comment\n\
 ";
     let scanned = tb_13_scan_lines(unmarked_src);
-    let scanned_text: Vec<&str> =
-        scanned.iter().map(|(_, l)| l.as_str()).collect();
+    let scanned_text: Vec<&str> = scanned.iter().map(|(_, l)| l.as_str()).collect();
     assert!(
         scanned_text.iter().any(|l| l.contains("f64")),
         "unmarked-file: non-comment lines must be returned (Layer 2 must see f64)"
@@ -902,8 +897,7 @@ pub fn tb13_marked() -> i32 { 0 }\n\
 fn stealth(_: CompleteSetMintTx) -> f64 { 0.0_f64 }\n\
 ";
     let scanned = tb_13_scan_lines(src);
-    let scanned_text: Vec<&str> =
-        scanned.iter().map(|(_, l)| l.as_str()).collect();
+    let scanned_text: Vec<&str> = scanned.iter().map(|(_, l)| l.as_str()).collect();
     assert!(
         scanned_text.iter().any(|l| l.contains("tb13_marked")),
         "marker-span line must be returned"

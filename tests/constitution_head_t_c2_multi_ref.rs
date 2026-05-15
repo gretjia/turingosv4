@@ -23,12 +23,12 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use git2::Repository;
+use turingosv4::bottom_white::cas::schema::Cid;
+use turingosv4::bottom_white::ledger::system_keypair::{SystemEpoch, SystemSignature};
 use turingosv4::bottom_white::ledger::transition_ledger::{
     append, Git2LedgerWriter, LedgerEntry, LedgerEntrySigningPayload, LedgerWriter, TxKind,
     CHAINTAPE_CAS_REF, CHAINTAPE_L4E_REF, CHAINTAPE_L4_REF,
 };
-use turingosv4::bottom_white::cas::schema::Cid;
-use turingosv4::bottom_white::ledger::system_keypair::{SystemEpoch, SystemSignature};
 use turingosv4::state::head_t_witness::HeadTWitness;
 use turingosv4::state::q_state::Hash;
 
@@ -121,7 +121,12 @@ fn sg_a3_l4_head_ref_advances_on_accepted_transition() {
     );
 
     // A second commit advances the ref.
-    let e2 = entry_at(2, Hash([0x11; 32]), e.resulting_ledger_root, Hash([0x22; 32]));
+    let e2 = entry_at(
+        2,
+        Hash([0x11; 32]),
+        e.resulting_ledger_root,
+        Hash([0x22; 32]),
+    );
     let _ = writer.commit(&e2).expect("commit-2");
     let l4_post_2 = Git2LedgerWriter::head_chaintape_l4(&path)
         .expect("read l4-2")
@@ -164,7 +169,10 @@ fn sg_a3_l4e_head_ref_advances_on_rejected_evidence() {
         .expect("read l4e #2")
         .expect("l4e ref present after second advance");
     assert_eq!(post_b, oid_b);
-    assert_ne!(post_a, post_b, "l4e ref must advance on each rejected evidence record");
+    assert_ne!(
+        post_a, post_b,
+        "l4e ref must advance on each rejected evidence record"
+    );
 }
 
 /// SG-A3-HEAD-T-C2.3 — `advance_chaintape_cas_to` advances `refs/chaintape/cas`
@@ -177,8 +185,7 @@ fn sg_a3_cas_root_ref_advances_on_cas_write() {
     assert!(pre.is_none(), "fresh repo must have no chaintape/cas ref");
 
     let oid_a = synth_commit_oid(&path, "cas_batch_1");
-    Git2LedgerWriter::advance_chaintape_cas_to(&path, oid_a, "CAS write #1")
-        .expect("advance cas");
+    Git2LedgerWriter::advance_chaintape_cas_to(&path, oid_a, "CAS write #1").expect("advance cas");
     let post_a = Git2LedgerWriter::head_chaintape_cas(&path)
         .expect("read cas")
         .expect("cas ref present after advance");
@@ -216,14 +223,10 @@ fn sg_a3_replay_reconstructs_head_t_from_refs() {
     // to test the ref-side reconstruction in isolation.)
     let state_root = Hash([0x33; 32]);
     let econ_root = Hash([0x44; 32]);
-    let w1 = HeadTWitness::reconstruct_from_chaintape_refs(
-        &path,
-        "test-run-1",
-        state_root,
-        econ_root,
-    )
-    .expect("reconstruct ok")
-    .expect("non-empty witness");
+    let w1 =
+        HeadTWitness::reconstruct_from_chaintape_refs(&path, "test-run-1", state_root, econ_root)
+            .expect("reconstruct ok")
+            .expect("non-empty witness");
 
     // Six canonical fields populated from refs.
     assert_eq!(w1.state_root, state_root);
@@ -232,25 +235,27 @@ fn sg_a3_replay_reconstructs_head_t_from_refs() {
         writer.head_commit_oid().expect("c1 head").to_string(),
         "l4_head must equal refs/chaintape/l4 OID"
     );
-    assert!(w1.l4e_head.is_some(), "l4e_head must reflect refs/chaintape/l4e");
+    assert!(
+        w1.l4e_head.is_some(),
+        "l4e_head must reflect refs/chaintape/l4e"
+    );
     assert_eq!(
         w1.l4e_head.as_ref().unwrap().0,
         l4e_oid.to_string(),
         "l4e_head must match the advanced ref"
     );
-    assert!(w1.cas_root.is_some(), "cas_root must reflect refs/chaintape/cas");
+    assert!(
+        w1.cas_root.is_some(),
+        "cas_root must reflect refs/chaintape/cas"
+    );
     assert_eq!(w1.economic_state_root, econ_root);
     assert_eq!(w1.run_id, "test-run-1");
 
     // Byte-equality on canonical hash for two reconstructions with identical refs.
-    let w2 = HeadTWitness::reconstruct_from_chaintape_refs(
-        &path,
-        "test-run-1",
-        state_root,
-        econ_root,
-    )
-    .expect("reconstruct ok")
-    .expect("non-empty witness");
+    let w2 =
+        HeadTWitness::reconstruct_from_chaintape_refs(&path, "test-run-1", state_root, econ_root)
+            .expect("reconstruct ok")
+            .expect("non-empty witness");
     assert_eq!(w1, w2, "reconstruction must be deterministic from refs");
     assert_eq!(
         w1.canonical_hash(),
@@ -267,7 +272,10 @@ fn sg_a3_replay_reconstructs_head_t_from_refs() {
         econ_root,
     )
     .expect("reconstruct on empty ok");
-    assert!(w_empty.is_none(), "pre-genesis reconstruction must return None");
+    assert!(
+        w_empty.is_none(),
+        "pre-genesis reconstruction must return None"
+    );
 }
 
 /// SG-A3-HEAD-T-C2.5 — No hidden filesystem pointer. The three named Git
@@ -389,7 +397,10 @@ fn sg_a3_cas_root_ref_advances_via_cas_store_put() {
 
     // Pre: no chaintape/cas ref.
     let pre = Git2LedgerWriter::head_chaintape_cas(&path).expect("read pre");
-    assert!(pre.is_none(), "fresh CAS store must have no chaintape/cas ref");
+    assert!(
+        pre.is_none(),
+        "fresh CAS store must have no chaintape/cas ref"
+    );
 
     // First put — ref must materialize.
     let cid_a = store
@@ -427,7 +438,12 @@ fn sg_a3_open_repairs_c1_alias_divergence() {
     // Append two transitions to populate both refs at HEAD-2 OID.
     let e1 = entry_at(1, Hash::ZERO, Hash::ZERO, Hash([0x11; 32]));
     let _ = writer.commit(&e1).expect("commit-1");
-    let e2 = entry_at(2, Hash([0x11; 32]), e1.resulting_ledger_root, Hash([0x22; 32]));
+    let e2 = entry_at(
+        2,
+        Hash([0x11; 32]),
+        e1.resulting_ledger_root,
+        Hash([0x22; 32]),
+    );
     let _ = writer.commit(&e2).expect("commit-2");
 
     let canonical = writer.head_commit_oid().expect("c2 head");
@@ -446,7 +462,9 @@ fn sg_a3_open_repairs_c1_alias_divergence() {
         )
         .expect("rewind C1");
 
-        let c1_after = Git2LedgerWriter::head_chaintape_l4(&path).expect("read l4").expect("l4");
+        let c1_after = Git2LedgerWriter::head_chaintape_l4(&path)
+            .expect("read l4")
+            .expect("l4");
         // C2 still at canonical
         assert_eq!(c1_after, canonical);
         // C1 was rewound to parent (different from canonical)
@@ -467,12 +485,17 @@ fn sg_a3_open_repairs_c1_alias_divergence() {
         .expect("ref")
         .target()
         .expect("oid");
-    let c2_after = Git2LedgerWriter::head_chaintape_l4(&path).expect("l4 post").expect("l4 oid");
+    let c2_after = Git2LedgerWriter::head_chaintape_l4(&path)
+        .expect("l4 post")
+        .expect("l4 oid");
     assert_eq!(
         c1_repaired, c2_after,
         "open() must repair C1 alias divergence by aligning to C2 canonical"
     );
-    assert_eq!(c2_after, canonical, "C2 must remain at canonical after open");
+    assert_eq!(
+        c2_after, canonical,
+        "C2 must remain at canonical after open"
+    );
 }
 
 /// Regression — REF constants pinned at canonical names per FR-A3-HEAD-T-C2.1.

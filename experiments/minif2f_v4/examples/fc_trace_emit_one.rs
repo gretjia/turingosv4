@@ -10,10 +10,7 @@ fn main() {
         Some(42),
         Some("Agent_2"),
         &[
-            (
-                "reason",
-                minif2f_v4::fc_trace::json_str("OmegaAccepted"),
-            ),
+            ("reason", minif2f_v4::fc_trace::json_str("OmegaAccepted")),
             ("gp_nodes", "7".to_string()),
         ],
     );

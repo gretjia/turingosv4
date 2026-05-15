@@ -197,9 +197,7 @@ impl BenchmarkManifest {
     /// `n_problems × n_per_problem × n_seeds`. The aggregate runner asserts
     /// `chain_invariant.json` count matches this product.
     pub fn total_runs(&self) -> u64 {
-        (self.problem_ids.len() as u64)
-            * (self.n_per_problem as u64)
-            * (self.seeds.len() as u64)
+        (self.problem_ids.len() as u64) * (self.n_per_problem as u64) * (self.seeds.len() as u64)
     }
 
     /// TRACE_MATRIX § 3 orphan: serialize to canonical pretty JSON for
@@ -226,9 +224,8 @@ impl BenchmarkManifest {
             BenchmarkManifestError::EmptyBatchId // surface IO via the most-likely-empty kind for caller summary; full IO retained via to_string
                 .clone_with_io(&e)
         })?;
-        let m: Self = serde_json::from_str(&body).map_err(|e| {
-            BenchmarkManifestError::SchemaIdMismatch(format!("parse error: {e}"))
-        })?;
+        let m: Self = serde_json::from_str(&body)
+            .map_err(|e| BenchmarkManifestError::SchemaIdMismatch(format!("parse error: {e}")))?;
         m.validate()?;
         Ok(m)
     }
@@ -359,10 +356,7 @@ mod tests {
     fn duplicate_seed_is_blocked() {
         let mut m = good_manifest();
         m.seeds.push(1);
-        assert_eq!(
-            m.validate(),
-            Err(BenchmarkManifestError::DuplicateSeed(1))
-        );
+        assert_eq!(m.validate(), Err(BenchmarkManifestError::DuplicateSeed(1)));
     }
 
     #[test]

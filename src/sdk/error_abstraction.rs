@@ -81,7 +81,10 @@ pub fn classify_lean_error(combined: &str) -> OracleErrClass {
     // Normalize to lowercase for matching (patterns below use lowercase).
     let c = combined.to_lowercase();
     // Structural error patterns (higher-specificity first)
-    if c.contains("unknown constant") || c.contains("unknownidentifier") || c.contains("unknown identifier") {
+    if c.contains("unknown constant")
+        || c.contains("unknownidentifier")
+        || c.contains("unknown identifier")
+    {
         return OracleErrClass::UnknownConstant;
     }
     if c.contains("unexpected token") {

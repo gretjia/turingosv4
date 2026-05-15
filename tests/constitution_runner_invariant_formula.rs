@@ -81,12 +81,15 @@ fn runner_passes_completed_llm_calls_to_invariant_binary() {
 fn architect_inv1_uses_completed_llm_calls_scope() {
     let script = read_script();
     assert!(
-        script.contains(r#""architect_inv_1": "chain_attempt_count == evaluator_reported_completed_llm_calls""#),
+        script.contains(
+            r#""architect_inv_1": "chain_attempt_count == evaluator_reported_completed_llm_calls""#
+        ),
         "architect_inv1_check.json must declare invariant scope as completed_llm_calls. \
          CLAUDE.md Report Standard line 80 (clarified 2026-05-07) is the canonical source."
     );
     assert!(
-        !script.contains(r#""architect_inv_1": "chain_attempt_count == evaluator_reported_tx_count""#),
+        !script
+            .contains(r#""architect_inv_1": "chain_attempt_count == evaluator_reported_tx_count""#),
         "REGRESSION GUARD: architect_inv1 must NOT use evaluator_reported_tx_count as scope. \
          P04/P05 demonstrated the gap (admin scaffold inflates tx_count)."
     );
@@ -98,8 +101,8 @@ fn architect_inv1_uses_completed_llm_calls_scope() {
 fn claude_md_report_standard_uses_canonical_invariant() {
     let project_root = env!("CARGO_MANIFEST_DIR");
     let path = Path::new(project_root).join("CLAUDE.md");
-    let content = std::fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("cannot read CLAUDE.md: {e}"));
+    let content =
+        std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("cannot read CLAUDE.md: {e}"));
     assert!(
         content.contains("evaluator_reported_completed_llm_calls"),
         "CLAUDE.md Report Standard must reference evaluator_reported_completed_llm_calls. \

@@ -110,7 +110,9 @@ impl Default for AgentSignature {
 
 /// TRACE_MATRIX § 1.2 TxStatus::FinalizedSlash — typed reference to the
 /// counter-example payload that justified the slash (lives in L3 CAS).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default,
+)]
 #[serde(transparent)]
 pub struct SlashEvidenceCid(pub Cid);
 
@@ -281,18 +283,18 @@ pub enum TxStatus {
 /// domain prefix).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct WorkTx {
-    pub tx_id: TxId,                                  //  1
-    pub task_id: TaskId,                              //  2
-    pub parent_state_root: Hash,                      //  3
-    pub agent_id: AgentId,                            //  4
-    pub read_set: BTreeSet<ReadKey>,                  //  5
-    pub write_set: BTreeSet<WriteKey>,                //  6
-    pub proposal_cid: Cid,                            //  7
-    pub predicate_results: PredicateResultsBundle,    //  8 (runner-stamped)
-    pub stake: StakeMicroCoin,                        //  9
-    pub signature: AgentSignature,                    // 10
-    pub timestamp_logical: u64,                       // 11
-    // 12: TxStatus — D-1 elision; runtime-only.
+    pub tx_id: TxId,                               //  1
+    pub task_id: TaskId,                           //  2
+    pub parent_state_root: Hash,                   //  3
+    pub agent_id: AgentId,                         //  4
+    pub read_set: BTreeSet<ReadKey>,               //  5
+    pub write_set: BTreeSet<WriteKey>,             //  6
+    pub proposal_cid: Cid,                         //  7
+    pub predicate_results: PredicateResultsBundle, //  8 (runner-stamped)
+    pub stake: StakeMicroCoin,                     //  9
+    pub signature: AgentSignature,                 // 10
+    pub timestamp_logical: u64,                    // 11
+                                                   // 12: TxStatus — D-1 elision; runtime-only.
 }
 
 /// TRACE_MATRIX § 1.3 — verifier verdict transaction.
@@ -304,14 +306,14 @@ pub struct WorkTx {
 /// rows (dispatch arm was `NotYetImplemented`), so the wire bump is harmless.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct VerifyTx {
-    pub tx_id: TxId,                       //  1
-    pub parent_state_root: Hash,           //  2  (TB-4 NEW)
-    pub target_work_tx: TxId,              //  3
-    pub verifier_agent: AgentId,           //  4
-    pub bond: StakeMicroCoin,              //  5
-    pub verdict: VerifyVerdict,            //  6
-    pub signature: AgentSignature,         //  7
-    pub timestamp_logical: u64,            //  8
+    pub tx_id: TxId,               //  1
+    pub parent_state_root: Hash,   //  2  (TB-4 NEW)
+    pub target_work_tx: TxId,      //  3
+    pub verifier_agent: AgentId,   //  4
+    pub bond: StakeMicroCoin,      //  5
+    pub verdict: VerifyVerdict,    //  6
+    pub signature: AgentSignature, //  7
+    pub timestamp_logical: u64,    //  8
 }
 
 impl Default for VerifyVerdict {
@@ -328,25 +330,25 @@ impl Default for VerifyVerdict {
 /// VerifyTx (constitutional shape; pre-TB-4 has no production-accepted rows).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct ChallengeTx {
-    pub tx_id: TxId,                       //  1
-    pub parent_state_root: Hash,           //  2  (TB-4 NEW)
-    pub target_work_tx: TxId,              //  3
-    pub challenger_agent: AgentId,         //  4
-    pub stake: StakeMicroCoin,             //  5
-    pub counterexample_cid: Cid,           //  6
-    pub signature: AgentSignature,         //  7
-    pub timestamp_logical: u64,            //  8
+    pub tx_id: TxId,               //  1
+    pub parent_state_root: Hash,   //  2  (TB-4 NEW)
+    pub target_work_tx: TxId,      //  3
+    pub challenger_agent: AgentId, //  4
+    pub stake: StakeMicroCoin,     //  5
+    pub counterexample_cid: Cid,   //  6
+    pub signature: AgentSignature, //  7
+    pub timestamp_logical: u64,    //  8
 }
 
 /// TRACE_MATRIX § 1.3 — fact-tx recording reuse of a tool created by a prior
 /// agent (royalty graph edge). No submitting agent (per § 3.6.5 v1.3).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct ReuseTx {
-    pub tx_id: TxId,                       //  1
-    pub reusing_work_tx: TxId,             //  2
-    pub reused_tool_id: ToolId,            //  3
-    pub reused_tool_creator: AgentId,      //  4
-    pub timestamp_logical: u64,            //  5
+    pub tx_id: TxId,                  //  1
+    pub reusing_work_tx: TxId,        //  2
+    pub reused_tool_id: ToolId,       //  3
+    pub reused_tool_creator: AgentId, //  4
+    pub timestamp_logical: u64,       //  5
 }
 
 /// TRACE_MATRIX CO1.1.4-pre1 spec § 4 — derived schema (STATE spec § 3.4
@@ -375,10 +377,10 @@ pub struct FinalizeRewardTx {
     pub claim_id: ClaimId,                 //  2 — typed (was TxId in v1)
     pub task_id: TaskId,                   //  3 — Q-derived authoritative; wire = ledger summary
     pub solver: AgentId,                   //  4 — Q-derived authoritative; wire = ledger summary
-    pub reward: MicroCoin,                 //  5 — Q-derived authoritative (SettlementEngine output); wire = ledger summary
-    pub parent_state_root: Hash,           //  6
-    pub epoch: SystemEpoch,                //  7
-    pub timestamp_logical: u64,            //  8
+    pub reward: MicroCoin, //  5 — Q-derived authoritative (SettlementEngine output); wire = ledger summary
+    pub parent_state_root: Hash, //  6
+    pub epoch: SystemEpoch, //  7
+    pub timestamp_logical: u64, //  8
     pub system_signature: SystemSignature, //  9 — see doc-comment on dual-sign rationale
 }
 
@@ -403,23 +405,23 @@ pub struct FinalizeRewardTx {
 /// protocol documented in this file's tests module).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct TaskExpireTx {
-    pub tx_id: TxId,                       //  1
-    pub task_id: TaskId,                   //  2
-    pub parent_state_root: Hash,           //  3
-    pub bounty_refunded: MicroCoin,        //  4 (computed by runtime; included for ledger summary; equals escrows_t[escrow_tx_id].amount at emit time)
-    pub epoch: SystemEpoch,                //  5
-    pub timestamp_logical: u64,            //  6
+    pub tx_id: TxId,                //  1
+    pub task_id: TaskId,            //  2
+    pub parent_state_root: Hash,    //  3
+    pub bounty_refunded: MicroCoin, //  4 (computed by runtime; included for ledger summary; equals escrows_t[escrow_tx_id].amount at emit time)
+    pub epoch: SystemEpoch,         //  5
+    pub timestamp_logical: u64,     //  6
     /// TB-11 NEW: depositor of `escrows_t[escrow_tx_id]`. Q-derived at
     /// `emit_system_tx` time; wire field is ledger summary (Q is authoritative).
-    pub sponsor_agent: AgentId,            //  7  TB-11 NEW
+    pub sponsor_agent: AgentId, //  7  TB-11 NEW
     /// TB-11 NEW: which `escrows_t` row to refund. Required because a single
     /// task may have multiple `EscrowLockTx`s contributing to its
     /// `task_markets_t.total_escrow`; the refund pathway must be per-escrow
     /// (1 TaskExpireTx per escrow) to preserve replay-deterministic
     /// CTF accounting.
-    pub escrow_tx_id: TxId,                //  8  TB-11 NEW
+    pub escrow_tx_id: TxId, //  8  TB-11 NEW
     /// TB-11 NEW: discriminator over the policy that triggered expiry.
-    pub reason: ExpireReason,              //  9  TB-11 NEW
+    pub reason: ExpireReason, //  9  TB-11 NEW
     pub system_signature: SystemSignature, // 10  (was field 7 pre-TB-11)
 }
 
@@ -456,26 +458,26 @@ pub struct TaskExpireTx {
 /// digest — same opaque-digest pattern as `LedgerEntrySigning`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct TerminalSummaryTx {
-    pub tx_id: TxId,                                          //  1
-    pub task_id: TaskId,                                      //  2
-    pub run_id: RunId,                                        //  3
-    pub run_outcome: RunOutcome,                              //  4
-    pub total_attempts: u32,                                  //  5
-    pub failure_class_histogram: BTreeMap<RejectionClass, u32>,// 6
-    pub last_logical_t: u64,                                  //  7
+    pub tx_id: TxId,                                            //  1
+    pub task_id: TaskId,                                        //  2
+    pub run_id: RunId,                                          //  3
+    pub run_outcome: RunOutcome,                                //  4
+    pub total_attempts: u32,                                    //  5
+    pub failure_class_histogram: BTreeMap<RejectionClass, u32>, // 6
+    pub last_logical_t: u64,                                    //  7
     /// TB-11 NEW: constitutional StaleParent gate (mirrors VerifyTx + ChallengeTx
     /// TB-4 schema bump; every accepted-tx variant carries explicit
     /// parent_state_root).
-    pub parent_state_root: Hash,                              //  8 TB-11 NEW
+    pub parent_state_root: Hash, //  8 TB-11 NEW
     /// TB-11 NEW: which agent owned the run (None if no solver was assigned
     /// before the run terminated, e.g. evaluator never picked up the task).
-    pub solver_agent: Option<AgentId>,                        //  9 TB-11 NEW
+    pub solver_agent: Option<AgentId>, //  9 TB-11 NEW
     /// TB-11 NEW: architect §6.2 — references the EvidenceCapsule CAS bytes.
     /// `None` for `RunOutcome::OmegaAccepted` (success path needs no failure
     /// evidence). `Some` for the 4 failure outcomes (MaxTxExhausted /
     /// WallClockCap / ComputeCap / ErrorHalt).
-    pub evidence_capsule_cid: Option<Cid>,                    // 10 TB-11 NEW
-    pub system_signature: SystemSignature,                    // 11 (was field 8 pre-TB-11)
+    pub evidence_capsule_cid: Option<Cid>, // 10 TB-11 NEW
+    pub system_signature: SystemSignature,                      // 11 (was field 8 pre-TB-11)
 }
 
 /// TRACE_MATRIX FC1-N1: TB-11 (2026-05-02 architect ruling §6.2) —
@@ -511,20 +513,20 @@ pub type RunExhaustedTx = TerminalSummaryTx;
 /// triggered bankruptcy (max failed run count, deadline exceeded, etc.).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct TaskBankruptcyTx {
-    pub tx_id: TxId,                       //  1
-    pub parent_state_root: Hash,           //  2
-    pub task_id: TaskId,                   //  3
+    pub tx_id: TxId,             //  1
+    pub parent_state_root: Hash, //  2
+    pub task_id: TaskId,         //  3
     /// Architect §6.2: rollup CAS object referencing all per-run capsules
     /// for this task (or a single dominant capsule if only one failed run
     /// triggered the policy threshold).
-    pub evidence_capsule_cid: Cid,         //  4
+    pub evidence_capsule_cid: Cid, //  4
     pub bankruptcy_reason: BankruptcyReason, //  5
     /// Number of failed runs observed at bankruptcy time (anti-frivolous
     /// emission; emit_system_tx checks this against
     /// `TASK_BANKRUPTCY_FAILED_RUN_COUNT_MIN`).
-    pub failed_run_count: u32,             //  6
-    pub epoch: SystemEpoch,                //  7
-    pub timestamp_logical: u64,            //  8
+    pub failed_run_count: u32, //  6
+    pub epoch: SystemEpoch,      //  7
+    pub timestamp_logical: u64,  //  8
     pub system_signature: SystemSignature, //  9
 }
 
@@ -783,15 +785,15 @@ pub struct NodePosition {
 /// `WorkTx` admission step 2 (TB-3 charter § 3.1).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct TaskOpenTx {
-    pub tx_id: TxId,                           //  1
-    pub task_id: TaskId,                       //  2 — TaskMarketsIndex key
-    pub parent_state_root: Hash,               //  3
-    pub sponsor_agent: AgentId,                //  4 — becomes TaskMarketEntry.publisher
-    pub verifier_quorum: u32,                  //  5 — RSP-2+ field; default 1
+    pub tx_id: TxId,                                  //  1
+    pub task_id: TaskId,                              //  2 — TaskMarketsIndex key
+    pub parent_state_root: Hash,                      //  3
+    pub sponsor_agent: AgentId,                       //  4 — becomes TaskMarketEntry.publisher
+    pub verifier_quorum: u32,                         //  5 — RSP-2+ field; default 1
     pub max_reuse_royalty_fraction_basis_points: u16, //  6 — RSP-5+ cap; default 1000 (10%)
-    pub settlement_rule_hash: Hash,            //  7 — RSP-3/4 hook; opaque hash for TB-3
-    pub signature: AgentSignature,             //  8
-    pub timestamp_logical: u64,                //  9
+    pub settlement_rule_hash: Hash,                   //  7 — RSP-3/4 hook; opaque hash for TB-3
+    pub signature: AgentSignature,                    //  8
+    pub timestamp_logical: u64,                       //  9
 }
 
 /// TRACE_MATRIX TB-3 charter § 4.1 + WP § 19 RSP-1 — escrow-lock transaction.
@@ -806,13 +808,13 @@ pub struct TaskOpenTx {
 /// single `EscrowLockTx` with paired balance debit.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct EscrowLockTx {
-    pub tx_id: TxId,                           //  1 — EscrowsIndex key
-    pub task_id: TaskId,                       //  2 — must reference an open task
-    pub parent_state_root: Hash,               //  3
-    pub sponsor_agent: AgentId,                //  4 — depositor (publisher OR third-party top-up)
-    pub amount: MicroCoin,                     //  5 — debited from balances_t[sponsor]
-    pub signature: AgentSignature,             //  6
-    pub timestamp_logical: u64,                //  7
+    pub tx_id: TxId,               //  1 — EscrowsIndex key
+    pub task_id: TaskId,           //  2 — must reference an open task
+    pub parent_state_root: Hash,   //  3
+    pub sponsor_agent: AgentId,    //  4 — depositor (publisher OR third-party top-up)
+    pub amount: MicroCoin,         //  5 — debited from balances_t[sponsor]
+    pub signature: AgentSignature, //  6
+    pub timestamp_logical: u64,    //  7
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -838,13 +840,13 @@ pub struct EscrowLockTx {
 /// UpheldDeferred → marker only; ChallengeCase preserved for TB-6 slash.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct ChallengeResolveTx {
-    pub tx_id: TxId,                                //  1
-    pub parent_state_root: Hash,                    //  2
-    pub target_challenge_tx_id: TxId,               //  3 — keys challenge_cases_t lookup
-    pub resolution: ChallengeResolution,            //  4
-    pub epoch: SystemEpoch,                         //  5
-    pub timestamp_logical: u64,                     //  6
-    pub system_signature: SystemSignature,          //  7
+    pub tx_id: TxId,                       //  1
+    pub parent_state_root: Hash,           //  2
+    pub target_challenge_tx_id: TxId,      //  3 — keys challenge_cases_t lookup
+    pub resolution: ChallengeResolution,   //  4
+    pub epoch: SystemEpoch,                //  5
+    pub timestamp_logical: u64,            //  6
+    pub system_signature: SystemSignature, //  7
 }
 
 /// TRACE_MATRIX TB-5 charter v2 § 4.5 — resolution outcome (per directive Q4).
@@ -890,28 +892,28 @@ impl Default for ChallengeResolution {
 const DOMAIN_AGENT_WORK: &[u8] = b"turingosv4.agent_sig.work.v1";
 const DOMAIN_AGENT_VERIFY: &[u8] = b"turingosv4.agent_sig.verify.v1";
 const DOMAIN_AGENT_CHALLENGE: &[u8] = b"turingosv4.agent_sig.challenge.v1";
-const DOMAIN_AGENT_TASK_OPEN: &[u8] = b"turingosv4.agent_sig.task_open.v1";       // TB-3 RSP-1
-const DOMAIN_AGENT_ESCROW_LOCK: &[u8] = b"turingosv4.agent_sig.escrow_lock.v1";   // TB-3 RSP-1
+const DOMAIN_AGENT_TASK_OPEN: &[u8] = b"turingosv4.agent_sig.task_open.v1"; // TB-3 RSP-1
+const DOMAIN_AGENT_ESCROW_LOCK: &[u8] = b"turingosv4.agent_sig.escrow_lock.v1"; // TB-3 RSP-1
 const DOMAIN_SYSTEM_FINALIZE_REWARD: &[u8] = b"turingosv4.system_sig.finalize_reward.v1";
 const DOMAIN_SYSTEM_TASK_EXPIRE: &[u8] = b"turingosv4.system_sig.task_expire.v1";
 const DOMAIN_SYSTEM_TERMINAL_SUMMARY: &[u8] = b"turingosv4.system_sig.terminal_summary.v1";
 const DOMAIN_SYSTEM_CHALLENGE_RESOLVE: &[u8] = b"turingosv4.system_sig.challenge_resolve.v1"; // TB-5 Atom 3
-const DOMAIN_SYSTEM_TASK_BANKRUPTCY: &[u8] = b"turingosv4.system_sig.task_bankruptcy.v1";    // TB-11
-// TB-N2 B2 (TB_N2_POLYMARKET_CPMM_LIFECYCLE charter §3 B2 atom; 2026-05-11):
-// system-emitted `EventResolveTx` flips `task_markets_t[task_id].state` from
-// Open → Finalized when a proof task's OMEGA-Confirm path produces a
-// FinalizeReward. Closes the CPMM lifecycle gap identified in
-// `handover/audits/STAGE_C_POLYMARKET_CPMM_LIFECYCLE_GAP_AUDIT_2026-05-10.md`
-// §3.3 (TaskMarketState::Finalized previously READ 5+ sites / WRITE 0 sites).
-// Resolution authority: minimal CPMM-completeness path (Option 1 system-emit
-// on lean-verify outcome per charter §5 + gap audit §4); K.3 ORACLE / K.6
-// EXTERNAL forward-bound and can wrap this without breaking B2 invariants.
-const DOMAIN_SYSTEM_EVENT_RESOLVE: &[u8] = b"turingosv4.system_sig.event_resolve.v1";        // TB-N2 B2
-// TB-13 — CompleteSet + MarketSeedTx (architect 2026-05-03 post-TB-12 ruling Part A §4.3).
-// All three TB-13 typed-tx are AGENT-SIGNED (provider funds explicit; no
-// auto-seed; redeem requires system-resolution-reference + outcome match,
-// gated sequencer-side at admission). Domain prefixes mirror existing
-// agent-domain naming conventions (`turingosv4.agent_sig.<purpose>.v1`).
+const DOMAIN_SYSTEM_TASK_BANKRUPTCY: &[u8] = b"turingosv4.system_sig.task_bankruptcy.v1"; // TB-11
+                                                                                          // TB-N2 B2 (TB_N2_POLYMARKET_CPMM_LIFECYCLE charter §3 B2 atom; 2026-05-11):
+                                                                                          // system-emitted `EventResolveTx` flips `task_markets_t[task_id].state` from
+                                                                                          // Open → Finalized (YES) or, under REAL-6A TaskOutcomeMarket resolution,
+                                                                                          // Open → Bankrupt (NO). Closes the CPMM lifecycle gap identified in
+                                                                                          // `handover/audits/STAGE_C_POLYMARKET_CPMM_LIFECYCLE_GAP_AUDIT_2026-05-10.md`
+                                                                                          // §3.3 (TaskMarketState::Finalized previously READ 5+ sites / WRITE 0 sites).
+                                                                                          // Resolution authority: minimal CPMM-completeness path (Option 1 system-emit
+                                                                                          // on lean-verify outcome per charter §5 + gap audit §4); K.3 ORACLE / K.6
+                                                                                          // EXTERNAL forward-bound and can wrap this without breaking B2 invariants.
+const DOMAIN_SYSTEM_EVENT_RESOLVE: &[u8] = b"turingosv4.system_sig.event_resolve.v1"; // TB-N2 B2
+                                                                                      // TB-13 — CompleteSet + MarketSeedTx (architect 2026-05-03 post-TB-12 ruling Part A §4.3).
+                                                                                      // All three TB-13 typed-tx are AGENT-SIGNED (provider funds explicit; no
+                                                                                      // auto-seed; redeem requires system-resolution-reference + outcome match,
+                                                                                      // gated sequencer-side at admission). Domain prefixes mirror existing
+                                                                                      // agent-domain naming conventions (`turingosv4.agent_sig.<purpose>.v1`).
 const DOMAIN_AGENT_COMPLETE_SET_MINT: &[u8] = b"turingosv4.agent_sig.complete_set_mint.v1";
 const DOMAIN_AGENT_COMPLETE_SET_REDEEM: &[u8] = b"turingosv4.agent_sig.complete_set_redeem.v1";
 const DOMAIN_AGENT_MARKET_SEED: &[u8] = b"turingosv4.agent_sig.market_seed.v1";
@@ -932,8 +934,7 @@ const DOMAIN_AGENT_CPMM_SWAP: &[u8] = b"turingosv4.agent_sig.cpmm_swap.v1";
 /// STEP_B; per-atom §8 + PRE-§8 dual audit"): agent-signed Mint-and-Swap
 /// router tx domain prefix. Mirror naming convention `turingosv4.agent_sig.
 /// <purpose>.v1` parallel to CpmmPool / CpmmSwap.
-const DOMAIN_AGENT_BUY_WITH_COIN_ROUTER: &[u8] =
-    b"turingosv4.agent_sig.buy_with_coin_router.v1";
+const DOMAIN_AGENT_BUY_WITH_COIN_ROUTER: &[u8] = b"turingosv4.agent_sig.buy_with_coin_router.v1";
 
 /// Reserved for v4.1 MetaTx (Gemini round-2 GR-1 recommendation).
 /// Not used in v4 — namespace placeholder so v4.1 can introduce
@@ -976,7 +977,7 @@ impl WorkSigningPayload {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct VerifySigningPayload {
     pub tx_id: TxId,
-    pub parent_state_root: Hash,           // TB-4 NEW
+    pub parent_state_root: Hash, // TB-4 NEW
     pub target_work_tx: TxId,
     pub verifier_agent: AgentId,
     pub bond: StakeMicroCoin,
@@ -994,7 +995,7 @@ impl VerifySigningPayload {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct ChallengeSigningPayload {
     pub tx_id: TxId,
-    pub parent_state_root: Hash,           // TB-4 NEW
+    pub parent_state_root: Hash, // TB-4 NEW
     pub target_work_tx: TxId,
     pub challenger_agent: AgentId,
     pub stake: StakeMicroCoin,
@@ -1072,9 +1073,9 @@ pub struct TaskExpireSigningPayload {
     pub bounty_refunded: MicroCoin,
     pub epoch: SystemEpoch,
     pub timestamp_logical: u64,
-    pub sponsor_agent: AgentId,           // TB-11 NEW
-    pub escrow_tx_id: TxId,               // TB-11 NEW
-    pub reason: ExpireReason,             // TB-11 NEW
+    pub sponsor_agent: AgentId, // TB-11 NEW
+    pub escrow_tx_id: TxId,     // TB-11 NEW
+    pub reason: ExpireReason,   // TB-11 NEW
 }
 
 impl TaskExpireSigningPayload {
@@ -1093,9 +1094,9 @@ pub struct TerminalSummarySigningPayload {
     pub total_attempts: u32,
     pub failure_class_histogram: BTreeMap<RejectionClass, u32>,
     pub last_logical_t: u64,
-    pub parent_state_root: Hash,                  // TB-11 NEW
-    pub solver_agent: Option<AgentId>,            // TB-11 NEW
-    pub evidence_capsule_cid: Option<Cid>,        // TB-11 NEW
+    pub parent_state_root: Hash,           // TB-11 NEW
+    pub solver_agent: Option<AgentId>,     // TB-11 NEW
+    pub evidence_capsule_cid: Option<Cid>, // TB-11 NEW
 }
 
 impl TerminalSummarySigningPayload {
@@ -1228,7 +1229,9 @@ pub struct RiskRuleId(pub String);
 /// shares can never be negative (mint creates positive, redeem decreases
 /// positive, no debt model). Underflow at redeem time is a sequencer
 /// `RedeemMoreThanOwned` rejection, not a representation concern.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default,
+)]
 pub struct ShareAmount {
     pub units: u128,
 }
@@ -1262,13 +1265,13 @@ impl ShareAmount {
 /// are claims (not Coin) per CR-13.3 / SG-13.2.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct CompleteSetMintTx {
-    pub tx_id: TxId,                          //  1
-    pub parent_state_root: Hash,              //  2
-    pub event_id: EventId,                    //  3
-    pub owner: AgentId,                       //  4
-    pub amount: MicroCoin,                    //  5
-    pub signature: AgentSignature,            //  6
-    pub timestamp_logical: u64,               //  7
+    pub tx_id: TxId,               //  1
+    pub parent_state_root: Hash,   //  2
+    pub event_id: EventId,         //  3
+    pub owner: AgentId,            //  4
+    pub amount: MicroCoin,         //  5
+    pub signature: AgentSignature, //  6
+    pub timestamp_logical: u64,    //  7
 }
 
 /// TRACE_MATRIX TB-13 Atom 1 (architect §4.3 + FR-13.4..5 + SG-13.5..6):
@@ -1293,14 +1296,14 @@ pub struct CompleteSetMintTx {
 /// 4. Debit shares; debit collateral; credit `balances_t[owner]` 1:1.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct CompleteSetRedeemTx {
-    pub tx_id: TxId,                          //  1
-    pub parent_state_root: Hash,              //  2
-    pub event_id: EventId,                    //  3
-    pub owner: AgentId,                       //  4
-    pub outcome: OutcomeSide,                 //  5
-    pub share_amount: ShareAmount,            //  6
-    pub signature: AgentSignature,            //  7
-    pub timestamp_logical: u64,               //  8
+    pub tx_id: TxId,               //  1
+    pub parent_state_root: Hash,   //  2
+    pub event_id: EventId,         //  3
+    pub owner: AgentId,            //  4
+    pub outcome: OutcomeSide,      //  5
+    pub share_amount: ShareAmount, //  6
+    pub signature: AgentSignature, //  7
+    pub timestamp_logical: u64,    //  8
 }
 
 /// TRACE_MATRIX TB-13 Atom 1 (architect §4.3 + FR-13.6..7): explicit
@@ -1324,13 +1327,13 @@ pub struct CompleteSetRedeemTx {
 /// fact of seeding, not any signal derived from it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct MarketSeedTx {
-    pub tx_id: TxId,                          //  1
-    pub parent_state_root: Hash,              //  2
-    pub event_id: EventId,                    //  3
-    pub provider: AgentId,                    //  4
-    pub collateral_amount: MicroCoin,         //  5
-    pub signature: AgentSignature,            //  6
-    pub timestamp_logical: u64,               //  7
+    pub tx_id: TxId,                  //  1
+    pub parent_state_root: Hash,      //  2
+    pub event_id: EventId,            //  3
+    pub provider: AgentId,            //  4
+    pub collateral_amount: MicroCoin, //  5
+    pub signature: AgentSignature,    //  6
+    pub timestamp_logical: u64,       //  7
 }
 
 /// TRACE_MATRIX Stage C P-M2 / Phase F.1 (architect manual §7.3 verbatim):
@@ -1353,12 +1356,12 @@ pub struct MarketSeedTx {
 /// retired symmetrically (the inverse of CompleteSetMint, exact-cycle).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct CompleteSetMergeTx {
-    pub tx_id: TxId,                          //  1
-    pub parent_state_root: Hash,              //  2
-    pub event_id: EventId,                    //  3
-    pub owner: AgentId,                       //  4
-    pub amount: ShareAmount,                  //  5
-    pub signature: AgentSignature,            //  6
+    pub tx_id: TxId,               //  1
+    pub parent_state_root: Hash,   //  2
+    pub event_id: EventId,         //  3
+    pub owner: AgentId,            //  4
+    pub amount: ShareAmount,       //  5
+    pub signature: AgentSignature, //  6
 }
 
 /// TRACE_MATRIX FC1-Append Stage C P-M4 / Phase F.3 (architect manual §7.5
@@ -1403,13 +1406,13 @@ pub struct CompleteSetMergeTx {
 /// reserves — no Coin minted, no Coin burned).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct CpmmPoolTx {
-    pub tx_id: TxId,                          //  1
-    pub parent_state_root: Hash,              //  2
-    pub event_id: EventId,                    //  3
-    pub provider: AgentId,                    //  4
-    pub seed_yes: ShareAmount,                //  5
-    pub seed_no: ShareAmount,                 //  6
-    pub signature: AgentSignature,            //  7
+    pub tx_id: TxId,               //  1
+    pub parent_state_root: Hash,   //  2
+    pub event_id: EventId,         //  3
+    pub provider: AgentId,         //  4
+    pub seed_yes: ShareAmount,     //  5
+    pub seed_no: ShareAmount,      //  6
+    pub signature: AgentSignature, //  7
 }
 
 /// TRACE_MATRIX FC1-Append Stage C P-M5 / Phase F.4 (architect manual §7.6
@@ -1494,14 +1497,14 @@ impl Default for SwapDirection {
 /// prevention: `event_id` (NOT `event_id_kind`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct CpmmSwapTx {
-    pub tx_id: TxId,                          //  1
-    pub parent_state_root: Hash,              //  2
-    pub event_id: EventId,                    //  3
-    pub trader: AgentId,                      //  4
-    pub direction: SwapDirection,             //  5
-    pub amount_in: ShareAmount,               //  6
-    pub min_out: ShareAmount,                 //  7
-    pub signature: AgentSignature,            //  8
+    pub tx_id: TxId,               //  1
+    pub parent_state_root: Hash,   //  2
+    pub event_id: EventId,         //  3
+    pub trader: AgentId,           //  4
+    pub direction: SwapDirection,  //  5
+    pub amount_in: ShareAmount,    //  6
+    pub min_out: ShareAmount,      //  7
+    pub signature: AgentSignature, //  8
 }
 
 /// TRACE_MATRIX FC1-Append Stage C P-M6 / Phase F.5 (architect manual §7.7
@@ -1580,35 +1583,33 @@ impl Default for BuyDirection {
 /// `event_id` (NOT `event_id_kind`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct BuyWithCoinRouterTx {
-    pub tx_id: TxId,                          //  1
-    pub parent_state_root: Hash,              //  2
-    pub event_id: EventId,                    //  3
-    pub buyer: AgentId,                       //  4
-    pub direction: BuyDirection,              //  5
-    pub pay_coin: MicroCoin,                  //  6
-    pub min_out_shares: ShareAmount,          //  7
-    pub signature: AgentSignature,            //  8
+    pub tx_id: TxId,                 //  1
+    pub parent_state_root: Hash,     //  2
+    pub event_id: EventId,           //  3
+    pub buyer: AgentId,              //  4
+    pub direction: BuyDirection,     //  5
+    pub pay_coin: MicroCoin,         //  6
+    pub min_out_shares: ShareAmount, //  7
+    pub signature: AgentSignature,   //  8
 }
 
 /// TRACE_MATRIX TB-N2 B2 (TB_N2_POLYMARKET_CPMM_LIFECYCLE charter §3 B2;
 /// gap audit §3.3 verbatim closure target) — system-emitted event-resolve
 /// transition. Flips `task_markets_t[task_id].state` from Open → Finalized
-/// on a proof task's OMEGA-Confirm path (Option 1 resolution authority:
-/// minimal CPMM-completeness path; lean-verify outcome triggers
-/// system-emit).
+/// (YES) on a proof task's OMEGA-Confirm path, or Open → Bankrupt (NO)
+/// under REAL-6A TaskOutcomeMarket exhaustion/deadline resolution.
 ///
 /// **Resolution authority semantics** (already encoded by TB-13 redeem at
-/// typed_tx.rs:1244-1247): `Finalized` = YES wins (proof accepted);
-/// `Bankrupt` = NO wins (proof failed; TaskBankruptcyTx is the parallel
-/// system-tx for that path); `Open` / `Expired` = pre-resolution
-/// `RedeemBeforeResolution`. B2 lands ONLY the Open → Finalized YES-wins
-/// path; the Bankrupt NO-wins path was already landed by TB-11
-/// TaskBankruptcyTx.
+/// typed_tx.rs:1244-1247): `Finalized` = YES wins; `Bankrupt` = NO wins;
+/// `Open` / `Expired` = pre-resolution `RedeemBeforeResolution`. B2
+/// originally landed only the Open → Finalized YES-wins path. REAL-6A
+/// extends the same system tx with an explicit `outcome` field so NO can
+/// resolve through EventResolveTx instead of relying only on TaskBankruptcyTx.
 ///
 /// **System-emitted only**: agent ingress (`Sequencer::submit_agent_tx`)
 /// rejects this variant pre-queue per Anti-Oreo (Art V.1.3); construction
 /// goes through `Sequencer::emit_system_tx` with
-/// `SystemEmitCommand::EventResolve { task_id }`.
+/// `SystemEmitCommand::EventResolve { task_id, outcome }`.
 ///
 /// **Pure status mutation** (no `economic_state_t` ledger movement at
 /// EventResolve): `balances_t` / `conditional_collateral_t` /
@@ -1618,12 +1619,14 @@ pub struct BuyWithCoinRouterTx {
 /// shares into Coin; B2 makes redeem reachable, but does not perform
 /// redeem itself.
 ///
-/// **TB-N2 B2 minimal wire shape** (mirrors TaskBankruptcyTx 9-field shape
-/// without `evidence_capsule_cid` / `bankruptcy_reason` / `failed_run_count`):
-/// `tx_id` + `parent_state_root` + `task_id` + `epoch` + `timestamp_logical`
-/// + `system_signature` = 6 wire fields. Forward NO `timestamp_logical`
-/// drift (E.1 verbatim binding pattern; Stage C P-M2 Defect-3 prevention).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+/// **REAL-6A wire shape** (B2 plus explicit outcome, tail-added):
+/// `tx_id` + `parent_state_root` + `task_id` + `epoch` +
+/// `timestamp_logical` + `system_signature` + `outcome` = 7 wire fields.
+/// The first six fields preserve the TB-N2 B2 EventResolveTx prefix. New
+/// REAL-6A EventResolveTx signatures include `outcome` in the signing
+/// payload; legacy TB-N2 B2 YES records are grandfathered by verifying the
+/// legacy signing payload when `outcome == Yes`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Default)]
 pub struct EventResolveTx {
     pub tx_id: TxId,                       //  1
     pub parent_state_root: Hash,           //  2
@@ -1631,6 +1634,159 @@ pub struct EventResolveTx {
     pub epoch: SystemEpoch,                //  4
     pub timestamp_logical: u64,            //  5
     pub system_signature: SystemSignature, //  6
+    #[serde(default)]
+    pub outcome: OutcomeSide, //  7 (REAL-6A tail-add)
+}
+
+impl<'de> Deserialize<'de> for EventResolveTx {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &[
+            "tx_id",
+            "parent_state_root",
+            "task_id",
+            "epoch",
+            "timestamp_logical",
+            "system_signature",
+            "outcome",
+        ];
+
+        enum Field {
+            TxId,
+            ParentStateRoot,
+            TaskId,
+            Epoch,
+            TimestampLogical,
+            SystemSignature,
+            Outcome,
+        }
+
+        impl<'de> Deserialize<'de> for Field {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct FieldVisitor;
+
+                impl serde::de::Visitor<'_> for FieldVisitor {
+                    type Value = Field;
+
+                    fn expecting(
+                        &self,
+                        formatter: &mut std::fmt::Formatter<'_>,
+                    ) -> std::fmt::Result {
+                        formatter.write_str("EventResolveTx field")
+                    }
+
+                    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "tx_id" => Ok(Field::TxId),
+                            "parent_state_root" => Ok(Field::ParentStateRoot),
+                            "task_id" => Ok(Field::TaskId),
+                            "epoch" => Ok(Field::Epoch),
+                            "timestamp_logical" => Ok(Field::TimestampLogical),
+                            "system_signature" => Ok(Field::SystemSignature),
+                            "outcome" => Ok(Field::Outcome),
+                            _ => Err(serde::de::Error::unknown_field(value, FIELDS)),
+                        }
+                    }
+                }
+
+                deserializer.deserialize_identifier(FieldVisitor)
+            }
+        }
+
+        struct EventResolveTxVisitor;
+
+        impl<'de> serde::de::Visitor<'de> for EventResolveTxVisitor {
+            type Value = EventResolveTx;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                formatter.write_str("EventResolveTx with optional REAL-6A outcome tail")
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+            where
+                A: serde::de::SeqAccess<'de>,
+            {
+                let tx_id = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let parent_state_root = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
+                let task_id = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?;
+                let epoch = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(3, &self))?;
+                let timestamp_logical = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(4, &self))?;
+                let system_signature = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(5, &self))?;
+                let outcome = match seq.next_element() {
+                    Ok(Some(outcome)) => outcome,
+                    Ok(None) => OutcomeSide::Yes,
+                    Err(err) => return Err(err),
+                };
+                Ok(EventResolveTx {
+                    tx_id,
+                    parent_state_root,
+                    task_id,
+                    epoch,
+                    timestamp_logical,
+                    system_signature,
+                    outcome,
+                })
+            }
+
+            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+            where
+                A: serde::de::MapAccess<'de>,
+            {
+                let mut tx_id = None;
+                let mut parent_state_root = None;
+                let mut task_id = None;
+                let mut epoch = None;
+                let mut timestamp_logical = None;
+                let mut system_signature = None;
+                let mut outcome = None;
+                while let Some(key) = map.next_key()? {
+                    match key {
+                        Field::TxId => tx_id = Some(map.next_value()?),
+                        Field::ParentStateRoot => parent_state_root = Some(map.next_value()?),
+                        Field::TaskId => task_id = Some(map.next_value()?),
+                        Field::Epoch => epoch = Some(map.next_value()?),
+                        Field::TimestampLogical => timestamp_logical = Some(map.next_value()?),
+                        Field::SystemSignature => system_signature = Some(map.next_value()?),
+                        Field::Outcome => outcome = Some(map.next_value()?),
+                    }
+                }
+                Ok(EventResolveTx {
+                    tx_id: tx_id.ok_or_else(|| serde::de::Error::missing_field("tx_id"))?,
+                    parent_state_root: parent_state_root
+                        .ok_or_else(|| serde::de::Error::missing_field("parent_state_root"))?,
+                    task_id: task_id.ok_or_else(|| serde::de::Error::missing_field("task_id"))?,
+                    epoch: epoch.ok_or_else(|| serde::de::Error::missing_field("epoch"))?,
+                    timestamp_logical: timestamp_logical
+                        .ok_or_else(|| serde::de::Error::missing_field("timestamp_logical"))?,
+                    system_signature: system_signature
+                        .ok_or_else(|| serde::de::Error::missing_field("system_signature"))?,
+                    outcome: outcome.unwrap_or(OutcomeSide::Yes),
+                })
+            }
+        }
+
+        deserializer.deserialize_struct("EventResolveTx", FIELDS, EventResolveTxVisitor)
+    }
 }
 
 // ── TB-13 SigningPayloads ───────────────────────────────────────────────
@@ -1815,8 +1971,9 @@ impl BuyWithCoinRouterSigningPayload {
     }
 }
 
-/// TRACE_MATRIX TB-N2 B2 — system signing payload for `EventResolveTx`
-/// (6 wire fields → 5 fields; system_signature excluded). Domain prefix
+/// TRACE_MATRIX TB-N2 B2 + REAL-6A — system signing payload for
+/// `EventResolveTx` (7 wire fields → 6 signed fields; system_signature excluded).
+/// Domain prefix
 /// `b"turingosv4.system_sig.event_resolve.v1"` mirrors the existing 5
 /// system-tx signing domains (TerminalSummary / FinalizeReward /
 /// TaskExpire / ChallengeResolve / TaskBankruptcy).
@@ -1827,11 +1984,30 @@ pub struct EventResolveSigningPayload {
     pub task_id: TaskId,
     pub epoch: SystemEpoch,
     pub timestamp_logical: u64,
+    pub outcome: OutcomeSide,
 }
 
 impl EventResolveSigningPayload {
     /// TRACE_MATRIX FC1-Sig TB-N2 B2: domain-prefixed canonical digest for
     /// system-emitted EventResolveTx signing.
+    pub fn canonical_digest(&self) -> [u8; 32] {
+        domain_prefixed_digest(DOMAIN_SYSTEM_EVENT_RESOLVE, self)
+    }
+}
+
+/// TRACE_MATRIX TB-N2 B2 — legacy YES-only EventResolve signing payload.
+/// REAL-6A keeps this shape solely as a grandfathered signature-verification
+/// path for historical B2 records whose wire payload has no `outcome` field.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct EventResolveLegacySigningPayload {
+    pub tx_id: TxId,
+    pub parent_state_root: Hash,
+    pub task_id: TaskId,
+    pub epoch: SystemEpoch,
+    pub timestamp_logical: u64,
+}
+
+impl EventResolveLegacySigningPayload {
     pub fn canonical_digest(&self) -> [u8; 32] {
         domain_prefixed_digest(DOMAIN_SYSTEM_EVENT_RESOLVE, self)
     }
@@ -1955,6 +2131,18 @@ impl EventResolveTx {
     /// payload subset (excludes `system_signature`).
     pub fn to_signing_payload(&self) -> EventResolveSigningPayload {
         EventResolveSigningPayload {
+            tx_id: self.tx_id.clone(),
+            parent_state_root: self.parent_state_root,
+            task_id: self.task_id.clone(),
+            epoch: self.epoch,
+            timestamp_logical: self.timestamp_logical,
+            outcome: self.outcome,
+        }
+    }
+
+    /// Legacy TB-N2 B2 signing payload for historical YES-only records.
+    pub fn to_legacy_signing_payload(&self) -> EventResolveLegacySigningPayload {
+        EventResolveLegacySigningPayload {
             tx_id: self.tx_id.clone(),
             parent_state_root: self.parent_state_root,
             task_id: self.task_id.clone(),
@@ -2144,13 +2332,13 @@ pub enum TypedTx {
     FinalizeReward(FinalizeRewardTx),
     TaskExpire(TaskExpireTx),
     TerminalSummary(TerminalSummaryTx),
-    TaskOpen(TaskOpenTx),         // TB-3 RSP-1 formal surface
-    EscrowLock(EscrowLockTx),     // TB-3 RSP-1 formal surface
-    ChallengeResolve(ChallengeResolveTx), // TB-5 RSP-3.0/3.1 system-emitted resolution
-    TaskBankruptcy(TaskBankruptcyTx),     // TB-11 system-emitted task-level failure marker
-    CompleteSetMint(CompleteSetMintTx),   // TB-13 agent-signed conditional-share mint
+    TaskOpen(TaskOpenTx),                   // TB-3 RSP-1 formal surface
+    EscrowLock(EscrowLockTx),               // TB-3 RSP-1 formal surface
+    ChallengeResolve(ChallengeResolveTx),   // TB-5 RSP-3.0/3.1 system-emitted resolution
+    TaskBankruptcy(TaskBankruptcyTx),       // TB-11 system-emitted task-level failure marker
+    CompleteSetMint(CompleteSetMintTx),     // TB-13 agent-signed conditional-share mint
     CompleteSetRedeem(CompleteSetRedeemTx), // TB-13 agent-signed conditional-share redeem
-    MarketSeed(MarketSeedTx),             // TB-13 agent-signed protocol-owned share seed
+    MarketSeed(MarketSeedTx),               // TB-13 agent-signed protocol-owned share seed
     CompleteSetMerge(CompleteSetMergeTx), // Stage C P-M2 / Phase F.1 agent-signed pre-resolution YES+NO->Coin merge
     /// Stage C P-M4 / Phase F.3 agent-signed CpmmPool (LiquidityPool)
     /// creation (architect manual §7.5 verbatim 5-field state struct;
@@ -2286,19 +2474,19 @@ impl HasSubmitter for EscrowLockTx {
 
 impl HasSubmitter for ChallengeResolveTx {
     fn submitter_id(&self) -> Option<AgentId> {
-        None  // system-emitted; mirror FinalizeRewardTx / TaskExpireTx / TerminalSummaryTx
+        None // system-emitted; mirror FinalizeRewardTx / TaskExpireTx / TerminalSummaryTx
     }
 }
 
 impl HasSubmitter for TaskBankruptcyTx {
     fn submitter_id(&self) -> Option<AgentId> {
-        None  // TB-11 system-emitted; mirror FinalizeRewardTx / TaskExpireTx / TerminalSummaryTx / ChallengeResolveTx
+        None // TB-11 system-emitted; mirror FinalizeRewardTx / TaskExpireTx / TerminalSummaryTx / ChallengeResolveTx
     }
 }
 
 impl HasSubmitter for EventResolveTx {
     fn submitter_id(&self) -> Option<AgentId> {
-        None  // TB-N2 B2 system-emitted; mirror TaskBankruptcyTx / FinalizeRewardTx (no agent_id; sequencer emit_system_tx is sole construction path)
+        None // TB-N2 B2 system-emitted; mirror TaskBankruptcyTx / FinalizeRewardTx (no agent_id; sequencer emit_system_tx is sole construction path)
     }
 }
 
@@ -3424,7 +3612,12 @@ mod tests {
         for tx in cases {
             let bytes = canonical_encode(&tx).expect("encode default");
             let back: TypedTx = canonical_decode(&bytes).expect("decode default");
-            assert_eq!(tx, back, "default round-trip mismatch on {:?}", tx.tx_kind());
+            assert_eq!(
+                tx,
+                back,
+                "default round-trip mismatch on {:?}",
+                tx.tx_kind()
+            );
         }
     }
 
@@ -3439,14 +3632,19 @@ mod tests {
     #[test]
     fn signing_payload_domains_are_distinct() {
         let digests: Vec<(&str, [u8; 32])> = vec![
-            ("Work", fixture_work_tx().to_signing_payload().canonical_digest()),
+            (
+                "Work",
+                fixture_work_tx().to_signing_payload().canonical_digest(),
+            ),
             (
                 "Verify",
                 fixture_verify_tx().to_signing_payload().canonical_digest(),
             ),
             (
                 "Challenge",
-                fixture_challenge_tx().to_signing_payload().canonical_digest(),
+                fixture_challenge_tx()
+                    .to_signing_payload()
+                    .canonical_digest(),
             ),
             (
                 "FinalizeReward",
@@ -3489,7 +3687,10 @@ mod tests {
         let mut tx_mut = tx_clean.clone();
         tx_mut.signature = AgentSignature::from_bytes([0xff; 64]);
         let d_mut_sig = tx_mut.to_signing_payload().canonical_digest();
-        assert_eq!(d_clean, d_mut_sig, "Work: mutating signature must NOT affect digest");
+        assert_eq!(
+            d_clean, d_mut_sig,
+            "Work: mutating signature must NOT affect digest"
+        );
 
         // VerifyTx (agent-signed)
         let v_clean = fixture_verify_tx();
@@ -3574,8 +3775,12 @@ mod tests {
     /// across calls + uses the domain-prefixed canonical hash.
     #[test]
     fn task_bankruptcy_canonical_digest_is_deterministic() {
-        let a = fixture_task_bankruptcy_tx().to_signing_payload().canonical_digest();
-        let b = fixture_task_bankruptcy_tx().to_signing_payload().canonical_digest();
+        let a = fixture_task_bankruptcy_tx()
+            .to_signing_payload()
+            .canonical_digest();
+        let b = fixture_task_bankruptcy_tx()
+            .to_signing_payload()
+            .canonical_digest();
         assert_eq!(a, b);
     }
 
@@ -3608,7 +3813,10 @@ mod tests {
         ts_none.evidence_capsule_cid = None;
         let d_some = ts.to_signing_payload().canonical_digest();
         let d_none = ts_none.to_signing_payload().canonical_digest();
-        assert_ne!(d_some, d_none, "evidence_capsule_cid presence must affect canonical digest");
+        assert_ne!(
+            d_some, d_none,
+            "evidence_capsule_cid presence must affect canonical digest"
+        );
     }
 
     /// TB-11 U5: TaskExpire additive bump preserves architect's
@@ -3630,11 +3838,26 @@ mod tests {
     /// TB-11 U6: ExhaustionReason → RunOutcome projection covers all 5 variants.
     #[test]
     fn exhaustion_reason_to_run_outcome() {
-        assert_eq!(ExhaustionReason::MaxTxExhausted.to_run_outcome(), RunOutcome::MaxTxExhausted);
-        assert_eq!(ExhaustionReason::WallClockCap.to_run_outcome(), RunOutcome::WallClockCap);
-        assert_eq!(ExhaustionReason::ComputeCap.to_run_outcome(), RunOutcome::ComputeCap);
-        assert_eq!(ExhaustionReason::ProtocolCollapse.to_run_outcome(), RunOutcome::ErrorHalt);
-        assert_eq!(ExhaustionReason::SolverGiveUp.to_run_outcome(), RunOutcome::ErrorHalt);
+        assert_eq!(
+            ExhaustionReason::MaxTxExhausted.to_run_outcome(),
+            RunOutcome::MaxTxExhausted
+        );
+        assert_eq!(
+            ExhaustionReason::WallClockCap.to_run_outcome(),
+            RunOutcome::WallClockCap
+        );
+        assert_eq!(
+            ExhaustionReason::ComputeCap.to_run_outcome(),
+            RunOutcome::ComputeCap
+        );
+        assert_eq!(
+            ExhaustionReason::ProtocolCollapse.to_run_outcome(),
+            RunOutcome::ErrorHalt
+        );
+        assert_eq!(
+            ExhaustionReason::SolverGiveUp.to_run_outcome(),
+            RunOutcome::ErrorHalt
+        );
     }
 
     // ── v1.2 NEW (R2-4 Codex round-2): LOAD-BEARING domain test ─────────────
@@ -3669,7 +3892,8 @@ mod tests {
         for i in 0..digests.len() {
             for j in (i + 1)..digests.len() {
                 assert_ne!(
-                    digests[i], digests[j],
+                    digests[i],
+                    digests[j],
                     "domains {} and {} produced identical digests on identical body",
                     String::from_utf8_lossy(domains[i]),
                     String::from_utf8_lossy(domains[j])
@@ -3734,7 +3958,9 @@ mod tests {
             ),
             (
                 "Challenge",
-                fixture_challenge_tx().to_signing_payload().canonical_digest(),
+                fixture_challenge_tx()
+                    .to_signing_payload()
+                    .canonical_digest(),
                 EXPECTED_SIGNING_HEX_CHALLENGE,
             ),
             (
@@ -3746,7 +3972,9 @@ mod tests {
             ),
             (
                 "TaskExpire",
-                fixture_task_expire_tx().to_signing_payload().canonical_digest(),
+                fixture_task_expire_tx()
+                    .to_signing_payload()
+                    .canonical_digest(),
                 EXPECTED_SIGNING_HEX_TASK_EXPIRE,
             ),
             (
@@ -3902,16 +4130,24 @@ mod tests {
     /// T1 — TaskOpen canonical_digest is deterministic.
     #[test]
     fn task_open_tx_canonical_digest_is_deterministic() {
-        let a = fixture_task_open_tx().to_signing_payload().canonical_digest();
-        let b = fixture_task_open_tx().to_signing_payload().canonical_digest();
+        let a = fixture_task_open_tx()
+            .to_signing_payload()
+            .canonical_digest();
+        let b = fixture_task_open_tx()
+            .to_signing_payload()
+            .canonical_digest();
         assert_eq!(a, b, "canonical_digest must be deterministic");
     }
 
     /// T2 — EscrowLock canonical_digest is deterministic.
     #[test]
     fn escrow_lock_tx_canonical_digest_is_deterministic() {
-        let a = fixture_escrow_lock_tx().to_signing_payload().canonical_digest();
-        let b = fixture_escrow_lock_tx().to_signing_payload().canonical_digest();
+        let a = fixture_escrow_lock_tx()
+            .to_signing_payload()
+            .canonical_digest();
+        let b = fixture_escrow_lock_tx()
+            .to_signing_payload()
+            .canonical_digest();
         assert_eq!(a, b);
     }
 
@@ -3922,7 +4158,12 @@ mod tests {
         let p = fixture_task_open_tx().to_signing_payload();
         let v = serde_json::to_value(&p).unwrap();
         let obj = v.as_object().unwrap();
-        assert_eq!(obj.len(), 8, "TaskOpenSigningPayload must have 8 fields (signature excluded), got {}", obj.len());
+        assert_eq!(
+            obj.len(),
+            8,
+            "TaskOpenSigningPayload must have 8 fields (signature excluded), got {}",
+            obj.len()
+        );
         assert!(!obj.contains_key("signature"));
     }
 
@@ -3933,7 +4174,12 @@ mod tests {
         let p = fixture_escrow_lock_tx().to_signing_payload();
         let v = serde_json::to_value(&p).unwrap();
         let obj = v.as_object().unwrap();
-        assert_eq!(obj.len(), 6, "EscrowLockSigningPayload must have 6 fields (signature excluded), got {}", obj.len());
+        assert_eq!(
+            obj.len(),
+            6,
+            "EscrowLockSigningPayload must have 6 fields (signature excluded), got {}",
+            obj.len()
+        );
         assert!(!obj.contains_key("signature"));
     }
 
@@ -3969,7 +4215,10 @@ mod tests {
         b.parent_state_root = h(0xBB);
         let d_a = a.to_signing_payload().canonical_digest();
         let d_b = b.to_signing_payload().canonical_digest();
-        assert_ne!(d_a, d_b, "parent_state_root must affect VerifyTx canonical digest");
+        assert_ne!(
+            d_a, d_b,
+            "parent_state_root must affect VerifyTx canonical digest"
+        );
     }
 
     /// T2 — ChallengeTx canonical_digest includes parent_state_root.
@@ -3981,7 +4230,10 @@ mod tests {
         b.parent_state_root = h(0xDD);
         let d_a = a.to_signing_payload().canonical_digest();
         let d_b = b.to_signing_payload().canonical_digest();
-        assert_ne!(d_a, d_b, "parent_state_root must affect ChallengeTx canonical digest");
+        assert_ne!(
+            d_a, d_b,
+            "parent_state_root must affect ChallengeTx canonical digest"
+        );
     }
 
     /// T3 — VerifySigningPayload excludes the signature field.
@@ -3991,9 +4243,17 @@ mod tests {
         let p = fixture_verify_tx().to_signing_payload();
         let v = serde_json::to_value(&p).unwrap();
         let obj = v.as_object().unwrap();
-        assert_eq!(obj.len(), 7, "VerifySigningPayload must have 7 fields (signature excluded), got {}", obj.len());
+        assert_eq!(
+            obj.len(),
+            7,
+            "VerifySigningPayload must have 7 fields (signature excluded), got {}",
+            obj.len()
+        );
         assert!(!obj.contains_key("signature"));
-        assert!(obj.contains_key("parent_state_root"), "TB-4 parent_state_root field missing");
+        assert!(
+            obj.contains_key("parent_state_root"),
+            "TB-4 parent_state_root field missing"
+        );
     }
 
     /// T4 — ChallengeSigningPayload excludes the signature field.
@@ -4003,9 +4263,17 @@ mod tests {
         let p = fixture_challenge_tx().to_signing_payload();
         let v = serde_json::to_value(&p).unwrap();
         let obj = v.as_object().unwrap();
-        assert_eq!(obj.len(), 7, "ChallengeSigningPayload must have 7 fields (signature excluded), got {}", obj.len());
+        assert_eq!(
+            obj.len(),
+            7,
+            "ChallengeSigningPayload must have 7 fields (signature excluded), got {}",
+            obj.len()
+        );
         assert!(!obj.contains_key("signature"));
-        assert!(obj.contains_key("parent_state_root"), "TB-4 parent_state_root field missing");
+        assert!(
+            obj.contains_key("parent_state_root"),
+            "TB-4 parent_state_root field missing"
+        );
     }
 
     /// T5 — TransitionError Display covers the 3 new TB-4 variants AND the
@@ -4060,8 +4328,12 @@ mod tests {
     /// Two identical fixtures must produce the same digest.
     #[test]
     fn challenge_resolve_canonical_digest_is_deterministic() {
-        let a = fixture_challenge_resolve_tx().to_signing_payload().canonical_digest();
-        let b = fixture_challenge_resolve_tx().to_signing_payload().canonical_digest();
+        let a = fixture_challenge_resolve_tx()
+            .to_signing_payload()
+            .canonical_digest();
+        let b = fixture_challenge_resolve_tx()
+            .to_signing_payload()
+            .canonical_digest();
         assert_eq!(a, b, "canonical_digest must be deterministic");
     }
 
@@ -4072,14 +4344,21 @@ mod tests {
         let p = fixture_challenge_resolve_tx().to_signing_payload();
         let v = serde_json::to_value(&p).unwrap();
         let obj = v.as_object().unwrap();
-        assert_eq!(obj.len(), 6,
+        assert_eq!(
+            obj.len(),
+            6,
             "ChallengeResolveSigningPayload must have 6 fields (signature excluded), got {}",
-            obj.len());
+            obj.len()
+        );
         assert!(!obj.contains_key("system_signature"));
-        assert!(obj.contains_key("target_challenge_tx_id"),
-            "target_challenge_tx_id field must be in signing payload");
-        assert!(obj.contains_key("resolution"),
-            "resolution field must be in signing payload");
+        assert!(
+            obj.contains_key("target_challenge_tx_id"),
+            "target_challenge_tx_id field must be in signing payload"
+        );
+        assert!(
+            obj.contains_key("resolution"),
+            "resolution field must be in signing payload"
+        );
     }
 
     // TB-5 golden digest constants for ChallengeResolveTx (charter v2 § 4.5).
@@ -4098,15 +4377,19 @@ mod tests {
     fn golden_challenge_resolve_tx_digest() {
         let actual = digest_hex(&TypedTx::ChallengeResolve(fixture_challenge_resolve_tx()));
         assert_eq!(actual.len(), 64);
-        assert_eq!(actual, EXPECTED_HEX_CHALLENGE_RESOLVE,
-            "ChallengeResolve TypedTx canonical digest changed");
+        assert_eq!(
+            actual, EXPECTED_HEX_CHALLENGE_RESOLVE,
+            "ChallengeResolve TypedTx canonical digest changed"
+        );
     }
 
     /// T4 — Golden ChallengeResolveSigningPayload digest hex is locked.
     #[test]
     fn golden_challenge_resolve_signing_payload_digest() {
         let actual = signing_digest_hex(
-            &fixture_challenge_resolve_tx().to_signing_payload().canonical_digest()
+            &fixture_challenge_resolve_tx()
+                .to_signing_payload()
+                .canonical_digest(),
         );
         assert_eq!(actual, EXPECTED_SIGNING_HEX_CHALLENGE_RESOLVE);
     }
@@ -4211,16 +4494,34 @@ mod tests {
     /// payloads (no environmental input).
     #[test]
     fn tb_13_signing_payloads_deterministic_digest() {
-        let mint_a = fixture_complete_set_mint_tx().to_signing_payload().canonical_digest();
-        let mint_b = fixture_complete_set_mint_tx().to_signing_payload().canonical_digest();
-        assert_eq!(mint_a, mint_b, "CompleteSetMint digest must be deterministic");
+        let mint_a = fixture_complete_set_mint_tx()
+            .to_signing_payload()
+            .canonical_digest();
+        let mint_b = fixture_complete_set_mint_tx()
+            .to_signing_payload()
+            .canonical_digest();
+        assert_eq!(
+            mint_a, mint_b,
+            "CompleteSetMint digest must be deterministic"
+        );
 
-        let redeem_a = fixture_complete_set_redeem_tx().to_signing_payload().canonical_digest();
-        let redeem_b = fixture_complete_set_redeem_tx().to_signing_payload().canonical_digest();
-        assert_eq!(redeem_a, redeem_b, "CompleteSetRedeem digest must be deterministic");
+        let redeem_a = fixture_complete_set_redeem_tx()
+            .to_signing_payload()
+            .canonical_digest();
+        let redeem_b = fixture_complete_set_redeem_tx()
+            .to_signing_payload()
+            .canonical_digest();
+        assert_eq!(
+            redeem_a, redeem_b,
+            "CompleteSetRedeem digest must be deterministic"
+        );
 
-        let seed_a = fixture_market_seed_tx().to_signing_payload().canonical_digest();
-        let seed_b = fixture_market_seed_tx().to_signing_payload().canonical_digest();
+        let seed_a = fixture_market_seed_tx()
+            .to_signing_payload()
+            .canonical_digest();
+        let seed_b = fixture_market_seed_tx()
+            .to_signing_payload()
+            .canonical_digest();
         assert_eq!(seed_a, seed_b, "MarketSeed digest must be deterministic");
     }
 
@@ -4231,19 +4532,31 @@ mod tests {
         let mint_p = fixture_complete_set_mint_tx().to_signing_payload();
         let mint_v = serde_json::to_value(&mint_p).unwrap();
         let mint_o = mint_v.as_object().unwrap();
-        assert_eq!(mint_o.len(), 6, "CompleteSetMintSigningPayload must have 6 fields");
+        assert_eq!(
+            mint_o.len(),
+            6,
+            "CompleteSetMintSigningPayload must have 6 fields"
+        );
         assert!(!mint_o.contains_key("signature"));
 
         let redeem_p = fixture_complete_set_redeem_tx().to_signing_payload();
         let redeem_v = serde_json::to_value(&redeem_p).unwrap();
         let redeem_o = redeem_v.as_object().unwrap();
-        assert_eq!(redeem_o.len(), 7, "CompleteSetRedeemSigningPayload must have 7 fields");
+        assert_eq!(
+            redeem_o.len(),
+            7,
+            "CompleteSetRedeemSigningPayload must have 7 fields"
+        );
         assert!(!redeem_o.contains_key("signature"));
 
         let seed_p = fixture_market_seed_tx().to_signing_payload();
         let seed_v = serde_json::to_value(&seed_p).unwrap();
         let seed_o = seed_v.as_object().unwrap();
-        assert_eq!(seed_o.len(), 6, "MarketSeedSigningPayload must have 6 fields");
+        assert_eq!(
+            seed_o.len(),
+            6,
+            "MarketSeedSigningPayload must have 6 fields"
+        );
         assert!(!seed_o.contains_key("signature"));
     }
 
@@ -4281,11 +4594,11 @@ mod tests {
         let work_tx_id = TxId("worktx-Agent_2-evt-foo-7".into());
         let event_id = node_survive_event_id(&work_tx_id);
         assert_eq!(
-            event_id.0.0, "node_survive:worktx-Agent_2-evt-foo-7",
+            event_id.0 .0, "node_survive:worktx-Agent_2-evt-foo-7",
             "namespace prefix MUST be `node_survive:` followed by verbatim work_tx_id"
         );
         assert!(
-            event_id.0.0.starts_with("node_survive:"),
+            event_id.0 .0.starts_with("node_survive:"),
             "runtime distinguishability check (matrix gate)"
         );
     }
@@ -4311,11 +4624,11 @@ mod tests {
         let task_event = EventId(TaskId("mathd_algebra_107".into()));
         let node_event = node_survive_event_id(&TxId("worktx-Agent_3-mathd_algebra_107-5".into()));
         assert!(
-            !task_event.0.0.starts_with("node_survive:"),
+            !task_event.0 .0.starts_with("node_survive:"),
             "legacy task-level EventId MUST NOT carry node_survive: prefix"
         );
         assert!(
-            node_event.0.0.starts_with("node_survive:"),
+            node_event.0 .0.starts_with("node_survive:"),
             "node-level EventId MUST carry node_survive: prefix"
         );
         assert_ne!(task_event, node_event);

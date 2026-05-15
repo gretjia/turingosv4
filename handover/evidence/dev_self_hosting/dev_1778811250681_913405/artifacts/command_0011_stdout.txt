@@ -1,0 +1,56 @@
+
+running 51 tests
+test state::typed_tx::tests::challenge_resolve_signing_payload_excludes_signature_field_count_6 ... ok
+test state::typed_tx::tests::challenge_signing_payload_excludes_signature_field_count_7 ... ok
+test state::typed_tx::tests::challenge_resolve_canonical_digest_is_deterministic ... ok
+test state::typed_tx::tests::escrow_lock_signing_payload_excludes_signature ... ok
+test state::typed_tx::tests::challenge_tx_canonical_digest_includes_parent_state_root ... ok
+test state::typed_tx::tests::escrow_lock_tx_canonical_digest_is_deterministic ... ok
+test state::typed_tx::tests::exhaustion_reason_to_run_outcome ... ok
+test state::typed_tx::tests::golden_challenge_tx_digest ... ok
+test state::typed_tx::tests::golden_challenge_resolve_tx_digest ... ok
+test state::typed_tx::tests::golden_challenge_resolve_signing_payload_digest ... ok
+test state::typed_tx::tests::golden_finalize_reward_tx_digest ... ok
+test state::typed_tx::tests::golden_reuse_tx_digest ... ok
+test state::typed_tx::tests::golden_verify_tx_digest ... ok
+test state::typed_tx::tests::golden_task_expire_tx_digest ... ok
+test state::typed_tx::tests::has_submitter_partitioning ... ok
+test state::typed_tx::tests::golden_terminal_summary_tx_digest ... ok
+test state::typed_tx::tests::golden_work_tx_digest ... ok
+test state::typed_tx::tests::signing_payload_domain_prefix_is_load_bearing ... ok
+test state::typed_tx::tests::task_bankruptcy_canonical_digest_is_deterministic ... ok
+test state::typed_tx::tests::signing_payload_domains_are_distinct ... ok
+test state::typed_tx::tests::signing_payload_golden_digests ... ok
+test state::typed_tx::tests::task_bankruptcy_signing_payload_field_count_8 ... ok
+test state::typed_tx::tests::task_open_signing_payload_excludes_signature ... ok
+test state::typed_tx::tests::task_expire_carries_sponsor_escrow_reason ... ok
+test state::typed_tx::tests::task_open_tx_canonical_digest_is_deterministic ... ok
+test state::typed_tx::tests::tb_13_complete_set_mint_round_trips_canonical ... ok
+test state::typed_tx::tests::tb_13_complete_set_redeem_round_trips_canonical ... ok
+test state::typed_tx::tests::signing_payload_excludes_signature ... ok
+test state::typed_tx::tests::tb_13_has_submitter_returns_owner_or_provider ... ok
+test state::typed_tx::tests::tb_13_outcome_side_repr_u8_stable ... ok
+test state::typed_tx::tests::task_bankruptcy_round_trip ... ok
+test state::typed_tx::tests::tb_13_market_seed_round_trips_canonical ... ok
+test state::typed_tx::tests::tb_13_share_amount_default_zero_units ... ok
+test state::typed_tx::tests::tb_13_signing_payloads_exclude_signature_field_counts ... ok
+test state::typed_tx::tests::tb_n3_a0_legacy_task_event_id_distinguishable_from_node_event_id ... ok
+test state::typed_tx::tests::tb_n3_a0_node_survive_event_id_collision_free ... ok
+test state::typed_tx::tests::tb_n3_a0_node_survive_event_id_uses_namespace_prefix ... ok
+test state::typed_tx::tests::tb_13_signing_payloads_deterministic_digest ... ok
+test state::typed_tx::tests::transition_error_display_covers_3_new_tb4_variants_plus_reserved ... ok
+test state::typed_tx::tests::terminal_summary_carries_evidence_capsule_cid ... ok
+test state::typed_tx::tests::transition_error_display_covers_3_new_variants ... ok
+test state::typed_tx::tests::typed_tx_btree_permutation_independence ... ok
+test state::typed_tx::tests::typed_tx_btreemap_permutation_independence ... ok
+test state::typed_tx::tests::typed_tx_byte_stability_across_calls ... ok
+test state::typed_tx::tests::typed_tx_kind_projection ... ok
+test state::typed_tx::tests::typed_tx_default_round_trip ... ok
+test state::typed_tx::tests::typed_tx_cross_variant_non_collision ... ok
+test state::typed_tx::tests::verify_signing_payload_excludes_signature_field_count_7 ... ok
+test state::typed_tx::tests::verify_tx_canonical_digest_includes_parent_state_root ... ok
+test state::typed_tx::tests::typed_tx_round_trip_all_variants ... ok
+test state::typed_tx::tests::typed_tx_round_trip_100_inputs ... ok
+
+test result: ok. 51 passed; 0 failed; 0 ignored; 0 measured; 579 filtered out; finished in 0.01s
+

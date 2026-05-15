@@ -47,14 +47,54 @@ use turingosv4::state::typed_tx::{TypedTx, WorkTx};
 /// The partial-then-final case (08) has TWO routes: PartialAccepted → CAS
 /// only (no L4, no L4.E) + final LeanFail → L4.E with LeanFailed=6.
 const CORPUS_INVALID_TABLE: &[(&str, AttemptOutcome, L4ERejectionClass, u8)] = &[
-    ("02_mutated_invalid",  AttemptOutcome::LeanFail,    L4ERejectionClass::LeanFailed,   6),
-    ("03_sorry_insertion",  AttemptOutcome::SorryBlock,  L4ERejectionClass::SorryBlocked, 8),
-    ("04_type_mismatch",    AttemptOutcome::LeanFail,    L4ERejectionClass::LeanFailed,   6),
-    ("05_wrong_theorem_name", AttemptOutcome::LeanFail,  L4ERejectionClass::LeanFailed,   6),
-    ("06_off_by_one_arith", AttemptOutcome::LeanFail,    L4ERejectionClass::LeanFailed,   6),
-    ("07_irrelevant_theorem", AttemptOutcome::LeanFail,  L4ERejectionClass::LeanFailed,   6),
-    ("08_partial_then_final_invalid", AttemptOutcome::LeanFail, L4ERejectionClass::LeanFailed, 6),
-    ("09_parse_invalid",    AttemptOutcome::ParseFail,   L4ERejectionClass::ParseFailed,  7),
+    (
+        "02_mutated_invalid",
+        AttemptOutcome::LeanFail,
+        L4ERejectionClass::LeanFailed,
+        6,
+    ),
+    (
+        "03_sorry_insertion",
+        AttemptOutcome::SorryBlock,
+        L4ERejectionClass::SorryBlocked,
+        8,
+    ),
+    (
+        "04_type_mismatch",
+        AttemptOutcome::LeanFail,
+        L4ERejectionClass::LeanFailed,
+        6,
+    ),
+    (
+        "05_wrong_theorem_name",
+        AttemptOutcome::LeanFail,
+        L4ERejectionClass::LeanFailed,
+        6,
+    ),
+    (
+        "06_off_by_one_arith",
+        AttemptOutcome::LeanFail,
+        L4ERejectionClass::LeanFailed,
+        6,
+    ),
+    (
+        "07_irrelevant_theorem",
+        AttemptOutcome::LeanFail,
+        L4ERejectionClass::LeanFailed,
+        6,
+    ),
+    (
+        "08_partial_then_final_invalid",
+        AttemptOutcome::LeanFail,
+        L4ERejectionClass::LeanFailed,
+        6,
+    ),
+    (
+        "09_parse_invalid",
+        AttemptOutcome::ParseFail,
+        L4ERejectionClass::ParseFailed,
+        7,
+    ),
 ];
 
 const CORPUS_VALID_ID: &str = "01_valid";
@@ -147,7 +187,12 @@ fn pcp_corpus_manifest_is_parseable_and_complete() {
 
     let manifest_ids: Vec<String> = corpus
         .iter()
-        .map(|e| e.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string())
+        .map(|e| {
+            e.get("id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string()
+        })
         .collect();
 
     let expected_ids: Vec<&str> = std::iter::once(CORPUS_VALID_ID)
@@ -248,11 +293,8 @@ fn pcp_sorry_blocked() {
     let (_dir, cas) = fresh_cas();
     let cid = write_attempt(&cas, AttemptOutcome::SorryBlock, "03_sorry_insertion");
     let tx = fixture_work_tx(cid, "03_sorry_insertion");
-    let refined = refine_rejection_class_via_attempt_telemetry(
-        &cas,
-        &tx,
-        L4ERejectionClass::PredicateFailed,
-    );
+    let refined =
+        refine_rejection_class_via_attempt_telemetry(&cas, &tx, L4ERejectionClass::PredicateFailed);
     assert_eq!(refined, L4ERejectionClass::SorryBlocked);
     assert_eq!(refined as u8, 8);
 }

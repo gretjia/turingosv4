@@ -1,0 +1,1 @@
+[2026-05-15T10:10:54Z ERROR evaluator] [chaintape/real6a] EventResolve YES emit FAIL-CLOSED: per-tactic WorkTx accept poll expired before VerifyTx/FinalizeReward

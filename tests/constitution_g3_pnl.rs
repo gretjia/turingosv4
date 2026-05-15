@@ -75,7 +75,10 @@ fn sg_g3_1_genesis_at_preseed_baseline_yields_zero_pnl() {
     let mut q = empty_q();
     let a = agent("Agent_0");
     let initial = initial_balance_micro_from_default_preseed(&a);
-    assert_eq!(initial, 1_000_000, "Agent_0 preseed baseline (bootstrap.rs)");
+    assert_eq!(
+        initial, 1_000_000,
+        "Agent_0 preseed baseline (bootstrap.rs)"
+    );
     q.economic_state_t
         .balances_t
         .0
@@ -288,10 +291,7 @@ fn sg_g3_3_scenario_e_post_resolve_pool_zero_unrealized() {
         },
     );
     let view = compute_agent_pnl(&q, &a, 0);
-    assert_eq!(
-        view.unrealized_pnl, 0,
-        "Resolved pool ⇒ no live MTM signal"
-    );
+    assert_eq!(view.unrealized_pnl, 0, "Resolved pool ⇒ no live MTM signal");
 }
 
 // ────────────────────────────────────────────────────────────────────────

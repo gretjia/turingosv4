@@ -76,6 +76,11 @@ pub struct BatchContinuationManifest {
     /// Optional CID of a G4.2 model-assignment manifest. `None`
     /// until G4.2 lands.
     pub model_manifest_cid_hex: Option<String>,
+    /// Optional CID of a REAL-5 role-assignment manifest. This preserves
+    /// replayable role identity for continuation/resume batches without
+    /// placing role state in EconomicState.
+    #[serde(default)]
+    pub role_assignment_manifest_cid_hex: Option<String>,
     /// Per-task entries in commit order.
     pub tasks: Vec<TaskContinuationEntry>,
     /// `None` on clean batch close; populated with the architect
@@ -117,9 +122,7 @@ pub struct TaskContinuationEntry {
 ///    actually started from the recorded genesis)
 /// 2. `tasks[k+1].start_head_t_hex == tasks[k].end_head_t_hex`
 ///    for every consecutive pair.
-pub fn replay_continuity(
-    manifest: &BatchContinuationManifest,
-) -> Result<(), ContinuityFailure> {
+pub fn replay_continuity(manifest: &BatchContinuationManifest) -> Result<(), ContinuityFailure> {
     if let Some(first) = manifest.tasks.first() {
         if first.start_head_t_hex != manifest.initial_head_t_hex {
             return Err(ContinuityFailure::FirstTaskDoesNotMatchInitial {
@@ -231,9 +234,7 @@ pub fn replay_matches_real_chain_head(
         // An empty batch is degenerate but not necessarily wrong —
         // only fail if the chain has progressed.
         if !live_head_hex.is_empty() {
-            return Err(ReplayMismatch::EmptyManifestButNonEmptyChain {
-                live_head_hex,
-            });
+            return Err(ReplayMismatch::EmptyManifestButNonEmptyChain { live_head_hex });
         }
         return Ok(());
     }
@@ -259,7 +260,9 @@ pub fn replay_matches_real_chain_head(
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ReplayMismatch {
     LedgerOpen(String),
-    EmptyManifestButNonEmptyChain { live_head_hex: String },
+    EmptyManifestButNonEmptyChain {
+        live_head_hex: String,
+    },
     HeadMismatch {
         manifest_last_end: String,
         live_head_hex: String,
@@ -302,7 +305,13 @@ impl std::error::Error for ReplayMismatch {}
 mod tests {
     use super::*;
 
-    fn mk_entry(idx: u64, start: &str, end: &str, start_len: u64, end_len: u64) -> TaskContinuationEntry {
+    fn mk_entry(
+        idx: u64,
+        start: &str,
+        end: &str,
+        start_len: u64,
+        end_len: u64,
+    ) -> TaskContinuationEntry {
         TaskContinuationEntry {
             task_index: idx,
             problem_id: format!("p{idx}"),
@@ -332,6 +341,7 @@ mod tests {
             agent_registry_cid_hex: None,
             system_pubkeys_cid_hex: None,
             model_manifest_cid_hex: None,
+            role_assignment_manifest_cid_hex: None,
             tasks: vec![
                 mk_entry(0, "", "headA", 0, 1),
                 mk_entry(1, "headA", "headB", 1, 2),
@@ -354,6 +364,7 @@ mod tests {
             agent_registry_cid_hex: None,
             system_pubkeys_cid_hex: None,
             model_manifest_cid_hex: None,
+            role_assignment_manifest_cid_hex: None,
             tasks: vec![mk_entry(0, "different_genesis", "headA", 0, 1)],
             terminated_reason: None,
         };

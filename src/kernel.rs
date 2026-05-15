@@ -115,15 +115,19 @@ mod tests {
     #[test]
     fn test_reject_dangling_citation() {
         let mut k = Kernel::new();
-        assert!(k.append(make_node("n1", "A0", "step 1", vec!["ghost"])).is_err());
+        assert!(k
+            .append(make_node("n1", "A0", "step 1", vec!["ghost"]))
+            .is_err());
     }
 
     #[test]
     fn test_golden_path_trace() {
         let mut k = Kernel::new();
         k.append(make_node("root", "A0", "root", vec![])).unwrap();
-        k.append(make_node("mid", "A1", "mid", vec!["root"])).unwrap();
-        k.append(make_node("leaf", "A0", "leaf", vec!["mid"])).unwrap();
+        k.append(make_node("mid", "A1", "mid", vec!["root"]))
+            .unwrap();
+        k.append(make_node("leaf", "A0", "leaf", vec!["mid"]))
+            .unwrap();
 
         let path = k.trace_golden_path("leaf").unwrap();
         assert_eq!(path, vec!["root", "mid", "leaf"]);

@@ -1,0 +1,1 @@
+batch_evaluator: TRUST_ROOT_TAMPERED at boot: TRUST_ROOT_TAMPERED: /home/zephryj/projects/turingosv4/experiments/minif2f_v4/src/bin/evaluator.rs hash mismatch (expected 25f87620c583e6ecff1049a4e0a32a83c997540208db1b963aff6034f31af653, actual 51fd151b42314b70a2cd496271c3bc51062d38c7272206fbac512d1a5b4c4bab)

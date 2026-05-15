@@ -28,9 +28,7 @@ pub fn run(workdir: &Path) -> C8Result {
         // hook touches marker so we know if invoked
         fs::write(
             &hook_path,
-            format!(
-                "#!/bin/sh\ntouch '{marker_str}'\necho 'hook would block this' >&2\nexit 1\n"
-            ),
+            format!("#!/bin/sh\ntouch '{marker_str}'\necho 'hook would block this' >&2\nexit 1\n"),
         )?;
         fs::set_permissions(&hook_path, fs::Permissions::from_mode(0o755))?;
 

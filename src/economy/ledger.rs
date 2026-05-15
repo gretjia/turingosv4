@@ -105,7 +105,11 @@ pub enum LedgerError {
     /// Hash mismatch at the given chain index (prev_hash break OR entry hash break).
     HashMismatch { at_index: usize },
     /// `logical_t` is not the expected `index + 1` value.
-    LogicalTGap { at_index: usize, expected: u64, got: u64 },
+    LogicalTGap {
+        at_index: usize,
+        expected: u64,
+        got: u64,
+    },
     /// `parent_state_root` doesn't match the running replay state.
     ParentStateMismatch { at_index: usize },
     /// `canonical_encode` of the source `TypedTx` failed.
@@ -118,12 +122,20 @@ impl std::fmt::Display for LedgerError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::OutOfBounds { len, requested_end } => {
-                write!(f, "verify_chain end={} exceeds chain len={}", requested_end, len)
+                write!(
+                    f,
+                    "verify_chain end={} exceeds chain len={}",
+                    requested_end, len
+                )
             }
             Self::HashMismatch { at_index } => {
                 write!(f, "L4 hash chain break at index {}", at_index)
             }
-            Self::LogicalTGap { at_index, expected, got } => write!(
+            Self::LogicalTGap {
+                at_index,
+                expected,
+                got,
+            } => write!(
                 f,
                 "logical_t gap at index {}: expected {}, got {}",
                 at_index, expected, got
@@ -289,7 +301,8 @@ impl AcceptedLedger {
 
     /// TRACE_MATRIX P1:8 — persist entries to `state_path` for cold restart.
     pub fn persist(&self, state_path: &Path) -> Result<(), LedgerError> {
-        let bytes = serde_json::to_vec(&self.entries).map_err(|e| LedgerError::Io(e.to_string()))?;
+        let bytes =
+            serde_json::to_vec(&self.entries).map_err(|e| LedgerError::Io(e.to_string()))?;
         std::fs::write(state_path, bytes).map_err(|e| LedgerError::Io(e.to_string()))?;
         Ok(())
     }
@@ -368,25 +381,31 @@ fn next_state_root(prev: &Hash, tx_payload_hash: &Hash) -> Hash {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::bottom_white::cas::schema::Cid;
+    use crate::economy::money::StakeMicroCoin;
     use crate::state::q_state::{AgentId, TaskId, TxId};
     use crate::state::typed_tx::{
         AgentSignature, BoolWithProof, PredicateId, PredicateResultsBundle, ReadKey,
         SafetyOrCreation, TypedTx, WorkTx, WriteKey,
     };
-    use crate::bottom_white::cas::schema::Cid;
-    use crate::economy::money::StakeMicroCoin;
     use std::collections::{BTreeMap, BTreeSet};
 
     fn fixture_work_tx(suffix: u32) -> TypedTx {
         let mut acceptance = BTreeMap::new();
         acceptance.insert(
             PredicateId(format!("acc-{}", suffix)),
-            BoolWithProof { value: true, proof_cid: Some(Cid([0x11; 32])) },
+            BoolWithProof {
+                value: true,
+                proof_cid: Some(Cid([0x11; 32])),
+            },
         );
         let mut settlement = BTreeMap::new();
         settlement.insert(
             PredicateId(format!("set-{}", suffix)),
-            BoolWithProof { value: true, proof_cid: None },
+            BoolWithProof {
+                value: true,
+                proof_cid: None,
+            },
         );
         let mut read_set = BTreeSet::new();
         read_set.insert(ReadKey(format!("k.r.{}", suffix)));

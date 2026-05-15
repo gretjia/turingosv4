@@ -199,7 +199,13 @@ fn sg_g2p_2_fixture_filters_self_work_tx_and_already_verified_targets() {
     seed_accepted_worktx(&mut q, "worktx-peer-done", "Agent_5", "task-A", 1_000_000);
     seed_existing_verification(&mut q, "Agent_0", "worktx-peer-done");
     // Peer WorkTx still pending viewer's verdict (MUST appear).
-    seed_accepted_worktx(&mut q, "worktx-peer-pending", "Agent_5", "task-A", 1_000_000);
+    seed_accepted_worktx(
+        &mut q,
+        "worktx-peer-pending",
+        "Agent_5",
+        "task-A",
+        1_000_000,
+    );
 
     let viewer = AgentId("Agent_0".into());
     let block = render_pending_peer_reviews(&q, &viewer, DEFAULT_PENDING_REVIEWS_K);
@@ -232,8 +238,7 @@ fn sg_g2p_2_fixture_filters_self_work_tx_and_already_verified_targets() {
 /// another agent's WorkTx") cannot turn green.
 #[test]
 fn sg_g2p_2_prompt_builder_and_evaluator_wire_the_block() {
-    let prompt_src = std::fs::read_to_string("src/sdk/prompt.rs")
-        .expect("prompt.rs readable");
+    let prompt_src = std::fs::read_to_string("src/sdk/prompt.rs").expect("prompt.rs readable");
     assert!(
         prompt_src.contains("=== Pending Peer Reviews ==="),
         "SG-G2P.2 binding: prompt.rs must render the canonical heading \

@@ -41,9 +41,7 @@ use turingosv4::runtime::agent_pnl::{
     compute_pnl_trajectory_from_paths, PnlTrajectorySection, SolvencyStatus,
 };
 use turingosv4::runtime::bootstrap::default_pput_preseed_pairs;
-use turingosv4::state::q_state::{
-    AgentId, QState, StakeEntry, TaskId, TxId,
-};
+use turingosv4::state::q_state::{AgentId, QState, StakeEntry, TaskId, TxId};
 
 // ────────────────────────────────────────────────────────────────────────
 // SG-G3.8.a — synthetic-fixture non-flat row
@@ -217,9 +215,21 @@ fn sg_g3_8_e_solvency_tiers_visible_in_render() {
         "SG-G3.8.e: Bankrupt tier must render"
     );
 
-    let a0 = section.rows.iter().find(|r| r.agent_id.0 == "Agent_0").unwrap();
-    let a1 = section.rows.iter().find(|r| r.agent_id.0 == "Agent_1").unwrap();
-    let a2 = section.rows.iter().find(|r| r.agent_id.0 == "Agent_2").unwrap();
+    let a0 = section
+        .rows
+        .iter()
+        .find(|r| r.agent_id.0 == "Agent_0")
+        .unwrap();
+    let a1 = section
+        .rows
+        .iter()
+        .find(|r| r.agent_id.0 == "Agent_1")
+        .unwrap();
+    let a2 = section
+        .rows
+        .iter()
+        .find(|r| r.agent_id.0 == "Agent_2")
+        .unwrap();
     assert!(matches!(a0.solvency_status, SolvencyStatus::Solvent));
     assert!(matches!(a1.solvency_status, SolvencyStatus::NearInsolvent));
     assert!(matches!(a2.solvency_status, SolvencyStatus::Bankrupt));

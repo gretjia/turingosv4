@@ -198,10 +198,7 @@ impl fmt::Debug for AgentKeypairRegistry {
         f.debug_struct("AgentKeypairRegistry")
             .field("manifest_path", &self.manifest_path)
             .field("agent_count", &self.keypairs.len())
-            .field(
-                "agent_ids",
-                &self.keypairs.keys().collect::<Vec<_>>(),
-            )
+            .field("agent_ids", &self.keypairs.keys().collect::<Vec<_>>())
             .field(
                 "durable",
                 &self.durable.as_ref().map(|d| d.keystore_path.clone()),
@@ -389,7 +386,10 @@ impl AgentKeypairRegistry {
     /// TRACE_MATRIX FC1-N14: get-or-create the keypair for `agent_id`. New
     /// agents auto-generate a fresh keypair (and update the on-disk manifest);
     /// existing agents return the cached keypair.
-    pub fn get_or_create(&mut self, agent_id: &AgentId) -> Result<&AgentKeypair, AgentKeypairError> {
+    pub fn get_or_create(
+        &mut self,
+        agent_id: &AgentId,
+    ) -> Result<&AgentKeypair, AgentKeypairError> {
         if !self.keypairs.contains_key(agent_id) {
             let kp = AgentKeypair::generate()?;
             self.keypairs.insert(agent_id.clone(), kp);
@@ -479,8 +479,8 @@ impl AgentPubkeyManifest {
         let mut f = OpenOptions::new().read(true).open(path)?;
         let mut buf = Vec::new();
         f.read_to_end(&mut buf)?;
-        let manifest: AgentPubkeyManifest = serde_json::from_slice(&buf)
-            .map_err(|e| AgentKeypairError::Serde(e.to_string()))?;
+        let manifest: AgentPubkeyManifest =
+            serde_json::from_slice(&buf).map_err(|e| AgentKeypairError::Serde(e.to_string()))?;
         Ok(manifest)
     }
 
@@ -520,14 +520,18 @@ pub enum AgentKeypairError {
     Entropy(getrandom::Error),
     Serde(String),
     InvalidFormat(&'static str),
-    ManifestAlreadyExists { path: PathBuf },
+    ManifestAlreadyExists {
+        path: PathBuf,
+    },
     /// TB-G G1.1 resume mode (architect §8 SIGNED 2026-05-11; user directive
     /// "断点续作是本项目的核心"): `resume_existing_durable` was called but
     /// the manifest at `path` does not exist. Fail-closed so callers can
     /// distinguish "fresh-init was intended, manifest absent" from
     /// "resume-was-intended, manifest absent" — the latter is an invariant
     /// violation worth panicking on rather than silently reinitializing.
-    ManifestAbsentInResume { path: PathBuf },
+    ManifestAbsentInResume {
+        path: PathBuf,
+    },
     /// TB-G G1.1 R2 (Codex G2 R1.5 Q1+Q8 CHALLENGE closure 2026-05-11):
     /// the on-disk `agent_pubkeys.json` references `agent_id` but the
     /// durable keystore either has no secret for it or has a secret that
@@ -535,7 +539,10 @@ pub enum AgentKeypairError {
     /// can't faithfully reproduce the manifest's signing capabilities, so
     /// FC2 §3.2 "agent_registry is a replay input" would silently
     /// degrade. Fail-closed.
-    ResumeKeystoreInconsistent { agent_id: String, reason: String },
+    ResumeKeystoreInconsistent {
+        agent_id: String,
+        reason: String,
+    },
     Verify(String),
 }
 
@@ -625,10 +632,7 @@ mod tests {
         let agent = AgentId("swarm_a".into());
         let sig1 = reg.sign(&agent, fresh_digest(2)).expect("sign1");
         let sig2 = reg.sign(&agent, fresh_digest(3)).expect("sign2");
-        let pubkey = reg
-            .manifest()
-            .get(&agent)
-            .expect("pubkey");
+        let pubkey = reg.manifest().get(&agent).expect("pubkey");
         assert!(verify_agent_signature(&sig1, &fresh_digest(2), &pubkey).is_ok());
         assert!(verify_agent_signature(&sig2, &fresh_digest(3), &pubkey).is_ok());
     }
@@ -685,9 +689,12 @@ mod tests {
         let keystore_path = keystore_dir.path().join("agent_keystore.enc");
         let pwd = secrecy::SecretString::new("tb9-durable-test".into());
 
-        let mut reg =
-            AgentKeypairRegistry::generate_or_load_durable(repo.path(), &keystore_path, pwd.clone())
-                .expect("first boot");
+        let mut reg = AgentKeypairRegistry::generate_or_load_durable(
+            repo.path(),
+            &keystore_path,
+            pwd.clone(),
+        )
+        .expect("first boot");
         let agent = AgentId("n1".into());
         let _sig = reg.sign(&agent, fresh_digest(11)).expect("sign");
 
@@ -749,21 +756,15 @@ mod tests {
         let agent = AgentId("n1".into());
 
         let repo_a = fresh_repo();
-        let mut reg_a = AgentKeypairRegistry::generate_or_load_durable(
-            repo_a.path(),
-            &keystore_path,
-            pwd_a,
-        )
-        .expect("run A");
+        let mut reg_a =
+            AgentKeypairRegistry::generate_or_load_durable(repo_a.path(), &keystore_path, pwd_a)
+                .expect("run A");
         let _ = reg_a.sign(&agent, fresh_digest(30)).expect("sign");
 
         let repo_b = fresh_repo();
-        let err = AgentKeypairRegistry::generate_or_load_durable(
-            repo_b.path(),
-            &keystore_path,
-            pwd_b,
-        )
-        .expect_err("wrong password must fail");
+        let err =
+            AgentKeypairRegistry::generate_or_load_durable(repo_b.path(), &keystore_path, pwd_b)
+                .expect_err("wrong password must fail");
         match err {
             AgentKeypairError::Serde(msg) => assert!(
                 msg.contains("crypto") || msg.contains("authentication"),

@@ -1,0 +1,18 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778841767255_1766368",
+  "fc_nodes": [
+    "FC1-market-action-loop",
+    "FC2-chain-backed-benchmark-pins",
+    "FC3-dashboard-and-synthesis-report",
+    "ArtIII-shielding"
+  ],
+  "expected_witness": "Diff, command evidence, and audit verdict must cite these FC nodes.",
+  "evidence_artifacts": [
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "9f5821e7991b5bbda3ffd9fbd248d4098e4845db91d184ed14c859c2453dad1b",
+      "size_bytes": 24274
+    }
+  ]
+}

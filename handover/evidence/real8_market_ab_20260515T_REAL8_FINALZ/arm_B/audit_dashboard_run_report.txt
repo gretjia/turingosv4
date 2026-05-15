@@ -1,0 +1,493 @@
+=================================================================
+ TB-8 Audit Dashboard — run_id=real8_market_ab_20260515T_REAL8_FINALZ/arm_B_5239f4b_t000 epoch=3
+=================================================================
+
+§1 Run metadata
+---------------
+  head_commit_oid: 7e020d017e2fe29c2996f8a1c7fd0477f0f3cd50
+  l4e_last_hash: 9930ff4ea3c41526b97b7df15cafe8b69d1986880cddd8fe1bf0bbffb616f9fa
+  final_state_root: b566ba93d33c7a05dadaf1a9ee16e92d7b0e621312e6c652b3a6b70c060a4b99
+  final_ledger_root: 200a7842dfcf05d18774aa4dc15a0fc128f142e6147b9015ad6e06d2e0b9e111
+  initial_q_state_loaded_from_disk: true
+
+§2 Chain stats + 7 indicators
+------------------------------
+  L4 entries:  19
+  L4.E entries: 13
+  ledger_root_verified              : ✓
+  system_signatures_verified        : ✓
+  state_reconstructed               : ✓
+  economic_state_reconstructed      : ✓
+  cas_payloads_retrievable          : ✓
+  agent_signatures_verified [Gate 4]: ✓
+  proposal_telemetry_cas_retrievable [Gate 5]: ✓
+  ALL 7 PASS                        : GREEN
+
+§3 ChainDerivedRunFacts (§4.4 bit-exact set)
+---------------------------------------------
+  solved                  : false
+  verified                : false
+  tx_count                : 32
+  proposal_count          : 10
+  golden_path_token_count : 2390
+  gp_payload (CID hex)    : f9f5d00b0a74e8e0cad8b2e63a03758dfcfe52219e94c02f8a048c1045017681
+  gp_path                 : step_complete
+  tactic_diversity        : 1
+  failed_branch_count     : 13
+  chain_oracle_verified   : true ✓ (Lean accepted ≥1 proof; oracle-level)
+  chain_economic_finalized: false (always false in TB-7; settlement = TB-9 territory)
+  tool_dist:
+    step_complete: 2
+
+§4 Per-agent activity
+---------------------
+  agent_id          | pubkey | Work✓ | Work✗ | Verify✓ | Verify✗
+  ------------------+--------+-------+-------+---------+--------
+  Agent_0           | ✓      | 2     | 1     | 2       | 0
+  Agent_1           | ✓      | 0     | 1     | 0       | 0
+  Agent_2           | ✓      | 0     | 1     | 0       | 0
+  Agent_3           | ✓      | 0     | 1     | 0       | 0
+  Agent_4           | ✓      | 0     | 1     | 0       | 0
+  Agent_5           | ✓      | 0     | 0     | 0       | 0
+  Agent_6           | ✓      | 0     | 0     | 0       | 0
+  Agent_7           | ✓      | 0     | 0     | 0       | 0
+  Agent_8           | ✓      | 0     | 0     | 0       | 0
+  Agent_9           | ✓      | 0     | 0     | 0       | 0
+  Agent_solver_0    | ✓      | 0     | 0     | 0       | 0
+  Agent_user_0      | ✓      | 0     | 0     | 0       | 0
+  MarketMakerBudget | ✓      | 0     | 0     | 0       | 0
+  __system__        | ✗      | 0     | 0     | 0       | 0
+  tb6-smoke-agent   | ✗      | 0     | 3     | 0       | 0
+  tb6-smoke-sponsor | ✗      | 0     | 0     | 0       | 0
+
+§5 Proposal flow (chronological by logical_t)
+----------------------------------------------
+  side  | t   | tx_kind         | agent      | tactic     | branch     | oracle | reject
+  ------+-----+-----------------+------------+------------+------------+--------+-------
+  L4.E  |   0 | TaskOpen        | tb6-smoke-sponsor | -          | -          | -      | PolicyViolation
+  L4.E  |   0 | Work            | tb6-smoke-agent | -          | -          | -      | PolicyViolation
+  L4.E  |   0 | Work            | Agent_0    | -          | -          | -      | ParseFailed
+  L4.E  |   0 | Work            | Agent_1    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_2    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | TaskOpen        | tb6-smoke-sponsor | -          | -          | -      | PolicyViolation
+  L4.E  |   0 | Work            | tb6-smoke-agent | -          | -          | -      | PolicyViolation
+  L4.E  |   0 | TaskOpen        | tb6-smoke-sponsor | -          | -          | -      | PolicyViolation
+  L4.E  |   0 | Work            | tb6-smoke-agent | -          | -          | -      | PolicyViolation
+  L4.E  |   0 | FinalizeReward  | __system__ | -          | -          | -      | PolicyViolation
+  L4.E  |   0 | EventResolve    | __system__ | -          | -          | -      | PolicyViolation
+  L4    |   1 | TaskOpen        | tb7-7-sponsor | -          | -          | -      | -
+  L4    |   2 | EscrowLock      | tb7-7-sponsor | -          | -          | -      | -
+  L4    |   3 | TerminalSummary | -          | -          | -          | -      | -
+  L4    |   4 | TaskOpen        | tb7-7-sponsor | -          | -          | -      | -
+  L4    |   5 | EscrowLock      | tb7-7-sponsor | -          | -          | -      | -
+  L4    |   6 | Work            | Agent_0    | step_complete | Agent_0.b1 | ✓      | -
+        payload: nlinarith
+  L4    |   7 | TaskOpen        | MarketMakerBudget | -          | -          | -      | -
+  L4    |   8 | MarketSeed      | -          | -          | -          | -      | -
+  L4    |   9 | CpmmPool        | -          | -          | -          | -      | -
+  L4    |  10 | Verify          | Agent_0    | -          | -          | -      | -
+  L4    |  11 | FinalizeReward  | system (solver=Agent_0) | -          | -          | -      | -
+  L4    |  12 | EventResolve    | -          | -          | -          | -      | -
+  L4    |  13 | TaskOpen        | tb7-7-sponsor | -          | -          | -      | -
+  L4    |  14 | EscrowLock      | tb7-7-sponsor | -          | -          | -      | -
+  L4    |  15 | Work            | Agent_0    | step_complete | Agent_0.b1 | ✓      | -
+        payload: nlinarith
+  L4    |  16 | TaskOpen        | MarketMakerBudget | -          | -          | -      | -
+  L4    |  17 | MarketSeed      | -          | -          | -          | -      | -
+  L4    |  18 | CpmmPool        | -          | -          | -          | -      | -
+  L4    |  19 | Verify          | Agent_0    | -          | -          | -      | -
+
+§6 Branch lineage (parent_tx → child_tx via ProposalTelemetry.parent_tx)
+------------------------------------------------------------------------
+  parent_tx_state: MissingParentTxViolation ✗ (≥1 multi-attempt branch with missing parent_tx — wiring broken)
+  edges: (none — see parent_tx_state above for interpretation)
+
+§7 Golden path (root → oracle-verified WorkTx)
+------------------------------------------------
+  ✓depth=0  [ORACLE] | agent=Agent_0 | tactic=step_complete | tx=worktx-task-n5_mathd_algebra_125_1778843016558-omega-pertactic-1
+           payload: nlinarith
+
+§8 Cross-checks
+---------------
+  audit_trail_rows         : 6
+  chain_proposal_count     : 10
+  audit_rows == proposal_count: ✗ (gap)
+  audit_trail_chain_valid     : ✓
+  (Note: pre-TB-7.6 the agent_audit_trail.jsonl is populated only
+   by the synthetic-seed hook; full per-LLM-proposal audit-trail
+   wiring is part of TB-7.6 carry-forward action #4 / #5.)
+
+§9 TB-8 Claims (claim_status + payout_amount)
+----------------------------------------------
+  claim_id                          | task_id        | solver        | status     | payout_micro | created@t | finalized@t
+  ----------------------------------+----------------+---------------+------------+--------------+-----------+------------
+  claim-verifytx-Agent_0-omega-per… | task-n5_mathd… | Agent_0       | Finalized  |       100000 |        10 | 11
+  claim-verifytx-Agent_0-omega-per… | task-n5_mathd… | Agent_0       | Open       |            — |        19 | —
+
+  Aggregate: 2 claims observed | 1 Open | 1 Finalized | total_payout = 100000 micro
+
+§10 TB-9 Durable identity (agent keystore registry)
+---------------------------------------------------
+  durable_keystore_path: /home/zephryj/.turingos/keystore/agent_keystore.enc
+  durable_keystore_present: ✓ (cross-run identity available)
+  agents_in_manifest: 13
+  agent_id          | pubkey_in_manifest | tape_activity
+  ------------------+--------------------+---------------
+  Agent_0           | ✓ (durable-backed) | Work✓=2 Work✗=1 Verify✓=2 Verify✗=0
+  Agent_1           | ✓ (durable-backed) | Work✓=0 Work✗=1 Verify✓=0 Verify✗=0
+  Agent_2           | ✓ (durable-backed) | Work✓=0 Work✗=1 Verify✓=0 Verify✗=0
+  Agent_3           | ✓ (durable-backed) | Work✓=0 Work✗=1 Verify✓=0 Verify✗=0
+  Agent_4           | ✓ (durable-backed) | Work✓=0 Work✗=1 Verify✓=0 Verify✗=0
+  Agent_5           | ✓ (durable-backed) | Work✓=0 Work✗=0 Verify✓=0 Verify✗=0
+  Agent_6           | ✓ (durable-backed) | Work✓=0 Work✗=0 Verify✓=0 Verify✗=0
+  Agent_7           | ✓ (durable-backed) | Work✓=0 Work✗=0 Verify✓=0 Verify✗=0
+  Agent_8           | ✓ (durable-backed) | Work✓=0 Work✗=0 Verify✓=0 Verify✗=0
+  Agent_9           | ✓ (durable-backed) | Work✓=0 Work✗=0 Verify✓=0 Verify✗=0
+  Agent_solver_0    | ✓ (durable-backed) | Work✓=0 Work✗=0 Verify✓=0 Verify✗=0
+  Agent_user_0      | ✓ (durable-backed) | Work✓=0 Work✗=0 Verify✓=0 Verify✗=0
+  MarketMakerBudget | ✓ (durable-backed) | Work✓=0 Work✗=0 Verify✓=0 Verify✗=0
+
+  Note: cross-run identity is empirically observable by
+  comparing this run's `agent_pubkeys.json` to a sibling run
+  that loaded the same TURINGOS_AGENT_KEYSTORE_PATH — equal
+  pubkey rows ⇒ TB-9 mandate "agent identity survives run
+  restart" satisfied.
+
+§11 TB-10 User Tasks (sponsored by Agent_user_*; lean_market product surface)
+------------------------------------------------------------------------------
+  (no Agent_user_*-sponsored TaskOpen on chain; lean_market run-task
+   not invoked, or evaluator ran in self-funded preseed mode
+   [TURINGOS_USER_TASK_MODE unset]; n/a)
+
+§12 TB-11 Epistemic Exhaust + Capital Liberation (architect §6.2; 2026-05-02)
+------------------------------------------------------------------------------
+  Exhausted runs (RunExhaustedTx ≡ TerminalSummaryTx):
+    run_id         | task_id            | outcome         | attempts | evidence_capsule_cid (hex)
+    ---------------+--------------------+-----------------+----------+--------------------------------
+    n5_mathd_alge… | task-n5_mathd_alg… | MaxTxExhausted  |        0 | b6a21f9a8161d270fa29945dba342ee…
+
+  Architect mandate (§6.2 ruling 2026-05-02) ✓:
+    O(1) chain cost / O(N) auditability — failure evidence anchored on L4
+    via system-emitted system_signature; raw log requires audit-role access
+    (CapsulePrivacyPolicy::AuditOnly default; only public_summary surfaces here).
+
+§13 TB-12 Node exposure records (architect 2026-05-03 §3 + §10)
+------------------------------------------------------------------------------
+  NodePosition exposure records (immutable; NOT Coin holdings; NOT in total_supply):
+    position_id      | node_id          | side  | kind            | owner          | amount_micro | @round
+    -----------------+------------------+-------+-----------------+----------------+--------------+--------
+    worktx-task-n5_… | worktx-task-n5_… | Long  | FirstLong       | Agent_0        |         1000 |      5
+    worktx-task-n5_… | worktx-task-n5_… | Long  | FirstLong       | Agent_0        |         1000 |     14
+    ─── Total Long: 2000 micro | Total Short: 0 micro | exposure rows: 2 ───
+
+  Per-node exposure aggregation:
+    node_id          | long_micro | short_micro | net (long − short)
+    -----------------+------------+-------------+--------------------
+    worktx-task-n5_… |       1000 |           0 |               1000
+    worktx-task-n5_… |       1000 |           0 |               1000
+
+  Architect mandate (§3 + §10 ruling 2026-05-03) ✓:
+    NodePosition is an IMMUTABLE EXPOSURE RECORD, NOT active position balance.
+    NodePosition.amount is NOT a Coin holding (CR-12.1) and is NOT counted in
+    total_supply_micro (CR-12.2). NO trading. NO price. NO settlement in TB-12.
+    NodeMarketEntry is TB-14 derived view; flat NodePositionsIndex is canonical.
+
+§14 TB-14 PriceIndex (architect 2026-05-03 §5.1 + §5.5 SG-14.6)
+---------------------------------------------------------------
+  PRICE IS SIGNAL, NOT TRUTH.
+    Architect §5.1 ruling 2026-05-03: the price index is a
+    derived statistical broadcast over canonical NodePositionsIndex
+    long/short interest. It MUST NOT influence predicate gates
+    (CR-14.1 / halt-trigger #1) or L4/L4.E classification
+    (CR-14.2 / halt-trigger #2). Boolean predicates establish
+    absolute bounds; the price view is for relative-effectiveness
+    measurement only.
+
+  Per-node entries (price as integer-rational n/d, never decimal):
+
+    node_id                               long_micro     short_micro    price_yes(n/d)     price_no(n/d)
+    --------------------------------------------------------------------------------------------------
+    worktx-task-n5_mathd_algebra_12…            1000               0         1000/1000            0/1000
+    worktx-task-n5_mathd_algebra_14…            1000               0         1000/1000            0/1000
+
+  Architect mandate (§5.1 ruling 2026-05-03) ✓:
+    Price is signal, not truth. NodeMarketEntry is a derived view —
+    NOT canonical state. NO trading. NO automatic liquidity. NO AMM.
+    NO price-based settlement. NO Goodhart leak of private predicates.
+
+§15 TB-15 Autopsy + Markov (architect 2026-05-02 §6.5 SG-15.6)
+--------------------------------------------------------------
+  AUTOPSY IS PRIVATE — public summary shown only when typical
+  (≥3 cluster). Raw private details require audit-role access.
+    Architect §6.4 ruling 2026-05-02: capsule audit detail is
+    AuditOnly; NEVER enters AgentVisibleProjection (CR-15.1 +
+    halt-trigger #1 + #4).
+    Typical-error broadcast surface uses public_summary text
+    only (CR-15.2 + halt-trigger #5).
+
+  (no agent_autopsies_t entries in this snapshot — no
+  TaskBankruptcyTx has fired during the chain window)
+  Acceptable signal-state: a run with zero accepted
+  TaskBankruptcyTx yields an empty AutopsyIndex by
+  TB-15 Atom 3 charter scope (single trigger site).
+
+  Markov default (FR-15.4): next-session boot reads
+  constitution.md + latest Markov capsule. deeper history
+  requires TURINGOS_MARKOV_OVERRIDE=1 (CR-15.6 +
+  halt-trigger #6 — default-deny gate).
+
+  (no latest Markov capsule pointer — supply
+  --markov-capsule-cid <hex> on the audit_dashboard
+  invocation, or run `generate_markov_capsule` to
+  emit a per-run capsule and pass its cid here.
+  Per architect OBS_R022 ruling 2026-05-04 the
+  global LATEST_MARKOV_CAPSULE.txt file has been
+  de-canonicalized — runtime path no longer reads it)
+
+  Architect mandate (§6.5 SG-15.6 + §6.4 ruling 2026-05-02) ✓:
+    Dashboard regenerates capsule summary from ChainTape + CAS;
+    NO raw private detail in dashboard output. Markov default
+    prevents context poisoning — full failure history not auto-
+    replayed; only constitution + latest capsule by default.
+
+§16 TB-16 SANDBOX BANNER (architect 2026-05-03 §7.4 CR-16.7 + §7.5 SG-16.8)
+==========================================================================
+  ⚠ SANDBOX-RUN — NOT PRODUCTION — NO REAL FUNDS
+    Agent IDs are sandbox-prefixed (Agent_solver_/Agent_verifier_/
+    Agent_user_/tb7-7-sponsor/tb16-). Total Coin sourced from
+    runtime::bootstrap::default_pput_preseed_pairs() (35_000_000 μC
+    on_init mint; assert_no_post_init_mint enforced).
+
+    Architect §7.6 forbidden:
+      - No public chain.
+      - No real-money market.
+      - No external domain (Lean only; no medical/legal/financial).
+      - No production user funds.
+
+    Prices, positions, masks, autopsies surfaced above are SIGNAL
+    only — never to be interpreted as real-money valuations.
+
+
+=== TB-N3 RUN REPORT ===
+run_id: real8_market_ab_20260515T_REAL8_FINALZ/arm_B_5239f4b_t000
+epoch: 3
+
+## §A Citation tree (accepted WorkTx by agent)
+  - Agent_0: 2 accepted WorkTx
+
+## §B Role activity
+  - Agent_0: work_accepted=2 work_rejected=1 verify_accepted=2 verify_rejected=0 challenge_accepted=0 invest_accepted=0
+  - Agent_1: work_accepted=0 work_rejected=1 verify_accepted=0 verify_rejected=0 challenge_accepted=0 invest_accepted=0
+  - Agent_2: work_accepted=0 work_rejected=1 verify_accepted=0 verify_rejected=0 challenge_accepted=0 invest_accepted=0
+  - Agent_3: work_accepted=0 work_rejected=1 verify_accepted=0 verify_rejected=0 challenge_accepted=0 invest_accepted=0
+  - Agent_4: work_accepted=0 work_rejected=1 verify_accepted=0 verify_rejected=0 challenge_accepted=0 invest_accepted=0
+  - Agent_5: work_accepted=0 work_rejected=0 verify_accepted=0 verify_rejected=0 challenge_accepted=0 invest_accepted=0
+  - Agent_6: work_accepted=0 work_rejected=0 verify_accepted=0 verify_rejected=0 challenge_accepted=0 invest_accepted=0
+  - Agent_7: work_accepted=0 work_rejected=0 verify_accepted=0 verify_rejected=0 challenge_accepted=0 invest_accepted=0
+  - Agent_8: work_accepted=0 work_rejected=0 verify_accepted=0 verify_rejected=0 challenge_accepted=0 invest_accepted=0
+  - Agent_9: work_accepted=0 work_rejected=0 verify_accepted=0 verify_rejected=0 challenge_accepted=0 invest_accepted=0
+  - Agent_solver_0: work_accepted=0 work_rejected=0 verify_accepted=0 verify_rejected=0 challenge_accepted=0 invest_accepted=0
+  - Agent_user_0: work_accepted=0 work_rejected=0 verify_accepted=0 verify_rejected=0 challenge_accepted=0 invest_accepted=0
+  - MarketMakerBudget: work_accepted=0 work_rejected=0 verify_accepted=0 verify_rejected=0 challenge_accepted=0 invest_accepted=0
+  - __system__: work_accepted=0 work_rejected=0 verify_accepted=0 verify_rejected=0 challenge_accepted=0 invest_accepted=0
+  - tb6-smoke-agent: work_accepted=0 work_rejected=3 verify_accepted=0 verify_rejected=0 challenge_accepted=0 invest_accepted=0
+  - tb6-smoke-sponsor: work_accepted=0 work_rejected=0 verify_accepted=0 verify_rejected=0 challenge_accepted=0 invest_accepted=0
+
+## §C Market tx counts
+  TaskOpen: 5
+  EscrowLock: 3
+  Work: 2
+  Verify: 2
+  FinalizeReward: 1
+  EventResolve: 1
+  CompleteSetMint: 0
+  MarketSeed: 2
+  CpmmPool: 2
+  CpmmSwap: 0
+  BuyWithCoinRouter: 0
+  CompleteSetRedeem: 0
+  CompleteSetMerge: 0
+  Challenge: 0
+  ChallengeResolve: 0
+  TaskBankruptcy: 0
+  TaskExpire: 0
+  TerminalSummary: 1
+  accepted_work_tx_total: 2
+
+## §D Top contested nodes (by seed total μC)
+  - node_survive:worktx-task-n5_mathd_algebra_125_1778843016558-omega-pertactic-1: 100000 μC
+  - node_survive:worktx-task-n5_mathd_algebra_141_1778843026575-omega-pertactic-1: 100000 μC
+
+## §E Budget burn report
+  pools_created: 2
+  market_seed_total: 200000 μC
+  treasury_budget_start: 5000000 μC (MarketMakerBudget genesis)
+  treasury_budget_end: 4800000 μC (= start - market_seed_total)
+  pools_skipped_budget: 0
+  router_buy_yes: 0
+  router_buy_no: 0
+
+## §F MarketDecisionTrace summary
+  total_traces: 0
+  submitted_vs_traced_ratio: 0/0 = n/a (no traces)
+
+## §F.A NoTradeReason exhaustive breakdown
+  (architect §G2 13-variant taxonomy; stable insertion order; zeros included for forward grep stability)
+  no_prompt_tool = 0
+  no_parsed_invest = 0
+  malformed_node = 0
+  zero_amount = 0
+  amount_exceeds_balance = 0
+  no_pool = 0
+  router_rejected = 0
+  agent_declined = 0
+  too_fast_solve = 0
+  slippage_out_zero = 0
+  unknown = 0
+  no_perceived_edge = 0
+  prompt_budget_exceeded = 0
+
+## §F.X Peer-verify coverage
+  accepted_worktx_total: 2
+  accepted_worktx_with_verify: 2
+  coverage_pct: 100%
+  peer_verifications_total: 2
+  non_solver_verifications: 0
+  per-agent peer_verify_count:
+    - Agent_0 (solver): 2
+  MECHANISM BOTTLENECK (architect §8.2 ship gate unmet — no non-solver VerifyTx):
+    1. round-robin scheduler `agent_idx = tx % n_agents`
+       (G-Phase directive amendment G-4 "伪多智能体"):
+       Agent_i may never be selected for verify path;
+       G5.1 opportunity scheduler + 7-action menu is the
+       forward fix.
+    2. `=== Pending Peer Reviews ===` prompt block (G2P.1)
+       must be active on the swarm prompt path so agents
+       perceive eligible targets at the δ Agent externalized
+       output node.
+    3. agent verify_peer bond budget (TB-N1 A4 admission step-2.5)
+       may exceed balance after WorkTx stake locked — confirm
+       persistent-batch preseed (TURINGOS_CHAINTAPE_PRESEED=1)
+       seeds non-solver agents with adequate balance.
+
+## §G PnL trajectory
+  (per-agent realized/unrealized PnL over the batch; integer-rational μC; cost basis 1 μC/share-pair)
+  - tb7-7-sponsor: balance=9700000 μC (initial 10000000); realized=-300000; unrealized=0; positions=0; rep=0; solvent
+  - Agent_user_0: balance=10000000 μC (initial 10000000); realized=0; unrealized=0; positions=0; rep=0; solvent
+  - Agent_0: balance=998000 μC (initial 1000000); realized=-2000; unrealized=0; positions=6; rep=2; solvent
+  - Agent_1: balance=1000000 μC (initial 1000000); realized=0; unrealized=0; positions=0; rep=0; solvent
+  - Agent_2: balance=1000000 μC (initial 1000000); realized=0; unrealized=0; positions=0; rep=0; solvent
+  - Agent_3: balance=1000000 μC (initial 1000000); realized=0; unrealized=0; positions=0; rep=0; solvent
+  - Agent_4: balance=1000000 μC (initial 1000000); realized=0; unrealized=0; positions=0; rep=0; solvent
+  - Agent_5: balance=1000000 μC (initial 1000000); realized=0; unrealized=0; positions=0; rep=0; solvent
+  - Agent_6: balance=1000000 μC (initial 1000000); realized=0; unrealized=0; positions=0; rep=0; solvent
+  - Agent_7: balance=1000000 μC (initial 1000000); realized=0; unrealized=0; positions=0; rep=0; solvent
+  - Agent_8: balance=1000000 μC (initial 1000000); realized=0; unrealized=0; positions=0; rep=0; solvent
+  - Agent_9: balance=1000000 μC (initial 1000000); realized=0; unrealized=0; positions=0; rep=0; solvent
+  - MarketMakerBudget: balance=4800000 μC (initial 5000000); realized=-200000; unrealized=0; positions=2; rep=0; solvent
+
+## §G.2 RiskCapImpactReport
+  (bankruptcy risk-cap admission rejections; derived from L4.E + CAS + replayed QState)
+  risk_cap_rejections: 0
+  (no BankruptcyRiskCapExceeded L4.E rows in this run)
+
+## §G.3 Model-family activity
+  source: GenesisReport + AttemptTelemetry + ChainTape + CAS
+  interpretation: activity/divergence only; no model ranking
+  hidden_switch_verdict: Proceed
+  - deepseek: attempt_count_by_model_family=7 accepted_worktx_by_model_family=2 l4e_rejection_by_model_family=5 verify_count_by_model_family=2 challenge_count_by_model_family=0 invest_count_by_model_family=0 pnl_by_model_family=-2000μC
+
+## §I Role activity classifier
+  source: public ChainTape/CAS activity counts only
+  Agent_0: role=Solver work=2 verify=2 challenge=0 invest=0
+  Agent_1: role=Observer work=0 verify=0 challenge=0 invest=0
+  Agent_2: role=Observer work=0 verify=0 challenge=0 invest=0
+  Agent_3: role=Observer work=0 verify=0 challenge=0 invest=0
+  Agent_4: role=Observer work=0 verify=0 challenge=0 invest=0
+  Agent_5: role=Observer work=0 verify=0 challenge=0 invest=0
+  Agent_6: role=Observer work=0 verify=0 challenge=0 invest=0
+  Agent_7: role=Observer work=0 verify=0 challenge=0 invest=0
+  Agent_8: role=Observer work=0 verify=0 challenge=0 invest=0
+  Agent_9: role=Observer work=0 verify=0 challenge=0 invest=0
+  Agent_solver_0: role=Observer work=0 verify=0 challenge=0 invest=0
+  Agent_user_0: role=Observer work=0 verify=0 challenge=0 invest=0
+  MarketMakerBudget: role=Observer work=0 verify=0 challenge=0 invest=0
+  __system__: role=Observer work=0 verify=0 challenge=0 invest=0
+  tb6-smoke-agent: role=Observer work=0 verify=0 challenge=0 invest=0
+  tb6-smoke-sponsor: role=Observer work=0 verify=0 challenge=0 invest=0
+
+## §J Epistemic pricing feedback (observe-only)
+  source: MarketDecisionTrace + ChainTape market activity
+  interpretation: price is signal, not truth; no predicate authority
+  citation_vs_price: submitted_market_traces=0 total_market_traces=0
+  high_price_selection_rate: observed_market_visible_actions=2 (integer count; benchmark protocol required before ranking claims)
+  unresolved_challenged_filter: open Challenge targets are excluded from prompt market_context top-K
+
+## §J.1 Opportunity Scheduler recommendation (observe-only)
+  interpretation: non-binding materialized view; price is signal, not truth
+  recommendation does not change sequencer admission or L4/L4.E predicates
+  head_t: HEAD_t(l4_head=7e020d017e2fe29c2996f8a1c7fd0477f0f3cd50,l4e_head=9930ff4ea3c41526b97b7df15cafe8b69d1986880cddd8fe1bf0bbffb616f9fa,cas_root=a89687453f39e3042bf3c2c4faafb9b8b839c919b6e03b05999b03675287b2a7,state_root=b566ba93d33c7a05dadaf1a9ee16e92d7b0e621312e6c652b3a6b70c060a4b99,run_id=real8_market_ab_20260515T_REAL8_FINALZ/arm_B_5239f4b_t000)
+  observe_only: true
+  visible_agents: 16
+  visible_nodes: 2
+  price_signals: 2
+  pnl_signals: 13
+  recommended_agent: Agent_0
+  recommended_role: Trader
+  recommended_action: observe_market_signal
+  price_signal_sample:
+    - event=node_survive:worktx-task-n5_mathd_algebra_125_1778843016558-omega-pertactic-1 price=100000/200000 depth_micro=200000
+    - event=node_survive:worktx-task-n5_mathd_algebra_141_1778843026575-omega-pertactic-1 price=100000/200000 depth_micro=200000
+  pnl_signal_sample:
+    - agent=tb7-7-sponsor realized_pnl=-300000μC unrealized_pnl=0μC available=9700000μC risk_cap=1000000μC
+    - agent=Agent_user_0 realized_pnl=0μC unrealized_pnl=0μC available=10000000μC risk_cap=1000000μC
+    - agent=Agent_0 realized_pnl=-2000μC unrealized_pnl=0μC available=998000μC risk_cap=100000μC
+  persisted_scheduler_trace_cas_count: 7
+    - scheduler_trace_cid=cid:4677517eba2b4703dc4cbb9d1263656de50e1cd82bd8a027ab9989b988d72fd4
+    - scheduler_trace_cid=cid:65d0492e792d3044042a8d80226f09a616ca86873cc1228883b72601875c0640
+    - scheduler_trace_cid=cid:6bd2cfa4e4a2d65fbbd906c072ccd4b5fbab1cb80b6e14c32557d8b451eb90a7
+
+## §K G7 structural smoke
+  minimum_tier_green: false
+  clean_negative: false
+  forward_tb_stub_required: true
+  one_runtime_repo: true
+  multi_agent: true
+  persistent_state: true
+  agent_count: 16
+  active_role_count: 5
+  task_count: 5
+  task_outcome_market_count: 0
+  scripted_attempt_prediction_market_count: 0
+  buy_yes_router_count: 0
+  buy_no_or_short_count: 0
+  verify_tx_count: 2
+  challenge_tx_or_no_challenge_reason_count: 0
+  event_resolve_count: 1
+  pnl_delta_count: 3
+  loss_occurred: false
+  autopsy_capsule_count: 0
+  autopsy_if_loss_satisfied: true
+  no_forced_live_investment: false
+  market_actions_chain_visible: true
+  no_ghost_liquidity: false
+  clean_v3_comparison: false
+  does_not_claim_identical_v3_equivalence: false
+  proof_related_actions: 4
+  market_visible_actions: 2
+  no_trade_reason_count: 0
+  MECHANISM BOTTLENECK:
+  - agents may not have perceived a profitable market edge
+  - peer verification or market opportunities may have appeared too late
+  - scheduler ordering or prompt budget may have suppressed differentiated behavior
+  g7_guard_cas_count: 0
+  aggregate_audit_guard_source: /home/zephryj/projects/turingosv4/handover/evidence/real8_market_ab_20260515T_REAL8_FINALZ/arm_B/aggregate_verdict.json
+
+## §H PRICE IS SIGNAL, NOT TRUTH
+  Pool reserves and prices in this report are derived
+  views over ChainTape + CAS evidence. Prices are
+  expressed as integer-rational (numerator/denominator).
+  No Coin minted post-init; no ghost liquidity; no f64.
+

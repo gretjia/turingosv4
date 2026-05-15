@@ -40,15 +40,17 @@ use crate::bottom_white::cas::store::CasStore;
 use crate::bottom_white::ledger::rejection_evidence::{
     RejectionEvidenceError, RejectionEvidenceWriter,
 };
-use crate::bottom_white::ledger::system_keypair::{PinnedSystemPubkeys, SystemEpoch, SystemPublicKey};
+use crate::bottom_white::ledger::system_keypair::{
+    PinnedSystemPubkeys, SystemEpoch, SystemPublicKey,
+};
 use crate::bottom_white::ledger::transition_ledger::{
     replay_full_transition, Git2LedgerWriter, LedgerEntry, LedgerWriter, LedgerWriterError,
     ReplayError,
 };
-use crate::runtime::{PinnedPubkeyManifest};
+use crate::bottom_white::tools::registry::ToolRegistry;
+use crate::runtime::PinnedPubkeyManifest;
 use crate::state::q_state::{Hash, QState};
 use crate::top_white::predicates::registry::PredicateRegistry;
-use crate::bottom_white::tools::registry::ToolRegistry;
 
 const PINNED_PUBKEYS_FILENAME: &str = "pinned_pubkeys.json";
 const INITIAL_Q_STATE_FILENAME: &str = "initial_q_state.json";
@@ -264,8 +266,8 @@ pub fn verify_chaintape(
     let initial_q_path = runtime_repo_path.join(INITIAL_Q_STATE_FILENAME);
     let (initial_q, initial_q_loaded_from_disk) = if initial_q_path.exists() {
         let s = std::fs::read_to_string(&initial_q_path)?;
-        let q: QState = serde_json::from_str(&s)
-            .map_err(|e| VerifyError::InitialQStateParse(e.to_string()))?;
+        let q: QState =
+            serde_json::from_str(&s).map_err(|e| VerifyError::InitialQStateParse(e.to_string()))?;
         (q, true)
     } else {
         (QState::genesis(), false)
@@ -580,10 +582,9 @@ fn decode_pubkey_hex(hex: &str) -> Result<Vec<u8>, VerifyError> {
     }
     let mut out = Vec::with_capacity(hex.len() / 2);
     for chunk in hex.as_bytes().chunks(2) {
-        let s = std::str::from_utf8(chunk)
-            .map_err(|e| VerifyError::PubkeyDecode(e.to_string()))?;
-        let byte = u8::from_str_radix(s, 16)
-            .map_err(|e| VerifyError::PubkeyDecode(e.to_string()))?;
+        let s = std::str::from_utf8(chunk).map_err(|e| VerifyError::PubkeyDecode(e.to_string()))?;
+        let byte =
+            u8::from_str_radix(s, 16).map_err(|e| VerifyError::PubkeyDecode(e.to_string()))?;
         out.push(byte);
     }
     Ok(out)
@@ -598,23 +599,45 @@ fn hash_to_hex(h: &Hash) -> String {
 /// an error sets the indicator that the failing stage is responsible for to
 /// `false` and leaves the other indicators **also `false`** (replay did not
 /// complete, so we cannot honestly claim downstream stages passed).
-type ReplayClassification = (bool, bool, bool, bool, bool, Option<String>, Option<String>, Option<String>);
+type ReplayClassification = (
+    bool,
+    bool,
+    bool,
+    bool,
+    bool,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+);
 fn classify_replay_error(err: &ReplayError) -> ReplayClassification {
     use ReplayError::*;
     let summary = format!("{err}");
     let (ledger_ok, sig_ok, state_ok, econ_ok, cas_ok) = match err {
         // Stages 1-3 are the chain-integrity stages.
-        LogicalTGap { .. } | ParentStateMismatch { .. } | ParentLedgerMismatch { .. }
+        LogicalTGap { .. }
+        | ParentStateMismatch { .. }
+        | ParentLedgerMismatch { .. }
         | LedgerRootMismatch { .. } => (false, false, false, false, false),
         // Stage 4 — signature verification.
         BadSignature { .. } => (true, false, false, false, false),
         // Stage 5 — CAS lookup.
         CasMissing { .. } => (true, true, false, false, false),
         // Stages 6 / 6.5 / 7 / 8 — payload decode / kind / dispatch / state.
-        PayloadDecode { .. } | TxKindMismatch { .. } | Transition { .. }
+        PayloadDecode { .. }
+        | TxKindMismatch { .. }
+        | Transition { .. }
         | StateRootMismatch { .. } => (true, true, false, false, true),
     };
-    (ledger_ok, sig_ok, state_ok, econ_ok, cas_ok, None, None, Some(summary))
+    (
+        ledger_ok,
+        sig_ok,
+        state_ok,
+        econ_ok,
+        cas_ok,
+        None,
+        None,
+        Some(summary),
+    )
 }
 
 // ── Tests ───────────────────────────────────────────────────────────────────

@@ -58,13 +58,15 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 
 use crate::bottom_white::cas::store::CasStore;
-use crate::bottom_white::ledger::system_keypair::{PinnedSystemPubkeys, SystemEpoch, SystemPublicKey};
+use crate::bottom_white::ledger::system_keypair::{
+    PinnedSystemPubkeys, SystemEpoch, SystemPublicKey,
+};
 use crate::bottom_white::ledger::transition_ledger::{
     replay_full_transition, Git2LedgerWriter, LedgerEntry, LedgerWriter,
 };
 use crate::bottom_white::tools::registry::ToolRegistry;
-use crate::top_white::predicates::registry::PredicateRegistry;
 use crate::state::q_state::QState;
+use crate::top_white::predicates::registry::PredicateRegistry;
 
 use super::batch_continuation_manifest::BatchContinuationManifest;
 
@@ -209,11 +211,7 @@ fn autopsy_capsule_total(q: &QState) -> usize {
         .sum()
 }
 
-fn build_task_trace(
-    task_index: u64,
-    problem_id: &str,
-    q: &QState,
-) -> TaskBoundaryTrace {
+fn build_task_trace(task_index: u64, problem_id: &str, q: &QState) -> TaskBoundaryTrace {
     TaskBoundaryTrace {
         task_index,
         problem_id: problem_id.to_string(),
@@ -267,7 +265,14 @@ pub fn bind_persistence(
     let autopsy = classify_autopsy(&initial_trace, &per_task);
     let model_identity = classify_model_identity(manifest, &per_task);
 
-    let verdicts = [&balances, &positions, &reputation, &pnl, &autopsy, &model_identity];
+    let verdicts = [
+        &balances,
+        &positions,
+        &reputation,
+        &pnl,
+        &autopsy,
+        &model_identity,
+    ];
     let is_passing = !verdicts.iter().any(|v| v.is_reset());
     let n_witnessed = verdicts.iter().filter(|v| v.is_witnessed()).count();
 
@@ -287,14 +292,9 @@ pub fn bind_persistence(
     }
 }
 
-fn classify_balances(
-    initial: &TaskBoundaryTrace,
-    per_task: &[TaskBoundaryTrace],
-) -> FieldVerdict {
+fn classify_balances(initial: &TaskBoundaryTrace, per_task: &[TaskBoundaryTrace]) -> FieldVerdict {
     if per_task.is_empty() {
-        return FieldVerdict::Empty(
-            "no task end snapshots (batch contains zero tasks)".into(),
-        );
+        return FieldVerdict::Empty("no task end snapshots (batch contains zero tasks)".into());
     }
     let mut saw_non_empty = initial.balances_distinct_agents > 0;
     for (k, t) in per_task.iter().enumerate() {
@@ -328,16 +328,11 @@ fn classify_balances(
                 .unwrap_or(0),
         ))
     } else {
-        FieldVerdict::Empty(
-            "balances_total + distinct_agents unchanged across batch".into(),
-        )
+        FieldVerdict::Empty("balances_total + distinct_agents unchanged across batch".into())
     }
 }
 
-fn classify_positions(
-    initial: &TaskBoundaryTrace,
-    per_task: &[TaskBoundaryTrace],
-) -> FieldVerdict {
+fn classify_positions(initial: &TaskBoundaryTrace, per_task: &[TaskBoundaryTrace]) -> FieldVerdict {
     if per_task.is_empty() {
         return FieldVerdict::Empty("no task end snapshots".into());
     }
@@ -354,10 +349,7 @@ fn classify_positions(
             saw_non_empty = true;
         }
     }
-    let final_n = per_task
-        .last()
-        .map(|t| t.node_positions_count)
-        .unwrap_or(0);
+    let final_n = per_task.last().map(|t| t.node_positions_count).unwrap_or(0);
     if final_n > 0 {
         FieldVerdict::Witnessed(format!(
             "node_positions_t count {initial_n} → {final_n} across {n} tasks",
@@ -365,9 +357,7 @@ fn classify_positions(
             n = per_task.len(),
         ))
     } else {
-        FieldVerdict::Empty(
-            "no node_positions written by this batch (low market activity)".into(),
-        )
+        FieldVerdict::Empty("no node_positions written by this batch (low market activity)".into())
     }
 }
 
@@ -391,10 +381,7 @@ fn classify_reputation(
             saw_non_empty = true;
         }
     }
-    let final_n = per_task
-        .last()
-        .map(|t| t.reputations_count)
-        .unwrap_or(0);
+    let final_n = per_task.last().map(|t| t.reputations_count).unwrap_or(0);
     if final_n > initial.reputations_count {
         FieldVerdict::Witnessed(format!(
             "reputations_t count {initial_n} → {final_n}",
@@ -407,10 +394,7 @@ fn classify_reputation(
     }
 }
 
-fn classify_pnl(
-    initial: &TaskBoundaryTrace,
-    per_task: &[TaskBoundaryTrace],
-) -> FieldVerdict {
+fn classify_pnl(initial: &TaskBoundaryTrace, per_task: &[TaskBoundaryTrace]) -> FieldVerdict {
     if per_task.is_empty() {
         return FieldVerdict::Empty("no task end snapshots".into());
     }
@@ -444,10 +428,7 @@ fn classify_pnl(
     }
 }
 
-fn classify_autopsy(
-    initial: &TaskBoundaryTrace,
-    per_task: &[TaskBoundaryTrace],
-) -> FieldVerdict {
+fn classify_autopsy(initial: &TaskBoundaryTrace, per_task: &[TaskBoundaryTrace]) -> FieldVerdict {
     if per_task.is_empty() {
         return FieldVerdict::Empty("no task end snapshots".into());
     }
@@ -548,8 +529,8 @@ pub fn replay_task_end_snapshots_from_disk(
     let writer = Git2LedgerWriter::open(runtime_repo_path)
         .map_err(|e| ReplaySnapshotError::Io(format!("open ledger: {e}")))?;
     let chain_len = writer.len();
-    let cas_store = CasStore::open(cas_path)
-        .map_err(|e| ReplaySnapshotError::Io(format!("open cas: {e}")))?;
+    let cas_store =
+        CasStore::open(cas_path).map_err(|e| ReplaySnapshotError::Io(format!("open cas: {e}")))?;
 
     // pull entries [1..=chain_len] once
     let entries: Vec<LedgerEntry> = (1..=chain_len)
@@ -626,10 +607,7 @@ impl std::fmt::Display for ReplaySnapshotError {
         match self {
             Self::Io(s) => write!(f, "io: {s}"),
             Self::Parse(s) => write!(f, "parse: {s}"),
-            Self::Replay {
-                task_index,
-                detail,
-            } => write!(f, "replay task {task_index}: {detail}"),
+            Self::Replay { task_index, detail } => write!(f, "replay task {task_index}: {detail}"),
             Self::ManifestExceedsChain {
                 task_index,
                 end_chain_length,
@@ -679,6 +657,7 @@ mod tests {
             agent_registry_cid_hex: None,
             system_pubkeys_cid_hex: None,
             model_manifest_cid_hex: None,
+            role_assignment_manifest_cid_hex: None,
             tasks: (0..n).map(mk_entry).collect(),
             terminated_reason: None,
         }

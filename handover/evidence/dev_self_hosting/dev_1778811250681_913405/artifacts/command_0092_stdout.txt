@@ -1,0 +1,39 @@
+
+running 16 tests
+test sg_6a_2_trader_view_contains_task_outcome_market_signal ... ok
+test sg_6a_1_runtime_hooks_seed_task_outcome_market_before_worktx ... ok
+test sg_6a_5_real6_market_visible_non_invest_turn_writes_no_trade_trace ... ok
+test sg_6a_10_price_is_not_used_as_lean_predicate_truth ... ok
+test sg_6a_1_market_seed_and_pool_exist_before_first_worktx ... ok
+test sg_6a_7_evaluator_exhaustion_path_calls_event_resolve_no_helper ... ok
+test sg_6a_3_4_scripted_trader_buys_yes_and_no_on_task_outcome_market ... ok
+test sg_6a_event_resolve_corrupt_outcome_tail_fails_closed ... FAILED
+test sg_6a_event_resolve_legacy_b2_wire_decodes_as_yes ... ok
+test sg_6a_event_resolve_outcome_is_in_signing_payload_digest ... ok
+test sg_6a_market_decision_trace_cas_write_errors_fail_closed ... FAILED
+test sg_6a_smoke_runner_build_failure_is_fail_closed ... ok
+test sg_6a_task_outcome_event_schema_is_task_open_scope ... ok
+test sg_6a_8_9_no_ghost_liquidity_and_ctf_conserved ... ok
+test sg_6a_7_adapter_helper_emits_no_event_resolve_for_exhaustion ... ok
+test sg_6a_6_7_event_resolve_yes_and_no_paths_exist ... ok
+
+failures:
+
+---- sg_6a_event_resolve_corrupt_outcome_tail_fails_closed stdout ----
+
+thread 'sg_6a_event_resolve_corrupt_outcome_tail_fails_closed' (1083388) panicked at tests/constitution_real6_task_outcome_market.rs:643:5:
+only missing legacy outcome may default to YES; malformed outcome tails must fail closed
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- sg_6a_market_decision_trace_cas_write_errors_fail_closed stdout ----
+
+thread 'sg_6a_market_decision_trace_cas_write_errors_fail_closed' (1083391) panicked at tests/constitution_real6_task_outcome_market.rs:764:5:
+MarketDecisionTrace CAS write errors must not be silently ignored
+
+
+failures:
+    sg_6a_event_resolve_corrupt_outcome_tail_fails_closed
+    sg_6a_market_decision_trace_cas_write_errors_fail_closed
+
+test result: FAILED. 14 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+

@@ -303,6 +303,7 @@ struct ChainStats {
     l4_entries: u64,
     l4e_entries: u64,
     head_commit_oid_hex: Option<String>,
+    l4e_last_hash_hex: String,
     final_state_root_hex: Option<String>,
     final_ledger_root_hex: Option<String>,
     initial_q_state_loaded_from_disk: bool,
@@ -1015,6 +1016,7 @@ fn build_report(
             l4_entries: replay.l4_entries,
             l4e_entries: replay.l4e_entries,
             head_commit_oid_hex: replay.detail.head_commit_oid_hex.clone(),
+            l4e_last_hash_hex: replay.detail.l4e_last_hash_hex.clone(),
             final_state_root_hex: replay.detail.final_state_root_hex.clone(),
             final_ledger_root_hex: replay.detail.final_ledger_root_hex.clone(),
             initial_q_state_loaded_from_disk: replay.detail.initial_q_state_loaded_from_disk,
@@ -1207,6 +1209,11 @@ fn hex_to_bytes(hex: &str) -> Option<Vec<u8>> {
     }
     Some(out)
 }
+
+fn hex_encode_bytes(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
+}
+
 fn char_hex(b: u8) -> Option<u8> {
     match b {
         b'0'..=b'9' => Some(b - b'0'),
@@ -1290,6 +1297,7 @@ fn render_text(r: &DashboardReport) -> String {
             .as_deref()
             .unwrap_or("(empty chain)")
     ));
+    s.push_str(&format!("  l4e_last_hash: {}\n", r.chain.l4e_last_hash_hex));
     s.push_str(&format!(
         "  final_state_root: {}\n",
         r.chain.final_state_root_hex.as_deref().unwrap_or("-")
@@ -2236,9 +2244,14 @@ fn render_tb_n3_run_report(
     let mut tx_kind_counts: BTreeMap<String, u64> = BTreeMap::new();
     let mut market_seed_total_micro: i64 = 0;
     let mut pools_created: u64 = 0;
+    let mut task_outcome_market_count: u64 = 0;
     let mut router_count_yes: u64 = 0;
     let mut router_count_no: u64 = 0;
     let mut node_event_seeds: BTreeMap<String, i64> = BTreeMap::new();
+    let mut scheduler_price_signals: Vec<turingosv4::runtime::real5_roles::PriceSignal> =
+        Vec::new();
+    let mut scheduler_pnl_signals: Vec<turingosv4::runtime::agent_scheduler::SchedulerPnlSignal> =
+        Vec::new();
 
     for t in 1..=l4_count {
         let entry = match writer.read_at(t) {
@@ -2298,6 +2311,28 @@ fn render_tb_n3_run_report(
             }
             TypedTx::CpmmPool(pool) => {
                 let inner = &pool.event_id.0 .0;
+                let total = pool.seed_yes.units.saturating_add(pool.seed_no.units);
+                let price = if total == 0 {
+                    "None".to_string()
+                } else {
+                    format!("{}/{}", pool.seed_yes.units, total)
+                };
+                // REAL-6D: scheduler observation consumes all active CPMM
+                // price signals, including REAL-6A TaskOutcomeMarket
+                // (`task-*` / future `task_outcome:*`) and TB-N3 node markets.
+                if inner.starts_with("node_survive:")
+                    || inner.starts_with("task-")
+                    || inner.starts_with("task_outcome:")
+                {
+                    scheduler_price_signals.push(turingosv4::runtime::real5_roles::PriceSignal {
+                        event_id: inner.clone(),
+                        price,
+                        depth: i64::try_from(total).ok(),
+                    });
+                }
+                if inner.starts_with("task-") || inner.starts_with("task_outcome:") {
+                    task_outcome_market_count += 1;
+                }
                 if inner.starts_with("node_survive:") {
                     pools_created += 1;
                 }
@@ -2322,21 +2357,30 @@ fn render_tb_n3_run_report(
     for cid in cas.list_cids_by_object_type(
         turingosv4::bottom_white::cas::schema::ObjectType::AttemptTelemetry,
     ) {
-        if let Ok(attempt) =
-            turingosv4::runtime::attempt_telemetry::read_attempt_telemetry_from_cas(&cas, &cid)
+        let attempt =
+            match turingosv4::runtime::attempt_telemetry::read_attempt_telemetry_shared_slot_from_cas(
+                &cas, &cid,
+            ) {
+                Ok(Some(attempt)) => attempt,
+                Ok(None) => continue,
+                Err(e) => {
+                    out.push_str(&format!(
+                        "\n[error] AttemptTelemetry shared-slot decode failed for {cid}: {e}\n"
+                    ));
+                    return out;
+                }
+            };
+        if attempt.model_family.is_some()
+            || genesis_model_family_by_agent.contains_key(&attempt.agent_id.0)
         {
-            if attempt.model_family.is_some()
-                || genesis_model_family_by_agent.contains_key(&attempt.agent_id.0)
-            {
-                let family = attempt
-                    .model_family
-                    .clone()
-                    .unwrap_or_else(|| genesis_model_family_by_agent[&attempt.agent_id.0].clone());
-                model_family_activity
-                    .entry(family)
-                    .or_default()
-                    .attempt_count += 1;
-            }
+            let family = attempt
+                .model_family
+                .clone()
+                .unwrap_or_else(|| genesis_model_family_by_agent[&attempt.agent_id.0].clone());
+            model_family_activity
+                .entry(family)
+                .or_default()
+                .attempt_count += 1;
         }
     }
 
@@ -2511,13 +2555,29 @@ fn render_tb_n3_run_report(
     // contract: if every row is flat (no PnL movement, no positions),
     // a MECHANISM BOTTLENECK explainer with ≥3 candidate causes is
     // auto-rendered (mirrors the §F.X / G2P.2 silent-zero contract).
+    let mut pnl_delta_count: u64 = 0;
     match turingosv4::runtime::agent_pnl::compute_pnl_trajectory_from_paths(repo, cas_path) {
         Ok(traj) => {
             for row in &traj.rows {
+                if row.realized_pnl != 0 || row.unrealized_pnl != 0 {
+                    pnl_delta_count += 1;
+                }
                 if let Some(family) = genesis_model_family_by_agent.get(&row.agent_id.0).cloned() {
                     model_family_activity.entry(family).or_default().pnl_micro +=
                         row.realized_pnl + row.unrealized_pnl;
                 }
+                scheduler_pnl_signals.push(
+                    turingosv4::runtime::agent_scheduler::SchedulerPnlSignal {
+                        agent_id: row.agent_id.clone(),
+                        realized_pnl: row.realized_pnl,
+                        unrealized_pnl: row.unrealized_pnl,
+                        available_micro: row.current_balance_micro,
+                        risk_cap_micro: turingosv4::runtime::agent_pnl::bankruptcy_risk_cap_micro(
+                            &row.agent_id,
+                            &QState::default(),
+                        ),
+                    },
+                );
             }
             out.push_str(&traj.render_section_g());
         }
@@ -2623,26 +2683,198 @@ fn render_tb_n3_run_report(
     out.push_str(
         "  unresolved_challenged_filter: open Challenge targets are excluded from prompt market_context top-K\n",
     );
+    let visible_agents: Vec<AgentId> = report
+        .per_agent
+        .keys()
+        .map(|agent| AgentId(agent.clone()))
+        .collect();
+    let visible_nodes: Vec<TxId> = node_event_seeds
+        .keys()
+        .map(|event| TxId(event.clone()))
+        .collect();
+    let scheduler_head_t = format!(
+        "HEAD_t(l4_head={},l4e_head={},cas_root={},state_root={},run_id={})",
+        report
+            .chain
+            .head_commit_oid_hex
+            .as_deref()
+            .unwrap_or("(empty-l4)"),
+        report.chain.l4e_last_hash_hex,
+        hex_encode_bytes(&cas.merkle_root()),
+        report
+            .chain
+            .final_state_root_hex
+            .as_deref()
+            .unwrap_or("(replay-unavailable)"),
+        report.run_id
+    );
+    let persisted_scheduler_trace_cids =
+        turingosv4::runtime::agent_scheduler::scheduler_decision_trace_cids(&cas);
+    let recommended_agent = visible_agents.first().cloned();
+    let recommended_role = if market_visible_actions > 0 || !scheduler_price_signals.is_empty() {
+        Some(turingosv4::runtime::real5_roles::AgentRole::Trader)
+    } else if accepted_work > 0 {
+        Some(turingosv4::runtime::real5_roles::AgentRole::Verifier)
+    } else {
+        None
+    };
+    let recommended_action = recommended_role.map(|role| match role {
+        turingosv4::runtime::real5_roles::AgentRole::Trader => "observe_market_signal".to_string(),
+        turingosv4::runtime::real5_roles::AgentRole::Verifier => {
+            "observe_peer_verify_queue".to_string()
+        }
+        _ => "observe_only".to_string(),
+    });
+    let scheduler_trace = turingosv4::runtime::agent_scheduler::build_observe_only_scheduler_trace(
+        scheduler_head_t,
+        visible_agents,
+        visible_nodes,
+        scheduler_price_signals,
+        scheduler_pnl_signals,
+        recommended_agent,
+        recommended_role,
+        recommended_action,
+    );
+    out.push_str(
+        &turingosv4::runtime::agent_scheduler::render_scheduler_trace_section(&scheduler_trace),
+    );
+    out.push_str(&format!(
+        "  persisted_scheduler_trace_cas_count: {}\n",
+        persisted_scheduler_trace_cids.len()
+    ));
+    for cid in persisted_scheduler_trace_cids.iter().take(3) {
+        out.push_str(&format!("    - scheduler_trace_cid={cid}\n"));
+    }
+    let persisted_scheduler_traces: Vec<_> = persisted_scheduler_trace_cids
+        .iter()
+        .filter_map(|cid| {
+            turingosv4::runtime::agent_scheduler::read_scheduler_decision_trace_from_cas(&cas, cid)
+                .ok()
+        })
+        .collect();
 
     // §K G7 structural smoke. This is a materialized dashboard view over
     // current run-report inputs; SG-G closeout still depends on the dedicated
     // G7 evidence dir or clean-negative forward-TB stub.
     let no_trade_reason_count = summary.outcome_counts.get("no_trade").copied().unwrap_or(0);
+    let role_turn_summary =
+        turingosv4::runtime::real5_roles::summarize_role_turn_traces_from_cas(&cas);
+    let scripted_attempt_prediction_market_count = cas
+        .list_all_cids()
+        .into_iter()
+        .filter(|cid| {
+            cas.metadata(cid).and_then(|meta| meta.schema_id.as_deref())
+                == Some(turingosv4::runtime::real6_attempt_prediction::REAL6B_SCHEMA_ID)
+        })
+        .count() as u64;
+    let task_count = tx_kind_counts.get("TaskOpen").copied().unwrap_or(0);
+    let verify_tx_count = tx_kind_counts.get("Verify").copied().unwrap_or(0);
+    let challenge_tx_count = tx_kind_counts.get("Challenge").copied().unwrap_or(0);
+    let event_resolve_count = tx_kind_counts.get("EventResolve").copied().unwrap_or(0);
+    let task_bankruptcy_count = tx_kind_counts.get("TaskBankruptcy").copied().unwrap_or(0);
+    let task_expire_count = tx_kind_counts.get("TaskExpire").copied().unwrap_or(0);
+    let autopsy_capsule_count = cas
+        .list_cids_by_object_type(
+            turingosv4::bottom_white::cas::schema::ObjectType::AgentAutopsyCapsule,
+        )
+        .len() as u64;
+    let loss_occurred = task_bankruptcy_count > 0 || task_expire_count > 0;
+    let structural_market_visible_actions =
+        router_count_yes + router_count_no + task_outcome_market_count + pools_created;
+    let g7_guard_summary =
+        turingosv4::runtime::g7_structural_smoke::summarize_g7_structural_guards_from_cas(&cas);
+    let aggregate_assertions_pass = |names: &[&str]| -> bool {
+        let Some(run_dir) = repo.parent() else {
+            return false;
+        };
+        let Ok(raw) = std::fs::read_to_string(run_dir.join("aggregate_verdict.json")) else {
+            return false;
+        };
+        let Ok(value) = serde_json::from_str::<serde_json::Value>(&raw) else {
+            return false;
+        };
+        let Some(assertions) = value.get("assertions").and_then(|v| v.as_array()) else {
+            return false;
+        };
+        names.iter().all(|name| {
+            assertions.iter().any(|assertion| {
+                assertion.get("name").and_then(|v| v.as_str()) == Some(*name)
+                    && assertion.get("result").and_then(|v| v.as_str()) == Some("Pass")
+            })
+        })
+    };
+    let persisted_scheduler_observe_only = !persisted_scheduler_traces.is_empty()
+        && persisted_scheduler_traces
+            .iter()
+            .all(|trace| trace.observe_only);
+    let g7_price_observe_only =
+        persisted_scheduler_observe_only && g7_guard_summary.price_observe_only_all;
+    let g7_no_price_as_truth = g7_price_observe_only
+        && g7_guard_summary.no_price_as_truth_all
+        && aggregate_assertions_pass(&[
+            "accepted_work_predicate_results_true",
+            "tx_kind_envelope_matches_payload",
+            "replay_state_root_matches_head",
+        ]);
+    let g7_no_ghost_liquidity = g7_guard_summary.no_ghost_liquidity_all
+        && aggregate_assertions_pass(&[
+            "no_post_init_mint",
+            "total_supply_conserved",
+            "total_supply_conserved_per_block",
+            "complete_set_min_balanced",
+            "conditional_shares_excluded_from_supply",
+        ]);
+    let no_forced_live_investment = g7_guard_summary.no_forced_live_investment_all
+        && summary.submitted_count == 0
+        && (router_count_yes + router_count_no) > 0
+        && no_trade_reason_count > 0;
+    let g7_clean_v3_comparison = g7_guard_summary.clean_v3_comparison_all;
+    let g7_role_classifier_output =
+        role_turn_summary.total_traces > 0 && role_turn_summary.by_role.len() >= 3;
+    let g7_dashboard_regenerated = repo.exists() && l4_count > 0 && !cas.list_all_cids().is_empty();
     let g7_report = turingosv4::runtime::g7_structural_smoke::evaluate_g7_structural_smoke(
         turingosv4::runtime::g7_structural_smoke::G7SmokeInput {
             one_runtime_repo: repo.exists(),
             multi_agent: report.per_agent.len() > 1,
             persistent_state: report.run_facts.tx_count > 0,
-            proof_related_actions: accepted_work,
-            market_visible_actions,
+            agent_count: report.per_agent.len() as u64,
+            active_role_count: role_turn_summary.by_role.len() as u64,
+            task_count,
+            task_outcome_market_count,
+            scripted_attempt_prediction_market_count,
+            buy_yes_router_count: router_count_yes,
+            buy_no_or_short_count: router_count_no + challenge_tx_count,
+            verify_tx_count,
+            challenge_tx_or_no_challenge_reason_count: challenge_tx_count
+                + role_turn_summary.no_challenge_count,
+            event_resolve_count,
+            pnl_delta_count,
+            loss_occurred,
+            autopsy_capsule_count,
+            forced_live_investment: !no_forced_live_investment,
+            market_actions_chain_visible: structural_market_visible_actions > 0,
+            no_ghost_liquidity: g7_no_ghost_liquidity,
+            clean_v3_comparison: g7_clean_v3_comparison,
+            proof_related_actions: accepted_work + verify_tx_count,
+            market_visible_actions: structural_market_visible_actions,
             no_trade_reason_count,
-            role_classifier_output: true,
-            price_observe_only: true,
-            no_price_as_truth: true,
-            dashboard_regenerated: true,
+            role_classifier_output: g7_role_classifier_output,
+            price_observe_only: g7_price_observe_only,
+            no_price_as_truth: g7_no_price_as_truth,
+            dashboard_regenerated: g7_dashboard_regenerated,
         },
     );
     out.push_str(&g7_report.render_section_k());
+    out.push_str(&format!(
+        "  g7_guard_cas_count: {}\n",
+        g7_guard_summary.total_guards
+    ));
+    out.push_str(&format!(
+        "  aggregate_audit_guard_source: {}\n",
+        repo.parent()
+            .map(|p| p.join("aggregate_verdict.json").display().to_string())
+            .unwrap_or_else(|| "(missing run dir)".into())
+    ));
 
     // §H Banner (architect "no price as truth"). Renamed from §G to §H
     // by TB-G G3.4 to free the §G label for PnL trajectory; SG-14.6

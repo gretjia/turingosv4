@@ -85,10 +85,10 @@ fn sg_g3_6_per_viewer_source_grep() {
 fn sg_g3_7_non_default_render_witnessed() {
     let mut q = QState::default();
     let a = agent("Agent_0");
-    q.economic_state_t.balances_t.0.insert(
-        a.clone(),
-        MicroCoin::from_micro_units(800_000),
-    );
+    q.economic_state_t
+        .balances_t
+        .0
+        .insert(a.clone(), MicroCoin::from_micro_units(800_000));
     q.economic_state_t.stakes_t.0.insert(
         TxId("worktx-witness".into()),
         StakeEntry {
@@ -122,10 +122,10 @@ fn sg_g3_7_non_default_render_witnessed() {
 fn sg_g3_13_drucker_verbatim_framing() {
     let mut q = QState::default();
     let a = agent("Agent_0");
-    q.economic_state_t.balances_t.0.insert(
-        a.clone(),
-        MicroCoin::from_micro_units(1_000_000),
-    );
+    q.economic_state_t
+        .balances_t
+        .0
+        .insert(a.clone(), MicroCoin::from_micro_units(1_000_000));
     let rendered = render_your_position(&q, &a);
     assert!(
         rendered.starts_with(DRUCKER_FRAMING_LINE),
@@ -154,14 +154,14 @@ fn sg_g3_13_a_no_other_agent_leak() {
     let mut q = QState::default();
     let alice = agent("Agent_0");
     let bob = agent("Agent_1");
-    q.economic_state_t.balances_t.0.insert(
-        alice.clone(),
-        MicroCoin::from_micro_units(1_000_000),
-    );
-    q.economic_state_t.balances_t.0.insert(
-        bob.clone(),
-        MicroCoin::from_micro_units(500_000),
-    );
+    q.economic_state_t
+        .balances_t
+        .0
+        .insert(alice.clone(), MicroCoin::from_micro_units(1_000_000));
+    q.economic_state_t
+        .balances_t
+        .0
+        .insert(bob.clone(), MicroCoin::from_micro_units(500_000));
     q.economic_state_t.stakes_t.0.insert(
         TxId("bobs-secret-stake".into()),
         StakeEntry {
@@ -230,9 +230,7 @@ fn sg_g3_13_c_evaluator_wires_render_your_position() {
 #[test]
 fn sg_g3_13_d_full_prompt_carries_your_position_block() {
     let body = "Drucker: 'What gets measured gets managed' \u{2014} your position drives your next decision.\nBalance: 1000000 \u{03BC}C (initial 1000000)\nRealized PnL: 0 \u{03BC}C (current balance \u{2212} initial)\nUnrealized PnL: 0 \u{03BC}C (mark-to-market on open share positions)\nSolvency: solvent\nReputation: 0\nOpen positions: 0\n";
-    let prompt = build_agent_prompt(
-        "", "", "", &[], &[], "", "", "", "", body,
-    );
+    let prompt = build_agent_prompt("", "", "", &[], &[], "", "", "", "", body);
     assert!(
         prompt.contains("=== Your Position ==="),
         "SG-G3.13.d: full prompt must contain `=== Your Position ===` heading; got:\n{prompt}"
@@ -253,9 +251,7 @@ fn sg_g3_13_d_full_prompt_carries_your_position_block() {
 
 #[test]
 fn sg_g3_13_e_empty_your_position_suppresses_block() {
-    let prompt = build_agent_prompt(
-        "", "", "", &[], &[], "", "", "", "", "",
-    );
+    let prompt = build_agent_prompt("", "", "", &[], &[], "", "", "", "", "");
     assert!(
         !prompt.contains("=== Your Position ==="),
         "SG-G3.13.e: empty your_position must suppress the entire block; got:\n{prompt}"

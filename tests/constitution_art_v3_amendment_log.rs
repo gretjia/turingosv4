@@ -171,7 +171,11 @@ fn v3_constitution_hash_matches_trust_root_manifest() {
     use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(&constitution_bytes);
-    let actual_hex: String = hasher.finalize().iter().map(|b| format!("{b:02x}")).collect();
+    let actual_hex: String = hasher
+        .finalize()
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect();
 
     let manifest = fs::read_to_string(GENESIS_PAYLOAD_TOML).expect("genesis_payload.toml readable");
     // Look for line: `"constitution.md" = "<hex>"` (skip comment lines that
@@ -180,16 +184,14 @@ fn v3_constitution_hash_matches_trust_root_manifest() {
         .lines()
         .find(|l| {
             let trimmed = l.trim_start();
-            !trimmed.starts_with('#') && trimmed.starts_with("\"constitution.md\"") && l.contains('=')
+            !trimmed.starts_with('#')
+                && trimmed.starts_with("\"constitution.md\"")
+                && l.contains('=')
         })
         .expect("trust_root manifest must include constitution.md key=value entry");
     // Extract the hex value (between first and second `"` AFTER `=`)
     let after_eq = entry_line.split('=').nth(1).unwrap_or("");
-    let manifest_hex = after_eq
-        .split('"')
-        .nth(1)
-        .unwrap_or("")
-        .to_string();
+    let manifest_hex = after_eq.split('"').nth(1).unwrap_or("").to_string();
 
     assert_eq!(
         actual_hex, manifest_hex,

@@ -45,8 +45,10 @@ fn dashboard_renders_section_16_sandbox_banner_on_existing_smoke() {
         .expect("audit_dashboard run");
     let stdout = String::from_utf8_lossy(&out.stdout);
     // §15 banner must always render (existing TB-15 contract)
-    assert!(stdout.contains("§15 TB-15 Autopsy + Markov"),
-            "§15 missing from dashboard output");
+    assert!(
+        stdout.contains("§15 TB-15 Autopsy + Markov"),
+        "§15 missing from dashboard output"
+    );
     // §16 SANDBOX banner must render when sandbox prefix matched
     let has_sandbox_id = stdout.contains("Agent_solver_")
         || stdout.contains("tb7-7-sponsor")
@@ -54,8 +56,7 @@ fn dashboard_renders_section_16_sandbox_banner_on_existing_smoke() {
         || stdout.contains("Agent_user_");
     if has_sandbox_id {
         assert!(
-            stdout.contains("§16 TB-16 SANDBOX BANNER")
-                && stdout.contains("SANDBOX-RUN"),
+            stdout.contains("§16 TB-16 SANDBOX BANNER") && stdout.contains("SANDBOX-RUN"),
             "§16 banner missing despite sandbox-prefix agent IDs in tape"
         );
     }
@@ -85,13 +86,9 @@ fn rebuild_autopsy_event_counts_returns_empty_on_pre_tb15_chain() {
     let stdout = String::from_utf8_lossy(&out.stdout);
     // TB-13 chain has no autopsies → §15 should report the empty branch
     // text, NOT a populated table (and NOT the failure banner).
+    assert!(stdout.contains("§15 TB-15 Autopsy + Markov"), "§15 missing");
     assert!(
-        stdout.contains("§15 TB-15 Autopsy + Markov"),
-        "§15 missing"
-    );
-    assert!(
-        stdout.contains("no agent_autopsies_t entries")
-            || stdout.contains("No autopsies recorded"),
+        stdout.contains("no agent_autopsies_t entries") || stdout.contains("No autopsies recorded"),
         "expected 'no autopsy entries' branch on TB-13 chain; got:\n{stdout}"
     );
 }

@@ -48,8 +48,7 @@ async fn i90_end_to_end_taskopen_plus_zero_stake_worktx_replay_passes_all_indica
         .expect("submit TaskOpen");
 
     // Submit a zero-stake WorkTx → expected to land as ≥1 L4.E rejection.
-    let bad_worktx =
-        make_synthetic_worktx("task-i90", "agent-i90", Hash::ZERO, 0, "i90-rej", true);
+    let bad_worktx = make_synthetic_worktx("task-i90", "agent-i90", Hash::ZERO, 0, "i90-rej", true);
     bus.submit_typed_tx(bad_worktx)
         .await
         .expect("submit zero-stake WorkTx");
@@ -57,9 +56,12 @@ async fn i90_end_to_end_taskopen_plus_zero_stake_worktx_replay_passes_all_indica
     bundle.shutdown().await.expect("shutdown");
     drop(bus);
 
-    let report =
-        verify_chaintape(&cfg.runtime_repo_path, &cfg.cas_path, &VerifyOptions::default())
-            .expect("verify");
+    let report = verify_chaintape(
+        &cfg.runtime_repo_path,
+        &cfg.cas_path,
+        &VerifyOptions::default(),
+    )
+    .expect("verify");
 
     assert!(
         report.l4_entries >= 1,
@@ -106,9 +108,12 @@ async fn i90b_empty_chain_replay_reports_zero_entries_and_all_indicators_pass() 
     let bundle = build_chaintape_sequencer(&cfg).expect("bootstrap");
     bundle.shutdown().await.expect("shutdown");
 
-    let report =
-        verify_chaintape(&cfg.runtime_repo_path, &cfg.cas_path, &VerifyOptions::default())
-            .expect("verify");
+    let report = verify_chaintape(
+        &cfg.runtime_repo_path,
+        &cfg.cas_path,
+        &VerifyOptions::default(),
+    )
+    .expect("verify");
 
     assert_eq!(report.l4_entries, 0);
     assert_eq!(report.l4e_entries, 0);
@@ -133,8 +138,12 @@ async fn i90c_tampered_pinned_pubkey_breaks_signature_verification() {
     drop(bus);
 
     // Sanity: untampered chain passes.
-    let pre = verify_chaintape(&cfg.runtime_repo_path, &cfg.cas_path, &VerifyOptions::default())
-        .expect("pre-tamper verify");
+    let pre = verify_chaintape(
+        &cfg.runtime_repo_path,
+        &cfg.cas_path,
+        &VerifyOptions::default(),
+    )
+    .expect("pre-tamper verify");
     assert!(pre.system_signatures_verified);
 
     // Flip a single byte in the pinned-pubkey hex string. This re-keys the
@@ -155,16 +164,19 @@ async fn i90c_tampered_pinned_pubkey_breaks_signature_verification() {
         _ => '0',
     };
     hex.replace_range(1..2, &flipped.to_string());
-    entry.insert(
-        "pubkey_hex".into(),
-        serde_json::Value::String(hex),
-    );
-    std::fs::write(&manifest_path, serde_json::to_string_pretty(&parsed).unwrap())
-        .expect("write tampered manifest");
+    entry.insert("pubkey_hex".into(), serde_json::Value::String(hex));
+    std::fs::write(
+        &manifest_path,
+        serde_json::to_string_pretty(&parsed).unwrap(),
+    )
+    .expect("write tampered manifest");
 
-    let post =
-        verify_chaintape(&cfg.runtime_repo_path, &cfg.cas_path, &VerifyOptions::default())
-            .expect("verify with tampered pubkey");
+    let post = verify_chaintape(
+        &cfg.runtime_repo_path,
+        &cfg.cas_path,
+        &VerifyOptions::default(),
+    )
+    .expect("verify with tampered pubkey");
     assert!(
         !post.system_signatures_verified,
         "tampered pubkey must break signature verification (got {:?})",
@@ -213,8 +225,12 @@ async fn i90d_tampered_cas_index_breaks_verify_chaintape() {
     drop(bus);
 
     // Sanity: pre-tamper verify passes.
-    let pre = verify_chaintape(&cfg.runtime_repo_path, &cfg.cas_path, &VerifyOptions::default())
-        .expect("pre-tamper verify");
+    let pre = verify_chaintape(
+        &cfg.runtime_repo_path,
+        &cfg.cas_path,
+        &VerifyOptions::default(),
+    )
+    .expect("pre-tamper verify");
     assert!(pre.all_indicators_pass());
 
     // Tamper the CAS index sidecar by injecting trailing junk on the first
@@ -231,8 +247,11 @@ async fn i90d_tampered_cas_index_breaks_verify_chaintape() {
     lines[0].push_str(r#"{"cid":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"backend_oid_hex":"deadbeef","object_type":"Generic","creator":"tamper","created_at_logical_t":99,"schema_id":null,"size_bytes":0}"#);
     std::fs::write(&cas_index, lines.join("\n") + "\n").expect("write tamper");
 
-    let result =
-        verify_chaintape(&cfg.runtime_repo_path, &cfg.cas_path, &VerifyOptions::default());
+    let result = verify_chaintape(
+        &cfg.runtime_repo_path,
+        &cfg.cas_path,
+        &VerifyOptions::default(),
+    );
     assert!(
         result.is_err(),
         "tampered CAS index must break verify_chaintape at CAS-open time; got Ok({result:?})"
@@ -253,37 +272,38 @@ async fn i90e_tampered_l4e_row_breaks_chain_open() {
         bundle.sequencer.clone(),
     );
     // Submit a synthetic zero-stake WorkTx → L4.E row.
-    let bad_work = make_synthetic_worktx(
-        "task-i90e",
-        "agent-i90e",
-        Hash::ZERO,
-        0,
-        "i90e-1",
-        true,
-    );
+    let bad_work = make_synthetic_worktx("task-i90e", "agent-i90e", Hash::ZERO, 0, "i90e-1", true);
     bus.submit_typed_tx(bad_work).await.expect("submit");
     bundle.shutdown().await.expect("shutdown");
     drop(bus);
 
-    let pre = verify_chaintape(&cfg.runtime_repo_path, &cfg.cas_path, &VerifyOptions::default())
-        .expect("pre-tamper verify");
+    let pre = verify_chaintape(
+        &cfg.runtime_repo_path,
+        &cfg.cas_path,
+        &VerifyOptions::default(),
+    )
+    .expect("pre-tamper verify");
     assert!(pre.l4e_entries >= 1, "expected ≥1 L4.E row to tamper");
 
     // Mutate the row's `prev_hash` field to break the spine.
     let rejections_path = cfg.runtime_repo_path.join("rejections.jsonl");
     let raw = std::fs::read_to_string(&rejections_path).expect("read rejections");
     let mut lines: Vec<String> = raw.lines().map(|s| s.to_string()).collect();
-    let mut row: serde_json::Value =
-        serde_json::from_str(&lines[0]).expect("parse rejection row");
+    let mut row: serde_json::Value = serde_json::from_str(&lines[0]).expect("parse rejection row");
     // Replace prev_hash with all-ones (or whatever != recorded value).
     row["prev_hash"] = serde_json::Value::Array(
-        (0..32u32).map(|_| serde_json::Value::Number(1u8.into())).collect(),
+        (0..32u32)
+            .map(|_| serde_json::Value::Number(1u8.into()))
+            .collect(),
     );
     lines[0] = serde_json::to_string(&row).expect("reserialize");
     std::fs::write(&rejections_path, lines.join("\n") + "\n").expect("write tamper");
 
-    let result =
-        verify_chaintape(&cfg.runtime_repo_path, &cfg.cas_path, &VerifyOptions::default());
+    let result = verify_chaintape(
+        &cfg.runtime_repo_path,
+        &cfg.cas_path,
+        &VerifyOptions::default(),
+    );
     assert!(
         result.is_err(),
         "tampered L4.E row must break verify_chaintape at L4.E-open time; got Ok({result:?})"
@@ -319,8 +339,15 @@ async fn i90f_absent_l4e_is_legitimate_empty_chain_not_tamper() {
         std::fs::remove_file(&rejections_path).expect("remove rejections");
     }
 
-    let report = verify_chaintape(&cfg.runtime_repo_path, &cfg.cas_path, &VerifyOptions::default())
-        .expect("absent L4.E is legitimate empty-chain case");
+    let report = verify_chaintape(
+        &cfg.runtime_repo_path,
+        &cfg.cas_path,
+        &VerifyOptions::default(),
+    )
+    .expect("absent L4.E is legitimate empty-chain case");
     assert_eq!(report.l4e_entries, 0);
-    assert!(report.all_indicators_pass(), "absent L4.E should NOT fail any indicator");
+    assert!(
+        report.all_indicators_pass(),
+        "absent L4.E should NOT fail any indicator"
+    );
 }

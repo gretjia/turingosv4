@@ -1,0 +1,39 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778831233293_1499773",
+  "title": "REAL-6D-R2-opportunity-scheduler-observe-only",
+  "module": "REAL-6D",
+  "molecule_or_atom": "atom",
+  "requested_risk_class": 4,
+  "risk_class": 4,
+  "fc_nodes": [
+    "FC1-N7",
+    "FC2-HEAD_t",
+    "FC3-N43",
+    "Art-0.4"
+  ],
+  "allowed_paths": [
+    "src/runtime/agent_scheduler.rs",
+    "src/bin/audit_dashboard.rs",
+    "tests/constitution_g6_observe_only.rs",
+    "genesis_payload.toml",
+    "handover/evidence/real6_scheduler_observe_only/REAL6D_OPPORTUNITY_SCHEDULER_REPORT.md",
+    "handover/audits/CODEX_REAL6D_IMPLEMENTATION_REVIEW_R2.md"
+  ],
+  "restricted_surface_hits": [
+    "genesis_payload.toml"
+  ],
+  "acceptance_commands": [
+    "cargo_fmt",
+    "constitution_g6_observe_only",
+    "constitution_g5_scheduler",
+    "trust_root",
+    "constitution_gates",
+    "workspace"
+  ],
+  "audit_required": true,
+  "human_intent": "REAL-6D_R1_CHALLENGE_closure_CAS_scheduler_trace_HEAD_t_witness_clean_harness",
+  "ratification": "handover/directives/2026-05-15_REAL5S_REAL6_REAL7_REAL8_REAL9_EXECUTION_PLAN_APPROVED.md",
+  "git_head": "5239f4b13ecf0a3f9850accc6815c2e7944e9bee",
+  "created_at_unix_ms": 1778831233293
+}

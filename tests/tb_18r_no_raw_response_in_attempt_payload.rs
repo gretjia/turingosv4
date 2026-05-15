@@ -63,10 +63,7 @@ fn looks_like_parsed_candidate(bytes: &[u8]) -> bool {
     // on the `"field"` key form to avoid false positives on Lean source
     // that happens to mention these as identifiers.
     let envelope_markers = ["\"role\"", "\"content\"", "\"thinking\"", "\"reasoning\""];
-    let envelope_hits = envelope_markers
-        .iter()
-        .filter(|m| s.contains(*m))
-        .count();
+    let envelope_hits = envelope_markers.iter().filter(|m| s.contains(*m)).count();
     // 2+ envelope-shape markers in a single payload → very likely a raw
     // response. Single occurrences could be incidental (e.g. theorem
     // statement mentions "role" as a noun), so we require at least 2.

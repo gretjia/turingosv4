@@ -39,11 +39,7 @@ fn collect_rust_sources(root: &Path) -> Vec<PathBuf> {
         if path.is_dir() {
             // Skip non-Rust artifact directories.
             let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-            if name == "target"
-                || name == ".git"
-                || name == "node_modules"
-                || name == ".lake"
-            {
+            if name == "target" || name == ".git" || name == "node_modules" || name == ".lake" {
                 continue;
             }
             if let Ok(it) = std::fs::read_dir(&path) {
@@ -151,7 +147,9 @@ fn sg_17_18_minif2f_policy_doc_exists() {
     let body = std::fs::read_to_string(path).unwrap();
     let lower = body.to_lowercase();
     assert!(
-        lower.contains("minif2f") || lower.contains("mini_f2f") || lower.contains("formal benchmark"),
+        lower.contains("minif2f")
+            || lower.contains("mini_f2f")
+            || lower.contains("formal benchmark"),
         "report must cite MiniF2F or formal-benchmark distinction"
     );
 }

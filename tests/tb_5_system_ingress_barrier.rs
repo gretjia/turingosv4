@@ -28,9 +28,7 @@ use turingosv4::bottom_white::ledger::rejection_evidence::RejectionEvidenceWrite
 use turingosv4::bottom_white::ledger::system_keypair::{
     Ed25519Keypair, PinnedSystemPubkeys, SystemEpoch, SystemSignature,
 };
-use turingosv4::bottom_white::ledger::transition_ledger::{
-    InMemoryLedgerWriter, LedgerWriter,
-};
+use turingosv4::bottom_white::ledger::transition_ledger::{InMemoryLedgerWriter, LedgerWriter};
 use turingosv4::bottom_white::tools::registry::ToolRegistry;
 use turingosv4::economy::money::MicroCoin;
 use turingosv4::state::q_state::{AgentId, Hash, QState, TaskId, TxId};
@@ -57,11 +55,8 @@ struct Harness {
 fn fresh_harness() -> Harness {
     let tmp = TempDir::new().expect("tempdir");
     let cas = Arc::new(RwLock::new(CasStore::open(tmp.path()).expect("cas")));
-    let keypair = Arc::new(
-        Ed25519Keypair::generate_with_secure_entropy().expect("keypair"),
-    );
-    let writer: Arc<RwLock<dyn LedgerWriter>> =
-        Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
+    let keypair = Arc::new(Ed25519Keypair::generate_with_secure_entropy().expect("keypair"));
+    let writer: Arc<RwLock<dyn LedgerWriter>> = Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
     let rejection_writer = Arc::new(RwLock::new(RejectionEvidenceWriter::default()));
     let preds = Arc::new(turingosv4::top_white::predicates::registry::PredicateRegistry::new());
     let tools = Arc::new(ToolRegistry::new());
@@ -121,8 +116,11 @@ async fn agent_submit_rejects_challenge_resolve_tx() {
     // This is the strongest demonstration of the Anti-Oreo agent-ingress
     // barrier: forging system-emitted variants doesn't even consume system
     // resources; rejection is structural and free.
-    assert_eq!(h.seq.next_submit_id_peek(), pre_submit_id,
-        "submit_id must not advance on system-tx ingress rejection");
+    assert_eq!(
+        h.seq.next_submit_id_peek(),
+        pre_submit_id,
+        "submit_id must not advance on system-tx ingress rejection"
+    );
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -155,8 +153,11 @@ async fn agent_submit_rejects_finalize_reward_tx() {
     // submit_id NOT advanced — rejection is pre-queue, before fetch_add.
     // Anti-Oreo guarantee: agent-side ingress wastes no system resources
     // on forbidden variants.
-    assert_eq!(h.seq.next_submit_id_peek(), pre_submit_id,
-        "submit_id must not advance on system-tx ingress rejection");
+    assert_eq!(
+        h.seq.next_submit_id_peek(),
+        pre_submit_id,
+        "submit_id must not advance on system-tx ingress rejection"
+    );
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -175,9 +176,9 @@ async fn agent_submit_rejects_task_expire_tx() {
         bounty_refunded: MicroCoin::from_micro_units(50),
         epoch: SystemEpoch::new(1),
         timestamp_logical: 1,
-        sponsor_agent: turingosv4::state::AgentId("sp-i62".into()),                       // TB-11
-        escrow_tx_id: TxId("e-i62".into()),                                               // TB-11
-        reason: turingosv4::state::ExpireReason::Deadline,                                // TB-11
+        sponsor_agent: turingosv4::state::AgentId("sp-i62".into()), // TB-11
+        escrow_tx_id: TxId("e-i62".into()),                         // TB-11
+        reason: turingosv4::state::ExpireReason::Deadline,          // TB-11
         system_signature: SystemSignature::from_bytes([0u8; 64]),
     });
 
@@ -206,9 +207,9 @@ async fn agent_submit_rejects_terminal_summary_tx() {
         total_attempts: 0,
         failure_class_histogram: BTreeMap::new(),
         last_logical_t: 0,
-        parent_state_root: Hash::ZERO,                                                    // TB-11
-        solver_agent: None,                                                                // TB-11
-        evidence_capsule_cid: None,                                                        // TB-11
+        parent_state_root: Hash::ZERO, // TB-11
+        solver_agent: None,            // TB-11
+        evidence_capsule_cid: None,    // TB-11
         system_signature: SystemSignature::from_bytes([0u8; 64]),
     });
 
@@ -251,9 +252,9 @@ async fn legacy_submit_alias_delegates_to_submit_agent_tx_and_rejects_system_var
             bounty_refunded: MicroCoin::from_micro_units(1),
             epoch: SystemEpoch::new(1),
             timestamp_logical: 1,
-            sponsor_agent: turingosv4::state::AgentId("sp-i67".into()),                  // TB-11
-            escrow_tx_id: TxId("e-i67".into()),                                           // TB-11
-            reason: turingosv4::state::ExpireReason::Deadline,                            // TB-11
+            sponsor_agent: turingosv4::state::AgentId("sp-i67".into()), // TB-11
+            escrow_tx_id: TxId("e-i67".into()),                         // TB-11
+            reason: turingosv4::state::ExpireReason::Deadline,          // TB-11
             system_signature: SystemSignature::from_bytes([0u8; 64]),
         }),
         TypedTx::TerminalSummary(TerminalSummaryTx {
@@ -264,9 +265,9 @@ async fn legacy_submit_alias_delegates_to_submit_agent_tx_and_rejects_system_var
             total_attempts: 0,
             failure_class_histogram: BTreeMap::new(),
             last_logical_t: 0,
-            parent_state_root: Hash::ZERO,                                                // TB-11
-            solver_agent: None,                                                            // TB-11
-            evidence_capsule_cid: None,                                                    // TB-11
+            parent_state_root: Hash::ZERO, // TB-11
+            solver_agent: None,            // TB-11
+            evidence_capsule_cid: None,    // TB-11
             system_signature: SystemSignature::from_bytes([0u8; 64]),
         }),
         TypedTx::ChallengeResolve(ChallengeResolveTx {
@@ -290,8 +291,11 @@ async fn legacy_submit_alias_delegates_to_submit_agent_tx_and_rejects_system_var
 
     // After 3 rejections through the legacy alias, submit_id is still
     // unchanged — the legacy alias correctly delegates pre-queue.
-    assert_eq!(h.seq.next_submit_id_peek(), pre_submit_id,
-        "legacy submit() must reject pre-queue (no submit_id burn) just like submit_agent_tx");
+    assert_eq!(
+        h.seq.next_submit_id_peek(),
+        pre_submit_id,
+        "legacy submit() must reject pre-queue (no submit_id burn) just like submit_agent_tx"
+    );
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -373,8 +377,7 @@ async fn emit_system_tx_queue_full_returns_emit_system_error_queue_full() {
         turingosv4::bottom_white::cas::store::CasStore::open(tmp.path()).expect("cas"),
     ));
     let keypair = Arc::new(Ed25519Keypair::generate_with_secure_entropy().expect("kp"));
-    let writer: Arc<RwLock<dyn LedgerWriter>> =
-        Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
+    let writer: Arc<RwLock<dyn LedgerWriter>> = Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
     let rejection_writer = Arc::new(RwLock::new(RejectionEvidenceWriter::default()));
     let preds = Arc::new(turingosv4::top_white::predicates::registry::PredicateRegistry::new());
     let tools = Arc::new(ToolRegistry::new());

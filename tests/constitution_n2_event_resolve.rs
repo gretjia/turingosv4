@@ -52,22 +52,18 @@ use turingosv4::bottom_white::ledger::rejection_evidence::{
 use turingosv4::bottom_white::ledger::system_keypair::{
     Ed25519Keypair, PinnedSystemPubkeys, SystemEpoch, SystemSignature,
 };
-use turingosv4::bottom_white::ledger::transition_ledger::{
-    InMemoryLedgerWriter, LedgerWriter,
-};
+use turingosv4::bottom_white::ledger::transition_ledger::{InMemoryLedgerWriter, LedgerWriter};
 use turingosv4::bottom_white::tools::registry::ToolRegistry;
-use turingosv4::economy::money::{MicroCoin, StakeMicroCoin};
 use turingosv4::economy::monetary_invariant::total_supply_micro;
-use turingosv4::state::q_state::{
-    AgentId, Hash, QState, TaskId, TaskMarketState, TxId,
-};
+use turingosv4::economy::money::{MicroCoin, StakeMicroCoin};
+use turingosv4::state::q_state::{AgentId, Hash, QState, TaskId, TaskMarketState, TxId};
 use turingosv4::state::sequencer::{
     EmitSystemError, Sequencer, SubmissionEnvelope, SubmitError, SystemEmitCommand,
 };
 use turingosv4::state::typed_tx::{
-    AgentSignature, BoolWithProof, BankruptcyReason, EscrowLockTx, EventResolveTx,
-    PredicateId, PredicateResultsBundle, ReadKey, SafetyOrCreation,
-    TaskOpenTx, TypedTx, WorkTx, WriteKey,
+    AgentSignature, BankruptcyReason, BoolWithProof, EscrowLockTx, EventResolveTx, OutcomeSide,
+    PredicateId, PredicateResultsBundle, ReadKey, SafetyOrCreation, TaskOpenTx, TypedTx, WorkTx,
+    WriteKey,
 };
 use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
@@ -106,16 +102,21 @@ fn fresh_harness(initial_q: QState) -> Harness {
         initial_q,
         16,
     );
-    Harness { _tmp: tmp, seq, rx, rejection_writer }
+    Harness {
+        _tmp: tmp,
+        seq,
+        rx,
+        rejection_writer,
+    }
 }
 
 fn genesis_with_balances(pairs: &[(&str, i64)]) -> QState {
     let mut q = QState::genesis();
     for (name, coin) in pairs {
-        q.economic_state_t
-            .balances_t
-            .0
-            .insert(AgentId((*name).into()), MicroCoin::from_coin(*coin).unwrap());
+        q.economic_state_t.balances_t.0.insert(
+            AgentId((*name).into()),
+            MicroCoin::from_coin(*coin).unwrap(),
+        );
     }
     q
 }
@@ -156,11 +157,19 @@ async fn open_and_fund_task(h: &mut Harness, task: &str, sponsor: &str, escrow_c
     let pre = h.seq.q_snapshot().expect("pre snap").state_root_t;
     let open = make_task_open(task, sponsor, pre, "fund");
     h.seq.submit(open).await.expect("open submit");
-    let _ = h.seq.try_apply_one(&mut h.rx).expect("open env").expect("open accepted");
+    let _ = h
+        .seq
+        .try_apply_one(&mut h.rx)
+        .expect("open env")
+        .expect("open accepted");
     let parent = h.seq.q_snapshot().expect("post-open").state_root_t;
     let lock = make_escrow_lock(task, sponsor, escrow_coin * 1_000_000, parent, "fund");
     h.seq.submit(lock).await.expect("lock submit");
-    let _ = h.seq.try_apply_one(&mut h.rx).expect("lock env").expect("lock accepted");
+    let _ = h
+        .seq
+        .try_apply_one(&mut h.rx)
+        .expect("lock env")
+        .expect("lock accepted");
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -178,6 +187,7 @@ async fn sg_n2_b2_1_agent_ingress_rejects_event_resolve_pre_queue() {
         tx_id: TxId("forged-event-resolve".into()),
         parent_state_root: Hash::ZERO,
         task_id: TaskId("task-whatever".into()),
+        outcome: OutcomeSide::Yes,
         epoch: SystemEpoch::new(1),
         timestamp_logical: 1,
         system_signature: SystemSignature::from_bytes([0u8; 64]),
@@ -201,26 +211,56 @@ async fn sg_n2_b2_2_event_resolve_flips_state_open_to_finalized() {
     open_and_fund_task(&mut h, task, "sponsor-b2-2", 50).await;
 
     // Pre-condition: state == Open.
-    let pre_state = h.seq.q_snapshot().expect("pre snap")
-        .economic_state_t.task_markets_t.0
-        .get(&TaskId(task.into())).expect("task present").state;
-    assert_eq!(pre_state, TaskMarketState::Open, "pre-condition: task_markets_t.state must be Open");
+    let pre_state = h
+        .seq
+        .q_snapshot()
+        .expect("pre snap")
+        .economic_state_t
+        .task_markets_t
+        .0
+        .get(&TaskId(task.into()))
+        .expect("task present")
+        .state;
+    assert_eq!(
+        pre_state,
+        TaskMarketState::Open,
+        "pre-condition: task_markets_t.state must be Open"
+    );
 
     let pre_state_root = h.seq.q_snapshot().expect("pre snap").state_root_t;
 
-    let receipt = h.seq.emit_system_tx(SystemEmitCommand::EventResolve {
-        task_id: TaskId(task.into()),
-    }).await.expect("emit EventResolve");
-    let _ = h.seq.try_apply_one(&mut h.rx).expect("env").expect("event resolve accepted");
+    let receipt = h
+        .seq
+        .emit_system_tx(SystemEmitCommand::EventResolve {
+            task_id: TaskId(task.into()),
+            outcome: OutcomeSide::Yes,
+        })
+        .await
+        .expect("emit EventResolve");
+    let _ = h
+        .seq
+        .try_apply_one(&mut h.rx)
+        .expect("env")
+        .expect("event resolve accepted");
 
     // Post-condition: state == Finalized + state_root_t advanced.
     let post = h.seq.q_snapshot().expect("post snap");
-    let post_state = post.economic_state_t.task_markets_t.0
-        .get(&TaskId(task.into())).expect("task present").state;
-    assert_eq!(post_state, TaskMarketState::Finalized,
-        "EventResolve accept must flip task_markets_t.state Open → Finalized");
-    assert_ne!(post.state_root_t, pre_state_root,
-        "EventResolve accept must advance state_root_t (event_resolve_accept_state_root domain)");
+    let post_state = post
+        .economic_state_t
+        .task_markets_t
+        .0
+        .get(&TaskId(task.into()))
+        .expect("task present")
+        .state;
+    assert_eq!(
+        post_state,
+        TaskMarketState::Finalized,
+        "EventResolve accept must flip task_markets_t.state Open → Finalized"
+    );
+    assert_ne!(
+        post.state_root_t, pre_state_root,
+        "EventResolve accept must advance state_root_t (event_resolve_accept_state_root domain)"
+    );
     // Emit-id sanity (non-zero).
     assert!(receipt.emit_id > 0, "emit_id must be assigned");
 }
@@ -236,18 +276,36 @@ async fn sg_n2_b2_3_re_emit_on_finalized_rejects_with_event_already_resolved() {
     open_and_fund_task(&mut h, task, "sponsor-b2-3", 50).await;
 
     // First emit: should accept.
-    let _ = h.seq.emit_system_tx(SystemEmitCommand::EventResolve {
-        task_id: TaskId(task.into()),
-    }).await.expect("emit 1");
-    let _ = h.seq.try_apply_one(&mut h.rx).expect("env 1").expect("first accepted");
+    let _ = h
+        .seq
+        .emit_system_tx(SystemEmitCommand::EventResolve {
+            task_id: TaskId(task.into()),
+            outcome: OutcomeSide::Yes,
+        })
+        .await
+        .expect("emit 1");
+    let _ = h
+        .seq
+        .try_apply_one(&mut h.rx)
+        .expect("env 1")
+        .expect("first accepted");
 
     // Second emit on same task: emit_system_tx returns Ok (task_markets_t entry
     // present), but dispatch arm must reject with EventAlreadyResolved.
-    let _ = h.seq.emit_system_tx(SystemEmitCommand::EventResolve {
-        task_id: TaskId(task.into()),
-    }).await.expect("emit 2");
+    let _ = h
+        .seq
+        .emit_system_tx(SystemEmitCommand::EventResolve {
+            task_id: TaskId(task.into()),
+            outcome: OutcomeSide::Yes,
+        })
+        .await
+        .expect("emit 2");
     let r = h.seq.try_apply_one(&mut h.rx).expect("env 2");
-    assert!(r.is_err(), "re-emit on Finalized task must reject; got {:?}", r);
+    assert!(
+        r.is_err(),
+        "re-emit on Finalized task must reject; got {:?}",
+        r
+    );
 
     // Verify L4.E rejection class is PolicyViolation (per B2 rejection-class
     // mapping in sequencer.rs).
@@ -273,35 +331,73 @@ async fn sg_n2_b2_4_emit_on_bankrupt_market_rejects() {
     open_and_fund_task(&mut h, task, "sponsor-b2-4", 50).await;
 
     // Flip to Bankrupt via TaskBankruptcy system-emit (TB-11 sibling path).
-    let _ = h.seq.emit_system_tx(SystemEmitCommand::TaskBankruptcy {
-        task_id: TaskId(task.into()),
-        evidence_capsule_cid: turingosv4::bottom_white::cas::schema::Cid::default(),
-        bankruptcy_reason: BankruptcyReason::MaxFailedRunCount,
-        failed_run_count: 1,
-    }).await.expect("emit bankruptcy");
-    let _ = h.seq.try_apply_one(&mut h.rx).expect("env bk").expect("bankruptcy accepted");
+    let _ = h
+        .seq
+        .emit_system_tx(SystemEmitCommand::TaskBankruptcy {
+            task_id: TaskId(task.into()),
+            evidence_capsule_cid: turingosv4::bottom_white::cas::schema::Cid::default(),
+            bankruptcy_reason: BankruptcyReason::MaxFailedRunCount,
+            failed_run_count: 1,
+        })
+        .await
+        .expect("emit bankruptcy");
+    let _ = h
+        .seq
+        .try_apply_one(&mut h.rx)
+        .expect("env bk")
+        .expect("bankruptcy accepted");
 
     // Cross-check: state is Bankrupt.
-    let s = h.seq.q_snapshot().expect("snap")
-        .economic_state_t.task_markets_t.0
-        .get(&TaskId(task.into())).expect("task").state;
-    assert_eq!(s, TaskMarketState::Bankrupt, "TaskBankruptcy must flip state to Bankrupt");
+    let s = h
+        .seq
+        .q_snapshot()
+        .expect("snap")
+        .economic_state_t
+        .task_markets_t
+        .0
+        .get(&TaskId(task.into()))
+        .expect("task")
+        .state;
+    assert_eq!(
+        s,
+        TaskMarketState::Bankrupt,
+        "TaskBankruptcy must flip state to Bankrupt"
+    );
 
     // Now attempt EventResolve: dispatch must reject with EventAlreadyResolved
     // (cross-system-tx monotonicity: Bankrupt is terminal for B2 purposes —
     // the NO-side already won; YES cannot retroactively win).
-    let _ = h.seq.emit_system_tx(SystemEmitCommand::EventResolve {
-        task_id: TaskId(task.into()),
-    }).await.expect("emit event resolve post-bankruptcy");
+    let _ = h
+        .seq
+        .emit_system_tx(SystemEmitCommand::EventResolve {
+            task_id: TaskId(task.into()),
+            outcome: OutcomeSide::Yes,
+        })
+        .await
+        .expect("emit event resolve post-bankruptcy");
     let r = h.seq.try_apply_one(&mut h.rx).expect("env er-post-bk");
-    assert!(r.is_err(), "EventResolve on Bankrupt market must reject; got {:?}", r);
+    assert!(
+        r.is_err(),
+        "EventResolve on Bankrupt market must reject; got {:?}",
+        r
+    );
 
     // State unchanged — still Bankrupt (NOT mutated to Finalized).
-    let s_post = h.seq.q_snapshot().expect("snap-post")
-        .economic_state_t.task_markets_t.0
-        .get(&TaskId(task.into())).expect("task").state;
-    assert_eq!(s_post, TaskMarketState::Bankrupt,
-        "rejected EventResolve must NOT mutate task_markets_t.state (rollback discipline)");
+    let s_post = h
+        .seq
+        .q_snapshot()
+        .expect("snap-post")
+        .economic_state_t
+        .task_markets_t
+        .0
+        .get(&TaskId(task.into()))
+        .expect("task")
+        .state;
+    assert_eq!(
+        s_post,
+        TaskMarketState::Bankrupt,
+        "rejected EventResolve must NOT mutate task_markets_t.state (rollback discipline)"
+    );
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -311,9 +407,13 @@ async fn sg_n2_b2_4_emit_on_bankrupt_market_rejects() {
 #[tokio::test]
 async fn sg_n2_b2_5_emit_on_unknown_task_returns_event_resolve_task_not_found() {
     let h = fresh_harness(QState::genesis());
-    let result = h.seq.emit_system_tx(SystemEmitCommand::EventResolve {
-        task_id: TaskId("task-does-not-exist".into()),
-    }).await;
+    let result = h
+        .seq
+        .emit_system_tx(SystemEmitCommand::EventResolve {
+            task_id: TaskId("task-does-not-exist".into()),
+            outcome: OutcomeSide::Yes,
+        })
+        .await;
     assert!(
         matches!(result, Err(EmitSystemError::EventResolveTaskNotFound)),
         "emit_system_tx on non-existent task_id must return EventResolveTaskNotFound (defense-in-depth at construction time); got {:?}",
@@ -341,26 +441,45 @@ async fn sg_n2_b2_6_pure_status_mutation_no_money_movement() {
     let pre_total_supply = total_supply_micro(&pre.economic_state_t).expect("pre total");
 
     // Emit + apply EventResolve.
-    let _ = h.seq.emit_system_tx(SystemEmitCommand::EventResolve {
-        task_id: TaskId(task.into()),
-    }).await.expect("emit");
-    let _ = h.seq.try_apply_one(&mut h.rx).expect("env").expect("accepted");
+    let _ = h
+        .seq
+        .emit_system_tx(SystemEmitCommand::EventResolve {
+            task_id: TaskId(task.into()),
+            outcome: OutcomeSide::Yes,
+        })
+        .await
+        .expect("emit");
+    let _ = h
+        .seq
+        .try_apply_one(&mut h.rx)
+        .expect("env")
+        .expect("accepted");
 
     // Snapshot post-resolve — all 6 holding tables UNCHANGED.
     let post = h.seq.q_snapshot().expect("post");
     assert_eq!(post.economic_state_t.balances_t.0, pre_balances,
         "B2 must not mutate balances_t (architect §2.1 guard 5: pool reserves not Coin; resolve is status only)");
-    assert_eq!(post.economic_state_t.conditional_collateral_t.0, pre_collateral,
-        "B2 must not mutate conditional_collateral_t");
-    assert_eq!(post.economic_state_t.lp_share_balances_t.0, pre_lp,
-        "B2 must not mutate lp_share_balances_t");
-    assert_eq!(post.economic_state_t.cpmm_pools_t.0, pre_pools,
-        "B2 must not mutate cpmm_pools_t (pool reserves preserved for future LP unwind atom B4)");
-    assert_eq!(post.economic_state_t.conditional_share_balances_t.0, pre_shares,
-        "B2 must not mutate conditional_share_balances_t");
+    assert_eq!(
+        post.economic_state_t.conditional_collateral_t.0, pre_collateral,
+        "B2 must not mutate conditional_collateral_t"
+    );
+    assert_eq!(
+        post.economic_state_t.lp_share_balances_t.0, pre_lp,
+        "B2 must not mutate lp_share_balances_t"
+    );
+    assert_eq!(
+        post.economic_state_t.cpmm_pools_t.0, pre_pools,
+        "B2 must not mutate cpmm_pools_t (pool reserves preserved for future LP unwind atom B4)"
+    );
+    assert_eq!(
+        post.economic_state_t.conditional_share_balances_t.0, pre_shares,
+        "B2 must not mutate conditional_share_balances_t"
+    );
     let post_total_supply = total_supply_micro(&post.economic_state_t).expect("post total");
-    assert_eq!(post_total_supply, pre_total_supply,
-        "B2 must preserve total_supply_micro (CLAUDE.md §13 conservation)");
+    assert_eq!(
+        post_total_supply, pre_total_supply,
+        "B2 must preserve total_supply_micro (CLAUDE.md §13 conservation)"
+    );
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -386,14 +505,30 @@ async fn sg_n2_b2_7_post_resolution_state_makes_redeem_reachable() {
     let task = "task-b2-7";
     open_and_fund_task(&mut h, task, "sponsor-b2-7", 50).await;
 
-    let _ = h.seq.emit_system_tx(SystemEmitCommand::EventResolve {
-        task_id: TaskId(task.into()),
-    }).await.expect("emit");
-    let _ = h.seq.try_apply_one(&mut h.rx).expect("env").expect("accepted");
+    let _ = h
+        .seq
+        .emit_system_tx(SystemEmitCommand::EventResolve {
+            task_id: TaskId(task.into()),
+            outcome: OutcomeSide::Yes,
+        })
+        .await
+        .expect("emit");
+    let _ = h
+        .seq
+        .try_apply_one(&mut h.rx)
+        .expect("env")
+        .expect("accepted");
 
-    let state = h.seq.q_snapshot().expect("snap")
-        .economic_state_t.task_markets_t.0
-        .get(&TaskId(task.into())).expect("task").state;
+    let state = h
+        .seq
+        .q_snapshot()
+        .expect("snap")
+        .economic_state_t
+        .task_markets_t
+        .0
+        .get(&TaskId(task.into()))
+        .expect("task")
+        .state;
     // Exact enum match — `Finalized` is the discriminant TB-13 redeem
     // admission READS as resolution authority for `outcome == Yes` (per
     // typed_tx.rs:1244 verbatim doc-comment: "If Finalized: outcome must
@@ -419,8 +554,8 @@ async fn sg_n2_b2_7_post_resolution_state_makes_redeem_reachable() {
 /// hook).
 #[test]
 fn sg_n2_b2_8_adapter_helper_and_evaluator_hook_present() {
-    let adapter_src = std::fs::read_to_string("src/runtime/adapter.rs")
-        .expect("adapter.rs present");
+    let adapter_src =
+        std::fs::read_to_string("src/runtime/adapter.rs").expect("adapter.rs present");
     assert!(
         adapter_src.contains("pub async fn tb_n2_emit_event_resolve_after_finalize"),
         "src/runtime/adapter.rs must define `tb_n2_emit_event_resolve_after_finalize` (B2 mechanism binding)",
@@ -430,9 +565,8 @@ fn sg_n2_b2_8_adapter_helper_and_evaluator_hook_present() {
         "adapter.rs helper must call SystemEmitCommand::EventResolve",
     );
 
-    let evaluator_src = std::fs::read_to_string(
-        "experiments/minif2f_v4/src/bin/evaluator.rs",
-    ).expect("evaluator.rs present");
+    let evaluator_src = std::fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs")
+        .expect("evaluator.rs present");
     let n_hits = evaluator_src
         .matches("tb_n2_emit_event_resolve_after_finalize")
         .count();
@@ -475,8 +609,8 @@ fn sg_n2_b2_8_adapter_helper_and_evaluator_hook_present() {
 /// shape.
 #[test]
 fn sg_n2_b2_9_adapter_polls_claim_finalized_before_emit_r2() {
-    let adapter_src = std::fs::read_to_string("src/runtime/adapter.rs")
-        .expect("adapter.rs present");
+    let adapter_src =
+        std::fs::read_to_string("src/runtime/adapter.rs").expect("adapter.rs present");
 
     // R2 signature: helper accepts verify_tx_id parameter.
     assert!(
@@ -511,10 +645,8 @@ fn sg_n2_b2_9_adapter_polls_claim_finalized_before_emit_r2() {
     );
 
     // Evaluator call sites must pass &vid (verify_tx_id reference).
-    let evaluator_src = std::fs::read_to_string(
-        "experiments/minif2f_v4/src/bin/evaluator.rs",
-    )
-    .expect("evaluator.rs present");
+    let evaluator_src = std::fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs")
+        .expect("evaluator.rs present");
     let r2_call_hits = evaluator_src
         .matches("tb_n2_emit_event_resolve_after_finalize(\n                                                    &bundle.sequencer, b2_task_id.clone(), &vid,")
         .count();

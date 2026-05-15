@@ -55,10 +55,7 @@ const FAIL_OPEN_DEFAULT_TOKENS: &[&str] = &[
 /// Unwrap families that turn `Option::None` (= missing entry) into a default
 /// value. Combined with a fail-open token on the same line this is the
 /// documented R2 Q10 defect shape.
-const UNWRAP_OR_PATTERNS: &[&str] = &[
-    ".unwrap_or(",
-    ".unwrap_or_else(",
-];
+const UNWRAP_OR_PATTERNS: &[&str] = &[".unwrap_or(", ".unwrap_or_else("];
 
 fn workspace_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -66,13 +63,8 @@ fn workspace_root() -> PathBuf {
 
 fn read_file(rel: &str) -> String {
     let path = workspace_root().join(rel);
-    std::fs::read_to_string(&path).unwrap_or_else(|e| {
-        panic!(
-            "fail-open lint: failed to read {}: {}",
-            path.display(),
-            e
-        )
-    })
+    std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("fail-open lint: failed to read {}: {}", path.display(), e))
 }
 
 fn is_doc_or_comment_line(line: &str) -> bool {

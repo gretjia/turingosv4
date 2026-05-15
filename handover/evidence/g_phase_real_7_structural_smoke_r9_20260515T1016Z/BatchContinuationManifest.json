@@ -1,0 +1,44 @@
+{
+  "schema_version": "g1_2_v1",
+  "batch_id": "g_phase_real_7_structural_smoke_r9_20260515T1016Z_5239f4b",
+  "runtime_repo": "/home/zephryj/projects/turingosv4/handover/evidence/g_phase_real_7_structural_smoke_r9_20260515T1016Z/runtime_repo",
+  "cas_root": "/home/zephryj/projects/turingosv4/handover/evidence/g_phase_real_7_structural_smoke_r9_20260515T1016Z/cas",
+  "model": "deepseek-chat",
+  "n_agents": 5,
+  "initial_head_t_hex": "",
+  "agent_registry_cid_hex": null,
+  "system_pubkeys_cid_hex": null,
+  "model_manifest_cid_hex": null,
+  "role_assignment_manifest_cid_hex": "8e129bbfe695580bb60b8e375169e24b7d941550ddeb0010347731befa9fcd43",
+  "tasks": [
+    {
+      "task_index": 0,
+      "problem_id": "mathd_algebra_107",
+      "start_head_t_hex": "",
+      "end_head_t_hex": "ccd87f591c3029ffaa54d0f91497ffd9d3105001",
+      "start_chain_length": 0,
+      "end_chain_length": 12,
+      "subprocess_command_sha256": "",
+      "run_summary_cid_hex": null,
+      "terminal_tx_id": null,
+      "exit_code": 0,
+      "started_at_unix_s": 1778839919,
+      "finished_at_unix_s": 1778839931
+    },
+    {
+      "task_index": 1,
+      "problem_id": "mathd_algebra_125",
+      "start_head_t_hex": "ccd87f591c3029ffaa54d0f91497ffd9d3105001",
+      "end_head_t_hex": "e3b226c74e2a700ac70cfa4ed112bf03cbf17472",
+      "start_chain_length": 12,
+      "end_chain_length": 23,
+      "subprocess_command_sha256": "",
+      "run_summary_cid_hex": null,
+      "terminal_tx_id": null,
+      "exit_code": 3,
+      "started_at_unix_s": 1778839931,
+      "finished_at_unix_s": 1778839947
+    }
+  ],
+  "terminated_reason": "subprocess for task 1 mathd_algebra_125 exited non-zero (3)"
+}

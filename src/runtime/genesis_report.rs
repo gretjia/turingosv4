@@ -30,6 +30,7 @@ use crate::bottom_white::cas::store::{CasError, CasStore};
 use crate::bottom_white::ledger::transition_ledger::{
     canonical_decode, canonical_encode, CanonicalCodecError,
 };
+use crate::runtime::real5_roles::AgentRoleAssignment;
 
 /// TRACE_MATRIX FC2 Boot / Genesis: CAS schema id for replayable model assignment provenance.
 pub const MODEL_ASSIGNMENT_MANIFEST_SCHEMA_ID: &str = "v1/model_assignment_manifest";
@@ -180,6 +181,17 @@ pub struct GenesisReport {
     /// `agent_model_assignment` vector.
     #[serde(default)]
     pub model_assignment_manifest_cid: Option<String>,
+
+    /// REAL-5 role identity replay: deterministic role assignment per agent.
+    /// This is a Boot / Genesis fact, never EconomicState, unless a future
+    /// packet explicitly makes roles mutable/tradable.
+    #[serde(default)]
+    pub agent_role_assignment: Vec<AgentRoleAssignment>,
+
+    /// Optional CAS manifest containing resolver/provenance for
+    /// `agent_role_assignment`.
+    #[serde(default)]
+    pub role_assignment_manifest_cid: Option<String>,
 }
 
 impl GenesisReport {
@@ -355,6 +367,8 @@ mod tests {
             escrow_lock_tx: Some("escrowlock-task-runX-escrow".into()),
             agent_model_assignment: vec![],
             model_assignment_manifest_cid: None,
+            agent_role_assignment: vec![],
+            role_assignment_manifest_cid: None,
         };
 
         report
@@ -408,6 +422,8 @@ mod tests {
             escrow_lock_tx: None,
             agent_model_assignment: vec![],
             model_assignment_manifest_cid: None,
+            agent_role_assignment: vec![],
+            role_assignment_manifest_cid: None,
         };
 
         report

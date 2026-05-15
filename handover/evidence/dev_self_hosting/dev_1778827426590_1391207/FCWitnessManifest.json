@@ -1,0 +1,9 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778827426590_1391207",
+  "fc_nodes": [
+    "FC1 role action/economic feedback; FC2 ChainTape-derived PnL replay; FC3 materialized audit/CAS autopsy; Art.III scoped prompt"
+  ],
+  "expected_witness": "Diff, command evidence, and audit verdict must cite these FC nodes.",
+  "evidence_artifacts": []
+}

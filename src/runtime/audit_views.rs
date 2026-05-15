@@ -30,15 +30,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::economy::money::MicroCoin;
 use crate::state::price_index::RationalPrice;
-use crate::state::q_state::{
-    AgentId, EconomicState, LpShareAmount, PoolStatus, ShareSidePair,
-};
-use crate::state::router_quote::{
-    quote_buy_with_coin_router, LiquidityWarning, QuoteDirection,
-};
-use crate::state::typed_tx::{
-    EventId, PositionKind, PositionSide, ShareAmount,
-};
+use crate::state::q_state::{AgentId, EconomicState, LpShareAmount, PoolStatus, ShareSidePair};
+use crate::state::router_quote::{quote_buy_with_coin_router, LiquidityWarning, QuoteDirection};
+use crate::state::typed_tx::{EventId, PositionKind, PositionSide, ShareAmount};
 use crate::state::TxId;
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -109,7 +103,10 @@ pub fn audit_view_shares(econ: &EconomicState) -> SharesView {
             locked_micro_coin: locked.micro_units(),
         });
     }
-    SharesView { owner_shares, conditional_collateral }
+    SharesView {
+        owner_shares,
+        conditional_collateral,
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -248,10 +245,7 @@ pub enum PriceLiquidityWarning {
 /// triple, computes the router quote signal. Pools with non-Active
 /// status emit no rows (quotes are not meaningful). Empty
 /// `pay_coin_samples` yields an empty view.
-pub fn audit_view_prices(
-    econ: &EconomicState,
-    pay_coin_samples: &[MicroCoin],
-) -> PricesView {
+pub fn audit_view_prices(econ: &EconomicState, pay_coin_samples: &[MicroCoin]) -> PricesView {
     let mut price_quotes: Vec<PriceQuoteRow> = Vec::new();
     for (event_id, pool) in econ.cpmm_pools_t.0.iter() {
         if pool.status != PoolStatus::Active {
@@ -271,17 +265,11 @@ pub fn audit_view_prices(
                         out_shares_units: q.out_shares.units,
                         get_shares_units: q.get_shares.units,
                         price_numerator: q.price_effective.map(|p| p.numerator),
-                        price_denominator: q
-                            .price_effective
-                            .map(|p| p.denominator),
+                        price_denominator: q.price_effective.map(|p| p.denominator),
                         liquidity_warning: match q.liquidity_warning {
                             LiquidityWarning::None => PriceLiquidityWarning::None,
-                            LiquidityWarning::LowLiquidity => {
-                                PriceLiquidityWarning::LowLiquidity
-                            }
-                            LiquidityWarning::NoOutput => {
-                                PriceLiquidityWarning::NoOutput
-                            }
+                            LiquidityWarning::LowLiquidity => PriceLiquidityWarning::LowLiquidity,
+                            LiquidityWarning::NoOutput => PriceLiquidityWarning::NoOutput,
                         },
                     },
                     None => continue, // skip non-quotable inputs (zero pay, etc.)
@@ -335,8 +323,12 @@ pub fn audit_view_positions(econ: &EconomicState) -> PositionsView {
             amount_micro: position.amount.micro_units(),
         });
     }
-    positions
-        .sort_by(|a, b| a.node_id.0.cmp(&b.node_id.0).then_with(|| a.holder.0.cmp(&b.holder.0)));
+    positions.sort_by(|a, b| {
+        a.node_id
+            .0
+            .cmp(&b.node_id.0)
+            .then_with(|| a.holder.0.cmp(&b.holder.0))
+    });
     PositionsView { positions }
 }
 

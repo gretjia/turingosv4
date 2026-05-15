@@ -45,9 +45,7 @@ use turingosv4::bottom_white::ledger::rejection_evidence::RejectionEvidenceWrite
 use turingosv4::bottom_white::ledger::system_keypair::{
     Ed25519Keypair, PinnedSystemPubkeys, SystemEpoch,
 };
-use turingosv4::bottom_white::ledger::transition_ledger::{
-    InMemoryLedgerWriter, LedgerWriter,
-};
+use turingosv4::bottom_white::ledger::transition_ledger::{InMemoryLedgerWriter, LedgerWriter};
 use turingosv4::bottom_white::tools::registry::ToolRegistry;
 use turingosv4::economy::money::MicroCoin;
 use turingosv4::runtime::adapter::make_real_worktx_signed_by;
@@ -57,12 +55,8 @@ use turingosv4::state::q_state::{
     AgentId, ChallengeCase, ChallengeStatus, Hash, QState, TaskId, TxId,
 };
 use turingosv4::state::sequencer::{Sequencer, SubmissionEnvelope};
-use turingosv4::state::typed_tx::{
-    AgentSignature, EscrowLockTx, TaskOpenTx, TypedTx,
-};
-use turingosv4::state::{
-    compute_mask_set, compute_price_index, BoltzmannMaskPolicy,
-};
+use turingosv4::state::typed_tx::{AgentSignature, EscrowLockTx, TaskOpenTx, TypedTx};
+use turingosv4::state::{compute_mask_set, compute_price_index, BoltzmannMaskPolicy};
 use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
 // ────────────────────────────────────────────────────────────────────────
@@ -82,11 +76,8 @@ fn fresh_harness(initial_q: QState, runtime_repo_root: &std::path::Path) -> Harn
     let tmp = TempDir::new().expect("tempdir");
     let cas_store = CasStore::open(tmp.path()).expect("cas open");
     let cas = Arc::new(RwLock::new(cas_store));
-    let keypair = Arc::new(
-        Ed25519Keypair::generate_with_secure_entropy().expect("keypair"),
-    );
-    let writer: Arc<RwLock<dyn LedgerWriter>> =
-        Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
+    let keypair = Arc::new(Ed25519Keypair::generate_with_secure_entropy().expect("keypair"));
+    let writer: Arc<RwLock<dyn LedgerWriter>> = Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
     let rejection_writer = Arc::new(RwLock::new(RejectionEvidenceWriter::default()));
     let preds = Arc::new(PredicateRegistry::new());
     let tools = Arc::new(ToolRegistry::new());
@@ -106,17 +97,22 @@ fn fresh_harness(initial_q: QState, runtime_repo_root: &std::path::Path) -> Harn
         initial_q,
         16,
     );
-    let keypairs =
-        AgentKeypairRegistry::open(runtime_repo_root).expect("open keypair registry");
-    Harness { _tmp: tmp, seq, rx, cas, keypairs }
+    let keypairs = AgentKeypairRegistry::open(runtime_repo_root).expect("open keypair registry");
+    Harness {
+        _tmp: tmp,
+        seq,
+        rx,
+        cas,
+        keypairs,
+    }
 }
 
 fn genesis_with_alice(coin: i64) -> QState {
     let mut q = QState::genesis();
-    q.economic_state_t.balances_t.0.insert(
-        AgentId("alice".into()),
-        MicroCoin::from_coin(coin).unwrap(),
-    );
+    q.economic_state_t
+        .balances_t
+        .0
+        .insert(AgentId("alice".into()), MicroCoin::from_coin(coin).unwrap());
     q
 }
 
@@ -132,10 +128,7 @@ async fn submit_and_apply(h: &mut Harness, tx: TypedTx) -> Hash {
 
 async fn submit_and_apply_expect_reject(h: &mut Harness, tx: TypedTx) {
     h.seq.submit(tx).await.expect("submit");
-    let result = h
-        .seq
-        .try_apply_one(&mut h.rx)
-        .expect("env present");
+    let result = h.seq.try_apply_one(&mut h.rx).expect("env present");
     assert!(
         result.is_err(),
         "expected canonical apply to reject (predicate gate / etc)"
@@ -212,8 +205,13 @@ async fn submit_real_worktx_with_parent_tx(
     };
     let tel_cid = {
         let mut cas_w = h.cas.write().expect("cas write lock");
-        write_to_cas(&mut cas_w, &pt, "tb14-canonical-masking-smoke", timestamp_logical)
-            .expect("write telemetry")
+        write_to_cas(
+            &mut cas_w,
+            &pt,
+            "tb14-canonical-masking-smoke",
+            timestamp_logical,
+        )
+        .expect("write telemetry")
     };
 
     // Step 2: build + sign real WorkTx.
@@ -247,11 +245,7 @@ async fn submit_real_worktx_with_parent_tx(
 
 /// Bootstrap: register alice with system_keypairs (so signed WorkTxs verify),
 /// open the task, lock escrow.
-async fn bootstrap_task_for_alice(
-    h: &mut Harness,
-    task: &str,
-    escrow_micro: i64,
-) -> Hash {
+async fn bootstrap_task_for_alice(h: &mut Harness, task: &str, escrow_micro: i64) -> Hash {
     h.keypairs
         .get_or_create(&AgentId("alice".into()))
         .expect("alice keypair");
@@ -261,7 +255,11 @@ async fn bootstrap_task_for_alice(
 
     let parent = h.seq.q_snapshot().expect("genesis snap").state_root_t;
     let parent = submit_and_apply(h, make_task_open(task, "alice", parent, "open")).await;
-    submit_and_apply(h, make_escrow_lock(task, "alice", escrow_micro, parent, "lock")).await
+    submit_and_apply(
+        h,
+        make_escrow_lock(task, "alice", escrow_micro, parent, "lock"),
+    )
+    .await
 }
 
 // ────────────────────────────────────────────────────────────────────────
@@ -283,8 +281,7 @@ async fn b_prime_step_5_positive_canonical_masking_smoke() {
     // Set up a task with sufficient escrow for two WorkTx stakes.
     // Stakes: parent A = 1 Coin, child B = 5 Coin. Both ≥ default
     // min_liquidity = 1 Coin (1_000_000 micro).
-    let parent_state_root =
-        bootstrap_task_for_alice(&mut h, "task-positive", 10_000_000).await;
+    let parent_state_root = bootstrap_task_for_alice(&mut h, "task-positive", 10_000_000).await;
 
     // Step 1: submit parent WorkTx A (parent_tx=None — this is the root).
     let (tx_a, post_a, outcome_a) = submit_real_worktx_with_parent_tx(
@@ -393,7 +390,12 @@ async fn b_prime_step_5_positive_canonical_masking_smoke() {
         "price_index must contain entry for accepted WorkTx B"
     );
 
-    let mask = compute_mask_set(&q.economic_state_t, &edges, &permissive_policy, &price_index);
+    let mask = compute_mask_set(
+        &q.economic_state_t,
+        &edges,
+        &permissive_policy,
+        &price_index,
+    );
     assert!(
         mask.contains(&tx_a),
         "B′ step 5 (architect §5): mask_set MUST contain parent A under \
@@ -404,7 +406,10 @@ async fn b_prime_step_5_positive_canonical_masking_smoke() {
     // preservation). The mask is a derived view; canonical state is
     // unchanged.
     assert!(
-        q.economic_state_t.node_positions_t.0.values()
+        q.economic_state_t
+            .node_positions_t
+            .0
+            .values()
             .any(|p| p.node_id == tx_a),
         "B′ step 5 (architect §5 final): canonical L4 chain (via \
          node_positions_t) MUST still contain accepted WorkTx A after \
@@ -424,8 +429,7 @@ async fn b_prime_step_5_positive_canonical_masking_smoke() {
 async fn b_prime_step_6a_low_liquidity_child_cannot_mask_parent() {
     let runtime_repo_root = TempDir::new().expect("runtime_repo tempdir");
     let mut h = fresh_harness(genesis_with_alice(100), runtime_repo_root.path());
-    let parent_state_root =
-        bootstrap_task_for_alice(&mut h, "task-low-liq", 5_000_000).await;
+    let parent_state_root = bootstrap_task_for_alice(&mut h, "task-low-liq", 5_000_000).await;
 
     // Parent WorkTx A: stake 1 Coin (above default min_liquidity).
     let (tx_a, post_a, outcome_a) = submit_real_worktx_with_parent_tx(
@@ -494,8 +498,7 @@ async fn b_prime_step_6a_low_liquidity_child_cannot_mask_parent() {
 async fn b_prime_step_6b_unresolved_challenged_child_cannot_mask_parent() {
     let runtime_repo_root = TempDir::new().expect("runtime_repo tempdir");
     let mut h = fresh_harness(genesis_with_alice(100), runtime_repo_root.path());
-    let parent_state_root =
-        bootstrap_task_for_alice(&mut h, "task-challenged", 10_000_000).await;
+    let parent_state_root = bootstrap_task_for_alice(&mut h, "task-challenged", 10_000_000).await;
 
     let (tx_a, post_a, outcome_a) = submit_real_worktx_with_parent_tx(
         &mut h,
@@ -589,8 +592,7 @@ async fn b_prime_step_6b_unresolved_challenged_child_cannot_mask_parent() {
 async fn b_prime_step_6c_predicate_failed_child_cannot_mask_parent() {
     let runtime_repo_root = TempDir::new().expect("runtime_repo tempdir");
     let mut h = fresh_harness(genesis_with_alice(100), runtime_repo_root.path());
-    let parent_state_root =
-        bootstrap_task_for_alice(&mut h, "task-predfail", 10_000_000).await;
+    let parent_state_root = bootstrap_task_for_alice(&mut h, "task-predfail", 10_000_000).await;
 
     let (tx_a, post_a, outcome_a) = submit_real_worktx_with_parent_tx(
         &mut h,
@@ -630,10 +632,7 @@ async fn b_prime_step_6c_predicate_failed_child_cannot_mask_parent() {
     // Either way, the rejected child does NOT appear anywhere in the
     // canonical graph.
     let edges = h.seq.compute_canonical_edges_at_head();
-    let all_children: BTreeSet<TxId> = edges
-        .values()
-        .flat_map(|s| s.iter().cloned())
-        .collect();
+    let all_children: BTreeSet<TxId> = edges.values().flat_map(|s| s.iter().cloned()).collect();
     assert!(
         all_children.iter().all(|c| !c.0.contains("pb-fail")),
         "B′ step 6 (c) (architect §6): predicate-failed child MUST NOT \
@@ -670,8 +669,7 @@ async fn b_prime_step_6c_predicate_failed_child_cannot_mask_parent() {
 async fn b_prime_canonical_edges_idempotent() {
     let runtime_repo_root = TempDir::new().expect("runtime_repo tempdir");
     let mut h = fresh_harness(genesis_with_alice(100), runtime_repo_root.path());
-    let parent_state_root =
-        bootstrap_task_for_alice(&mut h, "task-idempotent", 10_000_000).await;
+    let parent_state_root = bootstrap_task_for_alice(&mut h, "task-idempotent", 10_000_000).await;
 
     let (tx_a, post_a, _) = submit_real_worktx_with_parent_tx(
         &mut h,

@@ -1,0 +1,52 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778840322766_1728806",
+  "title": "REAL-7-v3-equivalent-structural-smoke-R4-final",
+  "module": "REAL-7-v3-equivalent-structural-smoke",
+  "molecule_or_atom": "atom",
+  "requested_risk_class": 4,
+  "risk_class": 4,
+  "fc_nodes": [
+    "FC1-role-market-actions",
+    "FC2-persistent-runtime",
+    "FC3-dashboard-regeneration",
+    "Art0.4-ChainTape-CAS"
+  ],
+  "allowed_paths": [
+    "src/runtime/g7_structural_smoke.rs",
+    "src/runtime/real6_attempt_prediction.rs",
+    "src/bin/audit_dashboard.rs",
+    "experiments/minif2f_v4/src/bin/evaluator.rs",
+    "tests/constitution_g7_structural_smoke.rs",
+    "tests/constitution_real6_attempt_prediction_market.rs",
+    "tests/constitution_real6_task_outcome_market.rs",
+    "tests/constitution_g6_observe_only.rs",
+    "tests/constitution_g1_resume.rs",
+    "experiments/minif2f_v4/tests/constitution_g1_2_subprocess_resume.rs",
+    "scripts/run_constitution_gates.sh",
+    "genesis_payload.toml",
+    "handover/evidence/real7_structural_smoke/REAL7_SMOKE_PROBLEMS.txt",
+    "handover/evidence/real7_structural_smoke/REAL7_SMOKE_HARD3_PROBLEMS.txt",
+    "handover/evidence/real7_structural_smoke/REAL7_V3_EQUIVALENT_STRUCTURAL_SMOKE_REPORT.md",
+    "handover/audits/CODEX_REAL7_IMPLEMENTATION_REVIEW.md",
+    "handover/audits/CODEX_REAL7_IMPLEMENTATION_REVIEW_R2.md"
+  ],
+  "restricted_surface_hits": [
+    "genesis_payload.toml"
+  ],
+  "acceptance_commands": [
+    "cargo_fmt_check",
+    "g7_targeted_tests",
+    "trust_root_verify",
+    "real7_smoke",
+    "dashboard_regen",
+    "constitution_gates",
+    "workspace_tests",
+    "codex_audit_r2"
+  ],
+  "audit_required": true,
+  "human_intent": "REAL-7 final clean harness after R1 audit remediation and post-resolution late WorkTx fix: structural smoke must regenerate safety/equivalence claims from ChainTape/CAS/aggregate assertions and receive clean-context Codex R2 review.",
+  "ratification": "handover/directives/2026-05-15_REAL5S_REAL6_REAL7_REAL8_REAL9_EXECUTION_PLAN_APPROVED.md",
+  "git_head": "5239f4b13ecf0a3f9850accc6815c2e7944e9bee",
+  "created_at_unix_ms": 1778840322766
+}

@@ -38,7 +38,9 @@ const FORMAT_MAGIC: &[u8; 11] = b"TOS4SYSKEY1";
 const FORMAT_VERSION: u8 = 1;
 
 /// TRACE_MATRIX FC1-Sig+FC3-Sig: system signature epoch identifier.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default,
+)]
 pub struct SystemEpoch(u64);
 
 impl SystemEpoch {

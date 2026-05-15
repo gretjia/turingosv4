@@ -200,7 +200,10 @@ fn class4_atomic_rollback_witness_check() {
             failures.push(format!(
                 "[{}/{}] declared NotYetLanded but rollback test fn `{}` IS present in {}; \
                  flip landing_status to Landed in this binding when Phase F.{} rebuilds",
-                b.atom_id, b.composite_name, b.rollback_test_fn, b.rollback_test_path,
+                b.atom_id,
+                b.composite_name,
+                b.rollback_test_fn,
+                b.rollback_test_path,
                 if b.atom_id == "P-M6" { 5 } else { 0 }
             ));
             continue;
@@ -209,8 +212,9 @@ fn class4_atomic_rollback_witness_check() {
         // in EXECUTABLE code (per E' hardening — strip comments + string literals
         // before scanning so the marker cannot be satisfied by mention alone).
         let executable = body_executable_only(body);
-        let has_marker =
-            MID_MUTATION_INJECTION_PATTERNS.iter().any(|m| executable.contains(m));
+        let has_marker = MID_MUTATION_INJECTION_PATTERNS
+            .iter()
+            .any(|m| executable.contains(m));
         if !has_marker {
             failures.push(format!(
                 "[{}/{}] rollback test `{}` does NOT invoke any mid-mutation \
@@ -249,8 +253,9 @@ fn router_atomic_rollback_on_failure() {
 "#;
     let body = extract_test_fn_body(synthetic, "router_atomic_rollback_on_failure")
         .expect("synthetic test must parse");
-    let has_marker =
-        MID_MUTATION_INJECTION_PATTERNS.iter().any(|m| body.contains(m));
+    let has_marker = MID_MUTATION_INJECTION_PATTERNS
+        .iter()
+        .any(|m| body.contains(m));
     assert!(
         !has_marker,
         "self-check: synthetic vacuous rollback test should NOT contain mid-mutation \
@@ -282,8 +287,9 @@ fn router_atomic_rollback_on_failure() {
     let body = extract_test_fn_body(synthetic, "router_atomic_rollback_on_failure")
         .expect("synthetic test must parse");
     let executable = body_executable_only(body);
-    let has_marker =
-        MID_MUTATION_INJECTION_PATTERNS.iter().any(|m| executable.contains(m));
+    let has_marker = MID_MUTATION_INJECTION_PATTERNS
+        .iter()
+        .any(|m| executable.contains(m));
     assert!(
         has_marker,
         "self-check: synthetic proper rollback test SHOULD contain a mid-mutation \
@@ -311,8 +317,9 @@ fn router_atomic_rollback_on_failure() {
     let body = extract_test_fn_body(synthetic, "router_atomic_rollback_on_failure")
         .expect("synthetic test must parse");
     let executable = body_executable_only(body);
-    let has_marker =
-        MID_MUTATION_INJECTION_PATTERNS.iter().any(|m| executable.contains(m));
+    let has_marker = MID_MUTATION_INJECTION_PATTERNS
+        .iter()
+        .any(|m| executable.contains(m));
     assert!(
         !has_marker,
         "self-check (E' hardening): markers mentioned ONLY in `//` comments must \
@@ -340,8 +347,9 @@ fn router_atomic_rollback_on_failure() {
     let body = extract_test_fn_body(synthetic, "router_atomic_rollback_on_failure")
         .expect("synthetic test must parse");
     let executable = body_executable_only(body);
-    let has_marker =
-        MID_MUTATION_INJECTION_PATTERNS.iter().any(|m| executable.contains(m));
+    let has_marker = MID_MUTATION_INJECTION_PATTERNS
+        .iter()
+        .any(|m| executable.contains(m));
     assert!(
         !has_marker,
         "self-check (E' hardening): markers mentioned ONLY in `\"...\"` string \

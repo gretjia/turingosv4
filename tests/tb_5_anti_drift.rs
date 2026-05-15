@@ -58,9 +58,7 @@ fn no_forbidden_tb5_variants_in_src() {
             // Skip comments — directive forbids the variants in code, not in
             // doc-comments that might reference them historically.
             let trimmed = line.trim_start();
-            if trimmed.starts_with("//")
-                || trimmed.starts_with("///")
-                || trimmed.starts_with("//!")
+            if trimmed.starts_with("//") || trimmed.starts_with("///") || trimmed.starts_with("//!")
             {
                 continue;
             }
@@ -98,7 +96,10 @@ fn four_anti_drift_renames_documented_in_charter() {
         // Soft skip: charter not present in this build slice (e.g., subset
         // checkout). The test is a documentation hygiene check; absence
         // means we cannot run it but should not fail the build.
-        eprintln!("TB-5 charter not found at {:?} — skipping I86 (soft check)", charter_path);
+        eprintln!(
+            "TB-5 charter not found at {:?} — skipping I86 (soft check)",
+            charter_path
+        );
         return;
     }
     let body = std::fs::read_to_string(&charter_path).expect("read charter");
@@ -136,9 +137,9 @@ fn no_p6_files_touched_in_tb5() {
         .current_dir(&root)
         .output();
     let branch_lower = match branch_out {
-        Ok(b) if b.status.success() => {
-            String::from_utf8_lossy(&b.stdout).trim().to_ascii_lowercase()
-        }
+        Ok(b) if b.status.success() => String::from_utf8_lossy(&b.stdout)
+            .trim()
+            .to_ascii_lowercase(),
         _ => String::new(),
     };
     // TB-16.x.2.2.fix.r2 Patch F3 (Codex CHALLENGE D.1) — token-boundary match.

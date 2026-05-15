@@ -26,14 +26,12 @@ use turingosv4::bottom_white::ledger::rejection_evidence::RejectionEvidenceWrite
 use turingosv4::bottom_white::ledger::system_keypair::{
     Ed25519Keypair, PinnedSystemPubkeys, SystemEpoch,
 };
-use turingosv4::bottom_white::ledger::transition_ledger::{
-    InMemoryLedgerWriter, LedgerWriter,
-};
+use turingosv4::bottom_white::ledger::transition_ledger::{InMemoryLedgerWriter, LedgerWriter};
 use turingosv4::bottom_white::tools::registry::ToolRegistry;
 use turingosv4::economy::money::MicroCoin;
 use turingosv4::runtime::adapter::{
-    make_real_escrow_lock_signed_by, make_real_task_open_signed_by,
-    make_real_worktx_signed_by, NodeMarketEmitOutcome,
+    make_real_escrow_lock_signed_by, make_real_task_open_signed_by, make_real_worktx_signed_by,
+    NodeMarketEmitOutcome,
 };
 use turingosv4::runtime::agent_keypairs::AgentKeypairRegistry;
 use turingosv4::state::q_state::{AgentId, QState, TaskId, TxId};
@@ -55,8 +53,7 @@ fn fresh_harness(work_agent_balance: i64, mmb_balance: i64) -> Harness {
     let repo_path = tmp.path().to_path_buf();
     let cas = Arc::new(RwLock::new(CasStore::open(tmp.path()).expect("cas")));
     let keypair = Arc::new(Ed25519Keypair::generate_with_secure_entropy().expect("kp"));
-    let writer: Arc<RwLock<dyn LedgerWriter>> =
-        Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
+    let writer: Arc<RwLock<dyn LedgerWriter>> = Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
     let rejection_writer = Arc::new(RwLock::new(RejectionEvidenceWriter::default()));
     let preds = Arc::new(PredicateRegistry::new());
     let tools = Arc::new(ToolRegistry::new());
@@ -107,20 +104,19 @@ async fn submit_and_apply(h: &mut Harness, tx: TypedTx) -> Result<(), String> {
         .seq
         .try_apply_one(&mut h.rx)
         .ok_or_else(|| "no envelope drained".to_string())?;
-    outcome
-        .map(|_| ())
-        .map_err(|e| format!("apply: {e:?}"))
+    outcome.map(|_| ()).map_err(|e| format!("apply: {e:?}"))
 }
 
 /// Submit TaskOpen + EscrowLock + WorkTx for Agent_0 and return the
 /// accepted work_tx_id. Synchronous (in-memory drain).
 async fn submit_accepted_work_tx(h: &mut Harness, task_id: &str, suffix: &str) -> TxId {
     let pre_root = h.seq.q_snapshot().expect("snap").state_root_t;
-    let task_open = make_real_task_open_signed_by(
-        &mut h.reg, task_id, "Agent_0", pre_root, suffix, 1,
-    )
-    .expect("task_open sign");
-    submit_and_apply(h, task_open).await.expect("task_open apply");
+    let task_open =
+        make_real_task_open_signed_by(&mut h.reg, task_id, "Agent_0", pre_root, suffix, 1)
+            .expect("task_open sign");
+    submit_and_apply(h, task_open)
+        .await
+        .expect("task_open apply");
 
     let after_open = h.seq.q_snapshot().unwrap().state_root_t;
     let escrow = make_real_escrow_lock_signed_by(
@@ -183,9 +179,14 @@ async fn run_a3_emit_synchronous(
     }
 
     let pre_root = q0.state_root_t;
-    let task_str = event_id.0.0.clone();
+    let task_str = event_id.0 .0.clone();
     let task_open = make_real_task_open_signed_by(
-        &mut h.reg, &task_str, "MarketMakerBudget", pre_root, suffix, 1,
+        &mut h.reg,
+        &task_str,
+        "MarketMakerBudget",
+        pre_root,
+        suffix,
+        1,
     )
     .expect("task_open sign");
     if let Err(e) = submit_and_apply(h, task_open).await {
@@ -197,7 +198,13 @@ async fn run_a3_emit_synchronous(
     let after_open = h.seq.q_snapshot().unwrap().state_root_t;
 
     let market_seed = make_real_market_seed_signed_by(
-        &mut h.reg, after_open, &task_str, "MarketMakerBudget", seed_micro, suffix, 1,
+        &mut h.reg,
+        after_open,
+        &task_str,
+        "MarketMakerBudget",
+        seed_micro,
+        suffix,
+        1,
     )
     .expect("market_seed sign");
     if let Err(e) = submit_and_apply(h, market_seed).await {
@@ -209,7 +216,12 @@ async fn run_a3_emit_synchronous(
     let after_seed = h.seq.q_snapshot().unwrap().state_root_t;
 
     let pool = make_real_cpmm_pool_signed_by(
-        &mut h.reg, after_seed, &task_str, "MarketMakerBudget", seed_micro as u128, suffix,
+        &mut h.reg,
+        after_seed,
+        &task_str,
+        "MarketMakerBudget",
+        seed_micro as u128,
+        suffix,
     )
     .expect("pool sign");
     if let Err(e) = submit_and_apply(h, pool).await {
@@ -233,12 +245,16 @@ async fn sg_n3_4_event_id_is_node_survive_namespaced() {
 
     let outcome = run_a3_emit_synchronous(&mut h, &work_tx_id, 100_000, "u1").await;
     match outcome {
-        NodeMarketEmitOutcome::Created { event_id, pool_seed_micro } => {
+        NodeMarketEmitOutcome::Created {
+            event_id,
+            pool_seed_micro,
+        } => {
             assert!(
-                event_id.0.0.starts_with("node_survive:"),
-                "SG-N3.4 violated: event_id={:?}", event_id.0.0
+                event_id.0 .0.starts_with("node_survive:"),
+                "SG-N3.4 violated: event_id={:?}",
+                event_id.0 .0
             );
-            assert_eq!(event_id.0.0, format!("node_survive:{}", work_tx_id.0));
+            assert_eq!(event_id.0 .0, format!("node_survive:{}", work_tx_id.0));
             assert_eq!(pool_seed_micro, 100_000);
         }
         other => panic!("expected Created, got {other:?}"),
@@ -247,9 +263,12 @@ async fn sg_n3_4_event_id_is_node_survive_namespaced() {
     let event_id = turingosv4::state::typed_tx::node_survive_event_id(&work_tx_id);
     assert!(q.economic_state_t.cpmm_pools_t.0.contains_key(&event_id));
     assert!(
-        !q.economic_state_t.cpmm_pools_t.0.contains_key(
-            &turingosv4::state::typed_tx::EventId(TaskId("task-sg-n3-4".into()))
-        ),
+        !q.economic_state_t
+            .cpmm_pools_t
+            .0
+            .contains_key(&turingosv4::state::typed_tx::EventId(TaskId(
+                "task-sg-n3-4".into()
+            ))),
         "no pool created at bare task_id (architect amendment 1 negative-witness)"
     );
 }
@@ -287,7 +306,8 @@ async fn sg_n3_5_treasury_debit_exact() {
         .unwrap()
         .micro_units();
     assert_eq!(
-        bal_post, 5_000_000 - 100_000,
+        bal_post,
+        5_000_000 - 100_000,
         "SG-N3.5: MarketMakerBudget debited by exactly 100_000 μC"
     );
 }

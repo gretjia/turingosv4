@@ -31,7 +31,12 @@ pub fn run(workdir: &Path) -> C3Result {
         let commit_obj = repo.find_commit(commit_id)?;
         let tree_id_1 = commit_obj.tree_id();
         let parents: Vec<String> = (0..commit_obj.parent_count())
-            .map(|i| commit_obj.parent_id(i).map(|oid| oid.to_string()).unwrap_or_default())
+            .map(|i| {
+                commit_obj
+                    .parent_id(i)
+                    .map(|oid| oid.to_string())
+                    .unwrap_or_default()
+            })
             .collect();
 
         // Read 2: re-find commit; SHA must match

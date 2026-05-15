@@ -28,7 +28,8 @@ fn fc_trace_file_receives_well_formed_json_event() {
         "fc_trace_smoke_{}",
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_nanos()).unwrap_or(0)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0)
     ));
     std::fs::create_dir_all(&tmpdir).expect("mkdir tmp");
     let trace_path = tmpdir.join("fc_trace.jsonl");
@@ -62,18 +63,19 @@ fn fc_trace_file_receives_well_formed_json_event() {
         .expect("spawn fc_trace_emit_one example");
     assert!(status.success(), "fc_trace_emit_one example must exit 0");
 
-    let contents = std::fs::read_to_string(&trace_path)
-        .expect("FC_TRACE_FILE must exist after emit");
-    let lines: Vec<&str> = contents
-        .lines()
-        .filter(|l| !l.is_empty())
-        .collect();
-    assert_eq!(lines.len(), 1, "exactly one event was emitted; file:\n{}", contents);
+    let contents =
+        std::fs::read_to_string(&trace_path).expect("FC_TRACE_FILE must exist after emit");
+    let lines: Vec<&str> = contents.lines().filter(|l| !l.is_empty()).collect();
+    assert_eq!(
+        lines.len(),
+        1,
+        "exactly one event was emitted; file:\n{}",
+        contents
+    );
     let line = lines[0];
 
     // Must be valid JSON.
-    let v: serde_json::Value =
-        serde_json::from_str(line).expect("emitted line must be valid JSON");
+    let v: serde_json::Value = serde_json::from_str(line).expect("emitted line must be valid JSON");
 
     // Stable fields per fc_trace.rs event shape.
     assert!(v.get("ts_ms").and_then(|x| x.as_u64()).is_some());
@@ -87,10 +89,7 @@ fn fc_trace_file_receives_well_formed_json_event() {
         Some("smoke_run_001")
     );
     assert_eq!(v.get("tx").and_then(|x| x.as_u64()), Some(42));
-    assert_eq!(
-        v.get("agent_id").and_then(|x| x.as_str()),
-        Some("Agent_2")
-    );
+    assert_eq!(v.get("agent_id").and_then(|x| x.as_str()), Some("Agent_2"));
     let kv = v.get("kv").expect("kv block present");
     assert_eq!(
         kv.get("reason").and_then(|x| x.as_str()),

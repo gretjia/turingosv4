@@ -62,8 +62,7 @@ use turingosv4::economy::money::MicroCoin;
 use turingosv4::runtime::agent_keypairs::AgentKeypairRegistry;
 use turingosv4::runtime::verify::{verify_chaintape, VerifyOptions};
 use turingosv4::runtime::{
-    build_chaintape_sequencer_with_initial_q, PinnedPubkeyManifest,
-    RuntimeChaintapeConfig,
+    build_chaintape_sequencer_with_initial_q, PinnedPubkeyManifest, RuntimeChaintapeConfig,
 };
 use turingosv4::state::compute_price_index;
 use turingosv4::state::q_state::{
@@ -71,8 +70,8 @@ use turingosv4::state::q_state::{
 };
 use turingosv4::state::sequencer::complete_set_mint_accept_state_root;
 use turingosv4::state::typed_tx::{
-    AgentSignature, CompleteSetMintTx, CompleteSetRedeemTx, EventId, OutcomeSide,
-    ShareAmount, TypedTx,
+    AgentSignature, CompleteSetMintTx, CompleteSetRedeemTx, EventId, OutcomeSide, ShareAmount,
+    TypedTx,
 };
 use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
@@ -143,8 +142,7 @@ fn manual_replay_from_disk(
         .collect();
 
     let manifest_path = runtime_repo_path.join("pinned_pubkeys.json");
-    let manifest_json =
-        std::fs::read_to_string(&manifest_path).expect("read pinned_pubkeys.json");
+    let manifest_json = std::fs::read_to_string(&manifest_path).expect("read pinned_pubkeys.json");
     let manifest: PinnedPubkeyManifest =
         serde_json::from_str(&manifest_json).expect("parse pinned_pubkeys.json");
     let mut pinned = PinnedSystemPubkeys::new();
@@ -154,7 +152,10 @@ fn manual_replay_from_disk(
             .map(|i| u8::from_str_radix(&entry.pubkey_hex[i..i + 2], 16).expect("hex"))
             .collect();
         let arr: [u8; 32] = bytes.as_slice().try_into().expect("32-byte pubkey");
-        pinned.insert(SystemEpoch::new(entry.epoch), SystemPublicKey::from_bytes(arr));
+        pinned.insert(
+            SystemEpoch::new(entry.epoch),
+            SystemPublicKey::from_bytes(arr),
+        );
     }
 
     let cas = CasStore::open(cas_path).expect("open cas");
@@ -183,13 +184,12 @@ async fn tb_14_atom_6_post_wire_swap_chaintape_replay_preserves_price_index_dete
     let mint_amount_micro: i64 = 2_000_000;
     let redeem_units: i64 = 4_000_000;
 
-    let initial_q =
-        build_smoke_initial_q(alice, mint_task, redeem_task, redeem_units);
+    let initial_q = build_smoke_initial_q(alice, mint_task, redeem_task, redeem_units);
     let bundle = build_chaintape_sequencer_with_initial_q(&cfg, initial_q)
         .expect("bootstrap chaintape sequencer");
 
-    let mut reg = AgentKeypairRegistry::open(&cfg.runtime_repo_path)
-        .expect("open agent keypair registry");
+    let mut reg =
+        AgentKeypairRegistry::open(&cfg.runtime_repo_path).expect("open agent keypair registry");
     reg.get_or_create(&alice_id)
         .expect("generate alice keypair");
     bundle
@@ -220,8 +220,7 @@ async fn tb_14_atom_6_post_wire_swap_chaintape_replay_preserves_price_index_dete
         ..mint_unsigned
     });
 
-    let after_mint_root =
-        complete_set_mint_accept_state_root(&initial_root, &mint_tx);
+    let after_mint_root = complete_set_mint_accept_state_root(&initial_root, &mint_tx);
 
     let redeem_unsigned = CompleteSetRedeemTx {
         tx_id: TxId("tb14-redeem-1".into()),
@@ -259,12 +258,7 @@ async fn tb_14_atom_6_post_wire_swap_chaintape_replay_preserves_price_index_dete
 
     // Sanity: TB-13 substrate populated.
     assert!(
-        live_q
-            .economic_state_t
-            .conditional_collateral_t
-            .0
-            .len()
-            >= 2,
+        live_q.economic_state_t.conditional_collateral_t.0.len() >= 2,
         "TB-13 sanity: ≥2 conditional_collateral_t entries (pre-seeded redeem + new mint)"
     );
 
@@ -353,40 +347,25 @@ async fn tb_14_atom_6_post_wire_swap_chaintape_replay_preserves_price_index_dete
     // 2026-05-07 evidence-immutability fix: gated behind
     // TURINGOS_TEST_REGENERATE_EVIDENCE=1. See
     // OBS_EVIDENCE_DRIFT_ROOT_CAUSE_2026-05-07.md.
-    let evidence_dir = std::path::Path::new(
-        "handover/evidence/tb_14_chaintape_smoke_2026-05-03",
-    );
+    let evidence_dir = std::path::Path::new("handover/evidence/tb_14_chaintape_smoke_2026-05-03");
     let regen_enabled = std::env::var("TURINGOS_TEST_REGENERATE_EVIDENCE")
         .ok()
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
         .unwrap_or(false);
     if regen_enabled && std::fs::create_dir_all(evidence_dir).is_ok() {
-        let report_json =
-            serde_json::to_string_pretty(&report).expect("serialize report");
-        let _ = std::fs::write(
-            evidence_dir.join("replay_report.json"),
-            report_json,
-        );
+        let report_json = serde_json::to_string_pretty(&report).expect("serialize report");
+        let _ = std::fs::write(evidence_dir.join("replay_report.json"), report_json);
         let agent_pubkeys_src = cfg.runtime_repo_path.join("agent_pubkeys.json");
         if agent_pubkeys_src.exists() {
-            let _ = std::fs::copy(
-                &agent_pubkeys_src,
-                evidence_dir.join("agent_pubkeys.json"),
-            );
+            let _ = std::fs::copy(&agent_pubkeys_src, evidence_dir.join("agent_pubkeys.json"));
         }
         let pinned_src = cfg.runtime_repo_path.join("pinned_pubkeys.json");
         if pinned_src.exists() {
-            let _ = std::fs::copy(
-                &pinned_src,
-                evidence_dir.join("pinned_pubkeys.json"),
-            );
+            let _ = std::fs::copy(&pinned_src, evidence_dir.join("pinned_pubkeys.json"));
         }
         let initial_q_src = cfg.runtime_repo_path.join("initial_q_state.json");
         if initial_q_src.exists() {
-            let _ = std::fs::copy(
-                &initial_q_src,
-                evidence_dir.join("genesis_report.json"),
-            );
+            let _ = std::fs::copy(&initial_q_src, evidence_dir.join("genesis_report.json"));
         }
         let _ = std::fs::write(
             evidence_dir.join("README.md"),

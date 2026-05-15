@@ -58,7 +58,9 @@ async fn quiescent_post_shutdown_passes() {
         Hash::ZERO,
         "quiescent-seed",
     );
-    bus.submit_typed_tx(task_open).await.expect("TaskOpen submit");
+    bus.submit_typed_tx(task_open)
+        .await
+        .expect("TaskOpen submit");
 
     let mut reg = AgentKeypairRegistry::open(&cfg.runtime_repo_path).expect("open keypairs");
     let mut cas_store = CasStore::open(&cfg.cas_path).expect("open cas");
@@ -72,8 +74,7 @@ async fn quiescent_post_shutdown_passes() {
             TokenCounts::default(),
             format!("{agent}.b{idx}"),
         );
-        let tel_cid =
-            write_telemetry(&mut cas_store, &pt, "tb18r-r4-quiescent", 1).expect("write");
+        let tel_cid = write_telemetry(&mut cas_store, &pt, "tb18r-r4-quiescent", 1).expect("write");
         let work_tx = make_real_worktx_signed_by(
             &mut reg,
             "task-r4-quiescent",

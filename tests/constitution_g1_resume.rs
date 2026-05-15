@@ -147,8 +147,7 @@ async fn sg_g1_2_resume_on_n_entry_chain_sets_next_logical_t_to_n() {
         .q_snapshot()
         .expect("q_snapshot post-resume");
     let kernel2 = Kernel::new();
-    let bus2 =
-        TuringBus::with_sequencer(kernel2, BusConfig::default(), bundle_r.sequencer.clone());
+    let bus2 = TuringBus::with_sequencer(kernel2, BusConfig::default(), bundle_r.sequencer.clone());
     let tx_extra = make_synthetic_task_open(
         "task-g1_2-post-resume",
         "sponsor-g1_2",
@@ -305,9 +304,9 @@ async fn sg_g1_4_non_empty_runtime_repo_only_fires_when_resume_false() {
                 "SG-G1.4: existing_head must be set when fail-closing"
             );
         }
-        Err(other) => panic!(
-            "SG-G1.4: expected BootstrapError::NonEmptyRuntimeRepo, got {other:?}"
-        ),
+        Err(other) => {
+            panic!("SG-G1.4: expected BootstrapError::NonEmptyRuntimeRepo, got {other:?}")
+        }
         Ok(_) => panic!(
             "SG-G1.4: resume=false on non-empty repo must NOT bootstrap successfully \
              (would mask the TB-6 fail-closed gate for all prior smoke runs)"
@@ -318,8 +317,7 @@ async fn sg_g1_4_non_empty_runtime_repo_only_fires_when_resume_false() {
     // Pins that the gap between "fail-closed" and "succeed" is exactly
     // the `resume_existing_chain` field.
     let cfg_resume = cfg_resume(&tmp, "g1_4-resume", true);
-    let bundle_r =
-        build_chaintape_sequencer(&cfg_resume).expect("resume=true on non-empty repo");
+    let bundle_r = build_chaintape_sequencer(&cfg_resume).expect("resume=true on non-empty repo");
     bundle_r.shutdown().await.expect("resume shutdown");
 }
 
@@ -364,8 +362,7 @@ async fn sg_g1_5_pinned_pubkeys_preserved_across_resume() {
     // different pubkey).
     let cfg_r = cfg_resume(&tmp, "g1_5-resume", true);
     let bundle_r = build_chaintape_sequencer(&cfg_r).expect("resume bootstrap");
-    let resumed_json =
-        std::fs::read_to_string(&manifest_path).expect("read manifest after resume");
+    let resumed_json = std::fs::read_to_string(&manifest_path).expect("read manifest after resume");
     let resumed: serde_json::Value =
         serde_json::from_str(&resumed_json).expect("parse manifest after resume");
     let resumed_pubkeys = resumed["pubkeys"]
@@ -433,9 +430,7 @@ fn sg_g1_6_resume_existing_durable_fails_closed_when_manifest_absent() {
                 "SG-G1.6: ManifestAbsentInResume must echo the expected manifest path"
             );
         }
-        Err(other) => panic!(
-            "SG-G1.6: expected ManifestAbsentInResume; got {other:?}"
-        ),
+        Err(other) => panic!("SG-G1.6: expected ManifestAbsentInResume; got {other:?}"),
         Ok(_) => panic!(
             "SG-G1.6: resume_existing_durable on missing manifest MUST fail-closed \
              (silent fall-through would degrade FC2 §3.2 agent_registry replay input)"
@@ -565,9 +560,7 @@ fn sg_g1_7_resume_existing_durable_fails_closed_on_keystore_manifest_drift() {
                 "SG-G1.7: reason should describe missing-secret case; got {reason:?}"
             );
         }
-        Err(other) => panic!(
-            "SG-G1.7: expected ResumeKeystoreInconsistent; got {other:?}"
-        ),
+        Err(other) => panic!("SG-G1.7: expected ResumeKeystoreInconsistent; got {other:?}"),
         Ok(_) => panic!(
             "SG-G1.7: resume_existing_durable with manifest agent but no keystore secret \
              MUST fail-closed — silent boot would lose signing capability and violate \

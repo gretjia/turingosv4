@@ -31,8 +31,8 @@ use turingosv4::runtime::agent_audit_trail::{
 use turingosv4::runtime::{build_chaintape_sequencer, RuntimeChaintapeConfig};
 use turingosv4::state::q_state::{AgentId, Hash, TxId};
 use turingosv4::state::typed_tx::{
-    BoolWithProof, PredicateId, PredicateResultsBundle, ReadKey, RejectionClass,
-    SafetyOrCreation, WriteKey,
+    BoolWithProof, PredicateId, PredicateResultsBundle, ReadKey, RejectionClass, SafetyOrCreation,
+    WriteKey,
 };
 
 fn fresh_config(tmp: &TempDir, run_id: &str) -> RuntimeChaintapeConfig {
@@ -57,8 +57,12 @@ fn record_for(tx_id: &str, accepted: AcceptedOrRejected) -> AgentProposalRecord 
     AgentProposalRecord {
         agent_id: AgentId("agent-i91".into()),
         prompt_context_hash: Hash([0xab; 32]),
-        read_set: [ReadKey("k.ctx".into())].into_iter().collect::<BTreeSet<_>>(),
-        write_set: [WriteKey("k.tape".into())].into_iter().collect::<BTreeSet<_>>(),
+        read_set: [ReadKey("k.ctx".into())]
+            .into_iter()
+            .collect::<BTreeSet<_>>(),
+        write_set: [WriteKey("k.tape".into())]
+            .into_iter()
+            .collect::<BTreeSet<_>>(),
         proposal_cid: turingosv4::bottom_white::cas::schema::Cid([0x11; 32]),
         candidate_proof_cid: Some(turingosv4::bottom_white::cas::schema::Cid([0x22; 32])),
         tx_id: TxId(tx_id.into()),
@@ -147,7 +151,8 @@ async fn i91b_index_round_trips_tx_id_to_record_after_reopen() {
     {
         let mut idx = AgentAuditTrailIndex::open(&cfg.runtime_repo_path).expect("open");
         idx.append(&r1.tx_id, &cid1, TEST_LOGICAL_T, &r1).unwrap();
-        idx.append(&r2.tx_id, &cid2, TEST_LOGICAL_T + 1, &r2).unwrap();
+        idx.append(&r2.tx_id, &cid2, TEST_LOGICAL_T + 1, &r2)
+            .unwrap();
     }
 
     let idx2 = AgentAuditTrailIndex::open(&cfg.runtime_repo_path).expect("reopen");
@@ -200,8 +205,7 @@ fn i91e_record_has_exactly_nine_architect_fields() {
     let r = record_for("worktx-i91e", AcceptedOrRejected::Accepted);
     let value = serde_json::to_value(&r).expect("serialize");
     let obj = value.as_object().expect("object");
-    let actual_fields: std::collections::BTreeSet<&str> =
-        obj.keys().map(|s| s.as_str()).collect();
+    let actual_fields: std::collections::BTreeSet<&str> = obj.keys().map(|s| s.as_str()).collect();
     let expected_fields: std::collections::BTreeSet<&str> = [
         "agent_id",
         "prompt_context_hash",

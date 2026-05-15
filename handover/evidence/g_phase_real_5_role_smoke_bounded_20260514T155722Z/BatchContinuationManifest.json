@@ -1,0 +1,58 @@
+{
+  "schema_version": "g1_2_v1",
+  "batch_id": "g_phase_real_5_role_smoke_bounded_20260514T155722Z_5239f4b",
+  "runtime_repo": "/home/zephryj/projects/turingosv4/handover/evidence/g_phase_real_5_role_smoke_bounded_20260514T155722Z/runtime_repo",
+  "cas_root": "/home/zephryj/projects/turingosv4/handover/evidence/g_phase_real_5_role_smoke_bounded_20260514T155722Z/cas",
+  "model": "deepseek-chat",
+  "n_agents": 5,
+  "initial_head_t_hex": "",
+  "agent_registry_cid_hex": null,
+  "system_pubkeys_cid_hex": null,
+  "model_manifest_cid_hex": null,
+  "role_assignment_manifest_cid_hex": null,
+  "tasks": [
+    {
+      "task_index": 0,
+      "problem_id": "mathd_algebra_107",
+      "start_head_t_hex": "",
+      "end_head_t_hex": "232a133653a3e72beddcac0f0b6a608420e97ae7",
+      "start_chain_length": 0,
+      "end_chain_length": 3,
+      "subprocess_command_sha256": "",
+      "run_summary_cid_hex": null,
+      "terminal_tx_id": null,
+      "exit_code": 0,
+      "started_at_unix_s": 1778774244,
+      "finished_at_unix_s": 1778774247
+    },
+    {
+      "task_index": 1,
+      "problem_id": "mathd_algebra_125",
+      "start_head_t_hex": "232a133653a3e72beddcac0f0b6a608420e97ae7",
+      "end_head_t_hex": "de8619053ef0f1eab350ea8e6ba2592a62e94968",
+      "start_chain_length": 3,
+      "end_chain_length": 4,
+      "subprocess_command_sha256": "",
+      "run_summary_cid_hex": null,
+      "terminal_tx_id": null,
+      "exit_code": 0,
+      "started_at_unix_s": 1778774247,
+      "finished_at_unix_s": 1778774262
+    },
+    {
+      "task_index": 2,
+      "problem_id": "mathd_algebra_141",
+      "start_head_t_hex": "de8619053ef0f1eab350ea8e6ba2592a62e94968",
+      "end_head_t_hex": "95b5330b7ead5907c924f97b7f8a53cda5324061",
+      "start_chain_length": 4,
+      "end_chain_length": 5,
+      "subprocess_command_sha256": "",
+      "run_summary_cid_hex": null,
+      "terminal_tx_id": null,
+      "exit_code": 0,
+      "started_at_unix_s": 1778774262,
+      "finished_at_unix_s": 1778774265
+    }
+  ],
+  "terminated_reason": null
+}

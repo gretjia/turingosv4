@@ -85,7 +85,9 @@ pub struct TaskId(pub String);
 
 /// TRACE_MATRIX § 1.1 — reputation snapshot. Signed i64 to permit negative reputation
 /// (e.g. post-slash); ledger-of-record lives in `ReputationsIndex` (CO P2.9).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default,
+)]
 pub struct Reputation(pub i64);
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -318,7 +320,11 @@ pub struct EscrowEntry {
 
 impl Default for EscrowEntry {
     fn default() -> Self {
-        Self { amount: MicroCoin::zero(), depositor: AgentId::default(), task_id: TaskId::default() }
+        Self {
+            amount: MicroCoin::zero(),
+            depositor: AgentId::default(),
+            task_id: TaskId::default(),
+        }
     }
 }
 
@@ -346,7 +352,11 @@ pub struct StakeEntry {
 
 impl Default for StakeEntry {
     fn default() -> Self {
-        Self { amount: MicroCoin::zero(), staker: AgentId::default(), task_id: TaskId::default() }
+        Self {
+            amount: MicroCoin::zero(),
+            staker: AgentId::default(),
+            task_id: TaskId::default(),
+        }
     }
 }
 
@@ -528,9 +538,9 @@ impl Default for TaskMarketEntry {
             verifier_quorum: 1,
             max_reuse_royalty_fraction_basis_points: 1000, // 0.10 per spec gap default
             settlement_rule_hash: Hash::ZERO,
-            state: TaskMarketState::Open,        // TB-11
-            bankruptcy_at_logical_t: None,        // TB-11
-            opened_at_logical_t: 0,               // TB-11
+            state: TaskMarketState::Open,  // TB-11
+            bankruptcy_at_logical_t: None, // TB-11
+            opened_at_logical_t: 0,        // TB-11
         }
     }
 }
@@ -586,9 +596,7 @@ pub struct RunsIndex(pub BTreeMap<crate::state::typed_tx::RunId, RunSummaryEntry
 /// single source of truth in TB-12. Populated by accept-arm side-effect
 /// (Atom 2) on accepted WorkTx (FirstLong) + ChallengeTx (ChallengeShort).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub struct NodePositionsIndex(
-    pub BTreeMap<TxId, crate::state::typed_tx::NodePosition>,
-);
+pub struct NodePositionsIndex(pub BTreeMap<TxId, crate::state::typed_tx::NodePosition>);
 
 // ────────────────────────────────────────────────────────────────────────────
 // TB-13 (architect 2026-05-03 post-TB-12 ruling Part A §4.3 + §4.4):
@@ -611,9 +619,7 @@ pub struct NodePositionsIndex(
 /// the winning side equals collateral while the losing side may strand
 /// above collateral. Codex round-3 doc remediation 2026-05-03.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub struct ConditionalCollateralIndex(
-    pub BTreeMap<crate::state::typed_tx::EventId, MicroCoin>,
-);
+pub struct ConditionalCollateralIndex(pub BTreeMap<crate::state::typed_tx::EventId, MicroCoin>);
 
 /// TRACE_MATRIX TB-13 Atom 2 (architect §4.3 + CR-13.3 + SG-13.2): per-
 /// `(owner, event_id)` share balance pair (YES + NO sides).
@@ -629,10 +635,7 @@ pub struct ConditionalCollateralIndex(
 /// ordering for replay determinism.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct ConditionalShareBalances(
-    pub BTreeMap<
-        AgentId,
-        BTreeMap<crate::state::typed_tx::EventId, ShareSidePair>,
-    >,
+    pub BTreeMap<AgentId, BTreeMap<crate::state::typed_tx::EventId, ShareSidePair>>,
 );
 
 /// TRACE_MATRIX TB-13 Atom 2 (architect §4.3 + FR-13.3): YES + NO share
@@ -660,7 +663,9 @@ pub struct ShareSidePair {
 /// guards (per Phase E.3 strict-equality lint).
 ///
 /// Pattern mirror: `ShareAmount` at `src/state/typed_tx.rs:1140` (TB-13).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default,
+)]
 pub struct LpShareAmount {
     pub units: u128,
 }
@@ -741,9 +746,7 @@ pub struct CpmmPool {
 /// (architect §7.5 rule 2 + CR-13.3 / SG-13.2 carry-forward).
 /// `#[serde(default)]` for backward-compat with pre-P-M4 chain snapshots.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub struct CpmmPoolsIndex(
-    pub BTreeMap<crate::state::typed_tx::EventId, CpmmPool>,
-);
+pub struct CpmmPoolsIndex(pub BTreeMap<crate::state::typed_tx::EventId, CpmmPool>);
 
 /// TRACE_MATRIX FC1-Append Stage C P-M4 / Phase F.3 (architect manual §7.5
 /// rule 3 "lp shares are not Coin"): per-`(agent, event_id)` LP token
@@ -778,9 +781,7 @@ pub struct LpShareBalancesIndex(
 /// per-(verifier, target) duplicate check to a fail-closed admission gate
 /// for telemetry symmetry with A3's `StakeBalanceExceeded`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub struct AgentVerificationsIndex(
-    pub std::collections::BTreeSet<(AgentId, TxId)>,
-);
+pub struct AgentVerificationsIndex(pub std::collections::BTreeSet<(AgentId, TxId)>);
 
 /// TRACE_MATRIX TB-11 (architect §6.2) — per-run summary. Sponsored by
 /// `task_id`; populated by the `TerminalSummaryTx` dispatch arm with
@@ -854,7 +855,7 @@ pub struct ChallengeCase {
     #[serde(default)]
     pub target_work_tx: TxId,
     #[serde(default)]
-    pub status: ChallengeStatus,    // ← TB-5 NEW
+    pub status: ChallengeStatus, // ← TB-5 NEW
 }
 
 /// TRACE_MATRIX TB-5 charter v2 § 4.4 — challenge resolution status.
@@ -916,7 +917,9 @@ impl Default for ChallengeCase {
 /// BTreeMap iteration order is sorted-by-`EventId` → deterministic →
 /// replay-safe.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub struct AutopsyIndex(pub BTreeMap<crate::state::typed_tx::EventId, Vec<crate::bottom_white::cas::schema::Cid>>);
+pub struct AutopsyIndex(
+    pub BTreeMap<crate::state::typed_tx::EventId, Vec<crate::bottom_white::cas::schema::Cid>>,
+);
 
 // ────────────────────────────────────────────────────────────────────────────
 // QState — § 1.1 verbatim, 9 fields.
@@ -1043,14 +1046,38 @@ mod tests {
             obj.len()
         );
         assert!(obj.contains_key("runs_t"), "TB-11 runs_t sub-field missing");
-        assert!(obj.contains_key("node_positions_t"), "TB-12 node_positions_t sub-field missing");
-        assert!(obj.contains_key("conditional_collateral_t"), "TB-13 conditional_collateral_t sub-field missing");
-        assert!(obj.contains_key("conditional_share_balances_t"), "TB-13 conditional_share_balances_t sub-field missing");
-        assert!(obj.contains_key("agent_autopsies_t"), "TB-15 agent_autopsies_t sub-field missing");
-        assert!(obj.contains_key("cpmm_pools_t"), "Stage C P-M4 cpmm_pools_t sub-field missing");
-        assert!(obj.contains_key("lp_share_balances_t"), "Stage C P-M4 lp_share_balances_t sub-field missing");
-        assert!(obj.contains_key("agent_verifications_t"), "TB-N1 A4 agent_verifications_t sub-field missing");
-        assert!(!obj.contains_key("price_index_t"), "TB-14 Atom 2: price_index_t MUST be removed");
+        assert!(
+            obj.contains_key("node_positions_t"),
+            "TB-12 node_positions_t sub-field missing"
+        );
+        assert!(
+            obj.contains_key("conditional_collateral_t"),
+            "TB-13 conditional_collateral_t sub-field missing"
+        );
+        assert!(
+            obj.contains_key("conditional_share_balances_t"),
+            "TB-13 conditional_share_balances_t sub-field missing"
+        );
+        assert!(
+            obj.contains_key("agent_autopsies_t"),
+            "TB-15 agent_autopsies_t sub-field missing"
+        );
+        assert!(
+            obj.contains_key("cpmm_pools_t"),
+            "Stage C P-M4 cpmm_pools_t sub-field missing"
+        );
+        assert!(
+            obj.contains_key("lp_share_balances_t"),
+            "Stage C P-M4 lp_share_balances_t sub-field missing"
+        );
+        assert!(
+            obj.contains_key("agent_verifications_t"),
+            "TB-N1 A4 agent_verifications_t sub-field missing"
+        );
+        assert!(
+            !obj.contains_key("price_index_t"),
+            "TB-14 Atom 2: price_index_t MUST be removed"
+        );
     }
 
     /// TB-12 Atom 1 (architect §8 Atom 1): NodePositionsIndex empty default
@@ -1090,7 +1117,10 @@ mod tests {
 
         let sa = serde_json::to_string(&a).unwrap();
         let sb = serde_json::to_string(&b).unwrap();
-        assert_eq!(sa, sb, "BTreeMap must yield identical bytes regardless of insertion order");
+        assert_eq!(
+            sa, sb,
+            "BTreeMap must yield identical bytes regardless of insertion order"
+        );
     }
 
     #[test]
@@ -1099,6 +1129,10 @@ mod tests {
         let n1 = NodeId::from_state_root(r);
         let n2 = NodeId::from_state_root(r);
         assert_eq!(n1, n2);
-        assert_eq!(n1.0.len(), 64, "40-byte git SHA hex form would be 40; we use full 32-byte sha256 hex = 64");
+        assert_eq!(
+            n1.0.len(),
+            64,
+            "40-byte git SHA hex form would be 40; we use full 32-byte sha256 hex = 64"
+        );
     }
 }

@@ -27,8 +27,11 @@ fn make_config() -> BusConfig {
 
 fn tmp_wal_path(name: &str) -> std::path::PathBuf {
     let mut p = std::env::temp_dir();
-    p.push(format!("turingos_wal_resume_{}_{}.jsonl",
-                   name, std::process::id()));
+    p.push(format!(
+        "turingos_wal_resume_{}_{}.jsonl",
+        name,
+        std::process::id()
+    ));
     let _ = std::fs::remove_file(&p);
     p
 }
@@ -39,8 +42,8 @@ fn wal_persists_appends_across_bus_drop() {
 
     // Phase A: write nodes through the bus, then drop.
     {
-        let mut bus = TuringBus::with_wal_path(Kernel::new(), make_config(), &path)
-            .expect("first open");
+        let mut bus =
+            TuringBus::with_wal_path(Kernel::new(), make_config(), &path).expect("first open");
         bus.mount_tool(Box::new(WalletTool::new()));
         bus.init(&["A0".into(), "A1".into()]);
 
@@ -66,10 +69,15 @@ fn wal_persists_appends_across_bus_drop() {
             assert_eq!(node.author, "A0");
         }
         // Ledger should have replayed RunStart + 5 Append events.
-        assert!(bus2.ledger.len() >= 6,
-                "ledger replayed events should be ≥ 6, got {}", bus2.ledger.len());
+        assert!(
+            bus2.ledger.len() >= 6,
+            "ledger replayed events should be ≥ 6, got {}",
+            bus2.ledger.len()
+        );
         // Hash chain on replayed ledger must verify.
-        bus2.ledger.verify().expect("recomputed ledger hash chain verifies");
+        bus2.ledger
+            .verify()
+            .expect("recomputed ledger hash chain verifies");
     }
 
     let _ = std::fs::remove_file(&path);
@@ -78,8 +86,7 @@ fn wal_persists_appends_across_bus_drop() {
 #[test]
 fn wal_empty_file_yields_fresh_bus() {
     let path = tmp_wal_path("empty");
-    let bus = TuringBus::with_wal_path(Kernel::new(), make_config(), &path)
-        .expect("open empty");
+    let bus = TuringBus::with_wal_path(Kernel::new(), make_config(), &path).expect("open empty");
     assert_eq!(bus.kernel.tape.time_arrow().len(), 0);
     assert_eq!(bus.ledger.len(), 0);
     let _ = std::fs::remove_file(&path);

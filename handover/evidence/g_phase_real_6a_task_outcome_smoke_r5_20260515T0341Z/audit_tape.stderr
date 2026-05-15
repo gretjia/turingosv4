@@ -1,0 +1,1 @@
+audit_tape: load failed: pinned manifest: read "/home/zephryj/projects/turingosv4/handover/evidence/g_phase_real_6a_task_outcome_smoke_r5_20260515T0341Z/runtime_repo/pinned_pubkeys.json": No such file or directory (os error 2)

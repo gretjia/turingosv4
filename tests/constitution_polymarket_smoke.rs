@@ -44,17 +44,15 @@ use turingosv4::bottom_white::ledger::rejection_evidence::RejectionEvidenceWrite
 use turingosv4::bottom_white::ledger::system_keypair::{
     Ed25519Keypair, PinnedSystemPubkeys, SystemEpoch,
 };
-use turingosv4::bottom_white::ledger::transition_ledger::{
-    InMemoryLedgerWriter, LedgerWriter,
-};
+use turingosv4::bottom_white::ledger::transition_ledger::{InMemoryLedgerWriter, LedgerWriter};
 use turingosv4::bottom_white::tools::registry::ToolRegistry;
-use turingosv4::economy::money::MicroCoin;
 use turingosv4::economy::monetary_invariant::{
     assert_complete_set_balanced, assert_total_ctf_conserved,
 };
+use turingosv4::economy::money::MicroCoin;
 use turingosv4::runtime::audit_views::{
-    audit_view_pools, audit_view_positions, audit_view_prices,
-    audit_view_shares, PriceLiquidityWarning,
+    audit_view_pools, audit_view_positions, audit_view_prices, audit_view_shares,
+    PriceLiquidityWarning,
 };
 use turingosv4::state::q_state::{
     AgentId, EconomicState, QState, TaskId, TaskMarketEntry, TaskMarketState, TxId,
@@ -64,8 +62,8 @@ use turingosv4::state::router_quote::{
 };
 use turingosv4::state::sequencer::{Sequencer, SubmissionEnvelope};
 use turingosv4::state::typed_tx::{
-    AgentSignature, BuyDirection, BuyWithCoinRouterTx, CompleteSetMintTx,
-    CpmmPoolTx, EventId, ShareAmount, TypedTx,
+    AgentSignature, BuyDirection, BuyWithCoinRouterTx, CompleteSetMintTx, CpmmPoolTx, EventId,
+    ShareAmount, TypedTx,
 };
 use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
@@ -82,8 +80,7 @@ fn fresh_harness(initial_q: QState) -> Harness {
     let tmp = TempDir::new().expect("tempdir");
     let cas = Arc::new(RwLock::new(CasStore::open(tmp.path()).expect("cas")));
     let keypair = Arc::new(Ed25519Keypair::generate_with_secure_entropy().expect("kp"));
-    let writer: Arc<RwLock<dyn LedgerWriter>> =
-        Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
+    let writer: Arc<RwLock<dyn LedgerWriter>> = Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
     let rejection_writer = Arc::new(RwLock::new(RejectionEvidenceWriter::default()));
     let preds = Arc::new(PredicateRegistry::new());
     let tools = Arc::new(ToolRegistry::new());
@@ -92,16 +89,26 @@ fn fresh_harness(initial_q: QState) -> Harness {
     pinned.insert(epoch, keypair.public_key());
     let pinned_pubkeys = Arc::new(pinned);
     let (seq, rx) = Sequencer::new(
-        cas, keypair, epoch, writer.clone(), rejection_writer, preds, tools,
-        pinned_pubkeys, initial_q, 16,
+        cas,
+        keypair,
+        epoch,
+        writer.clone(),
+        rejection_writer,
+        preds,
+        tools,
+        pinned_pubkeys,
+        initial_q,
+        16,
     );
-    Harness { _tmp: tmp, seq, rx, _ledger: writer }
+    Harness {
+        _tmp: tmp,
+        seq,
+        rx,
+        _ledger: writer,
+    }
 }
 
-fn genesis_with_balances_and_open_task(
-    pairs: &[(&str, i64)],
-    task: &str,
-) -> QState {
+fn genesis_with_balances_and_open_task(pairs: &[(&str, i64)], task: &str) -> QState {
     let mut q = QState::genesis();
     for (name, coin) in pairs {
         q.economic_state_t.balances_t.0.insert(
@@ -381,12 +388,8 @@ async fn polymarket_controlled_market_smoke() {
     // (architect §7.8 + P-M7 gate).
     let state_root_pre_quote = q_post.state_root_t;
     for &dir in &[QuoteDirection::BuyYes, QuoteDirection::BuyNo] {
-        let q = quote_buy_with_coin_router(
-            &pool_post,
-            MicroCoin::from_micro_units(1_000_000),
-            dir,
-        )
-        .expect("healthy quote");
+        let q = quote_buy_with_coin_router(&pool_post, MicroCoin::from_micro_units(1_000_000), dir)
+            .expect("healthy quote");
         assert!(q.out_shares.units > 0);
         assert!(q.price_effective.is_some());
         assert_eq!(q.liquidity_warning, LiquidityWarning::None);
@@ -416,14 +419,20 @@ async fn polymarket_controlled_market_smoke() {
     let bob_row = view_shares
         .owner_shares
         .iter()
-        .find(|r| r.owner == AgentId("bob".into()) && r.event_id == EventId(TaskId("polymarket-evt".into())))
+        .find(|r| {
+            r.owner == AgentId("bob".into())
+                && r.event_id == EventId(TaskId("polymarket-evt".into()))
+        })
         .expect("bob has shares");
     assert!(bob_row.yes_units > 1_000_000, "bob got payC + outY YES");
     assert_eq!(bob_row.no_units, 0);
     let carol_row = view_shares
         .owner_shares
         .iter()
-        .find(|r| r.owner == AgentId("carol".into()) && r.event_id == EventId(TaskId("polymarket-evt".into())))
+        .find(|r| {
+            r.owner == AgentId("carol".into())
+                && r.event_id == EventId(TaskId("polymarket-evt".into()))
+        })
         .expect("carol has shares");
     assert!(carol_row.no_units > 500_000, "carol got payC + outN NO");
     assert_eq!(carol_row.yes_units, 0);
@@ -443,10 +452,7 @@ async fn polymarket_controlled_market_smoke() {
     // LP holdings: alice (provider) holds 5M LP units 1:1 with seed.
     assert_eq!(view_pools.lp_holdings.len(), 1);
     assert_eq!(view_pools.lp_holdings[0].lp_units, 5_000_000);
-    assert_eq!(
-        view_pools.lp_holdings[0].provider,
-        AgentId("alice".into())
-    );
+    assert_eq!(view_pools.lp_holdings[0].provider, AgentId("alice".into()));
 
     // Prices view: 1 active pool × 2 sample sizes × 2 directions = 4 rows.
     assert_eq!(view_prices.price_quotes.len(), 4);
@@ -454,7 +460,10 @@ async fn polymarket_controlled_market_smoke() {
         // Price quote MUST be defined (asymmetric pool ratio post-2-router
         // buys is non-degenerate).
         assert!(
-            matches!(row.liquidity_warning, PriceLiquidityWarning::None | PriceLiquidityWarning::LowLiquidity),
+            matches!(
+                row.liquidity_warning,
+                PriceLiquidityWarning::None | PriceLiquidityWarning::LowLiquidity
+            ),
             "post-smoke pool yields a defined quote (no NoOutput warning)"
         );
         assert!(row.out_shares_units > 0);
@@ -481,7 +490,8 @@ async fn polymarket_controlled_market_smoke() {
         "no ghost liquidity (sum YES == sum NO)"
     );
     assert_eq!(
-        sum_yes_post, coll.micro_units() as u128,
+        sum_yes_post,
+        coll.micro_units() as u128,
         "no ghost liquidity (sum YES == collateral)"
     );
 

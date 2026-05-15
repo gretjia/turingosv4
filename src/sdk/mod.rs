@@ -1,7 +1,4 @@
-pub mod protocol;
-pub mod snapshot;
-pub mod prompt;
-pub mod prompt_guard;
+pub mod actor;
 /// TRACE_MATRIX FC1-N7 + §13: TB-N1-AGENT-ECONOMY A2 (session #35
 /// 2026-05-10) — renderer for the agent-perceived economic position
 /// block embedded in build_agent_prompt under
@@ -10,6 +7,7 @@ pub mod prompt_guard;
 /// to close session #35 smoke-evidence finding "n=1 economy
 /// structurally landed but invisible to agent at prompt layer".
 pub mod econ_position;
+pub mod error_abstraction;
 /// TRACE_MATRIX FC1-N7 + §15 + G-Phase directive §0.6 amendment G-2 —
 /// TB-G G2P.1 (charter §1 Module G2P): per-viewer renderer for the
 /// `=== Pending Peer Reviews ===` prompt block. Surfaces the queue of
@@ -17,6 +15,13 @@ pub mod econ_position;
 /// filtered to exclude self-WorkTxs and already-verified targets.
 /// Closes user 2026-05-12 病灶3 "0 verify" mechanism gap.
 pub mod pending_peer_reviews;
+pub mod prompt;
+pub mod prompt_guard;
+pub mod protocol;
+pub mod sandbox;
+pub mod snapshot;
+pub mod tool;
+pub mod tools;
 /// TRACE_MATRIX FC1-N7 + §15 + Art. III.2 (TB-G G3.3 2026-05-12; charter
 /// §1 Module G3 atom G3.3 + G-Phase directive §G3 verbatim 7-field
 /// `AgentMarketState` shape + Drucker framing): per-viewer
@@ -27,11 +32,6 @@ pub mod pending_peer_reviews;
 /// never aggregates across agents. Empty-string-suppression contract
 /// mirrors `econ_position` + `pending_peer_reviews`.
 pub mod your_position;
-pub mod tool;
-pub mod actor;
-pub mod sandbox;
-pub mod tools;
-pub mod error_abstraction;
 
 /// TRACE_MATRIX FC1-N7 TB-N3 A4 (architect ruling 2026-05-11 amendment 5
 /// + Q7 + §8.4) — same-task `node_survive:*` market-context renderer

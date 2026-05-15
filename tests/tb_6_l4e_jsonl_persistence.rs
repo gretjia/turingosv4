@@ -43,7 +43,10 @@ fn t_r1_open_jsonl_creates_empty_file_when_path_missing() {
     let path = tmp.path().join("nested").join("rejections.jsonl");
     assert!(!path.exists(), "precondition: path does not exist yet");
     let writer = RejectionEvidenceWriter::open_jsonl(path.clone()).expect("open_jsonl");
-    assert!(path.exists(), "open_jsonl creates the file (and parent dirs)");
+    assert!(
+        path.exists(),
+        "open_jsonl creates the file (and parent dirs)"
+    );
     assert_eq!(writer.len(), 0, "fresh writer has zero records");
     assert!(writer.is_jsonl_backed(), "backend is JsonlAppend");
     let contents = std::fs::read_to_string(&path).expect("read file");
@@ -71,8 +74,7 @@ fn t_r2_append_rejected_persists_jsonl_line_and_in_memory_record() {
 
     // Each line is valid JSON.
     for line in &lines {
-        let _: serde_json::Value =
-            serde_json::from_str(line).expect("each line is valid JSON");
+        let _: serde_json::Value = serde_json::from_str(line).expect("each line is valid JSON");
     }
 
     // verify_chain succeeds on the in-memory + on-disk state.
@@ -157,9 +159,11 @@ fn t_r5_open_jsonl_default_writer_is_in_memory_backend() {
     // open_jsonl with a fresh path → JSONL-backed.
     let tmp = TempDir::new().expect("tempdir");
     let path = tmp.path().join("rejections.jsonl");
-    let writer_jsonl =
-        RejectionEvidenceWriter::open_jsonl(path).expect("open_jsonl");
-    assert!(writer_jsonl.is_jsonl_backed(), "open_jsonl backend is JsonlAppend");
+    let writer_jsonl = RejectionEvidenceWriter::open_jsonl(path).expect("open_jsonl");
+    assert!(
+        writer_jsonl.is_jsonl_backed(),
+        "open_jsonl backend is JsonlAppend"
+    );
 
     // Single-writer expectation: the writer takes ownership of the JSONL path
     // for the duration of its lifetime. Concurrent writers to the same path

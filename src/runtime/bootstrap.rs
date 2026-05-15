@@ -102,7 +102,11 @@ mod tests {
     #[test]
     fn returns_13_entries() {
         let pairs = default_pput_preseed_pairs();
-        assert_eq!(pairs.len(), 13, "expected 13 preseed entries (12 legacy + 1 TB-N3 MarketMakerBudget)");
+        assert_eq!(
+            pairs.len(),
+            13,
+            "expected 13 preseed entries (12 legacy + 1 TB-N3 MarketMakerBudget)"
+        );
     }
 
     /// U2 — every entry has positive balance (no zero-funded agent).
@@ -185,11 +189,7 @@ mod tests {
             .iter()
             .find(|(a, _)| a.0 == "MarketMakerBudget")
             .expect("MarketMakerBudget must be in TB-N3 preseed list");
-        assert_eq!(
-            mmb.1.micro_units(),
-            5_000_000,
-            "MarketMakerBudget budget"
-        );
+        assert_eq!(mmb.1.micro_units(), 5_000_000, "MarketMakerBudget budget");
     }
 
     /// U7 — factory is deterministic: two calls produce byte-identical output.

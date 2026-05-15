@@ -30,6 +30,7 @@
 //!   structurally enforces "derivatives excluded".
 //! - D1: epoch is bound in signing payload (Codex security wins over Gemini orthogonality).
 
+use std::any::{Any, TypeId};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
@@ -40,6 +41,7 @@ use sha2::{Digest, Sha256};
 use crate::bottom_white::cas::schema::Cid;
 use crate::bottom_white::ledger::system_keypair::{SystemEpoch, SystemSignature};
 use crate::state::q_state::Hash;
+use crate::state::typed_tx;
 
 // ────────────────────────────────────────────────────────────────────────────
 // § 1 LedgerEntry — the stored record (11 fields per v1.1)
@@ -51,19 +53,19 @@ use crate::state::q_state::Hash;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[repr(u8)]
 pub enum TxKind {
-    Work            = 0,
-    Verify          = 1,
-    Challenge       = 2,
-    Reuse           = 3,
-    FinalizeReward  = 4,
-    TaskExpire      = 5,
+    Work = 0,
+    Verify = 1,
+    Challenge = 2,
+    Reuse = 3,
+    FinalizeReward = 4,
+    TaskExpire = 5,
     TerminalSummary = 6,
     /// TB-3 RSP-1 formal-tx-surface (charter § 4.1). Sponsor-emitted task
     /// market registration; metadata-only (no money movement).
-    TaskOpen        = 7,
+    TaskOpen = 7,
     /// TB-3 RSP-1 formal-tx-surface (charter § 4.1). Sponsor-emitted bounty
     /// funding; the sole RSP-1 path that grows `task_markets_t.total_escrow`.
-    EscrowLock      = 8,
+    EscrowLock = 8,
     /// TB-5 RSP-3.0/3.1 system-emitted resolution (charter v2 § 4.1 + § 4.5).
     /// System-only: agent ingress rejected pre-queue; emit via
     /// `Sequencer::emit_system_tx`. Released refunds challenger bond + flips
@@ -76,13 +78,13 @@ pub enum TxKind {
     /// System-only: agent ingress rejected pre-queue; emit via
     /// `Sequencer::emit_system_tx`. No money movement (refund is a separate
     /// TaskExpireTx fired by tick post-bankruptcy).
-    TaskBankruptcy  = 10,
+    TaskBankruptcy = 10,
     /// TB-13 (2026-05-03 architect post-TB-12 ruling Part A §4.3) —
     /// agent-signed conditional-share mint. Debits `balances_t[owner]`,
     /// credits `conditional_collateral_t[event_id]`, mints equal YES_E +
     /// NO_E shares to `conditional_share_balances_t`. CTF preserved (1
     /// Coin → 1 YES + 1 NO; shares are claims, not Coin).
-    CompleteSetMint   = 11,
+    CompleteSetMint = 11,
     /// TB-13 (architect §4.3) — agent-signed conditional-share redeem
     /// post-resolution. Resolution authority is the live
     /// `task_markets_t[event_id.0].state` (Finalized → Yes wins; Bankrupt
@@ -96,7 +98,7 @@ pub enum TxKind {
     /// + receives BOTH YES + NO shares. **No trading. No quoting. No
     /// pricing.** TB-13 records only the fact of seeding, not any signal
     /// derived from it.
-    MarketSeed        = 13,
+    MarketSeed = 13,
     /// Stage C P-M2 / Phase F.1 (architect manual §7.3 verbatim) —
     /// agent-signed pre-resolution `1 YES + 1 NO -> 1 Coin` merge. Burns
     /// equal YES + NO shares from owner; debits
@@ -105,7 +107,7 @@ pub enum TxKind {
     /// debit equals balance credit; YES + NO claim retired symmetrically).
     /// Strict 6-field struct per architect §7.3; NO `timestamp_logical`
     /// drift (Codex G2 audit 2026-05-09 defect 3 prevention).
-    CompleteSetMerge  = 14,
+    CompleteSetMerge = 14,
     /// Stage C P-M4 / Phase F.3 (architect manual §7.5 verbatim;
     /// remediation directive 2026-05-09 §1.C row 3) — agent-signed
     /// CpmmPool (LiquidityPool) creation. Provider seeds pool with
@@ -117,7 +119,7 @@ pub enum TxKind {
     /// `event_id` NOT `event_id_kind`. Strict 7-wire-field shape
     /// mirroring `CompleteSetMergeTx` minimal pattern (NO
     /// `timestamp_logical`).
-    CpmmPool          = 15,
+    CpmmPool = 15,
     /// Stage C P-M5 / Phase F.4 (architect manual §7.6 verbatim;
     /// remediation directive 2026-05-09 §1.C row 4) — agent-signed
     /// CPMM share swap. Trader rotates input-side shares for
@@ -130,7 +132,7 @@ pub enum TxKind {
     /// (`>=` because integer floor leaves dust in pool — architect §7.6
     /// explicit). Strict 8-wire-field shape mirroring `CpmmPoolTx`
     /// minimal pattern (NO `timestamp_logical`).
-    CpmmSwap          = 16,
+    CpmmSwap = 16,
     /// Stage C P-M6 / Phase F.5 (architect manual §7.7 verbatim;
     /// remediation directive 2026-05-09 §1.C row 5) — agent-signed
     /// Mint-and-Swap router (9-step composite atomic tx). Buyer pays
@@ -158,7 +160,7 @@ pub enum TxKind {
     /// encoded in TB-13 redeem admission). System-only: agent ingress
     /// rejects pre-queue; emit via
     /// `Sequencer::emit_system_tx(SystemEmitCommand::EventResolve)`.
-    EventResolve     = 18,
+    EventResolve = 18,
 }
 
 /// TRACE_MATRIX FC2-Append + WP § 5.L4: stored LedgerEntry record (11 fields).
@@ -170,27 +172,27 @@ pub enum TxKind {
 pub struct LedgerEntry {
     /// **K1**: assigned ONLY at commit (sequencer dual-counter design); rejected
     /// submissions never get a logical_t.
-    pub logical_t: u64,                          //  1
-    pub parent_state_root: Hash,                 //  2
+    pub logical_t: u64, //  1
+    pub parent_state_root: Hash, //  2
     /// **K2 NEW**: parent_ledger_root before fold; bound in signed payload to
     /// prevent transplant attacks.
-    pub parent_ledger_root: Hash,                //  3
-    pub tx_kind: TxKind,                         //  4
+    pub parent_ledger_root: Hash, //  3
+    pub tx_kind: TxKind,         //  4
     /// CAS handle (CO1.4) to canonical-serialized payload (DIV-5 5-param put).
-    pub tx_payload_cid: Cid,                     //  5
+    pub tx_payload_cid: Cid, //  5
     /// Resulting state_root post-transition (NOT mutated by L4 — accepted as
     /// returned by transition function per K3 boundary).
-    pub resulting_state_root: Hash,              //  6
+    pub resulting_state_root: Hash, //  6
     /// Resulting ledger_root after fold. Derivative; NOT in signed digest.
-    pub resulting_ledger_root: Hash,             //  7
-    pub timestamp_logical: u64,                  //  8
+    pub resulting_ledger_root: Hash, //  7
+    pub timestamp_logical: u64,  //  8
     /// **D1 / Q10**: epoch bound in signed payload (Codex security wins).
-    pub epoch: SystemEpoch,                      //  9
+    pub epoch: SystemEpoch, //  9
     /// **G1 NEW**: forward-compat extension map. Empty in v1; reserved for v4.x.
     /// Bound in signed payload (G1 cannot bypass signature).
-    pub extensions: BTreeMap<String, Vec<u8>>,   // 10
+    pub extensions: BTreeMap<String, Vec<u8>>, // 10
     /// Detached system signature over `LedgerEntrySigningPayload.canonical_digest()`.
-    pub system_signature: SystemSignature,       // 11
+    pub system_signature: SystemSignature, // 11
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -209,13 +211,13 @@ pub struct LedgerEntry {
 pub struct LedgerEntrySigningPayload {
     pub logical_t: u64,
     pub parent_state_root: Hash,
-    pub parent_ledger_root: Hash,                  // K2
+    pub parent_ledger_root: Hash, // K2
     pub tx_kind: TxKind,
     pub tx_payload_cid: Cid,
     pub resulting_state_root: Hash,
     pub timestamp_logical: u64,
-    pub epoch: SystemEpoch,                        // D1
-    pub extensions: BTreeMap<String, Vec<u8>>,     // G1
+    pub epoch: SystemEpoch,                    // D1
+    pub extensions: BTreeMap<String, Vec<u8>>, // G1
 }
 
 impl LedgerEntrySigningPayload {
@@ -390,14 +392,30 @@ pub enum ReplayMode {
 
 #[derive(Debug)]
 pub enum ReplayError {
-    LogicalTGap { at: usize, expected: u64, got: u64 },
-    ParentStateMismatch { at: usize },
-    ParentLedgerMismatch { at: usize }, // K2 NEW
-    LedgerRootMismatch { at: usize },
+    LogicalTGap {
+        at: usize,
+        expected: u64,
+        got: u64,
+    },
+    ParentStateMismatch {
+        at: usize,
+    },
+    ParentLedgerMismatch {
+        at: usize,
+    }, // K2 NEW
+    LedgerRootMismatch {
+        at: usize,
+    },
     // FullTransition-mode-only (CO1.7.5+):
-    BadSignature { at: usize },
-    CasMissing { at: usize },
-    StateRootMismatch { at: usize },
+    BadSignature {
+        at: usize,
+    },
+    CasMissing {
+        at: usize,
+    },
+    StateRootMismatch {
+        at: usize,
+    },
     /// CO1.7-impl A4: dispatch_transition rejected the re-run. In stub state
     /// (CO1.7.5 not yet shipped), this fires on every replay step with
     /// `inner = NotYetImplemented`.
@@ -501,9 +519,7 @@ pub fn replay_full_transition(
     predicate_registry: &crate::top_white::predicates::registry::PredicateRegistry,
     tool_registry: &crate::bottom_white::tools::registry::ToolRegistry,
 ) -> Result<crate::state::q_state::QState, ReplayError> {
-    use crate::bottom_white::ledger::system_keypair::{
-        verify_system_signature, CanonicalMessage,
-    };
+    use crate::bottom_white::ledger::system_keypair::{verify_system_signature, CanonicalMessage};
     use crate::state::sequencer::dispatch_transition;
 
     let mut q = genesis.clone();
@@ -667,9 +683,18 @@ pub fn canonical_encode<T: Serialize>(value: &T) -> Result<Vec<u8>, CanonicalCod
 
 /// Canonical decode the inverse of `canonical_encode`. Returns the value plus
 /// the number of bytes consumed (entire input must be consumed for a clean decode).
-pub fn canonical_decode<T: serde::de::DeserializeOwned>(
+pub fn canonical_decode<T: serde::de::DeserializeOwned + 'static>(
     bytes: &[u8],
 ) -> Result<T, CanonicalCodecError> {
+    if TypeId::of::<T>() == TypeId::of::<typed_tx::TypedTx>() {
+        let value = canonical_decode_typed_tx_current_or_legacy_event_resolve(bytes)?;
+        let boxed: Box<dyn Any> = Box::new(value);
+        return boxed
+            .downcast::<T>()
+            .map(|value| *value)
+            .map_err(|_| CanonicalCodecError::Decode("TypedTx downcast failed".into()));
+    }
+
     let (value, consumed) =
         bincode::serde::decode_from_slice::<T, _>(bytes, bincode_canonical_config())
             .map_err(|e| CanonicalCodecError::Decode(e.to_string()))?;
@@ -680,6 +705,110 @@ pub fn canonical_decode<T: serde::de::DeserializeOwned>(
         });
     }
     Ok(value)
+}
+
+fn canonical_decode_typed_tx_current_or_legacy_event_resolve(
+    bytes: &[u8],
+) -> Result<typed_tx::TypedTx, CanonicalCodecError> {
+    match bincode::serde::decode_from_slice::<typed_tx::TypedTx, _>(
+        bytes,
+        bincode_canonical_config(),
+    ) {
+        Ok((value, consumed)) => {
+            if consumed != bytes.len() {
+                return Err(CanonicalCodecError::TrailingBytes {
+                    consumed,
+                    total: bytes.len(),
+                });
+            }
+            Ok(value)
+        }
+        Err(current_err) => {
+            let current_err = current_err.to_string();
+            let (legacy, consumed) = bincode::serde::decode_from_slice::<
+                LegacyTypedTxEventResolveWire,
+                _,
+            >(bytes, bincode_canonical_config())
+            .map_err(|_| CanonicalCodecError::Decode(current_err.clone()))?;
+            if consumed != bytes.len() {
+                return Err(CanonicalCodecError::TrailingBytes {
+                    consumed,
+                    total: bytes.len(),
+                });
+            }
+            Ok(legacy.into())
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+struct LegacyEventResolveTxWire {
+    tx_id: crate::state::q_state::TxId,
+    parent_state_root: Hash,
+    task_id: crate::state::q_state::TaskId,
+    epoch: SystemEpoch,
+    timestamp_logical: u64,
+    system_signature: SystemSignature,
+}
+
+#[allow(clippy::large_enum_variant)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+enum LegacyTypedTxEventResolveWire {
+    Work(typed_tx::WorkTx),
+    Verify(typed_tx::VerifyTx),
+    Challenge(typed_tx::ChallengeTx),
+    Reuse(typed_tx::ReuseTx),
+    FinalizeReward(typed_tx::FinalizeRewardTx),
+    TaskExpire(typed_tx::TaskExpireTx),
+    TerminalSummary(typed_tx::TerminalSummaryTx),
+    TaskOpen(typed_tx::TaskOpenTx),
+    EscrowLock(typed_tx::EscrowLockTx),
+    ChallengeResolve(typed_tx::ChallengeResolveTx),
+    TaskBankruptcy(typed_tx::TaskBankruptcyTx),
+    CompleteSetMint(typed_tx::CompleteSetMintTx),
+    CompleteSetRedeem(typed_tx::CompleteSetRedeemTx),
+    MarketSeed(typed_tx::MarketSeedTx),
+    CompleteSetMerge(typed_tx::CompleteSetMergeTx),
+    CpmmPool(typed_tx::CpmmPoolTx),
+    CpmmSwap(typed_tx::CpmmSwapTx),
+    BuyWithCoinRouter(typed_tx::BuyWithCoinRouterTx),
+    EventResolve(LegacyEventResolveTxWire),
+}
+
+impl From<LegacyTypedTxEventResolveWire> for typed_tx::TypedTx {
+    fn from(value: LegacyTypedTxEventResolveWire) -> Self {
+        match value {
+            LegacyTypedTxEventResolveWire::Work(tx) => Self::Work(tx),
+            LegacyTypedTxEventResolveWire::Verify(tx) => Self::Verify(tx),
+            LegacyTypedTxEventResolveWire::Challenge(tx) => Self::Challenge(tx),
+            LegacyTypedTxEventResolveWire::Reuse(tx) => Self::Reuse(tx),
+            LegacyTypedTxEventResolveWire::FinalizeReward(tx) => Self::FinalizeReward(tx),
+            LegacyTypedTxEventResolveWire::TaskExpire(tx) => Self::TaskExpire(tx),
+            LegacyTypedTxEventResolveWire::TerminalSummary(tx) => Self::TerminalSummary(tx),
+            LegacyTypedTxEventResolveWire::TaskOpen(tx) => Self::TaskOpen(tx),
+            LegacyTypedTxEventResolveWire::EscrowLock(tx) => Self::EscrowLock(tx),
+            LegacyTypedTxEventResolveWire::ChallengeResolve(tx) => Self::ChallengeResolve(tx),
+            LegacyTypedTxEventResolveWire::TaskBankruptcy(tx) => Self::TaskBankruptcy(tx),
+            LegacyTypedTxEventResolveWire::CompleteSetMint(tx) => Self::CompleteSetMint(tx),
+            LegacyTypedTxEventResolveWire::CompleteSetRedeem(tx) => Self::CompleteSetRedeem(tx),
+            LegacyTypedTxEventResolveWire::MarketSeed(tx) => Self::MarketSeed(tx),
+            LegacyTypedTxEventResolveWire::CompleteSetMerge(tx) => Self::CompleteSetMerge(tx),
+            LegacyTypedTxEventResolveWire::CpmmPool(tx) => Self::CpmmPool(tx),
+            LegacyTypedTxEventResolveWire::CpmmSwap(tx) => Self::CpmmSwap(tx),
+            LegacyTypedTxEventResolveWire::BuyWithCoinRouter(tx) => Self::BuyWithCoinRouter(tx),
+            LegacyTypedTxEventResolveWire::EventResolve(tx) => {
+                Self::EventResolve(typed_tx::EventResolveTx {
+                    tx_id: tx.tx_id,
+                    parent_state_root: tx.parent_state_root,
+                    task_id: tx.task_id,
+                    epoch: tx.epoch,
+                    timestamp_logical: tx.timestamp_logical,
+                    system_signature: tx.system_signature,
+                    outcome: typed_tx::OutcomeSide::Yes,
+                })
+            }
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -695,7 +824,10 @@ impl std::fmt::Display for CanonicalCodecError {
             Self::Encode(s) => write!(f, "canonical encode failed: {s}"),
             Self::Decode(s) => write!(f, "canonical decode failed: {s}"),
             Self::TrailingBytes { consumed, total } => {
-                write!(f, "trailing bytes after decode: consumed {consumed} of {total}")
+                write!(
+                    f,
+                    "trailing bytes after decode: consumed {consumed} of {total}"
+                )
             }
         }
     }
@@ -770,9 +902,8 @@ impl Git2LedgerWriter {
         let repo_path = repo_path.to_path_buf();
         let repo = match Repository::open(&repo_path) {
             Ok(r) => r,
-            Err(_) => Repository::init(&repo_path).map_err(|e| {
-                LedgerWriterError::BackendCorruption(format!("repo init: {e}"))
-            })?,
+            Err(_) => Repository::init(&repo_path)
+                .map_err(|e| LedgerWriterError::BackendCorruption(format!("repo init: {e}")))?,
         };
 
         // Stage A3 / HEAD_t C2 R7 (Codex R1 Q1 fix): C2 ref `refs/chaintape/l4`
@@ -801,9 +932,7 @@ impl Git2LedgerWriter {
                     "C2/C1 divergence repair: aligning C1 alias to canonical C2",
                 )
                 .map_err(|e| {
-                    LedgerWriterError::BackendCorruption(format!(
-                        "C1 alias repair: {e}"
-                    ))
+                    LedgerWriterError::BackendCorruption(format!("C1 alias repair: {e}"))
                 })?;
                 Some(c2)
             }
@@ -868,9 +997,7 @@ impl Git2LedgerWriter {
             .map_err(|e| LedgerWriterError::BackendCorruption(format!("repo open: {e}")))?;
         repo.reference(CHAINTAPE_L4E_REF, oid, true, log_message)
             .map_err(|e| {
-                LedgerWriterError::BackendCorruption(format!(
-                    "chaintape l4e ref update: {e}"
-                ))
+                LedgerWriterError::BackendCorruption(format!("chaintape l4e ref update: {e}"))
             })?;
         Ok(())
     }
@@ -885,9 +1012,7 @@ impl Git2LedgerWriter {
             .map_err(|e| LedgerWriterError::BackendCorruption(format!("repo open: {e}")))?;
         repo.reference(CHAINTAPE_CAS_REF, oid, true, log_message)
             .map_err(|e| {
-                LedgerWriterError::BackendCorruption(format!(
-                    "chaintape cas ref update: {e}"
-                ))
+                LedgerWriterError::BackendCorruption(format!("chaintape cas ref update: {e}"))
             })?;
         Ok(())
     }
@@ -922,12 +1047,14 @@ impl Git2LedgerWriter {
         }
         let repo = self.open_repo()?;
         // Walk back (len - logical_t) parents from head.
-        let mut cursor = self.head_oid.ok_or(LedgerWriterError::NotFound { logical_t })?;
+        let mut cursor = self
+            .head_oid
+            .ok_or(LedgerWriterError::NotFound { logical_t })?;
         let mut steps_back = self.len - logical_t;
         while steps_back > 0 {
-            let commit = repo.find_commit(cursor).map_err(|e| {
-                LedgerWriterError::BackendCorruption(format!("find_commit: {e}"))
-            })?;
+            let commit = repo
+                .find_commit(cursor)
+                .map_err(|e| LedgerWriterError::BackendCorruption(format!("find_commit: {e}")))?;
             cursor = commit
                 .parent(0)
                 .map_err(|e| LedgerWriterError::BackendCorruption(format!("parent: {e}")))?
@@ -940,13 +1067,11 @@ impl Git2LedgerWriter {
         let tree = commit
             .tree()
             .map_err(|e| LedgerWriterError::BackendCorruption(format!("tree: {e}")))?;
-        let entry_obj = tree
-            .get_name(TREE_BLOB_ENTRY_CANONICAL)
-            .ok_or_else(|| {
-                LedgerWriterError::BackendCorruption(format!(
-                    "missing {TREE_BLOB_ENTRY_CANONICAL} blob at logical_t={logical_t}"
-                ))
-            })?;
+        let entry_obj = tree.get_name(TREE_BLOB_ENTRY_CANONICAL).ok_or_else(|| {
+            LedgerWriterError::BackendCorruption(format!(
+                "missing {TREE_BLOB_ENTRY_CANONICAL} blob at logical_t={logical_t}"
+            ))
+        })?;
         let blob = repo
             .find_blob(entry_obj.id())
             .map_err(|e| LedgerWriterError::BackendCorruption(format!("find_blob: {e}")))?;
@@ -972,9 +1097,8 @@ impl LedgerWriter for Git2LedgerWriter {
         }
 
         let repo = self.open_repo()?;
-        let canonical = canonical_encode(entry).map_err(|e| {
-            LedgerWriterError::BackendCorruption(format!("canonical_encode: {e}"))
-        })?;
+        let canonical = canonical_encode(entry)
+            .map_err(|e| LedgerWriterError::BackendCorruption(format!("canonical_encode: {e}")))?;
 
         let mut tb = repo
             .treebuilder(None)
@@ -1151,7 +1275,13 @@ mod tests {
 
         let e_skip = entry_at(3, e1.resulting_state_root, e1.resulting_ledger_root, h(2));
         let err = w.commit(&e_skip).unwrap_err();
-        assert!(matches!(err, LedgerWriterError::LogicalTGap { expected: 2, got: 3 }));
+        assert!(matches!(
+            err,
+            LedgerWriterError::LogicalTGap {
+                expected: 2,
+                got: 3
+            }
+        ));
     }
 
     // 4. ChainOnly replay validates clean chain
@@ -1160,9 +1290,12 @@ mod tests {
         let e1 = entry_at(1, Hash::ZERO, Hash::ZERO, h(1));
         let e2 = entry_at(2, e1.resulting_state_root, e1.resulting_ledger_root, h(2));
         let e3 = entry_at(3, e2.resulting_state_root, e2.resulting_ledger_root, h(3));
-        let (final_state, final_ledger) =
-            replay_chain_integrity(Hash::ZERO, Hash::ZERO, &[e1.clone(), e2.clone(), e3.clone()])
-                .expect("clean chain replays");
+        let (final_state, final_ledger) = replay_chain_integrity(
+            Hash::ZERO,
+            Hash::ZERO,
+            &[e1.clone(), e2.clone(), e3.clone()],
+        )
+        .expect("clean chain replays");
         assert_eq!(final_state, e3.resulting_state_root);
         assert_eq!(final_ledger, e3.resulting_ledger_root);
     }
@@ -1235,8 +1368,8 @@ mod tests {
     #[test]
     fn signature_round_trip_and_transplant_defense() {
         use crate::bottom_white::ledger::system_keypair::{
-            transition_ledger_emitter, CanonicalMessage, Ed25519Keypair, PinnedSystemPubkeys,
-            SystemEpoch, verify_system_signature,
+            transition_ledger_emitter, verify_system_signature, CanonicalMessage, Ed25519Keypair,
+            PinnedSystemPubkeys, SystemEpoch,
         };
 
         let keypair = Ed25519Keypair::generate_with_secure_entropy().expect("keypair gen");
@@ -1287,7 +1420,10 @@ mod tests {
         let mut payload_other_epoch = payload.clone();
         payload_other_epoch.epoch = SystemEpoch::new(2);
         let digest_other_epoch = payload_other_epoch.canonical_digest();
-        assert_ne!(digest, digest_other_epoch, "epoch is bound in canonical digest");
+        assert_ne!(
+            digest, digest_other_epoch,
+            "epoch is bound in canonical digest"
+        );
         let msg_other_epoch = CanonicalMessage::LedgerEntrySigning(digest_other_epoch.0);
         assert!(
             !verify_system_signature(&sig, &msg_other_epoch, epoch, &pinned),
@@ -1355,7 +1491,13 @@ mod tests {
         // Try to commit a logical_t=3 entry (gap: expected 2)
         let e_skip = entry_at(3, e1.resulting_state_root, e1.resulting_ledger_root, h(2));
         let err = w.commit(&e_skip).unwrap_err();
-        assert!(matches!(err, LedgerWriterError::LogicalTGap { expected: 2, got: 3 }));
+        assert!(matches!(
+            err,
+            LedgerWriterError::LogicalTGap {
+                expected: 2,
+                got: 3
+            }
+        ));
         // Chain unchanged.
         assert_eq!(w.len(), 1);
         assert_eq!(w.head_commit_oid(), pre_oid);
@@ -1399,26 +1541,33 @@ mod tests {
         transition_ledger_emitter, Ed25519Keypair, PinnedSystemPubkeys,
     };
     use crate::bottom_white::tools::registry::ToolRegistry;
+    use crate::state::q_state::{AgentId, TaskId, TxId as QTxId};
     use crate::state::typed_tx::{
         AgentSignature, BoolWithProof, PredicateId, PredicateResultsBundle, ReadKey,
         SafetyOrCreation, TypedTx, WorkTx, WriteKey,
     };
-    use crate::state::q_state::{AgentId, TaskId, TxId as QTxId};
     use crate::top_white::predicates::registry::PredicateRegistry;
 
     fn dummy_typed_tx() -> TypedTx {
         let mut acceptance = std::collections::BTreeMap::new();
         acceptance.insert(
             PredicateId("acc1".into()),
-            BoolWithProof { value: true, proof_cid: None },
+            BoolWithProof {
+                value: true,
+                proof_cid: None,
+            },
         );
         TypedTx::Work(WorkTx {
             tx_id: QTxId("worktx-replay-fixture".into()),
             task_id: TaskId("task-replay".into()),
             parent_state_root: Hash::ZERO,
             agent_id: AgentId("alice".into()),
-            read_set: [ReadKey("k.r".into())].into_iter().collect::<std::collections::BTreeSet<_>>(),
-            write_set: [WriteKey("k.w".into())].into_iter().collect::<std::collections::BTreeSet<_>>(),
+            read_set: [ReadKey("k.r".into())]
+                .into_iter()
+                .collect::<std::collections::BTreeSet<_>>(),
+            write_set: [WriteKey("k.w".into())]
+                .into_iter()
+                .collect::<std::collections::BTreeSet<_>>(),
             proposal_cid: Cid([0; 32]),
             predicate_results: PredicateResultsBundle {
                 acceptance,
@@ -1460,8 +1609,7 @@ mod tests {
             extensions: BTreeMap::new(),
         };
         let digest = signing.canonical_digest();
-        let sig = transition_ledger_emitter::sign_ledger_entry(keypair, digest.0)
-            .expect("sign");
+        let sig = transition_ledger_emitter::sign_ledger_entry(keypair, digest.0).expect("sign");
         let resulting_ledger_root = append(&parent_ledger_root, &digest);
         LedgerEntry {
             logical_t,
@@ -1526,17 +1674,15 @@ mod tests {
             AgentId("alice".into()),
             crate::economy::money::MicroCoin::from_micro_units(1_000_000),
         );
-        let err = replay_full_transition(
-            &q0,
-            &[entry],
-            &cas,
-            &pinned,
-            &preds,
-            &tools,
-        )
-        .unwrap_err();
+        let err = replay_full_transition(&q0, &[entry], &cas, &pinned, &preds, &tools).unwrap_err();
         assert!(
-            matches!(err, ReplayError::Transition { at: 0, inner: crate::state::typed_tx::TransitionError::EscrowMissing }),
+            matches!(
+                err,
+                ReplayError::Transition {
+                    at: 0,
+                    inner: crate::state::typed_tx::TransitionError::EscrowMissing
+                }
+            ),
             "expected Transition(EscrowMissing at 0); got {err:?}"
         );
     }
@@ -1697,8 +1843,7 @@ mod tests {
             extensions: BTreeMap::new(),
         };
         let digest = signing.canonical_digest();
-        let sig =
-            transition_ledger_emitter::sign_ledger_entry(&kp, digest.0).expect("sign");
+        let sig = transition_ledger_emitter::sign_ledger_entry(&kp, digest.0).expect("sign");
         let entry = LedgerEntry {
             logical_t: 1,
             parent_state_root: Hash::ZERO,

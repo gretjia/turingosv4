@@ -1,0 +1,24 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778822123466_1203906",
+  "fc_nodes": [
+    "FC1 scripted role action tape visibility",
+    "FC2 sealed oracle logical tick replay",
+    "FC3 fixture evidence materialized view",
+    "Predicate price not truth",
+    "Market no ghost liquidity"
+  ],
+  "expected_witness": "Diff, command evidence, and audit verdict must cite these FC nodes.",
+  "evidence_artifacts": [
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "4db2de81eafec88fe6a7244c34bb25982a10e8c70fe23c4e8bfcd3b2573a043e",
+      "size_bytes": 302368
+    },
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "65caeec5f218ae76cad1402fc7b2f235419fdb0a2a53ca2344ca4d65c81326ba",
+      "size_bytes": 306329
+    }
+  ]
+}

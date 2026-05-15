@@ -1,0 +1,60 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778811250681_913405",
+  "fc_nodes": [
+    "FC1 market action loop; FC2 task-open market before WorkTx; FC3 market evidence/materialized view; economy CTF/no ghost liquidity; predicate price-not-truth"
+  ],
+  "expected_witness": "Diff, command evidence, and audit verdict must cite these FC nodes.",
+  "evidence_artifacts": [
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "31a1677f0fe4d6d09a698f356467f64f93cdf25a626123ffd687a984a4e91e7f",
+      "size_bytes": 171171
+    },
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "c656b441c373a761ad7182d43006fda0a6dc3fc7082ea47384883d5c734a59d0",
+      "size_bytes": 171435
+    },
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "60a2ce1c63796f4d7f10d0372844b39ea4f6653bd08d30860e0c9c20767b826b",
+      "size_bytes": 198728
+    },
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "8ccb57c676ece57f337c4a73a5224968fe48f4eb7db0a66a7043671b0f467859",
+      "size_bytes": 198897
+    },
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "8281d57025b7a005003a5c3c33fc1d830f115d3214cd8c7432591f04f8df85b8",
+      "size_bytes": 201066
+    },
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "68b98bd5a3b5a96bd72643db54b5cb8dc3d3ed9fc002ebfb3f2718177d3961f4",
+      "size_bytes": 204341
+    },
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "43122a772e92a9174e0391a8ecc1ee38cc3b50be5811177caff9f22362ff58ae",
+      "size_bytes": 654444
+    },
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "ea17671625c92056890921adc1fa76698bbe99e824ffde264e46506b3cb19b62",
+      "size_bytes": 878545
+    },
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "8792abd8a0857d7d7f19e683ce55c19d7f2966a6fe880347613d1422067c9af7",
+      "size_bytes": 882444
+    },
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "5f8e3560a8dc084b7a9629b01f04c57ceeb49975eeebd5d68d9d656721546442",
+      "size_bytes": 893568
+    }
+  ]
+}

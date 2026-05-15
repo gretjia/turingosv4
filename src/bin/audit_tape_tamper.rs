@@ -135,8 +135,7 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
     let prior_chain_runtime_repo = p.remove("--prior-chain-runtime-repo");
     if markov_pointer.is_some() && prior_chain_runtime_repo.is_some() {
         return Err(
-            "--markov-pointer and --prior-chain-runtime-repo are mutually exclusive"
-                .into(),
+            "--markov-pointer and --prior-chain-runtime-repo are mutually exclusive".into(),
         );
     }
     let alignment_dir = p.remove("--alignment-dir");

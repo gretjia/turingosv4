@@ -86,7 +86,10 @@ async fn main() -> ExitCode {
     let problems = match read_problems_file(&parsed.problems_file) {
         Ok(p) => p,
         Err(e) => {
-            eprintln!("batch_evaluator: read problems_file {:?}: {e}", parsed.problems_file);
+            eprintln!(
+                "batch_evaluator: read problems_file {:?}: {e}",
+                parsed.problems_file
+            );
             return ExitCode::from(2);
         }
     };
@@ -116,30 +119,29 @@ async fn main() -> ExitCode {
         let task_index = task_index as u64;
         let started_at_unix_s = unix_now();
 
-        let boundary =
-            match prepare_task_boundary(&spec, task_index, outcomes.last()) {
-                Ok(b) => b,
-                Err(e) => {
-                    let reason = format!("boundary prep failed: {e}");
-                    eprintln!("batch_evaluator: {reason}");
-                    outcomes.push(TaskOutcome {
-                        task_index,
-                        problem_id: problem_id.clone(),
-                        start_head_t_hex: String::new(),
-                        end_head_t_hex: String::new(),
-                        start_chain_length: 0,
-                        end_chain_length: 0,
-                        exit_code: -1,
-                        started_at_unix_s,
-                        finished_at_unix_s: unix_now(),
-                        terminal_marker: TerminalMarker::PreflightRejected {
-                            failure: reason.clone(),
-                        },
-                    });
-                    terminated_reason = Some(reason);
-                    break;
-                }
-            };
+        let boundary = match prepare_task_boundary(&spec, task_index, outcomes.last()) {
+            Ok(b) => b,
+            Err(e) => {
+                let reason = format!("boundary prep failed: {e}");
+                eprintln!("batch_evaluator: {reason}");
+                outcomes.push(TaskOutcome {
+                    task_index,
+                    problem_id: problem_id.clone(),
+                    start_head_t_hex: String::new(),
+                    end_head_t_hex: String::new(),
+                    start_chain_length: 0,
+                    end_chain_length: 0,
+                    exit_code: -1,
+                    started_at_unix_s,
+                    finished_at_unix_s: unix_now(),
+                    terminal_marker: TerminalMarker::PreflightRejected {
+                        failure: reason.clone(),
+                    },
+                });
+                terminated_reason = Some(reason);
+                break;
+            }
+        };
 
         let (start_head_t_hex, start_chain_length) = match &boundary {
             BoundaryPrep::FreshGenesis => (String::new(), 0u64),
@@ -164,11 +166,11 @@ async fn main() -> ExitCode {
                 .to_string_lossy()
                 .into_owned()
         };
-        let per_task_log_dir = spec.out_dir.join(format!("P{:03}_{}", task_index, problem_id));
+        let per_task_log_dir = spec
+            .out_dir
+            .join(format!("P{:03}_{}", task_index, problem_id));
         if let Err(e) = std::fs::create_dir_all(&per_task_log_dir) {
-            eprintln!(
-                "batch_evaluator: mkdir per-task log dir {per_task_log_dir:?}: {e}"
-            );
+            eprintln!("batch_evaluator: mkdir per-task log dir {per_task_log_dir:?}: {e}");
         }
         let stdout_path = per_task_log_dir.join("evaluator.stdout");
         let stderr_path = per_task_log_dir.join("evaluator.stderr");
@@ -235,16 +237,17 @@ async fn main() -> ExitCode {
     // Write the manifest skeleton regardless of outcome — the
     // manifest itself is the architect-mandated "this batch happened"
     // proof per §3.3.
-    if let Err(e) =
-        write_manifest_skeleton(&spec, &outcomes, terminated_reason.as_deref())
-    {
+    if let Err(e) = write_manifest_skeleton(&spec, &outcomes, terminated_reason.as_deref()) {
         eprintln!("batch_evaluator: manifest write failed: {e}");
     }
 
     // Continuity check is best-effort — a halted batch may have a
     // continuous prefix; we still report the continuity status.
     match verify_chain_continuity(&outcomes) {
-        Ok(()) => println!("batch_evaluator: chain continuity OK across {} tasks", outcomes.len()),
+        Ok(()) => println!(
+            "batch_evaluator: chain continuity OK across {} tasks",
+            outcomes.len()
+        ),
         Err(e) => eprintln!("batch_evaluator: chain continuity FAIL: {e}"),
     }
 
@@ -361,9 +364,7 @@ fn spawn_evaluator(
     // libc::alarm-style timeout.
     let _ = timeout_s; // reserved for future wait-timeout integration
 
-    let status = cmd
-        .status()
-        .map_err(|e| format!("evaluator spawn: {e}"))?;
+    let status = cmd.status().map_err(|e| format!("evaluator spawn: {e}"))?;
     Ok(status.code().unwrap_or(-1))
 }
 

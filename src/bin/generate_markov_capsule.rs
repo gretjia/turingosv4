@@ -139,8 +139,7 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
         runtime_repo,
         cas_dir,
         prev_cid_hex,
-        alignment_dir: alignment_dir
-            .unwrap_or_else(|| PathBuf::from("handover/alignment")),
+        alignment_dir: alignment_dir.unwrap_or_else(|| PathBuf::from("handover/alignment")),
         no_cas,
         include_prior_capsules,
     })
@@ -175,13 +174,16 @@ fn print_help() {
 
 fn parse_cid_hex(s: &str) -> Result<Cid, String> {
     if s.len() != 64 {
-        return Err(format!("--prev-cid-hex must be 64 hex chars; got {}", s.len()));
+        return Err(format!(
+            "--prev-cid-hex must be 64 hex chars; got {}",
+            s.len()
+        ));
     }
     let mut out = [0u8; 32];
     for (i, byte) in out.iter_mut().enumerate() {
         let chunk = &s[i * 2..i * 2 + 2];
-        *byte = u8::from_str_radix(chunk, 16)
-            .map_err(|e| format!("--prev-cid-hex byte {i}: {e}"))?;
+        *byte =
+            u8::from_str_radix(chunk, 16).map_err(|e| format!("--prev-cid-hex byte {i}: {e}"))?;
     }
     Ok(Cid(out))
 }
@@ -257,10 +259,7 @@ fn run() -> Result<i32, String> {
     // Step 1: constitution.md SHA-256.
     let constitution_hash = sha256_of_file(&args.constitution_path)
         .map_err(|e| format!("read constitution.md: {e}"))?;
-    eprintln!(
-        "constitution_hash = {}",
-        hex32(&constitution_hash.0)
-    );
+    eprintln!("constitution_hash = {}", hex32(&constitution_hash.0));
 
     // Step 1.5 (R2 closure — Codex R1 Q8/RQ7 + Gemini R1 Q7):
     // canonical flowchart hashes from TRACE_FLOWCHART_MATRIX.md. Closes
@@ -278,8 +277,8 @@ fn run() -> Result<i32, String> {
     let l4e_root = Hash::ZERO;
 
     // Step 3: scan OBS files.
-    let unresolved_obs: Vec<ObsId> = scan_unresolved_obs(&args.alignment_dir)
-        .map_err(|e| format!("scan OBS: {e}"))?;
+    let unresolved_obs: Vec<ObsId> =
+        scan_unresolved_obs(&args.alignment_dir).map_err(|e| format!("scan OBS: {e}"))?;
     eprintln!("unresolved_obs.len = {}", unresolved_obs.len());
 
     // Step 4: typical_errors — v0 accepts empty (no chain-resident
@@ -335,8 +334,8 @@ fn run() -> Result<i32, String> {
             created_at_logical_t: 0,
             tb_tag: format!("TB-{}", args.tb_id),
         };
-        let prelim_bytes = canonical_encode(&cap)
-            .map_err(|e| format!("capsule prelim encode: {e:?}"))?;
+        let prelim_bytes =
+            canonical_encode(&cap).map_err(|e| format!("capsule prelim encode: {e:?}"))?;
         let cid = Cid::from_content(&prelim_bytes);
         cap.capsule_id = cid;
         cap.sha256 = Hash(cid.0);
@@ -384,15 +383,17 @@ fn run() -> Result<i32, String> {
     // `--prior-chain-runtime-repo` flag added to `audit_tape`. The
     // per-run JSON below remains as a human-readable historical
     // artifact, NOT a canonical input.
-    std::fs::create_dir_all(&args.out_dir)
-        .map_err(|e| format!("create out_dir: {e}"))?;
+    std::fs::create_dir_all(&args.out_dir).map_err(|e| format!("create out_dir: {e}"))?;
     let json_path = args
         .out_dir
         .join(format!("MARKOV_TB-{}_2026-05-03.json", args.tb_id));
-    let json_body = serde_json::to_string_pretty(&capsule)
-        .map_err(|e| format!("capsule json encode: {e}"))?;
+    let json_body =
+        serde_json::to_string_pretty(&capsule).map_err(|e| format!("capsule json encode: {e}"))?;
     std::fs::write(&json_path, &json_body).map_err(|e| format!("write json: {e}"))?;
-    eprintln!("wrote {} (historical artifact, not canonical input)", json_path.display());
+    eprintln!(
+        "wrote {} (historical artifact, not canonical input)",
+        json_path.display()
+    );
     Ok(0)
 }
 

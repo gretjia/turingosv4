@@ -189,9 +189,7 @@ impl From<std::io::Error> for MarkovGenError {
 /// decision so it can be exercised by halt-trigger #6 without process-
 /// global env mutation (env mutation racy under cargo's parallel test
 /// runner per `feedback_env_var_test_lock`).
-pub fn try_deep_history_read_with_override_check(
-    override_set: bool,
-) -> Result<(), MarkovGenError> {
+pub fn try_deep_history_read_with_override_check(override_set: bool) -> Result<(), MarkovGenError> {
     if override_set {
         Ok(())
     } else {
@@ -406,7 +404,12 @@ pub fn read_flowchart_hashes_from_matrix(
 ) -> Result<Vec<Hash>, MarkovGenError> {
     let body = std::fs::read_to_string(matrix_path)?;
     let mut hashes = Vec::with_capacity(4);
-    for label in &["Flowchart 1a", "Flowchart 1b", "Flowchart 2 ", "Flowchart 3 "] {
+    for label in &[
+        "Flowchart 1a",
+        "Flowchart 1b",
+        "Flowchart 2 ",
+        "Flowchart 3 ",
+    ] {
         // Find label, then the next "SHA256:" line.
         let label_pos = body.find(label).ok_or_else(|| {
             MarkovGenError::Encode(format!("flowchart label `{}` not found in matrix", label))
@@ -418,7 +421,11 @@ pub fn read_flowchart_hashes_from_matrix(
         let hex_start = label_pos + sha_pos + "SHA256:".len();
         // Skip whitespace; take next 64 hex chars.
         let rest = &body[hex_start..];
-        let hex_str: String = rest.chars().skip_while(|c| c.is_whitespace()).take(64).collect();
+        let hex_str: String = rest
+            .chars()
+            .skip_while(|c| c.is_whitespace())
+            .take(64)
+            .collect();
         if hex_str.len() != 64 {
             return Err(MarkovGenError::Encode(format!(
                 "flowchart `{}` hash is {} chars, expected 64",
@@ -495,9 +502,7 @@ mod tests {
         use tempfile::TempDir;
 
         let tmp = TempDir::new().expect("tempdir");
-        let cas = Arc::new(RwLock::new(
-            CasStore::open(tmp.path()).expect("cas"),
-        ));
+        let cas = Arc::new(RwLock::new(CasStore::open(tmp.path()).expect("cas")));
 
         let mut h = Sha256::new();
         h.update(b"fake constitution body");
@@ -507,7 +512,12 @@ mod tests {
             &cas,
             None, // genesis Markov
             Hash(constitution_hash),
-            vec![Hash([0xAAu8; 32]), Hash([0xBBu8; 32]), Hash([0xCCu8; 32]), Hash([0xDDu8; 32])],
+            vec![
+                Hash([0xAAu8; 32]),
+                Hash([0xBBu8; 32]),
+                Hash([0xCCu8; 32]),
+                Hash([0xDDu8; 32]),
+            ],
             Hash([0x01u8; 32]),
             Hash([0x02u8; 32]),
             Hash([0x03u8; 32]),
@@ -651,8 +661,8 @@ mod tests {
     #[test]
     fn read_flowchart_hashes_from_real_matrix() {
         let manifest = env!("CARGO_MANIFEST_DIR");
-        let path = std::path::PathBuf::from(manifest)
-            .join("handover/alignment/TRACE_FLOWCHART_MATRIX.md");
+        let path =
+            std::path::PathBuf::from(manifest).join("handover/alignment/TRACE_FLOWCHART_MATRIX.md");
         let hashes = read_flowchart_hashes_from_matrix(&path).expect("matrix parse");
         assert_eq!(hashes.len(), 4, "exactly 4 canonical flowchart hashes");
         // Architect 2026-05-02 §2 verbatim canonical hashes.
@@ -682,7 +692,12 @@ mod tests {
             &cas,
             None,
             Hash([0x42u8; 32]),
-            vec![Hash([0xAAu8; 32]), Hash([0xBBu8; 32]), Hash([0xCCu8; 32]), Hash([0xDDu8; 32])],
+            vec![
+                Hash([0xAAu8; 32]),
+                Hash([0xBBu8; 32]),
+                Hash([0xCCu8; 32]),
+                Hash([0xDDu8; 32]),
+            ],
             Hash([0x10u8; 32]),
             Hash([0x20u8; 32]),
             Hash([0x30u8; 32]),
@@ -708,8 +723,8 @@ mod tests {
         );
 
         // canonical_decode + restore reproduces the in-memory capsule.
-        let restored = restore_markov_capsule_from_cas_bytes(&retrieved)
-            .expect("restore from CAS bytes");
+        let restored =
+            restore_markov_capsule_from_cas_bytes(&retrieved).expect("restore from CAS bytes");
         assert_eq!(
             restored.capsule_id, cap.capsule_id,
             "R3 contract: restored capsule_id matches written capsule_id"

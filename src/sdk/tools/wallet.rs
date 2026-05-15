@@ -19,8 +19,8 @@
 // All deletions are permanent; bus.rs market f64 mutator path deleted in
 // the same atom (Atom 4). MicroCoin is the only currency unit going forward.
 
-use crate::sdk::tool::{ToolSignal, TuringTool};
 use crate::economy::money::MicroCoin;
+use crate::sdk::tool::{ToolSignal, TuringTool};
 use crate::state::q_state::{AgentId, EconomicState};
 use serde::{Deserialize, Serialize};
 use std::any::Any;
@@ -43,7 +43,11 @@ impl WalletTool {
     /// Returns `MicroCoin::zero()` for absent agents (NOT a panic — the chain
     /// path treats unknown AgentId as "no balance row" by construction).
     pub fn balance(&self, agent: &AgentId, econ: &EconomicState) -> MicroCoin {
-        econ.balances_t.0.get(agent).copied().unwrap_or_else(MicroCoin::zero)
+        econ.balances_t
+            .0
+            .get(agent)
+            .copied()
+            .unwrap_or_else(MicroCoin::zero)
     }
 }
 
@@ -71,8 +75,12 @@ impl TuringTool for WalletTool {
         None
     }
 
-    fn as_any(&self) -> &dyn Any { self }
-    fn as_any_mut(&mut self) -> &mut dyn Any { self }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
 }
 
 // ── Tests ───────────────────────────────────────────────────────
@@ -85,7 +93,10 @@ mod tests {
     fn econ_with(agent: &str, micro: i64) -> EconomicState {
         let mut econ = EconomicState::default();
         let mut bal = BalancesIndex::default();
-        bal.0.insert(AgentId(agent.to_string()), MicroCoin::from_micro_units(micro));
+        bal.0.insert(
+            AgentId(agent.to_string()),
+            MicroCoin::from_micro_units(micro),
+        );
         econ.balances_t = bal;
         econ
     }

@@ -91,8 +91,7 @@ fn fc3_no_global_markov_pointer() {
 /// `UniverseSnapshot` and prompt builders do not splice raw stderr.
 #[test]
 fn fc3_raw_logs_not_in_agent_read_view() {
-    let snap_src =
-        std::fs::read_to_string("src/sdk/snapshot.rs").expect("snapshot.rs readable");
+    let snap_src = std::fs::read_to_string("src/sdk/snapshot.rs").expect("snapshot.rs readable");
     // Search for forbidden patterns: unbounded raw stderr field on the
     // public snapshot. Permitted: a sanitized rejection summary.
     for forbidden in ["lean_stderr_full", "raw_stderr", "lean_stderr_raw"] {
@@ -104,8 +103,7 @@ fn fc3_raw_logs_not_in_agent_read_view() {
     }
 
     // Prompt builder must not mention raw stderr concatenation.
-    let prompt_src =
-        std::fs::read_to_string("src/sdk/prompt.rs").expect("prompt.rs readable");
+    let prompt_src = std::fs::read_to_string("src/sdk/prompt.rs").expect("prompt.rs readable");
     for forbidden in ["raw_stderr", "stderr_full", "lean_stderr_raw"] {
         assert!(
             !prompt_src.contains(forbidden),
@@ -137,8 +135,7 @@ fn fc3_latest_capsule_context_only() {
     );
 
     // The verify path must not consult capsule for verdict.
-    let verify_src =
-        std::fs::read_to_string("src/runtime/verify.rs").expect("verify.rs readable");
+    let verify_src = std::fs::read_to_string("src/runtime/verify.rs").expect("verify.rs readable");
     let verify_window = verify_src
         .lines()
         .skip_while(|l| !l.contains("pub fn verify_chaintape"))
@@ -159,12 +156,7 @@ fn fc3_latest_capsule_context_only() {
 #[test]
 fn fc3_deep_history_requires_override() {
     let out = Command::new("grep")
-        .args([
-            "-rn",
-            "--include=*.rs",
-            "TURINGOS_MARKOV_OVERRIDE",
-            "src/",
-        ])
+        .args(["-rn", "--include=*.rs", "TURINGOS_MARKOV_OVERRIDE", "src/"])
         .output()
         .expect("grep should be available");
     let stdout = String::from_utf8_lossy(&out.stdout);
@@ -232,11 +224,7 @@ fn fc3_architectai_proposal_not_direct_write() {
     let entries = std::fs::read_dir(dir_path).expect("dir readable");
     let directive_count = entries
         .flatten()
-        .filter(|e| {
-            e.file_name()
-                .to_string_lossy()
-                .ends_with(".md")
-        })
+        .filter(|e| e.file_name().to_string_lossy().ends_with(".md"))
         .count();
     // We expect ≥10 architect directives by mid-2026 (TB-1..TB-18R + TBC0).
     assert!(

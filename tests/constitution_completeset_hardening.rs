@@ -45,19 +45,17 @@ use turingosv4::bottom_white::ledger::rejection_evidence::RejectionEvidenceWrite
 use turingosv4::bottom_white::ledger::system_keypair::{
     Ed25519Keypair, PinnedSystemPubkeys, SystemEpoch,
 };
-use turingosv4::bottom_white::ledger::transition_ledger::{
-    InMemoryLedgerWriter, LedgerWriter,
-};
+use turingosv4::bottom_white::ledger::transition_ledger::{InMemoryLedgerWriter, LedgerWriter};
 use turingosv4::bottom_white::tools::registry::ToolRegistry;
-use turingosv4::economy::money::MicroCoin;
 use turingosv4::economy::monetary_invariant::total_supply_micro as canonical_total_supply_micro;
+use turingosv4::economy::money::MicroCoin;
 use turingosv4::state::q_state::{
     AgentId, QState, ShareSidePair, TaskId, TaskMarketEntry, TaskMarketState, TxId,
 };
 use turingosv4::state::sequencer::{Sequencer, SubmissionEnvelope};
 use turingosv4::state::typed_tx::{
-    AgentSignature, CompleteSetMintTx, CompleteSetRedeemTx, EventId, OutcomeSide,
-    ShareAmount, TypedTx,
+    AgentSignature, CompleteSetMintTx, CompleteSetRedeemTx, EventId, OutcomeSide, ShareAmount,
+    TypedTx,
 };
 use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
@@ -74,8 +72,7 @@ fn fresh_harness(initial_q: QState) -> Harness {
     let tmp = TempDir::new().expect("tempdir");
     let cas = Arc::new(RwLock::new(CasStore::open(tmp.path()).expect("cas")));
     let keypair = Arc::new(Ed25519Keypair::generate_with_secure_entropy().expect("kp"));
-    let writer: Arc<RwLock<dyn LedgerWriter>> =
-        Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
+    let writer: Arc<RwLock<dyn LedgerWriter>> = Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
     let rejection_writer = Arc::new(RwLock::new(RejectionEvidenceWriter::default()));
     let preds = Arc::new(PredicateRegistry::new());
     let tools = Arc::new(ToolRegistry::new());
@@ -84,10 +81,23 @@ fn fresh_harness(initial_q: QState) -> Harness {
     pinned.insert(epoch, keypair.public_key());
     let pinned_pubkeys = Arc::new(pinned);
     let (seq, rx) = Sequencer::new(
-        cas, keypair, epoch, writer.clone(), rejection_writer, preds, tools,
-        pinned_pubkeys, initial_q, 16,
+        cas,
+        keypair,
+        epoch,
+        writer.clone(),
+        rejection_writer,
+        preds,
+        tools,
+        pinned_pubkeys,
+        initial_q,
+        16,
     );
-    Harness { _tmp: tmp, seq, rx, _ledger: writer }
+    Harness {
+        _tmp: tmp,
+        seq,
+        rx,
+        _ledger: writer,
+    }
 }
 
 fn genesis_with_balances(pairs: &[(&str, i64)]) -> QState {
@@ -104,7 +114,10 @@ fn genesis_with_balances(pairs: &[(&str, i64)]) -> QState {
 fn seed_task_market(q: &mut QState, task: &str, state: TaskMarketState) {
     let mut entry = TaskMarketEntry::default();
     entry.state = state;
-    q.economic_state_t.task_markets_t.0.insert(TaskId(task.into()), entry);
+    q.economic_state_t
+        .task_markets_t
+        .0
+        .insert(TaskId(task.into()), entry);
 }
 
 fn genesis_with_open_task(pairs: &[(&str, i64)], task: &str) -> QState {
@@ -128,8 +141,13 @@ fn genesis_post_mint(
     let agent_id = AgentId(mint_owner.into());
     let event_id = EventId(TaskId(task.into()));
 
-    let bal = q.economic_state_t.balances_t.0
-        .get(&agent_id).copied().unwrap_or(MicroCoin::zero());
+    let bal = q
+        .economic_state_t
+        .balances_t
+        .0
+        .get(&agent_id)
+        .copied()
+        .unwrap_or(MicroCoin::zero());
     q.economic_state_t.balances_t.0.insert(
         agent_id.clone(),
         MicroCoin::from_micro_units(bal.micro_units() - mint_amount_micro),
@@ -146,16 +164,25 @@ fn genesis_post_mint(
             no: ShareAmount::from_units(mint_amount_micro as u128),
         },
     );
-    q.economic_state_t.conditional_share_balances_t.0.insert(agent_id, owner_shares);
+    q.economic_state_t
+        .conditional_share_balances_t
+        .0
+        .insert(agent_id, owner_shares);
     q
 }
 
 async fn submit_and_apply(h: &mut Harness, tx: TypedTx) -> Result<(), String> {
-    h.seq.submit_agent_tx(tx).await
+    h.seq
+        .submit_agent_tx(tx)
+        .await
         .map_err(|e| format!("submit error: {e:?}"))?;
-    let outcome = h.seq.try_apply_one(&mut h.rx)
+    let outcome = h
+        .seq
+        .try_apply_one(&mut h.rx)
         .ok_or_else(|| "no envelope drained".to_string())?;
-    outcome.map(|_| ()).map_err(|e| format!("apply error: {e:?}"))
+    outcome
+        .map(|_| ())
+        .map_err(|e| format!("apply error: {e:?}"))
 }
 
 fn build_mint(
@@ -227,8 +254,13 @@ async fn mint_one_coin_creates_one_yes_one_no() {
     let q = h.seq.q_snapshot().unwrap();
 
     // Balance debited.
-    let alice_bal = q.economic_state_t.balances_t.0
-        .get(&AgentId("alice".into())).copied().unwrap();
+    let alice_bal = q
+        .economic_state_t
+        .balances_t
+        .0
+        .get(&AgentId("alice".into()))
+        .copied()
+        .unwrap();
     assert_eq!(
         alice_bal.micro_units(),
         100_000_000 - 4_000_000,
@@ -236,8 +268,13 @@ async fn mint_one_coin_creates_one_yes_one_no() {
     );
 
     // Collateral credited.
-    let collateral = q.economic_state_t.conditional_collateral_t.0
-        .get(&EventId(TaskId("task-A".into()))).copied().unwrap();
+    let collateral = q
+        .economic_state_t
+        .conditional_collateral_t
+        .0
+        .get(&EventId(TaskId("task-A".into())))
+        .copied()
+        .unwrap();
     assert_eq!(
         collateral.micro_units(),
         4_000_000,
@@ -245,13 +282,20 @@ async fn mint_one_coin_creates_one_yes_one_no() {
     );
 
     // Equal YES + NO shares minted to owner.
-    let pair = q.economic_state_t.conditional_share_balances_t.0
+    let pair = q
+        .economic_state_t
+        .conditional_share_balances_t
+        .0
         .get(&AgentId("alice".into()))
         .and_then(|m| m.get(&EventId(TaskId("task-A".into()))))
-        .copied().unwrap();
+        .copied()
+        .unwrap();
     assert_eq!(pair.yes.units, 4_000_000_u128, "YES_E shares = mint amount");
-    assert_eq!(pair.no.units,  4_000_000_u128, "NO_E shares  = mint amount");
-    assert_eq!(pair.yes.units, pair.no.units, "1 Coin → 1 YES_E + 1 NO_E identity");
+    assert_eq!(pair.no.units, 4_000_000_u128, "NO_E shares  = mint amount");
+    assert_eq!(
+        pair.yes.units, pair.no.units,
+        "1 Coin → 1 YES_E + 1 NO_E identity"
+    );
 }
 
 /// §5.3 verbatim — `mint_conserves_total_coin`.
@@ -298,14 +342,18 @@ async fn shares_not_counted_as_coin() {
         .expect("mint accepted");
 
     let q = h.seq.q_snapshot().unwrap();
-    let pair = q.economic_state_t.conditional_share_balances_t.0
+    let pair = q
+        .economic_state_t
+        .conditional_share_balances_t
+        .0
         .get(&AgentId("alice".into()))
         .and_then(|m| m.get(&EventId(TaskId("task-A".into()))))
-        .copied().unwrap();
+        .copied()
+        .unwrap();
 
     // Sanity: shares were actually minted (~ test isn't vacuous).
     assert_eq!(pair.yes.units, 4_000_000_u128);
-    assert_eq!(pair.no.units,  4_000_000_u128);
+    assert_eq!(pair.no.units, 4_000_000_u128);
 
     // The shares MUST NOT be counted in total_supply_micro.
     let total_after = total_supply_micro(&q);
@@ -319,7 +367,10 @@ async fn shares_not_counted_as_coin() {
     // counting shares is 2 × mint_amount. Confirm that gap is real (test
     // isn't vacuously asserting share supply is zero).
     let shares_total: u128 = pair.yes.units + pair.no.units;
-    assert_eq!(shares_total, 8_000_000_u128, "YES + NO total = 2 × mint amount");
+    assert_eq!(
+        shares_total, 8_000_000_u128,
+        "YES + NO total = 2 × mint amount"
+    );
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -401,19 +452,38 @@ async fn redeem_yes_after_yes_pays_yes_not_no() {
     let q = h.seq.q_snapshot().unwrap();
 
     // Balance restored 1:1 from collateral.
-    let bal = q.economic_state_t.balances_t.0
-        .get(&AgentId("alice".into())).copied().unwrap();
-    assert_eq!(bal.micro_units(), 100_000_000, "balance restored = pre-mint amount");
+    let bal = q
+        .economic_state_t
+        .balances_t
+        .0
+        .get(&AgentId("alice".into()))
+        .copied()
+        .unwrap();
+    assert_eq!(
+        bal.micro_units(),
+        100_000_000,
+        "balance restored = pre-mint amount"
+    );
 
     // YES shares debited (winning side).
-    let pair = q.economic_state_t.conditional_share_balances_t.0
+    let pair = q
+        .economic_state_t
+        .conditional_share_balances_t
+        .0
         .get(&AgentId("alice".into()))
         .and_then(|m| m.get(&EventId(TaskId("task-Y".into()))))
-        .copied().unwrap();
-    assert_eq!(pair.yes.units, 0, "YES shares debited (winning side burned)");
+        .copied()
+        .unwrap();
+    assert_eq!(
+        pair.yes.units, 0,
+        "YES shares debited (winning side burned)"
+    );
 
     // NO shares preserved (losing side; worthless but not converted to Coin).
-    assert_eq!(pair.no.units, 4_000_000, "NO shares preserved (losing side, no coin payout)");
+    assert_eq!(
+        pair.no.units, 4_000_000,
+        "NO shares preserved (losing side, no coin payout)"
+    );
 
     // Cross-check: redeeming NO on this Finalized event must fail.
     let parent2 = h.seq.q_snapshot().unwrap().state_root_t;
@@ -455,19 +525,38 @@ async fn redeem_no_after_no_pays_no_not_yes() {
     let q = h.seq.q_snapshot().unwrap();
 
     // Balance restored.
-    let bal = q.economic_state_t.balances_t.0
-        .get(&AgentId("bob".into())).copied().unwrap();
-    assert_eq!(bal.micro_units(), 50_000_000, "bob balance restored after NO redeem");
+    let bal = q
+        .economic_state_t
+        .balances_t
+        .0
+        .get(&AgentId("bob".into()))
+        .copied()
+        .unwrap();
+    assert_eq!(
+        bal.micro_units(),
+        50_000_000,
+        "bob balance restored after NO redeem"
+    );
 
     // NO shares debited (winning side).
-    let pair = q.economic_state_t.conditional_share_balances_t.0
+    let pair = q
+        .economic_state_t
+        .conditional_share_balances_t
+        .0
         .get(&AgentId("bob".into()))
         .and_then(|m| m.get(&EventId(TaskId("task-B".into()))))
-        .copied().unwrap();
-    assert_eq!(pair.no.units, 0, "NO shares debited (winning side burned on Bankrupt)");
+        .copied()
+        .unwrap();
+    assert_eq!(
+        pair.no.units, 0,
+        "NO shares debited (winning side burned on Bankrupt)"
+    );
 
     // YES shares preserved (losing side).
-    assert_eq!(pair.yes.units, 2_000_000, "YES shares preserved (losing side, no payout)");
+    assert_eq!(
+        pair.yes.units, 2_000_000,
+        "YES shares preserved (losing side, no payout)"
+    );
 
     // Cross-check: redeem YES on Bankrupt must fail.
     let parent2 = h.seq.q_snapshot().unwrap().state_root_t;
@@ -510,11 +599,18 @@ async fn redeem_cannot_exceed_share_balance() {
 
     // State unchanged after rejection.
     let q = h.seq.q_snapshot().unwrap();
-    let pair = q.economic_state_t.conditional_share_balances_t.0
+    let pair = q
+        .economic_state_t
+        .conditional_share_balances_t
+        .0
         .get(&AgentId("alice".into()))
         .and_then(|m| m.get(&EventId(TaskId("task-Y".into()))))
-        .copied().unwrap();
-    assert_eq!(pair.yes.units, 4_000_000, "YES shares unchanged after rejection");
+        .copied()
+        .unwrap();
+    assert_eq!(
+        pair.yes.units, 4_000_000,
+        "YES shares unchanged after rejection"
+    );
 
     // Boundary: redeeming exactly the held amount succeeds.
     let parent = h.seq.q_snapshot().unwrap().state_root_t;
@@ -542,8 +638,14 @@ async fn redeem_debits_collateral() {
         TaskMarketState::Finalized,
     );
 
-    let collateral_before = q0.economic_state_t.conditional_collateral_t.0
-        .get(&EventId(TaskId("task-Y".into()))).copied().unwrap().micro_units();
+    let collateral_before = q0
+        .economic_state_t
+        .conditional_collateral_t
+        .0
+        .get(&EventId(TaskId("task-Y".into())))
+        .copied()
+        .unwrap()
+        .micro_units();
     assert_eq!(collateral_before, 4_000_000, "collateral baseline");
 
     let mut h = fresh_harness(q0);
@@ -558,8 +660,14 @@ async fn redeem_debits_collateral() {
     .expect("partial redeem accepted");
 
     let q1 = h.seq.q_snapshot().unwrap();
-    let collateral_mid = q1.economic_state_t.conditional_collateral_t.0
-        .get(&EventId(TaskId("task-Y".into()))).copied().unwrap().micro_units();
+    let collateral_mid = q1
+        .economic_state_t
+        .conditional_collateral_t
+        .0
+        .get(&EventId(TaskId("task-Y".into())))
+        .copied()
+        .unwrap()
+        .micro_units();
     assert_eq!(
         collateral_mid,
         4_000_000 - 1_500_000,
@@ -576,15 +684,30 @@ async fn redeem_debits_collateral() {
     .expect("remaining redeem accepted");
 
     let q2 = h.seq.q_snapshot().unwrap();
-    let collateral_end = q2.economic_state_t.conditional_collateral_t.0
-        .get(&EventId(TaskId("task-Y".into()))).copied().unwrap().micro_units();
+    let collateral_end = q2
+        .economic_state_t
+        .conditional_collateral_t
+        .0
+        .get(&EventId(TaskId("task-Y".into())))
+        .copied()
+        .unwrap()
+        .micro_units();
     assert_eq!(
         collateral_end, 0,
         "collateral fully debited after total redeem of YES side"
     );
 
     // Balance side mirrors collateral debit (1:1 conservation).
-    let bal = q2.economic_state_t.balances_t.0
-        .get(&AgentId("alice".into())).copied().unwrap().micro_units();
-    assert_eq!(bal, 100_000_000, "balance restored = collateral_before debited");
+    let bal = q2
+        .economic_state_t
+        .balances_t
+        .0
+        .get(&AgentId("alice".into()))
+        .copied()
+        .unwrap()
+        .micro_units();
+    assert_eq!(
+        bal, 100_000_000,
+        "balance restored = collateral_before debited"
+    );
 }

@@ -38,9 +38,7 @@ use turingosv4::bottom_white::ledger::rejection_evidence::{
 use turingosv4::bottom_white::ledger::system_keypair::{
     Ed25519Keypair, PinnedSystemPubkeys, SystemEpoch,
 };
-use turingosv4::bottom_white::ledger::transition_ledger::{
-    InMemoryLedgerWriter, LedgerWriter,
-};
+use turingosv4::bottom_white::ledger::transition_ledger::{InMemoryLedgerWriter, LedgerWriter};
 use turingosv4::bottom_white::tools::registry::ToolRegistry;
 use turingosv4::economy::money::{MicroCoin, StakeMicroCoin};
 use turingosv4::state::q_state::{AgentId, Hash, QState, TaskId, TxId};
@@ -86,16 +84,21 @@ fn fresh_harness(initial_q: QState) -> Harness {
         initial_q,
         16,
     );
-    Harness { _tmp: tmp, seq, rx, rejection_writer }
+    Harness {
+        _tmp: tmp,
+        seq,
+        rx,
+        rejection_writer,
+    }
 }
 
 fn genesis_with_balances(pairs: &[(&str, i64)]) -> QState {
     let mut q = QState::genesis();
     for (name, coin) in pairs {
-        q.economic_state_t
-            .balances_t
-            .0
-            .insert(AgentId((*name).into()), MicroCoin::from_coin(*coin).unwrap());
+        q.economic_state_t.balances_t.0.insert(
+            AgentId((*name).into()),
+            MicroCoin::from_coin(*coin).unwrap(),
+        );
     }
     q
 }
@@ -143,15 +146,22 @@ fn make_worktx(
     let mut acceptance = BTreeMap::new();
     acceptance.insert(
         PredicateId("acc1".into()),
-        BoolWithProof { value: predicate_passes, proof_cid: None },
+        BoolWithProof {
+            value: predicate_passes,
+            proof_cid: None,
+        },
     );
     TypedTx::Work(WorkTx {
         tx_id: TxId(format!("worktx-{task}-{suffix}")),
         task_id: TaskId(task.into()),
         parent_state_root: parent,
         agent_id: AgentId(agent.into()),
-        read_set: [ReadKey("k.read".into())].into_iter().collect::<BTreeSet<_>>(),
-        write_set: [WriteKey("k.write".into())].into_iter().collect::<BTreeSet<_>>(),
+        read_set: [ReadKey("k.read".into())]
+            .into_iter()
+            .collect::<BTreeSet<_>>(),
+        write_set: [WriteKey("k.write".into())]
+            .into_iter()
+            .collect::<BTreeSet<_>>(),
         proposal_cid: Default::default(),
         predicate_results: PredicateResultsBundle {
             acceptance,
@@ -197,12 +207,20 @@ async fn setup_funded_task_with_accepted_worktx(
     let pre = h.seq.q_snapshot().expect("pre snap").state_root_t;
     let open = make_task_open(&task_id.0, sponsor, pre, "fund");
     h.seq.submit(open).await.expect("open submit");
-    let _ = h.seq.try_apply_one(&mut h.rx).expect("open env").expect("open accepted");
+    let _ = h
+        .seq
+        .try_apply_one(&mut h.rx)
+        .expect("open env")
+        .expect("open accepted");
     // EscrowLock
     let parent = h.seq.q_snapshot().expect("post-open").state_root_t;
     let lock = make_escrow_lock(&task_id.0, sponsor, escrow_coin * 1_000_000, parent, "fund");
     h.seq.submit(lock).await.expect("lock submit");
-    let _ = h.seq.try_apply_one(&mut h.rx).expect("lock env").expect("lock accepted");
+    let _ = h
+        .seq
+        .try_apply_one(&mut h.rx)
+        .expect("lock env")
+        .expect("lock accepted");
     // WorkTx (predicate-passing; lands as accepted in stakes_t)
     let parent = h.seq.q_snapshot().expect("post-lock").state_root_t;
     let work = make_worktx(&task_id.0, solver, parent, stake_micro, work_suffix, true);
@@ -211,8 +229,15 @@ async fn setup_funded_task_with_accepted_worktx(
         _ => unreachable!(),
     };
     h.seq.submit(work).await.expect("work submit");
-    let _ = h.seq.try_apply_one(&mut h.rx).expect("work env").expect("work accepted");
-    (h.seq.q_snapshot().expect("post-work").state_root_t, work_tx_id)
+    let _ = h
+        .seq
+        .try_apply_one(&mut h.rx)
+        .expect("work env")
+        .expect("work accepted");
+    (
+        h.seq.q_snapshot().expect("post-work").state_root_t,
+        work_tx_id,
+    )
 }
 
 fn last_l4e_class(writer: &Arc<RwLock<RejectionEvidenceWriter>>) -> Option<L4ERejectionClass> {
@@ -233,10 +258,25 @@ async fn sg_n1_a4_1_zero_bond_rejects_with_bond_insufficient() {
         ("verifier-a4-1", 10),
     ]));
     let task = TaskId("task-a4-1".into());
-    let (parent, work_tx_id) =
-        setup_funded_task_with_accepted_worktx(&mut h, &task, "sponsor-a4-1", 50, "solver-a4-1", 1, "w1").await;
+    let (parent, work_tx_id) = setup_funded_task_with_accepted_worktx(
+        &mut h,
+        &task,
+        "sponsor-a4-1",
+        50,
+        "solver-a4-1",
+        1,
+        "w1",
+    )
+    .await;
 
-    let verify = make_verifytx(&work_tx_id, "verifier-a4-1", parent, 0, "a4-1", VerifyVerdict::Confirm);
+    let verify = make_verifytx(
+        &work_tx_id,
+        "verifier-a4-1",
+        parent,
+        0,
+        "a4-1",
+        VerifyVerdict::Confirm,
+    );
     h.seq.submit(verify).await.expect("submit");
     let r = h.seq.try_apply_one(&mut h.rx).expect("env");
     assert!(r.is_err(), "bond=0 must reject");
@@ -263,8 +303,16 @@ async fn sg_n1_a4_2_overbond_rejects_with_verify_bond_out_of_bounds() {
         ("verifier-a4-2", 10),
     ]));
     let task = TaskId("task-a4-2".into());
-    let (parent, work_tx_id) =
-        setup_funded_task_with_accepted_worktx(&mut h, &task, "sponsor-a4-2", 50, "solver-a4-2", 1, "w2").await;
+    let (parent, work_tx_id) = setup_funded_task_with_accepted_worktx(
+        &mut h,
+        &task,
+        "sponsor-a4-2",
+        50,
+        "solver-a4-2",
+        1,
+        "w2",
+    )
+    .await;
 
     let over_bond_micro: i64 = 10_000_000 + 1;
     let verify = make_verifytx(
@@ -325,8 +373,16 @@ async fn sg_n1_a4_4_duplicate_verify_rejects_with_verify_duplicate() {
         ("verifier-a4-4", 10),
     ]));
     let task = TaskId("task-a4-4".into());
-    let (parent_pre_v1, work_tx_id) =
-        setup_funded_task_with_accepted_worktx(&mut h, &task, "sponsor-a4-4", 50, "solver-a4-4", 1, "w4").await;
+    let (parent_pre_v1, work_tx_id) = setup_funded_task_with_accepted_worktx(
+        &mut h,
+        &task,
+        "sponsor-a4-4",
+        50,
+        "solver-a4-4",
+        1,
+        "w4",
+    )
+    .await;
 
     // First VerifyTx — should admit (positive control inside this test).
     let verify1 = make_verifytx(
@@ -373,8 +429,16 @@ async fn sg_n1_a4_5_first_valid_verify_admits() {
         ("verifier-a4-5", 10),
     ]));
     let task = TaskId("task-a4-5".into());
-    let (parent, work_tx_id) =
-        setup_funded_task_with_accepted_worktx(&mut h, &task, "sponsor-a4-5", 50, "solver-a4-5", 1, "w5").await;
+    let (parent, work_tx_id) = setup_funded_task_with_accepted_worktx(
+        &mut h,
+        &task,
+        "sponsor-a4-5",
+        50,
+        "solver-a4-5",
+        1,
+        "w5",
+    )
+    .await;
 
     let verify = make_verifytx(
         &work_tx_id,

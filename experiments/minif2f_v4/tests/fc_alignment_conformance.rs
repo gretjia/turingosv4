@@ -17,8 +17,7 @@
 
 use minif2f_v4::lean4_oracle::Lean4Oracle;
 use minif2f_v4::rollback_sim::{
-    rollback_simulation_enabled, should_simulate_rollback,
-    ROLLBACK_ENV_VAR, ROLLBACK_TX_THRESHOLD,
+    rollback_simulation_enabled, should_simulate_rollback, ROLLBACK_ENV_VAR, ROLLBACK_TX_THRESHOLD,
 };
 
 // ─── FC1-N12: Lean4Oracle ground-truth predicate (the THESIS-V2 anchor) ───
@@ -98,7 +97,10 @@ fn b2_cost_aggregator_construct_and_record() {
     acc.record_llm_call(100, 50);
     acc.record_proposal(false);
     let total = acc.total_run_token_count();
-    assert!(total >= 150, "B2: total_run_token_count must include LLM call tokens");
+    assert!(
+        total >= 150,
+        "B2: total_run_token_count must include LLM call tokens"
+    );
 }
 
 #[test]
@@ -111,7 +113,10 @@ fn b3_wall_clock_first_read_to_final_accept() {
     let _ = wc.elapsed_ms(); // valid even before final_accept (no panic)
     wc.mark_final_accept();
     let final_elapsed = wc.elapsed_ms();
-    assert!(final_elapsed.is_some(), "B3: elapsed_ms must return Some after both marks");
+    assert!(
+        final_elapsed.is_some(),
+        "B3: elapsed_ms must return Some after both marks"
+    );
 }
 
 #[test]

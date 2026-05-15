@@ -87,8 +87,10 @@ fn audit_tape_genesis_without_markov_pointer() {
         return;
     };
     let manifest = manifest_dir();
-    let out_path = std::env::temp_dir()
-        .join(format!("tb_16_x_fix_genesis_verdict_{}.json", std::process::id()));
+    let out_path = std::env::temp_dir().join(format!(
+        "tb_16_x_fix_genesis_verdict_{}.json",
+        std::process::id()
+    ));
     let _ = std::fs::remove_file(&out_path);
     let status = Command::new(&bin)
         .arg("--runtime-repo")
@@ -151,16 +153,20 @@ fn audit_tape_blocks_unresolvable_present_markov_pointer() {
         return;
     };
     let manifest = manifest_dir();
-    let pointer_path = std::env::temp_dir()
-        .join(format!("tb_16_x_fix_garbage_pointer_{}.txt", std::process::id()));
+    let pointer_path = std::env::temp_dir().join(format!(
+        "tb_16_x_fix_garbage_pointer_{}.txt",
+        std::process::id()
+    ));
     // Garbage cid hex — well-formed (64 hex chars) but NOT in any CAS.
     std::fs::write(
         &pointer_path,
         "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
     )
     .expect("write garbage pointer");
-    let out_path = std::env::temp_dir()
-        .join(format!("tb_16_x_fix_block_verdict_{}.json", std::process::id()));
+    let out_path = std::env::temp_dir().join(format!(
+        "tb_16_x_fix_block_verdict_{}.json",
+        std::process::id()
+    ));
     let _ = std::fs::remove_file(&out_path);
     let status = Command::new(&bin)
         .arg("--runtime-repo")
@@ -214,13 +220,17 @@ fn audit_tape_blocks_supplied_but_fs_absent_markov_pointer() {
         return;
     };
     let manifest = manifest_dir();
-    let absent_path = std::env::temp_dir()
-        .join(format!("tb_16_x_fix_absent_pointer_{}.txt", std::process::id()));
+    let absent_path = std::env::temp_dir().join(format!(
+        "tb_16_x_fix_absent_pointer_{}.txt",
+        std::process::id()
+    ));
     // ensure it does NOT exist
     let _ = std::fs::remove_file(&absent_path);
     assert!(!absent_path.exists());
-    let out_path = std::env::temp_dir()
-        .join(format!("tb_16_x_fix_absent_verdict_{}.json", std::process::id()));
+    let out_path = std::env::temp_dir().join(format!(
+        "tb_16_x_fix_absent_verdict_{}.json",
+        std::process::id()
+    ));
     let _ = std::fs::remove_file(&out_path);
     let status = Command::new(&bin)
         .arg("--runtime-repo")
@@ -269,8 +279,10 @@ fn audit_tape_rejects_both_markov_pointer_and_prior_chain() {
         return;
     };
     let manifest = manifest_dir();
-    let out_path = std::env::temp_dir()
-        .join(format!("tb_16_x_fix_mutex_verdict_{}.json", std::process::id()));
+    let out_path = std::env::temp_dir().join(format!(
+        "tb_16_x_fix_mutex_verdict_{}.json",
+        std::process::id()
+    ));
     let _ = std::fs::remove_file(&out_path);
     let out = Command::new(&bin)
         .arg("--runtime-repo")
@@ -326,12 +338,14 @@ fn audit_tape_prior_chain_resolver_genesis_when_tip_absent() {
     // markov_tip.cid — resolver must treat this as genesis-equivalent
     // (None inheritance), so the run should produce Layer G Skipped just
     // like Test 2 (no flag at all).
-    let prior = std::env::temp_dir()
-        .join(format!("tb_16_x_fix_prior_chain_{}", std::process::id()));
+    let prior =
+        std::env::temp_dir().join(format!("tb_16_x_fix_prior_chain_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&prior);
     std::fs::create_dir_all(&prior).expect("create prior dir");
-    let out_path = std::env::temp_dir()
-        .join(format!("tb_16_x_fix_prior_verdict_{}.json", std::process::id()));
+    let out_path = std::env::temp_dir().join(format!(
+        "tb_16_x_fix_prior_verdict_{}.json",
+        std::process::id()
+    ));
     let _ = std::fs::remove_file(&out_path);
     let status = Command::new(&bin)
         .arg("--runtime-repo")
@@ -393,8 +407,8 @@ fn generate_markov_capsule_does_not_write_global_latest() {
     let global_pointer = manifest.join("handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt");
     let global_existed_before = global_pointer.exists();
 
-    let out_dir = std::env::temp_dir()
-        .join(format!("tb_16_x_fix_gen_outdir_{}", std::process::id()));
+    let out_dir =
+        std::env::temp_dir().join(format!("tb_16_x_fix_gen_outdir_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&out_dir);
     std::fs::create_dir_all(&out_dir).expect("create out_dir");
 
@@ -428,11 +442,7 @@ fn generate_markov_capsule_does_not_write_global_latest() {
         .into_iter()
         .flatten()
         .filter_map(|e| e.ok())
-        .any(|e| {
-            e.file_name()
-                .to_string_lossy()
-                .starts_with("MARKOV_TB-")
-        });
+        .any(|e| e.file_name().to_string_lossy().starts_with("MARKOV_TB-"));
     assert!(
         any_json,
         "expected MARKOV_TB-*.json historical artifact in {out_dir:?}"
@@ -460,7 +470,11 @@ fn generate_markov_capsule_does_not_write_global_latest() {
 fn markov_capsule_historical_artifact_not_reference_input() {
     let src = manifest_dir().join("src");
     let mut offenders: Vec<String> = Vec::new();
-    walk_for_literal(&src, "handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt", &mut offenders);
+    walk_for_literal(
+        &src,
+        "handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt",
+        &mut offenders,
+    );
     // Doc-comment / module-comment mentions are also offenders if they
     // imply runtime use; allow comments only if they explicitly disclaim.
     // Actionable = the path appears as live Rust code, NOT inside a
@@ -517,7 +531,9 @@ fn walk_for_literal(dir: &Path, needle: &str, out: &mut Vec<String>) {
         if !ext_ok {
             continue;
         }
-        let Ok(text) = std::fs::read_to_string(&p) else { continue };
+        let Ok(text) = std::fs::read_to_string(&p) else {
+            continue;
+        };
         for (i, line) in text.lines().enumerate() {
             if line.contains(needle) {
                 out.push(format!("{}:{}: {}", p.display(), i + 1, line.trim()));

@@ -70,8 +70,8 @@ use crate::bottom_white::ledger::transition_ledger::{
 use crate::bottom_white::tools::registry::ToolRegistry;
 use crate::runtime::agent_keypairs::AgentPubkeyManifest;
 use crate::runtime::attempt_telemetry::{
-    read_attempt_telemetry_from_cas, read_lean_result_from_cas, AttemptOutcome, AttemptTelemetry,
-    LeanResult,
+    read_attempt_telemetry_shared_slot_from_cas, read_lean_result_from_cas, AttemptOutcome,
+    AttemptTelemetry, LeanResult,
 };
 use crate::runtime::evidence_capsule::EvidenceCapsule;
 use crate::runtime::genesis_report::AgentModelAssignment;
@@ -352,9 +352,11 @@ pub fn audit_model_identity_from_paths(
     let cas = CasStore::open(cas_dir).map_err(|e| format!("open CAS {cas_dir:?}: {e}"))?;
     let mut attempts = Vec::new();
     for cid in cas.list_cids_by_object_type(ObjectType::AttemptTelemetry) {
-        let attempt = read_attempt_telemetry_from_cas(&cas, &cid)
-            .map_err(|e| format!("read AttemptTelemetry {cid}: {e}"))?;
-        attempts.push(attempt);
+        if let Some(attempt) = read_attempt_telemetry_shared_slot_from_cas(&cas, &cid)
+            .map_err(|e| format!("read AttemptTelemetry shared slot {cid}: {e}"))?
+        {
+            attempts.push(attempt);
+        }
     }
     Ok(audit_model_identity_records(
         &genesis.agent_model_assignment,
@@ -413,8 +415,9 @@ pub fn assert_g_no_hidden_model_switch(t: &LoadedTape) -> AssertionResult {
 
     let mut attempts = Vec::new();
     for cid in t.cas.list_cids_by_object_type(ObjectType::AttemptTelemetry) {
-        match read_attempt_telemetry_from_cas(&t.cas, &cid) {
-            Ok(attempt) => attempts.push(attempt),
+        match read_attempt_telemetry_shared_slot_from_cas(&t.cas, &cid) {
+            Ok(Some(attempt)) => attempts.push(attempt),
+            Ok(None) => {}
             Err(e) => {
                 return AssertionResult::halt(
                     ID,
@@ -1110,8 +1113,8 @@ fn extract_all_agent_ids(tx: &TypedTx) -> Vec<(&'static str, String)> {
         }
         TypedTx::ChallengeResolve(_) | TypedTx::TaskBankruptcy(_) | TypedTx::EventResolve(_) => {
             // No direct AgentId fields; refer to other tx by id only.
-            // TB-N2 B2 EventResolveTx: 6 wire fields (tx_id + parent_state_root +
-            // task_id + epoch + timestamp_logical + system_signature); none
+            // REAL-6A EventResolveTx: 7 wire fields (tx_id + parent_state_root +
+            // task_id + outcome + epoch + timestamp_logical + system_signature); none
             // bear AgentId — system-emitted with task_id reference only.
         }
         TypedTx::CompleteSetMint(t) => out.push(("CompleteSetMintTx.owner", t.owner.0.clone())),
@@ -2926,8 +2929,9 @@ pub fn assert_44_attempt_telemetry_retrievable_from_cas(t: &LoadedTape) -> Asser
         );
     }
     for cid in &cids {
-        let att = match read_attempt_telemetry_from_cas(&t.cas, cid) {
-            Ok(a) => a,
+        let att = match read_attempt_telemetry_shared_slot_from_cas(&t.cas, cid) {
+            Ok(Some(a)) => a,
+            Ok(None) => continue,
             Err(e) => {
                 return AssertionResult::halt(
                     44,
@@ -3052,8 +3056,8 @@ pub fn assert_46_attempt_chain_root_schema_well_formed(t: &LoadedTape) -> Assert
         );
     }
     for cid in &cids {
-        match read_attempt_telemetry_from_cas(&t.cas, cid) {
-            Ok(att) => {
+        match read_attempt_telemetry_shared_slot_from_cas(&t.cas, cid) {
+            Ok(Some(att)) => {
                 // Schema sanity: attempt_chain_root is Option<Hash> ([u8; 32]);
                 // None for intermediate attempts; Some(merkle_root) only on
                 // OMEGA-accept terminal composite (R1 schema). R3 §3.5
@@ -3070,6 +3074,7 @@ pub fn assert_46_attempt_chain_root_schema_well_formed(t: &LoadedTape) -> Assert
                     None => {}
                 }
             }
+            Ok(None) => {}
             Err(e) => {
                 return AssertionResult::halt(
                     46,
@@ -3112,16 +3117,26 @@ pub fn assert_g_markov_cluster_source_attempt_telemetry(t: &LoadedTape) -> Asser
     }
     let mut failure_outcomes_seen = 0usize;
     for cid in &cids {
-        if let Ok(att) = read_attempt_telemetry_from_cas(&t.cas, cid) {
-            if matches!(
-                att.outcome,
-                AttemptOutcome::LeanFail
-                    | AttemptOutcome::ParseFail
-                    | AttemptOutcome::SorryBlock
-                    | AttemptOutcome::LlmErr
-            ) {
-                failure_outcomes_seen += 1;
+        let att = match read_attempt_telemetry_shared_slot_from_cas(&t.cas, cid) {
+            Ok(Some(att)) => att,
+            Ok(None) => continue,
+            Err(e) => {
+                return AssertionResult::halt(
+                    49,
+                    "markov_cluster_source_attempt_telemetry",
+                    AssertionLayer::G,
+                    format!("AttemptTelemetry source decode failed for {cid}: {e}"),
+                )
             }
+        };
+        if matches!(
+            att.outcome,
+            AttemptOutcome::LeanFail
+                | AttemptOutcome::ParseFail
+                | AttemptOutcome::SorryBlock
+                | AttemptOutcome::LlmErr
+        ) {
+            failure_outcomes_seen += 1;
         }
     }
     // Type-system + path-existence witness: any outcome enum

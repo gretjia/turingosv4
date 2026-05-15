@@ -1,0 +1,62 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778771368946_476428",
+  "title": "REAL-5 role-based generative scaffolding",
+  "module": "REAL-5 Role-Based Generative Scaffolding",
+  "molecule_or_atom": "atom",
+  "requested_risk_class": 4,
+  "risk_class": 4,
+  "fc_nodes": [
+    "FC1 externalized role action loop; FC2 genesis/batch role assignment + PromptCapsule replay; FC3 dashboard/audit materialized view; Art. III shielding; market/economic budget gates"
+  ],
+  "allowed_paths": [
+    "handover/directives/2026-05-14_REAL5_ROLE_BASED_GENERATIVE_SCAFFOLDING_ARCHITECT_ORIGINAL.md",
+    "handover/directives/2026-05-14_REAL5_ROLE_BASED_GENERATIVE_SCAFFOLDING_EXECUTION_PLAN.md",
+    "handover/audits/CODEX_REAL5_EXECUTION_PLAN_ALIGNMENT_REVIEW.md",
+    "handover/audits/CODEX_REAL5_IMPLEMENTATION_REVIEW.md",
+    "handover/tracer_bullets/REAL-5_role_based_generative_scaffolding_charter.md",
+    "handover/alignment/DECISION_ROLE_BASED_GENERATION.md",
+    "handover/alignment/DECISION_EXTERNALIZED_GENERATION_FOSSIL.md",
+    "handover/alignment/DECISION_ROLE_SCOPED_RTOOL.md",
+    "src/runtime/real5_roles.rs",
+    "src/runtime/mod.rs",
+    "src/runtime/genesis_report.rs",
+    "src/runtime/batch_continuation_manifest.rs",
+    "src/runtime/prompt_capsule.rs",
+    "src/runtime/attempt_telemetry.rs",
+    "src/bin/audit_dashboard.rs",
+    "scripts/run_g_phase_batch.sh",
+    "genesis_payload.toml",
+    "tests/constitution_real5_role_assignment.rs",
+    "tests/constitution_real5_role_scoped_view.rs",
+    "tests/constitution_real5_prompt_capsule_v2.rs",
+    "tests/constitution_real5_typed_generation_gateway.rs",
+    "tests/constitution_real5_tick_budget.rs",
+    "tests/constitution_real5_trader_activation.rs",
+    "tests/constitution_real5_verifier_challenger.rs",
+    "tests/constitution_real5_architect_veto_scaffold.rs",
+    "tests/constitution_real5_role_based_smoke.rs",
+    "handover/evidence/g_phase_real_5_role_smoke_*"
+  ],
+  "restricted_surface_hits": [
+    "genesis_payload.toml"
+  ],
+  "acceptance_commands": [
+    "cargo test --test constitution_real5_role_assignment",
+    "cargo test --test constitution_real5_role_scoped_view",
+    "cargo test --test constitution_real5_prompt_capsule_v2",
+    "cargo test --test constitution_real5_typed_generation_gateway",
+    "cargo test --test constitution_real5_tick_budget",
+    "cargo test --test constitution_real5_trader_activation",
+    "cargo test --test constitution_real5_verifier_challenger",
+    "cargo test --test constitution_real5_architect_veto_scaffold",
+    "cargo test --test constitution_real5_role_based_smoke",
+    "bash scripts/run_constitution_gates.sh",
+    "cargo test --workspace --no-fail-fast -- --test-threads=1"
+  ],
+  "audit_required": true,
+  "human_intent": "Implement the user-approved REAL-5 plan: preserve architect original, build role-based generative scaffolding, and prove tape-visible role decisions without forced trade.",
+  "ratification": "User explicitly requested: PLEASE IMPLEMENT THIS PLAN for REAL-5 Role-Based Generative Scaffolding on 2026-05-14.",
+  "git_head": "5239f4b13ecf0a3f9850accc6815c2e7944e9bee",
+  "created_at_unix_ms": 1778771368947
+}

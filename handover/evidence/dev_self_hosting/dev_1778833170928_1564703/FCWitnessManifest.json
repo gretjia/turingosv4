@@ -1,0 +1,33 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778833170928_1564703",
+  "fc_nodes": [
+    "FC1-N7",
+    "FC2-HEAD_t",
+    "FC3-N43",
+    "Art-0.4"
+  ],
+  "expected_witness": "Diff, command evidence, and audit verdict must cite these FC nodes.",
+  "evidence_artifacts": [
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "88ffa56802275a191e2b46b4e92667dd3626fc8e92c7a73b8eca2f41d294551a",
+      "size_bytes": 641764
+    },
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "7db5bdfd9ee4b126af529a97bdd4ffbafd1f0c0a22dca4a824244e6cfda085e0",
+      "size_bytes": 645354
+    },
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "247e0cd8975ef39aa9bd725249bbadf11e070bf0fc97c06e2f12df65ac83265f",
+      "size_bytes": 653154
+    },
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "a83c5d0f53447e1f45fe75af1a42dbf5c7ce95c0fc7a0dc24396abef8fb418a1",
+      "size_bytes": 653508
+    }
+  ]
+}

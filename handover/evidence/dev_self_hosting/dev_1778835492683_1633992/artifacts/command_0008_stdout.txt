@@ -1,0 +1,2 @@
+audit_tape: verdict=PROCEED passed=41 failed=0 halted=0 skipped=11 (out="/tmp/tmp.kzektuqx9x")
+audit_tape_replay_proceed

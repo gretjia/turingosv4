@@ -82,12 +82,7 @@ fn head_t_advances_on_l4() {
 fn head_t_does_not_advance_on_l4e_only() {
     let q = fixture_q_with_head(&"a".repeat(40));
     let pre = HeadTWitness::from_q_state(&q, "run-gate", None, None);
-    let post = HeadTWitness::from_q_state(
-        &q,
-        "run-gate",
-        Some(NodeId("ff".repeat(20))),
-        None,
-    );
+    let post = HeadTWitness::from_q_state(&q, "run-gate", Some(NodeId("ff".repeat(20))), None);
     assert_eq!(
         pre.l4_head, post.l4_head,
         "l4_head must remain stable when only L4.E advanced — Art. III L4/L4.E ledger separation"
@@ -124,8 +119,8 @@ fn head_t_reconstructs_from_replay() {
 /// derived constructors, no mutators on `QState`.
 #[test]
 fn dashboard_reads_head_t_derived_state() {
-    let src_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("src/state/head_t_witness.rs");
+    let src_path =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/state/head_t_witness.rs");
     let src = std::fs::read_to_string(&src_path).expect("read head_t_witness.rs");
 
     // Constructor must take `&QState`, not `&mut QState` — derived-view

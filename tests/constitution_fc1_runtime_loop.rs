@@ -29,13 +29,7 @@ use turingosv4::state::typed_tx::RunOutcome;
 
 /// Build a ChainDerivedRunFacts test fixture mimicking the canonical
 /// P49 / P38 / P23 shapes used in TB-18R R4 invariant tests.
-fn facts(
-    halt: RunOutcome,
-    expected: u64,
-    l4: u64,
-    l4e: u64,
-    aborted: u64,
-) -> ChainDerivedRunFacts {
+fn facts(halt: RunOutcome, expected: u64, l4: u64, l4e: u64, aborted: u64) -> ChainDerivedRunFacts {
     let delta = (l4 as i64) + (l4e as i64) - (expected as i64);
     ChainDerivedRunFacts {
         expected_completed_attempts: expected,
@@ -75,9 +69,7 @@ fn fc1_every_externalized_attempt_is_tape_visible() {
                 "FC1-INV1: NegativeDelta diagnostic should be -31"
             );
         }
-        other => panic!(
-            "FC1-INV1: collapse should fire NegativeDelta, got {other:?}"
-        ),
+        other => panic!("FC1-INV1: collapse should fire NegativeDelta, got {other:?}"),
     }
 }
 
@@ -89,8 +81,7 @@ fn fc1_every_externalized_attempt_is_tape_visible() {
 fn fc1_predicate_pass_goes_l4() {
     // 1 LLM call, predicate passes, omega accepted: expected=1 == l4=1.
     let one_shot = facts(RunOutcome::OmegaAccepted, 1, 1, 0, 0);
-    attempt_count_invariant(&one_shot)
-        .expect("clean omega + delta=0 + aborted=0 must pass");
+    attempt_count_invariant(&one_shot).expect("clean omega + delta=0 + aborted=0 must pass");
 
     // Multi-attempt success: 32 LLMs, 1 omega win + 31 L4.E rejections.
     // (P49 properly routed.)
@@ -106,8 +97,7 @@ fn fc1_predicate_pass_goes_l4() {
 fn fc1_predicate_fail_goes_l4e() {
     // 50 LLM calls, all rejected: expected=50 == l4e=50, l4=0.
     let exhausted = facts(RunOutcome::MaxTxExhausted, 50, 0, 50, 0);
-    attempt_count_invariant(&exhausted)
-        .expect("all-fail run (50 L4.E) must pass invariant");
+    attempt_count_invariant(&exhausted).expect("all-fail run (50 L4.E) must pass invariant");
 }
 
 /// FC1-INV4 — No legacy authoritative append. In ChainTape mode, direct
@@ -195,9 +185,8 @@ fn fc1_attempt_count_equals_tape_count() {
     // Clean halt with delta != 0 (e.g., 32 expected but only 30 accounted)
     // must also fail.
     let stale = facts(RunOutcome::OmegaAccepted, 32, 1, 29, 0);
-    let err = attempt_count_invariant(&stale).expect_err(
-        "FC1-INV3: clean halt with delta=-2 must fire CleanHaltDeltaNonZero",
-    );
+    let err = attempt_count_invariant(&stale)
+        .expect_err("FC1-INV3: clean halt with delta=-2 must fire CleanHaltDeltaNonZero");
     matches!(
         err,
         AttemptCountInvariantViolation::CleanHaltDeltaNonZero { .. }
@@ -212,8 +201,7 @@ fn fc1_attempt_count_equals_tape_count() {
 #[test]
 fn fc1_no_fake_accepted_nodes() {
     // The audit_tape sampler test must exist (tampered Lean stderr).
-    let audit_lean_tamper =
-        "tests/tb_18r_audit_lean_stderr_tamper_detected.rs";
+    let audit_lean_tamper = "tests/tb_18r_audit_lean_stderr_tamper_detected.rs";
     assert!(
         std::path::Path::new(audit_lean_tamper).exists(),
         "FC1-INV6 violation: {audit_lean_tamper} missing — tamper detection \
@@ -229,8 +217,7 @@ fn fc1_no_fake_accepted_nodes() {
     );
 
     // The structural verify_chaintape entry exists and returns ReplayReport.
-    let verify_src =
-        std::fs::read_to_string("src/runtime/verify.rs").expect("verify.rs readable");
+    let verify_src = std::fs::read_to_string("src/runtime/verify.rs").expect("verify.rs readable");
     assert!(
         verify_src.contains("pub fn verify_chaintape"),
         "FC1-INV6 violation: verify_chaintape symbol missing — replay-verify \

@@ -1,0 +1,10 @@
+
+running 5 tests
+test sg_g6_1_market_context_renders_trace_hints_as_observe_only_signal ... ok
+test sg_6d_1_and_6d_2_scheduler_trace_carries_price_and_pnl_observe_only ... ok
+test sg_6d_5_dashboard_scheduler_section_is_non_binding_materialized_view ... ok
+test sg_6d_3_and_6d_4_scheduler_does_not_touch_admission_or_predicates ... ok
+test sg_g6_4_predicates_do_not_read_market_price_or_trace ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

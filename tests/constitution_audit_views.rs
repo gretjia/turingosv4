@@ -25,22 +25,18 @@ use turingosv4::bottom_white::ledger::rejection_evidence::RejectionEvidenceWrite
 use turingosv4::bottom_white::ledger::system_keypair::{
     Ed25519Keypair, PinnedSystemPubkeys, SystemEpoch,
 };
-use turingosv4::bottom_white::ledger::transition_ledger::{
-    InMemoryLedgerWriter, LedgerWriter,
-};
+use turingosv4::bottom_white::ledger::transition_ledger::{InMemoryLedgerWriter, LedgerWriter};
 use turingosv4::bottom_white::tools::registry::ToolRegistry;
 use turingosv4::economy::money::MicroCoin;
 use turingosv4::runtime::audit_views::{
-    audit_view_pools, audit_view_positions, audit_view_prices,
-    audit_view_shares, PriceLiquidityWarning,
+    audit_view_pools, audit_view_positions, audit_view_prices, audit_view_shares,
+    PriceLiquidityWarning,
 };
-use turingosv4::state::q_state::{
-    AgentId, QState, TaskId, TaskMarketEntry, TaskMarketState, TxId,
-};
+use turingosv4::state::q_state::{AgentId, QState, TaskId, TaskMarketEntry, TaskMarketState, TxId};
 use turingosv4::state::sequencer::{Sequencer, SubmissionEnvelope};
 use turingosv4::state::typed_tx::{
-    AgentSignature, BuyDirection, BuyWithCoinRouterTx, CompleteSetMintTx,
-    CpmmPoolTx, EventId, ShareAmount, TypedTx,
+    AgentSignature, BuyDirection, BuyWithCoinRouterTx, CompleteSetMintTx, CpmmPoolTx, EventId,
+    ShareAmount, TypedTx,
 };
 use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
@@ -57,8 +53,7 @@ fn fresh_harness(initial_q: QState) -> Harness {
     let tmp = TempDir::new().expect("tempdir");
     let cas = Arc::new(RwLock::new(CasStore::open(tmp.path()).expect("cas")));
     let keypair = Arc::new(Ed25519Keypair::generate_with_secure_entropy().expect("kp"));
-    let writer: Arc<RwLock<dyn LedgerWriter>> =
-        Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
+    let writer: Arc<RwLock<dyn LedgerWriter>> = Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
     let rejection_writer = Arc::new(RwLock::new(RejectionEvidenceWriter::default()));
     let preds = Arc::new(PredicateRegistry::new());
     let tools = Arc::new(ToolRegistry::new());
@@ -67,16 +62,26 @@ fn fresh_harness(initial_q: QState) -> Harness {
     pinned.insert(epoch, keypair.public_key());
     let pinned_pubkeys = Arc::new(pinned);
     let (seq, rx) = Sequencer::new(
-        cas, keypair, epoch, writer.clone(), rejection_writer, preds, tools,
-        pinned_pubkeys, initial_q, 16,
+        cas,
+        keypair,
+        epoch,
+        writer.clone(),
+        rejection_writer,
+        preds,
+        tools,
+        pinned_pubkeys,
+        initial_q,
+        16,
     );
-    Harness { _tmp: tmp, seq, rx, _ledger: writer }
+    Harness {
+        _tmp: tmp,
+        seq,
+        rx,
+        _ledger: writer,
+    }
 }
 
-fn genesis_with_balances_and_open_task(
-    pairs: &[(&str, i64)],
-    task: &str,
-) -> QState {
+fn genesis_with_balances_and_open_task(pairs: &[(&str, i64)], task: &str) -> QState {
     let mut q = QState::genesis();
     for (name, coin) in pairs {
         q.economic_state_t.balances_t.0.insert(
@@ -192,10 +197,7 @@ async fn audit_view_shares_matches_state() {
 
     // Conditional collateral: 5M micro-Coin locked.
     assert_eq!(view.conditional_collateral.len(), 1);
-    assert_eq!(
-        view.conditional_collateral[0].locked_micro_coin,
-        5_000_000
-    );
+    assert_eq!(view.conditional_collateral[0].locked_micro_coin, 5_000_000);
     assert_eq!(
         view.conditional_collateral[0].event_id,
         EventId(TaskId("evt-1".into()))
@@ -275,7 +277,10 @@ async fn audit_view_pools_matches_state() {
         .unwrap();
     assert_eq!(pool_row.pool_yes_units, direct_pool.pool_yes.units);
     assert_eq!(pool_row.pool_no_units, direct_pool.pool_no.units);
-    assert_eq!(pool_row.lp_total_shares_units, direct_pool.lp_total_shares.units);
+    assert_eq!(
+        pool_row.lp_total_shares_units,
+        direct_pool.lp_total_shares.units
+    );
 }
 
 // ── Architect §7.9 verbatim test 3 ──────────────────────────────────────────
@@ -288,10 +293,7 @@ async fn audit_view_pools_matches_state() {
 /// (state changed) AND each snapshot's view is reproducible.
 #[tokio::test]
 async fn dashboard_regenerates_market_view() {
-    let q0 = genesis_with_balances_and_open_task(
-        &[("alice", 50), ("bob", 50)],
-        "evt-3",
-    );
+    let q0 = genesis_with_balances_and_open_task(&[("alice", 50), ("bob", 50)], "evt-3");
     let mut h = fresh_harness(q0);
 
     // Snapshot 1: pre-anything (empty state).
@@ -318,12 +320,9 @@ async fn dashboard_regenerates_market_view() {
 
     // Apply router (BuyYes payC = 1M; outY = 833_333).
     let parent = h.seq.q_snapshot().unwrap().state_root_t;
-    submit_and_apply(
-        &mut h,
-        build_router(parent, "bob", "evt-3", 1_000_000, 1),
-    )
-    .await
-    .expect("router accepted");
+    submit_and_apply(&mut h, build_router(parent, "bob", "evt-3", 1_000_000, 1))
+        .await
+        .expect("router accepted");
 
     // Snapshot 3: post-router.
     let q_post_router = h.seq.q_snapshot().unwrap();
@@ -335,8 +334,7 @@ async fn dashboard_regenerates_market_view() {
         "post-router pool_yes shifted by outY"
     );
     assert_eq!(
-        view_post_router.pools[0].pool_no_units,
-        6_000_000,
+        view_post_router.pools[0].pool_no_units, 6_000_000,
         "post-router pool_no shifted by payC"
     );
 

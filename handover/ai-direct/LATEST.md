@@ -6,6 +6,62 @@
 
 ---
 
+## 📍 Handover summary (session #49 close 2026-05-15)
+
+**Session Summary**: REAL route executed through **REAL-5S → REAL-6 → REAL-7 → REAL-8 → REAL-9** under the architect's renamed path. REAL-5/REAL-5S is narrowed to scaffold + clean-negative evidence; REAL-6 moves market timing earlier and adds lawful pressure; REAL-7 proves v3-structural pressure without claiming v3 equivalence; REAL-8 produces the formal A/B benchmark; REAL-9 captures launch/whitepaper synthesis boundaries. Clean-context Codex implementation review for REAL-8/REAL-9 returned **PROCEED**.
+
+### Current State
+
+**Works**:
+- REAL-5S closes the role-scaffold claim boundary: role gateway + verifier/trader/challenger scaffolding is evidence-bearing, but it does **not** prove E2/E3 market emergence.
+- REAL-6A/6B/6C/6D landed as lawful-pressure scaffolding: TaskOutcomeMarket, scripted sealed-oracle AttemptPrediction fixture, ChainTape-derived ConvictionBudget/PnL, and observe-only scheduler traces.
+- REAL-7 structural smoke reached the minimum v3-pressure pattern without chasing v3 tx volume and without claiming identical equivalence.
+- REAL-8 runner at `scripts/run_real8_market_ab_benchmark.sh` pins one problem set, one model assignment, and one budget manifest across arms A/B/C/D, records descriptive metrics, and explicitly forbids causal overclaim.
+- REAL-9 docs landed:
+  - `handover/whitepapers/TURINGOS_GENERATIVE_ECONOMY_WHITEPAPER_UPDATE_REAL9.md`
+  - `handover/whitepapers/TURINGOS_MARKET_DEVELOPER_MANUAL_REAL9.md`
+- C/D REAL-8 arms originally exposed a stale-parent bug: automatic node-market creation could mutate `state_root_t` after WorkTx accept and before OMEGA VerifyTx construction. Fixed by refreshing the VerifyTx parent root after optional market emission; Trust Root rehashed.
+
+**Final REAL-8 evidence**:
+- Evidence directory: `handover/evidence/real8_market_ab_20260515T_REAL8_FINALZ/`.
+- Arms:
+  - A market disabled: `exit=0`, `audit=PROCEED`, `tasks=3`, `market_tx_count=0`.
+  - B market visible, no TaskOutcomeMarket: `exit=0`, `audit=PROCEED`, `tasks=3`, `market_tx_count=4`.
+  - C TaskOutcomeMarket enabled: `exit=0`, `audit=PROCEED`, `tasks=3`, `market_tx_count=10`.
+  - D TaskOutcomeMarket + scripted AttemptPrediction fixture: `exit=0`, `audit=PROCEED`, `tasks=3`, `market_tx_count=10`.
+- Report: `handover/evidence/real8_market_ab_20260515T_REAL8_FINALZ/REAL8_MARKET_AB_BENCHMARK_REPORT.md`.
+- Harness: `handover/evidence/dev_self_hosting/dev_1778842938421_1788018/` closed with `acceptance_passed=true`, `effective_risk_class=4`, `audit_verdict=PROCEED`, `restricted_surface_hits=[]`.
+- Audit: `handover/audits/CODEX_REAL8_REAL9_IMPLEMENTATION_REVIEW.md`.
+
+### Validation
+
+- `cargo fmt --all -- --check` → exit 0.
+- `cargo test --test constitution_real8_market_ab_benchmark --test constitution_real9_launch_synthesis --no-fail-fast -- --test-threads=1` → REAL-8 6/0, REAL-9 2/0.
+- `cargo test --lib boot::tests::verify_trust_root_passes_on_intact_repo` → 1/0.
+- `bash scripts/run_real8_market_ab_benchmark.sh ... --arms A,B,C,D --out handover/evidence/real8_market_ab_20260515T_REAL8_FINALZ` → exit 0.
+- `bash scripts/run_constitution_gates.sh` → 458 passed / 0 failed / 1 ignored.
+- `cargo test --workspace --no-fail-fast -- --test-threads=1` → exit 0.
+- Clean-context Codex review → `PROCEED`.
+
+### Non-Claims
+
+- REAL-5S proves scaffold/clean-negative, not market emergence.
+- REAL-8 is descriptive A/B evidence only; it does not claim causality.
+- No forced trades.
+- No price-as-truth.
+- No ghost liquidity.
+- No f64 economy path.
+- No private CoT or raw-log broadcast.
+- No claim that v4 copies v3 or that REAL-7 is numerically equivalent to v3.
+
+### Next Steps
+
+1. Give the REAL-5S→REAL-9 bundle and REAL-8 benchmark report to the architect for launch/whitepaper direction.
+2. If deeper emergence evidence is requested, run larger multi-model REAL-8 variants only after preserving the same pinned-input discipline.
+3. Keep REAL-6B live real-LLM AttemptPrediction shipping gated on explicit Class-4 ratification; current REAL-6B remains design + scripted fixture.
+
+---
+
 ## 📍 Handover summary (session #48 close 2026-05-14)
 
 **Session Summary**: TB-G G-Phase closeout SHIPPED through the minimum structural path requested by the architect update: **G5/G6/G7 rows are structurally GREEN and SG-G overall is GREEN after clean-context Codex R3 PROCEED**. This is not a Constitution Reset and not a new feature direction; it is the architect-requested closeout path `G4.2 → G5/G6/G7 → SG-G overall §8 packet`.

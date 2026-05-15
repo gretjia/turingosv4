@@ -26,21 +26,17 @@ use turingosv4::bottom_white::ledger::rejection_evidence::RejectionEvidenceWrite
 use turingosv4::bottom_white::ledger::system_keypair::{
     Ed25519Keypair, PinnedSystemPubkeys, SystemEpoch,
 };
-use turingosv4::bottom_white::ledger::transition_ledger::{
-    InMemoryLedgerWriter, LedgerWriter,
-};
+use turingosv4::bottom_white::ledger::transition_ledger::{InMemoryLedgerWriter, LedgerWriter};
 use turingosv4::bottom_white::tools::registry::ToolRegistry;
 use turingosv4::economy::money::MicroCoin;
-use turingosv4::state::q_state::{
-    AgentId, QState, TaskId, TaskMarketEntry, TaskMarketState, TxId,
-};
+use turingosv4::state::q_state::{AgentId, QState, TaskId, TaskMarketEntry, TaskMarketState, TxId};
 use turingosv4::state::router_quote::{
     quote_buy_with_coin_router, LiquidityWarning, QuoteDirection,
 };
 use turingosv4::state::sequencer::{Sequencer, SubmissionEnvelope};
 use turingosv4::state::typed_tx::{
-    AgentSignature, BuyDirection, BuyWithCoinRouterTx, CompleteSetMintTx,
-    CpmmPoolTx, EventId, ShareAmount, TypedTx,
+    AgentSignature, BuyDirection, BuyWithCoinRouterTx, CompleteSetMintTx, CpmmPoolTx, EventId,
+    ShareAmount, TypedTx,
 };
 use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
@@ -57,8 +53,7 @@ fn fresh_harness(initial_q: QState) -> Harness {
     let tmp = TempDir::new().expect("tempdir");
     let cas = Arc::new(RwLock::new(CasStore::open(tmp.path()).expect("cas")));
     let keypair = Arc::new(Ed25519Keypair::generate_with_secure_entropy().expect("kp"));
-    let writer: Arc<RwLock<dyn LedgerWriter>> =
-        Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
+    let writer: Arc<RwLock<dyn LedgerWriter>> = Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
     let rejection_writer = Arc::new(RwLock::new(RejectionEvidenceWriter::default()));
     let preds = Arc::new(PredicateRegistry::new());
     let tools = Arc::new(ToolRegistry::new());
@@ -67,16 +62,26 @@ fn fresh_harness(initial_q: QState) -> Harness {
     pinned.insert(epoch, keypair.public_key());
     let pinned_pubkeys = Arc::new(pinned);
     let (seq, rx) = Sequencer::new(
-        cas, keypair, epoch, writer.clone(), rejection_writer, preds, tools,
-        pinned_pubkeys, initial_q, 16,
+        cas,
+        keypair,
+        epoch,
+        writer.clone(),
+        rejection_writer,
+        preds,
+        tools,
+        pinned_pubkeys,
+        initial_q,
+        16,
     );
-    Harness { _tmp: tmp, seq, rx, _ledger: writer }
+    Harness {
+        _tmp: tmp,
+        seq,
+        rx,
+        _ledger: writer,
+    }
 }
 
-fn genesis_with_balances_and_open_task(
-    pairs: &[(&str, i64)],
-    task: &str,
-) -> QState {
+fn genesis_with_balances_and_open_task(pairs: &[(&str, i64)], task: &str) -> QState {
     let mut q = QState::genesis();
     for (name, coin) in pairs {
         q.economic_state_t.balances_t.0.insert(
@@ -177,11 +182,7 @@ async fn price_quote_does_not_change_state() {
     // Issue many quotes — none should mutate state.
     for &payC in &[100_000_i64, 1_000_000, 5_000_000, 10_000_000] {
         for &dir in &[QuoteDirection::BuyYes, QuoteDirection::BuyNo] {
-            let q = quote_buy_with_coin_router(
-                &pool_pre,
-                MicroCoin::from_micro_units(payC),
-                dir,
-            );
+            let q = quote_buy_with_coin_router(&pool_pre, MicroCoin::from_micro_units(payC), dir);
             let _ = q; // explicitly discard — we only care that no mutation happened
         }
     }
@@ -216,8 +217,7 @@ fn price_signal_not_predicate() {
     let workspace = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let sequencer_src = workspace.join("src/state/sequencer.rs");
 
-    let seq_text = std::fs::read_to_string(&sequencer_src)
-        .expect("read src/state/sequencer.rs");
+    let seq_text = std::fs::read_to_string(&sequencer_src).expect("read src/state/sequencer.rs");
 
     // Forbidden imports / call patterns that would imply quote influences
     // admission decisions.

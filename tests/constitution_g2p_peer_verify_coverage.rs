@@ -29,9 +29,7 @@
 //! public state only) + §17 reporting standard (mechanism bottleneck must
 //! be explicit, never silent zero).`
 
-use turingosv4::runtime::peer_verify_coverage::{
-    compute_peer_verify_coverage, PeerVerifyCoverage,
-};
+use turingosv4::runtime::peer_verify_coverage::{compute_peer_verify_coverage, PeerVerifyCoverage};
 use turingosv4::state::q_state::{AgentId, TxId};
 
 // ────────────────────────────────────────────────────────────────────────
@@ -50,7 +48,8 @@ fn sg_g2p_3_walker_is_public_and_accepts_trait_object_writer() {
         .expect("peer_verify_coverage.rs readable");
     assert!(
         src.contains("pub fn compute_peer_verify_coverage(")
-            && (src.contains("writer: &dyn LedgerWriter") || src.contains("writer:&dyn LedgerWriter")),
+            && (src.contains("writer: &dyn LedgerWriter")
+                || src.contains("writer:&dyn LedgerWriter")),
         "SG-G2P.3.a: compute_peer_verify_coverage must be pub AND accept a \
          trait-object LedgerWriter so tests can exercise the walker against \
          an InMemoryLedgerWriter without standing up a real git repo."
@@ -144,8 +143,7 @@ const AUDIT_DASHBOARD_SRC: &str = "src/bin/audit_dashboard.rs";
 /// `peer_verify_coverage` walker into `render_tb_n3_run_report`.
 #[test]
 fn sg_g2p_4_audit_dashboard_wires_peer_verify_coverage_walker() {
-    let src = std::fs::read_to_string(AUDIT_DASHBOARD_SRC)
-        .expect("audit_dashboard.rs readable");
+    let src = std::fs::read_to_string(AUDIT_DASHBOARD_SRC).expect("audit_dashboard.rs readable");
     assert!(
         src.contains("peer_verify_coverage::compute_peer_verify_coverage_from_paths"),
         "SG-G2P.4.a: audit_dashboard.rs must call \
@@ -171,12 +169,9 @@ fn sg_g2p_4_fixture_renders_coverage_pct_line_and_per_agent_rows() {
     cov.coverage_pct = 75;
     cov.peer_verifications_total = 3;
     cov.non_solver_verifications = 2;
-    cov.per_verifier_count
-        .insert(AgentId("Agent_0".into()), 2);
-    cov.per_verifier_count
-        .insert(AgentId("Agent_5".into()), 1);
-    cov.per_target_count
-        .insert(TxId("worktx-1".into()), 1);
+    cov.per_verifier_count.insert(AgentId("Agent_0".into()), 2);
+    cov.per_verifier_count.insert(AgentId("Agent_5".into()), 1);
+    cov.per_target_count.insert(TxId("worktx-1".into()), 1);
     cov.solver_agents.insert(AgentId("Agent_5".into()));
     let block = cov.render_section_f_x();
     assert!(
@@ -238,8 +233,7 @@ fn sg_g2p_5_zero_non_solver_emits_bottleneck_with_three_candidate_causes() {
     }
     // The three architect-named root causes should all be referenced.
     assert!(
-        block.contains("round-robin scheduler")
-            || block.contains("opportunity scheduler"),
+        block.contains("round-robin scheduler") || block.contains("opportunity scheduler"),
         "SG-G2P.5.a: bottleneck block must name scheduler cause (amendment G-4)"
     );
     assert!(
@@ -259,8 +253,7 @@ fn sg_g2p_5_positive_non_solver_count_omits_bottleneck() {
     cov.coverage_pct = 100;
     cov.peer_verifications_total = 1;
     cov.non_solver_verifications = 1;
-    cov.per_verifier_count
-        .insert(AgentId("Agent_0".into()), 1);
+    cov.per_verifier_count.insert(AgentId("Agent_0".into()), 1);
     cov.solver_agents.insert(AgentId("Agent_5".into()));
     let block = cov.render_section_f_x();
     assert!(
@@ -276,10 +269,8 @@ fn sg_g2p_5_positive_non_solver_count_omits_bottleneck() {
 #[test]
 fn sg_g2p_5_empty_chain_still_renders_explicit_bottleneck() {
     let tmp = tempfile::TempDir::new().expect("tempdir");
-    let cas =
-        turingosv4::bottom_white::cas::store::CasStore::open(tmp.path()).expect("cas open");
-    let writer =
-        turingosv4::bottom_white::ledger::transition_ledger::InMemoryLedgerWriter::new();
+    let cas = turingosv4::bottom_white::cas::store::CasStore::open(tmp.path()).expect("cas open");
+    let writer = turingosv4::bottom_white::ledger::transition_ledger::InMemoryLedgerWriter::new();
     let cov = compute_peer_verify_coverage(&writer, &cas).expect("walker");
     assert_eq!(cov.peer_verifications_total, 0);
     assert_eq!(cov.non_solver_verifications, 0);

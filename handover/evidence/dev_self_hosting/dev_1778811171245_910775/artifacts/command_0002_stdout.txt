@@ -1,0 +1,25 @@
+
+running 2 tests
+test sg_5s_scaffold_ratification_report_narrows_real5_claim ... ok
+test sg_5s_clean_negative_report_records_no_trade_diagnosis ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 4 tests
+test sg_r5_4_legacy_proof_and_verify_tools_are_blocked_for_trader ... ok
+test sg_r5_4_malformed_role_action_routes_parsefailed ... ok
+test sg_r5_4_role_allowed_tools_are_enforced ... ok
+test sg_r5_4_evaluator_wires_role_gateway_before_legacy_actions ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 4 tests
+test sg_r5_9_role_based_smoke_accepts_clean_negative_without_forced_trade ... ok
+test sg_r5_9_evaluator_writes_role_turn_reason_traces ... ok
+test sg_r5_9_runner_records_role_assignment_and_role_views ... ok
+test sg_r5_9_role_turn_reason_traces_reconstruct_from_cas ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+

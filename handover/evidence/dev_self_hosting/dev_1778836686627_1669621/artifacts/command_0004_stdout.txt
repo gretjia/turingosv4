@@ -1,0 +1,10 @@
+
+running 5 tests
+test sg_7_new_structural_minimum_requires_v3_pressure_shape ... ok
+test sg_7_rejects_forced_live_investment_and_missing_buy_no ... ok
+test sg_g7_clean_negative_passes_without_market_action_when_explained ... ok
+test sg_g7_minimum_tier_passes_with_market_visible_action ... ok
+test sg_g7_missing_minimum_gate_requires_forward_stub ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

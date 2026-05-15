@@ -38,14 +38,13 @@ impl Wal {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        let file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&path)?;
+        let file = OpenOptions::new().create(true).append(true).open(&path)?;
         Ok(Wal { path, file })
     }
 
-    pub fn path(&self) -> &PathBuf { &self.path }
+    pub fn path(&self) -> &PathBuf {
+        &self.path
+    }
 
     pub fn write_node(&mut self, node: &Node) -> Result<(), std::io::Error> {
         self.write(&WalRecord::Node(node.clone()))
@@ -67,7 +66,9 @@ impl Wal {
     /// Replay a WAL file from disk. Returns (nodes, events) in original order.
     /// Lines that fail to parse are skipped with a stderr warning (lossy
     /// recovery is preferred over total failure on partial-write at crash).
-    pub fn replay(path: impl Into<PathBuf>) -> Result<(Vec<Node>, Vec<LedgerEvent>), std::io::Error> {
+    pub fn replay(
+        path: impl Into<PathBuf>,
+    ) -> Result<(Vec<Node>, Vec<LedgerEvent>), std::io::Error> {
         let path = path.into();
         let file = match File::open(&path) {
             Ok(f) => f,
@@ -81,13 +82,17 @@ impl Wal {
         let mut events = Vec::new();
         for (i, line) in reader.lines().enumerate() {
             let line = line?;
-            if line.trim().is_empty() { continue; }
+            if line.trim().is_empty() {
+                continue;
+            }
             match serde_json::from_str::<WalRecord>(&line) {
                 Ok(WalRecord::Node(n)) => nodes.push(n),
                 Ok(WalRecord::Event(e)) => events.push(e),
                 Err(parse_err) => {
-                    eprintln!("[wal] skip malformed line {} of {:?}: {}",
-                              i, path, parse_err);
+                    eprintln!(
+                        "[wal] skip malformed line {} of {:?}: {}",
+                        i, path, parse_err
+                    );
                 }
             }
         }
@@ -102,8 +107,11 @@ mod tests {
 
     fn tmp_wal_path(name: &str) -> PathBuf {
         let mut p = std::env::temp_dir();
-        p.push(format!("turingos_wal_test_{}_{}.jsonl",
-                       name, std::process::id()));
+        p.push(format!(
+            "turingos_wal_test_{}_{}.jsonl",
+            name,
+            std::process::id()
+        ));
         let _ = std::fs::remove_file(&p);
         p
     }
@@ -144,8 +152,11 @@ mod tests {
             let evt = LedgerEvent {
                 seq: 0,
                 event_type: EventType::RunStart,
-                node_id: None, agent: None, detail: None,
-                prev_hash: None, hash: "h0".into(),
+                node_id: None,
+                agent: None,
+                detail: None,
+                prev_hash: None,
+                hash: "h0".into(),
             };
             wal.write_event(&evt).unwrap();
             wal.write_node(&mk_node("n2", "y")).unwrap();

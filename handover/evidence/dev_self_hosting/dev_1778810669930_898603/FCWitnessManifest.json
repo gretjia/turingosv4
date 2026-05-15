@@ -1,0 +1,20 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778810669930_898603",
+  "fc_nodes": [
+    "FC1 role/market action loop; FC2 task-open market/replay authority; FC3 dashboard/evidence materialized view; Art. III shielding; economy/predicate invariants"
+  ],
+  "expected_witness": "Diff, command evidence, and audit verdict must cite these FC nodes.",
+  "evidence_artifacts": [
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "d9220d82ec66427af77f6514e7421d248a6e3aaf0feb64dc9f38e37bc881e323",
+      "size_bytes": 78099
+    },
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "745045f01ad6191a1c7298c372e68f47f2ac85767b96368d55ae4ad12d4e7c4e",
+      "size_bytes": 87115
+    }
+  ]
+}

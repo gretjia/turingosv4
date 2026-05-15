@@ -1,3 +1,3 @@
-pub mod wallet;
-pub mod search;
 pub mod librarian;
+pub mod search;
+pub mod wallet;

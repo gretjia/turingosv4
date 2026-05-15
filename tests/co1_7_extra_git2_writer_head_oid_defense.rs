@@ -54,9 +54,15 @@ fn git2_writer_returns_some_after_commit() {
 
     // Sanity: hex length is 40 (canonical git OID length).
     let hex = writer.head_commit_oid_hex().unwrap();
-    assert_eq!(hex.len(), 40, "git OID hex must be 40 chars; got {}", hex.len());
+    assert_eq!(
+        hex.len(),
+        40,
+        "git OID hex must be 40 chars; got {}",
+        hex.len()
+    );
     assert!(
-        hex.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()),
+        hex.chars()
+            .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()),
         "git OID hex must be lowercase hexadecimal; got {hex}"
     );
 }

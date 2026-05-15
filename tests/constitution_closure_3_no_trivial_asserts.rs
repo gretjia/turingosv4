@@ -51,8 +51,8 @@ fn collect_constitution_test_files() -> Vec<PathBuf> {
     let project_root = env!("CARGO_MANIFEST_DIR");
     let dir = Path::new(project_root).join(TESTS_DIR);
     let mut files = Vec::new();
-    let entries = fs::read_dir(&dir)
-        .unwrap_or_else(|e| panic!("cannot read {}: {e}", dir.display()));
+    let entries =
+        fs::read_dir(&dir).unwrap_or_else(|e| panic!("cannot read {}: {e}", dir.display()));
     for entry in entries.flatten() {
         let path = entry.path();
         let name = match path.file_name().and_then(|s| s.to_str()) {

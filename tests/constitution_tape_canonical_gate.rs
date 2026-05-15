@@ -39,8 +39,8 @@ fn tape_no_parallel_ledger_source_of_truth() {
 /// no_parallel_ledger.rs::no_shadow_tape_authoritative_parent.)
 #[test]
 fn tape_no_shadow_tape_authoritative_parent() {
-    let bottom_white = std::fs::read_dir("src/bottom_white/ledger")
-        .expect("src/bottom_white/ledger should exist");
+    let bottom_white =
+        std::fs::read_dir("src/bottom_white/ledger").expect("src/bottom_white/ledger should exist");
     let mut suspicious = Vec::new();
     for entry in bottom_white.flatten() {
         let name_str = entry.file_name().to_string_lossy().to_string();

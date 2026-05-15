@@ -92,8 +92,7 @@ async fn t3_build_chaintape_sequencer_succeeds_on_idempotent_empty_repo_reopen()
     let cfg = fresh_config(&tmp, "t3");
     let b1 = build_chaintape_sequencer(&cfg).expect("first bootstrap");
     b1.shutdown().await.expect("first shutdown");
-    let b2 = build_chaintape_sequencer(&cfg)
-        .expect("second bootstrap on empty refs");
+    let b2 = build_chaintape_sequencer(&cfg).expect("second bootstrap on empty refs");
     b2.shutdown().await.expect("second shutdown");
 }
 
@@ -106,11 +105,7 @@ async fn t4_chaintape_bundle_shutdown_drains_pending_submissions_before_join() {
     // The lifecycle invariant exercised: shutdown() returns Ok and the driver
     // task joins promptly (no hang). Real synthetic submissions exercising
     // the drain path land in T10 below.
-    let res = tokio::time::timeout(
-        std::time::Duration::from_secs(5),
-        bundle.shutdown(),
-    )
-    .await;
+    let res = tokio::time::timeout(std::time::Duration::from_secs(5), bundle.shutdown()).await;
     let inner = res.expect("shutdown completes within timeout");
     inner.expect("shutdown returns Ok");
 }
@@ -215,7 +210,10 @@ async fn t10_direct_bus_submit_typed_tx_synthetic_taskopen_appends_l4_entry() {
     bundle.shutdown().await.expect("shutdown drains queue");
     drop(bus);
 
-    let reopened = turingosv4::bottom_white::ledger::transition_ledger::Git2LedgerWriter::open(&cfg.runtime_repo_path).expect("reopen");
+    let reopened = turingosv4::bottom_white::ledger::transition_ledger::Git2LedgerWriter::open(
+        &cfg.runtime_repo_path,
+    )
+    .expect("reopen");
     assert!(
         reopened.len() >= 1,
         "≥1 LedgerEntry must exist on disk after TaskOpen submit + shutdown drain"
@@ -254,7 +252,9 @@ async fn t11_synthetic_zero_stake_worktx_appends_l4e_rejection() {
     bundle.shutdown().await.expect("shutdown drains queue");
     drop(bus);
 
-    let rw = rejection_writer_handle.read().expect("rejection writer read");
+    let rw = rejection_writer_handle
+        .read()
+        .expect("rejection writer read");
     assert!(
         rw.len() >= 1,
         "≥1 RejectedSubmissionRecord after zero-stake WorkTx submit + drain"
@@ -277,15 +277,11 @@ async fn t12_chained_taskopen_then_zero_stake_worktx_produces_l4_and_l4e() {
     let bus = TuringBus::with_sequencer(kernel, BusConfig::default(), bundle.sequencer.clone());
 
     let task_open = make_synthetic_task_open("task-t12", "sponsor-t12", Hash::ZERO, "t12-1");
-    bus.submit_typed_tx(task_open).await.expect("submit TaskOpen");
-    let bad_worktx = make_synthetic_worktx(
-        "task-t12",
-        "agent-t12",
-        Hash::ZERO,
-        0,
-        "t12-zero",
-        true,
-    );
+    bus.submit_typed_tx(task_open)
+        .await
+        .expect("submit TaskOpen");
+    let bad_worktx =
+        make_synthetic_worktx("task-t12", "agent-t12", Hash::ZERO, 0, "t12-zero", true);
     bus.submit_typed_tx(bad_worktx)
         .await
         .expect("submit zero-stake WorkTx");
@@ -294,7 +290,10 @@ async fn t12_chained_taskopen_then_zero_stake_worktx_produces_l4_and_l4e() {
     bundle.shutdown().await.expect("shutdown");
     drop(bus);
 
-    let reopened = turingosv4::bottom_white::ledger::transition_ledger::Git2LedgerWriter::open(&cfg.runtime_repo_path).expect("reopen");
+    let reopened = turingosv4::bottom_white::ledger::transition_ledger::Git2LedgerWriter::open(
+        &cfg.runtime_repo_path,
+    )
+    .expect("reopen");
     assert!(reopened.len() >= 1, "TaskOpen produces ≥1 L4 entry");
     let rw = rejection_writer_handle.read().expect("rejection read");
     assert!(rw.len() >= 1, "Zero-stake WorkTx produces ≥1 L4.E entry");

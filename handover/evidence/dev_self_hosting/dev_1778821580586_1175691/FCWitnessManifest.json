@@ -1,0 +1,19 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778821580586_1175691",
+  "fc_nodes": [
+    "FC1 externalized market action traces",
+    "FC2 TaskOpen/Escrow market seed replay",
+    "FC3 audit materialized evidence",
+    "Art III shielding",
+    "Market economy conservation"
+  ],
+  "expected_witness": "Diff, command evidence, and audit verdict must cite these FC nodes.",
+  "evidence_artifacts": [
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "02ee8f7c9f2316289875ec3df49802ec21af7b69c88789c04465a6cf7244a45b",
+      "size_bytes": 964363
+    }
+  ]
+}

@@ -1,0 +1,590 @@
+   Compiling tokio-rustls v0.26.4
+   Compiling hyper-rustls v0.27.8
+   Compiling reqwest v0.12.28
+   Compiling turingosv4 v0.1.0 (/home/zephryj/projects/turingosv4)
+warning: unused import: `KernelError`
+ --> src/bus.rs:8:29
+  |
+8 | use crate::kernel::{Kernel, KernelError};
+  |                             ^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `TapeError`
+ --> src/bus.rs:9:54
+  |
+9 | use crate::ledger::{EventType, Ledger, Node, NodeId, TapeError};
+  |                                                      ^^^^^^^^^
+
+warning: unused imports: `Deserialize` and `Serialize`
+  --> src/bus.rs:13:13
+   |
+13 | use serde::{Deserialize, Serialize};
+   |             ^^^^^^^^^^^  ^^^^^^^^^
+
+warning: unused import: `ToolSignal`
+ --> src/sdk/tools/search.rs:4:24
+  |
+4 | use crate::sdk::tool::{ToolSignal, TuringTool};
+  |                        ^^^^^^^^^^
+
+warning: unused import: `std::path::Path`
+ --> src/sdk/tools/search.rs:6:5
+  |
+6 | use std::path::Path;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `Deserialize`
+ --> src/sdk/tools/librarian.rs:6:13
+  |
+6 | use serde::{Deserialize, Serialize};
+  |             ^^^^^^^^^^^
+
+warning: unused import: `Path`
+ --> src/sdk/tools/librarian.rs:9:17
+  |
+9 | use std::path::{Path, PathBuf};
+  |                 ^^^^
+
+warning: unused imports: `MICRO_PER_COIN` and `MicroCoin`
+  --> src/economy/monetary_invariant.rs:26:29
+   |
+26 | use crate::economy::money::{MicroCoin, MICRO_PER_COIN};
+   |                             ^^^^^^^^^  ^^^^^^^^^^^^^^
+
+warning: unused import: `ObjectType as Git2ObjectType`
+  --> src/bottom_white/cas/store.rs:26:12
+   |
+26 | use git2::{ObjectType as Git2ObjectType, Repository};
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ObjectType as Git2ObjectType`
+  --> src/bottom_white/ledger/transition_ledger.rs:36:12
+   |
+36 | use git2::{ObjectType as Git2ObjectType, Repository, Signature as GitSignature};
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `TxId`
+  --> src/state/sequencer.rs:41:82
+   |
+41 | use crate::state::q_state::{AgentId, EscrowEntry, Hash, QState, TaskMarketEntry, TxId};
+   |                                                                                  ^^^^
+
+warning: unused imports: `AgentId` and `ShareSidePair`
+  --> src/state/price_index.rs:23:29
+   |
+23 | use crate::state::q_state::{AgentId, ChallengeStatus, EconomicState, ShareSidePair};
+   |                             ^^^^^^^                                  ^^^^^^^^^^^^^
+
+warning: unused import: `NodePosition`
+  --> src/state/price_index.rs:24:39
+   |
+24 | use crate::state::typed_tx::{EventId, NodePosition, PositionSide, ShareAmount};
+   |                                       ^^^^^^^^^^^^
+
+warning: unused import: `Sha256`
+  --> src/runtime/agent_keypairs.rs:31:20
+   |
+31 | use sha2::{Digest, Sha256};
+   |                    ^^^^^^
+
+warning: unused import: `CapsulePrivacyPolicy`
+  --> src/runtime/audit_assertions.rs:83:30
+   |
+83 | use crate::state::typed_tx::{CapsulePrivacyPolicy, TypedTx};
+   |                              ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::BTreeMap`
+  --> src/runtime/audit_views.rs:27:5
+   |
+27 | use std::collections::BTreeMap;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::state::price_index::RationalPrice`
+  --> src/runtime/audit_views.rs:32:5
+   |
+32 | use crate::state::price_index::RationalPrice;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `LpShareAmount` and `ShareSidePair`
+  --> src/runtime/audit_views.rs:34:29
+   |
+34 |     AgentId, EconomicState, LpShareAmount, PoolStatus, ShareSidePair,
+   |                             ^^^^^^^^^^^^^              ^^^^^^^^^^^^^
+
+warning: unused import: `ShareAmount`
+  --> src/runtime/audit_views.rs:40:42
+   |
+40 |     EventId, PositionKind, PositionSide, ShareAmount,
+   |                                          ^^^^^^^^^^^
+
+warning: unused import: `Digest`
+  --> src/runtime/agent_keypairs.rs:31:12
+   |
+31 | use sha2::{Digest, Sha256};
+   |            ^^^^^^
+
+warning: function `sign_rejected_attempt_summary` is never used
+   --> src/bottom_white/ledger/system_keypair.rs:581:19
+    |
+581 |     pub(crate) fn sign_rejected_attempt_summary(
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `sign_system_message` is never used
+   --> src/bottom_white/ledger/system_keypair.rs:592:19
+    |
+592 |     pub(crate) fn sign_system_message(
+    |                   ^^^^^^^^^^^^^^^^^^^
+
+warning: function `sign_epoch_rotation_proof` is never used
+   --> src/bottom_white/ledger/system_keypair.rs:692:19
+    |
+692 |     pub(crate) fn sign_epoch_rotation_proof(
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `sign_system_message` is never used
+   --> src/bottom_white/ledger/system_keypair.rs:703:19
+    |
+703 |     pub(crate) fn sign_system_message(
+    |                   ^^^^^^^^^^^^^^^^^^^
+
+warning: field `tx_id` is never read
+   --> src/runtime/chain_derived_run_facts.rs:239:5
+    |
+238 | struct WorkTxAttempt {
+    |        ------------- field in this struct
+239 |     tx_id: TxId,
+    |     ^^^^^
+    |
+    = note: `WorkTxAttempt` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+   Compiling minif2f_v4 v0.1.0 (/home/zephryj/projects/turingosv4/experiments/minif2f_v4)
+warning: `turingosv4` (lib) generated 25 warnings (run `cargo fix --lib -p turingosv4` to apply 19 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 24.35s
+     Running unittests src/lib.rs (target/debug/deps/minif2f_v4-0367004dc935790b)
+     Running unittests src/bin/batch_evaluator.rs (target/debug/deps/batch_evaluator-288d589c98f9c49d)
+     Running unittests src/bin/comprehensive_arena.rs (target/debug/deps/comprehensive_arena-891bdbdd0f2918fa)
+     Running unittests src/bin/evaluator.rs (target/debug/deps/evaluator-5562bdc9971caee6)
+     Running unittests src/bin/lean_market.rs (target/debug/deps/lean_market-f590560a06aa9060)
+     Running tests/architect_sole_lt_reader.rs (target/debug/deps/architect_sole_lt_reader-a54c6c1a415c1c66)
+     Running tests/artifact_content_predicates.rs (target/debug/deps/artifact_content_predicates-7d2bb3bb839adf2a)
+     Running tests/artifact_lookup_evasion.rs (target/debug/deps/artifact_lookup_evasion-9e1172a9f91eed05)
+     Running tests/auditor_sees_candidate_only.rs (target/debug/deps/auditor_sees_candidate_only-949a50adeb37fffc)
+     Running tests/constitution_g1_2_subprocess_resume.rs (target/debug/deps/constitution_g1_2_subprocess_resume-b3ca8bd334072de1)
+     Running tests/fc_alignment_conformance.rs (target/debug/deps/fc_alignment_conformance-35520f6731e302d0)
+     Running tests/fc_trace_smoke.rs (target/debug/deps/fc_trace_smoke-68a91d241dd9a5a8)
+     Running tests/heldout_operational_sealing.rs (target/debug/deps/heldout_operational_sealing-41bc81c7710d438e)
+     Running tests/llm_proxy_python_conformance.rs (target/debug/deps/llm_proxy_python_conformance-2912a41489f2d987)
+     Running tests/mode_flag_binary_purity.rs (target/debug/deps/mode_flag_binary_purity-c0718233c32f8ef4)
+     Running tests/pput_anti_goodhart.rs (target/debug/deps/pput_anti_goodhart-58c972603209fe48)
+     Running tests/tb_16_comprehensive_arena_smoke.rs (target/debug/deps/tb_16_comprehensive_arena_smoke-49e5c0963c19e56f)
+     Running tests/tb_18_per_llm_call_budget.rs (target/debug/deps/tb_18_per_llm_call_budget-fa56186f2889c975)
+     Running tests/trust_root_immutability.rs (target/debug/deps/trust_root_immutability-8dcef980906f14bc)
+   Compiling turingosv4 v0.1.0 (/home/zephryj/projects/turingosv4)
+warning: unused import: `KernelError`
+ --> src/bus.rs:8:29
+  |
+8 | use crate::kernel::{Kernel, KernelError};
+  |                             ^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `TapeError`
+ --> src/bus.rs:9:54
+  |
+9 | use crate::ledger::{EventType, Ledger, Node, NodeId, TapeError};
+  |                                                      ^^^^^^^^^
+
+warning: unused imports: `Deserialize` and `Serialize`
+  --> src/bus.rs:13:13
+   |
+13 | use serde::{Deserialize, Serialize};
+   |             ^^^^^^^^^^^  ^^^^^^^^^
+
+warning: unused import: `EconomicState`
+  --> src/sdk/econ_position.rs:95:21
+   |
+95 |         ClaimEntry, EconomicState, QState, Reputation, StakeEntry, TaskId, TxId,
+   |                     ^^^^^^^^^^^^^
+
+warning: unused import: `ToolSignal`
+ --> src/sdk/tools/search.rs:4:24
+  |
+4 | use crate::sdk::tool::{ToolSignal, TuringTool};
+  |                        ^^^^^^^^^^
+
+warning: unused import: `std::path::Path`
+ --> src/sdk/tools/search.rs:6:5
+  |
+6 | use std::path::Path;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `Deserialize`
+ --> src/sdk/tools/librarian.rs:6:13
+  |
+6 | use serde::{Deserialize, Serialize};
+  |             ^^^^^^^^^^^
+
+warning: unused import: `Path`
+ --> src/sdk/tools/librarian.rs:9:17
+  |
+9 | use std::path::{Path, PathBuf};
+  |                 ^^^^
+
+warning: unused import: `ObjectType as Git2ObjectType`
+  --> src/bottom_white/cas/store.rs:26:12
+   |
+26 | use git2::{ObjectType as Git2ObjectType, Repository};
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ObjectType as Git2ObjectType`
+  --> src/bottom_white/ledger/transition_ledger.rs:36:12
+   |
+36 | use git2::{ObjectType as Git2ObjectType, Repository, Signature as GitSignature};
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `TxId`
+  --> src/state/sequencer.rs:41:82
+   |
+41 | use crate::state::q_state::{AgentId, EscrowEntry, Hash, QState, TaskMarketEntry, TxId};
+   |                                                                                  ^^^^
+
+warning: unused import: `make_real_verifytx_signed_by`
+    --> src/runtime/chain_derived_run_facts.rs:1078:35
+     |
+1078 |     use crate::runtime::adapter::{make_real_verifytx_signed_by, make_real_worktx_signed_by};
+     |                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `CapsulePrivacyPolicy`
+  --> src/runtime/audit_assertions.rs:83:30
+   |
+83 | use crate::state::typed_tx::{CapsulePrivacyPolicy, TypedTx};
+   |                              ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::BTreeMap`
+  --> src/runtime/audit_views.rs:27:5
+   |
+27 | use std::collections::BTreeMap;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::state::price_index::RationalPrice`
+  --> src/runtime/audit_views.rs:32:5
+   |
+32 | use crate::state::price_index::RationalPrice;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ShareSidePair`
+  --> src/runtime/audit_views.rs:34:56
+   |
+34 |     AgentId, EconomicState, LpShareAmount, PoolStatus, ShareSidePair,
+   |                                                        ^^^^^^^^^^^^^
+
+warning: variable does not need to be mutable
+   --> src/top_white/predicates/registry.rs:255:17
+    |
+255 |             let mut h = Sha256::new();
+    |                 ----^
+    |                 |
+    |                 help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `sign_system_message` is never used
+   --> src/bottom_white/ledger/system_keypair.rs:592:19
+    |
+592 |     pub(crate) fn sign_system_message(
+    |                   ^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `sign_system_message` is never used
+   --> src/bottom_white/ledger/system_keypair.rs:703:19
+    |
+703 |     pub(crate) fn sign_system_message(
+    |                   ^^^^^^^^^^^^^^^^^^^
+
+warning: field `tx_id` is never read
+   --> src/runtime/chain_derived_run_facts.rs:239:5
+    |
+238 | struct WorkTxAttempt {
+    |        ------------- field in this struct
+239 |     tx_id: TxId,
+    |     ^^^^^
+    |
+    = note: `WorkTxAttempt` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: `turingosv4` (lib test) generated 20 warnings (run `cargo fix --lib -p turingosv4 --tests` to apply 17 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 9.66s
+     Running unittests src/lib.rs (target/debug/deps/turingosv4-337b37021c2192ab)
+warning: unused import: `KernelError`
+ --> src/bus.rs:8:29
+  |
+8 | use crate::kernel::{Kernel, KernelError};
+  |                             ^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `TapeError`
+ --> src/bus.rs:9:54
+  |
+9 | use crate::ledger::{EventType, Ledger, Node, NodeId, TapeError};
+  |                                                      ^^^^^^^^^
+
+warning: unused imports: `Deserialize` and `Serialize`
+  --> src/bus.rs:13:13
+   |
+13 | use serde::{Deserialize, Serialize};
+   |             ^^^^^^^^^^^  ^^^^^^^^^
+
+warning: unused import: `EconomicState`
+  --> src/sdk/econ_position.rs:95:21
+   |
+95 |         ClaimEntry, EconomicState, QState, Reputation, StakeEntry, TaskId, TxId,
+   |                     ^^^^^^^^^^^^^
+
+warning: unused import: `ToolSignal`
+ --> src/sdk/tools/search.rs:4:24
+  |
+4 | use crate::sdk::tool::{ToolSignal, TuringTool};
+  |                        ^^^^^^^^^^
+
+warning: unused import: `std::path::Path`
+ --> src/sdk/tools/search.rs:6:5
+  |
+6 | use std::path::Path;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `Deserialize`
+ --> src/sdk/tools/librarian.rs:6:13
+  |
+6 | use serde::{Deserialize, Serialize};
+  |             ^^^^^^^^^^^
+
+warning: unused import: `Path`
+ --> src/sdk/tools/librarian.rs:9:17
+  |
+9 | use std::path::{Path, PathBuf};
+  |                 ^^^^
+
+warning: unused import: `ObjectType as Git2ObjectType`
+  --> src/bottom_white/cas/store.rs:26:12
+   |
+26 | use git2::{ObjectType as Git2ObjectType, Repository};
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ObjectType as Git2ObjectType`
+  --> src/bottom_white/ledger/transition_ledger.rs:36:12
+   |
+36 | use git2::{ObjectType as Git2ObjectType, Repository, Signature as GitSignature};
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `TxId`
+  --> src/state/sequencer.rs:41:82
+   |
+41 | use crate::state::q_state::{AgentId, EscrowEntry, Hash, QState, TaskMarketEntry, TxId};
+   |                                                                                  ^^^^
+
+warning: unused import: `make_real_verifytx_signed_by`
+    --> src/runtime/chain_derived_run_facts.rs:1078:35
+     |
+1078 |     use crate::runtime::adapter::{make_real_verifytx_signed_by, make_real_worktx_signed_by};
+     |                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `CapsulePrivacyPolicy`
+  --> src/runtime/audit_assertions.rs:83:30
+   |
+83 | use crate::state::typed_tx::{CapsulePrivacyPolicy, TypedTx};
+   |                              ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::BTreeMap`
+  --> src/runtime/audit_views.rs:27:5
+   |
+27 | use std::collections::BTreeMap;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::state::price_index::RationalPrice`
+  --> src/runtime/audit_views.rs:32:5
+   |
+32 | use crate::state::price_index::RationalPrice;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ShareSidePair`
+  --> src/runtime/audit_views.rs:34:56
+   |
+34 |     AgentId, EconomicState, LpShareAmount, PoolStatus, ShareSidePair,
+   |                                                        ^^^^^^^^^^^^^
+
+warning: variable does not need to be mutable
+   --> src/top_white/predicates/registry.rs:255:17
+    |
+255 |             let mut h = Sha256::new();
+    |                 ----^
+    |                 |
+    |                 help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `sign_system_message` is never used
+   --> src/bottom_white/ledger/system_keypair.rs:592:19
+    |
+592 |     pub(crate) fn sign_system_message(
+    |                   ^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `sign_system_message` is never used
+   --> src/bottom_white/ledger/system_keypair.rs:703:19
+    |
+703 |     pub(crate) fn sign_system_message(
+    |                   ^^^^^^^^^^^^^^^^^^^
+
+warning: field `tx_id` is never read
+   --> src/runtime/chain_derived_run_facts.rs:239:5
+    |
+238 | struct WorkTxAttempt {
+    |        ------------- field in this struct
+239 |     tx_id: TxId,
+    |     ^^^^^
+    |
+    = note: `WorkTxAttempt` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: `turingosv4` (lib test) generated 20 warnings (run `cargo fix --lib -p turingosv4 --tests` to apply 17 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.21s
+     Running unittests src/lib.rs (target/debug/deps/turingosv4-337b37021c2192ab)
+warning: unused import: `KernelError`
+ --> src/bus.rs:8:29
+  |
+8 | use crate::kernel::{Kernel, KernelError};
+  |                             ^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `TapeError`
+ --> src/bus.rs:9:54
+  |
+9 | use crate::ledger::{EventType, Ledger, Node, NodeId, TapeError};
+  |                                                      ^^^^^^^^^
+
+warning: unused imports: `Deserialize` and `Serialize`
+  --> src/bus.rs:13:13
+   |
+13 | use serde::{Deserialize, Serialize};
+   |             ^^^^^^^^^^^  ^^^^^^^^^
+
+warning: unused import: `EconomicState`
+  --> src/sdk/econ_position.rs:95:21
+   |
+95 |         ClaimEntry, EconomicState, QState, Reputation, StakeEntry, TaskId, TxId,
+   |                     ^^^^^^^^^^^^^
+
+warning: unused import: `ToolSignal`
+ --> src/sdk/tools/search.rs:4:24
+  |
+4 | use crate::sdk::tool::{ToolSignal, TuringTool};
+  |                        ^^^^^^^^^^
+
+warning: unused import: `std::path::Path`
+ --> src/sdk/tools/search.rs:6:5
+  |
+6 | use std::path::Path;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `Deserialize`
+ --> src/sdk/tools/librarian.rs:6:13
+  |
+6 | use serde::{Deserialize, Serialize};
+  |             ^^^^^^^^^^^
+
+warning: unused import: `Path`
+ --> src/sdk/tools/librarian.rs:9:17
+  |
+9 | use std::path::{Path, PathBuf};
+  |                 ^^^^
+
+warning: unused import: `ObjectType as Git2ObjectType`
+  --> src/bottom_white/cas/store.rs:26:12
+   |
+26 | use git2::{ObjectType as Git2ObjectType, Repository};
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ObjectType as Git2ObjectType`
+  --> src/bottom_white/ledger/transition_ledger.rs:36:12
+   |
+36 | use git2::{ObjectType as Git2ObjectType, Repository, Signature as GitSignature};
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `TxId`
+  --> src/state/sequencer.rs:41:82
+   |
+41 | use crate::state::q_state::{AgentId, EscrowEntry, Hash, QState, TaskMarketEntry, TxId};
+   |                                                                                  ^^^^
+
+warning: unused import: `make_real_verifytx_signed_by`
+    --> src/runtime/chain_derived_run_facts.rs:1078:35
+     |
+1078 |     use crate::runtime::adapter::{make_real_verifytx_signed_by, make_real_worktx_signed_by};
+     |                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `CapsulePrivacyPolicy`
+  --> src/runtime/audit_assertions.rs:83:30
+   |
+83 | use crate::state::typed_tx::{CapsulePrivacyPolicy, TypedTx};
+   |                              ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::BTreeMap`
+  --> src/runtime/audit_views.rs:27:5
+   |
+27 | use std::collections::BTreeMap;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::state::price_index::RationalPrice`
+  --> src/runtime/audit_views.rs:32:5
+   |
+32 | use crate::state::price_index::RationalPrice;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ShareSidePair`
+  --> src/runtime/audit_views.rs:34:56
+   |
+34 |     AgentId, EconomicState, LpShareAmount, PoolStatus, ShareSidePair,
+   |                                                        ^^^^^^^^^^^^^
+
+warning: variable does not need to be mutable
+   --> src/top_white/predicates/registry.rs:255:17
+    |
+255 |             let mut h = Sha256::new();
+    |                 ----^
+    |                 |
+    |                 help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `sign_system_message` is never used
+   --> src/bottom_white/ledger/system_keypair.rs:592:19
+    |
+592 |     pub(crate) fn sign_system_message(
+    |                   ^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `sign_system_message` is never used
+   --> src/bottom_white/ledger/system_keypair.rs:703:19
+    |
+703 |     pub(crate) fn sign_system_message(
+    |                   ^^^^^^^^^^^^^^^^^^^
+
+warning: field `tx_id` is never read
+   --> src/runtime/chain_derived_run_facts.rs:239:5
+    |
+238 | struct WorkTxAttempt {
+    |        ------------- field in this struct
+239 |     tx_id: TxId,
+    |     ^^^^^
+    |
+    = note: `WorkTxAttempt` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: `turingosv4` (lib test) generated 20 warnings (run `cargo fix --lib -p turingosv4 --tests` to apply 17 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.21s
+     Running unittests src/lib.rs (target/debug/deps/turingosv4-337b37021c2192ab)

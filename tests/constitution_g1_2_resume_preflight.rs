@@ -72,7 +72,10 @@ async fn bootstrap_single_entry_chain(
         snapshot_head_t(&runtime_repo).expect("snapshot head_t post-bootstrap");
     assert!(len >= 1, "bootstrap should produce ≥1 accepted L4 entry");
     assert!(!head_hex.is_empty(), "head OID must be non-empty");
-    assert!(!state_root_hex.is_empty(), "state_root hex must be non-empty");
+    assert!(
+        !state_root_hex.is_empty(),
+        "state_root hex must be non-empty"
+    );
     (runtime_repo, cas_path, head_hex, state_root_hex, len)
 }
 
@@ -172,7 +175,9 @@ async fn preflight_rejects_missing_runtime_repo() {
     let mut c = contract_for(&runtime_repo, &cas_path, &head_hex, &state_root_hex, len, 1);
     c.runtime_repo = tmp.path().join("nonexistent_runtime_repo");
     match check(&c) {
-        PreflightVerdict::Fail { failure: PreflightFailure::RuntimeRepoMissing { .. } } => {}
+        PreflightVerdict::Fail {
+            failure: PreflightFailure::RuntimeRepoMissing { .. },
+        } => {}
         other => panic!("SG-G1.2-1.2: expected RuntimeRepoMissing, got {other:?}"),
     }
 }
@@ -191,7 +196,9 @@ async fn preflight_rejects_missing_cas() {
     let mut c = contract_for(&runtime_repo, &cas_path, &head_hex, &state_root_hex, len, 1);
     c.cas_path = tmp.path().join("nonexistent_cas");
     match check(&c) {
-        PreflightVerdict::Fail { failure: PreflightFailure::CasMissing { .. } } => {}
+        PreflightVerdict::Fail {
+            failure: PreflightFailure::CasMissing { .. },
+        } => {}
         other => panic!("SG-G1.2-1.3: expected CasMissing, got {other:?}"),
     }
 }
@@ -209,7 +216,9 @@ async fn preflight_rejects_missing_agent_pubkeys() {
 
     let c = contract_for(&runtime_repo, &cas_path, &head_hex, &state_root_hex, len, 1);
     match check(&c) {
-        PreflightVerdict::Fail { failure: PreflightFailure::AgentRegistryMissing { .. } } => {}
+        PreflightVerdict::Fail {
+            failure: PreflightFailure::AgentRegistryMissing { .. },
+        } => {}
         other => panic!("SG-G1.2-1.4: expected AgentRegistryMissing, got {other:?}"),
     }
 }
@@ -231,7 +240,9 @@ async fn preflight_rejects_missing_pinned_pubkeys() {
 
     let c = contract_for(&runtime_repo, &cas_path, &head_hex, &state_root_hex, len, 1);
     match check(&c) {
-        PreflightVerdict::Fail { failure: PreflightFailure::PinnedPubkeysMissing { .. } } => {}
+        PreflightVerdict::Fail {
+            failure: PreflightFailure::PinnedPubkeysMissing { .. },
+        } => {}
         other => panic!("SG-G1.2-1.5: expected PinnedPubkeysMissing, got {other:?}"),
     }
 }
@@ -279,7 +290,11 @@ async fn preflight_rejects_head_mismatch() {
     c.expected_head_t_hex = "0".repeat(40);
     match check(&c) {
         PreflightVerdict::Fail {
-            failure: PreflightFailure::HeadMismatch { expected_hex, actual_hex },
+            failure:
+                PreflightFailure::HeadMismatch {
+                    expected_hex,
+                    actual_hex,
+                },
         } => {
             assert_eq!(expected_hex, "0".repeat(40));
             assert_eq!(actual_hex, head_hex);
@@ -304,7 +319,11 @@ async fn preflight_rejects_state_root_mismatch() {
     c.expected_state_root_hex = "deadbeef".repeat(8); // 64 chars, wrong value
     match check(&c) {
         PreflightVerdict::Fail {
-            failure: PreflightFailure::StateRootMismatch { expected_hex, actual_hex },
+            failure:
+                PreflightFailure::StateRootMismatch {
+                    expected_hex,
+                    actual_hex,
+                },
         } => {
             assert_eq!(expected_hex, "deadbeef".repeat(8));
             assert_eq!(actual_hex, state_root_hex);
@@ -404,7 +423,9 @@ async fn preflight_rejects_fresh_genesis_attempt() {
         genesis_report_path: empty_runtime_repo.join("genesis_report.json"),
     };
     match check(&c) {
-        PreflightVerdict::Fail { failure: PreflightFailure::FreshGenesisAttempted { detected } } => {
+        PreflightVerdict::Fail {
+            failure: PreflightFailure::FreshGenesisAttempted { detected },
+        } => {
             assert!(
                 detected.contains("genesis_report.json missing")
                     || detected.contains("is empty")

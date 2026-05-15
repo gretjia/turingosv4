@@ -1,0 +1,44 @@
+{
+  "schema_version": "g1_2_v1",
+  "batch_id": "g_phase_real_7_structural_smoke_r6_20260515T0923Z_5239f4b",
+  "runtime_repo": "/home/zephryj/projects/turingosv4/handover/evidence/g_phase_real_7_structural_smoke_r6_20260515T0923Z/runtime_repo",
+  "cas_root": "/home/zephryj/projects/turingosv4/handover/evidence/g_phase_real_7_structural_smoke_r6_20260515T0923Z/cas",
+  "model": "deepseek-chat",
+  "n_agents": 5,
+  "initial_head_t_hex": "",
+  "agent_registry_cid_hex": null,
+  "system_pubkeys_cid_hex": null,
+  "model_manifest_cid_hex": null,
+  "role_assignment_manifest_cid_hex": "5530cac65e0828c9b6ede5814658e4820b6564029c8b8efaf70c929ae4a8cbb1",
+  "tasks": [
+    {
+      "task_index": 0,
+      "problem_id": "numbertheory_2pownm1prime_nprime",
+      "start_head_t_hex": "",
+      "end_head_t_hex": "61ac96bc1f1a295ec05a461a6de2691e79446db4",
+      "start_chain_length": 0,
+      "end_chain_length": 12,
+      "subprocess_command_sha256": "",
+      "run_summary_cid_hex": null,
+      "terminal_tx_id": null,
+      "exit_code": 0,
+      "started_at_unix_s": 1778837548,
+      "finished_at_unix_s": 1778837568
+    },
+    {
+      "task_index": 1,
+      "problem_id": "aime_1983_p1",
+      "start_head_t_hex": "61ac96bc1f1a295ec05a461a6de2691e79446db4",
+      "end_head_t_hex": "61ac96bc1f1a295ec05a461a6de2691e79446db4",
+      "start_chain_length": 12,
+      "end_chain_length": 12,
+      "subprocess_command_sha256": "",
+      "run_summary_cid_hex": null,
+      "terminal_tx_id": null,
+      "exit_code": 3,
+      "started_at_unix_s": 1778837568,
+      "finished_at_unix_s": 1778837578
+    }
+  ],
+  "terminated_reason": "subprocess for task 1 aime_1983_p1 exited non-zero (3)"
+}

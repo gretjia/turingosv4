@@ -1,0 +1,10 @@
+Diff in /home/zephryj/projects/turingosv4/src/runtime/agent_scheduler.rs:88:
+     cas.list_all_cids()
+         .into_iter()
+         .filter(|cid| {
+-            cas.metadata(cid)
+-                .and_then(|meta| meta.schema_id.as_deref())
++            cas.metadata(cid).and_then(|meta| meta.schema_id.as_deref())
+                 == Some(SCHEDULER_DECISION_TRACE_SCHEMA_ID)
+         })
+         .collect()

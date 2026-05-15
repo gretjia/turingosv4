@@ -116,11 +116,9 @@ impl fmt::Display for BudgetError {
                  (expected total_proposal | per_agent | token_total | wall_clock)",
                 s
             ),
-            Self::InvalidMaxTransactions(s) => write!(
-                f,
-                "MAX_TRANSACTIONS='{}' is not a positive integer",
-                s
-            ),
+            Self::InvalidMaxTransactions(s) => {
+                write!(f, "MAX_TRANSACTIONS='{}' is not a positive integer", s)
+            }
             Self::UnimplementedRegime(r) => write!(
                 f,
                 "BUDGET_REGIME='{}' declared but its exit machinery is not yet \
@@ -230,8 +228,14 @@ mod tests {
 
     #[test]
     fn parse_regime_empty_defaults_to_total_proposal() {
-        assert_eq!(parse_budget_regime("").unwrap(), BudgetRegime::TotalProposal);
-        assert_eq!(parse_budget_regime("   ").unwrap(), BudgetRegime::TotalProposal);
+        assert_eq!(
+            parse_budget_regime("").unwrap(),
+            BudgetRegime::TotalProposal
+        );
+        assert_eq!(
+            parse_budget_regime("   ").unwrap(),
+            BudgetRegime::TotalProposal
+        );
     }
 
     #[test]
@@ -264,8 +268,14 @@ mod tests {
 
     #[test]
     fn parse_max_transactions_empty_defaults_to_200() {
-        assert_eq!(parse_max_transactions("").unwrap(), DEFAULT_MAX_TRANSACTIONS);
-        assert_eq!(parse_max_transactions("   ").unwrap(), DEFAULT_MAX_TRANSACTIONS);
+        assert_eq!(
+            parse_max_transactions("").unwrap(),
+            DEFAULT_MAX_TRANSACTIONS
+        );
+        assert_eq!(
+            parse_max_transactions("   ").unwrap(),
+            DEFAULT_MAX_TRANSACTIONS
+        );
         assert_eq!(DEFAULT_MAX_TRANSACTIONS, 200);
     }
 
@@ -310,7 +320,8 @@ mod tests {
             assert_eq!(
                 effective_max_tx(BudgetRegime::TotalProposal, 200, n).unwrap(),
                 200,
-                "TotalProposal should not scale with N (n={})", n
+                "TotalProposal should not scale with N (n={})",
+                n
             );
         }
     }
@@ -323,7 +334,9 @@ mod tests {
             assert_eq!(
                 effective_max_tx(BudgetRegime::PerAgent, base, n).unwrap(),
                 expected,
-                "PerAgent should scale linearly (base={}, n={})", base, n
+                "PerAgent should scale linearly (base={}, n={})",
+                base,
+                n
             );
         }
     }
@@ -378,10 +391,7 @@ mod tests {
             effective_max_tx(BudgetRegime::TotalProposal, 200, 0).unwrap(),
             200
         );
-        assert_eq!(
-            effective_max_tx(BudgetRegime::PerAgent, 200, 0).unwrap(),
-            0
-        );
+        assert_eq!(effective_max_tx(BudgetRegime::PerAgent, 200, 0).unwrap(), 0);
     }
 
     /// Env-coupled wrapper round-trip: empty env (default) preserves

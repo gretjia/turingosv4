@@ -1,0 +1,158 @@
+diff --git a/src/runtime/g7_structural_smoke.rs b/src/runtime/g7_structural_smoke.rs
+index 83a1f3a..f7609ac 100644
+--- a/src/runtime/g7_structural_smoke.rs
++++ b/src/runtime/g7_structural_smoke.rs
+@@ -7,6 +7,23 @@ pub struct G7SmokeInput {
+     pub one_runtime_repo: bool,
+     pub multi_agent: bool,
+     pub persistent_state: bool,
++    pub agent_count: u64,
++    pub active_role_count: u64,
++    pub task_count: u64,
++    pub task_outcome_market_count: u64,
++    pub scripted_attempt_prediction_market_count: u64,
++    pub buy_yes_router_count: u64,
++    pub buy_no_or_short_count: u64,
++    pub verify_tx_count: u64,
++    pub challenge_tx_or_no_challenge_reason_count: u64,
++    pub event_resolve_count: u64,
++    pub pnl_delta_count: u64,
++    pub loss_occurred: bool,
++    pub autopsy_capsule_count: u64,
++    pub forced_live_investment: bool,
++    pub market_actions_chain_visible: bool,
++    pub no_ghost_liquidity: bool,
++    pub clean_v3_comparison: bool,
+     pub proof_related_actions: u64,
+     pub market_visible_actions: u64,
+     pub no_trade_reason_count: u64,
+@@ -23,28 +40,51 @@ pub struct G7SmokeReport {
+     pub minimum_tier_green: bool,
+     pub clean_negative: bool,
+     pub forward_tb_stub_required: bool,
++    pub autopsy_if_loss_satisfied: bool,
++    pub does_not_claim_identical_v3_equivalence: bool,
+     pub input: G7SmokeInput,
+ }
+ 
+ /// TRACE_MATRIX FC3-N43: evaluate G7 minimum structural evidence without
+ /// claiming v3 run6 volume, emergent roles, model ranking, or market quality.
+ pub fn evaluate_g7_structural_smoke(input: G7SmokeInput) -> G7SmokeReport {
+-    let market_or_clean_negative =
+-        input.market_visible_actions > 0 || input.no_trade_reason_count > 0;
++    let market_buy_shape = input.buy_yes_router_count > 0
++        && input.buy_no_or_short_count > 0
++        && input.pnl_delta_count > 0;
++    let clean_negative = input.buy_yes_router_count == 0
++        && input.buy_no_or_short_count == 0
++        && input.no_trade_reason_count > 0;
++    let market_or_clean_negative = market_buy_shape || clean_negative;
++    let autopsy_if_loss_satisfied = !input.loss_occurred || input.autopsy_capsule_count > 0;
++    let does_not_claim_identical_v3_equivalence = input.clean_v3_comparison;
+     let minimum_tier_green = input.one_runtime_repo
+         && input.multi_agent
+         && input.persistent_state
++        && input.agent_count >= 5
++        && input.active_role_count >= 3
++        && input.task_count >= 3
++        && input.task_outcome_market_count > 0
++        && input.scripted_attempt_prediction_market_count > 0
+         && input.proof_related_actions > 0
++        && input.verify_tx_count > 0
++        && input.challenge_tx_or_no_challenge_reason_count > 0
++        && input.event_resolve_count > 0
+         && market_or_clean_negative
+         && input.role_classifier_output
+         && input.price_observe_only
+         && input.no_price_as_truth
+-        && input.dashboard_regenerated;
+-    let clean_negative = input.market_visible_actions == 0 && input.no_trade_reason_count > 0;
++        && input.dashboard_regenerated
++        && !input.forced_live_investment
++        && input.market_actions_chain_visible
++        && input.no_ghost_liquidity
++        && autopsy_if_loss_satisfied
++        && does_not_claim_identical_v3_equivalence;
+     G7SmokeReport {
+         minimum_tier_green,
+         clean_negative,
+         forward_tb_stub_required: !minimum_tier_green,
++        autopsy_if_loss_satisfied,
++        does_not_claim_identical_v3_equivalence,
+         input,
+     }
+ }
+@@ -73,6 +113,73 @@ impl G7SmokeReport {
+             "  persistent_state: {}\n",
+             self.input.persistent_state
+         ));
++        out.push_str(&format!("  agent_count: {}\n", self.input.agent_count));
++        out.push_str(&format!(
++            "  active_role_count: {}\n",
++            self.input.active_role_count
++        ));
++        out.push_str(&format!("  task_count: {}\n", self.input.task_count));
++        out.push_str(&format!(
++            "  task_outcome_market_count: {}\n",
++            self.input.task_outcome_market_count
++        ));
++        out.push_str(&format!(
++            "  scripted_attempt_prediction_market_count: {}\n",
++            self.input.scripted_attempt_prediction_market_count
++        ));
++        out.push_str(&format!(
++            "  buy_yes_router_count: {}\n",
++            self.input.buy_yes_router_count
++        ));
++        out.push_str(&format!(
++            "  buy_no_or_short_count: {}\n",
++            self.input.buy_no_or_short_count
++        ));
++        out.push_str(&format!(
++            "  verify_tx_count: {}\n",
++            self.input.verify_tx_count
++        ));
++        out.push_str(&format!(
++            "  challenge_tx_or_no_challenge_reason_count: {}\n",
++            self.input.challenge_tx_or_no_challenge_reason_count
++        ));
++        out.push_str(&format!(
++            "  event_resolve_count: {}\n",
++            self.input.event_resolve_count
++        ));
++        out.push_str(&format!(
++            "  pnl_delta_count: {}\n",
++            self.input.pnl_delta_count
++        ));
++        out.push_str(&format!("  loss_occurred: {}\n", self.input.loss_occurred));
++        out.push_str(&format!(
++            "  autopsy_capsule_count: {}\n",
++            self.input.autopsy_capsule_count
++        ));
++        out.push_str(&format!(
++            "  autopsy_if_loss_satisfied: {}\n",
++            self.autopsy_if_loss_satisfied
++        ));
++        out.push_str(&format!(
++            "  no_forced_live_investment: {}\n",
++            !self.input.forced_live_investment
++        ));
++        out.push_str(&format!(
++            "  market_actions_chain_visible: {}\n",
++            self.input.market_actions_chain_visible
++        ));
++        out.push_str(&format!(
++            "  no_ghost_liquidity: {}\n",
++            self.input.no_ghost_liquidity
++        ));
++        out.push_str(&format!(
++            "  clean_v3_comparison: {}\n",
++            self.input.clean_v3_comparison
++        ));
++        out.push_str(&format!(
++            "  does_not_claim_identical_v3_equivalence: {}\n",
++            self.does_not_claim_identical_v3_equivalence
++        ));
+         out.push_str(&format!(
+             "  proof_related_actions: {}\n",
+             self.input.proof_related_actions

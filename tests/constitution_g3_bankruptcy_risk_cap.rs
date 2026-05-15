@@ -29,9 +29,7 @@ use turingosv4::runtime::risk_cap_impact_report::{
     tx_kind_label_for_risk_cap_rejection, FinalizeRewardPayoutBreakdown, RiskCapImpactReport,
 };
 use turingosv4::state::q_state::{AgentId, EconomicState, QState, TaskId};
-use turingosv4::state::typed_tx::{
-    FinalizeRewardTx, RejectionClass, TransitionError,
-};
+use turingosv4::state::typed_tx::{FinalizeRewardTx, RejectionClass, TransitionError};
 
 const TYPED_TX_PATH: &str = "src/state/typed_tx.rs";
 const SEQUENCER_PATH: &str = "src/state/sequencer.rs";
@@ -41,6 +39,10 @@ const RISK_CAP_REPORT_PATH: &str = "src/runtime/risk_cap_impact_report.rs";
 
 fn read(path: &str) -> String {
     fs::read_to_string(path).unwrap_or_else(|e| panic!("read {path}: {e}"))
+}
+
+fn compact_ws(src: &str) -> String {
+    src.chars().filter(|c| !c.is_whitespace()).collect()
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -74,8 +76,9 @@ fn sg_g3_x_c_rejection_class_tail_append_after_verify_duplicate() {
         .or_else(|| {
             // The variant is followed by closing `}`; find it relative to
             // the RejectionClass-enum block specifically.
-            let enum_block_start =
-                src.find("pub enum RejectionClass {").expect("RejectionClass enum block");
+            let enum_block_start = src
+                .find("pub enum RejectionClass {")
+                .expect("RejectionClass enum block");
             let enum_block_end_off = src[enum_block_start..]
                 .find("\n}\n")
                 .expect("RejectionClass enum closes");
@@ -303,8 +306,10 @@ fn sg_g3_x_a_reputation_plus_one_in_verifytx_arm() {
         .find("TypedTx::Verify(verify) => {")
         .expect("VerifyTx arm must exist");
     let arm_block = &src[arm_start..arm_start + 8000];
+    let compact = compact_ws(arm_block);
     assert!(
-        arm_block.contains("reputations_t.0") && arm_block.contains(".0 += 1"),
+        compact.contains("reputations_t.0.entry(verify.verifier_agent.clone())")
+            && compact.contains(".0+=1"),
         "VerifyTx arm must increment reputations_t[verifier] by 1 (Atom D)"
     );
 }
@@ -353,8 +358,7 @@ fn sg_g3_x_b_no_new_bond_return_tx_variant() {
     // Architect Q3 = B1: extend FinalizeRewardTx, NO new BondReturnTx system tx.
     let typed_tx_src = read(TYPED_TX_PATH);
     assert!(
-        !typed_tx_src.contains("pub struct BondReturnTx") &&
-        !typed_tx_src.contains("BondReturn("),
+        !typed_tx_src.contains("pub struct BondReturnTx") && !typed_tx_src.contains("BondReturn("),
         "Forbidden: new BondReturnTx system-tx variant (architect Q3 = B1)"
     );
 }
@@ -568,11 +572,11 @@ fn arch_74_sybil_guard_via_step_3_5_already_in_place() {
         "Step-3.5 dedup variant must exist for Sybil guard"
     );
     assert!(
-        src.contains("agent_verifications_t.0.contains(&verify_pair)"),
+        compact_ws(&src).contains("agent_verifications_t.0.contains(&verify_pair)"),
         "Step-3.5 must read agent_verifications_t for dedup check"
     );
     assert!(
-        src.contains("agent_verifications_t.0.insert(verify_pair)"),
+        compact_ws(&src).contains("agent_verifications_t.0.insert(verify_pair)"),
         "Step-5b must insert verify_pair into agent_verifications_t after accept"
     );
 }
@@ -612,8 +616,9 @@ fn ship_gate_fixture_bankrupt_agent_below_cap_emits_autopsy_capsule() {
         ..Default::default()
     };
 
-    let derived =
-        derive_g3_2_terminal_summary_bankrupt_autopsies(&econ, &ts, /*round=*/ 1, /*t=*/ 100);
+    let derived = derive_g3_2_terminal_summary_bankrupt_autopsies(
+        &econ, &ts, /*round=*/ 1, /*t=*/ 100,
+    );
 
     // Architect SG-G3.4 verbatim: "bankrupt / low-balance agent receives
     // AutopsyCapsule".
@@ -642,18 +647,19 @@ fn ship_gate_fixture_bankrupt_agent_below_cap_emits_autopsy_capsule() {
 
     // (e) Architect §7.3 verbatim: "AutopsyCapsule private scoped read view"
     // — CapsulePrivacyPolicy::AuditOnly prevents global prompt stuffing.
-    assert!(matches!(cap.privacy_policy, CapsulePrivacyPolicy::AuditOnly));
+    assert!(matches!(
+        cap.privacy_policy,
+        CapsulePrivacyPolicy::AuditOnly
+    ));
 
     // (f) capsule_id is content-addressable (sha256 of canonical bytes).
     assert_ne!(
-        cap.capsule_id.0,
-        [0u8; 32],
+        cap.capsule_id.0, [0u8; 32],
         "capsule_id must be populated (NOT zero); content-addressable per TB-15 R3 closure"
     );
 
     // (g) Replay-determinism (Art. 0.2): identical inputs → identical capsule_id.
-    let derived_again =
-        derive_g3_2_terminal_summary_bankrupt_autopsies(&econ, &ts, 1, 100);
+    let derived_again = derive_g3_2_terminal_summary_bankrupt_autopsies(&econ, &ts, 1, 100);
     assert_eq!(derived_again.len(), 1);
     assert_eq!(
         derived_again[0].capsule.capsule_id, cap.capsule_id,
@@ -681,8 +687,7 @@ fn ship_gate_fixture_solvent_agent_above_cap_emits_no_autopsy() {
         task_id: TaskId("solvent-fixture-task".into()),
         ..Default::default()
     };
-    let derived =
-        derive_g3_2_terminal_summary_bankrupt_autopsies(&econ, &ts, 1, 100);
+    let derived = derive_g3_2_terminal_summary_bankrupt_autopsies(&econ, &ts, 1, 100);
     assert_eq!(
         derived.len(),
         0,
@@ -723,8 +728,7 @@ fn ship_gate_fixture_multi_agent_mixed_solvency() {
         task_id: TaskId("mixed-fixture-task".into()),
         ..Default::default()
     };
-    let derived =
-        derive_g3_2_terminal_summary_bankrupt_autopsies(&econ, &ts, 1, 200);
+    let derived = derive_g3_2_terminal_summary_bankrupt_autopsies(&econ, &ts, 1, 200);
     // 2 bankrupt agents (Agent_0 + Agent_2) → 2 capsules.
     assert_eq!(
         derived.len(),

@@ -102,9 +102,9 @@ fn benchmark_manifest_total_runs_arithmetic_is_stable() {
         (2, 1, 1, 2),
         (1, 3, 1, 3),
         (1, 1, 3, 3),
-        (50, 3, 3, 450),     // M1 = 50 × 3 × 3 = 450
-        (100, 3, 6, 1800),   // M2 = 100 × 3 × 3 × 2 (2 models = 2 seeds *2 ≈ 6 effective seeds)
-        (100, 3, 3, 900),    // M2 single-model = 100 × 3 × 3 = 900
+        (50, 3, 3, 450),   // M1 = 50 × 3 × 3 = 450
+        (100, 3, 6, 1800), // M2 = 100 × 3 × 3 × 2 (2 models = 2 seeds *2 ≈ 6 effective seeds)
+        (100, 3, 3, 900),  // M2 single-model = 100 × 3 × 3 = 900
     ];
     for (n_problems, n, n_seeds, expected) in cases {
         let mut m = ref_manifest();
@@ -146,8 +146,7 @@ fn benchmark_manifest_disk_round_trip_is_stable() {
 #[test]
 fn benchmark_manifest_schema_id_pin_is_constitutional() {
     assert_eq!(
-        BENCHMARK_MANIFEST_SCHEMA_ID,
-        "turingosv4.benchmark_manifest.v1",
+        BENCHMARK_MANIFEST_SCHEMA_ID, "turingosv4.benchmark_manifest.v1",
         "Constitution gate: BENCHMARK_MANIFEST_SCHEMA_ID drift caught at gate level."
     );
 }

@@ -1,0 +1,8 @@
+
+running 3 tests
+test sg_g5_1_default_round_robin_back_compat ... ok
+test sg_g5_2_scheduler_can_return_abstain_for_empty_agent_set ... ok
+test sg_g5_3_observe_only_mode_does_not_override_selected_agent ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

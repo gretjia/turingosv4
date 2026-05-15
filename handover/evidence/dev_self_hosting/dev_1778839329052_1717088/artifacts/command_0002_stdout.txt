@@ -1,0 +1,10 @@
+Diff in /home/zephryj/projects/turingosv4/src/runtime/g7_structural_smoke.rs:117:
+     let any = total_guards > 0;
+     G7StructuralGuardSummary {
+         total_guards,
+-        no_forced_live_investment_all: any
+-            && guards.iter().all(|g| g.no_forced_live_investment),
++        no_forced_live_investment_all: any && guards.iter().all(|g| g.no_forced_live_investment),
+         price_observe_only_all: any && guards.iter().all(|g| g.price_observe_only),
+         no_price_as_truth_all: any && guards.iter().all(|g| g.no_price_as_truth),
+         no_ghost_liquidity_all: any && guards.iter().all(|g| g.no_ghost_liquidity),

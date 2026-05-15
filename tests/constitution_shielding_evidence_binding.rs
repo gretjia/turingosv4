@@ -41,8 +41,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 
-const WAVE3_50P_DIR: &str =
-    "handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z";
+const WAVE3_50P_DIR: &str = "handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z";
 
 /// Locate every `P##_<problem>` directory under the Wave 3 50p batch dir.
 fn wave3_problem_dirs() -> Vec<PathBuf> {
@@ -111,8 +110,8 @@ fn aggregate_cas_index() -> (
             "Wave 3 50p shielding binding: {} missing cas/.turingos_cas_index.jsonl",
             p.display()
         );
-        let body = fs::read_to_string(&idx)
-            .unwrap_or_else(|e| panic!("read {}: {e}", idx.display()));
+        let body =
+            fs::read_to_string(&idx).unwrap_or_else(|e| panic!("read {}: {e}", idx.display()));
         for line in body.lines() {
             let line = line.trim();
             if line.is_empty() {
@@ -412,14 +411,8 @@ fn wave3_50p_shielding_no_leakage_suggestive_schema_ids() {
 fn wave3_50p_shielding_no_orphan_raw_bodies() {
     let (by_schema, by_type, _total, _all) = aggregate_cas_index();
 
-    let typed_tx_count = by_schema
-        .get("TypedTx.v1")
-        .map(|s| s.count)
-        .unwrap_or(0);
-    let proposal_payload_count = by_type
-        .get("ProposalPayload")
-        .map(|s| s.count)
-        .unwrap_or(0);
+    let typed_tx_count = by_schema.get("TypedTx.v1").map(|s| s.count).unwrap_or(0);
+    let proposal_payload_count = by_type.get("ProposalPayload").map(|s| s.count).unwrap_or(0);
 
     // Every typed-tx wrapper IS a ProposalPayload on this substrate
     // (TypedTx.v1 schema is exactly the ProposalPayload typed wrapper).
@@ -482,8 +475,8 @@ fn wave3_50p_shielding_chain_invariant_companion_present() {
     for p in &dirs {
         let inv = p.join("chain_invariant.json");
         if inv.is_file() {
-            let body = fs::read_to_string(&inv)
-                .unwrap_or_else(|e| panic!("read {}: {e}", inv.display()));
+            let body =
+                fs::read_to_string(&inv).unwrap_or_else(|e| panic!("read {}: {e}", inv.display()));
             let v: Value = serde_json::from_str(&body)
                 .unwrap_or_else(|e| panic!("parse {}: {e}", inv.display()));
             assert_eq!(

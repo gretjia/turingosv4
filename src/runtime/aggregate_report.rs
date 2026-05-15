@@ -159,11 +159,7 @@ impl AggregateReport {
         let mean_pput_solved: Option<f64> = if solved_count == 0 {
             None
         } else {
-            let sum_solved: f64 = runs
-                .iter()
-                .filter(|r| r.solved)
-                .map(|r| r.pput)
-                .sum();
+            let sum_solved: f64 = runs.iter().filter(|r| r.solved).map(|r| r.pput).sum();
             Some(sum_solved / solved_count as f64)
         };
 
@@ -241,9 +237,7 @@ impl AggregateReport {
         if !self.fc1_aggregate_attempt_equality_holds {
             return Err(Fc1AggregateInvariantBroken {
                 attempts: self.total_attempts,
-                rhs: self.total_l4_accepted
-                    + self.total_l4e_rejected
-                    + self.total_capsule_anchored,
+                rhs: self.total_l4_accepted + self.total_l4e_rejected + self.total_capsule_anchored,
             });
         }
         if !self.no_fake_accepted_nodes {
@@ -422,8 +416,11 @@ mod tests {
 
     #[test]
     fn schema_id_mismatch_blocks() {
-        let mut r =
-            AggregateReport::from_per_run(&[run("p1", "r1", true, "OmegaAccepted", 1.0)], true, None);
+        let mut r = AggregateReport::from_per_run(
+            &[run("p1", "r1", true, "OmegaAccepted", 1.0)],
+            true,
+            None,
+        );
         r.schema_id = "turingosv4.aggregate_report.v0".into();
         match r.assert_claude_md_section_17() {
             Err(AggregateReportError::SchemaIdMismatch(s)) => {

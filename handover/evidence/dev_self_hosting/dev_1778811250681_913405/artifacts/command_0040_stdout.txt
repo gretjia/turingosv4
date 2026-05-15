@@ -1,0 +1,6 @@
+
+running 1 test
+test sg_6a_5_real6_market_visible_non_invest_turn_writes_no_trade_trace ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.00s
+

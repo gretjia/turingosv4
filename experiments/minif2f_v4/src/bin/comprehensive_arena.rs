@@ -85,9 +85,9 @@ use turingosv4::bottom_white::cas::store::CasStore;
 use turingosv4::runtime::adapter::{
     make_real_challengetx_signed_by, make_real_complete_set_mint_signed_by,
     make_real_complete_set_redeem_signed_by, make_real_market_seed_signed_by,
-    make_real_verifytx_signed_by, make_real_worktx_signed_by, tb8_await_state_root_advance,
-    tb8_emit_finalize_after_verify, tb11_emit_terminal_summary_for_run,
-    tb16_emit_challenge_resolve_for_eligible,
+    make_real_verifytx_signed_by, make_real_worktx_signed_by, tb11_emit_terminal_summary_for_run,
+    tb16_emit_challenge_resolve_for_eligible, tb8_await_state_root_advance,
+    tb8_emit_finalize_after_verify,
 };
 use turingosv4::runtime::evidence_capsule::{write_evidence_capsule, ExhaustionCounts};
 use turingosv4::runtime::proposal_telemetry::{ProposalTelemetry, TokenCounts};
@@ -98,9 +98,7 @@ use turingosv4::state::typed_tx::{
     RejectionClass, RunId, RunOutcome,
 };
 
-use minif2f_v4::chain_runtime::{
-    write_synthetic_l4_l4e_gate_and_genesis_report, SharedChain,
-};
+use minif2f_v4::chain_runtime::{write_synthetic_l4_l4e_gate_and_genesis_report, SharedChain};
 use minif2f_v4::drive_task::{drive_task, TaskSpec};
 use minif2f_v4::per_call_budget::PerCallBudget;
 
@@ -262,8 +260,7 @@ fn write_plan_to_disk(cfg: &ArenaConfig) -> Result<(), String> {
         out_dir = cfg.out_dir,
         seed = cfg.chain_seed_id,
     );
-    std::fs::write(&plan_path, body)
-        .map_err(|e| format!("write {plan_path:?}: {e}"))?;
+    std::fs::write(&plan_path, body).map_err(|e| format!("write {plan_path:?}: {e}"))?;
     Ok(())
 }
 
@@ -345,7 +342,7 @@ fn write_minimal_evidence_capsule(
         counts,
         (0, 1), // rounds (start, end)
         reason,
-        b"",                        // raw_log_bytes (minimal for arena synthetic)
+        b"", // raw_log_bytes (minimal for arena synthetic)
         turingosv4::state::typed_tx::CapsulePrivacyPolicy::AuditOnly,
         creator,
         1,
@@ -379,8 +376,7 @@ async fn drive_task_a(
     let scaffold = drive_task(chain, spec, PerCallBudget::default())
         .await
         .map_err(|e| format!("task_A drive_task: {e}"))?;
-    let mut tx_kinds: Vec<&'static str> =
-        vec!["TaskOpen", "EscrowLock"];
+    let mut tx_kinds: Vec<&'static str> = vec!["TaskOpen", "EscrowLock"];
 
     let post_open = parse_hex(&scaffold.post_open_lock_state_root_hex)?;
 
@@ -469,7 +465,11 @@ async fn drive_task_a(
         label: "task_A_happy_path",
         task_id: scaffold.task_id,
         tx_kinds_emitted: tx_kinds,
-        note: if finalized { String::new() } else { "FinalizeReward poll budget expired".into() },
+        note: if finalized {
+            String::new()
+        } else {
+            "FinalizeReward poll budget expired".into()
+        },
     })
 }
 
@@ -501,7 +501,11 @@ async fn drive_task_b(
         )
         .map_err(|e| format!("{e:?}"))
     })?;
-    chain.bus.submit_typed_tx(work_tx).await.map_err(|e| format!("task_B Work submit: {e:?}"))?;
+    chain
+        .bus
+        .submit_typed_tx(work_tx)
+        .await
+        .map_err(|e| format!("task_B Work submit: {e:?}"))?;
     let post_work = await_advance(chain, post_open, 5000).await?;
     tx_kinds.push("Work");
     let work_tx_id = TxId(format!("worktx-{}-tb18-b-work", scaffold.task_id));
@@ -520,7 +524,11 @@ async fn drive_task_b(
         )
         .map_err(|e| format!("{e:?}"))
     })?;
-    chain.bus.submit_typed_tx(verify_tx).await.map_err(|e| format!("task_B Verify submit: {e:?}"))?;
+    chain
+        .bus
+        .submit_typed_tx(verify_tx)
+        .await
+        .map_err(|e| format!("task_B Verify submit: {e:?}"))?;
     let post_verify = await_advance(chain, post_work, 5000).await?;
     tx_kinds.push("Verify");
 
@@ -538,12 +546,19 @@ async fn drive_task_b(
         )
         .map_err(|e| format!("{e:?}"))
     })?;
-    chain.bus.submit_typed_tx(challenge_tx).await.map_err(|e| format!("task_B Challenge submit: {e:?}"))?;
+    chain
+        .bus
+        .submit_typed_tx(challenge_tx)
+        .await
+        .map_err(|e| format!("task_B Challenge submit: {e:?}"))?;
     let post_challenge = await_advance(chain, post_verify, 5000).await?;
     tx_kinds.push("Challenge");
 
     // ChallengeResolve(Released) — tb16 helper iterates all eligible Open challenges.
-    let bundle = chain.chaintape_bundle.as_ref().ok_or_else(|| "bundle=None".to_string())?;
+    let bundle = chain
+        .chaintape_bundle
+        .as_ref()
+        .ok_or_else(|| "bundle=None".to_string())?;
     let (count, _bonds) = tb16_emit_challenge_resolve_for_eligible(
         bundle.sequencer.as_ref(),
         0,
@@ -560,7 +575,11 @@ async fn drive_task_b(
         label: "task_B_challenge_released",
         task_id: scaffold.task_id,
         tx_kinds_emitted: tx_kinds,
-        note: if count > 0 { String::new() } else { "ChallengeResolve count=0".into() },
+        note: if count > 0 {
+            String::new()
+        } else {
+            "ChallengeResolve count=0".into()
+        },
     })
 }
 
@@ -589,7 +608,11 @@ async fn drive_task_c(
         )
         .map_err(|e| format!("{e:?}"))
     })?;
-    chain.bus.submit_typed_tx(market_seed_tx).await.map_err(|e| format!("task_C MarketSeed submit: {e:?}"))?;
+    chain
+        .bus
+        .submit_typed_tx(market_seed_tx)
+        .await
+        .map_err(|e| format!("task_C MarketSeed submit: {e:?}"))?;
     let post_seed = await_advance(chain, post_open, 5000).await?;
     tx_kinds.push("MarketSeed");
 
@@ -606,14 +629,27 @@ async fn drive_task_c(
         )
         .map_err(|e| format!("{e:?}"))
     })?;
-    chain.bus.submit_typed_tx(cs_mint_tx).await.map_err(|e| format!("task_C CompleteSetMint submit: {e:?}"))?;
+    chain
+        .bus
+        .submit_typed_tx(cs_mint_tx)
+        .await
+        .map_err(|e| format!("task_C CompleteSetMint submit: {e:?}"))?;
     let post_mint = await_advance(chain, post_seed, 5000).await?;
     tx_kinds.push("CompleteSetMint");
 
     // TaskBankruptcy (system-emitted; resolves market to NO=wins per architect)
     // task_C bankruptcy: synthetic underlying run halted on tx-cap; reason matches assert_27 projection (MaxTxExhausted -> RunOutcome::MaxTxExhausted, but TaskBankruptcy is not gated by assert_27 — kept consistent for capsule-content hygiene).
-    let evidence_cid = write_minimal_evidence_capsule(cas_path, "tb18-task-c", &scaffold.task_id, "tb18-arena", ExhaustionReason::MaxTxExhausted)?;
-    let bundle = chain.chaintape_bundle.as_ref().ok_or_else(|| "bundle=None".to_string())?;
+    let evidence_cid = write_minimal_evidence_capsule(
+        cas_path,
+        "tb18-task-c",
+        &scaffold.task_id,
+        "tb18-arena",
+        ExhaustionReason::MaxTxExhausted,
+    )?;
+    let bundle = chain
+        .chaintape_bundle
+        .as_ref()
+        .ok_or_else(|| "bundle=None".to_string())?;
     let task_id = TaskId(scaffold.task_id.clone());
     bundle
         .sequencer
@@ -642,7 +678,11 @@ async fn drive_task_c(
         )
         .map_err(|e| format!("{e:?}"))
     })?;
-    chain.bus.submit_typed_tx(cs_redeem_tx).await.map_err(|e| format!("task_C CompleteSetRedeem submit: {e:?}"))?;
+    chain
+        .bus
+        .submit_typed_tx(cs_redeem_tx)
+        .await
+        .map_err(|e| format!("task_C CompleteSetRedeem submit: {e:?}"))?;
     let _ = await_advance(chain, post_bankruptcy, 5000).await;
     tx_kinds.push("CompleteSetRedeem");
 
@@ -682,13 +722,26 @@ async fn drive_task_d(
         )
         .map_err(|e| format!("{e:?}"))
     })?;
-    chain.bus.submit_typed_tx(work_tx).await.map_err(|e| format!("task_D Work submit: {e:?}"))?;
+    chain
+        .bus
+        .submit_typed_tx(work_tx)
+        .await
+        .map_err(|e| format!("task_D Work submit: {e:?}"))?;
     let post_work = await_advance(chain, post_open, 5000).await?;
     tx_kinds.push("Work");
 
     // TerminalSummary (system-emitted; outcome=MaxTxExhausted)
-    let evidence_cid = write_minimal_evidence_capsule(cas_path, "tb18-task-d", &scaffold.task_id, "tb18-arena", ExhaustionReason::MaxTxExhausted)?;
-    let bundle = chain.chaintape_bundle.as_ref().ok_or_else(|| "bundle=None".to_string())?;
+    let evidence_cid = write_minimal_evidence_capsule(
+        cas_path,
+        "tb18-task-d",
+        &scaffold.task_id,
+        "tb18-arena",
+        ExhaustionReason::MaxTxExhausted,
+    )?;
+    let bundle = chain
+        .chaintape_bundle
+        .as_ref()
+        .ok_or_else(|| "bundle=None".to_string())?;
     let task_id = TaskId(scaffold.task_id.clone());
     let run_id_typed = RunId("tb18-task-d-run".into());
     let mut histogram = std::collections::BTreeMap::new();
@@ -762,8 +815,17 @@ async fn drive_task_e(
     let mut tx_kinds: Vec<&'static str> = vec!["TaskOpen", "EscrowLock"];
     let post_open = parse_hex(&scaffold.post_open_lock_state_root_hex)?;
 
-    let evidence_cid = write_minimal_evidence_capsule(cas_path, "tb18-task-e", &scaffold.task_id, "tb18-arena", ExhaustionReason::MaxTxExhausted)?;
-    let bundle = chain.chaintape_bundle.as_ref().ok_or_else(|| "bundle=None".to_string())?;
+    let evidence_cid = write_minimal_evidence_capsule(
+        cas_path,
+        "tb18-task-e",
+        &scaffold.task_id,
+        "tb18-arena",
+        ExhaustionReason::MaxTxExhausted,
+    )?;
+    let bundle = chain
+        .chaintape_bundle
+        .as_ref()
+        .ok_or_else(|| "bundle=None".to_string())?;
     let task_id = TaskId(scaffold.task_id.clone());
     let run_id_typed = RunId("tb18-task-e-run".into());
     let histogram = std::collections::BTreeMap::new();
@@ -818,12 +880,25 @@ async fn drive_task_f(
         )
         .map_err(|e| format!("{e:?}"))
     })?;
-    chain.bus.submit_typed_tx(work_tx).await.map_err(|e| format!("task_F Work submit: {e:?}"))?;
+    chain
+        .bus
+        .submit_typed_tx(work_tx)
+        .await
+        .map_err(|e| format!("task_F Work submit: {e:?}"))?;
     let post_work = await_advance(chain, post_open, 5000).await?;
     tx_kinds.push("Work");
 
-    let evidence_cid = write_minimal_evidence_capsule(cas_path, "tb18-task-f", &scaffold.task_id, "tb18-arena", ExhaustionReason::DegradedLLM)?;
-    let bundle = chain.chaintape_bundle.as_ref().ok_or_else(|| "bundle=None".to_string())?;
+    let evidence_cid = write_minimal_evidence_capsule(
+        cas_path,
+        "tb18-task-f",
+        &scaffold.task_id,
+        "tb18-arena",
+        ExhaustionReason::DegradedLLM,
+    )?;
+    let bundle = chain
+        .chaintape_bundle
+        .as_ref()
+        .ok_or_else(|| "bundle=None".to_string())?;
     let task_id = TaskId(scaffold.task_id.clone());
     let run_id_typed = RunId("tb18-task-f-run".into());
     let histogram = std::collections::BTreeMap::new();
@@ -854,16 +929,16 @@ async fn drive_task_f(
 /// Helper: borrow agent_keypairs registry under mutex; pass `&mut reg` to closure.
 fn sign_with_keypairs<F, T>(chain: &SharedChain, f: F) -> Result<T, String>
 where
-    F: FnOnce(
-        &mut turingosv4::runtime::agent_keypairs::AgentKeypairRegistry,
-    ) -> Result<T, String>,
+    F: FnOnce(&mut turingosv4::runtime::agent_keypairs::AgentKeypairRegistry) -> Result<T, String>,
 {
     let arc = chain
         .agent_keypairs
         .as_ref()
         .ok_or_else(|| "agent_keypairs = None (chaintape mode required)".to_string())?
         .clone();
-    let mut reg = arc.lock().map_err(|_| "agent_keypairs mutex poisoned".to_string())?;
+    let mut reg = arc
+        .lock()
+        .map_err(|_| "agent_keypairs mutex poisoned".to_string())?;
     f(&mut reg)
 }
 
@@ -874,8 +949,8 @@ fn parse_hex(s: &str) -> Result<Hash, String> {
     }
     let mut bytes = [0u8; 32];
     for i in 0..32 {
-        bytes[i] = u8::from_str_radix(&s[i * 2..i * 2 + 2], 16)
-            .map_err(|e| format!("hex parse: {e}"))?;
+        bytes[i] =
+            u8::from_str_radix(&s[i * 2..i * 2 + 2], 16).map_err(|e| format!("hex parse: {e}"))?;
     }
     Ok(Hash(bytes))
 }
@@ -979,12 +1054,66 @@ async fn run_arena(cfg: ArenaConfig) -> Result<(), String> {
 
     let mut outcomes: Vec<ArenaTaskOutcome> = Vec::new();
     let task_specs = vec![
-        ("task_A", TaskSpec::new("data/synth/task_a.lean", "theorem task_a_happy_path : 1+1=2", "task_a_happy_path", "synth", 1)),
-        ("task_B", TaskSpec::new("data/synth/task_b.lean", "theorem task_b_challenge : 2+2=4", "task_b_challenge", "synth", 1)),
-        ("task_C", TaskSpec::new("data/synth/task_c.lean", "theorem task_c_market : 3+3=6", "task_c_market", "synth", 1)),
-        ("task_D", TaskSpec::new("data/synth/task_d.lean", "theorem task_d_exhaustion : 4+4=8", "task_d_exhaustion", "synth", 1)),
-        ("task_E", TaskSpec::new("data/synth/task_e.lean", "theorem task_e_no_solver : 5+5=10", "task_e_no_solver", "synth", 1)),
-        ("task_F", TaskSpec::new("data/synth/task_f.lean", "theorem task_f_degraded : 6+6=12", "task_f_degraded", "synth", 1)),
+        (
+            "task_A",
+            TaskSpec::new(
+                "data/synth/task_a.lean",
+                "theorem task_a_happy_path : 1+1=2",
+                "task_a_happy_path",
+                "synth",
+                1,
+            ),
+        ),
+        (
+            "task_B",
+            TaskSpec::new(
+                "data/synth/task_b.lean",
+                "theorem task_b_challenge : 2+2=4",
+                "task_b_challenge",
+                "synth",
+                1,
+            ),
+        ),
+        (
+            "task_C",
+            TaskSpec::new(
+                "data/synth/task_c.lean",
+                "theorem task_c_market : 3+3=6",
+                "task_c_market",
+                "synth",
+                1,
+            ),
+        ),
+        (
+            "task_D",
+            TaskSpec::new(
+                "data/synth/task_d.lean",
+                "theorem task_d_exhaustion : 4+4=8",
+                "task_d_exhaustion",
+                "synth",
+                1,
+            ),
+        ),
+        (
+            "task_E",
+            TaskSpec::new(
+                "data/synth/task_e.lean",
+                "theorem task_e_no_solver : 5+5=10",
+                "task_e_no_solver",
+                "synth",
+                1,
+            ),
+        ),
+        (
+            "task_F",
+            TaskSpec::new(
+                "data/synth/task_f.lean",
+                "theorem task_f_degraded : 6+6=12",
+                "task_f_degraded",
+                "synth",
+                1,
+            ),
+        ),
     ];
     for (label, spec) in task_specs {
         eprintln!("[arena] driving {label}");
@@ -1001,7 +1130,8 @@ async fn run_arena(cfg: ArenaConfig) -> Result<(), String> {
             Ok(o) => {
                 eprintln!(
                     "[arena] {label} OK: tx_kinds={:?} note={}",
-                    o.tx_kinds_emitted, if o.note.is_empty() { "(none)" } else { &o.note }
+                    o.tx_kinds_emitted,
+                    if o.note.is_empty() { "(none)" } else { &o.note }
                 );
                 outcomes.push(o);
             }
@@ -1022,7 +1152,10 @@ async fn run_arena(cfg: ArenaConfig) -> Result<(), String> {
 
     let elapsed = start.elapsed().as_millis();
     write_evidence_reports(&cfg, &outcomes, &cfg.chain_seed_id, elapsed)?;
-    eprintln!("[arena] DONE in {elapsed}ms; evidence written to {:?}", cfg.out_dir.join("evidence"));
+    eprintln!(
+        "[arena] DONE in {elapsed}ms; evidence written to {:?}",
+        cfg.out_dir.join("evidence")
+    );
     Ok(())
 }
 

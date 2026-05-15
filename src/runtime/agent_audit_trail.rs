@@ -209,10 +209,15 @@ pub enum AgentAuditError {
     Cas(CasError),
     Codec(String),
     Io(std::io::Error),
-    JsonlParse { line: usize, reason: String },
+    JsonlParse {
+        line: usize,
+        reason: String,
+    },
     /// Audit-row chain integrity broken at the given index — tampering or
     /// concurrent-writer race.
-    ChainBroken { at: usize },
+    ChainBroken {
+        at: usize,
+    },
 }
 
 impl std::fmt::Display for AgentAuditError {
@@ -270,10 +275,7 @@ pub fn write_to_cas(
 }
 
 /// TRACE_MATRIX FC3-N1: TB-6 Atom 5 — CAS fetch + canonical-decode.
-pub fn read_from_cas(
-    cas: &CasStore,
-    cid: &Cid,
-) -> Result<AgentProposalRecord, AgentAuditError> {
+pub fn read_from_cas(cas: &CasStore, cid: &Cid) -> Result<AgentProposalRecord, AgentAuditError> {
     let bytes = cas.get(cid)?;
     canonical_decode::<AgentProposalRecord>(&bytes)
         .map_err(|e| AgentAuditError::Codec(e.to_string()))
@@ -371,8 +373,12 @@ impl AgentAuditTrailIndex {
             prev_hash,
             hash,
         };
-        let line = serde_json::to_string(&row).map_err(|e| AgentAuditError::Codec(e.to_string()))?;
-        let mut f = std::fs::OpenOptions::new().create(true).append(true).open(&self.path)?;
+        let line =
+            serde_json::to_string(&row).map_err(|e| AgentAuditError::Codec(e.to_string()))?;
+        let mut f = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&self.path)?;
         use std::io::Write;
         writeln!(f, "{line}")?;
         f.sync_data()?;
@@ -515,7 +521,9 @@ pub fn write_synthetic_seed_audit_pair(
     let rejected = AgentProposalRecord {
         agent_id: AgentId("tb6-smoke-agent".into()),
         prompt_context_hash,
-        read_set: [ReadKey("k.tape".into())].into_iter().collect::<BTreeSet<_>>(),
+        read_set: [ReadKey("k.tape".into())]
+            .into_iter()
+            .collect::<BTreeSet<_>>(),
         write_set: [WriteKey("k.tape".into())]
             .into_iter()
             .collect::<BTreeSet<_>>(),
@@ -663,7 +671,8 @@ mod tests {
             idx.append(&r.tx_id, &cid, TEST_LOGICAL_T, &r).unwrap();
             let mut r2 = r.clone();
             r2.tx_id = TxId("second".into());
-            idx.append(&r2.tx_id, &cid, TEST_LOGICAL_T + 1, &r2).unwrap();
+            idx.append(&r2.tx_id, &cid, TEST_LOGICAL_T + 1, &r2)
+                .unwrap();
         }
         // Corrupt the second row's prev_hash by editing the JSONL file.
         let path = tmp.path().join(AGENT_AUDIT_TRAIL_FILENAME);
@@ -672,7 +681,9 @@ mod tests {
         assert_eq!(lines.len(), 2);
         let mut second: serde_json::Value = serde_json::from_str(lines[1]).unwrap();
         second["prev_hash"] = serde_json::Value::Array(
-            (0..32u8).map(|_| serde_json::Value::Number(0u8.into())).collect(),
+            (0..32u8)
+                .map(|_| serde_json::Value::Number(0u8.into()))
+                .collect(),
         );
         let new_lines = format!(
             "{}\n{}\n",

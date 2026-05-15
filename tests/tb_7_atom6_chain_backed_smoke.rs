@@ -111,8 +111,7 @@ async fn i110_chain_backed_smoke_end_to_end_synthetic_llm() {
         .expect("synthetic TaskOpen submit");
 
     // ── Step 2: open AgentKeypairRegistry ──
-    let mut reg =
-        AgentKeypairRegistry::open(&cfg.runtime_repo_path).expect("open agent_keypairs");
+    let mut reg = AgentKeypairRegistry::open(&cfg.runtime_repo_path).expect("open agent_keypairs");
     let mut cas_store = CasStore::open(&cfg.cas_path).expect("open cas");
 
     // ── Step 3: submit a sequence of synthetic-agent WorkTx + VerifyTx pairs ──
@@ -187,8 +186,12 @@ async fn i110_chain_backed_smoke_end_to_end_synthetic_llm() {
     bundle.shutdown().await.expect("shutdown drain");
 
     // ── Step 4: verify_chaintape — Gate 4 + Gate 5 + replay invariants ──
-    let report = verify_chaintape(&cfg.runtime_repo_path, &cfg.cas_path, &VerifyOptions::default())
-        .expect("verify_chaintape");
+    let report = verify_chaintape(
+        &cfg.runtime_repo_path,
+        &cfg.cas_path,
+        &VerifyOptions::default(),
+    )
+    .expect("verify_chaintape");
     // Gate 3 (≥1 L4 + ≥1 L4.E):
     assert!(
         report.l4_entries >= 1,
@@ -219,8 +222,8 @@ async fn i110_chain_backed_smoke_end_to_end_synthetic_llm() {
     );
 
     // ── Step 5: chain-derived run facts (Gate 6) ──
-    let facts = compute_run_facts_from_chain(&cfg.runtime_repo_path, &cfg.cas_path)
-        .expect("compute facts");
+    let facts =
+        compute_run_facts_from_chain(&cfg.runtime_repo_path, &cfg.cas_path).expect("compute facts");
     // tx_count = L4 entries + L4.E entries.
     assert_eq!(
         facts.tx_count,
@@ -256,7 +259,10 @@ async fn i110_chain_backed_smoke_end_to_end_synthetic_llm() {
         let report_json = serde_json::to_string_pretty(&report).expect("serialize report");
         let _ = std::fs::write(evidence_dir.join("replay_report.json"), report_json);
         let facts_json = serde_json::to_string_pretty(&facts).expect("serialize facts");
-        let _ = std::fs::write(evidence_dir.join("chain_derived_run_facts.json"), facts_json);
+        let _ = std::fs::write(
+            evidence_dir.join("chain_derived_run_facts.json"),
+            facts_json,
+        );
         // Symlink-style: copy the runtime_repo manifest contents we rely on.
         let agent_pubkeys_src = cfg.runtime_repo_path.join("agent_pubkeys.json");
         if agent_pubkeys_src.exists() {

@@ -27,15 +27,11 @@ use turingosv4::runtime::adapter::{
     make_synthetic_task_open,
 };
 use turingosv4::runtime::agent_keypairs::AgentKeypairRegistry;
-use turingosv4::runtime::chain_derived_run_facts::{
-    compute_run_facts_from_chain, ParentTxState,
-};
+use turingosv4::runtime::chain_derived_run_facts::{compute_run_facts_from_chain, ParentTxState};
 use turingosv4::runtime::proposal_telemetry::{
     write_to_cas as write_telemetry, ProposalTelemetry, TokenCounts,
 };
-use turingosv4::runtime::verification_result::{
-    write_to_cas as write_vr, VerificationResult,
-};
+use turingosv4::runtime::verification_result::{write_to_cas as write_vr, VerificationResult};
 use turingosv4::runtime::{
     build_chaintape_sequencer_with_initial_q, ChaintapeBundle, RuntimeChaintapeConfig,
 };
@@ -55,10 +51,7 @@ fn fresh_config(tmp: &TempDir, run_id: &str) -> RuntimeChaintapeConfig {
 }
 
 /// Build a fresh bundle with preseeded balances (sponsor + N agents).
-fn fresh_bundle_with_preseed(
-    cfg: &RuntimeChaintapeConfig,
-    agent_count: usize,
-) -> ChaintapeBundle {
+fn fresh_bundle_with_preseed(cfg: &RuntimeChaintapeConfig, agent_count: usize) -> ChaintapeBundle {
     let mut pairs: Vec<(AgentId, MicroCoin)> = vec![(
         AgentId("test-sponsor".into()),
         MicroCoin::from_micro_units(10_000_000),
@@ -74,11 +67,7 @@ fn fresh_bundle_with_preseed(
 }
 
 /// Submit on-chain TaskOpen + EscrowLock and return the post-EscrowLock state_root.
-async fn seed_task_and_escrow(
-    bus: &TuringBus,
-    bundle: &ChaintapeBundle,
-    task_id: &str,
-) -> Hash {
+async fn seed_task_and_escrow(bus: &TuringBus, bundle: &ChaintapeBundle, task_id: &str) -> Hash {
     // TaskOpen
     let task_open = make_synthetic_task_open(task_id, "test-sponsor", Hash::ZERO, "test-seed");
     bus.submit_typed_tx(task_open)
@@ -87,13 +76,8 @@ async fn seed_task_and_escrow(
     // Wait state_root advance
     let parent_root = wait_state_root_advance(bundle, Hash::ZERO).await;
     // EscrowLock
-    let escrow_lock = make_synthetic_escrow_lock(
-        task_id,
-        "test-sponsor",
-        100_000,
-        parent_root,
-        "test-escrow",
-    );
+    let escrow_lock =
+        make_synthetic_escrow_lock(task_id, "test-sponsor", 100_000, parent_root, "test-escrow");
     bus.submit_typed_tx(escrow_lock)
         .await
         .expect("EscrowLock submit");
@@ -230,8 +214,7 @@ async fn singleton_golden_path_has_zero_edges_and_is_valid() {
 
     bundle.shutdown().await.expect("shutdown");
 
-    let facts =
-        compute_run_facts_from_chain(&cfg.runtime_repo_path, &cfg.cas_path).expect("facts");
+    let facts = compute_run_facts_from_chain(&cfg.runtime_repo_path, &cfg.cas_path).expect("facts");
     assert!(
         facts.chain_oracle_verified,
         "singleton run with verified VR must have chain_oracle_verified=true"
@@ -296,8 +279,7 @@ async fn second_attempt_same_branch_has_parent_tx() {
 
     bundle.shutdown().await.expect("shutdown");
 
-    let facts =
-        compute_run_facts_from_chain(&cfg.runtime_repo_path, &cfg.cas_path).expect("facts");
+    let facts = compute_run_facts_from_chain(&cfg.runtime_repo_path, &cfg.cas_path).expect("facts");
     assert_eq!(
         facts.parent_tx_state,
         ParentTxState::MultiAttemptDagValid,
@@ -363,8 +345,7 @@ async fn missing_parent_on_nonroot_attempt_is_violation() {
 
     bundle.shutdown().await.expect("shutdown");
 
-    let facts =
-        compute_run_facts_from_chain(&cfg.runtime_repo_path, &cfg.cas_path).expect("facts");
+    let facts = compute_run_facts_from_chain(&cfg.runtime_repo_path, &cfg.cas_path).expect("facts");
     assert_eq!(
         facts.parent_tx_state,
         ParentTxState::MissingParentTxViolation,
@@ -460,8 +441,7 @@ async fn unsolved_runs_have_no_fake_accepted_nodes() {
     let _ = seed_task_and_escrow(&bus, &bundle, &task_id).await;
     bundle.shutdown().await.expect("shutdown");
 
-    let facts =
-        compute_run_facts_from_chain(&cfg.runtime_repo_path, &cfg.cas_path).expect("facts");
+    let facts = compute_run_facts_from_chain(&cfg.runtime_repo_path, &cfg.cas_path).expect("facts");
     assert!(
         !facts.chain_oracle_verified,
         "unsolved run must NOT claim chain_oracle_verified=true; got true"
@@ -542,8 +522,7 @@ async fn proposal_count_chain_equals_externalized_proposal_count() {
     .await;
     bundle.shutdown().await.expect("shutdown");
 
-    let facts =
-        compute_run_facts_from_chain(&cfg.runtime_repo_path, &cfg.cas_path).expect("facts");
+    let facts = compute_run_facts_from_chain(&cfg.runtime_repo_path, &cfg.cas_path).expect("facts");
     assert_eq!(
         facts.proposal_count, 3,
         "3 submit_typed_tx calls must produce proposal_count=3; got {}",

@@ -98,14 +98,7 @@ const HARD_BANNED_LEGACY_TOKENS: &[&str] = &[
 /// Tokens that catch f64 in money-path positions. Conservative pattern
 /// set: catches type annotations (`: f64`), function signatures
 /// (`f64,`, `f64;`, `f64)`), and standalone uses (` f64`, `\tf64`).
-const F64_PATTERNS: &[&str] = &[
-    " f64",
-    "\tf64",
-    "f64,",
-    "f64;",
-    "f64)",
-    ": f64",
-];
+const F64_PATTERNS: &[&str] = &[" f64", "\tf64", "f64,", "f64;", "f64)", ": f64"];
 
 fn read_file(rel_path: &str) -> String {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(rel_path);
@@ -120,9 +113,7 @@ fn read_file(rel_path: &str) -> String {
 /// quarantine, not violate it.
 fn is_comment_line(line: &str) -> bool {
     let trimmed = line.trim_start();
-    trimmed.starts_with("//")
-        || trimmed.starts_with("/*")
-        || trimmed.starts_with("*")
+    trimmed.starts_with("//") || trimmed.starts_with("/*") || trimmed.starts_with("*")
 }
 
 /// Returns true if `line` is inside a string literal that's clearly a
@@ -264,7 +255,10 @@ fn self_test_comment_recognition() {
 #[test]
 fn self_test_token_scan_detects_violation() {
     let synthetic = "use crate::prediction_market::BinaryMarket;";
-    assert!(!is_comment_line(synthetic), "synthetic line must not be comment-skipped");
+    assert!(
+        !is_comment_line(synthetic),
+        "synthetic line must not be comment-skipped"
+    );
     let mut found = false;
     for token in HARD_BANNED_LEGACY_TOKENS {
         if synthetic.contains(token) {

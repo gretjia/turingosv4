@@ -89,8 +89,8 @@ fn fc3_inv3_raw_logs_not_in_agent_read_view_real_witness() {
 
     for p in &dirs {
         let idx = p.join("cas").join(".turingos_cas_index.jsonl");
-        let body = fs::read_to_string(&idx)
-            .unwrap_or_else(|e| panic!("read {}: {e}", idx.display()));
+        let body =
+            fs::read_to_string(&idx).unwrap_or_else(|e| panic!("read {}: {e}", idx.display()));
         for line in body.lines() {
             let line = line.trim();
             if line.is_empty() {
@@ -148,15 +148,22 @@ fn fc3_inv3_raw_logs_not_in_agent_read_view_real_witness() {
 #[test]
 fn fc3_inv4_latest_capsule_context_only_real_witness() {
     let dirs = problem_dirs(WAVE3_50P_DIR);
-    assert_eq!(dirs.len(), 50, "FC3-INV4 binding: need 50 Wave 3 problem dirs");
+    assert_eq!(
+        dirs.len(),
+        50,
+        "FC3-INV4 binding: need 50 Wave 3 problem dirs"
+    );
 
     let mut all_ok = 0usize;
     for p in &dirs {
         let inv = p.join("chain_invariant.json");
-        let body = fs::read_to_string(&inv)
-            .unwrap_or_else(|e| panic!("read {}: {e}", inv.display()));
+        let body =
+            fs::read_to_string(&inv).unwrap_or_else(|e| panic!("read {}: {e}", inv.display()));
         let v: Value = serde_json::from_str(&body).expect("chain_invariant.json valid");
-        let verdict = v.get("invariant_verdict").and_then(|s| s.as_str()).unwrap_or("");
+        let verdict = v
+            .get("invariant_verdict")
+            .and_then(|s| s.as_str())
+            .unwrap_or("");
         let delta = v.get("delta").and_then(|d| d.as_i64()).unwrap_or(-1);
         if verdict == "Ok" && delta == 0 {
             all_ok += 1;
@@ -231,7 +238,11 @@ fn fc3_inv7_architect_proposes_no_direct_write_git_witness() {
     // Forbidden author markers — these would indicate audit/architect
     // role committing code directly.
     let forbidden_markers = [
-        "codex@", "gemini@", "judgeai", "architect_direct", "audit-role",
+        "codex@",
+        "gemini@",
+        "judgeai",
+        "architect_direct",
+        "audit-role",
     ];
     for author in &authors {
         let lower = author.to_lowercase();
@@ -296,7 +307,12 @@ fn fc3_inv8_judgeai_veto_only_audit_dir_witness() {
         }
     }
 
-    walk(audits_dir, &mut total_files, &mut violations, &forbidden_exts);
+    walk(
+        audits_dir,
+        &mut total_files,
+        &mut violations,
+        &forbidden_exts,
+    );
 
     assert!(
         violations.is_empty(),
@@ -322,9 +338,7 @@ fn fc3_inv8_judgeai_veto_only_audit_dir_witness() {
 fn fc3_art_v2_constitution_boundaries_witness() {
     // Find all commits that modified constitution.md.
     let out = Command::new("git")
-        .args([
-            "log", "--all", "--format=%H|%s", "--", "constitution.md",
-        ])
+        .args(["log", "--all", "--format=%H|%s", "--", "constitution.md"])
         .output()
         .expect("git log constitution.md should run");
     assert!(out.status.success(), "git log constitution.md failed");
@@ -349,13 +363,40 @@ fn fc3_art_v2_constitution_boundaries_witness() {
     // must cite at least one such token in commit subject.
     let tracer_tokens = [
         // TB / Stage / phase workflow markers
-        "TB-", "TBC0", "Stage", "Phase", "CO1", "FC-trace", "round", "wave",
-        "Wave", "VETO", "CHALLENGE", "directive", "charter", "audit",
-        "Atom", "atom",
+        "TB-",
+        "TBC0",
+        "Stage",
+        "Phase",
+        "CO1",
+        "FC-trace",
+        "round",
+        "wave",
+        "Wave",
+        "VETO",
+        "CHALLENGE",
+        "directive",
+        "charter",
+        "audit",
+        "Atom",
+        "atom",
         // Constitutional / amendment / foundational markers (architect-trail)
-        "constitution", "Constitutional", "Constitution", "amendment", "Amendment",
-        "Art.", "Axiom", "axiom", "Common Law", "common law", "公理", "宪法",
-        "sudo", "Initial commit", "V3L", "v3l", "lesson index",
+        "constitution",
+        "Constitutional",
+        "Constitution",
+        "amendment",
+        "Amendment",
+        "Art.",
+        "Axiom",
+        "axiom",
+        "Common Law",
+        "common law",
+        "公理",
+        "宪法",
+        "sudo",
+        "Initial commit",
+        "V3L",
+        "v3l",
+        "lesson index",
     ];
     let mut unanchored: Vec<(String, String)> = Vec::new();
     for (hash, msg) in &commits {
@@ -389,10 +430,9 @@ fn fc3_cross_batch_chain_invariant_consistency_witness() {
             if !inv.exists() {
                 continue;
             }
-            let body = fs::read_to_string(&inv)
-                .unwrap_or_else(|e| panic!("read {}: {e}", inv.display()));
-            let v: Value =
-                serde_json::from_str(&body).expect("chain_invariant.json valid");
+            let body =
+                fs::read_to_string(&inv).unwrap_or_else(|e| panic!("read {}: {e}", inv.display()));
+            let v: Value = serde_json::from_str(&body).expect("chain_invariant.json valid");
             let verdict = v
                 .get("invariant_verdict")
                 .and_then(|s| s.as_str())

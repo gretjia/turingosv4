@@ -113,7 +113,10 @@ fn aggregate_report_section_17_halt_distribution_present() {
     let r = AggregateReport::from_per_run(&runs, true, None);
     assert_eq!(r.halt_reason_distribution.len(), 3);
     assert_eq!(*r.halt_reason_distribution.get("OmegaAccepted").unwrap(), 1);
-    assert_eq!(*r.halt_reason_distribution.get("MaxTxExhausted").unwrap(), 2);
+    assert_eq!(
+        *r.halt_reason_distribution.get("MaxTxExhausted").unwrap(),
+        2
+    );
     assert_eq!(*r.halt_reason_distribution.get("ParseFailed").unwrap(), 1);
 }
 
@@ -155,7 +158,7 @@ fn aggregate_report_fc1_aggregate_invariant_is_ship_block() {
         run_id: "r1".into(),
         solved: true,
         halt_reason: "OmegaAccepted".into(),
-        attempt_count: 10,    // Deliberately broken
+        attempt_count: 10, // Deliberately broken
         l4_accepted: 1,
         l4e_rejected: 0,
         capsule_anchored: 0,
@@ -201,8 +204,7 @@ fn aggregate_report_wires_wilson_and_diversity() {
 #[test]
 fn aggregate_report_schema_id_pin_is_constitutional() {
     assert_eq!(
-        AGGREGATE_REPORT_SCHEMA_ID,
-        "turingosv4.aggregate_report.v1",
+        AGGREGATE_REPORT_SCHEMA_ID, "turingosv4.aggregate_report.v1",
         "Constitution gate: AGGREGATE_REPORT_SCHEMA_ID drift caught at gate level."
     );
 }

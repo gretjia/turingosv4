@@ -85,7 +85,10 @@ impl ResilientLLMClient {
     /// Generate a completion via the local proxy.
     /// Retries on transient errors with exponential backoff.
     /// V3L-27: handles 429 rate limits gracefully.
-    pub async fn generate(&self, request: &GenerateRequest) -> Result<GenerateResponse, DriverError> {
+    pub async fn generate(
+        &self,
+        request: &GenerateRequest,
+    ) -> Result<GenerateResponse, DriverError> {
         let client = reqwest::Client::builder()
             .timeout(self.timeout)
             .build()
@@ -114,30 +117,24 @@ impl ResilientLLMClient {
                     }
                     if !status.is_success() {
                         let body = response.text().await.unwrap_or_default();
-                        last_error = DriverError::BackendError(
-                            format!("HTTP {}: {}", status, body)
-                        );
+                        last_error =
+                            DriverError::BackendError(format!("HTTP {}: {}", status, body));
                         continue;
                     }
 
                     // Parse OpenAI-compatible response
-                    let body: serde_json::Value = response.json().await
+                    let body: serde_json::Value = response
+                        .json()
+                        .await
                         .map_err(|e| DriverError::ParseError(e.to_string()))?;
 
                     let content = body["choices"][0]["message"]["content"]
                         .as_str()
                         .unwrap_or("")
                         .to_string();
-                    let tokens = body["usage"]["completion_tokens"]
-                        .as_u64()
-                        .unwrap_or(0) as u32;
-                    let prompt_tokens = body["usage"]["prompt_tokens"]
-                        .as_u64()
-                        .unwrap_or(0) as u32;
-                    let model = body["model"]
-                        .as_str()
-                        .unwrap_or(&request.model)
-                        .to_string();
+                    let tokens = body["usage"]["completion_tokens"].as_u64().unwrap_or(0) as u32;
+                    let prompt_tokens = body["usage"]["prompt_tokens"].as_u64().unwrap_or(0) as u32;
+                    let model = body["model"].as_str().unwrap_or(&request.model).to_string();
 
                     return Ok(GenerateResponse {
                         content,
@@ -176,7 +173,10 @@ mod tests {
     fn test_generate_request_serialization() {
         let req = GenerateRequest {
             model: "deepseek-v3.2".into(),
-            messages: vec![Message { role: "user".into(), content: "test".into() }],
+            messages: vec![Message {
+                role: "user".into(),
+                content: "test".into(),
+            }],
             temperature: Some(0.2),
             max_tokens: Some(8000),
         };
@@ -191,9 +191,6 @@ mod tests {
             format!("{}", DriverError::RateLimited),
             "Rate limited (429)"
         );
-        assert_eq!(
-            format!("{}", DriverError::Timeout),
-            "Request timeout"
-        );
+        assert_eq!(format!("{}", DriverError::Timeout), "Request timeout");
     }
 }

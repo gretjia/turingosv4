@@ -30,7 +30,11 @@ pub fn run(workdir: &Path) -> C4Result {
             let path = wd.join(format!("c4_repo_thread_{i}"));
             let res: anyhow::Result<()> = (|| {
                 let repo = Repository::init(&path)?;
-                let sig = Signature::new(&format!("spike_{i}"), "spike@turingos.local", &git2::Time::new(0, 0))?;
+                let sig = Signature::new(
+                    &format!("spike_{i}"),
+                    "spike@turingos.local",
+                    &git2::Time::new(0, 0),
+                )?;
                 let blob = repo.blob(format!("c4 thread {i}\n").as_bytes())?;
                 let tree_id = {
                     let mut tb = repo.treebuilder(None)?;
@@ -38,7 +42,14 @@ pub fn run(workdir: &Path) -> C4Result {
                     tb.write()?
                 };
                 let tree = repo.find_tree(tree_id)?;
-                let _ = repo.commit(Some("HEAD"), &sig, &sig, &format!("C4: thread {i}"), &tree, &[])?;
+                let _ = repo.commit(
+                    Some("HEAD"),
+                    &sig,
+                    &sig,
+                    &format!("C4: thread {i}"),
+                    &tree,
+                    &[],
+                )?;
                 Ok(())
             })();
             match res {

@@ -25,18 +25,26 @@ fn raw_lean_stderr_not_in_agent_read_view() {
     // Source-side check: src/sdk/snapshot.rs (UniverseSnapshot) +
     // src/sdk/prompt.rs (build_agent_prompt) MUST NOT have a public
     // field that exposes raw_stderr or full Lean error body.
-    let snap_src =
-        std::fs::read_to_string("src/sdk/snapshot.rs").expect("snapshot.rs readable");
-    for forbidden in ["raw_stderr", "lean_stderr_full", "lean_stderr_raw", "lean_error_full"] {
+    let snap_src = std::fs::read_to_string("src/sdk/snapshot.rs").expect("snapshot.rs readable");
+    for forbidden in [
+        "raw_stderr",
+        "lean_stderr_full",
+        "lean_stderr_raw",
+        "lean_error_full",
+    ] {
         assert!(
             !snap_src.contains(forbidden),
             "Shielding violation: snapshot.rs exposes `{forbidden}` field \
              — raw stderr in agent read view per Art. III.1."
         );
     }
-    let prompt_src =
-        std::fs::read_to_string("src/sdk/prompt.rs").expect("prompt.rs readable");
-    for forbidden in ["raw_stderr", "lean_stderr_full", "lean_stderr_raw", "raw_lean_error"] {
+    let prompt_src = std::fs::read_to_string("src/sdk/prompt.rs").expect("prompt.rs readable");
+    for forbidden in [
+        "raw_stderr",
+        "lean_stderr_full",
+        "lean_stderr_raw",
+        "raw_lean_error",
+    ] {
         assert!(
             !prompt_src.contains(forbidden),
             "Shielding violation: prompt.rs splices `{forbidden}` \
@@ -55,9 +63,8 @@ fn raw_lean_stderr_not_in_agent_read_view() {
 fn l4e_public_summary_low_pollution() {
     // The L4.E rejection record lives in the dedicated rejection_evidence
     // module (TB-7R + DECISION_REJECTION_EVIDENCE_LEDGER 2026-04-29).
-    let rej_src =
-        std::fs::read_to_string("src/bottom_white/ledger/rejection_evidence.rs")
-            .expect("rejection_evidence.rs readable");
+    let rej_src = std::fs::read_to_string("src/bottom_white/ledger/rejection_evidence.rs")
+        .expect("rejection_evidence.rs readable");
     assert!(
         rej_src.contains("RejectedSubmissionRecord"),
         "Shielding violation: RejectedSubmissionRecord missing in \
@@ -79,8 +86,7 @@ fn l4e_public_summary_low_pollution() {
 
     // The public_summary_for helper exists in sequencer.rs (TB-13/18R
     // sanitization).
-    let seq_src =
-        std::fs::read_to_string("src/state/sequencer.rs").expect("sequencer.rs readable");
+    let seq_src = std::fs::read_to_string("src/state/sequencer.rs").expect("sequencer.rs readable");
     assert!(
         seq_src.contains("public_summary_for") || seq_src.contains("rejection_class_for"),
         "Shielding violation: sequencer.rs lacks public_summary_for / \
@@ -132,17 +138,13 @@ fn private_diagnostic_cid_not_serialized_publicly() {
 fn evidence_capsule_raw_logs_audit_only() {
     // Find the EvidenceCapsule type definition.
     let out = Command::new("grep")
-        .args([
-            "-rn",
-            "--include=*.rs",
-            "EvidenceCapsule",
-            "src/",
-        ])
+        .args(["-rn", "--include=*.rs", "EvidenceCapsule", "src/"])
         .output()
         .expect("grep available");
     let stdout = String::from_utf8_lossy(&out.stdout);
     assert!(
-        stdout.contains("pub struct EvidenceCapsule") || stdout.contains("pub enum EvidenceCapsule"),
+        stdout.contains("pub struct EvidenceCapsule")
+            || stdout.contains("pub enum EvidenceCapsule"),
         "Shielding violation: EvidenceCapsule type missing — capsule \
          shape un-defined."
     );
@@ -184,12 +186,9 @@ fn dashboard_does_not_leak_private_failure_detail() {
     let dash_src = std::fs::read_to_string(dash_path).expect("dashboard readable");
     // The dashboard MUST NOT contain a code path that reads
     // `private_diagnostic_cid` and writes it to a public dashboard field.
-    let bad_pattern_pub_diag = dash_src
-        .lines()
-        .any(|l| {
-            (l.contains("private_diagnostic") || l.contains("raw_stderr"))
-                && l.contains("println!")
-        });
+    let bad_pattern_pub_diag = dash_src.lines().any(|l| {
+        (l.contains("private_diagnostic") || l.contains("raw_stderr")) && l.contains("println!")
+    });
     assert!(
         !bad_pattern_pub_diag,
         "Shielding violation: {dash_path} prints private diagnostic \

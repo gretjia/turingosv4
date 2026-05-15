@@ -70,14 +70,14 @@ use turingosv4::bottom_white::ledger::rejection_evidence::{
 };
 use turingosv4::bottom_white::ledger::transition_ledger::TxKind;
 use turingosv4::economy::ledger::{AcceptedLedger, LedgerError};
-use turingosv4::economy::money::{MicroCoin, StakeMicroCoin, MICRO_PER_COIN};
 use turingosv4::economy::monetary_invariant::{
     assert_read_is_free, assert_total_ctf_conserved, MonetaryError,
 };
+use turingosv4::economy::money::{MicroCoin, StakeMicroCoin, MICRO_PER_COIN};
 use turingosv4::state::q_state::{AgentId, EconomicState, Hash, TaskId, TxId};
 use turingosv4::state::typed_tx::{
-    AgentSignature, BoolWithProof, PredicateId, PredicateResultsBundle, ReadKey,
-    SafetyOrCreation, TypedTx, WorkTx, WriteKey,
+    AgentSignature, BoolWithProof, PredicateId, PredicateResultsBundle, ReadKey, SafetyOrCreation,
+    TypedTx, WorkTx, WriteKey,
 };
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -263,7 +263,9 @@ fn test_p1_kill_4_rejected_log_isolated() {
     assert_eq!(view.len(), 1);
 
     let json = serde_json::to_value(&view[0]).unwrap();
-    let obj = json.as_object().expect("PublicRejectionView serializes as object");
+    let obj = json
+        .as_object()
+        .expect("PublicRejectionView serializes as object");
     assert!(
         !obj.contains_key("raw_diagnostic_cid"),
         "raw_diagnostic_cid must NOT appear in agent-facing public view"
@@ -360,7 +362,11 @@ fn test_p3_rsp0_exit_1_on_init_total_invariant() {
     s2.balances_t.0.insert(agent("alice"), coin(70));
     s2.escrows_t.0.insert(
         TxId("e-1".into()),
-        EscrowEntry { amount: coin(30), depositor: agent("bob"), task_id: TaskId::default() },
+        EscrowEntry {
+            amount: coin(30),
+            depositor: agent("bob"),
+            task_id: TaskId::default(),
+        },
     );
     assert_eq!(assert_total_ctf_conserved(&s1, &s2, &[]), Ok(()));
 
@@ -526,13 +532,14 @@ fn test_p3_rsp0_total_supply_counts_all_four_subindexes() {
         },
     );
     // claims_t entry seeded as intent metadata; per TB-8 not in holding sum.
-    seeded
-        .claims_t
-        .0
-        .insert(
-            TxId("c".into()),
-            ClaimEntry { amount: coin(8), claimant: agent("a"), ..Default::default() },
-        );
+    seeded.claims_t.0.insert(
+        TxId("c".into()),
+        ClaimEntry {
+            amount: coin(8),
+            claimant: agent("a"),
+            ..Default::default()
+        },
+    );
     // Second escrow row carries what used to live in task_markets_t.bounty.
     seeded.escrows_t.0.insert(
         TxId("e2".into()),

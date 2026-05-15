@@ -1,0 +1,18 @@
+
+running 1 test
+test sg_6a_event_resolve_legacy_b2_wire_decodes_as_yes ... FAILED
+
+failures:
+
+---- sg_6a_event_resolve_legacy_b2_wire_decodes_as_yes stdout ----
+
+thread 'sg_6a_event_resolve_legacy_b2_wire_decodes_as_yes' (1034646) panicked at tests/constitution_real6_task_outcome_market.rs:582:10:
+REAL-6A must grandfather TB-N2 B2 EventResolveTx bytes: Decode("UnexpectedEnd { additional: 4 }")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    sg_6a_event_resolve_legacy_b2_wire_decodes_as_yes
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.00s
+

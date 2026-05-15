@@ -4,25 +4,41 @@
 // V3L-02: oracle determinism (same input → same output)
 // V3L-07: identity theft prevention (reject new theorem declarations)
 
+use std::any::Any;
 use std::path::PathBuf;
 use std::time::Duration;
 use turingosv4::sdk::sandbox::{LocalProcessSandbox, SandboxEngine, SandboxResult};
 use turingosv4::sdk::tool::{ToolSignal, TuringTool};
-use std::any::Any;
 
 /// Forbidden patterns in agent-submitted code.
 /// These are checked BEFORE sending to Lean 4.
 const FORBIDDEN_PATTERNS: &[&str] = &[
-    "#eval", "#check", "#reduce", "#exec", "#print",  // output/reflection
-    "native_decide",                                     // bytecode bypass
-    "IO.Process", "IO.FS", "System.FilePath",           // system escape
-    "run_tac", "unsafe", "dbg_trace", "IO.println",    // meta/debug
+    "#eval",
+    "#check",
+    "#reduce",
+    "#exec",
+    "#print",        // output/reflection
+    "native_decide", // bytecode bypass
+    "IO.Process",
+    "IO.FS",
+    "System.FilePath", // system escape
+    "run_tac",
+    "unsafe",
+    "dbg_trace",
+    "IO.println", // meta/debug
 ];
 
 /// Identity theft patterns — declarations that rename the target theorem.
 const DECLARATION_KEYWORDS: &[&str] = &[
-    "theorem ", "lemma ", "def ", "example ", "instance ",
-    "structure ", "class ", "inductive ", "abbrev ",
+    "theorem ",
+    "lemma ",
+    "def ",
+    "example ",
+    "instance ",
+    "structure ",
+    "class ",
+    "inductive ",
+    "abbrev ",
 ];
 
 pub struct Lean4Oracle {
@@ -38,7 +54,10 @@ impl Lean4Oracle {
         // Default: v4.24.0 (matches pre-built Mathlib oleans).
         let lean_binary = std::env::var("LEAN_BINARY").unwrap_or_else(|_| {
             let home = std::env::var("HOME").unwrap_or_else(|_| "/root".into());
-            let v4_24 = format!("{}/.elan/toolchains/leanprover--lean4---v4.24.0/bin/lean", home);
+            let v4_24 = format!(
+                "{}/.elan/toolchains/leanprover--lean4---v4.24.0/bin/lean",
+                home
+            );
             if std::path::Path::new(&v4_24).exists() {
                 v4_24
             } else {
@@ -59,7 +78,8 @@ impl Lean4Oracle {
         for keyword in DECLARATION_KEYWORDS {
             if let Some(pos) = payload.find(keyword) {
                 let after = &payload[pos + keyword.len()..];
-                let declared_name: String = after.chars()
+                let declared_name: String = after
+                    .chars()
                     .take_while(|c| c.is_alphanumeric() || *c == '_')
                     .collect();
                 if !declared_name.is_empty() && declared_name != self.theorem_name {
@@ -126,16 +146,17 @@ impl Lean4Oracle {
         let timeout = Duration::from_secs(timeout_secs.min(300));
 
         // Execute in sandbox
-        let sandbox = LocalProcessSandbox::new(
-            &self.lean_binary,
-            &["--stdin"],
-        );
+        let sandbox = LocalProcessSandbox::new(&self.lean_binary, &["--stdin"]);
 
         // Set LEAN_PATH environment for Mathlib resolution
         std::env::set_var("LEAN_PATH", &self.lean_path);
 
         match sandbox.execute(&full_code, timeout) {
-            Ok(SandboxResult::Completed { stdout, stderr, exit_code }) => {
+            Ok(SandboxResult::Completed {
+                stdout,
+                stderr,
+                exit_code,
+            }) => {
                 let combined = format!("{}\n{}", stdout, stderr);
                 if combined.contains("declaration uses 'sorry'") {
                     log::warn!("oracle reject reason: declaration uses 'sorry'");
@@ -147,12 +168,19 @@ impl Lean4Oracle {
                 if exit_code == 0 && !combined.contains("error:") {
                     return Ok((true, String::new()));
                 }
-                let err_preview: String = combined.lines()
-                    .filter(|l| l.contains("error") || l.contains("unexpected") || l.contains("expected"))
+                let err_preview: String = combined
+                    .lines()
+                    .filter(|l| {
+                        l.contains("error") || l.contains("unexpected") || l.contains("expected")
+                    })
                     .take(4)
                     .collect::<Vec<_>>()
                     .join(" | ");
-                let detail = if err_preview.is_empty() { combined.chars().take(800).collect::<String>() } else { err_preview };
+                let detail = if err_preview.is_empty() {
+                    combined.chars().take(800).collect::<String>()
+                } else {
+                    err_preview
+                };
                 log::warn!("oracle reject reason (exit={}): {}", exit_code, detail);
                 Ok((false, detail))
             }
@@ -188,14 +216,15 @@ impl Lean4Oracle {
         let timeout_secs = 120 + (lines as u64);
         let timeout = Duration::from_secs(timeout_secs.min(300));
 
-        let sandbox = LocalProcessSandbox::new(
-            &self.lean_binary,
-            &["--stdin"],
-        );
+        let sandbox = LocalProcessSandbox::new(&self.lean_binary, &["--stdin"]);
         std::env::set_var("LEAN_PATH", &self.lean_path);
 
         match sandbox.execute(&full_code, timeout) {
-            Ok(SandboxResult::Completed { stdout, stderr, exit_code }) => {
+            Ok(SandboxResult::Completed {
+                stdout,
+                stderr,
+                exit_code,
+            }) => {
                 let combined = format!("{}\n{}", stdout, stderr);
                 if combined.contains("declaration uses 'sorry'") {
                     return PartialVerdict::Reject("declaration_uses_sorry".into());
@@ -208,17 +237,26 @@ impl Lean4Oracle {
                 // OK case: the tactics ran without type errors, but more work
                 // remains. Under the old semantics this was a REJECT; under
                 // Phase 7, it is the signal that Q_{t+1} is well-formed.
-                if combined.contains("unsolved goals") && !combined.contains("error: unknown") && !combined.contains("error: type mismatch") {
+                if combined.contains("unsolved goals")
+                    && !combined.contains("error: unknown")
+                    && !combined.contains("error: type mismatch")
+                {
                     // Only accept as partial if there are no OTHER errors.
                     // Distinguish unsolved-goals (partial OK) from actual bugs.
-                    let hard_errors: Vec<&str> = combined.lines()
+                    let hard_errors: Vec<&str> = combined
+                        .lines()
                         .filter(|l| l.contains("error:") && !l.contains("unsolved goals"))
                         .collect();
                     if hard_errors.is_empty() {
                         return PartialVerdict::PartialOk;
                     }
                     // Has both unsolved-goals and a hard error → reject
-                    let detail = hard_errors.iter().take(3).cloned().collect::<Vec<_>>().join(" | ");
+                    let detail = hard_errors
+                        .iter()
+                        .take(3)
+                        .cloned()
+                        .collect::<Vec<_>>()
+                        .join(" | ");
                     return PartialVerdict::Reject(format!("hard_error_with_unsolved: {}", detail));
                 }
                 if exit_code == 0 && !combined.contains("error:") {
@@ -227,8 +265,11 @@ impl Lean4Oracle {
                     // verify_omega_detailed path 2).
                     return PartialVerdict::Complete;
                 }
-                let err_preview: String = combined.lines()
-                    .filter(|l| l.contains("error") || l.contains("unexpected") || l.contains("expected"))
+                let err_preview: String = combined
+                    .lines()
+                    .filter(|l| {
+                        l.contains("error") || l.contains("unexpected") || l.contains("expected")
+                    })
                     .take(4)
                     .collect::<Vec<_>>()
                     .join(" | ");
@@ -269,8 +310,12 @@ impl TuringTool for Lean4Oracle {
         }
     }
 
-    fn as_any(&self) -> &dyn Any { self }
-    fn as_any_mut(&mut self) -> &mut dyn Any { self }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
 }
 
 /// Word boundary check — ensures we match whole words, not substrings.
@@ -278,9 +323,16 @@ fn has_word_boundary(text: &str, word: &str) -> bool {
     for (i, _) in text.match_indices(word) {
         let before = if i > 0 { text.as_bytes()[i - 1] } else { b' ' };
         let after_idx = i + word.len();
-        let after = if after_idx < text.len() { text.as_bytes()[after_idx] } else { b' ' };
-        if !before.is_ascii_alphanumeric() && before != b'_'
-           && !after.is_ascii_alphanumeric() && after != b'_' {
+        let after = if after_idx < text.len() {
+            text.as_bytes()[after_idx]
+        } else {
+            b' '
+        };
+        if !before.is_ascii_alphanumeric()
+            && before != b'_'
+            && !after.is_ascii_alphanumeric()
+            && after != b'_'
+        {
             return true;
         }
     }
@@ -323,7 +375,8 @@ pub fn load_problem(problem_path: &str) -> Result<(String, String), String> {
         .map_err(|e| format!("Cannot read {}: {}", problem_path, e))?;
 
     // Extract theorem name from "theorem <name>" line
-    let theorem_name = content.lines()
+    let theorem_name = content
+        .lines()
         .find(|line| line.starts_with("theorem "))
         .and_then(|line| {
             line.strip_prefix("theorem ")
@@ -365,13 +418,17 @@ mod tests {
     #[test]
     fn test_identity_theft_rejected() {
         let oracle = make_oracle();
-        assert!(oracle.check_payload("theorem wrong_name : True := trivial").is_err());
+        assert!(oracle
+            .check_payload("theorem wrong_name : True := trivial")
+            .is_err());
     }
 
     #[test]
     fn test_correct_theorem_name_accepted() {
         let oracle = make_oracle();
-        assert!(oracle.check_payload("theorem test_thm : True := trivial").is_ok());
+        assert!(oracle
+            .check_payload("theorem test_thm : True := trivial")
+            .is_ok());
     }
 
     #[test]

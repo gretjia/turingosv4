@@ -1,0 +1,24 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778836686627_1669621",
+  "title": "REAL-7-v3-equivalent-structural-smoke",
+  "module": "REAL-7",
+  "molecule_or_atom": "atom",
+  "requested_risk_class": 4,
+  "risk_class": 4,
+  "fc_nodes": [
+    "FC1-role-market-actions"
+  ],
+  "allowed_paths": [
+    "src/runtime/g7_structural_smoke.rs"
+  ],
+  "restricted_surface_hits": [],
+  "acceptance_commands": [
+    "cargo check"
+  ],
+  "audit_required": true,
+  "human_intent": null,
+  "ratification": null,
+  "git_head": "5239f4b13ecf0a3f9850accc6815c2e7944e9bee",
+  "created_at_unix_ms": 1778836686627
+}

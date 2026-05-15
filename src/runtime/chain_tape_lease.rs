@@ -155,11 +155,17 @@ impl std::fmt::Display for LeaseError {
                 "chain tape lease already held by pid={} batch_id={} since {}",
                 existing.holder_pid, existing.batch_id, existing.acquired_at_unix_s
             ),
-            Self::HeadChangedSinceLastAcquire { expected_hex, actual_hex } => write!(
+            Self::HeadChangedSinceLastAcquire {
+                expected_hex,
+                actual_hex,
+            } => write!(
                 f,
                 "chain tape head changed since acquire: expected={expected_hex} actual={actual_hex}"
             ),
-            Self::HolderPidMismatch { expected_pid, actual_pid } => write!(
+            Self::HolderPidMismatch {
+                expected_pid,
+                actual_pid,
+            } => write!(
                 f,
                 "lease release pid mismatch: expected={expected_pid} actual={actual_pid}"
             ),
@@ -256,11 +262,7 @@ fn write_atomic(target: &Path, lease: &ChainTapeLease) -> Result<(), LeaseError>
         ))
     })?;
     let json = serde_json::to_vec_pretty(lease).map_err(|e| LeaseError::Parse(e.to_string()))?;
-    let tmp_path = parent.join(format!(
-        "{}.tmp.{}",
-        LEASE_FILE,
-        std::process::id()
-    ));
+    let tmp_path = parent.join(format!("{}.tmp.{}", LEASE_FILE, std::process::id()));
     {
         let mut f = fs::File::create(&tmp_path).map_err(LeaseError::Io)?;
         f.write_all(&json).map_err(LeaseError::Io)?;

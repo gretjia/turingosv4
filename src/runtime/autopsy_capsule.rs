@@ -561,8 +561,8 @@ pub fn derive_autopsies_for_bankruptcy(
         // what apply_one writes to CAS. capsule_id = sha256 of these
         // bytes, ensuring cas.get(&capsule_id) returns these exact
         // bytes on retrieval.
-        let stored_bytes = canonical_encode(&capsule)
-            .expect("AgentAutopsyCapsule is canonical-encodable");
+        let stored_bytes =
+            canonical_encode(&capsule).expect("AgentAutopsyCapsule is canonical-encodable");
         let cid = Cid::from_content(&stored_bytes);
         capsule.capsule_id = cid;
         capsule.sha256 = Hash(cid.0);
@@ -605,12 +605,8 @@ pub fn write_bankruptcy_autopsies_to_cas(
     created_at_logical_t: u64,
     creator_str: &str,
 ) -> Result<Vec<Cid>, AutopsyWriteError> {
-    let derived = derive_autopsies_for_bankruptcy(
-        pre_econ,
-        bk,
-        created_at_round,
-        created_at_logical_t,
-    );
+    let derived =
+        derive_autopsies_for_bankruptcy(pre_econ, bk, created_at_round, created_at_logical_t);
     let mut cids = Vec::with_capacity(derived.len());
     let mut cas_w = cas
         .write()
@@ -687,7 +683,8 @@ pub fn derive_g3_2_terminal_summary_bankrupt_autopsies(
     let mut out = Vec::new();
 
     for (agent_id, balance) in pre_econ.balances_t.0.iter() {
-        let initial_micro = crate::runtime::agent_pnl::initial_balance_micro_from_default_preseed(agent_id);
+        let initial_micro =
+            crate::runtime::agent_pnl::initial_balance_micro_from_default_preseed(agent_id);
         if initial_micro <= 0 {
             // Unknown agent (no preseed entry) — risk-cap is 0, balance
             // cannot be below 0 — skip per Q1 fail-closed semantics.
@@ -753,8 +750,8 @@ pub fn derive_g3_2_terminal_summary_bankrupt_autopsies(
         // capsule_id/sha256; stored bytes are what apply_one writes; cid
         // = sha256(stored_bytes); cas.get(&capsule_id) resolves identical
         // bytes (matches TB-15 derive_autopsies_for_bankruptcy pattern).
-        let stored_bytes = canonical_encode(&capsule)
-            .expect("AgentAutopsyCapsule is canonical-encodable");
+        let stored_bytes =
+            canonical_encode(&capsule).expect("AgentAutopsyCapsule is canonical-encodable");
         let cid = Cid::from_content(&stored_bytes);
         capsule.capsule_id = cid;
         capsule.sha256 = Hash(cid.0);
@@ -969,8 +966,8 @@ mod tests {
     // ───────────────────────────────────────────────────────────────────
 
     use crate::state::q_state::{
-        BalancesIndex, EconomicState, StakeEntry, StakesIndex, TaskMarketEntry,
-        TaskMarketState, TaskMarketsIndex, TxId,
+        BalancesIndex, EconomicState, StakeEntry, StakesIndex, TaskMarketEntry, TaskMarketState,
+        TaskMarketsIndex, TxId,
     };
     use crate::state::typed_tx::TaskBankruptcyTx;
 
@@ -1029,11 +1026,15 @@ mod tests {
         let task = "task:tb15:bankruptcy";
         let econ = synthetic_econ_with_stakes(
             task,
-            &[("stake_tx_a", "Agent_A", 1000), ("stake_tx_b", "Agent_B", 2000)],
+            &[
+                ("stake_tx_a", "Agent_A", 1000),
+                ("stake_tx_b", "Agent_B", 2000),
+            ],
         );
         let bk = synthetic_bk(task);
 
-        let derived = derive_autopsies_for_bankruptcy(&econ, &bk, /*round=*/ 5, /*t=*/ 100);
+        let derived =
+            derive_autopsies_for_bankruptcy(&econ, &bk, /*round=*/ 5, /*t=*/ 100);
 
         assert_eq!(
             derived.len(),
@@ -1077,7 +1078,10 @@ mod tests {
         let task = "task:tb15:det";
         let econ = synthetic_econ_with_stakes(
             task,
-            &[("stake_tx_x", "Agent_X", 500), ("stake_tx_y", "Agent_Y", 750)],
+            &[
+                ("stake_tx_x", "Agent_X", 500),
+                ("stake_tx_y", "Agent_Y", 750),
+            ],
         );
         let bk = synthetic_bk(task);
 
@@ -1233,9 +1237,15 @@ mod tests {
     #[test]
     fn activation_gate_default_is_always_active_for_fresh_chains() {
         // Default constant is 0; any u64 (including 0 itself) is >= 0.
-        assert!(is_autopsy_active_at(0), "logical_t 0 must be active under default const 0");
+        assert!(
+            is_autopsy_active_at(0),
+            "logical_t 0 must be active under default const 0"
+        );
         assert!(is_autopsy_active_at(1), "logical_t 1 must be active");
-        assert!(is_autopsy_active_at(u64::MAX), "logical_t MAX must be active");
+        assert!(
+            is_autopsy_active_at(u64::MAX),
+            "logical_t MAX must be active"
+        );
         // Documentation: TB15_AUTOPSY_ACTIVATION_LOGICAL_T == 0 is the
         // shipped default; pre-TB-15 chain migration would override the
         // const to a non-zero cutoff.
@@ -1265,15 +1275,8 @@ mod tests {
             crate::bottom_white::cas::store::CasStore::open(tmp.path()).expect("cas"),
         ));
 
-        let cids = write_bankruptcy_autopsies_to_cas(
-            &cas,
-            &econ,
-            &bk,
-            7,
-            42,
-            "tb15-test-writer",
-        )
-        .expect("write succeeds");
+        let cids = write_bankruptcy_autopsies_to_cas(&cas, &econ, &bk, 7, 42, "tb15-test-writer")
+            .expect("write succeeds");
 
         assert_eq!(cids.len(), 2);
 

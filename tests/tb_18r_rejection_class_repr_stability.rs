@@ -42,16 +42,29 @@ fn lean_error_class_to_rejection_class_repr_preserved() {
     // Per preflight §3.3: From<LeanErrorClass> for RejectionClass is a
     // no-op-discriminator transcode. Repr u8 preserved 1:1.
     let cases = [
-        (LeanErrorClass::LeanFailed,   RejectionClass::LeanFailed,   6u8),
-        (LeanErrorClass::ParseFailed,  RejectionClass::ParseFailed,  7),
-        (LeanErrorClass::SorryBlocked, RejectionClass::SorryBlocked, 8),
-        (LeanErrorClass::LlmError,     RejectionClass::LlmError,     9),
+        (LeanErrorClass::LeanFailed, RejectionClass::LeanFailed, 6u8),
+        (LeanErrorClass::ParseFailed, RejectionClass::ParseFailed, 7),
+        (
+            LeanErrorClass::SorryBlocked,
+            RejectionClass::SorryBlocked,
+            8,
+        ),
+        (LeanErrorClass::LlmError, RejectionClass::LlmError, 9),
     ];
     for (lec, expected_rc, expected_u8) in cases {
         let rc: RejectionClass = lec.into();
-        assert_eq!(rc, expected_rc, "From<{lec:?}> mapped to wrong RejectionClass");
-        assert_eq!(rc as u8, expected_u8, "discriminator drifted on From<{lec:?}>");
-        assert_eq!(lec as u8, expected_u8, "LeanErrorClass discriminator drifted");
+        assert_eq!(
+            rc, expected_rc,
+            "From<{lec:?}> mapped to wrong RejectionClass"
+        );
+        assert_eq!(
+            rc as u8, expected_u8,
+            "discriminator drifted on From<{lec:?}>"
+        );
+        assert_eq!(
+            lec as u8, expected_u8,
+            "LeanErrorClass discriminator drifted"
+        );
     }
 }
 

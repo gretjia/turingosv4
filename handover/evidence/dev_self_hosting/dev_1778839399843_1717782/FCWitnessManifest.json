@@ -1,0 +1,18 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778839399843_1717782",
+  "fc_nodes": [
+    "FC1-role-market-actions",
+    "FC2-persistent-runtime",
+    "FC3-dashboard-regeneration",
+    "Art0.4-ChainTape-CAS"
+  ],
+  "expected_witness": "Diff, command evidence, and audit verdict must cite these FC nodes.",
+  "evidence_artifacts": [
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "589ec1cbe87926829760ae0bb4f8939362c1a80691b1bd83abfcd2ad796a59e5",
+      "size_bytes": 769775
+    }
+  ]
+}

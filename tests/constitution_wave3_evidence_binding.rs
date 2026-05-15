@@ -45,8 +45,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 
-const WAVE3_50P_DIR: &str =
-    "handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z";
+const WAVE3_50P_DIR: &str = "handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z";
 const WAVE3_50P_AGGREGATE: &str =
     "handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z/WAVE3_50P_AGGREGATE.json";
 const WAVE3_20P_AGGREGATE: &str =
@@ -72,10 +71,8 @@ fn wave3_problem_dirs(batch_dir: &str) -> Vec<PathBuf> {
 }
 
 fn read_json(path: &Path) -> Value {
-    let body = fs::read_to_string(path)
-        .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
-    serde_json::from_str(&body)
-        .unwrap_or_else(|e| panic!("parse {}: {e}", path.display()))
+    let body = fs::read_to_string(path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+    serde_json::from_str(&body).unwrap_or_else(|e| panic!("parse {}: {e}", path.display()))
 }
 
 /// FC1-INV3 + MVP-1 — Wave 3 50p empirical attempt-count invariant: every
@@ -114,7 +111,8 @@ fn wave3_50p_chain_invariant_all_pass() {
             p.display()
         );
         assert_eq!(
-            delta, 0,
+            delta,
+            0,
             "FC1-INV3 violation: {} delta={delta} (expected 0)",
             p.display()
         );
@@ -135,7 +133,9 @@ fn wave3_50p_aggregate_fc1_invariant_holds() {
     let completed = v["completed_llm_calls_total"]
         .as_u64()
         .expect("completed_llm_calls_total");
-    let l4 = v["l4_work_attempt_total"].as_u64().expect("l4_work_attempt_total");
+    let l4 = v["l4_work_attempt_total"]
+        .as_u64()
+        .expect("l4_work_attempt_total");
     let l4e = v["l4e_work_attempt_total"]
         .as_u64()
         .expect("l4e_work_attempt_total");
@@ -157,7 +157,10 @@ fn wave3_50p_aggregate_fc1_invariant_holds() {
         completed, 460,
         "Wave 3 50p binding: completed_llm_calls_total drifted from 460 to {completed}"
     );
-    assert_eq!(rhs, 460, "Wave 3 50p binding: RHS drifted from 460 to {rhs}");
+    assert_eq!(
+        rhs, 460,
+        "Wave 3 50p binding: RHS drifted from 460 to {rhs}"
+    );
 }
 
 /// FC1-INV1 — Wave 3 20p aggregate hold (smaller batch; first real-LLM
@@ -169,9 +172,7 @@ fn wave3_20p_aggregate_fc1_invariant_holds() {
     let v = outer
         .get("wave3_diagnostic_20p")
         .expect("wave3_diagnostic_20p key");
-    let attempt_eq = v
-        .get("attempt_equality")
-        .expect("attempt_equality block");
+    let attempt_eq = v.get("attempt_equality").expect("attempt_equality block");
     let lhs = attempt_eq["completed_llm_calls_total_LHS"]
         .as_u64()
         .expect("completed_llm_calls_total_LHS");
@@ -189,7 +190,10 @@ fn wave3_20p_aggregate_fc1_invariant_holds() {
          LHS={lhs} != {rhs_a} + {rhs_b} + {rhs_c}"
     );
     assert_eq!(aggregate_rhs, rhs_a + rhs_b + rhs_c);
-    assert_eq!(lhs, 140, "Wave 3 20p binding: LHS drifted from 140 to {lhs}");
+    assert_eq!(
+        lhs, 140,
+        "Wave 3 20p binding: LHS drifted from 140 to {lhs}"
+    );
 }
 
 /// FC1-INV4 — Chaintape mode does not fall back silently. Every Wave 3 50p
@@ -246,7 +250,8 @@ fn wave3_50p_dashboard_regen_matches_chain() {
             .expect("capsule_anchored");
         let rhs = l4 + l4e + capsule;
         assert_eq!(
-            expected, rhs,
+            expected,
+            rhs,
             "FC1-INV5 violation in {}: expected={expected} != \
              RHS({l4}+{l4e}+{capsule})={rhs}",
             p.display()

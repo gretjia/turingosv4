@@ -152,9 +152,7 @@ fn cmd_run_task(args: &[String]) {
         .and_then(|s| s.parse().ok())
         .unwrap_or(DEFAULT_BOUNTY_MICRO);
     if bounty < MIN_BOUNTY_MICRO {
-        eprintln!(
-            "lean_market run-task: --bounty {bounty} below minimum {MIN_BOUNTY_MICRO} micro"
-        );
+        eprintln!("lean_market run-task: --bounty {bounty} below minimum {MIN_BOUNTY_MICRO} micro");
         std::process::exit(2);
     }
     let chaintape_path = arg_value(args, "--chaintape")
@@ -207,7 +205,10 @@ fn cmd_run_task(args: &[String]) {
 
     println!("[lean_market] run-task");
     println!("  problem      = {problem_id}");
-    println!("  bounty       = {bounty} micro ({:.4} coin)", bounty as f64 / 1_000_000.0);
+    println!(
+        "  bounty       = {bounty} micro ({:.4} coin)",
+        bounty as f64 / 1_000_000.0
+    );
     println!("  chaintape    = {chaintape_path:?}");
     println!("  cas          = {cas_path:?}");
     println!("  evaluator    = {evaluator_bin}");
@@ -232,7 +233,10 @@ fn cmd_run_task(args: &[String]) {
         // Default to n1 (single-agent swarm) — the canonical TB-7R/TB-8/TB-9
         // smoke condition. Caller can override by passing --evaluator-arg --mode
         // or setting CONDITION before invoking lean_market.
-        .env("CONDITION", std::env::var("CONDITION").unwrap_or_else(|_| "n1".into()))
+        .env(
+            "CONDITION",
+            std::env::var("CONDITION").unwrap_or_else(|_| "n1".into()),
+        )
         .env("MAX_TX", &max_tx)
         .env("MAX_SECS", &max_secs);
     cmd.args(&extra_args);
@@ -273,7 +277,9 @@ fn default_chaintape_path() -> PathBuf {
         .unwrap_or(0);
     let pid = std::process::id();
     let base = if let Ok(home) = std::env::var("HOME") {
-        PathBuf::from(home).join(".turingos").join("lean_market_runs")
+        PathBuf::from(home)
+            .join(".turingos")
+            .join("lean_market_runs")
     } else {
         std::env::temp_dir().join("lean_market_runs")
     };
@@ -340,11 +346,7 @@ fn cmd_view_wallet(args: &[String]) {
             println!();
             println!("  full balances_t:");
             for (a, m) in q.economic_state_t.balances_t.0.iter() {
-                println!(
-                    "    {:30} {:>14} micro",
-                    a.0,
-                    m.micro_units()
-                );
+                println!("    {:30} {:>14} micro", a.0, m.micro_units());
             }
         }
         Err(e) => {
@@ -471,7 +473,9 @@ fn cmd_view_positions(args: &[String]) {
     let cas_path = derive_cas_path(&chaintape_path);
     match replay_qstate(&chaintape_path, &cas_path) {
         Ok((q, l4_count)) => {
-            println!("[lean_market] view-positions  (TB-12 Exposure records — NOT live market balances)");
+            println!(
+                "[lean_market] view-positions  (TB-12 Exposure records — NOT live market balances)"
+            );
             println!("  chaintape    = {chaintape_path:?}");
             println!("  L4 entries   = {l4_count}");
             if let Some(n) = node_filter.as_ref() {
@@ -505,9 +509,7 @@ fn cmd_view_positions(args: &[String]) {
                 shown += 1;
                 let side_str = format!("{:?}", pos.side);
                 let kind_str = format!("{:?}", pos.kind);
-                if pos.side
-                    == turingosv4::state::typed_tx::PositionSide::Long
-                {
+                if pos.side == turingosv4::state::typed_tx::PositionSide::Long {
                     total_long += pos.amount.micro_units();
                 } else {
                     total_short += pos.amount.micro_units();
@@ -527,8 +529,14 @@ fn cmd_view_positions(args: &[String]) {
             println!();
             println!("  Total Long  : {total_long} micro");
             println!("  Total Short : {total_short} micro");
-            println!("  Net         : {} micro (long − short)", total_long - total_short);
-            println!("  Records     : {shown} (of {} total in QState)", positions.len());
+            println!(
+                "  Net         : {} micro (long − short)",
+                total_long - total_short
+            );
+            println!(
+                "  Records     : {shown} (of {} total in QState)",
+                positions.len()
+            );
             println!();
             println!("  ⚠ Architect §10: these are IMMUTABLE EXPOSURE RECORDS, not active");
             println!("    position balances. TB-12 has no trading / price / settlement layer.");
@@ -602,13 +610,34 @@ fn cmd_view_replay(args: &[String]) {
             println!("  chaintape    = {chaintape_path:?}");
             println!("  L4 entries   = {}", report.l4_entries);
             println!("  L4.E entries = {}", report.l4e_entries);
-            println!("  ledger_root_verified                 = {}", report.ledger_root_verified);
-            println!("  system_signatures_verified           = {}", report.system_signatures_verified);
-            println!("  state_reconstructed                  = {}", report.state_reconstructed);
-            println!("  economic_state_reconstructed         = {}", report.economic_state_reconstructed);
-            println!("  cas_payloads_retrievable             = {}", report.cas_payloads_retrievable);
-            println!("  agent_signatures_verified            = {}", report.agent_signatures_verified);
-            println!("  proposal_telemetry_cas_retrievable   = {}", report.proposal_telemetry_cas_retrievable);
+            println!(
+                "  ledger_root_verified                 = {}",
+                report.ledger_root_verified
+            );
+            println!(
+                "  system_signatures_verified           = {}",
+                report.system_signatures_verified
+            );
+            println!(
+                "  state_reconstructed                  = {}",
+                report.state_reconstructed
+            );
+            println!(
+                "  economic_state_reconstructed         = {}",
+                report.economic_state_reconstructed
+            );
+            println!(
+                "  cas_payloads_retrievable             = {}",
+                report.cas_payloads_retrievable
+            );
+            println!(
+                "  agent_signatures_verified            = {}",
+                report.agent_signatures_verified
+            );
+            println!(
+                "  proposal_telemetry_cas_retrievable   = {}",
+                report.proposal_telemetry_cas_retrievable
+            );
             println!();
             if report.all_indicators_pass() {
                 println!("  ✓ all 7 indicators GREEN");
@@ -648,10 +677,7 @@ fn derive_cas_path(chaintape_path: &Path) -> PathBuf {
 /// Replay the chaintape read-only and return the reconstructed QState.
 /// Mirrors the replay sequence in `runtime::verify::verify_chaintape` but
 /// surfaces the QState instead of just booleans.
-fn replay_qstate(
-    runtime_repo: &Path,
-    cas_path: &Path,
-) -> Result<(QState, u64), String> {
+fn replay_qstate(runtime_repo: &Path, cas_path: &Path) -> Result<(QState, u64), String> {
     use turingosv4::bottom_white::ledger::system_keypair::{SystemEpoch, SystemPublicKey};
     let pinned_path = runtime_repo.join("pinned_pubkeys.json");
     if !pinned_path.exists() {
@@ -675,16 +701,15 @@ fn replay_qstate(
     // Initial QState: load from disk if present, else genesis.
     let initial_q_path = runtime_repo.join("initial_q_state.json");
     let initial_q: QState = if initial_q_path.exists() {
-        let bytes =
-            std::fs::read(&initial_q_path).map_err(|e| format!("read initial_q: {e}"))?;
+        let bytes = std::fs::read(&initial_q_path).map_err(|e| format!("read initial_q: {e}"))?;
         serde_json::from_slice(&bytes).map_err(|e| format!("parse initial_q: {e}"))?
     } else {
         QState::genesis()
     };
 
     // Read all L4 entries.
-    let writer = Git2LedgerWriter::open(runtime_repo)
-        .map_err(|e| format!("open ledger writer: {e}"))?;
+    let writer =
+        Git2LedgerWriter::open(runtime_repo).map_err(|e| format!("open ledger writer: {e}"))?;
     let total = writer.len();
     let mut entries = Vec::with_capacity(total as usize);
     for logical_t in 1..=total {
@@ -696,8 +721,7 @@ fn replay_qstate(
     let l4_count = total;
 
     // Open CAS (read-only).
-    let cas =
-        CasStore::open(cas_path).map_err(|e| format!("open cas: {e}"))?;
+    let cas = CasStore::open(cas_path).map_err(|e| format!("open cas: {e}"))?;
 
     // Predicate + tool registries (empty — replay does not need them).
     let predicate_registry = PredicateRegistry::new();
@@ -723,7 +747,9 @@ fn print_user_task_summary(q: &QState) {
         .task_markets_t
         .0
         .iter()
-        .filter(|(_, e)| e.publisher.0.starts_with("Agent_user_") || e.publisher.0 == DEFAULT_USER_SPONSOR)
+        .filter(|(_, e)| {
+            e.publisher.0.starts_with("Agent_user_") || e.publisher.0 == DEFAULT_USER_SPONSOR
+        })
         .collect();
     if user_tasks.is_empty() {
         println!("  user-sponsored tasks: 0  (no Agent_user_* in task_markets_t.publisher)");
@@ -777,12 +803,7 @@ fn print_user_task_summary(q: &QState) {
                 claim.amount.micro_units() as f64 / 1_000_000.0
             );
             // Sponsor balance after this task.
-            if let Some(bal) = q
-                .economic_state_t
-                .balances_t
-                .0
-                .get(&entry.publisher)
-            {
+            if let Some(bal) = q.economic_state_t.balances_t.0.get(&entry.publisher) {
                 println!(
                     "    sponsor balance  = {} micro ({:.4} coin)",
                     bal.micro_units(),

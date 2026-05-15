@@ -45,6 +45,7 @@ use crate::bottom_white::cas::store::{CasError, CasStore};
 use crate::bottom_white::ledger::transition_ledger::{
     canonical_decode, canonical_encode, CanonicalCodecError,
 };
+use crate::runtime::real5_roles::{AgentRole, AgentRoleAssignment, PolicyId};
 use crate::state::q_state::Hash;
 use crate::state::typed_tx::ReadKey;
 
@@ -56,6 +57,11 @@ use crate::state::typed_tx::ReadKey;
 /// contains exactly 7 named fields, no implementation-side `schema_version`
 /// discriminator).
 pub const PROMPT_CAPSULE_SCHEMA_ID: &str = "v1/prompt_capsule";
+
+/// REAL-5 Atom 3: role/view-aware PromptCapsuleV2 schema id. This lives in
+/// CAS metadata, keeping v1 payloads readable while new REAL-5 capsules bind
+/// role, view policy, read-set CIDs, and model assignment provenance.
+pub const PROMPT_CAPSULE_V2_SCHEMA_ID: &str = "v2/prompt_capsule_role_view";
 
 /// TRACE_MATRIX FC1-N44: tape-resident prompt capsule (architect schema,
 /// 2026-05-07 ruling §4.3).
@@ -96,6 +102,59 @@ pub struct PromptCapsule {
     /// construction time. Audit re-walks the manifest to verify the
     /// `read_set` reflects on-tape state at that point.
     pub agent_view_manifest_cid: Cid,
+}
+
+/// REAL-5 Atom 3 — role/view-aware PromptCapsule schema.
+///
+/// This is a Class-4 schema migration surface from the architect-pinned v1
+/// seven-field shape. v1 remains readable; new REAL-5 externalized attempts
+/// use this v2 shape so prompt persistence can bind agent id, role,
+/// view-policy identity, resolved read-set CIDs, and model-assignment CID
+/// without storing raw prompt bodies or private CoT.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PromptCapsuleV2 {
+    pub prompt_context_hash: Hash,
+    pub agent_id: crate::state::q_state::AgentId,
+    pub role: AgentRole,
+    pub view_policy_id: PolicyId,
+    pub visible_context_cid: Cid,
+    pub read_set: Vec<Cid>,
+    pub hidden_fields_redacted: Vec<String>,
+    pub system_prompt_template_hash: Hash,
+    pub model_assignment_cid: Option<Cid>,
+}
+
+impl PromptCapsuleV2 {
+    /// REAL-5 SG-R5.3.2: PromptCapsule role matches AgentRoleAssignment.
+    pub fn assert_matches_assignment(
+        &self,
+        assignment: &AgentRoleAssignment,
+    ) -> Result<(), String> {
+        if self.agent_id != assignment.agent_id {
+            return Err(format!(
+                "PromptCapsuleV2 agent mismatch: capsule={} assignment={}",
+                self.agent_id.0, assignment.agent_id.0
+            ));
+        }
+        if self.role != assignment.role {
+            return Err(format!(
+                "PromptCapsuleV2 role mismatch: capsule={} assignment={}",
+                self.role.label(),
+                assignment.role.label()
+            ));
+        }
+        if self.view_policy_id != assignment.view_policy_id {
+            return Err("PromptCapsuleV2 view_policy_id mismatch".into());
+        }
+        Ok(())
+    }
+
+    /// REAL-5 SG-R5.3.3: every read_set CID resolves in the caller-provided
+    /// evidence set.
+    pub fn read_set_resolves(&self, available: &[Cid]) -> bool {
+        let available: std::collections::BTreeSet<Cid> = available.iter().copied().collect();
+        self.read_set.iter().all(|cid| available.contains(cid))
+    }
 }
 
 /// TRACE_MATRIX FC1-N44: construction / CAS / codec errors for `PromptCapsule`.
@@ -206,6 +265,35 @@ pub fn read_prompt_capsule_from_cas(
     canonical_decode::<PromptCapsule>(&bytes).map_err(PromptCapsuleError::from)
 }
 
+/// REAL-5 Atom 3: canonical-encode a role/view-aware `PromptCapsuleV2` and
+/// put it into CAS. V1 remains supported by `write_prompt_capsule_to_cas`.
+pub fn write_prompt_capsule_v2_to_cas(
+    cas: &mut CasStore,
+    record: &PromptCapsuleV2,
+    creator: &str,
+    logical_t: u64,
+) -> Result<Cid, PromptCapsuleError> {
+    let bytes = canonical_encode(record)?;
+    let cid = cas.put(
+        &bytes,
+        ObjectType::PromptCapsule,
+        creator,
+        logical_t,
+        Some(PROMPT_CAPSULE_V2_SCHEMA_ID.to_string()),
+    )?;
+    Ok(cid)
+}
+
+/// REAL-5 Atom 3: CAS fetch + canonical-decode a role/view-aware
+/// `PromptCapsuleV2`.
+pub fn read_prompt_capsule_v2_from_cas(
+    cas: &CasStore,
+    cid: &Cid,
+) -> Result<PromptCapsuleV2, PromptCapsuleError> {
+    let bytes = cas.get(cid)?;
+    canonical_decode::<PromptCapsuleV2>(&bytes).map_err(PromptCapsuleError::from)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -254,7 +342,10 @@ mod tests {
         let b = fixture_capsule();
         let ha = a.canonical_hash().expect("hash a");
         let hb = b.canonical_hash().expect("hash b");
-        assert_eq!(ha, hb, "identical capsules must produce identical canonical hashes");
+        assert_eq!(
+            ha, hb,
+            "identical capsules must produce identical canonical hashes"
+        );
     }
 
     #[test]
@@ -262,8 +353,8 @@ mod tests {
         let dir = TempDir::new().expect("tempdir");
         let mut cas = CasStore::open(dir.path()).expect("cas open");
         let cap = fixture_capsule();
-        let cid = write_prompt_capsule_to_cas(&mut cas, &cap, "test-creator", 0)
-            .expect("write capsule");
+        let cid =
+            write_prompt_capsule_to_cas(&mut cas, &cap, "test-creator", 0).expect("write capsule");
         let read_back = read_prompt_capsule_from_cas(&cas, &cid).expect("read capsule");
         assert_eq!(read_back, cap);
     }

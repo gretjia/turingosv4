@@ -99,8 +99,7 @@ static FC_TRACE_ENABLED: OnceLock<bool> = OnceLock::new();
 /// FC_TRACE_FILE=<path> redirects emit to the file (truncate-on-open).
 /// Default sink = stderr. Acquired once per process; the file handle
 /// is held for the lifetime of the binary.
-static FC_TRACE_SINK: OnceLock<std::sync::Mutex<Box<dyn Write + Send>>> =
-    OnceLock::new();
+static FC_TRACE_SINK: OnceLock<std::sync::Mutex<Box<dyn Write + Send>>> = OnceLock::new();
 
 const FC_TRACE_ENV_VAR: &str = "FC_TRACE";
 const FC_TRACE_FILE_ENV_VAR: &str = "FC_TRACE_FILE";
@@ -108,9 +107,7 @@ const FC_TRACE_FILE_ENV_VAR: &str = "FC_TRACE_FILE";
 /// True iff `FC_TRACE` env var is set to `1` at first call. Cheap to
 /// call repeatedly (single OnceLock read).
 pub fn fc_trace_enabled() -> bool {
-    *FC_TRACE_ENABLED.get_or_init(|| {
-        std::env::var(FC_TRACE_ENV_VAR).as_deref() == Ok("1")
-    })
+    *FC_TRACE_ENABLED.get_or_init(|| std::env::var(FC_TRACE_ENV_VAR).as_deref() == Ok("1"))
 }
 
 /// Emit one event line. Caller passes the FC node id + a slice of

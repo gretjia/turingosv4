@@ -107,12 +107,9 @@ pub fn prepare_task_boundary(
 
     // Acquire the chain-tape lease BEFORE preflight: the head we
     // snapshot below must be observed under lock, not racy.
-    let lease = chain_tape_lease::acquire(
-        &spec.runtime_repo,
-        &spec.batch_id,
-        &prior.end_head_t_hex,
-    )
-    .map_err(|e| BoundaryError::Lease(e.to_string()))?;
+    let lease =
+        chain_tape_lease::acquire(&spec.runtime_repo, &spec.batch_id, &prior.end_head_t_hex)
+            .map_err(|e| BoundaryError::Lease(e.to_string()))?;
     eprintln!(
         "batch_orchestrator: task_index={task_index} ChainTapeLease ACQUIRED \
          (holder_pid={}, batch_id={}, start_head={})",
@@ -243,10 +240,7 @@ pub fn build_subprocess_env(
             spec.cas_path.to_string_lossy().into_owned(),
         ),
         ("ACTIVE_MODEL".to_string(), spec.model.clone()),
-        (
-            "LLM_PROXY_URL".to_string(),
-            spec.llm_proxy_url.clone(),
-        ),
+        ("LLM_PROXY_URL".to_string(), spec.llm_proxy_url.clone()),
         (
             "TURINGOS_RUN_ID".to_string(),
             format!("{}_t{:03}", spec.batch_id, task_index),
@@ -324,6 +318,9 @@ pub fn write_manifest_skeleton(
         agent_registry_cid_hex: None,
         system_pubkeys_cid_hex: None,
         model_manifest_cid_hex: None,
+        role_assignment_manifest_cid_hex: role_assignment_manifest_cid_hex_from_genesis_report(
+            &spec.runtime_repo,
+        ),
         tasks,
         terminated_reason: terminated_reason.map(|s| s.to_string()),
     };
@@ -331,6 +328,16 @@ pub fn write_manifest_skeleton(
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
     std::fs::write(&path, body)?;
     Ok(path)
+}
+
+fn role_assignment_manifest_cid_hex_from_genesis_report(runtime_repo: &Path) -> Option<String> {
+    let path = runtime_repo.join("genesis_report.json");
+    let body = std::fs::read_to_string(path).ok()?;
+    let report: turingosv4::runtime::genesis_report::GenesisReport =
+        serde_json::from_str(&body).ok()?;
+    report
+        .role_assignment_manifest_cid
+        .map(|cid| cid.strip_prefix("cid:").unwrap_or(&cid).to_string())
 }
 
 /// TRACE_MATRIX § 3 orphan (TB-G G1.2-3 2026-05-11; Option B+ §3.5):
@@ -442,7 +449,9 @@ mod tests {
             start_chain_length: 1,
         };
         let env = build_subprocess_env(&spec, 1, &fake_resume);
-        assert!(env.iter().any(|(k, v)| k == "TURINGOS_CHAINTAPE_RESUME" && v == "1"));
+        assert!(env
+            .iter()
+            .any(|(k, v)| k == "TURINGOS_CHAINTAPE_RESUME" && v == "1"));
         assert!(env.iter().any(|(k, _)| k == "TURINGOS_CHAINTAPE_PATH"));
         // Codex G2 R1 Q11 CHALLENGE closure (2026-05-11): preseed flag
         // MUST be present on resume tasks too — the chain_runtime
@@ -450,7 +459,9 @@ mod tests {
         // preseeded `initial_q_state.json`. Even though resume reads
         // the persisted file (not the env-time preseed pairs), the
         // contract is uniform across all subprocesses.
-        assert!(env.iter().any(|(k, v)| k == "TURINGOS_CHAINTAPE_PRESEED" && v == "1"));
+        assert!(env
+            .iter()
+            .any(|(k, v)| k == "TURINGOS_CHAINTAPE_PRESEED" && v == "1"));
     }
 
     #[test]
@@ -466,7 +477,9 @@ mod tests {
         // that resume tasks will inherit. Without this, agents have
         // zero balance and every WorkTx with non-zero stake gets
         // L4.E-rejected with stake_balance_exceeded.
-        assert!(env.iter().any(|(k, v)| k == "TURINGOS_CHAINTAPE_PRESEED" && v == "1"));
+        assert!(env
+            .iter()
+            .any(|(k, v)| k == "TURINGOS_CHAINTAPE_PRESEED" && v == "1"));
     }
 
     #[test]
@@ -532,5 +545,39 @@ mod tests {
             },
         ];
         verify_chain_continuity(&outcomes).expect("continuous chain");
+    }
+
+    #[test]
+    fn unit_batch_manifest_carries_role_assignment_manifest_from_genesis_report() {
+        let tmp = TempDir::new().expect("tempdir");
+        let spec = spec_for(&tmp, "real5_manifest");
+        std::fs::create_dir_all(&spec.runtime_repo).expect("runtime repo");
+        let report = turingosv4::runtime::genesis_report::GenesisReport {
+            constitution_hash: None,
+            runtime_repo: spec.runtime_repo.display().to_string(),
+            cas_path: spec.cas_path.display().to_string(),
+            system_pubkey_hash: None,
+            agent_pubkeys_path: "agent_pubkeys.json".into(),
+            initial_balances: vec![],
+            task_id: None,
+            task_open_tx: None,
+            escrow_lock_tx: None,
+            agent_model_assignment: vec![],
+            model_assignment_manifest_cid: None,
+            agent_role_assignment: vec![],
+            role_assignment_manifest_cid: Some("cid:abc123".into()),
+        };
+        report
+            .write_to_runtime_repo(&spec.runtime_repo)
+            .expect("write genesis report");
+
+        let path = write_manifest_skeleton(&spec, &[], None).expect("manifest");
+        let body = std::fs::read_to_string(path).expect("manifest body");
+        let manifest: turingosv4::runtime::batch_continuation_manifest::BatchContinuationManifest =
+            serde_json::from_str(&body).expect("parse manifest");
+        assert_eq!(
+            manifest.role_assignment_manifest_cid_hex,
+            Some("abc123".into())
+        );
     }
 }

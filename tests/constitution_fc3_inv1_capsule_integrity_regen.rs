@@ -35,9 +35,7 @@ use std::sync::{Arc, RwLock};
 
 use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
 use turingosv4::bottom_white::cas::store::CasStore;
-use turingosv4::runtime::attempt_telemetry::{
-    read_attempt_telemetry_from_cas, AttemptOutcome,
-};
+use turingosv4::runtime::attempt_telemetry::{read_attempt_telemetry_from_cas, AttemptOutcome};
 use turingosv4::runtime::evidence_capsule::restore_evidence_capsule_from_cas_bytes;
 
 const TB_C0_EVIDENCE_BATCH: &str = "handover/evidence/tb_c0_multi_agent_2026-05-06T16-30-36Z";
@@ -91,7 +89,9 @@ fn derive_counts_from_attempt_telemetry(cas: &CasStore) -> DerivedCounts {
     counts
 }
 
-fn read_capsule_for_problem(prob_dir: &Path) -> turingosv4::runtime::evidence_capsule::EvidenceCapsule {
+fn read_capsule_for_problem(
+    prob_dir: &Path,
+) -> turingosv4::runtime::evidence_capsule::EvidenceCapsule {
     let cas_path = prob_dir.join("cas");
     let cas = CasStore::open(&cas_path).expect("cas open");
     let capsule_cids = cas.list_cids_by_object_type(ObjectType::EvidenceCapsule);

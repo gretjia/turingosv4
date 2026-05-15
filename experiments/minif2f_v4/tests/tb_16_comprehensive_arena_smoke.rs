@@ -56,10 +56,7 @@ fn comprehensive_arena_help_succeeds() {
 #[test]
 fn comprehensive_arena_plan_only_emits_plan() {
     let bin = target_bin("comprehensive_arena");
-    let out_dir = std::env::temp_dir().join(format!(
-        "tb16_arena_smoke_{}",
-        std::process::id()
-    ));
+    let out_dir = std::env::temp_dir().join(format!("tb16_arena_smoke_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&out_dir);
     let status = Command::new(&bin)
         .arg("--out-dir")
@@ -102,7 +99,10 @@ fn comprehensive_arena_plan_only_emits_plan() {
         "TaskExpire",
         "TaskBankruptcy",
     ] {
-        assert!(plan.contains(tx_kind), "tx_kind `{tx_kind}` missing from plan");
+        assert!(
+            plan.contains(tx_kind),
+            "tx_kind `{tx_kind}` missing from plan"
+        );
     }
 
     // Sandbox preseed sandbox-labeled

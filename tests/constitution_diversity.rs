@@ -33,8 +33,7 @@ fn payload_diversity_helper_exists() {
 #[test]
 fn parent_entropy_collapses_to_zero_on_star_topology() {
     // V3L-14 anti-pattern: 1 root + N same-non-root parents.
-    let parents: Vec<Option<u32>> =
-        vec![None, Some(1), Some(1), Some(1), Some(1), Some(1)];
+    let parents: Vec<Option<u32>> = vec![None, Some(1), Some(1), Some(1), Some(1), Some(1)];
     let h = parent_selection_shannon_entropy(&parents);
     assert_eq!(h, 0.0, "star-topology MUST collapse to 0 after None-filter");
 }
@@ -67,8 +66,7 @@ fn payload_diversity_below_alarm_floor_when_all_collapsed() {
 #[test]
 fn diversity_report_alarms_on_either_metric_collapse() {
     // Healthy parents + collapsed payloads → alarm on payload only.
-    let parents: Vec<Option<u32>> =
-        vec![Some(1), Some(2), Some(3), Some(4), Some(5)];
+    let parents: Vec<Option<u32>> = vec![Some(1), Some(2), Some(3), Some(4), Some(5)];
     let payloads = vec![10u32; 5];
     let r = DiversityReport::new(&parents, &payloads);
     assert!(
@@ -77,8 +75,7 @@ fn diversity_report_alarms_on_either_metric_collapse() {
     );
 
     // Collapsed parents + healthy payloads → alarm on parent only.
-    let mut parents_collapsed: Vec<Option<u32>> =
-        (0..99).map(|_| Some(1u32)).collect();
+    let mut parents_collapsed: Vec<Option<u32>> = (0..99).map(|_| Some(1u32)).collect();
     parents_collapsed.push(Some(2));
     let payloads_distinct: Vec<u32> = (0..100).collect();
     let r2 = DiversityReport::new(&parents_collapsed, &payloads_distinct);
@@ -90,8 +87,7 @@ fn diversity_report_alarms_on_either_metric_collapse() {
 
 #[test]
 fn diversity_report_does_not_alarm_when_both_above_floor() {
-    let parents: Vec<Option<u32>> =
-        vec![Some(1), Some(1), Some(2), Some(2), Some(3)];
+    let parents: Vec<Option<u32>> = vec![Some(1), Some(1), Some(2), Some(2), Some(3)];
     let payloads = vec![10u32, 20, 30, 40, 50];
     let r = DiversityReport::new(&parents, &payloads);
     assert!(

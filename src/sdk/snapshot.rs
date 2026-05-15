@@ -104,8 +104,7 @@ mod tests {
             "generation": 0,
             "tx_count": 0
         }"#;
-        let snap: UniverseSnapshot =
-            serde_json::from_str(json).expect("legacy JSON deserialize");
+        let snap: UniverseSnapshot = serde_json::from_str(json).expect("legacy JSON deserialize");
         assert!(
             !snap.sequencer_wired,
             "Q11 closure: serde(default) on sequencer_wired must produce \

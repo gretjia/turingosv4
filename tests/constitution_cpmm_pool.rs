@@ -32,22 +32,18 @@ use turingosv4::bottom_white::ledger::rejection_evidence::RejectionEvidenceWrite
 use turingosv4::bottom_white::ledger::system_keypair::{
     Ed25519Keypair, PinnedSystemPubkeys, SystemEpoch,
 };
-use turingosv4::bottom_white::ledger::transition_ledger::{
-    InMemoryLedgerWriter, LedgerWriter,
-};
+use turingosv4::bottom_white::ledger::transition_ledger::{InMemoryLedgerWriter, LedgerWriter};
 use turingosv4::bottom_white::tools::registry::ToolRegistry;
-use turingosv4::economy::money::MicroCoin;
 use turingosv4::economy::monetary_invariant::{
     assert_complete_set_balanced, assert_total_ctf_conserved,
 };
+use turingosv4::economy::money::MicroCoin;
 use turingosv4::state::q_state::{
-    AgentId, LpShareAmount, PoolStatus, QState, TaskId, TaskMarketEntry,
-    TaskMarketState, TxId,
+    AgentId, LpShareAmount, PoolStatus, QState, TaskId, TaskMarketEntry, TaskMarketState, TxId,
 };
 use turingosv4::state::sequencer::{Sequencer, SubmissionEnvelope};
 use turingosv4::state::typed_tx::{
-    AgentSignature, CompleteSetMintTx, CpmmPoolTx, EventId, ShareAmount,
-    TypedTx,
+    AgentSignature, CompleteSetMintTx, CpmmPoolTx, EventId, ShareAmount, TypedTx,
 };
 use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
@@ -64,8 +60,7 @@ fn fresh_harness(initial_q: QState) -> Harness {
     let tmp = TempDir::new().expect("tempdir");
     let cas = Arc::new(RwLock::new(CasStore::open(tmp.path()).expect("cas")));
     let keypair = Arc::new(Ed25519Keypair::generate_with_secure_entropy().expect("kp"));
-    let writer: Arc<RwLock<dyn LedgerWriter>> =
-        Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
+    let writer: Arc<RwLock<dyn LedgerWriter>> = Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
     let rejection_writer = Arc::new(RwLock::new(RejectionEvidenceWriter::default()));
     let preds = Arc::new(PredicateRegistry::new());
     let tools = Arc::new(ToolRegistry::new());
@@ -74,16 +69,26 @@ fn fresh_harness(initial_q: QState) -> Harness {
     pinned.insert(epoch, keypair.public_key());
     let pinned_pubkeys = Arc::new(pinned);
     let (seq, rx) = Sequencer::new(
-        cas, keypair, epoch, writer.clone(), rejection_writer, preds, tools,
-        pinned_pubkeys, initial_q, 16,
+        cas,
+        keypair,
+        epoch,
+        writer.clone(),
+        rejection_writer,
+        preds,
+        tools,
+        pinned_pubkeys,
+        initial_q,
+        16,
     );
-    Harness { _tmp: tmp, seq, rx, _ledger: writer }
+    Harness {
+        _tmp: tmp,
+        seq,
+        rx,
+        _ledger: writer,
+    }
 }
 
-fn genesis_with_balances_and_open_task(
-    pairs: &[(&str, i64)],
-    task: &str,
-) -> QState {
+fn genesis_with_balances_and_open_task(pairs: &[(&str, i64)], task: &str) -> QState {
     let mut q = QState::genesis();
     for (name, coin) in pairs {
         q.economic_state_t.balances_t.0.insert(
@@ -432,19 +437,11 @@ async fn pool_cannot_exist_without_collateralized_shares() {
     // shares credited. dave's balances + (empty) shares unchanged.
     let q_post = h.seq.q_snapshot().unwrap();
     assert!(
-        q_post
-            .economic_state_t
-            .cpmm_pools_t
-            .0
-            .is_empty(),
+        q_post.economic_state_t.cpmm_pools_t.0.is_empty(),
         "no pool entry created on rejected CpmmPoolTx"
     );
     assert!(
-        q_post
-            .economic_state_t
-            .lp_share_balances_t
-            .0
-            .is_empty(),
+        q_post.economic_state_t.lp_share_balances_t.0.is_empty(),
         "no LP shares credited on rejected CpmmPoolTx"
     );
     let dave_bal = q_post

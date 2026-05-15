@@ -1,0 +1,16 @@
+
+running 4 tests
+test fc3_inv1_capsule_id_is_content_addressable_p08 ... ok
+test fc3_inv1_capsule_outcome_counts_match_at_walk_p08 ... ok
+test fc3_inv1_capsule_attempt_count_matches_at_count_p08 ... ok
+test fc3_inv1_capsule_integrity_secondary_problems ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+
+running 2 tests
+test attempt_telemetry_is_failure_source_of_truth_not_tool_dist ... ok
+test attempt_outcome_failure_set_covers_cluster_source_discriminators ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+

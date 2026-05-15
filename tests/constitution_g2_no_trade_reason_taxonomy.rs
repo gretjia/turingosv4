@@ -97,8 +97,7 @@ fn sg_g2_2_no_trade_reason_all_is_13_variants() {
 #[test]
 fn sg_g2_3_label_round_trip_unique() {
     use std::collections::BTreeSet;
-    let labels: BTreeSet<&'static str> =
-        NoTradeReason::ALL.iter().map(|r| r.label()).collect();
+    let labels: BTreeSet<&'static str> = NoTradeReason::ALL.iter().map(|r| r.label()).collect();
     assert_eq!(
         labels.len(),
         NoTradeReason::ALL.len(),
@@ -121,8 +120,7 @@ fn sg_g2_3_label_round_trip_unique() {
 #[test]
 fn sg_g2_4_architect_directive_verbatim_labels_present() {
     use std::collections::BTreeSet;
-    let labels: BTreeSet<&'static str> =
-        NoTradeReason::ALL.iter().map(|r| r.label()).collect();
+    let labels: BTreeSet<&'static str> = NoTradeReason::ALL.iter().map(|r| r.label()).collect();
     // Architect §8.2 directive `enum NoTradeReason` verbatim:
     // `NoPool, NoPromptTool, NoParsedInvest, InsufficientBalance,
     //  RouterRejected, AgentDeclined, TooFastSolve, NoPerceivedEdge,
@@ -171,7 +169,10 @@ fn sg_g2_5_invest_route_error_mapping_total() {
     // value; we exercise via raw match arm coverage on the source).
     let cases: Vec<(InvestRouteError, NoTradeReason)> = vec![
         (InvestRouteError::ZeroAmount, NoTradeReason::ZeroAmount),
-        (InvestRouteError::NegativeAmount, NoTradeReason::NoParsedInvest),
+        (
+            InvestRouteError::NegativeAmount,
+            NoTradeReason::NoParsedInvest,
+        ),
         (
             InvestRouteError::AmountExceedsBalance {
                 amount_micro: 10,
@@ -185,7 +186,10 @@ fn sg_g2_5_invest_route_error_mapping_total() {
         ),
         (InvestRouteError::UnknownEvent, NoTradeReason::NoPool),
         (InvestRouteError::PoolNotActive, NoTradeReason::NoPool),
-        (InvestRouteError::NoPerceivedEdge, NoTradeReason::NoPerceivedEdge),
+        (
+            InvestRouteError::NoPerceivedEdge,
+            NoTradeReason::NoPerceivedEdge,
+        ),
         (
             InvestRouteError::PromptBudgetExceeded,
             NoTradeReason::PromptBudgetExceeded,
@@ -199,7 +203,10 @@ fn sg_g2_5_invest_route_error_mapping_total() {
         );
         // public_summary is non-empty + ≤ 200 chars (sanity).
         let summary = err.public_summary();
-        assert!(!summary.is_empty(), "SG-G2.5: public_summary cannot be empty");
+        assert!(
+            !summary.is_empty(),
+            "SG-G2.5: public_summary cannot be empty"
+        );
         assert!(summary.len() <= 200, "SG-G2.5: public_summary length sane");
     }
     // KeypairError mapping is exhaustive-witness via source-grep (it requires

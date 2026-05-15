@@ -1,0 +1,25 @@
+
+running 2 tests
+test sg_5s_scaffold_ratification_report_narrows_real5_claim ... FAILED
+test sg_5s_clean_negative_report_records_no_trade_diagnosis ... FAILED
+
+failures:
+
+---- sg_5s_scaffold_ratification_report_narrows_real5_claim stdout ----
+
+thread 'sg_5s_scaffold_ratification_report_narrows_real5_claim' (899941) panicked at tests/constitution_real5s_scaffold_ratification.rs:14:62:
+read handover/evidence/real5_overnight_20260514/REAL5_SCAFFOLD_RATIFICATION_REPORT.md: No such file or directory (os error 2)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- sg_5s_clean_negative_report_records_no_trade_diagnosis stdout ----
+
+thread 'sg_5s_clean_negative_report_records_no_trade_diagnosis' (899940) panicked at tests/constitution_real5s_scaffold_ratification.rs:14:62:
+read handover/evidence/real5_overnight_20260514/REAL5_CLEAN_NEGATIVE_NO_TRADE_REPORT.md: No such file or directory (os error 2)
+
+
+failures:
+    sg_5s_clean_negative_report_records_no_trade_diagnosis
+    sg_5s_scaffold_ratification_report_narrows_real5_claim
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

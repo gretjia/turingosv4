@@ -25,18 +25,26 @@ const SEED_STRING: &str = "20260426_PPUT_CCL";
 
 fn repo_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent().unwrap().parent().unwrap().to_path_buf()
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .to_path_buf()
 }
 
 fn collect_rs_files(roots: &[&str]) -> Vec<PathBuf> {
     let mut out = Vec::new();
     let root = repo_root();
-    for r in roots { walk(&root.join(r), &mut out); }
+    for r in roots {
+        walk(&root.join(r), &mut out);
+    }
     out
 }
 
 fn walk(p: &Path, out: &mut Vec<PathBuf>) {
-    if !p.exists() { return; }
+    if !p.exists() {
+        return;
+    }
     if p.is_file() {
         if p.extension().and_then(|s| s.to_str()) == Some("rs") {
             out.push(p.to_path_buf());
@@ -45,10 +53,14 @@ fn walk(p: &Path, out: &mut Vec<PathBuf>) {
     }
     if p.is_dir() {
         if let Some(name) = p.file_name().and_then(|s| s.to_str()) {
-            if name == "target" || name == ".git" || name.starts_with('.') { return; }
+            if name == "target" || name == ".git" || name.starts_with('.') {
+                return;
+            }
         }
         if let Ok(entries) = fs::read_dir(p) {
-            for e in entries.flatten() { walk(&e.path(), out); }
+            for e in entries.flatten() {
+                walk(&e.path(), out);
+            }
         }
     }
 }
@@ -85,9 +97,9 @@ const AGENT_CODE_ROOTS: &[&str] = &[
 ];
 
 const WHITELIST_PHASE_BOUND: &[&str] = &[
-    "bin/heldout_evaluator.rs",                   // Phase E only
-    "scripts/split_pput_ccl.py",                  // Phase A2 only
-    "tests/heldout_operational_sealing.rs",       // this file
+    "bin/heldout_evaluator.rs",             // Phase E only
+    "scripts/split_pput_ccl.py",            // Phase A2 only
+    "tests/heldout_operational_sealing.rs", // this file
 ];
 
 fn is_whitelisted(p: &Path) -> bool {
@@ -101,13 +113,12 @@ fn is_whitelisted(p: &Path) -> bool {
 /// the splits JSON's heldout key). PREREG § 2.3 L1 (existing, kept).
 #[test]
 fn test_l1_file_path_read_isolation() {
-    let forbidden_path_patterns = [
-        "heldout_",
-        "PPUT_CCL_SPLITS",
-    ];
+    let forbidden_path_patterns = ["heldout_", "PPUT_CCL_SPLITS"];
     let files = collect_rs_files(AGENT_CODE_ROOTS);
     for f in files {
-        if is_whitelisted(&f) { continue; }
+        if is_whitelisted(&f) {
+            continue;
+        }
         let body = strip_test_scope_and_comments(&read_text(&f));
         for needle in &forbidden_path_patterns {
             // Look for opens/reads of these paths (not just any mention).
@@ -123,7 +134,9 @@ fn test_l1_file_path_read_isolation() {
                          Agent code path reads heldout-bearing file '{}'. \
                          PREREG § 2.3 L1 — only bin/heldout_evaluator.rs \
                          (Phase E) may read these.",
-                        f.display(), line, needle
+                        f.display(),
+                        line,
+                        needle
                     );
                 }
             }
@@ -141,7 +154,9 @@ fn test_l2_agent_prompt_context_blacklist() {
     // The prompt builder lives in src/sdk/prompt.rs. Verify it does NOT
     // import or embed any of the listed file paths.
     let prompt_builder = repo_root().join("src/sdk/prompt.rs");
-    if !prompt_builder.exists() { return; }
+    if !prompt_builder.exists() {
+        return;
+    }
     let body = strip_test_scope_and_comments(&read_text(&prompt_builder));
 
     // The prompt builder must not name these files anywhere in production code.
@@ -176,8 +191,14 @@ fn test_l2_agent_prompt_context_blacklist() {
 #[test]
 fn test_l3_tool_call_no_hash_invocation_in_agent_code() {
     let shell_hash_binaries = [
-        "sha256sum", "sha1sum", "sha224sum", "sha384sum", "sha512sum",
-        "md5sum", "b3sum", "b2sum",
+        "sha256sum",
+        "sha1sum",
+        "sha224sum",
+        "sha384sum",
+        "sha512sum",
+        "md5sum",
+        "b3sum",
+        "b2sum",
         "openssl dgst",
     ];
     let inline_hash_calls = [
@@ -189,7 +210,9 @@ fn test_l3_tool_call_no_hash_invocation_in_agent_code() {
     ];
     let files = collect_rs_files(AGENT_CODE_ROOTS);
     for f in files {
-        if is_whitelisted(&f) { continue; }
+        if is_whitelisted(&f) {
+            continue;
+        }
         let body = strip_test_scope_and_comments(&read_text(&f));
         for h in shell_hash_binaries.iter().chain(inline_hash_calls.iter()) {
             assert!(
@@ -198,7 +221,8 @@ fn test_l3_tool_call_no_hash_invocation_in_agent_code() {
                  invocation '{}'. PREREG § 2.3 L3 — agent code paths cannot \
                  invoke hash functions (defends against seed-substring \
                  recomputation). Whitelist allowed only for Phase A/E paths.",
-                f.display(), h
+                f.display(),
+                h
             );
         }
     }
@@ -211,23 +235,35 @@ fn test_l3_tool_call_no_hash_invocation_in_agent_code() {
 #[test]
 fn test_l4_hash_and_seed_substring_co_occurrence() {
     let rust_hash_crates = [
-        "sha2", "sha1", "sha3", "blake2", "blake3", "md5", "md-5",
-        "ring::digest", "openssl::hash",
+        "sha2",
+        "sha1",
+        "sha3",
+        "blake2",
+        "blake3",
+        "md5",
+        "md-5",
+        "ring::digest",
+        "openssl::hash",
     ];
     let files = collect_rs_files(AGENT_CODE_ROOTS);
     for f in files {
-        if is_whitelisted(&f) { continue; }
+        if is_whitelisted(&f) {
+            continue;
+        }
         let body = strip_test_scope_and_comments(&read_text(&f));
-        let has_seed = body.contains(SEED_STRING)
-            || (body.contains("20260426") && body.contains("PPUT_CCL"));
-        if !has_seed { continue; }
+        let has_seed =
+            body.contains(SEED_STRING) || (body.contains("20260426") && body.contains("PPUT_CCL"));
+        if !has_seed {
+            continue;
+        }
         for h in &rust_hash_crates {
             assert!(
                 !body.contains(h),
                 "L4 sealing violation at {}: agent code path contains BOTH \
                  hash crate '{}' AND seed substring. PREREG § 2.3 L4: this \
                  combination is blocked at conformance test time.",
-                f.display(), h
+                f.display(),
+                h
             );
         }
     }
@@ -246,36 +282,39 @@ fn test_l4_hash_and_seed_substring_co_occurrence() {
 /// only — flagged as a B7 / Phase E precondition.
 #[test]
 fn test_l5_source_pool_enumeration_block() {
-    let enumeration_patterns = [
-        "read_dir(",
-        "glob.glob",
-        "os.listdir",
-    ];
+    let enumeration_patterns = ["read_dir(", "glob.glob", "os.listdir"];
     // Files that MAY mention MiniF2F/Test paths in benign config (e.g.,
     // evaluator.rs constructs the path for SearchTool/oracle args). The
     // gate tightens at Phase B7/Phase E to restrict directory traversal
     // away from MiniF2F/Test.
     let benign_path_mention_whitelist = [
-        "bin/evaluator.rs",  // sets up SearchTool path; Phase E will tighten
-        "lean4_oracle.rs",   // accepts minif2f_dir as input arg
+        "bin/evaluator.rs", // sets up SearchTool path; Phase E will tighten
+        "lean4_oracle.rs",  // accepts minif2f_dir as input arg
     ];
     let files = collect_rs_files(AGENT_CODE_ROOTS);
     for f in files {
-        if is_whitelisted(&f) { continue; }
+        if is_whitelisted(&f) {
+            continue;
+        }
         let body = strip_test_scope_and_comments(&read_text(&f));
         let has_minif2f_test_path = body.contains("MiniF2F/Test");
-        if !has_minif2f_test_path { continue; }
+        if !has_minif2f_test_path {
+            continue;
+        }
 
         // If the file just NAMES the path (config), it's benign in Phase B.
         // The gate is: name + enumeration call together = leak.
-        let has_enumeration = enumeration_patterns.iter()
-            .any(|pat| body.contains(pat));
+        let has_enumeration = enumeration_patterns.iter().any(|pat| body.contains(pat));
         if has_enumeration {
             // SearchTool legitimately enumerates MiniF2F/Test directory in Phase B
             // (heldout not touched until Phase E). Whitelist search.rs explicitly.
             let s = f.to_string_lossy();
-            if s.ends_with("src/sdk/tools/search.rs") { continue; }
-            if benign_path_mention_whitelist.iter().any(|w| s.contains(w)) { continue; }
+            if s.ends_with("src/sdk/tools/search.rs") {
+                continue;
+            }
+            if benign_path_mention_whitelist.iter().any(|w| s.contains(w)) {
+                continue;
+            }
             panic!(
                 "L5 sealing violation at {}: agent code path enumerates \
                  MiniF2F/Test source pool. PREREG § 2.3 L5: directory \

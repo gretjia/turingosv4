@@ -1,0 +1,20 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778842938421_1788018",
+  "fc_nodes": [
+    "FC1 externalized market action -> L4/L4.E/CAS; FC2 pinned benchmark inputs + Trust Root; FC3 materialized A/B report and launch synthesis; price signal not truth"
+  ],
+  "expected_witness": "Diff, command evidence, and audit verdict must cite these FC nodes.",
+  "evidence_artifacts": [
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "bb08bc62d63bf3ed9f904ec84ed6c5598a354661d4f6e7b1cb39fb297d811812",
+      "size_bytes": 13426
+    },
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "bb08bc62d63bf3ed9f904ec84ed6c5598a354661d4f6e7b1cb39fb297d811812",
+      "size_bytes": 13426
+    }
+  ]
+}

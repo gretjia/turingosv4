@@ -78,7 +78,7 @@ use crate::state::q_state::{AgentId, Hash, TxId};
 // ── Schema IDs (charter v2 §6 binding) ──────────────────────────────────────
 
 /// TRACE_MATRIX FC1-N41: schema id for `AttemptTelemetry` CAS objects.
-pub const ATTEMPT_TELEMETRY_SCHEMA_ID: &str = "turingosv4.attempt_telemetry.v2";
+pub const ATTEMPT_TELEMETRY_SCHEMA_ID: &str = "turingosv4.attempt_telemetry.v3";
 
 /// TRACE_MATRIX FC1-N41: schema id for `LeanResult` CAS objects.
 ///
@@ -100,9 +100,11 @@ pub const LEAN_RESULT_SCHEMA_ID: &str = "turingosv4.lean_result.v2";
 pub const TERMINAL_ABORT_RECORD_SCHEMA_ID: &str = "turingosv4.terminal_abort_record.v1";
 
 /// TRACE_MATRIX FC1-N41: schema version constant for `AttemptTelemetry`.
-/// v2 = G4.2 actual model identity tail-add. Historical v1 bincode bytes are
-/// grandfathered by `decode_attempt_telemetry_compat`.
-pub const ATTEMPT_TELEMETRY_SCHEMA_VERSION: u32 = 2;
+/// v2 = G4.2 actual model identity tail-add.
+/// v3 = REAL-5 PromptCapsuleV2 CID linkage.
+/// Historical v1/v2 bincode bytes are grandfathered by
+/// `decode_attempt_telemetry_compat`.
+pub const ATTEMPT_TELEMETRY_SCHEMA_VERSION: u32 = 3;
 
 // ── AttemptKind (Codex Q5: separate from outcome; tail-extensible) ──────────
 
@@ -358,6 +360,11 @@ pub struct AttemptTelemetry {
     pub model_version: Option<String>,
     #[serde(default)]
     pub temperature_milli: Option<i64>,
+    /// REAL-5 PromptCapsuleV2 linkage for role-scoped, replayable views.
+    /// Historical v1/v2 records decode with `None`; new REAL-5 externalized
+    /// attempts set this to the CAS CID of the role/view PromptCapsule.
+    #[serde(default)]
+    pub prompt_capsule_cid: Option<Cid>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -383,6 +390,41 @@ struct AttemptTelemetryV1Wire {
     verification_result_cid: Option<Cid>,
     #[serde(default)]
     attempt_chain_root: Option<Hash>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+struct AttemptTelemetryV2Wire {
+    schema_version: u32,
+    attempt_id: TxId,
+    run_id: String,
+    task_id: String,
+    agent_id: AgentId,
+    branch_id: String,
+    parent_attempt_tx: Option<TxId>,
+    attempt_index: u64,
+    prompt_context_hash: Hash,
+    candidate_payload_cid: Cid,
+    lean_result_cid: Option<Cid>,
+    attempt_kind: AttemptKind,
+    outcome: AttemptOutcome,
+    token_counts: TokenCounts,
+    tool_name: String,
+    #[serde(default)]
+    proposal_telemetry_cid: Option<Cid>,
+    #[serde(default)]
+    verification_result_cid: Option<Cid>,
+    #[serde(default)]
+    attempt_chain_root: Option<Hash>,
+    #[serde(default)]
+    model_name: Option<String>,
+    #[serde(default)]
+    model_family: Option<String>,
+    #[serde(default)]
+    model_provider: Option<String>,
+    #[serde(default)]
+    model_version: Option<String>,
+    #[serde(default)]
+    temperature_milli: Option<i64>,
 }
 
 impl From<AttemptTelemetryV1Wire> for AttemptTelemetry {
@@ -411,6 +453,38 @@ impl From<AttemptTelemetryV1Wire> for AttemptTelemetry {
             model_provider: None,
             model_version: None,
             temperature_milli: None,
+            prompt_capsule_cid: None,
+        }
+    }
+}
+
+impl From<AttemptTelemetryV2Wire> for AttemptTelemetry {
+    fn from(v2: AttemptTelemetryV2Wire) -> Self {
+        Self {
+            schema_version: v2.schema_version,
+            attempt_id: v2.attempt_id,
+            run_id: v2.run_id,
+            task_id: v2.task_id,
+            agent_id: v2.agent_id,
+            branch_id: v2.branch_id,
+            parent_attempt_tx: v2.parent_attempt_tx,
+            attempt_index: v2.attempt_index,
+            prompt_context_hash: v2.prompt_context_hash,
+            candidate_payload_cid: v2.candidate_payload_cid,
+            lean_result_cid: v2.lean_result_cid,
+            attempt_kind: v2.attempt_kind,
+            outcome: v2.outcome,
+            token_counts: v2.token_counts,
+            tool_name: v2.tool_name,
+            proposal_telemetry_cid: v2.proposal_telemetry_cid,
+            verification_result_cid: v2.verification_result_cid,
+            attempt_chain_root: v2.attempt_chain_root,
+            model_name: v2.model_name,
+            model_family: v2.model_family,
+            model_provider: v2.model_provider,
+            model_version: v2.model_version,
+            temperature_milli: v2.temperature_milli,
+            prompt_capsule_cid: None,
         }
     }
 }
@@ -457,6 +531,7 @@ impl AttemptTelemetry {
             model_provider: None,
             model_version: None,
             temperature_milli: None,
+            prompt_capsule_cid: None,
         }
     }
 
@@ -503,6 +578,7 @@ impl AttemptTelemetry {
             model_provider: None,
             model_version: None,
             temperature_milli: None,
+            prompt_capsule_cid: None,
         }
     }
 
@@ -520,6 +596,13 @@ impl AttemptTelemetry {
         self.model_provider = Some(model_provider.into());
         self.model_version = model_version;
         self.temperature_milli = Some(temperature_milli);
+        self
+    }
+
+    /// TRACE_MATRIX FC1 + REAL-5 Atom 3: attach the CAS CID of the
+    /// role/view PromptCapsule used to construct this externalized attempt.
+    pub fn with_prompt_capsule_cid(mut self, prompt_capsule_cid: Cid) -> Self {
+        self.prompt_capsule_cid = Some(prompt_capsule_cid);
         self
     }
 }
@@ -796,17 +879,62 @@ pub fn read_attempt_telemetry_from_cas(
     decode_attempt_telemetry_compat(&bytes).map_err(|e| AttemptTelemetryError::Codec(e.to_string()))
 }
 
-/// TRACE_MATRIX FC1 AttemptTelemetry: v2/v1 dual-reader preserving historical CAS evidence.
+/// TRACE_MATRIX FC1-N41 + REAL-2/REAL-6 shared-slot hardening:
+/// `MarketDecisionTrace` currently shares `ObjectType::AttemptTelemetry`
+/// as transitional compatibility. Bulk AttemptTelemetry walkers must
+/// explicitly classify the known JSON schema and skip it, while unknown
+/// JSON in this slot fails closed instead of being silently ignored or
+/// fed into the canonical bincode reader.
+pub fn read_attempt_telemetry_shared_slot_from_cas(
+    cas: &CasStore,
+    cid: &Cid,
+) -> Result<Option<AttemptTelemetry>, AttemptTelemetryError> {
+    let bytes = cas.get(cid)?;
+    decode_attempt_telemetry_shared_slot(&bytes)
+}
+
+/// Decode a CAS object from the shared AttemptTelemetry slot.
+pub fn decode_attempt_telemetry_shared_slot(
+    bytes: &[u8],
+) -> Result<Option<AttemptTelemetry>, AttemptTelemetryError> {
+    let first = bytes.iter().copied().find(|b| !b.is_ascii_whitespace());
+    if matches!(first, Some(b'{') | Some(b'[')) {
+        let value: serde_json::Value = serde_json::from_slice(bytes).map_err(|e| {
+            AttemptTelemetryError::Codec(format!(
+                "unknown JSON in AttemptTelemetry slot: invalid JSON: {e}"
+            ))
+        })?;
+        let schema_version = value.get("schema_version").and_then(|v| v.as_str());
+        if schema_version
+            == Some(crate::runtime::market_decision_trace::MarketDecisionTrace::SCHEMA_VERSION)
+        {
+            return Ok(None);
+        }
+        return Err(AttemptTelemetryError::Codec(format!(
+            "unknown JSON in AttemptTelemetry slot: schema_version={schema_version:?}"
+        )));
+    }
+
+    decode_attempt_telemetry_compat(bytes)
+        .map(Some)
+        .map_err(|e| AttemptTelemetryError::Codec(e.to_string()))
+}
+
+/// TRACE_MATRIX FC1 AttemptTelemetry: v3/v2/v1 dual-reader preserving historical CAS evidence.
 pub fn decode_attempt_telemetry_compat(
     bytes: &[u8],
 ) -> Result<AttemptTelemetry, CanonicalCodecError> {
     match canonical_decode::<AttemptTelemetry>(bytes) {
-        Ok(v2) => Ok(v2),
-        Err(v2_err) => match canonical_decode::<AttemptTelemetryV1Wire>(bytes) {
-            Ok(v1) => Ok(v1.into()),
-            Err(v1_err) => Err(CanonicalCodecError::Decode(format!(
-                "AttemptTelemetry v2 decode failed: {v2_err}; v1 fallback failed: {v1_err}"
-            ))),
+        Ok(v3) => Ok(v3),
+        Err(v3_err) => match canonical_decode::<AttemptTelemetryV2Wire>(bytes) {
+            Ok(v2) => Ok(v2.into()),
+            Err(v2_err) => match canonical_decode::<AttemptTelemetryV1Wire>(bytes) {
+                Ok(v1) => Ok(v1.into()),
+                Err(v1_err) => Err(CanonicalCodecError::Decode(format!(
+                    "AttemptTelemetry v3 decode failed: {v3_err}; v2 fallback failed: {v2_err}; \
+                     v1 fallback failed: {v1_err}"
+                ))),
+            },
         },
     }
 }
@@ -1122,12 +1250,48 @@ mod tests {
     }
 
     #[test]
-    fn schema_version_is_g4_2_v2() {
-        // G4.2 bumps AttemptTelemetry for durable actual-model identity while
-        // preserving v1 decode via `decode_attempt_telemetry_compat`.
-        assert_eq!(ATTEMPT_TELEMETRY_SCHEMA_VERSION, 2);
+    fn schema_version_is_real5_v3() {
+        // G4.2 bumped AttemptTelemetry for durable actual-model identity;
+        // REAL-5 bumps again for PromptCapsuleV2 CID linkage while preserving
+        // v1/v2 decode via `decode_attempt_telemetry_compat`.
+        assert_eq!(ATTEMPT_TELEMETRY_SCHEMA_VERSION, 3);
         let attempt = fresh_attempt(0);
-        assert_eq!(attempt.schema_version, 2);
+        assert_eq!(attempt.schema_version, 3);
+    }
+
+    #[test]
+    fn historical_v2_model_identity_bytes_still_decode_after_real5_v3() {
+        let legacy_v2 = AttemptTelemetryV2Wire {
+            schema_version: 2,
+            attempt_id: TxId("attempt-v2".into()),
+            run_id: "run-v2".into(),
+            task_id: "task-v2".into(),
+            agent_id: AgentId("Agent_1".into()),
+            branch_id: "n1.b0".into(),
+            parent_attempt_tx: None,
+            attempt_index: 0,
+            prompt_context_hash: fresh_hash("ctx-v2"),
+            candidate_payload_cid: Cid::from_content(b"candidate-v2"),
+            lean_result_cid: None,
+            attempt_kind: AttemptKind::ExternalizedLlmCycle,
+            outcome: AttemptOutcome::LeanFail,
+            token_counts: TokenCounts::default(),
+            tool_name: "step".into(),
+            proposal_telemetry_cid: None,
+            verification_result_cid: None,
+            attempt_chain_root: None,
+            model_name: Some("deepseek-chat".into()),
+            model_family: Some("deepseek".into()),
+            model_provider: Some("deepseek".into()),
+            model_version: None,
+            temperature_milli: Some(700),
+        };
+        let bytes = canonical_encode(&legacy_v2).expect("legacy v2 canonical encode");
+        let decoded =
+            decode_attempt_telemetry_compat(&bytes).expect("v2 evidence remains parseable");
+        assert_eq!(decoded.schema_version, 2);
+        assert_eq!(decoded.model_family.as_deref(), Some("deepseek"));
+        assert_eq!(decoded.prompt_capsule_cid, None);
     }
 
     #[test]

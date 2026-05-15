@@ -66,8 +66,7 @@ pub fn render_pending_peer_reviews(q: &QState, viewer: &AgentId, k: usize) -> St
         if &stake_entry.staker == viewer {
             continue;
         }
-        if q
-            .economic_state_t
+        if q.economic_state_t
             .agent_verifications_t
             .0
             .contains(&(viewer.clone(), tx_id.clone()))
@@ -165,9 +164,18 @@ mod tests {
         seed_stake(&mut q, "worktx-peer", "Agent_5", "task-A", 1_000_000);
         let viewer = AgentId("Agent_0".into());
         let s = render_pending_peer_reviews(&q, &viewer, DEFAULT_PENDING_REVIEWS_K);
-        assert!(s.contains("worktx-peer"), "block must reference peer work_tx_id; got: {s}");
-        assert!(s.contains("Agent_5"), "block must reference peer proposer; got: {s}");
-        assert!(s.contains("task-A"), "block must reference task_id; got: {s}");
+        assert!(
+            s.contains("worktx-peer"),
+            "block must reference peer work_tx_id; got: {s}"
+        );
+        assert!(
+            s.contains("Agent_5"),
+            "block must reference peer proposer; got: {s}"
+        );
+        assert!(
+            s.contains("task-A"),
+            "block must reference task_id; got: {s}"
+        );
         assert!(
             s.contains("verify_peer"),
             "block must invite a verify_peer action; got: {s}"
@@ -198,12 +206,18 @@ mod tests {
         seed_verification(&mut q, "Agent_0", "worktx-by-A1");
         let viewer0 = AgentId("Agent_0".into());
         let s0 = render_pending_peer_reviews(&q, &viewer0, DEFAULT_PENDING_REVIEWS_K);
-        assert!(s0.is_empty(), "Agent_0 already verified → empty queue; got: {s0}");
+        assert!(
+            s0.is_empty(),
+            "Agent_0 already verified → empty queue; got: {s0}"
+        );
 
         // Agent_5 has not verified it → still pending in Agent_5's view.
         let viewer5 = AgentId("Agent_5".into());
         let s5 = render_pending_peer_reviews(&q, &viewer5, DEFAULT_PENDING_REVIEWS_K);
-        assert!(s5.contains("worktx-by-A1"), "Agent_5 still has it pending; got: {s5}");
+        assert!(
+            s5.contains("worktx-by-A1"),
+            "Agent_5 still has it pending; got: {s5}"
+        );
     }
 
     #[test]
@@ -232,19 +246,34 @@ mod tests {
         let pos_large = s.find("worktx-c-large").expect("c-large present");
         let pos_a = s.find("worktx-a-small").expect("a-small present");
         let pos_b = s.find("worktx-b-small").expect("b-small present");
-        assert!(pos_large < pos_a, "stake desc: c-large(5M) before a-small(1M)");
-        assert!(pos_a < pos_b, "tx_id asc tiebreak: a-small before b-small at same stake");
+        assert!(
+            pos_large < pos_a,
+            "stake desc: c-large(5M) before a-small(1M)"
+        );
+        assert!(
+            pos_a < pos_b,
+            "tx_id asc tiebreak: a-small before b-small at same stake"
+        );
     }
 
     #[test]
     fn k_caps_row_count() {
         let mut q = empty_q();
         for i in 0..10 {
-            seed_stake(&mut q, &format!("worktx-{i:02}"), "Agent_5", "task-A", 1_000_000);
+            seed_stake(
+                &mut q,
+                &format!("worktx-{i:02}"),
+                "Agent_5",
+                "task-A",
+                1_000_000,
+            );
         }
         let viewer = AgentId("Agent_0".into());
         let s = render_pending_peer_reviews(&q, &viewer, 3);
         let row_count = s.lines().filter(|l| l.starts_with("- work_tx ")).count();
-        assert_eq!(row_count, 3, "k=3 must cap rows; got {row_count}\nblock:\n{s}");
+        assert_eq!(
+            row_count, 3,
+            "k=3 must cap rows; got {row_count}\nblock:\n{s}"
+        );
     }
 }

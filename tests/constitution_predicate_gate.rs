@@ -78,18 +78,15 @@ fn predicate_failure_cannot_enter_l4() {
     use turingosv4::state::typed_tx::PredicateId;
     let acceptance_fail =
         RejectionClass::AcceptancePredicateFail(PredicateId("p_lean_verify".into()));
-    let settlement_fail =
-        RejectionClass::SettlementPredicateFail(PredicateId("p_finalize".into()));
+    let settlement_fail = RejectionClass::SettlementPredicateFail(PredicateId("p_finalize".into()));
     assert_eq!(route(acceptance_fail), "predicate-fail-route-to-L4E");
     assert_eq!(route(settlement_fail), "predicate-fail-route-to-L4E");
 
     // Sequencer source-side check: rejection-class branching must exist
     // and route to L4.E (not L4) on predicate failure.
-    let seq_src =
-        std::fs::read_to_string("src/state/sequencer.rs").expect("sequencer.rs readable");
+    let seq_src = std::fs::read_to_string("src/state/sequencer.rs").expect("sequencer.rs readable");
     assert!(
-        seq_src.contains("AcceptancePredicateFail")
-            || seq_src.contains("SettlementPredicateFail"),
+        seq_src.contains("AcceptancePredicateFail") || seq_src.contains("SettlementPredicateFail"),
         "Predicate gate violation: sequencer.rs does not branch on \
          predicate-failure rejection classes — failure routing un-enforceable."
     );
@@ -126,8 +123,7 @@ fn predicate_pass_required_for_l4() {
     let pred_stdout = String::from_utf8_lossy(&pred_grep.stdout);
     assert!(
         pred_stdout.contains("PredicateRegistry::new")
-            && (pred_stdout.contains("transition_ledger.rs")
-                || pred_stdout.contains("verify.rs")),
+            && (pred_stdout.contains("transition_ledger.rs") || pred_stdout.contains("verify.rs")),
         "Predicate gate violation: PredicateRegistry not threaded into \
          verify / transition_ledger admit path — pass-before-accept \
          un-enforceable. Found:\n{pred_stdout}"
@@ -136,8 +132,7 @@ fn predicate_pass_required_for_l4() {
     // accept fns: WorkTx, VerifyTx, ChallengeTx, ChallengeResolve,
     // FinalizeReward, TaskOpen, EscrowLock, TaskExpire, TerminalSummary,
     // TaskBankruptcy, CompleteSetMint, CompleteSetRedeem, MarketSeed).
-    let seq_src =
-        std::fs::read_to_string("src/state/sequencer.rs").expect("sequencer.rs readable");
+    let seq_src = std::fs::read_to_string("src/state/sequencer.rs").expect("sequencer.rs readable");
     let accept_count = seq_src.matches("_accept_state_root").count();
     assert!(
         accept_count >= 12,

@@ -54,9 +54,8 @@ fn audit_dashboard_source_present() {
 /// evidence is committed.
 #[test]
 fn audit_dashboard_invokes_on_r7_p01_evidence() {
-    let evidence = manifest_dir().join(
-        "handover/evidence/tb_18r_r7_m0_2026-05-06/P01_mathd_algebra_113",
-    );
+    let evidence =
+        manifest_dir().join("handover/evidence/tb_18r_r7_m0_2026-05-06/P01_mathd_algebra_113");
     if !evidence.join("runtime_repo").exists() || !evidence.join("cas").exists() {
         eprintln!(
             "[r11-smoke] R7 P01 evidence not present at {evidence:?}; skipping invocation \

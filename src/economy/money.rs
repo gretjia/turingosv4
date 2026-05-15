@@ -29,7 +29,9 @@ use std::fmt;
 /// Negative values are allowed at the type level (e.g., signed deltas in tests),
 /// but balance / escrow / stake fields enforce non-negative invariants at the
 /// business logic layer (not in this type).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default,
+)]
 #[serde(transparent)]
 pub struct MicroCoin(i64);
 
@@ -233,7 +235,7 @@ mod tests {
     fn royalty_10_percent_rounds_down() {
         // 500 base coin × 0.10 = 50 base coin (exact)
         let reward = MicroCoin::from_coin(500).unwrap();
-        let weight = 100_000;  // 0.10 in micro fraction
+        let weight = 100_000; // 0.10 in micro fraction
         let royalty = reward.checked_mul_floor_micro(weight).unwrap();
         assert_eq!(royalty, MicroCoin::from_coin(50).unwrap());
     }
@@ -243,7 +245,7 @@ mod tests {
         // 1 base coin × 0.333333 should floor (not round up)
         // 1_000_000 × 333_333 = 333_333_000_000; / 1_000_000 = 333_333 micro
         let reward = MicroCoin::from_coin(1).unwrap();
-        let weight = 333_333;  // 0.333333 in micro fraction
+        let weight = 333_333; // 0.333333 in micro fraction
         let royalty = reward.checked_mul_floor_micro(weight).unwrap();
         assert_eq!(royalty.micro_units(), 333_333);
     }
@@ -314,8 +316,10 @@ mod tests {
         let dust_share = MicroCoin::from_coin(50).unwrap();
 
         let total_out = alice_share
-            .checked_add(bob_share).unwrap()
-            .checked_add(dust_share).unwrap();
+            .checked_add(bob_share)
+            .unwrap()
+            .checked_add(dust_share)
+            .unwrap();
         assert_eq!(total_in, total_out, "Inv 3 conservation");
     }
 }

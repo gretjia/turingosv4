@@ -92,7 +92,11 @@ fn lean_verdict_kind_legacy_field_derivation_out_of_canonical_returns_none() {
     );
     // verified=true with error_class set — internally inconsistent
     assert_eq!(
-        LeanResult::derive_verdict_kind_from_legacy_fields(0, true, Some(LeanErrorClass::LeanFailed)),
+        LeanResult::derive_verdict_kind_from_legacy_fields(
+            0,
+            true,
+            Some(LeanErrorClass::LeanFailed)
+        ),
         None
     );
     // !verified, exit_code≠0, error_class=None — should be classified

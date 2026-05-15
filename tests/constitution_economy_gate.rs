@@ -57,8 +57,7 @@ fn economy_read_is_free() {
 /// (which integrates monetary_invariant.rs).
 #[test]
 fn economy_write_requires_stake_or_escrow() {
-    let seq_src =
-        std::fs::read_to_string("src/state/sequencer.rs").expect("sequencer.rs readable");
+    let seq_src = std::fs::read_to_string("src/state/sequencer.rs").expect("sequencer.rs readable");
     // Sequencer must integrate the assert_* helpers from monetary_invariant.
     // Specifically, it must call assert_no_post_init_mint on accept paths
     // that touch coin balance.
@@ -164,8 +163,7 @@ fn economy_complete_set_yes_no_not_coin() {
 /// must be rejected. The TB-13 sequencer dispatch arm enforces this.
 #[test]
 fn economy_no_ghost_liquidity() {
-    let seq_src =
-        std::fs::read_to_string("src/state/sequencer.rs").expect("sequencer.rs readable");
+    let seq_src = std::fs::read_to_string("src/state/sequencer.rs").expect("sequencer.rs readable");
     // A Market-Seed accept path must reference assert_total_ctf_conserved
     // OR its complete-set-balanced sibling (one of the two ensures no ghost
     // liquidity).
@@ -236,11 +234,7 @@ fn economy_no_f64_money_path() {
         .lines()
         .filter(|l| {
             // grep output: `<path>:<lineno>:<content>`. Inspect content.
-            let content = l
-                .splitn(3, ':')
-                .nth(2)
-                .unwrap_or(l)
-                .trim_start();
+            let content = l.splitn(3, ':').nth(2).unwrap_or(l).trim_start();
             !(content.starts_with("///")
                 || content.starts_with("//!")
                 || content.starts_with("// ")
@@ -264,13 +258,13 @@ fn economy_no_f64_money_path() {
 /// sequencer admission control rejects agent-submitted system tx.
 #[test]
 fn system_tx_not_agent_submittable() {
-    let seq_src =
-        std::fs::read_to_string("src/state/sequencer.rs").expect("sequencer.rs readable");
+    let seq_src = std::fs::read_to_string("src/state/sequencer.rs").expect("sequencer.rs readable");
     // The admission code must distinguish system-emitted from agent-emitted
     // tx kinds. Look for an admission gate keyed on system_message_for_verification
     // or system_signature_of (which exist in this file per surface inspection).
     assert!(
-        seq_src.contains("system_signature_of") || seq_src.contains("system_message_for_verification"),
+        seq_src.contains("system_signature_of")
+            || seq_src.contains("system_message_for_verification"),
         "Economy / Art. V violation: sequencer does not separate system-\
          signed from agent-signed tx admission. SystemTx could be \
          agent-submitted."

@@ -18,7 +18,10 @@ pub enum Visibility {
     Private,
     /// Predicate hash is published; sample revealed at `reveal_at_logical_t`.
     /// Until reveal, agents cannot test against it; after reveal, becomes Public.
-    CommitReveal { reveal_at_logical_t: u64, predicate_hash: [u8; 32] },
+    CommitReveal {
+        reveal_at_logical_t: u64,
+        predicate_hash: [u8; 32],
+    },
 }
 
 impl Visibility {
@@ -28,7 +31,10 @@ impl Visibility {
         match self {
             Self::Public => true,
             Self::Private => false,
-            Self::CommitReveal { reveal_at_logical_t, .. } => now >= *reveal_at_logical_t,
+            Self::CommitReveal {
+                reveal_at_logical_t,
+                ..
+            } => now >= *reveal_at_logical_t,
         }
     }
 

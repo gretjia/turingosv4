@@ -1,0 +1,1 @@
+audit_tape: verdict=PROCEED passed=39 failed=0 halted=0 skipped=13 (out="handover/evidence/g_phase_real_6a_task_outcome_smoke_r2_20260515T0257Z/audit_tape_after_shared_slot_fix.json")

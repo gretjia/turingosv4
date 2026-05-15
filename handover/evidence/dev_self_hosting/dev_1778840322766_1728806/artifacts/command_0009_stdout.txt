@@ -1,0 +1,32 @@
+## §K G7 structural smoke
+  minimum_tier_green: true
+  clean_negative: false
+  forward_tb_stub_required: false
+  one_runtime_repo: true
+  multi_agent: true
+  persistent_state: true
+  agent_count: 15
+  active_role_count: 5
+  task_count: 3
+  task_outcome_market_count: 3
+  scripted_attempt_prediction_market_count: 3
+  buy_yes_router_count: 3
+  buy_no_or_short_count: 6
+  verify_tx_count: 3
+  challenge_tx_or_no_challenge_reason_count: 3
+  event_resolve_count: 3
+  pnl_delta_count: 6
+  loss_occurred: false
+  autopsy_capsule_count: 0
+  autopsy_if_loss_satisfied: true
+  no_forced_live_investment: true
+  market_actions_chain_visible: true
+  no_ghost_liquidity: true
+  clean_v3_comparison: true
+  does_not_claim_identical_v3_equivalence: true
+  proof_related_actions: 6
+  market_visible_actions: 9
+  no_trade_reason_count: 5
+  g7_guard_cas_count: 3
+  aggregate_audit_guard_source: handover/evidence/g_phase_real_7_structural_smoke_r11_20260515T1032Z/aggregate_verdict.json
+

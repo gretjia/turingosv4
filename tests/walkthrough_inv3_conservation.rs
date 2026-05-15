@@ -51,11 +51,22 @@ fn walkthrough_inv3_full_scenario_conserves() {
         stakes: BTreeMap::new(),
         royalty_edges: vec![],
     };
-    state.balances.insert("alice".into(), MicroCoin::from_coin(1000).unwrap());
-    state.balances.insert("bob".into(), MicroCoin::from_coin(500).unwrap());
-    state.balances.insert("carol".into(), MicroCoin::from_coin(800).unwrap());
-    state.balances.insert("dave".into(), MicroCoin::from_coin(300).unwrap());
-    state.escrows.insert("task-amc12_2000_p9".into(), MicroCoin::from_coin(500).unwrap());
+    state
+        .balances
+        .insert("alice".into(), MicroCoin::from_coin(1000).unwrap());
+    state
+        .balances
+        .insert("bob".into(), MicroCoin::from_coin(500).unwrap());
+    state
+        .balances
+        .insert("carol".into(), MicroCoin::from_coin(800).unwrap());
+    state
+        .balances
+        .insert("dave".into(), MicroCoin::from_coin(300).unwrap());
+    state.escrows.insert(
+        "task-amc12_2000_p9".into(),
+        MicroCoin::from_coin(500).unwrap(),
+    );
 
     let total_pre = state.total_circulating();
     let expected_pre = MicroCoin::from_coin(1000 + 500 + 800 + 300 + 500).unwrap();
@@ -65,9 +76,13 @@ fn walkthrough_inv3_full_scenario_conserves() {
     let alice_stake = MicroCoin::from_coin(100).unwrap();
     state.balances.insert(
         "alice".into(),
-        state.balances["alice"].checked_sub(alice_stake).expect("alice has 1000"),
+        state.balances["alice"]
+            .checked_sub(alice_stake)
+            .expect("alice has 1000"),
     );
-    state.stakes.insert(("alice".into(), "task-amc12_2000_p9".into()), alice_stake);
+    state
+        .stakes
+        .insert(("alice".into(), "task-amc12_2000_p9".into()), alice_stake);
 
     let total_after_step1 = state.total_circulating();
     assert_eq!(total_after_step1, total_pre, "Step 1 stake lock conserves");
@@ -76,13 +91,21 @@ fn walkthrough_inv3_full_scenario_conserves() {
     let bob_bond = MicroCoin::from_coin(50).unwrap();
     state.balances.insert(
         "bob".into(),
-        state.balances["bob"].checked_sub(bob_bond).expect("bob has 500"),
+        state.balances["bob"]
+            .checked_sub(bob_bond)
+            .expect("bob has 500"),
     );
     // Bond is also a stake field; key by (verifier, target_work_tx); shorthand: same task here
-    state.stakes.insert(("bob_verifier".into(), "task-amc12_2000_p9".into()), bob_bond);
+    state.stakes.insert(
+        ("bob_verifier".into(), "task-amc12_2000_p9".into()),
+        bob_bond,
+    );
 
     let total_after_step2 = state.total_circulating();
-    assert_eq!(total_after_step2, total_pre, "Step 2 verifier bond lock conserves");
+    assert_eq!(
+        total_after_step2, total_pre,
+        "Step 2 verifier bond lock conserves"
+    );
 
     // === STEP 7 (alt): no challenge; finalize_reward fires (per WALKTHROUGH § 7) ===
     // Reward formula: Escrow(500) × Accept(1) × Attribution(0.95 alice + 0.05 dave reuse)
@@ -96,17 +119,27 @@ fn walkthrough_inv3_full_scenario_conserves() {
     let task = "task-amc12_2000_p9".to_string();
 
     // 3a: unlock + return alice's stake
-    let alice_returned_stake = state.stakes.remove(&(("alice".into()), task.clone())).expect("alice stake");
+    let alice_returned_stake = state
+        .stakes
+        .remove(&(("alice".into()), task.clone()))
+        .expect("alice stake");
     state.balances.insert(
         "alice".into(),
-        state.balances["alice"].checked_add(alice_returned_stake).unwrap(),
+        state.balances["alice"]
+            .checked_add(alice_returned_stake)
+            .unwrap(),
     );
 
     // Bob's bond also released (§ 3.2 stage 4e: ReturnToVerifier; here applied on no-challenge finalize)
-    let bob_returned_bond = state.stakes.remove(&(("bob_verifier".into()), task.clone())).expect("bob bond");
+    let bob_returned_bond = state
+        .stakes
+        .remove(&(("bob_verifier".into()), task.clone()))
+        .expect("bob bond");
     state.balances.insert(
         "bob".into(),
-        state.balances["bob"].checked_add(bob_returned_bond).unwrap(),
+        state.balances["bob"]
+            .checked_add(bob_returned_bond)
+            .unwrap(),
     );
 
     // 3b: pay reward (debit escrow → credit alice)
@@ -143,19 +176,41 @@ fn walkthrough_inv3_full_scenario_conserves() {
     let carol_final = state.balances["carol"];
 
     // Alice: 1000 - 100 (stake) + 100 (returned) + 500 (reward) - 25 (royalty) = 1475
-    assert_eq!(alice_final, MicroCoin::from_coin(1475).unwrap(), "alice = 1475 base coin");
+    assert_eq!(
+        alice_final,
+        MicroCoin::from_coin(1475).unwrap(),
+        "alice = 1475 base coin"
+    );
     // Bob: 500 - 50 (bond) + 50 (returned) = 500
-    assert_eq!(bob_final, MicroCoin::from_coin(500).unwrap(), "bob = 500 base coin (untouched net)");
+    assert_eq!(
+        bob_final,
+        MicroCoin::from_coin(500).unwrap(),
+        "bob = 500 base coin (untouched net)"
+    );
     // Dave: 300 + 25 (royalty) = 325
-    assert_eq!(dave_final, MicroCoin::from_coin(325).unwrap(), "dave = 325 base coin");
+    assert_eq!(
+        dave_final,
+        MicroCoin::from_coin(325).unwrap(),
+        "dave = 325 base coin"
+    );
     // Carol: untouched (didn't participate)
-    assert_eq!(carol_final, MicroCoin::from_coin(800).unwrap(), "carol = 800 (untouched)");
+    assert_eq!(
+        carol_final,
+        MicroCoin::from_coin(800).unwrap(),
+        "carol = 800 (untouched)"
+    );
 
     // Escrow drained
-    assert!(!state.escrows.contains_key(&task), "escrow drained on finalize");
+    assert!(
+        !state.escrows.contains_key(&task),
+        "escrow drained on finalize"
+    );
 
     // No locked stakes remaining
-    assert!(state.stakes.is_empty(), "all stakes/bonds released on finalize");
+    assert!(
+        state.stakes.is_empty(),
+        "all stakes/bonds released on finalize"
+    );
 
     // Print conservation closure detail
     eprintln!(
@@ -180,24 +235,56 @@ fn walkthrough_step5_slashed_path_conserves() {
         stakes: BTreeMap::new(),
         royalty_edges: vec![],
     };
-    state.balances.insert("alice".into(), MicroCoin::from_coin(1000).unwrap());
-    state.balances.insert("bob".into(), MicroCoin::from_coin(500).unwrap());
-    state.balances.insert("carol".into(), MicroCoin::from_coin(800).unwrap());
-    state.escrows.insert("task".into(), MicroCoin::from_coin(500).unwrap());
+    state
+        .balances
+        .insert("alice".into(), MicroCoin::from_coin(1000).unwrap());
+    state
+        .balances
+        .insert("bob".into(), MicroCoin::from_coin(500).unwrap());
+    state
+        .balances
+        .insert("carol".into(), MicroCoin::from_coin(800).unwrap());
+    state
+        .escrows
+        .insert("task".into(), MicroCoin::from_coin(500).unwrap());
 
     let total_pre = state.total_circulating();
 
     // Alice stakes 100
-    state.balances.insert("alice".into(), state.balances["alice"].checked_sub(MicroCoin::from_coin(100).unwrap()).unwrap());
-    state.stakes.insert(("alice".into(), "task".into()), MicroCoin::from_coin(100).unwrap());
+    state.balances.insert(
+        "alice".into(),
+        state.balances["alice"]
+            .checked_sub(MicroCoin::from_coin(100).unwrap())
+            .unwrap(),
+    );
+    state.stakes.insert(
+        ("alice".into(), "task".into()),
+        MicroCoin::from_coin(100).unwrap(),
+    );
 
     // Bob bonds 50
-    state.balances.insert("bob".into(), state.balances["bob"].checked_sub(MicroCoin::from_coin(50).unwrap()).unwrap());
-    state.stakes.insert(("bob_v".into(), "task".into()), MicroCoin::from_coin(50).unwrap());
+    state.balances.insert(
+        "bob".into(),
+        state.balances["bob"]
+            .checked_sub(MicroCoin::from_coin(50).unwrap())
+            .unwrap(),
+    );
+    state.stakes.insert(
+        ("bob_v".into(), "task".into()),
+        MicroCoin::from_coin(50).unwrap(),
+    );
 
     // Carol challenges: stakes 200 NO_E
-    state.balances.insert("carol".into(), state.balances["carol"].checked_sub(MicroCoin::from_coin(200).unwrap()).unwrap());
-    state.stakes.insert(("carol".into(), "task".into()), MicroCoin::from_coin(200).unwrap());
+    state.balances.insert(
+        "carol".into(),
+        state.balances["carol"]
+            .checked_sub(MicroCoin::from_coin(200).unwrap())
+            .unwrap(),
+    );
+    state.stakes.insert(
+        ("carol".into(), "task".into()),
+        MicroCoin::from_coin(200).unwrap(),
+    );
     assert_eq!(state.total_circulating(), total_pre, "stake locks conserve");
 
     // SLASH path per spec § 3.2 stage 4:
@@ -206,15 +293,26 @@ fn walkthrough_step5_slashed_path_conserves() {
     // - Carol gets reputation +; Alice -
     // - Bob's bond RELEASED back to Bob (default = ReturnToVerifier)
 
-    let alice_slashed = state.stakes.remove(&(("alice".into()), "task".into())).unwrap();
-    let carol_returned = state.stakes.remove(&(("carol".into()), "task".into())).unwrap();
-    let bob_returned = state.stakes.remove(&(("bob_v".into()), "task".into())).unwrap();
+    let alice_slashed = state
+        .stakes
+        .remove(&(("alice".into()), "task".into()))
+        .unwrap();
+    let carol_returned = state
+        .stakes
+        .remove(&(("carol".into()), "task".into()))
+        .unwrap();
+    let bob_returned = state
+        .stakes
+        .remove(&(("bob_v".into()), "task".into()))
+        .unwrap();
 
     state.balances.insert(
         "carol".into(),
         state.balances["carol"]
-            .checked_add(carol_returned).unwrap()
-            .checked_add(alice_slashed).unwrap(),
+            .checked_add(carol_returned)
+            .unwrap()
+            .checked_add(alice_slashed)
+            .unwrap(),
     );
     state.balances.insert(
         "bob".into(),
@@ -263,8 +361,12 @@ fn walkthrough_step9_terminal_summary_conserves() {
         stakes: BTreeMap::new(),
         royalty_edges: vec![],
     };
-    state.balances.insert("alice".into(), MicroCoin::from_coin(1000).unwrap());
-    state.escrows.insert("task".into(), MicroCoin::from_coin(500).unwrap());
+    state
+        .balances
+        .insert("alice".into(), MicroCoin::from_coin(1000).unwrap());
+    state
+        .escrows
+        .insert("task".into(), MicroCoin::from_coin(500).unwrap());
 
     let total_pre = state.total_circulating();
 
@@ -276,7 +378,18 @@ fn walkthrough_step9_terminal_summary_conserves() {
     }
 
     let total_post = state.total_circulating();
-    assert_eq!(total_post, total_pre, "rejected work_tx preserves economic state");
-    assert_eq!(state.balances["alice"], MicroCoin::from_coin(1000).unwrap(), "alice unchanged");
-    assert_eq!(state.escrows["task"], MicroCoin::from_coin(500).unwrap(), "escrow unchanged");
+    assert_eq!(
+        total_post, total_pre,
+        "rejected work_tx preserves economic state"
+    );
+    assert_eq!(
+        state.balances["alice"],
+        MicroCoin::from_coin(1000).unwrap(),
+        "alice unchanged"
+    );
+    assert_eq!(
+        state.escrows["task"],
+        MicroCoin::from_coin(500).unwrap(),
+        "escrow unchanged"
+    );
 }

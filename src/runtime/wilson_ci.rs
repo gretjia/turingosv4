@@ -44,8 +44,7 @@ impl WilsonCi {
         let p_hat = k / n;
         let denom = 1.0 + z2 / n;
         let center = (p_hat + z2 / (2.0 * n)) / denom;
-        let margin =
-            z * ((p_hat * (1.0 - p_hat) / n + z2 / (4.0 * n * n)).sqrt()) / denom;
+        let margin = z * ((p_hat * (1.0 - p_hat) / n + z2 / (4.0 * n * n)).sqrt()) / denom;
         let lower = (center - margin).max(0.0);
         let upper = (center + margin).min(1.0);
         Some(Self {

@@ -1,0 +1,30 @@
+{
+  "schema_version": "g1_2_v1",
+  "batch_id": "g_phase_real_6a_task_outcome_smoke_r10_20260515T0442Z_5239f4b",
+  "runtime_repo": "/home/zephryj/projects/turingosv4/handover/evidence/g_phase_real_6a_task_outcome_smoke_r10_20260515T0442Z/runtime_repo",
+  "cas_root": "/home/zephryj/projects/turingosv4/handover/evidence/g_phase_real_6a_task_outcome_smoke_r10_20260515T0442Z/cas",
+  "model": "deepseek-chat",
+  "n_agents": 5,
+  "initial_head_t_hex": "",
+  "agent_registry_cid_hex": null,
+  "system_pubkeys_cid_hex": null,
+  "model_manifest_cid_hex": null,
+  "role_assignment_manifest_cid_hex": "0b8b281ee63d864788385186f1db167be2b982a40ac757f038d50ba74960281f",
+  "tasks": [
+    {
+      "task_index": 0,
+      "problem_id": "numbertheory_2pownm1prime_nprime",
+      "start_head_t_hex": "",
+      "end_head_t_hex": "2abed5c212889c237e7a494e90cf129a16bf86ef",
+      "start_chain_length": 0,
+      "end_chain_length": 6,
+      "subprocess_command_sha256": "",
+      "run_summary_cid_hex": null,
+      "terminal_tx_id": null,
+      "exit_code": 0,
+      "started_at_unix_s": 1778820188,
+      "finished_at_unix_s": 1778820219
+    }
+  ],
+  "terminated_reason": null
+}

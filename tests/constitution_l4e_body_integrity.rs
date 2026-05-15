@@ -80,7 +80,10 @@ fn snapshot_m0_p01() -> (TempDir, AuditInputs) {
     );
     let src_runtime = src_problem.join("runtime_repo");
     let src_cas = src_problem.join("cas");
-    assert!(src_runtime.is_dir(), "missing src runtime_repo {src_runtime:?}");
+    assert!(
+        src_runtime.is_dir(),
+        "missing src runtime_repo {src_runtime:?}"
+    );
     assert!(src_cas.is_dir(), "missing src cas {src_cas:?}");
 
     let tmp = TempDir::new().expect("tempdir");
@@ -152,8 +155,11 @@ fn assert_51_halts_on_l4e_blob_byte_flip() {
     );
     let d = result.detail.unwrap_or_default();
     assert!(
-        d.contains("L4.E position") || d.contains("zlib") || d.contains("peel_to_blob")
-            || d.contains("body tampering") || d.contains("HashMismatch"),
+        d.contains("L4.E position")
+            || d.contains("zlib")
+            || d.contains("peel_to_blob")
+            || d.contains("body tampering")
+            || d.contains("HashMismatch"),
         "halt detail should reference L4.E position / zlib / blob / hash \
          mismatch — got: {d}"
     );

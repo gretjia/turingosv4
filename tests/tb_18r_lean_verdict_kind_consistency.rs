@@ -191,7 +191,12 @@ fn consistency_canonical_round_trip_via_canonical_codec() {
 
     let canonical_shapes: [(i32, bool, Option<LeanErrorClass>, LeanVerdictKind); 4] = [
         (0, true, None, LeanVerdictKind::Verified),
-        (1, false, Some(LeanErrorClass::LeanFailed), LeanVerdictKind::Failed),
+        (
+            1,
+            false,
+            Some(LeanErrorClass::LeanFailed),
+            LeanVerdictKind::Failed,
+        ),
         (0, false, None, LeanVerdictKind::PartialAccepted),
         (
             0,

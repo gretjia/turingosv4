@@ -1,0 +1,11 @@
+batch_id            real8_market_ab_20260515T_REAL8_R2Z/arm_D_5239f4b
+run_tag             real8_market_ab_20260515T_REAL8_R2Z/arm_D
+problem_count       3
+git_head            5239f4b13ecf0a3f9850accc6815c2e7944e9bee
+elapsed_s           49
+batch_exit          1
+audit_exit          0
+audit_verdict       PROCEED
+persistence_exit    0
+persistence_passing true
+persistence_n_witnessed 4

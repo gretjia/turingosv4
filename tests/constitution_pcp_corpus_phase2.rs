@@ -20,8 +20,8 @@ const PHASE2_DIR: &str = "cases/pcp_corpus_phase2";
 const PHASE2_MANIFEST: &str = "cases/pcp_corpus_phase2/MANIFEST.json";
 
 fn read_manifest() -> Value {
-    let body = fs::read_to_string(PHASE2_MANIFEST)
-        .unwrap_or_else(|e| panic!("read MANIFEST.json: {e}"));
+    let body =
+        fs::read_to_string(PHASE2_MANIFEST).unwrap_or_else(|e| panic!("read MANIFEST.json: {e}"));
     serde_json::from_str(&body).unwrap_or_else(|e| panic!("parse MANIFEST.json: {e}"))
 }
 
@@ -70,17 +70,15 @@ fn pcp_corpus_phase2_every_fixture_file_present() {
     let m = read_manifest();
     let corpus = m["corpus"].as_array().expect("corpus is array");
     for entry in corpus {
-        let fixture = entry["fixture"]
-            .as_str()
-            .expect("fixture field is string");
+        let fixture = entry["fixture"].as_str().expect("fixture field is string");
         let path = Path::new(PHASE2_DIR).join(fixture);
         assert!(
             path.exists(),
             "PCP corpus phase-2 fixture `{fixture}` missing on disk at {}",
             path.display()
         );
-        let body = fs::read_to_string(&path)
-            .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+        let body =
+            fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
         assert!(
             !body.trim().is_empty(),
             "PCP corpus phase-2 fixture `{fixture}` is empty"
@@ -97,8 +95,7 @@ fn pcp_corpus_phase2_every_fixture_is_minif2f_derived() {
     let corpus = m["corpus"].as_array().expect("corpus is array");
     for entry in corpus {
         let fixture = entry["fixture"].as_str().unwrap();
-        let body = fs::read_to_string(Path::new(PHASE2_DIR).join(fixture))
-            .expect("read fixture");
+        let body = fs::read_to_string(Path::new(PHASE2_DIR).join(fixture)).expect("read fixture");
         // Must reference mathd_algebra_107 (theorem name) AND the canonical
         // (x y : ℝ) signature so the corpus cannot drift to designed shapes.
         assert!(

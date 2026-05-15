@@ -385,9 +385,7 @@ mod tests {
         let capsule = write_evidence_capsule(
             &cas,
             RunId("run-zeta-001".into()),
-            crate::state::q_state::TaskId(
-                "task:lean:heldout_49:zeta_regularization".into(),
-            ),
+            crate::state::q_state::TaskId("task:lean:heldout_49:zeta_regularization".into()),
             Some(crate::state::q_state::AgentId("Agent_solver_0".into())),
             counts,
             (0, 1300),
@@ -418,7 +416,11 @@ mod tests {
 
         // CAS contains 3 objects: raw log + manifest + capsule itself.
         let cas_r = cas.read().expect("cas read");
-        assert_eq!(cas_r.len(), 3, "writer puts 3 CAS objects: log + manifest + capsule");
+        assert_eq!(
+            cas_r.len(),
+            3,
+            "writer puts 3 CAS objects: log + manifest + capsule"
+        );
 
         // raw log retrievable by compressed_log_cid.
         let retrieved = cas_r.get(&capsule.compressed_log_cid).expect("get raw");

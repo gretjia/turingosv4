@@ -43,7 +43,10 @@ fn axiom_1_state_monotonicity_witness() {
 fn axiom_2_predicate_registry_root_present() {
     let g = QState::genesis();
     let v = serde_json::to_value(&g).unwrap();
-    assert!(v.as_object().unwrap().contains_key("predicate_registry_root_t"));
+    assert!(v
+        .as_object()
+        .unwrap()
+        .contains_key("predicate_registry_root_t"));
 }
 
 /// Axiom 3: economic alignment — Q_t exposes a 15-sub-field economic state.
@@ -113,10 +116,10 @@ fn six_axioms_total_in_q_state() {
     // Touch every axiom slot to confirm each is a real, mutable lvalue.
     q.q_t.current_round = 1; // axiom 1
     q.predicate_registry_root_t = q.predicate_registry_root_t; // axiom 2
-    q.economic_state_t.balances_t.0.insert(
-        AgentId("seed".into()),
-        MicroCoin::from_coin(1).unwrap(),
-    ); // axiom 3
+    q.economic_state_t
+        .balances_t
+        .0
+        .insert(AgentId("seed".into()), MicroCoin::from_coin(1).unwrap()); // axiom 3
     q.tool_registry_root_t = q.tool_registry_root_t; // axiom 4
     q.head_t = q.head_t.clone(); // axiom 5
     q.budget_state_t.compute_cap_remaining = 100; // axiom 6

@@ -98,9 +98,7 @@ fn main() -> ExitCode {
     if report.is_passing() {
         ExitCode::from(0)
     } else {
-        eprintln!(
-            "tb_g_persistence_report: FAIL — at least one Reset verdict (kill-criterion #1)"
-        );
+        eprintln!("tb_g_persistence_report: FAIL — at least one Reset verdict (kill-criterion #1)");
         ExitCode::from(1)
     }
 }

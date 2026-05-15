@@ -32,21 +32,17 @@ use turingosv4::bottom_white::ledger::rejection_evidence::RejectionEvidenceWrite
 use turingosv4::bottom_white::ledger::system_keypair::{
     Ed25519Keypair, PinnedSystemPubkeys, SystemEpoch,
 };
-use turingosv4::bottom_white::ledger::transition_ledger::{
-    InMemoryLedgerWriter, LedgerWriter,
-};
+use turingosv4::bottom_white::ledger::transition_ledger::{InMemoryLedgerWriter, LedgerWriter};
 use turingosv4::bottom_white::tools::registry::ToolRegistry;
-use turingosv4::economy::money::MicroCoin;
 use turingosv4::economy::monetary_invariant::{
     assert_complete_set_balanced, assert_total_ctf_conserved,
 };
-use turingosv4::state::q_state::{
-    AgentId, QState, TaskId, TaskMarketEntry, TaskMarketState, TxId,
-};
+use turingosv4::economy::money::MicroCoin;
+use turingosv4::state::q_state::{AgentId, QState, TaskId, TaskMarketEntry, TaskMarketState, TxId};
 use turingosv4::state::sequencer::{Sequencer, SubmissionEnvelope};
 use turingosv4::state::typed_tx::{
-    AgentSignature, CompleteSetMintTx, CpmmPoolTx, CpmmSwapTx, EventId,
-    ShareAmount, SwapDirection, TypedTx,
+    AgentSignature, CompleteSetMintTx, CpmmPoolTx, CpmmSwapTx, EventId, ShareAmount, SwapDirection,
+    TypedTx,
 };
 use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
@@ -63,8 +59,7 @@ fn fresh_harness(initial_q: QState) -> Harness {
     let tmp = TempDir::new().expect("tempdir");
     let cas = Arc::new(RwLock::new(CasStore::open(tmp.path()).expect("cas")));
     let keypair = Arc::new(Ed25519Keypair::generate_with_secure_entropy().expect("kp"));
-    let writer: Arc<RwLock<dyn LedgerWriter>> =
-        Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
+    let writer: Arc<RwLock<dyn LedgerWriter>> = Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
     let rejection_writer = Arc::new(RwLock::new(RejectionEvidenceWriter::default()));
     let preds = Arc::new(PredicateRegistry::new());
     let tools = Arc::new(ToolRegistry::new());
@@ -73,16 +68,26 @@ fn fresh_harness(initial_q: QState) -> Harness {
     pinned.insert(epoch, keypair.public_key());
     let pinned_pubkeys = Arc::new(pinned);
     let (seq, rx) = Sequencer::new(
-        cas, keypair, epoch, writer.clone(), rejection_writer, preds, tools,
-        pinned_pubkeys, initial_q, 16,
+        cas,
+        keypair,
+        epoch,
+        writer.clone(),
+        rejection_writer,
+        preds,
+        tools,
+        pinned_pubkeys,
+        initial_q,
+        16,
     );
-    Harness { _tmp: tmp, seq, rx, _ledger: writer }
+    Harness {
+        _tmp: tmp,
+        seq,
+        rx,
+        _ledger: writer,
+    }
 }
 
-fn genesis_with_balances_and_open_task(
-    pairs: &[(&str, i64)],
-    task: &str,
-) -> QState {
+fn genesis_with_balances_and_open_task(pairs: &[(&str, i64)], task: &str) -> QState {
     let mut q = QState::genesis();
     for (name, coin) in pairs {
         q.economic_state_t.balances_t.0.insert(
@@ -184,12 +189,9 @@ async fn seed_pool_and_trader(
 ) -> turingosv4::state::q_state::Hash {
     // Provider mints + seeds pool.
     let p = h.seq.q_snapshot().unwrap().state_root_t;
-    submit_and_apply(
-        h,
-        build_mint(p, provider, task, pool_seed_units as i64, 1),
-    )
-    .await
-    .expect("provider mint accepted");
+    submit_and_apply(h, build_mint(p, provider, task, pool_seed_units as i64, 1))
+        .await
+        .expect("provider mint accepted");
     let p = h.seq.q_snapshot().unwrap().state_root_t;
     submit_and_apply(
         h,
@@ -200,12 +202,9 @@ async fn seed_pool_and_trader(
 
     // Trader mints inventory so they hold YES + NO.
     let p = h.seq.q_snapshot().unwrap().state_root_t;
-    submit_and_apply(
-        h,
-        build_mint(p, trader, task, trader_mint_units as i64, 2),
-    )
-    .await
-    .expect("trader mint accepted");
+    submit_and_apply(h, build_mint(p, trader, task, trader_mint_units as i64, 2))
+        .await
+        .expect("trader mint accepted");
 
     h.seq.q_snapshot().unwrap().state_root_t
 }
@@ -232,17 +231,12 @@ async fn seed_pool_and_trader(
 /// MUST hold post-swap (sum YES + sum NO preserved across rotation).
 #[tokio::test]
 async fn swap_no_for_yes_constant_product_non_decreasing() {
-    let q0 = genesis_with_balances_and_open_task(
-        &[("alice", 50), ("bob", 50)],
-        "evt-1",
-    );
+    let q0 = genesis_with_balances_and_open_task(&[("alice", 50), ("bob", 50)], "evt-1");
     let mut h = fresh_harness(q0);
 
     // Alice provides 5M/5M pool; Bob has 5M YES + 5M NO inventory to trade.
-    let pre_swap_root = seed_pool_and_trader(
-        &mut h, "alice", "bob", "evt-1", 5_000_000, 5_000_000,
-    )
-    .await;
+    let pre_swap_root =
+        seed_pool_and_trader(&mut h, "alice", "bob", "evt-1", 5_000_000, 5_000_000).await;
 
     // Capture pre-swap state for invariant + k_pre comparison.
     let q_pre = h.seq.q_snapshot().unwrap();
@@ -319,12 +313,8 @@ async fn swap_no_for_yes_constant_product_non_decreasing() {
 
     // Conservation: total Coin unchanged; complete-set balanced (pool +
     // traders share counts match collateral on both sides post-rotation).
-    assert_total_ctf_conserved(
-        &q_pre.economic_state_t,
-        &q_post.economic_state_t,
-        &[],
-    )
-    .expect("total Coin conserved across CpmmSwap (pure share rotation)");
+    assert_total_ctf_conserved(&q_pre.economic_state_t, &q_post.economic_state_t, &[])
+        .expect("total Coin conserved across CpmmSwap (pure share rotation)");
     assert_complete_set_balanced(&q_post.economic_state_t)
         .expect("complete-set balanced post-swap");
 }
@@ -346,16 +336,11 @@ async fn swap_no_for_yes_constant_product_non_decreasing() {
 /// 1_333_333 NO.
 #[tokio::test]
 async fn swap_yes_for_no_constant_product_non_decreasing() {
-    let q0 = genesis_with_balances_and_open_task(
-        &[("alice", 50), ("bob", 50)],
-        "evt-2",
-    );
+    let q0 = genesis_with_balances_and_open_task(&[("alice", 50), ("bob", 50)], "evt-2");
     let mut h = fresh_harness(q0);
 
-    let pre_swap_root = seed_pool_and_trader(
-        &mut h, "alice", "bob", "evt-2", 4_000_000, 4_000_000,
-    )
-    .await;
+    let pre_swap_root =
+        seed_pool_and_trader(&mut h, "alice", "bob", "evt-2", 4_000_000, 4_000_000).await;
 
     let q_pre = h.seq.q_snapshot().unwrap();
     let pool_pre = q_pre
@@ -418,12 +403,8 @@ async fn swap_yes_for_no_constant_product_non_decreasing() {
     assert_eq!(bob_pair_post.yes.units, 4_000_000 - 2_000_000);
     assert_eq!(bob_pair_post.no.units, 4_000_000 + expected_out_n);
 
-    assert_total_ctf_conserved(
-        &q_pre.economic_state_t,
-        &q_post.economic_state_t,
-        &[],
-    )
-    .expect("total Coin conserved across CpmmSwap (pure share rotation)");
+    assert_total_ctf_conserved(&q_pre.economic_state_t, &q_post.economic_state_t, &[])
+        .expect("total Coin conserved across CpmmSwap (pure share rotation)");
     assert_complete_set_balanced(&q_post.economic_state_t)
         .expect("complete-set balanced post-swap");
 }
@@ -436,16 +417,11 @@ async fn swap_yes_for_no_constant_product_non_decreasing() {
 /// trader balance shift).
 #[tokio::test]
 async fn swap_fails_zero_input() {
-    let q0 = genesis_with_balances_and_open_task(
-        &[("alice", 50), ("bob", 50)],
-        "evt-3",
-    );
+    let q0 = genesis_with_balances_and_open_task(&[("alice", 50), ("bob", 50)], "evt-3");
     let mut h = fresh_harness(q0);
 
-    let pre_swap_root = seed_pool_and_trader(
-        &mut h, "alice", "bob", "evt-3", 3_000_000, 2_000_000,
-    )
-    .await;
+    let pre_swap_root =
+        seed_pool_and_trader(&mut h, "alice", "bob", "evt-3", 3_000_000, 2_000_000).await;
 
     let q_pre = h.seq.q_snapshot().unwrap();
     let pool_pre = q_pre
@@ -488,12 +464,8 @@ async fn swap_fails_zero_input() {
     assert_eq!(pool_post.pool_yes.units, pool_pre.pool_yes.units);
     assert_eq!(pool_post.pool_no.units, pool_pre.pool_no.units);
 
-    assert_total_ctf_conserved(
-        &q_pre.economic_state_t,
-        &q_post.economic_state_t,
-        &[],
-    )
-    .expect("rejected tx leaves total_supply_micro untouched");
+    assert_total_ctf_conserved(&q_pre.economic_state_t, &q_post.economic_state_t, &[])
+        .expect("rejected tx leaves total_supply_micro untouched");
 }
 
 // ── Architect §7.6 verbatim test 4 ──────────────────────────────────────────
@@ -519,10 +491,8 @@ async fn swap_fails_insufficient_pool_output() {
     let mut h = fresh_harness(q0);
 
     // Provider seeds 1M/1M pool. Bob trades to drain YES side.
-    let pre_swap_root = seed_pool_and_trader(
-        &mut h, "provider", "bob", "evt-4", 1_000_000, 1_500_000,
-    )
-    .await;
+    let pre_swap_root =
+        seed_pool_and_trader(&mut h, "provider", "bob", "evt-4", 1_000_000, 1_500_000).await;
 
     // Bob: Buy YES with NO, large dN = 1_500_000 to drain YES side near
     // zero. outY = floor(1_500_000 * 1_000_000 / 2_500_000) = 600_000.
@@ -611,16 +581,11 @@ async fn swap_fails_insufficient_pool_output() {
 /// 833_334 (greedy by 1) → reject.
 #[tokio::test]
 async fn swap_respects_min_out_slippage() {
-    let q0 = genesis_with_balances_and_open_task(
-        &[("alice", 50), ("bob", 50)],
-        "evt-5",
-    );
+    let q0 = genesis_with_balances_and_open_task(&[("alice", 50), ("bob", 50)], "evt-5");
     let mut h = fresh_harness(q0);
 
-    let pre_swap_root = seed_pool_and_trader(
-        &mut h, "alice", "bob", "evt-5", 5_000_000, 5_000_000,
-    )
-    .await;
+    let pre_swap_root =
+        seed_pool_and_trader(&mut h, "alice", "bob", "evt-5", 5_000_000, 5_000_000).await;
 
     // Attempt 1: greedy min_out = 1_000_000; expected out = 833_333. Reject.
     let err = submit_and_apply(
@@ -719,10 +684,8 @@ fn swap_uses_integer_math_no_f64() {
     let sequencer_src = workspace.join("src/state/sequencer.rs");
     let typed_tx_src = workspace.join("src/state/typed_tx.rs");
 
-    let seq_text = std::fs::read_to_string(&sequencer_src)
-        .expect("read src/state/sequencer.rs");
-    let tx_text = std::fs::read_to_string(&typed_tx_src)
-        .expect("read src/state/typed_tx.rs");
+    let seq_text = std::fs::read_to_string(&sequencer_src).expect("read src/state/sequencer.rs");
+    let tx_text = std::fs::read_to_string(&typed_tx_src).expect("read src/state/typed_tx.rs");
 
     // Bound the search to the CpmmSwap admission arm in sequencer.rs.
     let arm_start = seq_text
@@ -742,8 +705,7 @@ fn swap_uses_integer_math_no_f64() {
     //   `as f64` / `as f32`          — casts
     //   `0f64` / `0f32` / `1f64` / `1f32` etc. — float literals
     //   `f64::` / `f32::`            — associated function calls
-    let forbidden_real_usage =
-        [": f64", ": f32", "as f64", "as f32", "f64::", "f32::"];
+    let forbidden_real_usage = [": f64", ": f32", "as f64", "as f32", "f64::", "f32::"];
     let forbidden_literal_suffix = ["f64", "f32"]; // checked context-sensitively
     for needle in &forbidden_real_usage {
         assert!(
@@ -771,9 +733,10 @@ fn swap_uses_integer_math_no_f64() {
     let tx_struct_start = tx_text
         .find("pub struct CpmmSwapTx {")
         .expect("CpmmSwapTx struct present in typed_tx.rs");
-    let tx_struct_end =
-        tx_text[tx_struct_start..].find("}\n").map(|i| tx_struct_start + i)
-            .unwrap_or(tx_text.len());
+    let tx_struct_end = tx_text[tx_struct_start..]
+        .find("}\n")
+        .map(|i| tx_struct_start + i)
+        .unwrap_or(tx_text.len());
     let tx_struct_body = &tx_text[tx_struct_start..tx_struct_end];
     for needle in &forbidden_real_usage {
         assert!(

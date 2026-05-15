@@ -154,7 +154,10 @@ impl ToolRegistry {
 
     /// Find tools matching a capability (replaces `manifest() == "wallet"` magic string).
     pub fn find_by_capability(&self, cap: &Capability) -> Vec<&ToolMetadata> {
-        self.tools.values().filter(|m| &m.capability == cap).collect()
+        self.tools
+            .values()
+            .filter(|m| &m.capability == cap)
+            .collect()
     }
 
     pub fn merkle_root(&self) -> [u8; 32] {
@@ -222,16 +225,21 @@ mod tests {
         m.determinism_class = DeterminismClass::NonIdempotent;
         assert_eq!(
             reg.register(m),
-            Err(RegisterError::NonIdempotentNotAllowed("bad_tool".to_string()))
+            Err(RegisterError::NonIdempotentNotAllowed(
+                "bad_tool".to_string()
+            ))
         );
     }
 
     #[test]
     fn find_by_capability_replaces_magic_string() {
         let mut reg = ToolRegistry::new();
-        reg.register(sample_meta("wallet_a", Capability::EconomicWallet)).unwrap();
-        reg.register(sample_meta("wallet_b", Capability::EconomicWallet)).unwrap();
-        reg.register(sample_meta("oracle", Capability::LeanOracle)).unwrap();
+        reg.register(sample_meta("wallet_a", Capability::EconomicWallet))
+            .unwrap();
+        reg.register(sample_meta("wallet_b", Capability::EconomicWallet))
+            .unwrap();
+        reg.register(sample_meta("oracle", Capability::LeanOracle))
+            .unwrap();
 
         let wallets = reg.find_by_capability(&Capability::EconomicWallet);
         assert_eq!(wallets.len(), 2, "two wallets registered");
@@ -248,13 +256,18 @@ mod tests {
         let mut reg1 = ToolRegistry::new();
         let mut reg2 = ToolRegistry::new();
         for id in &["b", "a", "c"] {
-            reg1.register(sample_meta(id, Capability::EconomicWallet)).unwrap();
+            reg1.register(sample_meta(id, Capability::EconomicWallet))
+                .unwrap();
         }
         for id in &["c", "a", "b"] {
-            reg2.register(sample_meta(id, Capability::EconomicWallet)).unwrap();
+            reg2.register(sample_meta(id, Capability::EconomicWallet))
+                .unwrap();
         }
-        assert_eq!(reg1.merkle_root(), reg2.merkle_root(),
-            "BTreeMap-ordered; insertion order independent");
+        assert_eq!(
+            reg1.merkle_root(),
+            reg2.merkle_root(),
+            "BTreeMap-ordered; insertion order independent"
+        );
     }
 
     #[test]

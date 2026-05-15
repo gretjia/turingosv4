@@ -1,0 +1,49 @@
+
+running 8 tests
+test sg_g1_1_resume_on_empty_repo_equals_legacy_genesis ... ok
+test sg_g1_2_resume_on_n_entry_chain_sets_next_logical_t_to_n ... ok
+test sg_g1_3_resume_balances_reconstruction_matches_forward_replay ... ok
+test sg_g1_4_non_empty_runtime_repo_only_fires_when_resume_false ... ok
+test sg_g1_5_pinned_pubkeys_preserved_across_resume ... ok
+test sg_g1_6_resume_existing_durable_fails_closed_when_manifest_absent ... ok
+test sg_g1_7_resume_existing_durable_fails_closed_on_keystore_manifest_drift ... ok
+test sg_g1_8_resume_existing_durable_fails_closed_on_pubkey_mismatch ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.84s
+
+
+running 7 tests
+test sg_6d_1_and_6d_2_scheduler_trace_carries_price_and_pnl_observe_only ... ok
+test sg_6d_1_runtime_emits_scheduler_trace_to_run_cas ... ok
+test sg_6d_1_scheduler_trace_is_chain_backed_cas_evidence ... ok
+test sg_6d_3_and_6d_4_scheduler_does_not_touch_admission_or_predicates ... ok
+test sg_6d_5_dashboard_scheduler_section_is_non_binding_materialized_view ... ok
+test sg_g6_1_market_context_renders_trace_hints_as_observe_only_signal ... ok
+test sg_g6_4_predicates_do_not_read_market_price_or_trace ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+
+
+running 6 tests
+test sg_7_dashboard_safety_flags_are_not_hardcoded ... ok
+test sg_7_new_structural_minimum_requires_v3_pressure_shape ... ok
+test sg_7_rejects_forced_live_investment_and_missing_buy_no ... ok
+test sg_g7_clean_negative_passes_without_market_action_when_explained ... ok
+test sg_g7_minimum_tier_passes_with_market_visible_action ... ok
+test sg_g7_missing_minimum_gate_requires_forward_stub ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 8 tests
+test sg_6b_fixture_is_scripted_schema_not_live_llm_ship ... ok
+test sg_6b_market_close_precedes_oracle_resolve ... ok
+test sg_6b_no_ghost_liquidity ... ok
+test sg_6b_no_sleep_and_k_logical_ticks_are_deterministic ... ok
+test sg_6b_oracle_is_absolute_and_price_not_truth ... ok
+test sg_6b_role_actions_during_window_are_tape_visible ... ok
+test sg_6b_scripted_fixture_can_be_chain_backed_cas_evidence ... ok
+test sg_6b_submit_candidate_strictly_precedes_market_open ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s
+

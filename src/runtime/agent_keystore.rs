@@ -265,9 +265,9 @@ fn read_env_u32(name: &str, default: u32) -> Result<u32, AgentKeystoreError> {
             Ok(parsed)
         }
         Err(env::VarError::NotPresent) => Ok(default),
-        Err(env::VarError::NotUnicode(_)) => {
-            Err(AgentKeystoreError::KdfParam(format!("{name} is not unicode")))
-        }
+        Err(env::VarError::NotUnicode(_)) => Err(AgentKeystoreError::KdfParam(format!(
+            "{name} is not unicode"
+        ))),
     }
 }
 

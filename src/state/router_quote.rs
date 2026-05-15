@@ -182,9 +182,7 @@ pub fn quote_buy_with_coin_router_with_liquidity_threshold(
     // Liquidity classification.
     let liquidity_warning = if out_units == 0 {
         LiquidityWarning::NoOutput
-    } else if pool_input_units < min_liquidity_units
-        || pool_other_units < min_liquidity_units
-    {
+    } else if pool_input_units < min_liquidity_units || pool_other_units < min_liquidity_units {
         LiquidityWarning::LowLiquidity
     } else {
         LiquidityWarning::None
@@ -270,12 +268,9 @@ mod tests {
     #[test]
     fn quote_returns_none_on_zero_pay_coin() {
         let pool = pool_5m_5m_active("evt-C");
-        assert!(quote_buy_with_coin_router(
-            &pool,
-            MicroCoin::zero(),
-            QuoteDirection::BuyYes
-        )
-        .is_none());
+        assert!(
+            quote_buy_with_coin_router(&pool, MicroCoin::zero(), QuoteDirection::BuyYes).is_none()
+        );
     }
 
     #[test]

@@ -216,6 +216,23 @@ pub mod agent_role_classifier;
 /// evaluator and §K clean-negative renderer.
 pub mod g7_structural_smoke;
 
+/// TRACE_MATRIX FC1/FC2/FC3 (REAL-5 2026-05-14): role-based generative
+/// scaffolding — role assignment, role-scoped views, typed generation gateway,
+/// tick budget, and tape-visible role decision traces.
+pub mod real5_roles;
+
+/// REAL-6A — TaskOutcomeMarket metadata/view helpers. Economic mutation still
+/// routes through typed tx admission (`MarketSeedTx` + `CpmmPoolTx`).
+pub mod real6_task_outcome;
+
+/// REAL-6B — AttemptPredictionMarket sealed-oracle scripted fixture helpers.
+/// Current stage is design + scripted fixture only; no live real-LLM ship.
+pub mod real6_attempt_prediction;
+
+/// REAL-6C — ConvictionBudget / PnL feedback derived view. Free cognition,
+/// paid conviction; no new economic source of truth.
+pub mod real6_conviction_budget;
+
 /// TRACE_MATRIX FC3-N33 + FC3-N43 (Unified Agent Harness 2026-05-13):
 /// self-hosting development evidence sidecar. `turingos_dev` records
 /// module/molecule/atom contracts, command evidence, review verdicts, and an

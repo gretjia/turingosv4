@@ -11,8 +11,7 @@ use std::process::Command;
 
 #[test]
 fn r_022_shell_integration_suite_passes() {
-    let manifest_dir =
-        PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR"));
+    let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR"));
     let runner = manifest_dir.join("tests/integration/co1_13/run_all.sh");
     assert!(
         runner.exists(),

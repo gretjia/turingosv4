@@ -32,21 +32,15 @@ use turingosv4::bottom_white::ledger::rejection_evidence::RejectionEvidenceWrite
 use turingosv4::bottom_white::ledger::system_keypair::{
     Ed25519Keypair, PinnedSystemPubkeys, SystemEpoch,
 };
-use turingosv4::bottom_white::ledger::transition_ledger::{
-    InMemoryLedgerWriter, LedgerWriter,
-};
+use turingosv4::bottom_white::ledger::transition_ledger::{InMemoryLedgerWriter, LedgerWriter};
 use turingosv4::bottom_white::tools::registry::ToolRegistry;
-use turingosv4::economy::money::MicroCoin;
 use turingosv4::economy::monetary_invariant::{
     assert_complete_set_balanced, assert_total_ctf_conserved,
 };
-use turingosv4::state::q_state::{
-    AgentId, QState, TaskId, TaskMarketEntry, TaskMarketState, TxId,
-};
+use turingosv4::economy::money::MicroCoin;
+use turingosv4::state::q_state::{AgentId, QState, TaskId, TaskMarketEntry, TaskMarketState, TxId};
 use turingosv4::state::sequencer::{Sequencer, SubmissionEnvelope};
-use turingosv4::state::typed_tx::{
-    AgentSignature, EventId, MarketSeedTx, TypedTx,
-};
+use turingosv4::state::typed_tx::{AgentSignature, EventId, MarketSeedTx, TypedTx};
 use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
 // ── Harness (mirrors tb_13_complete_set.rs) ────────────────────────────────
@@ -62,8 +56,7 @@ fn fresh_harness(initial_q: QState) -> Harness {
     let tmp = TempDir::new().expect("tempdir");
     let cas = Arc::new(RwLock::new(CasStore::open(tmp.path()).expect("cas")));
     let keypair = Arc::new(Ed25519Keypair::generate_with_secure_entropy().expect("kp"));
-    let writer: Arc<RwLock<dyn LedgerWriter>> =
-        Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
+    let writer: Arc<RwLock<dyn LedgerWriter>> = Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
     let rejection_writer = Arc::new(RwLock::new(RejectionEvidenceWriter::default()));
     let preds = Arc::new(PredicateRegistry::new());
     let tools = Arc::new(ToolRegistry::new());
@@ -72,10 +65,23 @@ fn fresh_harness(initial_q: QState) -> Harness {
     pinned.insert(epoch, keypair.public_key());
     let pinned_pubkeys = Arc::new(pinned);
     let (seq, rx) = Sequencer::new(
-        cas, keypair, epoch, writer.clone(), rejection_writer, preds, tools,
-        pinned_pubkeys, initial_q, 16,
+        cas,
+        keypair,
+        epoch,
+        writer.clone(),
+        rejection_writer,
+        preds,
+        tools,
+        pinned_pubkeys,
+        initial_q,
+        16,
     );
-    Harness { _tmp: tmp, seq, rx, _ledger: writer }
+    Harness {
+        _tmp: tmp,
+        seq,
+        rx,
+        _ledger: writer,
+    }
 }
 
 fn genesis_with_balances(pairs: &[(&str, i64)]) -> QState {
@@ -150,9 +156,12 @@ async fn market_seed_debits_provider() {
     let mut h = fresh_harness(q0);
     let parent = h.seq.q_snapshot().unwrap().state_root_t;
 
-    submit_and_apply(&mut h, build_seed(parent, "provider", "task-DEBIT", 7_500_000, 1))
-        .await
-        .expect("seed accepted");
+    submit_and_apply(
+        &mut h,
+        build_seed(parent, "provider", "task-DEBIT", 7_500_000, 1),
+    )
+    .await
+    .expect("seed accepted");
 
     let q = h.seq.q_snapshot().unwrap();
     let provider_bal = q
@@ -186,9 +195,12 @@ async fn market_seed_creates_yes_no_inventory() {
     let mut h = fresh_harness(q0);
     let parent = h.seq.q_snapshot().unwrap().state_root_t;
 
-    submit_and_apply(&mut h, build_seed(parent, "provider", "task-INV", 4_242_424, 2))
-        .await
-        .expect("seed accepted");
+    submit_and_apply(
+        &mut h,
+        build_seed(parent, "provider", "task-INV", 4_242_424, 2),
+    )
+    .await
+    .expect("seed accepted");
 
     let q = h.seq.q_snapshot().unwrap();
     let pair = q
@@ -237,9 +249,12 @@ async fn market_seed_fails_insufficient_balance() {
     let mut h = fresh_harness(q0);
     let parent = h.seq.q_snapshot().unwrap().state_root_t;
 
-    let err = submit_and_apply(&mut h, build_seed(parent, "ghost", "task-NOBAL", 1_000_000, 3))
-        .await
-        .expect_err("seed without provider balance MUST be rejected");
+    let err = submit_and_apply(
+        &mut h,
+        build_seed(parent, "ghost", "task-NOBAL", 1_000_000, 3),
+    )
+    .await
+    .expect_err("seed without provider balance MUST be rejected");
     assert!(
         err.contains("InsufficientBalanceForMint"),
         "expected InsufficientBalanceForMint, got: {err}"
@@ -282,9 +297,7 @@ async fn market_seed_no_ghost_liquidity() {
             .conditional_share_balances_t
             .0
             .get(&AgentId("alice".into()))
-            .is_none_or(|m| m
-                .get(&EventId(TaskId("task-GHOST".into())))
-                .is_none()),
+            .is_none_or(|m| m.get(&EventId(TaskId("task-GHOST".into()))).is_none()),
         "no inventory may exist after rejected zero-collateral seed"
     );
 }
@@ -308,13 +321,15 @@ async fn market_seed_conserves_total_coin() {
     let mut h = fresh_harness(q0.clone());
     let parent = h.seq.q_snapshot().unwrap().state_root_t;
 
-    submit_and_apply(&mut h, build_seed(parent, "provider", "task-CONS", 9_876_543, 5))
-        .await
-        .expect("seed accepted");
+    submit_and_apply(
+        &mut h,
+        build_seed(parent, "provider", "task-CONS", 9_876_543, 5),
+    )
+    .await
+    .expect("seed accepted");
 
     let q = h.seq.q_snapshot().unwrap();
     assert_total_ctf_conserved(&q0.economic_state_t, &q.economic_state_t, &[])
         .expect("total CTF conserved across seed (1 collateral = 1 YES + 1 NO)");
-    assert_complete_set_balanced(&q.economic_state_t)
-        .expect("complete-set balanced post-seed");
+    assert_complete_set_balanced(&q.economic_state_t).expect("complete-set balanced post-seed");
 }

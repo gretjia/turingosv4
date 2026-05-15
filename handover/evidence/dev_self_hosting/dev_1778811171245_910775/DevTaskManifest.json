@@ -1,0 +1,34 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778811171245_910775",
+  "title": "REAL-5S clean closeout",
+  "module": "REAL-5S Scaffold ratification / clean-negative closure",
+  "molecule_or_atom": "atom",
+  "requested_risk_class": 4,
+  "risk_class": 4,
+  "fc_nodes": [
+    "FC1 role/market action loop; FC2 role scaffold replay authority; FC3 evidence/materialized view; Art. III shielding"
+  ],
+  "allowed_paths": [
+    "handover/directives/2026-05-15_REAL5S_REAL6_REAL7_REAL8_REAL9_ARCHITECT_ORIGINAL.md",
+    "handover/directives/2026-05-15_REAL5S_REAL6_REAL7_REAL8_REAL9_EXECUTION_PLAN_APPROVED.md",
+    "handover/evidence/real5_overnight_20260514/REAL5_SCAFFOLD_RATIFICATION_REPORT.md",
+    "handover/evidence/real5_overnight_20260514/REAL5_CLEAN_NEGATIVE_NO_TRADE_REPORT.md",
+    "tests/constitution_real5s_scaffold_ratification.rs",
+    "handover/audits/CODEX_REAL5S_BOUNDARY_REVIEW.md",
+    "handover/evidence/dev_self_hosting"
+  ],
+  "restricted_surface_hits": [],
+  "acceptance_commands": [
+    "cargo test --test constitution_real5s_scaffold_ratification",
+    "cargo test --test constitution_real5_typed_generation_gateway",
+    "cargo test --test constitution_real5_role_based_smoke",
+    "bash scripts/run_constitution_gates.sh",
+    "git diff --check"
+  ],
+  "audit_required": true,
+  "human_intent": "Clean green closeout for REAL-5S after TDD red-green evidence in dev_1778810669930_898603.",
+  "ratification": "User approved audited REAL-5S->REAL-9 execution plan on 2026-05-15; R2 plan audit PROCEED; REAL-5S boundary audit PROCEED.",
+  "git_head": "5239f4b13ecf0a3f9850accc6815c2e7944e9bee",
+  "created_at_unix_ms": 1778811171246
+}

@@ -85,12 +85,11 @@ fn main() -> ExitCode {
         expected_completed_attempts: expected,
         terminal_halt_class: halt_class,
     };
-    let facts =
-        compute_run_facts_from_chain_with_invariant(&runtime_repo, &cas_path, inputs)
-            .unwrap_or_else(|e| {
-                eprintln!("ERROR: compute facts failed: {e}");
-                std::process::exit(3);
-            });
+    let facts = compute_run_facts_from_chain_with_invariant(&runtime_repo, &cas_path, inputs)
+        .unwrap_or_else(|e| {
+            eprintln!("ERROR: compute facts failed: {e}");
+            std::process::exit(3);
+        });
     let verdict = match attempt_count_invariant(&facts) {
         Ok(()) => "Ok".to_string(),
         Err(v) => format!("Err({v})"),

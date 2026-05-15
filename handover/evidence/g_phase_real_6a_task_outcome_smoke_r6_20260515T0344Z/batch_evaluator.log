@@ -1,0 +1,2 @@
+batch_orchestrator: task_index=0 BoundaryPrep::FreshGenesis (no preflight, no lease — task_0 owns genesis)
+batch_evaluator: chain continuity OK across 1 tasks

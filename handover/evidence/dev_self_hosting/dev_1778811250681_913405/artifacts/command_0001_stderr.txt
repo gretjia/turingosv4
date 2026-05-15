@@ -1,0 +1,320 @@
+warning: unused import: `KernelError`
+ --> src/bus.rs:8:29
+  |
+8 | use crate::kernel::{Kernel, KernelError};
+  |                             ^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `TapeError`
+ --> src/bus.rs:9:54
+  |
+9 | use crate::ledger::{EventType, Ledger, Node, NodeId, TapeError};
+  |                                                      ^^^^^^^^^
+
+warning: unused imports: `Deserialize` and `Serialize`
+  --> src/bus.rs:13:13
+   |
+13 | use serde::{Deserialize, Serialize};
+   |             ^^^^^^^^^^^  ^^^^^^^^^
+
+warning: unused import: `ToolSignal`
+ --> src/sdk/tools/search.rs:4:24
+  |
+4 | use crate::sdk::tool::{ToolSignal, TuringTool};
+  |                        ^^^^^^^^^^
+
+warning: unused import: `std::path::Path`
+ --> src/sdk/tools/search.rs:6:5
+  |
+6 | use std::path::Path;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `Deserialize`
+ --> src/sdk/tools/librarian.rs:6:13
+  |
+6 | use serde::{Deserialize, Serialize};
+  |             ^^^^^^^^^^^
+
+warning: unused import: `Path`
+ --> src/sdk/tools/librarian.rs:9:17
+  |
+9 | use std::path::{Path, PathBuf};
+  |                 ^^^^
+
+warning: unused imports: `MICRO_PER_COIN` and `MicroCoin`
+  --> src/economy/monetary_invariant.rs:26:29
+   |
+26 | use crate::economy::money::{MicroCoin, MICRO_PER_COIN};
+   |                             ^^^^^^^^^  ^^^^^^^^^^^^^^
+
+warning: unused import: `ObjectType as Git2ObjectType`
+  --> src/bottom_white/cas/store.rs:26:12
+   |
+26 | use git2::{ObjectType as Git2ObjectType, Repository};
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ObjectType as Git2ObjectType`
+  --> src/bottom_white/ledger/transition_ledger.rs:36:12
+   |
+36 | use git2::{ObjectType as Git2ObjectType, Repository, Signature as GitSignature};
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `TxId`
+  --> src/state/sequencer.rs:41:82
+   |
+41 | use crate::state::q_state::{AgentId, EscrowEntry, Hash, QState, TaskMarketEntry, TxId};
+   |                                                                                  ^^^^
+
+warning: unused imports: `AgentId` and `ShareSidePair`
+  --> src/state/price_index.rs:23:29
+   |
+23 | use crate::state::q_state::{AgentId, ChallengeStatus, EconomicState, ShareSidePair};
+   |                             ^^^^^^^                                  ^^^^^^^^^^^^^
+
+warning: unused import: `NodePosition`
+  --> src/state/price_index.rs:24:39
+   |
+24 | use crate::state::typed_tx::{EventId, NodePosition, PositionSide, ShareAmount};
+   |                                       ^^^^^^^^^^^^
+
+warning: unused import: `Sha256`
+  --> src/runtime/agent_keypairs.rs:31:20
+   |
+31 | use sha2::{Digest, Sha256};
+   |                    ^^^^^^
+
+warning: unused import: `CapsulePrivacyPolicy`
+  --> src/runtime/audit_assertions.rs:83:30
+   |
+83 | use crate::state::typed_tx::{CapsulePrivacyPolicy, TypedTx};
+   |                              ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::BTreeMap`
+  --> src/runtime/audit_views.rs:27:5
+   |
+27 | use std::collections::BTreeMap;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::state::price_index::RationalPrice`
+  --> src/runtime/audit_views.rs:32:5
+   |
+32 | use crate::state::price_index::RationalPrice;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `LpShareAmount` and `ShareSidePair`
+  --> src/runtime/audit_views.rs:34:29
+   |
+34 |     AgentId, EconomicState, LpShareAmount, PoolStatus, ShareSidePair,
+   |                             ^^^^^^^^^^^^^              ^^^^^^^^^^^^^
+
+warning: unused import: `ShareAmount`
+  --> src/runtime/audit_views.rs:40:42
+   |
+40 |     EventId, PositionKind, PositionSide, ShareAmount,
+   |                                          ^^^^^^^^^^^
+
+warning: unused import: `Digest`
+  --> src/runtime/agent_keypairs.rs:31:12
+   |
+31 | use sha2::{Digest, Sha256};
+   |            ^^^^^^
+
+warning: function `sign_rejected_attempt_summary` is never used
+   --> src/bottom_white/ledger/system_keypair.rs:581:19
+    |
+581 |     pub(crate) fn sign_rejected_attempt_summary(
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `sign_system_message` is never used
+   --> src/bottom_white/ledger/system_keypair.rs:592:19
+    |
+592 |     pub(crate) fn sign_system_message(
+    |                   ^^^^^^^^^^^^^^^^^^^
+
+warning: function `sign_epoch_rotation_proof` is never used
+   --> src/bottom_white/ledger/system_keypair.rs:692:19
+    |
+692 |     pub(crate) fn sign_epoch_rotation_proof(
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `sign_system_message` is never used
+   --> src/bottom_white/ledger/system_keypair.rs:703:19
+    |
+703 |     pub(crate) fn sign_system_message(
+    |                   ^^^^^^^^^^^^^^^^^^^
+
+warning: field `tx_id` is never read
+   --> src/runtime/chain_derived_run_facts.rs:239:5
+    |
+238 | struct WorkTxAttempt {
+    |        ------------- field in this struct
+239 |     tx_id: TxId,
+    |     ^^^^^
+    |
+    = note: `WorkTxAttempt` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: `turingosv4` (lib) generated 25 warnings (run `cargo fix --lib -p turingosv4` to apply 19 suggestions)
+   Compiling turingosv4 v0.1.0 (/home/zephryj/projects/turingosv4)
+error[E0432]: unresolved import `turingosv4::runtime::real6_task_outcome`
+  --> tests/constitution_real6_task_outcome_market.rs:38:26
+   |
+38 | use turingosv4::runtime::real6_task_outcome::{
+   |                          ^^^^^^^^^^^^^^^^^^ could not find `real6_task_outcome` in `runtime`
+
+error[E0425]: cannot find function, tuple struct or tuple variant `HeadT` in module `turingosv4::state::q_state`
+   --> tests/constitution_real6_task_outcome_market.rs:469:49
+    |
+469 |             head_t: turingosv4::state::q_state::HeadT("head".into()),
+    |                                                 ^^^^^ not found in `turingosv4::state::q_state`
+
+error[E0599]: no method named `label` found for enum `OutcomeSide` in the current scope
+   --> tests/constitution_real6_task_outcome_market.rs:200:65
+    |
+200 |         tx_id: TxId(format!("redeem-{task}-{owner}-{}", outcome.label())),
+    |                                                                 ^^^^^ method not found in `OutcomeSide`
+
+error[E0308]: mismatched types
+   --> tests/constitution_real6_task_outcome_market.rs:217:19
+    |
+217 |         read_set: vec![ReadKey("lean-goal".into())],
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `BTreeSet<ReadKey>`, found `Vec<ReadKey>`
+    |
+    = note: expected struct `BTreeSet<ReadKey>`
+               found struct `Vec<ReadKey>`
+    = note: this error originates in the macro `vec` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0308]: mismatched types
+   --> tests/constitution_real6_task_outcome_market.rs:218:20
+    |
+218 |         write_set: vec![WriteKey("proof".into())],
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `BTreeSet<WriteKey>`, found `Vec<WriteKey>`
+    |
+    = note: expected struct `BTreeSet<WriteKey>`
+               found struct `Vec<WriteKey>`
+    = note: this error originates in the macro `vec` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0560]: struct `PredicateResultsBundle` has no field named `lean_check`
+   --> tests/constitution_real6_task_outcome_market.rs:221:13
+    |
+221 |             lean_check: BoolWithProof {
+    |             ^^^^^^^^^^ `PredicateResultsBundle` does not have this field
+    |
+    = note: available fields are: `acceptance`, `settlement`, `safety_class`
+
+error[E0560]: struct `BoolWithProof` has no field named `predicate`
+   --> tests/constitution_real6_task_outcome_market.rs:222:17
+    |
+222 |                 predicate: PredicateId("lean_check".into()),
+    |                 ^^^^^^^^^ `BoolWithProof` does not have this field
+    |
+    = note: available fields are: `value`
+
+error[E0560]: struct `BoolWithProof` has no field named `passed`
+   --> tests/constitution_real6_task_outcome_market.rs:223:17
+    |
+223 |                 passed: true,
+    |                 ^^^^^^ `BoolWithProof` does not have this field
+    |
+    = note: available fields are: `value`
+
+error[E0560]: struct `PredicateResultsBundle` has no field named `safety`
+   --> tests/constitution_real6_task_outcome_market.rs:226:13
+    |
+226 |             safety: SafetyOrCreation::Safety(BoolWithProof {
+    |             ^^^^^^ `PredicateResultsBundle` does not have this field
+    |
+    = note: available fields are: `acceptance`, `settlement`, `safety_class`
+
+error[E0560]: struct `BoolWithProof` has no field named `predicate`
+   --> tests/constitution_real6_task_outcome_market.rs:227:17
+    |
+227 |                 predicate: PredicateId("safety".into()),
+    |                 ^^^^^^^^^ `BoolWithProof` does not have this field
+    |
+    = note: available fields are: `value`
+
+error[E0560]: struct `BoolWithProof` has no field named `passed`
+   --> tests/constitution_real6_task_outcome_market.rs:228:17
+    |
+228 |                 passed: true,
+    |                 ^^^^^^ `BoolWithProof` does not have this field
+    |
+    = note: available fields are: `value`
+
+error[E0618]: expected function, found `turingosv4::state::SafetyOrCreation`
+   --> tests/constitution_real6_task_outcome_market.rs:226:21
+    |
+226 |               safety: SafetyOrCreation::Safety(BoolWithProof {
+    |                       -^^^^^^^^^^^^^^^^^^^^^^^- help: consider using a semicolon here to finish the statement: `;`
+    |  _____________________|
+    | |
+227 | |                 predicate: PredicateId("safety".into()),
+228 | |                 passed: true,
+229 | |                 proof_cid: Cid::default(),
+230 | |             }),
+    | |______________- call expression requires function
+
+error[E0559]: variant `SystemEmitCommand::EventResolve` has no field named `outcome`
+   --> tests/constitution_real6_task_outcome_market.rs:375:13
+    |
+375 |             outcome: OutcomeSide::Yes,
+    |             ^^^^^^^ `SystemEmitCommand::EventResolve` does not have this field
+    |
+    = note: all struct fields are already assigned
+
+error[E0559]: variant `SystemEmitCommand::EventResolve` has no field named `outcome`
+   --> tests/constitution_real6_task_outcome_market.rs:404:13
+    |
+404 |             outcome: OutcomeSide::No,
+    |             ^^^^^^^ `SystemEmitCommand::EventResolve` does not have this field
+    |
+    = note: all struct fields are already assigned
+
+error[E0560]: struct `EventResolveTx` has no field named `outcome`
+   --> tests/constitution_real6_task_outcome_market.rs:440:9
+    |
+440 |         outcome: OutcomeSide::Yes,
+    |         ^^^^^^^ `EventResolveTx` does not have this field
+    |
+    = note: all struct fields are already assigned
+
+error[E0609]: no field `outcome` on type `EventResolveTx`
+   --> tests/constitution_real6_task_outcome_market.rs:446:13
+    |
+446 |     mutated.outcome = OutcomeSide::No;
+    |             ^^^^^^^ unknown field
+    |
+    = note: available fields are: `tx_id`, `parent_state_root`, `task_id`, `epoch`, `timestamp_logical`, `system_signature`
+
+error[E0308]: mismatched types
+   --> tests/constitution_real6_task_outcome_market.rs:224:28
+    |
+224 |                 proof_cid: Cid::default(),
+    |                            ^^^^^^^^^^^^^^ expected `Option<Cid>`, found `Cid`
+    |
+    = note: expected enum `Option<Cid>`
+             found struct `Cid`
+help: try wrapping the expression in `Some`
+    |
+224 |                 proof_cid: Some(Cid::default()),
+    |                            +++++              +
+
+error[E0308]: mismatched types
+   --> tests/constitution_real6_task_outcome_market.rs:229:28
+    |
+229 |                 proof_cid: Cid::default(),
+    |                            ^^^^^^^^^^^^^^ expected `Option<Cid>`, found `Cid`
+    |
+    = note: expected enum `Option<Cid>`
+             found struct `Cid`
+help: try wrapping the expression in `Some`
+    |
+229 |                 proof_cid: Some(Cid::default()),
+    |                            +++++              +
+
+Some errors have detailed explanations: E0308, E0425, E0432, E0559, E0560, E0599, E0609, E0618.
+For more information about an error, try `rustc --explain E0308`.
+error: could not compile `turingosv4` (test "constitution_real6_task_outcome_market") due to 18 previous errors

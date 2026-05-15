@@ -24,8 +24,10 @@ use std::path::{Path, PathBuf};
 // of parent of the manifest dir).
 fn repo_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent().unwrap()
-        .parent().unwrap()
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
         .to_path_buf()
 }
 
@@ -45,7 +47,9 @@ fn collect_rs_files(roots: &[&str], exclude_segments: &[&str]) -> Vec<PathBuf> {
 }
 
 fn walk(p: &Path, out: &mut Vec<PathBuf>, exclude_segments: &[&str]) {
-    if !p.exists() { return; }
+    if !p.exists() {
+        return;
+    }
     if p.is_file() {
         if p.extension().and_then(|s| s.to_str()) == Some("rs") {
             out.push(p.to_path_buf());
@@ -55,8 +59,12 @@ fn walk(p: &Path, out: &mut Vec<PathBuf>, exclude_segments: &[&str]) {
     if p.is_dir() {
         // Skip excluded directory segments.
         if let Some(name) = p.file_name().and_then(|s| s.to_str()) {
-            if exclude_segments.iter().any(|seg| *seg == name) { return; }
-            if name == "target" || name == ".git" || name.starts_with('.') { return; }
+            if exclude_segments.iter().any(|seg| *seg == name) {
+                return;
+            }
+            if name == "target" || name == ".git" || name.starts_with('.') {
+                return;
+            }
         }
         if let Ok(entries) = fs::read_dir(p) {
             for e in entries.flatten() {
@@ -84,7 +92,8 @@ fn strip_test_scope_and_comments(body: &str) -> String {
         None => body,
     };
     // Strip pure comment lines (//, ///, /*, *).
-    prod_part.lines()
+    prod_part
+        .lines()
         .filter(|line| {
             let t = line.trim_start();
             !(t.starts_with("//") || t.starts_with("/*") || t.starts_with("* "))
@@ -108,8 +117,7 @@ fn is_whitelisted(path: &Path, whitelist: &[&str]) -> bool {
 /// forgets to meter it — the silent under-count Goodhart attack.
 #[test]
 fn test_all_model_tokens_counted() {
-    let evaluator = repo_root()
-        .join("experiments/minif2f_v4/src/bin/evaluator.rs");
+    let evaluator = repo_root().join("experiments/minif2f_v4/src/bin/evaluator.rs");
     let body = read_text(&evaluator);
     assert!(!body.is_empty(), "evaluator.rs must exist");
 
@@ -118,7 +126,8 @@ fn test_all_model_tokens_counted() {
     let lines: Vec<&str> = body.lines().collect();
     for (i, line) in lines.iter().enumerate() {
         if line.contains("client.generate(") {
-            let window: String = lines.iter()
+            let window: String = lines
+                .iter()
                 .skip(i)
                 .take(10)
                 .copied()
@@ -129,7 +138,8 @@ fn test_all_model_tokens_counted() {
                 "Unmetered LLM call at evaluator.rs line {} — \
                  every client.generate must be followed by record_llm_call. \
                  Window: {}",
-                i + 1, window
+                i + 1,
+                window
             );
         }
     }
@@ -150,16 +160,14 @@ fn test_all_model_tokens_counted() {
 /// full enforcement once ProposalRow emit lands (B5 → B6 transition).
 #[test]
 fn test_tool_stdout_hash_logged() {
-    let schema = repo_root()
-        .join("experiments/minif2f_v4/src/jsonl_schema.rs");
+    let schema = repo_root().join("experiments/minif2f_v4/src/jsonl_schema.rs");
     let body = read_text(&schema);
     assert!(
         body.contains("tool_stdout_hash"),
         "ProposalRow schema must reserve tool_stdout_hash field for B6 wire-in"
     );
     // Length already tracked in B2:
-    let cost = repo_root()
-        .join("experiments/minif2f_v4/src/cost_aggregator.rs");
+    let cost = repo_root().join("experiments/minif2f_v4/src/cost_aggregator.rs");
     let cost_body = read_text(&cost);
     assert!(
         cost_body.contains("record_tool_stdout"),
@@ -175,13 +183,8 @@ fn test_tool_stdout_hash_logged() {
 #[test]
 fn test_no_hidden_unmetered_generation() {
     // Whitelist: only evaluator.rs may issue client.generate calls.
-    let allowed_paths = [
-        "experiments/minif2f_v4/src/bin/evaluator.rs",
-    ];
-    let files = collect_rs_files(
-        &["src", "experiments/minif2f_v4/src"],
-        &[],
-    );
+    let allowed_paths = ["experiments/minif2f_v4/src/bin/evaluator.rs"];
+    let files = collect_rs_files(&["src", "experiments/minif2f_v4/src"], &[]);
     for f in files {
         let body = strip_test_scope_and_comments(&read_text(&f));
         if body.contains("client.generate(") {
@@ -204,18 +207,22 @@ fn test_no_hidden_unmetered_generation() {
 #[test]
 fn test_no_problem_id_hardcode() {
     let agent_code_roots = &[
-        "src/sdk",                      // agent prompt + tool dispatch
-        "experiments/minif2f_v4/src",   // experiment-side agent behavior
+        "src/sdk",                    // agent prompt + tool dispatch
+        "experiments/minif2f_v4/src", // experiment-side agent behavior
     ];
     // Whitelist: tests + this conformance file are allowed to mention pids
     // for fixture purposes.
     let whitelist = [
-        "tests/", "/tests/", "post_hoc_verifier.rs",
-        "jsonl_schema.rs",  // legacy_line fixture quotes a problem path
+        "tests/",
+        "/tests/",
+        "post_hoc_verifier.rs",
+        "jsonl_schema.rs", // legacy_line fixture quotes a problem path
     ];
     let files = collect_rs_files(agent_code_roots, &[]);
     for f in files {
-        if is_whitelisted(&f, &whitelist) { continue; }
+        if is_whitelisted(&f, &whitelist) {
+            continue;
+        }
         let body = read_text(&f);
         // Forbidden patterns: `problem_id == "..."` or `problem_id.eq("...")`.
         for line in body.lines() {
@@ -229,7 +236,8 @@ fn test_no_problem_id_hardcode() {
                 "Hardcoded problem_id comparison at {}: {}\n\
                  PREREG § 3 #4: agent code must not branch on per-problem identity \
                  (Goodhart attack: rule-of-the-day disguised as logic).",
-                f.display(), line
+                f.display(),
+                line
             );
         }
     }
@@ -251,25 +259,29 @@ fn test_no_metric_file_access_by_agents() {
     ];
     // Whitelist: evaluator.rs (it's the metering controller, not an agent code path)
     // is excluded from agent_code_roots above. Tests are excluded.
-    let forbidden_substrings = [
-        "ppput.jsonl", "PPUT_RESULT", ".jsonl\")",
-    ];
+    let forbidden_substrings = ["ppput.jsonl", "PPUT_RESULT", ".jsonl\")"];
     let files = collect_rs_files(agent_code_roots, &[]);
     for f in files {
         let body = read_text(&f);
         for needle in &forbidden_substrings {
             // jsonl_schema.rs legitimately handles jsonl strings; whitelist it.
-            if f.to_string_lossy().ends_with("jsonl_schema.rs") { continue; }
+            if f.to_string_lossy().ends_with("jsonl_schema.rs") {
+                continue;
+            }
             if body.contains(needle) {
                 // Allow read_to_string("...") only if the path is NOT a metric file.
                 // Crude check: look for `read` + the needle on the same line.
                 for line in body.lines() {
-                    if line.contains(needle) && (line.contains("read_to_string") || line.contains("File::open")) {
+                    if line.contains(needle)
+                        && (line.contains("read_to_string") || line.contains("File::open"))
+                    {
                         panic!(
                             "Metric file read by agent code path at {}: {}\n\
                              PREREG § 3 #5: agent code cannot read PPUT logs — \
                              leaking metric values into agent context is a \
-                             Goodhart vector.", f.display(), line
+                             Goodhart vector.",
+                            f.display(),
+                            line
                         );
                     }
                 }
@@ -286,24 +298,30 @@ fn test_no_metric_file_access_by_agents() {
 /// the most direct Goodhart attack surface.
 #[test]
 fn test_no_pput_in_agent_prompt() {
-    let prompt_paths = [
-        "src/sdk/prompt.rs",
-    ];
+    let prompt_paths = ["src/sdk/prompt.rs"];
     let forbidden = [
-        "pput=", "PPUT-M", "H-VPPUT", "WBCG", "pput_runtime",
-        "pput_verified", "pput_m_verified",
+        "pput=",
+        "PPUT-M",
+        "H-VPPUT",
+        "WBCG",
+        "pput_runtime",
+        "pput_verified",
+        "pput_m_verified",
     ];
     for rel in &prompt_paths {
         let p = repo_root().join(rel);
         let body = read_text(&p);
-        if body.is_empty() { continue; } // Optional path
+        if body.is_empty() {
+            continue;
+        } // Optional path
         for needle in &forbidden {
             assert!(
                 !body.contains(needle),
                 "PPUT-related token '{}' found in prompt builder {} — \
                  PREREG § 3 #6: prompt builders must never expose PPUT \
                  scalars to agents (most direct Goodhart attack surface).",
-                needle, rel
+                needle,
+                rel
             );
         }
     }
@@ -319,23 +337,30 @@ fn test_no_pput_in_agent_prompt() {
 #[test]
 fn test_golden_path_requires_ground_truth() {
     use minif2f_v4::post_hoc_verifier::{
-        compute_progress_runtime, compute_progress_verified, compute_pput,
+        compute_pput, compute_progress_runtime, compute_progress_verified,
     };
 
     // Soft Law-style: runtime fires, Lean rejects.
     let progress_runtime = compute_progress_runtime(true);
     let progress_verified = compute_progress_verified(true, false);
-    assert_eq!(progress_verified, 0u8,
-        "Lean reject MUST drive progress to 0 — North Star Goodhart shield");
+    assert_eq!(
+        progress_verified, 0u8,
+        "Lean reject MUST drive progress to 0 — North Star Goodhart shield"
+    );
     assert_eq!(progress_runtime, 1u8);
 
     // pput_verified must collapse even with positive C_i + T_i.
     let c_i: u64 = 5_000;
     let t_i: u64 = 30_000;
-    assert_eq!(compute_pput(progress_verified, c_i, t_i), 0.0,
-        "pput_verified MUST be 0 when Lean rejects (PREREG § 3 #7)");
-    assert!(compute_pput(progress_runtime, c_i, t_i) > 0.0,
-        "pput_runtime inflates under runtime-accept — divergence detectable");
+    assert_eq!(
+        compute_pput(progress_verified, c_i, t_i),
+        0.0,
+        "pput_verified MUST be 0 when Lean rejects (PREREG § 3 #7)"
+    );
+    assert!(
+        compute_pput(progress_runtime, c_i, t_i) > 0.0,
+        "pput_runtime inflates under runtime-accept — divergence detectable"
+    );
 }
 
 // ── PREREG § 3 #8 — test_failed_branches_in_total_cost ──────────────
@@ -350,15 +375,18 @@ fn test_failed_branches_in_total_cost() {
     let mut acc = RunCostAccumulator::new();
     for _ in 0..5 {
         acc.record_llm_call(100, 50);
-        acc.record_tool_stdout(&"x".repeat(80));  // 20 tokens
+        acc.record_tool_stdout(&"x".repeat(80)); // 20 tokens
         acc.record_proposal(false);
     }
     acc.record_llm_call(200, 100);
     acc.record_proposal(true);
 
     let expected = 5 * (100 + 50 + 20) + (200 + 100);
-    assert_eq!(acc.total_run_token_count(), expected as u64,
-        "C_i MUST sum across ALL 6 proposals (PREREG § 3 #8)");
+    assert_eq!(
+        acc.total_run_token_count(),
+        expected as u64,
+        "C_i MUST sum across ALL 6 proposals (PREREG § 3 #8)"
+    );
     assert_eq!(acc.proposal_count, 6);
     assert_eq!(acc.failed_branch_count, 5);
 }
@@ -376,22 +404,28 @@ fn test_wall_clock_first_read_to_final_accept() {
     use std::time::Duration;
 
     let mut wc = RunWallClock::new();
-    assert!(wc.elapsed_ms().is_none(),
-        "elapsed_ms must be None before any marking");
+    assert!(
+        wc.elapsed_ms().is_none(),
+        "elapsed_ms must be None before any marking"
+    );
     wc.mark_first_read();
     std::thread::sleep(Duration::from_millis(50));
     wc.mark_final_accept();
     let elapsed = wc.elapsed_ms().expect("bracket closed after both marks");
-    assert!(elapsed >= 50,
+    assert!(
+        elapsed >= 50,
         "Wall-clock bracket must include the slept window (≥50ms); got {}",
-        elapsed);
+        elapsed
+    );
     // Idempotent first_read: a second call must not reopen the bracket.
     let first_total = elapsed;
     std::thread::sleep(Duration::from_millis(20));
     wc.mark_first_read(); // no-op
     let after_no_op = wc.elapsed_ms().unwrap();
-    assert_eq!(after_no_op, first_total,
-        "mark_first_read must be idempotent (PREREG § 5 / plan B3 contract)");
+    assert_eq!(
+        after_no_op, first_total,
+        "mark_first_read must be idempotent (PREREG § 5 / plan B3 contract)"
+    );
 }
 
 // ── PREREG § 3 #10 — test_heldout_ids_inaccessible ──────────────────
@@ -402,8 +436,7 @@ fn test_wall_clock_first_read_to_final_accept() {
 #[test]
 fn test_heldout_ids_inaccessible() {
     use std::collections::HashSet;
-    let splits_path = repo_root()
-        .join("handover/preregistration/PPUT_CCL_SPLITS_2026-04-26.json");
+    let splits_path = repo_root().join("handover/preregistration/PPUT_CCL_SPLITS_2026-04-26.json");
     if !splits_path.exists() {
         // Stub-friendly: if splits not yet materialized, test passes vacuously.
         // Once Phase A2 split is committed (it is), this branch never fires.
@@ -436,9 +469,11 @@ fn test_heldout_ids_inaccessible() {
     if heldout_ids.is_empty() {
         // Couldn't parse — fail open with diagnostic, since vacuous pass
         // would mask a real bug if the splits file format ever changes.
-        panic!("heldout_ids could not be parsed from {} — \
+        panic!(
+            "heldout_ids could not be parsed from {} — \
                 if the splits file format changed, update this test.",
-               splits_path.display());
+            splits_path.display()
+        );
     }
 
     let agent_code_roots = &[
@@ -458,7 +493,8 @@ fn test_heldout_ids_inaccessible() {
                 !body.contains(pid.as_str()),
                 "Heldout problem id '{}' is readable from agent code path {} — \
                  PREREG § 3 #10 + § 2.3 sealing layer L1 violation.",
-                pid, f.display()
+                pid,
+                f.display()
             );
         }
     }

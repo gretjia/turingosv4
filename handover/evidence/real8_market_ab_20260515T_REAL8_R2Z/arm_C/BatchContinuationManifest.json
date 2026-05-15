@@ -1,0 +1,44 @@
+{
+  "schema_version": "g1_2_v1",
+  "batch_id": "real8_market_ab_20260515T_REAL8_R2Z/arm_C_5239f4b",
+  "runtime_repo": "/home/zephryj/projects/turingosv4/handover/evidence/real8_market_ab_20260515T_REAL8_R2Z/arm_C/runtime_repo",
+  "cas_root": "/home/zephryj/projects/turingosv4/handover/evidence/real8_market_ab_20260515T_REAL8_R2Z/arm_C/cas",
+  "model": "deepseek-chat",
+  "n_agents": 5,
+  "initial_head_t_hex": "",
+  "agent_registry_cid_hex": null,
+  "system_pubkeys_cid_hex": null,
+  "model_manifest_cid_hex": null,
+  "role_assignment_manifest_cid_hex": "91e41bd91ceb57f0d5f84f0746ec1f5fa73bc2efd81da9fe93b50960881ba6df",
+  "tasks": [
+    {
+      "task_index": 0,
+      "problem_id": "mathd_algebra_107",
+      "start_head_t_hex": "",
+      "end_head_t_hex": "faac7beded90d4be68d442d4f3d4532d29478f65",
+      "start_chain_length": 0,
+      "end_chain_length": 6,
+      "subprocess_command_sha256": "",
+      "run_summary_cid_hex": null,
+      "terminal_tx_id": null,
+      "exit_code": 0,
+      "started_at_unix_s": 1778842298,
+      "finished_at_unix_s": 1778842305
+    },
+    {
+      "task_index": 1,
+      "problem_id": "mathd_algebra_125",
+      "start_head_t_hex": "faac7beded90d4be68d442d4f3d4532d29478f65",
+      "end_head_t_hex": "b557741a03913a4d8c4725c095506fbd66eda2c7",
+      "start_chain_length": 6,
+      "end_chain_length": 14,
+      "subprocess_command_sha256": "",
+      "run_summary_cid_hex": null,
+      "terminal_tx_id": null,
+      "exit_code": 3,
+      "started_at_unix_s": 1778842305,
+      "finished_at_unix_s": 1778842345
+    }
+  ],
+  "terminated_reason": "subprocess for task 1 mathd_algebra_125 exited non-zero (3)"
+}

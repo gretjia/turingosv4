@@ -24,8 +24,7 @@ fn read_atom6() -> String {
          require this file",
         ATOM6_PATH
     );
-    std::fs::read_to_string(path)
-        .unwrap_or_else(|e| panic!("failed to read {}: {}", ATOM6_PATH, e))
+    std::fs::read_to_string(path).unwrap_or_else(|e| panic!("failed to read {}: {}", ATOM6_PATH, e))
 }
 
 #[test]

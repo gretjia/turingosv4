@@ -1,0 +1,5 @@
+arm	run_dir	exit_code	audit_verdict	task_count	market_tx_count
+A	/home/zephryj/projects/turingosv4/handover/evidence/real8_market_ab_20260515T_REAL8_FINALZ/arm_A	0	PROCEED	3	0
+B	/home/zephryj/projects/turingosv4/handover/evidence/real8_market_ab_20260515T_REAL8_FINALZ/arm_B	0	PROCEED	3	4
+C	/home/zephryj/projects/turingosv4/handover/evidence/real8_market_ab_20260515T_REAL8_FINALZ/arm_C	0	PROCEED	3	10
+D	/home/zephryj/projects/turingosv4/handover/evidence/real8_market_ab_20260515T_REAL8_FINALZ/arm_D	0	PROCEED	3	10

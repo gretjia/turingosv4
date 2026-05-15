@@ -720,6 +720,33 @@ GATES=(
   #   Arch §7.4     Sybil guard via Step-3.5 agent_verifications_t dedup
   #   Arch §7.5     FinalizeRewardPayoutBreakdown separates solver/verifier
   constitution_g3_bankruptcy_risk_cap
+
+  # REAL-6B / REAL-7 (architect final route 2026-05-15): Sealed Oracle
+  # AttemptPredictionMarket remains design + scripted fixture only until a
+  # future explicit Class-4 ratification. The gate pins deterministic K
+  # logical tape ticks, MarketClose before OracleResolve, Lean-as-oracle
+  # truth, no sleep-based blocking, no ghost liquidity, plus CAS anchoring for
+  # the scripted fixture used by REAL-7 structural smoke.
+  constitution_real6_attempt_prediction_market
+
+  # REAL-7 V3-equivalent structural smoke (architect final route 2026-05-15):
+  # do not chase v3 tx volume; require the structural pressure pattern:
+  # persistent agents, >=3 active roles, >=3 tasks, TaskOutcomeMarket,
+  # scripted AttemptPredictionMarket, Buy YES + Buy NO/short equivalent or a
+  # clean-negative, VerifyTx, ChallengeTx/NoChallengeReason, EventResolveTx,
+  # PnL delta/autopsy-if-loss, ChainTape-visible market actions, dashboard
+  # regeneration, no forced investment, no price-as-truth, no ghost liquidity,
+  # and clean comparison to v3 without claiming identical equivalence.
+  constitution_g7_structural_smoke
+
+  # REAL-8 / REAL-9 (architect final route 2026-05-15): formal market A/B
+  # benchmark contract plus launch synthesis. REAL-8 pins same problem set,
+  # same model assignment, and same budgets across arms A/B/C/D; all outputs
+  # are descriptive chain-backed evidence, not causal overclaim. REAL-9
+  # preserves the whitepaper/manual boundary: v4 does not copy v3; price is
+  # signal, not truth; market is a role-specific institution.
+  constitution_real8_market_ab_benchmark
+  constitution_real9_launch_synthesis
 )
 
 # Per-package gates — tests that live under a workspace member crate

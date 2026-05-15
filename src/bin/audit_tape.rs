@@ -51,9 +51,7 @@
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use turingosv4::runtime::audit_assertions::{
-    run_all_assertions, summarize_results, AuditInputs,
-};
+use turingosv4::runtime::audit_assertions::{run_all_assertions, summarize_results, AuditInputs};
 
 struct Args {
     runtime_repo: PathBuf,

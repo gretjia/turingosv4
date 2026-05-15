@@ -1,0 +1,30 @@
+{
+  "schema_version": "g1_2_v1",
+  "batch_id": "g_phase_real_6d_scheduler_observe_only_r4b_20260515T0830Z_5239f4b",
+  "runtime_repo": "/home/zephryj/projects/turingosv4/handover/evidence/g_phase_real_6d_scheduler_observe_only_r4b_20260515T0830Z/runtime_repo",
+  "cas_root": "/home/zephryj/projects/turingosv4/handover/evidence/g_phase_real_6d_scheduler_observe_only_r4b_20260515T0830Z/cas",
+  "model": "deepseek-chat",
+  "n_agents": 5,
+  "initial_head_t_hex": "",
+  "agent_registry_cid_hex": null,
+  "system_pubkeys_cid_hex": null,
+  "model_manifest_cid_hex": null,
+  "role_assignment_manifest_cid_hex": "8e0b28f50aec0de9d6f4bba8808e4849f4afe43d180ee8edaca8211a1cf867e8",
+  "tasks": [
+    {
+      "task_index": 0,
+      "problem_id": "numbertheory_2pownm1prime_nprime",
+      "start_head_t_hex": "",
+      "end_head_t_hex": "c45f8e60cb90e9a04ed09b12da655b54c91b11c9",
+      "start_chain_length": 0,
+      "end_chain_length": 6,
+      "subprocess_command_sha256": "",
+      "run_summary_cid_hex": null,
+      "terminal_tx_id": null,
+      "exit_code": 0,
+      "started_at_unix_s": 1778833925,
+      "finished_at_unix_s": 1778834174
+    }
+  ],
+  "terminated_reason": null
+}

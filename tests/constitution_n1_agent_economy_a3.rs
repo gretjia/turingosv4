@@ -36,9 +36,7 @@ use turingosv4::bottom_white::ledger::rejection_evidence::{
 use turingosv4::bottom_white::ledger::system_keypair::{
     Ed25519Keypair, PinnedSystemPubkeys, SystemEpoch,
 };
-use turingosv4::bottom_white::ledger::transition_ledger::{
-    InMemoryLedgerWriter, LedgerWriter,
-};
+use turingosv4::bottom_white::ledger::transition_ledger::{InMemoryLedgerWriter, LedgerWriter};
 use turingosv4::bottom_white::tools::registry::ToolRegistry;
 use turingosv4::economy::money::{MicroCoin, StakeMicroCoin};
 use turingosv4::sdk::econ_position::render_econ_position;
@@ -85,16 +83,21 @@ fn fresh_harness(initial_q: QState) -> Harness {
         initial_q,
         16,
     );
-    Harness { _tmp: tmp, seq, rx, rejection_writer }
+    Harness {
+        _tmp: tmp,
+        seq,
+        rx,
+        rejection_writer,
+    }
 }
 
 fn genesis_with_balances(pairs: &[(&str, i64)]) -> QState {
     let mut q = QState::genesis();
     for (name, coin) in pairs {
-        q.economic_state_t
-            .balances_t
-            .0
-            .insert(AgentId((*name).into()), MicroCoin::from_coin(*coin).unwrap());
+        q.economic_state_t.balances_t.0.insert(
+            AgentId((*name).into()),
+            MicroCoin::from_coin(*coin).unwrap(),
+        );
     }
     q
 }
@@ -142,15 +145,22 @@ fn make_worktx(
     let mut acceptance = BTreeMap::new();
     acceptance.insert(
         PredicateId("acc1".into()),
-        BoolWithProof { value: predicate_passes, proof_cid: None },
+        BoolWithProof {
+            value: predicate_passes,
+            proof_cid: None,
+        },
     );
     TypedTx::Work(WorkTx {
         tx_id: TxId(format!("worktx-{task}-{suffix}")),
         task_id: TaskId(task.into()),
         parent_state_root: parent,
         agent_id: AgentId(agent.into()),
-        read_set: [ReadKey("k.read".into())].into_iter().collect::<BTreeSet<_>>(),
-        write_set: [WriteKey("k.write".into())].into_iter().collect::<BTreeSet<_>>(),
+        read_set: [ReadKey("k.read".into())]
+            .into_iter()
+            .collect::<BTreeSet<_>>(),
+        write_set: [WriteKey("k.write".into())]
+            .into_iter()
+            .collect::<BTreeSet<_>>(),
         proposal_cid: Default::default(),
         predicate_results: PredicateResultsBundle {
             acceptance,
@@ -172,11 +182,19 @@ async fn apply_taskopen_and_escrowlock(
     let pre = h.seq.q_snapshot().expect("pre snap").state_root_t;
     let open = make_task_open(&task_id.0, sponsor, pre, "fund");
     h.seq.submit(open).await.expect("open submit");
-    let _ = h.seq.try_apply_one(&mut h.rx).expect("open env").expect("open accepted");
+    let _ = h
+        .seq
+        .try_apply_one(&mut h.rx)
+        .expect("open env")
+        .expect("open accepted");
     let parent = h.seq.q_snapshot().expect("post-open").state_root_t;
     let lock = make_escrow_lock(&task_id.0, sponsor, escrow_coin * 1_000_000, parent, "fund");
     h.seq.submit(lock).await.expect("lock submit");
-    let _ = h.seq.try_apply_one(&mut h.rx).expect("lock env").expect("lock accepted");
+    let _ = h
+        .seq
+        .try_apply_one(&mut h.rx)
+        .expect("lock env")
+        .expect("lock accepted");
     h.seq.q_snapshot().expect("post-lock").state_root_t
 }
 
@@ -191,8 +209,10 @@ fn last_l4e_class(writer: &Arc<RwLock<RejectionEvidenceWriter>>) -> Option<L4ERe
 
 #[tokio::test]
 async fn sg_n1_a3_1_zero_stake_rejects_with_stake_insufficient() {
-    let mut h =
-        fresh_harness(genesis_with_balances(&[("sponsor-a3-1", 100), ("solver-a3-1", 10)]));
+    let mut h = fresh_harness(genesis_with_balances(&[
+        ("sponsor-a3-1", 100),
+        ("solver-a3-1", 10),
+    ]));
     let task = TaskId("task-a3-1".into());
     let parent = apply_taskopen_and_escrowlock(&mut h, &task, "sponsor-a3-1", 50).await;
 
@@ -222,8 +242,10 @@ async fn sg_n1_a3_2_overspend_rejects_with_stake_balance_exceeded() {
     // solver balance = 10 Coin = 10_000_000 μC. Submit stake = 10_000_001 μC
     // (one micro over balance). Step-4 must reject with StakeBalanceExceeded
     // → L4E InsufficientBalance.
-    let mut h =
-        fresh_harness(genesis_with_balances(&[("sponsor-a3-2", 100), ("solver-a3-2", 10)]));
+    let mut h = fresh_harness(genesis_with_balances(&[
+        ("sponsor-a3-2", 100),
+        ("solver-a3-2", 10),
+    ]));
     let task = TaskId("task-a3-2".into());
     let parent = apply_taskopen_and_escrowlock(&mut h, &task, "sponsor-a3-2", 50).await;
 
@@ -253,8 +275,10 @@ async fn sg_n1_a3_2_overspend_rejects_with_stake_balance_exceeded() {
 
 #[tokio::test]
 async fn sg_n1_a3_3_minimum_stake_admits() {
-    let mut h =
-        fresh_harness(genesis_with_balances(&[("sponsor-a3-3", 100), ("solver-a3-3", 10)]));
+    let mut h = fresh_harness(genesis_with_balances(&[
+        ("sponsor-a3-3", 100),
+        ("solver-a3-3", 10),
+    ]));
     let task = TaskId("task-a3-3".into());
     let parent = apply_taskopen_and_escrowlock(&mut h, &task, "sponsor-a3-3", 50).await;
 
@@ -284,10 +308,10 @@ async fn sg_n1_a3_3_minimum_stake_admits() {
 fn sg_n1_a3_4_prompt_aggregates_agent_decided_per_cell_stakes() {
     let mut q = QState::genesis();
     let agent = AgentId("Agent_a3_4".into());
-    q.economic_state_t.balances_t.0.insert(
-        agent.clone(),
-        MicroCoin::from_micro_units(1_000_000),
-    );
+    q.economic_state_t
+        .balances_t
+        .0
+        .insert(agent.clone(), MicroCoin::from_micro_units(1_000_000));
     // Cell 1: agent picked 1234 μC.
     q.economic_state_t.stakes_t.0.insert(
         TxId("worktx-cell1".into()),

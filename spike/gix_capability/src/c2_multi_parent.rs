@@ -23,7 +23,14 @@ pub fn run(workdir: &Path) -> C2Result {
             tb.insert("a.txt", blob_a, 0o100644)?;
             repo.find_tree(tb.write()?)?
         };
-        let commit_a_id = repo.commit(Some("refs/heads/branch_a"), &sig, &sig, "C2: commit A", &tree_a, &[])?;
+        let commit_a_id = repo.commit(
+            Some("refs/heads/branch_a"),
+            &sig,
+            &sig,
+            "C2: commit A",
+            &tree_a,
+            &[],
+        )?;
         let commit_a = repo.find_commit(commit_a_id)?;
 
         // Commit B (on branch_b)
@@ -33,7 +40,14 @@ pub fn run(workdir: &Path) -> C2Result {
             tb.insert("b.txt", blob_b, 0o100644)?;
             repo.find_tree(tb.write()?)?
         };
-        let commit_b_id = repo.commit(Some("refs/heads/branch_b"), &sig, &sig, "C2: commit B", &tree_b, &[])?;
+        let commit_b_id = repo.commit(
+            Some("refs/heads/branch_b"),
+            &sig,
+            &sig,
+            "C2: commit B",
+            &tree_b,
+            &[],
+        )?;
         let commit_b = repo.find_commit(commit_b_id)?;
 
         // Commit C: tree = a.txt + b.txt; parents = [A, B]

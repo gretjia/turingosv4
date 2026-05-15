@@ -144,8 +144,7 @@ pub fn compute_peer_verify_coverage(
         .filter(|id| cov.per_target_count.get(id).copied().unwrap_or(0) > 0)
         .count() as u64;
     cov.coverage_pct = if cov.accepted_worktx_total > 0 {
-        (cov.accepted_worktx_with_verify.saturating_mul(100))
-            / cov.accepted_worktx_total
+        (cov.accepted_worktx_with_verify.saturating_mul(100)) / cov.accepted_worktx_total
     } else {
         0
     };
@@ -166,9 +165,10 @@ pub fn compute_peer_verify_coverage_from_paths(
     runtime_repo_path: &Path,
     cas_path: &Path,
 ) -> Result<PeerVerifyCoverage, PeerVerifyCoverageError> {
-    let writer = Git2LedgerWriter::open(runtime_repo_path)
-        .map_err(PeerVerifyCoverageError::LedgerOpen)?;
-    let cas = CasStore::open(cas_path).map_err(|e| PeerVerifyCoverageError::CasOpen(e.to_string()))?;
+    let writer =
+        Git2LedgerWriter::open(runtime_repo_path).map_err(PeerVerifyCoverageError::LedgerOpen)?;
+    let cas =
+        CasStore::open(cas_path).map_err(|e| PeerVerifyCoverageError::CasOpen(e.to_string()))?;
     compute_peer_verify_coverage(&writer, &cas)
 }
 
@@ -201,7 +201,7 @@ impl PeerVerifyCoverage {
         if !self.per_verifier_count.is_empty() {
             out.push_str("  per-agent peer_verify_count:\n");
             let mut rows: Vec<(&AgentId, &u64)> = self.per_verifier_count.iter().collect();
-            rows.sort_by(|a, b| b.1.cmp(a.1).then_with(|| a.0.0.cmp(&b.0.0)));
+            rows.sort_by(|a, b| b.1.cmp(a.1).then_with(|| a.0 .0.cmp(&b.0 .0)));
             for (agent, n) in rows.iter().take(20) {
                 let role = if self.solver_agents.contains(agent) {
                     "solver"
@@ -238,8 +238,8 @@ mod tests {
     use crate::bottom_white::cas::store::CasStore;
     use crate::bottom_white::ledger::system_keypair::{SystemEpoch, SystemSignature};
     use crate::bottom_white::ledger::transition_ledger::{
-        append, canonical_encode, InMemoryLedgerWriter, LedgerEntry,
-        LedgerEntrySigningPayload, LedgerWriter, TxKind,
+        append, canonical_encode, InMemoryLedgerWriter, LedgerEntry, LedgerEntrySigningPayload,
+        LedgerWriter, TxKind,
     };
     use crate::economy::money::StakeMicroCoin;
     use crate::state::q_state::{Hash, TaskId, TxId};
@@ -274,7 +274,10 @@ mod tests {
         let parent_ledger_root = if logical_t == 1 {
             Hash::ZERO
         } else {
-            writer.read_at(logical_t - 1).expect("prev").resulting_ledger_root
+            writer
+                .read_at(logical_t - 1)
+                .expect("prev")
+                .resulting_ledger_root
         };
         let signing = LedgerEntrySigningPayload {
             logical_t,
@@ -309,7 +312,10 @@ mod tests {
         let mut acceptance = BTreeMap::new();
         acceptance.insert(
             PredicateId("acc1".into()),
-            BoolWithProof { value: true, proof_cid: None },
+            BoolWithProof {
+                value: true,
+                proof_cid: None,
+            },
         );
         let mut read_set = BTreeSet::new();
         read_set.insert(ReadKey("k".into()));
@@ -399,7 +405,9 @@ mod tests {
         assert_eq!(cov.peer_verifications_total, 2);
         assert_eq!(cov.non_solver_verifications, 2);
         assert_eq!(
-            cov.per_verifier_count.get(&AgentId("Agent_0".into())).copied(),
+            cov.per_verifier_count
+                .get(&AgentId("Agent_0".into()))
+                .copied(),
             Some(2)
         );
         assert!(cov.solver_agents.contains(&AgentId("Agent_5".into())));
@@ -485,10 +493,8 @@ mod tests {
         cov.coverage_pct = 33;
         cov.peer_verifications_total = 5;
         cov.non_solver_verifications = 4;
-        cov.per_verifier_count
-            .insert(AgentId("Agent_0".into()), 4);
-        cov.per_verifier_count
-            .insert(AgentId("Agent_5".into()), 1);
+        cov.per_verifier_count.insert(AgentId("Agent_0".into()), 4);
+        cov.per_verifier_count.insert(AgentId("Agent_5".into()), 1);
         cov.solver_agents.insert(AgentId("Agent_5".into()));
         let rendered = cov.render_section_f_x();
         assert!(rendered.contains("## §F.X Peer-verify coverage"));

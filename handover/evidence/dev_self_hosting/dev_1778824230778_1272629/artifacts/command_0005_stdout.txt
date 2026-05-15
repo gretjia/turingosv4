@@ -1,0 +1,136 @@
+TB-C0 Constitution Landing Gate runner
+======================================
+Repo:    /home/zephryj/projects/turingosv4
+Started: 2026-05-15T05:51:02Z
+
+[gate] constitution_no_parallel_ledger
+  GREEN: test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+[gate] constitution_economy_gate
+  GREEN: test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+[gate] constitution_predicate_gate
+  GREEN: test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+[gate] constitution_fc1_runtime_loop
+  GREEN: test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.01s
+[gate] constitution_fc2_boot
+  GREEN: test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+[gate] constitution_fc3_meta
+  GREEN: test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+[gate] constitution_shielding_gate
+  GREEN: test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+[gate] constitution_tape_canonical_gate
+  GREEN: test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+[gate] constitution_fc3_inv1_capsule_integrity_regen
+  GREEN: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+[gate] constitution_art_v3_amendment_log
+  GREEN: test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+[gate] constitution_runner_invariant_formula
+  GREEN: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+[gate] constitution_no_evidence_drift_in_tests
+  GREEN: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+[gate] constitution_pcp_corpus
+  GREEN: test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+[gate] constitution_prompt_capsule
+  GREEN: test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+[gate] constitution_head_t_witness
+  GREEN: test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+[gate] constitution_wave3_evidence_binding
+  GREEN: test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+[gate] constitution_closure_3_no_trivial_asserts
+  GREEN: test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+[gate] constitution_shielding_evidence_binding
+  GREEN: test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.47s
+[gate] constitution_wilson_ci
+  GREEN: test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+[gate] constitution_diversity
+  GREEN: test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+[gate] constitution_benchmark_manifest
+  GREEN: test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+[gate] constitution_aggregate_report
+  GREEN: test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+[gate] constitution_head_t_c2_multi_ref
+  GREEN: test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s
+[gate] constitution_pcp_corpus_phase2
+  GREEN: test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+[gate] constitution_fc3_evidence_binding
+  GREEN: test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+[gate] constitution_completeset_hardening
+  GREEN: test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+[gate] constitution_market_quarantine
+  GREEN: test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+[gate] constitution_architect_verbatim_struct_binding
+  GREEN: test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+[gate] constitution_class4_atomic_rollback_witness
+  GREEN: test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+[gate] constitution_economy_strict_equality
+  GREEN: test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+[gate] constitution_completeset_merge
+  GREEN: test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+[gate] constitution_market_seed_hardening
+  GREEN: test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+[gate] constitution_cpmm_pool
+  GREEN: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+[gate] constitution_cpmm_swap
+  GREEN: test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+[gate] constitution_router_buy_with_coin
+  GREEN: test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.45s
+[gate] constitution_router_price_quote
+  GREEN: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.76s
+[gate] constitution_audit_views
+  GREEN: test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.26s
+[gate] constitution_polymarket_smoke
+  GREEN: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+[gate] constitution_polymarket_event_state_gate
+  GREEN: test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+[gate] constitution_admission_no_fail_open_default
+  GREEN: test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+[gate] constitution_audit_tamper_3_of_3
+  GREEN: test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+[gate] constitution_l4e_body_integrity
+  GREEN: test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+[gate] constitution_n1_agent_economy_a3
+  GREEN: test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+[gate] constitution_n1_agent_economy_a4
+  GREEN: test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+[gate] constitution_n2_event_resolve
+  GREEN: test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+[gate] constitution_tb_n3_invest_routing
+  GREEN: test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+[gate] constitution_tb_n3_a3_emit
+  GREEN: test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+[gate] constitution_g1_resume
+  GREEN: test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.78s
+[gate] constitution_g1_2_resume_preflight
+  GREEN: test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+[gate] constitution_g1_2_chain_tape_lease
+  GREEN: test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+[gate] constitution_g1_2_batch_continuation_manifest
+  GREEN: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.13s
+[gate] constitution_g1_2_persistence_evidence_binding
+  GREEN: test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.14s
+[gate] constitution_g2p_pending_peer_reviews
+  GREEN: test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+[gate] constitution_g2p_peer_verify_coverage
+  GREEN: test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+[gate] constitution_g2p_verify_reward_bond_return
+  GREEN: test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+[gate] constitution_g2_no_trade_reason_taxonomy
+  GREEN: test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+[gate] constitution_g2_dashboard_no_trade_rows
+  GREEN: test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+[gate] constitution_g2_failed_invest_l4e
+  GREEN: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+[gate] constitution_g3_pnl
+  GREEN: test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+[gate] constitution_g3_pnl_trajectory_evidence_binding
+  GREEN: test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+[gate] constitution_g3_your_position_prompt
+  GREEN: test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+[gate] constitution_g3_bankruptcy_risk_cap
+  GREEN: test result: ok. 33 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+[gate-pkg] minif2f_v4::constitution_g1_2_subprocess_resume
+  GREEN: test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.19s
+
+Wrote: target/constitution_gate_report.json
+Wrote: target/constitution_gate_report.md
+Totals: 436 passed, 0 failed, 1 ignored
+PASS: all gates GREEN.

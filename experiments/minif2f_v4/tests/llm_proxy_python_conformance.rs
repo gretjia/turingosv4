@@ -52,8 +52,7 @@ fn proxy_python_conformance_suite_passes() {
     // `SKIP_LLM_PROXY_PYTHON_CONFORMANCE=1` — must be set deliberately,
     // never set by default. The bypass is logged loudly so the gate's
     // absence is visible in test output.
-    let opt_out = std::env::var("SKIP_LLM_PROXY_PYTHON_CONFORMANCE")
-        .as_deref() == Ok("1");
+    let opt_out = std::env::var("SKIP_LLM_PROXY_PYTHON_CONFORMANCE").as_deref() == Ok("1");
     if opt_out {
         eprintln!(
             "[G1] SKIP_LLM_PROXY_PYTHON_CONFORMANCE=1 — gate explicitly \

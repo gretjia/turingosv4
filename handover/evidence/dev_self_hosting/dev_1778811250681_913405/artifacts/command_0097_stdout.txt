@@ -1,0 +1,14 @@
+
+running 9 tests
+test sg_n2_b2_1_agent_ingress_rejects_event_resolve_pre_queue ... ok
+test sg_n2_b2_5_emit_on_unknown_task_returns_event_resolve_task_not_found ... ok
+test sg_n2_b2_3_re_emit_on_finalized_rejects_with_event_already_resolved ... ok
+test sg_n2_b2_4_emit_on_bankrupt_market_rejects ... ok
+test sg_n2_b2_8_adapter_helper_and_evaluator_hook_present ... ok
+test sg_n2_b2_2_event_resolve_flips_state_open_to_finalized ... ok
+test sg_n2_b2_9_adapter_polls_claim_finalized_before_emit_r2 ... ok
+test sg_n2_b2_7_post_resolution_state_makes_redeem_reachable ... ok
+test sg_n2_b2_6_pure_status_mutation_no_money_movement ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+

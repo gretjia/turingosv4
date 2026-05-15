@@ -1,0 +1,15 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778824777461_1299406",
+  "fc_nodes": [
+    "FC1 role action/economic feedback; FC2 replay-derived PnL; FC3 materialized audit view; Art.III scoped prompt"
+  ],
+  "expected_witness": "Diff, command evidence, and audit verdict must cite these FC nodes.",
+  "evidence_artifacts": [
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "4aebb00a57db1f4ce8dee6f76332a445a37a8444307b36c98a149347fb203f88",
+      "size_bytes": 291711
+    }
+  ]
+}

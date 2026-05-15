@@ -27,7 +27,10 @@ fn wilson_ci_handles_zero_solved_without_panic() {
     // Wilson must produce a finite upper bound (Wald would not).
     let ci = WilsonCi::new_95(0, 50).expect("trials > 0 must produce CI");
     assert_eq!(ci.point, 0.0);
-    assert!(ci.upper > 0.0, "upper bound must be strictly positive at k=0");
+    assert!(
+        ci.upper > 0.0,
+        "upper bound must be strictly positive at k=0"
+    );
     assert!(ci.upper < 0.1, "upper bound must be plausible at k=0/50");
 }
 
@@ -36,7 +39,10 @@ fn wilson_ci_handles_full_solved_without_panic() {
     // Kill: aggregate report panics or omits CI when batch has all solves.
     let ci = WilsonCi::new_95(50, 50).expect("trials > 0 must produce CI");
     assert_eq!(ci.point, 1.0);
-    assert!(ci.lower < 1.0, "lower bound must be strictly below 1 at k=n");
+    assert!(
+        ci.lower < 1.0,
+        "lower bound must be strictly below 1 at k=n"
+    );
 }
 
 #[test]

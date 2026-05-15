@@ -37,21 +37,47 @@ pub enum TrustRootError {
     GenesisRead(std::io::Error),
     GenesisParse(String),
     SectionMissing(&'static str),
-    FileRead { path: PathBuf, err: std::io::Error },
-    Tampered { path: PathBuf, expected: String, actual: String },
+    FileRead {
+        path: PathBuf,
+        err: std::io::Error,
+    },
+    Tampered {
+        path: PathBuf,
+        expected: String,
+        actual: String,
+    },
 }
 
 impl std::fmt::Display for TrustRootError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::GenesisRead(e) => write!(f, "TRUST_ROOT_TAMPERED: cannot read genesis_payload.toml: {e}"),
-            Self::GenesisParse(s) => write!(f, "TRUST_ROOT_TAMPERED: genesis_payload.toml parse error: {s}"),
-            Self::SectionMissing(s) => write!(f, "TRUST_ROOT_TAMPERED: genesis_payload.toml missing section [{s}]"),
-            Self::FileRead { path, err } => write!(f, "TRUST_ROOT_TAMPERED: cannot read tracked file {}: {err}", path.display()),
-            Self::Tampered { path, expected, actual } => write!(
+            Self::GenesisRead(e) => write!(
+                f,
+                "TRUST_ROOT_TAMPERED: cannot read genesis_payload.toml: {e}"
+            ),
+            Self::GenesisParse(s) => write!(
+                f,
+                "TRUST_ROOT_TAMPERED: genesis_payload.toml parse error: {s}"
+            ),
+            Self::SectionMissing(s) => write!(
+                f,
+                "TRUST_ROOT_TAMPERED: genesis_payload.toml missing section [{s}]"
+            ),
+            Self::FileRead { path, err } => write!(
+                f,
+                "TRUST_ROOT_TAMPERED: cannot read tracked file {}: {err}",
+                path.display()
+            ),
+            Self::Tampered {
+                path,
+                expected,
+                actual,
+            } => write!(
                 f,
                 "TRUST_ROOT_TAMPERED: {} hash mismatch (expected {}, actual {})",
-                path.display(), expected, actual
+                path.display(),
+                expected,
+                actual
             ),
         }
     }
@@ -144,9 +170,8 @@ fn verify_constitution_root_section(
         }
     }
 
-    let get = |key: &str| -> Option<&str> {
-        cr.iter().find(|(k, _)| k == key).map(|(_, v)| v.as_str())
-    };
+    let get =
+        |key: &str| -> Option<&str> { cr.iter().find(|(k, _)| k == key).map(|(_, v)| v.as_str()) };
 
     // Sub-check 1: schema_version == 1
     let sv = get("schema_version").unwrap();
@@ -200,7 +225,7 @@ fn verify_constitution_root_section(
 
     // Sub-check 5: creator_signature + boot_attestation_hash format permissive
     // (allow placeholder strings; v4.1+ enforces stricter when ceremony runs)
-    let _creator_sig = get("creator_signature").unwrap();  // any non-empty string OK
+    let _creator_sig = get("creator_signature").unwrap(); // any non-empty string OK
     let _boot_att = get("boot_attestation_hash").unwrap(); // any non-empty string OK in v4
 
     Ok(())
@@ -225,7 +250,10 @@ fn parse_constitution_root_section(text: &str) -> Result<Vec<(String, String)>, 
             continue;
         }
         let (key, value) = line.split_once('=').ok_or_else(|| {
-            TrustRootError::GenesisParse(format!("line {}: missing '=' in [constitution_root]", lineno + 1))
+            TrustRootError::GenesisParse(format!(
+                "line {}: missing '=' in [constitution_root]",
+                lineno + 1
+            ))
         })?;
         let key = key.trim();
         let value_raw = value.trim();
@@ -260,13 +288,17 @@ fn verify_child_manifest(repo_root: &Path, bytes: &[u8]) -> Result<(), TrustRoot
         })?;
         if hex.len() != 64 || !hex.bytes().all(|b| b.is_ascii_hexdigit()) {
             return Err(TrustRootError::GenesisParse(format!(
-                "manifest line {}: bad hex {hex:?}", i + 1
+                "manifest line {}: bad hex {hex:?}",
+                i + 1
             )));
         }
         let path = repo_root.join(child_rel);
-        let actual = hex_lower(&Sha256::digest(
-            &fs::read(&path).map_err(|err| TrustRootError::FileRead { path: path.clone(), err })?,
-        ));
+        let actual = hex_lower(&Sha256::digest(&fs::read(&path).map_err(|err| {
+            TrustRootError::FileRead {
+                path: path.clone(),
+                err,
+            }
+        })?));
         if actual != hex.to_ascii_lowercase() {
             return Err(TrustRootError::Tampered {
                 path,
@@ -302,7 +334,10 @@ pub fn parse_trust_root_section(text: &str) -> Result<Vec<(String, String)>, Tru
             continue;
         }
         let (key, value) = line.split_once('=').ok_or_else(|| {
-            TrustRootError::GenesisParse(format!("line {}: missing '=' in [trust_root]", lineno + 1))
+            TrustRootError::GenesisParse(format!(
+                "line {}: missing '=' in [trust_root]",
+                lineno + 1
+            ))
         })?;
         let key = unquote(key.trim()).ok_or_else(|| {
             TrustRootError::GenesisParse(format!("line {}: key not quoted", lineno + 1))
@@ -321,8 +356,7 @@ pub fn parse_trust_root_section(text: &str) -> Result<Vec<(String, String)>, Tru
 fn has_section(text: &str, name: &str) -> bool {
     text.lines().any(|raw| {
         let line = strip_comment(raw).trim();
-        line
-            .strip_prefix('[')
+        line.strip_prefix('[')
             .and_then(|s| s.strip_suffix(']'))
             .map(|h| h.trim() == name)
             .unwrap_or(false)
@@ -436,7 +470,11 @@ mod tests {
         let tmp = tempdir();
         write_single_entry_repo(&tmp, "tampered", &"0".repeat(64));
         match verify_trust_root(&tmp).expect_err("tamper must be detected") {
-            TrustRootError::Tampered { path, expected, actual } => {
+            TrustRootError::Tampered {
+                path,
+                expected,
+                actual,
+            } => {
                 assert!(path.ends_with("only.txt"));
                 assert_eq!(expected, "0".repeat(64));
                 assert_ne!(actual, expected);
@@ -501,9 +539,15 @@ mod tests {
         );
         fs::write(tmp.join("genesis_payload.toml"), genesis).unwrap();
         match verify_trust_root(&tmp).expect_err("child tamper must be detected") {
-            TrustRootError::Tampered { path, expected, actual } => {
-                assert!(path.ends_with("subdir/child.txt"),
-                    "expected error on child.txt, got: {path:?}");
+            TrustRootError::Tampered {
+                path,
+                expected,
+                actual,
+            } => {
+                assert!(
+                    path.ends_with("subdir/child.txt"),
+                    "expected error on child.txt, got: {path:?}"
+                );
                 assert_eq!(expected, "0".repeat(64));
                 assert_ne!(actual, expected);
             }

@@ -119,9 +119,9 @@ impl PerCallBudget {
                 .map_err(|e| format!("TURINGOS_PER_CALL_TOKEN_FLOOR parse: {e}"))?;
         }
         if let Ok(raw) = std::env::var("TURINGOS_PER_CALL_CONSECUTIVE_TRIVIAL_CAP") {
-            budget.consecutive_trivial_response_cap = raw.parse::<u32>().map_err(|e| {
-                format!("TURINGOS_PER_CALL_CONSECUTIVE_TRIVIAL_CAP parse: {e}")
-            })?;
+            budget.consecutive_trivial_response_cap = raw
+                .parse::<u32>()
+                .map_err(|e| format!("TURINGOS_PER_CALL_CONSECUTIVE_TRIVIAL_CAP parse: {e}"))?;
         }
         if let Ok(raw) = std::env::var("TURINGOS_AGGREGATE_RUN_WALLCLOCK_S") {
             budget.aggregate_per_run_wallclock_seconds = raw
@@ -254,7 +254,7 @@ mod tests {
     #[test]
     fn consecutive_trivial_cap_halts_with_degraded_llm() {
         let mut t = LLMCallBudgetTracker::new(PerCallBudget::default()); // cap=10
-        // 9 trivials: still continuing.
+                                                                         // 9 trivials: still continuing.
         for _ in 0..9 {
             assert_eq!(t.on_response(14), BudgetVerdict::Continue);
         }

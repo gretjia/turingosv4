@@ -33,14 +33,17 @@ fn populated_q_state_round_trips() {
     );
     q.head_t = NodeId("deadbeefcafe".into());
     q.state_root_t = Hash::from_bytes([0xAB; 32]);
-    q.economic_state_t.balances_t.0.insert(
-        AgentId("alice".into()),
-        MicroCoin::from_coin(100).unwrap(),
-    );
+    q.economic_state_t
+        .balances_t
+        .0
+        .insert(AgentId("alice".into()), MicroCoin::from_coin(100).unwrap());
 
     let s = serde_json::to_string(&q).unwrap();
     let back: QState = serde_json::from_str(&s).unwrap();
-    assert_eq!(q, back, "QState must be reconstruct-equivalent after serde round-trip");
+    assert_eq!(
+        q, back,
+        "QState must be reconstruct-equivalent after serde round-trip"
+    );
 }
 
 #[test]
@@ -57,7 +60,10 @@ fn balances_index_insertion_order_independence() {
     b.0.insert(AgentId("a".into()), MicroCoin::from_coin(1).unwrap());
     b.0.insert(AgentId("b".into()), MicroCoin::from_coin(2).unwrap());
 
-    assert_eq!(serde_json::to_string(&a).unwrap(), serde_json::to_string(&b).unwrap());
+    assert_eq!(
+        serde_json::to_string(&a).unwrap(),
+        serde_json::to_string(&b).unwrap()
+    );
 }
 
 #[test]

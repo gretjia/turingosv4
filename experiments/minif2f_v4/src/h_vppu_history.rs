@@ -94,10 +94,7 @@ impl HVppuHistory {
     /// front. Idempotent only with respect to identical values; callers
     /// that want at-most-once semantics across retries must dedupe.
     pub fn record(&mut self, problem_id: &str, pput_verified: f64) {
-        let entry = self
-            .by_problem
-            .entry(problem_id.to_string())
-            .or_default();
+        let entry = self.by_problem.entry(problem_id.to_string()).or_default();
         entry.push_back(pput_verified);
         while entry.len() > HISTORY_CAPACITY {
             entry.pop_front();
@@ -156,10 +153,7 @@ mod tests {
             .map(|d| d.as_nanos())
             .unwrap_or(0);
         let seq = COUNTER.fetch_add(1, Ordering::Relaxed);
-        std::env::temp_dir().join(format!(
-            "h_vppu_history_{}_{}_{}.json",
-            label, nanos, seq
-        ))
+        std::env::temp_dir().join(format!("h_vppu_history_{}_{}_{}.json", label, nanos, seq))
     }
 
     #[test]

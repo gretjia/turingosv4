@@ -1,0 +1,35 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778782264956_718239",
+  "title": "REAL5-completion-role-turn-traces-and-adversarial-real-problems",
+  "module": "REAL-5 Role-Based Generative Scaffolding completion + adversarial tests",
+  "molecule_or_atom": "molecule",
+  "requested_risk_class": 4,
+  "risk_class": 4,
+  "fc_nodes": [
+    "FC1 externalized role action loop; FC2 role assignment + PromptCapsule replay; FC3 evidence/materialized view; Art. III shielding"
+  ],
+  "allowed_paths": [
+    "src/runtime/real5_roles.rs",
+    "experiments/minif2f_v4/src/bin/evaluator.rs",
+    "genesis_payload.toml",
+    "tests/constitution_real5_*.rs",
+    "handover/audits/*REAL5*",
+    "handover/evidence/*REAL5*",
+    "handover/evidence/*real5*",
+    "handover/directives/*REAL5*",
+    "handover/tracer_bullets/*REAL5*",
+    "scripts/run_g_phase_batch.sh"
+  ],
+  "restricted_surface_hits": [
+    "genesis_payload.toml"
+  ],
+  "acceptance_commands": [
+    "cargo check"
+  ],
+  "audit_required": true,
+  "human_intent": null,
+  "ratification": null,
+  "git_head": "5239f4b13ecf0a3f9850accc6815c2e7944e9bee",
+  "created_at_unix_ms": 1778782264956
+}

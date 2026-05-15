@@ -1,0 +1,3 @@
+numbertheory_2pownm1prime_nprime
+aime_1983_p1
+imo_1964_p2

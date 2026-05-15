@@ -57,22 +57,20 @@ use turingosv4::bottom_white::ledger::transition_ledger::{
 };
 use turingosv4::bottom_white::tools::registry::ToolRegistry;
 use turingosv4::economy::money::MicroCoin;
-use turingosv4::runtime::adapter::{
-    tb_n3_invest_to_router_tx, InvestRouteError,
-};
+use turingosv4::runtime::adapter::{tb_n3_invest_to_router_tx, InvestRouteError};
 use turingosv4::runtime::agent_keypairs::AgentKeypairRegistry;
 use turingosv4::runtime::market_decision_trace::{
     write_market_decision_trace_to_cas, MarketDecisionTrace, NoTradeReason,
 };
 use turingosv4::runtime::market_decision_trace_summary::MarketDecisionTraceSummary;
 use turingosv4::state::q_state::{
-    AgentId, CpmmPool, Hash, LpShareAmount, PoolStatus, QState, TaskId,
-    TaskMarketEntry, TaskMarketState, TxId,
+    AgentId, CpmmPool, Hash, LpShareAmount, PoolStatus, QState, TaskId, TaskMarketEntry,
+    TaskMarketState, TxId,
 };
 use turingosv4::state::sequencer::{Sequencer, SubmissionEnvelope};
 use turingosv4::state::typed_tx::{
-    AgentSignature, BuyDirection, BuyWithCoinRouterTx, CompleteSetMintTx,
-    CpmmPoolTx, EventId, ShareAmount, TypedTx,
+    AgentSignature, BuyDirection, BuyWithCoinRouterTx, CompleteSetMintTx, CpmmPoolTx, EventId,
+    ShareAmount, TypedTx,
 };
 use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
@@ -90,8 +88,7 @@ fn fresh_harness(initial_q: QState) -> Harness {
     let tmp = TempDir::new().expect("tempdir");
     let cas = Arc::new(RwLock::new(CasStore::open(tmp.path()).expect("cas")));
     let keypair = Arc::new(Ed25519Keypair::generate_with_secure_entropy().expect("kp"));
-    let writer: Arc<RwLock<dyn LedgerWriter>> =
-        Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
+    let writer: Arc<RwLock<dyn LedgerWriter>> = Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
     let rejection_writer = Arc::new(RwLock::new(RejectionEvidenceWriter::default()));
     let preds = Arc::new(PredicateRegistry::new());
     let tools = Arc::new(ToolRegistry::new());
@@ -258,10 +255,7 @@ async fn sg_g2_5_a_insufficient_balance_lands_in_l4e() {
     let recs = router_rejection_records(&h);
     let matched: Vec<_> = recs
         .iter()
-        .filter(|(k, c)| {
-            *k == TxKind::BuyWithCoinRouter
-                && *c == RejectionClass::PolicyViolation
-        })
+        .filter(|(k, c)| *k == TxKind::BuyWithCoinRouter && *c == RejectionClass::PolicyViolation)
         .collect();
     assert_eq!(
         matched.len(),
@@ -325,9 +319,7 @@ async fn sg_g2_5_b_pool_not_active_lands_in_l4e() {
     let recs = router_rejection_records(&h);
     let matched: Vec<_> = recs
         .iter()
-        .filter(|(k, c)| {
-            *k == TxKind::BuyWithCoinRouter && *c == RejectionClass::PolicyViolation
-        })
+        .filter(|(k, c)| *k == TxKind::BuyWithCoinRouter && *c == RejectionClass::PolicyViolation)
         .collect();
     assert_eq!(
         matched.len(),
@@ -404,13 +396,11 @@ fn sg_g2_5_c_adapter_classifier_writes_no_trade_trace_to_cas() {
         no_trade_reason,
         err.public_summary(),
     );
-    write_market_decision_trace_to_cas(&mut cas, &trace, "g2-5-c", 1)
-        .expect("write trace to CAS");
+    write_market_decision_trace_to_cas(&mut cas, &trace, "g2-5-c", 1).expect("write trace to CAS");
     drop(cas);
 
     // Round-trip through the §F summary helper.
-    let summary =
-        MarketDecisionTraceSummary::compute_from_path(cas_dir.path()).expect("summary");
+    let summary = MarketDecisionTraceSummary::compute_from_path(cas_dir.path()).expect("summary");
     assert_eq!(summary.total_traces, 1);
     assert_eq!(
         summary
@@ -441,7 +431,15 @@ async fn sg_g2_5_d_failed_invest_both_l4e_and_cas_trace() {
 
     let submit_result = submit_and_apply(
         &mut h,
-        build_router(parent, "bob", "evt-4", BuyDirection::BuyYes, 5_000_000, 0, 1),
+        build_router(
+            parent,
+            "bob",
+            "evt-4",
+            BuyDirection::BuyYes,
+            5_000_000,
+            0,
+            1,
+        ),
     )
     .await;
     assert!(
@@ -452,8 +450,8 @@ async fn sg_g2_5_d_failed_invest_both_l4e_and_cas_trace() {
     // L4.E half: rejection record exists.
     let recs = router_rejection_records(&h);
     assert!(
-        recs.iter().any(|(k, c)| *k == TxKind::BuyWithCoinRouter
-            && *c == RejectionClass::PolicyViolation),
+        recs.iter()
+            .any(|(k, c)| *k == TxKind::BuyWithCoinRouter && *c == RejectionClass::PolicyViolation),
         "SG-G2.5.d: L4.E must carry the rejected BuyWithCoinRouter (coarse \
          PolicyViolation class; fine-grained TransitionError::RouterInsufficientCoinBalance \
          in raw_diagnostic_cid); got {:?}",
@@ -479,11 +477,12 @@ async fn sg_g2_5_d_failed_invest_both_l4e_and_cas_trace() {
     write_market_decision_trace_to_cas(&mut cas, &trace, "g2-5-d", 1).expect("write trace");
     drop(cas);
 
-    let summary =
-        MarketDecisionTraceSummary::compute_from_path(cas_dir.path()).expect("summary");
+    let summary = MarketDecisionTraceSummary::compute_from_path(cas_dir.path()).expect("summary");
     assert_eq!(summary.total_traces, 1);
     assert_eq!(
-        summary.no_trade_breakdown.get(&NoTradeReason::RouterRejected),
+        summary
+            .no_trade_breakdown
+            .get(&NoTradeReason::RouterRejected),
         Some(&1),
         "SG-G2.5.d: CAS trace must reflect RouterRejected count = 1"
     );

@@ -26,8 +26,8 @@
 //   pput_verified is the only North Star metric for H-VPPUT. pput_runtime
 //   is emitted only as the divergence signal.
 
-use crate::lean4_oracle::Lean4Oracle;
 use crate::jsonl_schema::RunAggregate;
+use crate::lean4_oracle::Lean4Oracle;
 
 /// Run the post-hoc Lean verification gate on a golden_path_payload.
 /// ALWAYS runs the real Lean call. There is NO Soft Law short-circuit
@@ -57,13 +57,21 @@ pub fn verify_post_hoc(oracle: &Lean4Oracle, golden_path_payload: &str) -> bool 
 /// - Phase C Soft Law: runtime can be true while verified is false. The
 ///   AND collapses to the verified leg, which is the North Star truth.
 pub fn compute_progress_verified(runtime_accepted: bool, post_hoc_verified: bool) -> u8 {
-    if runtime_accepted && post_hoc_verified { 1 } else { 0 }
+    if runtime_accepted && post_hoc_verified {
+        1
+    } else {
+        0
+    }
 }
 
 /// Compute Progress_runtime from the runtime accept signal alone.
 /// Inflates under Soft Law when fake-accept fires without Lean.
 pub fn compute_progress_runtime(runtime_accepted: bool) -> u8 {
-    if runtime_accepted { 1 } else { 0 }
+    if runtime_accepted {
+        1
+    } else {
+        0
+    }
 }
 
 /// Wrap RunAggregate::compute_pput_verified for callers in evaluator that
@@ -97,32 +105,43 @@ mod tests {
         // run's progress to 0.
         let runtime_accepted = true;
         let post_hoc_verified = false;
-        let c_i: u64 = 5_000;       // tokens
-        let t_i_ms: u64 = 30_000;   // 30 seconds wall
+        let c_i: u64 = 5_000; // tokens
+        let t_i_ms: u64 = 30_000; // 30 seconds wall
 
         let progress_runtime = compute_progress_runtime(runtime_accepted);
-        let progress_verified =
-            compute_progress_verified(runtime_accepted, post_hoc_verified);
+        let progress_verified = compute_progress_verified(runtime_accepted, post_hoc_verified);
 
         let pput_runtime = compute_pput(progress_runtime, c_i, t_i_ms);
         let pput_verified = compute_pput(progress_verified, c_i, t_i_ms);
         let pput_m_verified = compute_pput_m(progress_verified, c_i, t_i_ms);
 
-        assert_eq!(progress_runtime, 1u8,
-            "runtime gate fired → progress_runtime = 1");
-        assert_eq!(progress_verified, 0u8,
-            "Lean rejected → progress_verified MUST be 0 (North Star truth)");
-        assert!(pput_runtime > 0.0,
-            "pput_runtime inflates under runtime accept (Soft Law signal)");
-        assert_eq!(pput_verified, 0.0,
-            "pput_verified MUST be 0 when Lean rejects — North Star Goodhart shield");
-        assert_eq!(pput_m_verified, 0.0,
-            "pput_m_verified must collapse with pput_verified");
+        assert_eq!(
+            progress_runtime, 1u8,
+            "runtime gate fired → progress_runtime = 1"
+        );
+        assert_eq!(
+            progress_verified, 0u8,
+            "Lean rejected → progress_verified MUST be 0 (North Star truth)"
+        );
+        assert!(
+            pput_runtime > 0.0,
+            "pput_runtime inflates under runtime accept (Soft Law signal)"
+        );
+        assert_eq!(
+            pput_verified, 0.0,
+            "pput_verified MUST be 0 when Lean rejects — North Star Goodhart shield"
+        );
+        assert_eq!(
+            pput_m_verified, 0.0,
+            "pput_m_verified must collapse with pput_verified"
+        );
 
         // Sanity: divergence is detectable. pput_runtime - pput_verified > 0
         // is the H1 signal Phase C scans for.
-        assert!(pput_runtime - pput_verified > 0.0,
-            "(pput_runtime - pput_verified) > 0 ⟺ Soft Law divergence detected");
+        assert!(
+            pput_runtime - pput_verified > 0.0,
+            "(pput_runtime - pput_verified) > 0 ⟺ Soft Law divergence detected"
+        );
     }
 
     #[test]
@@ -137,12 +156,15 @@ mod tests {
         let progress_runtime = compute_progress_runtime(true);
         let progress_verified = compute_progress_verified(true, true);
 
-        assert_eq!(progress_runtime, progress_verified,
-            "Phase B: runtime == verified on solved runs");
+        assert_eq!(
+            progress_runtime, progress_verified,
+            "Phase B: runtime == verified on solved runs"
+        );
         assert_eq!(
             compute_pput(progress_runtime, c_i, t_i_ms),
             compute_pput(progress_verified, c_i, t_i_ms),
-            "pput fields must agree when runtime == verified");
+            "pput fields must agree when runtime == verified"
+        );
     }
 
     #[test]
@@ -164,7 +186,10 @@ mod tests {
         // fired is a wiring bug, not an honest progress signal. Progress
         // is gated on BOTH runtime initiation AND verified result, so this
         // pathological case must clamp to 0.
-        assert_eq!(compute_progress_verified(false, true), 0u8,
-            "verified without runtime accept = wiring bug, must clamp to 0");
+        assert_eq!(
+            compute_progress_verified(false, true),
+            0u8,
+            "verified without runtime accept = wiring bug, must clamp to 0"
+        );
     }
 }

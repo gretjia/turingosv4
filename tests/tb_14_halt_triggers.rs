@@ -83,7 +83,7 @@ fn price_does_not_change_l4_decision() {
     // Scan ONLY the `use` statements in sequencer.rs for any TB-14 import.
     // Constructed at runtime via byte literals to avoid self-reference.
     let import_tokens: Vec<String> = vec![
-        format!("price{}", "_index"),                  // module path
+        format!("price{}", "_index"), // module path
         format!("compute_price{}", "_index"),
         format!("compute_mask{}", "_set"),
         format!("NodeMarket{}", "Entry"),
@@ -177,12 +177,30 @@ fn parent_not_deleted_from_chaintape() {
 
     let mut econ = EconomicState::default();
     for p in [
-        position("p1", "parent", "ag_pl", PositionSide::Long,
-                 PositionKind::FirstLong, 500_000),
-        position("p2", "parent", "ag_ps", PositionSide::Short,
-                 PositionKind::ChallengeShort, 500_000),
-        position("p3", "child", "ag_cl", PositionSide::Long,
-                 PositionKind::FirstLong, 2_000_000),
+        position(
+            "p1",
+            "parent",
+            "ag_pl",
+            PositionSide::Long,
+            PositionKind::FirstLong,
+            500_000,
+        ),
+        position(
+            "p2",
+            "parent",
+            "ag_ps",
+            PositionSide::Short,
+            PositionKind::ChallengeShort,
+            500_000,
+        ),
+        position(
+            "p3",
+            "child",
+            "ag_cl",
+            PositionSide::Long,
+            PositionKind::FirstLong,
+            2_000_000,
+        ),
     ] {
         econ.node_positions_t.0.insert(p.position_id.clone(), p);
     }
@@ -206,7 +224,8 @@ fn parent_not_deleted_from_chaintape() {
         "halt-trigger #3: canonical edges MUST still contain masked parent (CR-14.3)"
     );
     assert!(
-        edges.get(&TxId("parent".into()))
+        edges
+            .get(&TxId("parent".into()))
             .map(|s| s.contains(&TxId("child".into())))
             .unwrap_or(false),
         "halt-trigger #3: parent → child canonical edge MUST be preserved across mask"
@@ -243,10 +262,7 @@ fn no_f64_in_tb_14_modules() {
     // The forbidden tokens are constructed at runtime from byte literals
     // joined into a String, so this test's source code does not contain
     // the literal substrings being scanned for.
-    let forbidden: Vec<String> = vec![
-        format!("{}{}", "f", "64"),
-        format!("{}{}", "f", "32"),
-    ];
+    let forbidden: Vec<String> = vec![format!("{}{}", "f", "64"), format!("{}{}", "f", "32")];
 
     let manifest = env!("CARGO_MANIFEST_DIR");
     let price_index_path = format!("{}/src/state/price_index.rs", manifest);
@@ -276,9 +292,9 @@ fn no_f64_in_tb_14_modules() {
 fn zero_liquidity_returns_none() {
     // TB-14 Atom 2: FR-14.3 — empty / zero-stake node yields None price.
     use turingosv4::economy::money::MicroCoin;
-    use turingosv4::state::{compute_price_index, EconomicState, TaskId, TxId};
     use turingosv4::state::q_state::AgentId;
     use turingosv4::state::typed_tx::{NodePosition, PositionKind, PositionSide};
+    use turingosv4::state::{compute_price_index, EconomicState, TaskId, TxId};
 
     // Case A: completely empty state → empty index (no entries at all).
     let econ_a = EconomicState::default();
@@ -378,12 +394,30 @@ fn unresolved_challenge_blocks_masking() {
 
     let mut econ = EconomicState::default();
     for p in [
-        position("p1", "parent", "ag_pl", PositionSide::Long,
-                 PositionKind::FirstLong, 500_000),
-        position("p2", "parent", "ag_ps", PositionSide::Short,
-                 PositionKind::ChallengeShort, 500_000),
-        position("p3", "child", "ag_cl", PositionSide::Long,
-                 PositionKind::FirstLong, 2_000_000),
+        position(
+            "p1",
+            "parent",
+            "ag_pl",
+            PositionSide::Long,
+            PositionKind::FirstLong,
+            500_000,
+        ),
+        position(
+            "p2",
+            "parent",
+            "ag_ps",
+            PositionSide::Short,
+            PositionKind::ChallengeShort,
+            500_000,
+        ),
+        position(
+            "p3",
+            "child",
+            "ag_cl",
+            PositionSide::Long,
+            PositionKind::FirstLong,
+            2_000_000,
+        ),
     ] {
         econ.node_positions_t.0.insert(p.position_id.clone(), p);
     }

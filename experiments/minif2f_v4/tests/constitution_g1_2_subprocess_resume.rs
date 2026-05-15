@@ -129,7 +129,10 @@ async fn subprocess_task_0_creates_fresh_genesis() {
     // Bootstrap once with resume=false to simulate the subprocess.
     let (head_after_task_0, len_after_task_0) =
         run_task_in_process(&spec.runtime_repo, &spec.cas_path, "t0", false).await;
-    assert!(!head_after_task_0.is_empty(), "task_0 must produce a non-empty head");
+    assert!(
+        !head_after_task_0.is_empty(),
+        "task_0 must produce a non-empty head"
+    );
     assert!(len_after_task_0 >= 1, "task_0 must advance the chain");
 }
 
@@ -180,7 +183,8 @@ async fn subprocess_task_1_resumes_existing_chain_no_new_genesis() {
     }
     let env = build_subprocess_env(&spec, 1, &boundary);
     assert!(
-        env.iter().any(|(k, v)| k == "TURINGOS_CHAINTAPE_RESUME" && v == "1"),
+        env.iter()
+            .any(|(k, v)| k == "TURINGOS_CHAINTAPE_RESUME" && v == "1"),
         "SG-G1.2-3.2: task_1 env must carry TURINGOS_CHAINTAPE_RESUME=1"
     );
     drop(boundary); // release lease before next run
@@ -231,8 +235,7 @@ async fn task_k_plus_1_start_head_eq_task_k_end_head() {
     write_stub_artifacts(&spec.runtime_repo);
 
     // task_1
-    let boundary_1 = prepare_task_boundary(&spec, 1, outcomes.last())
-        .expect("task_1 boundary");
+    let boundary_1 = prepare_task_boundary(&spec, 1, outcomes.last()).expect("task_1 boundary");
     let (start_head_1, start_len_1) = match &boundary_1 {
         BoundaryPrep::Resume {
             start_head_t_hex,
@@ -258,8 +261,7 @@ async fn task_k_plus_1_start_head_eq_task_k_end_head() {
     });
 
     // task_2
-    let boundary_2 = prepare_task_boundary(&spec, 2, outcomes.last())
-        .expect("task_2 boundary");
+    let boundary_2 = prepare_task_boundary(&spec, 2, outcomes.last()).expect("task_2 boundary");
     let (start_head_2, start_len_2) = match &boundary_2 {
         BoundaryPrep::Resume {
             start_head_t_hex,
@@ -363,11 +365,13 @@ async fn batch_evaluator_halts_and_records_on_mid_batch_fail() {
     // `exit_code` instead of a separate `terminal_marker.kind` — a
     // non-zero exit_code IS the SubprocessCrashed signal.
     assert_eq!(
-        last_task["exit_code"], serde_json::json!(137),
+        last_task["exit_code"],
+        serde_json::json!(137),
         "SG-G1.2-3.4: last task exit_code must signal SubprocessCrashed (non-zero)"
     );
     assert_eq!(
-        manifest_json["schema_version"], serde_json::json!("g1_2_v1"),
+        manifest_json["schema_version"],
+        serde_json::json!("g1_2_v1"),
         "SG-G1.2-3.4: manifest schema_version must be canonical g1_2_v1 (G1.2-4)"
     );
 }

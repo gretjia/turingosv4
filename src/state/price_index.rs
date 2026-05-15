@@ -188,7 +188,11 @@ pub fn compute_price_index(econ: &EconomicState) -> BTreeMap<TxId, NodeMarketEnt
 
         let to_micro = |u: u128| -> MicroCoin {
             // Saturating cast u128 → i64 (positive values only; cap at i64::MAX).
-            let capped = if u > i64::MAX as u128 { i64::MAX } else { u as i64 };
+            let capped = if u > i64::MAX as u128 {
+                i64::MAX
+            } else {
+                u as i64
+            };
             MicroCoin::from_micro_units(capped)
         };
 
@@ -370,10 +374,7 @@ impl BoltzmannMaskPolicy {
             default.min_liquidity
         };
 
-        let pm_num = parse_u128(
-            "BOLTZMANN_PRICE_MARGIN_NUM",
-            default.price_margin.numerator,
-        );
+        let pm_num = parse_u128("BOLTZMANN_PRICE_MARGIN_NUM", default.price_margin.numerator);
         let pm_den = parse_u128(
             "BOLTZMANN_PRICE_MARGIN_DEN",
             default.price_margin.denominator,
@@ -387,14 +388,8 @@ impl BoltzmannMaskPolicy {
             default.price_margin
         };
 
-        let eps_num = parse_u64(
-            "BOLTZMANN_EPSILON_NUM",
-            default.epsilon_exploration_num,
-        );
-        let eps_den = parse_u64(
-            "BOLTZMANN_EPSILON_DEN",
-            default.epsilon_exploration_den,
-        );
+        let eps_num = parse_u64("BOLTZMANN_EPSILON_NUM", default.epsilon_exploration_num);
+        let eps_den = parse_u64("BOLTZMANN_EPSILON_DEN", default.epsilon_exploration_den);
         // epsilon ∈ [0, 1] interpreted as eps_num / eps_den ∈ [0, 1].
         // den must be > 0; num must be ≤ den (epsilon ≤ 1; epsilon = 0 is
         // the "no exploration" boundary and is accepted).
@@ -505,9 +500,7 @@ pub fn compute_mask_set(
             };
 
             // CR-14.4 / SG-14.8: low-liquidity children cannot mask parent.
-            if child_entry.liquidity_depth.micro_units()
-                < policy.min_liquidity.micro_units()
-            {
+            if child_entry.liquidity_depth.micro_units() < policy.min_liquidity.micro_units() {
                 continue;
             }
 

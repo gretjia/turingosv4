@@ -38,8 +38,7 @@ use std::path::PathBuf;
 
 use turingosv4::state::typed_tx::{ExhaustionReason, RunOutcome};
 
-const EVALUATOR_SRC: &str =
-    "experiments/minif2f_v4/src/bin/evaluator.rs";
+const EVALUATOR_SRC: &str = "experiments/minif2f_v4/src/bin/evaluator.rs";
 
 /// SG-18.3 structural guard #1 — `RunOutcome::MaxTxExhausted` literal MUST
 /// NOT appear anywhere in `evaluator.rs`. The OBS_R023 refactor replaced
@@ -48,8 +47,7 @@ const EVALUATOR_SRC: &str =
 #[test]
 fn tb_18_e_no_run_outcome_max_tx_literal_in_evaluator() {
     let path = workspace_relative(EVALUATOR_SRC);
-    let src = fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+    let src = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
 
     // Scan every line; any occurrence of `RunOutcome::MaxTxExhausted` as a
     // literal value (not in a doc-comment that was deliberately worded
@@ -87,8 +85,7 @@ fn tb_18_e_no_run_outcome_max_tx_literal_in_evaluator() {
 #[test]
 fn tb_18_e_exhaustion_reason_max_tx_literal_appears_once() {
     let path = workspace_relative(EVALUATOR_SRC);
-    let src = fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+    let src = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
 
     let occurrences: Vec<(usize, &str)> = src
         .lines()

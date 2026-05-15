@@ -31,9 +31,7 @@ fn main() -> ExitCode {
     let bytes = match std::fs::read(&contract_path) {
         Ok(b) => b,
         Err(e) => {
-            eprintln!(
-                "resume_preflight: failed to read contract at {contract_path:?}: {e}"
-            );
+            eprintln!("resume_preflight: failed to read contract at {contract_path:?}: {e}");
             return ExitCode::from(2);
         }
     };

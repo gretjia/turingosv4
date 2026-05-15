@@ -1,0 +1,9 @@
+
+running 4 tests
+test fc1_n41_attempt_telemetry_round_trip_via_cas ... ok
+test fc1_n41_idempotent_cid_for_byte_identical_attempts ... ok
+test fc1_n41_shared_attempt_slot_classifies_market_trace_json_and_unknown_json ... ok
+test fc1_n41_attempt_telemetry_failure_path_outcomes_round_trip ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+

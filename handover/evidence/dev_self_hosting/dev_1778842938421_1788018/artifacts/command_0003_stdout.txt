@@ -1,0 +1,18 @@
+
+running 6 tests
+test real8_runner_keeps_negative_results_and_forbids_causal_overclaim ... ok
+test real8_runner_pins_same_problem_model_and_budget_inputs ... ok
+test real8_runner_preserves_architect_ab_arms ... ok
+test real8_runner_preserves_forbidden_ship_claims ... ok
+test real8_runner_reports_required_metrics ... ok
+test real8_task_outcome_arm_refreshes_verify_parent_after_auto_market ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 2 tests
+test real9_market_developer_manual_preserves_lawful_market_boundary ... ok
+test real9_whitepaper_update_preserves_required_architect_claims ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

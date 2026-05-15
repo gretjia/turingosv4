@@ -25,17 +25,13 @@ use turingosv4::bottom_white::ledger::rejection_evidence::RejectionEvidenceWrite
 use turingosv4::bottom_white::ledger::system_keypair::{
     Ed25519Keypair, PinnedSystemPubkeys, SystemEpoch,
 };
-use turingosv4::bottom_white::ledger::transition_ledger::{
-    InMemoryLedgerWriter, LedgerWriter,
-};
+use turingosv4::bottom_white::ledger::transition_ledger::{InMemoryLedgerWriter, LedgerWriter};
 use turingosv4::bottom_white::tools::registry::ToolRegistry;
 use turingosv4::economy::money::MicroCoin;
 use turingosv4::state::q_state::{
     AgentId, Hash, QState, RunSummaryEntry, TaskId, TaskMarketState, TxId,
 };
-use turingosv4::state::sequencer::{
-    Sequencer, SubmissionEnvelope, SystemEmitCommand,
-};
+use turingosv4::state::sequencer::{Sequencer, SubmissionEnvelope, SystemEmitCommand};
 use turingosv4::state::typed_tx::{
     AgentSignature, BankruptcyReason, EscrowLockTx, ExpireReason, RejectionClass, RunId,
     RunOutcome, TaskOpenTx, TypedTx,
@@ -55,8 +51,7 @@ fn fresh_harness(initial_q: QState) -> Harness {
     let tmp = TempDir::new().expect("tempdir");
     let cas = Arc::new(RwLock::new(CasStore::open(tmp.path()).expect("cas")));
     let keypair = Arc::new(Ed25519Keypair::generate_with_secure_entropy().expect("keypair"));
-    let writer: Arc<RwLock<dyn LedgerWriter>> =
-        Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
+    let writer: Arc<RwLock<dyn LedgerWriter>> = Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
     let rejection_writer = Arc::new(RwLock::new(RejectionEvidenceWriter::default()));
     let preds = Arc::new(PredicateRegistry::new());
     let tools = Arc::new(ToolRegistry::new());
@@ -76,7 +71,12 @@ fn fresh_harness(initial_q: QState) -> Harness {
         initial_q,
         16,
     );
-    Harness { _tmp: tmp, seq, rx, _ledger: writer }
+    Harness {
+        _tmp: tmp,
+        seq,
+        rx,
+        _ledger: writer,
+    }
 }
 
 fn genesis_with_sponsor(sponsor: &str, balance_coins: i64) -> QState {
@@ -102,7 +102,11 @@ async fn open_and_fund(h: &mut Harness, sponsor: &str, task: &str, amount_micro:
         timestamp_logical: 1,
     });
     h.seq.submit_agent_tx(open_tx).await.expect("submit open");
-    let _ = h.seq.try_apply_one(&mut h.rx).expect("env open").expect("ok open");
+    let _ = h
+        .seq
+        .try_apply_one(&mut h.rx)
+        .expect("env open")
+        .expect("ok open");
 
     let parent_root2 = h.seq.q_snapshot().expect("q").state_root_t;
     let lock_tx = TypedTx::EscrowLock(EscrowLockTx {
@@ -115,7 +119,11 @@ async fn open_and_fund(h: &mut Harness, sponsor: &str, task: &str, amount_micro:
         timestamp_logical: 2,
     });
     h.seq.submit_agent_tx(lock_tx).await.expect("submit lock");
-    let _ = h.seq.try_apply_one(&mut h.rx).expect("env lock").expect("ok lock");
+    let _ = h
+        .seq
+        .try_apply_one(&mut h.rx)
+        .expect("env lock")
+        .expect("ok lock");
 }
 
 // ── I-TB11-1 — TerminalSummary anchors RunsIndex ────────────────────────────
@@ -142,7 +150,11 @@ async fn terminal_summary_emit_then_apply_writes_runs_index() {
         })
         .await
         .expect("emit terminal-summary");
-    let _ = h.seq.try_apply_one(&mut h.rx).expect("env ts").expect("ok ts");
+    let _ = h
+        .seq
+        .try_apply_one(&mut h.rx)
+        .expect("env ts")
+        .expect("ok ts");
 
     let q_after = h.seq.q_snapshot().expect("q snapshot");
     let runs = &q_after.economic_state_t.runs_t.0;
@@ -163,7 +175,10 @@ async fn terminal_summary_emit_then_apply_writes_runs_index() {
         .get(&AgentId("sponsor-A".into()))
         .copied()
         .unwrap();
-    assert_eq!(bal.micro_units(), MicroCoin::from_coin(10).unwrap().micro_units() - 500_000);
+    assert_eq!(
+        bal.micro_units(),
+        MicroCoin::from_coin(10).unwrap().micro_units() - 500_000
+    );
 
     let escrow = q_after
         .economic_state_t
@@ -206,7 +221,11 @@ async fn task_expire_refunds_escrow_to_sponsor() {
         })
         .await
         .expect("emit task-expire");
-    let _ = h.seq.try_apply_one(&mut h.rx).expect("env expire").expect("ok expire");
+    let _ = h
+        .seq
+        .try_apply_one(&mut h.rx)
+        .expect("env expire")
+        .expect("ok expire");
 
     let q_after = h.seq.q_snapshot().unwrap();
     // Sponsor balance fully restored (10 Coin).
@@ -311,7 +330,11 @@ async fn tb11_emit_terminal_summary_for_run_helper_writes_runs_index() {
     )
     .await
     .expect("helper emits");
-    let _ = h.seq.try_apply_one(&mut h.rx).expect("env ts").expect("apply ts");
+    let _ = h
+        .seq
+        .try_apply_one(&mut h.rx)
+        .expect("env ts")
+        .expect("apply ts");
 
     let q_after = h.seq.q_snapshot().unwrap();
     let entry = q_after
@@ -342,7 +365,11 @@ async fn task_bankruptcy_flips_state() {
         })
         .await
         .expect("emit task-bankruptcy");
-    let _ = h.seq.try_apply_one(&mut h.rx).expect("env bk").expect("ok bk");
+    let _ = h
+        .seq
+        .try_apply_one(&mut h.rx)
+        .expect("env bk")
+        .expect("ok bk");
 
     let q_after = h.seq.q_snapshot().unwrap();
     let tm = q_after

@@ -19,9 +19,7 @@ use turingosv4::runtime::adapter::{
     genesis_with_balances, make_synthetic_task_open, make_synthetic_worktx,
 };
 use turingosv4::runtime::run_summary::RunSummary;
-use turingosv4::runtime::{
-    build_chaintape_sequencer_with_initial_q, RuntimeChaintapeConfig,
-};
+use turingosv4::runtime::{build_chaintape_sequencer_with_initial_q, RuntimeChaintapeConfig};
 use turingosv4::state::q_state::{AgentId, Hash, TxId};
 
 fn fresh_config(tmp: &TempDir, run_id: &str) -> RuntimeChaintapeConfig {
@@ -74,8 +72,8 @@ async fn i92_end_to_end_run_summary_aggregates_l4_and_l4e() {
         &cfg.runtime_repo_path,
         &cfg.cas_path,
         "i92",
-        7,  // failed_branch_count caller-supplied
-        2,  // rollback_count caller-supplied
+        7, // failed_branch_count caller-supplied
+        2, // rollback_count caller-supplied
     )
     .expect("build summary");
 
@@ -119,14 +117,8 @@ async fn i92b_empty_chain_produces_zero_run_summary() {
     let bundle = build_chaintape_sequencer(&cfg).expect("bootstrap");
     bundle.shutdown().await.expect("shutdown");
 
-    let summary = RunSummary::from_chaintape(
-        &cfg.runtime_repo_path,
-        &cfg.cas_path,
-        "i92b",
-        0,
-        0,
-    )
-    .expect("build summary");
+    let summary = RunSummary::from_chaintape(&cfg.runtime_repo_path, &cfg.cas_path, "i92b", 0, 0)
+        .expect("build summary");
 
     assert_eq!(summary.l4_entries, 0);
     assert_eq!(summary.l4e_entries, 0);

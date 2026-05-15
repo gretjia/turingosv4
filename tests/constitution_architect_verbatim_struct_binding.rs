@@ -248,10 +248,7 @@ fn read_file(rel: &str) -> Option<String> {
 /// reads forward until the matching `}` (brace depth tracking handles
 /// nested types like `Option<Vec<T>>`). For each `pub <name>: <type>,`
 /// line, captures the first identifier of the type expression.
-fn extract_struct_field_pairs(
-    source: &str,
-    struct_name: &str,
-) -> Option<Vec<(String, String)>> {
+fn extract_struct_field_pairs(source: &str, struct_name: &str) -> Option<Vec<(String, String)>> {
     let needle = format!("pub struct {}", struct_name);
     let mut found = false;
     let mut depth: i32 = 0;
@@ -282,11 +279,7 @@ fn extract_struct_field_pairs(
         if let Some(rest) = trimmed.strip_prefix("pub ") {
             if let Some(colon_idx) = rest.find(':') {
                 let name = rest[..colon_idx].trim();
-                if name
-                    .chars()
-                    .all(|c| c.is_alphanumeric() || c == '_')
-                    && !name.is_empty()
-                {
+                if name.chars().all(|c| c.is_alphanumeric() || c == '_') && !name.is_empty() {
                     let type_part = rest[colon_idx + 1..].trim();
                     // Phase F.3 P-M4 parser hardening: handle path-qualified
                     // types like `crate::state::typed_tx::EventId`. Take the
@@ -307,11 +300,7 @@ fn extract_struct_field_pairs(
                         .chars()
                         .take_while(|c| c.is_alphanumeric() || *c == '_' || *c == ':')
                         .collect();
-                    let type_token: String = head
-                        .rsplit("::")
-                        .next()
-                        .unwrap_or("")
-                        .to_string();
+                    let type_token: String = head.rsplit("::").next().unwrap_or("").to_string();
                     if !type_token.is_empty() {
                         pairs.push((name.to_string(), type_token));
                     }
@@ -377,8 +366,7 @@ fn architect_verbatim_struct_field_bindings() {
                     .iter()
                     .map(|(n, t)| (n.to_string(), t.to_string()))
                     .collect();
-                let actual_set: BTreeSet<(String, String)> =
-                    actual_pairs.iter().cloned().collect();
+                let actual_set: BTreeSet<(String, String)> = actual_pairs.iter().cloned().collect();
                 if expected_set != actual_set {
                     let extra: Vec<(String, String)> =
                         actual_set.difference(&expected_set).cloned().collect();
@@ -411,8 +399,8 @@ fn architect_verbatim_struct_field_bindings() {
 fn binding_self_check_extracts_known_fields() {
     // Sanity: the parser correctly extracts fields from a known-good Landed
     // struct in the actual codebase.
-    let source = read_file("src/state/typed_tx.rs")
-        .expect("typed_tx.rs must be readable for self-check");
+    let source =
+        read_file("src/state/typed_tx.rs").expect("typed_tx.rs must be readable for self-check");
     let fields = extract_struct_fields(&source, "CompleteSetMintTx")
         .expect("CompleteSetMintTx must be present in typed_tx.rs (Landed)");
     assert!(
@@ -446,9 +434,8 @@ pub struct CompleteSetMergeTx_Synthetic {
     pub signature: AgentSignature,
 }
 "#;
-    let actual =
-        extract_struct_fields(synthetic, "CompleteSetMergeTx_Synthetic")
-            .expect("synthetic struct must parse");
+    let actual = extract_struct_fields(synthetic, "CompleteSetMergeTx_Synthetic")
+        .expect("synthetic struct must parse");
     let expected: BTreeSet<String> = [
         "tx_id",
         "parent_state_root",
@@ -509,10 +496,11 @@ pub struct CpmmPool_Synthetic {
          `event_id` → `event_id_kind` AND the type rename `EventId` → \
          `PoolEventKind` in synthetic CpmmPool_Synthetic vs architect §7.5 spec",
     );
-    let extra: Vec<(String, String)> =
-        actual_set.difference(&expected_set).cloned().collect();
+    let extra: Vec<(String, String)> = actual_set.difference(&expected_set).cloned().collect();
     assert!(
-        extra.iter().any(|(n, t)| n == "event_id_kind" && t == "PoolEventKind"),
+        extra
+            .iter()
+            .any(|(n, t)| n == "event_id_kind" && t == "PoolEventKind"),
         "self-check (E' hardening): expected to find `(event_id_kind, PoolEventKind)` \
          in the diff's `extra` set; got extras={:?}",
         extra,
@@ -536,8 +524,7 @@ pub struct CpmmPool_TypeOnlyDrift {
 "#;
     let actual_pairs = extract_struct_field_pairs(synthetic, "CpmmPool_TypeOnlyDrift")
         .expect("synthetic struct must parse");
-    let actual_names: BTreeSet<String> =
-        actual_pairs.iter().map(|(n, _)| n.clone()).collect();
+    let actual_names: BTreeSet<String> = actual_pairs.iter().map(|(n, _)| n.clone()).collect();
     let expected_names: BTreeSet<String> = [
         "event_id",
         "pool_yes",
@@ -554,8 +541,7 @@ pub struct CpmmPool_TypeOnlyDrift {
          drift; expected names ARE preserved in TypeOnlyDrift fixture",
     );
     use std::collections::BTreeSet;
-    let actual_set: BTreeSet<(String, String)> =
-        actual_pairs.iter().cloned().collect();
+    let actual_set: BTreeSet<(String, String)> = actual_pairs.iter().cloned().collect();
     let expected_set: BTreeSet<(String, String)> = [
         ("event_id", "EventId"),
         ("pool_yes", "ShareAmount"),
@@ -571,10 +557,11 @@ pub struct CpmmPool_TypeOnlyDrift {
         "self-check (E' hardening): (name, type) pair check MUST detect the \
          type-only drift `event_id: EventId` → `event_id: PoolEventKind`",
     );
-    let extra: Vec<(String, String)> =
-        actual_set.difference(&expected_set).cloned().collect();
+    let extra: Vec<(String, String)> = actual_set.difference(&expected_set).cloned().collect();
     assert!(
-        extra.iter().any(|(n, t)| n == "event_id" && t == "PoolEventKind"),
+        extra
+            .iter()
+            .any(|(n, t)| n == "event_id" && t == "PoolEventKind"),
         "self-check (E' hardening): expected `(event_id, PoolEventKind)` in diff \
          extras; got extras={:?}",
         extra,

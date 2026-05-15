@@ -25,9 +25,7 @@ use turingosv4::bottom_white::ledger::rejection_evidence::RejectionClass;
 use turingosv4::runtime::attempt_telemetry::{
     write_attempt_telemetry_to_cas, AttemptKind, AttemptOutcome, AttemptTelemetry,
 };
-use turingosv4::runtime::proposal_telemetry::{
-    self, ProposalTelemetry, TokenCounts,
-};
+use turingosv4::runtime::proposal_telemetry::{self, ProposalTelemetry, TokenCounts};
 use turingosv4::state::q_state::{AgentId, Hash, TxId};
 use turingosv4::state::sequencer::refine_rejection_class_via_attempt_telemetry;
 use turingosv4::state::typed_tx::{TypedTx, WorkTx};
@@ -42,11 +40,7 @@ fn ctx_hash(domain: &[u8]) -> Hash {
     Hash(Cid::from_content(domain).0)
 }
 
-fn write_failure_attempt(
-    cas: &Arc<RwLock<CasStore>>,
-    outcome: AttemptOutcome,
-    tag: &str,
-) -> Cid {
+fn write_failure_attempt(cas: &Arc<RwLock<CasStore>>, outcome: AttemptOutcome, tag: &str) -> Cid {
     let attempt = AttemptTelemetry::new_root(
         TxId(format!("att-{tag}")),
         "test-run".into(),
@@ -105,11 +99,8 @@ fn lean_fail_attempt_refines_to_lean_failed_rejection_class() {
     let (_dir, cas) = fresh_cas();
     let attempt_cid = write_failure_attempt(&cas, AttemptOutcome::LeanFail, "leanfail");
     let tx = fixture_work_tx(attempt_cid);
-    let refined = refine_rejection_class_via_attempt_telemetry(
-        &cas,
-        &tx,
-        RejectionClass::PredicateFailed,
-    );
+    let refined =
+        refine_rejection_class_via_attempt_telemetry(&cas, &tx, RejectionClass::PredicateFailed);
     assert_eq!(refined, RejectionClass::LeanFailed);
 }
 
@@ -118,11 +109,8 @@ fn parse_fail_attempt_refines_to_parse_failed_rejection_class() {
     let (_dir, cas) = fresh_cas();
     let attempt_cid = write_failure_attempt(&cas, AttemptOutcome::ParseFail, "parsefail");
     let tx = fixture_work_tx(attempt_cid);
-    let refined = refine_rejection_class_via_attempt_telemetry(
-        &cas,
-        &tx,
-        RejectionClass::PredicateFailed,
-    );
+    let refined =
+        refine_rejection_class_via_attempt_telemetry(&cas, &tx, RejectionClass::PredicateFailed);
     assert_eq!(refined, RejectionClass::ParseFailed);
 }
 
@@ -147,15 +135,11 @@ fn legacy_proposal_telemetry_proposal_cid_falls_back_to_predicate_failed() {
             0,
         )
         .expect("build pt");
-        proposal_telemetry::write_to_cas(&mut *cas_w, &pt, "legacy-test", 0)
-            .expect("write pt")
+        proposal_telemetry::write_to_cas(&mut *cas_w, &pt, "legacy-test", 0).expect("write pt")
     };
     let tx = fixture_work_tx(pt);
-    let refined = refine_rejection_class_via_attempt_telemetry(
-        &cas,
-        &tx,
-        RejectionClass::PredicateFailed,
-    );
+    let refined =
+        refine_rejection_class_via_attempt_telemetry(&cas, &tx, RejectionClass::PredicateFailed);
     assert_eq!(
         refined,
         RejectionClass::PredicateFailed,
@@ -193,10 +177,7 @@ fn aborted_outcome_falls_back_to_base_class() {
     let (_dir, cas) = fresh_cas();
     let attempt_cid = write_failure_attempt(&cas, AttemptOutcome::Aborted, "aborted");
     let tx = fixture_work_tx(attempt_cid);
-    let refined = refine_rejection_class_via_attempt_telemetry(
-        &cas,
-        &tx,
-        RejectionClass::PredicateFailed,
-    );
+    let refined =
+        refine_rejection_class_via_attempt_telemetry(&cas, &tx, RejectionClass::PredicateFailed);
     assert_eq!(refined, RejectionClass::PredicateFailed);
 }

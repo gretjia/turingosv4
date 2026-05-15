@@ -55,7 +55,8 @@ fn attempt_telemetry_and_lean_result_listable_by_object_type() {
         TokenCounts::default(),
         "nlinarith".into(),
     );
-    let _att_cid = write_attempt_telemetry_to_cas(&mut cas, &attempt, "test", 1).expect("write att");
+    let _att_cid =
+        write_attempt_telemetry_to_cas(&mut cas, &attempt, "test", 1).expect("write att");
 
     // Write a LeanResult.
     let lean_result = LeanResult {
@@ -88,7 +89,13 @@ fn sampler_only_checks_retrievability_not_content() {
 
     // Write candidate payload + AttemptTelemetry.
     let candidate_cid = cas
-        .put(b"parsed candidate", ObjectType::ProposalPayload, "test", 0, None)
+        .put(
+            b"parsed candidate",
+            ObjectType::ProposalPayload,
+            "test",
+            0,
+            None,
+        )
         .expect("write");
     let attempt = AttemptTelemetry::new_root(
         TxId("att-priv".into()),
@@ -110,8 +117,9 @@ fn sampler_only_checks_retrievability_not_content() {
     // exposed by the assertion API).
     let cids = cas.list_cids_by_object_type(ObjectType::AttemptTelemetry);
     for cid in cids {
-        let att = turingosv4::runtime::attempt_telemetry::read_attempt_telemetry_from_cas(&cas, &cid)
-            .expect("read att");
+        let att =
+            turingosv4::runtime::attempt_telemetry::read_attempt_telemetry_from_cas(&cas, &cid)
+                .expect("read att");
         assert!(
             cas.get(&att.candidate_payload_cid).is_ok(),
             "candidate_payload_cid resolves"

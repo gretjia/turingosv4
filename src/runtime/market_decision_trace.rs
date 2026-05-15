@@ -247,7 +247,10 @@ impl MarketDecisionTrace {
             amount_micro,
             quoted_price_yes: None,
             quoted_price_no: None,
-            outcome: TraceOutcome::NoTrade { reason, tx_id: None },
+            outcome: TraceOutcome::NoTrade {
+                reason,
+                tx_id: None,
+            },
             reason_summary_public: summary,
         }
     }
@@ -349,8 +352,8 @@ pub fn write_market_decision_trace_to_cas(
     logical_t: u64,
 ) -> Result<crate::bottom_white::cas::schema::Cid, String> {
     use crate::bottom_white::cas::schema::ObjectType;
-    let bytes = serde_json::to_vec(trace)
-        .map_err(|e| format!("MarketDecisionTrace serialize: {e}"))?;
+    let bytes =
+        serde_json::to_vec(trace).map_err(|e| format!("MarketDecisionTrace serialize: {e}"))?;
     cas_store
         .put(
             &bytes,
@@ -394,8 +397,7 @@ mod tests {
     #[test]
     fn all_contains_each_variant_with_unique_label() {
         use std::collections::BTreeSet;
-        let labels: BTreeSet<&'static str> =
-            NoTradeReason::ALL.iter().map(|r| r.label()).collect();
+        let labels: BTreeSet<&'static str> = NoTradeReason::ALL.iter().map(|r| r.label()).collect();
         assert_eq!(
             labels.len(),
             NoTradeReason::ALL.len(),
@@ -521,7 +523,10 @@ mod tests {
     /// "tb_n3.market_decision_trace.v1" — guards forward parser drift.
     #[test]
     fn schema_version_sentinel_pinned() {
-        assert_eq!(MarketDecisionTrace::SCHEMA_VERSION, "tb_n3.market_decision_trace.v1");
+        assert_eq!(
+            MarketDecisionTrace::SCHEMA_VERSION,
+            "tb_n3.market_decision_trace.v1"
+        );
         let trace = MarketDecisionTrace::no_trade(
             AgentId("a".into()),
             None,

@@ -1,0 +1,24 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778844155332_1826511",
+  "title": "REAL-5S REAL-9 handover closeout docs",
+  "module": "REAL route dynamic handover docs",
+  "molecule_or_atom": "molecule",
+  "requested_risk_class": 0,
+  "risk_class": 0,
+  "fc_nodes": [
+    "FC3 handover/materialized state; docs-only"
+  ],
+  "allowed_paths": [
+    "handover/ai-direct/LATEST.md"
+  ],
+  "restricted_surface_hits": [],
+  "acceptance_commands": [
+    "cargo check"
+  ],
+  "audit_required": false,
+  "human_intent": null,
+  "ratification": null,
+  "git_head": "5239f4b13ecf0a3f9850accc6815c2e7944e9bee",
+  "created_at_unix_ms": 1778844155333
+}

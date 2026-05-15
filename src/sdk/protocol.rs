@@ -200,7 +200,8 @@ mod tests {
     #[test]
     fn test_parse_action_tag_with_think_block() {
         // V3L-15: think blocks must be stripped
-        let raw = r#"<think>internal reasoning</think><action>{"tool":"search","query":"test"}</action>"#;
+        let raw =
+            r#"<think>internal reasoning</think><action>{"tool":"search","query":"test"}</action>"#;
         let action = parse_agent_output(raw).unwrap();
         assert_eq!(action.tool, "search");
         assert_eq!(action.query.as_deref(), Some("test"));
@@ -264,16 +265,23 @@ mod tests {
         // LaTeX escape \cdot is invalid JSON — must reject, not fix
         let raw = r#"<action>{"tool":"append","payload":"x \cdot y"}</action>"#;
         let result = parse_agent_output(raw);
-        assert!(result.is_err(), "Invalid JSON escape must be rejected, not repaired");
+        assert!(
+            result.is_err(),
+            "Invalid JSON escape must be rejected, not repaired"
+        );
     }
 
     #[test]
     fn test_malformed_action_tag_rejected_not_fallback() {
         // Codex finding: if <action> is present but malformed (no </action>),
         // must reject — NOT fall through to bare JSON fallback
-        let raw = r#"<action>{"tool":"append"} some trailing text {"tool":"search","query":"test"}"#;
+        let raw =
+            r#"<action>{"tool":"append"} some trailing text {"tool":"search","query":"test"}"#;
         let result = parse_agent_output(raw);
-        assert!(result.is_err(), "Malformed <action> tag must be rejected, not fall through");
+        assert!(
+            result.is_err(),
+            "Malformed <action> tag must be rejected, not fall through"
+        );
     }
 
     #[test]

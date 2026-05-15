@@ -39,8 +39,8 @@ fn collect_rs_files(dir: &Path, out: &mut Vec<PathBuf>) {
 fn project_root() -> PathBuf {
     // Tests run from the project root. CARGO_MANIFEST_DIR points at the
     // workspace root for workspace tests. Use it to find src/.
-    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")
-        .expect("CARGO_MANIFEST_DIR set by cargo");
+    let manifest_dir =
+        std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR set by cargo");
     PathBuf::from(manifest_dir)
 }
 
@@ -54,8 +54,11 @@ fn project_root() -> PathBuf {
 fn bridge_pattern_does_not_resurrect_in_src() {
     let root = project_root();
     let src_dir = root.join("src");
-    assert!(src_dir.exists() && src_dir.is_dir(),
-        "src/ directory must exist at {:?}", src_dir);
+    assert!(
+        src_dir.exists() && src_dir.is_dir(),
+        "src/ directory must exist at {:?}",
+        src_dir
+    );
 
     let mut files = Vec::new();
     collect_rs_files(&src_dir, &mut files);
@@ -74,8 +77,12 @@ fn bridge_pattern_does_not_resurrect_in_src() {
                 continue;
             }
             if line.contains(FORBIDDEN) {
-                hits.push(format!("{}:{} | {}",
-                    path.display(), lineno + 1, line.trim()));
+                hits.push(format!(
+                    "{}:{} | {}",
+                    path.display(),
+                    lineno + 1,
+                    line.trim()
+                ));
             }
         }
     }
@@ -96,10 +103,7 @@ fn scanner_positive_control_finds_known_match() {
     use std::io::Write;
     let tmp = tempfile::TempDir::new().expect("tempdir");
     let test_file = tmp.path().join("dummy.rs");
-    let content = format!(
-        "// known-clean test snippet\nlet x = {};\n",
-        FORBIDDEN
-    );
+    let content = format!("// known-clean test snippet\nlet x = {};\n", FORBIDDEN);
     let mut f = fs::File::create(&test_file).expect("create");
     f.write_all(content.as_bytes()).expect("write");
 
@@ -121,5 +125,8 @@ fn scanner_positive_control_finds_known_match() {
             }
         }
     }
-    assert_eq!(hits, 1, "scanner must find exactly 1 hit in the positive-control fixture");
+    assert_eq!(
+        hits, 1,
+        "scanner must find exactly 1 hit in the positive-control fixture"
+    );
 }

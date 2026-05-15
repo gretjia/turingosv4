@@ -142,8 +142,8 @@ impl RunSummary {
             let bytes = cas
                 .get(&entry.tx_payload_cid)
                 .map_err(|e| RunSummaryError::Cas(e.to_string()))?;
-            let typed_tx: TypedTx = canonical_decode(&bytes)
-                .map_err(|e| RunSummaryError::Decode(e.to_string()))?;
+            let typed_tx: TypedTx =
+                canonical_decode(&bytes).map_err(|e| RunSummaryError::Decode(e.to_string()))?;
             accepted_tx_ids.insert(extract_tx_id(&typed_tx));
         }
 
@@ -220,15 +220,15 @@ fn extract_tx_id(tx: &TypedTx) -> TxId {
         TypedTx::TaskOpen(t) => t.tx_id.clone(),
         TypedTx::EscrowLock(t) => t.tx_id.clone(),
         TypedTx::ChallengeResolve(t) => t.tx_id.clone(),
-        TypedTx::TaskBankruptcy(t) => t.tx_id.clone(),  // TB-11
+        TypedTx::TaskBankruptcy(t) => t.tx_id.clone(), // TB-11
         TypedTx::CompleteSetMint(t) => t.tx_id.clone(), // TB-13
         TypedTx::CompleteSetRedeem(t) => t.tx_id.clone(), // TB-13
-        TypedTx::MarketSeed(t) => t.tx_id.clone(),      // TB-13
+        TypedTx::MarketSeed(t) => t.tx_id.clone(),     // TB-13
         TypedTx::CompleteSetMerge(t) => t.tx_id.clone(), // Stage C P-M2 / Phase F.1
-        TypedTx::CpmmPool(t) => t.tx_id.clone(),         // Stage C P-M4 / Phase F.3
-        TypedTx::CpmmSwap(t) => t.tx_id.clone(),         // Stage C P-M5 / Phase F.4
+        TypedTx::CpmmPool(t) => t.tx_id.clone(),       // Stage C P-M4 / Phase F.3
+        TypedTx::CpmmSwap(t) => t.tx_id.clone(),       // Stage C P-M5 / Phase F.4
         TypedTx::BuyWithCoinRouter(t) => t.tx_id.clone(), // Stage C P-M6 / Phase F.5
-        TypedTx::EventResolve(t) => t.tx_id.clone(),       // TB-N2 B2 (2026-05-11)
+        TypedTx::EventResolve(t) => t.tx_id.clone(),   // TB-N2 B2 (2026-05-11)
     }
 }
 
@@ -271,7 +271,11 @@ mod tests {
             l4_entries: 0,
             l4e_entries: 0,
         };
-        let target = tmp.path().join("nested").join("dir").join("run_summary.json");
+        let target = tmp
+            .path()
+            .join("nested")
+            .join("dir")
+            .join("run_summary.json");
         s.write_json(&target).unwrap();
         assert!(target.exists());
         let bytes = std::fs::read_to_string(&target).unwrap();
@@ -286,8 +290,16 @@ mod tests {
         // exercise the real CAS round-trip on TaskOpen / Work; this unit
         // test covers the synthetic-construction path.
         use crate::runtime::adapter::{make_synthetic_task_open, make_synthetic_worktx};
-        let to = make_synthetic_task_open("t-eo", "s", crate::state::q_state::Hash::ZERO, "extract");
-        let wo = make_synthetic_worktx("t-eo", "a", crate::state::q_state::Hash::ZERO, 0, "extract", true);
+        let to =
+            make_synthetic_task_open("t-eo", "s", crate::state::q_state::Hash::ZERO, "extract");
+        let wo = make_synthetic_worktx(
+            "t-eo",
+            "a",
+            crate::state::q_state::Hash::ZERO,
+            0,
+            "extract",
+            true,
+        );
         assert_eq!(extract_tx_id(&to).0, "taskopen-t-eo-extract");
         assert_eq!(extract_tx_id(&wo).0, "worktx-t-eo-extract");
     }

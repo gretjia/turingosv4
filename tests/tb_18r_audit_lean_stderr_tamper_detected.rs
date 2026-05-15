@@ -30,7 +30,13 @@ fn attempt_telemetry_tamper_detected_via_cid_mismatch() {
     let mut cas = CasStore::open(&cas_path).expect("open cas");
 
     let candidate_cid = cas
-        .put(b"parsed candidate", ObjectType::ProposalPayload, "test", 0, None)
+        .put(
+            b"parsed candidate",
+            ObjectType::ProposalPayload,
+            "test",
+            0,
+            None,
+        )
         .expect("write candidate");
     let attempt = AttemptTelemetry::new_root(
         TxId("att-tamper".into()),

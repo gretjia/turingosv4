@@ -59,8 +59,8 @@ use git2::{Oid, Repository, TreeWalkMode, TreeWalkResult};
 /// JSONL-side record. Tamper coverage for L4.E uses [`L4E_REFS`] +
 /// [`flip_largest_reachable_l4e_blob`].
 pub const L4_REFS: &[&str] = &[
-    "refs/chaintape/l4",      // Stage A3 canonical accepted-transition head
-    "refs/transitions/main",  // pre-A3 / backward-compat alias (CR-A3-HEAD-T-C2.6)
+    "refs/chaintape/l4",     // Stage A3 canonical accepted-transition head
+    "refs/transitions/main", // pre-A3 / backward-compat alias (CR-A3-HEAD-T-C2.6)
 ];
 
 /// TRACE_MATRIX FC1-N35 + FC1-N34 (audit_tape_tamper coverage; architect
@@ -74,7 +74,7 @@ pub const L4_REFS: &[&str] = &[
 /// a parallel rejection-chain ref, add it here AND update the assertion
 /// walker.
 pub const L4E_REFS: &[&str] = &[
-    "refs/chaintape/l4e",     // Stage A3 canonical rejection head
+    "refs/chaintape/l4e", // Stage A3 canonical rejection head
 ];
 
 /// TRACE_MATRIX FC1-N35 (audit_tape_tamper coverage; architect §B.9.3):
@@ -82,9 +82,9 @@ pub const L4E_REFS: &[&str] = &[
 /// dual-write tape is broken regardless of which ref the audit reads.
 /// `corrupt_chain_refs` corrupts every ref in this list that exists.
 pub const CHAIN_REFS: &[&str] = &[
-    "refs/chaintape/l4",      // Stage A3 canonical accepted-transition head
-    "refs/chaintape/l4e",     // Stage A3 canonical rejection head
-    "refs/transitions/main",  // pre-A3 / backward-compat alias (CR-A3-HEAD-T-C2.6)
+    "refs/chaintape/l4",     // Stage A3 canonical accepted-transition head
+    "refs/chaintape/l4e",    // Stage A3 canonical rejection head
+    "refs/transitions/main", // pre-A3 / backward-compat alias (CR-A3-HEAD-T-C2.6)
 ];
 
 fn make_writable(path: &Path) -> std::io::Result<()> {
@@ -289,7 +289,11 @@ pub fn flip_largest_reachable_l4e_blob(repo_path: &Path) -> Result<String, Strin
 /// Forces Cid mismatch + zlib decode failure when audit resolves the CID.
 pub fn flip_largest_cas_object(cas: &Path) -> Result<String, String> {
     let objects = cas.join(".git").join("objects");
-    let dir = if objects.exists() { objects } else { cas.to_path_buf() };
+    let dir = if objects.exists() {
+        objects
+    } else {
+        cas.to_path_buf()
+    };
     let mut largest: Option<(PathBuf, u64)> = None;
     fn walk(dir: &Path, largest: &mut Option<(PathBuf, u64)>) -> std::io::Result<()> {
         let read = match std::fs::read_dir(dir) {

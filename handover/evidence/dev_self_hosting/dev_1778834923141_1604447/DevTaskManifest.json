@@ -1,0 +1,44 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778834923141_1604447",
+  "title": "REAL-6D-R5-clean-closeout",
+  "module": "REAL-6D",
+  "molecule_or_atom": "atom",
+  "requested_risk_class": 4,
+  "risk_class": 4,
+  "fc_nodes": [
+    "FC1-N7",
+    "FC2-HEAD_t",
+    "FC3-N43",
+    "Art-0.4"
+  ],
+  "allowed_paths": [
+    "src/runtime/agent_scheduler.rs",
+    "src/bin/audit_dashboard.rs",
+    "experiments/minif2f_v4/src/bin/evaluator.rs",
+    "tests/constitution_g6_observe_only.rs",
+    "genesis_payload.toml",
+    "handover/evidence/real6_scheduler_observe_only/REAL6D_OPPORTUNITY_SCHEDULER_REPORT.md",
+    "handover/evidence/real6_scheduler_observe_only/REAL6D_SMOKE_ONE_PROBLEM.txt",
+    "handover/audits/CODEX_REAL6D_IMPLEMENTATION_REVIEW_R4.md"
+  ],
+  "restricted_surface_hits": [
+    "genesis_payload.toml"
+  ],
+  "acceptance_commands": [
+    "cargo_fmt",
+    "constitution_g6_observe_only",
+    "constitution_g5_scheduler",
+    "trust_root",
+    "constitution_gates",
+    "workspace",
+    "real6d_smoke_replay",
+    "dashboard_markers",
+    "cas_schema"
+  ],
+  "audit_required": true,
+  "human_intent": "REAL-6D_clean_closeout_after_R4_red_green_harness",
+  "ratification": "handover/directives/2026-05-15_REAL5S_REAL6_REAL7_REAL8_REAL9_EXECUTION_PLAN_APPROVED.md",
+  "git_head": "5239f4b13ecf0a3f9850accc6815c2e7944e9bee",
+  "created_at_unix_ms": 1778834923143
+}

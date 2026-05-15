@@ -28,8 +28,8 @@ use turingosv4::state::price_index::compute_mask_set;
 use turingosv4::state::q_state::{AgentId, ChallengeCase, ChallengeStatus};
 use turingosv4::state::typed_tx::{NodePosition, PositionKind, PositionSide};
 use turingosv4::state::{
-    compute_price_index, BoltzmannMaskPolicy, CanonicalNodeGraph, EconomicState,
-    RationalPrice, TaskId, TxId,
+    compute_price_index, BoltzmannMaskPolicy, CanonicalNodeGraph, EconomicState, RationalPrice,
+    TaskId, TxId,
 };
 
 fn make_position(
@@ -161,7 +161,8 @@ fn sg_14_3_parent_not_deleted_from_chaintape_after_masking() {
         "SG-14.3: canonical edges MUST still contain masked parent (read-view mask only, not deletion)"
     );
     assert!(
-        edges.get(&TxId("parent_node".into()))
+        edges
+            .get(&TxId("parent_node".into()))
             .map(|s| s.contains(&TxId("child_node".into())))
             .unwrap_or(false),
         "SG-14.3: canonical parent → child edge MUST be preserved across mask computation"
@@ -180,8 +181,7 @@ fn sg_14_3_parent_not_deleted_from_chaintape_after_masking() {
 /// SG-14.7 / CR-14.5 — open challenge against child blocks masking.
 #[test]
 fn sg_14_7_unresolved_challenge_blocks_masking() {
-    let (mut econ, edges) =
-        baseline_econ_with_parent_child(500_000, 500_000, 2_000_000, 0);
+    let (mut econ, edges) = baseline_econ_with_parent_child(500_000, 500_000, 2_000_000, 0);
     // Add a ChallengeCase against the child with status = Open.
     econ.challenge_cases_t.0.insert(
         TxId("ch_against_child".into()),
@@ -207,8 +207,7 @@ fn sg_14_7_unresolved_challenge_blocks_masking() {
 /// SG-14.7 boundary — Released challenge does NOT block masking (only Open does).
 #[test]
 fn sg_14_7_released_challenge_does_not_block_masking() {
-    let (mut econ, edges) =
-        baseline_econ_with_parent_child(500_000, 500_000, 2_000_000, 0);
+    let (mut econ, edges) = baseline_econ_with_parent_child(500_000, 500_000, 2_000_000, 0);
     econ.challenge_cases_t.0.insert(
         TxId("ch_resolved".into()),
         ChallengeCase {

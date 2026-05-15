@@ -1,0 +1,992 @@
+//! REAL-5 — Role-Based Generative Scaffolding.
+//!
+//! This module is the minimal runtime scaffold for the architect's REAL-5
+//! atom plan: role assignment, role-scoped derived views, typed role actions,
+//! tick-budget accounting, and tape-visible reason traces. It does not mutate
+//! sequencer admission, typed transaction discriminants, wallet semantics, or
+//! market settlement.
+
+use std::collections::{BTreeMap, BTreeSet};
+
+use serde::{Deserialize, Serialize};
+
+use crate::bottom_white::cas::schema::{Cid, ObjectType};
+use crate::bottom_white::cas::store::{CasError, CasStore};
+use crate::bottom_white::ledger::rejection_evidence::RejectionClass;
+use crate::economy::money::MicroCoin;
+use crate::runtime::market_decision_trace::NoTradeReason;
+use crate::state::q_state::{AgentId, TaskId, TxId};
+use crate::state::typed_tx::EventId;
+
+pub const ROLE_ASSIGNMENT_MANIFEST_SCHEMA_ID: &str = "real5.role_assignment_manifest.v1";
+pub const ROLE_TURN_TRACE_SCHEMA_ID: &str = "real5.role_turn_trace.v1";
+
+pub type ToolName = String;
+pub type PolicyId = String;
+pub type HeadT = String;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub enum AgentRole {
+    Solver,
+    Verifier,
+    Challenger,
+    Trader,
+    MarketMaker,
+    Architect,
+    Veto,
+    Observer,
+}
+
+impl AgentRole {
+    pub const ALL: &'static [AgentRole] = &[
+        AgentRole::Solver,
+        AgentRole::Verifier,
+        AgentRole::Challenger,
+        AgentRole::Trader,
+        AgentRole::MarketMaker,
+        AgentRole::Architect,
+        AgentRole::Veto,
+        AgentRole::Observer,
+    ];
+
+    pub const fn label(self) -> &'static str {
+        match self {
+            AgentRole::Solver => "Solver",
+            AgentRole::Verifier => "Verifier",
+            AgentRole::Challenger => "Challenger",
+            AgentRole::Trader => "Trader",
+            AgentRole::MarketMaker => "MarketMaker",
+            AgentRole::Architect => "Architect",
+            AgentRole::Veto => "Veto",
+            AgentRole::Observer => "Observer",
+        }
+    }
+}
+
+impl Default for AgentRole {
+    fn default() -> Self {
+        AgentRole::Observer
+    }
+}
+
+impl std::str::FromStr for AgentRole {
+    type Err = String;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value.trim() {
+            "Solver" => Ok(AgentRole::Solver),
+            "Verifier" => Ok(AgentRole::Verifier),
+            "Challenger" => Ok(AgentRole::Challenger),
+            "Trader" => Ok(AgentRole::Trader),
+            "MarketMaker" => Ok(AgentRole::MarketMaker),
+            "Architect" | "ArchitectAI" => Ok(AgentRole::Architect),
+            "Veto" | "VetoAI" => Ok(AgentRole::Veto),
+            "Observer" => Ok(AgentRole::Observer),
+            other => Err(format!("unknown REAL-5 role: {other}")),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AgentRoleAssignment {
+    pub agent_id: AgentId,
+    pub role: AgentRole,
+    pub role_objective_cid: Cid,
+    pub allowed_tools: Vec<ToolName>,
+    pub risk_budget_micro: MicroCoin,
+    pub view_policy_id: PolicyId,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RoleAssignmentManifest {
+    pub batch_id: String,
+    pub agent_role_assignment: Vec<AgentRoleAssignment>,
+    pub source: String,
+    pub created_at_head_t: HeadT,
+}
+
+pub fn sorted_role_assignment(
+    mut assignments: Vec<AgentRoleAssignment>,
+) -> Vec<AgentRoleAssignment> {
+    assignments.sort_by(|a, b| a.agent_id.cmp(&b.agent_id));
+    assignments
+}
+
+pub fn default_allowed_tools(role: AgentRole) -> Vec<ToolName> {
+    match role {
+        AgentRole::Solver => vec!["submit_proof".into(), "abstain".into()],
+        AgentRole::Verifier => vec!["verify_peer".into(), "abstain".into()],
+        AgentRole::Challenger => vec!["challenge".into(), "abstain".into()],
+        AgentRole::Trader => vec!["invest".into(), "abstain".into()],
+        AgentRole::MarketMaker => vec!["provide_liquidity".into(), "abstain".into()],
+        AgentRole::Architect => vec!["propose_tool".into(), "abstain".into()],
+        AgentRole::Veto => vec!["veto".into(), "abstain".into()],
+        AgentRole::Observer => vec!["abstain".into()],
+    }
+}
+
+pub fn role_assignment_from_csv(
+    agent_ids: &[AgentId],
+    csv: &str,
+) -> Result<Vec<AgentRoleAssignment>, String> {
+    let trimmed = csv.trim();
+    if trimmed.is_empty() {
+        return Ok(Vec::new());
+    }
+    let roles: Vec<AgentRole> = trimmed
+        .split(',')
+        .map(|part| part.trim().parse())
+        .collect::<Result<_, _>>()?;
+    if roles.len() != agent_ids.len() {
+        return Err(format!(
+            "role assignment count mismatch: roles={} agents={}",
+            roles.len(),
+            agent_ids.len()
+        ));
+    }
+    let assignments = agent_ids
+        .iter()
+        .zip(roles)
+        .map(|(agent_id, role)| {
+            let role_label = role.label();
+            AgentRoleAssignment {
+                agent_id: agent_id.clone(),
+                role,
+                role_objective_cid: Cid::from_content(
+                    format!("real5-role-objective:{}:{role_label}", agent_id.0).as_bytes(),
+                ),
+                allowed_tools: default_allowed_tools(role),
+                risk_budget_micro: MicroCoin::from_micro_units(100_000),
+                view_policy_id: format!("real5/{}_view/v1", role_label.to_ascii_lowercase()),
+            }
+        })
+        .collect();
+    Ok(sorted_role_assignment(assignments))
+}
+
+pub fn write_role_assignment_manifest_to_cas(
+    manifest: &RoleAssignmentManifest,
+    cas: &mut CasStore,
+    creator: &str,
+    logical_t: u64,
+) -> Result<Cid, CasError> {
+    let bytes = serde_json::to_vec(manifest)
+        .map_err(|e| CasError::BackendCorruption(format!("role manifest encode: {e}")))?;
+    cas.put(
+        &bytes,
+        ObjectType::Generic,
+        creator,
+        logical_t,
+        Some(ROLE_ASSIGNMENT_MANIFEST_SCHEMA_ID.to_string()),
+    )
+}
+
+pub fn read_role_assignment_manifest_from_cas(
+    cas: &CasStore,
+    cid: &Cid,
+) -> Result<RoleAssignmentManifest, CasError> {
+    let bytes = cas.get(cid)?;
+    serde_json::from_slice(&bytes)
+        .map_err(|e| CasError::BackendCorruption(format!("role manifest decode: {e}")))
+}
+
+pub fn detect_hidden_role_switch(
+    assignments: &[AgentRoleAssignment],
+    actual_roles: &[(AgentId, AgentRole)],
+) -> Result<(), String> {
+    let expected: BTreeMap<AgentId, AgentRole> = assignments
+        .iter()
+        .map(|a| (a.agent_id.clone(), a.role))
+        .collect();
+    for (agent_id, actual) in actual_roles {
+        let Some(expected_role) = expected.get(agent_id) else {
+            return Err(format!(
+                "hidden role switch: missing genesis role for {}",
+                agent_id.0
+            ));
+        };
+        if expected_role != actual {
+            return Err(format!(
+                "hidden role switch: agent={} expected={} actual={}",
+                agent_id.0,
+                expected_role.label(),
+                actual.label()
+            ));
+        }
+    }
+    Ok(())
+}
+
+pub fn render_role_assignment_dashboard(assignments: &[AgentRoleAssignment]) -> String {
+    let mut out = String::from("## REAL-5 role assignment\n");
+    out.push_str("source: genesis/batch manifest + ChainTape/CAS evidence\n");
+    for assignment in sorted_role_assignment(assignments.to_vec()) {
+        out.push_str(&format!(
+            "{} role={} view_policy={} risk_budget_micro={}\n",
+            assignment.agent_id.0,
+            assignment.role.label(),
+            assignment.view_policy_id,
+            assignment.risk_budget_micro.micro_units()
+        ));
+    }
+    out
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DerivedViewRequest {
+    pub agent_id: AgentId,
+    pub role: AgentRole,
+    pub task_id: TaskId,
+    pub head_t: HeadT,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PriceSignal {
+    pub event_id: String,
+    pub price: String,
+    pub depth: Option<i64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PublicErrorSummary {
+    pub class: String,
+    pub public_summary: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DerivedView {
+    pub visible_context_cid: Cid,
+    pub read_set: Vec<Cid>,
+    pub hidden_fields_redacted: Vec<String>,
+    pub price_signals: Vec<PriceSignal>,
+    pub local_errors: Vec<PublicErrorSummary>,
+    pub derived_view_hash: Cid,
+    pub public_sections: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DerivedViewInput {
+    pub read_set: Vec<Cid>,
+    pub price_signals: Vec<PriceSignal>,
+    pub local_errors: Vec<PublicErrorSummary>,
+}
+
+impl DerivedViewInput {
+    pub fn fixture() -> Self {
+        Self {
+            read_set: vec![Cid::default()],
+            price_signals: Vec::new(),
+            local_errors: vec![PublicErrorSummary {
+                class: "lean_failed".into(),
+                public_summary: "local L4.E summary".into(),
+            }],
+        }
+    }
+}
+
+pub fn derive_role_view(
+    request: DerivedViewRequest,
+    input: DerivedViewInput,
+) -> Result<DerivedView, String> {
+    derive_role_view_with_context_bytes(request, input).map(|(view, _bytes)| view)
+}
+
+pub fn derive_role_view_with_context_bytes(
+    request: DerivedViewRequest,
+    input: DerivedViewInput,
+) -> Result<(DerivedView, Vec<u8>), String> {
+    let public_sections = match request.role {
+        AgentRole::Solver => vec![
+            "Lean goal".into(),
+            "local proof history".into(),
+            "local L4.E summaries".into(),
+            "bounty".into(),
+            "minimal market summary".into(),
+        ],
+        AgentRole::Trader => vec![
+            "node price".into(),
+            "pool depth".into(),
+            "verification status".into(),
+            "challenge status".into(),
+            "PnL".into(),
+            "balance".into(),
+            "recent accepted WorkTx".into(),
+        ],
+        AgentRole::Verifier => vec![
+            "proof artifacts".into(),
+            "accepted WorkTx".into(),
+            "verification checklist".into(),
+        ],
+        AgentRole::Challenger => vec![
+            "high-price nodes".into(),
+            "suspicious proof artifacts".into(),
+            "failed evidence summaries".into(),
+        ],
+        AgentRole::Architect => vec![
+            "aggregate error clusters".into(),
+            "Veto records".into(),
+            "predicate/tool performance".into(),
+        ],
+        AgentRole::MarketMaker => vec!["pool depth".into(), "liquidity decision".into()],
+        AgentRole::Veto => vec!["proposal evidence".into(), "veto checklist".into()],
+        AgentRole::Observer => vec!["public summary".into()],
+    };
+    let hidden_fields_redacted = vec![
+        "raw_diagnostics".to_string(),
+        "raw CoT".to_string(),
+        "private_market_internals".to_string(),
+    ];
+    let canonical = serde_json::to_vec(&(
+        &request.agent_id,
+        &request.role,
+        &request.task_id,
+        &request.head_t,
+        &public_sections,
+        &input.read_set,
+        &hidden_fields_redacted,
+        &input.price_signals,
+        &input.local_errors,
+    ))
+    .map_err(|e| e.to_string())?;
+    let visible_context_cid = Cid::from_content(&canonical);
+    Ok((
+        DerivedView {
+            visible_context_cid,
+            read_set: input.read_set,
+            hidden_fields_redacted,
+            price_signals: input.price_signals,
+            local_errors: input.local_errors,
+            derived_view_hash: visible_context_cid,
+            public_sections,
+        },
+        canonical,
+    ))
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct WorkTxPayload {
+    pub tx_id: Option<TxId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct VerifyPeerPayload {
+    pub target_work_tx: Option<TxId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct ChallengePayload {
+    pub target_work_tx: Option<TxId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct MarketInvestPayload {
+    pub event_id: Option<EventId>,
+    pub amount_micro: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct LiquidityPayload {
+    pub event_id: Option<EventId>,
+    pub collateral_micro: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct ToolProposalPayload {
+    pub proposal_id: Option<TxId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct VetoPayload {
+    pub proposal_id: Option<TxId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct AbstainPayload {
+    pub reason: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum RoleAction {
+    SubmitProof(WorkTxPayload),
+    VerifyPeer(VerifyPeerPayload),
+    ChallengeNode(ChallengePayload),
+    Invest(MarketInvestPayload),
+    ProvideLiquidity(LiquidityPayload),
+    ProposeTool(ToolProposalPayload),
+    Veto(VetoPayload),
+    Abstain(AbstainPayload),
+}
+
+impl RoleAction {
+    pub const fn kind(&self) -> &'static str {
+        match self {
+            RoleAction::SubmitProof(_) => "SubmitProof",
+            RoleAction::VerifyPeer(_) => "VerifyPeer",
+            RoleAction::ChallengeNode(_) => "ChallengeNode",
+            RoleAction::Invest(_) => "Invest",
+            RoleAction::ProvideLiquidity(_) => "ProvideLiquidity",
+            RoleAction::ProposeTool(_) => "ProposeTool",
+            RoleAction::Veto(_) => "Veto",
+            RoleAction::Abstain(_) => "Abstain",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RoleActionRejection {
+    pub rejection_class: RejectionClass,
+    pub public_summary: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RoleActionRoute {
+    L4 {
+        tx_kind: &'static str,
+    },
+    L4E {
+        rejection_class: RejectionClass,
+        public_summary: String,
+    },
+    CasOnly {
+        trace_kind: &'static str,
+    },
+}
+
+pub fn parse_role_action_json(
+    _role: AgentRole,
+    bytes: &[u8],
+) -> Result<RoleAction, RoleActionRejection> {
+    let value: serde_json::Value =
+        serde_json::from_slice(bytes).map_err(|e| RoleActionRejection {
+            rejection_class: RejectionClass::ParseFailed,
+            public_summary: format!("ParseFailed: {e}"),
+        })?;
+    let tool = value
+        .get("tool")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| RoleActionRejection {
+            rejection_class: RejectionClass::ParseFailed,
+            public_summary: "ParseFailed: missing tool".into(),
+        })?;
+    match tool {
+        "abstain" => Ok(RoleAction::Abstain(AbstainPayload {
+            reason: value
+                .get("reason")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unspecified")
+                .to_string(),
+        })),
+        "invest" => Ok(RoleAction::Invest(MarketInvestPayload::default())),
+        "submit_proof" => Ok(RoleAction::SubmitProof(WorkTxPayload::default())),
+        "verify_peer" => Ok(RoleAction::VerifyPeer(VerifyPeerPayload::default())),
+        "challenge" => Ok(RoleAction::ChallengeNode(ChallengePayload::default())),
+        _ => Err(RoleActionRejection {
+            rejection_class: RejectionClass::ParseFailed,
+            public_summary: format!("ParseFailed: unknown role action tool={tool}"),
+        }),
+    }
+}
+
+pub fn legacy_tool_to_role_action(tool: &str) -> Result<RoleAction, RoleActionRejection> {
+    match tool {
+        "append" | "complete" | "step" | "submit_proof" => {
+            Ok(RoleAction::SubmitProof(WorkTxPayload::default()))
+        }
+        "verify_peer" => Ok(RoleAction::VerifyPeer(VerifyPeerPayload::default())),
+        "challenge" | "challenge_node" => {
+            Ok(RoleAction::ChallengeNode(ChallengePayload::default()))
+        }
+        "invest" => Ok(RoleAction::Invest(MarketInvestPayload::default())),
+        "provide_liquidity" => Ok(RoleAction::ProvideLiquidity(LiquidityPayload::default())),
+        "propose_tool" => Ok(RoleAction::ProposeTool(ToolProposalPayload::default())),
+        "veto" => Ok(RoleAction::Veto(VetoPayload::default())),
+        "abstain" | "search" | "post" | "bid_task" => Ok(RoleAction::Abstain(AbstainPayload {
+            reason: format!("legacy tool {tool} is CAS-only under REAL-5 role gateway"),
+        })),
+        other => Err(RoleActionRejection {
+            rejection_class: RejectionClass::ParseFailed,
+            public_summary: format!("ParseFailed: unknown legacy role action tool={other}"),
+        }),
+    }
+}
+
+pub fn route_role_action(role: AgentRole, action: &RoleAction) -> RoleActionRoute {
+    if matches!(action, RoleAction::Abstain(_)) {
+        return RoleActionRoute::CasOnly {
+            trace_kind: "Abstain",
+        };
+    }
+    let allowed = matches!(
+        (role, action),
+        (AgentRole::Solver, RoleAction::SubmitProof(_))
+            | (AgentRole::Verifier, RoleAction::VerifyPeer(_))
+            | (AgentRole::Challenger, RoleAction::ChallengeNode(_))
+            | (AgentRole::Trader, RoleAction::Invest(_))
+            | (AgentRole::MarketMaker, RoleAction::ProvideLiquidity(_))
+            | (AgentRole::Architect, RoleAction::ProposeTool(_))
+            | (AgentRole::Veto, RoleAction::Veto(_))
+    );
+    if !allowed {
+        let summary = if role == AgentRole::Solver
+            && matches!(action, RoleAction::ProvideLiquidity(_))
+        {
+            "solver cannot directly emit MarketSeedTx"
+        } else if role == AgentRole::Trader && matches!(action, RoleAction::SubmitProof(_)) {
+            "trader cannot submit proof unless role permits"
+        } else if role == AgentRole::Architect && !matches!(action, RoleAction::ProposeTool(_)) {
+            "architect proposal cannot mutate tools without Veto path"
+        } else {
+            "role action not permitted"
+        };
+        return RoleActionRoute::L4E {
+            rejection_class: RejectionClass::PolicyViolation,
+            public_summary: summary.into(),
+        };
+    }
+    let tx_kind = match action {
+        RoleAction::SubmitProof(_) => "WorkTx",
+        RoleAction::VerifyPeer(_) => "VerifyTx",
+        RoleAction::ChallengeNode(_) => "ChallengeTx",
+        RoleAction::Invest(_) => "BuyWithCoinRouterTx",
+        RoleAction::ProvideLiquidity(_) => "MarketSeedTx",
+        RoleAction::ProposeTool(_) => "ToolProposal",
+        RoleAction::Veto(_) => "VetoDecision",
+        RoleAction::Abstain(_) => "Abstain",
+    };
+    RoleActionRoute::L4 { tx_kind }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TickBudget {
+    pub agent_id: AgentId,
+    pub remaining_ticks: u64,
+    pub spent_ticks: u64,
+    pub regenerated_ticks: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TickEvent {
+    ReadOnlyView,
+    ExternalizedAction,
+    InvalidGenerationPenalty,
+    AcceptedGenerationReward,
+}
+
+pub fn derive_tick_budget(
+    mut budget: TickBudget,
+    events: &[TickEvent],
+) -> Result<TickBudget, String> {
+    for event in events {
+        match event {
+            TickEvent::ReadOnlyView => {}
+            TickEvent::ExternalizedAction | TickEvent::InvalidGenerationPenalty => {
+                if budget.remaining_ticks == 0 {
+                    return Err("tick budget exhausted".into());
+                }
+                budget.remaining_ticks -= 1;
+                budget.spent_ticks += 1;
+            }
+            TickEvent::AcceptedGenerationReward => {
+                budget.remaining_ticks += 1;
+                budget.regenerated_ticks += 1;
+            }
+        }
+    }
+    Ok(budget)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RationalPrice {
+    pub numerator: u64,
+    pub denominator: u64,
+}
+
+impl RationalPrice {
+    pub fn new(numerator: u64, denominator: u64) -> Option<Self> {
+        if denominator == 0 {
+            None
+        } else {
+            Some(Self {
+                numerator,
+                denominator,
+            })
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NoTradeReasonTrace {
+    pub agent_id: AgentId,
+    pub role: AgentRole,
+    pub task_id: TaskId,
+    pub visible_markets: Vec<EventId>,
+    pub reason: NoTradeReason,
+    pub observed_price: Option<RationalPrice>,
+    pub liquidity_depth: Option<MicroCoin>,
+    pub balance_available: MicroCoin,
+    pub prompt_capsule_cid: Cid,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TraderTurnWitness {
+    MarketDecision { agent_id: AgentId },
+    NoTrade(NoTradeReasonTrace),
+}
+
+pub fn verify_trader_turns(turns: &[TraderTurnWitness]) -> Result<(), String> {
+    if turns.is_empty() {
+        return Err("trader_turn_count == 0".into());
+    }
+    for turn in turns {
+        match turn {
+            TraderTurnWitness::MarketDecision { .. } => {}
+            TraderTurnWitness::NoTrade(trace) => {
+                if trace.role != AgentRole::Trader {
+                    return Err("NoTradeReasonTrace role must be Trader".into());
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ScriptedTradeRoute {
+    pub tx_kind: &'static str,
+    pub l4_or_l4e_anchor_required: bool,
+}
+
+pub fn scripted_positive_edge_trade(
+    _agent_id: AgentId,
+    _event_id: EventId,
+    pay_coin: MicroCoin,
+) -> Result<ScriptedTradeRoute, String> {
+    if pay_coin.micro_units() <= 0 {
+        return Err("positive-edge scripted trade requires positive pay_coin".into());
+    }
+    Ok(ScriptedTradeRoute {
+        tx_kind: "BuyWithCoinRouterTx",
+        l4_or_l4e_anchor_required: true,
+    })
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VerifyPeerFixture {
+    pub tx_kind: &'static str,
+    pub verifier_agent: AgentId,
+    pub solver_agent: AgentId,
+    pub target_work_tx: TxId,
+}
+
+pub fn verify_peer_fixture(
+    verifier_agent: AgentId,
+    solver_agent: AgentId,
+    target_work_tx: TxId,
+) -> VerifyPeerFixture {
+    VerifyPeerFixture {
+        tx_kind: "VerifyTx",
+        verifier_agent,
+        solver_agent,
+        target_work_tx,
+    }
+}
+
+pub fn apply_verifier_reputation_delta(current: i64, accepted: bool) -> i64 {
+    if accepted {
+        current + 1
+    } else {
+        current
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NoVerifyReason {
+    pub agent_id: AgentId,
+    pub reason: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum VerifierTurnWitness {
+    VerifyTx(VerifyPeerFixture),
+    NoVerify(NoVerifyReason),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NoChallengeReason {
+    pub agent_id: AgentId,
+    pub reason: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChallengeDecisionTrace {
+    pub agent_id: AgentId,
+    pub target_work_tx: Option<TxId>,
+    pub no_challenge_reason: Option<NoChallengeReason>,
+    pub tx_kind: Option<&'static str>,
+}
+
+pub fn challenge_decision_trace(
+    agent_id: AgentId,
+    target_work_tx: Option<TxId>,
+    no_challenge_reason: Option<NoChallengeReason>,
+) -> ChallengeDecisionTrace {
+    let tx_kind = if target_work_tx.is_some() {
+        Some("ChallengeTx")
+    } else {
+        None
+    };
+    ChallengeDecisionTrace {
+        agent_id,
+        target_work_tx,
+        no_challenge_reason,
+        tx_kind,
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum RoleTurnOutcome {
+    SubmitProof {
+        tx_kind: String,
+    },
+    MarketDecision {
+        tx_kind: String,
+        public_summary: String,
+    },
+    NoTrade {
+        reason: NoTradeReason,
+        public_summary: String,
+    },
+    VerifyTx {
+        target_work_tx: Option<TxId>,
+    },
+    NoVerify(NoVerifyReason),
+    ChallengeTx {
+        target_work_tx: Option<TxId>,
+    },
+    NoChallenge(NoChallengeReason),
+    ToolProposal {
+        proposal_id: Option<TxId>,
+    },
+    VetoDecision {
+        proposal_id: Option<TxId>,
+    },
+    Abstain {
+        reason: String,
+    },
+    ParseFailed {
+        public_summary: String,
+    },
+    PolicyRejected {
+        public_summary: String,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RoleTurnTrace {
+    pub schema_version: String,
+    pub agent_id: AgentId,
+    pub role: AgentRole,
+    pub task_id: TaskId,
+    pub prompt_capsule_cid: Cid,
+    pub action_kind: Option<String>,
+    pub outcome: RoleTurnOutcome,
+}
+
+impl RoleTurnTrace {
+    pub fn new(
+        agent_id: AgentId,
+        role: AgentRole,
+        task_id: TaskId,
+        prompt_capsule_cid: Cid,
+        action_kind: Option<String>,
+        outcome: RoleTurnOutcome,
+    ) -> Self {
+        Self {
+            schema_version: ROLE_TURN_TRACE_SCHEMA_ID.to_string(),
+            agent_id,
+            role,
+            task_id,
+            prompt_capsule_cid,
+            action_kind,
+            outcome,
+        }
+    }
+}
+
+pub fn write_role_turn_trace_to_cas(
+    cas: &mut CasStore,
+    trace: &RoleTurnTrace,
+    suffix: &str,
+    logical_t: u64,
+) -> Result<Cid, CasError> {
+    let bytes = serde_json::to_vec(trace)
+        .map_err(|e| CasError::BackendCorruption(format!("role turn trace encode: {e}")))?;
+    cas.put(
+        &bytes,
+        ObjectType::Generic,
+        &format!("real5-role-turn-trace-{suffix}"),
+        logical_t,
+        Some(ROLE_TURN_TRACE_SCHEMA_ID.to_string()),
+    )
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RoleTurnTraceSummary {
+    pub schema_id: &'static str,
+    pub total_traces: u64,
+    pub by_role: BTreeMap<AgentRole, u64>,
+    pub no_trade_count: u64,
+    pub no_verify_count: u64,
+    pub no_challenge_count: u64,
+    pub market_decision_count: u64,
+    pub verify_tx_count: u64,
+    pub challenge_tx_count: u64,
+}
+
+pub fn summarize_role_turn_traces_from_cas(cas: &CasStore) -> RoleTurnTraceSummary {
+    let mut summary = RoleTurnTraceSummary {
+        schema_id: ROLE_TURN_TRACE_SCHEMA_ID,
+        total_traces: 0,
+        by_role: BTreeMap::new(),
+        no_trade_count: 0,
+        no_verify_count: 0,
+        no_challenge_count: 0,
+        market_decision_count: 0,
+        verify_tx_count: 0,
+        challenge_tx_count: 0,
+    };
+    for cid in cas.list_all_cids() {
+        let Ok(bytes) = cas.get(&cid) else {
+            continue;
+        };
+        let Ok(trace) = serde_json::from_slice::<RoleTurnTrace>(&bytes) else {
+            continue;
+        };
+        if trace.schema_version != ROLE_TURN_TRACE_SCHEMA_ID {
+            continue;
+        }
+        summary.total_traces += 1;
+        *summary.by_role.entry(trace.role).or_insert(0) += 1;
+        match trace.outcome {
+            RoleTurnOutcome::NoTrade { .. } => summary.no_trade_count += 1,
+            RoleTurnOutcome::NoVerify(_) => summary.no_verify_count += 1,
+            RoleTurnOutcome::NoChallenge(_) => summary.no_challenge_count += 1,
+            RoleTurnOutcome::MarketDecision { .. } => summary.market_decision_count += 1,
+            RoleTurnOutcome::VerifyTx { .. } => summary.verify_tx_count += 1,
+            RoleTurnOutcome::ChallengeTx { .. } => summary.challenge_tx_count += 1,
+            RoleTurnOutcome::SubmitProof { .. }
+            | RoleTurnOutcome::ToolProposal { .. }
+            | RoleTurnOutcome::VetoDecision { .. }
+            | RoleTurnOutcome::Abstain { .. }
+            | RoleTurnOutcome::ParseFailed { .. }
+            | RoleTurnOutcome::PolicyRejected { .. } => {}
+        }
+    }
+    summary
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MetricEstimate {
+    pub metric: String,
+    pub numerator_delta: i64,
+    pub denominator: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ToolProposal {
+    pub proposal_id: TxId,
+    pub evidence_capsule_cid: Cid,
+    pub proposed_tool_patch_cid: Cid,
+    pub expected_error_reduction: Option<MetricEstimate>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum VetoVerdict {
+    Accept,
+    Reject,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum VetoReasonClass {
+    CanaryEligible,
+    UnsafeMutation,
+    InsufficientEvidence,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct VetoDecision {
+    pub proposal_id: TxId,
+    pub verdict: VetoVerdict,
+    pub reason_class: VetoReasonClass,
+    pub public_summary: String,
+}
+
+pub fn proposal_activation_status(
+    proposal: &ToolProposal,
+    decision: Option<&VetoDecision>,
+) -> &'static str {
+    let Some(decision) = decision else {
+        return "blocked:no_veto_decision";
+    };
+    if decision.proposal_id != proposal.proposal_id {
+        return "blocked:veto_proposal_mismatch";
+    }
+    match decision.verdict {
+        VetoVerdict::Reject => "evidence:persist_rejected",
+        VetoVerdict::Accept => "sandbox:canary_only",
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Real5SmokeInput {
+    pub one_persistent_runtime_repo: bool,
+    pub same_cas: bool,
+    pub agent_count: usize,
+    pub roles_assigned: Vec<AgentRole>,
+    pub task_count: usize,
+    pub market_enabled: bool,
+    pub role_views_enabled: bool,
+    pub forced_trading: bool,
+    pub solver_proof_attempts: u64,
+    pub trader_decisions_or_no_trade: u64,
+    pub verifier_verify_or_reason: u64,
+    pub challenger_challenge_or_reason: u64,
+    pub all_actions_reconstruct_from_chain_cas: bool,
+    pub price_as_truth: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Real5SmokeReport {
+    pub minimum_green: bool,
+    pub active_roles: usize,
+    pub price_signal_not_truth: bool,
+    pub forced_trade: bool,
+}
+
+pub fn evaluate_real5_smoke(input: Real5SmokeInput) -> Real5SmokeReport {
+    let active_roles = input
+        .roles_assigned
+        .into_iter()
+        .collect::<BTreeSet<_>>()
+        .len();
+    let minimum_green = input.one_persistent_runtime_repo
+        && input.same_cas
+        && input.agent_count >= 5
+        && active_roles >= 2
+        && (3..=5).contains(&input.task_count)
+        && input.market_enabled
+        && input.role_views_enabled
+        && !input.forced_trading
+        && input.solver_proof_attempts > 0
+        && input.trader_decisions_or_no_trade > 0
+        && input.verifier_verify_or_reason > 0
+        && input.challenger_challenge_or_reason > 0
+        && input.all_actions_reconstruct_from_chain_cas
+        && !input.price_as_truth;
+    Real5SmokeReport {
+        minimum_green,
+        active_roles,
+        price_signal_not_truth: !input.price_as_truth,
+        forced_trade: input.forced_trading,
+    }
+}

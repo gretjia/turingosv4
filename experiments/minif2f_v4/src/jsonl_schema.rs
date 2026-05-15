@@ -225,7 +225,8 @@ impl RunRecord {
     /// Returns the raw serde error for genuinely malformed input.
     pub fn from_json(line: &str) -> Result<Self, serde_json::Error> {
         let v: serde_json::Value = serde_json::from_str(line)?;
-        let is_v2 = v.get("schema_version")
+        let is_v2 = v
+            .get("schema_version")
             .and_then(|s| s.as_str())
             .map(|s| s.starts_with("v2"))
             .unwrap_or(false);
@@ -263,7 +264,10 @@ mod tests {
             verifier_wait_ms: 4_500,
             budget_regime: "total_proposal".into(),
             budget_max_transactions: 200,
-            far: 0.0, err: 0.0, iac: 0.0, cpr: 0.0,
+            far: 0.0,
+            err: 0.0,
+            iac: 0.0,
+            cpr: 0.0,
             model_snapshot: "deepseek-v4-flash@2026-04-26".into(),
             git_sha: "913255d".into(),
             binary_sha256: "deadbeef".into(),
@@ -277,8 +281,10 @@ mod tests {
         let line = serde_json::to_string(&original).expect("serialize");
         let parsed: RunAggregate = serde_json::from_str(&line).expect("deserialize");
         assert_eq!(parsed, original, "v2 RunAggregate must round-trip");
-        assert!(line.contains("\"schema_version\":\"v2.0\""),
-                "serialized line must stamp schema_version");
+        assert!(
+            line.contains("\"schema_version\":\"v2.0\""),
+            "serialized line must stamp schema_version"
+        );
     }
 
     #[test]
@@ -293,8 +299,10 @@ mod tests {
         r.solved = false;
         r.verified = false;
         r.progress = 0;
-        r.pput_verified = RunAggregate::compute_pput_verified(0, r.total_run_token_count, r.total_wall_time_ms);
-        r.pput_m_verified = RunAggregate::compute_pput_m_verified(0, r.total_run_token_count, r.total_wall_time_ms);
+        r.pput_verified =
+            RunAggregate::compute_pput_verified(0, r.total_run_token_count, r.total_wall_time_ms);
+        r.pput_m_verified =
+            RunAggregate::compute_pput_m_verified(0, r.total_run_token_count, r.total_wall_time_ms);
         assert_eq!(r.pput_verified, 0.0);
         assert_eq!(r.pput_m_verified, 0.0);
 
@@ -315,8 +323,10 @@ mod tests {
                 assert_eq!(l.has_golden_path, true);
                 assert_eq!(l.gp_token_count, 769);
                 // v3.x extension fields land in `extra`.
-                assert_eq!(l.extra.get("halt_reason").and_then(|v| v.as_str()),
-                           Some("OmegaAccepted"));
+                assert_eq!(
+                    l.extra.get("halt_reason").and_then(|v| v.as_str()),
+                    Some("OmegaAccepted")
+                );
                 assert!(l.extra.get("reputation_at_end").is_some());
             }
             RunRecord::V2(_) => panic!("legacy line misclassified as v2"),
@@ -388,7 +398,8 @@ mod tests {
         assert!(
             r.verifier_wait_ms <= r.total_wall_time_ms,
             "verifier_wait_ms ({}) must be <= total_wall_time_ms ({})",
-            r.verifier_wait_ms, r.total_wall_time_ms
+            r.verifier_wait_ms,
+            r.total_wall_time_ms
         );
     }
 }

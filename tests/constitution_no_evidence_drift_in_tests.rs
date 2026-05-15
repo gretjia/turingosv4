@@ -58,8 +58,7 @@ const READ_ONLY_FIXTURE_TESTS: &[&str] = &[
 /// all use this pattern. The marker `evidence_dir` (variable name) is
 /// load-bearing — it's how we distinguish write-here from read-only-fixture.
 fn looks_like_evidence_write_pattern(content: &str) -> bool {
-    let has_evidence_path_literal =
-        content.contains(EVIDENCE_PATH_LITERAL);
+    let has_evidence_path_literal = content.contains(EVIDENCE_PATH_LITERAL);
     if !has_evidence_path_literal {
         return false;
     }
@@ -85,10 +84,7 @@ fn every_test_writing_to_committed_evidence_must_be_env_gated() {
     let mut violations: Vec<String> = Vec::new();
 
     for file in &files {
-        let file_name = file
-            .file_name()
-            .and_then(|s| s.to_str())
-            .unwrap_or("");
+        let file_name = file.file_name().and_then(|s| s.to_str()).unwrap_or("");
         if READ_ONLY_FIXTURE_TESTS.contains(&file_name) {
             continue;
         }
@@ -98,9 +94,7 @@ fn every_test_writing_to_committed_evidence_must_be_env_gated() {
             Err(_) => continue,
         };
 
-        if looks_like_evidence_write_pattern(&content)
-            && !content.contains(ENV_GATE_TOKEN)
-        {
+        if looks_like_evidence_write_pattern(&content) && !content.contains(ENV_GATE_TOKEN) {
             violations.push(format!(
                 "{}: writes to committed evidence dir but lacks '{}' env-gate. \
                  Per OBS_EVIDENCE_DRIFT_ROOT_CAUSE_2026-05-07.md, all test \

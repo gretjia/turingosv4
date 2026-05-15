@@ -129,14 +129,23 @@ mod tests {
         let expected_tool = 5 * 20;
         let expected_total = expected_prompt + expected_completion + expected_tool;
 
-        assert_eq!(acc.prompt_tokens, expected_prompt as u64,
-            "prompt tokens must include all 6 proposals");
-        assert_eq!(acc.completion_tokens, expected_completion as u64,
-            "completion tokens must include all 6 proposals");
-        assert_eq!(acc.tool_tokens, expected_tool as u64,
-            "tool stdout tokens must include all failed branches");
-        assert_eq!(acc.total_run_token_count(), expected_total as u64,
-            "C_i must sum across ALL 6 proposals — failed branches included");
+        assert_eq!(
+            acc.prompt_tokens, expected_prompt as u64,
+            "prompt tokens must include all 6 proposals"
+        );
+        assert_eq!(
+            acc.completion_tokens, expected_completion as u64,
+            "completion tokens must include all 6 proposals"
+        );
+        assert_eq!(
+            acc.tool_tokens, expected_tool as u64,
+            "tool stdout tokens must include all failed branches"
+        );
+        assert_eq!(
+            acc.total_run_token_count(),
+            expected_total as u64,
+            "C_i must sum across ALL 6 proposals — failed branches included"
+        );
 
         assert_eq!(acc.proposal_count, 6);
         assert_eq!(acc.failed_branch_count, 5);

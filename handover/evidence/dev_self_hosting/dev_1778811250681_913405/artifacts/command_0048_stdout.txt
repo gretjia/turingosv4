@@ -1,0 +1,6 @@
+
+running 1 test
+test fc1_n41_shared_attempt_slot_classifies_market_trace_json_and_unknown_json ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.02s
+

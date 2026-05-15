@@ -1,0 +1,44 @@
+{
+  "schema_version": "persistence_evidence_g1_2_v1",
+  "batch_id": "g_phase_real_6a_task_outcome_smoke_r8_20260515T0431Z_5239f4b",
+  "n_tasks": 1,
+  "is_passing": true,
+  "n_witnessed": 4,
+  "balances": {
+    "kind": "Witnessed",
+    "detail": "balances_total_micro 35000000 → 34699000 across 1 tasks; distinct_agents 13 → 13"
+  },
+  "positions": {
+    "kind": "Witnessed",
+    "detail": "node_positions_t count 0 → 1 across 1 tasks"
+  },
+  "reputation": {
+    "kind": "Empty",
+    "detail": "no reputation entries accumulated by this batch (no verify cycle)"
+  },
+  "pnl": {
+    "kind": "Witnessed",
+    "detail": "pnl final_delta_micro=-101000 (balances+collateral vs initial)"
+  },
+  "autopsy": {
+    "kind": "Empty",
+    "detail": "no autopsy capsules written by this batch (no event resolutions)"
+  },
+  "model_identity": {
+    "kind": "Witnessed",
+    "detail": "manifest.model=deepseek-chat stable across 1 tasks"
+  },
+  "per_task": [
+    {
+      "task_index": 0,
+      "problem_id": "mathd_algebra_107",
+      "balances_total_micro": 34699000,
+      "balances_distinct_agents": 13,
+      "node_positions_count": 1,
+      "reputations_count": 0,
+      "autopsy_event_count": 0,
+      "autopsy_capsule_total": 0,
+      "conditional_collateral_total_micro": 200000
+    }
+  ]
+}

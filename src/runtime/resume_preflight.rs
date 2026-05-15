@@ -120,17 +120,42 @@ pub enum PreflightVerdict {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "kind")]
 pub enum PreflightFailure {
-    RuntimeRepoMissing { path: PathBuf },
-    CasMissing { path: PathBuf },
-    AgentRegistryMissing { path: PathBuf },
-    PinnedPubkeysMissing { path: PathBuf },
-    GenesisReportMissing { path: PathBuf },
-    HeadMismatch { expected_hex: String, actual_hex: String },
-    StateRootMismatch { expected_hex: String, actual_hex: String },
-    ChainLengthMismatch { expected: u64, actual: u64 },
-    TaskIndexGap { task_index: u64 },
-    FreshGenesisAttempted { detected: String },
-    LedgerOpenError { reason: String },
+    RuntimeRepoMissing {
+        path: PathBuf,
+    },
+    CasMissing {
+        path: PathBuf,
+    },
+    AgentRegistryMissing {
+        path: PathBuf,
+    },
+    PinnedPubkeysMissing {
+        path: PathBuf,
+    },
+    GenesisReportMissing {
+        path: PathBuf,
+    },
+    HeadMismatch {
+        expected_hex: String,
+        actual_hex: String,
+    },
+    StateRootMismatch {
+        expected_hex: String,
+        actual_hex: String,
+    },
+    ChainLengthMismatch {
+        expected: u64,
+        actual: u64,
+    },
+    TaskIndexGap {
+        task_index: u64,
+    },
+    FreshGenesisAttempted {
+        detected: String,
+    },
+    LedgerOpenError {
+        reason: String,
+    },
 }
 
 /// TRACE_MATRIX § 3 orphan (TB-G G1.2-1 2026-05-11; Option B+ §3.1):
@@ -331,7 +356,9 @@ mod tests {
         let tmp = TempDir::new().expect("tempdir");
         let c = contract_for(&tmp, 0);
         match check(&c) {
-            PreflightVerdict::Fail { failure: PreflightFailure::TaskIndexGap { task_index } } => {
+            PreflightVerdict::Fail {
+                failure: PreflightFailure::TaskIndexGap { task_index },
+            } => {
                 assert_eq!(task_index, 0);
             }
             other => panic!("expected TaskIndexGap, got {other:?}"),
@@ -343,7 +370,9 @@ mod tests {
         let tmp = TempDir::new().expect("tempdir");
         let c = contract_for(&tmp, 1);
         match check(&c) {
-            PreflightVerdict::Fail { failure: PreflightFailure::RuntimeRepoMissing { .. } } => {}
+            PreflightVerdict::Fail {
+                failure: PreflightFailure::RuntimeRepoMissing { .. },
+            } => {}
             other => panic!("expected RuntimeRepoMissing, got {other:?}"),
         }
     }

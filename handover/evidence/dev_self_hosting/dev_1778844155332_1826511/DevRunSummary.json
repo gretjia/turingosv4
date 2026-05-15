@@ -1,0 +1,64 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778844155332_1826511",
+  "close_status": "closed",
+  "manifest_sha256": "b2c58149dc6c8e0dfa2a0471a329608f733127f8ae1efeed86c397eb570faaa5",
+  "event_chain_head_hash": "1535dd69524ed24ba60faff4da0a69b63f78a9b781e867b4e18af10cea361380",
+  "diff_sha256": "9b48d7671ee4ff5e8bb473f01f568c89fe6edda927b0fb1d584de5b1bb6d9b6a",
+  "command_results": [
+    {
+      "command": [
+        "awk",
+        "-F",
+        "\\t",
+        "!/^#/ && NF {print NR, NF, $1}",
+        "handover/tracer_bullets/TB_LOG.tsv"
+      ],
+      "cwd": "/home/zephryj/projects/turingosv4",
+      "exit_code": 0,
+      "started_at_unix_ms": 1778844177151,
+      "ended_at_unix_ms": 1778844177154,
+      "stdout": {
+        "path": "artifacts/command_0002_stdout.txt",
+        "sha256": "9ee1e4b29ea546f18597bcc3784f6eec4eba692aee6d49af92870bada0a98b86",
+        "size_bytes": 375
+      },
+      "stderr": {
+        "path": "artifacts/command_0002_stderr.txt",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size_bytes": 0
+      }
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check",
+        "--",
+        "handover/ai-direct/LATEST.md",
+        "handover/tracer_bullets/TB_LOG.tsv",
+        "handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md"
+      ],
+      "cwd": "/home/zephryj/projects/turingosv4",
+      "exit_code": 0,
+      "started_at_unix_ms": 1778844177157,
+      "ended_at_unix_ms": 1778844177189,
+      "stdout": {
+        "path": "artifacts/command_0002_stdout.txt",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size_bytes": 0
+      },
+      "stderr": {
+        "path": "artifacts/command_0002_stderr.txt",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size_bytes": 0
+      }
+    }
+  ],
+  "acceptance_passed": true,
+  "audit_required": false,
+  "audit_verdict": null,
+  "effective_risk_class": 0,
+  "restricted_surface_hits": [],
+  "closed_at_unix_ms": 1778844185910
+}

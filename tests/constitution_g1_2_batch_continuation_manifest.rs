@@ -64,12 +64,17 @@ async fn run_task_inproc(
     bus.submit_typed_tx(tx).await.expect("submit TaskOpen");
     bundle.shutdown().await.expect("shutdown");
     drop(bus);
-    let (head_hex, _, len) =
-        snapshot_head_t(runtime_repo).expect("snapshot post-task");
+    let (head_hex, _, len) = snapshot_head_t(runtime_repo).expect("snapshot post-task");
     (head_hex, len)
 }
 
-fn mk_entry(idx: u64, start: &str, end: &str, start_len: u64, end_len: u64) -> TaskContinuationEntry {
+fn mk_entry(
+    idx: u64,
+    start: &str,
+    end: &str,
+    start_len: u64,
+    end_len: u64,
+) -> TaskContinuationEntry {
     TaskContinuationEntry {
         task_index: idx,
         problem_id: format!("p{idx}"),
@@ -98,6 +103,7 @@ fn mk_manifest(initial: &str, tasks: Vec<TaskContinuationEntry>) -> BatchContinu
         agent_registry_cid_hex: None,
         system_pubkeys_cid_hex: None,
         model_manifest_cid_hex: None,
+        role_assignment_manifest_cid_hex: None,
         tasks,
         terminated_reason: None,
     }
@@ -154,7 +160,11 @@ fn manifest_rejects_continuity_gap() {
         ],
     );
     match replay_continuity(&m) {
-        Err(ContinuityFailure::Gap { task_k_index, task_k_plus_1_index, .. }) => {
+        Err(ContinuityFailure::Gap {
+            task_k_index,
+            task_k_plus_1_index,
+            ..
+        }) => {
             assert_eq!(task_k_index, 0);
             assert_eq!(task_k_plus_1_index, 1);
         }
@@ -173,10 +183,8 @@ async fn manifest_replay_matches_real_chain_head_walk() {
     let runtime_repo = tmp.path().join("runtime_repo");
     let cas_path = tmp.path().join("cas");
 
-    let (head_t0, len_t0) =
-        run_task_inproc(&runtime_repo, &cas_path, "manifest_t0", false).await;
-    let (head_t1, len_t1) =
-        run_task_inproc(&runtime_repo, &cas_path, "manifest_t1", true).await;
+    let (head_t0, len_t0) = run_task_inproc(&runtime_repo, &cas_path, "manifest_t0", false).await;
+    let (head_t1, len_t1) = run_task_inproc(&runtime_repo, &cas_path, "manifest_t1", true).await;
 
     let m = mk_manifest(
         "",

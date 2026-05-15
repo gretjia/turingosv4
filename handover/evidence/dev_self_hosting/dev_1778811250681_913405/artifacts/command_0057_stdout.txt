@@ -1,0 +1,12 @@
+Diff in /home/zephryj/projects/turingosv4/tests/tb_18r_attempt_telemetry_serialize.rs:158:
+         NoTradeReason::NoPerceivedEdge,
+         "saw active TaskOutcomeMarket but no edge",
+     );
+-    let trace_cid =
+-        write_market_decision_trace_to_cas(&mut cas, &trace, "shared-slot-test", 7)
+-            .expect("write trace");
++    let trace_cid = write_market_decision_trace_to_cas(&mut cas, &trace, "shared-slot-test", 7)
++        .expect("write trace");
+ 
+     let classified = read_attempt_telemetry_shared_slot_from_cas(&cas, &trace_cid)
+         .expect("known MarketDecisionTrace JSON is classified");

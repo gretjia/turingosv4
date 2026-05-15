@@ -98,7 +98,11 @@ pub enum EscrowError {
     /// `release_escrow` called for a `task_id` already released.
     AlreadyReleased { task_id: TaskId },
     /// Σ payouts exceeds `locked_amount` (Inv 3 violation).
-    PayoutExceedsLocked { task_id: TaskId, locked_micro: i64, requested_micro: i64 },
+    PayoutExceedsLocked {
+        task_id: TaskId,
+        locked_micro: i64,
+        requested_micro: i64,
+    },
     /// A negative amount was passed (lock or payout); rejected at the
     /// vault layer to keep monetary math non-negative-by-default.
     NegativeAmount,
@@ -118,7 +122,11 @@ impl std::fmt::Display for EscrowError {
             Self::AlreadyReleased { task_id } => {
                 write!(f, "escrow already released for task {:?}", task_id.0)
             }
-            Self::PayoutExceedsLocked { task_id, locked_micro, requested_micro } => {
+            Self::PayoutExceedsLocked {
+                task_id,
+                locked_micro,
+                requested_micro,
+            } => {
                 write!(
                     f,
                     "payout exceeds locked for task {:?}: locked={} micro, requested={} micro",
@@ -149,7 +157,9 @@ pub struct EscrowVault {
 impl EscrowVault {
     /// TRACE_MATRIX P3 RSP-0 — empty vault constructor.
     pub fn new() -> Self {
-        Self { entries: BTreeMap::new() }
+        Self {
+            entries: BTreeMap::new(),
+        }
     }
 
     /// TRACE_MATRIX P3 RSP-0 — number of recorded tasks (diagnostics-only accessor).
@@ -194,7 +204,11 @@ impl EscrowVault {
             residual_to_sponsor: MicroCoin::zero(),
         };
         self.entries.insert(task_id.clone(), entry);
-        Ok(EscrowReceipt { task_id, sponsor, locked_amount: amount })
+        Ok(EscrowReceipt {
+            task_id,
+            sponsor,
+            locked_amount: amount,
+        })
     }
 
     /// TRACE_MATRIX P3:6/P3:8 — distribute payouts, assert `Σ payouts ≤ locked`,
@@ -213,10 +227,14 @@ impl EscrowVault {
         let entry = self
             .entries
             .get_mut(task_id)
-            .ok_or_else(|| EscrowError::NotFound { task_id: task_id.clone() })?;
+            .ok_or_else(|| EscrowError::NotFound {
+                task_id: task_id.clone(),
+            })?;
 
         if entry.status == EscrowStatus::Released {
-            return Err(EscrowError::AlreadyReleased { task_id: task_id.clone() });
+            return Err(EscrowError::AlreadyReleased {
+                task_id: task_id.clone(),
+            });
         }
 
         let mut total_paid = MicroCoin::zero();
@@ -224,9 +242,7 @@ impl EscrowVault {
             if amt.is_negative() {
                 return Err(EscrowError::NegativeAmount);
             }
-            total_paid = total_paid
-                .checked_add(*amt)
-                .ok_or(EscrowError::Overflow)?;
+            total_paid = total_paid.checked_add(*amt).ok_or(EscrowError::Overflow)?;
         }
 
         if total_paid.micro_units() > entry.locked_amount.micro_units() {
@@ -296,19 +312,21 @@ mod tests {
     #[test]
     fn lock_rejects_double_lock_same_task() {
         let mut v = EscrowVault::new();
-        v.lock_escrow(task("t1"), agent("alice"), coin(100)).unwrap();
+        v.lock_escrow(task("t1"), agent("alice"), coin(100))
+            .unwrap();
         let r = v.lock_escrow(task("t1"), agent("bob"), coin(50));
-        assert_eq!(r, Err(EscrowError::AlreadyLocked { task_id: task("t1") }));
+        assert_eq!(
+            r,
+            Err(EscrowError::AlreadyLocked {
+                task_id: task("t1")
+            })
+        );
     }
 
     #[test]
     fn lock_rejects_negative_amount() {
         let mut v = EscrowVault::new();
-        let r = v.lock_escrow(
-            task("t1"),
-            agent("alice"),
-            MicroCoin::from_micro_units(-1),
-        );
+        let r = v.lock_escrow(task("t1"), agent("alice"), MicroCoin::from_micro_units(-1));
         assert_eq!(r, Err(EscrowError::NegativeAmount));
     }
 
@@ -318,7 +336,8 @@ mod tests {
     fn release_overpayout_rejected() {
         // Charter Day-2 unit: "escrow over-payout rejected".
         let mut v = EscrowVault::new();
-        v.lock_escrow(task("t1"), agent("alice"), coin(100)).unwrap();
+        v.lock_escrow(task("t1"), agent("alice"), coin(100))
+            .unwrap();
         let mut payouts = BTreeMap::new();
         payouts.insert(agent("solver"), coin(60));
         payouts.insert(agent("verifier"), coin(50));
@@ -334,7 +353,8 @@ mod tests {
     fn release_underpayout_residual_returns_to_sponsor() {
         // Charter Day-2 unit: "escrow under-payout accepted (residual returns to sponsor)".
         let mut v = EscrowVault::new();
-        v.lock_escrow(task("t1"), agent("alice"), coin(100)).unwrap();
+        v.lock_escrow(task("t1"), agent("alice"), coin(100))
+            .unwrap();
         let mut payouts = BTreeMap::new();
         payouts.insert(agent("solver"), coin(60));
         payouts.insert(agent("verifier"), coin(10));
@@ -351,7 +371,8 @@ mod tests {
     #[test]
     fn release_exact_payout_zero_residual() {
         let mut v = EscrowVault::new();
-        v.lock_escrow(task("t1"), agent("alice"), coin(100)).unwrap();
+        v.lock_escrow(task("t1"), agent("alice"), coin(100))
+            .unwrap();
         let mut payouts = BTreeMap::new();
         payouts.insert(agent("solver"), coin(70));
         payouts.insert(agent("verifier"), coin(30));
@@ -364,7 +385,8 @@ mod tests {
     fn release_empty_payouts_full_residual_to_sponsor() {
         // TaskExpire shape: deadline lapsed, no winners; full bounty refunds.
         let mut v = EscrowVault::new();
-        v.lock_escrow(task("t1"), agent("alice"), coin(100)).unwrap();
+        v.lock_escrow(task("t1"), agent("alice"), coin(100))
+            .unwrap();
         let payouts = BTreeMap::new();
         let outcome = v.release_escrow(&task("t1"), &payouts).unwrap();
         assert_eq!(outcome.paid_total, MicroCoin::zero());
@@ -375,22 +397,34 @@ mod tests {
     fn release_unknown_task_rejected() {
         let mut v = EscrowVault::new();
         let r = v.release_escrow(&task("t1"), &BTreeMap::new());
-        assert_eq!(r, Err(EscrowError::NotFound { task_id: task("t1") }));
+        assert_eq!(
+            r,
+            Err(EscrowError::NotFound {
+                task_id: task("t1")
+            })
+        );
     }
 
     #[test]
     fn release_after_release_rejected() {
         let mut v = EscrowVault::new();
-        v.lock_escrow(task("t1"), agent("alice"), coin(100)).unwrap();
+        v.lock_escrow(task("t1"), agent("alice"), coin(100))
+            .unwrap();
         v.release_escrow(&task("t1"), &BTreeMap::new()).unwrap();
         let r = v.release_escrow(&task("t1"), &BTreeMap::new());
-        assert_eq!(r, Err(EscrowError::AlreadyReleased { task_id: task("t1") }));
+        assert_eq!(
+            r,
+            Err(EscrowError::AlreadyReleased {
+                task_id: task("t1")
+            })
+        );
     }
 
     #[test]
     fn release_negative_payout_rejected() {
         let mut v = EscrowVault::new();
-        v.lock_escrow(task("t1"), agent("alice"), coin(100)).unwrap();
+        v.lock_escrow(task("t1"), agent("alice"), coin(100))
+            .unwrap();
         let mut payouts = BTreeMap::new();
         payouts.insert(agent("solver"), MicroCoin::from_micro_units(-1));
         let r = v.release_escrow(&task("t1"), &payouts);
@@ -404,7 +438,8 @@ mod tests {
     #[test]
     fn multi_task_independent() {
         let mut v = EscrowVault::new();
-        v.lock_escrow(task("t1"), agent("alice"), coin(100)).unwrap();
+        v.lock_escrow(task("t1"), agent("alice"), coin(100))
+            .unwrap();
         v.lock_escrow(task("t2"), agent("bob"), coin(50)).unwrap();
         assert_eq!(v.len(), 2);
         let mut p1 = BTreeMap::new();

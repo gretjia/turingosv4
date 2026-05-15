@@ -1,0 +1,5 @@
+ M genesis_payload.toml
+ M src/bin/audit_dashboard.rs
+ M src/runtime/agent_scheduler.rs
+ M tests/constitution_g6_observe_only.rs
+?? handover/evidence/real6_scheduler_observe_only/REAL6D_OPPORTUNITY_SCHEDULER_REPORT.md

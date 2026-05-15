@@ -67,7 +67,8 @@ fn build_synthetic_repo(
     let blob_oid = repo.blob(&blob_bytes).expect("blob");
 
     let mut tb = repo.treebuilder(None).expect("treebuilder");
-    tb.insert("payload", blob_oid, 0o100644).expect("tree insert");
+    tb.insert("payload", blob_oid, 0o100644)
+        .expect("tree insert");
     let tree_oid = tb.write().expect("tree write");
     let tree = repo.find_tree(tree_oid).expect("find_tree");
 
@@ -93,9 +94,7 @@ fn build_synthetic_repo(
             "fixture invariant: orphan must be larger than chain blob",
         );
         // Confirm the orphan landed as a loose file (sanity for the test).
-        let parent = path
-            .join("objects")
-            .join(&orphan_oid.to_string()[..2]);
+        let parent = path.join("objects").join(&orphan_oid.to_string()[..2]);
         let file = parent.join(&orphan_oid.to_string()[2..]);
         assert!(
             file.exists(),
@@ -113,7 +112,8 @@ fn build_synthetic_repo(
 fn seeded_byte(seed: u8, i: usize) -> u8 {
     let s = seed as u64;
     let i64 = i as u64;
-    let mix = s.wrapping_mul(31)
+    let mix = s
+        .wrapping_mul(31)
         .wrapping_add(i64.wrapping_mul(17))
         .wrapping_add((i64 >> 3).wrapping_mul(251))
         .wrapping_add((i64 >> 5).wrapping_mul(7919));
@@ -176,8 +176,7 @@ fn ref_exists(repo_path: &Path, ref_name: &str) -> bool {
 /// audit only deep-verifies L4 entry_canonical bodies.
 #[test]
 fn flip_largest_reachable_l4_blob_picks_reachable_not_orphan_a3_canonical() {
-    let (_bare_tmp, bare_path) =
-        build_synthetic_repo(&["refs/chaintape/l4"], 200, 800);
+    let (_bare_tmp, bare_path) = build_synthetic_repo(&["refs/chaintape/l4"], 200, 800);
     let (_wrapped_tmp, wrapped_path) = wrap_bare_as_dotgit(&bare_path);
 
     // List loose object OIDs + sizes for diagnostics.
@@ -209,8 +208,10 @@ fn flip_largest_reachable_l4_blob_picks_reachable_not_orphan_a3_canonical() {
     let chain_post = read_loose(&wrapped_path, &chain_blob_hex);
     let orphan_post = read_loose(&wrapped_path, &any_largest_hex);
     assert_ne!(
-        chain_pre, chain_post,
-        "L4-reachable chain blob must be tampered (was {} bytes)", chain_pre.len()
+        chain_pre,
+        chain_post,
+        "L4-reachable chain blob must be tampered (was {} bytes)",
+        chain_pre.len()
     );
     assert_eq!(
         orphan_pre, orphan_post,
@@ -224,8 +225,7 @@ fn flip_largest_reachable_l4_blob_picks_reachable_not_orphan_a3_canonical() {
 /// alias.
 #[test]
 fn flip_largest_reachable_l4_blob_works_with_alias_only_pre_a3() {
-    let (_bare_tmp, bare_path) =
-        build_synthetic_repo(&["refs/transitions/main"], 200, 0);
+    let (_bare_tmp, bare_path) = build_synthetic_repo(&["refs/transitions/main"], 200, 0);
     let (_wrapped_tmp, wrapped_path) = wrap_bare_as_dotgit(&bare_path);
 
     let detail = flip_largest_reachable_l4_blob(&wrapped_path)
@@ -251,7 +251,8 @@ fn flip_largest_reachable_l4_blob_errors_on_no_chain_refs() {
     let tree = repo.find_tree(tree_oid).expect("ft");
     let sig = Signature::new("a", "b@c", &Time::new(0, 0)).expect("sig");
     let cid = repo.commit(None, &sig, &sig, "x", &tree, &[]).expect("c");
-    repo.reference("refs/heads/main", cid, true, "x").expect("r");
+    repo.reference("refs/heads/main", cid, true, "x")
+        .expect("r");
 
     let (_w, wrapped) = wrap_bare_as_dotgit(&path);
     let res = flip_largest_reachable_l4_blob(&wrapped);
@@ -290,7 +291,10 @@ fn corrupt_chain_refs_corrupts_all_present_refs_a3_dual_write() {
     let post_l4e = ref_value(&wrapped_path, "refs/chaintape/l4e");
     let post_alias = ref_value(&wrapped_path, "refs/transitions/main");
 
-    assert_ne!(pre_l4, post_l4, "refs/chaintape/l4 MUST be corrupted (post-A3 canonical)");
+    assert_ne!(
+        pre_l4, post_l4,
+        "refs/chaintape/l4 MUST be corrupted (post-A3 canonical)"
+    );
     assert_ne!(
         pre_l4e, post_l4e,
         "refs/chaintape/l4e MUST be corrupted (post-A3 rejection canonical)"
@@ -346,7 +350,8 @@ fn corrupt_chain_refs_errors_on_no_chain_refs() {
     let tree = repo.find_tree(tree_oid).expect("ft");
     let sig = Signature::new("a", "b@c", &Time::new(0, 0)).expect("sig");
     let cid = repo.commit(None, &sig, &sig, "x", &tree, &[]).expect("c");
-    repo.reference("refs/heads/main", cid, true, "x").expect("r");
+    repo.reference("refs/heads/main", cid, true, "x")
+        .expect("r");
 
     let (_w, wrapped) = wrap_bare_as_dotgit(&path);
     for r in CHAIN_REFS {
@@ -386,10 +391,16 @@ fn flip_largest_cas_object_corrupts_largest() {
             .join(&big_oid.to_string()[2..]),
     )
     .expect("read big pre");
-    assert!(big_pre.len() > 32, "fixture: big blob must exceed 32-byte threshold");
+    assert!(
+        big_pre.len() > 32,
+        "fixture: big blob must exceed 32-byte threshold"
+    );
 
     let detail = flip_largest_cas_object(&cas).expect("CAS tamper must succeed");
-    assert!(detail.contains("CAS object"), "detail must mention CAS: {detail}");
+    assert!(
+        detail.contains("CAS object"),
+        "detail must mention CAS: {detail}"
+    );
 
     let big_post = std::fs::read(
         bare.join("objects")

@@ -24,16 +24,14 @@ use turingosv4::bottom_white::cas::store::CasStore;
 use turingosv4::bottom_white::ledger::rejection_evidence::{
     RejectionClass as L4ERejectionClass, RejectionEvidenceWriter,
 };
-use turingosv4::bottom_white::ledger::system_keypair::{Ed25519Keypair, PinnedSystemPubkeys, SystemEpoch};
-use turingosv4::bottom_white::ledger::transition_ledger::{
-    InMemoryLedgerWriter, LedgerWriter,
+use turingosv4::bottom_white::ledger::system_keypair::{
+    Ed25519Keypair, PinnedSystemPubkeys, SystemEpoch,
 };
+use turingosv4::bottom_white::ledger::transition_ledger::{InMemoryLedgerWriter, LedgerWriter};
 use turingosv4::bottom_white::tools::registry::ToolRegistry;
 use turingosv4::economy::money::{MicroCoin, StakeMicroCoin};
 use turingosv4::state::q_state::{AgentId, EscrowEntry, Hash, QState, TaskId, TxId};
-use turingosv4::state::sequencer::{
-    worktx_accept_state_root, Sequencer, SubmissionEnvelope,
-};
+use turingosv4::state::sequencer::{worktx_accept_state_root, Sequencer, SubmissionEnvelope};
 use turingosv4::state::typed_tx::{
     AgentSignature, BoolWithProof, EscrowLockTx, PredicateId, PredicateResultsBundle, ReadKey,
     SafetyOrCreation, TaskOpenTx, TypedTx, WorkTx, WriteKey,
@@ -135,10 +133,10 @@ fn make_worktx(opts: WorkTxFixtureOpts) -> TypedTx {
 /// to populate `task_markets_t` via accepted TaskOpen + EscrowLock.
 fn seed_q_with_escrow(_task_id: &TaskId) -> QState {
     let mut q = QState::genesis();
-    q.economic_state_t.balances_t.0.insert(
-        AgentId("alice".into()),
-        MicroCoin::from_coin(10).unwrap(),
-    );
+    q.economic_state_t
+        .balances_t
+        .0
+        .insert(AgentId("alice".into()), MicroCoin::from_coin(10).unwrap());
     q.economic_state_t.balances_t.0.insert(
         AgentId("treasury".into()),
         MicroCoin::from_coin(100).unwrap(),
@@ -212,11 +210,8 @@ struct Harness {
 fn fresh_harness(initial_q: QState) -> Harness {
     let tmp = TempDir::new().expect("tempdir");
     let cas = Arc::new(RwLock::new(CasStore::open(tmp.path()).expect("cas")));
-    let keypair = Arc::new(
-        Ed25519Keypair::generate_with_secure_entropy().expect("keypair"),
-    );
-    let writer: Arc<RwLock<dyn LedgerWriter>> =
-        Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
+    let keypair = Arc::new(Ed25519Keypair::generate_with_secure_entropy().expect("keypair"));
+    let writer: Arc<RwLock<dyn LedgerWriter>> = Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
     let rejection_writer = Arc::new(RwLock::new(RejectionEvidenceWriter::default()));
     let preds = Arc::new(PredicateRegistry::new());
     let tools = Arc::new(ToolRegistry::new());
@@ -444,7 +439,11 @@ async fn runtime_rejected_worktx_does_not_advance_logical_t_or_state_root() {
         pre_logical,
         "logical_t unchanged"
     );
-    assert_eq!(l4e_row_count(&h.rejection_writer), 4, "4 L4.E rows appended");
+    assert_eq!(
+        l4e_row_count(&h.rejection_writer),
+        4,
+        "4 L4.E rows appended"
+    );
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -534,8 +533,7 @@ async fn submit_queue_full_consumes_submit_id() {
     let tmp = TempDir::new().expect("tempdir");
     let cas = Arc::new(RwLock::new(CasStore::open(tmp.path()).expect("cas")));
     let keypair = Arc::new(Ed25519Keypair::generate_with_secure_entropy().expect("kp"));
-    let writer: Arc<RwLock<dyn LedgerWriter>> =
-        Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
+    let writer: Arc<RwLock<dyn LedgerWriter>> = Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
     let rejection_writer = Arc::new(RwLock::new(RejectionEvidenceWriter::default()));
     let preds = Arc::new(PredicateRegistry::new());
     let tools = Arc::new(ToolRegistry::new());
@@ -794,7 +792,8 @@ async fn runtime_replay_from_l4_only_ignores_l4e() {
     let entries = {
         let writer_g = h.ledger_writer.read().expect("writer read");
         let n = writer_g.len();
-        assert_eq!(n, 3,
+        assert_eq!(
+            n, 3,
             "3 accepted L4 rows: TaskOpen + EscrowLock (setup) + WorkTx (test)"
         );
         (0..n)

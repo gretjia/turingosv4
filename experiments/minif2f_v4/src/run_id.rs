@@ -43,8 +43,11 @@ mod tests {
         let parts: Vec<&str> = id.splitn(3, '_').collect();
         assert_eq!(parts[0], "n3");
         assert_eq!(parts[1], "foo");
-        assert!(parts[2].parse::<u128>().is_ok(),
-                "third segment must be unix-ms timestamp, got: {}", parts[2]);
+        assert!(
+            parts[2].parse::<u128>().is_ok(),
+            "third segment must be unix-ms timestamp, got: {}",
+            parts[2]
+        );
     }
 
     #[test]

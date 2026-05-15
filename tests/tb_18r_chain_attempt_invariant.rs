@@ -11,13 +11,7 @@ use turingosv4::runtime::chain_derived_run_facts::{
 };
 use turingosv4::state::typed_tx::RunOutcome;
 
-fn facts(
-    halt: RunOutcome,
-    expected: u64,
-    l4: u64,
-    l4e: u64,
-    aborted: u64,
-) -> ChainDerivedRunFacts {
+fn facts(halt: RunOutcome, expected: u64, l4: u64, l4e: u64, aborted: u64) -> ChainDerivedRunFacts {
     let delta = (l4 as i64) + (l4e as i64) - (expected as i64);
     ChainDerivedRunFacts {
         expected_completed_attempts: expected,
@@ -68,8 +62,7 @@ fn clean_halt_with_nonzero_delta_invariant_fails() {
 fn clean_halt_with_nonzero_aborted_invariant_fails() {
     let f = facts(RunOutcome::MaxTxExhausted, 30, 0, 30, 2);
     assert_eq!(f.delta, 0);
-    let err =
-        attempt_count_invariant(&f).expect_err("non-zero aborted on clean halt must fail");
+    let err = attempt_count_invariant(&f).expect_err("non-zero aborted on clean halt must fail");
     assert!(matches!(
         err,
         AttemptCountInvariantViolation::CleanHaltAbortedNonZero {
@@ -133,7 +126,8 @@ fn negative_delta_always_fails_clean_halt() {
 fn negative_delta_always_fails_abort_halt() {
     let f = facts(RunOutcome::ErrorHalt, 20, 5, 10, 5);
     assert_eq!(f.delta, -5);
-    let err = attempt_count_invariant(&f).expect_err("negative delta must fail under abort halt too");
+    let err =
+        attempt_count_invariant(&f).expect_err("negative delta must fail under abort halt too");
     assert!(matches!(
         err,
         AttemptCountInvariantViolation::NegativeDelta { delta: -5, .. }

@@ -57,7 +57,11 @@ pub enum MonetaryError {
     /// equal the derived sum. A drift signals either a bug in `EscrowLockTx`
     /// dispatch arm (cache update missed) or direct `EconomicState` mutation
     /// outside an accepted transition (ghost liquidity attempt).
-    DerivedCacheMismatch { task_id: TaskId, cached_micro: i64, derived_micro: i64 },
+    DerivedCacheMismatch {
+        task_id: TaskId,
+        cached_micro: i64,
+        derived_micro: i64,
+    },
     /// **TB-8 intent-vs-backing invariant violation**: an Open `claims_t`
     /// entry promises a payout (`claim.amount`) that exceeds its backing
     /// escrow row (`escrows_t[claim.escrow_lock_tx_id].amount`). Per TB-8
@@ -66,7 +70,10 @@ pub enum MonetaryError {
     /// promising more than its backing is a fake-payout attempt and would
     /// underflow at finalize-time. Reported by
     /// [`assert_claim_amount_backed_by_escrow`].
-    ClaimUnbacked { claim_amount_micro: i64, backing_escrow_micro: i64 },
+    ClaimUnbacked {
+        claim_amount_micro: i64,
+        backing_escrow_micro: i64,
+    },
     /// **TB-13 complete-set balanced invariant violation**: for some
     /// `event_id`, the sum of YES (or NO) shares across all owners does
     /// not equal the locked collateral. Per architect §4.3 + SG-13.1:
@@ -88,29 +95,53 @@ impl std::fmt::Display for MonetaryError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::PostInitMint { delta_micro } => {
-                write!(f, "post-init mint: total CTF supply increased by {} micro", delta_micro)
+                write!(
+                    f,
+                    "post-init mint: total CTF supply increased by {} micro",
+                    delta_micro
+                )
             }
             Self::TotalCtfBurn { delta_micro } => {
-                write!(f, "unauthorized burn: total CTF supply decreased by {} micro", delta_micro)
+                write!(
+                    f,
+                    "unauthorized burn: total CTF supply decreased by {} micro",
+                    delta_micro
+                )
             }
             Self::ReadCharged { tx_kind, fee } => {
-                write!(f, "read charged: tx_kind={:?} carries fee={} (must be 0)", tx_kind, fee)
+                write!(
+                    f,
+                    "read charged: tx_kind={:?} carries fee={} (must be 0)",
+                    tx_kind, fee
+                )
             }
-            Self::DerivedCacheMismatch { task_id, cached_micro, derived_micro } => {
+            Self::DerivedCacheMismatch {
+                task_id,
+                cached_micro,
+                derived_micro,
+            } => {
                 write!(
                     f,
                     "task_market cache mismatch: task_id={:?} cached_total_escrow={} derived={}",
                     task_id, cached_micro, derived_micro
                 )
             }
-            Self::ClaimUnbacked { claim_amount_micro, backing_escrow_micro } => {
+            Self::ClaimUnbacked {
+                claim_amount_micro,
+                backing_escrow_micro,
+            } => {
                 write!(
                     f,
                     "claim unbacked: claim.amount={} micro exceeds backing escrow={} micro",
                     claim_amount_micro, backing_escrow_micro
                 )
             }
-            Self::CompleteSetUnbalanced { event_id_hex, side, share_sum_units, collateral_units } => {
+            Self::CompleteSetUnbalanced {
+                event_id_hex,
+                side,
+                share_sum_units,
+                collateral_units,
+            } => {
                 write!(
                     f,
                     "complete-set unbalanced: event_id={} side={:?} Σ shares={} != collateral_units={}",
@@ -182,13 +213,19 @@ impl std::error::Error for MonetaryError {}
 pub fn total_supply_micro(s: &EconomicState) -> Result<i64, MonetaryError> {
     let mut total: i64 = 0;
     for v in s.balances_t.0.values() {
-        total = total.checked_add(v.micro_units()).ok_or(MonetaryError::Overflow)?;
+        total = total
+            .checked_add(v.micro_units())
+            .ok_or(MonetaryError::Overflow)?;
     }
     for e in s.escrows_t.0.values() {
-        total = total.checked_add(e.amount.micro_units()).ok_or(MonetaryError::Overflow)?;
+        total = total
+            .checked_add(e.amount.micro_units())
+            .ok_or(MonetaryError::Overflow)?;
     }
     for e in s.stakes_t.0.values() {
-        total = total.checked_add(e.amount.micro_units()).ok_or(MonetaryError::Overflow)?;
+        total = total
+            .checked_add(e.amount.micro_units())
+            .ok_or(MonetaryError::Overflow)?;
     }
     // claims_t is INTENTIONALLY OMITTED — intent registry, not a holding
     // (TB-8 charter §3 Atom 3 + ratification §1 Q5). The backing money lives
@@ -197,7 +234,9 @@ pub fn total_supply_micro(s: &EconomicState) -> Result<i64, MonetaryError> {
     // not a holding (TB-3 charter § 3.2). Counting it would double-mint
     // every bounty: the same micro-coins are already counted in escrows_t.
     for c in s.challenge_cases_t.0.values() {
-        total = total.checked_add(c.bond.micro_units()).ok_or(MonetaryError::Overflow)?;
+        total = total
+            .checked_add(c.bond.micro_units())
+            .ok_or(MonetaryError::Overflow)?;
     }
     // TB-13 Atom 2 (architect 2026-05-03 post-TB-12 ruling Part A §4.3 +
     // CR-13.4): conditional_collateral_t IS a Coin holding — locked Coin
@@ -212,7 +251,9 @@ pub fn total_supply_micro(s: &EconomicState) -> Result<i64, MonetaryError> {
     // a holding. Counting them would triple-count (shares are derived from
     // collateral; including both creates a 2x parallel ledger).
     for c in s.conditional_collateral_t.0.values() {
-        total = total.checked_add(c.micro_units()).ok_or(MonetaryError::Overflow)?;
+        total = total
+            .checked_add(c.micro_units())
+            .ok_or(MonetaryError::Overflow)?;
     }
     Ok(total)
 }
@@ -237,9 +278,7 @@ pub fn total_supply_micro(s: &EconomicState) -> Result<i64, MonetaryError> {
 /// - Atom 1 (Verify-Confirm claim creation): post-mutation on `q_next`.
 /// - Atom 3 (FinalizeReward dispatch): post-mutation on `q_next` (the
 ///   Finalized status flip means the just-finalized claim is excluded).
-pub fn assert_claim_amount_backed_by_escrow(
-    s: &EconomicState,
-) -> Result<(), MonetaryError> {
+pub fn assert_claim_amount_backed_by_escrow(s: &EconomicState) -> Result<(), MonetaryError> {
     use crate::state::q_state::ClaimStatus;
     for claim in s.claims_t.0.values() {
         if claim.status != ClaimStatus::Open {
@@ -520,9 +559,7 @@ pub fn assert_read_is_free(tx_kind: TxKind, fee: u64) -> Result<(), MonetaryErro
 /// CTF-MIN-SAFE markers: the `.min(` call below is the single intentional
 /// asymmetric-branch reduction; the `// CTF-MIN-SAFE: ...` comment is the
 /// audit point recognized by `tests/constitution_economy_strict_equality.rs`.
-pub fn assert_complete_set_balanced(
-    s: &EconomicState,
-) -> Result<(), MonetaryError> {
+pub fn assert_complete_set_balanced(s: &EconomicState) -> Result<(), MonetaryError> {
     use crate::state::typed_tx::OutcomeSide;
     for (event_id, collateral) in s.conditional_collateral_t.0.iter() {
         let collateral_units: u128 = collateral.micro_units() as u128;
@@ -650,8 +687,8 @@ mod tests {
     #[test]
     fn no_post_init_mint_passes_for_all_k5_variants_post_init() {
         use crate::state::typed_tx::{
-            ChallengeResolveTx, ChallengeTx, EscrowLockTx, FinalizeRewardTx, ReuseTx,
-            TaskExpireTx, TaskOpenTx, TerminalSummaryTx, VerifyTx,
+            ChallengeResolveTx, ChallengeTx, EscrowLockTx, FinalizeRewardTx, ReuseTx, TaskExpireTx,
+            TaskOpenTx, TerminalSummaryTx, VerifyTx,
         };
         let q = post_init_q();
         let cases: Vec<TypedTx> = vec![
@@ -669,8 +706,11 @@ mod tests {
             TypedTx::ChallengeResolve(ChallengeResolveTx::default()),
         ];
         for t in cases {
-            assert_eq!(assert_no_post_init_mint(&t, &q), Ok(()),
-                "structural guard must pass for all current TypedTx variants");
+            assert_eq!(
+                assert_no_post_init_mint(&t, &q),
+                Ok(()),
+                "structural guard must pass for all current TypedTx variants"
+            );
         }
     }
 
@@ -696,7 +736,9 @@ mod tests {
         let r = assert_total_ctf_conserved(&before, &after, &[]);
         assert_eq!(
             r,
-            Err(MonetaryError::PostInitMint { delta_micro: 50 * MICRO_PER_COIN })
+            Err(MonetaryError::PostInitMint {
+                delta_micro: 50 * MICRO_PER_COIN
+            })
         );
     }
 
@@ -708,7 +750,9 @@ mod tests {
         let r = assert_total_ctf_conserved(&before, &after, &[]);
         assert_eq!(
             r,
-            Err(MonetaryError::TotalCtfBurn { delta_micro: -60 * MICRO_PER_COIN })
+            Err(MonetaryError::TotalCtfBurn {
+                delta_micro: -60 * MICRO_PER_COIN
+            })
         );
     }
 
@@ -732,7 +776,11 @@ mod tests {
         after.balances_t.0.insert(agent("alice"), coin(60));
         after.escrows_t.0.insert(
             tx("work-1"),
-            EscrowEntry { amount: coin(40), depositor: agent("alice"), task_id: TaskId::default() },
+            EscrowEntry {
+                amount: coin(40),
+                depositor: agent("alice"),
+                task_id: TaskId::default(),
+            },
         );
         assert_eq!(assert_total_ctf_conserved(&before, &after, &[]), Ok(()));
     }
@@ -770,9 +818,13 @@ mod tests {
             // the invariant under test is: any closed redistribution leaves
             // total_supply_micro unchanged.)
             let amt_micro = (i as i64 + 1) * 1_000; // small, deterministic
-            // Move `amt_micro` from alice's balance into a synthetic stake.
-            let alice_bal = s.balances_t.0.get(&agent("alice"))
-                .copied().unwrap_or(MicroCoin::zero());
+                                                    // Move `amt_micro` from alice's balance into a synthetic stake.
+            let alice_bal = s
+                .balances_t
+                .0
+                .get(&agent("alice"))
+                .copied()
+                .unwrap_or(MicroCoin::zero());
             if alice_bal.micro_units() >= amt_micro {
                 s.balances_t.0.insert(
                     agent("alice"),
@@ -781,7 +833,11 @@ mod tests {
                 let key = tx(&format!("stake-step-{}", i));
                 s.stakes_t.0.insert(
                     key,
-                    StakeEntry { amount: MicroCoin::from_micro_units(amt_micro), staker: agent("alice"), task_id: TaskId::default() },
+                    StakeEntry {
+                        amount: MicroCoin::from_micro_units(amt_micro),
+                        staker: agent("alice"),
+                        task_id: TaskId::default(),
+                    },
                 );
             }
             let total_now = total_supply_micro(&s).unwrap();
@@ -810,11 +866,19 @@ mod tests {
         s.balances_t.0.insert(agent("a"), coin(1));
         s.escrows_t.0.insert(
             tx("e"),
-            EscrowEntry { amount: coin(2), depositor: agent("a"), task_id: task("task-e") },
+            EscrowEntry {
+                amount: coin(2),
+                depositor: agent("a"),
+                task_id: task("task-e"),
+            },
         );
         s.stakes_t.0.insert(
             tx("s"),
-            StakeEntry { amount: coin(4), staker: agent("a"), task_id: task("task-s") },
+            StakeEntry {
+                amount: coin(4),
+                staker: agent("a"),
+                task_id: task("task-s"),
+            },
         );
         // **TB-8**: a claim_t entry is INTENT metadata. The coin(8) intent
         // here references no escrow row (test fixture in isolation), so it
@@ -834,7 +898,11 @@ mod tests {
         // second escrows_t entry — same money, canonical home.
         s.escrows_t.0.insert(
             tx("e2"),
-            EscrowEntry { amount: coin(16), depositor: agent("a"), task_id: task("task-e2") },
+            EscrowEntry {
+                amount: coin(16),
+                depositor: agent("a"),
+                task_id: task("task-e2"),
+            },
         );
         let mut cc = crate::state::q_state::ChallengeCase::default();
         cc.bond = coin(32);
@@ -888,11 +956,19 @@ mod tests {
         // Two escrow locks for the same task (multi-sponsor or top-up case).
         s.escrows_t.0.insert(
             tx("lock-A"),
-            EscrowEntry { amount: coin(30), depositor: agent("alice"), task_id: t.clone() },
+            EscrowEntry {
+                amount: coin(30),
+                depositor: agent("alice"),
+                task_id: t.clone(),
+            },
         );
         s.escrows_t.0.insert(
             tx("lock-B"),
-            EscrowEntry { amount: coin(20), depositor: agent("bob"), task_id: t.clone() },
+            EscrowEntry {
+                amount: coin(20),
+                depositor: agent("bob"),
+                task_id: t.clone(),
+            },
         );
         // One escrow for a DIFFERENT task — must not contaminate the sum.
         s.escrows_t.0.insert(
@@ -911,14 +987,20 @@ mod tests {
         entry.escrow_lock_tx_ids.insert(tx("lock-B"));
         s.task_markets_t.0.insert(t.clone(), entry);
 
-        assert_eq!(assert_task_market_total_escrow_matches_locks(&s, &t), Ok(()));
+        assert_eq!(
+            assert_task_market_total_escrow_matches_locks(&s, &t),
+            Ok(())
+        );
 
         // Drift the cache (simulate a missed update or an attacker mutating
         // EconomicState directly): cache=truth predicate must reject.
         s.task_markets_t.0.get_mut(&t).unwrap().total_escrow = coin(60);
         let r = assert_task_market_total_escrow_matches_locks(&s, &t);
-        assert!(matches!(r, Err(MonetaryError::DerivedCacheMismatch { .. })),
-            "drifted cache must surface as DerivedCacheMismatch; got {:?}", r);
+        assert!(
+            matches!(r, Err(MonetaryError::DerivedCacheMismatch { .. })),
+            "drifted cache must surface as DerivedCacheMismatch; got {:?}",
+            r
+        );
     }
 
     // ── assert_read_is_free ─────────────────────────────────────────────────
@@ -942,8 +1024,20 @@ mod tests {
     fn read_is_free_nonzero_fee_rejected() {
         // P3:2 — any per-tx fee on a K5 TxKind is a structural bug.
         let r = assert_read_is_free(TxKind::Reuse, 1);
-        assert_eq!(r, Err(MonetaryError::ReadCharged { tx_kind: TxKind::Reuse, fee: 1 }));
+        assert_eq!(
+            r,
+            Err(MonetaryError::ReadCharged {
+                tx_kind: TxKind::Reuse,
+                fee: 1
+            })
+        );
         let r = assert_read_is_free(TxKind::Work, 9999);
-        assert_eq!(r, Err(MonetaryError::ReadCharged { tx_kind: TxKind::Work, fee: 9999 }));
+        assert_eq!(
+            r,
+            Err(MonetaryError::ReadCharged {
+                tx_kind: TxKind::Work,
+                fee: 9999
+            })
+        );
     }
 }

@@ -23,7 +23,7 @@ use crate::economy::money::{MicroCoin, StakeMicroCoin};
 use crate::runtime::agent_keypairs::{AgentKeypairError, AgentKeypairRegistry};
 use crate::state::q_state::{AgentId, Hash, QState, TaskId, TxId};
 use crate::state::typed_tx::{
-    AgentSignature, BoolWithProof, EscrowLockSigningPayload, EscrowLockTx, PredicateId,
+    AgentSignature, BoolWithProof, EscrowLockSigningPayload, EscrowLockTx, EventId, PredicateId,
     PredicateResultsBundle, ReadKey, SafetyOrCreation, TaskOpenSigningPayload, TaskOpenTx, TypedTx,
     VerifySigningPayload, VerifyTx, VerifyVerdict, WorkSigningPayload, WorkTx, WriteKey,
 };
@@ -426,9 +426,7 @@ pub fn make_real_market_seed_signed_by(
     suffix: &str,
     timestamp_logical: u64,
 ) -> Result<TypedTx, AgentKeypairError> {
-    use crate::state::typed_tx::{
-        EventId, MarketSeedSigningPayload, MarketSeedTx,
-    };
+    use crate::state::typed_tx::{EventId, MarketSeedSigningPayload, MarketSeedTx};
     let provider_id = AgentId(provider.into());
     let tx_id = TxId(format!("marketseedtx-{}-{}", provider, suffix));
     let event_id = EventId(crate::state::q_state::TaskId(event_task.into()));
@@ -469,9 +467,7 @@ pub fn make_real_complete_set_mint_signed_by(
     suffix: &str,
     timestamp_logical: u64,
 ) -> Result<TypedTx, AgentKeypairError> {
-    use crate::state::typed_tx::{
-        CompleteSetMintSigningPayload, CompleteSetMintTx, EventId,
-    };
+    use crate::state::typed_tx::{CompleteSetMintSigningPayload, CompleteSetMintTx, EventId};
     let owner_id = AgentId(owner.into());
     let tx_id = TxId(format!("csmint-{}-{}", owner, suffix));
     let event_id = EventId(crate::state::q_state::TaskId(event_task.into()));
@@ -636,9 +632,7 @@ pub async fn tb8_emit_finalize_after_verify(
         return Ok(false);
     }
     sequencer
-        .emit_system_tx(crate::state::sequencer::SystemEmitCommand::FinalizeReward {
-            claim_id,
-        })
+        .emit_system_tx(crate::state::sequencer::SystemEmitCommand::FinalizeReward { claim_id })
         .await
         .map(|_| true)
 }
@@ -721,9 +715,7 @@ pub async fn tb_n2_emit_event_resolve_after_finalize(
                 .claims_t
                 .0
                 .get(&claim_id_inner)
-                .map(|c| {
-                    matches!(c.status, crate::state::q_state::ClaimStatus::Finalized)
-                })
+                .map(|c| matches!(c.status, crate::state::q_state::ClaimStatus::Finalized))
                 .unwrap_or(false);
             if let Some(tm) = q.economic_state_t.task_markets_t.0.get(&task_id) {
                 match tm.state {
@@ -758,6 +750,35 @@ pub async fn tb_n2_emit_event_resolve_after_finalize(
     sequencer
         .emit_system_tx(crate::state::sequencer::SystemEmitCommand::EventResolve {
             task_id,
+            outcome: crate::state::typed_tx::OutcomeSide::Yes,
+        })
+        .await
+        .map(|_| true)
+}
+
+/// REAL-6A — emit a TaskOutcomeMarket NO resolution after a task exhausts
+/// or reaches deadline without a verified proof. This is the production
+/// counterpart to SG-6A.7: the negative outcome must be a tape-visible
+/// `EventResolveTx`, not an implicit dashboard interpretation of
+/// `TerminalSummaryTx` or `TaskBankruptcyTx`.
+pub async fn tb_real6a_emit_task_outcome_no_after_exhaustion(
+    sequencer: &crate::state::sequencer::Sequencer,
+    task_id: TaskId,
+) -> Result<bool, crate::state::sequencer::EmitSystemError> {
+    let q = sequencer
+        .q_snapshot()
+        .map_err(|_| crate::state::sequencer::EmitSystemError::InternalLockPoisoned)?;
+    let Some(entry) = q.economic_state_t.task_markets_t.0.get(&task_id) else {
+        return Err(crate::state::sequencer::EmitSystemError::EventResolveTaskNotFound);
+    };
+    if entry.state != crate::state::q_state::TaskMarketState::Open {
+        return Ok(false);
+    }
+    drop(q);
+    sequencer
+        .emit_system_tx(crate::state::sequencer::SystemEmitCommand::EventResolve {
+            task_id,
+            outcome: crate::state::typed_tx::OutcomeSide::No,
         })
         .await
         .map(|_| true)
@@ -789,23 +810,27 @@ pub async fn tb11_emit_terminal_summary_for_run(
     task_id: TaskId,
     run_outcome: crate::state::typed_tx::RunOutcome,
     total_attempts: u32,
-    failure_class_histogram:
-        std::collections::BTreeMap<crate::state::typed_tx::RejectionClass, u32>,
+    failure_class_histogram: std::collections::BTreeMap<
+        crate::state::typed_tx::RejectionClass,
+        u32,
+    >,
     last_logical_t: u64,
     solver_agent: Option<AgentId>,
     evidence_capsule_cid: Option<crate::bottom_white::cas::schema::Cid>,
 ) -> Result<crate::state::sequencer::SystemEmitReceipt, crate::state::sequencer::EmitSystemError> {
     sequencer
-        .emit_system_tx(crate::state::sequencer::SystemEmitCommand::TerminalSummary {
-            run_id,
-            task_id,
-            run_outcome,
-            total_attempts,
-            failure_class_histogram,
-            last_logical_t,
-            solver_agent,
-            evidence_capsule_cid,
-        })
+        .emit_system_tx(
+            crate::state::sequencer::SystemEmitCommand::TerminalSummary {
+                run_id,
+                task_id,
+                run_outcome,
+                total_attempts,
+                failure_class_histogram,
+                last_logical_t,
+                solver_agent,
+                evidence_capsule_cid,
+            },
+        )
         .await
 }
 
@@ -843,18 +868,12 @@ pub async fn tb11_emit_expire_for_eligible(
     // Pre-collect candidates so we can drop the q_snapshot before emitting
     // (avoid holding a snapshot view across the await boundary).
     use crate::state::q_state::TaskMarketState;
-    let mut candidates: Vec<(
-        TaskId,
-        TxId,
-        crate::state::typed_tx::ExpireReason,
-    )> = Vec::new();
+    let mut candidates: Vec<(TaskId, TxId, crate::state::typed_tx::ExpireReason)> = Vec::new();
     for (task_id, entry) in q.economic_state_t.task_markets_t.0.iter() {
         // Skip terminal states.
         let reason = match entry.state {
             TaskMarketState::Open => crate::state::typed_tx::ExpireReason::Deadline,
-            TaskMarketState::Bankrupt => {
-                crate::state::typed_tx::ExpireReason::BankruptcyTriggered
-            }
+            TaskMarketState::Bankrupt => crate::state::typed_tx::ExpireReason::BankruptcyTriggered,
             TaskMarketState::Expired | TaskMarketState::Finalized => continue,
         };
 
@@ -866,8 +885,7 @@ pub async fn tb11_emit_expire_for_eligible(
 
         // No Finalized claim against this task.
         let has_finalized = q.economic_state_t.claims_t.0.values().any(|c| {
-            c.task_id == *task_id
-                && c.status == crate::state::q_state::ClaimStatus::Finalized
+            c.task_id == *task_id && c.status == crate::state::q_state::ClaimStatus::Finalized
         });
         if has_finalized {
             continue;
@@ -996,10 +1014,12 @@ pub async fn tb16_emit_challenge_resolve_for_eligible(
     );
     for (case_id, planned_bond_micro) in candidates {
         sequencer
-            .emit_system_tx(crate::state::sequencer::SystemEmitCommand::ChallengeResolve {
-                target_challenge_tx_id: case_id,
-                resolution: default_resolution,
-            })
+            .emit_system_tx(
+                crate::state::sequencer::SystemEmitCommand::ChallengeResolve {
+                    target_challenge_tx_id: case_id,
+                    resolution: default_resolution,
+                },
+            )
             .await?;
         count += 1;
         if releasing {
@@ -1124,7 +1144,7 @@ pub async fn tb_n3_emit_node_market_after_work_accept(
 
     // Step 4 — TaskOpen for the node event.
     let parent_root = q0.state_root_t;
-    let task_str = event_id.0.0.clone();
+    let task_str = event_id.0 .0.clone();
     let task_open_tx = match make_real_task_open_signed_by(
         keypairs,
         &task_str,
@@ -1294,9 +1314,10 @@ impl InvestRouteError {
         match self {
             InvestRouteError::ZeroAmount => "amount=0 rejected pre-submit".into(),
             InvestRouteError::NegativeAmount => "negative amount rejected pre-submit".into(),
-            InvestRouteError::AmountExceedsBalance { amount_micro, balance_micro } => format!(
-                "amount {amount_micro} μC exceeds balance {balance_micro} μC"
-            ),
+            InvestRouteError::AmountExceedsBalance {
+                amount_micro,
+                balance_micro,
+            } => format!("amount {amount_micro} μC exceeds balance {balance_micro} μC"),
             InvestRouteError::MalformedNode { reason } => format!("malformed node ({reason})"),
             InvestRouteError::UnknownEvent => "no auto-pool for this work_tx_id".into(),
             InvestRouteError::PoolNotActive => "pool present but not Active".into(),
@@ -1361,7 +1382,9 @@ pub fn tb_n3_invest_to_router_tx(
         return Err(InvestRouteError::MalformedNode { reason: "empty" });
     }
     if work_tx_id_str.chars().any(|c| c.is_control()) {
-        return Err(InvestRouteError::MalformedNode { reason: "control char" });
+        return Err(InvestRouteError::MalformedNode {
+            reason: "control char",
+        });
     }
 
     let buyer_id = AgentId(buyer.into());
@@ -1438,9 +1461,7 @@ pub fn make_real_cpmm_pool_signed_by(
     seed_units: u128,
     suffix: &str,
 ) -> Result<TypedTx, AgentKeypairError> {
-    use crate::state::typed_tx::{
-        CpmmPoolSigningPayload, CpmmPoolTx, EventId, ShareAmount,
-    };
+    use crate::state::typed_tx::{CpmmPoolSigningPayload, CpmmPoolTx, EventId, ShareAmount};
     let provider_id = AgentId(provider.into());
     let tx_id = TxId(format!("pool-{provider}-{event_task}-{suffix}"));
     let event_id = EventId(crate::state::q_state::TaskId(event_task.into()));
@@ -1465,6 +1486,181 @@ pub fn make_real_cpmm_pool_signed_by(
         provider: provider_id,
         seed_yes,
         seed_no,
+        signature,
+    }))
+}
+
+fn hash_hex_lower(h: &Hash) -> String {
+    h.0.iter().map(|b| format!("{:02x}", b)).collect()
+}
+
+/// REAL-6A — seed a task-level outcome market after `EscrowLockTx` and before
+/// any task-specific `WorkTx`.
+///
+/// This helper submits canonical typed txs only:
+/// `MarketSeedTx(event_id = TaskId(task_id)) -> CpmmPoolTx(same event_id)`.
+/// It does not mutate QState directly and therefore preserves L4/CAS replay.
+#[allow(clippy::too_many_arguments)]
+pub async fn tb_real6a_seed_task_outcome_market_after_escrow(
+    bus: &crate::bus::TuringBus,
+    sequencer: &crate::state::sequencer::Sequencer,
+    keypairs: &std::sync::Arc<std::sync::Mutex<AgentKeypairRegistry>>,
+    task_id: &TaskId,
+    provider: &str,
+    seed_micro: i64,
+    suffix: &str,
+    poll_budget_ms: u64,
+) -> Result<crate::runtime::real6_task_outcome::TaskOutcomeMarketSeedOutcome, String> {
+    if seed_micro <= 0 {
+        return Err(format!(
+            "REAL-6A TaskOutcomeMarket seed_micro must be positive, got {seed_micro}"
+        ));
+    }
+    let event_id = EventId(task_id.clone());
+    let pre_seed_root = sequencer
+        .q_snapshot()
+        .map_err(|e| format!("q_snapshot before TaskOutcomeMarket seed: {e:?}"))?
+        .state_root_t;
+    let seed_tx = {
+        let mut guard = keypairs
+            .lock()
+            .map_err(|_| "agent_keypairs registry mutex poisoned".to_string())?;
+        make_real_market_seed_signed_by(
+            &mut guard,
+            pre_seed_root,
+            &task_id.0,
+            provider,
+            seed_micro,
+            &format!("{suffix}-task-outcome-seed"),
+            3,
+        )
+        .map_err(|e| format!("make REAL-6A MarketSeedTx: {e:?}"))?
+    };
+    let market_seed_tx_id = match &seed_tx {
+        TypedTx::MarketSeed(seed) => seed.tx_id.clone(),
+        _ => unreachable!("make_real_market_seed_signed_by returns MarketSeed"),
+    };
+    bus.submit_typed_tx(seed_tx)
+        .await
+        .map_err(|e| format!("submit REAL-6A MarketSeedTx: {e:?}"))?;
+    let post_seed_root = tb8_await_state_root_advance(sequencer, pre_seed_root, poll_budget_ms)
+        .await
+        .map_err(|e| format!("await REAL-6A MarketSeedTx commit: {e:?}"))?;
+
+    let pool_tx = {
+        let mut guard = keypairs
+            .lock()
+            .map_err(|_| "agent_keypairs registry mutex poisoned".to_string())?;
+        make_real_cpmm_pool_signed_by(
+            &mut guard,
+            post_seed_root,
+            &task_id.0,
+            provider,
+            seed_micro as u128,
+            &format!("{suffix}-task-outcome-pool"),
+        )
+        .map_err(|e| format!("make REAL-6A CpmmPoolTx: {e:?}"))?
+    };
+    let cpmm_pool_tx_id = match &pool_tx {
+        TypedTx::CpmmPool(pool) => pool.tx_id.clone(),
+        _ => unreachable!("make_real_cpmm_pool_signed_by returns CpmmPool"),
+    };
+    bus.submit_typed_tx(pool_tx)
+        .await
+        .map_err(|e| format!("submit REAL-6A CpmmPoolTx: {e:?}"))?;
+    let post_pool_root = tb8_await_state_root_advance(sequencer, post_seed_root, poll_budget_ms)
+        .await
+        .map_err(|e| format!("await REAL-6A CpmmPoolTx commit: {e:?}"))?;
+
+    Ok(
+        crate::runtime::real6_task_outcome::TaskOutcomeMarketSeedOutcome {
+            event_id,
+            market_seed_tx_id,
+            cpmm_pool_tx_id,
+            post_pool_state_root_hex: hash_hex_lower(&post_pool_root),
+        },
+    )
+}
+
+/// REAL-6A — direct router helper for task-outcome markets. Unlike the TB-N3
+/// node-survive helper, this routes to `EventId(TaskId(task_id))`, so scripted
+/// traders can buy YES/NO before any WorkTx exists.
+#[allow(clippy::too_many_arguments)]
+pub fn tb_real6a_invest_task_outcome_to_router_tx(
+    keypairs: &mut AgentKeypairRegistry,
+    parent_state_root: Hash,
+    snapshot: Option<&QState>,
+    buyer: &str,
+    task_id: &str,
+    direction: crate::state::typed_tx::BuyDirection,
+    amount_micro: i64,
+    min_out_units: u128,
+    suffix: &str,
+) -> Result<TypedTx, InvestRouteError> {
+    use crate::state::typed_tx::{
+        BuyWithCoinRouterSigningPayload, BuyWithCoinRouterTx, ShareAmount,
+    };
+
+    if amount_micro == 0 {
+        return Err(InvestRouteError::ZeroAmount);
+    }
+    if amount_micro < 0 {
+        return Err(InvestRouteError::NegativeAmount);
+    }
+    if task_id.is_empty() || task_id.chars().any(|c| c.is_control()) {
+        return Err(InvestRouteError::MalformedNode { reason: "task_id" });
+    }
+
+    let buyer_id = AgentId(buyer.into());
+    let event_id = EventId(TaskId(task_id.into()));
+    if let Some(q) = snapshot {
+        let bal = q
+            .economic_state_t
+            .balances_t
+            .0
+            .get(&buyer_id)
+            .copied()
+            .unwrap_or(MicroCoin::zero());
+        if bal.micro_units() < amount_micro {
+            return Err(InvestRouteError::AmountExceedsBalance {
+                amount_micro,
+                balance_micro: bal.micro_units(),
+            });
+        }
+        match q.economic_state_t.cpmm_pools_t.0.get(&event_id) {
+            None => return Err(InvestRouteError::UnknownEvent),
+            Some(p) if !matches!(p.status, crate::state::q_state::PoolStatus::Active) => {
+                return Err(InvestRouteError::PoolNotActive);
+            }
+            _ => {}
+        }
+    }
+
+    let tx_id = TxId(format!("router-task-outcome-{buyer}-{suffix}"));
+    let pay_coin = MicroCoin::from_micro_units(amount_micro);
+    let min_out_shares = ShareAmount::from_units(min_out_units);
+    let payload = BuyWithCoinRouterSigningPayload {
+        tx_id: tx_id.clone(),
+        parent_state_root,
+        event_id: event_id.clone(),
+        buyer: buyer_id.clone(),
+        direction,
+        pay_coin,
+        min_out_shares,
+    };
+    let digest = payload.canonical_digest();
+    let signature = keypairs
+        .sign(&buyer_id, digest)
+        .map_err(InvestRouteError::KeypairError)?;
+
+    Ok(TypedTx::BuyWithCoinRouter(BuyWithCoinRouterTx {
+        tx_id,
+        parent_state_root,
+        event_id,
+        buyer: buyer_id,
+        direction,
+        pay_coin,
+        min_out_shares,
         signature,
     }))
 }

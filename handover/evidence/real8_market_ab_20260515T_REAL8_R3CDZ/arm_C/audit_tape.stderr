@@ -1,0 +1,1 @@
+audit_tape: load failed: pinned manifest: read "/home/zephryj/projects/turingosv4/handover/evidence/real8_market_ab_20260515T_REAL8_R3CDZ/arm_C/runtime_repo/pinned_pubkeys.json": No such file or directory (os error 2)

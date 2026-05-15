@@ -41,9 +41,7 @@ fn shannon_entropy_from_counts(counts: &[usize]) -> f64 {
 /// TRACE_MATRIX § 3 orphan (Constitution Landing 2026-05-08; Art. II.2.1): Shannon entropy of parent selection over a set of proposal parent references. `None` entries (root proposals) are FILTERED OUT before computation per the V3L-14 anti-pattern fix in `audit_assertions.rs::assert_e_boltzmann_parent_selection_diversity` id=43 (a star topology with one root + many same-non-root parents was masking genuine collapse).
 ///
 /// Returns 0.0 when the non-None subset has fewer than 2 distinct parents.
-pub fn parent_selection_shannon_entropy<P: Eq + Hash + Clone>(
-    parents: &[Option<P>],
-) -> f64 {
+pub fn parent_selection_shannon_entropy<P: Eq + Hash + Clone>(parents: &[Option<P>]) -> f64 {
     let non_none: Vec<P> = parents.iter().filter_map(|p| p.clone()).collect();
     if non_none.len() < 2 {
         return 0.0;
@@ -88,17 +86,14 @@ impl DiversityReport {
     {
         Self {
             proposal_count: parents.len(),
-            parent_selection_entropy_bits: parent_selection_shannon_entropy(
-                parents,
-            ),
+            parent_selection_entropy_bits: parent_selection_shannon_entropy(parents),
             pairwise_payload_diversity: distinct_payload_fraction(payloads),
         }
     }
 
     /// TRACE_MATRIX § 3 orphan (Art. II.2.1): alarm threshold check at 0.25 floor on either metric.
     pub fn is_below_alarm_floor(&self) -> bool {
-        self.parent_selection_entropy_bits < 0.25
-            || self.pairwise_payload_diversity < 0.25
+        self.parent_selection_entropy_bits < 0.25 || self.pairwise_payload_diversity < 0.25
     }
 }
 
@@ -138,8 +133,7 @@ mod tests {
 
     #[test]
     fn parent_entropy_balanced_two_parents_is_one_bit() {
-        let parents: Vec<Option<u32>> =
-            vec![Some(1), Some(1), Some(2), Some(2)];
+        let parents: Vec<Option<u32>> = vec![Some(1), Some(1), Some(2), Some(2)];
         let h = parent_selection_shannon_entropy(&parents);
         assert!((h - 1.0).abs() < 1e-9);
     }
@@ -166,8 +160,7 @@ mod tests {
             h
         );
         // But 99:1 split should fall below 0.25:
-        let mut parents99: Vec<Option<u32>> =
-            (0..99).map(|_| Some(1u32)).collect();
+        let mut parents99: Vec<Option<u32>> = (0..99).map(|_| Some(1u32)).collect();
         parents99.push(Some(2));
         let h99 = parent_selection_shannon_entropy(&parents99);
         assert!(
@@ -200,8 +193,7 @@ mod tests {
 
     #[test]
     fn diversity_report_combines_both_metrics() {
-        let parents: Vec<Option<u32>> =
-            vec![Some(1), Some(1), Some(2), Some(2)];
+        let parents: Vec<Option<u32>> = vec![Some(1), Some(1), Some(2), Some(2)];
         let payloads = vec![10u32, 20, 30, 40];
         let r = DiversityReport::new(&parents, &payloads);
         assert_eq!(r.proposal_count, 4);
@@ -213,8 +205,7 @@ mod tests {
     #[test]
     fn diversity_report_alarms_on_collapsed_parents() {
         // 99:1 parent split + all-distinct payloads → entropy below floor.
-        let mut parents: Vec<Option<u32>> =
-            (0..99).map(|_| Some(1u32)).collect();
+        let mut parents: Vec<Option<u32>> = (0..99).map(|_| Some(1u32)).collect();
         parents.push(Some(2));
         let payloads: Vec<u32> = (0..100).collect();
         let r = DiversityReport::new(&parents, &payloads);
@@ -226,17 +217,10 @@ mod tests {
 
     #[test]
     fn diversity_report_alarms_on_collapsed_payloads() {
-        let parents: Vec<Option<u32>> =
-            vec![Some(1), Some(1), Some(2), Some(2)];
+        let parents: Vec<Option<u32>> = vec![Some(1), Some(1), Some(2), Some(2)];
         // 4 proposals, only 1 distinct payload → 0.25 exactly is the floor;
         // need 5 collapsed to fall STRICTLY below 0.25.
-        let parents5: Vec<Option<u32>> = vec![
-            Some(1),
-            Some(1),
-            Some(2),
-            Some(2),
-            Some(3),
-        ];
+        let parents5: Vec<Option<u32>> = vec![Some(1), Some(1), Some(2), Some(2), Some(3)];
         let payloads5 = vec![10u32; 5];
         let r = DiversityReport::new(&parents5, &payloads5);
         assert!(r.pairwise_payload_diversity < 0.25);

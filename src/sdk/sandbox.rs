@@ -11,7 +11,11 @@ use std::time::Duration;
 #[derive(Debug, Clone)]
 pub enum SandboxResult {
     /// Execution completed within timeout.
-    Completed { stdout: String, stderr: String, exit_code: i32 },
+    Completed {
+        stdout: String,
+        stderr: String,
+        exit_code: i32,
+    },
     /// Execution exceeded timeout — killed.
     Timeout,
 }
@@ -41,11 +45,7 @@ pub trait SandboxEngine: Send + Sync {
 
     /// Execute code in isolation with timeout.
     /// Returns SandboxResult (never panics, never hangs).
-    fn execute(
-        &self,
-        code: &str,
-        timeout: Duration,
-    ) -> Result<SandboxResult, SandboxError>;
+    fn execute(&self, code: &str, timeout: Duration) -> Result<SandboxResult, SandboxError>;
 }
 
 /// Local process sandbox — spawns an ephemeral child process.
@@ -69,11 +69,7 @@ impl SandboxEngine for LocalProcessSandbox {
         "local_process"
     }
 
-    fn execute(
-        &self,
-        code: &str,
-        timeout: Duration,
-    ) -> Result<SandboxResult, SandboxError> {
+    fn execute(&self, code: &str, timeout: Duration) -> Result<SandboxResult, SandboxError> {
         use std::io::Write;
         use std::process::{Command, Stdio};
 
@@ -87,21 +83,26 @@ impl SandboxEngine for LocalProcessSandbox {
 
         // Write code to stdin
         if let Some(mut stdin) = child.stdin.take() {
-            stdin.write_all(code.as_bytes())
+            stdin
+                .write_all(code.as_bytes())
                 .map_err(|e| SandboxError::IoError(e.to_string()))?;
         }
 
         // Wait with timeout
         match child.wait_timeout(timeout) {
             Ok(Some(status)) => {
-                let stdout = child.stdout.take()
+                let stdout = child
+                    .stdout
+                    .take()
                     .map(|mut r| {
                         let mut s = String::new();
                         std::io::Read::read_to_string(&mut r, &mut s).unwrap_or(0);
                         s
                     })
                     .unwrap_or_default();
-                let stderr = child.stderr.take()
+                let stderr = child
+                    .stderr
+                    .take()
                     .map(|mut r| {
                         let mut s = String::new();
                         std::io::Read::read_to_string(&mut r, &mut s).unwrap_or(0);
@@ -132,11 +133,17 @@ impl SandboxEngine for LocalProcessSandbox {
 
 /// Trait extension for std::process::Child — simplified timeout.
 trait WaitTimeout {
-    fn wait_timeout(&mut self, timeout: Duration) -> std::io::Result<Option<std::process::ExitStatus>>;
+    fn wait_timeout(
+        &mut self,
+        timeout: Duration,
+    ) -> std::io::Result<Option<std::process::ExitStatus>>;
 }
 
 impl WaitTimeout for std::process::Child {
-    fn wait_timeout(&mut self, timeout: Duration) -> std::io::Result<Option<std::process::ExitStatus>> {
+    fn wait_timeout(
+        &mut self,
+        timeout: Duration,
+    ) -> std::io::Result<Option<std::process::ExitStatus>> {
         let start = std::time::Instant::now();
         loop {
             match self.try_wait()? {
@@ -161,7 +168,9 @@ mod tests {
         let sandbox = LocalProcessSandbox::new("echo", &["hello"]);
         let result = sandbox.execute("", Duration::from_secs(5)).unwrap();
         match result {
-            SandboxResult::Completed { stdout, exit_code, .. } => {
+            SandboxResult::Completed {
+                stdout, exit_code, ..
+            } => {
                 assert!(stdout.contains("hello"));
                 assert_eq!(exit_code, 0);
             }

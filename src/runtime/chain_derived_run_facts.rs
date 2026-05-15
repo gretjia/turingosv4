@@ -53,7 +53,10 @@ use std::path::Path;
 use crate::bottom_white::cas::schema::ObjectType;
 use crate::bottom_white::cas::store::CasStore;
 use crate::bottom_white::ledger::rejection_evidence::RejectionEvidenceWriter;
-use crate::bottom_white::ledger::transition_ledger::{canonical_decode, Git2LedgerWriter, LedgerEntry, LedgerWriter, LedgerWriterError, TxKind};
+use crate::bottom_white::ledger::transition_ledger::{
+    canonical_decode, Git2LedgerWriter, LedgerEntry, LedgerWriter, LedgerWriterError, TxKind,
+};
+use crate::runtime::attempt_telemetry::read_attempt_telemetry_shared_slot_from_cas;
 use crate::runtime::proposal_telemetry::read_from_cas as read_proposal_telemetry;
 use crate::runtime::verification_result::read_from_cas as read_verification_result;
 use crate::state::q_state::TxId;
@@ -265,10 +268,7 @@ fn compute_parent_tx_state(
             .or_default()
             .push(a);
     }
-    let multi_attempt_branches: Vec<_> = by_branch
-        .iter()
-        .filter(|(_, v)| v.len() >= 2)
-        .collect();
+    let multi_attempt_branches: Vec<_> = by_branch.iter().filter(|(_, v)| v.len() >= 2).collect();
 
     if multi_attempt_branches.is_empty() {
         if attempts.len() == 1 && chain_oracle_verified {
@@ -414,9 +414,7 @@ pub fn compute_run_facts_from_chain(
                         golden_path_token_count =
                             golden_path_token_count.saturating_add(tel.token_counts.total());
                         tactic_set.insert(tel.candidate_tactic.clone());
-                        *tool_dist
-                            .entry(tel.candidate_tactic.clone())
-                            .or_insert(0) += 1;
+                        *tool_dist.entry(tel.candidate_tactic.clone()).or_insert(0) += 1;
                         // Track this as an accepted WorkTx (it landed in L4).
                         // First winner candidate: store proposal_artifact_cid
                         // (hex) + candidate_tactic for gp_payload / gp_path
@@ -460,8 +458,9 @@ pub fn compute_run_facts_from_chain(
                     // First winner: first VerifyTx::Confirm whose target is
                     // an accepted WorkTx with telemetry.
                     if first_winner.is_none() {
-                        if let Some(hit) =
-                            accepted_worktx_by_tx_id.get(&verify.target_work_tx).cloned()
+                        if let Some(hit) = accepted_worktx_by_tx_id
+                            .get(&verify.target_work_tx)
+                            .cloned()
                         {
                             first_winner = Some(hit);
                         }
@@ -959,12 +958,13 @@ pub fn compute_run_facts_from_chain_with_invariant(
         Err(_) => false,
     };
 
-    let mut work_rejection_records: Vec<&crate::bottom_white::ledger::rejection_evidence::RejectedSubmissionRecord> =
-        l4e_writer
-            .records()
-            .iter()
-            .filter(|r| r.tx_kind == TxKind::Work)
-            .collect();
+    let mut work_rejection_records: Vec<
+        &crate::bottom_white::ledger::rejection_evidence::RejectedSubmissionRecord,
+    > = l4e_writer
+        .records()
+        .iter()
+        .filter(|r| r.tx_kind == TxKind::Work)
+        .collect();
 
     let mut synthetic_gate_filtered_count: u64 = 0;
 
@@ -986,10 +986,8 @@ pub fn compute_run_facts_from_chain_with_invariant(
                         // are Ed25519-signed)
                         let sig_zero = *work_tx.signature.as_bytes() == [0u8; 64];
                         // Check 4: tx_id suffix
-                        let tx_id_synthetic = work_tx
-                            .tx_id
-                            .0
-                            .ends_with(SYNTHETIC_GATE_TX_ID_SUFFIX);
+                        let tx_id_synthetic =
+                            work_tx.tx_id.0.ends_with(SYNTHETIC_GATE_TX_ID_SUFFIX);
                         // Check 5: marker file present and true (single
                         // global gate; checked once per call above)
                         if stake_zero && sig_zero && tx_id_synthetic && marker_present_and_true {
@@ -1035,15 +1033,15 @@ pub fn compute_run_facts_from_chain_with_invariant(
     let mut capsule_anchored_attempt_count: u64 = 0;
     let at_cids = cas.list_cids_by_object_type(ObjectType::AttemptTelemetry);
     for cid in at_cids {
-        let bytes = match cas.get(&cid) {
-            Ok(b) => b,
-            Err(_) => continue,
+        let at = match read_attempt_telemetry_shared_slot_from_cas(&cas, &cid) {
+            Ok(Some(t)) => t,
+            Ok(None) => continue,
+            Err(e) => {
+                return Err(ChainDerivedError::Codec(format!(
+                    "AttemptTelemetry shared slot decode failed for {cid}: {e}"
+                )))
+            }
         };
-        let at: crate::runtime::attempt_telemetry::AttemptTelemetry =
-            match canonical_decode(&bytes) {
-                Ok(t) => t,
-                Err(_) => continue,
-            };
         if matches!(
             at.outcome,
             crate::runtime::attempt_telemetry::AttemptOutcome::PartialAccepted
@@ -1077,8 +1075,8 @@ mod tests {
     use super::*;
     use crate::runtime::adapter::{make_real_verifytx_signed_by, make_real_worktx_signed_by};
     use crate::runtime::agent_keypairs::AgentKeypairRegistry;
-    use crate::runtime::{build_chaintape_sequencer, RuntimeChaintapeConfig};
     use crate::runtime::proposal_telemetry::{write_to_cas, ProposalTelemetry, TokenCounts};
+    use crate::runtime::{build_chaintape_sequencer, RuntimeChaintapeConfig};
     use crate::state::q_state::Hash;
     use tempfile::TempDir;
 
@@ -1138,8 +1136,7 @@ mod tests {
             AgentKeypairRegistry::open(&cfg.runtime_repo_path).expect("open agent_keypairs");
 
         // Pre-write a ProposalTelemetry to CAS so proposal_cid is non-zero.
-        let mut cas =
-            CasStore::open(&cfg.cas_path).expect("open cas");
+        let mut cas = CasStore::open(&cfg.cas_path).expect("open cas");
         let telemetry = ProposalTelemetry::new_root(
             crate::state::q_state::AgentId("n1".into()),
             Hash([0xaa; 32]),
@@ -1249,7 +1246,10 @@ mod tests {
             ..ChainDerivedRunFacts::default()
         };
         assert!(facts.chain_oracle_verified, "oracle-level acceptance");
-        assert!(!facts.chain_economic_finalized, "settlement still pending TB-9");
+        assert!(
+            !facts.chain_economic_finalized,
+            "settlement still pending TB-9"
+        );
         assert!(!facts.solved, "legacy solved tied to economic finality");
         assert!(!facts.verified, "legacy verified tied to economic finality");
     }

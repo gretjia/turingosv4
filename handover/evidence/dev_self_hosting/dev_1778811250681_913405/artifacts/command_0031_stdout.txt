@@ -1,0 +1,38 @@
+
+running 33 tests
+test arch_71_risk_cap_impact_report_module_present ... ok
+test arch_71_default_report_is_empty ... ok
+test arch_72_compute_agent_pnl_does_not_require_cap_pass ... ok
+test arch_71_tx_kind_label_covers_4_admission_arms ... ok
+test arch_73_autopsy_capsule_marked_audit_only_privacy ... ok
+test arch_72_risk_cap_in_admission_only_not_in_predicate_or_read_path ... ok
+test arch_75_payout_breakdown_bounded_invariant_rejects_overpay ... ok
+test arch_71_audit_dashboard_wires_risk_cap_impact_report ... ok
+test arch_75_payout_breakdown_default_shape_correct ... ok
+test arch_71_risk_cap_impact_report_predicates_work ... ok
+test sg_g3_10_b_verifytx_admission_arm_has_risk_cap_precondition ... ok
+test sg_g3_10_a_worktx_admission_arm_has_risk_cap_precondition ... ok
+test sg_g3_10_c_challengetx_admission_arm_has_risk_cap_precondition ... ok
+test sg_g3_12_transition_error_display_under_64_bytes ... ok
+test sg_g3_4_apply_one_stage_3_5b_writes_g3_2_autopsy_to_cas ... ok
+test sg_g3_10_d_buyrouter_admission_arm_has_risk_cap_precondition ... ok
+test sg_g3_4_terminal_summary_autopsy_derive_helper_present ... ok
+test sg_g3_12_public_summary_token_present_and_short ... ok
+test sg_g3_4_terminal_summary_dispatch_emits_capsules ... ok
+test sg_g3_b_unknown_agent_cap_is_zero_fail_closed ... ok
+test sg_g3_b_no_new_economic_state_table ... ok
+test sg_g3_b_risk_cap_threshold_matches_g3_1_near_insolvent ... ok
+test sg_g3_x_a_reputation_plus_one_in_verifytx_arm ... ok
+test sg_g3_x_a_uniform_plus_one_not_verdict_weighted ... ok
+test sg_g3_x_b_bond_return_in_finalize_reward ... ok
+test sg_g3_x_c_rejection_class_for_maps_to_policy_violation ... ok
+test sg_g3_x_c_rejection_class_tail_append_after_verify_duplicate ... ok
+test sg_g3_x_c_rejection_class_bankruptcy_variant_present ... ok
+test ship_gate_fixture_multi_agent_mixed_solvency ... ok
+test ship_gate_fixture_bankrupt_agent_below_cap_emits_autopsy_capsule ... ok
+test sg_g3_x_b_no_new_bond_return_tx_variant ... ok
+test ship_gate_fixture_solvent_agent_above_cap_emits_no_autopsy ... ok
+test arch_74_sybil_guard_via_step_3_5_already_in_place ... ok
+
+test result: ok. 33 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+

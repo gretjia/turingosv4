@@ -5,9 +5,8 @@
 use turingosv4::economy::money::MicroCoin;
 use turingosv4::state::{
     AgentId, BalancesIndex, ChallengeCase, ChallengeCasesIndex, ClaimEntry, ClaimsIndex,
-    EconomicState, EscrowEntry, EscrowsIndex, Reputation, ReputationsIndex,
-    RoyaltyEdge, RoyaltyGraph, StakeEntry, StakesIndex, TaskId, TaskMarketEntry, TaskMarketsIndex,
-    TxId,
+    EconomicState, EscrowEntry, EscrowsIndex, Reputation, ReputationsIndex, RoyaltyEdge,
+    RoyaltyGraph, StakeEntry, StakesIndex, TaskId, TaskMarketEntry, TaskMarketsIndex, TxId,
 };
 
 #[test]
@@ -46,14 +45,14 @@ fn fifteen_sub_fields_present() {
         "task_markets_t",
         "royalty_graph_t",
         "challenge_cases_t",
-        "runs_t",                          // TB-11 (architect §6.2 ruling 2026-05-02)
-        "node_positions_t",                // TB-12 (architect 2026-05-03 ruling §3 + §8 Atom 1)
-        "conditional_collateral_t",        // TB-13 Atom 2 (architect 2026-05-03 post-TB-12 ruling §4.3)
-        "conditional_share_balances_t",    // TB-13 Atom 2
-        "agent_autopsies_t",               // TB-15 Atom 3 (architect §6.2 ruling 2026-05-02 + 2026-05-03)
-        "cpmm_pools_t",                    // Stage C P-M4 / Phase F.3 (architect §7.5)
-        "lp_share_balances_t",             // Stage C P-M4 / Phase F.3 (architect §7.5 rule 3)
-        "agent_verifications_t",           // TB-N1 Phase 2 A4 (charter §2; 2026-05-10)
+        "runs_t",                       // TB-11 (architect §6.2 ruling 2026-05-02)
+        "node_positions_t",             // TB-12 (architect 2026-05-03 ruling §3 + §8 Atom 1)
+        "conditional_collateral_t", // TB-13 Atom 2 (architect 2026-05-03 post-TB-12 ruling §4.3)
+        "conditional_share_balances_t", // TB-13 Atom 2
+        "agent_autopsies_t",        // TB-15 Atom 3 (architect §6.2 ruling 2026-05-02 + 2026-05-03)
+        "cpmm_pools_t",             // Stage C P-M4 / Phase F.3 (architect §7.5)
+        "lp_share_balances_t",      // Stage C P-M4 / Phase F.3 (architect §7.5 rule 3)
+        "agent_verifications_t",    // TB-N1 Phase 2 A4 (charter §2; 2026-05-10)
     ];
     assert_eq!(obj.len(), 16);
     for n in names.iter() {
@@ -64,7 +63,9 @@ fn fifteen_sub_fields_present() {
 #[test]
 fn populated_economic_state_round_trip() {
     let mut e = EconomicState::default();
-    e.balances_t.0.insert(AgentId("a".into()), MicroCoin::from_coin(10).unwrap());
+    e.balances_t
+        .0
+        .insert(AgentId("a".into()), MicroCoin::from_coin(10).unwrap());
     e.escrows_t.0.insert(
         TxId("t1".into()),
         EscrowEntry {
@@ -89,7 +90,9 @@ fn populated_economic_state_round_trip() {
             ..Default::default()
         },
     );
-    e.reputations_t.0.insert(AgentId("a".into()), Reputation(100));
+    e.reputations_t
+        .0
+        .insert(AgentId("a".into()), Reputation(100));
     // **TB-3 fixture migration**: TaskMarketEntry no longer has `bounty`;
     // money has migrated to `escrows_t.amount`. `total_escrow` is the derived
     // cache (matches the escrow above for round-trip determinism).
@@ -102,7 +105,10 @@ fn populated_economic_state_round_trip() {
     e.task_markets_t.0.insert(TaskId("t4".into()), market);
     e.royalty_graph_t.0.insert(
         TxId("t5".into()),
-        vec![RoyaltyEdge { ancestor: TxId("t4".into()), fraction_basis_points: 500 }],
+        vec![RoyaltyEdge {
+            ancestor: TxId("t4".into()),
+            fraction_basis_points: 500,
+        }],
     );
     e.challenge_cases_t.0.insert(
         TxId("t6".into()),
@@ -130,25 +136,58 @@ fn balances_insertion_order_independence() {
     let mut b = BalancesIndex::default();
     let names = ["zeta", "alpha", "mu", "beta", "gamma"];
     for (i, n) in names.iter().enumerate() {
-        a.0.insert(AgentId(n.to_string()), MicroCoin::from_coin(i as i64).unwrap());
+        a.0.insert(
+            AgentId(n.to_string()),
+            MicroCoin::from_coin(i as i64).unwrap(),
+        );
     }
     for n in names.iter().rev() {
         let i = names.iter().position(|x| x == n).unwrap();
-        b.0.insert(AgentId(n.to_string()), MicroCoin::from_coin(i as i64).unwrap());
+        b.0.insert(
+            AgentId(n.to_string()),
+            MicroCoin::from_coin(i as i64).unwrap(),
+        );
     }
-    assert_eq!(serde_json::to_string(&a).unwrap(), serde_json::to_string(&b).unwrap());
+    assert_eq!(
+        serde_json::to_string(&a).unwrap(),
+        serde_json::to_string(&b).unwrap()
+    );
 }
 
 #[test]
 fn empty_indices_serialize_to_empty_objects() {
-    assert_eq!(serde_json::to_string(&BalancesIndex::default()).unwrap(), "{}");
-    assert_eq!(serde_json::to_string(&EscrowsIndex::default()).unwrap(), "{}");
-    assert_eq!(serde_json::to_string(&StakesIndex::default()).unwrap(), "{}");
-    assert_eq!(serde_json::to_string(&ClaimsIndex::default()).unwrap(), "{}");
-    assert_eq!(serde_json::to_string(&ReputationsIndex::default()).unwrap(), "{}");
-    assert_eq!(serde_json::to_string(&TaskMarketsIndex::default()).unwrap(), "{}");
-    assert_eq!(serde_json::to_string(&RoyaltyGraph::default()).unwrap(), "{}");
-    assert_eq!(serde_json::to_string(&ChallengeCasesIndex::default()).unwrap(), "{}");
+    assert_eq!(
+        serde_json::to_string(&BalancesIndex::default()).unwrap(),
+        "{}"
+    );
+    assert_eq!(
+        serde_json::to_string(&EscrowsIndex::default()).unwrap(),
+        "{}"
+    );
+    assert_eq!(
+        serde_json::to_string(&StakesIndex::default()).unwrap(),
+        "{}"
+    );
+    assert_eq!(
+        serde_json::to_string(&ClaimsIndex::default()).unwrap(),
+        "{}"
+    );
+    assert_eq!(
+        serde_json::to_string(&ReputationsIndex::default()).unwrap(),
+        "{}"
+    );
+    assert_eq!(
+        serde_json::to_string(&TaskMarketsIndex::default()).unwrap(),
+        "{}"
+    );
+    assert_eq!(
+        serde_json::to_string(&RoyaltyGraph::default()).unwrap(),
+        "{}"
+    );
+    assert_eq!(
+        serde_json::to_string(&ChallengeCasesIndex::default()).unwrap(),
+        "{}"
+    );
     // TB-14 Atom 2 (2026-05-03): legacy `PriceIndex` struct removed.
     // The TB-14 derived view is `compute_price_index(econ)` returning a
     // `BTreeMap<TxId, NodeMarketEntry>` — its empty serialization is

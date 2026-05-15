@@ -114,16 +114,13 @@ fn flush_jsonl_record(
     record: &RejectedSubmissionRecord,
 ) -> Result<(), RejectionEvidenceError> {
     let shadow = JsonlRecord::from(record);
-    let line = serde_json::to_string(&shadow).map_err(|e| {
-        RejectionEvidenceError::Io(format!("serialize record: {e}"))
-    })?;
+    let line = serde_json::to_string(&shadow)
+        .map_err(|e| RejectionEvidenceError::Io(format!("serialize record: {e}")))?;
     let mut file = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
         .open(path)
-        .map_err(|e| {
-            RejectionEvidenceError::Io(format!("open append {path:?}: {e}"))
-        })?;
+        .map_err(|e| RejectionEvidenceError::Io(format!("open append {path:?}: {e}")))?;
     file.write_all(line.as_bytes())
         .map_err(|e| RejectionEvidenceError::Io(format!("write: {e}")))?;
     file.write_all(b"\n")
@@ -171,9 +168,9 @@ fn advance_l4e_ref_for_record(
     let time = git2::Time::new(record.submit_id as i64, 0);
     let sig = git2::Signature::new("turingosv4 sequencer", "system@turingos", &time)?;
     // Walk parent chain by querying current refs/chaintape/l4e.
-    let parents: Vec<git2::Commit<'_>> = match repo.find_reference(
-        crate::bottom_white::ledger::transition_ledger::CHAINTAPE_L4E_REF,
-    ) {
+    let parents: Vec<git2::Commit<'_>> = match repo
+        .find_reference(crate::bottom_white::ledger::transition_ledger::CHAINTAPE_L4E_REF)
+    {
         Ok(r) => r
             .target()
             .and_then(|oid| repo.find_commit(oid).ok())
@@ -404,7 +401,9 @@ pub enum RejectionEvidenceError {
 impl std::fmt::Display for RejectionEvidenceError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::HashMismatch { at } => write!(f, "rejection-evidence chain break at index {}", at),
+            Self::HashMismatch { at } => {
+                write!(f, "rejection-evidence chain break at index {}", at)
+            }
             Self::Io(e) => write!(f, "rejection-evidence I/O error: {e}"),
             Self::JsonlParse { line, reason } => write!(
                 f,
@@ -473,9 +472,7 @@ impl RejectionEvidenceWriter {
     /// Architect § 3.5 "或等价结构": JSONL chain-hash equivalent to git
     /// `refs/rejections/main`. Each line embeds `prev_hash` + `hash` so
     /// tampering with any line breaks the chain at that line.
-    pub fn open_jsonl(
-        path: std::path::PathBuf,
-    ) -> Result<Self, RejectionEvidenceError> {
+    pub fn open_jsonl(path: std::path::PathBuf) -> Result<Self, RejectionEvidenceError> {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent).map_err(|e| {
                 RejectionEvidenceError::Io(format!("create parent dir for {path:?}: {e}"))
@@ -483,19 +480,16 @@ impl RejectionEvidenceWriter {
         }
         let mut records: Vec<RejectedSubmissionRecord> = Vec::new();
         if path.exists() {
-            let contents = std::fs::read_to_string(&path).map_err(|e| {
-                RejectionEvidenceError::Io(format!("read {path:?}: {e}"))
-            })?;
+            let contents = std::fs::read_to_string(&path)
+                .map_err(|e| RejectionEvidenceError::Io(format!("read {path:?}: {e}")))?;
             for (idx, line) in contents.lines().enumerate() {
                 if line.trim().is_empty() {
                     continue;
                 }
                 let shadow: JsonlRecord =
-                    serde_json::from_str(line).map_err(|e| {
-                        RejectionEvidenceError::JsonlParse {
-                            line: idx,
-                            reason: e.to_string(),
-                        }
+                    serde_json::from_str(line).map_err(|e| RejectionEvidenceError::JsonlParse {
+                        line: idx,
+                        reason: e.to_string(),
                     })?;
                 records.push(shadow.into());
             }
@@ -505,9 +499,7 @@ impl RejectionEvidenceWriter {
                 .create(true)
                 .append(true)
                 .open(&path)
-                .map_err(|e| {
-                    RejectionEvidenceError::Io(format!("create {path:?}: {e}"))
-                })?;
+                .map_err(|e| RejectionEvidenceError::Io(format!("create {path:?}: {e}")))?;
         }
         let writer = Self {
             records,
@@ -846,6 +838,9 @@ mod tests {
         // disagree with its computed value.
         w.records[0].public_summary = Some("tampered".into());
         let r = w.verify_chain();
-        assert!(matches!(r, Err(RejectionEvidenceError::HashMismatch { at: 0 })));
+        assert!(matches!(
+            r,
+            Err(RejectionEvidenceError::HashMismatch { at: 0 })
+        ));
     }
 }

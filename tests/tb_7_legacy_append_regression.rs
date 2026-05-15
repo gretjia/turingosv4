@@ -52,7 +52,8 @@ fn unannotated_legacy_append_sites(source: &str) -> Vec<(usize, String)> {
         if trimmed.starts_with("//") || trimmed.starts_with("///") {
             continue;
         }
-        let is_legacy_call = (line.contains("bus.append(") || line.contains("bus.append_oracle_accepted("))
+        let is_legacy_call = (line.contains("bus.append(")
+            || line.contains("bus.append_oracle_accepted("))
             && !trimmed.starts_with("//");
         if !is_legacy_call {
             continue;
@@ -92,8 +93,8 @@ fn unannotated_legacy_append_sites(source: &str) -> Vec<(usize, String)> {
 
 #[test]
 fn gate_7_no_unannotated_legacy_append_in_evaluator() {
-    let source = fs::read_to_string(EVALUATOR_PATH)
-        .unwrap_or_else(|e| panic!("read {EVALUATOR_PATH}: {e}"));
+    let source =
+        fs::read_to_string(EVALUATOR_PATH).unwrap_or_else(|e| panic!("read {EVALUATOR_PATH}: {e}"));
     let violations = unannotated_legacy_append_sites(&source);
     if !violations.is_empty() {
         let mut report = String::from(

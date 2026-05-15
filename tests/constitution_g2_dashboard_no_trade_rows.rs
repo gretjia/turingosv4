@@ -183,7 +183,10 @@ fn sg_g2_4_d_ratio_is_integer_percent_no_f64() {
     let ratio = s.submitted_vs_traced_ratio_str();
     assert_eq!(ratio, "1/3 = 33%");
     // No decimal point in the rendered ratio (no f64 path).
-    assert!(!ratio.contains('.'), "SG-G2.4.d: ratio must be integer-rational");
+    assert!(
+        !ratio.contains('.'),
+        "SG-G2.4.d: ratio must be integer-rational"
+    );
 }
 
 // ────────────────────────────────────────────────────────────────────────

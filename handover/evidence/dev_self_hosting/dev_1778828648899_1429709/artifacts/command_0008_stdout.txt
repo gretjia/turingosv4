@@ -1,0 +1,4 @@
+379:  interpretation: price is signal, not truth; no predicate authority
+384:## §J.1 Opportunity Scheduler recommendation (observe-only)
+385:  interpretation: non-binding materialized view; price is signal, not truth
+388:  observe_only: true

@@ -414,6 +414,8 @@ pub async fn write_synthetic_l4_l4e_gate_and_genesis_report(
         seed_id,
         Vec::new(),
         None,
+        Vec::new(),
+        None,
     )
     .await;
 }
@@ -426,6 +428,8 @@ pub async fn write_synthetic_l4_l4e_gate_and_genesis_report_with_model_assignmen
     seed_id: &str,
     agent_model_assignment: Vec<turingosv4::runtime::genesis_report::AgentModelAssignment>,
     model_assignment_manifest: Option<turingosv4::runtime::genesis_report::ModelAssignmentManifest>,
+    agent_role_assignment: Vec<turingosv4::runtime::real5_roles::AgentRoleAssignment>,
+    role_assignment_manifest: Option<turingosv4::runtime::real5_roles::RoleAssignmentManifest>,
 ) {
     let task_id_str = format!("smoke-{}", seed_id);
     let task_open = turingosv4::runtime::adapter::make_synthetic_task_open(
@@ -549,6 +553,28 @@ pub async fn write_synthetic_l4_l4e_gate_and_genesis_report_with_model_assignmen
             }
         }
     });
+    let role_assignment_manifest_cid = role_assignment_manifest.and_then(|manifest| {
+        let logical_t = manifest.created_at_head_t.parse::<u64>().unwrap_or(0);
+        match turingosv4::bottom_white::cas::store::CasStore::open(&bundle.cas_path).and_then(
+            |mut cas| {
+                turingosv4::runtime::real5_roles::write_role_assignment_manifest_to_cas(
+                    &manifest,
+                    &mut cas,
+                    "real5-role-assignment",
+                    logical_t,
+                )
+            },
+        ) {
+            Ok(cid) => Some(cid.to_string()),
+            Err(e) => {
+                error!(
+                    "[chaintape/real5] role assignment manifest CAS write failed: {e}; \
+                     FAIL-CLOSED per REAL-5 role_assignment replayability requirement"
+                );
+                std::process::exit(3);
+            }
+        }
+    });
     let report = turingosv4::runtime::genesis_report::GenesisReport {
         constitution_hash: turingosv4::runtime::genesis_report::GenesisReport::hash_constitution_md(
             std::path::Path::new("constitution.md"),
@@ -568,14 +594,20 @@ pub async fn write_synthetic_l4_l4e_gate_and_genesis_report_with_model_assignmen
             agent_model_assignment,
         ),
         model_assignment_manifest_cid,
+        agent_role_assignment: turingosv4::runtime::real5_roles::sorted_role_assignment(
+            agent_role_assignment,
+        ),
+        role_assignment_manifest_cid,
     };
     if let Err(e) = report.write_to_runtime_repo(&bundle.runtime_repo_path) {
         if !report.agent_model_assignment.is_empty()
             || report.model_assignment_manifest_cid.is_some()
+            || !report.agent_role_assignment.is_empty()
+            || report.role_assignment_manifest_cid.is_some()
         {
             error!(
-                "[chaintape/g4.2] genesis_report.json write failed: {e}; \
-                 FAIL-CLOSED because this run carries agent_model_assignment"
+                "[chaintape/genesis] genesis_report.json write failed: {e}; \
+                 FAIL-CLOSED because this run carries replay-critical assignment facts"
             );
             std::process::exit(3);
         }

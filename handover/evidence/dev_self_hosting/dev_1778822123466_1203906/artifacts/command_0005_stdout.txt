@@ -1,0 +1,22 @@
+Diff in /home/zephryj/projects/turingosv4/src/runtime/real6_attempt_prediction.rs:157:
+             }
+         };
+         let reserved_micro = match role {
+-            AgentRole::Trader => MicroCoin::from_micro_units(seed_liquidity_micro.micro_units() / 10),
++            AgentRole::Trader => {
++                MicroCoin::from_micro_units(seed_liquidity_micro.micro_units() / 10)
++            }
+             _ => MicroCoin::zero(),
+         };
+         steps.push(AttemptPredictionStep {
+Diff in /home/zephryj/projects/turingosv4/src/runtime/real6_attempt_prediction.rs:224:
+     if fixture.schema_id != REAL6B_SCHEMA_ID {
+         return Err("REAL-6B fixture schema mismatch".into());
+     }
+-    if !fixture.stage_limit.contains("design + scripted fixture only")
++    if !fixture
++        .stage_limit
++        .contains("design + scripted fixture only")
+         || !fixture.stage_limit.contains("No live real-LLM ship")
+         || fixture.live_llm_ship_enabled
+     {

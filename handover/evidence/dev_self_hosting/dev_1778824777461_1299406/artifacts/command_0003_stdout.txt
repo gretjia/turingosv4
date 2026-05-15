@@ -1,0 +1,27 @@
+Diff in /home/zephryj/projects/turingosv4/tests/constitution_real6_conviction_budget.rs:100:
+     let a = agent("Agent_0");
+     let q = q_with_balance(&a, 90_000);
+     let budget = derive_conviction_budget(&q, &a);
+-    assert_eq!(budget.agent_id, a, "SG-6C.5: low-balance agent remains visible");
++    assert_eq!(
++        budget.agent_id, a,
++        "SG-6C.5: low-balance agent remains visible"
++    );
+ 
+     for action in [
+         ConvictionAction::Observe,
+Diff in /home/zephryj/projects/turingosv4/tests/constitution_real6_conviction_budget.rs:120:
+         "SG-6C.4: low-balance Trader cannot take high-risk market action"
+     );
+     assert!(
+-        !conviction_action_allowed(&budget, AgentRole::Challenger, ConvictionAction::HighRiskChallenge)
+-            .allowed,
++        !conviction_action_allowed(
++            &budget,
++            AgentRole::Challenger,
++            ConvictionAction::HighRiskChallenge
++        )
++        .allowed,
+         "SG-6C.4: low-balance Challenger cannot take high-risk challenge action"
+     );
+ 

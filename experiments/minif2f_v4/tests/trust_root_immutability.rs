@@ -77,7 +77,11 @@ fn test_trust_root_simulated_write_aborts() {
     fs::write(tmp.join("only.txt"), "tampered content").unwrap();
 
     match verify_trust_root(&tmp) {
-        Err(TrustRootError::Tampered { path, expected, actual }) => {
+        Err(TrustRootError::Tampered {
+            path,
+            expected,
+            actual,
+        }) => {
             assert!(path.ends_with("only.txt"));
             assert_eq!(expected, zero_hash);
             assert_ne!(actual, expected);
@@ -219,9 +223,10 @@ fn test_pput_accounting_0_section_present() {
     }
 
     // Frozen invariants from PREREG § 1.8: heldout sealed hash, k_max, n_max.
-    assert!(body.contains(
-        "\"51440807c9ecc5c366d1adb640afcc96fcd227d18e4a35c7f85aaec78475086b\""
-    ), "heldout_sealed_hash diverges from PREREG § 2.3");
+    assert!(
+        body.contains("\"51440807c9ecc5c366d1adb640afcc96fcd227d18e4a35c7f85aaec78475086b\""),
+        "heldout_sealed_hash diverges from PREREG § 2.3"
+    );
     assert!(body.contains("k_max = 10"), "k_max must be 10 per PREREG");
     assert!(body.contains("n_max = 34"), "n_max must be 34 per PREREG");
 }

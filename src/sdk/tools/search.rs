@@ -15,7 +15,10 @@ pub struct SearchTool {
 
 impl SearchTool {
     pub fn new(search_paths: Vec<String>, max_results: usize) -> Self {
-        SearchTool { search_paths, max_results }
+        SearchTool {
+            search_paths,
+            max_results,
+        }
     }
 
     /// Search for files matching a query string.
@@ -63,8 +66,12 @@ impl TuringTool for SearchTool {
         "search"
     }
 
-    fn as_any(&self) -> &dyn Any { self }
-    fn as_any_mut(&mut self) -> &mut dyn Any { self }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
 }
 
 #[cfg(test)]

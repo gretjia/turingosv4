@@ -1,0 +1,18 @@
+Diff in /home/zephryj/projects/turingosv4/src/bottom_white/ledger/transition_ledger.rs:725:
+         }
+         Err(current_err) => {
+             let current_err = current_err.to_string();
+-            let (legacy, consumed) =
+-                bincode::serde::decode_from_slice::<LegacyTypedTxEventResolveWire, _>(
+-                    bytes,
+-                    bincode_canonical_config(),
+-                )
+-                .map_err(|_| CanonicalCodecError::Decode(current_err.clone()))?;
++            let (legacy, consumed) = bincode::serde::decode_from_slice::<
++                LegacyTypedTxEventResolveWire,
++                _,
++            >(bytes, bincode_canonical_config())
++            .map_err(|_| CanonicalCodecError::Decode(current_err.clone()))?;
+             if consumed != bytes.len() {
+                 return Err(CanonicalCodecError::TrailingBytes {
+                     consumed,

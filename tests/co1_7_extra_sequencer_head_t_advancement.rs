@@ -40,7 +40,9 @@ impl LedgerWriter for MockLedgerWriter {
     }
 
     fn read_at(&self, _logical_t: u64) -> Result<LedgerEntry, LedgerWriterError> {
-        unimplemented!("MockLedgerWriter does not support read_at — not needed for advance_head_t test")
+        unimplemented!(
+            "MockLedgerWriter does not support read_at — not needed for advance_head_t test"
+        )
     }
 
     fn len(&self) -> u64 {

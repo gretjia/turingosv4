@@ -226,25 +226,34 @@ mod tests {
     #[test]
     fn agent_visible_view_filters_private() {
         let mut reg = PredicateRegistry::new();
-        reg.register(sample_meta("public_pred", Visibility::Public)).unwrap();
-        reg.register(sample_meta("private_pred", Visibility::Private)).unwrap();
+        reg.register(sample_meta("public_pred", Visibility::Public))
+            .unwrap();
+        reg.register(sample_meta("private_pred", Visibility::Private))
+            .unwrap();
         reg.register(sample_meta(
             "future_pred",
             Visibility::CommitReveal {
                 reveal_at_logical_t: 1000,
                 predicate_hash: [0u8; 32],
             },
-        )).unwrap();
+        ))
+        .unwrap();
 
         let view_now = reg.agent_visible_view(0);
         assert_eq!(view_now.len(), 1, "only public visible at now=0");
         assert!(view_now.get("public_pred").is_some());
         assert!(view_now.get("private_pred").is_none(), "private hidden");
-        assert!(view_now.get("future_pred").is_none(), "commit-reveal pre-reveal hidden");
+        assert!(
+            view_now.get("future_pred").is_none(),
+            "commit-reveal pre-reveal hidden"
+        );
 
         let view_later = reg.agent_visible_view(1000);
         assert_eq!(view_later.len(), 2, "public + commit-reveal at reveal time");
-        assert!(view_later.get("future_pred").is_some(), "commit-reveal now visible");
+        assert!(
+            view_later.get("future_pred").is_some(),
+            "commit-reveal now visible"
+        );
     }
 
     #[test]
@@ -263,15 +272,21 @@ mod tests {
     fn metadata_canonical_hash_deterministic() {
         let m1 = sample_meta("test", Visibility::Public);
         let m2 = sample_meta("test", Visibility::Public);
-        assert_eq!(m1.canonical_hash(), m2.canonical_hash(),
-            "same metadata → same canonical hash (I-DET)");
+        assert_eq!(
+            m1.canonical_hash(),
+            m2.canonical_hash(),
+            "same metadata → same canonical hash (I-DET)"
+        );
     }
 
     #[test]
     fn metadata_canonical_hash_differs_on_visibility() {
         let m_pub = sample_meta("p", Visibility::Public);
         let m_priv = sample_meta("p", Visibility::Private);
-        assert_ne!(m_pub.canonical_hash(), m_priv.canonical_hash(),
-            "visibility class is part of canonical hash");
+        assert_ne!(
+            m_pub.canonical_hash(),
+            m_priv.canonical_hash(),
+            "visibility class is part of canonical hash"
+        );
     }
 }

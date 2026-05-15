@@ -8,10 +8,7 @@
 /// per architect §7.7.
 ///
 /// TRACE_MATRIX FC1-N34 + FC1-N35 + FC1-N36 + FC2-N31..N33 + FC3-N44
-
-use turingosv4::runtime::audit_assertions::{
-    AssertionLayer, AssertionResult, AssertionVerdict,
-};
+use turingosv4::runtime::audit_assertions::{AssertionLayer, AssertionResult, AssertionVerdict};
 
 fn ok(r: &AssertionResult, expected_layer: AssertionLayer) {
     assert!(
@@ -121,7 +118,9 @@ fn h8_projection_contains_autopsy_private_detail_halts() {
     let body = std::fs::read_to_string(&q_state_path)
         .unwrap_or_else(|e| panic!("read {}: {}", q_state_path, e));
     let needle = "pub struct AgentVisibleProjection";
-    let start = body.find(needle).expect("AgentVisibleProjection must exist");
+    let start = body
+        .find(needle)
+        .expect("AgentVisibleProjection must exist");
     let after = &body[start..];
     let brace_open = after.find('{').expect("opening brace");
     let mut depth = 0i32;
@@ -190,15 +189,24 @@ fn h9_typical_error_summary_contains_private_detail_halts() {
         created_at_round: 0,
     };
     let bytes = [0xA1u8, 0xA2, 0xA3];
-    let autopsies = vec![mk("Agent_solver_0", bytes[0]), mk("Agent_solver_1", bytes[1]), mk("Agent_solver_2", bytes[2])];
+    let autopsies = vec![
+        mk("Agent_solver_0", bytes[0]),
+        mk("Agent_solver_1", bytes[1]),
+        mk("Agent_solver_2", bytes[2]),
+    ];
     let summaries = cluster_autopsies(&autopsies, 3);
     assert_eq!(summaries.len(), 1);
-    let canonical = turingosv4::bottom_white::ledger::transition_ledger::canonical_encode(&summaries)
-        .expect("canonical_encode");
+    let canonical =
+        turingosv4::bottom_white::ledger::transition_ledger::canonical_encode(&summaries)
+            .expect("canonical_encode");
     for &b in &bytes {
         let run = [b; 32];
         for window in canonical.windows(32) {
-            assert!(window != run, "H9: canonical encode contains private_detail_cid run for byte 0x{:02x}", b);
+            assert!(
+                window != run,
+                "H9: canonical encode contains private_detail_cid run for byte 0x{:02x}",
+                b
+            );
         }
     }
 }
@@ -217,7 +225,10 @@ fn h10_markov_constitution_hash_mismatch_halts() {
     h.update(&bytes);
     let expected: [u8; 32] = h.finalize().into();
     let cap = MarkovEvidenceCapsule::with_constitution_hash(expected);
-    assert_eq!(cap.constitution_hash.0, expected, "H10: Markov capsule constitution_hash must match sha256(constitution.md)");
+    assert_eq!(
+        cap.constitution_hash.0, expected,
+        "H10: Markov capsule constitution_hash must match sha256(constitution.md)"
+    );
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -230,10 +241,15 @@ fn h11_markov_deep_history_without_override_halts() {
         try_deep_history_read_with_override_check, MarkovGenError,
     };
     let r = try_deep_history_read_with_override_check(false);
-    assert!(matches!(r, Err(MarkovGenError::DeepHistoryReadDenied)),
-        "H11: deep-history default-deny must return DeepHistoryReadDenied without override");
+    assert!(
+        matches!(r, Err(MarkovGenError::DeepHistoryReadDenied)),
+        "H11: deep-history default-deny must return DeepHistoryReadDenied without override"
+    );
     let ok_path = try_deep_history_read_with_override_check(true);
-    assert!(ok_path.is_ok(), "H11: TURINGOS_MARKOV_OVERRIDE=1 must permit deep-history");
+    assert!(
+        ok_path.is_ok(),
+        "H11: TURINGOS_MARKOV_OVERRIDE=1 must permit deep-history"
+    );
 }
 
 // ────────────────────────────────────────────────────────────────────

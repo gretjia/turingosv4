@@ -26,8 +26,8 @@ use turingosv4::runtime::proposal_telemetry::TokenCounts;
 use turingosv4::state::q_state::{AgentId, Hash, TaskId, TxId};
 use turingosv4::state::sequencer::refine_rejection_class_via_attempt_telemetry;
 use turingosv4::state::typed_tx::{
-    AgentSignature, BoolWithProof, PredicateId, PredicateResultsBundle, ReadKey,
-    SafetyOrCreation, TypedTx, WorkTx, WriteKey,
+    AgentSignature, BoolWithProof, PredicateId, PredicateResultsBundle, ReadKey, SafetyOrCreation,
+    TypedTx, WorkTx, WriteKey,
 };
 
 #[test]
@@ -74,11 +74,7 @@ fn cas_store_reload_is_idempotent_on_already_loaded_cids() {
     assert_eq!(bytes_after_first, b"idem-payload".to_vec());
 }
 
-fn write_attempt_via_handle(
-    cas: &mut CasStore,
-    outcome: AttemptOutcome,
-    tag: &str,
-) -> Cid {
+fn write_attempt_via_handle(cas: &mut CasStore, outcome: AttemptOutcome, tag: &str) -> Cid {
     let attempt = AttemptTelemetry::new_root(
         TxId(format!("att-{tag}")),
         "test-run-r3fix".into(),
@@ -138,8 +134,11 @@ fn refine_rejection_class_recovers_via_reload_lean_failed() {
 
     // Evaluator (separate handle) writes the AttemptTelemetry AFTER the
     // sequencer_cas was opened — split-brain condition replicated.
-    let attempt_cid =
-        write_attempt_via_handle(&mut evaluator_cas, AttemptOutcome::LeanFail, "leanfail-stale");
+    let attempt_cid = write_attempt_via_handle(
+        &mut evaluator_cas,
+        AttemptOutcome::LeanFail,
+        "leanfail-stale",
+    );
     let tx = fixture_failure_work_tx(attempt_cid);
 
     // Pre-fix this would return PredicateFailed (the L0 smoke 2026-05-06

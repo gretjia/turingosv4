@@ -1,0 +1,13 @@
+
+running 3 tests
+test sg_g2p_6_obs_file_present_with_forward_closure_section ... ok
+test sg_g2p_6_verify_tx_arm_preserves_tb_n1_a4_admission_contract ... FAILED
+test sg_g2p_6_no_reputations_t_mutation_in_sequencer_arms_today ... ok
+
+failures:
+
+failures:
+    sg_g2p_6_verify_tx_arm_preserves_tb_n1_a4_admission_contract
+
+test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+

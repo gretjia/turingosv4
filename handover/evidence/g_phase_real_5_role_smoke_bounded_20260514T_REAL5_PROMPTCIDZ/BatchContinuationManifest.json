@@ -1,0 +1,58 @@
+{
+  "schema_version": "g1_2_v1",
+  "batch_id": "g_phase_real_5_role_smoke_bounded_20260514T_REAL5_PROMPTCIDZ_5239f4b",
+  "runtime_repo": "/home/zephryj/projects/turingosv4/handover/evidence/g_phase_real_5_role_smoke_bounded_20260514T_REAL5_PROMPTCIDZ/runtime_repo",
+  "cas_root": "/home/zephryj/projects/turingosv4/handover/evidence/g_phase_real_5_role_smoke_bounded_20260514T_REAL5_PROMPTCIDZ/cas",
+  "model": "deepseek-chat",
+  "n_agents": 5,
+  "initial_head_t_hex": "",
+  "agent_registry_cid_hex": null,
+  "system_pubkeys_cid_hex": null,
+  "model_manifest_cid_hex": null,
+  "role_assignment_manifest_cid_hex": "a927b6484233b96c840ca621b208e23c35d946520855d766f43a755d4e5a57f6",
+  "tasks": [
+    {
+      "task_index": 0,
+      "problem_id": "mathd_algebra_107",
+      "start_head_t_hex": "",
+      "end_head_t_hex": "0cdabf4a05e7f2cbb290158297fde5b12b2af97c",
+      "start_chain_length": 0,
+      "end_chain_length": 3,
+      "subprocess_command_sha256": "",
+      "run_summary_cid_hex": null,
+      "terminal_tx_id": null,
+      "exit_code": 0,
+      "started_at_unix_s": 1778775989,
+      "finished_at_unix_s": 1778775991
+    },
+    {
+      "task_index": 1,
+      "problem_id": "mathd_algebra_125",
+      "start_head_t_hex": "0cdabf4a05e7f2cbb290158297fde5b12b2af97c",
+      "end_head_t_hex": "567085af5eeab4b9176f0cdc385ae1ab6cea4c7b",
+      "start_chain_length": 3,
+      "end_chain_length": 4,
+      "subprocess_command_sha256": "",
+      "run_summary_cid_hex": null,
+      "terminal_tx_id": null,
+      "exit_code": 0,
+      "started_at_unix_s": 1778775991,
+      "finished_at_unix_s": 1778776014
+    },
+    {
+      "task_index": 2,
+      "problem_id": "mathd_algebra_141",
+      "start_head_t_hex": "567085af5eeab4b9176f0cdc385ae1ab6cea4c7b",
+      "end_head_t_hex": "f1f297d09ccc3be9e00574eb634b9844d23665ef",
+      "start_chain_length": 4,
+      "end_chain_length": 5,
+      "subprocess_command_sha256": "",
+      "run_summary_cid_hex": null,
+      "terminal_tx_id": null,
+      "exit_code": 0,
+      "started_at_unix_s": 1778776014,
+      "finished_at_unix_s": 1778776031
+    }
+  ],
+  "terminated_reason": null
+}

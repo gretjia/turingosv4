@@ -1,0 +1,13 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "reviewer": "clean-context-codex-gpt-5.5-xhigh",
+  "verdict": "PROCEED",
+  "findings_summary": "R2 PROCEED: R1 Trust Root scope and open_t=0 sealed-oracle order CHALLENGEs closed; no production TypedTx/TxKind/sequencer/live-LLM ship added.",
+  "source_file": {
+    "path": "handover/audits/CODEX_REAL6B_IMPLEMENTATION_REVIEW_R2.md",
+    "sha256": "3140c5bda880c83fc2ebdc0104bb34b74af337947f1c62910ddb6d62f50de141",
+    "size_bytes": 1672
+  },
+  "payload_manifest_hash": "987173d0880e98eaa8e8cfdc9d6fb520dd0568358f4d6f112b43112de295eec7",
+  "recorded_at_unix_ms": 1778824216732
+}

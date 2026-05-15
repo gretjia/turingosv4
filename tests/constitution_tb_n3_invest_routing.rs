@@ -16,18 +16,16 @@
 use tempfile::TempDir;
 use turingosv4::economy::money::MicroCoin;
 use turingosv4::runtime::adapter::{
-    make_real_cpmm_pool_signed_by, make_real_complete_set_mint_signed_by,
+    make_real_complete_set_mint_signed_by, make_real_cpmm_pool_signed_by,
     make_real_market_seed_signed_by, tb_n3_invest_to_router_tx, InvestRouteError,
 };
 use turingosv4::runtime::agent_keypairs::AgentKeypairRegistry;
 use turingosv4::runtime::market_decision_trace::NoTradeReason;
 use turingosv4::state::q_state::{
-    AgentId, CpmmPool, EconomicState, Hash, LpShareAmount, PoolStatus, QState, TaskId, TaskMarketEntry,
-    TaskMarketState, TxId,
+    AgentId, CpmmPool, EconomicState, Hash, LpShareAmount, PoolStatus, QState, TaskId,
+    TaskMarketEntry, TaskMarketState, TxId,
 };
-use turingosv4::state::typed_tx::{
-    BuyDirection, EventId, ShareAmount, TypedTx,
-};
+use turingosv4::state::typed_tx::{BuyDirection, EventId, ShareAmount, TypedTx};
 
 /// Build a snapshot QState with a single Active pool keyed at
 /// `node_survive:<work_tx_id>` and a pre-loaded buyer balance. Synthetic;
@@ -122,16 +120,19 @@ fn sg_n3_1_fixture_pool_present_router_accepts() {
     assert_eq!(router.direction, BuyDirection::BuyYes);
     assert_eq!(router.pay_coin.micro_units(), 500_000);
     assert!(
-        router.event_id.0.0.starts_with("node_survive:"),
+        router.event_id.0 .0.starts_with("node_survive:"),
         "SG-N3.4 event_id namespace: must start with `node_survive:`, got {:?}",
-        router.event_id.0.0
+        router.event_id.0 .0
     );
     assert_eq!(
-        router.event_id.0.0,
-        "node_survive:worktx-Agent_2-mathd_algebra_107-7",
+        router.event_id.0 .0, "node_survive:worktx-Agent_2-mathd_algebra_107-7",
         "event_id encodes the work_tx_id verbatim after the prefix"
     );
-    assert_ne!(*router.signature.as_bytes(), [0u8; 64], "signature non-zero");
+    assert_ne!(
+        *router.signature.as_bytes(),
+        [0u8; 64],
+        "signature non-zero"
+    );
 }
 
 /// SG-N3.2 — missing-pool path: returns `Err(UnknownEvent)`, NOT silent drop.
@@ -167,11 +168,7 @@ fn sg_n3_2_missing_pool_routes_to_l4e_no_pool() {
 fn closed_pool_routes_to_no_pool() {
     let repo = TempDir::new().expect("tempdir");
     let mut reg = AgentKeypairRegistry::open(repo.path()).expect("open");
-    let q = snapshot_with_closed_pool(
-        "worktx-Agent_2-mathd_algebra_107-7",
-        "Agent_3",
-        1_000_000,
-    );
+    let q = snapshot_with_closed_pool("worktx-Agent_2-mathd_algebra_107-7", "Agent_3", 1_000_000);
 
     let err = tb_n3_invest_to_router_tx(
         &mut reg,
@@ -250,7 +247,10 @@ fn empty_node_str_returns_malformed_node() {
         "smoke-5",
     )
     .expect_err("empty node_str rejected");
-    assert!(matches!(err, InvestRouteError::MalformedNode { reason: "empty" }));
+    assert!(matches!(
+        err,
+        InvestRouteError::MalformedNode { reason: "empty" }
+    ));
     assert_eq!(err.to_no_trade_reason(), NoTradeReason::MalformedNode);
 }
 
@@ -278,7 +278,10 @@ fn balance_shortfall_returns_amount_exceeds_balance() {
     )
     .expect_err("amount > balance rejected");
     match err {
-        InvestRouteError::AmountExceedsBalance { amount_micro, balance_micro } => {
+        InvestRouteError::AmountExceedsBalance {
+            amount_micro,
+            balance_micro,
+        } => {
             assert_eq!(amount_micro, 500_000);
             assert_eq!(balance_micro, 100_000);
         }
@@ -293,12 +296,7 @@ fn balance_shortfall_returns_amount_exceeds_balance() {
 fn same_invest_payload_yields_deterministic_signature() {
     let repo = TempDir::new().expect("tempdir");
     let mut reg = AgentKeypairRegistry::open(repo.path()).expect("open");
-    let q = snapshot_with_pool_and_balance(
-        "worktx-Agent_2-evt-1",
-        4_000_000,
-        "Agent_3",
-        1_000_000,
-    );
+    let q = snapshot_with_pool_and_balance("worktx-Agent_2-evt-1", 4_000_000, "Agent_3", 1_000_000);
     let make = |reg: &mut AgentKeypairRegistry| {
         tb_n3_invest_to_router_tx(
             reg,

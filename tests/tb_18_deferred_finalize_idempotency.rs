@@ -93,14 +93,12 @@ const SEQUENCER_SRC: &str = "src/state/sequencer.rs";
 #[test]
 fn tb_18_c_gate1_double_finalize_rejects_already_finalized() {
     let path = workspace_relative(SEQUENCER_SRC);
-    let src = fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+    let src = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
 
     // Verify the structural pattern is present: ClaimStatus::Finalized arm
     // rejects with ClaimAlreadyFinalized.
     assert!(
-        src.contains("ClaimStatus::Finalized")
-            && src.contains("ClaimAlreadyFinalized"),
+        src.contains("ClaimStatus::Finalized") && src.contains("ClaimAlreadyFinalized"),
         "TB-18 Atom C Gate 1: FinalizeReward dispatch arm MUST reject \
          ClaimStatus::Finalized with ClaimAlreadyFinalized in {}; structural \
          pattern not found.",
@@ -129,8 +127,7 @@ fn tb_18_c_gate1_double_finalize_rejects_already_finalized() {
 #[test]
 fn tb_18_c_gate3_partial_documented_via_assertion_on_existing_code() {
     let path = workspace_relative(SEQUENCER_SRC);
-    let src = fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+    let src = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
 
     // Today's sequencer SHOULD have UpheldDeferred check (Gate 3 partial yes).
     let upheld_check = src.contains("ChallengeStatus::UpheldDeferred");
@@ -153,11 +150,11 @@ fn tb_18_c_gate3_partial_documented_via_assertion_on_existing_code() {
     //     finalize_reward_step4_blocks_open(src),
     //     "Gate 3 FULL: FinalizeReward Step 4 must also block on Open"
     //   );
-    let has_open_blocking_in_finalize_step4 =
-        src.contains("|| cc.status == crate::state::q_state::ChallengeStatus::Open")
-            || src.contains("|| cc.status == ChallengeStatus::Open")
-            || (src.contains("upheld_blocking")
-                && src.contains("|| cc.status == crate::state::q_state::ChallengeStatus::Open"));
+    let has_open_blocking_in_finalize_step4 = src
+        .contains("|| cc.status == crate::state::q_state::ChallengeStatus::Open")
+        || src.contains("|| cc.status == ChallengeStatus::Open")
+        || (src.contains("upheld_blocking")
+            && src.contains("|| cc.status == crate::state::q_state::ChallengeStatus::Open"));
 
     if has_open_blocking_in_finalize_step4 {
         // This is the future state. When this branch fires, it means a
@@ -187,16 +184,14 @@ fn tb_18_c_gate3_partial_documented_via_assertion_on_existing_code() {
 #[test]
 fn tb_18_c_gate4_reward_canonical_from_claim_amount() {
     let path = workspace_relative(SEQUENCER_SRC);
-    let src = fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+    let src = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
 
     // Verify the consistency check is present: reward against claim.amount.
     let pattern_a = "fr.reward != claim.amount";
     let pattern_b = "fr.reward == claim.amount";
     let pattern_c = "claim.amount";
-    let has_consistency = src.contains(pattern_a)
-        || src.contains(pattern_b)
-        || src.contains(pattern_c);
+    let has_consistency =
+        src.contains(pattern_a) || src.contains(pattern_b) || src.contains(pattern_c);
     assert!(
         has_consistency,
         "TB-18 Atom C Gate 4: FinalizeReward dispatch arm must reference \
@@ -217,8 +212,7 @@ fn tb_18_c_gate4_reward_canonical_from_claim_amount() {
 #[test]
 fn tb_18_c_gate5_payout_idempotency_via_status_check() {
     let path = workspace_relative(SEQUENCER_SRC);
-    let src = fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+    let src = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
 
     // Find FinalizeReward arm.
     let arm_start = src

@@ -179,9 +179,9 @@ pub async fn drive_task(
 ) -> Result<DriveTaskResult, DriveTaskError> {
     use turingosv4::runtime::adapter::{
         make_real_escrow_lock_signed_by, make_real_task_open_signed_by,
-        tb8_await_state_root_advance,
+        tb8_await_state_root_advance, tb_real6a_seed_task_outcome_market_after_escrow,
     };
-    use turingosv4::state::q_state::Hash;
+    use turingosv4::state::q_state::{Hash, TaskId};
 
     let bundle = chain
         .chaintape_bundle
@@ -230,12 +230,13 @@ pub async fn drive_task(
             stage: "task_open_submit",
             detail: format!("{e:?}"),
         })?;
-    let post_open_root = tb8_await_state_root_advance(bundle.sequencer.as_ref(), pre_open_root, 5000)
-        .await
-        .map_err(|_| DriveTaskError::SubmitFailed {
-            stage: "task_open_commit_await",
-            detail: "5s state_root advance budget expired".into(),
-        })?;
+    let post_open_root =
+        tb8_await_state_root_advance(bundle.sequencer.as_ref(), pre_open_root, 5000)
+            .await
+            .map_err(|_| DriveTaskError::SubmitFailed {
+                stage: "task_open_commit_await",
+                detail: "5s state_root advance budget expired".into(),
+            })?;
 
     // Build + submit EscrowLock (real-signed by sponsor).
     let escrow_lock = {
@@ -268,12 +269,49 @@ pub async fn drive_task(
             stage: "escrow_lock_submit",
             detail: format!("{e:?}"),
         })?;
-    let post_lock_root = tb8_await_state_root_advance(bundle.sequencer.as_ref(), post_open_root, 5000)
+    let mut post_lock_root =
+        tb8_await_state_root_advance(bundle.sequencer.as_ref(), post_open_root, 5000)
+            .await
+            .map_err(|_| DriveTaskError::SubmitFailed {
+                stage: "escrow_lock_commit_await",
+                detail: "5s state_root advance budget expired".into(),
+            })?;
+
+    // REAL-6A: optional TaskOutcomeMarket at task open/escrow time. This is
+    // deliberately before `drive_task` returns the parent root for WorkTx
+    // construction, so first WorkTx sees an already-active task outcome pool.
+    let real6_task_outcome_market = std::env::var("TURINGOS_REAL6_TASK_OUTCOME_MARKET")
+        .ok()
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
+    if real6_task_outcome_market {
+        let provider = std::env::var("TURINGOS_REAL6_TASK_OUTCOME_PROVIDER")
+            .unwrap_or_else(|_| "MarketMakerBudget".into());
+        let seed_micro = std::env::var("TURINGOS_REAL6_TASK_OUTCOME_SEED_MICRO")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(100_000);
+        let _seeded = tb_real6a_seed_task_outcome_market_after_escrow(
+            &chain.bus,
+            bundle.sequencer.as_ref(),
+            &keypairs_arc,
+            &TaskId(task_id_str.clone()),
+            &provider,
+            seed_micro,
+            "tb18-drive",
+            5000,
+        )
         .await
-        .map_err(|_| DriveTaskError::SubmitFailed {
-            stage: "escrow_lock_commit_await",
-            detail: "5s state_root advance budget expired".into(),
+        .map_err(|e| DriveTaskError::SubmitFailed {
+            stage: "task_outcome_market_seed",
+            detail: e,
         })?;
+        post_lock_root = bundle
+            .sequencer
+            .q_snapshot()
+            .map(|q| q.state_root_t)
+            .unwrap_or(post_lock_root);
+    }
 
     Ok(DriveTaskResult {
         problem_file: spec.problem_file.clone(),

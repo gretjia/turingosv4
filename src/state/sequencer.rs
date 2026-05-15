@@ -23,11 +23,11 @@ use sha2::{Digest, Sha256};
 
 use crate::bottom_white::cas::schema::{Cid, ObjectType};
 use crate::bottom_white::cas::store::{CasError, CasStore};
-use crate::bottom_white::ledger::system_keypair::{
-    transition_ledger_emitter, Ed25519Keypair, KeypairError, SystemEpoch,
-};
 use crate::bottom_white::ledger::rejection_evidence::{
     RejectionClass as L4ERejectionClass, RejectionEvidenceWriter,
+};
+use crate::bottom_white::ledger::system_keypair::{
+    transition_ledger_emitter, Ed25519Keypair, KeypairError, SystemEpoch,
 };
 use crate::bottom_white::ledger::transition_ledger::{
     append, canonical_encode, LedgerEntry, LedgerEntrySigningPayload, LedgerWriter,
@@ -40,8 +40,8 @@ use crate::economy::monetary_invariant::{
 };
 use crate::state::q_state::{AgentId, EscrowEntry, Hash, QState, TaskMarketEntry, TxId};
 use crate::state::typed_tx::{HasSubmitter, SignalBundle, TransitionError, TypedTx};
-use std::collections::BTreeSet;
 use crate::top_white::predicates::registry::PredicateRegistry;
+use std::collections::BTreeSet;
 
 // ────────────────────────────────────────────────────────────────────────────
 // TB-2 — WorkTx-accept state-root domain (preflight v3 §3.4 + P1-1 r2)
@@ -169,8 +169,7 @@ pub fn challenge_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
 
 /// TRACE_MATRIX TB-5 charter v2 § 4.6 + preflight § 7.1 —
 /// ChallengeResolve-accept state-root domain.
-pub(crate) const CHALLENGE_RESOLVE_DOMAIN_V1: &[u8] =
-    b"turingosv4.challenge_resolve.accept.v1";
+pub(crate) const CHALLENGE_RESOLVE_DOMAIN_V1: &[u8] = b"turingosv4.challenge_resolve.accept.v1";
 
 /// TRACE_MATRIX TB-5 charter v2 § 4.6 + preflight § 7.1 — interim state-root
 /// mutator on `ChallengeResolveTx` accept (Released or UpheldDeferred).
@@ -187,8 +186,7 @@ pub fn challenge_resolve_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
 
 /// TRACE_MATRIX TB-8 charter §3 Atom 3 — FinalizeReward-accept state-root
 /// domain. Mirror of `challenge_resolve_accept_state_root`.
-pub(crate) const FINALIZE_REWARD_DOMAIN_V1: &[u8] =
-    b"turingosv4.finalize_reward.accept.v1";
+pub(crate) const FINALIZE_REWARD_DOMAIN_V1: &[u8] = b"turingosv4.finalize_reward.accept.v1";
 
 /// TRACE_MATRIX TB-8 charter §3 Atom 3 — interim state-root mutator on
 /// `FinalizeRewardTx` accept (single-solver MVP; debit escrow + credit
@@ -220,8 +218,7 @@ pub fn task_expire_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
 
 /// TRACE_MATRIX TB-11 Atom 2 (architect §6.2): TerminalSummary state-root
 /// domain. Mirror of `finalize_reward_accept_state_root`.
-pub(crate) const TERMINAL_SUMMARY_DOMAIN_V1: &[u8] =
-    b"turingosv4.terminal_summary.accept.v1";
+pub(crate) const TERMINAL_SUMMARY_DOMAIN_V1: &[u8] = b"turingosv4.terminal_summary.accept.v1";
 
 /// TRACE_MATRIX TB-11 Atom 2: state-root mutator on `TerminalSummaryTx`
 /// accept (writes RunsIndex entry; no money movement).
@@ -236,8 +233,7 @@ pub fn terminal_summary_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
 
 /// TRACE_MATRIX TB-11 Atom 2 (architect §6.2): TaskBankruptcy state-root
 /// domain. Mirror of `finalize_reward_accept_state_root`.
-pub(crate) const TASK_BANKRUPTCY_DOMAIN_V1: &[u8] =
-    b"turingosv4.task_bankruptcy.accept.v1";
+pub(crate) const TASK_BANKRUPTCY_DOMAIN_V1: &[u8] = b"turingosv4.task_bankruptcy.accept.v1";
 
 /// TRACE_MATRIX TB-11 Atom 2: state-root mutator on `TaskBankruptcyTx`
 /// accept (mutates task_markets_t[task_id].state = Bankrupt + sets
@@ -256,8 +252,7 @@ pub fn task_bankruptcy_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
 /// `task_bankruptcy_accept_state_root` — both flip
 /// `task_markets_t[task_id].state` to a terminal value (Finalized vs
 /// Bankrupt) via system-tx; same state-root advance pattern.
-pub(crate) const EVENT_RESOLVE_DOMAIN_V1: &[u8] =
-    b"turingosv4.event_resolve.accept.v1";
+pub(crate) const EVENT_RESOLVE_DOMAIN_V1: &[u8] = b"turingosv4.event_resolve.accept.v1";
 
 /// TRACE_MATRIX TB-N2 B2: state-root mutator on `EventResolveTx` accept
 /// (mutates task_markets_t[task_id].state = Finalized; pure status
@@ -274,8 +269,7 @@ pub fn event_resolve_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
 
 /// TRACE_MATRIX TB-13 Atom 2 (architect 2026-05-03 post-TB-12 ruling Part A
 /// §4.3): CompleteSetMint-accept state-root domain.
-pub(crate) const COMPLETE_SET_MINT_DOMAIN_V1: &[u8] =
-    b"turingosv4.complete_set_mint.accept.v1";
+pub(crate) const COMPLETE_SET_MINT_DOMAIN_V1: &[u8] = b"turingosv4.complete_set_mint.accept.v1";
 
 /// TRACE_MATRIX TB-13 Atom 2: state-root mutator on `CompleteSetMintTx`
 /// accept. Mirror of `task_open_accept_state_root`.
@@ -290,8 +284,7 @@ pub fn complete_set_mint_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
 
 /// TRACE_MATRIX TB-13 Atom 2 (architect §4.3): CompleteSetRedeem-accept
 /// state-root domain.
-pub(crate) const COMPLETE_SET_REDEEM_DOMAIN_V1: &[u8] =
-    b"turingosv4.complete_set_redeem.accept.v1";
+pub(crate) const COMPLETE_SET_REDEEM_DOMAIN_V1: &[u8] = b"turingosv4.complete_set_redeem.accept.v1";
 
 /// TRACE_MATRIX TB-13 Atom 2: state-root mutator on `CompleteSetRedeemTx`
 /// accept. Mirror of `complete_set_mint_accept_state_root`.
@@ -306,8 +299,7 @@ pub fn complete_set_redeem_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash 
 
 /// TRACE_MATRIX TB-13 Atom 2 (architect §4.3): MarketSeed-accept state-root
 /// domain.
-pub(crate) const MARKET_SEED_DOMAIN_V1: &[u8] =
-    b"turingosv4.market_seed.accept.v1";
+pub(crate) const MARKET_SEED_DOMAIN_V1: &[u8] = b"turingosv4.market_seed.accept.v1";
 
 /// TRACE_MATRIX TB-13 Atom 2: state-root mutator on `MarketSeedTx` accept.
 /// Mirror of `complete_set_mint_accept_state_root`.
@@ -322,8 +314,7 @@ pub fn market_seed_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
 
 /// TRACE_MATRIX Stage C P-M2 / Phase F.1 (architect §7.3): CompleteSetMerge-
 /// accept state-root domain.
-pub(crate) const COMPLETE_SET_MERGE_DOMAIN_V1: &[u8] =
-    b"turingosv4.complete_set_merge.accept.v1";
+pub(crate) const COMPLETE_SET_MERGE_DOMAIN_V1: &[u8] = b"turingosv4.complete_set_merge.accept.v1";
 
 /// TRACE_MATRIX Stage C P-M2 / Phase F.1: state-root mutator on
 /// `CompleteSetMergeTx` accept. Mirror of `complete_set_mint_accept_state_root`.
@@ -340,8 +331,7 @@ pub fn complete_set_merge_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
 /// remediation directive §1.C row 3): CpmmPool-accept state-root domain.
 /// Mirrors sibling `MARKET_SEED_DOMAIN_V1` / `COMPLETE_SET_MERGE_DOMAIN_V1`
 /// naming convention (`turingosv4.<purpose>.accept.v1`).
-pub(crate) const CPMM_POOL_DOMAIN_V1: &[u8] =
-    b"turingosv4.cpmm_pool.accept.v1";
+pub(crate) const CPMM_POOL_DOMAIN_V1: &[u8] = b"turingosv4.cpmm_pool.accept.v1";
 
 /// TRACE_MATRIX FC1-Append Stage C P-M4 / Phase F.3: state-root mutator on
 /// `CpmmPoolTx` accept. Mirror of `complete_set_merge_accept_state_root`
@@ -359,8 +349,7 @@ pub fn cpmm_pool_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
 /// remediation directive §1.C row 4): CpmmSwap-accept state-root domain.
 /// Mirrors sibling `CPMM_POOL_DOMAIN_V1` naming convention
 /// (`turingosv4.<purpose>.accept.v1`).
-pub(crate) const CPMM_SWAP_DOMAIN_V1: &[u8] =
-    b"turingosv4.cpmm_swap.accept.v1";
+pub(crate) const CPMM_SWAP_DOMAIN_V1: &[u8] = b"turingosv4.cpmm_swap.accept.v1";
 
 /// TRACE_MATRIX FC1-Append Stage C P-M5 / Phase F.4: state-root mutator on
 /// `CpmmSwapTx` accept. Mirror of `cpmm_pool_accept_state_root`
@@ -423,9 +412,7 @@ pub fn buy_with_coin_router_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash
 /// dispatching the router tx; assert `result.is_err()` AND
 /// `q.state_root` UNCHANGED post-failure (atomic rollback witnessed).
 #[cfg(debug_assertions)]
-fn check_router_test_failure_injection(
-    current_step: u8,
-) -> Result<(), TransitionError> {
+fn check_router_test_failure_injection(current_step: u8) -> Result<(), TransitionError> {
     if let Ok(target) = std::env::var("TURINGOS_TEST_ROUTER_FAIL_AT_STEP") {
         if let Ok(target_step) = target.parse::<u8>() {
             if target_step == current_step {
@@ -438,9 +425,7 @@ fn check_router_test_failure_injection(
 
 #[cfg(not(debug_assertions))]
 #[inline(always)]
-fn check_router_test_failure_injection(
-    _current_step: u8,
-) -> Result<(), TransitionError> {
+fn check_router_test_failure_injection(_current_step: u8) -> Result<(), TransitionError> {
     Ok(())
 }
 
@@ -463,8 +448,8 @@ pub(crate) const SYSTEM_AGENT_ID_STR: &str = "__system__";
 /// variants are explicit; non-WorkTx-arm variants fall through to
 /// `PolicyViolation` per Codex r2 P0-4 sanction.
 fn rejection_class_for(e: &TransitionError) -> L4ERejectionClass {
-    use TransitionError as TE;
     use L4ERejectionClass as RC;
+    use TransitionError as TE;
     match e {
         TE::AcceptancePredicateFailed(_)
         | TE::VerificationPredicateFailed(_)
@@ -562,7 +547,9 @@ fn public_summary_for(e: &TransitionError) -> Option<String> {
         TransitionError::TargetWorkTxNotFound => Some("target_work_not_found".into()),
         TransitionError::TargetWorkTxNotVerifiable => Some("target_work_not_verifiable".into()),
         // TB-5 RSP-3.0/3.1.
-        TransitionError::SystemTxForbiddenOnAgentIngress => Some("system_tx_forbidden_on_agent_ingress".into()),
+        TransitionError::SystemTxForbiddenOnAgentIngress => {
+            Some("system_tx_forbidden_on_agent_ingress".into())
+        }
         TransitionError::InvalidSystemSignatureLive => Some("invalid_system_signature_live".into()),
         TransitionError::ChallengeNotFound => Some("challenge_not_found".into()),
         TransitionError::AlreadyResolved => Some("already_resolved".into()),
@@ -635,9 +622,7 @@ pub fn refine_rejection_class_via_attempt_telemetry(
         TypedTx::Work(w) => w.proposal_cid.clone(),
         _ => return base_class,
     };
-    use crate::runtime::attempt_telemetry::{
-        read_attempt_telemetry_from_cas, AttemptOutcome,
-    };
+    use crate::runtime::attempt_telemetry::{read_attempt_telemetry_from_cas, AttemptOutcome};
     // R3.fix (preflight handover/ai-direct/TB-18R_R3FIX_STEP_B_cas_reload.md
     // §3.2 + §3.3): the long-lived sequencer.cas handle has a stale in-memory
     // index relative to evaluator-side handles that wrote AttemptTelemetry on
@@ -771,8 +756,9 @@ fn system_message_for_verification(
             Some(CanonicalMessage::TaskBankruptcySigning(digest))
         }
         // TB-N2 B2 (2026-05-11): EventResolveTx is system-emitted; verify
-        // against its signing payload digest under the EventResolveSigning
-        // canonical message domain. Mirrors TaskBankruptcy pattern.
+        // new REAL-6A records against the outcome-bearing signing payload.
+        // Historical B2 YES records are handled by
+        // `event_resolve_signature_verifies_current_or_legacy`.
         TypedTx::EventResolve(t) => {
             let digest = t.to_signing_payload().canonical_digest();
             Some(CanonicalMessage::EventResolveSigning(digest))
@@ -800,6 +786,24 @@ fn system_message_for_verification(
         // verified separately at admission, not at system stage 1.5.
         | TypedTx::BuyWithCoinRouter(_) => None,
     }
+}
+
+fn event_resolve_signature_verifies_current_or_legacy(
+    t: &crate::state::typed_tx::EventResolveTx,
+    pinned_pubkeys: &crate::bottom_white::ledger::system_keypair::PinnedSystemPubkeys,
+) -> bool {
+    use crate::bottom_white::ledger::system_keypair::{verify_system_signature, CanonicalMessage};
+    let digest = t.to_signing_payload().canonical_digest();
+    let msg = CanonicalMessage::EventResolveSigning(digest);
+    if verify_system_signature(&t.system_signature, &msg, t.epoch, pinned_pubkeys) {
+        return true;
+    }
+    if t.outcome == crate::state::typed_tx::OutcomeSide::Yes {
+        let legacy_digest = t.to_legacy_signing_payload().canonical_digest();
+        let legacy_msg = CanonicalMessage::EventResolveSigning(legacy_digest);
+        return verify_system_signature(&t.system_signature, &legacy_msg, t.epoch, pinned_pubkeys);
+    }
+    false
 }
 
 /// TRACE_MATRIX TB-5 Atom 4: extract `&SystemSignature` from a system-emitted
@@ -925,13 +929,15 @@ pub(crate) fn dispatch_transition(
             // gates (Step 2-3) fire FIRST — bankrupt agents can still do
             // epistemic work and surface predicate-fail telemetry per
             // architect §7.2; only stake-side admission paths are blocked.
-            let work_agent_bal_g3_2 = q.economic_state_t.balances_t.0
+            let work_agent_bal_g3_2 = q
+                .economic_state_t
+                .balances_t
+                .0
                 .get(&work.agent_id)
                 .copied()
                 .unwrap_or(crate::economy::money::MicroCoin::zero());
-            let work_risk_cap_g3_2 = crate::runtime::agent_pnl::bankruptcy_risk_cap_micro(
-                &work.agent_id, q,
-            );
+            let work_risk_cap_g3_2 =
+                crate::runtime::agent_pnl::bankruptcy_risk_cap_micro(&work.agent_id, q);
             if work_agent_bal_g3_2.micro_units() < work_risk_cap_g3_2 {
                 return Err(TransitionError::BankruptcyRiskCapExceeded);
             }
@@ -950,7 +956,10 @@ pub(crate) fn dispatch_transition(
             if work.stake.micro_units() <= 0 {
                 return Err(TransitionError::StakeInsufficient);
             }
-            let agent_balance_a3 = q.economic_state_t.balances_t.0
+            let agent_balance_a3 = q
+                .economic_state_t
+                .balances_t
+                .0
                 .get(&work.agent_id)
                 .copied()
                 .unwrap_or(crate::economy::money::MicroCoin::zero());
@@ -981,7 +990,10 @@ pub(crate) fn dispatch_transition(
             // Step 6: solver solvency gate (charter § 4.3 step 7 NEW). Per
             // WP § 14.1 + § 18 Inv 5, accepted WorkTx commits stake by
             // debiting balance — solver must hold ≥ work.stake.coin.
-            let solver_bal = q.economic_state_t.balances_t.0
+            let solver_bal = q
+                .economic_state_t
+                .balances_t
+                .0
                 .get(&work.agent_id)
                 .copied()
                 .unwrap_or(crate::economy::money::MicroCoin::zero());
@@ -1054,12 +1066,8 @@ pub(crate) fn dispatch_transition(
             // TB-2. The debit-to-stakes invariant is the primary CTF check
             // on the runtime spine. Production runtime ALWAYS passes `&[]`
             // (charter § 5 red line 3 / TB-2 #4 inherited).
-            assert_total_ctf_conserved(
-                &q.economic_state_t,
-                &q_next.economic_state_t,
-                &[],
-            )
-            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            assert_total_ctf_conserved(&q.economic_state_t, &q_next.economic_state_t, &[])
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
 
             Ok((q_next, SignalBundle::default()))
         }
@@ -1081,13 +1089,15 @@ pub(crate) fn dispatch_transition(
             // `VerifyBondOutOfBounds`. Below-cap verifier per architect §7.2
             // can still observe / receive autopsy / read scoped capsule —
             // only bond-locking VerifyTx admission is blocked.
-            let verify_agent_bal_g3_2 = q.economic_state_t.balances_t.0
+            let verify_agent_bal_g3_2 = q
+                .economic_state_t
+                .balances_t
+                .0
                 .get(&verify.verifier_agent)
                 .copied()
                 .unwrap_or(crate::economy::money::MicroCoin::zero());
-            let verify_risk_cap_g3_2 = crate::runtime::agent_pnl::bankruptcy_risk_cap_micro(
-                &verify.verifier_agent, q,
-            );
+            let verify_risk_cap_g3_2 =
+                crate::runtime::agent_pnl::bankruptcy_risk_cap_micro(&verify.verifier_agent, q);
             if verify_agent_bal_g3_2.micro_units() < verify_risk_cap_g3_2 {
                 return Err(TransitionError::BankruptcyRiskCapExceeded);
             }
@@ -1102,7 +1112,10 @@ pub(crate) fn dispatch_transition(
             // side `InsufficientBalance` (same inequality but different
             // telemetry surface; Step-2.5 fires first for agent-decided
             // overspend, Step-4 remains as defense-in-depth).
-            let verifier_bal_a4 = q.economic_state_t.balances_t.0
+            let verifier_bal_a4 = q
+                .economic_state_t
+                .balances_t
+                .0
                 .get(&verify.verifier_agent)
                 .copied()
                 .unwrap_or(crate::economy::money::MicroCoin::zero());
@@ -1131,7 +1144,11 @@ pub(crate) fn dispatch_transition(
             // (for Confirms) potentially compounding claims_t entries beyond
             // the cross-agent suppression at line ~1053.
             let verify_pair = (verify.verifier_agent.clone(), verify.target_work_tx.clone());
-            if q.economic_state_t.agent_verifications_t.0.contains(&verify_pair) {
+            if q.economic_state_t
+                .agent_verifications_t
+                .0
+                .contains(&verify_pair)
+            {
                 return Err(TransitionError::VerifyDuplicate);
             }
             // Step 4: verifier solvency (§ 3.4 step 5). Defense-in-depth post
@@ -1139,7 +1156,10 @@ pub(crate) fn dispatch_transition(
             // dispatch_transition because 2.5 fires first on the same
             // inequality; preserved for any future code path that bypasses
             // the agent-bound dispatch.
-            let verifier_bal = q.economic_state_t.balances_t.0
+            let verifier_bal = q
+                .economic_state_t
+                .balances_t
+                .0
                 .get(&verify.verifier_agent)
                 .copied()
                 .unwrap_or(crate::economy::money::MicroCoin::zero());
@@ -1165,7 +1185,11 @@ pub(crate) fn dispatch_transition(
             // the (verifier, target) pair in `agent_verifications_t` so
             // future VerifyTxs from the same agent on the same target reject
             // at Step-3.5 with `VerifyDuplicate`.
-            q_next.economic_state_t.agent_verifications_t.0.insert(verify_pair);
+            q_next
+                .economic_state_t
+                .agent_verifications_t
+                .0
+                .insert(verify_pair);
             // Step 5c: TB-G G3.2 Gap-A reputation accumulation (charter §1
             // Module G3; 2026-05-12; closes OBS_G2P_VERIFY_PEER_REWARD
             // SG-G2P.6.c). Architect Q2 verdict: uniform +1 per accepted
@@ -1178,7 +1202,10 @@ pub(crate) fn dispatch_transition(
             // (verifier, target_work_tx) pair. Verdict-weighted or
             // outcome-correlated accumulation is deferred to a future TB per
             // architect Q2 verdict.
-            q_next.economic_state_t.reputations_t.0
+            q_next
+                .economic_state_t
+                .reputations_t
+                .0
                 .entry(verify.verifier_agent.clone())
                 .or_insert(crate::state::q_state::Reputation(0))
                 .0 += 1;
@@ -1230,58 +1257,49 @@ pub(crate) fn dispatch_transition(
                     .values()
                     .any(|c| c.work_tx_id == verify.target_work_tx);
                 if !already_claimed {
-                if let Some(task_market) =
-                    q.economic_state_t.task_markets_t.0.get(&task_id)
-                {
-                    if let Some(escrow_lock_tx_id) =
-                        task_market.escrow_lock_tx_ids.iter().next().cloned()
-                    {
-                        let claim_id = crate::state::typed_tx::ClaimId(
-                            crate::state::q_state::TxId(format!(
-                                "claim-{}",
-                                verify.tx_id.0
-                            )),
-                        );
-                        q_next.economic_state_t.claims_t.0.insert(
-                            claim_id.0.clone(),
-                            crate::state::q_state::ClaimEntry {
-                                amount: task_market.total_escrow,
-                                claimant: target_stake.staker.clone(),
-                                task_id: task_id.clone(),
-                                escrow_lock_tx_id,
-                                work_tx_id: verify.target_work_tx.clone(),
-                                verify_tx_id: verify.tx_id.clone(),
-                                status: crate::state::q_state::ClaimStatus::Open,
-                                // Zero-window MVP per ratification §1 Q3:
-                                // value 0 is the structural marker
-                                // "window-closed-immediately" — finalize is
-                                // legal as soon as the claim exists. A
-                                // future TB introducing a real challenge
-                                // window will set this to a non-zero value
-                                // (sequencer's logical_t at accept-time + N
-                                // blocks). The Atom-3 gate fires only when
-                                // this field is > 0 AND fr.timestamp_logical
-                                // ≤ this field. agent-supplied
-                                // verify.timestamp_logical is intentionally
-                                // NOT used here — agent and sequencer
-                                // logical_t live in different namespaces.
-                                challenge_window_close_logical_t: 0,
-                            },
-                        );
+                    if let Some(task_market) = q.economic_state_t.task_markets_t.0.get(&task_id) {
+                        if let Some(escrow_lock_tx_id) =
+                            task_market.escrow_lock_tx_ids.iter().next().cloned()
+                        {
+                            let claim_id = crate::state::typed_tx::ClaimId(
+                                crate::state::q_state::TxId(format!("claim-{}", verify.tx_id.0)),
+                            );
+                            q_next.economic_state_t.claims_t.0.insert(
+                                claim_id.0.clone(),
+                                crate::state::q_state::ClaimEntry {
+                                    amount: task_market.total_escrow,
+                                    claimant: target_stake.staker.clone(),
+                                    task_id: task_id.clone(),
+                                    escrow_lock_tx_id,
+                                    work_tx_id: verify.target_work_tx.clone(),
+                                    verify_tx_id: verify.tx_id.clone(),
+                                    status: crate::state::q_state::ClaimStatus::Open,
+                                    // Zero-window MVP per ratification §1 Q3:
+                                    // value 0 is the structural marker
+                                    // "window-closed-immediately" — finalize is
+                                    // legal as soon as the claim exists. A
+                                    // future TB introducing a real challenge
+                                    // window will set this to a non-zero value
+                                    // (sequencer's logical_t at accept-time + N
+                                    // blocks). The Atom-3 gate fires only when
+                                    // this field is > 0 AND fr.timestamp_logical
+                                    // ≤ this field. agent-supplied
+                                    // verify.timestamp_logical is intentionally
+                                    // NOT used here — agent and sequencer
+                                    // logical_t live in different namespaces.
+                                    challenge_window_close_logical_t: 0,
+                                },
+                            );
+                        }
                     }
-                }
                 } // end: !already_claimed
             }
             // Step 6: monetary invariants (debit = credit; claim creation is
             // a metadata write — no money moves at claim creation).
             assert_no_post_init_mint(tx, q)
                 .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
-            assert_total_ctf_conserved(
-                &q.economic_state_t,
-                &q_next.economic_state_t,
-                &[],
-            )
-            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            assert_total_ctf_conserved(&q.economic_state_t, &q_next.economic_state_t, &[])
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
             // TB-8 Atom 1 — intent-vs-backing invariant: any new claim row
             // must have claim.amount ≤ escrow_lock_tx_id's current escrow row.
             assert_claim_amount_backed_by_escrow(&q_next.economic_state_t)
@@ -1310,12 +1328,16 @@ pub(crate) fn dispatch_transition(
             // `InsufficientBalance`. Below-cap challenger per architect §7.2
             // can still observe the chain — only stake-locking ChallengeTx
             // admission is blocked.
-            let chal_agent_bal_g3_2 = q.economic_state_t.balances_t.0
+            let chal_agent_bal_g3_2 = q
+                .economic_state_t
+                .balances_t
+                .0
                 .get(&challenge.challenger_agent)
                 .copied()
                 .unwrap_or(crate::economy::money::MicroCoin::zero());
             let chal_risk_cap_g3_2 = crate::runtime::agent_pnl::bankruptcy_risk_cap_micro(
-                &challenge.challenger_agent, q,
+                &challenge.challenger_agent,
+                q,
             );
             if chal_agent_bal_g3_2.micro_units() < chal_risk_cap_g3_2 {
                 return Err(TransitionError::BankruptcyRiskCapExceeded);
@@ -1325,11 +1347,19 @@ pub(crate) fn dispatch_transition(
                 return Err(TransitionError::StakeInsufficient);
             }
             // Step 3: target liveness — same gate as Verify arm.
-            if !q.economic_state_t.stakes_t.0.contains_key(&challenge.target_work_tx) {
+            if !q
+                .economic_state_t
+                .stakes_t
+                .0
+                .contains_key(&challenge.target_work_tx)
+            {
                 return Err(TransitionError::TargetWorkInactive);
             }
             // Step 4: challenger solvency.
-            let challenger_bal = q.economic_state_t.balances_t.0
+            let challenger_bal = q
+                .economic_state_t
+                .balances_t
+                .0
                 .get(&challenge.challenger_agent)
                 .copied()
                 .unwrap_or(crate::economy::money::MicroCoin::zero());
@@ -1404,12 +1434,8 @@ pub(crate) fn dispatch_transition(
             // is the 5th holding term).
             assert_no_post_init_mint(tx, q)
                 .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
-            assert_total_ctf_conserved(
-                &q.economic_state_t,
-                &q_next.economic_state_t,
-                &[],
-            )
-            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            assert_total_ctf_conserved(&q.economic_state_t, &q_next.economic_state_t, &[])
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
             // Step 8: state_root advance via CHALLENGE_ACCEPT_DOMAIN_V1.
             q_next.state_root_t = challenge_accept_state_root(&q.state_root_t, tx);
 
@@ -1449,12 +1475,7 @@ pub(crate) fn dispatch_transition(
             // Step 1: lookup claim. ClaimNotFound is a structural error
             // (caller passed an unknown claim_id; emit_system_tx would have
             // caught this at construction time, but defense-in-depth here).
-            let claim = match q
-                .economic_state_t
-                .claims_t
-                .0
-                .get(fr.claim_id.as_tx_id())
-            {
+            let claim = match q.economic_state_t.claims_t.0.get(fr.claim_id.as_tx_id()) {
                 Some(c) => c.clone(),
                 None => return Err(TransitionError::ClaimNotFound),
             };
@@ -1489,16 +1510,10 @@ pub(crate) fn dispatch_transition(
             // VERIFY_TX. The claim references work_tx_id, so we check
             // challenge_cases_t for any UpheldDeferred entry against the
             // work tx that produced this claim.
-            let upheld_blocking = q
-                .economic_state_t
-                .challenge_cases_t
-                .0
-                .values()
-                .any(|cc| {
-                    cc.target_work_tx == claim.work_tx_id
-                        && cc.status
-                            == crate::state::q_state::ChallengeStatus::UpheldDeferred
-                });
+            let upheld_blocking = q.economic_state_t.challenge_cases_t.0.values().any(|cc| {
+                cc.target_work_tx == claim.work_tx_id
+                    && cc.status == crate::state::q_state::ChallengeStatus::UpheldDeferred
+            });
             if upheld_blocking {
                 return Err(TransitionError::SettlementPredicateFailed(
                     crate::state::typed_tx::PredicateId(
@@ -1514,46 +1529,31 @@ pub(crate) fn dispatch_transition(
             // (impossible in single-threaded sequencer; defense-in-depth).
             if fr.reward != claim.amount {
                 return Err(TransitionError::SettlementPredicateFailed(
-                    crate::state::typed_tx::PredicateId(
-                        "reward_matches_q_derived".into(),
-                    ),
+                    crate::state::typed_tx::PredicateId("reward_matches_q_derived".into()),
                 ));
             }
             if fr.solver != claim.claimant {
                 return Err(TransitionError::SettlementPredicateFailed(
-                    crate::state::typed_tx::PredicateId(
-                        "solver_matches_q_derived".into(),
-                    ),
+                    crate::state::typed_tx::PredicateId("solver_matches_q_derived".into()),
                 ));
             }
             if fr.task_id != claim.task_id {
                 return Err(TransitionError::SettlementPredicateFailed(
-                    crate::state::typed_tx::PredicateId(
-                        "task_id_matches_q_derived".into(),
-                    ),
+                    crate::state::typed_tx::PredicateId("task_id_matches_q_derived".into()),
                 ));
             }
             // Step 6: escrow row exists + has sufficient balance.
-            let escrow = match q
-                .economic_state_t
-                .escrows_t
-                .0
-                .get(&claim.escrow_lock_tx_id)
-            {
+            let escrow = match q.economic_state_t.escrows_t.0.get(&claim.escrow_lock_tx_id) {
                 Some(e) => e.clone(),
                 None => {
                     return Err(TransitionError::SettlementPredicateFailed(
-                        crate::state::typed_tx::PredicateId(
-                            "escrow_lock_resolves".into(),
-                        ),
+                        crate::state::typed_tx::PredicateId("escrow_lock_resolves".into()),
                     ));
                 }
             };
             if escrow.amount.micro_units() < claim.amount.micro_units() {
                 return Err(TransitionError::SettlementPredicateFailed(
-                    crate::state::typed_tx::PredicateId(
-                        "escrow_sufficient_for_reward".into(),
-                    ),
+                    crate::state::typed_tx::PredicateId("escrow_sufficient_for_reward".into()),
                 ));
             }
             // Step 7: atomic mutation — q_next.
@@ -1563,9 +1563,7 @@ pub(crate) fn dispatch_transition(
             q_next.economic_state_t.escrows_t.0.insert(
                 claim.escrow_lock_tx_id.clone(),
                 crate::state::q_state::EscrowEntry {
-                    amount: crate::economy::money::MicroCoin::from_micro_units(
-                        new_escrow_micro,
-                    ),
+                    amount: crate::economy::money::MicroCoin::from_micro_units(new_escrow_micro),
                     depositor: escrow.depositor.clone(),
                     task_id: escrow.task_id.clone(),
                 },
@@ -1578,8 +1576,7 @@ pub(crate) fn dispatch_transition(
                 .get(&claim.claimant)
                 .copied()
                 .unwrap_or_else(crate::economy::money::MicroCoin::zero);
-            let new_solver_micro =
-                cur_solver_bal.micro_units() + claim.amount.micro_units();
+            let new_solver_micro = cur_solver_bal.micro_units() + claim.amount.micro_units();
             q_next.economic_state_t.balances_t.0.insert(
                 claim.claimant.clone(),
                 crate::economy::money::MicroCoin::from_micro_units(new_solver_micro),
@@ -1609,15 +1606,15 @@ pub(crate) fn dispatch_transition(
             // for the test surface (see `compute_finalize_reward_payout_
             // breakdown` helper). NO new TxKind / SignalBundle schema bump
             // (architect Q3 = B1 verbatim).
-            let verifier_entries: Vec<(crate::state::q_state::TxId,
-                crate::state::q_state::StakeEntry)> = q
+            let verifier_entries: Vec<(
+                crate::state::q_state::TxId,
+                crate::state::q_state::StakeEntry,
+            )> = q
                 .economic_state_t
                 .stakes_t
                 .0
                 .iter()
-                .filter(|(tx_id, e)| {
-                    e.task_id == claim.task_id && **tx_id != claim.work_tx_id
-                })
+                .filter(|(tx_id, e)| e.task_id == claim.task_id && **tx_id != claim.work_tx_id)
                 .map(|(k, v)| (k.clone(), v.clone()))
                 .collect();
             let mut g3_2_verifier_bond_return_total_micro: i64 = 0;
@@ -1629,21 +1626,14 @@ pub(crate) fn dispatch_transition(
                     .get(&ve.staker)
                     .copied()
                     .unwrap_or_else(crate::economy::money::MicroCoin::zero);
-                let new_bal_micro =
-                    cur_bal.micro_units() + ve.amount.micro_units();
+                let new_bal_micro = cur_bal.micro_units() + ve.amount.micro_units();
                 q_next.economic_state_t.balances_t.0.insert(
                     ve.staker.clone(),
-                    crate::economy::money::MicroCoin::from_micro_units(
-                        new_bal_micro,
-                    ),
+                    crate::economy::money::MicroCoin::from_micro_units(new_bal_micro),
                 );
-                q_next
-                    .economic_state_t
-                    .stakes_t
-                    .0
-                    .remove(&verify_tx_id);
-                g3_2_verifier_bond_return_total_micro = g3_2_verifier_bond_return_total_micro
-                    .saturating_add(ve.amount.micro_units());
+                q_next.economic_state_t.stakes_t.0.remove(&verify_tx_id);
+                g3_2_verifier_bond_return_total_micro =
+                    g3_2_verifier_bond_return_total_micro.saturating_add(ve.amount.micro_units());
             }
             // Forward-bound: chain deltas at this finalize tx represent
             // solver_reward_delta = claim.amount and
@@ -1662,8 +1652,7 @@ pub(crate) fn dispatch_transition(
                 .get_mut(&claim.task_id)
             {
                 let new_total = tm.total_escrow.micro_units() - claim.amount.micro_units();
-                tm.total_escrow =
-                    crate::economy::money::MicroCoin::from_micro_units(new_total);
+                tm.total_escrow = crate::economy::money::MicroCoin::from_micro_units(new_total);
             }
             // Step 8: monetary invariants.
             assert_no_post_init_mint(tx, q)
@@ -1671,18 +1660,11 @@ pub(crate) fn dispatch_transition(
             // CTF conserved: escrow -reward + balance +reward = 0 delta on
             // the holding sum. claims_t.status flip is metadata. No
             // exemption needed (ratification §1 Q4 + STEP_B preflight §3).
-            assert_total_ctf_conserved(
-                &q.economic_state_t,
-                &q_next.economic_state_t,
-                &[],
-            )
-            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            assert_total_ctf_conserved(&q.economic_state_t, &q_next.economic_state_t, &[])
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
             // TB-3 cache=truth invariant on the affected task.
-            assert_task_market_total_escrow_matches_locks(
-                &q_next.economic_state_t,
-                &claim.task_id,
-            )
-            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            assert_task_market_total_escrow_matches_locks(&q_next.economic_state_t, &claim.task_id)
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
             // TB-8 intent-vs-backing invariant: any remaining Open claims
             // must still be backed (this finalize doesn't touch them; the
             // check is fast and catches concurrent dispatch bugs).
@@ -1752,17 +1734,17 @@ pub(crate) fn dispatch_transition(
             // (cannot refund while a dispute is pending). TB-5 carry — open
             // challenge holds the bond, which is a separate holding from
             // escrow but the policy is "wait until challenge resolves".
-            let task_has_open_challenge = q.economic_state_t.challenge_cases_t.0.values().any(|cc| {
-                let work_for_this_task = q
-                    .economic_state_t
-                    .stakes_t
-                    .0
-                    .get(&cc.target_work_tx)
-                    .map(|s| s.task_id == expire.task_id)
-                    .unwrap_or(false);
-                work_for_this_task
-                    && cc.status == crate::state::q_state::ChallengeStatus::Open
-            });
+            let task_has_open_challenge =
+                q.economic_state_t.challenge_cases_t.0.values().any(|cc| {
+                    let work_for_this_task = q
+                        .economic_state_t
+                        .stakes_t
+                        .0
+                        .get(&cc.target_work_tx)
+                        .map(|s| s.task_id == expire.task_id)
+                        .unwrap_or(false);
+                    work_for_this_task && cc.status == crate::state::q_state::ChallengeStatus::Open
+                });
             if task_has_open_challenge {
                 return Err(TransitionError::ChallengeWindowStillOpen);
             }
@@ -1781,15 +1763,17 @@ pub(crate) fn dispatch_transition(
             // ledger summary; Q is authoritative.
             if expire.bounty_refunded != escrow.amount {
                 return Err(TransitionError::SettlementPredicateFailed(
-                    crate::state::typed_tx::PredicateId(
-                        "bounty_refunded_matches_q_derived".into(),
-                    ),
+                    crate::state::typed_tx::PredicateId("bounty_refunded_matches_q_derived".into()),
                 ));
             }
             // Step 7: atomic mutation — q_next.
             let mut q_next = q.clone();
             // 7a. Remove escrow row (refund consumes it; replay-deterministic).
-            q_next.economic_state_t.escrows_t.0.remove(&expire.escrow_tx_id);
+            q_next
+                .economic_state_t
+                .escrows_t
+                .0
+                .remove(&expire.escrow_tx_id);
             // 7b. Credit balances_t[sponsor].
             let cur_sponsor_bal = q
                 .economic_state_t
@@ -1805,10 +1789,14 @@ pub(crate) fn dispatch_transition(
             );
             // 7c. Update task_markets_t cache (total_escrow -= refunded amount;
             // remove escrow_tx_id from set; flip state to Expired).
-            if let Some(tm) = q_next.economic_state_t.task_markets_t.0.get_mut(&expire.task_id) {
+            if let Some(tm) = q_next
+                .economic_state_t
+                .task_markets_t
+                .0
+                .get_mut(&expire.task_id)
+            {
                 let new_total = tm.total_escrow.micro_units() - escrow.amount.micro_units();
-                tm.total_escrow =
-                    crate::economy::money::MicroCoin::from_micro_units(new_total);
+                tm.total_escrow = crate::economy::money::MicroCoin::from_micro_units(new_total);
                 tm.escrow_lock_tx_ids.remove(&expire.escrow_tx_id);
                 tm.state = crate::state::q_state::TaskMarketState::Expired;
             }
@@ -1817,8 +1805,11 @@ pub(crate) fn dispatch_transition(
                 .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
             assert_total_ctf_conserved(&q.economic_state_t, &q_next.economic_state_t, &[])
                 .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
-            assert_task_market_total_escrow_matches_locks(&q_next.economic_state_t, &expire.task_id)
-                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            assert_task_market_total_escrow_matches_locks(
+                &q_next.economic_state_t,
+                &expire.task_id,
+            )
+            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
             assert_claim_amount_backed_by_escrow(&q_next.economic_state_t)
                 .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
             // Step 9: state_root advance.
@@ -1858,7 +1849,11 @@ pub(crate) fn dispatch_transition(
                 solver_agent: ts.solver_agent.clone(),
                 last_logical_t: ts.last_logical_t,
             };
-            q_next.economic_state_t.runs_t.0.insert(ts.run_id.clone(), entry);
+            q_next
+                .economic_state_t
+                .runs_t
+                .0
+                .insert(ts.run_id.clone(), entry);
             // Step 2.5: TB-G G3.2 (charter §1 Module G3; 2026-05-12) per-
             // task-end bankruptcy autopsy emit. Architect Q6 verdict: emit
             // at each TerminalSummaryTx boundary for agents below their
@@ -1897,7 +1892,10 @@ pub(crate) fn dispatch_transition(
                 .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
             // Step 4: state_root advance.
             q_next.state_root_t = terminal_summary_accept_state_root(&q.state_root_t, tx);
-            Ok((q_next, SignalBundle::terminal_summary(ts.run_id.clone(), ts.run_outcome)))
+            Ok((
+                q_next,
+                SignalBundle::terminal_summary(ts.run_id.clone(), ts.run_outcome),
+            ))
         }
         // ──────────────────────────────────────────────────────────────────
         // TB-11 Atom 2 (architect §6.2 ruling 2026-05-02) — TaskBankruptcy
@@ -1936,7 +1934,12 @@ pub(crate) fn dispatch_transition(
             }
             // Step 3: q_next — flip state to Bankrupt + record bankruptcy_at_logical_t.
             let mut q_next = q.clone();
-            if let Some(tm) = q_next.economic_state_t.task_markets_t.0.get_mut(&bk.task_id) {
+            if let Some(tm) = q_next
+                .economic_state_t
+                .task_markets_t
+                .0
+                .get_mut(&bk.task_id)
+            {
                 tm.state = crate::state::q_state::TaskMarketState::Bankrupt;
                 tm.bankruptcy_at_logical_t = Some(bk.timestamp_logical);
             }
@@ -1955,13 +1958,12 @@ pub(crate) fn dispatch_transition(
             // migration would override the constant to skip pre-cutoff
             // rows per `feedback_no_retroactive_evidence_rewrite`.
             if crate::runtime::autopsy_capsule::is_autopsy_active_at(bk.timestamp_logical) {
-                let derived =
-                    crate::runtime::autopsy_capsule::derive_autopsies_for_bankruptcy(
-                        &q.economic_state_t,
-                        bk,
-                        q.q_t.current_round,
-                        bk.timestamp_logical,
-                    );
+                let derived = crate::runtime::autopsy_capsule::derive_autopsies_for_bankruptcy(
+                    &q.economic_state_t,
+                    bk,
+                    q.q_t.current_round,
+                    bk.timestamp_logical,
+                );
                 if !derived.is_empty() {
                     let event_id = crate::state::typed_tx::EventId(bk.task_id.clone());
                     let entry = q_next
@@ -1988,14 +1990,14 @@ pub(crate) fn dispatch_transition(
         // TB-N2 B2 — EventResolve arm (charter §3 B2; 2026-05-11).
         //
         // System-emitted; flips `task_markets_t[task_id].state` from Open →
-        // Finalized on a proof task's OMEGA-Confirm path (Option 1 resolution
-        // authority: minimal CPMM-completeness path; lean-verify outcome
-        // triggers system-emit via `tb_n2_emit_event_resolve_after_finalize`).
+        // Finalized on YES, or Open → Bankrupt on NO for REAL-6A
+        // TaskOutcomeMarket exhaustion/deadline resolution.
         //
         // Resolution authority semantics (already encoded by TB-13 redeem at
-        // typed_tx.rs:1244-1247): `Finalized` = YES wins (proof accepted).
-        // B2 ONLY lands Open → Finalized; the Bankrupt NO-wins path is
-        // landed by TB-11 TaskBankruptcyTx.
+        // typed_tx.rs:1244-1247): `Finalized` = YES wins; `Bankrupt` = NO
+        // wins. REAL-6A puts the outcome in this system tx, so NO resolution
+        // is signed and tape-visible without using TaskBankruptcyTx as a
+        // surrogate market-resolution authority.
         //
         // Idempotency + lifecycle gate (architect §4.5 monotonic resolution):
         //   Open → proceed
@@ -2028,12 +2030,23 @@ pub(crate) fn dispatch_transition(
                     return Err(TransitionError::EventAlreadyResolved);
                 }
             }
-            // Step 3: q_next — flip state to Finalized. No bankruptcy_at_logical_t
-            // mutation (that field is Bankrupt-specific per TB-15 autopsy
-            // activation gate).
+            // Step 3: q_next — flip state according to signed outcome.
             let mut q_next = q.clone();
-            if let Some(tm) = q_next.economic_state_t.task_markets_t.0.get_mut(&er.task_id) {
-                tm.state = crate::state::q_state::TaskMarketState::Finalized;
+            if let Some(tm) = q_next
+                .economic_state_t
+                .task_markets_t
+                .0
+                .get_mut(&er.task_id)
+            {
+                match er.outcome {
+                    crate::state::typed_tx::OutcomeSide::Yes => {
+                        tm.state = crate::state::q_state::TaskMarketState::Finalized;
+                    }
+                    crate::state::typed_tx::OutcomeSide::No => {
+                        tm.state = crate::state::q_state::TaskMarketState::Bankrupt;
+                        tm.bankruptcy_at_logical_t = Some(er.timestamp_logical);
+                    }
+                }
             }
             // Step 4: monetary invariants — defense-in-depth even though
             // EventResolve is pure status mutation (no holding term moves).
@@ -2120,12 +2133,8 @@ pub(crate) fn dispatch_transition(
             // Step 5: monetary invariants.
             assert_no_post_init_mint(tx, q)
                 .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
-            assert_total_ctf_conserved(
-                &q.economic_state_t,
-                &q_next.economic_state_t,
-                &[],
-            )
-            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            assert_total_ctf_conserved(&q.economic_state_t, &q_next.economic_state_t, &[])
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
             // Step 6: state_root advance via CHALLENGE_RESOLVE_DOMAIN_V1.
             q_next.state_root_t = challenge_resolve_accept_state_root(&q.state_root_t, tx);
 
@@ -2141,7 +2150,11 @@ pub(crate) fn dispatch_transition(
                 return Err(TransitionError::StaleParent);
             }
             // Step 2: idempotency — reject second-open.
-            if q.economic_state_t.task_markets_t.0.contains_key(&open.task_id) {
+            if q.economic_state_t
+                .task_markets_t
+                .0
+                .contains_key(&open.task_id)
+            {
                 return Err(TransitionError::TaskAlreadyOpen);
             }
             // Step 3: q_next — insert TaskMarketEntry; total_escrow=0.
@@ -2151,7 +2164,8 @@ pub(crate) fn dispatch_transition(
                 total_escrow: crate::economy::money::MicroCoin::zero(),
                 escrow_lock_tx_ids: BTreeSet::new(),
                 verifier_quorum: open.verifier_quorum,
-                max_reuse_royalty_fraction_basis_points: open.max_reuse_royalty_fraction_basis_points,
+                max_reuse_royalty_fraction_basis_points: open
+                    .max_reuse_royalty_fraction_basis_points,
                 settlement_rule_hash: open.settlement_rule_hash,
                 // TB-11 (architect §6.2 ruling 2026-05-02): default lifecycle
                 // state Open at TaskOpen dispatch; bankruptcy_at_logical_t
@@ -2161,17 +2175,17 @@ pub(crate) fn dispatch_transition(
                 bankruptcy_at_logical_t: None,
                 opened_at_logical_t: open.timestamp_logical,
             };
-            q_next.economic_state_t.task_markets_t.0.insert(open.task_id.clone(), entry);
+            q_next
+                .economic_state_t
+                .task_markets_t
+                .0
+                .insert(open.task_id.clone(), entry);
 
             // Step 4: monetary invariants. No money moved → trivially conserved.
             assert_no_post_init_mint(tx, q)
                 .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
-            assert_total_ctf_conserved(
-                &q.economic_state_t,
-                &q_next.economic_state_t,
-                &[],
-            )
-            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            assert_total_ctf_conserved(&q.economic_state_t, &q_next.economic_state_t, &[])
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
 
             // Step 5: state_root advance via TASK_OPEN_DOMAIN_V1.
             q_next.state_root_t = task_open_accept_state_root(&q.state_root_t, tx);
@@ -2189,11 +2203,19 @@ pub(crate) fn dispatch_transition(
                 return Err(TransitionError::StaleParent);
             }
             // Step 2: target task must exist (no ghost liquidity — charter § 5 #12).
-            if !q.economic_state_t.task_markets_t.0.contains_key(&lock.task_id) {
+            if !q
+                .economic_state_t
+                .task_markets_t
+                .0
+                .contains_key(&lock.task_id)
+            {
                 return Err(TransitionError::TaskNotOpen);
             }
             // Step 3: sponsor solvency.
-            let sponsor_bal = q.economic_state_t.balances_t.0
+            let sponsor_bal = q
+                .economic_state_t
+                .balances_t
+                .0
                 .get(&lock.sponsor_agent)
                 .copied()
                 .unwrap_or(crate::economy::money::MicroCoin::zero());
@@ -2217,7 +2239,10 @@ pub(crate) fn dispatch_transition(
             );
             // Cache update — total_escrow + escrow_lock_tx_ids.
             {
-                let entry = q_next.economic_state_t.task_markets_t.0
+                let entry = q_next
+                    .economic_state_t
+                    .task_markets_t
+                    .0
                     .get_mut(&lock.task_id)
                     .expect("task verified to exist at step 2");
                 let new_total = entry.total_escrow.micro_units() + lock.amount.micro_units();
@@ -2228,18 +2253,11 @@ pub(crate) fn dispatch_transition(
             // Step 5: monetary invariants (debit = credit).
             assert_no_post_init_mint(tx, q)
                 .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
-            assert_total_ctf_conserved(
-                &q.economic_state_t,
-                &q_next.economic_state_t,
-                &[],
-            )
-            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            assert_total_ctf_conserved(&q.economic_state_t, &q_next.economic_state_t, &[])
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
             // TB-3 charter § 3.2 cache=truth invariant.
-            assert_task_market_total_escrow_matches_locks(
-                &q_next.economic_state_t,
-                &lock.task_id,
-            )
-            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            assert_task_market_total_escrow_matches_locks(&q_next.economic_state_t, &lock.task_id)
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
 
             // Step 6: state_root advance via ESCROW_LOCK_DOMAIN_V1.
             q_next.state_root_t = escrow_lock_accept_state_root(&q.state_root_t, tx);
@@ -2341,12 +2359,8 @@ pub(crate) fn dispatch_transition(
             // Step 5: monetary invariants.
             assert_no_post_init_mint(tx, q)
                 .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
-            assert_total_ctf_conserved(
-                &q.economic_state_t,
-                &q_next.economic_state_t,
-                &[],
-            )
-            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            assert_total_ctf_conserved(&q.economic_state_t, &q_next.economic_state_t, &[])
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
             // Codex round-2 CHALLENGE remediation 2026-05-03: call
             // assert_complete_set_balanced from dispatch arm (was test-
             // only). This ensures the 1 Coin → 1 YES_E + 1 NO_E identity
@@ -2390,10 +2404,14 @@ pub(crate) fn dispatch_transition(
                 .map(|m| m.state)
                 .ok_or(TransitionError::RedeemBeforeResolution)?;
             match (market_state, redeem.outcome) {
-                (crate::state::q_state::TaskMarketState::Finalized,
-                 crate::state::typed_tx::OutcomeSide::Yes) => { /* ok — YES wins */ }
-                (crate::state::q_state::TaskMarketState::Bankrupt,
-                 crate::state::typed_tx::OutcomeSide::No) => { /* ok — NO wins */ }
+                (
+                    crate::state::q_state::TaskMarketState::Finalized,
+                    crate::state::typed_tx::OutcomeSide::Yes,
+                ) => { /* ok — YES wins */ }
+                (
+                    crate::state::q_state::TaskMarketState::Bankrupt,
+                    crate::state::typed_tx::OutcomeSide::No,
+                ) => { /* ok — NO wins */ }
                 (crate::state::q_state::TaskMarketState::Finalized, _)
                 | (crate::state::q_state::TaskMarketState::Bankrupt, _) => {
                     return Err(TransitionError::InvalidResolutionRef);
@@ -2488,12 +2506,8 @@ pub(crate) fn dispatch_transition(
             // Step 5: monetary invariants.
             assert_no_post_init_mint(tx, q)
                 .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
-            assert_total_ctf_conserved(
-                &q.economic_state_t,
-                &q_next.economic_state_t,
-                &[],
-            )
-            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            assert_total_ctf_conserved(&q.economic_state_t, &q_next.economic_state_t, &[])
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
             crate::economy::monetary_invariant::assert_complete_set_balanced(
                 &q_next.economic_state_t,
             )
@@ -2548,8 +2562,7 @@ pub(crate) fn dispatch_transition(
             // Step 3: build q_next — provider balance → collateral + provider
             // receives BOTH YES + NO share inventory.
             let mut q_next = q.clone();
-            let new_bal_micro =
-                provider_bal.micro_units() - seed.collateral_amount.micro_units();
+            let new_bal_micro = provider_bal.micro_units() - seed.collateral_amount.micro_units();
             q_next.economic_state_t.balances_t.0.insert(
                 seed.provider.clone(),
                 crate::economy::money::MicroCoin::from_micro_units(new_bal_micro),
@@ -2582,12 +2595,8 @@ pub(crate) fn dispatch_transition(
             // Step 4: monetary invariants.
             assert_no_post_init_mint(tx, q)
                 .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
-            assert_total_ctf_conserved(
-                &q.economic_state_t,
-                &q_next.economic_state_t,
-                &[],
-            )
-            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            assert_total_ctf_conserved(&q.economic_state_t, &q_next.economic_state_t, &[])
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
             crate::economy::monetary_invariant::assert_complete_set_balanced(
                 &q_next.economic_state_t,
             )
@@ -2714,12 +2723,8 @@ pub(crate) fn dispatch_transition(
             // inverse of CompleteSetMint.
             assert_no_post_init_mint(tx, q)
                 .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
-            assert_total_ctf_conserved(
-                &q.economic_state_t,
-                &q_next.economic_state_t,
-                &[],
-            )
-            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            assert_total_ctf_conserved(&q.economic_state_t, &q_next.economic_state_t, &[])
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
             crate::economy::monetary_invariant::assert_complete_set_balanced(
                 &q_next.economic_state_t,
             )
@@ -2820,8 +2825,7 @@ pub(crate) fn dispatch_transition(
             }
             // Step 5: one-pool-per-event (architect §7.5 implies `cpmm_pools_t`
             // keyed by `EventId`; double-create rejected idempotently).
-            if q
-                .economic_state_t
+            if q.economic_state_t
                 .cpmm_pools_t
                 .0
                 .contains_key(&pool.event_id)
@@ -2859,10 +2863,9 @@ pub(crate) fn dispatch_transition(
                     event_id: pool.event_id.clone(),
                     pool_yes: pool.seed_yes,
                     pool_no: pool.seed_no,
-                    lp_total_shares:
-                        crate::state::q_state::LpShareAmount::from_units(
-                            pool.seed_yes.units,
-                        ),
+                    lp_total_shares: crate::state::q_state::LpShareAmount::from_units(
+                        pool.seed_yes.units,
+                    ),
                     status: crate::state::q_state::PoolStatus::Active,
                 },
             );
@@ -2872,9 +2875,7 @@ pub(crate) fn dispatch_transition(
             // pool-creates would fail at step 5 anyway.
             q_next.economic_state_t.lp_share_balances_t.0.insert(
                 (pool.provider.clone(), pool.event_id.clone()),
-                crate::state::q_state::LpShareAmount::from_units(
-                    pool.seed_yes.units,
-                ),
+                crate::state::q_state::LpShareAmount::from_units(pool.seed_yes.units),
             );
 
             // Step 7: monetary invariants. Coin-side untouched (pool reserves
@@ -2890,12 +2891,8 @@ pub(crate) fn dispatch_transition(
             // held; collateral lock unchanged).
             assert_no_post_init_mint(tx, q)
                 .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
-            assert_total_ctf_conserved(
-                &q.economic_state_t,
-                &q_next.economic_state_t,
-                &[],
-            )
-            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            assert_total_ctf_conserved(&q.economic_state_t, &q_next.economic_state_t, &[])
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
             crate::economy::monetary_invariant::assert_complete_set_balanced(
                 &q_next.economic_state_t,
             )
@@ -2990,12 +2987,8 @@ pub(crate) fn dispatch_transition(
                 // direction. `BuyYesWithNo` → input side is NO, other is YES.
                 // `BuyNoWithYes` → input side is YES, other is NO.
                 match swap.direction {
-                    SwapDirection::BuyYesWithNo => {
-                        (pool.pool_no.units, pool.pool_yes.units)
-                    }
-                    SwapDirection::BuyNoWithYes => {
-                        (pool.pool_yes.units, pool.pool_no.units)
-                    }
+                    SwapDirection::BuyYesWithNo => (pool.pool_no.units, pool.pool_yes.units),
+                    SwapDirection::BuyNoWithYes => (pool.pool_yes.units, pool.pool_no.units),
                 }
             };
 
@@ -3088,25 +3081,21 @@ pub(crate) fn dispatch_transition(
                 match swap.direction {
                     SwapDirection::BuyYesWithNo => {
                         // Input side = NO; other = YES.
-                        pool_mut.pool_no =
-                            crate::state::typed_tx::ShareAmount::from_units(
-                                pool_mut.pool_no.units + swap.amount_in.units,
-                            );
-                        pool_mut.pool_yes =
-                            crate::state::typed_tx::ShareAmount::from_units(
-                                pool_mut.pool_yes.units - out_units,
-                            );
+                        pool_mut.pool_no = crate::state::typed_tx::ShareAmount::from_units(
+                            pool_mut.pool_no.units + swap.amount_in.units,
+                        );
+                        pool_mut.pool_yes = crate::state::typed_tx::ShareAmount::from_units(
+                            pool_mut.pool_yes.units - out_units,
+                        );
                     }
                     SwapDirection::BuyNoWithYes => {
                         // Input side = YES; other = NO.
-                        pool_mut.pool_yes =
-                            crate::state::typed_tx::ShareAmount::from_units(
-                                pool_mut.pool_yes.units + swap.amount_in.units,
-                            );
-                        pool_mut.pool_no =
-                            crate::state::typed_tx::ShareAmount::from_units(
-                                pool_mut.pool_no.units - out_units,
-                            );
+                        pool_mut.pool_yes = crate::state::typed_tx::ShareAmount::from_units(
+                            pool_mut.pool_yes.units + swap.amount_in.units,
+                        );
+                        pool_mut.pool_no = crate::state::typed_tx::ShareAmount::from_units(
+                            pool_mut.pool_no.units - out_units,
+                        );
                     }
                 }
             }
@@ -3122,12 +3111,8 @@ pub(crate) fn dispatch_transition(
             // reserves alongside conditional_share_balances_t) holds.
             assert_no_post_init_mint(tx, q)
                 .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
-            assert_total_ctf_conserved(
-                &q.economic_state_t,
-                &q_next.economic_state_t,
-                &[],
-            )
-            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            assert_total_ctf_conserved(&q.economic_state_t, &q_next.economic_state_t, &[])
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
             crate::economy::monetary_invariant::assert_complete_set_balanced(
                 &q_next.economic_state_t,
             )
@@ -3219,13 +3204,15 @@ pub(crate) fn dispatch_transition(
             // `RouterInsufficientCoinBalance`. Below-cap buyer per architect
             // §7.2 can still observe the market — only Coin-locking router
             // admission is blocked.
-            let router_buyer_bal_g3_2 = q.economic_state_t.balances_t.0
+            let router_buyer_bal_g3_2 = q
+                .economic_state_t
+                .balances_t
+                .0
                 .get(&router.buyer)
                 .copied()
                 .unwrap_or_default();
-            let router_risk_cap_g3_2 = crate::runtime::agent_pnl::bankruptcy_risk_cap_micro(
-                &router.buyer, q,
-            );
+            let router_risk_cap_g3_2 =
+                crate::runtime::agent_pnl::bankruptcy_risk_cap_micro(&router.buyer, q);
             if router_buyer_bal_g3_2.micro_units() < router_risk_cap_g3_2 {
                 return Err(TransitionError::BankruptcyRiskCapExceeded);
             }
@@ -3235,11 +3222,10 @@ pub(crate) fn dispatch_transition(
             }
             // Pre-3: pool exists AND status == Active.
             let (pool_input_units_pre, pool_other_units_pre) = {
-                let pool =
-                    match q.economic_state_t.cpmm_pools_t.0.get(&router.event_id) {
-                        Some(p) => p,
-                        None => return Err(TransitionError::RouterPoolNotActive),
-                    };
+                let pool = match q.economic_state_t.cpmm_pools_t.0.get(&router.event_id) {
+                    Some(p) => p,
+                    None => return Err(TransitionError::RouterPoolNotActive),
+                };
                 if pool.status != crate::state::q_state::PoolStatus::Active {
                     return Err(TransitionError::RouterPoolNotActive);
                 }
@@ -3374,25 +3360,21 @@ pub(crate) fn dispatch_transition(
                 match router.direction {
                     BuyDirection::BuyYes => {
                         // BuyYes: pool_no += payC; pool_yes -= out_shares.
-                        pool_mut.pool_no =
-                            crate::state::typed_tx::ShareAmount::from_units(
-                                pool_mut.pool_no.units + pay_coin_units,
-                            );
-                        pool_mut.pool_yes =
-                            crate::state::typed_tx::ShareAmount::from_units(
-                                pool_mut.pool_yes.units - out_shares,
-                            );
+                        pool_mut.pool_no = crate::state::typed_tx::ShareAmount::from_units(
+                            pool_mut.pool_no.units + pay_coin_units,
+                        );
+                        pool_mut.pool_yes = crate::state::typed_tx::ShareAmount::from_units(
+                            pool_mut.pool_yes.units - out_shares,
+                        );
                     }
                     BuyDirection::BuyNo => {
                         // BuyNo: pool_yes += payC; pool_no -= out_shares.
-                        pool_mut.pool_yes =
-                            crate::state::typed_tx::ShareAmount::from_units(
-                                pool_mut.pool_yes.units + pay_coin_units,
-                            );
-                        pool_mut.pool_no =
-                            crate::state::typed_tx::ShareAmount::from_units(
-                                pool_mut.pool_no.units - out_shares,
-                            );
+                        pool_mut.pool_yes = crate::state::typed_tx::ShareAmount::from_units(
+                            pool_mut.pool_yes.units + pay_coin_units,
+                        );
+                        pool_mut.pool_no = crate::state::typed_tx::ShareAmount::from_units(
+                            pool_mut.pool_no.units - out_shares,
+                        );
                     }
                 }
             }
@@ -3453,12 +3435,8 @@ pub(crate) fn dispatch_transition(
             //   BuyNo: symmetric, same conclusion.
             assert_no_post_init_mint(tx, q)
                 .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
-            assert_total_ctf_conserved(
-                &q.economic_state_t,
-                &q_next.economic_state_t,
-                &[],
-            )
-            .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            assert_total_ctf_conserved(&q.economic_state_t, &q_next.economic_state_t, &[])
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
             crate::economy::monetary_invariant::assert_complete_set_balanced(
                 &q_next.economic_state_t,
             )
@@ -3476,8 +3454,7 @@ pub(crate) fn dispatch_transition(
             // pay_coin_micro_i64 binding suppresses unused-var warning on
             // builds where downstream comments reference it.
             let _ = pay_coin_micro_i64;
-            q_next.state_root_t =
-                buy_with_coin_router_accept_state_root(&q.state_root_t, tx);
+            q_next.state_root_t = buy_with_coin_router_accept_state_root(&q.state_root_t, tx);
 
             Ok((q_next, SignalBundle::default()))
         }
@@ -3666,9 +3643,9 @@ pub enum SystemEmitCommand {
         bankruptcy_reason: crate::state::typed_tx::BankruptcyReason,
         failed_run_count: u32,
     },
-    /// TB-N2 B2 (TB_N2_POLYMARKET_CPMM_LIFECYCLE charter §3 B2; 2026-05-11) —
-    /// event-resolve transition (Open → Finalized). Caller passes only
-    /// `task_id`; runtime Q-derives `parent_state_root` + fills
+    /// TB-N2 B2 + REAL-6A — event-resolve transition
+    /// (Open → Finalized on YES, Open → Bankrupt on NO). Caller passes
+    /// `task_id` + `outcome`; runtime Q-derives `parent_state_root` + fills
     /// `epoch` + `timestamp_logical` + signs internally.
     ///
     /// Triggered by `tb_n2_emit_event_resolve_after_finalize` in adapter.rs
@@ -3683,6 +3660,7 @@ pub enum SystemEmitCommand {
     /// that triggered this emit).
     EventResolve {
         task_id: crate::state::q_state::TaskId,
+        outcome: crate::state::typed_tx::OutcomeSide,
     },
     // Future RSP-3.2 additions (NOT in TB-11 scope):
     //   SlashTx        { ... }   (RSP-3.2)
@@ -3719,7 +3697,7 @@ pub enum EmitSystemError {
     /// the production evaluator path because the OMEGA caller derives
     /// `claim_id` from the just-accepted VerifyTx.
     ClaimNotFound,
-    /// TB-N2 B2 (2026-05-11): `SystemEmitCommand::EventResolve { task_id }`
+    /// TB-N2 B2 + REAL-6A: `SystemEmitCommand::EventResolve { task_id, outcome }`
     /// referenced a `task_id` not present in `task_markets_t`. Caller-side
     /// error (caller asked for resolve on a non-existent task); never
     /// reachable from the production evaluator path because
@@ -4028,7 +4006,9 @@ impl Sequencer {
     /// TRACE_MATRIX TB-5 charter v2 § 4.2: peek pinned_pubkeys (for tests +
     /// observability; production callers should not depend on this).
     #[cfg(test)]
-    pub fn pinned_pubkeys(&self) -> &crate::bottom_white::ledger::system_keypair::PinnedSystemPubkeys {
+    pub fn pinned_pubkeys(
+        &self,
+    ) -> &crate::bottom_white::ledger::system_keypair::PinnedSystemPubkeys {
         &self.pinned_pubkeys
     }
 
@@ -4239,7 +4219,10 @@ impl Sequencer {
         // Step 3: Allocate emit_id (parallel to submit_id; separate counter
         // namespace per charter v2 § 4.2 + preflight § 3.6).
         let emit_id = self.next_emit_id.fetch_add(1, Ordering::SeqCst);
-        let envelope = SubmissionEnvelope { submit_id: emit_id, tx };
+        let envelope = SubmissionEnvelope {
+            submit_id: emit_id,
+            tx,
+        };
         // Step 4: Push to shared queue (single queue for both ingress paths;
         // dispatch_transition discriminates by variant TYPE per preflight § 3.6).
         match self.queue_tx.try_send(envelope) {
@@ -4266,7 +4249,10 @@ impl Sequencer {
         use crate::bottom_white::ledger::system_keypair::SystemSignature;
         use crate::state::typed_tx::{ChallengeResolveTx, FinalizeRewardTx};
         match command {
-            SystemEmitCommand::ChallengeResolve { target_challenge_tx_id, resolution } => {
+            SystemEmitCommand::ChallengeResolve {
+                target_challenge_tx_id,
+                resolution,
+            } => {
                 let q_snap = self
                     .q
                     .read()
@@ -4283,7 +4269,7 @@ impl Sequencer {
                     resolution,
                     epoch: self.epoch,
                     timestamp_logical: logical_t_for_id,
-                    system_signature: SystemSignature::from_bytes([0u8; 64]),  // placeholder
+                    system_signature: SystemSignature::from_bytes([0u8; 64]), // placeholder
                 };
                 drop(q_snap);
                 let payload = tx.to_signing_payload();
@@ -4332,7 +4318,7 @@ impl Sequencer {
                     parent_state_root: q_snap.state_root_t,
                     epoch: self.epoch,
                     timestamp_logical: logical_t_for_id,
-                    system_signature: SystemSignature::from_bytes([0u8; 64]),  // placeholder
+                    system_signature: SystemSignature::from_bytes([0u8; 64]), // placeholder
                 };
                 drop(q_snap);
                 let payload = tx.to_signing_payload();
@@ -4347,7 +4333,11 @@ impl Sequencer {
             // construction. Caller passes task_id + escrow_tx_id + reason;
             // runtime Q-derives sponsor_agent + bounty_refunded.
             // ─────────────────────────────────────────────────────────────
-            SystemEmitCommand::TaskExpire { task_id, escrow_tx_id, reason } => {
+            SystemEmitCommand::TaskExpire {
+                task_id,
+                escrow_tx_id,
+                reason,
+            } => {
                 use crate::bottom_white::ledger::system_keypair::terminal_summary_emitter::sign_task_expire;
                 use crate::state::typed_tx::TaskExpireTx;
                 let q_snap = self
@@ -4498,14 +4488,19 @@ impl Sequencer {
             // semantics. This separation matches TaskBankruptcy emit (no
             // pre-emit state check; dispatch enforces).
             // ─────────────────────────────────────────────────────────────
-            SystemEmitCommand::EventResolve { task_id } => {
+            SystemEmitCommand::EventResolve { task_id, outcome } => {
                 use crate::bottom_white::ledger::system_keypair::terminal_summary_emitter::sign_event_resolve;
                 use crate::state::typed_tx::EventResolveTx;
                 let q_snap = self
                     .q
                     .read()
                     .map_err(|_| EmitSystemError::InternalLockPoisoned)?;
-                if !q_snap.economic_state_t.task_markets_t.0.contains_key(&task_id) {
+                if !q_snap
+                    .economic_state_t
+                    .task_markets_t
+                    .0
+                    .contains_key(&task_id)
+                {
                     return Err(EmitSystemError::EventResolveTaskNotFound);
                 }
                 let logical_t_for_id = self.next_logical_t.load(Ordering::SeqCst) + 1;
@@ -4517,6 +4512,7 @@ impl Sequencer {
                     )),
                     parent_state_root: q_snap.state_root_t,
                     task_id,
+                    outcome,
                     epoch: self.epoch,
                     timestamp_logical: logical_t_for_id,
                     system_signature: SystemSignature::from_bytes([0u8; 64]), // placeholder
@@ -4536,12 +4532,19 @@ impl Sequencer {
     /// verification at emit time. Verifies the just-signed signature against
     /// pinned pubkeys for the current epoch.
     fn verify_emitted_system_tx_signature(&self, tx: &TypedTx) -> Result<(), EmitSystemError> {
-        use crate::bottom_white::ledger::system_keypair::{verify_system_signature, CanonicalMessage};
+        use crate::bottom_white::ledger::system_keypair::{
+            verify_system_signature, CanonicalMessage,
+        };
         match tx {
             TypedTx::ChallengeResolve(t) => {
                 let digest = t.to_signing_payload().canonical_digest();
                 let msg = CanonicalMessage::ChallengeResolveSigning(digest);
-                if !verify_system_signature(&t.system_signature, &msg, t.epoch, &self.pinned_pubkeys) {
+                if !verify_system_signature(
+                    &t.system_signature,
+                    &msg,
+                    t.epoch,
+                    &self.pinned_pubkeys,
+                ) {
                     return Err(EmitSystemError::InvalidSystemSignatureLive);
                 }
                 Ok(())
@@ -4550,7 +4553,12 @@ impl Sequencer {
             TypedTx::FinalizeReward(t) => {
                 let digest = t.to_signing_payload().canonical_digest();
                 let msg = CanonicalMessage::FinalizeRewardSigning(digest);
-                if !verify_system_signature(&t.system_signature, &msg, t.epoch, &self.pinned_pubkeys) {
+                if !verify_system_signature(
+                    &t.system_signature,
+                    &msg,
+                    t.epoch,
+                    &self.pinned_pubkeys,
+                ) {
                     return Err(EmitSystemError::InvalidSystemSignatureLive);
                 }
                 Ok(())
@@ -4559,7 +4567,12 @@ impl Sequencer {
             TypedTx::TaskExpire(t) => {
                 let digest = t.to_signing_payload().canonical_digest();
                 let msg = CanonicalMessage::TaskExpireSigning(digest);
-                if !verify_system_signature(&t.system_signature, &msg, t.epoch, &self.pinned_pubkeys) {
+                if !verify_system_signature(
+                    &t.system_signature,
+                    &msg,
+                    t.epoch,
+                    &self.pinned_pubkeys,
+                ) {
                     return Err(EmitSystemError::InvalidSystemSignatureLive);
                 }
                 Ok(())
@@ -4572,7 +4585,12 @@ impl Sequencer {
             TypedTx::TerminalSummary(t) => {
                 let digest = t.to_signing_payload().canonical_digest();
                 let msg = CanonicalMessage::TerminalSummarySigning(digest);
-                if !verify_system_signature(&t.system_signature, &msg, self.epoch, &self.pinned_pubkeys) {
+                if !verify_system_signature(
+                    &t.system_signature,
+                    &msg,
+                    self.epoch,
+                    &self.pinned_pubkeys,
+                ) {
                     return Err(EmitSystemError::InvalidSystemSignatureLive);
                 }
                 Ok(())
@@ -4581,7 +4599,12 @@ impl Sequencer {
             TypedTx::TaskBankruptcy(t) => {
                 let digest = t.to_signing_payload().canonical_digest();
                 let msg = CanonicalMessage::TaskBankruptcySigning(digest);
-                if !verify_system_signature(&t.system_signature, &msg, t.epoch, &self.pinned_pubkeys) {
+                if !verify_system_signature(
+                    &t.system_signature,
+                    &msg,
+                    t.epoch,
+                    &self.pinned_pubkeys,
+                ) {
                     return Err(EmitSystemError::InvalidSystemSignatureLive);
                 }
                 Ok(())
@@ -4590,7 +4613,12 @@ impl Sequencer {
             TypedTx::EventResolve(t) => {
                 let digest = t.to_signing_payload().canonical_digest();
                 let msg = CanonicalMessage::EventResolveSigning(digest);
-                if !verify_system_signature(&t.system_signature, &msg, t.epoch, &self.pinned_pubkeys) {
+                if !verify_system_signature(
+                    &t.system_signature,
+                    &msg,
+                    t.epoch,
+                    &self.pinned_pubkeys,
+                ) {
                     return Err(EmitSystemError::InvalidSystemSignatureLive);
                 }
                 Ok(())
@@ -4675,8 +4703,8 @@ impl Sequencer {
         q_snapshot: &QState,
         err: &TransitionError,
     ) -> Result<(), ApplyError> {
-        let payload_bytes = canonical_encode(tx)
-            .map_err(|e| ApplyError::PayloadEncode(e.to_string()))?;
+        let payload_bytes =
+            canonical_encode(tx).map_err(|e| ApplyError::PayloadEncode(e.to_string()))?;
         let creator = format!("sequencer.rejection_path.epoch-{}", self.epoch.get());
         let rejection_logical_t = self.next_logical_t.load(Ordering::SeqCst);
 
@@ -4718,8 +4746,7 @@ impl Sequencer {
         // resolves to one. Pure-additive; legacy proposal_cid → fall-back to
         // base class (PredicateFailed); other rejection arms unchanged.
         let base_class = rejection_class_for(err);
-        let refined_class =
-            refine_rejection_class_via_attempt_telemetry(&self.cas, tx, base_class);
+        let refined_class = refine_rejection_class_via_attempt_telemetry(&self.cas, tx, base_class);
 
         {
             let mut writer_w = self
@@ -4780,7 +4807,13 @@ impl Sequencer {
         // On verification failure, route to L4.E with InvalidSystemSignatureLive
         // exactly like a dispatch reject — no logical_t consumed, no state_root
         // advance.
-        if let Some(msg) = system_message_for_verification(&tx) {
+        if let TypedTx::EventResolve(t) = &tx {
+            if !event_resolve_signature_verifies_current_or_legacy(t, &self.pinned_pubkeys) {
+                let err = TransitionError::InvalidSystemSignatureLive;
+                self.record_rejection(submit_id, &tx, &q_snapshot, &err)?;
+                return Err(ApplyError::Transition(err));
+            }
+        } else if let Some(msg) = system_message_for_verification(&tx) {
             use crate::bottom_white::ledger::system_keypair::verify_system_signature;
             let sig = system_signature_of(&tx)
                 .expect("system_message_for_verification implies system_signature present");
@@ -4817,10 +4850,13 @@ impl Sequencer {
         let logical_t = self.next_logical_t.load(Ordering::SeqCst) + 1;
 
         // Stage 3: put payload to CAS. DIV-5 5-param put signature.
-        let payload_bytes = canonical_encode(&tx)
-            .map_err(|e| ApplyError::PayloadEncode(e.to_string()))?;
+        let payload_bytes =
+            canonical_encode(&tx).map_err(|e| ApplyError::PayloadEncode(e.to_string()))?;
         let payload_cid = {
-            let mut cas_w = self.cas.write().map_err(|_| ApplyError::QStateLockPoisoned)?;
+            let mut cas_w = self
+                .cas
+                .write()
+                .map_err(|_| ApplyError::QStateLockPoisoned)?;
             cas_w.put(
                 &payload_bytes,
                 ObjectType::ProposalPayload,
@@ -4913,10 +4949,8 @@ impl Sequencer {
 
         // Stage 6: C3 — sign via typed CanonicalMessage::LedgerEntrySigning.
         let signing_digest = signing_payload.canonical_digest();
-        let system_signature = transition_ledger_emitter::sign_ledger_entry(
-            &self.keypair,
-            signing_digest.0,
-        )?;
+        let system_signature =
+            transition_ledger_emitter::sign_ledger_entry(&self.keypair, signing_digest.0)?;
 
         // Stage 7: pure ledger-root fold (deterministic).
         let resulting_ledger_root = append(&q_snapshot.ledger_root_t, &signing_digest);
@@ -4950,7 +4984,7 @@ impl Sequencer {
                 .write()
                 .map_err(|_| ApplyError::QStateLockPoisoned)?;
             writer_w.commit(&entry)?; // ← may fail; if it does, fetch_add was NOT called
-            // commit succeeded → safe to advance counter.
+                                      // commit succeeded → safe to advance counter.
             self.next_logical_t.store(logical_t, Ordering::SeqCst);
             *q_w = q_next;
             q_w.ledger_root_t = entry.resulting_ledger_root;
@@ -5025,8 +5059,10 @@ impl Sequencer {
     /// silently (mirrors `chain_derived_run_facts` line 340 discipline).
     pub fn compute_canonical_edges_at_head(
         &self,
-    ) -> std::collections::BTreeMap<crate::state::TxId, std::collections::BTreeSet<crate::state::TxId>>
-    {
+    ) -> std::collections::BTreeMap<
+        crate::state::TxId,
+        std::collections::BTreeSet<crate::state::TxId>,
+    > {
         use crate::bottom_white::ledger::transition_ledger::canonical_decode;
         use crate::runtime::proposal_telemetry::read_from_cas as read_proposal_telemetry;
 
@@ -5101,17 +5137,17 @@ impl Sequencer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::bottom_white::cas::schema::Cid;
+    use crate::bottom_white::ledger::system_keypair::{PinnedSystemPubkeys, SystemSignature};
     use crate::bottom_white::ledger::transition_ledger::InMemoryLedgerWriter;
+    use crate::economy::money::{MicroCoin, StakeMicroCoin};
+    use crate::state::q_state::{AgentId, TaskId, TxId};
     use crate::state::typed_tx::{
-        AgentSignature, BoolWithProof, ChallengeTx, ClaimId, FinalizeRewardTx, PredicateId,
-        PredicateResultsBundle, ReadKey, ReuseTx, RunId, RunOutcome, SafetyOrCreation,
-        TaskExpireTx, TerminalSummaryTx, ToolId, VerifyTx, VerifyVerdict, WorkTx,
+        AgentSignature, BoolWithProof, ChallengeTx, ClaimId, EventResolveTx, FinalizeRewardTx,
+        OutcomeSide, PredicateId, PredicateResultsBundle, ReadKey, ReuseTx, RunId, RunOutcome,
+        SafetyOrCreation, TaskExpireTx, TerminalSummaryTx, ToolId, VerifyTx, VerifyVerdict, WorkTx,
         WriteKey,
     };
-    use crate::state::q_state::{AgentId, TaskId, TxId};
-    use crate::economy::money::{MicroCoin, StakeMicroCoin};
-    use crate::bottom_white::cas::schema::Cid;
-    use crate::bottom_white::ledger::system_keypair::SystemSignature;
     use std::collections::{BTreeMap, BTreeSet};
     use tempfile::TempDir;
 
@@ -5123,9 +5159,8 @@ mod tests {
     ) {
         let tmp = TempDir::new().expect("tempdir");
         let cas = Arc::new(RwLock::new(CasStore::open(tmp.path()).expect("cas open")));
-        let keypair = Arc::new(
-            Ed25519Keypair::generate_with_secure_entropy().expect("keypair gen"),
-        );
+        let keypair =
+            Arc::new(Ed25519Keypair::generate_with_secure_entropy().expect("keypair gen"));
         let epoch = SystemEpoch::new(1);
         let writer: Arc<RwLock<dyn LedgerWriter>> =
             Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
@@ -5168,6 +5203,40 @@ mod tests {
         (tmp, seq, rx, rejection_writer)
     }
 
+    #[test]
+    fn event_resolve_legacy_yes_signature_is_grandfathered() {
+        use crate::bottom_white::ledger::system_keypair::terminal_summary_emitter::sign_event_resolve;
+
+        let keypair = Ed25519Keypair::generate_with_secure_entropy().expect("keypair");
+        let epoch = SystemEpoch::new(1);
+        let mut pinned = PinnedSystemPubkeys::new();
+        pinned.insert(epoch, keypair.public_key());
+
+        let mut tx = EventResolveTx {
+            tx_id: TxId("system-event-resolve-legacy-sig".into()),
+            parent_state_root: Hash::ZERO,
+            task_id: TaskId("task-legacy-sig".into()),
+            epoch,
+            timestamp_logical: 42,
+            system_signature: SystemSignature::from_bytes([0u8; 64]),
+            outcome: OutcomeSide::Yes,
+        };
+        let legacy_digest = tx.to_legacy_signing_payload().canonical_digest();
+        tx.system_signature = sign_event_resolve(&keypair, legacy_digest).expect("legacy sign");
+
+        assert!(
+            event_resolve_signature_verifies_current_or_legacy(&tx, &pinned),
+            "historical TB-N2 B2 YES-only EventResolve signatures must remain valid"
+        );
+
+        let mut forged_no = tx.clone();
+        forged_no.outcome = OutcomeSide::No;
+        assert!(
+            !event_resolve_signature_verifies_current_or_legacy(&forged_no, &pinned),
+            "legacy YES signature must not authorize a REAL-6A NO resolution"
+        );
+    }
+
     fn fixture_work_tx() -> WorkTx {
         let mut acceptance = BTreeMap::new();
         acceptance.insert(
@@ -5182,8 +5251,12 @@ mod tests {
             task_id: TaskId("task-seq-fixture".into()),
             parent_state_root: Default::default(),
             agent_id: AgentId("alice".into()),
-            read_set: [ReadKey("k.read.a".into())].into_iter().collect::<BTreeSet<_>>(),
-            write_set: [WriteKey("k.write.a".into())].into_iter().collect::<BTreeSet<_>>(),
+            read_set: [ReadKey("k.read.a".into())]
+                .into_iter()
+                .collect::<BTreeSet<_>>(),
+            write_set: [WriteKey("k.write.a".into())]
+                .into_iter()
+                .collect::<BTreeSet<_>>(),
             proposal_cid: Default::default(),
             predicate_results: PredicateResultsBundle {
                 acceptance,
@@ -5234,12 +5307,22 @@ mod tests {
         assert_eq!(seq.next_submit_id_peek(), 1);
         assert_eq!(seq.next_logical_t_peek(), 0);
 
-        let r1 = seq.submit(TypedTx::Work(fixture_work_tx())).await.expect("submit 1");
+        let r1 = seq
+            .submit(TypedTx::Work(fixture_work_tx()))
+            .await
+            .expect("submit 1");
         assert_eq!(r1.submit_id, 1);
         assert_eq!(seq.next_submit_id_peek(), 2);
-        assert_eq!(seq.next_logical_t_peek(), 0, "logical_t MUST NOT advance at submit");
+        assert_eq!(
+            seq.next_logical_t_peek(),
+            0,
+            "logical_t MUST NOT advance at submit"
+        );
 
-        let r2 = seq.submit(TypedTx::Work(fixture_work_tx())).await.expect("submit 2");
+        let r2 = seq
+            .submit(TypedTx::Work(fixture_work_tx()))
+            .await
+            .expect("submit 2");
         assert_eq!(r2.submit_id, 2);
         assert_eq!(seq.next_logical_t_peek(), 0);
     }
@@ -5263,7 +5346,10 @@ mod tests {
             ApplyError::Transition(TransitionError::EscrowMissing)
         ));
         let post = seq.next_logical_t_peek();
-        assert_eq!(pre, post, "logical_t MUST NOT advance on rejected apply_one");
+        assert_eq!(
+            pre, post,
+            "logical_t MUST NOT advance on rejected apply_one"
+        );
     }
 
     // TB-2 Atom 4 — U2: apply_one rejected path keys L4.E by envelope.submit_id.
@@ -5386,10 +5472,10 @@ mod tests {
         // and seed solver balance directly (genesis-equivalent for stake commitment).
         let mut q = QState::genesis();
         // Seed solver balance.
-        q.economic_state_t.balances_t.0.insert(
-            agent_id.clone(),
-            MicroCoin::from_coin(10).unwrap(),
-        );
+        q.economic_state_t
+            .balances_t
+            .0
+            .insert(agent_id.clone(), MicroCoin::from_coin(10).unwrap());
         // Seed sponsor balance.
         q.economic_state_t.balances_t.0.insert(
             AgentId("treasury".into()),
@@ -5407,8 +5493,8 @@ mod tests {
             signature: AgentSignature::from_bytes([0u8; 64]),
             timestamp_logical: 0,
         });
-        let (q_after_open, _) = dispatch_transition(&q, &open_tx, &preds, &tools)
-            .expect("seed TaskOpen accepts");
+        let (q_after_open, _) =
+            dispatch_transition(&q, &open_tx, &preds, &tools).expect("seed TaskOpen accepts");
         // EscrowLock via formal surface.
         let lock_tx = TypedTx::EscrowLock(crate::state::typed_tx::EscrowLockTx {
             tx_id: TxId(format!("seed-lock-{}", task_id.0)),
@@ -5440,17 +5526,31 @@ mod tests {
             Hash::from_bytes(bytes)
         };
 
-        assert_eq!(q_next.state_root_t, expected, "state_root_t must match WORKTX_ACCEPT_DOMAIN_V1 hash");
-        assert_ne!(q_next.state_root_t, q_funded.state_root_t, "state_root_t must advance on accept");
+        assert_eq!(
+            q_next.state_root_t, expected,
+            "state_root_t must match WORKTX_ACCEPT_DOMAIN_V1 hash"
+        );
+        assert_ne!(
+            q_next.state_root_t, q_funded.state_root_t,
+            "state_root_t must advance on accept"
+        );
         // **TB-3 Atom 6 charter § 3.4 lock-on-accept**: accepted WorkTx now
         // MUTATES economic_state_t (debits agent balance + credits stakes_t).
         // The TB-2 "unchanged" invariant is replaced by the lock-on-accept invariant.
-        assert_ne!(q_next.economic_state_t, q_funded.economic_state_t,
-            "TB-3: accepted WorkTx commits stake (debits balance + credits stakes_t)");
-        let stake_entry = q_next.economic_state_t.stakes_t.0
+        assert_ne!(
+            q_next.economic_state_t, q_funded.economic_state_t,
+            "TB-3: accepted WorkTx commits stake (debits balance + credits stakes_t)"
+        );
+        let stake_entry = q_next
+            .economic_state_t
+            .stakes_t
+            .0
             .get(&TxId("worktx-seq-fixture".into()))
             .expect("stakes_t entry by work_tx_id");
-        assert_eq!(stake_entry.task_id, task_id, "stake binds to task_id (event-bound)");
+        assert_eq!(
+            stake_entry.task_id, task_id,
+            "stake binds to task_id (event-bound)"
+        );
     }
 
     // 4. Queue saturation: submit returns QueueFull (Q1/Q2 resolution).
@@ -5483,10 +5583,17 @@ mod tests {
             2,
         );
         // Fill capacity.
-        seq.submit(TypedTx::Work(fixture_work_tx())).await.expect("1");
-        seq.submit(TypedTx::Work(fixture_work_tx())).await.expect("2");
+        seq.submit(TypedTx::Work(fixture_work_tx()))
+            .await
+            .expect("1");
+        seq.submit(TypedTx::Work(fixture_work_tx()))
+            .await
+            .expect("2");
         // Saturated.
-        let err = seq.submit(TypedTx::Work(fixture_work_tx())).await.unwrap_err();
+        let err = seq
+            .submit(TypedTx::Work(fixture_work_tx()))
+            .await
+            .unwrap_err();
         assert!(matches!(err, SubmitError::QueueFull));
     }
 
@@ -5495,7 +5602,10 @@ mod tests {
     async fn submit_returns_queue_closed_after_rx_drop() {
         let (_tmp, seq, rx, _rejection_writer) = fresh_sequencer();
         drop(rx);
-        let err = seq.submit(TypedTx::Work(fixture_work_tx())).await.unwrap_err();
+        let err = seq
+            .submit(TypedTx::Work(fixture_work_tx()))
+            .await
+            .unwrap_err();
         assert!(matches!(err, SubmitError::QueueClosed));
     }
 
@@ -5527,16 +5637,21 @@ mod tests {
         let tools = ToolRegistry::new();
         let q = QState::genesis();
         let tx = TypedTx::TaskOpen(fixture_task_open_tx_v("task-u4", "sponsor-alice"));
-        let (q_next, _signals) = dispatch_transition(&q, &tx, &preds, &tools)
-            .expect("TaskOpen on genesis must accept");
+        let (q_next, _signals) =
+            dispatch_transition(&q, &tx, &preds, &tools).expect("TaskOpen on genesis must accept");
 
-        let entry = q_next.economic_state_t.task_markets_t.0
+        let entry = q_next
+            .economic_state_t
+            .task_markets_t
+            .0
             .get(&TaskId("task-u4".into()))
             .expect("TaskMarketEntry inserted");
         assert_eq!(entry.publisher, AgentId("sponsor-alice".into()));
         assert_eq!(entry.total_escrow.micro_units(), 0);
-        assert!(entry.escrow_lock_tx_ids.is_empty(),
-            "TaskOpen does not lock any escrow yet (charter § 3.3 metadata-only)");
+        assert!(
+            entry.escrow_lock_tx_ids.is_empty(),
+            "TaskOpen does not lock any escrow yet (charter § 3.3 metadata-only)"
+        );
         assert_eq!(entry.verifier_quorum, 1);
 
         // No money moved — balances stay empty (genesis baseline).
@@ -5568,7 +5683,8 @@ mod tests {
         let r = dispatch_transition(&q, &TypedTx::TaskOpen(second), &preds, &tools);
         assert!(
             matches!(r, Err(TransitionError::TaskAlreadyOpen)),
-            "second open for same task_id must reject TaskAlreadyOpen; got {:?}", r
+            "second open for same task_id must reject TaskAlreadyOpen; got {:?}",
+            r
         );
     }
 
@@ -5578,7 +5694,13 @@ mod tests {
 
     use crate::state::typed_tx::EscrowLockTx;
 
-    fn fixture_escrow_lock_tx_v(task: &str, sponsor: &str, amount_micro: i64, parent: Hash, suffix: &str) -> EscrowLockTx {
+    fn fixture_escrow_lock_tx_v(
+        task: &str,
+        sponsor: &str,
+        amount_micro: i64,
+        parent: Hash,
+        suffix: &str,
+    ) -> EscrowLockTx {
         EscrowLockTx {
             tx_id: TxId(format!("escrowlock-{task}-{suffix}")),
             task_id: TaskId(task.into()),
@@ -5616,28 +5738,48 @@ mod tests {
         let parent = q.state_root_t;
         let lock_amount_micro = 30_000_000; // 30 coin
         let lock = TypedTx::EscrowLock(fixture_escrow_lock_tx_v(
-            "task-u6", "sponsor-u6", lock_amount_micro, parent, "u6",
+            "task-u6",
+            "sponsor-u6",
+            lock_amount_micro,
+            parent,
+            "u6",
         ));
 
         let (q_next, _signals) = dispatch_transition(&q, &lock, &preds, &tools)
             .expect("EscrowLock with sufficient balance must accept");
 
         // Balance debited.
-        let new_bal = q_next.economic_state_t.balances_t.0
-            .get(&AgentId("sponsor-u6".into())).expect("sponsor balance still present");
-        assert_eq!(new_bal.micro_units(), 70_000_000, "30 coin debited from 100");
+        let new_bal = q_next
+            .economic_state_t
+            .balances_t
+            .0
+            .get(&AgentId("sponsor-u6".into()))
+            .expect("sponsor balance still present");
+        assert_eq!(
+            new_bal.micro_units(),
+            70_000_000,
+            "30 coin debited from 100"
+        );
 
         // Escrow credited.
         let lock_tx_id = TxId("escrowlock-task-u6-u6".into());
-        let escrow = q_next.economic_state_t.escrows_t.0.get(&lock_tx_id)
+        let escrow = q_next
+            .economic_state_t
+            .escrows_t
+            .0
+            .get(&lock_tx_id)
             .expect("escrow row keyed by escrow_lock_tx_id");
         assert_eq!(escrow.amount.micro_units(), lock_amount_micro);
         assert_eq!(escrow.depositor, AgentId("sponsor-u6".into()));
         assert_eq!(escrow.task_id, TaskId("task-u6".into()));
 
         // Cache updated: total_escrow + escrow_lock_tx_ids.
-        let market = q_next.economic_state_t.task_markets_t.0
-            .get(&TaskId("task-u6".into())).expect("market exists");
+        let market = q_next
+            .economic_state_t
+            .task_markets_t
+            .0
+            .get(&TaskId("task-u6".into()))
+            .expect("market exists");
         assert_eq!(market.total_escrow.micro_units(), lock_amount_micro);
         assert!(market.escrow_lock_tx_ids.contains(&lock_tx_id));
 
@@ -5658,11 +5800,18 @@ mod tests {
             MicroCoin::from_coin(50).unwrap(),
         );
         let lock = TypedTx::EscrowLock(fixture_escrow_lock_tx_v(
-            "task-not-opened", "sponsor-u7", 10_000_000, Hash::ZERO, "u7",
+            "task-not-opened",
+            "sponsor-u7",
+            10_000_000,
+            Hash::ZERO,
+            "u7",
         ));
         let r = dispatch_transition(&q, &lock, &preds, &tools);
-        assert!(matches!(r, Err(TransitionError::TaskNotOpen)),
-            "EscrowLock to unknown task must reject TaskNotOpen; got {:?}", r);
+        assert!(
+            matches!(r, Err(TransitionError::TaskNotOpen)),
+            "EscrowLock to unknown task must reject TaskNotOpen; got {:?}",
+            r
+        );
     }
 
     /// U8 — EscrowLock with sponsor balance < amount rejects with InsufficientBalance.
@@ -5674,11 +5823,18 @@ mod tests {
         let q = q_with_open_task_and_balance("task-u8", "sponsor-u8", 5);
         let parent = q.state_root_t;
         let lock = TypedTx::EscrowLock(fixture_escrow_lock_tx_v(
-            "task-u8", "sponsor-u8", 100_000_000 /* 100 coin > 5 */, parent, "u8",
+            "task-u8",
+            "sponsor-u8",
+            100_000_000, /* 100 coin > 5 */
+            parent,
+            "u8",
         ));
         let r = dispatch_transition(&q, &lock, &preds, &tools);
-        assert!(matches!(r, Err(TransitionError::InsufficientBalance)),
-            "EscrowLock amount > balance must reject InsufficientBalance; got {:?}", r);
+        assert!(
+            matches!(r, Err(TransitionError::InsufficientBalance)),
+            "EscrowLock amount > balance must reject InsufficientBalance; got {:?}",
+            r
+        );
     }
 
     // ──────────────────────────────────────────────────────────────────
@@ -5708,18 +5864,32 @@ mod tests {
         // Lock escrow.
         let parent = q.state_root_t;
         let lock = TypedTx::EscrowLock(fixture_escrow_lock_tx_v(
-            task, sponsor, escrow_coin * 1_000_000, parent, "funded",
+            task,
+            sponsor,
+            escrow_coin * 1_000_000,
+            parent,
+            "funded",
         ));
-        let (q_next, _) = dispatch_transition(&q, &lock, &preds, &tools)
-            .expect("EscrowLock seed must accept");
+        let (q_next, _) =
+            dispatch_transition(&q, &lock, &preds, &tools).expect("EscrowLock seed must accept");
         q_next
     }
 
-    fn fixture_worktx_v(task: &str, agent: &str, parent: Hash, stake_micro: i64, suffix: &str, predicate_passes: bool) -> WorkTx {
+    fn fixture_worktx_v(
+        task: &str,
+        agent: &str,
+        parent: Hash,
+        stake_micro: i64,
+        suffix: &str,
+        predicate_passes: bool,
+    ) -> WorkTx {
         let mut acceptance = BTreeMap::new();
         acceptance.insert(
             PredicateId("acc1".into()),
-            BoolWithProof { value: predicate_passes, proof_cid: None },
+            BoolWithProof {
+                value: predicate_passes,
+                proof_cid: None,
+            },
         );
         WorkTx {
             tx_id: TxId(format!("worktx-{task}-{suffix}")),
@@ -5747,15 +5917,28 @@ mod tests {
         let preds = PredicateRegistry::new();
         let tools = ToolRegistry::new();
         let q = q_with_funded_task_and_solver_balance(
-            "task-u9", "sponsor-u9", 100, 30, "solver-u9", 10,
+            "task-u9",
+            "sponsor-u9",
+            100,
+            30,
+            "solver-u9",
+            10,
         );
         let parent = q.state_root_t;
         let work = TypedTx::Work(fixture_worktx_v(
-            "task-u9", "solver-u9", parent, 1_000_000 /* 1 coin */, "u9", true,
+            "task-u9",
+            "solver-u9",
+            parent,
+            1_000_000, /* 1 coin */
+            "u9",
+            true,
         ));
         let result = dispatch_transition(&q, &work, &preds, &tools);
-        assert!(result.is_ok(),
-            "WorkTx with funded task + solvent solver must accept via formal surface; got {:?}", result);
+        assert!(
+            result.is_ok(),
+            "WorkTx with funded task + solvent solver must accept via formal surface; got {:?}",
+            result
+        );
         let (q_next, _) = result.unwrap();
         // state_root advanced via WORKTX_ACCEPT_DOMAIN_V1.
         let expected = worktx_accept_state_root(&parent, &work);
@@ -5781,11 +5964,21 @@ mod tests {
         let tools = ToolRegistry::new();
         // Solver has only 0 coin (no balance entry — defaults to zero).
         let q = q_with_funded_task_and_solver_balance(
-            "task-u10", "sponsor-u10", 100, 30, "solver-other", 0,
+            "task-u10",
+            "sponsor-u10",
+            100,
+            30,
+            "solver-other",
+            0,
         );
         let parent = q.state_root_t;
         let work = TypedTx::Work(fixture_worktx_v(
-            "task-u10", "solver-broke", parent, 5_000_000 /* 5 coin */, "u10", true,
+            "task-u10",
+            "solver-broke",
+            parent,
+            5_000_000, /* 5 coin */
+            "u10",
+            true,
         ));
         let result = dispatch_transition(&q, &work, &preds, &tools);
         assert!(matches!(result, Err(TransitionError::StakeBalanceExceeded)),
@@ -5798,20 +5991,39 @@ mod tests {
         let preds = PredicateRegistry::new();
         let tools = ToolRegistry::new();
         let q = q_with_funded_task_and_solver_balance(
-            "task-u11", "sponsor-u11", 100, 30, "solver-u11", 10,
+            "task-u11",
+            "sponsor-u11",
+            100,
+            30,
+            "solver-u11",
+            10,
         );
         let parent = q.state_root_t;
-        let pre_solver_bal = q.economic_state_t.balances_t.0
-            .get(&AgentId("solver-u11".into())).copied().unwrap();
+        let pre_solver_bal = q
+            .economic_state_t
+            .balances_t
+            .0
+            .get(&AgentId("solver-u11".into()))
+            .copied()
+            .unwrap();
         let work = TypedTx::Work(fixture_worktx_v(
-            "task-u11", "solver-u11", parent, 3_000_000 /* 3 coin */, "u11", true,
+            "task-u11",
+            "solver-u11",
+            parent,
+            3_000_000, /* 3 coin */
+            "u11",
+            true,
         ));
-        let (q_next, _) = dispatch_transition(&q, &work, &preds, &tools)
-            .expect("accept");
+        let (q_next, _) = dispatch_transition(&q, &work, &preds, &tools).expect("accept");
 
         // Balance debited by stake.
-        let post_solver_bal = q_next.economic_state_t.balances_t.0
-            .get(&AgentId("solver-u11".into())).copied().unwrap();
+        let post_solver_bal = q_next
+            .economic_state_t
+            .balances_t
+            .0
+            .get(&AgentId("solver-u11".into()))
+            .copied()
+            .unwrap();
         assert_eq!(
             post_solver_bal.micro_units(),
             pre_solver_bal.micro_units() - 3_000_000,
@@ -5819,21 +6031,61 @@ mod tests {
         );
 
         // stakes_t populated with task_id binding.
-        let stake_entry = q_next.economic_state_t.stakes_t.0
+        let stake_entry = q_next
+            .economic_state_t
+            .stakes_t
+            .0
             .get(&TxId("worktx-task-u11-u11".into()))
             .expect("stakes_t entry by work_tx_id");
         assert_eq!(stake_entry.amount.micro_units(), 3_000_000);
         assert_eq!(stake_entry.staker, AgentId("solver-u11".into()));
-        assert_eq!(stake_entry.task_id, TaskId("task-u11".into()),
-            "task_id binding (per WP § 18 Inv 5 event-bound risk right)");
+        assert_eq!(
+            stake_entry.task_id,
+            TaskId("task-u11".into()),
+            "task_id binding (per WP § 18 Inv 5 event-bound risk right)"
+        );
 
         // CTF conserved: balance debit (-3 coin) + stakes credit (+3 coin) = 0 delta.
-        let pre_total: i64 = q.economic_state_t.balances_t.0.values().map(|v| v.micro_units()).sum::<i64>()
-            + q.economic_state_t.escrows_t.0.values().map(|e| e.amount.micro_units()).sum::<i64>()
-            + q.economic_state_t.stakes_t.0.values().map(|e| e.amount.micro_units()).sum::<i64>();
-        let post_total: i64 = q_next.economic_state_t.balances_t.0.values().map(|v| v.micro_units()).sum::<i64>()
-            + q_next.economic_state_t.escrows_t.0.values().map(|e| e.amount.micro_units()).sum::<i64>()
-            + q_next.economic_state_t.stakes_t.0.values().map(|e| e.amount.micro_units()).sum::<i64>();
+        let pre_total: i64 = q
+            .economic_state_t
+            .balances_t
+            .0
+            .values()
+            .map(|v| v.micro_units())
+            .sum::<i64>()
+            + q.economic_state_t
+                .escrows_t
+                .0
+                .values()
+                .map(|e| e.amount.micro_units())
+                .sum::<i64>()
+            + q.economic_state_t
+                .stakes_t
+                .0
+                .values()
+                .map(|e| e.amount.micro_units())
+                .sum::<i64>();
+        let post_total: i64 = q_next
+            .economic_state_t
+            .balances_t
+            .0
+            .values()
+            .map(|v| v.micro_units())
+            .sum::<i64>()
+            + q_next
+                .economic_state_t
+                .escrows_t
+                .0
+                .values()
+                .map(|e| e.amount.micro_units())
+                .sum::<i64>()
+            + q_next
+                .economic_state_t
+                .stakes_t
+                .0
+                .values()
+                .map(|e| e.amount.micro_units())
+                .sum::<i64>();
         assert_eq!(pre_total, post_total, "CTF conserved across WorkTx accept");
     }
 
@@ -5844,9 +6096,11 @@ mod tests {
     /// need target liveness, NOT the full TaskOpen+EscrowLock+WorkTx flow.
     /// Returns (q, work_tx_id, task_id) so callers can target the seeded
     /// WorkTx by tx_id.
-    fn seed_q_with_live_target(verifier: &str, balance_coin: i64, target_work_tx_id: &str)
-        -> (QState, TxId, TaskId)
-    {
+    fn seed_q_with_live_target(
+        verifier: &str,
+        balance_coin: i64,
+        target_work_tx_id: &str,
+    ) -> (QState, TxId, TaskId) {
         let mut q = QState::genesis();
         q.economic_state_t.balances_t.0.insert(
             AgentId(verifier.into()),
@@ -5865,16 +6119,20 @@ mod tests {
         (q, target_tx, task_id)
     }
 
-    fn fixture_verify_tx_for_target(verify_tx_id: &str, target_work_tx_id: &str,
-                                    verifier: &str, bond_coin: i64,
-                                    parent_root: Hash) -> VerifyTx {
+    fn fixture_verify_tx_for_target(
+        verify_tx_id: &str,
+        target_work_tx_id: &str,
+        verifier: &str,
+        bond_coin: i64,
+        parent_root: Hash,
+    ) -> VerifyTx {
         VerifyTx {
             tx_id: TxId(verify_tx_id.into()),
             parent_state_root: parent_root,
             target_work_tx: TxId(target_work_tx_id.into()),
             verifier_agent: AgentId(verifier.into()),
             bond: StakeMicroCoin::from_micro_units(
-                MicroCoin::from_coin(bond_coin).unwrap().micro_units()
+                MicroCoin::from_coin(bond_coin).unwrap().micro_units(),
             ),
             verdict: VerifyVerdict::Confirm,
             signature: AgentSignature::from_bytes([0u8; 64]),
@@ -5889,28 +6147,42 @@ mod tests {
         let preds = PredicateRegistry::new();
         let tools = ToolRegistry::new();
         let (q, _target, task_id) = seed_q_with_live_target("verifier-bob", 10, "wt-u12");
-        let verify_tx = fixture_verify_tx_for_target(
-            "vt-u12", "wt-u12", "verifier-bob", 3, q.state_root_t
-        );
+        let verify_tx =
+            fixture_verify_tx_for_target("vt-u12", "wt-u12", "verifier-bob", 3, q.state_root_t);
         let tx = TypedTx::Verify(verify_tx);
         let (q_next, _) = dispatch_transition(&q, &tx, &preds, &tools)
             .expect("Verify with positive bond + live target + solvent verifier must accept");
 
         // bond locked into stakes_t at verify.tx_id
-        let entry = q_next.economic_state_t.stakes_t.0
+        let entry = q_next
+            .economic_state_t
+            .stakes_t
+            .0
             .get(&TxId("vt-u12".into()))
             .expect("stakes_t entry at verify.tx_id");
-        assert_eq!(entry.amount.micro_units(),
-                   MicroCoin::from_coin(3).unwrap().micro_units());
+        assert_eq!(
+            entry.amount.micro_units(),
+            MicroCoin::from_coin(3).unwrap().micro_units()
+        );
         assert_eq!(entry.staker, AgentId("verifier-bob".into()));
         // task_id binding inherited from target's stakes_t entry (charter § 3.4).
-        assert_eq!(entry.task_id, task_id, "Verify entry task_id inherits from target");
+        assert_eq!(
+            entry.task_id, task_id,
+            "Verify entry task_id inherits from target"
+        );
 
         // verifier balance debited.
-        let new_bal = q_next.economic_state_t.balances_t.0
-            .get(&AgentId("verifier-bob".into())).copied().unwrap();
-        assert_eq!(new_bal.micro_units(),
-                   MicroCoin::from_coin(7).unwrap().micro_units());
+        let new_bal = q_next
+            .economic_state_t
+            .balances_t
+            .0
+            .get(&AgentId("verifier-bob".into()))
+            .copied()
+            .unwrap();
+        assert_eq!(
+            new_bal.micro_units(),
+            MicroCoin::from_coin(7).unwrap().micro_units()
+        );
 
         // state_root advanced via VERIFY_ACCEPT_DOMAIN_V1.
         let expected = verify_accept_state_root(&q.state_root_t, &tx);
@@ -5924,9 +6196,8 @@ mod tests {
         let preds = PredicateRegistry::new();
         let tools = ToolRegistry::new();
         let (q, _target, _task) = seed_q_with_live_target("v", 10, "wt-u13");
-        let mut verify_tx = fixture_verify_tx_for_target(
-            "vt-u13", "wt-u13", "v", 5, q.state_root_t
-        );
+        let mut verify_tx =
+            fixture_verify_tx_for_target("vt-u13", "wt-u13", "v", 5, q.state_root_t);
         verify_tx.bond = StakeMicroCoin::from_micro_units(0);
         let tx = TypedTx::Verify(verify_tx);
         let err = dispatch_transition(&q, &tx, &preds, &tools).unwrap_err();
@@ -5944,12 +6215,12 @@ mod tests {
         let tools = ToolRegistry::new();
         // Q has no stakes_t entries.
         let mut q = QState::genesis();
-        q.economic_state_t.balances_t.0.insert(
-            AgentId("v".into()), MicroCoin::from_coin(10).unwrap()
-        );
-        let verify_tx = fixture_verify_tx_for_target(
-            "vt-u14", "wt-not-existent", "v", 3, q.state_root_t
-        );
+        q.economic_state_t
+            .balances_t
+            .0
+            .insert(AgentId("v".into()), MicroCoin::from_coin(10).unwrap());
+        let verify_tx =
+            fixture_verify_tx_for_target("vt-u14", "wt-not-existent", "v", 3, q.state_root_t);
         let tx = TypedTx::Verify(verify_tx);
         let err = dispatch_transition(&q, &tx, &preds, &tools).unwrap_err();
         assert!(matches!(err, TransitionError::VerifyTargetNotAccepted),
@@ -5964,7 +6235,11 @@ mod tests {
         let tools = ToolRegistry::new();
         let (q, _target, _task) = seed_q_with_live_target("v", 10, "wt-u15");
         let mut verify_tx = fixture_verify_tx_for_target(
-            "vt-u15", "wt-u15", "v", 3, Hash::ZERO  // ZERO ≠ q.state_root_t
+            "vt-u15",
+            "wt-u15",
+            "v",
+            3,
+            Hash::ZERO, // ZERO ≠ q.state_root_t
         );
         // ensure parent_state_root really differs.
         if verify_tx.parent_state_root == q.state_root_t {
@@ -5990,9 +6265,13 @@ mod tests {
     fn dispatch_verify_rejects_when_verifier_balance_lt_bond() {
         let preds = PredicateRegistry::new();
         let tools = ToolRegistry::new();
-        let (q, _target, _task) = seed_q_with_live_target("v", 1, "wt-u16");  // only 1 coin
+        let (q, _target, _task) = seed_q_with_live_target("v", 1, "wt-u16"); // only 1 coin
         let verify_tx = fixture_verify_tx_for_target(
-            "vt-u16", "wt-u16", "v", 5, q.state_root_t  // requires 5 coin
+            "vt-u16",
+            "wt-u16",
+            "v",
+            5,
+            q.state_root_t, // requires 5 coin
         );
         let tx = TypedTx::Verify(verify_tx);
         let err = dispatch_transition(&q, &tx, &preds, &tools).unwrap_err();
@@ -6003,8 +6282,11 @@ mod tests {
     // ── TB-4 Atom 5 — Challenge dispatch arm tests (charter § 4.7 U17-U21) ──
 
     fn fixture_challenge_tx_for_target(
-        challenge_tx_id: &str, target_work_tx_id: &str,
-        challenger: &str, stake_coin: i64, counterex_byte: u8,
+        challenge_tx_id: &str,
+        target_work_tx_id: &str,
+        challenger: &str,
+        stake_coin: i64,
+        counterex_byte: u8,
         parent_root: Hash,
     ) -> ChallengeTx {
         ChallengeTx {
@@ -6013,7 +6295,7 @@ mod tests {
             target_work_tx: TxId(target_work_tx_id.into()),
             challenger_agent: AgentId(challenger.into()),
             stake: StakeMicroCoin::from_micro_units(
-                MicroCoin::from_coin(stake_coin).unwrap().micro_units()
+                MicroCoin::from_coin(stake_coin).unwrap().micro_units(),
             ),
             counterexample_cid: Cid([counterex_byte; 32]),
             signature: AgentSignature::from_bytes([0u8; 64]),
@@ -6025,7 +6307,10 @@ mod tests {
     /// q.q_t.current_round to a non-zero value so we can pinpoint the
     /// opened_at_round anchor (charter § 3.9).
     fn seed_q_for_challenge(
-        challenger: &str, balance_coin: i64, target_work_tx_id: &str, current_round: u64,
+        challenger: &str,
+        balance_coin: i64,
+        target_work_tx_id: &str,
+        current_round: u64,
     ) -> (QState, TxId, TaskId) {
         let mut q = QState::genesis();
         q.q_t.current_round = current_round;
@@ -6052,32 +6337,53 @@ mod tests {
     fn dispatch_challenge_opens_case_with_target_back_ref_and_logical_t_anchor() {
         let preds = PredicateRegistry::new();
         let tools = ToolRegistry::new();
-        let (q, _target, _task) =
-            seed_q_for_challenge("challenger-u17", 10, "wt-u17", 42);
+        let (q, _target, _task) = seed_q_for_challenge("challenger-u17", 10, "wt-u17", 42);
         let chal_tx = fixture_challenge_tx_for_target(
-            "ct-u17", "wt-u17", "challenger-u17", 4, 0xAB, q.state_root_t,
+            "ct-u17",
+            "wt-u17",
+            "challenger-u17",
+            4,
+            0xAB,
+            q.state_root_t,
         );
         let tx = TypedTx::Challenge(chal_tx);
         let (q_next, _) = dispatch_transition(&q, &tx, &preds, &tools)
             .expect("Challenge with positive stake + live target + solvent challenger + non-zero counterex must accept");
 
         // ChallengeCase opened at challenge.tx_id with target back-ref + logical_t anchor.
-        let case = q_next.economic_state_t.challenge_cases_t.0
+        let case = q_next
+            .economic_state_t
+            .challenge_cases_t
+            .0
             .get(&TxId("ct-u17".into()))
             .expect("ChallengeCase at challenge.tx_id");
-        assert_eq!(case.bond.micro_units(),
-                   MicroCoin::from_coin(4).unwrap().micro_units());
+        assert_eq!(
+            case.bond.micro_units(),
+            MicroCoin::from_coin(4).unwrap().micro_units()
+        );
         assert_eq!(case.challenger, AgentId("challenger-u17".into()));
-        assert_eq!(case.target_work_tx, TxId("wt-u17".into()),
-                   "TB-4 target_work_tx back-ref (charter § 3.3)");
-        assert_eq!(case.opened_at_round, 42,
-                   "TB-4 § 3.9 anchor: opened_at_round = q.logical_t at accept");
+        assert_eq!(
+            case.target_work_tx,
+            TxId("wt-u17".into()),
+            "TB-4 target_work_tx back-ref (charter § 3.3)"
+        );
+        assert_eq!(
+            case.opened_at_round, 42,
+            "TB-4 § 3.9 anchor: opened_at_round = q.logical_t at accept"
+        );
 
         // Challenger balance debited.
-        let new_bal = q_next.economic_state_t.balances_t.0
-            .get(&AgentId("challenger-u17".into())).copied().unwrap();
-        assert_eq!(new_bal.micro_units(),
-                   MicroCoin::from_coin(6).unwrap().micro_units());
+        let new_bal = q_next
+            .economic_state_t
+            .balances_t
+            .0
+            .get(&AgentId("challenger-u17".into()))
+            .copied()
+            .unwrap();
+        assert_eq!(
+            new_bal.micro_units(),
+            MicroCoin::from_coin(6).unwrap().micro_units()
+        );
 
         // state_root advanced via CHALLENGE_ACCEPT_DOMAIN_V1.
         let expected = challenge_accept_state_root(&q.state_root_t, &tx);
@@ -6090,9 +6396,8 @@ mod tests {
         let preds = PredicateRegistry::new();
         let tools = ToolRegistry::new();
         let (q, _t, _task) = seed_q_for_challenge("c", 10, "wt-u18", 0);
-        let mut chal_tx = fixture_challenge_tx_for_target(
-            "ct-u18", "wt-u18", "c", 5, 0x01, q.state_root_t,
-        );
+        let mut chal_tx =
+            fixture_challenge_tx_for_target("ct-u18", "wt-u18", "c", 5, 0x01, q.state_root_t);
         chal_tx.stake = StakeMicroCoin::from_micro_units(0);
         let tx = TypedTx::Challenge(chal_tx);
         let err = dispatch_transition(&q, &tx, &preds, &tools).unwrap_err();
@@ -6106,16 +6411,24 @@ mod tests {
         let preds = PredicateRegistry::new();
         let tools = ToolRegistry::new();
         let mut q = QState::genesis();
-        q.economic_state_t.balances_t.0.insert(
-            AgentId("c".into()), MicroCoin::from_coin(10).unwrap(),
-        );
+        q.economic_state_t
+            .balances_t
+            .0
+            .insert(AgentId("c".into()), MicroCoin::from_coin(10).unwrap());
         let chal_tx = fixture_challenge_tx_for_target(
-            "ct-u19", "wt-not-existent", "c", 5, 0x01, q.state_root_t,
+            "ct-u19",
+            "wt-not-existent",
+            "c",
+            5,
+            0x01,
+            q.state_root_t,
         );
         let tx = TypedTx::Challenge(chal_tx);
         let err = dispatch_transition(&q, &tx, &preds, &tools).unwrap_err();
-        assert!(matches!(err, TransitionError::TargetWorkInactive),
-                "expected TargetWorkInactive, got {err:?}");
+        assert!(
+            matches!(err, TransitionError::TargetWorkInactive),
+            "expected TargetWorkInactive, got {err:?}"
+        );
     }
 
     /// U20 — ChallengeTx with counterexample_cid == Cid::ZERO rejects with
@@ -6126,7 +6439,12 @@ mod tests {
         let tools = ToolRegistry::new();
         let (q, _t, _task) = seed_q_for_challenge("c", 10, "wt-u20", 0);
         let chal_tx = fixture_challenge_tx_for_target(
-            "ct-u20", "wt-u20", "c", 5, 0x00, q.state_root_t,  // ZERO counterex
+            "ct-u20",
+            "wt-u20",
+            "c",
+            5,
+            0x00,
+            q.state_root_t, // ZERO counterex
         );
         let tx = TypedTx::Challenge(chal_tx);
         let err = dispatch_transition(&q, &tx, &preds, &tools).unwrap_err();
@@ -6139,9 +6457,14 @@ mod tests {
     fn dispatch_challenge_rejects_when_challenger_balance_lt_stake() {
         let preds = PredicateRegistry::new();
         let tools = ToolRegistry::new();
-        let (q, _t, _task) = seed_q_for_challenge("c", 1, "wt-u21", 0);  // only 1 coin
+        let (q, _t, _task) = seed_q_for_challenge("c", 1, "wt-u21", 0); // only 1 coin
         let chal_tx = fixture_challenge_tx_for_target(
-            "ct-u21", "wt-u21", "c", 5, 0xCC, q.state_root_t,  // requires 5 coin
+            "ct-u21",
+            "wt-u21",
+            "c",
+            5,
+            0xCC,
+            q.state_root_t, // requires 5 coin
         );
         let tx = TypedTx::Challenge(chal_tx);
         let err = dispatch_transition(&q, &tx, &preds, &tools).unwrap_err();
@@ -6180,8 +6503,11 @@ mod tests {
         let err = seq.submit_agent_tx(tx).await.unwrap_err();
         assert!(matches!(err, SubmitError::SystemTxForbiddenOnAgentIngress));
         // submit_id NOT advanced (rejection is pre-queue, before fetch_add).
-        assert_eq!(seq.next_submit_id_peek(), pre_submit_id,
-            "submit_id must not advance on system-tx ingress rejection");
+        assert_eq!(
+            seq.next_submit_id_peek(),
+            pre_submit_id,
+            "submit_id must not advance on system-tx ingress rejection"
+        );
     }
 
     /// U24 — submit_agent_tx rejects TaskExpireTx pre-queue.
@@ -6196,9 +6522,9 @@ mod tests {
             bounty_refunded: MicroCoin::from_micro_units(1),
             epoch: SystemEpoch::new(1),
             timestamp_logical: 1,
-            sponsor_agent: AgentId("sp-u24".into()),                                 // TB-11
-            escrow_tx_id: TxId("e-u24".into()),                                      // TB-11
-            reason: crate::state::typed_tx::ExpireReason::Deadline,                  // TB-11
+            sponsor_agent: AgentId("sp-u24".into()), // TB-11
+            escrow_tx_id: TxId("e-u24".into()),      // TB-11
+            reason: crate::state::typed_tx::ExpireReason::Deadline, // TB-11
             system_signature: SystemSignature::from_bytes([0u8; 64]),
         });
         let err = seq.submit_agent_tx(tx).await.unwrap_err();
@@ -6219,9 +6545,9 @@ mod tests {
             total_attempts: 0,
             failure_class_histogram: BTreeMap::new(),
             last_logical_t: 0,
-            parent_state_root: Hash::ZERO,                                           // TB-11
-            solver_agent: None,                                                       // TB-11
-            evidence_capsule_cid: None,                                               // TB-11
+            parent_state_root: Hash::ZERO, // TB-11
+            solver_agent: None,            // TB-11
+            evidence_capsule_cid: None,    // TB-11
             system_signature: SystemSignature::from_bytes([0u8; 64]),
         });
         let err = seq.submit_agent_tx(tx).await.unwrap_err();
@@ -6234,7 +6560,7 @@ mod tests {
     /// charter v2 § 4.9 + § 5.3 binding.
     #[tokio::test]
     async fn submit_agent_tx_rejects_challenge_resolve_pre_queue() {
-        use crate::state::typed_tx::{ChallengeResolveTx, ChallengeResolution};
+        use crate::state::typed_tx::{ChallengeResolution, ChallengeResolveTx};
         let (_tmp, seq, _rx, _rejection_writer) = fresh_sequencer();
         let pre_submit_id = seq.next_submit_id_peek();
         let tx = TypedTx::ChallengeResolve(ChallengeResolveTx {
@@ -6247,8 +6573,10 @@ mod tests {
             system_signature: SystemSignature::from_bytes([0u8; 64]),
         });
         let err = seq.submit_agent_tx(tx).await.unwrap_err();
-        assert!(matches!(err, SubmitError::SystemTxForbiddenOnAgentIngress),
-            "ChallengeResolveTx must reject on agent ingress per TB-5.0 substrate");
+        assert!(
+            matches!(err, SubmitError::SystemTxForbiddenOnAgentIngress),
+            "ChallengeResolveTx must reject on agent ingress per TB-5.0 substrate"
+        );
         // submit_id NOT advanced (pre-queue rejection per Anti-Oreo guarantee).
         assert_eq!(seq.next_submit_id_peek(), pre_submit_id);
     }
@@ -6265,72 +6593,85 @@ mod tests {
         assert!(r.is_ok(), "Work agent variant accepted; got {r:?}");
 
         // Verify.
-        let r = seq.submit_agent_tx(TypedTx::Verify(VerifyTx {
-            tx_id: TxId("vt-u26".into()),
-            parent_state_root: Hash::ZERO,
-            target_work_tx: TxId("wt-u26".into()),
-            verifier_agent: AgentId("v".into()),
-            bond: StakeMicroCoin::from_micro_units(1),
-            verdict: VerifyVerdict::Confirm,
-            signature: AgentSignature::from_bytes([0; 64]),
-            timestamp_logical: 1,
-        })).await;
+        let r = seq
+            .submit_agent_tx(TypedTx::Verify(VerifyTx {
+                tx_id: TxId("vt-u26".into()),
+                parent_state_root: Hash::ZERO,
+                target_work_tx: TxId("wt-u26".into()),
+                verifier_agent: AgentId("v".into()),
+                bond: StakeMicroCoin::from_micro_units(1),
+                verdict: VerifyVerdict::Confirm,
+                signature: AgentSignature::from_bytes([0; 64]),
+                timestamp_logical: 1,
+            }))
+            .await;
         assert!(r.is_ok(), "Verify agent variant accepted; got {r:?}");
 
         // Challenge.
-        let r = seq.submit_agent_tx(TypedTx::Challenge(ChallengeTx {
-            tx_id: TxId("ct-u26".into()),
-            parent_state_root: Hash::ZERO,
-            target_work_tx: TxId("wt-u26".into()),
-            challenger_agent: AgentId("c".into()),
-            stake: StakeMicroCoin::from_micro_units(1),
-            counterexample_cid: Cid([1; 32]),
-            signature: AgentSignature::from_bytes([0; 64]),
-            timestamp_logical: 1,
-        })).await;
+        let r = seq
+            .submit_agent_tx(TypedTx::Challenge(ChallengeTx {
+                tx_id: TxId("ct-u26".into()),
+                parent_state_root: Hash::ZERO,
+                target_work_tx: TxId("wt-u26".into()),
+                challenger_agent: AgentId("c".into()),
+                stake: StakeMicroCoin::from_micro_units(1),
+                counterexample_cid: Cid([1; 32]),
+                signature: AgentSignature::from_bytes([0; 64]),
+                timestamp_logical: 1,
+            }))
+            .await;
         assert!(r.is_ok(), "Challenge agent variant accepted; got {r:?}");
 
         // Reuse.
-        let r = seq.submit_agent_tx(TypedTx::Reuse(ReuseTx {
-            tx_id: TxId("rt-u26".into()),
-            reusing_work_tx: TxId("wt-u26".into()),
-            reused_tool_id: ToolId("tool".into()),
-            reused_tool_creator: AgentId("a".into()),
-            timestamp_logical: 1,
-        })).await;
+        let r = seq
+            .submit_agent_tx(TypedTx::Reuse(ReuseTx {
+                tx_id: TxId("rt-u26".into()),
+                reusing_work_tx: TxId("wt-u26".into()),
+                reused_tool_id: ToolId("tool".into()),
+                reused_tool_creator: AgentId("a".into()),
+                timestamp_logical: 1,
+            }))
+            .await;
         assert!(r.is_ok(), "Reuse agent variant accepted; got {r:?}");
 
         // TaskOpen.
         use crate::state::typed_tx::TaskOpenTx;
-        let r = seq.submit_agent_tx(TypedTx::TaskOpen(TaskOpenTx {
-            tx_id: TxId("ot-u26".into()),
-            task_id: TaskId("t-u26".into()),
-            parent_state_root: Hash::ZERO,
-            sponsor_agent: AgentId("sponsor".into()),
-            verifier_quorum: 1,
-            max_reuse_royalty_fraction_basis_points: 1000,
-            settlement_rule_hash: Hash::ZERO,
-            signature: AgentSignature::from_bytes([0u8; 64]),
-            timestamp_logical: 1,
-        })).await;
+        let r = seq
+            .submit_agent_tx(TypedTx::TaskOpen(TaskOpenTx {
+                tx_id: TxId("ot-u26".into()),
+                task_id: TaskId("t-u26".into()),
+                parent_state_root: Hash::ZERO,
+                sponsor_agent: AgentId("sponsor".into()),
+                verifier_quorum: 1,
+                max_reuse_royalty_fraction_basis_points: 1000,
+                settlement_rule_hash: Hash::ZERO,
+                signature: AgentSignature::from_bytes([0u8; 64]),
+                timestamp_logical: 1,
+            }))
+            .await;
         assert!(r.is_ok(), "TaskOpen agent variant accepted; got {r:?}");
 
         // EscrowLock.
         use crate::state::typed_tx::EscrowLockTx;
-        let r = seq.submit_agent_tx(TypedTx::EscrowLock(EscrowLockTx {
-            tx_id: TxId("lt-u26".into()),
-            task_id: TaskId("t-u26".into()),
-            parent_state_root: Hash::ZERO,
-            sponsor_agent: AgentId("sponsor".into()),
-            amount: MicroCoin::from_micro_units(1),
-            signature: AgentSignature::from_bytes([0u8; 64]),
-            timestamp_logical: 1,
-        })).await;
+        let r = seq
+            .submit_agent_tx(TypedTx::EscrowLock(EscrowLockTx {
+                tx_id: TxId("lt-u26".into()),
+                task_id: TaskId("t-u26".into()),
+                parent_state_root: Hash::ZERO,
+                sponsor_agent: AgentId("sponsor".into()),
+                amount: MicroCoin::from_micro_units(1),
+                signature: AgentSignature::from_bytes([0u8; 64]),
+                timestamp_logical: 1,
+            }))
+            .await;
         assert!(r.is_ok(), "EscrowLock agent variant accepted; got {r:?}");
 
         // 6 successful submissions → submit_id advanced 6 times (started at 1).
-        assert_eq!(seq.next_submit_id_peek(), 7,
-            "next_submit_id should be 1 + 6 successful agent-submissions");
+        assert_eq!(
+            seq.next_submit_id_peek(),
+            7,
+            "next_submit_id should be 1 + 6 successful agent-submissions"
+        );
     }
 
     // ────────────────────────────────────────────────────────────────────────
@@ -6381,9 +6722,9 @@ mod tests {
             bounty_refunded: MicroCoin::from_micro_units(1),
             epoch: SystemEpoch::new(1),
             timestamp_logical: 1,
-            sponsor_agent: AgentId("sp-fwd".into()),                                 // TB-11
-            escrow_tx_id: TxId("e-fwd".into()),                                      // TB-11
-            reason: crate::state::typed_tx::ExpireReason::Deadline,                  // TB-11
+            sponsor_agent: AgentId("sp-fwd".into()), // TB-11
+            escrow_tx_id: TxId("e-fwd".into()),      // TB-11
+            reason: crate::state::typed_tx::ExpireReason::Deadline, // TB-11
             system_signature: SystemSignature::from_bytes([0u8; 64]),
         })
     }
@@ -6397,9 +6738,9 @@ mod tests {
             total_attempts: 0,
             failure_class_histogram: BTreeMap::new(),
             last_logical_t: 0,
-            parent_state_root: Hash::ZERO,                                           // TB-11
-            solver_agent: None,                                                       // TB-11
-            evidence_capsule_cid: None,                                               // TB-11
+            parent_state_root: Hash::ZERO, // TB-11
+            solver_agent: None,            // TB-11
+            evidence_capsule_cid: None,    // TB-11
             system_signature: SystemSignature::from_bytes([0u8; 64]),
         })
     }
@@ -6411,7 +6752,10 @@ mod tests {
         let pre_l4e = rejection_writer.read().expect("read").records().len();
         let pre_logical = seq.next_logical_t_peek();
 
-        let envelope = SubmissionEnvelope { submit_id: 4242, tx: forged_challenge_resolve() };
+        let envelope = SubmissionEnvelope {
+            submit_id: 4242,
+            tx: forged_challenge_resolve(),
+        };
         let err = seq.apply_one(envelope).expect_err("forged sig must reject");
         match err {
             ApplyError::Transition(TransitionError::InvalidSystemSignatureLive) => {}
@@ -6420,8 +6764,11 @@ mod tests {
 
         let post_l4e = rejection_writer.read().expect("read").records().len();
         assert_eq!(post_l4e, pre_l4e + 1, "stage 1.5 reject writes 1 L4.E row");
-        assert_eq!(seq.next_logical_t_peek(), pre_logical,
-            "K1: stage 1.5 reject MUST NOT advance logical_t");
+        assert_eq!(
+            seq.next_logical_t_peek(),
+            pre_logical,
+            "K1: stage 1.5 reject MUST NOT advance logical_t"
+        );
     }
 
     /// I66.a: stage-1.5 rejects forged FinalizeReward sig.
@@ -6429,7 +6776,10 @@ mod tests {
     fn stage_1_5_rejects_forged_finalize_reward_signature() {
         let (_tmp, seq, _rx, rejection_writer) = fresh_sequencer();
         let pre_l4e = rejection_writer.read().expect("read").records().len();
-        let envelope = SubmissionEnvelope { submit_id: 4243, tx: forged_finalize_reward() };
+        let envelope = SubmissionEnvelope {
+            submit_id: 4243,
+            tx: forged_finalize_reward(),
+        };
         let err = seq.apply_one(envelope).expect_err("forged sig must reject");
         match err {
             ApplyError::Transition(TransitionError::InvalidSystemSignatureLive) => {}
@@ -6444,7 +6794,10 @@ mod tests {
     fn stage_1_5_rejects_forged_task_expire_signature() {
         let (_tmp, seq, _rx, rejection_writer) = fresh_sequencer();
         let pre_l4e = rejection_writer.read().expect("read").records().len();
-        let envelope = SubmissionEnvelope { submit_id: 4244, tx: forged_task_expire() };
+        let envelope = SubmissionEnvelope {
+            submit_id: 4244,
+            tx: forged_task_expire(),
+        };
         let err = seq.apply_one(envelope).expect_err("forged sig must reject");
         match err {
             ApplyError::Transition(TransitionError::InvalidSystemSignatureLive) => {}
@@ -6459,7 +6812,10 @@ mod tests {
     fn stage_1_5_rejects_forged_terminal_summary_signature() {
         let (_tmp, seq, _rx, rejection_writer) = fresh_sequencer();
         let pre_l4e = rejection_writer.read().expect("read").records().len();
-        let envelope = SubmissionEnvelope { submit_id: 4245, tx: forged_terminal_summary() };
+        let envelope = SubmissionEnvelope {
+            submit_id: 4245,
+            tx: forged_terminal_summary(),
+        };
         let err = seq.apply_one(envelope).expect_err("forged sig must reject");
         match err {
             ApplyError::Transition(TransitionError::InvalidSystemSignatureLive) => {}
@@ -6517,7 +6873,10 @@ mod tests {
         // false positive at the verifier).
         let (_tmp, seq, _rx, _rejection) = fresh_sequencer();
         let work = TypedTx::Work(super::tests::fixture_work_tx());
-        let envelope = SubmissionEnvelope { submit_id: 1, tx: work };
+        let envelope = SubmissionEnvelope {
+            submit_id: 1,
+            tx: work,
+        };
         let result = seq.apply_one(envelope);
         match result {
             Err(ApplyError::Transition(TransitionError::InvalidSystemSignatureLive)) => {
@@ -6595,8 +6954,8 @@ mod tests {
         // (in TB-4) bond was already debited from balances_t and credited
         // to challenge_cases_t. Here we model the post-challenge state:
         // challenger balance = 100 - 4 = 96; case.bond = 4.
-        let (q, target_id, challenger, bond) = seed_q_with_open_challenge_case(
-            "challenger-u29", 96, "ct-u29", 4, "wt-u29");
+        let (q, target_id, challenger, bond) =
+            seed_q_with_open_challenge_case("challenger-u29", 96, "ct-u29", 4, "wt-u29");
         let pre_balance = q
             .economic_state_t
             .balances_t
@@ -6630,15 +6989,25 @@ mod tests {
             .0
             .get(&target_id)
             .expect("entry preserved per directive § 7 Q6");
-        assert_eq!(entry.bond.micro_units(), 0, "bond must be zeroed on Released");
+        assert_eq!(
+            entry.bond.micro_units(),
+            0,
+            "bond must be zeroed on Released"
+        );
         assert_eq!(entry.status, ChallengeStatus::Released, "status flipped");
         assert_eq!(entry.challenger, challenger, "challenger preserved");
-        assert_eq!(entry.target_work_tx, TxId("wt-u29".into()), "target preserved");
+        assert_eq!(
+            entry.target_work_tx,
+            TxId("wt-u29".into()),
+            "target preserved"
+        );
 
         // state_root advanced via CHALLENGE_RESOLVE_DOMAIN_V1.
         let expected = challenge_resolve_accept_state_root(&q.state_root_t, &tx);
-        assert_eq!(q_next.state_root_t, expected,
-            "state_root must match CHALLENGE_RESOLVE_DOMAIN_V1 hash");
+        assert_eq!(
+            q_next.state_root_t, expected,
+            "state_root must match CHALLENGE_RESOLVE_DOMAIN_V1 hash"
+        );
     }
 
     /// U31: AlreadyResolved gate — second resolve with same target rejects.
@@ -6646,19 +7015,19 @@ mod tests {
     fn dispatch_challenge_resolve_released_cannot_run_twice() {
         let preds = PredicateRegistry::new();
         let tools = ToolRegistry::new();
-        let (q, target_id, _challenger, _bond) = seed_q_with_open_challenge_case(
-            "challenger-u31", 96, "ct-u31", 4, "wt-u31");
+        let (q, target_id, _challenger, _bond) =
+            seed_q_with_open_challenge_case("challenger-u31", 96, "ct-u31", 4, "wt-u31");
 
         // First resolve succeeds.
         let tx1 = make_resolve_tx(&target_id, ChallengeResolution::Released, q.state_root_t);
-        let (q1, _) = dispatch_transition(&q, &tx1, &preds, &tools)
-            .expect("first Released accepts");
+        let (q1, _) =
+            dispatch_transition(&q, &tx1, &preds, &tools).expect("first Released accepts");
 
         // Second resolve on the same case (now status=Released) MUST reject
         // with AlreadyResolved.
         let tx2 = make_resolve_tx(&target_id, ChallengeResolution::Released, q1.state_root_t);
-        let err = dispatch_transition(&q1, &tx2, &preds, &tools)
-            .expect_err("second resolve must reject");
+        let err =
+            dispatch_transition(&q1, &tx2, &preds, &tools).expect_err("second resolve must reject");
         match err {
             TransitionError::AlreadyResolved => {}
             other => panic!("expected AlreadyResolved, got {other:?}"),
@@ -6676,8 +7045,8 @@ mod tests {
             ChallengeResolution::Released,
             q.state_root_t,
         );
-        let err = dispatch_transition(&q, &tx, &preds, &tools)
-            .expect_err("unknown target must reject");
+        let err =
+            dispatch_transition(&q, &tx, &preds, &tools).expect_err("unknown target must reject");
         match err {
             TransitionError::ChallengeNotFound => {}
             other => panic!("expected ChallengeNotFound, got {other:?}"),
@@ -6689,8 +7058,8 @@ mod tests {
     fn dispatch_challenge_resolve_upheld_deferred_marker_only() {
         let preds = PredicateRegistry::new();
         let tools = ToolRegistry::new();
-        let (q, target_id, challenger, bond) = seed_q_with_open_challenge_case(
-            "challenger-u33", 96, "ct-u33", 4, "wt-u33");
+        let (q, target_id, challenger, bond) =
+            seed_q_with_open_challenge_case("challenger-u33", 96, "ct-u33", 4, "wt-u33");
         let pre_balance = q
             .economic_state_t
             .balances_t
@@ -6699,7 +7068,11 @@ mod tests {
             .copied()
             .unwrap();
 
-        let tx = make_resolve_tx(&target_id, ChallengeResolution::UpheldDeferred, q.state_root_t);
+        let tx = make_resolve_tx(
+            &target_id,
+            ChallengeResolution::UpheldDeferred,
+            q.state_root_t,
+        );
         let (q_next, _) = dispatch_transition(&q, &tx, &preds, &tools)
             .expect("UpheldDeferred path with valid Open case must accept");
 
@@ -6741,13 +7114,13 @@ mod tests {
     fn dispatch_challenge_resolve_rejects_stale_parent() {
         let preds = PredicateRegistry::new();
         let tools = ToolRegistry::new();
-        let (q, target_id, _challenger, _bond) = seed_q_with_open_challenge_case(
-            "challenger-u34", 96, "ct-u34", 4, "wt-u34");
+        let (q, target_id, _challenger, _bond) =
+            seed_q_with_open_challenge_case("challenger-u34", 96, "ct-u34", 4, "wt-u34");
         // Forge a wrong parent root.
         let stale_root = Hash::from_bytes([0xde; 32]);
         let tx = make_resolve_tx(&target_id, ChallengeResolution::Released, stale_root);
-        let err = dispatch_transition(&q, &tx, &preds, &tools)
-            .expect_err("stale parent must reject");
+        let err =
+            dispatch_transition(&q, &tx, &preds, &tools).expect_err("stale parent must reject");
         match err {
             TransitionError::StaleParent => {}
             other => panic!("expected StaleParent, got {other:?}"),

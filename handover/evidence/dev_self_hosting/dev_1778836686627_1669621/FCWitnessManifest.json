@@ -1,0 +1,25 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778836686627_1669621",
+  "fc_nodes": [
+    "FC1-role-market-actions"
+  ],
+  "expected_witness": "Diff, command evidence, and audit verdict must cite these FC nodes.",
+  "evidence_artifacts": [
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "3ee0fdc85a2c8d0417d662335212636e03302c75cfd05ef01e126928c331f829",
+      "size_bytes": 6344
+    },
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "3ee0fdc85a2c8d0417d662335212636e03302c75cfd05ef01e126928c331f829",
+      "size_bytes": 6344
+    },
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "3ee0fdc85a2c8d0417d662335212636e03302c75cfd05ef01e126928c331f829",
+      "size_bytes": 6344
+    }
+  ]
+}

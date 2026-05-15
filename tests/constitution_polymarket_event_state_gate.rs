@@ -27,18 +27,14 @@ use turingosv4::bottom_white::ledger::rejection_evidence::RejectionEvidenceWrite
 use turingosv4::bottom_white::ledger::system_keypair::{
     Ed25519Keypair, PinnedSystemPubkeys, SystemEpoch,
 };
-use turingosv4::bottom_white::ledger::transition_ledger::{
-    InMemoryLedgerWriter, LedgerWriter,
-};
+use turingosv4::bottom_white::ledger::transition_ledger::{InMemoryLedgerWriter, LedgerWriter};
 use turingosv4::bottom_white::tools::registry::ToolRegistry;
 use turingosv4::economy::money::MicroCoin;
-use turingosv4::state::q_state::{
-    AgentId, QState, TaskId, TaskMarketEntry, TaskMarketState, TxId,
-};
+use turingosv4::state::q_state::{AgentId, QState, TaskId, TaskMarketEntry, TaskMarketState, TxId};
 use turingosv4::state::sequencer::{Sequencer, SubmissionEnvelope};
 use turingosv4::state::typed_tx::{
-    AgentSignature, BuyDirection, BuyWithCoinRouterTx, CompleteSetMintTx,
-    CpmmPoolTx, CpmmSwapTx, EventId, ShareAmount, SwapDirection, TypedTx,
+    AgentSignature, BuyDirection, BuyWithCoinRouterTx, CompleteSetMintTx, CpmmPoolTx, CpmmSwapTx,
+    EventId, ShareAmount, SwapDirection, TypedTx,
 };
 use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
@@ -55,8 +51,7 @@ fn fresh_harness(initial_q: QState) -> Harness {
     let tmp = TempDir::new().expect("tempdir");
     let cas = Arc::new(RwLock::new(CasStore::open(tmp.path()).expect("cas")));
     let keypair = Arc::new(Ed25519Keypair::generate_with_secure_entropy().expect("kp"));
-    let writer: Arc<RwLock<dyn LedgerWriter>> =
-        Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
+    let writer: Arc<RwLock<dyn LedgerWriter>> = Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
     let rejection_writer = Arc::new(RwLock::new(RejectionEvidenceWriter::default()));
     let preds = Arc::new(PredicateRegistry::new());
     let tools = Arc::new(ToolRegistry::new());
@@ -65,10 +60,23 @@ fn fresh_harness(initial_q: QState) -> Harness {
     pinned.insert(epoch, keypair.public_key());
     let pinned_pubkeys = Arc::new(pinned);
     let (seq, rx) = Sequencer::new(
-        cas, keypair, epoch, writer.clone(), rejection_writer, preds, tools,
-        pinned_pubkeys, initial_q, 16,
+        cas,
+        keypair,
+        epoch,
+        writer.clone(),
+        rejection_writer,
+        preds,
+        tools,
+        pinned_pubkeys,
+        initial_q,
+        16,
     );
-    Harness { _tmp: tmp, seq, rx, _ledger: writer }
+    Harness {
+        _tmp: tmp,
+        seq,
+        rx,
+        _ledger: writer,
+    }
 }
 
 fn genesis_with_balances_and_event_state(
@@ -229,11 +237,7 @@ async fn bootstrap_active_pool(
 // TaskExpire / TaskBankruptcy) flip task_markets_t state. The test
 // uses the public q-mutator surface to inject the post-resolution
 // state directly.
-fn mutate_event_state(
-    h: &mut Harness,
-    task: &str,
-    new_state: TaskMarketState,
-) {
+fn mutate_event_state(h: &mut Harness, task: &str, new_state: TaskMarketState) {
     use std::sync::atomic::Ordering;
     // Directly mutate the q via the sequencer's exposed q write lock.
     // Unlike submit_and_apply (which goes through dispatch), this is a
@@ -312,12 +316,9 @@ async fn pool_create_rejected_against_bankrupt_event() {
     let mut h = fresh_harness(q0);
 
     let p = h.seq.q_snapshot().unwrap().state_root_t;
-    let err = submit_and_apply(
-        &mut h,
-        build_pool(p, "alice", "evt-bankrupt", 1_000_000, 1),
-    )
-    .await
-    .expect_err("pool create against Bankrupt must be rejected");
+    let err = submit_and_apply(&mut h, build_pool(p, "alice", "evt-bankrupt", 1_000_000, 1))
+        .await
+        .expect_err("pool create against Bankrupt must be rejected");
     assert!(
         err.contains("EventNotOpen"),
         "expected EventNotOpen, got: {err}"
@@ -333,8 +334,7 @@ async fn pool_create_rejected_against_bankrupt_event() {
 /// then attempt swap.
 #[tokio::test]
 async fn swap_rejected_against_finalized_event() {
-    let (mut h, parent_after_bootstrap) =
-        bootstrap_active_pool("evt-swap-final", 5_000_000).await;
+    let (mut h, parent_after_bootstrap) = bootstrap_active_pool("evt-swap-final", 5_000_000).await;
 
     // Sanity: swap before mutation succeeds (state is Open).
     let pre_swap_q = h.seq.q_snapshot().unwrap();
@@ -391,12 +391,9 @@ async fn swap_rejected_against_bankrupt_event() {
     mutate_event_state(&mut h, "evt-swap-bk", TaskMarketState::Bankrupt);
 
     let parent = h.seq.q_snapshot().unwrap().state_root_t;
-    let err = submit_and_apply(
-        &mut h,
-        build_swap(parent, "bob", "evt-swap-bk", 100_000, 1),
-    )
-    .await
-    .expect_err("swap against Bankrupt must be rejected");
+    let err = submit_and_apply(&mut h, build_swap(parent, "bob", "evt-swap-bk", 100_000, 1))
+        .await
+        .expect_err("swap against Bankrupt must be rejected");
     assert!(err.contains("EventNotOpen"), "got: {err}");
 }
 
@@ -471,12 +468,9 @@ async fn pool_swap_router_all_succeed_against_open_event() {
 
     // Router succeeds.
     let parent = h.seq.q_snapshot().unwrap().state_root_t;
-    submit_and_apply(
-        &mut h,
-        build_router(parent, "bob", "evt-open", 500_000, 1),
-    )
-    .await
-    .expect("router against Open event admits normally");
+    submit_and_apply(&mut h, build_router(parent, "bob", "evt-open", 500_000, 1))
+        .await
+        .expect("router against Open event admits normally");
 }
 
 // ── Codex R2 CHALLENGE Q10 closure: fail-closed on missing entry ───────────
@@ -490,20 +484,17 @@ async fn pool_swap_router_all_succeed_against_open_event() {
 async fn pool_create_rejected_against_missing_event_entry() {
     // Genesis with NO task_markets_t entry for the event.
     let mut q0 = QState::genesis();
-    q0.economic_state_t.balances_t.0.insert(
-        AgentId("alice".into()),
-        MicroCoin::from_coin(100).unwrap(),
-    );
+    q0.economic_state_t
+        .balances_t
+        .0
+        .insert(AgentId("alice".into()), MicroCoin::from_coin(100).unwrap());
     // Note: we deliberately DO NOT add a task_markets_t entry for "evt-missing".
     let mut h = fresh_harness(q0);
 
     let p = h.seq.q_snapshot().unwrap().state_root_t;
-    let err = submit_and_apply(
-        &mut h,
-        build_pool(p, "alice", "evt-missing", 1_000_000, 1),
-    )
-    .await
-    .expect_err("pool create against missing event entry must be rejected");
+    let err = submit_and_apply(&mut h, build_pool(p, "alice", "evt-missing", 1_000_000, 1))
+        .await
+        .expect_err("pool create against missing event entry must be rejected");
     assert!(
         err.contains("EventNotOpen"),
         "fail-closed: missing task_markets_t entry must reject with EventNotOpen; got: {err}"
@@ -521,12 +512,9 @@ async fn swap_rejected_against_missing_event_entry() {
     // Swap with event_id "evt-missing" (no task_markets_t entry, no pool).
     // Expected: EventNotOpen (gate fires before PoolNotActive check).
     let parent = h.seq.q_snapshot().unwrap().state_root_t;
-    let err = submit_and_apply(
-        &mut h,
-        build_swap(parent, "bob", "evt-missing", 100_000, 1),
-    )
-    .await
-    .expect_err("swap against missing event entry must be rejected");
+    let err = submit_and_apply(&mut h, build_swap(parent, "bob", "evt-missing", 100_000, 1))
+        .await
+        .expect_err("swap against missing event entry must be rejected");
     assert!(
         err.contains("EventNotOpen"),
         "fail-closed: swap missing event must reject with EventNotOpen (not PoolNotActive); got: {err}"

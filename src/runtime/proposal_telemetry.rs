@@ -507,13 +507,27 @@ mod tests {
         let (_dir, mut cas) = fresh_cas();
         let payload = b"by ring";
         let pt1 = ProposalTelemetry::build_for_evaluator_append(
-            &mut cas, "r", "a", 1, payload, "ring", TokenCounts::default(),
-            "creator", 1,
+            &mut cas,
+            "r",
+            "a",
+            1,
+            payload,
+            "ring",
+            TokenCounts::default(),
+            "creator",
+            1,
         )
         .expect("p1");
         let pt2 = ProposalTelemetry::build_for_evaluator_append(
-            &mut cas, "r", "a", 1, payload, "ring", TokenCounts::default(),
-            "creator", 1,
+            &mut cas,
+            "r",
+            "a",
+            1,
+            payload,
+            "ring",
+            TokenCounts::default(),
+            "creator",
+            1,
         )
         .expect("p2");
         assert_eq!(pt1.proposal_artifact_cid, pt2.proposal_artifact_cid);
@@ -527,8 +541,15 @@ mod tests {
         let payload = b"by rfl";
         let parent = TxId("worktx-task-r-p0".into());
         let pt = ProposalTelemetry::build_for_evaluator_append_with_parent(
-            &mut cas, "r", "a", 1, payload, "rfl", TokenCounts::default(),
-            "creator", 1,
+            &mut cas,
+            "r",
+            "a",
+            1,
+            payload,
+            "rfl",
+            TokenCounts::default(),
+            "creator",
+            1,
             Some(parent.clone()),
         )
         .expect("with parent");
@@ -536,8 +557,15 @@ mod tests {
 
         // Default builder yields None.
         let pt2 = ProposalTelemetry::build_for_evaluator_append(
-            &mut cas, "r", "a", 2, payload, "rfl", TokenCounts::default(),
-            "creator", 1,
+            &mut cas,
+            "r",
+            "a",
+            2,
+            payload,
+            "rfl",
+            TokenCounts::default(),
+            "creator",
+            1,
         )
         .expect("without parent");
         assert!(pt2.parent_tx.is_none());

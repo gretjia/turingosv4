@@ -1,0 +1,11 @@
+Diff in /home/zephryj/projects/turingosv4/experiments/minif2f_v4/src/bin/evaluator.rs:4615:
+                                         };
+                                         let trace_agent_id =
+                                             turingosv4::state::q_state::AgentId(agent_id.clone());
+-                                        use turingosv4::runtime::market_decision_trace::{
+-                                            MarketDecisionTrace,
+-                                        };
++                                        use turingosv4::runtime::market_decision_trace::MarketDecisionTrace;
+                                         match route_result {
+                                             Ok(typed_tx) => {
+                                                 let router_tx_id = match &typed_tx {

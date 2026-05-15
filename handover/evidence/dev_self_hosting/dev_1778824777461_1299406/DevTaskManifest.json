@@ -1,0 +1,31 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778824777461_1299406",
+  "title": "REAL-6C ConvictionBudget / PnL feedback",
+  "module": "REAL-6C Event Timing & Lawful Pressure",
+  "molecule_or_atom": "molecule",
+  "requested_risk_class": 4,
+  "risk_class": 4,
+  "fc_nodes": [
+    "FC1 role action/economic feedback; FC2 replay-derived PnL; FC3 materialized audit view; Art.III scoped prompt"
+  ],
+  "allowed_paths": [
+    "src/runtime/real6_conviction_budget.rs",
+    "src/runtime/mod.rs",
+    "tests/constitution_real6_conviction_budget.rs",
+    "genesis_payload.toml",
+    "handover/evidence/real6_conviction_budget/**",
+    "handover/audits/CODEX_REAL6C_IMPLEMENTATION_REVIEW*.md"
+  ],
+  "restricted_surface_hits": [
+    "genesis_payload.toml"
+  ],
+  "acceptance_commands": [
+    "cargo check"
+  ],
+  "audit_required": true,
+  "human_intent": null,
+  "ratification": null,
+  "git_head": "5239f4b13ecf0a3f9850accc6815c2e7944e9bee",
+  "created_at_unix_ms": 1778824777461
+}

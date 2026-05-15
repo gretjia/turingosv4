@@ -1,0 +1,11 @@
+batch_id            g_phase_real_5_adversarial5_b8_20260514T_FINALZ_5239f4b
+run_tag             g_phase_real_5_adversarial5_b8_20260514T_FINALZ
+problem_count       5
+git_head            5239f4b13ecf0a3f9850accc6815c2e7944e9bee
+elapsed_s           445
+batch_exit          0
+audit_exit          0
+audit_verdict       PROCEED
+persistence_exit    0
+persistence_passing true
+persistence_n_witnessed 5

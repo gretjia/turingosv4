@@ -1,0 +1,129 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778824230778_1272629",
+  "close_status": "closed",
+  "manifest_sha256": "c19905fb270dae690def93497e1bffd7380a77c8ccd746b74bcfa758259a55b1",
+  "event_chain_head_hash": "9b5d8c6d02b199a8f8061dff45d1452efd70cc6a9dc748f2451d7ee79f99d87b",
+  "diff_sha256": "80212de584a3443e670fcbf5253f0f0edb4fc8152e6bb0e6092224adb3ea7de4",
+  "command_results": [
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--test",
+        "constitution_real6_attempt_prediction_market"
+      ],
+      "cwd": "/home/zephryj/projects/turingosv4",
+      "exit_code": 0,
+      "started_at_unix_ms": 1778824239878,
+      "ended_at_unix_ms": 1778824240176,
+      "stdout": {
+        "path": "artifacts/command_0002_stdout.txt",
+        "sha256": "5fee3fe817e2b4936a427dad2ff272e7893e1a2e24809dcc3d37119be71fa0d2",
+        "size_bytes": 517
+      },
+      "stderr": {
+        "path": "artifacts/command_0002_stderr.txt",
+        "sha256": "9f0dad3c2a1bc65a286019ffd5b1b563743b92f2d92e480daebbcee543e7a4f3",
+        "size_bytes": 5707
+      }
+    },
+    {
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--",
+        "--check"
+      ],
+      "cwd": "/home/zephryj/projects/turingosv4",
+      "exit_code": 0,
+      "started_at_unix_ms": 1778824245976,
+      "ended_at_unix_ms": 1778824248096,
+      "stdout": {
+        "path": "artifacts/command_0003_stdout.txt",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size_bytes": 0
+      },
+      "stderr": {
+        "path": "artifacts/command_0003_stderr.txt",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size_bytes": 0
+      }
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--lib",
+        "boot::tests::verify_trust_root_passes_on_intact_repo"
+      ],
+      "cwd": "/home/zephryj/projects/turingosv4",
+      "exit_code": 0,
+      "started_at_unix_ms": 1778824258454,
+      "ended_at_unix_ms": 1778824259058,
+      "stdout": {
+        "path": "artifacts/command_0004_stdout.txt",
+        "sha256": "723bc69478b359442edf8390d436086941fbb0e1397785e9f0f44087914b0407",
+        "size_bytes": 179
+      },
+      "stderr": {
+        "path": "artifacts/command_0004_stderr.txt",
+        "sha256": "d2179f161fc16b2fdebebda781b804e4b6e7fe7a24a26f51226dd84733ef5649",
+        "size_bytes": 4735
+      }
+    },
+    {
+      "command": [
+        "bash",
+        "scripts/run_constitution_gates.sh"
+      ],
+      "cwd": "/home/zephryj/projects/turingosv4",
+      "exit_code": 0,
+      "started_at_unix_ms": 1778824262943,
+      "ended_at_unix_ms": 1778824381251,
+      "stdout": {
+        "path": "artifacts/command_0005_stdout.txt",
+        "sha256": "f7be7c3d3a9ed259e34d2be0051192d1de0afe51db26ec9bfc88909da39d6822",
+        "size_bytes": 9369
+      },
+      "stderr": {
+        "path": "artifacts/command_0005_stderr.txt",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size_bytes": 0
+      }
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--workspace",
+        "--no-fail-fast",
+        "--",
+        "--test-threads=1"
+      ],
+      "cwd": "/home/zephryj/projects/turingosv4",
+      "exit_code": 0,
+      "started_at_unix_ms": 1778824393187,
+      "ended_at_unix_ms": 1778824623658,
+      "stdout": {
+        "path": "artifacts/command_0006_stdout.txt",
+        "sha256": "ebfb333b2a01ca0b3eeba4013f23110adb403aabf60ee640395c23fd30d43ed1",
+        "size_bytes": 151472
+      },
+      "stderr": {
+        "path": "artifacts/command_0006_stderr.txt",
+        "sha256": "f5712724f318ba8e677c103cdb8b026387f83d1a45759f34a07deecfb860d0d3",
+        "size_bytes": 46276
+      }
+    }
+  ],
+  "acceptance_passed": true,
+  "audit_required": true,
+  "audit_verdict": "PROCEED",
+  "effective_risk_class": 4,
+  "restricted_surface_hits": [
+    "genesis_payload.toml"
+  ],
+  "closed_at_unix_ms": 1778824633682
+}

@@ -113,10 +113,10 @@ mod tests {
     #[test]
     fn preseeded_agent_balance_renders() {
         let mut q = empty_q();
-        q.economic_state_t
-            .balances_t
-            .0
-            .insert(AgentId("Agent_0".into()), MicroCoin::from_micro_units(1_000_000));
+        q.economic_state_t.balances_t.0.insert(
+            AgentId("Agent_0".into()),
+            MicroCoin::from_micro_units(1_000_000),
+        );
         let s = render_econ_position(&q, &AgentId("Agent_0".into()));
         assert!(s.contains("Balance: 1000000 μCoin (1.00 Coins)"));
     }
@@ -124,10 +124,10 @@ mod tests {
     #[test]
     fn other_agent_balance_does_not_leak() {
         let mut q = empty_q();
-        q.economic_state_t
-            .balances_t
-            .0
-            .insert(AgentId("Agent_5".into()), MicroCoin::from_micro_units(7_000_000));
+        q.economic_state_t.balances_t.0.insert(
+            AgentId("Agent_5".into()),
+            MicroCoin::from_micro_units(7_000_000),
+        );
         let s = render_econ_position(&q, &AgentId("Agent_0".into()));
         assert!(s.contains("Balance: 0 μCoin"));
         assert!(!s.contains("7000000"));

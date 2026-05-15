@@ -1,0 +1,1 @@
+[2026-05-14T18:45:10Z ERROR evaluator] [chaintape/tb16-arena] FORCE_BOLTZMANN_SEED_WORKTXS FAIL-CLOSED: tb8_await_state_root_advance budget expired at iter=0 (5s) — submit succeeded but commit not observed; rejecting smoke as honest per VETO #2 fix.

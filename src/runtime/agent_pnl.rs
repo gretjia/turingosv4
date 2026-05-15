@@ -105,16 +105,10 @@ pub struct AgentMarketStateView {
 pub enum OpenPosition {
     /// `stakes_t` entry — locked WorkTx stake (returns on accept; slashed
     /// on challenge upheld).
-    Stake {
-        tx_id: TxId,
-        amount_micro: i64,
-    },
+    Stake { tx_id: TxId, amount_micro: i64 },
     /// `claims_t` entry with `status == Open` — pending reward (credited on
     /// FinalizeReward dispatch arm).
-    Claim {
-        tx_id: TxId,
-        amount_micro: i64,
-    },
+    Claim { tx_id: TxId, amount_micro: i64 },
     /// `conditional_share_balances_t` holding for one event_id × side.
     ConditionalShare {
         event_id: EventId,
@@ -122,10 +116,7 @@ pub enum OpenPosition {
         units: u128,
     },
     /// `lp_share_balances_t` holding for one CPMM pool.
-    LpShare {
-        event_id: EventId,
-        units: u128,
-    },
+    LpShare { event_id: EventId, units: u128 },
     /// `node_positions_t` entry — immutable exposure record (TB-12).
     NodePosition {
         position_id: TxId,
@@ -359,10 +350,7 @@ pub fn initial_balance_micro_from_default_preseed(agent_id: &AgentId) -> i64 {
 /// indexing (architect Q1 verdict explicitly forbade a new
 /// `bankruptcy_risk_cap_t` table for this atom, but the parameter shape
 /// keeps the helper future-extensible without a signature break).
-pub fn bankruptcy_risk_cap_micro(
-    agent_id: &AgentId,
-    _q: &crate::state::q_state::QState,
-) -> i64 {
+pub fn bankruptcy_risk_cap_micro(agent_id: &AgentId, _q: &crate::state::q_state::QState) -> i64 {
     initial_balance_micro_from_default_preseed(agent_id) / 10
 }
 
@@ -484,8 +472,10 @@ impl PnlTrajectorySection {
             ));
         }
         if self.all_flat {
-            out.push_str("  MECHANISM BOTTLENECK (architect §G3 SG-G3.5 / Drucker \
-                          framing unmet — every agent shows flat PnL):\n");
+            out.push_str(
+                "  MECHANISM BOTTLENECK (architect §G3 SG-G3.5 / Drucker \
+                          framing unmet — every agent shows flat PnL):\n",
+            );
             out.push_str("    1. No BuyWithCoinRouter activity — no router buy means\n");
             out.push_str("       no asymmetric share position means no signed unrealized\n");
             out.push_str("       PnL. G5.1 opportunity scheduler + 7-action menu is the\n");
@@ -561,8 +551,8 @@ pub fn compute_pnl_trajectory_from_paths(
         replay_full_transition, Git2LedgerWriter, LedgerCasView, LedgerEntry, LedgerWriter,
         ReplayError,
     };
-    use crate::top_white::predicates::registry::PredicateRegistry;
     use crate::bottom_white::tools::registry::ToolRegistry;
+    use crate::top_white::predicates::registry::PredicateRegistry;
 
     let pinned_path = runtime_repo_path.join("pinned_pubkeys.json");
     let pinned_text = std::fs::read_to_string(&pinned_path)
@@ -571,9 +561,11 @@ pub fn compute_pnl_trajectory_from_paths(
         .map_err(|e| PnlTrajectoryError::PinnedPubkeysParse(e.to_string()))?;
     let mut pinned = PinnedSystemPubkeys::new();
     for entry in &pinned_manifest.pubkeys {
-        let bytes = decode_hex_32(&entry.pubkey_hex)
-            .map_err(PnlTrajectoryError::HexDecode)?;
-        pinned.insert(SystemEpoch::new(entry.epoch), SystemPublicKey::from_bytes(bytes));
+        let bytes = decode_hex_32(&entry.pubkey_hex).map_err(PnlTrajectoryError::HexDecode)?;
+        pinned.insert(
+            SystemEpoch::new(entry.epoch),
+            SystemPublicKey::from_bytes(bytes),
+        );
     }
 
     let initial_q_path = runtime_repo_path.join("initial_q_state.json");
@@ -588,8 +580,7 @@ pub fn compute_pnl_trajectory_from_paths(
 
     let writer = Git2LedgerWriter::open(runtime_repo_path)
         .map_err(|e| PnlTrajectoryError::LedgerOpen(format!("{e:?}")))?;
-    let cas = CasStore::open(cas_path)
-        .map_err(|e| PnlTrajectoryError::CasOpen(e.to_string()))?;
+    let cas = CasStore::open(cas_path).map_err(|e| PnlTrajectoryError::CasOpen(e.to_string()))?;
 
     let chain_len = writer.len();
     let mut entries: Vec<LedgerEntry> = Vec::with_capacity(chain_len as usize);
@@ -606,7 +597,9 @@ pub fn compute_pnl_trajectory_from_paths(
             &self,
             cid: &crate::bottom_white::cas::schema::Cid,
         ) -> Result<Vec<u8>, ReplayError> {
-            self.0.get(cid).map_err(|_| ReplayError::CasMissing { at: 0 })
+            self.0
+                .get(cid)
+                .map_err(|_| ReplayError::CasMissing { at: 0 })
         }
     }
     let cas_view = CasRef(&cas);

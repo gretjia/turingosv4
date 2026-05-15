@@ -1,0 +1,40 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778841767255_1766368",
+  "title": "REAL-8-formal-market-ab-and-REAL-9-synthesis",
+  "module": "REAL-8/REAL-9",
+  "molecule_or_atom": "atom",
+  "requested_risk_class": 3,
+  "risk_class": 3,
+  "fc_nodes": [
+    "FC1-market-action-loop",
+    "FC2-chain-backed-benchmark-pins",
+    "FC3-dashboard-and-synthesis-report",
+    "ArtIII-shielding"
+  ],
+  "allowed_paths": [
+    "scripts/run_real8_market_ab_benchmark.sh",
+    "tests/constitution_real8_market_ab_benchmark.rs",
+    "tests/constitution_real9_launch_synthesis.rs",
+    "scripts/run_constitution_gates.sh",
+    "handover/whitepapers/TURINGOS_GENERATIVE_ECONOMY_WHITEPAPER_UPDATE_REAL9.md",
+    "handover/whitepapers/TURINGOS_MARKET_DEVELOPER_MANUAL_REAL9.md",
+    "handover/evidence/real8_market_ab_inputs/REAL8_MODEL_ASSIGNMENT.env",
+    "handover/evidence/real8_market_ab_inputs/REAL8_BUDGETS.env",
+    "handover/evidence/real8_market_ab_20260515T_REAL8Z",
+    "handover/audits/CODEX_REAL8_REAL9_IMPLEMENTATION_REVIEW.md"
+  ],
+  "restricted_surface_hits": [],
+  "acceptance_commands": [
+    "real8_real9_targeted_tests",
+    "real8_benchmark",
+    "constitution_gates",
+    "workspace_tests",
+    "codex_audit"
+  ],
+  "audit_required": true,
+  "human_intent": "REAL-8 Formal Market A/B Benchmark and REAL-9 launch synthesis: pin same problems/model/budgets across A/B/C/D, run chain-backed descriptive benchmark, preserve no causal overclaim, and write whitepaper/manual synthesis.",
+  "ratification": "handover/directives/2026-05-15_REAL5S_REAL6_REAL7_REAL8_REAL9_EXECUTION_PLAN_APPROVED.md",
+  "git_head": "5239f4b13ecf0a3f9850accc6815c2e7944e9bee",
+  "created_at_unix_ms": 1778841767259
+}

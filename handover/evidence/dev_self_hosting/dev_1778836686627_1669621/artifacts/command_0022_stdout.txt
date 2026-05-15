@@ -1,0 +1,15 @@
+474:## §K G7 structural smoke
+475:  minimum_tier_green: true
+483:  task_count: 3
+484:  task_outcome_market_count: 3
+485:  scripted_attempt_prediction_market_count: 3
+486:  buy_yes_router_count: 3
+487:  buy_no_or_short_count: 6
+488:  verify_tx_count: 3
+489:  challenge_tx_or_no_challenge_reason_count: 3
+490:  event_resolve_count: 3
+491:  pnl_delta_count: 6
+495:  no_forced_live_investment: true
+496:  market_actions_chain_visible: true
+497:  no_ghost_liquidity: true
+499:  does_not_claim_identical_v3_equivalence: true

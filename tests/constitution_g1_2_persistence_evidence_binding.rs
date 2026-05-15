@@ -84,6 +84,7 @@ fn mk_manifest(model: &str, tasks: Vec<TaskContinuationEntry>) -> BatchContinuat
         agent_registry_cid_hex: None,
         system_pubkeys_cid_hex: None,
         model_manifest_cid_hex: None,
+        role_assignment_manifest_cid_hex: None,
         tasks,
         terminated_reason: None,
     }
@@ -118,13 +119,10 @@ async fn run_two_task_escrow_batch() -> (TempDir, QState, Vec<QState>) {
     let seq0 = bundle.sequencer.clone();
     let kernel = Kernel::new();
     let bus = TuringBus::with_sequencer(kernel, BusConfig::default(), bundle.sequencer.clone());
-    let open0 = make_synthetic_task_open(
-        "g1_2_5-shared-task",
-        &sponsor.0,
-        Hash::ZERO,
-        "t0-open",
-    );
-    bus.submit_typed_tx(open0).await.expect("submit TaskOpen t0");
+    let open0 = make_synthetic_task_open("g1_2_5-shared-task", &sponsor.0, Hash::ZERO, "t0-open");
+    bus.submit_typed_tx(open0)
+        .await
+        .expect("submit TaskOpen t0");
     bundle.shutdown().await.expect("shutdown t0");
     drop(bus);
     let q_end_task_0 = seq0.q_snapshot().expect("q_snapshot end t0");
@@ -136,8 +134,7 @@ async fn run_two_task_escrow_batch() -> (TempDir, QState, Vec<QState>) {
     let seq1 = bundle_r.sequencer.clone();
     let q_after_resume = seq1.q_snapshot().expect("q_snapshot post-resume");
     let kernel1 = Kernel::new();
-    let bus1 =
-        TuringBus::with_sequencer(kernel1, BusConfig::default(), bundle_r.sequencer.clone());
+    let bus1 = TuringBus::with_sequencer(kernel1, BusConfig::default(), bundle_r.sequencer.clone());
     let lock1 = make_synthetic_escrow_lock(
         "g1_2_5-shared-task",
         &sponsor.0,
@@ -258,14 +255,10 @@ fn binding_detects_balance_reset_between_tasks() {
 fn binding_detects_autopsy_capsule_monotonicity_violation() {
     let initial_q = QState::genesis();
     let mut q_task_0 = QState::genesis();
-    q_task_0
-        .economic_state_t
-        .agent_autopsies_t
-        .0
-        .insert(
-            EventId(TaskId("event_a".into())),
-            vec![Cid::default(), Cid::default()],
-        );
+    q_task_0.economic_state_t.agent_autopsies_t.0.insert(
+        EventId(TaskId("event_a".into())),
+        vec![Cid::default(), Cid::default()],
+    );
 
     let mut q_task_1 = QState::genesis();
     q_task_1
@@ -276,7 +269,10 @@ fn binding_detects_autopsy_capsule_monotonicity_violation() {
 
     let manifest = mk_manifest(
         "test-model",
-        vec![mk_entry(0, "task_with_2_autopsies"), mk_entry(1, "task_with_1")],
+        vec![
+            mk_entry(0, "task_with_2_autopsies"),
+            mk_entry(1, "task_with_1"),
+        ],
     );
     let report = bind_persistence(&initial_q, &[q_task_0, q_task_1], &manifest);
     assert!(

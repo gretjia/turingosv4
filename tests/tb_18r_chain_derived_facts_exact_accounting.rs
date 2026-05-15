@@ -54,13 +54,11 @@ async fn compute_with_invariant_populates_all_six_fields() {
 
     // 1× synthetic TaskOpen → L4 (NOT a Work entry; doesn't enter
     // l4_work_attempt_count).
-    let task_open = make_synthetic_task_open(
-        "task-r4-acct",
-        "tb18r-r4-sponsor",
-        Hash::ZERO,
-        "r4-seed",
-    );
-    bus.submit_typed_tx(task_open).await.expect("TaskOpen submit");
+    let task_open =
+        make_synthetic_task_open("task-r4-acct", "tb18r-r4-sponsor", Hash::ZERO, "r4-seed");
+    bus.submit_typed_tx(task_open)
+        .await
+        .expect("TaskOpen submit");
 
     let mut reg = AgentKeypairRegistry::open(&cfg.runtime_repo_path).expect("open keypairs");
     let mut cas_store = CasStore::open(&cfg.cas_path).expect("open cas");
@@ -107,17 +105,23 @@ async fn compute_with_invariant_populates_all_six_fields() {
         expected_completed_attempts: 3,
         terminal_halt_class: RunOutcome::MaxTxExhausted,
     };
-    let facts = compute_run_facts_from_chain_with_invariant(
-        &cfg.runtime_repo_path,
-        &cfg.cas_path,
-        inputs,
-    )
-    .expect("compute facts");
+    let facts =
+        compute_run_facts_from_chain_with_invariant(&cfg.runtime_repo_path, &cfg.cas_path, inputs)
+            .expect("compute facts");
 
     assert_eq!(facts.expected_completed_attempts, 3);
-    assert_eq!(facts.l4_work_attempt_count, 0, "no Work tx accepted on L4 (zero-stake)");
-    assert_eq!(facts.l4e_work_attempt_count, 3, "3 zero-stake Work tx → L4.E");
-    assert_eq!(facts.attempt_aborted_count, 0, "no TerminalAbortRecord written");
+    assert_eq!(
+        facts.l4_work_attempt_count, 0,
+        "no Work tx accepted on L4 (zero-stake)"
+    );
+    assert_eq!(
+        facts.l4e_work_attempt_count, 3,
+        "3 zero-stake Work tx → L4.E"
+    );
+    assert_eq!(
+        facts.attempt_aborted_count, 0,
+        "no TerminalAbortRecord written"
+    );
     assert_eq!(facts.delta, 0, "0 + 3 - 3 = 0 (clean halt)");
     assert_eq!(facts.terminal_halt_class, RunOutcome::MaxTxExhausted);
 }
@@ -141,7 +145,9 @@ async fn l4_l4e_split_count_matches_chain_walk() {
         Hash::ZERO,
         "split-seed",
     );
-    bus.submit_typed_tx(task_open).await.expect("TaskOpen submit");
+    bus.submit_typed_tx(task_open)
+        .await
+        .expect("TaskOpen submit");
 
     let mut reg = AgentKeypairRegistry::open(&cfg.runtime_repo_path).expect("open keypairs");
     let mut cas_store = CasStore::open(&cfg.cas_path).expect("open cas");
@@ -177,19 +183,19 @@ async fn l4_l4e_split_count_matches_chain_walk() {
         expected_completed_attempts: 5,
         terminal_halt_class: RunOutcome::MaxTxExhausted,
     };
-    let facts = compute_run_facts_from_chain_with_invariant(
-        &cfg.runtime_repo_path,
-        &cfg.cas_path,
-        inputs,
-    )
-    .expect("compute facts");
+    let facts =
+        compute_run_facts_from_chain_with_invariant(&cfg.runtime_repo_path, &cfg.cas_path, inputs)
+            .expect("compute facts");
 
     let split_sum = facts.l4_work_attempt_count + facts.l4e_work_attempt_count;
     assert_eq!(
         split_sum, facts.proposal_count,
         "l4 + l4e Work count must equal legacy proposal_count (TB-7.5 fix #2 union)"
     );
-    assert!(facts.l4e_work_attempt_count >= 5, "≥5 zero-stake L4.E Work entries");
+    assert!(
+        facts.l4e_work_attempt_count >= 5,
+        "≥5 zero-stake L4.E Work entries"
+    );
 }
 
 /// FR-18R.4 v2: pre-write N TerminalAbortRecord CAS objects → assert
@@ -231,12 +237,9 @@ async fn terminal_abort_record_count_from_cas_index() {
         expected_completed_attempts: 0,
         terminal_halt_class: RunOutcome::WallClockCap,
     };
-    let facts = compute_run_facts_from_chain_with_invariant(
-        &cfg.runtime_repo_path,
-        &cfg.cas_path,
-        inputs,
-    )
-    .expect("compute facts");
+    let facts =
+        compute_run_facts_from_chain_with_invariant(&cfg.runtime_repo_path, &cfg.cas_path, inputs)
+            .expect("compute facts");
 
     assert_eq!(
         facts.attempt_aborted_count, 4,

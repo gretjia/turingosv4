@@ -1,0 +1,11 @@
+
+running 6 tests
+test sg_6b_market_close_precedes_oracle_resolve ... ok
+test sg_6b_fixture_is_scripted_schema_not_live_llm_ship ... ok
+test sg_6b_no_ghost_liquidity ... ok
+test sg_6b_no_sleep_and_k_logical_ticks_are_deterministic ... ok
+test sg_6b_oracle_is_absolute_and_price_not_truth ... ok
+test sg_6b_role_actions_during_window_are_tape_visible ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

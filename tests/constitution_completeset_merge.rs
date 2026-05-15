@@ -31,21 +31,17 @@ use turingosv4::bottom_white::ledger::rejection_evidence::RejectionEvidenceWrite
 use turingosv4::bottom_white::ledger::system_keypair::{
     Ed25519Keypair, PinnedSystemPubkeys, SystemEpoch,
 };
-use turingosv4::bottom_white::ledger::transition_ledger::{
-    InMemoryLedgerWriter, LedgerWriter,
-};
+use turingosv4::bottom_white::ledger::transition_ledger::{InMemoryLedgerWriter, LedgerWriter};
 use turingosv4::bottom_white::tools::registry::ToolRegistry;
-use turingosv4::economy::money::MicroCoin;
 use turingosv4::economy::monetary_invariant::{
     assert_complete_set_balanced, assert_total_ctf_conserved,
 };
-use turingosv4::state::q_state::{
-    AgentId, QState, TaskId, TaskMarketEntry, TaskMarketState, TxId,
-};
+use turingosv4::economy::money::MicroCoin;
+use turingosv4::state::q_state::{AgentId, QState, TaskId, TaskMarketEntry, TaskMarketState, TxId};
 use turingosv4::state::sequencer::{Sequencer, SubmissionEnvelope};
 use turingosv4::state::typed_tx::{
-    AgentSignature, CompleteSetMergeTx, CompleteSetMintTx, CompleteSetRedeemTx,
-    EventId, OutcomeSide, ShareAmount, TypedTx,
+    AgentSignature, CompleteSetMergeTx, CompleteSetMintTx, CompleteSetRedeemTx, EventId,
+    OutcomeSide, ShareAmount, TypedTx,
 };
 use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
@@ -62,8 +58,7 @@ fn fresh_harness(initial_q: QState) -> Harness {
     let tmp = TempDir::new().expect("tempdir");
     let cas = Arc::new(RwLock::new(CasStore::open(tmp.path()).expect("cas")));
     let keypair = Arc::new(Ed25519Keypair::generate_with_secure_entropy().expect("kp"));
-    let writer: Arc<RwLock<dyn LedgerWriter>> =
-        Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
+    let writer: Arc<RwLock<dyn LedgerWriter>> = Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
     let rejection_writer = Arc::new(RwLock::new(RejectionEvidenceWriter::default()));
     let preds = Arc::new(PredicateRegistry::new());
     let tools = Arc::new(ToolRegistry::new());
@@ -72,16 +67,26 @@ fn fresh_harness(initial_q: QState) -> Harness {
     pinned.insert(epoch, keypair.public_key());
     let pinned_pubkeys = Arc::new(pinned);
     let (seq, rx) = Sequencer::new(
-        cas, keypair, epoch, writer.clone(), rejection_writer, preds, tools,
-        pinned_pubkeys, initial_q, 16,
+        cas,
+        keypair,
+        epoch,
+        writer.clone(),
+        rejection_writer,
+        preds,
+        tools,
+        pinned_pubkeys,
+        initial_q,
+        16,
     );
-    Harness { _tmp: tmp, seq, rx, _ledger: writer }
+    Harness {
+        _tmp: tmp,
+        seq,
+        rx,
+        _ledger: writer,
+    }
 }
 
-fn genesis_with_balances_and_open_task(
-    pairs: &[(&str, i64)],
-    task: &str,
-) -> QState {
+fn genesis_with_balances_and_open_task(pairs: &[(&str, i64)], task: &str) -> QState {
     let mut q = QState::genesis();
     for (name, coin) in pairs {
         q.economic_state_t.balances_t.0.insert(
@@ -240,7 +245,10 @@ async fn merge_yes_no_returns_coin() {
         .and_then(|m| m.get(&EventId(TaskId("evt-1".into()))))
         .copied()
         .unwrap();
-    assert_eq!(pair.yes.units, 2_000_000_u128, "YES shares debited by amount");
+    assert_eq!(
+        pair.yes.units, 2_000_000_u128,
+        "YES shares debited by amount"
+    );
     assert_eq!(pair.no.units, 2_000_000_u128, "NO shares debited by amount");
 }
 
@@ -265,9 +273,12 @@ async fn merge_requires_both_sides() {
     // Step 2: merge-all live 4_000_000 — consumes both sides through the
     // live sequencer accept arm; post-merge bob holds 0 YES + 0 NO.
     let parent_after_mint = h.seq.q_snapshot().unwrap().state_root_t;
-    submit_and_apply(&mut h, build_merge(parent_after_mint, "bob", "evt-2", 4_000_000, 1))
-        .await
-        .expect("merge-all accepted");
+    submit_and_apply(
+        &mut h,
+        build_merge(parent_after_mint, "bob", "evt-2", 4_000_000, 1),
+    )
+    .await
+    .expect("merge-all accepted");
 
     // Sanity: confirm both sides at zero post-merge.
     {
@@ -443,12 +454,9 @@ async fn merge_unavailable_after_final_redeem_if_shares_exhausted() {
     // this fails through the sequencer accept arm with
     // TransitionError::InsufficientSharesForMerge.
     let parent3 = h2.seq.q_snapshot().unwrap().state_root_t;
-    let err = submit_and_apply(
-        &mut h2,
-        build_merge(parent3, "eve", "evt-5", 1_000_000, 1),
-    )
-    .await
-    .expect_err("merge must fail after final redeem exhausts winning side");
+    let err = submit_and_apply(&mut h2, build_merge(parent3, "eve", "evt-5", 1_000_000, 1))
+        .await
+        .expect_err("merge must fail after final redeem exhausts winning side");
     assert!(
         err.contains("InsufficientSharesForMerge"),
         "expected InsufficientSharesForMerge after redeem exhaustion, got: {err}"

@@ -1,0 +1,13 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "reviewer": "clean-context-codex",
+  "verdict": "PROCEED",
+  "findings_summary": "",
+  "source_file": {
+    "path": "handover/audits/CODEX_REAL8_REAL9_IMPLEMENTATION_REVIEW.md",
+    "sha256": "23f0a6102c82e1f4ed00994cb68bdcfae73de4d166dca2b8a1b6308e98977de8",
+    "size_bytes": 2292
+  },
+  "payload_manifest_hash": "e1a6975c51ef5121a1e497400440b73399c668e76ec49accc4984d52aa6e0743",
+  "recorded_at_unix_ms": 1778843905823
+}

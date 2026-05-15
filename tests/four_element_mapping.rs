@@ -4,9 +4,7 @@
 //! white-box runtime mapping. This conformance test verifies the mapping is
 //! complete and accessible.
 
-use turingosv4::state::{
-    AgentSwarmState, AgentVisibleProjection, Hash, NodeId, QState,
-};
+use turingosv4::state::{AgentSwarmState, AgentVisibleProjection, Hash, NodeId, QState};
 
 #[test]
 fn tape_element_maps_to_head_t() {

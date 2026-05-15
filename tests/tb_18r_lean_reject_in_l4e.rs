@@ -31,11 +31,7 @@ fn fresh_cas() -> (TempDir, Arc<RwLock<CasStore>>) {
     (dir, cas)
 }
 
-fn write_failure_attempt(
-    cas: &Arc<RwLock<CasStore>>,
-    outcome: AttemptOutcome,
-    tag: &str,
-) -> Cid {
+fn write_failure_attempt(cas: &Arc<RwLock<CasStore>>, outcome: AttemptOutcome, tag: &str) -> Cid {
     let attempt = AttemptTelemetry::new_root(
         TxId(format!("att-{tag}")),
         "test-run".into(),
@@ -96,11 +92,8 @@ fn sorry_block_attempt_routes_to_sorry_blocked_class() {
     let (_dir, cas) = fresh_cas();
     let attempt_cid = write_failure_attempt(&cas, AttemptOutcome::SorryBlock, "sorry");
     let tx = fixture_failure_work_tx(attempt_cid);
-    let refined = refine_rejection_class_via_attempt_telemetry(
-        &cas,
-        &tx,
-        RejectionClass::PredicateFailed,
-    );
+    let refined =
+        refine_rejection_class_via_attempt_telemetry(&cas, &tx, RejectionClass::PredicateFailed);
     assert_eq!(refined, RejectionClass::SorryBlocked);
     assert_eq!(refined as u8, 8);
 }
@@ -110,11 +103,8 @@ fn llm_err_attempt_routes_to_llm_error_class() {
     let (_dir, cas) = fresh_cas();
     let attempt_cid = write_failure_attempt(&cas, AttemptOutcome::LlmErr, "llmerr");
     let tx = fixture_failure_work_tx(attempt_cid);
-    let refined = refine_rejection_class_via_attempt_telemetry(
-        &cas,
-        &tx,
-        RejectionClass::PredicateFailed,
-    );
+    let refined =
+        refine_rejection_class_via_attempt_telemetry(&cas, &tx, RejectionClass::PredicateFailed);
     assert_eq!(refined, RejectionClass::LlmError);
     assert_eq!(refined as u8, 9);
 }
@@ -126,10 +116,30 @@ fn full_outcome_to_rejection_class_mapping_table() {
     // each route 1:1 to their RejectionClass counterpart (6/7/8/9).
     let (_dir, cas) = fresh_cas();
     let cases = [
-        (AttemptOutcome::LeanFail,   RejectionClass::LeanFailed,   6u8, "leanfail"),
-        (AttemptOutcome::ParseFail,  RejectionClass::ParseFailed,  7,   "parsefail"),
-        (AttemptOutcome::SorryBlock, RejectionClass::SorryBlocked, 8,   "sorryblock"),
-        (AttemptOutcome::LlmErr,     RejectionClass::LlmError,     9,   "llmerr"),
+        (
+            AttemptOutcome::LeanFail,
+            RejectionClass::LeanFailed,
+            6u8,
+            "leanfail",
+        ),
+        (
+            AttemptOutcome::ParseFail,
+            RejectionClass::ParseFailed,
+            7,
+            "parsefail",
+        ),
+        (
+            AttemptOutcome::SorryBlock,
+            RejectionClass::SorryBlocked,
+            8,
+            "sorryblock",
+        ),
+        (
+            AttemptOutcome::LlmErr,
+            RejectionClass::LlmError,
+            9,
+            "llmerr",
+        ),
     ];
     for (outcome, expected_rc, expected_u8, tag) in cases {
         let cid = write_failure_attempt(&cas, outcome, tag);

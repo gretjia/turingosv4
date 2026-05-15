@@ -31,6 +31,10 @@ use std::path::Path;
 const SEQUENCER_SRC: &str = "src/state/sequencer.rs";
 const OBS_PATH: &str = "handover/alignment/OBS_G2P_VERIFY_PEER_REWARD_2026-05-12.md";
 
+fn compact_ws(src: &str) -> String {
+    src.chars().filter(|c| !c.is_whitespace()).collect()
+}
+
 // ────────────────────────────────────────────────────────────────────────
 // SG-G2P.6.a — OBS file present with forward-closure section
 // ────────────────────────────────────────────────────────────────────────
@@ -69,10 +73,12 @@ fn sg_g2p_6_obs_file_present_with_forward_closure_section() {
 #[test]
 fn sg_g2p_6_verify_tx_arm_preserves_tb_n1_a4_admission_contract() {
     let seq = std::fs::read_to_string(SEQUENCER_SRC).expect("sequencer.rs readable");
+    let compact = compact_ws(&seq);
     // (1) Bond debit from balances_t.
     assert!(
         seq.contains("balances_t.0.insert(\n                verify.verifier_agent.clone(),")
-            || seq.contains("new_bal_micro = verifier_bal.micro_units() - verify.bond.micro_units()"),
+            || seq
+                .contains("new_bal_micro = verifier_bal.micro_units() - verify.bond.micro_units()"),
         "SG-G2P.6.b: VerifyTx arm must debit verifier balance by bond_micro \
          (TB-N1 A4 admission Step 5)."
     );
@@ -84,7 +90,7 @@ fn sg_g2p_6_verify_tx_arm_preserves_tb_n1_a4_admission_contract() {
     );
     // (3) agent_verifications_t set insert closes the duplicate-verify gate.
     assert!(
-        seq.contains("agent_verifications_t.0.insert(verify_pair)"),
+        compact.contains("agent_verifications_t.0.insert(verify_pair)"),
         "SG-G2P.6.b: VerifyTx arm must insert (verifier, target) into \
          agent_verifications_t (TB-N1 A4 admission Step 5b)."
     );
@@ -103,44 +109,20 @@ fn sg_g2p_6_verify_tx_arm_preserves_tb_n1_a4_admission_contract() {
 }
 
 // ────────────────────────────────────────────────────────────────────────
-// SG-G2P.6.c — negative-witness: no reputations_t mutation in sequencer
+// SG-G2P.6.c — G3.2 positive-witness: reputations_t mutation in VerifyTx
 // ────────────────────────────────────────────────────────────────────────
 
 #[test]
-fn sg_g2p_6_no_reputations_t_mutation_in_sequencer_arms_today() {
-    // This is a SCAFFOLD test that pins the CURRENT (Gap-A) behavior. The
-    // sequencer today does NOT mutate `reputations_t` in any admission
-    // arm. When G3.1 / G3.2 (Class-3+ forward) lands the reputation
-    // contract, this assertion will FAIL and force a coordinated update:
-    //   1. Update OBS_G2P_VERIFY_PEER_REWARD to RESOLVED with the
-    //      closing commit reference.
-    //   2. Either retire this test or invert it into a positive-witness
-    //      "reputations_t.0.insert is present in the VerifyTx accept
-    //      path" assertion.
-    // The fail-on-fix pattern is the explicit gate-time signal required by
-    // `feedback_no_workarounds_strict_constitution` (no permanent-AMBER
-    // residual; any change must surface for review).
+fn sg_g2p_6_reputations_t_mutation_resolved_in_verify_arm() {
+    // G3.2 closed the former Gap-A scaffold: accepted VerifyTx now grants
+    // uniform +1 reputation to the verifier. Keep this as a positive witness
+    // so formatting changes do not silently re-open the old AMBER gap.
     let seq = std::fs::read_to_string(SEQUENCER_SRC).expect("sequencer.rs readable");
-    // Filter out the forward-pointing doc-comment at line ~3857 which
-    // legitimately mentions `ReputationUpdateTx` as a future-TB anchor.
-    let code: String = seq
-        .lines()
-        .filter(|l| {
-            let t = l.trim_start();
-            !t.starts_with("//") && !t.starts_with("///") && !t.starts_with("//!")
-        })
-        .collect::<Vec<&str>>()
-        .join("\n");
-    let mutates_reputations = code.contains("reputations_t.0.insert")
-        || code.contains("reputations_t.0.entry")
-        || code.contains("reputations_t.0.get_mut");
+    let compact = compact_ws(&seq);
     assert!(
-        !mutates_reputations,
-        "SG-G2P.6.c (Gap-A scaffold): sequencer.rs now mutates \
-         reputations_t — Gap-A from OBS_G2P_VERIFY_PEER_REWARD has been \
-         closed. Update the OBS to RESOLVED with the closing commit, then \
-         either retire this test or invert it into a positive-witness \
-         assertion. This fail-on-fix is INTENTIONAL per \
-         feedback_no_workarounds_strict_constitution."
+        compact.contains("reputations_t.0.entry(verify.verifier_agent.clone())")
+            && compact.contains(".or_insert(crate::state::q_state::Reputation(0)).0+=1"),
+        "SG-G2P.6.c: VerifyTx accept path must grant uniform +1 reputation \
+         to the verifier after G3.2 closure."
     );
 }

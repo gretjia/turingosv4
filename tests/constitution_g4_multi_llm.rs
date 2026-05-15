@@ -29,6 +29,8 @@ fn base_report(tmp: &Path, assignment: Vec<AgentModelAssignment>) -> GenesisRepo
         escrow_lock_tx: Some("escrowlock-task-g4-2".into()),
         agent_model_assignment: assignment,
         model_assignment_manifest_cid: Some("cid-model-assignment-manifest".into()),
+        agent_role_assignment: vec![],
+        role_assignment_manifest_cid: None,
     }
 }
 

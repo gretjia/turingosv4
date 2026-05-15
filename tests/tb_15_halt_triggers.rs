@@ -91,8 +91,8 @@ fn markov_capsule_references_constitution_hash() {
 
     let manifest = env!("CARGO_MANIFEST_DIR");
     let constitution_path = format!("{}/constitution.md", manifest);
-    let constitution_bytes = std::fs::read(&constitution_path)
-        .unwrap_or_else(|e| panic!("read constitution.md: {}", e));
+    let constitution_bytes =
+        std::fs::read(&constitution_path).unwrap_or_else(|e| panic!("read constitution.md: {}", e));
     let mut h = Sha256::new();
     h.update(&constitution_bytes);
     let expected_hash: [u8; 32] = h.finalize().into();
@@ -109,10 +109,9 @@ fn markov_capsule_references_constitution_hash() {
     // reference 4 canonical flowchart hashes (per architect 2026-05-02
     // ruling 9 of Part C — flowcharts elevated to SHA-anchored
     // architectural contracts).
-    let matrix_path = std::path::PathBuf::from(manifest)
-        .join("handover/alignment/TRACE_FLOWCHART_MATRIX.md");
-    let flowchart_hashes =
-        read_flowchart_hashes_from_matrix(&matrix_path).expect("matrix parse");
+    let matrix_path =
+        std::path::PathBuf::from(manifest).join("handover/alignment/TRACE_FLOWCHART_MATRIX.md");
+    let flowchart_hashes = read_flowchart_hashes_from_matrix(&matrix_path).expect("matrix parse");
     assert_eq!(
         flowchart_hashes.len(),
         4,
@@ -145,8 +144,7 @@ fn markov_capsule_references_constitution_hash() {
 fn autopsy_does_not_mutate_predicates() {
     let manifest = env!("CARGO_MANIFEST_DIR");
     let path = format!("{}/src/runtime/autopsy_capsule.rs", manifest);
-    let body = std::fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("read {}: {}", path, e));
+    let body = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {}", path, e));
 
     // The autopsy module MUST NOT contain any mutator surface against
     // the predicate / tool / risk-policy registries. Constructed at
@@ -230,8 +228,7 @@ fn private_detail_not_in_other_agent_view() {
     }
     // Positive assertion: the declaration includes Vec<...Cid>.
     assert!(
-        decl.contains("Vec<crate::bottom_white::cas::schema::Cid>")
-            || decl.contains("Vec<Cid>"),
+        decl.contains("Vec<crate::bottom_white::cas::schema::Cid>") || decl.contains("Vec<Cid>"),
         "halt-trigger #4: AutopsyIndex value type must explicitly be Vec<Cid>; \
          got declaration: {}",
         decl
@@ -272,7 +269,8 @@ fn typical_error_clustering_uses_summary_only() {
         evidence_cids: vec![],
         public_summary: format!(
             "agent={} lost 1000μC on event={} reason=Bankruptcy",
-            agent, (event.0).0
+            agent,
+            (event.0).0
         ),
         private_detail_cid: Cid([priv_byte; 32]),
         privacy_policy: CapsulePrivacyPolicy::AuditOnly,
@@ -288,7 +286,11 @@ fn typical_error_clustering_uses_summary_only() {
     ];
 
     let summaries = cluster_autopsies(&autopsies, 3);
-    assert_eq!(summaries.len(), 1, "3 same-class autopsies → 1 typical error");
+    assert_eq!(
+        summaries.len(),
+        1,
+        "3 same-class autopsies → 1 typical error"
+    );
     assert_eq!(summaries[0].count, 3);
 
     // R2 closure (Codex R1 Q5): the original byte-window scan looked for

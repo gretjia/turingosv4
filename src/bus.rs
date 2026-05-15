@@ -123,11 +123,7 @@ impl TuringBus {
     /// TuringBus level, not nested through Kernel).
     ///
     /// TRACE_MATRIX § 5.2.1 — single-writer entry-point.
-    pub fn with_sequencer(
-        kernel: Kernel,
-        config: BusConfig,
-        sequencer: Arc<Sequencer>,
-    ) -> Self {
+    pub fn with_sequencer(kernel: Kernel, config: BusConfig, sequencer: Arc<Sequencer>) -> Self {
         let mut bus = Self::new(kernel, config);
         bus.sequencer = Some(sequencer);
         bus
@@ -141,10 +137,7 @@ impl TuringBus {
     /// legacy-only mode (no Sequencer wired).
     ///
     /// TRACE_MATRIX § 5.2.1 — typed-tx submission entry.
-    pub async fn submit_typed_tx(
-        &self,
-        tx: TypedTx,
-    ) -> Result<SubmissionReceipt, SubmitError> {
+    pub async fn submit_typed_tx(&self, tx: TypedTx) -> Result<SubmissionReceipt, SubmitError> {
         match self.sequencer.as_ref() {
             Some(seq) => seq.submit(tx).await,
             None => Err(SubmitError::QueueClosed),
@@ -177,11 +170,15 @@ impl TuringBus {
         for e in events {
             // Re-append events through the ledger so hash chain is recomputed
             // from this process's perspective. Original hashes are discarded.
-            bus.ledger.append(e.event_type, e.node_id, e.agent, e.detail).ok();
+            bus.ledger
+                .append(e.event_type, e.node_id, e.agent, e.detail)
+                .ok();
         }
         if resumed_nodes > 0 || resumed_events > 0 {
-            eprintln!("[wal/replay] resumed {} nodes, {} events from {:?}",
-                      resumed_nodes, resumed_events, wal_path);
+            eprintln!(
+                "[wal/replay] resumed {} nodes, {} events from {:?}",
+                resumed_nodes, resumed_events, wal_path
+            );
         }
         bus.wal = Some(crate::wal::Wal::open(&wal_path)?);
         Ok(bus)
@@ -219,8 +216,12 @@ impl TuringBus {
 
     /// The main append pipeline — 6 phases.
     /// V3L-11: this runs serially, never concurrently.
-    pub fn append(&mut self, author: &str, payload: &str,
-                  parent_id: Option<&str>) -> Result<BusResult, String> {
+    pub fn append(
+        &mut self,
+        author: &str,
+        payload: &str,
+        parent_id: Option<&str>,
+    ) -> Result<BusResult, String> {
         self.append_internal(author, payload, parent_id, /*oracle_blessed*/ false)
     }
 
@@ -232,13 +233,22 @@ impl TuringBus {
     /// wtool write that Art. IV mandates. Only oracle-accepted payloads should
     /// take this path. Payload-size caps are also relaxed (proofs are longer than
     /// agent scratch steps).
-    pub fn append_oracle_accepted(&mut self, author: &str, payload: &str,
-                                   parent_id: Option<&str>) -> Result<BusResult, String> {
+    pub fn append_oracle_accepted(
+        &mut self,
+        author: &str,
+        payload: &str,
+        parent_id: Option<&str>,
+    ) -> Result<BusResult, String> {
         self.append_internal(author, payload, parent_id, /*oracle_blessed*/ true)
     }
 
-    fn append_internal(&mut self, author: &str, payload: &str,
-                       parent_id: Option<&str>, oracle_blessed: bool) -> Result<BusResult, String> {
+    fn append_internal(
+        &mut self,
+        author: &str,
+        payload: &str,
+        parent_id: Option<&str>,
+        oracle_blessed: bool,
+    ) -> Result<BusResult, String> {
         // Phase 0: Forbidden pattern check — skipped for oracle-accepted payloads.
         if !oracle_blessed {
             for pattern in &self.config.forbidden_patterns {
@@ -254,15 +264,20 @@ impl TuringBus {
         // real proofs can legitimately exceed the per-step scratch budget.
         if !oracle_blessed {
             if payload.len() > self.config.max_payload_chars {
-                let reason = format!("Payload too long: {} > {} chars",
-                                     payload.len(), self.config.max_payload_chars);
+                let reason = format!(
+                    "Payload too long: {} > {} chars",
+                    payload.len(),
+                    self.config.max_payload_chars
+                );
                 self.record_rejection(author, &reason);
                 return Ok(BusResult::Vetoed { reason });
             }
             let line_count = payload.lines().count();
             if line_count > self.config.max_payload_lines {
-                let reason = format!("Too many lines: {} > {}",
-                                     line_count, self.config.max_payload_lines);
+                let reason = format!(
+                    "Too many lines: {} > {}",
+                    line_count, self.config.max_payload_lines
+                );
                 self.record_rejection(author, &reason);
                 return Ok(BusResult::Vetoed { reason });
             }
@@ -308,7 +323,9 @@ impl TuringBus {
             completion_tokens: PENDING_COMPLETION_TOKENS_CO1_1_4,
         };
 
-        self.kernel.append(node.clone()).map_err(|e| e.to_string())?;
+        self.kernel
+            .append(node.clone())
+            .map_err(|e| e.to_string())?;
 
         // Phase 1 WAL: persist node AFTER successful in-memory append, BEFORE
         // any downstream effects. At-most-one-loss-on-crash semantics: if the
@@ -334,8 +351,12 @@ impl TuringBus {
             tool.on_post_append(author, &node_id);
         }
 
-        if let Ok(evt) = self.ledger.append(EventType::Append, Some(node_id.clone()),
-                                             Some(author.to_string()), None) {
+        if let Ok(evt) = self.ledger.append(
+            EventType::Append,
+            Some(node_id.clone()),
+            Some(author.to_string()),
+            None,
+        ) {
             // Phase 1 WAL: persist ledger event for full hash-chain recovery.
             if let Some(w) = self.wal.as_mut() {
                 let evt_clone = evt.clone();
@@ -417,11 +438,21 @@ impl TuringBus {
             };
         }
         // Bus internal veto reasons get their own bounded classes.
-        if reason.starts_with("Forbidden") { return "veto:forbidden"; }
-        if reason.starts_with("Payload too long") { return "veto:size"; }
-        if reason.starts_with("Too many lines") { return "veto:lines"; }
-        if reason.contains("wallet") || reason.contains("balance") { return "veto:wallet"; }
-        if reason.starts_with("Tool") || reason.contains("tool") { return "veto:tool_other"; }
+        if reason.starts_with("Forbidden") {
+            return "veto:forbidden";
+        }
+        if reason.starts_with("Payload too long") {
+            return "veto:size";
+        }
+        if reason.starts_with("Too many lines") {
+            return "veto:lines";
+        }
+        if reason.contains("wallet") || reason.contains("balance") {
+            return "veto:wallet";
+        }
+        if reason.starts_with("Tool") || reason.contains("tool") {
+            return "veto:tool_other";
+        }
         "err:other"
     }
 
@@ -440,11 +471,11 @@ impl TuringBus {
         scope: RejectionScope,
     ) -> Vec<String> {
         match scope {
-            RejectionScope::PerAuthor => {
-                self.graveyard.get(author)
-                    .map(|v| v.iter().rev().take(max).cloned().collect())
-                    .unwrap_or_default()
-            }
+            RejectionScope::PerAuthor => self
+                .graveyard
+                .get(author)
+                .map(|v| v.iter().rev().take(max).cloned().collect())
+                .unwrap_or_default(),
             RejectionScope::Global => {
                 // Flatten all authors' recent; keep most recent `max` across swarm.
                 let mut all: Vec<&String> = self.graveyard.values().flatten().collect();
@@ -467,7 +498,8 @@ impl TuringBus {
                 sorted.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
                 sorted.truncate(k);
                 // Emit as "label(count)" strings for prompt.
-                sorted.into_iter()
+                sorted
+                    .into_iter()
                     .map(|(lbl, c)| format!("{}({})", lbl, c))
                     .take(max)
                     .collect()
@@ -527,12 +559,8 @@ impl TuringBus {
                 Ok(q) => {
                     let pi = crate::state::compute_price_index(&q.economic_state_t);
                     let edges = seq.compute_canonical_edges_at_head();
-                    let ms = crate::state::compute_mask_set(
-                        &q.economic_state_t,
-                        &edges,
-                        &policy,
-                        &pi,
-                    );
+                    let ms =
+                        crate::state::compute_mask_set(&q.economic_state_t, &edges, &policy, &pi);
                     (pi, ms, true)
                 }
                 Err(_) => (
@@ -617,7 +645,10 @@ mod tests {
     #[test]
     fn test_bus_too_many_lines() {
         let mut bus = make_bus();
-        let many_lines = (0..20).map(|i| format!("line {}", i)).collect::<Vec<_>>().join("\n");
+        let many_lines = (0..20)
+            .map(|i| format!("line {}", i))
+            .collect::<Vec<_>>()
+            .join("\n");
         match bus.append("A0", &many_lines, None).unwrap() {
             BusResult::Vetoed { reason } => {
                 assert!(reason.contains("many lines"));
@@ -680,24 +711,42 @@ mod tests {
         assert_eq!(rejections.len(), 1);
         assert!(
             rejections[0].contains("veto:forbidden"),
-            "expected abstracted class label, got: {:?}", rejections[0],
+            "expected abstracted class label, got: {:?}",
+            rejections[0],
         );
         // Per-author scope still returns raw labels without count
-        let per_author = bus.recent_rejections_scoped(
-            "A0", 5, crate::bus::RejectionScope::PerAuthor,
-        );
+        let per_author =
+            bus.recent_rejections_scoped("A0", 5, crate::bus::RejectionScope::PerAuthor);
         assert_eq!(per_author, vec!["veto:forbidden".to_string()]);
     }
 
     #[test]
     fn test_bus_classify_bounded() {
         // Invariant: bus_classify never returns unbounded text.
-        assert_eq!(TuringBus::bus_classify("Forbidden pattern: decide"), "veto:forbidden");
-        assert_eq!(TuringBus::bus_classify("Payload too long: 9999 > 1000"), "veto:size");
-        assert_eq!(TuringBus::bus_classify("Too many lines: 50 > 18"), "veto:lines");
-        assert_eq!(TuringBus::bus_classify("err:tactic_linarith"), "err:tactic_linarith");
-        assert_eq!(TuringBus::bus_classify("err:unknown_variant_we_dont_track"), "err:other");
-        assert_eq!(TuringBus::bus_classify("some unprecedented garbage"), "err:other");
+        assert_eq!(
+            TuringBus::bus_classify("Forbidden pattern: decide"),
+            "veto:forbidden"
+        );
+        assert_eq!(
+            TuringBus::bus_classify("Payload too long: 9999 > 1000"),
+            "veto:size"
+        );
+        assert_eq!(
+            TuringBus::bus_classify("Too many lines: 50 > 18"),
+            "veto:lines"
+        );
+        assert_eq!(
+            TuringBus::bus_classify("err:tactic_linarith"),
+            "err:tactic_linarith"
+        );
+        assert_eq!(
+            TuringBus::bus_classify("err:unknown_variant_we_dont_track"),
+            "err:other"
+        );
+        assert_eq!(
+            TuringBus::bus_classify("some unprecedented garbage"),
+            "err:other"
+        );
     }
 
     #[test]
@@ -711,10 +760,15 @@ mod tests {
         bus.append("A0", "step 1", None).unwrap();
         let snap = bus.snapshot();
         assert_eq!(snap.tx_count, 1);
-        assert!(snap.price_index.is_empty(), "no sequencer → empty price_index");
+        assert!(
+            snap.price_index.is_empty(),
+            "no sequencer → empty price_index"
+        );
         assert!(snap.mask_set.is_empty(), "no sequencer → empty mask_set");
-        assert!(snap.tape.get(&"tx_0_by_A0".to_string()).is_some(),
-                "appended node is in tape regardless of price index state");
+        assert!(
+            snap.tape.get(&"tx_0_by_A0".to_string()).is_some(),
+            "appended node is in tape regardless of price index state"
+        );
     }
 
     #[test]

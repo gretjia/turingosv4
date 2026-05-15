@@ -71,8 +71,7 @@ fn fc2_on_init_only_mint() {
 /// gate or be system-emitted. We grep the sequencer for the gate call.
 #[test]
 fn fc2_no_post_init_mint() {
-    let seq_src =
-        std::fs::read_to_string("src/state/sequencer.rs").expect("sequencer.rs readable");
+    let seq_src = std::fs::read_to_string("src/state/sequencer.rs").expect("sequencer.rs readable");
     let calls = seq_src.matches("assert_no_post_init_mint").count();
     assert!(
         calls >= 1,
@@ -133,8 +132,7 @@ fn fc2_no_memory_only_preseed() {
 /// `task_open_accept_state_root` + `escrow_lock_accept_state_root` exist.
 #[test]
 fn fc2_taskopen_escrowlock_are_chain_events() {
-    let seq_src =
-        std::fs::read_to_string("src/state/sequencer.rs").expect("sequencer.rs readable");
+    let seq_src = std::fs::read_to_string("src/state/sequencer.rs").expect("sequencer.rs readable");
     assert!(
         seq_src.contains("task_open_accept_state_root"),
         "FC2-INV4 violation: task_open_accept_state_root missing — \
@@ -152,8 +150,7 @@ fn fc2_taskopen_escrowlock_are_chain_events() {
 /// `tb_18r_chain_attempt_invariant.rs` exercises full-chain replay.
 #[test]
 fn fc2_run_replayable_from_genesis_tape_cas() {
-    let verify_src =
-        std::fs::read_to_string("src/runtime/verify.rs").expect("verify.rs readable");
+    let verify_src = std::fs::read_to_string("src/runtime/verify.rs").expect("verify.rs readable");
     assert!(
         verify_src.contains("pub fn verify_chaintape"),
         "FC2-INV5 violation: verify_chaintape entry missing — chain \
@@ -219,9 +216,7 @@ fn fc2_agent_registry_resolves() {
         "src/state/agent_registry.rs",
         "src/sdk/agent_registry.rs",
     ];
-    let found = candidate_paths
-        .iter()
-        .any(|p| Path::new(p).exists());
+    let found = candidate_paths.iter().any(|p| Path::new(p).exists());
     assert!(
         found,
         "FC2-INV7 violation: AgentKeypairRegistry module missing at any of \
@@ -229,8 +224,7 @@ fn fc2_agent_registry_resolves() {
     );
 
     // Sequencer must consult agent_pubkeys for admission control.
-    let seq_src =
-        std::fs::read_to_string("src/state/sequencer.rs").expect("sequencer.rs readable");
+    let seq_src = std::fs::read_to_string("src/state/sequencer.rs").expect("sequencer.rs readable");
     assert!(
         seq_src.contains("agent_pubkeys") || seq_src.contains("AgentKeypairRegistry"),
         "FC2-INV7 violation: sequencer.rs does not reference agent_pubkeys \

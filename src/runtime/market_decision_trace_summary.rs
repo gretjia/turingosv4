@@ -27,9 +27,7 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use crate::runtime::market_decision_trace::{
-    MarketDecisionTrace, NoTradeReason, TraceOutcome,
-};
+use crate::runtime::market_decision_trace::{MarketDecisionTrace, NoTradeReason, TraceOutcome};
 
 /// TRACE_MATRIX FC1-N5 (TB-G G2.2 2026-05-12; charter §1 Module G2
 /// atom G2.2 — `audit_dashboard --run-report` §F dashboard surface for
@@ -59,9 +57,7 @@ impl MarketDecisionTraceSummary {
     ///
     /// TRACE_MATRIX FC1-N5 (TB-G G2.2 2026-05-12; §F walker for
     /// MarketDecisionTrace summary).
-    pub fn compute_from_cas(
-        cas: &crate::bottom_white::cas::store::CasStore,
-    ) -> Self {
+    pub fn compute_from_cas(cas: &crate::bottom_white::cas::store::CasStore) -> Self {
         let mut outcome_counts: BTreeMap<String, u64> = BTreeMap::new();
         let mut no_trade_breakdown: BTreeMap<NoTradeReason, u64> = BTreeMap::new();
         let mut total_traces: u64 = 0;
@@ -127,10 +123,7 @@ impl MarketDecisionTraceSummary {
             // truth" + CLAUDE.md §13 no-f64-in-money-path; same discipline
             // applies to ratios surfaced as user-facing dashboard rows).
             let pct = (self.submitted_count * 100) / self.total_traces;
-            format!(
-                "{}/{} = {}%",
-                self.submitted_count, self.total_traces, pct
-            )
+            format!("{}/{} = {}%", self.submitted_count, self.total_traces, pct)
         }
     }
 
@@ -157,8 +150,7 @@ impl MarketDecisionTraceSummary {
         ));
         if !self.no_trade_breakdown.is_empty() {
             out.push_str("  no_trade reason breakdown (observed, sorted by count):\n");
-            let mut sorted: Vec<(&NoTradeReason, &u64)> =
-                self.no_trade_breakdown.iter().collect();
+            let mut sorted: Vec<(&NoTradeReason, &u64)> = self.no_trade_breakdown.iter().collect();
             sorted.sort_by(|a, b| b.1.cmp(a.1));
             for (reason, n) in sorted {
                 out.push_str(&format!("    {} = {}\n", reason.label(), n));
@@ -259,13 +251,20 @@ mod tests {
         let summary = MarketDecisionTraceSummary::compute_from_cas(&cas);
         assert_eq!(summary.total_traces, 7);
         assert_eq!(summary.submitted_count, 2);
-        assert_eq!(summary.no_trade_breakdown.get(&NoTradeReason::NoPool), Some(&2));
         assert_eq!(
-            summary.no_trade_breakdown.get(&NoTradeReason::NoPerceivedEdge),
+            summary.no_trade_breakdown.get(&NoTradeReason::NoPool),
+            Some(&2)
+        );
+        assert_eq!(
+            summary
+                .no_trade_breakdown
+                .get(&NoTradeReason::NoPerceivedEdge),
             Some(&1)
         );
         assert_eq!(
-            summary.no_trade_breakdown.get(&NoTradeReason::PromptBudgetExceeded),
+            summary
+                .no_trade_breakdown
+                .get(&NoTradeReason::PromptBudgetExceeded),
             Some(&1)
         );
         let out = summary.render_section_f();
@@ -295,11 +294,12 @@ mod tests {
         let (dir, mut cas) = make_cas();
         put_no_trade(&mut cas, "Agent_X", NoTradeReason::AmountExceedsBalance, 1);
         drop(cas);
-        let summary =
-            MarketDecisionTraceSummary::compute_from_path(dir.path()).expect("ok");
+        let summary = MarketDecisionTraceSummary::compute_from_path(dir.path()).expect("ok");
         assert_eq!(summary.total_traces, 1);
         assert_eq!(
-            summary.no_trade_breakdown.get(&NoTradeReason::AmountExceedsBalance),
+            summary
+                .no_trade_breakdown
+                .get(&NoTradeReason::AmountExceedsBalance),
             Some(&1)
         );
     }

@@ -231,12 +231,7 @@ mod tests {
     fn does_not_advance_on_l4e_only() {
         let q = fixture_q_with_head(&"a".repeat(40));
         let w_pre = HeadTWitness::from_q_state(&q, "run-1", None, None);
-        let w_post = HeadTWitness::from_q_state(
-            &q,
-            "run-1",
-            Some(NodeId("ff".repeat(20))),
-            None,
-        );
+        let w_post = HeadTWitness::from_q_state(&q, "run-1", Some(NodeId("ff".repeat(20))), None);
         assert_eq!(
             w_pre.l4_head, w_post.l4_head,
             "l4_head must NOT advance when only L4.E events occur"

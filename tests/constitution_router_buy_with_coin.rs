@@ -39,21 +39,17 @@ use turingosv4::bottom_white::ledger::rejection_evidence::RejectionEvidenceWrite
 use turingosv4::bottom_white::ledger::system_keypair::{
     Ed25519Keypair, PinnedSystemPubkeys, SystemEpoch,
 };
-use turingosv4::bottom_white::ledger::transition_ledger::{
-    InMemoryLedgerWriter, LedgerWriter,
-};
+use turingosv4::bottom_white::ledger::transition_ledger::{InMemoryLedgerWriter, LedgerWriter};
 use turingosv4::bottom_white::tools::registry::ToolRegistry;
-use turingosv4::economy::money::MicroCoin;
 use turingosv4::economy::monetary_invariant::{
     assert_complete_set_balanced, assert_total_ctf_conserved,
 };
-use turingosv4::state::q_state::{
-    AgentId, QState, TaskId, TaskMarketEntry, TaskMarketState, TxId,
-};
+use turingosv4::economy::money::MicroCoin;
+use turingosv4::state::q_state::{AgentId, QState, TaskId, TaskMarketEntry, TaskMarketState, TxId};
 use turingosv4::state::sequencer::{Sequencer, SubmissionEnvelope};
 use turingosv4::state::typed_tx::{
-    AgentSignature, BuyDirection, BuyWithCoinRouterTx, CompleteSetMintTx,
-    CpmmPoolTx, EventId, ShareAmount, TypedTx,
+    AgentSignature, BuyDirection, BuyWithCoinRouterTx, CompleteSetMintTx, CpmmPoolTx, EventId,
+    ShareAmount, TypedTx,
 };
 use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
@@ -75,8 +71,7 @@ fn fresh_harness(initial_q: QState) -> Harness {
     let tmp = TempDir::new().expect("tempdir");
     let cas = Arc::new(RwLock::new(CasStore::open(tmp.path()).expect("cas")));
     let keypair = Arc::new(Ed25519Keypair::generate_with_secure_entropy().expect("kp"));
-    let writer: Arc<RwLock<dyn LedgerWriter>> =
-        Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
+    let writer: Arc<RwLock<dyn LedgerWriter>> = Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
     let rejection_writer = Arc::new(RwLock::new(RejectionEvidenceWriter::default()));
     let preds = Arc::new(PredicateRegistry::new());
     let tools = Arc::new(ToolRegistry::new());
@@ -85,16 +80,26 @@ fn fresh_harness(initial_q: QState) -> Harness {
     pinned.insert(epoch, keypair.public_key());
     let pinned_pubkeys = Arc::new(pinned);
     let (seq, rx) = Sequencer::new(
-        cas, keypair, epoch, writer.clone(), rejection_writer, preds, tools,
-        pinned_pubkeys, initial_q, 16,
+        cas,
+        keypair,
+        epoch,
+        writer.clone(),
+        rejection_writer,
+        preds,
+        tools,
+        pinned_pubkeys,
+        initial_q,
+        16,
     );
-    Harness { _tmp: tmp, seq, rx, _ledger: writer }
+    Harness {
+        _tmp: tmp,
+        seq,
+        rx,
+        _ledger: writer,
+    }
 }
 
-fn genesis_with_balances_and_open_task(
-    pairs: &[(&str, i64)],
-    task: &str,
-) -> QState {
+fn genesis_with_balances_and_open_task(pairs: &[(&str, i64)], task: &str) -> QState {
     let mut q = QState::genesis();
     for (name, coin) in pairs {
         q.economic_state_t.balances_t.0.insert(
@@ -192,12 +197,9 @@ async fn seed_pool(
     pool_seed_units: u128,
 ) -> turingosv4::state::q_state::Hash {
     let p = h.seq.q_snapshot().unwrap().state_root_t;
-    submit_and_apply(
-        h,
-        build_mint(p, provider, task, pool_seed_units as i64, 1),
-    )
-    .await
-    .expect("provider mint accepted");
+    submit_and_apply(h, build_mint(p, provider, task, pool_seed_units as i64, 1))
+        .await
+        .expect("provider mint accepted");
     let p = h.seq.q_snapshot().unwrap().state_root_t;
     submit_and_apply(
         h,
@@ -226,10 +228,7 @@ async fn seed_pool(
 /// 4_166_667. k_post >= k_pre (architect integer invariant `>=`).
 #[tokio::test]
 async fn buy_yes_with_coin_matches_formula() {
-    let q0 = genesis_with_balances_and_open_task(
-        &[("alice", 50), ("bob", 50)],
-        "evt-1",
-    );
+    let q0 = genesis_with_balances_and_open_task(&[("alice", 50), ("bob", 50)], "evt-1");
     let mut h = fresh_harness(q0);
 
     let parent = seed_pool(&mut h, "alice", "evt-1", 5_000_000).await;
@@ -304,7 +303,10 @@ async fn buy_yes_with_coin_matches_formula() {
         1_000_000 + expected_out_y,
         "buyer holds payC + outY YES"
     );
-    assert_eq!(bob_pair.no.units, 0, "BuyYes: buyer's NO inventory unchanged (zero)");
+    assert_eq!(
+        bob_pair.no.units, 0,
+        "BuyYes: buyer's NO inventory unchanged (zero)"
+    );
 }
 
 // ── Architect §7.7 verbatim test 2 ──────────────────────────────────────────
@@ -324,10 +326,7 @@ async fn buy_yes_with_coin_matches_formula() {
 /// 4M - 1_333_333 = 2_666_667.
 #[tokio::test]
 async fn buy_no_with_coin_matches_symmetric_formula() {
-    let q0 = genesis_with_balances_and_open_task(
-        &[("alice", 50), ("bob", 50)],
-        "evt-2",
-    );
+    let q0 = genesis_with_balances_and_open_task(&[("alice", 50), ("bob", 50)], "evt-2");
     let mut h = fresh_harness(q0);
 
     let parent = seed_pool(&mut h, "alice", "evt-2", 4_000_000).await;
@@ -344,15 +343,7 @@ async fn buy_no_with_coin_matches_symmetric_formula() {
 
     submit_and_apply(
         &mut h,
-        build_router(
-            parent,
-            "bob",
-            "evt-2",
-            BuyDirection::BuyNo,
-            2_000_000,
-            0,
-            1,
-        ),
+        build_router(parent, "bob", "evt-2", BuyDirection::BuyNo, 2_000_000, 0, 1),
     )
     .await
     .expect("router tx accepted");
@@ -394,10 +385,7 @@ async fn buy_no_with_coin_matches_symmetric_formula() {
 /// preserved.
 #[tokio::test]
 async fn buy_yes_debits_coin_locks_collateral() {
-    let q0 = genesis_with_balances_and_open_task(
-        &[("alice", 50), ("bob", 50)],
-        "evt-3",
-    );
+    let q0 = genesis_with_balances_and_open_task(&[("alice", 50), ("bob", 50)], "evt-3");
     let mut h = fresh_harness(q0);
 
     let parent = seed_pool(&mut h, "alice", "evt-3", 3_000_000).await;
@@ -457,12 +445,8 @@ async fn buy_yes_debits_coin_locks_collateral() {
 
     // Coin conservation (Defect-1 patch enforced strict): total Coin
     // preserved across the router tx.
-    assert_total_ctf_conserved(
-        &q_pre.economic_state_t,
-        &q_post.economic_state_t,
-        &[],
-    )
-    .expect("total Coin conserved across router (pure Coin→collateral migration)");
+    assert_total_ctf_conserved(&q_pre.economic_state_t, &q_post.economic_state_t, &[])
+        .expect("total Coin conserved across router (pure Coin→collateral migration)");
 }
 
 // ── Architect §7.7 verbatim test 4 ──────────────────────────────────────────
@@ -495,17 +479,22 @@ async fn buy_yes_debits_coin_locks_collateral() {
 ///   Sum_yes == sum_no == collateral ✓ (complete-set mint witnessed).
 #[tokio::test]
 async fn buy_yes_mints_complete_set() {
-    let q0 = genesis_with_balances_and_open_task(
-        &[("alice", 50), ("bob", 50)],
-        "evt-4",
-    );
+    let q0 = genesis_with_balances_and_open_task(&[("alice", 50), ("bob", 50)], "evt-4");
     let mut h = fresh_harness(q0);
 
     let parent = seed_pool(&mut h, "alice", "evt-4", 5_000_000).await;
 
     submit_and_apply(
         &mut h,
-        build_router(parent, "bob", "evt-4", BuyDirection::BuyYes, 1_000_000, 0, 1),
+        build_router(
+            parent,
+            "bob",
+            "evt-4",
+            BuyDirection::BuyYes,
+            1_000_000,
+            0,
+            1,
+        ),
     )
     .await
     .expect("router tx accepted");
@@ -527,12 +516,19 @@ async fn buy_yes_mints_complete_set() {
         .get(&EventId(TaskId("evt-4".into())))
         .copied()
         .unwrap();
-    assert_eq!(collateral.micro_units(), 6_000_000, "collateral = pre + payC");
+    assert_eq!(
+        collateral.micro_units(),
+        6_000_000,
+        "collateral = pre + payC"
+    );
 
     let sum_yes = sum_event_yes(&q_post, "evt-4");
     let sum_no = sum_event_no(&q_post, "evt-4");
     assert_eq!(sum_yes, sum_no, "post-router YES + NO totals symmetric");
-    assert_eq!(sum_yes, 6_000_000_u128, "totals match collateral.micro_units");
+    assert_eq!(
+        sum_yes, 6_000_000_u128,
+        "totals match collateral.micro_units"
+    );
 }
 
 // Helpers for sum across all (traders + pool) for an event.
@@ -571,10 +567,7 @@ fn sum_event_no(q: &QState, task: &str) -> u128 {
 /// outY independently and asserting the sum.
 #[tokio::test]
 async fn buy_yes_transfers_retained_yes_plus_swap_yes() {
-    let q0 = genesis_with_balances_and_open_task(
-        &[("alice", 50), ("bob", 50)],
-        "evt-5",
-    );
+    let q0 = genesis_with_balances_and_open_task(&[("alice", 50), ("bob", 50)], "evt-5");
     let mut h = fresh_harness(q0);
 
     let parent = seed_pool(&mut h, "alice", "evt-5", 5_000_000).await;
@@ -619,10 +612,7 @@ async fn buy_yes_transfers_retained_yes_plus_swap_yes() {
 /// one-above-floor (reject) boundaries.
 #[tokio::test]
 async fn buy_yes_respects_min_yes_out() {
-    let q0 = genesis_with_balances_and_open_task(
-        &[("alice", 50), ("bob", 50)],
-        "evt-6",
-    );
+    let q0 = genesis_with_balances_and_open_task(&[("alice", 50), ("bob", 50)], "evt-6");
     let mut h = fresh_harness(q0);
 
     let parent = seed_pool(&mut h, "alice", "evt-6", 5_000_000).await;
@@ -715,10 +705,8 @@ fn buy_yes_no_f64() {
     let sequencer_src = workspace.join("src/state/sequencer.rs");
     let typed_tx_src = workspace.join("src/state/typed_tx.rs");
 
-    let seq_text = std::fs::read_to_string(&sequencer_src)
-        .expect("read src/state/sequencer.rs");
-    let tx_text = std::fs::read_to_string(&typed_tx_src)
-        .expect("read src/state/typed_tx.rs");
+    let seq_text = std::fs::read_to_string(&sequencer_src).expect("read src/state/sequencer.rs");
+    let tx_text = std::fs::read_to_string(&typed_tx_src).expect("read src/state/typed_tx.rs");
 
     let arm_start = seq_text
         .find("TypedTx::BuyWithCoinRouter(router) => {")
@@ -726,8 +714,7 @@ fn buy_yes_no_f64() {
     let arm_end = (arm_start + 12_288).min(seq_text.len());
     let arm_body = &seq_text[arm_start..arm_end];
 
-    let forbidden_real_usage =
-        [": f64", ": f32", "as f64", "as f32", "f64::", "f32::"];
+    let forbidden_real_usage = [": f64", ": f32", "as f64", "as f32", "f64::", "f32::"];
     let forbidden_literal_suffix = ["f64", "f32"];
 
     for needle in &forbidden_real_usage {
@@ -801,10 +788,8 @@ fn buy_yes_no_f64() {
 /// shares without collateral; no collateral without claims).
 #[tokio::test]
 async fn buy_yes_no_ghost_liquidity() {
-    let q0 = genesis_with_balances_and_open_task(
-        &[("alice", 50), ("bob", 50), ("carol", 50)],
-        "evt-7",
-    );
+    let q0 =
+        genesis_with_balances_and_open_task(&[("alice", 50), ("bob", 50), ("carol", 50)], "evt-7");
     let mut h = fresh_harness(q0);
 
     let parent = seed_pool(&mut h, "alice", "evt-7", 4_000_000).await;
@@ -812,14 +797,30 @@ async fn buy_yes_no_ghost_liquidity() {
     // Two router buys to stress the collateral-shares balance.
     submit_and_apply(
         &mut h,
-        build_router(parent, "bob", "evt-7", BuyDirection::BuyYes, 1_500_000, 0, 1),
+        build_router(
+            parent,
+            "bob",
+            "evt-7",
+            BuyDirection::BuyYes,
+            1_500_000,
+            0,
+            1,
+        ),
     )
     .await
     .expect("first router accepted");
     let parent2 = h.seq.q_snapshot().unwrap().state_root_t;
     submit_and_apply(
         &mut h,
-        build_router(parent2, "carol", "evt-7", BuyDirection::BuyNo, 800_000, 0, 2),
+        build_router(
+            parent2,
+            "carol",
+            "evt-7",
+            BuyDirection::BuyNo,
+            800_000,
+            0,
+            2,
+        ),
     )
     .await
     .expect("second router accepted");
@@ -838,11 +839,13 @@ async fn buy_yes_no_ghost_liquidity() {
     // Architect §6 enforcement: shares are FULLY backed by collateral; no
     // ghost liquidity (no shares without locked Coin).
     assert_eq!(
-        sum_yes, collateral.micro_units() as u128,
+        sum_yes,
+        collateral.micro_units() as u128,
         "sum YES claims (traders + pool) == locked collateral"
     );
     assert_eq!(
-        sum_no, collateral.micro_units() as u128,
+        sum_no,
+        collateral.micro_units() as u128,
         "sum NO claims (traders + pool) == locked collateral"
     );
 
@@ -870,10 +873,7 @@ async fn buy_yes_no_ghost_liquidity() {
 async fn router_atomic_rollback_on_failure() {
     let _guard = ENV_LOCK.lock().expect("env lock");
 
-    let q0 = genesis_with_balances_and_open_task(
-        &[("alice", 50), ("bob", 50)],
-        "evt-8",
-    );
+    let q0 = genesis_with_balances_and_open_task(&[("alice", 50), ("bob", 50)], "evt-8");
     let mut h = fresh_harness(q0);
 
     let parent_after_seed = seed_pool(&mut h, "alice", "evt-8", 5_000_000).await;
@@ -1051,15 +1051,7 @@ async fn router_atomic_rollback_witnessed_at_every_step() {
         );
         let result = submit_and_apply(
             &mut h,
-            build_router(
-                parent,
-                "bob",
-                &task,
-                BuyDirection::BuyYes,
-                1_000_000,
-                0,
-                1,
-            ),
+            build_router(parent, "bob", &task, BuyDirection::BuyYes, 1_000_000, 0, 1),
         )
         .await;
         std::env::remove_var("TURINGOS_TEST_ROUTER_FAIL_AT_STEP");

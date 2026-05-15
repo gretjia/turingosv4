@@ -98,8 +98,7 @@ async fn i100_real_signature_worktx_signature_verifies_via_manifest() {
     // Manifest now has the n1 pubkey. Reload from disk and verify the
     // signature against the disk-resident pubkey (= what verify_chaintape
     // will do on replay).
-    let manifest =
-        AgentPubkeyManifest::load(reg.manifest_path()).expect("load agent_pubkeys.json");
+    let manifest = AgentPubkeyManifest::load(reg.manifest_path()).expect("load agent_pubkeys.json");
     let agent_id = match &tx {
         TypedTx::Work(w) => w.agent_id.clone(),
         _ => panic!(),
@@ -129,8 +128,8 @@ async fn i101_zero_stake_real_worktx_lands_in_l4e_not_l4() {
     // the bundle's `pinned_pubkeys.json` — we open it sibling-style under
     // the same runtime_repo dir. (Production binary integrates this in
     // evaluator.rs Atom 2 wiring.)
-    let mut reg = AgentKeypairRegistry::open(&cfg.runtime_repo_path)
-        .expect("open agent_keypairs registry");
+    let mut reg =
+        AgentKeypairRegistry::open(&cfg.runtime_repo_path).expect("open agent_keypairs registry");
     let tx = make_real_worktx_signed_by(
         &mut reg,
         "task-i101",
@@ -166,7 +165,11 @@ async fn i101_zero_stake_real_worktx_lands_in_l4e_not_l4() {
 
     // L4 chain (refs/transitions/main) should NOT have a TaskOpen / EscrowLock /
     // accepted WorkTx for this run — we did not pre-seed and no accepts ran.
-    let refs_path = cfg.runtime_repo_path.join("refs").join("transitions").join("main");
+    let refs_path = cfg
+        .runtime_repo_path
+        .join("refs")
+        .join("transitions")
+        .join("main");
     if refs_path.exists() {
         let head = std::fs::read_to_string(&refs_path).unwrap_or_default();
         // Ref may exist as an empty/initial ref; the key invariant is
@@ -193,8 +196,7 @@ async fn i103_omega_branch_emits_worktx_plus_verifytx_pair() {
         bundle.sequencer.clone(),
     );
 
-    let mut reg =
-        AgentKeypairRegistry::open(&cfg.runtime_repo_path).expect("open agent_keypairs");
+    let mut reg = AgentKeypairRegistry::open(&cfg.runtime_repo_path).expect("open agent_keypairs");
 
     // Build the WorkTx side (proposer = "n1").
     let work_tx = make_real_worktx_signed_by(
@@ -238,7 +240,9 @@ async fn i103_omega_branch_emits_worktx_plus_verifytx_pair() {
     }
 
     bus.submit_typed_tx(work_tx).await.expect("WorkTx submit");
-    bus.submit_typed_tx(verify_tx).await.expect("VerifyTx submit");
+    bus.submit_typed_tx(verify_tx)
+        .await
+        .expect("VerifyTx submit");
     bundle.shutdown().await.expect("shutdown");
 
     // Both transactions traversed bus.submit_typed_tx → Sequencer; ChannelTape
@@ -309,8 +313,7 @@ async fn i102_distinct_agents_get_distinct_pubkeys_in_manifest() {
         bundle.sequencer.clone(),
     );
 
-    let mut reg =
-        AgentKeypairRegistry::open(&cfg.runtime_repo_path).expect("open agent_keypairs");
+    let mut reg = AgentKeypairRegistry::open(&cfg.runtime_repo_path).expect("open agent_keypairs");
     let _tx_a = make_real_worktx_signed_by(
         &mut reg,
         "task-i102",

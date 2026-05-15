@@ -1,0 +1,9 @@
+
+running 4 tests
+test sg_6c_3_prompt_sees_scoped_pnl_summary_without_other_agent_leak ... ok
+test sg_6c_4_and_6c_5_low_balance_blocks_only_high_risk_actions_without_erasure ... ok
+test sg_6c_1_and_6c_2_conviction_budget_is_chain_derived_not_hashmap_sidecar ... ok
+test sg_6c_6_significant_loss_generates_audit_only_autopsy_capsule ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

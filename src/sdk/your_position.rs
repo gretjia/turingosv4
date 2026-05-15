@@ -102,28 +102,43 @@ pub fn render_your_position(q: &QState, viewer: &AgentId) -> String {
     s.push_str(&format!("Open positions: {}\n", view.open_positions.len()));
     for pos in view.open_positions.iter().take(OPEN_POS_RENDER_K) {
         match pos {
-            OpenPosition::Stake { tx_id, amount_micro } => s.push_str(&format!(
+            OpenPosition::Stake {
+                tx_id,
+                amount_micro,
+            } => s.push_str(&format!(
                 "  - stake on {}: {} \u{03BC}C\n",
                 tx_id.0, amount_micro
             )),
-            OpenPosition::Claim { tx_id, amount_micro } => s.push_str(&format!(
+            OpenPosition::Claim {
+                tx_id,
+                amount_micro,
+            } => s.push_str(&format!(
                 "  - pending claim on {}: {} \u{03BC}C\n",
                 tx_id.0, amount_micro
             )),
-            OpenPosition::ConditionalShare { event_id, side, units } => s.push_str(&format!(
+            OpenPosition::ConditionalShare {
+                event_id,
+                side,
+                units,
+            } => s.push_str(&format!(
                 "  - shares {} on event {}: {} units\n",
                 match side {
                     crate::state::typed_tx::OutcomeSide::Yes => "YES",
                     crate::state::typed_tx::OutcomeSide::No => "NO",
                 },
-                event_id.0.0,
+                event_id.0 .0,
                 units
             )),
             OpenPosition::LpShare { event_id, units } => s.push_str(&format!(
                 "  - LP shares on event {}: {} units\n",
-                event_id.0.0, units
+                event_id.0 .0, units
             )),
-            OpenPosition::NodePosition { node_id, side, amount_micro, .. } => {
+            OpenPosition::NodePosition {
+                node_id,
+                side,
+                amount_micro,
+                ..
+            } => {
                 s.push_str(&format!(
                     "  - node position {} on {}: {} \u{03BC}C\n",
                     match side {
@@ -135,6 +150,14 @@ pub fn render_your_position(q: &QState, viewer: &AgentId) -> String {
                 ));
             }
         }
+    }
+    let conviction_budget =
+        crate::runtime::real6_conviction_budget::render_scoped_conviction_budget_summary(q, viewer);
+    if !conviction_budget.is_empty() {
+        if !s.ends_with('\n') {
+            s.push('\n');
+        }
+        s.push_str(&conviction_budget);
     }
     s
 }
@@ -150,7 +173,9 @@ pub const OPEN_POS_RENDER_K: usize = 8;
 mod tests {
     use super::*;
     use crate::economy::money::MicroCoin;
-    use crate::state::q_state::{ClaimEntry, ClaimStatus, QState, Reputation, StakeEntry, TaskId, TxId};
+    use crate::state::q_state::{
+        ClaimEntry, ClaimStatus, QState, Reputation, StakeEntry, TaskId, TxId,
+    };
 
     fn agent(name: &str) -> AgentId {
         AgentId(name.into())
@@ -165,7 +190,10 @@ mod tests {
     fn unknown_viewer_yields_empty_block() {
         let q = empty_q();
         let s = render_your_position(&q, &agent("Agent_unknown_xyz"));
-        assert!(s.is_empty(), "unknown viewer should suppress block; got: {s:?}");
+        assert!(
+            s.is_empty(),
+            "unknown viewer should suppress block; got: {s:?}"
+        );
     }
 
     /// U2 — preseed agent (Agent_0) at zero balance still renders block
@@ -185,10 +213,10 @@ mod tests {
     #[test]
     fn drucker_framing_line_present() {
         let mut q = empty_q();
-        q.economic_state_t.balances_t.0.insert(
-            agent("Agent_0"),
-            MicroCoin::from_micro_units(1_000_000),
-        );
+        q.economic_state_t
+            .balances_t
+            .0
+            .insert(agent("Agent_0"), MicroCoin::from_micro_units(1_000_000));
         let s = render_your_position(&q, &agent("Agent_0"));
         assert!(
             s.contains("Drucker:") && s.contains("What gets measured gets managed"),

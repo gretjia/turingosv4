@@ -1,0 +1,46 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778811250681_913405",
+  "title": "REAL-6A TaskOutcomeMarket",
+  "module": "REAL-6A Event Timing & Lawful Pressure",
+  "molecule_or_atom": "atom",
+  "requested_risk_class": 4,
+  "risk_class": 4,
+  "fc_nodes": [
+    "FC1 market action loop; FC2 task-open market before WorkTx; FC3 market evidence/materialized view; economy CTF/no ghost liquidity; predicate price-not-truth"
+  ],
+  "allowed_paths": [
+    "src/runtime/real6_task_outcome.rs",
+    "src/runtime/mod.rs",
+    "src/runtime/adapter.rs",
+    "src/state/typed_tx.rs",
+    "src/state/sequencer.rs",
+    "src/bottom_white/ledger/system_keypair.rs",
+    "experiments/minif2f_v4/src/drive_task.rs",
+    "experiments/minif2f_v4/src/chain_runtime.rs",
+    "experiments/minif2f_v4/src/bin/evaluator.rs",
+    "scripts/run_g_phase_batch.sh",
+    "tests/constitution_real6_task_outcome_market.rs",
+    "genesis_payload.toml",
+    "handover/audits",
+    "handover/evidence/dev_self_hosting",
+    "handover/evidence/real6_task_outcome",
+    "handover/directives/2026-05-15_REAL5S_REAL6_REAL7_REAL8_REAL9_EXECUTION_PLAN_APPROVED.md"
+  ],
+  "restricted_surface_hits": [
+    "genesis_payload.toml",
+    "src/bottom_white/ledger/system_keypair.rs",
+    "src/state/sequencer.rs",
+    "src/state/typed_tx.rs"
+  ],
+  "acceptance_commands": [
+    "cargo test --test constitution_real6_task_outcome_market",
+    "cargo test --lib boot::tests::verify_trust_root_passes_on_intact_repo",
+    "bash scripts/run_constitution_gates.sh"
+  ],
+  "audit_required": true,
+  "human_intent": "Implement REAL-6A TaskOutcomeMarket at TaskOpen/EscrowLock, market before first WorkTx, EventResolveTx YES/NO semantics, and no price-as-truth.",
+  "ratification": "User approved audited REAL-5S->REAL-9 plan; REAL-6A is Class-4 per approved directive.",
+  "git_head": "5239f4b13ecf0a3f9850accc6815c2e7944e9bee",
+  "created_at_unix_ms": 1778811250681
+}

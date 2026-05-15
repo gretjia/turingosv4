@@ -1,0 +1,24 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778788069384_807750",
+  "title": "REAL-5 post-VETO clean closeout",
+  "module": "REAL-5 Role-Based Generative Scaffolding",
+  "molecule_or_atom": "molecule",
+  "requested_risk_class": 4,
+  "risk_class": 4,
+  "fc_nodes": [
+    "FC1 externalized role action loop; FC2 role assignment + PromptCapsule replay; FC3 evidence/materialized view; Art. III shielding"
+  ],
+  "allowed_paths": [
+    "src/runtime/real5_roles.rs"
+  ],
+  "restricted_surface_hits": [],
+  "acceptance_commands": [
+    "cargo check"
+  ],
+  "audit_required": true,
+  "human_intent": null,
+  "ratification": null,
+  "git_head": "5239f4b13ecf0a3f9850accc6815c2e7944e9bee",
+  "created_at_unix_ms": 1778788069387
+}

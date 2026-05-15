@@ -24,9 +24,7 @@ use tempfile::TempDir;
 use turingosv4::bus::{BusConfig, TuringBus};
 use turingosv4::kernel::Kernel;
 use turingosv4::runtime::adapter::make_synthetic_task_open;
-use turingosv4::runtime::chain_tape_lease::{
-    acquire, read_lease, ChainTapeLease, LeaseError,
-};
+use turingosv4::runtime::chain_tape_lease::{acquire, read_lease, ChainTapeLease, LeaseError};
 use turingosv4::runtime::resume_preflight::snapshot_head_t;
 use turingosv4::runtime::{build_chaintape_sequencer, RuntimeChaintapeConfig};
 use turingosv4::state::q_state::Hash;
@@ -71,7 +69,10 @@ fn lease_acquire_release_round_trip() {
 
     guard.release().expect("explicit release");
     let after = read_lease(&repo).expect("read_lease post-release");
-    assert!(after.is_none(), "SG-G1.2-2.1: lease file must be removed on release");
+    assert!(
+        after.is_none(),
+        "SG-G1.2-2.1: lease file must be removed on release"
+    );
 }
 
 // ── SG-G1.2-2.2 ─────────────────────────────────────────────────────────────
@@ -150,7 +151,9 @@ fn lease_detects_stale_lock_when_pid_dead() {
 
     let guard = acquire(&repo, "batch_stale_recover", "")
         .expect("SG-G1.2-2.4: stale lease must be force-released");
-    let live = read_lease(&repo).expect("read live lease").expect("present");
+    let live = read_lease(&repo)
+        .expect("read live lease")
+        .expect("present");
     assert_eq!(
         live.holder_pid,
         std::process::id() as i32,
@@ -170,7 +173,10 @@ async fn lease_detects_head_changed_under_lock() {
     let tmp = TempDir::new().expect("tempdir");
     let repo = bootstrap_one_entry_chain(&tmp, "head_changed").await;
     let (real_head, _, _) = snapshot_head_t(&repo).expect("snapshot");
-    assert!(!real_head.is_empty(), "bootstrapped repo must have non-empty head");
+    assert!(
+        !real_head.is_empty(),
+        "bootstrapped repo must have non-empty head"
+    );
 
     // Pass a stale head — the function should refuse to acquire.
     let stale_head = "0".repeat(40);

@@ -55,10 +55,7 @@ pub struct MinerTx {
 /// policy, rng-state)`. Production caller must pass a seeded RNG for
 /// replay-determinism.
 pub fn boltzmann_select_parent_v2<R: Rng>(
-    price_index: &std::collections::BTreeMap<
-        crate::state::TxId,
-        crate::state::NodeMarketEntry,
-    >,
+    price_index: &std::collections::BTreeMap<crate::state::TxId, crate::state::NodeMarketEntry>,
     mask_set: &std::collections::BTreeSet<crate::state::TxId>,
     policy: &crate::state::BoltzmannMaskPolicy,
     rng: &mut R,
@@ -66,9 +63,7 @@ pub fn boltzmann_select_parent_v2<R: Rng>(
     // Step 1: candidate set = {node | price_yes is Some AND node not in mask_set}
     let candidates: Vec<&crate::state::TxId> = price_index
         .iter()
-        .filter(|(node_id, entry)| {
-            entry.price_yes.is_some() && !mask_set.contains(node_id)
-        })
+        .filter(|(node_id, entry)| entry.price_yes.is_some() && !mask_set.contains(node_id))
         .map(|(node_id, _)| node_id)
         .collect();
 
@@ -258,10 +253,7 @@ mod tests {
     fn v2_determinism_under_fixed_seed() {
         let mut pi: BTreeMap<TxId, NodeMarketEntry> = BTreeMap::new();
         for i in 0..5 {
-            pi.insert(
-                TxId(format!("n{i}")),
-                make_entry((i as u128 + 1) * 10, 100),
-            );
+            pi.insert(TxId(format!("n{i}")), make_entry((i as u128 + 1) * 10, 100));
         }
         let mask: BTreeSet<TxId> = BTreeSet::new();
         let policy = BoltzmannMaskPolicy::default();

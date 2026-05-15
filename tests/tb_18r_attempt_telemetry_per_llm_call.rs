@@ -53,7 +53,13 @@ fn write_path(
 ) -> (Cid, AttemptTelemetry) {
     let attempt_id = TxId(attempt_id.to_string());
     let candidate_cid = cas
-        .put(candidate_bytes, ObjectType::ProposalPayload, "test", 0, None)
+        .put(
+            candidate_bytes,
+            ObjectType::ProposalPayload,
+            "test",
+            0,
+            None,
+        )
         .expect("put candidate");
     let lean_result_cid = if let Some((exit_code, verified)) = lean_result {
         let proof_artifact_cid = if verified { Some(candidate_cid) } else { None };
@@ -121,10 +127,14 @@ fn r2_path_1_omega_wtool_full_attempt_telemetry_shape() {
         .expect("read lean result");
     assert_eq!(lr.exit_code, 0);
     assert!(lr.verified);
-    assert!(lr.proof_artifact_cid.is_some(), "omega-full must carry a proof artifact CID");
+    assert!(
+        lr.proof_artifact_cid.is_some(),
+        "omega-full must carry a proof artifact CID"
+    );
     assert!(lr.error_class.is_none());
     assert_eq!(
-        cas.get(&recovered.candidate_payload_cid).expect("get candidate"),
+        cas.get(&recovered.candidate_payload_cid)
+            .expect("get candidate"),
         parsed_candidate.to_vec(),
         "candidate_payload bytes must equal the parsed external candidate (NOT raw LLM response)"
     );
@@ -184,7 +194,10 @@ fn r2_path_3_step_partial_ok_attempt_telemetry_shape() {
     let lr = read_lean_result_from_cas(&cas, recovered.lean_result_cid.as_ref().unwrap())
         .expect("read lean result");
     assert_eq!(lr.exit_code, 0);
-    assert!(!lr.verified, "step_partial_ok did not produce a Complete verdict");
+    assert!(
+        !lr.verified,
+        "step_partial_ok did not produce a Complete verdict"
+    );
     assert!(
         lr.proof_artifact_cid.is_none(),
         "step_partial_ok is intermediate; no proof artifact"
@@ -275,7 +288,9 @@ fn r2_path_5_parse_fail_attempt_telemetry_shape() {
         recovered.lean_result_cid.is_none(),
         "Lean was not invoked on parse_fail; no LeanResult should exist"
     );
-    let payload_bytes = cas.get(&recovered.candidate_payload_cid).expect("get sentinel");
+    let payload_bytes = cas
+        .get(&recovered.candidate_payload_cid)
+        .expect("get sentinel");
     assert_eq!(
         payload_bytes,
         PARSE_FAIL_SENTINEL.to_vec(),
@@ -304,7 +319,9 @@ fn r2_path_6_llm_err_attempt_telemetry_shape() {
         recovered.lean_result_cid.is_none(),
         "Lean was not invoked on llm_err; no LeanResult should exist"
     );
-    let payload_bytes = cas.get(&recovered.candidate_payload_cid).expect("get sentinel");
+    let payload_bytes = cas
+        .get(&recovered.candidate_payload_cid)
+        .expect("get sentinel");
     assert_eq!(
         payload_bytes,
         LLM_ERR_SENTINEL.to_vec(),
@@ -318,13 +335,13 @@ fn r2_six_paths_have_distinct_outcome_values() {
     // — guards against accidental enum collapse in a future R-series revision.
     use std::collections::HashSet;
     let outcomes: HashSet<u8> = [
-        AttemptOutcome::LeanPass as u8,    // path 1
-        AttemptOutcome::LeanPass as u8,    // path 2 (same kind, distinguished by tool_name)
-        AttemptOutcome::LeanPass as u8,    // path 3 (intermediate; distinguished by proof_artifact_cid=None)
-        AttemptOutcome::LeanFail as u8,    // path 4a
-        AttemptOutcome::SorryBlock as u8,  // path 4b
-        AttemptOutcome::ParseFail as u8,   // path 5
-        AttemptOutcome::LlmErr as u8,      // path 6
+        AttemptOutcome::LeanPass as u8,   // path 1
+        AttemptOutcome::LeanPass as u8,   // path 2 (same kind, distinguished by tool_name)
+        AttemptOutcome::LeanPass as u8, // path 3 (intermediate; distinguished by proof_artifact_cid=None)
+        AttemptOutcome::LeanFail as u8, // path 4a
+        AttemptOutcome::SorryBlock as u8, // path 4b
+        AttemptOutcome::ParseFail as u8, // path 5
+        AttemptOutcome::LlmErr as u8,   // path 6
     ]
     .iter()
     .copied()

@@ -1,0 +1,24 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778828648899_1429709",
+  "title": "REAL-6D Opportunity Scheduler observe-only",
+  "module": "REAL-6D Opportunity Scheduler Observe-Only",
+  "molecule_or_atom": "molecule",
+  "requested_risk_class": 4,
+  "risk_class": 4,
+  "fc_nodes": [
+    "FC1 observe-only scheduler trace; FC3 dashboard materialized view; Economy price/PnL signal no-admission"
+  ],
+  "allowed_paths": [
+    "src/runtime/agent_scheduler.rs"
+  ],
+  "restricted_surface_hits": [],
+  "acceptance_commands": [
+    "cargo check"
+  ],
+  "audit_required": true,
+  "human_intent": null,
+  "ratification": null,
+  "git_head": "5239f4b13ecf0a3f9850accc6815c2e7944e9bee",
+  "created_at_unix_ms": 1778828648899
+}

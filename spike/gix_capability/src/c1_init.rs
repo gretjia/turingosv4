@@ -27,14 +27,7 @@ pub fn run(workdir: &Path) -> C1Result {
         };
         let tree = repo.find_tree(tree_id)?;
 
-        let commit_oid = repo.commit(
-            Some("HEAD"),
-            &sig,
-            &sig,
-            "C1: initial commit",
-            &tree,
-            &[],
-        )?;
+        let commit_oid = repo.commit(Some("HEAD"), &sig, &sig, "C1: initial commit", &tree, &[])?;
 
         // Cleanup index handle
         drop(index);

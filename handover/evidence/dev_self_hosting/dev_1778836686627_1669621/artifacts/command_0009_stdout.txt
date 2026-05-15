@@ -1,0 +1,43 @@
+════════════════════════════════════════════════════════════════════════
+TB-G G1.2 chain-continuous batch (Option B+ canonical)
+════════════════════════════════════════════════════════════════════════
+RUN_TAG          = g_phase_real_7_structural_smoke_r2_20260515T0910Z
+RUN_DIR          = /home/zephryj/projects/turingosv4/handover/evidence/g_phase_real_7_structural_smoke_r2_20260515T0910Z
+PROBLEM_SET      = handover/evidence/real7_structural_smoke/REAL7_SMOKE_PROBLEMS.txt  (3 tasks)
+ACTIVE_MODEL     = deepseek-chat
+G_PHASE_N_AGENTS = 5
+G_PHASE_CONDITION= n5
+AGENT_MODELS     = <empty>
+PHASE_D_HETERO_OK= 1
+MODEL_FAMILIES   = observed=1 required=0
+REAL5_ROLES      = Solver,Trader,Verifier,Challenger,Observer
+REAL5_ROLE_VIEWS = 1
+LLM_PROXY_URL    = http://localhost:8080
+MINIF2F_DIR      = /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4
+PER_PROB_TIMEOUT = 300s
+
+[build] cargo build --release -p minif2f_v4 --bin evaluator --bin batch_evaluator -p turingosv4 --bin audit_tape --bin tb_g_persistence_report
+    = note: `WorkTxAttempt` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: `turingosv4` (lib) generated 25 warnings (run `cargo fix --lib -p turingosv4` to apply 19 suggestions)
+   Compiling minif2f_v4 v0.1.0 (/home/zephryj/projects/turingosv4/experiments/minif2f_v4)
+    Finished `release` profile [optimized] target(s) in 21.52s
+
+[batch_evaluator] launching 3-task batch (g_phase_real_7_structural_smoke_r2_20260515T0910Z_5239f4b)
+[batch_evaluator] runtime_repo=/home/zephryj/projects/turingosv4/handover/evidence/g_phase_real_7_structural_smoke_r2_20260515T0910Z/runtime_repo cas=/home/zephryj/projects/turingosv4/handover/evidence/g_phase_real_7_structural_smoke_r2_20260515T0910Z/cas
+batch_evaluator: TRUST_ROOT_TAMPERED at boot: TRUST_ROOT_TAMPERED: /home/zephryj/projects/turingosv4/experiments/minif2f_v4/src/bin/evaluator.rs hash mismatch (expected 8319e7706310090e7011753d94b07b68bd0e9102ce66b680d9606efc1b056383, actual 2b42279dd225fd8ea1848c4d2abe794df3d2369bdcecf76fcc46a8ae33424654)
+[batch_evaluator] exit_code=2 elapsed=0s
+
+[audit_tape] running over shared runtime_repo + cas
+[audit_tape] exit=2 verdict=
+
+[persistence_report] running tb_g_persistence_report
+[persistence_report] exit=2 is_passing= n_witnessed=
+
+════════════════════════════════════════════════════════════════════════
+Done. Evidence dir: /home/zephryj/projects/turingosv4/handover/evidence/g_phase_real_7_structural_smoke_r2_20260515T0910Z
+  - BatchContinuationManifest.json   (G1.2-4 fact-identity)
+  - aggregate_verdict.json verdict=
+  - PERSISTENCE_BINDING_REPORT.json  is_passing= (n_witnessed=)
+  - run_log.txt
+════════════════════════════════════════════════════════════════════════

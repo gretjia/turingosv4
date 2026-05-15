@@ -1,0 +1,18 @@
+════════════════════════════════════════════════════════════════════════
+TB-G G1.2 chain-continuous batch (Option B+ canonical)
+════════════════════════════════════════════════════════════════════════
+RUN_TAG          = g_phase_real_6d_scheduler_observe_only_r4_20260515T0830Z
+RUN_DIR          = /home/zephryj/projects/turingosv4/handover/evidence/g_phase_real_6d_scheduler_observe_only_r4_20260515T0830Z
+PROBLEM_SET      = handover/evidence/real6_scheduler_observe_only/REAL6D_SMOKE_ONE_PROBLEM.txt  (1 tasks)
+ACTIVE_MODEL     = deepseek-chat
+G_PHASE_N_AGENTS = 5
+G_PHASE_CONDITION= n5
+AGENT_MODELS     = <empty>
+PHASE_D_HETERO_OK= 0
+MODEL_FAMILIES   = observed=1 required=0
+REAL5_ROLES      = Solver,Trader,Verifier,Challenger,Observer
+REAL5_ROLE_VIEWS = 1
+LLM_PROXY_URL    = http://localhost:8080
+MINIF2F_DIR      = /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4
+PER_PROB_TIMEOUT = 300s
+

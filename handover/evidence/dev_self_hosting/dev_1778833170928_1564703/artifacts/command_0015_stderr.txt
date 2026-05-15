@@ -1,0 +1,3 @@
+WARNING: working tree has non-evidence changes; /runner-preflight Stage 1 normally rejects this.
+WARNING: only 19G free on /; architect minimum is 20G.
+  Set TURINGOS_G_PHASE_LOW_DISK_OK=1 to override (smoke only).

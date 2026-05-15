@@ -33,22 +33,20 @@ use turingosv4::bottom_white::ledger::rejection_evidence::RejectionEvidenceWrite
 use turingosv4::bottom_white::ledger::system_keypair::{
     Ed25519Keypair, PinnedSystemPubkeys, SystemEpoch,
 };
-use turingosv4::bottom_white::ledger::transition_ledger::{
-    InMemoryLedgerWriter, LedgerWriter,
-};
+use turingosv4::bottom_white::ledger::transition_ledger::{InMemoryLedgerWriter, LedgerWriter};
 use turingosv4::bottom_white::tools::registry::ToolRegistry;
-use turingosv4::economy::money::{MicroCoin, StakeMicroCoin};
 use turingosv4::economy::monetary_invariant::{
     assert_no_post_init_mint, assert_total_ctf_conserved,
 };
+use turingosv4::economy::money::{MicroCoin, StakeMicroCoin};
 use turingosv4::state::q_state::{
     AgentId, EscrowEntry, Hash, NodePositionsIndex, QState, TaskId, TxId,
 };
 use turingosv4::state::sequencer::{Sequencer, SubmissionEnvelope};
 use turingosv4::state::typed_tx::{
     AgentSignature, BoolWithProof, ChallengeTx, EscrowLockTx, PositionKind, PositionSide,
-    PredicateId, PredicateResultsBundle, ReadKey, SafetyOrCreation, TaskOpenTx,
-    TypedTx, VerifyTx, VerifyVerdict, WorkTx, WriteKey,
+    PredicateId, PredicateResultsBundle, ReadKey, SafetyOrCreation, TaskOpenTx, TypedTx, VerifyTx,
+    VerifyVerdict, WorkTx, WriteKey,
 };
 use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
@@ -65,8 +63,7 @@ fn fresh_harness(initial_q: QState) -> Harness {
     let tmp = TempDir::new().expect("tempdir");
     let cas = Arc::new(RwLock::new(CasStore::open(tmp.path()).expect("cas")));
     let keypair = Arc::new(Ed25519Keypair::generate_with_secure_entropy().expect("kp"));
-    let writer: Arc<RwLock<dyn LedgerWriter>> =
-        Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
+    let writer: Arc<RwLock<dyn LedgerWriter>> = Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
     let rejection_writer = Arc::new(RwLock::new(RejectionEvidenceWriter::default()));
     let preds = Arc::new(PredicateRegistry::new());
     let tools = Arc::new(ToolRegistry::new());
@@ -75,10 +72,23 @@ fn fresh_harness(initial_q: QState) -> Harness {
     pinned.insert(epoch, keypair.public_key());
     let pinned_pubkeys = Arc::new(pinned);
     let (seq, rx) = Sequencer::new(
-        cas, keypair, epoch, writer.clone(), rejection_writer, preds, tools,
-        pinned_pubkeys, initial_q, 16,
+        cas,
+        keypair,
+        epoch,
+        writer.clone(),
+        rejection_writer,
+        preds,
+        tools,
+        pinned_pubkeys,
+        initial_q,
+        16,
     );
-    Harness { _tmp: tmp, seq, rx, _ledger: writer }
+    Harness {
+        _tmp: tmp,
+        seq,
+        rx,
+        _ledger: writer,
+    }
 }
 
 fn genesis_with_balances(pairs: &[(&str, i64)]) -> QState {
@@ -136,7 +146,10 @@ async fn submit_work(
     let mut acceptance = BTreeMap::new();
     acceptance.insert(
         PredicateId("acc1".into()),
-        BoolWithProof { value: true, proof_cid: None },
+        BoolWithProof {
+            value: true,
+            proof_cid: None,
+        },
     );
     let work = WorkTx {
         tx_id: tx_id.clone(),
@@ -144,18 +157,28 @@ async fn submit_work(
         parent_state_root: parent,
         agent_id: AgentId(agent.into()),
         read_set: [ReadKey("k.r".into())].into_iter().collect::<BTreeSet<_>>(),
-        write_set: [WriteKey("k.w".into())].into_iter().collect::<BTreeSet<_>>(),
+        write_set: [WriteKey("k.w".into())]
+            .into_iter()
+            .collect::<BTreeSet<_>>(),
         proposal_cid: Default::default(),
         predicate_results: PredicateResultsBundle {
-            acceptance, settlement: BTreeMap::new(),
+            acceptance,
+            settlement: BTreeMap::new(),
             safety_class: SafetyOrCreation::Safety,
         },
         stake: StakeMicroCoin::from_micro_units(stake_micro),
         signature: AgentSignature::from_bytes([0u8; 64]),
         timestamp_logical: 3,
     };
-    h.seq.submit_agent_tx(TypedTx::Work(work)).await.expect("submit work");
-    let _ = h.seq.try_apply_one(&mut h.rx).expect("env").expect("ok work");
+    h.seq
+        .submit_agent_tx(TypedTx::Work(work))
+        .await
+        .expect("submit work");
+    let _ = h
+        .seq
+        .try_apply_one(&mut h.rx)
+        .expect("env")
+        .expect("ok work");
     tx_id
 }
 
@@ -179,7 +202,11 @@ async fn submit_challenge(
         timestamp_logical: 4,
     });
     h.seq.submit_agent_tx(tx).await.expect("submit challenge");
-    let _ = h.seq.try_apply_one(&mut h.rx).expect("env").expect("ok challenge");
+    let _ = h
+        .seq
+        .try_apply_one(&mut h.rx)
+        .expect("env")
+        .expect("ok challenge");
     tx_id
 }
 
@@ -203,7 +230,11 @@ async fn submit_verify(
         timestamp_logical: 5,
     });
     h.seq.submit_agent_tx(tx).await.expect("submit verify");
-    let _ = h.seq.try_apply_one(&mut h.rx).expect("env").expect("ok verify");
+    let _ = h
+        .seq
+        .try_apply_one(&mut h.rx)
+        .expect("env")
+        .expect("ok verify");
     tx_id
 }
 
@@ -237,26 +268,26 @@ async fn sg_12_1_accepted_worktx_creates_firstlong_position() {
 
 #[tokio::test]
 async fn sg_12_2_accepted_challengetx_creates_challengeshort_position() {
-    let q = genesis_with_balances(&[
-        ("sponsor-B", 10),
-        ("solver-B", 10),
-        ("challenger-B", 10),
-    ]);
+    let q = genesis_with_balances(&[("sponsor-B", 10), ("solver-B", 10), ("challenger-B", 10)]);
     let mut h = fresh_harness(q);
     open_task(&mut h, "sponsor-B", "task-B").await;
     lock_escrow(&mut h, "sponsor-B", "task-B", 200_000).await;
     let work_tx_id = submit_work(&mut h, "task-B", "solver-B", 30_000, "1").await;
-    let chal_tx_id =
-        submit_challenge(&mut h, "challenger-B", &work_tx_id, 20_000, "1").await;
+    let chal_tx_id = submit_challenge(&mut h, "challenger-B", &work_tx_id, 20_000, "1").await;
 
     let q_after = h.seq.q_snapshot().unwrap();
     let positions = &q_after.economic_state_t.node_positions_t.0;
     assert_eq!(positions.len(), 2, "FirstLong + ChallengeShort = 2");
 
-    let short = positions.get(&chal_tx_id).expect("ChallengeShort keyed by challenge tx_id");
+    let short = positions
+        .get(&chal_tx_id)
+        .expect("ChallengeShort keyed by challenge tx_id");
     assert_eq!(short.kind, PositionKind::ChallengeShort);
     assert_eq!(short.side, PositionSide::Short);
-    assert_eq!(short.node_id, work_tx_id, "FR-12.5 node_id == challenge.target_work_tx");
+    assert_eq!(
+        short.node_id, work_tx_id,
+        "FR-12.5 node_id == challenge.target_work_tx"
+    );
     assert_eq!(short.source_tx, chal_tx_id);
     assert_eq!(short.position_id, chal_tx_id);
     assert_eq!(short.owner, AgentId("challenger-B".into()));
@@ -268,11 +299,7 @@ async fn sg_12_2_accepted_challengetx_creates_challengeshort_position() {
 
 #[tokio::test]
 async fn sg_12_3_verifytx_does_not_create_node_position() {
-    let q = genesis_with_balances(&[
-        ("sponsor-C", 10),
-        ("solver-C", 10),
-        ("verifier-C", 10),
-    ]);
+    let q = genesis_with_balances(&[("sponsor-C", 10), ("solver-C", 10), ("verifier-C", 10)]);
     let mut h = fresh_harness(q);
     open_task(&mut h, "sponsor-C", "task-C").await;
     lock_escrow(&mut h, "sponsor-C", "task-C", 200_000).await;
@@ -305,11 +332,8 @@ async fn sg_12_3_verifytx_does_not_create_node_position() {
 
 #[tokio::test]
 async fn sg_12_4_node_positions_do_not_change_total_supply() {
-    let q_initial = genesis_with_balances(&[
-        ("sponsor-D", 10),
-        ("solver-D", 10),
-        ("challenger-D", 10),
-    ]);
+    let q_initial =
+        genesis_with_balances(&[("sponsor-D", 10), ("solver-D", 10), ("challenger-D", 10)]);
     let mut h = fresh_harness(q_initial.clone());
     open_task(&mut h, "sponsor-D", "task-D").await;
     lock_escrow(&mut h, "sponsor-D", "task-D", 200_000).await;
@@ -323,12 +347,8 @@ async fn sg_12_4_node_positions_do_not_change_total_supply() {
     // initial→…→q_after. assert_total_ctf_conserved already takes care of
     // verifying the holding-sum equality; if NodePosition.amount were
     // accidentally counted as a holding, the sum would diverge.
-    assert_total_ctf_conserved(
-        &q_initial.economic_state_t,
-        &q_after.economic_state_t,
-        &[],
-    )
-    .expect("CR-12.2: total_supply_micro MUST be invariant across NodePosition derivation");
+    assert_total_ctf_conserved(&q_initial.economic_state_t, &q_after.economic_state_t, &[])
+        .expect("CR-12.2: total_supply_micro MUST be invariant across NodePosition derivation");
 
     // Sanity: positions exist (long + short).
     assert_eq!(q_after.economic_state_t.node_positions_t.0.len(), 2);
@@ -352,9 +372,14 @@ async fn sg_12_5_replay_reconstructs_node_positions() {
         lock_escrow(&mut h, &format!("sponsor-{label}"), "task-Z", 200_000).await;
         let work_tx_id =
             submit_work(&mut h, "task-Z", &format!("solver-{label}"), 50_000, "1").await;
-        let _chal =
-            submit_challenge(&mut h, &format!("challenger-{label}"), &work_tx_id, 20_000, "1")
-                .await;
+        let _chal = submit_challenge(
+            &mut h,
+            &format!("challenger-{label}"),
+            &work_tx_id,
+            20_000,
+            "1",
+        )
+        .await;
         h.seq
             .q_snapshot()
             .unwrap()
@@ -378,11 +403,7 @@ async fn sg_12_5_replay_reconstructs_node_positions() {
 /// trading typed_tx variants.
 #[tokio::test]
 async fn sg_12_7_no_market_trading_variants_introduced() {
-    let q = genesis_with_balances(&[
-        ("sponsor-E", 10),
-        ("solver-E", 10),
-        ("challenger-E", 10),
-    ]);
+    let q = genesis_with_balances(&[("sponsor-E", 10), ("solver-E", 10), ("challenger-E", 10)]);
     let mut h = fresh_harness(q);
     open_task(&mut h, "sponsor-E", "task-E").await;
     lock_escrow(&mut h, "sponsor-E", "task-E", 200_000).await;
@@ -392,10 +413,9 @@ async fn sg_12_7_no_market_trading_variants_introduced() {
     let q_after = h.seq.q_snapshot().unwrap();
     for (_pid, position) in q_after.economic_state_t.node_positions_t.0.iter() {
         match position.kind {
-            PositionKind::FirstLong | PositionKind::ChallengeShort => {}
-            // Unreachable in TB-12 — schema only ships these two.
-            // If a future variant lands without charter ratification, this
-            // pattern catches it at the test boundary.
+            PositionKind::FirstLong | PositionKind::ChallengeShort => {} // Unreachable in TB-12 — schema only ships these two.
+                                                                         // If a future variant lands without charter ratification, this
+                                                                         // pattern catches it at the test boundary.
         }
         // Side discipline.
         match (position.kind, position.side) {
@@ -425,17 +445,12 @@ async fn sg_12_7_no_market_trading_variants_introduced() {
 /// rules.
 #[tokio::test]
 async fn position_fields_derived_from_source_tx_exactly() {
-    let q = genesis_with_balances(&[
-        ("sponsor-G", 10),
-        ("solver-G", 10),
-        ("challenger-G", 10),
-    ]);
+    let q = genesis_with_balances(&[("sponsor-G", 10), ("solver-G", 10), ("challenger-G", 10)]);
     let mut h = fresh_harness(q);
     open_task(&mut h, "sponsor-G", "task-G").await;
     lock_escrow(&mut h, "sponsor-G", "task-G", 200_000).await;
     let work_tx_id = submit_work(&mut h, "task-G", "solver-G", 75_000, "1").await;
-    let chal_tx_id =
-        submit_challenge(&mut h, "challenger-G", &work_tx_id, 33_000, "1").await;
+    let chal_tx_id = submit_challenge(&mut h, "challenger-G", &work_tx_id, 33_000, "1").await;
 
     let q_after = h.seq.q_snapshot().unwrap();
 
@@ -461,8 +476,14 @@ async fn position_fields_derived_from_source_tx_exactly() {
         .unwrap();
     assert_eq!(short.position_id, chal_tx_id);
     assert_eq!(short.source_tx, chal_tx_id);
-    assert_eq!(short.node_id, work_tx_id, "ChallengeShort node_id targets the WorkTx");
-    assert_ne!(short.node_id, chal_tx_id, "ChallengeShort node_id is NOT its own tx_id");
+    assert_eq!(
+        short.node_id, work_tx_id,
+        "ChallengeShort node_id targets the WorkTx"
+    );
+    assert_ne!(
+        short.node_id, chal_tx_id,
+        "ChallengeShort node_id is NOT its own tx_id"
+    );
     assert_eq!(short.amount.micro_units(), 33_000);
 }
 
@@ -470,11 +491,7 @@ async fn position_fields_derived_from_source_tx_exactly() {
 
 #[tokio::test]
 async fn ctf_invariant_unchanged_across_position_derivation() {
-    let q = genesis_with_balances(&[
-        ("sponsor-H", 10),
-        ("solver-H", 10),
-        ("challenger-H", 10),
-    ]);
+    let q = genesis_with_balances(&[("sponsor-H", 10), ("solver-H", 10), ("challenger-H", 10)]);
     let mut h = fresh_harness(q.clone());
     open_task(&mut h, "sponsor-H", "task-H").await;
     lock_escrow(&mut h, "sponsor-H", "task-H", 200_000).await;

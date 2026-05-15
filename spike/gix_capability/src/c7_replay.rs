@@ -32,7 +32,14 @@ pub fn run(workdir: &Path) -> C7Result {
                 None => vec![],
             };
             let parents_refs: Vec<&git2::Commit> = parents.iter().collect();
-            let commit_id = repo.commit(Some("HEAD"), &sig, &sig, &format!("C7: step {i}"), &tree, &parents_refs)?;
+            let commit_id = repo.commit(
+                Some("HEAD"),
+                &sig,
+                &sig,
+                &format!("C7: step {i}"),
+                &tree,
+                &parents_refs,
+            )?;
             last_parent = Some(commit_id);
         }
 
@@ -42,13 +49,17 @@ pub fn run(workdir: &Path) -> C7Result {
         let mut walk1 = repo.revwalk()?;
         walk1.set_sorting(Sort::TOPOLOGICAL | Sort::TIME)?;
         walk1.push(head)?;
-        let walk1_oids: Vec<String> = walk1.filter_map(|r| r.ok().map(|oid| oid.to_string())).collect();
+        let walk1_oids: Vec<String> = walk1
+            .filter_map(|r| r.ok().map(|oid| oid.to_string()))
+            .collect();
 
         // Walk 2 (independently)
         let mut walk2 = repo.revwalk()?;
         walk2.set_sorting(Sort::TOPOLOGICAL | Sort::TIME)?;
         walk2.push(head)?;
-        let walk2_oids: Vec<String> = walk2.filter_map(|r| r.ok().map(|oid| oid.to_string())).collect();
+        let walk2_oids: Vec<String> = walk2
+            .filter_map(|r| r.ok().map(|oid| oid.to_string()))
+            .collect();
 
         let identical = walk1_oids == walk2_oids && walk1_oids.len() == 10;
 

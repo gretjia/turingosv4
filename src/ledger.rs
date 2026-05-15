@@ -190,9 +190,14 @@ pub struct LedgerEvent {
 
 impl LedgerEvent {
     /// Compute the SHA-256 hash for this event. Covers ALL fields.
-    fn compute_hash(seq: u64, event_type: &EventType, node_id: &Option<String>,
-                    agent: &Option<String>, detail: &Option<String>,
-                    prev_hash: &Option<String>) -> String {
+    fn compute_hash(
+        seq: u64,
+        event_type: &EventType,
+        node_id: &Option<String>,
+        agent: &Option<String>,
+        detail: &Option<String>,
+        prev_hash: &Option<String>,
+    ) -> String {
         let mut hasher = Sha256::new();
         hasher.update(seq.to_le_bytes());
         hasher.update(format!("{}", event_type).as_bytes());
@@ -229,10 +234,16 @@ impl Ledger {
 
     /// Append an event. Returns the event with computed hash.
     /// V3L-09: returns Result, never silently fails.
-    pub fn append(&mut self, event_type: EventType, node_id: Option<String>,
-                  agent: Option<String>, detail: Option<String>) -> Result<&LedgerEvent, TapeError> {
+    pub fn append(
+        &mut self,
+        event_type: EventType,
+        node_id: Option<String>,
+        agent: Option<String>,
+        detail: Option<String>,
+    ) -> Result<&LedgerEvent, TapeError> {
         let prev_hash = self.events.last().map(|e| e.hash.clone());
-        let hash = LedgerEvent::compute_hash(self.seq, &event_type, &node_id, &agent, &detail, &prev_hash);
+        let hash =
+            LedgerEvent::compute_hash(self.seq, &event_type, &node_id, &agent, &detail, &prev_hash);
 
         let event = LedgerEvent {
             seq: self.seq,
@@ -258,17 +269,19 @@ impl Ledger {
             let expected_last_seq = self.seq - 1;
             let actual_last_seq = self.events.last().unwrap().seq;
             if actual_last_seq != expected_last_seq {
-                return Err(TapeError::LedgerCorruption(
-                    format!("Truncation detected: expected last seq {}, got {}", expected_last_seq, actual_last_seq),
-                ));
+                return Err(TapeError::LedgerCorruption(format!(
+                    "Truncation detected: expected last seq {}, got {}",
+                    expected_last_seq, actual_last_seq
+                )));
             }
         }
         for (i, event) in self.events.iter().enumerate() {
             // Check sequence monotonicity
             if event.seq != i as u64 {
-                return Err(TapeError::LedgerCorruption(
-                    format!("seq mismatch at index {}: expected {}, got {}", i, i, event.seq),
-                ));
+                return Err(TapeError::LedgerCorruption(format!(
+                    "seq mismatch at index {}: expected {}, got {}",
+                    i, i, event.seq
+                )));
             }
 
             // Check prev_hash linkage
@@ -278,20 +291,26 @@ impl Ledger {
                 Some(self.events[i - 1].hash.clone())
             };
             if event.prev_hash != expected_prev {
-                return Err(TapeError::LedgerCorruption(
-                    format!("prev_hash mismatch at seq {}", event.seq),
-                ));
+                return Err(TapeError::LedgerCorruption(format!(
+                    "prev_hash mismatch at seq {}",
+                    event.seq
+                )));
             }
 
             // Recompute and verify hash
             let recomputed = LedgerEvent::compute_hash(
-                event.seq, &event.event_type, &event.node_id,
-                &event.agent, &event.detail, &event.prev_hash,
+                event.seq,
+                &event.event_type,
+                &event.node_id,
+                &event.agent,
+                &event.detail,
+                &event.prev_hash,
             );
             if event.hash != recomputed {
-                return Err(TapeError::LedgerCorruption(
-                    format!("hash mismatch at seq {}", event.seq),
-                ));
+                return Err(TapeError::LedgerCorruption(format!(
+                    "hash mismatch at seq {}",
+                    event.seq
+                )));
             }
         }
         Ok(())
@@ -322,7 +341,10 @@ impl Default for Ledger {
 #[derive(Debug, Clone)]
 pub enum TapeError {
     DuplicateId(String),
-    DanglingCitation { node_id: String, missing_parent: String },
+    DanglingCitation {
+        node_id: String,
+        missing_parent: String,
+    },
     LedgerCorruption(String),
 }
 
@@ -330,8 +352,14 @@ impl fmt::Display for TapeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             TapeError::DuplicateId(id) => write!(f, "Duplicate node ID: {}", id),
-            TapeError::DanglingCitation { node_id, missing_parent } =>
-                write!(f, "Node {} cites non-existent parent {}", node_id, missing_parent),
+            TapeError::DanglingCitation {
+                node_id,
+                missing_parent,
+            } => write!(
+                f,
+                "Node {} cites non-existent parent {}",
+                node_id, missing_parent
+            ),
             TapeError::LedgerCorruption(msg) => write!(f, "Ledger corruption: {}", msg),
         }
     }
@@ -370,8 +398,10 @@ mod tests {
     #[test]
     fn test_tape_append_with_valid_citation() {
         let mut tape = Tape::new();
-        tape.append(make_node("n1", "A0", "step 1", vec![])).unwrap();
-        tape.append(make_node("n2", "A1", "step 2", vec!["n1"])).unwrap();
+        tape.append(make_node("n1", "A0", "step 1", vec![]))
+            .unwrap();
+        tape.append(make_node("n2", "A1", "step 2", vec!["n1"]))
+            .unwrap();
         assert_eq!(tape.len(), 2);
         assert_eq!(tape.children("n1"), &["n2"]);
     }
@@ -380,7 +410,8 @@ mod tests {
     fn test_tape_reject_duplicate_id() {
         // V6 spacetime paradox protection
         let mut tape = Tape::new();
-        tape.append(make_node("n1", "A0", "step 1", vec![])).unwrap();
+        tape.append(make_node("n1", "A0", "step 1", vec![]))
+            .unwrap();
         let result = tape.append(make_node("n1", "A1", "step 2", vec![]));
         assert!(matches!(result, Err(TapeError::DuplicateId(_))));
     }
@@ -397,17 +428,22 @@ mod tests {
     fn test_tape_time_arrow_ordering() {
         let mut tape = Tape::new();
         tape.append(make_node("a", "A0", "first", vec![])).unwrap();
-        tape.append(make_node("b", "A1", "second", vec!["a"])).unwrap();
-        tape.append(make_node("c", "A0", "third", vec!["b"])).unwrap();
+        tape.append(make_node("b", "A1", "second", vec!["a"]))
+            .unwrap();
+        tape.append(make_node("c", "A0", "third", vec!["b"]))
+            .unwrap();
         assert_eq!(tape.time_arrow(), &["a", "b", "c"]);
     }
 
     #[test]
     fn test_tape_trace_ancestors() {
         let mut tape = Tape::new();
-        tape.append(make_node("root", "A0", "root", vec![])).unwrap();
-        tape.append(make_node("mid", "A1", "mid", vec!["root"])).unwrap();
-        tape.append(make_node("leaf", "A0", "leaf", vec!["mid"])).unwrap();
+        tape.append(make_node("root", "A0", "root", vec![]))
+            .unwrap();
+        tape.append(make_node("mid", "A1", "mid", vec!["root"]))
+            .unwrap();
+        tape.append(make_node("leaf", "A0", "leaf", vec!["mid"]))
+            .unwrap();
         let path = tape.trace_ancestors("leaf");
         assert_eq!(path, vec!["root", "mid", "leaf"]);
     }
@@ -415,9 +451,12 @@ mod tests {
     #[test]
     fn test_tape_dag_branching() {
         let mut tape = Tape::new();
-        tape.append(make_node("root", "A0", "root", vec![])).unwrap();
-        tape.append(make_node("b1", "A1", "branch 1", vec!["root"])).unwrap();
-        tape.append(make_node("b2", "A2", "branch 2", vec!["root"])).unwrap();
+        tape.append(make_node("root", "A0", "root", vec![]))
+            .unwrap();
+        tape.append(make_node("b1", "A1", "branch 1", vec!["root"]))
+            .unwrap();
+        tape.append(make_node("b2", "A2", "branch 2", vec!["root"]))
+            .unwrap();
         assert_eq!(tape.children("root").len(), 2);
     }
 
@@ -434,8 +473,17 @@ mod tests {
     #[test]
     fn test_ledger_append_and_verify() {
         let mut ledger = Ledger::new();
-        ledger.append(EventType::RunStart, None, None, None).unwrap();
-        ledger.append(EventType::Append, Some("n1".into()), Some("A0".into()), None).unwrap();
+        ledger
+            .append(EventType::RunStart, None, None, None)
+            .unwrap();
+        ledger
+            .append(
+                EventType::Append,
+                Some("n1".into()),
+                Some("A0".into()),
+                None,
+            )
+            .unwrap();
         ledger.append(EventType::RunEnd, None, None, None).unwrap();
         assert_eq!(ledger.len(), 3);
         assert!(ledger.verify().is_ok());
@@ -444,13 +492,25 @@ mod tests {
     #[test]
     fn test_ledger_hash_chain_integrity() {
         let mut ledger = Ledger::new();
-        ledger.append(EventType::RunStart, None, None, None).unwrap();
-        ledger.append(EventType::Append, Some("n1".into()), Some("A0".into()), None).unwrap();
+        ledger
+            .append(EventType::RunStart, None, None, None)
+            .unwrap();
+        ledger
+            .append(
+                EventType::Append,
+                Some("n1".into()),
+                Some("A0".into()),
+                None,
+            )
+            .unwrap();
 
         // First event has no prev_hash
         assert!(ledger.events()[0].prev_hash.is_none());
         // Second event links to first
-        assert_eq!(ledger.events()[1].prev_hash, Some(ledger.events()[0].hash.clone()));
+        assert_eq!(
+            ledger.events()[1].prev_hash,
+            Some(ledger.events()[0].hash.clone())
+        );
     }
 
     #[test]
@@ -467,7 +527,9 @@ mod tests {
     #[test]
     fn test_ledger_tamper_detection() {
         let mut ledger = Ledger::new();
-        ledger.append(EventType::RunStart, None, None, None).unwrap();
+        ledger
+            .append(EventType::RunStart, None, None, None)
+            .unwrap();
         ledger.append(EventType::Append, None, None, None).unwrap();
 
         // Tamper with an event
@@ -480,8 +542,12 @@ mod tests {
     fn test_ledger_omega_vocabulary() {
         // V3L-09: only OmegaAccepted is the canonical OMEGA event
         let mut ledger = Ledger::new();
-        ledger.append(EventType::OmegaInvoke, Some("n1".into()), None, None).unwrap();
-        ledger.append(EventType::OmegaAccepted, Some("n1".into()), None, None).unwrap();
+        ledger
+            .append(EventType::OmegaInvoke, Some("n1".into()), None, None)
+            .unwrap();
+        ledger
+            .append(EventType::OmegaAccepted, Some("n1".into()), None, None)
+            .unwrap();
         assert!(ledger.verify().is_ok());
         assert_eq!(ledger.events()[1].event_type, EventType::OmegaAccepted);
     }

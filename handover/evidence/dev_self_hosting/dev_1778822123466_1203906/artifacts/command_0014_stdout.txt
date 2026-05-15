@@ -1,0 +1,18 @@
+
+running 1 test
+test sg_6b_submit_candidate_strictly_precedes_market_open ... FAILED
+
+failures:
+
+---- sg_6b_submit_candidate_strictly_precedes_market_open stdout ----
+
+thread 'sg_6b_submit_candidate_strictly_precedes_market_open' (1240608) panicked at tests/constitution_real6_attempt_prediction_market.rs:101:6:
+open_t=0 would collapse SubmitCandidate and MarketOpen logical_t: AttemptPredictionFixture { schema_id: "real6b.attempt_prediction_fixture.v1", stage_limit: "REAL-6B = design + scripted fixture only. No live real-LLM ship until explicit Class-4 ratification.", task_id: TaskId("task-real6b-zero-open"), candidate_cid: Cid([189, 71, 174, 240, 97, 179, 255, 39, 63, 113, 32, 209, 149, 79, 254, 162, 201, 184, 108, 225, 90, 89, 121, 52, 39, 148, 129, 43, 251, 4, 190, 208]), submit_candidate_tx_id: TxId("submit-candidate-zero-open"), event_id: EventId(TaskId("attempt_prediction:task-real6b-zero-open:bd47aef061b3ff273f7120d1954ffea2c9b86ce15a5979342794812bfb04bed0")), opened_at_logical_t: 0, k_logical_ticks: 3, seed_liquidity_micro: MicroCoin(100000), yes_liquidity_micro: MicroCoin(100000), no_liquidity_micro: MicroCoin(100000), lean_oracle_result: Verified, price_affects_verification: false, live_llm_ship_enabled: false, steps: [AttemptPredictionStep { logical_t: 0, kind: SubmitCandidate, agent_id: None, role: None, chain_tape_visible: true, uses_wall_clock_sleep: false, observed_price: None, reserved_micro: MicroCoin(0), oracle_is_absolute_truth: false }, AttemptPredictionStep { logical_t: 0, kind: AttemptPredictionMarketOpen, agent_id: None, role: None, chain_tape_visible: true, uses_wall_clock_sleep: false, observed_price: Some("1/2"), reserved_micro: MicroCoin(0), oracle_is_absolute_truth: false }, AttemptPredictionStep { logical_t: 1, kind: TraderAction, agent_id: Some(AgentId("Agent_trader")), role: Some(Trader), chain_tape_visible: true, uses_wall_clock_sleep: false, observed_price: Some("1/2"), reserved_micro: MicroCoin(10000), oracle_is_absolute_truth: false }, AttemptPredictionStep { logical_t: 2, kind: VerifierAction, agent_id: Some(AgentId("Agent_verifier")), role: Some(Verifier), chain_tape_visible: true, uses_wall_clock_sleep: false, observed_price: Some("1/2"), reserved_micro: MicroCoin(0), oracle_is_absolute_truth: false }, AttemptPredictionStep { logical_t: 3, kind: ChallengerAction, agent_id: Some(AgentId("Agent_challenger")), role: Some(Challenger), chain_tape_visible: true, uses_wall_clock_sleep: false, observed_price: Some("1/2"), reserved_micro: MicroCoin(0), oracle_is_absolute_truth: false }, AttemptPredictionStep { logical_t: 4, kind: MarketClose, agent_id: None, role: None, chain_tape_visible: true, uses_wall_clock_sleep: false, observed_price: Some("1/2"), reserved_micro: MicroCoin(0), oracle_is_absolute_truth: false }, AttemptPredictionStep { logical_t: 5, kind: OracleResolve, agent_id: None, role: None, chain_tape_visible: true, uses_wall_clock_sleep: false, observed_price: None, reserved_micro: MicroCoin(0), oracle_is_absolute_truth: true }] }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    sg_6b_submit_candidate_strictly_precedes_market_open
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+

@@ -79,16 +79,15 @@ use turingosv4::economy::money::MicroCoin;
 use turingosv4::runtime::agent_keypairs::AgentKeypairRegistry;
 use turingosv4::runtime::verify::{verify_chaintape, VerifyOptions};
 use turingosv4::runtime::{
-    build_chaintape_sequencer_with_initial_q, PinnedPubkeyManifest,
-    RuntimeChaintapeConfig,
+    build_chaintape_sequencer_with_initial_q, PinnedPubkeyManifest, RuntimeChaintapeConfig,
 };
 use turingosv4::state::q_state::{
     AgentId, QState, ShareSidePair, TaskId, TaskMarketEntry, TaskMarketState, TxId,
 };
 use turingosv4::state::sequencer::complete_set_mint_accept_state_root;
 use turingosv4::state::typed_tx::{
-    AgentSignature, CompleteSetMintTx, CompleteSetRedeemTx, EventId, OutcomeSide,
-    ShareAmount, TypedTx,
+    AgentSignature, CompleteSetMintTx, CompleteSetRedeemTx, EventId, OutcomeSide, ShareAmount,
+    TypedTx,
 };
 use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
@@ -172,8 +171,7 @@ fn manual_replay_from_disk(
 
     // Load pinned-pubkey manifest from disk + decode into PinnedSystemPubkeys.
     let manifest_path = runtime_repo_path.join("pinned_pubkeys.json");
-    let manifest_json =
-        std::fs::read_to_string(&manifest_path).expect("read pinned_pubkeys.json");
+    let manifest_json = std::fs::read_to_string(&manifest_path).expect("read pinned_pubkeys.json");
     let manifest: PinnedPubkeyManifest =
         serde_json::from_str(&manifest_json).expect("parse pinned_pubkeys.json");
     let mut pinned = PinnedSystemPubkeys::new();
@@ -183,7 +181,10 @@ fn manual_replay_from_disk(
             .map(|i| u8::from_str_radix(&entry.pubkey_hex[i..i + 2], 16).expect("hex"))
             .collect();
         let arr: [u8; 32] = bytes.as_slice().try_into().expect("32-byte pubkey");
-        pinned.insert(SystemEpoch::new(entry.epoch), SystemPublicKey::from_bytes(arr));
+        pinned.insert(
+            SystemEpoch::new(entry.epoch),
+            SystemPublicKey::from_bytes(arr),
+        );
     }
 
     let cas = CasStore::open(cas_path).expect("open cas");
@@ -212,16 +213,15 @@ async fn rq3_non_empty_tb13_chaintape_replays_with_state_root_match() {
     let mint_amount_micro: i64 = 2_000_000;
     let redeem_units: i64 = 4_000_000;
 
-    let initial_q =
-        build_smoke_initial_q(alice, mint_task, redeem_task, redeem_units);
+    let initial_q = build_smoke_initial_q(alice, mint_task, redeem_task, redeem_units);
     let bundle = build_chaintape_sequencer_with_initial_q(&cfg, initial_q)
         .expect("bootstrap chaintape sequencer");
 
     // Register alice in an AgentKeypairRegistry rooted at runtime_repo —
     // this writes <runtime_repo>/agent_pubkeys.json which verify_chaintape
     // Gate 4 reads on replay.
-    let mut reg = AgentKeypairRegistry::open(&cfg.runtime_repo_path)
-        .expect("open agent keypair registry");
+    let mut reg =
+        AgentKeypairRegistry::open(&cfg.runtime_repo_path).expect("open agent keypair registry");
     reg.get_or_create(&alice_id)
         .expect("generate alice keypair");
     bundle
@@ -245,9 +245,7 @@ async fn rq3_non_empty_tb13_chaintape_replays_with_state_root_match() {
         signature: AgentSignature::from_bytes([0u8; 64]),
         timestamp_logical: 100,
     };
-    let mint_digest = mint_unsigned
-        .to_signing_payload()
-        .canonical_digest();
+    let mint_digest = mint_unsigned.to_signing_payload().canonical_digest();
     let mint_sig = reg.sign(&alice_id, mint_digest).expect("sign mint");
     let mint_tx = TypedTx::CompleteSetMint(CompleteSetMintTx {
         signature: mint_sig,
@@ -261,8 +259,7 @@ async fn rq3_non_empty_tb13_chaintape_replays_with_state_root_match() {
     // carry without racing the driver. The dispatcher will compute the same
     // hash when applying the mint; the redeem's parent_state_root then
     // matches q.state_root_t at apply-time (no StaleParent rejection).
-    let after_mint_root =
-        complete_set_mint_accept_state_root(&initial_root, &mint_tx);
+    let after_mint_root = complete_set_mint_accept_state_root(&initial_root, &mint_tx);
 
     let redeem_unsigned = CompleteSetRedeemTx {
         tx_id: TxId("rq3-redeem-1".into()),
@@ -274,9 +271,7 @@ async fn rq3_non_empty_tb13_chaintape_replays_with_state_root_match() {
         signature: AgentSignature::from_bytes([0u8; 64]),
         timestamp_logical: 101,
     };
-    let redeem_digest = redeem_unsigned
-        .to_signing_payload()
-        .canonical_digest();
+    let redeem_digest = redeem_unsigned.to_signing_payload().canonical_digest();
     let redeem_sig = reg.sign(&alice_id, redeem_digest).expect("sign redeem");
     let redeem_tx = TypedTx::CompleteSetRedeem(CompleteSetRedeemTx {
         signature: redeem_sig,
@@ -301,20 +296,14 @@ async fn rq3_non_empty_tb13_chaintape_replays_with_state_root_match() {
     let seq_handle = bundle.sequencer.clone();
     bundle.shutdown().await.expect("shutdown drain");
 
-    let live_q = seq_handle
-        .q_snapshot()
-        .expect("post-drain q_snapshot");
+    let live_q = seq_handle.q_snapshot().expect("post-drain q_snapshot");
     let live_state_root = live_q.state_root_t;
 
     // Sanity — non-empty TB-13 maps. mint_task added a new collateral entry
     // (size 2: pre-seeded redeem + new mint); alice has shares for both
     // events post-redeem (yes side debited on redeem, no side preserved).
     let collateral_count = live_q.economic_state_t.conditional_collateral_t.0.len();
-    let share_owner_count = live_q
-        .economic_state_t
-        .conditional_share_balances_t
-        .0
-        .len();
+    let share_owner_count = live_q.economic_state_t.conditional_share_balances_t.0.len();
     assert!(
         collateral_count >= 2,
         "expected ≥2 conditional_collateral_t entries (pre-seeded redeem task + mint task); got {collateral_count}"
@@ -397,8 +386,7 @@ async fn rq3_non_empty_tb13_chaintape_replays_with_state_root_match() {
     let replayed_q = manual_replay_from_disk(&cfg.runtime_repo_path, &cfg.cas_path);
 
     assert_eq!(
-        replayed_q.state_root_t,
-        live_state_root,
+        replayed_q.state_root_t, live_state_root,
         "manual replay state_root must equal live state_root (sanity)"
     );
     assert_eq!(
@@ -426,26 +414,17 @@ async fn rq3_non_empty_tb13_chaintape_replays_with_state_root_match() {
     // 2026-05-07 evidence-immutability fix: gated behind
     // TURINGOS_TEST_REGENERATE_EVIDENCE=1. See
     // OBS_EVIDENCE_DRIFT_ROOT_CAUSE_2026-05-07.md.
-    let evidence_dir = std::path::Path::new(
-        "handover/evidence/tb_13_chaintape_smoke_2026-05-03",
-    );
+    let evidence_dir = std::path::Path::new("handover/evidence/tb_13_chaintape_smoke_2026-05-03");
     let regen_enabled = std::env::var("TURINGOS_TEST_REGENERATE_EVIDENCE")
         .ok()
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
         .unwrap_or(false);
     if regen_enabled && std::fs::create_dir_all(evidence_dir).is_ok() {
-        let report_json =
-            serde_json::to_string_pretty(&report).expect("serialize report");
-        let _ = std::fs::write(
-            evidence_dir.join("replay_report.json"),
-            report_json,
-        );
+        let report_json = serde_json::to_string_pretty(&report).expect("serialize report");
+        let _ = std::fs::write(evidence_dir.join("replay_report.json"), report_json);
         let agent_pubkeys_src = cfg.runtime_repo_path.join("agent_pubkeys.json");
         if agent_pubkeys_src.exists() {
-            let _ = std::fs::copy(
-                &agent_pubkeys_src,
-                evidence_dir.join("agent_pubkeys.json"),
-            );
+            let _ = std::fs::copy(&agent_pubkeys_src, evidence_dir.join("agent_pubkeys.json"));
         }
         let _ = std::fs::write(
             evidence_dir.join("README.md"),

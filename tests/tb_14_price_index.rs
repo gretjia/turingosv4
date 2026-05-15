@@ -16,9 +16,7 @@
 use turingosv4::economy::money::MicroCoin;
 use turingosv4::state::q_state::AgentId;
 use turingosv4::state::typed_tx::{EventId, NodePosition, PositionKind, PositionSide};
-use turingosv4::state::{
-    compute_price_index, EconomicState, RationalPrice, TaskId, TxId,
-};
+use turingosv4::state::{compute_price_index, EconomicState, RationalPrice, TaskId, TxId};
 
 fn make_position(
     position_id: &str,
@@ -76,7 +74,9 @@ fn sg_14_1_price_index_computes_yes_no_probabilities() {
     ]);
 
     let idx = compute_price_index(&econ);
-    let entry = idx.get(&TxId("node_main".into())).expect("node_main present");
+    let entry = idx
+        .get(&TxId("node_main".into()))
+        .expect("node_main present");
 
     // FR-14.1: price_yes = long / (long + short) = 600_000 / 1_000_000.
     assert_eq!(
@@ -107,7 +107,10 @@ fn sg_14_1_price_index_computes_yes_no_probabilities() {
     // Coin holdings: long_interest + short_interest == liquidity_depth.
     assert_eq!(entry.long_interest, MicroCoin::from_micro_units(600_000));
     assert_eq!(entry.short_interest, MicroCoin::from_micro_units(400_000));
-    assert_eq!(entry.liquidity_depth, MicroCoin::from_micro_units(1_000_000));
+    assert_eq!(
+        entry.liquidity_depth,
+        MicroCoin::from_micro_units(1_000_000)
+    );
 }
 
 /// SG-14.2 — zero-liquidity node yields `price_yes == None` and `price_no == None`.

@@ -77,6 +77,9 @@ G_PHASE_CONDITION="${TURINGOS_G_PHASE_CONDITION:-n${G_PHASE_N_AGENTS}}"
 AGENT_MODELS_RAW="${AGENT_MODELS:-}"
 PHASE_D_HETERO_OK_VALUE="${PHASE_D_HETERO_OK:-0}"
 AGENT_MODELS_HASH="$(printf '%s' "$AGENT_MODELS_RAW" | sha256sum | awk '{print $1}')"
+REAL5_ROLE_ASSIGNMENT_RAW="${TURINGOS_REAL5_ROLE_ASSIGNMENT:-}"
+REAL5_ROLE_ASSIGNMENT_HASH="$(printf '%s' "$REAL5_ROLE_ASSIGNMENT_RAW" | sha256sum | awk '{print $1}')"
+REAL5_ROLE_VIEWS_VALUE="${TURINGOS_REAL5_ROLE_VIEWS:-0}"
 if [[ -z "${TURINGOS_G4_REQUIRED_MODEL_FAMILIES:-}" ]]; then
     if [[ "$RUN_TAG" == g_phase_g4_2_* ]]; then
         TURINGOS_G4_REQUIRED_MODEL_FAMILIES=3
@@ -188,6 +191,8 @@ echo "G_PHASE_CONDITION= $G_PHASE_CONDITION"
 echo "AGENT_MODELS     = ${AGENT_MODELS_RAW:-<empty>}"
 echo "PHASE_D_HETERO_OK= $PHASE_D_HETERO_OK_VALUE"
 echo "MODEL_FAMILIES   = observed=$MODEL_FAMILY_COUNT_OBSERVED required=$TURINGOS_G4_REQUIRED_MODEL_FAMILIES"
+echo "REAL5_ROLES      = ${REAL5_ROLE_ASSIGNMENT_RAW:-<empty>}"
+echo "REAL5_ROLE_VIEWS = $REAL5_ROLE_VIEWS_VALUE"
 echo "LLM_PROXY_URL    = $LLM_PROXY_URL"
 echo "MINIF2F_DIR      = $MINIF2F_DIR"
 echo "PER_PROB_TIMEOUT = ${PER_PROBLEM_TIMEOUT_S}s"
@@ -227,7 +232,13 @@ BATCH_ID="${RUN_TAG}_${GIT_HEAD:0:7}"
 # ── Build release binaries ──────────────────────────────────────────────────
 
 echo "[build] cargo build --release -p minif2f_v4 --bin evaluator --bin batch_evaluator -p turingosv4 --bin audit_tape --bin tb_g_persistence_report"
-(cd "$PROJECT_ROOT" && cargo build --release -p minif2f_v4 --bin evaluator --bin batch_evaluator -p turingosv4 --bin audit_tape --bin tb_g_persistence_report 2>&1 | tail -5)
+BUILD_LOG="$RUN_DIR/cargo_build_release.log"
+if ! (cd "$PROJECT_ROOT" && cargo build --release -p minif2f_v4 --bin evaluator --bin batch_evaluator -p turingosv4 --bin audit_tape --bin tb_g_persistence_report > "$BUILD_LOG" 2>&1); then
+    tail -80 "$BUILD_LOG" >&2 || true
+    echo "ERROR: release binary build failed; refusing to continue with stale release binaries" >&2
+    exit 6
+fi
+tail -5 "$BUILD_LOG"
 EVALUATOR="$PROJECT_ROOT/target/release/evaluator"
 BATCH_EVALUATOR="$PROJECT_ROOT/target/release/batch_evaluator"
 AUDIT_TAPE="$PROJECT_ROOT/target/release/audit_tape"
@@ -259,6 +270,9 @@ cat > "$RUN_DIR/G_PHASE_BATCH_MANIFEST.json" <<EOF
   "assignment_summary": "$ASSIGNMENT_SUMMARY",
   "model_family_count_required": $TURINGOS_G4_REQUIRED_MODEL_FAMILIES,
   "model_family_count_observed": $MODEL_FAMILY_COUNT_OBSERVED,
+  "real5_role_assignment": "$REAL5_ROLE_ASSIGNMENT_RAW",
+  "real5_role_assignment_hash": "$REAL5_ROLE_ASSIGNMENT_HASH",
+  "real5_role_views_enabled": "$REAL5_ROLE_VIEWS_VALUE",
   "llm_proxy_url": "$LLM_PROXY_URL",
   "minif2f_dir": "$MINIF2F_DIR",
   "per_problem_timeout_s": $PER_PROBLEM_TIMEOUT_S,
@@ -281,6 +295,8 @@ export ACTIVE_MODEL
 export AGENT_MODELS="$AGENT_MODELS_RAW"
 export PHASE_D_HETERO_OK="$PHASE_D_HETERO_OK_VALUE"
 export TURINGOS_G4_REQUIRED_MODEL_FAMILIES
+export TURINGOS_REAL5_ROLE_ASSIGNMENT="$REAL5_ROLE_ASSIGNMENT_RAW"
+export TURINGOS_REAL5_ROLE_VIEWS="$REAL5_ROLE_VIEWS_VALUE"
 export LLM_PROXY_URL
 export TURINGOS_TB_N3_AUTO_MARKET="${TURINGOS_TB_N3_AUTO_MARKET:-1}"
 

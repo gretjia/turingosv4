@@ -97,8 +97,7 @@ fn fc1_n41_lean_result_failure_path_with_shielded_stderr() {
         verdict_kind: LeanVerdictKind::Failed,
     };
 
-    let cid = write_lean_result_to_cas(&mut cas, &original, "evaluator", 21)
-        .expect("write");
+    let cid = write_lean_result_to_cas(&mut cas, &original, "evaluator", 21).expect("write");
     let recovered = read_lean_result_from_cas(&cas, &cid).expect("read");
 
     assert_eq!(original, recovered);

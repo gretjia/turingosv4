@@ -1,0 +1,13 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "reviewer": "clean-context-codex-gpt-5.5-xhigh",
+  "verdict": "PROCEED",
+  "findings_summary": "R3_CHALLENGE_closed_runtime_CAS_emission_and_TaskOutcomeMarket_price_signals_R6_final_clean_closeout",
+  "source_file": {
+    "path": "handover/audits/CODEX_REAL6D_IMPLEMENTATION_REVIEW_R4.md",
+    "sha256": "316b9c5e50fe12be2624a7e0486be3c64c94f1e198a84f2a4e07875db58af069",
+    "size_bytes": 7854
+  },
+  "payload_manifest_hash": "3df22b95f770412f745a4ce6aa1268bb51a5976f2d1bfb6ea69e8aa843397a93",
+  "recorded_at_unix_ms": 1778836004992
+}

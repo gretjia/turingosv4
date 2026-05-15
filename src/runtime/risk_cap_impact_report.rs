@@ -503,10 +503,9 @@ pub fn compute_finalize_reward_payout_breakdown(
         for (tx_id, e) in q_pre.stakes_t.0.iter() {
             if e.task_id == claim.task_id && *tx_id != claim.work_tx_id {
                 let amt = e.amount.micro_units();
-                verifier_bond_return_delta_micro = verifier_bond_return_delta_micro
-                    .saturating_add(amt);
-                verifier_bonds_at_pre_micro = verifier_bonds_at_pre_micro
-                    .saturating_add(amt);
+                verifier_bond_return_delta_micro =
+                    verifier_bond_return_delta_micro.saturating_add(amt);
+                verifier_bonds_at_pre_micro = verifier_bonds_at_pre_micro.saturating_add(amt);
             }
         }
         // Escrow at pre = escrows_t[claim.escrow_lock_tx_id].amount.
@@ -515,10 +514,10 @@ pub fn compute_finalize_reward_payout_breakdown(
         }
     }
 
-    let total_payout_delta_micro = solver_reward_delta_micro
-        .saturating_add(verifier_bond_return_delta_micro);
-    let escrow_plus_bonds_at_pre_micro = escrow_at_pre_micro
-        .saturating_add(verifier_bonds_at_pre_micro);
+    let total_payout_delta_micro =
+        solver_reward_delta_micro.saturating_add(verifier_bond_return_delta_micro);
+    let escrow_plus_bonds_at_pre_micro =
+        escrow_at_pre_micro.saturating_add(verifier_bonds_at_pre_micro);
 
     FinalizeRewardPayoutBreakdown {
         claim_id,

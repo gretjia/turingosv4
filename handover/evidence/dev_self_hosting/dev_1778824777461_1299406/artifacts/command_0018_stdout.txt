@@ -1,0 +1,13 @@
+
+running 8 tests
+test sg_g3_13_b_build_agent_prompt_signature_has_10th_param ... ok
+test sg_g3_13_a_no_other_agent_leak ... ok
+test sg_g3_13_d_full_prompt_carries_your_position_block ... ok
+test sg_g3_13_drucker_verbatim_framing ... ok
+test sg_g3_7_non_default_render_witnessed ... ok
+test sg_g3_13_e_empty_your_position_suppresses_block ... ok
+test sg_g3_13_c_evaluator_wires_render_your_position ... ok
+test sg_g3_6_per_viewer_source_grep ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

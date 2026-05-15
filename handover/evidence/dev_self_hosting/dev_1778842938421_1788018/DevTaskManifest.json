@@ -1,0 +1,24 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778842938421_1788018",
+  "title": "REAL-8 REAL-9 formal market benchmark and synthesis",
+  "module": "REAL-8/REAL-9 Formal Market A/B Benchmark + Launch Synthesis",
+  "molecule_or_atom": "molecule",
+  "requested_risk_class": 4,
+  "risk_class": 4,
+  "fc_nodes": [
+    "FC1 externalized market action -> L4/L4.E/CAS; FC2 pinned benchmark inputs + Trust Root; FC3 materialized A/B report and launch synthesis; price signal not truth"
+  ],
+  "allowed_paths": [
+    "scripts/run_real8_market_ab_benchmark.sh"
+  ],
+  "restricted_surface_hits": [],
+  "acceptance_commands": [
+    "cargo check"
+  ],
+  "audit_required": true,
+  "human_intent": null,
+  "ratification": null,
+  "git_head": "5239f4b13ecf0a3f9850accc6815c2e7944e9bee",
+  "created_at_unix_ms": 1778842938422
+}

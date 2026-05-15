@@ -56,11 +56,7 @@ pub fn assert_no_metric_leak(prompt: &str) {
             let start = idx.saturating_sub(40);
             let end = (idx + needle_lower.len() + 40).min(prompt.len());
             // Preview from ORIGINAL prompt so capitalization is preserved.
-            let preview: String = prompt
-                .chars()
-                .skip(start)
-                .take(end - start)
-                .collect();
+            let preview: String = prompt.chars().skip(start).take(end - start).collect();
             panic!(
                 "PPUT_CONTEXT_LEAK_DETECTED: forbidden substring '{}' found \
                  in agent prompt at byte offset {}. PREREG § 3 #6 + plan B6: \

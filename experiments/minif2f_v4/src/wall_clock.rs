@@ -37,12 +37,17 @@ pub struct RunWallClock {
 }
 
 impl Default for RunWallClock {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl RunWallClock {
     pub fn new() -> Self {
-        Self { first_read: None, final_accept: None }
+        Self {
+            first_read: None,
+            final_accept: None,
+        }
     }
 
     /// Stamp the bracket open at first agent prompt construction.
@@ -120,11 +125,17 @@ mod tests {
 
         // Plan B3 strict assertion: bracket must include prompt construction
         // (100ms) + LLM call (5s) + Lean verify (2s) = 7100ms minimum.
-        assert!(elapsed >= 7100,
-            "wall_time_ms must include prompt + LLM + Lean (≥ 7100ms), got {}", elapsed);
+        assert!(
+            elapsed >= 7100,
+            "wall_time_ms must include prompt + LLM + Lean (≥ 7100ms), got {}",
+            elapsed
+        );
         // Upper bound catches over-counting bugs (e.g., double-bracketed Lean).
-        assert!(elapsed <= 7200,
-            "wall_time_ms must not double-count (≤ 7200ms slack), got {}", elapsed);
+        assert!(
+            elapsed <= 7200,
+            "wall_time_ms must not double-count (≤ 7200ms slack), got {}",
+            elapsed
+        );
     }
 
     #[test]
@@ -134,8 +145,11 @@ mod tests {
         let first = wc.first_read.expect("set");
         std::thread::sleep(Duration::from_millis(2));
         wc.mark_first_read(); // should be no-op
-        assert_eq!(wc.first_read, Some(first),
-            "first_read must be set once; later calls no-op");
+        assert_eq!(
+            wc.first_read,
+            Some(first),
+            "first_read must be set once; later calls no-op"
+        );
     }
 
     #[test]
@@ -150,8 +164,10 @@ mod tests {
         std::thread::sleep(Duration::from_millis(2));
         wc.mark_final_accept();
         let second_close = wc.final_accept.expect("set");
-        assert!(second_close > first_close,
-            "final_accept must update on each call; second must be later");
+        assert!(
+            second_close > first_close,
+            "final_accept must update on each call; second must be later"
+        );
     }
 
     #[test]
@@ -162,13 +178,19 @@ mod tests {
         wc.mark_first_read();
         std::thread::sleep(Duration::from_millis(5));
         let e = wc.elapsed_ms().expect("first_read set");
-        assert!(e >= 5, "elapsed must reflect time since first_read, got {}ms", e);
+        assert!(
+            e >= 5,
+            "elapsed must reflect time since first_read, got {}ms",
+            e
+        );
     }
 
     #[test]
     fn test_wall_clock_unmarked_returns_none() {
         let wc = RunWallClock::new();
-        assert!(wc.elapsed_ms().is_none(),
-            "elapsed_ms must be None before first_read is marked");
+        assert!(
+            wc.elapsed_ms().is_none(),
+            "elapsed_ms must be None before first_read is marked"
+        );
     }
 }

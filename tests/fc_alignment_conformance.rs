@@ -50,7 +50,10 @@ fn fc1_n4_tape_constructible_with_time_arrow() {
     // exposes a time-arrow accessor (the canonical FC1-N3 HEAD idiom is
     // tape.time_arrow().last()).
     let tape = Tape::new();
-    assert!(tape.time_arrow().is_empty(), "fresh tape has empty time-arrow");
+    assert!(
+        tape.time_arrow().is_empty(),
+        "fresh tape has empty time-arrow"
+    );
 }
 
 #[test]
@@ -112,7 +115,11 @@ fn fc1_n11_n15_e18_pi_p_zero_preserves_q_t_via_forbidden_pattern() {
         ..BusConfig::default()
     };
     let mut bus = TuringBus::new(kernel, config);
-    let result = bus.append("Agent_X", "this contains FORBIDDEN_PATTERN_TEST inline", None);
+    let result = bus.append(
+        "Agent_X",
+        "this contains FORBIDDEN_PATTERN_TEST inline",
+        None,
+    );
     assert!(
         matches!(result, Ok(BusResult::Vetoed { .. })),
         "FC1-E18: ∏p=0 must veto and preserve Q_t"
@@ -175,9 +182,7 @@ fn fc3_n34_trust_root_error_taxonomy_present() {
 #[test]
 fn fc3_n34_parse_trust_root_section_helper() {
     // FC3-N34 helper used by trust_root_immutability conformance battery.
-    let result = parse_trust_root_section(
-        "[trust_root]\n\"foo.rs\" = \"deadbeef\"\n",
-    );
+    let result = parse_trust_root_section("[trust_root]\n\"foo.rs\" = \"deadbeef\"\n");
     assert!(result.is_ok());
 }
 
@@ -190,10 +195,15 @@ fn fc3_n31_logs_archive_wal_open_in_tempdir() {
         "fc_alignment_conformance_wal_{}_{}",
         std::process::id(),
         std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
     ));
     let wal = Wal::open(&tmp);
-    assert!(wal.is_ok(), "FC3-N31: Wal::open must succeed at fresh tempdir path");
+    assert!(
+        wal.is_ok(),
+        "FC3-N31: Wal::open must succeed at fresh tempdir path"
+    );
     // Cleanup
     let _ = std::fs::remove_file(&tmp);
 }
@@ -203,7 +213,10 @@ fn fc3_n39_log_ledger_present_and_appendable() {
     // FC3-N39 log = Ledger + LedgerEvent + Ledger::append.
     let mut ledger = Ledger::new();
     let event = ledger.append(EventType::RunStart, None, None, None);
-    assert!(event.is_ok(), "FC3-N39: Ledger::append must succeed for RunStart");
+    assert!(
+        event.is_ok(),
+        "FC3-N39: Ledger::append must succeed for RunStart"
+    );
     let events: &[LedgerEvent] = ledger.events();
     assert_eq!(events.len(), 1, "FC3-N39: appended event present in ledger");
 }
@@ -229,10 +242,9 @@ fn fc3_s3_readonly_subgraph_manifest_size() {
     // entries.
     use std::fs;
     use std::path::PathBuf;
-    let genesis = fs::read_to_string(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("genesis_payload.toml"),
-    )
-    .expect("genesis_payload.toml exists");
+    let genesis =
+        fs::read_to_string(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("genesis_payload.toml"))
+            .expect("genesis_payload.toml exists");
     let entries = parse_trust_root_section(&genesis).expect("trust_root parses");
     assert!(
         entries.len() >= 20,
@@ -314,9 +326,7 @@ fn fc3_n42_compute_price_index_pure_fn_witness() {
     use turingosv4::economy::money::MicroCoin;
     use turingosv4::state::q_state::AgentId;
     use turingosv4::state::typed_tx::{NodePosition, PositionKind, PositionSide};
-    use turingosv4::state::{
-        compute_price_index, EconomicState, RationalPrice, TaskId, TxId,
-    };
+    use turingosv4::state::{compute_price_index, EconomicState, RationalPrice, TaskId, TxId};
 
     // Construct minimal EconomicState with one Long position.
     let mut econ = EconomicState::default();
@@ -400,23 +410,42 @@ fn fc2_n28_mask_set_publication_witness() {
     edges.insert(TxId("parent_n".into()), children);
 
     let mut econ = EconomicState::default();
-    let mk_pos = |pid: &str, node: &str, side: PositionSide, kind: PositionKind, amt: i64| -> NodePosition {
-        NodePosition {
-            position_id: TxId(pid.into()),
-            node_id: TxId(node.into()),
-            task_id: TaskId("t".into()),
-            owner: AgentId("a".into()),
-            side,
-            kind,
-            amount: MicroCoin::from_micro_units(amt),
-            source_tx: TxId(pid.into()),
-            opened_at_round: 1,
-        }
-    };
+    let mk_pos =
+        |pid: &str, node: &str, side: PositionSide, kind: PositionKind, amt: i64| -> NodePosition {
+            NodePosition {
+                position_id: TxId(pid.into()),
+                node_id: TxId(node.into()),
+                task_id: TaskId("t".into()),
+                owner: AgentId("a".into()),
+                side,
+                kind,
+                amount: MicroCoin::from_micro_units(amt),
+                source_tx: TxId(pid.into()),
+                opened_at_round: 1,
+            }
+        };
     for p in [
-        mk_pos("p1", "parent_n", PositionSide::Long, PositionKind::FirstLong, 500_000),
-        mk_pos("p2", "parent_n", PositionSide::Short, PositionKind::ChallengeShort, 500_000),
-        mk_pos("p3", "child_n", PositionSide::Long, PositionKind::FirstLong, 2_000_000),
+        mk_pos(
+            "p1",
+            "parent_n",
+            PositionSide::Long,
+            PositionKind::FirstLong,
+            500_000,
+        ),
+        mk_pos(
+            "p2",
+            "parent_n",
+            PositionSide::Short,
+            PositionKind::ChallengeShort,
+            500_000,
+        ),
+        mk_pos(
+            "p3",
+            "child_n",
+            PositionSide::Long,
+            PositionKind::FirstLong,
+            2_000_000,
+        ),
     ] {
         econ.node_positions_t.0.insert(p.position_id.clone(), p);
     }
@@ -451,9 +480,7 @@ fn fc2_n29_boltzmann_select_parent_v2_witness() {
     use rand::SeedableRng;
     use std::collections::{BTreeMap, BTreeSet};
     use turingosv4::sdk::actor::boltzmann_select_parent_v2;
-    use turingosv4::state::{
-        BoltzmannMaskPolicy, NodeMarketEntry, RationalPrice, TxId,
-    };
+    use turingosv4::state::{BoltzmannMaskPolicy, NodeMarketEntry, RationalPrice, TxId};
 
     // FC2-N29 (a): with epsilon=0, v2 picks the argmax candidate.
     let mut price_index: BTreeMap<TxId, NodeMarketEntry> = BTreeMap::new();
@@ -484,8 +511,7 @@ fn fc2_n29_boltzmann_select_parent_v2_witness() {
         ..BoltzmannMaskPolicy::default()
     };
     let mut rng = rand::rngs::StdRng::seed_from_u64(42);
-    let pick =
-        boltzmann_select_parent_v2(&price_index, &mask, &argmax_policy, &mut rng);
+    let pick = boltzmann_select_parent_v2(&price_index, &mask, &argmax_policy, &mut rng);
     assert_eq!(
         pick,
         Some(TxId("high_node".into())),
@@ -496,8 +522,7 @@ fn fc2_n29_boltzmann_select_parent_v2_witness() {
     let mut mask_high: BTreeSet<TxId> = BTreeSet::new();
     mask_high.insert(TxId("high_node".into()));
     let mut rng = rand::rngs::StdRng::seed_from_u64(42);
-    let pick =
-        boltzmann_select_parent_v2(&price_index, &mask_high, &argmax_policy, &mut rng);
+    let pick = boltzmann_select_parent_v2(&price_index, &mask_high, &argmax_policy, &mut rng);
     assert_eq!(
         pick,
         Some(TxId("low_node".into())),
@@ -536,7 +561,6 @@ fn fc2_n29_boltzmann_select_parent_v2_witness() {
         "FC2-N29: boltzmann_select_parent_v2 deterministic under fixed seed"
     );
 }
-
 
 // ───────────────────────────────────────────────────────────────────────
 // TB-15 — FC1-N32 + FC1-N33 + FC2-N30 + FC3-N43 witnesses.
@@ -608,7 +632,10 @@ fn fc1_n33_derive_autopsies_witness() {
     let a = derive_autopsies_for_bankruptcy(&econ, &bk, 1, 5);
     let b = derive_autopsies_for_bankruptcy(&econ, &bk, 1, 5);
     assert_eq!(a.len(), 1);
-    assert_eq!(a[0].capsule.capsule_id, b[0].capsule.capsule_id, "FC1-N33: deterministic Cid");
+    assert_eq!(
+        a[0].capsule.capsule_id, b[0].capsule.capsule_id,
+        "FC1-N33: deterministic Cid"
+    );
 }
 
 /// FC2-N30 (TB-15 Atom 4): cluster_autopsies pure aggregator. Witness:

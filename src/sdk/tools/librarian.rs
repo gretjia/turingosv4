@@ -39,7 +39,8 @@ impl LibrarianTool {
 
     /// Check if compression should fire (every N appends).
     pub fn should_compress(&self) -> bool {
-        self.compress_interval > 0 && self.append_count > 0
+        self.compress_interval > 0
+            && self.append_count > 0
             && self.append_count % self.compress_interval == 0
     }
 
@@ -112,7 +113,9 @@ impl LibrarianTool {
         let line = format!("## POST {} @ {}\n{}\n", author, ts, msg);
         use std::io::Write;
         let mut f = std::fs::OpenOptions::new()
-            .create(true).append(true).open(&path)?;
+            .create(true)
+            .append(true)
+            .open(&path)?;
         f.write_all(line.as_bytes())?;
         Ok(())
     }
@@ -127,8 +130,12 @@ impl TuringTool for LibrarianTool {
         self.append_count += 1;
     }
 
-    fn as_any(&self) -> &dyn Any { self }
-    fn as_any_mut(&mut self) -> &mut dyn Any { self }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
 }
 
 #[cfg(test)]
@@ -172,7 +179,8 @@ mod tests {
     fn test_board_write_read_roundtrip() {
         let tmp = format!("/tmp/librarian_board_test_{}", std::process::id());
         let lib = LibrarianTool::new(&tmp, 1);
-        lib.write_board("# Team Board\nAgent_0: +40 Coin\n").unwrap();
+        lib.write_board("# Team Board\nAgent_0: +40 Coin\n")
+            .unwrap();
         let got = lib.read_board();
         assert!(got.contains("Agent_0: +40"));
         let _ = std::fs::remove_dir_all(&tmp);
@@ -183,8 +191,10 @@ mod tests {
         let tmp = format!("/tmp/librarian_post_test_{}", std::process::id());
         let lib = LibrarianTool::new(&tmp, 1);
         lib.write_board("# Team Board\n\n").unwrap();
-        lib.post_to_board("Agent_3", "taking the algebra lane").unwrap();
-        lib.post_to_board("Agent_5", "will specialize in structural induction").unwrap();
+        lib.post_to_board("Agent_3", "taking the algebra lane")
+            .unwrap();
+        lib.post_to_board("Agent_5", "will specialize in structural induction")
+            .unwrap();
         let got = lib.read_board();
         assert!(got.contains("POST Agent_3"));
         assert!(got.contains("algebra lane"));

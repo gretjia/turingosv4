@@ -1,0 +1,2881 @@
+
+diff --git a/dev/null b/handover/directives/2026-05-15_REAL5S_REAL6_REAL7_REAL8_REAL9_ARCHITECT_ORIGINAL.md
+--- /dev/null
++++ b/handover/directives/2026-05-15_REAL5S_REAL6_REAL7_REAL8_REAL9_ARCHITECT_ORIGINAL.md
++# REAL-5S / REAL-6 / REAL-7 / REAL-8 / REAL-9 Architect Original
++
++本文件逐字保存用户提供的架构师原文，作为 REAL-5S -> REAL-9 执行方案、审计与后续 Harness 的事实源。
++
++```text
++4. 新版最终路线
++
++我把路线统一改成 REAL 命名：
++
++REAL-5S  Scaffold ratification / clean-negative closure
++REAL-6   Event Timing & Lawful Pressure
++REAL-7   V3-Equivalent Structural Smoke
++REAL-8   Formal Market A/B Benchmark
++REAL-9   Launch synthesis / Whitepaper update
++5. REAL-5S — 收口 REAL-5，不再拖延
++目标
++
++正式确认：
++
++REAL-5 proves role scaffolding.
++REAL-5 does not prove market emergence.
++Atom 5S-A — Scaffold Ratification Report
++
++产出：
++
++REAL5_SCAFFOLD_RATIFICATION_REPORT.md
++
++必须写：
++
++role gateway blocks Trader proof-style leakage
++Verifier behavior observed
++Trader buy=0
++NoPool dominates
++No E2/E3 claim
++Atom 5S-B — Clean Negative Report
++
++产出：
++
++REAL5_CLEAN_NEGATIVE_NO_TRADE_REPORT.md
++
++必须回答：
++
++Why no trade?
++  NoPool dominates.
++  Post-accept node market timing too late.
++  Prompt-only exhausted.
++Ship Gates
++SG-5S.1 REAL-5 scaffold claim narrowed.
++SG-5S.2 No E2/E3 emergence claim.
++SG-5S.3 Role gateway regression tests pass.
++SG-5S.4 Clean-negative report filed.
++SG-5S.5 Constitution gates no regression.
++6. REAL-6 — Event Timing & Lawful Pressure
++
++REAL-6 是核心阶段。
++
++REAL-6A — TaskOutcomeMarket
++目标
++
++在任务开始时创建市场：
++
++Event:
++  task will be solved within budget/deadline.
++为什么先做它
++
++它比 NodeSurviveMarket 更早，比 AttemptPredictionMarket 更安全。
++
++结构
++TaskOutcomeEvent {
++    event_id,
++    task_id,
++    deadline_round,
++    max_budget,
++    created_by_task_open_tx,
++}
++执行
++TaskOpenTx / EscrowLockTx
++-> MarketSeedTx for task_outcome event
++验收标准
++SG-6A.1 TaskOutcomeMarket exists before first WorkTx.
++SG-6A.2 TraderView contains active TaskOutcomeMarket.
++SG-6A.3 NoPool no longer dominates when task market exists.
++SG-6A.4 Scripted trader can Buy YES/NO on TaskOutcomeMarket.
++SG-6A.5 Real LLM trader emits MarketDecisionTrace or classified NoTradeReason.
++SG-6A.6 EventResolveTx YES if verified proof before budget/deadline.
++SG-6A.7 EventResolveTx NO if exhausted/deadline without verified proof.
++SG-6A.8 No ghost liquidity.
++SG-6A.9 CTF conserved.
++SG-6A.10 Price never affects Lean predicate.
++REAL-6B — AttemptPredictionMarket
++目标
++
++让 candidate proof 在 Lean final resolution 前有一个短期预测市场。
++
++Sealed Oracle 流程
++SubmitCandidateTx
++-> AttemptPredictionMarket opens
++-> exactly K logical tape ticks for Trader / Verifier / Challenger
++-> MarketCloseTx
++-> OracleResolveTx executes Lean result
++验收标准
++SG-6B.1 No sleep-based artificial blocking.
++SG-6B.2 K logical tape ticks are deterministic and replayable.
++SG-6B.3 Lean oracle remains absolute truth.
++SG-6B.4 MarketCloseTx happens before OracleResolveTx.
++SG-6B.5 Trader actions during window are ChainTape-visible.
++SG-6B.6 Price does not affect verification.
++SG-6B.7 No ghost liquidity.
++当前阶段限制
++REAL-6B = design + scripted fixture only.
++No live real-LLM ship until explicit Class-4 ratification.
++REAL-6C — Conviction Budget / PnL Feedback
++目标
++
++恢复 v3 的经济压力，但保持 v4 合宪。
++
++原则
++free cognition
++paid conviction
++结构
++ConvictionBudget {
++    agent_id,
++    available_micro,
++    reserved_micro,
++    realized_pnl,
++    unrealized_pnl,
++    risk_cap,
++}
++
++但实现必须是：
++
++ChainTape fold / materialized view
++not HashMap sidecar
++风险限制
++below risk cap:
++  cannot Trader/Challenger high-risk action
++  can still observe/read/abstain/solve/possibly verify
++验收标准
++SG-6C.1 PnL derived from ChainTape/CAS.
++SG-6C.2 No PnL HashMap sidecar source-of-truth.
++SG-6C.3 Agent prompt sees scoped PnL summary.
++SG-6C.4 Low-balance agent blocked from high-risk market actions.
++SG-6C.5 Low-balance agent not erased / reset.
++SG-6C.6 AutopsyCapsule generated after significant loss.
++REAL-6D — Opportunity Scheduler Observe-Only
++目标
++
++价格 / PnL 进入调度观察，但不执行 admission change。
++
++结构
++SchedulerDecisionTrace {
++    head_t,
++    visible_agents,
++    visible_nodes,
++    price_signals,
++    pnl_signals,
++    recommended_agent,
++    recommended_role,
++    recommended_action,
++    observe_only: true,
++}
++验收标准
++SG-6D.1 Scheduler trace includes price/PnL signals.
++SG-6D.2 observe_only=true.
++SG-6D.3 Recommendation does not change sequencer admission.
++SG-6D.4 Price does not affect L4/L4.E.
++SG-6D.5 Dashboard shows scheduler recommendation as non-binding.
++7. REAL-7 — V3-Equivalent Structural Smoke
++目标
++
++不是复制 v3 数量，而是重建 v3 的结构压力。
++
++v3 evidence 显示某些 run 产生过非零市场活动，比如 OMEGA_v3chat_N3_50k 的 raw-backed 指标包括 tx_count=436、nodes=127、markets=127 等。
++但 v3 的核心价值不是数字本身，而是短反馈环：LLM action → wallet pressure → market price → prompt/scheduler visibility → OMEGA settlement。
++
++最小结构目标
++>= 5 agents
++>= 3 roles active
++>= 3 tasks
++>= 1 TaskOutcomeMarket
++>= 1 scripted AttemptPredictionMarket
++>= 1 BuyYesWithCoinRouterTx
++>= 1 BuyNoWithCoinRouterTx or Short equivalent
++>= 1 VerifyTx
++>= 1 ChallengeTx or NoChallengeReason
++>= 1 EventResolveTx
++>= 1 PnL delta
++>= 1 AutopsyCapsule if loss occurs
++Ship Gates
++SG-7.1 Structural pattern achieved.
++SG-7.2 No forced investment.
++SG-7.3 No price-as-truth.
++SG-7.4 No ghost liquidity.
++SG-7.5 All market actions ChainTape-visible.
++SG-7.6 Dashboard regenerates from ChainTape + CAS.
++SG-7.7 Clean comparison to v3 metrics without claiming identical equivalence.
++8. REAL-8 — Formal Market A/B Benchmark
++A/B conditions
++A: market disabled
++B: market visible, no TaskOutcomeMarket
++C: TaskOutcomeMarket enabled
++D: TaskOutcomeMarket + scripted AttemptPrediction fixture
++Metrics
++solve rate
++verified PPUT
++false accept rate
++cost per verified proof
++market tx count
++NoTradeReason distribution
++PnL dispersion
++role diversity index
++audit failure rate
++Ship Gates
++SG-8.1 Same problem set across arms.
++SG-8.2 Same model assignment.
++SG-8.3 Same budgets.
++SG-8.4 All runs chain-backed.
++SG-8.5 No overclaim of causality.
++SG-8.6 Negative result is valid and documented.
++9. REAL-9 — Whitepaper / Launch Synthesis
++
++把结果写入：
++
++TuringOS Generative Economy Whitepaper Update
++TuringOS Market Developer Manual
++
++必须明确：
++
++v4 does not copy v3.
++v4 rebuilds v3's economic pressure under constitution.
++price = signal, not truth.
++market = role-specific institution, not prompt decoration.
++10. 给 AI coder 的最终执行指令
++Architect final ruling:
++
++Adopt selected parts of the reviewed opinion.
++
++1. Rename route:
++   Use REAL-5S / REAL-6 / REAL-7 / REAL-8 / REAL-9.
++   Do not use Phase E0-E7.
++
++2. Accept Event Timing diagnosis:
++   NoPool means post-accept node market is too late.
++   Stop prompt-only variants.
++
++3. REAL-5S:
++   Ratify scaffold completion and clean-negative no-trade report.
++   No E2/E3 claim.
++
++4. REAL-6A:
++   Implement TaskOutcomeMarket at TaskOpen/EscrowLock.
++   Event = task solved before budget/deadline.
++   Market exists before first WorkTx.
++
++5. REAL-6B:
++   Design AttemptPredictionMarket using Sealed Oracle:
++      SubmitCandidateTx
++      K logical tape ticks
++      MarketCloseTx
++      OracleResolveTx
++   No sleep.
++   Scripted only until Class-4 ratification.
++
++6. REAL-6C:
++   Implement ConvictionBudget/PnL as ChainTape-derived view.
++   No HashMap sidecar.
++   Free cognition, paid conviction.
++   Risk-gated role availability, not forced role coercion.
++
++7. REAL-6D:
++   Opportunity Scheduler observe-only.
++   Price/PnL can be logged as signal.
++   No admission change.
++   No price-as-truth.
++
++8. REAL-7:
++   Run V3-equivalent structural smoke.
++   Do not chase v3 tx count.
++   Require structural evidence:
++      persistent agents,
++      roles,
++      task outcome market,
++      buy/sell or clean-negative,
++      verify,
++      challenge,
++      PnL,
++      autopsy.
++
++9. REAL-8:
++   Formal market A/B benchmark.
++
++10. Forbidden in all ship claims:
++    no forced trades,
++    no price-as-truth,
++    no ghost liquidity,
++    no f64 economy,
++    no off-tape WAL as truth,
++    no private CoT recording,
++    no raw-log broadcast.
++11. 最终判断
++
++我认可这份意见的核心：
++
++v3 taught us pressure.
++v4 gives us law.
++Next phase must build lawful pressure.
++
++但我把它落实为更严格的 v4 方案：
++
++REAL-5S:
++  close scaffold and no-trade diagnosis.
++
++REAL-6:
++  move market earlier,
++  add lawful conviction pressure,
++  keep price observe-only.
++
++REAL-7:
++  structural v3-equivalent smoke.
++
++REAL-8:
++  controlled A/B benchmark.
++
++REAL-9:
++  whitepaper / launch synthesis.
++
++真正要吸收的不是“更多交易功能”，而是：
++
++在不突破宪法的情况下，让不确定性、价格、角色、资本和验证，在同一条 ChainTape 上形成持续反馈。
++```
+
+diff --git a/dev/null b/handover/directives/2026-05-15_REAL5S_REAL6_REAL7_REAL8_REAL9_EXECUTION_PLAN_DRAFT.md
+--- /dev/null
++++ b/handover/directives/2026-05-15_REAL5S_REAL6_REAL7_REAL8_REAL9_EXECUTION_PLAN_DRAFT.md
++# REAL-5S -> REAL-9 Execution Plan Draft
++
++Status: DRAFT after R1 VETO remediation. This file must be reviewed by an independent clean-context Codex agent before user approval and before any `turingos_dev` implementation run.
++
++Architect source of truth:
++
++```text
++handover/directives/2026-05-15_REAL5S_REAL6_REAL7_REAL8_REAL9_ARCHITECT_ORIGINAL.md
++```
++
++R1 audit being remediated:
++
++```text
++handover/audits/CODEX_REAL5S_REAL9_EXECUTION_PLAN_ALIGNMENT_REVIEW_R1.md
++```
++
++## 0. R1 VETO Closure
++
++This draft directly closes the R1 VETO findings:
++
++```text
++VETO: 当前可见方案不是 REAL-5S -> REAL-9 方案，而是旧 REAL-5 / REAL-6 方案。
++VETO: 独立审计没有作为当前 REAL-5S -> REAL-9 执行前置落地。
++VETO: 未要求把当前架构师原文逐字落地到新的本地文件，也未要求把审计后的 REAL-5S -> REAL-9 方案落地。
++```
++
++Closure decisions:
++
++- The new route uses only `REAL-5S / REAL-6 / REAL-7 / REAL-8 / REAL-9`.
++- `Phase E0-E7` naming is forbidden.
++- The architect original has been saved verbatim in the 2026-05-15 original file listed above.
++- This draft must be independently audited before approval.
++- After audit `PROCEED` and user approval, the approved plan will be copied to:
++
++```text
++handover/directives/2026-05-15_REAL5S_REAL6_REAL7_REAL8_REAL9_EXECUTION_PLAN_APPROVED.md
++```
++
++## 1. Harness Frame
++
++Risk class: Class 4 package.
++
++Reason:
++
++- REAL-6A may require `EventResolveTx YES/NO` semantics and therefore touches restricted surfaces if current `EventResolveTx` is YES-only.
++- REAL-6 changes market event timing.
++- REAL-6C touches risk-gated role availability.
++- REAL-6D introduces scheduler recommendation traces, explicitly observe-only.
++- REAL-7/REAL-8 are ship-path evidence packages.
++
++FC mapping:
++
++```text
++FC1: role/market action loop; every externalized action or abstain reason is ChainTape/CAS-visible.
++FC2: task-open market and replay authority; TaskOutcomeMarket exists before first WorkTx.
++FC3: dashboard, reports, scheduler trace, PnL, and benchmark outputs are materialized views.
++Art. III: role-scoped prompts and PnL summaries must not expose private CoT or raw logs.
++Economy: no ghost liquidity, no f64 economy, CTF conserved.
++Predicate: price never affects Lean predicate or L4/L4.E truth.
++```
++
++Restricted surfaces:
++
++```text
++src/state/typed_tx.rs
++src/state/sequencer.rs
++src/bottom_white/ledger/system_keypair.rs
++src/runtime/adapter.rs
++genesis_payload.toml
++```
++
++If REAL-6A requires `EventResolveTx` wire-shape, signing payload, or sequencer admission changes, implementation must keep it inside the Class-4 atom, update Trust Root, and obtain clean-context implementation audit before ship.
++
++## 2. REAL-5S — Scaffold Ratification / Clean-Negative Closure
++
++Architect route:
++
++```text
++REAL-5S  Scaffold ratification / clean-negative closure
++```
++
++Goal:
++
++```text
++正式确认：
++
++REAL-5 proves role scaffolding.
++REAL-5 does not prove market emergence.
++```
++
++### Atom 5S-A — Scaffold Ratification Report
++
++Produce:
++
++```text
++handover/evidence/real5_overnight_20260514/REAL5_SCAFFOLD_RATIFICATION_REPORT.md
++```
++
++The report must write:
++
++```text
++role gateway blocks Trader proof-style leakage
++Verifier behavior observed
++Trader buy=0
++NoPool dominates
++No E2/E3 claim
++```
++
++The report must cite existing REAL-5 evidence:
++
++```text
++handover/evidence/g_phase_real_5_trader_first_b8_rolegate_20260514T192523Z
++handover/evidence/g_phase_real_5_core3_b8_rolegate_20260514T192958Z
++handover/audits/CODEX_REAL5_IMPLEMENTATION_REVIEW_R3.md
++handover/evidence/dev_self_hosting/dev_1778788069384_807750
++```
++
++### Atom 5S-B — Clean Negative Report
++
++Produce:
++
++```text
++handover/evidence/real5_overnight_20260514/REAL5_CLEAN_NEGATIVE_NO_TRADE_REPORT.md
++```
++
++The report must answer:
++
++```text
++Why no trade?
++  NoPool dominates.
++  Post-accept node market timing too late.
++  Prompt-only exhausted.
++```
++
++### REAL-5S Ship Gates
++
++```text
++SG-5S.1 REAL-5 scaffold claim narrowed.
++SG-5S.2 No E2/E3 emergence claim.
++SG-5S.3 Role gateway regression tests pass.
++SG-5S.4 Clean-negative report filed.
++SG-5S.5 Constitution gates no regression.
++```
++
++Targeted verification:
++
++```bash
++cargo test --test constitution_real5_typed_generation_gateway
++cargo test --test constitution_real5_role_based_smoke
++bash scripts/run_constitution_gates.sh
++```
++
++## 3. REAL-6 — Event Timing & Lawful Pressure
++
++Architect ruling:
++
++```text
++REAL-6 是核心阶段。
++```
++
++Accepted diagnosis:
++
++```text
++NoPool means post-accept node market is too late.
++Stop prompt-only variants.
++```
++
++### REAL-6A — TaskOutcomeMarket
++
++Goal:
++
++```text
++在任务开始时创建市场：
++
++Event:
++  task will be solved within budget/deadline.
++```
++
++Why first:
++
++```text
++它比 NodeSurviveMarket 更早，比 AttemptPredictionMarket 更安全。
++```
++
++Required structure:
++
++```rust
++TaskOutcomeEvent {
++    event_id,
++    task_id,
++    deadline_round,
++    max_budget,
++    created_by_task_open_tx,
++}
++```
++
++Required execution:
++
++```text
++TaskOpenTx / EscrowLockTx
++-> MarketSeedTx for task_outcome event
++```
++
++Implementation atoms:
++
++1. Add `TaskOutcomeEvent` and a CAS provenance manifest for task-level market creation.
++2. Wire task-open runtime so the TaskOutcomeMarket is seeded after accepted `TaskOpenTx` / `EscrowLockTx` and before first `WorkTx`.
++3. Ensure TraderView includes the active TaskOutcomeMarket, pool depth, price, budget/deadline, and scoped PnL.
++4. Add scripted trader fixture for Buy YES and Buy NO on the TaskOutcomeMarket.
++5. Keep real LLM trader behavior non-forced: it may buy or emit `MarketDecisionTrace` / classified `NoTradeReason`.
++6. Implement `EventResolveTx YES` if verified proof occurs before budget/deadline.
++7. Implement `EventResolveTx NO` if exhausted/deadline occurs without verified proof.
++
++Important Class-4 constraint:
++
++```text
++SG-6A.7 says EventResolveTx NO.
++Do not silently replace this with TaskBankruptcyTx.
++```
++
++If current `EventResolveTx` is YES-only, add an explicit Class-4 `EventResolveTx` outcome design inside REAL-6A:
++
++- preserve historical evidence through schema bump or dual-reader;
++- update canonical signing payload tests;
++- update sequencer admission/apply semantics;
++- update agent-ingress rejection for system-only tx if needed;
++- update Trust Root for modified pinned files;
++- include regression tests proving old EventResolve evidence remains readable or grandfathered.
++
++REAL-6A gates:
++
++```text
++SG-6A.1 TaskOutcomeMarket exists before first WorkTx.
++SG-6A.2 TraderView contains active TaskOutcomeMarket.
++SG-6A.3 NoPool no longer dominates when task market exists.
++SG-6A.4 Scripted trader can Buy YES/NO on TaskOutcomeMarket.
++SG-6A.5 Real LLM trader emits MarketDecisionTrace or classified NoTradeReason.
++SG-6A.6 EventResolveTx YES if verified proof before budget/deadline.
++SG-6A.7 EventResolveTx NO if exhausted/deadline without verified proof.
++SG-6A.8 No ghost liquidity.
++SG-6A.9 CTF conserved.
++SG-6A.10 Price never affects Lean predicate.
++```
++
++### REAL-6B — AttemptPredictionMarket
++
++Goal:
++
++```text
++让 candidate proof 在 Lean final resolution 前有一个短期预测市场。
++```
++
++Sealed Oracle flow:
++
++```text
++SubmitCandidateTx
++-> AttemptPredictionMarket opens
++-> exactly K logical tape ticks for Trader / Verifier / Challenger
++-> MarketCloseTx
++-> OracleResolveTx executes Lean result
++```
++
++Current-stage limit:
++
++```text
++REAL-6B = design + scripted fixture only.
++No live real-LLM ship until explicit Class-4 ratification.
++```
++
++Implementation atoms:
++
++1. Write design record for the sealed oracle flow.
++2. Add scripted fixture structs/manifests without live real-LLM ship.
++3. Use logical tape ticks only; no wall-clock sleep.
++4. Prove `MarketCloseTx` happens before `OracleResolveTx` in fixture evidence.
++5. Prove Lean oracle remains absolute truth and price does not affect verification.
++
++REAL-6B gates:
++
++```text
++SG-6B.1 No sleep-based artificial blocking.
++SG-6B.2 K logical tape ticks are deterministic and replayable.
++SG-6B.3 Lean oracle remains absolute truth.
++SG-6B.4 MarketCloseTx happens before OracleResolveTx.
++SG-6B.5 Trader actions during window are ChainTape-visible.
++SG-6B.6 Price does not affect verification.
++SG-6B.7 No ghost liquidity.
++```
++
++### REAL-6C — Conviction Budget / PnL Feedback
++
++Goal:
++
++```text
++恢复 v3 的经济压力，但保持 v4 合宪。
++```
++
++Principle:
++
++```text
++free cognition
++paid conviction
++```
++
++Required structure:
++
++```rust
++ConvictionBudget {
++    agent_id,
++    available_micro,
++    reserved_micro,
++    realized_pnl,
++    unrealized_pnl,
++    risk_cap,
++}
++```
++
++Implementation requirement:
++
++```text
++ChainTape fold / materialized view
++not HashMap sidecar
++```
++
++Risk restriction:
++
++```text
++below risk cap:
++  cannot Trader/Challenger high-risk action
++  can still observe/read/abstain/solve/possibly verify
++```
++
++Implementation atoms:
++
++1. Compute ConvictionBudget as a pure derived view from ChainTape/CAS/QState.
++2. Expose scoped ConvictionBudget/PnL summary to the agent prompt.
++3. Gate Trader/Challenger high-risk actions when below risk cap.
++4. Preserve read/observe/abstain/solve/possibly verify for low-balance agents.
++5. Emit AutopsyCapsule after significant loss.
++
++REAL-6C gates:
++
++```text
++SG-6C.1 PnL derived from ChainTape/CAS.
++SG-6C.2 No PnL HashMap sidecar source-of-truth.
++SG-6C.3 Agent prompt sees scoped PnL summary.
++SG-6C.4 Low-balance agent blocked from high-risk market actions.
++SG-6C.5 Low-balance agent not erased / reset.
++SG-6C.6 AutopsyCapsule generated after significant loss.
++```
++
++### REAL-6D — Opportunity Scheduler Observe-Only
++
++Goal:
++
++```text
++价格 / PnL 进入调度观察，但不执行 admission change。
++```
++
++Required structure:
++
++```rust
++SchedulerDecisionTrace {
++    head_t,
++    visible_agents,
++    visible_nodes,
++    price_signals,
++    pnl_signals,
++    recommended_agent,
++    recommended_role,
++    recommended_action,
++    observe_only: true,
++}
++```
++
++Implementation atoms:
++
++1. Emit SchedulerDecisionTrace to CAS/ChainTape evidence path.
++2. Force `observe_only: true`.
++3. Ensure recommendation does not affect sequencer admission, L4, or L4.E.
++4. Render scheduler recommendation in dashboard as non-binding.
++
++REAL-6D gates:
++
++```text
++SG-6D.1 Scheduler trace includes price/PnL signals.
++SG-6D.2 observe_only=true.
++SG-6D.3 Recommendation does not change sequencer admission.
++SG-6D.4 Price does not affect L4/L4.E.
++SG-6D.5 Dashboard shows scheduler recommendation as non-binding.
++```
++
++## 4. REAL-7 — V3-Equivalent Structural Smoke
++
++Goal:
++
++```text
++不是复制 v3 数量，而是重建 v3 的结构压力。
++```
++
++Architect comparison:
++
++```text
++v3 evidence 显示某些 run 产生过非零市场活动，比如 OMEGA_v3chat_N3_50k 的 raw-backed 指标包括 tx_count=436、nodes=127、markets=127 等。
++但 v3 的核心价值不是数字本身，而是短反馈环：LLM action -> wallet pressure -> market price -> prompt/scheduler visibility -> OMEGA settlement。
++```
++
++Minimum structure:
++
++```text
++>= 5 agents
++>= 3 roles active
++>= 3 tasks
++>= 1 TaskOutcomeMarket
++>= 1 scripted AttemptPredictionMarket
++>= 1 BuyYesWithCoinRouterTx
++>= 1 BuyNoWithCoinRouterTx or Short equivalent
++>= 1 VerifyTx
++>= 1 ChallengeTx or NoChallengeReason
++>= 1 EventResolveTx
++>= 1 PnL delta
++>= 1 AutopsyCapsule if loss occurs
++```
++
++Implementation atoms:
++
++1. Run persistent runtime_repo with same CAS across at least three tasks.
++2. Use at least five agents and at least three active roles.
++3. Include TaskOutcomeMarket and scripted AttemptPrediction fixture.
++4. Witness Buy YES and Buy NO/Short equivalent without claiming forced live emergence.
++5. Witness VerifyTx, ChallengeTx or NoChallengeReason, EventResolveTx, PnL delta, and AutopsyCapsule when loss occurs.
++6. Produce clean v3 comparison without claiming identical equivalence.
++
++REAL-7 gates:
++
++```text
++SG-7.1 Structural pattern achieved.
++SG-7.2 No forced investment.
++SG-7.3 No price-as-truth.
++SG-7.4 No ghost liquidity.
++SG-7.5 All market actions ChainTape-visible.
++SG-7.6 Dashboard regenerates from ChainTape + CAS.
++SG-7.7 Clean comparison to v3 metrics without claiming identical equivalence.
++```
++
++## 5. REAL-8 — Formal Market A/B Benchmark
++
++A/B conditions:
++
++```text
++A: market disabled
++B: market visible, no TaskOutcomeMarket
++C: TaskOutcomeMarket enabled
++D: TaskOutcomeMarket + scripted AttemptPrediction fixture
++```
++
++Metrics:
++
++```text
++solve rate
++verified PPUT
++false accept rate
++cost per verified proof
++market tx count
++NoTradeReason distribution
++PnL dispersion
++role diversity index
++audit failure rate
++```
++
++Implementation atoms:
++
++1. Pin same problem set across A/B/C/D.
++2. Pin same model assignment across A/B/C/D.
++3. Pin same budgets across A/B/C/D.
++4. Ensure all runs are chain-backed.
++5. Produce negative-result-valid report if no market effect appears.
++6. Avoid causal overclaim; report benchmark evidence only.
++
++REAL-8 gates:
++
++```text
++SG-8.1 Same problem set across arms.
++SG-8.2 Same model assignment.
++SG-8.3 Same budgets.
++SG-8.4 All runs chain-backed.
++SG-8.5 No overclaim of causality.
++SG-8.6 Negative result is valid and documented.
++```
++
++## 6. REAL-9 — Whitepaper / Launch Synthesis
++
++Write:
++
++```text
++TuringOS Generative Economy Whitepaper Update
++TuringOS Market Developer Manual
++```
++
++Must explicitly state:
++
++```text
++v4 does not copy v3.
++v4 rebuilds v3's economic pressure under constitution.
++price = signal, not truth.
++market = role-specific institution, not prompt decoration.
++```
++
++Final framing to preserve:
++
++```text
++v3 taught us pressure.
++v4 gives us law.
++Next phase must build lawful pressure.
++```
++
++## 7. Forbidden In All Ship Claims
++
++```text
++no forced trades
++no price-as-truth
++no ghost liquidity
++no f64 economy
++no off-tape WAL as truth
++no private CoT recording
++no raw-log broadcast
++```
++
++Additional local constraints:
++
++- No Phase E0-E7 route naming.
++- No prompt-only A07/A08/A09 variants.
++- No dashboard/report/stdout as source of truth.
++- No sequencer admission change in REAL-6D.
++- No live REAL-6B real-LLM ship until explicit Class-4 ratification.
++
++## 8. Harness And Audit Sequence
++
++Execution sequence after this draft receives independent audit `PROCEED` and user approval:
++
++```text
++1. Copy audited draft to APPROVED path.
++2. Open turingos_dev with risk=4.
++3. Record original architect file, approved plan, and R2 plan audit.
++4. Implement REAL-5S first.
++5. Implement REAL-6A/B/C/D as bounded atoms.
++6. Run targeted gates and real evidence.
++7. Request clean-context Codex implementation audit.
++8. Fix CHALLENGE/VETO or forward-defer only with explicit user approval.
++9. turingos_dev validate.
++10. turingos_dev close.
++11. Only then update LATEST / matrix / TB_LOG.
++```
++
++Open command shape:
++
++```bash
++turingos_dev open \
++  --title "REAL-5S to REAL-9 lawful pressure route" \
++  --module "REAL-5S/REAL-6/REAL-7/REAL-8/REAL-9" \
++  --risk 4 \
++  --fc "FC1 role/market action loop; FC2 task-open market/replay authority; FC3 dashboard/evidence materialized view; Art. III shielding; economy/predicate invariants" \
++  --allowed "<approved path list>"
++```
++
++## 9. Verification Commands
++
++Targeted gates to add and run:
++
++```bash
++cargo test --test constitution_real5s_scaffold_ratification
++cargo test --test constitution_real6_task_outcome_market
++cargo test --test constitution_real6_attempt_prediction_fixture
++cargo test --test constitution_real6_conviction_budget
++cargo test --test constitution_real6_scheduler_observe_only
++cargo test --test constitution_real7_v3_structural_smoke
++cargo test --test constitution_real8_market_ab_benchmark
++```
++
++Ship-level gates:
++
++```bash
++bash scripts/run_constitution_gates.sh
++cargo test --workspace --no-fail-fast -- --test-threads=1
++cargo test --lib boot::tests::verify_trust_root_passes_on_intact_repo
++git diff --check
++```
++
++REAL-6A evidence command shape:
++
++```bash
++PHASE_D_HETERO_OK=1 \
++TURINGOS_REAL5_ROLE_VIEWS=1 \
++TURINGOS_REAL6_TASK_OUTCOME_MARKET=1 \
++TURINGOS_REAL6_CONVICTION_BUDGET=1 \
++TURINGOS_REAL6_SCHEDULER_OBSERVE_ONLY=1 \
++TURINGOS_REAL5_ROLE_ASSIGNMENT="Solver,Trader,Verifier,Challenger,Observer" \
++bash scripts/run_g_phase_batch.sh g_phase_real_6a_task_outcome_<UTC> mini
++```
++
++REAL-8 benchmark command shape:
++
++```bash
++bash scripts/run_real8_market_ab_benchmark.sh \
++  --problems <same_problem_set_manifest> \
++  --models <same_model_assignment_manifest> \
++  --budgets <same_budget_manifest> \
++  --arms A,B,C,D \
++  --out handover/evidence/real8_market_ab_<UTC>
++```
++
++## 10. Plan R2 Audit Prompt
++
++After this draft is saved, spawn independent clean-context Codex reviewer with:
++
++```text
++Read:
++1. handover/directives/2026-05-15_REAL5S_REAL6_REAL7_REAL8_REAL9_ARCHITECT_ORIGINAL.md
++2. handover/directives/2026-05-15_REAL5S_REAL6_REAL7_REAL8_REAL9_EXECUTION_PLAN_DRAFT.md
++3. handover/audits/CODEX_REAL5S_REAL9_EXECUTION_PLAN_ALIGNMENT_REVIEW_R1.md
++
++Review whether R1 VETO findings are closed and whether the draft preserves every architect requirement:
++- route names REAL-5S / REAL-6 / REAL-7 / REAL-8 / REAL-9
++- no Phase E0-E7
++- REAL-5S scaffold + clean-negative only
++- Atom 5S-A / Atom 5S-B products and required wording
++- SG-5S.1 through SG-5S.5
++- REAL-6A TaskOutcomeMarket and SG-6A.1 through SG-6A.10
++- EventResolveTx YES and EventResolveTx NO wording preserved
++- REAL-6B design + scripted fixture only and no live real-LLM ship until explicit Class-4 ratification
++- REAL-6C ChainTape-derived ConvictionBudget/PnL, no HashMap sidecar
++- REAL-6D observe_only scheduler, no admission change, no price-as-truth
++- REAL-7 minimum structural targets and SG-7.1 through SG-7.7
++- REAL-8 A/B conditions, metrics, SG-8.1 through SG-8.6
++- REAL-9 whitepaper/manual requirements
++- forbidden list exactly includes no forced trades, no price-as-truth, no ghost liquidity, no f64 economy, no off-tape WAL as truth, no private CoT recording, no raw-log broadcast
++- Class-4 Harness and implementation audit flow preserved
++
++Lead with findings. End with Verdict: PROCEED | CHALLENGE | VETO.
++Do not edit files.
++```
+
+diff --git a/dev/null b/handover/directives/2026-05-15_REAL5S_REAL6_REAL7_REAL8_REAL9_EXECUTION_PLAN_AUDITED.md
+--- /dev/null
++++ b/handover/directives/2026-05-15_REAL5S_REAL6_REAL7_REAL8_REAL9_EXECUTION_PLAN_AUDITED.md
++# REAL-5S -> REAL-9 Execution Plan Draft
++
++Status: AUDITED. R1 VETO was remediated, and R2 independent clean-context Codex review returned `PROCEED` in `handover/audits/CODEX_REAL5S_REAL9_EXECUTION_PLAN_ALIGNMENT_REVIEW_R2.md`. This file is ready for user approval before any `turingos_dev` implementation run.
++
++Architect source of truth:
++
++```text
++handover/directives/2026-05-15_REAL5S_REAL6_REAL7_REAL8_REAL9_ARCHITECT_ORIGINAL.md
++```
++
++R1 audit being remediated:
++
++```text
++handover/audits/CODEX_REAL5S_REAL9_EXECUTION_PLAN_ALIGNMENT_REVIEW_R1.md
++```
++
++## 0. R1 VETO Closure
++
++This draft directly closes the R1 VETO findings:
++
++```text
++VETO: 当前可见方案不是 REAL-5S -> REAL-9 方案，而是旧 REAL-5 / REAL-6 方案。
++VETO: 独立审计没有作为当前 REAL-5S -> REAL-9 执行前置落地。
++VETO: 未要求把当前架构师原文逐字落地到新的本地文件，也未要求把审计后的 REAL-5S -> REAL-9 方案落地。
++```
++
++Closure decisions:
++
++- The new route uses only `REAL-5S / REAL-6 / REAL-7 / REAL-8 / REAL-9`.
++- `Phase E0-E7` naming is forbidden.
++- The architect original has been saved verbatim in the 2026-05-15 original file listed above.
++- This draft must be independently audited before approval.
++- After audit `PROCEED` and user approval, the approved plan will be copied to:
++
++```text
++handover/directives/2026-05-15_REAL5S_REAL6_REAL7_REAL8_REAL9_EXECUTION_PLAN_APPROVED.md
++```
++
++## 1. Harness Frame
++
++Risk class: Class 4 package.
++
++Reason:
++
++- REAL-6A may require `EventResolveTx YES/NO` semantics and therefore touches restricted surfaces if current `EventResolveTx` is YES-only.
++- REAL-6 changes market event timing.
++- REAL-6C touches risk-gated role availability.
++- REAL-6D introduces scheduler recommendation traces, explicitly observe-only.
++- REAL-7/REAL-8 are ship-path evidence packages.
++
++FC mapping:
++
++```text
++FC1: role/market action loop; every externalized action or abstain reason is ChainTape/CAS-visible.
++FC2: task-open market and replay authority; TaskOutcomeMarket exists before first WorkTx.
++FC3: dashboard, reports, scheduler trace, PnL, and benchmark outputs are materialized views.
++Art. III: role-scoped prompts and PnL summaries must not expose private CoT or raw logs.
++Economy: no ghost liquidity, no f64 economy, CTF conserved.
++Predicate: price never affects Lean predicate or L4/L4.E truth.
++```
++
++Restricted surfaces:
++
++```text
++src/state/typed_tx.rs
++src/state/sequencer.rs
++src/bottom_white/ledger/system_keypair.rs
++src/runtime/adapter.rs
++genesis_payload.toml
++```
++
++If REAL-6A requires `EventResolveTx` wire-shape, signing payload, or sequencer admission changes, implementation must keep it inside the Class-4 atom, update Trust Root, and obtain clean-context implementation audit before ship.
++
++## 2. REAL-5S — Scaffold Ratification / Clean-Negative Closure
++
++Architect route:
++
++```text
++REAL-5S  Scaffold ratification / clean-negative closure
++```
++
++Goal:
++
++```text
++正式确认：
++
++REAL-5 proves role scaffolding.
++REAL-5 does not prove market emergence.
++```
++
++### Atom 5S-A — Scaffold Ratification Report
++
++Produce:
++
++```text
++handover/evidence/real5_overnight_20260514/REAL5_SCAFFOLD_RATIFICATION_REPORT.md
++```
++
++The report must write:
++
++```text
++role gateway blocks Trader proof-style leakage
++Verifier behavior observed
++Trader buy=0
++NoPool dominates
++No E2/E3 claim
++```
++
++The report must cite existing REAL-5 evidence:
++
++```text
++handover/evidence/g_phase_real_5_trader_first_b8_rolegate_20260514T192523Z
++handover/evidence/g_phase_real_5_core3_b8_rolegate_20260514T192958Z
++handover/audits/CODEX_REAL5_IMPLEMENTATION_REVIEW_R3.md
++handover/evidence/dev_self_hosting/dev_1778788069384_807750
++```
++
++### Atom 5S-B — Clean Negative Report
++
++Produce:
++
++```text
++handover/evidence/real5_overnight_20260514/REAL5_CLEAN_NEGATIVE_NO_TRADE_REPORT.md
++```
++
++The report must answer:
++
++```text
++Why no trade?
++  NoPool dominates.
++  Post-accept node market timing too late.
++  Prompt-only exhausted.
++```
++
++### REAL-5S Ship Gates
++
++```text
++SG-5S.1 REAL-5 scaffold claim narrowed.
++SG-5S.2 No E2/E3 emergence claim.
++SG-5S.3 Role gateway regression tests pass.
++SG-5S.4 Clean-negative report filed.
++SG-5S.5 Constitution gates no regression.
++```
++
++Targeted verification:
++
++```bash
++cargo test --test constitution_real5_typed_generation_gateway
++cargo test --test constitution_real5_role_based_smoke
++bash scripts/run_constitution_gates.sh
++```
++
++## 3. REAL-6 — Event Timing & Lawful Pressure
++
++Architect ruling:
++
++```text
++REAL-6 是核心阶段。
++```
++
++Accepted diagnosis:
++
++```text
++NoPool means post-accept node market is too late.
++Stop prompt-only variants.
++```
++
++### REAL-6A — TaskOutcomeMarket
++
++Goal:
++
++```text
++在任务开始时创建市场：
++
++Event:
++  task will be solved within budget/deadline.
++```
++
++Why first:
++
++```text
++它比 NodeSurviveMarket 更早，比 AttemptPredictionMarket 更安全。
++```
++
++Required structure:
++
++```rust
++TaskOutcomeEvent {
++    event_id,
++    task_id,
++    deadline_round,
++    max_budget,
++    created_by_task_open_tx,
++}
++```
++
++Required execution:
++
++```text
++TaskOpenTx / EscrowLockTx
++-> MarketSeedTx for task_outcome event
++```
++
++Implementation atoms:
++
++1. Add `TaskOutcomeEvent` and a CAS provenance manifest for task-level market creation.
++2. Wire task-open runtime so the TaskOutcomeMarket is seeded after accepted `TaskOpenTx` / `EscrowLockTx` and before first `WorkTx`.
++3. Ensure TraderView includes the active TaskOutcomeMarket, pool depth, price, budget/deadline, and scoped PnL.
++4. Add scripted trader fixture for Buy YES and Buy NO on the TaskOutcomeMarket.
++5. Keep real LLM trader behavior non-forced: it may buy or emit `MarketDecisionTrace` / classified `NoTradeReason`.
++6. Implement `EventResolveTx YES` if verified proof occurs before budget/deadline.
++7. Implement `EventResolveTx NO` if exhausted/deadline occurs without verified proof.
++
++Important Class-4 constraint:
++
++```text
++SG-6A.7 says EventResolveTx NO.
++Do not silently replace this with TaskBankruptcyTx.
++```
++
++If current `EventResolveTx` is YES-only, add an explicit Class-4 `EventResolveTx` outcome design inside REAL-6A:
++
++- preserve historical evidence through schema bump or dual-reader;
++- update canonical signing payload tests;
++- update sequencer admission/apply semantics;
++- update agent-ingress rejection for system-only tx if needed;
++- update Trust Root for modified pinned files;
++- include regression tests proving old EventResolve evidence remains readable or grandfathered.
++
++REAL-6A gates:
++
++```text
++SG-6A.1 TaskOutcomeMarket exists before first WorkTx.
++SG-6A.2 TraderView contains active TaskOutcomeMarket.
++SG-6A.3 NoPool no longer dominates when task market exists.
++SG-6A.4 Scripted trader can Buy YES/NO on TaskOutcomeMarket.
++SG-6A.5 Real LLM trader emits MarketDecisionTrace or classified NoTradeReason.
++SG-6A.6 EventResolveTx YES if verified proof before budget/deadline.
++SG-6A.7 EventResolveTx NO if exhausted/deadline without verified proof.
++SG-6A.8 No ghost liquidity.
++SG-6A.9 CTF conserved.
++SG-6A.10 Price never affects Lean predicate.
++```
++
++### REAL-6B — AttemptPredictionMarket
++
++Goal:
++
++```text
++让 candidate proof 在 Lean final resolution 前有一个短期预测市场。
++```
++
++Sealed Oracle flow:
++
++```text
++SubmitCandidateTx
++-> AttemptPredictionMarket opens
++-> exactly K logical tape ticks for Trader / Verifier / Challenger
++-> MarketCloseTx
++-> OracleResolveTx executes Lean result
++```
++
++Current-stage limit:
++
++```text
++REAL-6B = design + scripted fixture only.
++No live real-LLM ship until explicit Class-4 ratification.
++```
++
++Implementation atoms:
++
++1. Write design record for the sealed oracle flow.
++2. Add scripted fixture structs/manifests without live real-LLM ship.
++3. Use logical tape ticks only; no wall-clock sleep.
++4. Prove `MarketCloseTx` happens before `OracleResolveTx` in fixture evidence.
++5. Prove Lean oracle remains absolute truth and price does not affect verification.
++
++REAL-6B gates:
++
++```text
++SG-6B.1 No sleep-based artificial blocking.
++SG-6B.2 K logical tape ticks are deterministic and replayable.
++SG-6B.3 Lean oracle remains absolute truth.
++SG-6B.4 MarketCloseTx happens before OracleResolveTx.
++SG-6B.5 Trader actions during window are ChainTape-visible.
++SG-6B.6 Price does not affect verification.
++SG-6B.7 No ghost liquidity.
++```
++
++### REAL-6C — Conviction Budget / PnL Feedback
++
++Goal:
++
++```text
++恢复 v3 的经济压力，但保持 v4 合宪。
++```
++
++Principle:
++
++```text
++free cognition
++paid conviction
++```
++
++Required structure:
++
++```rust
++ConvictionBudget {
++    agent_id,
++    available_micro,
++    reserved_micro,
++    realized_pnl,
++    unrealized_pnl,
++    risk_cap,
++}
++```
++
++Implementation requirement:
++
++```text
++ChainTape fold / materialized view
++not HashMap sidecar
++```
++
++Risk restriction:
++
++```text
++below risk cap:
++  cannot Trader/Challenger high-risk action
++  can still observe/read/abstain/solve/possibly verify
++```
++
++Implementation atoms:
++
++1. Compute ConvictionBudget as a pure derived view from ChainTape/CAS/QState.
++2. Expose scoped ConvictionBudget/PnL summary to the agent prompt.
++3. Gate Trader/Challenger high-risk actions when below risk cap.
++4. Preserve read/observe/abstain/solve/possibly verify for low-balance agents.
++5. Emit AutopsyCapsule after significant loss.
++
++REAL-6C gates:
++
++```text
++SG-6C.1 PnL derived from ChainTape/CAS.
++SG-6C.2 No PnL HashMap sidecar source-of-truth.
++SG-6C.3 Agent prompt sees scoped PnL summary.
++SG-6C.4 Low-balance agent blocked from high-risk market actions.
++SG-6C.5 Low-balance agent not erased / reset.
++SG-6C.6 AutopsyCapsule generated after significant loss.
++```
++
++### REAL-6D — Opportunity Scheduler Observe-Only
++
++Goal:
++
++```text
++价格 / PnL 进入调度观察，但不执行 admission change。
++```
++
++Required structure:
++
++```rust
++SchedulerDecisionTrace {
++    head_t,
++    visible_agents,
++    visible_nodes,
++    price_signals,
++    pnl_signals,
++    recommended_agent,
++    recommended_role,
++    recommended_action,
++    observe_only: true,
++}
++```
++
++Implementation atoms:
++
++1. Emit SchedulerDecisionTrace to CAS/ChainTape evidence path.
++2. Force `observe_only: true`.
++3. Ensure recommendation does not affect sequencer admission, L4, or L4.E.
++4. Render scheduler recommendation in dashboard as non-binding.
++
++REAL-6D gates:
++
++```text
++SG-6D.1 Scheduler trace includes price/PnL signals.
++SG-6D.2 observe_only=true.
++SG-6D.3 Recommendation does not change sequencer admission.
++SG-6D.4 Price does not affect L4/L4.E.
++SG-6D.5 Dashboard shows scheduler recommendation as non-binding.
++```
++
++## 4. REAL-7 — V3-Equivalent Structural Smoke
++
++Goal:
++
++```text
++不是复制 v3 数量，而是重建 v3 的结构压力。
++```
++
++Architect comparison:
++
++```text
++v3 evidence 显示某些 run 产生过非零市场活动，比如 OMEGA_v3chat_N3_50k 的 raw-backed 指标包括 tx_count=436、nodes=127、markets=127 等。
++但 v3 的核心价值不是数字本身，而是短反馈环：LLM action -> wallet pressure -> market price -> prompt/scheduler visibility -> OMEGA settlement。
++```
++
++Minimum structure:
++
++```text
++>= 5 agents
++>= 3 roles active
++>= 3 tasks
++>= 1 TaskOutcomeMarket
++>= 1 scripted AttemptPredictionMarket
++>= 1 BuyYesWithCoinRouterTx
++>= 1 BuyNoWithCoinRouterTx or Short equivalent
++>= 1 VerifyTx
++>= 1 ChallengeTx or NoChallengeReason
++>= 1 EventResolveTx
++>= 1 PnL delta
++>= 1 AutopsyCapsule if loss occurs
++```
++
++Implementation atoms:
++
++1. Run persistent runtime_repo with same CAS across at least three tasks.
++2. Use at least five agents and at least three active roles.
++3. Include TaskOutcomeMarket and scripted AttemptPrediction fixture.
++4. Witness Buy YES and Buy NO/Short equivalent without claiming forced live emergence.
++5. Witness VerifyTx, ChallengeTx or NoChallengeReason, EventResolveTx, PnL delta, and AutopsyCapsule when loss occurs.
++6. Produce clean v3 comparison without claiming identical equivalence.
++
++REAL-7 gates:
++
++```text
++SG-7.1 Structural pattern achieved.
++SG-7.2 No forced investment.
++SG-7.3 No price-as-truth.
++SG-7.4 No ghost liquidity.
++SG-7.5 All market actions ChainTape-visible.
++SG-7.6 Dashboard regenerates from ChainTape + CAS.
++SG-7.7 Clean comparison to v3 metrics without claiming identical equivalence.
++```
++
++## 5. REAL-8 — Formal Market A/B Benchmark
++
++A/B conditions:
++
++```text
++A: market disabled
++B: market visible, no TaskOutcomeMarket
++C: TaskOutcomeMarket enabled
++D: TaskOutcomeMarket + scripted AttemptPrediction fixture
++```
++
++Metrics:
++
++```text
++solve rate
++verified PPUT
++false accept rate
++cost per verified proof
++market tx count
++NoTradeReason distribution
++PnL dispersion
++role diversity index
++audit failure rate
++```
++
++Implementation atoms:
++
++1. Pin same problem set across A/B/C/D.
++2. Pin same model assignment across A/B/C/D.
++3. Pin same budgets across A/B/C/D.
++4. Ensure all runs are chain-backed.
++5. Produce negative-result-valid report if no market effect appears.
++6. Avoid causal overclaim; report benchmark evidence only.
++
++REAL-8 gates:
++
++```text
++SG-8.1 Same problem set across arms.
++SG-8.2 Same model assignment.
++SG-8.3 Same budgets.
++SG-8.4 All runs chain-backed.
++SG-8.5 No overclaim of causality.
++SG-8.6 Negative result is valid and documented.
++```
++
++## 6. REAL-9 — Whitepaper / Launch Synthesis
++
++Write:
++
++```text
++TuringOS Generative Economy Whitepaper Update
++TuringOS Market Developer Manual
++```
++
++Must explicitly state:
++
++```text
++v4 does not copy v3.
++v4 rebuilds v3's economic pressure under constitution.
++price = signal, not truth.
++market = role-specific institution, not prompt decoration.
++```
++
++Final framing to preserve:
++
++```text
++v3 taught us pressure.
++v4 gives us law.
++Next phase must build lawful pressure.
++```
++
++## 7. Forbidden In All Ship Claims
++
++```text
++no forced trades
++no price-as-truth
++no ghost liquidity
++no f64 economy
++no off-tape WAL as truth
++no private CoT recording
++no raw-log broadcast
++```
++
++Additional local constraints:
++
++- No Phase E0-E7 route naming.
++- No prompt-only A07/A08/A09 variants.
++- No dashboard/report/stdout as source of truth.
++- No sequencer admission change in REAL-6D.
++- No live REAL-6B real-LLM ship until explicit Class-4 ratification.
++
++## 8. Harness And Audit Sequence
++
++Execution sequence after this draft receives independent audit `PROCEED` and user approval:
++
++```text
++1. Copy audited draft to APPROVED path.
++2. Open turingos_dev with risk=4.
++3. Record original architect file, approved plan, and R2 plan audit.
++4. Implement REAL-5S first.
++5. Implement REAL-6A/B/C/D as bounded atoms.
++6. Run targeted gates and real evidence.
++7. Request clean-context Codex implementation audit.
++8. Fix CHALLENGE/VETO or forward-defer only with explicit user approval.
++9. turingos_dev validate.
++10. turingos_dev close.
++11. Only then update LATEST / matrix / TB_LOG.
++```
++
++Open command shape:
++
++```bash
++turingos_dev open \
++  --title "REAL-5S to REAL-9 lawful pressure route" \
++  --module "REAL-5S/REAL-6/REAL-7/REAL-8/REAL-9" \
++  --risk 4 \
++  --fc "FC1 role/market action loop; FC2 task-open market/replay authority; FC3 dashboard/evidence materialized view; Art. III shielding; economy/predicate invariants" \
++  --allowed "<approved path list>"
++```
++
++## 9. Verification Commands
++
++Targeted gates to add and run:
++
++```bash
++cargo test --test constitution_real5s_scaffold_ratification
++cargo test --test constitution_real6_task_outcome_market
++cargo test --test constitution_real6_attempt_prediction_fixture
++cargo test --test constitution_real6_conviction_budget
++cargo test --test constitution_real6_scheduler_observe_only
++cargo test --test constitution_real7_v3_structural_smoke
++cargo test --test constitution_real8_market_ab_benchmark
++```
++
++Ship-level gates:
++
++```bash
++bash scripts/run_constitution_gates.sh
++cargo test --workspace --no-fail-fast -- --test-threads=1
++cargo test --lib boot::tests::verify_trust_root_passes_on_intact_repo
++git diff --check
++```
++
++REAL-6A evidence command shape:
++
++```bash
++PHASE_D_HETERO_OK=1 \
++TURINGOS_REAL5_ROLE_VIEWS=1 \
++TURINGOS_REAL6_TASK_OUTCOME_MARKET=1 \
++TURINGOS_REAL6_CONVICTION_BUDGET=1 \
++TURINGOS_REAL6_SCHEDULER_OBSERVE_ONLY=1 \
++TURINGOS_REAL5_ROLE_ASSIGNMENT="Solver,Trader,Verifier,Challenger,Observer" \
++bash scripts/run_g_phase_batch.sh g_phase_real_6a_task_outcome_<UTC> mini
++```
++
++REAL-8 benchmark command shape:
++
++```bash
++bash scripts/run_real8_market_ab_benchmark.sh \
++  --problems <same_problem_set_manifest> \
++  --models <same_model_assignment_manifest> \
++  --budgets <same_budget_manifest> \
++  --arms A,B,C,D \
++  --out handover/evidence/real8_market_ab_<UTC>
++```
++
++## 10. Plan R2 Audit Prompt
++
++After this draft is saved, spawn independent clean-context Codex reviewer with:
++
++```text
++Read:
++1. handover/directives/2026-05-15_REAL5S_REAL6_REAL7_REAL8_REAL9_ARCHITECT_ORIGINAL.md
++2. handover/directives/2026-05-15_REAL5S_REAL6_REAL7_REAL8_REAL9_EXECUTION_PLAN_DRAFT.md
++3. handover/audits/CODEX_REAL5S_REAL9_EXECUTION_PLAN_ALIGNMENT_REVIEW_R1.md
++
++Review whether R1 VETO findings are closed and whether the draft preserves every architect requirement:
++- route names REAL-5S / REAL-6 / REAL-7 / REAL-8 / REAL-9
++- no Phase E0-E7
++- REAL-5S scaffold + clean-negative only
++- Atom 5S-A / Atom 5S-B products and required wording
++- SG-5S.1 through SG-5S.5
++- REAL-6A TaskOutcomeMarket and SG-6A.1 through SG-6A.10
++- EventResolveTx YES and EventResolveTx NO wording preserved
++- REAL-6B design + scripted fixture only and no live real-LLM ship until explicit Class-4 ratification
++- REAL-6C ChainTape-derived ConvictionBudget/PnL, no HashMap sidecar
++- REAL-6D observe_only scheduler, no admission change, no price-as-truth
++- REAL-7 minimum structural targets and SG-7.1 through SG-7.7
++- REAL-8 A/B conditions, metrics, SG-8.1 through SG-8.6
++- REAL-9 whitepaper/manual requirements
++- forbidden list exactly includes no forced trades, no price-as-truth, no ghost liquidity, no f64 economy, no off-tape WAL as truth, no private CoT recording, no raw-log broadcast
++- Class-4 Harness and implementation audit flow preserved
++
++Lead with findings. End with Verdict: PROCEED | CHALLENGE | VETO.
++Do not edit files.
++```
+
+diff --git a/dev/null b/handover/directives/2026-05-15_REAL5S_REAL6_REAL7_REAL8_REAL9_EXECUTION_PLAN_APPROVED.md
+--- /dev/null
++++ b/handover/directives/2026-05-15_REAL5S_REAL6_REAL7_REAL8_REAL9_EXECUTION_PLAN_APPROVED.md
++# REAL-5S -> REAL-9 Execution Plan Approved
++
++Status: APPROVED by user on 2026-05-15 after R2 independent clean-context Codex review returned `PROCEED` in `handover/audits/CODEX_REAL5S_REAL9_EXECUTION_PLAN_ALIGNMENT_REVIEW_R2.md`. This is the execution directive for the Class-4 Harness run.
++
++Architect source of truth:
++
++```text
++handover/directives/2026-05-15_REAL5S_REAL6_REAL7_REAL8_REAL9_ARCHITECT_ORIGINAL.md
++```
++
++R1 audit being remediated:
++
++```text
++handover/audits/CODEX_REAL5S_REAL9_EXECUTION_PLAN_ALIGNMENT_REVIEW_R1.md
++```
++
++## 0. R1 VETO Closure
++
++This draft directly closes the R1 VETO findings:
++
++```text
++VETO: 当前可见方案不是 REAL-5S -> REAL-9 方案，而是旧 REAL-5 / REAL-6 方案。
++VETO: 独立审计没有作为当前 REAL-5S -> REAL-9 执行前置落地。
++VETO: 未要求把当前架构师原文逐字落地到新的本地文件，也未要求把审计后的 REAL-5S -> REAL-9 方案落地。
++```
++
++Closure decisions:
++
++- The new route uses only `REAL-5S / REAL-6 / REAL-7 / REAL-8 / REAL-9`.
++- `Phase E0-E7` naming is forbidden.
++- The architect original has been saved verbatim in the 2026-05-15 original file listed above.
++- This draft must be independently audited before approval.
++- After audit `PROCEED` and user approval, the approved plan will be copied to:
++
++```text
++handover/directives/2026-05-15_REAL5S_REAL6_REAL7_REAL8_REAL9_EXECUTION_PLAN_APPROVED.md
++```
++
++## 1. Harness Frame
++
++Risk class: Class 4 package.
++
++Reason:
++
++- REAL-6A may require `EventResolveTx YES/NO` semantics and therefore touches restricted surfaces if current `EventResolveTx` is YES-only.
++- REAL-6 changes market event timing.
++- REAL-6C touches risk-gated role availability.
++- REAL-6D introduces scheduler recommendation traces, explicitly observe-only.
++- REAL-7/REAL-8 are ship-path evidence packages.
++
++FC mapping:
++
++```text
++FC1: role/market action loop; every externalized action or abstain reason is ChainTape/CAS-visible.
++FC2: task-open market and replay authority; TaskOutcomeMarket exists before first WorkTx.
++FC3: dashboard, reports, scheduler trace, PnL, and benchmark outputs are materialized views.
++Art. III: role-scoped prompts and PnL summaries must not expose private CoT or raw logs.
++Economy: no ghost liquidity, no f64 economy, CTF conserved.
++Predicate: price never affects Lean predicate or L4/L4.E truth.
++```
++
++Restricted surfaces:
++
++```text
++src/state/typed_tx.rs
++src/state/sequencer.rs
++src/bottom_white/ledger/system_keypair.rs
++src/runtime/adapter.rs
++genesis_payload.toml
++```
++
++If REAL-6A requires `EventResolveTx` wire-shape, signing payload, or sequencer admission changes, implementation must keep it inside the Class-4 atom, update Trust Root, and obtain clean-context implementation audit before ship.
++
++## 2. REAL-5S — Scaffold Ratification / Clean-Negative Closure
++
++Architect route:
++
++```text
++REAL-5S  Scaffold ratification / clean-negative closure
++```
++
++Goal:
++
++```text
++正式确认：
++
++REAL-5 proves role scaffolding.
++REAL-5 does not prove market emergence.
++```
++
++### Atom 5S-A — Scaffold Ratification Report
++
++Produce:
++
++```text
++handover/evidence/real5_overnight_20260514/REAL5_SCAFFOLD_RATIFICATION_REPORT.md
++```
++
++The report must write:
++
++```text
++role gateway blocks Trader proof-style leakage
++Verifier behavior observed
++Trader buy=0
++NoPool dominates
++No E2/E3 claim
++```
++
++The report must cite existing REAL-5 evidence:
++
++```text
++handover/evidence/g_phase_real_5_trader_first_b8_rolegate_20260514T192523Z
++handover/evidence/g_phase_real_5_core3_b8_rolegate_20260514T192958Z
++handover/audits/CODEX_REAL5_IMPLEMENTATION_REVIEW_R3.md
++handover/evidence/dev_self_hosting/dev_1778788069384_807750
++```
++
++### Atom 5S-B — Clean Negative Report
++
++Produce:
++
++```text
++handover/evidence/real5_overnight_20260514/REAL5_CLEAN_NEGATIVE_NO_TRADE_REPORT.md
++```
++
++The report must answer:
++
++```text
++Why no trade?
++  NoPool dominates.
++  Post-accept node market timing too late.
++  Prompt-only exhausted.
++```
++
++### REAL-5S Ship Gates
++
++```text
++SG-5S.1 REAL-5 scaffold claim narrowed.
++SG-5S.2 No E2/E3 emergence claim.
++SG-5S.3 Role gateway regression tests pass.
++SG-5S.4 Clean-negative report filed.
++SG-5S.5 Constitution gates no regression.
++```
++
++Targeted verification:
++
++```bash
++cargo test --test constitution_real5_typed_generation_gateway
++cargo test --test constitution_real5_role_based_smoke
++bash scripts/run_constitution_gates.sh
++```
++
++## 3. REAL-6 — Event Timing & Lawful Pressure
++
++Architect ruling:
++
++```text
++REAL-6 是核心阶段。
++```
++
++Accepted diagnosis:
++
++```text
++NoPool means post-accept node market is too late.
++Stop prompt-only variants.
++```
++
++### REAL-6A — TaskOutcomeMarket
++
++Goal:
++
++```text
++在任务开始时创建市场：
++
++Event:
++  task will be solved within budget/deadline.
++```
++
++Why first:
++
++```text
++它比 NodeSurviveMarket 更早，比 AttemptPredictionMarket 更安全。
++```
++
++Required structure:
++
++```rust
++TaskOutcomeEvent {
++    event_id,
++    task_id,
++    deadline_round,
++    max_budget,
++    created_by_task_open_tx,
++}
++```
++
++Required execution:
++
++```text
++TaskOpenTx / EscrowLockTx
++-> MarketSeedTx for task_outcome event
++```
++
++Implementation atoms:
++
++1. Add `TaskOutcomeEvent` and a CAS provenance manifest for task-level market creation.
++2. Wire task-open runtime so the TaskOutcomeMarket is seeded after accepted `TaskOpenTx` / `EscrowLockTx` and before first `WorkTx`.
++3. Ensure TraderView includes the active TaskOutcomeMarket, pool depth, price, budget/deadline, and scoped PnL.
++4. Add scripted trader fixture for Buy YES and Buy NO on the TaskOutcomeMarket.
++5. Keep real LLM trader behavior non-forced: it may buy or emit `MarketDecisionTrace` / classified `NoTradeReason`.
++6. Implement `EventResolveTx YES` if verified proof occurs before budget/deadline.
++7. Implement `EventResolveTx NO` if exhausted/deadline occurs without verified proof.
++
++Important Class-4 constraint:
++
++```text
++SG-6A.7 says EventResolveTx NO.
++Do not silently replace this with TaskBankruptcyTx.
++```
++
++If current `EventResolveTx` is YES-only, add an explicit Class-4 `EventResolveTx` outcome design inside REAL-6A:
++
++- preserve historical evidence through schema bump or dual-reader;
++- update canonical signing payload tests;
++- update sequencer admission/apply semantics;
++- update agent-ingress rejection for system-only tx if needed;
++- update Trust Root for modified pinned files;
++- include regression tests proving old EventResolve evidence remains readable or grandfathered.
++
++REAL-6A gates:
++
++```text
++SG-6A.1 TaskOutcomeMarket exists before first WorkTx.
++SG-6A.2 TraderView contains active TaskOutcomeMarket.
++SG-6A.3 NoPool no longer dominates when task market exists.
++SG-6A.4 Scripted trader can Buy YES/NO on TaskOutcomeMarket.
++SG-6A.5 Real LLM trader emits MarketDecisionTrace or classified NoTradeReason.
++SG-6A.6 EventResolveTx YES if verified proof before budget/deadline.
++SG-6A.7 EventResolveTx NO if exhausted/deadline without verified proof.
++SG-6A.8 No ghost liquidity.
++SG-6A.9 CTF conserved.
++SG-6A.10 Price never affects Lean predicate.
++```
++
++### REAL-6B — AttemptPredictionMarket
++
++Goal:
++
++```text
++让 candidate proof 在 Lean final resolution 前有一个短期预测市场。
++```
++
++Sealed Oracle flow:
++
++```text
++SubmitCandidateTx
++-> AttemptPredictionMarket opens
++-> exactly K logical tape ticks for Trader / Verifier / Challenger
++-> MarketCloseTx
++-> OracleResolveTx executes Lean result
++```
++
++Current-stage limit:
++
++```text
++REAL-6B = design + scripted fixture only.
++No live real-LLM ship until explicit Class-4 ratification.
++```
++
++Implementation atoms:
++
++1. Write design record for the sealed oracle flow.
++2. Add scripted fixture structs/manifests without live real-LLM ship.
++3. Use logical tape ticks only; no wall-clock sleep.
++4. Prove `MarketCloseTx` happens before `OracleResolveTx` in fixture evidence.
++5. Prove Lean oracle remains absolute truth and price does not affect verification.
++
++REAL-6B gates:
++
++```text
++SG-6B.1 No sleep-based artificial blocking.
++SG-6B.2 K logical tape ticks are deterministic and replayable.
++SG-6B.3 Lean oracle remains absolute truth.
++SG-6B.4 MarketCloseTx happens before OracleResolveTx.
++SG-6B.5 Trader actions during window are ChainTape-visible.
++SG-6B.6 Price does not affect verification.
++SG-6B.7 No ghost liquidity.
++```
++
++### REAL-6C — Conviction Budget / PnL Feedback
++
++Goal:
++
++```text
++恢复 v3 的经济压力，但保持 v4 合宪。
++```
++
++Principle:
++
++```text
++free cognition
++paid conviction
++```
++
++Required structure:
++
++```rust
++ConvictionBudget {
++    agent_id,
++    available_micro,
++    reserved_micro,
++    realized_pnl,
++    unrealized_pnl,
++    risk_cap,
++}
++```
++
++Implementation requirement:
++
++```text
++ChainTape fold / materialized view
++not HashMap sidecar
++```
++
++Risk restriction:
++
++```text
++below risk cap:
++  cannot Trader/Challenger high-risk action
++  can still observe/read/abstain/solve/possibly verify
++```
++
++Implementation atoms:
++
++1. Compute ConvictionBudget as a pure derived view from ChainTape/CAS/QState.
++2. Expose scoped ConvictionBudget/PnL summary to the agent prompt.
++3. Gate Trader/Challenger high-risk actions when below risk cap.
++4. Preserve read/observe/abstain/solve/possibly verify for low-balance agents.
++5. Emit AutopsyCapsule after significant loss.
++
++REAL-6C gates:
++
++```text
++SG-6C.1 PnL derived from ChainTape/CAS.
++SG-6C.2 No PnL HashMap sidecar source-of-truth.
++SG-6C.3 Agent prompt sees scoped PnL summary.
++SG-6C.4 Low-balance agent blocked from high-risk market actions.
++SG-6C.5 Low-balance agent not erased / reset.
++SG-6C.6 AutopsyCapsule generated after significant loss.
++```
++
++### REAL-6D — Opportunity Scheduler Observe-Only
++
++Goal:
++
++```text
++价格 / PnL 进入调度观察，但不执行 admission change。
++```
++
++Required structure:
++
++```rust
++SchedulerDecisionTrace {
++    head_t,
++    visible_agents,
++    visible_nodes,
++    price_signals,
++    pnl_signals,
++    recommended_agent,
++    recommended_role,
++    recommended_action,
++    observe_only: true,
++}
++```
++
++Implementation atoms:
++
++1. Emit SchedulerDecisionTrace to CAS/ChainTape evidence path.
++2. Force `observe_only: true`.
++3. Ensure recommendation does not affect sequencer admission, L4, or L4.E.
++4. Render scheduler recommendation in dashboard as non-binding.
++
++REAL-6D gates:
++
++```text
++SG-6D.1 Scheduler trace includes price/PnL signals.
++SG-6D.2 observe_only=true.
++SG-6D.3 Recommendation does not change sequencer admission.
++SG-6D.4 Price does not affect L4/L4.E.
++SG-6D.5 Dashboard shows scheduler recommendation as non-binding.
++```
++
++## 4. REAL-7 — V3-Equivalent Structural Smoke
++
++Goal:
++
++```text
++不是复制 v3 数量，而是重建 v3 的结构压力。
++```
++
++Architect comparison:
++
++```text
++v3 evidence 显示某些 run 产生过非零市场活动，比如 OMEGA_v3chat_N3_50k 的 raw-backed 指标包括 tx_count=436、nodes=127、markets=127 等。
++但 v3 的核心价值不是数字本身，而是短反馈环：LLM action -> wallet pressure -> market price -> prompt/scheduler visibility -> OMEGA settlement。
++```
++
++Minimum structure:
++
++```text
++>= 5 agents
++>= 3 roles active
++>= 3 tasks
++>= 1 TaskOutcomeMarket
++>= 1 scripted AttemptPredictionMarket
++>= 1 BuyYesWithCoinRouterTx
++>= 1 BuyNoWithCoinRouterTx or Short equivalent
++>= 1 VerifyTx
++>= 1 ChallengeTx or NoChallengeReason
++>= 1 EventResolveTx
++>= 1 PnL delta
++>= 1 AutopsyCapsule if loss occurs
++```
++
++Implementation atoms:
++
++1. Run persistent runtime_repo with same CAS across at least three tasks.
++2. Use at least five agents and at least three active roles.
++3. Include TaskOutcomeMarket and scripted AttemptPrediction fixture.
++4. Witness Buy YES and Buy NO/Short equivalent without claiming forced live emergence.
++5. Witness VerifyTx, ChallengeTx or NoChallengeReason, EventResolveTx, PnL delta, and AutopsyCapsule when loss occurs.
++6. Produce clean v3 comparison without claiming identical equivalence.
++
++REAL-7 gates:
++
++```text
++SG-7.1 Structural pattern achieved.
++SG-7.2 No forced investment.
++SG-7.3 No price-as-truth.
++SG-7.4 No ghost liquidity.
++SG-7.5 All market actions ChainTape-visible.
++SG-7.6 Dashboard regenerates from ChainTape + CAS.
++SG-7.7 Clean comparison to v3 metrics without claiming identical equivalence.
++```
++
++## 5. REAL-8 — Formal Market A/B Benchmark
++
++A/B conditions:
++
++```text
++A: market disabled
++B: market visible, no TaskOutcomeMarket
++C: TaskOutcomeMarket enabled
++D: TaskOutcomeMarket + scripted AttemptPrediction fixture
++```
++
++Metrics:
++
++```text
++solve rate
++verified PPUT
++false accept rate
++cost per verified proof
++market tx count
++NoTradeReason distribution
++PnL dispersion
++role diversity index
++audit failure rate
++```
++
++Implementation atoms:
++
++1. Pin same problem set across A/B/C/D.
++2. Pin same model assignment across A/B/C/D.
++3. Pin same budgets across A/B/C/D.
++4. Ensure all runs are chain-backed.
++5. Produce negative-result-valid report if no market effect appears.
++6. Avoid causal overclaim; report benchmark evidence only.
++
++REAL-8 gates:
++
++```text
++SG-8.1 Same problem set across arms.
++SG-8.2 Same model assignment.
++SG-8.3 Same budgets.
++SG-8.4 All runs chain-backed.
++SG-8.5 No overclaim of causality.
++SG-8.6 Negative result is valid and documented.
++```
++
++## 6. REAL-9 — Whitepaper / Launch Synthesis
++
++Write:
++
++```text
++TuringOS Generative Economy Whitepaper Update
++TuringOS Market Developer Manual
++```
++
++Must explicitly state:
++
++```text
++v4 does not copy v3.
++v4 rebuilds v3's economic pressure under constitution.
++price = signal, not truth.
++market = role-specific institution, not prompt decoration.
++```
++
++Final framing to preserve:
++
++```text
++v3 taught us pressure.
++v4 gives us law.
++Next phase must build lawful pressure.
++```
++
++## 7. Forbidden In All Ship Claims
++
++```text
++no forced trades
++no price-as-truth
++no ghost liquidity
++no f64 economy
++no off-tape WAL as truth
++no private CoT recording
++no raw-log broadcast
++```
++
++Additional local constraints:
++
++- No Phase E0-E7 route naming.
++- No prompt-only A07/A08/A09 variants.
++- No dashboard/report/stdout as source of truth.
++- No sequencer admission change in REAL-6D.
++- No live REAL-6B real-LLM ship until explicit Class-4 ratification.
++
++## 8. Harness And Audit Sequence
++
++Execution sequence after this draft receives independent audit `PROCEED` and user approval:
++
++```text
++1. Copy audited draft to APPROVED path.
++2. Open turingos_dev with risk=4.
++3. Record original architect file, approved plan, and R2 plan audit.
++4. Implement REAL-5S first.
++5. Implement REAL-6A/B/C/D as bounded atoms.
++6. Run targeted gates and real evidence.
++7. Request clean-context Codex implementation audit.
++8. Fix CHALLENGE/VETO or forward-defer only with explicit user approval.
++9. turingos_dev validate.
++10. turingos_dev close.
++11. Only then update LATEST / matrix / TB_LOG.
++```
++
++Open command shape:
++
++```bash
++turingos_dev open \
++  --title "REAL-5S to REAL-9 lawful pressure route" \
++  --module "REAL-5S/REAL-6/REAL-7/REAL-8/REAL-9" \
++  --risk 4 \
++  --fc "FC1 role/market action loop; FC2 task-open market/replay authority; FC3 dashboard/evidence materialized view; Art. III shielding; economy/predicate invariants" \
++  --allowed "<approved path list>"
++```
++
++## 9. Verification Commands
++
++Targeted gates to add and run:
++
++```bash
++cargo test --test constitution_real5s_scaffold_ratification
++cargo test --test constitution_real6_task_outcome_market
++cargo test --test constitution_real6_attempt_prediction_fixture
++cargo test --test constitution_real6_conviction_budget
++cargo test --test constitution_real6_scheduler_observe_only
++cargo test --test constitution_real7_v3_structural_smoke
++cargo test --test constitution_real8_market_ab_benchmark
++```
++
++Ship-level gates:
++
++```bash
++bash scripts/run_constitution_gates.sh
++cargo test --workspace --no-fail-fast -- --test-threads=1
++cargo test --lib boot::tests::verify_trust_root_passes_on_intact_repo
++git diff --check
++```
++
++REAL-6A evidence command shape:
++
++```bash
++PHASE_D_HETERO_OK=1 \
++TURINGOS_REAL5_ROLE_VIEWS=1 \
++TURINGOS_REAL6_TASK_OUTCOME_MARKET=1 \
++TURINGOS_REAL6_CONVICTION_BUDGET=1 \
++TURINGOS_REAL6_SCHEDULER_OBSERVE_ONLY=1 \
++TURINGOS_REAL5_ROLE_ASSIGNMENT="Solver,Trader,Verifier,Challenger,Observer" \
++bash scripts/run_g_phase_batch.sh g_phase_real_6a_task_outcome_<UTC> mini
++```
++
++REAL-8 benchmark command shape:
++
++```bash
++bash scripts/run_real8_market_ab_benchmark.sh \
++  --problems <same_problem_set_manifest> \
++  --models <same_model_assignment_manifest> \
++  --budgets <same_budget_manifest> \
++  --arms A,B,C,D \
++  --out handover/evidence/real8_market_ab_<UTC>
++```
++
++## 10. Plan R2 Audit Prompt
++
++After this draft is saved, spawn independent clean-context Codex reviewer with:
++
++```text
++Read:
++1. handover/directives/2026-05-15_REAL5S_REAL6_REAL7_REAL8_REAL9_ARCHITECT_ORIGINAL.md
++2. handover/directives/2026-05-15_REAL5S_REAL6_REAL7_REAL8_REAL9_EXECUTION_PLAN_DRAFT.md
++3. handover/audits/CODEX_REAL5S_REAL9_EXECUTION_PLAN_ALIGNMENT_REVIEW_R1.md
++
++Review whether R1 VETO findings are closed and whether the draft preserves every architect requirement:
++- route names REAL-5S / REAL-6 / REAL-7 / REAL-8 / REAL-9
++- no Phase E0-E7
++- REAL-5S scaffold + clean-negative only
++- Atom 5S-A / Atom 5S-B products and required wording
++- SG-5S.1 through SG-5S.5
++- REAL-6A TaskOutcomeMarket and SG-6A.1 through SG-6A.10
++- EventResolveTx YES and EventResolveTx NO wording preserved
++- REAL-6B design + scripted fixture only and no live real-LLM ship until explicit Class-4 ratification
++- REAL-6C ChainTape-derived ConvictionBudget/PnL, no HashMap sidecar
++- REAL-6D observe_only scheduler, no admission change, no price-as-truth
++- REAL-7 minimum structural targets and SG-7.1 through SG-7.7
++- REAL-8 A/B conditions, metrics, SG-8.1 through SG-8.6
++- REAL-9 whitepaper/manual requirements
++- forbidden list exactly includes no forced trades, no price-as-truth, no ghost liquidity, no f64 economy, no off-tape WAL as truth, no private CoT recording, no raw-log broadcast
++- Class-4 Harness and implementation audit flow preserved
++
++Lead with findings. End with Verdict: PROCEED | CHALLENGE | VETO.
++Do not edit files.
++```
+
+diff --git a/dev/null b/handover/audits/CODEX_REAL5S_REAL9_EXECUTION_PLAN_ALIGNMENT_REVIEW_R1.md
+--- /dev/null
++++ b/handover/audits/CODEX_REAL5S_REAL9_EXECUTION_PLAN_ALIGNMENT_REVIEW_R1.md
++# CODEX REAL-5S -> REAL-9 Execution Plan Alignment Review R1
++
++Reviewer: clean-context Codex sub-agent Pasteur (`019e294c-b9f6-7f42-8eee-25e04f80e62b`)
++
++Date: 2026-05-15 UTC
++
++Scope: read-only alignment review of the then-visible REAL-5S -> REAL-9 plan state against the user's architect original.
++
++## Findings
++
++- **VETO: 当前可见方案不是 `REAL-5S -> REAL-9` 方案，而是旧 `REAL-5 / REAL-6` 方案。**
++  现有执行方案标题和正文均为 `REAL-5 Role-Based Generative Scaffolding`，路线名见 `handover/directives/2026-05-14_REAL5_ROLE_BASED_GENERATIVE_SCAFFOLDING_EXECUTION_PLAN.md`。全仓精确检索未找到 `REAL-5S`、`REAL-6A/B/C/D`、`SG-5S.*`、`SG-6A.*`、`SG-7.*`、`SG-8.*` 对应的新路线文本。检查项 3、6、7、9、10、11、12、13、14 因此无法通过。
++
++- **VETO: 独立审计没有作为当前 `REAL-5S -> REAL-9` 执行前置落地。**
++  现有审计是旧 REAL-5 对齐审计，reviewed files 仅为旧 original 与旧 execution plan。执行方案还写成“执行阶段必须把最终方案落盘后，再生成审计”，但没有当前新原文/新方案的前置审计与 approval gate。检查项 1、16 不通过。
++
++- **VETO: 未要求把当前架构师原文逐字落地到新的本地文件，也未要求把审计后的 `REAL-5S -> REAL-9` 方案落地。**
++  现有落地路径固定为旧 REAL-5 文件。这只满足旧方案，不满足用户当前要求的 `REAL-5S -> REAL-9` 原文与审计后方案落地。检查项 2 不通过。
++
++- **CHALLENGE: `REAL-5S` 的约束与 Atom 5S-A / 5S-B 缺失。**
++  当前文件只有旧 `Atom 0` 到 `Atom 9`。没有 `REAL-5S`、没有 `scaffold ratification + clean-negative closure`，也没有 `Atom 5S-A / 5S-B` 的逐字产物要求。虽有“不追求 E2/E3 强行交易结论”，但它不是按 `REAL-5S` 原文落地。检查项 4、5 不通过。
++
++- **CHALLENGE: `REAL-6A` 到 `REAL-6D` 的核心内容缺失。**
++  现有 `REAL-6` 只保留旧的 `TaskOutcomeMarket` / `AttemptPredictionMarket` 概念与 Class 4 理由。没有 `SG-6A.1` 至 `SG-6A.10`，没有 `design + scripted fixture only`，没有 `ChainTape fold/materialized view, not HashMap sidecar`，没有 `observe_only=true / no admission change / no price-as-truth`。检查项 7、9、10、11 不通过。
++
++- **CHALLENGE: `EventResolveTx NO` 未保留，也未作为 Class-4 restricted-surface 风险显式处理。**
++  全仓未找到 `EventResolveTx NO`。现有方案没有静默替换成别的实现，但也没有保留该原文语义或把潜在实现风险标为 restricted-surface/Class-4 issue。检查项 8 不通过。
++
++- **CHALLENGE: Forbidden list 不完整。**
++  当前 forbidden/hard rules 包含 `no forced trade`、`no price-as-truth`、`no private CoT recording`、`no raw-log broadcast`、`no ghost liquidity`，但缺少 `no f64 economy`、`no off-tape WAL as truth`；`dashboard materialized view only` 不能完全替代 `no off-tape WAL as truth`。检查项 15 不通过。
++
++## Open Questions
++
++- 主 agent 所谓《REAL-5S -> REAL-9 原文落地、独立审计、Harness 执行计划》没有本地文件；如果它只存在于未落地聊天文本中，则它已经违反“原文与审计后方案落地”的前置要求。
++- 当前仓库中的“架构师原文”也是旧 `REAL-5` 原文。请确认是否存在新的 `REAL-5S -> REAL-9` 架构师原文文件；审计时未检索到。
++
++## Verdict
++
++VETO
+
+diff --git a/dev/null b/handover/audits/CODEX_REAL5S_REAL9_EXECUTION_PLAN_ALIGNMENT_REVIEW_R2.md
+--- /dev/null
++++ b/handover/audits/CODEX_REAL5S_REAL9_EXECUTION_PLAN_ALIGNMENT_REVIEW_R2.md
++# CODEX REAL-5S -> REAL-9 Execution Plan Alignment Review R2
++
++Reviewer: clean-context Codex sub-agent Schrodinger (`019e2952-4c04-7bc0-9149-12c34aa0457f`)
++
++Date: 2026-05-15 UTC
++
++Scope: read-only alignment review of:
++
++```text
++handover/directives/2026-05-15_REAL5S_REAL6_REAL7_REAL8_REAL9_ARCHITECT_ORIGINAL.md
++handover/directives/2026-05-15_REAL5S_REAL6_REAL7_REAL8_REAL9_EXECUTION_PLAN_DRAFT.md
++handover/audits/CODEX_REAL5S_REAL9_EXECUTION_PLAN_ALIGNMENT_REVIEW_R1.md
++```
++
++## Findings
++
++No blocking findings. I found no remaining R1 VETO closure gap and no architect requirement loss in the draft.
++
++R1 closure is substantively present: the draft switches to `REAL-5S / REAL-6 / REAL-7 / REAL-8 / REAL-9`, forbids `Phase E0-E7`, references the saved architect original, and requires independent audit before approval plus copy to an approved plan path.
++
++The architect requirements are preserved in the body, not merely in the audit prompt:
++
++- `REAL-5S` Atom 5S-A/5S-B outputs and required wording are present.
++- SG-5S gates are present.
++- `REAL-6A` and SG-6A.1-6A.10 are present.
++- `EventResolveTx YES/NO` plus Class-4 handling is present.
++- `REAL-6B` scripted-only limit is present.
++- `REAL-6C` ChainTape-derived/no-HashMap rule is present.
++- `REAL-6D` observe-only/no admission change/no price truth is present.
++- `REAL-7`, `REAL-8`, and `REAL-9` requirements are preserved.
++- The forbidden list exactly includes the seven required items.
++- Class-4 Harness and implementation audit flow is preserved.
++
++No files edited by reviewer.
++
++## Verdict
++
++PROCEED
+
+diff --git a/dev/null b/handover/evidence/real5_overnight_20260514/REAL5_SCAFFOLD_RATIFICATION_REPORT.md
+--- /dev/null
++++ b/handover/evidence/real5_overnight_20260514/REAL5_SCAFFOLD_RATIFICATION_REPORT.md
++# REAL-5S Scaffold Ratification Report
++
++Date: 2026-05-15 UTC
++
++Directive:
++
++```text
++REAL-5S  Scaffold ratification / clean-negative closure
++```
++
++Ratified claim:
++
++```text
++REAL-5 proves role scaffolding.
++REAL-5 does not prove market emergence.
++```
++
++Required REAL-5S statements:
++
++```text
++role gateway blocks Trader proof-style leakage
++Verifier behavior observed
++Trader buy=0
++NoPool dominates
++No E2/E3 claim
++```
++
++## Evidence Sources
++
++Primary post-VETO evidence:
++
++```text
++handover/evidence/g_phase_real_5_trader_first_b8_rolegate_20260514T192523Z
++handover/evidence/g_phase_real_5_core3_b8_rolegate_20260514T192958Z
++```
++
++Final implementation audit:
++
++```text
++handover/audits/CODEX_REAL5_IMPLEMENTATION_REVIEW_R3.md
++```
++
++Closed Harness evidence:
++
++```text
++handover/evidence/dev_self_hosting/dev_1778788069384_807750
++```
++
++Completion and adversarial report:
++
++```text
++handover/evidence/real5_overnight_20260514/REAL5_COMPLETION_AND_ADVERSARIAL_TEST_REPORT.md
++handover/evidence/real5_overnight_20260514/REAL5_OVERNIGHT_EXPERIMENT_LEDGER.md
++```
++
++## Scaffold Findings
++
++The role gateway blocks Trader proof-style leakage.
++
++The R2 audit VETO found that a trader-first run still allowed `Agent_0=Trader`
++to reach legacy proof/verify production paths. The post-VETO remediation wired
++the REAL-5 typed role gateway before the legacy evaluator action dispatch.
++
++The post-VETO trader-first run:
++
++```text
++handover/evidence/g_phase_real_5_trader_first_b8_rolegate_20260514T192523Z
++```
++
++witnesses:
++
++```text
++accepted VerifyTx by Agent_0 Trader: 0
++accepted WorkTx by Agent_0 Trader: 0
++Agent_0 Trader role_turn outcomes: PolicyRejected=5
++```
++
++The R3 clean-context Codex review reports no blocking production defects and
++confirms that Trader proof/verify output is routed to L4.E policy rejection
++rather than WorkTx / VerifyTx production branches.
++
++Verifier behavior observed.
++
++REAL-5 bounded runs observed non-zero verification behavior before any
++spontaneous market router buy:
++
++```text
++R5-CORE3-B20: verify=6
++R5-TRADER-FIRST-B12: verify=5
++R5-MARKET-K0-B12: verify=3
++R5-ADV5-B8: verify=5
++R5-TRADER-FIRST-B8-ROLEGATE: verify=1
++```
++
++Trader buy=0.
++
++Both post-VETO rolegate runs have:
++
++```text
++buy_with_coin_router=0
++```
++
++The broader overnight ledger likewise records `0 router buys` across the
++successful bounded REAL-5 true-problem runs.
++
++NoPool dominates.
++
++The overnight report records that all role-turn Trader NoTrade reasons observed
++overnight were `NoPool`. This is the mechanism-level clean-negative signal:
++role scaffolding exists, but post-accept node markets are generally unavailable
++or too late for Trader turns to use.
++
++No E2/E3 claim.
++
++This report does not claim:
++
++```text
++E2: spontaneous live agent market action
++E3: persistent role-differentiated market behavior
++```
++
++## Ratification Verdict
++
++REAL-5S ratifies the scaffold-level result only:
++
++```text
++role-based generation scaffold,
++tape-visible decisions/reasons,
++typed gateway,
++role-scoped view,
++reconstructable ChainTape/CAS evidence.
++```
++
++It does not ratify market emergence.
++
++Next phase:
++
++```text
++REAL-6 Event Timing & Lawful Pressure
++```
+
+diff --git a/dev/null b/handover/evidence/real5_overnight_20260514/REAL5_CLEAN_NEGATIVE_NO_TRADE_REPORT.md
+--- /dev/null
++++ b/handover/evidence/real5_overnight_20260514/REAL5_CLEAN_NEGATIVE_NO_TRADE_REPORT.md
++# REAL-5S Clean Negative No-Trade Report
++
++Date: 2026-05-15 UTC
++
++Directive:
++
++```text
++Atom 5S-B — Clean Negative Report
++```
++
++Required question:
++
++```text
++Why no trade?
++  NoPool dominates.
++  Post-accept node market timing too late.
++  Prompt-only exhausted.
++```
++
++## Summary
++
++Why no trade?
++
++```text
++NoPool dominates.
++Post-accept node market timing too late.
++Prompt-only exhausted.
++```
++
++Trader buy=0.
++
++No E2/E3 claim.
++
++## Evidence
++
++Post-VETO runs:
++
++```text
++handover/evidence/g_phase_real_5_trader_first_b8_rolegate_20260514T192523Z
++handover/evidence/g_phase_real_5_core3_b8_rolegate_20260514T192958Z
++```
++
++Both runs have:
++
++```text
++audit_tape verdict: PROCEED
++buy_with_coin_router=0
++```
++
++The trader-first post-VETO run additionally shows that `Agent_0=Trader`
++produced proof-style outputs, but those outputs were blocked by the role
++gateway and anchored as policy rejections instead of accepted WorkTx/VerifyTx.
++That means the remaining no-trade result is no longer explained by hidden
++role-permission leakage.
++
++## Mechanism Diagnosis
++
++NoPool dominates.
++
++The overnight ledger records that every successful bounded run with Trader
++NoTrade reason traces classified the trader-side no-trade condition as
++`NoPool`. The `market K=0` adversary did not turn this into
++`PromptBudgetExceeded`; it stayed `NoPool`, which points away from prompt
++top-K elision and toward market timing / availability.
++
++Post-accept node market timing too late.
++
++The REAL-5 market surface depends on node-survive markets that appear after
++accepted WorkTx. In the bounded true-problem runs, those markets either appear
++after the uncertainty has largely collapsed or outside the effective Trader
++decision window. This matches the architect's diagnosis that the market must
++move earlier:
++
++```text
++REAL-6 Event Timing & Lawful Pressure
++REAL-6A TaskOutcomeMarket
++```
++
++Prompt-only exhausted.
++
++REAL-5 tried role order, market-context size, adversarial problem selection,
++and post-VETO role-gateway enforcement. These changed visibility and policy
++classification but did not produce live router buys. Continuing prompt-only
++variants would not address the dominant `NoPool` mechanism.
++
++## Non-Claims
++
++This report does not claim:
++
++```text
++E2: spontaneous trading emergence
++E3: role differentiation / market behavior emergence
++```
++
++Negative result is valid and documented:
++
++```text
++REAL-5 proves role scaffolding.
++REAL-5 does not prove market emergence.
++```
++
++## Next Step
++
++Proceed to REAL-6 only under the approved Class-4 plan:
++
++```text
++REAL-6A — TaskOutcomeMarket
++Event:
++  task will be solved within budget/deadline.
++```
+
+diff --git a/dev/null b/tests/constitution_real5s_scaffold_ratification.rs
+--- /dev/null
++++ b/tests/constitution_real5s_scaffold_ratification.rs
++//! REAL-5S — scaffold ratification / clean-negative closure gates.
++//!
++//! These tests bind the architect's 2026-05-15 REAL-5S route:
++//! REAL-5 proves role scaffolding; REAL-5 does not prove market emergence.
++
++use std::fs;
++use std::path::PathBuf;
++
++fn repo_file(path: &str) -> PathBuf {
++    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(path)
++}
++
++fn read(path: &str) -> String {
++    fs::read_to_string(repo_file(path)).unwrap_or_else(|err| panic!("read {path}: {err}"))
++}
++
++#[test]
++fn sg_5s_scaffold_ratification_report_narrows_real5_claim() {
++    let report = read("handover/evidence/real5_overnight_20260514/REAL5_SCAFFOLD_RATIFICATION_REPORT.md");
++
++    for required in [
++        "role gateway blocks Trader proof-style leakage",
++        "Verifier behavior observed",
++        "Trader buy=0",
++        "NoPool dominates",
++        "No E2/E3 claim",
++        "REAL-5 proves role scaffolding.",
++        "REAL-5 does not prove market emergence.",
++    ] {
++        assert!(
++            report.contains(required),
++            "REAL-5S scaffold report must contain architect-required text: {required}"
++        );
++    }
++
++    assert!(
++        report.contains("g_phase_real_5_trader_first_b8_rolegate_20260514T192523Z"),
++        "report must cite post-VETO trader-first role-gateway evidence"
++    );
++    assert!(
++        report.contains("CODEX_REAL5_IMPLEMENTATION_REVIEW_R3.md"),
++        "report must cite final clean-context Codex R3 PROCEED audit"
++    );
++    assert!(
++        !report.contains("REAL-5 proves market emergence"),
++        "REAL-5S must not overclaim market emergence"
++    );
++}
++
++#[test]
++fn sg_5s_clean_negative_report_records_no_trade_diagnosis() {
++    let report = read("handover/evidence/real5_overnight_20260514/REAL5_CLEAN_NEGATIVE_NO_TRADE_REPORT.md");
++
++    for required in [
++        "Why no trade?",
++        "NoPool dominates.",
++        "Post-accept node market timing too late.",
++        "Prompt-only exhausted.",
++        "Trader buy=0",
++        "No E2/E3 claim",
++    ] {
++        assert!(
++            report.contains(required),
++            "REAL-5S clean-negative report must contain architect-required text: {required}"
++        );
++    }
++
++    assert!(
++        report.contains("REAL-6"),
++        "clean-negative report must point to REAL-6 event timing rather than more prompt variants"
++    );
++    assert!(
++        !report.contains("forced trade") && !report.contains("must trade"),
++        "clean-negative report must not recommend forced trading"
++    );
++}
+
+diff --git a/dev/null b/tests/constitution_real5_typed_generation_gateway.rs
+--- /dev/null
++++ b/tests/constitution_real5_typed_generation_gateway.rs
++//! REAL-5 Atom 4 — typed generation gateway gates.
++
++use turingosv4::bottom_white::ledger::rejection_evidence::RejectionClass;
++use turingosv4::runtime::real5_roles::{
++    legacy_tool_to_role_action, parse_role_action_json, route_role_action, AbstainPayload,
++    AgentRole, RoleAction, RoleActionRoute,
++};
++
++#[test]
++fn sg_r5_4_malformed_role_action_routes_parsefailed() {
++    let err = parse_role_action_json(AgentRole::Trader, br#"{"tool":"invest","#)
++        .expect_err("malformed JSON must reject");
++    assert_eq!(err.rejection_class, RejectionClass::ParseFailed);
++}
++
++#[test]
++fn sg_r5_4_role_allowed_tools_are_enforced() {
++    let solver_liquidity = RoleAction::ProvideLiquidity(Default::default());
++    let route = route_role_action(AgentRole::Solver, &solver_liquidity);
++    assert!(matches!(route, RoleActionRoute::L4E { .. }));
++    assert!(format!("{route:?}").contains("solver cannot directly emit MarketSeedTx"));
++
++    let trader_proof = RoleAction::SubmitProof(Default::default());
++    let route = route_role_action(AgentRole::Trader, &trader_proof);
++    assert!(matches!(route, RoleActionRoute::L4E { .. }));
++
++    let abstain = RoleAction::Abstain(AbstainPayload {
++        reason: "no perceived edge".into(),
++    });
++    let route = route_role_action(AgentRole::Trader, &abstain);
++    assert!(matches!(route, RoleActionRoute::CasOnly { .. }));
++}
++
++#[test]
++fn sg_r5_4_legacy_proof_and_verify_tools_are_blocked_for_trader() {
++    for legacy_tool in ["append", "complete", "step", "verify_peer"] {
++        let action = legacy_tool_to_role_action(legacy_tool)
++            .expect("legacy evaluator tool maps into REAL-5 typed action gateway");
++        let route = route_role_action(AgentRole::Trader, &action);
++        assert!(
++            matches!(
++                route,
++                RoleActionRoute::L4E {
++                    rejection_class: RejectionClass::PolicyViolation,
++                    ..
++                }
++            ),
++            "Trader must not route legacy tool {legacy_tool:?} to production"
++        );
++    }
++}
++
++#[test]
++fn sg_r5_4_evaluator_wires_role_gateway_before_legacy_actions() {
++    let evaluator = include_str!("../experiments/minif2f_v4/src/bin/evaluator.rs");
++    assert!(evaluator.contains("real5_gate_parsed_action_for_role"));
++    assert!(evaluator.contains("real5_role_policy_rejected_this_turn"));
++    assert!(evaluator.contains("real5_role_policy_reject"));
++}
+
+diff --git a/dev/null b/tests/constitution_real5_role_based_smoke.rs
+--- /dev/null
++++ b/tests/constitution_real5_role_based_smoke.rs
++//! REAL-5 Atom 9 — role-based smoke gates.
++
++use tempfile::TempDir;
++use turingosv4::bottom_white::cas::schema::Cid;
++use turingosv4::bottom_white::cas::store::CasStore;
++use turingosv4::runtime::market_decision_trace::NoTradeReason;
++use turingosv4::runtime::real5_roles::{
++    evaluate_real5_smoke, summarize_role_turn_traces_from_cas, write_role_turn_trace_to_cas,
++    AgentRole, NoChallengeReason, NoVerifyReason, Real5SmokeInput, RoleTurnOutcome,
++    RoleTurnTrace, ROLE_TURN_TRACE_SCHEMA_ID,
++};
++use turingosv4::state::q_state::{AgentId, TaskId};
++
++#[test]
++fn sg_r5_9_role_based_smoke_accepts_clean_negative_without_forced_trade() {
++    let report = evaluate_real5_smoke(Real5SmokeInput {
++        one_persistent_runtime_repo: true,
++        same_cas: true,
++        agent_count: 5,
++        roles_assigned: vec![
++            AgentRole::Solver,
++            AgentRole::Trader,
++            AgentRole::Verifier,
++            AgentRole::Challenger,
++            AgentRole::Observer,
++        ],
++        task_count: 4,
++        market_enabled: true,
++        role_views_enabled: true,
++        forced_trading: false,
++        solver_proof_attempts: 2,
++        trader_decisions_or_no_trade: 1,
++        verifier_verify_or_reason: 1,
++        challenger_challenge_or_reason: 1,
++        all_actions_reconstruct_from_chain_cas: true,
++        price_as_truth: false,
++    });
++    assert!(report.minimum_green);
++    assert!(report.price_signal_not_truth);
++    assert!(!report.forced_trade);
++    assert!(report.active_roles >= 2);
++}
++
++#[test]
++fn sg_r5_9_runner_records_role_assignment_and_role_views() {
++    let script = include_str!("../scripts/run_g_phase_batch.sh");
++    assert!(script.contains("TURINGOS_REAL5_ROLE_ASSIGNMENT"));
++    assert!(script.contains("real5_role_assignment_hash"));
++    assert!(script.contains("TURINGOS_REAL5_ROLE_VIEWS"));
++    assert!(script.contains("real5_role_views_enabled"));
++}
++
++#[test]
++fn sg_r5_9_evaluator_writes_role_turn_reason_traces() {
++    let evaluator = include_str!("../experiments/minif2f_v4/src/bin/evaluator.rs");
++    assert!(evaluator.contains("write_role_turn_trace_to_cas"));
++    assert!(evaluator.contains("RoleTurnOutcome::NoTrade"));
++    assert!(evaluator.contains("RoleTurnOutcome::NoVerify"));
++    assert!(evaluator.contains("RoleTurnOutcome::NoChallenge"));
++}
++
++#[test]
++fn sg_r5_9_role_turn_reason_traces_reconstruct_from_cas() {
++    let dir = TempDir::new().expect("tempdir");
++    let mut cas = CasStore::open(dir.path()).expect("cas");
++    let task_id = TaskId("task-real5-smoke".into());
++    let prompt_capsule_cid = Cid([42; 32]);
++
++    let traces = [
++        RoleTurnTrace::new(
++            AgentId("Agent_1".into()),
++            AgentRole::Trader,
++            task_id.clone(),
++            prompt_capsule_cid,
++            Some("append".into()),
++            RoleTurnOutcome::NoTrade {
++                reason: NoTradeReason::NoPerceivedEdge,
++                public_summary: "trader saw role view but emitted no invest action".into(),
++            },
++        ),
++        RoleTurnTrace::new(
++            AgentId("Agent_2".into()),
++            AgentRole::Verifier,
++            task_id.clone(),
++            prompt_capsule_cid,
++            Some("append".into()),
++            RoleTurnOutcome::NoVerify(NoVerifyReason {
++                agent_id: AgentId("Agent_2".into()),
++                reason: "no verify_peer action emitted".into(),
++            }),
++        ),
++        RoleTurnTrace::new(
++            AgentId("Agent_3".into()),
++            AgentRole::Challenger,
++            task_id,
++            prompt_capsule_cid,
++            Some("append".into()),
++            RoleTurnOutcome::NoChallenge(NoChallengeReason {
++                agent_id: AgentId("Agent_3".into()),
++                reason: "no challenge action emitted".into(),
++            }),
++        ),
++    ];
++
++    for (idx, trace) in traces.iter().enumerate() {
++        let cid = write_role_turn_trace_to_cas(&mut cas, trace, &format!("trace-{idx}"), idx as u64)
++            .expect("role turn trace writes to CAS");
++        let bytes = cas.get(&cid).expect("role turn trace resolves");
++        assert!(!String::from_utf8_lossy(&bytes).contains("raw_prompt"));
++        assert!(!String::from_utf8_lossy(&bytes).contains("chain_of_thought"));
++    }
++
++    let summary = summarize_role_turn_traces_from_cas(&cas);
++    assert_eq!(summary.schema_id, ROLE_TURN_TRACE_SCHEMA_ID);
++    assert_eq!(summary.total_traces, 3);
++    assert_eq!(summary.no_trade_count, 1);
++    assert_eq!(summary.no_verify_count, 1);
++    assert_eq!(summary.no_challenge_count, 1);
++    assert_eq!(summary.by_role.get(&AgentRole::Trader).copied(), Some(1));
++    assert_eq!(summary.by_role.get(&AgentRole::Verifier).copied(), Some(1));
++    assert_eq!(summary.by_role.get(&AgentRole::Challenger).copied(), Some(1));
++}

@@ -1,0 +1,197 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778821580586_1175691",
+  "close_status": "closed",
+  "manifest_sha256": "c3e058368b6daae2ab774cc0915531bbe8a1d635563b37623cadb415613795b4",
+  "event_chain_head_hash": "655ec252a46dc6225258545e5507729cd20dca3b39b30a0ac6e7d27301ecb933",
+  "diff_sha256": "02ee8f7c9f2316289875ec3df49802ec21af7b69c88789c04465a6cf7244a45b",
+  "command_results": [
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--test",
+        "constitution_real6_task_outcome_market"
+      ],
+      "cwd": "/home/zephryj/projects/turingosv4",
+      "exit_code": 0,
+      "started_at_unix_ms": 1778821589398,
+      "ended_at_unix_ms": 1778821619053,
+      "stdout": {
+        "path": "artifacts/command_0002_stdout.txt",
+        "sha256": "96a838cb68065fbe125fa8fea036bd41dace9ea1d5ad9e64d1adef2c9a60b5c6",
+        "size_bytes": 1437
+      },
+      "stderr": {
+        "path": "artifacts/command_0002_stderr.txt",
+        "sha256": "cec6d9af1124704e7f7e9915784673830bed1f3d200c3e5c6353c165cf3fb9af",
+        "size_bytes": 5954
+      }
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--lib",
+        "boot::tests::verify_trust_root_passes_on_intact_repo"
+      ],
+      "cwd": "/home/zephryj/projects/turingosv4",
+      "exit_code": 0,
+      "started_at_unix_ms": 1778821622502,
+      "ended_at_unix_ms": 1778821632550,
+      "stdout": {
+        "path": "artifacts/command_0003_stdout.txt",
+        "sha256": "723bc69478b359442edf8390d436086941fbb0e1397785e9f0f44087914b0407",
+        "size_bytes": 179
+      },
+      "stderr": {
+        "path": "artifacts/command_0003_stderr.txt",
+        "sha256": "d30a87b1e0efc5bd2a2bdb18804818a1e4e542ea273d7945a5ca00c4e3a41e1c",
+        "size_bytes": 4802
+      }
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--test",
+        "constitution_n2_event_resolve"
+      ],
+      "cwd": "/home/zephryj/projects/turingosv4",
+      "exit_code": 0,
+      "started_at_unix_ms": 1778821638069,
+      "ended_at_unix_ms": 1778821639622,
+      "stdout": {
+        "path": "artifacts/command_0004_stdout.txt",
+        "sha256": "c7ff34e77d24299ca1c821ee0962be50ec42f2390a088a97134f8c129ba7d5fd",
+        "size_bytes": 728
+      },
+      "stderr": {
+        "path": "artifacts/command_0004_stderr.txt",
+        "sha256": "6c5c45b86b9380d0c2e55b5ea6750261a9f140e1a73b473fae6862b8ee2afb9a",
+        "size_bytes": 5744
+      }
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--test",
+        "tb_18r_attempt_telemetry_serialize"
+      ],
+      "cwd": "/home/zephryj/projects/turingosv4",
+      "exit_code": 0,
+      "started_at_unix_ms": 1778821645287,
+      "ended_at_unix_ms": 1778821646682,
+      "stdout": {
+        "path": "artifacts/command_0005_stdout.txt",
+        "sha256": "fda02d41e53e495297e77d91f6740a3e309a631c68923f0acab15a402c89de3f",
+        "size_bytes": 390
+      },
+      "stderr": {
+        "path": "artifacts/command_0005_stderr.txt",
+        "sha256": "95e9c6e76c9b8aac73463c44f965a6729bfa04e20c243a6e4c172a0d5972d253",
+        "size_bytes": 5754
+      }
+    },
+    {
+      "command": [
+        "jq",
+        "-e",
+        ".verdict == \"PROCEED\" and .failed == 0 and .halted == 0 and .tx_kind_counts.task_open == 1 and .tx_kind_counts.escrow_lock == 1 and .tx_kind_counts.market_seed == 1 and .tx_kind_counts.cpmm_pool == 1 and .tx_kind_counts.event_resolve == 1 and .tx_kind_counts.terminal_summary == 1 and .tx_kind_counts.work == 0 and .tx_kind_counts.buy_with_coin_router == 0",
+        "handover/evidence/g_phase_real_6a_task_outcome_smoke_r10_20260515T0442Z/aggregate_verdict.json"
+      ],
+      "cwd": "/home/zephryj/projects/turingosv4",
+      "exit_code": 0,
+      "started_at_unix_ms": 1778821669338,
+      "ended_at_unix_ms": 1778821669391,
+      "stdout": {
+        "path": "artifacts/command_0006_stdout.txt",
+        "sha256": "a17fcf0a2f50e2d495e4f90ce263410edc183add6c62699a2facbccf60410f74",
+        "size_bytes": 5
+      },
+      "stderr": {
+        "path": "artifacts/command_0006_stderr.txt",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size_bytes": 0
+      }
+    },
+    {
+      "command": [
+        "rg",
+        "-q",
+        "\"invest_no_trade_no_perceived_edge\":5",
+        "handover/evidence/g_phase_real_6a_task_outcome_smoke_r10_20260515T0442Z/P000_numbertheory_2pownm1prime_nprime/evaluator.stdout"
+      ],
+      "cwd": "/home/zephryj/projects/turingosv4",
+      "exit_code": 0,
+      "started_at_unix_ms": 1778821673698,
+      "ended_at_unix_ms": 1778821673705,
+      "stdout": {
+        "path": "artifacts/command_0007_stdout.txt",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size_bytes": 0
+      },
+      "stderr": {
+        "path": "artifacts/command_0007_stderr.txt",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size_bytes": 0
+      }
+    },
+    {
+      "command": [
+        "bash",
+        "scripts/run_constitution_gates.sh"
+      ],
+      "cwd": "/home/zephryj/projects/turingosv4",
+      "exit_code": 0,
+      "started_at_unix_ms": 1778821680907,
+      "ended_at_unix_ms": 1778821793720,
+      "stdout": {
+        "path": "artifacts/command_0008_stdout.txt",
+        "sha256": "39337e0999688cbe9bc96fd2fbed24e65b297b6043a0b8bda727fa16998eddf9",
+        "size_bytes": 9370
+      },
+      "stderr": {
+        "path": "artifacts/command_0008_stderr.txt",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size_bytes": 0
+      }
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--workspace",
+        "--no-fail-fast",
+        "--",
+        "--test-threads=1"
+      ],
+      "cwd": "/home/zephryj/projects/turingosv4",
+      "exit_code": 0,
+      "started_at_unix_ms": 1778821801452,
+      "ended_at_unix_ms": 1778822044794,
+      "stdout": {
+        "path": "artifacts/command_0009_stdout.txt",
+        "sha256": "9583eae349940ad4e7855cecbbbbb10d4a1d21353c618829e1c08e8dca30c556",
+        "size_bytes": 150955
+      },
+      "stderr": {
+        "path": "artifacts/command_0009_stderr.txt",
+        "sha256": "29f19f879cee2b51cd8747bece0b1291272ffb729b95668d2778b07aed43c366",
+        "size_bytes": 46127
+      }
+    }
+  ],
+  "acceptance_passed": true,
+  "audit_required": true,
+  "audit_verdict": "PROCEED",
+  "effective_risk_class": 4,
+  "restricted_surface_hits": [
+    "genesis_payload.toml",
+    "src/bottom_white/ledger/transition_ledger.rs",
+    "src/state/sequencer.rs",
+    "src/state/typed_tx.rs"
+  ],
+  "closed_at_unix_ms": 1778822057422
+}

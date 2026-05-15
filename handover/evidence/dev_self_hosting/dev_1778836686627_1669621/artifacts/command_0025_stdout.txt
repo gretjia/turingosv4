@@ -1,0 +1,10 @@
+
+running 5 tests
+test batch_evaluator_halts_and_records_on_mid_batch_fail ... ok
+test legacy_evaluator_single_task_path_byte_equal_genesis ... ok
+test subprocess_task_0_creates_fresh_genesis ... ok
+test subprocess_task_1_resumes_existing_chain_no_new_genesis ... ok
+test task_k_plus_1_start_head_eq_task_k_end_head ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+

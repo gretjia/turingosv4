@@ -1,0 +1,58 @@
+{
+  "schema_version": "g1_2_v1",
+  "batch_id": "real8_market_ab_20260515T_REAL8_FINALZ/arm_C_5239f4b",
+  "runtime_repo": "/home/zephryj/projects/turingosv4/handover/evidence/real8_market_ab_20260515T_REAL8_FINALZ/arm_C/runtime_repo",
+  "cas_root": "/home/zephryj/projects/turingosv4/handover/evidence/real8_market_ab_20260515T_REAL8_FINALZ/arm_C/cas",
+  "model": "deepseek-chat",
+  "n_agents": 5,
+  "initial_head_t_hex": "",
+  "agent_registry_cid_hex": null,
+  "system_pubkeys_cid_hex": null,
+  "model_manifest_cid_hex": null,
+  "role_assignment_manifest_cid_hex": "17582b17a73ea50cac6af739b74fc82f9e5741c1114045d6ba604515571f7610",
+  "tasks": [
+    {
+      "task_index": 0,
+      "problem_id": "mathd_algebra_107",
+      "start_head_t_hex": "",
+      "end_head_t_hex": "419729d0e71a5875248fa2337f13fe1eca4ac420",
+      "start_chain_length": 0,
+      "end_chain_length": 11,
+      "subprocess_command_sha256": "",
+      "run_summary_cid_hex": null,
+      "terminal_tx_id": null,
+      "exit_code": 0,
+      "started_at_unix_s": 1778843039,
+      "finished_at_unix_s": 1778843050
+    },
+    {
+      "task_index": 1,
+      "problem_id": "mathd_algebra_125",
+      "start_head_t_hex": "419729d0e71a5875248fa2337f13fe1eca4ac420",
+      "end_head_t_hex": "9572b1be49b25313fd0347e1dfaa798eef8acfbe",
+      "start_chain_length": 11,
+      "end_chain_length": 17,
+      "subprocess_command_sha256": "",
+      "run_summary_cid_hex": null,
+      "terminal_tx_id": null,
+      "exit_code": 0,
+      "started_at_unix_s": 1778843050,
+      "finished_at_unix_s": 1778843071
+    },
+    {
+      "task_index": 2,
+      "problem_id": "mathd_algebra_141",
+      "start_head_t_hex": "9572b1be49b25313fd0347e1dfaa798eef8acfbe",
+      "end_head_t_hex": "5bf82cc61ab330376d9b7bb65de63018f8a48677",
+      "start_chain_length": 17,
+      "end_chain_length": 26,
+      "subprocess_command_sha256": "",
+      "run_summary_cid_hex": null,
+      "terminal_tx_id": null,
+      "exit_code": 0,
+      "started_at_unix_s": 1778843071,
+      "finished_at_unix_s": 1778843081
+    }
+  ],
+  "terminated_reason": null
+}

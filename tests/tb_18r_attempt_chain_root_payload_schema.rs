@@ -26,8 +26,8 @@ use turingosv4::bottom_white::cas::schema::Cid;
 use turingosv4::bottom_white::cas::store::CasStore;
 use turingosv4::bottom_white::ledger::transition_ledger::canonical_encode;
 use turingosv4::runtime::attempt_telemetry::{
-    read_attempt_telemetry_from_cas, write_attempt_telemetry_to_cas, AttemptKind,
-    AttemptOutcome, AttemptTelemetry,
+    read_attempt_telemetry_from_cas, write_attempt_telemetry_to_cas, AttemptKind, AttemptOutcome,
+    AttemptTelemetry,
 };
 use turingosv4::runtime::proposal_telemetry::TokenCounts;
 use turingosv4::state::q_state::{AgentId, Hash, TxId};
@@ -124,12 +124,14 @@ fn fc1_n41_terminal_chain_root_round_trips_via_cas() {
         merkle_root,
     );
 
-    let cid = write_attempt_telemetry_to_cas(&mut cas, &terminal, "evaluator", 100)
-        .expect("write");
+    let cid = write_attempt_telemetry_to_cas(&mut cas, &terminal, "evaluator", 100).expect("write");
     let recovered = read_attempt_telemetry_from_cas(&cas, &cid).expect("read");
 
-    assert_eq!(recovered.attempt_chain_root, Some(merkle_root),
-        "merkle_root must round-trip byte-identical");
+    assert_eq!(
+        recovered.attempt_chain_root,
+        Some(merkle_root),
+        "merkle_root must round-trip byte-identical"
+    );
     assert_eq!(recovered, terminal);
 }
 

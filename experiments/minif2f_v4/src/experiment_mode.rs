@@ -315,11 +315,7 @@ pub fn is_amnesia(mode: ExperimentMode) -> bool {
 /// Edge case: `n_skills == 0` returns 0 (caller's lookup will return
 /// the empty-string default; equivalent to no-skill prompt). The
 /// production path always has n_skills == 3 today.
-pub fn skill_index_for_agent(
-    mode: ExperimentMode,
-    agent_idx: usize,
-    n_skills: usize,
-) -> usize {
+pub fn skill_index_for_agent(mode: ExperimentMode, agent_idx: usize, n_skills: usize) -> usize {
     if n_skills == 0 {
         return 0;
     }
@@ -406,10 +402,22 @@ mod tests {
     #[test]
     fn parse_known_values() {
         assert_eq!(parse_experiment_mode("full").unwrap(), ExperimentMode::Full);
-        assert_eq!(parse_experiment_mode("panopticon").unwrap(), ExperimentMode::Panopticon);
-        assert_eq!(parse_experiment_mode("amnesia").unwrap(), ExperimentMode::Amnesia);
-        assert_eq!(parse_experiment_mode("soft_law").unwrap(), ExperimentMode::SoftLaw);
-        assert_eq!(parse_experiment_mode("homogeneous").unwrap(), ExperimentMode::Homogeneous);
+        assert_eq!(
+            parse_experiment_mode("panopticon").unwrap(),
+            ExperimentMode::Panopticon
+        );
+        assert_eq!(
+            parse_experiment_mode("amnesia").unwrap(),
+            ExperimentMode::Amnesia
+        );
+        assert_eq!(
+            parse_experiment_mode("soft_law").unwrap(),
+            ExperimentMode::SoftLaw
+        );
+        assert_eq!(
+            parse_experiment_mode("homogeneous").unwrap(),
+            ExperimentMode::Homogeneous
+        );
     }
 
     #[test]
@@ -468,7 +476,11 @@ mod tests {
             ExperimentMode::Homogeneous,
             ExperimentMode::Amnesia,
         ] {
-            assert!(!is_panopticon(m), "is_panopticon should be false for {:?}", m);
+            assert!(
+                !is_panopticon(m),
+                "is_panopticon should be false for {:?}",
+                m
+            );
         }
     }
 
@@ -498,7 +510,8 @@ mod tests {
         ] {
             assert!(
                 !(is_panopticon(m) && is_amnesia(m)),
-                "is_panopticon and is_amnesia must be mutually exclusive (mode {:?})", m
+                "is_panopticon and is_amnesia must be mutually exclusive (mode {:?})",
+                m
             );
         }
     }
@@ -513,7 +526,9 @@ mod tests {
             assert_eq!(
                 apply_mode_to_accept(ExperimentMode::Full, rt, ph),
                 (rt, ph),
-                "Full should be passthrough for (rt={}, ph={})", rt, ph
+                "Full should be passthrough for (rt={}, ph={})",
+                rt,
+                ph
             );
         }
     }
@@ -560,7 +575,10 @@ mod tests {
                 assert_eq!(
                     apply_mode_to_accept(m, rt, ph),
                     (rt, ph),
-                    "mode {:?} should be passthrough for (rt={}, ph={})", m, rt, ph
+                    "mode {:?} should be passthrough for (rt={}, ph={})",
+                    m,
+                    rt,
+                    ph
                 );
             }
         }
@@ -581,8 +599,11 @@ mod tests {
             for (rt, ph) in [(true, true), (true, false), (false, true), (false, false)] {
                 let once = apply_mode_to_accept(m, rt, ph);
                 let twice = apply_mode_to_accept(m, once.0, once.1);
-                assert_eq!(once, twice,
-                    "idempotence failed for mode {:?}, input ({}, {})", m, rt, ph);
+                assert_eq!(
+                    once, twice,
+                    "idempotence failed for mode {:?}, input ({}, {})",
+                    m, rt, ph
+                );
             }
         }
     }
@@ -611,7 +632,9 @@ mod tests {
                 assert_eq!(
                     skill_index_for_agent(ExperimentMode::Full, idx, n_skills),
                     idx % n_skills,
-                    "Full should cycle modulo n_skills (idx={}, n={})", idx, n_skills,
+                    "Full should cycle modulo n_skills (idx={}, n={})",
+                    idx,
+                    n_skills,
                 );
             }
         }
@@ -626,7 +649,9 @@ mod tests {
                 assert_eq!(
                     skill_index_for_agent(ExperimentMode::Homogeneous, idx, n_skills),
                     0,
-                    "Homogeneous must return 0 (idx={}, n={})", idx, n_skills,
+                    "Homogeneous must return 0 (idx={}, n={})",
+                    idx,
+                    n_skills,
                 );
             }
         }
@@ -647,7 +672,10 @@ mod tests {
                     assert_eq!(
                         skill_index_for_agent(m, idx, n_skills),
                         idx % n_skills,
-                        "mode {:?} should be passthrough (idx={}, n={})", m, idx, n_skills,
+                        "mode {:?} should be passthrough (idx={}, n={})",
+                        m,
+                        idx,
+                        n_skills,
                     );
                 }
             }

@@ -41,7 +41,9 @@ fn tb_18_a_drift_signature_halts_at_default_cap() {
     let mut halted_at_iteration: Option<u32> = None;
     for i in 1..=30 {
         match t.on_response(14) {
-            BudgetVerdict::HaltDegradedLLM { consecutive_trivial } => {
+            BudgetVerdict::HaltDegradedLLM {
+                consecutive_trivial,
+            } => {
                 halted_at_iteration = Some(i);
                 assert_eq!(
                     consecutive_trivial, 10,
@@ -120,8 +122,7 @@ fn tb_18_a_substantive_only_never_halts() {
 #[test]
 fn tb_18_a_swarm_loop_sets_terminal_exhaustion_on_degraded_llm() {
     let path = workspace_relative(EVALUATOR_SRC);
-    let src = fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+    let src = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
 
     let pattern = "terminal_exhaustion_reason = ExhaustionReason::DegradedLLM";
     let count = src.matches(pattern).count();
@@ -144,8 +145,7 @@ fn tb_18_a_swarm_loop_sets_terminal_exhaustion_on_degraded_llm() {
 #[test]
 fn tb_18_a_swarm_loop_sets_terminal_exhaustion_on_wall_clock_cap() {
     let path = workspace_relative(EVALUATOR_SRC);
-    let src = fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+    let src = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
 
     let pattern = "terminal_exhaustion_reason = ExhaustionReason::WallClockCap";
     let count = src.matches(pattern).count();
@@ -167,8 +167,7 @@ fn tb_18_a_swarm_loop_sets_terminal_exhaustion_on_wall_clock_cap() {
 #[test]
 fn tb_18_a_swarm_loop_constructs_budget_tracker() {
     let path = workspace_relative(EVALUATOR_SRC);
-    let src = fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+    let src = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
 
     assert!(
         src.contains("LLMCallBudgetTracker::new"),
@@ -222,7 +221,9 @@ fn tb_18_a_per_call_budget_env_override_works() {
     }
     // 5th trivial: halt.
     match t.on_response(49) {
-        BudgetVerdict::HaltDegradedLLM { consecutive_trivial } => {
+        BudgetVerdict::HaltDegradedLLM {
+            consecutive_trivial,
+        } => {
             assert_eq!(consecutive_trivial, 5);
         }
         other => panic!("expected HaltDegradedLLM at custom cap=5, got {other:?}"),

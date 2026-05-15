@@ -1,0 +1,11 @@
+Diff in /home/zephryj/projects/turingosv4/tests/constitution_real6_task_outcome_market.rs:754:
+ 
+ #[test]
+ fn sg_6a_smoke_runner_build_failure_is_fail_closed() {
+-    let script = std::fs::read_to_string("scripts/run_g_phase_batch.sh")
+-        .expect("read run_g_phase_batch.sh");
++    let script =
++        std::fs::read_to_string("scripts/run_g_phase_batch.sh").expect("read run_g_phase_batch.sh");
+     let build_marker = "cargo build --release -p minif2f_v4 --bin evaluator --bin batch_evaluator -p turingosv4 --bin audit_tape --bin tb_g_persistence_report";
+     let build_pos = script
+         .find(build_marker)

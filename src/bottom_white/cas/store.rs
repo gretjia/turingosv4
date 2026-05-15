@@ -139,10 +139,7 @@ fn append_to_sidecar(repo_path: &Path, meta: &CasObjectMetadata) -> Result<(), C
         line: 0,
         error: format!("serialize: {e}"),
     })?;
-    let mut f = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&path)?;
+    let mut f = OpenOptions::new().create(true).append(true).open(&path)?;
     // Atomic single-write append: serialize + newline in one buffer.
     let mut line = serialized.into_bytes();
     line.push(b'\n');
@@ -227,10 +224,7 @@ impl CasStore {
     /// TRACE_MATRIX FC1-N43 (TB-18R R4 invariant ship-gate equation
     /// numerator).
     pub fn count_by_object_type(&self, ty: ObjectType) -> u64 {
-        self.index
-            .values()
-            .filter(|m| m.object_type == ty)
-            .count() as u64
+        self.index.values().filter(|m| m.object_type == ty).count() as u64
     }
 
     /// TB-18R R5 (preflight `handover/ai-direct/TB-18R_R5_preflight_audit_extension.md`):
@@ -333,10 +327,7 @@ impl CasStore {
     /// Knobs:
     /// * `TURINGOS_CAS_GET_TIMEOUT_SECS` — override the default 10s timeout.
     pub fn get(&self, cid: &Cid) -> Result<Vec<u8>, CasError> {
-        let metadata = self
-            .index
-            .get(cid)
-            .ok_or(CasError::CidNotFound(*cid))?;
+        let metadata = self.index.get(cid).ok_or(CasError::CidNotFound(*cid))?;
         let repo_path = self.repo_path.clone();
         let oid_hex = metadata.backend_oid_hex.clone();
         let expected_size = metadata.size_bytes;
@@ -353,8 +344,7 @@ impl CasStore {
             .spawn(move || {
                 let result: Result<Vec<u8>, CasError> = (|| {
                     let repo = Repository::open(&repo_path).map_err(CasError::from)?;
-                    let git_oid =
-                        git2::Oid::from_str(&oid_hex).map_err(CasError::Git2)?;
+                    let git_oid = git2::Oid::from_str(&oid_hex).map_err(CasError::Git2)?;
                     let blob = repo.find_blob(git_oid)?;
                     let content = blob.content().to_vec();
 
@@ -402,11 +392,11 @@ impl CasStore {
                      override)"
                 )))
             }
-            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => Err(
-                CasError::BackendCorruption(
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                Err(CasError::BackendCorruption(
                     "cas.get worker thread disconnected unexpectedly".into(),
-                ),
-            ),
+                ))
+            }
         }
     }
 
@@ -447,7 +437,15 @@ mod tests {
     #[test]
     fn put_get_round_trip_small() {
         let (_tmp, mut s) = fresh_store();
-        let cid = s.put(b"hello world", ObjectType::ProposalPayload, "alice", 100, None).unwrap();
+        let cid = s
+            .put(
+                b"hello world",
+                ObjectType::ProposalPayload,
+                "alice",
+                100,
+                None,
+            )
+            .unwrap();
         let content = s.get(&cid).unwrap();
         assert_eq!(content, b"hello world");
     }
@@ -456,7 +454,15 @@ mod tests {
     fn put_get_round_trip_large() {
         let (_tmp, mut s) = fresh_store();
         let big = vec![0xab; 65536];
-        let cid = s.put(&big, ObjectType::PredicateBytecode, "system", 0, Some("wasm".into())).unwrap();
+        let cid = s
+            .put(
+                &big,
+                ObjectType::PredicateBytecode,
+                "system",
+                0,
+                Some("wasm".into()),
+            )
+            .unwrap();
         let content = s.get(&cid).unwrap();
         assert_eq!(content, big);
     }
@@ -474,7 +480,9 @@ mod tests {
     #[test]
     fn cid_is_content_address() {
         let (_tmp, mut s) = fresh_store();
-        let cid = s.put(b"specific content", ObjectType::Generic, "system", 0, None).unwrap();
+        let cid = s
+            .put(b"specific content", ObjectType::Generic, "system", 0, None)
+            .unwrap();
         // Cid is sha256 of content; verifiable independently
         let expected = Cid::from_content(b"specific content");
         assert_eq!(cid, expected);
@@ -493,7 +501,15 @@ mod tests {
     #[test]
     fn metadata_recorded() {
         let (_tmp, mut s) = fresh_store();
-        let cid = s.put(b"meta test", ObjectType::CounterexamplePayload, "carol", 250, Some("v1".into())).unwrap();
+        let cid = s
+            .put(
+                b"meta test",
+                ObjectType::CounterexamplePayload,
+                "carol",
+                250,
+                Some("v1".into()),
+            )
+            .unwrap();
         let meta = s.metadata(&cid).unwrap();
         assert_eq!(meta.cid, cid);
         assert_eq!(meta.object_type, ObjectType::CounterexamplePayload);
@@ -508,14 +524,19 @@ mod tests {
         let (_tmp1, mut s1) = fresh_store();
         let (_tmp2, mut s2) = fresh_store();
         for content in [b"a".as_slice(), b"b".as_slice(), b"c".as_slice()] {
-            s1.put(content, ObjectType::Generic, "system", 0, None).unwrap();
+            s1.put(content, ObjectType::Generic, "system", 0, None)
+                .unwrap();
         }
         // Different insertion order
         for content in [b"c".as_slice(), b"b".as_slice(), b"a".as_slice()] {
-            s2.put(content, ObjectType::Generic, "system", 0, None).unwrap();
+            s2.put(content, ObjectType::Generic, "system", 0, None)
+                .unwrap();
         }
-        assert_eq!(s1.merkle_root(), s2.merkle_root(),
-            "BTreeMap-ordered: insertion order independent (I-DET)");
+        assert_eq!(
+            s1.merkle_root(),
+            s2.merkle_root(),
+            "BTreeMap-ordered: insertion order independent (I-DET)"
+        );
     }
 
     #[test]
@@ -533,14 +554,24 @@ mod tests {
         let (_tmp_a, mut store_a) = fresh_store();
         let (_tmp_b, mut store_b) = fresh_store();
 
-        let cid_a = store_a.put(b"only in a", ObjectType::Generic, "agent_a", 100, None).unwrap();
-        let cid_b = store_b.put(b"only in b", ObjectType::Generic, "agent_b", 100, None).unwrap();
+        let cid_a = store_a
+            .put(b"only in a", ObjectType::Generic, "agent_a", 100, None)
+            .unwrap();
+        let cid_b = store_b
+            .put(b"only in b", ObjectType::Generic, "agent_b", 100, None)
+            .unwrap();
 
         // Each store has its own object only
         assert!(store_a.get(&cid_a).is_ok(), "store_a has cid_a");
-        assert!(store_a.get(&cid_b).is_err(), "store_a lacks cid_b (isolated)");
+        assert!(
+            store_a.get(&cid_b).is_err(),
+            "store_a lacks cid_b (isolated)"
+        );
         assert!(store_b.get(&cid_b).is_ok(), "store_b has cid_b");
-        assert!(store_b.get(&cid_a).is_err(), "store_b lacks cid_a (isolated)");
+        assert!(
+            store_b.get(&cid_a).is_err(),
+            "store_b lacks cid_a (isolated)"
+        );
     }
 
     #[test]
@@ -643,7 +674,13 @@ mod tests {
                 .put(b"alpha", ObjectType::ProposalPayload, "alice", 1, None)
                 .unwrap();
             cid_b = s
-                .put(b"beta", ObjectType::CounterexamplePayload, "bob", 2, Some("s.v1".into()))
+                .put(
+                    b"beta",
+                    ObjectType::CounterexamplePayload,
+                    "bob",
+                    2,
+                    Some("s.v1".into()),
+                )
                 .unwrap();
         }
         // Reopen: in-memory store is fresh; sidecar replay is the ONLY way
@@ -681,7 +718,12 @@ mod tests {
                 Box::leak(l.to_string().into_boxed_str()) as &str
             })
             .collect();
-        assert_eq!(lines.len(), 1, "idempotent put should produce 1 sidecar line, got {}", lines.len());
+        assert_eq!(
+            lines.len(),
+            1,
+            "idempotent put should produce 1 sidecar line, got {}",
+            lines.len()
+        );
     }
 
     /// Append-only: each NEW put adds exactly ONE line.
@@ -715,7 +757,8 @@ mod tests {
         // Init repo + ONE valid put to get a known-good first line.
         {
             let mut s = CasStore::open(tmp.path()).expect("open");
-            s.put(b"hello", ObjectType::Generic, "alice", 1, None).unwrap();
+            s.put(b"hello", ObjectType::Generic, "alice", 1, None)
+                .unwrap();
         }
         // Corrupt: append a malformed line.
         let path = cas_index_path(tmp.path());

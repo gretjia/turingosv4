@@ -1,0 +1,201 @@
+[real8] running arm A: market disabled
+════════════════════════════════════════════════════════════════════════
+TB-G G1.2 chain-continuous batch (Option B+ canonical)
+════════════════════════════════════════════════════════════════════════
+RUN_TAG          = real8_market_ab_20260515T_REAL8_FINALZ/arm_A
+RUN_DIR          = /home/zephryj/projects/turingosv4/handover/evidence/real8_market_ab_20260515T_REAL8_FINALZ/arm_A
+PROBLEM_SET      = /home/zephryj/projects/turingosv4/handover/evidence/real8_market_ab_20260515T_REAL8_FINALZ/problems.pinned.txt  (3 tasks)
+ACTIVE_MODEL     = deepseek-chat
+G_PHASE_N_AGENTS = 5
+G_PHASE_CONDITION= n5
+AGENT_MODELS     = <empty>
+PHASE_D_HETERO_OK= 1
+MODEL_FAMILIES   = observed=1 required=0
+REAL5_ROLES      = Solver,Trader,Verifier,Challenger,Observer
+REAL5_ROLE_VIEWS = 1
+LLM_PROXY_URL    = http://localhost:8080
+MINIF2F_DIR      = /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4
+PER_PROB_TIMEOUT = 300s
+
+[build] cargo build --release -p minif2f_v4 --bin evaluator --bin batch_evaluator -p turingosv4 --bin audit_tape --bin tb_g_persistence_report
+    |
+    = note: `WorkTxAttempt` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: `turingosv4` (lib) generated 25 warnings (run `cargo fix --lib -p turingosv4` to apply 19 suggestions)
+    Finished `release` profile [optimized] target(s) in 0.27s
+
+[batch_evaluator] launching 3-task batch (real8_market_ab_20260515T_REAL8_FINALZ/arm_A_5239f4b)
+[batch_evaluator] runtime_repo=/home/zephryj/projects/turingosv4/handover/evidence/real8_market_ab_20260515T_REAL8_FINALZ/arm_A/runtime_repo cas=/home/zephryj/projects/turingosv4/handover/evidence/real8_market_ab_20260515T_REAL8_FINALZ/arm_A/cas
+batch_orchestrator: task_index=0 BoundaryPrep::FreshGenesis (no preflight, no lease — task_0 owns genesis)
+batch_orchestrator: task_index=1 ChainTapeLease ACQUIRED (holder_pid=1788514, batch_id=real8_market_ab_20260515T_REAL8_FINALZ/arm_A_5239f4b, start_head=9ed95296ec25df34378b460ed424654b9f6fb4b2)
+batch_orchestrator: task_index=1 ResumePreflight::Ok (head=9ed95296ec25df34378b460ed424654b9f6fb4b2 state_root=579d72ea4399b6b942a7b72ec807e711d99b0a11e5f9ad9885cf935f2fb9c2e3 chain_length=3) → BoundaryPrep::Resume
+batch_orchestrator: task_index=2 ChainTapeLease ACQUIRED (holder_pid=1788514, batch_id=real8_market_ab_20260515T_REAL8_FINALZ/arm_A_5239f4b, start_head=7688c424bc8f4baacff78b3b98d35a37e7574eaa)
+batch_orchestrator: task_index=2 ResumePreflight::Ok (head=7688c424bc8f4baacff78b3b98d35a37e7574eaa state_root=24f30f56ea9016263e243278eb56a9a5752f57d0f3e65c53844f8b29a4772c51 chain_length=9) → BoundaryPrep::Resume
+batch_evaluator: chain continuity OK across 3 tasks
+[batch_evaluator] exit_code=0 elapsed=31s
+
+[audit_tape] running over shared runtime_repo + cas
+audit_tape: verdict=PROCEED passed=41 failed=0 halted=0 skipped=11 (out="/home/zephryj/projects/turingosv4/handover/evidence/real8_market_ab_20260515T_REAL8_FINALZ/arm_A/aggregate_verdict.json")
+[audit_tape] exit=0 verdict=PROCEED
+
+[persistence_report] running tb_g_persistence_report
+[persistence_report] exit=0 is_passing=true n_witnessed=5
+
+════════════════════════════════════════════════════════════════════════
+Done. Evidence dir: /home/zephryj/projects/turingosv4/handover/evidence/real8_market_ab_20260515T_REAL8_FINALZ/arm_A
+  - BatchContinuationManifest.json   (G1.2-4 fact-identity)
+  - aggregate_verdict.json verdict=PROCEED
+  - PERSISTENCE_BINDING_REPORT.json  is_passing=true (n_witnessed=5)
+  - run_log.txt
+════════════════════════════════════════════════════════════════════════
+[real8] running arm B: market visible, no TaskOutcomeMarket
+════════════════════════════════════════════════════════════════════════
+TB-G G1.2 chain-continuous batch (Option B+ canonical)
+════════════════════════════════════════════════════════════════════════
+RUN_TAG          = real8_market_ab_20260515T_REAL8_FINALZ/arm_B
+RUN_DIR          = /home/zephryj/projects/turingosv4/handover/evidence/real8_market_ab_20260515T_REAL8_FINALZ/arm_B
+PROBLEM_SET      = /home/zephryj/projects/turingosv4/handover/evidence/real8_market_ab_20260515T_REAL8_FINALZ/problems.pinned.txt  (3 tasks)
+ACTIVE_MODEL     = deepseek-chat
+G_PHASE_N_AGENTS = 5
+G_PHASE_CONDITION= n5
+AGENT_MODELS     = <empty>
+PHASE_D_HETERO_OK= 1
+MODEL_FAMILIES   = observed=1 required=0
+REAL5_ROLES      = Solver,Trader,Verifier,Challenger,Observer
+REAL5_ROLE_VIEWS = 1
+LLM_PROXY_URL    = http://localhost:8080
+MINIF2F_DIR      = /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4
+PER_PROB_TIMEOUT = 300s
+
+[build] cargo build --release -p minif2f_v4 --bin evaluator --bin batch_evaluator -p turingosv4 --bin audit_tape --bin tb_g_persistence_report
+    |
+    = note: `WorkTxAttempt` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: `turingosv4` (lib) generated 25 warnings (run `cargo fix --lib -p turingosv4` to apply 19 suggestions)
+    Finished `release` profile [optimized] target(s) in 0.26s
+
+[batch_evaluator] launching 3-task batch (real8_market_ab_20260515T_REAL8_FINALZ/arm_B_5239f4b)
+[batch_evaluator] runtime_repo=/home/zephryj/projects/turingosv4/handover/evidence/real8_market_ab_20260515T_REAL8_FINALZ/arm_B/runtime_repo cas=/home/zephryj/projects/turingosv4/handover/evidence/real8_market_ab_20260515T_REAL8_FINALZ/arm_B/cas
+batch_orchestrator: task_index=0 BoundaryPrep::FreshGenesis (no preflight, no lease — task_0 owns genesis)
+batch_orchestrator: task_index=1 ChainTapeLease ACQUIRED (holder_pid=1789794, batch_id=real8_market_ab_20260515T_REAL8_FINALZ/arm_B_5239f4b, start_head=9ed908dc5b57509ce49f2d7ce134ef5e89cda643)
+batch_orchestrator: task_index=1 ResumePreflight::Ok (head=9ed908dc5b57509ce49f2d7ce134ef5e89cda643 state_root=6563dcf67b02504cc241b9b902fafab67e9840feb77c5f696d65730f8743b5ef chain_length=3) → BoundaryPrep::Resume
+batch_orchestrator: task_index=2 ChainTapeLease ACQUIRED (holder_pid=1789794, batch_id=real8_market_ab_20260515T_REAL8_FINALZ/arm_B_5239f4b, start_head=350c4caa4dacf01bfc1dc3514d45c215fb7e04b2)
+batch_orchestrator: task_index=2 ResumePreflight::Ok (head=350c4caa4dacf01bfc1dc3514d45c215fb7e04b2 state_root=9c426ae1b8155b5a3170ed2ef7f33c654aa55f5f06f825e81be2009e6818b9ac chain_length=12) → BoundaryPrep::Resume
+batch_evaluator: chain continuity OK across 3 tasks
+[batch_evaluator] exit_code=0 elapsed=29s
+
+[audit_tape] running over shared runtime_repo + cas
+audit_tape: verdict=PROCEED passed=41 failed=0 halted=0 skipped=11 (out="/home/zephryj/projects/turingosv4/handover/evidence/real8_market_ab_20260515T_REAL8_FINALZ/arm_B/aggregate_verdict.json")
+[audit_tape] exit=0 verdict=PROCEED
+
+[persistence_report] running tb_g_persistence_report
+[persistence_report] exit=0 is_passing=true n_witnessed=5
+
+════════════════════════════════════════════════════════════════════════
+Done. Evidence dir: /home/zephryj/projects/turingosv4/handover/evidence/real8_market_ab_20260515T_REAL8_FINALZ/arm_B
+  - BatchContinuationManifest.json   (G1.2-4 fact-identity)
+  - aggregate_verdict.json verdict=PROCEED
+  - PERSISTENCE_BINDING_REPORT.json  is_passing=true (n_witnessed=5)
+  - run_log.txt
+════════════════════════════════════════════════════════════════════════
+[real8] running arm C: TaskOutcomeMarket enabled
+════════════════════════════════════════════════════════════════════════
+TB-G G1.2 chain-continuous batch (Option B+ canonical)
+════════════════════════════════════════════════════════════════════════
+RUN_TAG          = real8_market_ab_20260515T_REAL8_FINALZ/arm_C
+RUN_DIR          = /home/zephryj/projects/turingosv4/handover/evidence/real8_market_ab_20260515T_REAL8_FINALZ/arm_C
+PROBLEM_SET      = /home/zephryj/projects/turingosv4/handover/evidence/real8_market_ab_20260515T_REAL8_FINALZ/problems.pinned.txt  (3 tasks)
+ACTIVE_MODEL     = deepseek-chat
+G_PHASE_N_AGENTS = 5
+G_PHASE_CONDITION= n5
+AGENT_MODELS     = <empty>
+PHASE_D_HETERO_OK= 1
+MODEL_FAMILIES   = observed=1 required=0
+REAL5_ROLES      = Solver,Trader,Verifier,Challenger,Observer
+REAL5_ROLE_VIEWS = 1
+LLM_PROXY_URL    = http://localhost:8080
+MINIF2F_DIR      = /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4
+PER_PROB_TIMEOUT = 300s
+
+[build] cargo build --release -p minif2f_v4 --bin evaluator --bin batch_evaluator -p turingosv4 --bin audit_tape --bin tb_g_persistence_report
+    |
+    = note: `WorkTxAttempt` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: `turingosv4` (lib) generated 25 warnings (run `cargo fix --lib -p turingosv4` to apply 19 suggestions)
+    Finished `release` profile [optimized] target(s) in 0.25s
+
+[batch_evaluator] launching 3-task batch (real8_market_ab_20260515T_REAL8_FINALZ/arm_C_5239f4b)
+[batch_evaluator] runtime_repo=/home/zephryj/projects/turingosv4/handover/evidence/real8_market_ab_20260515T_REAL8_FINALZ/arm_C/runtime_repo cas=/home/zephryj/projects/turingosv4/handover/evidence/real8_market_ab_20260515T_REAL8_FINALZ/arm_C/cas
+batch_orchestrator: task_index=0 BoundaryPrep::FreshGenesis (no preflight, no lease — task_0 owns genesis)
+batch_orchestrator: task_index=1 ChainTapeLease ACQUIRED (holder_pid=1791406, batch_id=real8_market_ab_20260515T_REAL8_FINALZ/arm_C_5239f4b, start_head=419729d0e71a5875248fa2337f13fe1eca4ac420)
+batch_orchestrator: task_index=1 ResumePreflight::Ok (head=419729d0e71a5875248fa2337f13fe1eca4ac420 state_root=56a565b000a217a70487ca373206671c88f902bde8d359b7c588f8a0d5c9ae05 chain_length=11) → BoundaryPrep::Resume
+batch_orchestrator: task_index=2 ChainTapeLease ACQUIRED (holder_pid=1791406, batch_id=real8_market_ab_20260515T_REAL8_FINALZ/arm_C_5239f4b, start_head=9572b1be49b25313fd0347e1dfaa798eef8acfbe)
+batch_orchestrator: task_index=2 ResumePreflight::Ok (head=9572b1be49b25313fd0347e1dfaa798eef8acfbe state_root=a7ad7c0025ce9f0c910ddc4d33a82381b23dc1a214396c7c394a95b7310bca09 chain_length=17) → BoundaryPrep::Resume
+batch_evaluator: chain continuity OK across 3 tasks
+[batch_evaluator] exit_code=0 elapsed=42s
+
+[audit_tape] running over shared runtime_repo + cas
+audit_tape: verdict=PROCEED passed=41 failed=0 halted=0 skipped=11 (out="/home/zephryj/projects/turingosv4/handover/evidence/real8_market_ab_20260515T_REAL8_FINALZ/arm_C/aggregate_verdict.json")
+[audit_tape] exit=0 verdict=PROCEED
+
+[persistence_report] running tb_g_persistence_report
+[persistence_report] exit=0 is_passing=true n_witnessed=5
+
+════════════════════════════════════════════════════════════════════════
+Done. Evidence dir: /home/zephryj/projects/turingosv4/handover/evidence/real8_market_ab_20260515T_REAL8_FINALZ/arm_C
+  - BatchContinuationManifest.json   (G1.2-4 fact-identity)
+  - aggregate_verdict.json verdict=PROCEED
+  - PERSISTENCE_BINDING_REPORT.json  is_passing=true (n_witnessed=5)
+  - run_log.txt
+════════════════════════════════════════════════════════════════════════
+[real8] running arm D: TaskOutcomeMarket + scripted AttemptPrediction fixture
+════════════════════════════════════════════════════════════════════════
+TB-G G1.2 chain-continuous batch (Option B+ canonical)
+════════════════════════════════════════════════════════════════════════
+RUN_TAG          = real8_market_ab_20260515T_REAL8_FINALZ/arm_D
+RUN_DIR          = /home/zephryj/projects/turingosv4/handover/evidence/real8_market_ab_20260515T_REAL8_FINALZ/arm_D
+PROBLEM_SET      = /home/zephryj/projects/turingosv4/handover/evidence/real8_market_ab_20260515T_REAL8_FINALZ/problems.pinned.txt  (3 tasks)
+ACTIVE_MODEL     = deepseek-chat
+G_PHASE_N_AGENTS = 5
+G_PHASE_CONDITION= n5
+AGENT_MODELS     = <empty>
+PHASE_D_HETERO_OK= 1
+MODEL_FAMILIES   = observed=1 required=0
+REAL5_ROLES      = Solver,Trader,Verifier,Challenger,Observer
+REAL5_ROLE_VIEWS = 1
+LLM_PROXY_URL    = http://localhost:8080
+MINIF2F_DIR      = /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4
+PER_PROB_TIMEOUT = 300s
+
+[build] cargo build --release -p minif2f_v4 --bin evaluator --bin batch_evaluator -p turingosv4 --bin audit_tape --bin tb_g_persistence_report
+    |
+    = note: `WorkTxAttempt` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: `turingosv4` (lib) generated 25 warnings (run `cargo fix --lib -p turingosv4` to apply 19 suggestions)
+    Finished `release` profile [optimized] target(s) in 0.21s
+
+[batch_evaluator] launching 3-task batch (real8_market_ab_20260515T_REAL8_FINALZ/arm_D_5239f4b)
+[batch_evaluator] runtime_repo=/home/zephryj/projects/turingosv4/handover/evidence/real8_market_ab_20260515T_REAL8_FINALZ/arm_D/runtime_repo cas=/home/zephryj/projects/turingosv4/handover/evidence/real8_market_ab_20260515T_REAL8_FINALZ/arm_D/cas
+batch_orchestrator: task_index=0 BoundaryPrep::FreshGenesis (no preflight, no lease — task_0 owns genesis)
+batch_orchestrator: task_index=1 ChainTapeLease ACQUIRED (holder_pid=1793418, batch_id=real8_market_ab_20260515T_REAL8_FINALZ/arm_D_5239f4b, start_head=b930a1c390f97b4cd74cc3273526df70dc45c924)
+batch_orchestrator: task_index=1 ResumePreflight::Ok (head=b930a1c390f97b4cd74cc3273526df70dc45c924 state_root=fe9e5632c7dad5ac4807d5d8cb8722fdfcb6dad4aa2d2e42e87e451d9d4f0ef2 chain_length=6) → BoundaryPrep::Resume
+batch_orchestrator: task_index=2 ChainTapeLease ACQUIRED (holder_pid=1793418, batch_id=real8_market_ab_20260515T_REAL8_FINALZ/arm_D_5239f4b, start_head=580be1a790d7815cf6c82b16531308d9fa742d7d)
+batch_orchestrator: task_index=2 ResumePreflight::Ok (head=580be1a790d7815cf6c82b16531308d9fa742d7d state_root=855af7238a8d36e07b7631b8202636b4990d50a593eb743abdfb11887ea6bed9 chain_length=17) → BoundaryPrep::Resume
+batch_evaluator: chain continuity OK across 3 tasks
+[batch_evaluator] exit_code=0 elapsed=31s
+
+[audit_tape] running over shared runtime_repo + cas
+audit_tape: verdict=PROCEED passed=41 failed=0 halted=0 skipped=11 (out="/home/zephryj/projects/turingosv4/handover/evidence/real8_market_ab_20260515T_REAL8_FINALZ/arm_D/aggregate_verdict.json")
+[audit_tape] exit=0 verdict=PROCEED
+
+[persistence_report] running tb_g_persistence_report
+[persistence_report] exit=0 is_passing=true n_witnessed=5
+
+════════════════════════════════════════════════════════════════════════
+Done. Evidence dir: /home/zephryj/projects/turingosv4/handover/evidence/real8_market_ab_20260515T_REAL8_FINALZ/arm_D
+  - BatchContinuationManifest.json   (G1.2-4 fact-identity)
+  - aggregate_verdict.json verdict=PROCEED
+  - PERSISTENCE_BINDING_REPORT.json  is_passing=true (n_witnessed=5)
+  - run_log.txt
+════════════════════════════════════════════════════════════════════════
+REAL-8 benchmark PASS: /home/zephryj/projects/turingosv4/handover/evidence/real8_market_ab_20260515T_REAL8_FINALZ/REAL8_MARKET_AB_BENCHMARK_REPORT.md

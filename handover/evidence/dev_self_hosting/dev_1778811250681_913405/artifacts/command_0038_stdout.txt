@@ -1,0 +1,18 @@
+
+running 1 test
+test sg_6a_5_real6_market_visible_non_invest_turn_writes_no_trade_trace ... FAILED
+
+failures:
+
+---- sg_6a_5_real6_market_visible_non_invest_turn_writes_no_trade_trace stdout ----
+
+thread 'sg_6a_5_real6_market_visible_non_invest_turn_writes_no_trade_trace' (993137) panicked at tests/constitution_real6_task_outcome_market.rs:602:5:
+SG-6A.5: a visible TaskOutcomeMarket with no invest action must emit classified no-trade
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    sg_6a_5_real6_market_visible_non_invest_turn_writes_no_trade_trace
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.00s
+

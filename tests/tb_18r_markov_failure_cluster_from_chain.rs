@@ -20,11 +20,7 @@ use turingosv4::runtime::attempt_telemetry::{
 use turingosv4::runtime::proposal_telemetry::TokenCounts;
 use turingosv4::state::q_state::{AgentId, Hash, TxId};
 
-fn write_failure_attempt(
-    cas: &mut CasStore,
-    outcome: AttemptOutcome,
-    tag: &str,
-) -> Cid {
+fn write_failure_attempt(cas: &mut CasStore, outcome: AttemptOutcome, tag: &str) -> Cid {
     let attempt = AttemptTelemetry::new_root(
         TxId(format!("att-{tag}")),
         "tb18r-r5-markov".into(),

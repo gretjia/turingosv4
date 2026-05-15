@@ -38,22 +38,20 @@ use turingosv4::bottom_white::ledger::rejection_evidence::RejectionEvidenceWrite
 use turingosv4::bottom_white::ledger::system_keypair::{
     Ed25519Keypair, PinnedSystemPubkeys, SystemEpoch,
 };
-use turingosv4::bottom_white::ledger::transition_ledger::{
-    InMemoryLedgerWriter, LedgerWriter,
-};
+use turingosv4::bottom_white::ledger::transition_ledger::{InMemoryLedgerWriter, LedgerWriter};
 use turingosv4::bottom_white::tools::registry::ToolRegistry;
-use turingosv4::economy::money::MicroCoin;
 use turingosv4::economy::monetary_invariant::{
     assert_complete_set_balanced, assert_total_ctf_conserved,
 };
+use turingosv4::economy::money::MicroCoin;
 use turingosv4::state::q_state::{
-    AgentId, ConditionalCollateralIndex, ConditionalShareBalances, QState,
-    ShareSidePair, TaskId, TaskMarketEntry, TaskMarketState, TxId,
+    AgentId, ConditionalCollateralIndex, ConditionalShareBalances, QState, ShareSidePair, TaskId,
+    TaskMarketEntry, TaskMarketState, TxId,
 };
 use turingosv4::state::sequencer::{Sequencer, SubmissionEnvelope};
 use turingosv4::state::typed_tx::{
-    AgentSignature, CompleteSetMintTx, CompleteSetRedeemTx, EventId,
-    MarketSeedTx, OutcomeSide, ShareAmount, TypedTx,
+    AgentSignature, CompleteSetMintTx, CompleteSetRedeemTx, EventId, MarketSeedTx, OutcomeSide,
+    ShareAmount, TypedTx,
 };
 use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
@@ -70,8 +68,7 @@ fn fresh_harness(initial_q: QState) -> Harness {
     let tmp = TempDir::new().expect("tempdir");
     let cas = Arc::new(RwLock::new(CasStore::open(tmp.path()).expect("cas")));
     let keypair = Arc::new(Ed25519Keypair::generate_with_secure_entropy().expect("kp"));
-    let writer: Arc<RwLock<dyn LedgerWriter>> =
-        Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
+    let writer: Arc<RwLock<dyn LedgerWriter>> = Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
     let rejection_writer = Arc::new(RwLock::new(RejectionEvidenceWriter::default()));
     let preds = Arc::new(PredicateRegistry::new());
     let tools = Arc::new(ToolRegistry::new());
@@ -80,10 +77,23 @@ fn fresh_harness(initial_q: QState) -> Harness {
     pinned.insert(epoch, keypair.public_key());
     let pinned_pubkeys = Arc::new(pinned);
     let (seq, rx) = Sequencer::new(
-        cas, keypair, epoch, writer.clone(), rejection_writer, preds, tools,
-        pinned_pubkeys, initial_q, 16,
+        cas,
+        keypair,
+        epoch,
+        writer.clone(),
+        rejection_writer,
+        preds,
+        tools,
+        pinned_pubkeys,
+        initial_q,
+        16,
     );
-    Harness { _tmp: tmp, seq, rx, _ledger: writer }
+    Harness {
+        _tmp: tmp,
+        seq,
+        rx,
+        _ledger: writer,
+    }
 }
 
 fn genesis_with_balances(pairs: &[(&str, i64)]) -> QState {
@@ -115,10 +125,7 @@ fn seed_task_market(q: &mut QState, task: &str, state: TaskMarketState) {
 /// task_markets_t entry in Open state for the given task. Used by the
 /// happy-path tests post Gemini Q13 gate (mint/seed reject closed/missing
 /// events).
-fn genesis_with_balances_and_open_task(
-    pairs: &[(&str, i64)],
-    task: &str,
-) -> QState {
+fn genesis_with_balances_and_open_task(pairs: &[(&str, i64)], task: &str) -> QState {
     let mut q = genesis_with_balances(pairs);
     seed_task_market(&mut q, task, TaskMarketState::Open);
     q
@@ -158,10 +165,10 @@ fn genesis_post_mint(
     );
 
     // Credit collateral.
-    q.economic_state_t
-        .conditional_collateral_t
-        .0
-        .insert(event_id.clone(), MicroCoin::from_micro_units(mint_amount_micro));
+    q.economic_state_t.conditional_collateral_t.0.insert(
+        event_id.clone(),
+        MicroCoin::from_micro_units(mint_amount_micro),
+    );
 
     // Credit equal YES + NO shares to the owner.
     let mut owner_shares = std::collections::BTreeMap::new();
@@ -194,7 +201,13 @@ async fn submit_and_apply(h: &mut Harness, tx: TypedTx) -> Result<(), String> {
         .map_err(|e| format!("apply error: {e:?}"))
 }
 
-fn build_mint(parent: turingosv4::state::q_state::Hash, owner: &str, task: &str, micro: i64, seq_no: u64) -> TypedTx {
+fn build_mint(
+    parent: turingosv4::state::q_state::Hash,
+    owner: &str,
+    task: &str,
+    micro: i64,
+    seq_no: u64,
+) -> TypedTx {
     TypedTx::CompleteSetMint(CompleteSetMintTx {
         tx_id: TxId(format!("mint-{owner}-{task}-{seq_no}")),
         parent_state_root: parent,
@@ -288,22 +301,25 @@ async fn sg_13_1_mint_one_coin_yields_one_yes_plus_one_no_total_coin_conserved()
         .and_then(|m| m.get(&EventId(TaskId("task-A".into()))))
         .copied()
         .unwrap();
-    assert_eq!(pair.yes.units, 5_000_000_u128, "YES shares minted equal to amount");
-    assert_eq!(pair.no.units, 5_000_000_u128, "NO shares minted equal to amount");
+    assert_eq!(
+        pair.yes.units, 5_000_000_u128,
+        "YES shares minted equal to amount"
+    );
+    assert_eq!(
+        pair.no.units, 5_000_000_u128,
+        "NO shares minted equal to amount"
+    );
 
     // CTF preserved across mint via 6-holding sum (Atom 3 invariant).
     let q_pre = QState::genesis();
     let mut q_pre_balanced = q_pre.clone();
-    q_pre_balanced.economic_state_t.balances_t.0.insert(
-        AgentId("alice".into()),
-        MicroCoin::from_coin(100).unwrap(),
-    );
-    assert_total_ctf_conserved(
-        &q_pre_balanced.economic_state_t,
-        &q.economic_state_t,
-        &[],
-    )
-    .expect("CTF preserved across mint");
+    q_pre_balanced
+        .economic_state_t
+        .balances_t
+        .0
+        .insert(AgentId("alice".into()), MicroCoin::from_coin(100).unwrap());
+    assert_total_ctf_conserved(&q_pre_balanced.economic_state_t, &q.economic_state_t, &[])
+        .expect("CTF preserved across mint");
     assert_complete_set_balanced(&q.economic_state_t).expect("complete-set balanced post-mint");
 }
 
@@ -480,7 +496,10 @@ async fn sg_13_6_redeem_after_yes_outcome_pays_yes_not_no() {
         .copied()
         .unwrap();
     assert_eq!(pair.yes.units, 0_u128, "YES shares debited (winning side)");
-    assert_eq!(pair.no.units, 4_000_000_u128, "NO shares preserved (losing side)");
+    assert_eq!(
+        pair.no.units, 4_000_000_u128,
+        "NO shares preserved (losing side)"
+    );
 
     // Now attempt redeem outcome=No on the SAME finalized event — must fail
     // because state is Finalized (YES wins) and the redeem outcome is No.
@@ -622,9 +641,12 @@ async fn halt_shares_not_counted_as_coin() {
     let q0 = genesis_with_balances_and_open_task(&[("alice", 100)], "task-H2");
     let mut h = fresh_harness(q0.clone());
     let parent = h.seq.q_snapshot().unwrap().state_root_t;
-    submit_and_apply(&mut h, build_mint(parent, "alice", "task-H2", 9_876_543, 22))
-        .await
-        .expect("mint");
+    submit_and_apply(
+        &mut h,
+        build_mint(parent, "alice", "task-H2", 9_876_543, 22),
+    )
+    .await
+    .expect("mint");
     let q = h.seq.q_snapshot().unwrap();
     assert_total_ctf_conserved(&q0.economic_state_t, &q.economic_state_t, &[])
         .expect("shares not in total_supply");
@@ -840,9 +862,12 @@ async fn halt_complete_set_balanced_post_seed() {
     let q0 = genesis_with_balances_and_open_task(&[("provider", 50)], "task-H5");
     let mut h = fresh_harness(q0);
     let parent = h.seq.q_snapshot().unwrap().state_root_t;
-    submit_and_apply(&mut h, build_seed(parent, "provider", "task-H5", 3_141_592, 26))
-        .await
-        .expect("seed");
+    submit_and_apply(
+        &mut h,
+        build_seed(parent, "provider", "task-H5", 3_141_592, 26),
+    )
+    .await
+    .expect("seed");
     let q = h.seq.q_snapshot().unwrap();
     assert_complete_set_balanced(&q.economic_state_t).expect("balanced after seed");
     let collateral = q
@@ -888,9 +913,7 @@ fn _suppress_unused() {
 #[tokio::test]
 async fn tb13_auth_submit_time_signature_verification() {
     use std::sync::Arc;
-    use turingosv4::runtime::agent_keypairs::{
-        AgentKeypair, AgentPubkeyManifest,
-    };
+    use turingosv4::runtime::agent_keypairs::{AgentKeypair, AgentPubkeyManifest};
     use turingosv4::state::sequencer::SubmitError;
 
     let q0 = genesis_with_balances_and_open_task(&[("alice", 100)], "task-AUTH");
@@ -899,10 +922,9 @@ async fn tb13_auth_submit_time_signature_verification() {
     // Build a real keypair for "alice" + register in the manifest.
     let alice_keypair = AgentKeypair::generate().expect("generate alice keypair");
     let mut manifest = AgentPubkeyManifest::default();
-    manifest.agents.insert(
-        "alice".to_string(),
-        alice_keypair.public_key().to_hex(),
-    );
+    manifest
+        .agents
+        .insert("alice".to_string(), alice_keypair.public_key().to_hex());
     h.seq
         .set_agent_pubkeys(Arc::new(manifest))
         .expect("set_agent_pubkeys must succeed once");
@@ -968,7 +990,11 @@ async fn tb13_auth_submit_time_signature_verification() {
         timestamp_logical: 502,
     };
     let imp_sig = impostor_keypair
-        .sign_digest(mint_impostor_unsigned.to_signing_payload().canonical_digest())
+        .sign_digest(
+            mint_impostor_unsigned
+                .to_signing_payload()
+                .canonical_digest(),
+        )
         .expect("sign_digest");
     let impostor_mint = CompleteSetMintTx {
         signature: imp_sig,

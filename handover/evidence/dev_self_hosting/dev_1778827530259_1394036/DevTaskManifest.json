@@ -1,0 +1,24 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778827530259_1394036",
+  "title": "REAL-6C R3b clean closeout",
+  "module": "REAL-6C ConvictionBudget / PnL Feedback",
+  "molecule_or_atom": "molecule",
+  "requested_risk_class": 4,
+  "risk_class": 4,
+  "fc_nodes": [
+    "FC1 role action/economic feedback; FC2 ChainTape-derived PnL replay; FC3 materialized audit/CAS autopsy; Art.III scoped prompt"
+  ],
+  "allowed_paths": [
+    "src/runtime/real6_conviction_budget.rs"
+  ],
+  "restricted_surface_hits": [],
+  "acceptance_commands": [
+    "cargo check"
+  ],
+  "audit_required": true,
+  "human_intent": null,
+  "ratification": null,
+  "git_head": "5239f4b13ecf0a3f9850accc6815c2e7944e9bee",
+  "created_at_unix_ms": 1778827530259
+}

@@ -1,0 +1,3 @@
+WARNING: working tree has non-evidence changes; /runner-preflight Stage 1 normally rejects this.
+scripts/run_g_phase_batch.sh: line 335: 994435 Aborted                 ( cd "$PROJECT_ROOT" && "$AUDIT_TAPE" --runtime-repo "$RUN_DIR/runtime_repo" --cas-dir "$RUN_DIR/cas" --agent-pubkeys "$RUN_DIR/runtime_repo/agent_pubkeys.json" --pinned-pubkeys "$RUN_DIR/runtime_repo/pinned_pubkeys.json" --genesis "$PROJECT_ROOT/genesis_payload.toml" --constitution "$PROJECT_ROOT/constitution.md" --alignment-dir "$PROJECT_ROOT/handover/alignment" --out "$RUN_DIR/aggregate_verdict.json" ) 2> "$RUN_DIR/audit_tape.stderr"
+WARNING: aggregate audit_tape verdict= (not PROCEED)
