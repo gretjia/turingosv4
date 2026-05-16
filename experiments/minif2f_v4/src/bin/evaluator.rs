@@ -399,7 +399,7 @@ fn real5_prompt_view_block(
     }
     let sections = view.public_sections.join(", ");
     let redacted = view.hidden_fields_redacted.join(", ");
-    format!(
+    let mut block = format!(
         "\n=== REAL-5 Role View ===\nrole: {}\nvisible_context_cid: {}\nview_policy_id: real5/{}_view/v1\npublic_sections: {}\nprice_signal_count: {}\nhidden_fields_redacted: {}\n",
         role.label(),
         view.visible_context_cid,
@@ -407,7 +407,50 @@ fn real5_prompt_view_block(
         sections,
         view.price_signals.len(),
         redacted
-    )
+    );
+    if turingosv4::runtime::real5_roles::is_trader_like(role) {
+        block.push_str("=== REAL-12 Role Action Boundary ===\n");
+        match role {
+            turingosv4::runtime::real5_roles::AgentRole::BullTrader => {
+                block.push_str("Allowed BullTrader actions: `buy_yes` or `abstain`.\n");
+                block
+                    .push_str("BullTrader searches for positive-EV YES/long opportunities only.\n");
+            }
+            turingosv4::runtime::real5_roles::AgentRole::BearTrader => {
+                block.push_str("Allowed BearTrader actions: `buy_no` or `abstain`.\n");
+                block
+                    .push_str("BearTrader searches for positive-EV NO/short opportunities only.\n");
+            }
+            _ => {
+                block.push_str("Allowed Trader actions: `bid_task`, `invest`, or `abstain`.\n");
+            }
+        }
+        block.push_str("Do not emit `step`, `append`, `complete`, `verify_peer`, or `challenge_node` while assigned Trader/BullTrader/BearTrader.\n");
+        block.push_str("No forced trade: use `abstain` with a reason when no market edge is visible. Price is signal, not truth.\n");
+        if std::env::var("TURINGOS_REAL12_TRADER_OBJECTIVE")
+            .ok()
+            .as_deref()
+            == Some("1")
+        {
+            block.push_str("=== REAL-12 Trader Objective ===\n");
+            block.push_str("Estimate whether public task-market price is mispriced using visible task state, balance, PnL, risk cap, and recent accepted work.\n");
+            match role {
+                turingosv4::runtime::real5_roles::AgentRole::BullTrader => {
+                    block.push_str("Use `buy_yes` only when your confidence in success is above the visible YES price.\n");
+                }
+                turingosv4::runtime::real5_roles::AgentRole::BearTrader => {
+                    block.push_str("Use `buy_no` only when your confidence in failure is above the visible NO price.\n");
+                }
+                _ => {
+                    block.push_str("Use `bid_task` only when your confidence differs from the visible price; `long` buys YES, `short` buys NO.\n");
+                }
+            }
+            block.push_str(
+                "If no edge is visible, abstain with a reason. Price is signal, not truth.\n",
+            );
+        }
+    }
+    block
 }
 
 fn real5_role_gateway_enabled() -> bool {
@@ -478,11 +521,16 @@ fn real5_role_turn_outcome(
             }
             .to_string(),
         },
-        turingosv4::runtime::real5_roles::AgentRole::Trader => {
-            if parsed_tool == Some("invest") {
+        turingosv4::runtime::real5_roles::AgentRole::Trader
+        | turingosv4::runtime::real5_roles::AgentRole::BullTrader
+        | turingosv4::runtime::real5_roles::AgentRole::BearTrader => {
+            if matches!(
+                parsed_tool,
+                Some("invest") | Some("bid_task") | Some("buy_yes") | Some("buy_no")
+            ) {
                 RoleTurnOutcome::MarketDecision {
                     tx_kind: "MarketDecisionTrace".to_string(),
-                    public_summary: "invest action emitted; MarketDecisionTrace anchors submitted/no_trade result".to_string(),
+                    public_summary: "market action emitted; MarketDecisionTrace/EconomicJudgment anchors submitted/no_trade result".to_string(),
                 }
             } else {
                 let reason = if market_block_present {
@@ -495,7 +543,7 @@ fn real5_role_turn_outcome(
                 RoleTurnOutcome::NoTrade {
                     reason,
                     public_summary: format!(
-                        "trader role turn emitted {:?}; no invest action",
+                        "trader-like role turn emitted {:?}; no market action",
                         parsed_tool.unwrap_or("no_parse")
                     ),
                 }
@@ -566,6 +614,7 @@ fn real5_write_role_turn_trace(
     policy_rejection: Option<&str>,
     market_block_present: bool,
     market_block_budget_elided: bool,
+    economic_judgment_cid: Option<turingosv4::bottom_white::cas::schema::Cid>,
     logical_t: u64,
 ) -> Result<(), String> {
     use turingosv4::runtime::real5_roles::{
@@ -595,7 +644,7 @@ fn real5_write_role_turn_trace(
         _ => {}
     }
 
-    let trace = RoleTurnTrace::new(
+    let mut trace = RoleTurnTrace::new(
         turingosv4::state::q_state::AgentId(agent_id.to_string()),
         role,
         turingosv4::state::q_state::TaskId(format!("task-{run_id}")),
@@ -603,6 +652,9 @@ fn real5_write_role_turn_trace(
         parsed_tool.map(str::to_string),
         outcome,
     );
+    if let Some(cid) = economic_judgment_cid {
+        trace = trace.with_economic_judgment_cid(cid);
+    }
     let mut cas_store = turingosv4::bottom_white::cas::store::CasStore::open(&bundle.cas_path)
         .map_err(|e| format!("REAL-5 role turn CAS open: {e}"))?;
     write_role_turn_trace_to_cas(
@@ -636,6 +688,175 @@ fn write_market_decision_trace_to_cas_or_exit(
     ) {
         error!("MarketDecisionTrace CAS write FAIL-CLOSED: {e}");
         std::process::exit(3);
+    }
+}
+
+struct Real12EconomicJudgmentArgs<'a> {
+    run_id: &'a str,
+    agent_id: &'a str,
+    role: turingosv4::runtime::real5_roles::AgentRole,
+    prompt_capsule_cid: turingosv4::bottom_white::cas::schema::Cid,
+    parsed_tool: Option<&'a str>,
+    parsed_direction: Option<&'a str>,
+    parsed_amount_micro: Option<i64>,
+    observed_price: Option<turingosv4::runtime::real5_roles::RationalPrice>,
+    estimated_probability_band: Option<turingosv4::runtime::economic_judgment::ProbabilityBand>,
+    expected_value_sign: turingosv4::runtime::economic_judgment::ExpectedValueSign,
+    liquidity_depth: Option<turingosv4::economy::money::MicroCoin>,
+    policy_rejection: Option<&'a str>,
+    market_context_visible: bool,
+    prompt_budget_elided: bool,
+    head_t: String,
+    balance_available: turingosv4::economy::money::MicroCoin,
+    risk_cap: turingosv4::economy::money::MicroCoin,
+}
+
+fn real12_build_economic_judgment(
+    args: Real12EconomicJudgmentArgs<'_>,
+) -> turingosv4::runtime::economic_judgment::EconomicJudgment {
+    use turingosv4::economy::money::MicroCoin;
+    use turingosv4::runtime::economic_judgment::{
+        EconomicJudgment, EconomicJudgmentAction, EconomicReason, ExpectedValueSign,
+        ECONOMIC_JUDGMENT_SCHEMA_ID,
+    };
+    use turingosv4::runtime::real5_roles::MarketSide;
+    use turingosv4::state::q_state::{AgentId, TaskId};
+    use turingosv4::state::typed_tx::EventId;
+
+    let task_id = TaskId(format!("task-{}", args.run_id));
+    let task_event = EventId(task_id.clone());
+    let parsed_side = match args.parsed_tool {
+        Some("buy_yes") => Some(MarketSide::Yes),
+        Some("buy_no") => Some(MarketSide::No),
+        Some("bid_task") | Some("invest") => match args
+            .parsed_direction
+            .unwrap_or_default()
+            .trim()
+            .to_ascii_lowercase()
+            .as_str()
+        {
+            "short" | "no" | "bear" => Some(MarketSide::No),
+            "long" | "yes" | "bull" => Some(MarketSide::Yes),
+            _ => None,
+        },
+        _ => None,
+    };
+    let role_default_side = match args.role {
+        turingosv4::runtime::real5_roles::AgentRole::BullTrader => Some(MarketSide::Yes),
+        turingosv4::runtime::real5_roles::AgentRole::BearTrader => Some(MarketSide::No),
+        _ => None,
+    };
+    let intended_side = parsed_side.or(role_default_side);
+    let amount = args.parsed_amount_micro.unwrap_or(0);
+    let is_market_action = matches!(
+        args.parsed_tool,
+        Some("buy_yes") | Some("buy_no") | Some("bid_task") | Some("invest")
+    ) && args.policy_rejection.is_none()
+        && amount > 0;
+    let has_positive_ev_basis = args.observed_price.is_some()
+        && args.estimated_probability_band.is_some()
+        && args.liquidity_depth.is_some()
+        && args.expected_value_sign == ExpectedValueSign::Positive;
+
+    let action = match (args.role, intended_side, is_market_action) {
+        (turingosv4::runtime::real5_roles::AgentRole::BullTrader, Some(MarketSide::Yes), true)
+            if has_positive_ev_basis =>
+        {
+            EconomicJudgmentAction::Buy
+        }
+        (turingosv4::runtime::real5_roles::AgentRole::BearTrader, Some(MarketSide::No), true)
+            if has_positive_ev_basis =>
+        {
+            EconomicJudgmentAction::Short
+        }
+        _ => EconomicJudgmentAction::Abstain,
+    };
+    let reason = if args.policy_rejection.is_some() {
+        EconomicReason::RolePolicyBlocked
+    } else if !args.market_context_visible {
+        EconomicReason::NoActionableMarket
+    } else if args.prompt_budget_elided {
+        EconomicReason::PromptBudgetExceeded
+    } else if is_market_action && !has_positive_ev_basis {
+        EconomicReason::UnresolvedOracleRisk
+    } else {
+        EconomicReason::NoPerceivedEdge
+    };
+    let buy_or_short = matches!(
+        action,
+        EconomicJudgmentAction::Buy | EconomicJudgmentAction::Short
+    );
+
+    EconomicJudgment {
+        schema_version: ECONOMIC_JUDGMENT_SCHEMA_ID.to_string(),
+        agent_id: AgentId(args.agent_id.to_string()),
+        role: args.role,
+        task_id,
+        head_t: args.head_t,
+        visible_markets: if args.market_context_visible {
+            vec![task_event.clone()]
+        } else {
+            Vec::new()
+        },
+        chosen_market: buy_or_short.then_some(task_event),
+        intended_side,
+        intended_amount: buy_or_short.then_some(MicroCoin::from_micro_units(amount)),
+        action,
+        reason,
+        observed_price: buy_or_short.then_some(args.observed_price).flatten(),
+        estimated_probability_band: buy_or_short
+            .then_some(args.estimated_probability_band)
+            .flatten(),
+        expected_value_sign: if buy_or_short {
+            args.expected_value_sign
+        } else if is_market_action && !has_positive_ev_basis {
+            ExpectedValueSign::Unknown
+        } else {
+            ExpectedValueSign::Negative
+        },
+        liquidity_depth: buy_or_short.then_some(args.liquidity_depth).flatten(),
+        balance_available: args.balance_available,
+        risk_cap: args.risk_cap,
+        oracle_or_deadline_risk: Some("task_outcome_deadline_or_oracle_risk_public".to_string()),
+        prompt_capsule_cid: args.prompt_capsule_cid,
+        public_summary: match action {
+            EconomicJudgmentAction::Buy => {
+                "BullTrader emitted public YES economic action with explicit public EV basis".into()
+            }
+            EconomicJudgmentAction::Short => {
+                "BearTrader emitted public NO economic action with explicit public EV basis".into()
+            }
+            EconomicJudgmentAction::Abstain => {
+                "Trader-like role abstained or was policy-blocked with structured reason".into()
+            }
+        },
+    }
+}
+
+fn write_economic_judgment_to_cas_or_exit(
+    cas_path: &std::path::Path,
+    judgment: &turingosv4::runtime::economic_judgment::EconomicJudgment,
+    suffix: &str,
+    logical_t: u64,
+) -> turingosv4::bottom_white::cas::schema::Cid {
+    let mut cas_store = match turingosv4::bottom_white::cas::store::CasStore::open(cas_path) {
+        Ok(store) => store,
+        Err(e) => {
+            error!("EconomicJudgment CAS write FAIL-CLOSED: CAS open failed: {e}");
+            std::process::exit(3);
+        }
+    };
+    match turingosv4::runtime::economic_judgment::write_economic_judgment_to_cas(
+        &mut cas_store,
+        judgment,
+        suffix,
+        logical_t,
+    ) {
+        Ok(cid) => cid,
+        Err(e) => {
+            error!("EconomicJudgment CAS write FAIL-CLOSED: {e}");
+            std::process::exit(3);
+        }
     }
 }
 
@@ -3823,7 +4044,7 @@ async fn run_swarm(
             .ok()
             .as_deref()
             == Some("1")
-            && real5_prompt_role == turingosv4::runtime::real5_roles::AgentRole::Trader
+            && turingosv4::runtime::real5_roles::is_trader_like(real5_prompt_role)
         {
             let Some(bundle) = chaintape_bundle.as_ref() else {
                 error!(
@@ -3981,12 +4202,74 @@ async fn run_swarm(
                 // end-of-turn classifier knows NOT to fire `NoPerceivedEdge`
                 // / `PromptBudgetExceeded` for this turn.
                 let mut invest_action_emitted_this_turn: bool = false;
+                let mut bid_task_action_emitted_this_turn: bool = false;
                 let mut real5_parsed_tool_for_trace: Option<String> = None;
                 let mut real5_parse_error_for_trace: Option<String> = None;
                 let mut real5_role_policy_rejected_this_turn: Option<String> = None;
+                let mut real12_direction_for_judgment: Option<String> = None;
+                let mut real12_amount_for_judgment: Option<i64> = None;
+                let mut real12_observed_price_for_judgment: Option<
+                    turingosv4::runtime::real5_roles::RationalPrice,
+                > = None;
+                let mut real12_probability_band_for_judgment: Option<
+                    turingosv4::runtime::economic_judgment::ProbabilityBand,
+                > = None;
+                let mut real12_expected_value_sign_for_judgment =
+                    turingosv4::runtime::economic_judgment::ExpectedValueSign::Unknown;
+                let mut real12_liquidity_depth_for_judgment: Option<
+                    turingosv4::economy::money::MicroCoin,
+                > = None;
                 match parse_agent_output(&response.content) {
                     Ok(action) => {
                         real5_parsed_tool_for_trace = Some(action.tool.clone());
+                        real12_direction_for_judgment = action.direction.clone();
+                        real12_amount_for_judgment = action.amount;
+                        if let (Some(num), Some(den)) =
+                            (action.observed_price_num, action.observed_price_den)
+                        {
+                            if num > 0 && den > 0 {
+                                real12_observed_price_for_judgment =
+                                    turingosv4::runtime::real5_roles::RationalPrice::new(
+                                        num as u64, den as u64,
+                                    );
+                            }
+                        }
+                        if let (Some(lower_bps), Some(upper_bps)) = (
+                            action.estimated_probability_lower_bps,
+                            action.estimated_probability_upper_bps,
+                        ) {
+                            real12_probability_band_for_judgment =
+                                Some(turingosv4::runtime::economic_judgment::ProbabilityBand {
+                                    lower_bps,
+                                    upper_bps,
+                                });
+                        }
+                        real12_expected_value_sign_for_judgment = match action
+                            .expected_value_sign
+                            .as_deref()
+                            .unwrap_or_default()
+                            .trim()
+                            .to_ascii_lowercase()
+                            .as_str()
+                        {
+                            "positive" | "pos" | "+" => {
+                                turingosv4::runtime::economic_judgment::ExpectedValueSign::Positive
+                            }
+                            "zero" | "neutral" | "0" => {
+                                turingosv4::runtime::economic_judgment::ExpectedValueSign::Zero
+                            }
+                            "negative" | "neg" | "-" => {
+                                turingosv4::runtime::economic_judgment::ExpectedValueSign::Negative
+                            }
+                            _ => turingosv4::runtime::economic_judgment::ExpectedValueSign::Unknown,
+                        };
+                        if let Some(depth) = action.liquidity_depth_micro {
+                            if depth > 0 {
+                                real12_liquidity_depth_for_judgment = Some(
+                                    turingosv4::economy::money::MicroCoin::from_micro_units(depth),
+                                );
+                            }
+                        }
                         let mut real5_legacy_action_permitted = true;
                         if real5_role_gateway_enabled() {
                             match real5_gate_parsed_action_for_role(
@@ -5185,7 +5468,7 @@ async fn run_swarm(
                                         }
                                     }
                                 }
-                                "invest" => {
+                                "invest" | "bid_task" | "buy_yes" | "buy_no" => {
                                     // TB-N3 A2 (architect ruling 2026-05-11 amendments 1+2 + Q5):
                                     // the agent's `invest` payload routes to a real
                                     // `BuyWithCoinRouterTx` against the Stage C P-M6
@@ -5202,21 +5485,137 @@ async fn run_swarm(
                                     // invest (regardless of submitted / no_trade
                                     // outcome) so the end-of-turn classifier does
                                     // NOT fire NoPerceivedEdge / PromptBudgetExceeded.
-                                    invest_action_emitted_this_turn = true;
-                                    *tool_dist.entry("invest_attempted".into()).or_insert(0) += 1;
-                                    let node_str = action.node.clone().unwrap_or_default();
+                                    let is_bid_task = action.tool == "bid_task";
+                                    let is_buy_yes = action.tool == "buy_yes";
+                                    let is_buy_no = action.tool == "buy_no";
+                                    let is_task_market_action =
+                                        is_bid_task || is_buy_yes || is_buy_no;
+                                    if is_bid_task {
+                                        bid_task_action_emitted_this_turn = true;
+                                        *tool_dist
+                                            .entry("bid_task_attempted".into())
+                                            .or_insert(0) += 1;
+                                    } else if is_buy_yes {
+                                        bid_task_action_emitted_this_turn = true;
+                                        *tool_dist
+                                            .entry("buy_yes_attempted".into())
+                                            .or_insert(0) += 1;
+                                    } else if is_buy_no {
+                                        bid_task_action_emitted_this_turn = true;
+                                        *tool_dist.entry("buy_no_attempted".into()).or_insert(0) +=
+                                            1;
+                                    } else {
+                                        invest_action_emitted_this_turn = true;
+                                        *tool_dist.entry("invest_attempted".into()).or_insert(0) +=
+                                            1;
+                                    }
                                     let amount_micro: i64 = action.amount.unwrap_or(0);
-                                    let direction = match action.direction.as_deref() {
-                                        Some("short") | Some("no") | Some("Short") | Some("No") => {
-                                            turingosv4::state::typed_tx::BuyDirection::BuyNo
+                                    let direction = if is_buy_no {
+                                        turingosv4::state::typed_tx::BuyDirection::BuyNo
+                                    } else if is_buy_yes {
+                                        turingosv4::state::typed_tx::BuyDirection::BuyYes
+                                    } else {
+                                        match action.direction.as_deref() {
+                                            Some("short") | Some("no") | Some("Short")
+                                            | Some("No") => {
+                                                turingosv4::state::typed_tx::BuyDirection::BuyNo
+                                            }
+                                            _ => turingosv4::state::typed_tx::BuyDirection::BuyYes,
                                         }
-                                        _ => turingosv4::state::typed_tx::BuyDirection::BuyYes,
                                     };
+                                    let task_id_str = format!("task-{}", run_id);
+                                    let node_str = if is_task_market_action {
+                                        task_id_str.clone()
+                                    } else {
+                                        action.node.clone().unwrap_or_default()
+                                    };
+                                    let real12_trader_requires_ev_basis = matches!(
+                                        real5_prompt_role,
+                                        turingosv4::runtime::real5_roles::AgentRole::BullTrader
+                                            | turingosv4::runtime::real5_roles::AgentRole::BearTrader
+                                    );
+                                    let explicit_positive_ev_basis = action.amount.unwrap_or(0) > 0
+                                        && action
+                                            .observed_price_num
+                                            .zip(action.observed_price_den)
+                                            .and_then(|(num, den)| {
+                                                if num > 0 && den > 0 {
+                                                    turingosv4::runtime::real5_roles::RationalPrice::new(
+                                                        num as u64,
+                                                        den as u64,
+                                                    )
+                                                } else {
+                                                    None
+                                                }
+                                            })
+                                            .is_some()
+                                        && action
+                                            .estimated_probability_lower_bps
+                                            .zip(action.estimated_probability_upper_bps)
+                                            .map(|(lower, upper)| {
+                                                lower <= upper && upper <= 10_000
+                                            })
+                                            .unwrap_or(false)
+                                        && matches!(
+                                            action
+                                                .expected_value_sign
+                                                .as_deref()
+                                                .unwrap_or_default()
+                                                .trim()
+                                                .to_ascii_lowercase()
+                                                .as_str(),
+                                            "positive" | "pos" | "+"
+                                        )
+                                        && action
+                                            .liquidity_depth_micro
+                                            .map(|depth| depth > 0)
+                                            .unwrap_or(false);
                                     // Multi-agent runtime path: requires both
                                     // chaintape bundle (sequencer + bus) and agent
                                     // keypair registry. Solo-test paths without these
                                     // record a NoPromptTool no-trade and continue.
-                                    if let (Some(bundle), Some(reg)) =
+                                    if real12_trader_requires_ev_basis
+                                        && !explicit_positive_ev_basis
+                                    {
+                                        real5_role_policy_rejected_this_turn = Some(
+                                            "ExpectedValueMissing: Bull/Bear router action requires explicit public EV basis"
+                                                .to_string(),
+                                        );
+                                        if let Some(bundle) = chaintape_bundle.as_ref() {
+                                            let trace_agent_id =
+                                                turingosv4::state::q_state::AgentId(
+                                                    agent_id.clone(),
+                                                );
+                                            let chosen_node = if node_str.is_empty() {
+                                                None
+                                            } else {
+                                                Some(turingosv4::state::q_state::TxId(
+                                                    node_str.clone(),
+                                                ))
+                                            };
+                                            let trace =
+                                                turingosv4::runtime::market_decision_trace::MarketDecisionTrace::no_trade(
+                                                    trace_agent_id,
+                                                    chosen_node,
+                                                    Some(direction),
+                                                    Some(amount_micro),
+                                                    turingosv4::runtime::market_decision_trace::NoTradeReason::NoPerceivedEdge,
+                                                    "router action blocked: explicit public EV basis missing".to_string(),
+                                                );
+                                            write_market_decision_trace_to_cas_or_exit(
+                                                &bundle.cas_path,
+                                                &trace,
+                                                &format!("{}-{}", agent_id, tx),
+                                                tx as u64,
+                                            );
+                                        }
+                                        *tool_dist
+                                            .entry("real12_buy_blocked_missing_ev_basis".into())
+                                            .or_insert(0) += 1;
+                                        *tool_dist
+                                            .entry("invest_no_trade_no_perceived_edge".into())
+                                            .or_insert(0) += 1;
+                                    } else if let (Some(bundle), Some(reg)) =
                                         (chaintape_bundle.as_ref(), agent_keypairs.as_ref())
                                     {
                                         let parent_root = match bundle.sequencer.q_snapshot() {
@@ -5237,7 +5636,6 @@ async fn run_swarm(
                                             Err(_) => continue,
                                         };
                                         let suffix = format!("{}-{}", agent_id, tx);
-                                        let task_id_str = format!("task-{}", run_id);
                                         let real6_task_outcome_market =
                                             std::env::var("TURINGOS_REAL6_TASK_OUTCOME_MARKET")
                                                 .ok()
@@ -6575,6 +6973,7 @@ async fn run_swarm(
                 let market_context_visible =
                     tb_n3_market_block_present || real6_task_outcome_market_present;
                 if !invest_action_emitted_this_turn
+                    && !bid_task_action_emitted_this_turn
                     && (market_context_visible || tb_n3_market_block_budget_elided)
                 {
                     if let Some(bundle) = chaintape_bundle.as_ref() {
@@ -6623,7 +7022,84 @@ async fn run_swarm(
                 if let (Some(bundle), Some(prompt_capsule_cid)) =
                     (chaintape_bundle.as_ref(), real5_prompt_capsule_cid_for_turn)
                 {
+                    let mut economic_judgment_cid_for_turn = None;
+                    if turingosv4::runtime::real5_roles::is_trader_like(real5_prompt_role) {
+                        let market_context_visible =
+                            tb_n3_market_block_present || real6_task_outcome_market_present;
+                        let budget = real6_conviction_budget_for_turn.as_ref();
+                        let head_t = if let Some(q) = q_snapshot_for_prompt.as_ref() {
+                            format!(
+                                "HEAD_t(l4_head={},state_root={},round={},run_id={})",
+                                q.head_t.0,
+                                real6d_hash_hex(&q.state_root_t),
+                                q.q_t.current_round,
+                                run_id
+                            )
+                        } else {
+                            format!("HEAD_t(run_id={run_id},tx={tx})")
+                        };
+                        let judgment = real12_build_economic_judgment(Real12EconomicJudgmentArgs {
+                            run_id: &run_id,
+                            agent_id,
+                            role: real5_prompt_role,
+                            prompt_capsule_cid,
+                            parsed_tool: real5_parsed_tool_for_trace.as_deref(),
+                            parsed_direction: real12_direction_for_judgment.as_deref(),
+                            parsed_amount_micro: real12_amount_for_judgment,
+                            observed_price: real12_observed_price_for_judgment,
+                            estimated_probability_band: real12_probability_band_for_judgment,
+                            expected_value_sign: real12_expected_value_sign_for_judgment,
+                            liquidity_depth: real12_liquidity_depth_for_judgment,
+                            policy_rejection: real5_role_policy_rejected_this_turn.as_deref(),
+                            market_context_visible,
+                            prompt_budget_elided: tb_n3_market_block_budget_elided,
+                            head_t,
+                            balance_available: budget
+                                .map(|b| {
+                                    turingosv4::economy::money::MicroCoin::from_micro_units(
+                                        b.available_micro,
+                                    )
+                                })
+                                .unwrap_or_else(turingosv4::economy::money::MicroCoin::zero),
+                            risk_cap: budget
+                                .map(|b| {
+                                    turingosv4::economy::money::MicroCoin::from_micro_units(
+                                        b.risk_cap,
+                                    )
+                                })
+                                .unwrap_or_else(turingosv4::economy::money::MicroCoin::zero),
+                        });
+                        let logical_t = bundle.sequencer.next_logical_t_peek();
+                        let judgment_cid = write_economic_judgment_to_cas_or_exit(
+                            &bundle.cas_path,
+                            &judgment,
+                            &format!("{}-{}", agent_id, tx),
+                            logical_t,
+                        );
+                        economic_judgment_cid_for_turn = Some(judgment_cid);
+                        *tool_dist
+                            .entry("economic_judgment_total".into())
+                            .or_insert(0) += 1;
+                        match real5_prompt_role {
+                            turingosv4::runtime::real5_roles::AgentRole::BullTrader => {
+                                *tool_dist.entry("bull_judgment_count".into()).or_insert(0) += 1;
+                            }
+                            turingosv4::runtime::real5_roles::AgentRole::BearTrader => {
+                                *tool_dist.entry("bear_judgment_count".into()).or_insert(0) += 1;
+                            }
+                            _ => {}
+                        }
+                        if judgment.action
+                            == turingosv4::runtime::economic_judgment::EconomicJudgmentAction::Abstain
+                        {
+                            *tool_dist
+                                .entry("abstain_structured_reason_count".into())
+                                .or_insert(0) += 1;
+                        }
+                    }
                     let logical_t = bundle.sequencer.next_logical_t_peek();
+                    let market_context_visible =
+                        tb_n3_market_block_present || real6_task_outcome_market_present;
                     if let Err(msg) = real5_write_role_turn_trace(
                         bundle,
                         &run_id,
@@ -6633,8 +7109,9 @@ async fn run_swarm(
                         real5_parsed_tool_for_trace.as_deref(),
                         real5_parse_error_for_trace.as_deref(),
                         real5_role_policy_rejected_this_turn.as_deref(),
-                        tb_n3_market_block_present,
+                        market_context_visible,
                         tb_n3_market_block_budget_elided,
+                        economic_judgment_cid_for_turn,
                         logical_t,
                     ) {
                         error!("[real5-role-turn] FAIL-CLOSED: {msg}");

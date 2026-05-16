@@ -1,0 +1,18 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778868739271_2341692",
+  "fc_nodes": [
+    "FC1 externalized economic action loop",
+    "FC3 dashboard/report materialized view",
+    "Art II broadcast",
+    "Art III shielding"
+  ],
+  "expected_witness": "Diff, command evidence, and audit verdict must cite these FC nodes.",
+  "evidence_artifacts": [
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "47151837c6334ccac4c3cd2cc62cf8c5dc4b022a7c36e7d6cf841e7209cfc883",
+      "size_bytes": 24767
+    }
+  ]
+}

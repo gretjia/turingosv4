@@ -1,0 +1,60 @@
+
+running 3 tests
+test bull_bear_scripted_positive_control_requires_yes_and_no_l4_routes ... ok
+test positive_control_runner_marks_scripted_buys_as_not_e2 ... ok
+test unsupported_or_cross_side_short_paths_are_explicit_l4e_not_silent ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 2 tests
+test real12_plan_forbids_the_known_overclaims ... ok
+test real12_real10_real11_ratification_is_narrow_and_explicit ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 6 tests
+test abstain_requires_structured_reason_and_no_private_cot ... ok
+test bull_bear_role_turns_must_link_to_cas_backed_economic_judgments ... ok
+test buy_or_short_requires_positive_integer_ev_basis_and_role_side_match ... ok
+test economic_judgment_schema_is_pinned_and_generic_cas_backed ... ok
+test economic_judgment_summary_is_derived_from_cas_objects_not_stdout ... ok
+test evaluator_must_not_fabricate_positive_ev_basis_for_live_buys ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s
+
+
+running 3 tests
+test real12_live_micro_probe_records_required_bull_bear_metrics ... ok
+test real12_live_micro_probe_runner_uses_bull_bear_roles_and_no_scripted_buys ... ok
+test real12_role_turn_trace_uses_task_outcome_market_visibility_for_no_trade_reason ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 3 tests
+test bull_and_bear_direction_gates_allow_only_their_side ... ok
+test bull_and_bear_roles_are_parseable_and_have_market_only_tools ... ok
+test illegal_role_actions_route_l4e_and_bid_task_never_routes_to_proof ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 3 tests
+test bull_and_bear_views_broadcast_role_specific_market_signals ... ok
+test prompt_capsule_can_store_view_hash_and_read_set_inputs ... ok
+test solver_view_has_limited_market_summary_and_no_raw_material ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 5 tests
+test real12_bid_task_maps_to_trader_invest_not_abstain ... ok
+test real12_bid_task_parser_remains_integer_only_and_non_forcing ... ok
+test real12_evaluator_has_bid_task_execution_arm_for_task_outcome_market ... ok
+test real12_task_market_probe_runner_records_bid_task_attempts_without_forcing_trade ... ok
+test real12_task_market_prompt_affordance_is_opt_in_and_not_forced ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

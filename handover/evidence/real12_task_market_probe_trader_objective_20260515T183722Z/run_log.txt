@@ -1,0 +1,11 @@
+batch_id            real12_task_market_probe_trader_objective_20260515T183722Z_ac4f936
+run_tag             real12_task_market_probe_trader_objective_20260515T183722Z
+problem_count       3
+git_head            ac4f9367bc39d6ce7683f9d1c89f439e1dfafefc
+elapsed_s           72
+batch_exit          0
+audit_exit          0
+audit_verdict       PROCEED
+persistence_exit    0
+persistence_passing true
+persistence_n_witnessed 5

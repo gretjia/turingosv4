@@ -1,0 +1,106 @@
+diff --git a/handover/ai-direct/LATEST.md b/handover/ai-direct/LATEST.md
+index 5a3a79cc..67351ec5 100644
+--- a/handover/ai-direct/LATEST.md
++++ b/handover/ai-direct/LATEST.md
+@@ -6,6 +6,92 @@
+ 
+ ---
+ 
++## 📍 Handover summary (session #52 close 2026-05-16)
++
++**Session Summary**: REAL-12 Role-Specialized Economic Agents completed as a
++Class-4 package. It adds explicit BullTrader / BearTrader roles, mandatory
++CAS-backed EconomicJudgment records, role-scoped views, and a live
++role-specialized micro-probe. REAL-12 remains a clean negative for E2:
++economic judgment is now visible, but live non-scripted agent trading still did
++not occur.
++
++### Current State
++
++**Works**:
++- REAL-12 architect original and execution plan are archived at
++  `handover/directives/2026-05-16_REAL12_ROLE_SPECIALIZED_ECONOMIC_AGENTS_ARCHITECT_ORIGINAL.md`
++  and
++  `handover/directives/2026-05-16_REAL12_ROLE_SPECIALIZED_ECONOMIC_AGENTS_EXECUTION_PLAN.md`.
++- REAL-10/REAL-11 narrow ratification is archived at
++  `handover/directives/2026-05-16_REAL10_REAL11_NARROW_RATIFICATION.md`.
++- `BullTrader` and `BearTrader` are explicit roles. Bull can route only
++  buy-YES / abstain; Bear can route only buy-NO / abstain. Illegal role actions
++  route through policy rejection rather than proof/verify/challenge leakage.
++- `EconomicJudgment` is a CAS schema (`real12.economic_judgment.v1`) with
++  structured abstain reasons and no private CoT/raw prompt/raw completion/raw
++  logs.
++- EconomicJudgment counts and Bull/Bear coverage now derive from CAS and
++  RoleTurnTrace linkage, not stdout counters.
++- Live buy/short requires explicit public EV basis from agent output; the
++  harness no longer fabricates positive-EV fields.
++
++**Canonical REAL-12 evidence**:
++- Live micro-probe:
++  `handover/evidence/real12_role_specialized_micro_probe_20260516T023351Z/`.
++  It has `audit_tape=PROCEED`, `MarketOpportunityTrace=4`, `market_seed=5`,
++  `cpmm_pool=5`, `event_resolve=2`, `economic_judgment_total=4`,
++  `bull_judgment_count=2`, `bear_judgment_count=2`,
++  `economic_judgment_coverage_ok=true`, `buy_with_coin_router=0`,
++  `agent_economic_action_tx_count=0`, and `E2 NOT ACHIEVED`.
++- Remediation-only stale Trust Root run:
++  `handover/evidence/real12_role_specialized_micro_probe_20260516T023050Z/`.
++  It is preserved but not conclusion-bearing.
++- Final Harness:
++  `handover/evidence/dev_self_hosting/dev_1778899821395_2565944/`, closed with
++  `acceptance_passed=true`, `effective_risk_class=4`, restricted surface
++  `genesis_payload.toml`, and `audit_verdict=PROCEED`.
++
++### Validation
++
++- REAL-12 targeted tests:
++  `constitution_real12_claim_boundary`,
++  `constitution_real12_role_specialization`,
++  `constitution_real12_role_views`,
++  `constitution_real12_economic_judgment`,
++  `constitution_real12_bull_bear_positive_control`,
++  `constitution_real12_live_micro_probe`,
++  `constitution_real12_task_market_action` -> 25 passed / 0 failed.
++- Trust Root:
++  `cargo test --lib boot::tests::verify_trust_root_passes_on_intact_repo -- --test-threads=1`
++  -> exit 0.
++- `bash scripts/run_constitution_gates.sh` -> 461 passed / 0 failed / 1 ignored.
++- `cargo test --workspace --no-fail-fast -- --test-threads=1` -> exit 0.
++- `git diff --check` -> exit 0.
++- Clean-context Codex implementation review:
++  `handover/audits/CODEX_REAL12_IMPLEMENTATION_REVIEW.md` -> PROCEED.
++
++### Non-Claims
++
++- E2 is not achieved: no live non-scripted agent-generated router/short action.
++- E3 is not achieved: no persistent behavioral role differentiation claim.
++- E4 is not achieved: no causal performance signal claim.
++- No live REAL-6B approval.
++- No forced trade, price-as-truth, ghost liquidity, f64/f32 money path,
++  off-tape WAL truth, private CoT recording, raw-log broadcast, model ranking,
++  autonomous secondary market, or real-world readiness claim.
++
++### Next Steps
++
++1. Present REAL-12 as: role-specialized economic judgment is now on
++   ChainTape/CAS, but live economic action remains absent.
++2. Recommended branch is REAL-13A expected-value scaffolding: make
++   Bull/Bear probability and EV reasoning more explicit, still without forced
++   trade and still with price as signal only.
++3. Defer live REAL-6B unless future evidence shows no actionable market window
++   after role-specialized EV scaffolding.
++
++---
++
+ ## 📍 Handover summary (session #51 close 2026-05-15)
+ 
+ **Session Summary**: REAL-11 Agent Economic Action Activation completed after
+diff --git a/handover/tracer_bullets/TB_LOG.tsv b/handover/tracer_bullets/TB_LOG.tsv
+index ace46ec9..c67fd126 100644
+--- a/handover/tracer_bullets/TB_LOG.tsv
++++ b/handover/tracer_bullets/TB_LOG.tsv
+@@ -75,3 +75,4 @@ REAL-5S-REAL9	shipped	2026-05-14	2026-05-15	REAL route: REAL-5S scaffold ratific
+ REAL-10	shipped	2026-05-15	2026-05-15	REAL route: Controlled Market Evidence Expansion after REAL-5S→REAL-9; expands REAL-8 A/B from 3 tasks/arm to 15 tasks/arm under pinned inputs and formal E1/E2/E3/E4 claim boundaries	Architect post-REAL-8/9 ruling adopted: ratify prior bundle narrowly; before new features close TRACE_MATRIX/R-022 backlink cleanup and stale-parent behavioral-test gap; define emergence metrics; run REAL-8X A/B with same problem set, model assignment, budgets, timeout, max_tx, seed/config; keep live REAL-6B gated behind separate Class-4 packet	REAL-10 forbidden claims tested: contaminated evidence not cited as final; scripted D AttemptPrediction not counted as E2; role labels / role_diversity_index not counted as E3; market_tx_count increase and small-n descriptive benchmark not counted as E4; no live REAL-6B approval; no price-as-truth / forced trade / ghost liquidity / private CoT / raw-log broadcast / off-tape WAL truth	cargo test --test constitution_real8_market_ab_benchmark=9/0; cargo test --test constitution_real10_trace_cleanup=6/0; cargo test --test constitution_real10_emergence_metrics=4/0; Trust Root verify 1/0; scripts/run_constitution_gates.sh=461/0/1; cargo test --workspace --no-fail-fast -- --test-threads=1 exit 0; clean REAL-8X evidence arms A/B/C/D all exit=0 audit=PROCEED tasks=15 with market_tx_count A=0 B=10 C=42 D=38 and solve_rate A=5/15 B=5/15 C=6/15 D=4/15; buy_with_coin_router=0 all arms; config audit disallowed_config_drift=[]	Plan alignment PROCEED handover/audits/CODEX_REAL10_EXECUTION_PLAN_ALIGNMENT_REVIEW.md; Phase2 TRACE/stale-parent PROCEED handover/audits/CODEX_REAL10_PHASE2_TRACE_STALE_PARENT_REVIEW.md; REAL-8X evidence/claim PROCEED handover/audits/CODEX_REAL10_REAL8X_EVIDENCE_CLAIM_REVIEW.md; final ship PROCEED handover/audits/CODEX_REAL10_FINAL_SHIP_REVIEW.md; clean final harness handover/evidence/dev_self_hosting/dev_1778857283388_2131282/ closed acceptance_passed=true effective_risk_class=4 audit_verdict=PROCEED	Architect originals archived at handover/directives/2026-05-15_REAL10_CONTROLLED_MARKET_EVIDENCE_EXPANSION_ARCHITECT_ORIGINAL.md; orchestrated execution plan at handover/directives/2026-05-15_REAL10_CONTROLLED_MARKET_EVIDENCE_EXPANSION_EXECUTION_PLAN.md; narrow ratification at handover/directives/2026-05-15_REAL5S_REAL9_NARROW_RATIFICATION.md; clean evidence at handover/evidence/real8x_market_ab_clean_20260515T141331Z/; contaminated prior run preserved only as invalid evidence at handover/evidence/real8x_market_ab_20260515T134453Z/	FC1 runtime market/action evidence and stale-parent admission behavior; FC2 pinned benchmark inputs/replay; FC3 reports/materialized views/claim boundary; Art.III shielding; market/economic gates; feedback_constitutional_harness_engineering; feedback_audit_after_evidence; feedback_no_workarounds_strict_constitution; feedback_tape_first_real_tests; latest-Harness single-Codex audit default	pending architect decision: either separate Class-4 live REAL-6B packet for E2 pursuit or larger clean benchmark for performance evidence; no emergence/causality launch claim
+ # 2026-05-15 REAL-11 SHIPPED FINAL — Agent Economic Action Activation; router substrate positive-control works; live E2 remains negative; clean-context Codex R2 PROCEED
+ REAL-11	shipped	2026-05-15	2026-05-15	REAL route: Agent Economic Action Activation after REAL-10; splits structural market activity from live agent economic action, proves router positive-control path, adds MarketOpportunityTrace and PnL/risk visibility checks, and runs a no-live-REAL-6B E2 micro-probe	Architect REAL-10 ruling adopted: do not run REAL-8Y or live REAL-6B first; bottleneck is buy_with_coin_router=0; open REAL-11 to test router wire, opportunity visibility, PnL visibility, live E2 micro-probe, then decide Trader objective redesign vs event-timing redesign	REAL-11 forbidden claims tested: scripted router fixture not counted as E2; market_tx_count reported with StructuralMarketTx / AgentEconomicActionTx / ScriptedFixtureTx / ResolutionTx split; live REAL-6B rejected unless separately ratified; scripted TaskOutcome buys forbidden in E2 micro-probe; no price-as-truth / forced trade / ghost liquidity / f64/f32 money path / private CoT / raw-log broadcast / off-tape WAL truth	cargo fmt --all -- --check exit 0; REAL-11 targeted tests exit 0; cargo test sdk::protocol --lib exit 0; Trust Root verify 1/0; scripts/run_constitution_gates.sh=461/0/1; cargo test --workspace --no-fail-fast -- --test-threads=1 exit 0; router positive-control evidence buy_with_coin_router=6 scripted-not-E2; patched E2 micro-probe buy_with_coin_router=0 and E2 NOT ACHIEVED	Plan alignment audits PROCEED through R3; Atom1/2 and opportunity/PNL audits CHALLENGE then remediated; final clean-context Codex R1 CHALLENGE handover/audits/CODEX_REAL11_FINAL_IMPLEMENTATION_REVIEW.md; final R2 PROCEED handover/audits/CODEX_REAL11_FINAL_IMPLEMENTATION_REVIEW_R2.md; final Harness handover/evidence/dev_self_hosting/dev_1778867346838_2304458/ closed acceptance_passed=true effective_risk_class=4 audit_verdict=PROCEED	Architect original archived at handover/directives/2026-05-15_REAL11_AGENT_ECONOMIC_ACTION_ACTIVATION_ARCHITECT_ORIGINAL.md; execution plan handover/directives/2026-05-15_REAL11_AGENT_ECONOMIC_ACTION_ACTIVATION_EXECUTION_PLAN.md; narrow REAL-10 ratification handover/directives/2026-05-15_REAL10_NARROW_RATIFICATION_REAL11.md; canonical router evidence handover/evidence/real11_router_positive_control_20260515T172419Z_r2b/; canonical patched micro-probe handover/evidence/real11_e2_micro_probe_20260515T172707Z_r2_max10/; supplemental actionable diagnostic handover/evidence/real11_e2_micro_probe_20260515T165855Z/	FC1 externalized role/economic action loop; FC2 Trust Root/replay authority; FC3 dashboard/report as materialized view; Art.II broadcast; Art.III shielding; economy integer-money gates; feedback_constitutional_harness_engineering; feedback_audit_after_evidence; feedback_no_workarounds_strict_constitution; feedback_tape_first_real_tests; latest-Harness single-Codex audit default	next: live Trader activation / objective-routing redesign before live REAL-6B; no E2/E3/E4 claim
++REAL-12	shipped	2026-05-16	2026-05-16	REAL route: Role-Specialized Economic Agents after REAL-11; adds explicit BullTrader/BearTrader roles, mandatory EconomicJudgment, role-specific market views, and live role-specialized micro-probe	Architect REAL-12 ruling adopted: force economic roles and economic judgment, not economic action; do not expand REAL-8, do not force trades as E2, do not live-run REAL-6B in REAL-12	REAL-12 forbidden claims tested: E2/E3/E4 not claimed; scripted buys not E2; live REAL-6B disabled; no forced trade; no price-as-truth; no ghost liquidity; no f64/f32 money path; no private CoT/raw prompt/raw completion/raw-log evidence; dashboard/report materialized view only	REAL-12 targeted tests 25/0; Trust Root verify 1/0; scripts/run_constitution_gates.sh=461/0/1; cargo test --workspace --no-fail-fast -- --test-threads=1 exit 0; git diff --check exit 0; canonical micro-probe audit_tape=PROCEED MarketOpportunityTrace=4 economic_judgment_total=4 bull=2 bear=2 coverage_ok=true buy_with_coin_router=0 agent_economic_action_tx_count=0 E2 NOT ACHIEVED	Clean-context Codex implementation review PROCEED at handover/audits/CODEX_REAL12_IMPLEMENTATION_REVIEW.md; final Harness handover/evidence/dev_self_hosting/dev_1778899821395_2565944/ closed acceptance_passed=true effective_risk_class=4 restricted_surface_hits=genesis_payload.toml audit_verdict=PROCEED	Architect original archived at handover/directives/2026-05-16_REAL12_ROLE_SPECIALIZED_ECONOMIC_AGENTS_ARCHITECT_ORIGINAL.md; execution plan handover/directives/2026-05-16_REAL12_ROLE_SPECIALIZED_ECONOMIC_AGENTS_EXECUTION_PLAN.md; narrow REAL-10/11 ratification handover/directives/2026-05-16_REAL10_REAL11_NARROW_RATIFICATION.md; canonical evidence handover/evidence/real12_role_specialized_micro_probe_20260516T023351Z/; remediation-only stale Trust Root run handover/evidence/real12_role_specialized_micro_probe_20260516T023050Z/	FC1 role action loop; FC2 role assignment/PromptCapsule replay; FC3 dashboard/audit materialized view; Art.III shielding; Art.II role-scoped broadcast; economy integer-money gates; feedback_constitutional_harness_engineering; feedback_audit_after_evidence; feedback_no_workarounds_strict_constitution; latest-Harness single-Codex audit default	next: REAL-13A expected-value scaffolding for Bull/Bear probability and EV reasoning; no live REAL-6B unless separately ratified

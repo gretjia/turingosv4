@@ -1,0 +1,6 @@
+batch_orchestrator: task_index=0 BoundaryPrep::FreshGenesis (no preflight, no lease — task_0 owns genesis)
+batch_orchestrator: task_index=1 ChainTapeLease ACQUIRED (holder_pid=2531081, batch_id=real12_role_specialized_micro_probe_20260516T023351Z_ac4f936, start_head=60ee839dd0606eddd4e50cc13eb304552cfe39fa)
+batch_orchestrator: task_index=1 ResumePreflight::Ok (head=60ee839dd0606eddd4e50cc13eb304552cfe39fa state_root=6b729400d3b37339b2204ba4175ee4c65d9569803f002286091186ad26d4c456 chain_length=6) → BoundaryPrep::Resume
+batch_orchestrator: task_index=2 ChainTapeLease ACQUIRED (holder_pid=2531081, batch_id=real12_role_specialized_micro_probe_20260516T023351Z_ac4f936, start_head=78c1c89bb028ce5f2b7a3b9f2545740354afa6bb)
+batch_orchestrator: task_index=2 ResumePreflight::Ok (head=78c1c89bb028ce5f2b7a3b9f2545740354afa6bb state_root=be7dda26569c1f08663602f9b9c9cb4a7fc81cbbe334e27aff6e1279fe6eb269 chain_length=17) → BoundaryPrep::Resume
+batch_evaluator: chain continuity OK across 3 tasks

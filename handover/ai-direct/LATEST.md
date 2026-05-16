@@ -6,6 +6,92 @@
 
 ---
 
+## 📍 Handover summary (session #52 close 2026-05-16)
+
+**Session Summary**: REAL-12 Role-Specialized Economic Agents completed as a
+Class-4 package. It adds explicit BullTrader / BearTrader roles, mandatory
+CAS-backed EconomicJudgment records, role-scoped views, and a live
+role-specialized micro-probe. REAL-12 remains a clean negative for E2:
+economic judgment is now visible, but live non-scripted agent trading still did
+not occur.
+
+### Current State
+
+**Works**:
+- REAL-12 architect original and execution plan are archived at
+  `handover/directives/2026-05-16_REAL12_ROLE_SPECIALIZED_ECONOMIC_AGENTS_ARCHITECT_ORIGINAL.md`
+  and
+  `handover/directives/2026-05-16_REAL12_ROLE_SPECIALIZED_ECONOMIC_AGENTS_EXECUTION_PLAN.md`.
+- REAL-10/REAL-11 narrow ratification is archived at
+  `handover/directives/2026-05-16_REAL10_REAL11_NARROW_RATIFICATION.md`.
+- `BullTrader` and `BearTrader` are explicit roles. Bull can route only
+  buy-YES / abstain; Bear can route only buy-NO / abstain. Illegal role actions
+  route through policy rejection rather than proof/verify/challenge leakage.
+- `EconomicJudgment` is a CAS schema (`real12.economic_judgment.v1`) with
+  structured abstain reasons and no private CoT/raw prompt/raw completion/raw
+  logs.
+- EconomicJudgment counts and Bull/Bear coverage now derive from CAS and
+  RoleTurnTrace linkage, not stdout counters.
+- Live buy/short requires explicit public EV basis from agent output; the
+  harness no longer fabricates positive-EV fields.
+
+**Canonical REAL-12 evidence**:
+- Live micro-probe:
+  `handover/evidence/real12_role_specialized_micro_probe_20260516T023351Z/`.
+  It has `audit_tape=PROCEED`, `MarketOpportunityTrace=4`, `market_seed=5`,
+  `cpmm_pool=5`, `event_resolve=2`, `economic_judgment_total=4`,
+  `bull_judgment_count=2`, `bear_judgment_count=2`,
+  `economic_judgment_coverage_ok=true`, `buy_with_coin_router=0`,
+  `agent_economic_action_tx_count=0`, and `E2 NOT ACHIEVED`.
+- Remediation-only stale Trust Root run:
+  `handover/evidence/real12_role_specialized_micro_probe_20260516T023050Z/`.
+  It is preserved but not conclusion-bearing.
+- Final Harness:
+  `handover/evidence/dev_self_hosting/dev_1778899821395_2565944/`, closed with
+  `acceptance_passed=true`, `effective_risk_class=4`, restricted surface
+  `genesis_payload.toml`, and `audit_verdict=PROCEED`.
+
+### Validation
+
+- REAL-12 targeted tests:
+  `constitution_real12_claim_boundary`,
+  `constitution_real12_role_specialization`,
+  `constitution_real12_role_views`,
+  `constitution_real12_economic_judgment`,
+  `constitution_real12_bull_bear_positive_control`,
+  `constitution_real12_live_micro_probe`,
+  `constitution_real12_task_market_action` -> 25 passed / 0 failed.
+- Trust Root:
+  `cargo test --lib boot::tests::verify_trust_root_passes_on_intact_repo -- --test-threads=1`
+  -> exit 0.
+- `bash scripts/run_constitution_gates.sh` -> 461 passed / 0 failed / 1 ignored.
+- `cargo test --workspace --no-fail-fast -- --test-threads=1` -> exit 0.
+- `git diff --check` -> exit 0.
+- Clean-context Codex implementation review:
+  `handover/audits/CODEX_REAL12_IMPLEMENTATION_REVIEW.md` -> PROCEED.
+
+### Non-Claims
+
+- E2 is not achieved: no live non-scripted agent-generated router/short action.
+- E3 is not achieved: no persistent behavioral role differentiation claim.
+- E4 is not achieved: no causal performance signal claim.
+- No live REAL-6B approval.
+- No forced trade, price-as-truth, ghost liquidity, f64/f32 money path,
+  off-tape WAL truth, private CoT recording, raw-log broadcast, model ranking,
+  autonomous secondary market, or real-world readiness claim.
+
+### Next Steps
+
+1. Present REAL-12 as: role-specialized economic judgment is now on
+   ChainTape/CAS, but live economic action remains absent.
+2. Recommended branch is REAL-13A expected-value scaffolding: make
+   Bull/Bear probability and EV reasoning more explicit, still without forced
+   trade and still with price as signal only.
+3. Defer live REAL-6B unless future evidence shows no actionable market window
+   after role-specialized EV scaffolding.
+
+---
+
 ## 📍 Handover summary (session #51 close 2026-05-15)
 
 **Session Summary**: REAL-11 Agent Economic Action Activation completed after

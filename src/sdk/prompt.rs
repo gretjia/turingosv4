@@ -306,6 +306,24 @@ pub fn build_agent_prompt(
     prompt.push_str(
         "    OPTIONAL — express task-level market interest when a task edge is visible.\n",
     );
+    if std::env::var("TURINGOS_REAL12_TASK_MARKET_AFFORDANCE")
+        .ok()
+        .as_deref()
+        == Some("1")
+    {
+        prompt.push_str(
+            "    TaskOutcomeMarket affordance: this is the task-level economic action.\n",
+        );
+        prompt.push_str(
+            "    Use it only if you perceive an edge on whether the task will be solved\n",
+        );
+        prompt.push_str(
+            "    within the visible budget/deadline; otherwise use abstain with a reason.\n",
+        );
+        prompt.push_str(
+            "    direction=\"long\" buys YES; direction=\"short\" buys NO. price is signal, not truth.\n",
+        );
+    }
     prompt.push_str("  {\"tool\":\"abstain\",\"payload\":\"<optional no-action reason>\"}\n");
     prompt.push_str(
         "    Use when no proof, verify, challenge, or market action has a perceived edge.\n",

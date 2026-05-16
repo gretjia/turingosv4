@@ -1,0 +1,39 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778868739271_2341692",
+  "title": "REAL-12 task market action probe",
+  "module": "REAL-12 Agent Economic Action Probe",
+  "molecule_or_atom": "atom",
+  "requested_risk_class": 3,
+  "risk_class": 3,
+  "fc_nodes": [
+    "FC1 externalized economic action loop",
+    "FC3 dashboard/report materialized view",
+    "Art II broadcast",
+    "Art III shielding"
+  ],
+  "allowed_paths": [
+    "src/sdk/prompt.rs",
+    "src/runtime/real5_roles.rs",
+    "experiments/minif2f_v4/src/bin/evaluator.rs",
+    "tests/constitution_real12_task_market_action.rs",
+    "scripts/run_real12_task_market_probe.sh",
+    "handover/directives",
+    "handover/reports",
+    "handover/evidence",
+    "handover/audits",
+    "handover/ai-direct/LATEST.md",
+    "handover/tracer_bullets/TB_LOG.tsv"
+  ],
+  "restricted_surface_hits": [],
+  "acceptance_commands": [
+    "cargo test --test constitution_real12_task_market_action --no-fail-fast -- --test-threads=1",
+    "bash scripts/run_real12_task_market_probe.sh real12_task_market_probe_<UTC>",
+    "bash scripts/run_constitution_gates.sh"
+  ],
+  "audit_required": true,
+  "human_intent": "Autonomously test and harden the weak point exposed by REAL-11: live agents may have actionable TaskOutcomeMarkets but the advertised bid_task action is not routed as an economic action.",
+  "ratification": null,
+  "git_head": "ac4f9367bc39d6ce7683f9d1c89f439e1dfafefc",
+  "created_at_unix_ms": 1778868739274
+}

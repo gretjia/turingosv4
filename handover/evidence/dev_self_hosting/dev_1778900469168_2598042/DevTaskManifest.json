@@ -1,0 +1,25 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778900469168_2598042",
+  "title": "REAL-12 dynamic handover closeout",
+  "module": "REAL-12 Handover",
+  "molecule_or_atom": "molecule",
+  "requested_risk_class": 0,
+  "risk_class": 0,
+  "fc_nodes": [
+    "FC3 dashboard audit materialized view"
+  ],
+  "allowed_paths": [
+    "handover/ai-direct/LATEST.md",
+    "handover/tracer_bullets/TB_LOG.tsv"
+  ],
+  "restricted_surface_hits": [],
+  "acceptance_commands": [
+    "git diff --check"
+  ],
+  "audit_required": false,
+  "human_intent": "Record final REAL-12 dynamic handover summary after Class-4 harness close.",
+  "ratification": null,
+  "git_head": "ac4f9367bc39d6ce7683f9d1c89f439e1dfafefc",
+  "created_at_unix_ms": 1778900469168
+}

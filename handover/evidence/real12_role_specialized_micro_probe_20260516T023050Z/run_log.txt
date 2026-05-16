@@ -1,0 +1,11 @@
+batch_id            real12_role_specialized_micro_probe_20260516T023050Z_ac4f936
+run_tag             real12_role_specialized_micro_probe_20260516T023050Z
+problem_count       3
+git_head            ac4f9367bc39d6ce7683f9d1c89f439e1dfafefc
+elapsed_s           0
+batch_exit          2
+audit_exit          2
+audit_verdict       
+persistence_exit    2
+persistence_passing 
+persistence_n_witnessed 

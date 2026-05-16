@@ -2796,6 +2796,57 @@ fn render_tb_n3_run_report(
     for cid in persisted_market_opportunity_trace_cids.iter().take(3) {
         out.push_str(&format!("    - market_opportunity_trace_cid={cid}\n"));
     }
+    if let Ok(economic_summary) =
+        turingosv4::runtime::economic_judgment::EconomicJudgmentReasonSummary::from_cas(&cas)
+    {
+        out.push_str(&format!(
+            "  economic_judgment_total_cas: {}\n",
+            economic_summary.total
+        ));
+        out.push_str(&format!(
+            "  bull_judgment_count_cas: {}\n",
+            economic_summary.bull_judgment_count
+        ));
+        out.push_str(&format!(
+            "  bear_judgment_count_cas: {}\n",
+            economic_summary.bear_judgment_count
+        ));
+        out.push_str(&format!(
+            "  abstain_structured_reason_count_cas: {}\n",
+            economic_summary.abstain_structured_reason_count
+        ));
+        out.push_str(&format!(
+            "  economic_judgment_buy_count_cas: {}\n",
+            economic_summary.buy_count
+        ));
+        out.push_str(&format!(
+            "  economic_judgment_short_count_cas: {}\n",
+            economic_summary.short_count
+        ));
+        for (reason, count) in &economic_summary.by_reason {
+            out.push_str(&format!(
+                "    - economic_judgment_reason_{:?}: {}\n",
+                reason, count
+            ));
+        }
+    }
+    match turingosv4::runtime::economic_judgment::verify_bull_bear_turn_judgment_coverage(&cas) {
+        Ok(report) => {
+            out.push_str("  economic_judgment_coverage_ok: true\n");
+            out.push_str(&format!(
+                "  economic_judgment_required_trader_turns_cas: {}\n",
+                report.required_trader_turns
+            ));
+            out.push_str(&format!(
+                "  economic_judgment_linked_trader_turns_cas: {}\n",
+                report.linked_trader_turns
+            ));
+        }
+        Err(msg) => {
+            out.push_str("  economic_judgment_coverage_ok: false\n");
+            out.push_str(&format!("  economic_judgment_coverage_error: {msg}\n"));
+        }
+    }
 
     // §K G7 structural smoke. This is a materialized dashboard view over
     // current run-report inputs; SG-G closeout still depends on the dedicated

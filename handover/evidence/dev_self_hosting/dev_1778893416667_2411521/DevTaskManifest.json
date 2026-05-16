@@ -1,0 +1,24 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778893416667_2411521",
+  "title": "REAL-12 role-specialized economic agents",
+  "module": "REAL-12 Role-Specialized Economic Agents",
+  "molecule_or_atom": "package",
+  "requested_risk_class": 4,
+  "risk_class": 4,
+  "fc_nodes": [
+    "FC1 role action loop"
+  ],
+  "allowed_paths": [
+    "src/runtime/real5_roles.rs"
+  ],
+  "restricted_surface_hits": [],
+  "acceptance_commands": [
+    "cargo check"
+  ],
+  "audit_required": true,
+  "human_intent": null,
+  "ratification": null,
+  "git_head": "ac4f9367bc39d6ce7683f9d1c89f439e1dfafefc",
+  "created_at_unix_ms": 1778893416668
+}

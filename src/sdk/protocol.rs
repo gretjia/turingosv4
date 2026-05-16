@@ -27,6 +27,22 @@ pub struct AgentAction {
     /// the action membrane so money paths never depend on f64 rounding.
     #[serde(default)]
     pub direction: Option<String>,
+    /// REAL-12 economic judgment support. These fields are optional and
+    /// integer-only so a live market action can carry a public EV basis without
+    /// introducing floats. When absent, REAL-12 Bull/Bear router actions are
+    /// treated as abstain/no-trade rather than fabricating confidence.
+    #[serde(default)]
+    pub observed_price_num: Option<i64>,
+    #[serde(default)]
+    pub observed_price_den: Option<i64>,
+    #[serde(default)]
+    pub estimated_probability_lower_bps: Option<u16>,
+    #[serde(default)]
+    pub estimated_probability_upper_bps: Option<u16>,
+    #[serde(default)]
+    pub expected_value_sign: Option<String>,
+    #[serde(default)]
+    pub liquidity_depth_micro: Option<i64>,
     /// TB-N1-AGENT-ECONOMY Phase 2 A3 (2026-05-10): agent-decided stake for
     /// the `step` tool, in micro-units (1 Coin = 1_000_000 μC). Optional —
     /// when absent, evaluator falls back to the env default

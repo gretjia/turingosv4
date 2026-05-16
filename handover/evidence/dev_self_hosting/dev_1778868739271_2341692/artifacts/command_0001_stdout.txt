@@ -1,0 +1,10 @@
+
+running 5 tests
+test real12_bid_task_maps_to_trader_invest_not_abstain ... ok
+test real12_bid_task_parser_remains_integer_only_and_non_forcing ... ok
+test real12_evaluator_has_bid_task_execution_arm_for_task_outcome_market ... ok
+test real12_task_market_probe_runner_records_bid_task_attempts_without_forcing_trade ... ok
+test real12_task_market_prompt_affordance_is_opt_in_and_not_forced ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

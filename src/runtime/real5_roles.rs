@@ -35,6 +35,8 @@ pub enum AgentRole {
     Architect,
     Veto,
     Observer,
+    BullTrader,
+    BearTrader,
 }
 
 impl AgentRole {
@@ -47,6 +49,8 @@ impl AgentRole {
         AgentRole::Architect,
         AgentRole::Veto,
         AgentRole::Observer,
+        AgentRole::BullTrader,
+        AgentRole::BearTrader,
     ];
 
     pub const fn label(self) -> &'static str {
@@ -59,8 +63,47 @@ impl AgentRole {
             AgentRole::Architect => "Architect",
             AgentRole::Veto => "Veto",
             AgentRole::Observer => "Observer",
+            AgentRole::BullTrader => "BullTrader",
+            AgentRole::BearTrader => "BearTrader",
         }
     }
+}
+
+/// TRACE_MATRIX FC1-N41: market side used by role policy to keep BullTrader
+/// and BearTrader economic actions scoped.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub enum MarketSide {
+    Yes,
+    No,
+}
+
+/// TRACE_MATRIX FC1-N41: role-to-market-bias classifier for role-scoped
+/// gateways and views.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub enum MarketBias {
+    Any,
+    Bull,
+    Bear,
+    None,
+}
+
+/// TRACE_MATRIX FC1-N41: map an assigned role to its permitted market bias.
+pub fn market_bias(role: AgentRole) -> MarketBias {
+    match role {
+        AgentRole::Trader => MarketBias::Any,
+        AgentRole::BullTrader => MarketBias::Bull,
+        AgentRole::BearTrader => MarketBias::Bear,
+        _ => MarketBias::None,
+    }
+}
+
+/// TRACE_MATRIX FC1-N41: identify roles that must emit trader/economic
+/// judgment evidence.
+pub fn is_trader_like(role: AgentRole) -> bool {
+    matches!(
+        role,
+        AgentRole::Trader | AgentRole::BullTrader | AgentRole::BearTrader
+    )
 }
 
 impl Default for AgentRole {
@@ -78,6 +121,8 @@ impl std::str::FromStr for AgentRole {
             "Verifier" => Ok(AgentRole::Verifier),
             "Challenger" => Ok(AgentRole::Challenger),
             "Trader" => Ok(AgentRole::Trader),
+            "BullTrader" => Ok(AgentRole::BullTrader),
+            "BearTrader" => Ok(AgentRole::BearTrader),
             "MarketMaker" => Ok(AgentRole::MarketMaker),
             "Architect" | "ArchitectAI" => Ok(AgentRole::Architect),
             "Veto" | "VetoAI" => Ok(AgentRole::Veto),
@@ -117,7 +162,9 @@ pub fn default_allowed_tools(role: AgentRole) -> Vec<ToolName> {
         AgentRole::Solver => vec!["submit_proof".into(), "abstain".into()],
         AgentRole::Verifier => vec!["verify_peer".into(), "abstain".into()],
         AgentRole::Challenger => vec!["challenge".into(), "abstain".into()],
-        AgentRole::Trader => vec!["invest".into(), "abstain".into()],
+        AgentRole::Trader => vec!["invest".into(), "bid_task".into(), "abstain".into()],
+        AgentRole::BullTrader => vec!["buy_yes".into(), "abstain".into()],
+        AgentRole::BearTrader => vec!["buy_no".into(), "abstain".into()],
         AgentRole::MarketMaker => vec!["provide_liquidity".into(), "abstain".into()],
         AgentRole::Architect => vec!["propose_tool".into(), "abstain".into()],
         AgentRole::Veto => vec!["veto".into(), "abstain".into()],
@@ -298,10 +345,10 @@ pub fn derive_role_view_with_context_bytes(
     let public_sections = match request.role {
         AgentRole::Solver => vec![
             "Lean goal".into(),
-            "local proof history".into(),
-            "local L4.E summaries".into(),
+            "local proof context".into(),
+            "local errors".into(),
             "bounty".into(),
-            "minimal market summary".into(),
+            "limited market summary only".into(),
         ],
         AgentRole::Trader => vec![
             "node price".into(),
@@ -311,6 +358,27 @@ pub fn derive_role_view_with_context_bytes(
             "PnL".into(),
             "balance".into(),
             "recent accepted WorkTx".into(),
+        ],
+        AgentRole::BullTrader => vec![
+            "YES price".into(),
+            "TaskOutcome YES market".into(),
+            "NodeSurvive YES market".into(),
+            "available balance".into(),
+            "realized/unrealized PnL".into(),
+            "risk cap".into(),
+            "liquidity/depth".into(),
+            "deadline/budget remaining".into(),
+        ],
+        AgentRole::BearTrader => vec![
+            "NO price".into(),
+            "unsolved-task risk".into(),
+            "candidate weakness signals".into(),
+            "challenge status".into(),
+            "failed attempts".into(),
+            "market depth".into(),
+            "available balance".into(),
+            "PnL".into(),
+            "risk cap".into(),
         ],
         AgentRole::Verifier => vec![
             "proof artifacts".into(),
@@ -382,6 +450,8 @@ pub struct ChallengePayload {
 pub struct MarketInvestPayload {
     pub event_id: Option<EventId>,
     pub amount_micro: i64,
+    #[serde(default)]
+    pub side: Option<MarketSide>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -476,7 +546,19 @@ pub fn parse_role_action_json(
                 .unwrap_or("unspecified")
                 .to_string(),
         })),
-        "invest" => Ok(RoleAction::Invest(MarketInvestPayload::default())),
+        "invest" | "bid_task" | "buy_yes" | "buy_no" => {
+            let side = match tool {
+                "buy_yes" => Some(MarketSide::Yes),
+                "buy_no" => Some(MarketSide::No),
+                _ => parse_market_side(value.get("direction").and_then(|v| v.as_str())),
+            };
+            let amount_micro = value.get("amount").and_then(|v| v.as_i64()).unwrap_or(0);
+            Ok(RoleAction::Invest(MarketInvestPayload {
+                event_id: None,
+                amount_micro,
+                side,
+            }))
+        }
         "submit_proof" => Ok(RoleAction::SubmitProof(WorkTxPayload::default())),
         "verify_peer" => Ok(RoleAction::VerifyPeer(VerifyPeerPayload::default())),
         "challenge" => Ok(RoleAction::ChallengeNode(ChallengePayload::default())),
@@ -496,11 +578,21 @@ pub fn legacy_tool_to_role_action(tool: &str) -> Result<RoleAction, RoleActionRe
         "challenge" | "challenge_node" => {
             Ok(RoleAction::ChallengeNode(ChallengePayload::default()))
         }
-        "invest" => Ok(RoleAction::Invest(MarketInvestPayload::default())),
+        "invest" | "bid_task" => Ok(RoleAction::Invest(MarketInvestPayload::default())),
+        "buy_yes" => Ok(RoleAction::Invest(MarketInvestPayload {
+            event_id: None,
+            amount_micro: 0,
+            side: Some(MarketSide::Yes),
+        })),
+        "buy_no" | "short" => Ok(RoleAction::Invest(MarketInvestPayload {
+            event_id: None,
+            amount_micro: 0,
+            side: Some(MarketSide::No),
+        })),
         "provide_liquidity" => Ok(RoleAction::ProvideLiquidity(LiquidityPayload::default())),
         "propose_tool" => Ok(RoleAction::ProposeTool(ToolProposalPayload::default())),
         "veto" => Ok(RoleAction::Veto(VetoPayload::default())),
-        "abstain" | "search" | "post" | "bid_task" => Ok(RoleAction::Abstain(AbstainPayload {
+        "abstain" | "search" | "post" => Ok(RoleAction::Abstain(AbstainPayload {
             reason: format!("legacy tool {tool} is CAS-only under REAL-5 role gateway"),
         })),
         other => Err(RoleActionRejection {
@@ -516,20 +608,32 @@ pub fn route_role_action(role: AgentRole, action: &RoleAction) -> RoleActionRout
             trace_kind: "Abstain",
         };
     }
-    let allowed = matches!(
-        (role, action),
+    let allowed = match (role, action) {
         (AgentRole::Solver, RoleAction::SubmitProof(_))
-            | (AgentRole::Verifier, RoleAction::VerifyPeer(_))
-            | (AgentRole::Challenger, RoleAction::ChallengeNode(_))
-            | (AgentRole::Trader, RoleAction::Invest(_))
-            | (AgentRole::MarketMaker, RoleAction::ProvideLiquidity(_))
-            | (AgentRole::Architect, RoleAction::ProposeTool(_))
-            | (AgentRole::Veto, RoleAction::Veto(_))
-    );
+        | (AgentRole::Verifier, RoleAction::VerifyPeer(_))
+        | (AgentRole::Challenger, RoleAction::ChallengeNode(_))
+        | (AgentRole::Trader, RoleAction::Invest(_))
+        | (AgentRole::MarketMaker, RoleAction::ProvideLiquidity(_))
+        | (AgentRole::Architect, RoleAction::ProposeTool(_))
+        | (AgentRole::Veto, RoleAction::Veto(_)) => true,
+        (AgentRole::BullTrader, RoleAction::Invest(payload)) => {
+            payload.side == Some(MarketSide::Yes)
+        }
+        (AgentRole::BearTrader, RoleAction::Invest(payload)) => {
+            payload.side == Some(MarketSide::No)
+        }
+        _ => false,
+    };
     if !allowed {
-        let summary = if role == AgentRole::Solver
-            && matches!(action, RoleAction::ProvideLiquidity(_))
+        let summary = if role == AgentRole::BullTrader
+            && matches!(action, RoleAction::Invest(payload) if payload.side == Some(MarketSide::No))
         {
+            "BullTrader cannot choose NO side"
+        } else if role == AgentRole::BearTrader
+            && matches!(action, RoleAction::Invest(payload) if payload.side == Some(MarketSide::Yes))
+        {
+            "BearTrader cannot choose YES side"
+        } else if role == AgentRole::Solver && matches!(action, RoleAction::ProvideLiquidity(_)) {
             "solver cannot directly emit MarketSeedTx"
         } else if role == AgentRole::Trader && matches!(action, RoleAction::SubmitProof(_)) {
             "trader cannot submit proof unless role permits"
@@ -554,6 +658,14 @@ pub fn route_role_action(role: AgentRole, action: &RoleAction) -> RoleActionRout
         RoleAction::Abstain(_) => "Abstain",
     };
     RoleActionRoute::L4 { tx_kind }
+}
+
+fn parse_market_side(value: Option<&str>) -> Option<MarketSide> {
+    match value.map(|v| v.trim().to_ascii_lowercase()).as_deref() {
+        Some("long") | Some("yes") | Some("buy_yes") | Some("bull") => Some(MarketSide::Yes),
+        Some("short") | Some("no") | Some("buy_no") | Some("bear") => Some(MarketSide::No),
+        _ => None,
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -641,8 +753,8 @@ pub fn verify_trader_turns(turns: &[TraderTurnWitness]) -> Result<(), String> {
         match turn {
             TraderTurnWitness::MarketDecision { .. } => {}
             TraderTurnWitness::NoTrade(trace) => {
-                if trace.role != AgentRole::Trader {
-                    return Err("NoTradeReasonTrace role must be Trader".into());
+                if !is_trader_like(trace.role) {
+                    return Err("NoTradeReasonTrace role must be Trader-like".into());
                 }
             }
         }
@@ -788,6 +900,8 @@ pub struct RoleTurnTrace {
     pub role: AgentRole,
     pub task_id: TaskId,
     pub prompt_capsule_cid: Cid,
+    #[serde(default)]
+    pub economic_judgment_cid: Option<Cid>,
     pub action_kind: Option<String>,
     pub outcome: RoleTurnOutcome,
 }
@@ -807,9 +921,17 @@ impl RoleTurnTrace {
             role,
             task_id,
             prompt_capsule_cid,
+            economic_judgment_cid: None,
             action_kind,
             outcome,
         }
+    }
+
+    /// TRACE_MATRIX FC3-N43: attach the CAS-backed EconomicJudgment witness to
+    /// the role-turn trace.
+    pub fn with_economic_judgment_cid(mut self, cid: Cid) -> Self {
+        self.economic_judgment_cid = Some(cid);
+        self
     }
 }
 
@@ -830,6 +952,33 @@ pub fn write_role_turn_trace_to_cas(
     )
 }
 
+/// TRACE_MATRIX FC3-N43: decode role-turn CAS evidence for audit/dashboard
+/// regeneration.
+pub fn read_role_turn_trace_from_cas(cas: &CasStore, cid: &Cid) -> Result<RoleTurnTrace, CasError> {
+    let bytes = cas.get(cid)?;
+    let trace: RoleTurnTrace = serde_json::from_slice(&bytes)
+        .map_err(|e| CasError::BackendCorruption(format!("role turn trace decode: {e}")))?;
+    if trace.schema_version != ROLE_TURN_TRACE_SCHEMA_ID {
+        return Err(CasError::BackendCorruption(format!(
+            "unexpected role turn trace schema_version={}",
+            trace.schema_version
+        )));
+    }
+    Ok(trace)
+}
+
+/// TRACE_MATRIX FC3-N43: enumerate role-turn CAS objects by schema id for
+/// coverage checks.
+pub fn role_turn_trace_cids(cas: &CasStore) -> Vec<Cid> {
+    cas.list_all_cids()
+        .into_iter()
+        .filter(|cid| {
+            cas.metadata(cid).and_then(|meta| meta.schema_id.as_deref())
+                == Some(ROLE_TURN_TRACE_SCHEMA_ID)
+        })
+        .collect()
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RoleTurnTraceSummary {
     pub schema_id: &'static str,
@@ -841,6 +990,8 @@ pub struct RoleTurnTraceSummary {
     pub market_decision_count: u64,
     pub verify_tx_count: u64,
     pub challenge_tx_count: u64,
+    pub trader_like_turn_count: u64,
+    pub economic_judgment_linked_count: u64,
 }
 
 pub fn summarize_role_turn_traces_from_cas(cas: &CasStore) -> RoleTurnTraceSummary {
@@ -854,19 +1005,21 @@ pub fn summarize_role_turn_traces_from_cas(cas: &CasStore) -> RoleTurnTraceSumma
         market_decision_count: 0,
         verify_tx_count: 0,
         challenge_tx_count: 0,
+        trader_like_turn_count: 0,
+        economic_judgment_linked_count: 0,
     };
-    for cid in cas.list_all_cids() {
-        let Ok(bytes) = cas.get(&cid) else {
+    for cid in role_turn_trace_cids(cas) {
+        let Ok(trace) = read_role_turn_trace_from_cas(cas, &cid) else {
             continue;
         };
-        let Ok(trace) = serde_json::from_slice::<RoleTurnTrace>(&bytes) else {
-            continue;
-        };
-        if trace.schema_version != ROLE_TURN_TRACE_SCHEMA_ID {
-            continue;
-        }
         summary.total_traces += 1;
         *summary.by_role.entry(trace.role).or_insert(0) += 1;
+        if is_trader_like(trace.role) {
+            summary.trader_like_turn_count += 1;
+            if trace.economic_judgment_cid.is_some() {
+                summary.economic_judgment_linked_count += 1;
+            }
+        }
         match trace.outcome {
             RoleTurnOutcome::NoTrade { .. } => summary.no_trade_count += 1,
             RoleTurnOutcome::NoVerify(_) => summary.no_verify_count += 1,

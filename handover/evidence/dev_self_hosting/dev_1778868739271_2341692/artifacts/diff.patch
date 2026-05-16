@@ -1,0 +1,550 @@
+diff --git a/experiments/minif2f_v4/src/bin/evaluator.rs b/experiments/minif2f_v4/src/bin/evaluator.rs
+index 3f089fdd..e3a48ff2 100644
+--- a/experiments/minif2f_v4/src/bin/evaluator.rs
++++ b/experiments/minif2f_v4/src/bin/evaluator.rs
+@@ -399,7 +399,7 @@ fn real5_prompt_view_block(
+     }
+     let sections = view.public_sections.join(", ");
+     let redacted = view.hidden_fields_redacted.join(", ");
+-    format!(
++    let mut block = format!(
+         "\n=== REAL-5 Role View ===\nrole: {}\nvisible_context_cid: {}\nview_policy_id: real5/{}_view/v1\npublic_sections: {}\nprice_signal_count: {}\nhidden_fields_redacted: {}\n",
+         role.label(),
+         view.visible_context_cid,
+@@ -407,7 +407,26 @@ fn real5_prompt_view_block(
+         sections,
+         view.price_signals.len(),
+         redacted
+-    )
++    );
++    if role == turingosv4::runtime::real5_roles::AgentRole::Trader {
++        block.push_str("=== REAL-12 Role Action Boundary ===\n");
++        block.push_str("Allowed Trader actions: `bid_task`, `invest`, or `abstain`.\n");
++        block.push_str("Do not emit `step`, `append`, `complete`, `verify_peer`, or `challenge_node` while assigned Trader.\n");
++        block.push_str("No forced trade: use `abstain` with a reason when no market edge is visible. Price is signal, not truth.\n");
++        if std::env::var("TURINGOS_REAL12_TRADER_OBJECTIVE")
++            .ok()
++            .as_deref()
++            == Some("1")
++        {
++            block.push_str("=== REAL-12 Trader Objective ===\n");
++            block.push_str("Estimate whether public task-market price is mispriced using visible task state, balance, PnL, risk cap, and recent accepted work.\n");
++            block.push_str("Use `bid_task` only when your confidence differs from the visible price; `long` buys YES, `short` buys NO.\n");
++            block.push_str(
++                "If no edge is visible, abstain with a reason. Price is signal, not truth.\n",
++            );
++        }
++    }
++    block
+ }
+ 
+ fn real5_role_gateway_enabled() -> bool {
+@@ -479,7 +498,7 @@ fn real5_role_turn_outcome(
+             .to_string(),
+         },
+         turingosv4::runtime::real5_roles::AgentRole::Trader => {
+-            if parsed_tool == Some("invest") {
++            if parsed_tool == Some("invest") || parsed_tool == Some("bid_task") {
+                 RoleTurnOutcome::MarketDecision {
+                     tx_kind: "MarketDecisionTrace".to_string(),
+                     public_summary: "invest action emitted; MarketDecisionTrace anchors submitted/no_trade result".to_string(),
+@@ -3981,6 +4000,7 @@ async fn run_swarm(
+                 // end-of-turn classifier knows NOT to fire `NoPerceivedEdge`
+                 // / `PromptBudgetExceeded` for this turn.
+                 let mut invest_action_emitted_this_turn: bool = false;
++                let mut bid_task_action_emitted_this_turn: bool = false;
+                 let mut real5_parsed_tool_for_trace: Option<String> = None;
+                 let mut real5_parse_error_for_trace: Option<String> = None;
+                 let mut real5_role_policy_rejected_this_turn: Option<String> = None;
+@@ -5185,7 +5205,7 @@ async fn run_swarm(
+                                         }
+                                     }
+                                 }
+-                                "invest" => {
++                                "invest" | "bid_task" => {
+                                     // TB-N3 A2 (architect ruling 2026-05-11 amendments 1+2 + Q5):
+                                     // the agent's `invest` payload routes to a real
+                                     // `BuyWithCoinRouterTx` against the Stage C P-M6
+@@ -5202,9 +5222,17 @@ async fn run_swarm(
+                                     // invest (regardless of submitted / no_trade
+                                     // outcome) so the end-of-turn classifier does
+                                     // NOT fire NoPerceivedEdge / PromptBudgetExceeded.
+-                                    invest_action_emitted_this_turn = true;
+-                                    *tool_dist.entry("invest_attempted".into()).or_insert(0) += 1;
+-                                    let node_str = action.node.clone().unwrap_or_default();
++                                    let is_bid_task = action.tool == "bid_task";
++                                    if is_bid_task {
++                                        bid_task_action_emitted_this_turn = true;
++                                        *tool_dist
++                                            .entry("bid_task_attempted".into())
++                                            .or_insert(0) += 1;
++                                    } else {
++                                        invest_action_emitted_this_turn = true;
++                                        *tool_dist.entry("invest_attempted".into()).or_insert(0) +=
++                                            1;
++                                    }
+                                     let amount_micro: i64 = action.amount.unwrap_or(0);
+                                     let direction = match action.direction.as_deref() {
+                                         Some("short") | Some("no") | Some("Short") | Some("No") => {
+@@ -5212,6 +5240,12 @@ async fn run_swarm(
+                                         }
+                                         _ => turingosv4::state::typed_tx::BuyDirection::BuyYes,
+                                     };
++                                    let task_id_str = format!("task-{}", run_id);
++                                    let node_str = if is_bid_task {
++                                        task_id_str.clone()
++                                    } else {
++                                        action.node.clone().unwrap_or_default()
++                                    };
+                                     // Multi-agent runtime path: requires both
+                                     // chaintape bundle (sequencer + bus) and agent
+                                     // keypair registry. Solo-test paths without these
+@@ -5237,7 +5271,6 @@ async fn run_swarm(
+                                             Err(_) => continue,
+                                         };
+                                         let suffix = format!("{}-{}", agent_id, tx);
+-                                        let task_id_str = format!("task-{}", run_id);
+                                         let real6_task_outcome_market =
+                                             std::env::var("TURINGOS_REAL6_TASK_OUTCOME_MARKET")
+                                                 .ok()
+@@ -6575,6 +6608,7 @@ async fn run_swarm(
+                 let market_context_visible =
+                     tb_n3_market_block_present || real6_task_outcome_market_present;
+                 if !invest_action_emitted_this_turn
++                    && !bid_task_action_emitted_this_turn
+                     && (market_context_visible || tb_n3_market_block_budget_elided)
+                 {
+                     if let Some(bundle) = chaintape_bundle.as_ref() {
+diff --git a/src/runtime/real5_roles.rs b/src/runtime/real5_roles.rs
+index f9f460b4..d34eef17 100644
+--- a/src/runtime/real5_roles.rs
++++ b/src/runtime/real5_roles.rs
+@@ -117,7 +117,7 @@ pub fn default_allowed_tools(role: AgentRole) -> Vec<ToolName> {
+         AgentRole::Solver => vec!["submit_proof".into(), "abstain".into()],
+         AgentRole::Verifier => vec!["verify_peer".into(), "abstain".into()],
+         AgentRole::Challenger => vec!["challenge".into(), "abstain".into()],
+-        AgentRole::Trader => vec!["invest".into(), "abstain".into()],
++        AgentRole::Trader => vec!["invest".into(), "bid_task".into(), "abstain".into()],
+         AgentRole::MarketMaker => vec!["provide_liquidity".into(), "abstain".into()],
+         AgentRole::Architect => vec!["propose_tool".into(), "abstain".into()],
+         AgentRole::Veto => vec!["veto".into(), "abstain".into()],
+@@ -476,7 +476,7 @@ pub fn parse_role_action_json(
+                 .unwrap_or("unspecified")
+                 .to_string(),
+         })),
+-        "invest" => Ok(RoleAction::Invest(MarketInvestPayload::default())),
++        "invest" | "bid_task" => Ok(RoleAction::Invest(MarketInvestPayload::default())),
+         "submit_proof" => Ok(RoleAction::SubmitProof(WorkTxPayload::default())),
+         "verify_peer" => Ok(RoleAction::VerifyPeer(VerifyPeerPayload::default())),
+         "challenge" => Ok(RoleAction::ChallengeNode(ChallengePayload::default())),
+@@ -496,11 +496,11 @@ pub fn legacy_tool_to_role_action(tool: &str) -> Result<RoleAction, RoleActionRe
+         "challenge" | "challenge_node" => {
+             Ok(RoleAction::ChallengeNode(ChallengePayload::default()))
+         }
+-        "invest" => Ok(RoleAction::Invest(MarketInvestPayload::default())),
++        "invest" | "bid_task" => Ok(RoleAction::Invest(MarketInvestPayload::default())),
+         "provide_liquidity" => Ok(RoleAction::ProvideLiquidity(LiquidityPayload::default())),
+         "propose_tool" => Ok(RoleAction::ProposeTool(ToolProposalPayload::default())),
+         "veto" => Ok(RoleAction::Veto(VetoPayload::default())),
+-        "abstain" | "search" | "post" | "bid_task" => Ok(RoleAction::Abstain(AbstainPayload {
++        "abstain" | "search" | "post" => Ok(RoleAction::Abstain(AbstainPayload {
+             reason: format!("legacy tool {tool} is CAS-only under REAL-5 role gateway"),
+         })),
+         other => Err(RoleActionRejection {
+diff --git a/src/sdk/prompt.rs b/src/sdk/prompt.rs
+index 02547320..094efdcc 100644
+--- a/src/sdk/prompt.rs
++++ b/src/sdk/prompt.rs
+@@ -306,6 +306,24 @@ pub fn build_agent_prompt(
+     prompt.push_str(
+         "    OPTIONAL — express task-level market interest when a task edge is visible.\n",
+     );
++    if std::env::var("TURINGOS_REAL12_TASK_MARKET_AFFORDANCE")
++        .ok()
++        .as_deref()
++        == Some("1")
++    {
++        prompt.push_str(
++            "    TaskOutcomeMarket affordance: this is the task-level economic action.\n",
++        );
++        prompt.push_str(
++            "    Use it only if you perceive an edge on whether the task will be solved\n",
++        );
++        prompt.push_str(
++            "    within the visible budget/deadline; otherwise use abstain with a reason.\n",
++        );
++        prompt.push_str(
++            "    direction=\"long\" buys YES; direction=\"short\" buys NO. price is signal, not truth.\n",
++        );
++    }
+     prompt.push_str("  {\"tool\":\"abstain\",\"payload\":\"<optional no-action reason>\"}\n");
+     prompt.push_str(
+         "    Use when no proof, verify, challenge, or market action has a perceived edge.\n",
+
+diff --git a/dev/null b/tests/constitution_real12_task_market_action.rs
+--- /dev/null
++++ b/tests/constitution_real12_task_market_action.rs
++//! REAL-12 — task-market economic-action probes.
++//!
++//! These gates target the REAL-11 weak point: TaskOutcomeMarket can be visible
++//! and actionable, but the advertised `bid_task` action was not routed as an
++//! economic action. REAL-12 keeps the action optional and non-forced; it only
++//! ensures an agent following the advertised schema reaches the same typed
++//! economic gateway as an `invest` action.
++
++use std::fs;
++use std::sync::{Mutex, OnceLock};
++
++use turingosv4::bottom_white::ledger::rejection_evidence::RejectionClass;
++use turingosv4::runtime::real5_roles::{
++    default_allowed_tools, legacy_tool_to_role_action, route_role_action, AgentRole, RoleAction,
++    RoleActionRoute,
++};
++use turingosv4::sdk::prompt::build_agent_prompt;
++use turingosv4::sdk::protocol::parse_agent_output;
++
++fn env_lock() -> &'static Mutex<()> {
++    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
++    LOCK.get_or_init(|| Mutex::new(()))
++}
++
++#[test]
++fn real12_bid_task_maps_to_trader_invest_not_abstain() {
++    let trader_tools = default_allowed_tools(AgentRole::Trader);
++    assert!(
++        trader_tools.iter().any(|tool| tool == "bid_task"),
++        "Trader role assignment must advertise bid_task as an allowed task-market action"
++    );
++
++    let action = legacy_tool_to_role_action("bid_task")
++        .expect("advertised bid_task schema must enter REAL-5 gateway");
++    assert!(
++        matches!(action, RoleAction::Invest(_)),
++        "bid_task should be a task-market economic action, not {action:?}"
++    );
++
++    let route = route_role_action(AgentRole::Trader, &action);
++    assert!(
++        matches!(
++            route,
++            RoleActionRoute::L4 {
++                tx_kind: "BuyWithCoinRouterTx"
++            }
++        ),
++        "Trader bid_task must route to the economic action gateway; got {route:?}"
++    );
++
++    let solver_route = route_role_action(AgentRole::Solver, &action);
++    assert!(
++        matches!(
++            solver_route,
++            RoleActionRoute::L4E {
++                rejection_class: RejectionClass::PolicyViolation,
++                ..
++            }
++        ),
++        "Solver must not gain market-action permission via bid_task"
++    );
++}
++
++#[test]
++fn real12_bid_task_parser_remains_integer_only_and_non_forcing() {
++    let action = parse_agent_output(
++        r#"<action>{"tool":"bid_task","amount":2500,"direction":"long"}</action>"#,
++    )
++    .expect("integer bid_task should parse");
++    assert_eq!(action.tool, "bid_task");
++    assert_eq!(action.amount, Some(2500));
++    assert_eq!(action.direction.as_deref(), Some("long"));
++
++    let float = parse_agent_output(
++        r#"<action>{"tool":"bid_task","amount":2500.5,"direction":"long"}</action>"#,
++    );
++    assert!(
++        float.is_err(),
++        "task-market bids must reject decimal/floating amounts"
++    );
++}
++
++#[test]
++fn real12_task_market_prompt_affordance_is_opt_in_and_not_forced() {
++    let _guard = env_lock().lock().expect("env lock");
++    std::env::set_var("TURINGOS_REAL12_TASK_MARKET_AFFORDANCE", "1");
++    let prompt = build_agent_prompt(
++        "",
++        "",
++        "task-run-abc: YES=1/2 depth=100000",
++        &[],
++        &[],
++        "Balance: 1000000 μCoin",
++        "append, complete, invest, search",
++        "",
++        "",
++        "available_balance_micro: 1000000\nrealized_pnl_micro: 0\n",
++    );
++    std::env::remove_var("TURINGOS_REAL12_TASK_MARKET_AFFORDANCE");
++
++    assert!(
++        prompt.contains("TaskOutcomeMarket"),
++        "prompt must name task-level market affordance when enabled"
++    );
++    assert!(
++        prompt.contains("\"tool\":\"bid_task\""),
++        "prompt must preserve the advertised bid_task schema"
++    );
++    assert!(
++        prompt.contains("optional") || prompt.contains("OPTIONAL"),
++        "REAL-12 must not force trading"
++    );
++    assert!(
++        prompt.contains("price is signal, not truth"),
++        "price boundary must stay explicit"
++    );
++    assert!(
++        !prompt.contains("must trade") && !prompt.contains("must buy"),
++        "prompt must not coerce economic action"
++    );
++}
++
++#[test]
++fn real12_evaluator_has_bid_task_execution_arm_for_task_outcome_market() {
++    let evaluator = fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs")
++        .expect("evaluator source");
++    assert!(
++        evaluator.contains("\"bid_task\" =>"),
++        "advertised bid_task must have an evaluator execution arm"
++    );
++    assert!(
++        evaluator.contains("tb_real6a_invest_task_outcome_to_router_tx"),
++        "bid_task must route through the existing TaskOutcomeMarket router helper"
++    );
++    assert!(
++        evaluator.contains("bid_task_action_emitted_this_turn"),
++        "end-of-turn NoTrade classifier must not double-count bid_task as no-trade"
++    );
++    assert!(
++        evaluator.contains("parsed_tool == Some(\"invest\") || parsed_tool == Some(\"bid_task\")"),
++        "REAL-5 role turn traces must classify bid_task as a market decision, not no-trade"
++    );
++    assert!(
++        evaluator.contains("REAL-12 Role Action Boundary"),
++        "Trader role prompts must include an explicit non-forcing action boundary"
++    );
++    assert!(
++        evaluator.contains("Do not emit `step`, `append`, `complete`, `verify_peer`, or `challenge_node` while assigned Trader"),
++        "Trader role boundary must block proof-style leakage in the prompt"
++    );
++    assert!(
++        evaluator.contains("TURINGOS_REAL12_TRADER_OBJECTIVE"),
++        "Trader objective must be opt-in after the no-E2 prompt objective probe"
++    );
++    assert!(
++        evaluator.contains("=== REAL-12 Trader Objective ==="),
++        "Trader prompt must state the economic objective separately from proof solving"
++    );
++    assert!(
++        evaluator.contains("If no edge is visible, abstain with a reason"),
++        "Trader objective must preserve no-forced-trade semantics"
++    );
++    assert!(
++        evaluator.contains("Price is signal, not truth"),
++        "Trader objective must preserve the price boundary"
++    );
++}
++
++#[test]
++fn real12_task_market_probe_runner_records_bid_task_attempts_without_forcing_trade() {
++    let script = fs::read_to_string("scripts/run_real12_task_market_probe.sh")
++        .expect("REAL-12 task-market probe runner exists");
++    for required in [
++        "TURINGOS_REAL12_TASK_MARKET_AFFORDANCE=1",
++        "TURINGOS_REAL6_TASK_OUTCOME_MARKET=1",
++        "TURINGOS_REAL11_MARKET_OPPORTUNITY_TRACE=1",
++        "TURINGOS_REAL11_NO_SCRIPTED_BUYS=1",
++        "TURINGOS_REAL7_SCRIPTED_ATTEMPT_PREDICTION_FIXTURE=0",
++        "TURINGOS_REAL6B_LIVE_ATTEMPT_PREDICTION=0",
++        "TURINGOS_REAL12_TRADER_OBJECTIVE",
++        "bid_task_attempted",
++        "invest_attempted",
++        "live_non_scripted_router_tx_count",
++        "No forced trade",
++        "No price-as-truth",
++    ] {
++        assert!(script.contains(required), "runner missing {required}");
++    }
++}
+
+diff --git a/dev/null b/scripts/run_real12_task_market_probe.sh
+--- /dev/null
++++ b/scripts/run_real12_task_market_probe.sh
++#!/usr/bin/env bash
++# REAL-12 — task-market action affordance probe.
++#
++# Runs real MiniF2F tasks with TaskOutcomeMarket visible and the REAL-12
++# task-market affordance enabled. The run is still no-forced-trade and keeps
++# live REAL-6B disabled; it measures whether the model emits `bid_task`,
++# `invest`, or neither under ordinary role-scoped prompting.
++
++set -euo pipefail
++
++PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
++EVIDENCE_ROOT="$PROJECT_ROOT/handover/evidence"
++
++RUN_TAG="${1:-real12_task_market_probe_$(date -u +%Y%m%dT%H%M%SZ)}"
++RUN_TAG="${RUN_TAG#handover/evidence/}"
++RUN_DIR="$EVIDENCE_ROOT/$RUN_TAG"
++
++is_truthy() {
++    case "${1:-0}" in
++        1|true|TRUE|True|yes|YES) return 0 ;;
++        *) return 1 ;;
++    esac
++}
++
++if is_truthy "${TURINGOS_REAL6B_LIVE_ATTEMPT_PREDICTION:-0}"; then
++    echo "ERROR: live REAL-6B is not authorized in REAL-12 task-market probe" >&2
++    exit 2
++fi
++if is_truthy "${TURINGOS_REAL7_SCRIPTED_ATTEMPT_PREDICTION_FIXTURE:-0}"; then
++    echo "ERROR: scripted AttemptPrediction fixture is forbidden in REAL-12 task-market probe" >&2
++    exit 2
++fi
++if [[ -n "${TURINGOS_REAL7_SCRIPTED_TASK_OUTCOME_BUYS:-}" ]]; then
++    echo "ERROR: scripted TaskOutcome buys are forbidden in REAL-12 task-market probe" >&2
++    exit 2
++fi
++
++export TURINGOS_TB_N3_AUTO_MARKET=1
++export TURINGOS_REAL6_TASK_OUTCOME_MARKET=1
++export TURINGOS_REAL5_ROLE_VIEWS=1
++export TURINGOS_REAL11_MARKET_OPPORTUNITY_TRACE=1
++export TURINGOS_REAL11_TRADER_PNL_VIEW=1
++export TURINGOS_REAL11_NO_SCRIPTED_BUYS=1
++export TURINGOS_REAL12_TASK_MARKET_AFFORDANCE=1
++export TURINGOS_REAL12_TRADER_OBJECTIVE="${TURINGOS_REAL12_TRADER_OBJECTIVE:-0}"
++export TURINGOS_REAL12_TASK_MARKET_PROBE=1
++unset TURINGOS_REAL7_SCRIPTED_TASK_OUTCOME_BUYS
++export TURINGOS_REAL7_SCRIPTED_ATTEMPT_PREDICTION_FIXTURE=0
++export TURINGOS_REAL6B_LIVE_ATTEMPT_PREDICTION=0
++export TURINGOS_REAL5_ROLE_ASSIGNMENT="${TURINGOS_REAL5_ROLE_ASSIGNMENT:-Solver,Trader,Verifier,Challenger,Observer}"
++export TURINGOS_G_PHASE_N_AGENTS="${TURINGOS_G_PHASE_N_AGENTS:-5}"
++export MAX_TRANSACTIONS="${MAX_TRANSACTIONS:-10}"
++export PER_PROBLEM_TIMEOUT_S="${PER_PROBLEM_TIMEOUT_S:-300}"
++export TURINGOS_G_PHASE_DIRTY_OK="${TURINGOS_G_PHASE_DIRTY_OK:-1}"
++export TURINGOS_G_PHASE_LOW_DISK_OK="${TURINGOS_G_PHASE_LOW_DISK_OK:-1}"
++
++bash "$PROJECT_ROOT/scripts/run_g_phase_batch.sh" "$RUN_TAG" "${REAL12_PROBLEM_SET:-mini}"
++
++cargo run --quiet --bin audit_dashboard -- --repo "$RUN_DIR/runtime_repo" --cas "$RUN_DIR/cas" --run-report \
++    > "$RUN_DIR/audit_dashboard_run_report.txt"
++
++AGG="$RUN_DIR/aggregate_verdict.json"
++DASH="$RUN_DIR/audit_dashboard_run_report.txt"
++REPORT="$RUN_DIR/REAL12_TASK_MARKET_PROBE_REPORT.md"
++ROOT_REPORT="$PROJECT_ROOT/handover/reports/REAL12_TASK_MARKET_PROBE_REPORT.md"
++
++audit_verdict="$(jq -r '.verdict // "missing"' "$AGG" 2>/dev/null || echo missing)"
++buy_with_coin_router="$(jq -r '.tx_kind_counts.buy_with_coin_router // 0' "$AGG" 2>/dev/null || echo 0)"
++market_seed="$(jq -r '.tx_kind_counts.market_seed // 0' "$AGG" 2>/dev/null || echo 0)"
++cpmm_pool="$(jq -r '.tx_kind_counts.cpmm_pool // 0' "$AGG" 2>/dev/null || echo 0)"
++event_resolve="$(jq -r '.tx_kind_counts.event_resolve // 0' "$AGG" 2>/dev/null || echo 0)"
++opportunity_count="$(awk -F': ' '/persisted_market_opportunity_trace_cas_count/ {gsub(/^[[:space:]]+|[[:space:]]+$/, "", $2); print $2; exit}' "$DASH")"
++opportunity_count="${opportunity_count:-0}"
++
++tool_dist_jsonl="$RUN_DIR/real12_tool_dist.jsonl"
++: > "$tool_dist_jsonl"
++find "$RUN_DIR" -mindepth 2 -maxdepth 2 -name evaluator.stdout -print0 \
++    | while IFS= read -r -d '' stdout_file; do
++        grep '^PPUT_RESULT:' "$stdout_file" \
++            | sed 's/^PPUT_RESULT://' \
++            | jq -c '{problem_id, solved, tool_dist: (.tool_dist // {})}' \
++            >> "$tool_dist_jsonl" || true
++    done
++
++sum_tool() {
++    local key="$1"
++    if [[ ! -s "$tool_dist_jsonl" ]]; then
++        echo 0
++        return
++    fi
++    jq -s --arg key "$key" 'map(.tool_dist[$key] // 0) | add // 0' "$tool_dist_jsonl"
++}
++
++bid_task_attempted="$(sum_tool bid_task_attempted)"
++invest_attempted="$(sum_tool invest_attempted)"
++invest_submitted="$(sum_tool invest_submitted)"
++no_perceived_edge="$(sum_tool invest_no_trade_no_perceived_edge)"
++zero_amount="$(sum_tool invest_no_trade_zero_amount)"
++no_pool="$(sum_tool invest_no_trade_no_pool)"
++amount_exceeds_balance="$(sum_tool invest_no_trade_amount_exceeds_balance)"
++
++live_non_scripted_router_tx_count=0
++e2_verdict="NOT ACHIEVED"
++if [[ "$buy_with_coin_router" -gt 0 ]]; then
++    live_non_scripted_router_tx_count="$buy_with_coin_router"
++    e2_verdict="CANDIDATE_ACHIEVED_REQUIRES_AUDIT"
++fi
++
++cat > "$REPORT" <<EOF
++# REAL-12 Task-Market Action Probe Report
++
++run_tag: \`$RUN_TAG\`
++runtime_repo: \`$RUN_DIR/runtime_repo\`
++CAS path: \`$RUN_DIR/cas\`
++audit_tape verdict: \`$audit_verdict\`
++
++## Constitutional Sentinels
++
++\`\`\`text
++No forced trade
++No price-as-truth
++No scripted buys
++live_real6b_enabled=false
++attempt_prediction_fixture_count=0
++TURINGOS_REAL12_TASK_MARKET_AFFORDANCE=1
++TURINGOS_REAL12_TRADER_OBJECTIVE=$TURINGOS_REAL12_TRADER_OBJECTIVE
++\`\`\`
++
++## Metrics
++
++| Metric | Value |
++| --- | ---: |
++| MarketOpportunityTrace count | $opportunity_count |
++| market_seed | $market_seed |
++| cpmm_pool | $cpmm_pool |
++| event_resolve | $event_resolve |
++| bid_task_attempted | $bid_task_attempted |
++| invest_attempted | $invest_attempted |
++| invest_submitted | $invest_submitted |
++| buy_with_coin_router | $buy_with_coin_router |
++| live_non_scripted_router_tx_count | $live_non_scripted_router_tx_count |
++| no_trade_no_perceived_edge | $no_perceived_edge |
++| no_trade_zero_amount | $zero_amount |
++| no_trade_no_pool | $no_pool |
++| no_trade_amount_exceeds_balance | $amount_exceeds_balance |
++
++## Interpretation Boundary
++
++\`$e2_verdict\`
++
++This probe tests whether the advertised task-level market action affordance
++causes live agents to emit \`bid_task\` or \`invest\`. It does not force trades,
++does not enable live REAL-6B, and does not allow price to affect Lean predicates.
++
++Scripted actions cannot satisfy E2. A live non-scripted router tx requires
++ChainTape/CAS evidence, PromptCapsule/trace provenance, and audit_tape PROCEED.
++EOF
++
++cp "$REPORT" "$ROOT_REPORT"
++
++if [[ "$audit_verdict" != "PROCEED" ]]; then
++    echo "ERROR: audit_tape verdict=$audit_verdict" >&2
++    exit 7
++fi
++
++echo "REAL-12 task-market probe evidence: $RUN_DIR"
++echo "audit_verdict=$audit_verdict"
++echo "bid_task_attempted=$bid_task_attempted"
++echo "invest_attempted=$invest_attempted"
++echo "buy_with_coin_router=$buy_with_coin_router"
++echo "e2_verdict=$e2_verdict"

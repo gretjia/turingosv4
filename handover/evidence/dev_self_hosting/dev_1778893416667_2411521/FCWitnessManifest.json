@@ -1,0 +1,9 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778893416667_2411521",
+  "fc_nodes": [
+    "FC1 role action loop"
+  ],
+  "expected_witness": "Diff, command evidence, and audit verdict must cite these FC nodes.",
+  "evidence_artifacts": []
+}

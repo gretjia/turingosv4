@@ -94,6 +94,8 @@ pub fn conviction_action_allowed(
         && matches!(
             (role, action),
             (AgentRole::Trader, ConvictionAction::HighRiskMarket)
+                | (AgentRole::BullTrader, ConvictionAction::HighRiskMarket)
+                | (AgentRole::BearTrader, ConvictionAction::HighRiskMarket)
                 | (AgentRole::MarketMaker, ConvictionAction::HighRiskMarket)
                 | (AgentRole::Challenger, ConvictionAction::HighRiskChallenge)
         );

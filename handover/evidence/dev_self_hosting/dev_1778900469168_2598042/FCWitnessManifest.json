@@ -1,0 +1,15 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778900469168_2598042",
+  "fc_nodes": [
+    "FC3 dashboard audit materialized view"
+  ],
+  "expected_witness": "Diff, command evidence, and audit verdict must cite these FC nodes.",
+  "evidence_artifacts": [
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "29028b297df8a5b0e1cf45c14b317c4baa434b5d74d382ccd4ca16ee0d57ad70",
+      "size_bytes": 13349
+    }
+  ]
+}

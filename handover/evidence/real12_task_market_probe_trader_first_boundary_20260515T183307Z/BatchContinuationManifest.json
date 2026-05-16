@@ -1,0 +1,58 @@
+{
+  "schema_version": "g1_2_v1",
+  "batch_id": "real12_task_market_probe_trader_first_boundary_20260515T183307Z_ac4f936",
+  "runtime_repo": "/home/zephryj/projects/turingosv4-real12-action-probes/handover/evidence/real12_task_market_probe_trader_first_boundary_20260515T183307Z/runtime_repo",
+  "cas_root": "/home/zephryj/projects/turingosv4-real12-action-probes/handover/evidence/real12_task_market_probe_trader_first_boundary_20260515T183307Z/cas",
+  "model": "deepseek-chat",
+  "n_agents": 5,
+  "initial_head_t_hex": "",
+  "agent_registry_cid_hex": null,
+  "system_pubkeys_cid_hex": null,
+  "model_manifest_cid_hex": null,
+  "role_assignment_manifest_cid_hex": "63e387bf14974e680b60f60c5371fcd423e72cb641291ca6ae07027987ee78c4",
+  "tasks": [
+    {
+      "task_index": 0,
+      "problem_id": "mathd_algebra_107",
+      "start_head_t_hex": "",
+      "end_head_t_hex": "334c70788cd52b719fe2305cea0a7806e55e897b",
+      "start_chain_length": 0,
+      "end_chain_length": 11,
+      "subprocess_command_sha256": "",
+      "run_summary_cid_hex": null,
+      "terminal_tx_id": null,
+      "exit_code": 0,
+      "started_at_unix_s": 1778870093,
+      "finished_at_unix_s": 1778870111
+    },
+    {
+      "task_index": 1,
+      "problem_id": "mathd_algebra_125",
+      "start_head_t_hex": "334c70788cd52b719fe2305cea0a7806e55e897b",
+      "end_head_t_hex": "3cf3369b1085dfc3fd16e4367765133ddf9ea173",
+      "start_chain_length": 11,
+      "end_chain_length": 18,
+      "subprocess_command_sha256": "",
+      "run_summary_cid_hex": null,
+      "terminal_tx_id": null,
+      "exit_code": 0,
+      "started_at_unix_s": 1778870111,
+      "finished_at_unix_s": 1778870141
+    },
+    {
+      "task_index": 2,
+      "problem_id": "mathd_algebra_141",
+      "start_head_t_hex": "3cf3369b1085dfc3fd16e4367765133ddf9ea173",
+      "end_head_t_hex": "af1bb36408e9cf710fb29c1723daf212d0f0458a",
+      "start_chain_length": 18,
+      "end_chain_length": 27,
+      "subprocess_command_sha256": "",
+      "run_summary_cid_hex": null,
+      "terminal_tx_id": null,
+      "exit_code": 0,
+      "started_at_unix_s": 1778870141,
+      "finished_at_unix_s": 1778870153
+    }
+  ],
+  "terminated_reason": null
+}

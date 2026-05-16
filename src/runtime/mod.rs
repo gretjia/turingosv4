@@ -228,6 +228,11 @@ pub mod market_tx_category;
 /// object type and no economic mutation.
 pub mod market_opportunity_trace;
 
+/// TRACE_MATRIX FC1/FC3 (REAL-12 2026-05-16): Bull/Bear economic judgment
+/// evidence. Generic CAS records only; no typed tx, sequencer, wallet, or
+/// predicate authority changes.
+pub mod economic_judgment;
+
 /// TRACE_MATRIX FC1/FC2/FC3 (REAL-5 2026-05-14): role-based generative
 /// scaffolding — role assignment, role-scoped views, typed generation gateway,
 /// tick budget, and tape-visible role decision traces.

@@ -1,0 +1,50 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778896724213_2489233",
+  "title": "REAL-12 role-specialized economic agents final",
+  "module": "REAL-12 Role-Specialized Economic Agents",
+  "molecule_or_atom": "package",
+  "requested_risk_class": 4,
+  "risk_class": 4,
+  "fc_nodes": [
+    "FC1 role action loop",
+    "FC2 role assignment PromptCapsule replay",
+    "FC3 dashboard audit materialized view",
+    "Art III shielding"
+  ],
+  "allowed_paths": [
+    "src/runtime/real5_roles.rs",
+    "src/runtime/economic_judgment.rs",
+    "src/runtime/real6_conviction_budget.rs",
+    "src/runtime/mod.rs",
+    "src/sdk/prompt.rs",
+    "experiments/minif2f_v4/src/bin/evaluator.rs",
+    "scripts/run_real12_task_market_probe.sh",
+    "tests/constitution_real12_claim_boundary.rs",
+    "tests/constitution_real12_role_specialization.rs",
+    "tests/constitution_real12_role_views.rs",
+    "tests/constitution_real12_economic_judgment.rs",
+    "tests/constitution_real12_bull_bear_positive_control.rs",
+    "tests/constitution_real12_live_micro_probe.rs",
+    "tests/constitution_real12_task_market_action.rs",
+    "genesis_payload.toml",
+    "handover/directives/2026-05-16_REAL10_REAL11_NARROW_RATIFICATION.md",
+    "handover/directives/2026-05-16_REAL12_ROLE_SPECIALIZED_ECONOMIC_AGENTS_ARCHITECT_ORIGINAL.md",
+    "handover/directives/2026-05-16_REAL12_ROLE_SPECIALIZED_ECONOMIC_AGENTS_EXECUTION_PLAN.md",
+    "handover/audits/CODEX_REAL12_EXECUTION_PLAN_ALIGNMENT_REVIEW.md",
+    "handover/reports/REAL12_ROLE_SPECIALIZED_ECONOMIC_AGENTS_IMPLEMENTATION_REPORT.md",
+    "handover/reports/REAL12_TASK_MARKET_PROBE_REPORT.md",
+    "handover/evidence/real12_role_specialized_micro_probe_20260516T012900Z"
+  ],
+  "restricted_surface_hits": [
+    "genesis_payload.toml"
+  ],
+  "acceptance_commands": [
+    "cargo test --test constitution_real12_claim_boundary --test constitution_real12_role_specialization --test constitution_real12_role_views --test constitution_real12_economic_judgment --test constitution_real12_bull_bear_positive_control --test constitution_real12_live_micro_probe --test constitution_real12_task_market_action -- --test-threads=1"
+  ],
+  "audit_required": true,
+  "human_intent": null,
+  "ratification": "handover/directives/2026-05-16_REAL12_ROLE_SPECIALIZED_ECONOMIC_AGENTS_EXECUTION_PLAN.md",
+  "git_head": "ac4f9367bc39d6ce7683f9d1c89f439e1dfafefc",
+  "created_at_unix_ms": 1778896724213
+}
