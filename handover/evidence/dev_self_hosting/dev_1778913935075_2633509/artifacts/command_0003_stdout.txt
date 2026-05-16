@@ -1,0 +1,42 @@
+
+running 3 tests
+test display_coin_parser_rejects_floaty_or_ambiguous_forms ... ok
+test display_coin_parser_uses_fixed_scale_integer_micro_units ... ok
+test display_coin_parser_fails_closed_on_overflow ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 5 tests
+test ev_decision_trace_enforces_role_side_and_abstain_reason ... ok
+test ev_decision_trace_rejects_private_or_raw_material ... ok
+test ev_decision_trace_rejects_out_of_range_bps_and_float_markers ... ok
+test ev_decision_trace_is_generic_cas_backed_and_round_trips ... ok
+test ev_decision_trace_summary_is_cas_derived ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.87s
+
+
+running 5 tests
+test every_market_review_response_needs_ev_or_no_response_trace ... ok
+test full_async_mode_is_explicitly_unsafe_only ... ok
+test market_review_summary_counts_must_match_response_cids ... ok
+test sequential_market_review_window_is_default_and_deterministic ... ok
+test market_review_sidecars_are_generic_cas_backed ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.63s
+
+
+running 2 tests
+test e2_counts_only_voluntary_router_positions ... ok
+test forced_stakes_are_not_voluntary_market_signal ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 2 tests
+test real13_probe_runner_enables_ev_review_without_live_real6b_or_scripted_buys ... ok
+test evaluator_writes_ev_decision_trace_and_market_review_sidecars_from_cas_path ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+

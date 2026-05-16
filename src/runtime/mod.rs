@@ -223,6 +223,25 @@ pub mod g7_structural_smoke;
 /// authority.
 pub mod market_tx_category;
 
+/// TRACE_MATRIX FC1-N41 + FC3-N43 (REAL-13A 2026-05-16): CAS-backed
+/// expected-value decision traces for Bull/Bear market review turns. Generic
+/// sidecar only; missing traces invalidate evidence, not sequencer admission.
+pub mod ev_decision_trace;
+
+/// TRACE_MATRIX Art.II broadcast + economy integer path (REAL-13C
+/// 2026-05-16): prompt-facing DisplayCoin adapter with fixed-point decimal
+/// string parsing into MicroCoin units. No f64/f32.
+pub mod display_coin;
+
+/// TRACE_MATRIX FC1-N41 + FC3-N43 (REAL-13B 2026-05-16): Market Review Turn
+/// window/response/summary sidecars. Evaluator scheduling evidence only; no
+/// typed transaction or sequencer admission changes.
+pub mod market_review;
+
+/// TRACE_MATRIX FC3-N43 (REAL-13D 2026-05-16): report-side separation of
+/// forced bonds from voluntary market positions for E2/E3 metrics.
+pub mod signal_purification;
+
 /// TRACE_MATRIX FC1/FC3 (REAL-11 Atom 3 2026-05-15): pure derived trace for
 /// whether a Trader turn had an actionable market opportunity. No new CAS
 /// object type and no economic mutation.

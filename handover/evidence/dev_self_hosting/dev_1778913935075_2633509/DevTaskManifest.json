@@ -1,0 +1,44 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778913935075_2633509",
+  "title": "REAL-13 market pressure loop",
+  "module": "REAL-13 Market Pressure Loop",
+  "molecule_or_atom": "atom",
+  "requested_risk_class": 4,
+  "risk_class": 4,
+  "fc_nodes": [
+    "FC1 role action loop",
+    "FC2 PromptCapsule replay",
+    "FC3 dashboard/audit materialized view",
+    "Art II broadcast",
+    "Art III shielding",
+    "Economy integer conservation"
+  ],
+  "allowed_paths": [
+    "handover/directives/**",
+    "handover/audits/**",
+    "handover/reports/**",
+    "handover/evidence/**",
+    "src/runtime/**",
+    "src/bin/audit_dashboard.rs",
+    "experiments/minif2f_v4/src/bin/evaluator.rs",
+    "scripts/run_real13*.sh",
+    "tests/constitution_real13*.rs",
+    "genesis_payload.toml"
+  ],
+  "restricted_surface_hits": [
+    "genesis_payload.toml"
+  ],
+  "acceptance_commands": [
+    "cargo test --test constitution_real13a_ev_decision_trace",
+    "cargo test --test constitution_real13a_display_coin",
+    "cargo test --test constitution_real13b_market_review_window",
+    "cargo test --test constitution_real13d_signal_purification",
+    "git diff --check"
+  ],
+  "audit_required": true,
+  "human_intent": "Implement REAL-13A-D market pressure loop scaffolding: EVDecisionTrace, deterministic Market Review Turn sidecars, cognitive bridge DisplayCoin parsing, and signal-purification report gates without forced trade or live REAL-6B.",
+  "ratification": "User approved execution of independently reviewed REAL-13/14/15 plan on 2026-05-16; scope excludes sequencer admission, TypedTx schema/discriminants, signing payloads, wallet, kernel, bus, CAS ObjectType changes, and live REAL-6B.",
+  "git_head": "04d1d9fcd1de331142d0e7315ac4e852137d7816",
+  "created_at_unix_ms": 1778913935082
+}

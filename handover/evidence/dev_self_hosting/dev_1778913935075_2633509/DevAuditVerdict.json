@@ -1,0 +1,13 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "reviewer": "clean-context-codex-gpt-5.5-xhigh",
+  "verdict": "PROCEED",
+  "findings_summary": "",
+  "source_file": {
+    "path": "handover/audits/CODEX_REAL13_IMPLEMENTATION_REVIEW.md",
+    "sha256": "c202493377651662a6f9f7141e4017351401aba19af688a27b262e4eb5acb625",
+    "size_bytes": 2683
+  },
+  "payload_manifest_hash": "4c8a9c2f6a9877dac840f910dce2967ea5a85185f0e6ecc64b1f9c3c77378179",
+  "recorded_at_unix_ms": 1778917132198
+}

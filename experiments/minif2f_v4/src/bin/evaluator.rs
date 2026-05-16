@@ -860,6 +860,287 @@ fn write_economic_judgment_to_cas_or_exit(
     }
 }
 
+fn real13_ev_decision_trace_enabled() -> bool {
+    std::env::var("TURINGOS_REAL13_EV_DECISION_TRACE")
+        .ok()
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false)
+}
+
+fn real13_market_review_mode_env() -> turingosv4::runtime::market_review::MarketReviewMode {
+    match std::env::var("TURINGOS_MARKET_REVIEW_MODE")
+        .unwrap_or_else(|_| "sequential".into())
+        .trim()
+    {
+        "barriered_async" => turingosv4::runtime::market_review::MarketReviewMode::BarrieredAsync,
+        "full_async_experimental" => {
+            if std::env::var("TURINGOS_UNSAFE_RESEARCH")
+                .ok()
+                .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+                .unwrap_or(false)
+            {
+                turingosv4::runtime::market_review::MarketReviewMode::FullAsyncExperimental
+            } else {
+                turingosv4::runtime::market_review::MarketReviewMode::SequentialRound
+            }
+        }
+        _ => turingosv4::runtime::market_review::MarketReviewMode::SequentialRound,
+    }
+}
+
+fn real13_bps_from_price(quoted: Option<turingosv4::runtime::real5_roles::RationalPrice>) -> i64 {
+    let Some(quoted) = quoted else {
+        return 5_000;
+    };
+    if quoted.denominator == 0 {
+        return 5_000;
+    }
+    let bps = (quoted.numerator as u128)
+        .saturating_mul(10_000)
+        .checked_div(quoted.denominator as u128)
+        .unwrap_or(5_000);
+    bps.min(10_000) as i64
+}
+
+fn real13_midpoint_probability_bps(
+    band: Option<turingosv4::runtime::economic_judgment::ProbabilityBand>,
+    fallback: i64,
+) -> i64 {
+    let Some(band) = band else {
+        return fallback;
+    };
+    if band.lower_bps > band.upper_bps || band.upper_bps > 10_000 {
+        return fallback;
+    }
+    ((band.lower_bps as i64 + band.upper_bps as i64) / 2).clamp(0, 10_000)
+}
+
+fn real13_ev_reason_from_judgment(
+    judgment: &turingosv4::runtime::economic_judgment::EconomicJudgment,
+) -> turingosv4::runtime::ev_decision_trace::EVReason {
+    use turingosv4::runtime::economic_judgment::{EconomicJudgmentAction, EconomicReason};
+    use turingosv4::runtime::ev_decision_trace::EVReason;
+    match judgment.action {
+        EconomicJudgmentAction::Buy | EconomicJudgmentAction::Short => EVReason::PositiveEV,
+        EconomicJudgmentAction::Abstain => match judgment.reason {
+            EconomicReason::NoPerceivedEdge | EconomicReason::ExpectedValueNegative => {
+                EVReason::NegativeEV
+            }
+            EconomicReason::NoActionableMarket => EVReason::NoActionableMarket,
+            EconomicReason::InsufficientBalance => EVReason::BalanceBlocked,
+            EconomicReason::RiskCapExceeded => EVReason::RiskCapBlocked,
+            EconomicReason::LiquidityTooLow => EVReason::LiquidityTooLow,
+            EconomicReason::PromptBudgetExceeded => EVReason::WindowClosed,
+            EconomicReason::UnresolvedOracleRisk => EVReason::EdgeBelowThreshold,
+            EconomicReason::RolePolicyBlocked => EVReason::ParserOrGatewayFailed,
+            EconomicReason::Unknown => EVReason::EdgeBelowThreshold,
+        },
+    }
+}
+
+fn real13_build_ev_decision_trace(
+    run_id: &str,
+    agent_id: &str,
+    logical_t: u64,
+    parent_state_root: String,
+    judgment: &turingosv4::runtime::economic_judgment::EconomicJudgment,
+) -> turingosv4::runtime::ev_decision_trace::EVDecisionTrace {
+    use turingosv4::economy::money::MicroCoin;
+    use turingosv4::runtime::economic_judgment::{EconomicJudgmentAction, ExpectedValueSign};
+    use turingosv4::runtime::ev_decision_trace::{
+        EVAction, EVDecisionTrace, EVReason, EV_DECISION_TRACE_SCHEMA_ID,
+    };
+    use turingosv4::runtime::real5_roles::{AgentRole, MarketSide, RationalPrice};
+
+    let side = judgment.intended_side.unwrap_or(match judgment.role {
+        AgentRole::BearTrader => MarketSide::No,
+        _ => MarketSide::Yes,
+    });
+    let action = match judgment.action {
+        EconomicJudgmentAction::Buy => EVAction::BuyYes,
+        EconomicJudgmentAction::Short => EVAction::BuyNo,
+        EconomicJudgmentAction::Abstain => EVAction::Abstain,
+    };
+    let quoted_price = judgment
+        .observed_price
+        .unwrap_or_else(|| RationalPrice::new(5_000, 10_000).expect("non-zero denominator"));
+    let implied_probability_bps = real13_bps_from_price(Some(quoted_price));
+    let agent_probability_bps = real13_midpoint_probability_bps(
+        judgment.estimated_probability_band,
+        implied_probability_bps,
+    );
+    let edge_bps = agent_probability_bps - implied_probability_bps;
+    let amount = judgment
+        .intended_amount
+        .unwrap_or_else(|| MicroCoin::from_micro_units(0));
+    let expected_value_micro = (amount.micro_units() as i128)
+        .saturating_mul(edge_bps as i128)
+        .checked_div(10_000)
+        .unwrap_or(0);
+    let mut reason = real13_ev_reason_from_judgment(judgment);
+    if action != EVAction::Abstain && judgment.expected_value_sign == ExpectedValueSign::Positive {
+        reason = EVReason::PositiveEV;
+    }
+    let event_id = judgment
+        .chosen_market
+        .clone()
+        .or_else(|| judgment.visible_markets.first().cloned())
+        .unwrap_or_else(|| {
+            turingosv4::state::typed_tx::EventId(turingosv4::state::q_state::TaskId(format!(
+                "task-{run_id}"
+            )))
+        });
+
+    EVDecisionTrace {
+        schema_version: EV_DECISION_TRACE_SCHEMA_ID.to_string(),
+        review_window_id: format!("real13-window-{run_id}-{agent_id}-{logical_t}"),
+        review_response_id: format!("real13-response-{run_id}-{agent_id}-{logical_t}"),
+        run_id: run_id.to_string(),
+        batch_id: run_id.to_string(),
+        agent_id: judgment.agent_id.clone(),
+        role: judgment.role,
+        task_id: judgment.task_id.clone(),
+        event_id,
+        side,
+        quoted_price,
+        implied_probability_bps,
+        agent_probability_bps,
+        edge_bps,
+        expected_value_micro,
+        amount,
+        max_risk: judgment.risk_cap,
+        available_balance: judgment.balance_available,
+        risk_cap: judgment.risk_cap,
+        liquidity_depth: judgment
+            .liquidity_depth
+            .unwrap_or_else(|| MicroCoin::from_micro_units(0)),
+        slippage_bps: 0,
+        risk_cap_triggered: judgment
+            .intended_amount
+            .map(|a| a.micro_units() > judgment.risk_cap.micro_units())
+            .unwrap_or(false),
+        action,
+        reason,
+        prompt_capsule_cid: judgment.prompt_capsule_cid.clone(),
+        market_snapshot_cid: judgment.prompt_capsule_cid.clone(),
+        model_assignment_cid: None,
+        model_family: None,
+        private_alpha_cid: None,
+        tool_result_cid: None,
+        parent_state_root,
+        created_at_head_t: judgment.head_t.clone(),
+        public_summary: "public EV decision trace from deterministic market review turn".into(),
+    }
+}
+
+fn write_ev_decision_trace_to_cas_or_exit(
+    cas_path: &std::path::Path,
+    trace: &turingosv4::runtime::ev_decision_trace::EVDecisionTrace,
+    suffix: &str,
+    logical_t: u64,
+) -> turingosv4::bottom_white::cas::schema::Cid {
+    let mut cas_store = match turingosv4::bottom_white::cas::store::CasStore::open(cas_path) {
+        Ok(store) => store,
+        Err(e) => {
+            error!("EVDecisionTrace CAS write FAIL-CLOSED: CAS open failed: {e}");
+            std::process::exit(3);
+        }
+    };
+    match turingosv4::runtime::ev_decision_trace::write_ev_decision_trace_to_cas(
+        &mut cas_store,
+        trace,
+        suffix,
+        logical_t,
+    ) {
+        Ok(cid) => cid,
+        Err(e) => {
+            error!("EVDecisionTrace CAS write FAIL-CLOSED: {e}");
+            std::process::exit(3);
+        }
+    }
+}
+
+fn write_market_review_window_to_cas_or_exit(
+    cas_path: &std::path::Path,
+    window: &turingosv4::runtime::market_review::MarketReviewWindow,
+    suffix: &str,
+    logical_t: u64,
+) -> turingosv4::bottom_white::cas::schema::Cid {
+    let mut cas_store = match turingosv4::bottom_white::cas::store::CasStore::open(cas_path) {
+        Ok(store) => store,
+        Err(e) => {
+            error!("MarketReviewWindow CAS write FAIL-CLOSED: CAS open failed: {e}");
+            std::process::exit(3);
+        }
+    };
+    match turingosv4::runtime::market_review::write_market_review_window_to_cas(
+        &mut cas_store,
+        window,
+        suffix,
+        logical_t,
+    ) {
+        Ok(cid) => cid,
+        Err(e) => {
+            error!("MarketReviewWindow CAS write FAIL-CLOSED: {e}");
+            std::process::exit(3);
+        }
+    }
+}
+
+fn write_market_review_response_to_cas_or_exit(
+    cas_path: &std::path::Path,
+    response: &turingosv4::runtime::market_review::MarketReviewResponse,
+    suffix: &str,
+    logical_t: u64,
+) -> turingosv4::bottom_white::cas::schema::Cid {
+    let mut cas_store = match turingosv4::bottom_white::cas::store::CasStore::open(cas_path) {
+        Ok(store) => store,
+        Err(e) => {
+            error!("MarketReviewResponse CAS write FAIL-CLOSED: CAS open failed: {e}");
+            std::process::exit(3);
+        }
+    };
+    match turingosv4::runtime::market_review::write_market_review_response_to_cas(
+        &mut cas_store,
+        response,
+        suffix,
+        logical_t,
+    ) {
+        Ok(cid) => cid,
+        Err(e) => {
+            error!("MarketReviewResponse CAS write FAIL-CLOSED: {e}");
+            std::process::exit(3);
+        }
+    }
+}
+
+fn write_market_review_summary_to_cas_or_exit(
+    cas_path: &std::path::Path,
+    summary: &turingosv4::runtime::market_review::MarketReviewSummary,
+    suffix: &str,
+    logical_t: u64,
+) -> turingosv4::bottom_white::cas::schema::Cid {
+    let mut cas_store = match turingosv4::bottom_white::cas::store::CasStore::open(cas_path) {
+        Ok(store) => store,
+        Err(e) => {
+            error!("MarketReviewSummary CAS write FAIL-CLOSED: CAS open failed: {e}");
+            std::process::exit(3);
+        }
+    };
+    match turingosv4::runtime::market_review::write_market_review_summary_to_cas(
+        &mut cas_store,
+        summary,
+        suffix,
+        logical_t,
+    ) {
+        Ok(cid) => cid,
+        Err(e) => {
+            error!("MarketReviewSummary CAS write FAIL-CLOSED: {e}");
+            std::process::exit(3);
+        }
+    }
+}
+
 fn write_scheduler_decision_trace_to_cas_or_exit(
     cas_path: &std::path::Path,
     trace: &turingosv4::runtime::agent_scheduler::SchedulerDecisionTrace,
@@ -7077,6 +7358,99 @@ async fn run_swarm(
                             logical_t,
                         );
                         economic_judgment_cid_for_turn = Some(judgment_cid);
+                        if real13_ev_decision_trace_enabled()
+                            && matches!(
+                                real5_prompt_role,
+                                turingosv4::runtime::real5_roles::AgentRole::BullTrader
+                                    | turingosv4::runtime::real5_roles::AgentRole::BearTrader
+                            )
+                        {
+                            use turingosv4::runtime::ev_decision_trace::EVAction;
+                            use turingosv4::runtime::market_review::{
+                                MarketReviewResponse, MarketReviewSummary, MarketReviewWindow,
+                            };
+                            use turingosv4::state::q_state::{AgentId, TxId};
+
+                            let parent_state_root = q_snapshot_for_prompt
+                                .as_ref()
+                                .map(|q| real6d_hash_hex(&q.state_root_t))
+                                .unwrap_or_else(|| format!("run_id={run_id};tx={tx}"));
+                            let ev_trace = real13_build_ev_decision_trace(
+                                &run_id,
+                                agent_id,
+                                logical_t,
+                                parent_state_root,
+                                &judgment,
+                            );
+                            let ev_cid = write_ev_decision_trace_to_cas_or_exit(
+                                &bundle.cas_path,
+                                &ev_trace,
+                                &format!("{}-{}", agent_id, tx),
+                                logical_t,
+                            );
+
+                            let window_id = TxId(ev_trace.review_window_id.clone());
+                            let window = MarketReviewWindow {
+                                window_id: window_id.clone(),
+                                event_id: ev_trace.event_id.clone(),
+                                opened_at_head_t: ev_trace.created_at_head_t.clone(),
+                                market_snapshot_cid: ev_trace.market_snapshot_cid.clone(),
+                                eligible_agents: vec![AgentId(agent_id.to_string())],
+                                deadline_logical_t: logical_t,
+                                mode: real13_market_review_mode_env(),
+                            };
+                            let window_cid = write_market_review_window_to_cas_or_exit(
+                                &bundle.cas_path,
+                                &window,
+                                &format!("{}-{}", agent_id, tx),
+                                logical_t,
+                            );
+                            let response = MarketReviewResponse {
+                                window_id: window_id.clone(),
+                                response_id: ev_trace.review_response_id.clone(),
+                                agent_id: AgentId(agent_id.to_string()),
+                                role: real5_prompt_role,
+                                ev_decision_trace_cid: Some(ev_cid.clone()),
+                                no_response_trace_cid: None,
+                                action: format!("{:?}", ev_trace.action),
+                                submitted_tx_id: None,
+                            };
+                            let response_cid = write_market_review_response_to_cas_or_exit(
+                                &bundle.cas_path,
+                                &response,
+                                &format!("{}-{}", agent_id, tx),
+                                logical_t,
+                            );
+                            let summary = MarketReviewSummary {
+                                window_id,
+                                event_id: ev_trace.event_id.clone(),
+                                response_count: 1,
+                                buy_count: (ev_trace.action == EVAction::BuyYes) as u64,
+                                short_count: (ev_trace.action == EVAction::BuyNo) as u64,
+                                abstain_count: (ev_trace.action == EVAction::Abstain) as u64,
+                                missing_count: 0,
+                                response_cids: vec![response_cid],
+                                committed_tx_ids: vec![],
+                            };
+                            let _summary_cid = write_market_review_summary_to_cas_or_exit(
+                                &bundle.cas_path,
+                                &summary,
+                                &format!("{}-{}", agent_id, tx),
+                                logical_t,
+                            );
+                            *tool_dist
+                                .entry("ev_decision_trace_total".into())
+                                .or_insert(0) += 1;
+                            *tool_dist
+                                .entry("market_review_summary_total".into())
+                                .or_insert(0) += 1;
+                            *tool_dist
+                                .entry("market_review_window_total".into())
+                                .or_insert(0) += 1;
+                            *tool_dist
+                                .entry(format!("market_review_window_cid_{window_cid}"))
+                                .or_insert(0) += 1;
+                        }
                         *tool_dist
                             .entry("economic_judgment_total".into())
                             .or_insert(0) += 1;
