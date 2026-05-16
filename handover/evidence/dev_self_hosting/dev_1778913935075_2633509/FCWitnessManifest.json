@@ -1,0 +1,35 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778913935075_2633509",
+  "fc_nodes": [
+    "FC1 role action loop",
+    "FC2 PromptCapsule replay",
+    "FC3 dashboard/audit materialized view",
+    "Art II broadcast",
+    "Art III shielding",
+    "Economy integer conservation"
+  ],
+  "expected_witness": "Diff, command evidence, and audit verdict must cite these FC nodes.",
+  "evidence_artifacts": [
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "5e4405f0f1dc53743a84fe842dedd6374a6720d5aad339fd99f6ac66d4561b7d",
+      "size_bytes": 135032
+    },
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "90491c3a395a561105d40a6c305eb83cf0ca51ceb535293275c9c1345f20b381",
+      "size_bytes": 137678
+    },
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "90491c3a395a561105d40a6c305eb83cf0ca51ceb535293275c9c1345f20b381",
+      "size_bytes": 137678
+    },
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "e565569a5682564f79141aa24535d9028b5f2c6df2f0b5e116e16e3cc39d16f3",
+      "size_bytes": 590442
+    }
+  ]
+}

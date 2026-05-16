@@ -1,0 +1,11 @@
+batch_id            real13_market_pressure_probe_20260516T071216Z_04d1d9f
+run_tag             real13_market_pressure_probe_20260516T071216Z
+problem_count       3
+git_head            04d1d9fcd1de331142d0e7315ac4e852137d7816
+elapsed_s           87
+batch_exit          0
+audit_exit          0
+audit_verdict       PROCEED
+persistence_exit    0
+persistence_passing true
+persistence_n_witnessed 5

@@ -1,0 +1,19 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778902207760_2603649",
+  "fc_nodes": [
+    "FC1 role action loop",
+    "FC2 PromptCapsule replay",
+    "FC3 dashboard/audit materialized view",
+    "Art II broadcast",
+    "Art III shielding"
+  ],
+  "expected_witness": "Diff, command evidence, and audit verdict must cite these FC nodes.",
+  "evidence_artifacts": [
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "e132e298e17eda595356ad29c0458d23b6e38e5b4e8edb61eb7b6004b2ec540b",
+      "size_bytes": 27270
+    }
+  ]
+}

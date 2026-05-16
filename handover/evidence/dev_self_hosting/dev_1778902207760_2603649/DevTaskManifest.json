@@ -1,0 +1,30 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778902207760_2603649",
+  "title": "REAL-13A Expected-Value Scaffolding plan",
+  "module": "REAL-13A Expected-Value Scaffolding",
+  "molecule_or_atom": "molecule",
+  "requested_risk_class": 0,
+  "risk_class": 0,
+  "fc_nodes": [
+    "FC1 role action loop",
+    "FC2 PromptCapsule replay",
+    "FC3 dashboard/audit materialized view",
+    "Art II broadcast",
+    "Art III shielding"
+  ],
+  "allowed_paths": [
+    "handover/directives/2026-05-16_REAL13A_EXPECTED_VALUE_SCAFFOLDING_ARCHITECT_SOURCE.md",
+    "handover/directives/2026-05-16_REAL13A_EXPECTED_VALUE_SCAFFOLDING_EXECUTION_PLAN.md",
+    "handover/audits/CODEX_REAL13A_EXECUTION_PLAN_ALIGNMENT_REVIEW.md"
+  ],
+  "restricted_surface_hits": [],
+  "acceptance_commands": [
+    "git diff --check"
+  ],
+  "audit_required": false,
+  "human_intent": "Draft and independently audit the REAL-13A Expected-Value Scaffolding execution plan before any implementation.",
+  "ratification": null,
+  "git_head": "04d1d9fcd1de331142d0e7315ac4e852137d7816",
+  "created_at_unix_ms": 1778902207761
+}

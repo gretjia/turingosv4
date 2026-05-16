@@ -2830,6 +2830,46 @@ fn render_tb_n3_run_report(
             ));
         }
     }
+    if let Ok(ev_summary) =
+        turingosv4::runtime::ev_decision_trace::EVDecisionTraceSummary::from_cas(&cas)
+    {
+        out.push_str(&format!(
+            "  ev_decision_trace_total_cas: {}\n",
+            ev_summary.total
+        ));
+        out.push_str(&format!(
+            "  ev_decision_trace_bull_count_cas: {}\n",
+            ev_summary.bull_count
+        ));
+        out.push_str(&format!(
+            "  ev_decision_trace_bear_count_cas: {}\n",
+            ev_summary.bear_count
+        ));
+        out.push_str(&format!(
+            "  ev_decision_trace_buy_yes_count_cas: {}\n",
+            ev_summary.buy_yes_count
+        ));
+        out.push_str(&format!(
+            "  ev_decision_trace_buy_no_count_cas: {}\n",
+            ev_summary.buy_no_count
+        ));
+        out.push_str(&format!(
+            "  ev_decision_trace_abstain_count_cas: {}\n",
+            ev_summary.abstain_count
+        ));
+        for (reason, count) in &ev_summary.by_reason {
+            out.push_str(&format!(
+                "    - ev_decision_reason_{:?}: {}\n",
+                reason, count
+            ));
+        }
+    }
+    let market_review_summary_count =
+        turingosv4::runtime::market_review::market_review_summary_cids(&cas).len();
+    out.push_str(&format!(
+        "  market_review_summary_cas_count: {}\n",
+        market_review_summary_count
+    ));
     match turingosv4::runtime::economic_judgment::verify_bull_bear_turn_judgment_coverage(&cas) {
         Ok(report) => {
             out.push_str("  economic_judgment_coverage_ok: true\n");
