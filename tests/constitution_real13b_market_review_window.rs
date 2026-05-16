@@ -24,6 +24,8 @@ fn response(agent: &str, cid: Option<&str>) -> MarketReviewResponse {
         no_response_trace_cid: None,
         action: "Abstain".into(),
         submitted_tx_id: None,
+        librarian_digest_cid: None,
+        broadcast_epoch_id: None,
     }
 }
 
@@ -37,6 +39,8 @@ fn sequential_market_review_window_is_default_and_deterministic() {
         eligible_agents: vec![AgentId("Agent_2".into()), AgentId("Agent_1".into())],
         deadline_logical_t: 42,
         mode: MarketReviewMode::SequentialRound,
+        librarian_digest_cid: None,
+        broadcast_epoch_id: None,
     };
     assert_eq!(window.mode, MarketReviewMode::SequentialRound);
 
@@ -74,6 +78,7 @@ fn market_review_summary_counts_must_match_response_cids() {
             Cid::from_content(b"response-2"),
         ],
         committed_tx_ids: vec![],
+        digest_set: vec![],
     };
     validate_market_review_summary(&summary).unwrap();
 
@@ -103,6 +108,8 @@ fn market_review_sidecars_are_generic_cas_backed() {
         eligible_agents: vec![AgentId("Agent_1".into())],
         deadline_logical_t: 7,
         mode: MarketReviewMode::SequentialRound,
+        librarian_digest_cid: None,
+        broadcast_epoch_id: None,
     };
     let response = response("Agent_1", Some("ev-cid"));
     let summary = MarketReviewSummary {
@@ -115,6 +122,7 @@ fn market_review_sidecars_are_generic_cas_backed() {
         missing_count: 0,
         response_cids: vec![Cid::from_content(b"response-cid")],
         committed_tx_ids: vec![],
+        digest_set: vec![],
     };
 
     let window_cid = write_market_review_window_to_cas(&mut cas, &window, "window", 1).unwrap();

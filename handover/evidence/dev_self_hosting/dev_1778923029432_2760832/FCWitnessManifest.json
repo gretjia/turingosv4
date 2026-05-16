@@ -1,0 +1,15 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778923029432_2760832",
+  "fc_nodes": [
+    "FC1 rtool/input/Agent next turn; FC2 barrier tick replay; FC3 logs/capsule derived broadcast view; Art II broadcast; Art III shielding"
+  ],
+  "expected_witness": "Diff, command evidence, and audit verdict must cite these FC nodes.",
+  "evidence_artifacts": [
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "9c8ed1ba18a72950a574eafa16d4dc6cb7589f517672070e81355f7db1bc057d",
+      "size_bytes": 97432
+    }
+  ]
+}

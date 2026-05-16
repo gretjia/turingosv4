@@ -1,0 +1,70 @@
+
+running 3 tests
+test broadcast_epoch_rejects_future_or_out_of_window_digest ... ok
+test digest_clusters_repeated_errors_and_is_deterministic ... ok
+test digest_is_generic_cas_backed_and_readable ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 2 tests
+test barriered_async_rejects_mismatched_or_future_digest ... ok
+test barriered_async_freezes_digest_for_all_responses ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 2 tests
+test digest_crop_and_prompt_reject_forbidden_raw_material ... ok
+test sanitized_digest_and_prompt_pass_no_leak_scan ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 3 tests
+test prompt_hash_changes_when_digest_notice_changes ... ok
+test prompt_capsule_read_set_and_visible_context_bind_digest ... ok
+test attempt_telemetry_links_to_prompt_capsule_with_librarian_read_set ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 2 tests
+test real13_status_sync_points_to_existing_clean_evidence ... ok
+test dashboard_has_librarian_materialized_view_section ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 2 tests
+test role_crops_reference_source_digest_and_redactions ... ok
+test projector_produces_role_specific_crops ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 3 tests
+test selector_fails_closed_on_explicit_unknown_candidate ... ok
+test selector_does_not_copy_raw_payload_body ... ok
+test selector_reads_known_typed_sidecars ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+
+running 3 tests
+test source_scope_requires_current_run_cas_root ... ok
+test source_scope_rejects_global_pointer_inputs ... ok
+test source_scope_resolves_prior_capsules_or_fails_closed ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 5 tests
+test full_async_mode_is_explicitly_unsafe_only ... ok
+test every_market_review_response_needs_ev_or_no_response_trace ... ok
+test sequential_market_review_window_is_default_and_deterministic ... ok
+test market_review_summary_counts_must_match_response_cids ... ok
+test market_review_sidecars_are_generic_cas_backed ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+

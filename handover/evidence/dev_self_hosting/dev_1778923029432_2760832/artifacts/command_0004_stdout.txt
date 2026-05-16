@@ -1,0 +1,18 @@
+
+running 1 test
+test boot::tests::verify_trust_root_passes_on_intact_repo ... FAILED
+
+failures:
+
+---- boot::tests::verify_trust_root_passes_on_intact_repo stdout ----
+
+thread 'boot::tests::verify_trust_root_passes_on_intact_repo' (2776615) panicked at src/boot.rs:441:41:
+intact repo verifies: Tampered { path: "/home/zephryj/projects/turingosv4-real12-action-probes/experiments/minif2f_v4/src/bin/evaluator.rs", expected: "40f645af21d0a908e3b49d9f8aa9d1810304a39462baa6fba6106572bae0ad01", actual: "38e281876a95d51d993ca2c0a7aeac02cbabc818742574b45887680da0837d12" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    boot::tests::verify_trust_root_passes_on_intact_repo
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 631 filtered out; finished in 0.12s
+

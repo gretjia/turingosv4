@@ -120,6 +120,7 @@ fn real5_write_prompt_capsule_v2_for_view(
     role_view: &turingosv4::runtime::real5_roles::DerivedView,
     visible_context_bytes: &[u8],
     role_view_bytes: &[u8],
+    extra_read_set: &[turingosv4::bottom_white::cas::schema::Cid],
     path_label: &str,
     logical_t: u64,
 ) -> Result<turingosv4::bottom_white::cas::schema::Cid, String> {
@@ -163,6 +164,11 @@ fn real5_write_prompt_capsule_v2_for_view(
     if !read_set.contains(&role_view_cid) {
         read_set.push(role_view_cid);
     }
+    for cid in extra_read_set {
+        if !read_set.contains(cid) {
+            read_set.push(*cid);
+        }
+    }
     let role_label = assigned_role.label();
     let prompt_capsule = PromptCapsuleV2 {
         prompt_context_hash: prompt_ctx_hash,
@@ -184,6 +190,15 @@ fn real5_write_prompt_capsule_v2_for_view(
         ),
         model_assignment_cid: None,
     };
+    if extra_read_set.len() >= 2 {
+        turingosv4::runtime::librarian_broadcast::validate_prompt_capsule_librarian_binding(
+            &prompt_capsule,
+            visible_context_bytes,
+            extra_read_set[0],
+            extra_read_set[1],
+        )
+        .map_err(|e| format!("PromptCapsuleV2 Librarian binding: {e}"))?;
+    }
     write_prompt_capsule_v2_to_cas(
         cas_store,
         &prompt_capsule,
@@ -264,6 +279,7 @@ fn r2_write_attempt_telemetry(
             &role_view,
             visible_context_bytes,
             &role_view_bytes,
+            &[],
             args.path_label,
             args.logical_t,
         )?
@@ -398,7 +414,17 @@ fn real5_prompt_view_block(
         return String::new();
     }
     let sections = view.public_sections.join(", ");
-    let redacted = view.hidden_fields_redacted.join(", ");
+    let redacted = view
+        .hidden_fields_redacted
+        .iter()
+        .map(|field| match field.as_str() {
+            "raw_diagnostics" => "diagnostics_redacted",
+            "raw CoT" => "private_cot_redacted",
+            "private_market_internals" => "market_internals_redacted",
+            other => other,
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
     let mut block = format!(
         "\n=== REAL-5 Role View ===\nrole: {}\nvisible_context_cid: {}\nview_policy_id: real5/{}_view/v1\npublic_sections: {}\nprice_signal_count: {}\nhidden_fields_redacted: {}\n",
         role.label(),
@@ -865,6 +891,112 @@ fn real13_ev_decision_trace_enabled() -> bool {
         .ok()
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
         .unwrap_or(false)
+}
+
+fn real_bcast_librarian_enabled() -> bool {
+    std::env::var("TURINGOS_REAL_BCAST_LIBRARIAN")
+        .ok()
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false)
+}
+
+#[derive(Debug, Clone)]
+struct RealBcastTurnBundle {
+    digest_cid: turingosv4::bottom_white::cas::schema::Cid,
+    role_crop_cid: turingosv4::bottom_white::cas::schema::Cid,
+    epoch_id: String,
+    rendered_notice: String,
+}
+
+fn real_bcast_build_turn_bundle_or_exit(
+    cas_path: &std::path::Path,
+    role: turingosv4::runtime::real5_roles::AgentRole,
+    run_id: &str,
+    agent_id: &str,
+    tx: u64,
+    logical_t: u64,
+) -> RealBcastTurnBundle {
+    use turingosv4::runtime::librarian_broadcast::{
+        build_librarian_digest, derive_current_run_cas_root, project_role_notifications,
+        read_librarian_digest_from_cas, select_librarian_events, validate_librarian_source_scope,
+        write_librarian_digest_to_cas, write_role_notification_view_to_cas, LibrarianSourceScope,
+    };
+
+    let mut cas_store = match turingosv4::bottom_white::cas::store::CasStore::open(cas_path) {
+        Ok(store) => store,
+        Err(e) => {
+            error!("[real-bcast] CAS open failed: {e}");
+            std::process::exit(3);
+        }
+    };
+    let scope = LibrarianSourceScope {
+        current_run_cas_root: derive_current_run_cas_root(&cas_store),
+        prior_capsule_cids: vec![],
+        max_prior_batches: 0,
+        task_tags: vec![run_id.to_string()],
+    };
+    if let Err(e) = validate_librarian_source_scope(&scope, &cas_store) {
+        error!("[real-bcast] source scope invalid: {e}");
+        std::process::exit(3);
+    }
+    let events = match select_librarian_events(&cas_store) {
+        Ok(events) => events,
+        Err(e) => {
+            error!("[real-bcast] selector failed closed: {e}");
+            std::process::exit(3);
+        }
+    };
+    let digest = match build_librarian_digest(scope, logical_t, events) {
+        Ok(digest) => digest,
+        Err(e) => {
+            error!("[real-bcast] digest build failed: {e}");
+            std::process::exit(3);
+        }
+    };
+    let digest_cid = match write_librarian_digest_to_cas(
+        &mut cas_store,
+        &digest,
+        &format!("turn-{agent_id}-{tx}"),
+        logical_t,
+    ) {
+        Ok(cid) => cid,
+        Err(e) => {
+            error!("[real-bcast] digest CAS write failed: {e}");
+            std::process::exit(3);
+        }
+    };
+    if let Err(e) = read_librarian_digest_from_cas(&cas_store, &digest_cid) {
+        error!("[real-bcast] digest CAS readback failed: {e}");
+        std::process::exit(3);
+    }
+    let mut digest_for_crop = digest.clone();
+    digest_for_crop.digest_id = digest_cid;
+    let crop = match project_role_notifications(&digest_for_crop, role, 8) {
+        Ok(crop) => crop,
+        Err(e) => {
+            error!("[real-bcast] role notification projection failed: {e}");
+            std::process::exit(3);
+        }
+    };
+    let rendered_notice = crop.rendered_notice.clone();
+    let role_crop_cid = match write_role_notification_view_to_cas(
+        &mut cas_store,
+        &crop,
+        &format!("turn-{agent_id}-{tx}"),
+        logical_t,
+    ) {
+        Ok(cid) => cid,
+        Err(e) => {
+            error!("[real-bcast] role notification CAS write failed: {e}");
+            std::process::exit(3);
+        }
+    };
+    RealBcastTurnBundle {
+        digest_cid,
+        role_crop_cid,
+        epoch_id: format!("real-bcast:{run_id}:{agent_id}:{tx}"),
+        rendered_notice,
+    }
 }
 
 fn real13_market_review_mode_env() -> turingosv4::runtime::market_review::MarketReviewMode {
@@ -4262,6 +4394,29 @@ async fn run_swarm(
             std::process::exit(1);
         });
         let real5_role_view_block = real5_prompt_view_block(&real5_prompt_view, real5_prompt_role);
+        if real_bcast_librarian_enabled()
+            && std::env::var("TURINGOS_REAL5_ROLE_VIEWS").ok().as_deref() != Some("1")
+        {
+            error!("[real-bcast] Librarian prompt injection requires TURINGOS_REAL5_ROLE_VIEWS=1");
+            std::process::exit(3);
+        }
+        let real_bcast_turn_bundle = if real_bcast_librarian_enabled() {
+            let Some(bundle) = chaintape_bundle.as_ref() else {
+                error!("[real-bcast] Librarian enabled but ChainTape bundle unavailable");
+                std::process::exit(3);
+            };
+            let logical_t = bundle.sequencer.next_logical_t_peek();
+            Some(real_bcast_build_turn_bundle_or_exit(
+                &bundle.cas_path,
+                real5_prompt_role,
+                &run_id,
+                agent_id,
+                tx as u64,
+                logical_t,
+            ))
+        } else {
+            None
+        };
 
         let base_prompt = build_agent_prompt(
             &chain,
@@ -4275,11 +4430,15 @@ async fn run_swarm(
             &pending_peer_reviews,
             &your_position,
         );
-        let prompt = if real5_role_view_block.is_empty() {
-            base_prompt
-        } else {
-            format!("{base_prompt}\n{real5_role_view_block}")
-        };
+        let mut prompt = base_prompt;
+        if let Some(bundle) = real_bcast_turn_bundle.as_ref() {
+            prompt.push('\n');
+            prompt.push_str(&bundle.rendered_notice);
+        }
+        if !real5_role_view_block.is_empty() {
+            prompt.push('\n');
+            prompt.push_str(&real5_role_view_block);
+        }
         // TB-18R R2: SHA-256 of the prompt body for AttemptTelemetry.prompt_context_hash
         // (preflight §3.1: reuse Cid::from_content to avoid adding sha2 direct
         // dep to experiments/minif2f_v4/Cargo.toml). Computed BEFORE the
@@ -4300,6 +4459,10 @@ async fn run_swarm(
                             std::process::exit(3);
                         }
                     };
+                    let extra_read_set = real_bcast_turn_bundle
+                        .as_ref()
+                        .map(|bundle| vec![bundle.digest_cid, bundle.role_crop_cid])
+                        .unwrap_or_default();
                     match real5_write_prompt_capsule_v2_for_view(
                         &mut cas_store,
                         agent_id,
@@ -4308,6 +4471,7 @@ async fn run_swarm(
                         &real5_prompt_view,
                         prompt.as_bytes(),
                         &real5_prompt_view_bytes,
+                        &extra_read_set,
                         &format!("turn-{}-{}", agent_id, tx),
                         logical_t,
                     ) {
@@ -7390,6 +7554,12 @@ async fn run_swarm(
                             );
 
                             let window_id = TxId(ev_trace.review_window_id.clone());
+                            let librarian_digest_cid = real_bcast_turn_bundle
+                                .as_ref()
+                                .map(|bundle| bundle.digest_cid);
+                            let broadcast_epoch_id = real_bcast_turn_bundle
+                                .as_ref()
+                                .map(|bundle| bundle.epoch_id.clone());
                             let window = MarketReviewWindow {
                                 window_id: window_id.clone(),
                                 event_id: ev_trace.event_id.clone(),
@@ -7398,6 +7568,8 @@ async fn run_swarm(
                                 eligible_agents: vec![AgentId(agent_id.to_string())],
                                 deadline_logical_t: logical_t,
                                 mode: real13_market_review_mode_env(),
+                                librarian_digest_cid,
+                                broadcast_epoch_id: broadcast_epoch_id.clone(),
                             };
                             let window_cid = write_market_review_window_to_cas_or_exit(
                                 &bundle.cas_path,
@@ -7414,6 +7586,8 @@ async fn run_swarm(
                                 no_response_trace_cid: None,
                                 action: format!("{:?}", ev_trace.action),
                                 submitted_tx_id: None,
+                                librarian_digest_cid,
+                                broadcast_epoch_id: broadcast_epoch_id.clone(),
                             };
                             let response_cid = write_market_review_response_to_cas_or_exit(
                                 &bundle.cas_path,
@@ -7431,6 +7605,7 @@ async fn run_swarm(
                                 missing_count: 0,
                                 response_cids: vec![response_cid],
                                 committed_tx_ids: vec![],
+                                digest_set: librarian_digest_cid.into_iter().collect(),
                             };
                             let _summary_cid = write_market_review_summary_to_cas_or_exit(
                                 &bundle.cas_path,

@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::bottom_white::cas::schema::{Cid, ObjectType};
 use crate::bottom_white::cas::store::{CasError, CasStore};
+use crate::runtime::librarian_broadcast::{validate_broadcast_epoch, BroadcastEpoch};
 use crate::runtime::real5_roles::AgentRole;
 use crate::state::q_state::{AgentId, TxId};
 use crate::state::typed_tx::EventId;
@@ -45,6 +46,10 @@ pub struct MarketReviewWindow {
     pub eligible_agents: Vec<AgentId>,
     pub deadline_logical_t: u64,
     pub mode: MarketReviewMode,
+    #[serde(default)]
+    pub librarian_digest_cid: Option<Cid>,
+    #[serde(default)]
+    pub broadcast_epoch_id: Option<String>,
 }
 
 /// TRACE_MATRIX FC1/FC3: per-agent response sidecar linking a review turn to
@@ -59,6 +64,10 @@ pub struct MarketReviewResponse {
     pub no_response_trace_cid: Option<Cid>,
     pub action: String,
     pub submitted_tx_id: Option<TxId>,
+    #[serde(default)]
+    pub librarian_digest_cid: Option<Cid>,
+    #[serde(default)]
+    pub broadcast_epoch_id: Option<String>,
 }
 
 /// TRACE_MATRIX FC3: CAS-backed summary of a review window for reports; it
@@ -74,6 +83,8 @@ pub struct MarketReviewSummary {
     pub missing_count: u64,
     pub response_cids: Vec<Cid>,
     pub committed_tx_ids: Vec<TxId>,
+    #[serde(default)]
+    pub digest_set: Vec<Cid>,
 }
 
 /// TRACE_MATRIX FC1: deterministic response ordering used by sequential and
@@ -123,6 +134,41 @@ pub fn validate_market_review_summary(summary: &MarketReviewSummary) -> Result<(
             "market review counted outcomes={counted} does not match response_count={}",
             summary.response_count
         ));
+    }
+    Ok(())
+}
+
+/// TRACE_MATRIX FC1/FC2/FC3: REAL-BCAST-1 half-async contract. A market
+/// review window freezes a Librarian digest at the barrier; every response in
+/// the window must cite the same digest/epoch, and replay must reject stale or
+/// future epochs.
+pub fn validate_market_review_broadcast_contract(
+    window: &MarketReviewWindow,
+    responses: &[MarketReviewResponse],
+    summary: &MarketReviewSummary,
+    epoch: &BroadcastEpoch,
+    current_head_t: u64,
+) -> Result<(), String> {
+    validate_broadcast_epoch(epoch, current_head_t)?;
+    let Some(window_digest) = window.librarian_digest_cid else {
+        return Err("MarketReviewWindow missing librarian_digest_cid".into());
+    };
+    if window_digest != epoch.digest_cid {
+        return Err("MarketReviewWindow digest mismatch with BroadcastEpoch".into());
+    }
+    if window.broadcast_epoch_id.as_deref() != Some(epoch.epoch_id.as_str()) {
+        return Err("MarketReviewWindow broadcast_epoch_id mismatch".into());
+    }
+    for response in responses {
+        if response.librarian_digest_cid != Some(window_digest) {
+            return Err("MarketReviewResponse digest mismatch".into());
+        }
+        if response.broadcast_epoch_id.as_deref() != Some(epoch.epoch_id.as_str()) {
+            return Err("MarketReviewResponse broadcast_epoch_id mismatch".into());
+        }
+    }
+    if !summary.digest_set.contains(&window_digest) {
+        return Err("MarketReviewSummary digest_set missing frozen digest".into());
     }
     Ok(())
 }

@@ -1,0 +1,66 @@
+════════════════════════════════════════════════════════════════════════
+TB-G G1.2 chain-continuous batch (Option B+ canonical)
+════════════════════════════════════════════════════════════════════════
+RUN_TAG          = real_bcast_1_ab_A_20260516T100140Z
+RUN_DIR          = /home/zephryj/projects/turingosv4-real12-action-probes/handover/evidence/real_bcast_1_ab_A_20260516T100140Z
+PROBLEM_SET      = mini  (3 tasks)
+ACTIVE_MODEL     = deepseek-chat
+G_PHASE_N_AGENTS = 5
+G_PHASE_CONDITION= n5
+AGENT_MODELS     = <empty>
+PHASE_D_HETERO_OK= 0
+MODEL_FAMILIES   = observed=1 required=0
+REAL5_ROLES      = BullTrader,BearTrader,Solver,Verifier,Challenger
+REAL5_ROLE_VIEWS = 1
+LLM_PROXY_URL    = http://localhost:8080
+MINIF2F_DIR      = /home/zephryj/projects/turingosv3/experiments/minif2f_data_lean4
+PER_PROB_TIMEOUT = 360s
+
+[build] cargo build --release -p minif2f_v4 --bin evaluator --bin batch_evaluator -p turingosv4 --bin audit_tape --bin tb_g_persistence_report
+    |
+    = note: `WorkTxAttempt` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: `turingosv4` (lib) generated 25 warnings (run `cargo fix --lib -p turingosv4` to apply 19 suggestions)
+    Finished `release` profile [optimized] target(s) in 0.60s
+
+[batch_evaluator] launching 3-task batch (real_bcast_1_ab_A_20260516T100140Z_cef585c)
+[batch_evaluator] runtime_repo=/home/zephryj/projects/turingosv4-real12-action-probes/handover/evidence/real_bcast_1_ab_A_20260516T100140Z/runtime_repo cas=/home/zephryj/projects/turingosv4-real12-action-probes/handover/evidence/real_bcast_1_ab_A_20260516T100140Z/cas
+batch_orchestrator: task_index=0 BoundaryPrep::FreshGenesis (no preflight, no lease — task_0 owns genesis)
+batch_orchestrator: task_index=1 ChainTapeLease ACQUIRED (holder_pid=2783116, batch_id=real_bcast_1_ab_A_20260516T100140Z_cef585c, start_head=c84498616d1dabbfe254d0bb6436d46522bb76c3)
+batch_orchestrator: task_index=1 ResumePreflight::Ok (head=c84498616d1dabbfe254d0bb6436d46522bb76c3 state_root=146b6b5dbfed140d0c759b486b0f1843594a8ced504353538f7e0a3f6de8ebd7 chain_length=11) → BoundaryPrep::Resume
+batch_orchestrator: task_index=2 ChainTapeLease ACQUIRED (holder_pid=2783116, batch_id=real_bcast_1_ab_A_20260516T100140Z_cef585c, start_head=57eaf9f0b8722ef78381578001f5023d405fb8b0)
+batch_orchestrator: task_index=2 ResumePreflight::Ok (head=57eaf9f0b8722ef78381578001f5023d405fb8b0 state_root=8c23b9c169c5b4206de64f6b6f652b835c85f8ef7e8f54029f7e217b30caf8f8 chain_length=22) → BoundaryPrep::Resume
+batch_evaluator: chain continuity OK across 3 tasks
+[batch_evaluator] exit_code=0 elapsed=236s
+
+[audit_tape] running over shared runtime_repo + cas
+audit_tape: verdict=PROCEED passed=41 failed=0 halted=0 skipped=11 (out="/home/zephryj/projects/turingosv4-real12-action-probes/handover/evidence/real_bcast_1_ab_A_20260516T100140Z/aggregate_verdict.json")
+[audit_tape] exit=0 verdict=PROCEED
+
+[persistence_report] running tb_g_persistence_report
+[persistence_report] exit=0 is_passing=true n_witnessed=5
+
+════════════════════════════════════════════════════════════════════════
+Done. Evidence dir: /home/zephryj/projects/turingosv4-real12-action-probes/handover/evidence/real_bcast_1_ab_A_20260516T100140Z
+  - BatchContinuationManifest.json   (G1.2-4 fact-identity)
+  - aggregate_verdict.json verdict=PROCEED
+  - PERSISTENCE_BINDING_REPORT.json  is_passing=true (n_witnessed=5)
+  - run_log.txt
+════════════════════════════════════════════════════════════════════════
+REAL-12 task-market probe evidence: /home/zephryj/projects/turingosv4-real12-action-probes/handover/evidence/real_bcast_1_ab_A_20260516T100140Z
+audit_verdict=PROCEED
+bid_task_attempted=0
+invest_attempted=0
+buy_with_coin_router=0
+buy_yes_router_count=0
+buy_no_router_count=0
+economic_judgment_total=8
+bull_judgment_count=4
+bear_judgment_count=4
+e2_verdict=E2 NOT ACHIEVED
+REAL-13 market-pressure probe evidence: /home/zephryj/projects/turingosv4-real12-action-probes/handover/evidence/real_bcast_1_ab_A_20260516T100140Z
+audit_verdict=PROCEED
+ev_decision_trace_total_cas=8
+market_review_summary_cas_count=8
+live_non_scripted_router_tx_count=0
+e2_verdict=E2 NOT ACHIEVED

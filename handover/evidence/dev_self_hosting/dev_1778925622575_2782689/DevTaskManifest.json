@@ -1,0 +1,39 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778925622575_2782689",
+  "title": "REAL-BCAST-1 Trust Root rehash and expanded real tests",
+  "module": "REAL-BCAST-1 Librarian Broadcast Loop",
+  "molecule_or_atom": "molecule",
+  "requested_risk_class": 4,
+  "risk_class": 4,
+  "fc_nodes": [
+    "FC1 role-scoped broadcast prompt loop; FC2 PromptCapsule/CAS replay; FC3 dashboard/audit materialized view; Art II broadcasting/shielding"
+  ],
+  "allowed_paths": [
+    "genesis_payload.toml",
+    "src/runtime/librarian_broadcast.rs",
+    "src/runtime/mod.rs",
+    "src/runtime/market_review.rs",
+    "experiments/minif2f_v4/src/bin/evaluator.rs",
+    "src/bin/audit_dashboard.rs",
+    "tests/constitution_librarian_*.rs",
+    "tests/constitution_real13b_market_review_window.rs",
+    "handover/directives",
+    "handover/alignment",
+    "handover/audits",
+    "handover/evidence",
+    "handover/reports",
+    "scripts"
+  ],
+  "restricted_surface_hits": [
+    "genesis_payload.toml"
+  ],
+  "acceptance_commands": [
+    "cargo check"
+  ],
+  "audit_required": true,
+  "human_intent": null,
+  "ratification": null,
+  "git_head": "cef585c4b61d6e4080f6ed3d38d0a468e2cc46c0",
+  "created_at_unix_ms": 1778925622575
+}

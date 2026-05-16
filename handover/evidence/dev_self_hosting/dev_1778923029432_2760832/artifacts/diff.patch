@@ -1,0 +1,2680 @@
+diff --git a/experiments/minif2f_v4/src/bin/evaluator.rs b/experiments/minif2f_v4/src/bin/evaluator.rs
+index b81b238c..60a5e588 100644
+--- a/experiments/minif2f_v4/src/bin/evaluator.rs
++++ b/experiments/minif2f_v4/src/bin/evaluator.rs
+@@ -120,6 +120,7 @@ fn real5_write_prompt_capsule_v2_for_view(
+     role_view: &turingosv4::runtime::real5_roles::DerivedView,
+     visible_context_bytes: &[u8],
+     role_view_bytes: &[u8],
++    extra_read_set: &[turingosv4::bottom_white::cas::schema::Cid],
+     path_label: &str,
+     logical_t: u64,
+ ) -> Result<turingosv4::bottom_white::cas::schema::Cid, String> {
+@@ -163,6 +164,11 @@ fn real5_write_prompt_capsule_v2_for_view(
+     if !read_set.contains(&role_view_cid) {
+         read_set.push(role_view_cid);
+     }
++    for cid in extra_read_set {
++        if !read_set.contains(cid) {
++            read_set.push(*cid);
++        }
++    }
+     let role_label = assigned_role.label();
+     let prompt_capsule = PromptCapsuleV2 {
+         prompt_context_hash: prompt_ctx_hash,
+@@ -184,6 +190,15 @@ fn real5_write_prompt_capsule_v2_for_view(
+         ),
+         model_assignment_cid: None,
+     };
++    if extra_read_set.len() >= 2 {
++        turingosv4::runtime::librarian_broadcast::validate_prompt_capsule_librarian_binding(
++            &prompt_capsule,
++            visible_context_bytes,
++            extra_read_set[0],
++            extra_read_set[1],
++        )
++        .map_err(|e| format!("PromptCapsuleV2 Librarian binding: {e}"))?;
++    }
+     write_prompt_capsule_v2_to_cas(
+         cas_store,
+         &prompt_capsule,
+@@ -264,6 +279,7 @@ fn r2_write_attempt_telemetry(
+             &role_view,
+             visible_context_bytes,
+             &role_view_bytes,
++            &[],
+             args.path_label,
+             args.logical_t,
+         )?
+@@ -398,7 +414,17 @@ fn real5_prompt_view_block(
+         return String::new();
+     }
+     let sections = view.public_sections.join(", ");
+-    let redacted = view.hidden_fields_redacted.join(", ");
++    let redacted = view
++        .hidden_fields_redacted
++        .iter()
++        .map(|field| match field.as_str() {
++            "raw_diagnostics" => "diagnostics_redacted",
++            "raw CoT" => "private_cot_redacted",
++            "private_market_internals" => "market_internals_redacted",
++            other => other,
++        })
++        .collect::<Vec<_>>()
++        .join(", ");
+     let mut block = format!(
+         "\n=== REAL-5 Role View ===\nrole: {}\nvisible_context_cid: {}\nview_policy_id: real5/{}_view/v1\npublic_sections: {}\nprice_signal_count: {}\nhidden_fields_redacted: {}\n",
+         role.label(),
+@@ -867,6 +893,112 @@ fn real13_ev_decision_trace_enabled() -> bool {
+         .unwrap_or(false)
+ }
+ 
++fn real_bcast_librarian_enabled() -> bool {
++    std::env::var("TURINGOS_REAL_BCAST_LIBRARIAN")
++        .ok()
++        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
++        .unwrap_or(false)
++}
++
++#[derive(Debug, Clone)]
++struct RealBcastTurnBundle {
++    digest_cid: turingosv4::bottom_white::cas::schema::Cid,
++    role_crop_cid: turingosv4::bottom_white::cas::schema::Cid,
++    epoch_id: String,
++    rendered_notice: String,
++}
++
++fn real_bcast_build_turn_bundle_or_exit(
++    cas_path: &std::path::Path,
++    role: turingosv4::runtime::real5_roles::AgentRole,
++    run_id: &str,
++    agent_id: &str,
++    tx: u64,
++    logical_t: u64,
++) -> RealBcastTurnBundle {
++    use turingosv4::runtime::librarian_broadcast::{
++        build_librarian_digest, derive_current_run_cas_root, project_role_notifications,
++        read_librarian_digest_from_cas, select_librarian_events, validate_librarian_source_scope,
++        write_librarian_digest_to_cas, write_role_notification_view_to_cas, LibrarianSourceScope,
++    };
++
++    let mut cas_store = match turingosv4::bottom_white::cas::store::CasStore::open(cas_path) {
++        Ok(store) => store,
++        Err(e) => {
++            error!("[real-bcast] CAS open failed: {e}");
++            std::process::exit(3);
++        }
++    };
++    let scope = LibrarianSourceScope {
++        current_run_cas_root: derive_current_run_cas_root(&cas_store),
++        prior_capsule_cids: vec![],
++        max_prior_batches: 0,
++        task_tags: vec![run_id.to_string()],
++    };
++    if let Err(e) = validate_librarian_source_scope(&scope, &cas_store) {
++        error!("[real-bcast] source scope invalid: {e}");
++        std::process::exit(3);
++    }
++    let events = match select_librarian_events(&cas_store) {
++        Ok(events) => events,
++        Err(e) => {
++            error!("[real-bcast] selector failed closed: {e}");
++            std::process::exit(3);
++        }
++    };
++    let digest = match build_librarian_digest(scope, logical_t, events) {
++        Ok(digest) => digest,
++        Err(e) => {
++            error!("[real-bcast] digest build failed: {e}");
++            std::process::exit(3);
++        }
++    };
++    let digest_cid = match write_librarian_digest_to_cas(
++        &mut cas_store,
++        &digest,
++        &format!("turn-{agent_id}-{tx}"),
++        logical_t,
++    ) {
++        Ok(cid) => cid,
++        Err(e) => {
++            error!("[real-bcast] digest CAS write failed: {e}");
++            std::process::exit(3);
++        }
++    };
++    if let Err(e) = read_librarian_digest_from_cas(&cas_store, &digest_cid) {
++        error!("[real-bcast] digest CAS readback failed: {e}");
++        std::process::exit(3);
++    }
++    let mut digest_for_crop = digest.clone();
++    digest_for_crop.digest_id = digest_cid;
++    let crop = match project_role_notifications(&digest_for_crop, role, 8) {
++        Ok(crop) => crop,
++        Err(e) => {
++            error!("[real-bcast] role notification projection failed: {e}");
++            std::process::exit(3);
++        }
++    };
++    let rendered_notice = crop.rendered_notice.clone();
++    let role_crop_cid = match write_role_notification_view_to_cas(
++        &mut cas_store,
++        &crop,
++        &format!("turn-{agent_id}-{tx}"),
++        logical_t,
++    ) {
++        Ok(cid) => cid,
++        Err(e) => {
++            error!("[real-bcast] role notification CAS write failed: {e}");
++            std::process::exit(3);
++        }
++    };
++    RealBcastTurnBundle {
++        digest_cid,
++        role_crop_cid,
++        epoch_id: format!("real-bcast:{run_id}:{agent_id}:{tx}"),
++        rendered_notice,
++    }
++}
++
+ fn real13_market_review_mode_env() -> turingosv4::runtime::market_review::MarketReviewMode {
+     match std::env::var("TURINGOS_MARKET_REVIEW_MODE")
+         .unwrap_or_else(|_| "sequential".into())
+@@ -4262,6 +4394,29 @@ async fn run_swarm(
+             std::process::exit(1);
+         });
+         let real5_role_view_block = real5_prompt_view_block(&real5_prompt_view, real5_prompt_role);
++        if real_bcast_librarian_enabled()
++            && std::env::var("TURINGOS_REAL5_ROLE_VIEWS").ok().as_deref() != Some("1")
++        {
++            error!("[real-bcast] Librarian prompt injection requires TURINGOS_REAL5_ROLE_VIEWS=1");
++            std::process::exit(3);
++        }
++        let real_bcast_turn_bundle = if real_bcast_librarian_enabled() {
++            let Some(bundle) = chaintape_bundle.as_ref() else {
++                error!("[real-bcast] Librarian enabled but ChainTape bundle unavailable");
++                std::process::exit(3);
++            };
++            let logical_t = bundle.sequencer.next_logical_t_peek();
++            Some(real_bcast_build_turn_bundle_or_exit(
++                &bundle.cas_path,
++                real5_prompt_role,
++                &run_id,
++                agent_id,
++                tx as u64,
++                logical_t,
++            ))
++        } else {
++            None
++        };
+ 
+         let base_prompt = build_agent_prompt(
+             &chain,
+@@ -4275,11 +4430,15 @@ async fn run_swarm(
+             &pending_peer_reviews,
+             &your_position,
+         );
+-        let prompt = if real5_role_view_block.is_empty() {
+-            base_prompt
+-        } else {
+-            format!("{base_prompt}\n{real5_role_view_block}")
+-        };
++        let mut prompt = base_prompt;
++        if let Some(bundle) = real_bcast_turn_bundle.as_ref() {
++            prompt.push('\n');
++            prompt.push_str(&bundle.rendered_notice);
++        }
++        if !real5_role_view_block.is_empty() {
++            prompt.push('\n');
++            prompt.push_str(&real5_role_view_block);
++        }
+         // TB-18R R2: SHA-256 of the prompt body for AttemptTelemetry.prompt_context_hash
+         // (preflight §3.1: reuse Cid::from_content to avoid adding sha2 direct
+         // dep to experiments/minif2f_v4/Cargo.toml). Computed BEFORE the
+@@ -4300,6 +4459,10 @@ async fn run_swarm(
+                             std::process::exit(3);
+                         }
+                     };
++                    let extra_read_set = real_bcast_turn_bundle
++                        .as_ref()
++                        .map(|bundle| vec![bundle.digest_cid, bundle.role_crop_cid])
++                        .unwrap_or_default();
+                     match real5_write_prompt_capsule_v2_for_view(
+                         &mut cas_store,
+                         agent_id,
+@@ -4308,6 +4471,7 @@ async fn run_swarm(
+                         &real5_prompt_view,
+                         prompt.as_bytes(),
+                         &real5_prompt_view_bytes,
++                        &extra_read_set,
+                         &format!("turn-{}-{}", agent_id, tx),
+                         logical_t,
+                     ) {
+@@ -7390,6 +7554,12 @@ async fn run_swarm(
+                             );
+ 
+                             let window_id = TxId(ev_trace.review_window_id.clone());
++                            let librarian_digest_cid = real_bcast_turn_bundle
++                                .as_ref()
++                                .map(|bundle| bundle.digest_cid);
++                            let broadcast_epoch_id = real_bcast_turn_bundle
++                                .as_ref()
++                                .map(|bundle| bundle.epoch_id.clone());
+                             let window = MarketReviewWindow {
+                                 window_id: window_id.clone(),
+                                 event_id: ev_trace.event_id.clone(),
+@@ -7398,6 +7568,8 @@ async fn run_swarm(
+                                 eligible_agents: vec![AgentId(agent_id.to_string())],
+                                 deadline_logical_t: logical_t,
+                                 mode: real13_market_review_mode_env(),
++                                librarian_digest_cid,
++                                broadcast_epoch_id: broadcast_epoch_id.clone(),
+                             };
+                             let window_cid = write_market_review_window_to_cas_or_exit(
+                                 &bundle.cas_path,
+@@ -7414,6 +7586,8 @@ async fn run_swarm(
+                                 no_response_trace_cid: None,
+                                 action: format!("{:?}", ev_trace.action),
+                                 submitted_tx_id: None,
++                                librarian_digest_cid,
++                                broadcast_epoch_id: broadcast_epoch_id.clone(),
+                             };
+                             let response_cid = write_market_review_response_to_cas_or_exit(
+                                 &bundle.cas_path,
+@@ -7431,6 +7605,7 @@ async fn run_swarm(
+                                 missing_count: 0,
+                                 response_cids: vec![response_cid],
+                                 committed_tx_ids: vec![],
++                                digest_set: librarian_digest_cid.into_iter().collect(),
+                             };
+                             let _summary_cid = write_market_review_summary_to_cas_or_exit(
+                                 &bundle.cas_path,
+diff --git a/src/bin/audit_dashboard.rs b/src/bin/audit_dashboard.rs
+index f1e544df..5de3849e 100644
+--- a/src/bin/audit_dashboard.rs
++++ b/src/bin/audit_dashboard.rs
+@@ -2870,6 +2870,49 @@ fn render_tb_n3_run_report(
+         "  market_review_summary_cas_count: {}\n",
+         market_review_summary_count
+     ));
++    let librarian_digest_cids =
++        turingosv4::runtime::librarian_broadcast::librarian_digest_cids(&cas);
++    let librarian_role_crop_count = cas
++        .list_all_cids()
++        .into_iter()
++        .filter(|cid| {
++            cas.metadata(cid).and_then(|meta| meta.schema_id.as_deref())
++                == Some(turingosv4::runtime::librarian_broadcast::LIBRARIAN_ROLE_CROP_SCHEMA_ID)
++        })
++        .count();
++    let librarian_shielding_ok = librarian_digest_cids.iter().all(|cid| {
++        let Ok(digest) =
++            turingosv4::runtime::librarian_broadcast::read_librarian_digest_from_cas(&cas, cid)
++        else {
++            return false;
++        };
++        let Ok(bytes) = serde_json::to_string(&digest) else {
++            return false;
++        };
++        turingosv4::runtime::librarian_broadcast::assert_no_forbidden_broadcast_material(&bytes)
++            .is_ok()
++    });
++    out.push_str("\n## §REAL-BCAST Librarian Broadcast\n");
++    out.push_str("  source: ChainTape/CAS materialized view; dashboard is not truth\n");
++    out.push_str(&format!(
++        "  librarian_digest_cas_count: {}\n",
++        librarian_digest_cids.len()
++    ));
++    out.push_str(&format!(
++        "  librarian_role_crop_cas_count: {}\n",
++        librarian_role_crop_count
++    ));
++    out.push_str(&format!(
++        "  librarian_shielding_verdict: {}\n",
++        if librarian_shielding_ok {
++            "PASS"
++        } else {
++            "FAIL"
++        }
++    ));
++    for cid in librarian_digest_cids.iter().take(3) {
++        out.push_str(&format!("    - librarian_digest_cid={cid}\n"));
++    }
+     match turingosv4::runtime::economic_judgment::verify_bull_bear_turn_judgment_coverage(&cas) {
+         Ok(report) => {
+             out.push_str("  economic_judgment_coverage_ok: true\n");
+diff --git a/src/runtime/market_review.rs b/src/runtime/market_review.rs
+index 7aee2c30..7494c03a 100644
+--- a/src/runtime/market_review.rs
++++ b/src/runtime/market_review.rs
+@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
+ 
+ use crate::bottom_white::cas::schema::{Cid, ObjectType};
+ use crate::bottom_white::cas::store::{CasError, CasStore};
++use crate::runtime::librarian_broadcast::{validate_broadcast_epoch, BroadcastEpoch};
+ use crate::runtime::real5_roles::AgentRole;
+ use crate::state::q_state::{AgentId, TxId};
+ use crate::state::typed_tx::EventId;
+@@ -45,6 +46,10 @@ pub struct MarketReviewWindow {
+     pub eligible_agents: Vec<AgentId>,
+     pub deadline_logical_t: u64,
+     pub mode: MarketReviewMode,
++    #[serde(default)]
++    pub librarian_digest_cid: Option<Cid>,
++    #[serde(default)]
++    pub broadcast_epoch_id: Option<String>,
+ }
+ 
+ /// TRACE_MATRIX FC1/FC3: per-agent response sidecar linking a review turn to
+@@ -59,6 +64,10 @@ pub struct MarketReviewResponse {
+     pub no_response_trace_cid: Option<Cid>,
+     pub action: String,
+     pub submitted_tx_id: Option<TxId>,
++    #[serde(default)]
++    pub librarian_digest_cid: Option<Cid>,
++    #[serde(default)]
++    pub broadcast_epoch_id: Option<String>,
+ }
+ 
+ /// TRACE_MATRIX FC3: CAS-backed summary of a review window for reports; it
+@@ -74,6 +83,8 @@ pub struct MarketReviewSummary {
+     pub missing_count: u64,
+     pub response_cids: Vec<Cid>,
+     pub committed_tx_ids: Vec<TxId>,
++    #[serde(default)]
++    pub digest_set: Vec<Cid>,
+ }
+ 
+ /// TRACE_MATRIX FC1: deterministic response ordering used by sequential and
+@@ -127,6 +138,41 @@ pub fn validate_market_review_summary(summary: &MarketReviewSummary) -> Result<(
+     Ok(())
+ }
+ 
++/// TRACE_MATRIX FC1/FC2/FC3: REAL-BCAST-1 half-async contract. A market
++/// review window freezes a Librarian digest at the barrier; every response in
++/// the window must cite the same digest/epoch, and replay must reject stale or
++/// future epochs.
++pub fn validate_market_review_broadcast_contract(
++    window: &MarketReviewWindow,
++    responses: &[MarketReviewResponse],
++    summary: &MarketReviewSummary,
++    epoch: &BroadcastEpoch,
++    current_head_t: u64,
++) -> Result<(), String> {
++    validate_broadcast_epoch(epoch, current_head_t)?;
++    let Some(window_digest) = window.librarian_digest_cid else {
++        return Err("MarketReviewWindow missing librarian_digest_cid".into());
++    };
++    if window_digest != epoch.digest_cid {
++        return Err("MarketReviewWindow digest mismatch with BroadcastEpoch".into());
++    }
++    if window.broadcast_epoch_id.as_deref() != Some(epoch.epoch_id.as_str()) {
++        return Err("MarketReviewWindow broadcast_epoch_id mismatch".into());
++    }
++    for response in responses {
++        if response.librarian_digest_cid != Some(window_digest) {
++            return Err("MarketReviewResponse digest mismatch".into());
++        }
++        if response.broadcast_epoch_id.as_deref() != Some(epoch.epoch_id.as_str()) {
++            return Err("MarketReviewResponse broadcast_epoch_id mismatch".into());
++        }
++    }
++    if !summary.digest_set.contains(&window_digest) {
++        return Err("MarketReviewSummary digest_set missing frozen digest".into());
++    }
++    Ok(())
++}
++
+ /// TRACE_MATRIX FC1/FC3: writes MarketReviewWindow as Generic CAS sidecar
+ /// without adding a new transaction type or admission rule.
+ pub fn write_market_review_window_to_cas(
+diff --git a/src/runtime/mod.rs b/src/runtime/mod.rs
+index fe3b9f30..a2d1a63e 100644
+--- a/src/runtime/mod.rs
++++ b/src/runtime/mod.rs
+@@ -216,6 +216,11 @@ pub mod agent_role_classifier;
+ /// evaluator and §K clean-negative renderer.
+ pub mod g7_structural_smoke;
+ 
++/// TRACE_MATRIX Art.II/Art.III (REAL-BCAST-1 2026-05-16): CAS-backed,
++/// role-scoped Librarian broadcast digest. Materialized view only; no new
++/// TypedTx, sequencer admission, signing payload, or CAS ObjectType.
++pub mod librarian_broadcast;
++
+ /// TRACE_MATRIX FC1/FC3 (REAL-11 Atom 1 2026-05-15): report-side market
+ /// transaction categorization. Splits legacy market_tx_count into structural
+ /// market activity, live agent economic action, scripted fixture activity, and
+
+diff --git a/dev/null b/handover/directives/2026-05-16_REAL_BCAST_1_LIBRARIAN_BROADCAST_LOOP_ARCHITECT_ORIGINAL.md
+--- /dev/null
++++ b/handover/directives/2026-05-16_REAL_BCAST_1_LIBRARIAN_BROADCAST_LOOP_ARCHITECT_ORIGINAL.md
++# REAL-BCAST-1 Librarian Broadcast Loop — Architect Original
++
++> Source: user-provided architect ruling, 2026-05-16.
++> This file preserves the ruling as the local fact source for REAL-BCAST-1.
++
++# 总裁决
++
++我同意：**这是一个重大问题，而且它不是小 bug，而是宪法三大信号工程之一的缺口。**
++
++TuringOS 过去一段时间把：
++
++```text
++量化 quantization
++屏蔽 shielding
++tape canonicality
++predicate / L4 / L4.E
++```
++
++做得很强，但 **广播 broadcasting** 还没有同等成熟。
++
++现在的状态可以概括为：
++
++```text
++CAS / ChainTape 里已经记录了大量外部化 attempt / LeanResult / L4.E / EvidenceCapsule；
++dashboard 和 audit 可以读；
++但普通 Agent 的 role-scoped view 里没有稳定、合宪、可追溯的“典型错误广播 / 进展摘要广播”机制。
++```
++
++这正好击中宪法第一页的核心：顶层白盒不是微观操纵者，而是对系统信息进行 **量化、广播、屏蔽** 的管理层。宪法主文明确把这三者并列为顶层白盒的核心职责。
++
++所以我的裁决是：
++
++> **必须插入一个新的广播修复阶段：REAL-BCAST-1 — Librarian Broadcast Loop。**
++> 它应当在 REAL-13A live micro-probe 之前完成最小可用版本。
++> REAL-13A 的 EV scaffolding 可以继续做 schema / plan，但真正跑 live micro-probe 前，应先把顶层白盒广播机制补上。
++
++## 1.1 partial proof progress 是黑盒思考吗？
++
++不是。
++
++`partial proof progress` 不是黑盒内部 CoT，也不是黑盒里另有一条 tape。
++
++必须分三层：
++
++```text
++1. 黑盒内部思考
++   不可见，不记录，不应记录。
++
++2. Agent 外部化出来的 proof fragment / tactic / candidate
++   这是模型说出口、交给工具检查的内容。
++
++3. TuringOS ChainTape / CAS
++   只记录被系统外部化、结构化、审计允许的证据。
++```
++
++```text
++partial proof progress = tool-visible externalized attempt
++不是 black-box thought
++不是 private CoT
++不是黑盒内部 tape
++```
++
++## 1.2 黑盒内部有没有 tape？
++
++按 TuringOS 宪法，**没有**。
++
++或者更严格地说：
++
++> **黑盒内部即使有某种隐式状态，也不能被 TuringOS 承认为系统事实源。**
++
++TuringOS 的原则是：
++
++```text
++No tape, no evidence.
++```
++
++这里的 tape 只能是系统的 ChainTape / CAS / HEAD_t / L4 / L4.E。
++模型内部隐藏推理、私有 CoT、provider 内部状态，都不能成为 TuringOS truth。
++
++## 1.3 CAS 上 AttemptTelemetry 是否已经广播给 Agent？
++
++当前答案是：**没有完整广播机制。**
++
++CAS 里已经有 AttemptTelemetry / LeanResult 记录，但它主要用于：
++
++```text
++audit
++replay
++dashboard
++failure-class refinement
++EvidenceCapsule
++```
++
++它不是普通 Agent rtool 里的共享广播流。
++
++所以当前 gap 是：
++
++```text
++有记录；
++有审计；
++有 dashboard；
++但没有合宪的 role-scoped broadcast。
++```
++
++## 1.4 能不能把 CAS 里的 raw attempt 全部广播给所有 Agent？
++
++不能。
++
++这会违反宪法的屏蔽原则，并制造上下文污染。
++
++因此正确做法是：
++
++```text
++不广播 raw Lean stderr
++不广播 raw prompt
++不广播 raw completion
++不广播 private CoT
++不广播 raw diagnostics
++不广播 untriaged historical logs
++```
++
++只广播：
++
++```text
++错误类别
++计数
++趋势
++角色化行动建议
++CID provenance
++任务标签
++staleness
++有限的、经过清洗的 partial-progress summary
++```
++
++# 2. 我对 Librarian Push Notification 方案的裁决
++
++我接受这份方案的主干，并把它提升为下一阶段正式计划：
++
++```text
++REAL-BCAST-1 — Librarian Broadcast Loop
++```
++
++我采纳以下默认决策：
++
++```text
++Delivery:
++  Prompt 注入，不做 out-of-band message system，不新增 TypedTx。
++
++Scope:
++  跨批次压缩，但必须带 provenance、staleness、任务相关性过滤。
++
++Visibility:
++  所有 Agent 都收到通知，但必须 role-cropped。
++  Solver / Trader / Verifier / Challenger 看到不同摘要。
++
++Risk:
++  默认 Class 3。
++  若触碰 TypedTx、sequencer admission、canonical signing payload、
++  constitution / flowchart / genesis authority，则立即升 Class 4 并停止。
++```
++
++# 4. 新阶段：REAL-BCAST-1 — Librarian Broadcast Loop
++
++核心路径：
++
++```text
++CAS / ChainTape / EvidenceCapsule / AttemptTelemetry / LeanResult / L4.E
++-> LibrarianSelector
++-> LibrarianDigest
++-> RoleNotificationProjector
++-> PromptCapsule read_set / visible_context_cid
++-> Agent next turn
++```
++
++## Atom 0 — Charter + ratification boundary
++
++新增：
++
++```text
++handover/directives/REAL_BCAST_1_LIBRARIAN_BROADCAST_LOOP_CHARTER.md
++handover/alignment/DECISION_LIBRARIAN_DIGEST_MATERIALIZED_VIEW.md
++```
++
++必须写明：
++
++```text
++REAL-BCAST-1 does not introduce new TypedTx.
++REAL-BCAST-1 does not make LibrarianDigest source of truth.
++REAL-BCAST-1 does not broadcast raw logs.
++REAL-BCAST-1 is role-scoped prompt injection through PromptCapsule read_set / visible_context.
++```
++
++## Atom 1 — Librarian source scope
++
++```rust
++pub struct LibrarianSourceScope {
++    pub current_run_cas_root: Cid,
++    pub prior_capsule_cids: Vec<Cid>,
++    pub max_prior_batches: u32,
++    pub task_tags: Vec<String>,
++}
++```
++
++## Atom 2 — LibrarianSelector
++
++Selector 只读取：
++
++```text
++CAS index
++AttemptTelemetry
++LeanResult
++L4.E rejection summaries
++EvidenceCapsule
++MarkovEvidenceCapsule
++EconomicJudgment / EVDecisionTrace
++MarketDecisionTrace / NoTradeReasonTrace
++```
++
++## Atom 3 — TypicalErrorCluster
++
++```rust
++pub struct TypicalErrorCluster {
++    pub cluster_id: String,
++    pub error_class: String,
++    pub count: u32,
++    pub trend: Trend,
++    pub task_tags: Vec<String>,
++    pub role_hints: Vec<AgentRole>,
++    pub public_summary: String,
++    pub action_hint: Option<String>,
++    pub provenance_cids: Vec<Cid>,
++    pub staleness: Staleness,
++}
++```
++
++## Atom 4 — PartialProgressSummary
++
++```rust
++pub struct PartialProgressSummary {
++    pub summary_id: String,
++    pub task_id: TaskId,
++    pub source_attempt_cid: Cid,
++    pub lean_result_cid: Cid,
++    pub progress_kind: ProgressKind,
++    pub tactic_class: Option<String>,
++    pub public_summary: String,
++    pub visibility_scope: VisibilityScope,
++}
++```
++
++## Atom 5 — LibrarianDigest
++
++```rust
++pub struct LibrarianDigest {
++    pub schema_version: String, // "real_bcast.librarian_digest.v1"
++    pub digest_id: Cid,
++    pub source_scope: LibrarianSourceScope,
++    pub generated_at_head_t: HeadT,
++    pub typical_error_clusters: Vec<TypicalErrorCluster>,
++    pub partial_progress_summaries: Vec<PartialProgressSummary>,
++    pub market_reason_clusters: Vec<MarketReasonCluster>,
++    pub ev_reason_clusters: Vec<EVReasonCluster>,
++    pub provenance_root: Cid,
++}
++```
++
++## Atom 6 — RoleNotificationProjector
++
++每个角色看到不同版本：
++
++```text
++Solver Notices: typical Lean errors, partial progress summaries, local tactic warnings, recent L4.E rejection summaries
++Trader Notices: market no-trade clusters, EV reason clusters, task outcome uncertainty, price / liquidity anomalies
++Verifier Notices: common false-progress patterns, proof artifact risk summaries, typical rejected proof classes
++Challenger Notices: high-price suspicious nodes, repeated partial failures, weakness clusters
++ArchitectAI Notices: aggregate error trends, predicate/tool gap candidates, not raw logs
++```
++
++## Atom 7 — Prompt injection through PromptCapsule
++
++不新增 out-of-band message system。
++不新增 TypedTx。
++
++Prompt builder 增加 bounded section：
++
++```text
++=== Librarian Notices ===
++source: CAS/ChainTape-derived, role-scoped, raw logs redacted
++- err:type_mismatch count=7 trend=up role_hint=Solver
++- err:rewrite_no_match count=4 trend=stable role_hint=Solver
++```
++
++## Atom 8 — Dashboard / audit materialized view
++
++新增 dashboard section：
++
++```text
++§ Librarian Broadcast
++- digest_id
++- source_scope
++- cluster counts
++- role crops
++- prompt injections
++- shielding verdict
++```
++
++## Atom 9 — Real run A/B
++
++Arm A:
++
++```text
++baseline role-scoped prompts without Librarian Notices
++```
++
++Arm B:
++
++```text
++same tasks / same models / same budgets
++with Librarian Notices
++```
++
++# 7. 关键 Ship Gates 总表
++
++```text
++SG-BCAST.G1
++LibrarianDigest is CAS-backed and derivable from ChainTape/CAS.
++
++SG-BCAST.G2
++PromptCapsule read_set references digest CID.
++
++SG-BCAST.G3
++RoleNotificationProjector produces different crops for Solver / Trader / Verifier / Challenger.
++
++SG-BCAST.G4
++No raw Lean stderr, raw prompt, raw completion, private CoT, raw diagnostics appear in digest / prompt / dashboard.
++
++SG-BCAST.G5
++Unknown JSON / unknown evidence schema fails closed.
++
++SG-BCAST.G6
++Digest has provenance and staleness metadata.
++
++SG-BCAST.G7
++Cross-batch digest uses explicit prior_capsule_cids; no global pointer.
++
++SG-BCAST.G8
++PartialProgressSummary derives only from externalized attempt + LeanResult.
++
++SG-BCAST.G9
++Dashboard regenerates from ChainTape + CAS.
++
++SG-BCAST.G10
++Real A/B smoke runs with audit_tape PROCEED.
++
++SG-BCAST.G11
++Constitution gates pass.
++
++SG-BCAST.G12
++Workspace tests pass.
++```
++
++# 8. 禁止事项
++
++```text
++No raw Lean stderr broadcast.
++No raw prompt broadcast.
++No raw completion broadcast.
++No private CoT recording.
++No raw diagnostics broadcast.
++No untriaged historical log stuffing.
++No global LATEST pointer.
++No LibrarianDigest as source of truth.
++No new TypedTx unless separately ratified.
++No price-as-truth.
++No forced trade.
++No dashboard-as-truth.
++No silent skip of unknown CAS payload.
++```
++
++# Relationship to REAL-13A
++
++```text
++Continue REAL-13A planning/schema if already underway.
++Do not run REAL-13A live micro-probe until REAL-BCAST-1 minimum digest injection exists.
++Then run REAL-13A with Librarian ON/OFF A/B.
++```
++
+
+diff --git a/dev/null b/handover/directives/2026-05-16_REAL_BCAST_1_LIBRARIAN_BROADCAST_LOOP_EXECUTION_PLAN.md
+--- /dev/null
++++ b/handover/directives/2026-05-16_REAL_BCAST_1_LIBRARIAN_BROADCAST_LOOP_EXECUTION_PLAN.md
++# REAL-BCAST-1 Librarian Broadcast Loop — Execution Plan
++
++## Summary
++
++This plan implements the architect's broadcast repair as a Class 3 package.
++It does not introduce new TypedTx, new sequencer admission, signing payload
++changes, CAS ObjectType changes, or out-of-band messages.
++
++Core path:
++
++```text
++CAS / ChainTape / EvidenceCapsule / AttemptTelemetry / LeanResult / L4.E
++-> LibrarianSelector
++-> LibrarianDigest
++-> RoleNotificationProjector
++-> PromptCapsule read_set / visible_context_cid
++-> Agent next turn
++```
++
++## G0 — REAL-13 Status Sync
++
++Before REAL-BCAST evidence or REAL-13A live micro-probe, write
++`handover/directives/2026-05-16_REAL13_STATUS_SYNC_FOR_ARCHITECT.md`.
++If the canonical evidence path or audit verdict cannot be verified, stop
++REAL-BCAST A/B and REAL-13A live runs.
++
++## Implementation Atoms
++
++1. Charter and decision records:
++   `REAL_BCAST_1_LIBRARIAN_BROADCAST_LOOP_CHARTER.md`,
++   `DECISION_LIBRARIAN_DIGEST_MATERIALIZED_VIEW.md`,
++   `DECISION_LIBRARIAN_BARRIERED_ASYNC_BROADCAST.md`.
++2. Add `src/runtime/librarian_broadcast.rs` with
++   `LibrarianSourceScope`, `LibrarianSelector`, `TypicalErrorCluster`,
++   `PartialProgressSummary`, `LibrarianDigest`, `BroadcastEpoch`, role crop
++   rendering, PromptCapsule binding helpers, and audit/no-leak helpers.
++3. Use `ObjectType::Generic` with schema ids, especially
++   `turingosv4.librarian_digest.v1`. Do not edit CAS ObjectType schema.
++4. Extend `src/runtime/market_review.rs` so MarketReviewWindow/Response/Summary
++   can carry `digest_cid` and `broadcast_epoch_id`; validate mismatch and
++   future/stale epochs fail closed.
++5. Extend `src/sdk/prompt.rs` with a bounded `=== Librarian Notices ===`
++   prompt section.
++6. Wire evaluator prompt construction so enabled Librarian notices are written
++   to CAS, injected into visible prompt bytes, included in PromptCapsuleV2
++   read_set, and linked through AttemptTelemetry.prompt_capsule_cid.
++7. Add dashboard/audit materialized view helpers; dashboard is never source of
++   truth.
++8. Run REAL-BCAST ON/OFF A/B after digest injection is green. Only the
++   Librarian flag may differ.
++
++## Half-Async Contract
++
++Sequential mode freezes a digest after a ChainTape/CAS append and before the
++next role-scoped prompt.
++
++Barriered async freezes `digest_cid` and `broadcast_epoch_id` at
++MarketReviewWindow open. Every eligible prompt in that window uses the same
++digest. Every response records the digest and epoch. Commit order remains
++deterministic by `(agent_id, response_id)`.
++
++Full async is not implemented in REAL-BCAST-1. Future full async must validate
++`BroadcastEpoch { epoch_id, source_head_t, digest_cid, valid_from, valid_until,
++task_tags }` to prevent future-digest and global-pointer drift.
++
++## Tests
++
++Targeted tests:
++
++```bash
++cargo test --test constitution_librarian_source_scope
++cargo test --test constitution_librarian_selector
++cargo test --test constitution_librarian_digest
++cargo test --test constitution_librarian_role_projector
++cargo test --test constitution_librarian_prompt_injection
++cargo test --test constitution_librarian_half_async
++cargo test --test constitution_librarian_no_raw_leakage
++cargo test --test constitution_librarian_real_evidence_binding
++```
++
++Ship checks:
++
++```bash
++bash scripts/run_constitution_gates.sh
++cargo test --workspace --no-fail-fast -- --test-threads=1
++```
++
++## Forbidden
++
++```text
++No raw Lean stderr/prompt/completion/CoT/diagnostics broadcast.
++No untriaged historical log stuffing.
++No global LATEST pointer.
++No LibrarianDigest as source of truth.
++No new TypedTx.
++No CAS ObjectType schema edit in MVP.
++No price-as-truth.
++No forced trade.
++No dashboard-as-truth.
++No silent skip of unknown CAS payload.
++No full async ship path in REAL-BCAST-1.
++```
++
+
+diff --git a/dev/null b/handover/audits/CODEX_REAL_BCAST_1_EXECUTION_PLAN_ALIGNMENT_REVIEW.md
+--- /dev/null
++++ b/handover/audits/CODEX_REAL_BCAST_1_EXECUTION_PLAN_ALIGNMENT_REVIEW.md
++# CODEX REAL-BCAST-1 Execution Plan Alignment Review
++
++Verdict: `CHALLENGE`
++
++## Findings
++
++1. REAL-13 status sync was not a hard gate. The architect did not know the
++   REAL-13 run state, so status/evidence must be synchronized before any
++   REAL-BCAST or REAL-13A live decision.
++2. Half-async / barriered async integration was directionally correct but not
++   executable enough. MarketReviewWindow, MarketReviewResponse, and
++   MarketReviewSummary need digest/epoch linkage and deterministic reject
++   rules for stale/future/mismatched digests.
++3. PromptCapsule linkage needed a hard gate: digest CID in
++   `PromptCapsuleV2.read_set`, notice bytes in `visible_context_cid`, prompt
++   hash changes when digest changes, and AttemptTelemetry links to the capsule.
++4. PartialProgressSummary wording was too loose. Digest must never copy raw
++   candidate body; only sanitized summary plus CID provenance is allowed.
++5. CAS schema strategy was under-specified. MVP must use `ObjectType::Generic`
++   and schema id, not a new CAS ObjectType.
++6. Unknown schema fail-closed must use typed/shared decoders and avoid string
++   scanning arbitrary CAS bytes.
++
++## Required Corrections Incorporated
++
++- Added G0 REAL-13 status sync as stop-the-line condition.
++- Added explicit MarketReview digest/epoch fields and reject rules.
++- Added `BroadcastEpoch` schema for async-ready future migration.
++- Locked MVP CAS strategy to `ObjectType::Generic`.
++- Added PromptCapsule hard gate.
++- Added no-leak kill gates.
++- Added selector negative fixtures.
++- Added A/B gate with Librarian ON/OFF as the only variable.
++
++## Verdict
++
++The corrected plan may proceed after these gates are implemented as tests and
++evidence.
++
+
+diff --git a/dev/null b/handover/directives/2026-05-16_REAL13_STATUS_SYNC_FOR_ARCHITECT.md
+--- /dev/null
++++ b/handover/directives/2026-05-16_REAL13_STATUS_SYNC_FOR_ARCHITECT.md
++# REAL-13 Status Sync For Architect
++
++The architect ruling that opened REAL-BCAST-1 did not know the latest REAL-13
++run state. This file is the hard G0 sync point before REAL-BCAST A/B evidence
++or any REAL-13A live micro-probe.
++
++## Worktree
++
++```text
++worktree: /home/zephryj/projects/turingosv4-real12-action-probes
++branch: codex/real12-economic-action-probes
++commit: cef585c4 REAL-13 market pressure loop
++```
++
++## Canonical Evidence
++
++```text
++canonical evidence path:
++  handover/evidence/real13_market_pressure_probe_20260516T071216Z/
++
++remediation-only contaminated path:
++  handover/evidence/real13_market_pressure_probe_20260516T070534Z/
++```
++
++## Audit Verdict
++
++```text
++audit_tape verdict: PROCEED
++aggregate_verdict verdict: PROCEED
++```
++
++## Chain / CAS Counts
++
++```text
++L4 entries: 32
++L4.E entries: 13
++CAS objects: 216
++```
++
++CAS schema counts from `.turingos_cas_index.jsonl` include:
++
++```text
++TypedTx.v1: 45
++v2/prompt_capsule_role_view: 19
++real5.prompt.visible_context.v1: 19
++real5.role_turn_trace.v1: 16
++real5.derived_view.v1: 13
++real13b.market_review_window.v1: 10
++real13b.market_review_summary.v1: 10
++real13b.market_review_response.v1: 10
++real13a.ev_decision_trace.v1: 10
++real12.economic_judgment.v1: 10
++real11.market_opportunity_trace.v1: 10
++turingosv4.attempt_telemetry.v3: 8
++turingosv4.lean_result.v2: 5
++```
++
++## REAL-13 Metrics
++
++```text
++EVDecisionTrace count: 10
++MarketReviewSummary count: 10
++Bull EVDecisionTrace count: 5
++Bear EVDecisionTrace count: 5
++EV abstain count: 10
++EV buy_yes count: 0
++EV buy_no count: 0
++buy_with_coin_router: 0
++live_non_scripted_router_tx_count: 0
++```
++
++## Verdict
++
++```text
++E2 NOT ACHIEVED
++```
++
++REAL-13 proves EVDecisionTrace and MarketReviewSummary evidence under the
++sequential MarketReview mode. It does not prove live non-scripted router
++action, spontaneous market emergence, E3 role differentiation, or E4
++performance causality.
++
++## G0 Gate
++
++REAL-BCAST A/B and REAL-13A live micro-probe remain blocked unless the canonical
++evidence path above, CAS index counts, and audit verdict are all verifiable.
++
+
+diff --git a/dev/null b/handover/directives/REAL_BCAST_1_LIBRARIAN_BROADCAST_LOOP_CHARTER.md
+--- /dev/null
++++ b/handover/directives/REAL_BCAST_1_LIBRARIAN_BROADCAST_LOOP_CHARTER.md
++# REAL-BCAST-1 Librarian Broadcast Loop Charter
++
++REAL-BCAST-1 repairs the Top White broadcast loop.
++
++It turns already externalized CAS/ChainTape evidence into sanitized,
++role-scoped, CAS-backed Librarian notices that enter the next agent turn
++through PromptCapsule read-set and visible context.
++
++## Boundaries
++
++```text
++No new TypedTx.
++No sequencer admission change.
++No canonical signing payload change.
++No CAS ObjectType schema change.
++No out-of-band message system.
++No global latest pointer.
++No raw Lean stderr / prompt / completion / CoT / diagnostics.
++LibrarianDigest is a materialized view, not source of truth.
++```
++
++Risk class is Class 3 unless a restricted authority surface is touched.
++
++## FC Mapping
++
++```text
++FC1: rtool/input/Agent-next-turn broadcast view
++FC2: barrier tick / replay determinism for half-async review windows
++FC3: logs/capsule archive -> derived evidence capsule / dashboard view
++Art II: selective broadcast
++Art III: selective shielding
++```
++
+
+diff --git a/dev/null b/handover/alignment/DECISION_LIBRARIAN_DIGEST_MATERIALIZED_VIEW.md
+--- /dev/null
++++ b/handover/alignment/DECISION_LIBRARIAN_DIGEST_MATERIALIZED_VIEW.md
++# DECISION — LibrarianDigest Is Materialized View
++
++`LibrarianDigest` is not a source of truth.
++
++It is a deterministic, CAS-backed view derived from ChainTape/CAS evidence:
++AttemptTelemetry, LeanResult, L4.E rejection summaries, EvidenceCapsule,
++MarketDecisionTrace, NoTradeReasonTrace, EconomicJudgment, and EVDecisionTrace.
++
++If a digest contradicts ChainTape/CAS, ChainTape/CAS wins.
++
++MVP storage uses:
++
++```text
++ObjectType::Generic
++schema_id = "turingosv4.librarian_digest.v1"
++```
++
++No new CAS ObjectType is introduced in REAL-BCAST-1.
++
+
+diff --git a/dev/null b/handover/alignment/DECISION_LIBRARIAN_BARRIERED_ASYNC_BROADCAST.md
+--- /dev/null
++++ b/handover/alignment/DECISION_LIBRARIAN_BARRIERED_ASYNC_BROADCAST.md
++# DECISION — Librarian Broadcast In Half-Async Market Review
++
++REAL-BCAST-1 plugs into the current half-async mechanism by freezing a
++Librarian digest at deterministic barriers.
++
++## Sequential Mode
++
++```text
++append evidence to CAS/ChainTape
++derive LibrarianDigest
++inject role crop into next PromptCapsule visible context
++```
++
++## Barriered Async Mode
++
++```text
++MarketReviewWindow opens
++digest_cid + broadcast_epoch_id freeze
++eligible agents receive prompts built from the same digest
++responses carry digest_cid + epoch_id
++barrier closes
++responses commit in deterministic (agent_id, response_id) order
++```
++
++Digest mismatch, stale digest, or future digest rejects the response evidence.
++
++## Future Full Async
++
++Full async is not a REAL-BCAST-1 ship path. Future full async must use
++`BroadcastEpoch { epoch_id, source_head_t, digest_cid, valid_from, valid_until,
++task_tags }` and replay gates that prove no future digest and no global pointer.
++
+
+diff --git a/dev/null b/src/runtime/librarian_broadcast.rs
+--- /dev/null
++++ b/src/runtime/librarian_broadcast.rs
++//! REAL-BCAST-1 — CAS-backed Librarian broadcast loop.
++//!
++//! This module derives sanitized, role-scoped notices from existing
++//! ChainTape/CAS evidence. It does not introduce TypedTx, sequencer
++//! admission rules, signing payloads, or CAS ObjectType variants.
++
++use std::collections::BTreeMap;
++
++use serde::{Deserialize, Serialize};
++
++use crate::bottom_white::cas::schema::{Cid, ObjectType};
++use crate::bottom_white::cas::store::{CasError, CasStore};
++use crate::runtime::attempt_telemetry::{
++    read_attempt_telemetry_shared_slot_from_cas, read_lean_result_from_cas, LeanVerdictKind,
++};
++use crate::runtime::economic_judgment::{economic_judgment_cids, read_economic_judgment_from_cas};
++use crate::runtime::ev_decision_trace::{ev_decision_trace_cids, read_ev_decision_trace_from_cas};
++use crate::runtime::prompt_capsule::PromptCapsuleV2;
++use crate::runtime::real5_roles::{AgentRole, HeadT};
++
++pub const LIBRARIAN_DIGEST_SCHEMA_ID: &str = "turingosv4.librarian_digest.v1";
++pub const LIBRARIAN_ROLE_CROP_SCHEMA_ID: &str = "turingosv4.librarian_role_crop.v1";
++pub const LIBRARIAN_BROADCAST_EPOCH_SCHEMA_ID: &str = "turingosv4.librarian_broadcast_epoch.v1";
++
++#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
++pub struct LibrarianSourceScope {
++    pub current_run_cas_root: Cid,
++    pub prior_capsule_cids: Vec<Cid>,
++    pub max_prior_batches: u32,
++    pub task_tags: Vec<String>,
++}
++
++#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
++pub enum LibrarianEvidenceKind {
++    LeanError,
++    PartialProgress,
++    MarketReason,
++    EVReason,
++    EconomicJudgment,
++    AttemptOutcome,
++}
++
++#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
++pub struct LibrarianEvidenceEvent {
++    pub cid: Cid,
++    pub kind: LibrarianEvidenceKind,
++    pub class_label: String,
++    pub task_id: Option<String>,
++    pub public_summary: String,
++    pub head_t: u64,
++}
++
++#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
++pub enum Trend {
++    Up,
++    Stable,
++    Down,
++}
++
++#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
++pub enum Staleness {
++    Current,
++    Recent,
++    Stale,
++}
++
++#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
++pub struct TypicalErrorCluster {
++    pub cluster_id: String,
++    pub error_class: String,
++    pub count: u32,
++    pub trend: Trend,
++    pub task_tags: Vec<String>,
++    pub role_hints: Vec<AgentRole>,
++    pub public_summary: String,
++    pub action_hint: Option<String>,
++    pub provenance_cids: Vec<Cid>,
++    pub staleness: Staleness,
++}
++
++#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
++pub enum ProgressKind {
++    PartialAccepted,
++    Verified,
++    FailedClassified,
++}
++
++#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
++pub enum VisibilityScope {
++    SameTask,
++    SameTag,
++    AuditOnly,
++}
++
++#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
++pub struct PartialProgressSummary {
++    pub summary_id: String,
++    pub task_id: String,
++    pub source_attempt_cid: Cid,
++    pub lean_result_cid: Cid,
++    pub progress_kind: ProgressKind,
++    pub tactic_class: Option<String>,
++    pub public_summary: String,
++    pub visibility_scope: VisibilityScope,
++}
++
++#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
++pub struct ReasonCluster {
++    pub reason: String,
++    pub count: u32,
++    pub role_hints: Vec<AgentRole>,
++    pub public_summary: String,
++    pub provenance_cids: Vec<Cid>,
++    pub staleness: Staleness,
++}
++
++#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
++pub struct LibrarianDigest {
++    pub schema_version: String,
++    pub digest_id: Cid,
++    pub source_scope: LibrarianSourceScope,
++    pub generated_at_head_t: HeadT,
++    pub typical_error_clusters: Vec<TypicalErrorCluster>,
++    pub partial_progress_summaries: Vec<PartialProgressSummary>,
++    pub market_reason_clusters: Vec<ReasonCluster>,
++    pub ev_reason_clusters: Vec<ReasonCluster>,
++    pub provenance_root: Cid,
++}
++
++#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
++pub struct BroadcastEpoch {
++    pub epoch_id: String,
++    pub source_head_t: u64,
++    pub digest_cid: Cid,
++    pub valid_from: u64,
++    pub valid_until: u64,
++    pub task_tags: Vec<String>,
++}
++
++#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
++pub struct RoleNotificationView {
++    pub source_digest_cid: Cid,
++    pub target_role: AgentRole,
++    pub rendered_notice: String,
++    pub redacted_fields: Vec<String>,
++}
++
++pub fn validate_librarian_source_scope(
++    scope: &LibrarianSourceScope,
++    cas: &CasStore,
++) -> Result<(), String> {
++    if scope.current_run_cas_root == Cid::default() {
++        return Err("missing current_run_cas_root".into());
++    }
++    for tag in &scope.task_tags {
++        let lower = tag.to_ascii_lowercase();
++        if lower.contains("latest") || lower.contains("pointer") || lower.contains(".txt") {
++            return Err("source scope contains forbidden global pointer marker".into());
++        }
++    }
++    for cid in &scope.prior_capsule_cids {
++        if cas.metadata(cid).is_none() {
++            return Err(format!("unresolved prior_capsule_cid {cid}"));
++        }
++    }
++    Ok(())
++}
++
++/// TRACE_MATRIX Art.0.2 + Art.II: derive a run-local CAS-root surrogate from
++/// explicit CAS index CIDs. This is not a global pointer and is only used as
++/// source-scope provenance for a materialized digest.
++pub fn derive_current_run_cas_root(cas: &CasStore) -> Cid {
++    let mut cids = cas.list_all_cids();
++    cids.sort();
++    let bytes = serde_json::to_vec(&cids).unwrap_or_default();
++    Cid::from_content(&bytes)
++}
++
++pub fn assert_no_forbidden_broadcast_material(text: &str) -> Result<(), String> {
++    let lower = text.to_ascii_lowercase();
++    let forbidden = [
++        "raw lean stderr",
++        "raw_prompt",
++        "raw prompt",
++        "raw_completion",
++        "raw completion",
++        "private cot",
++        "chain of thought",
++        "raw diagnostics",
++        "untriaged historical",
++    ];
++    if let Some(hit) = forbidden.iter().find(|needle| lower.contains(**needle)) {
++        return Err(format!("forbidden broadcast material: {hit}"));
++    }
++    Ok(())
++}
++
++pub fn decode_librarian_candidate(
++    cas: &CasStore,
++    cid: &Cid,
++) -> Result<Option<LibrarianEvidenceEvent>, String> {
++    let Some(meta) = cas.metadata(cid) else {
++        return Err(format!("missing CAS metadata for {cid}"));
++    };
++    match meta.schema_id.as_deref() {
++        Some(crate::runtime::ev_decision_trace::EV_DECISION_TRACE_SCHEMA_ID) => {
++            let trace = read_ev_decision_trace_from_cas(cas, cid).map_err(|e| e.to_string())?;
++            Ok(Some(LibrarianEvidenceEvent {
++                cid: *cid,
++                kind: LibrarianEvidenceKind::EVReason,
++                class_label: format!("ev:{:?}", trace.reason),
++                task_id: Some(trace.task_id.0),
++                public_summary: trace.public_summary,
++                head_t: meta.created_at_logical_t,
++            }))
++        }
++        Some(crate::runtime::economic_judgment::ECONOMIC_JUDGMENT_SCHEMA_ID) => {
++            let judgment = read_economic_judgment_from_cas(cas, cid).map_err(|e| e.to_string())?;
++            Ok(Some(LibrarianEvidenceEvent {
++                cid: *cid,
++                kind: LibrarianEvidenceKind::EconomicJudgment,
++                class_label: format!("economic:{:?}", judgment.reason),
++                task_id: Some(judgment.task_id.0),
++                public_summary: judgment.public_summary,
++                head_t: meta.created_at_logical_t,
++            }))
++        }
++        Some(schema) if schema == crate::runtime::attempt_telemetry::LEAN_RESULT_SCHEMA_ID => {
++            let result = read_lean_result_from_cas(cas, cid).map_err(|e| e.to_string())?;
++            let (kind, class_label, progress_kind) = match result.verdict_kind {
++                LeanVerdictKind::PartialAccepted => (
++                    LibrarianEvidenceKind::PartialProgress,
++                    "lean:PartialAccepted".to_string(),
++                    Some(ProgressKind::PartialAccepted),
++                ),
++                LeanVerdictKind::Verified => (
++                    LibrarianEvidenceKind::PartialProgress,
++                    "lean:Verified".to_string(),
++                    Some(ProgressKind::Verified),
++                ),
++                LeanVerdictKind::Failed | LeanVerdictKind::SorryBlocked => (
++                    LibrarianEvidenceKind::LeanError,
++                    format!(
++                        "err:{}",
++                        result
++                            .error_class
++                            .map(|c| format!("{c:?}"))
++                            .unwrap_or_else(|| format!("{:?}", result.verdict_kind))
++                    ),
++                    Some(ProgressKind::FailedClassified),
++                ),
++            };
++            let summary = match progress_kind {
++                Some(ProgressKind::PartialAccepted) => {
++                    "Externalized Lean attempt made partial progress".to_string()
++                }
++                Some(ProgressKind::Verified) => "Externalized Lean attempt verified".to_string(),
++                _ => "Externalized Lean attempt failed with classified error".to_string(),
++            };
++            Ok(Some(LibrarianEvidenceEvent {
++                cid: *cid,
++                kind,
++                class_label,
++                task_id: None,
++                public_summary: summary,
++                head_t: meta.created_at_logical_t,
++            }))
++        }
++        Some(schema)
++            if schema == crate::runtime::attempt_telemetry::ATTEMPT_TELEMETRY_SCHEMA_ID
++                || schema == "AttemptTelemetry" =>
++        {
++            let Some(attempt) =
++                read_attempt_telemetry_shared_slot_from_cas(cas, cid).map_err(|e| e.to_string())?
++            else {
++                return Ok(None);
++            };
++            Ok(Some(LibrarianEvidenceEvent {
++                cid: *cid,
++                kind: LibrarianEvidenceKind::AttemptOutcome,
++                class_label: format!("attempt:{:?}", attempt.outcome),
++                task_id: Some(attempt.task_id),
++                public_summary: format!("Externalized attempt outcome {:?}", attempt.outcome),
++                head_t: meta.created_at_logical_t,
++            }))
++        }
++        Some(schema)
++            if schema.starts_with("TypedTx.")
++                || schema == crate::runtime::prompt_capsule::PROMPT_CAPSULE_V2_SCHEMA_ID
++                || schema == crate::runtime::real5_roles::ROLE_TURN_TRACE_SCHEMA_ID
++                || schema == "real5.prompt.visible_context.v1"
++                || schema == "real5.derived_view.v1"
++                || schema == crate::runtime::market_review::MARKET_REVIEW_WINDOW_SCHEMA_ID
++                || schema == crate::runtime::market_review::MARKET_REVIEW_RESPONSE_SCHEMA_ID
++                || schema == crate::runtime::market_review::MARKET_REVIEW_SUMMARY_SCHEMA_ID =>
++        {
++            Ok(None)
++        }
++        Some(schema) => Err(format!("unknown librarian evidence schema: {schema}")),
++        None => match meta.object_type {
++            ObjectType::LeanResult => {
++                let result = read_lean_result_from_cas(cas, cid).map_err(|e| e.to_string())?;
++                let class_label = match result.verdict_kind {
++                    LeanVerdictKind::PartialAccepted => "lean:PartialAccepted".to_string(),
++                    LeanVerdictKind::Verified => "lean:Verified".to_string(),
++                    LeanVerdictKind::Failed | LeanVerdictKind::SorryBlocked => format!(
++                        "err:{}",
++                        result
++                            .error_class
++                            .map(|c| format!("{c:?}"))
++                            .unwrap_or_else(|| format!("{:?}", result.verdict_kind))
++                    ),
++                };
++                Ok(Some(LibrarianEvidenceEvent {
++                    cid: *cid,
++                    kind: if matches!(
++                        result.verdict_kind,
++                        LeanVerdictKind::PartialAccepted | LeanVerdictKind::Verified
++                    ) {
++                        LibrarianEvidenceKind::PartialProgress
++                    } else {
++                        LibrarianEvidenceKind::LeanError
++                    },
++                    class_label,
++                    task_id: None,
++                    public_summary: "Externalized Lean attempt has classified verdict".into(),
++                    head_t: meta.created_at_logical_t,
++                }))
++            }
++            ObjectType::AttemptTelemetry => {
++                let Some(attempt) = read_attempt_telemetry_shared_slot_from_cas(cas, cid)
++                    .map_err(|e| e.to_string())?
++                else {
++                    return Ok(None);
++                };
++                Ok(Some(LibrarianEvidenceEvent {
++                    cid: *cid,
++                    kind: LibrarianEvidenceKind::AttemptOutcome,
++                    class_label: format!("attempt:{:?}", attempt.outcome),
++                    task_id: Some(attempt.task_id),
++                    public_summary: format!("Externalized attempt outcome {:?}", attempt.outcome),
++                    head_t: meta.created_at_logical_t,
++                }))
++            }
++            _ => Ok(None),
++        },
++    }
++}
++
++pub fn select_librarian_events(cas: &CasStore) -> Result<Vec<LibrarianEvidenceEvent>, String> {
++    let mut cids = Vec::new();
++    cids.extend(ev_decision_trace_cids(cas));
++    cids.extend(economic_judgment_cids(cas));
++    cids.extend(cas.list_cids_by_object_type(ObjectType::LeanResult));
++    cids.extend(cas.list_cids_by_object_type(ObjectType::AttemptTelemetry));
++    cids.sort();
++    cids.dedup();
++
++    let mut events = Vec::new();
++    for cid in cids {
++        if let Some(event) = decode_librarian_candidate(cas, &cid)? {
++            assert_no_forbidden_broadcast_material(&event.public_summary)?;
++            events.push(event);
++        }
++    }
++    events.sort_by(|a, b| {
++        a.class_label
++            .cmp(&b.class_label)
++            .then_with(|| a.cid.cmp(&b.cid))
++    });
++    Ok(events)
++}
++
++pub fn build_librarian_digest(
++    source_scope: LibrarianSourceScope,
++    generated_at_head_t: u64,
++    mut events: Vec<LibrarianEvidenceEvent>,
++) -> Result<LibrarianDigest, String> {
++    events.sort_by(|a, b| {
++        a.class_label
++            .cmp(&b.class_label)
++            .then_with(|| a.cid.cmp(&b.cid))
++    });
++    for event in &events {
++        assert_no_forbidden_broadcast_material(&event.public_summary)?;
++    }
++
++    let mut grouped: BTreeMap<String, Vec<LibrarianEvidenceEvent>> = BTreeMap::new();
++    for event in events {
++        grouped
++            .entry(event.class_label.clone())
++            .or_default()
++            .push(event);
++    }
++
++    let mut typical_error_clusters = Vec::new();
++    let mut partial_progress_summaries = Vec::new();
++    let mut market_reason_clusters = Vec::new();
++    let mut ev_reason_clusters = Vec::new();
++    let mut provenance = Vec::new();
++
++    for (class, items) in grouped {
++        provenance.extend(items.iter().map(|e| e.cid));
++        let staleness = staleness_for(&items, generated_at_head_t);
++        let count = items.len() as u32;
++        let task_tags = task_tags_for(&items);
++        match items[0].kind {
++            LibrarianEvidenceKind::LeanError => {
++                if count >= 2 {
++                    typical_error_clusters.push(TypicalErrorCluster {
++                        cluster_id: format!("cluster:{class}"),
++                        error_class: class.clone(),
++                        count,
++                        trend: Trend::Stable,
++                        task_tags,
++                        role_hints: vec![AgentRole::Solver, AgentRole::Verifier],
++                        public_summary: format!("{class} repeated {count} times"),
++                        action_hint: Some(
++                            "Check the goal/type shape before repeating the tactic".into(),
++                        ),
++                        provenance_cids: items.iter().map(|e| e.cid).collect(),
++                        staleness,
++                    });
++                }
++            }
++            LibrarianEvidenceKind::PartialProgress => {
++                for event in items {
++                    partial_progress_summaries.push(PartialProgressSummary {
++                        summary_id: format!("partial:{}", event.cid.hex()),
++                        task_id: event.task_id.unwrap_or_else(|| "unknown-task".into()),
++                        source_attempt_cid: event.cid,
++                        lean_result_cid: event.cid,
++                        progress_kind: ProgressKind::PartialAccepted,
++                        tactic_class: Some(class.clone()),
++                        public_summary: event.public_summary,
++                        visibility_scope: VisibilityScope::SameTask,
++                    });
++                }
++            }
++            LibrarianEvidenceKind::MarketReason => {
++                market_reason_clusters.push(ReasonCluster {
++                    reason: class.clone(),
++                    count,
++                    role_hints: vec![
++                        AgentRole::Trader,
++                        AgentRole::BullTrader,
++                        AgentRole::BearTrader,
++                    ],
++                    public_summary: format!("{class} observed {count} times"),
++                    provenance_cids: items.iter().map(|e| e.cid).collect(),
++                    staleness,
++                });
++            }
++            LibrarianEvidenceKind::EVReason | LibrarianEvidenceKind::EconomicJudgment => {
++                ev_reason_clusters.push(ReasonCluster {
++                    reason: class.clone(),
++                    count,
++                    role_hints: vec![
++                        AgentRole::Trader,
++                        AgentRole::BullTrader,
++                        AgentRole::BearTrader,
++                    ],
++                    public_summary: format!("{class} observed {count} times"),
++                    provenance_cids: items.iter().map(|e| e.cid).collect(),
++                    staleness,
++                });
++            }
++            LibrarianEvidenceKind::AttemptOutcome => {}
++        }
++    }
++    provenance.sort();
++    provenance.dedup();
++    let provenance_root = Cid::from_content(
++        &serde_json::to_vec(&provenance).map_err(|e| format!("provenance encode: {e}"))?,
++    );
++
++    let mut digest = LibrarianDigest {
++        schema_version: LIBRARIAN_DIGEST_SCHEMA_ID.to_string(),
++        digest_id: Cid::default(),
++        source_scope,
++        generated_at_head_t: generated_at_head_t.to_string(),
++        typical_error_clusters,
++        partial_progress_summaries,
++        market_reason_clusters,
++        ev_reason_clusters,
++        provenance_root,
++    };
++    digest.digest_id = compute_digest_id(&digest)?;
++    validate_librarian_digest(&digest)?;
++    Ok(digest)
++}
++
++fn task_tags_for(items: &[LibrarianEvidenceEvent]) -> Vec<String> {
++    let mut tags: Vec<String> = items.iter().filter_map(|e| e.task_id.clone()).collect();
++    tags.sort();
++    tags.dedup();
++    tags
++}
++
++fn staleness_for(items: &[LibrarianEvidenceEvent], generated_at_head_t: u64) -> Staleness {
++    let latest = items.iter().map(|e| e.head_t).max().unwrap_or(0);
++    match generated_at_head_t.saturating_sub(latest) {
++        0..=5 => Staleness::Current,
++        6..=50 => Staleness::Recent,
++        _ => Staleness::Stale,
++    }
++}
++
++fn compute_digest_id(digest: &LibrarianDigest) -> Result<Cid, String> {
++    #[derive(Serialize)]
++    struct DigestIdInput<'a> {
++        schema_version: &'a str,
++        source_scope: &'a LibrarianSourceScope,
++        generated_at_head_t: &'a HeadT,
++        typical_error_clusters: &'a [TypicalErrorCluster],
++        partial_progress_summaries: &'a [PartialProgressSummary],
++        market_reason_clusters: &'a [ReasonCluster],
++        ev_reason_clusters: &'a [ReasonCluster],
++        provenance_root: Cid,
++    }
++    let input = DigestIdInput {
++        schema_version: &digest.schema_version,
++        source_scope: &digest.source_scope,
++        generated_at_head_t: &digest.generated_at_head_t,
++        typical_error_clusters: &digest.typical_error_clusters,
++        partial_progress_summaries: &digest.partial_progress_summaries,
++        market_reason_clusters: &digest.market_reason_clusters,
++        ev_reason_clusters: &digest.ev_reason_clusters,
++        provenance_root: digest.provenance_root,
++    };
++    let bytes = serde_json::to_vec(&input).map_err(|e| format!("digest id encode: {e}"))?;
++    Ok(Cid::from_content(&bytes))
++}
++
++pub fn validate_librarian_digest(digest: &LibrarianDigest) -> Result<(), String> {
++    if digest.schema_version != LIBRARIAN_DIGEST_SCHEMA_ID {
++        return Err(format!(
++            "unexpected LibrarianDigest schema {}",
++            digest.schema_version
++        ));
++    }
++    if digest.digest_id == Cid::default() {
++        return Err("LibrarianDigest digest_id must be non-zero".into());
++    }
++    if digest.provenance_root == Cid::default() {
++        return Err("LibrarianDigest provenance_root must be non-zero".into());
++    }
++    for cluster in &digest.typical_error_clusters {
++        assert_no_forbidden_broadcast_material(&cluster.public_summary)?;
++        if let Some(hint) = &cluster.action_hint {
++            assert_no_forbidden_broadcast_material(hint)?;
++        }
++        if cluster.count < 2 {
++            return Err("TypicalErrorCluster requires >=2 evidence events".into());
++        }
++        if cluster.provenance_cids.is_empty() {
++            return Err("TypicalErrorCluster requires provenance_cids".into());
++        }
++    }
++    for summary in &digest.partial_progress_summaries {
++        assert_no_forbidden_broadcast_material(&summary.public_summary)?;
++        if summary.source_attempt_cid == Cid::default() || summary.lean_result_cid == Cid::default()
++        {
++            return Err(
++                "PartialProgressSummary requires source AttemptTelemetry/LeanResult CIDs".into(),
++            );
++        }
++    }
++    for cluster in digest
++        .market_reason_clusters
++        .iter()
++        .chain(digest.ev_reason_clusters.iter())
++    {
++        assert_no_forbidden_broadcast_material(&cluster.public_summary)?;
++        if cluster.provenance_cids.is_empty() {
++            return Err("ReasonCluster requires provenance_cids".into());
++        }
++    }
++    Ok(())
++}
++
++pub fn write_librarian_digest_to_cas(
++    cas: &mut CasStore,
++    digest: &LibrarianDigest,
++    suffix: &str,
++    logical_t: u64,
++) -> Result<Cid, CasError> {
++    validate_librarian_digest(digest)
++        .map_err(|e| CasError::BackendCorruption(format!("LibrarianDigest invalid: {e}")))?;
++    let bytes = serde_json::to_vec(digest)
++        .map_err(|e| CasError::BackendCorruption(format!("LibrarianDigest encode: {e}")))?;
++    cas.put(
++        &bytes,
++        ObjectType::Generic,
++        &format!("real-bcast-librarian-digest-{suffix}"),
++        logical_t,
++        Some(LIBRARIAN_DIGEST_SCHEMA_ID.to_string()),
++    )
++}
++
++pub fn read_librarian_digest_from_cas(
++    cas: &CasStore,
++    cid: &Cid,
++) -> Result<LibrarianDigest, CasError> {
++    let bytes = cas.get(cid)?;
++    let digest: LibrarianDigest = serde_json::from_slice(&bytes)
++        .map_err(|e| CasError::BackendCorruption(format!("LibrarianDigest decode: {e}")))?;
++    validate_librarian_digest(&digest)
++        .map_err(|e| CasError::BackendCorruption(format!("LibrarianDigest invalid: {e}")))?;
++    Ok(digest)
++}
++
++pub fn librarian_digest_cids(cas: &CasStore) -> Vec<Cid> {
++    cas.list_all_cids()
++        .into_iter()
++        .filter(|cid| {
++            cas.metadata(cid).and_then(|meta| meta.schema_id.as_deref())
++                == Some(LIBRARIAN_DIGEST_SCHEMA_ID)
++        })
++        .collect()
++}
++
++pub fn validate_broadcast_epoch(epoch: &BroadcastEpoch, current_head_t: u64) -> Result<(), String> {
++    if epoch.epoch_id.trim().is_empty() {
++        return Err("BroadcastEpoch epoch_id must be non-empty".into());
++    }
++    if epoch.digest_cid == Cid::default() {
++        return Err("BroadcastEpoch digest_cid must be non-zero".into());
++    }
++    if epoch.valid_from < epoch.source_head_t {
++        return Err("BroadcastEpoch valid_from cannot precede source_head_t".into());
++    }
++    if current_head_t < epoch.valid_from {
++        return Err("future digest epoch used before valid_from".into());
++    }
++    if current_head_t > epoch.valid_until {
++        return Err("expired broadcast epoch".into());
++    }
++    Ok(())
++}
++
++pub fn project_role_notifications(
++    digest: &LibrarianDigest,
++    role: AgentRole,
++    max_items: usize,
++) -> Result<RoleNotificationView, String> {
++    let mut notices = Vec::new();
++    match role {
++        AgentRole::Solver => {
++            notices.extend(
++                digest
++                    .typical_error_clusters
++                    .iter()
++                    .take(max_items)
++                    .map(|c| {
++                        format!(
++                            "{} count={} trend={:?} hint={}",
++                            c.error_class,
++                            c.count,
++                            c.trend,
++                            c.action_hint.clone().unwrap_or_default()
++                        )
++                    }),
++            );
++            notices.extend(
++                digest
++                    .partial_progress_summaries
++                    .iter()
++                    .take(max_items.saturating_sub(notices.len()))
++                    .map(|s| format!("partial:{} {}", s.summary_id, s.public_summary)),
++            );
++        }
++        AgentRole::Trader | AgentRole::BullTrader | AgentRole::BearTrader => {
++            notices.extend(digest.ev_reason_clusters.iter().take(max_items).map(|c| {
++                format!(
++                    "{} count={} price anomaly check: {}",
++                    c.reason, c.count, c.public_summary
++                )
++            }));
++            notices.extend(
++                digest
++                    .market_reason_clusters
++                    .iter()
++                    .take(max_items.saturating_sub(notices.len()))
++                    .map(|c| format!("{} count={} {}", c.reason, c.count, c.public_summary)),
++            );
++        }
++        AgentRole::Verifier => {
++            notices
++                .push("proof-risk: inspect common false-progress patterns before verifying".into());
++            notices.extend(
++                digest
++                    .typical_error_clusters
++                    .iter()
++                    .take(max_items)
++                    .map(|c| format!("proof-risk {} count={}", c.error_class, c.count)),
++            );
++        }
++        AgentRole::Challenger => {
++            notices.push("suspicious-node summary: repeated failures may mark weak claims".into());
++            notices.extend(
++                digest
++                    .typical_error_clusters
++                    .iter()
++                    .take(max_items)
++                    .map(|c| format!("weakness {} count={}", c.error_class, c.count)),
++            );
++        }
++        AgentRole::Architect => {
++            notices.push(format!(
++                "aggregate trends: errors={} ev_reasons={}",
++                digest.typical_error_clusters.len(),
++                digest.ev_reason_clusters.len()
++            ));
++        }
++        _ => {}
++    }
++    if notices.is_empty() {
++        notices.push("No librarian notices for this role at current scope".into());
++    }
++    let rendered_notice =
++        render_librarian_notices_section(&digest.digest_id.to_string(), &notices, max_items)?;
++    Ok(RoleNotificationView {
++        source_digest_cid: digest.digest_id,
++        target_role: role,
++        rendered_notice,
++        redacted_fields: vec![
++            "lean_stderr_redacted".into(),
++            "prompt_body_redacted".into(),
++            "completion_body_redacted".into(),
++            "private_cot_redacted".into(),
++            "diagnostics_redacted".into(),
++        ],
++    })
++}
++
++pub fn write_role_notification_view_to_cas(
++    cas: &mut CasStore,
++    view: &RoleNotificationView,
++    suffix: &str,
++    logical_t: u64,
++) -> Result<Cid, CasError> {
++    assert_no_forbidden_broadcast_material(&view.rendered_notice)
++        .map_err(|e| CasError::BackendCorruption(format!("RoleNotificationView invalid: {e}")))?;
++    let bytes = serde_json::to_vec(view)
++        .map_err(|e| CasError::BackendCorruption(format!("RoleNotificationView encode: {e}")))?;
++    cas.put(
++        &bytes,
++        ObjectType::Generic,
++        &format!("real-bcast-role-notification-{suffix}"),
++        logical_t,
++        Some(LIBRARIAN_ROLE_CROP_SCHEMA_ID.to_string()),
++    )
++}
++
++pub fn render_librarian_notices_section(
++    digest_label: &str,
++    notices: &[String],
++    max_items: usize,
++) -> Result<String, String> {
++    let mut out = String::new();
++    out.push_str("=== Librarian Notices ===\n");
++    out.push_str("source: CAS/ChainTape-derived, role-scoped, raw logs redacted\n");
++    out.push_str(&format!("digest: {digest_label}\n"));
++    for notice in notices.iter().take(max_items) {
++        assert_no_forbidden_broadcast_material(notice)?;
++        out.push_str("- ");
++        out.push_str(notice);
++        out.push('\n');
++    }
++    out.push('\n');
++    Ok(out)
++}
++
++pub fn validate_prompt_capsule_librarian_binding(
++    capsule: &PromptCapsuleV2,
++    visible_context_bytes: &[u8],
++    digest_cid: Cid,
++    role_crop_cid: Cid,
++) -> Result<(), String> {
++    if !capsule.read_set.contains(&digest_cid) {
++        return Err("PromptCapsuleV2 read_set missing LibrarianDigest CID".into());
++    }
++    if !capsule.read_set.contains(&role_crop_cid) {
++        return Err("PromptCapsuleV2 read_set missing role crop CID".into());
++    }
++    if capsule.visible_context_cid != Cid::from_content(visible_context_bytes) {
++        return Err("PromptCapsuleV2 visible_context_cid does not match visible bytes".into());
++    }
++    if crate::state::q_state::Hash(Cid::from_content(visible_context_bytes).0)
++        != capsule.prompt_context_hash
++    {
++        return Err("PromptCapsuleV2 prompt_context_hash does not match visible bytes".into());
++    }
++    let visible = String::from_utf8_lossy(visible_context_bytes);
++    if !visible.contains("=== Librarian Notices ===") {
++        return Err("visible context missing Librarian Notices section".into());
++    }
++    assert_no_forbidden_broadcast_material(&visible)?;
++    Ok(())
++}
+
+diff --git a/dev/null b/tests/constitution_librarian_source_scope.rs
+--- /dev/null
++++ b/tests/constitution_librarian_source_scope.rs
++//! REAL-BCAST-1 — LibrarianSourceScope gates.
++
++use tempfile::TempDir;
++use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
++use turingosv4::bottom_white::cas::store::CasStore;
++use turingosv4::runtime::librarian_broadcast::{
++    validate_librarian_source_scope, LibrarianSourceScope,
++};
++
++fn cid(label: &str) -> Cid {
++    Cid::from_content(label.as_bytes())
++}
++
++#[test]
++fn source_scope_requires_current_run_cas_root() {
++    let tmp = TempDir::new().unwrap();
++    let cas = CasStore::open(tmp.path()).unwrap();
++    let scope = LibrarianSourceScope {
++        current_run_cas_root: Cid::default(),
++        prior_capsule_cids: vec![],
++        max_prior_batches: 0,
++        task_tags: vec!["minif2f".into()],
++    };
++
++    assert!(validate_librarian_source_scope(&scope, &cas)
++        .unwrap_err()
++        .contains("current_run_cas_root"));
++}
++
++#[test]
++fn source_scope_resolves_prior_capsules_or_fails_closed() {
++    let tmp = TempDir::new().unwrap();
++    let mut cas = CasStore::open(tmp.path()).unwrap();
++    let prior = cas
++        .put(
++            b"prior capsule",
++            ObjectType::Generic,
++            "test-prior",
++            1,
++            Some("prior.capsule.v1".into()),
++        )
++        .unwrap();
++    let scope = LibrarianSourceScope {
++        current_run_cas_root: cid("root"),
++        prior_capsule_cids: vec![prior],
++        max_prior_batches: 1,
++        task_tags: vec!["algebra".into()],
++    };
++    validate_librarian_source_scope(&scope, &cas).unwrap();
++
++    let missing = LibrarianSourceScope {
++        prior_capsule_cids: vec![cid("missing")],
++        ..scope
++    };
++    assert!(validate_librarian_source_scope(&missing, &cas)
++        .unwrap_err()
++        .contains("unresolved prior_capsule_cid"));
++}
++
++#[test]
++fn source_scope_rejects_global_pointer_inputs() {
++    let tmp = TempDir::new().unwrap();
++    let cas = CasStore::open(tmp.path()).unwrap();
++    let scope = LibrarianSourceScope {
++        current_run_cas_root: cid("root"),
++        prior_capsule_cids: vec![],
++        max_prior_batches: 0,
++        task_tags: vec!["LATEST_MARKOV_CAPSULE.txt".into()],
++    };
++
++    assert!(validate_librarian_source_scope(&scope, &cas)
++        .unwrap_err()
++        .contains("global pointer"));
++}
+
+diff --git a/dev/null b/tests/constitution_librarian_selector.rs
+--- /dev/null
++++ b/tests/constitution_librarian_selector.rs
++//! REAL-BCAST-1 — LibrarianSelector gates.
++
++use tempfile::TempDir;
++use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
++use turingosv4::bottom_white::cas::store::CasStore;
++use turingosv4::economy::money::MicroCoin;
++use turingosv4::runtime::ev_decision_trace::{
++    write_ev_decision_trace_to_cas, EVAction, EVDecisionTrace, EVReason,
++    EV_DECISION_TRACE_SCHEMA_ID,
++};
++use turingosv4::runtime::librarian_broadcast::{
++    decode_librarian_candidate, select_librarian_events, LibrarianEvidenceKind,
++};
++use turingosv4::runtime::real5_roles::{AgentRole, MarketSide, RationalPrice};
++use turingosv4::state::q_state::{AgentId, TaskId};
++use turingosv4::state::typed_tx::EventId;
++
++fn ev_trace(reason: EVReason) -> EVDecisionTrace {
++    EVDecisionTrace {
++        schema_version: EV_DECISION_TRACE_SCHEMA_ID.to_string(),
++        review_window_id: "window".into(),
++        review_response_id: "response".into(),
++        run_id: "run".into(),
++        batch_id: "batch".into(),
++        agent_id: AgentId("Agent_bull".into()),
++        role: AgentRole::BullTrader,
++        task_id: TaskId("task".into()),
++        event_id: EventId(TaskId("task".into())),
++        side: MarketSide::Yes,
++        quoted_price: RationalPrice::new(5, 8).unwrap(),
++        implied_probability_bps: 6250,
++        agent_probability_bps: 6000,
++        edge_bps: -250,
++        expected_value_micro: -2500,
++        amount: MicroCoin::from_micro_units(10_000),
++        max_risk: MicroCoin::from_micro_units(10_000),
++        available_balance: MicroCoin::from_micro_units(100_000),
++        risk_cap: MicroCoin::from_micro_units(50_000),
++        liquidity_depth: MicroCoin::from_micro_units(100_000),
++        slippage_bps: 0,
++        risk_cap_triggered: false,
++        action: EVAction::Abstain,
++        reason,
++        prompt_capsule_cid: Cid::from_content(b"prompt"),
++        market_snapshot_cid: Cid::from_content(b"market"),
++        model_assignment_cid: None,
++        model_family: None,
++        private_alpha_cid: None,
++        tool_result_cid: None,
++        parent_state_root: "root".into(),
++        created_at_head_t: "HEAD".into(),
++        public_summary: "public EV trace".into(),
++    }
++}
++
++#[test]
++fn selector_reads_known_typed_sidecars() {
++    let tmp = TempDir::new().unwrap();
++    let mut cas = CasStore::open(tmp.path()).unwrap();
++    let ev_cid =
++        write_ev_decision_trace_to_cas(&mut cas, &ev_trace(EVReason::NegativeEV), "ev", 1).unwrap();
++
++    let events = select_librarian_events(&cas).unwrap();
++    assert_eq!(events.len(), 1);
++    assert_eq!(events[0].cid, ev_cid);
++    assert_eq!(events[0].kind, LibrarianEvidenceKind::EVReason);
++    assert_eq!(events[0].class_label, "ev:NegativeEV");
++}
++
++#[test]
++fn selector_fails_closed_on_explicit_unknown_candidate() {
++    let tmp = TempDir::new().unwrap();
++    let mut cas = CasStore::open(tmp.path()).unwrap();
++    let unknown = cas
++        .put(
++            br#"{"schema_version":"mystery.v1"}"#,
++            ObjectType::Generic,
++            "unknown",
++            1,
++            Some("mystery.v1".into()),
++        )
++        .unwrap();
++
++    assert!(decode_librarian_candidate(&cas, &unknown)
++        .unwrap_err()
++        .contains("unknown librarian evidence schema"));
++}
++
++#[test]
++fn selector_does_not_copy_raw_payload_body() {
++    let tmp = TempDir::new().unwrap();
++    let mut cas = CasStore::open(tmp.path()).unwrap();
++    let _cid =
++        write_ev_decision_trace_to_cas(&mut cas, &ev_trace(EVReason::NoActionableMarket), "ev", 1)
++            .unwrap();
++    let events = select_librarian_events(&cas).unwrap();
++    let rendered = format!("{events:?}");
++    assert!(!rendered.contains("raw prompt"));
++    assert!(!rendered.contains("raw completion"));
++    assert!(!rendered.contains("private CoT"));
++    assert!(!rendered.contains("Lean stderr"));
++}
+
+diff --git a/dev/null b/tests/constitution_librarian_digest.rs
+--- /dev/null
++++ b/tests/constitution_librarian_digest.rs
++//! REAL-BCAST-1 — LibrarianDigest gates.
++
++use tempfile::TempDir;
++use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
++use turingosv4::bottom_white::cas::store::CasStore;
++use turingosv4::runtime::librarian_broadcast::{
++    build_librarian_digest, librarian_digest_cids, read_librarian_digest_from_cas,
++    validate_broadcast_epoch, validate_librarian_digest, write_librarian_digest_to_cas,
++    BroadcastEpoch, LibrarianEvidenceEvent, LibrarianEvidenceKind, LibrarianSourceScope,
++    LIBRARIAN_DIGEST_SCHEMA_ID,
++};
++
++fn event(label: &str) -> LibrarianEvidenceEvent {
++    LibrarianEvidenceEvent {
++        cid: Cid::from_content(label.as_bytes()),
++        kind: LibrarianEvidenceKind::LeanError,
++        class_label: "err:type_mismatch".into(),
++        task_id: Some("task-algebra".into()),
++        public_summary: "Repeated Lean type mismatch in externalized tactic".into(),
++        head_t: 7,
++    }
++}
++
++#[test]
++fn digest_clusters_repeated_errors_and_is_deterministic() {
++    let scope = LibrarianSourceScope {
++        current_run_cas_root: Cid::from_content(b"root"),
++        prior_capsule_cids: vec![],
++        max_prior_batches: 0,
++        task_tags: vec!["algebra".into()],
++    };
++    let a = build_librarian_digest(scope.clone(), 10, vec![event("a"), event("b")]).unwrap();
++    let b = build_librarian_digest(scope, 10, vec![event("b"), event("a")]).unwrap();
++
++    assert_eq!(
++        a, b,
++        "same source scope/events must build deterministic digest"
++    );
++    assert_eq!(a.typical_error_clusters.len(), 1);
++    assert_eq!(a.typical_error_clusters[0].count, 2);
++    validate_librarian_digest(&a).unwrap();
++}
++
++#[test]
++fn digest_is_generic_cas_backed_and_readable() {
++    let tmp = TempDir::new().unwrap();
++    let mut cas = CasStore::open(tmp.path()).unwrap();
++    let scope = LibrarianSourceScope {
++        current_run_cas_root: Cid::from_content(b"root"),
++        prior_capsule_cids: vec![],
++        max_prior_batches: 0,
++        task_tags: vec!["algebra".into()],
++    };
++    let digest = build_librarian_digest(scope, 10, vec![event("a"), event("b")]).unwrap();
++    let cid = write_librarian_digest_to_cas(&mut cas, &digest, "digest", 10).unwrap();
++    let meta = cas.metadata(&cid).unwrap();
++    assert_eq!(meta.object_type, ObjectType::Generic);
++    assert_eq!(meta.schema_id.as_deref(), Some(LIBRARIAN_DIGEST_SCHEMA_ID));
++    assert_eq!(librarian_digest_cids(&cas), vec![cid]);
++    assert_eq!(read_librarian_digest_from_cas(&cas, &cid).unwrap(), digest);
++}
++
++#[test]
++fn broadcast_epoch_rejects_future_or_out_of_window_digest() {
++    let epoch = BroadcastEpoch {
++        epoch_id: "epoch-1".into(),
++        source_head_t: 10,
++        digest_cid: Cid::from_content(b"digest"),
++        valid_from: 11,
++        valid_until: 20,
++        task_tags: vec!["algebra".into()],
++    };
++    validate_broadcast_epoch(&epoch, 15).unwrap();
++    assert!(validate_broadcast_epoch(&epoch, 9)
++        .unwrap_err()
++        .contains("future digest"));
++    assert!(validate_broadcast_epoch(&epoch, 21)
++        .unwrap_err()
++        .contains("expired"));
++}
+
+diff --git a/dev/null b/tests/constitution_librarian_role_projector.rs
+--- /dev/null
++++ b/tests/constitution_librarian_role_projector.rs
++//! REAL-BCAST-1 — role-cropped Librarian notices.
++
++use turingosv4::bottom_white::cas::schema::Cid;
++use turingosv4::runtime::librarian_broadcast::{
++    build_librarian_digest, project_role_notifications, LibrarianEvidenceEvent,
++    LibrarianEvidenceKind, LibrarianSourceScope,
++};
++use turingosv4::runtime::real5_roles::AgentRole;
++
++fn digest() -> turingosv4::runtime::librarian_broadcast::LibrarianDigest {
++    let scope = LibrarianSourceScope {
++        current_run_cas_root: Cid::from_content(b"root"),
++        prior_capsule_cids: vec![],
++        max_prior_batches: 0,
++        task_tags: vec!["algebra".into()],
++    };
++    build_librarian_digest(
++        scope,
++        10,
++        vec![
++            LibrarianEvidenceEvent {
++                cid: Cid::from_content(b"e1"),
++                kind: LibrarianEvidenceKind::LeanError,
++                class_label: "err:type_mismatch".into(),
++                task_id: Some("task".into()),
++                public_summary: "Repeated Lean type mismatch".into(),
++                head_t: 8,
++            },
++            LibrarianEvidenceEvent {
++                cid: Cid::from_content(b"e2"),
++                kind: LibrarianEvidenceKind::LeanError,
++                class_label: "err:type_mismatch".into(),
++                task_id: Some("task".into()),
++                public_summary: "Repeated Lean type mismatch".into(),
++                head_t: 9,
++            },
++            LibrarianEvidenceEvent {
++                cid: Cid::from_content(b"ev"),
++                kind: LibrarianEvidenceKind::EVReason,
++                class_label: "ev:NegativeEV".into(),
++                task_id: Some("task".into()),
++                public_summary: "Trader abstained because EV was negative".into(),
++                head_t: 9,
++            },
++        ],
++    )
++    .unwrap()
++}
++
++#[test]
++fn projector_produces_role_specific_crops() {
++    let digest = digest();
++    let solver = project_role_notifications(&digest, AgentRole::Solver, 8).unwrap();
++    let trader = project_role_notifications(&digest, AgentRole::BullTrader, 8).unwrap();
++    let verifier = project_role_notifications(&digest, AgentRole::Verifier, 8).unwrap();
++
++    assert!(solver.rendered_notice.contains("type_mismatch"));
++    assert!(!solver.rendered_notice.contains("price anomaly"));
++    assert!(trader.rendered_notice.contains("NegativeEV"));
++    assert!(verifier.rendered_notice.contains("proof-risk"));
++    assert_ne!(solver.rendered_notice, trader.rendered_notice);
++}
++
++#[test]
++fn role_crops_reference_source_digest_and_redactions() {
++    let digest = digest();
++    let crop = project_role_notifications(&digest, AgentRole::Challenger, 4).unwrap();
++    assert_eq!(crop.source_digest_cid, digest.digest_id);
++    assert!(crop
++        .redacted_fields
++        .iter()
++        .any(|v| v.ends_with("_redacted")));
++    assert!(!crop.redacted_fields.iter().any(|v| v.contains("raw")));
++    assert!(crop.rendered_notice.contains("raw logs redacted"));
++}
+
+diff --git a/dev/null b/tests/constitution_librarian_prompt_injection.rs
+--- /dev/null
++++ b/tests/constitution_librarian_prompt_injection.rs
++//! REAL-BCAST-1 — PromptCapsule injection gates.
++
++use tempfile::TempDir;
++use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
++use turingosv4::bottom_white::cas::store::CasStore;
++use turingosv4::runtime::attempt_telemetry::{AttemptKind, AttemptOutcome, AttemptTelemetry};
++use turingosv4::runtime::librarian_broadcast::{
++    render_librarian_notices_section, validate_prompt_capsule_librarian_binding,
++};
++use turingosv4::runtime::prompt_capsule::{write_prompt_capsule_v2_to_cas, PromptCapsuleV2};
++use turingosv4::runtime::proposal_telemetry::TokenCounts;
++use turingosv4::runtime::real5_roles::AgentRole;
++use turingosv4::state::q_state::{AgentId, Hash, TxId};
++
++#[test]
++fn prompt_capsule_read_set_and_visible_context_bind_digest() {
++    let digest_cid = Cid::from_content(b"digest");
++    let crop_cid = Cid::from_content(b"crop");
++    let notices = render_librarian_notices_section(
++        "cid:digest",
++        &["err:type_mismatch count=2 trend=up".to_string()],
++        8,
++    )
++    .unwrap();
++    let prompt_bytes = format!("base prompt\n{notices}").into_bytes();
++    let prompt_hash = Hash(Cid::from_content(&prompt_bytes).0);
++    let capsule = PromptCapsuleV2 {
++        prompt_context_hash: prompt_hash,
++        agent_id: AgentId("Agent_0".into()),
++        role: AgentRole::Solver,
++        view_policy_id: "real5/solver_view/v1".into(),
++        visible_context_cid: Cid::from_content(&prompt_bytes),
++        read_set: vec![digest_cid, crop_cid],
++        hidden_fields_redacted: vec!["raw prompt body".into(), "raw completion".into()],
++        system_prompt_template_hash: Hash(Cid::from_content(b"template").0),
++        model_assignment_cid: None,
++    };
++
++    validate_prompt_capsule_librarian_binding(&capsule, &prompt_bytes, digest_cid, crop_cid)
++        .unwrap();
++
++    let mut missing = capsule.clone();
++    missing.read_set = vec![digest_cid];
++    assert!(validate_prompt_capsule_librarian_binding(
++        &missing,
++        &prompt_bytes,
++        digest_cid,
++        crop_cid
++    )
++    .unwrap_err()
++    .contains("role crop CID"));
++}
++
++#[test]
++fn prompt_hash_changes_when_digest_notice_changes() {
++    let a = render_librarian_notices_section("cid:a", &["err:a count=2".into()], 8).unwrap();
++    let b = render_librarian_notices_section("cid:b", &["err:b count=2".into()], 8).unwrap();
++    assert_ne!(
++        Cid::from_content(a.as_bytes()),
++        Cid::from_content(b.as_bytes())
++    );
++}
++
++#[test]
++fn attempt_telemetry_links_to_prompt_capsule_with_librarian_read_set() {
++    let tmp = TempDir::new().unwrap();
++    let mut cas = CasStore::open(tmp.path()).unwrap();
++    let digest_cid = Cid::from_content(b"digest");
++    let crop_cid = Cid::from_content(b"crop");
++    let prompt = b"=== Librarian Notices ===\nsource: CAS/ChainTape-derived\n";
++    let capsule = PromptCapsuleV2 {
++        prompt_context_hash: Hash(Cid::from_content(prompt).0),
++        agent_id: AgentId("Agent_0".into()),
++        role: AgentRole::Solver,
++        view_policy_id: "real5/solver_view/v1".into(),
++        visible_context_cid: Cid::from_content(prompt),
++        read_set: vec![digest_cid, crop_cid],
++        hidden_fields_redacted: vec!["raw prompt body".into()],
++        system_prompt_template_hash: Hash(Cid::from_content(b"template").0),
++        model_assignment_cid: None,
++    };
++    let capsule_cid = write_prompt_capsule_v2_to_cas(&mut cas, &capsule, "test", 1).unwrap();
++    assert_eq!(
++        cas.metadata(&capsule_cid).unwrap().object_type,
++        ObjectType::PromptCapsule
++    );
++
++    let attempt = AttemptTelemetry::new_root(
++        TxId("attempt".into()),
++        "run".into(),
++        "task".into(),
++        AgentId("Agent_0".into()),
++        "branch".into(),
++        capsule.prompt_context_hash,
++        Cid::from_content(b"candidate"),
++        AttemptKind::ExternalizedLlmCycle,
++        AttemptOutcome::ParseFail,
++        TokenCounts {
++            prompt_tokens: 1,
++            completion_tokens: 1,
++            tool_tokens: 0,
++        },
++        "step".into(),
++    )
++    .with_prompt_capsule_cid(capsule_cid);
++    assert_eq!(attempt.prompt_capsule_cid, Some(capsule_cid));
++}
+
+diff --git a/dev/null b/tests/constitution_librarian_half_async.rs
+--- /dev/null
++++ b/tests/constitution_librarian_half_async.rs
++//! REAL-BCAST-1 — half-async / barriered async replay contract.
++
++use turingosv4::bottom_white::cas::schema::Cid;
++use turingosv4::runtime::librarian_broadcast::BroadcastEpoch;
++use turingosv4::runtime::market_review::{
++    deterministic_response_order, validate_market_review_broadcast_contract, MarketReviewMode,
++    MarketReviewResponse, MarketReviewSummary, MarketReviewWindow,
++};
++use turingosv4::runtime::real5_roles::AgentRole;
++use turingosv4::state::q_state::{AgentId, TaskId, TxId};
++use turingosv4::state::typed_tx::EventId;
++
++fn cid(label: &str) -> Cid {
++    Cid::from_content(label.as_bytes())
++}
++
++fn response(agent: &str, digest: Cid) -> MarketReviewResponse {
++    MarketReviewResponse {
++        window_id: TxId("window".into()),
++        response_id: format!("response-{agent}"),
++        agent_id: AgentId(agent.into()),
++        role: AgentRole::BullTrader,
++        ev_decision_trace_cid: Some(cid(&format!("ev-{agent}"))),
++        no_response_trace_cid: None,
++        action: "Abstain".into(),
++        submitted_tx_id: None,
++        librarian_digest_cid: Some(digest),
++        broadcast_epoch_id: Some("epoch-1".into()),
++    }
++}
++
++#[test]
++fn barriered_async_freezes_digest_for_all_responses() {
++    let digest = cid("digest");
++    let window = MarketReviewWindow {
++        window_id: TxId("window".into()),
++        event_id: EventId(TaskId("task".into())),
++        opened_at_head_t: "HEAD".into(),
++        market_snapshot_cid: cid("market"),
++        eligible_agents: vec![AgentId("Agent_2".into()), AgentId("Agent_1".into())],
++        deadline_logical_t: 20,
++        mode: MarketReviewMode::BarrieredAsync,
++        librarian_digest_cid: Some(digest),
++        broadcast_epoch_id: Some("epoch-1".into()),
++    };
++    let responses = deterministic_response_order(vec![
++        response("Agent_2", digest),
++        response("Agent_1", digest),
++    ]);
++    let summary = MarketReviewSummary {
++        window_id: TxId("window".into()),
++        event_id: EventId(TaskId("task".into())),
++        response_count: 2,
++        buy_count: 0,
++        short_count: 0,
++        abstain_count: 2,
++        missing_count: 0,
++        response_cids: vec![cid("r1"), cid("r2")],
++        committed_tx_ids: vec![],
++        digest_set: vec![digest],
++    };
++    let epoch = BroadcastEpoch {
++        epoch_id: "epoch-1".into(),
++        source_head_t: 10,
++        digest_cid: digest,
++        valid_from: 10,
++        valid_until: 20,
++        task_tags: vec!["task".into()],
++    };
++    validate_market_review_broadcast_contract(&window, &responses, &summary, &epoch, 15).unwrap();
++    assert_eq!(responses[0].agent_id.0, "Agent_1");
++}
++
++#[test]
++fn barriered_async_rejects_mismatched_or_future_digest() {
++    let digest = cid("digest");
++    let other = cid("other");
++    let mut window = MarketReviewWindow {
++        window_id: TxId("window".into()),
++        event_id: EventId(TaskId("task".into())),
++        opened_at_head_t: "HEAD".into(),
++        market_snapshot_cid: cid("market"),
++        eligible_agents: vec![AgentId("Agent_1".into())],
++        deadline_logical_t: 20,
++        mode: MarketReviewMode::BarrieredAsync,
++        librarian_digest_cid: Some(digest),
++        broadcast_epoch_id: Some("epoch-1".into()),
++    };
++    let responses = vec![response("Agent_1", other)];
++    let summary = MarketReviewSummary {
++        window_id: TxId("window".into()),
++        event_id: EventId(TaskId("task".into())),
++        response_count: 1,
++        buy_count: 0,
++        short_count: 0,
++        abstain_count: 1,
++        missing_count: 0,
++        response_cids: vec![cid("r1")],
++        committed_tx_ids: vec![],
++        digest_set: vec![digest],
++    };
++    let epoch = BroadcastEpoch {
++        epoch_id: "epoch-1".into(),
++        source_head_t: 10,
++        digest_cid: digest,
++        valid_from: 10,
++        valid_until: 20,
++        task_tags: vec!["task".into()],
++    };
++    assert!(
++        validate_market_review_broadcast_contract(&window, &responses, &summary, &epoch, 15)
++            .unwrap_err()
++            .contains("digest mismatch")
++    );
++
++    window.librarian_digest_cid = Some(digest);
++    let responses = vec![response("Agent_1", digest)];
++    assert!(
++        validate_market_review_broadcast_contract(&window, &responses, &summary, &epoch, 9)
++            .unwrap_err()
++            .contains("future digest")
++    );
++}
+
+diff --git a/dev/null b/tests/constitution_librarian_no_raw_leakage.rs
+--- /dev/null
++++ b/tests/constitution_librarian_no_raw_leakage.rs
++//! REAL-BCAST-1 — no raw leakage gates.
++
++use turingosv4::bottom_white::cas::schema::Cid;
++use turingosv4::runtime::librarian_broadcast::{
++    assert_no_forbidden_broadcast_material, build_librarian_digest, project_role_notifications,
++    render_librarian_notices_section, LibrarianEvidenceEvent, LibrarianEvidenceKind,
++    LibrarianSourceScope,
++};
++use turingosv4::runtime::real5_roles::AgentRole;
++
++#[test]
++fn digest_crop_and_prompt_reject_forbidden_raw_material() {
++    for raw in [
++        "raw Lean stderr",
++        "raw prompt",
++        "raw completion",
++        "private CoT",
++        "raw diagnostics",
++        "untriaged historical logs",
++    ] {
++        assert!(assert_no_forbidden_broadcast_material(raw)
++            .unwrap_err()
++            .contains("forbidden broadcast material"));
++    }
++}
++
++#[test]
++fn sanitized_digest_and_prompt_pass_no_leak_scan() {
++    let scope = LibrarianSourceScope {
++        current_run_cas_root: Cid::from_content(b"root"),
++        prior_capsule_cids: vec![],
++        max_prior_batches: 0,
++        task_tags: vec!["algebra".into()],
++    };
++    let digest = build_librarian_digest(
++        scope,
++        10,
++        vec![
++            LibrarianEvidenceEvent {
++                cid: Cid::from_content(b"e1"),
++                kind: LibrarianEvidenceKind::LeanError,
++                class_label: "err:type_mismatch".into(),
++                task_id: Some("task".into()),
++                public_summary: "Repeated type mismatch class".into(),
++                head_t: 9,
++            },
++            LibrarianEvidenceEvent {
++                cid: Cid::from_content(b"e2"),
++                kind: LibrarianEvidenceKind::LeanError,
++                class_label: "err:type_mismatch".into(),
++                task_id: Some("task".into()),
++                public_summary: "Repeated type mismatch class".into(),
++                head_t: 10,
++            },
++        ],
++    )
++    .unwrap();
++    let crop = project_role_notifications(&digest, AgentRole::Solver, 4).unwrap();
++    let digest_json = serde_json::to_string(&digest).unwrap();
++    let crop_json = serde_json::to_string(&crop).unwrap();
++    assert_no_forbidden_broadcast_material(&digest_json).unwrap();
++    assert_no_forbidden_broadcast_material(&crop_json).unwrap();
++    let prompt =
++        render_librarian_notices_section("cid:digest", &[crop.rendered_notice], 4).unwrap();
++    assert_no_forbidden_broadcast_material(&prompt).unwrap();
++}
+
+diff --git a/dev/null b/tests/constitution_librarian_real_evidence_binding.rs
+--- /dev/null
++++ b/tests/constitution_librarian_real_evidence_binding.rs
++//! REAL-BCAST-1 — binding to REAL-13 clean evidence.
++
++use std::path::Path;
++
++#[test]
++fn real13_status_sync_points_to_existing_clean_evidence() {
++    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
++    let evidence = root.join("handover/evidence/real13_market_pressure_probe_20260516T071216Z");
++    assert!(
++        evidence.exists(),
++        "REAL-13 clean evidence missing: {evidence:?}"
++    );
++    assert!(evidence.join("cas/.turingos_cas_index.jsonl").exists());
++    assert!(evidence
++        .join("REAL13_MARKET_PRESSURE_PROBE_REPORT.md")
++        .exists());
++    assert!(evidence.join("aggregate_verdict.json").exists());
++
++    let report = std::fs::read_to_string(evidence.join("REAL13_MARKET_PRESSURE_PROBE_REPORT.md"))
++        .expect("report readable");
++    assert!(report.contains("ev_decision_trace_total_cas | 10"));
++    assert!(report.contains("market_review_summary_cas_count | 10"));
++    assert!(report.contains("live_non_scripted_router_tx_count | 0"));
++    assert!(report.contains("E2 NOT ACHIEVED"));
++
++    let status = std::fs::read_to_string(
++        root.join("handover/directives/2026-05-16_REAL13_STATUS_SYNC_FOR_ARCHITECT.md"),
++    )
++    .expect("status sync readable");
++    assert!(status.contains("architect"));
++    assert!(status.contains("E2 NOT ACHIEVED"));
++    assert!(status.contains("real13_market_pressure_probe_20260516T071216Z"));
++}
++
++#[test]
++fn dashboard_has_librarian_materialized_view_section() {
++    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
++    let dashboard = std::fs::read_to_string(root.join("src/bin/audit_dashboard.rs"))
++        .expect("audit_dashboard source readable");
++    assert!(dashboard.contains("§REAL-BCAST Librarian Broadcast"));
++    assert!(dashboard.contains("librarian_digest_cas_count"));
++    assert!(dashboard.contains("librarian_shielding_verdict"));
++    assert!(dashboard.contains("dashboard is not truth"));
++}

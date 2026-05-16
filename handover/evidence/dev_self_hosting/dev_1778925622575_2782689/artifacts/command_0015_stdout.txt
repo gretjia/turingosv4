@@ -1,0 +1,3196 @@
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 133 tests
+test agent_models::tests::csv_entries_trimmed ... ok
+test agent_models::tests::empty_csv_slot_rejected ... ok
+test agent_models::tests::empty_env_parses_to_empty_vec ... ok
+test agent_models::tests::empty_parsed_broadcasts_global_model ... ok
+test agent_models::tests::heterogeneous_with_gate_passes ... ok
+test agent_models::tests::heterogeneous_without_gate_rejected ... ok
+test agent_models::tests::length_mismatch_rejected ... ok
+test agent_models::tests::positional_length_match_passes ... ok
+test agent_models::tests::single_entry_broadcasts ... ok
+test agent_models::tests::single_entry_parses ... ok
+test agent_models::tests::uniform_length_n_does_not_trip_hetero_gate ... ok
+test batch_orchestrator::tests::unit_batch_manifest_carries_role_assignment_manifest_from_genesis_report ... ok
+test batch_orchestrator::tests::unit_continuity_verifier_accepts_continuous_chain ... ok
+test batch_orchestrator::tests::unit_continuity_verifier_catches_gap ... ok
+test batch_orchestrator::tests::unit_env_contains_resume_flag_for_task_k_gt_0 ... ok
+test batch_orchestrator::tests::unit_env_omits_resume_flag_for_task_0 ... ok
+test batch_orchestrator::tests::unit_task_0_is_fresh_genesis_boundary ... ok
+test budget_regime::tests::effective_per_agent_overflow_rejected ... ok
+test budget_regime::tests::effective_per_agent_scales_linearly_in_n ... ok
+test budget_regime::tests::effective_token_total_unimplemented ... ok
+test budget_regime::tests::effective_total_proposal_invariant_under_n ... ok
+test budget_regime::tests::effective_wall_clock_unimplemented ... ok
+test budget_regime::tests::label_strings_are_stable ... ok
+test budget_regime::tests::n_agents_zero_does_not_panic ... ok
+test budget_regime::tests::parse_max_transactions_empty_defaults_to_200 ... ok
+test budget_regime::tests::parse_max_transactions_garbage_rejected ... ok
+test budget_regime::tests::parse_max_transactions_negative_rejected ... ok
+test budget_regime::tests::parse_max_transactions_valid ... ok
+test budget_regime::tests::parse_max_transactions_zero_rejected ... ok
+test budget_regime::tests::parse_regime_empty_defaults_to_total_proposal ... ok
+test budget_regime::tests::parse_regime_known_values ... ok
+test budget_regime::tests::parse_regime_unknown_rejected ... ok
+test budget_regime::tests::resolve_budget_default_preserves_phase_b_baseline ... ok
+test budget_regime::tests::resolve_budget_per_agent_via_env ... ok
+test budget_regime::tests::resolve_budget_token_total_startup_fatal ... ok
+test budget_regime::tests::resolve_budget_unknown_regime_via_env ... ok
+test chain_runtime::tests::shared_chain_from_env_no_env_vars_set_legacy_mode ... ok
+test chaintape_mode_gate::tests::oneshot_fails_closed_in_chaintape_mode ... ok
+test chaintape_mode_gate::tests::oneshot_passes_in_legacy_mode ... ok
+test chaintape_mode_gate::tests::swarm_condition_passes_in_chaintape_mode ... ok
+test chaintape_mode_gate::tests::unknown_condition_passes_when_not_in_unsupported_list ... ok
+test cost_aggregator::tests::test_empty_accumulator_zero_total ... ok
+test cost_aggregator::tests::test_failed_branches_counted_in_total_cost ... ok
+test cost_aggregator::tests::test_flip_underflow_panics - should panic ... ok
+test cost_aggregator::tests::test_tool_stdout_chars_div_4_approximation ... ok
+test drive_task::tests::drive_task_error_display_explains_each_variant ... ok
+test drive_task::tests::drive_task_legacy_mode_returns_chaintape_required ... ok
+test drive_task::tests::task_spec_new_uses_env_defaults ... ok
+test experiment_mode::tests::apply_full_is_passthrough ... ok
+test experiment_mode::tests::apply_idempotent_for_all_modes ... ok
+test experiment_mode::tests::apply_other_modes_passthrough_pre_implementation ... ok
+test experiment_mode::tests::apply_soft_law_forces_runtime_accept ... ok
+test experiment_mode::tests::apply_soft_law_preserves_post_hoc_verified ... ok
+test experiment_mode::tests::ensure_implemented_post_c1e_all_modes_pass ... ok
+test experiment_mode::tests::extract_after_positional ... ok
+test experiment_mode::tests::extract_dangling_flag_returns_empty_string ... ok
+test experiment_mode::tests::extract_equals_form ... ok
+test experiment_mode::tests::extract_last_wins_for_repeated_flag ... ok
+test experiment_mode::tests::extract_no_flag_returns_none ... ok
+test experiment_mode::tests::extract_space_form ... ok
+test experiment_mode::tests::is_amnesia_predicate ... ok
+test experiment_mode::tests::is_panopticon_predicate ... ok
+test experiment_mode::tests::label_strings_are_stable ... ok
+test experiment_mode::tests::parse_case_sensitive ... ok
+test experiment_mode::tests::parse_empty_defaults_to_full ... ok
+test experiment_mode::tests::parse_known_values ... ok
+test experiment_mode::tests::parse_unknown_rejected ... ok
+test experiment_mode::tests::predicates_are_mutually_exclusive ... ok
+test experiment_mode::tests::resolve_cli_empty_aborts_no_default_fallback ... ok
+test experiment_mode::tests::resolve_cli_overrides_env ... ok
+test experiment_mode::tests::resolve_cli_unknown_aborts ... ok
+test experiment_mode::tests::resolve_default_no_cli_no_env_is_full ... ok
+test experiment_mode::tests::resolve_env_all_modes_implemented_post_c1e ... ok
+test experiment_mode::tests::resolve_env_full_explicit ... ok
+test experiment_mode::tests::skill_idx_full_cycles_modulo ... ok
+test experiment_mode::tests::skill_idx_homogeneous_always_zero ... ok
+test experiment_mode::tests::skill_idx_other_modes_passthrough ... ok
+test experiment_mode::tests::skill_idx_zero_n_returns_zero ... ok
+test fc_trace::tests::emit_event_with_full_payload_does_not_panic ... ok
+test fc_trace::tests::emit_event_with_no_kv_or_agent_does_not_panic ... ok
+test fc_trace::tests::emit_is_no_op_when_disabled ... ok
+test fc_trace::tests::fc_id_display_matches_as_str ... ok
+test fc_trace::tests::fc_id_strings_are_stable ... ok
+test fc_trace::tests::json_str_escapes_required_chars ... ok
+test h_vppu_history::tests::test_capacity_3_rolling_window ... ok
+test h_vppu_history::tests::test_corrupt_file_degrades_to_default ... ok
+test h_vppu_history::tests::test_first_run_returns_none ... ok
+test h_vppu_history::tests::test_load_missing_file_default ... ok
+test h_vppu_history::tests::test_per_problem_isolation ... ok
+test h_vppu_history::tests::test_persistence_roundtrip ... ok
+test h_vppu_history::tests::test_record_before_query_does_not_self_reference ... ok
+test h_vppu_history::tests::test_second_run_returns_ratio ... ok
+test h_vppu_history::tests::test_zero_mean_returns_none ... ok
+test jsonl_schema::tests::test_a4_decomposed_metrics_round_trip ... ok
+test jsonl_schema::tests::test_a4_tactic_diversity_helper ... ok
+test jsonl_schema::tests::test_a4_verifier_wait_bounded_by_total_wall_time ... ok
+test jsonl_schema::tests::test_a5_budget_regime_round_trip ... ok
+test jsonl_schema::tests::test_jsonl_schema_v2_round_trip ... ok
+test jsonl_schema::tests::test_legacy_jsonl_still_readable ... ok
+test jsonl_schema::tests::test_pput_verified_zero_when_progress_zero ... ok
+test lean4_oracle::tests::test_clean_tactic_accepted ... ok
+test lean4_oracle::tests::test_correct_theorem_name_accepted ... ok
+test lean4_oracle::tests::test_decide_tactic_permitted ... ok
+test lean4_oracle::tests::test_forbidden_io_process ... ok
+test lean4_oracle::tests::test_forbidden_native_decide ... ok
+test lean4_oracle::tests::test_identity_theft_rejected ... ok
+test lean4_oracle::tests::test_sorry_in_word_not_rejected ... ok
+test lean4_oracle::tests::test_sorry_rejected ... ok
+test lean4_oracle::tests::test_word_boundary_function ... ok
+test per_call_budget::tests::budget_default_matches_architect_spec ... ok
+test per_call_budget::tests::consecutive_trivial_cap_halts_with_degraded_llm ... ok
+test per_call_budget::tests::custom_threshold_via_constructor ... ok
+test per_call_budget::tests::intermittent_trivial_does_not_halt ... ok
+test per_call_budget::tests::osb_m0_drift_signature_30_consecutive_halts ... ok
+test per_call_budget::tests::substantive_response_does_not_halt ... ok
+test post_hoc_verifier::tests::test_no_runtime_accept_zeros_both_pput ... ok
+test post_hoc_verifier::tests::test_post_hoc_verified_without_runtime_still_zero_progress ... ok
+test post_hoc_verifier::tests::test_pput_verified_matches_runtime_when_both_accept ... ok
+test post_hoc_verifier::tests::test_pput_verified_zero_when_lean_rejects ... ok
+test rollback_sim::tests::does_not_fire_after_threshold ... ok
+test rollback_sim::tests::does_not_fire_before_threshold ... ok
+test rollback_sim::tests::env_var_name_matches_prereg ... ok
+test rollback_sim::tests::fires_at_threshold_when_enabled ... ok
+test rollback_sim::tests::never_fires_when_disabled ... ok
+test rollback_sim::tests::threshold_constant_matches_prereg ... ok
+test run_id::tests::distinguishes_conditions_for_same_problem ... ok
+test run_id::tests::handles_path_with_no_stem ... ok
+test run_id::tests::shape_matches_legacy_make_pput_format ... ok
+test wall_clock::tests::test_wall_clock_final_accept_overwrites ... ok
+test wall_clock::tests::test_wall_clock_first_read_idempotent ... ok
+test wall_clock::tests::test_wall_clock_first_read_to_final_accept ... ok
+test wall_clock::tests::test_wall_clock_no_final_accept_uses_now ... ok
+test wall_clock::tests::test_wall_clock_unmarked_returns_none ... ok
+
+test result: ok. 133 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 10 tests
+test swarm_condition_tests::n1_is_distinct_from_oneshot ... ok
+test swarm_condition_tests::parses_valid_n_swarm_conditions ... ok
+test swarm_condition_tests::rejects_hybrid_v1_and_other_named_conditions ... ok
+test swarm_condition_tests::rejects_malformed_n_conditions ... ok
+test swarm_condition_tests::rejects_oneshot_condition ... ok
+test v2_emit_tests::c5_mode_flag_binary_purity ... ok
+test v2_emit_tests::test_a4_emit_max_tx_exhaustion_row ... ok
+test v2_emit_tests::test_a4_synthetic_short_circuit_does_not_set_hit_max_tx ... ok
+test v2_emit_tests::test_emit_dispatches_as_v2 ... ok
+test v2_emit_tests::test_emit_soft_law_divergence_signal ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 3 tests
+test test_architect_can_read_lt_jsonl ... ignored, Phase D — meta-loop not yet implemented
+test test_architect_lt_read_is_logged ... ignored, Phase D — meta-loop not yet implemented
+test test_auditor_cannot_read_lt_jsonl ... ignored, Phase D — meta-loop not yet implemented
+
+test result: ok. 0 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 4 tests
+test test_docs_code_blocks_are_parametric_templates ... ignored, Phase D — AuditorAI artifact battery not yet implemented
+test test_docs_contain_no_raw_failed_trace ... ignored, Phase D — AuditorAI artifact battery not yet implemented
+test test_docs_do_not_include_exact_adaptation_solution ... ignored, Phase D — AuditorAI artifact battery not yet implemented
+test test_docs_include_scope_and_expiration ... ignored, Phase D — AuditorAI artifact battery not yet implemented
+
+test result: ok. 0 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 4 tests
+test test_docs_max_dict_cardinality ... ignored, Phase D — lookup-evasion battery not yet implemented
+test test_docs_no_problem_id_keys ... ignored, Phase D — lookup-evasion battery not yet implemented
+test test_docs_no_theorem_name_keys ... ignored, Phase D — lookup-evasion battery not yet implemented
+test test_docs_rolling_hash_multi_window ... ignored, Phase D — lookup-evasion battery not yet implemented
+
+test result: ok. 0 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 3 tests
+test test_auditor_has_no_raw_lt_in_context ... ignored, Phase D — meta-loop not yet implemented
+test test_auditor_input_is_artifact_only ... ignored, Phase D — meta-loop not yet implemented
+test test_auditor_verdict_writes_to_audit_log ... ignored, Phase D — meta-loop not yet implemented
+
+test result: ok. 0 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 5 tests
+test batch_evaluator_halts_and_records_on_mid_batch_fail ... ok
+test legacy_evaluator_single_task_path_byte_equal_genesis ... ok
+test subprocess_task_0_creates_fresh_genesis ... ok
+test subprocess_task_1_resumes_existing_chain_no_new_genesis ... ok
+test task_k_plus_1_start_head_eq_task_k_end_head ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.86s
+
+
+running 9 tests
+test b1_jsonl_schema_run_record_dispatcher_present ... ok
+test b2_cost_aggregator_construct_and_record ... ok
+test b3_wall_clock_first_read_to_final_accept ... ok
+test b4_post_hoc_verifier_progress_zero_on_runtime_reject ... ok
+test fc1_n12_lean4_oracle_constructible ... ok
+test rollback_sim_env_check_function_present ... ok
+test rollback_sim_env_var_canonical_name ... ok
+test rollback_sim_predicate_logic_at_threshold ... ok
+test rollback_sim_threshold_constant_matches_prereg ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test fc_trace_file_receives_well_formed_json_event ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 24.74s
+
+
+running 5 tests
+test test_l1_file_path_read_isolation ... ok
+test test_l2_agent_prompt_context_blacklist ... ok
+test test_l3_tool_call_no_hash_invocation_in_agent_code ... ok
+test test_l4_hash_and_seed_substring_co_occurrence ... ok
+test test_l5_source_pool_enumeration_block ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s
+
+
+running 1 test
+test proxy_python_conformance_suite_passes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.33s
+
+
+running 6 tests
+test test_mode_amnesia_drops_err ... ignored, Phase C — --mode flag not yet implemented in evaluator
+test test_mode_flag_full_is_default ... ignored, Phase C — --mode flag not yet implemented in evaluator
+test test_mode_flag_is_required_for_non_full_modes ... ignored, Phase C — --mode flag not yet implemented in evaluator
+test test_mode_homogeneous_collapses_iac ... ignored, Phase C — --mode flag not yet implemented in evaluator
+test test_mode_panopticon_increases_cpr_iac ... ignored, Phase C — --mode flag not yet implemented in evaluator
+test test_mode_soft_law_diverges_runtime_from_verified ... ignored, Phase C — --mode flag not yet implemented in evaluator
+
+test result: ok. 0 passed; 0 failed; 6 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 10 tests
+test test_all_model_tokens_counted ... ok
+test test_failed_branches_in_total_cost ... ok
+test test_golden_path_requires_ground_truth ... ok
+test test_heldout_ids_inaccessible ... ok
+test test_no_hidden_unmetered_generation ... ok
+test test_no_metric_file_access_by_agents ... ok
+test test_no_pput_in_agent_prompt ... ok
+test test_no_problem_id_hardcode ... ok
+test test_tool_stdout_hash_logged ... ok
+test test_wall_clock_first_read_to_final_accept ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+
+
+running 2 tests
+test comprehensive_arena_help_succeeds ... ok
+test comprehensive_arena_plan_only_emits_plan ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+
+running 7 tests
+test tb_18_a_drift_signature_halts_at_default_cap ... ok
+test tb_18_a_intermittent_trivial_does_not_halt ... ok
+test tb_18_a_per_call_budget_env_override_works ... ok
+test tb_18_a_substantive_only_never_halts ... ok
+test tb_18_a_swarm_loop_constructs_budget_tracker ... ok
+test tb_18_a_swarm_loop_sets_terminal_exhaustion_on_degraded_llm ... ok
+test tb_18_a_swarm_loop_sets_terminal_exhaustion_on_wall_clock_cap ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 4 tests
+test test_pput_accounting_0_section_present ... ok
+test test_trust_root_immutable_at_boot ... ok
+test test_trust_root_manifest_includes_b2_b4_files ... ok
+test test_trust_root_simulated_write_aborts ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s
+
+
+running 632 tests
+test boot::tests::parse_errors_on_unquoted_key ... ok
+test boot::tests::parse_errors_when_section_missing ... ok
+test boot::tests::parse_strips_inline_comment_and_blanks ... ok
+test boot::tests::verify_trust_root_detects_child_manifest_tamper ... ok
+test boot::tests::verify_trust_root_detects_tamper_in_tempdir ... ok
+test boot::tests::verify_trust_root_passes_on_intact_repo ... ok
+test boot::tests::verify_trust_root_passes_when_hash_matches_in_tempdir ... ok
+test boot::tests::verify_trust_root_passes_with_matching_child_manifest ... ok
+test bottom_white::cas::schema::tests::cid_deterministic ... ok
+test bottom_white::cas::schema::tests::cid_differs_on_content ... ok
+test bottom_white::cas::schema::tests::cid_display_format ... ok
+test bottom_white::cas::schema::tests::cid_from_empty_content ... ok
+test bottom_white::cas::schema::tests::metadata_canonical_hash_deterministic ... ok
+test bottom_white::cas::schema::tests::metadata_canonical_hash_differs_on_object_type ... ok
+test bottom_white::cas::schema::tests::object_type_attempt_telemetry_canonical_hash_distinct ... ok
+test bottom_white::cas::schema::tests::object_type_lean_result_canonical_hash_distinct ... ok
+test bottom_white::cas::schema::tests::object_type_pre_tb_18r_variants_unchanged ... ok
+test bottom_white::cas::schema::tests::object_type_terminal_abort_record_canonical_hash_distinct ... ok
+test bottom_white::cas::store::tests::cell_isolation_disjoint_cas ... ok
+test bottom_white::cas::store::tests::cid_is_content_address ... ok
+test bottom_white::cas::store::tests::concurrent_writers_share_index_without_race ... ok
+test bottom_white::cas::store::tests::corrupted_sidecar_line_returns_parse_error ... ok
+test bottom_white::cas::store::tests::each_new_put_appends_one_line ... ok
+test bottom_white::cas::store::tests::empty_store_root ... ok
+test bottom_white::cas::store::tests::get_nonexistent_returns_error ... ok
+test bottom_white::cas::store::tests::idempotent_put_does_not_duplicate_sidecar_line ... ok
+test bottom_white::cas::store::tests::merkle_root_deterministic_two_runs ... ok
+test bottom_white::cas::store::tests::metadata_recorded ... ok
+test bottom_white::cas::store::tests::missing_sidecar_opens_fresh ... ok
+test bottom_white::cas::store::tests::put_get_round_trip_large ... ok
+test bottom_white::cas::store::tests::put_get_round_trip_small ... ok
+test bottom_white::cas::store::tests::put_idempotent_same_content ... ok
+test bottom_white::cas::store::tests::put_many_then_iterate_count ... ok
+test bottom_white::cas::store::tests::reopen_recovers_index_and_get_works ... ok
+test bottom_white::ledger::rejection_evidence::tests::append_records_and_chains ... ok
+test bottom_white::ledger::rejection_evidence::tests::public_view_omits_raw_diagnostic_cid ... ok
+test bottom_white::ledger::rejection_evidence::tests::raw_diagnostic_cid_skipped_in_record_serialization ... ok
+test bottom_white::ledger::rejection_evidence::tests::verify_detects_field_tamper ... ok
+test bottom_white::ledger::system_keypair::tests::authorized_scope_signing_round_trip ... ok
+test bottom_white::ledger::system_keypair::tests::terminal_scope_rotation_signing_round_trip ... ok
+test bottom_white::ledger::transition_ledger::tests::append_is_pure_and_byte_stable ... ok
+test bottom_white::ledger::transition_ledger::tests::canonical_codec_round_trip ... ok
+test bottom_white::ledger::transition_ledger::tests::canonical_digest_excludes_derivatives ... ok
+test bottom_white::ledger::transition_ledger::tests::canonical_digest_stable_across_clones ... ok
+test bottom_white::ledger::transition_ledger::tests::git2_writer_append_and_read_back ... ok
+test bottom_white::ledger::transition_ledger::tests::git2_writer_empty_chain ... ok
+test bottom_white::ledger::transition_ledger::tests::git2_writer_rejects_logical_t_gap ... ok
+test bottom_white::ledger::transition_ledger::tests::git2_writer_reopen_recovers_chain ... ok
+test bottom_white::ledger::transition_ledger::tests::in_memory_writer_enforces_logical_t ... ok
+test bottom_white::ledger::transition_ledger::tests::replay_cas_payload_round_trip_after_reopen ... ok
+test bottom_white::ledger::transition_ledger::tests::replay_chain_integrity_clean ... ok
+test bottom_white::ledger::transition_ledger::tests::replay_full_transition_reaches_dispatch_then_stubs ... ok
+test bottom_white::ledger::transition_ledger::tests::replay_rejects_bad_system_signature ... ok
+test bottom_white::ledger::transition_ledger::tests::replay_rejects_ledger_root_tamper ... ok
+test bottom_white::ledger::transition_ledger::tests::replay_rejects_parent_ledger_tamper ... ok
+test bottom_white::ledger::transition_ledger::tests::replay_rejects_parent_state_tamper ... ok
+test bottom_white::ledger::transition_ledger::tests::replay_rejects_payload_decode_failure ... ok
+test bottom_white::ledger::transition_ledger::tests::replay_rejects_tx_kind_mismatch ... ok
+test bottom_white::ledger::transition_ledger::tests::sequencer_serial_replay_byte_identity ... ignored, CO1.7.5: requires real per-kind transition bodies
+test bottom_white::ledger::transition_ledger::tests::signature_round_trip_and_transplant_defense ... ok
+test bottom_white::tools::registry::tests::duplicate_id_rejected ... ok
+test bottom_white::tools::registry::tests::empty_id_rejected ... ok
+test bottom_white::tools::registry::tests::empty_registry ... ok
+test bottom_white::tools::registry::tests::find_by_capability_replaces_magic_string ... ok
+test bottom_white::tools::registry::tests::merkle_root_deterministic ... ok
+test bottom_white::tools::registry::tests::non_idempotent_rejected ... ok
+test bottom_white::tools::registry::tests::register_and_get_round_trip ... ok
+test bus::tests::test_bus_basic_append ... ok
+test bus::tests::test_bus_classify_bounded ... ok
+test bus::tests::test_bus_forbidden_pattern_veto ... ok
+test bus::tests::test_bus_graveyard_feedback ... ok
+test bus::tests::test_bus_halt_and_settle ... ok
+test bus::tests::test_bus_ledger_integrity ... ok
+test bus::tests::test_bus_payload_too_long ... ok
+test bus::tests::test_bus_serial_ordering ... ok
+test bus::tests::test_bus_snapshot ... ok
+test bus::tests::test_bus_too_many_lines ... ok
+test bus::tests::test_bus_unknown_agent_appends_post_tb9_collapse ... ok
+test drivers::llm_http::tests::test_client_creation ... ok
+test drivers::llm_http::tests::test_driver_error_display ... ok
+test drivers::llm_http::tests::test_generate_request_serialization ... ok
+test economy::escrow_vault::tests::lock_records_entry_and_returns_receipt ... ok
+test economy::escrow_vault::tests::lock_rejects_double_lock_same_task ... ok
+test economy::escrow_vault::tests::lock_rejects_negative_amount ... ok
+test economy::escrow_vault::tests::multi_task_independent ... ok
+test economy::escrow_vault::tests::release_after_release_rejected ... ok
+test economy::escrow_vault::tests::release_empty_payouts_full_residual_to_sponsor ... ok
+test economy::escrow_vault::tests::release_exact_payout_zero_residual ... ok
+test economy::escrow_vault::tests::release_negative_payout_rejected ... ok
+test economy::escrow_vault::tests::release_overpayout_rejected ... ok
+test economy::escrow_vault::tests::release_underpayout_residual_returns_to_sponsor ... ok
+test economy::escrow_vault::tests::release_unknown_task_rejected ... ok
+test economy::ledger::tests::append_advances_logical_t_and_state_root ... ok
+test economy::ledger::tests::load_from_path_rejects_entry_hash_tamper ... ok
+test economy::ledger::tests::load_from_path_rejects_logical_t_gap ... ok
+test economy::ledger::tests::load_from_path_rejects_prev_hash_tamper ... ok
+test economy::ledger::tests::persist_and_load_round_trip ... ok
+test economy::ledger::tests::reconstruct_state_round_trip ... ok
+test economy::ledger::tests::verify_chain_out_of_bounds_rejected ... ok
+test economy::ledger::tests::verify_chain_passes_on_clean_chain ... ok
+test economy::monetary_invariant::tests::ctf_conserved_across_n10_random_sequence ... ok
+test economy::monetary_invariant::tests::ctf_conserved_across_subindexes ... ok
+test economy::monetary_invariant::tests::ctf_conserved_balanced_transfer ... ok
+test economy::monetary_invariant::tests::ctf_counts_all_four_holding_subindexes ... ok
+test economy::monetary_invariant::tests::ctf_exempt_short_circuits ... ok
+test economy::monetary_invariant::tests::ctf_post_init_mint_rejected ... ok
+test economy::monetary_invariant::tests::ctf_unauthorized_burn_rejected ... ok
+test economy::monetary_invariant::tests::no_post_init_mint_passes_for_all_k5_variants_post_init ... ok
+test economy::monetary_invariant::tests::no_post_init_mint_passes_on_genesis ... ok
+test economy::monetary_invariant::tests::read_is_free_nonzero_fee_rejected ... ok
+test economy::monetary_invariant::tests::read_is_free_zero_fee_passes_for_all_kinds ... ok
+test economy::monetary_invariant::tests::task_market_total_escrow_matches_sum_of_escrow_locks ... ok
+test economy::monetary_invariant::tests::total_supply_does_not_double_count_total_escrow ... ok
+test economy::money::tests::checked_add_normal ... ok
+test economy::money::tests::checked_add_overflow_returns_none ... ok
+test economy::money::tests::checked_sub_normal ... ok
+test economy::money::tests::conservation_law_basic ... ok
+test economy::money::tests::display_positive ... ok
+test economy::money::tests::display_zero ... ok
+test economy::money::tests::from_coin_overflow_returns_none ... ok
+test economy::money::tests::from_coin_round_trip ... ok
+test economy::money::tests::from_micro_units_zero ... ok
+test economy::money::tests::ordering_for_btreemap ... ok
+test economy::money::tests::royalty_10_percent_rounds_down ... ok
+test economy::money::tests::royalty_floor_dust ... ok
+test economy::money::tests::royalty_rejects_negative ... ok
+test economy::money::tests::royalty_rejects_weight_above_1 ... ok
+test economy::money::tests::serde_round_trip_json ... ok
+test economy::money::tests::serde_transparent_format ... ok
+test kernel::tests::test_append_and_retrieve ... ok
+test kernel::tests::test_golden_path_trace ... ok
+test kernel::tests::test_reject_dangling_citation ... ok
+test kernel::tests::test_reject_duplicate ... ok
+test kernel::tests::test_trace_golden_path_unknown_node ... ok
+test ledger::tests::test_ledger_append_and_verify ... ok
+test ledger::tests::test_ledger_hash_chain_integrity ... ok
+test ledger::tests::test_ledger_omega_vocabulary ... ok
+test ledger::tests::test_ledger_sequence_monotonic ... ok
+test ledger::tests::test_ledger_tamper_detection ... ok
+test ledger::tests::test_tape_append_root_node ... ok
+test ledger::tests::test_tape_append_with_valid_citation ... ok
+test ledger::tests::test_tape_dag_branching ... ok
+test ledger::tests::test_tape_empty ... ok
+test ledger::tests::test_tape_reject_dangling_citation ... ok
+test ledger::tests::test_tape_reject_duplicate_id ... ok
+test ledger::tests::test_tape_time_arrow_ordering ... ok
+test ledger::tests::test_tape_trace_ancestors ... ok
+test runtime::adapter::adapter_tests_atom2::real_worktx_signature_is_nonzero_and_verifies ... ok
+test runtime::adapter::adapter_tests_atom2::signing_same_payload_same_registry_is_deterministic ... ok
+test runtime::agent_audit_trail::tests::audit_hash_changes_when_any_field_changes ... ok
+test runtime::agent_audit_trail::tests::cas_round_trip_recovers_record_bytes ... ok
+test runtime::agent_audit_trail::tests::jsonl_index_appends_chain_and_reloads ... ok
+test runtime::agent_audit_trail::tests::jsonl_index_rejects_corrupted_chain_on_reload ... ok
+test runtime::agent_audit_trail::tests::nine_required_fields_round_trip_through_canonical_encode ... ok
+test runtime::agent_keypairs::tests::durable_first_boot_persists_secret ... ok
+test runtime::agent_keypairs::tests::durable_second_boot_recovers_same_pubkey ... ok
+test runtime::agent_keypairs::tests::durable_wrong_password_rejected ... ok
+test runtime::agent_keypairs::tests::generate_produces_signing_keypair ... ok
+test runtime::agent_keypairs::tests::manifest_round_trip ... ok
+test runtime::agent_keypairs::tests::registry_open_refuses_existing_manifest ... ok
+test runtime::agent_keypairs::tests::registry_persists_manifest_on_first_use ... ok
+test runtime::agent_keypairs::tests::same_agent_reuses_keypair_across_signs ... ok
+test runtime::agent_keypairs::tests::wrong_pubkey_rejects_signature ... ok
+test runtime::agent_keystore::tests::corrupted_keystore_fails ... ok
+test runtime::agent_keystore::tests::env_override_path ... ok
+test runtime::agent_keystore::tests::keystore_file_is_0600 ... ok
+test runtime::agent_keystore::tests::load_then_save_round_trip ... ok
+test runtime::agent_keystore::tests::many_agents_round_trip ... ok
+test runtime::agent_keystore::tests::wrong_password_fails ... ok
+test runtime::agent_pnl::tests::agent_at_initial_balance_zero_realized ... ok
+test runtime::agent_pnl::tests::asymmetric_yes_holding_under_active_pool_yields_signed_pnl ... ok
+test runtime::agent_pnl::tests::balanced_mint_yields_zero_unrealized ... ok
+test runtime::agent_pnl::tests::default_preseed_lookup_returns_canonical_amounts ... ok
+test runtime::agent_pnl::tests::genesis_yields_zero_pnl ... ok
+test runtime::agent_pnl::tests::non_active_pool_yields_zero_unrealized ... ok
+test runtime::agent_pnl::tests::per_viewer_isolation_no_cross_agent_leak ... ok
+test runtime::agent_pnl::tests::reputation_score_wired_through ... ok
+test runtime::agent_pnl::tests::solvency_tiers_classify_three_regimes ... ok
+test runtime::agent_pnl::tests::stakes_claims_lp_nodes_visible_but_neutral_on_pnl ... ok
+test runtime::aggregate_report::tests::diversity_wire_through ... ok
+test runtime::aggregate_report::tests::empty_batch_fails_section_17 ... ok
+test runtime::aggregate_report::tests::fc1_aggregate_break_blocks_section_17 ... ok
+test runtime::aggregate_report::tests::no_fake_accepted_false_blocks_section_17 ... ok
+test runtime::aggregate_report::tests::round_trip_json ... ok
+test runtime::aggregate_report::tests::schema_id_constant_pinned ... ok
+test runtime::aggregate_report::tests::schema_id_mismatch_blocks ... ok
+test runtime::aggregate_report::tests::solved_3_of_5_produces_complete_section_17 ... ok
+test runtime::attempt_telemetry::tests::attempt_chain_root_some_only_for_terminal_composite ... ok
+test runtime::attempt_telemetry::tests::attempt_kind_repr_stable ... ok
+test runtime::attempt_telemetry::tests::attempt_outcome_repr_stable ... ok
+test runtime::attempt_telemetry::tests::attempt_telemetry_canonical_encode_deterministic ... ok
+test runtime::attempt_telemetry::tests::attempt_telemetry_canonical_round_trip ... ok
+test runtime::attempt_telemetry::tests::attempt_telemetry_cas_round_trip ... ok
+test runtime::attempt_telemetry::tests::historical_v2_model_identity_bytes_still_decode_after_real5_v3 ... ok
+test runtime::attempt_telemetry::tests::lean_error_class_repr_mirrors_r3_rejection_class_tail_append ... ok
+test runtime::attempt_telemetry::tests::lean_result_canonical_round_trip ... ok
+test runtime::attempt_telemetry::tests::lean_result_cas_round_trip ... ok
+test runtime::attempt_telemetry::tests::lean_result_shielded_stderr_cid_is_cid_not_bytes ... ok
+test runtime::attempt_telemetry::tests::lean_verdict_kind_legacy_field_derivation ... ok
+test runtime::attempt_telemetry::tests::lean_verdict_kind_repr_stable ... ok
+test runtime::attempt_telemetry::tests::outcome_distinct_from_kind_in_canonical_encoding ... ok
+test runtime::attempt_telemetry::tests::schema_version_is_real5_v3 ... ok
+test runtime::attempt_telemetry::tests::terminal_abort_record_canonical_round_trip ... ok
+test runtime::attempt_telemetry::tests::terminal_abort_record_cas_round_trip ... ok
+test runtime::audit_assertions::tests::assert_27_consistency_canonical_g0_mismatch_caught ... ok
+test runtime::audit_assertions::tests::assert_27_consistency_corrected_pair_passes ... ok
+test runtime::audit_assertions::tests::assert_27_consistency_swaps_caught ... ok
+test runtime::audit_assertions::tests::assertion_result_constructors_set_layer ... ok
+test runtime::audit_assertions::tests::autopsy_index_structural_fence ... ok
+test runtime::audit_assertions::tests::extract_constitution_root_hex_basic ... ok
+test runtime::audit_assertions::tests::id43_pure_entropy_diverse_non_none_passes_gate ... ok
+test runtime::audit_assertions::tests::id43_pure_entropy_only_roots_returns_none ... ok
+test runtime::audit_assertions::tests::id43_pure_entropy_partial_star_passes_gate ... ok
+test runtime::audit_assertions::tests::id43_pure_entropy_single_non_none_returns_none ... ok
+test runtime::audit_assertions::tests::id43_pure_entropy_skewed_two_non_none_below_gate ... ok
+test runtime::audit_assertions::tests::id43_pure_entropy_star_topology_with_root_yields_low_entropy ... ok
+test runtime::audit_assertions::tests::id43_pure_entropy_uniform_two_non_none_passes_gate ... ok
+test runtime::audit_assertions::tests::sandbox_prefix_accepts_known_patterns ... ok
+test runtime::audit_assertions::tests::tx_kind_counts_missing_required_lists_all_thirteen_when_empty ... ok
+test runtime::audit_views::tests::pools_view_active_pool_emits_row_with_k_product ... ok
+test runtime::audit_views::tests::pools_view_empty_econ_state ... ok
+test runtime::audit_views::tests::positions_view_empty_econ_state ... ok
+test runtime::audit_views::tests::prices_view_empty_econ_state ... ok
+test runtime::audit_views::tests::shares_view_empty_econ_state ... ok
+test runtime::autopsy_capsule::tests::activation_gate_default_is_always_active_for_fresh_chains ... ok
+test runtime::autopsy_capsule::tests::autopsy_capsule_default_round_trip ... ok
+test runtime::autopsy_capsule::tests::cluster_autopsies_empty_input ... ok
+test runtime::autopsy_capsule::tests::cluster_autopsies_mixed_classes_filters_below_threshold ... ok
+test runtime::autopsy_capsule::tests::cluster_autopsies_output_never_embeds_private_detail_bytes ... ok
+test runtime::autopsy_capsule::tests::cluster_autopsies_three_same_class_emits_one ... ok
+test runtime::autopsy_capsule::tests::cluster_autopsies_two_same_class_emits_zero ... ok
+test runtime::autopsy_capsule::tests::derive_autopsies_deterministic_across_calls ... ok
+test runtime::autopsy_capsule::tests::derive_autopsies_emits_one_per_staker_target_only ... ok
+test runtime::autopsy_capsule::tests::derive_autopsies_empty_when_no_stakers ... ok
+test runtime::autopsy_capsule::tests::format_public_summary_contains_agent_amount_reason ... ok
+test runtime::autopsy_capsule::tests::loss_reason_class_tag_stable ... ok
+test runtime::autopsy_capsule::tests::privacy_policy_default_is_audit_only ... ok
+test runtime::autopsy_capsule::tests::write_autopsy_capsule_deterministic_capsule_id ... ok
+test runtime::autopsy_capsule::tests::write_autopsy_capsule_to_cas_round_trip ... ok
+test runtime::autopsy_capsule::tests::write_bankruptcy_autopsies_to_cas_round_trip ... ok
+test runtime::batch_continuation_manifest::tests::unit_replay_continuity_accepts_continuous_chain ... ok
+test runtime::batch_continuation_manifest::tests::unit_replay_continuity_catches_first_task_mismatch ... ok
+test runtime::benchmark_manifest::tests::duplicate_problem_id_is_blocked ... ok
+test runtime::benchmark_manifest::tests::duplicate_seed_is_blocked ... ok
+test runtime::benchmark_manifest::tests::empty_batch_id_is_blocked ... ok
+test runtime::benchmark_manifest::tests::empty_lean_version_is_blocked ... ok
+test runtime::benchmark_manifest::tests::empty_model_id_is_blocked ... ok
+test runtime::benchmark_manifest::tests::empty_model_ver_is_blocked ... ok
+test runtime::benchmark_manifest::tests::empty_problem_ids_is_blocked ... ok
+test runtime::benchmark_manifest::tests::empty_seeds_is_blocked ... ok
+test runtime::benchmark_manifest::tests::empty_strategy_is_blocked ... ok
+test runtime::benchmark_manifest::tests::empty_temperature_is_blocked ... ok
+test runtime::benchmark_manifest::tests::good_manifest_validates ... ok
+test runtime::benchmark_manifest::tests::invalid_mathlib_commit_is_blocked ... ok
+test runtime::benchmark_manifest::tests::invalid_temperature_is_blocked ... ok
+test runtime::benchmark_manifest::tests::invalid_turingos_commit_is_blocked ... ok
+test runtime::benchmark_manifest::tests::round_trip_json ... ok
+test runtime::benchmark_manifest::tests::schema_id_constant_pinned ... ok
+test runtime::benchmark_manifest::tests::schema_id_mismatch_is_blocked ... ok
+test runtime::benchmark_manifest::tests::write_read_disk_round_trip ... ok
+test runtime::benchmark_manifest::tests::zero_max_tx_is_blocked ... ok
+test runtime::benchmark_manifest::tests::zero_n_is_blocked ... ok
+test runtime::bootstrap::tests::agent_user_0_present_with_sponsor_budget ... ok
+test runtime::bootstrap::tests::deterministic_across_calls ... ok
+test runtime::bootstrap::tests::every_entry_has_positive_balance ... ok
+test runtime::bootstrap::tests::genesis_construction_matches_total ... ok
+test runtime::bootstrap::tests::market_maker_budget_present_with_5m_micro ... ok
+test runtime::bootstrap::tests::returns_13_entries ... ok
+test runtime::bootstrap::tests::tb_7_7_sponsor_preserved ... ok
+test runtime::bootstrap::tests::ten_solver_agents_each_one_coin ... ok
+test runtime::bootstrap::tests::total_preseed_supply_35m ... ok
+test runtime::chain_derived_run_facts::tests::chain_oracle_verified_flips_true_on_omega_accept_with_vr ... ok
+test runtime::chain_derived_run_facts::tests::empty_chain_yields_default_run_facts ... ok
+test runtime::chain_derived_run_facts::tests::legacy_solved_now_means_economic_finalized ... ok
+test runtime::chain_derived_run_facts::tests::zero_stake_worktx_appears_as_failed_branch ... ok
+test runtime::chain_tape_lease::tests::unit_acquire_release_round_trip ... ok
+test runtime::diversity::tests::distinct_payload_fraction_all_distinct_is_one ... ok
+test runtime::diversity::tests::distinct_payload_fraction_all_same_is_one_over_n ... ok
+test runtime::diversity::tests::distinct_payload_fraction_empty_is_zero ... ok
+test runtime::diversity::tests::diversity_report_alarms_on_collapsed_parents ... ok
+test runtime::diversity::tests::diversity_report_alarms_on_collapsed_payloads ... ok
+test runtime::diversity::tests::diversity_report_combines_both_metrics ... ok
+test runtime::diversity::tests::parent_entropy_balanced_two_parents_is_one_bit ... ok
+test runtime::diversity::tests::parent_entropy_below_alarm_floor_when_collapsed ... ok
+test runtime::diversity::tests::parent_entropy_filters_none_root_proposals ... ok
+test runtime::diversity::tests::shannon_entropy_empty_is_zero ... ok
+test runtime::diversity::tests::shannon_entropy_single_category_is_zero ... ok
+test runtime::diversity::tests::shannon_entropy_uniform_two_categories_is_one_bit ... ok
+test runtime::evidence_capsule::tests::evidence_capsule_default_round_trip ... ok
+test runtime::evidence_capsule::tests::format_public_summary_contains_all_counts ... ok
+test runtime::evidence_capsule::tests::privacy_policy_default_is_audit_only ... ok
+test runtime::evidence_capsule::tests::write_evidence_capsule_deterministic_capsule_id ... ok
+test runtime::evidence_capsule::tests::write_evidence_capsule_to_cas_round_trip ... ok
+test runtime::genesis_report::tests::hash_constitution_md_returns_none_for_missing_file ... ok
+test runtime::genesis_report::tests::hash_constitution_md_returns_some_for_existing_file ... ok
+test runtime::genesis_report::tests::no_preseed_means_optional_fields_are_none ... ok
+test runtime::genesis_report::tests::write_round_trips_via_serde_json ... ok
+test runtime::market_decision_trace::tests::all_contains_each_variant_with_unique_label ... ok
+test runtime::market_decision_trace::tests::all_no_trade_reasons_have_stable_lower_snake_labels ... ok
+test runtime::market_decision_trace::tests::amount_exceeds_balance_doc_alias_present ... ok
+test runtime::market_decision_trace::tests::builder_chain_attaches_prompt_context_and_prices ... ok
+test runtime::market_decision_trace::tests::declined_trace_marks_outcome_declined ... ok
+test runtime::market_decision_trace::tests::no_trade_summary_truncated_to_120_chars ... ok
+test runtime::market_decision_trace::tests::schema_version_sentinel_pinned ... ok
+test runtime::market_decision_trace::tests::submitted_trace_carries_tx_id_outcome ... ok
+test runtime::market_decision_trace_summary::tests::compute_from_path_round_trip ... ok
+test runtime::market_decision_trace_summary::tests::empty_cas_renders_thirteen_zero_rows ... ok
+test runtime::market_decision_trace_summary::tests::mixed_batch_renders_counts_and_ratio ... ok
+test runtime::market_decision_trace_summary::tests::submitted_vs_traced_ratio_string_shape ... ok
+test runtime::markov_capsule::tests::capsule_flowchart_hashes_round_trip ... ok
+test runtime::markov_capsule::tests::deep_history_default_deny_works ... ok
+test runtime::markov_capsule::tests::markov_capsule_default_round_trip ... ok
+test runtime::markov_capsule::tests::markov_chain_links_via_previous_capsule_cid ... ok
+test runtime::markov_capsule::tests::read_flowchart_hashes_from_real_matrix ... ok
+test runtime::markov_capsule::tests::scan_unresolved_obs_filters_and_sorts ... ok
+test runtime::markov_capsule::tests::sha256_of_file_matches_manual ... ok
+test runtime::markov_capsule::tests::with_constitution_hash_sets_field ... ok
+test runtime::markov_capsule::tests::write_markov_capsule_cas_resolvable_by_capsule_id ... ok
+test runtime::markov_capsule::tests::write_markov_capsule_deterministic_capsule_id ... ok
+test runtime::markov_capsule::tests::write_markov_capsule_to_cas_round_trip ... ok
+test runtime::peer_verify_coverage::tests::coverage_pct_handles_partial_verification ... ok
+test runtime::peer_verify_coverage::tests::empty_chain_yields_zero_coverage ... ok
+test runtime::peer_verify_coverage::tests::non_solver_classification_excludes_proposer_self_verifies ... ok
+test runtime::peer_verify_coverage::tests::section_f_x_render_includes_coverage_pct_line ... ok
+test runtime::peer_verify_coverage::tests::section_f_x_render_zero_non_solver_emits_explicit_bottleneck ... ok
+test runtime::peer_verify_coverage::tests::walker_emits_per_verifier_peer_verify_count ... ok
+test runtime::persistence_evidence::tests::unit_empty_batch_passes_with_all_empty ... ok
+test runtime::persistence_evidence::tests::unit_non_empty_batch_missing_model_is_reset ... ok
+test runtime::persistence_evidence::tests::unit_stable_model_is_witnessed ... ok
+test runtime::prompt_capsule::tests::canonical_hash_is_deterministic ... ok
+test runtime::prompt_capsule::tests::cas_round_trip_preserves_capsule ... ok
+test runtime::prompt_capsule::tests::constructor_rejects_unredacted ... ok
+test runtime::proposal_telemetry::tests::build_for_evaluator_append_cid_is_deterministic_per_payload ... ok
+test runtime::proposal_telemetry::tests::build_for_evaluator_append_stores_payload_in_cas ... ok
+test runtime::proposal_telemetry::tests::build_with_parent_records_parent_tx ... ok
+test runtime::proposal_telemetry::tests::cid_determinism ... ok
+test runtime::proposal_telemetry::tests::distinct_records_distinct_cids ... ok
+test runtime::proposal_telemetry::tests::schema_validity_nine_fields_with_verification_result ... ok
+test runtime::proposal_telemetry::tests::token_counts_total ... ok
+test runtime::proposal_telemetry::tests::write_read_round_trip ... ok
+test runtime::resume_preflight::tests::unit_missing_runtime_repo_rejected ... ok
+test runtime::resume_preflight::tests::unit_task_index_zero_rejected ... ok
+test runtime::risk_cap_impact_report::tests::payout_breakdown_bounded_invariant_catches_overpay ... ok
+test runtime::risk_cap_impact_report::tests::payout_breakdown_default_report_is_empty ... ok
+test runtime::risk_cap_impact_report::tests::payout_breakdown_no_claim_returns_zero_deltas ... ok
+test runtime::risk_cap_impact_report::tests::risk_cap_rejection_class_predicate_matches ... ok
+test runtime::risk_cap_impact_report::tests::risk_cap_transition_error_predicate_matches ... ok
+test runtime::risk_cap_impact_report::tests::tx_kind_label_known_arms ... ok
+test runtime::run_summary::tests::extract_tx_id_handles_all_variants ... ok
+test runtime::run_summary::tests::run_summary_serde_round_trip_preserves_all_fields ... ok
+test runtime::run_summary::tests::write_json_creates_parent_dirs_and_file ... ok
+test runtime::tests::build_chaintape_sequencer_fails_on_non_empty_repo ... ok
+test runtime::tests::build_chaintape_sequencer_returns_non_none_sequencer_with_git_writer ... ok
+test runtime::tests::build_chaintape_sequencer_writes_pinned_pubkeys_json_to_runtime_repo ... ok
+test runtime::tests::chaintape_bundle_shutdown_returns_clean_on_empty_queue ... ok
+test runtime::verification_result::tests::cid_determinism_and_distinction ... ok
+test runtime::verification_result::tests::from_lean_run_verified_iff_exit_code_zero ... ok
+test runtime::verification_result::tests::schema_validity_eight_fields ... ok
+test runtime::verification_result::tests::write_read_round_trip ... ok
+test runtime::verify::tests::decode_pubkey_hex_rejects_odd_length ... ok
+test runtime::verify::tests::decode_pubkey_hex_round_trips_lowercase_hex ... ok
+test runtime::verify::tests::hash_to_hex_round_trip_zero ... ok
+test runtime::verify::tests::replay_report_all_indicators_pass_requires_all_seven_booleans ... ok
+test runtime::wilson_ci::tests::balanced_50_of_100_centered_at_half ... ok
+test runtime::wilson_ci::tests::format_percent_renders_human_readable ... ok
+test runtime::wilson_ci::tests::full_successes_upper_bound_is_one ... ok
+test runtime::wilson_ci::tests::interval_width_shrinks_with_n ... ok
+test runtime::wilson_ci::tests::lower_is_never_above_point_and_upper_never_below ... ok
+test runtime::wilson_ci::tests::small_sample_25_of_100_known_interval ... ok
+test runtime::wilson_ci::tests::successes_clamped_when_exceeds_trials ... ok
+test runtime::wilson_ci::tests::zero_successes_lower_bound_is_zero ... ok
+test runtime::wilson_ci::tests::zero_trials_returns_none ... ok
+test sdk::actor::tests::v2_argmax_picks_highest_price_yes ... ok
+test sdk::actor::tests::v2_determinism_under_fixed_seed ... ok
+test sdk::actor::tests::v2_epsilon_greedy_explores_under_high_epsilon ... ok
+test sdk::actor::tests::v2_predicate_failure_dominates_high_price ... ok
+test sdk::actor::tests::v2_returns_none_on_empty_index ... ok
+test sdk::actor::tests::v2_returns_none_when_all_candidates_masked ... ok
+test sdk::actor::tests::v2_skips_zero_liquidity_candidates ... ok
+test sdk::econ_position::tests::active_stakes_aggregate_across_pending_worktx ... ok
+test sdk::econ_position::tests::block_layout_is_uniform_across_zero_and_nonzero ... ok
+test sdk::econ_position::tests::empty_econ_state_yields_zero_balance_block ... ok
+test sdk::econ_position::tests::other_agent_balance_does_not_leak ... ok
+test sdk::econ_position::tests::pending_claims_sum_for_agent_only ... ok
+test sdk::econ_position::tests::preseeded_agent_balance_renders ... ok
+test sdk::econ_position::tests::reputation_renders ... ok
+test sdk::error_abstraction::tests::classifier_version_is_stamped ... ok
+test sdk::error_abstraction::tests::fixture_linarith_failed ... ok
+test sdk::error_abstraction::tests::fixture_other_catchall ... ok
+test sdk::error_abstraction::tests::fixture_rewrite_no_match ... ok
+test sdk::error_abstraction::tests::fixture_simp_no_progress ... ok
+test sdk::error_abstraction::tests::fixture_type_mismatch ... ok
+test sdk::error_abstraction::tests::fixture_unexpected_token ... ok
+test sdk::error_abstraction::tests::fixture_unknown_constant ... ok
+test sdk::error_abstraction::tests::fixture_unsolved_goals ... ok
+test sdk::error_abstraction::tests::labels_are_unique_and_stable ... ok
+test sdk::market_context::tests::_btreemap_import_used ... ok
+test sdk::market_context::tests::closed_pool_excluded ... ok
+test sdk::market_context::tests::deeper_pools_render_first ... ok
+test sdk::market_context::tests::empty_pool_set_returns_empty_string ... ok
+test sdk::market_context::tests::render_contains_no_decimal_price ... ok
+test sdk::market_context::tests::single_pool_renders_row_plus_banner ... ok
+test sdk::market_context::tests::top_k_cap_limits_rows ... ok
+test sdk::pending_peer_reviews::tests::already_verified_by_peers_count_renders_correctly ... ok
+test sdk::pending_peer_reviews::tests::empty_q_yields_empty_block_suppresses_prompt_section ... ok
+test sdk::pending_peer_reviews::tests::k_caps_row_count ... ok
+test sdk::pending_peer_reviews::tests::other_viewers_queue_does_not_leak_to_this_viewer ... ok
+test sdk::pending_peer_reviews::tests::sort_is_stake_desc_with_tx_id_asc_tiebreak ... ok
+test sdk::pending_peer_reviews::tests::viewer_already_verified_target_is_filtered_out ... ok
+test sdk::pending_peer_reviews::tests::viewer_does_not_see_own_work_tx_as_pending_review ... ok
+test sdk::pending_peer_reviews::tests::viewer_sees_peer_work_tx_as_pending_review ... ok
+test sdk::prompt::tests::test_econ_position_block_renders_under_heading ... ok
+test sdk::prompt::tests::test_empty_econ_position_suppresses_block ... ok
+test sdk::prompt::tests::test_prompt_contains_no_example_values ... ok
+test sdk::prompt::tests::test_prompt_includes_balance ... ok
+test sdk::prompt::tests::test_prompt_surfaces_search_hits ... ok
+test sdk::prompt::tests::test_prompt_surfaces_team_board ... ok
+test sdk::prompt::tests::test_prompt_truncates_errors_to_3 ... ok
+test sdk::prompt::tests::variant_tests::tb_n3_a1_default_keeps_invest_when_opt_out_unset ... ok
+test sdk::prompt::tests::variant_tests::tb_n3_a1_disable_market_tools_strips_invest_from_v0 ... ok
+test sdk::prompt::tests::variant_tests::tb_n3_a1_invest_schema_documents_work_tx_id_and_signal_not_truth ... ok
+test sdk::prompt::tests::variant_tests::unknown_variant_falls_back_to_default ... ok
+test sdk::prompt::tests::variant_tests::v0_default_lists_legacy_tools ... ok
+test sdk::prompt::tests::variant_tests::v1_drops_search_and_post_but_keeps_invest_per_tb_n3 ... ok
+test sdk::prompt::tests::variant_tests::v2_injects_tactic_search_guidance ... ok
+test sdk::prompt::tests::variant_tests::v3_injects_v3_style_laws_and_criteria ... ok
+test sdk::prompt::tests::variant_tests::v4_injects_guidance_plus_recent_rejects ... ok
+test sdk::prompt::tests::variant_tests::v4_omits_rejects_block_when_no_errors ... ok
+test sdk::prompt_guard::tests::test_case_insensitive_match - should panic ... ok
+test sdk::prompt_guard::tests::test_clean_prompt_passes ... ok
+test sdk::prompt_guard::tests::test_empty_prompt_passes ... ok
+test sdk::prompt_guard::tests::test_h_vpput_caught - should panic ... ok
+test sdk::prompt_guard::tests::test_pput_assignment_pattern_caught - should panic ... ok
+test sdk::prompt_guard::tests::test_pput_m_verified_caught - should panic ... ok
+test sdk::prompt_guard::tests::test_pput_runtime_caught - should panic ... ok
+test sdk::prompt_guard::tests::test_pput_substring_in_larger_text - should panic ... ok
+test sdk::prompt_guard::tests::test_pput_verified_caught - should panic ... ok
+test sdk::prompt_guard::tests::test_wbcg_caught - should panic ... ok
+test sdk::protocol::tests::test_deduct_negative_amount_rejected ... ok
+test sdk::protocol::tests::test_malformed_action_tag_rejected_not_fallback ... ok
+test sdk::protocol::tests::test_no_byte_repair_on_invalid_escape ... ok
+test sdk::protocol::tests::test_parse_action_tag_valid ... ok
+test sdk::protocol::tests::test_parse_action_tag_with_think_block ... ok
+test sdk::protocol::tests::test_parse_bare_json_fallback ... ok
+test sdk::protocol::tests::test_parse_invalid_json_returns_error ... ok
+test sdk::protocol::tests::test_parse_no_action_returns_error ... ok
+test sdk::protocol::tests::test_parse_with_invest_action ... ok
+test sdk::protocol::tests::test_parse_with_invest_float_amount_rejects ... ok
+test sdk::protocol::tests::test_strip_multiple_think_blocks ... ok
+test sdk::protocol::tests::test_strip_think_blocks ... ok
+test sdk::protocol::tests::test_strip_unclosed_think_block ... ok
+test sdk::sandbox::tests::test_sandbox_captures_stderr ... ok
+test sdk::sandbox::tests::test_sandbox_echo_command ... ok
+test sdk::sandbox::tests::test_sandbox_nonzero_exit ... ok
+test sdk::sandbox::tests::test_sandbox_timeout_kills_process ... ok
+test sdk::snapshot::tests::test_snapshot_default_empty_signal_surface ... ok
+test sdk::snapshot::tests::test_snapshot_sequencer_wired_distinguishes_two_states ... ok
+test sdk::snapshot::tests::test_snapshot_sequencer_wired_serde_default_false ... ok
+test sdk::tools::librarian::tests::test_board_post_append ... ok
+test sdk::tools::librarian::tests::test_board_write_read_roundtrip ... ok
+test sdk::tools::librarian::tests::test_build_compression_prompt ... ok
+test sdk::tools::librarian::tests::test_compress_interval ... ok
+test sdk::tools::librarian::tests::test_zero_interval_never_compresses ... ok
+test sdk::tools::search::tests::test_sanitize_query ... ok
+test sdk::tools::search::tests::test_search_empty_query ... ok
+test sdk::tools::search::tests::test_search_nonexistent_path ... ok
+test sdk::tools::wallet::tests::on_init_is_noop ... ok
+test sdk::tools::wallet::tests::on_pre_append_always_passes ... ok
+test sdk::tools::wallet::tests::projects_balance_from_economic_state ... ok
+test sdk::tools::wallet::tests::projects_zero_for_absent_agent ... ok
+test sdk::tools::wallet::tests::query_state_returns_none ... ok
+test sdk::your_position::tests::drucker_framing_line_present ... ok
+test sdk::your_position::tests::own_positions_render_with_details ... ok
+test sdk::your_position::tests::per_viewer_no_cross_agent_leak ... ok
+test sdk::your_position::tests::preseed_agent_at_zero_balance_renders_block ... ok
+test sdk::your_position::tests::reputation_renders ... ok
+test sdk::your_position::tests::unknown_viewer_yields_empty_block ... ok
+test state::head_t_witness::tests::advances_on_l4_head_change ... ok
+test state::head_t_witness::tests::does_not_advance_on_l4e_only ... ok
+test state::head_t_witness::tests::reconstructs_from_replay ... ok
+test state::head_t_witness::tests::six_field_count ... ok
+test state::price_index::tests::boltzmann_from_env_epsilon_above_one_falls_back_to_default ... ok
+test state::price_index::tests::boltzmann_from_env_epsilon_at_one_accepted ... ok
+test state::price_index::tests::boltzmann_from_env_epsilon_zero_accepted ... ok
+test state::price_index::tests::boltzmann_from_env_epsilon_zero_den_falls_back_to_default ... ok
+test state::price_index::tests::boltzmann_from_env_invalid_values_fall_back_to_defaults ... ok
+test state::price_index::tests::boltzmann_from_env_negative_beta_num_falls_back_to_default ... ok
+test state::price_index::tests::boltzmann_from_env_negative_min_liquidity_falls_back_to_default ... ok
+test state::price_index::tests::boltzmann_from_env_overrides_each_field ... ok
+test state::price_index::tests::boltzmann_from_env_serde_round_trip ... ok
+test state::price_index::tests::boltzmann_from_env_with_no_vars_set_matches_default ... ok
+test state::price_index::tests::boltzmann_from_env_zero_beta_den_falls_back_to_default ... ok
+test state::price_index::tests::boltzmann_from_env_zero_beta_num_accepted ... ok
+test state::price_index::tests::boltzmann_from_env_zero_min_liquidity_falls_back_to_default ... ok
+test state::price_index::tests::boltzmann_from_env_zero_price_margin_denominator_falls_back_to_default ... ok
+test state::price_index::tests::boltzmann_from_env_zero_price_margin_numerator_falls_back_to_default ... ok
+test state::price_index::tests::boltzmann_mask_policy_default_matches_field_defaults ... ok
+test state::price_index::tests::boltzmann_policy_zero_decimal_float_substring ... ok
+test state::price_index::tests::determinism_n_calls_identical ... ok
+test state::price_index::tests::empty_state_yields_empty_index ... ok
+test state::price_index::tests::equal_long_short_yields_half_each ... ok
+test state::price_index::tests::rational_dominates_by ... ok
+test state::price_index::tests::rational_equality_invariant ... ok
+test state::price_index::tests::single_long_position_yields_price_yes_full ... ok
+test state::price_index::tests::single_short_position_yields_price_no_full ... ok
+test state::price_index::tests::yes_share_depth_aggregates_across_owners ... ok
+test state::q_state::tests::btreemap_insertion_order_independent_serialization ... ok
+test state::q_state::tests::economic_state_does_not_have_node_market_t_field ... ok
+test state::q_state::tests::economic_state_has_sixteen_sub_fields ... ok
+test state::q_state::tests::genesis_q_state_is_total_and_default ... ok
+test state::q_state::tests::nine_field_count_via_serde_json ... ok
+test state::q_state::tests::node_id_from_state_root_is_deterministic ... ok
+test state::q_state::tests::node_positions_index_default_is_empty ... ok
+test state::router_quote::tests::quote_low_liquidity_warning_below_threshold ... ok
+test state::router_quote::tests::quote_no_output_warning_when_floor_yields_zero ... ok
+test state::router_quote::tests::quote_returns_none_on_resolved_pool ... ok
+test state::router_quote::tests::quote_returns_none_on_zero_pay_coin ... ok
+test state::router_quote::tests::quote_returns_some_for_healthy_pool ... ok
+test state::router_quote::tests::quote_symmetric_for_buy_no_direction ... ok
+test state::sequencer::tests::apply_one_consumes_submission_envelope ... ok
+test state::sequencer::tests::apply_one_rejected_path_uses_envelope_submit_id ... ok
+test state::sequencer::tests::apply_one_stub_does_not_consume_logical_t ... ok
+test state::sequencer::tests::dispatch_challenge_opens_case_with_target_back_ref_and_logical_t_anchor ... ok
+test state::sequencer::tests::dispatch_challenge_rejects_when_challenger_balance_lt_stake ... ok
+test state::sequencer::tests::dispatch_challenge_rejects_when_counterexample_cid_zero ... ok
+test state::sequencer::tests::dispatch_challenge_rejects_when_stake_zero ... ok
+test state::sequencer::tests::dispatch_challenge_rejects_when_target_not_in_stakes_t ... ok
+test state::sequencer::tests::dispatch_challenge_resolve_rejects_stale_parent ... ok
+test state::sequencer::tests::dispatch_challenge_resolve_released_cannot_run_twice ... ok
+test state::sequencer::tests::dispatch_challenge_resolve_released_zeros_bond_refunds_balance_and_sets_status ... ok
+test state::sequencer::tests::dispatch_challenge_resolve_unknown_target_rejects ... ok
+test state::sequencer::tests::dispatch_challenge_resolve_upheld_deferred_marker_only ... ok
+test state::sequencer::tests::dispatch_escrow_lock_debits_balance_credits_escrow_updates_total ... ok
+test state::sequencer::tests::dispatch_escrow_lock_rejects_when_insufficient_balance ... ok
+test state::sequencer::tests::dispatch_escrow_lock_rejects_when_task_not_open ... ok
+test state::sequencer::tests::dispatch_task_open_inserts_task_market_entry ... ok
+test state::sequencer::tests::dispatch_task_open_rejects_when_already_open ... ok
+test state::sequencer::tests::dispatch_transition_stubs_reuse_only ... ok
+test state::sequencer::tests::dispatch_transition_worktx_returns_state_root_via_domain_v1 ... ok
+test state::sequencer::tests::dispatch_verify_locks_bond_in_stakes_t_at_verify_tx_id ... ok
+test state::sequencer::tests::dispatch_verify_rejects_when_bond_zero ... ok
+test state::sequencer::tests::dispatch_verify_rejects_when_parent_stale ... ok
+test state::sequencer::tests::dispatch_verify_rejects_when_target_not_in_stakes_t ... ok
+test state::sequencer::tests::dispatch_verify_rejects_when_verifier_balance_lt_bond ... ok
+test state::sequencer::tests::dispatch_worktx_accept_debits_balance_credits_stakes ... ok
+test state::sequencer::tests::dispatch_worktx_admission_via_formal_surface_no_bridge ... ok
+test state::sequencer::tests::dispatch_worktx_rejects_when_solver_balance_lt_stake ... ok
+test state::sequencer::tests::event_resolve_legacy_yes_signature_is_grandfathered ... ok
+test state::sequencer::tests::stage_1_5_accepts_emit_system_tx_self_signed_challenge_resolve ... ok
+test state::sequencer::tests::stage_1_5_rejects_forged_challenge_resolve_signature ... ok
+test state::sequencer::tests::stage_1_5_rejects_forged_finalize_reward_signature ... ok
+test state::sequencer::tests::stage_1_5_rejects_forged_task_expire_signature ... ok
+test state::sequencer::tests::stage_1_5_rejects_forged_terminal_summary_signature ... ok
+test state::sequencer::tests::stage_1_5_skipped_for_agent_variants ... ok
+test state::sequencer::tests::submit_advances_submit_id_only ... ok
+test state::sequencer::tests::submit_agent_tx_accepts_work_verify_challenge_taskopen_escrowlock_reuse ... ok
+test state::sequencer::tests::submit_agent_tx_rejects_challenge_resolve_pre_queue ... ok
+test state::sequencer::tests::submit_agent_tx_rejects_finalize_reward_pre_queue ... ok
+test state::sequencer::tests::submit_agent_tx_rejects_task_expire_pre_queue ... ok
+test state::sequencer::tests::submit_agent_tx_rejects_terminal_summary_pre_queue ... ok
+test state::sequencer::tests::submit_returns_queue_closed_after_rx_drop ... ok
+test state::sequencer::tests::submit_returns_queue_full_on_saturation ... ok
+test state::sequencer::tests::try_apply_one_drains_one_envelope ... ok
+test state::typed_tx::tests::challenge_resolve_canonical_digest_is_deterministic ... ok
+test state::typed_tx::tests::challenge_resolve_signing_payload_excludes_signature_field_count_6 ... ok
+test state::typed_tx::tests::challenge_signing_payload_excludes_signature_field_count_7 ... ok
+test state::typed_tx::tests::challenge_tx_canonical_digest_includes_parent_state_root ... ok
+test state::typed_tx::tests::escrow_lock_signing_payload_excludes_signature ... ok
+test state::typed_tx::tests::escrow_lock_tx_canonical_digest_is_deterministic ... ok
+test state::typed_tx::tests::exhaustion_reason_to_run_outcome ... ok
+test state::typed_tx::tests::golden_challenge_resolve_signing_payload_digest ... ok
+test state::typed_tx::tests::golden_challenge_resolve_tx_digest ... ok
+test state::typed_tx::tests::golden_challenge_tx_digest ... ok
+test state::typed_tx::tests::golden_finalize_reward_tx_digest ... ok
+test state::typed_tx::tests::golden_reuse_tx_digest ... ok
+test state::typed_tx::tests::golden_task_expire_tx_digest ... ok
+test state::typed_tx::tests::golden_terminal_summary_tx_digest ... ok
+test state::typed_tx::tests::golden_verify_tx_digest ... ok
+test state::typed_tx::tests::golden_work_tx_digest ... ok
+test state::typed_tx::tests::has_submitter_partitioning ... ok
+test state::typed_tx::tests::signing_payload_domain_prefix_is_load_bearing ... ok
+test state::typed_tx::tests::signing_payload_domains_are_distinct ... ok
+test state::typed_tx::tests::signing_payload_excludes_signature ... ok
+test state::typed_tx::tests::signing_payload_golden_digests ... ok
+test state::typed_tx::tests::task_bankruptcy_canonical_digest_is_deterministic ... ok
+test state::typed_tx::tests::task_bankruptcy_round_trip ... ok
+test state::typed_tx::tests::task_bankruptcy_signing_payload_field_count_8 ... ok
+test state::typed_tx::tests::task_expire_carries_sponsor_escrow_reason ... ok
+test state::typed_tx::tests::task_open_signing_payload_excludes_signature ... ok
+test state::typed_tx::tests::task_open_tx_canonical_digest_is_deterministic ... ok
+test state::typed_tx::tests::tb_13_complete_set_mint_round_trips_canonical ... ok
+test state::typed_tx::tests::tb_13_complete_set_redeem_round_trips_canonical ... ok
+test state::typed_tx::tests::tb_13_has_submitter_returns_owner_or_provider ... ok
+test state::typed_tx::tests::tb_13_market_seed_round_trips_canonical ... ok
+test state::typed_tx::tests::tb_13_outcome_side_repr_u8_stable ... ok
+test state::typed_tx::tests::tb_13_share_amount_default_zero_units ... ok
+test state::typed_tx::tests::tb_13_signing_payloads_deterministic_digest ... ok
+test state::typed_tx::tests::tb_13_signing_payloads_exclude_signature_field_counts ... ok
+test state::typed_tx::tests::tb_n3_a0_legacy_task_event_id_distinguishable_from_node_event_id ... ok
+test state::typed_tx::tests::tb_n3_a0_node_survive_event_id_collision_free ... ok
+test state::typed_tx::tests::tb_n3_a0_node_survive_event_id_uses_namespace_prefix ... ok
+test state::typed_tx::tests::terminal_summary_carries_evidence_capsule_cid ... ok
+test state::typed_tx::tests::transition_error_display_covers_3_new_tb4_variants_plus_reserved ... ok
+test state::typed_tx::tests::transition_error_display_covers_3_new_variants ... ok
+test state::typed_tx::tests::typed_tx_btree_permutation_independence ... ok
+test state::typed_tx::tests::typed_tx_btreemap_permutation_independence ... ok
+test state::typed_tx::tests::typed_tx_byte_stability_across_calls ... ok
+test state::typed_tx::tests::typed_tx_cross_variant_non_collision ... ok
+test state::typed_tx::tests::typed_tx_default_round_trip ... ok
+test state::typed_tx::tests::typed_tx_kind_projection ... ok
+test state::typed_tx::tests::typed_tx_round_trip_100_inputs ... ok
+test state::typed_tx::tests::typed_tx_round_trip_all_variants ... ok
+test state::typed_tx::tests::verify_signing_payload_excludes_signature_field_count_7 ... ok
+test state::typed_tx::tests::verify_tx_canonical_digest_includes_parent_state_root ... ok
+test top_white::predicates::registry::tests::agent_visible_view_filters_private ... ok
+test top_white::predicates::registry::tests::duplicate_id_rejected ... ok
+test top_white::predicates::registry::tests::empty_id_rejected ... ok
+test top_white::predicates::registry::tests::empty_registry_root_is_sha256_empty ... ok
+test top_white::predicates::registry::tests::merkle_root_changes_on_register ... ok
+test top_white::predicates::registry::tests::merkle_root_deterministic_two_runs ... ok
+test top_white::predicates::registry::tests::metadata_canonical_hash_deterministic ... ok
+test top_white::predicates::registry::tests::metadata_canonical_hash_differs_on_visibility ... ok
+test top_white::predicates::registry::tests::register_and_get_round_trip ... ok
+test top_white::predicates::visibility::tests::commit_reveal_pre_reveal ... ok
+test top_white::predicates::visibility::tests::private_never_content_visible ... ok
+test top_white::predicates::visibility::tests::public_always_visible ... ok
+test top_white::predicates::visibility::tests::serde_round_trip_commit_reveal ... ok
+test top_white::predicates::visibility::tests::serde_round_trip_public ... ok
+test wal::tests::test_wal_replay_missing_file_is_empty ... ok
+test wal::tests::test_wal_roundtrip_mixed ... ok
+test wal::tests::test_wal_roundtrip_nodes_only ... ok
+test wal::tests::test_wal_skip_malformed_line ... ok
+
+test result: ok. 631 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 68.77s
+
+
+running 9 tests
+test tb12_render_tests::sg_12_6_dashboard_view_positions_works ... ok
+test tb14_render_tests::sg_14_6_dashboard_carries_price_is_signal_not_truth_banner ... ok
+test tb14_render_tests::sg_14_6_dashboard_empty_price_index_renders_explicit_empty_state ... ok
+test tb14_render_tests::sg_14_6_dashboard_renders_none_for_zero_liquidity_nodes ... ok
+test tb14_render_tests::sg_14_6_dashboard_renders_price_as_integer_rational_never_decimal ... ok
+test tb14_render_tests::sg_15_6_dashboard_carries_autopsy_is_private_banner ... ok
+test tb14_render_tests::sg_15_6_dashboard_carries_markov_default_deny_explanation ... ok
+test tb14_render_tests::sg_15_6_dashboard_explains_when_no_markov_pointer ... ok
+test tb14_render_tests::sg_15_6_dashboard_renders_event_counts_only_no_raw_bytes ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test cas_payload_round_trip_with_cid_stability_across_restart ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+
+running 1 test
+test git2_writer_returns_some_after_commit ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 3 tests
+test advance_head_t_overwrites_prior_node_id_on_subsequent_some ... ok
+test advance_head_t_preserves_node_id_when_writer_returns_none ... ok
+test advance_head_t_writes_node_id_when_writer_returns_some ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 117 tests
+test agent_role_economic ... ignored
+test agent_view_filters_internals ... ignored
+test agent_view_minimal_context ... ignored
+test amendment_flow_format_validate ... ignored
+test anti_oreo_layer_audit ... ignored, stub: replace at CO1.1.6
+test architect_proposal_offline ... ignored
+test attribution_engine_determinism ... ignored
+test boolean_signal_pass_fail ... ignored
+test chain_tape_l0_constitution_root ... ignored
+test chain_tape_l1_predicate_registry ... ignored
+test chain_tape_l2_tool_registry ... ignored
+test chain_tape_l3_cas ... ignored
+test chain_tape_l4_transition_ledger ... ignored
+test chain_tape_l5_materialized_state ... ignored
+test chain_tape_l6_signal_indices ... ignored
+test challenge_window_enforced ... ignored
+test conformance_stub_count_matches_trace_matrix ... ok
+test ctf_stake_symmetry ... ignored
+test dual_audit_protocol_existence ... ignored
+test economic_audit_e01_production_default_on ... ignored
+test economic_audit_e02_jsonl_summary ... ignored
+test economic_audit_e03_naming ... ignored
+test economic_audit_e04_founder_grant_law2 ... ignored
+test economic_invariant_inv10_signal_vs_evaluator ... ignored
+test economic_invariant_inv11_chain_record_only ... ignored
+test economic_invariant_inv12_consensus_not_truth ... ignored
+test economic_invariant_inv1_no_thinking_reward ... ignored
+test economic_invariant_inv2_no_direct_collect ... ignored
+test economic_invariant_inv3_escrow_only ... ignored
+test economic_invariant_inv4_no_post_mint ... ignored
+test economic_invariant_inv5_yes_no_event_bound ... ignored
+test economic_invariant_inv6_predicate_gated ... ignored
+test economic_invariant_inv7_provisional_then_final ... ignored
+test economic_invariant_inv8_dag_attribution ... ignored
+test economic_invariant_inv9_reputation_immutable ... ignored
+test economic_state_reconstruct ... ignored, stub: replace at CO1.2.4
+test entropy_diversity_thresholds ... ignored
+test failure_histogram_reconstruct ... ignored
+test final_reward_formula ... ignored
+test finalize_or_slash_exclusive ... ignored
+test four_element_mapping ... ignored, stub: replace at CO1.0
+test genesis_amendment_predicate_resolves ... ignored
+test genesis_boot_attestation_self_referential ... ignored
+test genesis_constitution_root_verify ... ignored
+test genesis_creator_signature_verifies ... ignored
+test genesis_initial_registry_empty ... ignored
+test git_substrate_runtime_repo ... ignored
+test goodhart_shield ... ignored
+test halt_reason_distribution ... ignored
+test l6_reconstructibility ... ignored
+test meta_tx_schema_serialization ... ignored
+test meta_validator_correctness ... ignored
+test meta_validator_pass_cases ... ignored
+test meta_validator_veto_cases ... ignored
+test no_env_in_transition ... ignored
+test no_f64_money ... ignored
+test no_hidden_inputs ... ignored
+test no_post_init_mint ... ignored
+test no_rejection_sidecar ... ignored
+test no_runtime_entropy ... ignored
+test no_wall_clock_in_tx ... ignored
+test price_aggregation_correlation_shield ... ignored
+test price_broadcast_l6 ... ignored
+test private_predicate_error_no_leak ... ignored
+test q_state_reconstruct ... ignored, stub: replace at CO1.2.4
+test q_state_uses_btree ... ignored
+test r022_hook_validates ... ignored
+test r023_hook_governance ... ignored
+test ratification_chain_verifies ... ignored
+test report_standard_pput_ci_required ... ignored
+test retry_summary_runner_signed ... ignored
+test royalty_cap_enforced ... ignored
+test rsp1_modules_smoke ... ignored
+test run_terminal_invariant ... ignored
+test safety_creation_dichotomy ... ignored
+test signal_dichotomy ... ignored
+test signature_verification ... ignored
+test six_axioms_alignment ... ignored
+test stake_atomicity ... ignored
+test stale_parent_rejection ... ignored
+test statistical_signals_complete ... ignored
+test system_keypair_generation ... ignored
+test system_keypair_load_and_decrypt ... ignored
+test system_keypair_rotation_proof ... ignored
+test system_keypair_sign_only_from_runner ... ignored
+test system_keypair_verify_correctness ... ignored
+test tape_canonical_v01_completion_tokens ... ignored
+test tape_canonical_v02_runcost_accumulator ... ignored
+test tape_canonical_v03_wallet_state ... ignored
+test tape_canonical_v04_payload_byte_hack ... ignored
+test tape_canonical_v05_event_detail_none ... ignored
+test tape_canonical_v06_runwallclock ... ignored
+test tape_canonical_v07_search_cache ... ignored
+test tape_canonical_v08_librarian_board ... ignored
+test tape_canonical_v09_fc_trace ... ignored
+test tape_canonical_v10_market_create_emit ... ignored
+test tape_canonical_v11_market_resolve_emit ... ignored
+test tape_canonical_v12_lean_error_drop ... ignored
+test tape_canonical_v13_boltzmann_provenance ... ignored
+test tape_canonical_v14_mr_tick_provenance ... ignored
+test tape_canonical_v15_wal_optin ... ignored
+test tape_canonical_v16_wal_no_hashchain ... ignored
+test tape_canonical_v17_node_no_hash_field ... ignored
+test tape_canonical_v18_mr_tick_to_stderr ... ignored
+test tape_canonical_v19_graveyard_sidecar ... ignored
+test tape_canonical_v20_stale_view_window ... ignored
+test tape_canonical_v21_settle_provisional ... ignored
+test tape_canonical_v22_reputation_alias ... ignored
+test tape_canonical_v23_economy_default_off ... ignored
+test tape_canonical_v24_audit_guard_provenance ... ignored
+test task_config_frozen_at_publish ... ignored
+test trace_matrix_v3_bidirectional ... ignored
+test transition_determinism ... ignored
+test transition_tx_12_fields ... ignored
+test turing_fundamentalism ... ignored, stub: replace at CO1.0
+test verifier_bond_release ... ignored
+test verify_target_liveness ... ignored
+
+test result: ok. 1 passed; 0 failed; 116 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 9 tests
+test lint_self_check_challenge_open_flagged ... ok
+test lint_self_check_commented_out_violation_not_flagged ... ok
+test lint_self_check_money_default_passes ... ok
+test lint_self_check_ok_or_pattern_passes ... ok
+test lint_self_check_path_qualified_token_flagged ... ok
+test lint_self_check_token_in_comment_does_not_trigger_false_positive ... ok
+test lint_self_check_unwrap_or_else_pool_active_flagged ... ok
+test lint_self_check_unwrap_or_task_market_open_flagged ... ok
+test no_fail_open_default_in_sequencer_admission ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 11 tests
+test aggregate_report_disk_format_stable ... ok
+test aggregate_report_fc1_aggregate_invariant_is_ship_block ... ok
+test aggregate_report_schema_id_pin_is_constitutional ... ok
+test aggregate_report_section_17_counts_present ... ok
+test aggregate_report_section_17_halt_distribution_present ... ok
+test aggregate_report_section_17_mean_pput_solved_present ... ok
+test aggregate_report_section_17_no_fake_accepted_required ... ok
+test aggregate_report_section_17_sigma_pput_finite ... ok
+test aggregate_report_section_17_well_formed_passes ... ok
+test aggregate_report_section_17_wilson_ci_present ... ok
+test aggregate_report_wires_wilson_and_diversity ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 5 tests
+test architect_verbatim_struct_field_bindings ... ok
+test binding_self_check_extracts_known_fields ... ok
+test binding_self_check_synthetic_d4_shape_field_rename_detected ... ok
+test binding_self_check_synthetic_drift_detected ... ok
+test binding_self_check_type_only_drift_detected ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 6 tests
+test v3_amendment_section_exists_and_parseable ... ok
+test v3_constitution_hash_matches_trust_root_manifest ... ok
+test v3_every_amendment_date_is_iso_format ... ok
+test v3_every_amendment_has_four_populated_columns ... ok
+test v3_every_amendment_triggered_by_human_architect ... ok
+test v3_historical_amendments_remain_recorded ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 10 tests
+test chain_refs_list_is_complete_for_post_a3_multi_ref ... ok
+test corrupt_chain_refs_corrupts_all_present_refs_a3_dual_write ... ok
+test corrupt_chain_refs_errors_on_no_chain_refs ... ok
+test corrupt_chain_refs_works_with_alias_only_pre_a3 ... ok
+test flip_largest_cas_object_corrupts_largest ... ok
+test flip_largest_reachable_l4_blob_errors_on_no_chain_refs ... ok
+test flip_largest_reachable_l4_blob_picks_reachable_not_orphan_a3_canonical ... ok
+test flip_largest_reachable_l4_blob_works_with_alias_only_pre_a3 ... ok
+test l4_refs_is_strict_subset_of_chain_refs_excluding_l4e ... ok
+test l4e_refs_is_strict_subset_of_chain_refs_l4e_only ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+
+running 3 tests
+test audit_view_pools_matches_state ... ok
+test audit_view_shares_matches_state ... ok
+test dashboard_regenerates_market_view ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+
+running 6 tests
+test benchmark_manifest_disk_round_trip_is_stable ... ok
+test benchmark_manifest_no_field_omission_allowed ... ok
+test benchmark_manifest_schema_id_drift_is_blocked ... ok
+test benchmark_manifest_schema_id_pin_is_constitutional ... ok
+test benchmark_manifest_total_runs_arithmetic_is_stable ... ok
+test benchmark_manifest_well_formed_validates ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 5 tests
+test class4_atomic_rollback_witness_check ... ok
+test witness_self_check_marker_only_in_comment_does_not_satisfy ... ok
+test witness_self_check_marker_only_in_string_does_not_satisfy ... ok
+test witness_self_check_synthetic_proper_test_passes ... ok
+test witness_self_check_synthetic_vacuous_test_detected ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 3 tests
+test constitution_closure_3_no_trivial_asserts_in_constitution_tests ... ok
+test forbidden_patterns_list_is_load_bearing ... ok
+test strip_helper_drops_doc_comment_pattern_text ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+
+
+running 8 tests
+test mint_conserves_total_coin ... ok
+test mint_one_coin_creates_one_yes_one_no ... ok
+test redeem_cannot_exceed_share_balance ... ok
+test redeem_debits_collateral ... ok
+test redeem_no_after_no_pays_no_not_yes ... ok
+test redeem_unavailable_before_resolution ... ok
+test redeem_yes_after_yes_pays_yes_not_no ... ok
+test shares_not_counted_as_coin ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+
+running 5 tests
+test merge_conserves_total_coin ... ok
+test merge_reduces_collateral ... ok
+test merge_requires_both_sides ... ok
+test merge_unavailable_after_final_redeem_if_shares_exhausted ... ok
+test merge_yes_no_returns_coin ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+
+
+running 4 tests
+test lp_shares_not_counted_as_coin ... ok
+test pool_cannot_exist_without_collateralized_shares ... ok
+test pool_created_from_seed_inventory ... ok
+test pool_reserves_not_counted_as_coin ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+
+running 6 tests
+test swap_fails_insufficient_pool_output ... ok
+test swap_fails_zero_input ... ok
+test swap_no_for_yes_constant_product_non_decreasing ... ok
+test swap_respects_min_out_slippage ... ok
+test swap_uses_integer_math_no_f64 ... ok
+test swap_yes_for_no_constant_product_non_decreasing ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+
+
+running 8 tests
+test dev_harness_close_requires_at_least_one_command_evidence ... ok
+test dev_harness_close_summary_records_final_event_chain_head ... ok
+test dev_harness_closes_with_passing_evidence_and_proceed_audit_when_required ... ok
+test dev_harness_doc_mentions_of_restricted_paths_do_not_escalate_risk ... ok
+test dev_harness_hash_chain_detects_tampering ... ok
+test dev_harness_open_writes_manifest_and_fc_witness ... ok
+test dev_harness_records_failed_command_as_evidence_and_blocks_close ... ok
+test dev_harness_restricted_diff_forces_class4_and_close_requires_audit ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+
+running 7 tests
+test diversity_report_alarms_on_either_metric_collapse ... ok
+test diversity_report_does_not_alarm_when_both_above_floor ... ok
+test parent_entropy_below_alarm_floor_at_extreme_collapse ... ok
+test parent_entropy_collapses_to_zero_on_star_topology ... ok
+test parent_entropy_helper_exists ... ok
+test payload_diversity_below_alarm_floor_when_all_collapsed ... ok
+test payload_diversity_helper_exists ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 9 tests
+test economy_complete_set_yes_no_not_coin ... ok
+test economy_no_f64_money_path ... ok
+test economy_no_ghost_liquidity ... ok
+test economy_no_post_init_mint ... ok
+test economy_read_is_free ... ok
+test economy_total_coin_conserved ... ok
+test economy_wallet_read_only_projection ... ok
+test economy_write_requires_stake_or_escrow ... ok
+test system_tx_not_agent_submittable ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 8 tests
+test lint_ignores_min_outside_conservation_context ... ok
+test lint_self_check_marked_min_passes ... ok
+test lint_self_check_marker_in_comment_does_not_disguise_unmarked_call ... ok
+test lint_self_check_max_aggregation_detected ... ok
+test lint_self_check_qualified_path_min_detected ... ok
+test lint_self_check_renamed_aggregate_detected ... ok
+test lint_self_check_unmarked_min_fails ... ok
+test no_unguarded_min_in_conservation_invariants ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 8 tests
+test fc1_attempt_count_equality_under_real_load_p38_p49 ... ignored, TB-C0 MVP-1 evidence smoke: requires real LLM compute (P38+P49); architect-authorized run flips this from AMBER to GREEN. See handover/directives/2026-05-06_TBC0_CONSTITUTION_LANDING_RESET_DIRECTIVE.md §4.1.
+test fc1_attempt_count_equals_tape_count ... ok
+test fc1_dashboard_not_source_of_truth ... ok
+test fc1_every_externalized_attempt_is_tape_visible ... ok
+test fc1_no_fake_accepted_nodes ... ok
+test fc1_no_legacy_authoritative_append ... ok
+test fc1_predicate_fail_goes_l4e ... ok
+test fc1_predicate_pass_goes_l4 ... ok
+
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 8 tests
+test fc2_agent_registry_resolves ... ok
+test fc2_genesis_report_exists ... ok
+test fc2_no_memory_only_preseed ... ok
+test fc2_no_post_init_mint ... ok
+test fc2_on_init_only_mint ... ok
+test fc2_run_replayable_from_genesis_tape_cas ... ok
+test fc2_system_pubkeys_verify ... ok
+test fc2_taskopen_escrowlock_are_chain_events ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 7 tests
+test fc3_art_v2_constitution_boundaries_witness ... ok
+test fc3_cross_batch_chain_invariant_consistency_witness ... ok
+test fc3_inv3_raw_logs_not_in_agent_read_view_real_witness ... ok
+test fc3_inv4_latest_capsule_context_only_real_witness ... ok
+test fc3_inv5_deep_history_default_deny_runtime_witness ... ok
+test fc3_inv7_architect_proposes_no_direct_write_git_witness ... ok
+test fc3_inv8_judgeai_veto_only_audit_dir_witness ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+
+running 4 tests
+test fc3_inv1_capsule_attempt_count_matches_at_count_p08 ... ok
+test fc3_inv1_capsule_id_is_content_addressable_p08 ... ok
+test fc3_inv1_capsule_integrity_secondary_problems ... ok
+test fc3_inv1_capsule_outcome_counts_match_at_walk_p08 ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+
+running 8 tests
+test fc3_architectai_proposal_not_direct_write ... ok
+test fc3_capsule_derived_from_tape_cas ... ok
+test fc3_deep_history_requires_override ... ok
+test fc3_judgeai_veto_only ... ok
+test fc3_latest_capsule_context_only ... ok
+test fc3_no_automatic_predicate_mutation ... ok
+test fc3_no_global_markov_pointer ... ok
+test fc3_raw_logs_not_in_agent_read_view ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+
+running 4 tests
+test manifest_head_chain_is_continuous ... ok
+test manifest_records_all_tasks_in_order ... ok
+test manifest_rejects_continuity_gap ... ok
+test manifest_replay_matches_real_chain_head_walk ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+
+running 6 tests
+test lease_acquire_release_round_trip ... ok
+test lease_detects_head_changed_under_lock ... ok
+test lease_detects_stale_lock_when_pid_dead ... ok
+test lease_rejects_second_writer_other_pid ... ok
+test lease_rejects_second_writer_same_pid ... ok
+test lease_releases_on_guard_drop ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+
+running 6 tests
+test binding_detects_autopsy_capsule_monotonicity_violation ... ok
+test binding_detects_balance_reset_between_tasks ... ok
+test binding_emits_clean_negative_on_empty_batch ... ok
+test binding_model_identity_witnessed_when_manifest_carries_model ... ok
+test binding_n_witnessed_at_least_one_for_real_two_task_batch ... ok
+test binding_witnesses_balance_mutation_in_two_task_synthetic_batch ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+
+running 11 tests
+test preflight_accepts_valid_chain ... ok
+test preflight_rejects_chain_length_mismatch ... ok
+test preflight_rejects_fresh_genesis_attempt ... ok
+test preflight_rejects_head_mismatch ... ok
+test preflight_rejects_missing_agent_pubkeys ... ok
+test preflight_rejects_missing_cas ... ok
+test preflight_rejects_missing_genesis_report ... ok
+test preflight_rejects_missing_pinned_pubkeys ... ok
+test preflight_rejects_missing_runtime_repo ... ok
+test preflight_rejects_state_root_mismatch ... ok
+test preflight_rejects_task_index_gap ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+
+
+running 8 tests
+test sg_g1_1_resume_on_empty_repo_equals_legacy_genesis ... ok
+test sg_g1_2_resume_on_n_entry_chain_sets_next_logical_t_to_n ... ok
+test sg_g1_3_resume_balances_reconstruction_matches_forward_replay ... ok
+test sg_g1_4_non_empty_runtime_repo_only_fires_when_resume_false ... ok
+test sg_g1_5_pinned_pubkeys_preserved_across_resume ... ok
+test sg_g1_6_resume_existing_durable_fails_closed_when_manifest_absent ... ok
+test sg_g1_7_resume_existing_durable_fails_closed_on_keystore_manifest_drift ... ok
+test sg_g1_8_resume_existing_durable_fails_closed_on_pubkey_mismatch ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.05s
+
+
+running 5 tests
+test sg_g2_4_a_total_traces_outcomes_and_ratio_rendered ... ok
+test sg_g2_4_b_exhaustive_thirteen_row_breakdown_present ... ok
+test sg_g2_4_c_empty_batch_render_safety ... ok
+test sg_g2_4_d_ratio_is_integer_percent_no_f64 ... ok
+test sg_g2_4_e_audit_dashboard_uses_library_helper ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+
+running 4 tests
+test sg_g2_5_a_insufficient_balance_lands_in_l4e ... ok
+test sg_g2_5_b_pool_not_active_lands_in_l4e ... ok
+test sg_g2_5_c_adapter_classifier_writes_no_trade_trace_to_cas ... ok
+test sg_g2_5_d_failed_invest_both_l4e_and_cas_trace ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+
+running 8 tests
+test sg_g2_1_source_grep_covers_each_variant ... ok
+test sg_g2_2_no_trade_reason_all_is_13_variants ... ok
+test sg_g2_3_label_round_trip_unique ... ok
+test sg_g2_4_amount_exceeds_balance_carries_insufficient_balance_doc_alias ... ok
+test sg_g2_4_architect_directive_verbatim_labels_present ... ok
+test sg_g2_5_invest_route_error_mapping_total ... ok
+test sg_g2_6_a_evaluator_end_of_turn_classifier_source_grep ... ok
+test sg_g2_6_trace_or_tx_invariant_every_variant_buildable ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 8 tests
+test sg_g2p_3_walker_does_not_reference_private_surfaces ... ok
+test sg_g2p_3_walker_is_public_and_accepts_trait_object_writer ... ok
+test sg_g2p_3_walker_output_exposes_per_agent_peer_verify_count ... ok
+test sg_g2p_4_audit_dashboard_wires_peer_verify_coverage_walker ... ok
+test sg_g2p_4_fixture_renders_coverage_pct_line_and_per_agent_rows ... ok
+test sg_g2p_5_empty_chain_still_renders_explicit_bottleneck ... ok
+test sg_g2p_5_positive_non_solver_count_omits_bottleneck ... ok
+test sg_g2p_5_zero_non_solver_emits_bottleneck_with_three_candidate_causes ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+
+running 6 tests
+test sg_g2p_1_renderer_does_not_reference_private_surfaces ... ok
+test sg_g2p_1_renderer_reads_only_public_chain_indices ... ok
+test sg_g2p_1_renderer_takes_per_viewer_id ... ok
+test sg_g2p_2_fixture_filters_self_work_tx_and_already_verified_targets ... ok
+test sg_g2p_2_fixture_renders_peer_work_tx_pending_review_row ... ok
+test sg_g2p_2_prompt_builder_and_evaluator_wire_the_block ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 3 tests
+test sg_g2p_6_obs_file_present_with_forward_closure_section ... ok
+test sg_g2p_6_reputations_t_mutation_resolved_in_verify_arm ... ok
+test sg_g2p_6_verify_tx_arm_preserves_tb_n1_a4_admission_contract ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+
+running 33 tests
+test arch_71_audit_dashboard_wires_risk_cap_impact_report ... ok
+test arch_71_default_report_is_empty ... ok
+test arch_71_risk_cap_impact_report_module_present ... ok
+test arch_71_risk_cap_impact_report_predicates_work ... ok
+test arch_71_tx_kind_label_covers_4_admission_arms ... ok
+test arch_72_compute_agent_pnl_does_not_require_cap_pass ... ok
+test arch_72_risk_cap_in_admission_only_not_in_predicate_or_read_path ... ok
+test arch_73_autopsy_capsule_marked_audit_only_privacy ... ok
+test arch_74_sybil_guard_via_step_3_5_already_in_place ... ok
+test arch_75_payout_breakdown_bounded_invariant_rejects_overpay ... ok
+test arch_75_payout_breakdown_default_shape_correct ... ok
+test sg_g3_10_a_worktx_admission_arm_has_risk_cap_precondition ... ok
+test sg_g3_10_b_verifytx_admission_arm_has_risk_cap_precondition ... ok
+test sg_g3_10_c_challengetx_admission_arm_has_risk_cap_precondition ... ok
+test sg_g3_10_d_buyrouter_admission_arm_has_risk_cap_precondition ... ok
+test sg_g3_12_public_summary_token_present_and_short ... ok
+test sg_g3_12_transition_error_display_under_64_bytes ... ok
+test sg_g3_4_apply_one_stage_3_5b_writes_g3_2_autopsy_to_cas ... ok
+test sg_g3_4_terminal_summary_autopsy_derive_helper_present ... ok
+test sg_g3_4_terminal_summary_dispatch_emits_capsules ... ok
+test sg_g3_b_no_new_economic_state_table ... ok
+test sg_g3_b_risk_cap_threshold_matches_g3_1_near_insolvent ... ok
+test sg_g3_b_unknown_agent_cap_is_zero_fail_closed ... ok
+test sg_g3_x_a_reputation_plus_one_in_verifytx_arm ... ok
+test sg_g3_x_a_uniform_plus_one_not_verdict_weighted ... ok
+test sg_g3_x_b_bond_return_in_finalize_reward ... ok
+test sg_g3_x_b_no_new_bond_return_tx_variant ... ok
+test sg_g3_x_c_rejection_class_bankruptcy_variant_present ... ok
+test sg_g3_x_c_rejection_class_for_maps_to_policy_violation ... ok
+test sg_g3_x_c_rejection_class_tail_append_after_verify_duplicate ... ok
+test ship_gate_fixture_bankrupt_agent_below_cap_emits_autopsy_capsule ... ok
+test ship_gate_fixture_multi_agent_mixed_solvency ... ok
+test ship_gate_fixture_solvent_agent_above_cap_emits_no_autopsy ... ok
+
+test result: ok. 33 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+
+running 12 tests
+test sg_g3_1_genesis_at_preseed_baseline_yields_zero_pnl ... ok
+test sg_g3_2_post_buy_router_cash_drops_and_unrealized_updates ... ok
+test sg_g3_3_scenario_a_empty_genesis ... ok
+test sg_g3_3_scenario_b_balanced_mint_no_pool ... ok
+test sg_g3_3_scenario_c_balanced_mint_with_skewed_pool ... ok
+test sg_g3_3_scenario_d_asymmetric_mint_with_active_pool ... ok
+test sg_g3_3_scenario_e_post_resolve_pool_zero_unrealized ... ok
+test sg_g3_9_a_solvency_three_tier_source_grep ... ok
+test sg_g3_9_b_canonical_state_index_reads_source_grep ... ok
+test sg_g3_9_c_no_f64_in_money_path ... ok
+test sg_g3_9_d_stakes_and_claims_visible_in_open_positions ... ok
+test sg_g3_9_source_grep_seven_field_shape ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 6 tests
+test sg_g1_7_bind_missing_evidence_dir_returns_typed_error ... ok
+test sg_g3_8_a_synthetic_fixture_emits_non_flat_row ... ok
+test sg_g3_8_b_empty_fixture_triggers_mechanism_bottleneck ... ok
+test sg_g3_8_c_render_has_g_header_and_13_preseed_rows ... ok
+test sg_g3_8_d_render_is_integer_only ... ok
+test sg_g3_8_e_solvency_tiers_visible_in_render ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+
+running 8 tests
+test sg_g3_13_a_no_other_agent_leak ... ok
+test sg_g3_13_b_build_agent_prompt_signature_has_10th_param ... ok
+test sg_g3_13_c_evaluator_wires_render_your_position ... ok
+test sg_g3_13_d_full_prompt_carries_your_position_block ... ok
+test sg_g3_13_drucker_verbatim_framing ... ok
+test sg_g3_13_e_empty_your_position_suppresses_block ... ok
+test sg_g3_6_per_viewer_source_grep ... ok
+test sg_g3_7_non_default_render_witnessed ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 6 tests
+test g4_2_ratification_original_text_is_archived_locally ... ok
+test g4_batch_script_records_model_identity_inputs ... ok
+test genesis_report_contains_sorted_agent_model_assignment ... ok
+test historical_genesis_report_without_model_assignment_is_grandfathered ... ok
+test model_assignment_manifest_records_resolver_provenance_without_secrets ... ok
+test model_family_inference_supports_minimal_three_family_smoke ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 8 tests
+test actual_vs_genesis_mismatch_blocks_as_hidden_switch ... ok
+test audit_tape_assertion_battery_blocks_hidden_model_switch ... ok
+test evaluator_success_attempts_record_proxy_reported_actual_model ... ok
+test g4_genesis_report_write_is_fail_closed_for_model_assignment_runs ... ok
+test g4_model_assignment_manifest_write_is_fail_closed_for_new_runs ... ok
+test historical_attempt_telemetry_v1_bytes_still_decode ... ok
+test matching_actual_model_identity_proceeds ... ok
+test missing_actual_attempt_model_identity_blocks ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 3 tests
+test sg_g5_7_prompt_renders_seven_action_menu ... ok
+test sg_g5_8_parser_accepts_new_g5_actions_without_schema_repair ... ok
+test sg_g5_9_abstain_schema_does_not_require_payload_or_amount ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 2 tests
+test sg_g5_4_role_classifier_derives_roles_from_public_activity_counts ... ok
+test sg_g5_5_single_role_report_includes_mechanism_bottleneck ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 3 tests
+test sg_g5_1_default_round_robin_back_compat ... ok
+test sg_g5_2_scheduler_can_return_abstain_for_empty_agent_set ... ok
+test sg_g5_3_observe_only_mode_does_not_override_selected_agent ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 7 tests
+test sg_6d_1_and_6d_2_scheduler_trace_carries_price_and_pnl_observe_only ... ok
+test sg_6d_1_runtime_emits_scheduler_trace_to_run_cas ... ok
+test sg_6d_1_scheduler_trace_is_chain_backed_cas_evidence ... ok
+test sg_6d_3_and_6d_4_scheduler_does_not_touch_admission_or_predicates ... ok
+test sg_6d_5_dashboard_scheduler_section_is_non_binding_materialized_view ... ok
+test sg_g6_1_market_context_renders_trace_hints_as_observe_only_signal ... ok
+test sg_g6_4_predicates_do_not_read_market_price_or_trace ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+
+running 2 tests
+test sg_g6_5_open_challenge_target_is_filtered_from_top_k ... ok
+test sg_g6_6_resolved_challenge_target_can_reappear_as_signal ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 6 tests
+test sg_7_dashboard_safety_flags_are_not_hardcoded ... ok
+test sg_7_new_structural_minimum_requires_v3_pressure_shape ... ok
+test sg_7_rejects_forced_live_investment_and_missing_buy_no ... ok
+test sg_g7_clean_negative_passes_without_market_action_when_explained ... ok
+test sg_g7_minimum_tier_passes_with_market_visible_action ... ok
+test sg_g7_missing_minimum_gate_requires_forward_stub ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 8 tests
+test sg_a3_cas_root_ref_advances_on_cas_write ... ok
+test sg_a3_cas_root_ref_advances_via_cas_store_put ... ok
+test sg_a3_l4_head_ref_advances_on_accepted_transition ... ok
+test sg_a3_l4e_head_ref_advances_on_rejected_evidence ... ok
+test sg_a3_no_hidden_filesystem_pointer ... ok
+test sg_a3_open_repairs_c1_alias_divergence ... ok
+test sg_a3_ref_name_constants_pinned ... ok
+test sg_a3_replay_reconstructs_head_t_from_refs ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+
+
+running 5 tests
+test dashboard_reads_head_t_derived_state ... ok
+test head_t_advances_on_l4 ... ok
+test head_t_does_not_advance_on_l4e_only ... ok
+test head_t_reconstructs_from_replay ... ok
+test head_t_witness_has_six_canonical_fields ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 7 tests
+test assert_51_halts_on_l4e_blob_byte_flip ... ok
+test assert_51_halts_on_l4e_ref_corruption ... ok
+test assert_51_pass_on_untampered_m0_p01 ... ok
+test assert_51_skipped_on_pre_a3_jsonl_only_mode ... ok
+test parse_and_verify_helper_passes_on_valid_m0_p01_record ... ok
+test parse_and_verify_helper_rejects_garbage_bytes ... ok
+test parse_and_verify_helper_rejects_tampered_field ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s
+
+
+running 3 tests
+test broadcast_epoch_rejects_future_or_out_of_window_digest ... ok
+test digest_clusters_repeated_errors_and_is_deterministic ... ok
+test digest_is_generic_cas_backed_and_readable ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 2 tests
+test barriered_async_freezes_digest_for_all_responses ... ok
+test barriered_async_rejects_mismatched_or_future_digest ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 2 tests
+test digest_crop_and_prompt_reject_forbidden_raw_material ... ok
+test sanitized_digest_and_prompt_pass_no_leak_scan ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 3 tests
+test attempt_telemetry_links_to_prompt_capsule_with_librarian_read_set ... ok
+test prompt_capsule_read_set_and_visible_context_bind_digest ... ok
+test prompt_hash_changes_when_digest_notice_changes ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+
+running 2 tests
+test dashboard_has_librarian_materialized_view_section ... ok
+test real13_status_sync_points_to_existing_clean_evidence ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 2 tests
+test projector_produces_role_specific_crops ... ok
+test role_crops_reference_source_digest_and_redactions ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 3 tests
+test selector_does_not_copy_raw_payload_body ... ok
+test selector_fails_closed_on_explicit_unknown_candidate ... ok
+test selector_reads_known_typed_sidecars ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+
+running 3 tests
+test source_scope_rejects_global_pointer_inputs ... ok
+test source_scope_requires_current_run_cas_root ... ok
+test source_scope_resolves_prior_capsules_or_fails_closed ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+
+running 5 tests
+test legacy_cpm_api_not_imported_by_new_market ... ok
+test no_f64_in_market_modules ... ok
+test self_test_comment_recognition ... ok
+test self_test_f64_scan_detects_violation ... ok
+test self_test_token_scan_detects_violation ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+
+
+running 5 tests
+test market_seed_conserves_total_coin ... ok
+test market_seed_creates_yes_no_inventory ... ok
+test market_seed_debits_provider ... ok
+test market_seed_fails_insufficient_balance ... ok
+test market_seed_no_ghost_liquidity ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+
+running 5 tests
+test sg_n1_a3_1_zero_stake_rejects_with_stake_insufficient ... ok
+test sg_n1_a3_2_overspend_rejects_with_stake_balance_exceeded ... ok
+test sg_n1_a3_3_minimum_stake_admits ... ok
+test sg_n1_a3_4_prompt_aggregates_agent_decided_per_cell_stakes ... ok
+test sg_n1_a3_5_real_llm_smoke_witnesses_agent_decided_non_default_stake ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+
+running 7 tests
+test sg_n1_a4_1_zero_bond_rejects_with_bond_insufficient ... ok
+test sg_n1_a4_2_overbond_rejects_with_verify_bond_out_of_bounds ... ok
+test sg_n1_a4_3_phantom_target_rejects_with_verify_target_not_accepted ... ok
+test sg_n1_a4_4_duplicate_verify_rejects_with_verify_duplicate ... ok
+test sg_n1_a4_5_first_valid_verify_admits ... ok
+test sg_n1_a4_6_real_llm_swarm_smoke_witnesses_admission_health ... ok
+test sg_n1_a4_7_verify_peer_advertised_and_dispatched ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+
+
+running 9 tests
+test sg_n2_b2_1_agent_ingress_rejects_event_resolve_pre_queue ... ok
+test sg_n2_b2_2_event_resolve_flips_state_open_to_finalized ... ok
+test sg_n2_b2_3_re_emit_on_finalized_rejects_with_event_already_resolved ... ok
+test sg_n2_b2_4_emit_on_bankrupt_market_rejects ... ok
+test sg_n2_b2_5_emit_on_unknown_task_returns_event_resolve_task_not_found ... ok
+test sg_n2_b2_6_pure_status_mutation_no_money_movement ... ok
+test sg_n2_b2_7_post_resolution_state_makes_redeem_reachable ... ok
+test sg_n2_b2_8_adapter_helper_and_evaluator_hook_present ... ok
+test sg_n2_b2_9_adapter_polls_claim_finalized_before_emit_r2 ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.39s
+
+
+running 2 tests
+test every_test_writing_to_committed_evidence_must_be_env_gated ... ok
+test the_three_2026_05_07_fixed_tests_retain_env_gate ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+
+running 5 tests
+test markov_capsules_dir_has_no_global_latest_marker ... ok
+test no_global_markov_pointer ... ok
+test no_global_pointer_files_introduced ... ok
+test no_parallel_ledger_source_of_truth ... ok
+test no_shadow_tape_authoritative_parent ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 7 tests
+test pcp_corpus_fixtures_present ... ok
+test pcp_corpus_manifest_is_parseable_and_complete ... ok
+test pcp_invalid_never_l4 ... ok
+test pcp_invalid_routes_l4e_or_capsule ... ok
+test pcp_mutated_invalid_fails ... ok
+test pcp_sorry_blocked ... ok
+test pcp_valid_passes ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+
+running 8 tests
+test pcp_corpus_phase2_covers_all_9_g_012_classes ... ok
+test pcp_corpus_phase2_every_entry_has_required_fields ... ok
+test pcp_corpus_phase2_every_fixture_file_present ... ok
+test pcp_corpus_phase2_every_fixture_is_minif2f_derived ... ok
+test pcp_corpus_phase2_manifest_is_parseable_and_has_9_classes ... ok
+test pcp_corpus_phase2_only_valid_routes_to_l4_accepted ... ok
+test pcp_corpus_phase2_predecessor_phase1_still_present ... ok
+test pcp_corpus_phase2_rejection_class_u8_consistent ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 10 tests
+test pool_create_rejected_against_bankrupt_event ... ok
+test pool_create_rejected_against_finalized_event ... ok
+test pool_create_rejected_against_missing_event_entry ... ok
+test pool_swap_router_all_succeed_against_open_event ... ok
+test router_rejected_against_bankrupt_event ... ok
+test router_rejected_against_finalized_event ... ok
+test router_rejected_against_missing_event_entry ... ok
+test swap_rejected_against_bankrupt_event ... ok
+test swap_rejected_against_finalized_event ... ok
+test swap_rejected_against_missing_event_entry ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+
+
+running 1 test
+test polymarket_controlled_market_smoke ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+
+running 5 tests
+test lean_verified_required_for_verified_worktx ... ok
+test predicate_failure_cannot_enter_l4 ... ok
+test predicate_pass_required_for_l4 ... ok
+test predicate_result_is_binary ... ok
+test price_never_overrides_predicate ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+
+running 9 tests
+test prompt_capsule_agent_view_manifest_links_model_assignment_without_raw_prompt ... ok
+test prompt_capsule_created_for_attempt ... ok
+test prompt_capsule_hash_stable ... ok
+test prompt_capsule_object_type_is_distinct ... ok
+test prompt_capsule_redacts_hidden_fields ... ok
+test prompt_capsule_referenced_by_attempt_telemetry ... ok
+test prompt_capsule_schema_id_is_pinned ... ok
+test prompt_capsule_struct_field_count_is_exactly_seven ... ok
+test verbatim_prompt_not_public_by_default ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 4 tests
+test real10_emergence_metrics_define_e1_e2_e3_e4 ... ok
+test real10_emergence_metrics_forbid_scripted_e2_label_only_e3_small_n_e4 ... ok
+test real10_execution_plan_preserves_live_real6b_deferral_packet ... ok
+test real10_narrow_ratification_records_real8_numbers_and_nonclaims ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 6 tests
+test real10_pub_const_fn_parser_ambiguity_is_explicit ... ok
+test real10_r022_skipped_surfaces_have_trace_matrix_j_rows ... ok
+test real10_trace_cleanup_justification_file_exists ... ok
+test real10_trace_cleanup_report_records_one_time_exception_not_waiver ... ok
+test real10_trace_cleanup_rows_use_checker_compatible_symbols ... ok
+test real10_trace_removals_are_closed_audit_trail_not_open_surfaces ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+
+running 1 test
+test real11_launch_and_beta_forbidden_claims_are_absent_or_explicitly_forbidden ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 2 tests
+test real11_e2_micro_probe_report_uses_allowed_e2_verdict_rule ... ok
+test real11_e2_micro_probe_runner_has_required_constraints_and_outputs ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 3 tests
+test contaminated_evidence_appears_only_in_invalid_or_remediation_context ... ok
+test real10_ratification_marks_clean_evidence_as_only_conclusion_bearing ... ok
+test stale_parent_behavioral_gate_is_present ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 6 tests
+test every_trader_turn_has_exactly_one_market_opportunity_trace ... ok
+test prompt_budget_elision_is_specific_prompt_budget_reason ... ok
+test trace_serialization_contains_no_raw_prompt_completion_cot_or_logs ... ok
+test trader_turn_with_active_pool_and_balance_has_actionable_market ... ok
+test trader_turn_with_no_pool_is_specific_no_pool_not_unknown ... ok
+test trader_turn_with_pool_but_zero_balance_is_specific_balance_reason ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 4 tests
+test audit_dashboard_renders_real11_market_tx_category_split ... ok
+test market_tx_classifier_separates_structural_resolution_scripted_and_live_agent_action ... ok
+test real10_rerender_keeps_agent_economic_action_zero_and_excludes_scripted_from_e2 ... ok
+test real11_market_tx_category_report_contains_split_columns_and_no_e2_overclaim ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 3 tests
+test constitution_execution_matrix_tracks_real11_boundary ... ok
+test real11_decision_gate_records_b_c_diagnostic_clean_negative ... ok
+test real11_traceability_update_maps_fc_and_kill_conditions ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 2 tests
+test real11_micro_probe_report_forbids_live_real6b_approval ... ok
+test real11_micro_probe_runner_rejects_live_real6b_and_scripted_attempt_prediction ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 6 tests
+test runner_and_report_contract_make_evidence_mandatory_and_not_e2 ... ok
+test sg_11_2_1_scripted_buy_yes_router_enters_l4_and_updates_pnl ... ok
+test sg_11_2_2_scripted_buy_no_short_equivalent_has_explicit_l4_route ... ok
+test sg_11_2_3_insufficient_balance_is_preclassified_and_lands_l4e ... ok
+test sg_11_2_4_missing_pool_is_no_pool_and_lands_l4e ... ok
+test sg_11_2_7_router_money_path_has_no_executable_float_arithmetic ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+
+running 4 tests
+test low_balance_trader_is_blocked_from_high_risk_market_action_but_can_read ... ok
+test pnl_summary_matches_compute_agent_pnl_and_uses_no_sidecar_source_of_truth ... ok
+test trader_position_prompt_contains_balance_pnl_risk_and_autopsy_summary ... ok
+test trader_view_does_not_include_raw_cot_logs_or_lean_stderr ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 3 tests
+test bull_bear_scripted_positive_control_requires_yes_and_no_l4_routes ... ok
+test positive_control_runner_marks_scripted_buys_as_not_e2 ... ok
+test unsupported_or_cross_side_short_paths_are_explicit_l4e_not_silent ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 2 tests
+test real12_plan_forbids_the_known_overclaims ... ok
+test real12_real10_real11_ratification_is_narrow_and_explicit ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 6 tests
+test abstain_requires_structured_reason_and_no_private_cot ... ok
+test bull_bear_role_turns_must_link_to_cas_backed_economic_judgments ... ok
+test buy_or_short_requires_positive_integer_ev_basis_and_role_side_match ... ok
+test economic_judgment_schema_is_pinned_and_generic_cas_backed ... ok
+test economic_judgment_summary_is_derived_from_cas_objects_not_stdout ... ok
+test evaluator_must_not_fabricate_positive_ev_basis_for_live_buys ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+
+running 3 tests
+test real12_live_micro_probe_records_required_bull_bear_metrics ... ok
+test real12_live_micro_probe_runner_uses_bull_bear_roles_and_no_scripted_buys ... ok
+test real12_role_turn_trace_uses_task_outcome_market_visibility_for_no_trade_reason ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 3 tests
+test bull_and_bear_direction_gates_allow_only_their_side ... ok
+test bull_and_bear_roles_are_parseable_and_have_market_only_tools ... ok
+test illegal_role_actions_route_l4e_and_bid_task_never_routes_to_proof ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 3 tests
+test bull_and_bear_views_broadcast_role_specific_market_signals ... ok
+test prompt_capsule_can_store_view_hash_and_read_set_inputs ... ok
+test solver_view_has_limited_market_summary_and_no_raw_material ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 5 tests
+test real12_bid_task_maps_to_trader_invest_not_abstain ... ok
+test real12_bid_task_parser_remains_integer_only_and_non_forcing ... ok
+test real12_evaluator_has_bid_task_execution_arm_for_task_outcome_market ... ok
+test real12_task_market_probe_runner_records_bid_task_attempts_without_forcing_trade ... ok
+test real12_task_market_prompt_affordance_is_opt_in_and_not_forced ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 3 tests
+test display_coin_parser_fails_closed_on_overflow ... ok
+test display_coin_parser_rejects_floaty_or_ambiguous_forms ... ok
+test display_coin_parser_uses_fixed_scale_integer_micro_units ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 5 tests
+test ev_decision_trace_enforces_role_side_and_abstain_reason ... ok
+test ev_decision_trace_is_generic_cas_backed_and_round_trips ... ok
+test ev_decision_trace_rejects_out_of_range_bps_and_float_markers ... ok
+test ev_decision_trace_rejects_private_or_raw_material ... ok
+test ev_decision_trace_summary_is_cas_derived ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+
+running 5 tests
+test every_market_review_response_needs_ev_or_no_response_trace ... ok
+test full_async_mode_is_explicitly_unsafe_only ... ok
+test market_review_sidecars_are_generic_cas_backed ... ok
+test market_review_summary_counts_must_match_response_cids ... ok
+test sequential_market_review_window_is_default_and_deterministic ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 2 tests
+test e2_counts_only_voluntary_router_positions ... ok
+test forced_stakes_are_not_voluntary_market_signal ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 2 tests
+test evaluator_writes_ev_decision_trace_and_market_review_sidecars_from_cas_path ... ok
+test real13_probe_runner_enables_ev_review_without_live_real6b_or_scripted_buys ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 1 test
+test sg_r5_8_proposal_requires_veto_and_never_mutates_production_directly ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 4 tests
+test sg_r5_3_externalized_attempt_references_prompt_capsule_v2_cid ... ok
+test sg_r5_3_prompt_capsule_role_matches_assignment ... ok
+test sg_r5_3_prompt_capsule_v2_carries_role_view_and_no_raw_prompt ... ok
+test sg_r5_3_prompt_capsule_v2_is_cas_anchored_and_readable ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+
+running 3 tests
+test sg_r5_0_charter_cites_fc_and_forbidden_list ... ok
+test sg_r5_1_role_assignment_env_csv_is_strict_and_deterministic ... ok
+test sg_r5_1_role_assignment_persists_replays_and_has_no_hidden_switch ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 4 tests
+test sg_r5_9_evaluator_writes_role_turn_reason_traces ... ok
+test sg_r5_9_role_based_smoke_accepts_clean_negative_without_forced_trade ... ok
+test sg_r5_9_role_turn_reason_traces_reconstruct_from_cas ... ok
+test sg_r5_9_runner_records_role_assignment_and_role_views ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+
+running 3 tests
+test sg_r5_2_live_view_context_bytes_match_visible_context_cid ... ok
+test sg_r5_2_no_get_all_context_string_in_role_module ... ok
+test sg_r5_2_role_views_are_scoped_and_hashable ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test sg_r5_5_externalized_generation_consumes_ticks_without_coin_charge ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 2 tests
+test sg_r5_6_every_trader_turn_has_market_decision_or_no_trade_reason ... ok
+test sg_r5_6_scripted_positive_edge_trader_can_produce_router_tx ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 4 tests
+test sg_r5_4_evaluator_wires_role_gateway_before_legacy_actions ... ok
+test sg_r5_4_legacy_proof_and_verify_tools_are_blocked_for_trader ... ok
+test sg_r5_4_malformed_role_action_routes_parsefailed ... ok
+test sg_r5_4_role_allowed_tools_are_enforced ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 2 tests
+test sg_r5_7_challenge_trace_and_high_price_view_exist ... ok
+test sg_r5_7_verifier_fixture_and_no_verify_reason_are_tape_visible ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 2 tests
+test sg_5s_clean_negative_report_records_no_trade_diagnosis ... ok
+test sg_5s_scaffold_ratification_report_narrows_real5_claim ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 8 tests
+test sg_6b_fixture_is_scripted_schema_not_live_llm_ship ... ok
+test sg_6b_market_close_precedes_oracle_resolve ... ok
+test sg_6b_no_ghost_liquidity ... ok
+test sg_6b_no_sleep_and_k_logical_ticks_are_deterministic ... ok
+test sg_6b_oracle_is_absolute_and_price_not_truth ... ok
+test sg_6b_role_actions_during_window_are_tape_visible ... ok
+test sg_6b_scripted_fixture_can_be_chain_backed_cas_evidence ... ok
+test sg_6b_submit_candidate_strictly_precedes_market_open ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+
+running 4 tests
+test sg_6c_1_and_6c_2_conviction_budget_is_chain_derived_not_hashmap_sidecar ... ok
+test sg_6c_3_prompt_sees_scoped_pnl_summary_without_other_agent_leak ... ok
+test sg_6c_4_and_6c_5_low_balance_blocks_only_high_risk_actions_without_erasure ... ok
+test sg_6c_6_significant_loss_generates_audit_only_autopsy_capsule ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 19 tests
+test sg_6a_10_price_is_not_used_as_lean_predicate_truth ... ok
+test sg_6a_1_market_seed_and_pool_exist_before_first_worktx ... ok
+test sg_6a_1_runtime_hooks_seed_task_outcome_market_before_worktx ... ok
+test sg_6a_2_trader_view_contains_task_outcome_market_signal ... ok
+test sg_6a_3_4_scripted_trader_buys_yes_and_no_on_task_outcome_market ... ok
+test sg_6a_5_real6_market_visible_non_invest_turn_writes_no_trade_trace ... ok
+test sg_6a_6_7_event_resolve_yes_and_no_paths_exist ... ok
+test sg_6a_6_evaluator_success_path_event_resolve_yes_is_fail_closed_when_enabled ... ok
+test sg_6a_7_adapter_helper_emits_no_event_resolve_for_exhaustion ... ok
+test sg_6a_7_evaluator_exhaustion_path_calls_event_resolve_no_helper ... ok
+test sg_6a_8_9_no_ghost_liquidity_and_ctf_conserved ... ok
+test sg_6a_event_resolve_compatibility_is_exact_dual_reader_not_error_string ... ok
+test sg_6a_event_resolve_corrupt_outcome_tail_fails_closed ... ok
+test sg_6a_event_resolve_legacy_b2_wire_decodes_as_yes ... ok
+test sg_6a_event_resolve_outcome_is_in_signing_payload_digest ... ok
+test sg_6a_event_resolve_partial_outcome_tail_fails_closed ... ok
+test sg_6a_market_decision_trace_cas_write_errors_fail_closed ... ok
+test sg_6a_smoke_runner_build_failure_is_fail_closed ... ok
+test sg_6a_task_outcome_event_schema_is_task_open_scope ... ok
+
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s
+
+
+running 9 tests
+test real8_runner_keeps_live_real6b_gated_behind_separate_ratification ... ok
+test real8_runner_keeps_negative_results_and_forbids_causal_overclaim ... ok
+test real8_runner_pins_same_problem_model_and_budget_inputs ... ok
+test real8_runner_preserves_architect_ab_arms ... ok
+test real8_runner_preserves_forbidden_ship_claims ... ok
+test real8_runner_reports_required_metrics ... ok
+test real8_task_outcome_arm_refreshes_verify_parent_after_auto_market ... ok
+test real8_task_outcome_arm_refreshes_verify_parent_behaviorally ... ok
+test real8x_runner_enforces_arm_diff_allowlist ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+
+running 2 tests
+test real9_market_developer_manual_preserves_lawful_market_boundary ... ok
+test real9_whitepaper_update_preserves_required_architect_claims ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 10 tests
+test buy_no_with_coin_matches_symmetric_formula ... ok
+test buy_yes_debits_coin_locks_collateral ... ok
+test buy_yes_mints_complete_set ... ok
+test buy_yes_no_f64 ... ok
+test buy_yes_no_ghost_liquidity ... ok
+test buy_yes_respects_min_yes_out ... ok
+test buy_yes_transfers_retained_yes_plus_swap_yes ... ok
+test buy_yes_with_coin_matches_formula ... ok
+test router_atomic_rollback_on_failure ... ok
+test router_atomic_rollback_witnessed_at_every_step ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.56s
+
+
+running 4 tests
+test low_liquidity_warning ... ok
+test price_does_not_make_failed_node_accepted ... ok
+test price_quote_does_not_change_state ... ok
+test price_signal_not_predicate ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+
+running 4 tests
+test architect_inv1_uses_completed_llm_calls_scope ... ok
+test claude_md_report_standard_uses_canonical_invariant ... ok
+test runner_extracts_completed_llm_calls_from_step_parse_fail_llm_err ... ok
+test runner_passes_completed_llm_calls_to_invariant_binary ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 9 tests
+test wave3_50p_shielding_aggregate_coverage_floor ... ok
+test wave3_50p_shielding_attempt_telemetry_does_not_inline_payload ... ok
+test wave3_50p_shielding_chain_invariant_companion_present ... ok
+test wave3_50p_shielding_evidence_capsule_routes_via_cid ... ok
+test wave3_50p_shielding_lean_result_is_verdict_only ... ok
+test wave3_50p_shielding_no_leakage_suggestive_schema_ids ... ok
+test wave3_50p_shielding_no_orphan_raw_bodies ... ok
+test wave3_50p_shielding_rejection_class_low_pollution ... ok
+test wave3_50p_shielding_typed_wrappers_dont_inline_raw ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s
+
+
+running 5 tests
+test dashboard_does_not_leak_private_failure_detail ... ok
+test evidence_capsule_raw_logs_audit_only ... ok
+test l4e_public_summary_low_pollution ... ok
+test private_diagnostic_cid_not_serialized_publicly ... ok
+test raw_lean_stderr_not_in_agent_read_view ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+
+running 7 tests
+test all_externalized_attempts_have_cas_payload ... ok
+test all_lean_results_have_cas_payload ... ok
+test canonical_txid_not_shadow_id ... ok
+test chain_derived_facts_not_evaluator_stdout ... ok
+test dashboard_regenerates_from_tape_cas ... ok
+test tape_no_parallel_ledger_source_of_truth ... ok
+test tape_no_shadow_tape_authoritative_parent ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 5 tests
+test _suppress_unused ... ok
+test sg_n3_4_aux_idempotent_re_emit ... ok
+test sg_n3_4_event_id_is_node_survive_namespaced ... ok
+test sg_n3_5_treasury_debit_exact ... ok
+test sg_n3_6_budget_exhausted_no_ghost_pool ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+
+
+running 9 tests
+test _suppress_unused_imports ... ok
+test balance_shortfall_returns_amount_exceeds_balance ... ok
+test closed_pool_routes_to_no_pool ... ok
+test empty_node_str_returns_malformed_node ... ok
+test negative_amount_invest_returns_negative_amount ... ok
+test same_invest_payload_yields_deterministic_signature ... ok
+test sg_n3_1_fixture_pool_present_router_accepts ... ok
+test sg_n3_2_missing_pool_routes_to_l4e_no_pool ... ok
+test zero_amount_invest_returns_zero_amount ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+
+running 8 tests
+test wave3_20p_aggregate_fc1_invariant_holds ... ok
+test wave3_50p_aggregate_fc1_invariant_holds ... ok
+test wave3_50p_chain_invariant_all_pass ... ok
+test wave3_50p_chaintape_runtime_repo_present ... ok
+test wave3_50p_dashboard_regen_matches_chain ... ok
+test wave3_50p_no_memory_only_preseed_binding ... ok
+test wave3_50p_replay_assertions_all_pass ... ok
+test wave3_50p_solve_count_three_observer_agreement ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 5 tests
+test wilson_ci_format_includes_ci_band ... ok
+test wilson_ci_handles_full_solved_without_panic ... ok
+test wilson_ci_handles_zero_solved_without_panic ... ok
+test wilson_ci_helper_exists_and_returns_some_for_nonzero_trials ... ok
+test wilson_ci_zero_trials_returns_none_not_panic ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 4 tests
+test balances_insertion_order_independence ... ok
+test empty_indices_serialize_to_empty_objects ... ok
+test fifteen_sub_fields_present ... ok
+test populated_economic_state_round_trip ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 33 tests
+test fc1_n11_n15_e18_pi_p_zero_preserves_q_t_via_forbidden_pattern ... ok
+test fc1_n11_predicate_trait_register_api ... ignored, 🔨 Stage 3 unmerged — bus.register_predicate API + Predicate trait live on phase-z-wtool-tools branch only; not on main. Production path uses inline forbidden_patterns check in append_internal as the ∏p surface.
+test fc1_n12_lean4_oracle_ground_truth_predicate ... ignored, Cross-crate — Lean4Oracle in minif2f_v4 sub-crate; covered in experiments/minif2f_v4/tests/fc_alignment_conformance.rs (separate file, separate atom)
+test fc1_n13_wtool_bus_append_present ... ok
+test fc1_n1_q_state_carrier_constructible_with_default_config ... ok
+test fc1_n32_write_autopsy_capsule_witness ... ok
+test fc1_n33_derive_autopsies_witness ... ok
+test fc1_n4_tape_constructible_with_time_arrow ... ok
+test fc1_n6_input_universe_snapshot_via_bus ... ok
+test fc1_n7_delta_ai_client_constructible ... ok
+test fc1_n8_n9_n10_output_agent_output_parseable ... ok
+test fc2_n16_init_ai_orchestrator_swarm_oneshot ... ignored, Binary-only — run_swarm/run_oneshot are in evaluator binary, not lib; refactor needed to expose for direct integration testing
+test fc2_n20_n27_tick_mr_present ... ok
+test fc2_n22_halt_via_halt_and_settle ... ok
+test fc2_n23_event_type_omega_accepted_canonical ... ok
+test fc2_n23_haltreason_full_taxonomy_typed ... ignored, 📅 Not yet typed as Rust enum — only OmegaAccepted exists; other 4 variants {MaxTxExhausted, WallClockCap, ComputeCapViolated, ErrorHalt} per CLAUDE.md report standard live as jsonl strings in extra map. Type promotion is Phase C+ work.
+test fc2_n28_mask_set_publication_witness ... ok
+test fc2_n29_boltzmann_select_parent_v2_witness ... ok
+test fc2_n30_cluster_autopsies_witness ... ok
+test fc3_e14_boot_panic_immediate_abort_documented ... ok
+test fc3_e15_e16_e17_constitutional_signaling ... ignored, 📅 Phase 11+ — automated runtime veto/abide signaling not implemented. Today: manual policy via CLAUDE.md Audit Standard
+test fc3_n31_logs_archive_wal_open_in_tempdir ... ok
+test fc3_n32_veto_ai_runtime ... ignored, 📅 Phase 11+ — Veto-AI runtime not implemented (manual Codex/Gemini dual-audit covers role today; Art. V.1.3 amendment 2026-04-25 narrowed scope to {PASS, VETO})
+test fc3_n33_architect_ai_runtime ... ignored, 📅 Phase 11+ — ArchitectAI runtime not implemented (manual Claude code editing covers role today; Phase D will deliver. Art. V.1.2 amendment grants commit authority post-Veto-AI PASS)
+test fc3_n34_parse_trust_root_section_helper ... ok
+test fc3_n34_readonly_guard_verify_trust_root_intact_repo ... ok
+test fc3_n34_trust_root_error_taxonomy_present ... ok
+test fc3_n39_log_ledger_present_and_appendable ... ok
+test fc3_n40_logs_to_architect_feedback ... ignored, 📅 Phase 11+ — automated logs → ArchitectAI feedback loop not implemented. Phase D consumer reads jsonl + WAL + stderr (per THESIS_V2_GROUND_TRUTH_AUDIT findings C+D)
+test fc3_n41_in_process_reinit_loop ... ignored, 📅 Phase 11+ — in-process re-init not implemented (external batch runner retry covers today). FC3-E14 immediate-abort leaf is what we have.
+test fc3_n42_compute_price_index_pure_fn_witness ... ok
+test fc3_n43_markov_capsule_witness ... ok
+test fc3_s3_readonly_subgraph_manifest_size ... ok
+
+test result: ok. 24 passed; 0 failed; 9 ignored; 0 measured; 0 filtered out; finished in 0.39s
+
+
+running 5 tests
+test four_element_mapping_total ... ok
+test input_tape_element_maps_to_tape_view_t ... ok
+test q_control_element_maps_to_q_t ... ok
+test state_element_maps_to_state_root_t ... ok
+test tape_element_maps_to_head_t ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 8 tests
+test audit_tape_blocks_supplied_but_fs_absent_markov_pointer ... ok
+test audit_tape_blocks_unresolvable_present_markov_pointer ... ok
+test audit_tape_genesis_without_markov_pointer ... audit_tape: verdict=BLOCK passed=34 failed=0 halted=1 skipped=17 (out="/tmp/tb_16_x_fix_genesis_verdict_2921064.json")
+ok
+test audit_tape_prior_chain_resolver_genesis_when_tip_absent ... audit_tape: verdict=BLOCK passed=34 failed=0 halted=1 skipped=17 (out="/tmp/tb_16_x_fix_prior_verdict_2921064.json")
+ok
+test audit_tape_rejects_both_markov_pointer_and_prior_chain ... ok
+test generate_markov_capsule_does_not_write_global_latest ... ok
+test markov_capsule_historical_artifact_not_reference_input ... ok
+test markov_pointer_no_global_parallel_ledger ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.76s
+
+
+running 5 tests
+test balances_index_insertion_order_independence ... ok
+test empty_economic_state_serializes_to_fifteen_sub_fields ... ok
+test genesis_round_trips_via_serde_json ... ok
+test nine_top_level_fields ... ok
+test populated_q_state_round_trips ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 1 test
+test r_022_shell_integration_suite_passes ... ok  r_022_blocks_backlink_removal.sh
+ok  r_022_blocks_missing_backlink.sh
+ok  r_022_ci_mode_catches_unhooked_pr.sh
+ok  r_022_no_legacy_block.sh
+ok  r_022_orphan_justification_passes.sh
+ok  r_022_passes_traced_pub.sh
+ok  r_022_scope_table.sh
+ok  r_022_skip_token_with_justification.sh
+ok  r_022_skip_token_without_justification_blocks.sh
+ALL PASS
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.20s
+
+
+running 7 tests
+test axiom_1_state_monotonicity_witness ... ok
+test axiom_2_predicate_registry_root_present ... ok
+test axiom_3_economic_state_present_and_complete ... ok
+test axiom_4_tool_registry_root_present ... ok
+test axiom_5_tape_canonical_anchors_present ... ok
+test axiom_6_budget_snapshot_present ... ok
+test six_axioms_total_in_q_state ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 1 test
+test first_boot_keypair_generated_encrypted_at_rest_and_0600 ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 1 test
+test second_boot_load_succeeds_and_wrong_password_fails ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 1 test
+test rotation_proof_requires_old_and_new_epoch_signatures ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+
+running 1 test
+test sign_api_is_crate_only_and_scoped_to_authorized_modules ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test verify_round_trip_uses_correct_epoch_pubkey_lookup ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 5 tests
+test task_bankruptcy_flips_state ... ok
+test task_expire_refunds_escrow_to_sponsor ... ok
+test tb11_emit_expire_for_eligible_scans_and_emits ... ok
+test tb11_emit_terminal_summary_for_run_helper_writes_runs_index ... ok
+test terminal_summary_emit_then_apply_writes_runs_index ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s
+
+
+running 9 tests
+test ctf_invariant_unchanged_across_position_derivation ... ok
+test position_fields_derived_from_source_tx_exactly ... ok
+test sg_12_1_accepted_worktx_creates_firstlong_position ... ok
+test sg_12_2_accepted_challengetx_creates_challengeshort_position ... ok
+test sg_12_3_verifytx_does_not_create_node_position ... ok
+test sg_12_4_node_positions_do_not_change_total_supply ... ok
+test sg_12_5_replay_reconstructs_node_positions ... ok
+test sg_12_7_no_market_trading_variants_introduced ... ok
+test sg_12_8_no_node_market_entry_as_canonical_state ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+
+
+running 1 test
+test rq3_non_empty_tb13_chaintape_replays_with_state_root_match ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+
+
+running 19 tests
+test halt_complete_set_balanced_post_seed ... ok
+test halt_market_seed_zero_balance_provider_rejected ... ok
+test halt_negative_market_seed_collateral_rejected ... ok
+test halt_negative_mint_amount_rejected ... ok
+test halt_q13_mint_against_finalized_event_rejected ... ok
+test halt_q13_mint_against_missing_task_rejected ... ok
+test halt_q13_seed_against_bankrupt_event_rejected ... ok
+test halt_redeem_more_than_owned_rejected ... ok
+test halt_shares_not_counted_as_coin ... ok
+test halt_total_supply_micro_unchanged_across_mint_redeem ... ok
+test sg_13_1_mint_one_coin_yields_one_yes_plus_one_no_total_coin_conserved ... ok
+test sg_13_2_yes_no_shares_not_in_total_coin_supply ... ok
+test sg_13_3_market_seed_fails_if_provider_lacks_balance ... ok
+test sg_13_4_market_seed_cannot_create_liquidity_without_collateral ... ok
+test sg_13_5_redeem_unavailable_before_outcome_resolution ... ok
+test sg_13_6_redeem_after_yes_outcome_pays_yes_not_no ... ok
+test sg_13_7_no_f64_in_new_complete_set_or_market_seed_path ... ok
+test sg_13_8_no_import_or_use_of_legacy_cpmm_in_tb13_modules ... ok
+test tb13_auth_submit_time_signature_verification ... ok
+
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+
+
+running 8 tests
+test audit_dashboard_in_layer_1_scope_but_not_layer_2_scope ... ok
+test discover_by_type_use_catches_unmarked_imports_and_skips_doc_xref ... ok
+test discover_by_type_use_skips_successor_tb_marker_files ... ok
+test legacy_cpm_api_not_imported_by_complete_set ... ok
+test no_f64_in_complete_set_or_market_seed ... ok
+test prediction_market_legacy_quarantined ... ok
+test tb_13_scan_lines_handles_marker_and_unmarked_files ... ok
+test tb_13_scan_lines_partial_marker_catches_stealth_type_use ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.00s
+
+
+running 5 tests
+test b_prime_canonical_edges_idempotent ... ok
+test b_prime_step_5_positive_canonical_masking_smoke ... ok
+test b_prime_step_6a_low_liquidity_child_cannot_mask_parent ... ok
+test b_prime_step_6b_unresolved_challenged_child_cannot_mask_parent ... ok
+test b_prime_step_6c_predicate_failed_child_cannot_mask_parent ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+
+
+running 1 test
+test tb_14_atom_6_post_wire_swap_chaintape_replay_preserves_price_index_determinism ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+
+running 6 tests
+test no_f64_in_tb_14_modules ... ok
+test parent_not_deleted_from_chaintape ... ok
+test price_does_not_affect_predicate_result ... ok
+test price_does_not_change_l4_decision ... ok
+test unresolved_challenge_blocks_masking ... ok
+test zero_liquidity_returns_none ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+
+running 13 tests
+test b_prime_step_4_phantom_canonical_child_does_not_mask ... ok
+test b_prime_step_4_shadow_style_ids_in_graph_yield_empty_mask ... ok
+test child_at_margin_threshold_masks ... ok
+test child_dominates_parent_inserts_into_mask_set ... ok
+test child_with_equal_price_does_not_mask ... ok
+test child_with_gap_below_margin_does_not_mask ... ok
+test compute_mask_set_is_replay_deterministic ... ok
+test empty_inputs_yield_empty_mask ... ok
+test sg_14_3_parent_not_deleted_from_chaintape_after_masking ... ok
+test sg_14_7_released_challenge_does_not_block_masking ... ok
+test sg_14_7_unresolved_challenge_blocks_masking ... ok
+test sg_14_8_low_liquidity_child_cannot_mask_parent ... ok
+test stricter_margin_demasks_borderline_child ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 5 tests
+test compute_price_index_is_replay_deterministic ... ok
+test distinct_nodes_aggregated_independently ... ok
+test sg_14_1_price_index_computes_yes_no_probabilities ... ok
+test sg_14_2_empty_state_yields_empty_index ... ok
+test sg_14_2_no_liquidity_node_has_price_none ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 6 tests
+test autopsy_does_not_mutate_predicates ... ok
+test deep_history_read_without_override_fails ... ok
+test markov_capsule_references_constitution_hash ... ok
+test private_detail_not_in_other_agent_view ... ok
+test raw_logs_not_in_general_read_view ... ok
+test typical_error_clustering_uses_summary_only ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 3 tests
+test audit_tape_binary_help_succeeds ... ok
+test audit_tape_runs_on_existing_chain_smoke ... audit_tape: verdict=BLOCK passed=34 failed=0 halted=1 skipped=17 (out="/tmp/tb_16_audit_tape_smoke_verdict.json")
+ok
+test audit_tape_tamper_binary_help_succeeds ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+
+
+running 2 tests
+test dashboard_renders_section_16_sandbox_banner_on_existing_smoke ... ok
+test rebuild_autopsy_event_counts_returns_empty_on_pre_tb15_chain ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+
+
+running 13 tests
+test h10_markov_constitution_hash_mismatch_halts ... ok
+test h11_markov_deep_history_without_override_halts ... ok
+test h12_llm_self_narrative_in_autopsy_evidence_halts ... ok
+test h13_total_supply_mutates_halts ... ok
+test h1_pinned_pubkey_verify_failure_halts ... ok
+test h2_agent_pubkey_verify_failure_halts ... ok
+test h3_replay_state_root_mismatch_halts ... ok
+test h4_l4_hash_chain_broken_link_halts ... ok
+test h5_l4e_hash_chain_broken_link_halts ... ok
+test h6_l4e_advances_state_halts ... ok
+test h7_unresolved_cas_cid_halts ... ok
+test h8_projection_contains_autopsy_private_detail_halts ... ok
+test h9_typical_error_summary_contains_private_detail_halts ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 5 tests
+test atom6_cites_cr_17_3 ... ok
+test atom6_doc_exists ... ok
+test atom6_enumerates_eight_architect_subtypes ... ok
+test atom6_exercises_all_four_verdict_classes ... ok
+test atom6_lists_eight_or_more_candidate_action_rows ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 10 tests
+test markov_inheritance_policy_cites_architect_rulings ... ok
+test markov_inheritance_policy_doc_exists ... ok
+test markov_inheritance_policy_documents_alpha_beta_modes ... ok
+test markov_inheritance_policy_forbids_global_filesystem_pointer ... ok
+test markov_inheritance_policy_forbids_provenance_sidecar ... ok
+test markov_inheritance_policy_has_purpose_section ... ok
+test markov_inheritance_policy_has_three_cases ... ok
+test markov_inheritance_policy_lists_four_forbidden_patterns ... ok
+test markov_inheritance_policy_lists_ship_gates ... ok
+test sg_17_10_no_global_filesystem_pointer ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 2 tests
+test sg_17_18_minif2f_policy_doc_exists ... ok
+test sg_17_18_no_minif2f_real_world_conflation_in_src ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+
+
+running 4 tests
+test tb_18_c_gate1_double_finalize_rejects_already_finalized ... ok
+test tb_18_c_gate3_partial_documented_via_assertion_on_existing_code ... ok
+test tb_18_c_gate4_reward_canonical_from_claim_amount ... ok
+test tb_18_c_gate5_payout_idempotency_via_status_check ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 3 tests
+test tb_18_e_exhaustion_reason_max_tx_literal_appears_once ... ok
+test tb_18_e_no_run_outcome_max_tx_literal_in_evaluator ... ok
+test tb_18_e_to_run_outcome_projection_contract ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 5 tests
+test fc1_n41_chain_root_is_deterministic_over_constituent_ids ... ok
+test fc1_n41_intermediate_attempts_have_none_chain_root ... ok
+test fc1_n41_pre_tb_18r_worktx_canonical_unchanged ... ok
+test fc1_n41_terminal_chain_root_round_trips_via_cas ... ok
+test fc1_n41_terminal_composite_has_some_chain_root ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 5 tests
+test attempt_outcome_existing_discriminants_unchanged_post_phase_2 ... ok
+test attempt_outcome_partial_accepted_canonical_byte_sequence ... ok
+test attempt_outcome_partial_accepted_default_unchanged ... ok
+test attempt_outcome_partial_accepted_discriminant_is_six ... ok
+test attempt_outcome_serde_round_trip_all_variants ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 5 tests
+test aborted_outcome_falls_back_to_base_class ... ok
+test lean_fail_attempt_refines_to_lean_failed_rejection_class ... ok
+test legacy_proposal_telemetry_proposal_cid_falls_back_to_predicate_failed ... ok
+test non_predicate_failed_base_class_unchanged ... ok
+test parse_fail_attempt_refines_to_parse_failed_rejection_class ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+
+running 8 tests
+test r2_path_1_omega_wtool_full_attempt_telemetry_shape ... ok
+test r2_path_2_omega_wtool_pertactic_attempt_telemetry_shape ... ok
+test r2_path_3_step_partial_ok_attempt_telemetry_shape ... ok
+test r2_path_4a_step_reject_lean_failed_attempt_telemetry_shape ... ok
+test r2_path_4b_step_reject_sorry_block_attempt_telemetry_shape ... ok
+test r2_path_5_parse_fail_attempt_telemetry_shape ... ok
+test r2_path_6_llm_err_attempt_telemetry_shape ... ok
+test r2_six_paths_have_distinct_outcome_values ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+
+running 4 tests
+test fc1_n41_attempt_telemetry_failure_path_outcomes_round_trip ... ok
+test fc1_n41_attempt_telemetry_round_trip_via_cas ... ok
+test fc1_n41_idempotent_cid_for_byte_identical_attempts ... ok
+test fc1_n41_shared_attempt_slot_classifies_market_trace_json_and_unknown_json ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+
+running 2 tests
+test attempt_telemetry_tamper_detected_via_cid_mismatch ... ok
+test lean_result_tamper_detected_via_cid_mismatch ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+
+running 2 tests
+test attempt_telemetry_and_lean_result_listable_by_object_type ... ok
+test sampler_only_checks_retrievability_not_content ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+
+running 5 tests
+test cas_store_reload_is_idempotent_on_already_loaded_cids ... ok
+test cas_store_split_brain_repro_reload_recovers ... ok
+test refine_rejection_class_falls_back_when_truly_absent_after_reload ... ok
+test refine_rejection_class_recovers_sorry_block ... ok
+test refine_rejection_class_recovers_via_reload_lean_failed ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+
+running 10 tests
+test clean_halt_max_tx_exhausted_invariant_passes ... ok
+test clean_halt_omega_accepted_invariant_passes ... ok
+test clean_halt_with_nonzero_aborted_invariant_fails ... ok
+test clean_halt_with_nonzero_delta_invariant_fails ... ok
+test degraded_llm_with_aborted_attempts_invariant_passes_when_balanced ... ok
+test empty_chain_zero_expected_invariant_passes ... ok
+test negative_delta_always_fails_abort_halt ... ok
+test negative_delta_always_fails_clean_halt ... ok
+test wall_clock_cap_with_aborted_attempts_invariant_fails_when_unbalanced ... ok
+test wall_clock_cap_with_aborted_attempts_invariant_passes_when_balanced ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 3 tests
+test compute_with_invariant_populates_all_six_fields ... ok
+test l4_l4e_split_count_matches_chain_walk ... ok
+test terminal_abort_record_count_from_cas_index ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+
+
+running 2 tests
+test audit_dashboard_invokes_on_r7_p01_evidence ... ok
+test audit_dashboard_source_present ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 3 tests
+test drain_barrier_violation_error_round_trip ... ok
+test quiescent_genesis_empty_chain ... ok
+test quiescent_post_shutdown_passes ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+
+running 2 tests
+test intermediate_attempt_chain_root_is_none ... ok
+test terminal_composite_attempt_chain_root_round_trips ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+
+running 3 tests
+test full_outcome_to_rejection_class_mapping_table ... ok
+test llm_err_attempt_routes_to_llm_error_class ... ok
+test sorry_block_attempt_routes_to_sorry_blocked_class ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+
+running 3 tests
+test fc1_n41_lean_result_all_error_classes_round_trip ... ok
+test fc1_n41_lean_result_failure_path_with_shielded_stderr ... ok
+test fc1_n41_lean_result_verified_pass_round_trip ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+
+running 15 tests
+test consistency_canonical_round_trip_via_canonical_codec ... ok
+test consistency_fails_on_drift_failed_with_exit_code_zero ... ok
+test consistency_fails_on_drift_failed_with_no_error_class ... ok
+test consistency_fails_on_drift_partial_accepted_with_error_class_set ... ok
+test consistency_fails_on_drift_sorry_blocked_at_nonzero_exit ... ok
+test consistency_fails_on_drift_sorry_blocked_with_no_error_class ... ok
+test consistency_fails_on_drift_sorry_blocked_with_wrong_error_class ... ok
+test consistency_fails_on_drift_verified_with_error_class_set ... ok
+test consistency_fails_on_drift_verified_with_false_verified_flag ... ok
+test consistency_passes_on_canonical_failed_lean_failed ... ok
+test consistency_passes_on_canonical_failed_parse_failed ... ok
+test consistency_passes_on_canonical_failed_with_sorry_at_nonzero_exit ... ok
+test consistency_passes_on_canonical_partial_accepted ... ok
+test consistency_passes_on_canonical_sorry_blocked ... ok
+test consistency_passes_on_canonical_verified ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 6 tests
+test lean_verdict_kind_byte_position_matches_repr_u8_via_bincode_be_fixed_int ... ok
+test lean_verdict_kind_default_is_failed ... ok
+test lean_verdict_kind_legacy_field_derivation_canonical_shapes ... ok
+test lean_verdict_kind_legacy_field_derivation_out_of_canonical_returns_none ... ok
+test lean_verdict_kind_serde_round_trip_via_canonical_codec ... ok
+test lean_verdict_kind_u8_discriminants_locked ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 2 tests
+test attempt_outcome_failure_set_covers_cluster_source_discriminators ... ok
+test attempt_telemetry_is_failure_source_of_truth_not_tool_dist ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+
+running 4 tests
+test fc1_n41_privacy_fence_in_action ... ok
+test fence_passes_for_parsed_lean_candidate ... ok
+test fence_rejects_raw_anthropic_response_envelope ... ok
+test fence_rejects_raw_openai_response_envelope ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 3 tests
+test lean_error_class_to_rejection_class_repr_preserved ... ok
+test pre_r3_and_r3_new_variants_occupy_disjoint_u8_ranges ... ok
+test rejection_class_repr_stable_with_new_variants ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 14 tests
+test test_at1_evaluator_solves_mathd_algebra_107_n3 ... ignored, Tier-B P6 anchor: requires live LLM proxy + DEEPSEEK_API_KEY; verified Day-4 (commit 50a1d67)
+test test_at2_l4_entry_per_dispatched_tx ... ignored, Tier-B: WorkTx dispatch_transition body lands TB-2 RSP-1; evaluator currently uses legacy emit path
+test test_at3_h_vppu_non_null_on_second_run ... ignored, Tier-B AT-3: covered by minif2f_v4 lib tests + Day-4 live evidence (commit 50a1d67); cannot import minif2f_v4 from turingosv4 integration tests
+test test_at4_econ_balance_delta_non_zero ... ignored, Tier-B: needs RSP-1 escrow_lock_tx + yes_stake_tx wiring (TB-2)
+test test_p1_exit_7_l4_chain_breaks_on_row_deletion ... ok
+test test_p1_kill_1_no_wtool_bypass ... ok
+test test_p1_kill_2_rejected_tx_no_state_advance ... ok
+test test_p1_kill_3_ledger_reconstructable ... ok
+test test_p1_kill_4_rejected_log_isolated ... ok
+test test_p1_kill_4b_rejection_chain_breaks_on_row_deletion ... ok
+test test_p3_kill_1_no_post_init_mint ... ok
+test test_p3_rsp0_exit_1_on_init_total_invariant ... ok
+test test_p3_rsp0_exit_2_read_is_free ... ok
+test test_p3_rsp0_total_supply_counts_all_four_subindexes ... ok
+
+test result: ok. 10 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 13 tests
+test runtime_accepted_worktx_advances_ledger_root ... ok
+test runtime_accepted_worktx_advances_state_root_via_domain_v1 ... ok
+test runtime_accepted_worktx_does_not_append_l4e ... ok
+test runtime_accepted_worktx_increments_logical_t ... ok
+test runtime_l4e_public_view_honors_serde_shield ... ok
+test runtime_no_escrow_worktx_appends_l4e ... ok
+test runtime_predicate_failed_worktx_appends_l4e ... ok
+test runtime_rejected_worktx_does_not_advance_logical_t_or_state_root ... ok
+test runtime_replay_from_l4_only_ignores_l4e ... ok
+test runtime_stakeless_worktx_appends_l4e ... ok
+test runtime_stale_parent_worktx_appends_l4e ... ok
+test submit_queue_full_consumes_submit_id ... ok
+test submit_returns_receipt_and_envelope_submit_id_matches ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s
+
+
+running 2 tests
+test bridge_pattern_does_not_resurrect_in_src ... ok
+test scanner_positive_control_finds_known_match ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+
+running 11 tests
+test escrow_lock_atomic_balance_to_escrow_transfer ... ok
+test property_no_sequence_violates_total_ctf_conservation ... ok
+test rejected_worktx_does_not_change_balances_escrows_stakes ... ok
+test replay_from_l4_only_reconstructs_economic_state ... ok
+test submit_escrow_lock_tx_appends_to_canonical_l4 ... ok
+test submit_task_open_tx_appends_to_canonical_l4 ... ok
+test submit_worktx_via_formal_surface_advances_state_root_and_locks_stake ... ok
+test submit_worktx_with_insufficient_solver_balance_appends_l4e_insufficient_balance ... ok
+test submit_worktx_with_zero_stake_appends_l4e_stake_insufficient ... ok
+test submit_worktx_without_escrow_lock_appends_l4e_escrow_missing ... ok
+test submit_worktx_without_task_open_appends_l4e_task_not_open ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+
+
+running 15 tests
+test challenge_admission_atomic_balance_to_challenge_cases_transfer ... ok
+test challenge_against_inactive_target_appends_l4e_target_inactive ... ok
+test challenge_window_anchor_equals_q_current_round_at_accept ... ok
+test challenge_with_zero_stake_appends_l4e_stake_insufficient ... ok
+test multiple_challengers_same_target_all_accepted_distinct_case_rows ... ok
+test no_drift_scanner_positive_control_finds_known_match ... ok
+test no_no_stake_tx_or_verifier_bond_tx_variant_in_src ... ok
+test property_no_sequence_violates_total_ctf_conservation_with_verify_challenge ... ok
+test rejected_verify_or_challenge_does_not_change_economic_state ... ok
+test replay_invariants_hold_across_full_rsp2_surface ... ok
+test submit_challenge_tx_appends_to_canonical_l4_and_opens_case ... ok
+test submit_verify_tx_appends_to_canonical_l4_and_locks_bond ... ok
+test verify_admission_atomic_balance_to_stakes_transfer ... ok
+test verify_against_inactive_target_appends_l4e_target_inactive ... ok
+test verify_with_zero_bond_appends_l4e_bond_insufficient ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.65s
+
+
+running 3 tests
+test four_anti_drift_renames_documented_in_charter ... ok
+test no_forbidden_tb5_variants_in_src ... ok
+test no_p6_files_touched_in_tb5 ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+
+
+running 13 tests
+test challenge_resolve_does_not_mutate_q_t_current_round ... ok
+test multi_challenger_resolve_independently ... ok
+test property_no_sequence_violates_total_ctf_conservation_with_resolve ... ok
+test released_cannot_run_twice ... ok
+test released_does_not_decrement_total_escrow ... ok
+test released_does_not_release_solver_or_verifier_stakes ... ok
+test released_refunds_bond ... ok
+test released_unknown_challenge_rejected ... ok
+test replay_invariants_hold_across_full_rsp3_1_surface ... ok
+test submit_challenge_resolve_released_appends_to_canonical_l4 ... ok
+test upheld_deferred_keeps_challenge_for_future_slash ... ok
+test upheld_deferred_keeps_solver_verifier_stakes_byte_identical ... ok
+test upheld_deferred_no_balance_mutation ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.68s
+
+
+running 10 tests
+test agent_submit_rejects_challenge_resolve_tx ... ok
+test agent_submit_rejects_finalize_reward_tx ... ok
+test agent_submit_rejects_task_expire_tx ... ok
+test agent_submit_rejects_terminal_summary_tx ... ok
+test emit_system_tx_challenge_resolve_released_returns_emit_id ... ok
+test emit_system_tx_emit_id_namespace_independent_from_submit_id ... ok
+test emit_system_tx_queue_closed_returns_emit_system_error_queue_closed ... ok
+test emit_system_tx_queue_full_returns_emit_system_error_queue_full ... ok
+test legacy_submit_alias_delegates_to_submit_agent_tx_and_rejects_system_variants ... ok
+test transition_error_display_covers_invalid_system_signature_live ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+
+running 4 tests
+test i91_end_to_end_synthetic_worktx_plus_audit_record_round_trip ... ok
+test i91b_index_round_trips_tx_id_to_record_after_reopen ... ok
+test i91d_record_json_contains_no_chain_of_thought_field_names ... ok
+test i91e_record_has_exactly_nine_architect_fields ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+
+running 5 tests
+test t_r1_open_jsonl_creates_empty_file_when_path_missing ... ok
+test t_r2_append_rejected_persists_jsonl_line_and_in_memory_record ... ok
+test t_r3_reopen_jsonl_replays_existing_records_into_in_memory_chain ... ok
+test t_r4_tampering_with_jsonl_line_fails_verify_chain_on_reopen ... ok
+test t_r5_open_jsonl_default_writer_is_in_memory_backend ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+
+running 3 tests
+test i92_end_to_end_run_summary_aggregates_l4_and_l4e ... ok
+test i92b_empty_chain_produces_zero_run_summary ... ok
+test i92c_run_summary_canonical_path_is_run_summary_json ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+
+running 13 tests
+test bootstrap_error_display_non_empty ... ok
+test t10_direct_bus_submit_typed_tx_synthetic_taskopen_appends_l4_entry ... ok
+test t11_synthetic_zero_stake_worktx_appends_l4e_rejection ... ok
+test t12_chained_taskopen_then_zero_stake_worktx_produces_l4_and_l4e ... ok
+test t13_synthetic_escrow_lock_constructor_compiles ... ok
+test t1_build_chaintape_sequencer_returns_non_none_sequencer_with_git_writer ... ok
+test t2_build_chaintape_sequencer_writes_pinned_pubkeys_json_to_runtime_repo ... ok
+test t3_build_chaintape_sequencer_succeeds_on_idempotent_empty_repo_reopen ... ok
+test t4_chaintape_bundle_shutdown_drains_pending_submissions_before_join ... ok
+test t5_chaintape_bundle_shutdown_returns_clean_on_empty_queue ... ok
+test t7_evaluator_chaintape_mode_sets_bus_sequencer_field_to_some ... ok
+test t8_evaluator_legacy_wal_mode_unchanged_when_chaintape_off ... ok
+test t9_chaintape_mode_silently_disables_wal_when_both_env_vars_set ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+
+running 6 tests
+test i90_end_to_end_taskopen_plus_zero_stake_worktx_replay_passes_all_indicators ... ok
+test i90b_empty_chain_replay_reports_zero_entries_and_all_indicators_pass ... ok
+test i90c_tampered_pinned_pubkey_breaks_signature_verification ... ok
+test i90d_tampered_cas_index_breaks_verify_chaintape ... ok
+test i90e_tampered_l4e_row_breaks_chain_open ... ok
+test i90f_absent_l4e_is_legitimate_empty_chain_not_tamper ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+
+
+running 1 test
+test i110_chain_backed_smoke_end_to_end_synthetic_llm ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+
+running 5 tests
+test i100_real_signature_worktx_signature_verifies_via_manifest ... ok
+test i101_zero_stake_real_worktx_lands_in_l4e_not_l4 ... ok
+test i102_distinct_agents_get_distinct_pubkeys_in_manifest ... ok
+test i103_omega_branch_emits_worktx_plus_verifytx_pair ... ok
+test i104_verifytx_signature_verifies_via_manifest ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+
+
+running 3 tests
+test gate_7_no_unannotated_legacy_append_in_evaluator ... ok
+test gate_7_scanner_exempts_shadow_only_annotated_call ... ok
+test gate_7_scanner_positive_control_flags_unannotated_call ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+
+running 6 tests
+test dashboard_renders_singleton_golden_path ... ok
+test missing_parent_on_nonroot_attempt_is_violation ... ok
+test proposal_count_chain_equals_externalized_proposal_count ... ok
+test second_attempt_same_branch_has_parent_tx ... ok
+test singleton_golden_path_has_zero_edges_and_is_valid ... ok
+test unsolved_runs_have_no_fake_accepted_nodes ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.41s
+
+
+running 13 tests
+test agent_cannot_submit_finalize_reward_through_agent_ingress ... ok
+test claim_creation_is_replay_deterministic ... ok
+test claim_creation_piggybacks_on_verify_no_extra_l4_row ... ok
+test claim_id_derivation_is_deterministic ... ok
+test doubt_verdict_does_not_create_claim_entry ... ok
+test duplicate_confirm_verify_does_not_create_second_claim ... ok
+test emit_finalize_reward_round_trip_appends_to_l4_and_finalizes_claim ... ok
+test emit_finalize_reward_with_unknown_claim_id_returns_claim_not_found ... ok
+test finalize_blocked_when_challenge_upheld_against_work_tx ... ok
+test finalize_reward_happy_path_debits_escrow_credits_solver_conserves_ctf ... ok
+test finalize_succeeds_after_duplicate_confirm_attempt ... ok
+test omega_confirm_creates_claim_entry_with_total_escrow_amount ... ok
+test refinalize_on_finalized_claim_rejects_with_claim_already_finalized ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.59s
+
+
+running 2 tests
+test wal_empty_file_yields_fresh_bus ... ok
+test wal_persists_appends_across_bus_drop ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+
+running 3 tests
+test walkthrough_inv3_full_scenario_conserves ... ok
+test walkthrough_step5_slashed_path_conserves ... ok
+test walkthrough_step9_terminal_summary_conserves ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

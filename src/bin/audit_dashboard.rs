@@ -2870,6 +2870,49 @@ fn render_tb_n3_run_report(
         "  market_review_summary_cas_count: {}\n",
         market_review_summary_count
     ));
+    let librarian_digest_cids =
+        turingosv4::runtime::librarian_broadcast::librarian_digest_cids(&cas);
+    let librarian_role_crop_count = cas
+        .list_all_cids()
+        .into_iter()
+        .filter(|cid| {
+            cas.metadata(cid).and_then(|meta| meta.schema_id.as_deref())
+                == Some(turingosv4::runtime::librarian_broadcast::LIBRARIAN_ROLE_CROP_SCHEMA_ID)
+        })
+        .count();
+    let librarian_shielding_ok = librarian_digest_cids.iter().all(|cid| {
+        let Ok(digest) =
+            turingosv4::runtime::librarian_broadcast::read_librarian_digest_from_cas(&cas, cid)
+        else {
+            return false;
+        };
+        let Ok(bytes) = serde_json::to_string(&digest) else {
+            return false;
+        };
+        turingosv4::runtime::librarian_broadcast::assert_no_forbidden_broadcast_material(&bytes)
+            .is_ok()
+    });
+    out.push_str("\n## §REAL-BCAST Librarian Broadcast\n");
+    out.push_str("  source: ChainTape/CAS materialized view; dashboard is not truth\n");
+    out.push_str(&format!(
+        "  librarian_digest_cas_count: {}\n",
+        librarian_digest_cids.len()
+    ));
+    out.push_str(&format!(
+        "  librarian_role_crop_cas_count: {}\n",
+        librarian_role_crop_count
+    ));
+    out.push_str(&format!(
+        "  librarian_shielding_verdict: {}\n",
+        if librarian_shielding_ok {
+            "PASS"
+        } else {
+            "FAIL"
+        }
+    ));
+    for cid in librarian_digest_cids.iter().take(3) {
+        out.push_str(&format!("    - librarian_digest_cid={cid}\n"));
+    }
     match turingosv4::runtime::economic_judgment::verify_bull_bear_turn_judgment_coverage(&cas) {
         Ok(report) => {
             out.push_str("  economic_judgment_coverage_ok: true\n");

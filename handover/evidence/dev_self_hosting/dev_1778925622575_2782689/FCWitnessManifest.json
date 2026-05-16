@@ -1,0 +1,25 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778925622575_2782689",
+  "fc_nodes": [
+    "FC1 role-scoped broadcast prompt loop; FC2 PromptCapsule/CAS replay; FC3 dashboard/audit materialized view; Art II broadcasting/shielding"
+  ],
+  "expected_witness": "Diff, command evidence, and audit verdict must cite these FC nodes.",
+  "evidence_artifacts": [
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "6696e029b6bdb32bf0a0e9ddcf7b6a13199e4415264d9377adaef0740993b39e",
+      "size_bytes": 170556
+    },
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "6696e029b6bdb32bf0a0e9ddcf7b6a13199e4415264d9377adaef0740993b39e",
+      "size_bytes": 170556
+    },
+    {
+      "path": "artifacts/diff.patch",
+      "sha256": "b903ec2c62dbd17536ea77c0992a7ee06941c08b32e02ed592e2a66036cdfd81",
+      "size_bytes": 170837
+    }
+  ]
+}

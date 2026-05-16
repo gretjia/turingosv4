@@ -1,0 +1,37 @@
+
+running 3 tests
+test broadcast_epoch_rejects_future_or_out_of_window_digest ... ok
+test digest_clusters_repeated_errors_and_is_deterministic ... ok
+test digest_is_generic_cas_backed_and_readable ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+
+
+running 2 tests
+test barriered_async_rejects_mismatched_or_future_digest ... ok
+test barriered_async_freezes_digest_for_all_responses ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 2 tests
+test digest_crop_and_prompt_reject_forbidden_raw_material ... ok
+test sanitized_digest_and_prompt_pass_no_leak_scan ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 3 tests
+test prompt_hash_changes_when_digest_notice_changes ... ok
+test prompt_capsule_read_set_and_visible_context_bind_digest ... ok
+test attempt_telemetry_links_to_prompt_capsule_with_librarian_read_set ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s
+
+
+running 2 tests
+test real13_status_sync_points_to_existing_clean_evidence ... ok
+test dashboard_has_librarian_materialized_view_section ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

@@ -1,0 +1,13 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "reviewer": "clean-context-codex",
+  "verdict": "VETO",
+  "findings_summary": "",
+  "source_file": {
+    "path": "handover/audits/CODEX_REAL_BCAST_1_IMPLEMENTATION_REVIEW.md",
+    "sha256": "ff408f4ad29ac5805427f1866b1b307ca3509925dc9aae6ac71d66d634eb5cae",
+    "size_bytes": 4360
+  },
+  "payload_manifest_hash": "c65890453de0630be4b5d03437b97f27d7727b59cbe092afd4db8216f0ff2e73",
+  "recorded_at_unix_ms": 1778925053794
+}

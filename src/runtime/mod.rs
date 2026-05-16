@@ -216,6 +216,11 @@ pub mod agent_role_classifier;
 /// evaluator and §K clean-negative renderer.
 pub mod g7_structural_smoke;
 
+/// TRACE_MATRIX Art.II/Art.III (REAL-BCAST-1 2026-05-16): CAS-backed,
+/// role-scoped Librarian broadcast digest. Materialized view only; no new
+/// TypedTx, sequencer admission, signing payload, or CAS ObjectType.
+pub mod librarian_broadcast;
+
 /// TRACE_MATRIX FC1/FC3 (REAL-11 Atom 1 2026-05-15): report-side market
 /// transaction categorization. Splits legacy market_tx_count into structural
 /// market activity, live agent economic action, scripted fixture activity, and

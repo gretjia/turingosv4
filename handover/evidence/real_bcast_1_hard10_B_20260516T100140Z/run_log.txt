@@ -1,0 +1,11 @@
+batch_id            real_bcast_1_hard10_B_20260516T100140Z_cef585c
+run_tag             real_bcast_1_hard10_B_20260516T100140Z
+problem_count       10
+git_head            cef585c4b61d6e4080f6ed3d38d0a468e2cc46c0
+elapsed_s           1164
+batch_exit          0
+audit_exit          0
+audit_verdict       PROCEED
+persistence_exit    0
+persistence_passing true
+persistence_n_witnessed 5

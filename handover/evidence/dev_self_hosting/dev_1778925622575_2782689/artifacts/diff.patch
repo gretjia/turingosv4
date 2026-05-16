@@ -1,0 +1,1430 @@
+diff --git a/experiments/minif2f_v4/src/bin/evaluator.rs b/experiments/minif2f_v4/src/bin/evaluator.rs
+index b81b238c..60a5e588 100644
+--- a/experiments/minif2f_v4/src/bin/evaluator.rs
++++ b/experiments/minif2f_v4/src/bin/evaluator.rs
+@@ -120,6 +120,7 @@ fn real5_write_prompt_capsule_v2_for_view(
+     role_view: &turingosv4::runtime::real5_roles::DerivedView,
+     visible_context_bytes: &[u8],
+     role_view_bytes: &[u8],
++    extra_read_set: &[turingosv4::bottom_white::cas::schema::Cid],
+     path_label: &str,
+     logical_t: u64,
+ ) -> Result<turingosv4::bottom_white::cas::schema::Cid, String> {
+@@ -163,6 +164,11 @@ fn real5_write_prompt_capsule_v2_for_view(
+     if !read_set.contains(&role_view_cid) {
+         read_set.push(role_view_cid);
+     }
++    for cid in extra_read_set {
++        if !read_set.contains(cid) {
++            read_set.push(*cid);
++        }
++    }
+     let role_label = assigned_role.label();
+     let prompt_capsule = PromptCapsuleV2 {
+         prompt_context_hash: prompt_ctx_hash,
+@@ -184,6 +190,15 @@ fn real5_write_prompt_capsule_v2_for_view(
+         ),
+         model_assignment_cid: None,
+     };
++    if extra_read_set.len() >= 2 {
++        turingosv4::runtime::librarian_broadcast::validate_prompt_capsule_librarian_binding(
++            &prompt_capsule,
++            visible_context_bytes,
++            extra_read_set[0],
++            extra_read_set[1],
++        )
++        .map_err(|e| format!("PromptCapsuleV2 Librarian binding: {e}"))?;
++    }
+     write_prompt_capsule_v2_to_cas(
+         cas_store,
+         &prompt_capsule,
+@@ -264,6 +279,7 @@ fn r2_write_attempt_telemetry(
+             &role_view,
+             visible_context_bytes,
+             &role_view_bytes,
++            &[],
+             args.path_label,
+             args.logical_t,
+         )?
+@@ -398,7 +414,17 @@ fn real5_prompt_view_block(
+         return String::new();
+     }
+     let sections = view.public_sections.join(", ");
+-    let redacted = view.hidden_fields_redacted.join(", ");
++    let redacted = view
++        .hidden_fields_redacted
++        .iter()
++        .map(|field| match field.as_str() {
++            "raw_diagnostics" => "diagnostics_redacted",
++            "raw CoT" => "private_cot_redacted",
++            "private_market_internals" => "market_internals_redacted",
++            other => other,
++        })
++        .collect::<Vec<_>>()
++        .join(", ");
+     let mut block = format!(
+         "\n=== REAL-5 Role View ===\nrole: {}\nvisible_context_cid: {}\nview_policy_id: real5/{}_view/v1\npublic_sections: {}\nprice_signal_count: {}\nhidden_fields_redacted: {}\n",
+         role.label(),
+@@ -867,6 +893,112 @@ fn real13_ev_decision_trace_enabled() -> bool {
+         .unwrap_or(false)
+ }
+ 
++fn real_bcast_librarian_enabled() -> bool {
++    std::env::var("TURINGOS_REAL_BCAST_LIBRARIAN")
++        .ok()
++        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
++        .unwrap_or(false)
++}
++
++#[derive(Debug, Clone)]
++struct RealBcastTurnBundle {
++    digest_cid: turingosv4::bottom_white::cas::schema::Cid,
++    role_crop_cid: turingosv4::bottom_white::cas::schema::Cid,
++    epoch_id: String,
++    rendered_notice: String,
++}
++
++fn real_bcast_build_turn_bundle_or_exit(
++    cas_path: &std::path::Path,
++    role: turingosv4::runtime::real5_roles::AgentRole,
++    run_id: &str,
++    agent_id: &str,
++    tx: u64,
++    logical_t: u64,
++) -> RealBcastTurnBundle {
++    use turingosv4::runtime::librarian_broadcast::{
++        build_librarian_digest, derive_current_run_cas_root, project_role_notifications,
++        read_librarian_digest_from_cas, select_librarian_events, validate_librarian_source_scope,
++        write_librarian_digest_to_cas, write_role_notification_view_to_cas, LibrarianSourceScope,
++    };
++
++    let mut cas_store = match turingosv4::bottom_white::cas::store::CasStore::open(cas_path) {
++        Ok(store) => store,
++        Err(e) => {
++            error!("[real-bcast] CAS open failed: {e}");
++            std::process::exit(3);
++        }
++    };
++    let scope = LibrarianSourceScope {
++        current_run_cas_root: derive_current_run_cas_root(&cas_store),
++        prior_capsule_cids: vec![],
++        max_prior_batches: 0,
++        task_tags: vec![run_id.to_string()],
++    };
++    if let Err(e) = validate_librarian_source_scope(&scope, &cas_store) {
++        error!("[real-bcast] source scope invalid: {e}");
++        std::process::exit(3);
++    }
++    let events = match select_librarian_events(&cas_store) {
++        Ok(events) => events,
++        Err(e) => {
++            error!("[real-bcast] selector failed closed: {e}");
++            std::process::exit(3);
++        }
++    };
++    let digest = match build_librarian_digest(scope, logical_t, events) {
++        Ok(digest) => digest,
++        Err(e) => {
++            error!("[real-bcast] digest build failed: {e}");
++            std::process::exit(3);
++        }
++    };
++    let digest_cid = match write_librarian_digest_to_cas(
++        &mut cas_store,
++        &digest,
++        &format!("turn-{agent_id}-{tx}"),
++        logical_t,
++    ) {
++        Ok(cid) => cid,
++        Err(e) => {
++            error!("[real-bcast] digest CAS write failed: {e}");
++            std::process::exit(3);
++        }
++    };
++    if let Err(e) = read_librarian_digest_from_cas(&cas_store, &digest_cid) {
++        error!("[real-bcast] digest CAS readback failed: {e}");
++        std::process::exit(3);
++    }
++    let mut digest_for_crop = digest.clone();
++    digest_for_crop.digest_id = digest_cid;
++    let crop = match project_role_notifications(&digest_for_crop, role, 8) {
++        Ok(crop) => crop,
++        Err(e) => {
++            error!("[real-bcast] role notification projection failed: {e}");
++            std::process::exit(3);
++        }
++    };
++    let rendered_notice = crop.rendered_notice.clone();
++    let role_crop_cid = match write_role_notification_view_to_cas(
++        &mut cas_store,
++        &crop,
++        &format!("turn-{agent_id}-{tx}"),
++        logical_t,
++    ) {
++        Ok(cid) => cid,
++        Err(e) => {
++            error!("[real-bcast] role notification CAS write failed: {e}");
++            std::process::exit(3);
++        }
++    };
++    RealBcastTurnBundle {
++        digest_cid,
++        role_crop_cid,
++        epoch_id: format!("real-bcast:{run_id}:{agent_id}:{tx}"),
++        rendered_notice,
++    }
++}
++
+ fn real13_market_review_mode_env() -> turingosv4::runtime::market_review::MarketReviewMode {
+     match std::env::var("TURINGOS_MARKET_REVIEW_MODE")
+         .unwrap_or_else(|_| "sequential".into())
+@@ -4262,6 +4394,29 @@ async fn run_swarm(
+             std::process::exit(1);
+         });
+         let real5_role_view_block = real5_prompt_view_block(&real5_prompt_view, real5_prompt_role);
++        if real_bcast_librarian_enabled()
++            && std::env::var("TURINGOS_REAL5_ROLE_VIEWS").ok().as_deref() != Some("1")
++        {
++            error!("[real-bcast] Librarian prompt injection requires TURINGOS_REAL5_ROLE_VIEWS=1");
++            std::process::exit(3);
++        }
++        let real_bcast_turn_bundle = if real_bcast_librarian_enabled() {
++            let Some(bundle) = chaintape_bundle.as_ref() else {
++                error!("[real-bcast] Librarian enabled but ChainTape bundle unavailable");
++                std::process::exit(3);
++            };
++            let logical_t = bundle.sequencer.next_logical_t_peek();
++            Some(real_bcast_build_turn_bundle_or_exit(
++                &bundle.cas_path,
++                real5_prompt_role,
++                &run_id,
++                agent_id,
++                tx as u64,
++                logical_t,
++            ))
++        } else {
++            None
++        };
+ 
+         let base_prompt = build_agent_prompt(
+             &chain,
+@@ -4275,11 +4430,15 @@ async fn run_swarm(
+             &pending_peer_reviews,
+             &your_position,
+         );
+-        let prompt = if real5_role_view_block.is_empty() {
+-            base_prompt
+-        } else {
+-            format!("{base_prompt}\n{real5_role_view_block}")
+-        };
++        let mut prompt = base_prompt;
++        if let Some(bundle) = real_bcast_turn_bundle.as_ref() {
++            prompt.push('\n');
++            prompt.push_str(&bundle.rendered_notice);
++        }
++        if !real5_role_view_block.is_empty() {
++            prompt.push('\n');
++            prompt.push_str(&real5_role_view_block);
++        }
+         // TB-18R R2: SHA-256 of the prompt body for AttemptTelemetry.prompt_context_hash
+         // (preflight §3.1: reuse Cid::from_content to avoid adding sha2 direct
+         // dep to experiments/minif2f_v4/Cargo.toml). Computed BEFORE the
+@@ -4300,6 +4459,10 @@ async fn run_swarm(
+                             std::process::exit(3);
+                         }
+                     };
++                    let extra_read_set = real_bcast_turn_bundle
++                        .as_ref()
++                        .map(|bundle| vec![bundle.digest_cid, bundle.role_crop_cid])
++                        .unwrap_or_default();
+                     match real5_write_prompt_capsule_v2_for_view(
+                         &mut cas_store,
+                         agent_id,
+@@ -4308,6 +4471,7 @@ async fn run_swarm(
+                         &real5_prompt_view,
+                         prompt.as_bytes(),
+                         &real5_prompt_view_bytes,
++                        &extra_read_set,
+                         &format!("turn-{}-{}", agent_id, tx),
+                         logical_t,
+                     ) {
+@@ -7390,6 +7554,12 @@ async fn run_swarm(
+                             );
+ 
+                             let window_id = TxId(ev_trace.review_window_id.clone());
++                            let librarian_digest_cid = real_bcast_turn_bundle
++                                .as_ref()
++                                .map(|bundle| bundle.digest_cid);
++                            let broadcast_epoch_id = real_bcast_turn_bundle
++                                .as_ref()
++                                .map(|bundle| bundle.epoch_id.clone());
+                             let window = MarketReviewWindow {
+                                 window_id: window_id.clone(),
+                                 event_id: ev_trace.event_id.clone(),
+@@ -7398,6 +7568,8 @@ async fn run_swarm(
+                                 eligible_agents: vec![AgentId(agent_id.to_string())],
+                                 deadline_logical_t: logical_t,
+                                 mode: real13_market_review_mode_env(),
++                                librarian_digest_cid,
++                                broadcast_epoch_id: broadcast_epoch_id.clone(),
+                             };
+                             let window_cid = write_market_review_window_to_cas_or_exit(
+                                 &bundle.cas_path,
+@@ -7414,6 +7586,8 @@ async fn run_swarm(
+                                 no_response_trace_cid: None,
+                                 action: format!("{:?}", ev_trace.action),
+                                 submitted_tx_id: None,
++                                librarian_digest_cid,
++                                broadcast_epoch_id: broadcast_epoch_id.clone(),
+                             };
+                             let response_cid = write_market_review_response_to_cas_or_exit(
+                                 &bundle.cas_path,
+@@ -7431,6 +7605,7 @@ async fn run_swarm(
+                                 missing_count: 0,
+                                 response_cids: vec![response_cid],
+                                 committed_tx_ids: vec![],
++                                digest_set: librarian_digest_cid.into_iter().collect(),
+                             };
+                             let _summary_cid = write_market_review_summary_to_cas_or_exit(
+                                 &bundle.cas_path,
+diff --git a/genesis_payload.toml b/genesis_payload.toml
+index ade6b435..250bdd07 100644
+--- a/genesis_payload.toml
++++ b/genesis_payload.toml
+@@ -161,7 +161,7 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
+ "experiments/minif2f_v4/src/fc_trace.rs" = "433061e7f558fcf03ce409824dd4b9e6ded2eb7b689eba981511ed845b4ec008"
+ "experiments/minif2f_v4/src/run_id.rs" = "12c7a5e6259e6f39ed610e5bb76b0fa481214748168d0e76860ec8e0000bd176"
+ "experiments/minif2f_v4/src/h_vppu_history.rs" = "03b8c927f2da7e16484612bf415a1a1f73847c7e5c2499c7bd52be272677a75b"  # NEW (TB-1 Day-4 2026-04-29): per-problem rolling history of pput_verified for H-VPPUT North Star regression metric (PREREG_PPUT_CCL_2026-04-26.md § 5)
+-"experiments/minif2f_v4/src/bin/evaluator.rs" = "40f645af21d0a908e3b49d9f8aa9d1810304a39462baa6fba6106572bae0ad01"  # rehashed by REAL-12 Role-Specialized Economic Agents (2026-05-16): evaluator links Bull/Bear RoleTurnTrace to CAS-backed EconomicJudgment, blocks Bull/Bear router actions without explicit public EV basis instead of fabricating positive EV, and treats TaskOutcomeMarket visibility as market context. No sequencer admission, TypedTx schema/discriminant/signing payload, wallet, kernel, bus, price-as-truth, forced trade, live REAL-6B, ghost liquidity, f64/f32 money, private CoT, raw-log broadcast, or dashboard-as-truth change. Predecessor REAL-11 hash f6846cd19cc352ecc4c93037111bb116265b7df9140fc0e0f374886afdb58261 superseded.  # rehashed by REAL-11 Agent Economic Action Activation (2026-05-15): evaluator writes MarketOpportunityTrace CAS Generic records for Trader turns when TURINGOS_REAL11_MARKET_OPPORTUNITY_TRACE=1, deriving actionable markets from QState and linking PromptCapsule CID without raw prompt/completion/CoT. No sequencer admission, TypedTx schema/discriminant/signing payload, wallet, kernel, bus, price-as-truth, forced trade, live REAL-6B, ghost liquidity, or f64 economy change. Predecessor REAL-7 hash 948959b99b84ea4532d9d6079e9f28635d35428ff94d2acd6252c81aa2ed606e superseded.  # rehashed by REAL-7 V3-equivalent structural smoke (2026-05-15): evaluator gains env-gated scripted TaskOutcomeMarket YES/NO buys, scripted AttemptPredictionMarket CAS fixture write, and scripted VerifyTx+ChallengeTx fixture hooks for structural evidence only; no sequencer admission, TypedTx schema/discriminant/signing payload, wallet, kernel, bus, price-as-truth, forced live investment, ghost liquidity, or f64 economy change. Predecessor REAL-6C hash b7fc98b73982c63efbe6f172f1bb80d2c15d55cf18ff85b5a0adf0815df8c443 superseded.  # rehashed by REAL-6C ConvictionBudget/PnL feedback (2026-05-15): production prompt path reuses the per-agent `render_your_position` block now carrying scoped ConvictionBudget; REAL-5 role gateway calls `route_role_action_with_conviction_budget` so below-cap Trader/MarketMaker/Challenger high-risk actions are blocked before production dispatch via the existing role-gateway failure path, with the ConvictionBudget reason carried in role/attempt side evidence; significant-loss ConvictionBudget autopsies use the existing CAS `write_autopsy_capsule` contract. No sequencer admission, TypedTx schema/discriminant/signing payload, wallet, kernel, or bus change. Predecessor REAL-5 PromptCapsuleV2 hash 8fa2f9d68cc63b1395f310abc4c95dd8140e8d4a20060c102f77554ffb8e12ac superseded.  # rehashed by REAL-5 PromptCapsuleV2 linkage (2026-05-14): every R2 AttemptTelemetry write now creates a role/view PromptCapsuleV2 CAS record, stores its CID on AttemptTelemetry.prompt_capsule_cid, derives role from TURINGOS_REAL5_ROLE_ASSIGNMENT when active, and stores only hash-pinned/redacted visible-context markers rather than raw prompt/completion/CoT. Predecessor REAL-5 role-assignment hash 986c525b superseded.  # rehashed by REAL-5 role-based generative scaffolding (2026-05-14): resolves TURINGOS_REAL5_ROLE_ASSIGNMENT into replayable GenesisReport.agent_role_assignment + RoleAssignmentManifest CAS provenance before genesis_report emission; passes the role assignment manifest into chain_runtime so REAL-5 smoke evidence is a genesis/batch fact rather than only a runner env string. Predecessor TB-G G3.3 hash 0263e7f3 superseded.  # rehashed by TB-G G3.3 (2026-05-12; charter §1 Module G3 atom G3.3; G-Phase directive §G3 verbatim 7-field `AgentMarketState` shape + Drucker framing): per-viewer `=== Your Position ===` block wired at the build_agent_prompt site (~line 2204; AFTER pending_peer_reviews render, BEFORE build_agent_prompt call). Renders the viewer's own balance + open positions + realized/unrealized PnL + solvency + reputation via `turingosv4::sdk::your_position::render_your_position(&q, &AgentId(agent_id.clone()))` against the sequencer's `q_snapshot()`. Per-viewer isolation enforced by `compute_agent_pnl(q, viewer, ...)` (filters EconomicState slices by `viewer` identity; never aggregates across agents per Art. III.4 shielding). Empty-string-suppression contract mirrors econ_position + pending_peer_reviews — when bus.sequencer is None (legacy WAL-only mode), the block is suppressed. `build_agent_prompt` call updated to pass `&your_position` as the new 10th argument. Predecessor TB-G G2.1 hash 4a369b4f superseded.  # rehashed by TB-G G2.1 (2026-05-12; charter §1 Module G2 atom G2.1; G-Phase directive §G2 verbatim 9-variant `enum NoTradeReason`; SG-G2.6 trace-or-tx invariant wire): (1) market-context build site (~line 2106) gains two boolean witnesses captured during the TB-N3 same-task pool render — `tb_n3_market_block_present` (was `tb_n3_block` non-empty in the rendered prompt) + `tb_n3_market_block_budget_elided` (`TURINGOS_TB_N3_MARKET_CONTEXT_K = 0` forced top-K=0 elision while same-task pools existed). (2) parse-match site (~line 2291) gains `invest_action_emitted_this_turn` flag set true at the head of the `"invest"` dispatch arm. (3) NEW end-of-turn classifier between the parse-match close and the LLM-error arm: if `!invest_action_emitted_this_turn && (tb_n3_market_block_present || tb_n3_market_block_budget_elided)`, fires `MarketDecisionTrace::no_trade(NoTradeReason::NoPerceivedEdge | NoTradeReason::PromptBudgetExceeded, …)` to CAS via `write_market_decision_trace_to_cas` + bumps `tool_dist["invest_no_trade_<label>"]` counter. Closes the trace-or-tx invariant gap: every non-invest market-bearing agent turn now leaves a classifier-bound CAS trace, satisfying SG-G2.6 alongside the existing `"invest"` arm's Submitted / NoTrade dispatch. Predecessor TB-G G2P.1 hash b5c5ec97 superseded.  # rehashed by TB-G G2P.1 (2026-05-12; charter §1 Module G2P atom G2P.1; G-Phase directive §0.6 amendment G-2 "verify_peer=0 比 invest=0 更危险"; closes user 2026-05-12 病灶3 "0 verify"): per-viewer Pending Peer Reviews block wired at the build_agent_prompt site (~line 2188; AFTER econ_position render, BEFORE build_agent_prompt call). Renders queue of accepted peer WorkTxs eligible for this viewer's verify_peer action by calling `turingosv4::sdk::pending_peer_reviews::render_pending_peer_reviews(&q, &AgentId(agent_id.clone()), DEFAULT_PENDING_REVIEWS_K)` against the sequencer's q_snapshot. Empty-string-suppression contract mirrors econ_position. build_agent_prompt signature gains 9th `pending_peer_reviews: &str` arg; the new block lands under canonical "=== Pending Peer Reviews ===" heading in src/sdk/prompt.rs. Pure-read of canonical EconomicState.stakes_t + agent_verifications_t; no private CoT / attempt_telemetry / proposal_cid reads (CLAUDE.md §15 selective shielding). Predecessor TB-N3 A3+A4 hash 36b550c9 superseded.  # rehashed by TB-N3 A3 + A4 hookup (2026-05-11; architect ruling 2026-05-11 amendments 3-6 + Q1+Q2+Q6 + Q7 + amendment 5): (1) full-proof OMEGA WorkTx accept site (post tb8_await_state_root_advance ~line 2772) + per-tactic OMEGA WorkTx accept site (~line 3661) BOTH gain a `TURINGOS_TB_N3_AUTO_MARKET=1`-gated call to `tb_n3_emit_node_market_after_work_accept(&bundle.sequencer, &work_tx_id, &mut reg, "a3-omega-{work_tx_id}", logical_t, seed_micro)` — outcome typed-matched (Created/AlreadyExists/BudgetExhausted/SubmitFailed/PollTimeout) and logged best-effort via info!/warn!. seed_micro reads `TURINGOS_DEFAULT_POOL_SEED_MICRO` env (default 100_000 per architect Q1). (2) Same-task market context A4 wire-up at the build_agent_prompt site (~line 2114): when TB-N3 enabled, derives same-task accepted WorkTx list by walking q.economic_state_t.cpmm_pools_t for event_ids matching `node_survive:` prefix containing the current `task-{run_id}` substring (same-task isolation per amendment 5), then calls `turingosv4::sdk::market_context::render_market_context(&q, &task_id, &same_task_work_tx_ids, K, &agent_id)` with K from `TURINGOS_TB_N3_MARKET_CONTEXT_K` env (default 10 per architect Q7). Result appended to existing TB-14 PriceIndex `market_ticker_str`. Predecessor TB-N3 A2 hash 9942fdf1 superseded.  # rehashed by TB-N3 A2 (2026-05-11; architect ruling 2026-05-11 amendments 1+2 + Q5; charter v3 §3): replaced TB-9-era `invest_disabled_tb9` no-op handler at line 3008 with full TB-N3 A2 invest-routing pipeline. Reads `action.node` (canonical work_tx_id), `action.amount` (microCoin via f64 → i64 cast), `action.direction` ("long"|"yes" → BuyYes; "short"|"no" → BuyNo). When chaintape + agent_keypairs both present: q_snapshot → tb_n3_invest_to_router_tx pre-classify (snapshot mode) → on Ok submit + tb8_await_state_root_advance + write `MarketDecisionTrace::submitted` to CAS via `write_market_decision_trace_to_cas`; on Err map to `NoTradeReason` + write `MarketDecisionTrace::no_trade` to CAS. tool_dist counters: `invest_attempted`, `invest_submitted`, `invest_no_trade_<reason>`, `invest_submit_err`, `invest_snapshot_err`, `invest_no_chaintape`. event_id constructed via `node_survive_event_id` (architect amendment 1: "node market 的 event_id 必须是 accepted WorkTx 的 canonical tx_id，而不是 task_id"). min_out_shares = 0 per architect Q5 MVP. Predecessor TB-N2 B2 R2 hash 31210690 superseded.  # rehashed by TB-N2 B2 R2 race fix (2026-05-11; Codex G2 R1 Q8 VETO closure): both EventResolve emit hooks (full-proof ~line 2823 + per-tactic ~line 3515) now NEST inside the existing `if let Some(vid) = verify_tx_id.clone()` block (was: emit happened unconditionally AFTER the block). New call shape passes `&vid` as the 3rd arg to `tb_n2_emit_event_resolve_after_finalize` so the adapter helper can poll `claims_t[claim_id].status == Finalized` before EventResolve construction (prevents stale `parent_state_root` → StaleParent L4.E). Nesting also tightens the semantics: B2 emit only fires on a real OMEGA-Confirm + FinalizeReward path; previously the emit fired even on paths without `verify_tx_id` (no-op via adapter's `task_markets_t.state != Open` early-out, but semantically loose). Predecessor TB-N2 B2 R1 hash 09af8844 superseded.  # rehashed by TB-N2 B2 R2 race fix (2026-05-11; Codex G2 R1 Q8 VETO closure): both EventResolve emit hooks (full-proof ~line 2823 + per-tactic ~line 3515) now NEST inside the existing `if let Some(vid) = verify_tx_id.clone()` block (was: emit happened unconditionally AFTER the block). New call shape passes `&vid` as the 3rd arg to `tb_n2_emit_event_resolve_after_finalize` so the adapter helper can poll `claims_t[claim_id].status == Finalized` before EventResolve construction (prevents stale `parent_state_root` → StaleParent L4.E). Nesting also tightens the semantics: B2 emit only fires on a real OMEGA-Confirm + FinalizeReward path; previously the emit fired even on paths without `verify_tx_id` (no-op via adapter's `task_markets_t.state != Open` early-out, but semantically loose). Predecessor TB-N2 B2 R1 hash 09af8844 superseded.  # rehashed by TB-N2 B2 (2026-05-11; charter §3 B2 + gap audit §3.3 closure): added 2 NEW EventResolve emit hooks in OMEGA-Confirm exit paths (full-proof ~line 2823 + per-tactic ~line 3515). Each constructs `b2_task_id = TaskId(format!("task-{run_id}"))` and calls `turingosv4::runtime::adapter::tb_n2_emit_event_resolve_after_finalize(&bundle.sequencer, b2_task_id, 5000)` after `tb8_emit_finalize_after_verify`. Best-effort poll-then-emit; failures non-fatal. Closes CPMM lifecycle gap: pre-B2 `TaskMarketState::Finalized` WRITE 0 sites; post-B2 OMEGA-Confirm path flips Open → Finalized making TB-13 CompleteSetRedeem reachable. Predecessor TB-N1 A4 hash ced49f42 superseded.  # rehashed by TB-N1-AGENT-ECONOMY Phase 2 A4 (2026-05-10; session #36; charter §2 atom A4 + forward §8 grant): added `verify_peer` tool dispatch arm in `match action.tool.as_str()` between "post" and "step". Reads `action.target_work_tx_id` (required), `action.verdict` ("confirm"/"deny"/missing-defaults-Confirm), `action.bond_micro` (with A3-style saturating `i64::try_from(u).unwrap_or(i64::MAX)` cast + env fallback `TURINGOS_CHAINTAPE_VERIFY_BOND_MICRO` defaults 1000). Calls `make_real_verifytx_signed_by` and submits via `bus.submit_typed_tx`. FAIL-CLOSED `std::process::exit(3)` on q_snapshot or signing failure; FAIL-OPEN warn-and-skip in legacy mode (no chaintape). Closes the verify-peer agency layer per CLAUDE.md §13 verify/bond + Art. I.1.1 multi-agent verification. Predecessor TB-N1-A3 R2 hash afde6670 superseded.  # rehashed by TB-N1-AGENT-ECONOMY Phase 2 A3 R2 Codex Q4 fix (2026-05-10; session #36; PRE-§8 dual audit R1 Codex CHALLENGE Q4): 3 OMEGA callsites' `u as i64` casts replaced with `i64::try_from(u).unwrap_or(i64::MAX)` saturating cast. Pre-fix `u as i64` would WRAP NEGATIVE if agent submitted `stake_micro > i64::MAX` (≈ 9.2 quintillion μC; theoretically possible via JSON injection though no real agent will), routing to `StakeInsufficient` (Step-4a `<= 0`) instead of the intended `StakeBalanceExceeded` (Step-4b `> balance`). Saturating-to-i64::MAX preserves fail-closed admission: u64 overflow → i64::MAX which always exceeds any agent balance (max realistic 30M μC) → fires StakeBalanceExceeded as Codex Q4 demanded. Pure-defensive fix; no protocol-wire-shape change; no sequencer change. Predecessor TB-N1-A3 R1 hash bc016070 superseded.  # rehashed by TB-N1-AGENT-ECONOMY Phase 2 A3 (2026-05-10; session #36; charter `handover/tracer_bullets/TB_N1_AGENT_ECONOMY_PHASE_2_charter_2026-05-10.md` §2 atom A3 + forward §8 grant `handover/directives/2026-05-10_TB_N1_AGENT_ECONOMY_PHASE_2_FORWARD_§8_GRANT.md`): threaded `action.stake_micro: Option<u64>` through the 3 OMEGA WorkTx-construction callsites (atom2 ~2329, atom3-omega-full ~2645, atom3-omega-pertactic ~3217). Each callsite now reads `action.stake_micro` first; if Some(u), uses that as i64; else falls back to the existing `TURINGOS_CHAINTAPE_PROPOSAL_STAKE_MICRO` env default (1000 μC). Closes the agency layer of CLAUDE.md §13: agent's `step` action carries an explicit per-tx stake within `[1, balance]` instead of the uniform env default. Pairs with sequencer step-4 admission gate + `TransitionError::StakeBalanceExceeded` tail-append to fail-closed reject `stake > balance` with distinct rejection-class telemetry. Predecessor TB-N1-A2 hash 60f41bc8 superseded.  # rehashed by TB-N1-AGENT-ECONOMY A2 (2026-05-10; session #35; preflight `handover/alignment/N1_AGENT_ECONOMY_LANDING_GAP_2026-05-10_session35.md`): replaced `let prompt_balance: f64 = ...` lookup at the per-tx prompt build site with `let econ_position: String = ... render_econ_position(&q, &agent_id) ...` invocation per A2 prompt-block landing. New helper at `src/sdk/econ_position.rs` reads canonical EconomicState (balances_t / stakes_t / claims_t / reputations_t) for the agent and returns a structured body that `build_agent_prompt` embeds under `=== Your Economic Position ===` heading. Closes session #35 smoke-evidence finding "n=1 economy structurally landed but invisible to agent at prompt layer" per CLAUDE.md §13 economy-laws + Art. III.2 progressive disclosure. Predecessor TB-18R Phase 2 hash 62834dff superseded.  # rehashed by TB-18R Phase 2 (2026-05-06; preflight `handover/directives/2026-05-06_TB18R_PHASE_2_REMEDIATION_DIRECTIVE.md` §5): added typed `verdict_kind: Option<LeanVerdictKind>` field to `R2AttemptArgs` + threaded explicit kind through 6 emitter callsites (omega-full → Verified, omega-pertactic → Verified, step_partial_ok → PartialAccepted with `outcome: AttemptOutcome::PartialAccepted` replacing the LeanPass misnomer per FC-first analysis §2.5, step_reject → Failed, parse_fail → None (no LeanResult emitted), llm_err → None (no LeanResult emitted)); `r2_write_attempt_telemetry` constructs LeanResult with explicit verdict_kind or derives via `LeanResult::derive_verdict_kind_from_legacy_fields` if the emitter passes None. Closes architect ruling §5 Phase 2 typed-PartialAccepted requirement (parent ruling: `handover/directives/2026-05-06_TB18R_ROUND_2_ARCHITECT_RULING.md` §4 Q-P2; FC-first: `handover/directives/FC_FIRST_ANALYSIS_ASSERT45_PARTIAL_VERDICT_2026-05-06.md` §2.4 Option B). Predecessor TB-18R R3 hash 590070f0 superseded.  # rehashed by TB-18R R3 (2026-05-06; preflight handover/ai-direct/TB-18R_R3_STEP_B_admission.md §1.3 + charter SG-18R.2 + SG-18R.5): added file-scope async helper `r3_emit_failure_path_worktx` + wired 3 runtime-path failure WorkTx submissions (predicate_passes=false + stake=0 + proposal_cid=AttemptTelemetry CID) at evaluator paths step_reject (~3263) / parse_fail (~3275) / llm_err (~3289); each captures the AttemptTelemetry CID returned by R2's `r2_write_attempt_telemetry` and submits via `bus.submit_typed_tx`. Sequencer's R3 admission helper `refine_rejection_class_via_attempt_telemetry` reads AttemptTelemetry.outcome via WorkTx.proposal_cid and routes to L4.E with refined RejectionClass ∈ {LeanFailed=6, ParseFailed=7, SorryBlocked=8, LlmError=9}. step_partial_ok stays CAS-only per preflight §1.3 amended (LeanPass-on-rejection-arm would trip debug-build panic; intermediate L4 lane deferred to R5+). Class 3 wire-up depends on Class 4 R3.1 (RejectionClass tail-append) + R3.2 (sequencer admission) STEP_B-restricted surfaces. Omega paths NOT cut over per preflight §3.5 amended (TB-7 Gate 5 + audit_assertions id=24 walk L4 expecting WorkTx.proposal_cid → ProposalTelemetry; cutover would break audit chain). Predecessor TB-18R R2 hash 0ffb1e24 superseded.  # rehashed by TB-18R R2 (2026-05-06; preflight handover/ai-direct/TB-18R_R2_STEP_B_evaluator.md §1 + charter SG-18R.1): added per-LLM-call AttemptTelemetry CAS write at 6 evaluator paths (omega-full @ ~2317 / omega-pertactic @ ~2861 / step_partial_ok @ ~3236 / step_reject @ ~3263 / parse_fail @ ~3275 / llm_err @ ~3289) via new file-level `r2_write_attempt_telemetry` helper + `R2AttemptArgs` struct + `r2_prompt_ctx_hash` SHA-256 derivation (Cid::from_content cast per preflight §3.1 — no sha2 direct dep added to experiments/minif2f_v4/Cargo.toml). Class 3 per charter §0.A risk envelope; FAIL-CLOSED in chaintape mode + silent skip in legacy mode per preflight §3.6. Closes M1 VETO failure-path asymmetry: step_reject + parse_fail + llm_err + step_partial_ok now produce CAS AttemptTelemetry (R3 will route them to L4.E next). Predecessor TB-18 Atom B Phase 2 hash 7d70c2f0 superseded.  # rehashed by TB-18 Atom B Phase 2 (2026-05-05; architect §2.4 + §3 Atom B; SG-18.6 + SG-18.7 + FR-18.7 + FR-18.8): mechanical lift of synthetic L4+L4.E pipeline-liveness gate (TB-6 Atom 3 — synthetic TaskOpen with `tb6-smoke-sponsor` + zero-stake WorkTx with `synthetic_rejection_for_l4e_gate=true`) + `<runtime_repo>/synthetic_rejection_label.json` write + agent_audit_trail synthetic-seed pair write to CAS+jsonl + `<runtime_repo>/genesis_report.json` (TB-7R Deliverable C — constitution_hash + system_pubkey_hash + initial_balances + preseed task_id/task_open_tx/escrow_lock_tx) into new `chain_runtime::write_synthetic_l4_l4e_gate_and_genesis_report(bus, bundle, initial_balances, preseed_enabled, seed_id)` free function. Caller (run_swarm inside the per-task `if let Some(ref bundle) = chaintape_bundle {` block) passes `seed_id = &run_id` for byte-identical single-task tx_id digests; Phase 4 comprehensive_arena will pass a chain-level UUID. All 4 failure modes preserved (synthetic TaskOpen submit fail / synthetic WorkTx submit fail / audit_trail write fail / genesis_report write fail) — error-and-continue (or warn-and-continue for genesis_report per TB-7R 'non-fatal'). 124 lines lifted (lines 1439-1562 inline → 12-line method call). Phase 3 will refactor run_swarm body itself into pub `run_swarm_with_shared_chain(chain, spec, budget)` re-entrant per-task driver; Phase 4 substantive comprehensive_arena.rs multi-task driver. Predecessor TB-18 Atom B Phase 1 hash 736f9b6f superseded.  # rehashed by TB-18 Atom B Phase 1 (2026-05-05; architect ruling §2.8 + §3 Atom B; SG-18.6 + SG-18.7 + FR-18.7 + FR-18.8 + CR-18.7 + CR-18.8): mechanical lift of `Kernel::new()` + `BusConfig { ... }` + `chaintape_bundle` (`RuntimeChaintapeConfig::from_env` + `build_chaintape_sequencer{,_with_initial_q}` + TB-7 Atom 1.7 fail-closed exit(2)) + `agent_keypairs` (TB-9 durable keystore + Arc<Mutex<>>) + `bus` (TuringBus::with_sequencer / WAL_DIR / in-memory tri-branch) into new `experiments/minif2f_v4/src/chain_runtime.rs::SharedChain::from_env(problem_file)`. `run_swarm` now destructures `SharedChain { mut bus, chaintape_bundle, agent_keypairs, initial_balances_for_genesis_report, chaintape_preseed_enabled }` into the same local-variable names that previously lived inline → rest of run_swarm body (lines ~834-3999 incl. one-time chain bootstrap + per-task agent loop + TB-11 EvidenceCapsule write + bundle.shutdown + RunSummary write) is byte-identical at source-text level. Top-level imports cleaned: `BusConfig`/`TuringBus` (line 16) + `Kernel` (line 19) removed (now consumed inside chain_runtime); top-level `Arc`+`Mutex` (line 32) removed (inner usages declare scoped imports). Phase 1 scope = init lift only; one-time chain bootstrap (synthetic TaskOpen + zero-stake WorkTx + preseed TaskOpen+EscrowLock) → Phase 2; `SharedChain::shutdown(self)` consume + `run_swarm_with_shared_chain(chain, spec, budget)` per-task parameterization → Phase 3; substantive comprehensive_arena.rs multi-task driver → Phase 4. SharedChain::from_env preserves all failure-mode semantics from inline code (chaintape bootstrap fail → exit(2); keystore init fail → expect()-panic; WAL open fail → in-memory fallback). Predecessor TB-18 Atom A hash 8128b3ed superseded.  # rehashed by TB-18 Atom A (2026-05-05; architect ruling §3 Atom A + OBS_M0_DEEPSEEK_DRIFT §5.1): wire LLMCallBudgetTracker into run_swarm tx loop. Pre-loop construction: `let llm_budget = PerCallBudget::from_env().expect(...); let mut llm_budget_tracker = LLMCallBudgetTracker::new(llm_budget);` (FAIL-CLOSED on malformed env var per feedback_no_workarounds_strict_constitution). Inside Ok(response) branch after acc.record_llm_call(...), match on llm_budget_tracker.on_response(response.completion_tokens): Continue (no-op) / HaltDegradedLLM (architect §2.5: set terminal_exhaustion_reason = ExhaustionReason::DegradedLLM + warn log + break out of for-tx loop → falls through to bundle cleanup at line ~3541 → atom-E propagation pipeline emits EvidenceCapsule + TerminalSummary with outcome=DegradedLLM) / HaltWallClockCap (set ExhaustionReason::WallClockCap + warn log + break — converts external timeout from primary cap to safety net per FR-18.2). Closes OBS_M0 §3 silent-hang failure mode (P02 30+ consecutive 14-token responses across 5 minutes). Predecessor TB-18 Atom E hash 5d648cc2 superseded.  # rehashed by TB-18 Atom E (2026-05-05; OBS_R023 closure per architect Q4 deferral cap = TB-18): replaced two hardcoded literals (RunOutcome::MaxTxExhausted at TerminalSummary emit site + ExhaustionReason::MaxTxExhausted at EvidenceCapsule write site, both inside the `if let Some(bundle) = chaintape_bundle { ... }` cleanup block) with caller-propagated `terminal_exhaustion_reason` variable initialized to ExhaustionReason::MaxTxExhausted at function header (line ~1850); RunOutcome derived via the canonical .to_run_outcome() projection (Art.IV halt_reason taxonomy in src/state/typed_tx.rs:547). Variable carries `#[allow(unused_mut, unused_assignments)]` because today no halt path mutates it (today the bundle block is reached only on natural MaxTxExhausted exit per evaluator.rs:3504-3505 comments) — Atom A future-binding will mutate it on DegradedLLM halts. Removed unused `ExhaustionReason` + `RunOutcome` imports from the bundle-block use clause (line 3562) since literals are gone. Regression test at tests/tb_18_evidence_capsule_outcome_propagation.rs (3 tests: literal-scan zero matches for RunOutcome::MaxTxExhausted; ExhaustionReason::MaxTxExhausted appears EXACTLY once = function-header default; .to_run_outcome() projection contract for all 5 ExhaustionReason variants). Closes SG-18.3 + Art.I.2 reproducibility risk that downstream consumers (TB-15 Lamarckian Autopsy + TB-16 Markov inheritance) read the outcome field as ground truth. Predecessor TB-16.x.2.4.fix r2 hash 5dfd5142 superseded.  # rehashed by TB-16.x.2.4.fix r2 (2026-05-05; Class 3 dual external audit R2 closure): Codex R2 OVERALL CHALLENGE/ship-clean (all 4 R1 VETOs closed; only doc-drift residual). Gemini R2 OVERALL VETO on Q1 (architectural enforcement gap) + Q2 (degenerate smoke). Conservative resolution per feedback_dual_audit_conflict (VETO>CHALLENGE>PASS): file OBS_R024 + TB-17 PRE-17.5 prerequisite (sequencer-side Boltzmann enforcement gate, Class 4 surface, deferred per umbrella charter §0 Class 3 envelope respect + project_tb11_to_tb17_roadmap phase boundary). Q2 closed in r4 (BOLTZMANN_SEED=12345 → distribution {iter-0:1, iter-1:2} non-trivial). This commit's source change: stale-comment cleanup ONLY (no functional code change) — evaluator.rs:1241-1250 docblock above the FORCE_BOLTZMANN_SEED_WORKTXS env-var check now mentions "no fallback (since .fix r1)" and "non-None Shannon entropy ≥ 0.5" instead of the pre-fix-r1 wording about fallback to produced_worktx_ids.last() and 0.25 threshold. Predecessor TB-16.x.2.4.fix r1 supplemental hash 346a6a3c superseded.  # rehashed by TB-16.x.2.4.fix r1 supplemental (2026-05-05; preseed-settle barrier added BEFORE the FORCE_BOLTZMANN_SEED_WORKTXS iter loop): r2 smoke surfaced a race that the per-iter Codex CHALLENGE #2 fix (removing pre-iter await) inadvertently exposed. The preseed phase queues TaskOpen + EscrowLock + optional CompleteSetSeed + optional FORCE_BANKRUPTCY_AFTER_ACCEPTED seed via bus.submit_typed_tx but does NOT block on their commits. Without a settle barrier, iter=0's q_snapshot can fall in the middle of the preseed queue → iter-0 WorkTx parent_state_root captured before another preseed tx commits → apply_one rejects iter-0 with StaleParent → iter-0 lands on L4.E → iter-1's snap.price_index empty → v2_pick=None for iter-1 (the r2 smoke shape: tx_kind_counts.work=3 / l4e_count=2 / iter-1 v2_pick=None instead of expected Some(iter-0)). Fix: poll q_snapshot at start of FORCE_BOLTZMANN_SEED_WORKTXS block until state_root is stable for one poll cycle (preseed queue drained); 50 × 200ms = 10s budget; FAIL-CLOSED if barrier doesn't settle (signals wedged queue). This matches the "settle then dispatch" pattern that the original (commit b5118fd) hook accidentally got via the per-iter pre-await — the per-iter pre-await was structurally on the wrong side of submit (Codex CH2) but it ALSO accidentally drained the preseed queue before iter 0's parent_state_root capture. The settle barrier is the principled replacement. Predecessor TB-16.x.2.4.fix r1 (without barrier) hash fada36b4 superseded.  # rehashed by TB-16.x.2.4.fix r1 (2026-05-05; Class 3 dual-audit closure of Codex VETO #1..#4 + CHALLENGE #1..#4 + Gemini Q1/Q2/Q5/Q7/Q8/Q12 CHALLENGES on parent commit b5118fd): (V2 Codex VETO #2 — produced_worktx_ids.push moved to AFTER tb8_await_state_root_advance success; bus.submit_typed_tx is async per src/bus.rs:136-138, so push-before-commit could register a queued tx_id that subsequently failed dispatch). (V4 Codex VETO #4 — env-var parse + CAS / ProposalTelemetry / WorkTx-construction / submit / commit-await failures all converted from warn-and-skip to FAIL-CLOSED via std::process::exit(3); for an explicit user-activated arena hook, partial-success silently biasing the entropy distribution is unacceptable). (CH2 Codex CHALLENGE #2 — pre-iteration tb8_await_state_root_advance was placed BEFORE the tx it was supposed to observe (helper contract per src/runtime/adapter.rs:570-576 says "submit, then await POST-submit"); fix removes the pre-await and only retains the post-submit await per iteration so the next iter's snapshot reflects the prior commit). (CH4 Codex CHALLENGE #4 — removed produced_worktx_ids.last() fallback when v2_pick is None; strict semantics now: parent_tx tracks the v2 selector's authoritative pick or None for root, never a manufactured edge from local state). (V4 supplemental — sequencer.q_snapshot Err converted to FAIL-CLOSED exit). Smoke script `run_tb_16_x_2_4_smoke_2026-05-05.sh` companion fixes (V3): set -euo pipefail (was -uo); explicit RC capture via `|| RC=$?` + abort on RC ≠ 0; refuse to overwrite populated PROBLEM_DIR without ALLOW_REUSE=1; audit_tape stdout captured into AT_LOG variable so pipefail propagates the binary RC. .2.3 + .2.5 smoke scripts also receive the set -e + RC capture carry-over (cheap consistency fix). BOLTZMANN_EPSILON_NUM/DEN env vars (default 9/10) injected so the v2 selector's epsilon-greedy uniform-random branch fires 90% of the time on iter 1+ (vs 10% default), producing diverse parent_tx instead of always-iter-0 lex-tiebreak. Predecessor TB-16.x.2.4 hash 5a989d15 superseded.  # rehashed by TB-16.x.2.4 (2026-05-05; architect umbrella charter §2 Atom 2.4 — Multi-WorkTx + Boltzmann RUNTIME exercise): ADDITIVE arena driver hook. TURINGOS_FORCE_BOLTZMANN_SEED_WORKTXS=<staker>:<count>:<stake_micro> env-var: AFTER preseed (TaskOpen + EscrowLock + optional CompleteSetSeed + optional .2.5 bankruptcy-after-accepted seed) but BEFORE the LLM swarm starts, injects N (≥3) real-signed WorkTxs serially. Each iteration: (1) snapshot bus → call boltzmann_select_parent_v2(snap.price_index, snap.mask_set, &policy, &mut seeded_rng) — the existing TB-14 Atom 5 integer-rational scheduler (sdk/actor.rs:57); (2) parent_tx = v2 pick OR fallback to most recent produced WorkTx tx_id (so iter 1+ has SOME parent; iter 0 is genuinely root); (3) build + write ProposalTelemetry to CAS via build_for_evaluator_append_with_parent(parent_tx) (mandatory for audit assertion id=24 chain integrity per .2.5 r2 lesson); (4) construct real-signed WorkTx via make_real_worktx_signed_by(predicate_passes=true) referencing the telemetry CID as proposal_cid; (5) submit + await commit; (6) capture tx_id for next iteration's fallback. Closes the missing R3 "Boltzmann RUNTIME exercise" gap: prior chains had at most 1 admitted WorkTx per task, so the v2 selector had no candidate set to choose from. Audit assertion id=43 (boltzmann_parent_selection_diversity, Layer E supplemental, added in .2.5 commit) verifies Shannon entropy ≥ 0.25 across same-task ProposalTelemetry.parent_tx distribution. DEVIATION-FROM-CHARTER per feedback_architect_deviation_stance: charter §2 Atom 2.4 said "verify boltzmann_select_parent_v2 is called in WorkTx admission path; STEP_B-PROTOCOL TRIGGERED". Position taken: STEP_B refers to sequencer-side dispatch path; v2 selector is ALREADY called proposal-side at evaluator.rs:1828 (captured into _v2_canonical_pick, currently unused). For SG-16.x.2.4 (≥3 WorkTx with parent_selection_entropy ≥ 0.5), the parent_tx record lives in ProposalTelemetry (CAS object) — proposal-time data, not sequencer-side admission data. No sequencer.rs touch needed; STEP_B not triggered. Class 3 dual external audit (Codex + Gemini) STILL applied because the surface is high-impact (Boltzmann RUNTIME wire-up is the V3L-14 anti-star-topology mechanism; Art II.2.1 alarm threshold gate). Predecessor TB-16.x.2.5 r3 hash d39c67d1 superseded.  # rehashed by TB-16.x.2.5 r3 (2026-05-05; smoke r2 surfaced audit assertion id=24 (proposal_telemetry_chain) HALT — the seed WorkTx's proposal_cid was computed via Cid::from_content of a literal string but the bytes were never written to CAS, so cas.get(proposal_cid) returned NotFound, halting the audit. Fix: the seed-WorkTx hook now opens CasStore::open(&bundle.cas_path), constructs a minimal ProposalTelemetry via build_for_evaluator_append (which writes proposal_artifact bytes to CAS as a side-effect), then calls proposal_telemetry::write_to_cas to persist the telemetry itself and uses the returned CID as the WorkTx.proposal_cid. ProposalTelemetry parent_tx is None for the .2.5 seed (single-WorkTx scenario; .2.4 will use Boltzmann pick). verification_result_cid is None (no Lean verification on the seed; id=24 only halts on missing telemetry CAS bytes, NOT on missing VerificationResult). Predecessor TB-16.x.2.5 r2 hash c19dfcbe (which broke audit id=24) superseded.  # rehashed by TB-16.x.2.5 (2026-05-05; architect umbrella charter §2 Atom 2.5 — AutopsyCapsule real-bankruptcy chain): ADDITIVE arena driver hook. TURINGOS_FORCE_BANKRUPTCY_AFTER_ACCEPTED=<staker>:<stake_micro> env-var: AFTER preseed (TaskOpen + EscrowLock + optional CompleteSetSeed) but BEFORE the LLM swarm starts, injects a real-signed WorkTx via make_real_worktx_signed_by(predicate_passes=true) so stakes_t has ≥1 entry for `task-{run_id}` at the time TURINGOS_FORCE_BANKRUPTCY=1 emits TaskBankruptcyTx (line ~3150). The TB-15 dispatch arm Step 3.5 hook (sequencer.rs:1374) then calls derive_autopsies_for_bankruptcy(pre_econ, bk, ...) which iterates stakes_t and emits an AgentAutopsyCapsule with loss_reason_class=Bankruptcy + loss_amount = stake.amount. Closes the missing R2 P4 path "WorkTx-accepted → got accepted → then the task went bankrupt". The seeded WorkTx is REAL (real Ed25519 signature via AgentKeypairRegistry, real predicate_results, real stake debit from preseeded balance) — NOT a synthetic-rejection gate (compare make_synthetic_worktx at line ~1086 which uses synthetic_rejection_for_l4e_gate=true → L4.E only). Pairs with TURINGOS_FORCE_BANKRUPTCY=1 to materialize WorkTx (admit) → TerminalSummary → TaskBankruptcy → AutopsyCapsule in CAS + AutopsyIndex entry in agent_autopsies_t. Predecessor TB-16.x.2.3 hash e1c4d057 superseded.  # rehashed by TB-16.x.2.3 (2026-05-05; architect umbrella charter §2 Atom 2.3 — CompleteSetRedeem env-var trigger): ADDITIVE arena driver hook. TURINGOS_FORCE_REDEEM=<owner>:<outcome>:<share_units> env-var: BEFORE bundle.shutdown (parallel to FORCE_CHALLENGE_RESOLVE; OUTSIDE the MaxTxExhausted EvidenceCapsule conditional so it fires on both OMEGA-Confirm success and MaxTxExhausted+FORCE_BANKRUPTCY paths), constructs an agent-signed CompleteSetRedeemTx via make_real_complete_set_redeem_signed_by + submits via bus.submit_typed_tx. Pairs with TURINGOS_COMPLETE_SET_SEED (mints provider's YES+NO shares) + TURINGOS_FORCE_BANKRUPTCY (transitions market to Bankrupt → NO wins) to produce a single chain containing CompleteSetMint → TaskBankruptcy → CompleteSetRedeem sequence — closes the missing 6th system-emitted tx kind in the R3 Round 2 chain (raises 11-of-13 → 12-of-13). DEVIATION-FROM-CHARTER per feedback_architect_deviation_stance: charter §2 Atom 2.3 spec'd 4 env-var parts (owner:event_id:outcome:share); implementation uses 3 (owner:outcome:share_units) — event_id auto-derived from `task-{run_id}` because run_id contains a unix-ms timestamp minted at evaluator entry (run_id.rs:21) and is unpredictable from the smoke script. Mirrors FORCE_BANKRUPTCY's auto-derive pattern (line ~3154). Predecessor TB-16.x.2.2.fix hash 12489ab4 superseded.  # rehashed by TB-16.x.2.2.fix (2026-05-05; FC1-emit hook placement bug-fix on TB-16.x.2.2 commit 5e32cbf): the original 5e32cbf placed FORCE_CHALLENGE_RESOLVE in the post-bundle cleanup section reachable ONLY on the MaxTxExhausted exit path (line 2895 P0-A comment + 2902 mark_final_accept). FORCE_CHALLENGER fires on the OMEGA-Confirm success path which early-returns at make_pput before that cleanup. As filed, smoke r2 produced tx_kind_counts.challenge_resolve=0 + id=42 SKIPPED + ship-gate false-positive (grep matched the field name "challenge_resolve" with value 0 + dashboard run_id slug). This fix mirrors the FORCE_CHALLENGE_RESOLVE block onto BOTH OMEGA-Confirm exit paths (full-proof @ ~line 2253 + per-tactic @ ~line 2755), each with post-emit tb8_await_state_root_advance because the OMEGA exit drops bundle without bundle.shutdown drain (evaluator.rs:2936-2938). Original commit's claim "two cleanup paths are mutually exclusive" remains accurate — but the OMEGA path had NO cleanup section at all. Predecessor TB-16.x.2.2 hash 993452e4 superseded.  # rehashed by TB-16.x.2.2 (2026-05-05; architect umbrella charter §2 Atom 2.2 — ChallengeResolve via challenge-window scheduler): ADDITIVE arena driver hook. TURINGOS_FORCE_CHALLENGE_RESOLVE=1 env-var: BEFORE bundle.shutdown (deliberately OUTSIDE the MaxTxExhausted EvidenceCapsule conditional, since FORCE_CHALLENGER fires only on the OMEGA-Confirm success path and the two cleanup paths are mutually exclusive), calls tb16_emit_challenge_resolve_for_eligible(seq, window_delta_logical_t=0, default_resolution=Released) so every Open ChallengeCase is immediately eligible. Pairs with TURINGOS_FORCE_CHALLENGER on the same arena profile to produce a single chain containing Challenge → ChallengeResolve parent-child relationship — closes the missing 5th system-emitted tx kind in the R3 Round 2 chain (raises 10-of-13 → 11-of-13). Predecessor TB-16.x.2.1 hash eb718a23 superseded.  # rehashed by TB-16.x.2.1 (2026-05-04; architect umbrella charter §2 Atom 2.1 — TaskExpire env-var trigger): ADDITIVE arena driver hook. TURINGOS_FORCE_EXPIRE=1 env-var: after MaxTxExhausted EvidenceCapsule write + (optional) FORCE_BANKRUPTCY emit, calls tb11_emit_expire_for_eligible(seq, current_logical_t=next_logical_t_peek(), expiry_delta_logical_t=0) so every Open/Bankrupt task with elapsed > 0 emits a TaskExpireTx (ExpireReason::Deadline for Open; ExpireReason::BankruptcyTriggered when FORCE_BANKRUPTCY also fired). Mirrors FORCE_BANKRUPTCY's tb8_await_state_root_advance(pre_ex_root, 5000) prelude so prior commits land before the q_snapshot read. Closes the missing 4th system-emitted tx kind in R3 Round 2 chain (raises 9-of-13 → 10-of-13). Predecessor TB-16 Atom 7 R1 Step 3 hash 729a4c5e superseded.  # rehashed by TB-16 Atom 7 R1 Step 3 (2026-05-04; architect §7.3 FR-16.3 + FR-16.4 + FR-16.7): ADDITIVE arena driver hooks. (1) TURINGOS_FORCE_CHALLENGER=<agent_id> env-var: after VerifyTx OMEGA-Confirm and before FinalizeReward emit, the named agent submits a real-signed ChallengeTx targeting the WorkTx (FR-16.3). (2) TURINGOS_COMPLETE_SET_SEED=<provider>:<amount_micro> env-var: after preseed EscrowLock, the named provider submits MarketSeedTx + CompleteSetMintTx against the task's EventId (FR-16.4). (3) TURINGOS_FORCE_BANKRUPTCY=1 env-var: after MAX_TX exhaustion + TerminalSummary emit, sequencer.emit_system_tx(TaskBankruptcy{...}) fires referencing the same EvidenceCapsule (FR-16.7 → autopsy emission via TB-15 dispatch arm Step 3.5). All three are env-var-gated; no behavior change to existing user-task / preseed paths. Predecessor TB-14 Atom 6 follow-up hash 3530a2d5 superseded.  # rehashed by TB-14 Atom 6 follow-up (2026-05-03; architect ruling step 1 — Codex R1 primary VETO closure): the canonical TxId returned by `boltzmann_select_parent_v2` MUST NOT flow into legacy shadow `bus.append` parent_id (kernel.tape uses a different (shadow) id namespace; canonical TxId becomes a dangling citation → kernel.append rejects). Per architect ruling: "Use None unless a real shadow id exists." No canonical → shadow id mapping is currently available; pass None (legacy default). The v2 selector still runs (its result captured as `_v2_canonical_pick` for observability + future canonical wire-up — see B′ step 4 CanonicalNodeGraph + parent_tx replacement for last_tx_by_agent), but its output is explicitly NOT passed to bus.append. Closes Codex R1 primary VETO defect #1.  # rehashed by TB-14 Atom 6 (2026-05-03; closing OBS_TB_12_LEGACY_CPMM_QUARANTINE): production wire-swap. (1) Imports updated: `BoltzmannParams + boltzmann_select_parent` (legacy f64) → `boltzmann_select_parent_v2 + BoltzmannMaskPolicy` (integer-rational). (2) `BusConfig` literals (×2) drop `system_lp_amount` field. (3) `let params = BoltzmannParams::from_env()` → `let policy = BoltzmannMaskPolicy::from_env()`. (4) Tick-time logging derives `market_count` + top-N price ticker from `bus.snapshot().price_index` (cross-multiplication argmax; rendered `n/d`, never decimal). (5) Per-tx prompt build derives `market_ticker_str` from `snap.price_index` + queries `prompt_balance` from `bus.sequencer.q_snapshot().economic_state_t.balances_t` (replaces legacy `snap.get_balance`; the `f64` is the `prompt.rs` render contract — `prompt.rs` is not a TB-14 module surface). (6) Boltzmann selector call replaced: `boltzmann_select_parent(&snap.tape, &prices, &params, &mut rng)` → `boltzmann_select_parent_v2(&snap.price_index, &snap.mask_set, &policy, &mut rng).map(|tx| tx.0)`. Predicate-blind (CR-14.1 + halt-trigger #1) — purely a scheduling priority pick. Predecessor TB-12 Atom 0.5(a) hash 8f1b97f1 superseded. (2026-05-03; architect 2026-05-03 ruling §1.1 + §8 Atom 0.5; TB-11 G3/G4 carry-forward closure): added 4 EvidenceCapsule counters (tb11_lean_error_count / tb11_sorry_block_count / tb11_protocol_parse_failure_count / tb11_partial_accept_count) instrumented at existing classify_lean_error / classify_parse_error / step_partial_ok call sites; sorry-block vs lean-error split via err_detail.contains("sorry") || err_detail.contains("forbidden_payload"); MAX_TX exhausted exit point (inside `if let Some(bundle) = chaintape_bundle`, BEFORE bundle.shutdown) now writes EvidenceCapsule to CAS via runtime::evidence_capsule::write_evidence_capsule + emits TerminalSummary on-chain via runtime::adapter::tb11_emit_terminal_summary_for_run with capsule_cid; bundle.shutdown drains the queued TerminalSummary tx via apply_one. Mirror of TB-8 tb8_emit_finalize_after_verify pattern. Predecessor TB-10 Atom 1+3 hash a5b30cd1 superseded.
++"experiments/minif2f_v4/src/bin/evaluator.rs" = "38e281876a95d51d993ca2c0a7aeac02cbabc818742574b45887680da0837d12"  # rehashed by REAL-BCAST-1 Librarian Broadcast Loop (2026-05-16): evaluator builds CAS-backed LibrarianDigest and role-cropped notices, injects bounded Librarian Notices through PromptCapsuleV2 read_set/visible_context, links MarketReviewWindow/Response/Summary to broadcast digest/epoch when active, and preserves no raw Lean stderr/prompt/completion/CoT/diagnostics broadcast. No sequencer admission, TypedTx schema/discriminant/signing payload, wallet, kernel, bus, CAS ObjectType schema, price-as-truth, forced trade, live REAL-6B, ghost liquidity, f64/f32 money, or dashboard-as-truth change. Predecessor REAL-12/13 hash f6846cd19cc352ecc4c93037111bb116265b7df9140fc0e0f374886afdb58261 superseded.  # rehashed by REAL-11 Agent Economic Action Activation (2026-05-15): evaluator writes MarketOpportunityTrace CAS Generic records for Trader turns when TURINGOS_REAL11_MARKET_OPPORTUNITY_TRACE=1, deriving actionable markets from QState and linking PromptCapsule CID without raw prompt/completion/CoT. No sequencer admission, TypedTx schema/discriminant/signing payload, wallet, kernel, bus, price-as-truth, forced trade, live REAL-6B, ghost liquidity, or f64 economy change. Predecessor REAL-7 hash 948959b99b84ea4532d9d6079e9f28635d35428ff94d2acd6252c81aa2ed606e superseded.  # rehashed by REAL-7 V3-equivalent structural smoke (2026-05-15): evaluator gains env-gated scripted TaskOutcomeMarket YES/NO buys, scripted AttemptPredictionMarket CAS fixture write, and scripted VerifyTx+ChallengeTx fixture hooks for structural evidence only; no sequencer admission, TypedTx schema/discriminant/signing payload, wallet, kernel, bus, price-as-truth, forced live investment, ghost liquidity, or f64 economy change. Predecessor REAL-6C hash b7fc98b73982c63efbe6f172f1bb80d2c15d55cf18ff85b5a0adf0815df8c443 superseded.  # rehashed by REAL-6C ConvictionBudget/PnL feedback (2026-05-15): production prompt path reuses the per-agent `render_your_position` block now carrying scoped ConvictionBudget; REAL-5 role gateway calls `route_role_action_with_conviction_budget` so below-cap Trader/MarketMaker/Challenger high-risk actions are blocked before production dispatch via the existing role-gateway failure path, with the ConvictionBudget reason carried in role/attempt side evidence; significant-loss ConvictionBudget autopsies use the existing CAS `write_autopsy_capsule` contract. No sequencer admission, TypedTx schema/discriminant/signing payload, wallet, kernel, or bus change. Predecessor REAL-5 PromptCapsuleV2 hash 8fa2f9d68cc63b1395f310abc4c95dd8140e8d4a20060c102f77554ffb8e12ac superseded.  # rehashed by REAL-5 PromptCapsuleV2 linkage (2026-05-14): every R2 AttemptTelemetry write now creates a role/view PromptCapsuleV2 CAS record, stores its CID on AttemptTelemetry.prompt_capsule_cid, derives role from TURINGOS_REAL5_ROLE_ASSIGNMENT when active, and stores only hash-pinned/redacted visible-context markers rather than raw prompt/completion/CoT. Predecessor REAL-5 role-assignment hash 986c525b superseded.  # rehashed by REAL-5 role-based generative scaffolding (2026-05-14): resolves TURINGOS_REAL5_ROLE_ASSIGNMENT into replayable GenesisReport.agent_role_assignment + RoleAssignmentManifest CAS provenance before genesis_report emission; passes the role assignment manifest into chain_runtime so REAL-5 smoke evidence is a genesis/batch fact rather than only a runner env string. Predecessor TB-G G3.3 hash 0263e7f3 superseded.  # rehashed by TB-G G3.3 (2026-05-12; charter §1 Module G3 atom G3.3; G-Phase directive §G3 verbatim 7-field `AgentMarketState` shape + Drucker framing): per-viewer `=== Your Position ===` block wired at the build_agent_prompt site (~line 2204; AFTER pending_peer_reviews render, BEFORE build_agent_prompt call). Renders the viewer's own balance + open positions + realized/unrealized PnL + solvency + reputation via `turingosv4::sdk::your_position::render_your_position(&q, &AgentId(agent_id.clone()))` against the sequencer's `q_snapshot()`. Per-viewer isolation enforced by `compute_agent_pnl(q, viewer, ...)` (filters EconomicState slices by `viewer` identity; never aggregates across agents per Art. III.4 shielding). Empty-string-suppression contract mirrors econ_position + pending_peer_reviews — when bus.sequencer is None (legacy WAL-only mode), the block is suppressed. `build_agent_prompt` call updated to pass `&your_position` as the new 10th argument. Predecessor TB-G G2.1 hash 4a369b4f superseded.  # rehashed by TB-G G2.1 (2026-05-12; charter §1 Module G2 atom G2.1; G-Phase directive §G2 verbatim 9-variant `enum NoTradeReason`; SG-G2.6 trace-or-tx invariant wire): (1) market-context build site (~line 2106) gains two boolean witnesses captured during the TB-N3 same-task pool render — `tb_n3_market_block_present` (was `tb_n3_block` non-empty in the rendered prompt) + `tb_n3_market_block_budget_elided` (`TURINGOS_TB_N3_MARKET_CONTEXT_K = 0` forced top-K=0 elision while same-task pools existed). (2) parse-match site (~line 2291) gains `invest_action_emitted_this_turn` flag set true at the head of the `"invest"` dispatch arm. (3) NEW end-of-turn classifier between the parse-match close and the LLM-error arm: if `!invest_action_emitted_this_turn && (tb_n3_market_block_present || tb_n3_market_block_budget_elided)`, fires `MarketDecisionTrace::no_trade(NoTradeReason::NoPerceivedEdge | NoTradeReason::PromptBudgetExceeded, …)` to CAS via `write_market_decision_trace_to_cas` + bumps `tool_dist["invest_no_trade_<label>"]` counter. Closes the trace-or-tx invariant gap: every non-invest market-bearing agent turn now leaves a classifier-bound CAS trace, satisfying SG-G2.6 alongside the existing `"invest"` arm's Submitted / NoTrade dispatch. Predecessor TB-G G2P.1 hash b5c5ec97 superseded.  # rehashed by TB-G G2P.1 (2026-05-12; charter §1 Module G2P atom G2P.1; G-Phase directive §0.6 amendment G-2 "verify_peer=0 比 invest=0 更危险"; closes user 2026-05-12 病灶3 "0 verify"): per-viewer Pending Peer Reviews block wired at the build_agent_prompt site (~line 2188; AFTER econ_position render, BEFORE build_agent_prompt call). Renders queue of accepted peer WorkTxs eligible for this viewer's verify_peer action by calling `turingosv4::sdk::pending_peer_reviews::render_pending_peer_reviews(&q, &AgentId(agent_id.clone()), DEFAULT_PENDING_REVIEWS_K)` against the sequencer's q_snapshot. Empty-string-suppression contract mirrors econ_position. build_agent_prompt signature gains 9th `pending_peer_reviews: &str` arg; the new block lands under canonical "=== Pending Peer Reviews ===" heading in src/sdk/prompt.rs. Pure-read of canonical EconomicState.stakes_t + agent_verifications_t; no private CoT / attempt_telemetry / proposal_cid reads (CLAUDE.md §15 selective shielding). Predecessor TB-N3 A3+A4 hash 36b550c9 superseded.  # rehashed by TB-N3 A3 + A4 hookup (2026-05-11; architect ruling 2026-05-11 amendments 3-6 + Q1+Q2+Q6 + Q7 + amendment 5): (1) full-proof OMEGA WorkTx accept site (post tb8_await_state_root_advance ~line 2772) + per-tactic OMEGA WorkTx accept site (~line 3661) BOTH gain a `TURINGOS_TB_N3_AUTO_MARKET=1`-gated call to `tb_n3_emit_node_market_after_work_accept(&bundle.sequencer, &work_tx_id, &mut reg, "a3-omega-{work_tx_id}", logical_t, seed_micro)` — outcome typed-matched (Created/AlreadyExists/BudgetExhausted/SubmitFailed/PollTimeout) and logged best-effort via info!/warn!. seed_micro reads `TURINGOS_DEFAULT_POOL_SEED_MICRO` env (default 100_000 per architect Q1). (2) Same-task market context A4 wire-up at the build_agent_prompt site (~line 2114): when TB-N3 enabled, derives same-task accepted WorkTx list by walking q.economic_state_t.cpmm_pools_t for event_ids matching `node_survive:` prefix containing the current `task-{run_id}` substring (same-task isolation per amendment 5), then calls `turingosv4::sdk::market_context::render_market_context(&q, &task_id, &same_task_work_tx_ids, K, &agent_id)` with K from `TURINGOS_TB_N3_MARKET_CONTEXT_K` env (default 10 per architect Q7). Result appended to existing TB-14 PriceIndex `market_ticker_str`. Predecessor TB-N3 A2 hash 9942fdf1 superseded.  # rehashed by TB-N3 A2 (2026-05-11; architect ruling 2026-05-11 amendments 1+2 + Q5; charter v3 §3): replaced TB-9-era `invest_disabled_tb9` no-op handler at line 3008 with full TB-N3 A2 invest-routing pipeline. Reads `action.node` (canonical work_tx_id), `action.amount` (microCoin via f64 → i64 cast), `action.direction` ("long"|"yes" → BuyYes; "short"|"no" → BuyNo). When chaintape + agent_keypairs both present: q_snapshot → tb_n3_invest_to_router_tx pre-classify (snapshot mode) → on Ok submit + tb8_await_state_root_advance + write `MarketDecisionTrace::submitted` to CAS via `write_market_decision_trace_to_cas`; on Err map to `NoTradeReason` + write `MarketDecisionTrace::no_trade` to CAS. tool_dist counters: `invest_attempted`, `invest_submitted`, `invest_no_trade_<reason>`, `invest_submit_err`, `invest_snapshot_err`, `invest_no_chaintape`. event_id constructed via `node_survive_event_id` (architect amendment 1: "node market 的 event_id 必须是 accepted WorkTx 的 canonical tx_id，而不是 task_id"). min_out_shares = 0 per architect Q5 MVP. Predecessor TB-N2 B2 R2 hash 31210690 superseded.  # rehashed by TB-N2 B2 R2 race fix (2026-05-11; Codex G2 R1 Q8 VETO closure): both EventResolve emit hooks (full-proof ~line 2823 + per-tactic ~line 3515) now NEST inside the existing `if let Some(vid) = verify_tx_id.clone()` block (was: emit happened unconditionally AFTER the block). New call shape passes `&vid` as the 3rd arg to `tb_n2_emit_event_resolve_after_finalize` so the adapter helper can poll `claims_t[claim_id].status == Finalized` before EventResolve construction (prevents stale `parent_state_root` → StaleParent L4.E). Nesting also tightens the semantics: B2 emit only fires on a real OMEGA-Confirm + FinalizeReward path; previously the emit fired even on paths without `verify_tx_id` (no-op via adapter's `task_markets_t.state != Open` early-out, but semantically loose). Predecessor TB-N2 B2 R1 hash 09af8844 superseded.  # rehashed by TB-N2 B2 R2 race fix (2026-05-11; Codex G2 R1 Q8 VETO closure): both EventResolve emit hooks (full-proof ~line 2823 + per-tactic ~line 3515) now NEST inside the existing `if let Some(vid) = verify_tx_id.clone()` block (was: emit happened unconditionally AFTER the block). New call shape passes `&vid` as the 3rd arg to `tb_n2_emit_event_resolve_after_finalize` so the adapter helper can poll `claims_t[claim_id].status == Finalized` before EventResolve construction (prevents stale `parent_state_root` → StaleParent L4.E). Nesting also tightens the semantics: B2 emit only fires on a real OMEGA-Confirm + FinalizeReward path; previously the emit fired even on paths without `verify_tx_id` (no-op via adapter's `task_markets_t.state != Open` early-out, but semantically loose). Predecessor TB-N2 B2 R1 hash 09af8844 superseded.  # rehashed by TB-N2 B2 (2026-05-11; charter §3 B2 + gap audit §3.3 closure): added 2 NEW EventResolve emit hooks in OMEGA-Confirm exit paths (full-proof ~line 2823 + per-tactic ~line 3515). Each constructs `b2_task_id = TaskId(format!("task-{run_id}"))` and calls `turingosv4::runtime::adapter::tb_n2_emit_event_resolve_after_finalize(&bundle.sequencer, b2_task_id, 5000)` after `tb8_emit_finalize_after_verify`. Best-effort poll-then-emit; failures non-fatal. Closes CPMM lifecycle gap: pre-B2 `TaskMarketState::Finalized` WRITE 0 sites; post-B2 OMEGA-Confirm path flips Open → Finalized making TB-13 CompleteSetRedeem reachable. Predecessor TB-N1 A4 hash ced49f42 superseded.  # rehashed by TB-N1-AGENT-ECONOMY Phase 2 A4 (2026-05-10; session #36; charter §2 atom A4 + forward §8 grant): added `verify_peer` tool dispatch arm in `match action.tool.as_str()` between "post" and "step". Reads `action.target_work_tx_id` (required), `action.verdict` ("confirm"/"deny"/missing-defaults-Confirm), `action.bond_micro` (with A3-style saturating `i64::try_from(u).unwrap_or(i64::MAX)` cast + env fallback `TURINGOS_CHAINTAPE_VERIFY_BOND_MICRO` defaults 1000). Calls `make_real_verifytx_signed_by` and submits via `bus.submit_typed_tx`. FAIL-CLOSED `std::process::exit(3)` on q_snapshot or signing failure; FAIL-OPEN warn-and-skip in legacy mode (no chaintape). Closes the verify-peer agency layer per CLAUDE.md §13 verify/bond + Art. I.1.1 multi-agent verification. Predecessor TB-N1-A3 R2 hash afde6670 superseded.  # rehashed by TB-N1-AGENT-ECONOMY Phase 2 A3 R2 Codex Q4 fix (2026-05-10; session #36; PRE-§8 dual audit R1 Codex CHALLENGE Q4): 3 OMEGA callsites' `u as i64` casts replaced with `i64::try_from(u).unwrap_or(i64::MAX)` saturating cast. Pre-fix `u as i64` would WRAP NEGATIVE if agent submitted `stake_micro > i64::MAX` (≈ 9.2 quintillion μC; theoretically possible via JSON injection though no real agent will), routing to `StakeInsufficient` (Step-4a `<= 0`) instead of the intended `StakeBalanceExceeded` (Step-4b `> balance`). Saturating-to-i64::MAX preserves fail-closed admission: u64 overflow → i64::MAX which always exceeds any agent balance (max realistic 30M μC) → fires StakeBalanceExceeded as Codex Q4 demanded. Pure-defensive fix; no protocol-wire-shape change; no sequencer change. Predecessor TB-N1-A3 R1 hash bc016070 superseded.  # rehashed by TB-N1-AGENT-ECONOMY Phase 2 A3 (2026-05-10; session #36; charter `handover/tracer_bullets/TB_N1_AGENT_ECONOMY_PHASE_2_charter_2026-05-10.md` §2 atom A3 + forward §8 grant `handover/directives/2026-05-10_TB_N1_AGENT_ECONOMY_PHASE_2_FORWARD_§8_GRANT.md`): threaded `action.stake_micro: Option<u64>` through the 3 OMEGA WorkTx-construction callsites (atom2 ~2329, atom3-omega-full ~2645, atom3-omega-pertactic ~3217). Each callsite now reads `action.stake_micro` first; if Some(u), uses that as i64; else falls back to the existing `TURINGOS_CHAINTAPE_PROPOSAL_STAKE_MICRO` env default (1000 μC). Closes the agency layer of CLAUDE.md §13: agent's `step` action carries an explicit per-tx stake within `[1, balance]` instead of the uniform env default. Pairs with sequencer step-4 admission gate + `TransitionError::StakeBalanceExceeded` tail-append to fail-closed reject `stake > balance` with distinct rejection-class telemetry. Predecessor TB-N1-A2 hash 60f41bc8 superseded.  # rehashed by TB-N1-AGENT-ECONOMY A2 (2026-05-10; session #35; preflight `handover/alignment/N1_AGENT_ECONOMY_LANDING_GAP_2026-05-10_session35.md`): replaced `let prompt_balance: f64 = ...` lookup at the per-tx prompt build site with `let econ_position: String = ... render_econ_position(&q, &agent_id) ...` invocation per A2 prompt-block landing. New helper at `src/sdk/econ_position.rs` reads canonical EconomicState (balances_t / stakes_t / claims_t / reputations_t) for the agent and returns a structured body that `build_agent_prompt` embeds under `=== Your Economic Position ===` heading. Closes session #35 smoke-evidence finding "n=1 economy structurally landed but invisible to agent at prompt layer" per CLAUDE.md §13 economy-laws + Art. III.2 progressive disclosure. Predecessor TB-18R Phase 2 hash 62834dff superseded.  # rehashed by TB-18R Phase 2 (2026-05-06; preflight `handover/directives/2026-05-06_TB18R_PHASE_2_REMEDIATION_DIRECTIVE.md` §5): added typed `verdict_kind: Option<LeanVerdictKind>` field to `R2AttemptArgs` + threaded explicit kind through 6 emitter callsites (omega-full → Verified, omega-pertactic → Verified, step_partial_ok → PartialAccepted with `outcome: AttemptOutcome::PartialAccepted` replacing the LeanPass misnomer per FC-first analysis §2.5, step_reject → Failed, parse_fail → None (no LeanResult emitted), llm_err → None (no LeanResult emitted)); `r2_write_attempt_telemetry` constructs LeanResult with explicit verdict_kind or derives via `LeanResult::derive_verdict_kind_from_legacy_fields` if the emitter passes None. Closes architect ruling §5 Phase 2 typed-PartialAccepted requirement (parent ruling: `handover/directives/2026-05-06_TB18R_ROUND_2_ARCHITECT_RULING.md` §4 Q-P2; FC-first: `handover/directives/FC_FIRST_ANALYSIS_ASSERT45_PARTIAL_VERDICT_2026-05-06.md` §2.4 Option B). Predecessor TB-18R R3 hash 590070f0 superseded.  # rehashed by TB-18R R3 (2026-05-06; preflight handover/ai-direct/TB-18R_R3_STEP_B_admission.md §1.3 + charter SG-18R.2 + SG-18R.5): added file-scope async helper `r3_emit_failure_path_worktx` + wired 3 runtime-path failure WorkTx submissions (predicate_passes=false + stake=0 + proposal_cid=AttemptTelemetry CID) at evaluator paths step_reject (~3263) / parse_fail (~3275) / llm_err (~3289); each captures the AttemptTelemetry CID returned by R2's `r2_write_attempt_telemetry` and submits via `bus.submit_typed_tx`. Sequencer's R3 admission helper `refine_rejection_class_via_attempt_telemetry` reads AttemptTelemetry.outcome via WorkTx.proposal_cid and routes to L4.E with refined RejectionClass ∈ {LeanFailed=6, ParseFailed=7, SorryBlocked=8, LlmError=9}. step_partial_ok stays CAS-only per preflight §1.3 amended (LeanPass-on-rejection-arm would trip debug-build panic; intermediate L4 lane deferred to R5+). Class 3 wire-up depends on Class 4 R3.1 (RejectionClass tail-append) + R3.2 (sequencer admission) STEP_B-restricted surfaces. Omega paths NOT cut over per preflight §3.5 amended (TB-7 Gate 5 + audit_assertions id=24 walk L4 expecting WorkTx.proposal_cid → ProposalTelemetry; cutover would break audit chain). Predecessor TB-18R R2 hash 0ffb1e24 superseded.  # rehashed by TB-18R R2 (2026-05-06; preflight handover/ai-direct/TB-18R_R2_STEP_B_evaluator.md §1 + charter SG-18R.1): added per-LLM-call AttemptTelemetry CAS write at 6 evaluator paths (omega-full @ ~2317 / omega-pertactic @ ~2861 / step_partial_ok @ ~3236 / step_reject @ ~3263 / parse_fail @ ~3275 / llm_err @ ~3289) via new file-level `r2_write_attempt_telemetry` helper + `R2AttemptArgs` struct + `r2_prompt_ctx_hash` SHA-256 derivation (Cid::from_content cast per preflight §3.1 — no sha2 direct dep added to experiments/minif2f_v4/Cargo.toml). Class 3 per charter §0.A risk envelope; FAIL-CLOSED in chaintape mode + silent skip in legacy mode per preflight §3.6. Closes M1 VETO failure-path asymmetry: step_reject + parse_fail + llm_err + step_partial_ok now produce CAS AttemptTelemetry (R3 will route them to L4.E next). Predecessor TB-18 Atom B Phase 2 hash 7d70c2f0 superseded.  # rehashed by TB-18 Atom B Phase 2 (2026-05-05; architect §2.4 + §3 Atom B; SG-18.6 + SG-18.7 + FR-18.7 + FR-18.8): mechanical lift of synthetic L4+L4.E pipeline-liveness gate (TB-6 Atom 3 — synthetic TaskOpen with `tb6-smoke-sponsor` + zero-stake WorkTx with `synthetic_rejection_for_l4e_gate=true`) + `<runtime_repo>/synthetic_rejection_label.json` write + agent_audit_trail synthetic-seed pair write to CAS+jsonl + `<runtime_repo>/genesis_report.json` (TB-7R Deliverable C — constitution_hash + system_pubkey_hash + initial_balances + preseed task_id/task_open_tx/escrow_lock_tx) into new `chain_runtime::write_synthetic_l4_l4e_gate_and_genesis_report(bus, bundle, initial_balances, preseed_enabled, seed_id)` free function. Caller (run_swarm inside the per-task `if let Some(ref bundle) = chaintape_bundle {` block) passes `seed_id = &run_id` for byte-identical single-task tx_id digests; Phase 4 comprehensive_arena will pass a chain-level UUID. All 4 failure modes preserved (synthetic TaskOpen submit fail / synthetic WorkTx submit fail / audit_trail write fail / genesis_report write fail) — error-and-continue (or warn-and-continue for genesis_report per TB-7R 'non-fatal'). 124 lines lifted (lines 1439-1562 inline → 12-line method call). Phase 3 will refactor run_swarm body itself into pub `run_swarm_with_shared_chain(chain, spec, budget)` re-entrant per-task driver; Phase 4 substantive comprehensive_arena.rs multi-task driver. Predecessor TB-18 Atom B Phase 1 hash 736f9b6f superseded.  # rehashed by TB-18 Atom B Phase 1 (2026-05-05; architect ruling §2.8 + §3 Atom B; SG-18.6 + SG-18.7 + FR-18.7 + FR-18.8 + CR-18.7 + CR-18.8): mechanical lift of `Kernel::new()` + `BusConfig { ... }` + `chaintape_bundle` (`RuntimeChaintapeConfig::from_env` + `build_chaintape_sequencer{,_with_initial_q}` + TB-7 Atom 1.7 fail-closed exit(2)) + `agent_keypairs` (TB-9 durable keystore + Arc<Mutex<>>) + `bus` (TuringBus::with_sequencer / WAL_DIR / in-memory tri-branch) into new `experiments/minif2f_v4/src/chain_runtime.rs::SharedChain::from_env(problem_file)`. `run_swarm` now destructures `SharedChain { mut bus, chaintape_bundle, agent_keypairs, initial_balances_for_genesis_report, chaintape_preseed_enabled }` into the same local-variable names that previously lived inline → rest of run_swarm body (lines ~834-3999 incl. one-time chain bootstrap + per-task agent loop + TB-11 EvidenceCapsule write + bundle.shutdown + RunSummary write) is byte-identical at source-text level. Top-level imports cleaned: `BusConfig`/`TuringBus` (line 16) + `Kernel` (line 19) removed (now consumed inside chain_runtime); top-level `Arc`+`Mutex` (line 32) removed (inner usages declare scoped imports). Phase 1 scope = init lift only; one-time chain bootstrap (synthetic TaskOpen + zero-stake WorkTx + preseed TaskOpen+EscrowLock) → Phase 2; `SharedChain::shutdown(self)` consume + `run_swarm_with_shared_chain(chain, spec, budget)` per-task parameterization → Phase 3; substantive comprehensive_arena.rs multi-task driver → Phase 4. SharedChain::from_env preserves all failure-mode semantics from inline code (chaintape bootstrap fail → exit(2); keystore init fail → expect()-panic; WAL open fail → in-memory fallback). Predecessor TB-18 Atom A hash 8128b3ed superseded.  # rehashed by TB-18 Atom A (2026-05-05; architect ruling §3 Atom A + OBS_M0_DEEPSEEK_DRIFT §5.1): wire LLMCallBudgetTracker into run_swarm tx loop. Pre-loop construction: `let llm_budget = PerCallBudget::from_env().expect(...); let mut llm_budget_tracker = LLMCallBudgetTracker::new(llm_budget);` (FAIL-CLOSED on malformed env var per feedback_no_workarounds_strict_constitution). Inside Ok(response) branch after acc.record_llm_call(...), match on llm_budget_tracker.on_response(response.completion_tokens): Continue (no-op) / HaltDegradedLLM (architect §2.5: set terminal_exhaustion_reason = ExhaustionReason::DegradedLLM + warn log + break out of for-tx loop → falls through to bundle cleanup at line ~3541 → atom-E propagation pipeline emits EvidenceCapsule + TerminalSummary with outcome=DegradedLLM) / HaltWallClockCap (set ExhaustionReason::WallClockCap + warn log + break — converts external timeout from primary cap to safety net per FR-18.2). Closes OBS_M0 §3 silent-hang failure mode (P02 30+ consecutive 14-token responses across 5 minutes). Predecessor TB-18 Atom E hash 5d648cc2 superseded.  # rehashed by TB-18 Atom E (2026-05-05; OBS_R023 closure per architect Q4 deferral cap = TB-18): replaced two hardcoded literals (RunOutcome::MaxTxExhausted at TerminalSummary emit site + ExhaustionReason::MaxTxExhausted at EvidenceCapsule write site, both inside the `if let Some(bundle) = chaintape_bundle { ... }` cleanup block) with caller-propagated `terminal_exhaustion_reason` variable initialized to ExhaustionReason::MaxTxExhausted at function header (line ~1850); RunOutcome derived via the canonical .to_run_outcome() projection (Art.IV halt_reason taxonomy in src/state/typed_tx.rs:547). Variable carries `#[allow(unused_mut, unused_assignments)]` because today no halt path mutates it (today the bundle block is reached only on natural MaxTxExhausted exit per evaluator.rs:3504-3505 comments) — Atom A future-binding will mutate it on DegradedLLM halts. Removed unused `ExhaustionReason` + `RunOutcome` imports from the bundle-block use clause (line 3562) since literals are gone. Regression test at tests/tb_18_evidence_capsule_outcome_propagation.rs (3 tests: literal-scan zero matches for RunOutcome::MaxTxExhausted; ExhaustionReason::MaxTxExhausted appears EXACTLY once = function-header default; .to_run_outcome() projection contract for all 5 ExhaustionReason variants). Closes SG-18.3 + Art.I.2 reproducibility risk that downstream consumers (TB-15 Lamarckian Autopsy + TB-16 Markov inheritance) read the outcome field as ground truth. Predecessor TB-16.x.2.4.fix r2 hash 5dfd5142 superseded.  # rehashed by TB-16.x.2.4.fix r2 (2026-05-05; Class 3 dual external audit R2 closure): Codex R2 OVERALL CHALLENGE/ship-clean (all 4 R1 VETOs closed; only doc-drift residual). Gemini R2 OVERALL VETO on Q1 (architectural enforcement gap) + Q2 (degenerate smoke). Conservative resolution per feedback_dual_audit_conflict (VETO>CHALLENGE>PASS): file OBS_R024 + TB-17 PRE-17.5 prerequisite (sequencer-side Boltzmann enforcement gate, Class 4 surface, deferred per umbrella charter §0 Class 3 envelope respect + project_tb11_to_tb17_roadmap phase boundary). Q2 closed in r4 (BOLTZMANN_SEED=12345 → distribution {iter-0:1, iter-1:2} non-trivial). This commit's source change: stale-comment cleanup ONLY (no functional code change) — evaluator.rs:1241-1250 docblock above the FORCE_BOLTZMANN_SEED_WORKTXS env-var check now mentions "no fallback (since .fix r1)" and "non-None Shannon entropy ≥ 0.5" instead of the pre-fix-r1 wording about fallback to produced_worktx_ids.last() and 0.25 threshold. Predecessor TB-16.x.2.4.fix r1 supplemental hash 346a6a3c superseded.  # rehashed by TB-16.x.2.4.fix r1 supplemental (2026-05-05; preseed-settle barrier added BEFORE the FORCE_BOLTZMANN_SEED_WORKTXS iter loop): r2 smoke surfaced a race that the per-iter Codex CHALLENGE #2 fix (removing pre-iter await) inadvertently exposed. The preseed phase queues TaskOpen + EscrowLock + optional CompleteSetSeed + optional FORCE_BANKRUPTCY_AFTER_ACCEPTED seed via bus.submit_typed_tx but does NOT block on their commits. Without a settle barrier, iter=0's q_snapshot can fall in the middle of the preseed queue → iter-0 WorkTx parent_state_root captured before another preseed tx commits → apply_one rejects iter-0 with StaleParent → iter-0 lands on L4.E → iter-1's snap.price_index empty → v2_pick=None for iter-1 (the r2 smoke shape: tx_kind_counts.work=3 / l4e_count=2 / iter-1 v2_pick=None instead of expected Some(iter-0)). Fix: poll q_snapshot at start of FORCE_BOLTZMANN_SEED_WORKTXS block until state_root is stable for one poll cycle (preseed queue drained); 50 × 200ms = 10s budget; FAIL-CLOSED if barrier doesn't settle (signals wedged queue). This matches the "settle then dispatch" pattern that the original (commit b5118fd) hook accidentally got via the per-iter pre-await — the per-iter pre-await was structurally on the wrong side of submit (Codex CH2) but it ALSO accidentally drained the preseed queue before iter 0's parent_state_root capture. The settle barrier is the principled replacement. Predecessor TB-16.x.2.4.fix r1 (without barrier) hash fada36b4 superseded.  # rehashed by TB-16.x.2.4.fix r1 (2026-05-05; Class 3 dual-audit closure of Codex VETO #1..#4 + CHALLENGE #1..#4 + Gemini Q1/Q2/Q5/Q7/Q8/Q12 CHALLENGES on parent commit b5118fd): (V2 Codex VETO #2 — produced_worktx_ids.push moved to AFTER tb8_await_state_root_advance success; bus.submit_typed_tx is async per src/bus.rs:136-138, so push-before-commit could register a queued tx_id that subsequently failed dispatch). (V4 Codex VETO #4 — env-var parse + CAS / ProposalTelemetry / WorkTx-construction / submit / commit-await failures all converted from warn-and-skip to FAIL-CLOSED via std::process::exit(3); for an explicit user-activated arena hook, partial-success silently biasing the entropy distribution is unacceptable). (CH2 Codex CHALLENGE #2 — pre-iteration tb8_await_state_root_advance was placed BEFORE the tx it was supposed to observe (helper contract per src/runtime/adapter.rs:570-576 says "submit, then await POST-submit"); fix removes the pre-await and only retains the post-submit await per iteration so the next iter's snapshot reflects the prior commit). (CH4 Codex CHALLENGE #4 — removed produced_worktx_ids.last() fallback when v2_pick is None; strict semantics now: parent_tx tracks the v2 selector's authoritative pick or None for root, never a manufactured edge from local state). (V4 supplemental — sequencer.q_snapshot Err converted to FAIL-CLOSED exit). Smoke script `run_tb_16_x_2_4_smoke_2026-05-05.sh` companion fixes (V3): set -euo pipefail (was -uo); explicit RC capture via `|| RC=$?` + abort on RC ≠ 0; refuse to overwrite populated PROBLEM_DIR without ALLOW_REUSE=1; audit_tape stdout captured into AT_LOG variable so pipefail propagates the binary RC. .2.3 + .2.5 smoke scripts also receive the set -e + RC capture carry-over (cheap consistency fix). BOLTZMANN_EPSILON_NUM/DEN env vars (default 9/10) injected so the v2 selector's epsilon-greedy uniform-random branch fires 90% of the time on iter 1+ (vs 10% default), producing diverse parent_tx instead of always-iter-0 lex-tiebreak. Predecessor TB-16.x.2.4 hash 5a989d15 superseded.  # rehashed by TB-16.x.2.4 (2026-05-05; architect umbrella charter §2 Atom 2.4 — Multi-WorkTx + Boltzmann RUNTIME exercise): ADDITIVE arena driver hook. TURINGOS_FORCE_BOLTZMANN_SEED_WORKTXS=<staker>:<count>:<stake_micro> env-var: AFTER preseed (TaskOpen + EscrowLock + optional CompleteSetSeed + optional .2.5 bankruptcy-after-accepted seed) but BEFORE the LLM swarm starts, injects N (≥3) real-signed WorkTxs serially. Each iteration: (1) snapshot bus → call boltzmann_select_parent_v2(snap.price_index, snap.mask_set, &policy, &mut seeded_rng) — the existing TB-14 Atom 5 integer-rational scheduler (sdk/actor.rs:57); (2) parent_tx = v2 pick OR fallback to most recent produced WorkTx tx_id (so iter 1+ has SOME parent; iter 0 is genuinely root); (3) build + write ProposalTelemetry to CAS via build_for_evaluator_append_with_parent(parent_tx) (mandatory for audit assertion id=24 chain integrity per .2.5 r2 lesson); (4) construct real-signed WorkTx via make_real_worktx_signed_by(predicate_passes=true) referencing the telemetry CID as proposal_cid; (5) submit + await commit; (6) capture tx_id for next iteration's fallback. Closes the missing R3 "Boltzmann RUNTIME exercise" gap: prior chains had at most 1 admitted WorkTx per task, so the v2 selector had no candidate set to choose from. Audit assertion id=43 (boltzmann_parent_selection_diversity, Layer E supplemental, added in .2.5 commit) verifies Shannon entropy ≥ 0.25 across same-task ProposalTelemetry.parent_tx distribution. DEVIATION-FROM-CHARTER per feedback_architect_deviation_stance: charter §2 Atom 2.4 said "verify boltzmann_select_parent_v2 is called in WorkTx admission path; STEP_B-PROTOCOL TRIGGERED". Position taken: STEP_B refers to sequencer-side dispatch path; v2 selector is ALREADY called proposal-side at evaluator.rs:1828 (captured into _v2_canonical_pick, currently unused). For SG-16.x.2.4 (≥3 WorkTx with parent_selection_entropy ≥ 0.5), the parent_tx record lives in ProposalTelemetry (CAS object) — proposal-time data, not sequencer-side admission data. No sequencer.rs touch needed; STEP_B not triggered. Class 3 dual external audit (Codex + Gemini) STILL applied because the surface is high-impact (Boltzmann RUNTIME wire-up is the V3L-14 anti-star-topology mechanism; Art II.2.1 alarm threshold gate). Predecessor TB-16.x.2.5 r3 hash d39c67d1 superseded.  # rehashed by TB-16.x.2.5 r3 (2026-05-05; smoke r2 surfaced audit assertion id=24 (proposal_telemetry_chain) HALT — the seed WorkTx's proposal_cid was computed via Cid::from_content of a literal string but the bytes were never written to CAS, so cas.get(proposal_cid) returned NotFound, halting the audit. Fix: the seed-WorkTx hook now opens CasStore::open(&bundle.cas_path), constructs a minimal ProposalTelemetry via build_for_evaluator_append (which writes proposal_artifact bytes to CAS as a side-effect), then calls proposal_telemetry::write_to_cas to persist the telemetry itself and uses the returned CID as the WorkTx.proposal_cid. ProposalTelemetry parent_tx is None for the .2.5 seed (single-WorkTx scenario; .2.4 will use Boltzmann pick). verification_result_cid is None (no Lean verification on the seed; id=24 only halts on missing telemetry CAS bytes, NOT on missing VerificationResult). Predecessor TB-16.x.2.5 r2 hash c19dfcbe (which broke audit id=24) superseded.  # rehashed by TB-16.x.2.5 (2026-05-05; architect umbrella charter §2 Atom 2.5 — AutopsyCapsule real-bankruptcy chain): ADDITIVE arena driver hook. TURINGOS_FORCE_BANKRUPTCY_AFTER_ACCEPTED=<staker>:<stake_micro> env-var: AFTER preseed (TaskOpen + EscrowLock + optional CompleteSetSeed) but BEFORE the LLM swarm starts, injects a real-signed WorkTx via make_real_worktx_signed_by(predicate_passes=true) so stakes_t has ≥1 entry for `task-{run_id}` at the time TURINGOS_FORCE_BANKRUPTCY=1 emits TaskBankruptcyTx (line ~3150). The TB-15 dispatch arm Step 3.5 hook (sequencer.rs:1374) then calls derive_autopsies_for_bankruptcy(pre_econ, bk, ...) which iterates stakes_t and emits an AgentAutopsyCapsule with loss_reason_class=Bankruptcy + loss_amount = stake.amount. Closes the missing R2 P4 path "WorkTx-accepted → got accepted → then the task went bankrupt". The seeded WorkTx is REAL (real Ed25519 signature via AgentKeypairRegistry, real predicate_results, real stake debit from preseeded balance) — NOT a synthetic-rejection gate (compare make_synthetic_worktx at line ~1086 which uses synthetic_rejection_for_l4e_gate=true → L4.E only). Pairs with TURINGOS_FORCE_BANKRUPTCY=1 to materialize WorkTx (admit) → TerminalSummary → TaskBankruptcy → AutopsyCapsule in CAS + AutopsyIndex entry in agent_autopsies_t. Predecessor TB-16.x.2.3 hash e1c4d057 superseded.  # rehashed by TB-16.x.2.3 (2026-05-05; architect umbrella charter §2 Atom 2.3 — CompleteSetRedeem env-var trigger): ADDITIVE arena driver hook. TURINGOS_FORCE_REDEEM=<owner>:<outcome>:<share_units> env-var: BEFORE bundle.shutdown (parallel to FORCE_CHALLENGE_RESOLVE; OUTSIDE the MaxTxExhausted EvidenceCapsule conditional so it fires on both OMEGA-Confirm success and MaxTxExhausted+FORCE_BANKRUPTCY paths), constructs an agent-signed CompleteSetRedeemTx via make_real_complete_set_redeem_signed_by + submits via bus.submit_typed_tx. Pairs with TURINGOS_COMPLETE_SET_SEED (mints provider's YES+NO shares) + TURINGOS_FORCE_BANKRUPTCY (transitions market to Bankrupt → NO wins) to produce a single chain containing CompleteSetMint → TaskBankruptcy → CompleteSetRedeem sequence — closes the missing 6th system-emitted tx kind in the R3 Round 2 chain (raises 11-of-13 → 12-of-13). DEVIATION-FROM-CHARTER per feedback_architect_deviation_stance: charter §2 Atom 2.3 spec'd 4 env-var parts (owner:event_id:outcome:share); implementation uses 3 (owner:outcome:share_units) — event_id auto-derived from `task-{run_id}` because run_id contains a unix-ms timestamp minted at evaluator entry (run_id.rs:21) and is unpredictable from the smoke script. Mirrors FORCE_BANKRUPTCY's auto-derive pattern (line ~3154). Predecessor TB-16.x.2.2.fix hash 12489ab4 superseded.  # rehashed by TB-16.x.2.2.fix (2026-05-05; FC1-emit hook placement bug-fix on TB-16.x.2.2 commit 5e32cbf): the original 5e32cbf placed FORCE_CHALLENGE_RESOLVE in the post-bundle cleanup section reachable ONLY on the MaxTxExhausted exit path (line 2895 P0-A comment + 2902 mark_final_accept). FORCE_CHALLENGER fires on the OMEGA-Confirm success path which early-returns at make_pput before that cleanup. As filed, smoke r2 produced tx_kind_counts.challenge_resolve=0 + id=42 SKIPPED + ship-gate false-positive (grep matched the field name "challenge_resolve" with value 0 + dashboard run_id slug). This fix mirrors the FORCE_CHALLENGE_RESOLVE block onto BOTH OMEGA-Confirm exit paths (full-proof @ ~line 2253 + per-tactic @ ~line 2755), each with post-emit tb8_await_state_root_advance because the OMEGA exit drops bundle without bundle.shutdown drain (evaluator.rs:2936-2938). Original commit's claim "two cleanup paths are mutually exclusive" remains accurate — but the OMEGA path had NO cleanup section at all. Predecessor TB-16.x.2.2 hash 993452e4 superseded.  # rehashed by TB-16.x.2.2 (2026-05-05; architect umbrella charter §2 Atom 2.2 — ChallengeResolve via challenge-window scheduler): ADDITIVE arena driver hook. TURINGOS_FORCE_CHALLENGE_RESOLVE=1 env-var: BEFORE bundle.shutdown (deliberately OUTSIDE the MaxTxExhausted EvidenceCapsule conditional, since FORCE_CHALLENGER fires only on the OMEGA-Confirm success path and the two cleanup paths are mutually exclusive), calls tb16_emit_challenge_resolve_for_eligible(seq, window_delta_logical_t=0, default_resolution=Released) so every Open ChallengeCase is immediately eligible. Pairs with TURINGOS_FORCE_CHALLENGER on the same arena profile to produce a single chain containing Challenge → ChallengeResolve parent-child relationship — closes the missing 5th system-emitted tx kind in the R3 Round 2 chain (raises 10-of-13 → 11-of-13). Predecessor TB-16.x.2.1 hash eb718a23 superseded.  # rehashed by TB-16.x.2.1 (2026-05-04; architect umbrella charter §2 Atom 2.1 — TaskExpire env-var trigger): ADDITIVE arena driver hook. TURINGOS_FORCE_EXPIRE=1 env-var: after MaxTxExhausted EvidenceCapsule write + (optional) FORCE_BANKRUPTCY emit, calls tb11_emit_expire_for_eligible(seq, current_logical_t=next_logical_t_peek(), expiry_delta_logical_t=0) so every Open/Bankrupt task with elapsed > 0 emits a TaskExpireTx (ExpireReason::Deadline for Open; ExpireReason::BankruptcyTriggered when FORCE_BANKRUPTCY also fired). Mirrors FORCE_BANKRUPTCY's tb8_await_state_root_advance(pre_ex_root, 5000) prelude so prior commits land before the q_snapshot read. Closes the missing 4th system-emitted tx kind in R3 Round 2 chain (raises 9-of-13 → 10-of-13). Predecessor TB-16 Atom 7 R1 Step 3 hash 729a4c5e superseded.  # rehashed by TB-16 Atom 7 R1 Step 3 (2026-05-04; architect §7.3 FR-16.3 + FR-16.4 + FR-16.7): ADDITIVE arena driver hooks. (1) TURINGOS_FORCE_CHALLENGER=<agent_id> env-var: after VerifyTx OMEGA-Confirm and before FinalizeReward emit, the named agent submits a real-signed ChallengeTx targeting the WorkTx (FR-16.3). (2) TURINGOS_COMPLETE_SET_SEED=<provider>:<amount_micro> env-var: after preseed EscrowLock, the named provider submits MarketSeedTx + CompleteSetMintTx against the task's EventId (FR-16.4). (3) TURINGOS_FORCE_BANKRUPTCY=1 env-var: after MAX_TX exhaustion + TerminalSummary emit, sequencer.emit_system_tx(TaskBankruptcy{...}) fires referencing the same EvidenceCapsule (FR-16.7 → autopsy emission via TB-15 dispatch arm Step 3.5). All three are env-var-gated; no behavior change to existing user-task / preseed paths. Predecessor TB-14 Atom 6 follow-up hash 3530a2d5 superseded.  # rehashed by TB-14 Atom 6 follow-up (2026-05-03; architect ruling step 1 — Codex R1 primary VETO closure): the canonical TxId returned by `boltzmann_select_parent_v2` MUST NOT flow into legacy shadow `bus.append` parent_id (kernel.tape uses a different (shadow) id namespace; canonical TxId becomes a dangling citation → kernel.append rejects). Per architect ruling: "Use None unless a real shadow id exists." No canonical → shadow id mapping is currently available; pass None (legacy default). The v2 selector still runs (its result captured as `_v2_canonical_pick` for observability + future canonical wire-up — see B′ step 4 CanonicalNodeGraph + parent_tx replacement for last_tx_by_agent), but its output is explicitly NOT passed to bus.append. Closes Codex R1 primary VETO defect #1.  # rehashed by TB-14 Atom 6 (2026-05-03; closing OBS_TB_12_LEGACY_CPMM_QUARANTINE): production wire-swap. (1) Imports updated: `BoltzmannParams + boltzmann_select_parent` (legacy f64) → `boltzmann_select_parent_v2 + BoltzmannMaskPolicy` (integer-rational). (2) `BusConfig` literals (×2) drop `system_lp_amount` field. (3) `let params = BoltzmannParams::from_env()` → `let policy = BoltzmannMaskPolicy::from_env()`. (4) Tick-time logging derives `market_count` + top-N price ticker from `bus.snapshot().price_index` (cross-multiplication argmax; rendered `n/d`, never decimal). (5) Per-tx prompt build derives `market_ticker_str` from `snap.price_index` + queries `prompt_balance` from `bus.sequencer.q_snapshot().economic_state_t.balances_t` (replaces legacy `snap.get_balance`; the `f64` is the `prompt.rs` render contract — `prompt.rs` is not a TB-14 module surface). (6) Boltzmann selector call replaced: `boltzmann_select_parent(&snap.tape, &prices, &params, &mut rng)` → `boltzmann_select_parent_v2(&snap.price_index, &snap.mask_set, &policy, &mut rng).map(|tx| tx.0)`. Predicate-blind (CR-14.1 + halt-trigger #1) — purely a scheduling priority pick. Predecessor TB-12 Atom 0.5(a) hash 8f1b97f1 superseded. (2026-05-03; architect 2026-05-03 ruling §1.1 + §8 Atom 0.5; TB-11 G3/G4 carry-forward closure): added 4 EvidenceCapsule counters (tb11_lean_error_count / tb11_sorry_block_count / tb11_protocol_parse_failure_count / tb11_partial_accept_count) instrumented at existing classify_lean_error / classify_parse_error / step_partial_ok call sites; sorry-block vs lean-error split via err_detail.contains("sorry") || err_detail.contains("forbidden_payload"); MAX_TX exhausted exit point (inside `if let Some(bundle) = chaintape_bundle`, BEFORE bundle.shutdown) now writes EvidenceCapsule to CAS via runtime::evidence_capsule::write_evidence_capsule + emits TerminalSummary on-chain via runtime::adapter::tb11_emit_terminal_summary_for_run with capsule_cid; bundle.shutdown drains the queued TerminalSummary tx via apply_one. Mirror of TB-8 tb8_emit_finalize_after_verify pattern. Predecessor TB-10 Atom 1+3 hash a5b30cd1 superseded.
+ "experiments/minif2f_v4/src/experiment_mode.rs" = "cc6fbafd6e0f2c5c910d1f9e229cd2bf6643e314999f783f921d5f080ca44a00"
+ "constitution.md" = "eec695459c71fbef3685583485deb431fe3b561657b2f285b7c5e7e220e59e03"
+ "cases/MANIFEST.sha256" = "eccbe35f776c64225d50c461780d1fe75a0a8510adc62b0dd2e96b46dc2dc555"
+@@ -216,7 +216,8 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
+ # 2026-05-01 TB-7 Atom 5 — `pub mod chain_derived_run_facts;` declaration added (ChainDerivedRunFacts aggregator per ARCHITECT_RULING D4 + charter §4.4 — bit-exact structural facts from L4 + L4.E + CAS alone).
+ # 2026-05-01 TB-7.7 D4 — `pub mod verification_result;` declaration added (Lean oracle verdict CAS object linked from ProposalTelemetry.verification_result_cid).
+ # 2026-05-13 TB-G G3.2 R1 challenge remediation — current runtime module hash also includes the Unified Harness `pub mod dev_harness;` sidecar declaration; development evidence sidecar only, not canonical ChainTape/CAS truth.
+-"src/runtime/mod.rs" = "1078bafb1ee0c8d6f087d52e4025260d067a02ca27aa54ab30032cdd4766572e"  # rehashed by REAL-13 Market Pressure Loop (2026-05-16): exported additive Generic-CAS/report-side helpers `ev_decision_trace`, `display_coin`, `market_review`, and `signal_purification` for EVDecisionTrace, fixed-point DisplayCoin parsing, deterministic Market Review Turn sidecars, and forced-bond vs voluntary-market-position report classification. No sequencer admission, TypedTx schema/discriminant/signing-payload, wallet, kernel, bus, CAS ObjectType, price-as-truth, forced trade, live REAL-6B, ghost liquidity, f64/f32 economy/probability, private CoT, raw-log broadcast, or off-tape truth change. Predecessor REAL-11 hash 4a195084c6d2e368427e4ab44ca3ce2a5df49695f94598fea68112a37fbc544e superseded. Prior REAL-11 note: exported pure runtime helpers `market_tx_category` and `market_opportunity_trace` for structural-vs-agent market activity classification and ChainTape/CAS-derived Trader opportunity traces.
++"src/runtime/mod.rs" = "5d7bb47cd20ae683e66c1375fd128c1e36c9e756f0c49c13c7b201b1d248ff65"  # rehashed by REAL-13 Market Pressure Loop (2026-05-16): exported additive Generic-CAS/report-side helpers `ev_decision_trace`, `display_coin`, `market_review`, and `signal_purification` for EVDecisionTrace, fixed-point DisplayCoin parsing, deterministic Market Review Turn sidecars, and forced-bond vs voluntary-market-position report classification. No sequencer admission, TypedTx schema/discriminant/signing-payload, wallet, kernel, bus, CAS ObjectType, price-as-truth, forced trade, live REAL-6B, ghost liquidity, f64/f32 economy/probability, private CoT, raw-log broadcast, or off-tape truth change. Predecessor REAL-11 hash 4a195084c6d2e368427e4ab44ca3ce2a5df49695f94598fea68112a37fbc544e superseded. Prior REAL-11 note: exported pure runtime helpers `market_tx_category` and `market_opportunity_trace` for structural-vs-agent market activity classification and ChainTape/CAS-derived Trader opportunity traces.
++"src/runtime/librarian_broadcast.rs" = "a7b812aab798a593c6d7e6b9fed3370eba8a6074a0f4e6ccfae043399ae04c4c"  # NEW REAL-BCAST-1 (2026-05-16): CAS-backed role-scoped sanitized LibrarianDigest / RoleNotificationView broadcast loop; Generic CAS schema_id only, no new TypedTx, no sequencer admission, no signing payload, no CAS ObjectType edit, no raw prompt/completion/CoT/Lean stderr broadcast.
+ # 2026-05-02 TB-10 Atom 1 — `runtime::bootstrap` module (NEW file). Single source of truth preseed factory `default_pput_preseed_pairs()` consumed by both evaluator's `--task-mode self|both` preseed branch and `lean_market` user CLI bootstrap. Pure function; replay-deterministic; produces 12 entries (tb7-7-sponsor + Agent_user_0 + Agent_0..9) summing to 30_000_000 micro genesis supply.
+ "src/runtime/bootstrap.rs" = "9074fc09349efc76086ee034dab1319a77a0c06bcd5fa3a496e4a3613f571681"  # rehashed by TB-N3 A0.5 (2026-05-11; architect ruling Q1+Q2+amendment 6 + TB-N3 charter v3 §0.6): added `MarketMakerBudget` 13th preseed entry with 5_000_000 micro (10× safety margin over architect Q1's recommended DEFAULT_POOL_SEED = 100_000 micro × ~5 accepted WorkTx per 9-problem batch = 500_000 micro draw). Total preseed supply 30_000_000 → 35_000_000 micro. New unit test `market_maker_budget_present_with_5m_micro` (U9). Existing test names `returns_12_entries` → `returns_13_entries` and `total_preseed_supply_30m` → `total_preseed_supply_35m`. assert_no_post_init_mint preserved (genesis insertion, not post-init mint). MarketMakerBudget identity is consumed by TB-N3 A3 `tb_n3_emit_node_market_after_work_accept` adapter helper which signs TaskOpen/MarketSeed/CpmmPool tx via canonical agent paths (no system-emit bypass; no ghost liquidity). Predecessor TB-10 Atom 1 hash 78c09eab superseded.
+ # 2026-05-01 TB-6 Atom 2 — chaintape adapter helpers (synthetic TaskOpen/EscrowLock/WorkTx constructors + balance seeding) NEW file.
+@@ -240,7 +241,7 @@ boot_attestation_hash = "PENDING_v4_X_SELF_REFERENTIAL_COMPUTE"
+ "src/bin/gen_run_summary.rs" = "595677e44d31556383c901a692dae4c305bbffdd0a5cf4667a4679e07ec065b0"
+ # 2026-05-01 TB-8 — `audit_dashboard` CLI (NEW file). Diagnostic dashboard over runtime_repo + cas; composes verify_chaintape + chain_derived_run_facts + agent_keypairs + agent_audit_trail libraries; outputs 7-section text or --json structured report. Per TB-7 charter §13.1 (post-TB-7 sequencing TB-8).
+ # 2026-05-13 TB-G G3.2 R1 challenge remediation — `audit_dashboard --run-report` now renders §G.2 RiskCapImpactReport from L4.E + CAS + replayed QState per architect §7.1; dashboard remains a materialized view.
+-"src/bin/audit_dashboard.rs" = "da3203653e58203c832a81deb21dd5bc1bd7ef1cd3e0e0f6645179914c418ca7"  # rehashed by REAL-12 Role-Specialized Economic Agents (2026-05-16): run-report now derives EconomicJudgment counts and Bull/Bear judgment coverage from CAS schema records, preserving dashboard as materialized view over ChainTape/CAS. No sequencer admission, TypedTx schema/discriminant/signing payload, price-as-truth, forced trade, live REAL-6B, ghost liquidity, or f64/f32 economy change. Predecessor REAL-11 hash 75f57f6ecd43a496a6ffcbf407862f06e45d1043b48b7981f20212d74af78edc superseded.  # rehashed by REAL-11 Agent Economic Action Activation (2026-05-15): run-report counts persisted MarketOpportunityTrace CAS Generic schema records so micro-probe evidence can distinguish actionable-market observability from router action. Pure materialized view over ChainTape/CAS; no sequencer admission, TypedTx schema/discriminant/signing payload, price-as-truth, forced trade, live REAL-6B, ghost liquidity, or f64 economy change. Predecessor REAL-7 hash de03ae8d9aa7db77a2223e6b35a68f95c73cf33697f0f33e166c1948d44a3ca2 superseded.  # rehashed by REAL-7 V3-equivalent structural smoke (2026-05-15): run-report §K now derives structural-smoke inputs from ChainTape/CAS including TaskOutcomeMarket pools, scripted AttemptPrediction fixture CAS records, role-turn traces, router YES/NO counts, Verify/Challenge/EventResolve, PnL deltas, autopsy-if-loss, no forced investment, no price-as-truth, no ghost liquidity, and v3 comparison without claiming identical equivalence. Predecessor REAL-6D hash d711821a9b15a2b283073f22b957f5ff3c321d6800b45fc0124247aa9a33f8c4 superseded.  # rehashed by REAL-6D Opportunity Scheduler observe-only (2026-05-15): audit_dashboard --run-report now renders section J.1 non-binding SchedulerDecisionTrace from ChainTape-derived market/PnL signals via render_scheduler_trace_section; observe_only=true; no sequencer admission, L4/L4.E predicate, TypedTx schema, price-as-truth, ghost liquidity, or f64 economy change. Predecessor REAL-6A hash 81be801b superseded.  # rehashed by REAL-6A shared AttemptTelemetry-slot hardening (2026-05-15): run-report model-family AttemptTelemetry walker now uses the explicit shared-slot classifier, skips recognized MarketDecisionTrace JSON, and emits an error for unknown JSON instead of silently ignoring it. Predecessor TB-G G3.4 hash 52bc699b superseded.  # rehashed by TB-G G3.4 (2026-05-12; charter §1 Module G3 atom G3.4; G-Phase directive §G3 SG-G3.5 "PnL is visible in dashboard as materialized view"): `render_tb_n3_run_report` now calls `turingosv4::runtime::agent_pnl::compute_pnl_trajectory_from_paths(repo, cas_path)` between §F.X (peer-verify coverage) and the price-is-signal banner. On Ok the result's `render_section_g()` body is appended (per-agent realized/unrealized PnL + open-position count + solvency status across the canonical preseed agent registry); on Err an `[error]` line is emitted under the §G heading (fail-soft). Silent-zero-forbidden contract: `render_section_g()` auto-emits a MECHANISM BOTTLENECK explainer with ≥3 candidate causes when every row is flat (no PnL movement, no positions). The pre-existing "PRICE IS SIGNAL, NOT TRUTH" banner is renamed from `## §G` to `## §H` to free the §G label for PnL trajectory (architect §G3 SG-G3.5 verbatim mapping); SG-14.6 architect-mandated banner contract still enforced via `render_section_14` (separate section; unchanged). Predecessor TB-G G2.2 hash aad73808 superseded.  # rehashed by TB-G G2.2 (2026-05-12; charter §1 Module G2 atom G2.2; G-Phase directive §G2 SG-G2.3 "NoTradeReason appears in dashboard"): the inline §F MarketDecisionTrace walker + renderer was lifted into `turingosv4::runtime::market_decision_trace_summary::MarketDecisionTraceSummary::{compute_from_cas, render_section_f}` for library-test access. The renderer adds two new contract surfaces: (1) `submitted_vs_traced_ratio: <s>/<t> = <pct>%` row (integer-rational percent; `n/a (no traces)` on empty batches; no f64). (2) `## §F.A NoTradeReason exhaustive breakdown` block iterating `NoTradeReason::ALL` in stable insertion order, including zero-count variants for forward grep stability. Local imports `MarketDecisionTrace / NoTradeReason / TraceOutcome` removed (now consumed inside the helper); the suppress-unused `let _ = NoTradeReason::Unknown;` line + `fn reason_label` helper removed. Predecessor TB-G G2P.2 hash 2dba81a2 superseded.  # rehashed by TB-G G2P.2 (2026-05-12; charter §1 Module G2P atom G2P.2): `render_tb_n3_run_report` now calls `turingosv4::runtime::peer_verify_coverage::compute_peer_verify_coverage_from_paths(repo, cas_path)` between §F (MarketDecisionTrace summary) and §G (PRICE IS SIGNAL banner). On Ok the result's `render_section_f_x()` body is appended to the run report; on Err an `[error]` line is emitted under the §F.X heading (fail-soft so corrupted repos still produce a parseable dashboard). Per-agent `peer_verify_count` + coverage % + `non_solver_verifications` surface here as architect §8.2 ship-gate witness; silent-zero is forbidden — the renderer emits an explicit MECHANISM BOTTLENECK block when `non_solver_verifications == 0`. Closes user 2026-05-12 病灶3 "0 verify" quantification gap. Predecessor TB-N3 A5 hash 2926592f superseded.  # rehashed by TB-N3 A5 (2026-05-11; architect ruling 2026-05-11 SG-N3.12 + charter v3 §3): added `--run-report` CLI flag + `render_tb_n3_run_report(report, repo, cas) -> String` helper that walks L4 + CAS to surface §A citation tree (per-agent accepted WorkTx) + §B role activity (work_accepted / work_rejected / verify_accepted / verify_rejected per agent) + §C market tx counts (TaskOpen / EscrowLock / Work / Verify / FinalizeReward / EventResolve / CompleteSetMint / MarketSeed / CpmmPool / CpmmSwap / BuyWithCoinRouter / CompleteSetRedeem / CompleteSetMerge / Challenge / ChallengeResolve / TaskBankruptcy / TaskExpire / TerminalSummary) + §D top contested nodes by seed total μC (filtered to event_id starting with `node_survive:` per architect amendment 1) + §E budget burn report (pools_created / market_seed_total / treasury_budget_start = 5_000_000 μC genesis MarketMakerBudget / treasury_budget_end / pools_skipped_budget / router_buy_yes / router_buy_no per architect §8.5) + §F MarketDecisionTrace summary (scans CAS for objects whose schema_version sentinel matches "tb_n3.market_decision_trace.v1"; aggregates outcome breakdown + no-trade reason histogram per architect §8.2) + §G "PRICE IS SIGNAL, NOT TRUTH" banner. Pure read-only over ChainTape + CAS; no state mutation; replay-deterministic. Predecessor TB-N3 A0.5 hash e42b095a superseded.  # rehashed by TB-N3 A0.5 (2026-05-11; architect ruling Q1+Q2+amendment 6 follow-on): §16 sandbox banner string updated `30_000_000 μC` → `35_000_000 μC` to track new bootstrap.rs preseed total (30M legacy + 5M MarketMakerBudget). Pure docstring/banner edit; no semantic change. Predecessor TB-16.x.fix hash 88520fc7 superseded.  # rehashed by TB-16.x.fix (2026-05-04; architect OBS_R022 ruling Option α RATIFIED): SUBTRACTIVE — (1) deleted `read_latest_markov_pointer()` helper that read the global `handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt` file (Art. 0.2 parallel-ledger violation; de-canonicalized per architect ruling §B.7.1 — runtime path must source facts from Q_t/ChainTape/CAS, not from a global filesystem pointer). (2) Added `--markov-capsule-cid <hex>` CLI flag for explicit caller-supplied cid (replaces implicit global read). (3) `build_report` signature gained `markov_capsule_cid: Option<&str>` parameter; threaded through `main`. (4) Updated `render_section_15` empty-state hint to mention the new CLI flag and de-canonicalization. SG-15.6 unit tests preserved (still assert "no latest Markov capsule pointer" + "generate_markov_capsule" in empty-state output). Predecessor TB-16 Atom 4 hash 4674f9b6 superseded. Original rehash chain prior to TB-16.x.fix: # rehashed by TB-16 Atom 4 (2026-05-04; architect §7.5 SG-16.2 + closing OBS_TB_15_DASHBOARD_LIVE_REGEN_TB16): ADDITIVE — (1) live regeneration of agent_autopsies_t event counts via replay_full_transition over L4 (closes Codex R1 Q9). (2) NEW §16 SANDBOX banner per CR-16.7 + SG-16.8: scans agent_pubkeys manifest + L4 walk for sandbox-prefixed agent IDs; renders banner when sandbox_run=true. (3) NEW DashboardReport.sandbox_run: bool field. (4) NEW detect_sandbox_run + rebuild_autopsy_event_counts helpers. Predecessor TB-15 Atom 6 hash c953244a superseded.  # rehashed by TB-15 Atom 6 (2026-05-03; architect §6.5 SG-15.6): ADDITIVE — added §15 TB-15 Autopsy + Markov render section. (1) New DashboardReport fields: autopsy_event_counts: Vec<(String, u32)> + latest_markov_capsule_cid_hex: Option<String>. (2) New read_latest_markov_pointer() helper reading handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt (best-effort; None on absence). (3) New render_section_15(&[(String, u32)], Option<&str>) -> String pure function. ARCHITECT-MANDATED PRIVACY BANNER: opens with literal "AUTOPSY IS PRIVATE" (architect §6.4 + CR-15.1); SG-15.6 ship gate enforced by 4 tb14_render_tests::sg_15_6_* unit tests asserting (a) banner present, (b) input signature carries only counts + pointer hex (no raw bytes possible), (c) empty Markov pointer renders explicit generation hint, (d) Markov default-deny explanation ("TURINGOS_MARKOV_OVERRIDE=1" + "deeper history") present. (4) §15 invocation appended to render_text after §14. Predecessor TB-14 Atom 6 hash de1f71a1 superseded.  # rehashed by TB-14 Atom 6 (2026-05-03; architect 2026-05-03 ruling §5.1 + §5.5 SG-14.6 closing OBS_TB_12_LEGACY_CPMM_QUARANTINE): ADDITIVE — added §14 TB-14 PriceIndex render section. (1) New imports: `state::{compute_price_index, NodeMarketEntry, TaskId, TxId}`, `state::typed_tx::{NodePosition, PositionKind, PositionSide}`, `state::q_state::{AgentId, EconomicState}`, `economy::money::MicroCoin`. (2) New `DashboardReport.price_index: BTreeMap<TxId, NodeMarketEntry>` field populated by `price_index_from_exposures` helper that synthesizes an `EconomicState` from `exposures: Vec<ExposureRecordRow>` and calls canonical `state::compute_price_index` (no second source-of-truth — architect §5.1; charter §7 auto-resolution A). (3) New `render_section_14(&BTreeMap<TxId, NodeMarketEntry>) -> String` pure function. ARCHITECT-MANDATED BANNER: opens with literal "PRICE IS SIGNAL, NOT TRUTH" (architect §5.1 verbatim); SG-14.6 ship gate enforced by 4 `tb14_render_tests::sg_14_6_*` unit tests asserting (a) the banner is present, (b) prices render as `numerator/denominator` integer-rational (NEVER decimal — charter §5.6 forbidden), (c) empty PriceIndex renders explicit empty-state, (d) None-priced (zero-liquidity) nodes render as `None` per FR-14.3 / halt-trigger #5. (4) §14 invocation appended to `render_text` after §13. Predecessor TB-12 Atom 4 + Atom 6(a) hash 9881aed3 superseded. architect 2026-05-03 §8 Atom 4 + §9.3 SG-12.6): added §13 TB-12 Node exposure records section + ExposureRecordRow struct + L4 walk arms for TypedTx::Work (FirstLong row) + TypedTx::Challenge (ChallengeShort row). Refactored §13 inline render block into `render_section_13(&[ExposureRecordRow]) -> String` pure function for SG-12.6 unit-testability. Added `#[cfg(test)] mod tb12_render_tests::sg_12_6_dashboard_view_positions_works` covering empty + single-FirstLong + same-node-long+short + 2-node aggregation cases + forbidden-token grep (Open market balances / MarketBuy / etc). LABEL DISCIPLINE: "exposure records" NOT "Open market balances" (architect §8 Atom 4). Predecessors TB-11 Atom 5 hash 2e28c2b6 + earlier TB-12 hash f697ba24 superseded.  # rehashed by TB-11 Atom 5 (2026-05-02; architect §6.2 ruling): added §12 TB-11 Epistemic Exhaust + Capital Liberation section. 3 sub-tables: Exhausted runs (TerminalSummaryTx ≡ RunExhausted; run_id, task_id, outcome, attempts, capsule_cid), Expired tasks (TaskExpireTx; task_id, sponsor, refund, reason, @logical_t + total refund line), Bankrupt tasks (TaskBankruptcyTx; task_id, reason, failed_runs, capsule_cid). Privacy mandate footer (capsule public_summary surfaced; raw log shielded behind audit role). Predecessor TB-10 hash d89b2f32 superseded.
++"src/bin/audit_dashboard.rs" = "751618c541bbc66349f806147af660bfb137bfd8a28f7d646b550b5dd7cabc3a"  # rehashed by REAL-12 Role-Specialized Economic Agents (2026-05-16): run-report now derives EconomicJudgment counts and Bull/Bear judgment coverage from CAS schema records, preserving dashboard as materialized view over ChainTape/CAS. No sequencer admission, TypedTx schema/discriminant/signing payload, price-as-truth, forced trade, live REAL-6B, ghost liquidity, or f64/f32 economy change. Predecessor REAL-11 hash 75f57f6ecd43a496a6ffcbf407862f06e45d1043b48b7981f20212d74af78edc superseded.  # rehashed by REAL-11 Agent Economic Action Activation (2026-05-15): run-report counts persisted MarketOpportunityTrace CAS Generic schema records so micro-probe evidence can distinguish actionable-market observability from router action. Pure materialized view over ChainTape/CAS; no sequencer admission, TypedTx schema/discriminant/signing payload, price-as-truth, forced trade, live REAL-6B, ghost liquidity, or f64 economy change. Predecessor REAL-7 hash de03ae8d9aa7db77a2223e6b35a68f95c73cf33697f0f33e166c1948d44a3ca2 superseded.  # rehashed by REAL-7 V3-equivalent structural smoke (2026-05-15): run-report §K now derives structural-smoke inputs from ChainTape/CAS including TaskOutcomeMarket pools, scripted AttemptPrediction fixture CAS records, role-turn traces, router YES/NO counts, Verify/Challenge/EventResolve, PnL deltas, autopsy-if-loss, no forced investment, no price-as-truth, no ghost liquidity, and v3 comparison without claiming identical equivalence. Predecessor REAL-6D hash d711821a9b15a2b283073f22b957f5ff3c321d6800b45fc0124247aa9a33f8c4 superseded.  # rehashed by REAL-6D Opportunity Scheduler observe-only (2026-05-15): audit_dashboard --run-report now renders section J.1 non-binding SchedulerDecisionTrace from ChainTape-derived market/PnL signals via render_scheduler_trace_section; observe_only=true; no sequencer admission, L4/L4.E predicate, TypedTx schema, price-as-truth, ghost liquidity, or f64 economy change. Predecessor REAL-6A hash 81be801b superseded.  # rehashed by REAL-6A shared AttemptTelemetry-slot hardening (2026-05-15): run-report model-family AttemptTelemetry walker now uses the explicit shared-slot classifier, skips recognized MarketDecisionTrace JSON, and emits an error for unknown JSON instead of silently ignoring it. Predecessor TB-G G3.4 hash 52bc699b superseded.  # rehashed by TB-G G3.4 (2026-05-12; charter §1 Module G3 atom G3.4; G-Phase directive §G3 SG-G3.5 "PnL is visible in dashboard as materialized view"): `render_tb_n3_run_report` now calls `turingosv4::runtime::agent_pnl::compute_pnl_trajectory_from_paths(repo, cas_path)` between §F.X (peer-verify coverage) and the price-is-signal banner. On Ok the result's `render_section_g()` body is appended (per-agent realized/unrealized PnL + open-position count + solvency status across the canonical preseed agent registry); on Err an `[error]` line is emitted under the §G heading (fail-soft). Silent-zero-forbidden contract: `render_section_g()` auto-emits a MECHANISM BOTTLENECK explainer with ≥3 candidate causes when every row is flat (no PnL movement, no positions). The pre-existing "PRICE IS SIGNAL, NOT TRUTH" banner is renamed from `## §G` to `## §H` to free the §G label for PnL trajectory (architect §G3 SG-G3.5 verbatim mapping); SG-14.6 architect-mandated banner contract still enforced via `render_section_14` (separate section; unchanged). Predecessor TB-G G2.2 hash aad73808 superseded.  # rehashed by TB-G G2.2 (2026-05-12; charter §1 Module G2 atom G2.2; G-Phase directive §G2 SG-G2.3 "NoTradeReason appears in dashboard"): the inline §F MarketDecisionTrace walker + renderer was lifted into `turingosv4::runtime::market_decision_trace_summary::MarketDecisionTraceSummary::{compute_from_cas, render_section_f}` for library-test access. The renderer adds two new contract surfaces: (1) `submitted_vs_traced_ratio: <s>/<t> = <pct>%` row (integer-rational percent; `n/a (no traces)` on empty batches; no f64). (2) `## §F.A NoTradeReason exhaustive breakdown` block iterating `NoTradeReason::ALL` in stable insertion order, including zero-count variants for forward grep stability. Local imports `MarketDecisionTrace / NoTradeReason / TraceOutcome` removed (now consumed inside the helper); the suppress-unused `let _ = NoTradeReason::Unknown;` line + `fn reason_label` helper removed. Predecessor TB-G G2P.2 hash 2dba81a2 superseded.  # rehashed by TB-G G2P.2 (2026-05-12; charter §1 Module G2P atom G2P.2): `render_tb_n3_run_report` now calls `turingosv4::runtime::peer_verify_coverage::compute_peer_verify_coverage_from_paths(repo, cas_path)` between §F (MarketDecisionTrace summary) and §G (PRICE IS SIGNAL banner). On Ok the result's `render_section_f_x()` body is appended to the run report; on Err an `[error]` line is emitted under the §F.X heading (fail-soft so corrupted repos still produce a parseable dashboard). Per-agent `peer_verify_count` + coverage % + `non_solver_verifications` surface here as architect §8.2 ship-gate witness; silent-zero is forbidden — the renderer emits an explicit MECHANISM BOTTLENECK block when `non_solver_verifications == 0`. Closes user 2026-05-12 病灶3 "0 verify" quantification gap. Predecessor TB-N3 A5 hash 2926592f superseded.  # rehashed by TB-N3 A5 (2026-05-11; architect ruling 2026-05-11 SG-N3.12 + charter v3 §3): added `--run-report` CLI flag + `render_tb_n3_run_report(report, repo, cas) -> String` helper that walks L4 + CAS to surface §A citation tree (per-agent accepted WorkTx) + §B role activity (work_accepted / work_rejected / verify_accepted / verify_rejected per agent) + §C market tx counts (TaskOpen / EscrowLock / Work / Verify / FinalizeReward / EventResolve / CompleteSetMint / MarketSeed / CpmmPool / CpmmSwap / BuyWithCoinRouter / CompleteSetRedeem / CompleteSetMerge / Challenge / ChallengeResolve / TaskBankruptcy / TaskExpire / TerminalSummary) + §D top contested nodes by seed total μC (filtered to event_id starting with `node_survive:` per architect amendment 1) + §E budget burn report (pools_created / market_seed_total / treasury_budget_start = 5_000_000 μC genesis MarketMakerBudget / treasury_budget_end / pools_skipped_budget / router_buy_yes / router_buy_no per architect §8.5) + §F MarketDecisionTrace summary (scans CAS for objects whose schema_version sentinel matches "tb_n3.market_decision_trace.v1"; aggregates outcome breakdown + no-trade reason histogram per architect §8.2) + §G "PRICE IS SIGNAL, NOT TRUTH" banner. Pure read-only over ChainTape + CAS; no state mutation; replay-deterministic. Predecessor TB-N3 A0.5 hash e42b095a superseded.  # rehashed by TB-N3 A0.5 (2026-05-11; architect ruling Q1+Q2+amendment 6 follow-on): §16 sandbox banner string updated `30_000_000 μC` → `35_000_000 μC` to track new bootstrap.rs preseed total (30M legacy + 5M MarketMakerBudget). Pure docstring/banner edit; no semantic change. Predecessor TB-16.x.fix hash 88520fc7 superseded.  # rehashed by TB-16.x.fix (2026-05-04; architect OBS_R022 ruling Option α RATIFIED): SUBTRACTIVE — (1) deleted `read_latest_markov_pointer()` helper that read the global `handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt` file (Art. 0.2 parallel-ledger violation; de-canonicalized per architect ruling §B.7.1 — runtime path must source facts from Q_t/ChainTape/CAS, not from a global filesystem pointer). (2) Added `--markov-capsule-cid <hex>` CLI flag for explicit caller-supplied cid (replaces implicit global read). (3) `build_report` signature gained `markov_capsule_cid: Option<&str>` parameter; threaded through `main`. (4) Updated `render_section_15` empty-state hint to mention the new CLI flag and de-canonicalization. SG-15.6 unit tests preserved (still assert "no latest Markov capsule pointer" + "generate_markov_capsule" in empty-state output). Predecessor TB-16 Atom 4 hash 4674f9b6 superseded. Original rehash chain prior to TB-16.x.fix: # rehashed by TB-16 Atom 4 (2026-05-04; architect §7.5 SG-16.2 + closing OBS_TB_15_DASHBOARD_LIVE_REGEN_TB16): ADDITIVE — (1) live regeneration of agent_autopsies_t event counts via replay_full_transition over L4 (closes Codex R1 Q9). (2) NEW §16 SANDBOX banner per CR-16.7 + SG-16.8: scans agent_pubkeys manifest + L4 walk for sandbox-prefixed agent IDs; renders banner when sandbox_run=true. (3) NEW DashboardReport.sandbox_run: bool field. (4) NEW detect_sandbox_run + rebuild_autopsy_event_counts helpers. Predecessor TB-15 Atom 6 hash c953244a superseded.  # rehashed by TB-15 Atom 6 (2026-05-03; architect §6.5 SG-15.6): ADDITIVE — added §15 TB-15 Autopsy + Markov render section. (1) New DashboardReport fields: autopsy_event_counts: Vec<(String, u32)> + latest_markov_capsule_cid_hex: Option<String>. (2) New read_latest_markov_pointer() helper reading handover/markov_capsules/LATEST_MARKOV_CAPSULE.txt (best-effort; None on absence). (3) New render_section_15(&[(String, u32)], Option<&str>) -> String pure function. ARCHITECT-MANDATED PRIVACY BANNER: opens with literal "AUTOPSY IS PRIVATE" (architect §6.4 + CR-15.1); SG-15.6 ship gate enforced by 4 tb14_render_tests::sg_15_6_* unit tests asserting (a) banner present, (b) input signature carries only counts + pointer hex (no raw bytes possible), (c) empty Markov pointer renders explicit generation hint, (d) Markov default-deny explanation ("TURINGOS_MARKOV_OVERRIDE=1" + "deeper history") present. (4) §15 invocation appended to render_text after §14. Predecessor TB-14 Atom 6 hash de1f71a1 superseded.  # rehashed by TB-14 Atom 6 (2026-05-03; architect 2026-05-03 ruling §5.1 + §5.5 SG-14.6 closing OBS_TB_12_LEGACY_CPMM_QUARANTINE): ADDITIVE — added §14 TB-14 PriceIndex render section. (1) New imports: `state::{compute_price_index, NodeMarketEntry, TaskId, TxId}`, `state::typed_tx::{NodePosition, PositionKind, PositionSide}`, `state::q_state::{AgentId, EconomicState}`, `economy::money::MicroCoin`. (2) New `DashboardReport.price_index: BTreeMap<TxId, NodeMarketEntry>` field populated by `price_index_from_exposures` helper that synthesizes an `EconomicState` from `exposures: Vec<ExposureRecordRow>` and calls canonical `state::compute_price_index` (no second source-of-truth — architect §5.1; charter §7 auto-resolution A). (3) New `render_section_14(&BTreeMap<TxId, NodeMarketEntry>) -> String` pure function. ARCHITECT-MANDATED BANNER: opens with literal "PRICE IS SIGNAL, NOT TRUTH" (architect §5.1 verbatim); SG-14.6 ship gate enforced by 4 `tb14_render_tests::sg_14_6_*` unit tests asserting (a) the banner is present, (b) prices render as `numerator/denominator` integer-rational (NEVER decimal — charter §5.6 forbidden), (c) empty PriceIndex renders explicit empty-state, (d) None-priced (zero-liquidity) nodes render as `None` per FR-14.3 / halt-trigger #5. (4) §14 invocation appended to `render_text` after §13. Predecessor TB-12 Atom 4 + Atom 6(a) hash 9881aed3 superseded. architect 2026-05-03 §8 Atom 4 + §9.3 SG-12.6): added §13 TB-12 Node exposure records section + ExposureRecordRow struct + L4 walk arms for TypedTx::Work (FirstLong row) + TypedTx::Challenge (ChallengeShort row). Refactored §13 inline render block into `render_section_13(&[ExposureRecordRow]) -> String` pure function for SG-12.6 unit-testability. Added `#[cfg(test)] mod tb12_render_tests::sg_12_6_dashboard_view_positions_works` covering empty + single-FirstLong + same-node-long+short + 2-node aggregation cases + forbidden-token grep (Open market balances / MarketBuy / etc). LABEL DISCIPLINE: "exposure records" NOT "Open market balances" (architect §8 Atom 4). Predecessors TB-11 Atom 5 hash 2e28c2b6 + earlier TB-12 hash f697ba24 superseded.  # rehashed by TB-11 Atom 5 (2026-05-02; architect §6.2 ruling): added §12 TB-11 Epistemic Exhaust + Capital Liberation section. 3 sub-tables: Exhausted runs (TerminalSummaryTx ≡ RunExhausted; run_id, task_id, outcome, attempts, capsule_cid), Expired tasks (TaskExpireTx; task_id, sponsor, refund, reason, @logical_t + total refund line), Bankrupt tasks (TaskBankruptcyTx; task_id, reason, failed_runs, capsule_cid). Privacy mandate footer (capsule public_summary surfaced; raw log shielded behind audit role). Predecessor TB-10 hash d89b2f32 superseded.
+ # 2026-05-01 TB-6 Atom 6 — RunSummary integration tests (I92 / I92b / I92c) (NEW file).
+ "tests/tb_6_run_summary.rs" = "693634baf3ff0ebd5016bdbc79a88a6d2176c147296756b144f7f6de0740f2da"  # rehashed by TB-G G1.1 (2026-05-11 session #40): `fresh_config` test helper extended with `resume_existing_chain: false` field. Predecessor hash 6efb4baa superseded.
+ # 2026-05-01 TB-7 Atom 2 — authoritative routing integration tests (NEW file). I100 (real-signature WorkTx verifies via manifest) + I101 (zero-stake WorkTx → L4.E) + I102 (distinct agents → distinct pubkeys). Gate 1 + Gate 4 wired evidence.
+diff --git a/handover/reports/REAL12_TASK_MARKET_PROBE_REPORT.md b/handover/reports/REAL12_TASK_MARKET_PROBE_REPORT.md
+index ef99e9f9..2bb0288b 100644
+--- a/handover/reports/REAL12_TASK_MARKET_PROBE_REPORT.md
++++ b/handover/reports/REAL12_TASK_MARKET_PROBE_REPORT.md
+@@ -1,8 +1,8 @@
+ # REAL-12 Task-Market Action Probe Report
+ 
+-run_tag: `real13_market_pressure_probe_20260516T071216Z`
+-runtime_repo: `/home/zephryj/projects/turingosv4-real12-action-probes/handover/evidence/real13_market_pressure_probe_20260516T071216Z/runtime_repo`
+-CAS path: `/home/zephryj/projects/turingosv4-real12-action-probes/handover/evidence/real13_market_pressure_probe_20260516T071216Z/cas`
++run_tag: `real_bcast_1_hard10_B_20260516T100140Z`
++runtime_repo: `/home/zephryj/projects/turingosv4-real12-action-probes/handover/evidence/real_bcast_1_hard10_B_20260516T100140Z/runtime_repo`
++CAS path: `/home/zephryj/projects/turingosv4-real12-action-probes/handover/evidence/real_bcast_1_hard10_B_20260516T100140Z/cas`
+ audit_tape verdict: `PROCEED`
+ 
+ ## Constitutional Sentinels
+@@ -24,10 +24,10 @@ No f64/f32 money path
+ 
+ | Metric | Value |
+ | --- | ---: |
+-| MarketOpportunityTrace count | 10 |
+-| market_seed | 6 |
+-| cpmm_pool | 6 |
+-| event_resolve | 2 |
++| MarketOpportunityTrace count | 106 |
++| market_seed | 12 |
++| cpmm_pool | 12 |
++| event_resolve | 10 |
+ | bid_task_attempted | 0 |
+ | invest_attempted | 0 |
+ | invest_submitted | 0 |
+@@ -36,14 +36,14 @@ No f64/f32 money path
+ | buy_no_router_count | 0 |
+ | agent_economic_action_tx_count | 0 |
+ | live_non_scripted_router_tx_count | 0 |
+-| economic_judgment_total | 10 |
+-| bull_judgment_count | 5 |
+-| bear_judgment_count | 5 |
+-| abstain_structured_reason_count | 10 |
++| economic_judgment_total | 106 |
++| bull_judgment_count | 53 |
++| bear_judgment_count | 53 |
++| abstain_structured_reason_count | 106 |
+ | economic_judgment_coverage_ok | true |
+-| economic_judgment_required_trader_turns | 10 |
+-| economic_judgment_linked_trader_turns | 10 |
+-| no_trade_no_perceived_edge | 16 |
++| economic_judgment_required_trader_turns | 106 |
++| economic_judgment_linked_trader_turns | 106 |
++| no_trade_no_perceived_edge | 259 |
+ | no_trade_zero_amount | 0 |
+ | no_trade_no_pool | 0 |
+ | no_trade_amount_exceeds_balance | 0 |
+@@ -52,7 +52,7 @@ abstain_reason_distribution:
+ 
+ ```json
+ {
+-  "NoPerceivedEdge": 10
++  "NoPerceivedEdge": 106
+ }
+ ```
+ 
+diff --git a/handover/reports/REAL13_MARKET_PRESSURE_PROBE_REPORT.md b/handover/reports/REAL13_MARKET_PRESSURE_PROBE_REPORT.md
+index aeb7b30b..9728811f 100644
+--- a/handover/reports/REAL13_MARKET_PRESSURE_PROBE_REPORT.md
++++ b/handover/reports/REAL13_MARKET_PRESSURE_PROBE_REPORT.md
+@@ -1,8 +1,8 @@
+ # REAL-13 Market Pressure Probe Report
+ 
+-run_tag: `real13_market_pressure_probe_20260516T071216Z`
+-runtime_repo: `/home/zephryj/projects/turingosv4-real12-action-probes/handover/evidence/real13_market_pressure_probe_20260516T071216Z/runtime_repo`
+-CAS path: `/home/zephryj/projects/turingosv4-real12-action-probes/handover/evidence/real13_market_pressure_probe_20260516T071216Z/cas`
++run_tag: `real_bcast_1_hard10_B_20260516T100140Z`
++runtime_repo: `/home/zephryj/projects/turingosv4-real12-action-probes/handover/evidence/real_bcast_1_hard10_B_20260516T100140Z/runtime_repo`
++CAS path: `/home/zephryj/projects/turingosv4-real12-action-probes/handover/evidence/real_bcast_1_hard10_B_20260516T100140Z/cas`
+ audit_tape verdict: `PROCEED`
+ 
+ ## Sentinels
+@@ -25,13 +25,13 @@ No f64/f32 money path
+ 
+ | Metric | Value |
+ | --- | ---: |
+-| ev_decision_trace_total_cas | 10 |
+-| ev_decision_trace_bull_count_cas | 5 |
+-| ev_decision_trace_bear_count_cas | 5 |
++| ev_decision_trace_total_cas | 106 |
++| ev_decision_trace_bull_count_cas | 53 |
++| ev_decision_trace_bear_count_cas | 53 |
+ | ev_decision_trace_buy_yes_count_cas | 0 |
+ | ev_decision_trace_buy_no_count_cas | 0 |
+-| ev_decision_trace_abstain_count_cas | 10 |
+-| market_review_summary_cas_count | 10 |
++| ev_decision_trace_abstain_count_cas | 106 |
++| market_review_summary_cas_count | 106 |
+ | live_non_scripted_router_tx_count | 0 |
+ 
+ ## Interpretation
+diff --git a/src/bin/audit_dashboard.rs b/src/bin/audit_dashboard.rs
+index f1e544df..5de3849e 100644
+--- a/src/bin/audit_dashboard.rs
++++ b/src/bin/audit_dashboard.rs
+@@ -2870,6 +2870,49 @@ fn render_tb_n3_run_report(
+         "  market_review_summary_cas_count: {}\n",
+         market_review_summary_count
+     ));
++    let librarian_digest_cids =
++        turingosv4::runtime::librarian_broadcast::librarian_digest_cids(&cas);
++    let librarian_role_crop_count = cas
++        .list_all_cids()
++        .into_iter()
++        .filter(|cid| {
++            cas.metadata(cid).and_then(|meta| meta.schema_id.as_deref())
++                == Some(turingosv4::runtime::librarian_broadcast::LIBRARIAN_ROLE_CROP_SCHEMA_ID)
++        })
++        .count();
++    let librarian_shielding_ok = librarian_digest_cids.iter().all(|cid| {
++        let Ok(digest) =
++            turingosv4::runtime::librarian_broadcast::read_librarian_digest_from_cas(&cas, cid)
++        else {
++            return false;
++        };
++        let Ok(bytes) = serde_json::to_string(&digest) else {
++            return false;
++        };
++        turingosv4::runtime::librarian_broadcast::assert_no_forbidden_broadcast_material(&bytes)
++            .is_ok()
++    });
++    out.push_str("\n## §REAL-BCAST Librarian Broadcast\n");
++    out.push_str("  source: ChainTape/CAS materialized view; dashboard is not truth\n");
++    out.push_str(&format!(
++        "  librarian_digest_cas_count: {}\n",
++        librarian_digest_cids.len()
++    ));
++    out.push_str(&format!(
++        "  librarian_role_crop_cas_count: {}\n",
++        librarian_role_crop_count
++    ));
++    out.push_str(&format!(
++        "  librarian_shielding_verdict: {}\n",
++        if librarian_shielding_ok {
++            "PASS"
++        } else {
++            "FAIL"
++        }
++    ));
++    for cid in librarian_digest_cids.iter().take(3) {
++        out.push_str(&format!("    - librarian_digest_cid={cid}\n"));
++    }
+     match turingosv4::runtime::economic_judgment::verify_bull_bear_turn_judgment_coverage(&cas) {
+         Ok(report) => {
+             out.push_str("  economic_judgment_coverage_ok: true\n");
+diff --git a/src/runtime/market_review.rs b/src/runtime/market_review.rs
+index 7aee2c30..7494c03a 100644
+--- a/src/runtime/market_review.rs
++++ b/src/runtime/market_review.rs
+@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
+ 
+ use crate::bottom_white::cas::schema::{Cid, ObjectType};
+ use crate::bottom_white::cas::store::{CasError, CasStore};
++use crate::runtime::librarian_broadcast::{validate_broadcast_epoch, BroadcastEpoch};
+ use crate::runtime::real5_roles::AgentRole;
+ use crate::state::q_state::{AgentId, TxId};
+ use crate::state::typed_tx::EventId;
+@@ -45,6 +46,10 @@ pub struct MarketReviewWindow {
+     pub eligible_agents: Vec<AgentId>,
+     pub deadline_logical_t: u64,
+     pub mode: MarketReviewMode,
++    #[serde(default)]
++    pub librarian_digest_cid: Option<Cid>,
++    #[serde(default)]
++    pub broadcast_epoch_id: Option<String>,
+ }
+ 
+ /// TRACE_MATRIX FC1/FC3: per-agent response sidecar linking a review turn to
+@@ -59,6 +64,10 @@ pub struct MarketReviewResponse {
+     pub no_response_trace_cid: Option<Cid>,
+     pub action: String,
+     pub submitted_tx_id: Option<TxId>,
++    #[serde(default)]
++    pub librarian_digest_cid: Option<Cid>,
++    #[serde(default)]
++    pub broadcast_epoch_id: Option<String>,
+ }
+ 
+ /// TRACE_MATRIX FC3: CAS-backed summary of a review window for reports; it
+@@ -74,6 +83,8 @@ pub struct MarketReviewSummary {
+     pub missing_count: u64,
+     pub response_cids: Vec<Cid>,
+     pub committed_tx_ids: Vec<TxId>,
++    #[serde(default)]
++    pub digest_set: Vec<Cid>,
+ }
+ 
+ /// TRACE_MATRIX FC1: deterministic response ordering used by sequential and
+@@ -127,6 +138,41 @@ pub fn validate_market_review_summary(summary: &MarketReviewSummary) -> Result<(
+     Ok(())
+ }
+ 
++/// TRACE_MATRIX FC1/FC2/FC3: REAL-BCAST-1 half-async contract. A market
++/// review window freezes a Librarian digest at the barrier; every response in
++/// the window must cite the same digest/epoch, and replay must reject stale or
++/// future epochs.
++pub fn validate_market_review_broadcast_contract(
++    window: &MarketReviewWindow,
++    responses: &[MarketReviewResponse],
++    summary: &MarketReviewSummary,
++    epoch: &BroadcastEpoch,
++    current_head_t: u64,
++) -> Result<(), String> {
++    validate_broadcast_epoch(epoch, current_head_t)?;
++    let Some(window_digest) = window.librarian_digest_cid else {
++        return Err("MarketReviewWindow missing librarian_digest_cid".into());
++    };
++    if window_digest != epoch.digest_cid {
++        return Err("MarketReviewWindow digest mismatch with BroadcastEpoch".into());
++    }
++    if window.broadcast_epoch_id.as_deref() != Some(epoch.epoch_id.as_str()) {
++        return Err("MarketReviewWindow broadcast_epoch_id mismatch".into());
++    }
++    for response in responses {
++        if response.librarian_digest_cid != Some(window_digest) {
++            return Err("MarketReviewResponse digest mismatch".into());
++        }
++        if response.broadcast_epoch_id.as_deref() != Some(epoch.epoch_id.as_str()) {
++            return Err("MarketReviewResponse broadcast_epoch_id mismatch".into());
++        }
++    }
++    if !summary.digest_set.contains(&window_digest) {
++        return Err("MarketReviewSummary digest_set missing frozen digest".into());
++    }
++    Ok(())
++}
++
+ /// TRACE_MATRIX FC1/FC3: writes MarketReviewWindow as Generic CAS sidecar
+ /// without adding a new transaction type or admission rule.
+ pub fn write_market_review_window_to_cas(
+diff --git a/src/runtime/mod.rs b/src/runtime/mod.rs
+index fe3b9f30..a2d1a63e 100644
+--- a/src/runtime/mod.rs
++++ b/src/runtime/mod.rs
+@@ -216,6 +216,11 @@ pub mod agent_role_classifier;
+ /// evaluator and §K clean-negative renderer.
+ pub mod g7_structural_smoke;
+ 
++/// TRACE_MATRIX Art.II/Art.III (REAL-BCAST-1 2026-05-16): CAS-backed,
++/// role-scoped Librarian broadcast digest. Materialized view only; no new
++/// TypedTx, sequencer admission, signing payload, or CAS ObjectType.
++pub mod librarian_broadcast;
++
+ /// TRACE_MATRIX FC1/FC3 (REAL-11 Atom 1 2026-05-15): report-side market
+ /// transaction categorization. Splits legacy market_tx_count into structural
+ /// market activity, live agent economic action, scripted fixture activity, and
+diff --git a/tests/constitution_real13b_market_review_window.rs b/tests/constitution_real13b_market_review_window.rs
+index a02e8985..0efd9457 100644
+--- a/tests/constitution_real13b_market_review_window.rs
++++ b/tests/constitution_real13b_market_review_window.rs
+@@ -24,6 +24,8 @@ fn response(agent: &str, cid: Option<&str>) -> MarketReviewResponse {
+         no_response_trace_cid: None,
+         action: "Abstain".into(),
+         submitted_tx_id: None,
++        librarian_digest_cid: None,
++        broadcast_epoch_id: None,
+     }
+ }
+ 
+@@ -37,6 +39,8 @@ fn sequential_market_review_window_is_default_and_deterministic() {
+         eligible_agents: vec![AgentId("Agent_2".into()), AgentId("Agent_1".into())],
+         deadline_logical_t: 42,
+         mode: MarketReviewMode::SequentialRound,
++        librarian_digest_cid: None,
++        broadcast_epoch_id: None,
+     };
+     assert_eq!(window.mode, MarketReviewMode::SequentialRound);
+ 
+@@ -74,6 +78,7 @@ fn market_review_summary_counts_must_match_response_cids() {
+             Cid::from_content(b"response-2"),
+         ],
+         committed_tx_ids: vec![],
++        digest_set: vec![],
+     };
+     validate_market_review_summary(&summary).unwrap();
+ 
+@@ -103,6 +108,8 @@ fn market_review_sidecars_are_generic_cas_backed() {
+         eligible_agents: vec![AgentId("Agent_1".into())],
+         deadline_logical_t: 7,
+         mode: MarketReviewMode::SequentialRound,
++        librarian_digest_cid: None,
++        broadcast_epoch_id: None,
+     };
+     let response = response("Agent_1", Some("ev-cid"));
+     let summary = MarketReviewSummary {
+@@ -115,6 +122,7 @@ fn market_review_sidecars_are_generic_cas_backed() {
+         missing_count: 0,
+         response_cids: vec![Cid::from_content(b"response-cid")],
+         committed_tx_ids: vec![],
++        digest_set: vec![],
+     };
+ 
+     let window_cid = write_market_review_window_to_cas(&mut cas, &window, "window", 1).unwrap();
+
+diff --git a/dev/null b/src/runtime/librarian_broadcast.rs
+--- /dev/null
++++ b/src/runtime/librarian_broadcast.rs
++//! REAL-BCAST-1 — CAS-backed Librarian broadcast loop.
++//!
++//! This module derives sanitized, role-scoped notices from existing
++//! ChainTape/CAS evidence. It does not introduce TypedTx, sequencer
++//! admission rules, signing payloads, or CAS ObjectType variants.
++
++use std::collections::BTreeMap;
++
++use serde::{Deserialize, Serialize};
++
++use crate::bottom_white::cas::schema::{Cid, ObjectType};
++use crate::bottom_white::cas::store::{CasError, CasStore};
++use crate::runtime::attempt_telemetry::{
++    read_attempt_telemetry_shared_slot_from_cas, read_lean_result_from_cas, LeanVerdictKind,
++};
++use crate::runtime::economic_judgment::{economic_judgment_cids, read_economic_judgment_from_cas};
++use crate::runtime::ev_decision_trace::{ev_decision_trace_cids, read_ev_decision_trace_from_cas};
++use crate::runtime::prompt_capsule::PromptCapsuleV2;
++use crate::runtime::real5_roles::{AgentRole, HeadT};
++
++pub const LIBRARIAN_DIGEST_SCHEMA_ID: &str = "turingosv4.librarian_digest.v1";
++pub const LIBRARIAN_ROLE_CROP_SCHEMA_ID: &str = "turingosv4.librarian_role_crop.v1";
++pub const LIBRARIAN_BROADCAST_EPOCH_SCHEMA_ID: &str = "turingosv4.librarian_broadcast_epoch.v1";
++
++#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
++pub struct LibrarianSourceScope {
++    pub current_run_cas_root: Cid,
++    pub prior_capsule_cids: Vec<Cid>,
++    pub max_prior_batches: u32,
++    pub task_tags: Vec<String>,
++}
++
++#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
++pub enum LibrarianEvidenceKind {
++    LeanError,
++    PartialProgress,
++    MarketReason,
++    EVReason,
++    EconomicJudgment,
++    AttemptOutcome,
++}
++
++#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
++pub struct LibrarianEvidenceEvent {
++    pub cid: Cid,
++    pub kind: LibrarianEvidenceKind,
++    pub class_label: String,
++    pub task_id: Option<String>,
++    pub public_summary: String,
++    pub head_t: u64,
++}
++
++#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
++pub enum Trend {
++    Up,
++    Stable,
++    Down,
++}
++
++#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
++pub enum Staleness {
++    Current,
++    Recent,
++    Stale,
++}
++
++#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
++pub struct TypicalErrorCluster {
++    pub cluster_id: String,
++    pub error_class: String,
++    pub count: u32,
++    pub trend: Trend,
++    pub task_tags: Vec<String>,
++    pub role_hints: Vec<AgentRole>,
++    pub public_summary: String,
++    pub action_hint: Option<String>,
++    pub provenance_cids: Vec<Cid>,
++    pub staleness: Staleness,
++}
++
++#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
++pub enum ProgressKind {
++    PartialAccepted,
++    Verified,
++    FailedClassified,
++}
++
++#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
++pub enum VisibilityScope {
++    SameTask,
++    SameTag,
++    AuditOnly,
++}
++
++#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
++pub struct PartialProgressSummary {
++    pub summary_id: String,
++    pub task_id: String,
++    pub source_attempt_cid: Cid,
++    pub lean_result_cid: Cid,
++    pub progress_kind: ProgressKind,
++    pub tactic_class: Option<String>,
++    pub public_summary: String,
++    pub visibility_scope: VisibilityScope,
++}
++
++#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
++pub struct ReasonCluster {
++    pub reason: String,
++    pub count: u32,
++    pub role_hints: Vec<AgentRole>,
++    pub public_summary: String,
++    pub provenance_cids: Vec<Cid>,
++    pub staleness: Staleness,
++}
++
++#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
++pub struct LibrarianDigest {
++    pub schema_version: String,
++    pub digest_id: Cid,
++    pub source_scope: LibrarianSourceScope,
++    pub generated_at_head_t: HeadT,
++    pub typical_error_clusters: Vec<TypicalErrorCluster>,
++    pub partial_progress_summaries: Vec<PartialProgressSummary>,
++    pub market_reason_clusters: Vec<ReasonCluster>,
++    pub ev_reason_clusters: Vec<ReasonCluster>,
++    pub provenance_root: Cid,
++}
++
++#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
++pub struct BroadcastEpoch {
++    pub epoch_id: String,
++    pub source_head_t: u64,
++    pub digest_cid: Cid,
++    pub valid_from: u64,
++    pub valid_until: u64,
++    pub task_tags: Vec<String>,
++}
++
++#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
++pub struct RoleNotificationView {
++    pub source_digest_cid: Cid,
++    pub target_role: AgentRole,
++    pub rendered_notice: String,
++    pub redacted_fields: Vec<String>,
++}
++
++pub fn validate_librarian_source_scope(
++    scope: &LibrarianSourceScope,
++    cas: &CasStore,
++) -> Result<(), String> {
++    if scope.current_run_cas_root == Cid::default() {
++        return Err("missing current_run_cas_root".into());
++    }
++    for tag in &scope.task_tags {
++        let lower = tag.to_ascii_lowercase();
++        if lower.contains("latest") || lower.contains("pointer") || lower.contains(".txt") {
++            return Err("source scope contains forbidden global pointer marker".into());
++        }
++    }
++    for cid in &scope.prior_capsule_cids {
++        if cas.metadata(cid).is_none() {
++            return Err(format!("unresolved prior_capsule_cid {cid}"));
++        }
++    }
++    Ok(())
++}
++
++/// TRACE_MATRIX Art.0.2 + Art.II: derive a run-local CAS-root surrogate from
++/// explicit CAS index CIDs. This is not a global pointer and is only used as
++/// source-scope provenance for a materialized digest.
++pub fn derive_current_run_cas_root(cas: &CasStore) -> Cid {
++    let mut cids = cas.list_all_cids();
++    cids.sort();
++    let bytes = serde_json::to_vec(&cids).unwrap_or_default();
++    Cid::from_content(&bytes)
++}
++
++pub fn assert_no_forbidden_broadcast_material(text: &str) -> Result<(), String> {
++    let lower = text.to_ascii_lowercase();
++    let forbidden = [
++        "raw lean stderr",
++        "raw_prompt",
++        "raw prompt",
++        "raw_completion",
++        "raw completion",
++        "private cot",
++        "chain of thought",
++        "raw diagnostics",
++        "untriaged historical",
++    ];
++    if let Some(hit) = forbidden.iter().find(|needle| lower.contains(**needle)) {
++        return Err(format!("forbidden broadcast material: {hit}"));
++    }
++    Ok(())
++}
++
++pub fn decode_librarian_candidate(
++    cas: &CasStore,
++    cid: &Cid,
++) -> Result<Option<LibrarianEvidenceEvent>, String> {
++    let Some(meta) = cas.metadata(cid) else {
++        return Err(format!("missing CAS metadata for {cid}"));
++    };
++    match meta.schema_id.as_deref() {
++        Some(crate::runtime::ev_decision_trace::EV_DECISION_TRACE_SCHEMA_ID) => {
++            let trace = read_ev_decision_trace_from_cas(cas, cid).map_err(|e| e.to_string())?;
++            Ok(Some(LibrarianEvidenceEvent {
++                cid: *cid,
++                kind: LibrarianEvidenceKind::EVReason,
++                class_label: format!("ev:{:?}", trace.reason),
++                task_id: Some(trace.task_id.0),
++                public_summary: trace.public_summary,
++                head_t: meta.created_at_logical_t,
++            }))
++        }
++        Some(crate::runtime::economic_judgment::ECONOMIC_JUDGMENT_SCHEMA_ID) => {
++            let judgment = read_economic_judgment_from_cas(cas, cid).map_err(|e| e.to_string())?;
++            Ok(Some(LibrarianEvidenceEvent {
++                cid: *cid,
++                kind: LibrarianEvidenceKind::EconomicJudgment,
++                class_label: format!("economic:{:?}", judgment.reason),
++                task_id: Some(judgment.task_id.0),
++                public_summary: judgment.public_summary,
++                head_t: meta.created_at_logical_t,
++            }))
++        }
++        Some(schema) if schema == crate::runtime::attempt_telemetry::LEAN_RESULT_SCHEMA_ID => {
++            let result = read_lean_result_from_cas(cas, cid).map_err(|e| e.to_string())?;
++            let (kind, class_label, progress_kind) = match result.verdict_kind {
++                LeanVerdictKind::PartialAccepted => (
++                    LibrarianEvidenceKind::PartialProgress,
++                    "lean:PartialAccepted".to_string(),
++                    Some(ProgressKind::PartialAccepted),
++                ),
++                LeanVerdictKind::Verified => (
++                    LibrarianEvidenceKind::PartialProgress,
++                    "lean:Verified".to_string(),
++                    Some(ProgressKind::Verified),
++                ),
++                LeanVerdictKind::Failed | LeanVerdictKind::SorryBlocked => (
++                    LibrarianEvidenceKind::LeanError,
++                    format!(
++                        "err:{}",
++                        result
++                            .error_class
++                            .map(|c| format!("{c:?}"))
++                            .unwrap_or_else(|| format!("{:?}", result.verdict_kind))
++                    ),
++                    Some(ProgressKind::FailedClassified),
++                ),
++            };
++            let summary = match progress_kind {
++                Some(ProgressKind::PartialAccepted) => {
++                    "Externalized Lean attempt made partial progress".to_string()
++                }
++                Some(ProgressKind::Verified) => "Externalized Lean attempt verified".to_string(),
++                _ => "Externalized Lean attempt failed with classified error".to_string(),
++            };
++            Ok(Some(LibrarianEvidenceEvent {
++                cid: *cid,
++                kind,
++                class_label,
++                task_id: None,
++                public_summary: summary,
++                head_t: meta.created_at_logical_t,
++            }))
++        }
++        Some(schema)
++            if schema == crate::runtime::attempt_telemetry::ATTEMPT_TELEMETRY_SCHEMA_ID
++                || schema == "AttemptTelemetry" =>
++        {
++            let Some(attempt) =
++                read_attempt_telemetry_shared_slot_from_cas(cas, cid).map_err(|e| e.to_string())?
++            else {
++                return Ok(None);
++            };
++            Ok(Some(LibrarianEvidenceEvent {
++                cid: *cid,
++                kind: LibrarianEvidenceKind::AttemptOutcome,
++                class_label: format!("attempt:{:?}", attempt.outcome),
++                task_id: Some(attempt.task_id),
++                public_summary: format!("Externalized attempt outcome {:?}", attempt.outcome),
++                head_t: meta.created_at_logical_t,
++            }))
++        }
++        Some(schema)
++            if schema.starts_with("TypedTx.")
++                || schema == crate::runtime::prompt_capsule::PROMPT_CAPSULE_V2_SCHEMA_ID
++                || schema == crate::runtime::real5_roles::ROLE_TURN_TRACE_SCHEMA_ID
++                || schema == "real5.prompt.visible_context.v1"
++                || schema == "real5.derived_view.v1"
++                || schema == crate::runtime::market_review::MARKET_REVIEW_WINDOW_SCHEMA_ID
++                || schema == crate::runtime::market_review::MARKET_REVIEW_RESPONSE_SCHEMA_ID
++                || schema == crate::runtime::market_review::MARKET_REVIEW_SUMMARY_SCHEMA_ID =>
++        {
++            Ok(None)
++        }
++        Some(schema) => Err(format!("unknown librarian evidence schema: {schema}")),
++        None => match meta.object_type {
++            ObjectType::LeanResult => {
++                let result = read_lean_result_from_cas(cas, cid).map_err(|e| e.to_string())?;
++                let class_label = match result.verdict_kind {
++                    LeanVerdictKind::PartialAccepted => "lean:PartialAccepted".to_string(),
++                    LeanVerdictKind::Verified => "lean:Verified".to_string(),
++                    LeanVerdictKind::Failed | LeanVerdictKind::SorryBlocked => format!(
++                        "err:{}",
++                        result
++                            .error_class
++                            .map(|c| format!("{c:?}"))
++                            .unwrap_or_else(|| format!("{:?}", result.verdict_kind))
++                    ),
++                };
++                Ok(Some(LibrarianEvidenceEvent {
++                    cid: *cid,
++                    kind: if matches!(
++                        result.verdict_kind,
++                        LeanVerdictKind::PartialAccepted | LeanVerdictKind::Verified
++                    ) {
++                        LibrarianEvidenceKind::PartialProgress
++                    } else {
++                        LibrarianEvidenceKind::LeanError
++                    },
++                    class_label,
++                    task_id: None,
++                    public_summary: "Externalized Lean attempt has classified verdict".into(),
++                    head_t: meta.created_at_logical_t,
++                }))
++            }
++            ObjectType::AttemptTelemetry => {
++                let Some(attempt) = read_attempt_telemetry_shared_slot_from_cas(cas, cid)
++                    .map_err(|e| e.to_string())?
++                else {
++                    return Ok(None);
++                };
++                Ok(Some(LibrarianEvidenceEvent {
++                    cid: *cid,
++                    kind: LibrarianEvidenceKind::AttemptOutcome,
++                    class_label: format!("attempt:{:?}", attempt.outcome),
++                    task_id: Some(attempt.task_id),
++                    public_summary: format!("Externalized attempt outcome {:?}", attempt.outcome),
++                    head_t: meta.created_at_logical_t,
++                }))
++            }
++            _ => Ok(None),
++        },
++    }
++}
++
++pub fn select_librarian_events(cas: &CasStore) -> Result<Vec<LibrarianEvidenceEvent>, String> {
++    let mut cids = Vec::new();
++    cids.extend(ev_decision_trace_cids(cas));
++    cids.extend(economic_judgment_cids(cas));
++    cids.extend(cas.list_cids_by_object_type(ObjectType::LeanResult));
++    cids.extend(cas.list_cids_by_object_type(ObjectType::AttemptTelemetry));
++    cids.sort();
++    cids.dedup();
++
++    let mut events = Vec::new();
++    for cid in cids {
++        if let Some(event) = decode_librarian_candidate(cas, &cid)? {
++            assert_no_forbidden_broadcast_material(&event.public_summary)?;
++            events.push(event);
++        }
++    }
++    events.sort_by(|a, b| {
++        a.class_label
++            .cmp(&b.class_label)
++            .then_with(|| a.cid.cmp(&b.cid))
++    });
++    Ok(events)
++}
++
++pub fn build_librarian_digest(
++    source_scope: LibrarianSourceScope,
++    generated_at_head_t: u64,
++    mut events: Vec<LibrarianEvidenceEvent>,
++) -> Result<LibrarianDigest, String> {
++    events.sort_by(|a, b| {
++        a.class_label
++            .cmp(&b.class_label)
++            .then_with(|| a.cid.cmp(&b.cid))
++    });
++    for event in &events {
++        assert_no_forbidden_broadcast_material(&event.public_summary)?;
++    }
++
++    let mut grouped: BTreeMap<String, Vec<LibrarianEvidenceEvent>> = BTreeMap::new();
++    for event in events {
++        grouped
++            .entry(event.class_label.clone())
++            .or_default()
++            .push(event);
++    }
++
++    let mut typical_error_clusters = Vec::new();
++    let mut partial_progress_summaries = Vec::new();
++    let mut market_reason_clusters = Vec::new();
++    let mut ev_reason_clusters = Vec::new();
++    let mut provenance = Vec::new();
++
++    for (class, items) in grouped {
++        provenance.extend(items.iter().map(|e| e.cid));
++        let staleness = staleness_for(&items, generated_at_head_t);
++        let count = items.len() as u32;
++        let task_tags = task_tags_for(&items);
++        match items[0].kind {
++            LibrarianEvidenceKind::LeanError => {
++                if count >= 2 {
++                    typical_error_clusters.push(TypicalErrorCluster {
++                        cluster_id: format!("cluster:{class}"),
++                        error_class: class.clone(),
++                        count,
++                        trend: Trend::Stable,
++                        task_tags,
++                        role_hints: vec![AgentRole::Solver, AgentRole::Verifier],
++                        public_summary: format!("{class} repeated {count} times"),
++                        action_hint: Some(
++                            "Check the goal/type shape before repeating the tactic".into(),
++                        ),
++                        provenance_cids: items.iter().map(|e| e.cid).collect(),
++                        staleness,
++                    });
++                }
++            }
++            LibrarianEvidenceKind::PartialProgress => {
++                for event in items {
++                    let progress_kind = if event.class_label == "lean:Verified" {
++                        ProgressKind::Verified
++                    } else {
++                        ProgressKind::PartialAccepted
++                    };
++                    partial_progress_summaries.push(PartialProgressSummary {
++                        summary_id: format!("partial:{}", event.cid.hex()),
++                        task_id: event.task_id.unwrap_or_else(|| "unknown-task".into()),
++                        source_attempt_cid: event.cid,
++                        lean_result_cid: event.cid,
++                        progress_kind,
++                        tactic_class: Some(class.clone()),
++                        public_summary: event.public_summary,
++                        visibility_scope: VisibilityScope::SameTask,
++                    });
++                }
++            }
++            LibrarianEvidenceKind::MarketReason => {
++                market_reason_clusters.push(ReasonCluster {
++                    reason: class.clone(),
++                    count,
++                    role_hints: vec![
++                        AgentRole::Trader,
++                        AgentRole::BullTrader,
++                        AgentRole::BearTrader,
++                    ],
++                    public_summary: format!("{class} observed {count} times"),
++                    provenance_cids: items.iter().map(|e| e.cid).collect(),
++                    staleness,
++                });
++            }
++            LibrarianEvidenceKind::EVReason | LibrarianEvidenceKind::EconomicJudgment => {
++                ev_reason_clusters.push(ReasonCluster {
++                    reason: class.clone(),
++                    count,
++                    role_hints: vec![
++                        AgentRole::Trader,
++                        AgentRole::BullTrader,
++                        AgentRole::BearTrader,
++                    ],
++                    public_summary: format!("{class} observed {count} times"),
++                    provenance_cids: items.iter().map(|e| e.cid).collect(),
++                    staleness,
++                });
++            }
++            LibrarianEvidenceKind::AttemptOutcome => {}
++        }
++    }
++    provenance.sort();
++    provenance.dedup();
++    let provenance_root = Cid::from_content(
++        &serde_json::to_vec(&provenance).map_err(|e| format!("provenance encode: {e}"))?,
++    );
++
++    let mut digest = LibrarianDigest {
++        schema_version: LIBRARIAN_DIGEST_SCHEMA_ID.to_string(),
++        digest_id: Cid::default(),
++        source_scope,
++        generated_at_head_t: generated_at_head_t.to_string(),
++        typical_error_clusters,
++        partial_progress_summaries,
++        market_reason_clusters,
++        ev_reason_clusters,
++        provenance_root,
++    };
++    digest.digest_id = compute_digest_id(&digest)?;
++    validate_librarian_digest(&digest)?;
++    Ok(digest)
++}
++
++fn task_tags_for(items: &[LibrarianEvidenceEvent]) -> Vec<String> {
++    let mut tags: Vec<String> = items.iter().filter_map(|e| e.task_id.clone()).collect();
++    tags.sort();
++    tags.dedup();
++    tags
++}
++
++fn staleness_for(items: &[LibrarianEvidenceEvent], generated_at_head_t: u64) -> Staleness {
++    let latest = items.iter().map(|e| e.head_t).max().unwrap_or(0);
++    match generated_at_head_t.saturating_sub(latest) {
++        0..=5 => Staleness::Current,
++        6..=50 => Staleness::Recent,
++        _ => Staleness::Stale,
++    }
++}
++
++fn compute_digest_id(digest: &LibrarianDigest) -> Result<Cid, String> {
++    #[derive(Serialize)]
++    struct DigestIdInput<'a> {
++        schema_version: &'a str,
++        source_scope: &'a LibrarianSourceScope,
++        generated_at_head_t: &'a HeadT,
++        typical_error_clusters: &'a [TypicalErrorCluster],
++        partial_progress_summaries: &'a [PartialProgressSummary],
++        market_reason_clusters: &'a [ReasonCluster],
++        ev_reason_clusters: &'a [ReasonCluster],
++        provenance_root: Cid,
++    }
++    let input = DigestIdInput {
++        schema_version: &digest.schema_version,
++        source_scope: &digest.source_scope,
++        generated_at_head_t: &digest.generated_at_head_t,
++        typical_error_clusters: &digest.typical_error_clusters,
++        partial_progress_summaries: &digest.partial_progress_summaries,
++        market_reason_clusters: &digest.market_reason_clusters,
++        ev_reason_clusters: &digest.ev_reason_clusters,
++        provenance_root: digest.provenance_root,
++    };
++    let bytes = serde_json::to_vec(&input).map_err(|e| format!("digest id encode: {e}"))?;
++    Ok(Cid::from_content(&bytes))
++}
++
++pub fn validate_librarian_digest(digest: &LibrarianDigest) -> Result<(), String> {
++    if digest.schema_version != LIBRARIAN_DIGEST_SCHEMA_ID {
++        return Err(format!(
++            "unexpected LibrarianDigest schema {}",
++            digest.schema_version
++        ));
++    }
++    if digest.digest_id == Cid::default() {
++        return Err("LibrarianDigest digest_id must be non-zero".into());
++    }
++    if digest.provenance_root == Cid::default() {
++        return Err("LibrarianDigest provenance_root must be non-zero".into());
++    }
++    for cluster in &digest.typical_error_clusters {
++        assert_no_forbidden_broadcast_material(&cluster.public_summary)?;
++        if let Some(hint) = &cluster.action_hint {
++            assert_no_forbidden_broadcast_material(hint)?;
++        }
++        if cluster.count < 2 {
++            return Err("TypicalErrorCluster requires >=2 evidence events".into());
++        }
++        if cluster.provenance_cids.is_empty() {
++            return Err("TypicalErrorCluster requires provenance_cids".into());
++        }
++    }
++    for summary in &digest.partial_progress_summaries {
++        assert_no_forbidden_broadcast_material(&summary.public_summary)?;
++        if summary.source_attempt_cid == Cid::default() || summary.lean_result_cid == Cid::default()
++        {
++            return Err(
++                "PartialProgressSummary requires source AttemptTelemetry/LeanResult CIDs".into(),
++            );
++        }
++    }
++    for cluster in digest
++        .market_reason_clusters
++        .iter()
++        .chain(digest.ev_reason_clusters.iter())
++    {
++        assert_no_forbidden_broadcast_material(&cluster.public_summary)?;
++        if cluster.provenance_cids.is_empty() {
++            return Err("ReasonCluster requires provenance_cids".into());
++        }
++    }
++    Ok(())
++}
++
++pub fn write_librarian_digest_to_cas(
++    cas: &mut CasStore,
++    digest: &LibrarianDigest,
++    suffix: &str,
++    logical_t: u64,
++) -> Result<Cid, CasError> {
++    validate_librarian_digest(digest)
++        .map_err(|e| CasError::BackendCorruption(format!("LibrarianDigest invalid: {e}")))?;
++    let bytes = serde_json::to_vec(digest)
++        .map_err(|e| CasError::BackendCorruption(format!("LibrarianDigest encode: {e}")))?;
++    cas.put(
++        &bytes,
++        ObjectType::Generic,
++        &format!("real-bcast-librarian-digest-{suffix}"),
++        logical_t,
++        Some(LIBRARIAN_DIGEST_SCHEMA_ID.to_string()),
++    )
++}
++
++pub fn read_librarian_digest_from_cas(
++    cas: &CasStore,
++    cid: &Cid,
++) -> Result<LibrarianDigest, CasError> {
++    let bytes = cas.get(cid)?;
++    let digest: LibrarianDigest = serde_json::from_slice(&bytes)
++        .map_err(|e| CasError::BackendCorruption(format!("LibrarianDigest decode: {e}")))?;
++    validate_librarian_digest(&digest)
++        .map_err(|e| CasError::BackendCorruption(format!("LibrarianDigest invalid: {e}")))?;
++    Ok(digest)
++}
++
++pub fn librarian_digest_cids(cas: &CasStore) -> Vec<Cid> {
++    cas.list_all_cids()
++        .into_iter()
++        .filter(|cid| {
++            cas.metadata(cid).and_then(|meta| meta.schema_id.as_deref())
++                == Some(LIBRARIAN_DIGEST_SCHEMA_ID)
++        })
++        .collect()
++}
++
++pub fn validate_broadcast_epoch(epoch: &BroadcastEpoch, current_head_t: u64) -> Result<(), String> {
++    if epoch.epoch_id.trim().is_empty() {
++        return Err("BroadcastEpoch epoch_id must be non-empty".into());
++    }
++    if epoch.digest_cid == Cid::default() {
++        return Err("BroadcastEpoch digest_cid must be non-zero".into());
++    }
++    if epoch.valid_from < epoch.source_head_t {
++        return Err("BroadcastEpoch valid_from cannot precede source_head_t".into());
++    }
++    if current_head_t < epoch.valid_from {
++        return Err("future digest epoch used before valid_from".into());
++    }
++    if current_head_t > epoch.valid_until {
++        return Err("expired broadcast epoch".into());
++    }
++    Ok(())
++}
++
++pub fn project_role_notifications(
++    digest: &LibrarianDigest,
++    role: AgentRole,
++    max_items: usize,
++) -> Result<RoleNotificationView, String> {
++    let mut notices = Vec::new();
++    match role {
++        AgentRole::Solver => {
++            notices.extend(
++                digest
++                    .typical_error_clusters
++                    .iter()
++                    .take(max_items)
++                    .map(|c| {
++                        format!(
++                            "{} count={} trend={:?} hint={}",
++                            c.error_class,
++                            c.count,
++                            c.trend,
++                            c.action_hint.clone().unwrap_or_default()
++                        )
++                    }),
++            );
++            notices.extend(
++                digest
++                    .partial_progress_summaries
++                    .iter()
++                    .take(max_items.saturating_sub(notices.len()))
++                    .map(|s| format!("partial:{} {}", s.summary_id, s.public_summary)),
++            );
++        }
++        AgentRole::Trader | AgentRole::BullTrader | AgentRole::BearTrader => {
++            notices.extend(digest.ev_reason_clusters.iter().take(max_items).map(|c| {
++                format!(
++                    "{} count={} price anomaly check: {}",
++                    c.reason, c.count, c.public_summary
++                )
++            }));
++            notices.extend(
++                digest
++                    .market_reason_clusters
++                    .iter()
++                    .take(max_items.saturating_sub(notices.len()))
++                    .map(|c| format!("{} count={} {}", c.reason, c.count, c.public_summary)),
++            );
++        }
++        AgentRole::Verifier => {
++            notices
++                .push("proof-risk: inspect common false-progress patterns before verifying".into());
++            notices.extend(
++                digest
++                    .typical_error_clusters
++                    .iter()
++                    .take(max_items)
++                    .map(|c| format!("proof-risk {} count={}", c.error_class, c.count)),
++            );
++        }
++        AgentRole::Challenger => {
++            notices.push("suspicious-node summary: repeated failures may mark weak claims".into());
++            notices.extend(
++                digest
++                    .typical_error_clusters
++                    .iter()
++                    .take(max_items)
++                    .map(|c| format!("weakness {} count={}", c.error_class, c.count)),
++            );
++        }
++        AgentRole::Architect => {
++            notices.push(format!(
++                "aggregate trends: errors={} ev_reasons={}",
++                digest.typical_error_clusters.len(),
++                digest.ev_reason_clusters.len()
++            ));
++        }
++        _ => {}
++    }
++    if notices.is_empty() {
++        notices.push("No librarian notices for this role at current scope".into());
++    }
++    let rendered_notice =
++        render_librarian_notices_section(&digest.digest_id.to_string(), &notices, max_items)?;
++    Ok(RoleNotificationView {
++        source_digest_cid: digest.digest_id,
++        target_role: role,
++        rendered_notice,
++        redacted_fields: vec![
++            "lean_stderr_redacted".into(),
++            "prompt_body_redacted".into(),
++            "completion_body_redacted".into(),
++            "private_cot_redacted".into(),
++            "diagnostics_redacted".into(),
++        ],
++    })
++}
++
++pub fn write_role_notification_view_to_cas(
++    cas: &mut CasStore,
++    view: &RoleNotificationView,
++    suffix: &str,
++    logical_t: u64,
++) -> Result<Cid, CasError> {
++    assert_no_forbidden_broadcast_material(&view.rendered_notice)
++        .map_err(|e| CasError::BackendCorruption(format!("RoleNotificationView invalid: {e}")))?;
++    let bytes = serde_json::to_vec(view)
++        .map_err(|e| CasError::BackendCorruption(format!("RoleNotificationView encode: {e}")))?;
++    cas.put(
++        &bytes,
++        ObjectType::Generic,
++        &format!("real-bcast-role-notification-{suffix}"),
++        logical_t,
++        Some(LIBRARIAN_ROLE_CROP_SCHEMA_ID.to_string()),
++    )
++}
++
++pub fn render_librarian_notices_section(
++    digest_label: &str,
++    notices: &[String],
++    max_items: usize,
++) -> Result<String, String> {
++    let mut out = String::new();
++    out.push_str("=== Librarian Notices ===\n");
++    out.push_str("source: CAS/ChainTape-derived, role-scoped, raw logs redacted\n");
++    out.push_str(&format!("digest: {digest_label}\n"));
++    for notice in notices.iter().take(max_items) {
++        assert_no_forbidden_broadcast_material(notice)?;
++        out.push_str("- ");
++        out.push_str(notice);
++        out.push('\n');
++    }
++    out.push('\n');
++    Ok(out)
++}
++
++pub fn validate_prompt_capsule_librarian_binding(
++    capsule: &PromptCapsuleV2,
++    visible_context_bytes: &[u8],
++    digest_cid: Cid,
++    role_crop_cid: Cid,
++) -> Result<(), String> {
++    if !capsule.read_set.contains(&digest_cid) {
++        return Err("PromptCapsuleV2 read_set missing LibrarianDigest CID".into());
++    }
++    if !capsule.read_set.contains(&role_crop_cid) {
++        return Err("PromptCapsuleV2 read_set missing role crop CID".into());
++    }
++    if capsule.visible_context_cid != Cid::from_content(visible_context_bytes) {
++        return Err("PromptCapsuleV2 visible_context_cid does not match visible bytes".into());
++    }
++    if crate::state::q_state::Hash(Cid::from_content(visible_context_bytes).0)
++        != capsule.prompt_context_hash
++    {
++        return Err("PromptCapsuleV2 prompt_context_hash does not match visible bytes".into());
++    }
++    let visible = String::from_utf8_lossy(visible_context_bytes);
++    if !visible.contains("=== Librarian Notices ===") {
++        return Err("visible context missing Librarian Notices section".into());
++    }
++    assert_no_forbidden_broadcast_material(&visible)?;
++    Ok(())
++}
