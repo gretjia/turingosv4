@@ -218,7 +218,7 @@ fn wrapper_exit_2_with_clear_stderr_when_backend_missing() {
     );
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
-        stderr.contains("failed to invoke"),
+        stderr.contains("backend binary is not built") || stderr.contains("failed to invoke"),
         "wrapper should report failure clearly; stderr was:\n{stderr}",
     );
 }

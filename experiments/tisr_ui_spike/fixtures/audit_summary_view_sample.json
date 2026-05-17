@@ -5,7 +5,7 @@
     {
       "id": "blk-intro-text",
       "kind": "text",
-      "content": "Audit summary for the current run. Shows ChainTape/CAS integrity indicators and audit round history. This is a STATIC SAMPLE — not a live audit feed. All values are example data. Materialized view — not authoritative over ChainTape/CAS (FC3-N31)."
+      "content": "Audit summary for the current run. Shows ChainTape/CAS integrity indicators and audit round history. This is a STATIC SAMPLE — not a live audit feed. All values are example data. Materialized view — not authoritative over ChainTape/CAS (FC3-N31). 所有指标 PASS = 当前 ChainTape 完整性正常. 审计轮次裁决: VETO 阻挡 ship; CHALLENGE 需要修复; PROCEED 允许 ship."
     },
     {
       "id": "blk-audit-panel",

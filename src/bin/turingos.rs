@@ -187,7 +187,7 @@ const SUBCOMMANDS: &[Subcommand] = &[
 ];
 
 fn print_top_help() {
-    println!("turingos — TuringOS user CLI (Phase 6.0/6.1)");
+    println!("turingos — TuringOS user CLI (Phase 6.2)");
     println!();
     println!("USAGE:");
     println!("    turingos <SUBCOMMAND> [OPTIONS]");

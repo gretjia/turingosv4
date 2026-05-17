@@ -112,8 +112,28 @@ pub(crate) fn run_external(bin_name: &str, args: &[String]) -> ExitCode {
     match status {
         Ok(s) => ExitCode::from(s.code().unwrap_or(1) as u8),
         Err(e) => {
-            eprintln!("turingos: failed to invoke '{}': {}", bin_path.display(), e);
-            ExitCode::from(2)
+            use std::io::ErrorKind;
+            if matches!(e.kind(), ErrorKind::NotFound) {
+                eprintln!(
+                    "turingos: the '{}' backend binary is not built yet.",
+                    bin_name
+                );
+                eprintln!("  Resolution paths:");
+                eprintln!("    1. Build all workspace binaries:");
+                eprintln!("         cargo build --workspace");
+                eprintln!("       (Builds {} and other agent OS binaries.)", bin_name);
+                eprintln!("    2. If you only want to preview UI views (no backend needed):");
+                eprintln!("         turingos render --fixture <path-to-fixture.json>");
+                eprintln!("       Fixtures: experiments/tisr_ui_spike/fixtures/");
+                eprintln!("    3. If you have a custom build dir:");
+                eprintln!("         TURINGOS_BIN_DIR=<dir> turingos <cmd>");
+                eprintln!();
+                eprintln!("  (searched: {})", bin_path.display());
+                ExitCode::from(2)
+            } else {
+                eprintln!("turingos: failed to invoke '{}': {}", bin_path.display(), e);
+                ExitCode::from(2)
+            }
         }
     }
 }
