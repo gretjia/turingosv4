@@ -699,6 +699,28 @@ fn sg_6a_7_evaluator_exhaustion_path_calls_event_resolve_no_helper() {
 }
 
 #[test]
+fn sg_6a_7_exhaustion_event_resolve_no_uses_configured_poll_budget() {
+    let evaluator_src = std::fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs")
+        .expect("read evaluator");
+    let no_path = evaluator_src
+        .split("EventResolve NO emit FAIL-CLOSED: q_snapshot before EventResolve NO failed")
+        .nth(1)
+        .expect("NO exhaustion EventResolve path exists");
+    let no_path = no_path
+        .split("EventResolve NO emitted for exhausted task_id")
+        .next()
+        .expect("NO exhaustion EventResolve path has emitted marker");
+    assert!(
+        no_path.contains("real6a_poll_budget_ms()"),
+        "NO exhaustion EventResolve must use TURINGOS_REAL6A_POLL_BUDGET_MS instead of a hard-coded short wait"
+    );
+    assert!(
+        !no_path.contains("pre_er_root,\n                                        5000"),
+        "NO exhaustion EventResolve must not hard-code a 5000ms TerminalSummary wait"
+    );
+}
+
+#[test]
 fn sg_6a_6_evaluator_success_path_event_resolve_yes_is_fail_closed_when_enabled() {
     let evaluator_src = std::fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs")
         .expect("read evaluator");

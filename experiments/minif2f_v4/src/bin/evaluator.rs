@@ -8371,7 +8371,7 @@ async fn run_swarm(
                                     turingosv4::runtime::adapter::tb8_await_state_root_advance(
                                         bundle.sequencer.as_ref(),
                                         pre_er_root,
-                                        5000,
+                                        real6a_poll_budget_ms(),
                                     )
                                     .await
                                 {
