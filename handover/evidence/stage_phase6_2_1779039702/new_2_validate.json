@@ -1,0 +1,13 @@
+{
+  "command": "python3 experiments/tisr_ui_spike/validate.py --fixture experiments/tisr_ui_spike/fixtures/agent_role_view_sample.json",
+  "deliverable": "validate.py",
+  "evidence_files": [
+    "new_2_validate.stdout",
+    "new_2_validate.stderr"
+  ],
+  "exit_code": 0,
+  "ok_prefix": true,
+  "stderr_excerpt": "",
+  "stdout_excerpt": "OK: experiments/tisr_ui_spike/fixtures/agent_role_view_sample.json conforms to UI IR schema (title='Agent Role Distribution', 3 block(s))\n",
+  "verdict": "PASS"
+}

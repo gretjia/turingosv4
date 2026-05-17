@@ -1,0 +1,58 @@
+------------------------------------------------------------------------
+  TuringOS Audit Dashboard — 2026-05-17
+  dashboard:2026-05-17T12:00:00Z
+------------------------------------------------------------------------
+
+[text] blk-status-text
+Run summary: mini-M1 batch completed. Attempt equality PASS. All ChainTape/CAS evidence intact. This is a materialized view — not authoritative over ChainTape/CAS (FC3-N31).
+
+[dashboard_panel] blk-overview-panel
+  Run Overview
+  --------------
+    run_id                           run-2026-05-17-001
+    commit_head                      dbcd9537
+    total_problems                   8 problems
+    solved                           5 problems
+    solve_rate                       62.5 %
+    total_attempts                   47 attempts
+    l4_accepted_tx                   5 tx
+    l4e_rejected_tx                  38 tx
+    capsule_anchored                 4 tx
+    attempt_equality_check           PASS
+    mean_pput_solved                 0.214 PPUT
+    sigma_pput                       1.07 ΣPPUT
+
+[dashboard_panel] blk-economy-panel
+  Economic State Snapshot
+  -------------------------
+    total_supply_micro               30000000 μC
+    escrow_locked_micro              4200000 μC
+    rewards_paid_micro               1750000 μC
+    coin_conservation_check          PASS
+
+[table] blk-problem-table
+[ Per-problem result summary ]
+problem_id                                      status     attempts  assigned_agent             reward_μC
+---------------------------------------------------------------------------------------------------------
+minif2f::algebra::sum_sq_le_sq_sum              solved     4         agent:ProofAgent:0x1a2b3c  350000 μC
+minif2f::algebra::sum_arith_prog                solved     7         agent:ProofAgent:0x1a2b3c  350000 μC
+minif2f::number_theory::aime_1983_p1            exhausted  12        agent:ProofAgent:0x4d5e6f  0 μC     
+minif2f::algebra::imo_1964_p2                   solved     3         agent:ProofAgent:0x1a2b3c  350000 μC
+minif2f::number_theory::amc12a_2021_p10         expired    9         agent:ProofAgent:0x7g8h9i  0 μC     
+minif2f::algebra::amc12_2002_p11                solved     5         agent:ProofAgent:0x4d5e6f  350000 μC
+minif2f::number_theory::mathd_numbertheory_185  exhausted  4         agent:ProofAgent:0x7g8h9i  0 μC     
+minif2f::algebra::mathd_algebra_400             solved     3         agent:ProofAgent:0x1a2b3c  350000 μC
+
+[event_log] blk-recent-events
+  [L4] FinalizeRewardTx  tx:0000000a1b2c3d4e
+         Task minif2f::algebra::mathd_algebra_400 finalized; reward 350000 μC paid to agent:ProofAgent:0x1a2b3c
+  [L4] WorkTx  tx:0000000f9e8d7c6b
+         Accepted proof for minif2f::algebra::mathd_algebra_400 (attempt 3)
+  [L4E] LeanFailed  tx:0000000b3c4d5e6f
+         Rejected: sorry insertion detected in tactic proof (attempt 2)
+  [L4] RunExhaustedTx  tx:0000000c7d8e9f0a
+         Task minif2f::number_theory::mathd_numbertheory_185 exhausted after 4 attempts
+
+------------------------------------------------------------------------
+  FC3-N31: materialized view — not authoritative over ChainTape/CAS
+------------------------------------------------------------------------

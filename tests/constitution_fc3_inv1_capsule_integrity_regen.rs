@@ -30,15 +30,18 @@
 //!
 //! Test status: GREEN iff all 6 assertions hold on real evidence.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::sync::{Arc, RwLock};
 
+use tempfile::TempDir;
 use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
 use turingosv4::bottom_white::cas::store::CasStore;
 use turingosv4::runtime::attempt_telemetry::{read_attempt_telemetry_from_cas, AttemptOutcome};
 use turingosv4::runtime::evidence_capsule::restore_evidence_capsule_from_cas_bytes;
 
 const TB_C0_EVIDENCE_BATCH: &str = "handover/evidence/tb_c0_multi_agent_2026-05-06T16-30-36Z";
+const TB_C0_CAS_CI_FIXTURE: &str = "handover/evidence/ci_fixtures/tb_c0_capsule_cas_fixture.tgz";
 
 /// Test against P08 aime_1983_p1 — the problem with the richest
 /// EvidenceCapsule (39 step_partial_ok records, 5 step_reject, MaxTxExhausted
@@ -110,15 +113,50 @@ fn read_capsule_for_problem(
     restore_evidence_capsule_from_cas_bytes(&bytes).expect("decode capsule")
 }
 
+fn problem_dir_with_ci_fixture(prob_name: &str) -> (Option<TempDir>, PathBuf) {
+    let tracked = Path::new(TB_C0_EVIDENCE_BATCH).join(prob_name);
+    if tracked
+        .join("cas")
+        .join(".turingos_cas_index.jsonl")
+        .exists()
+    {
+        return (None, tracked);
+    }
+
+    let fixture = Path::new(TB_C0_CAS_CI_FIXTURE);
+    assert!(
+        fixture.exists(),
+        "FC3-INV1 CI fixture missing at {TB_C0_CAS_CI_FIXTURE}; \
+         fresh-checkout gates require the compact real CAS fixture"
+    );
+    let tmp = TempDir::new().expect("ci fixture tempdir");
+    let status = Command::new("tar")
+        .arg("-xzf")
+        .arg(fixture)
+        .arg("-C")
+        .arg(tmp.path())
+        .status()
+        .expect("extract TB-C0 CAS CI fixture");
+    assert!(
+        status.success(),
+        "extract TB-C0 CAS CI fixture failed with {status}"
+    );
+    let hydrated = tmp.path().join(prob_name);
+    assert!(
+        hydrated
+            .join("cas")
+            .join(".turingos_cas_index.jsonl")
+            .exists(),
+        "TB-C0 CAS CI fixture did not contain {prob_name}/cas/.turingos_cas_index.jsonl"
+    );
+    (Some(tmp), hydrated)
+}
+
 /// FC3-INV1.1 — capsule_id is content-addressable: equals sha256 of
 /// canonical-encoded capsule bytes (with capsule_id zeroed).
 #[test]
 fn fc3_inv1_capsule_id_is_content_addressable_p08() {
-    let prob_dir = Path::new(TB_C0_EVIDENCE_BATCH).join(PRIMARY_PROBLEM_DIR);
-    if !prob_dir.exists() {
-        eprintln!("FC3-INV1 test SKIPPED: {prob_dir:?} not present (expected on TB-C0 batch)");
-        return;
-    }
+    let (_fixture, prob_dir) = problem_dir_with_ci_fixture(PRIMARY_PROBLEM_DIR);
     let cas_path = prob_dir.join("cas");
     let cas = CasStore::open(&cas_path).expect("cas open");
     let capsule_cids = cas.list_cids_by_object_type(ObjectType::EvidenceCapsule);
@@ -148,11 +186,7 @@ fn fc3_inv1_capsule_id_is_content_addressable_p08() {
 /// path is broken.
 #[test]
 fn fc3_inv1_capsule_attempt_count_matches_at_count_p08() {
-    let prob_dir = Path::new(TB_C0_EVIDENCE_BATCH).join(PRIMARY_PROBLEM_DIR);
-    if !prob_dir.exists() {
-        eprintln!("FC3-INV1 test SKIPPED: {prob_dir:?} not present");
-        return;
-    }
+    let (_fixture, prob_dir) = problem_dir_with_ci_fixture(PRIMARY_PROBLEM_DIR);
     let cas_path = prob_dir.join("cas");
     let cas = CasStore::open(&cas_path).expect("cas open");
     let derived = derive_counts_from_attempt_telemetry(&cas);
@@ -171,11 +205,7 @@ fn fc3_inv1_capsule_attempt_count_matches_at_count_p08() {
 /// outcome routing is broken.
 #[test]
 fn fc3_inv1_capsule_outcome_counts_match_at_walk_p08() {
-    let prob_dir = Path::new(TB_C0_EVIDENCE_BATCH).join(PRIMARY_PROBLEM_DIR);
-    if !prob_dir.exists() {
-        eprintln!("FC3-INV1 test SKIPPED: {prob_dir:?} not present");
-        return;
-    }
+    let (_fixture, prob_dir) = problem_dir_with_ci_fixture(PRIMARY_PROBLEM_DIR);
     let cas_path = prob_dir.join("cas");
     let cas = CasStore::open(&cas_path).expect("cas open");
     let derived = derive_counts_from_attempt_telemetry(&cas);
@@ -210,11 +240,7 @@ fn fc3_inv1_capsule_outcome_counts_match_at_walk_p08() {
 #[test]
 fn fc3_inv1_capsule_integrity_secondary_problems() {
     for prob_name in SECONDARY_PROBLEM_DIRS {
-        let prob_dir = Path::new(TB_C0_EVIDENCE_BATCH).join(prob_name);
-        if !prob_dir.exists() {
-            eprintln!("FC3-INV1 secondary check SKIPPED: {prob_dir:?} not present");
-            continue;
-        }
+        let (_fixture, prob_dir) = problem_dir_with_ci_fixture(prob_name);
         let cas_path = prob_dir.join("cas");
         let cas = CasStore::open(&cas_path).expect("cas open");
         let capsule_cids = cas.list_cids_by_object_type(ObjectType::EvidenceCapsule);

@@ -23,16 +23,18 @@
 //! /// TRACE_MATRIX CO1.7 spec § 0 + CO1.1.4-pre1 § 0.1 cross-atom ordering:
 //! /// CAS index persistence — required by `replay_full_transition` cold-restart.
 
-use git2::{ObjectType as Git2ObjectType, Repository};
+use git2::Repository;
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
-use std::fs::OpenOptions;
+use std::fs::{remove_file, rename, OpenOptions};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
+use std::time::{Duration, Instant};
 
 use super::schema::{CasObjectMetadata, Cid, ObjectType};
 
 const CAS_INDEX_FILENAME: &str = ".turingos_cas_index.jsonl";
+const CAS_CHAIN_LOCK_FILENAME: &str = ".turingos_cas_chain.lock";
 
 #[derive(Debug)]
 pub enum CasError {
@@ -92,6 +94,49 @@ fn cas_index_path(repo_path: &Path) -> PathBuf {
     repo_path.join(CAS_INDEX_FILENAME)
 }
 
+fn cas_chain_lock_path(repo_path: &Path) -> PathBuf {
+    repo_path.join(CAS_CHAIN_LOCK_FILENAME)
+}
+
+struct CasChainLock {
+    path: PathBuf,
+}
+
+impl Drop for CasChainLock {
+    fn drop(&mut self) {
+        let _ = remove_file(&self.path);
+    }
+}
+
+fn acquire_cas_chain_lock(repo_path: &Path) -> Result<CasChainLock, CasError> {
+    let path = cas_chain_lock_path(repo_path);
+    let timeout_secs = std::env::var("TURINGOS_CAS_CHAIN_LOCK_TIMEOUT_SECS")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(120);
+    let deadline = Instant::now() + Duration::from_secs(timeout_secs);
+    loop {
+        match OpenOptions::new().write(true).create_new(true).open(&path) {
+            Ok(mut file) => {
+                let pid_line = format!("pid={}\n", std::process::id());
+                file.write_all(pid_line.as_bytes())?;
+                file.sync_data()?;
+                return Ok(CasChainLock { path });
+            }
+            Err(e) if e.kind() == io::ErrorKind::AlreadyExists && Instant::now() < deadline => {
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {
+                return Err(CasError::BackendCorruption(format!(
+                    "CAS chain lock timed out after {timeout_secs}s at {}",
+                    path.display(),
+                )));
+            }
+            Err(e) => return Err(CasError::IoError(e)),
+        }
+    }
+}
+
 /// CO1.4-extra: read the sidecar JSONL into an in-memory index.
 /// Strict mode — any malformed line aborts the load (per Art 0.2: a
 /// corrupted index means the tape is non-canonical; abort + diagnose
@@ -115,6 +160,36 @@ fn load_index_from_sidecar(repo_path: &Path) -> Result<BTreeMap<Cid, CasObjectMe
         index.insert(meta.cid, meta);
     }
     Ok(index)
+}
+
+fn load_index_for_repo_unlocked(
+    repo_path: &Path,
+) -> Result<BTreeMap<Cid, CasObjectMetadata>, CasError> {
+    let sidecar_path = cas_index_path(repo_path);
+    let sidecar_exists = sidecar_path.exists();
+    let sidecar = load_index_from_sidecar(repo_path)?;
+    let chain = super::git_chain::reconstruct_index_from_chain_with_cache(
+        repo_path,
+        sidecar_exists.then_some(&sidecar),
+    )?;
+
+    match chain {
+        Some(chain_index) => {
+            if sidecar_exists && sidecar != chain_index {
+                return Err(CasError::BackendCorruption(format!(
+                    "CAS sidecar cache mismatch with CAS commit-chain at {}",
+                    sidecar_path.display()
+                )));
+            }
+            Ok(chain_index)
+        }
+        None => Ok(sidecar),
+    }
+}
+
+fn load_index_for_repo(repo_path: &Path) -> Result<BTreeMap<Cid, CasObjectMetadata>, CasError> {
+    let _lock = acquire_cas_chain_lock(repo_path)?;
+    load_index_for_repo_unlocked(repo_path)
 }
 
 /// CO1.4-extra: append a single JSONL line for a newly-created CAS object.
@@ -148,6 +223,31 @@ fn append_to_sidecar(repo_path: &Path, meta: &CasObjectMetadata) -> Result<(), C
     Ok(())
 }
 
+fn rewrite_sidecar_cache(
+    repo_path: &Path,
+    index: &BTreeMap<Cid, CasObjectMetadata>,
+) -> Result<(), CasError> {
+    let path = cas_index_path(repo_path);
+    let tmp_path = repo_path.join(format!("{CAS_INDEX_FILENAME}.tmp.{}", std::process::id()));
+    let _ = remove_file(&tmp_path);
+    let mut f = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&tmp_path)?;
+    for meta in index.values() {
+        let serialized = serde_json::to_string(meta).map_err(|e| CasError::IndexParse {
+            line: 0,
+            error: format!("serialize: {e}"),
+        })?;
+        f.write_all(serialized.as_bytes())?;
+        f.write_all(b"\n")?;
+    }
+    f.sync_data()?;
+    drop(f);
+    rename(&tmp_path, &path)?;
+    Ok(())
+}
+
 /// Content-addressable store backed by git's blob object database.
 #[derive(Debug)]
 pub struct CasStore {
@@ -168,7 +268,7 @@ impl CasStore {
             Ok(r) => r,
             Err(_) => Repository::init(&repo_path)?,
         };
-        let index = load_index_from_sidecar(&repo_path)?;
+        let index = load_index_for_repo(&repo_path)?;
         Ok(Self { repo_path, index })
     }
 
@@ -203,11 +303,11 @@ impl CasStore {
     /// TRACE_MATRIX FC1-N41 (TB-18R R3.fix; consumed by sequencer.rs
     /// `refine_rejection_class_via_attempt_telemetry` retry path).
     pub fn reload_index_from_sidecar(&mut self) -> Result<(), CasError> {
-        let fresh = load_index_from_sidecar(&self.repo_path)?;
-        // Merge: BTreeMap::extend overwrites duplicates with the new value.
-        // Since the sidecar is the durable canonical record, the freshly-read
-        // entries are authoritative.
-        self.index.extend(fresh);
+        let fresh = load_index_for_repo(&self.repo_path)?;
+        // Replace, do not merge. The loader prefers the CAS commit-chain when
+        // present and validates any sidecar cache against it, so stale hot
+        // entries must not survive a reload.
+        self.index = fresh;
         Ok(())
     }
 
@@ -238,11 +338,13 @@ impl CasStore {
     /// TRACE_MATRIX FC2-N34 (TB-18R R5 audit-tape sampler reaches
     /// mathematical content).
     pub fn list_cids_by_object_type(&self, ty: ObjectType) -> Vec<Cid> {
-        self.index
+        let mut matches: Vec<&CasObjectMetadata> = self
+            .index
             .values()
             .filter(|m| m.object_type == ty)
-            .map(|m| m.cid)
-            .collect()
+            .collect();
+        matches.sort_by_key(|m| (m.created_at_logical_t, m.cid));
+        matches.into_iter().map(|m| m.cid).collect()
     }
 
     /// TRACE_MATRIX FC1-N34 + FC1-N35: bytes-content immutability witness
@@ -262,6 +364,42 @@ impl CasStore {
         self.index.values().map(|m| m.cid).collect()
     }
 
+    /// TRACE_MATRIX FC1-N41 + FC2-N34: tape-derived CAS lookup by schema id
+    /// without exposing raw evidence bytes to ordinary agent read views.
+    pub fn list_cids_by_schema_id(&self, schema_id: &str) -> Vec<Cid> {
+        let mut matches: Vec<&CasObjectMetadata> = self
+            .index
+            .values()
+            .filter(|m| m.schema_id.as_deref() == Some(schema_id))
+            .collect();
+        matches.sort_by_key(|m| (m.created_at_logical_t, m.cid));
+        matches.into_iter().map(|m| m.cid).collect()
+    }
+
+    /// TRACE_MATRIX FC1-N41 + FC2-N34: tape-derived CAS lookup by creator/run
+    /// authority for audit samplers and replay diagnostics.
+    pub fn list_cids_by_creator(&self, creator: &str) -> Vec<Cid> {
+        let mut matches: Vec<&CasObjectMetadata> = self
+            .index
+            .values()
+            .filter(|m| m.creator == creator)
+            .collect();
+        matches.sort_by_key(|m| (m.created_at_logical_t, m.cid));
+        matches.into_iter().map(|m| m.cid).collect()
+    }
+
+    /// TRACE_MATRIX FC1-N41 + FC2-N34: tape-derived CAS lookup by logical time
+    /// for reconstructable audit and replay views.
+    pub fn list_cids_by_logical_t(&self, logical_t: u64) -> Vec<Cid> {
+        let mut matches: Vec<&CasObjectMetadata> = self
+            .index
+            .values()
+            .filter(|m| m.created_at_logical_t == logical_t)
+            .collect();
+        matches.sort_by_key(|m| m.cid);
+        matches.into_iter().map(|m| m.cid).collect()
+    }
+
     /// Store content; returns its Cid. Idempotent — same content → same Cid.
     pub fn put(
         &mut self,
@@ -272,8 +410,10 @@ impl CasStore {
         schema_id: Option<String>,
     ) -> Result<Cid, CasError> {
         let cid = Cid::from_content(content);
-        let repo = self.open_repo()?;
-        let git_oid = repo.blob(content)?;
+        let _lock = acquire_cas_chain_lock(&self.repo_path)?;
+        let sidecar_was_present = cas_index_path(&self.repo_path).exists();
+        let had_cas_chain = super::git_chain::has_cas_commit_chain(&self.repo_path)?;
+        self.index = load_index_for_repo_unlocked(&self.repo_path)?;
 
         // If already in index, idempotent: just return Cid (content addressing
         // guarantees same content → same Cid → already present)
@@ -281,6 +421,8 @@ impl CasStore {
             return Ok(cid);
         }
 
+        let repo = self.open_repo()?;
+        let git_oid = repo.blob(content)?;
         let metadata = CasObjectMetadata {
             cid,
             backend_oid_hex: git_oid.to_string(),
@@ -290,26 +432,48 @@ impl CasStore {
             schema_id,
             size_bytes: content.len() as u64,
         };
-        // CO1.4-extra: durably append BEFORE inserting into in-memory index
-        // (so a crash mid-write leaves the runtime in a consistent state —
-        // either the entry is durably recorded AND in-memory, or neither).
-        append_to_sidecar(&self.repo_path, &metadata)?;
-        self.index.insert(cid, metadata);
 
-        // Stage A3 / HEAD_t C2 R3 — advance refs/chaintape/cas to track the
-        // new git_oid (the blob OID of the just-written content). This is the
-        // canonical CAS root pointer per FR-A3-HEAD-T-C2.2 / SG-A3.3. The ref
-        // is best-effort: a failure here MUST NOT roll back the CAS write
-        // (the durable append already succeeded), but does fire R-022-PASS
-        // failure logging via the Err path's BackendCorruption variant for
-        // operator visibility. Per CR-A3-HEAD-T-C2.5 the ref IS the canonical
-        // pointer; transient ref-update failures are recoverable on next
-        // CAS write because the ref is overwrite-safe (force=true).
-        let _ = crate::bottom_white::ledger::transition_ledger::Git2LedgerWriter::advance_chaintape_cas_to(
+        let previous_cas_root = if self.index.is_empty() {
+            None
+        } else {
+            Some(super::git_chain::merkle_root_for_index(&self.index))
+        };
+        let legacy_prefix_metadata: Vec<CasObjectMetadata> = if had_cas_chain {
+            Vec::new()
+        } else {
+            self.index.values().cloned().collect()
+        };
+        let mut prospective = self.index.clone();
+        prospective.insert(cid, metadata.clone());
+        let resulting_cas_root = super::git_chain::merkle_root_for_index(&prospective);
+
+        // The CAS commit-chain is now canonical. If the commit/ref update
+        // fails, put fails before the sidecar cache or hot index can accept
+        // the object.
+        super::git_chain::append_cas_commit(
             &self.repo_path,
-            git_oid,
-            &format!("CAS put: cid={cid}"),
-        );
+            &metadata,
+            previous_cas_root,
+            resulting_cas_root,
+            legacy_prefix_metadata,
+        )?;
+
+        // Sidecar is a cache. Keep it warm on the hot path, but if cache write
+        // fails after the canonical chain advanced, remove the stale cache so
+        // the next open rebuilds from ChainTape/CAS instead of seeing mismatch.
+        let cache_write = if sidecar_was_present {
+            append_to_sidecar(&self.repo_path, &metadata)
+        } else {
+            rewrite_sidecar_cache(&self.repo_path, &prospective)
+        };
+        if let Err(e) = cache_write {
+            let path = cas_index_path(&self.repo_path);
+            let _ = remove_file(&path);
+            if path.exists() {
+                return Err(e);
+            }
+        }
+        self.index = prospective;
 
         Ok(cid)
     }
@@ -415,11 +579,7 @@ impl CasStore {
 
     /// Merkle root over all CAS object metadata; deterministic per BTreeMap order.
     pub fn merkle_root(&self) -> [u8; 32] {
-        let mut h = Sha256::new();
-        for (_cid, meta) in &self.index {
-            h.update(meta.canonical_hash());
-        }
-        h.finalize().into()
+        super::git_chain::merkle_root_for_index(&self.index)
     }
 }
 
@@ -783,5 +943,737 @@ mod tests {
         let s = CasStore::open(tmp.path()).expect("open");
         assert_eq!(s.len(), 0);
         assert!(s.is_empty());
+    }
+
+    #[test]
+    fn cas_ref_points_to_commit_object_not_blob_after_put() {
+        let tmp = TempDir::new().expect("tempdir");
+        let mut s = CasStore::open(tmp.path()).expect("open");
+        s.put(b"cas-chain-object", ObjectType::Generic, "alice", 1, None)
+            .expect("put");
+
+        let repo = Repository::open(tmp.path()).expect("repo");
+        let oid =
+            crate::bottom_white::ledger::transition_ledger::Git2LedgerWriter::head_chaintape_cas(
+                tmp.path(),
+            )
+            .expect("read cas ref")
+            .expect("cas ref present");
+        let object = repo.find_object(oid, None).expect("cas head object");
+        assert_eq!(
+            object.kind(),
+            Some(git2::ObjectType::Commit),
+            "refs/chaintape/cas must point at the CAS commit-chain head, not at a raw blob"
+        );
+    }
+
+    #[test]
+    fn invalid_blob_cas_ref_fails_open_closed() {
+        let tmp = TempDir::new().expect("tempdir");
+        let _s = CasStore::open(tmp.path()).expect("init repo");
+        let repo = Repository::open(tmp.path()).expect("repo");
+        let blob_oid = repo.blob(b"not-a-cas-chain-commit").expect("blob");
+        repo.reference(
+            crate::bottom_white::ledger::transition_ledger::CHAINTAPE_CAS_REF,
+            blob_oid,
+            true,
+            "test invalid cas ref",
+        )
+        .expect("write invalid cas ref");
+
+        let err = CasStore::open(tmp.path())
+            .expect_err("present but non-commit refs/chaintape/cas must fail closed");
+        assert!(
+            err.to_string().contains("not a CAS commit-chain head"),
+            "expected invalid CAS ref diagnostic, got {err}"
+        );
+    }
+
+    #[test]
+    fn legacy_blob_cas_ref_with_sidecar_opens_and_upgrades_on_next_put() {
+        let tmp = TempDir::new().expect("tempdir");
+        let _s = CasStore::open(tmp.path()).expect("init repo");
+        let repo = Repository::open(tmp.path()).expect("repo");
+        let legacy_bytes = b"legacy-object-with-blob-ref";
+        let legacy_oid = repo.blob(legacy_bytes).expect("legacy blob");
+        let legacy_meta = CasObjectMetadata {
+            cid: Cid::from_content(legacy_bytes),
+            backend_oid_hex: legacy_oid.to_string(),
+            object_type: ObjectType::Generic,
+            creator: "legacy-writer".to_string(),
+            created_at_logical_t: 1,
+            schema_id: Some("legacy/schema.v1".to_string()),
+            size_bytes: legacy_bytes.len() as u64,
+        };
+        append_to_sidecar(tmp.path(), &legacy_meta).expect("legacy sidecar");
+        repo.reference(
+            crate::bottom_white::ledger::transition_ledger::CHAINTAPE_CAS_REF,
+            legacy_oid,
+            true,
+            "legacy latest-blob CAS ref",
+        )
+        .expect("write legacy blob ref");
+
+        let mut s = CasStore::open(tmp.path()).expect("legacy blob ref should open via sidecar");
+        assert_eq!(s.get(&legacy_meta.cid).expect("legacy get"), legacy_bytes);
+        let new_cid = s
+            .put(
+                b"new-forward-object",
+                ObjectType::Generic,
+                "runner",
+                2,
+                None,
+            )
+            .expect("forward put upgrades legacy blob ref");
+
+        let head =
+            crate::bottom_white::ledger::transition_ledger::Git2LedgerWriter::head_chaintape_cas(
+                tmp.path(),
+            )
+            .expect("read cas head")
+            .expect("cas head");
+        let object = repo.find_object(head, None).expect("cas head object");
+        assert_eq!(
+            object.kind(),
+            Some(git2::ObjectType::Commit),
+            "first forward put must upgrade legacy blob ref to CAS commit-chain head"
+        );
+        assert_eq!(s.get(&legacy_meta.cid).expect("legacy get"), legacy_bytes);
+        assert_eq!(s.get(&new_cid).expect("new get"), b"new-forward-object");
+    }
+
+    #[test]
+    fn merge_shaped_cas_chain_fails_validation() {
+        let tmp = TempDir::new().expect("tempdir");
+        {
+            let mut s = CasStore::open(tmp.path()).expect("open");
+            s.put(b"alpha", ObjectType::Generic, "alice", 1, None)
+                .expect("put alpha");
+            s.put(b"beta", ObjectType::Generic, "alice", 2, None)
+                .expect("put beta");
+        }
+
+        let repo = Repository::open(tmp.path()).expect("repo");
+        let head_oid =
+            crate::bottom_white::ledger::transition_ledger::Git2LedgerWriter::head_chaintape_cas(
+                tmp.path(),
+            )
+            .expect("read cas head")
+            .expect("cas head");
+        let head_commit = repo.find_commit(head_oid).expect("head commit");
+        let parent_commit = head_commit.parent(0).expect("parent commit");
+        let tree = head_commit.tree().expect("tree");
+        let sig = git2::Signature::now("test", "test@local").expect("sig");
+        let merge_oid = repo
+            .commit(
+                None,
+                &sig,
+                &sig,
+                "invalid merge-shaped cas chain",
+                &tree,
+                &[&head_commit, &parent_commit],
+            )
+            .expect("merge commit");
+        repo.reference(
+            crate::bottom_white::ledger::transition_ledger::CHAINTAPE_CAS_REF,
+            merge_oid,
+            true,
+            "point CAS ref at merge-shaped chain",
+        )
+        .expect("update cas ref");
+
+        let err = CasStore::open(tmp.path())
+            .expect_err("merge-shaped CAS histories must fail validation");
+        assert!(
+            err.to_string().contains("merge-shaped CAS histories"),
+            "expected merge-shaped diagnostic, got {err}"
+        );
+    }
+
+    #[test]
+    fn cas_put_advances_strict_commit_chain_roots() {
+        let tmp = TempDir::new().expect("tempdir");
+        let mut s = CasStore::open(tmp.path()).expect("open");
+        s.put(b"alpha", ObjectType::Generic, "alice", 1, None)
+            .expect("put alpha");
+        s.put(b"beta", ObjectType::Generic, "alice", 2, None)
+            .expect("put beta");
+
+        let records = crate::bottom_white::cas::git_chain::load_chain_records(tmp.path())
+            .expect("chain records");
+        assert_eq!(records.len(), 2);
+        assert_eq!(records[0].previous_cas_root, None);
+        assert_eq!(
+            records[1].previous_cas_root,
+            Some(records[0].resulting_cas_root),
+            "second CAS commit must chain to the first resulting CAS root"
+        );
+        assert_ne!(
+            records[0].resulting_cas_root, records[1].resulting_cas_root,
+            "each new CAS object must advance the CAS Merkle root"
+        );
+    }
+
+    #[test]
+    fn cas_chain_reconstructs_exact_metadata_index() {
+        let tmp = TempDir::new().expect("tempdir");
+        let mut s = CasStore::open(tmp.path()).expect("open");
+        let cid_a = s
+            .put(
+                b"alpha",
+                ObjectType::ProposalPayload,
+                "alice",
+                10,
+                Some("schema/proposal.v1".into()),
+            )
+            .expect("put alpha");
+        let cid_b = s
+            .put(
+                b"beta",
+                ObjectType::LeanResult,
+                "lean-runner",
+                11,
+                Some("schema/lean-result.v1".into()),
+            )
+            .expect("put beta");
+
+        let from_chain =
+            crate::bottom_white::cas::git_chain::reconstruct_index_from_chain(tmp.path())
+                .expect("reconstruct from chain")
+                .expect("cas commit-chain present");
+        assert_eq!(from_chain.len(), 2);
+        assert_eq!(
+            from_chain.get(&cid_a),
+            s.metadata(&cid_a),
+            "chain-derived metadata must match hot index exactly"
+        );
+        assert_eq!(
+            from_chain.get(&cid_b),
+            s.metadata(&cid_b),
+            "chain-derived metadata must match hot index exactly"
+        );
+    }
+
+    #[test]
+    fn missing_sidecar_rebuilds_from_cas_commit_chain() {
+        let tmp = TempDir::new().expect("tempdir");
+        let cid;
+        {
+            let mut s = CasStore::open(tmp.path()).expect("open");
+            cid = s
+                .put(
+                    b"rebuild-me",
+                    ObjectType::AttemptTelemetry,
+                    "evaluator",
+                    42,
+                    Some("schema/attempt.v1".into()),
+                )
+                .expect("put");
+        }
+        std::fs::remove_file(cas_index_path(tmp.path())).expect("remove sidecar cache");
+
+        let reopened = CasStore::open(tmp.path()).expect("reopen via cas chain");
+        assert_eq!(reopened.len(), 1);
+        assert_eq!(reopened.get(&cid).expect("get rebuilt cid"), b"rebuild-me");
+        let meta = reopened.metadata(&cid).expect("rebuilt metadata");
+        assert_eq!(meta.object_type, ObjectType::AttemptTelemetry);
+        assert_eq!(meta.creator, "evaluator");
+        assert_eq!(meta.created_at_logical_t, 42);
+        assert_eq!(meta.schema_id.as_deref(), Some("schema/attempt.v1"));
+    }
+
+    #[test]
+    fn missing_sidecar_rebuild_then_put_writes_complete_cache() {
+        let tmp = TempDir::new().expect("tempdir");
+        let (cid_a, cid_b, cid_c);
+        {
+            let mut s = CasStore::open(tmp.path()).expect("open");
+            cid_a = s
+                .put(b"alpha", ObjectType::Generic, "alice", 1, None)
+                .expect("put alpha");
+            cid_b = s
+                .put(b"beta", ObjectType::Generic, "bob", 2, None)
+                .expect("put beta");
+        }
+        std::fs::remove_file(cas_index_path(tmp.path())).expect("remove sidecar cache");
+
+        {
+            let mut rebuilt = CasStore::open(tmp.path()).expect("rebuild from chain");
+            assert_eq!(rebuilt.len(), 2);
+            cid_c = rebuilt
+                .put(b"gamma", ObjectType::Generic, "carol", 3, None)
+                .expect("put after rebuild");
+        }
+
+        let reopened = CasStore::open(tmp.path())
+            .expect("cache recreated after chain rebuild must match the full chain");
+        assert_eq!(reopened.len(), 3);
+        assert_eq!(reopened.get(&cid_a).expect("get alpha"), b"alpha");
+        assert_eq!(reopened.get(&cid_b).expect("get beta"), b"beta");
+        assert_eq!(reopened.get(&cid_c).expect("get gamma"), b"gamma");
+        let line_count = std::fs::read_to_string(cas_index_path(tmp.path()))
+            .expect("sidecar cache")
+            .lines()
+            .filter(|line| !line.is_empty())
+            .count();
+        assert_eq!(
+            line_count, 3,
+            "recreated sidecar cache must contain the complete chain-derived index"
+        );
+    }
+
+    #[test]
+    fn legacy_sidecar_is_anchored_not_rewritten_into_historical_commits() {
+        let tmp = TempDir::new().expect("tempdir");
+        let _s = CasStore::open(tmp.path()).expect("init repo");
+        let repo = Repository::open(tmp.path()).expect("repo");
+        let legacy_oid = repo.blob(b"legacy-object").expect("legacy blob");
+        let legacy_meta = CasObjectMetadata {
+            cid: Cid::from_content(b"legacy-object"),
+            backend_oid_hex: legacy_oid.to_string(),
+            object_type: ObjectType::Generic,
+            creator: "legacy-writer".to_string(),
+            created_at_logical_t: 1,
+            schema_id: Some("legacy/schema.v1".to_string()),
+            size_bytes: b"legacy-object".len() as u64,
+        };
+        append_to_sidecar(tmp.path(), &legacy_meta).expect("legacy sidecar");
+        let mut legacy_index = BTreeMap::new();
+        legacy_index.insert(legacy_meta.cid, legacy_meta.clone());
+        let legacy_root = crate::bottom_white::cas::git_chain::merkle_root_for_index(&legacy_index);
+
+        let mut s = CasStore::open(tmp.path()).expect("open legacy sidecar");
+        let new_cid = s
+            .put(
+                b"new-forward-object",
+                ObjectType::LeanResult,
+                "runner",
+                2,
+                None,
+            )
+            .expect("new put");
+
+        let cache = load_index_from_sidecar(tmp.path()).expect("sidecar after put");
+        let records =
+            crate::bottom_white::cas::git_chain::load_chain_records_with_cache(tmp.path(), &cache)
+                .expect("records");
+        assert_eq!(
+            records.len(),
+            1,
+            "legacy sidecar entries must not be retro-committed"
+        );
+        assert_eq!(records[0].cid, new_cid);
+        assert_eq!(
+            records[0].legacy_prefix_metadata,
+            vec![legacy_meta.clone()],
+            "the first forward CAS commit carries a legacy metadata snapshot so the sidecar remains cache"
+        );
+        assert_eq!(
+            records[0].previous_cas_root,
+            Some(legacy_root),
+            "first forward CAS commit should anchor the pre-chain legacy root"
+        );
+        assert_eq!(
+            s.get(&legacy_meta.cid).expect("legacy get"),
+            b"legacy-object"
+        );
+        assert_eq!(s.get(&new_cid).expect("new get"), b"new-forward-object");
+    }
+
+    #[test]
+    fn missing_legacy_sidecar_with_forward_snapshot_rebuilds_successfully() {
+        let tmp = TempDir::new().expect("tempdir");
+        let _s = CasStore::open(tmp.path()).expect("init repo");
+        let repo = Repository::open(tmp.path()).expect("repo");
+        let legacy_oid = repo.blob(b"legacy-object").expect("legacy blob");
+        let legacy_meta = CasObjectMetadata {
+            cid: Cid::from_content(b"legacy-object"),
+            backend_oid_hex: legacy_oid.to_string(),
+            object_type: ObjectType::Generic,
+            creator: "legacy-writer".to_string(),
+            created_at_logical_t: 1,
+            schema_id: None,
+            size_bytes: b"legacy-object".len() as u64,
+        };
+        append_to_sidecar(tmp.path(), &legacy_meta).expect("legacy sidecar");
+        {
+            let mut s = CasStore::open(tmp.path()).expect("open legacy sidecar");
+            s.put(
+                b"new-forward-object",
+                ObjectType::Generic,
+                "runner",
+                2,
+                None,
+            )
+            .expect("new put");
+        }
+        std::fs::remove_file(cas_index_path(tmp.path())).expect("remove legacy cache");
+
+        let reopened = CasStore::open(tmp.path())
+            .expect("legacy prefix snapshot in the CAS chain should rebuild missing sidecar");
+        assert_eq!(
+            reopened.get(&legacy_meta.cid).expect("legacy get"),
+            b"legacy-object"
+        );
+    }
+
+    #[test]
+    fn large_legacy_sidecar_prefix_rebuilds_from_chunked_chain() {
+        let tmp = TempDir::new().expect("tempdir");
+        let _s = CasStore::open(tmp.path()).expect("init repo");
+        let repo = Repository::open(tmp.path()).expect("repo");
+        let mut legacy_lines = String::new();
+        let mut legacy_cids = Vec::new();
+        let legacy_count = 512usize;
+
+        for i in 0..legacy_count {
+            let content = format!("legacy-object-{i:04}-{}", "x".repeat(96));
+            let oid = repo.blob(content.as_bytes()).expect("legacy blob");
+            let meta = CasObjectMetadata {
+                cid: Cid::from_content(content.as_bytes()),
+                backend_oid_hex: oid.to_string(),
+                object_type: ObjectType::Generic,
+                creator: format!("legacy-writer-{i:04}"),
+                created_at_logical_t: i as u64,
+                schema_id: Some(format!("legacy/schema/{i:04}")),
+                size_bytes: content.len() as u64,
+            };
+            legacy_cids.push(meta.cid);
+            legacy_lines.push_str(&serde_json::to_string(&meta).expect("legacy json"));
+            legacy_lines.push('\n');
+        }
+        std::fs::write(cas_index_path(tmp.path()), legacy_lines).expect("write legacy sidecar");
+
+        {
+            let mut s = CasStore::open(tmp.path()).expect("open legacy sidecar");
+            s.put(
+                b"new-forward-object-after-large-legacy-prefix",
+                ObjectType::Generic,
+                "runner",
+                legacy_count as u64 + 1,
+                None,
+            )
+            .expect("new put");
+        }
+        std::fs::remove_file(cas_index_path(tmp.path())).expect("remove legacy cache");
+
+        let reopened = CasStore::open(tmp.path())
+            .expect("large legacy prefix chunks in the CAS chain should rebuild missing sidecar");
+        assert_eq!(
+            reopened.len(),
+            legacy_count + 1,
+            "all legacy entries plus the forward object must reconstruct"
+        );
+        assert!(
+            reopened.metadata(&legacy_cids[0]).is_some(),
+            "first legacy entry must be reconstructable"
+        );
+        assert!(
+            reopened.metadata(&legacy_cids[legacy_count - 1]).is_some(),
+            "last legacy entry must be reconstructable"
+        );
+
+        let records = crate::bottom_white::cas::git_chain::load_chain_records(tmp.path())
+            .expect("chain records");
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].legacy_prefix_metadata.len(), legacy_count);
+        assert_eq!(
+            records[0].legacy_prefix_chunk_count as usize, legacy_count,
+            "large legacy prefixes must be stored as bounded tree blobs, not one oversized record"
+        );
+    }
+
+    #[test]
+    fn tampered_sidecar_mismatch_fails_closed_when_chain_exists() {
+        let tmp = TempDir::new().expect("tempdir");
+        {
+            let mut s = CasStore::open(tmp.path()).expect("open");
+            s.put(b"guarded", ObjectType::Generic, "alice", 1, None)
+                .expect("put");
+        }
+
+        let path = cas_index_path(tmp.path());
+        let tampered = std::fs::read_to_string(&path)
+            .expect("read sidecar")
+            .replace("\"creator\":\"alice\"", "\"creator\":\"mallory\"");
+        std::fs::write(&path, tampered).expect("tamper sidecar");
+
+        let err = CasStore::open(tmp.path()).expect_err("tampered cache must fail closed");
+        assert!(
+            err.to_string()
+                .contains("CAS sidecar cache mismatch with CAS commit-chain"),
+            "error should diagnose sidecar/chain mismatch, got {err}"
+        );
+    }
+
+    #[test]
+    fn open_waits_for_inflight_cas_chain_cache_refresh() {
+        let tmp = TempDir::new().expect("tempdir");
+        let mut s = CasStore::open(tmp.path()).expect("open");
+        s.put(b"first", ObjectType::Generic, "alice", 1, None)
+            .expect("first put");
+
+        let _lock = acquire_cas_chain_lock(tmp.path()).expect("hold cas chain lock");
+        let repo = Repository::open(tmp.path()).expect("repo");
+        let content = b"second";
+        let cid = Cid::from_content(content);
+        let git_oid = repo.blob(content).expect("blob");
+        let metadata = CasObjectMetadata {
+            cid,
+            backend_oid_hex: git_oid.to_string(),
+            object_type: ObjectType::Generic,
+            creator: "bob".to_string(),
+            created_at_logical_t: 2,
+            schema_id: None,
+            size_bytes: content.len() as u64,
+        };
+        let mut prospective = load_index_from_sidecar(tmp.path()).expect("sidecar index");
+        let previous_root = Some(crate::bottom_white::cas::git_chain::merkle_root_for_index(
+            &prospective,
+        ));
+        prospective.insert(cid, metadata.clone());
+        let resulting_root =
+            crate::bottom_white::cas::git_chain::merkle_root_for_index(&prospective);
+        crate::bottom_white::cas::git_chain::append_cas_commit(
+            tmp.path(),
+            &metadata,
+            previous_root,
+            resulting_root,
+            Vec::new(),
+        )
+        .expect("advance cas chain");
+
+        let reader_path = tmp.path().to_path_buf();
+        let reader = std::thread::spawn(move || CasStore::open(&reader_path));
+        std::thread::sleep(Duration::from_millis(50));
+        assert!(
+            !reader.is_finished(),
+            "reader open must wait for the CAS chain lock while sidecar cache is stale"
+        );
+
+        append_to_sidecar(tmp.path(), &metadata).expect("finish sidecar cache refresh");
+        drop(_lock);
+
+        let reopened = reader
+            .join()
+            .expect("reader thread")
+            .expect("reader must not misclassify in-flight cache refresh as corruption");
+        assert_eq!(reopened.len(), 2);
+        assert!(reopened.metadata(&cid).is_some());
+    }
+
+    #[test]
+    fn forced_cas_ref_update_failure_fails_put_closed() {
+        let tmp = TempDir::new().expect("tempdir");
+        let mut s = CasStore::open(tmp.path()).expect("open");
+
+        crate::bottom_white::cas::git_chain::set_force_ref_update_failure_for_test(true);
+        let err = s
+            .put(b"must-not-commit", ObjectType::Generic, "alice", 1, None)
+            .expect_err("forced CAS ref failure must fail put");
+        crate::bottom_white::cas::git_chain::set_force_ref_update_failure_for_test(false);
+
+        assert!(err
+            .to_string()
+            .contains("forced test CAS ref update failure"));
+        assert_eq!(s.len(), 0, "hot index must not accept failed CAS put");
+        assert!(
+            !cas_index_path(tmp.path()).exists(),
+            "sidecar cache must not be written before the canonical CAS ref advances"
+        );
+        let head =
+            crate::bottom_white::ledger::transition_ledger::Git2LedgerWriter::head_chaintape_cas(
+                tmp.path(),
+            )
+            .expect("read cas ref");
+        assert!(head.is_none(), "failed put must not leave a CAS head ref");
+    }
+
+    #[test]
+    fn oversized_cas_chain_record_fails_put_before_ref_or_cache() {
+        let tmp = TempDir::new().expect("tempdir");
+        let mut s = CasStore::open(tmp.path()).expect("open");
+        let oversized_creator = "creator".repeat(12_000);
+
+        let err = s
+            .put(
+                b"oversized-record",
+                ObjectType::Generic,
+                &oversized_creator,
+                1,
+                Some("schema.v1".to_string()),
+            )
+            .expect_err("writer must reject records its reader cannot replay");
+
+        assert!(
+            err.to_string()
+                .contains("CAS chain record exceeds bounded read limit"),
+            "expected bounded record diagnostic, got {err}"
+        );
+        assert_eq!(s.len(), 0, "hot index must not accept failed CAS put");
+        assert!(
+            !cas_index_path(tmp.path()).exists(),
+            "sidecar cache must not be written when canonical CAS commit is rejected"
+        );
+        let head =
+            crate::bottom_white::ledger::transition_ledger::Git2LedgerWriter::head_chaintape_cas(
+                tmp.path(),
+            )
+            .expect("read cas ref");
+        assert!(head.is_none(), "failed put must not leave a CAS head ref");
+        let reopened = CasStore::open(tmp.path()).expect("repo remains openable");
+        assert_eq!(reopened.len(), 0);
+    }
+
+    #[test]
+    fn tape_derived_lookup_helpers_return_exact_expected_cids() {
+        let tmp = TempDir::new().expect("tempdir");
+        let mut s = CasStore::open(tmp.path()).expect("open");
+        let cid_a = s
+            .put(
+                b"proposal-a",
+                ObjectType::ProposalPayload,
+                "alice",
+                7,
+                Some("schema/shared.v1".into()),
+            )
+            .expect("put a");
+        let cid_b = s
+            .put(
+                b"proposal-b",
+                ObjectType::ProposalPayload,
+                "bob",
+                8,
+                Some("schema/shared.v1".into()),
+            )
+            .expect("put b");
+        let cid_c = s
+            .put(
+                b"lean-result",
+                ObjectType::LeanResult,
+                "alice",
+                9,
+                Some("schema/lean.v1".into()),
+            )
+            .expect("put c");
+
+        assert_eq!(
+            s.list_cids_by_schema_id("schema/shared.v1"),
+            vec![cid_a, cid_b]
+        );
+        assert_eq!(s.list_cids_by_creator("alice"), vec![cid_a, cid_c]);
+        assert_eq!(s.list_cids_by_logical_t(8), vec![cid_b]);
+        assert_eq!(
+            s.list_cids_by_object_type(ObjectType::ProposalPayload),
+            vec![cid_a, cid_b]
+        );
+    }
+
+    #[test]
+    fn cas_chain_rejects_backend_blob_cid_mismatch() {
+        let tmp = TempDir::new().expect("tempdir");
+        let _s = CasStore::open(tmp.path()).expect("init repo");
+        let repo = Repository::open(tmp.path()).expect("repo");
+        let wrong_oid = repo.blob(b"xxxxx").expect("wrong blob");
+        let metadata = CasObjectMetadata {
+            cid: Cid::from_content(b"abcde"),
+            backend_oid_hex: wrong_oid.to_string(),
+            object_type: ObjectType::Generic,
+            creator: "test".to_string(),
+            created_at_logical_t: 1,
+            schema_id: None,
+            size_bytes: 5,
+        };
+        let mut index = BTreeMap::new();
+        index.insert(metadata.cid, metadata.clone());
+        let root = crate::bottom_white::cas::git_chain::merkle_root_for_index(&index);
+
+        let err = crate::bottom_white::cas::git_chain::append_cas_commit(
+            tmp.path(),
+            &metadata,
+            None,
+            root,
+            Vec::new(),
+        )
+        .expect_err("mismatched backend blob must not enter CAS chain");
+        assert!(
+            err.to_string().contains("backend blob cid mismatch"),
+            "expected backend cid mismatch, got {err}"
+        );
+    }
+
+    #[test]
+    fn cas_chain_rejects_backend_blob_above_hard_validation_cap() {
+        struct EnvGuard {
+            key: &'static str,
+            prev: Option<String>,
+        }
+        impl Drop for EnvGuard {
+            fn drop(&mut self) {
+                match &self.prev {
+                    Some(value) => std::env::set_var(self.key, value),
+                    None => std::env::remove_var(self.key),
+                }
+            }
+        }
+
+        let key = "TURINGOS_CAS_CHAIN_MAX_BACKEND_BLOB_BYTES";
+        let _guard = EnvGuard {
+            key,
+            prev: std::env::var(key).ok(),
+        };
+        std::env::set_var(key, "4");
+
+        let tmp = TempDir::new().expect("tempdir");
+        let _s = CasStore::open(tmp.path()).expect("init repo");
+        let repo = Repository::open(tmp.path()).expect("repo");
+        let content = b"abcde";
+        let oid = repo.blob(content).expect("blob");
+        let metadata = CasObjectMetadata {
+            cid: Cid::from_content(content),
+            backend_oid_hex: oid.to_string(),
+            object_type: ObjectType::Generic,
+            creator: "test".to_string(),
+            created_at_logical_t: 1,
+            schema_id: None,
+            size_bytes: content.len() as u64,
+        };
+        let mut index = BTreeMap::new();
+        index.insert(metadata.cid, metadata.clone());
+        let root = crate::bottom_white::cas::git_chain::merkle_root_for_index(&index);
+
+        let err = crate::bottom_white::cas::git_chain::append_cas_commit(
+            tmp.path(),
+            &metadata,
+            None,
+            root,
+            Vec::new(),
+        )
+        .expect_err("backend blob above hard cap must not enter CAS chain");
+        assert!(
+            err.to_string()
+                .contains("exceeds bounded read limit before content read"),
+            "expected hard-cap diagnostic, got {err}"
+        );
+    }
+
+    #[test]
+    fn forced_backend_validation_timeout_fails_put_closed() {
+        let tmp = TempDir::new().expect("tempdir");
+        let mut s = CasStore::open(tmp.path()).expect("open");
+
+        crate::bottom_white::cas::git_chain::set_force_backend_validate_timeout_for_test(true);
+        let err = s
+            .put(b"timeout-me", ObjectType::Generic, "alice", 1, None)
+            .expect_err("forced backend validation timeout must fail put");
+        crate::bottom_white::cas::git_chain::set_force_backend_validate_timeout_for_test(false);
+
+        assert!(
+            err.to_string()
+                .contains("CAS chain backend validation timed out"),
+            "expected backend validation timeout, got {err}"
+        );
+        assert_eq!(s.len(), 0);
+        assert!(!cas_index_path(tmp.path()).exists());
     }
 }

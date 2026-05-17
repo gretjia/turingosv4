@@ -217,10 +217,34 @@ fn wrapper_exit_2_with_clear_stderr_when_backend_missing() {
         String::from_utf8_lossy(&output.stderr),
     );
     let stderr = String::from_utf8_lossy(&output.stderr);
+    // Accept any of the historical / current friendly-error wordings. The
+    // current Phase 6.2-post-user-sim wording is backend-agnostic (the
+    // user-facing message never names the specific binary — Phase 7
+    // generalization posture). The two legacy wordings are kept for
+    // forward+backward compatibility across audit rounds.
     assert!(
-        stderr.contains("failed to invoke"),
+        stderr.contains("backend binary for this command is not available")
+            || stderr.contains("backend binary is not built")
+            || stderr.contains("failed to invoke")
+            || stderr.contains("backend invocation failed"),
         "wrapper should report failure clearly; stderr was:\n{stderr}",
     );
+    // Phase 7 generalization invariant: backend-missing message MUST NOT
+    // mention specific binary names like 'lean_market' / 'gen_run_summary'.
+    // The "(debug: searched at ...)" line at the bottom MAY contain the
+    // path, but the prose paragraphs must be binary-agnostic.
+    let prose_lines: Vec<&str> = stderr
+        .lines()
+        .filter(|l| !l.trim_start().starts_with("(debug:"))
+        .collect();
+    let prose = prose_lines.join("\n");
+    for forbidden in &["lean_market", "gen_run_summary", "audit_dashboard"] {
+        assert!(
+            !prose.contains(forbidden),
+            "backend-missing user-facing prose must NOT name `{forbidden}` (Phase 7 \
+             generalization posture); leaked in: {prose:?}",
+        );
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

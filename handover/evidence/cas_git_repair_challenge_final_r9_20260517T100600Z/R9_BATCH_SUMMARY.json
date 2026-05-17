@@ -1,0 +1,26 @@
+{
+  "phase": "TB-18R G2 round-2 R9",
+  "problem_count": 2,
+  "max_transactions_per_problem": 12,
+  "per_problem_timeout_s": 1800,
+  "git_head": "c85dacfafcd1aa99047cee6af4f5799670403f8f",
+  "run_timestamp_utc": "2026-05-17T10-07-33Z",
+  "per_problem_results": [
+    {
+      "tag": "P01_mathd_numbertheory_1124",
+      "l4": 1,
+      "l4e": 5,
+      "delta": 0,
+      "evaluable": null,
+      "invariant_verdict": "Ok"
+    },
+    {
+      "tag": "P02_numbertheory_2pownm1prime_nprime",
+      "l4": 0,
+      "l4e": 5,
+      "delta": 0,
+      "evaluable": null,
+      "invariant_verdict": "Ok"
+    }
+  ]
+}

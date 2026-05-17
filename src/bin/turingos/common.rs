@@ -112,8 +112,32 @@ pub(crate) fn run_external(bin_name: &str, args: &[String]) -> ExitCode {
     match status {
         Ok(s) => ExitCode::from(s.code().unwrap_or(1) as u8),
         Err(e) => {
-            eprintln!("turingos: failed to invoke '{}': {}", bin_path.display(), e);
-            ExitCode::from(2)
+            use std::io::ErrorKind;
+            if matches!(e.kind(), ErrorKind::NotFound) {
+                // Backend-agnostic guidance per Phase 7 generalization posture:
+                // never name the specific backend binary in the user-visible
+                // message. The kernel does not assume a particular backend
+                // (today's implementation happens to use one; tomorrow's
+                // generic agent_runner replaces it). The 3 resolution paths
+                // below are sufficient; an internal binary name in a debug
+                // tail line would leak an implementation detail.
+                eprintln!(
+                    "turingos: a required backend binary for this command is not available."
+                );
+                eprintln!();
+                eprintln!("  Resolution paths:");
+                eprintln!("    1. Build all workspace binaries (recommended):");
+                eprintln!("         cargo build --workspace");
+                eprintln!("    2. If you only want to preview UI views (no backend needed):");
+                eprintln!("         turingos render --fixture <path-to-fixture.json>");
+                eprintln!("       Fixtures: experiments/tisr_ui_spike/fixtures/");
+                eprintln!("    3. If you have a custom build directory, set:");
+                eprintln!("         TURINGOS_BIN_DIR=<dir>");
+                ExitCode::from(2)
+            } else {
+                eprintln!("turingos: backend invocation failed: {}", e);
+                ExitCode::from(2)
+            }
         }
     }
 }

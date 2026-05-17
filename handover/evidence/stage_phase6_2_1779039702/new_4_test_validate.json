@@ -1,0 +1,14 @@
+{
+  "command": "bash experiments/tisr_ui_spike/test_validate.sh",
+  "deliverable": "experiments/tisr_ui_spike/test_validate.sh",
+  "evidence_files": [
+    "new_4_test_validate.stdout",
+    "new_4_test_validate.stderr"
+  ],
+  "exit_code": 0,
+  "expected_pass_count": 13,
+  "stderr_excerpt": "",
+  "stdout_excerpt": "=== UI IR Spike test_validate.sh ===\n\nPASS: validate fixtures/agent_role_view_sample.json\nPASS: validate fixtures/agent_view_sample.json\nPASS: validate fixtures/audit_summary_view_sample.json\nPASS: validate fixtures/batch_status_view_sample.json\nPASS: validate fixtures/dashboard_sample.json\nPASS: validate fixtures/market_position_view_sample.json\nPASS: validate fixtures/task_view_sample.json\nPASS: malformed_no_blocks exit 1 (expected exit 1)\nPASS: malformed_unknown_kind exit 1 (expected exit 1)\n",
+  "test_pass_count": 13,
+  "verdict": "PASS"
+}

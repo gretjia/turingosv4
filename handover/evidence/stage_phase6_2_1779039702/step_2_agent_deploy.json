@@ -1,0 +1,18 @@
+{
+  "agent_pubkeys_json_check": {
+    "agent_001_present": true,
+    "pubkey_matches": true,
+    "role_solver": true
+  },
+  "command": "./target/debug/turingos agent deploy --id agent_001 --pubkey 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef --role Solver --workspace /tmp/phase6_2_witness_1779039702",
+  "evidence_files": [
+    "step_2_agent_deploy.stdout",
+    "step_2_agent_deploy.stderr"
+  ],
+  "exit_code": 0,
+  "name": "agent_deploy",
+  "stderr_excerpt": "",
+  "stdout_excerpt": "deployed agent_001 (Solver)\n",
+  "step": 2,
+  "verdict": "PASS"
+}

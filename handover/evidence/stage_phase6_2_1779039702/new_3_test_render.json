@@ -1,0 +1,14 @@
+{
+  "command": "bash experiments/tisr_ui_spike/test_render.sh",
+  "deliverable": "experiments/tisr_ui_spike/test_render.sh",
+  "evidence_files": [
+    "new_3_test_render.stdout",
+    "new_3_test_render.stderr"
+  ],
+  "exit_code": 0,
+  "expected_pass_count": 7,
+  "stderr_excerpt": "",
+  "stdout_excerpt": "=== UI IR Spike test_render.sh ===\n\nTEST 1 PASS: dashboard_sample.json --format text: exit 0 + stdout non-empty\nTEST 2 PASS: agent_view_sample.json --format text: exit 0 + stdout contains 'agent_id'\nTEST 3 PASS: task_view_sample.json --format json: exit 0 + stdout is valid JSON\nTEST 4 PASS: agent_role_view_sample.json --format text: exit 0 + stdout non-empty\nTEST 5 PASS: batch_status_view_sample.json --format text: exit 0 + stdout non-empty\nTEST 6 PASS: audit_summary_view_sample.json --format js",
+  "test_pass_count": 7,
+  "verdict": "PASS"
+}

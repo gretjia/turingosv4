@@ -1,0 +1,18 @@
+{
+  "phase": "TB-18R G2 round-2 R9",
+  "atom_authority": "G2 verdict §3 Blocker 2 + §6 R9; charter §2 R6 row + §1.4 SG-18R.4 v2",
+  "predecessor_evidence": "handover/evidence/tb_18r_r6_p23_p38_p49_2026-05-06/ (P38/P49 SIGKILL'd)",
+  "fix": "MAX_TRANSACTIONS=12 (correct env var; r6 runner used MAX_TX_OVERRIDE which is a no-op) + PER_PROBLEM_TIMEOUT_S=1800 (3x prior)",
+  "problem_count": 2,
+  "max_tx_per_problem": 12,
+  "per_problem_timeout_s": 1800,
+  "llm_proxy_url": "http://localhost:8080",
+  "active_model": "deepseek-chat",
+  "condition": "n1",
+  "run_timestamp_utc": "2026-05-17T10-07-33Z",
+  "git_head": "c85dacfafcd1aa99047cee6af4f5799670403f8f",
+  "problems": [
+    "mathd_numbertheory_1124",
+    "numbertheory_2pownm1prime_nprime"
+  ]
+}

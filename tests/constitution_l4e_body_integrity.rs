@@ -38,6 +38,7 @@
 //! `FC-trace: FC1-N34 + FC1-N35 + FC2-INV1 + Art-0.4 + architect §B.9.3`.
 
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 use tempfile::TempDir;
 use turingosv4::bottom_white::ledger::rejection_evidence::parse_and_verify_jsonl_record_bytes;
@@ -49,6 +50,8 @@ use turingosv4::runtime::audit_tamper::flip_largest_reachable_l4e_blob;
 const SRC_PROBLEM_DIR: &str =
     "handover/evidence/m0_minif2f_harness_audit_2026-05-10_post_stage_c/P01_mathd_algebra_107";
 const SRC_CONSTITUTION: &str = "constitution.md";
+const M0_P01_CI_FIXTURE: &str =
+    "handover/evidence/ci_fixtures/m0_p01_l4e_body_integrity_fixture.tgz";
 
 // ── Snapshot helpers ────────────────────────────────────────────────────────
 
@@ -67,11 +70,49 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
+fn m0_p01_source_problem() -> (Option<TempDir>, PathBuf) {
+    let src_problem = PathBuf::from(SRC_PROBLEM_DIR);
+    if src_problem.join("runtime_repo/.git").is_dir() && src_problem.join("cas/.git").is_dir() {
+        return (None, src_problem);
+    }
+
+    let fixture = Path::new(M0_P01_CI_FIXTURE);
+    assert!(
+        fixture.exists(),
+        "M0 P01 CI fixture missing at {M0_P01_CI_FIXTURE}; \
+         fresh-checkout gates require the compact real L4.E fixture"
+    );
+    let tmp = TempDir::new().expect("M0 P01 CI fixture tempdir");
+    let status = Command::new("tar")
+        .arg("-xzf")
+        .arg(fixture)
+        .arg("-C")
+        .arg(tmp.path())
+        .status()
+        .expect("extract M0 P01 CI fixture");
+    assert!(
+        status.success(),
+        "extract M0 P01 CI fixture failed with {status}"
+    );
+    let hydrated = tmp.path().join("P01_mathd_algebra_107");
+    assert!(
+        hydrated.join("runtime_repo/.git").is_dir() && hydrated.join("cas/.git").is_dir(),
+        "M0 P01 CI fixture did not contain runtime_repo/.git and cas/.git"
+    );
+    (Some(tmp), hydrated)
+}
+
+fn read_m0_p01_rejections_jsonl() -> String {
+    let (_source_tmp, src_problem) = m0_p01_source_problem();
+    std::fs::read_to_string(src_problem.join("runtime_repo/rejections.jsonl"))
+        .expect("read M0 P01 rejections.jsonl")
+}
+
 /// Snapshot M0 P01 evidence (`runtime_repo/` + `cas/` + the constitution
 /// file) into a tempdir. Returns (tempdir, AuditInputs) ready for
 /// `load_tape` + assertion calls. The tempdir is RAII — cleaned on drop.
 fn snapshot_m0_p01() -> (TempDir, AuditInputs) {
-    let src_problem = PathBuf::from(SRC_PROBLEM_DIR);
+    let (_source_tmp, src_problem) = m0_p01_source_problem();
     assert!(
         src_problem.exists(),
         "M0 P01 evidence missing at {SRC_PROBLEM_DIR}; gate test requires \
@@ -235,8 +276,7 @@ fn assert_51_skipped_on_pre_a3_jsonl_only_mode() {
 /// Helper round-trips bit-perfectly on the M0 P01 first JSONL line.
 #[test]
 fn parse_and_verify_helper_passes_on_valid_m0_p01_record() {
-    let jsonl = std::fs::read_to_string(format!("{SRC_PROBLEM_DIR}/runtime_repo/rejections.jsonl"))
-        .expect("read M0 P01 rejections.jsonl");
+    let jsonl = read_m0_p01_rejections_jsonl();
     let first_line = jsonl.lines().next().expect("at least one record");
     let parsed = parse_and_verify_jsonl_record_bytes(first_line.as_bytes())
         .expect("untampered record must parse + verify");
@@ -251,8 +291,7 @@ fn parse_and_verify_helper_passes_on_valid_m0_p01_record() {
 /// embedded `hash` field) makes the helper return HashMismatch.
 #[test]
 fn parse_and_verify_helper_rejects_tampered_field() {
-    let jsonl = std::fs::read_to_string(format!("{SRC_PROBLEM_DIR}/runtime_repo/rejections.jsonl"))
-        .expect("read M0 P01 rejections.jsonl");
+    let jsonl = read_m0_p01_rejections_jsonl();
     let first_line = jsonl.lines().next().expect("at least one record");
     // Replace the agent_id substring "tb6-smoke-sponsor" with a flipped
     // variant. compute_hash includes agent_id, so the embedded hash will

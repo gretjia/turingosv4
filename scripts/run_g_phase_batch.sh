@@ -231,9 +231,12 @@ BATCH_ID="${RUN_TAG}_${GIT_HEAD:0:7}"
 
 # ── Build release binaries ──────────────────────────────────────────────────
 
-echo "[build] cargo build --release -p minif2f_v4 --bin evaluator --bin batch_evaluator -p turingosv4 --bin audit_tape --bin tb_g_persistence_report"
+echo "[build] cargo build --release --manifest-path experiments/minif2f_v4/Cargo.toml --bin evaluator --bin batch_evaluator; cargo build --release -p turingosv4 --bin audit_tape --bin tb_g_persistence_report"
 BUILD_LOG="$RUN_DIR/cargo_build_release.log"
-if ! (cd "$PROJECT_ROOT" && cargo build --release -p minif2f_v4 --bin evaluator --bin batch_evaluator -p turingosv4 --bin audit_tape --bin tb_g_persistence_report > "$BUILD_LOG" 2>&1); then
+if ! (cd "$PROJECT_ROOT" && {
+    CARGO_TARGET_DIR="$PROJECT_ROOT/target" cargo build --release --manifest-path "$PROJECT_ROOT/experiments/minif2f_v4/Cargo.toml" --bin evaluator --bin batch_evaluator
+    cargo build --release -p turingosv4 --bin audit_tape --bin tb_g_persistence_report
+} > "$BUILD_LOG" 2>&1); then
     tail -80 "$BUILD_LOG" >&2 || true
     echo "ERROR: release binary build failed; refusing to continue with stale release binaries" >&2
     exit 6

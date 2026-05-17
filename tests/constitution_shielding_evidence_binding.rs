@@ -38,15 +38,19 @@
 
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 use serde_json::Value;
+use tempfile::TempDir;
 
 const WAVE3_50P_DIR: &str = "handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z";
+const WAVE3_CAS_SIDECAR_CI_FIXTURE: &str =
+    "handover/evidence/ci_fixtures/wave3_50p_cas_sidecars_fixture.tgz";
 
 /// Locate every `P##_<problem>` directory under the Wave 3 50p batch dir.
-fn wave3_problem_dirs() -> Vec<PathBuf> {
-    let entries = fs::read_dir(WAVE3_50P_DIR)
-        .unwrap_or_else(|e| panic!("Wave 3 batch dir {WAVE3_50P_DIR}: {e}"));
+fn problem_dirs_under(root: &Path) -> Vec<PathBuf> {
+    let entries =
+        fs::read_dir(root).unwrap_or_else(|e| panic!("Wave 3 batch dir {}: {e}", root.display()));
     let mut out: Vec<PathBuf> = entries
         .filter_map(|e| e.ok())
         .map(|e| e.path())
@@ -60,6 +64,45 @@ fn wave3_problem_dirs() -> Vec<PathBuf> {
         .collect();
     out.sort();
     out
+}
+
+fn wave3_problem_dirs() -> Vec<PathBuf> {
+    problem_dirs_under(Path::new(WAVE3_50P_DIR))
+}
+
+fn wave3_problem_dirs_with_sidecar_fixture() -> (Option<TempDir>, Vec<PathBuf>) {
+    let dirs = wave3_problem_dirs();
+    if dirs
+        .iter()
+        .all(|p| p.join("cas/.turingos_cas_index.jsonl").exists())
+    {
+        return (None, dirs);
+    }
+
+    let fixture = Path::new(WAVE3_CAS_SIDECAR_CI_FIXTURE);
+    assert!(
+        fixture.exists(),
+        "Wave 3 CAS sidecar CI fixture missing at {WAVE3_CAS_SIDECAR_CI_FIXTURE}"
+    );
+    let tmp = TempDir::new().expect("Wave3 sidecar CI fixture tempdir");
+    let status = Command::new("tar")
+        .arg("-xzf")
+        .arg(fixture)
+        .arg("-C")
+        .arg(tmp.path())
+        .status()
+        .expect("extract Wave3 sidecar CI fixture");
+    assert!(
+        status.success(),
+        "extract Wave3 sidecar CI fixture failed with {status}"
+    );
+    let fixture_dirs = problem_dirs_under(tmp.path());
+    assert_eq!(
+        fixture_dirs.len(),
+        50,
+        "Wave 3 sidecar CI fixture must contain 50 problem dirs"
+    );
+    (Some(tmp), fixture_dirs)
 }
 
 #[derive(Default, Debug, Clone)]
@@ -88,7 +131,7 @@ fn aggregate_cas_index() -> (
     usize,
     Vec<Value>,
 ) {
-    let dirs = wave3_problem_dirs();
+    let (_fixture, dirs) = wave3_problem_dirs_with_sidecar_fixture();
     assert_eq!(
         dirs.len(),
         50,

@@ -1,0 +1,19 @@
+{
+  "command": "./target/debug/turingos init --project /tmp/phase6_2_witness_1779039702",
+  "evidence_files": [
+    "step_1_init.stdout",
+    "step_1_init.stderr"
+  ],
+  "exit_code": 0,
+  "name": "init",
+  "scaffold_check": {
+    "agent_pubkeys.json": true,
+    "cas": true,
+    "genesis_payload.toml": true,
+    "runtime_repo": true
+  },
+  "stderr_excerpt": "",
+  "stdout_excerpt": "Initialized TuringOS workspace at /tmp/phase6_2_witness_1779039702 (template: proof)\n\nScaffold files created:\n  /tmp/phase6_2_witness_1779039702/runtime_repo\n  /tmp/phase6_2_witness_1779039702/cas\n  /tmp/phase6_2_witness_1779039702/genesis_payload.toml\n  /tmp/phase6_2_witness_1779039702/agent_pubkeys.json  (map agent_id -> ed25519 pubkey; Phase 6.1+ schema)\n\nNext steps:\n  cd /tmp/phase6_2_witness_1779039702\n  # Edit genesis_payload.toml to declare agents / budgets / market.\n\nWhat you can run rig",
+  "step": 1,
+  "verdict": "PASS"
+}

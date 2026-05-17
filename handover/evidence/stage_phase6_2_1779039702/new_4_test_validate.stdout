@@ -1,0 +1,17 @@
+=== UI IR Spike test_validate.sh ===
+
+PASS: validate fixtures/agent_role_view_sample.json
+PASS: validate fixtures/agent_view_sample.json
+PASS: validate fixtures/audit_summary_view_sample.json
+PASS: validate fixtures/batch_status_view_sample.json
+PASS: validate fixtures/dashboard_sample.json
+PASS: validate fixtures/market_position_view_sample.json
+PASS: validate fixtures/task_view_sample.json
+PASS: malformed_no_blocks exit 1 (expected exit 1)
+PASS: malformed_unknown_kind exit 1 (expected exit 1)
+PASS: invalid_json exit 2 (expected exit 2)
+PASS: missing_file exit 2 (expected exit 2)
+PASS: validate via stdin (dashboard_sample.json)
+PASS: help_exits_0
+
+=== Results: PASS=13  FAIL=0 ===

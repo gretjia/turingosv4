@@ -29,12 +29,15 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use serde_json::Value;
+use tempfile::TempDir;
 
 use turingosv4::runtime::markov_capsule::{
     try_deep_history_read_with_override_check, MarkovGenError,
 };
 
 const WAVE3_50P_DIR: &str = "handover/evidence/wave3_diagnostic_50p_2026-05-07T14-04-48Z";
+const WAVE3_CAS_SIDECAR_CI_FIXTURE: &str =
+    "handover/evidence/ci_fixtures/wave3_50p_cas_sidecars_fixture.tgz";
 const STAGE_A3_R5_DIR: &str = "handover/evidence/stage_a3_r5_smoke_2026-05-08T05-40-39Z";
 const STAGE_A3_R35_DIR: &str = "handover/evidence/stage_a3_r35_smoke_2026-05-08T06-02-28Z";
 const STAGE_B3_R6_DIR: &str = "handover/evidence/stage_b3_r6_minim1_2026-05-08T06-07-32Z";
@@ -58,6 +61,45 @@ fn problem_dirs(batch_root: &str) -> Vec<PathBuf> {
     out
 }
 
+fn wave3_problem_dirs_with_sidecar_fixture() -> (Option<TempDir>, Vec<PathBuf>) {
+    let dirs = problem_dirs(WAVE3_50P_DIR);
+    if dirs
+        .iter()
+        .all(|p| p.join("cas/.turingos_cas_index.jsonl").exists())
+    {
+        return (None, dirs);
+    }
+
+    let fixture = Path::new(WAVE3_CAS_SIDECAR_CI_FIXTURE);
+    assert!(
+        fixture.exists(),
+        "Wave 3 CAS sidecar CI fixture missing at {WAVE3_CAS_SIDECAR_CI_FIXTURE}"
+    );
+    let tmp = TempDir::new().expect("Wave3 sidecar CI fixture tempdir");
+    let status = Command::new("tar")
+        .arg("-xzf")
+        .arg(fixture)
+        .arg("-C")
+        .arg(tmp.path())
+        .status()
+        .expect("extract Wave3 sidecar CI fixture");
+    assert!(
+        status.success(),
+        "extract Wave3 sidecar CI fixture failed with {status}"
+    );
+    let root = tmp
+        .path()
+        .to_str()
+        .expect("fixture root path utf8 for test helper");
+    let fixture_dirs = problem_dirs(root);
+    assert_eq!(
+        fixture_dirs.len(),
+        50,
+        "Wave 3 sidecar CI fixture must contain 50 problem dirs"
+    );
+    (Some(tmp), fixture_dirs)
+}
+
 /// §I FC3-INV3 — Raw logs not in agent read view, run-time witness on
 /// Wave 3 50p tape. The kill condition is "agent prompt contains raw
 /// stderr". The agent's read view (`UniverseSnapshot` / `prompt.rs`)
@@ -75,7 +117,7 @@ fn problem_dirs(batch_root: &str) -> Vec<PathBuf> {
 /// not large enough to inline raw Lean stderr.
 #[test]
 fn fc3_inv3_raw_logs_not_in_agent_read_view_real_witness() {
-    let dirs = problem_dirs(WAVE3_50P_DIR);
+    let (_fixture, dirs) = wave3_problem_dirs_with_sidecar_fixture();
     assert_eq!(
         dirs.len(),
         50,

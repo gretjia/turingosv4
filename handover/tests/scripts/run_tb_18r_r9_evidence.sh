@@ -21,7 +21,7 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
-OUT_DIR="$PROJECT_ROOT/handover/evidence/tb_18r_r9_p38_p49_2026-05-06"
+OUT_DIR="${OUT_DIR:-$PROJECT_ROOT/handover/evidence/tb_18r_r9_p38_p49_2026-05-06}"
 PROBLEMS_FILE="$OUT_DIR/r9_problems.txt"
 EVALUATOR_BIN="$PROJECT_ROOT/target/release/evaluator"
 AUDIT_TAPE_BIN="$PROJECT_ROOT/target/release/audit_tape"
@@ -166,34 +166,12 @@ EOM
   echo "[r9] [$((i+1))/$N] $NAME: invariant=$(grep -oE '"invariant_verdict"[[:space:]]*:[[:space:]]*"[^"]*"' "$RUN_DIR/chain_invariant.json" | head -1 || echo unknown)"
 done
 
-cat > "$OUT_DIR/R9_BATCH_SUMMARY.json" <<EOM
-{
-  "phase": "TB-18R G2 round-2 R9",
-  "problem_count": $N,
-  "max_transactions_per_problem": $MAX_TX,
-  "per_problem_timeout_s": $PER_PROBLEM_TIMEOUT_S,
-  "git_head": "$GIT_HEAD",
-  "run_timestamp_utc": "$RUN_TS",
-  "per_problem_results": [
-$(for ((i=0; i<N; i++)); do
-    NAME="${PROBLEMS[$i]}"
-    IDX="$(printf 'P%02d' "$((i+1))")"
-    TAG="${IDX}_${NAME}"
-    INV_FILE="$OUT_DIR/$TAG/chain_invariant.json"
-    sep=","; [ $((i+1)) -eq "$N" ] && sep=""
-    if [ -f "$INV_FILE" ]; then
-      INV_VERDICT="$(grep -oE '"invariant_verdict"[[:space:]]*:[[:space:]]*"[^"]*"' "$INV_FILE" | head -1)"
-      L4_COUNT="$(grep -oE '"l4_work_attempt_count"[[:space:]]*:[[:space:]]*[0-9]+' "$INV_FILE" | grep -oE '[0-9]+')"
-      L4E_COUNT="$(grep -oE '"l4e_work_attempt_count"[[:space:]]*:[[:space:]]*[0-9]+' "$INV_FILE" | grep -oE '[0-9]+')"
-      DELTA="$(grep -oE '"delta"[[:space:]]*:[[:space:]]*-?[0-9]+' "$INV_FILE" | grep -oE '\-?[0-9]+')"
-      EVALUABLE="$(grep -oE '"r4_invariant_equation_evaluable"[[:space:]]*:[[:space:]]*(true|false)' "$INV_FILE" | grep -oE 'true|false')"
-      echo "    {\"tag\": \"$TAG\", \"l4\": $L4_COUNT, \"l4e\": $L4E_COUNT, \"delta\": $DELTA, \"evaluable\": $EVALUABLE, $INV_VERDICT}$sep"
-    else
-      echo "    {\"tag\": \"$TAG\", \"error\": \"no chain_invariant.json\"}$sep"
-    fi
-  done)
-  ]
-}
-EOM
+python3 "$PROJECT_ROOT/handover/tests/scripts/r9_batch_summary.py" \
+  --out-dir "$OUT_DIR" \
+  --problems-file "$PROBLEMS_FILE" \
+  --max-tx "$MAX_TX" \
+  --per-problem-timeout-s "$PER_PROBLEM_TIMEOUT_S" \
+  --git-head "$GIT_HEAD" \
+  --run-timestamp-utc "$RUN_TS"
 
 echo "[r9] DONE | summary at $OUT_DIR/R9_BATCH_SUMMARY.json"

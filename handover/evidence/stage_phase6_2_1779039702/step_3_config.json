@@ -1,0 +1,21 @@
+{
+  "evidence_files": [
+    "step_3_config_set.stdout",
+    "step_3_config_set.stderr",
+    "step_3_config_get.stdout",
+    "step_3_config_get.stderr"
+  ],
+  "get_command": "./target/debug/turingos config get demo.key --workspace /tmp/phase6_2_witness_1779039702",
+  "get_exit_code": 0,
+  "get_stderr_excerpt": "",
+  "get_stdout_excerpt": "demo.value\n",
+  "name": "config",
+  "roundtrip_ok": true,
+  "roundtrip_value": "demo.value",
+  "set_command": "./target/debug/turingos config set demo.key demo.value --workspace /tmp/phase6_2_witness_1779039702",
+  "set_exit_code": 0,
+  "set_stderr_excerpt": "",
+  "set_stdout_excerpt": "set demo.key = \"demo.value\"\n",
+  "step": 3,
+  "verdict": "PASS"
+}

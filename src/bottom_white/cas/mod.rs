@@ -8,6 +8,9 @@
 //!
 //! /// TRACE_MATRIX WP-arch-§5.L3 + spec-§1.2 (proposal_cid): CAS root
 
+/// TRACE_MATRIX WP-arch-§5.L3 + Art. 0.4: Git commit-chain authority for
+/// `refs/chaintape/cas`; sidecar index is cache once this ref exists.
+pub mod git_chain;
 pub mod schema;
 pub mod store;
 

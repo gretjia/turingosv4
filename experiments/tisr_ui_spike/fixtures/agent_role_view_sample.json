@@ -1,0 +1,82 @@
+{
+  "id": "agent-role-view:2026-05-17T12:00:00Z",
+  "title": "Agent Role Distribution",
+  "blocks": [
+    {
+      "id": "blk-intro-text",
+      "kind": "text",
+      "content": "Agent role distribution snapshot. Derived from AgentRegistry ChainTape entries. Shows count of registered agents per role and most recent activity timestamp. Materialized view — not authoritative over ChainTape/CAS (FC3-N31)."
+    },
+    {
+      "id": "blk-role-table",
+      "kind": "table",
+      "caption": "Agent roles by count and last active timestamp",
+      "columns": ["role", "count", "last_active_unix"],
+      "rows": [
+        [
+          { "kind": "string",  "value": "Solver" },
+          { "kind": "integer", "value": 3 },
+          { "kind": "integer", "value": 1747476000 }
+        ],
+        [
+          { "kind": "string",  "value": "Verifier" },
+          { "kind": "integer", "value": 2 },
+          { "kind": "integer", "value": 1747472400 }
+        ],
+        [
+          { "kind": "string",  "value": "Challenger" },
+          { "kind": "integer", "value": 1 },
+          { "kind": "integer", "value": 1747468800 }
+        ],
+        [
+          { "kind": "string",  "value": "Trader" },
+          { "kind": "integer", "value": 1 },
+          { "kind": "integer", "value": 1747465200 }
+        ],
+        [
+          { "kind": "string",  "value": "MarketMaker" },
+          { "kind": "integer", "value": 1 },
+          { "kind": "integer", "value": 1747476000 }
+        ],
+        [
+          { "kind": "string",  "value": "Architect" },
+          { "kind": "integer", "value": 1 },
+          { "kind": "integer", "value": 1747458000 }
+        ],
+        [
+          { "kind": "string",  "value": "Veto" },
+          { "kind": "integer", "value": 1 },
+          { "kind": "integer", "value": 1747454400 }
+        ],
+        [
+          { "kind": "string",  "value": "Observer" },
+          { "kind": "integer", "value": 1 },
+          { "kind": "integer", "value": 1747450800 }
+        ],
+        [
+          { "kind": "string",  "value": "BullTrader" },
+          { "kind": "integer", "value": 1 },
+          { "kind": "integer", "value": 1747447200 }
+        ],
+        [
+          { "kind": "string",  "value": "BearTrader" },
+          { "kind": "integer", "value": 1 },
+          { "kind": "integer", "value": 1747443600 }
+        ]
+      ]
+    },
+    {
+      "id": "blk-agent-summary-panel",
+      "kind": "dashboard_panel",
+      "panel_title": "Agent Registry Totals",
+      "metrics": [
+        { "label": "total_agents",        "value": 13, "unit": "agents" },
+        { "label": "distinct_roles",      "value": 10, "unit": "roles" },
+        { "label": "active_agents",       "value": 11, "unit": "agents" },
+        { "label": "paused_agents",       "value": 1,  "unit": "agents" },
+        { "label": "bankrupt_agents",     "value": 1,  "unit": "agents" },
+        { "label": "registry_note",       "value": "Phase 6.2 UI IR sample; not a live registry feed" }
+      ]
+    }
+  ]
+}

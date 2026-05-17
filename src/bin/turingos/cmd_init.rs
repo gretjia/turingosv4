@@ -317,9 +317,15 @@ fn cmd_init_inner(args: InitArgs) -> Result<(), InitError> {
     println!();
     println!("Next steps:");
     println!("  cd {cd_hint}");
-    println!("  # Edit genesis_payload.toml to declare agents / budgets / market.");
     println!();
-    println!("What you can run right now (Phase 6.1):");
+    println!("Phase 6.3 — build something from a spec (no developer required):");
+    println!("  turingos llm config --workspace {cd_hint}     # 1. set up the two LLMs (uses SiliconFlow + DeepSeek + Qwen3-Coder defaults)");
+    println!("  export SILICONFLOW_API_KEY=sk-...               # 2. provide your API key");
+    println!("  turingos spec --workspace {cd_hint}           # 3. 8-question grill -> spec.md (CAS-anchored)");
+    println!("  turingos generate --workspace {cd_hint}       # 4. emit working code into artifacts/");
+    println!("  turingos welcome --workspace {cd_hint}        # check progress anytime");
+    println!();
+    println!("Or, for the established multi-agent benchmark path (Phase 6.1):");
     println!("  turingos --help                         # full subcommand list");
     println!("  turingos agent deploy --id <ID> ...     # register an agent's pubkey + role");
     println!("  turingos config set <key> <value>       # workspace-local config");

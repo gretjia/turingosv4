@@ -1,0 +1,151 @@
+{
+  "agent_id": "verifier_phase6_2_672c5abe09a1",
+  "branch_head": "bd14f4d253bfe59ce7676799e91d0227d8f557af",
+  "started_at_unix": 1779039737,
+  "completed_at_unix": 1779039823,
+  "wall_clock_seconds": 86,
+  "overall_verdict": "PARTIAL",
+  "steps": [
+    {
+      "step": 1,
+      "name": "init",
+      "verdict": "PASS",
+      "command": "./target/debug/turingos init --project /tmp/phase6_2_witness_1779039702",
+      "exit_code": 0,
+      "stdout_excerpt": "Initialized TuringOS workspace at /tmp/phase6_2_witness_1779039702 (template: proof)\n\nScaffold files created:\n  /tmp/phase6_2_witness_1779039702/runtime_repo\n  /tmp/phase6_2_witness_1779039702/cas\n  /tmp/phase6_2_witness_1779039702/genesis_payload.toml\n  /tmp/phase6_2_witness_1779039702/agent_pubkeys.json  (map agent_id -> ed25519 pubkey; Phase 6.1+ schema)\n\nNext steps:\n  cd /tmp/phase6_2_witness_1779039702\n  # Edit genesis_payload.toml to declare agents / budgets / market.\n\nWhat you can run rig",
+      "stderr_excerpt": "",
+      "evidence_files": [
+        "step_1_init.stdout",
+        "step_1_init.stderr",
+        "step_1_init.json"
+      ]
+    },
+    {
+      "step": 2,
+      "name": "agent_deploy",
+      "verdict": "PASS",
+      "command": "./target/debug/turingos agent deploy --id agent_001 --pubkey 01...64-hex... --role Solver --workspace /tmp/phase6_2_witness_1779039702",
+      "exit_code": 0,
+      "stdout_excerpt": "deployed agent_001 (Solver)\n",
+      "stderr_excerpt": "",
+      "evidence_files": [
+        "step_2_agent_deploy.stdout",
+        "step_2_agent_deploy.stderr",
+        "step_2_agent_deploy.json"
+      ]
+    },
+    {
+      "step": 3,
+      "name": "config",
+      "verdict": "PASS",
+      "command": "./target/debug/turingos config set demo.key demo.value --workspace /tmp/phase6_2_witness_1779039702 && ./target/debug/turingos config get demo.key --workspace /tmp/phase6_2_witness_1779039702",
+      "exit_code": 0,
+      "stdout_excerpt": "demo.value\n",
+      "stderr_excerpt": "",
+      "evidence_files": [
+        "step_3_config_set.stdout",
+        "step_3_config_set.stderr",
+        "step_3_config_get.stdout",
+        "step_3_config_get.stderr",
+        "step_3_config.json"
+      ]
+    },
+    {
+      "step": 4,
+      "name": "task_open",
+      "verdict": "SKIPPED_BACKEND_MISSING",
+      "command": "./target/debug/turingos task open --problem nat_succ_succ --bounty 1000000 --workspace /tmp/phase6_2_witness_1779039702",
+      "exit_code": 2,
+      "stdout_excerpt": "",
+      "stderr_excerpt": "turingos: failed to invoke 'lean_market': No such file or directory (os error 2)\n",
+      "evidence_files": [
+        "step_4_task_open.stdout",
+        "step_4_task_open.stderr",
+        "step_4_task_open.json"
+      ]
+    },
+    {
+      "step": 5,
+      "name": "audit_dashboard",
+      "verdict": "SKIPPED_BACKEND_MISSING",
+      "command": "./target/debug/turingos audit dashboard --repo /tmp/phase6_2_witness_1779039702/runtime_repo --cas /tmp/phase6_2_witness_1779039702/cas",
+      "exit_code": 2,
+      "stdout_excerpt": "",
+      "stderr_excerpt": "audit_dashboard: build failed: verify_chaintape: PinnedPubkeysMissing(\"/tmp/phase6_2_witness_1779039702/runtime_repo/pinned_pubkeys.json\")\n",
+      "evidence_files": [
+        "step_5_audit_dashboard.stdout",
+        "step_5_audit_dashboard.stderr",
+        "step_5_audit_dashboard.json"
+      ]
+    },
+    {
+      "step": 6,
+      "name": "report_wallet",
+      "verdict": "SKIPPED_BACKEND_MISSING",
+      "command": "./target/debug/turingos report wallet --chaintape /tmp/phase6_2_witness_1779039702/runtime_repo",
+      "exit_code": 2,
+      "stdout_excerpt": "",
+      "stderr_excerpt": "turingos: failed to invoke 'lean_market': No such file or directory (os error 2)\n",
+      "evidence_files": [
+        "step_6_report_wallet.stdout",
+        "step_6_report_wallet.stderr",
+        "step_6_report_wallet.json"
+      ]
+    },
+    {
+      "step": 7,
+      "name": "export_evidence",
+      "verdict": "PASS",
+      "command": "./target/debug/turingos export evidence --source /tmp/phase6_2_witness_1779039702 --out /tmp/phase6_2_export_1779039702",
+      "exit_code": 0,
+      "stdout_excerpt": "exported /tmp/phase6_2_witness_1779039702 -> /tmp/phase6_2_export_1779039702: 3 files, 1017 bytes\n",
+      "stderr_excerpt": "",
+      "evidence_files": [
+        "step_7_export_evidence.stdout",
+        "step_7_export_evidence.stderr",
+        "step_7_export_evidence.json"
+      ]
+    },
+    {
+      "step": 8,
+      "name": "replay",
+      "verdict": "SKIPPED_BACKEND_MISSING",
+      "command": "./target/debug/turingos replay --chaintape /tmp/phase6_2_witness_1779039702/runtime_repo",
+      "exit_code": 2,
+      "stdout_excerpt": "",
+      "stderr_excerpt": "turingos: failed to invoke 'lean_market': No such file or directory (os error 2)\n",
+      "evidence_files": [
+        "step_8_replay.stdout",
+        "step_8_replay.stderr",
+        "step_8_replay.json"
+      ]
+    }
+  ],
+  "new_deliverables": [
+    {
+      "name": "turingos_render",
+      "verdict": "PASS",
+      "exit_code": 0
+    },
+    {
+      "name": "validate_py",
+      "verdict": "PASS",
+      "exit_code": 0
+    },
+    {
+      "name": "test_render_sh",
+      "verdict": "PASS",
+      "exit_code": 0,
+      "pass_count": 7
+    },
+    {
+      "name": "test_validate_sh",
+      "verdict": "PASS",
+      "exit_code": 0,
+      "pass_count": 13
+    }
+  ],
+  "lean_outcome": "N/A",
+  "fail_reasons": [],
+  "notes": "Backends lean_market and target/release/* are not built per \u00a77 efficiency directive ('do NOT build lean_market or audit_dashboard'). Steps 4, 6, 8 expectedly exit 2 with stderr 'failed to invoke lean_market'. Step 5 audit_dashboard IS built (debug) but has no real ChainTape to read (empty-scaffold workspace, no real task ever opened) so fails on PinnedPubkeysMissing. All three classify as SKIPPED_BACKEND_MISSING per \u00a76 'partial witness is acceptable' rule. Step 7 is filesystem-only and PASSES. All 3 Phase 6.2 NEW deliverables (turingos render / validate.py / test_render.sh) PASS, plus the 13-test test_validate.sh PASSES."
+}

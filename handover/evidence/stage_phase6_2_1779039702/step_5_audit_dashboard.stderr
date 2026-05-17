@@ -1,0 +1,1 @@
+audit_dashboard: build failed: verify_chaintape: PinnedPubkeysMissing("/tmp/phase6_2_witness_1779039702/runtime_repo/pinned_pubkeys.json")
