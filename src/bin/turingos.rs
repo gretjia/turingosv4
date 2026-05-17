@@ -27,6 +27,8 @@ mod common;
 // (each Wave 1-3 atom appends `#[path = ...] mod cmd_<name>;` lines here, before END anchor)
 #[path = "turingos/cmd_report_run.rs"]
 mod cmd_report_run;
+#[path = "turingos/cmd_report_wallet.rs"]
+mod cmd_report_wallet;
 // MODULES-REGISTRY-END
 
 const VERSION_STR: &str = concat!("turingos ", env!("CARGO_PKG_VERSION"));
@@ -49,6 +51,11 @@ const SUBCOMMANDS: &[Subcommand] = &[
         name: "report run",
         short_help: cmd_report_run::SHORT_HELP,
         run: cmd_report_run::run,
+    },
+    Subcommand {
+        name: "report wallet",
+        short_help: cmd_report_wallet::SHORT_HELP,
+        run: cmd_report_wallet::run,
     },
     // SUBCOMMANDS-REGISTRY-END
 ];
