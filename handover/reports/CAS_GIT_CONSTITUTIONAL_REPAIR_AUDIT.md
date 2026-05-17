@@ -323,6 +323,9 @@ Regressions / cost:
   intentional auditability cost.
 - The tracked CI fixtures add about 431 KiB of compact binary test evidence to
   the repository. The full hydrated historical directories remain ignored.
+- `minif2f_v4` binaries no longer participate in default `cargo test` for the
+  package; they remain explicitly buildable by the real-run scripts that use
+  `--bin evaluator --bin batch_evaluator`.
 - First run after `cargo clean` required release/debug rebuild time.
 
 Not comparable:
@@ -382,6 +385,24 @@ Post-fix CI/fresh-checkout closure:
   those archives only when the original ignored evidence fragments are absent.
 - Verified in a detached scratch worktree without local hydration:
   `bash scripts/run_constitution_gates.sh` -> `464 passed / 0 failed / 1 ignored`.
+
+Post-fix CI linker closure:
+
+- After the fixture closure, GitHub passed the evidence-binding families but
+  still failed the package gate
+  `minif2f_v4::constitution_g1_2_subprocess_resume`.
+- The failure was not a test assertion. The enhanced gate log showed Rust
+  1.95 `rust-lld` crashing with `Bus error` while linking the heavy
+  `evaluator` / `batch_evaluator` binaries during `cargo test -p minif2f_v4`.
+- The package gate tests only `batch_orchestrator` library semantics and does
+  not execute those binaries, so `experiments/minif2f_v4/Cargo.toml` now marks
+  the bin targets `test = false`.
+- Explicit real-run build paths are unchanged and still build the binaries via
+  `cargo build -p minif2f_v4 --bin evaluator --bin batch_evaluator`.
+- Local verification:
+  `cargo +1.95.0 test -p minif2f_v4 --test constitution_g1_2_subprocess_resume`
+  with a fresh target -> `5 passed / 0 failed`; explicit bin build -> exit 0;
+  full gates -> `464 passed / 0 failed / 1 ignored`.
 
 ## Residual Risks And Non-Claims
 

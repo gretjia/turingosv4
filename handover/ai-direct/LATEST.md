@@ -20,6 +20,10 @@ advance from being misclassified as hard sidecar corruption. The first
 post-P1 GitHub Constitution gate run then exposed a fresh-checkout fixture gap
 (`441 passed / 18 failed / 1 ignored`); compact real CI fixtures now package
 the minimal historical ignored CAS/runtime fragments needed by those gates.
+The next GitHub red was isolated to Rust 1.95 `rust-lld` crashing while linking
+unused minif2f_v4 binaries during the package gate; the minif2f bin targets are
+now `test = false` for default `cargo test`, while explicit `--bin evaluator
+--bin batch_evaluator` builds remain intact.
 Main worktree is not merged and `turingos_dev` is intentionally not used for
 this CAS/core repair.
 
@@ -53,6 +57,15 @@ FC2 replay/audit boot, and FC3 evidence feedback/audit views.
 - Fresh-checkout CI fixture closure:
   tracked compact real fixtures under `handover/evidence/ci_fixtures/`; detached
   scratch worktree full gates -> `464 passed / 0 failed / 1 ignored`.
+- Post-fixture GitHub CI linker failure:
+  `minif2f_v4::constitution_g1_2_subprocess_resume` failed because `rust-lld`
+  crashed with `Bus error` while linking unused `evaluator` / `batch_evaluator`
+  binaries during `cargo test -p minif2f_v4`.
+- Linker closure:
+  `experiments/minif2f_v4/Cargo.toml` marks bin targets `test = false`;
+  fresh-target Rust 1.95 package gate -> `5 passed / 0 failed`; explicit
+  `cargo build -p minif2f_v4 --bin evaluator --bin batch_evaluator` -> exit 0;
+  final full gates -> `464 passed / 0 failed / 1 ignored`.
 - Final broad workspace command:
   `cargo test --workspace --no-fail-fast -- --test-threads=1` -> exit 0.
 - Historical ignored fixtures were hydrated locally from main for TB-C0,

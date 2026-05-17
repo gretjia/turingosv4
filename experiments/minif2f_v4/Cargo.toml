@@ -7,14 +7,17 @@ description = "MiniF2F v4 — Formal verification swarm experiment"
 [[bin]]
 name = "evaluator"
 path = "src/bin/evaluator.rs"
+test = false
 
 [[bin]]
 name = "lean_market"
 path = "src/bin/lean_market.rs"
+test = false
 
 [[bin]]
 name = "batch_evaluator"
 path = "src/bin/batch_evaluator.rs"
+test = false
 
 [dependencies]
 turingosv4 = { path = "../.." }
