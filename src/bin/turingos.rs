@@ -25,6 +25,12 @@ mod cmd_init;
 mod common;
 // MODULES-REGISTRY-BEGIN
 // (each Wave 1-3 atom appends `#[path = ...] mod cmd_<name>;` lines here, before END anchor)
+#[path = "turingos/cmd_audit_dashboard.rs"]
+mod cmd_audit_dashboard;
+#[path = "turingos/cmd_audit_tamper.rs"]
+mod cmd_audit_tamper;
+#[path = "turingos/cmd_audit_tape.rs"]
+mod cmd_audit_tape;
 #[path = "turingos/cmd_report_bankruptcy.rs"]
 mod cmd_report_bankruptcy;
 #[path = "turingos/cmd_report_markov.rs"]
@@ -37,6 +43,8 @@ mod cmd_report_run;
 mod cmd_report_wallet;
 #[path = "turingos/cmd_verify_chaintape.rs"]
 mod cmd_verify_chaintape;
+#[path = "turingos/cmd_verify_e2_candidate.rs"]
+mod cmd_verify_e2_candidate;
 // MODULES-REGISTRY-END
 
 const VERSION_STR: &str = concat!("turingos ", env!("CARGO_PKG_VERSION"));
@@ -84,6 +92,26 @@ const SUBCOMMANDS: &[Subcommand] = &[
         name: "verify chaintape",
         short_help: cmd_verify_chaintape::SHORT_HELP,
         run: cmd_verify_chaintape::run,
+    },
+    Subcommand {
+        name: "verify e2-candidate",
+        short_help: cmd_verify_e2_candidate::SHORT_HELP,
+        run: cmd_verify_e2_candidate::run,
+    },
+    Subcommand {
+        name: "audit dashboard",
+        short_help: cmd_audit_dashboard::SHORT_HELP,
+        run: cmd_audit_dashboard::run,
+    },
+    Subcommand {
+        name: "audit tape",
+        short_help: cmd_audit_tape::SHORT_HELP,
+        run: cmd_audit_tape::run,
+    },
+    Subcommand {
+        name: "audit tamper",
+        short_help: cmd_audit_tamper::SHORT_HELP,
+        run: cmd_audit_tamper::run,
     },
     // SUBCOMMANDS-REGISTRY-END
 ];
