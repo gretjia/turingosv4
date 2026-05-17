@@ -270,3 +270,47 @@ fn turingos_batch_new_rejects_invalid_name() {
         String::from_utf8_lossy(&output.stderr),
     );
 }
+
+// ───────────────────────────────────────────────────────────────────────────
+// Phase 6.2 W1.3: batch list empty-state hint must shell-quote workspace
+// path so copy-paste survives whitespace. Mirrors the agent smoke test
+// pattern; opportunistic coverage extension per R4 recommendation.
+// ───────────────────────────────────────────────────────────────────────────
+
+#[test]
+fn turingos_batch_list_empty_hint_quotes_whitespace_path() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let space_path = tmp.path().join("ws with space");
+    std::fs::create_dir(&space_path).expect("mkdir space-path");
+    // Intentionally do NOT create batches/ subdir — the test exercises
+    // the empty-batches diagnostic + hint path.
+
+    let output = Command::new(turingos_bin())
+        .arg("batch")
+        .arg("list")
+        .arg("--workspace")
+        .arg(&space_path)
+        .output()
+        .expect("run turingos batch list");
+
+    assert!(
+        output.status.success(),
+        "batch list on a clean workspace should exit 0; status={:?}",
+        output.status,
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let space_str = space_path.to_string_lossy().to_string();
+    let quoted = format!("'{}'", space_str.replace('\'', r"'\''"));
+
+    // The empty-state hint must contain BOTH `turingos batch new` AND the
+    // shell-quoted workspace path on the SAME line; failure of either = FAIL.
+    let hint_line = stdout
+        .lines()
+        .find(|line| line.contains("turingos batch new") && line.contains(&quoted));
+    assert!(
+        hint_line.is_some(),
+        "batch list empty-state hint must contain both `turingos batch new` \
+         AND the shell-quoted workspace path {quoted:?} on the SAME line; \
+         got stdout: {stdout:?}",
+    );
+}
