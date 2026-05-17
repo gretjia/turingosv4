@@ -21,6 +21,9 @@ use crate::runtime::librarian_broadcast::{
     assert_no_forbidden_broadcast_material, librarian_digest_cids, read_librarian_digest_from_cas,
     RoleNotificationView, LIBRARIAN_ROLE_CROP_SCHEMA_ID,
 };
+use crate::runtime::market_decision_provenance_link::{
+    list_market_decision_provenance_links_from_cas, MarketDecisionProvenanceLink,
+};
 use crate::runtime::market_decision_trace::{MarketDecisionTrace, TraceOutcome};
 use crate::runtime::market_opportunity_trace::{
     market_opportunity_trace_cids, MarketOpportunityTrace,
@@ -40,6 +43,7 @@ use crate::state::typed_tx::{BuyDirection, EventId, TypedTx};
 pub struct E2CandidateVerifierOptions {
     pub expected_exact_join_count: Option<u64>,
     pub require_matched_tx_provenance: bool,
+    pub require_direct_prompt_capsule_provenance: bool,
 }
 
 impl Default for E2CandidateVerifierOptions {
@@ -47,6 +51,7 @@ impl Default for E2CandidateVerifierOptions {
         Self {
             expected_exact_join_count: None,
             require_matched_tx_provenance: true,
+            require_direct_prompt_capsule_provenance: false,
         }
     }
 }
@@ -75,6 +80,9 @@ pub struct E2CandidateVerifierReport {
     pub duplicate_submitted_trace_tx_id_count: u64,
     pub scripted_fixture_tx_count: u64,
     pub policy_counts_for_e2: bool,
+    pub direct_prompt_capsule_provenance_count: u64,
+    pub indirect_prompt_capsule_provenance_count: u64,
+    pub missing_direct_prompt_capsule_provenance_count: u64,
     pub matched_tx_provenance: Vec<MatchedTxProvenanceReport>,
     pub bcast_shielding: BcastShieldingReport,
     pub verdict: E2CandidateVerifierVerdict,
@@ -119,6 +127,18 @@ impl E2CandidateVerifierReport {
         out.push_str(&format!(
             "policy_counts_for_e2: {}\n",
             self.policy_counts_for_e2
+        ));
+        out.push_str(&format!(
+            "direct_prompt_capsule_provenance_count: {}\n",
+            self.direct_prompt_capsule_provenance_count
+        ));
+        out.push_str(&format!(
+            "indirect_prompt_capsule_provenance_count: {}\n",
+            self.indirect_prompt_capsule_provenance_count
+        ));
+        out.push_str(&format!(
+            "missing_direct_prompt_capsule_provenance_count: {}\n",
+            self.missing_direct_prompt_capsule_provenance_count
         ));
         out.push_str("\nmatched_tx_ids:\n");
         for tx_id in &self.matched_tx_ids {
@@ -181,6 +201,7 @@ pub struct MatchedTxProvenanceReport {
     pub l4_min_out_shares: u128,
     pub market_decision_trace_count: u64,
     pub market_decision_trace_cids: Vec<String>,
+    pub market_decision_provenance_link_cids: Vec<String>,
     pub market_decision_agent_id: Option<String>,
     pub market_decision_chosen_node_id: Option<String>,
     pub market_decision_direction: Option<String>,
@@ -245,6 +266,12 @@ struct RoleTurnWitness {
     trace: RoleTurnTrace,
 }
 
+#[derive(Debug, Clone)]
+struct MarketDecisionProvenanceLinkWitness {
+    link_cid: Cid,
+    link: MarketDecisionProvenanceLink,
+}
+
 /// TRACE_MATRIX FC1/FC3: recompute live agent economic-action candidates from
 /// L4 BuyWithCoinRouterTx ids intersected with submitted MarketDecisionTrace
 /// ids, failing closed on provenance, fixture, policy, or shielding defects.
@@ -286,6 +313,7 @@ pub fn verify_market_e2_candidate(
     let ev_traces = collect_ev_decision_witnesses(&cas)?;
     let opportunity_traces = collect_market_opportunity_witnesses(&cas)?;
     let role_turn_traces = collect_role_turn_witnesses(&cas)?;
+    let provenance_links = collect_market_decision_provenance_link_witnesses(&cas)?;
     let matched_tx_provenance = build_matched_tx_provenance(
         &cas,
         &matched_tx_ids,
@@ -294,10 +322,21 @@ pub fn verify_market_e2_candidate(
         &ev_traces,
         &opportunity_traces,
         &role_turn_traces,
+        &provenance_links,
     )?;
     let bcast_shielding = verify_bcast_shielding(&cas)?;
 
     let exact_join_count = matched_tx_ids.len() as u64;
+    let direct_prompt_capsule_provenance_count = matched_tx_provenance
+        .iter()
+        .filter(|row| row.prompt_capsule_linkage == "direct_via_market_decision_provenance_link")
+        .count() as u64;
+    let indirect_prompt_capsule_provenance_count = matched_tx_provenance
+        .iter()
+        .filter(|row| row.prompt_capsule_linkage == "indirect_via_ev_decision_trace")
+        .count() as u64;
+    let missing_direct_prompt_capsule_provenance_count =
+        exact_join_count.saturating_sub(direct_prompt_capsule_provenance_count);
     let mut failure_reasons = unknown_schema_failures;
     if let Some(expected) = options.expected_exact_join_count {
         if exact_join_count != expected {
@@ -412,6 +451,16 @@ pub fn verify_market_e2_candidate(
             }
         }
     }
+    if options.require_direct_prompt_capsule_provenance {
+        for row in &matched_tx_provenance {
+            if row.prompt_capsule_linkage != "direct_via_market_decision_provenance_link" {
+                failure_reasons.push(format!(
+                    "matched tx {} missing direct PromptCapsule provenance",
+                    row.tx_id
+                ));
+            }
+        }
+    }
     failure_reasons.extend(
         bcast_shielding
             .failure_reasons
@@ -436,6 +485,9 @@ pub fn verify_market_e2_candidate(
         duplicate_submitted_trace_tx_id_count,
         scripted_fixture_tx_count,
         policy_counts_for_e2,
+        direct_prompt_capsule_provenance_count,
+        indirect_prompt_capsule_provenance_count,
+        missing_direct_prompt_capsule_provenance_count,
         matched_tx_provenance,
         bcast_shielding,
         verdict,
@@ -574,6 +626,23 @@ fn collect_role_turn_witnesses(cas: &CasStore) -> Result<Vec<RoleTurnWitness>, S
     Ok(out)
 }
 
+fn collect_market_decision_provenance_link_witnesses(
+    cas: &CasStore,
+) -> Result<BTreeMap<String, Vec<MarketDecisionProvenanceLinkWitness>>, String> {
+    let mut out: BTreeMap<String, Vec<MarketDecisionProvenanceLinkWitness>> = BTreeMap::new();
+    for (cid, link) in list_market_decision_provenance_links_from_cas(cas)
+        .map_err(|e| format!("MarketDecisionProvenanceLink read failed: {e}"))?
+    {
+        out.entry(link.submitted_router_tx_id.0.clone())
+            .or_default()
+            .push(MarketDecisionProvenanceLinkWitness {
+                link_cid: cid,
+                link,
+            });
+    }
+    Ok(out)
+}
+
 fn build_matched_tx_provenance(
     cas: &CasStore,
     matched_tx_ids: &[String],
@@ -582,6 +651,7 @@ fn build_matched_tx_provenance(
     ev_traces: &[EVDecisionWitness],
     opportunity_traces: &[MarketOpportunityWitness],
     role_turn_traces: &[RoleTurnWitness],
+    provenance_links: &BTreeMap<String, Vec<MarketDecisionProvenanceLinkWitness>>,
 ) -> Result<Vec<MatchedTxProvenanceReport>, String> {
     let mut rows = Vec::new();
     for tx_id in matched_tx_ids {
@@ -600,6 +670,11 @@ fn build_matched_tx_provenance(
             .or_else(|| Some(TxId(l4.event_id.0 .0.clone())));
         let direction = decision_trace.and_then(|trace| trace.direction);
         let amount_micro = decision_trace.and_then(|trace| trace.amount_micro);
+        let direct_link_matches = provenance_links.get(tx_id).cloned().unwrap_or_default();
+        let direct_prompt_capsule_cids: BTreeSet<Cid> = direct_link_matches
+            .iter()
+            .map(|witness| witness.link.prompt_capsule_cid)
+            .collect();
         let ev_matches: Vec<&EVDecisionWitness> = ev_traces
             .iter()
             .filter(|witness| {
@@ -618,6 +693,11 @@ fn build_matched_tx_provenance(
             .iter()
             .map(|witness| witness.trace.prompt_capsule_cid)
             .collect();
+        let matched_prompt_capsule_cids: BTreeSet<Cid> = if direct_prompt_capsule_cids.is_empty() {
+            prompt_capsule_cids.clone()
+        } else {
+            direct_prompt_capsule_cids.clone()
+        };
         let opportunity_matches: Vec<&MarketOpportunityWitness> = opportunity_traces
             .iter()
             .filter(|witness| {
@@ -635,7 +715,7 @@ fn build_matched_tx_provenance(
                                 .any(|event_id| event_id.0 .0 == node.0)
                         })
                         .unwrap_or(false)
-                    && prompt_capsule_cids
+                    && matched_prompt_capsule_cids
                         .iter()
                         .any(|cid| witness.trace.prompt_capsule_cid == Some(*cid))
             })
@@ -647,14 +727,24 @@ fn build_matched_tx_provenance(
                     .as_ref()
                     .map(|agent_id| witness.trace.agent_id == *agent_id)
                     .unwrap_or(false)
-                    && prompt_capsule_cids.contains(&witness.trace.prompt_capsule_cid)
+                    && matched_prompt_capsule_cids.contains(&witness.trace.prompt_capsule_cid)
             })
             .collect();
+        let direct_prompt_capsule_cids_decodable = direct_prompt_capsule_cids
+            .iter()
+            .filter(|cid| read_prompt_capsule_v2_from_cas(cas, cid).is_ok())
+            .count();
         let prompt_capsule_cids_decodable = prompt_capsule_cids
             .iter()
             .filter(|cid| read_prompt_capsule_v2_from_cas(cas, cid).is_ok())
             .count();
-        let prompt_capsule_linkage = if prompt_capsule_cids.is_empty() {
+        let prompt_capsule_linkage = if !direct_prompt_capsule_cids.is_empty()
+            && direct_prompt_capsule_cids_decodable == direct_prompt_capsule_cids.len()
+        {
+            "direct_via_market_decision_provenance_link"
+        } else if !direct_prompt_capsule_cids.is_empty() {
+            "direct_market_decision_provenance_link_decode_failed"
+        } else if prompt_capsule_cids.is_empty() {
             "missing"
         } else if prompt_capsule_cids_decodable == prompt_capsule_cids.len() {
             "indirect_via_ev_decision_trace"
@@ -685,6 +775,18 @@ fn build_matched_tx_provenance(
             .map(|agent_id| agent_id.0.to_ascii_lowercase().contains("policy"))
             .unwrap_or(false);
         let mut residual_risks = Vec::new();
+        if direct_link_matches.len() > 1 {
+            residual_risks.push(format!(
+                "multiple MarketDecisionProvenanceLink sidecars match router tx_id (count={})",
+                direct_link_matches.len()
+            ));
+        }
+        if prompt_capsule_linkage == "direct_market_decision_provenance_link_decode_failed" {
+            residual_risks.push(
+                "MarketDecisionProvenanceLink prompt capsule CID did not decode as PromptCapsuleV2"
+                    .to_string(),
+            );
+        }
         if prompt_capsule_linkage == "indirect_via_ev_decision_trace" {
             residual_risks.push(
                 "MarketDecisionTrace has no direct PromptCapsule field; linkage is via matched EVDecisionTrace"
@@ -708,6 +810,10 @@ fn build_matched_tx_provenance(
             market_decision_trace_cids: decision_witnesses
                 .iter()
                 .map(|witness| witness.trace_cid.to_string())
+                .collect(),
+            market_decision_provenance_link_cids: direct_link_matches
+                .iter()
+                .map(|witness| witness.link_cid.to_string())
                 .collect(),
             market_decision_agent_id: decision_trace.map(|trace| trace.agent_id.0.clone()),
             market_decision_chosen_node_id: decision_trace
@@ -738,7 +844,7 @@ fn build_matched_tx_provenance(
                 .map(|witness| witness.trace_cid.to_string())
                 .collect(),
             prompt_capsule_linkage,
-            prompt_capsule_cids: prompt_capsule_cids
+            prompt_capsule_cids: matched_prompt_capsule_cids
                 .iter()
                 .map(|cid| cid.to_string())
                 .collect(),

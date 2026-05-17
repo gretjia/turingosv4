@@ -847,7 +847,7 @@ fn write_market_decision_trace_to_cas_or_exit(
     trace: &turingosv4::runtime::market_decision_trace::MarketDecisionTrace,
     suffix: &str,
     logical_t: u64,
-) {
+) -> turingosv4::bottom_white::cas::schema::Cid {
     let mut cas_store = match turingosv4::bottom_white::cas::store::CasStore::open(cas_path) {
         Ok(store) => store,
         Err(e) => {
@@ -855,14 +855,44 @@ fn write_market_decision_trace_to_cas_or_exit(
             std::process::exit(3);
         }
     };
-    if let Err(e) = turingosv4::runtime::market_decision_trace::write_market_decision_trace_to_cas(
+    match turingosv4::runtime::market_decision_trace::write_market_decision_trace_to_cas(
         &mut cas_store,
         trace,
         suffix,
         logical_t,
     ) {
-        error!("MarketDecisionTrace CAS write FAIL-CLOSED: {e}");
-        std::process::exit(3);
+        Ok(cid) => cid,
+        Err(e) => {
+            error!("MarketDecisionTrace CAS write FAIL-CLOSED: {e}");
+            std::process::exit(3);
+        }
+    }
+}
+
+fn write_market_decision_provenance_link_to_cas_or_exit(
+    cas_path: &std::path::Path,
+    link: &turingosv4::runtime::market_decision_provenance_link::MarketDecisionProvenanceLink,
+    suffix: &str,
+    logical_t: u64,
+) -> turingosv4::bottom_white::cas::schema::Cid {
+    let mut cas_store = match turingosv4::bottom_white::cas::store::CasStore::open(cas_path) {
+        Ok(store) => store,
+        Err(e) => {
+            error!("MarketDecisionProvenanceLink CAS write FAIL-CLOSED: CAS open failed: {e}");
+            std::process::exit(3);
+        }
+    };
+    match turingosv4::runtime::market_decision_provenance_link::write_market_decision_provenance_link_to_cas(
+        &mut cas_store,
+        link,
+        suffix,
+        logical_t,
+    ) {
+        Ok(cid) => cid,
+        Err(e) => {
+            error!("MarketDecisionProvenanceLink CAS write FAIL-CLOSED: {e}");
+            std::process::exit(3);
+        }
     }
 }
 
@@ -6444,12 +6474,31 @@ async fn run_swarm(
                                                                 amount_micro, direction, node_str
                                                             ),
                                                         );
-                                                        write_market_decision_trace_to_cas_or_exit(
+                                                        let market_decision_trace_cid = write_market_decision_trace_to_cas_or_exit(
                                                             &bundle.cas_path,
                                                             &trace,
                                                             &suffix,
                                                             tx as u64,
                                                         );
+                                                        if let Some(prompt_capsule_cid) = real5_prompt_capsule_cid_for_turn {
+                                                            let provenance_link = turingosv4::runtime::market_decision_provenance_link::MarketDecisionProvenanceLink {
+                                                                schema_version: turingosv4::runtime::market_decision_provenance_link::MarketDecisionProvenanceLink::SCHEMA_VERSION.to_string(),
+                                                                market_decision_trace_cid,
+                                                                submitted_router_tx_id: router_tx_id.clone(),
+                                                                agent_id: trace_agent_id.clone(),
+                                                                prompt_capsule_cid,
+                                                                ev_decision_trace_cid: None,
+                                                                market_opportunity_trace_cid: None,
+                                                                created_at_logical_t: tx as u64,
+                                                                public_summary: "direct prompt provenance for submitted market decision".to_string(),
+                                                            };
+                                                            write_market_decision_provenance_link_to_cas_or_exit(
+                                                                &bundle.cas_path,
+                                                                &provenance_link,
+                                                                &suffix,
+                                                                tx as u64,
+                                                            );
+                                                        }
                                                         info!(
                                                     "[tx {}] {} invest submitted: tx_id={} amount={}μC dir={:?} node={}",
                                                     tx, agent_id, router_tx_id.0, amount_micro, direction, node_str

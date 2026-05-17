@@ -231,6 +231,22 @@ fn e2_report(rows: Vec<MatchedTxProvenanceReport>) -> E2CandidateVerifierReport 
         duplicate_submitted_trace_tx_id_count: 0,
         scripted_fixture_tx_count: 0,
         policy_counts_for_e2: false,
+        direct_prompt_capsule_provenance_count: rows
+            .iter()
+            .filter(|row| {
+                row.prompt_capsule_linkage == "direct_via_market_decision_provenance_link"
+            })
+            .count() as u64,
+        indirect_prompt_capsule_provenance_count: rows
+            .iter()
+            .filter(|row| row.prompt_capsule_linkage == "indirect_via_ev_decision_trace")
+            .count() as u64,
+        missing_direct_prompt_capsule_provenance_count: rows
+            .iter()
+            .filter(|row| {
+                row.prompt_capsule_linkage != "direct_via_market_decision_provenance_link"
+            })
+            .count() as u64,
         matched_tx_provenance: rows,
         bcast_shielding: BcastShieldingReport {
             librarian_digest_count: 1,
@@ -258,6 +274,7 @@ fn matched(tx_id: &str, actor: &str, direction: &str, role: &str) -> MatchedTxPr
         l4_min_out_shares: 1,
         market_decision_trace_count: 1,
         market_decision_trace_cids: vec!["cid:market".into()],
+        market_decision_provenance_link_cids: vec![],
         market_decision_agent_id: Some(actor.into()),
         market_decision_chosen_node_id: Some("node".into()),
         market_decision_direction: Some(direction.into()),

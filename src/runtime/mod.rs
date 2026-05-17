@@ -167,6 +167,10 @@ pub mod persistence_evidence;
 /// 2026-05-12 病灶3 "0 verify" quantification gap.
 pub mod peer_verify_coverage;
 
+/// TRACE_MATRIX FC1/FC3 (REAL-17 2026-05-17): direct prompt-provenance
+/// sidecar for submitted MarketDecisionTrace rows. Additive CAS evidence only;
+/// does not change TypedTx, sequencer admission, or CAS ObjectType schema.
+pub mod market_decision_provenance_link;
 /// TRACE_MATRIX FC1-N5 + §15 + §17 reporting standard — TB-G G2.2
 /// (charter §1 Module G2 atom G2.2; G-Phase directive §G2 SG-G2.3
 /// "NoTradeReason appears in dashboard"): MarketDecisionTrace §F

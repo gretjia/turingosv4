@@ -14,12 +14,17 @@ use turingosv4::bottom_white::ledger::transition_ledger::{
     LedgerWriter, TxKind,
 };
 use turingosv4::economy::money::MicroCoin;
+use turingosv4::runtime::market_decision_provenance_link::{
+    write_market_decision_provenance_link_to_cas, MarketDecisionProvenanceLink,
+};
 use turingosv4::runtime::market_decision_trace::{
     write_market_decision_trace_to_cas, MarketDecisionTrace,
 };
 use turingosv4::runtime::market_e2_candidate_verifier::{
     verify_market_e2_candidate, E2CandidateVerifierOptions, E2CandidateVerifierVerdict,
 };
+use turingosv4::runtime::prompt_capsule::{write_prompt_capsule_v2_to_cas, PromptCapsuleV2};
+use turingosv4::runtime::real5_roles::AgentRole;
 use turingosv4::state::q_state::{AgentId, Hash, TaskId, TxId};
 use turingosv4::state::typed_tx::{
     AgentSignature, BuyDirection, BuyWithCoinRouterTx, EventId, ShareAmount, TypedTx,
@@ -123,6 +128,60 @@ fn put_submitted_trace_with(
     write_market_decision_trace_to_cas(cas, &trace, tx_id, logical_t).expect("put trace");
 }
 
+fn put_submitted_trace_with_direct_prompt_link(
+    cas: &mut CasStore,
+    agent: &str,
+    tx_id: &str,
+    logical_t: u64,
+) {
+    let visible_context_cid = cas
+        .put(
+            br#"{"market":"visible"}"#,
+            ObjectType::Generic,
+            "real14-test",
+            logical_t,
+            Some("real14-test.visible_context.v1".to_string()),
+        )
+        .expect("put visible context");
+    let prompt_capsule = PromptCapsuleV2 {
+        prompt_context_hash: Hash([0x11; 32]),
+        agent_id: AgentId(agent.to_string()),
+        role: AgentRole::BullTrader,
+        view_policy_id: "real14-test-policy".to_string(),
+        visible_context_cid,
+        read_set: vec![visible_context_cid],
+        hidden_fields_redacted: vec!["private_diagnostics".to_string()],
+        system_prompt_template_hash: Hash([0x22; 32]),
+        model_assignment_cid: None,
+    };
+    let prompt_capsule_cid =
+        write_prompt_capsule_v2_to_cas(cas, &prompt_capsule, "real14-test", logical_t)
+            .expect("put prompt capsule");
+    let trace = MarketDecisionTrace::submitted(
+        AgentId(agent.to_string()),
+        TxId(format!("node-{logical_t}")),
+        BuyDirection::BuyYes,
+        1_000,
+        TxId(tx_id.to_string()),
+        "submitted by fixture",
+    );
+    let market_decision_trace_cid =
+        write_market_decision_trace_to_cas(cas, &trace, tx_id, logical_t).expect("put trace");
+    let link = MarketDecisionProvenanceLink {
+        schema_version: MarketDecisionProvenanceLink::SCHEMA_VERSION.to_string(),
+        market_decision_trace_cid,
+        submitted_router_tx_id: TxId(tx_id.to_string()),
+        agent_id: AgentId(agent.to_string()),
+        prompt_capsule_cid,
+        ev_decision_trace_cid: None,
+        market_opportunity_trace_cid: None,
+        created_at_logical_t: logical_t,
+        public_summary: "direct prompt provenance for submitted market decision".to_string(),
+    };
+    write_market_decision_provenance_link_to_cas(cas, &link, tx_id, logical_t)
+        .expect("put provenance link");
+}
+
 #[test]
 fn exact_join_verifier_counts_only_l4_and_submitted_trace_intersection() {
     let repo_dir = tempfile::tempdir().expect("repo dir");
@@ -154,6 +213,7 @@ fn exact_join_verifier_counts_only_l4_and_submitted_trace_intersection() {
         E2CandidateVerifierOptions {
             expected_exact_join_count: Some(1),
             require_matched_tx_provenance: false,
+            ..E2CandidateVerifierOptions::default()
         },
     )
     .expect("verify");
@@ -238,6 +298,92 @@ fn exact_join_verifier_requires_matched_tx_provenance_by_default() {
 }
 
 #[test]
+fn exact_join_verifier_reports_direct_prompt_capsule_sidecar_linkage() {
+    let repo_dir = tempfile::tempdir().expect("repo dir");
+    let cas_dir = tempfile::tempdir().expect("cas dir");
+    let mut cas = CasStore::open(cas_dir.path()).expect("cas open");
+    let mut writer = Git2LedgerWriter::open(repo_dir.path()).expect("writer open");
+    let mut parent_ledger_root = Hash([0u8; 32]);
+
+    append_typed_tx(
+        &mut writer,
+        &mut cas,
+        1,
+        &router_tx("router-direct-prompt", "Agent_0"),
+        &mut parent_ledger_root,
+    );
+    put_submitted_trace_with_direct_prompt_link(&mut cas, "Agent_0", "router-direct-prompt", 2);
+
+    let report = verify_market_e2_candidate(
+        repo_dir.path(),
+        cas_dir.path(),
+        E2CandidateVerifierOptions {
+            expected_exact_join_count: Some(1),
+            require_matched_tx_provenance: false,
+            require_direct_prompt_capsule_provenance: true,
+        },
+    )
+    .expect("verify");
+
+    assert_eq!(report.exact_join_count, 1);
+    assert_eq!(report.direct_prompt_capsule_provenance_count, 1);
+    assert_eq!(report.missing_direct_prompt_capsule_provenance_count, 0);
+    assert_eq!(report.verdict, E2CandidateVerifierVerdict::Proceed);
+    let row = report
+        .matched_tx_provenance
+        .iter()
+        .find(|row| row.tx_id == "router-direct-prompt")
+        .expect("matched row");
+    assert_eq!(
+        row.prompt_capsule_linkage,
+        "direct_via_market_decision_provenance_link"
+    );
+    assert_eq!(row.prompt_capsule_cids.len(), 1);
+    assert!(!row
+        .residual_risks
+        .iter()
+        .any(|risk| risk.contains("MarketDecisionTrace has no direct PromptCapsule field")));
+}
+
+#[test]
+fn exact_join_verifier_vetos_when_direct_prompt_capsule_link_required_and_missing() {
+    let repo_dir = tempfile::tempdir().expect("repo dir");
+    let cas_dir = tempfile::tempdir().expect("cas dir");
+    let mut cas = CasStore::open(cas_dir.path()).expect("cas open");
+    let mut writer = Git2LedgerWriter::open(repo_dir.path()).expect("writer open");
+    let mut parent_ledger_root = Hash([0u8; 32]);
+
+    append_typed_tx(
+        &mut writer,
+        &mut cas,
+        1,
+        &router_tx("router-missing-direct-prompt", "Agent_0"),
+        &mut parent_ledger_root,
+    );
+    put_submitted_trace(&mut cas, "Agent_0", "router-missing-direct-prompt", 2);
+
+    let report = verify_market_e2_candidate(
+        repo_dir.path(),
+        cas_dir.path(),
+        E2CandidateVerifierOptions {
+            expected_exact_join_count: Some(1),
+            require_matched_tx_provenance: false,
+            require_direct_prompt_capsule_provenance: true,
+        },
+    )
+    .expect("verify");
+
+    assert_eq!(report.exact_join_count, 1);
+    assert_eq!(report.direct_prompt_capsule_provenance_count, 0);
+    assert_eq!(report.missing_direct_prompt_capsule_provenance_count, 1);
+    assert_eq!(report.verdict, E2CandidateVerifierVerdict::Veto);
+    assert!(report
+        .failure_reasons
+        .iter()
+        .any(|reason| reason.contains("missing direct PromptCapsule provenance")));
+}
+
+#[test]
 fn exact_join_verifier_fails_closed_on_duplicate_l4_router_tx_id() {
     let repo_dir = tempfile::tempdir().expect("repo dir");
     let cas_dir = tempfile::tempdir().expect("cas dir");
@@ -256,6 +402,7 @@ fn exact_join_verifier_fails_closed_on_duplicate_l4_router_tx_id() {
         E2CandidateVerifierOptions {
             expected_exact_join_count: Some(1),
             require_matched_tx_provenance: false,
+            ..E2CandidateVerifierOptions::default()
         },
     )
     .expect("verify");
@@ -303,6 +450,7 @@ fn exact_join_verifier_rejects_l4_market_decision_direction_mismatch() {
         E2CandidateVerifierOptions {
             expected_exact_join_count: Some(1),
             require_matched_tx_provenance: false,
+            ..E2CandidateVerifierOptions::default()
         },
     )
     .expect("verify");
@@ -350,6 +498,7 @@ fn exact_join_verifier_rejects_l4_market_decision_amount_mismatch() {
         E2CandidateVerifierOptions {
             expected_exact_join_count: Some(1),
             require_matched_tx_provenance: false,
+            ..E2CandidateVerifierOptions::default()
         },
     )
     .expect("verify");
