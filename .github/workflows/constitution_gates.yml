@@ -79,6 +79,7 @@ jobs:
           path: |
             target/constitution_gate_report.json
             target/constitution_gate_report.md
+            target/*_output.txt
           if-no-files-found: error
           retention-days: 30
 

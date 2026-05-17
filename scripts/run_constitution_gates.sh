@@ -797,6 +797,9 @@ for gate in "${GATES[@]}"; do
   if [ "$fail" -gt 0 ] || [ "$rc" -ne 0 ]; then
     ANY_FAIL=1
     echo "  RED: $result_line  (rc=$rc)"
+    echo "  --- ${gate} output tail ---"
+    tail -n 120 "$out_path" | sed 's/^/    /'
+    echo "  --- end ${gate} output tail ---"
   else
     echo "  GREEN: $result_line"
   fi
@@ -830,6 +833,9 @@ for entry in "${GATES_PKG[@]}"; do
   if [ "$fail" -gt 0 ] || [ "$rc" -ne 0 ]; then
     ANY_FAIL=1
     echo "  RED: $result_line  (rc=$rc)"
+    echo "  --- ${pkg}::${gate} output tail ---"
+    tail -n 120 "$out_path" | sed 's/^/    /'
+    echo "  --- end ${pkg}::${gate} output tail ---"
   else
     echo "  GREEN: $result_line"
   fi
