@@ -1,0 +1,17 @@
+
+running 7 tests
+test abstain_requires_structured_reason_and_no_private_cot ... ok
+test bull_bear_role_turns_must_link_to_cas_backed_economic_judgments ... ok
+test buy_or_short_requires_positive_integer_ev_basis_and_role_side_match ... ok
+test economic_judgment_schema_is_pinned_and_generic_cas_backed ... ok
+test economic_judgment_summary_is_derived_from_cas_objects_not_stdout ... ok
+test evaluator_must_not_fabricate_positive_ev_basis_for_live_buys ... ok
+test evaluator_preserves_abstain_side_public_ev_basis_and_candidate_amount ... FAILED
+
+failures:
+
+failures:
+    evaluator_preserves_abstain_side_public_ev_basis_and_candidate_amount
+
+test result: FAILED. 6 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+

@@ -1,0 +1,280 @@
+   Compiling proc-macro2 v1.0.106
+   Compiling libc v0.2.184
+   Compiling unicode-ident v1.0.24
+   Compiling quote v1.0.45
+   Compiling cfg-if v1.0.4
+   Compiling typenum v1.19.0
+   Compiling version_check v0.9.5
+   Compiling find-msvc-tools v0.1.9
+   Compiling generic-array v0.14.7
+   Compiling shlex v1.3.0
+   Compiling stable_deref_trait v1.2.1
+   Compiling subtle v2.6.1
+   Compiling syn v2.0.117
+   Compiling pin-project-lite v0.2.17
+   Compiling bytes v1.11.1
+   Compiling getrandom v0.2.17
+   Compiling jobserver v0.1.34
+   Compiling rand_core v0.6.4
+   Compiling cc v1.2.60
+   Compiling futures-core v0.3.32
+   Compiling errno v0.3.14
+   Compiling signal-hook-registry v1.4.8
+   Compiling mio v1.2.0
+   Compiling crypto-common v0.1.7
+   Compiling socket2 v0.6.3
+   Compiling itoa v1.0.18
+   Compiling smallvec v1.15.1
+   Compiling writeable v0.6.3
+   Compiling litemap v0.8.2
+   Compiling ring v0.17.14
+   Compiling once_cell v1.21.4
+   Compiling icu_normalizer_data v2.2.0
+   Compiling icu_properties_data v2.2.0
+   Compiling utf8_iter v1.0.4
+   Compiling http v1.4.0
+   Compiling serde_core v1.0.228
+   Compiling percent-encoding v2.3.2
+   Compiling pkg-config v0.3.33
+   Compiling cpufeatures v0.2.17
+   Compiling http-body v1.0.1
+   Compiling synstructure v0.13.2
+   Compiling block-buffer v0.10.4
+   Compiling futures-task v0.3.32
+   Compiling untrusted v0.9.0
+   Compiling vcpkg v0.2.15
+   Compiling httparse v1.10.1
+   Compiling slab v0.4.12
+   Compiling futures-util v0.3.32
+   Compiling libz-sys v1.1.28
+   Compiling digest v0.10.7
+   Compiling zerofrom-derive v0.1.7
+   Compiling yoke-derive v0.8.2
+   Compiling zeroize_derive v1.4.3
+   Compiling zerofrom v0.1.7
+   Compiling zerovec-derive v0.11.3
+   Compiling zeroize v1.8.2
+   Compiling displaydoc v0.2.5
+   Compiling yoke v0.8.2
+   Compiling tokio-macros v2.7.0
+   Compiling zerotrie v0.2.4
+   Compiling rustls-pki-types v1.14.0
+   Compiling zerovec v0.11.6
+   Compiling tokio v1.51.1
+   Compiling bitflags v2.11.0
+   Compiling tinystr v0.8.3
+   Compiling potential_utf v0.1.5
+   Compiling icu_collections v2.2.0
+   Compiling icu_locale_core v2.2.0
+   Compiling zerocopy v0.8.48
+   Compiling semver v1.0.28
+   Compiling icu_provider v2.2.0
+   Compiling tower-service v0.3.3
+   Compiling try-lock v0.2.5
+   Compiling icu_properties v2.2.0
+   Compiling icu_normalizer v2.2.0
+   Compiling serde v1.0.228
+   Compiling rustls v0.23.38
+   Compiling want v0.3.1
+   Compiling rustc_version v0.4.1
+   Compiling rustls-webpki v0.103.11
+   Compiling serde_derive v1.0.228
+   Compiling idna_adapter v1.2.1
+   Compiling form_urlencoded v1.2.2
+   Compiling tracing-core v0.1.36
+   Compiling futures-channel v0.3.32
+   Compiling zmij v1.0.21
+   Compiling atomic-waker v1.1.2
+   Compiling hyper v1.9.0
+   Compiling tracing v0.1.44
+   Compiling idna v1.1.0
+   Compiling curve25519-dalek v4.1.3
+   Compiling libgit2-sys v0.18.3+1.9.2
+   Compiling inout v0.1.4
+   Compiling sync_wrapper v1.0.2
+   Compiling serde_json v1.0.149
+   Compiling rustix v1.1.4
+   Compiling getrandom v0.3.4
+   Compiling base64 v0.22.1
+   Compiling ipnet v2.12.0
+   Compiling tower-layer v0.3.3
+   Compiling tower v0.5.3
+   Compiling hyper-util v0.1.20
+   Compiling tokio-rustls v0.26.4
+   Compiling cipher v0.4.4
+   Compiling ppv-lite86 v0.2.21
+   Compiling url v2.5.8
+   Compiling webpki-roots v1.0.6
+   Compiling curve25519-dalek-derive v0.1.1
+   Compiling universal-hash v0.5.1
+   Compiling virtue v0.0.18
+   Compiling ryu v1.0.23
+   Compiling memchr v2.8.0
+   Compiling iri-string v0.7.12
+   Compiling linux-raw-sys v0.12.1
+   Compiling signature v2.2.0
+   Compiling opaque-debug v0.3.1
+   Compiling log v0.4.29
+   Compiling base64ct v1.8.3
+   Compiling password-hash v0.5.0
+   Compiling poly1305 v0.8.0
+   Compiling tower-http v0.6.8
+   Compiling ed25519 v2.2.3
+   Compiling bincode_derive v2.0.1
+   Compiling serde_urlencoded v0.7.1
+   Compiling hyper-rustls v0.27.8
+   Compiling rand_chacha v0.3.1
+   Compiling chacha20 v0.9.1
+   Compiling tokio-stream v0.1.18
+   Compiling blake2 v0.10.6
+   Compiling sha2 v0.10.9
+   Compiling http-body-util v0.1.3
+   Compiling aead v0.5.2
+   Compiling unty v0.0.4
+   Compiling fastrand v2.4.1
+   Compiling bincode v2.0.1
+   Compiling reqwest v0.12.28
+   Compiling tempfile v3.27.0
+   Compiling chacha20poly1305 v0.10.1
+   Compiling ed25519-dalek v2.2.0
+   Compiling tokio-test v0.4.5
+   Compiling argon2 v0.5.3
+   Compiling rand v0.8.5
+   Compiling secrecy v0.8.0
+   Compiling git2 v0.20.4
+   Compiling turingosv4 v0.1.0 (/home/zephryj/projects/turingosv4-market-autonomy-lab)
+warning: unused import: `ObjectType as Git2ObjectType`
+  --> src/bottom_white/cas/store.rs:26:12
+   |
+26 | use git2::{ObjectType as Git2ObjectType, Repository};
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `ObjectType as Git2ObjectType`
+  --> src/bottom_white/ledger/transition_ledger.rs:37:12
+   |
+37 | use git2::{ObjectType as Git2ObjectType, Repository, Signature as GitSignature};
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `KernelError`
+ --> src/bus.rs:8:29
+  |
+8 | use crate::kernel::{Kernel, KernelError};
+  |                             ^^^^^^^^^^^
+
+warning: unused import: `TapeError`
+ --> src/bus.rs:9:54
+  |
+9 | use crate::ledger::{EventType, Ledger, Node, NodeId, TapeError};
+  |                                                      ^^^^^^^^^
+
+warning: unused imports: `Deserialize` and `Serialize`
+  --> src/bus.rs:13:13
+   |
+13 | use serde::{Deserialize, Serialize};
+   |             ^^^^^^^^^^^  ^^^^^^^^^
+
+warning: unused import: `make_real_verifytx_signed_by`
+    --> src/runtime/chain_derived_run_facts.rs:1076:35
+     |
+1076 |     use crate::runtime::adapter::{make_real_verifytx_signed_by, make_real_worktx_signed_by};
+     |                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `CapsulePrivacyPolicy`
+  --> src/runtime/audit_assertions.rs:83:30
+   |
+83 | use crate::state::typed_tx::{CapsulePrivacyPolicy, TypedTx};
+   |                              ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::BTreeMap`
+  --> src/runtime/audit_views.rs:27:5
+   |
+27 | use std::collections::BTreeMap;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::state::price_index::RationalPrice`
+  --> src/runtime/audit_views.rs:32:5
+   |
+32 | use crate::state::price_index::RationalPrice;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ShareSidePair`
+  --> src/runtime/audit_views.rs:33:80
+   |
+33 | use crate::state::q_state::{AgentId, EconomicState, LpShareAmount, PoolStatus, ShareSidePair};
+   |                                                                                ^^^^^^^^^^^^^
+
+warning: unused import: `EconomicState`
+  --> src/sdk/econ_position.rs:95:21
+   |
+95 |         ClaimEntry, EconomicState, QState, Reputation, StakeEntry, TaskId, TxId,
+   |                     ^^^^^^^^^^^^^
+
+warning: unused import: `Deserialize`
+ --> src/sdk/tools/librarian.rs:6:13
+  |
+6 | use serde::{Deserialize, Serialize};
+  |             ^^^^^^^^^^^
+
+warning: unused import: `Path`
+ --> src/sdk/tools/librarian.rs:9:17
+  |
+9 | use std::path::{Path, PathBuf};
+  |                 ^^^^
+
+warning: unused import: `ToolSignal`
+ --> src/sdk/tools/search.rs:4:24
+  |
+4 | use crate::sdk::tool::{ToolSignal, TuringTool};
+  |                        ^^^^^^^^^^
+
+warning: unused import: `std::path::Path`
+ --> src/sdk/tools/search.rs:6:5
+  |
+6 | use std::path::Path;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `TxId`
+  --> src/state/sequencer.rs:41:82
+   |
+41 | use crate::state::q_state::{AgentId, EscrowEntry, Hash, QState, TaskMarketEntry, TxId};
+   |                                                                                  ^^^^
+
+warning: variable does not need to be mutable
+   --> src/top_white/predicates/registry.rs:264:17
+    |
+264 |             let mut h = Sha256::new();
+    |                 ----^
+    |                 |
+    |                 help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `sign_system_message` is never used
+   --> src/bottom_white/ledger/system_keypair.rs:594:19
+    |
+594 |     pub(crate) fn sign_system_message(
+    |                   ^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `sign_system_message` is never used
+   --> src/bottom_white/ledger/system_keypair.rs:705:19
+    |
+705 |     pub(crate) fn sign_system_message(
+    |                   ^^^^^^^^^^^^^^^^^^^
+
+warning: field `tx_id` is never read
+   --> src/runtime/chain_derived_run_facts.rs:242:5
+    |
+241 | struct WorkTxAttempt {
+    |        ------------- field in this struct
+242 |     tx_id: TxId,
+    |     ^^^^^
+    |
+    = note: `WorkTxAttempt` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: `turingosv4` (lib test) generated 20 warnings (run `cargo fix --lib -p turingosv4 --tests` to apply 17 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2m 43s
+     Running unittests src/lib.rs (target/debug/deps/turingosv4-337b37021c2192ab)

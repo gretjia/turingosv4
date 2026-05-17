@@ -26,13 +26,22 @@ use turingosv4::state::typed_tx::{
 };
 
 fn router_tx(tx_id: &str, buyer: &str) -> TypedTx {
+    router_tx_with(tx_id, buyer, BuyDirection::BuyYes, 1_000)
+}
+
+fn router_tx_with(
+    tx_id: &str,
+    buyer: &str,
+    direction: BuyDirection,
+    pay_coin_micro: i64,
+) -> TypedTx {
     TypedTx::BuyWithCoinRouter(BuyWithCoinRouterTx {
         tx_id: TxId(tx_id.to_string()),
         parent_state_root: Hash([0u8; 32]),
         event_id: EventId(TaskId("event-real14".to_string())),
         buyer: AgentId(buyer.to_string()),
-        direction: BuyDirection::BuyYes,
-        pay_coin: MicroCoin::from_micro_units(1_000),
+        direction,
+        pay_coin: MicroCoin::from_micro_units(pay_coin_micro),
         min_out_shares: ShareAmount { units: 1 },
         signature: AgentSignature::from_bytes([0u8; 64]),
     })
@@ -92,11 +101,22 @@ fn append_typed_tx(
 }
 
 fn put_submitted_trace(cas: &mut CasStore, agent: &str, tx_id: &str, logical_t: u64) {
+    put_submitted_trace_with(cas, agent, tx_id, logical_t, BuyDirection::BuyYes, 1_000)
+}
+
+fn put_submitted_trace_with(
+    cas: &mut CasStore,
+    agent: &str,
+    tx_id: &str,
+    logical_t: u64,
+    direction: BuyDirection,
+    amount_micro: i64,
+) {
     let trace = MarketDecisionTrace::submitted(
         AgentId(agent.to_string()),
         TxId(format!("node-{logical_t}")),
-        BuyDirection::BuyYes,
-        1_000,
+        direction,
+        amount_micro,
         TxId(tx_id.to_string()),
         "submitted by fixture",
     );
@@ -246,6 +266,100 @@ fn exact_join_verifier_fails_closed_on_duplicate_l4_router_tx_id() {
         .failure_reasons
         .iter()
         .any(|reason| reason.contains("duplicate L4 router tx_id")));
+}
+
+#[test]
+fn exact_join_verifier_rejects_l4_market_decision_direction_mismatch() {
+    let repo_dir = tempfile::tempdir().expect("repo dir");
+    let cas_dir = tempfile::tempdir().expect("cas dir");
+    let mut cas = CasStore::open(cas_dir.path()).expect("cas open");
+    let mut writer = Git2LedgerWriter::open(repo_dir.path()).expect("writer open");
+    let mut parent_ledger_root = Hash([0u8; 32]);
+
+    append_typed_tx(
+        &mut writer,
+        &mut cas,
+        1,
+        &router_tx_with(
+            "router-direction-mismatch",
+            "Agent_0",
+            BuyDirection::BuyYes,
+            1_000,
+        ),
+        &mut parent_ledger_root,
+    );
+    put_submitted_trace_with(
+        &mut cas,
+        "Agent_0",
+        "router-direction-mismatch",
+        2,
+        BuyDirection::BuyNo,
+        1_000,
+    );
+
+    let report = verify_market_e2_candidate(
+        repo_dir.path(),
+        cas_dir.path(),
+        E2CandidateVerifierOptions {
+            expected_exact_join_count: Some(1),
+            require_matched_tx_provenance: false,
+        },
+    )
+    .expect("verify");
+
+    assert_eq!(report.exact_join_count, 1);
+    assert_eq!(report.verdict, E2CandidateVerifierVerdict::Veto);
+    assert!(report
+        .failure_reasons
+        .iter()
+        .any(|reason| reason.contains("direction mismatch")));
+}
+
+#[test]
+fn exact_join_verifier_rejects_l4_market_decision_amount_mismatch() {
+    let repo_dir = tempfile::tempdir().expect("repo dir");
+    let cas_dir = tempfile::tempdir().expect("cas dir");
+    let mut cas = CasStore::open(cas_dir.path()).expect("cas open");
+    let mut writer = Git2LedgerWriter::open(repo_dir.path()).expect("writer open");
+    let mut parent_ledger_root = Hash([0u8; 32]);
+
+    append_typed_tx(
+        &mut writer,
+        &mut cas,
+        1,
+        &router_tx_with(
+            "router-amount-mismatch",
+            "Agent_0",
+            BuyDirection::BuyYes,
+            1_000,
+        ),
+        &mut parent_ledger_root,
+    );
+    put_submitted_trace_with(
+        &mut cas,
+        "Agent_0",
+        "router-amount-mismatch",
+        2,
+        BuyDirection::BuyYes,
+        999,
+    );
+
+    let report = verify_market_e2_candidate(
+        repo_dir.path(),
+        cas_dir.path(),
+        E2CandidateVerifierOptions {
+            expected_exact_join_count: Some(1),
+            require_matched_tx_provenance: false,
+        },
+    )
+    .expect("verify");
+
+    assert_eq!(report.exact_join_count, 1);
+    assert_eq!(report.verdict, E2CandidateVerifierVerdict::Veto);
+    assert!(report
+        .failure_reasons
+        .iter()
+        .any(|reason| reason.contains("amount mismatch")));
 }
 
 #[test]

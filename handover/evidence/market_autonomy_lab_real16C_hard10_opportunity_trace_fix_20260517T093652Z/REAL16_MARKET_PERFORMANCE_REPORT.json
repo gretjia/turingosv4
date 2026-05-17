@@ -1,0 +1,45 @@
+{
+  "schema_version": "real16.market_performance_e4.v1",
+  "claim_boundary": "clean-negative; no E4 candidate",
+  "source_boundary": "ChainTape/CAS/exact-join verifier-derived metrics only; dashboard text and evaluator stdout are not source of truth",
+  "arm_count": 1,
+  "baseline_arm_id": "C",
+  "best_arm_id": "C",
+  "e4_candidate": false,
+  "verdict": "Veto",
+  "improved_metrics": [],
+  "failure_reasons": [
+    "fewer_than_two_ab_arms"
+  ],
+  "solve_rate_wilson_95_ci_by_arm": {
+    "C": {
+      "successes": 0,
+      "trials": 10,
+      "point_bps": 0,
+      "lower_bps": 0,
+      "upper_bps": 2775
+    }
+  },
+  "arms": [
+    {
+      "arm_id": "C",
+      "evidence_dir": "/home/zephryj/projects/turingosv4-market-autonomy-lab/handover/evidence/market_autonomy_lab_real16C_hard10_opportunity_trace_fix_20260517T093652Z/arm_C",
+      "audit_tape_verdict": "PROCEED",
+      "e2_verifier_verdict": "PROCEED",
+      "e2_verifier_failure_reasons": [],
+      "metric_source": "ChainTapeCasVerifier",
+      "market_pressure_enabled": true,
+      "task_count": 10,
+      "solved_count": 0,
+      "verified_pput_micro": 0,
+      "wasted_attempt_count": 154,
+      "verification_latency_ms_total": 0,
+      "failed_branch_count": 163,
+      "cost_per_solved_proof_tokens": null,
+      "exact_join_count": 17,
+      "ev_to_action_conversion_bps": 10000,
+      "role_diversity_bps": 10000,
+      "market_tx_count": 37
+    }
+  ]
+}

@@ -244,6 +244,22 @@ pub mod ev_decision_trace;
 /// typed-tx, or wallet authority.
 pub mod policy_trader_trace;
 
+/// TRACE_MATRIX FC1-N41 + FC3-N43 (REAL-14G 2026-05-17):
+/// CAS-derived PositiveEVIgnored / action-conversion summary. Joins
+/// counterfactual-only PolicyTraderTrace rows back to source EVDecisionTrace
+/// rows without counting PolicyTrader as E2 or forcing live trades.
+pub mod positive_ev_ignored;
+
+/// TRACE_MATRIX FC1/FC3 (REAL-15 2026-05-17): candidate-only role
+/// differentiation verifier over ChainTape/CAS role traces plus independent
+/// exact-join market verifier output. No sequencer/typed-tx authority.
+pub mod role_differentiation;
+
+/// TRACE_MATRIX FC1/FC3 (REAL-16 2026-05-17): candidate-only E4
+/// market-performance verifier over pinned A/B ChainTape/CAS/verifier-derived
+/// metrics. Rejects dashboard-only and market-tx-count-only claims.
+pub mod market_performance_e4;
+
 /// TRACE_MATRIX Art.II broadcast + economy integer path (REAL-13C
 /// 2026-05-16): prompt-facing DisplayCoin adapter with fixed-point decimal
 /// string parsing into MicroCoin units. No f64/f32.

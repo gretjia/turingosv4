@@ -1,0 +1,8 @@
+## codex/market-autonomy-lab-20260516
+ M tests/constitution_real12_economic_judgment.rs
+ M tests/constitution_real13a_ev_decision_trace.rs
+?? handover/directives/2026-05-16_MARKET_AUTONOMY_LAB_ARCHITECT_ORIGINAL.md
+?? handover/directives/market_autonomy_lab/
+?? handover/evidence/dev_self_hosting/dev_1778933784024_2984070/
+?? tests/constitution_librarian_market_no_trade.rs
+?? tests/constitution_policy_trader_trace.rs

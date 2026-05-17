@@ -1,0 +1,21 @@
+
+running 6 tests
+test dashboard_bcast_section_reports_market_no_trade_cluster_counts ... FAILED
+test digest_clusters_market_decision_no_trade_reasons ... FAILED
+test market_no_trade_librarian_path_rejects_raw_prompt_completion_cot_logs ... FAILED
+test selector_fails_closed_on_unknown_schema_in_cas_index ... FAILED
+test selector_promotes_market_decision_no_trade_into_market_reason_events ... FAILED
+test selector_promotes_market_review_summary_abstain_missing_into_market_reasons ... FAILED
+
+failures:
+
+failures:
+    dashboard_bcast_section_reports_market_no_trade_cluster_counts
+    digest_clusters_market_decision_no_trade_reasons
+    market_no_trade_librarian_path_rejects_raw_prompt_completion_cot_logs
+    selector_fails_closed_on_unknown_schema_in_cas_index
+    selector_promotes_market_decision_no_trade_into_market_reason_events
+    selector_promotes_market_review_summary_abstain_missing_into_market_reasons
+
+test result: FAILED. 0 passed; 6 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+

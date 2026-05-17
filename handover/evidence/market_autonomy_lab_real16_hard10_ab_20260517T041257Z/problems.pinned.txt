@@ -1,0 +1,14 @@
+# Deterministic random sample of 10 problems from hard36_pool.txt with seed 20260423.
+# Draw script: rng = random.Random(20260423); sorted(rng.sample(pool, 10))
+# Fingerprint: a94c0ae30f728e6c
+# Pool source: handover/preregistration/hard36_pool.txt
+algebra_bleqa_apbon2msqrtableqambsqon8b
+amc12_2000_p12
+amc12_2000_p6
+amc12b_2021_p13
+imo_1962_p2
+mathd_algebra_208
+mathd_algebra_246
+mathd_algebra_270
+mathd_algebra_332
+numbertheory_2pownm1prime_nprime

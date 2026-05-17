@@ -1,0 +1,4 @@
+## codex/market-autonomy-lab-20260516
+?? handover/directives/2026-05-16_MARKET_AUTONOMY_LAB_ARCHITECT_ORIGINAL.md
+?? handover/directives/market_autonomy_lab/
+?? handover/evidence/dev_self_hosting/dev_1778933784024_2984070/

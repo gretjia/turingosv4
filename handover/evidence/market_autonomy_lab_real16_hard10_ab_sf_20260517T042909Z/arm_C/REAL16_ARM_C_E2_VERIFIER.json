@@ -1,0 +1,374 @@
+{
+  "schema_version": "real14.e2_candidate_verifier.v1",
+  "l4_router_tx_count": 7,
+  "submitted_trace_tx_count": 7,
+  "exact_join_count": 7,
+  "matched_tx_ids": [
+    "router-task-outcome-Agent_0-task-n5_algebra_bleqa_apbon2msqrtableqambsqon8b_1779001483429-Agent_0-15",
+    "router-task-outcome-Agent_0-task-n5_algebra_bleqa_apbon2msqrtableqambsqon8b_1779001483429-Agent_0-20",
+    "router-task-outcome-Agent_0-task-n5_algebra_bleqa_apbon2msqrtableqambsqon8b_1779001483429-Agent_0-25",
+    "router-task-outcome-Agent_0-task-n5_algebra_bleqa_apbon2msqrtableqambsqon8b_1779001483429-Agent_0-5",
+    "router-task-outcome-Agent_0-task-n5_amc12_2000_p12_1779001997941-Agent_0-5",
+    "router-task-outcome-Agent_0-task-n5_mathd_algebra_332_1779005092305-Agent_0-25",
+    "router-task-outcome-Agent_0-task-n5_numbertheory_2pownm1prime_nprime_1779005418821-Agent_0-10"
+  ],
+  "unmatched_l4_router_tx_ids": [],
+  "unmatched_submitted_trace_tx_ids": [],
+  "duplicate_l4_router_tx_id_count": 0,
+  "duplicate_submitted_trace_tx_id_count": 0,
+  "scripted_fixture_tx_count": 0,
+  "policy_counts_for_e2": false,
+  "matched_tx_provenance": [
+    {
+      "tx_id": "router-task-outcome-Agent_0-task-n5_algebra_bleqa_apbon2msqrtableqambsqon8b_1779001483429-Agent_0-15",
+      "l4_buyer": "Agent_0",
+      "l4_event_id": "task-n5_algebra_bleqa_apbon2msqrtableqambsqon8b_1779001483429",
+      "l4_direction": "BuyYes",
+      "l4_pay_coin_micro": 1000,
+      "l4_min_out_shares": 0,
+      "market_decision_trace_count": 1,
+      "market_decision_trace_cids": [
+        "cid:483a500d5e6e38293be7d6d373281b574057c8a27afaa733ebbc98a8154b00ff"
+      ],
+      "market_decision_agent_id": "Agent_0",
+      "market_decision_chosen_node_id": "task-n5_algebra_bleqa_apbon2msqrtableqambsqon8b_1779001483429",
+      "market_decision_direction": "BuyYes",
+      "market_decision_amount_micro": 1000,
+      "ev_decision_trace_count": 4,
+      "ev_decision_trace_cids": [
+        "cid:1fddc4971009eae65c516232164825b86d24449e89b420044fabe44a38f1b8e0",
+        "cid:56356ab3309fa2bdf072a25dcee537cc143a722195d2233627c52e2e62cefcf7",
+        "cid:7389c0fa6841b5b94181e2a687649c6f92cca742fa1bbaf91a5a6cdf16011379",
+        "cid:f41c79f8cee8ac4aab38fb6ffb263d2cd52fb884b40f732e74da9f3ed0c50e4a"
+      ],
+      "ev_actions": [
+        "BuyYes"
+      ],
+      "ev_reasons": [
+        "PositiveEV"
+      ],
+      "market_opportunity_trace_count": 0,
+      "market_opportunity_trace_cids": [],
+      "prompt_capsule_linkage": "indirect_via_ev_decision_trace",
+      "prompt_capsule_cids": [
+        "cid:63df234301a3c1ee5278154a5ab404a2439e4787156c94359ee2a0e2cfbd9d6a",
+        "cid:922598099c4dcad17372608bf830d55a912b42848b42021942f8e374398ec26d",
+        "cid:9f333343787c7a7ad6762f1cc160cfaa149c2f63c4f674405975db06c112d203",
+        "cid:fc187505f2940a691cb339a46fae7049cc2cce2a6967fc22577d84ced205ca9f"
+      ],
+      "role_turn_trace_count": 4,
+      "role_turn_trace_cids": [
+        "cid:6fdeb50fea7c5f1cf9dee6d3df824d1bc14efe8d3840c1a96cfa86748561bc13",
+        "cid:c3867f677520239c7d27966996ff8c7642666329edf29086f85fb1cbe6b1f22e",
+        "cid:e27e702e23bea148d0dc90b0234e666fcfce7806e1d4ef823372b2f69083db60",
+        "cid:fd0dc6deaaf43324a7ffa6bc39c0335402dfc4f0b46264fec1e201937ca3a45d"
+      ],
+      "live_agent_role": "BullTrader",
+      "actor_is_policy_trader": false,
+      "actor_is_live_agent_role": true,
+      "residual_risks": [
+        "MarketDecisionTrace has no direct PromptCapsule field; linkage is via matched EVDecisionTrace",
+        "multiple EVDecisionTrace rows match agent/event/action; tx_id is disambiguated only by exact router join (count=4)"
+      ]
+    },
+    {
+      "tx_id": "router-task-outcome-Agent_0-task-n5_algebra_bleqa_apbon2msqrtableqambsqon8b_1779001483429-Agent_0-20",
+      "l4_buyer": "Agent_0",
+      "l4_event_id": "task-n5_algebra_bleqa_apbon2msqrtableqambsqon8b_1779001483429",
+      "l4_direction": "BuyYes",
+      "l4_pay_coin_micro": 1000,
+      "l4_min_out_shares": 0,
+      "market_decision_trace_count": 1,
+      "market_decision_trace_cids": [
+        "cid:64003fa83f307b59481497e6c450c6886927abc27bf7115af3cb5129b275271b"
+      ],
+      "market_decision_agent_id": "Agent_0",
+      "market_decision_chosen_node_id": "task-n5_algebra_bleqa_apbon2msqrtableqambsqon8b_1779001483429",
+      "market_decision_direction": "BuyYes",
+      "market_decision_amount_micro": 1000,
+      "ev_decision_trace_count": 4,
+      "ev_decision_trace_cids": [
+        "cid:1fddc4971009eae65c516232164825b86d24449e89b420044fabe44a38f1b8e0",
+        "cid:56356ab3309fa2bdf072a25dcee537cc143a722195d2233627c52e2e62cefcf7",
+        "cid:7389c0fa6841b5b94181e2a687649c6f92cca742fa1bbaf91a5a6cdf16011379",
+        "cid:f41c79f8cee8ac4aab38fb6ffb263d2cd52fb884b40f732e74da9f3ed0c50e4a"
+      ],
+      "ev_actions": [
+        "BuyYes"
+      ],
+      "ev_reasons": [
+        "PositiveEV"
+      ],
+      "market_opportunity_trace_count": 0,
+      "market_opportunity_trace_cids": [],
+      "prompt_capsule_linkage": "indirect_via_ev_decision_trace",
+      "prompt_capsule_cids": [
+        "cid:63df234301a3c1ee5278154a5ab404a2439e4787156c94359ee2a0e2cfbd9d6a",
+        "cid:922598099c4dcad17372608bf830d55a912b42848b42021942f8e374398ec26d",
+        "cid:9f333343787c7a7ad6762f1cc160cfaa149c2f63c4f674405975db06c112d203",
+        "cid:fc187505f2940a691cb339a46fae7049cc2cce2a6967fc22577d84ced205ca9f"
+      ],
+      "role_turn_trace_count": 4,
+      "role_turn_trace_cids": [
+        "cid:6fdeb50fea7c5f1cf9dee6d3df824d1bc14efe8d3840c1a96cfa86748561bc13",
+        "cid:c3867f677520239c7d27966996ff8c7642666329edf29086f85fb1cbe6b1f22e",
+        "cid:e27e702e23bea148d0dc90b0234e666fcfce7806e1d4ef823372b2f69083db60",
+        "cid:fd0dc6deaaf43324a7ffa6bc39c0335402dfc4f0b46264fec1e201937ca3a45d"
+      ],
+      "live_agent_role": "BullTrader",
+      "actor_is_policy_trader": false,
+      "actor_is_live_agent_role": true,
+      "residual_risks": [
+        "MarketDecisionTrace has no direct PromptCapsule field; linkage is via matched EVDecisionTrace",
+        "multiple EVDecisionTrace rows match agent/event/action; tx_id is disambiguated only by exact router join (count=4)"
+      ]
+    },
+    {
+      "tx_id": "router-task-outcome-Agent_0-task-n5_algebra_bleqa_apbon2msqrtableqambsqon8b_1779001483429-Agent_0-25",
+      "l4_buyer": "Agent_0",
+      "l4_event_id": "task-n5_algebra_bleqa_apbon2msqrtableqambsqon8b_1779001483429",
+      "l4_direction": "BuyYes",
+      "l4_pay_coin_micro": 1000,
+      "l4_min_out_shares": 0,
+      "market_decision_trace_count": 1,
+      "market_decision_trace_cids": [
+        "cid:eb16988a5f978a011f40af6a7f583a4d0abe13d0e239d3c99c0c33da15c99fc4"
+      ],
+      "market_decision_agent_id": "Agent_0",
+      "market_decision_chosen_node_id": "task-n5_algebra_bleqa_apbon2msqrtableqambsqon8b_1779001483429",
+      "market_decision_direction": "BuyYes",
+      "market_decision_amount_micro": 1000,
+      "ev_decision_trace_count": 4,
+      "ev_decision_trace_cids": [
+        "cid:1fddc4971009eae65c516232164825b86d24449e89b420044fabe44a38f1b8e0",
+        "cid:56356ab3309fa2bdf072a25dcee537cc143a722195d2233627c52e2e62cefcf7",
+        "cid:7389c0fa6841b5b94181e2a687649c6f92cca742fa1bbaf91a5a6cdf16011379",
+        "cid:f41c79f8cee8ac4aab38fb6ffb263d2cd52fb884b40f732e74da9f3ed0c50e4a"
+      ],
+      "ev_actions": [
+        "BuyYes"
+      ],
+      "ev_reasons": [
+        "PositiveEV"
+      ],
+      "market_opportunity_trace_count": 0,
+      "market_opportunity_trace_cids": [],
+      "prompt_capsule_linkage": "indirect_via_ev_decision_trace",
+      "prompt_capsule_cids": [
+        "cid:63df234301a3c1ee5278154a5ab404a2439e4787156c94359ee2a0e2cfbd9d6a",
+        "cid:922598099c4dcad17372608bf830d55a912b42848b42021942f8e374398ec26d",
+        "cid:9f333343787c7a7ad6762f1cc160cfaa149c2f63c4f674405975db06c112d203",
+        "cid:fc187505f2940a691cb339a46fae7049cc2cce2a6967fc22577d84ced205ca9f"
+      ],
+      "role_turn_trace_count": 4,
+      "role_turn_trace_cids": [
+        "cid:6fdeb50fea7c5f1cf9dee6d3df824d1bc14efe8d3840c1a96cfa86748561bc13",
+        "cid:c3867f677520239c7d27966996ff8c7642666329edf29086f85fb1cbe6b1f22e",
+        "cid:e27e702e23bea148d0dc90b0234e666fcfce7806e1d4ef823372b2f69083db60",
+        "cid:fd0dc6deaaf43324a7ffa6bc39c0335402dfc4f0b46264fec1e201937ca3a45d"
+      ],
+      "live_agent_role": "BullTrader",
+      "actor_is_policy_trader": false,
+      "actor_is_live_agent_role": true,
+      "residual_risks": [
+        "MarketDecisionTrace has no direct PromptCapsule field; linkage is via matched EVDecisionTrace",
+        "multiple EVDecisionTrace rows match agent/event/action; tx_id is disambiguated only by exact router join (count=4)"
+      ]
+    },
+    {
+      "tx_id": "router-task-outcome-Agent_0-task-n5_algebra_bleqa_apbon2msqrtableqambsqon8b_1779001483429-Agent_0-5",
+      "l4_buyer": "Agent_0",
+      "l4_event_id": "task-n5_algebra_bleqa_apbon2msqrtableqambsqon8b_1779001483429",
+      "l4_direction": "BuyYes",
+      "l4_pay_coin_micro": 1000,
+      "l4_min_out_shares": 0,
+      "market_decision_trace_count": 1,
+      "market_decision_trace_cids": [
+        "cid:da820e25dbc730bc413eb4f830fc95e368b3e9ddf9cb6f5b047ae655b9799686"
+      ],
+      "market_decision_agent_id": "Agent_0",
+      "market_decision_chosen_node_id": "task-n5_algebra_bleqa_apbon2msqrtableqambsqon8b_1779001483429",
+      "market_decision_direction": "BuyYes",
+      "market_decision_amount_micro": 1000,
+      "ev_decision_trace_count": 4,
+      "ev_decision_trace_cids": [
+        "cid:1fddc4971009eae65c516232164825b86d24449e89b420044fabe44a38f1b8e0",
+        "cid:56356ab3309fa2bdf072a25dcee537cc143a722195d2233627c52e2e62cefcf7",
+        "cid:7389c0fa6841b5b94181e2a687649c6f92cca742fa1bbaf91a5a6cdf16011379",
+        "cid:f41c79f8cee8ac4aab38fb6ffb263d2cd52fb884b40f732e74da9f3ed0c50e4a"
+      ],
+      "ev_actions": [
+        "BuyYes"
+      ],
+      "ev_reasons": [
+        "PositiveEV"
+      ],
+      "market_opportunity_trace_count": 0,
+      "market_opportunity_trace_cids": [],
+      "prompt_capsule_linkage": "indirect_via_ev_decision_trace",
+      "prompt_capsule_cids": [
+        "cid:63df234301a3c1ee5278154a5ab404a2439e4787156c94359ee2a0e2cfbd9d6a",
+        "cid:922598099c4dcad17372608bf830d55a912b42848b42021942f8e374398ec26d",
+        "cid:9f333343787c7a7ad6762f1cc160cfaa149c2f63c4f674405975db06c112d203",
+        "cid:fc187505f2940a691cb339a46fae7049cc2cce2a6967fc22577d84ced205ca9f"
+      ],
+      "role_turn_trace_count": 4,
+      "role_turn_trace_cids": [
+        "cid:6fdeb50fea7c5f1cf9dee6d3df824d1bc14efe8d3840c1a96cfa86748561bc13",
+        "cid:c3867f677520239c7d27966996ff8c7642666329edf29086f85fb1cbe6b1f22e",
+        "cid:e27e702e23bea148d0dc90b0234e666fcfce7806e1d4ef823372b2f69083db60",
+        "cid:fd0dc6deaaf43324a7ffa6bc39c0335402dfc4f0b46264fec1e201937ca3a45d"
+      ],
+      "live_agent_role": "BullTrader",
+      "actor_is_policy_trader": false,
+      "actor_is_live_agent_role": true,
+      "residual_risks": [
+        "MarketDecisionTrace has no direct PromptCapsule field; linkage is via matched EVDecisionTrace",
+        "multiple EVDecisionTrace rows match agent/event/action; tx_id is disambiguated only by exact router join (count=4)"
+      ]
+    },
+    {
+      "tx_id": "router-task-outcome-Agent_0-task-n5_amc12_2000_p12_1779001997941-Agent_0-5",
+      "l4_buyer": "Agent_0",
+      "l4_event_id": "task-n5_amc12_2000_p12_1779001997941",
+      "l4_direction": "BuyYes",
+      "l4_pay_coin_micro": 1000,
+      "l4_min_out_shares": 0,
+      "market_decision_trace_count": 1,
+      "market_decision_trace_cids": [
+        "cid:7e2be35df6bf455fb8e1fa8f3e052a268fda08c62555aa16d087e5a56d8a1245"
+      ],
+      "market_decision_agent_id": "Agent_0",
+      "market_decision_chosen_node_id": "task-n5_amc12_2000_p12_1779001997941",
+      "market_decision_direction": "BuyYes",
+      "market_decision_amount_micro": 1000,
+      "ev_decision_trace_count": 1,
+      "ev_decision_trace_cids": [
+        "cid:d4ac20a0e81d9b2d275344d4b94328953575b5b118a718e6e99fb76e9b8af20b"
+      ],
+      "ev_actions": [
+        "BuyYes"
+      ],
+      "ev_reasons": [
+        "PositiveEV"
+      ],
+      "market_opportunity_trace_count": 0,
+      "market_opportunity_trace_cids": [],
+      "prompt_capsule_linkage": "indirect_via_ev_decision_trace",
+      "prompt_capsule_cids": [
+        "cid:c63dbd17e8c9db395487d80a3659014bd1dad79e91adc404aa4ec3c43e53fbf2"
+      ],
+      "role_turn_trace_count": 1,
+      "role_turn_trace_cids": [
+        "cid:bc7850bb5522987dda67771babe5d5c39b8ff7886f347d7dc38146fcdd63ce50"
+      ],
+      "live_agent_role": "BullTrader",
+      "actor_is_policy_trader": false,
+      "actor_is_live_agent_role": true,
+      "residual_risks": [
+        "MarketDecisionTrace has no direct PromptCapsule field; linkage is via matched EVDecisionTrace"
+      ]
+    },
+    {
+      "tx_id": "router-task-outcome-Agent_0-task-n5_mathd_algebra_332_1779005092305-Agent_0-25",
+      "l4_buyer": "Agent_0",
+      "l4_event_id": "task-n5_mathd_algebra_332_1779005092305",
+      "l4_direction": "BuyYes",
+      "l4_pay_coin_micro": 1000,
+      "l4_min_out_shares": 0,
+      "market_decision_trace_count": 1,
+      "market_decision_trace_cids": [
+        "cid:7a949580ef8ae24c5e9158b97fb5cf8e1f1d3dedd45d2df0b23ae87f931572df"
+      ],
+      "market_decision_agent_id": "Agent_0",
+      "market_decision_chosen_node_id": "task-n5_mathd_algebra_332_1779005092305",
+      "market_decision_direction": "BuyYes",
+      "market_decision_amount_micro": 1000,
+      "ev_decision_trace_count": 1,
+      "ev_decision_trace_cids": [
+        "cid:d122ec7f33cd900e43b5bac3ec04d8c1a10b0493694241374eb433fccda6ce39"
+      ],
+      "ev_actions": [
+        "BuyYes"
+      ],
+      "ev_reasons": [
+        "PositiveEV"
+      ],
+      "market_opportunity_trace_count": 0,
+      "market_opportunity_trace_cids": [],
+      "prompt_capsule_linkage": "indirect_via_ev_decision_trace",
+      "prompt_capsule_cids": [
+        "cid:67978f42b685b1bf62c78701da2b1132d2f5175f650b93f195ce89cb7948da5d"
+      ],
+      "role_turn_trace_count": 1,
+      "role_turn_trace_cids": [
+        "cid:97e233c465c130de0a2c1801cbb751070709fb1768c89694d65eedb079c18d8b"
+      ],
+      "live_agent_role": "BullTrader",
+      "actor_is_policy_trader": false,
+      "actor_is_live_agent_role": true,
+      "residual_risks": [
+        "MarketDecisionTrace has no direct PromptCapsule field; linkage is via matched EVDecisionTrace"
+      ]
+    },
+    {
+      "tx_id": "router-task-outcome-Agent_0-task-n5_numbertheory_2pownm1prime_nprime_1779005418821-Agent_0-10",
+      "l4_buyer": "Agent_0",
+      "l4_event_id": "task-n5_numbertheory_2pownm1prime_nprime_1779005418821",
+      "l4_direction": "BuyYes",
+      "l4_pay_coin_micro": 1000,
+      "l4_min_out_shares": 0,
+      "market_decision_trace_count": 1,
+      "market_decision_trace_cids": [
+        "cid:62e860b9cf49168349e0f3f2fcbef77068142632778808d03977673442b9e0a6"
+      ],
+      "market_decision_agent_id": "Agent_0",
+      "market_decision_chosen_node_id": "task-n5_numbertheory_2pownm1prime_nprime_1779005418821",
+      "market_decision_direction": "BuyYes",
+      "market_decision_amount_micro": 1000,
+      "ev_decision_trace_count": 1,
+      "ev_decision_trace_cids": [
+        "cid:86d8ef1fb7a8126f7065a13056bb7f8292e4453684f9794dce3097097c03830b"
+      ],
+      "ev_actions": [
+        "BuyYes"
+      ],
+      "ev_reasons": [
+        "PositiveEV"
+      ],
+      "market_opportunity_trace_count": 0,
+      "market_opportunity_trace_cids": [],
+      "prompt_capsule_linkage": "indirect_via_ev_decision_trace",
+      "prompt_capsule_cids": [
+        "cid:7c0f89cfb51bf2b7356752150c9e238612494c9722675bc860abdaff47010d24"
+      ],
+      "role_turn_trace_count": 1,
+      "role_turn_trace_cids": [
+        "cid:640be4ff5680a4949c4e911d45347d55bb71dc5415367210bf130c7702ba9f9e"
+      ],
+      "live_agent_role": "BullTrader",
+      "actor_is_policy_trader": false,
+      "actor_is_live_agent_role": true,
+      "residual_risks": [
+        "MarketDecisionTrace has no direct PromptCapsule field; linkage is via matched EVDecisionTrace"
+      ]
+    }
+  ],
+  "bcast_shielding": {
+    "librarian_digest_count": 269,
+    "librarian_role_crop_count": 269,
+    "visible_context_count": 269,
+    "verdict": "PASS",
+    "failure_reasons": []
+  },
+  "verdict": "VETO",
+  "failure_reasons": [
+    "matched tx router-task-outcome-Agent_0-task-n5_algebra_bleqa_apbon2msqrtableqambsqon8b_1779001483429-Agent_0-15 has no MarketOpportunityTrace",
+    "matched tx router-task-outcome-Agent_0-task-n5_algebra_bleqa_apbon2msqrtableqambsqon8b_1779001483429-Agent_0-20 has no MarketOpportunityTrace",
+    "matched tx router-task-outcome-Agent_0-task-n5_algebra_bleqa_apbon2msqrtableqambsqon8b_1779001483429-Agent_0-25 has no MarketOpportunityTrace",
+    "matched tx router-task-outcome-Agent_0-task-n5_algebra_bleqa_apbon2msqrtableqambsqon8b_1779001483429-Agent_0-5 has no MarketOpportunityTrace",
+    "matched tx router-task-outcome-Agent_0-task-n5_amc12_2000_p12_1779001997941-Agent_0-5 has no MarketOpportunityTrace",
+    "matched tx router-task-outcome-Agent_0-task-n5_mathd_algebra_332_1779005092305-Agent_0-25 has no MarketOpportunityTrace",
+    "matched tx router-task-outcome-Agent_0-task-n5_numbertheory_2pownm1prime_nprime_1779005418821-Agent_0-10 has no MarketOpportunityTrace"
+  ]
+}

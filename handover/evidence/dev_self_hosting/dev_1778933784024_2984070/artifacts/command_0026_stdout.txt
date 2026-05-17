@@ -1,0 +1,20 @@
+
+running 8 tests
+test ev_decision_trace_enforces_role_side_and_abstain_reason ... ok
+test ev_decision_trace_is_generic_cas_backed_and_round_trips ... ok
+test ev_decision_trace_rejects_out_of_range_bps_and_float_markers ... ok
+test ev_decision_trace_rejects_private_or_raw_material ... ok
+test ev_decision_trace_summary_is_cas_derived ... ok
+test ev_reason_taxonomy_is_exhaustive_in_summary_and_dashboard ... FAILED
+test ev_trace_does_not_invent_50_50_or_zero_liquidity_for_missing_basis ... FAILED
+test positive_ev_abstain_with_constraints_pass_is_positive_ev_ignored ... FAILED
+
+failures:
+
+failures:
+    ev_reason_taxonomy_is_exhaustive_in_summary_and_dashboard
+    ev_trace_does_not_invent_50_50_or_zero_liquidity_for_missing_basis
+    positive_ev_abstain_with_constraints_pass_is_positive_ev_ignored
+
+test result: FAILED. 5 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+

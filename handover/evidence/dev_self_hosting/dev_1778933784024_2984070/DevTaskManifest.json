@@ -1,0 +1,44 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1778933784024_2984070",
+  "title": "Market Autonomy Lab",
+  "module": "Market Autonomy",
+  "molecule_or_atom": "molecule",
+  "requested_risk_class": 4,
+  "risk_class": 4,
+  "fc_nodes": [
+    "FC1-N5",
+    "FC1-N6",
+    "FC1-N8",
+    "FC1-N10",
+    "FC2-INV1",
+    "FC3-N31",
+    "FC3-INV3"
+  ],
+  "allowed_paths": [
+    "handover/directives",
+    "handover/reports",
+    "handover/evidence",
+    "tests",
+    "src/runtime",
+    "src/bin/audit_dashboard.rs",
+    "experiments/minif2f_v4/src/bin/evaluator.rs",
+    "scripts",
+    "genesis_payload.toml"
+  ],
+  "restricted_surface_hits": [
+    "genesis_payload.toml"
+  ],
+  "acceptance_commands": [
+    "cargo test --lib boot::tests::verify_trust_root_passes_on_intact_repo -- --test-threads=1",
+    "cargo test --test constitution_librarian_selector --test constitution_librarian_digest --test constitution_librarian_prompt_injection --test constitution_librarian_no_raw_leakage --test constitution_real13a_ev_decision_trace --test constitution_real13b_market_review_window",
+    "bash scripts/run_constitution_gates.sh",
+    "cargo test --workspace --no-fail-fast -- --test-threads=1",
+    "git diff --check"
+  ],
+  "audit_required": true,
+  "human_intent": "Achieve real voluntary agent market-mechanism emergence under TuringOS constitution; clean-negative cycles continue until E2 candidate pending audit or hard stop.",
+  "ratification": null,
+  "git_head": "7b39499a6d416081d2eb5cae69cd9278a4fb72ed",
+  "created_at_unix_ms": 1778933784028
+}

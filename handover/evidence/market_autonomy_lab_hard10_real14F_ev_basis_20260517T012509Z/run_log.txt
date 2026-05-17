@@ -1,0 +1,11 @@
+batch_id            market_autonomy_lab_hard10_real14F_ev_basis_20260517T012509Z_2dd4820
+run_tag             market_autonomy_lab_hard10_real14F_ev_basis_20260517T012509Z
+problem_count       10
+git_head            2dd4820082e6ebd853063807c05acd05d2e2440e
+elapsed_s           540
+batch_exit          0
+audit_exit          0
+audit_verdict       PROCEED
+persistence_exit    0
+persistence_passing true
+persistence_n_witnessed 5

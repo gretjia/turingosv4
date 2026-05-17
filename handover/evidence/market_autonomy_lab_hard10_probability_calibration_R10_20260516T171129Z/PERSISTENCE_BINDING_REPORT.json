@@ -1,0 +1,143 @@
+{
+  "schema_version": "persistence_evidence_g1_2_v1",
+  "batch_id": "market_autonomy_lab_hard10_probability_calibration_R10_20260516T171129Z_7b39499",
+  "n_tasks": 10,
+  "is_passing": true,
+  "n_witnessed": 5,
+  "balances": {
+    "kind": "Witnessed",
+    "detail": "balances_total_micro 35000000 → 32696000 across 10 tasks; distinct_agents 13 → 13"
+  },
+  "positions": {
+    "kind": "Witnessed",
+    "detail": "node_positions_t count 0 → 3 across 10 tasks"
+  },
+  "reputation": {
+    "kind": "Witnessed",
+    "detail": "reputations_t count 0 → 2"
+  },
+  "pnl": {
+    "kind": "Witnessed",
+    "detail": "pnl final_delta_micro=-1004000 (balances+collateral vs initial)"
+  },
+  "autopsy": {
+    "kind": "Empty",
+    "detail": "no autopsy capsules written by this batch (no event resolutions)"
+  },
+  "model_identity": {
+    "kind": "Witnessed",
+    "detail": "manifest.model=deepseek-chat stable across 10 tasks"
+  },
+  "per_task": [
+    {
+      "task_index": 0,
+      "problem_id": "algebra_bleqa_apbon2msqrtableqambsqon8b",
+      "balances_total_micro": 34800000,
+      "balances_distinct_agents": 13,
+      "node_positions_count": 0,
+      "reputations_count": 0,
+      "autopsy_event_count": 0,
+      "autopsy_capsule_total": 0,
+      "conditional_collateral_total_micro": 100000
+    },
+    {
+      "task_index": 1,
+      "problem_id": "amc12_2000_p12",
+      "balances_total_micro": 34600000,
+      "balances_distinct_agents": 13,
+      "node_positions_count": 0,
+      "reputations_count": 0,
+      "autopsy_event_count": 0,
+      "autopsy_capsule_total": 0,
+      "conditional_collateral_total_micro": 200000
+    },
+    {
+      "task_index": 2,
+      "problem_id": "amc12_2000_p6",
+      "balances_total_micro": 34400000,
+      "balances_distinct_agents": 13,
+      "node_positions_count": 0,
+      "reputations_count": 0,
+      "autopsy_event_count": 0,
+      "autopsy_capsule_total": 0,
+      "conditional_collateral_total_micro": 300000
+    },
+    {
+      "task_index": 3,
+      "problem_id": "amc12b_2021_p13",
+      "balances_total_micro": 34200000,
+      "balances_distinct_agents": 13,
+      "node_positions_count": 0,
+      "reputations_count": 0,
+      "autopsy_event_count": 0,
+      "autopsy_capsule_total": 0,
+      "conditional_collateral_total_micro": 400000
+    },
+    {
+      "task_index": 4,
+      "problem_id": "imo_1962_p2",
+      "balances_total_micro": 34000000,
+      "balances_distinct_agents": 13,
+      "node_positions_count": 0,
+      "reputations_count": 0,
+      "autopsy_event_count": 0,
+      "autopsy_capsule_total": 0,
+      "conditional_collateral_total_micro": 500000
+    },
+    {
+      "task_index": 5,
+      "problem_id": "mathd_algebra_208",
+      "balances_total_micro": 33800000,
+      "balances_distinct_agents": 13,
+      "node_positions_count": 0,
+      "reputations_count": 0,
+      "autopsy_event_count": 0,
+      "autopsy_capsule_total": 0,
+      "conditional_collateral_total_micro": 600000
+    },
+    {
+      "task_index": 6,
+      "problem_id": "mathd_algebra_246",
+      "balances_total_micro": 33500000,
+      "balances_distinct_agents": 13,
+      "node_positions_count": 1,
+      "reputations_count": 1,
+      "autopsy_event_count": 0,
+      "autopsy_capsule_total": 0,
+      "conditional_collateral_total_micro": 800000
+    },
+    {
+      "task_index": 7,
+      "problem_id": "mathd_algebra_270",
+      "balances_total_micro": 33099000,
+      "balances_distinct_agents": 13,
+      "node_positions_count": 2,
+      "reputations_count": 1,
+      "autopsy_event_count": 0,
+      "autopsy_capsule_total": 0,
+      "conditional_collateral_total_micro": 1000000
+    },
+    {
+      "task_index": 8,
+      "problem_id": "mathd_algebra_332",
+      "balances_total_micro": 32898000,
+      "balances_distinct_agents": 13,
+      "node_positions_count": 3,
+      "reputations_count": 2,
+      "autopsy_event_count": 0,
+      "autopsy_capsule_total": 0,
+      "conditional_collateral_total_micro": 1200000
+    },
+    {
+      "task_index": 9,
+      "problem_id": "numbertheory_2pownm1prime_nprime",
+      "balances_total_micro": 32696000,
+      "balances_distinct_agents": 13,
+      "node_positions_count": 3,
+      "reputations_count": 2,
+      "autopsy_event_count": 0,
+      "autopsy_capsule_total": 0,
+      "conditional_collateral_total_micro": 1300000
+    }
+  ]
+}

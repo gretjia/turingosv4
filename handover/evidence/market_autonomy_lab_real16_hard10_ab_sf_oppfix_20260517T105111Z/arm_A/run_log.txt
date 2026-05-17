@@ -1,0 +1,11 @@
+batch_id            market_autonomy_lab_real16_hard10_ab_sf_oppfix_20260517T105111Z/arm_A_2dd4820
+run_tag             market_autonomy_lab_real16_hard10_ab_sf_oppfix_20260517T105111Z/arm_A
+problem_count       10
+git_head            2dd4820082e6ebd853063807c05acd05d2e2440e
+elapsed_s           3630
+batch_exit          0
+audit_exit          0
+audit_verdict       PROCEED
+persistence_exit    0
+persistence_passing true
+persistence_n_witnessed 5

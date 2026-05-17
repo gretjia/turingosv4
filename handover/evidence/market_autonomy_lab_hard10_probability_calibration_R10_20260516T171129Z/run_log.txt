@@ -1,0 +1,11 @@
+batch_id            market_autonomy_lab_hard10_probability_calibration_R10_20260516T171129Z_7b39499
+run_tag             market_autonomy_lab_hard10_probability_calibration_R10_20260516T171129Z
+problem_count       10
+git_head            7b39499a6d416081d2eb5cae69cd9278a4fb72ed
+elapsed_s           1307
+batch_exit          0
+audit_exit          0
+audit_verdict       PROCEED
+persistence_exit    0
+persistence_passing true
+persistence_n_witnessed 5

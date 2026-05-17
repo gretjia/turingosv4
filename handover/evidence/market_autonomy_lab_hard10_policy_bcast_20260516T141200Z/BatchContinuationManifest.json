@@ -1,0 +1,30 @@
+{
+  "schema_version": "g1_2_v1",
+  "batch_id": "market_autonomy_lab_hard10_policy_bcast_20260516T141200Z_7b39499",
+  "runtime_repo": "/home/zephryj/projects/turingosv4-market-autonomy-lab/handover/evidence/market_autonomy_lab_hard10_policy_bcast_20260516T141200Z/runtime_repo",
+  "cas_root": "/home/zephryj/projects/turingosv4-market-autonomy-lab/handover/evidence/market_autonomy_lab_hard10_policy_bcast_20260516T141200Z/cas",
+  "model": "deepseek-chat",
+  "n_agents": 5,
+  "initial_head_t_hex": "",
+  "agent_registry_cid_hex": null,
+  "system_pubkeys_cid_hex": null,
+  "model_manifest_cid_hex": null,
+  "role_assignment_manifest_cid_hex": "930df22e8e17181e8768b2fe7c5ce1ce451c4674f64bfb7c17c98dae1d32a96e",
+  "tasks": [
+    {
+      "task_index": 0,
+      "problem_id": "algebra_bleqa_apbon2msqrtableqambsqon8b",
+      "start_head_t_hex": "",
+      "end_head_t_hex": "f1dbcc4ba8a387b41cf57e788b86d23b8b80014a",
+      "start_chain_length": 0,
+      "end_chain_length": 4,
+      "subprocess_command_sha256": "",
+      "run_summary_cid_hex": null,
+      "terminal_tx_id": null,
+      "exit_code": 3,
+      "started_at_unix_s": 1778940958,
+      "finished_at_unix_s": 1778940959
+    }
+  ],
+  "terminated_reason": "subprocess for task 0 algebra_bleqa_apbon2msqrtableqambsqon8b exited non-zero (3)"
+}

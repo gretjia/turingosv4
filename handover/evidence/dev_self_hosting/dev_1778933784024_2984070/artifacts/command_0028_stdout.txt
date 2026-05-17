@@ -1,0 +1,19 @@
+
+running 5 tests
+test constitution_real13_policy_trader_compares_llm_ev ... FAILED
+test constitution_real13_policy_trader_counterfactual_not_e2 ... FAILED
+test constitution_real13_policy_trader_dashboard_report ... FAILED
+test constitution_real13_policy_trader_integer_only ... FAILED
+test constitution_real13_policy_trader_trace ... FAILED
+
+failures:
+
+failures:
+    constitution_real13_policy_trader_compares_llm_ev
+    constitution_real13_policy_trader_counterfactual_not_e2
+    constitution_real13_policy_trader_dashboard_report
+    constitution_real13_policy_trader_integer_only
+    constitution_real13_policy_trader_trace
+
+test result: FAILED. 0 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

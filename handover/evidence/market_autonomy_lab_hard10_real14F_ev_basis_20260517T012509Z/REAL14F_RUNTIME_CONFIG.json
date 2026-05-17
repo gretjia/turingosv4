@@ -1,0 +1,23 @@
+{
+  "schema_version": "real14f.runtime_config.v1",
+  "run_tag": "market_autonomy_lab_hard10_real14F_ev_basis_20260517T012509Z",
+  "problem_set": "handover/preregistration/sample_E1v2_hard10_S20260423.txt",
+  "problem_set_hash": "138f75bc3a776df11df45fed77c01565e128662ca03e3d863e68dcf8ee22d8fc",
+  "active_model": "deepseek-chat",
+  "agent_models": "",
+  "model_assignment_hash": "fe61fc358c92d4ba02112595ebd13574d6a082ce4f234df758fe31b7d02c0482",
+  "budget_regime": "total_proposal",
+  "max_transactions": "10",
+  "per_problem_timeout_s": "900",
+  "candidate_amount_micro": "",
+  "policy_threshold_bps": "0",
+  "budget_config_hash": "dc374ff8ecf37e6d4a0e3b89d877e00d912de2f532124b6500187b40b494795b",
+  "prompt_template_hash": "6ceb815db38a55f5dc8c645c84f36c29e08d46886cf4f1cad55c433c34736887",
+  "runtime_source_hash": "4b365623108a01acb2513e6901e6861833f4beccb81ec3f4fa30666c50df7095",
+  "market_review_mode": "sequential",
+  "ev_scaffold": "1",
+  "bcast_librarian": "1",
+  "role_assignment": "BullTrader,BearTrader,Solver,Verifier,Challenger",
+  "task_market_seed_micro": "",
+  "default_pool_seed_micro": ""
+}

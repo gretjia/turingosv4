@@ -1,0 +1,133 @@
+{
+  "schema_version": "real16.market_performance_e4.v1",
+  "claim_boundary": "E4 candidate pending audit",
+  "source_boundary": "ChainTape/CAS/exact-join verifier-derived metrics only; dashboard text and evaluator stdout are not source of truth",
+  "arm_count": 4,
+  "baseline_arm_id": "A",
+  "best_arm_id": "D",
+  "e4_candidate": true,
+  "verdict": "Proceed",
+  "improved_metrics": [
+    "wasted_attempts",
+    "failed_branch_count",
+    "ev_to_action_conversion"
+  ],
+  "failure_reasons": [],
+  "solve_rate_wilson_95_ci_by_arm": {
+    "A": {
+      "successes": 0,
+      "trials": 10,
+      "point_bps": 0,
+      "lower_bps": 0,
+      "upper_bps": 2775
+    },
+    "B": {
+      "successes": 0,
+      "trials": 10,
+      "point_bps": 0,
+      "lower_bps": 0,
+      "upper_bps": 2775
+    },
+    "C": {
+      "successes": 0,
+      "trials": 10,
+      "point_bps": 0,
+      "lower_bps": 0,
+      "upper_bps": 2775
+    },
+    "D": {
+      "successes": 0,
+      "trials": 10,
+      "point_bps": 0,
+      "lower_bps": 0,
+      "upper_bps": 2775
+    }
+  },
+  "arms": [
+    {
+      "arm_id": "A",
+      "evidence_dir": "/home/zephryj/projects/turingosv4-market-autonomy-lab/handover/evidence/market_autonomy_lab_real16_hard10_ab_sf_oppfix_20260517T105111Z/arm_A",
+      "audit_tape_verdict": "PROCEED",
+      "e2_verifier_verdict": "VETO",
+      "e2_verifier_failure_reasons": [
+        "matched tx router-task-outcome-Agent_0-task-n5_amc12_2000_p6_1779015649324-Agent_0-25 has no EVDecisionTrace/economic rationale",
+        "matched tx router-task-outcome-Agent_0-task-n5_amc12_2000_p6_1779015649324-Agent_0-25 has no MarketOpportunityTrace",
+        "matched tx router-task-outcome-Agent_0-task-n5_amc12_2000_p6_1779015649324-Agent_0-25 has no PromptCapsule/visible-context linkage",
+        "matched tx router-task-outcome-Agent_0-task-n5_amc12_2000_p6_1779015649324-Agent_0-25 actor is not a live trader-like agent role"
+      ],
+      "metric_source": "ChainTapeCasVerifier",
+      "market_pressure_enabled": false,
+      "task_count": 10,
+      "solved_count": 0,
+      "verified_pput_micro": 0,
+      "wasted_attempt_count": 173,
+      "verification_latency_ms_total": 0,
+      "failed_branch_count": 182,
+      "cost_per_solved_proof_tokens": null,
+      "exact_join_count": 0,
+      "ev_to_action_conversion_bps": 0,
+      "role_diversity_bps": 10000,
+      "market_tx_count": 21
+    },
+    {
+      "arm_id": "B",
+      "evidence_dir": "/home/zephryj/projects/turingosv4-market-autonomy-lab/handover/evidence/market_autonomy_lab_real16_hard10_ab_sf_oppfix_20260517T105111Z/arm_B",
+      "audit_tape_verdict": "PROCEED",
+      "e2_verifier_verdict": "PROCEED",
+      "e2_verifier_failure_reasons": [],
+      "metric_source": "ChainTapeCasVerifier",
+      "market_pressure_enabled": true,
+      "task_count": 10,
+      "solved_count": 0,
+      "verified_pput_micro": 0,
+      "wasted_attempt_count": 180,
+      "verification_latency_ms_total": 0,
+      "failed_branch_count": 188,
+      "cost_per_solved_proof_tokens": null,
+      "exact_join_count": 9,
+      "ev_to_action_conversion_bps": 9000,
+      "role_diversity_bps": 10000,
+      "market_tx_count": 29
+    },
+    {
+      "arm_id": "C",
+      "evidence_dir": "/home/zephryj/projects/turingosv4-market-autonomy-lab/handover/evidence/market_autonomy_lab_real16_hard10_ab_sf_oppfix_20260517T105111Z/arm_C",
+      "audit_tape_verdict": "PROCEED",
+      "e2_verifier_verdict": "PROCEED",
+      "e2_verifier_failure_reasons": [],
+      "metric_source": "ChainTapeCasVerifier",
+      "market_pressure_enabled": true,
+      "task_count": 10,
+      "solved_count": 0,
+      "verified_pput_micro": 0,
+      "wasted_attempt_count": 166,
+      "verification_latency_ms_total": 0,
+      "failed_branch_count": 178,
+      "cost_per_solved_proof_tokens": null,
+      "exact_join_count": 3,
+      "ev_to_action_conversion_bps": 3000,
+      "role_diversity_bps": 10000,
+      "market_tx_count": 23
+    },
+    {
+      "arm_id": "D",
+      "evidence_dir": "/home/zephryj/projects/turingosv4-market-autonomy-lab/handover/evidence/market_autonomy_lab_real16D_hard10_sf_oppfix_recovery_20260517T135314Z/arm_D",
+      "audit_tape_verdict": "PROCEED",
+      "e2_verifier_verdict": "PROCEED",
+      "e2_verifier_failure_reasons": [],
+      "metric_source": "ChainTapeCasVerifier",
+      "market_pressure_enabled": true,
+      "task_count": 10,
+      "solved_count": 0,
+      "verified_pput_micro": 0,
+      "wasted_attempt_count": 149,
+      "verification_latency_ms_total": 0,
+      "failed_branch_count": 158,
+      "cost_per_solved_proof_tokens": null,
+      "exact_join_count": 16,
+      "ev_to_action_conversion_bps": 10000,
+      "role_diversity_bps": 10000,
+      "market_tx_count": 36
+    }
+  ]
+}

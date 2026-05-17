@@ -1,0 +1,86 @@
+{
+  "schema_version": "real16.metrics.v1",
+  "claim_boundary": "E4 candidate pending audit",
+  "achieved_claims_forbidden": true,
+  "combined_evidence_dir": "handover/evidence/market_autonomy_lab_real16_abcd_oppfix_recovery_combined_20260517T150000Z",
+  "source_boundary": "ChainTape/CAS/exact-join verifier-derived metrics only; dashboard text and evaluator stdout are not source of truth",
+  "problem_set_hash": "138f75bc3a776df11df45fed77c01565e128662ca03e3d863e68dcf8ee22d8fc",
+  "model_assignment_hash": "39fc2ace0b682e22a4e8c5d1c6df52b6c76deaa0eabcbd44b3698b33f60c5ab7",
+  "budget_hash": "9b38c3c7a3899adac707ebf75df21536866e4e54cd070a3e938580221b7d348c",
+  "runtime_config_hash": "401a1968c6e0b48264248fe0f6210ce362ae3b0d300b5b0e8ead3317d89c505c",
+  "prompt_template_hash": "cf860511f71d56b53b2df000150f2cf42fb47caaa3d26a20ca9f15a443f3c4f2",
+  "verifier_report": {
+    "verdict": "Proceed",
+    "e4_candidate": true,
+    "best_arm_id": "D",
+    "improved_metrics": [
+      "wasted_attempts",
+      "failed_branch_count",
+      "ev_to_action_conversion"
+    ],
+    "failure_reasons": []
+  },
+  "residual_limits": {
+    "solve_rate_improved": false,
+    "verified_pput_improved": false,
+    "all_arms_solved_count": 0,
+    "full_run_arm_d_contaminated_by_enospc": true,
+    "arm_d_source": "recovery rerun with matching hashes",
+    "candidate_only_not_achieved": true
+  },
+  "arms": [
+    {
+      "arm_id": "A",
+      "source_evidence_dir": "handover/evidence/market_autonomy_lab_real16_hard10_ab_sf_oppfix_20260517T105111Z/arm_A",
+      "market_pressure_enabled": false,
+      "audit_tape_verdict": "PROCEED",
+      "e2_verifier_verdict": "VETO",
+      "e2_verifier_boundary": "control arm no-candidate normalized to exact_join_count=0; invalid router match is not claim-bearing",
+      "exact_join_count": 0,
+      "solved_count": 0,
+      "verified_pput_micro": 0,
+      "wasted_attempt_count": 173,
+      "failed_branch_count": 182,
+      "market_tx_count": 21
+    },
+    {
+      "arm_id": "B",
+      "source_evidence_dir": "handover/evidence/market_autonomy_lab_real16_hard10_ab_sf_oppfix_20260517T105111Z/arm_B",
+      "market_pressure_enabled": true,
+      "audit_tape_verdict": "PROCEED",
+      "e2_verifier_verdict": "PROCEED",
+      "exact_join_count": 9,
+      "solved_count": 0,
+      "verified_pput_micro": 0,
+      "wasted_attempt_count": 180,
+      "failed_branch_count": 188,
+      "market_tx_count": 29
+    },
+    {
+      "arm_id": "C",
+      "source_evidence_dir": "handover/evidence/market_autonomy_lab_real16_hard10_ab_sf_oppfix_20260517T105111Z/arm_C",
+      "market_pressure_enabled": true,
+      "audit_tape_verdict": "PROCEED",
+      "e2_verifier_verdict": "PROCEED",
+      "exact_join_count": 3,
+      "solved_count": 0,
+      "verified_pput_micro": 0,
+      "wasted_attempt_count": 166,
+      "failed_branch_count": 178,
+      "market_tx_count": 23
+    },
+    {
+      "arm_id": "D",
+      "source_evidence_dir": "handover/evidence/market_autonomy_lab_real16D_hard10_sf_oppfix_recovery_20260517T135314Z/arm_D",
+      "market_pressure_enabled": true,
+      "audit_tape_verdict": "PROCEED",
+      "e2_verifier_verdict": "PROCEED",
+      "exact_join_count": 16,
+      "solved_count": 0,
+      "verified_pput_micro": 0,
+      "wasted_attempt_count": 149,
+      "failed_branch_count": 158,
+      "market_tx_count": 36
+    }
+  ]
+}

@@ -1,0 +1,3 @@
+batch_orchestrator: task_index=0 BoundaryPrep::FreshGenesis (no preflight, no lease — task_0 owns genesis)
+batch_evaluator: manifest write failed: No space left on device (os error 28)
+batch_evaluator: chain continuity OK across 1 tasks

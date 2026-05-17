@@ -1,0 +1,750 @@
+=================================================================
+ TB-8 Audit Dashboard — run_id=market_autonomy_lab_hard10_action_handoff_R14_20260516T191707Z_7b39499_t000 epoch=10
+=================================================================
+
+§1 Run metadata
+---------------
+  head_commit_oid: f29ca3b320bc147c97da27f4d954768c7e42c168
+  l4e_last_hash: e9c9e564870a3f7168482b83d1b225ba3efd49a0b0748ce6c85968b18518934f
+  final_state_root: 8cf85543bd81b9dd714adb3647cbc406809df22f3fd7f9db02c4aaabcb65f33b
+  final_ledger_root: fb634c48ea2da10a1319f314feff40ade0a3c4d29d868b32ef44129bbe347809
+  initial_q_state_loaded_from_disk: true
+
+§2 Chain stats + 7 indicators
+------------------------------
+  L4 entries:  75
+  L4.E entries: 164
+  ledger_root_verified              : ✓
+  system_signatures_verified        : ✓
+  state_reconstructed               : ✓
+  economic_state_reconstructed      : ✓
+  cas_payloads_retrievable          : ✓
+  agent_signatures_verified [Gate 4]: ✓
+  proposal_telemetry_cas_retrievable [Gate 5]: ✓
+  ALL 7 PASS                        : GREEN
+
+§3 ChainDerivedRunFacts (§4.4 bit-exact set)
+---------------------------------------------
+  solved                  : false
+  verified                : false
+  tx_count                : 239
+  proposal_count          : 152
+  golden_path_token_count : 2031
+  gp_payload (CID hex)    : 26d789391344813df24600ea9594f087da72ced47bb5595a4ccd314fc35de8d2
+  gp_path                 : step_complete
+  tactic_diversity        : 1
+  failed_branch_count     : 164
+  chain_oracle_verified   : true ✓ (Lean accepted ≥1 proof; oracle-level)
+  chain_economic_finalized: false (always false in TB-7; settlement = TB-9 territory)
+  tool_dist:
+    step_complete: 1
+
+§4 Per-agent activity
+---------------------
+  agent_id          | pubkey | Work✓ | Work✗ | Verify✓ | Verify✗
+  ------------------+--------+-------+-------+---------+--------
+  Agent_0           | ✓      | 0     | 1     | 0       | 0
+  Agent_1           | ✓      | 0     | 0     | 0       | 0
+  Agent_2           | ✓      | 1     | 39    | 1       | 0
+  Agent_3           | ✓      | 0     | 51    | 1       | 3
+  Agent_4           | ✓      | 0     | 50    | 0       | 0
+  Agent_5           | ✓      | 0     | 0     | 0       | 0
+  Agent_6           | ✓      | 0     | 0     | 0       | 0
+  Agent_7           | ✓      | 0     | 0     | 0       | 0
+  Agent_8           | ✓      | 0     | 0     | 0       | 0
+  Agent_9           | ✓      | 0     | 0     | 0       | 0
+  Agent_solver_0    | ✓      | 0     | 0     | 0       | 0
+  Agent_user_0      | ✓      | 0     | 0     | 0       | 0
+  MarketMakerBudget | ✓      | 0     | 0     | 0       | 0
+  tb6-smoke-agent   | ✗      | 0     | 10    | 0       | 0
+  tb6-smoke-sponsor | ✗      | 0     | 0     | 0       | 0
+
+§5 Proposal flow (chronological by logical_t)
+----------------------------------------------
+  side  | t   | tx_kind         | agent      | tactic     | branch     | oracle | reject
+  ------+-----+-----------------+------------+------------+------------+--------+-------
+  L4.E  |   0 | TaskOpen        | tb6-smoke-sponsor | -          | -          | -      | PolicyViolation
+  L4.E  |   0 | Work            | tb6-smoke-agent | -          | -          | -      | PolicyViolation
+  L4.E  |   0 | Work            | Agent_2    | -          | -          | -      | LeanFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_2    | -          | -          | -      | LeanFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_2    | -          | -          | -      | LeanFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_2    | -          | -          | -      | LeanFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_2    | -          | -          | -      | LeanFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_2    | -          | -          | -      | LeanFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | TaskOpen        | tb6-smoke-sponsor | -          | -          | -      | PolicyViolation
+  L4.E  |   0 | Work            | tb6-smoke-agent | -          | -          | -      | PolicyViolation
+  L4.E  |   0 | Work            | Agent_2    | -          | -          | -      | LeanFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_2    | -          | -          | -      | LeanFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_2    | -          | -          | -      | LeanFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_2    | -          | -          | -      | LeanFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_2    | -          | -          | -      | LeanFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_2    | -          | -          | -      | SorryBlocked
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | TaskOpen        | tb6-smoke-sponsor | -          | -          | -      | PolicyViolation
+  L4.E  |   0 | Work            | tb6-smoke-agent | -          | -          | -      | PolicyViolation
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_2    | -          | -          | -      | SorryBlocked
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_2    | -          | -          | -      | SorryBlocked
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_2    | -          | -          | -      | LeanFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | TaskOpen        | tb6-smoke-sponsor | -          | -          | -      | PolicyViolation
+  L4.E  |   0 | Work            | tb6-smoke-agent | -          | -          | -      | PolicyViolation
+  L4.E  |   0 | Work            | Agent_2    | -          | -          | -      | LeanFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_2    | -          | -          | -      | LeanFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_2    | -          | -          | -      | ParseFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | ParseFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | ParseFailed
+  L4.E  |   0 | Work            | Agent_2    | -          | -          | -      | LeanFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_2    | -          | -          | -      | LeanFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_2    | -          | -          | -      | LeanFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | TaskOpen        | tb6-smoke-sponsor | -          | -          | -      | PolicyViolation
+  L4.E  |   0 | Work            | tb6-smoke-agent | -          | -          | -      | PolicyViolation
+  L4.E  |   0 | Work            | Agent_0    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_2    | -          | -          | -      | LeanFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_2    | -          | -          | -      | LeanFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_2    | -          | -          | -      | LeanFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_2    | -          | -          | -      | LeanFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_2    | -          | -          | -      | LeanFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | TaskOpen        | tb6-smoke-sponsor | -          | -          | -      | PolicyViolation
+  L4.E  |   0 | Work            | tb6-smoke-agent | -          | -          | -      | PolicyViolation
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Verify          | Agent_3    | -          | -          | -      | PolicyViolation
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_2    | -          | -          | -      | LeanFailed
+  L4.E  |   0 | Verify          | Agent_3    | -          | -          | -      | PolicyViolation
+  L4.E  |   0 | TaskOpen        | tb6-smoke-sponsor | -          | -          | -      | PolicyViolation
+  L4.E  |   0 | Work            | tb6-smoke-agent | -          | -          | -      | PolicyViolation
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | TaskOpen        | tb6-smoke-sponsor | -          | -          | -      | PolicyViolation
+  L4.E  |   0 | Work            | tb6-smoke-agent | -          | -          | -      | PolicyViolation
+  L4.E  |   0 | Work            | Agent_2    | -          | -          | -      | LeanFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_2    | -          | -          | -      | LeanFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_2    | -          | -          | -      | LeanFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_2    | -          | -          | -      | LeanFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_2    | -          | -          | -      | LeanFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_2    | -          | -          | -      | LeanFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | TaskOpen        | tb6-smoke-sponsor | -          | -          | -      | PolicyViolation
+  L4.E  |   0 | Work            | tb6-smoke-agent | -          | -          | -      | PolicyViolation
+  L4.E  |   0 | Work            | Agent_2    | -          | -          | -      | LeanFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_2    | -          | -          | -      | LeanFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_2    | -          | -          | -      | LeanFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_2    | -          | -          | -      | LeanFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_2    | -          | -          | -      | SorryBlocked
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_2    | -          | -          | -      | LeanFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | TaskOpen        | tb6-smoke-sponsor | -          | -          | -      | PolicyViolation
+  L4.E  |   0 | Work            | tb6-smoke-agent | -          | -          | -      | PolicyViolation
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_3    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4.E  |   0 | Verify          | Agent_3    | -          | -          | -      | PolicyViolation
+  L4.E  |   0 | Work            | Agent_4    | -          | -          | -      | PredicateFailed
+  L4    |   1 | TaskOpen        | tb7-7-sponsor | -          | -          | -      | -
+  L4    |   2 | EscrowLock      | tb7-7-sponsor | -          | -          | -      | -
+  L4    |   3 | MarketSeed      | -          | -          | -          | -      | -
+  L4    |   4 | CpmmPool        | -          | -          | -          | -      | -
+  L4    |   5 | BuyWithCoinRouter | Agent_0    | -          | -          | -      | -
+  L4    |   6 | TerminalSummary | -          | -          | -          | -      | -
+  L4    |   7 | EventResolve    | -          | -          | -          | -      | -
+  L4    |   8 | TaskOpen        | tb7-7-sponsor | -          | -          | -      | -
+  L4    |   9 | EscrowLock      | tb7-7-sponsor | -          | -          | -      | -
+  L4    |  10 | MarketSeed      | -          | -          | -          | -      | -
+  L4    |  11 | CpmmPool        | -          | -          | -          | -      | -
+  L4    |  12 | BuyWithCoinRouter | Agent_0    | -          | -          | -      | -
+  L4    |  13 | TerminalSummary | -          | -          | -          | -      | -
+  L4    |  14 | EventResolve    | -          | -          | -          | -      | -
+  L4    |  15 | TaskOpen        | tb7-7-sponsor | -          | -          | -      | -
+  L4    |  16 | EscrowLock      | tb7-7-sponsor | -          | -          | -      | -
+  L4    |  17 | MarketSeed      | -          | -          | -          | -      | -
+  L4    |  18 | CpmmPool        | -          | -          | -          | -      | -
+  L4    |  19 | BuyWithCoinRouter | Agent_0    | -          | -          | -      | -
+  L4    |  20 | TerminalSummary | -          | -          | -          | -      | -
+  L4    |  21 | EventResolve    | -          | -          | -          | -      | -
+  L4    |  22 | TaskOpen        | tb7-7-sponsor | -          | -          | -      | -
+  L4    |  23 | EscrowLock      | tb7-7-sponsor | -          | -          | -      | -
+  L4    |  24 | MarketSeed      | -          | -          | -          | -      | -
+  L4    |  25 | CpmmPool        | -          | -          | -          | -      | -
+  L4    |  26 | TerminalSummary | -          | -          | -          | -      | -
+  L4    |  27 | EventResolve    | -          | -          | -          | -      | -
+  L4    |  28 | TaskOpen        | tb7-7-sponsor | -          | -          | -      | -
+  L4    |  29 | EscrowLock      | tb7-7-sponsor | -          | -          | -      | -
+  L4    |  30 | MarketSeed      | -          | -          | -          | -      | -
+  L4    |  31 | CpmmPool        | -          | -          | -          | -      | -
+  L4    |  32 | TerminalSummary | -          | -          | -          | -      | -
+  L4    |  33 | EventResolve    | -          | -          | -          | -      | -
+  L4    |  34 | TaskOpen        | tb7-7-sponsor | -          | -          | -      | -
+  L4    |  35 | EscrowLock      | tb7-7-sponsor | -          | -          | -      | -
+  L4    |  36 | MarketSeed      | -          | -          | -          | -      | -
+  L4    |  37 | CpmmPool        | -          | -          | -          | -      | -
+  L4    |  38 | BuyWithCoinRouter | Agent_0    | -          | -          | -      | -
+  L4    |  39 | TerminalSummary | -          | -          | -          | -      | -
+  L4    |  40 | EventResolve    | -          | -          | -          | -      | -
+  L4    |  41 | TaskOpen        | tb7-7-sponsor | -          | -          | -      | -
+  L4    |  42 | EscrowLock      | tb7-7-sponsor | -          | -          | -      | -
+  L4    |  43 | MarketSeed      | -          | -          | -          | -      | -
+  L4    |  44 | CpmmPool        | -          | -          | -          | -      | -
+  L4    |  45 | BuyWithCoinRouter | Agent_0    | -          | -          | -      | -
+  L4    |  46 | BuyWithCoinRouter | Agent_0    | -          | -          | -      | -
+  L4    |  47 | Work            | Agent_2    | step_complete | Agent_2.b2 | ✓      | -
+        payload: calc ⏎   f 3 = a * 3^4 - b * 3^2 + 3 + 5 := by ⏎     rw [h₀] ⏎   _ = a * 81 - b * 9 + 
+  L4    |  48 | TaskOpen        | MarketMakerBudget | -          | -          | -      | -
+  L4    |  49 | MarketSeed      | -          | -          | -          | -      | -
+  L4    |  50 | CpmmPool        | -          | -          | -          | -      | -
+  L4    |  51 | Verify          | Agent_2    | -          | -          | -      | -
+  L4    |  52 | FinalizeReward  | system (solver=Agent_2) | -          | -          | -      | -
+  L4    |  53 | EventResolve    | -          | -          | -          | -      | -
+  L4    |  54 | TaskOpen        | tb7-7-sponsor | -          | -          | -      | -
+  L4    |  55 | EscrowLock      | tb7-7-sponsor | -          | -          | -      | -
+  L4    |  56 | MarketSeed      | -          | -          | -          | -      | -
+  L4    |  57 | CpmmPool        | -          | -          | -          | -      | -
+  L4    |  58 | BuyWithCoinRouter | Agent_0    | -          | -          | -      | -
+  L4    |  59 | Verify          | Agent_3    | -          | -          | -      | -
+  L4    |  60 | TerminalSummary | -          | -          | -          | -      | -
+  L4    |  61 | EventResolve    | -          | -          | -          | -      | -
+  L4    |  62 | TaskOpen        | tb7-7-sponsor | -          | -          | -      | -
+  L4    |  63 | EscrowLock      | tb7-7-sponsor | -          | -          | -      | -
+  L4    |  64 | MarketSeed      | -          | -          | -          | -      | -
+  L4    |  65 | CpmmPool        | -          | -          | -          | -      | -
+  L4    |  66 | BuyWithCoinRouter | Agent_0    | -          | -          | -      | -
+  L4    |  67 | BuyWithCoinRouter | Agent_0    | -          | -          | -      | -
+  L4    |  68 | TerminalSummary | -          | -          | -          | -      | -
+  L4    |  69 | EventResolve    | -          | -          | -          | -      | -
+  L4    |  70 | TaskOpen        | tb7-7-sponsor | -          | -          | -      | -
+  L4    |  71 | EscrowLock      | tb7-7-sponsor | -          | -          | -      | -
+  L4    |  72 | MarketSeed      | -          | -          | -          | -      | -
+  L4    |  73 | CpmmPool        | -          | -          | -          | -      | -
+  L4    |  74 | TerminalSummary | -          | -          | -          | -      | -
+  L4    |  75 | EventResolve    | -          | -          | -          | -      | -
+
+§6 Branch lineage (parent_tx → child_tx via ProposalTelemetry.parent_tx)
+------------------------------------------------------------------------
+  parent_tx_state: SingletonGoldenPathValid (B′ singleton solve — parent_tx=None correct; conformance test demonstrates plumbing)
+  edges: (none — see parent_tx_state above for interpretation)
+
+§7 Golden path (root → oracle-verified WorkTx)
+------------------------------------------------
+  ✓depth=0  [ORACLE] | agent=Agent_2 | tactic=step_complete | tx=worktx-task-n5_mathd_algebra_246_1778960017974-omega-pertactic-2
+           payload: calc ⏎   f 3 = a * 3^4 - b * 3^2 + 3 + 5 := by ⏎     rw [h₀] ⏎   _ = a * 81 - b * 9 + 
+
+§8 Cross-checks
+---------------
+  audit_trail_rows         : 20
+  chain_proposal_count     : 152
+  audit_rows == proposal_count: ✗ (gap)
+  audit_trail_chain_valid     : ✓
+  (Note: pre-TB-7.6 the agent_audit_trail.jsonl is populated only
+   by the synthetic-seed hook; full per-LLM-proposal audit-trail
+   wiring is part of TB-7.6 carry-forward action #4 / #5.)
+
+§9 TB-8 Claims (claim_status + payout_amount)
+----------------------------------------------
+  claim_id                          | task_id        | solver        | status     | payout_micro | created@t | finalized@t
+  ----------------------------------+----------------+---------------+------------+--------------+-----------+------------
+  claim-verifytx-Agent_2-omega-per… | task-n5_mathd… | Agent_2       | Finalized  |       100000 |        51 | 52
+  claim-verifytx-Agent_3-vp8-2      | task-n5_mathd… | Agent_2       | Open       |            — |        59 | —
+
+  Aggregate: 2 claims observed | 1 Open | 1 Finalized | total_payout = 100000 micro
+
+§10 TB-9 Durable identity (agent keystore registry)
+---------------------------------------------------
+  durable_keystore_path: /home/zephryj/.turingos/keystore/agent_keystore.enc
+  durable_keystore_present: ✓ (cross-run identity available)
+  agents_in_manifest: 13
+  agent_id          | pubkey_in_manifest | tape_activity
+  ------------------+--------------------+---------------
+  Agent_0           | ✓ (durable-backed) | Work✓=0 Work✗=1 Verify✓=0 Verify✗=0
+  Agent_1           | ✓ (durable-backed) | Work✓=0 Work✗=0 Verify✓=0 Verify✗=0
+  Agent_2           | ✓ (durable-backed) | Work✓=1 Work✗=39 Verify✓=1 Verify✗=0
+  Agent_3           | ✓ (durable-backed) | Work✓=0 Work✗=51 Verify✓=1 Verify✗=3
+  Agent_4           | ✓ (durable-backed) | Work✓=0 Work✗=50 Verify✓=0 Verify✗=0
+  Agent_5           | ✓ (durable-backed) | Work✓=0 Work✗=0 Verify✓=0 Verify✗=0
+  Agent_6           | ✓ (durable-backed) | Work✓=0 Work✗=0 Verify✓=0 Verify✗=0
+  Agent_7           | ✓ (durable-backed) | Work✓=0 Work✗=0 Verify✓=0 Verify✗=0
+  Agent_8           | ✓ (durable-backed) | Work✓=0 Work✗=0 Verify✓=0 Verify✗=0
+  Agent_9           | ✓ (durable-backed) | Work✓=0 Work✗=0 Verify✓=0 Verify✗=0
+  Agent_solver_0    | ✓ (durable-backed) | Work✓=0 Work✗=0 Verify✓=0 Verify✗=0
+  Agent_user_0      | ✓ (durable-backed) | Work✓=0 Work✗=0 Verify✓=0 Verify✗=0
+  MarketMakerBudget | ✓ (durable-backed) | Work✓=0 Work✗=0 Verify✓=0 Verify✗=0
+
+  Note: cross-run identity is empirically observable by
+  comparing this run's `agent_pubkeys.json` to a sibling run
+  that loaded the same TURINGOS_AGENT_KEYSTORE_PATH — equal
+  pubkey rows ⇒ TB-9 mandate "agent identity survives run
+  restart" satisfied.
+
+§11 TB-10 User Tasks (sponsored by Agent_user_*; lean_market product surface)
+------------------------------------------------------------------------------
+  (no Agent_user_*-sponsored TaskOpen on chain; lean_market run-task
+   not invoked, or evaluator ran in self-funded preseed mode
+   [TURINGOS_USER_TASK_MODE unset]; n/a)
+
+§12 TB-11 Epistemic Exhaust + Capital Liberation (architect §6.2; 2026-05-02)
+------------------------------------------------------------------------------
+  Exhausted runs (RunExhaustedTx ≡ TerminalSummaryTx):
+    run_id         | task_id            | outcome         | attempts | evidence_capsule_cid (hex)
+    ---------------+--------------------+-----------------+----------+--------------------------------
+    n5_algebra_bl… | task-n5_algebra_b… | MaxTxExhausted  |        6 | 845770229a8b9ee9d5bdf6bcb0f63a9…
+    n5_amc12_2000… | task-n5_amc12_200… | MaxTxExhausted  |        6 | 6253b804cbbb0ce5825aef708dc8b66…
+    n5_amc12_2000… | task-n5_amc12_200… | MaxTxExhausted  |        6 | 6305a2bec9bd001c040fc8d8099da9c…
+    n5_amc12b_202… | task-n5_amc12b_20… | MaxTxExhausted  |        5 | 3fef99a8188961ccdf57841733de007…
+    n5_imo_1962_p… | task-n5_imo_1962_… | MaxTxExhausted  |        6 | 2d2b7a1eab006d00b7ad4c3aac0c766…
+    n5_mathd_alge… | task-n5_mathd_alg… | MaxTxExhausted  |        6 | 9c49970618117a80ced143bf069b7f6…
+    n5_mathd_alge… | task-n5_mathd_alg… | MaxTxExhausted  |        6 | 1a60e777de00938f50eb378971e406f…
+    n5_mathd_alge… | task-n5_mathd_alg… | MaxTxExhausted  |        6 | fb230a9903a01e4ecd368932526e7a6…
+    n5_numbertheo… | task-n5_numberthe… | MaxTxExhausted  |        6 | 49de6b510ab341d746436e412f84412…
+
+  Architect mandate (§6.2 ruling 2026-05-02) ✓:
+    O(1) chain cost / O(N) auditability — failure evidence anchored on L4
+    via system-emitted system_signature; raw log requires audit-role access
+    (CapsulePrivacyPolicy::AuditOnly default; only public_summary surfaces here).
+
+§13 TB-12 Node exposure records (architect 2026-05-03 §3 + §10)
+------------------------------------------------------------------------------
+  NodePosition exposure records (immutable; NOT Coin holdings; NOT in total_supply):
+    position_id      | node_id          | side  | kind            | owner          | amount_micro | @round
+    -----------------+------------------+-------+-----------------+----------------+--------------+--------
+    worktx-task-n5_… | worktx-task-n5_… | Long  | FirstLong       | Agent_2        |         1000 |     46
+    ─── Total Long: 1000 micro | Total Short: 0 micro | exposure rows: 1 ───
+
+  Architect mandate (§3 + §10 ruling 2026-05-03) ✓:
+    NodePosition is an IMMUTABLE EXPOSURE RECORD, NOT active position balance.
+    NodePosition.amount is NOT a Coin holding (CR-12.1) and is NOT counted in
+    total_supply_micro (CR-12.2). NO trading. NO price. NO settlement in TB-12.
+    NodeMarketEntry is TB-14 derived view; flat NodePositionsIndex is canonical.
+
+§14 TB-14 PriceIndex (architect 2026-05-03 §5.1 + §5.5 SG-14.6)
+---------------------------------------------------------------
+  PRICE IS SIGNAL, NOT TRUTH.
+    Architect §5.1 ruling 2026-05-03: the price index is a
+    derived statistical broadcast over canonical NodePositionsIndex
+    long/short interest. It MUST NOT influence predicate gates
+    (CR-14.1 / halt-trigger #1) or L4/L4.E classification
+    (CR-14.2 / halt-trigger #2). Boolean predicates establish
+    absolute bounds; the price view is for relative-effectiveness
+    measurement only.
+
+  Per-node entries (price as integer-rational n/d, never decimal):
+
+    node_id                               long_micro     short_micro    price_yes(n/d)     price_no(n/d)
+    --------------------------------------------------------------------------------------------------
+    worktx-task-n5_mathd_algebra_24…            1000               0         1000/1000            0/1000
+
+  Architect mandate (§5.1 ruling 2026-05-03) ✓:
+    Price is signal, not truth. NodeMarketEntry is a derived view —
+    NOT canonical state. NO trading. NO automatic liquidity. NO AMM.
+    NO price-based settlement. NO Goodhart leak of private predicates.
+
+§15 TB-15 Autopsy + Markov (architect 2026-05-02 §6.5 SG-15.6)
+--------------------------------------------------------------
+  AUTOPSY IS PRIVATE — public summary shown only when typical
+  (≥3 cluster). Raw private details require audit-role access.
+    Architect §6.4 ruling 2026-05-02: capsule audit detail is
+    AuditOnly; NEVER enters AgentVisibleProjection (CR-15.1 +
+    halt-trigger #1 + #4).
+    Typical-error broadcast surface uses public_summary text
+    only (CR-15.2 + halt-trigger #5).
+
+  (no agent_autopsies_t entries in this snapshot — no
+  TaskBankruptcyTx has fired during the chain window)
+  Acceptable signal-state: a run with zero accepted
+  TaskBankruptcyTx yields an empty AutopsyIndex by
+  TB-15 Atom 3 charter scope (single trigger site).
+
+  Markov default (FR-15.4): next-session boot reads
+  constitution.md + latest Markov capsule. deeper history
+  requires TURINGOS_MARKOV_OVERRIDE=1 (CR-15.6 +
+  halt-trigger #6 — default-deny gate).
+
+  (no latest Markov capsule pointer — supply
+  --markov-capsule-cid <hex> on the audit_dashboard
+  invocation, or run `generate_markov_capsule` to
+  emit a per-run capsule and pass its cid here.
+  Per architect OBS_R022 ruling 2026-05-04 the
+  global LATEST_MARKOV_CAPSULE.txt file has been
+  de-canonicalized — runtime path no longer reads it)
+
+  Architect mandate (§6.5 SG-15.6 + §6.4 ruling 2026-05-02) ✓:
+    Dashboard regenerates capsule summary from ChainTape + CAS;
+    NO raw private detail in dashboard output. Markov default
+    prevents context poisoning — full failure history not auto-
+    replayed; only constitution + latest capsule by default.
+
+§16 TB-16 SANDBOX BANNER (architect 2026-05-03 §7.4 CR-16.7 + §7.5 SG-16.8)
+==========================================================================
+  ⚠ SANDBOX-RUN — NOT PRODUCTION — NO REAL FUNDS
+    Agent IDs are sandbox-prefixed (Agent_solver_/Agent_verifier_/
+    Agent_user_/tb7-7-sponsor/tb16-). Total Coin sourced from
+    runtime::bootstrap::default_pput_preseed_pairs() (35_000_000 μC
+    on_init mint; assert_no_post_init_mint enforced).
+
+    Architect §7.6 forbidden:
+      - No public chain.
+      - No real-money market.
+      - No external domain (Lean only; no medical/legal/financial).
+      - No production user funds.
+
+    Prices, positions, masks, autopsies surfaced above are SIGNAL
+    only — never to be interpreted as real-money valuations.
+
+
+=== TB-N3 RUN REPORT ===
+run_id: market_autonomy_lab_hard10_action_handoff_R14_20260516T191707Z_7b39499_t000
+epoch: 10
+
+## §A Citation tree (accepted WorkTx by agent)
+  - Agent_2: 1 accepted WorkTx
+
+## §B Role activity
+  - Agent_0: work_accepted=0 work_rejected=1 verify_accepted=0 verify_rejected=0 challenge_accepted=0 invest_accepted=9
+  - Agent_1: work_accepted=0 work_rejected=0 verify_accepted=0 verify_rejected=0 challenge_accepted=0 invest_accepted=0
+  - Agent_2: work_accepted=1 work_rejected=39 verify_accepted=1 verify_rejected=0 challenge_accepted=0 invest_accepted=0
+  - Agent_3: work_accepted=0 work_rejected=51 verify_accepted=1 verify_rejected=3 challenge_accepted=0 invest_accepted=0
+  - Agent_4: work_accepted=0 work_rejected=50 verify_accepted=0 verify_rejected=0 challenge_accepted=0 invest_accepted=0
+  - Agent_5: work_accepted=0 work_rejected=0 verify_accepted=0 verify_rejected=0 challenge_accepted=0 invest_accepted=0
+  - Agent_6: work_accepted=0 work_rejected=0 verify_accepted=0 verify_rejected=0 challenge_accepted=0 invest_accepted=0
+  - Agent_7: work_accepted=0 work_rejected=0 verify_accepted=0 verify_rejected=0 challenge_accepted=0 invest_accepted=0
+  - Agent_8: work_accepted=0 work_rejected=0 verify_accepted=0 verify_rejected=0 challenge_accepted=0 invest_accepted=0
+  - Agent_9: work_accepted=0 work_rejected=0 verify_accepted=0 verify_rejected=0 challenge_accepted=0 invest_accepted=0
+  - Agent_solver_0: work_accepted=0 work_rejected=0 verify_accepted=0 verify_rejected=0 challenge_accepted=0 invest_accepted=0
+  - Agent_user_0: work_accepted=0 work_rejected=0 verify_accepted=0 verify_rejected=0 challenge_accepted=0 invest_accepted=0
+  - MarketMakerBudget: work_accepted=0 work_rejected=0 verify_accepted=0 verify_rejected=0 challenge_accepted=0 invest_accepted=0
+  - tb6-smoke-agent: work_accepted=0 work_rejected=10 verify_accepted=0 verify_rejected=0 challenge_accepted=0 invest_accepted=0
+  - tb6-smoke-sponsor: work_accepted=0 work_rejected=0 verify_accepted=0 verify_rejected=0 challenge_accepted=0 invest_accepted=0
+
+## §C Market tx counts
+  TaskOpen: 11
+  EscrowLock: 10
+  Work: 1
+  Verify: 2
+  FinalizeReward: 1
+  EventResolve: 10
+  CompleteSetMint: 0
+  MarketSeed: 11
+  CpmmPool: 11
+  CpmmSwap: 0
+  BuyWithCoinRouter: 9
+  CompleteSetRedeem: 0
+  CompleteSetMerge: 0
+  Challenge: 0
+  ChallengeResolve: 0
+  TaskBankruptcy: 0
+  TaskExpire: 0
+  TerminalSummary: 9
+  accepted_work_tx_total: 1
+
+## §C.1 REAL-11 Market tx categories
+  interpretation: structural market activity is not E2
+  structural_market_tx_count: 22
+  agent_economic_action_tx_count: 9
+  scripted_or_unproven_router_tx_count: 0
+  scripted_fixture_tx_count: 0
+  resolution_tx_count: 10
+  buy_with_coin_router_count: 9
+  e2_candidate_rule: live non-scripted router tx requires MarketDecisionTrace submitted provenance + ChainTape/CAS audit; scripted/unproven router tx is not E2
+
+## §D Top contested nodes (by seed total μC)
+  - node_survive:worktx-task-n5_mathd_algebra_246_1778960017974-omega-pertactic-2: 100000 μC
+
+## §E Budget burn report
+  pools_created: 1
+  market_seed_total: 100000 μC
+  treasury_budget_start: 5000000 μC (MarketMakerBudget genesis)
+  treasury_budget_end: 4900000 μC (= start - market_seed_total)
+  pools_skipped_budget: 0
+  router_buy_yes: 9
+  router_buy_no: 0
+
+## §F MarketDecisionTrace summary
+  total_traces: 14
+  outcome[no_trade] = 5
+  outcome[submitted] = 9
+  submitted_vs_traced_ratio: 9/14 = 64%
+  no_trade reason breakdown (observed, sorted by count):
+    no_perceived_edge = 5
+
+## §F.A NoTradeReason exhaustive breakdown
+  (architect §G2 13-variant taxonomy; stable insertion order; zeros included for forward grep stability)
+  no_prompt_tool = 0
+  no_parsed_invest = 0
+  malformed_node = 0
+  zero_amount = 0
+  amount_exceeds_balance = 0
+  no_pool = 0
+  router_rejected = 0
+  agent_declined = 0
+  too_fast_solve = 0
+  slippage_out_zero = 0
+  unknown = 0
+  no_perceived_edge = 5
+  prompt_budget_exceeded = 0
+
+## §F.X Peer-verify coverage
+  accepted_worktx_total: 1
+  accepted_worktx_with_verify: 1
+  coverage_pct: 100%
+  peer_verifications_total: 2
+  non_solver_verifications: 1
+  per-agent peer_verify_count:
+    - Agent_2 (solver): 1
+    - Agent_3 (non_solver): 1
+
+## §G PnL trajectory
+  (per-agent realized/unrealized PnL over the batch; integer-rational μC; cost basis 1 μC/share-pair)
+  - tb7-7-sponsor: balance=9000000 μC (initial 10000000); realized=-1000000; unrealized=0; positions=0; rep=0; solvent
+  - Agent_user_0: balance=10000000 μC (initial 10000000); realized=0; unrealized=0; positions=0; rep=0; solvent
+  - Agent_0: balance=991000 μC (initial 1000000); realized=-9000; unrealized=123; positions=7; rep=0; solvent
+  - Agent_1: balance=1000000 μC (initial 1000000); realized=0; unrealized=0; positions=0; rep=0; solvent
+  - Agent_2: balance=1099000 μC (initial 1000000); realized=99000; unrealized=0; positions=2; rep=1; solvent
+  - Agent_3: balance=999000 μC (initial 1000000); realized=-1000; unrealized=0; positions=1; rep=1; solvent
+  - Agent_4: balance=1000000 μC (initial 1000000); realized=0; unrealized=0; positions=0; rep=0; solvent
+  - Agent_5: balance=1000000 μC (initial 1000000); realized=0; unrealized=0; positions=0; rep=0; solvent
+  - Agent_6: balance=1000000 μC (initial 1000000); realized=0; unrealized=0; positions=0; rep=0; solvent
+  - Agent_7: balance=1000000 μC (initial 1000000); realized=0; unrealized=0; positions=0; rep=0; solvent
+  - Agent_8: balance=1000000 μC (initial 1000000); realized=0; unrealized=0; positions=0; rep=0; solvent
+  - Agent_9: balance=1000000 μC (initial 1000000); realized=0; unrealized=0; positions=0; rep=0; solvent
+  - MarketMakerBudget: balance=3900000 μC (initial 5000000); realized=-1100000; unrealized=0; positions=11; rep=0; solvent
+
+## §G.2 RiskCapImpactReport
+  (bankruptcy risk-cap admission rejections; derived from L4.E + CAS + replayed QState)
+  risk_cap_rejections: 0
+  (no BankruptcyRiskCapExceeded L4.E rows in this run)
+
+## §G.3 Model-family activity
+  source: GenesisReport + AttemptTelemetry + ChainTape + CAS
+  interpretation: activity/divergence only; no model ranking
+  hidden_switch_verdict: Proceed
+  - deepseek: attempt_count_by_model_family=158 accepted_worktx_by_model_family=1 l4e_rejection_by_model_family=144 verify_count_by_model_family=2 challenge_count_by_model_family=0 invest_count_by_model_family=9 pnl_by_model_family=89123μC
+
+## §I Role activity classifier
+  source: public ChainTape/CAS activity counts only
+  Agent_0: role=Trader work=0 verify=0 challenge=0 invest=9
+  Agent_1: role=Observer work=0 verify=0 challenge=0 invest=0
+  Agent_2: role=Solver work=1 verify=1 challenge=0 invest=0
+  Agent_3: role=Verifier work=0 verify=1 challenge=0 invest=0
+  Agent_4: role=Observer work=0 verify=0 challenge=0 invest=0
+  Agent_5: role=Observer work=0 verify=0 challenge=0 invest=0
+  Agent_6: role=Observer work=0 verify=0 challenge=0 invest=0
+  Agent_7: role=Observer work=0 verify=0 challenge=0 invest=0
+  Agent_8: role=Observer work=0 verify=0 challenge=0 invest=0
+  Agent_9: role=Observer work=0 verify=0 challenge=0 invest=0
+  Agent_solver_0: role=Observer work=0 verify=0 challenge=0 invest=0
+  Agent_user_0: role=Observer work=0 verify=0 challenge=0 invest=0
+  MarketMakerBudget: role=Observer work=0 verify=0 challenge=0 invest=0
+  tb6-smoke-agent: role=Observer work=0 verify=0 challenge=0 invest=0
+  tb6-smoke-sponsor: role=Observer work=0 verify=0 challenge=0 invest=0
+
+## §J Epistemic pricing feedback (observe-only)
+  source: MarketDecisionTrace + ChainTape market activity
+  interpretation: price is signal, not truth; no predicate authority
+  citation_vs_price: submitted_market_traces=9 total_market_traces=14
+  high_price_selection_rate: observed_market_visible_actions=10 (integer count; benchmark protocol required before ranking claims)
+  unresolved_challenged_filter: open Challenge targets are excluded from prompt market_context top-K
+
+## §J.1 Opportunity Scheduler recommendation (observe-only)
+  interpretation: non-binding materialized view; price is signal, not truth
+  recommendation does not change sequencer admission or L4/L4.E predicates
+  head_t: HEAD_t(l4_head=f29ca3b320bc147c97da27f4d954768c7e42c168,l4e_head=e9c9e564870a3f7168482b83d1b225ba3efd49a0b0748ce6c85968b18518934f,cas_root=d8e5f1c3ebf3cd132a042c1ec9f95373ce8c5b9d2edde449ffbe972d2b761d36,state_root=8cf85543bd81b9dd714adb3647cbc406809df22f3fd7f9db02c4aaabcb65f33b,run_id=market_autonomy_lab_hard10_action_handoff_R14_20260516T191707Z_7b39499_t000)
+  observe_only: true
+  visible_agents: 15
+  visible_nodes: 1
+  price_signals: 11
+  pnl_signals: 13
+  recommended_agent: Agent_0
+  recommended_role: Trader
+  recommended_action: observe_market_signal
+  price_signal_sample:
+    - event=task-n5_algebra_bleqa_apbon2msqrtableqambsqon8b_1778959059972 price=100000/200000 depth_micro=200000
+    - event=task-n5_amc12_2000_p12_1778959183698 price=100000/200000 depth_micro=200000
+    - event=task-n5_amc12_2000_p6_1778959367941 price=100000/200000 depth_micro=200000
+  pnl_signal_sample:
+    - agent=tb7-7-sponsor realized_pnl=-1000000μC unrealized_pnl=0μC available=9000000μC risk_cap=1000000μC
+    - agent=Agent_user_0 realized_pnl=0μC unrealized_pnl=0μC available=10000000μC risk_cap=1000000μC
+    - agent=Agent_0 realized_pnl=-9000μC unrealized_pnl=123μC available=991000μC risk_cap=100000μC
+  persisted_scheduler_trace_cas_count: 0
+  persisted_market_opportunity_trace_cas_count: 112
+    - market_opportunity_trace_cid=cid:0127f4263e40d15dbc76df571f17bb1f1c2c05f60eb639ec8e0e32318371096b
+    - market_opportunity_trace_cid=cid:01dd7b0b38b6002e804471579be16d5c6c9c7a5ac6724e029ed30bf70dc0d6b0
+    - market_opportunity_trace_cid=cid:04a3ad732ea5233257e19801fcc9d58e1650cf630757ddfdf404bdb9a500d217
+  economic_judgment_total_cas: 112
+  bull_judgment_count_cas: 56
+  bear_judgment_count_cas: 56
+  abstain_structured_reason_count_cas: 103
+  economic_judgment_buy_count_cas: 9
+  economic_judgment_short_count_cas: 0
+    - economic_judgment_reason_NoPerceivedEdge: 111
+    - economic_judgment_reason_RolePolicyBlocked: 1
+  ev_decision_trace_total_cas: 112
+  ev_decision_trace_bull_count_cas: 56
+  ev_decision_trace_bear_count_cas: 56
+  ev_decision_trace_buy_yes_count_cas: 9
+  ev_decision_trace_buy_no_count_cas: 0
+  ev_decision_trace_abstain_count_cas: 103
+    - ev_decision_reason_PositiveEV: 9
+    - ev_decision_reason_NegativeEV: 35
+    - ev_decision_reason_EdgeBelowThreshold: 0
+    - ev_decision_reason_RiskCapBlocked: 0
+    - ev_decision_reason_BalanceBlocked: 0
+    - ev_decision_reason_LiquidityTooLow: 0
+    - ev_decision_reason_SlippageTooHigh: 0
+    - ev_decision_reason_ParserOrGatewayFailed: 0
+    - ev_decision_reason_WindowClosed: 0
+    - ev_decision_reason_PositiveEVIgnored: 58
+    - ev_decision_reason_InsufficientConfidence: 1
+    - ev_decision_reason_ProbabilityUncalibrated: 9
+    - ev_decision_reason_NoActionableMarket: 0
+    - ev_decision_reason_Unknown: 0
+  ev_decision_reason_PositiveEVIgnored_boundary: zero-count row rendered from CAS-derived taxonomy
+  ev_decision_reason_ProbabilityUncalibrated_boundary: zero-count row rendered from CAS-derived taxonomy
+  policy_trader_trace_total_cas: 112
+  policy_positive_ev_count: 67
+  policy_positive_ev_llm_abstained_count: 58
+  policy_no_positive_ev_count: 44
+  policy_insufficient_public_basis_count: 1
+  policy_counts_for_e2=false
+  market_review_summary_cas_count: 112
+
+## §REAL-BCAST Librarian Broadcast
+  source: ChainTape/CAS materialized view; dashboard is not truth
+  librarian_digest_cas_count: 278
+  librarian_role_crop_cas_count: 278
+  librarian_market_reason_cluster_count: 831
+  librarian_no_trade_reason_cluster_count: 554
+  librarian_ev_reason_cluster_count: 1632
+  librarian_shielding_verdict: PASS
+    - librarian_digest_cid=cid:00f1c0f1462d81fc8308fa14f4cc78b1324f8d98b1d7133e21fc1b82220b028f
+    - librarian_digest_cid=cid:01811009df3b90422dcc10fccf4033426d940e0f64c4723ec2b7e3b5d709d474
+    - librarian_digest_cid=cid:03711f3f29f57a150890e20097dc36553fae354291d520fa9d32055781fcff05
+  economic_judgment_coverage_ok: true
+  economic_judgment_required_trader_turns_cas: 112
+  economic_judgment_linked_trader_turns_cas: 112
+
+## §K G7 structural smoke
+  minimum_tier_green: false
+  clean_negative: false
+  forward_tb_stub_required: true
+  one_runtime_repo: true
+  multi_agent: true
+  persistent_state: true
+  agent_count: 15
+  active_role_count: 5
+  task_count: 11
+  task_outcome_market_count: 10
+  scripted_attempt_prediction_market_count: 0
+  buy_yes_router_count: 9
+  buy_no_or_short_count: 0
+  verify_tx_count: 2
+  challenge_tx_or_no_challenge_reason_count: 6
+  event_resolve_count: 10
+  pnl_delta_count: 5
+  loss_occurred: false
+  autopsy_capsule_count: 0
+  autopsy_if_loss_satisfied: true
+  no_forced_live_investment: false
+  market_actions_chain_visible: true
+  no_ghost_liquidity: false
+  clean_v3_comparison: false
+  does_not_claim_identical_v3_equivalence: false
+  proof_related_actions: 3
+  market_visible_actions: 20
+  no_trade_reason_count: 5
+  MECHANISM BOTTLENECK:
+  - agents may not have perceived a profitable market edge
+  - peer verification or market opportunities may have appeared too late
+  - scheduler ordering or prompt budget may have suppressed differentiated behavior
+  g7_guard_cas_count: 0
+  aggregate_audit_guard_source: /home/zephryj/projects/turingosv4-market-autonomy-lab/handover/evidence/market_autonomy_lab_hard10_action_handoff_R14_20260516T191707Z/aggregate_verdict.json
+
+## §H PRICE IS SIGNAL, NOT TRUTH
+  Pool reserves and prices in this report are derived
+  views over ChainTape + CAS evidence. Prices are
+  expressed as integer-rational (numerator/denominator).
+  No Coin minted post-init; no ghost liquidity; no f64.
+

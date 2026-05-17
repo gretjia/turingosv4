@@ -1,0 +1,33 @@
+{
+  "arm_id": "B",
+  "evidence_dir": "/home/zephryj/projects/turingosv4-market-autonomy-lab/handover/evidence/market_autonomy_lab_real16_hard10_ab_sf_20260517T042909Z/arm_B",
+  "problem_set_hash": "138f75bc3a776df11df45fed77c01565e128662ca03e3d863e68dcf8ee22d8fc",
+  "model_assignment_hash": "39fc2ace0b682e22a4e8c5d1c6df52b6c76deaa0eabcbd44b3698b33f60c5ab7",
+  "budget_hash": "9b38c3c7a3899adac707ebf75df21536866e4e54cd070a3e938580221b7d348c",
+  "prompt_template_hash": "cf860511f71d56b53b2df000150f2cf42fb47caaa3d26a20ca9f15a443f3c4f2",
+  "runtime_config_hash": "bae4532912c347f9f37eb06366100f9ca65072597d60d61dd9863e38fcc61108",
+  "audit_tape_verdict": "PROCEED",
+  "e2_verifier_verdict": "VETO",
+  "e2_verifier_failure_reasons": [
+    "matched tx router-task-outcome-Agent_0-task-n5_algebra_bleqa_apbon2msqrtableqambsqon8b_1778996349193-Agent_0-5 has no MarketOpportunityTrace",
+    "matched tx router-task-outcome-Agent_0-task-n5_amc12_2000_p12_1778997082157-Agent_0-20 has no MarketOpportunityTrace",
+    "matched tx router-task-outcome-Agent_0-task-n5_mathd_algebra_246_1778999992725-Agent_0-15 has no MarketOpportunityTrace",
+    "matched tx router-task-outcome-Agent_0-task-n5_mathd_algebra_246_1778999992725-Agent_0-20 has no MarketOpportunityTrace",
+    "matched tx router-task-outcome-Agent_0-task-n5_mathd_algebra_246_1778999992725-Agent_0-25 has no MarketOpportunityTrace",
+    "matched tx router-task-outcome-Agent_0-task-n5_mathd_algebra_246_1778999992725-Agent_0-5 has no MarketOpportunityTrace",
+    "matched tx router-task-outcome-Agent_1-task-n5_mathd_algebra_332_1779000643207-Agent_1-1 has no MarketOpportunityTrace"
+  ],
+  "metric_source": "ChainTapeCasVerifier",
+  "market_pressure_enabled": true,
+  "task_count": 10,
+  "solved_count": 0,
+  "verified_pput_micro": 0,
+  "wasted_attempt_count": 158,
+  "verification_latency_ms_total": 0,
+  "failed_branch_count": 167,
+  "cost_per_solved_proof_tokens": null,
+  "exact_join_count": 7,
+  "ev_to_action_conversion_bps": 7000,
+  "role_diversity_bps": 10000,
+  "market_tx_count": 27
+}
