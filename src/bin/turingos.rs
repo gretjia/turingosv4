@@ -29,6 +29,8 @@ mod common;
 mod cmd_report_run;
 #[path = "turingos/cmd_report_wallet.rs"]
 mod cmd_report_wallet;
+#[path = "turingos/cmd_report_positions.rs"]
+mod cmd_report_positions;
 // MODULES-REGISTRY-END
 
 const VERSION_STR: &str = concat!("turingos ", env!("CARGO_PKG_VERSION"));
@@ -56,6 +58,11 @@ const SUBCOMMANDS: &[Subcommand] = &[
         name: "report wallet",
         short_help: cmd_report_wallet::SHORT_HELP,
         run: cmd_report_wallet::run,
+    },
+    Subcommand {
+        name: "report positions",
+        short_help: cmd_report_positions::SHORT_HELP,
+        run: cmd_report_positions::run,
     },
     // SUBCOMMANDS-REGISTRY-END
 ];
