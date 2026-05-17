@@ -1,0 +1,77 @@
+{
+  "schema_version": "market_emergence_candidate.v1",
+  "claim_boundary": "market emergence candidate pending final audit",
+  "achieved_claims_forbidden": true,
+  "e2_replicated_candidate": {
+    "status": true,
+    "runs": [
+      {
+        "run_id": "REAL-14G",
+        "evidence_dir": "handover/evidence/market_autonomy_lab_hard10_real14G_action_conversion_20260517T022457Z",
+        "verifier_json": "REAL14G_E2_CANDIDATE_VERIFIER_EXPECT8.json",
+        "verdict": "PROCEED",
+        "exact_join_count": 8,
+        "scripted_fixture_tx_count": 0,
+        "policy_counts_for_e2": false,
+        "bcast_shielding_verdict": "PASS"
+      },
+      {
+        "run_id": "REAL-14H",
+        "evidence_dir": "handover/evidence/market_autonomy_lab_hard10_real14H_frozen_real14G_replication_20260517T025400Z",
+        "verifier_json": "REAL14H_E2_CANDIDATE_VERIFIER_EXPECT13.json",
+        "verdict": "PROCEED",
+        "exact_join_count": 13,
+        "scripted_fixture_tx_count": 0,
+        "policy_counts_for_e2": false,
+        "bcast_shielding_verdict": "PASS"
+      }
+    ]
+  },
+  "two_sided_market_candidate": {
+    "status": true,
+    "source_run": "REAL-14H",
+    "buy_no_count": 2,
+    "buy_no_role": "BearTrader",
+    "buy_no_tx_ids": [
+      "router-task-outcome-Agent_1-task-n5_amc12_2000_p12_1778986645493-Agent_1-6",
+      "router-task-outcome-Agent_1-task-n5_mathd_algebra_208_1778986920491-Agent_1-1"
+    ],
+    "residual_limit": "NO-side evidence exists but is less stable than YES-side behavior"
+  },
+  "e3_candidate": {
+    "status": true,
+    "verifier_json": "handover/directives/market_autonomy_lab/REAL15_ROLE_DIFFERENTIATION_REAL14G_REAL14H.json",
+    "clean_context_audit": "handover/directives/market_autonomy_lab/REAL15_CLEAN_CONTEXT_AUDIT.md",
+    "verdict": "PROCEED",
+    "run_count": 2,
+    "audit_tape_proceed_count": 2,
+    "persistent_active_role_count": 2,
+    "distinct_action_signature_count": 2,
+    "bulltrader_buy_yes_count": 19,
+    "solver_work_count": 34,
+    "beartrader_buy_no_count": 2
+  },
+  "e4_candidate": {
+    "status": true,
+    "combined_evidence_dir": "handover/evidence/market_autonomy_lab_real16_abcd_oppfix_recovery_combined_20260517T150000Z",
+    "clean_context_audit": "handover/directives/market_autonomy_lab/REAL16_CLEAN_CONTEXT_AUDIT.md",
+    "verdict": "Proceed",
+    "best_arm_id": "D",
+    "improved_metrics": [
+      "wasted_attempts",
+      "failed_branch_count",
+      "ev_to_action_conversion"
+    ],
+    "all_arms_solved_count": 0,
+    "all_arms_verified_pput_micro": 0,
+    "residual_limit": "E4 signal is not solve-rate or verified-PPUT based"
+  },
+  "forbidden_mechanism_screen": {
+    "forced_trade": false,
+    "price_as_truth": false,
+    "ghost_liquidity": false,
+    "off_tape_truth": false,
+    "raw_cot_or_raw_log_broadcast": false,
+    "scripted_or_policy_trader_counted_as_e2_or_e4": false
+  }
+}

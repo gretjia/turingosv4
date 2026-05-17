@@ -127,16 +127,24 @@ pub struct EVDecisionTrace {
 
 impl EVDecisionTrace {
     /// TRACE_MATRIX FC3: complete public EV basis exists when all public
-    /// price/probability/amount/liquidity fields are present. Missing basis is
+    /// basis fields are present.
+    /// TRACE_MATRIX FC3: actionable public EV basis exists when all public
+    /// price/probability/amount/liquidity fields are present and the public
+    /// amount/depth are non-placeholder values. Missing or zero basis is
     /// evidence, not an instruction to fabricate 50/50 or zero-liquidity data.
     pub fn policy_basis_available(&self) -> bool {
+        let amount_micro = self.amount.map(|amount| amount.micro_units());
+        let liquidity_depth_micro = self.liquidity_depth.map(|depth| depth.micro_units());
         self.quoted_price.is_some()
             && self.implied_probability_bps.is_some()
             && self.agent_probability_bps.is_some()
             && self.edge_bps.is_some()
             && self.expected_value_micro.is_some()
-            && self.amount.is_some()
-            && self.liquidity_depth.is_some()
+            && amount_micro.map(|amount| amount > 0).unwrap_or(false)
+            && liquidity_depth_micro
+                .zip(amount_micro)
+                .map(|(depth, amount)| depth >= amount)
+                .unwrap_or(false)
     }
 }
 
@@ -327,6 +335,9 @@ pub struct EVDecisionTraceSummary {
     pub buy_yes_count: u64,
     pub buy_no_count: u64,
     pub abstain_count: u64,
+    pub public_basis_available_count: u64,
+    pub public_basis_missing_count: u64,
+    pub public_basis_delivery_rate_bps: u64,
     pub by_reason: BTreeMap<EVReason, u64>,
     pub by_action: BTreeMap<EVAction, u64>,
 }
@@ -350,6 +361,9 @@ impl EVDecisionTraceSummary {
             buy_yes_count: 0,
             buy_no_count: 0,
             abstain_count: 0,
+            public_basis_available_count: 0,
+            public_basis_missing_count: 0,
+            public_basis_delivery_rate_bps: 0,
             by_reason,
             by_action,
         };
@@ -366,8 +380,17 @@ impl EVDecisionTraceSummary {
                 EVAction::BuyNo => summary.buy_no_count += 1,
                 EVAction::Abstain => summary.abstain_count += 1,
             }
+            if trace.policy_basis_available() {
+                summary.public_basis_available_count += 1;
+            } else {
+                summary.public_basis_missing_count += 1;
+            }
             *summary.by_reason.entry(trace.reason).or_insert(0) += 1;
             *summary.by_action.entry(trace.action).or_insert(0) += 1;
+        }
+        if summary.total > 0 {
+            summary.public_basis_delivery_rate_bps =
+                summary.public_basis_available_count.saturating_mul(10_000) / summary.total;
         }
         Ok(summary)
     }

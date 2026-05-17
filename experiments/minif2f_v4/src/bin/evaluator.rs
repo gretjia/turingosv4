@@ -595,6 +595,12 @@ fn real13_trader_ev_scaffold_block(
     block.push_str("Compute midpoint_bps = (estimated_probability_lower_bps + estimated_probability_upper_bps) / 2 using integer bps.\n");
     block.push_str("If midpoint_bps > implied_probability_bps and candidate amount fits balance/risk/liquidity, this is public positive EV; buy remains voluntary.\n");
     block.push_str("If you abstain despite public positive EV, start payload with positive_ev_override: and give the public reason.\n");
+    block.push_str("=== REAL-14G Action Conversion View ===\n");
+    block.push_str("You may buy when public positive EV is clear and risk checks pass.\n");
+    block.push_str("You may abstain with a public reason; abstain remains valid.\n");
+    block.push_str("missed_positive_ev_count: derived from prior PolicyTraderTrace/EvDecisionTrace summaries when available.\n");
+    block.push_str("action_conversion_rate_bps: derived from executed_positive_ev / policy_positive_ev, never from dashboard-only text.\n");
+    block.push_str("positive_ev_ignored_bucket_top: use the visible bucket summary, when present, to explain abstain instead of hiding it.\n");
     match role {
         AgentRole::BullTrader => block.push_str(&format!(
             "If positive EV and risk checks pass: <action>{{\"tool\":\"buy_yes\",\"amount\":{},\"observed_price_num\":{},\"observed_price_den\":{},\"estimated_probability_lower_bps\":<your_lower_bps>,\"estimated_probability_upper_bps\":<your_upper_bps>,\"expected_value_sign\":\"positive\",\"liquidity_depth_micro\":{}}}</action>\n",

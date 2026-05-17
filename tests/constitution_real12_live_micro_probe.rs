@@ -33,7 +33,7 @@ fn real12_live_micro_probe_records_required_bull_bear_metrics() {
         "bear_judgment_count",
         "buy_yes_router_count",
         "buy_no_router_count",
-        "abstain_reason_distribution",
+        "economic_judgment_reason_distribution",
         "economic_judgment_total",
         "E2 candidate",
         "E2 NOT ACHIEVED",

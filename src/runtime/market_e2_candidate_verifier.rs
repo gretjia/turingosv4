@@ -324,6 +324,54 @@ pub fn verify_market_e2_candidate(
     if policy_counts_for_e2 {
         failure_reasons.push("PolicyTrader summary unexpectedly counts for E2".to_string());
     }
+    for row in &matched_tx_provenance {
+        if row.market_decision_trace_count == 1 {
+            if row
+                .market_decision_agent_id
+                .as_deref()
+                .map(|agent_id| agent_id != row.l4_buyer)
+                .unwrap_or(true)
+            {
+                failure_reasons.push(format!(
+                    "matched tx {} actor mismatch: L4 buyer={} MarketDecisionTrace agent={}",
+                    row.tx_id,
+                    row.l4_buyer,
+                    row.market_decision_agent_id
+                        .as_deref()
+                        .unwrap_or("<missing>")
+                ));
+            }
+            if row
+                .market_decision_direction
+                .as_deref()
+                .map(|direction| direction != row.l4_direction)
+                .unwrap_or(true)
+            {
+                failure_reasons.push(format!(
+                    "matched tx {} direction mismatch: L4 direction={} MarketDecisionTrace direction={}",
+                    row.tx_id,
+                    row.l4_direction,
+                    row.market_decision_direction
+                        .as_deref()
+                        .unwrap_or("<missing>")
+                ));
+            }
+            if row
+                .market_decision_amount_micro
+                .map(|amount| amount != row.l4_pay_coin_micro)
+                .unwrap_or(true)
+            {
+                failure_reasons.push(format!(
+                    "matched tx {} amount mismatch: L4 pay_coin_micro={} MarketDecisionTrace amount_micro={}",
+                    row.tx_id,
+                    row.l4_pay_coin_micro,
+                    row.market_decision_amount_micro
+                        .map(|amount| amount.to_string())
+                        .unwrap_or_else(|| "<missing>".to_string())
+                ));
+            }
+        }
+    }
     if options.require_matched_tx_provenance {
         for row in &matched_tx_provenance {
             if row.market_decision_trace_count != 1 {

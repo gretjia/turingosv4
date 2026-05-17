@@ -1,8 +1,14 @@
 # REAL-12 Task-Market Action Probe Report
 
-run_tag: `market_autonomy_lab_hard10_real14_R18_bcast_off_20260517T000136Z`
-runtime_repo: `/home/zephryj/projects/turingosv4-market-autonomy-lab/handover/evidence/market_autonomy_lab_hard10_real14_R18_bcast_off_20260517T000136Z/runtime_repo`
-CAS path: `/home/zephryj/projects/turingosv4-market-autonomy-lab/handover/evidence/market_autonomy_lab_hard10_real14_R18_bcast_off_20260517T000136Z/cas`
+REAL-17 main-CAS integration note: this report is preserved as historical
+market-autonomy context from the older pre-CAS-repair worktree. The evidence
+paths below are not present in this new main-based worktree and are not
+forward claim-bearing for REAL-17. New claim-bearing market-emergence evidence
+must be regenerated on the updated CAS Git commit-chain baseline.
+
+run_tag: `market_autonomy_lab_hard10_real14H_frozen_real14G_replication_20260517T025400Z`
+runtime_repo: `/home/zephryj/projects/turingosv4-market-autonomy-lab/handover/evidence/market_autonomy_lab_hard10_real14H_frozen_real14G_replication_20260517T025400Z/runtime_repo`
+CAS path: `/home/zephryj/projects/turingosv4-market-autonomy-lab/handover/evidence/market_autonomy_lab_hard10_real14H_frozen_real14G_replication_20260517T025400Z/cas`
 audit_tape verdict: `PROCEED`
 
 ## Constitutional Sentinels
@@ -25,25 +31,25 @@ No f64/f32 money path
 | Metric | Value |
 | --- | ---: |
 | MarketOpportunityTrace count | 40 |
-| market_seed | 11 |
-| cpmm_pool | 11 |
+| market_seed | 10 |
+| cpmm_pool | 10 |
 | event_resolve | 10 |
 | bid_task_attempted | 0 |
 | invest_attempted | 0 |
-| invest_submitted | 0 |
-| buy_with_coin_router | 0 |
-| buy_yes_router_count | 0 |
-| buy_no_router_count | 0 |
-| agent_economic_action_tx_count | 0 |
-| live_non_scripted_router_tx_count | 0 |
+| invest_submitted | 13 |
+| buy_with_coin_router | 13 |
+| buy_yes_router_count | 11 |
+| buy_no_router_count | 2 |
+| agent_economic_action_tx_count | 13 |
+| live_non_scripted_router_tx_count | 13 |
 | economic_judgment_total | 40 |
 | bull_judgment_count | 20 |
 | bear_judgment_count | 20 |
-| abstain_structured_reason_count | 40 |
+| abstain_structured_reason_count | 27 |
 | economic_judgment_coverage_ok | true |
 | economic_judgment_required_trader_turns | 40 |
 | economic_judgment_linked_trader_turns | 40 |
-| no_trade_no_perceived_edge | 97 |
+| no_trade_no_perceived_edge | 87 |
 | no_trade_zero_amount | 0 |
 | no_trade_no_pool | 0 |
 | no_trade_amount_exceeds_balance | 0 |
@@ -58,7 +64,9 @@ economic_judgment_reason_distribution:
 
 ## Interpretation Boundary
 
-`E2 NOT ACHIEVED`
+Historical pre-repair label only:
+
+`E2 candidate pending audit`
 
 This probe tests whether the advertised task-level market action affordance
 causes live agents to emit `bid_task` or `invest`. It does not force trades,
