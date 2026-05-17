@@ -52,7 +52,12 @@ pub(crate) fn esc(s: &str) -> String {
 /// - All dynamic strings HTML-escaped through `esc()` (FC1-N5 shielding).
 /// - `<script type="module" src="/static/main.js"></script>` tag (W2/W3 mount).
 /// - `<turingos-root></turingos-root>` element (W3 Web Component mount point).
-pub(crate) fn render_page(ir: &IRRoot, title: &str) -> String {
+///
+/// W4: if `show_task_form` is true (tasks page only), inserts a
+/// `<tos-task-open-form></tos-task-open-form>` placeholder element above the
+/// `<turingos-root>`. The Web Component upgrades it client-side via
+/// `customElements.define`.
+pub(crate) fn render_page(ir: &IRRoot, title: &str, show_task_form: bool) -> String {
     let mut html = String::new();
 
     // Document head
@@ -95,6 +100,11 @@ pub(crate) fn render_page(ir: &IRRoot, title: &str) -> String {
         "<p class=\"notice\">FC3-N31: materialized view \u{2014} \
          not authoritative over ChainTape/CAS</p>\n",
     );
+
+    // W4: task-open form placeholder (tasks page only; Web Component upgrades client-side)
+    if show_task_form {
+        html.push_str("<tos-task-open-form></tos-task-open-form>\n");
+    }
 
     // W3 Web Component mount point
     html.push_str("<turingos-root></turingos-root>\n");

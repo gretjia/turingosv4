@@ -10,6 +10,10 @@
 //! If built WITHOUT `--features web` the binary stubs out with a friendly
 //! error and exits 2, so `cargo build --bin turingos_web` never silently
 //! produces a no-op binary.
+//!
+//! W4: Constructs `AppState` with a broadcast channel (capacity = 64) and
+//! passes it into the router via `.with_state()`. Logs the resolved workspace
+//! directory at startup (`TURINGOS_WEB_WORKSPACE` env var, default = cwd).
 #![cfg(feature = "web")]
 
 // Declare the `web` module from its sibling directory without touching
@@ -22,8 +26,29 @@ use std::net::SocketAddr;
 
 #[tokio::main]
 async fn main() {
+    // Resolve and log workspace directory.
+    let workspace = if let Ok(v) = std::env::var("TURINGOS_WEB_WORKSPACE") {
+        if !v.is_empty() {
+            v
+        } else {
+            std::env::current_dir()
+                .map(|p| p.to_string_lossy().into_owned())
+                .unwrap_or_else(|_| ".".to_string())
+        }
+    } else {
+        std::env::current_dir()
+            .map(|p| p.to_string_lossy().into_owned())
+            .unwrap_or_else(|_| ".".to_string())
+    };
+    println!("TuringOS Phase 7 Web MVP — workspace: {workspace}");
+    println!(
+        "  (set TURINGOS_WEB_WORKSPACE to override; \
+         TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)"
+    );
+
     let addr: SocketAddr = "127.0.0.1:8080".parse().expect("hardcoded addr is valid");
-    let router = web::router::build_router();
+    // build_with_state initialises AppState (broadcast channel capacity=64).
+    let router = web::router::build_with_state(64);
     let listener = tokio::net::TcpListener::bind(addr)
         .await
         .expect("bind 127.0.0.1:8080");

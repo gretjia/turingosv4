@@ -141,7 +141,7 @@ export interface IRRoot {
 }
 
 // ---------------------------------------------------------------------------
-// WebSocket event shape (W2 contract)
+// WebSocket event shapes (W2 + W4 contract)
 // ---------------------------------------------------------------------------
 
 /** Shape of e.detail when "turingos:ir_update" fires from the W2 inline WS script. */
@@ -150,3 +150,21 @@ export interface IRUpdateEvent {
   view: 'dashboard' | 'agents' | 'tasks';
   ir: IRRoot;
 }
+
+/** Shape of a task_created broadcast message (W4). */
+export interface TaskCreatedEvent {
+  msg_type: 'task_created';
+  task_id: string;
+  agent_id: string;
+  problem_id: string;
+  bounty: number;
+}
+
+/**
+ * Union of all WebSocket message shapes.
+ *
+ * Discriminated on `msg_type`:
+ *   - `'ir_update'`:    initial IR push or view refresh
+ *   - `'task_created'`: write-path event from POST /api/task/open
+ */
+export type WsMessage = IRUpdateEvent | TaskCreatedEvent;

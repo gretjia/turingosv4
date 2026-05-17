@@ -261,7 +261,7 @@ fn html_escapes_special_chars() {
         })],
     };
 
-    let html = render_page(&ir, "<script>alert(2)</script>");
+    let html = render_page(&ir, "<script>alert(2)</script>", false);
 
     // The raw injection strings must NOT appear verbatim in output
     assert!(

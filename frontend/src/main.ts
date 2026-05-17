@@ -9,6 +9,7 @@ import { register as registerAgentCardBlock } from './components/agent-card-bloc
 import { register as registerTaskCardBlock } from './components/task-card-block.js';
 import { register as registerEventLogBlock } from './components/event-log-block.js';
 import { register as registerDashboardPanelBlock } from './components/dashboard-panel-block.js';
+import { register as registerTaskOpenForm } from './components/task-open-form.js';
 import { register as registerTuringOSRoot } from './turingos-root.js';
 import { currentView } from './router.js';
 
@@ -20,6 +21,7 @@ registerAgentCardBlock();
 registerTaskCardBlock();
 registerEventLogBlock();
 registerDashboardPanelBlock();
+registerTaskOpenForm();
 registerTuringOSRoot();
 
 document.addEventListener('DOMContentLoaded', () => {
