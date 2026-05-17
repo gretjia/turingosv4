@@ -25,12 +25,20 @@ mod cmd_init;
 mod common;
 // MODULES-REGISTRY-BEGIN
 // (each Wave 1-3 atom appends `#[path = ...] mod cmd_<name>;` lines here, before END anchor)
+#[path = "turingos/cmd_agent.rs"]
+mod cmd_agent;
 #[path = "turingos/cmd_audit_dashboard.rs"]
 mod cmd_audit_dashboard;
 #[path = "turingos/cmd_audit_tamper.rs"]
 mod cmd_audit_tamper;
 #[path = "turingos/cmd_audit_tape.rs"]
 mod cmd_audit_tape;
+#[path = "turingos/cmd_batch.rs"]
+mod cmd_batch;
+#[path = "turingos/cmd_config.rs"]
+mod cmd_config;
+#[path = "turingos/cmd_export_evidence.rs"]
+mod cmd_export_evidence;
 #[path = "turingos/cmd_preflight.rs"]
 mod cmd_preflight;
 #[path = "turingos/cmd_replay.rs"]
@@ -147,6 +155,26 @@ const SUBCOMMANDS: &[Subcommand] = &[
         name: "task tick",
         short_help: cmd_task_tick::SHORT_HELP,
         run: cmd_task_tick::run,
+    },
+    Subcommand {
+        name: "config",
+        short_help: cmd_config::SHORT_HELP,
+        run: cmd_config::run,
+    },
+    Subcommand {
+        name: "agent",
+        short_help: cmd_agent::SHORT_HELP,
+        run: cmd_agent::run,
+    },
+    Subcommand {
+        name: "batch",
+        short_help: cmd_batch::SHORT_HELP,
+        run: cmd_batch::run,
+    },
+    Subcommand {
+        name: "export evidence",
+        short_help: cmd_export_evidence::SHORT_HELP,
+        run: cmd_export_evidence::run,
     },
     // SUBCOMMANDS-REGISTRY-END
 ];
