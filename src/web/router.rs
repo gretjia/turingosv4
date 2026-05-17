@@ -1,16 +1,17 @@
-/// TRACE_MATRIX FC1-N5: read view materialization + write-path (W4)
+/// TRACE_MATRIX FC1-N5 / FC2-N16: read view materialization + write-path (W4/W5)
 ///
-/// axum 0.7 router for TuringOS Phase 7 Web MVP.
+/// axum 0.7 router for TuringOS Phase 7 Web MVP. 13 routes total.
 ///
 /// W1 adds seven read-only HTTP routes backed by compile-time fixture data.
 /// W2 adds one WebSocket route (HTTP 101 Upgrade) for real-time IR push.
 /// W4 adds one write route: POST /api/task/open (shells out to `turingos task open`).
+/// W5 adds four routes: spec questions + spec submit + generate + artifact serve.
 ///
 /// HTML routes (return `text/html`):
 ///   GET /          → dashboard fixture rendered to HTML
 ///   GET /agents    → agent-view fixture rendered to HTML
 ///   GET /tasks     → task-view fixture rendered to HTML (includes <tos-task-open-form>)
-///   GET /audit     → dashboard fixture rendered to HTML (W4 will add distinct view)
+///   GET /audit     → dashboard fixture rendered to HTML
 ///
 /// JSON routes (return `application/json`):
 ///   GET /api/dashboard → dashboard fixture as JSON
@@ -19,11 +20,26 @@
 ///
 /// WebSocket route (HTTP 101 Upgrade):
 ///   GET /ws        → WebSocket upgrade; pushes 3 initial IR messages on connect;
-///                    subscribes to broadcast channel for task_created events (W4)
+///                    subscribes to broadcast channel for task/spec/generate events
 ///
 /// Write route (W4):
 ///   POST /api/task/open → validates body, shells out to `turingos task open`,
 ///                         broadcasts task_created, returns { task_id, status: "created" }
+///
+/// Static asset (W4.1):
+///   GET /static/main.js → embedded esbuild frontend bundle
+///
+/// Spec interview routes (W5):
+///   GET  /api/spec/questions → returns the 8 canonical Zh interview questions
+///   POST /api/spec/submit    → accepts 8 answers, shells out to `turingos spec`,
+///                              returns { session_id, spec_md, capsule_cid }
+///
+/// Generate route (W5):
+///   POST /api/generate → accepts session_id, shells out to `turingos generate`,
+///                        returns { session_id, artifacts: [{ path, size_bytes, content_type }] }
+///
+/// Artifact serve route (W5):
+///   GET /api/artifact/:session_id/:name → serves one artifact file with Content-Type
 ///
 /// All HTTP routes return HTTP 200 on the happy path.
 /// All items are `pub(crate)`.
@@ -36,9 +52,12 @@ use axum::{
 };
 use tokio::sync::broadcast;
 
+use super::artifact::artifact_get_handler;
 use super::fixtures;
+use super::generate::generate_handler;
 use super::ir::{Block, IRRoot, TaskCardBlock};
 use super::render::{render_page_with_view, ViewKind};
+use super::spec::{spec_questions_handler, spec_submit_handler};
 use super::store::TaskMemoryStore;
 use super::write::task_open_handler;
 use super::ws::{ws_handler, AppState};
@@ -53,10 +72,18 @@ use super::ws::{ws_handler, AppState};
 /// changes — acceptable for Phase 7's research scope.
 const FRONTEND_MAIN_JS: &[u8] = include_bytes!("../../frontend/dist/main.js");
 
-/// TRACE_MATRIX FC1-N5 / FC1-N10: read view materialization + write path
+/// TRACE_MATRIX FC1-N5 / FC1-N10 / FC2-N16: read view materialization + write path
 ///
 /// Build the axum router with all Phase 7 routes wired and `AppState` attached.
-/// Total: 9 routes (4 HTML + 3 JSON + 1 WS + 1 POST write).
+/// Total: 13 routes
+///   4 HTML  (W0/W1): /, /agents, /tasks, /audit
+///   3 JSON  (W1): /api/dashboard, /api/agents, /api/tasks
+///   1 WS    (W2): /ws
+///   1 POST  (W4): /api/task/open
+///   1 GET   (W4.1): /static/main.js
+///   2 spec  (W5): GET /api/spec/questions, POST /api/spec/submit
+///   1 gen   (W5): POST /api/generate
+///   1 art   (W5): GET /api/artifact/:session_id/:name
 ///
 /// `broadcast_capacity` sets the tokio broadcast channel buffer. At startup
 /// (turingos_web.rs) this is called with capacity = 64.
@@ -68,21 +95,28 @@ pub(crate) fn build_with_state(broadcast_capacity: usize) -> Router {
     };
 
     Router::new()
-        // HTML routes
+        // HTML routes (W0/W1)
         .route("/", get(handle_dashboard))
         .route("/agents", get(handle_agents))
         .route("/tasks", get(handle_tasks))
         .route("/audit", get(handle_audit))
-        // JSON routes
+        // JSON routes (W1)
         .route("/api/dashboard", get(handle_api_dashboard))
         .route("/api/agents", get(handle_api_agents))
         .route("/api/tasks", get(handle_api_tasks))
-        // WebSocket route (W2/W4): HTTP 101 Upgrade → real-time IR push + task_created
+        // WebSocket route (W2/W4): HTTP 101 Upgrade → real-time IR push + broadcasts
         .route("/ws", get(ws_handler))
         // Write route (W4): POST /api/task/open → CLI shellout → WS broadcast
         .route("/api/task/open", post(task_open_handler))
         // Static asset (W4.1): frontend bundle embedded at compile time
         .route("/static/main.js", get(serve_main_js))
+        // Spec interview routes (W5): GET questions + POST submit
+        .route("/api/spec/questions", get(spec_questions_handler))
+        .route("/api/spec/submit", post(spec_submit_handler))
+        // Generate route (W5): POST → CLI shellout → artifacts list + WS broadcast
+        .route("/api/generate", post(generate_handler))
+        // Artifact serve route (W5): GET one artifact file with Content-Type
+        .route("/api/artifact/:session_id/:name", get(artifact_get_handler))
         .with_state(state)
 }
 

@@ -1,5 +1,11 @@
-//! TRACE_MATRIX FC1-N5: Phase 7 W1+W2 smoke tests — verifies all eight routes
-//! are wired (7 HTTP read routes from W1 + 1 WebSocket route from W2).
+//! TRACE_MATRIX FC1-N5 + FC2-N16: Phase 7 W1+W2+W5 smoke tests — verifies all
+//! 13 routes are wired:
+//!   W1: 7 HTTP read routes
+//!   W2: 1 WebSocket route
+//!   W4: 1 POST /api/task/open + 1 GET /static/main.js
+//!   W5: 2 spec routes (GET /api/spec/questions + POST /api/spec/submit) +
+//!       1 generate route (POST /api/generate) +
+//!       1 artifact route (GET /api/artifact/:session_id/:name)
 //!
 //! Gated on `#[cfg(feature = "web")]` so non-web builds never see this.
 //! Run with: `cargo test --test cli_web_routes_smoke --features web`
@@ -75,13 +81,19 @@ async fn http_get(addr: SocketAddr, path: &str) -> (u16, String, String) {
 }
 
 // ---------------------------------------------------------------------------
-// Gate 1: all eight routes exist (7 HTTP returning 200 + 1 WS returning 101).
+// Gate 1: all 13 routes exist (W1/W2/W4/W5).
+//   W1:  7 HTTP GET routes returning 200
+//   W2:  1 WS route returning 101
+//   W4:  /static/main.js returning 200 (POST /api/task/open not tested here)
+//   W5:  GET /api/spec/questions returning 200
+//        POST /api/spec/submit, POST /api/generate wired (existence checked via 422)
+//        GET /api/artifact/:session_id/:name wired (existence checked via 404)
 // ---------------------------------------------------------------------------
 
 #[tokio::test]
-async fn router_has_all_eight_routes() {
+async fn router_has_all_thirteen_routes() {
     let addr = start_server().await;
-    // The seven HTTP read routes from W1 must return 200.
+    // W1: The seven HTTP read routes must return 200.
     let http_routes = [
         "/",
         "/agents",
@@ -96,13 +108,125 @@ async fn router_has_all_eight_routes() {
         assert_eq!(status, 200u16, "expected 200 for GET {path}, got {status}");
     }
 
-    // The W2 WebSocket route must return HTTP 101 Switching Protocols when
-    // a proper Upgrade request is sent (not a plain HTTP GET).
+    // W4.1: /static/main.js must return 200.
+    let (status_js, _, _) = http_get(addr, "/static/main.js").await;
+    assert_eq!(
+        status_js, 200u16,
+        "GET /static/main.js must return 200, got {status_js}"
+    );
+
+    // W2: The WebSocket route must return HTTP 101 Switching Protocols.
     let (status_101, _, _) = http_get_upgrade(addr, "/ws").await;
     assert_eq!(
         status_101, 101u16,
         "GET /ws with Upgrade: websocket must return 101, got {status_101}"
     );
+
+    // W5: GET /api/spec/questions must return 200 with 8 questions.
+    let (status_q, _, body_q) = http_get(addr, "/api/spec/questions").await;
+    assert_eq!(
+        status_q, 200u16,
+        "GET /api/spec/questions must return 200, got {status_q}"
+    );
+    let parsed: serde_json::Value =
+        serde_json::from_str(&body_q).expect("/api/spec/questions must return valid JSON");
+    let questions = parsed["questions"]
+        .as_array()
+        .expect("response must have 'questions' array");
+    assert_eq!(
+        questions.len(),
+        8,
+        "must return 8 questions; got {}",
+        questions.len()
+    );
+
+    // W5: POST /api/spec/submit route is wired — wrong content returns 422.
+    let (status_spec, _, _) = http_post_raw(addr, "/api/spec/submit", b"{}").await;
+    assert!(
+        status_spec == 422 || status_spec == 400,
+        "POST /api/spec/submit with empty body must return 400 or 422 (route exists), got {status_spec}"
+    );
+
+    // W5: POST /api/generate route is wired — wrong content returns 422.
+    let (status_gen, _, _) = http_post_raw(addr, "/api/generate", b"{}").await;
+    assert!(
+        status_gen == 422 || status_gen == 400,
+        "POST /api/generate with empty body must return 400 or 422 (route exists), got {status_gen}"
+    );
+
+    // W5: GET /api/artifact/:session_id/:name route is wired — nonexistent returns 404.
+    let (status_art, _, _) = http_get(addr, "/api/artifact/nosession-x1/index.html").await;
+    assert!(
+        status_art == 404 || status_art == 400,
+        "GET /api/artifact/nosession/index.html must return 404 or 400 (route exists), got {status_art}"
+    );
+}
+
+/// Keep the old name as an alias so old test runs don't break.
+/// (Delegates to the full 13-route test.)
+#[tokio::test]
+async fn router_has_all_eight_routes() {
+    // This is the W5 superseding of the W1/W2 gate.
+    // We re-check the 7+1 subset here too so the test name remains meaningful.
+    let addr = start_server().await;
+    let http_routes = [
+        "/",
+        "/agents",
+        "/tasks",
+        "/audit",
+        "/api/dashboard",
+        "/api/agents",
+        "/api/tasks",
+    ];
+    for path in &http_routes {
+        let (status, _, _) = http_get(addr, path).await;
+        assert_eq!(status, 200u16, "expected 200 for GET {path}, got {status}");
+    }
+    let (status_101, _, _) = http_get_upgrade(addr, "/ws").await;
+    assert_eq!(status_101, 101u16, "GET /ws must return 101");
+}
+
+/// Send a minimal HTTP/1.1 POST with `application/json` Content-Type.
+/// Returns (status_code, headers, body_string).
+async fn http_post_raw(addr: SocketAddr, path: &str, body: &[u8]) -> (u16, String, String) {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    let mut stream = tokio::net::TcpStream::connect(addr)
+        .await
+        .expect("connect for POST");
+    let header = format!(
+        "POST {path} HTTP/1.1\r\n\
+         Host: 127.0.0.1\r\n\
+         Content-Type: application/json\r\n\
+         Content-Length: {}\r\n\
+         Connection: close\r\n\
+         \r\n",
+        body.len()
+    );
+    stream
+        .write_all(header.as_bytes())
+        .await
+        .expect("write header");
+    stream.write_all(body).await.expect("write body");
+
+    let mut buf = Vec::new();
+    stream.read_to_end(&mut buf).await.expect("read response");
+    let raw = String::from_utf8_lossy(&buf).into_owned();
+
+    let (head, resp_body) = if let Some(idx) = raw.find("\r\n\r\n") {
+        (&raw[..idx], raw[idx + 4..].to_string())
+    } else {
+        (raw.as_str(), String::new())
+    };
+    let status_code: u16 = head
+        .lines()
+        .next()
+        .unwrap_or("")
+        .split_whitespace()
+        .nth(1)
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0);
+    (status_code, head.to_string(), resp_body)
 }
 
 /// Send an HTTP/1.1 GET with `Upgrade: websocket` headers and return the

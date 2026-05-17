@@ -48,13 +48,19 @@ use super::store::TaskMemoryStore;
 // Broadcast message type (owned; used for channel + TaskCreated events)
 // ---------------------------------------------------------------------------
 
-/// TRACE_MATRIX FC1-N10: message type used in the broadcast channel.
+/// TRACE_MATRIX FC1-N10 + FC1-N5 + FC2-N16: message type used in the broadcast channel.
 ///
-/// Only `TaskCreated` is currently broadcast (IrUpdate initial pushes are
-/// inline in `handle_socket`). Using a separate owned type avoids lifetime
-/// complications with `broadcast::Sender<T>` which requires `T: Clone + Send + 'static`.
+/// W4: `TaskCreated` — emitted by POST /api/task/open on success.
+/// W5 additions:
+///   `SpecComplete`      — emitted by POST /api/spec/submit on success.
+///   `GenerateStarted`   — reserved for future streaming (not yet emitted).
+///   `GenerateComplete`  — emitted by POST /api/generate on success.
 ///
-/// Serialises with `"msg_type": "task_created"` to match the `WsEnvelope` union shape.
+/// Using a separate owned type avoids lifetime complications with
+/// `broadcast::Sender<T>` which requires `T: Clone + Send + 'static`.
+///
+/// Serialises with `"msg_type": "<snake_case_variant>"` to match the
+/// `WsEnvelope` union shape.
 #[cfg(feature = "web")]
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "msg_type", rename_all = "snake_case")]
@@ -65,6 +71,28 @@ pub(crate) enum WsBroadcastMsg {
         agent_id: String,
         problem_id: String,
         bounty: u64,
+    },
+    /// TRACE_MATRIX FC2-N16: emitted by POST /api/spec/submit on success.
+    ///
+    /// `session_id`: the session identifier assigned to this spec run.
+    /// `capsule_cid`: hex CID of the CAS EvidenceCapsule written by
+    ///   `turingos spec`, or None if the CID could not be parsed from stdout.
+    SpecComplete {
+        session_id: String,
+        capsule_cid: Option<String>,
+    },
+    /// TRACE_MATRIX FC2-N16: reserved for future streaming progress events.
+    ///
+    /// Not yet emitted by any handler. Reserved so frontends can subscribe
+    /// before generate starts and show a spinner.
+    GenerateStarted { session_id: String },
+    /// TRACE_MATRIX FC2-N16: emitted by POST /api/generate on success.
+    ///
+    /// `artifacts`: list of relative paths under `<session-dir>/artifacts/`
+    ///   that were written by the Blackbox LLM generation step.
+    GenerateComplete {
+        session_id: String,
+        artifacts: Vec<String>,
     },
 }
 
