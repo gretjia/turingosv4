@@ -1,0 +1,14 @@
+{
+  "name": "turingos-frontend",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "build": "tsc && esbuild src/main.ts --bundle --outfile=dist/main.js --format=esm --target=es2020",
+    "test": "echo \"no-op smoke (W0): real tests added at W3\" && exit 0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.21.0",
+    "typescript": "^5.4.0"
+  }
+}
