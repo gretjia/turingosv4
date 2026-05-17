@@ -40,3 +40,6 @@ handover/evidence/**/runtime_repo/
 handover/evidence/**/cas_runtime_repo/
 handover/evidence/**/tamper/
 handover/evidence/**/tamper2/
+
+# W4.3: Phase 7 §6a verifier workspace scratch dir (setup/teardown scripts)
+tmp/
