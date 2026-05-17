@@ -38,7 +38,7 @@ use tokio::sync::broadcast;
 
 use super::fixtures;
 use super::ir::{Block, IRRoot, TaskCardBlock};
-use super::render::render_page;
+use super::render::{render_page_with_view, ViewKind};
 use super::store::TaskMemoryStore;
 use super::write::task_open_handler;
 use super::ws::{ws_handler, AppState};
@@ -113,12 +113,22 @@ pub(crate) fn build_router() -> Router {
 
 async fn handle_dashboard() -> Html<String> {
     let ir = fixtures::dashboard();
-    Html(render_page(&ir, &ir.title.clone(), false))
+    Html(render_page_with_view(
+        &ir,
+        &ir.title.clone(),
+        false,
+        ViewKind::Dashboard,
+    ))
 }
 
 async fn handle_agents() -> Html<String> {
     let ir = fixtures::agent_view();
-    Html(render_page(&ir, &ir.title.clone(), false))
+    Html(render_page_with_view(
+        &ir,
+        &ir.title.clone(),
+        false,
+        ViewKind::Agents,
+    ))
 }
 
 /// GET /tasks — renders the task-view fixture merged with in-memory store entries.
@@ -130,7 +140,12 @@ async fn handle_agents() -> Html<String> {
 async fn handle_tasks(State(state): State<AppState>) -> Html<String> {
     let ir = merged_task_view(&state);
     // Pass show_task_form=true so the tasks page includes <tos-task-open-form>
-    Html(render_page(&ir, &ir.title.clone(), true))
+    Html(render_page_with_view(
+        &ir,
+        &ir.title.clone(),
+        true,
+        ViewKind::Tasks,
+    ))
 }
 
 /// GET /audit — reuses the dashboard fixture until W4 produces a distinct
@@ -138,7 +153,12 @@ async fn handle_tasks(State(state): State<AppState>) -> Html<String> {
 /// the task_id from page 4; fixture data satisfies the route-existence check.
 async fn handle_audit() -> Html<String> {
     let ir = fixtures::dashboard();
-    Html(render_page(&ir, &ir.title.clone(), false))
+    Html(render_page_with_view(
+        &ir,
+        &ir.title.clone(),
+        false,
+        ViewKind::Audit,
+    ))
 }
 
 // ---------------------------------------------------------------------------

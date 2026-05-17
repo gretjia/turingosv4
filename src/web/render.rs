@@ -1,4 +1,4 @@
-/// TRACE_MATRIX FC1-N5: read view materialization
+/// TRACE_MATRIX FC1-N5: read view materialization (W4.4 design-system polish)
 ///
 /// Server-side HTML renderer for TuringOS UI IR pages.
 ///
@@ -7,8 +7,62 @@
 /// HTML output, satisfying FC1-N5 shielding rule (no raw user-supplied strings
 /// in HTML). See `esc()` for the five characters replaced.
 ///
+/// W4.4 (this revision) — applies the Anthropic generative-UI guidance:
+///   - semantic HTML5 landmarks (header / nav / main / footer)
+///   - editorial typography pair (Fraunces serif + JetBrains Mono + IBM Plex Sans)
+///   - paper-toned palette with oxidized-teal accent (no purple, no Inter/Roboto)
+///   - inlined design tokens + base sheet via `include_str!`
+///   - per-block semantic markup (article / figure / dl with metric grid /
+///     ol for event log) instead of generic divs
+///   - status badges as typographic + colored elements (no icon-only)
+///   - hash IDs in monospace with truncated-middle display
+///   - active-page indicator via `aria-current="page"`
+///   - small connection-state pill (`<turingos-status>`) in footer
+///
 /// All items are `pub(crate)` — no public API leaks from this module.
 use super::ir::{Block, CellValue, IRRoot, MetricValue};
+
+// ---------------------------------------------------------------------------
+// View discriminator — used for nav aria-current + page chrome
+// ---------------------------------------------------------------------------
+
+/// Which top-level view is being rendered. Drives `aria-current="page"` on
+/// the nav and (later) any per-view chrome variations.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[allow(dead_code)]
+pub(crate) enum ViewKind {
+    Dashboard,
+    Agents,
+    Tasks,
+    Audit,
+}
+
+impl ViewKind {
+    fn slug(&self) -> &'static str {
+        match self {
+            ViewKind::Dashboard => "dashboard",
+            ViewKind::Agents => "agents",
+            ViewKind::Tasks => "tasks",
+            ViewKind::Audit => "audit",
+        }
+    }
+    fn href(&self) -> &'static str {
+        match self {
+            ViewKind::Dashboard => "/",
+            ViewKind::Agents => "/agents",
+            ViewKind::Tasks => "/tasks",
+            ViewKind::Audit => "/audit",
+        }
+    }
+    fn label(&self) -> &'static str {
+        match self {
+            ViewKind::Dashboard => "Dashboard",
+            ViewKind::Agents => "Agents",
+            ViewKind::Tasks => "Tasks",
+            ViewKind::Audit => "Audit",
+        }
+    }
+}
 
 // ---------------------------------------------------------------------------
 // HTML escaping
@@ -37,6 +91,44 @@ pub(crate) fn esc(s: &str) -> String {
     out
 }
 
+/// Truncate-middle for long hash/identifier display. Keeps `head` chars at
+/// the start and `tail` at the end joined by an ellipsis. If the input is
+/// short enough to fit, return it unchanged.
+fn truncate_middle(s: &str, head: usize, tail: usize) -> String {
+    let chars: Vec<char> = s.chars().collect();
+    if chars.len() <= head + tail + 1 {
+        return s.to_string();
+    }
+    let mut out = String::new();
+    out.extend(chars.iter().take(head));
+    out.push_str("\u{2026}");
+    out.extend(chars.iter().skip(chars.len() - tail));
+    out
+}
+
+/// Lowercase, slugify a status string so it can be used as a `data-status`
+/// selector key (CSS targets keys like `open`, `accepted`, `rejected`).
+fn status_slug(s: &str) -> String {
+    s.trim()
+        .to_ascii_lowercase()
+        .chars()
+        .map(|c| if c.is_alphanumeric() { c } else { '_' })
+        .collect()
+}
+
+// ---------------------------------------------------------------------------
+// Inlined design system + base styles (compile-time embedded)
+// ---------------------------------------------------------------------------
+
+/// Design tokens (CSS variables + dark-mode overrides). Authoritative copy
+/// at `frontend/src/design-system.css`; the TS mirror at
+/// `frontend/src/design-system.ts` is for client-side reuse.
+const DESIGN_TOKENS_CSS: &str = include_str!("../../frontend/src/design-system.css");
+
+/// Base styles (typography, landmarks, block typesetting). Authoritative copy
+/// at `frontend/src/base-styles.css`.
+const BASE_STYLES_CSS: &str = include_str!("../../frontend/src/base-styles.css");
+
 // ---------------------------------------------------------------------------
 // Public renderer
 // ---------------------------------------------------------------------------
@@ -45,10 +137,10 @@ pub(crate) fn esc(s: &str) -> String {
 ///
 /// Render an `IRRoot` to a complete HTML document.
 ///
-/// Requirements satisfied:
+/// Requirements satisfied (§6a Page 1-5 mechanical criteria):
 /// - `<title>TuringOS — {title}</title>` — literal "TuringOS" present.
-/// - `<h1>TuringOS — Phase 7</h1>` — substring "Phase 7" present (§6a Page 1).
-/// - Each block wrapped in `<div data-block-type="<kind>">` (§6a Page 1 DOM check).
+/// - Wordmark contains "TuringOS" and an inline "Phase 7" subtitle.
+/// - Each block wrapped in `[data-block-type="<kind>"]` (§6a Page 1 DOM check).
 /// - All dynamic strings HTML-escaped through `esc()` (FC1-N5 shielding).
 /// - `<script type="module" src="/static/main.js"></script>` tag (W2/W3 mount).
 /// - `<turingos-root></turingos-root>` element (W3 Web Component mount point).
@@ -57,57 +149,136 @@ pub(crate) fn esc(s: &str) -> String {
 /// `<tos-task-open-form></tos-task-open-form>` placeholder element above the
 /// `<turingos-root>`. The Web Component upgrades it client-side via
 /// `customElements.define`.
+///
+/// W4.4: the new `view` parameter drives `aria-current="page"` on the
+/// primary nav. Existing call sites that don't have a `ViewKind` should
+/// migrate; for backwards compatibility a default `ViewKind::Dashboard`
+/// is used by `render_page` (which keeps the 3-arg shape).
 pub(crate) fn render_page(ir: &IRRoot, title: &str, show_task_form: bool) -> String {
+    render_page_with_view(ir, title, show_task_form, ViewKind::Dashboard)
+}
+
+/// W4.4: explicit-view variant. The 3-arg `render_page` defaults to
+/// `ViewKind::Dashboard` for backwards compatibility; the router uses
+/// this 4-arg form so the active-nav indicator is correct.
+pub(crate) fn render_page_with_view(
+    ir: &IRRoot,
+    title: &str,
+    show_task_form: bool,
+    view: ViewKind,
+) -> String {
     let mut html = String::new();
 
-    // Document head
+    // ---- <head> -----------------------------------------------------------
     html.push_str("<!doctype html>\n<html lang=\"en\">\n<head>\n");
     html.push_str("<meta charset=\"utf-8\">\n");
     html.push_str("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
+    html.push_str("<meta name=\"color-scheme\" content=\"light dark\">\n");
+
     html.push_str("<title>TuringOS \u{2014} ");
     html.push_str(&esc(title));
     html.push_str("</title>\n");
+
+    // Editorial typography: Fraunces (variable serif) + JetBrains Mono +
+    // IBM Plex Sans. Loaded from Google Fonts with a system-fallback chain
+    // declared in design-system.css so a CDN failure still degrades to a
+    // distinctive look. `display=swap` prevents render-blocking.
+    html.push_str(
+        "<link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\n\
+         <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>\n\
+         <link rel=\"stylesheet\" \
+         href=\"https://fonts.googleapis.com/css2?\
+family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..900,30..100;1,9..144,300..900,30..100\
+&family=IBM+Plex+Sans:wght@300;400;500;700\
+&family=JetBrains+Mono:wght@400;500;700\
+&display=swap\">\n",
+    );
+
+    // Inline design system + base styles. Authoritative CSS lives in
+    // `frontend/src/{design-system,base-styles}.css`; include_str! embeds
+    // it at compile time so a single binary serves the whole UI.
     html.push_str("<style>\n");
-    html.push_str(INLINE_CSS);
+    html.push_str(DESIGN_TOKENS_CSS);
+    html.push_str("\n");
+    html.push_str(BASE_STYLES_CSS);
     html.push_str("</style>\n");
+
     // W2 inline WebSocket bootstrap. Static text only — no dynamic strings
     // are interpolated, so no esc() calls are needed inside the script block.
     html.push_str("<script>\n");
     html.push_str(INLINE_WS_SCRIPT);
     html.push_str("</script>\n");
-    html.push_str("</head>\n<body>\n");
 
-    // Required heading — "Phase 7" must appear for §6a Page 1 criterion.
-    html.push_str("<h1>TuringOS \u{2014} Phase 7</h1>\n");
+    html.push_str("</head>\n<body data-view=\"");
+    html.push_str(view.slug());
+    html.push_str("\">\n");
 
-    // Page title (from IR)
-    html.push_str("<h2>");
+    // ---- <header> ---------------------------------------------------------
+    html.push_str("<header class=\"tos-header\" role=\"banner\">\n");
+    html.push_str(
+        "  <a class=\"tos-wordmark\" href=\"/\" aria-label=\"TuringOS — Phase 7 home\">\
+         TuringOS<span class=\"tos-wordmark-sub\">Phase 7</span></a>\n",
+    );
+    html.push_str("  <span class=\"tos-meta\">FC3-N31 \u{00b7} materialized view</span>\n");
+    html.push_str("</header>\n");
+
+    // ---- <nav> ------------------------------------------------------------
+    html.push_str("<nav class=\"tos-nav\" aria-label=\"primary\">\n");
+    for v in [
+        ViewKind::Dashboard,
+        ViewKind::Agents,
+        ViewKind::Tasks,
+        ViewKind::Audit,
+    ] {
+        if v == view {
+            html.push_str("  <a aria-current=\"page\" href=\"");
+        } else {
+            html.push_str("  <a href=\"");
+        }
+        html.push_str(v.href());
+        html.push_str("\">");
+        html.push_str(v.label());
+        html.push_str("</a>\n");
+    }
+    html.push_str("</nav>\n");
+
+    // ---- <main> -----------------------------------------------------------
+    html.push_str("<main class=\"tos-main\" id=\"tos-main\" role=\"main\">\n");
+
+    // Page title (from IR) — editorial italic Fraunces
+    html.push_str("  <h1 class=\"tos-page-title\">");
     html.push_str(&esc(&ir.title));
-    html.push_str("</h2>\n");
+    html.push_str("</h1>\n");
 
-    // Page ID (small, de-emphasized)
-    html.push_str("<p class=\"page-id\">");
+    // Page ID — small monospace, de-emphasized
+    html.push_str("  <p class=\"tos-page-id\">");
     html.push_str(&esc(&ir.id));
     html.push_str("</p>\n");
 
-    // Render each block
-    for block in &ir.blocks {
-        html.push_str(&render_block(block));
-    }
-
-    // FC3-N31 materialized-view notice
-    html.push_str(
-        "<p class=\"notice\">FC3-N31: materialized view \u{2014} \
-         not authoritative over ChainTape/CAS</p>\n",
-    );
-
-    // W4: task-open form placeholder (tasks page only; Web Component upgrades client-side)
+    // W4: task-open form (tasks page only)
     if show_task_form {
-        html.push_str("<tos-task-open-form></tos-task-open-form>\n");
+        html.push_str("  <tos-task-open-form></tos-task-open-form>\n");
     }
 
-    // W3 Web Component mount point
-    html.push_str("<turingos-root></turingos-root>\n");
+    // Render each block (semantic markup per block-type)
+    for (idx, block) in ir.blocks.iter().enumerate() {
+        html.push_str(&render_block(block, idx));
+    }
+
+    // W3 Web Component mount point. Kept in <main> so client-side rerenders
+    // land inside the same content landmark.
+    html.push_str("  <turingos-root></turingos-root>\n");
+
+    html.push_str("</main>\n");
+
+    // ---- <footer> ---------------------------------------------------------
+    html.push_str("<footer class=\"tos-footer\" role=\"contentinfo\">\n");
+    html.push_str(
+        "  <span class=\"tos-footer-notice\">FC3-N31: materialized view \u{2014} \
+         not authoritative over ChainTape/CAS.</span>\n",
+    );
+    html.push_str("  <turingos-status></turingos-status>\n");
+    html.push_str("</footer>\n");
 
     // W2/W3 frontend script tag (static path; wired in W2)
     html.push_str("<script type=\"module\" src=\"/static/main.js\"></script>\n");
@@ -120,145 +291,224 @@ pub(crate) fn render_page(ir: &IRRoot, title: &str, show_task_form: bool) -> Str
 // Block renderers (internal helpers)
 // ---------------------------------------------------------------------------
 
-fn render_block(block: &Block) -> String {
+fn render_block(block: &Block, idx: usize) -> String {
+    let stagger = format!(" style=\"--tos-stagger:{idx}\"");
     match block {
         Block::Text(b) => {
             let mut s = String::new();
-            s.push_str("<div data-block-type=\"text\">\n");
-            // content may have newlines — split into paragraphs
+            s.push_str("<article data-block-type=\"text\" class=\"block block-text\"");
+            s.push_str(&stagger);
+            s.push_str(">\n");
             for line in b.content.split('\n') {
-                s.push_str("<p>");
+                if line.is_empty() {
+                    continue;
+                }
+                s.push_str("  <p>");
                 s.push_str(&esc(line));
                 s.push_str("</p>\n");
             }
-            s.push_str("</div>\n");
+            s.push_str("</article>\n");
             s
         }
         Block::Table(b) => {
             let mut s = String::new();
-            s.push_str("<div data-block-type=\"table\">\n");
+            s.push_str("<figure data-block-type=\"table\" class=\"block block-table\"");
+            s.push_str(&stagger);
+            s.push_str(">\n");
             if let Some(cap) = &b.caption {
-                s.push_str("<p class=\"caption\">");
+                s.push_str("  <figcaption class=\"caption\">");
                 s.push_str(&esc(cap));
-                s.push_str("</p>\n");
+                s.push_str("</figcaption>\n");
             }
-            s.push_str("<table>\n<thead><tr>\n");
+            s.push_str("  <table>\n    <thead><tr>\n");
             for col in &b.columns {
-                s.push_str("<th>");
+                s.push_str("      <th scope=\"col\">");
                 s.push_str(&esc(col));
                 s.push_str("</th>\n");
             }
-            s.push_str("</tr></thead>\n<tbody>\n");
+            s.push_str("    </tr></thead>\n    <tbody>\n");
             for row in &b.rows {
-                s.push_str("<tr>\n");
+                s.push_str("      <tr>\n");
                 for cell in row {
-                    s.push_str("<td>");
+                    s.push_str("        <td data-cell-kind=\"");
+                    s.push_str(&esc(&cell.kind));
+                    s.push_str("\">");
+                    // Status-bearing string cells get a typographic badge.
+                    let is_status_string = cell.kind == "string"
+                        && matches!(&cell.value,
+                            CellValue::Text(v) if is_known_status(v));
                     match &cell.value {
-                        CellValue::Text(v) => s.push_str(&esc(v)),
+                        CellValue::Text(v) => {
+                            if is_status_string {
+                                s.push_str("<span class=\"tos-status\" data-status=\"");
+                                s.push_str(&esc(&status_slug(v)));
+                                s.push_str("\">");
+                                s.push_str(&esc(v));
+                                s.push_str("</span>");
+                            } else if cell.kind == "agent_id"
+                                || cell.kind == "tx_id"
+                                || cell.kind == "cid"
+                            {
+                                // Long hex / canonical IDs: show truncated-middle
+                                // in the visible glyph, full value in title attr.
+                                let trunc = truncate_middle(v, 14, 8);
+                                let escaped_full = esc(v);
+                                if trunc != *v {
+                                    s.push_str("<span title=\"");
+                                    s.push_str(&escaped_full);
+                                    s.push_str("\">");
+                                    s.push_str(&esc(&trunc));
+                                    s.push_str("</span>");
+                                } else {
+                                    s.push_str(&escaped_full);
+                                }
+                            } else {
+                                s.push_str(&esc(v));
+                            }
+                        }
                         CellValue::Integer(n) => s.push_str(&n.to_string()),
                     }
                     if cell.kind == "microcoin" {
-                        s.push_str(" \u{3bc}C"); // μC
+                        s.push_str(" <span class=\"unit\">\u{3bc}C</span>");
                     }
                     s.push_str("</td>\n");
                 }
-                s.push_str("</tr>\n");
+                s.push_str("      </tr>\n");
             }
-            s.push_str("</tbody>\n</table>\n</div>\n");
+            s.push_str("    </tbody>\n  </table>\n</figure>\n");
             s
         }
         Block::AgentCard(b) => {
             let mut s = String::new();
-            s.push_str("<div data-block-type=\"agent_card\" class=\"card agent-card\">\n");
-            s.push_str("<dl>\n");
-            s.push_str("<dt>agent_id</dt><dd>");
+            s.push_str("<article data-block-type=\"agent_card\" class=\"block block-agent-card card agent-card\"");
+            s.push_str(&stagger);
+            s.push_str(">\n");
+            s.push_str("  <header>\n");
+            let agent_trunc = truncate_middle(&b.agent_id, 12, 8);
+            s.push_str("    <span class=\"tos-card-id\" title=\"");
             s.push_str(&esc(&b.agent_id));
-            s.push_str("</dd>\n");
-            s.push_str("<dt>role</dt><dd>");
+            s.push_str("\">");
+            s.push_str(&esc(&agent_trunc));
+            s.push_str("</span>\n");
+            s.push_str("    <span class=\"tos-card-role\">");
             s.push_str(&esc(&b.role));
-            s.push_str("</dd>\n");
-            s.push_str("<dt>balance_micro</dt><dd>");
+            s.push_str("</span>\n");
+            s.push_str("  </header>\n");
+            s.push_str("  <dl>\n");
+            s.push_str("    <dt>balance</dt><dd>");
             s.push_str(&b.balance_micro.to_string());
-            s.push_str(" \u{3bc}C</dd>\n");
+            s.push_str(" <span class=\"unit\">\u{3bc}C</span></dd>\n");
             if let Some(status) = &b.status {
-                s.push_str("<dt>status</dt><dd>");
+                s.push_str("    <dt>status</dt><dd><span class=\"tos-status\" data-status=\"");
+                s.push_str(&esc(&status_slug(status)));
+                s.push_str("\">");
                 s.push_str(&esc(status));
-                s.push_str("</dd>\n");
+                s.push_str("</span></dd>\n");
             }
-            s.push_str("</dl>\n</div>\n");
+            s.push_str("  </dl>\n</article>\n");
             s
         }
         Block::TaskCard(b) => {
             let mut s = String::new();
-            s.push_str("<div data-block-type=\"task_card\" class=\"card task-card\">\n");
-            s.push_str("<dl>\n");
-            s.push_str("<dt>task_id</dt><dd>");
+            s.push_str("<article data-block-type=\"task_card\" class=\"block block-task-card card task-card\"");
+            s.push_str(&stagger);
+            s.push_str(">\n");
+            s.push_str("  <header>\n");
+            let task_trunc = truncate_middle(&b.task_id, 12, 8);
+            s.push_str("    <span class=\"tos-card-id\" title=\"");
             s.push_str(&esc(&b.task_id));
-            s.push_str("</dd>\n");
-            s.push_str("<dt>problem_id</dt><dd>");
+            s.push_str("\">");
+            s.push_str(&esc(&task_trunc));
+            s.push_str("</span>\n");
+            s.push_str("    <span class=\"tos-status\" data-status=\"");
+            s.push_str(&esc(&status_slug(&b.status)));
+            s.push_str("\">");
+            s.push_str(&esc(&b.status));
+            s.push_str("</span>\n");
+            s.push_str("  </header>\n");
+            s.push_str("  <dl>\n");
+            s.push_str("    <dt>problem</dt><dd>");
             s.push_str(&esc(&b.problem_id));
             s.push_str("</dd>\n");
-            s.push_str("<dt>status</dt><dd class=\"status\">");
-            s.push_str(&esc(&b.status));
-            s.push_str("</dd>\n");
             if let Some(reward) = b.reward_micro {
-                s.push_str("<dt>reward_micro</dt><dd>");
+                s.push_str("    <dt>reward</dt><dd>");
                 s.push_str(&u64::to_string(&reward));
-                s.push_str(" \u{3bc}C</dd>\n");
+                s.push_str(" <span class=\"unit\">\u{3bc}C</span></dd>\n");
             }
             if let Some(attempts) = b.attempt_count {
-                s.push_str("<dt>attempt_count</dt><dd>");
+                s.push_str("    <dt>attempts</dt><dd>");
                 s.push_str(&u64::to_string(&attempts));
                 s.push_str("</dd>\n");
             }
             if let Some(agent) = &b.assigned_agent_id {
-                s.push_str("<dt>assigned_agent_id</dt><dd>");
+                let agent_trunc = truncate_middle(agent, 12, 8);
+                s.push_str("    <dt>agent</dt><dd title=\"");
                 s.push_str(&esc(agent));
+                s.push_str("\">");
+                s.push_str(&esc(&agent_trunc));
                 s.push_str("</dd>\n");
             }
-            s.push_str("</dl>\n</div>\n");
+            s.push_str("  </dl>\n</article>\n");
             s
         }
         Block::EventLog(b) => {
             let mut s = String::new();
-            s.push_str("<div data-block-type=\"event_log\">\n<ul class=\"event-log\">\n");
+            s.push_str("<section data-block-type=\"event_log\" class=\"block block-event-log\" aria-label=\"recent tape events\"");
+            s.push_str(&stagger);
+            s.push_str(">\n");
+            s.push_str("  <ol class=\"event-log\" reversed>\n");
             for ev in &b.events {
-                s.push_str("<li class=\"event layer-");
+                s.push_str("    <li class=\"event layer-");
                 s.push_str(&esc(&ev.layer));
                 s.push_str("\">\n");
-                s.push_str("<span class=\"layer\">");
+                s.push_str("      <span class=\"layer\">");
                 s.push_str(&esc(&ev.layer));
-                s.push_str("</span> ");
-                s.push_str("<span class=\"kind\">");
+                s.push_str("</span>\n");
+                s.push_str("      <span class=\"kind\">");
                 s.push_str(&esc(&ev.kind));
-                s.push_str("</span> ");
-                s.push_str("<span class=\"tx-id\">");
+                s.push_str("</span>\n");
+                let tx_trunc = truncate_middle(&ev.tx_id, 10, 6);
+                s.push_str("      <span class=\"tx-id\" title=\"");
                 s.push_str(&esc(&ev.tx_id));
-                s.push_str("</span>");
+                s.push_str("\">");
+                s.push_str(&esc(&tx_trunc));
+                s.push_str("</span>\n");
                 if let Some(summary) = &ev.summary {
-                    s.push_str("\n<span class=\"summary\">");
+                    s.push_str("      <span class=\"summary\">");
                     s.push_str(&esc(summary));
-                    s.push_str("</span>");
+                    s.push_str("</span>\n");
                 }
-                s.push_str("\n</li>\n");
+                s.push_str("    </li>\n");
             }
-            s.push_str("</ul>\n</div>\n");
+            s.push_str("  </ol>\n</section>\n");
             s
         }
         Block::DashboardPanel(b) => {
             let mut s = String::new();
             s.push_str(
-                "<div data-block-type=\"dashboard_panel\" class=\"card dashboard-panel\">\n",
+                "<section data-block-type=\"dashboard_panel\" class=\"block block-dashboard-panel card dashboard-panel\"",
             );
-            s.push_str("<h3>");
+            s.push_str(&stagger);
+            s.push_str(">\n");
+            s.push_str("  <h3 class=\"panel-title\">");
             s.push_str(&esc(&b.panel_title));
-            s.push_str("</h3>\n<dl class=\"metrics\">\n");
+            s.push_str("</h3>\n  <dl class=\"metrics\">\n");
             for metric in &b.metrics {
-                s.push_str("<dt>");
+                s.push_str("    <div>\n      <dt>");
                 s.push_str(&esc(&metric.label));
-                s.push_str("</dt><dd>");
+                s.push_str("</dt>\n      <dd>");
                 match &metric.value {
-                    MetricValue::Text(v) => s.push_str(&esc(v)),
+                    MetricValue::Text(v) => {
+                        if is_known_status(v) {
+                            s.push_str("<span class=\"tos-status\" data-status=\"");
+                            s.push_str(&esc(&status_slug(v)));
+                            s.push_str("\">");
+                            s.push_str(&esc(v));
+                            s.push_str("</span>");
+                        } else {
+                            s.push_str(&esc(v));
+                        }
+                    }
                     MetricValue::Integer(n) => s.push_str(&n.to_string()),
                     MetricValue::Float(v) => s.push_str(&v.to_string()),
                 }
@@ -267,17 +517,32 @@ fn render_block(block: &Block) -> String {
                     s.push_str(&esc(unit));
                     s.push_str("</span>");
                 }
-                s.push_str("</dd>\n");
+                s.push_str("</dd>\n    </div>\n");
             }
-            s.push_str("</dl>\n</div>\n");
+            s.push_str("  </dl>\n</section>\n");
             s
         }
     }
 }
 
-// ---------------------------------------------------------------------------
-// Minimal inline CSS
-// ---------------------------------------------------------------------------
+/// Known status strings that should be rendered as typographic badges.
+fn is_known_status(s: &str) -> bool {
+    matches!(
+        s.trim().to_ascii_lowercase().as_str(),
+        "open"
+            | "accepted"
+            | "rejected"
+            | "finalized"
+            | "bankrupt"
+            | "expired"
+            | "solved"
+            | "exhausted"
+            | "active"
+            | "paused"
+            | "pass"
+            | "fail"
+    )
+}
 
 // ---------------------------------------------------------------------------
 // Inline WebSocket bootstrap script (W2)
@@ -289,6 +554,10 @@ fn render_block(block: &Block) -> String {
 /// `/ws` on page load, dispatches `turingos:ir_update` CustomEvents for W3
 /// components, and exposes `window.__turingos_ws` for debugging.
 ///
+/// W4.4 additions:
+///   - Emits `turingos:ws_state` CustomEvents on open/close/error so the
+///     footer `<turingos-status>` indicator can reflect connection state.
+///
 /// Design decisions (ratified 2026-05-18):
 /// - No auto-reconnect in W2; W3 components may register their own strategy.
 /// - `onerror` uses `console.warn` (not `console.error`) so §6a Page 1
@@ -298,8 +567,16 @@ fn render_block(block: &Block) -> String {
 ///
 /// Interface contract for W3:
 ///   `document.addEventListener('turingos:ir_update', (e) => { const { msg_type, view, ir } = e.detail; })`
+///   `document.addEventListener('turingos:ws_state', (e) => { const { state } = e.detail; })`
 const INLINE_WS_SCRIPT: &str = r#"
 (function () {
+  function emitState(state) {
+    document.dispatchEvent(new CustomEvent('turingos:ws_state', { detail: { state: state } }));
+  }
+  // Initial state for late-attached listeners.
+  window.__turingos_ws_state = 'connecting';
+  emitState('connecting');
+
   // Determine WS protocol based on page protocol (http→ws, https→wss).
   var proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   var wsUrl = proto + '//' + location.host + '/ws';
@@ -307,6 +584,11 @@ const INLINE_WS_SCRIPT: &str = r#"
 
   // Expose for debugging; not part of the W3 interface contract.
   window.__turingos_ws = ws;
+
+  ws.onopen = function () {
+    window.__turingos_ws_state = 'connected';
+    emitState('connected');
+  };
 
   ws.onmessage = function (event) {
     try {
@@ -323,44 +605,13 @@ const INLINE_WS_SCRIPT: &str = r#"
   // criterion is satisfied during normal lifecycle (e.g., server not started).
   ws.onerror = function (err) {
     console.warn('turingos ws: connection error', err);
+    window.__turingos_ws_state = 'disconnected';
+    emitState('disconnected');
   };
 
-  // No auto-reconnect in W2. W3 components may register their own
-  // reconnect strategy by listening for the socket close event via
-  // window.__turingos_ws.
   ws.onclose = function () {
-    // Connection closed — nothing to do in W2.
+    window.__turingos_ws_state = 'disconnected';
+    emitState('disconnected');
   };
 }());
-"#;
-
-const INLINE_CSS: &str = r#"
-body { font-family: monospace; margin: 1rem 2rem; background: #111; color: #eee; }
-h1, h2, h3 { margin-bottom: 0.25rem; }
-h1 { color: #7af; }
-h2 { color: #adf; }
-.page-id { color: #888; font-size: 0.85em; margin-top: 0; }
-.notice { color: #888; font-size: 0.8em; border-top: 1px solid #333; padding-top: 0.5rem; }
-.card { border: 1px solid #333; border-radius: 4px; padding: 0.75rem 1rem; margin: 0.5rem 0; }
-.agent-card { border-color: #3a6; }
-.task-card { border-color: #6af; }
-.dashboard-panel { border-color: #a86; }
-dl { display: grid; grid-template-columns: max-content 1fr; gap: 0.1rem 1rem; margin: 0; }
-dt { color: #aaa; }
-dd { margin: 0; }
-.status { font-weight: bold; }
-table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-size: 0.9em; }
-th { background: #222; color: #ccc; padding: 0.4rem 0.6rem; text-align: left; border-bottom: 1px solid #444; }
-td { padding: 0.3rem 0.6rem; border-bottom: 1px solid #2a2a2a; }
-tr:hover td { background: #1a1a1a; }
-.caption { color: #aaa; font-size: 0.85em; margin-bottom: 0.25rem; }
-.event-log { list-style: none; padding: 0; margin: 0.25rem 0; }
-.event { padding: 0.3rem 0.5rem; border-left: 3px solid #555; margin: 0.2rem 0; }
-.layer-L4 { border-color: #3a6; }
-.layer-L4E { border-color: #a33; }
-.layer { font-weight: bold; color: #7af; }
-.kind { color: #fc8; }
-.tx-id { color: #888; font-size: 0.85em; }
-.summary { display: block; color: #bbb; font-size: 0.85em; padding-left: 1rem; }
-.unit { color: #888; }
 "#;

@@ -1,11 +1,14 @@
 // TRACE_MATRIX FC1-N5: read view materialization — agent card block component
 //
 // <tos-agent-card-block> custom element. Renders AgentCardBlock IR payload
-// as a styled <dl> card.
-// XSS hygiene: uses textContent/setAttribute exclusively — never innerHTML
-// with dynamic strings.
+// as <header><span class="tos-card-id"><span class="tos-card-role"></header>
+// plus <dl> of attributes. Styled via the global
+// [data-block-type="agent_card"] selectors from base-styles.css.
+//
+// XSS hygiene: textContent/setAttribute only.
 
 import type { AgentCardBlock } from '../ir.js';
+import { appendMicrocoin, buildStatusBadge, buildTruncatedSpan } from './render-helpers.js';
 
 const ELEMENT_NAME = 'tos-agent-card-block';
 
@@ -14,7 +17,7 @@ export class TosAgentCardBlock extends HTMLElement {
 
   connectedCallback(): void {
     this.setAttribute('data-block-type', 'agent_card');
-    this.className = 'card agent-card';
+    this.classList.add('block', 'block-agent-card', 'card', 'agent-card');
     const payloadAttr = this.dataset['payload'];
     if (payloadAttr != null && this._block === null) {
       try {
@@ -26,7 +29,6 @@ export class TosAgentCardBlock extends HTMLElement {
     this._render();
   }
 
-  /** Update with a new AgentCardBlock payload. */
   update(block: AgentCardBlock): void {
     this._block = block;
     if (this.isConnected) {
@@ -43,27 +45,33 @@ export class TosAgentCardBlock extends HTMLElement {
       return;
     }
 
-    const dl = document.createElement('dl');
+    const header = document.createElement('header');
+    header.appendChild(buildTruncatedSpan(block.agent_id, 12, 8, 'tos-card-id'));
+    const role = document.createElement('span');
+    role.className = 'tos-card-role';
+    role.textContent = block.role;
+    header.appendChild(role);
+    this.appendChild(header);
 
-    addDlRow(dl, 'agent_id', block.agent_id);
-    addDlRow(dl, 'role', block.role);
-    addDlRow(dl, 'balance_micro', String(block.balance_micro) + ' μC');
+    const dl = document.createElement('dl');
+    const dtBal = document.createElement('dt');
+    dtBal.textContent = 'balance';
+    const ddBal = document.createElement('dd');
+    appendMicrocoin(ddBal, block.balance_micro);
+    dl.appendChild(dtBal);
+    dl.appendChild(ddBal);
+
     if (block.status != null) {
-      addDlRow(dl, 'status', block.status);
+      const dtSt = document.createElement('dt');
+      dtSt.textContent = 'status';
+      const ddSt = document.createElement('dd');
+      ddSt.appendChild(buildStatusBadge(block.status));
+      dl.appendChild(dtSt);
+      dl.appendChild(ddSt);
     }
 
     this.appendChild(dl);
   }
-}
-
-/** Append a <dt>/<dd> pair to a <dl>. No innerHTML. */
-function addDlRow(dl: HTMLDListElement, label: string, value: string): void {
-  const dt = document.createElement('dt');
-  dt.textContent = label;
-  const dd = document.createElement('dd');
-  dd.textContent = value;
-  dl.appendChild(dt);
-  dl.appendChild(dd);
 }
 
 export function register(): void {

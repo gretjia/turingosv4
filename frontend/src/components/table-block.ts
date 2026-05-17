@@ -1,11 +1,20 @@
 // TRACE_MATRIX FC1-N5: read view materialization — table block component
 //
 // <tos-table-block> custom element. Renders TableBlock IR payload as
-// <table><thead>/<tbody> structure.
+// <figure><figcaption><table><thead><th scope="col"><tbody><td data-cell-kind>
+// — semantic table structure. Light DOM, styled via the global
+// [data-block-type="table"] selectors from base-styles.css.
+//
 // XSS hygiene: uses textContent/setAttribute exclusively — never innerHTML
 // with dynamic strings.
 
 import type { TableBlock, Cell } from '../ir.js';
+import {
+  appendMicrocoin,
+  buildStatusBadge,
+  buildTruncatedSpan,
+  isKnownStatus,
+} from './render-helpers.js';
 
 const ELEMENT_NAME = 'tos-table-block';
 
@@ -14,6 +23,7 @@ export class TosTableBlock extends HTMLElement {
 
   connectedCallback(): void {
     this.setAttribute('data-block-type', 'table');
+    this.classList.add('block', 'block-table');
     const payloadAttr = this.dataset['payload'];
     if (payloadAttr != null && this._block === null) {
       try {
@@ -42,35 +52,34 @@ export class TosTableBlock extends HTMLElement {
       return;
     }
 
-    // Optional caption
+    // <figure> root — host element already has data-block-type="table",
+    // so we render contents directly into the host.
     if (block.caption != null) {
-      const p = document.createElement('p');
-      p.className = 'caption';
-      p.textContent = block.caption;
-      this.appendChild(p);
+      const cap = document.createElement('figcaption');
+      cap.className = 'caption';
+      cap.textContent = block.caption;
+      this.appendChild(cap);
     }
 
-    // Build table
     const table = document.createElement('table');
-
-    // thead
     const thead = document.createElement('thead');
     const headerRow = document.createElement('tr');
     for (const col of block.columns) {
       const th = document.createElement('th');
+      th.setAttribute('scope', 'col');
       th.textContent = col;
       headerRow.appendChild(th);
     }
     thead.appendChild(headerRow);
     table.appendChild(thead);
 
-    // tbody
     const tbody = document.createElement('tbody');
     for (const row of block.rows) {
       const tr = document.createElement('tr');
       for (const cell of row) {
         const td = document.createElement('td');
-        td.textContent = formatCell(cell);
+        td.dataset['cellKind'] = cell.kind;
+        appendCellContent(td, cell);
         tr.appendChild(td);
       }
       tbody.appendChild(tr);
@@ -81,13 +90,26 @@ export class TosTableBlock extends HTMLElement {
   }
 }
 
-/** Format a cell value as a display string. */
-function formatCell(cell: Cell): string {
-  const val = typeof cell.value === 'number' ? String(cell.value) : cell.value;
+/** Render a Cell's content into a <td>, picking semantic markup by kind. */
+function appendCellContent(td: HTMLTableCellElement, cell: Cell): void {
+  const v = cell.value;
   if (cell.kind === 'microcoin') {
-    return val + ' μC'; // μC
+    appendMicrocoin(td, v);
+    return;
   }
-  return val;
+  if (cell.kind === 'agent_id' || cell.kind === 'tx_id' || cell.kind === 'cid') {
+    if (typeof v === 'string') {
+      td.appendChild(buildTruncatedSpan(v, 14, 8));
+    } else {
+      td.textContent = String(v);
+    }
+    return;
+  }
+  if (cell.kind === 'string' && typeof v === 'string' && isKnownStatus(v)) {
+    td.appendChild(buildStatusBadge(v));
+    return;
+  }
+  td.textContent = typeof v === 'number' ? String(v) : v;
 }
 
 export function register(): void {

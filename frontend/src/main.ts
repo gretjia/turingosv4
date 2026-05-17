@@ -10,6 +10,7 @@ import { register as registerTaskCardBlock } from './components/task-card-block.
 import { register as registerEventLogBlock } from './components/event-log-block.js';
 import { register as registerDashboardPanelBlock } from './components/dashboard-panel-block.js';
 import { register as registerTaskOpenForm } from './components/task-open-form.js';
+import { register as registerTuringOSStatus } from './components/turingos-status.js';
 import { register as registerTuringOSRoot } from './turingos-root.js';
 import { currentView } from './router.js';
 
@@ -22,6 +23,7 @@ registerTaskCardBlock();
 registerEventLogBlock();
 registerDashboardPanelBlock();
 registerTaskOpenForm();
+registerTuringOSStatus();
 registerTuringOSRoot();
 
 document.addEventListener('DOMContentLoaded', () => {

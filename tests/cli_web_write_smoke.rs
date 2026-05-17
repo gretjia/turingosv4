@@ -591,7 +591,10 @@ async fn task_open_visible_in_api_tasks_after_post() {
         .await
         .expect("write GET");
     let mut buf = Vec::new();
-    stream.read_to_end(&mut buf).await.expect("read GET response");
+    stream
+        .read_to_end(&mut buf)
+        .await
+        .expect("read GET response");
     let response = String::from_utf8_lossy(&buf).into_owned();
 
     std::env::remove_var("TURINGOS_BACKEND_OVERRIDE");
@@ -644,7 +647,10 @@ async fn task_open_visible_in_tasks_html_after_post() {
         .await
         .expect("write GET /tasks");
     let mut buf = Vec::new();
-    stream.read_to_end(&mut buf).await.expect("read HTML response");
+    stream
+        .read_to_end(&mut buf)
+        .await
+        .expect("read HTML response");
     let response = String::from_utf8_lossy(&buf).into_owned();
 
     std::env::remove_var("TURINGOS_BACKEND_OVERRIDE");

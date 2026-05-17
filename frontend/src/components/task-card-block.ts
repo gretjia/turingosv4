@@ -1,11 +1,14 @@
 // TRACE_MATRIX FC1-N5: read view materialization — task card block component
 //
 // <tos-task-card-block> custom element. Renders TaskCardBlock IR payload
-// as a styled <dl> card with a status badge.
-// XSS hygiene: uses textContent/setAttribute exclusively — never innerHTML
-// with dynamic strings.
+// as <header>(id + status badge)<dl>(problem, reward, attempts, agent).
+// Styled via the global [data-block-type="task_card"] selectors from
+// base-styles.css.
+//
+// XSS hygiene: textContent/setAttribute only.
 
 import type { TaskCardBlock } from '../ir.js';
+import { appendMicrocoin, buildStatusBadge, buildTruncatedSpan } from './render-helpers.js';
 
 const ELEMENT_NAME = 'tos-task-card-block';
 
@@ -14,7 +17,7 @@ export class TosTaskCardBlock extends HTMLElement {
 
   connectedCallback(): void {
     this.setAttribute('data-block-type', 'task_card');
-    this.className = 'card task-card';
+    this.classList.add('block', 'block-task-card', 'card', 'task-card');
     const payloadAttr = this.dataset['payload'];
     if (payloadAttr != null && this._block === null) {
       try {
@@ -26,7 +29,6 @@ export class TosTaskCardBlock extends HTMLElement {
     this._render();
   }
 
-  /** Update with a new TaskCardBlock payload. */
   update(block: TaskCardBlock): void {
     this._block = block;
     if (this.isConnected) {
@@ -43,41 +45,47 @@ export class TosTaskCardBlock extends HTMLElement {
       return;
     }
 
+    const header = document.createElement('header');
+    header.appendChild(buildTruncatedSpan(block.task_id, 12, 8, 'tos-card-id'));
+    header.appendChild(buildStatusBadge(block.status));
+    this.appendChild(header);
+
     const dl = document.createElement('dl');
 
-    addDlRow(dl, 'task_id', block.task_id);
-    addDlRow(dl, 'problem_id', block.problem_id);
-
-    // Status badge
-    const dtStatus = document.createElement('dt');
-    dtStatus.textContent = 'status';
-    const ddStatus = document.createElement('dd');
-    ddStatus.className = 'status';
-    ddStatus.textContent = block.status;
-    dl.appendChild(dtStatus);
-    dl.appendChild(ddStatus);
+    const dtProb = document.createElement('dt');
+    dtProb.textContent = 'problem';
+    const ddProb = document.createElement('dd');
+    ddProb.textContent = block.problem_id;
+    dl.appendChild(dtProb);
+    dl.appendChild(ddProb);
 
     if (block.reward_micro != null) {
-      addDlRow(dl, 'reward_micro', String(block.reward_micro) + ' μC');
+      const dt = document.createElement('dt');
+      dt.textContent = 'reward';
+      const dd = document.createElement('dd');
+      appendMicrocoin(dd, block.reward_micro);
+      dl.appendChild(dt);
+      dl.appendChild(dd);
     }
     if (block.attempt_count != null) {
-      addDlRow(dl, 'attempt_count', String(block.attempt_count));
+      const dt = document.createElement('dt');
+      dt.textContent = 'attempts';
+      const dd = document.createElement('dd');
+      dd.textContent = String(block.attempt_count);
+      dl.appendChild(dt);
+      dl.appendChild(dd);
     }
     if (block.assigned_agent_id != null) {
-      addDlRow(dl, 'assigned_agent_id', block.assigned_agent_id);
+      const dt = document.createElement('dt');
+      dt.textContent = 'agent';
+      const dd = document.createElement('dd');
+      dd.appendChild(buildTruncatedSpan(block.assigned_agent_id, 12, 8));
+      dl.appendChild(dt);
+      dl.appendChild(dd);
     }
 
     this.appendChild(dl);
   }
-}
-
-function addDlRow(dl: HTMLDListElement, label: string, value: string): void {
-  const dt = document.createElement('dt');
-  dt.textContent = label;
-  const dd = document.createElement('dd');
-  dd.textContent = value;
-  dl.appendChild(dt);
-  dl.appendChild(dd);
 }
 
 export function register(): void {

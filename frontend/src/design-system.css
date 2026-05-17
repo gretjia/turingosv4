@@ -1,0 +1,142 @@
+/* TRACE_MATRIX FC1-N5: read view materialization — design system tokens
+ *
+ * TuringOS Phase 7 W4.4 design system.
+ *
+ * Aesthetic brief: research instrument, NOT consumer SaaS. Closer to a
+ * paper-toned editorial publication, a UNIX manual page, or an academic
+ * notebook than a B2B dashboard. The constitution rendered as a UI.
+ *
+ * Typography pair:
+ *   - Display:  Fraunces (variable serif) — editorial, intentional, opinionated
+ *   - Monospace: JetBrains Mono (variable mono) — hashes, ids, numerics, code
+ *   - Body:     IBM Plex Sans (geometric humanist) — long-form prose
+ *   None of: Inter, Roboto, Arial, system-only sans (forbidden by Anthropic
+ *   Cookbook "Prompting for frontend aesthetics" generic-AI-slop checklist).
+ *
+ * Color palette:
+ *   Paper base #FAFAF7 (warm off-white)
+ *   Ink fg    #1A1817 (warm near-black)
+ *   Accent    #1F6E6B (oxidized teal — NOT purple, NOT clichéd)
+ *   Hairline  #E5E3DC (1px rules)
+ *   Dark mode counterparts in @media block below.
+ *
+ * Spacing: 4px scale (--space-1 = 4px through --space-8 = 64px).
+ * No drop shadows. Hairline borders only. Generous line-height.
+ *
+ * Status colors (typographic + colored badges, never icon-only):
+ *   open      teal      #1F6E6B
+ *   accepted  moss      #3F6E3F
+ *   rejected  brick     #9C3A2F
+ *   finalized amber     #A87431
+ *   bankrupt  charcoal  #3A3633
+ *   expired   neutral   #807974
+ */
+
+:root {
+  /* ----- Color: paper / ink / accent ------------------------------------ */
+  --color-bg: #FAFAF7;
+  --color-bg-elev: #F5F4EE;
+  --color-fg: #1A1817;
+  --color-fg-muted: #5B5651;
+  --color-fg-subtle: #8B847C;
+  --color-accent: #1F6E6B;
+  --color-accent-soft: #C7DDDB;
+  --color-hairline: #E5E3DC;
+  --color-hairline-strong: #C9C5BC;
+
+  /* ----- Status semantic colors ----------------------------------------- */
+  --color-status-open: #1F6E6B;
+  --color-status-accepted: #3F6E3F;
+  --color-status-rejected: #9C3A2F;
+  --color-status-finalized: #A87431;
+  --color-status-bankrupt: #3A3633;
+  --color-status-expired: #807974;
+  --color-status-solved: #3F6E3F;
+  --color-status-exhausted: #807974;
+
+  /* Layer badge colors (event log) */
+  --color-layer-l4: #3F6E3F;
+  --color-layer-l4e: #9C3A2F;
+
+  /* ----- Typography ----------------------------------------------------- */
+  --font-display: "Fraunces", "Iowan Old Style", "Apple Garamond",
+    "Baskerville", "Times New Roman", "Droid Serif", Times,
+    "Source Serif Pro", serif;
+  --font-mono: "JetBrains Mono", "IBM Plex Mono", "Berkeley Mono",
+    "SF Mono", "Cascadia Mono", Menlo, Consolas, ui-monospace, monospace;
+  --font-body: "IBM Plex Sans", "Söhne", "Helvetica Neue",
+    ui-sans-serif, -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* Type scale — geometric, 1.333 ratio anchored at 16px */
+  --fs-2xs: 0.6875rem;  /* 11px */
+  --fs-xs:  0.75rem;    /* 12px */
+  --fs-sm:  0.875rem;   /* 14px */
+  --fs-md:  1rem;       /* 16px */
+  --fs-lg:  1.25rem;    /* 20px */
+  --fs-xl:  1.625rem;   /* 26px */
+  --fs-2xl: 2.125rem;   /* 34px */
+  --fs-3xl: 2.875rem;   /* 46px */
+
+  /* Weights — extremes encouraged (Anthropic guidance: 100/200 vs 800/900) */
+  --fw-light: 300;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-bold: 700;
+  --fw-black: 900;
+
+  /* ----- Spacing scale (4px base) --------------------------------------- */
+  --space-1: 0.25rem;   /*  4px */
+  --space-2: 0.5rem;    /*  8px */
+  --space-3: 0.75rem;   /* 12px */
+  --space-4: 1rem;      /* 16px */
+  --space-5: 1.5rem;    /* 24px */
+  --space-6: 2rem;      /* 32px */
+  --space-7: 3rem;      /* 48px */
+  --space-8: 4rem;      /* 64px */
+
+  /* ----- Radii (very restrained — research instrument) ------------------ */
+  --radius-sm: 2px;
+  --radius-md: 3px;
+
+  /* ----- Borders (hairlines only) --------------------------------------- */
+  --border-hairline: 1px solid var(--color-hairline);
+  --border-hairline-strong: 1px solid var(--color-hairline-strong);
+
+  /* ----- Motion --------------------------------------------------------- */
+  --motion-fast: 120ms;
+  --motion-normal: 180ms;
+  --motion-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+
+  /* ----- Layout --------------------------------------------------------- */
+  --measure-prose: 68ch;
+  --measure-wide: 1200px;
+
+  color-scheme: light dark;
+}
+
+/* Dark mode: warm ink-on-paper-reversed, NOT pure black, NOT cool blue. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #14110E;
+    --color-bg-elev: #1F1B17;
+    --color-fg: #E8E4DA;
+    --color-fg-muted: #A29B8F;
+    --color-fg-subtle: #75706A;
+    --color-accent: #5BB3A6;
+    --color-accent-soft: #1F3A38;
+    --color-hairline: #2A2724;
+    --color-hairline-strong: #3D3935;
+
+    --color-status-open: #5BB3A6;
+    --color-status-accepted: #7BAE6F;
+    --color-status-rejected: #D87262;
+    --color-status-finalized: #D9A057;
+    --color-status-bankrupt: #756F69;
+    --color-status-expired: #807974;
+    --color-status-solved: #7BAE6F;
+    --color-status-exhausted: #807974;
+
+    --color-layer-l4: #7BAE6F;
+    --color-layer-l4e: #D87262;
+  }
+}

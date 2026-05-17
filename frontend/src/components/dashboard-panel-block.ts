@@ -1,11 +1,16 @@
-// TRACE_MATRIX FC1-N5: read view materialization — dashboard panel block component
+// TRACE_MATRIX FC1-N5: read view materialization — dashboard panel block
 //
 // <tos-dashboard-panel-block> custom element. Renders DashboardPanelBlock IR
-// payload as a titled <dl> metric card.
-// XSS hygiene: uses textContent/setAttribute exclusively — never innerHTML
-// with dynamic strings.
+// payload as a panel title in monospace caps + grid of <div><dt>…<dd> metric
+// pairs (display font for the value, monospace caps for the label).
+//
+// Styled via the global [data-block-type="dashboard_panel"] selectors from
+// base-styles.css.
+//
+// XSS hygiene: textContent/setAttribute only.
 
 import type { DashboardPanelBlock, MetricEntry } from '../ir.js';
+import { buildStatusBadge, isKnownStatus } from './render-helpers.js';
 
 const ELEMENT_NAME = 'tos-dashboard-panel-block';
 
@@ -14,7 +19,7 @@ export class TosDashboardPanelBlock extends HTMLElement {
 
   connectedCallback(): void {
     this.setAttribute('data-block-type', 'dashboard_panel');
-    this.className = 'card dashboard-panel';
+    this.classList.add('block', 'block-dashboard-panel', 'card', 'dashboard-panel');
     const payloadAttr = this.dataset['payload'];
     if (payloadAttr != null && this._block === null) {
       try {
@@ -26,7 +31,6 @@ export class TosDashboardPanelBlock extends HTMLElement {
     this._render();
   }
 
-  /** Update with a new DashboardPanelBlock payload. */
   update(block: DashboardPanelBlock): void {
     this._block = block;
     if (this.isConnected) {
@@ -44,6 +48,7 @@ export class TosDashboardPanelBlock extends HTMLElement {
     }
 
     const h3 = document.createElement('h3');
+    h3.className = 'panel-title';
     h3.textContent = block.panel_title;
     this.appendChild(h3);
 
@@ -51,34 +56,39 @@ export class TosDashboardPanelBlock extends HTMLElement {
     dl.className = 'metrics';
 
     for (const metric of block.metrics) {
-      buildMetricRow(dl, metric);
+      dl.appendChild(buildMetricCell(metric));
     }
 
     this.appendChild(dl);
   }
 }
 
-function buildMetricRow(dl: HTMLDListElement, metric: MetricEntry): void {
+function buildMetricCell(metric: MetricEntry): HTMLDivElement {
+  const wrap = document.createElement('div');
+
   const dt = document.createElement('dt');
   dt.textContent = metric.label;
+  wrap.appendChild(dt);
 
   const dd = document.createElement('dd');
-  const valueStr = typeof metric.value === 'number'
-    ? String(metric.value)
-    : metric.value;
-  dd.textContent = valueStr;
+  const valueStr = typeof metric.value === 'number' ? String(metric.value) : metric.value;
+
+  if (typeof metric.value === 'string' && isKnownStatus(metric.value)) {
+    dd.appendChild(buildStatusBadge(metric.value));
+  } else {
+    dd.appendChild(document.createTextNode(valueStr));
+  }
 
   if (metric.unit != null) {
-    // Append unit as a separate text span — textContent safe.
-    dd.textContent = valueStr + ' ';
+    dd.appendChild(document.createTextNode(' '));
     const unitSpan = document.createElement('span');
     unitSpan.className = 'unit';
     unitSpan.textContent = metric.unit;
     dd.appendChild(unitSpan);
   }
+  wrap.appendChild(dd);
 
-  dl.appendChild(dt);
-  dl.appendChild(dd);
+  return wrap;
 }
 
 export function register(): void {
