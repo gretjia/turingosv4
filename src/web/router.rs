@@ -28,7 +28,8 @@
 /// All HTTP routes return HTTP 200 on the happy path.
 /// All items are `pub(crate)`.
 use axum::{
-    response::Html,
+    http::header,
+    response::{Html, IntoResponse},
     routing::{get, post},
     Json, Router,
 };
@@ -39,6 +40,16 @@ use super::ir::IRRoot;
 use super::render::render_page;
 use super::write::task_open_handler;
 use super::ws::{ws_handler, AppState};
+
+/// TRACE_MATRIX FC1-N5: frontend bundle embedded at compile time.
+///
+/// `frontend/dist/main.js` is the esbuild-bundled ESM produced by
+/// `cd frontend && npm run build`. Embedding it (rather than serving via
+/// `tower-http::services::ServeDir`) avoids needing the `tower-http/fs`
+/// feature (~8 transitive deps) and keeps Phase 7 deployment a single
+/// binary. Trade-off: backend must be rebuilt whenever the frontend
+/// changes — acceptable for Phase 7's research scope.
+const FRONTEND_MAIN_JS: &[u8] = include_bytes!("../../frontend/dist/main.js");
 
 /// TRACE_MATRIX FC1-N5 / FC1-N10: read view materialization + write path
 ///
@@ -65,7 +76,20 @@ pub(crate) fn build_with_state(broadcast_capacity: usize) -> Router {
         .route("/ws", get(ws_handler))
         // Write route (W4): POST /api/task/open → CLI shellout → WS broadcast
         .route("/api/task/open", post(task_open_handler))
+        // Static asset (W4.1): frontend bundle embedded at compile time
+        .route("/static/main.js", get(serve_main_js))
         .with_state(state)
+}
+
+/// TRACE_MATRIX FC1-N5: serves the embedded esbuild ESM bundle.
+async fn serve_main_js() -> impl IntoResponse {
+    (
+        [(
+            header::CONTENT_TYPE,
+            "application/javascript; charset=utf-8",
+        )],
+        FRONTEND_MAIN_JS,
+    )
 }
 
 /// Build the router. Uses `build_with_state` with production capacity = 64.
