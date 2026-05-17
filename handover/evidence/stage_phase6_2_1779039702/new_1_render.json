@@ -1,0 +1,13 @@
+{
+  "command": "./target/debug/turingos render --fixture experiments/tisr_ui_spike/fixtures/dashboard_sample.json",
+  "deliverable": "turingos render",
+  "evidence_files": [
+    "new_1_render.stdout",
+    "new_1_render.stderr"
+  ],
+  "exit_code": 0,
+  "stderr_excerpt": "",
+  "stdout_bytes": 3216,
+  "stdout_excerpt": "------------------------------------------------------------------------\n  TuringOS Audit Dashboard \u2014 2026-05-17\n  dashboard:2026-05-17T12:00:00Z\n------------------------------------------------------------------------\n\n[text] blk-status-text\nRun summary: mini-M1 batch completed. Attempt equality PASS. All ChainTape/CAS evidence intact. This is a materialized view \u2014 not authoritative over ChainTape/CAS (FC3-N31).\n\n[dashboard_panel] blk-overview-panel\n  Run Overview\n  --------------\n    run_i",
+  "verdict": "PASS"
+}

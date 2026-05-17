@@ -1,0 +1,17 @@
+{
+  "audit_dashboard_debug_exists": true,
+  "audit_dashboard_release_exists": false,
+  "command": "./target/debug/turingos audit dashboard --repo /tmp/phase6_2_witness_1779039702/runtime_repo --cas /tmp/phase6_2_witness_1779039702/cas",
+  "evidence_files": [
+    "step_5_audit_dashboard.stdout",
+    "step_5_audit_dashboard.stderr"
+  ],
+  "exit_code": 2,
+  "name": "audit_dashboard",
+  "note": "audit_dashboard binary IS built in target/debug/. The empty workspace scaffold from `turingos init` produces no real ChainTape/CAS evidence (no pinned_pubkeys.json), so the audit binary fails at evidence-load. Recorded as SKIPPED because no real tape exists to audit \u2014 Step 4 task open did not run.",
+  "skip_reason": "no_chaintape_evidence",
+  "stderr_excerpt": "audit_dashboard: build failed: verify_chaintape: PinnedPubkeysMissing(\"/tmp/phase6_2_witness_1779039702/runtime_repo/pinned_pubkeys.json\")\n",
+  "stdout_excerpt": "",
+  "step": 5,
+  "verdict": "SKIPPED_BACKEND_MISSING"
+}

@@ -1,0 +1,17 @@
+{
+  "backend_missing": true,
+  "command": "./target/debug/turingos task open --problem nat_succ_succ --bounty 1000000 --workspace /tmp/phase6_2_witness_1779039702",
+  "evidence_files": [
+    "step_4_task_open.stdout",
+    "step_4_task_open.stderr"
+  ],
+  "exit_code": 2,
+  "expected_stderr_present": true,
+  "lean_market_debug_exists": false,
+  "lean_market_release_exists": false,
+  "name": "task_open",
+  "stderr_excerpt": "turingos: failed to invoke 'lean_market': No such file or directory (os error 2)\n",
+  "stdout_excerpt": "",
+  "step": 4,
+  "verdict": "SKIPPED_BACKEND_MISSING"
+}

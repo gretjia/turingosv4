@@ -1,0 +1,20 @@
+{
+  "command": "./target/debug/turingos export evidence --source /tmp/phase6_2_witness_1779039702 --out /tmp/phase6_2_export_1779039702",
+  "evidence_files": [
+    "step_7_export_evidence.stdout",
+    "step_7_export_evidence.stderr"
+  ],
+  "exit_code": 0,
+  "export_dir_exists": true,
+  "exported_file_count": 3,
+  "exported_files": [
+    "agent_pubkeys.json",
+    "genesis_payload.toml",
+    "turingos.toml"
+  ],
+  "name": "export_evidence",
+  "stderr_excerpt": "",
+  "stdout_excerpt": "exported /tmp/phase6_2_witness_1779039702 -> /tmp/phase6_2_export_1779039702: 3 files, 1017 bytes\n",
+  "step": 7,
+  "verdict": "PASS"
+}

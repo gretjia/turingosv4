@@ -1,0 +1,11 @@
+=== UI IR Spike test_render.sh ===
+
+TEST 1 PASS: dashboard_sample.json --format text: exit 0 + stdout non-empty
+TEST 2 PASS: agent_view_sample.json --format text: exit 0 + stdout contains 'agent_id'
+TEST 3 PASS: task_view_sample.json --format json: exit 0 + stdout is valid JSON
+TEST 4 PASS: agent_role_view_sample.json --format text: exit 0 + stdout non-empty
+TEST 5 PASS: batch_status_view_sample.json --format text: exit 0 + stdout non-empty
+TEST 6 PASS: audit_summary_view_sample.json --format json: exit 0 + stdout is valid JSON
+TEST 7 PASS: market_position_view_sample.json --format text: exit 0 + stdout non-empty
+
+=== Results: 7 passed, 0 failed ===
