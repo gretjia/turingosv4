@@ -233,8 +233,10 @@ OPTIONS:
                               polymarket   Prediction market with YES/NO
                                            event-resolution.
                               multi-agent  Multi-agent arena
-                                           (BullTrader / BearTrader / Librarian
-                                           and 7 other REAL-5/REAL-12 roles).
+                                           (10 REAL-5/REAL-12 AgentRole variants
+                                           including BullTrader / BearTrader; see
+                                           the generated template header for the
+                                           full list).
                             Default: proof.
 
     --force                 Permit re-initialization of an existing project
@@ -453,8 +455,9 @@ fn cmd_init(args: InitArgs) -> Result<(), InitError> {
     println!("  # Edit genesis_payload.toml to declare agents / budgets / market.");
     println!();
     println!("What you can run right now (Phase 6.0):");
-    println!("  cargo build --release --bin lean_market    # build the TB-10 user CLI");
-    println!("  ./target/release/lean_market --help        # see the established workflow");
+    println!("  # From the turingosv4 project root (where Cargo.toml lives), NOT this scaffold:");
+    println!("  cargo build --release -p minif2f_v4 --bin lean_market");
+    println!("  ./target/release/lean_market --help     # established TB-10 workflow");
     println!();
     println!("Phase 6.1+ subcommands (not yet implemented; coming soon):");
     println!("  turingos agent deploy / turingos task open / turingos audit dashboard / ...");
