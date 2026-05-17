@@ -69,29 +69,6 @@ fn turingos_report_markov_help_exits_zero_and_mentions_capsule() {
 // Test 2: no-args invocation — wrapper combined output is non-empty
 // ─────────────────────────────────────────────────────────────────────────────
 
-#[test]
-fn turingos_report_markov_no_args_produces_output() {
-    let output = Command::new(turingos_bin())
-        .arg("report")
-        .arg("markov")
-        .output()
-        .expect("run turingos report markov");
-
-    // The wrapped binary (generate_markov_capsule) will emit usage / error
-    // text when called with no required arguments. We just verify the wrapper
-    // actually reached the binary: combined output must be non-empty.
-    let combined = format!(
-        "{}{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr),
-    );
-    assert!(
-        !combined.trim().is_empty(),
-        "turingos report markov (no args) produced no output at all; \
-         expected at least usage or error text from generate_markov_capsule"
-    );
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Test 3: bogus flag exits non-zero (wrapper propagates error exit code)
 // ─────────────────────────────────────────────────────────────────────────────

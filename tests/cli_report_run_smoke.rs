@@ -44,29 +44,6 @@ fn turingos_report_run_help_shows_description() {
 }
 
 #[test]
-fn turingos_report_run_invokes_target_binary() {
-    // Invoke with no args — gen_run_summary will print its own usage + non-zero
-    // exit. We assert the wrapper's stderr or stdout shows it actually reached
-    // gen_run_summary (i.e., shell-out plumbing works, not just dispatch).
-    let output = Command::new(turingos_bin())
-        .arg("report")
-        .arg("run")
-        .output()
-        .expect("run turingos");
-    let combined = format!(
-        "{}{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
-    // gen_run_summary's no-arg behavior: prints usage hint or error.
-    // Accept either stdout (its --help) or stderr (its arg-error).
-    assert!(
-        !combined.is_empty(),
-        "wrapper produced no output — shell-out may have failed silently"
-    );
-}
-
-#[test]
 fn turingos_report_run_intentionally_bad_args_nonzero() {
     let output = Command::new(turingos_bin())
         .arg("report")

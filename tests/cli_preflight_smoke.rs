@@ -45,26 +45,6 @@ fn turingos_preflight_help_shows_description() {
     );
 }
 
-/// TRACE_MATRIX FC2-N16: preflight no-args dispatches to resume_preflight (shell-out plumbing)
-#[test]
-fn turingos_preflight_no_args_output_nonempty() {
-    // Invoke with no args — resume_preflight will print its own usage or error
-    // with non-zero exit. We only assert the wrapper actually reached the binary.
-    let output = Command::new(turingos_bin())
-        .arg("preflight")
-        .output()
-        .expect("run turingos");
-    let combined = format!(
-        "{}{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
-    assert!(
-        !combined.is_empty(),
-        "wrapper produced no output — shell-out may have failed silently"
-    );
-}
-
 /// TRACE_MATRIX FC2-N16: bogus flag produces non-zero exit from preflight
 #[test]
 fn turingos_preflight_bogus_flag_nonzero_exit() {

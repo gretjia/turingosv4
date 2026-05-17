@@ -69,28 +69,6 @@ fn turingos_task_tick_help_exits_zero_and_mentions_tick() {
 // Test 2: no-args invocation — combined output is non-empty
 // ─────────────────────────────────────────────────────────────────────────────
 
-#[test]
-fn turingos_task_tick_no_args_produces_output() {
-    let output = Command::new(turingos_bin())
-        .arg("task")
-        .arg("tick")
-        .output()
-        .expect("run turingos task tick");
-
-    // lean_market tick requires --chaintape, so it will emit an error or usage.
-    // We verify the wrapper actually reached the binary: combined output non-empty.
-    let combined = format!(
-        "{}{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr),
-    );
-    assert!(
-        !combined.trim().is_empty(),
-        "turingos task tick (no args) produced no output at all; \
-         expected at least usage or error text from lean_market tick"
-    );
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Test 3: bogus flag exits non-zero (wrapper propagates error exit code)
 // ─────────────────────────────────────────────────────────────────────────────

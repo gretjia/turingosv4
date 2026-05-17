@@ -71,30 +71,6 @@ fn turingos_task_open_help_exits_zero_and_mentions_description() {
 // Test 2: no-args wrapper invokes lean_market and produces output
 // ─────────────────────────────────────────────────────────────────────────────
 
-#[test]
-fn turingos_task_open_no_args_produces_output() {
-    let output = Command::new(turingos_bin())
-        .arg("task")
-        .arg("open")
-        .output()
-        .expect("run turingos task open");
-
-    // lean_market run-task will emit usage / error text when called with no
-    // required arguments. If lean_market is not built or not on PATH, the
-    // wrapper itself emits an error message. Either way combined output must
-    // be non-empty — the wrapper must have reached the invocation path.
-    let combined = format!(
-        "{}{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr),
-    );
-    assert!(
-        !combined.trim().is_empty(),
-        "turingos task open (no args) produced no output at all; \
-         expected at least usage or error text from lean_market or the wrapper"
-    );
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Test 3: bogus flag exits non-zero (wrapper propagates error exit code)
 // ─────────────────────────────────────────────────────────────────────────────

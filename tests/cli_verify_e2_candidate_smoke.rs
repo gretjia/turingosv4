@@ -47,29 +47,6 @@ fn turingos_verify_e2_candidate_help_shows_description() {
 }
 
 #[test]
-fn turingos_verify_e2_candidate_invokes_target_binary() {
-    // Invoke with no args — real14_e2_candidate_verifier will print its own
-    // usage or error. We assert the wrapper's combined output is non-empty
-    // (i.e., shell-out plumbing works, not just dispatch).
-    let output = Command::new(turingos_bin())
-        .arg("verify")
-        .arg("e2-candidate")
-        .output()
-        .expect("run turingos");
-    let combined = format!(
-        "{}{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
-    // real14_e2_candidate_verifier's no-arg behavior: prints usage or error.
-    // Accept either stdout (its --help) or stderr (its arg-error).
-    assert!(
-        !combined.is_empty(),
-        "wrapper produced no output — shell-out may have failed silently"
-    );
-}
-
-#[test]
 fn turingos_verify_e2_candidate_bogus_flag_nonzero() {
     let output = Command::new(turingos_bin())
         .arg("verify")

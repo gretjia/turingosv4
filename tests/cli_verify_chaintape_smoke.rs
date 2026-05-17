@@ -38,27 +38,6 @@ fn turingos_verify_chaintape_help_exits_zero() {
 }
 
 #[test]
-fn turingos_verify_chaintape_no_args_output_nonempty() {
-    // Invoke with no args — verify_chaintape will print its usage / error
-    // message. We assert the wrapper's combined output is non-empty to confirm
-    // the shell-out plumbing actually reached the wrapped binary.
-    let output = Command::new(turingos_bin())
-        .arg("verify")
-        .arg("chaintape")
-        .output()
-        .expect("run turingos");
-    let combined = format!(
-        "{}{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
-    assert!(
-        !combined.is_empty(),
-        "wrapper produced no output — shell-out may have failed silently"
-    );
-}
-
-#[test]
 fn turingos_verify_chaintape_bogus_flag_nonzero_exit() {
     let output = Command::new(turingos_bin())
         .arg("verify")

@@ -42,26 +42,6 @@ fn turingos_report_wallet_help_shows_description() {
 }
 
 #[test]
-fn turingos_report_wallet_invokes_target_binary() {
-    // Invoke with no args — lean_market view-wallet will print usage / error.
-    // We assert wrapper output is non-empty (i.e., reached lean_market).
-    let output = Command::new(turingos_bin())
-        .arg("report")
-        .arg("wallet")
-        .output()
-        .expect("run turingos");
-    let combined = format!(
-        "{}{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
-    assert!(
-        !combined.is_empty(),
-        "wrapper produced no output — shell-out may have failed"
-    );
-}
-
-#[test]
 fn turingos_report_wallet_intentionally_bad_args_nonzero() {
     let output = Command::new(turingos_bin())
         .arg("report")

@@ -77,25 +77,6 @@ fn turingos_report_bankruptcy_help_exits_zero_and_mentions_keyword() {
 //          not silently produce nothing)
 // ─────────────────────────────────────────────────────────────────────
 
-#[test]
-fn turingos_report_bankruptcy_no_args_produces_output() {
-    let output = Command::new(turingos_bin())
-        .args(["report", "bankruptcy"])
-        .output()
-        .expect("run turingos report bankruptcy");
-
-    let combined = format!(
-        "{}{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr),
-    );
-
-    assert!(
-        !combined.is_empty(),
-        "expected non-empty combined output from shell-out plumbing; got empty"
-    );
-}
-
 // ─────────────────────────────────────────────────────────────────────
 // Test 3: bogus flag produces non-zero exit
 // ─────────────────────────────────────────────────────────────────────

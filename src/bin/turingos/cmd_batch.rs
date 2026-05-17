@@ -83,6 +83,9 @@ pub(crate) enum BatchError {
     BatchAlreadyExists(String),
     /// Batch name fails validation (non-ASCII, path chars, spaces, etc.).
     InvalidBatchName(String),
+    /// --problems value contains characters that would break TOML quoting
+    /// (quote, newline, backslash). Rejected to avoid injection.
+    InvalidProblemsValue(String),
     /// Required argument missing (--name, --workspace, etc.).
     MissingArg(String),
     /// Unknown action or argument.
@@ -100,6 +103,7 @@ impl BatchError {
             // Domain errors: exit 1
             Self::BatchAlreadyExists(_)
             | Self::InvalidBatchName(_)
+            | Self::InvalidProblemsValue(_)
             | Self::MissingArg(_)
             | Self::UnknownArg(_) => 1,
         }
@@ -116,6 +120,11 @@ impl std::fmt::Display for BatchError {
                 f,
                 "invalid batch name '{name}': use ASCII alphanumeric, _, -, . only \
                  (no path separators, no spaces, no leading /)"
+            ),
+            Self::InvalidProblemsValue(val) => write!(
+                f,
+                "invalid --problems value (must not contain quotes, newlines, or \
+                 backslashes; would break manifest TOML quoting): {val}"
             ),
             Self::MissingArg(msg) => write!(f, "missing required argument: {msg}"),
             Self::UnknownArg(arg) => write!(f, "unrecognized argument: {arg}"),
@@ -158,6 +167,14 @@ fn validate_batch_name(name: &str) -> Result<(), BatchError> {
 /// TRACE_MATRIX FC2-N16: create a new batch scaffold.
 fn action_new(name: &str, workspace: &str, problems: Option<&str>) -> Result<(), BatchError> {
     validate_batch_name(name)?;
+
+    // Reject --problems values that would break TOML quoting / inject extra
+    // fields (quote, newline, backslash, carriage return).
+    if let Some(p) = problems {
+        if p.contains('"') || p.contains('\n') || p.contains('\r') || p.contains('\\') {
+            return Err(BatchError::InvalidProblemsValue(p.to_string()));
+        }
+    }
 
     let batch_dir = PathBuf::from(workspace).join("batches").join(name);
 

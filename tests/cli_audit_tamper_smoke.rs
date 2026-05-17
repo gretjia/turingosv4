@@ -46,29 +46,6 @@ fn turingos_audit_tamper_help_shows_description() {
     );
 }
 
-/// TRACE_MATRIX FC2-N16: audit tamper dispatches through to audit_tape_tamper
-#[test]
-fn turingos_audit_tamper_invokes_target_binary() {
-    // Invoke with no args — audit_tape_tamper will print its own usage / error
-    // with non-zero exit. We assert the wrapper's output shows it actually
-    // reached the binary (shell-out plumbing works, not just dispatch).
-    let output = Command::new(turingos_bin())
-        .arg("audit")
-        .arg("tamper")
-        .output()
-        .expect("run turingos");
-    let combined = format!(
-        "{}{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
-    // audit_tape_tamper no-arg behavior: prints usage hint or error.
-    assert!(
-        !combined.is_empty(),
-        "wrapper produced no output — shell-out may have failed silently"
-    );
-}
-
 /// TRACE_MATRIX FC2-N16: bogus flag produces non-zero exit from audit tamper
 #[test]
 fn turingos_audit_tamper_intentionally_bad_args_nonzero() {

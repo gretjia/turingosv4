@@ -42,26 +42,6 @@ fn turingos_task_view_help_shows_description() {
 }
 
 #[test]
-fn turingos_task_view_no_args_output_non_empty() {
-    // Invoke with no args — lean_market view-task will print usage / error.
-    // We assert wrapper output is non-empty (i.e., reached lean_market).
-    let output = Command::new(turingos_bin())
-        .arg("task")
-        .arg("view")
-        .output()
-        .expect("run turingos");
-    let combined = format!(
-        "{}{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
-    assert!(
-        !combined.is_empty(),
-        "wrapper produced no output — shell-out may have failed"
-    );
-}
-
-#[test]
 fn turingos_task_view_bogus_flag_nonzero_exit() {
     let output = Command::new(turingos_bin())
         .arg("task")

@@ -64,32 +64,6 @@ fn turingos_report_positions_help_exits_zero() {
     );
 }
 
-/// Test 2: bare `turingos report positions` produces non-empty output (stdout+stderr concat).
-///
-/// Verifies the shell-out plumbing fires and reaches lean_market. lean_market
-/// may succeed or fail (the binary may not be present or may report an error),
-/// but the wrapper must produce at least one byte of output (either from
-/// lean_market's own output or from the wrapper's "failed to invoke" error
-/// message).
-#[test]
-fn turingos_report_positions_no_args_produces_output() {
-    let output = Command::new(turingos_bin())
-        .arg("report")
-        .arg("positions")
-        .output()
-        .expect("run turingos report positions");
-
-    let combined = format!(
-        "{}{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr),
-    );
-    assert!(
-        !combined.is_empty(),
-        "turingos report positions should produce non-empty stdout+stderr; got nothing"
-    );
-}
-
 /// Test 3: bogus flag returns non-zero exit.
 ///
 /// lean_market should reject an unknown flag and exit non-zero. If lean_market

@@ -25,6 +25,8 @@ pub(crate) enum ExportError {
     OutExists(String),
     /// --out parent directory does not exist.
     OutParentNotFound(String),
+    /// --out path resolves inside --source (would cause recursive self-copy).
+    OutInsideSource(String, String),
     /// Underlying I/O failure during copy.
     Io(String),
 }
@@ -36,7 +38,8 @@ impl ExportError {
             Self::SourceNotFound(_)
             | Self::SourceNotDir(_)
             | Self::OutExists(_)
-            | Self::OutParentNotFound(_) => 1,
+            | Self::OutParentNotFound(_)
+            | Self::OutInsideSource(_, _) => 1,
             // Unexpected I/O: exit 2
             Self::Io(_) => 2,
         }
@@ -59,6 +62,11 @@ impl std::fmt::Display for ExportError {
                 f,
                 "output parent directory does not exist: {p} — \
                  create the parent directory first"
+            ),
+            Self::OutInsideSource(out, src) => write!(
+                f,
+                "--out path {out} resolves inside --source {src}; refusing to copy a \
+                 directory into itself (would recurse). Pick an --out path outside --source."
             ),
             Self::Io(msg) => write!(f, "I/O error: {msg}"),
         }
@@ -196,6 +204,28 @@ fn cmd_export_evidence_inner(args: ExportArgs) -> Result<(), ExportError> {
     if !out_parent.exists() {
         return Err(ExportError::OutParentNotFound(
             out_parent.display().to_string(),
+        ));
+    }
+
+    // Refuse self-recursive copy: canonical(out's parent) must NOT be
+    // canonical(source) or a descendant. We resolve symlinks via canonicalize,
+    // which only works on existing paths — hence we check out_parent, which
+    // exists by the prior validation.
+    let canonical_source = fs::canonicalize(&args.source)
+        .map_err(|e| ExportError::Io(format!("canonicalize source: {e}")))?;
+    let canonical_out_parent = fs::canonicalize(out_parent)
+        .map_err(|e| ExportError::Io(format!("canonicalize out parent: {e}")))?;
+    // Resolved --out is `canonical_out_parent / out_basename`.
+    let out_basename = args
+        .out
+        .file_name()
+        .map(std::path::PathBuf::from)
+        .unwrap_or_default();
+    let canonical_out = canonical_out_parent.join(&out_basename);
+    if canonical_out == canonical_source || canonical_out.starts_with(&canonical_source) {
+        return Err(ExportError::OutInsideSource(
+            canonical_out.display().to_string(),
+            canonical_source.display().to_string(),
         ));
     }
 

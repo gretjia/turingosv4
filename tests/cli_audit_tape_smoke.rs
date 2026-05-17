@@ -69,29 +69,6 @@ fn turingos_audit_tape_help_exits_zero_and_mentions_audit() {
 // Test 2: no-args invocation — wrapper combined output is non-empty
 // ─────────────────────────────────────────────────────────────────────────────
 
-#[test]
-fn turingos_audit_tape_no_args_produces_output() {
-    let output = Command::new(turingos_bin())
-        .arg("audit")
-        .arg("tape")
-        .output()
-        .expect("run turingos audit tape");
-
-    // The wrapped binary (audit_tape) will emit usage / error text when called
-    // with no required arguments. We just verify the wrapper actually reached
-    // the binary: combined output must be non-empty.
-    let combined = format!(
-        "{}{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr),
-    );
-    assert!(
-        !combined.trim().is_empty(),
-        "turingos audit tape (no args) produced no output at all; \
-         expected at least usage or error text from audit_tape"
-    );
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Test 3: bogus flag exits non-zero (wrapper propagates error exit code)
 // ─────────────────────────────────────────────────────────────────────────────

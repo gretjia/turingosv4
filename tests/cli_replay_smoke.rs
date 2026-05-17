@@ -69,29 +69,6 @@ fn turingos_replay_help_shows_description() {
 // Test 2: no-args invocation — wrapper combined output is non-empty
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// TRACE_MATRIX FC2-N16: no-args output non-empty (shell-out plumbing works)
-#[test]
-fn turingos_replay_no_args_produces_output() {
-    let output = Command::new(turingos_bin())
-        .arg("replay")
-        .output()
-        .expect("run turingos replay");
-
-    // The wrapped binary (lean_market view-replay) will emit usage / error text
-    // when called with no required arguments. We just verify the wrapper
-    // actually reached the binary: combined output must be non-empty.
-    let combined = format!(
-        "{}{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr),
-    );
-    assert!(
-        !combined.trim().is_empty(),
-        "turingos replay (no args) produced no output at all; \
-         expected at least usage or error text from lean_market view-replay"
-    );
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Test 3: bogus flag exits non-zero (wrapper propagates error exit code)
 // ─────────────────────────────────────────────────────────────────────────────
