@@ -561,6 +561,14 @@ fn real14_verifier_cli_and_dashboard_binding_are_source_separated() {
         "CLI must consume the independent verifier helper"
     );
     assert!(
+        cli.contains("--require-direct-prompt-capsule-provenance"),
+        "REAL-17 strict direct provenance gate must be exposed by the CLI"
+    );
+    assert!(
+        cli.contains("require_direct_prompt_capsule_provenance: args"),
+        "CLI strict flag must wire into E2CandidateVerifierOptions"
+    );
+    assert!(
         !helper.contains("audit_dashboard_run_report"),
         "independent verifier must not parse dashboard text as truth"
     );
