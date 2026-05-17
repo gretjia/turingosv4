@@ -128,6 +128,20 @@ Historical fixture hydration:
 - Hydrated directories do not appear in `git status --short`.
 - Historical evidence bytes were not rewritten.
 
+Fresh-checkout CI fixtures:
+
+- Compact real evidence fragments are tracked under
+  `handover/evidence/ci_fixtures/`.
+- They cover only the historical ignored CAS/runtime fragments required by
+  constitution gates in a clean checkout:
+  TB-C0 capsule CAS, M0 P01 L4.E body-integrity evidence, and Wave3 50p CAS
+  sidecars.
+- Tests prefer full local historical evidence when present and extract these
+  fixtures only when the ignored `cas/` / `runtime_repo/` trees are absent.
+- A separate scratch worktree at `da747c52` reproduced the GitHub fresh-checkout
+  failures before the fixtures and passed full constitution gates after the
+  fixture patch.
+
 REAL13 note:
 
 - No available local worktree had a root-level ignored REAL13 `cas/` artifact.
@@ -150,6 +164,7 @@ REAL13 note:
 | Trust Root tests | Failing after post-CHALLENGE code edits until rehash | PASS, 4 pass + boot verify 1 pass | Class 4 rehash closed. |
 | Baseline targeted suite | PASS, 29 pass | PASS, 34 pass | Existing targeted behavior retained; new assertions added. |
 | `cargo test --workspace --no-fail-fast -- --test-threads=1` | Earlier baseline ran out of disk; CHALLENGE branch had red targets | PASS | Broad regression surface green after cleanup and fixes. |
+| GitHub PR #3 fresh checkout after P1 closure | `441 passed / 18 failed / 1 ignored` | Scratch clean-worktree gates `464 passed / 0 failed / 1 ignored` | Missing ignored historical fixtures packaged as compact real fixtures. |
 | Mini real-problem evidence | Baseline skipped by preflight in original baseline file | PASS | Final mini has `audit_tape=PROCEED`, persistence true. |
 | TB-18R R9 real-problem evidence | Initial runner summary had invariant Err due expected=0 extraction | PASS after v4 postprocess | P01/P02 `delta=0`, `invariant_verdict=Ok`, summary valid JSON. |
 
@@ -287,6 +302,9 @@ Improved:
   `446/18/1` to `464/0/1`.
 - R9 P02 invariant improved from historical red (`delta=8` under the old
   expected-count view) to `delta=0 / Ok`.
+- GitHub/fresh-checkout constitution gates no longer depend on local ignored
+  hydration for the TB-C0, Wave3, and M0 evidence fragments used by the
+  existing gates.
 - CAS metadata is reconstructable from Git commit history instead of relying
   on sidecar as authority.
 - New EvidenceCapsule raw logs are compressed and hash-verifiable.
@@ -303,8 +321,8 @@ Regressions / cost:
 
 - CAS commit-chain metadata adds Git objects for each CAS put. This is an
   intentional auditability cost.
-- Hydrated historical fixture directories are local ignored evidence, not a
-  clean-checkout packaging solution.
+- The tracked CI fixtures add about 431 KiB of compact binary test evidence to
+  the repository. The full hydrated historical directories remain ignored.
 - First run after `cargo clean` required release/debug rebuild time.
 
 Not comparable:
@@ -351,11 +369,25 @@ Post-fix local evidence:
 - `bash scripts/run_constitution_gates.sh`:
   `464 passed / 0 failed / 1 ignored`.
 
+Post-fix CI/fresh-checkout closure:
+
+- GitHub PR #3 then failed the Constitution gate suite at
+  `441 passed / 18 failed / 1 ignored` because the CI checkout did not contain
+  ignored historical `cas/` / `runtime_repo/` fixture directories.
+- The failing families matched the earlier hydration blocker:
+  FC3 capsule integrity, shielding evidence binding, FC3 evidence binding, and
+  L4.E body integrity.
+- Added the smallest tracked real-evidence fixture archives under
+  `handover/evidence/ci_fixtures/` and changed the affected tests to extract
+  those archives only when the original ignored evidence fragments are absent.
+- Verified in a detached scratch worktree without local hydration:
+  `bash scripts/run_constitution_gates.sh` -> `464 passed / 0 failed / 1 ignored`.
+
 ## Residual Risks And Non-Claims
 
-- Clean checkout historical fixture packaging remains a follow-up. The repair
-  branch proves local ignored fixture hydration plus compatibility behavior; it
-  does not claim CI/fresh checkout has all historical ignored `cas/` trees.
+- Full historical ignored fixture directories remain untracked. This branch
+  only packages the minimal real fragments required by current constitution
+  gates in clean checkout / CI.
 - REAL13 has no root-level local ignored CAS sidecar in available worktrees; the
   fixed test binds to tracked aggregate CAS metrics and optional local sidecar
   when present.
@@ -372,8 +404,9 @@ Before merge:
 
 1. Review the Class 4 §8 directive and Trust Root hash comments.
 2. Confirm no forbidden surfaces appear in the final diff.
-3. Confirm PR #3 GitHub CI is green after the P1 closure commit.
-4. Require auditor re-review of the P1 closure before merging.
-5. Do not merge hydrated ignored historical fixture dirs.
-6. Treat clean-checkout fixture packaging as a separate follow-up if CI must run
-   the historical evidence-binding gates without local hydration.
+3. Confirm PR #3 GitHub CI is green after the P1 and CI-fixture closure
+   commits.
+4. Require auditor re-review of the P1 closure and fresh-checkout fixture
+   closure before merging.
+5. Do not merge local hydrated ignored historical fixture dirs; only the compact
+   tracked `handover/evidence/ci_fixtures/` archives are part of this branch.

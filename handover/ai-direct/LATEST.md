@@ -13,12 +13,15 @@
 `/home/zephryj/projects/turingosv4-cas-git-repair`.
 
 **Status**: PR #3 entered formal review and was not approved for merge after a
-P1 CAS integrity finding. The P1 closure patch is now on the repair branch
-locally: readers `open()` / `reload_index_from_sidecar()` take the same CAS
-chain lock as `put()` while validating sidecar+chain, preventing an in-flight
-commit-chain advance from being misclassified as hard sidecar corruption. Main
-worktree is not merged and `turingos_dev` is intentionally not used for this
-CAS/core repair.
+P1 CAS integrity finding. The repair branch now carries the P1 closure:
+readers `open()` / `reload_index_from_sidecar()` take the same CAS chain lock
+as `put()` while validating sidecar+chain, preventing an in-flight commit-chain
+advance from being misclassified as hard sidecar corruption. The first
+post-P1 GitHub Constitution gate run then exposed a fresh-checkout fixture gap
+(`441 passed / 18 failed / 1 ignored`); compact real CI fixtures now package
+the minimal historical ignored CAS/runtime fragments needed by those gates.
+Main worktree is not merged and `turingos_dev` is intentionally not used for
+this CAS/core repair.
 
 **Risk / FC mapping**:
 Class 3 CAS integrity plus user-authorized Class 4 Trust Root rehash limited
@@ -43,6 +46,13 @@ FC2 replay/audit boot, and FC3 evidence feedback/audit views.
 - Post-PR P1 original CAS repair targeted suite:
   `cargo test --test constitution_head_t_c2_multi_ref --test tb_18r_cas_reload_split_brain --test co1_7_extra_cas_payload_round_trip --test tb_18r_lean_result_cas_resolves --test constitution_tape_canonical_gate --test constitution_no_parallel_ledger -- --test-threads=1`
   -> `34 passed / 0 failed`.
+- Post-P1 GitHub CI failure:
+  Constitution gate suite -> `441 passed / 18 failed / 1 ignored`, caused by
+  clean checkout missing ignored historical fixture `cas/` / `runtime_repo/`
+  fragments.
+- Fresh-checkout CI fixture closure:
+  tracked compact real fixtures under `handover/evidence/ci_fixtures/`; detached
+  scratch worktree full gates -> `464 passed / 0 failed / 1 ignored`.
 - Final broad workspace command:
   `cargo test --workspace --no-fail-fast -- --test-threads=1` -> exit 0.
 - Historical ignored fixtures were hydrated locally from main for TB-C0,
