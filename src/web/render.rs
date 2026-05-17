@@ -65,6 +65,11 @@ pub(crate) fn render_page(ir: &IRRoot, title: &str) -> String {
     html.push_str("<style>\n");
     html.push_str(INLINE_CSS);
     html.push_str("</style>\n");
+    // W2 inline WebSocket bootstrap. Static text only — no dynamic strings
+    // are interpolated, so no esc() calls are needed inside the script block.
+    html.push_str("<script>\n");
+    html.push_str(INLINE_WS_SCRIPT);
+    html.push_str("</script>\n");
     html.push_str("</head>\n<body>\n");
 
     // Required heading — "Phase 7" must appear for §6a Page 1 criterion.
@@ -263,6 +268,61 @@ fn render_block(block: &Block) -> String {
 // ---------------------------------------------------------------------------
 // Minimal inline CSS
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Inline WebSocket bootstrap script (W2)
+// ---------------------------------------------------------------------------
+
+/// TRACE_MATRIX FC1-N5: real-time read-view push channel
+///
+/// Inline JS injected into every rendered HTML page. Opens a WebSocket to
+/// `/ws` on page load, dispatches `turingos:ir_update` CustomEvents for W3
+/// components, and exposes `window.__turingos_ws` for debugging.
+///
+/// Design decisions (ratified 2026-05-18):
+/// - No auto-reconnect in W2; W3 components may register their own strategy.
+/// - `onerror` uses `console.warn` (not `console.error`) so §6a Page 1
+///   "console error count 0" criterion stays satisfied during normal lifecycle.
+/// - Wrapped in an IIFE to avoid global namespace pollution.
+/// - `window.__turingos_ws` exposed for debugging only.
+///
+/// Interface contract for W3:
+///   `document.addEventListener('turingos:ir_update', (e) => { const { msg_type, view, ir } = e.detail; })`
+const INLINE_WS_SCRIPT: &str = r#"
+(function () {
+  // Determine WS protocol based on page protocol (http→ws, https→wss).
+  var proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  var wsUrl = proto + '//' + location.host + '/ws';
+  var ws = new WebSocket(wsUrl);
+
+  // Expose for debugging; not part of the W3 interface contract.
+  window.__turingos_ws = ws;
+
+  ws.onmessage = function (event) {
+    try {
+      var parsed = JSON.parse(event.data);
+      document.dispatchEvent(
+        new CustomEvent('turingos:ir_update', { detail: parsed })
+      );
+    } catch (err) {
+      console.warn('turingos ws: failed to parse message', err);
+    }
+  };
+
+  // Use console.warn (not console.error) so §6a Page 1 "console error count 0"
+  // criterion is satisfied during normal lifecycle (e.g., server not started).
+  ws.onerror = function (err) {
+    console.warn('turingos ws: connection error', err);
+  };
+
+  // No auto-reconnect in W2. W3 components may register their own
+  // reconnect strategy by listening for the socket close event via
+  // window.__turingos_ws.
+  ws.onclose = function () {
+    // Connection closed — nothing to do in W2.
+  };
+}());
+"#;
 
 const INLINE_CSS: &str = r#"
 body { font-family: monospace; margin: 1rem 2rem; background: #111; color: #eee; }

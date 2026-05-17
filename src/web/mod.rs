@@ -7,3 +7,4 @@ pub(crate) mod fixtures;
 pub(crate) mod ir;
 pub(crate) mod render;
 pub(crate) mod router;
+pub(crate) mod ws;

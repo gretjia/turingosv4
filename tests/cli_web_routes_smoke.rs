@@ -1,5 +1,5 @@
-//! TRACE_MATRIX FC1-N5: Phase 7 W1 smoke tests — verifies all seven read routes
-//! are wired and return correct content types and body substrings.
+//! TRACE_MATRIX FC1-N5: Phase 7 W1+W2 smoke tests — verifies all eight routes
+//! are wired (7 HTTP read routes from W1 + 1 WebSocket route from W2).
 //!
 //! Gated on `#[cfg(feature = "web")]` so non-web builds never see this.
 //! Run with: `cargo test --test cli_web_routes_smoke --features web`
@@ -75,13 +75,14 @@ async fn http_get(addr: SocketAddr, path: &str) -> (u16, String, String) {
 }
 
 // ---------------------------------------------------------------------------
-// Gate 1: all seven routes return 200.
+// Gate 1: all eight routes exist (7 HTTP returning 200 + 1 WS returning 101).
 // ---------------------------------------------------------------------------
 
 #[tokio::test]
-async fn router_has_all_seven_routes() {
+async fn router_has_all_eight_routes() {
     let addr = start_server().await;
-    let routes = [
+    // The seven HTTP read routes from W1 must return 200.
+    let http_routes = [
         "/",
         "/agents",
         "/tasks",
@@ -90,10 +91,67 @@ async fn router_has_all_seven_routes() {
         "/api/agents",
         "/api/tasks",
     ];
-    for path in &routes {
+    for path in &http_routes {
         let (status, _, _) = http_get(addr, path).await;
         assert_eq!(status, 200u16, "expected 200 for GET {path}, got {status}");
     }
+
+    // The W2 WebSocket route must return HTTP 101 Switching Protocols when
+    // a proper Upgrade request is sent (not a plain HTTP GET).
+    let (status_101, _, _) = http_get_upgrade(addr, "/ws").await;
+    assert_eq!(
+        status_101, 101u16,
+        "GET /ws with Upgrade: websocket must return 101, got {status_101}"
+    );
+}
+
+/// Send an HTTP/1.1 GET with `Upgrade: websocket` headers and return the
+/// status code from the response. Uses raw TCP — no external client dep.
+async fn http_get_upgrade(addr: SocketAddr, path: &str) -> (u16, String, String) {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    let mut stream = tokio::net::TcpStream::connect(addr)
+        .await
+        .expect("connect to test server for WS upgrade");
+
+    // Minimal valid WebSocket upgrade request as per RFC 6455.
+    let key = "dGhlIHNhbXBsZSBub25jZQ=="; // base64("the sample nonce")
+    let request = format!(
+        "GET {path} HTTP/1.1\r\n\
+         Host: 127.0.0.1\r\n\
+         Upgrade: websocket\r\n\
+         Connection: Upgrade\r\n\
+         Sec-WebSocket-Key: {key}\r\n\
+         Sec-WebSocket-Version: 13\r\n\
+         \r\n"
+    );
+    stream
+        .write_all(request.as_bytes())
+        .await
+        .expect("write WS upgrade request");
+
+    // Read just enough to get the status line (first ~256 bytes).
+    let mut buf = vec![0u8; 256];
+    let n = stream
+        .read(&mut buf)
+        .await
+        .expect("read WS upgrade response");
+    let raw = String::from_utf8_lossy(&buf[..n]).into_owned();
+
+    let (head, body) = if let Some(idx) = raw.find("\r\n\r\n") {
+        (&raw[..idx], raw[idx + 4..].to_string())
+    } else {
+        (raw.as_str(), String::new())
+    };
+
+    let status_line = head.lines().next().unwrap_or("").to_string();
+    let status_code: u16 = status_line
+        .split_whitespace()
+        .nth(1)
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0);
+
+    (status_code, head.to_string(), body)
 }
 
 // ---------------------------------------------------------------------------

@@ -2,7 +2,8 @@
 ///
 /// axum 0.7 router for TuringOS Phase 7 Web MVP.
 ///
-/// W1 adds seven read-only HTTP routes backed by compile-time fixture data:
+/// W1 adds seven read-only HTTP routes backed by compile-time fixture data.
+/// W2 adds one WebSocket route (HTTP 101 Upgrade) for real-time IR push.
 ///
 /// HTML routes (return `text/html`):
 ///   GET /          → dashboard fixture rendered to HTML
@@ -15,18 +16,22 @@
 ///   GET /api/agents    → agent-view fixture as JSON
 ///   GET /api/tasks     → task-view fixture as JSON
 ///
-/// All routes return HTTP 200 on the happy path.
+/// WebSocket route (HTTP 101 Upgrade):
+///   GET /ws        → WebSocket upgrade; pushes 3 initial IR messages on connect
+///
+/// All HTTP routes return HTTP 200 on the happy path.
 /// All items are `pub(crate)`.
 use axum::{response::Html, routing::get, Json, Router};
 
 use super::fixtures;
 use super::ir::IRRoot;
 use super::render::render_page;
+use super::ws::ws_handler;
 
-/// TRACE_MATRIX FC1-N5: read view materialization
+/// TRACE_MATRIX FC1-N5: read view materialization + real-time push channel
 ///
-/// Build the axum router with all Phase 7 W1 read routes wired.
-/// Replaces the W0 placeholder handler.
+/// Build the axum router with all Phase 7 W1 read routes and W2 WebSocket
+/// route wired. Total: 8 routes (4 HTML + 3 JSON + 1 WS).
 pub(crate) fn build() -> Router {
     Router::new()
         // HTML routes
@@ -38,6 +43,8 @@ pub(crate) fn build() -> Router {
         .route("/api/dashboard", get(handle_api_dashboard))
         .route("/api/agents", get(handle_api_agents))
         .route("/api/tasks", get(handle_api_tasks))
+        // WebSocket route (W2): HTTP 101 Upgrade → real-time IR push
+        .route("/ws", get(ws_handler))
 }
 
 /// Compatibility alias: W0 tests call `build_router()`; keep it working.
