@@ -108,6 +108,79 @@ clean-context Codex audit; user-side journey simulation scored 2.2/5 then
 3. Resume mainline G-Phase / REAL-13A / REAL-BCAST-1 work on `main` /
    active feature branches; TISR worktree is physically isolated so it
    does not block mainline ship work.
+## 📍 Main Snapshot (2026-05-17 after CAS Git Constitutional Repair merge)
+
+**CAS repair merge commit**:
+`origin/main` includes PR #3 via
+`802b18053d063bd5503a6b0eb2e7b1f46ceda93b`
+(`Merge CAS Git constitutional repair`).
+
+**Status**: CAS Git constitutional repair is now on main. The final reviewed
+repair head was `08792719ae3a9f98a5e2d3ffbf68db6d0f1186f2`, and the auditor
+verdict was `PROCEED / YES` after GitHub checks were clean. The merge was
+performed through GitHub PR merge, not by switching or mutating the active
+`atom-*` worktrees.
+
+**What changed operationally**:
+- CAS now has a Git commit-chain layer while preserving
+  `Cid = sha256(content)`.
+- `refs/chaintape/cas` advances as a CAS commit head for new writes; the
+  sidecar index remains a rebuildable cache, not the source of truth.
+- `CasStore::open()` / reload paths take the same CAS chain lock used by
+  `put()` while validating sidecar+chain, so readers do not misclassify an
+  in-flight chain+sidecar refresh as hard corruption.
+- Legacy sidecar + blob-ref CAS evidence remains readable. A forward `put`
+  upgrades such repos to the CAS commit-chain head; invalid blob refs without
+  matching legacy sidecar still fail closed.
+- EvidenceCapsule raw logs can be compressed for new capsules with manifest
+  fields for algorithm, raw size, stored size, and uncompressed SHA-256.
+
+**MiniF2F boundary**:
+MiniF2F is a development benchmark corpus, not a fixed TuringOS kernel or OS
+gate. The root workspace now excludes `experiments/minif2f_v4`, and
+`scripts/run_constitution_gates.sh` does not invoke the MiniF2F package gate.
+MiniF2F remains available only through explicit experiment commands such as
+`cargo test --manifest-path experiments/minif2f_v4/Cargo.toml ...`.
+
+**Risk / FC mapping**:
+Class 3 CAS integrity plus user-authorized Class 4 Trust Root rehash limited
+to CAS Git repair pinned files. Touches FC1 ChainTape/CAS evidence binding,
+FC2 replay/audit boot, and FC3 evidence feedback/audit views.
+
+**Merge evidence**:
+- GitHub PR #3 checks before merge:
+  Constitution gate suite PASS, Feature freeze check PASS, r022_check PASS.
+- Final core constitution gates:
+  `bash scripts/run_constitution_gates.sh` ->
+  `461 passed / 0 failed / 1 ignored`.
+- P1 race regression:
+  `cargo test --lib open_waits_for_inflight_cas_chain_cache_refresh -- --nocapture`
+  -> `1 passed`.
+- CAS store suite:
+  `cargo test --lib bottom_white::cas::store::tests -- --test-threads=1`
+  -> `35 passed / 0 failed`.
+- MiniF2F boundary gate:
+  `cargo test --test constitution_minif2f_boundary -- --test-threads=1`
+  -> `2 passed / 0 failed`.
+- Final broad workspace command on the repair branch:
+  `cargo test --workspace --no-fail-fast -- --test-threads=1` -> exit 0.
+- Final mini real-problem evidence:
+  `handover/evidence/cas_git_repair_challenge_final_20260517T095728Z/`
+  (`audit_verdict=PROCEED`, `persistence_passing=true`).
+- Final TB-18R R9 real-problem evidence:
+  `handover/evidence/cas_git_repair_challenge_final_r9_20260517T100600Z/`
+  (`P01/P02 delta=0`, `invariant_verdict=Ok`, summary JSON parseable).
+
+**Follow-up notes**:
+- The stale-lock cleanup noted by the auditor is follow-up, not a merge blocker.
+- Existing active `atom-*` worktrees remain on their own branches. They are not
+  changed by the PR merge until they explicitly rebase, merge, or recreate from
+  `main`.
+- New worktrees created from current `main` inherit the CAS Git repair.
+
+**Not historical evidence rewrite**: this section is a dynamic handover status
+update only. It does not mutate old ChainTape/CAS evidence or change historical
+reports retroactively.
 
 ---
 

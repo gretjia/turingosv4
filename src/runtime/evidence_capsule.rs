@@ -16,11 +16,16 @@
 //!
 //! /// TRACE_MATRIX architect §6.1 ruling 2026-05-02: EvidenceCapsule schema.
 
+use flate2::{read::GzDecoder, write::GzEncoder, Compression};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+use std::io::{Read, Write};
 
 use crate::bottom_white::cas::schema::Cid;
 use crate::state::q_state::{AgentId, Hash, TaskId};
 use crate::state::typed_tx::{CapsulePrivacyPolicy, ExhaustionReason, RunId};
+
+const DEFAULT_MAX_EVIDENCE_LOG_UNCOMPRESSED_BYTES: u64 = 64 * 1024 * 1024;
 
 /// TRACE_MATRIX TB-11 (architect §6.1 ruling 2026-05-02) — CAS-resident
 /// evidence rollup for a failed evaluator run.
@@ -183,13 +188,144 @@ impl From<crate::bottom_white::cas::store::CasError> for CapsuleWriteError {
     }
 }
 
+fn sha256_hex(bytes: &[u8]) -> String {
+    Sha256::digest(bytes)
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect()
+}
+
+fn gzip_compress(bytes: &[u8]) -> Result<Vec<u8>, CapsuleWriteError> {
+    let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+    encoder
+        .write_all(bytes)
+        .map_err(|e| CapsuleWriteError::Encode(format!("gzip write: {e}")))?;
+    encoder
+        .finish()
+        .map_err(|e| CapsuleWriteError::Encode(format!("gzip finish: {e}")))
+}
+
+fn max_evidence_log_uncompressed_bytes() -> u64 {
+    std::env::var("TURINGOS_EVIDENCE_LOG_MAX_UNCOMPRESSED_BYTES")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(DEFAULT_MAX_EVIDENCE_LOG_UNCOMPRESSED_BYTES)
+}
+
+fn gzip_decompress_bounded(bytes: &[u8], expected_size: u64) -> Result<Vec<u8>, CapsuleWriteError> {
+    let max_size = max_evidence_log_uncompressed_bytes();
+    if expected_size > max_size {
+        return Err(CapsuleWriteError::Encode(format!(
+            "gzip evidence log manifest size {expected_size} exceeds max {max_size}"
+        )));
+    }
+    let mut decoder = GzDecoder::new(bytes);
+    let limit = expected_size
+        .checked_add(1)
+        .ok_or_else(|| CapsuleWriteError::Encode("gzip evidence log size overflow".into()))?;
+    let mut limited = decoder.by_ref().take(limit);
+    let mut out = Vec::new();
+    limited
+        .read_to_end(&mut out)
+        .map_err(|e| CapsuleWriteError::Encode(format!("gzip decode: {e}")))?;
+    if out.len() as u64 > expected_size {
+        return Err(CapsuleWriteError::Encode(format!(
+            "gzip evidence log exceeded manifest uncompressed size {expected_size}"
+        )));
+    }
+    Ok(out)
+}
+
+/// Read the audit-only raw log for an EvidenceCapsule. New capsules store a
+/// gzip-compressed log and verify the uncompressed sha256 from the manifest;
+/// historical TB-11 `none-tb11-mvp` capsules remain readable.
+///
+/// TRACE_MATRIX FC3-archive + Art. 0.2: audit-only raw-log readback must
+/// verify CAS/manifest compression metadata without becoming agent prompt
+/// source-of-truth.
+pub fn read_evidence_capsule_raw_log(
+    cas: &CasStore,
+    capsule: &EvidenceCapsule,
+) -> Result<Vec<u8>, CapsuleWriteError> {
+    let manifest_bytes = cas.get(&capsule.evidence_manifest_cid)?;
+    let manifest: serde_json::Value = serde_json::from_slice(&manifest_bytes)
+        .map_err(|e| CapsuleWriteError::Encode(format!("manifest decode: {e}")))?;
+    if let Some(cid_hex) = manifest.get("compressed_log_cid").and_then(|v| v.as_str()) {
+        if cid_hex != capsule.compressed_log_cid.hex() {
+            return Err(CapsuleWriteError::Encode(format!(
+                "manifest compressed_log_cid {cid_hex} does not match capsule {}",
+                capsule.compressed_log_cid.hex()
+            )));
+        }
+    }
+
+    let stored = cas.get(&capsule.compressed_log_cid)?;
+    if let Some(expected) = manifest.get("size_bytes_stored").and_then(|v| v.as_u64()) {
+        if stored.len() as u64 != expected {
+            return Err(CapsuleWriteError::Encode(format!(
+                "stored log size mismatch: manifest={expected}, actual={}",
+                stored.len()
+            )));
+        }
+    }
+
+    let expected_uncompressed_size = manifest
+        .get("size_bytes_uncompressed")
+        .and_then(|v| v.as_u64());
+    let expected_uncompressed_sha = manifest.get("uncompressed_sha256").and_then(|v| v.as_str());
+    let algorithm = manifest
+        .get("compression_algorithm")
+        .or_else(|| manifest.get("compression"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("none-tb11-mvp");
+    let raw = match algorithm {
+        "gzip" => {
+            let expected = expected_uncompressed_size.ok_or_else(|| {
+                CapsuleWriteError::Encode(
+                    "gzip evidence log manifest missing size_bytes_uncompressed".into(),
+                )
+            })?;
+            if expected_uncompressed_sha.is_none() {
+                return Err(CapsuleWriteError::Encode(
+                    "gzip evidence log manifest missing uncompressed_sha256".into(),
+                ));
+            }
+            gzip_decompress_bounded(&stored, expected)?
+        }
+        "none-tb11-mvp" | "none" => stored,
+        other => {
+            return Err(CapsuleWriteError::Encode(format!(
+                "unsupported evidence log compression algorithm: {other}"
+            )))
+        }
+    };
+
+    if let Some(expected) = expected_uncompressed_size {
+        if raw.len() as u64 != expected {
+            return Err(CapsuleWriteError::Encode(format!(
+                "uncompressed log size mismatch: manifest={expected}, actual={}",
+                raw.len()
+            )));
+        }
+    }
+    if let Some(expected) = expected_uncompressed_sha {
+        let actual = sha256_hex(&raw);
+        if actual != expected {
+            return Err(CapsuleWriteError::Encode(format!(
+                "uncompressed log sha256 mismatch: manifest={expected}, actual={actual}"
+            )));
+        }
+    }
+
+    Ok(raw)
+}
+
 /// TRACE_MATRIX TB-11 Atom 3 (architect §6.1): write an EvidenceCapsule to
 /// CAS. The flow:
 ///
-/// 1. Compute sha256 of raw run log → write to CAS as `CompressedRunLog`.
-///    (TB-11 MVP stores **uncompressed** raw bytes; gzip wrapping is
-///    forward-compat in TB-15 Markov Loom. The Cid is still unique;
-///    audit access still requires `privacy_policy: AuditOnly`.)
+/// 1. Gzip-compress raw run log → write to CAS as `CompressedRunLog`.
+///    The manifest records algorithm, raw/stored sizes, and uncompressed
+///    sha256; audit access still requires `privacy_policy: AuditOnly`.
 /// 2. Build minimal JSON manifest enumerating compressed_log_cid +
 ///    size_bytes + sha256 → write to CAS as `EvidenceManifest`.
 /// 3. Build the `EvidenceCapsule` struct with `capsule_id =
@@ -218,24 +354,35 @@ pub fn write_evidence_capsule(
     creator_str: &str,
     created_at_logical_t: u64,
 ) -> Result<EvidenceCapsule, CapsuleWriteError> {
-    // Step 1: write raw log to CAS (uncompressed for TB-11 MVP).
+    // Step 1: write gzip-compressed raw log to CAS.
+    let raw_len = raw_log_bytes.len() as u64;
+    let max_raw_len = max_evidence_log_uncompressed_bytes();
+    if raw_len > max_raw_len {
+        return Err(CapsuleWriteError::Encode(format!(
+            "raw evidence log size {raw_len} exceeds max {max_raw_len}"
+        )));
+    }
+    let compressed_log_bytes = gzip_compress(raw_log_bytes)?;
+    let raw_log_sha256 = sha256_hex(raw_log_bytes);
     let mut cas_w = cas
         .write()
         .map_err(|_| CapsuleWriteError::InternalLockPoisoned)?;
     let compressed_log_cid = cas_w.put(
-        raw_log_bytes,
+        &compressed_log_bytes,
         ObjectType::CompressedRunLog,
         creator_str,
         created_at_logical_t,
-        Some("v1/evidence_capsule_raw_log".into()),
+        Some("v2/evidence_capsule_raw_log.gzip".into()),
     )?;
     // Step 2: build + write manifest JSON.
     let manifest_json = serde_json::json!({
-        "schema_version": "v1/evidence_manifest",
+        "schema_version": "v2/evidence_manifest",
         "compressed_log_cid": compressed_log_cid.hex(),
+        "compression_algorithm": "gzip",
+        "compression": "gzip",
         "size_bytes_uncompressed": raw_log_bytes.len() as u64,
-        "size_bytes_stored": raw_log_bytes.len() as u64,
-        "compression": "none-tb11-mvp",
+        "size_bytes_stored": compressed_log_bytes.len() as u64,
+        "uncompressed_sha256": raw_log_sha256,
     });
     let manifest_bytes = serde_json::to_vec(&manifest_json)
         .map_err(|e| CapsuleWriteError::Encode(format!("manifest encode: {e}")))?;
@@ -244,7 +391,7 @@ pub fn write_evidence_capsule(
         ObjectType::EvidenceManifest,
         creator_str,
         created_at_logical_t,
-        Some("v1/evidence_manifest".into()),
+        Some("v2/evidence_manifest".into()),
     )?;
 
     // Step 3: build capsule with sha256 = 0 + capsule_id = 0; canonical
@@ -323,6 +470,28 @@ pub fn restore_evidence_capsule_from_cas_bytes(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    struct EnvGuard {
+        key: &'static str,
+        old: Option<String>,
+    }
+
+    impl EnvGuard {
+        fn set(key: &'static str, value: &str) -> Self {
+            let old = std::env::var(key).ok();
+            std::env::set_var(key, value);
+            Self { key, old }
+        }
+    }
+
+    impl Drop for EnvGuard {
+        fn drop(&mut self) {
+            match &self.old {
+                Some(value) => std::env::set_var(self.key, value),
+                None => std::env::remove_var(self.key),
+            }
+        }
+    }
 
     /// TB-11 U1: EvidenceCapsule default round-trips through canonical bytes.
     #[test]
@@ -422,9 +591,241 @@ mod tests {
             "writer puts 3 CAS objects: log + manifest + capsule"
         );
 
-        // raw log retrievable by compressed_log_cid.
-        let retrieved = cas_r.get(&capsule.compressed_log_cid).expect("get raw");
+        // raw log retrievable through manifest-verified decompression.
+        let retrieved =
+            read_evidence_capsule_raw_log(&cas_r, &capsule).expect("get/decompress raw");
         assert_eq!(retrieved, raw_log);
+    }
+
+    #[test]
+    fn compressed_raw_log_round_trips_and_manifest_hash_verifies() {
+        use sha2::{Digest, Sha256};
+        use std::sync::{Arc, RwLock};
+        use tempfile::TempDir;
+
+        let tmp = TempDir::new().expect("tempdir");
+        let cas = Arc::new(RwLock::new(
+            crate::bottom_white::cas::store::CasStore::open(tmp.path()).expect("cas"),
+        ));
+
+        let counts = ExhaustionCounts {
+            attempt_count: 12,
+            lean_error_count: 8,
+            sorry_block_count: 2,
+            protocol_parse_failure_count: 1,
+            partial_accept_count: 1,
+        };
+        let raw_log = b"attempt=1 lean_error\nattempt=2 lean_error\nattempt=3 lean_error\n\
+            attempt=4 lean_error\nattempt=5 lean_error\nattempt=6 lean_error\n";
+
+        let capsule = write_evidence_capsule(
+            &cas,
+            RunId("run-compression".into()),
+            crate::state::q_state::TaskId("task:compression".into()),
+            None,
+            counts,
+            (3, 15),
+            ExhaustionReason::MaxTxExhausted,
+            raw_log,
+            CapsulePrivacyPolicy::AuditOnly,
+            "evaluator-compression",
+            15,
+        )
+        .expect("writer succeeds");
+
+        let cas_r = cas.read().expect("cas read");
+        let manifest_bytes = cas_r.get(&capsule.evidence_manifest_cid).expect("manifest");
+        let manifest: serde_json::Value =
+            serde_json::from_slice(&manifest_bytes).expect("manifest json");
+        let manifest_meta = cas_r
+            .metadata(&capsule.evidence_manifest_cid)
+            .expect("manifest metadata");
+        assert_eq!(manifest["compression_algorithm"], "gzip");
+        assert_eq!(manifest["schema_version"], "v2/evidence_manifest");
+        assert_eq!(
+            manifest_meta.schema_id.as_deref(),
+            Some("v2/evidence_manifest"),
+            "manifest JSON schema_version and CAS metadata schema_id must match"
+        );
+        assert_eq!(
+            manifest["size_bytes_uncompressed"].as_u64(),
+            Some(raw_log.len() as u64)
+        );
+        assert!(
+            manifest["size_bytes_stored"].as_u64().unwrap() < raw_log.len() as u64,
+            "repetitive raw log should be materially compressed"
+        );
+
+        let mut h = Sha256::new();
+        h.update(raw_log);
+        let expected_sha = h
+            .finalize()
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect::<String>();
+        assert_eq!(manifest["uncompressed_sha256"], expected_sha);
+
+        let stored_bytes = cas_r
+            .get(&capsule.compressed_log_cid)
+            .expect("compressed log");
+        assert_ne!(
+            stored_bytes, raw_log,
+            "new EvidenceCapsule raw logs must be stored compressed"
+        );
+        let restored = read_evidence_capsule_raw_log(&cas_r, &capsule)
+            .expect("decompress and verify manifest hash");
+        assert_eq!(restored, raw_log);
+    }
+
+    #[test]
+    fn writer_rejects_raw_log_above_default_readback_cap() {
+        use std::sync::{Arc, RwLock};
+        use tempfile::TempDir;
+
+        let _guard = EnvGuard::set("TURINGOS_EVIDENCE_LOG_MAX_UNCOMPRESSED_BYTES", "4");
+        let tmp = TempDir::new().expect("tempdir");
+        let cas = Arc::new(RwLock::new(
+            crate::bottom_white::cas::store::CasStore::open(tmp.path()).expect("cas"),
+        ));
+        let counts = ExhaustionCounts {
+            attempt_count: 1,
+            lean_error_count: 1,
+            sorry_block_count: 0,
+            protocol_parse_failure_count: 0,
+            partial_accept_count: 0,
+        };
+        let err = write_evidence_capsule(
+            &cas,
+            RunId("run-too-large".into()),
+            crate::state::q_state::TaskId("task:too-large".into()),
+            None,
+            counts,
+            (0, 1),
+            ExhaustionReason::MaxTxExhausted,
+            b"12345",
+            CapsulePrivacyPolicy::AuditOnly,
+            "evaluator",
+            1,
+        )
+        .expect_err("writer must not create capsules that default readback rejects");
+        assert!(
+            err.to_string().contains("raw evidence log size"),
+            "expected raw size cap error, got {err}"
+        );
+    }
+
+    #[test]
+    fn gzip_manifest_missing_uncompressed_size_fails_closed() {
+        use std::sync::{Arc, RwLock};
+        use tempfile::TempDir;
+
+        let tmp = TempDir::new().expect("tempdir");
+        let cas = Arc::new(RwLock::new(
+            crate::bottom_white::cas::store::CasStore::open(tmp.path()).expect("cas"),
+        ));
+        let raw_log = b"bounded gzip log\nbounded gzip log\n";
+        let compressed = gzip_compress(raw_log).expect("compress");
+        let raw_sha = sha256_hex(raw_log);
+        let mut cas_w = cas.write().expect("cas write");
+        let compressed_log_cid = cas_w
+            .put(
+                &compressed,
+                ObjectType::CompressedRunLog,
+                "test",
+                1,
+                Some("v2/evidence_capsule_raw_log.gzip".into()),
+            )
+            .expect("compressed log put");
+        let manifest = serde_json::json!({
+            "schema_version": "v2/evidence_manifest",
+            "compressed_log_cid": compressed_log_cid.hex(),
+            "compression_algorithm": "gzip",
+            "compression": "gzip",
+            "size_bytes_stored": compressed.len() as u64,
+            "uncompressed_sha256": raw_sha,
+        });
+        let manifest_bytes = serde_json::to_vec(&manifest).expect("manifest encode");
+        let evidence_manifest_cid = cas_w
+            .put(
+                &manifest_bytes,
+                ObjectType::EvidenceManifest,
+                "test",
+                1,
+                Some("v2/evidence_manifest".into()),
+            )
+            .expect("manifest put");
+        drop(cas_w);
+
+        let capsule = EvidenceCapsule {
+            evidence_manifest_cid,
+            compressed_log_cid,
+            ..EvidenceCapsule::default()
+        };
+        let cas_r = cas.read().expect("cas read");
+        let err = read_evidence_capsule_raw_log(&cas_r, &capsule)
+            .expect_err("gzip manifest missing size must fail closed");
+        assert!(
+            err.to_string().contains("size_bytes_uncompressed"),
+            "expected missing size error, got {err}"
+        );
+    }
+
+    #[test]
+    fn gzip_manifest_understated_uncompressed_size_fails_bounded() {
+        use std::sync::{Arc, RwLock};
+        use tempfile::TempDir;
+
+        let tmp = TempDir::new().expect("tempdir");
+        let cas = Arc::new(RwLock::new(
+            crate::bottom_white::cas::store::CasStore::open(tmp.path()).expect("cas"),
+        ));
+        let raw_log = b"this expands beyond the claimed size";
+        let compressed = gzip_compress(raw_log).expect("compress");
+        let raw_sha = sha256_hex(raw_log);
+        let mut cas_w = cas.write().expect("cas write");
+        let compressed_log_cid = cas_w
+            .put(
+                &compressed,
+                ObjectType::CompressedRunLog,
+                "test",
+                1,
+                Some("v2/evidence_capsule_raw_log.gzip".into()),
+            )
+            .expect("compressed log put");
+        let manifest = serde_json::json!({
+            "schema_version": "v2/evidence_manifest",
+            "compressed_log_cid": compressed_log_cid.hex(),
+            "compression_algorithm": "gzip",
+            "compression": "gzip",
+            "size_bytes_uncompressed": 1_u64,
+            "size_bytes_stored": compressed.len() as u64,
+            "uncompressed_sha256": raw_sha,
+        });
+        let manifest_bytes = serde_json::to_vec(&manifest).expect("manifest encode");
+        let evidence_manifest_cid = cas_w
+            .put(
+                &manifest_bytes,
+                ObjectType::EvidenceManifest,
+                "test",
+                1,
+                Some("v2/evidence_manifest".into()),
+            )
+            .expect("manifest put");
+        drop(cas_w);
+
+        let capsule = EvidenceCapsule {
+            evidence_manifest_cid,
+            compressed_log_cid,
+            ..EvidenceCapsule::default()
+        };
+        let cas_r = cas.read().expect("cas read");
+        let err = read_evidence_capsule_raw_log(&cas_r, &capsule)
+            .expect_err("gzip manifest understated size must fail closed");
+        assert!(
+            err.to_string()
+                .contains("exceeded manifest uncompressed size"),
+            "expected bounded decode error, got {err}"
+        );
     }
 
     /// TB-11 Atom 3 — Writer: same inputs → same capsule_id (deterministic).

@@ -9,6 +9,7 @@ argon2 = "0.5"
 bincode = { version = "2", features = ["serde"] }
 chacha20poly1305 = "0.10"
 ed25519-dalek = "2"
+flate2 = "1"
 getrandom = "0.2"
 git2 = { version = "0.20", default-features = false }
 libc = "0.2"
@@ -27,4 +28,5 @@ tempfile = "3"
 tokio-test = "0.4"
 
 [workspace]
-members = [".", "experiments/minif2f_v4", "spike/gix_capability"]
+members = [".", "spike/gix_capability"]
+exclude = ["experiments/minif2f_v4"]
