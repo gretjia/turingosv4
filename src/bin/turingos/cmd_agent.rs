@@ -4,6 +4,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
+use crate::common::shell_quote_path;
+
 /// TRACE_MATRIX FC2-N16: `agent` short-help (registry display)
 pub(crate) const SHORT_HELP: &str =
     "Manage agent_pubkeys.json (deploy/list/view; map agent_id -> {pubkey, role})";
@@ -177,18 +179,23 @@ fn run_inner(args: &[String]) -> Result<(), AgentError> {
         "list" => {
             let entries = read_entries(&pubkeys_path)?;
             if entries.is_empty() {
+                // Use shell_quote_path on every path that goes into a
+                // copy-pasteable command, so workspaces with spaces /
+                // shell-special chars stay correct (R3 finding).
+                let workspace_q = shell_quote_path(&workspace);
                 if pubkeys_path.exists() {
-                    println!("(no agents registered in {})", pubkeys_path.display());
+                    println!(
+                        "(no agents registered in {})",
+                        shell_quote_path(&pubkeys_path)
+                    );
                 } else {
                     println!(
-                        "(no agents registered; agent_pubkeys.json not yet created in {})",
-                        workspace.display()
+                        "(no agents registered; agent_pubkeys.json not yet created in {workspace_q})"
                     );
                 }
                 println!(
                     "  Run `turingos agent deploy --id <ID> --pubkey <64HEX> --role <ROLE> \
-                     --workspace {}` to add one.",
-                    workspace.display()
+                     --workspace {workspace_q}` to add one."
                 );
             } else {
                 for (id, pubkey, role) in entries {

@@ -179,3 +179,40 @@ fn turingos_agent_invalid_role_rejected() {
         "expected non-zero exit on invalid role"
     );
 }
+
+// ───────────────────────────────────────────────────────────────────────────
+// R3 finding: empty-list deploy hint must shell-quote workspace paths so
+// copy-paste survives whitespace.
+// ───────────────────────────────────────────────────────────────────────────
+
+#[test]
+fn turingos_agent_list_empty_hint_quotes_whitespace_path() {
+    // Create a workspace whose path contains a space, run `agent list`
+    // against the freshly-init'd dir (no agents registered yet), and
+    // verify the deploy hint quotes the workspace path single-quote-style.
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let space_path = tmp.path().join("ws with space");
+    std::fs::create_dir(&space_path).expect("mkdir space-path");
+
+    let output = Command::new(turingos_bin())
+        .arg("agent")
+        .arg("list")
+        .arg("--workspace")
+        .arg(&space_path)
+        .output()
+        .expect("run turingos agent list");
+
+    assert!(
+        output.status.success(),
+        "agent list on a clean workspace should exit 0; status={:?}",
+        output.status,
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let space_str = space_path.to_string_lossy().to_string();
+    let quoted = format!("'{}'", space_str.replace('\'', r"'\''"));
+    assert!(
+        stdout.contains(&quoted),
+        "deploy hint should contain shell-quoted workspace path {quoted:?}; \
+         got: {stdout:?}",
+    );
+}

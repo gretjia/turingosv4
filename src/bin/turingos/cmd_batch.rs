@@ -8,9 +8,11 @@
 //! no typed_tx, no CAS write, no ChainTape advance.
 
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::time::{SystemTime, UNIX_EPOCH};
+
+use crate::common::shell_quote_path;
 
 // ─────────────────────────────────────────────────────────────────────
 // Public API strings
@@ -207,8 +209,11 @@ fn action_new(name: &str, workspace: &str, problems: Option<&str>) -> Result<(),
     println!("Created batch scaffold: {}", batch_dir.display());
     println!("  manifest: {}", manifest_path.display());
     println!();
-    println!("Run `turingos batch list --workspace {workspace}` to see all batches.");
-    println!("Run `turingos batch view --name {name} --workspace {workspace}` to inspect.");
+    // Shell-quote the workspace path so copy-paste survives spaces and
+    // shell-special characters (R3 finding).
+    let workspace_q = shell_quote_path(Path::new(workspace));
+    println!("Run `turingos batch list --workspace {workspace_q}` to see all batches.");
+    println!("Run `turingos batch view --name {name} --workspace {workspace_q}` to inspect.");
 
     Ok(())
 }
@@ -218,9 +223,12 @@ fn action_list(workspace: &str) -> Result<(), BatchError> {
     let batches_dir = PathBuf::from(workspace).join("batches");
 
     if !batches_dir.exists() {
+        let workspace_q = shell_quote_path(Path::new(workspace));
         println!("No batches found (batches/ directory does not exist yet).");
-        println!("  workspace: {workspace}");
-        println!("  Run `turingos batch new --name <NAME> --workspace {workspace}` to create one.");
+        println!("  workspace: {workspace_q}");
+        println!(
+            "  Run `turingos batch new --name <NAME> --workspace {workspace_q}` to create one."
+        );
         return Ok(());
     }
 
