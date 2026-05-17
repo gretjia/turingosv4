@@ -23,6 +23,10 @@ use std::process::ExitCode;
 mod cmd_init;
 #[path = "turingos/common.rs"]
 mod common;
+#[path = "turingos/siliconflow_client.rs"]
+mod siliconflow_client;
+#[path = "turingos/spec_capsule.rs"]
+mod spec_capsule;
 // MODULES-REGISTRY-BEGIN
 // (each Wave 1-3 atom appends `#[path = ...] mod cmd_<name>;` lines here, before END anchor)
 #[path = "turingos/cmd_agent.rs"]
@@ -65,6 +69,14 @@ mod cmd_task_view;
 mod cmd_verify_chaintape;
 #[path = "turingos/cmd_verify_e2_candidate.rs"]
 mod cmd_verify_e2_candidate;
+#[path = "turingos/cmd_welcome.rs"]
+mod cmd_welcome;
+#[path = "turingos/cmd_llm.rs"]
+mod cmd_llm;
+#[path = "turingos/cmd_spec.rs"]
+mod cmd_spec;
+#[path = "turingos/cmd_generate.rs"]
+mod cmd_generate;
 // MODULES-REGISTRY-END
 
 const VERSION_STR: &str = concat!("turingos ", env!("CARGO_PKG_VERSION"));
@@ -183,11 +195,31 @@ const SUBCOMMANDS: &[Subcommand] = &[
         short_help: cmd_render::SHORT_HELP,
         run: cmd_render::run,
     },
+    Subcommand {
+        name: "welcome",
+        short_help: cmd_welcome::SHORT_HELP,
+        run: cmd_welcome::run,
+    },
+    Subcommand {
+        name: "llm",
+        short_help: cmd_llm::SHORT_HELP,
+        run: cmd_llm::run,
+    },
+    Subcommand {
+        name: "spec",
+        short_help: cmd_spec::SHORT_HELP,
+        run: cmd_spec::run,
+    },
+    Subcommand {
+        name: "generate",
+        short_help: cmd_generate::SHORT_HELP,
+        run: cmd_generate::run,
+    },
     // SUBCOMMANDS-REGISTRY-END
 ];
 
 fn print_top_help() {
-    println!("turingos — TuringOS user CLI (Phase 6.2)");
+    println!("turingos — TuringOS user CLI (Phase 6.3 demo)");
     println!();
     println!("USAGE:");
     println!("    turingos <SUBCOMMAND> [OPTIONS]");
