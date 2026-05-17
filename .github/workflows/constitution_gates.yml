@@ -100,12 +100,10 @@ jobs:
             echo "::error::Closure condition #2: trace matrix missing"
             exit 1
           fi
-          # CR-C0.1: no assert!(true) stubs — grep all 8 test files
-          if grep -rn "assert!(true)" tests/constitution_*.rs >/dev/null 2>&1; then
-            echo "::error::CR-C0.1 violation: assert!(true) stub in constitution tests"
-            grep -rn "assert!(true)" tests/constitution_*.rs
-            exit 1
-          fi
+          # CR-C0.1: no trivial assertion stubs. Use the same scanner as the
+          # local constitution gate so comments and scanner self-tests are not
+          # mistaken for executable stubs.
+          cargo test --test constitution_closure_3_no_trivial_asserts -- --test-threads=1
 
   freeze_check:
     name: Feature freeze check
