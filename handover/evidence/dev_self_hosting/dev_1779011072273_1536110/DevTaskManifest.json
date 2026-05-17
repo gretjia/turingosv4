@@ -1,0 +1,28 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1779011072273_1536110",
+  "title": "TISR Phase 6.0/6.1 alpha: turingos init first slice",
+  "module": "Harness",
+  "molecule_or_atom": "molecule",
+  "requested_risk_class": 1,
+  "risk_class": 1,
+  "fc_nodes": [
+    "FC2-N16",
+    "FC2-N21"
+  ],
+  "allowed_paths": [
+    "src/bin/turingos.rs",
+    "src/cli/**",
+    "tests/cli_*.rs",
+    "Cargo.toml"
+  ],
+  "restricted_surface_hits": [],
+  "acceptance_commands": [
+    "cargo check"
+  ],
+  "audit_required": false,
+  "human_intent": null,
+  "ratification": null,
+  "git_head": "d04a8d240c998f329aa800574c1c3acae81f7fae",
+  "created_at_unix_ms": 1779011072276
+}

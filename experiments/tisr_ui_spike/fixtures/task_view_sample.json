@@ -1,0 +1,142 @@
+{
+  "id": "task-view:minif2f::algebra::amc12_2002_p11",
+  "title": "turingos task view — minif2f::algebra::amc12_2002_p11",
+  "blocks": [
+    {
+      "id": "blk-task-card",
+      "kind": "task_card",
+      "task_id": "tx:0000000d4e5f6a7b",
+      "problem_id": "minif2f::algebra::amc12_2002_p11",
+      "status": "solved",
+      "reward_micro": 350000,
+      "attempt_count": 5,
+      "assigned_agent_id": "agent:ProofAgent:0x4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a"
+    },
+    {
+      "id": "blk-task-detail-panel",
+      "kind": "dashboard_panel",
+      "panel_title": "Task Details",
+      "metrics": [
+        { "label": "task_id",           "value": "tx:0000000d4e5f6a7b" },
+        { "label": "problem_id",        "value": "minif2f::algebra::amc12_2002_p11" },
+        { "label": "status",            "value": "solved" },
+        { "label": "escrow_locked_μC",  "value": 350000,   "unit": "μC" },
+        { "label": "reward_paid_μC",    "value": 350000,   "unit": "μC" },
+        { "label": "total_attempts",    "value": 5,        "unit": "attempts" },
+        { "label": "l4_accepted",       "value": 1,        "unit": "tx" },
+        { "label": "l4e_rejected",      "value": 4,        "unit": "tx" },
+        { "label": "attempt_equality",  "value": "PASS" },
+        { "label": "opened_at_tx",      "value": "tx:0000000c0a1b2c3d" },
+        { "label": "finalized_at_tx",   "value": "tx:0000000d4e5f6a7b" },
+        { "label": "prompt_capsule_cid","value": "cid:bafkrei1234567890abcdef" }
+      ]
+    },
+    {
+      "id": "blk-attempt-table",
+      "kind": "table",
+      "caption": "Attempt history for this task",
+      "columns": ["attempt_#", "layer", "tx_id", "kind", "summary"],
+      "rows": [
+        [
+          { "kind": "integer", "value": 1 },
+          { "kind": "string",  "value": "L4E" },
+          { "kind": "tx_id",   "value": "tx:0000000e1f2a3b4c" },
+          { "kind": "string",  "value": "ParseFailed" },
+          { "kind": "string",  "value": "LLM output was not valid Lean 4 syntax" }
+        ],
+        [
+          { "kind": "integer", "value": 2 },
+          { "kind": "string",  "value": "L4E" },
+          { "kind": "tx_id",   "value": "tx:0000000f2g3h4i5j" },
+          { "kind": "string",  "value": "SorryBlocked" },
+          { "kind": "string",  "value": "sorry tactic detected in proof body" }
+        ],
+        [
+          { "kind": "integer", "value": 3 },
+          { "kind": "string",  "value": "L4E" },
+          { "kind": "tx_id",   "value": "tx:0000000g3h4i5j6k" },
+          { "kind": "string",  "value": "LeanFailed" },
+          { "kind": "string",  "value": "typecheck error: expected Nat, got Int at line 7" }
+        ],
+        [
+          { "kind": "integer", "value": 4 },
+          { "kind": "string",  "value": "L4E" },
+          { "kind": "tx_id",   "value": "tx:0000000h4i5j6k7l" },
+          { "kind": "string",  "value": "LeanFailed" },
+          { "kind": "string",  "value": "theorem name mismatch: expected amc12_2002_p11, got amc12_2002_p11_v2" }
+        ],
+        [
+          { "kind": "integer", "value": 5 },
+          { "kind": "string",  "value": "L4" },
+          { "kind": "tx_id",   "value": "tx:0000000d4e5f6a7b" },
+          { "kind": "string",  "value": "WorkTx" },
+          { "kind": "string",  "value": "Proof accepted; all predicates pass; reward queued" }
+        ]
+      ]
+    },
+    {
+      "id": "blk-cas-artifacts",
+      "kind": "table",
+      "caption": "CAS artifacts for this task",
+      "columns": ["artifact_kind", "cid", "attempt_#"],
+      "rows": [
+        [
+          { "kind": "string", "value": "PromptCapsule" },
+          { "kind": "cid",    "value": "cid:bafkrei1234567890abcdef" },
+          { "kind": "integer","value": 1 }
+        ],
+        [
+          { "kind": "string", "value": "AttemptTelemetry" },
+          { "kind": "cid",    "value": "cid:bafkrei0987654321fedcba" },
+          { "kind": "integer","value": 5 }
+        ],
+        [
+          { "kind": "string", "value": "LeanResult" },
+          { "kind": "cid",    "value": "cid:bafkreiabcdef1234567890" },
+          { "kind": "integer","value": 5 }
+        ],
+        [
+          { "kind": "string", "value": "EvidenceCapsule" },
+          { "kind": "cid",    "value": "cid:bafkreifedcba0987654321" },
+          { "kind": "integer","value": 5 }
+        ]
+      ]
+    },
+    {
+      "id": "blk-task-events",
+      "kind": "event_log",
+      "events": [
+        {
+          "tx_id": "tx:0000000c0a1b2c3d",
+          "kind": "TaskOpenTx",
+          "layer": "L4",
+          "summary": "Task opened: minif2f::algebra::amc12_2002_p11; escrow 350000 μC locked"
+        },
+        {
+          "tx_id": "tx:0000000c1b2c3d4e",
+          "kind": "EscrowLockTx",
+          "layer": "L4",
+          "summary": "Escrow locked 350000 μC for task; agent assigned"
+        },
+        {
+          "tx_id": "tx:0000000e1f2a3b4c",
+          "kind": "ParseFailed",
+          "layer": "L4E",
+          "summary": "Attempt 1 rejected: parse failure"
+        },
+        {
+          "tx_id": "tx:0000000d4e5f6a7b",
+          "kind": "WorkTx",
+          "layer": "L4",
+          "summary": "Attempt 5 accepted; proof verified"
+        },
+        {
+          "tx_id": "tx:0000000e5f6a7b8c",
+          "kind": "FinalizeRewardTx",
+          "layer": "L4",
+          "summary": "Reward 350000 μC paid to agent:ProofAgent:0x4d5e6f…"
+        }
+      ]
+    }
+  ]
+}

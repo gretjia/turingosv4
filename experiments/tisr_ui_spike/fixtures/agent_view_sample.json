@@ -1,0 +1,113 @@
+{
+  "id": "agent-list:2026-05-17T12:00:00Z",
+  "title": "turingos agent list — 2026-05-17",
+  "blocks": [
+    {
+      "id": "blk-agent-list-text",
+      "kind": "text",
+      "content": "Agent registry snapshot. Derived from AgentRegistry ChainTape entries. Materialized view — not authoritative (FC3-N31)."
+    },
+    {
+      "id": "blk-agent-alpha",
+      "kind": "agent_card",
+      "agent_id": "agent:ProofAgent:0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d",
+      "role": "ProofAgent",
+      "balance_micro": 9850000,
+      "status": "active"
+    },
+    {
+      "id": "blk-agent-beta",
+      "kind": "agent_card",
+      "agent_id": "agent:ProofAgent:0x4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a",
+      "role": "ProofAgent",
+      "balance_micro": 8200000,
+      "status": "active"
+    },
+    {
+      "id": "blk-agent-gamma",
+      "kind": "agent_card",
+      "agent_id": "agent:ProofAgent:0x7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v",
+      "role": "ProofAgent",
+      "balance_micro": 6100000,
+      "status": "active"
+    },
+    {
+      "id": "blk-librarian",
+      "kind": "agent_card",
+      "agent_id": "agent:LibrarianAgent:0xlib0001ab2cd3ef4",
+      "role": "LibrarianAgent",
+      "balance_micro": 2500000,
+      "status": "active"
+    },
+    {
+      "id": "blk-market-maker",
+      "kind": "agent_card",
+      "agent_id": "agent:MarketMakerAgent:0xmm0001bc2de3fg5",
+      "role": "MarketMakerAgent",
+      "balance_micro": 3950000,
+      "status": "active"
+    },
+    {
+      "id": "blk-agent-summary-table",
+      "kind": "table",
+      "caption": "Agent registry summary",
+      "columns": ["agent_id", "role", "balance_μC", "status"],
+      "rows": [
+        [
+          { "kind": "agent_id",  "value": "agent:ProofAgent:0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d" },
+          { "kind": "string",    "value": "ProofAgent" },
+          { "kind": "microcoin", "value": 9850000 },
+          { "kind": "string",    "value": "active" }
+        ],
+        [
+          { "kind": "agent_id",  "value": "agent:ProofAgent:0x4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a" },
+          { "kind": "string",    "value": "ProofAgent" },
+          { "kind": "microcoin", "value": 8200000 },
+          { "kind": "string",    "value": "active" }
+        ],
+        [
+          { "kind": "agent_id",  "value": "agent:ProofAgent:0x7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v" },
+          { "kind": "string",    "value": "ProofAgent" },
+          { "kind": "microcoin", "value": 6100000 },
+          { "kind": "string",    "value": "active" }
+        ],
+        [
+          { "kind": "agent_id",  "value": "agent:LibrarianAgent:0xlib0001ab2cd3ef4" },
+          { "kind": "string",    "value": "LibrarianAgent" },
+          { "kind": "microcoin", "value": 2500000 },
+          { "kind": "string",    "value": "active" }
+        ],
+        [
+          { "kind": "agent_id",  "value": "agent:MarketMakerAgent:0xmm0001bc2de3fg5" },
+          { "kind": "string",    "value": "MarketMakerAgent" },
+          { "kind": "microcoin", "value": 3950000 },
+          { "kind": "string",    "value": "active" }
+        ]
+      ]
+    },
+    {
+      "id": "blk-registry-events",
+      "kind": "event_log",
+      "events": [
+        {
+          "tx_id": "tx:0000000a0001init",
+          "kind": "AgentRegistryTx",
+          "layer": "L4",
+          "summary": "Registered agent:ProofAgent:0x1a2b3c… at genesis (on_init)"
+        },
+        {
+          "tx_id": "tx:0000000a0002init",
+          "kind": "AgentRegistryTx",
+          "layer": "L4",
+          "summary": "Registered agent:LibrarianAgent:0xlib0001… at genesis (on_init)"
+        },
+        {
+          "tx_id": "tx:0000000a0003init",
+          "kind": "AgentRegistryTx",
+          "layer": "L4",
+          "summary": "Registered agent:MarketMakerAgent:0xmm0001… at genesis (on_init)"
+        }
+      ]
+    }
+  ]
+}

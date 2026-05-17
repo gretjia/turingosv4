@@ -1,0 +1,26 @@
+Initialized TuringOS workspace at /tmp/phase6_2_witness_1779039702 (template: proof)
+
+Scaffold files created:
+  /tmp/phase6_2_witness_1779039702/runtime_repo
+  /tmp/phase6_2_witness_1779039702/cas
+  /tmp/phase6_2_witness_1779039702/genesis_payload.toml
+  /tmp/phase6_2_witness_1779039702/agent_pubkeys.json  (map agent_id -> ed25519 pubkey; Phase 6.1+ schema)
+
+Next steps:
+  cd /tmp/phase6_2_witness_1779039702
+  # Edit genesis_payload.toml to declare agents / budgets / market.
+
+What you can run right now (Phase 6.1):
+  turingos --help                         # full subcommand list
+  turingos agent deploy --id <ID> ...     # register an agent's pubkey + role
+  turingos config set <key> <value>       # workspace-local config
+  turingos task open --problem <ID> ...   # open a task on a fresh ChainTape
+  turingos task view --task-id <ID>       # replay task status
+  turingos report wallet                  # replay agent wallet balances
+  turingos audit dashboard                # regenerate audit views
+  turingos export evidence --source ...   # bundle an evidence directory
+
+Task-type backends (Phase 6.1 ships the proof/Lean backend; more in Phase 7+):
+  # From the turingosv4 project root (NOT this scaffold):
+  cargo build --release --workspace --bins
+  See: handover/research/interaction_substrate/50_deliverables/00_UNIFIED_CLI_SPEC.md

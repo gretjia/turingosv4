@@ -1,0 +1,68 @@
+{
+  "id": "market-position-view:2026-05-17T12:00:00Z",
+  "title": "Market Position Index (NodePositions exposure)",
+  "blocks": [
+    {
+      "id": "blk-intro-text",
+      "kind": "text",
+      "content": "NodePositions exposure index snapshot. This view shows agent exposure records — YES/NO share claims held by each agent per market. IMPORTANT: This is an exposure index, NOT a trading market or Coin balance per Art. II.2. Share positions are claims, not Coin; Coin conservation holds separately. Materialized view — not authoritative over ChainTape/CAS (FC3-N31)."
+    },
+    {
+      "id": "blk-positions-table",
+      "kind": "table",
+      "caption": "Agent NodePositions exposure index",
+      "columns": ["agent_id", "yes_shares", "no_shares", "exposure_micro", "market_id"],
+      "rows": [
+        [
+          { "kind": "agent_id",  "value": "agent:Solver:0x1a2b3c4d5e6f7a8b" },
+          { "kind": "integer",   "value": 500000 },
+          { "kind": "integer",   "value": 0 },
+          { "kind": "microcoin", "value": 500000 },
+          { "kind": "string",    "value": "market:event-0001" }
+        ],
+        [
+          { "kind": "agent_id",  "value": "agent:BullTrader:0x2b3c4d5e6f7a8b9c" },
+          { "kind": "integer",   "value": 1200000 },
+          { "kind": "integer",   "value": 0 },
+          { "kind": "microcoin", "value": 1200000 },
+          { "kind": "string",    "value": "market:event-0001" }
+        ],
+        [
+          { "kind": "agent_id",  "value": "agent:BearTrader:0x3c4d5e6f7a8b9c0d" },
+          { "kind": "integer",   "value": 0 },
+          { "kind": "integer",   "value": 800000 },
+          { "kind": "microcoin", "value": 800000 },
+          { "kind": "string",    "value": "market:event-0001" }
+        ],
+        [
+          { "kind": "agent_id",  "value": "agent:MarketMaker:0x4d5e6f7a8b9c0d1e" },
+          { "kind": "integer",   "value": 300000 },
+          { "kind": "integer",   "value": 300000 },
+          { "kind": "microcoin", "value": 600000 },
+          { "kind": "string",    "value": "market:event-0001" }
+        ],
+        [
+          { "kind": "agent_id",  "value": "agent:Trader:0x5e6f7a8b9c0d1e2f" },
+          { "kind": "integer",   "value": 250000 },
+          { "kind": "integer",   "value": 150000 },
+          { "kind": "microcoin", "value": 400000 },
+          { "kind": "string",    "value": "market:event-0002" }
+        ]
+      ]
+    },
+    {
+      "id": "blk-positions-panel",
+      "kind": "dashboard_panel",
+      "panel_title": "NodePositions Exposure Totals",
+      "metrics": [
+        { "label": "total_yes_shares_outstanding",  "value": 2250000, "unit": "shares" },
+        { "label": "total_no_shares_outstanding",   "value": 1250000, "unit": "shares" },
+        { "label": "total_exposure_micro",          "value": 3500000, "unit": "μC" },
+        { "label": "active_markets",                "value": 2,       "unit": "markets" },
+        { "label": "agents_with_positions",         "value": 5,       "unit": "agents" },
+        { "label": "coin_conservation_check",       "value": "PASS" },
+        { "label": "sample_note",                   "value": "Phase 6.2 UI IR sample; not a live market" }
+      ]
+    }
+  ]
+}

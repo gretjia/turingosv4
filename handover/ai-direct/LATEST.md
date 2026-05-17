@@ -6,6 +6,108 @@
 
 ---
 
+## 📍 Handover summary (session #53 close 2026-05-17)
+
+**Session Summary**: TISR Phase 6.0/6.1 alpha first slice (`turingos init`)
+shipped as a small Class-1/2 single-file CLI MVP under the TISR research
+charter §8 + tools budget §8 (both ratified 2026-05-17). All work landed on
+`codex/tisr-phase6-cli` (PR #2, base `worktree-tisr-2026-05-17`) in a 5-round
+clean-context Codex audit; user-side journey simulation scored 2.2/5 then
+3.7/5 after a 7-fix UX polish + a 2-defect round-4 fix.
+
+### Current State
+
+**Works**:
+- `turingos init --project <PATH> [--template proof|polymarket|multi-agent]
+  [--force]` is a pure filesystem operation. It creates `runtime_repo/`,
+  `cas/`, `genesis_payload.toml`, and `agent_pubkeys.json` with template-
+  specific micro-Coin (`1 Coin = 1_000_000 micro`) headers and a 10-AgentRole
+  reference list (Solver / Verifier / Challenger / Trader / MarketMaker /
+  Architect / Veto / Observer / BullTrader / BearTrader).
+- No sequencer admission, no typed_tx, no CAS write, no ChainTape advance.
+- `cmd_init` stdout points the user to the established TB-10 workflow with
+  a verifiable command: `cargo build --release -p minif2f_v4 --bin
+  lean_market` (run from the turingosv4 project root, not the scaffold).
+- F1-F4 UX hygiene + 7 polish fixes + 2 round-4 fixes are baked in
+  (quoted `cd` hint, file-vs-dir error class, `--force` clean exit-1 on
+  file, expanded `--template` help, "Re-initialized" message, agent
+  pubkey schema hint, multi-agent role-list template header).
+- TISR research charter (PR #1) and Phase 6 separate charter §8 + tools
+  budget §8 ratifications are archived at the directives below.
+
+**Canonical TISR Phase 6 alpha evidence**:
+- Final harness:
+  `handover/evidence/dev_self_hosting/dev_1779011072273_1536110/`, closed
+  with `acceptance_passed=true`, `effective_risk_class=1`,
+  `restricted_surface_hits=[]`, `audit_verdict=PROCEED`.
+- Round-3 ship-gate audit:
+  `handover/audits/CODEX_TISR_PHASE6_ALPHA_VETO_RECOVERY_R3_PROCEED.md`.
+- Round-5 post-UX-polish audit:
+  `handover/audits/CODEX_TISR_PHASE6_ALPHA_ROUND4_FIX_R5_PROCEED.md`.
+- Class-4-touch recovery justification:
+  `handover/alignment/OBS_R022_TISR_PHASE6_ALPHA_VETO_RECOVERY.md`.
+
+**Ratifications archived**:
+- Scope §8 PACKET:
+  `handover/directives/2026-05-17_TISR_PHASE6_SEPARATE_CHARTER_SECTION8_PACKET.md`.
+- Scope §8 sign-off:
+  `handover/directives/2026-05-17_TISR_PHASE6_SEPARATE_CHARTER_SECTION8_SIGN_OFF.md`.
+- Tools budget §8 supplement:
+  `handover/directives/2026-05-17_TISR_PHASE6_TOOLS_BUDGET_SECTION8_SUPPLEMENT.md`.
+
+### Validation
+
+- `cargo test --test cli_init_smoke` → 5 passed / 0 failed.
+- `cargo test --lib boot::tests::verify_trust_root_passes_on_intact_repo`
+  → 1 passed / 0 failed (Trust Root pinned files untouched in net diff
+  from `worktree-tisr-2026-05-17`).
+- `cargo build --release -p minif2f_v4 --bin lean_market` → succeeds;
+  `./target/release/lean_market --help` → exits 0 with the TB-10 banner.
+- `cargo build --bin turingos` → succeeds.
+- `cargo fmt --all -- --check` → exit 0.
+- `git diff --check` → clean.
+- Manual smoke (each template + `--force` + space-path) → all `Initialized`
+  / `Re-initialized` happy paths; `ProjectIsFile` / `ProjectDirExists`
+  rejection classes work.
+- Class 4 / restricted-surface diff is empty for kernel, bus, wallet,
+  sequencer, typed_tx, CAS schema, constitution, alignment matrices, and
+  `genesis_payload.toml`.
+- 0 new Rust `pub` items added across the 5-round series.
+- `rules/enforcement.log` net diff empty (round-2 lesson sustained).
+- 5-round Codex audit trail:
+  R1 `f74588e0` **VETO** (Trust Root pinned files modified) →
+  R2 `9e1bc1e0` **CHALLENGE** (enforcement.log scope drift) →
+  R3 `bb9bc686` → ship record `4c2e0271` **PROCEED** (formal ship gate) →
+  R4 `21236eba` **CHALLENGE** (2 stdout/help defects in UX polish) →
+  R5 `67cc6f7b` → audit record `ea0c6ed1` **PROCEED**.
+
+### Non-Claims
+
+- Phase 6.1+ subcommands (`turingos agent deploy` / `task open` / `audit
+  dashboard` / batch runner) are NOT implemented. `turingos init` stdout
+  explicitly labels them "not yet implemented; coming soon" and points to
+  the UNIFIED_CLI_SPEC §3 deliverable.
+- No live multi-agent activity, no economic action, no market behavior,
+  no Lean run, no model call. `turingos init` is filesystem-only.
+- TISR Phase 6+ remainder (CLI subcommand fan-out, Phase 7 Web UI MVP,
+  Phase 8 A2A deepening, Phase 9 REAL-N) remains forward-bound behind
+  G-Phase closeout + separate per-phase architect §8 ratification.
+- No claim on TISR-001's 7 Class-4 forward-bound candidates (cas/schema
+  variants, AgentProposedTaskOpen / AgentMarketSeeding / DirectSwapTx
+  typed_tx, HumanSignature, new AgentRole variants, Reputation policy
+  filter); all 7 remain forward-bound and unimplemented.
+
+### Next Steps
+
+1. PR #2 ready for merge into `worktree-tisr-2026-05-17` at commit
+   `ea0c6ed1` (alpha CLI MVP + 5-round audit record). PR #1 (research-only)
+   independently ready for architect review on `worktree-tisr-2026-05-17`.
+2. After PR #2 merges: TISR Phase 6.1 fan-out (`agent deploy` / `task
+   open` / `audit dashboard`) requires a fresh §8 packet beyond Phase 6.0
+   scope; do not begin implementation under the current §8.
+3. Resume mainline G-Phase / REAL-13A / REAL-BCAST-1 work on `main` /
+   active feature branches; TISR worktree is physically isolated so it
+   does not block mainline ship work.
 ## 📍 Main Snapshot (2026-05-17 after CAS Git Constitutional Repair merge)
 
 **CAS repair merge commit**:

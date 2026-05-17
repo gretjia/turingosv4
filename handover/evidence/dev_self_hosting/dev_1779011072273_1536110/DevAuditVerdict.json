@@ -1,0 +1,13 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "reviewer": "clean-context-codex",
+  "verdict": "PROCEED",
+  "findings_summary": "",
+  "source_file": {
+    "path": "handover/audits/CODEX_TISR_PHASE6_ALPHA_VETO_RECOVERY_R3_PROCEED.md",
+    "sha256": "46b394714eca748193689b542f3268c601f2e9af78c7c04ba7dbd9d3428b5559",
+    "size_bytes": 2352
+  },
+  "payload_manifest_hash": "796d8d13a8ad0ffcc6e6ec2ce6291fc5180be51020a8a553ea5b2fa496c351be",
+  "recorded_at_unix_ms": 1779018725359
+}
