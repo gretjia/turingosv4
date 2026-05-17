@@ -183,13 +183,12 @@ fn turingos_agent_invalid_role_rejected() {
 // ───────────────────────────────────────────────────────────────────────────
 // R3 finding: empty-list deploy hint must shell-quote workspace paths so
 // copy-paste survives whitespace.
+// R4 tightening: assert the quoted path appears specifically on the deploy
+// hint line, not just somewhere in stdout.
 // ───────────────────────────────────────────────────────────────────────────
 
 #[test]
 fn turingos_agent_list_empty_hint_quotes_whitespace_path() {
-    // Create a workspace whose path contains a space, run `agent list`
-    // against the freshly-init'd dir (no agents registered yet), and
-    // verify the deploy hint quotes the workspace path single-quote-style.
     let tmp = tempfile::TempDir::new().expect("tempdir");
     let space_path = tmp.path().join("ws with space");
     std::fs::create_dir(&space_path).expect("mkdir space-path");
@@ -210,9 +209,17 @@ fn turingos_agent_list_empty_hint_quotes_whitespace_path() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     let space_str = space_path.to_string_lossy().to_string();
     let quoted = format!("'{}'", space_str.replace('\'', r"'\''"));
+
+    // R4 tightening: the path must appear specifically in the deploy hint
+    // line, not just somewhere in stdout. Find the line containing both
+    // "turingos agent deploy" and the quoted path; failure of either =
+    // FAIL.
+    let hint_line = stdout
+        .lines()
+        .find(|line| line.contains("turingos agent deploy") && line.contains(&quoted));
     assert!(
-        stdout.contains(&quoted),
-        "deploy hint should contain shell-quoted workspace path {quoted:?}; \
-         got: {stdout:?}",
+        hint_line.is_some(),
+        "deploy hint line must contain both `turingos agent deploy` AND the \
+         shell-quoted workspace path {quoted:?} on the SAME line; got stdout: {stdout:?}",
     );
 }
