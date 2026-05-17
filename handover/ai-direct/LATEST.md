@@ -6,6 +6,116 @@
 
 ---
 
+## 📍 Handover summary (session #54 close 2026-05-17)
+
+**Session Summary**: TISR Phase 6.0 → 6.1 → 6.2 → 6.3 alpha CLI stack
+SHIPPED FINAL on `main` via PR #4 squash merge
+`ff866c53fa2622b2a4d3a944df8cee70874e2834`. Lands the full
+`turingos` user-facing CLI (init / agent / task / audit / report / verify
+/ render / welcome / llm / spec / generate) including the Phase 6.3 real
+SiliconFlow LLM wire and CAS-anchored spec capsule. Class 2 production
+wire-up; no Class-4 schema touch; no Trust Root rehash on the Phase 6.3
+delta.
+
+### Current State
+
+**Works**:
+- `turingos init / agent / task / audit / report / verify / render`
+  family (Phase 6.0 + 6.1 + 6.2) all live on `main`. Render path covers
+  the UI IR fixtures + validator from Phase 6.2.
+- `turingos welcome --workspace <PATH>` prints the 8-step onboarding
+  checklist and flips the "spec done" status by reading the latest CAS
+  EvidenceCapsule with `schema_id = turingos-spec-capsule-v1`.
+- `turingos llm config|show --workspace <PATH>` writes a two-LLM config
+  to `<workspace>/turingos.toml`. Defaults to SiliconFlow with Meta =
+  `deepseek-ai/DeepSeek-V3.2` (reasoning) and Blackbox =
+  `Qwen/Qwen3-Coder-30B-A3B-Instruct` (codegen). Per-game-session cost
+  ~¥0.45. The API key VALUE is never persisted to disk — only the
+  env-var NAME is recorded.
+- `turingos spec --workspace <PATH> [--answers-file <PATH>] [--lang
+  zh|en] [--skip-llm]` runs an 8-question non-developer
+  customer-development grill (Chinese-first, drawn from JTBD / Mom Test /
+  Voss / 5-Whys / IDEO / EARS), emits `spec.md` + `spec_transcript.jsonl`,
+  and anchors the spec bytes in CAS as an `EvidenceCapsule`. CID printed
+  to stdout. Idempotent at same content (sha256-deterministic).
+- `turingos generate --workspace <PATH>` reads the spec capsule, drives
+  the Blackbox LLM, and emits artifacts to `<workspace>/artifacts/`.
+  Hard-errors with `NoFilesParsed` if the LLM returns 0 parseable files
+  (raw response saved for debug).
+
+**Canonical TISR Phase 6.0–6.3 alpha evidence**:
+- PR #4 merge commit on `main`: `ff866c53`.
+- Pre-ship verification on rebased branch HEAD `31e3706e`:
+  `cargo test --test cli_init_smoke` → 5/0 passed;
+  `cargo test --test cli_phase63_cas_wire` → 3/3 passed;
+  `cargo test --test cli_wrapper_plumbing` → 5/0 passed.
+- Pre-merge 3/3 real-LLM E2E rounds (user-driven) yielded 3 distinct
+  sha256 spec-capsule CIDs (`c5c029b0…`, `95b4d6b4…`, `51be5b59…`),
+  each with 7/7 pipeline steps + 5/5 jsdom-driven functional gameplay
+  assertions PASS. Total real-LLM cost ~¥3 across 6 verification rounds.
+- Phase 6.3 runbooks:
+  `handover/directives/2026-05-17_TISR_PHASE6_3_REAL_DEMO_RUNBOOK.md`,
+  `handover/directives/2026-05-17_TISR_PHASE6_3_THREE_ROUND_RESULTS.md`.
+
+**Audit**:
+- Clean-context auditor (auditor subagent type) returned **PROCEED** on
+  the Phase 6.3 delta. Verified Trust Root preservation, API-key
+  never-on-disk invariant (2 explicit test assertions), HTTPS client
+  safety (180s timeout, typed error taxonomy, no panic/unwrap/expect),
+  CAS wire idempotency, LLM-failure hard-error propagation, and no
+  `f64`/`f32` in money paths.
+- Per CLAUDE.md §10, Class 2 does not require Class-4 architect §8
+  verbatim sign-off; user-direct merge authorization served as ship
+  gate.
+
+### Validation
+
+- PR #4 base changed from `codex/tisr-phase6-2-cli` → `main` via REST
+  API PATCH (note: `gh pr edit --base` silently no-ops on this repo due
+  to a classic-Projects GraphQL deprecation; the REST path is required).
+- Pre-merge consolidation: merged `origin/main` (including PR #3 CAS Git
+  constitutional repair) into the PR head at `31e3706e`. Union-resolved
+  2 handover conflicts (`LATEST.md`, `TB_LOG.tsv`). `Cargo.toml` +
+  `Cargo.lock` auto-merged cleanly.
+- `CasStore::put` signature stable across PR ↔ main divergence; spec
+  capsule wire compiles and behaves identically under main's CAS chain
+  lock (single-process test does not contend on lock).
+- 13/13 tests pass on the merged branch; 0 regressions on
+  `cli_init_smoke` / `cli_wrapper_plumbing` after pulling in main's CAS
+  repair.
+
+### Non-Claims
+
+- `turingos spec` + `turingos generate` make real model calls when the
+  API key env var is set. They are NOT pure filesystem operations.
+- The Phase 6.0/6.1/6.2 chain on `main` is the result of the PR #4
+  squash; the per-phase ship granularity (PR #1 / PR #2 / unopened
+  Phase 6.2 PR) was not preserved — those PRs are superseded.
+- Phase 7 Web UI MVP (`codex/tisr-phase7-web` @ `75e6e6b7`) remains
+  forward-bound behind a fresh §8 packet; not landed on `main`.
+- No live multi-agent activity, no economic action, no market behavior,
+  no Lean run via `turingos spec / generate`. These commands drive the
+  spec → codegen demo loop only.
+- TISR-001's 7 Class-4 forward-bound candidates (cas/schema variants,
+  AgentProposedTaskOpen / AgentMarketSeeding / DirectSwapTx typed_tx,
+  HumanSignature, new AgentRole variants, Reputation policy filter)
+  remain forward-bound and unimplemented.
+
+### Next Steps
+
+1. Phase 7 Web UI MVP awaits Mac Studio Claude Code session boot per
+   prior plan; no implementation work on `main` until §8 ratified for
+   Phase 7.
+2. Resume mainline G-Phase / REAL-13A / REAL-BCAST-1 work on `main` /
+   active feature branches; the Phase 6.0–6.3 alpha CLI ship does not
+   block ongoing G-Phase / market-autonomy-lab work.
+3. PR #2 (`codex/tisr-phase6-cli` → `worktree-tisr-2026-05-17`) is
+   structurally superseded by PR #4 and can be closed without merge.
+   PR #1 (research-only) is independent; close-or-merge per separate
+   decision.
+
+---
+
 ## 📍 Handover summary (session #53 close 2026-05-17)
 
 **Session Summary**: TISR Phase 6.0/6.1 alpha first slice (`turingos init`)
