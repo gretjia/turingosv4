@@ -849,7 +849,7 @@ fn sg_6a_10_price_is_not_used_as_lean_predicate_truth() {
 fn sg_6a_smoke_runner_build_failure_is_fail_closed() {
     let script =
         std::fs::read_to_string("scripts/run_g_phase_batch.sh").expect("read run_g_phase_batch.sh");
-    let build_marker = "cargo build --release -p minif2f_v4 --bin evaluator --bin batch_evaluator -p turingosv4 --bin audit_tape --bin tb_g_persistence_report";
+    let build_marker = "cargo build --release --manifest-path experiments/minif2f_v4/Cargo.toml --bin evaluator --bin batch_evaluator; cargo build --release -p turingosv4 --bin audit_tape --bin tb_g_persistence_report";
     let build_pos = script
         .find(build_marker)
         .expect("release build command is present");

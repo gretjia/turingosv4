@@ -76,7 +76,7 @@ esac
 
 # Build
 echo "Building evaluator (release)..."
-(cd "$PROJECT_ROOT" && cargo build --release -p minif2f_v4 2>&1 | tail -1)
+(cd "$PROJECT_ROOT" && CARGO_TARGET_DIR="$PROJECT_ROOT/target" cargo build --release --manifest-path "$PROJECT_ROOT/experiments/minif2f_v4/Cargo.toml" 2>&1 | tail -1)
 EVALUATOR="$PROJECT_ROOT/target/release/evaluator"
 
 # C-012 preflight: oracle health check before burning API budget.

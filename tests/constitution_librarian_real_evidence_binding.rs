@@ -2,6 +2,8 @@
 
 use std::path::Path;
 
+use serde_json::Value;
+
 #[test]
 fn real13_status_sync_points_to_existing_clean_evidence() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -20,6 +22,29 @@ fn real13_status_sync_points_to_existing_clean_evidence() {
             "REAL-13 historical CAS fixture is not hydrated in this worktree: {:?}; \
              continuing with tracked report/status binding only",
             cas_index
+        );
+    }
+
+    let aggregate: Value = serde_json::from_str(
+        &std::fs::read_to_string(evidence.join("aggregate_verdict.json"))
+            .expect("aggregate verdict readable"),
+    )
+    .expect("aggregate verdict json");
+    assert!(
+        aggregate["tape_root"]["cas_object_count"]
+            .as_u64()
+            .expect("cas_object_count")
+            > 0,
+        "REAL-13 tracked audit verdict must bind a non-empty CAS object count"
+    );
+    let local_sidecar = evidence.join("cas/.turingos_cas_index.jsonl");
+    if local_sidecar.exists() {
+        let bytes = std::fs::metadata(&local_sidecar)
+            .expect("local sidecar metadata")
+            .len();
+        assert!(
+            bytes > 0,
+            "local REAL-13 sidecar, when present, must be non-empty"
         );
     }
 

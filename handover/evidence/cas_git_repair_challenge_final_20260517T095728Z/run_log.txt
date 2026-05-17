@@ -1,0 +1,11 @@
+batch_id            cas_git_repair_challenge_final_20260517T095728Z_c85dacf
+run_tag             cas_git_repair_challenge_final_20260517T095728Z
+problem_count       3
+git_head            c85dacfafcd1aa99047cee6af4f5799670403f8f
+elapsed_s           60
+batch_exit          0
+audit_exit          0
+audit_verdict       PROCEED
+persistence_exit    0
+persistence_passing true
+persistence_n_witnessed 5

@@ -15,6 +15,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, RwLock};
 use tempfile::TempDir;
 
+use git2::Repository;
 use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
 use turingosv4::bottom_white::cas::store::{CasError, CasStore};
 use turingosv4::bottom_white::ledger::rejection_evidence::RejectionClass;
@@ -24,7 +25,10 @@ use turingosv4::runtime::attempt_telemetry::{
 };
 use turingosv4::runtime::proposal_telemetry::TokenCounts;
 use turingosv4::state::q_state::{AgentId, Hash, TaskId, TxId};
-use turingosv4::state::sequencer::refine_rejection_class_via_attempt_telemetry;
+use turingosv4::state::sequencer::{
+    refine_rejection_class_via_attempt_telemetry,
+    refine_rejection_class_via_attempt_telemetry_checked,
+};
 use turingosv4::state::typed_tx::{
     AgentSignature, BoolWithProof, PredicateId, PredicateResultsBundle, ReadKey, SafetyOrCreation,
     TypedTx, WorkTx, WriteKey,
@@ -162,6 +166,77 @@ fn refine_rejection_class_recovers_via_reload_lean_failed() {
     let cas_g = sequencer_cas.read().expect("read post-fix");
     let bytes = cas_g.get(&tx.work_proposal_cid_for_test()).expect("get");
     assert!(!bytes.is_empty(), "sidecar reload populated index");
+}
+
+#[test]
+fn refine_rejection_class_reload_integrity_error_fails_closed() {
+    let dir = TempDir::new().expect("tempdir");
+    let sequencer_cas = Arc::new(RwLock::new(
+        CasStore::open(dir.path()).expect("open sequencer_cas"),
+    ));
+    let mut evaluator_cas = CasStore::open(dir.path()).expect("open evaluator_cas");
+
+    let attempt_cid = write_attempt_via_handle(
+        &mut evaluator_cas,
+        AttemptOutcome::LeanFail,
+        "leanfail-tampered-cache",
+    );
+    let tx = fixture_failure_work_tx(attempt_cid);
+
+    let sidecar = dir.path().join(".turingos_cas_index.jsonl");
+    let tampered = std::fs::read_to_string(&sidecar)
+        .expect("read sidecar")
+        .replace("\"creator\":\"test\"", "\"creator\":\"mallory\"");
+    std::fs::write(&sidecar, tampered).expect("tamper sidecar");
+
+    let err = refine_rejection_class_via_attempt_telemetry_checked(
+        &sequencer_cas,
+        &tx,
+        RejectionClass::PredicateFailed,
+    )
+    .expect_err("CAS sidecar/chain mismatch must fail closed, not fall back");
+    assert!(
+        err.to_string()
+            .contains("CAS sidecar cache mismatch with CAS commit-chain"),
+        "expected CAS integrity error, got {err}"
+    );
+}
+
+#[test]
+fn refine_rejection_class_initial_cas_read_integrity_error_fails_closed() {
+    let dir = TempDir::new().expect("tempdir");
+    let _init = CasStore::open(dir.path()).expect("init repo");
+    let repo = Repository::open(dir.path()).expect("repo");
+    let wrong_oid = repo.blob(b"not-attempt-telemetry").expect("wrong blob");
+    let expected_cid = Cid::from_content(b"expected-attempt-telemetry");
+    let metadata = turingosv4::bottom_white::cas::schema::CasObjectMetadata {
+        cid: expected_cid,
+        backend_oid_hex: wrong_oid.to_string(),
+        object_type: ObjectType::AttemptTelemetry,
+        creator: "test".to_string(),
+        created_at_logical_t: 0,
+        schema_id: Some("turingos.attempt_telemetry.v1".to_string()),
+        size_bytes: b"not-attempt-telemetry".len() as u64,
+    };
+    let sidecar = dir.path().join(".turingos_cas_index.jsonl");
+    let line = serde_json::to_string(&metadata).expect("metadata json");
+    std::fs::write(&sidecar, format!("{line}\n")).expect("write sidecar");
+
+    let sequencer_cas = Arc::new(RwLock::new(
+        CasStore::open(dir.path()).expect("open corrupt legacy cas"),
+    ));
+    let tx = fixture_failure_work_tx(expected_cid);
+
+    let err = refine_rejection_class_via_attempt_telemetry_checked(
+        &sequencer_cas,
+        &tx,
+        RejectionClass::PredicateFailed,
+    )
+    .expect_err("CAS read integrity error must not fall back to PredicateFailed");
+    assert!(
+        err.to_string().contains("CAS content corruption"),
+        "expected CidMismatch to propagate, got {err}"
+    );
 }
 
 #[test]

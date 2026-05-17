@@ -103,7 +103,7 @@ cargo build --release \
   --bin audit_tape_tamper \
   --bin audit_dashboard \
   --bin generate_markov_capsule
-cargo build --release -p minif2f_v4 \
+CARGO_TARGET_DIR="$PROJECT_ROOT/target" cargo build --release --manifest-path "$PROJECT_ROOT/experiments/minif2f_v4/Cargo.toml" \
   --bin comprehensive_arena \
   --bin evaluator \
   --bin lean_market

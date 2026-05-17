@@ -23,7 +23,8 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use git2::Repository;
-use turingosv4::bottom_white::cas::schema::Cid;
+use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
+use turingosv4::bottom_white::cas::store::CasStore;
 use turingosv4::bottom_white::ledger::system_keypair::{SystemEpoch, SystemSignature};
 use turingosv4::bottom_white::ledger::transition_ledger::{
     append, Git2LedgerWriter, LedgerEntry, LedgerEntrySigningPayload, LedgerWriter, TxKind,
@@ -175,30 +176,110 @@ fn sg_a3_l4e_head_ref_advances_on_rejected_evidence() {
     );
 }
 
-/// SG-A3-HEAD-T-C2.3 — `advance_chaintape_cas_to` advances `refs/chaintape/cas`
-/// to the supplied OID per CAS write batch.
+/// SG-A3-HEAD-T-C2.3 — CAS writes advance `refs/chaintape/cas` to a valid
+/// CAS commit-chain head, not a generic Git commit or blob.
 #[test]
 fn sg_a3_cas_root_ref_advances_on_cas_write() {
     let (_tmp, path, _writer) = fresh_repo();
+    let mut store = CasStore::open(&path).expect("cas store");
 
     let pre = Git2LedgerWriter::head_chaintape_cas(&path).expect("read pre");
     assert!(pre.is_none(), "fresh repo must have no chaintape/cas ref");
 
-    let oid_a = synth_commit_oid(&path, "cas_batch_1");
-    Git2LedgerWriter::advance_chaintape_cas_to(&path, oid_a, "CAS write #1").expect("advance cas");
+    store
+        .put(b"cas_batch_1", ObjectType::Generic, "test", 1, None)
+        .expect("cas put #1");
     let post_a = Git2LedgerWriter::head_chaintape_cas(&path)
         .expect("read cas")
         .expect("cas ref present after advance");
-    assert_eq!(post_a, oid_a);
+    turingosv4::bottom_white::cas::git_chain::validate_cas_chain_head_oid(&path, post_a)
+        .expect("cas ref must be a valid CAS-chain head");
 
-    let oid_b = synth_commit_oid(&path, "cas_batch_2");
-    Git2LedgerWriter::advance_chaintape_cas_to(&path, oid_b, "CAS write #2")
-        .expect("advance cas #2");
+    store
+        .put(b"cas_batch_2", ObjectType::Generic, "test", 2, None)
+        .expect("cas put #2");
     let post_b = Git2LedgerWriter::head_chaintape_cas(&path)
         .expect("read cas #2")
         .expect("cas ref present after second advance");
-    assert_eq!(post_b, oid_b);
+    turingosv4::bottom_white::cas::git_chain::validate_cas_chain_head_oid(&path, post_b)
+        .expect("cas ref must remain a valid CAS-chain head");
     assert_ne!(post_a, post_b);
+}
+
+#[test]
+fn sg_a3_cas_ref_rejects_generic_commit_target() {
+    let (_tmp, path, _writer) = fresh_repo();
+    let generic_commit = synth_commit_oid(&path, "not_a_cas_chain_record");
+    let err = Git2LedgerWriter::advance_chaintape_cas_to(&path, generic_commit, "invalid CAS ref")
+        .expect_err("generic commits must not become refs/chaintape/cas");
+    assert!(
+        err.to_string()
+            .contains("chaintape cas ref target validation"),
+        "expected CAS ref target validation error, got {err}"
+    );
+}
+
+#[test]
+fn sg_a3_cas_ref_rejects_rewind_to_valid_ancestor() {
+    let (_tmp, path, _writer) = fresh_repo();
+    let mut store = CasStore::open(&path).expect("cas store");
+    store
+        .put(b"cas_batch_ancestor", ObjectType::Generic, "test", 1, None)
+        .expect("cas put #1");
+    let ancestor = Git2LedgerWriter::head_chaintape_cas(&path)
+        .expect("read cas #1")
+        .expect("cas ref #1");
+    store
+        .put(
+            b"cas_batch_descendant",
+            ObjectType::Generic,
+            "test",
+            2,
+            None,
+        )
+        .expect("cas put #2");
+    let descendant = Git2LedgerWriter::head_chaintape_cas(&path)
+        .expect("read cas #2")
+        .expect("cas ref #2");
+
+    let err = Git2LedgerWriter::advance_chaintape_cas_to(
+        &path,
+        ancestor,
+        "invalid CAS rewind to valid ancestor",
+    )
+    .expect_err("valid but non-descendant CAS rewinds must fail closed");
+    assert!(
+        err.to_string().contains("not a descendant"),
+        "expected descendant diagnostic, got {err}"
+    );
+    let still_head = Git2LedgerWriter::head_chaintape_cas(&path)
+        .expect("read cas after rejected rewind")
+        .expect("cas ref still present");
+    assert_eq!(
+        still_head, descendant,
+        "rejected CAS rewind must leave the current CAS head unchanged"
+    );
+}
+
+#[test]
+fn sg_a3_cas_ref_symbolic_target_fails_closed() {
+    let (_tmp, path, _writer) = fresh_repo();
+    let repo = Repository::open(&path).expect("repo");
+    repo.reference_symbolic(
+        CHAINTAPE_CAS_REF,
+        "refs/heads/main",
+        true,
+        "invalid symbolic cas ref",
+    )
+    .expect("write symbolic cas ref");
+
+    let err = Git2LedgerWriter::head_chaintape_cas(&path)
+        .expect_err("symbolic CAS refs must not be treated as absent");
+    assert!(
+        err.to_string()
+            .contains("not a direct CAS commit-chain ref"),
+        "expected direct-ref diagnostic, got {err}"
+    );
 }
 
 /// SG-A3-HEAD-T-C2.4 — Replay reconstructs HEAD_t from refs alone (six-field
@@ -214,9 +295,10 @@ fn sg_a3_replay_reconstructs_head_t_from_refs() {
     let l4e_oid = synth_commit_oid(&path, "l4e_replay_test");
     Git2LedgerWriter::advance_chaintape_l4e_to(&path, l4e_oid, "L4.E for replay")
         .expect("advance l4e");
-    let cas_oid = synth_commit_oid(&path, "cas_replay_test");
-    Git2LedgerWriter::advance_chaintape_cas_to(&path, cas_oid, "CAS for replay")
-        .expect("advance cas");
+    let mut store = CasStore::open(&path).expect("cas store");
+    store
+        .put(b"cas_replay_test", ObjectType::Generic, "test", 2, None)
+        .expect("cas put for replay");
 
     // Reconstruct using a fixed state_root + economic_state_root + run_id.
     // (These come from QState replay in production; we synthesize them here

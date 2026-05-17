@@ -182,9 +182,11 @@ RUN_TIMESTAMP_UTC="$(date -u +%Y-%m-%dT%H-%M-%SZ)"
 
 # ── Build release binaries ──────────────────────────────────────────────────
 
-echo "[build] cargo build --release -p minif2f_v4 -p turingosv4 --bin evaluator --bin tb_18r_compute_invariant"
-(cd "$PROJECT_ROOT" && cargo build --release -p minif2f_v4 -p turingosv4 \
-    --bin evaluator --bin tb_18r_compute_invariant 2>&1 | tail -5)
+echo "[build] cargo build --release --manifest-path experiments/minif2f_v4/Cargo.toml --bin evaluator; cargo build --release -p turingosv4 --bin tb_18r_compute_invariant"
+(cd "$PROJECT_ROOT" && {
+    CARGO_TARGET_DIR="$PROJECT_ROOT/target" cargo build --release --manifest-path "$PROJECT_ROOT/experiments/minif2f_v4/Cargo.toml" --bin evaluator
+    cargo build --release -p turingosv4 --bin tb_18r_compute_invariant
+} 2>&1 | tail -5)
 EVALUATOR="$PROJECT_ROOT/target/release/evaluator"
 COMPUTE_INVARIANT="$PROJECT_ROOT/target/release/tb_18r_compute_invariant"
 [[ -x "$EVALUATOR" ]] || { echo "ERROR: evaluator binary not built: $EVALUATOR" >&2; exit 4; }

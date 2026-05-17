@@ -6,6 +6,119 @@
 
 ---
 
+## 📍 Active Repair Snapshot (2026-05-17 CAS Git Constitutional Repair)
+
+**Branch/worktree**:
+`codex/cas-git-constitutional-repair` at
+`/home/zephryj/projects/turingosv4-cas-git-repair`.
+
+**Status**: PR #3 entered formal review and was not approved for merge after a
+P1 CAS integrity finding. The repair branch now carries the P1 closure:
+readers `open()` / `reload_index_from_sidecar()` take the same CAS chain lock
+as `put()` while validating sidecar+chain, preventing an in-flight commit-chain
+advance from being misclassified as hard sidecar corruption. The first
+post-P1 GitHub Constitution gate run then exposed a fresh-checkout fixture gap
+(`441 passed / 18 failed / 1 ignored`); compact real CI fixtures now package
+the minimal historical ignored CAS/runtime fragments needed by those gates.
+The next GitHub red was isolated to Rust 1.95 `rust-lld` crashing while linking
+the `minif2f_v4` package gate. User clarification on 2026-05-17 states that
+MiniF2F is a development benchmark corpus, not a fixed TuringOS kernel or OS
+gate. The core constitution runner now removes the `minif2f_v4` package gate,
+adds `constitution_minif2f_boundary` to enforce that boundary, and removes
+`experiments/minif2f_v4` from the root workspace so `cargo test --workspace`
+does not validate MiniF2F by default. MiniF2F remains an explicit opt-in
+development package via `--manifest-path experiments/minif2f_v4/Cargo.toml`;
+it now has its own opt-in `experiments/minif2f_v4/Cargo.lock`, and its heavy
+run binaries stay `test = false` so opt-in package tests do not link evaluator
+binaries as test harnesses.
+Main worktree is not merged and `turingos_dev` is intentionally not used for
+this CAS/core repair.
+
+**Risk / FC mapping**:
+Class 3 CAS integrity plus user-authorized Class 4 Trust Root rehash limited
+to CAS Git repair pinned files. Touches FC1 ChainTape/CAS evidence binding,
+FC2 replay/audit boot, and FC3 evidence feedback/audit views.
+
+**Current repair facts**:
+- Baseline red before CHALLENGE remediation:
+  `bash scripts/run_constitution_gates.sh` -> `446 passed / 18 failed / 1 ignored`
+  at `c85dacfa`.
+- Final core constitution gates:
+  `bash scripts/run_constitution_gates.sh` -> `461 passed / 0 failed / 1 ignored`.
+- Post-PR P1 regression:
+  `cargo test --lib open_waits_for_inflight_cas_chain_cache_refresh -- --nocapture`
+  failed before the lock fix and passes after it.
+- Post-PR P1 targeted CAS store suite:
+  `cargo test --lib bottom_white::cas::store::tests -- --test-threads=1`
+  -> `35 passed / 0 failed`.
+- Post-PR P1 trust-root suite:
+  `CARGO_TARGET_DIR="$PWD/target" cargo test --manifest-path experiments/minif2f_v4/Cargo.toml --test trust_root_immutability -- --test-threads=1`
+  -> `4 passed / 0 failed`.
+- Post-PR P1 original CAS repair targeted suite:
+  `cargo test --test constitution_head_t_c2_multi_ref --test tb_18r_cas_reload_split_brain --test co1_7_extra_cas_payload_round_trip --test tb_18r_lean_result_cas_resolves --test constitution_tape_canonical_gate --test constitution_no_parallel_ledger -- --test-threads=1`
+  -> `34 passed / 0 failed`.
+- Post-P1 GitHub CI failure:
+  Constitution gate suite -> `441 passed / 18 failed / 1 ignored`, caused by
+  clean checkout missing ignored historical fixture `cas/` / `runtime_repo/`
+  fragments.
+- Fresh-checkout CI fixture closure:
+  tracked compact real fixtures under `handover/evidence/ci_fixtures/`; detached
+  scratch worktree full gates -> `464 passed / 0 failed / 1 ignored`.
+- Post-fixture GitHub CI linker failure:
+  `minif2f_v4::constitution_g1_2_subprocess_resume` failed because `rust-lld`
+  crashed with `Bus error` while linking unused `evaluator` / `batch_evaluator`
+  binaries during `cargo test -p minif2f_v4`.
+- Core/experiment boundary closure:
+  `constitution_minif2f_boundary` failed RED before the runner fix because
+  `scripts/run_constitution_gates.sh` invoked `minif2f_v4`; after removing that
+  package gate it passes `2 passed / 0 failed`. The core gate runner now passes
+  `461 passed / 0 failed / 1 ignored` without invoking the MiniF2F experiment
+  package.
+- Workspace default-test boundary:
+  root `Cargo.toml` now has workspace members `.` and `spike/gix_capability`
+  only, with `exclude = ["experiments/minif2f_v4"]`; active non-pinned
+  MiniF2F run scripts touched by this repair now build via explicit
+  `--manifest-path` and `CARGO_TARGET_DIR` so existing evaluator paths remain
+  stable. Historical trust-root-pinned preregistration scripts were left
+  unchanged to avoid expanding the branch-local Class 4 scope.
+- Final broad workspace command:
+  `cargo test --workspace --no-fail-fast -- --test-threads=1` -> exit 0.
+- Historical ignored fixtures were hydrated locally from main for TB-C0,
+  Wave3, M0, Stage A3/B3, and TB13 evidence-binding tests. Manifest:
+  `handover/reports/CAS_GIT_REPAIR_HYDRATION_MANIFEST.md`.
+- REAL13 has no root-level ignored `cas/` artifact in available local
+  worktrees; its binding test now uses tracked `aggregate_verdict.json`
+  `tape_root.cas_object_count` and report CAS-derived metrics.
+- R9 v4 expected-count postprocess is fixed to include `step_partial_ok` and
+  exclude synthetic `tb6-smoke-agent` preseed Work. Current P01/P02 postprocess
+  result: both `invariant_verdict=Ok`.
+- Legacy sidecar + blob-ref CAS evidence is readable again; the next forward
+  `put` upgrades such repos to a CAS commit-chain head. Invalid blob refs
+  without matching legacy sidecar still fail closed.
+- Final mini real-problem evidence:
+  `handover/evidence/cas_git_repair_challenge_final_20260517T095728Z/`
+  (`audit_verdict=PROCEED`, `persistence_passing=true`).
+- Final TB-18R R9 real-problem evidence:
+  `handover/evidence/cas_git_repair_challenge_final_r9_20260517T100600Z/`
+  (`P01/P02 delta=0`, `invariant_verdict=Ok`, summary JSON parseable after
+  v4 postprocess).
+- §8 directive for the branch-local Trust Root rehash:
+  `handover/directives/2026-05-17_CAS_GIT_CONSTITUTIONAL_REPAIR_§8_TRUST_ROOT_RATIFICATION.md`.
+- Earlier clean-context audit:
+  `handover/audits/CODEX_CAS_GIT_REPAIR_FINAL_CLEAN_CONTEXT_AUDIT.md`
+  (`PROCEED`). It predates the PR #3 P1 challenge and closure patch; PR merge
+  remains blocked until GitHub CI is green and auditor re-review confirms the
+  updated branch.
+
+**Not historical evidence rewrite**: this section is a dynamic handover status
+update only. It does not mutate old ChainTape/CAS evidence or change historical
+reports retroactively.
+
+**Exit requirement**: commit/push the repair branch only. Do not merge main
+from this worktree.
+
+---
+
 ## 📍 Handover summary (session #52 close 2026-05-16)
 
 **Session Summary**: REAL-12 Role-Specialized Economic Agents completed as a

@@ -167,8 +167,8 @@ fi
 
 # ── Build (unless skipped) ────────────────────────────────────────
 if [ "$SKIP_BUILD" != "1" ]; then
-  echo "[m0] cargo build --release -p minif2f_v4 ..."
-  (cd "$PROJECT_ROOT" && cargo build --release -p minif2f_v4 2>&1 | tail -3)
+  echo "[m0] cargo build --release --manifest-path experiments/minif2f_v4/Cargo.toml ..."
+  (cd "$PROJECT_ROOT" && CARGO_TARGET_DIR="$PROJECT_ROOT/target" cargo build --release --manifest-path "$PROJECT_ROOT/experiments/minif2f_v4/Cargo.toml" 2>&1 | tail -3)
   echo "[m0] cargo build --release --bin audit_tape --bin audit_tape_tamper ..."
   (cd "$PROJECT_ROOT" && cargo build --release --bin audit_tape --bin audit_tape_tamper 2>&1 | tail -3)
 fi

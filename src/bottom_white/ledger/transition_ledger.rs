@@ -34,7 +34,7 @@ use std::any::{Any, TypeId};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use git2::{ObjectType as Git2ObjectType, Repository, Signature as GitSignature};
+use git2::{Repository, Signature as GitSignature};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
@@ -1008,6 +1008,12 @@ impl Git2LedgerWriter {
         oid: git2::Oid,
         log_message: &str,
     ) -> Result<(), LedgerWriterError> {
+        crate::bottom_white::cas::git_chain::validate_cas_chain_head_update(repo_path, oid)
+            .map_err(|e| {
+                LedgerWriterError::BackendCorruption(format!(
+                    "chaintape cas ref target validation: {e}"
+                ))
+            })?;
         let repo = Repository::open(repo_path)
             .map_err(|e| LedgerWriterError::BackendCorruption(format!("repo open: {e}")))?;
         repo.reference(CHAINTAPE_CAS_REF, oid, true, log_message)
@@ -1032,11 +1038,24 @@ impl Git2LedgerWriter {
     pub fn head_chaintape_cas(repo_path: &Path) -> Result<Option<git2::Oid>, LedgerWriterError> {
         let repo = Repository::open(repo_path)
             .map_err(|e| LedgerWriterError::BackendCorruption(format!("repo open: {e}")))?;
-        let oid = repo
-            .find_reference(CHAINTAPE_CAS_REF)
-            .ok()
-            .and_then(|r| r.target());
-        Ok(oid)
+        let reference = match repo.find_reference(CHAINTAPE_CAS_REF) {
+            Ok(reference) => reference,
+            Err(e) if e.code() == git2::ErrorCode::NotFound => return Ok(None),
+            Err(e) => {
+                return Err(LedgerWriterError::BackendCorruption(format!(
+                    "chaintape cas ref read: {e}"
+                )))
+            }
+        };
+        let oid = reference.target().ok_or_else(|| {
+            LedgerWriterError::BackendCorruption(format!(
+                "{CHAINTAPE_CAS_REF} exists but is not a direct CAS commit-chain ref"
+            ))
+        })?;
+        crate::bottom_white::cas::git_chain::validate_cas_chain_head_oid(repo_path, oid).map_err(
+            |e| LedgerWriterError::BackendCorruption(format!("chaintape cas ref invalid: {e}")),
+        )?;
+        Ok(Some(oid))
     }
 
     /// Read raw canonical-encoded `LedgerEntry` bytes (the `entry_canonical`

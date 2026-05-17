@@ -41,7 +41,7 @@ echo "Stderr: $STDERR_LOG"
 echo ""
 
 # Build
-(cd "$PROJECT_ROOT" && cargo build --release -p minif2f_v4 2>&1 | tail -1)
+(cd "$PROJECT_ROOT" && CARGO_TARGET_DIR="$PROJECT_ROOT/target" cargo build --release --manifest-path "$PROJECT_ROOT/experiments/minif2f_v4/Cargo.toml" 2>&1 | tail -1)
 EVALUATOR="$PROJECT_ROOT/target/release/evaluator"
 
 # Preflight (C-012)
