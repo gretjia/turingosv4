@@ -41,6 +41,8 @@ mod cmd_config;
 mod cmd_export_evidence;
 #[path = "turingos/cmd_preflight.rs"]
 mod cmd_preflight;
+#[path = "turingos/cmd_render.rs"]
+mod cmd_render;
 #[path = "turingos/cmd_replay.rs"]
 mod cmd_replay;
 #[path = "turingos/cmd_report_bankruptcy.rs"]
@@ -175,6 +177,11 @@ const SUBCOMMANDS: &[Subcommand] = &[
         name: "export evidence",
         short_help: cmd_export_evidence::SHORT_HELP,
         run: cmd_export_evidence::run,
+    },
+    Subcommand {
+        name: "render",
+        short_help: cmd_render::SHORT_HELP,
+        run: cmd_render::run,
     },
     // SUBCOMMANDS-REGISTRY-END
 ];
