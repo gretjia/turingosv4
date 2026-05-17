@@ -31,6 +31,10 @@ mod cmd_audit_dashboard;
 mod cmd_audit_tamper;
 #[path = "turingos/cmd_audit_tape.rs"]
 mod cmd_audit_tape;
+#[path = "turingos/cmd_preflight.rs"]
+mod cmd_preflight;
+#[path = "turingos/cmd_replay.rs"]
+mod cmd_replay;
 #[path = "turingos/cmd_report_bankruptcy.rs"]
 mod cmd_report_bankruptcy;
 #[path = "turingos/cmd_report_markov.rs"]
@@ -41,6 +45,12 @@ mod cmd_report_positions;
 mod cmd_report_run;
 #[path = "turingos/cmd_report_wallet.rs"]
 mod cmd_report_wallet;
+#[path = "turingos/cmd_task_open.rs"]
+mod cmd_task_open;
+#[path = "turingos/cmd_task_tick.rs"]
+mod cmd_task_tick;
+#[path = "turingos/cmd_task_view.rs"]
+mod cmd_task_view;
 #[path = "turingos/cmd_verify_chaintape.rs"]
 mod cmd_verify_chaintape;
 #[path = "turingos/cmd_verify_e2_candidate.rs"]
@@ -112,6 +122,31 @@ const SUBCOMMANDS: &[Subcommand] = &[
         name: "audit tamper",
         short_help: cmd_audit_tamper::SHORT_HELP,
         run: cmd_audit_tamper::run,
+    },
+    Subcommand {
+        name: "preflight",
+        short_help: cmd_preflight::SHORT_HELP,
+        run: cmd_preflight::run,
+    },
+    Subcommand {
+        name: "replay",
+        short_help: cmd_replay::SHORT_HELP,
+        run: cmd_replay::run,
+    },
+    Subcommand {
+        name: "task open",
+        short_help: cmd_task_open::SHORT_HELP,
+        run: cmd_task_open::run,
+    },
+    Subcommand {
+        name: "task view",
+        short_help: cmd_task_view::SHORT_HELP,
+        run: cmd_task_view::run,
+    },
+    Subcommand {
+        name: "task tick",
+        short_help: cmd_task_tick::SHORT_HELP,
+        run: cmd_task_tick::run,
     },
     // SUBCOMMANDS-REGISTRY-END
 ];
