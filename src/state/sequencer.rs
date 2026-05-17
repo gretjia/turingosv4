@@ -3835,12 +3835,17 @@ impl From<LedgerWriterError> for ApplyError {
 pub enum SequencerError {
     /// `run()` was called when the receiver had already been consumed.
     ReceiverAlreadyTaken,
+    /// `apply_one` hit an infrastructure/integrity failure. Ordinary
+    /// transition rejections are written to L4.E and do not halt the run loop;
+    /// CAS/key/ledger/encoding/lock failures are not ordinary agent rejections.
+    ApplyFailed(ApplyError),
 }
 
 impl std::fmt::Display for SequencerError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::ReceiverAlreadyTaken => write!(f, "sequencer receiver already taken"),
+            Self::ApplyFailed(e) => write!(f, "sequencer apply_one failed closed: {e}"),
         }
     }
 }
@@ -4687,20 +4692,24 @@ impl Sequencer {
         self.submit_agent_tx(tx).await
     }
 
-    /// Driver loop. Drains the queue and runs `apply_one` on each tx. Errors
-    /// from individual `apply_one` calls are logged and skipped (per-tx
-    /// rejection does NOT halt the sequencer). Returns when the queue is
-    /// closed and drained.
+    /// Driver loop. Drains the queue and runs `apply_one` on each tx.
+    /// Ordinary transition rejections are already written to L4.E and do not
+    /// halt the sequencer. Infrastructure/integrity failures fail closed
+    /// because they mean the canonical evidence path itself is compromised.
     pub async fn run(
         &self,
         mut queue_rx: tokio::sync::mpsc::Receiver<SubmissionEnvelope>,
     ) -> Result<(), SequencerError> {
         while let Some(envelope) = queue_rx.recv().await {
-            // Stub state: dispatch returns NotYetImplemented; apply_one
-            // bubbles up. We log and continue per spec § 3 v1.2 ordering rule
-            // (rejection does not consume a logical_t — see K1).
+            // Stub state: dispatch returns NotYetImplemented as a normal
+            // transition rejection; apply_one writes L4.E, then bubbles up.
             if let Err(e) = self.apply_one(envelope) {
-                log::debug!("sequencer apply_one rejected: {e}");
+                match e {
+                    ApplyError::Transition(e) => {
+                        log::debug!("sequencer apply_one rejected: {e}");
+                    }
+                    other => return Err(SequencerError::ApplyFailed(other)),
+                }
             }
         }
         Ok(())
@@ -5177,7 +5186,7 @@ impl Sequencer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bottom_white::cas::schema::Cid;
+    use crate::bottom_white::cas::schema::{CasObjectMetadata, Cid, ObjectType};
     use crate::bottom_white::ledger::system_keypair::{PinnedSystemPubkeys, SystemSignature};
     use crate::bottom_white::ledger::transition_ledger::InMemoryLedgerWriter;
     use crate::economy::money::{MicroCoin, StakeMicroCoin};
@@ -5307,6 +5316,15 @@ mod tests {
             signature: AgentSignature::from_bytes([0x77u8; 64]),
             timestamp_logical: 1,
         }
+    }
+
+    fn predicate_failed_work_tx_with_proposal(proposal_cid: Cid) -> WorkTx {
+        let mut work = fixture_work_tx();
+        work.proposal_cid = proposal_cid;
+        for bwp in work.predicate_results.acceptance.values_mut() {
+            bwp.value = false;
+        }
+        work
     }
 
     // 1. dispatch_transition: NON-WORK / NON-RSP1 / NON-RSP2 / NON-RSP4
@@ -5487,6 +5505,94 @@ mod tests {
 
         // After drain, queue is empty again.
         assert!(seq.try_apply_one(&mut rx).is_none());
+    }
+
+    #[tokio::test]
+    async fn run_fails_closed_on_cas_integrity_error_before_continuing_queue() {
+        let tmp = TempDir::new().expect("tempdir");
+        let _init = CasStore::open(tmp.path()).expect("init cas repo");
+        let repo = git2::Repository::open(tmp.path()).expect("repo");
+        let wrong_bytes = b"not-attempt-telemetry";
+        let wrong_oid = repo.blob(wrong_bytes).expect("wrong blob");
+        let expected_cid = Cid::from_content(b"expected-attempt-telemetry-for-run");
+        let metadata = CasObjectMetadata {
+            cid: expected_cid.clone(),
+            backend_oid_hex: wrong_oid.to_string(),
+            object_type: ObjectType::AttemptTelemetry,
+            creator: "test".to_string(),
+            created_at_logical_t: 0,
+            schema_id: Some("turingos.attempt_telemetry.v1".to_string()),
+            size_bytes: wrong_bytes.len() as u64,
+        };
+        std::fs::write(
+            tmp.path().join(".turingos_cas_index.jsonl"),
+            format!(
+                "{}\n",
+                serde_json::to_string(&metadata).expect("metadata json")
+            ),
+        )
+        .expect("write corrupt sidecar");
+
+        let cas = Arc::new(RwLock::new(
+            CasStore::open(tmp.path()).expect("open corrupt legacy cas"),
+        ));
+        let keypair = Arc::new(Ed25519Keypair::generate_with_secure_entropy().expect("keypair"));
+        let epoch = SystemEpoch::new(1);
+        let writer: Arc<RwLock<dyn LedgerWriter>> =
+            Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
+        let rejection_writer = Arc::new(RwLock::new(RejectionEvidenceWriter::default()));
+        let preds = Arc::new(PredicateRegistry::new());
+        let tools = Arc::new(ToolRegistry::new());
+        let mut q = QState::genesis();
+        q.economic_state_t.balances_t.0.insert(
+            AgentId("alice".into()),
+            crate::economy::money::MicroCoin::from_micro_units(10_000_000),
+        );
+        let mut pinned = PinnedSystemPubkeys::new();
+        pinned.insert(epoch, keypair.public_key());
+        let (seq, _unused_rx) = Sequencer::new(
+            cas,
+            keypair,
+            epoch,
+            writer,
+            rejection_writer.clone(),
+            preds,
+            tools,
+            Arc::new(pinned),
+            q,
+            16,
+        );
+
+        let (tx, rx) = tokio::sync::mpsc::channel(2);
+        tx.send(SubmissionEnvelope {
+            submit_id: 1,
+            tx: TypedTx::Work(predicate_failed_work_tx_with_proposal(expected_cid)),
+        })
+        .await
+        .expect("send corrupt predicate failure");
+        tx.send(SubmissionEnvelope {
+            submit_id: 2,
+            tx: TypedTx::Work(fixture_work_tx()),
+        })
+        .await
+        .expect("send second tx");
+        drop(tx);
+
+        let err = seq
+            .run(rx)
+            .await
+            .expect_err("CAS integrity error must stop sequencer run loop");
+        assert!(
+            matches!(err, SequencerError::ApplyFailed(ApplyError::Cas(_))),
+            "expected CAS integrity to surface through SequencerError, got {err:?}"
+        );
+        let writer_g = rejection_writer.read().expect("writer read");
+        assert_eq!(
+            writer_g.records().len(),
+            0,
+            "driver must not continue to later queue entries after CAS integrity failure"
+        );
+        assert_eq!(seq.next_logical_t_peek(), 0);
     }
 
     // TB-2 Atom 3 — U3: dispatch_transition WorkTx returns the interim

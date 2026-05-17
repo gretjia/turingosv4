@@ -34,10 +34,10 @@ helper.
 
 ## Risk And Class Boundary
 
-Risk class: Class 3 by default, because this touches CAS integrity and
-production evidence storage.
+Risk class: Class 3 for the CAS integrity/evidence-storage implementation,
+plus a narrowly ratified Class 4 trust-root rehash.
 
-Class 4 boundary check:
+Class 4 boundary check after user ratification:
 
 - `src/bottom_white/cas/schema.rs`: not changed.
 - typed tx schema/discriminants: not changed.
@@ -47,12 +47,21 @@ Class 4 boundary check:
   taxonomy, typed tx shape, or signing payloads.
 - canonical signing payload: not changed.
 - constitution/flowcharts: not changed.
-- trust-root authority file `genesis_payload.toml`: not changed.
+- trust-root authority file `genesis_payload.toml`: changed only after the
+  user explicitly authorized Class 4 Trust Root rehash for
+  `codex/cas-git-constitutional-repair`; the rehash is limited to pinned files
+  already changed by this CAS Git repair.
 
-Important merge boundary: `Cargo.lock`, `src/runtime/evidence_capsule.rs`, and
-`src/state/sequencer.rs` are trust-root pinned. This branch intentionally does
-not rehash `genesis_payload.toml`; doing so is the Class 4 authority step that
-must be explicitly ratified before merge.
+Trust-root rehash commit:
+
+- `16a9df3c3028bb955c9feacd7d1b4be40f653649`
+- Rehashed pinned files: `Cargo.lock`, `Cargo.toml`,
+  `src/runtime/evidence_capsule.rs`, `src/bottom_white/cas/mod.rs`,
+  `src/bottom_white/cas/store.rs`, `src/state/sequencer.rs`,
+  `src/bottom_white/ledger/transition_ledger.rs`.
+- Clean-audit P1 closure adds Trust Root coverage for the new authority module
+  `src/bottom_white/cas/git_chain.rs` and rehashes `src/state/sequencer.rs`
+  after driver-level CAS integrity fail-closed behavior was tightened.
 
 ## Constitution And Flowchart Mapping
 
@@ -158,35 +167,36 @@ Compatibility behavior:
 
 | Command | Baseline | Final | Delta |
 | --- | --- | --- | --- |
-| `git diff --check` | PASS | PASS | Equivalent. |
-| `cargo fmt --all --check` | Not recorded in baseline | PASS | Formatting verified. |
+| `git diff --check` | PASS | PASS before trust-root rehash commit | Re-run again before final report commit. |
+| `cargo fmt --all --check` | Not recorded in baseline | PASS before trust-root rehash | Re-run again before final report commit. |
 | `cargo test --lib bottom_white::cas::store::tests -- --test-threads=1` | Not a baseline command | PASS, 33 passed | New targeted CAS chain/cache/fail-closed/lookup/backend-bound/large-legacy-prefix/rebuild-after-missing-cache/oversized-record coverage. |
 | `cargo test --lib runtime::evidence_capsule::tests -- --test-threads=1` | Not a baseline command | PASS, 9 passed | New targeted gzip raw-log round-trip, manifest hash, legacy read, schema-id alignment, writer cap, and bounded decompression coverage. |
 | `cargo test --test tb_18r_cas_reload_split_brain -- --test-threads=1` | Included in baseline suite | PASS, 7 passed | Adds read/reload integrity fail-closed coverage. |
 | `cargo test --test constitution_head_t_c2_multi_ref -- --test-threads=1` | Included in baseline suite | PASS, 11 passed | Adds invalid/symbolic/rewind CAS ref boundary coverage. |
 | Baseline targeted suite: `constitution_head_t_c2_multi_ref`, `tb_18r_cas_reload_split_brain`, `co1_7_extra_cas_payload_round_trip`, `tb_18r_lean_result_cas_resolves`, `constitution_tape_canonical_gate`, `constitution_no_parallel_ledger` | PASS, 29 passed | PASS, 34 passed | Five additional targeted assertions; no regression in targeted existing gates. |
-| `bash scripts/run_constitution_gates.sh` | BASELINE FAIL, 443 passed / 18 failed / 1 ignored | FAIL, 446 passed / 18 failed / 1 ignored | Red gate count unchanged; three new CAS boundary assertions pass. |
-| `cargo test --workspace --no-fail-fast -- --test-threads=1` | ENV FAIL, no space/linker bus error during compile | FAIL, 9 failed targets | Final run got past compilation. A CAS concurrent-writer failure found during broad testing was fixed and rechecked with the full CAS store suite; remaining failed targets are trust-root plus pre-existing evidence/dashboard failures. |
-| `cargo test --lib boot::tests::verify_trust_root_passes_on_intact_repo -- --test-threads=1` | PASS at baseline HEAD by trust-root assumption | FAIL | First reported tamper is `Cargo.lock`: expected `080b20...`, actual `5d373b...`. `genesis_payload.toml` was intentionally not rehashed. |
+| `cargo test -p minif2f_v4 --test trust_root_immutability -- --test-threads=1` | PASS at baseline HEAD by trust-root assumption | PASS, 4 passed | Confirms Class 4 rehash closed the prior Trust Root boot blocker. |
+| `cargo test --lib boot::tests::verify_trust_root_passes_on_intact_repo -- --test-threads=1` | PASS at baseline HEAD by trust-root assumption | PASS, 1 passed | Confirms `genesis_payload.toml` matches current pinned file hashes. |
+| `cargo test --lib state::sequencer::tests::run_fails_closed_on_cas_integrity_error_before_continuing_queue -- --test-threads=1` | Not a baseline command | PASS, 1 passed | New clean-audit P1 regression: driver-level CAS integrity error stops `run()` before later queue entries. |
+| `bash scripts/run_constitution_gates.sh` | BASELINE FAIL, 443 passed / 18 failed / 1 ignored | FAIL, 446 passed / 18 failed / 1 ignored | Red gate count unchanged from pre-rehash final; three new CAS boundary assertions pass. |
+| `cargo test --workspace --no-fail-fast -- --test-threads=1` | ENV FAIL, no space/linker bus error during compile | FAIL, 6 failed targets | Trust-root and `fc_alignment_conformance` failures are closed versus the pre-rehash 9-target failure set; remaining red targets are pre-existing evidence/dashboard gates. |
+| `bash scripts/run_g_phase_batch.sh cas_git_repair_* mini` | PASS on isolated baseline worktree | PASS on repair branch after rehash | Both audit `PROCEED`; final adds CAS commit-chain auditability. |
+| `MAX_TX=12 PER_PROBLEM_TIMEOUT_S=1800 ... run_tb_18r_r9_evidence.sh` | Audit `PROCEED`, R9 invariant red | Audit `PROCEED`, R9 invariant red | Same class of historical TB-18R R9 invariant failure remains; not introduced by CAS repair. |
 
 Final workspace failed targets observed:
 
-- `-p minif2f_v4 --test trust_root_immutability`
-- `-p turingosv4 --lib`
 - `-p turingosv4 --test constitution_fc3_evidence_binding`
 - `-p turingosv4 --test constitution_fc3_inv1_capsule_integrity_regen`
 - `-p turingosv4 --test constitution_l4e_body_integrity`
 - `-p turingosv4 --test constitution_librarian_real_evidence_binding`
 - `-p turingosv4 --test constitution_shielding_evidence_binding`
-- `-p turingosv4 --test fc_alignment_conformance`
 - `-p turingosv4 --test tb_16_dashboard_live_regen`
 
 Known red constitution evidence gates pre-existed this branch and remained at
-the same total count. The trust-root failures are branch-introduced only because
-the repair changes pinned files and the trust-root manifest was not rehashed.
-The broad-suite CAS concurrency regression was branch-introduced during repair
-and fixed before this report: the CAS store suite now passes `33` tests,
-including `concurrent_writers_share_index_without_race`.
+the same total count. The earlier trust-root failures were branch-introduced
+because the repair changed pinned files; they are now closed by explicit Class 4
+rehash. The broad-suite CAS concurrency regression found during repair was
+branch-introduced and fixed before this report: the CAS store suite now passes
+`33` tests, including `concurrent_writers_share_index_without_race`.
 
 ## Design Point To Test Mapping
 
@@ -212,6 +222,8 @@ including `concurrent_writers_share_index_without_race`.
 | Concurrent writer handles serialize and observe latest chain state | `concurrent_writers_share_index_without_race` |
 | Initial sequencer CAS read integrity error fails closed | `refine_rejection_class_initial_cas_read_integrity_error_fails_closed` |
 | Sequencer reload integrity error fails closed | `refine_rejection_class_reload_integrity_error_fails_closed` |
+| Sequencer driver fails closed instead of continuing after CAS integrity failure | `run_fails_closed_on_cas_integrity_error_before_continuing_queue` |
+| New CAS git-chain authority module is Trust Root pinned | `trust_root_immutability` + `verify_trust_root_passes_on_intact_repo` |
 | Public CAS ref updater rejects generic commits | `sg_a3_cas_ref_rejects_generic_commit_target` |
 | Tape-derived lookup helpers return exact CIDs | `tape_derived_lookup_helpers_return_exact_expected_cids` |
 | Compressed raw log round-trips and verifies manifest hash | `compressed_raw_log_round_trips_and_manifest_hash_verifies` |
@@ -224,55 +236,142 @@ including `concurrent_writers_share_index_without_race`.
 
 ## Real-Problem Evidence
 
-Baseline real-problem evidence was not run because LLM/proxy preflight failed:
+The repair worktree has no `.env`, so the real-problem runs explicitly sourced
+`/home/zephryj/projects/turingosv4/.env` without copying secrets into the
+repair worktree. `DEEPSEEK_API_KEY` was present and the local proxy health
+check at `http://localhost:8080/health` returned OK. Low-disk override
+`TURINGOS_G_PHASE_LOW_DISK_OK=1` was used for mini runs because `/` had about
+11-12G free, below the runner's 20G warning threshold.
 
-- no `.env` in the repair worktree;
-- no `DEEPSEEK_API_KEY`, `OPENAI_API_KEY`, or `ANTHROPIC_API_KEY` in the
-  process environment;
-- no `HTTP_PROXY`, `HTTPS_PROXY`, or `ALL_PROXY` in the process environment.
+Baseline mini evidence:
 
-Final real-problem evidence was also not run for the same preflight reason.
+- Worktree:
+  `/home/zephryj/projects/turingosv4-cas-git-repair-real-baseline`
+- Commit: `7b39499a6d416081d2eb5cae69cd9278a4fb72ed`
+- Path:
+  `/home/zephryj/projects/turingosv4-cas-git-repair-real-baseline/handover/evidence/cas_git_repair_baseline_20260517T052432Z`
+- Result: 3-task batch, chain continuity OK, `audit_tape=PROCEED`,
+  `passed=41 failed=0 halted=0 skipped=11`,
+  `PERSISTENCE_BINDING_REPORT is_passing=true n_witnessed=5`.
 
-Commands intentionally not executed as evidence:
+Final mini evidence:
 
-- `bash scripts/run_g_phase_batch.sh cas_git_repair_baseline_<UTC> mini`
-- `MAX_TX=12 PER_PROBLEM_TIMEOUT_S=1800 bash handover/tests/scripts/run_tb_18r_r9_evidence.sh`
-- final-tag equivalents of the above.
+- Worktree: `/home/zephryj/projects/turingosv4-cas-git-repair`
+- Evidence commit:
+  `16a9df3c3028bb955c9feacd7d1b4be40f653649`
+- Path:
+  `/home/zephryj/projects/turingosv4-cas-git-repair/handover/evidence/cas_git_repair_final_trustroot_20260517T054733Z`
+- Result: 3-task batch, chain continuity OK, `audit_tape=PROCEED`,
+  `passed=41 failed=0 halted=0 skipped=11`,
+  `PERSISTENCE_BINDING_REPORT is_passing=true n_witnessed=5`.
+- The earlier final attempt at
+  `handover/evidence/cas_git_repair_final_20260517T052432Z` failed closed at
+  boot with `TRUST_ROOT_TAMPERED` before the user-authorized rehash. A second
+  attempt at
+  `handover/evidence/cas_git_repair_final_trustroot_20260517T054706Z` was
+  rejected by runner preflight because `genesis_payload.toml` was dirty; this
+  was handled by committing the rehash before generating final evidence.
 
-This report makes no real-LLM performance or quality claim.
+Baseline R9 evidence:
+
+- Path:
+  `/home/zephryj/projects/turingosv4-cas-git-repair-real-baseline/handover/evidence/cas_git_repair_baseline_r9_20260517T052432Z`
+- P01 `mathd_numbertheory_1124`: `audit_tape=PROCEED`, invariant red with
+  `delta=-1` / attempt vanished pre-chain.
+- P02 `numbertheory_2pownm1prime_nprime`: `audit_tape=PROCEED`, invariant red
+  with `delta=3`.
+- v4 postprocess: `PASS=0 FAIL=2 NA=0`.
+
+Final R9 evidence:
+
+- Path:
+  `/home/zephryj/projects/turingosv4-cas-git-repair/handover/evidence/cas_git_repair_final_r9_20260517T054833Z`
+- P01 `mathd_numbertheory_1124`: `audit_tape=PROCEED`, invariant red with
+  `delta=-1` / attempt vanished pre-chain.
+- P02 `numbertheory_2pownm1prime_nprime`: `audit_tape=PROCEED`, invariant red
+  with `delta=10`.
+- v4 postprocess: `PASS=0 FAIL=2 NA=0`.
+
+R9 interpretation: both baseline and final produce authoritative audit
+`PROCEED` but fail the same family of TB-18R attempt-count invariant checks.
+This branch does not claim to repair that historical R9 invariant issue.
 
 ## Efficiency And Storage Comparison
 
-Real-problem storage metrics are unavailable because both baseline and final
-real-problem runs were skipped by preflight.
+Mini batch metrics:
 
-Mechanism-level changes:
+| Metric | Baseline mini | Final mini | Interpretation |
+| --- | --- | --- | --- |
+| Audit verdict | `PROCEED` | `PROCEED` | Equivalent audit result. |
+| `passed/failed` | `41/0` | `41/0` | Equivalent audit count. |
+| Runner `elapsed_s` | `35` | `42` | Final is slower in this tiny run; includes CAS chain overhead and live-run variance. |
+| L4/L4E commit counts | `24/9` | `24/9` | Runtime ledger shape unchanged. |
+| Runtime repo disk | `1.2M` | `1.2M` | No runtime ledger storage regression. |
+| CAS Git object files | `66` | `335` | Expected overhead: each CAS object now has commit/tree/record metadata. |
+| CAS chain commits | `0` | `67` | Improvement: CAS metadata is now reconstructable from `refs/chaintape/cas`. |
+| CAS disk | `640K` | `2.2M` | Expected auditability overhead. |
+| Evidence dir disk | `2.0M` | `3.5M` | Expected CAS chain metadata overhead. |
 
-- CAS now stores one Git commit record per new CAS object. This adds metadata
-  overhead relative to a bare blob-ref pointer, but buys reconstructability,
-  strict root history, and sidecar-cache auditability.
-- New EvidenceCapsule raw logs are gzip-compressed. The unit test verifies a
-  repetitive raw log stores fewer bytes than the uncompressed raw log and
-  round-trips through manifest verification.
-- Large legacy sidecar prefixes are stored in bounded per-entry tree blobs
-  under the first forward CAS-chain commit. This raises commit-tree object count
-  for migration commits but prevents one oversized record from blocking replay.
-- For tiny or already-compressed logs, gzip may increase stored bytes. No
-  branch-level efficiency claim is made without real workload measurements.
+R9 metrics:
+
+| Metric | Baseline R9 | Final R9 | Interpretation |
+| --- | --- | --- | --- |
+| Evidence dir disk | `2.1M` | `3.9M` | Expected CAS chain metadata overhead plus live-run variance. |
+| P01 audit | `PROCEED` | `PROCEED` | Equivalent audit result. |
+| P01 CAS objects / disk | `20 / 292K` | `100 / 856K` | CAS chain metadata overhead. |
+| P01 runtime repo disk | `448K` | `440K` | Essentially equivalent. |
+| P01 invariant | `delta=-1` | `delta=-1` | Same historical invariant family. |
+| P02 audit | `PROCEED` | `PROCEED` | Equivalent audit result. |
+| P02 CAS objects / disk | `79 / 748K` | `330 / 2.2M` | CAS chain metadata overhead. |
+| P02 runtime repo disk | `528K` | `360K` | Live-run attempt count differed; not claimed as a CAS improvement. |
+| P02 invariant | `delta=3` | `delta=10` | Same historical invariant family, different live-run trajectory. |
+
+What improved:
+
+- CAS metadata is now reconstructable from Git commit-chain history even when
+  `.turingos_cas_index.jsonl` is missing.
+- `refs/chaintape/cas` is now a real chain head and has `67` commits in final
+  mini evidence instead of being a latest-blob pointer with no chain history.
+- Trust-root boot now passes on the repair branch after explicit Class 4
+  rehash, enabling final real-problem evidence without bypassing boot checks.
+
+What regressed or costs more:
+
+- CAS storage is larger because each CAS object now carries Git commit-chain
+  metadata. This is the explicit tradeoff for replayable/auditable metadata.
+- The tiny mini run's runner elapsed time was `42s` final versus `35s`
+  baseline; this report does not claim runtime performance improvement.
+
+What stayed equivalent:
+
+- Mini audit verdict/counts, persistence binding, L4/L4E counts, and runtime
+  repo disk usage.
+- R9 audit verdicts remain `PROCEED` on both baseline and final.
+
+Compression claim:
+
+- New EvidenceCapsule raw logs are gzip-compressed and unit-tested for
+  round-trip/hash verification. The real mini/R9 evidence above is not used to
+  claim net raw-log compression savings because workload log composition is
+  live-run dependent and the CAS chain metadata overhead dominates these small
+  runs.
 
 ## Residual Risks And Non-Claims
 
-- The branch is not merge-ready until the trust-root rehash path is explicitly
-  ratified. `genesis_payload.toml` was intentionally not updated in this Class 3
-  repair pass.
-- Workspace-wide tests do not pass because trust-root verification fails on
-  branch-modified pinned files and because several evidence/dashboard gates were
-  already red at baseline.
-- Real-problem evidence could not run because LLM credentials/proxy preflight
-  failed in this isolated worktree.
+- The branch is not merge-ready until user review accepts the Class 3 CAS
+  repair plus the explicitly ratified Class 4 trust-root rehash.
+- Workspace-wide tests still do not pass because several evidence/dashboard
+  gates were already red at baseline. Trust-root failures from the repair branch
+  are now closed.
+- Real-problem evidence has run for mini and R9, but R9 still has the same
+  historical attempt-count invariant family red in both baseline and final.
+- The mini real-problem run used `TURINGOS_G_PHASE_LOW_DISK_OK=1` because the
+  filesystem had only about 11-12G free versus the runner's 20G warning
+  threshold.
 - The new `flate2` production dependency changes `Cargo.lock`; this is useful
   for real gzip compression but requires supply-chain/trust-root review before
-  merge.
+  merge. The trust-root hash is updated only on this repair branch after user
+  ratification.
 - The CAS chain lock uses a simple lockfile with a 120s default timeout. It
   serializes this process family and refreshes Git object databases after
   waiting, but does not implement stale PID recovery.
@@ -392,6 +491,26 @@ Round 7 findings:
   were accepted as correctly represented ship/report blockers rather than
   hidden production defects.
 
+Round 8 verdict: `CHALLENGE`.
+
+Round 8 findings and remediation:
+
+- P1 Trust Root coverage gap: `src/bottom_white/cas/git_chain.rs` is the new
+  CAS git-chain authority module but was not pinned in `genesis_payload.toml`.
+  Fixed by adding the file to `[trust_root]` with sha256
+  `b4174ab9edd566ca6b443582182fabaecf2fe12438b262e4653969e1eff74bf1`.
+  Rechecked with `trust_root_immutability` and
+  `verify_trust_root_passes_on_intact_repo`.
+- P1 sequencer driver fail-open risk: `Sequencer::run` previously debug-logged
+  every `ApplyError` and continued, so a CAS integrity error during rejection
+  refinement could skip L4.E for that tx and still process later queue entries.
+  Fixed by continuing only on ordinary `ApplyError::Transition`, while
+  returning `SequencerError::ApplyFailed` for CAS/key/ledger/encoding/lock
+  failures. Added
+  `run_fails_closed_on_cas_integrity_error_before_continuing_queue`, which
+  injects corrupt CAS metadata, asserts `run()` returns `ApplyFailed(Cas(..))`,
+  and asserts later queued work is not processed.
+
 Requested reviewer verdict format: `PROCEED | CHALLENGE | VETO`.
 
 ## Merge Guidance
@@ -399,17 +518,20 @@ Requested reviewer verdict format: `PROCEED | CHALLENGE | VETO`.
 Do not merge directly to `main` until user review confirms:
 
 - Class 3 risk is acceptable;
-- the trust-root rehash/Class 4 authority step is ratified or the dependency
-  and pinned-file strategy is revised;
-- real-problem evidence can be rerun with credentials/proxy available;
-- Round 7 clean-context audit `PROCEED` remains acceptable after any user-side
-  review changes.
+- the user-authorized Class 4 trust-root rehash is acceptable as a branch-local
+  authority update;
+- final mini/R9 real-problem evidence and the R9 residual invariant limitation
+  are acceptable;
+- the remaining six workspace red targets are either fixed separately or
+  explicitly accepted as pre-existing evidence/dashboard blockers outside this
+  CAS repair;
+- clean-context audit remains `PROCEED` after the trust-root rehash and final
+  real-problem evidence update.
 
 Recommended merge path after approval:
 
-1. Ratify and perform the trust-root rehash if this implementation strategy is
-   accepted.
-2. Re-run targeted tests, constitution gates, and workspace tests.
-3. Run real-problem baseline/final equivalents if LLM credentials are
-   available.
+1. Review the CAS implementation commit and the trust-root rehash commit.
+2. Review final mini/R9 evidence paths and this report's efficiency tradeoff.
+3. Decide whether remaining evidence/dashboard red gates block this merge or
+   belong to a separate repair branch.
 4. Merge this branch into main only after evidence and audit agree.
