@@ -322,7 +322,9 @@ fn cmd_init_inner(args: InitArgs) -> Result<(), InitError> {
     println!("  turingos llm config --workspace {cd_hint}     # 1. set up the two LLMs (uses SiliconFlow + DeepSeek + Qwen3-Coder defaults)");
     println!("  export SILICONFLOW_API_KEY=sk-...               # 2. provide your API key");
     println!("  turingos spec --workspace {cd_hint}           # 3. 8-question grill -> spec.md (CAS-anchored)");
-    println!("  turingos generate --workspace {cd_hint}       # 4. emit working code into artifacts/");
+    println!(
+        "  turingos generate --workspace {cd_hint}       # 4. emit working code into artifacts/"
+    );
     println!("  turingos welcome --workspace {cd_hint}        # check progress anytime");
     println!();
     println!("Or, for the established multi-agent benchmark path (Phase 6.1):");

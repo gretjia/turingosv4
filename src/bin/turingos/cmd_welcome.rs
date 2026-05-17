@@ -72,8 +72,8 @@ pub(crate) fn run(args: &[String]) -> ExitCode {
 }
 
 fn inspect_workspace(ws: &Path) -> WorkspaceStatus {
-    let init_done = ws.join("genesis_payload.toml").is_file()
-        && ws.join("agent_pubkeys.json").is_file();
+    let init_done =
+        ws.join("genesis_payload.toml").is_file() && ws.join("agent_pubkeys.json").is_file();
 
     let toml_path = ws.join("turingos.toml");
     let llm_configured = if toml_path.is_file() {
@@ -83,8 +83,7 @@ fn inspect_workspace(ws: &Path) -> WorkspaceStatus {
         false
     };
 
-    let agents_count = if let Ok(content) = std::fs::read_to_string(ws.join("agent_pubkeys.json"))
-    {
+    let agents_count = if let Ok(content) = std::fs::read_to_string(ws.join("agent_pubkeys.json")) {
         content
             .lines()
             .filter(|l| l.trim_start().starts_with('"') && l.trim_end().ends_with("{"))
@@ -133,7 +132,11 @@ fn render_status(ws: &Path, s: &WorkspaceStatus) {
         s.agents_count > 0,
     );
     let spec_label = match &s.spec_capsule_cid {
-        Some(cid) => format!("turingos spec (CAS capsule: {}…{})", &cid[..8], &cid[cid.len() - 8..]),
+        Some(cid) => format!(
+            "turingos spec (CAS capsule: {}…{})",
+            &cid[..8],
+            &cid[cid.len() - 8..]
+        ),
         None => "turingos spec (task decomposition)".to_string(),
     };
     mark(4, &spec_label, s.spec_done);
@@ -144,10 +147,7 @@ fn render_status(ws: &Path, s: &WorkspaceStatus) {
     // generate. `agent deploy` is OPTIONAL for this flow (only matters for
     // multi-agent / benchmark batches) and does NOT block spec progression.
     let next: Option<String> = if !s.init_done {
-        Some(format!(
-            "turingos init --project {} --template proof",
-            ws_q
-        ))
+        Some(format!("turingos init --project {} --template proof", ws_q))
     } else if !s.llm_configured {
         Some(format!("turingos llm config --workspace {}", ws_q))
     } else if !s.spec_done {
