@@ -196,6 +196,7 @@ fn selector_skips_known_safe_non_broadcast_generic_schemas() {
     for schema in [
         "TransitionError.display.v1",
         "real5.role_assignment_manifest.v1",
+        "real17.market_decision_provenance_link.v1",
         "v1/model_assignment_manifest",
         "turingosv4.agent_proposal_record.v1",
         "real13.policy_trader_trace.v1",
