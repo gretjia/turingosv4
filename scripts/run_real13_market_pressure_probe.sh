@@ -87,7 +87,7 @@ market_review_summary_cas_count="${market_review_summary_cas_count:-0}"
 
 e2_verdict="E2 NOT ACHIEVED"
 if [[ "$live_non_scripted_router_tx_count" -gt 0 ]]; then
-    e2_verdict="E2 candidate achieved; CANDIDATE_ACHIEVED_REQUIRES_AUDIT"
+    e2_verdict="E2 candidate pending audit"
 fi
 
 cat > "$REPORT" <<EOF

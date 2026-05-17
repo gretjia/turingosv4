@@ -27,6 +27,14 @@ pub enum EVAction {
     Abstain,
 }
 
+impl EVAction {
+    /// TRACE_MATRIX FC1/FC3: exhaustive action enumerator used by dashboard and
+    /// verifier summaries so buy/abstain categories cannot silently drift.
+    pub const fn all() -> [Self; 3] {
+        [Self::BuyYes, Self::BuyNo, Self::Abstain]
+    }
+}
+
 /// TRACE_MATRIX FC1/FC3: structured explanation for Buy/Short/Abstain so
 /// no-trade outcomes are audit-visible instead of stdout-only.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -41,8 +49,33 @@ pub enum EVReason {
     ParserOrGatewayFailed,
     WindowClosed,
     PositiveEVIgnored,
+    InsufficientConfidence,
+    ProbabilityUncalibrated,
     NoActionableMarket,
     Unknown,
+}
+
+impl EVReason {
+    /// TRACE_MATRIX FC1/FC3: exhaustive reason enumerator for EV/no-trade
+    /// dashboard summaries and fail-closed taxonomy checks.
+    pub const fn all() -> [Self; 14] {
+        [
+            Self::PositiveEV,
+            Self::NegativeEV,
+            Self::EdgeBelowThreshold,
+            Self::RiskCapBlocked,
+            Self::BalanceBlocked,
+            Self::LiquidityTooLow,
+            Self::SlippageTooHigh,
+            Self::ParserOrGatewayFailed,
+            Self::WindowClosed,
+            Self::PositiveEVIgnored,
+            Self::InsufficientConfidence,
+            Self::ProbabilityUncalibrated,
+            Self::NoActionableMarket,
+            Self::Unknown,
+        ]
+    }
 }
 
 /// TRACE_MATRIX FC1/FC3: CAS-backed expected-value decision fossil for a
@@ -59,17 +92,25 @@ pub struct EVDecisionTrace {
     pub task_id: TaskId,
     pub event_id: EventId,
     pub side: MarketSide,
-    pub quoted_price: RationalPrice,
-    pub implied_probability_bps: i64,
-    pub agent_probability_bps: i64,
-    pub edge_bps: i64,
-    pub expected_value_micro: i128,
-    pub amount: MicroCoin,
+    #[serde(default)]
+    pub quoted_price: Option<RationalPrice>,
+    #[serde(default)]
+    pub implied_probability_bps: Option<i64>,
+    #[serde(default)]
+    pub agent_probability_bps: Option<i64>,
+    #[serde(default)]
+    pub edge_bps: Option<i64>,
+    #[serde(default)]
+    pub expected_value_micro: Option<i128>,
+    #[serde(default)]
+    pub amount: Option<MicroCoin>,
     pub max_risk: MicroCoin,
     pub available_balance: MicroCoin,
     pub risk_cap: MicroCoin,
-    pub liquidity_depth: MicroCoin,
-    pub slippage_bps: i64,
+    #[serde(default)]
+    pub liquidity_depth: Option<MicroCoin>,
+    #[serde(default)]
+    pub slippage_bps: Option<i64>,
     pub risk_cap_triggered: bool,
     pub action: EVAction,
     pub reason: EVReason,
@@ -82,6 +123,57 @@ pub struct EVDecisionTrace {
     pub parent_state_root: String,
     pub created_at_head_t: String,
     pub public_summary: String,
+}
+
+impl EVDecisionTrace {
+    /// TRACE_MATRIX FC3: complete public EV basis exists when all public
+    /// price/probability/amount/liquidity fields are present. Missing basis is
+    /// evidence, not an instruction to fabricate 50/50 or zero-liquidity data.
+    pub fn policy_basis_available(&self) -> bool {
+        self.quoted_price.is_some()
+            && self.implied_probability_bps.is_some()
+            && self.agent_probability_bps.is_some()
+            && self.edge_bps.is_some()
+            && self.expected_value_micro.is_some()
+            && self.amount.is_some()
+            && self.liquidity_depth.is_some()
+    }
+}
+
+/// TRACE_MATRIX FC1/FC3: public positive-EV predicate used to diagnose an
+/// abstain without forcing a router action. It depends only on typed public EV
+/// basis and integer risk constraints, never on private rationale or self-
+/// declared EV sign.
+pub fn public_positive_ev_constraints_pass(
+    edge_bps: Option<i64>,
+    expected_value_micro: Option<i128>,
+    amount: Option<MicroCoin>,
+    available_balance: MicroCoin,
+    risk_cap: MicroCoin,
+    liquidity_depth: Option<MicroCoin>,
+    risk_cap_triggered: bool,
+    threshold_bps: i64,
+) -> bool {
+    let threshold_bps = threshold_bps.clamp(0, 10_000);
+    let amount_micro = match amount {
+        Some(amount) => amount.micro_units(),
+        None => return false,
+    };
+    if amount_micro <= 0 || risk_cap_triggered {
+        return false;
+    }
+    if available_balance.micro_units() < amount_micro || risk_cap.micro_units() < amount_micro {
+        return false;
+    }
+    if liquidity_depth
+        .map(|depth| depth.micro_units() < amount_micro)
+        .unwrap_or(true)
+    {
+        return false;
+    }
+
+    edge_bps.map(|edge| edge > threshold_bps).unwrap_or(false)
+        && expected_value_micro.map(|ev| ev > 0).unwrap_or(false)
 }
 
 /// TRACE_MATRIX FC1/FC3: fail-closed validator enforcing role-side, bps,
@@ -99,12 +191,23 @@ pub fn validate_ev_decision_trace(trace: &EVDecisionTrace) -> Result<(), String>
     if trace.review_response_id.trim().is_empty() {
         return Err("EVDecisionTrace review_response_id must be non-empty".into());
     }
-    validate_bps("implied_probability_bps", trace.implied_probability_bps)?;
-    validate_bps("agent_probability_bps", trace.agent_probability_bps)?;
-    validate_bps("slippage_bps", trace.slippage_bps)?;
-    if trace.quoted_price.denominator == 0 {
+    if let Some(value) = trace.implied_probability_bps {
+        validate_bps("implied_probability_bps", value)?;
+    }
+    if let Some(value) = trace.agent_probability_bps {
+        validate_bps("agent_probability_bps", value)?;
+    }
+    if let Some(value) = trace.slippage_bps {
+        validate_bps("slippage_bps", value)?;
+    }
+    if trace
+        .quoted_price
+        .map(|price| price.denominator == 0)
+        .unwrap_or(false)
+    {
         return Err("quoted_price denominator must be non-zero".into());
     }
+    let basis_complete = trace.policy_basis_available();
     if trace.public_summary.trim().is_empty() {
         return Err("EVDecisionTrace public_summary must be non-empty".into());
     }
@@ -136,6 +239,9 @@ pub fn validate_ev_decision_trace(trace: &EVDecisionTrace) -> Result<(), String>
         && trace.reason != EVReason::PositiveEV
     {
         return Err("Buy/Short requires PositiveEV reason".into());
+    }
+    if matches!(trace.action, EVAction::BuyYes | EVAction::BuyNo) && !basis_complete {
+        return Err("Buy/Short requires complete public EV basis".into());
     }
     Ok(())
 }
@@ -229,6 +335,14 @@ impl EVDecisionTraceSummary {
     /// TRACE_MATRIX FC3: folds CAS EVDecisionTrace records into report counts
     /// without becoming a source of truth.
     pub fn from_cas(cas: &CasStore) -> Result<Self, CasError> {
+        let by_reason = EVReason::all()
+            .into_iter()
+            .map(|reason| (reason, 0))
+            .collect();
+        let by_action = EVAction::all()
+            .into_iter()
+            .map(|action| (action, 0))
+            .collect();
         let mut summary = Self {
             total: 0,
             bull_count: 0,
@@ -236,8 +350,8 @@ impl EVDecisionTraceSummary {
             buy_yes_count: 0,
             buy_no_count: 0,
             abstain_count: 0,
-            by_reason: BTreeMap::new(),
-            by_action: BTreeMap::new(),
+            by_reason,
+            by_action,
         };
         for cid in ev_decision_trace_cids(cas) {
             let trace = read_ev_decision_trace_from_cas(cas, &cid)?;

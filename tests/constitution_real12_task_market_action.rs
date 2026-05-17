@@ -169,6 +169,20 @@ fn real12_evaluator_has_bid_task_execution_arm_for_task_outcome_market() {
 }
 
 #[test]
+fn real12_task_outcome_router_suffix_includes_task_identity() {
+    let evaluator = fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs")
+        .expect("evaluator source");
+    assert!(
+        !evaluator.contains("let suffix = format!(\"{}-{}\", agent_id, tx);"),
+        "R14 audit CHALLENGE: per-problem tx numbers repeat, so router suffix must not be agent+tx only"
+    );
+    assert!(
+        evaluator.contains("let suffix = format!(\"{}-{}-{}\", task_id_str, agent_id, tx);"),
+        "router suffix must include task identity so submitted trace tx_ids can join exactly to L4 router tx_ids across hard10 batches"
+    );
+}
+
+#[test]
 fn real12_task_market_probe_runner_records_bid_task_attempts_without_forcing_trade() {
     let script = fs::read_to_string("scripts/run_real12_task_market_probe.sh")
         .expect("REAL-12 task-market probe runner exists");
@@ -188,4 +202,26 @@ fn real12_task_market_probe_runner_records_bid_task_attempts_without_forcing_tra
     ] {
         assert!(script.contains(required), "runner missing {required}");
     }
+    assert!(
+        script.contains("E2 candidate pending audit"),
+        "positive router evidence may only be reported as pending audit"
+    );
+    assert!(
+        !script.contains("E2 candidate achieved"),
+        "ARH-v2 forbids stronger candidate-achieved wording before clean-context audit"
+    );
+}
+
+#[test]
+fn real12_probe_labels_economic_judgment_reason_distribution_without_abstain_drift() {
+    let script = fs::read_to_string("scripts/run_real12_task_market_probe.sh")
+        .expect("REAL-12 task-market probe runner exists");
+    assert!(
+        !script.contains("abstain_reason_distribution"),
+        "R16 audit CHALLENGE: all EconomicJudgment reasons must not be mislabeled as abstain-only"
+    );
+    assert!(
+        script.contains("economic_judgment_reason_distribution"),
+        "REAL-12 report must label all EconomicJudgment reason rows accurately"
+    );
 }

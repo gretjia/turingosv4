@@ -1,0 +1,23 @@
+{
+  "schema_version": "real14.e2_candidate_verifier.v1",
+  "l4_router_tx_count": 0,
+  "submitted_trace_tx_count": 0,
+  "exact_join_count": 0,
+  "matched_tx_ids": [],
+  "unmatched_l4_router_tx_ids": [],
+  "unmatched_submitted_trace_tx_ids": [],
+  "duplicate_l4_router_tx_id_count": 0,
+  "duplicate_submitted_trace_tx_id_count": 0,
+  "scripted_fixture_tx_count": 0,
+  "policy_counts_for_e2": false,
+  "matched_tx_provenance": [],
+  "bcast_shielding": {
+    "librarian_digest_count": 0,
+    "librarian_role_crop_count": 0,
+    "visible_context_count": 98,
+    "verdict": "PASS",
+    "failure_reasons": []
+  },
+  "verdict": "PROCEED",
+  "failure_reasons": []
+}

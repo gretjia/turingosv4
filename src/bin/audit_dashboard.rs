@@ -2478,7 +2478,50 @@ fn render_tb_n3_run_report(
     let summary =
         turingosv4::runtime::market_decision_trace_summary::MarketDecisionTraceSummary::compute_from_cas(&cas);
     let router_total = router_count_yes + router_count_no;
-    let agent_economic_action_tx_count = router_total.min(summary.submitted_count);
+    let e2_verifier = turingosv4::runtime::market_e2_candidate_verifier::verify_market_e2_candidate(
+        repo,
+        cas_path,
+        turingosv4::runtime::market_e2_candidate_verifier::E2CandidateVerifierOptions::default(),
+    );
+    let (
+        submitted_market_decision_router_tx_id_count,
+        matched_submitted_router_tx_id_count,
+        exact_join_diagnostic_count,
+        duplicate_router_tx_id_count,
+        duplicate_submitted_router_tx_id_count,
+        scripted_attempt_prediction_market_count,
+        e2_verifier_verdict,
+    ) = match e2_verifier {
+        Ok(report) => {
+            let verified_match_count = if report.verdict
+                == turingosv4::runtime::market_e2_candidate_verifier::E2CandidateVerifierVerdict::Proceed
+            {
+                report.exact_join_count
+            } else {
+                0
+            };
+            let verdict_label = match report.verdict {
+                turingosv4::runtime::market_e2_candidate_verifier::E2CandidateVerifierVerdict::Proceed => "PROCEED",
+                turingosv4::runtime::market_e2_candidate_verifier::E2CandidateVerifierVerdict::Veto => "VETO",
+            };
+            (
+                report.submitted_trace_tx_count,
+                verified_match_count,
+                report.exact_join_count,
+                report.duplicate_l4_router_tx_id_count,
+                report.duplicate_submitted_trace_tx_id_count,
+                report.scripted_fixture_tx_count,
+                verdict_label.to_string(),
+            )
+        }
+        Err(e) => {
+            out.push_str(&format!(
+                "\n[error] REAL-14 independent E2 verifier failed: {e}\n"
+            ));
+            (0, 0, 0, 0, 0, 0, "ERROR".to_string())
+        }
+    };
+    let agent_economic_action_tx_count = matched_submitted_router_tx_id_count;
     let scripted_or_unproven_router_tx_count =
         router_total.saturating_sub(agent_economic_action_tx_count);
     let structural_market_tx_count = tx_kind_counts.get("MarketSeed").copied().unwrap_or(0)
@@ -2506,8 +2549,33 @@ fn render_tb_n3_run_report(
         "  scripted_or_unproven_router_tx_count: {}\n",
         scripted_or_unproven_router_tx_count
     ));
+    out.push_str(&format!(
+        "  scripted_fixture_tx_count: {}\n",
+        scripted_attempt_prediction_market_count
+    ));
     out.push_str(&format!("  resolution_tx_count: {}\n", resolution_tx_count));
     out.push_str(&format!("  buy_with_coin_router_count: {}\n", router_total));
+    out.push_str(&format!(
+        "  submitted_market_decision_router_tx_ids: {}\n",
+        submitted_market_decision_router_tx_id_count
+    ));
+    out.push_str(&format!(
+        "  matched_submitted_router_tx_id_count: {}\n",
+        matched_submitted_router_tx_id_count
+    ));
+    out.push_str(&format!(
+        "  exact_join_diagnostic_count: {}\n",
+        exact_join_diagnostic_count
+    ));
+    out.push_str(&format!("  e2_verifier_verdict: {e2_verifier_verdict}\n"));
+    out.push_str(&format!(
+        "  duplicate_router_tx_id_count: {}\n",
+        duplicate_router_tx_id_count
+    ));
+    out.push_str(&format!(
+        "  duplicate_submitted_router_tx_id_count: {}\n",
+        duplicate_submitted_router_tx_id_count
+    ));
     out.push_str(
         "  e2_candidate_rule: live non-scripted router tx requires MarketDecisionTrace submitted provenance + ChainTape/CAS audit; scripted/unproven router tx is not E2\n",
     );
@@ -2863,6 +2931,41 @@ fn render_tb_n3_run_report(
                 reason, count
             ));
         }
+        out.push_str(
+            "  ev_decision_reason_PositiveEVIgnored_boundary: zero-count row rendered from CAS-derived taxonomy\n",
+        );
+        out.push_str(
+            "  ev_decision_reason_ProbabilityUncalibrated_boundary: zero-count row rendered from CAS-derived taxonomy\n",
+        );
+    }
+    if let Ok(policy_summary) =
+        turingosv4::runtime::policy_trader_trace::PolicyTraderTraceSummary::from_cas(&cas)
+    {
+        out.push_str(&format!(
+            "  policy_trader_trace_total_cas: {}\n",
+            policy_summary.policy_trader_trace_total_cas
+        ));
+        out.push_str(&format!(
+            "  policy_positive_ev_count: {}\n",
+            policy_summary.policy_positive_ev_count
+        ));
+        out.push_str(&format!(
+            "  policy_positive_ev_llm_abstained_count: {}\n",
+            policy_summary.policy_positive_ev_llm_abstained_count
+        ));
+        out.push_str(&format!(
+            "  policy_no_positive_ev_count: {}\n",
+            policy_summary.policy_no_positive_ev_count
+        ));
+        out.push_str(&format!(
+            "  policy_insufficient_public_basis_count: {}\n",
+            policy_summary.policy_insufficient_public_basis_count
+        ));
+        if policy_summary.policy_counts_for_e2 {
+            out.push_str("  policy_counts_for_e2=true\n");
+        } else {
+            out.push_str("  policy_counts_for_e2=false\n");
+        }
     }
     let market_review_summary_count =
         turingosv4::runtime::market_review::market_review_summary_cids(&cas).len();
@@ -2892,6 +2995,27 @@ fn render_tb_n3_run_report(
         turingosv4::runtime::librarian_broadcast::assert_no_forbidden_broadcast_material(&bytes)
             .is_ok()
     });
+    let mut librarian_market_reason_cluster_count = 0usize;
+    let mut librarian_no_trade_reason_cluster_count = 0usize;
+    let mut librarian_ev_reason_cluster_count = 0usize;
+    for cid in &librarian_digest_cids {
+        if let Ok(digest) =
+            turingosv4::runtime::librarian_broadcast::read_librarian_digest_from_cas(&cas, cid)
+        {
+            librarian_market_reason_cluster_count += digest.market_reason_clusters.len();
+            librarian_no_trade_reason_cluster_count += digest
+                .market_reason_clusters
+                .iter()
+                .filter(|cluster| {
+                    cluster.reason.contains("no_trade")
+                        || cluster.reason.contains("market_review")
+                        || cluster.reason.contains("abstain")
+                        || cluster.reason.contains("missing")
+                })
+                .count();
+            librarian_ev_reason_cluster_count += digest.ev_reason_clusters.len();
+        }
+    }
     out.push_str("\n## §REAL-BCAST Librarian Broadcast\n");
     out.push_str("  source: ChainTape/CAS materialized view; dashboard is not truth\n");
     out.push_str(&format!(
@@ -2901,6 +3025,18 @@ fn render_tb_n3_run_report(
     out.push_str(&format!(
         "  librarian_role_crop_cas_count: {}\n",
         librarian_role_crop_count
+    ));
+    out.push_str(&format!(
+        "  librarian_market_reason_cluster_count: {}\n",
+        librarian_market_reason_cluster_count
+    ));
+    out.push_str(&format!(
+        "  librarian_no_trade_reason_cluster_count: {}\n",
+        librarian_no_trade_reason_cluster_count
+    ));
+    out.push_str(&format!(
+        "  librarian_ev_reason_cluster_count: {}\n",
+        librarian_ev_reason_cluster_count
     ));
     out.push_str(&format!(
         "  librarian_shielding_verdict: {}\n",
@@ -2937,14 +3073,6 @@ fn render_tb_n3_run_report(
     let no_trade_reason_count = summary.outcome_counts.get("no_trade").copied().unwrap_or(0);
     let role_turn_summary =
         turingosv4::runtime::real5_roles::summarize_role_turn_traces_from_cas(&cas);
-    let scripted_attempt_prediction_market_count = cas
-        .list_all_cids()
-        .into_iter()
-        .filter(|cid| {
-            cas.metadata(cid).and_then(|meta| meta.schema_id.as_deref())
-                == Some(turingosv4::runtime::real6_attempt_prediction::REAL6B_SCHEMA_ID)
-        })
-        .count() as u64;
     let task_count = tx_kind_counts.get("TaskOpen").copied().unwrap_or(0);
     let verify_tx_count = tx_kind_counts.get("Verify").copied().unwrap_or(0);
     let challenge_tx_count = tx_kind_counts.get("Challenge").copied().unwrap_or(0);
@@ -3047,6 +3175,11 @@ fn render_tb_n3_run_report(
         "  g7_guard_cas_count: {}\n",
         g7_guard_summary.total_guards
     ));
+    if g7_guard_summary.total_guards == 0 {
+        out.push_str(
+            "  g7_guard_absent_interpretation: N/A; no G7 structural guard CAS is present, so §K guard booleans are non-sentinel for Market Autonomy E2-candidate classification\n",
+        );
+    }
     out.push_str(&format!(
         "  aggregate_audit_guard_source: {}\n",
         repo.parent()

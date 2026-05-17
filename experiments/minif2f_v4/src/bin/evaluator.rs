@@ -474,8 +474,151 @@ fn real5_prompt_view_block(
             block.push_str(
                 "If no edge is visible, abstain with a reason. Price is signal, not truth.\n",
             );
+            block.push_str("For every BullTrader/BearTrader `buy_yes`, `buy_no`, or `abstain` action, include public EV fields when market price/depth is visible.\n");
+            block.push_str("Public EV fields: `amount` as candidate amount, `observed_price_num`, `observed_price_den`, `estimated_probability_lower_bps`, `estimated_probability_upper_bps`, `expected_value_sign`, and `liquidity_depth_micro`.\n");
+            block.push_str("For `abstain`, set `amount` to the candidate amount you considered and set `expected_value_sign` to `negative`, `zero`, or `unknown`; do not trade unless EV is positive and risk checks pass.\n");
         }
     }
+    block
+}
+
+fn real13_trader_ev_scaffold_enabled() -> bool {
+    std::env::var("TURINGOS_REAL13_TRADER_EV_SCAFFOLD")
+        .ok()
+        .as_deref()
+        == Some("1")
+}
+
+fn real13_u128_to_i64_saturating(value: u128) -> i64 {
+    if value > i64::MAX as u128 {
+        i64::MAX
+    } else {
+        value as i64
+    }
+}
+
+fn real13_candidate_amount_micro(
+    budget: Option<&turingosv4::runtime::real6_conviction_budget::ConvictionBudget>,
+) -> Option<i64> {
+    let requested = std::env::var("TURINGOS_REAL13_CANDIDATE_AMOUNT_MICRO")
+        .ok()
+        .and_then(|s| s.parse::<i64>().ok())
+        .filter(|v| *v > 0)
+        .unwrap_or(1_000);
+    let budget = budget?;
+    let cap = requested.min(budget.available_micro).min(budget.risk_cap);
+    (cap > 0).then_some(cap)
+}
+
+fn real13_trader_ev_scaffold_block(
+    q: Option<&turingosv4::state::q_state::QState>,
+    run_id: &str,
+    role: turingosv4::runtime::real5_roles::AgentRole,
+    budget: Option<&turingosv4::runtime::real6_conviction_budget::ConvictionBudget>,
+) -> String {
+    use turingosv4::runtime::real5_roles::AgentRole;
+    use turingosv4::state::q_state::{PoolStatus, TaskId};
+    use turingosv4::state::typed_tx::EventId;
+
+    if !real13_trader_ev_scaffold_enabled() {
+        return String::new();
+    }
+    let side_label = match role {
+        AgentRole::BullTrader => "YES",
+        AgentRole::BearTrader => "NO",
+        _ => return String::new(),
+    };
+    let Some(q) = q else {
+        return String::new();
+    };
+    let task_id = TaskId(format!("task-{run_id}"));
+    let event_id = EventId(task_id.clone());
+    let Some(pool) = q.economic_state_t.cpmm_pools_t.0.get(&event_id) else {
+        return String::new();
+    };
+    if !matches!(pool.status, PoolStatus::Active) {
+        return String::new();
+    }
+    let pool_yes = pool.pool_yes.units;
+    let pool_no = pool.pool_no.units;
+    let depth = pool_yes.saturating_add(pool_no);
+    if depth == 0 {
+        return String::new();
+    }
+    let (price_num, price_den) = match role {
+        AgentRole::BullTrader => (pool_no, depth),
+        AgentRole::BearTrader => (pool_yes, depth),
+        _ => return String::new(),
+    };
+    let Some(candidate_amount) = real13_candidate_amount_micro(budget) else {
+        return String::new();
+    };
+    let implied_probability_bps = price_num.saturating_mul(10_000) / price_den;
+    let price_num_i64 = real13_u128_to_i64_saturating(price_num);
+    let price_den_i64 = real13_u128_to_i64_saturating(price_den);
+    let liquidity_depth_micro = real13_u128_to_i64_saturating(depth);
+
+    let mut block = String::new();
+    block.push_str("\n=== REAL-13 Public EV Scaffold ===\n");
+    block.push_str(
+        "No forced trade. Price is signal, not truth. Do not copy price as probability.\n",
+    );
+    block.push_str("estimated_probability_* must be your public confidence interval about the task outcome, derived from visible proof/verification state.\n");
+    block.push_str("0/0 probability bands are uncalibrated, not NegativeEV.\n");
+    block.push_str(
+        "Use 0/0 only when your public rationale says the outcome probability is literally zero.\n",
+    );
+    block.push_str(
+        "If you cannot estimate, abstain with expected_value_sign=\"unknown\" and a public reason.\n",
+    );
+    block.push_str("=== REAL-13 Probability Calibration Ladder ===\n");
+    block.push_str("Use one coarse integer bps band before deciding EV sign.\n");
+    block.push_str("0-0 is allowed only for literal impossibility, not uncertainty.\n");
+    block.push_str("0-1000 near-impossible; 1000-3000 low-confidence; 3000-5000 below-even; 5000-7000 above-even; 7000-9000 strong-confidence; 9000-10000 near-certain.\n");
+    block.push_str(
+        "Calibrated abstain is allowed; do not trade unless EV is positive and risk checks pass.\n",
+    );
+    block.push_str(
+        "Required probability placeholders: estimated_probability_lower_bps:<calibrated_lower_bps> estimated_probability_upper_bps:<calibrated_upper_bps>.\n",
+    );
+    block.push_str(&format!(
+        "task_market_event_id: {} side: {} candidate_amount_micro: {} observed_price_num: {} observed_price_den: {} implied_probability_bps: {} liquidity_depth_micro: {}\n",
+        task_id.0,
+        side_label,
+        candidate_amount,
+        price_num_i64,
+        price_den_i64,
+        implied_probability_bps,
+        liquidity_depth_micro
+    ));
+    block.push_str("=== REAL-13 Voluntary Positive EV Action Check ===\n");
+    block.push_str("Compute midpoint_bps = (estimated_probability_lower_bps + estimated_probability_upper_bps) / 2 using integer bps.\n");
+    block.push_str("If midpoint_bps > implied_probability_bps and candidate amount fits balance/risk/liquidity, this is public positive EV; buy remains voluntary.\n");
+    block.push_str("If you abstain despite public positive EV, start payload with positive_ev_override: and give the public reason.\n");
+    match role {
+        AgentRole::BullTrader => block.push_str(&format!(
+            "If positive EV and risk checks pass: <action>{{\"tool\":\"buy_yes\",\"amount\":{},\"observed_price_num\":{},\"observed_price_den\":{},\"estimated_probability_lower_bps\":<your_lower_bps>,\"estimated_probability_upper_bps\":<your_upper_bps>,\"expected_value_sign\":\"positive\",\"liquidity_depth_micro\":{}}}</action>\n",
+            candidate_amount,
+            price_num_i64,
+            price_den_i64,
+            liquidity_depth_micro
+        )),
+        AgentRole::BearTrader => block.push_str(&format!(
+            "If positive EV and risk checks pass: <action>{{\"tool\":\"buy_no\",\"amount\":{},\"observed_price_num\":{},\"observed_price_den\":{},\"estimated_probability_lower_bps\":<your_lower_bps>,\"estimated_probability_upper_bps\":<your_upper_bps>,\"expected_value_sign\":\"positive\",\"liquidity_depth_micro\":{}}}</action>\n",
+            candidate_amount,
+            price_num_i64,
+            price_den_i64,
+            liquidity_depth_micro
+        )),
+        _ => {}
+    }
+    block.push_str(&format!(
+        "If no edge or confidence is insufficient: <action>{{\"tool\":\"abstain\",\"amount\":{},\"observed_price_num\":{},\"observed_price_den\":{},\"estimated_probability_lower_bps\":<calibrated_lower_bps>,\"estimated_probability_upper_bps\":<calibrated_upper_bps>,\"expected_value_sign\":\"negative|zero|unknown\",\"liquidity_depth_micro\":{},\"payload\":\"<public no-trade reason>\"}}</action>\n",
+        candidate_amount,
+        price_num_i64,
+        price_den_i64,
+        liquidity_depth_micro
+    ));
     block
 }
 
@@ -808,11 +951,6 @@ fn real12_build_economic_judgment(
     } else {
         EconomicReason::NoPerceivedEdge
     };
-    let buy_or_short = matches!(
-        action,
-        EconomicJudgmentAction::Buy | EconomicJudgmentAction::Short
-    );
-
     EconomicJudgment {
         schema_version: ECONOMIC_JUDGMENT_SCHEMA_ID.to_string(),
         agent_id: AgentId(args.agent_id.to_string()),
@@ -824,23 +962,19 @@ fn real12_build_economic_judgment(
         } else {
             Vec::new()
         },
-        chosen_market: buy_or_short.then_some(task_event),
+        chosen_market: args.market_context_visible.then_some(task_event),
         intended_side,
-        intended_amount: buy_or_short.then_some(MicroCoin::from_micro_units(amount)),
+        intended_amount: (amount > 0).then_some(MicroCoin::from_micro_units(amount)),
         action,
         reason,
-        observed_price: buy_or_short.then_some(args.observed_price).flatten(),
-        estimated_probability_band: buy_or_short
-            .then_some(args.estimated_probability_band)
-            .flatten(),
-        expected_value_sign: if buy_or_short {
-            args.expected_value_sign
-        } else if is_market_action && !has_positive_ev_basis {
+        observed_price: args.observed_price,
+        estimated_probability_band: args.estimated_probability_band,
+        expected_value_sign: if is_market_action && !has_positive_ev_basis {
             ExpectedValueSign::Unknown
         } else {
-            ExpectedValueSign::Negative
+            args.expected_value_sign
         },
-        liquidity_depth: buy_or_short.then_some(args.liquidity_depth).flatten(),
+        liquidity_depth: args.liquidity_depth,
         balance_available: args.balance_available,
         risk_cap: args.risk_cap,
         oracle_or_deadline_risk: Some("task_outcome_deadline_or_oracle_risk_public".to_string()),
@@ -898,6 +1032,21 @@ fn real_bcast_librarian_enabled() -> bool {
         .ok()
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
         .unwrap_or(false)
+}
+
+fn real13_policy_trader_enabled() -> bool {
+    std::env::var("TURINGOS_REAL13_POLICY_TRADER")
+        .ok()
+        .map(|v| !(v == "0" || v.eq_ignore_ascii_case("false")))
+        .unwrap_or(true)
+}
+
+fn real13_policy_trader_threshold_bps() -> i64 {
+    std::env::var("TURINGOS_REAL13_POLICY_TRADER_THRESHOLD_BPS")
+        .ok()
+        .and_then(|v| v.parse::<i64>().ok())
+        .map(|v| v.clamp(0, 10_000))
+        .unwrap_or(0)
 }
 
 #[derive(Debug, Clone)]
@@ -1020,31 +1169,36 @@ fn real13_market_review_mode_env() -> turingosv4::runtime::market_review::Market
     }
 }
 
-fn real13_bps_from_price(quoted: Option<turingosv4::runtime::real5_roles::RationalPrice>) -> i64 {
-    let Some(quoted) = quoted else {
-        return 5_000;
-    };
+fn real13_bps_from_price(quoted: turingosv4::runtime::real5_roles::RationalPrice) -> Option<i64> {
     if quoted.denominator == 0 {
-        return 5_000;
+        return None;
     }
     let bps = (quoted.numerator as u128)
         .saturating_mul(10_000)
-        .checked_div(quoted.denominator as u128)
-        .unwrap_or(5_000);
-    bps.min(10_000) as i64
+        .checked_div(quoted.denominator as u128)?;
+    Some(bps.min(10_000) as i64)
 }
 
-fn real13_midpoint_probability_bps(
+fn real13_probability_midpoint_bps(
     band: Option<turingosv4::runtime::economic_judgment::ProbabilityBand>,
-    fallback: i64,
-) -> i64 {
-    let Some(band) = band else {
-        return fallback;
-    };
+) -> Option<i64> {
+    let band = band?;
     if band.lower_bps > band.upper_bps || band.upper_bps > 10_000 {
-        return fallback;
+        return None;
     }
-    ((band.lower_bps as i64 + band.upper_bps as i64) / 2).clamp(0, 10_000)
+    Some(((band.lower_bps as i64 + band.upper_bps as i64) / 2).clamp(0, 10_000))
+}
+
+fn real13_probability_band_is_degenerate_zero(
+    band: Option<turingosv4::runtime::economic_judgment::ProbabilityBand>,
+) -> bool {
+    matches!(
+        band,
+        Some(turingosv4::runtime::economic_judgment::ProbabilityBand {
+            lower_bps: 0,
+            upper_bps: 0,
+        })
+    )
 }
 
 fn real13_ev_reason_from_judgment(
@@ -1076,13 +1230,13 @@ fn real13_build_ev_decision_trace(
     logical_t: u64,
     parent_state_root: String,
     judgment: &turingosv4::runtime::economic_judgment::EconomicJudgment,
-) -> turingosv4::runtime::ev_decision_trace::EVDecisionTrace {
-    use turingosv4::economy::money::MicroCoin;
+) -> Option<turingosv4::runtime::ev_decision_trace::EVDecisionTrace> {
     use turingosv4::runtime::economic_judgment::{EconomicJudgmentAction, ExpectedValueSign};
     use turingosv4::runtime::ev_decision_trace::{
-        EVAction, EVDecisionTrace, EVReason, EV_DECISION_TRACE_SCHEMA_ID,
+        public_positive_ev_constraints_pass, EVAction, EVDecisionTrace, EVReason,
+        EV_DECISION_TRACE_SCHEMA_ID,
     };
-    use turingosv4::runtime::real5_roles::{AgentRole, MarketSide, RationalPrice};
+    use turingosv4::runtime::real5_roles::{AgentRole, MarketSide};
 
     let side = judgment.intended_side.unwrap_or(match judgment.role {
         AgentRole::BearTrader => MarketSide::No,
@@ -1093,25 +1247,59 @@ fn real13_build_ev_decision_trace(
         EconomicJudgmentAction::Short => EVAction::BuyNo,
         EconomicJudgmentAction::Abstain => EVAction::Abstain,
     };
-    let quoted_price = judgment
-        .observed_price
-        .unwrap_or_else(|| RationalPrice::new(5_000, 10_000).expect("non-zero denominator"));
-    let implied_probability_bps = real13_bps_from_price(Some(quoted_price));
-    let agent_probability_bps = real13_midpoint_probability_bps(
-        judgment.estimated_probability_band,
-        implied_probability_bps,
-    );
-    let edge_bps = agent_probability_bps - implied_probability_bps;
-    let amount = judgment
-        .intended_amount
-        .unwrap_or_else(|| MicroCoin::from_micro_units(0));
-    let expected_value_micro = (amount.micro_units() as i128)
-        .saturating_mul(edge_bps as i128)
-        .checked_div(10_000)
-        .unwrap_or(0);
+    let quoted_price = judgment.observed_price;
+    let implied_probability_bps = quoted_price.and_then(real13_bps_from_price);
+    let agent_probability_bps =
+        real13_probability_midpoint_bps(judgment.estimated_probability_band);
+    let edge_bps = agent_probability_bps
+        .zip(implied_probability_bps)
+        .map(|(agent, implied)| agent - implied);
+    let amount = judgment.intended_amount;
+    let liquidity_depth = judgment.liquidity_depth;
+    let expected_value_micro = amount.zip(edge_bps).map(|(amount, edge)| {
+        (amount.micro_units() as i128)
+            .saturating_mul(edge as i128)
+            .checked_div(10_000)
+            .unwrap_or(0)
+    });
     let mut reason = real13_ev_reason_from_judgment(judgment);
+    let public_basis_available = quoted_price.is_some()
+        && implied_probability_bps.is_some()
+        && agent_probability_bps.is_some()
+        && edge_bps.is_some()
+        && expected_value_micro.is_some()
+        && amount.is_some()
+        && liquidity_depth.is_some();
+    if !public_basis_available && action == EVAction::Abstain {
+        reason = EVReason::InsufficientConfidence;
+    }
+    if action == EVAction::Abstain
+        && judgment.expected_value_sign == ExpectedValueSign::Unknown
+        && real13_probability_band_is_degenerate_zero(judgment.estimated_probability_band)
+        && quoted_price.is_some()
+        && amount.is_some()
+        && liquidity_depth.is_some()
+    {
+        reason = EVReason::ProbabilityUncalibrated;
+    }
     if action != EVAction::Abstain && judgment.expected_value_sign == ExpectedValueSign::Positive {
         reason = EVReason::PositiveEV;
+    }
+    let risk_cap_triggered = amount
+        .map(|amount| amount.micro_units() > judgment.risk_cap.micro_units())
+        .unwrap_or(false);
+    let public_positive_ev_detected = public_positive_ev_constraints_pass(
+        edge_bps,
+        expected_value_micro,
+        amount,
+        judgment.balance_available,
+        judgment.risk_cap,
+        liquidity_depth,
+        risk_cap_triggered,
+        real13_policy_trader_threshold_bps(),
+    );
+    if action == EVAction::Abstain && public_positive_ev_detected {
+        reason = EVReason::PositiveEVIgnored;
     }
     let event_id = judgment
         .chosen_market
@@ -1123,7 +1311,7 @@ fn real13_build_ev_decision_trace(
             )))
         });
 
-    EVDecisionTrace {
+    Some(EVDecisionTrace {
         schema_version: EV_DECISION_TRACE_SCHEMA_ID.to_string(),
         review_window_id: format!("real13-window-{run_id}-{agent_id}-{logical_t}"),
         review_response_id: format!("real13-response-{run_id}-{agent_id}-{logical_t}"),
@@ -1143,14 +1331,9 @@ fn real13_build_ev_decision_trace(
         max_risk: judgment.risk_cap,
         available_balance: judgment.balance_available,
         risk_cap: judgment.risk_cap,
-        liquidity_depth: judgment
-            .liquidity_depth
-            .unwrap_or_else(|| MicroCoin::from_micro_units(0)),
-        slippage_bps: 0,
-        risk_cap_triggered: judgment
-            .intended_amount
-            .map(|a| a.micro_units() > judgment.risk_cap.micro_units())
-            .unwrap_or(false),
+        liquidity_depth,
+        slippage_bps: Some(0),
+        risk_cap_triggered,
         action,
         reason,
         prompt_capsule_cid: judgment.prompt_capsule_cid.clone(),
@@ -1162,7 +1345,7 @@ fn real13_build_ev_decision_trace(
         parent_state_root,
         created_at_head_t: judgment.head_t.clone(),
         public_summary: "public EV decision trace from deterministic market review turn".into(),
-    }
+    })
 }
 
 fn write_ev_decision_trace_to_cas_or_exit(
@@ -1187,6 +1370,100 @@ fn write_ev_decision_trace_to_cas_or_exit(
         Ok(cid) => cid,
         Err(e) => {
             error!("EVDecisionTrace CAS write FAIL-CLOSED: {e}");
+            std::process::exit(3);
+        }
+    }
+}
+
+fn build_policy_trader_trace_from_ev(
+    source_ev_decision_trace_cid: turingosv4::bottom_white::cas::schema::Cid,
+    ev_trace: &turingosv4::runtime::ev_decision_trace::EVDecisionTrace,
+) -> turingosv4::runtime::policy_trader_trace::PolicyTraderTrace {
+    use turingosv4::runtime::ev_decision_trace::EVAction;
+    use turingosv4::runtime::policy_trader_trace::{
+        PolicyTraderComparison, PolicyTraderTrace, POLICY_TRADER_TRACE_SCHEMA_ID,
+    };
+
+    let public_basis_available = ev_trace.policy_basis_available();
+    let amount_micro = ev_trace
+        .amount
+        .map(|amount| amount.micro_units())
+        .unwrap_or(0);
+    let gateway_blocked = !public_basis_available
+        || amount_micro <= 0
+        || ev_trace.available_balance.micro_units() < amount_micro
+        || ev_trace.risk_cap.micro_units() < amount_micro
+        || ev_trace
+            .liquidity_depth
+            .map(|depth| depth.micro_units() < amount_micro)
+            .unwrap_or(true)
+        || ev_trace.risk_cap_triggered;
+    let threshold_bps = real13_policy_trader_threshold_bps();
+    let policy_positive_ev = !gateway_blocked
+        && ev_trace
+            .edge_bps
+            .map(|edge| edge > threshold_bps)
+            .unwrap_or(false)
+        && ev_trace
+            .expected_value_micro
+            .map(|ev| ev > 0)
+            .unwrap_or(false);
+    let llm_buy = matches!(ev_trace.action, EVAction::BuyYes | EVAction::BuyNo);
+    let comparison = if !public_basis_available {
+        PolicyTraderComparison::InsufficientPublicEVBasis
+    } else if gateway_blocked {
+        PolicyTraderComparison::GatewayBlocked
+    } else if policy_positive_ev && !llm_buy {
+        PolicyTraderComparison::PolicyPositiveEV_LLMAbstained
+    } else if !policy_positive_ev && !llm_buy {
+        PolicyTraderComparison::PolicyNoPositiveEV
+    } else if policy_positive_ev && llm_buy {
+        PolicyTraderComparison::BothBuy
+    } else {
+        PolicyTraderComparison::LLMBuyPolicyNoBuy
+    };
+
+    PolicyTraderTrace {
+        schema_version: POLICY_TRADER_TRACE_SCHEMA_ID.to_string(),
+        source_ev_decision_trace_cid,
+        prompt_capsule_cid: ev_trace.prompt_capsule_cid.clone(),
+        market_snapshot_cid: ev_trace.market_snapshot_cid.clone(),
+        policy_probability_bps: ev_trace.agent_probability_bps,
+        implied_probability_bps: ev_trace.implied_probability_bps,
+        policy_edge_bps: ev_trace.edge_bps,
+        policy_expected_value_micro: ev_trace.expected_value_micro,
+        counterfactual_only: true,
+        counts_for_e2: false,
+        comparison,
+        gateway_blocked,
+        policy_public_summary: format!(
+            "PolicyTrader counterfactual comparison={comparison:?} threshold_bps={threshold_bps}"
+        ),
+    }
+}
+
+fn write_policy_trader_trace_to_cas_or_exit(
+    cas_path: &std::path::Path,
+    trace: &turingosv4::runtime::policy_trader_trace::PolicyTraderTrace,
+    suffix: &str,
+    logical_t: u64,
+) -> turingosv4::bottom_white::cas::schema::Cid {
+    let mut cas_store = match turingosv4::bottom_white::cas::store::CasStore::open(cas_path) {
+        Ok(store) => store,
+        Err(e) => {
+            error!("PolicyTraderTrace CAS write FAIL-CLOSED: CAS open failed: {e}");
+            std::process::exit(3);
+        }
+    };
+    match turingosv4::runtime::policy_trader_trace::write_policy_trader_trace_to_cas(
+        &mut cas_store,
+        trace,
+        suffix,
+        logical_t,
+    ) {
+        Ok(cid) => cid,
+        Err(e) => {
+            error!("PolicyTraderTrace CAS write FAIL-CLOSED: {e}");
             std::process::exit(3);
         }
     }
@@ -4439,6 +4716,16 @@ async fn run_swarm(
             prompt.push('\n');
             prompt.push_str(&real5_role_view_block);
         }
+        let real13_trader_ev_scaffold = real13_trader_ev_scaffold_block(
+            q_snapshot_for_prompt.as_ref(),
+            &run_id,
+            real5_prompt_role,
+            real6_conviction_budget_for_turn.as_ref(),
+        );
+        if !real13_trader_ev_scaffold.is_empty() {
+            prompt.push('\n');
+            prompt.push_str(&real13_trader_ev_scaffold);
+        }
         // TB-18R R2: SHA-256 of the prompt body for AttemptTelemetry.prompt_context_hash
         // (preflight §3.1: reuse Cid::from_content to avoid adding sha2 direct
         // dep to experiments/minif2f_v4/Cargo.toml). Computed BEFORE the
@@ -6080,7 +6367,7 @@ async fn run_swarm(
                                             Ok(q) => q,
                                             Err(_) => continue,
                                         };
-                                        let suffix = format!("{}-{}", agent_id, tx);
+                                        let suffix = format!("{}-{}-{}", task_id_str, agent_id, tx);
                                         let real6_task_outcome_market =
                                             std::env::var("TURINGOS_REAL6_TASK_OUTCOME_MARKET")
                                                 .ok()
@@ -7539,92 +7826,108 @@ async fn run_swarm(
                                 .as_ref()
                                 .map(|q| real6d_hash_hex(&q.state_root_t))
                                 .unwrap_or_else(|| format!("run_id={run_id};tx={tx}"));
-                            let ev_trace = real13_build_ev_decision_trace(
+                            if let Some(ev_trace) = real13_build_ev_decision_trace(
                                 &run_id,
                                 agent_id,
                                 logical_t,
                                 parent_state_root,
                                 &judgment,
-                            );
-                            let ev_cid = write_ev_decision_trace_to_cas_or_exit(
-                                &bundle.cas_path,
-                                &ev_trace,
-                                &format!("{}-{}", agent_id, tx),
-                                logical_t,
-                            );
+                            ) {
+                                let ev_cid = write_ev_decision_trace_to_cas_or_exit(
+                                    &bundle.cas_path,
+                                    &ev_trace,
+                                    &format!("{}-{}", agent_id, tx),
+                                    logical_t,
+                                );
+                                if real13_policy_trader_enabled() {
+                                    let policy_trace = build_policy_trader_trace_from_ev(
+                                        ev_cid.clone(),
+                                        &ev_trace,
+                                    );
+                                    let _policy_cid = write_policy_trader_trace_to_cas_or_exit(
+                                        &bundle.cas_path,
+                                        &policy_trace,
+                                        &format!("{}-{}", agent_id, tx),
+                                        logical_t,
+                                    );
+                                    *tool_dist
+                                        .entry("policy_trader_trace_total".into())
+                                        .or_insert(0) += 1;
+                                }
 
-                            let window_id = TxId(ev_trace.review_window_id.clone());
-                            let librarian_digest_cid = real_bcast_turn_bundle
-                                .as_ref()
-                                .map(|bundle| bundle.digest_cid);
-                            let broadcast_epoch_id = real_bcast_turn_bundle
-                                .as_ref()
-                                .map(|bundle| bundle.epoch_id.clone());
-                            let window = MarketReviewWindow {
-                                window_id: window_id.clone(),
-                                event_id: ev_trace.event_id.clone(),
-                                opened_at_head_t: ev_trace.created_at_head_t.clone(),
-                                market_snapshot_cid: ev_trace.market_snapshot_cid.clone(),
-                                eligible_agents: vec![AgentId(agent_id.to_string())],
-                                deadline_logical_t: logical_t,
-                                mode: real13_market_review_mode_env(),
-                                librarian_digest_cid,
-                                broadcast_epoch_id: broadcast_epoch_id.clone(),
-                            };
-                            let window_cid = write_market_review_window_to_cas_or_exit(
-                                &bundle.cas_path,
-                                &window,
-                                &format!("{}-{}", agent_id, tx),
-                                logical_t,
-                            );
-                            let response = MarketReviewResponse {
-                                window_id: window_id.clone(),
-                                response_id: ev_trace.review_response_id.clone(),
-                                agent_id: AgentId(agent_id.to_string()),
-                                role: real5_prompt_role,
-                                ev_decision_trace_cid: Some(ev_cid.clone()),
-                                no_response_trace_cid: None,
-                                action: format!("{:?}", ev_trace.action),
-                                submitted_tx_id: None,
-                                librarian_digest_cid,
-                                broadcast_epoch_id: broadcast_epoch_id.clone(),
-                            };
-                            let response_cid = write_market_review_response_to_cas_or_exit(
-                                &bundle.cas_path,
-                                &response,
-                                &format!("{}-{}", agent_id, tx),
-                                logical_t,
-                            );
-                            let summary = MarketReviewSummary {
-                                window_id,
-                                event_id: ev_trace.event_id.clone(),
-                                response_count: 1,
-                                buy_count: (ev_trace.action == EVAction::BuyYes) as u64,
-                                short_count: (ev_trace.action == EVAction::BuyNo) as u64,
-                                abstain_count: (ev_trace.action == EVAction::Abstain) as u64,
-                                missing_count: 0,
-                                response_cids: vec![response_cid],
-                                committed_tx_ids: vec![],
-                                digest_set: librarian_digest_cid.into_iter().collect(),
-                            };
-                            let _summary_cid = write_market_review_summary_to_cas_or_exit(
-                                &bundle.cas_path,
-                                &summary,
-                                &format!("{}-{}", agent_id, tx),
-                                logical_t,
-                            );
-                            *tool_dist
-                                .entry("ev_decision_trace_total".into())
-                                .or_insert(0) += 1;
-                            *tool_dist
-                                .entry("market_review_summary_total".into())
-                                .or_insert(0) += 1;
-                            *tool_dist
-                                .entry("market_review_window_total".into())
-                                .or_insert(0) += 1;
-                            *tool_dist
-                                .entry(format!("market_review_window_cid_{window_cid}"))
-                                .or_insert(0) += 1;
+                                let window_id = TxId(ev_trace.review_window_id.clone());
+                                let librarian_digest_cid = real_bcast_turn_bundle
+                                    .as_ref()
+                                    .map(|bundle| bundle.digest_cid);
+                                let broadcast_epoch_id = real_bcast_turn_bundle
+                                    .as_ref()
+                                    .map(|bundle| bundle.epoch_id.clone());
+                                let window = MarketReviewWindow {
+                                    window_id: window_id.clone(),
+                                    event_id: ev_trace.event_id.clone(),
+                                    opened_at_head_t: ev_trace.created_at_head_t.clone(),
+                                    market_snapshot_cid: ev_trace.market_snapshot_cid.clone(),
+                                    eligible_agents: vec![AgentId(agent_id.to_string())],
+                                    deadline_logical_t: logical_t,
+                                    mode: real13_market_review_mode_env(),
+                                    librarian_digest_cid,
+                                    broadcast_epoch_id: broadcast_epoch_id.clone(),
+                                };
+                                let window_cid = write_market_review_window_to_cas_or_exit(
+                                    &bundle.cas_path,
+                                    &window,
+                                    &format!("{}-{}", agent_id, tx),
+                                    logical_t,
+                                );
+                                let response = MarketReviewResponse {
+                                    window_id: window_id.clone(),
+                                    response_id: ev_trace.review_response_id.clone(),
+                                    agent_id: AgentId(agent_id.to_string()),
+                                    role: real5_prompt_role,
+                                    ev_decision_trace_cid: Some(ev_cid.clone()),
+                                    no_response_trace_cid: None,
+                                    action: format!("{:?}", ev_trace.action),
+                                    submitted_tx_id: None,
+                                    librarian_digest_cid,
+                                    broadcast_epoch_id: broadcast_epoch_id.clone(),
+                                };
+                                let response_cid = write_market_review_response_to_cas_or_exit(
+                                    &bundle.cas_path,
+                                    &response,
+                                    &format!("{}-{}", agent_id, tx),
+                                    logical_t,
+                                );
+                                let summary = MarketReviewSummary {
+                                    window_id,
+                                    event_id: ev_trace.event_id.clone(),
+                                    response_count: 1,
+                                    buy_count: (ev_trace.action == EVAction::BuyYes) as u64,
+                                    short_count: (ev_trace.action == EVAction::BuyNo) as u64,
+                                    abstain_count: (ev_trace.action == EVAction::Abstain) as u64,
+                                    missing_count: 0,
+                                    response_cids: vec![response_cid],
+                                    committed_tx_ids: vec![],
+                                    digest_set: librarian_digest_cid.into_iter().collect(),
+                                };
+                                let _summary_cid = write_market_review_summary_to_cas_or_exit(
+                                    &bundle.cas_path,
+                                    &summary,
+                                    &format!("{}-{}", agent_id, tx),
+                                    logical_t,
+                                );
+                                *tool_dist
+                                    .entry("ev_decision_trace_total".into())
+                                    .or_insert(0) += 1;
+                                *tool_dist
+                                    .entry("market_review_summary_total".into())
+                                    .or_insert(0) += 1;
+                                *tool_dist
+                                    .entry("market_review_window_total".into())
+                                    .or_insert(0) += 1;
+                                *tool_dist
+                                    .entry(format!("market_review_window_cid_{window_cid}"))
+                                    .or_insert(0) += 1;
+                            }
                         }
                         *tool_dist
                             .entry("economic_judgment_total".into())

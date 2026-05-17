@@ -15,6 +15,10 @@ use crate::runtime::attempt_telemetry::{
 };
 use crate::runtime::economic_judgment::{economic_judgment_cids, read_economic_judgment_from_cas};
 use crate::runtime::ev_decision_trace::{ev_decision_trace_cids, read_ev_decision_trace_from_cas};
+use crate::runtime::market_decision_trace::{MarketDecisionTrace, TraceOutcome};
+use crate::runtime::market_review::{
+    market_review_summary_cids, validate_market_review_summary, MarketReviewSummary,
+};
 use crate::runtime::prompt_capsule::PromptCapsuleV2;
 use crate::runtime::real5_roles::{AgentRole, HeadT};
 
@@ -196,21 +200,182 @@ pub fn derive_current_run_cas_root(cas: &CasStore) -> Cid {
 /// TRACE_MATRIX Art.III/FC3: shielding gate for broadcast digest and prompt bytes.
 pub fn assert_no_forbidden_broadcast_material(text: &str) -> Result<(), String> {
     let lower = text.to_ascii_lowercase();
+    let scan_lower = lower
+        .replace("raw logs redacted", "")
+        .replace("raw log redacted", "");
     let forbidden = [
         "raw lean stderr",
         "raw_prompt",
         "raw prompt",
         "raw_completion",
         "raw completion",
+        "raw_log",
+        "raw logs",
+        "raw log",
         "private cot",
         "chain of thought",
         "raw diagnostics",
         "untriaged historical",
     ];
-    if let Some(hit) = forbidden.iter().find(|needle| lower.contains(**needle)) {
+    if let Some(hit) = forbidden
+        .iter()
+        .find(|needle| scan_lower.contains(**needle))
+    {
         return Err(format!("forbidden broadcast material: {hit}"));
     }
     Ok(())
+}
+
+fn decode_librarian_candidate_events(
+    cas: &CasStore,
+    cid: &Cid,
+) -> Result<Vec<LibrarianEvidenceEvent>, String> {
+    let Some(meta) = cas.metadata(cid) else {
+        return Err(format!("missing CAS metadata for {cid}"));
+    };
+
+    if meta.schema_id.as_deref()
+        == Some(crate::runtime::market_review::MARKET_REVIEW_SUMMARY_SCHEMA_ID)
+    {
+        return market_review_summary_events(cas, cid, meta.created_at_logical_t);
+    }
+
+    if meta.schema_id.is_none() && meta.object_type == ObjectType::AttemptTelemetry {
+        if let Some(trace) = read_market_decision_trace_from_shared_slot(cas, cid)? {
+            return Ok(market_decision_trace_events(
+                *cid,
+                meta.created_at_logical_t,
+                trace,
+            ));
+        }
+    }
+
+    Ok(decode_librarian_candidate(cas, cid)?.into_iter().collect())
+}
+
+fn read_market_decision_trace_from_shared_slot(
+    cas: &CasStore,
+    cid: &Cid,
+) -> Result<Option<MarketDecisionTrace>, String> {
+    let bytes = cas.get(cid).map_err(|e| e.to_string())?;
+    let first = bytes.iter().copied().find(|b| !b.is_ascii_whitespace());
+    if !matches!(first, Some(b'{') | Some(b'[')) {
+        return Ok(None);
+    }
+
+    let value: serde_json::Value = serde_json::from_slice(&bytes)
+        .map_err(|e| format!("unknown JSON in AttemptTelemetry slot: invalid JSON: {e}"))?;
+    let schema_version = value.get("schema_version").and_then(|v| v.as_str());
+    if schema_version != Some(MarketDecisionTrace::SCHEMA_VERSION) {
+        return Ok(None);
+    }
+
+    let trace: MarketDecisionTrace =
+        serde_json::from_value(value).map_err(|e| format!("MarketDecisionTrace decode: {e}"))?;
+    if trace.schema_version != MarketDecisionTrace::SCHEMA_VERSION {
+        return Err(format!(
+            "unexpected MarketDecisionTrace schema {}",
+            trace.schema_version
+        ));
+    }
+    Ok(Some(trace))
+}
+
+fn market_decision_trace_events(
+    cid: Cid,
+    head_t: u64,
+    trace: MarketDecisionTrace,
+) -> Vec<LibrarianEvidenceEvent> {
+    let TraceOutcome::NoTrade { reason, .. } = trace.outcome else {
+        return Vec::new();
+    };
+
+    vec![LibrarianEvidenceEvent {
+        cid,
+        kind: LibrarianEvidenceKind::MarketReason,
+        class_label: format!("market_no_trade:{}", reason.label()),
+        task_id: trace.chosen_node_id.map(|id| id.0),
+        public_summary: trace.reason_summary_public,
+        head_t,
+    }]
+}
+
+fn market_review_summary_events(
+    cas: &CasStore,
+    cid: &Cid,
+    head_t: u64,
+) -> Result<Vec<LibrarianEvidenceEvent>, String> {
+    let bytes = cas.get(cid).map_err(|e| e.to_string())?;
+    let summary: MarketReviewSummary =
+        serde_json::from_slice(&bytes).map_err(|e| format!("MarketReviewSummary decode: {e}"))?;
+    validate_market_review_summary(&summary)
+        .map_err(|e| format!("MarketReviewSummary invalid: {e}"))?;
+
+    let mut events = Vec::new();
+    let crate::state::typed_tx::EventId(task_id_wrapper) = summary.event_id.clone();
+    let task_id = task_id_wrapper.0;
+    if summary.abstain_count > 0 {
+        events.push(LibrarianEvidenceEvent {
+            cid: *cid,
+            kind: LibrarianEvidenceKind::MarketReason,
+            class_label: "market_review:abstain".into(),
+            task_id: Some(task_id.clone()),
+            public_summary: format!(
+                "Market review window recorded {} abstain responses",
+                summary.abstain_count
+            ),
+            head_t,
+        });
+    }
+    if summary.missing_count > 0 {
+        events.push(LibrarianEvidenceEvent {
+            cid: *cid,
+            kind: LibrarianEvidenceKind::MarketReason,
+            class_label: "market_review:missing".into(),
+            task_id: Some(task_id),
+            public_summary: format!(
+                "Market review window recorded {} missing responses",
+                summary.missing_count
+            ),
+            head_t,
+        });
+    }
+    Ok(events)
+}
+
+fn market_opportunity_trace_event(
+    cas: &CasStore,
+    cid: &Cid,
+    head_t: u64,
+) -> Result<LibrarianEvidenceEvent, String> {
+    let bytes = cas.get(cid).map_err(|e| e.to_string())?;
+    let trace: crate::runtime::market_opportunity_trace::MarketOpportunityTrace =
+        serde_json::from_slice(&bytes)
+            .map_err(|e| format!("MarketOpportunityTrace decode: {e}"))?;
+    if trace.schema_version
+        != crate::runtime::market_opportunity_trace::MARKET_OPPORTUNITY_TRACE_SCHEMA_VERSION
+    {
+        return Err(format!(
+            "unexpected MarketOpportunityTrace schema {}",
+            trace.schema_version
+        ));
+    }
+    let label = trace
+        .reason_if_no_actionable_market
+        .map(|reason| reason.label().to_string())
+        .unwrap_or_else(|| "actionable".to_string());
+    Ok(LibrarianEvidenceEvent {
+        cid: *cid,
+        kind: LibrarianEvidenceKind::MarketReason,
+        class_label: format!("market_opportunity:{label}"),
+        task_id: Some(trace.task_id.0),
+        public_summary: format!(
+            "Market opportunity trace recorded {} visible and {} actionable markets",
+            trace.visible_markets.len(),
+            trace.actionable_markets.len()
+        ),
+        head_t,
+    })
 }
 
 /// TRACE_MATRIX FC3: typed CAS decoder for allowed Librarian evidence schemas.
@@ -243,6 +408,9 @@ pub fn decode_librarian_candidate(
                 public_summary: judgment.public_summary,
                 head_t: meta.created_at_logical_t,
             }))
+        }
+        Some(crate::runtime::market_opportunity_trace::MARKET_OPPORTUNITY_TRACE_SCHEMA_VERSION) => {
+            market_opportunity_trace_event(cas, cid, meta.created_at_logical_t).map(Some)
         }
         Some(schema) if schema == crate::runtime::attempt_telemetry::LEAN_RESULT_SCHEMA_ID => {
             let result = read_lean_result_from_cas(cas, cid).map_err(|e| e.to_string())?;
@@ -311,7 +479,18 @@ pub fn decode_librarian_candidate(
                 || schema == "real5.derived_view.v1"
                 || schema == crate::runtime::market_review::MARKET_REVIEW_WINDOW_SCHEMA_ID
                 || schema == crate::runtime::market_review::MARKET_REVIEW_RESPONSE_SCHEMA_ID
-                || schema == crate::runtime::market_review::MARKET_REVIEW_SUMMARY_SCHEMA_ID =>
+                || schema == crate::runtime::market_review::MARKET_REVIEW_SUMMARY_SCHEMA_ID
+                || schema == crate::runtime::policy_trader_trace::POLICY_TRADER_TRACE_SCHEMA_ID
+                || schema == LIBRARIAN_DIGEST_SCHEMA_ID
+                || schema == LIBRARIAN_ROLE_CROP_SCHEMA_ID
+                || schema == LIBRARIAN_BROADCAST_EPOCH_SCHEMA_ID
+                || schema == "TransitionError.display.v1"
+                || schema == crate::runtime::real5_roles::ROLE_ASSIGNMENT_MANIFEST_SCHEMA_ID
+                || schema
+                    == crate::runtime::genesis_report::MODEL_ASSIGNMENT_MANIFEST_SCHEMA_ID
+                || schema == "turingosv4.agent_proposal_record.v1"
+                || schema == "turingosv4.verification_result.v1"
+                || schema == "turingosv4.proposal_telemetry.v1" =>
         {
             Ok(None)
         }
@@ -371,6 +550,8 @@ pub fn select_librarian_events(cas: &CasStore) -> Result<Vec<LibrarianEvidenceEv
     let mut cids = Vec::new();
     cids.extend(ev_decision_trace_cids(cas));
     cids.extend(economic_judgment_cids(cas));
+    cids.extend(market_review_summary_cids(cas));
+    cids.extend(cas.list_cids_by_object_type(ObjectType::Generic));
     cids.extend(cas.list_cids_by_object_type(ObjectType::LeanResult));
     cids.extend(cas.list_cids_by_object_type(ObjectType::AttemptTelemetry));
     cids.sort();
@@ -378,7 +559,7 @@ pub fn select_librarian_events(cas: &CasStore) -> Result<Vec<LibrarianEvidenceEv
 
     let mut events = Vec::new();
     for cid in cids {
-        if let Some(event) = decode_librarian_candidate(cas, &cid)? {
+        for event in decode_librarian_candidate_events(cas, &cid)? {
             assert_no_forbidden_broadcast_material(&event.public_summary)?;
             events.push(event);
         }
@@ -386,6 +567,7 @@ pub fn select_librarian_events(cas: &CasStore) -> Result<Vec<LibrarianEvidenceEv
     events.sort_by(|a, b| {
         a.class_label
             .cmp(&b.class_label)
+            .then_with(|| a.head_t.cmp(&b.head_t))
             .then_with(|| a.cid.cmp(&b.cid))
     });
     Ok(events)
@@ -400,6 +582,7 @@ pub fn build_librarian_digest(
     events.sort_by(|a, b| {
         a.class_label
             .cmp(&b.class_label)
+            .then_with(|| a.head_t.cmp(&b.head_t))
             .then_with(|| a.cid.cmp(&b.cid))
     });
     for event in &events {

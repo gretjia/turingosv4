@@ -131,7 +131,7 @@ no_perceived_edge="$(sum_tool invest_no_trade_no_perceived_edge)"
 zero_amount="$(sum_tool invest_no_trade_zero_amount)"
 no_pool="$(sum_tool invest_no_trade_no_pool)"
 amount_exceeds_balance="$(sum_tool invest_no_trade_amount_exceeds_balance)"
-abstain_reason_distribution="$(awk -F': ' '/economic_judgment_reason_/ {
+economic_judgment_reason_distribution="$(awk -F': ' '/economic_judgment_reason_/ {
     key=$1;
     sub(/^.*economic_judgment_reason_/, "", key);
     gsub(/^[[:space:]-]+|[[:space:]]+$/, "", key);
@@ -146,7 +146,7 @@ abstain_reason_distribution="$(awk -F': ' '/economic_judgment_reason_/ {
 live_non_scripted_router_tx_count="$agent_economic_action_tx_count"
 e2_verdict="NOT ACHIEVED"
 if [[ "$live_non_scripted_router_tx_count" -gt 0 ]]; then
-    e2_verdict="E2 candidate achieved; CANDIDATE_ACHIEVED_REQUIRES_AUDIT"
+    e2_verdict="E2 candidate pending audit"
 fi
 if [[ "$live_non_scripted_router_tx_count" -eq 0 ]]; then
     e2_verdict="E2 NOT ACHIEVED"
@@ -203,10 +203,10 @@ No f64/f32 money path
 | no_trade_no_pool | $no_pool |
 | no_trade_amount_exceeds_balance | $amount_exceeds_balance |
 
-abstain_reason_distribution:
+economic_judgment_reason_distribution:
 
 \`\`\`json
-$abstain_reason_distribution
+$economic_judgment_reason_distribution
 \`\`\`
 
 ## Interpretation Boundary

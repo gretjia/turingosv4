@@ -1,0 +1,49 @@
+{
+  "schema_version": "real14.r16_evidence_hash_manifest.v1",
+  "claim_boundary": "E2 candidate pending audit",
+  "evidence_dir": "handover/evidence/market_autonomy_lab_hard10_bcast_exact_join_R16_20260516T202248Z",
+  "immutability_statement": "R16 evidence is frozen for REAL-14 audit. Do not retroactively rewrite ChainTape/CAS/evaluator evidence; add annotations or new verifier outputs outside the evidence dir.",
+  "forbidden_overclaim_scan_status": "PASS",
+  "active_label": "E2 candidate pending audit",
+  "contaminated_or_noncanonical_dirs": [
+    {
+      "path": "handover/evidence/market_autonomy_lab_hard10_action_handoff_R14_20260516T191707Z",
+      "status": "superseded_by_R15_R16",
+      "reason": "R14 clean-context audit CHALLENGE; duplicate/exact-join/report-wording issues closed by R15/R16."
+    }
+  ],
+  "files": [
+    {"sha256": "768fb3f8ca9408e295594ccdf9d576ab68074cd2f8892bc239a7817b26afb96a", "path": "handover/evidence/market_autonomy_lab_hard10_bcast_exact_join_R16_20260516T202248Z/run_log.txt"},
+    {"sha256": "c380055dc9b606c928de8062dfcf2af2385d3cf3c750120cf59ab65710e28eec", "path": "handover/evidence/market_autonomy_lab_hard10_bcast_exact_join_R16_20260516T202248Z/aggregate_verdict.json"},
+    {"sha256": "552b516101902f4b9f06900260f2288b8c83b2130776b7a58efa2262631bf88b", "path": "handover/evidence/market_autonomy_lab_hard10_bcast_exact_join_R16_20260516T202248Z/audit_dashboard_run_report.txt"},
+    {"sha256": "8f734863eba0a914f2a4fb8f97ac537338fc276073b94884ad673ecf4959531d", "path": "handover/evidence/market_autonomy_lab_hard10_bcast_exact_join_R16_20260516T202248Z/cas/.turingos_cas_index.jsonl"},
+    {"sha256": "1a1f2bf8473b55d36a34437aaec9877829d6d1bb6b7953bf5274a8bcdaa76f32", "path": "handover/evidence/market_autonomy_lab_hard10_bcast_exact_join_R16_20260516T202248Z/runtime_repo/agent_audit_trail.jsonl"},
+    {"sha256": "58f8a2d965bdc41ba026b7455a2b271c23318d2e5d57ba44182272f3295a1be1", "path": "handover/evidence/market_autonomy_lab_hard10_bcast_exact_join_R16_20260516T202248Z/runtime_repo/agent_pubkeys.json"},
+    {"sha256": "0d2ad816c6dc1bdb7be82844c7c755d62dc288e642aa7268eab5a72dc71b5259", "path": "handover/evidence/market_autonomy_lab_hard10_bcast_exact_join_R16_20260516T202248Z/runtime_repo/genesis_report.json"},
+    {"sha256": "03c9662d7ede25fa7fa17d954e920e694dcbd85e0aead54b7ad255ae6f7705ea", "path": "handover/evidence/market_autonomy_lab_hard10_bcast_exact_join_R16_20260516T202248Z/runtime_repo/initial_q_state.json"},
+    {"sha256": "f03747188ead77174d1cc36497655800c58d36948a10a427016c120761a19506", "path": "handover/evidence/market_autonomy_lab_hard10_bcast_exact_join_R16_20260516T202248Z/runtime_repo/pinned_pubkeys.json"},
+    {"sha256": "e5ebaf390240be8f234ef7e78f0c7d1a6b7b0c3b8b4107c7903b488915bd8eec", "path": "handover/evidence/market_autonomy_lab_hard10_bcast_exact_join_R16_20260516T202248Z/runtime_repo/rejections.jsonl"},
+    {"sha256": "cdf859d2b6c1b57f3d2e7cf28ca057674f01fa1b1d38c68b7c50f6f81a097bba", "path": "handover/evidence/market_autonomy_lab_hard10_bcast_exact_join_R16_20260516T202248Z/runtime_repo/run_summary.json"},
+    {"sha256": "db0484d45595ed7a11a5056c9a007aa89f08e2b1efedd5472bb06a3c32ef6bdc", "path": "handover/evidence/market_autonomy_lab_hard10_bcast_exact_join_R16_20260516T202248Z/runtime_repo/synthetic_rejection_label.json"},
+    {"sha256": "c01e39f7299286f3e8cb2a345ee692e5ed4275fb0a7b7eb100a46ca6b2a19fd1", "path": "handover/evidence/market_autonomy_lab_hard10_bcast_exact_join_R16_20260516T202248Z/P000_algebra_bleqa_apbon2msqrtableqambsqon8b/evaluator.stderr"},
+    {"sha256": "4c68df23d2e0c5b42a869001a39dde1bbfe1a85a99106e4ead1752e0590211a1", "path": "handover/evidence/market_autonomy_lab_hard10_bcast_exact_join_R16_20260516T202248Z/P000_algebra_bleqa_apbon2msqrtableqambsqon8b/evaluator.stdout"},
+    {"sha256": "c01e39f7299286f3e8cb2a345ee692e5ed4275fb0a7b7eb100a46ca6b2a19fd1", "path": "handover/evidence/market_autonomy_lab_hard10_bcast_exact_join_R16_20260516T202248Z/P001_amc12_2000_p12/evaluator.stderr"},
+    {"sha256": "2c82cd9f3bcdc9f0adcc9deb3cbacf7b30c2cc173d307743f5ee4e4ab8c164c7", "path": "handover/evidence/market_autonomy_lab_hard10_bcast_exact_join_R16_20260516T202248Z/P001_amc12_2000_p12/evaluator.stdout"},
+    {"sha256": "c01e39f7299286f3e8cb2a345ee692e5ed4275fb0a7b7eb100a46ca6b2a19fd1", "path": "handover/evidence/market_autonomy_lab_hard10_bcast_exact_join_R16_20260516T202248Z/P002_amc12_2000_p6/evaluator.stderr"},
+    {"sha256": "0e8f45436004e4c2ebb44ca5bf7592ce8c0024fb424654eaf00910171936be99", "path": "handover/evidence/market_autonomy_lab_hard10_bcast_exact_join_R16_20260516T202248Z/P002_amc12_2000_p6/evaluator.stdout"},
+    {"sha256": "c01e39f7299286f3e8cb2a345ee692e5ed4275fb0a7b7eb100a46ca6b2a19fd1", "path": "handover/evidence/market_autonomy_lab_hard10_bcast_exact_join_R16_20260516T202248Z/P003_amc12b_2021_p13/evaluator.stderr"},
+    {"sha256": "7f5de6830bf9b7e95bf0354fcb4615dc53347ffd3f261b6ded3fb27b25f2c147", "path": "handover/evidence/market_autonomy_lab_hard10_bcast_exact_join_R16_20260516T202248Z/P003_amc12b_2021_p13/evaluator.stdout"},
+    {"sha256": "c01e39f7299286f3e8cb2a345ee692e5ed4275fb0a7b7eb100a46ca6b2a19fd1", "path": "handover/evidence/market_autonomy_lab_hard10_bcast_exact_join_R16_20260516T202248Z/P004_imo_1962_p2/evaluator.stderr"},
+    {"sha256": "1d380eecce2d81ad9acacf045bec8dc270662757a74a252635a4b19f2154eaae", "path": "handover/evidence/market_autonomy_lab_hard10_bcast_exact_join_R16_20260516T202248Z/P004_imo_1962_p2/evaluator.stdout"},
+    {"sha256": "c01e39f7299286f3e8cb2a345ee692e5ed4275fb0a7b7eb100a46ca6b2a19fd1", "path": "handover/evidence/market_autonomy_lab_hard10_bcast_exact_join_R16_20260516T202248Z/P005_mathd_algebra_208/evaluator.stderr"},
+    {"sha256": "4ea52eae22706bf8e22b613218b88bd3459e6a060a3e51df73d064d70c152631", "path": "handover/evidence/market_autonomy_lab_hard10_bcast_exact_join_R16_20260516T202248Z/P005_mathd_algebra_208/evaluator.stdout"},
+    {"sha256": "c01e39f7299286f3e8cb2a345ee692e5ed4275fb0a7b7eb100a46ca6b2a19fd1", "path": "handover/evidence/market_autonomy_lab_hard10_bcast_exact_join_R16_20260516T202248Z/P006_mathd_algebra_246/evaluator.stderr"},
+    {"sha256": "472d3cfbe41563bcf02993774f42668e8f85b039c7a70a1a902ea1479a2e831b", "path": "handover/evidence/market_autonomy_lab_hard10_bcast_exact_join_R16_20260516T202248Z/P006_mathd_algebra_246/evaluator.stdout"},
+    {"sha256": "c01e39f7299286f3e8cb2a345ee692e5ed4275fb0a7b7eb100a46ca6b2a19fd1", "path": "handover/evidence/market_autonomy_lab_hard10_bcast_exact_join_R16_20260516T202248Z/P007_mathd_algebra_270/evaluator.stderr"},
+    {"sha256": "b37000aac8444e06d49721b0ae49d95c5874147997649611e299bac67e9f93bf", "path": "handover/evidence/market_autonomy_lab_hard10_bcast_exact_join_R16_20260516T202248Z/P007_mathd_algebra_270/evaluator.stdout"},
+    {"sha256": "c01e39f7299286f3e8cb2a345ee692e5ed4275fb0a7b7eb100a46ca6b2a19fd1", "path": "handover/evidence/market_autonomy_lab_hard10_bcast_exact_join_R16_20260516T202248Z/P008_mathd_algebra_332/evaluator.stderr"},
+    {"sha256": "b3e0f709960d7c30caf87ab19c53d0d3d65f5fbe4d6bcf63ec1a9d326a320dee", "path": "handover/evidence/market_autonomy_lab_hard10_bcast_exact_join_R16_20260516T202248Z/P008_mathd_algebra_332/evaluator.stdout"},
+    {"sha256": "c01e39f7299286f3e8cb2a345ee692e5ed4275fb0a7b7eb100a46ca6b2a19fd1", "path": "handover/evidence/market_autonomy_lab_hard10_bcast_exact_join_R16_20260516T202248Z/P009_numbertheory_2pownm1prime_nprime/evaluator.stderr"},
+    {"sha256": "868c1e28262cd08f7a7abcbca249a65e0b7c286774f78a262e12d44d21c9e810", "path": "handover/evidence/market_autonomy_lab_hard10_bcast_exact_join_R16_20260516T202248Z/P009_numbertheory_2pownm1prime_nprime/evaluator.stdout"}
+  ]
+}

@@ -24,12 +24,18 @@ fn real13_probe_runner_enables_ev_review_without_live_real6b_or_scripted_buys() 
         "TURINGOS_MARKET_REVIEW_MODE=full_async_experimental",
         "TURINGOS_REAL7_SCRIPTED_TASK_OUTCOME_BUYS=1",
         "live_non_scripted_router_tx_count=\"$buy_with_coin_router\"",
+        "E2 candidate achieved",
+        "CANDIDATE_ACHIEVED_REQUIRES_AUDIT",
     ] {
         assert!(
             !script.contains(forbidden),
             "REAL-13 probe must not ship forbidden sentinel: {forbidden}"
         );
     }
+    assert!(
+        script.contains("E2 candidate pending audit"),
+        "R14 audit CHALLENGE: candidate wording must remain pending-audit only"
+    );
 }
 
 #[test]
@@ -62,4 +68,54 @@ fn evaluator_writes_ev_decision_trace_and_market_review_sidecars_from_cas_path()
             "REAL-13 market review helper block must not use sleep timing: {forbidden}"
         );
     }
+}
+
+#[test]
+fn dashboard_counts_e2_candidate_router_actions_by_exact_submitted_trace_join() {
+    let dashboard =
+        fs::read_to_string("src/bin/audit_dashboard.rs").expect("audit dashboard source exists");
+    assert!(
+        !dashboard.contains("router_total.min(summary.submitted_count)"),
+        "R14 audit CHALLENGE: dashboard must not classify router tx via count min without exact tx_id join"
+    );
+    for required in [
+        "submitted_market_decision_router_tx_ids",
+        "matched_submitted_router_tx_id_count",
+        "duplicate_router_tx_id_count",
+        "duplicate_submitted_router_tx_id_count",
+        "agent_economic_action_tx_count: {}",
+    ] {
+        assert!(
+            dashboard.contains(required),
+            "dashboard must expose exact provenance join field {required}"
+        );
+    }
+}
+
+#[test]
+fn dashboard_marks_absent_g7_structural_guards_as_non_sentinel() {
+    let dashboard =
+        fs::read_to_string("src/bin/audit_dashboard.rs").expect("audit dashboard source exists");
+    assert!(
+        dashboard.contains("g7_guard_absent_interpretation"),
+        "R14 audit CHALLENGE: absent G7 guard CAS must render an explicit non-sentinel/N/A annotation"
+    );
+}
+
+#[test]
+fn dashboard_derives_scripted_fixture_count_from_cas_not_constant() {
+    let dashboard =
+        fs::read_to_string("src/bin/audit_dashboard.rs").expect("audit dashboard source exists");
+    assert!(
+        !dashboard.contains("scripted_fixture_tx_count: {}\\n\", 0"),
+        "R16 audit CHALLENGE: scripted_fixture_tx_count must not be hard-coded to zero"
+    );
+    assert!(
+        dashboard.contains("scripted_attempt_prediction_market_count"),
+        "dashboard must derive scripted fixture count from CAS-backed scripted fixture records"
+    );
+    assert!(
+        dashboard.contains("scripted_fixture_tx_count: {}\\n\",\n        scripted_attempt_prediction_market_count"),
+        "dashboard must render scripted_fixture_tx_count from the CAS-derived scripted_attempt_prediction_market_count"
+    );
 }

@@ -178,6 +178,11 @@ pub mod peer_verify_coverage;
 /// `src/bin/audit_dashboard.rs` to gain library-test access to the
 /// row-rendering contract.
 pub mod market_decision_trace_summary;
+/// TRACE_MATRIX FC3-N43 (REAL-14 2026-05-16): independent E2 candidate
+/// verifier. Recomputes live agent economic action from ChainTape/CAS by
+/// exact `BuyWithCoinRouterTx` ∩ submitted `MarketDecisionTrace` tx-id join;
+/// dashboard text is never a source of truth.
+pub mod market_e2_candidate_verifier;
 
 /// TRACE_MATRIX FC1-N5 + §15 + §17 (TB-G G3.1 2026-05-12; charter §1 Module
 /// G3 atom G3.1; G-Phase directive §G3 verbatim 7-field shape + SG-G3.5
@@ -232,6 +237,12 @@ pub mod market_tx_category;
 /// expected-value decision traces for Bull/Bear market review turns. Generic
 /// sidecar only; missing traces invalidate evidence, not sequencer admission.
 pub mod ev_decision_trace;
+
+/// TRACE_MATRIX FC1-N41 + FC3-N43 (REAL-13 Atom 3 2026-05-16): CAS-backed
+/// deterministic, counterfactual-only PolicyTrader baseline. Generic CAS
+/// sidecar only; does not count for E2 and does not alter sequencer,
+/// typed-tx, or wallet authority.
+pub mod policy_trader_trace;
 
 /// TRACE_MATRIX Art.II broadcast + economy integer path (REAL-13C
 /// 2026-05-16): prompt-facing DisplayCoin adapter with fixed-point decimal
