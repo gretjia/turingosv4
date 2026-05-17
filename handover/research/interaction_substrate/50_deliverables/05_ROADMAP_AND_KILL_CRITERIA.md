@@ -60,7 +60,7 @@ Phase 7 Web MVP (~10-12 周) → 2026-11-01 ship
 **Exit Gate**:
 - `cargo test --workspace --no-fail-fast` 通过
 - `bash scripts/run_constitution_gates.sh` 通过
-- Codex audit PROCEED (Class 1-2 dual audit per CLAUDE.md §9)
+- Codex audit PROCEED (Class 1-2; single clean-context Codex audit per AGENTS.md §9; dual-audit not default since 2026-05-14)
 
 ### 2.2 Phase 7: Web MVP (10-12 周, Class 1-3)
 
@@ -93,7 +93,7 @@ Phase 7 Web MVP (~10-12 周) → 2026-11-01 ship
 **Exit Gate**:
 - 全 unit + integration tests 通过
 - E2E Playwright 测试通过 (3+ user scenarios)
-- Codex audit PROCEED + Gemini DeepThink (dual audit per Class 3 § CLAUDE.md §9)
+- Codex audit PROCEED (Class 3; single clean-context Codex audit per AGENTS.md §9; Gemini not default since 2026-05-14; user may explicitly request dual audit)
 
 ### 2.3 Phase 8: A2A 深化 + 协作 + 联邦 (10-12 周, Class 2-3)
 
@@ -272,7 +272,7 @@ grep -c "forward-bound" 50_deliverables/05_ROADMAP_AND_KILL_CRITERIA.md  # ≥ 5
 ## 10. 结语: TISR 现阶段 vs 未来
 
 **TISR 现阶段** (2026-05-17 ship):
-- ✅ 完整 forward-bound research 文档 (19 + 6 = 25 份)
+- ✅ 完整 forward-bound research 文档 (30 docs total: Phase 0-5 28 docs + INDEX + EXECUTIVE_SUMMARY)
 - ✅ 0 个 Class 4 修改实施
 - ✅ 与架构师 2026-05-14 verbatim "不要再开新方向" 兼容 (worktree 物理隔离)
 - ✅ Phase 6-10+ 完整路线图

@@ -211,5 +211,5 @@ TuringOS v4 已是 tape-first constitutional 防御基底 (461 constitution gate
 ---
 
 **详细文档导航**: 见 `INDEX.md`
-**项目根**: `handover/research/interaction_substrate/` (29 docs)
-**Worktree**: `claude/tisr-2026-05-17` @ HEAD `2dd4820` (= main, 无 src/tests 修改)
+**项目根**: `handover/research/interaction_substrate/` (30 docs)
+**Worktree**: `claude/tisr-2026-05-17` @ HEAD `ff71406c` (= main `2dd4820` + 30 docs, 无 src/tests 修改)

@@ -268,7 +268,7 @@ Tier 1 (Broadcast Pricing, 免费):
   PriceSignal 从 EconomicState 派生 (price_index.rs)
   → 嵌入 BroadcastEpoch CAS → agent prompt `=== Market ===` 块
   → agent 读取 → 0 cost
-  
+
   Hayek: 价格是 dispersed knowledge → 单一数字
   TuringOS: 价格 = signal not truth (Art. II.2)
 
@@ -276,7 +276,7 @@ Tier 2 (Proposal Pricing, escrow):
   PriceQuotation { offered_price, collateral_escrow_micro }
   → CAS write + sender balance -= escrow
   → agent B 接受 → 触发 settlement; 拒绝/超时 → escrow returned
-  
+
   Hayek 通信核心: 价格 encodes 分散信息
 
 Tier 3 (Settlement Pricing, mutation):

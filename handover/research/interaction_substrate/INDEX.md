@@ -162,6 +162,6 @@
 - **3 个 exit check 全 Phase 通过** ✅
 - **总文档**: 30 (含本 INDEX 和 EXECUTIVE_SUMMARY)
 
-**Worktree**: `claude/tisr-2026-05-17` (`worktree-tisr-2026-05-17` branch) @ HEAD `2dd4820` = main, 无 src/tests 修改.
+**Worktree**: `claude/tisr-2026-05-17` (`worktree-tisr-2026-05-17` branch) @ HEAD `ff71406c` (= main `2dd4820` + 30 docs in handover/research/), 无 src/tests 修改.
 
 **后续**: Phase 6 (CLI MVP) 待 G-Phase 收口 + 架构师独立 §8 ratification.

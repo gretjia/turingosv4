@@ -96,7 +96,7 @@ pub enum ObjectType {
 
 | 文件 | LOC | Class | Interface |
 |---|---:|---|---|
-| `src/top_white/predicates/ui_content.rs` | ~250 | 1 | UIContentPredicate {0,1} verdict; 4 content_class | 
+| `src/top_white/predicates/ui_content.rs` | ~250 | 1 | UIContentPredicate {0,1} verdict; 4 content_class |
 | `src/top_white/predicates/a2a_signature.rs` | ~150 | 1 | A2AMessageSignatureVerifier |
 | `src/top_white/oracle/veto_ai_policy_gate.rs` | ~200 | 1 | UIPolicyVetoRequest + VetoAIUIDecision enum + consult fn |
 

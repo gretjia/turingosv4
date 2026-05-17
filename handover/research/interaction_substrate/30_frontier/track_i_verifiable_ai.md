@@ -189,7 +189,7 @@
 - TuringOS 经济是 **task-internal 信念市场** (谁的 attempt 对); Bittensor 经济是 **service-marketplace** (谁的模型好)
 - 两者 **互补不冲突**: TuringOS subnet 可作为 Bittensor "task subnet" 的一种, 而 Bittensor 不提供 TuringOS 的 task-internal CPMM 机制
 
-**Phase 4-5 建议**: 
+**Phase 4-5 建议**:
 
 - **不应** 复制 Bittensor subsidy 模式 (违反 TuringOS Coin 守恒原则)
 - **可参考** Bittensor dTAO 的 subnet-alpha 分层 (每 task 独立 conditional market) — 但 TuringOS YES/NO + CompleteSet 已是更强约束

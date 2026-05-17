@@ -36,7 +36,7 @@
 
 **轴 B — Agent-to-Agent 自治通信基底 (无人在环)**
 
-- 沿 `src/runtime/real5_roles.rs` (REAL-5 8 个角色) + `src/runtime/economic_judgment.rs` (REAL-12) + `src/runtime/librarian_broadcast.rs` (REAL-BCAST-1 in-flight) 现有基底
+- 沿 `src/runtime/real5_roles.rs` (10 个 AgentRole: REAL-5 原 8 + REAL-12 扩展 BullTrader/BearTrader) + `src/runtime/economic_judgment.rs` (REAL-12) + `src/runtime/librarian_broadcast.rs` (REAL-BCAST-1 in-flight) 现有基底
 - 价格信号作为 Hayek 式通信原语（`constitution.md` Art. II.2 对齐）
 - 大规模 agent 集群涌现 + 共识 + 声誉 + 自动合约
 
