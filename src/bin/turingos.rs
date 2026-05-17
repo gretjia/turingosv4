@@ -25,6 +25,8 @@ mod cmd_init;
 mod common;
 // MODULES-REGISTRY-BEGIN
 // (each Wave 1-3 atom appends `#[path = ...] mod cmd_<name>;` lines here, before END anchor)
+#[path = "turingos/cmd_report_run.rs"]
+mod cmd_report_run;
 // MODULES-REGISTRY-END
 
 const VERSION_STR: &str = concat!("turingos ", env!("CARGO_PKG_VERSION"));
@@ -42,6 +44,11 @@ const SUBCOMMANDS: &[Subcommand] = &[
         name: "init",
         short_help: cmd_init::SHORT_HELP,
         run: cmd_init::run,
+    },
+    Subcommand {
+        name: "report run",
+        short_help: cmd_report_run::SHORT_HELP,
+        run: cmd_report_run::run,
     },
     // SUBCOMMANDS-REGISTRY-END
 ];
