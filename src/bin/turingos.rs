@@ -25,16 +25,18 @@ mod cmd_init;
 mod common;
 // MODULES-REGISTRY-BEGIN
 // (each Wave 1-3 atom appends `#[path = ...] mod cmd_<name>;` lines here, before END anchor)
-#[path = "turingos/cmd_report_run.rs"]
-mod cmd_report_run;
-#[path = "turingos/cmd_report_wallet.rs"]
-mod cmd_report_wallet;
-#[path = "turingos/cmd_report_positions.rs"]
-mod cmd_report_positions;
 #[path = "turingos/cmd_report_bankruptcy.rs"]
 mod cmd_report_bankruptcy;
 #[path = "turingos/cmd_report_markov.rs"]
 mod cmd_report_markov;
+#[path = "turingos/cmd_report_positions.rs"]
+mod cmd_report_positions;
+#[path = "turingos/cmd_report_run.rs"]
+mod cmd_report_run;
+#[path = "turingos/cmd_report_wallet.rs"]
+mod cmd_report_wallet;
+#[path = "turingos/cmd_verify_chaintape.rs"]
+mod cmd_verify_chaintape;
 // MODULES-REGISTRY-END
 
 const VERSION_STR: &str = concat!("turingos ", env!("CARGO_PKG_VERSION"));
@@ -77,6 +79,11 @@ const SUBCOMMANDS: &[Subcommand] = &[
         name: "report markov",
         short_help: cmd_report_markov::SHORT_HELP,
         run: cmd_report_markov::run,
+    },
+    Subcommand {
+        name: "verify chaintape",
+        short_help: cmd_verify_chaintape::SHORT_HELP,
+        run: cmd_verify_chaintape::run,
     },
     // SUBCOMMANDS-REGISTRY-END
 ];
