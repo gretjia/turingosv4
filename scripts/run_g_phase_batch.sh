@@ -53,6 +53,38 @@
 
 set -uo pipefail
 
+clear_stale_cas_chain_lock() {
+    local cas_dir="$1"
+    local lock_path="${2:-$cas_dir/.turingos_cas_chain.lock}"
+    local log_path="${3:-$cas_dir/../cas_stale_lock_cleanup.log}"
+    local lock_body=""
+    local lock_pid=""
+    local ts=""
+
+    [[ -e "$lock_path" ]] || return 0
+    ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    lock_body="$(cat "$lock_path" 2>/dev/null || true)"
+    if [[ "$lock_body" =~ (^|[[:space:]])pid=([0-9]+)($|[[:space:]]) ]]; then
+        lock_pid="${BASH_REMATCH[2]}"
+        if kill -0 "$lock_pid" 2>/dev/null; then
+            {
+                echo "$ts preserve_live_lock path=$lock_path pid=$lock_pid"
+            } >> "$log_path"
+            return 0
+        fi
+        {
+            echo "$ts remove_stale_lock path=$lock_path pid=$lock_pid reason=pid_not_alive"
+        } >> "$log_path"
+        rm -f -- "$lock_path"
+        return 0
+    fi
+
+    {
+        echo "$ts remove_stale_lock path=$lock_path reason=missing_or_invalid_pid"
+    } >> "$log_path"
+    rm -f -- "$lock_path"
+}
+
 # ── Argument parsing ────────────────────────────────────────────────────────
 
 if [[ $# -lt 2 ]]; then
@@ -327,6 +359,11 @@ BATCH_EXIT=${PIPESTATUS[0]}
 
 ELAPSED=$(($(date +%s) - START_TS))
 echo "[batch_evaluator] exit_code=$BATCH_EXIT elapsed=${ELAPSED}s"
+
+CAS_CHAIN_LOCK_PATH="$RUN_DIR/cas/.turingos_cas_chain.lock"
+CAS_STALE_LOCK_CLEANUP_LOG="$RUN_DIR/cas_stale_lock_cleanup.log"
+# Reads pid= from the exact CAS lock path and preserves live locks with kill -0.
+clear_stale_cas_chain_lock "$RUN_DIR/cas" "$CAS_CHAIN_LOCK_PATH" "$CAS_STALE_LOCK_CLEANUP_LOG"
 
 # ── Aggregate audit_tape over the shared chain ──────────────────────────────
 

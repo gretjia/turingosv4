@@ -5746,7 +5746,7 @@ async fn run_swarm(
                                                     }
                                                     // Await Work accept (state_root advance).
                                                     let post_work_root = match turingosv4::runtime::adapter::tb8_await_state_root_advance(
-                                                &bundle.sequencer, parent_state_root, 5000,
+                                                &bundle.sequencer, parent_state_root, real6a_poll_budget_ms(),
                                             ).await {
                                                 Ok(r) => r,
                                                 Err(()) => {
@@ -7012,7 +7012,7 @@ async fn run_swarm(
                                                     }
                                                     // Await Work accept (state_root advance).
                                                     let post_work_root = match turingosv4::runtime::adapter::tb8_await_state_root_advance(
-                                                &bundle.sequencer, parent_state_root, 5000,
+                                                &bundle.sequencer, parent_state_root, real6a_poll_budget_ms(),
                                             ).await {
                                                 Ok(r) => r,
                                                 Err(()) => {
