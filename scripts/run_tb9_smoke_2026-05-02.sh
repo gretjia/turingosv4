@@ -28,7 +28,7 @@ DASH="$ROOT/target/release/audit_dashboard"
 VERIFY="$ROOT/target/release/verify_chaintape"
 
 # Build release artefacts the runner depends on.
-[ -x "$EVAL" ] || cargo build --bin evaluator -p minif2f_v4 --release 2>&1 | tail -3
+[ -x "$EVAL" ] || (cd "$ROOT" && CARGO_TARGET_DIR="$ROOT/target" cargo build --manifest-path "$ROOT/experiments/minif2f_v4/Cargo.toml" --bin evaluator --release 2>&1 | tail -3)
 [ -x "$DASH" ] || cargo build --bin audit_dashboard -p turingosv4 --release 2>&1 | tail -3
 [ -x "$VERIFY" ] || cargo build --bin verify_chaintape -p turingosv4 --release 2>&1 | tail -3
 

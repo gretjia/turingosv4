@@ -4,7 +4,7 @@ name: TB-C0 Constitution Gates
 #   "No high-risk feature can merge without constitution gates green."
 #   (charter §2 CR-C0.10 + closure condition #9)
 #
-# This workflow makes the 8 constitution gate test files
+# This workflow makes the core constitution gate test files
 # (`tests/constitution_*.rs`) a required merge gate. Any PR that
 # breaks an FC1 / FC2 / FC3 / Predicate / Shielding / Economy /
 # Tape-canonical / Parallel-ledger invariant fails CI and cannot land.
@@ -23,6 +23,7 @@ on:
       - "Cargo.toml"
       - "Cargo.lock"
       - "constitution.md"
+      - "scripts/run_constitution_gates.sh"
       - "handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md"
       - "handover/alignment/TRACE_FLOWCHART_MATRIX.md"
       - ".github/workflows/constitution_gates.yml"

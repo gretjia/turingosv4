@@ -30,7 +30,7 @@ Final constitution gates are green:
 
 ```text
 bash scripts/run_constitution_gates.sh
-Totals: 464 passed, 0 failed, 1 ignored
+Totals: 461 passed, 0 failed, 1 ignored
 PASS: all gates GREEN.
 ```
 
@@ -155,8 +155,8 @@ REAL13 note:
 | --- | --- | --- | --- |
 | `git diff --check` | PASS | PASS | No whitespace errors. |
 | `cargo fmt --all -- --check` | Not baseline-recorded | PASS | Formatting clean. |
-| Branch challenge red baseline | `446 passed / 18 failed / 1 ignored` at `c85dacfa` | `464 passed / 0 failed / 1 ignored` | Improved by 18 red gates. |
-| Original branch baseline report | `443 passed / 18 failed / 1 ignored` at `7b39499a` | `464 passed / 0 failed / 1 ignored` | Initial red family closed. |
+| Branch challenge red baseline | `446 passed / 18 failed / 1 ignored` at `c85dacfa` | `461 passed / 0 failed / 1 ignored` | Improved by 18 red gates; count also reflects MiniF2F package gate removal plus the two-test boundary gate. |
+| Original branch baseline report | `443 passed / 18 failed / 1 ignored` at `7b39499a` | `461 passed / 0 failed / 1 ignored` | Initial red family closed under the corrected core-gate boundary. |
 | Six auditor-pointed targets | RED before hydration/compat repair | PASS | `constitution_fc3_inv1_capsule_integrity_regen`, `constitution_shielding_evidence_binding`, `constitution_fc3_evidence_binding`, `constitution_l4e_body_integrity`, `constitution_librarian_real_evidence_binding`, `tb_16_dashboard_live_regen`. |
 | CAS store targeted | Prior final report said 33 pass | PASS, 34 pass | Added legacy blob-ref open/upgrade regression. |
 | EvidenceCapsule targeted | PASS, 9 pass | PASS, 9 pass | Compression/readback stable. |
@@ -164,7 +164,7 @@ REAL13 note:
 | Trust Root tests | Failing after post-CHALLENGE code edits until rehash | PASS, 4 pass + boot verify 1 pass | Class 4 rehash closed. |
 | Baseline targeted suite | PASS, 29 pass | PASS, 34 pass | Existing targeted behavior retained; new assertions added. |
 | `cargo test --workspace --no-fail-fast -- --test-threads=1` | Earlier baseline ran out of disk; CHALLENGE branch had red targets | PASS | Broad regression surface green after cleanup and fixes. |
-| GitHub PR #3 fresh checkout after P1 closure | `441 passed / 18 failed / 1 ignored` | Scratch clean-worktree gates `464 passed / 0 failed / 1 ignored` | Missing ignored historical fixtures packaged as compact real fixtures. |
+| GitHub PR #3 fresh checkout after P1 closure | `441 passed / 18 failed / 1 ignored` | Scratch clean-worktree gates `464 passed / 0 failed / 1 ignored`; final core runner `461 passed / 0 failed / 1 ignored` after MiniF2F boundary correction | Missing ignored historical fixtures packaged as compact real fixtures; MiniF2F experiment package removed from core gate. |
 | Mini real-problem evidence | Baseline skipped by preflight in original baseline file | PASS | Final mini has `audit_tape=PROCEED`, persistence true. |
 | TB-18R R9 real-problem evidence | Initial runner summary had invariant Err due expected=0 extraction | PASS after v4 postprocess | P01/P02 `delta=0`, `invariant_verdict=Ok`, summary valid JSON. |
 
@@ -193,7 +193,8 @@ REAL13 note:
 | Gzip manifest fail-closed bounds | `gzip_manifest_missing_uncompressed_size_fails_closed`, `gzip_manifest_understated_uncompressed_size_fails_bounded` |
 | R9 expected helper counts partials and excludes preseed | `tb_18r_r9_expected_from_pput` |
 | R9 summary uses structured JSON counts | `tb_18r_r9_batch_summary` |
-| Historical fixture evidence-binding gates are green | `bash scripts/run_constitution_gates.sh` final `464/0/1` |
+| Historical fixture evidence-binding gates are green | `bash scripts/run_constitution_gates.sh` final `461/0/1` |
+| MiniF2F is not a fixed core OS gate | `constitution_minif2f_boundary` RED before runner/workspace fix, GREEN after package gate removal and root workspace exclusion |
 
 ## Final Verification Commands
 
@@ -205,7 +206,7 @@ cargo fmt --all -- --check
 PASS
 
 cargo test --lib bottom_white::cas::store::tests -- --test-threads=1
-34 passed
+35 passed
 
 cargo test --lib runtime::evidence_capsule::tests -- --test-threads=1
 9 passed
@@ -213,7 +214,7 @@ cargo test --lib runtime::evidence_capsule::tests -- --test-threads=1
 cargo test --test tb_18r_r9_expected_from_pput --test tb_18r_r9_batch_summary -- --test-threads=1
 3 passed
 
-cargo test -p minif2f_v4 --test trust_root_immutability -- --test-threads=1
+CARGO_TARGET_DIR="$PWD/target" cargo test --manifest-path experiments/minif2f_v4/Cargo.toml --test trust_root_immutability -- --test-threads=1
 4 passed
 
 cargo test --lib boot::tests::verify_trust_root_passes_on_intact_repo -- --test-threads=1
@@ -226,7 +227,7 @@ cargo test --test constitution_head_t_c2_multi_ref --test tb_18r_cas_reload_spli
 34 passed
 
 bash scripts/run_constitution_gates.sh
-464 passed, 0 failed, 1 ignored
+461 passed, 0 failed, 1 ignored
 
 cargo test --workspace --no-fail-fast -- --test-threads=1
 PASS
@@ -298,8 +299,10 @@ Combined final real-evidence storage:
 
 Improved:
 
-- Constitution gates improved from the reproduced CHALLENGE baseline
-  `446/18/1` to `464/0/1`.
+- Core constitution gates improved from the reproduced CHALLENGE baseline
+  `446/18/1` to `461/0/1`; the count also reflects removal of five MiniF2F
+  development package tests from the core OS gate and addition of the two-test
+  boundary gate.
 - R9 P02 invariant improved from historical red (`delta=8` under the old
   expected-count view) to `delta=0 / Ok`.
 - GitHub/fresh-checkout constitution gates no longer depend on local ignored
@@ -323,9 +326,19 @@ Regressions / cost:
   intentional auditability cost.
 - The tracked CI fixtures add about 431 KiB of compact binary test evidence to
   the repository. The full hydrated historical directories remain ignored.
-- `minif2f_v4` binaries no longer participate in default `cargo test` for the
-  package; they remain explicitly buildable by the real-run scripts that use
-  `--bin evaluator --bin batch_evaluator`.
+- MiniF2F is no longer part of the root workspace or the core constitution
+  gate runner. It remains available as explicit development/benchmark
+  validation via `--manifest-path experiments/minif2f_v4/Cargo.toml`; this
+  branch does not claim MiniF2F package tests as fixed TuringOS kernel gates.
+- MiniF2F now has its own opt-in `experiments/minif2f_v4/Cargo.lock` so its
+  dependency lock is isolated from the TuringOS root workspace lock.
+- The heavy MiniF2F run binaries are marked `test = false` so opt-in
+  package tests do not link evaluator binaries as test harnesses. Explicit
+  real-run `--bin evaluator` / `--bin batch_evaluator` builds remain available.
+- Active non-pinned MiniF2F run scripts touched by this repair use explicit
+  `--manifest-path` plus `CARGO_TARGET_DIR`; historical trust-root-pinned
+  preregistration scripts were left unchanged to avoid expanding the Class 4
+  rehash scope.
 - First run after `cargo clean` required release/debug rebuild time.
 
 Not comparable:
@@ -356,8 +369,10 @@ Fix:
 - Tampered sidecars still fail closed when no writer lock is active.
 - No change to `Cid = sha256(content)`, `src/bottom_white/cas/schema.rs`,
   typed transaction schema, canonical signing payload, or sequencer admission.
-- `genesis_payload.toml` was rehashed only for the already-pinned
-  `src/bottom_white/cas/store.rs` entry under the CAS Git repair Class 4 scope.
+- The P1 closure rehashed only the already-pinned
+  `src/bottom_white/cas/store.rs` entry under the CAS Git repair Class 4 scope;
+  the later core/experiment boundary closure rehashed root `Cargo.toml` and
+  `Cargo.lock` after removing MiniF2F from the default workspace.
 
 Post-fix local evidence:
 
@@ -365,12 +380,12 @@ Post-fix local evidence:
   `1 passed / 0 failed`.
 - `cargo test --lib bottom_white::cas::store::tests -- --test-threads=1`:
   `35 passed / 0 failed`.
-- `cargo test -p minif2f_v4 --test trust_root_immutability -- --test-threads=1`:
+- `CARGO_TARGET_DIR="$PWD/target" cargo test --manifest-path experiments/minif2f_v4/Cargo.toml --test trust_root_immutability -- --test-threads=1`:
   `4 passed / 0 failed`.
 - Original CAS repair targeted suite:
   `34 passed / 0 failed`.
 - `bash scripts/run_constitution_gates.sh`:
-  `464 passed / 0 failed / 1 ignored`.
+  `461 passed / 0 failed / 1 ignored`.
 
 Post-fix CI/fresh-checkout closure:
 
@@ -386,7 +401,7 @@ Post-fix CI/fresh-checkout closure:
 - Verified in a detached scratch worktree without local hydration:
   `bash scripts/run_constitution_gates.sh` -> `464 passed / 0 failed / 1 ignored`.
 
-Post-fix CI linker closure:
+Post-review core/experiment gate boundary closure:
 
 - After the fixture closure, GitHub passed the evidence-binding families but
   still failed the package gate
@@ -394,15 +409,24 @@ Post-fix CI linker closure:
 - The failure was not a test assertion. The enhanced gate log showed Rust
   1.95 `rust-lld` crashing with `Bus error` while linking the heavy
   `evaluator` / `batch_evaluator` binaries during `cargo test -p minif2f_v4`.
-- The package gate tests only `batch_orchestrator` library semantics and does
-  not execute those binaries, so `experiments/minif2f_v4/Cargo.toml` now marks
-  the bin targets `test = false`.
-- Explicit real-run build paths are unchanged and still build the binaries via
-  `cargo build -p minif2f_v4 --bin evaluator --bin batch_evaluator`.
+- User clarification on 2026-05-17 states that MiniF2F is a development
+  benchmark corpus, not a fixed TuringOS kernel or OS gate. Therefore the fix
+  is to remove the `minif2f_v4` package test from
+  `scripts/run_constitution_gates.sh` and remove `experiments/minif2f_v4` from
+  the root workspace.
+- Added `constitution_minif2f_boundary`, which failed before the fix because
+  active runner lines invoked `minif2f_v4`; it now also asserts that root
+  workspace members exclude the MiniF2F experiment package.
+- Intentional MiniF2F scripts now use explicit `--manifest-path
+  experiments/minif2f_v4/Cargo.toml` plus `CARGO_TARGET_DIR` to preserve
+  existing release binary paths without making MiniF2F a default workspace
+  member. This was limited to active non-pinned scripts; trust-root-pinned
+  historical preregistration scripts were left unchanged.
+- Retained `experiments/minif2f_v4/Cargo.toml` `test = false` flags for the
+  heavy run binaries as experiment-package test resource isolation.
 - Local verification:
-  `cargo +1.95.0 test -p minif2f_v4 --test constitution_g1_2_subprocess_resume`
-  with a fresh target -> `5 passed / 0 failed`; explicit bin build -> exit 0;
-  full gates -> `464 passed / 0 failed / 1 ignored`.
+  `cargo test --test constitution_minif2f_boundary -- --test-threads=1` ->
+  `2 passed / 0 failed`; full core gates -> `461 passed / 0 failed / 1 ignored`.
 
 ## Residual Risks And Non-Claims
 

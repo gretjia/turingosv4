@@ -21,9 +21,16 @@ post-P1 GitHub Constitution gate run then exposed a fresh-checkout fixture gap
 (`441 passed / 18 failed / 1 ignored`); compact real CI fixtures now package
 the minimal historical ignored CAS/runtime fragments needed by those gates.
 The next GitHub red was isolated to Rust 1.95 `rust-lld` crashing while linking
-unused minif2f_v4 binaries during the package gate; the minif2f bin targets are
-now `test = false` for default `cargo test`, while explicit `--bin evaluator
---bin batch_evaluator` builds remain intact.
+the `minif2f_v4` package gate. User clarification on 2026-05-17 states that
+MiniF2F is a development benchmark corpus, not a fixed TuringOS kernel or OS
+gate. The core constitution runner now removes the `minif2f_v4` package gate,
+adds `constitution_minif2f_boundary` to enforce that boundary, and removes
+`experiments/minif2f_v4` from the root workspace so `cargo test --workspace`
+does not validate MiniF2F by default. MiniF2F remains an explicit opt-in
+development package via `--manifest-path experiments/minif2f_v4/Cargo.toml`;
+it now has its own opt-in `experiments/minif2f_v4/Cargo.lock`, and its heavy
+run binaries stay `test = false` so opt-in package tests do not link evaluator
+binaries as test harnesses.
 Main worktree is not merged and `turingos_dev` is intentionally not used for
 this CAS/core repair.
 
@@ -36,8 +43,8 @@ FC2 replay/audit boot, and FC3 evidence feedback/audit views.
 - Baseline red before CHALLENGE remediation:
   `bash scripts/run_constitution_gates.sh` -> `446 passed / 18 failed / 1 ignored`
   at `c85dacfa`.
-- Final constitution gates:
-  `bash scripts/run_constitution_gates.sh` -> `464 passed / 0 failed / 1 ignored`.
+- Final core constitution gates:
+  `bash scripts/run_constitution_gates.sh` -> `461 passed / 0 failed / 1 ignored`.
 - Post-PR P1 regression:
   `cargo test --lib open_waits_for_inflight_cas_chain_cache_refresh -- --nocapture`
   failed before the lock fix and passes after it.
@@ -45,7 +52,7 @@ FC2 replay/audit boot, and FC3 evidence feedback/audit views.
   `cargo test --lib bottom_white::cas::store::tests -- --test-threads=1`
   -> `35 passed / 0 failed`.
 - Post-PR P1 trust-root suite:
-  `cargo test -p minif2f_v4 --test trust_root_immutability -- --test-threads=1`
+  `CARGO_TARGET_DIR="$PWD/target" cargo test --manifest-path experiments/minif2f_v4/Cargo.toml --test trust_root_immutability -- --test-threads=1`
   -> `4 passed / 0 failed`.
 - Post-PR P1 original CAS repair targeted suite:
   `cargo test --test constitution_head_t_c2_multi_ref --test tb_18r_cas_reload_split_brain --test co1_7_extra_cas_payload_round_trip --test tb_18r_lean_result_cas_resolves --test constitution_tape_canonical_gate --test constitution_no_parallel_ledger -- --test-threads=1`
@@ -61,11 +68,19 @@ FC2 replay/audit boot, and FC3 evidence feedback/audit views.
   `minif2f_v4::constitution_g1_2_subprocess_resume` failed because `rust-lld`
   crashed with `Bus error` while linking unused `evaluator` / `batch_evaluator`
   binaries during `cargo test -p minif2f_v4`.
-- Linker closure:
-  `experiments/minif2f_v4/Cargo.toml` marks bin targets `test = false`;
-  fresh-target Rust 1.95 package gate -> `5 passed / 0 failed`; explicit
-  `cargo build -p minif2f_v4 --bin evaluator --bin batch_evaluator` -> exit 0;
-  final full gates -> `464 passed / 0 failed / 1 ignored`.
+- Core/experiment boundary closure:
+  `constitution_minif2f_boundary` failed RED before the runner fix because
+  `scripts/run_constitution_gates.sh` invoked `minif2f_v4`; after removing that
+  package gate it passes `2 passed / 0 failed`. The core gate runner now passes
+  `461 passed / 0 failed / 1 ignored` without invoking the MiniF2F experiment
+  package.
+- Workspace default-test boundary:
+  root `Cargo.toml` now has workspace members `.` and `spike/gix_capability`
+  only, with `exclude = ["experiments/minif2f_v4"]`; active non-pinned
+  MiniF2F run scripts touched by this repair now build via explicit
+  `--manifest-path` and `CARGO_TARGET_DIR` so existing evaluator paths remain
+  stable. Historical trust-root-pinned preregistration scripts were left
+  unchanged to avoid expanding the branch-local Class 4 scope.
 - Final broad workspace command:
   `cargo test --workspace --no-fail-fast -- --test-threads=1` -> exit 0.
 - Historical ignored fixtures were hydrated locally from main for TB-C0,
