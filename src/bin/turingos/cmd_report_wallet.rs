@@ -1,37 +1,46 @@
-//! TRACE_MATRIX FC2-N16: turingos report wallet handler (lean_market view-wallet wrapper)
+//! TRACE_MATRIX FC2-N16: turingos `report wallet` handler
+//!
+//! Replays the agent EconomicState (wallet balances) from a ChainTape
+//! evidence directory. Task-type agnostic — applies to proof / polymarket /
+//! multi-agent / any future task type that uses the TuringOS task-market
+//! pattern. Implementation currently shells out to `TASK_RUNNER_BIN`
+//! (see `common.rs`); this is intentionally NOT surfaced in user help.
 
 use std::process::ExitCode;
 
-use crate::common::run_external;
+use crate::common::{run_external, TASK_RUNNER_BIN};
 
 /// TRACE_MATRIX FC2-N16: `report wallet` short-help
-pub(crate) const SHORT_HELP: &str = "Show agent wallet balances by replaying the chaintape";
+pub(crate) const SHORT_HELP: &str =
+    "Replay agent wallet balances from a ChainTape evidence directory";
 
 /// TRACE_MATRIX FC2-N16: `report wallet` full --help text
-pub(crate) const FULL_HELP: &str = r#"turingos report wallet — Show wallet balances
+pub(crate) const FULL_HELP: &str = r#"turingos report wallet — Replay agent wallet balances
 
 USAGE:
     turingos report wallet [OPTIONS]
 
 DESCRIPTION:
-    Thin shell-out wrapper around `lean_market view-wallet`. All arguments
-    are passed through to lean_market after the `view-wallet` subcommand.
+    Replays the EconomicState from a ChainTape evidence directory and prints
+    every agent's wallet balance. Read-only. No sequencer call. No CAS write.
+    No ChainTape advance.
 
-    Run `lean_market view-wallet --help` for the canonical option list.
+    Works for any task type (proof / polymarket / multi-agent / future).
 
-    No sequencer call. Read-only chaintape replay.
-
-    Wraps: lean_market view-wallet ...
+OPTIONS:
+    Pass through any flags the task-runner backend accepts; see the
+    task-runner's `--help` for the canonical option reference. Common flags:
+    `--chaintape <PATH>` (evidence directory), `--out <FORMAT>` (text/json).
 "#;
 
 /// TRACE_MATRIX FC2-N16: `report wallet` dispatch entry
 pub(crate) fn run(args: &[String]) -> ExitCode {
     if args.iter().any(|a| a == "-h" || a == "--help") && args.len() == 1 {
-        println!("{}", FULL_HELP);
+        println!("{FULL_HELP}");
         return ExitCode::SUCCESS;
     }
-    // Prepend the lean_market subcommand name
+    // Prepend the task-runner subcommand token for the wallet view operation.
     let mut prepended: Vec<String> = vec!["view-wallet".to_string()];
     prepended.extend_from_slice(args);
-    run_external("lean_market", &prepended)
+    run_external(TASK_RUNNER_BIN, &prepended)
 }

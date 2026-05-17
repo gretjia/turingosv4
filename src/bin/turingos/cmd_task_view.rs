@@ -1,12 +1,16 @@
-//! TRACE_MATRIX FC2-N16: turingos task view handler (lean_market view-task wrapper)
+//! TRACE_MATRIX FC2-N16: turingos `task view` handler
+//!
+//! Replays task status from a ChainTape evidence directory. Task-type
+//! agnostic — applies to any task that follows the TuringOS task-market
+//! pattern. Implementation currently shells out to `TASK_RUNNER_BIN`;
+//! not surfaced in user help.
 
 use std::process::ExitCode;
 
-use crate::common::run_external;
+use crate::common::{run_external, TASK_RUNNER_BIN};
 
 /// TRACE_MATRIX FC2-N16: `task view` short-help
-pub(crate) const SHORT_HELP: &str =
-    "Show task status by replaying the chaintape (lean_market view-task)";
+pub(crate) const SHORT_HELP: &str = "Replay task status from a ChainTape evidence directory";
 
 /// TRACE_MATRIX FC2-N16: `task view` full --help text
 pub(crate) const FULL_HELP: &str = r#"turingos task view — Show task status
@@ -15,24 +19,23 @@ USAGE:
     turingos task view [OPTIONS]
 
 DESCRIPTION:
-    Thin shell-out wrapper around `lean_market view-task`. All arguments
-    are passed through to lean_market after the `view-task` subcommand.
+    Replays the ChainTape and reports the current status of the requested
+    task (open / accepted / rejected / finalized / bankrupt / expired).
+    Read-only. No sequencer call. No ChainTape advance. Works for any
+    task type.
 
-    Run `lean_market view-task --help` for the canonical option list.
-
-    No sequencer call. Read-only chaintape replay.
-
-    Wraps: lean_market view-task ...
+OPTIONS:
+    Pass through flags accepted by the task-runner backend; common:
+    `--chaintape <PATH>`, `--task-id <ID>`.
 "#;
 
 /// TRACE_MATRIX FC2-N16: `task view` dispatch entry
 pub(crate) fn run(args: &[String]) -> ExitCode {
     if args.iter().any(|a| a == "-h" || a == "--help") && args.len() == 1 {
-        println!("{}", FULL_HELP);
+        println!("{FULL_HELP}");
         return ExitCode::SUCCESS;
     }
-    // Prepend the lean_market subcommand name
     let mut prepended: Vec<String> = vec!["view-task".to_string()];
     prepended.extend_from_slice(args);
-    run_external("lean_market", &prepended)
+    run_external(TASK_RUNNER_BIN, &prepended)
 }

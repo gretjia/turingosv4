@@ -319,13 +319,19 @@ fn cmd_init_inner(args: InitArgs) -> Result<(), InitError> {
     println!("  cd {cd_hint}");
     println!("  # Edit genesis_payload.toml to declare agents / budgets / market.");
     println!();
-    println!("What you can run right now (Phase 6.0):");
-    println!("  # From the turingosv4 project root (where Cargo.toml lives), NOT this scaffold:");
-    println!("  cargo build --release -p minif2f_v4 --bin lean_market");
-    println!("  ./target/release/lean_market --help     # established TB-10 workflow");
+    println!("What you can run right now (Phase 6.1):");
+    println!("  turingos --help                         # full subcommand list");
+    println!("  turingos agent deploy --id <ID> ...     # register an agent's pubkey + role");
+    println!("  turingos config set <key> <value>       # workspace-local config");
+    println!("  turingos task open --problem <ID> ...   # open a task on a fresh ChainTape");
+    println!("  turingos task view --task-id <ID>       # replay task status");
+    println!("  turingos report wallet                  # replay agent wallet balances");
+    println!("  turingos audit dashboard                # regenerate audit views");
+    println!("  turingos export evidence --source ...   # bundle an evidence directory");
     println!();
-    println!("Phase 6.1+ subcommands (not yet implemented; coming soon):");
-    println!("  turingos agent deploy / turingos task open / turingos audit dashboard / ...");
+    println!("Task-type backends (Phase 6.1 ships the proof/Lean backend; more in Phase 7+):");
+    println!("  # From the turingosv4 project root (NOT this scaffold):");
+    println!("  cargo build --release --workspace --bins");
     println!(
         "  See: handover/research/interaction_substrate/50_deliverables/00_UNIFIED_CLI_SPEC.md"
     );

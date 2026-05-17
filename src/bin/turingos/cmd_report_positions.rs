@@ -1,57 +1,51 @@
-//! TRACE_MATRIX FC2-N16: turingos report positions handler (lean_market view-positions wrapper)
+//! TRACE_MATRIX FC2-N16: turingos `report positions` handler
 //!
-//! Phase 6.1 W1a.3 atom. Shell-out wrapper around `lean_market view-positions`.
-//! Read-only ChainTape replay view — no sequencer call, no typed_tx, no CAS write,
-//! no ChainTape advance. Forwards all user args after prepending `view-positions`.
+//! Replays the NodePositionsIndex (exposure record) from a ChainTape
+//! evidence directory. Task-type agnostic — applies to any market that
+//! uses the TuringOS exposure-record pattern. Implementation currently
+//! shells out to `TASK_RUNNER_BIN`; not surfaced in user help.
 
 use std::process::ExitCode;
 
-use crate::common::run_external;
+use crate::common::{run_external, TASK_RUNNER_BIN};
 
-/// TRACE_MATRIX FC2-N16: report positions subcommand short-help (registry display)
-pub(crate) const SHORT_HELP: &str = "Show NodePositionsIndex exposure record (TB-12 view)";
+/// TRACE_MATRIX FC2-N16: `report positions` short-help
+pub(crate) const SHORT_HELP: &str =
+    "Replay NodePositionsIndex exposure record from a ChainTape evidence directory";
 
-/// TRACE_MATRIX FC2-N16: report positions subcommand --help text
-pub(crate) const FULL_HELP: &str = r#"turingos report positions — Show NodePositionsIndex exposure record (TB-12 view)
+/// TRACE_MATRIX FC2-N16: `report positions` full --help text
+pub(crate) const FULL_HELP: &str = r#"turingos report positions — Replay exposure record
 
 USAGE:
     turingos report positions [OPTIONS]
 
 DESCRIPTION:
-    Wrapper around `lean_market view-positions`. Prepends `view-positions` to
-    any additional args and shell-outs to the lean_market binary located in the
-    same target directory as turingos (release preferred, then debug).
+    Replays the NodePositionsIndex from a ChainTape evidence directory and
+    prints each agent's exposure. NodePositionsIndex is an exposure index
+    (Art. II.2): it records agent YES/NO share holdings reconstructed from
+    accepted L4 WorkTx events. It is NOT a trading market or Coin balance —
+    it is a view derived from ChainTape.
 
-    Read-only ChainTape replay view. No sequencer call. No typed_tx. No CAS
-    write. No ChainTape advance.
-
-    NodePositionsIndex is an exposure index (TB-12): it records agent YES/NO
-    share holdings reconstructed from accepted L4 WorkTx events. It is NOT a
-    trading market or Coin balance — it is a view derived from ChainTape.
+    Read-only. No sequencer call. No typed_tx. No CAS write. No ChainTape
+    advance. Works for any task type that maintains a positions index.
 
 OPTIONS:
-    Any flags accepted by `lean_market view-positions` are passed through.
-
-    -h, --help              Print this help (handled by turingos wrapper;
-                            does not reach lean_market).
+    Pass through flags accepted by the task-runner backend; common:
+    `--chaintape <PATH>` (evidence directory), `--agent <ID>` (filter).
 
 EXAMPLES:
     turingos report positions
     turingos report positions --agent agent_0
 "#;
 
-/// TRACE_MATRIX FC2-N16: report positions subcommand dispatch entry
+/// TRACE_MATRIX FC2-N16: `report positions` dispatch entry
 pub(crate) fn run(args: &[String]) -> ExitCode {
-    // Short-circuit --help / -h before shell-out.
     if args.iter().any(|a| a == "-h" || a == "--help") {
-        print!("{}", FULL_HELP);
+        print!("{FULL_HELP}");
         return ExitCode::SUCCESS;
     }
-
-    // Prepend the lean_market subcommand token, then forward remaining user args.
     let mut forwarded = Vec::with_capacity(args.len() + 1);
     forwarded.push("view-positions".to_string());
     forwarded.extend_from_slice(args);
-
-    run_external("lean_market", &forwarded)
+    run_external(TASK_RUNNER_BIN, &forwarded)
 }

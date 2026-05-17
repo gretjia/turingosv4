@@ -1,55 +1,44 @@
-//! TRACE_MATRIX FC2-N16: turingos task tick handler (lean_market tick wrapper)
+//! TRACE_MATRIX FC2-N16: turingos `task tick` handler
 //!
-//! Phase 6.1 W3.2 atom. Thin shell-out wrapper around `lean_market tick`.
-//! Prepends the `tick` subcommand token to user-supplied args before
-//! delegating to `run_external`; `--help` is short-circuited to print
-//! FULL_HELP inline.
-//!
-//! §8 packet 2026-05-17 (TISR Phase 6.0/6.1 separate charter).
-//! [R-022-skip: see handover/alignment/OBS_R022_TISR_PHASE6_1_CLI_DISPATCH.md]
+//! Advances the G3 carry-forward epoch by emitting a system tick. Task-type
+//! agnostic — applies to any ChainTape that maintains an epoch / clock.
+//! Class 2 write-capable: may emit system tx (ChainTape state advance,
+//! CAS evidence writes). Implementation currently shells out to
+//! `TASK_RUNNER_BIN`; not surfaced in user help.
 
 use std::process::ExitCode;
 
-use crate::common::run_external;
+use crate::common::{run_external, TASK_RUNNER_BIN};
 
-/// TRACE_MATRIX FC2-N16: short help shown in `turingos --help` listing
-pub(crate) const SHORT_HELP: &str = "Run TB-11 G3 carry-forward tick (lean_market tick)";
+/// TRACE_MATRIX FC2-N16: `task tick` short-help
+pub(crate) const SHORT_HELP: &str = "Advance the G3 carry-forward epoch (system tick)";
 
-/// TRACE_MATRIX FC2-N16: full help printed by `turingos task tick --help`
-pub(crate) const FULL_HELP: &str = r#"turingos task tick — Run TB-11 G3 carry-forward tick (lean_market tick)
+/// TRACE_MATRIX FC2-N16: `task tick` full --help text
+pub(crate) const FULL_HELP: &str = r#"turingos task tick — Advance the carry-forward epoch
 
 USAGE:
     turingos task tick [OPTIONS]
 
 DESCRIPTION:
-    Thin shell-out wrapper around `lean_market tick`.
-    Prepends the `tick` subcommand token, then forwards all remaining
-    user-supplied args to `lean_market`.
+    Emits a system tick to advance the G3 carry-forward epoch on a
+    ChainTape. Class 2 write-capable: may emit system tx via the existing
+    sequencer path (ChainTape state advance, CAS evidence writes).
 
-    Class 2 write-capable: lean_market tick may emit system tx via the
-    existing TB-10 path (ChainTape state advance, CAS evidence writes).
-    Run `lean_market tick --help` for the canonical option reference.
+    Task-type agnostic — works for any task that maintains a clock.
 
-    Wraps: lean_market tick [OPTIONS]
+OPTIONS:
+    Pass through flags accepted by the task-runner backend; common:
+    `--chaintape <PATH>`, `--epochs <N>` (number of epochs to advance).
 "#;
 
-/// TRACE_MATRIX FC2-N16: entry point for `turingos task tick`
-///
-/// Short-circuits `--help` / `-h` to print FULL_HELP locally (preserving
-/// the FC2-N16 trace reference in the help output). Otherwise prepends
-/// `tick` as the first argument and delegates to `lean_market`.
+/// TRACE_MATRIX FC2-N16: `task tick` dispatch entry
 pub(crate) fn run(args: &[String]) -> ExitCode {
-    // Short-circuit --help / -h before invoking the wrapped binary so the
-    // user sees the wrapper's canonical help (which includes FC2-N16 trace).
     if args.iter().any(|a| a == "--help" || a == "-h") {
         print!("{FULL_HELP}");
         return ExitCode::SUCCESS;
     }
-
-    // Prepend the `tick` subcommand token that lean_market expects.
     let mut prepended: Vec<String> = Vec::with_capacity(args.len() + 1);
     prepended.push("tick".to_string());
     prepended.extend_from_slice(args);
-
-    run_external("lean_market", &prepended)
+    run_external(TASK_RUNNER_BIN, &prepended)
 }
