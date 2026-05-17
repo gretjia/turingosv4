@@ -1,0 +1,128 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1779011072273_1536110",
+  "close_status": "closed",
+  "manifest_sha256": "796d8d13a8ad0ffcc6e6ec2ce6291fc5180be51020a8a553ea5b2fa496c351be",
+  "event_chain_head_hash": "27361b3498e659fbbd1d3d64de1b7330e06da32f7eb941a979af0157d00754a6",
+  "diff_sha256": "f09741c051f05c2fa68cd18abcf30c0a678cfb32dea5370d99a6577495695282",
+  "command_results": [
+    {
+      "command": [
+        "cargo",
+        "check",
+        "--bin",
+        "turingos"
+      ],
+      "cwd": "/home/zephryj/projects/turingosv4/.claude/worktrees/tisr-2026-05-17",
+      "exit_code": 0,
+      "started_at_unix_ms": 1779012526410,
+      "ended_at_unix_ms": 1779012533241,
+      "stdout": {
+        "path": "artifacts/command_0001_stdout.txt",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size_bytes": 0
+      },
+      "stderr": {
+        "path": "artifacts/command_0001_stderr.txt",
+        "sha256": "f80d7891745eff75717c3c656e164a7c4f4a6a1ce645ff1a250d8c20098ac932",
+        "size_bytes": 5658
+      }
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--test",
+        "cli_init_smoke"
+      ],
+      "cwd": "/home/zephryj/projects/turingosv4/.claude/worktrees/tisr-2026-05-17",
+      "exit_code": 0,
+      "started_at_unix_ms": 1779012533247,
+      "ended_at_unix_ms": 1779012558405,
+      "stdout": {
+        "path": "artifacts/command_0002_stdout.txt",
+        "sha256": "2105432dc5a00b0aa4a6368f385b84c270c6ff9b62184ef440a8355a849df3e6",
+        "size_bytes": 416
+      },
+      "stderr": {
+        "path": "artifacts/command_0002_stderr.txt",
+        "sha256": "a1e3ddc31f3c6c39d81c6f7393f9a664a20ef4458c27969988c26835dfa69204",
+        "size_bytes": 5749
+      }
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--lib",
+        "boot::tests::verify_trust_root_passes_on_intact_repo",
+        "--",
+        "--test-threads=1"
+      ],
+      "cwd": "/home/zephryj/projects/turingosv4/.claude/worktrees/tisr-2026-05-17",
+      "exit_code": 0,
+      "started_at_unix_ms": 1779015186891,
+      "ended_at_unix_ms": 1779015187566,
+      "stdout": {
+        "path": "artifacts/command_0004_stdout.txt",
+        "sha256": "f5118b75582c25ca90009d6222274a608b2ecde194d209924e0e09b0fc47483b",
+        "size_bytes": 179
+      },
+      "stderr": {
+        "path": "artifacts/command_0004_stderr.txt",
+        "sha256": "9f06fe8076e767b746595af47584b2179ad4d1bf0c97a56b0e5e5af9600e7f21",
+        "size_bytes": 4735
+      }
+    },
+    {
+      "command": [
+        "cargo",
+        "build",
+        "--bin",
+        "turingos"
+      ],
+      "cwd": "/home/zephryj/projects/turingosv4/.claude/worktrees/tisr-2026-05-17",
+      "exit_code": 0,
+      "started_at_unix_ms": 1779015193546,
+      "ended_at_unix_ms": 1779015193831,
+      "stdout": {
+        "path": "artifacts/command_0005_stdout.txt",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size_bytes": 0
+      },
+      "stderr": {
+        "path": "artifacts/command_0005_stderr.txt",
+        "sha256": "1f9af92327b4588481a041cfba5948f3cc4e9cf67c445a50300644371e2e20c7",
+        "size_bytes": 5557
+      }
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--test",
+        "cli_init_smoke"
+      ],
+      "cwd": "/home/zephryj/projects/turingosv4/.claude/worktrees/tisr-2026-05-17",
+      "exit_code": 0,
+      "started_at_unix_ms": 1779015193839,
+      "ended_at_unix_ms": 1779015194153,
+      "stdout": {
+        "path": "artifacts/command_0006_stdout.txt",
+        "sha256": "f82e4c4e0ef750074383d2ddba62c0ba9f4b5e1c8fec119631caa3ad03e5e1ac",
+        "size_bytes": 416
+      },
+      "stderr": {
+        "path": "artifacts/command_0006_stderr.txt",
+        "sha256": "b7c86ac8d2f6ab1d4ae28018a28987ee5f9436d5d38ca06cc76e1b1ac814e89e",
+        "size_bytes": 5647
+      }
+    }
+  ],
+  "acceptance_passed": true,
+  "audit_required": false,
+  "audit_verdict": "PROCEED",
+  "effective_risk_class": 1,
+  "restricted_surface_hits": [],
+  "closed_at_unix_ms": 1779018732716
+}
