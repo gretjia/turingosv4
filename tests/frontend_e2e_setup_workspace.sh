@@ -86,6 +86,37 @@ else
 fi
 
 # ─────────────────────────────────────────────────────────────────────────
+# Step 2b — Build the lean_market backend (the binary that `turingos task open`
+#           shells out to; lives in the experiments/minif2f_v4 workspace
+#           member, NOT the root package, so a bare `cargo build` against the
+#           root would not produce it). Without this binary, `turingos task open`
+#           returns spawn-ENOENT and the §6a out-of-band ChainTape advancement
+#           cross-check fails — the §6a verifier surfaced this gap on the first
+#           pass. NOTE: Lean itself may still be missing on the host; in that
+#           case lean_market exits non-zero AFTER bootstrapping ≥2 ChainTape txs
+#           (TaskOpen + EscrowLock), which is the partial-success path the §6a
+#           cross-check accepts (it reads ChainTape, not the exit code).
+# ─────────────────────────────────────────────────────────────────────────
+LEAN_MARKET_BIN="${REPO_ROOT}/target/debug/lean_market"
+
+_needs_rebuild_lean_market() {
+  if [[ ! -f "${LEAN_MARKET_BIN}" ]]; then return 0; fi
+  if find "${REPO_ROOT}/experiments/minif2f_v4/src" -name "*.rs" \
+       -newer "${LEAN_MARKET_BIN}" 2>/dev/null | grep -q .; then
+    return 0
+  fi
+  return 1
+}
+
+if _needs_rebuild_lean_market; then
+  echo "[setup] building lean_market (experiments/minif2f_v4)..."
+  (cd "${REPO_ROOT}" && cargo build --bin lean_market -p minif2f_v4 --quiet)
+  echo "[setup] lean_market built: ${LEAN_MARKET_BIN}"
+else
+  echo "[setup] lean_market up to date: ${LEAN_MARKET_BIN}"
+fi
+
+# ─────────────────────────────────────────────────────────────────────────
 # Step 3 — Build the frontend (skip if dist/main.js exists and is newer
 #           than the TypeScript sources)
 # ─────────────────────────────────────────────────────────────────────────
