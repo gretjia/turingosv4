@@ -1,0 +1,79 @@
+{
+  "id": "audit-summary-view:2026-05-17T12:00:00Z",
+  "title": "Audit Summary",
+  "blocks": [
+    {
+      "id": "blk-intro-text",
+      "kind": "text",
+      "content": "Audit summary for the current run. Shows ChainTape/CAS integrity indicators and audit round history. This is a STATIC SAMPLE — not a live audit feed. All values are example data. Materialized view — not authoritative over ChainTape/CAS (FC3-N31)."
+    },
+    {
+      "id": "blk-audit-panel",
+      "kind": "dashboard_panel",
+      "panel_title": "ChainTape / CAS Integrity Metrics",
+      "metrics": [
+        { "label": "total_l4_tx",                "value": 42,    "unit": "tx" },
+        { "label": "total_l4e_rejections",        "value": 31,    "unit": "tx" },
+        { "label": "attempt_equality_status",     "value": "PASS" },
+        { "label": "replay_status_genesis",       "value": "PASS" },
+        { "label": "replay_status_chaintape",     "value": "PASS" },
+        { "label": "replay_status_cas",           "value": "PASS" },
+        { "label": "replay_status_agent_registry","value": "PASS" },
+        { "label": "replay_status_pubkeys",       "value": "PASS" },
+        { "label": "replay_status_head_t_witness","value": "PASS" },
+        { "label": "replay_status_dashboard_regen","value": "PASS" },
+        { "label": "coin_conservation_check",     "value": "PASS" }
+      ]
+    },
+    {
+      "id": "blk-audit-rounds-table",
+      "kind": "table",
+      "caption": "Audit round history",
+      "columns": ["round", "verdict", "defect_count", "closed_at_unix"],
+      "rows": [
+        [
+          { "kind": "integer", "value": 1 },
+          { "kind": "string",  "value": "VETO" },
+          { "kind": "integer", "value": 4 },
+          { "kind": "integer", "value": 1747382400 }
+        ],
+        [
+          { "kind": "integer", "value": 2 },
+          { "kind": "string",  "value": "CHALLENGE" },
+          { "kind": "integer", "value": 2 },
+          { "kind": "integer", "value": 1747404000 }
+        ],
+        [
+          { "kind": "integer", "value": 3 },
+          { "kind": "string",  "value": "PROCEED" },
+          { "kind": "integer", "value": 0 },
+          { "kind": "integer", "value": 1747447200 }
+        ]
+      ]
+    },
+    {
+      "id": "blk-audit-events",
+      "kind": "event_log",
+      "events": [
+        {
+          "tx_id": "tx:0000000a0010audit",
+          "kind": "WorkTx",
+          "layer": "L4",
+          "summary": "Audit round 3 PROCEED verdict recorded; all defects closed"
+        },
+        {
+          "tx_id": "tx:0000000a0009audit",
+          "kind": "WorkTx",
+          "layer": "L4",
+          "summary": "Audit round 2 CHALLENGE verdict; 2 residual defects forwarded"
+        },
+        {
+          "tx_id": "tx:0000000a0008audit",
+          "kind": "LeanFailed",
+          "layer": "L4E",
+          "summary": "Audit round 1 VETO: monetary invariant and atomic rollback defects detected"
+        }
+      ]
+    }
+  ]
+}

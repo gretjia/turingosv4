@@ -1,0 +1,76 @@
+{
+  "id": "batch-status-view:2026-05-17T12:00:00Z",
+  "title": "Batch Status Overview",
+  "blocks": [
+    {
+      "id": "blk-intro-text",
+      "kind": "text",
+      "content": "Batch run status overview. Each batch groups a set of agent tasks submitted together for evaluation. Status values: scaffold (setup phase), running (active), finished (all tasks terminal). Materialized view — not authoritative over ChainTape/CAS (FC3-N31)."
+    },
+    {
+      "id": "blk-batch-table",
+      "kind": "table",
+      "caption": "Batch runs — lifecycle status",
+      "columns": ["name", "status", "created_at_unix", "problem_count", "completed_count"],
+      "rows": [
+        [
+          { "kind": "string",  "value": "batch-2026-05-17-scaffold-001" },
+          { "kind": "string",  "value": "scaffold" },
+          { "kind": "integer", "value": 1747476000 },
+          { "kind": "integer", "value": 10 },
+          { "kind": "integer", "value": 0 }
+        ],
+        [
+          { "kind": "string",  "value": "batch-2026-05-17-run-002" },
+          { "kind": "string",  "value": "running" },
+          { "kind": "integer", "value": 1747468800 },
+          { "kind": "integer", "value": 8 },
+          { "kind": "integer", "value": 3 }
+        ],
+        [
+          { "kind": "string",  "value": "batch-2026-05-16-final-003" },
+          { "kind": "string",  "value": "finished" },
+          { "kind": "integer", "value": 1747382400 },
+          { "kind": "integer", "value": 8 },
+          { "kind": "integer", "value": 8 }
+        ]
+      ]
+    },
+    {
+      "id": "blk-batch-events",
+      "kind": "event_log",
+      "events": [
+        {
+          "tx_id": "tx:0000000b0001init",
+          "kind": "TaskOpenTx",
+          "layer": "L4",
+          "summary": "batch-2026-05-17-scaffold-001: 10 tasks opened; escrow locked"
+        },
+        {
+          "tx_id": "tx:0000000b0002run",
+          "kind": "WorkTx",
+          "layer": "L4",
+          "summary": "batch-2026-05-17-run-002: attempt 1 accepted for task-0a"
+        },
+        {
+          "tx_id": "tx:0000000b0003run",
+          "kind": "LeanFailed",
+          "layer": "L4E",
+          "summary": "batch-2026-05-17-run-002: attempt 2 rejected for task-0b (type mismatch)"
+        },
+        {
+          "tx_id": "tx:0000000b0004fin",
+          "kind": "FinalizeRewardTx",
+          "layer": "L4",
+          "summary": "batch-2026-05-16-final-003: all 8 tasks finalized; rewards paid"
+        },
+        {
+          "tx_id": "tx:0000000b0005fin",
+          "kind": "RunExhaustedTx",
+          "layer": "L4",
+          "summary": "batch-2026-05-16-final-003: 2 exhausted tasks recorded at terminal state"
+        }
+      ]
+    }
+  ]
+}
