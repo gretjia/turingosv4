@@ -249,11 +249,13 @@ fn action_list(workspace: &str) -> Result<(), BatchError> {
                 .lines()
                 .find(|l| l.starts_with("status = "))
                 .and_then(|l| {
-                    // Extract value between first pair of quotes.
+                    // Order matters: strip inline comment BEFORE trimming quotes,
+                    // otherwise a trailing `"` followed by `  # ...` gets stranded
+                    // inside the pre-comment slice and `trim_matches('"')` only
+                    // peels the leading quote.
                     let rest = l.trim_start_matches("status = ").trim();
-                    let inner = rest.trim_matches('"');
-                    // Strip inline comment if any.
-                    Some(inner.split('#').next().unwrap_or(inner).trim().to_string())
+                    let no_comment = rest.split('#').next().unwrap_or(rest).trim();
+                    Some(no_comment.trim_matches('"').to_string())
                 })
                 .unwrap_or_else(|| "?".to_string())
         } else {

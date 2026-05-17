@@ -101,16 +101,14 @@ fn wrapper_prepends_subcommand_and_forwards_args_via_echo_stub() {
         String::from_utf8_lossy(&output.stderr),
     );
     let stdout = String::from_utf8_lossy(&output.stdout);
-    // `lean_market view-wallet --chaintape /tmp/x` is what the wrapper
-    // should have invoked. echo echoes args after argv[0] separated by
-    // spaces, so stdout begins with "view-wallet --chaintape /tmp/x".
-    assert!(
-        stdout.contains("view-wallet"),
-        "subcommand token not prepended; echo stdout: {stdout}",
-    );
-    assert!(
-        stdout.contains("--chaintape") && stdout.contains("/tmp/x"),
-        "user args not forwarded; echo stdout: {stdout}",
+    // echo writes argv[1..] joined by single spaces + a trailing newline.
+    // Exact-match — not substring — so a regression that drops the
+    // subcommand token, reorders, duplicates, or injects extra flags fails.
+    assert_eq!(
+        stdout.trim_end(),
+        "view-wallet --chaintape /tmp/x",
+        "wrapper did not forward exactly `view-wallet --chaintape /tmp/x` to the \
+         backend; full echo stdout: {stdout:?}",
     );
 }
 
@@ -170,10 +168,39 @@ fn wrapper_preserves_child_exit_code_nonzero_via_false_stub() {
 
 #[test]
 fn wrapper_exit_2_with_clear_stderr_when_backend_missing() {
-    // Empty stub dir + empty PATH → wrapper cannot resolve the backend
-    // anywhere, must exit 2 and emit "failed to invoke" on stderr (no
-    // panic, no silent fallback).
+    // To make this test independent of a stale `target/*/lean_market` from
+    // an earlier full build (which would otherwise be picked up by the
+    // resolve_default cascade in common.rs), we point TURINGOS_BIN_DIR at
+    // an empty tempdir AND substitute a backend name that cannot exist in
+    // any target/ directory via env var. We can't change TASK_RUNNER_BIN
+    // at runtime, so instead we just confirm with a non-existent stub
+    // name in the empty dir — when the wrapper falls through default
+    // resolution (no target/X/lean_market either) it lands on bare
+    // `lean_market` which Command::new searches the cleared PATH for.
     let empty = tempfile::TempDir::new().expect("tempdir");
+
+    // Make this independent of repo state: explicitly check before invoking
+    // that no stale `target/debug/lean_market` or `target/release/lean_market`
+    // exists alongside our binary. If a developer left one behind, skip
+    // this test loudly (rather than producing a false pass).
+    let exe_parent = turingos_bin()
+        .parent()
+        .map(|p| p.to_path_buf())
+        .unwrap_or_default();
+    for sibling in [
+        exe_parent.join("lean_market"),
+        exe_parent.join("../release/lean_market"),
+        exe_parent.join("../debug/lean_market"),
+    ] {
+        if sibling.exists() {
+            panic!(
+                "test precondition: stale backend binary at {} would shadow \
+                 the missing-backend test. Remove it or run `cargo clean` \
+                 before running this test suite.",
+                sibling.display()
+            );
+        }
+    }
 
     let output = Command::new(turingos_bin())
         .args(["report", "wallet"])
@@ -233,11 +260,16 @@ fn each_task_runner_wrapper_prepends_correct_subcommand_token() {
             output.status,
             String::from_utf8_lossy(&output.stderr),
         );
+        // Exact-match: the wrapper, called with no extra user args, must
+        // invoke the backend with exactly one argv: the expected subcommand
+        // token. /bin/echo prints `<token>\n`.
         let stdout = String::from_utf8_lossy(&output.stdout);
-        assert!(
-            stdout.contains(expected_token),
-            "wrapper {user_args:?} did not prepend `{expected_token}`; \
-             echo stdout: {stdout}",
+        assert_eq!(
+            stdout.trim_end(),
+            *expected_token,
+            "wrapper {user_args:?} should pass exactly `{expected_token}` to \
+             the backend (no extra args, no missing token, no reordering); \
+             echo stdout: {stdout:?}",
         );
     }
 }

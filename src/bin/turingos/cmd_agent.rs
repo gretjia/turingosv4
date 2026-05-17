@@ -176,9 +176,25 @@ fn run_inner(args: &[String]) -> Result<(), AgentError> {
         }
         "list" => {
             let entries = read_entries(&pubkeys_path)?;
-            for (id, pubkey, role) in entries {
-                let prefix: String = pubkey.chars().take(12).collect();
-                println!("{id:<24} {role:<14} {prefix}...");
+            if entries.is_empty() {
+                if pubkeys_path.exists() {
+                    println!("(no agents registered in {})", pubkeys_path.display());
+                } else {
+                    println!(
+                        "(no agents registered; agent_pubkeys.json not yet created in {})",
+                        workspace.display()
+                    );
+                }
+                println!(
+                    "  Run `turingos agent deploy --id <ID> --pubkey <64HEX> --role <ROLE> \
+                     --workspace {}` to add one.",
+                    workspace.display()
+                );
+            } else {
+                for (id, pubkey, role) in entries {
+                    let prefix: String = pubkey.chars().take(12).collect();
+                    println!("{id:<24} {role:<14} {prefix}...");
+                }
             }
             Ok(())
         }

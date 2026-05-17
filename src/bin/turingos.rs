@@ -205,6 +205,36 @@ fn dispatch(sub: &str, rest: &[String]) -> Option<ExitCode> {
     None
 }
 
+/// If `prefix` is the first token of one or more two-token Subcommand entries
+/// (e.g. "report" is a prefix of "report wallet" / "report positions" / ...),
+/// print the subgroup's children. Returns true if the prefix matched any
+/// children. Called BEFORE the "unknown subcommand" fallthrough so that
+/// `turingos report --help` lists report's children instead of erroring.
+fn print_subgroup_help(prefix: &str) -> bool {
+    let needle = format!("{prefix} ");
+    let children: Vec<&Subcommand> = SUBCOMMANDS
+        .iter()
+        .filter(|sc| sc.name.starts_with(&needle))
+        .collect();
+    if children.is_empty() {
+        return false;
+    }
+    println!("turingos {prefix} — subcommand group");
+    println!();
+    println!("USAGE:");
+    println!("    turingos {prefix} <SUBCOMMAND> [OPTIONS]");
+    println!();
+    println!("SUBCOMMANDS:");
+    for sc in &children {
+        // strip the "<prefix> " from sc.name for display
+        let child_name = &sc.name[needle.len()..];
+        println!("    {child_name:24} {}", sc.short_help);
+    }
+    println!();
+    println!("Run `turingos {prefix} <SUBCOMMAND> --help` for subcommand-specific help.");
+    true
+}
+
 fn main() -> ExitCode {
     let argv: Vec<String> = env::args().collect();
     let sub = argv.get(1).map(String::as_str).unwrap_or("--help");
@@ -230,6 +260,13 @@ fn main() -> ExitCode {
             let rest: Vec<String> = argv.iter().skip(2).cloned().collect();
             if let Some(code) = dispatch(sub, &rest) {
                 return code;
+            }
+            // Subgroup help: `turingos report --help` / `turingos task --help`
+            // etc. list the children of "report" / "task" so users can discover
+            // the two-token names without scanning the top-level help.
+            let asked_help = rest.iter().any(|a| a == "-h" || a == "--help") || rest.is_empty();
+            if asked_help && print_subgroup_help(sub) {
+                return ExitCode::SUCCESS;
             }
             eprintln!("turingos: unknown subcommand: {sub}");
             eprintln!("Run `turingos --help` for available subcommands.");
