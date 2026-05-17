@@ -245,7 +245,11 @@ Class 2 default risk class with automatic escalation rules per §3.__
 
 This packet is independent of Phase 7 and may proceed in parallel.
 
-Signed (verbatim): "________________________"
+Signed (verbatim, 2026-05-17): "都按你建议" — confirmed in the architect's
+2026-05-17 conversation thread, in direct response to the orchestrator's
+recommendation: `constitution_fc3_evidence_binding` pre-existing test failure
+is NOT a Phase 6.2 KILL CRITERION; it remains out-of-scope OBS for future
+phases.
 
 ---
 

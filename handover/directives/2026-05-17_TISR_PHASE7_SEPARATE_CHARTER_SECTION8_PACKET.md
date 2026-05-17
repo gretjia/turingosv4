@@ -353,13 +353,39 @@ __authorize implementation on `codex/tisr-phase7-web` branch on the
 Mac Studio local track (git pull from origin); allowed paths per §4;
 exit gates per §5; real witness per §6; Class 3 default risk class with
 Class 4 escalation rules per §3; Trust Root rehash authorized for
-Cargo.toml + Cargo.lock only; WebSocket vs SSE vs polling decision
-delegated to orchestrator; frontend framework choice delegated to
-orchestrator.__
+Cargo.toml + Cargo.lock only.__
 
 This packet is independent of Phase 6.2 and may proceed in parallel.
 
-Signed (verbatim): "________________________"
+Signed (verbatim, 2026-05-17): "都按你建议，你输出我在本地macstudio上claude
+code的boot prompt，包括要git pull 的worktree信息" — confirmed in the
+architect's 2026-05-17 conversation thread, in direct response to the
+orchestrator's four Phase 7 decision recommendations:
+
+**Resolved decisions** (all four ratified by the architect's verbatim
+"都按你建议"):
+
+1. **Real-time transport: WebSocket** (over SSE or JSON-RPC polling).
+   Rationale: bidirectional, real-time ChainTape tape-update push;
+   single connection per browser session; well-supported by axum +
+   tokio-tungstenite; mature ecosystem.
+
+2. **Frontend stack: vanilla TypeScript + Web Components** (over React /
+   Vue / Svelte). Rationale: keeps ≤5000 LOC ceiling comfortable; no
+   framework bundle bloat; native browser API (no virtual DOM tax);
+   easier for the Phase 7 §6a Chrome-driven auditor to inspect (no
+   shadow root unless explicitly opted in); future Phase 8+ can swap
+   to a framework without rewriting state model.
+
+3. **Trust Root rehash timing: W0 one-shot** (over per-atom). Rationale:
+   single deterministic rehash event at the start of Phase 7; all
+   atoms after W0 operate under the new Trust Root state; minimizes
+   audit-window where Cargo.toml + Cargo.lock are mid-flux.
+
+4. **`localhost:8080` only: HARD constraint** (over soft / network-exposed).
+   Rationale: Phase 7 is local Mac Studio Web MVP, not a public service;
+   non-loopback binding is Phase 8+ scope; eliminates entire class of
+   auth/CSRF/CORS attack surface for this ship gate.
 
 ---
 
