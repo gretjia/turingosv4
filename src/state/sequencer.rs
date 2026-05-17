@@ -615,14 +615,45 @@ pub fn refine_rejection_class_via_attempt_telemetry(
     tx: &TypedTx,
     base_class: L4ERejectionClass,
 ) -> L4ERejectionClass {
+    match refine_rejection_class_via_attempt_telemetry_checked(cas, tx, base_class) {
+        Ok(class) => class,
+        Err(e) => panic!("CAS integrity error during rejection-class refinement: {e}"),
+    }
+}
+
+/// TRACE_MATRIX FC1-N42 (R3) + Art. 0.2: checked rejection-class refinement
+/// propagates CAS integrity failures instead of silently degrading tape
+/// evidence classification.
+pub fn refine_rejection_class_via_attempt_telemetry_checked(
+    cas: &Arc<RwLock<CasStore>>,
+    tx: &TypedTx,
+    base_class: L4ERejectionClass,
+) -> Result<L4ERejectionClass, CasError> {
     if base_class != L4ERejectionClass::PredicateFailed {
-        return base_class;
+        return Ok(base_class);
     }
     let proposal_cid = match tx {
         TypedTx::Work(w) => w.proposal_cid.clone(),
-        _ => return base_class,
+        _ => return Ok(base_class),
     };
-    use crate::runtime::attempt_telemetry::{read_attempt_telemetry_from_cas, AttemptOutcome};
+    use crate::runtime::attempt_telemetry::{
+        read_attempt_telemetry_from_cas, AttemptOutcome, AttemptTelemetryError,
+    };
+    enum AttemptReadDisposition {
+        RetryMissing,
+        Fallback,
+    }
+    fn classify_attempt_read_error(
+        error: AttemptTelemetryError,
+    ) -> Result<AttemptReadDisposition, CasError> {
+        match error {
+            AttemptTelemetryError::Cas(CasError::CidNotFound(_)) => {
+                Ok(AttemptReadDisposition::RetryMissing)
+            }
+            AttemptTelemetryError::Cas(error) => Err(error),
+            AttemptTelemetryError::Codec(_) => Ok(AttemptReadDisposition::Fallback),
+        }
+    }
     // R3.fix (preflight handover/ai-direct/TB-18R_R3FIX_STEP_B_cas_reload.md
     // §3.2 + §3.3): the long-lived sequencer.cas handle has a stale in-memory
     // index relative to evaluator-side handles that wrote AttemptTelemetry on
@@ -633,33 +664,40 @@ pub fn refine_rejection_class_via_attempt_telemetry(
     let initial = {
         let cas_g = match cas.read() {
             Ok(g) => g,
-            Err(_) => return base_class,
+            Err(_) => return Ok(base_class),
         };
         read_attempt_telemetry_from_cas(&cas_g, &proposal_cid)
     };
     let attempt = match initial {
         Ok(a) => a,
-        Err(_) => {
-            // Reload sidecar to pick up writes from other CasStore handles.
-            if let Ok(mut cas_w) = cas.write() {
-                let _ = cas_w.reload_index_from_sidecar();
-            }
-            // Retry once. If still miss → legitimate fallback (legacy
-            // ProposalTelemetry CID, corrupt CID, or wrong object type).
-            let retry = {
-                let cas_g = match cas.read() {
-                    Ok(g) => g,
-                    Err(_) => return base_class,
+        Err(error) => match classify_attempt_read_error(error)? {
+            AttemptReadDisposition::Fallback => return Ok(base_class),
+            AttemptReadDisposition::RetryMissing => {
+                // Reload sidecar to pick up writes from other CasStore handles.
+                if let Ok(mut cas_w) = cas.write() {
+                    cas_w.reload_index_from_sidecar()?;
+                }
+                // Retry once. If still miss → legitimate fallback (legacy
+                // ProposalTelemetry CID, corrupt CID, or wrong object type).
+                let retry = {
+                    let cas_g = match cas.read() {
+                        Ok(g) => g,
+                        Err(_) => return Ok(base_class),
+                    };
+                    read_attempt_telemetry_from_cas(&cas_g, &proposal_cid)
                 };
-                read_attempt_telemetry_from_cas(&cas_g, &proposal_cid)
-            };
-            match retry {
-                Ok(a) => a,
-                Err(_) => return base_class,
+                match retry {
+                    Ok(a) => a,
+                    Err(error) => match classify_attempt_read_error(error)? {
+                        AttemptReadDisposition::RetryMissing | AttemptReadDisposition::Fallback => {
+                            return Ok(base_class)
+                        }
+                    },
+                }
             }
-        }
+        },
     };
-    match attempt.outcome {
+    let refined = match attempt.outcome {
         AttemptOutcome::LeanFail => L4ERejectionClass::LeanFailed,
         AttemptOutcome::ParseFail => L4ERejectionClass::ParseFailed,
         AttemptOutcome::SorryBlock => L4ERejectionClass::SorryBlocked,
@@ -705,7 +743,8 @@ pub fn refine_rejection_class_via_attempt_telemetry(
                 base_class
             }
         }
-    }
+    };
+    Ok(refined)
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -4746,7 +4785,8 @@ impl Sequencer {
         // resolves to one. Pure-additive; legacy proposal_cid → fall-back to
         // base class (PredicateFailed); other rejection arms unchanged.
         let base_class = rejection_class_for(err);
-        let refined_class = refine_rejection_class_via_attempt_telemetry(&self.cas, tx, base_class);
+        let refined_class =
+            refine_rejection_class_via_attempt_telemetry_checked(&self.cas, tx, base_class)?;
 
         {
             let mut writer_w = self
