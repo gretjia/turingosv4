@@ -12,9 +12,13 @@
 `codex/cas-git-constitutional-repair` at
 `/home/zephryj/projects/turingosv4-cas-git-repair`.
 
-**Status**: auditor CHALLENGE remediation implemented and final clean-context
-Codex audit returned `PROCEED`. Main worktree is not merged and `turingos_dev`
-is intentionally not used for this CAS/core repair.
+**Status**: PR #3 entered formal review and was not approved for merge after a
+P1 CAS integrity finding. The P1 closure patch is now on the repair branch
+locally: readers `open()` / `reload_index_from_sidecar()` take the same CAS
+chain lock as `put()` while validating sidecar+chain, preventing an in-flight
+commit-chain advance from being misclassified as hard sidecar corruption. Main
+worktree is not merged and `turingos_dev` is intentionally not used for this
+CAS/core repair.
 
 **Risk / FC mapping**:
 Class 3 CAS integrity plus user-authorized Class 4 Trust Root rehash limited
@@ -27,6 +31,18 @@ FC2 replay/audit boot, and FC3 evidence feedback/audit views.
   at `c85dacfa`.
 - Final constitution gates:
   `bash scripts/run_constitution_gates.sh` -> `464 passed / 0 failed / 1 ignored`.
+- Post-PR P1 regression:
+  `cargo test --lib open_waits_for_inflight_cas_chain_cache_refresh -- --nocapture`
+  failed before the lock fix and passes after it.
+- Post-PR P1 targeted CAS store suite:
+  `cargo test --lib bottom_white::cas::store::tests -- --test-threads=1`
+  -> `35 passed / 0 failed`.
+- Post-PR P1 trust-root suite:
+  `cargo test -p minif2f_v4 --test trust_root_immutability -- --test-threads=1`
+  -> `4 passed / 0 failed`.
+- Post-PR P1 original CAS repair targeted suite:
+  `cargo test --test constitution_head_t_c2_multi_ref --test tb_18r_cas_reload_split_brain --test co1_7_extra_cas_payload_round_trip --test tb_18r_lean_result_cas_resolves --test constitution_tape_canonical_gate --test constitution_no_parallel_ledger -- --test-threads=1`
+  -> `34 passed / 0 failed`.
 - Final broad workspace command:
   `cargo test --workspace --no-fail-fast -- --test-threads=1` -> exit 0.
 - Historical ignored fixtures were hydrated locally from main for TB-C0,
@@ -50,17 +66,18 @@ FC2 replay/audit boot, and FC3 evidence feedback/audit views.
   v4 postprocess).
 - §8 directive for the branch-local Trust Root rehash:
   `handover/directives/2026-05-17_CAS_GIT_CONSTITUTIONAL_REPAIR_§8_TRUST_ROOT_RATIFICATION.md`.
-- Final clean-context audit:
+- Earlier clean-context audit:
   `handover/audits/CODEX_CAS_GIT_REPAIR_FINAL_CLEAN_CONTEXT_AUDIT.md`
-  (`PROCEED`). Its P3 note about stale R9 README materialized views was fixed
-  after audit.
+  (`PROCEED`). It predates the PR #3 P1 challenge and closure patch; PR merge
+  remains blocked until GitHub CI is green and auditor re-review confirms the
+  updated branch.
 
 **Not historical evidence rewrite**: this section is a dynamic handover status
 update only. It does not mutate old ChainTape/CAS evidence or change historical
 reports retroactively.
 
-**Exit requirement**: commit the repair branch only. Do not merge main from
-this worktree.
+**Exit requirement**: commit/push the repair branch only. Do not merge main
+from this worktree.
 
 ---
 

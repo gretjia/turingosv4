@@ -162,7 +162,9 @@ fn load_index_from_sidecar(repo_path: &Path) -> Result<BTreeMap<Cid, CasObjectMe
     Ok(index)
 }
 
-fn load_index_for_repo(repo_path: &Path) -> Result<BTreeMap<Cid, CasObjectMetadata>, CasError> {
+fn load_index_for_repo_unlocked(
+    repo_path: &Path,
+) -> Result<BTreeMap<Cid, CasObjectMetadata>, CasError> {
     let sidecar_path = cas_index_path(repo_path);
     let sidecar_exists = sidecar_path.exists();
     let sidecar = load_index_from_sidecar(repo_path)?;
@@ -183,6 +185,11 @@ fn load_index_for_repo(repo_path: &Path) -> Result<BTreeMap<Cid, CasObjectMetada
         }
         None => Ok(sidecar),
     }
+}
+
+fn load_index_for_repo(repo_path: &Path) -> Result<BTreeMap<Cid, CasObjectMetadata>, CasError> {
+    let _lock = acquire_cas_chain_lock(repo_path)?;
+    load_index_for_repo_unlocked(repo_path)
 }
 
 /// CO1.4-extra: append a single JSONL line for a newly-created CAS object.
@@ -406,7 +413,7 @@ impl CasStore {
         let _lock = acquire_cas_chain_lock(&self.repo_path)?;
         let sidecar_was_present = cas_index_path(&self.repo_path).exists();
         let had_cas_chain = super::git_chain::has_cas_commit_chain(&self.repo_path)?;
-        self.index = load_index_for_repo(&self.repo_path)?;
+        self.index = load_index_for_repo_unlocked(&self.repo_path)?;
 
         // If already in index, idempotent: just return Cid (content addressing
         // guarantees same content → same Cid → already present)
@@ -1397,6 +1404,62 @@ mod tests {
                 .contains("CAS sidecar cache mismatch with CAS commit-chain"),
             "error should diagnose sidecar/chain mismatch, got {err}"
         );
+    }
+
+    #[test]
+    fn open_waits_for_inflight_cas_chain_cache_refresh() {
+        let tmp = TempDir::new().expect("tempdir");
+        let mut s = CasStore::open(tmp.path()).expect("open");
+        s.put(b"first", ObjectType::Generic, "alice", 1, None)
+            .expect("first put");
+
+        let _lock = acquire_cas_chain_lock(tmp.path()).expect("hold cas chain lock");
+        let repo = Repository::open(tmp.path()).expect("repo");
+        let content = b"second";
+        let cid = Cid::from_content(content);
+        let git_oid = repo.blob(content).expect("blob");
+        let metadata = CasObjectMetadata {
+            cid,
+            backend_oid_hex: git_oid.to_string(),
+            object_type: ObjectType::Generic,
+            creator: "bob".to_string(),
+            created_at_logical_t: 2,
+            schema_id: None,
+            size_bytes: content.len() as u64,
+        };
+        let mut prospective = load_index_from_sidecar(tmp.path()).expect("sidecar index");
+        let previous_root = Some(crate::bottom_white::cas::git_chain::merkle_root_for_index(
+            &prospective,
+        ));
+        prospective.insert(cid, metadata.clone());
+        let resulting_root =
+            crate::bottom_white::cas::git_chain::merkle_root_for_index(&prospective);
+        crate::bottom_white::cas::git_chain::append_cas_commit(
+            tmp.path(),
+            &metadata,
+            previous_root,
+            resulting_root,
+            Vec::new(),
+        )
+        .expect("advance cas chain");
+
+        let reader_path = tmp.path().to_path_buf();
+        let reader = std::thread::spawn(move || CasStore::open(&reader_path));
+        std::thread::sleep(Duration::from_millis(50));
+        assert!(
+            !reader.is_finished(),
+            "reader open must wait for the CAS chain lock while sidecar cache is stale"
+        );
+
+        append_to_sidecar(tmp.path(), &metadata).expect("finish sidecar cache refresh");
+        drop(_lock);
+
+        let reopened = reader
+            .join()
+            .expect("reader thread")
+            .expect("reader must not misclassify in-flight cache refresh as corruption");
+        assert_eq!(reopened.len(), 2);
+        assert!(reopened.metadata(&cid).is_some());
     }
 
     #[test]

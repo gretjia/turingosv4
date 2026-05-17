@@ -313,6 +313,44 @@ Not comparable:
   repair worktree lacked `.env`. The final real-problem runs are therefore
   reported as final evidence, not as an apples-to-apples runtime speedup claim.
 
+## Post-PR P1 Challenge Closure
+
+After PR #3 was opened, review returned `NO` because `CasStore::put()` advanced
+the CAS commit-chain before sidecar cache refresh while readers
+`open()`/`reload_index_from_sidecar()` did not take the same lock. A reader
+could therefore observe a healthy in-flight write as a hard
+`CAS sidecar cache mismatch with CAS commit-chain` corruption.
+
+Fix:
+
+- Added regression test
+  `open_waits_for_inflight_cas_chain_cache_refresh`.
+- Verified RED before the fix:
+  `cargo test --lib open_waits_for_inflight_cas_chain_cache_refresh -- --nocapture`
+  failed because the reader did not wait for the CAS chain lock.
+- Minimal production change:
+  `open()` and `reload_index_from_sidecar()` now load sidecar+chain under the
+  same CAS chain lock used by `put()`. The `put()` hot path keeps its existing
+  lock and calls the unlocked loader internally to avoid self-deadlock.
+- Tampered sidecars still fail closed when no writer lock is active.
+- No change to `Cid = sha256(content)`, `src/bottom_white/cas/schema.rs`,
+  typed transaction schema, canonical signing payload, or sequencer admission.
+- `genesis_payload.toml` was rehashed only for the already-pinned
+  `src/bottom_white/cas/store.rs` entry under the CAS Git repair Class 4 scope.
+
+Post-fix local evidence:
+
+- `cargo test --lib open_waits_for_inflight_cas_chain_cache_refresh -- --nocapture`:
+  `1 passed / 0 failed`.
+- `cargo test --lib bottom_white::cas::store::tests -- --test-threads=1`:
+  `35 passed / 0 failed`.
+- `cargo test -p minif2f_v4 --test trust_root_immutability -- --test-threads=1`:
+  `4 passed / 0 failed`.
+- Original CAS repair targeted suite:
+  `34 passed / 0 failed`.
+- `bash scripts/run_constitution_gates.sh`:
+  `464 passed / 0 failed / 1 ignored`.
+
 ## Residual Risks And Non-Claims
 
 - Clean checkout historical fixture packaging remains a follow-up. The repair
@@ -324,8 +362,9 @@ Not comparable:
 - No change is claimed to sequencer admission policy, typed transaction schema,
   canonical signing payloads, constitution, or flowcharts.
 - No merge to main is performed by this branch.
-- Final clean-context Codex audit returned `PROCEED`; no blocking findings
-  remain in this report.
+- The earlier clean-context Codex audit returned `PROCEED`, but it predates
+  the PR #3 P1 review challenge and this closure patch. Merge remains blocked
+  until GitHub CI is green and the PR auditor re-reviews the updated branch.
 
 ## Merge Guidance
 
@@ -333,6 +372,8 @@ Before merge:
 
 1. Review the Class 4 §8 directive and Trust Root hash comments.
 2. Confirm no forbidden surfaces appear in the final diff.
-3. Do not merge hydrated ignored historical fixture dirs.
-4. Treat clean-checkout fixture packaging as a separate follow-up if CI must run
+3. Confirm PR #3 GitHub CI is green after the P1 closure commit.
+4. Require auditor re-review of the P1 closure before merging.
+5. Do not merge hydrated ignored historical fixture dirs.
+6. Treat clean-checkout fixture packaging as a separate follow-up if CI must run
    the historical evidence-binding gates without local hydration.
