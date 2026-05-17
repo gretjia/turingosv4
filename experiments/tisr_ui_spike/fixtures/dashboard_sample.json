@@ -1,0 +1,135 @@
+{
+  "id": "dashboard:2026-05-17T12:00:00Z",
+  "title": "TuringOS Audit Dashboard — 2026-05-17",
+  "blocks": [
+    {
+      "id": "blk-status-text",
+      "kind": "text",
+      "content": "Run summary: mini-M1 batch completed. Attempt equality PASS. All ChainTape/CAS evidence intact. This is a materialized view — not authoritative over ChainTape/CAS (FC3-N31)."
+    },
+    {
+      "id": "blk-overview-panel",
+      "kind": "dashboard_panel",
+      "panel_title": "Run Overview",
+      "metrics": [
+        { "label": "run_id", "value": "run-2026-05-17-001" },
+        { "label": "commit_head", "value": "dbcd9537" },
+        { "label": "total_problems", "value": 8, "unit": "problems" },
+        { "label": "solved", "value": 5, "unit": "problems" },
+        { "label": "solve_rate", "value": 62.5, "unit": "%" },
+        { "label": "total_attempts", "value": 47, "unit": "attempts" },
+        { "label": "l4_accepted_tx", "value": 5, "unit": "tx" },
+        { "label": "l4e_rejected_tx", "value": 38, "unit": "tx" },
+        { "label": "capsule_anchored", "value": 4, "unit": "tx" },
+        { "label": "attempt_equality_check", "value": "PASS" },
+        { "label": "mean_pput_solved", "value": 0.214, "unit": "PPUT" },
+        { "label": "sigma_pput", "value": 1.07, "unit": "ΣPPUT" }
+      ]
+    },
+    {
+      "id": "blk-economy-panel",
+      "kind": "dashboard_panel",
+      "panel_title": "Economic State Snapshot",
+      "metrics": [
+        { "label": "total_supply_micro", "value": 30000000, "unit": "μC" },
+        { "label": "escrow_locked_micro", "value": 4200000, "unit": "μC" },
+        { "label": "rewards_paid_micro", "value": 1750000, "unit": "μC" },
+        { "label": "coin_conservation_check", "value": "PASS" }
+      ]
+    },
+    {
+      "id": "blk-problem-table",
+      "kind": "table",
+      "caption": "Per-problem result summary",
+      "columns": ["problem_id", "status", "attempts", "assigned_agent", "reward_μC"],
+      "rows": [
+        [
+          { "kind": "string",   "value": "minif2f::algebra::sum_sq_le_sq_sum" },
+          { "kind": "string",   "value": "solved" },
+          { "kind": "integer",  "value": 4 },
+          { "kind": "agent_id", "value": "agent:ProofAgent:0x1a2b3c" },
+          { "kind": "microcoin","value": 350000 }
+        ],
+        [
+          { "kind": "string",   "value": "minif2f::algebra::sum_arith_prog" },
+          { "kind": "string",   "value": "solved" },
+          { "kind": "integer",  "value": 7 },
+          { "kind": "agent_id", "value": "agent:ProofAgent:0x1a2b3c" },
+          { "kind": "microcoin","value": 350000 }
+        ],
+        [
+          { "kind": "string",   "value": "minif2f::number_theory::aime_1983_p1" },
+          { "kind": "string",   "value": "exhausted" },
+          { "kind": "integer",  "value": 12 },
+          { "kind": "agent_id", "value": "agent:ProofAgent:0x4d5e6f" },
+          { "kind": "microcoin","value": 0 }
+        ],
+        [
+          { "kind": "string",   "value": "minif2f::algebra::imo_1964_p2" },
+          { "kind": "string",   "value": "solved" },
+          { "kind": "integer",  "value": 3 },
+          { "kind": "agent_id", "value": "agent:ProofAgent:0x1a2b3c" },
+          { "kind": "microcoin","value": 350000 }
+        ],
+        [
+          { "kind": "string",   "value": "minif2f::number_theory::amc12a_2021_p10" },
+          { "kind": "string",   "value": "expired" },
+          { "kind": "integer",  "value": 9 },
+          { "kind": "agent_id", "value": "agent:ProofAgent:0x7g8h9i" },
+          { "kind": "microcoin","value": 0 }
+        ],
+        [
+          { "kind": "string",   "value": "minif2f::algebra::amc12_2002_p11" },
+          { "kind": "string",   "value": "solved" },
+          { "kind": "integer",  "value": 5 },
+          { "kind": "agent_id", "value": "agent:ProofAgent:0x4d5e6f" },
+          { "kind": "microcoin","value": 350000 }
+        ],
+        [
+          { "kind": "string",   "value": "minif2f::number_theory::mathd_numbertheory_185" },
+          { "kind": "string",   "value": "exhausted" },
+          { "kind": "integer",  "value": 4 },
+          { "kind": "agent_id", "value": "agent:ProofAgent:0x7g8h9i" },
+          { "kind": "microcoin","value": 0 }
+        ],
+        [
+          { "kind": "string",   "value": "minif2f::algebra::mathd_algebra_400" },
+          { "kind": "string",   "value": "solved" },
+          { "kind": "integer",  "value": 3 },
+          { "kind": "agent_id", "value": "agent:ProofAgent:0x1a2b3c" },
+          { "kind": "microcoin","value": 350000 }
+        ]
+      ]
+    },
+    {
+      "id": "blk-recent-events",
+      "kind": "event_log",
+      "events": [
+        {
+          "tx_id": "tx:0000000a1b2c3d4e",
+          "kind": "FinalizeRewardTx",
+          "layer": "L4",
+          "summary": "Task minif2f::algebra::mathd_algebra_400 finalized; reward 350000 μC paid to agent:ProofAgent:0x1a2b3c"
+        },
+        {
+          "tx_id": "tx:0000000f9e8d7c6b",
+          "kind": "WorkTx",
+          "layer": "L4",
+          "summary": "Accepted proof for minif2f::algebra::mathd_algebra_400 (attempt 3)"
+        },
+        {
+          "tx_id": "tx:0000000b3c4d5e6f",
+          "kind": "LeanFailed",
+          "layer": "L4E",
+          "summary": "Rejected: sorry insertion detected in tactic proof (attempt 2)"
+        },
+        {
+          "tx_id": "tx:0000000c7d8e9f0a",
+          "kind": "RunExhaustedTx",
+          "layer": "L4",
+          "summary": "Task minif2f::number_theory::mathd_numbertheory_185 exhausted after 4 attempts"
+        }
+      ]
+    }
+  ]
+}

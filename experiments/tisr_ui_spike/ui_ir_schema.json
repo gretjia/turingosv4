@@ -1,0 +1,245 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://turingos.local/ui_ir_schema.json",
+  "title": "TuringOS UI IR Schema",
+  "description": "Page → Block → Cell intermediate representation for TuringOS local UI rendering. Materialized view only — never authoritative over ChainTape/CAS (FC3-N31).",
+  "type": "object",
+  "required": ["id", "title", "blocks"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Stable identifier for this page view (e.g. 'dashboard:2026-05-17')."
+    },
+    "title": {
+      "type": "string",
+      "description": "Human-readable title displayed at the top of the rendered view."
+    },
+    "blocks": {
+      "type": "array",
+      "description": "Ordered list of content blocks composing this page.",
+      "items": { "$ref": "#/definitions/Block" }
+    }
+  },
+  "definitions": {
+    "Block": {
+      "type": "object",
+      "description": "A single content unit within a Page. Kind determines required fields.",
+      "required": ["id", "kind"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Block-scoped identifier, unique within the page."
+        },
+        "kind": {
+          "type": "string",
+          "description": "Block type discriminant.",
+          "enum": ["text", "table", "agent_card", "task_card", "event_log", "dashboard_panel"]
+        }
+      },
+      "oneOf": [
+        { "$ref": "#/definitions/TextBlock" },
+        { "$ref": "#/definitions/TableBlock" },
+        { "$ref": "#/definitions/AgentCardBlock" },
+        { "$ref": "#/definitions/TaskCardBlock" },
+        { "$ref": "#/definitions/EventLogBlock" },
+        { "$ref": "#/definitions/DashboardPanelBlock" }
+      ]
+    },
+    "TextBlock": {
+      "description": "Plain prose or status paragraph.",
+      "type": "object",
+      "required": ["id", "kind", "content"],
+      "properties": {
+        "id": { "type": "string" },
+        "kind": { "type": "string", "enum": ["text"] },
+        "content": {
+          "type": "string",
+          "description": "Prose content to display. May contain newlines."
+        }
+      }
+    },
+    "TableBlock": {
+      "description": "Grid of typed cells organized as rows × columns.",
+      "type": "object",
+      "required": ["id", "kind", "columns", "rows"],
+      "properties": {
+        "id": { "type": "string" },
+        "kind": { "type": "string", "enum": ["table"] },
+        "caption": {
+          "type": "string",
+          "description": "Optional table caption shown above or below the grid."
+        },
+        "columns": {
+          "type": "array",
+          "description": "Column header labels in order.",
+          "items": { "type": "string" }
+        },
+        "rows": {
+          "type": "array",
+          "description": "Data rows. Each row is an array of Cell objects matching the columns array length.",
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/definitions/Cell" }
+          }
+        }
+      }
+    },
+    "AgentCardBlock": {
+      "description": "Summary card for a single registered agent.",
+      "type": "object",
+      "required": ["id", "kind", "agent_id", "role", "balance_micro"],
+      "properties": {
+        "id": { "type": "string" },
+        "kind": { "type": "string", "enum": ["agent_card"] },
+        "agent_id": {
+          "type": "string",
+          "description": "Agent identity key (hex pubkey or human-readable mnemonic)."
+        },
+        "role": {
+          "type": "string",
+          "description": "Agent role label as registered (e.g. 'ProofAgent', 'LibrarianAgent')."
+        },
+        "balance_micro": {
+          "type": "integer",
+          "description": "Agent wallet balance in μCoin (integer; MUST NOT be float).",
+          "minimum": 0
+        },
+        "status": {
+          "type": "string",
+          "description": "Current agent status label (e.g. 'active', 'paused', 'bankrupt')."
+        }
+      }
+    },
+    "TaskCardBlock": {
+      "description": "Summary card for a single proof task.",
+      "type": "object",
+      "required": ["id", "kind", "task_id", "problem_id", "status"],
+      "properties": {
+        "id": { "type": "string" },
+        "kind": { "type": "string", "enum": ["task_card"] },
+        "task_id": {
+          "type": "string",
+          "description": "Canonical task transaction ID from ChainTape."
+        },
+        "problem_id": {
+          "type": "string",
+          "description": "Problem identifier (e.g. MiniF2F problem name)."
+        },
+        "status": {
+          "type": "string",
+          "description": "Task lifecycle status.",
+          "enum": ["open", "solved", "expired", "exhausted", "rejected"]
+        },
+        "reward_micro": {
+          "type": "integer",
+          "description": "Task reward in μCoin (integer; 0 if not yet finalized).",
+          "minimum": 0
+        },
+        "attempt_count": {
+          "type": "integer",
+          "description": "Number of externalized LLM-Lean cycles recorded for this task.",
+          "minimum": 0
+        },
+        "assigned_agent_id": {
+          "type": "string",
+          "description": "Agent ID currently assigned, or null if unassigned."
+        }
+      }
+    },
+    "EventLogBlock": {
+      "description": "Ordered list of tape events for audit display.",
+      "type": "object",
+      "required": ["id", "kind", "events"],
+      "properties": {
+        "id": { "type": "string" },
+        "kind": { "type": "string", "enum": ["event_log"] },
+        "events": {
+          "type": "array",
+          "description": "Ordered tape events (L4 accepted or L4.E rejected).",
+          "items": { "$ref": "#/definitions/EventEntry" }
+        }
+      }
+    },
+    "EventEntry": {
+      "description": "Single tape event entry in an event log block.",
+      "type": "object",
+      "required": ["tx_id", "kind", "layer"],
+      "properties": {
+        "tx_id": {
+          "type": "string",
+          "description": "ChainTape transaction ID."
+        },
+        "kind": {
+          "type": "string",
+          "description": "Transaction kind label (e.g. 'WorkTx', 'LeanFailed', 'TaskOpenTx')."
+        },
+        "layer": {
+          "type": "string",
+          "description": "Tape layer: 'L4' (accepted) or 'L4E' (rejected).",
+          "enum": ["L4", "L4E"]
+        },
+        "summary": {
+          "type": "string",
+          "description": "Short human-readable event summary for display."
+        }
+      }
+    },
+    "DashboardPanelBlock": {
+      "description": "Named key-value metric panel (solve rate, PPUT, attempt counts, etc.).",
+      "type": "object",
+      "required": ["id", "kind", "panel_title", "metrics"],
+      "properties": {
+        "id": { "type": "string" },
+        "kind": { "type": "string", "enum": ["dashboard_panel"] },
+        "panel_title": {
+          "type": "string",
+          "description": "Panel heading shown above the metrics."
+        },
+        "metrics": {
+          "type": "array",
+          "description": "Ordered list of named metric entries.",
+          "items": { "$ref": "#/definitions/MetricEntry" }
+        }
+      }
+    },
+    "MetricEntry": {
+      "description": "A single named metric within a dashboard panel.",
+      "type": "object",
+      "required": ["label", "value"],
+      "properties": {
+        "label": {
+          "type": "string",
+          "description": "Metric name (e.g. 'solve_rate', 'mean_pput', 'total_attempts')."
+        },
+        "value": {
+          "description": "Metric value. May be string, integer, or number.",
+          "oneOf": [
+            { "type": "string" },
+            { "type": "integer" },
+            { "type": "number" }
+          ]
+        },
+        "unit": {
+          "type": "string",
+          "description": "Optional unit label (e.g. '%', 'μC', 'tx', 'attempts')."
+        }
+      }
+    },
+    "Cell": {
+      "description": "A single typed value within a table row.",
+      "type": "object",
+      "required": ["kind", "value"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "description": "Cell type discriminant controlling display and validation.",
+          "enum": ["string", "integer", "microcoin", "agent_id", "tx_id", "cid"]
+        },
+        "value": {
+          "description": "Cell value. Type depends on kind: string/agent_id/tx_id/cid use JSON string; integer/microcoin use JSON integer."
+        }
+      }
+    }
+  }
+}
