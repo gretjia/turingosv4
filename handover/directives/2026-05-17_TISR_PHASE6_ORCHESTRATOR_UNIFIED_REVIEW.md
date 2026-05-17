@@ -59,7 +59,7 @@ W0 discovered Rust's default module resolver for `src/bin/X.rs` searches sibling
 
 ### 4. R-022 compliance via doc-comment backlinks
 
-Every `pub(crate)` item carries `/// TRACE_MATRIX FC2-N16: <role>` doc-comment immediately preceding. Justification doc: `handover/alignment/OBS_R022_TISR_PHASE6_1_CLI_DISPATCH.md`. Atom commits include `[R-022-skip: see ...]` as defense-in-depth.
+Every `pub(crate)` item carries `/// TRACE_MATRIX FC2-N16: <role>` doc-comment immediately preceding. Justification doc: `handover/directives/2026-05-17_TISR_PHASE6_R022_CLI_DISPATCH_OBS.md`. Atom commits include `[R-022-skip: see ...]` as defense-in-depth.
 
 ### 5. W2 filesystem-write atoms — std-only
 

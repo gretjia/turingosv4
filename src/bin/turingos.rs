@@ -9,7 +9,7 @@
 //!   Cargo.toml touch).
 //! - All `cmd_*.rs` items `pub(crate)` + `/// TRACE_MATRIX FC2-N16:`
 //!   doc-comments (R-022 reverse-map; see
-//!   handover/alignment/OBS_R022_TISR_PHASE6_1_CLI_DISPATCH.md).
+//!   handover/directives/2026-05-17_TISR_PHASE6_R022_CLI_DISPATCH_OBS.md).
 //! - §8 packet 2026-05-17 (TISR Phase 6.0/6.1 separate charter).
 
 use std::env;

@@ -35,7 +35,7 @@ Justification anchor for Wave 1–4 atom commits if the pre-commit
 hook requires an explicit skip token:
 
 ```
-[R-022-skip: see OBS_R022_TISR_PHASE6_1_CLI_DISPATCH.md]
+[R-022-skip: see 2026-05-17_TISR_PHASE6_R022_CLI_DISPATCH_OBS.md]
 ```
 
 FC-trace: FC2-N16

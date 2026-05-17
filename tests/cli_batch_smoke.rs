@@ -8,7 +8,7 @@
 //! Class 1 verification: confirms the batch subcommand produces the expected
 //! scaffold directories, rejects duplicates, and rejects invalid batch names.
 //!
-//! [R-022-skip: see handover/alignment/OBS_R022_TISR_PHASE6_1_CLI_DISPATCH.md]
+//! [R-022-skip: see handover/directives/2026-05-17_TISR_PHASE6_R022_CLI_DISPATCH_OBS.md]
 
 use std::path::PathBuf;
 use std::process::Command;
