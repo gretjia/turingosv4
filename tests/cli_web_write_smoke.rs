@@ -554,3 +554,131 @@ async fn task_open_broadcasts_to_ws_on_success() {
         "WS message must contain agent_id; msg={ws_msg}"
     );
 }
+
+// ---------------------------------------------------------------------------
+// Test 7: task_open_visible_in_api_tasks_after_post
+// ---------------------------------------------------------------------------
+
+/// W4.2 §6a Page 4 criterion: after POST /api/task/open succeeds, GET
+/// /api/tasks must return a TaskCardBlock containing the new task_id.
+///
+/// Uses the stub pattern to avoid a real CLI invocation.
+#[tokio::test]
+async fn task_open_visible_in_api_tasks_after_post() {
+    let dir = tempfile::TempDir::new().expect("tempdir");
+    let args_file = dir.path().join("recorded_args.txt");
+    let args_path = args_file.to_string_lossy().into_owned();
+    let script_path = write_stub_script(&dir, 0, "task_id: t_visibility_test\n", "", &args_path);
+
+    let _guard = env_lock().lock().await;
+    std::env::set_var("TURINGOS_BACKEND_OVERRIDE", &script_path);
+    std::env::set_var("TURINGOS_WEB_WORKSPACE", dir.path().to_str().unwrap_or("."));
+
+    let addr = start_server().await;
+
+    // POST the task open.
+    let body = r#"{"problem_id":"prob-vis","bounty":2000,"agent_id":"agent_vis"}"#;
+    let (post_status, _) = http_post_json(addr, "/api/task/open", body).await;
+
+    // GET /api/tasks immediately after.
+    let mut stream = tokio::net::TcpStream::connect(addr)
+        .await
+        .expect("connect for GET /api/tasks");
+    let get_request = "GET /api/tasks HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n";
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    stream
+        .write_all(get_request.as_bytes())
+        .await
+        .expect("write GET");
+    let mut buf = Vec::new();
+    stream.read_to_end(&mut buf).await.expect("read GET response");
+    let response = String::from_utf8_lossy(&buf).into_owned();
+
+    std::env::remove_var("TURINGOS_BACKEND_OVERRIDE");
+    std::env::remove_var("TURINGOS_WEB_WORKSPACE");
+    drop(_guard);
+
+    assert_eq!(post_status, 200, "POST must return 200");
+    assert!(
+        response.contains("t_visibility_test"),
+        "/api/tasks response must contain the new task_id; response={response}"
+    );
+    // The synthesized entry has status=open.
+    assert!(
+        response.contains("\"open\""),
+        "/api/tasks response must contain status=open for new entry; response={response}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Test 8: task_open_visible_in_tasks_html_after_post
+// ---------------------------------------------------------------------------
+
+/// W4.2 §6a Page 4 criterion: after POST /api/task/open succeeds, GET /tasks
+/// (HTML render) must contain the new task_id as a substring in the body.
+#[tokio::test]
+async fn task_open_visible_in_tasks_html_after_post() {
+    let dir = tempfile::TempDir::new().expect("tempdir");
+    let args_file = dir.path().join("recorded_args.txt");
+    let args_path = args_file.to_string_lossy().into_owned();
+    let script_path = write_stub_script(&dir, 0, "task_id: t_html_visible\n", "", &args_path);
+
+    let _guard = env_lock().lock().await;
+    std::env::set_var("TURINGOS_BACKEND_OVERRIDE", &script_path);
+    std::env::set_var("TURINGOS_WEB_WORKSPACE", dir.path().to_str().unwrap_or("."));
+
+    let addr = start_server().await;
+
+    // POST the task open.
+    let body = r#"{"problem_id":"prob-html","bounty":3000,"agent_id":"agent_html"}"#;
+    let (post_status, _) = http_post_json(addr, "/api/task/open", body).await;
+
+    // GET /tasks (HTML).
+    let mut stream = tokio::net::TcpStream::connect(addr)
+        .await
+        .expect("connect for GET /tasks");
+    let get_request = "GET /tasks HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n";
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    stream
+        .write_all(get_request.as_bytes())
+        .await
+        .expect("write GET /tasks");
+    let mut buf = Vec::new();
+    stream.read_to_end(&mut buf).await.expect("read HTML response");
+    let response = String::from_utf8_lossy(&buf).into_owned();
+
+    std::env::remove_var("TURINGOS_BACKEND_OVERRIDE");
+    std::env::remove_var("TURINGOS_WEB_WORKSPACE");
+    drop(_guard);
+
+    assert_eq!(post_status, 200, "POST must return 200");
+    assert!(
+        response.contains("t_html_visible"),
+        "/tasks HTML must contain the new task_id; response snippet={}",
+        &response[..response.len().min(1024)]
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Test 9: task_store_cap_enforced_at_1001
+// ---------------------------------------------------------------------------
+
+/// Directly push 1001 entries to TaskMemoryStore and verify the cap (len ≤ 1000).
+#[test]
+fn task_store_cap_enforced_at_1001() {
+    let store = web::store::TaskMemoryStore::new();
+    for i in 0..1001u32 {
+        store.push(web::store::TaskEntry {
+            task_id: format!("t_cap_{i:04}"),
+            agent_id: "agent_cap".to_string(),
+            problem_id: "prob_cap".to_string(),
+            bounty: 1,
+            created_at_unix: u64::from(i),
+        });
+    }
+    assert!(
+        store.len() <= 1000,
+        "store must cap at ≤1000 entries; got {}",
+        store.len()
+    );
+}

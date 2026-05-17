@@ -45,6 +45,8 @@ use axum::{extract::State, http::StatusCode, Json};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "web")]
+use super::store::TaskEntry;
+#[cfg(feature = "web")]
 use super::ws::{AppState, WsBroadcastMsg};
 
 // ---------------------------------------------------------------------------
@@ -329,7 +331,22 @@ pub(crate) async fn task_open_handler(
         );
     }
 
-    // Step 6: broadcast TaskCreated to all connected WS clients.
+    // Step 6: push to in-memory store BEFORE broadcasting so that a WS
+    // subscriber racing to re-fetch /api/tasks immediately after receiving
+    // the broadcast will already see the entry in the store.
+    let created_at_unix = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    state.task_store.push(TaskEntry {
+        task_id: task_id.clone(),
+        agent_id: req.agent_id.clone(),
+        problem_id: req.problem_id.clone(),
+        bounty: req.bounty,
+        created_at_unix,
+    });
+
+    // Step 7: broadcast TaskCreated to all connected WS clients.
     let msg = WsBroadcastMsg::TaskCreated {
         task_id: task_id.clone(),
         agent_id: req.agent_id.clone(),
@@ -339,7 +356,7 @@ pub(crate) async fn task_open_handler(
     // Ignore send error: zero subscribers is not an error (no clients connected).
     let _ = state.broadcast_tx.send(msg);
 
-    // Step 7: respond 200.
+    // Step 8: respond 200.
     Ok(Json(TaskOpenResponse {
         task_id,
         status: "created",

@@ -41,6 +41,8 @@ use tokio::sync::broadcast;
 use super::fixtures;
 #[cfg(feature = "web")]
 use super::ir::IRRoot;
+#[cfg(feature = "web")]
+use super::store::TaskMemoryStore;
 
 // ---------------------------------------------------------------------------
 // Broadcast message type (owned; used for channel + TaskCreated events)
@@ -75,10 +77,15 @@ pub(crate) enum WsBroadcastMsg {
 /// `broadcast_tx` is cloned into each handler that needs to publish events.
 /// Each `/ws` connection calls `.subscribe()` on connect to receive all future
 /// broadcasts. Channel capacity is set to 64 at startup (turingos_web.rs).
+///
+/// `task_store` is an `Arc`-wrapped `TaskMemoryStore` shared across all handler
+/// tasks.  The POST /api/task/open handler pushes entries; the GET /api/tasks
+/// and GET /tasks handlers read a snapshot and merge it with the fixture.
 #[cfg(feature = "web")]
 #[derive(Clone)]
 pub(crate) struct AppState {
     pub(crate) broadcast_tx: broadcast::Sender<WsBroadcastMsg>,
+    pub(crate) task_store: std::sync::Arc<TaskMemoryStore>,
 }
 
 // ---------------------------------------------------------------------------

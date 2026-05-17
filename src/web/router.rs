@@ -28,6 +28,7 @@
 /// All HTTP routes return HTTP 200 on the happy path.
 /// All items are `pub(crate)`.
 use axum::{
+    extract::State,
     http::header,
     response::{Html, IntoResponse},
     routing::{get, post},
@@ -36,8 +37,9 @@ use axum::{
 use tokio::sync::broadcast;
 
 use super::fixtures;
-use super::ir::IRRoot;
+use super::ir::{Block, IRRoot, TaskCardBlock};
 use super::render::render_page;
+use super::store::TaskMemoryStore;
 use super::write::task_open_handler;
 use super::ws::{ws_handler, AppState};
 
@@ -60,7 +62,10 @@ const FRONTEND_MAIN_JS: &[u8] = include_bytes!("../../frontend/dist/main.js");
 /// (turingos_web.rs) this is called with capacity = 64.
 pub(crate) fn build_with_state(broadcast_capacity: usize) -> Router {
     let (tx, _) = broadcast::channel(broadcast_capacity);
-    let state = AppState { broadcast_tx: tx };
+    let state = AppState {
+        broadcast_tx: tx,
+        task_store: std::sync::Arc::new(TaskMemoryStore::new()),
+    };
 
     Router::new()
         // HTML routes
@@ -116,8 +121,14 @@ async fn handle_agents() -> Html<String> {
     Html(render_page(&ir, &ir.title.clone(), false))
 }
 
-async fn handle_tasks() -> Html<String> {
-    let ir = fixtures::task_view();
+/// GET /tasks — renders the task-view fixture merged with in-memory store entries.
+///
+/// Merge order: synthesized `TaskCardBlock` entries from the in-memory store are
+/// PREPENDED (newest first) ahead of the fixture blocks so that newly-created
+/// tasks appear at the top of the rendered list.  The fixture blocks follow as
+/// the "base layer".
+async fn handle_tasks(State(state): State<AppState>) -> Html<String> {
+    let ir = merged_task_view(&state);
     // Pass show_task_form=true so the tasks page includes <tos-task-open-form>
     Html(render_page(&ir, &ir.title.clone(), true))
 }
@@ -142,6 +153,54 @@ async fn handle_api_agents() -> Json<IRRoot> {
     Json(fixtures::agent_view())
 }
 
-async fn handle_api_tasks() -> Json<IRRoot> {
-    Json(fixtures::task_view())
+/// GET /api/tasks — returns the task-view fixture merged with in-memory store
+/// entries.
+///
+/// Merge order: synthesized `TaskCardBlock` entries from the in-memory store
+/// are PREPENDED (newest first) ahead of the fixture blocks so that
+/// newly-created tasks appear at the top of the JSON block list.  The fixture
+/// blocks follow as the "base layer".  This satisfies §6a Page 4: "DOM updates
+/// to show the new task in the task list within 5 sec."
+async fn handle_api_tasks(State(state): State<AppState>) -> Json<IRRoot> {
+    Json(merged_task_view(&state))
+}
+
+// ---------------------------------------------------------------------------
+// Merge helper
+// ---------------------------------------------------------------------------
+
+/// Build a merged `IRRoot` for the task view: in-memory store entries (newest
+/// first) prepended to the compile-time fixture blocks.
+///
+/// Each `TaskEntry` becomes a `Block::TaskCard` with `status = "open"` (no
+/// lifecycle tracking until W5+).  Optional fields (`reward_micro`,
+/// `attempt_count`, `assigned_agent_id`) are set to sensible defaults.
+fn merged_task_view(state: &AppState) -> IRRoot {
+    let mut ir = fixtures::task_view();
+
+    // Snapshot the store; reverse so newest entries come first.
+    let mut entries = state.task_store.snapshot();
+    entries.reverse();
+
+    // Synthesize a TaskCardBlock for each store entry and prepend to ir.blocks.
+    let synthesized: Vec<Block> = entries
+        .into_iter()
+        .map(|e| {
+            Block::TaskCard(TaskCardBlock {
+                id: format!("blk-task-card-{}", e.task_id),
+                task_id: e.task_id,
+                problem_id: e.problem_id,
+                status: "open".to_string(),
+                reward_micro: Some(e.bounty),
+                attempt_count: Some(0),
+                assigned_agent_id: Some(e.agent_id),
+            })
+        })
+        .collect();
+
+    // Prepend synthesized blocks (newest first) ahead of fixture blocks.
+    let mut new_blocks = synthesized;
+    new_blocks.extend(ir.blocks);
+    ir.blocks = new_blocks;
+    ir
 }
