@@ -96,8 +96,9 @@ Allowed implementation surfaces:
   `handover/directives/2026-05-17_TISR_PHASE6_2_*` (new for this packet)
 - `handover/reports/TISR_PHASE6_2_*`
 - `handover/evidence/stage_phase6_2_*`
-- `handover/audits/CODEX_TISR_PHASE6_2_*` (new audit record location;
-  explicitly allowed here to avoid the R5 path-violation problem)
+- `handover/audits/AUDITOR_TISR_PHASE6_2_*` (audit records produced by the
+  clean-context Claude auditor agent; named with `AUDITOR_` prefix to
+  reflect that Phase 6.2+ no longer uses external Codex CLI)
 - `handover/alignment/OBS_R022_TISR_PHASE6_2_*` (new R-022 OBS location
   if any are needed; explicitly allowed)
 
@@ -115,7 +116,9 @@ All of the following must pass before §6 witness or ship:
 - 21+ Phase 6.1 CLI smoke binaries: all pass (no regression)
 - New Phase 6.2 tests: all pass
 - `bash experiments/tisr_ui_spike/test_render.sh` (and `validate.sh` if added)
-- One clean-context Codex audit verdict = PROCEED
+- One clean-context **Claude auditor agent** (`subagent_type: auditor`,
+  `model: opus`, prompted to xhigh thinking depth) verdict = PROCEED.
+  No external Codex CLI. See §9 for the multi-agent execution model.
 
 ## §6 Real Witness Requirement
 
@@ -164,7 +167,7 @@ and don't burn architect time on routine verification.
 | Input | (a) commit SHA of Phase 6.2 ship candidate; (b) the 8-step pipeline from §6 verbatim; (c) expected exit codes + stdout-pattern per step; (d) evidence directory path |
 | Output | `handover/evidence/stage_phase6_2_<timestamp>/agent_verdict.json` + structured step-by-step log |
 | Timeout | 45 min wall clock (Lean check may take 5-15 min by itself) |
-| Failure escalation | Only if (i) agent crashes mid-run or (ii) `agent_verdict.json` is unparseable. Otherwise its PASS/FAIL is authoritative for the witness layer (Codex audit still runs after this — agent's job is producing the witness, not gating ship). |
+| Failure escalation | Only if (i) agent crashes mid-run or (ii) `agent_verdict.json` is unparseable. Otherwise its PASS/FAIL is authoritative for the witness layer (the §5-mandated clean-context auditor agent still runs after this — verifier's job is producing the witness, not gating ship). |
 
 ### Per-step decision criteria (mechanical, no human judgment)
 
@@ -207,8 +210,8 @@ and don't burn architect time on routine verification.
 
 The verifier agent does NOT have edit access to `src/**`, so it cannot
 modify the code it is verifying. Its only write surface is the evidence
-directory. If its verdict is PASS but post-hoc Codex audit on the same
-evidence directory finds the pipeline didn't actually run (e.g., empty
+directory. If its verdict is PASS but the §5-mandated clean-context
+auditor agent finds the pipeline didn't actually run (e.g., empty
 ChainTape, fabricated stdout), the verdict is invalid and Phase 6.2
 re-enters atom-level fixing.
 
@@ -246,15 +249,75 @@ Signed (verbatim): "________________________"
 
 ---
 
+## §9 Multi-agent execution model (load-bearing for §5 audit gate)
+
+Per architect directive 2026-05-17 (verbatim "调用自己的clean context
+agent进行审计就可以...审计师的thinking level为xhigh...沿用我们成功的
+multi-agents的工作方式"), Phase 6.2 abandons the external `codex exec`
+CLI audit pattern used by Phase 6.0/6.1. All audits are now produced by
+Claude subagents dispatched within the orchestrator's session via the
+`Agent` tool.
+
+### Role × model × thinking-depth matrix
+
+| Role | `subagent_type` | `model` | Thinking depth | Triggers / scope |
+|---|---|---|---|---|
+| Orchestrator (architect-side Claude Code session) | n/a (driver) | opus 4.7 | **xhigh** (prompt-driven) | Plan / dispatch / fan-in / unified review / commit-time decisions |
+| W0 foundation atom executor | general-purpose | sonnet | **high** (prompt: "think very carefully about module-tree resolution and semantic preservation before any edit") | Module refactor; cross-file moves; anchor establishment; one-shot per phase |
+| W1 / W2 / W3 atom executors (mechanical) | general-purpose | sonnet | default | Per-subcommand wrapper + fixture + smoke test atoms |
+| W4 integration atom executor | general-purpose | sonnet | **medium** (prompt: "review cherry-pick + anchor resolution carefully before commit") | Cherry-pick fan-in + registry consolidation |
+| §6a autonomous verifier (witness producer) | general-purpose | opus | **high** (prompt: "execute each step mechanically; never substitute inference for measurement") | Once per ship-candidate commit; produces evidence + verdict.json |
+| **Clean-context auditor (the §5 ship gate)** | **auditor** | **opus 4.7** | **xhigh** (prompt: "audit with maximum rigor; cite file paths + line numbers; distinguish production defects from test-scaffold gaps") | Once per ship-candidate; replaces former Codex CLI audit |
+| (Optional) cross-verifier | general-purpose | sonnet | default | Phase 7 only; Phase 6.2 does not need it (mechanical CLI checks are deterministic) |
+
+### Audit-gate enforcement
+
+The §5 audit gate REQUIRES dispatching the auditor subagent from the
+orchestrator session with these literal parameters:
+
+```
+Agent(
+  description: "Phase 6.2 clean-context ship audit",
+  subagent_type: "auditor",
+  model: "opus",
+  prompt: "<full audit packet specifying scope, comparison base, criteria;
+           prompt MUST begin with the exact phrase 'Audit at xhigh thinking
+           depth.' and include 'cite file paths + line numbers'>"
+)
+```
+
+The auditor verdict is recorded at
+`handover/audits/AUDITOR_TISR_PHASE6_2_<round>_<verdict>.md` (path
+explicitly allowed in §4). PROCEED → ship; CHALLENGE → atom-level fix +
+re-audit; VETO → halt + architect re-ratification.
+
+### Why this is sound
+
+1. **Independence**: Each `Agent` invocation gets a clean context window;
+   no memory of the orchestrator's design choices leaks in. Equivalent
+   to the Codex CLI's clean-context property.
+2. **Reproducibility**: The full audit prompt is committed to the evidence
+   directory before dispatch, so a future re-audit can verify the same
+   input was used.
+3. **No external dependency**: omega-vm doesn't need the codex-cli npm
+   package; Mac Studio for Phase 7 doesn't need it either. The Claude
+   Agent SDK is the only audit substrate.
+4. **Thinking-depth control**: The xhigh thinking requirement is enforced
+   via prompt prefix; the auditor subagent type ships with read-only
+   tools (Read, Glob, Grep, Bash) which is the right scope for an audit.
+
+---
+
 ## Driver / orchestrator notes (not part of ratification)
 
 - Atomic-execution model from Phase 6.1 carries forward (W0 → W1a/W1b/W1c
   parallel sub-waves → fan-in → integration → audit).
 - 5-Sonnet-teammate-per-wave concurrency proved correct (research-validated;
   ~3-4 hour wall time per the Phase 6.1 measurement).
-- Codex audit history: expect 1-2 rounds (R6 in Phase 6.1 was the 6th
-  round; budget for similar polish cycle in Phase 6.2; the bulk of "subtle
-  defects" is now caught by orchestrator's pre-Codex review).
+- Audit history: expect 1-2 rounds with the auditor subagent (Phase 6.1
+  needed 6 rounds with external Codex; the bulk of "subtle defects" is
+  caught by orchestrator's pre-audit review + autonomous verifier
+  evidence; auditor is the final ship gate).
 - Pre-existing test failure `constitution_fc3_evidence_binding` blocks
   full `cargo test --workspace` but is out of scope; surface it as a
   Phase 6.2 KILL CRITERION if it BLOCKS the §6 witness pipeline.

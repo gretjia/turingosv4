@@ -130,7 +130,8 @@ Allowed implementation surfaces:
 - `handover/directives/2026-05-17_TISR_PHASE7_*` (this packet + amendments)
 - `handover/reports/TISR_PHASE7_*`
 - `handover/evidence/stage_phase7_web_*`
-- `handover/audits/CODEX_TISR_PHASE7_*` (explicitly allowed; learning from
+- `handover/audits/AUDITOR_TISR_PHASE7_*` (audit records produced by the
+  clean-context Claude auditor agent; learning from
   Phase 6.1 R5 lesson)
 - `handover/alignment/OBS_R022_TISR_PHASE7_*` (explicitly allowed)
 
@@ -150,7 +151,9 @@ All of the following must pass before §6 witness or ship:
 - Frontend: `cd frontend && npm install && npm test && npm run build`
 - E2E: a documented sequence of `mcp__Claude_in_Chrome__*` driver-script
   tests against the running localhost server
-- One clean-context Codex audit verdict = PROCEED
+- One clean-context **Claude auditor agent** (`subagent_type: auditor`,
+  `model: opus`, prompted to xhigh thinking depth) verdict = PROCEED.
+  No external Codex CLI. See §9 for the multi-agent execution model.
 
 ## §6 Real Witness Requirement
 
@@ -269,8 +272,9 @@ The verifier writes ONLY to the evidence directory. It cannot:
 
 If the verifier finds a check failed, it does NOT attempt to fix the
 underlying code. It logs the failure to evidence and continues with
-remaining pages (so the architect/Codex sees the FULL picture of
-what's broken, not just the first failure).
+remaining pages (so the architect + the §5-mandated clean-context
+auditor agent see the FULL picture of what's broken, not just the first
+failure).
 
 ### Evidence schema (`agent_verdict.json`)
 
@@ -359,6 +363,88 @@ Signed (verbatim): "________________________"
 
 ---
 
+## §9 Multi-agent execution model (load-bearing for §5 audit gate)
+
+Per architect directive 2026-05-17 (verbatim "调用自己的clean context
+agent进行审计就可以...审计师的thinking level为xhigh...沿用我们成功的
+multi-agents的工作方式"), Phase 7 abandons the external `codex exec`
+CLI audit pattern. All audits are produced by Claude subagents
+dispatched within the orchestrator's session via the `Agent` tool.
+
+### Role × model × thinking-depth matrix
+
+| Role | `subagent_type` | `model` | Thinking depth | Triggers / scope |
+|---|---|---|---|---|
+| Orchestrator (architect-side Claude Code session) | n/a (driver) | opus 4.7 | **xhigh** (prompt-driven) | Plan / dispatch / fan-in / unified review / commit-time decisions / Chrome MCP coordination |
+| W0 foundation atom executor (axum scaffolding + npm init + Cargo.toml unlock) | general-purpose | sonnet | **high** (prompt: "treat Cargo.toml + Trust Root rehash as Class 3; cite every line you add; refuse to invent feature flags") | One-shot at Phase 7 start; Trust Root rehash sequence |
+| W1 backend atom executors (HTTP read-endpoints) | general-purpose | sonnet | default | Per-endpoint atoms; backend-only; no JS |
+| W2 backend wiring (WebSocket/SSE) | general-purpose | sonnet | **medium** (prompt: "consider lifecycle: connection, message framing, error path, reconnect") | One-shot per protocol choice |
+| W3 frontend atom executors (HTML/CSS/TS per IR block-type) | general-purpose | sonnet | default | Per-component atoms |
+| W4 write-path integration (browser → backend → CLI shellout) | general-purpose | sonnet | **medium** (prompt: "trace the request lifecycle end-to-end before edit") | Single critical-path atom |
+| §6a autonomous verifier (Chrome-driven) | general-purpose | opus | **high** (prompt: "execute each check mechanically; record raw DOM/network/console; never substitute inference") | Once per ship-candidate commit; produces evidence + verdict.json + screenshots |
+| **Clean-context auditor (the §5 ship gate)** | **auditor** | **opus 4.7** | **xhigh** (prompt: "audit with maximum rigor; cite file paths + line numbers; distinguish production defects from test-scaffold gaps; reason about Trust Root rehash sequence + Cargo.toml diff + Class 4 forward-bound boundary") | Once per ship-candidate; replaces former Codex CLI audit |
+| (Optional) cross-verifier (independent second pass) | general-purpose | sonnet | default | If Class 3 ship gate or if first verifier returns CHALLENGE on a borderline check |
+
+### Audit-gate enforcement
+
+The §5 audit gate REQUIRES dispatching the auditor subagent from the
+orchestrator session with these literal parameters:
+
+```
+Agent(
+  description: "Phase 7 clean-context ship audit",
+  subagent_type: "auditor",
+  model: "opus",
+  prompt: "<full audit packet specifying scope, comparison base, criteria;
+           prompt MUST begin with the exact phrase 'Audit at xhigh thinking
+           depth.' and explicitly cover:
+           - Cargo.toml diff (new deps, [[bin]] entries, [features.web]
+             gate, Trust Root rehash sequence)
+           - src/web/** + src/bin/turingos_web.rs (new surface; class 2-3)
+           - frontend/** (new npm package, separate compilation)
+           - §6a verifier evidence directory (screenshots + network + console
+             logs all parse-able)
+           - Class 4 forward-bound items NOT touched
+           - All paths in §4 allowed list>"
+)
+```
+
+The auditor verdict is recorded at
+`handover/audits/AUDITOR_TISR_PHASE7_<round>_<verdict>.md`. PROCEED →
+ship; CHALLENGE → atom-level fix + re-audit; VETO → halt + architect
+re-ratification.
+
+### Cross-verifier escalation (Phase 7 only)
+
+Phase 7's HTML output has more decision surface than Phase 6.2's CLI
+output. If the auditor returns CHALLENGE on a borderline check
+(e.g., "DOM contains expected text BUT also contains an unexpected
+fragment"), the orchestrator MAY dispatch a second-pass verifier
+(model: sonnet, default thinking) re-running the §6a Chrome MCP
+sequence from scratch on the same commit. Two-verifier agreement is
+required for ship under this escalation; disagreement halts to
+architect review.
+
+This is opt-in: default is single-verifier + single-auditor.
+
+### Why this is sound on Mac Studio (no Codex)
+
+1. **Mac Studio doesn't need codex-cli installed**. The Claude Agent
+   SDK ships with the orchestrator's Claude Code session itself.
+2. **Independence is preserved**: each `Agent` invocation gets a fresh
+   context window — equivalent to clean-context Codex CLI.
+3. **Chrome MCP is local**: `mcp__Claude_in_Chrome__*` tools drive the
+   real Chrome browser installed on Mac Studio. The auditor doesn't
+   need browser access (it reads the verifier's recorded evidence dir
+   + the source diff).
+4. **Reproducibility**: full prompt committed to evidence dir before
+   dispatch; future re-audit can verify identical input.
+5. **Thinking-depth control**: enforced via prompt prefix; auditor
+   subagent type ships with read-only tools (Read, Glob, Grep, Bash)
+   which is the right scope for an audit.
+
+---
+
 ## Driver / orchestrator notes (not part of ratification)
 
 ### Environment setup checklist (Mac Studio)
@@ -397,7 +483,7 @@ After §8 ratification AND Phase 6.1 ship:
 - W2: WebSocket/SSE wiring + frontend npm-package skeleton
 - W3: Frontend HTML/CSS/TS rendering matching the UI IR schema
 - W4: Write path — browser form → backend → `turingos task open` shellout
-- W5: E2E witness + Codex audit + ship
+- W5: E2E witness + clean-context auditor agent + ship
 
 ### Parallel-with-Phase-6.2 coordination
 
@@ -409,9 +495,14 @@ Same git remote, different branches:
 - Final integration: Phase 6.2 → main first (smaller diff), then Phase 7 → main
   (larger diff with Cargo.toml unlock)
 
-### What if Codex audit can't run on Mac Studio?
+### No external Codex CLI needed on Mac Studio
 
-Codex CLI binary exists at `/usr/bin/codex` on omega-vm; verify Mac Studio
-has it (or install). If not, Phase 7 audits can run on omega-vm against
-the Mac Studio branch via `git push` + `codex exec -C` from omega-vm —
-the audit is local-to-omega-vm, the implementation is local-to-Mac-Studio.
+Per architect directive 2026-05-17, all audits are produced by Claude
+subagents dispatched via the `Agent` tool within the orchestrator's
+Claude Code session. No external `codex exec` invocation; no codex-cli
+npm dependency on Mac Studio. The auditor subagent runs in-process,
+inherits the local repo / branch / target/ state, and writes its verdict
+to `handover/audits/AUDITOR_TISR_PHASE7_<round>_<verdict>.md`. Audit
+substrate is identical on omega-vm and Mac Studio (Claude Agent SDK).
+
+See §9 for the full multi-agent execution model.
