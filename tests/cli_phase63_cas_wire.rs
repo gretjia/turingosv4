@@ -72,7 +72,10 @@ fn phase63_full_cas_wire_init_llm_spec_welcome() {
         String::from_utf8_lossy(&out.stderr)
     );
     assert!(ws.join("cas").is_dir(), "init must create cas/");
-    assert!(ws.join("genesis_payload.toml").is_file(), "init must write genesis_payload.toml");
+    assert!(
+        ws.join("genesis_payload.toml").is_file(),
+        "init must write genesis_payload.toml"
+    );
 
     // 2. llm config (defaults)
     let out = Command::new(turingos_bin())
@@ -85,11 +88,23 @@ fn phase63_full_cas_wire_init_llm_spec_welcome() {
         String::from_utf8_lossy(&out.stderr)
     );
     let toml = std::fs::read_to_string(ws.join("turingos.toml")).expect("read toml");
-    assert!(toml.contains("siliconflow"), "expected siliconflow default in toml: {toml}");
-    assert!(toml.contains("DeepSeek"), "expected DeepSeek model in toml: {toml}");
-    assert!(toml.contains("Qwen3-Coder"), "expected Qwen3-Coder model in toml: {toml}");
+    assert!(
+        toml.contains("siliconflow"),
+        "expected siliconflow default in toml: {toml}"
+    );
+    assert!(
+        toml.contains("DeepSeek"),
+        "expected DeepSeek model in toml: {toml}"
+    );
+    assert!(
+        toml.contains("Qwen3-Coder"),
+        "expected Qwen3-Coder model in toml: {toml}"
+    );
     // Crucial security invariant: actual API key NEVER persisted to disk.
-    assert!(!toml.contains("sk-"), "API key value must NEVER appear in turingos.toml: {toml}");
+    assert!(
+        !toml.contains("sk-"),
+        "API key value must NEVER appear in turingos.toml: {toml}"
+    );
 
     // 3. spec --skip-llm --answers-file
     let answers_path = ws.join("answers.json");
@@ -129,7 +144,11 @@ fn phase63_full_cas_wire_init_llm_spec_welcome() {
         .expect("cid arrow")
         .trim()
         .to_string();
-    assert_eq!(cid_hex.len(), 64, "CID hex must be 64 chars; got {cid_hex:?}");
+    assert_eq!(
+        cid_hex.len(),
+        64,
+        "CID hex must be 64 chars; got {cid_hex:?}"
+    );
     assert!(
         cid_hex.chars().all(|c| c.is_ascii_hexdigit()),
         "CID must be hex; got {cid_hex:?}"
@@ -137,7 +156,11 @@ fn phase63_full_cas_wire_init_llm_spec_welcome() {
 
     // Sidecar must record the put
     let sidecar = ws.join("cas").join(".turingos_cas_index.jsonl");
-    assert!(sidecar.is_file(), "CAS sidecar must exist at {}", sidecar.display());
+    assert!(
+        sidecar.is_file(),
+        "CAS sidecar must exist at {}",
+        sidecar.display()
+    );
     let sidecar_content = std::fs::read_to_string(&sidecar).expect("read sidecar");
     assert!(
         sidecar_content.contains("EvidenceCapsule"),
@@ -153,7 +176,11 @@ fn phase63_full_cas_wire_init_llm_spec_welcome() {
         .args(["welcome", "--workspace", &ws.to_string_lossy()])
         .output()
         .expect("spawn welcome");
-    assert!(out.status.success(), "welcome failed: stderr={}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "welcome failed: stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let welcome_out = String::from_utf8_lossy(&out.stdout);
     assert!(
         welcome_out.contains("[x] 4. turingos spec"),
@@ -267,11 +294,24 @@ fn phase63_llm_show_after_config_round_trips() {
         .args(["llm", "show", "--workspace", &ws.to_string_lossy()])
         .output()
         .expect("llm show");
-    assert!(out.status.success(), "llm show failed: stderr={}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "llm show failed: stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let stdout = String::from_utf8_lossy(&out.stdout);
-    assert!(stdout.contains("DeepSeek-V3.2"), "show must echo meta model: {stdout}");
-    assert!(stdout.contains("Qwen2.5-Coder-32B-Instruct"), "show must echo blackbox model: {stdout}");
-    assert!(stdout.contains("MY_CUSTOM_KEY"), "show must echo api_key_env name: {stdout}");
+    assert!(
+        stdout.contains("DeepSeek-V3.2"),
+        "show must echo meta model: {stdout}"
+    );
+    assert!(
+        stdout.contains("Qwen2.5-Coder-32B-Instruct"),
+        "show must echo blackbox model: {stdout}"
+    );
+    assert!(
+        stdout.contains("MY_CUSTOM_KEY"),
+        "show must echo api_key_env name: {stdout}"
+    );
     // Must NEVER print the actual API key value (we never set one in this test,
     // but the contract is critical).
     assert!(
