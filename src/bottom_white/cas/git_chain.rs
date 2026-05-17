@@ -191,7 +191,8 @@ pub fn append_cas_commit(
         .find_tree(tree_oid)
         .map_err(|e| chain_error(format!("find tree: {e}")))?;
 
-    let parent = cas_head_commit(&repo)?;
+    let (parent, legacy_ref_upgrade) =
+        cas_head_commit_for_append(&repo_path, &repo, &legacy_prefix_metadata)?;
     let parents: Vec<git2::Commit<'_>> = match parent {
         Some(oid) => vec![find_commit_with_refresh(&repo, oid, "parent commit")?],
         None => Vec::new(),
@@ -205,22 +206,41 @@ pub fn append_cas_commit(
         "cas put cid={} logical_t={}\n",
         metadata.cid, metadata.created_at_logical_t
     );
-    repo.commit(
-        Some(CHAINTAPE_CAS_REF),
-        &author,
-        &author,
-        &message,
-        &tree,
-        &parent_refs,
-    )
-    .map_err(|e| chain_error(format!("chaintape cas commit/ref update: {e}")))
+    let update_ref = if legacy_ref_upgrade {
+        None
+    } else {
+        Some(CHAINTAPE_CAS_REF)
+    };
+    let commit_oid = repo
+        .commit(update_ref, &author, &author, &message, &tree, &parent_refs)
+        .map_err(|e| chain_error(format!("chaintape cas commit/ref update: {e}")))?;
+    if legacy_ref_upgrade {
+        validate_cas_chain_head_oid(repo_path, commit_oid)?;
+        repo.reference(
+            CHAINTAPE_CAS_REF,
+            commit_oid,
+            true,
+            "upgrade legacy blob CAS ref to commit-chain head",
+        )
+        .map_err(|e| chain_error(format!("chaintape cas legacy ref upgrade: {e}")))?;
+    }
+    Ok(commit_oid)
 }
 
 /// TRACE_MATRIX FC2-boot/replay + Art. 0.4: distinguish absent CAS ref from a
 /// present, validated CAS commit-chain head.
 pub fn has_cas_commit_chain(repo_path: &Path) -> Result<bool, CasError> {
     let repo = Repository::open(repo_path).map_err(CasError::from)?;
-    Ok(cas_head_commit(&repo)?.is_some())
+    match cas_ref_target(&repo)? {
+        CasRefTarget::Missing => Ok(false),
+        CasRefTarget::Commit(_) => Ok(true),
+        CasRefTarget::LegacyNonCommit(oid) => {
+            if repo_contains_cas_chain_commit(repo_path, &repo)? {
+                return Err(non_commit_cas_ref_error(oid));
+            }
+            Ok(false)
+        }
+    }
 }
 
 /// TRACE_MATRIX FC2-boot/replay: load validated CAS-chain records for audit
@@ -334,8 +354,21 @@ pub fn reconstruct_index_from_chain_with_cache(
     cache: Option<&BTreeMap<Cid, CasObjectMetadata>>,
 ) -> Result<Option<BTreeMap<Cid, CasObjectMetadata>>, CasError> {
     let repo = Repository::open(repo_path).map_err(CasError::from)?;
-    let Some(head) = cas_head_commit(&repo)? else {
-        return Ok(None);
+    let head = match cas_ref_target(&repo)? {
+        CasRefTarget::Missing => return Ok(None),
+        CasRefTarget::Commit(head) => head,
+        CasRefTarget::LegacyNonCommit(oid) => {
+            let Some(cache_index) = cache else {
+                return Err(non_commit_cas_ref_error(oid));
+            };
+            if cache_index.is_empty() || !legacy_ref_target_matches_cache(oid, cache_index) {
+                return Err(non_commit_cas_ref_error(oid));
+            }
+            if repo_contains_cas_chain_commit(repo_path, &repo)? {
+                return Err(non_commit_cas_ref_error(oid));
+            }
+            return Ok(None);
+        }
     };
     let records = load_raw_records_from_head(repo_path, &repo, head)?;
     let chain_index = validate_records(repo_path, &records, &BTreeMap::new())?;
@@ -349,10 +382,16 @@ pub fn reconstruct_index_from_chain_with_cache(
     }
 }
 
-fn cas_head_commit(repo: &Repository) -> Result<Option<git2::Oid>, CasError> {
+enum CasRefTarget {
+    Missing,
+    Commit(git2::Oid),
+    LegacyNonCommit(git2::Oid),
+}
+
+fn cas_ref_target(repo: &Repository) -> Result<CasRefTarget, CasError> {
     let reference = match repo.find_reference(CHAINTAPE_CAS_REF) {
         Ok(reference) => reference,
-        Err(e) if e.code() == git2::ErrorCode::NotFound => return Ok(None),
+        Err(e) if e.code() == git2::ErrorCode::NotFound => return Ok(CasRefTarget::Missing),
         Err(e) => return Err(chain_error(format!("read CAS ref: {e}"))),
     };
     let oid = reference.target().ok_or_else(|| {
@@ -364,11 +403,84 @@ fn cas_head_commit(repo: &Repository) -> Result<Option<git2::Oid>, CasError> {
         .find_object(oid, None)
         .map_err(|e| chain_error(format!("read CAS ref object: {e}")))?;
     if object.kind() != Some(git2::ObjectType::Commit) {
-        return Err(chain_error(format!(
-            "refs/chaintape/cas exists but target {oid} is not a CAS commit-chain head"
-        )));
+        return Ok(CasRefTarget::LegacyNonCommit(oid));
     }
-    Ok(Some(oid))
+    Ok(CasRefTarget::Commit(oid))
+}
+
+fn cas_head_commit(repo: &Repository) -> Result<Option<git2::Oid>, CasError> {
+    match cas_ref_target(repo)? {
+        CasRefTarget::Missing => Ok(None),
+        CasRefTarget::Commit(oid) => Ok(Some(oid)),
+        CasRefTarget::LegacyNonCommit(oid) => Err(non_commit_cas_ref_error(oid)),
+    }
+}
+
+fn cas_head_commit_for_append(
+    repo_path: &Path,
+    repo: &Repository,
+    legacy_prefix_metadata: &[CasObjectMetadata],
+) -> Result<(Option<git2::Oid>, bool), CasError> {
+    match cas_ref_target(repo)? {
+        CasRefTarget::Missing => Ok((None, false)),
+        CasRefTarget::Commit(oid) => Ok((Some(oid), false)),
+        CasRefTarget::LegacyNonCommit(oid) => {
+            if legacy_prefix_metadata.is_empty()
+                || !legacy_prefix_metadata
+                    .iter()
+                    .any(|meta| meta.backend_oid_hex == oid.to_string())
+                || repo_contains_cas_chain_commit(repo_path, repo)?
+            {
+                return Err(non_commit_cas_ref_error(oid));
+            }
+            Ok((None, true))
+        }
+    }
+}
+
+fn legacy_ref_target_matches_cache(
+    oid: git2::Oid,
+    cache: &BTreeMap<Cid, CasObjectMetadata>,
+) -> bool {
+    let oid_hex = oid.to_string();
+    cache.values().any(|meta| meta.backend_oid_hex == oid_hex)
+}
+
+fn repo_contains_cas_chain_commit(repo_path: &Path, repo: &Repository) -> Result<bool, CasError> {
+    let odb = repo
+        .odb()
+        .map_err(|e| chain_error(format!("open object database: {e}")))?;
+    let mut found = false;
+    odb.foreach(|oid| {
+        if found {
+            return false;
+        }
+        if let Ok(commit) = repo.find_commit(*oid) {
+            if let Ok(tree) = commit.tree() {
+                if tree
+                    .get_name(CAS_CHAIN_RECORD_BLOB)
+                    .is_some_and(|entry| entry.kind() == Some(git2::ObjectType::Blob))
+                {
+                    found = true;
+                    return false;
+                }
+            }
+        }
+        true
+    })
+    .map_err(|e| {
+        chain_error(format!(
+            "scan CAS commit-chain objects under {}: {e}",
+            repo_path.display()
+        ))
+    })?;
+    Ok(found)
+}
+
+fn non_commit_cas_ref_error(oid: git2::Oid) -> CasError {
+    chain_error(format!(
+        "refs/chaintape/cas exists but target {oid} is not a CAS commit-chain head"
+    ))
 }
 
 fn read_record_from_commit(

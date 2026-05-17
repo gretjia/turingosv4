@@ -6,6 +6,64 @@
 
 ---
 
+## 📍 Active Repair Snapshot (2026-05-17 CAS Git Constitutional Repair)
+
+**Branch/worktree**:
+`codex/cas-git-constitutional-repair` at
+`/home/zephryj/projects/turingosv4-cas-git-repair`.
+
+**Status**: auditor CHALLENGE remediation implemented and final clean-context
+Codex audit returned `PROCEED`. Main worktree is not merged and `turingos_dev`
+is intentionally not used for this CAS/core repair.
+
+**Risk / FC mapping**:
+Class 3 CAS integrity plus user-authorized Class 4 Trust Root rehash limited
+to CAS Git repair pinned files. Touches FC1 ChainTape/CAS evidence binding,
+FC2 replay/audit boot, and FC3 evidence feedback/audit views.
+
+**Current repair facts**:
+- Baseline red before CHALLENGE remediation:
+  `bash scripts/run_constitution_gates.sh` -> `446 passed / 18 failed / 1 ignored`
+  at `c85dacfa`.
+- Final constitution gates:
+  `bash scripts/run_constitution_gates.sh` -> `464 passed / 0 failed / 1 ignored`.
+- Final broad workspace command:
+  `cargo test --workspace --no-fail-fast -- --test-threads=1` -> exit 0.
+- Historical ignored fixtures were hydrated locally from main for TB-C0,
+  Wave3, M0, Stage A3/B3, and TB13 evidence-binding tests. Manifest:
+  `handover/reports/CAS_GIT_REPAIR_HYDRATION_MANIFEST.md`.
+- REAL13 has no root-level ignored `cas/` artifact in available local
+  worktrees; its binding test now uses tracked `aggregate_verdict.json`
+  `tape_root.cas_object_count` and report CAS-derived metrics.
+- R9 v4 expected-count postprocess is fixed to include `step_partial_ok` and
+  exclude synthetic `tb6-smoke-agent` preseed Work. Current P01/P02 postprocess
+  result: both `invariant_verdict=Ok`.
+- Legacy sidecar + blob-ref CAS evidence is readable again; the next forward
+  `put` upgrades such repos to a CAS commit-chain head. Invalid blob refs
+  without matching legacy sidecar still fail closed.
+- Final mini real-problem evidence:
+  `handover/evidence/cas_git_repair_challenge_final_20260517T095728Z/`
+  (`audit_verdict=PROCEED`, `persistence_passing=true`).
+- Final TB-18R R9 real-problem evidence:
+  `handover/evidence/cas_git_repair_challenge_final_r9_20260517T100600Z/`
+  (`P01/P02 delta=0`, `invariant_verdict=Ok`, summary JSON parseable after
+  v4 postprocess).
+- §8 directive for the branch-local Trust Root rehash:
+  `handover/directives/2026-05-17_CAS_GIT_CONSTITUTIONAL_REPAIR_§8_TRUST_ROOT_RATIFICATION.md`.
+- Final clean-context audit:
+  `handover/audits/CODEX_CAS_GIT_REPAIR_FINAL_CLEAN_CONTEXT_AUDIT.md`
+  (`PROCEED`). Its P3 note about stale R9 README materialized views was fixed
+  after audit.
+
+**Not historical evidence rewrite**: this section is a dynamic handover status
+update only. It does not mutate old ChainTape/CAS evidence or change historical
+reports retroactively.
+
+**Exit requirement**: commit the repair branch only. Do not merge main from
+this worktree.
+
+---
+
 ## 📍 Handover summary (session #52 close 2026-05-16)
 
 **Session Summary**: REAL-12 Role-Specialized Economic Agents completed as a

@@ -983,6 +983,59 @@ mod tests {
     }
 
     #[test]
+    fn legacy_blob_cas_ref_with_sidecar_opens_and_upgrades_on_next_put() {
+        let tmp = TempDir::new().expect("tempdir");
+        let _s = CasStore::open(tmp.path()).expect("init repo");
+        let repo = Repository::open(tmp.path()).expect("repo");
+        let legacy_bytes = b"legacy-object-with-blob-ref";
+        let legacy_oid = repo.blob(legacy_bytes).expect("legacy blob");
+        let legacy_meta = CasObjectMetadata {
+            cid: Cid::from_content(legacy_bytes),
+            backend_oid_hex: legacy_oid.to_string(),
+            object_type: ObjectType::Generic,
+            creator: "legacy-writer".to_string(),
+            created_at_logical_t: 1,
+            schema_id: Some("legacy/schema.v1".to_string()),
+            size_bytes: legacy_bytes.len() as u64,
+        };
+        append_to_sidecar(tmp.path(), &legacy_meta).expect("legacy sidecar");
+        repo.reference(
+            crate::bottom_white::ledger::transition_ledger::CHAINTAPE_CAS_REF,
+            legacy_oid,
+            true,
+            "legacy latest-blob CAS ref",
+        )
+        .expect("write legacy blob ref");
+
+        let mut s = CasStore::open(tmp.path()).expect("legacy blob ref should open via sidecar");
+        assert_eq!(s.get(&legacy_meta.cid).expect("legacy get"), legacy_bytes);
+        let new_cid = s
+            .put(
+                b"new-forward-object",
+                ObjectType::Generic,
+                "runner",
+                2,
+                None,
+            )
+            .expect("forward put upgrades legacy blob ref");
+
+        let head =
+            crate::bottom_white::ledger::transition_ledger::Git2LedgerWriter::head_chaintape_cas(
+                tmp.path(),
+            )
+            .expect("read cas head")
+            .expect("cas head");
+        let object = repo.find_object(head, None).expect("cas head object");
+        assert_eq!(
+            object.kind(),
+            Some(git2::ObjectType::Commit),
+            "first forward put must upgrade legacy blob ref to CAS commit-chain head"
+        );
+        assert_eq!(s.get(&legacy_meta.cid).expect("legacy get"), legacy_bytes);
+        assert_eq!(s.get(&new_cid).expect("new get"), b"new-forward-object");
+    }
+
+    #[test]
     fn merge_shaped_cas_chain_fails_validation() {
         let tmp = TempDir::new().expect("tempdir");
         {
