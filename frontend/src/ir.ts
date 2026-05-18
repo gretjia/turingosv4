@@ -290,6 +290,45 @@ export interface GenerateAttemptFailedEvent {
   reason: string;
 }
 
+// ---------------------------------------------------------------------------
+// W8 driven-mode grill WS events (Phase 6.3.x)
+// ---------------------------------------------------------------------------
+
+/**
+ * W8: SpecTurnAdvanced — emitted after a grill turn is accepted.
+ * Optimistic UI: usually redundant with the POST /api/spec/turn response.
+ */
+export interface SpecTurnAdvancedEvent {
+  msg_type: 'SpecTurnAdvanced';
+  session_id: string;
+  turn_index: number;
+  question_text: string;
+}
+
+/**
+ * W8: SpecGrillComplete — emitted when the grill session terminates and
+ * the spec capsule has been written to CAS.
+ */
+export interface SpecGrillCompleteEvent {
+  msg_type: 'SpecGrillComplete';
+  session_id: string;
+  spec_capsule_cid: string;
+}
+
+/**
+ * W8: SpecTurnTriageReject — emitted by the W4.5 blackbox triage atom
+ * when the user answer is classified as off_topic, abusive, or gibberish
+ * (R2 §A5). Frontend displays a nudge; the turn is NOT advanced.
+ */
+export interface SpecTurnTriageRejectEvent {
+  msg_type: 'SpecTurnTriageReject';
+  session_id: string;
+  turn_index: number;
+  /** One of "off_topic" | "abusive" | "gibberish". */
+  triage_class: string;
+  non_relevant_count: number;
+}
+
 /**
  * Union of all WebSocket message shapes.
  *
@@ -301,6 +340,9 @@ export interface GenerateAttemptFailedEvent {
  *   - `'generate_complete'`:        POST /api/generate success broadcast
  *   - `'generate_attempt_started'`: W8 — retry attempt start
  *   - `'generate_attempt_failed'`:  W8 — retry attempt failure
+ *   - `'SpecTurnAdvanced'`:         W8 driven-mode — turn accepted (optimistic)
+ *   - `'SpecGrillComplete'`:        W8 driven-mode — session complete with CID
+ *   - `'SpecTurnTriageReject'`:     W8 driven-mode — answer triage-rejected
  */
 export type WsMessage =
   | IRUpdateEvent
@@ -309,4 +351,7 @@ export type WsMessage =
   | GenerateStartedEvent
   | GenerateCompleteEvent
   | GenerateAttemptStartedEvent
-  | GenerateAttemptFailedEvent;
+  | GenerateAttemptFailedEvent
+  | SpecTurnAdvancedEvent
+  | SpecGrillCompleteEvent
+  | SpecTurnTriageRejectEvent;
