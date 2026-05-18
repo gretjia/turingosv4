@@ -1,0 +1,169 @@
+# Backend Observer started 2026-05-18T04:48:45Z
+[2026-05-18T04:48:45Z] iter=1 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   03:08   5360 435339472 target/debug/turingos_web
+
+[2026-05-18T04:49:00Z] iter=2 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   03:23   5360 435339472 target/debug/turingos_web
+
+[2026-05-18T04:49:15Z] iter=3 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   03:38   5360 435339472 target/debug/turingos_web
+
+[2026-05-18T04:49:30Z] iter=4 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   03:53   6304 435339472 target/debug/turingos_web
+
+[2026-05-18T04:49:45Z] iter=5 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   04:08   6352 435341712 target/debug/turingos_web
+
+[2026-05-18T04:50:00Z] iter=6 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   04:23   6384 435339504 target/debug/turingos_web
+
+[2026-05-18T04:50:15Z] iter=7 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   04:38   6400 435339504 target/debug/turingos_web
+
+[2026-05-18T04:50:30Z] iter=8 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   04:53   6400 435339504 target/debug/turingos_web
+
+[2026-05-18T04:50:45Z] iter=9 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   05:08   6464 435339504 target/debug/turingos_web
+
+[2026-05-18T04:51:00Z] iter=10 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   05:23   6496 435339504 target/debug/turingos_web
+
+[2026-05-18T04:51:15Z] iter=11 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   05:38   6496 435339504 target/debug/turingos_web
+
+[2026-05-18T04:51:30Z] iter=12 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   05:53   6496 435339504 target/debug/turingos_web
+
+[2026-05-18T04:51:45Z] iter=13 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   06:08   6496 435339504 target/debug/turingos_web
+
+[2026-05-18T04:52:00Z] iter=14 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   06:23   6496 435339504 target/debug/turingos_web
+
+[2026-05-18T04:52:15Z] iter=15 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   06:38   6496 435339504 target/debug/turingos_web
+
+[2026-05-18T04:52:30Z] iter=16 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   06:53   6496 435339504 target/debug/turingos_web
+
+[2026-05-18T04:52:45Z] iter=17 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   07:08   6496 435339504 target/debug/turingos_web
+
+[2026-05-18T04:53:00Z] iter=18 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   07:23   6496 435339504 target/debug/turingos_web
+
+[2026-05-18T04:53:15Z] iter=19 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   07:38   6496 435339504 target/debug/turingos_web
+
+[2026-05-18T04:53:30Z] iter=20 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   07:53   6496 435339504 target/debug/turingos_web
+
+[2026-05-18T04:53:45Z] iter=21 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   08:08   6496 435339504 target/debug/turingos_web
+
+[2026-05-18T04:54:00Z] iter=22 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   08:24   6496 435339504 target/debug/turingos_web
+
+[2026-05-18T04:54:16Z] iter=23 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   08:39   6544 435339504 target/debug/turingos_web
+
+[2026-05-18T04:54:31Z] iter=24 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   08:54   6544 435339504 target/debug/turingos_web
+
+[2026-05-18T04:54:46Z] iter=25 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   09:09   6608 435341744 target/debug/turingos_web
+
+[2026-05-18T04:55:01Z] iter=26 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   09:24   6592 435339504 target/debug/turingos_web
+
+[2026-05-18T04:55:16Z] iter=27 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   09:39   6592 435339504 target/debug/turingos_web
+
+[2026-05-18T04:55:31Z] iter=28 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   09:54   6592 435339504 target/debug/turingos_web
+
+[2026-05-18T04:55:46Z] iter=29 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   10:09   6592 435339504 target/debug/turingos_web
+
+[2026-05-18T04:56:01Z] iter=30 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   10:24   6592 435339504 target/debug/turingos_web
+
+[2026-05-18T04:56:16Z] iter=31 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   10:39   6592 435339504 target/debug/turingos_web
+
+[2026-05-18T04:56:31Z] iter=32 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   10:54   6592 435339504 target/debug/turingos_web
+
+[2026-05-18T04:56:46Z] iter=33 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   11:09   6592 435339504 target/debug/turingos_web
+
+[2026-05-18T04:57:01Z] iter=34 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   11:24   6592 435339504 target/debug/turingos_web
+
+[2026-05-18T04:57:16Z] iter=35 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   11:39   6592 435339504 target/debug/turingos_web
+
+[2026-05-18T04:57:31Z] iter=36 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   11:54   6592 435339504 target/debug/turingos_web
+
+[2026-05-18T04:57:46Z] iter=37 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   12:09   6592 435339504 target/debug/turingos_web
+
+[2026-05-18T04:58:01Z] iter=38 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   12:24   6592 435339504 target/debug/turingos_web
+
+[2026-05-18T04:58:16Z] iter=39 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   12:39   6592 435339504 target/debug/turingos_web
+
+[2026-05-18T04:58:31Z] iter=40 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   12:54   6592 435339504 target/debug/turingos_web
+
+[2026-05-18T04:58:46Z] iter=41 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   13:09   6592 435339504 target/debug/turingos_web
+
+[2026-05-18T04:59:01Z] iter=42 pid=92364 status=ALIVE
+  PID ELAPSED    RSS      VSZ COMMAND
+92364   13:24   6592 435339504 target/debug/turingos_web
+

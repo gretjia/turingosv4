@@ -1,0 +1,2 @@
+# Backend Observer started 2026-05-18T04:48:45Z
+Initial log offset: 232

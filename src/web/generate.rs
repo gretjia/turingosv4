@@ -553,7 +553,13 @@ fn resolve_turingos_bin() -> String {
 }
 
 /// Resolve the TuringOS workspace directory.
-/// Resolution order: TURINGOS_WEB_WORKSPACE → current_dir.
+/// Resolution order:
+///   1. `TURINGOS_WEB_WORKSPACE` env var (explicit operator config)
+///   2. `tmp/phase7_active` (W8.2: 4th caller; W8.1 missed this fn and only
+///      patched spec.rs/write.rs/artifact.rs, causing split-brain — spec
+///      wrote sessions to tmp/phase7_active/sessions/ but generate looked
+///      under cwd/sessions/ → 400 "session not found". See W8.1 Final
+///      Validation Round 3 VETO_REGRESSION evidence.)
 #[cfg(feature = "web")]
 fn resolve_workspace() -> String {
     if let Ok(v) = std::env::var("TURINGOS_WEB_WORKSPACE") {
@@ -561,9 +567,7 @@ fn resolve_workspace() -> String {
             return v;
         }
     }
-    std::env::current_dir()
-        .map(|p| p.to_string_lossy().into_owned())
-        .unwrap_or_else(|_| ".".to_string())
+    "tmp/phase7_active".to_string()
 }
 
 // ---------------------------------------------------------------------------
