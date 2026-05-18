@@ -187,6 +187,10 @@ pub mod market_decision_trace_summary;
 /// exact `BuyWithCoinRouterTx` ∩ submitted `MarketDecisionTrace` tx-id join;
 /// dashboard text is never a source of truth.
 pub mod market_e2_candidate_verifier;
+/// TRACE_MATRIX FC1/FC3 (REAL-17P21 2026-05-18): voluntary market-order
+/// ticket sidecar. Additive Generic CAS evidence only; it can require a
+/// structured ticket while preserving `amount_micro=0` voluntary abstain.
+pub mod market_order_ticket;
 
 /// TRACE_MATRIX FC1-N5 + §15 + §17 (TB-G G3.1 2026-05-12; charter §1 Module
 /// G3 atom G3.1; G-Phase directive §G3 verbatim 7-field shape + SG-G3.5
