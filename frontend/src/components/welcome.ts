@@ -495,9 +495,12 @@ export class TosWelcome extends HTMLElement {
     cta.className = 'welcome-cta';
     cta.textContent = '开始 spec 访谈 →';
     cta.addEventListener('click', () => {
-      // Soft navigate to /build.
-      history.pushState({}, '', '/build');
-      location.assign('/build');
+      // Hard navigate to /build. `turingos-root` has no popstate listener,
+      // so a soft pushState would leave the welcome view rendered while the
+      // URL bar flipped. Use a single assign with no prior pushState — that
+      // also avoids the Safari/Chrome same-URL-no-op trap that surfaces
+      // when pushState changes location.pathname first.
+      window.location.assign('/build');
     });
     card.appendChild(cta);
 
