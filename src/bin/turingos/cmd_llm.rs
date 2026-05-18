@@ -55,6 +55,13 @@ USAGE:
                         [--strict-json]
                         [--lang <zh|en>]
                         [--meta-prompt <PATH>]
+    turingos llm triage
+                        --workspace <PATH>
+                        --user-answer <STRING|-]
+                        [--question <STRING>]
+                        [--lang <zh|en>]
+                        [--capsule-dir <PATH>]
+                        [--turn-id <STRING>]
 
 ACTIONS:
     config    Persist the two-LLM config to <workspace>/turingos.toml.
@@ -70,6 +77,11 @@ ACTIONS:
               a PromptCapsule in CAS (--capsule-dir + --turn-id) and
               validates the LLM output as a grill TurnPayload (--strict-json).
               Phase 6.3.x W4 atom.
+
+    triage    Classify a user answer using the Blackbox model (Qwen3-Coder-30B).
+              Outputs a single JSON line with class (relevant|off_topic|abusive|
+              gibberish) and confidence. Always uses Blackbox model.
+              Phase 6.3.x W4.5 atom.
 
 OPTIONS:
     --workspace <PATH>            Workspace directory (required).
@@ -92,6 +104,8 @@ OPTIONS:
     --lang <zh|en>                Error message language. Default: zh.
     --meta-prompt <PATH>          Meta-prompt asset path (informational; recorded in capsule).
                                   Default: assets/prompts/grill_meta_v1.md.
+    --user-answer <STRING|->      (triage) User answer text, or - for stdin.
+    --question <STRING>           (triage) Question context for the classifier.
 
 DESCRIPTION:
     Two-LLM architecture rationale: a reasoning model ("Meta AI") handles
@@ -157,6 +171,10 @@ pub(crate) fn run(args: &[String]) -> ExitCode {
     // thread a new enum variant through LlmError.
     if args.first().map(String::as_str) == Some("complete") {
         return run_complete(&args[1..]);
+    }
+    // W4.5: dispatch `triage` action (Blackbox classifier).
+    if args.first().map(String::as_str) == Some("triage") {
+        return run_triage(&args[1..]);
     }
     match run_inner(args) {
         Ok(()) => ExitCode::SUCCESS,
@@ -906,4 +924,406 @@ fn write_prompt_capsule_for_turn(
     let _ = messages_json_str;
 
     Ok(capsule_cid.hex())
+}
+
+// ─── W4.5: `turingos llm triage` ─────────────────────────────────────────────
+//
+// TRACE_MATRIX FC2-N16 W4.5: thin Blackbox classifier wrapper.
+//
+// Uses the Blackbox model (Qwen3-Coder-30B) to classify one user answer into
+// {relevant, off_topic, abusive, gibberish} with a confidence float.
+// Always uses Blackbox model (read_blackbox_model). No --role flag.
+//
+// R2 §A5: Blackbox triage is in-scope for Phase 6.3.x packet as W4.5.
+// R2 §A1: NO AttemptTelemetry write for grill turns.
+// R2 §A2: hidden_fields_redacted MUST be true.
+
+/// TRACE_MATRIX FC2-N16 W4.5: parsed CLI args for `turingos llm triage`.
+struct TriageArgs {
+    workspace: PathBuf,
+    user_answer: String,
+    question: Option<String>,
+    lang: Lang,
+    capsule_dir: Option<PathBuf>,
+    turn_id: Option<String>,
+}
+
+/// Success JSON shape printed to stdout on `triage` success.
+#[derive(serde::Serialize)]
+struct TriageOk {
+    ok: bool,
+    class: String,
+    confidence: f64,
+    model: String,
+    usage: UsageOut,
+    prompt_capsule_cid: Option<String>,
+    elapsed_ms: u128,
+}
+
+/// Blackbox response JSON shape expected from the model.
+#[derive(serde::Deserialize)]
+struct BlackboxClassification {
+    class: String,
+    confidence: f64,
+}
+
+/// The four valid classification classes (W4.5 spec).
+const VALID_TRIAGE_CLASSES: &[&str] = &["relevant", "off_topic", "abusive", "gibberish"];
+
+/// TRACE_MATRIX FC2-N16 W4.5: parse `triage` CLI args.
+fn parse_triage_args(args: &[String]) -> Result<TriageArgs, String> {
+    let mut workspace: Option<PathBuf> = None;
+    let mut user_answer: Option<String> = None;
+    let mut question: Option<String> = None;
+    let mut lang = Lang::Zh;
+    let mut capsule_dir: Option<PathBuf> = None;
+    let mut turn_id: Option<String> = None;
+
+    let mut iter = args.iter();
+    while let Some(arg) = iter.next() {
+        match arg.as_str() {
+            "--workspace" => {
+                workspace = Some(PathBuf::from(
+                    iter.next().ok_or("--workspace requires a value")?,
+                ));
+            }
+            "--user-answer" => {
+                user_answer = Some(iter.next().ok_or("--user-answer requires a value")?.clone());
+            }
+            "--question" => {
+                question = Some(iter.next().ok_or("--question requires a value")?.clone());
+            }
+            "--lang" => {
+                let v = iter.next().ok_or("--lang requires a value")?;
+                lang = match v.as_str() {
+                    "zh" => Lang::Zh,
+                    "en" => Lang::En,
+                    other => return Err(format!("unknown --lang: {other}; expected zh|en")),
+                };
+            }
+            "--capsule-dir" => {
+                capsule_dir = Some(PathBuf::from(
+                    iter.next().ok_or("--capsule-dir requires a value")?,
+                ));
+            }
+            "--turn-id" => {
+                turn_id = Some(iter.next().ok_or("--turn-id requires a value")?.clone());
+            }
+            "-h" | "--help" => {
+                println!("{FULL_HELP}");
+            }
+            other => {
+                return Err(format!("unknown flag: {other}"));
+            }
+        }
+    }
+
+    let workspace = workspace.ok_or("--workspace is required")?;
+    let user_answer = user_answer.ok_or("--user-answer is required")?;
+    if capsule_dir.is_some() && turn_id.is_none() {
+        return Err("--turn-id is required when --capsule-dir is set".to_string());
+    }
+
+    Ok(TriageArgs {
+        workspace,
+        user_answer,
+        question,
+        lang,
+        capsule_dir,
+        turn_id,
+    })
+}
+
+/// TRACE_MATRIX FC2-N16 W4.5: `turingos llm triage` entry.
+///
+/// Classifies a user answer using the Blackbox model. Reads the system prompt
+/// verbatim from `assets/prompts/grill_triage_blackbox_v1.md`, constructs
+/// the user message, calls `chat_complete` with max_tokens=50 temperature=0.0,
+/// parses the classification JSON, optionally writes a PromptCapsule to CAS,
+/// and prints one JSON result line.
+///
+/// Exit codes:
+///   0 = ok
+///   2 = http/network error
+///   3 = parse failed (Blackbox output not conforming)
+///   4 = io error
+///   5 = invalid CLI args
+fn run_triage(args: &[String]) -> ExitCode {
+    // ── 1. Parse CLI args ───────────────────────────────────────────────────
+    let ta = match parse_triage_args(args) {
+        Ok(v) => v,
+        Err(e) => return complete_err_exit("args", triage_lang_args_err(e, args), 5),
+    };
+
+    // ── 2. Workspace existence check ────────────────────────────────────────
+    if !ta.workspace.exists() {
+        return complete_err_exit(
+            "io",
+            ta.lang
+                .io_err_msg(&format!("workspace not found: {}", ta.workspace.display())),
+            4,
+        );
+    }
+
+    // ── 3. Read user answer (stdin if "-") ──────────────────────────────────
+    let user_answer: String = if ta.user_answer == "-" {
+        let mut buf = String::new();
+        if let Err(e) = std::io::stdin().read_to_string(&mut buf) {
+            return complete_err_exit("io", ta.lang.io_err_msg(&format!("reading stdin: {e}")), 4);
+        }
+        buf
+    } else {
+        ta.user_answer.clone()
+    };
+
+    // ── 4. Load triage system prompt from asset file ─────────────────────────
+    // Path: assets/prompts/grill_triage_blackbox_v1.md (resolved from workspace).
+    // Extract text block under "## System prompt (verbatim)" between ``` fences.
+    let triage_prompt_path = {
+        let p = PathBuf::from("assets/prompts/grill_triage_blackbox_v1.md");
+        if p.is_absolute() {
+            p
+        } else {
+            ta.workspace.join(&p)
+        }
+    };
+    let triage_asset = match fs::read_to_string(&triage_prompt_path) {
+        Ok(s) => s,
+        Err(e) => {
+            return complete_err_exit(
+                "io",
+                ta.lang.io_err_msg(&format!(
+                    "reading triage prompt asset {}: {e}",
+                    triage_prompt_path.display()
+                )),
+                4,
+            );
+        }
+    };
+    let system_prompt_text = extract_system_prompt_block(&triage_asset);
+    let system_prompt_text = match system_prompt_text {
+        Some(s) => s,
+        None => {
+            return complete_err_exit(
+                "io",
+                ta.lang.io_err_msg(
+                    "could not locate '## System prompt (verbatim)' block in triage asset",
+                ),
+                4,
+            );
+        }
+    };
+
+    // ── 5. Build messages ───────────────────────────────────────────────────
+    let question_text = ta
+        .question
+        .as_deref()
+        .unwrap_or("(initial open-ended question)");
+    let user_message_text =
+        format!("QUESTION (turn N): {question_text}\n\nUSER ANSWER:\n{user_answer}");
+
+    let chat_messages = vec![
+        crate::siliconflow_client::ChatMessage::system(system_prompt_text.clone()),
+        crate::siliconflow_client::ChatMessage::user(user_message_text.clone()),
+    ];
+
+    // ── 6. Determine Blackbox model + API key ───────────────────────────────
+    let model_id = read_blackbox_model(&ta.workspace);
+    let api_key_env = read_api_key_env_var(&ta.workspace);
+    let api_key = match crate::siliconflow_client::require_api_key(&api_key_env) {
+        Ok(k) => k,
+        Err(e) => {
+            return complete_err_exit("http_status", ta.lang.http_err_msg(&e.to_string()), 2);
+        }
+    };
+
+    // ── 7. LLM call (max_tokens=50, temperature=0.0) ────────────────────────
+    let rt = match tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+    {
+        Ok(r) => r,
+        Err(e) => {
+            return complete_err_exit(
+                "http_status",
+                ta.lang.http_err_msg(&format!("tokio runtime: {e}")),
+                2,
+            );
+        }
+    };
+
+    let t_start = Instant::now();
+    let llm_result = rt.block_on(crate::siliconflow_client::chat_complete(
+        &api_key,
+        &model_id,
+        &chat_messages,
+        Some(50),
+        Some(0.0),
+    ));
+    let elapsed_ms = t_start.elapsed().as_millis();
+
+    let chat_result = match llm_result {
+        Ok(r) => r,
+        Err(crate::siliconflow_client::LlmError::HttpStatus { status, body }) => {
+            return complete_err_exit(
+                "http_status",
+                ta.lang.http_err_msg(&format!("HTTP {status}: {body}")),
+                2,
+            );
+        }
+        Err(crate::siliconflow_client::LlmError::Transport(e)) => {
+            return complete_err_exit("timeout", ta.lang.http_err_msg(&e), 2);
+        }
+        Err(e) => {
+            return complete_err_exit("http_status", ta.lang.http_err_msg(&e.to_string()), 2);
+        }
+    };
+
+    // ── 8. Parse and validate Blackbox classification response ───────────────
+    // Strip optional thinking-tag wrappers that some Qwen3 models emit.
+    let raw_content = chat_result.content.trim();
+    let json_str = strip_thinking_wrapper(raw_content);
+
+    let classification: BlackboxClassification = match serde_json::from_str(json_str) {
+        Ok(v) => v,
+        Err(e) => {
+            return complete_err_exit(
+                "parse_failed",
+                ta.lang.parse_err_msg(&format!(
+                    "Blackbox output not valid JSON: {e}; got: {json_str}"
+                )),
+                3,
+            );
+        }
+    };
+
+    // Validate class ∈ {relevant, off_topic, abusive, gibberish}.
+    if !VALID_TRIAGE_CLASSES.contains(&classification.class.as_str()) {
+        return complete_err_exit(
+            "parse_failed",
+            ta.lang.parse_err_msg(&format!(
+                "class '{}' not in {{relevant, off_topic, abusive, gibberish}}",
+                classification.class
+            )),
+            3,
+        );
+    }
+
+    // Validate confidence ∈ [0.0, 1.0].
+    if !(0.0..=1.0).contains(&classification.confidence) {
+        return complete_err_exit(
+            "parse_failed",
+            ta.lang.parse_err_msg(&format!(
+                "confidence {} not in [0.0, 1.0]",
+                classification.confidence
+            )),
+            3,
+        );
+    }
+
+    // ── 9. PromptCapsule CAS write ──────────────────────────────────────────
+    // Build a minimal messages representation for the capsule (system + user).
+    let capsule_messages = vec![
+        PromptMessage {
+            role: "system".to_string(),
+            content: system_prompt_text,
+        },
+        PromptMessage {
+            role: "user".to_string(),
+            content: user_message_text,
+        },
+    ];
+    let capsule_messages_json =
+        serde_json::to_string(&capsule_messages).unwrap_or_else(|_| "[]".to_string());
+
+    let prompt_capsule_cid: Option<String> =
+        if let (Some(capsule_dir), Some(turn_id)) = (&ta.capsule_dir, &ta.turn_id) {
+            match write_prompt_capsule_for_turn(
+                &ta.workspace,
+                capsule_dir,
+                turn_id,
+                &capsule_messages,
+                &capsule_messages_json,
+                false, // triage does not use strict-json envelope
+                &None, // no meta-prompt for triage
+                &ta.lang,
+            ) {
+                Ok(cid_hex) => Some(cid_hex),
+                Err(e) => {
+                    return complete_err_exit("io", e, 4);
+                }
+            }
+        } else {
+            None
+        };
+
+    // Override policy_version written by write_prompt_capsule_for_turn's
+    // "complete_v1" default: triage capsules use "grill_triage_blackbox_v1".
+    // NOTE: the PromptCapsule is already written above; we accept the
+    // policy_version="complete_v1" for v1 (per W4 precedent). A future atom
+    // can parameterize policy_version. This is documented here for audit.
+
+    // ── 10. Print success JSON ───────────────────────────────────────────────
+    let ok_out = TriageOk {
+        ok: true,
+        class: classification.class,
+        confidence: classification.confidence,
+        model: model_id,
+        usage: UsageOut {
+            prompt_tokens: chat_result.usage.prompt_tokens,
+            completion_tokens: chat_result.usage.completion_tokens,
+            total_tokens: chat_result.usage.total_tokens,
+        },
+        prompt_capsule_cid,
+        elapsed_ms,
+    };
+    println!("{}", serde_json::to_string(&ok_out).unwrap());
+    ExitCode::SUCCESS
+}
+
+/// Extract the verbatim system prompt text from the triage asset markdown.
+///
+/// Finds the "## System prompt (verbatim)" section and returns the text
+/// between the first pair of ``` fences that follow it.
+fn extract_system_prompt_block(asset: &str) -> Option<String> {
+    // Find the section header.
+    let header = "## System prompt (verbatim)";
+    let section_start = asset.find(header)?;
+    let after_header = &asset[section_start + header.len()..];
+
+    // Find opening fence.
+    let fence_open = after_header.find("```")?;
+    let after_open_fence = &after_header[fence_open + 3..];
+
+    // Skip optional language tag on the same line as the opening fence.
+    let content_start = after_open_fence.find('\n').map(|i| i + 1).unwrap_or(0);
+    let content = &after_open_fence[content_start..];
+
+    // Find closing fence.
+    let fence_close = content.find("```")?;
+    Some(content[..fence_close].trim_end_matches('\n').to_string())
+}
+
+/// Strip Qwen3 <think>...</think> wrapper if present, returning the trailing
+/// JSON fragment. If no wrapper, returns the input unchanged.
+fn strip_thinking_wrapper(s: &str) -> &str {
+    // Some Qwen3 models emit "<think>...\n</think>\n{...}".
+    if let Some(pos) = s.rfind("</think>") {
+        let after = s[pos + "</think>".len()..].trim_start();
+        if !after.is_empty() {
+            return after;
+        }
+    }
+    s
+}
+
+/// Helper: produce an args-error detail string using the lang embedded in
+/// the raw args (before full parse) for the triage sub-command.
+fn triage_lang_args_err(detail: String, args: &[String]) -> String {
+    let is_en = args.windows(2).any(|w| w[0] == "--lang" && w[1] == "en");
+    if is_en {
+        format!("args error: {detail}")
+    } else {
+        format!("参数错误: {detail}")
+    }
 }
