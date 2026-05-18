@@ -606,6 +606,37 @@ fn bear_trader_positive_no_edge_has_symmetric_non_forcing_action_salience() {
 }
 
 #[test]
+fn bear_trader_no_side_prompt_defines_no_as_task_outcome_not_theorem_false() {
+    let evaluator = std::fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs").unwrap();
+
+    for required in [
+        "BuyNo means buying the TaskOutcomeMarket NO outcome",
+        "NO outcome means no accepted valid proof before the market deadline",
+        "NO outcome is not a claim that the mathematical statement is false",
+        "Do not require theorem falsehood before considering `buy_no`",
+        "`abstain` remains valid for weak confidence, liquidity, balance, or risk checks",
+    ] {
+        assert!(
+            evaluator.contains(required),
+            "BearTrader NO-side scaffold must define NO as task-outcome risk, not theorem falsity: {required}"
+        );
+    }
+
+    for forbidden in [
+        "must buy",
+        "must short",
+        "required to buy",
+        "required to short",
+        "every turn",
+    ] {
+        assert!(
+            !evaluator.to_ascii_lowercase().contains(forbidden),
+            "BearTrader NO-side semantic scaffold must remain non-forcing: {forbidden}"
+        );
+    }
+}
+
+#[test]
 fn evaluator_classifies_zero_zero_unknown_probability_as_uncalibrated() {
     let evaluator = std::fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs").unwrap();
 

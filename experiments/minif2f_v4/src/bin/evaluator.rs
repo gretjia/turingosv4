@@ -604,10 +604,17 @@ fn real13_trader_ev_scaffold_block(
     if role == AgentRole::BearTrader {
         block.push_str("=== REAL-17 BearTrader NO-Side Action Conversion ===\n");
         block.push_str("For BearTrader, positive EV on the NO side is symmetric with BullTrader YES-side positive EV.\n");
+        block.push_str("BuyNo means buying the TaskOutcomeMarket NO outcome.\n");
+        block.push_str("NO outcome means no accepted valid proof before the market deadline.\n");
+        block.push_str("NO outcome is not a claim that the mathematical statement is false.\n");
+        block.push_str("Do not require theorem falsehood before considering `buy_no`.\n");
         block.push_str(
             "`buy_no` is the candidate economic action for clear public positive EV on NO.\n",
         );
         block.push_str("`abstain` remains valid when confidence, liquidity, balance, or risk checks do not pass.\n");
+        block.push_str(
+            "`abstain` remains valid for weak confidence, liquidity, balance, or risk checks.\n",
+        );
         block.push_str("Do not convert a NO-side positive EV edge into a YES-side action.\n");
     }
     match role {
